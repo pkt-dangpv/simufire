@@ -1,0 +1,135 @@
+[gd_scene format=3 uid="uid://cvoli3fiekrtb"]
+
+[ext_resource type="Script" uid="uid://beym4skcv32aa" path="res://scripts/Main.gd" id="1_ig7tw"]
+[ext_resource type="Script" uid="uid://clan116mabqti" path="res://scripts/Visualizer.gd" id="2_0xm2m"]
+[ext_resource type="Script" uid="uid://1sbehqy3k8" path="res://sim/BuildingModel.gd" id="3_1bvp3"]
+[ext_resource type="Script" uid="uid://bi64gqhwao7fw" path="res://ui/hud.gd" id="3_h2yge"]
+
+[node name="Main" type="Node" unique_id=1481794009]
+script = ExtResource("1_ig7tw")
+
+[node name="SimTimer" type="Timer" parent="." unique_id=1242827604]
+autostart = true
+
+[node name="World" type="Node2D" parent="." unique_id=1294322544]
+
+[node name="Visualizer" type="Node2D" parent="World" unique_id=1380777294]
+script = ExtResource("2_0xm2m")
+
+[node name="Camera2D" type="Camera2D" parent="World" unique_id=1967755593]
+position = Vector2(576, 324)
+
+[node name="BuildingModel" type="Node" parent="World" unique_id=1055096439]
+script = ExtResource("3_1bvp3")
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=894412047]
+
+[node name="HUD" type="Control" parent="UI" unique_id=1471733191]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 1.0
+offset_top = -1.0
+offset_right = 1.0
+offset_bottom = -1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_h2yge")
+
+[node name="WaterPanel" type="PanelContainer" parent="UI/HUD" unique_id=1426646807]
+visible = false
+layout_mode = 1
+offset_left = 4.0
+offset_top = 491.0
+offset_right = 304.0
+offset_bottom = 641.0
+
+[node name="MarginContainer" type="MarginContainer" parent="UI/HUD/WaterPanel" unique_id=794870555]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/HUD/WaterPanel/MarginContainer" unique_id=1995541917]
+layout_mode = 2
+
+[node name="BtnAOE" type="Button" parent="UI/HUD/WaterPanel/MarginContainer/VBoxContainer" unique_id=1005368752]
+custom_minimum_size = Vector2(260, 44)
+layout_mode = 2
+toggle_mode = true
+text = "AOE"
+
+[node name="BtnDefExt" type="Button" parent="UI/HUD/WaterPanel/MarginContainer/VBoxContainer" unique_id=40997064]
+layout_mode = 2
+toggle_mode = true
+text = "Defensivo exterior"
+
+[node name="BtnOffInt" type="Button" parent="UI/HUD/WaterPanel/MarginContainer/VBoxContainer" unique_id=788391524]
+layout_mode = 2
+toggle_mode = true
+text = "Ofensivo interior"
+
+[node name="BtnDefIn" type="Button" parent="UI/HUD/WaterPanel/MarginContainer/VBoxContainer" unique_id=506726763]
+layout_mode = 2
+toggle_mode = true
+text = "Defensivo interior"
+
+[node name="VentPanel" type="PanelContainer" parent="UI/HUD" unique_id=1649679056]
+visible = false
+layout_mode = 0
+offset_left = 504.0
+offset_top = 564.0
+offset_right = 621.0
+offset_bottom = 630.0
+
+[node name="MarginContainer" type="MarginContainer" parent="UI/HUD/VentPanel" unique_id=1263524161]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/HUD/VentPanel/MarginContainer" unique_id=692758704]
+layout_mode = 2
+
+[node name="BtnExutorio" type="Button" parent="UI/HUD/VentPanel/MarginContainer/VBoxContainer" unique_id=1788238619]
+layout_mode = 2
+toggle_mode = true
+text = "Abrir exutorio"
+
+[node name="BtnVPP" type="Button" parent="UI/HUD/VentPanel/MarginContainer/VBoxContainer" unique_id=282614178]
+layout_mode = 2
+toggle_mode = true
+text = "VPP"
+
+[node name="RescuePanel" type="PanelContainer" parent="UI/HUD" unique_id=1523319499]
+visible = false
+layout_mode = 0
+offset_left = 338.0
+offset_top = 587.0
+offset_right = 472.0
+offset_bottom = 627.0
+
+[node name="MarginContainer" type="MarginContainer" parent="UI/HUD/RescuePanel" unique_id=1598199862]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/HUD/RescuePanel/MarginContainer" unique_id=2055076330]
+layout_mode = 2
+
+[node name="BtnLadderRescue" type="Button" parent="UI/HUD/RescuePanel/MarginContainer/VBoxContainer" unique_id=218599376]
+layout_mode = 2
+toggle_mode = true
+text = "Rescate exterior"
+
+[node name="StatusPanel" type="PanelContainer" parent="UI/HUD" unique_id=1402371225]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="MarginContainer" type="MarginContainer" parent="UI/HUD/StatusPanel" unique_id=321614049]
+layout_mode = 2
+
+[node name="StatusLabel" type="Label" parent="UI/HUD/StatusPanel/MarginContainer" unique_id=2011863688]
+layout_mode = 2
+
+[node name="TimeLabel" type="Label" parent="UI/HUD" unique_id=2138669738]
+layout_mode = 0
+offset_left = 3.0
+offset_top = 197.0
+offset_right = 43.0
+offset_bottom = 220.0
+text = "TIME"
