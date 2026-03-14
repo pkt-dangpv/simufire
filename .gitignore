@@ -1,7 +1,11 @@
-# Godot 4+ specific ignores
+# Godot 4
 .godot/
 .import/
-.export/
+
+# Export
+export_presets.cfg
+
+# Android build
 .android/
 
 # Temporales
@@ -11,3 +15,6 @@
 # Sistema
 .DS_Store
 Thumbs.db
+
+# VSCode
+.vscode/

@@ -139,7 +139,13 @@ func _add_room_from_rect(id: int, room_name: String, kind: String, rect_m: Rect2
 	var area_m2: float = rect_m.size.x * rect_m.size.y
 	var vol_m3: float = area_m2 * height_m
 
-	var r: RoomModel = RoomModel.new(id, room_name, kind, vol_m3, height_m)
+	var r: RoomModel = RoomModel.new()
+	r.id = id
+	r.name = room_name
+	r.width_m = rect_m.size.x
+	r.length_m = rect_m.size.y
+	r.height_m = height_m
+
 	r.o2 = o2_nominal
 	rooms[id] = r
 
@@ -249,7 +255,7 @@ func _apply_test_fire(delta: float) -> void:
 	R.hrr_kw = hrr_kw
 
 	# humo
-	smoke_model.generate_fire_smoke(R, hrr_kw, delta, smoke_yield_kg_per_MJ)
+	smoke_model.generate_fire_smoke(R, R.hrr_kw, delta)
 
 	# energía directa del fuego a la capa upper
 	R.add_upper_energy(hrr_kw * delta)
@@ -348,8 +354,8 @@ func _mix_o2(
 	dm: float,
 	d_o2: Dictionary
 ) -> void:
-	var air_from: float = air_density_kg_m3 * from_room.volume_m3
-	var air_to: float = air_density_kg_m3 * to_room.volume_m3
+	var air_from: float = air_density_kg_m3 * from_room.get_volume_m3()
+	var air_to: float = air_density_kg_m3 * to_room.get_volume_m3()
 	var denom: float = maxf(1.0, air_from + air_to)
 
 	var mix: float = clampf(o2_mix_rate * (dm / denom) * 50.0, 0.0, 0.25)

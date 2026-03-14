@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://clan116mabqti" path="res://scripts/Visualizer.gd" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://1sbehqy3k8" path="res://sim/BuildingModel.gd" id="3_1bvp3"]
 [ext_resource type="Script" uid="uid://bi64gqhwao7fw" path="res://ui/hud.gd" id="3_h2yge"]
+[ext_resource type="Script" uid="uid://cvb6uvgr0oy8n" path="res://scripts/fire/FireModel.gd" id="5_lquwl"]
 
 [node name="Main" type="Node" unique_id=1481794009]
 script = ExtResource("1_ig7tw")
@@ -133,3 +134,7 @@ offset_top = 197.0
 offset_right = 43.0
 offset_bottom = 220.0
 text = "TIME"
+
+[node name="FireModel" type="Node" parent="." unique_id=502688712]
+script = ExtResource("5_lquwl")
+metadata/_custom_type_script = "uid://cvb6uvgr0oy8n"

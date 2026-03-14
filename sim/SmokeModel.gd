@@ -1,142 +1,78 @@
-extends RefCounted
+extends Resource
 class_name SmokeModel
 
-var smoke_density_kg_m3: float = 0.9
-
-# Transporte de humo entre compartimentos
-var base_spill_kg_s_per_m2: float = 0.18
-var temp_push_factor: float = 0.008
-var max_spill_kg_s: float = 0.9
-
-# Muy importante: limita cuánto humo puede salir por segundo
-var max_fraction_out_per_s: float = 0.025
-
-# Relajación de la capa
-# baja rápido cuando entra humo, sube muy lento cuando sale
-var layer_relax_down: float = 0.18
-var layer_relax_up: float = 0.015
-
-
-func generate_fire_smoke(room: RoomModel, hrr_kw: float, delta: float, smoke_yield_kg_per_MJ: float) -> float:
-	var e_MJ: float = (hrr_kw * delta) / 1000.0
-	var dm_smoke: float = maxf(0.0, smoke_yield_kg_per_MJ * e_MJ)
-	room.add_upper_smoke(dm_smoke)
-	return dm_smoke
+## ============================================================
+## SmokeModel
+## ------------------------------------------------------------
+## Modelo simplificado de humo para una sala.
+##
+## Responsabilidades:
+## - generar humo a partir del HRR
+## - actualizar la altura de capa
+## - ofrecer funciones auxiliares reutilizables
+##
+## No decide la física global del incendio. Solo trabaja sobre
+## una RoomModel concreta.
+## ============================================================
 
 
+# ============================================================
+# PARÁMETROS
+# ============================================================
+
+## Producción simplificada de humo: kg/s por kW
+@export var smoke_yield_kg_per_kw_s: float = 0.0001
+
+## Densidad efectiva del humo para convertir masa -> volumen
+@export var smoke_density_kg_m3: float = 0.60
+
+## Altura mínima de capa desde el suelo
+@export var min_layer_height_m: float = 0.20
+
+
+# ============================================================
+# API PRINCIPAL
+# ============================================================
+
+## Genera humo a partir del HRR actual de la sala.
+func generate_fire_smoke(room: RoomModel, hrr_kw: float, delta: float) -> void:
+	if room == null:
+		return
+
+	var smoke_generated_kg: float = maxf(hrr_kw, 0.0) * smoke_yield_kg_per_kw_s * maxf(delta, 0.0)
+	room.add_upper_smoke(smoke_generated_kg)
+
+
+## Recalcula la altura de capa a partir de la masa de humo.
 func update_layer_height(room: RoomModel) -> void:
+	if room == null:
+		return
+
 	var smoke_volume_m3: float = room.smoke_mass_kg / maxf(0.05, smoke_density_kg_m3)
-	var floor_area_m2: float = room.volume_m3 / maxf(0.1, room.height_m)
+	var floor_area_m2: float = room.get_floor_area_m2()
+
+	if floor_area_m2 <= 0.01:
+		floor_area_m2 = maxf(room.get_volume_m3() / maxf(0.1, room.height_m), 0.01)
+
 	var upper_height_target_m: float = smoke_volume_m3 / maxf(0.01, floor_area_m2)
+	var target_layer_m: float = clampf(room.height_m - upper_height_target_m, min_layer_height_m, room.height_m)
 
-	var target_layer_m: float = clampf(room.height_m - upper_height_target_m, 0.2, room.height_m)
-
-	# Asimetría importante:
-	# - si la capa baja: reacciona relativamente rápido
-	# - si la capa sube: reacciona muy lento
-	if target_layer_m < room.h_layer_m:
-		room.h_layer_m = lerpf(room.h_layer_m, target_layer_m, layer_relax_down)
-	else:
-		room.h_layer_m = lerpf(room.h_layer_m, target_layer_m, layer_relax_up)
-
-	room.h_layer_m = clampf(room.h_layer_m, 0.2, room.height_m)
+	room.h_layer_m = target_layer_m
+	room.clamp_state()
 
 
-func process_opening(
-	op: OpeningModel,
-	rooms: Dictionary,
-	outside_temp_c: float,
-	outside_id: int,
-	delta: float,
-	d_smoke: Dictionary,
-	d_energy: Dictionary,
-	d_o2: Dictionary,
-	mix_o2_cb: Callable,
-	vent_o2_cb: Callable
-) -> void:
-	var A: RoomModel = rooms.get(op.a)
-	if A == null:
-		return
-
-	var B_is_outside: bool = (op.b == outside_id)
-
-	var B: RoomModel = null
-	if not B_is_outside:
-		B = rooms.get(op.b)
-		if B == null:
-			return
-
-	var lintel: float = op.lintel_height_m()
-
-	# Parte de la abertura sumergida en la capa upper de A
-	var upper_in_open_A: float = maxf(0.0, lintel - A.h_layer_m)
-	var eff_h_A: float = clampf(upper_in_open_A, 0.0, op.height_m)
-	var area_A: float = op.width_m * eff_h_A * op.open_fraction
-
-	# Parte de la abertura sumergida en la capa upper de B
-	var area_B: float = 0.0
-	var Tu_B: float = outside_temp_c
-
-	if not B_is_outside:
-		var upper_in_open_B: float = maxf(0.0, lintel - B.h_layer_m)
-		var eff_h_B: float = clampf(upper_in_open_B, 0.0, op.height_m)
-		area_B = op.width_m * eff_h_B * op.open_fraction
-		Tu_B = B.temp_upper_c
-
-	if area_A <= 0.0 and area_B <= 0.0:
-		return
-
-	var Tu_A: float = A.temp_upper_c
-	var dT: float = Tu_A - Tu_B
-
-	var area_effective: float = maxf(area_A, area_B)
-	var flow_kg_s: float = base_spill_kg_s_per_m2 * area_effective
-	flow_kg_s *= (1.0 + temp_push_factor * absf(dT))
-	flow_kg_s = minf(flow_kg_s, max_spill_kg_s)
-
-	var dm: float = flow_kg_s * delta
-
-	# Clave para que no "se vacíe" la habitación:
-	# solo puede salir una fracción pequeña del humo por segundo
-	var max_fraction_out: float = clampf(max_fraction_out_per_s * delta, 0.0, 0.03)
-
-	if dT >= 0.0:
-		# A -> B / exterior
-		var take: float = minf(dm, A.smoke_mass_kg * max_fraction_out)
-
-		_accum(d_smoke, op.a, -take)
-
-		if not B_is_outside:
-			_accum(d_smoke, op.b, +take)
-
-		# energía asociada al humo desplazado
-		var dE_kJ: float = take * 1.5 * maxf(0.0, dT)
-		_accum(d_energy, op.a, -dE_kJ)
-
-		if not B_is_outside:
-			_accum(d_energy, op.b, +dE_kJ)
-
-		if not B_is_outside:
-			mix_o2_cb.call(op.a, A, op.b, B, dm, d_o2)
-		else:
-			vent_o2_cb.call(op.a, A, op, dm, d_o2)
-
-	else:
-		# B -> A
-		if B_is_outside:
-			return
-
-		var take2: float = minf(dm, B.smoke_mass_kg * max_fraction_out)
-
-		_accum(d_smoke, op.b, -take2)
-		_accum(d_smoke, op.a, +take2)
-
-		var dE_kJ2: float = take2 * 1.5 * maxf(0.0, -dT)
-		_accum(d_energy, op.b, -dE_kJ2)
-		_accum(d_energy, op.a, +dE_kJ2)
-
-		mix_o2_cb.call(op.b, B, op.a, A, dm, d_o2)
+## Paso completo del modelo de humo para una sala.
+func step_room_smoke(room: RoomModel, hrr_kw: float, delta: float) -> void:
+	generate_fire_smoke(room, hrr_kw, delta)
+	update_layer_height(room)
 
 
-func _accum(dict: Dictionary, key: int, value: float) -> void:
-	dict[key] = dict.get(key, 0.0) + value
+# ============================================================
+# UTILIDADES
+# ============================================================
+
+func estimate_smoke_volume_m3(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+
+	return room.smoke_mass_kg / maxf(0.05, smoke_density_kg_m3)
