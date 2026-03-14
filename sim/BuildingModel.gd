@@ -20,7 +20,9 @@ var rooms: Dictionary = {}
 var openings: Array = []
 
 var building_template = preload("res://sim/templates/BuildingTemplate.gd").new()
-var smoke_model = preload("res://sim/SmokeModel.gd").new()
+var smoke_model = preload("res://sim/smoke/SmokeModel.gd").new()
+var fire_model_script = preload("res://sim/fire/FireModel.gd")
+
 
 func get_room_rects_m() -> Dictionary[int, Rect2]:
 	return room_rect_m
@@ -33,7 +35,7 @@ func get_room_rects_m() -> Dictionary[int, Rect2]:
 @export var alpha_kw_s2: float = 0.0117
 @export var hrr_max_kw: float = 3000.0
 @export var secondary_hrr_gain_kw: float = 2500.0
-var fire_time_s: float = 0.0
+
 
 # Humo
 @export var smoke_yield_kg_per_MJ: float = 0.06
@@ -75,13 +77,6 @@ var fire_time_s: float = 0.0
 func _ready() -> void:
 	_sync_smoke_model_settings()
 	_load_from_template(building_template.create_simple_house())
-
-
-func _physics_process(delta: float) -> void:
-	var sim_delta: float = delta * time_scale
-	sim_time_s += sim_delta
-	step(sim_delta)
-	emit_state()
 
 
 func _sync_smoke_model_settings() -> void:
@@ -133,22 +128,34 @@ func _load_from_template(data: Dictionary) -> void:
 			op.sill_m = float(op_data["sill_m"])
 
 		openings.append(op)
+	
+	var ignition_room: RoomModel = rooms.get(ignition_room_id)
+	if ignition_room != null:
+		var fire: FireModel = fire_model_script.new()
+		fire.growth_alpha_kw_s2 = alpha_kw_s2
+		fire.max_hrr_kw = hrr_max_kw
+		fire.secondary_hrr_gain_kw = secondary_hrr_gain_kw
+		fire.flashover_hrr_multiplier = flashover_hrr_multiplier
+		fire.flashover_min_hrr_kw = flashover_min_hrr_kw
+		fire.o2_nominal = o2_nominal
+		fire.o2_min_for_flame = o2_min_for_flame
+		fire.smoke_yield_kg_per_MJ = smoke_yield_kg_per_MJ
+		ignition_room.fire = fire
 
 
-func _add_room_from_rect(id: int, room_name: String, kind: String, rect_m: Rect2, height_m: float) -> void:
+func _add_room_from_rect(id: int, room_name: String, _kind: String, rect_m: Rect2, height_m: float) -> void:
 	var area_m2: float = rect_m.size.x * rect_m.size.y
-	var vol_m3: float = area_m2 * height_m
 
 	var r: RoomModel = RoomModel.new()
 	r.id = id
 	r.name = room_name
+	r.kind = _kind
 	r.width_m = rect_m.size.x
 	r.length_m = rect_m.size.y
 	r.height_m = height_m
 
 	r.o2 = o2_nominal
 	rooms[id] = r
-
 
 # -------------------------
 # SIM STEP
@@ -158,8 +165,15 @@ func step(delta: float) -> void:
 	for r in rooms.values():
 		r.clamp_state()
 
-	# Fuego principal
-	_apply_test_fire(delta)
+	# Fuego por sala
+	for room in rooms.values():
+		if room.fire != null:
+			var vent_limit_hrr_kw: float = INF
+
+			if room.hrr_kw > 200.0 and _has_outside_opening(room.id):
+				vent_limit_hrr_kw = _estimate_vent_hrr_kw(room.id)
+
+			room.fire.step(room, delta, vent_limit_hrr_kw)
 
 	# Deltas de intercambio
 	var d_smoke: Dictionary = {}
@@ -219,46 +233,6 @@ func step(delta: float) -> void:
 	# Clamp final
 	for r3 in rooms.values():
 		r3.clamp_state()
-
-
-# -------------------------
-# Fuego
-# -------------------------
-func _apply_test_fire(delta: float) -> void:
-	fire_time_s += delta
-
-	var R: RoomModel = rooms.get(ignition_room_id)
-	if R == null:
-		return
-
-	var current_hrr_cap_kw: float = hrr_max_kw
-	if R.flashover_triggered:
-		current_hrr_cap_kw += secondary_hrr_gain_kw
-
-	var hrr_t2_kw: float = alpha_kw_s2 * fire_time_s * fire_time_s
-	hrr_t2_kw = minf(hrr_t2_kw, current_hrr_cap_kw)
-
-	var hrr_kw: float = hrr_t2_kw
-
-	# limitar por ventilación solo si hay huecos abiertos al exterior y el fuego ya es serio
-	if hrr_t2_kw > 200.0 and _has_outside_opening(ignition_room_id):
-		var hrr_vent_kw: float = _estimate_vent_hrr_kw(ignition_room_id)
-		hrr_kw = minf(hrr_t2_kw, hrr_vent_kw)
-
-	# refuerzo post-flashover
-	if R.flashover_triggered:
-		hrr_kw = minf(
-			maxf(hrr_kw, flashover_min_hrr_kw * flashover_hrr_multiplier),
-			current_hrr_cap_kw
-		)
-
-	R.hrr_kw = hrr_kw
-
-	# humo
-	smoke_model.generate_fire_smoke(R, R.hrr_kw, delta)
-
-	# energía directa del fuego a la capa upper
-	R.add_upper_energy(hrr_kw * delta)
 
 
 func _has_outside_opening(room_id: int) -> bool:

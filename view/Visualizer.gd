@@ -37,7 +37,7 @@ func _draw() -> void:
 	# Fondo
 	draw_rect(Rect2(-50, -50, 4000, 2500), Color(0.06, 0.06, 0.07, 1.0), true)
 
-	# 1) Habitaciones + humo/HRR
+	# Habitaciones + humo + HRR
 	for id: int in rects_m.keys():
 		var rm: Rect2 = rects_m[id]
 		var rpx: Rect2 = _to_px(rm)
@@ -45,7 +45,6 @@ func _draw() -> void:
 		# Paredes
 		draw_rect(rpx, Color(1, 1, 1, 1), false, wall_thickness)
 
-		# Si no hay estado aún, pasa
 		var rs: Dictionary = state.get(str(id), {})
 		if rs.is_empty():
 			continue
@@ -54,21 +53,17 @@ func _draw() -> void:
 		var smoke_kg: float = float(rs.get("smoke_mass_kg", 0.0))
 		var hrr_kw: float = float(rs.get("hrr_kw", 0.0))
 
-		# Fracción de capa superior = (altura techo - h_layer) / altura
 		var room_h: float = room_height_m_default
 		var upper_thick_m: float = maxf(0.0, room_h - h_layer_m)
 		var upper_frac: float = clampf(upper_thick_m / room_h, 0.0, 1.0)
 
-		# Intensidad visual (tuning)
-		var intensity: float = clampf(0.55 * upper_frac + 0.45 * (smoke_kg / 2.0), 0.0, 1.0)
+		var intensity: float = clampf(0.35 * upper_frac + 0.65 * (smoke_kg / 8.0), 0.0, 1.0)
 
-		# Rect humo (si upper_frac>0)
 		if upper_frac > 0.0:
 			var smoke_h_px: float = rpx.size.y * upper_frac
 			var smoke_rect: Rect2 = Rect2(rpx.position.x, rpx.position.y, rpx.size.x, smoke_h_px)
-			draw_rect(smoke_rect, Color(0.85, 0.85, 0.9, 0.10 + 0.60 * intensity), true)
+			draw_rect(smoke_rect, Color(0.15, 0.15, 0.15, 0.20 + 0.65 * intensity), true)
 
-		# Barra HRR (abajo)
 		var bar_w: float = rpx.size.x - 10.0
 		var bar_h: float = 6.0
 		var bar_frac: float = clampf(hrr_kw / 3000.0, 0.0, 1.0)
@@ -78,7 +73,6 @@ func _draw() -> void:
 			true
 		)
 
-	# 2) Aberturas (puertas/ventanas)
 	_draw_openings()
 
 
