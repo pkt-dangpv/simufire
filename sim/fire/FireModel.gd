@@ -4,7 +4,7 @@ class_name FireModel
 var sim_time_s: float = 0.0
 
 # crecimiento t²
-var growth_alpha_kw_s2: float = 0.0117
+var growth_alpha_kw_s2: float = 0.02
 var max_hrr_kw: float = 3000.0
 var min_hrr_kw: float = 10.0
 

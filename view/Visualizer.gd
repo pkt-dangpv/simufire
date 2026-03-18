@@ -35,7 +35,7 @@ func set_state(s: Dictionary) -> void:
 
 func _draw() -> void:
 	# Fondo
-	draw_rect(Rect2(-50, -50, 4000, 2500), Color(0.06, 0.06, 0.07, 1.0), true)
+	draw_rect(Rect2(-50, -50, 4000, 2500), Color(0.10, 0.10, 0.11, 1.0), true)
 
 	# Habitaciones + humo + HRR
 	for id: int in rects_m.keys():
@@ -62,7 +62,7 @@ func _draw() -> void:
 		if upper_frac > 0.0:
 			var smoke_h_px: float = rpx.size.y * upper_frac
 			var smoke_rect: Rect2 = Rect2(rpx.position.x, rpx.position.y, rpx.size.x, smoke_h_px)
-			draw_rect(smoke_rect, Color(0.15, 0.15, 0.15, 0.20 + 0.65 * intensity), true)
+			draw_rect(smoke_rect, Color(0.32, 0.32, 0.36, 0.30 + 0.55 * intensity), true)
 
 		var bar_w: float = rpx.size.x - 10.0
 		var bar_h: float = 6.0

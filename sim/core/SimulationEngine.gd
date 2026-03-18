@@ -30,15 +30,11 @@ func _init(building_model: BuildingModel, smoke_model: SmokeModel) -> void:
 func step(delta: float) -> void:
 	sim_time += delta
 
-	# --------------------------------------------------------
 	# 0) clamp inicial
-	# --------------------------------------------------------
 	for room in building.rooms.values():
 		room.clamp_state()
 
-	# --------------------------------------------------------
 	# 1) fuego por sala
-	# --------------------------------------------------------
 	for room in building.rooms.values():
 		if room.fire != null:
 			var vent_limit_hrr_kw: float = INF
@@ -48,9 +44,7 @@ func step(delta: float) -> void:
 
 			room.fire.step(room, delta, vent_limit_hrr_kw)
 
-	# --------------------------------------------------------
 	# 2) deltas de intercambio por openings
-	# --------------------------------------------------------
 	var d_smoke: Dictionary = {}
 	var d_energy: Dictionary = {}
 	var d_o2: Dictionary = {}
@@ -69,9 +63,7 @@ func step(delta: float) -> void:
 			Callable(self, "_ventilate_o2_to_outside")
 		)
 
-	# --------------------------------------------------------
 	# 3) aplicar humo
-	# --------------------------------------------------------
 	for id in d_smoke.keys():
 		if id == building.OUTSIDE_ID:
 			continue
@@ -80,9 +72,7 @@ func step(delta: float) -> void:
 		if rs != null:
 			rs.add_upper_smoke(d_smoke[id])
 
-	# --------------------------------------------------------
 	# 4) aplicar energía
-	# --------------------------------------------------------
 	for id in d_energy.keys():
 		if id == building.OUTSIDE_ID:
 			continue
@@ -91,9 +81,7 @@ func step(delta: float) -> void:
 		if re != null:
 			re.add_upper_energy(d_energy[id])
 
-	# --------------------------------------------------------
 	# 5) aplicar O2
-	# --------------------------------------------------------
 	for id in d_o2.keys():
 		if id == building.OUTSIDE_ID:
 			continue
@@ -102,57 +90,42 @@ func step(delta: float) -> void:
 		if ro != null:
 			ro.o2 = clampf(ro.o2 + d_o2[id], 0.0, building.o2_nominal)
 
-	# --------------------------------------------------------
-	# 6) recalcular capa de humo
-	# --------------------------------------------------------
-	for room in building.rooms.values():
-		smoke.update_layer_height(room)
-
-	# --------------------------------------------------------
-	# 7) pérdidas térmicas
-	# --------------------------------------------------------
+	# 6) pérdidas térmicas
 	for room in building.rooms.values():
 		_apply_thermal_losses(room, delta)
 
-	# --------------------------------------------------------
+	# 7) recalcular capa de humo
+	for room in building.rooms.values():
+		smoke.update_layer_height(room)
+
 	# 8) flashover
-	# --------------------------------------------------------
 	for room in building.rooms.values():
 		_update_flashover(room)
 
-	# --------------------------------------------------------
-	# 9) debug temporal
-	# --------------------------------------------------------
+	# 9) ignición secundaria
+	_update_secondary_ignition()
+
+	# 10) debug temporal
 	debug_accum += delta
 	if debug_accum >= 1.0:
 		debug_accum = 0.0
-		var room0: RoomModel = building.rooms.get(0)
-		if room0 != null:
-			print(
-				"ENGINE room0 HRR=", room0.hrr_kw,
-				" O2=", room0.o2,
-				" Smoke=", room0.smoke_mass_kg,
-				" Layer=", room0.h_layer_m,
-				" Upper=", room0.temp_upper_c,
-				" Lower=", room0.temp_lower_c
-			)
 
-	# --------------------------------------------------------
-	# 10) clamp final
-	# --------------------------------------------------------
+		for room_id in [0, 1, 2]:
+			var room: RoomModel = building.rooms.get(room_id)
+			if room != null:
+				print(
+					"ROOM ", room.id,
+					" HRR=", room.hrr_kw,
+					" O2=", room.o2,
+					" Smoke=", room.smoke_mass_kg,
+					" Layer=", room.h_layer_m,
+					" Upper=", room.temp_upper_c,
+					" Lower=", room.temp_lower_c
+				)
+
+	# 11) clamp final
 	for room in building.rooms.values():
 		room.clamp_state()
-
-
-func get_state() -> Dictionary:
-	var out: Dictionary = {}
-	out["sim_time_s"] = sim_time
-
-	for rid in building.rooms.keys():
-		var room: RoomModel = building.rooms[rid]
-		out[str(rid)] = room.to_state_dict()
-
-	return out
 
 
 # ============================================================
@@ -241,3 +214,48 @@ func _update_flashover(room: RoomModel) -> void:
 	and room.h_layer_m <= building.flashover_layer_m \
 	and room.hrr_kw >= building.flashover_min_hrr_kw:
 		room.flashover_triggered = true
+
+
+func _update_secondary_ignition() -> void:
+	for room in building.rooms.values():
+		if room.fire != null:
+			continue
+
+		var hot: bool = room.temp_upper_c > 120.0
+		var smoky: bool = room.smoke_mass_kg > 0.2
+
+		if not (hot and smoky):
+			continue
+
+		var ignition_chance: float = clampf(
+			(room.temp_upper_c - 120.0) / 200.0,
+			0.0,
+			0.6
+		)
+
+		if randf() > ignition_chance:
+			continue
+
+		var fire: FireModel = FireModel.new()
+		room.fire = fire
+
+		fire.growth_alpha_kw_s2 = 0.008
+		fire.max_hrr_kw = 1500.0
+		fire.secondary_hrr_gain_kw = 800.0
+		fire.flashover_hrr_multiplier = building.flashover_hrr_multiplier
+		fire.flashover_min_hrr_kw = building.flashover_min_hrr_kw
+		fire.o2_nominal = building.o2_nominal
+		fire.o2_min_for_flame = building.o2_min_for_flame
+		fire.smoke_yield_kg_per_MJ = building.smoke_yield_kg_per_MJ
+
+		print("IGNICION secundaria en room ", room.id)
+
+func get_state() -> Dictionary:
+	var out: Dictionary = {}
+	out["sim_time_s"] = sim_time
+
+	for rid in building.rooms.keys():
+		var room: RoomModel = building.rooms[rid]
+		out[str(rid)] = room.to_state_dict()
+
+	return out

@@ -22,6 +22,7 @@ extends Node
 
 @onready var building: BuildingModel = $World/BuildingModel
 @onready var hud: HUD = $UI/HUD
+@onready var visualizer: Visualizer = $World/Visualizer
 @onready var status_label: Label = $UI/HUD/StatusPanel/MarginContainer/StatusLabel
 
 # Si tienes también un TimeLabel separado en HUD, descomenta esto
@@ -55,7 +56,7 @@ func _ready() -> void:
 	if status_label == null:
 		push_error("StatusLabel no encontrado en HUD")
 		return
-
+	building.time_scale = 1.0
 	# --------------------------------------------------------
 	# Crear el SimulationEngine.
 	#
@@ -107,10 +108,11 @@ func _physics_process(delta: float) -> void:
 # ============================================================
 
 func _apply_state_to_ui(state: Dictionary) -> void:
-	# Mantener la actualización general del HUD, si ya la tienes implementada
 	hud.update_state(state)
 
-	# Leemos la sala 0 como sala principal de debug
+	if visualizer != null:
+		visualizer.set_state(state)
+
 	var r0: Dictionary = state.get("0", {})
 	if r0.is_empty():
 		status_label.text = "Sin datos de la sala 0"
@@ -126,8 +128,6 @@ func _apply_state_to_ui(state: Dictionary) -> void:
 	status_label.text = \
 		"HRR: %.0f kW\nUpper: %.1f C\nLower: %.1f C\nLayer: %.2f m\nO2: %.3f\nSmoke: %.2f kg" \
 		% [hrr, temp_upper, temp_lower, layer, o2_value, smoke]
-
-	print("HUD room0 HRR=", float(state.get("0", {}).get("hrr_kw", 0.0)))
 
 	# Si quieres controlar aquí el tiempo mostrado y tienes un TimeLabel:
 	# var sim_time_s: float = float(state.get("sim_time_s", 0.0))

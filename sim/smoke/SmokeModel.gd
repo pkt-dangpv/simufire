@@ -9,7 +9,7 @@ class_name SmokeModel
 @export var base_spill_kg_s_per_m2: float = 0.18
 @export var temp_push_factor: float = 0.008
 @export var max_spill_kg_s: float = 0.9
-@export var max_fraction_out_per_s: float = 0.025
+@export var max_fraction_out_per_s: float = 0.06
 @export var layer_relax_down: float = 0.18
 @export var layer_relax_up: float = 0.015
 
@@ -161,7 +161,7 @@ func process_opening(
 	var moved_energy_kj: float = 0.0
 	if source_room != null:
 		var delta_temp_c: float = maxf(0.0, source_temp - dest_temp)
-		var energy_per_kg_kj: float = 1.0 * delta_temp_c
+		var energy_per_kg_kj: float = 2.5 * delta_temp_c
 		moved_energy_kj = moved_kg * energy_per_kg_kj
 
 	_accum(d_energy, source_id, -moved_energy_kj)
