@@ -117,19 +117,30 @@ text = "Rescate exterior"
 
 [node name="StatusPanel" type="PanelContainer" parent="UI/HUD" unique_id=1402371225]
 layout_mode = 0
-offset_right = 40.0
-offset_bottom = 40.0
+offset_left = 288.0
+offset_top = 4.0
+offset_right = 406.0
+offset_bottom = 44.0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/StatusPanel" unique_id=321614049]
+visible = false
 layout_mode = 2
 
 [node name="StatusLabel" type="Label" parent="UI/HUD/StatusPanel/MarginContainer" unique_id=2011863688]
+visible = false
 layout_mode = 2
 
-[node name="TimeLabel" type="Label" parent="UI/HUD" unique_id=2138669738]
-layout_mode = 0
-offset_left = 3.0
-offset_top = 197.0
-offset_right = 41.0
-offset_bottom = 220.0
+[node name="MarginContainer" type="MarginContainer" parent="UI/HUD" unique_id=978673918]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.34800002
+anchor_right = 0.34800002
+offset_left = -74.89603
+offset_top = 7.0
+offset_right = -33.896027
+offset_bottom = 43.0
+grow_horizontal = 2
+
+[node name="TimeLabel" type="Label" parent="UI/HUD/MarginContainer" unique_id=2138669738]
+layout_mode = 2
 text = "TIME"

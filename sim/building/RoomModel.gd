@@ -21,8 +21,14 @@ class_name RoomModel
 @export var pre_flashover: bool = false
 @export var backdraft_risk: bool = false
 
+@export var fire_time_s: float = 0.0
+@export var hrr_max_kw: float = 3000.0
+@export var t_alpha: float = 0.012
+
 # runtime only
 var fire: FireModel = null
+
+
 
 
 func get_floor_area_m2() -> float:
@@ -44,6 +50,9 @@ func reset_room_state() -> void:
 	pre_flashover = false
 	backdraft_risk = false
 	fire = null
+	fire_time_s = 0.0
+	hrr_max_kw = 3000.0
+	t_alpha = 0.012
 
 
 func clamp_state() -> void:

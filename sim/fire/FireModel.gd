@@ -26,21 +26,24 @@ func step(room: RoomModel, delta: float, vent_limit_hrr_kw: float = INF) -> void
 	if room == null:
 		return
 
-	sim_time_s += delta
+	room.fire_time_s += delta
 
-	var current_hrr_cap_kw: float = max_hrr_kw
+	var current_hrr_cap_kw: float = room.hrr_max_kw
 	if room.flashover_triggered:
 		current_hrr_cap_kw += secondary_hrr_gain_kw
 
-	var hrr_t2_kw: float = growth_alpha_kw_s2 * sim_time_s * sim_time_s
+	# crecimiento t²
+	var hrr_t2_kw: float = room.t_alpha * room.fire_time_s * room.fire_time_s
 	hrr_t2_kw = minf(hrr_t2_kw, current_hrr_cap_kw)
 
+	# limitación por oxígeno
 	var o2_factor: float = _get_o2_factor(room.o2)
 
 	var hrr_kw: float = hrr_t2_kw * o2_factor
 	hrr_kw = maxf(min_hrr_kw, hrr_kw)
 	hrr_kw = minf(hrr_kw, vent_limit_hrr_kw)
 
+	# refuerzo post-flashover
 	if room.flashover_triggered:
 		hrr_kw = minf(
 			maxf(hrr_kw, flashover_min_hrr_kw * flashover_hrr_multiplier),

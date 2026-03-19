@@ -158,10 +158,15 @@ func _load_from_template(data: Dictionary) -> void:
 		openings.append(op)
 
 	# Crear fuego inicial en la sala de ignición
+	
 	var ignition_room: RoomModel = rooms.get(ignition_room_id)
 	if ignition_room != null:
 		var fire: FireModel = fire_model_script.new()
 		ignition_room.fire = fire
+
+		ignition_room.fire_time_s = 1.0
+		ignition_room.hrr_max_kw = hrr_max_kw
+		ignition_room.t_alpha = alpha_kw_s2
 
 		fire.growth_alpha_kw_s2 = alpha_kw_s2
 		fire.max_hrr_kw = hrr_max_kw
