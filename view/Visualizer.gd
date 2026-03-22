@@ -250,7 +250,7 @@ func _draw_hrr_bar(rpx: Rect2, hrr_kw: float) -> void:
 func _draw_room_label(id: int, rpx: Rect2, rs: Dictionary) -> void:
 	var up: float = float(rs.get("temp_upper_c", 0.0))
 	var low: float = float(rs.get("temp_lower_c", 0.0))
-	var sm: float = float(rs.get("smoke_mass_kg", 0.0))
+	var sm: float = float(rs.get("smoke_kg", 0.0))
 	var lay: float = float(rs.get("h_layer_m", 0.0))
 	var hrr: float = float(rs.get("hrr_kw", 0.0))
 	var o2v: float = float(rs.get("o2", 0.0))
@@ -266,7 +266,7 @@ func _draw_room_label(id: int, rpx: Rect2, rs: Dictionary) -> void:
 	lines.append("HRR %.0f" % hrr)
 	lines.append("Up %.0f" % up)
 	lines.append("Low %.0f" % low)
-	lines.append("Sm %.2f" % sm)
+	lines.append("Smoke %.4f" % sm)
 	lines.append("L %.2f" % lay)
 	lines.append("O2 %.3f" % o2v)
 

@@ -110,7 +110,7 @@ func _apply_state_to_ui(state: Dictionary) -> void:
 	var flashover: bool = bool(r0.get("flashover_triggered", false))
 
 	status_label.text = \
-		"HRR: %.0f kW\nUpper: %.1f C\nLower: %.1f C\nLayer: %.2f m\nO2: %.3f\nSmoke: %.2f kg\nFlashover: %s" \
+		"HRR: %.0f kW\nUpper: %.1f C\nLower: %.1f C\nLayer: %.2f m\nO2: %.3f\nSmoke: %.4f kg\nFlashover: %s" \
 		% [hrr, temp_upper, temp_lower, layer, o2_value, smoke, str(flashover)]
 
 	# Si quieres mostrar tiempo aquí en vez de dentro del HUD:

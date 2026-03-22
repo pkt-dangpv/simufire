@@ -10,6 +10,10 @@ class_name SimulationEngine
 # - crear ignición inicial
 # - actualizar fuego, O2, temperatura y humo
 # - exponer estado agregado
+#
+# PRIORIDAD ACTUAL:
+# - estabilidad del motor físico
+# - conservación de masa de humo
 # ============================================================
 
 @export var building_path: NodePath
@@ -25,39 +29,69 @@ var smoke_model: SmokeModel = SmokeModel.new()
 var sim_time_s: float = 0.0
 
 # ============================================================
+# CONTABILIDAD GLOBAL DEL HUMO
+# ------------------------------------------------------------
+# Invariante buscada:
+#
+# smoke_generated_total_kg
+# =
+# sum(room.smoke_kg)
+# +
+# smoke_vented_total_kg
+# ============================================================
+
+var smoke_generated_total_kg: float = 0.0
+var smoke_vented_total_kg: float = 0.0
+
+# ============================================================
 # IGNICIÓN INICIAL
 # ============================================================
 
 @export var ignition_room_id: int = 0
 @export var auto_ignite_on_ready: bool = true
 
-# Parámetros base del fuego
+# ============================================================
+# PARÁMETROS BASE DEL FUEGO
+# ============================================================
+
 @export var fire_alpha_kw_s2: float = 0.12
 @export var fire_max_hrr_kw: float = 3000.0
 @export var fire_secondary_hrr_gain_kw: float = 2500.0
 
 @export var fire_o2_nominal: float = 0.209
-@export var fire_o2_min_for_flame: float = 0.12
+@export var fire_o2_min_for_flame: float = 0.10
 @export var fire_smoke_yield_kg_per_MJ: float = 0.06
 
 @export var fire_flashover_hrr_multiplier: float = 2.2
 @export var fire_flashover_min_hrr_kw: float = 300.0
 
-# Criterios simples de flashover
+# ============================================================
+# FLASHOVER SIMPLE
+# ============================================================
+
 @export var flashover_temp_c: float = 500.0
 @export var flashover_layer_m: float = 1.2
 
-# Ajustes térmicos simples
+# ============================================================
+# AJUSTES TÉRMICOS
+# ============================================================
+
 @export var upper_to_lower_loss_rate: float = 0.035
 @export var upper_to_ambient_loss_rate: float = 0.015
-@export var lower_layer_warming_rate: float = 0.020
+@export var lower_layer_warming_rate: float = 0.010
 @export var max_upper_temp_c: float = 900.0
 
-# Oxígeno / mezcla
+# ============================================================
+# OXÍGENO / MEZCLA
+# ============================================================
+
 @export var o2_mix_rate: float = 0.12
 @export var o2_vent_rate: float = 0.08
 
-# Ajustes SmokeModel
+# ============================================================
+# AJUSTES DE HUMO (se copian al SmokeModel)
+# ============================================================
+
 @export var smoke_density_kg_m3: float = 0.9
 @export var base_spill_kg_s_per_m2: float = 0.18
 @export var temp_push_factor: float = 0.008
@@ -166,15 +200,24 @@ func _step_fire(dt: float) -> void:
 		var hrr_ideal_kw: float = room.fire.compute_hrr_kw(room.fire_time_s)
 		var vent_limit_kw: float = building.estimate_vent_hrr_kw(room.id)
 
-		# Si no hay hueco exterior, de momento no colapsamos HRR a 0.
+		# Si no hay hueco exterior, por ahora usamos el máximo del fuego
+		# para no colapsar artificialmente a 0.
 		if vent_limit_kw <= 0.0:
 			vent_limit_kw = room.fire.max_hrr_kw
 
-		var o2_factor: float = _compute_o2_factor(room.o2, room.fire.o2_nominal, room.fire.o2_min_for_flame)
+		var o2_factor: float = _compute_o2_factor(
+			room.o2,
+			room.fire.o2_nominal,
+			room.fire.o2_min_for_flame
+		)
+
 		var hrr_limited_kw: float = minf(hrr_ideal_kw, vent_limit_kw)
 
 		room.hrr_kw = hrr_limited_kw * o2_factor
-		room.smoke_prod_kg_s = _compute_smoke_production_kg_s(room.hrr_kw, room.fire.smoke_yield_kg_per_MJ)
+		room.smoke_prod_kg_s = _compute_smoke_production_kg_s(
+			room.hrr_kw,
+			room.fire.smoke_yield_kg_per_MJ
+		)
 
 		_try_trigger_flashover(room)
 
@@ -218,14 +261,14 @@ func _step_oxygen(dt: float) -> void:
 		var o2_consumption: float = 0.0
 
 		if room.fire != null and room.hrr_kw > 0.0:
-			o2_consumption = 0.000015 * room.hrr_kw * dt
+			o2_consumption = 0.000008 * room.hrr_kw * dt
 
 		room.o2 -= o2_consumption
 
 		# Mezcla interna simple
 		room.o2 += (fire_o2_nominal - room.o2) * o2_mix_rate * dt
 
-		# Recuperación exterior si hay apertura
+		# Recuperación exterior
 		if building.has_outside_opening(room.id):
 			room.o2 += (building.outside_o2 - room.o2) * o2_vent_rate * dt
 
@@ -239,34 +282,91 @@ func _step_temperature(dt: float) -> void:
 		if room == null:
 			continue
 
-		var hrr_term: float = room.hrr_kw * 0.015 * dt
+		var hrr_term: float = room.hrr_kw * 0.006 * dt
 		room.temp_upper_c += hrr_term
 
 		var loss_to_lower: float = maxf(0.0, room.temp_upper_c - room.temp_lower_c) * upper_to_lower_loss_rate * dt
 		var loss_to_ambient: float = maxf(0.0, room.temp_upper_c - building.outside_temp_c) * upper_to_ambient_loss_rate * dt
 		var lower_warming: float = maxf(0.0, room.temp_upper_c - room.temp_lower_c) * lower_layer_warming_rate * dt
+		var lower_loss_to_ambient: float = maxf(0.0, room.temp_lower_c - building.outside_temp_c) * 0.01 * dt
 
 		room.temp_upper_c -= loss_to_lower
 		room.temp_upper_c -= loss_to_ambient
+
 		room.temp_lower_c += lower_warming
+		room.temp_lower_c -= lower_loss_to_ambient
+		room.temp_lower_c = minf(room.temp_lower_c, room.temp_upper_c)
 
 # ============================================================
 # HUMO
+# ------------------------------------------------------------
+# Orden correcto:
+# 1) generar masa
+# 2) transferir entre salas / exterior
+# 3) recalcular capa desde masa
+# 4) comprobar conservación
 # ============================================================
 
 func _step_smoke(dt: float) -> void:
+	# --------------------------------------------------------
+	# 1) Generación de humo
+	# --------------------------------------------------------
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
 			continue
 
-		smoke_model.step_room_smoke(room, dt)
+		var generated_kg: float = smoke_model.add_generated_smoke(room, dt)
+		smoke_generated_total_kg += generated_kg
 
+	# --------------------------------------------------------
+	# 2) Transferencias por aperturas
+	# --------------------------------------------------------
 	for op in building.get_openings():
 		if op.open_fraction <= 0.0:
 			continue
 
-		smoke_model.transfer_between_opening(building, op, dt)
+		var vented_kg: float = smoke_model.transfer_between_opening(building, op, dt)
+		smoke_vented_total_kg += vented_kg
+
+	# --------------------------------------------------------
+	# 3) Recalcular capa desde masa
+	# --------------------------------------------------------
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+
+		smoke_model.recompute_layer_from_mass(room, dt)
+
+	#debug_check_smoke_conservation()
+
+# ============================================================
+# DEBUG DE CONSERVACIÓN DE MASA DE HUMO
+# ============================================================
+
+func debug_check_smoke_conservation() -> void:
+	var total_in_rooms: float = 0.0
+
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+
+		total_in_rooms += room.smoke_kg
+
+	var expected: float = smoke_generated_total_kg - smoke_vented_total_kg
+	var error: float = abs(total_in_rooms - expected)
+
+	if error > 0.01:
+		print(
+			"SMOKE MASS ERROR | rooms=",
+			total_in_rooms,
+			" expected=",
+			expected,
+			" error=",
+			error
+		)
 
 # ============================================================
 # CLAMP / LIMPIEZA
@@ -282,7 +382,10 @@ func _clamp_rooms() -> void:
 		room.h_layer_m = clampf(room.h_layer_m, 0.0, room.height_m)
 
 		room.temp_lower_c = maxf(building.outside_temp_c, room.temp_lower_c)
-		room.temp_upper_c = clampf(room.temp_upper_c, room.temp_lower_c, max_upper_temp_c)
+
+		room.temp_upper_c = minf(room.temp_upper_c, max_upper_temp_c)
+		if room.temp_upper_c < room.temp_lower_c:
+			room.temp_lower_c = room.temp_upper_c
 
 		room.hrr_kw = maxf(0.0, room.hrr_kw)
 		room.smoke_prod_kg_s = maxf(0.0, room.smoke_prod_kg_s)
@@ -294,7 +397,9 @@ func _clamp_rooms() -> void:
 
 func get_state() -> Dictionary:
 	var state: Dictionary = {
-		"sim_time_s": sim_time_s
+		"sim_time_s": sim_time_s,
+		"smoke_generated_total_kg": smoke_generated_total_kg,
+		"smoke_vented_total_kg": smoke_vented_total_kg
 	}
 
 	for room_id in building.get_rooms().keys():
@@ -322,5 +427,4 @@ func get_state() -> Dictionary:
 			"has_fire": room.fire != null,
 			"flashover_triggered": room.flashover_triggered
 		}
-
 	return state
