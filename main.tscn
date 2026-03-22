@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://clan116mabqti" path="res://view/Visualizer.gd" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://1sbehqy3k8" path="res://sim/BuildingModel.gd" id="3_1bvp3"]
 [ext_resource type="Script" uid="uid://bi64gqhwao7fw" path="res://ui/hud.gd" id="3_h2yge"]
+[ext_resource type="Script" uid="uid://b4jh4ba6wx5ye" path="res://sim/core/SimulationEngine.gd" id="4_lquwl"]
 
 [node name="Main" type="Node" unique_id=1481794009]
 script = ExtResource("1_ig7tw")
@@ -21,6 +22,10 @@ position = Vector2(576, 324)
 
 [node name="BuildingModel" type="Node" parent="World" unique_id=1055096439]
 script = ExtResource("3_1bvp3")
+
+[node name="SimulationEngine" type="Node" parent="World" unique_id=1397860845]
+script = ExtResource("4_lquwl")
+building_path = NodePath("../BuildingModel")
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=894412047]
 
@@ -46,9 +51,11 @@ offset_right = 304.0
 offset_bottom = 641.0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/WaterPanel" unique_id=794870555]
+visible = false
 layout_mode = 2
 
 [node name="VBoxContainer" type="VBoxContainer" parent="UI/HUD/WaterPanel/MarginContainer" unique_id=1995541917]
+visible = false
 layout_mode = 2
 
 [node name="BtnAOE" type="Button" parent="UI/HUD/WaterPanel/MarginContainer/VBoxContainer" unique_id=1005368752]
@@ -116,6 +123,7 @@ toggle_mode = true
 text = "Rescate exterior"
 
 [node name="StatusPanel" type="PanelContainer" parent="UI/HUD" unique_id=1402371225]
+visible = false
 layout_mode = 0
 offset_left = 288.0
 offset_top = 4.0
@@ -123,11 +131,9 @@ offset_right = 406.0
 offset_bottom = 44.0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/StatusPanel" unique_id=321614049]
-visible = false
 layout_mode = 2
 
 [node name="StatusLabel" type="Label" parent="UI/HUD/StatusPanel/MarginContainer" unique_id=2011863688]
-visible = false
 layout_mode = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD" unique_id=978673918]

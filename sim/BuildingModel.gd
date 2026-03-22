@@ -5,114 +5,57 @@ class_name BuildingModel
 # BUILDING MODEL
 # ------------------------------------------------------------
 # Responsabilidad:
-# - guardar estructura del edificio
-# - guardar parámetros globales de simulación
-# - cargar rooms / openings desde plantilla
-# - crear el fuego inicial en la sala de ignición
-# - ofrecer helpers al SimulationEngine
+# - almacenar estructura del edificio
+# - almacenar condiciones exteriores
+# - cargar habitaciones y aperturas desde plantilla
+# - ofrecer helpers geométricos / ventilación
 #
 # NO debe:
-# - ejecutar step() de simulación
-# - emitir estado para HUD
-# - hacer física del incendio
+# - simular el incendio
+# - crear fuego
+# - llevar el tiempo
+# - emitir estado para UI
 # ============================================================
-
-signal state_changed(state: Dictionary)
 
 const OUTSIDE_ID: int = -1
 
+# Condiciones exteriores
 @export var outside_temp_c: float = 20.0
 @export var outside_o2: float = 0.209
 
-# Tiempo
-@export var time_scale: float = 1.0
-var sim_time_s: float = 0.0
+# Coeficiente geométrico simple para límite por ventilación
+@export var vent_hrr_coeff_kw_per_sqrt_m5: float = 1500.0
 
-# ============================================================
-# TEMPLATE / GEOMETRÍA
-# ============================================================
+# Recursos
+var building_template = preload("res://sim/templates/BuildingTemplate.gd").new()
 
+# Datos estructurales
 var room_rect_m: Dictionary[int, Rect2] = {}
 var rooms: Dictionary = {}
 var openings: Array = []
-
-var building_template = preload("res://sim/templates/BuildingTemplate.gd").new()
-var smoke_model = preload("res://sim/smoke/SmokeModel.gd").new()
-var fire_model_script = preload("res://sim/fire/FireModel.gd")
-
-
-func get_room_rects_m() -> Dictionary[int, Rect2]:
-	return room_rect_m
-
-
-# ============================================================
-# FUEGO BASE
-# ============================================================
-
-@export var ignition_room_id: int = 0
-@export var alpha_kw_s2: float = 0.0117
-@export var hrr_max_kw: float = 3000.0
-@export var secondary_hrr_gain_kw: float = 2500.0
-
-# Humo
-@export var smoke_yield_kg_per_MJ: float = 0.06
-@export var smoke_density_kg_m3: float = 0.9
-
-# Oxígeno
-@export var o2_nominal: float = 0.209
-@export var o2_min_for_flame: float = 0.12
-@export var air_density_kg_m3: float = 1.2
-@export var o2_mix_rate: float = 0.12
-@export var o2_vent_rate: float = 0.08
-
-# Ventilación-controlado (simple)
-@export var vent_hrr_coeff_kw_per_sqrt_m5: float = 1500.0
-
-# Flashover simple
-@export var flashover_temp_c: float = 500.0
-@export var flashover_layer_m: float = 1.2
-@export var flashover_min_hrr_kw: float = 300.0
-@export var flashover_hrr_multiplier: float = 2.2
-@export var preflash_temp_c: float = 350.0
-@export var preflash_layer_m: float = 1.6
-
-# Pérdidas térmicas
-@export var upper_to_lower_loss_rate: float = 0.035
-@export var upper_to_ambient_loss_rate: float = 0.015
-@export var lower_layer_warming_rate: float = 0.020
-@export var max_upper_temp_c: float = 900.0
-
-# Ajustes humo / transporte
-@export var base_spill_kg_s_per_m2: float = 0.18
-@export var temp_push_factor: float = 0.008
-@export var max_spill_kg_s: float = 0.9
-@export var max_fraction_out_per_s: float = 0.025
-@export var layer_relax_down: float = 0.18
-@export var layer_relax_up: float = 0.015
-
 
 # ============================================================
 # READY
 # ============================================================
 
 func _ready() -> void:
-	_sync_smoke_model_settings()
 	_load_from_template(building_template.create_simple_house())
 
-
 # ============================================================
-# CONFIGURACIÓN DE SMOKE MODEL
+# GETTERS
 # ============================================================
 
-func _sync_smoke_model_settings() -> void:
-	smoke_model.smoke_density_kg_m3 = smoke_density_kg_m3
-	smoke_model.base_spill_kg_s_per_m2 = base_spill_kg_s_per_m2
-	smoke_model.temp_push_factor = temp_push_factor
-	smoke_model.max_spill_kg_s = max_spill_kg_s
-	smoke_model.max_fraction_out_per_s = max_fraction_out_per_s
-	smoke_model.layer_relax_down = layer_relax_down
-	smoke_model.layer_relax_up = layer_relax_up
+func get_room_rects_m() -> Dictionary[int, Rect2]:
+	return room_rect_m
 
+func get_room(room_id: int) -> RoomModel:
+	return rooms.get(room_id)
+
+func get_rooms() -> Dictionary:
+	return rooms
+
+func get_openings() -> Array:
+	return openings
 
 # ============================================================
 # CARGA DE PLANTILLA
@@ -125,102 +68,102 @@ func _load_from_template(data: Dictionary) -> void:
 
 	var rects_data: Dictionary = data.get("room_rect_m", {})
 
+	# Geometría 2D
 	for k in rects_data.keys():
 		room_rect_m[int(k)] = rects_data[k] as Rect2
 
+	# Habitaciones
 	for room_data in data.get("rooms_data", []):
+		var room_id: int = int(room_data["id"])
+		var rect_m: Rect2 = rects_data[room_id] as Rect2
+
 		_add_room_from_rect(
-			int(room_data["id"]),
+			room_id,
 			String(room_data["name"]),
 			String(room_data["kind"]),
-			rects_data[int(room_data["id"])] as Rect2,
+			rect_m,
 			float(room_data["height_m"])
 		)
 
+	# Aperturas
 	for op_data in data.get("openings_data", []):
 		var a: int = int(op_data["a"])
 		var b: int = int(op_data["b"])
 		var width_m: float = float(op_data["width_m"])
 		var height_m: float = float(op_data["height_m"])
-		var open_fraction: float = float(op_data["open_fraction"])
-		var type_str: String = String(op_data["type"])
+		var open_fraction: float = float(op_data.get("open_fraction", 1.0))
+		var type_str: String = String(op_data.get("type", "door"))
 
 		var op_type: int = OpeningModel.Type.DOOR
 		if type_str == "window":
 			op_type = OpeningModel.Type.WINDOW
 
 		var op: OpeningModel = OpeningModel.new(a, b, op_type, width_m, height_m, 1.0)
-		op.open_fraction = open_fraction
+		op.open_fraction = clampf(open_fraction, 0.0, 1.0)
 
 		if op_data.has("sill_m"):
 			op.sill_m = float(op_data["sill_m"])
 
 		openings.append(op)
 
-	# Crear fuego inicial en la sala de ignición
-	
-	var ignition_room: RoomModel = rooms.get(ignition_room_id)
-	if ignition_room != null:
-		var fire: FireModel = fire_model_script.new()
-		ignition_room.fire = fire
-
-		ignition_room.fire_time_s = 1.0
-		ignition_room.hrr_max_kw = hrr_max_kw
-		ignition_room.t_alpha = alpha_kw_s2
-
-		fire.growth_alpha_kw_s2 = alpha_kw_s2
-		fire.max_hrr_kw = hrr_max_kw
-		fire.secondary_hrr_gain_kw = secondary_hrr_gain_kw
-		fire.flashover_hrr_multiplier = flashover_hrr_multiplier
-		fire.flashover_min_hrr_kw = flashover_min_hrr_kw
-		fire.o2_nominal = o2_nominal
-		fire.o2_min_for_flame = o2_min_for_flame
-		fire.smoke_yield_kg_per_MJ = smoke_yield_kg_per_MJ
-
-
-func _add_room_from_rect(id: int, room_name: String, kind_name: String, rect_m: Rect2, height_m: float) -> void:
-	var r: RoomModel = RoomModel.new()
-	r.id = id
-	r.name = room_name
-	r.kind = kind_name
-	r.width_m = rect_m.size.x
-	r.length_m = rect_m.size.y
-	r.height_m = height_m
-	r.h_layer_m = height_m
-	r.o2 = o2_nominal
-
-	rooms[id] = r
-
-
 # ============================================================
-# HELPERS DE VENTILACIÓN / GEOMETRÍA
+# CREACIÓN DE HABITACIONES
 # ============================================================
 
-func _has_outside_opening(room_id: int) -> bool:
+func _add_room_from_rect(
+	id: int,
+	room_name: String,
+	kind_name: String,
+	rect_m: Rect2,
+	height_m: float
+) -> void:
+	var room: RoomModel = RoomModel.new()
+
+	room.id = id
+	room.name = room_name
+	room.kind = kind_name
+
+	room.width_m = rect_m.size.x
+	room.length_m = rect_m.size.y
+	room.height_m = height_m
+
+	room.temp_upper_c = outside_temp_c
+	room.temp_lower_c = outside_temp_c
+	room.o2 = outside_o2
+	room.h_layer_m = height_m
+
+	rooms[id] = room
+
+# ============================================================
+# HELPERS GEOMÉTRICOS
+# ============================================================
+
+func has_outside_opening(room_id: int) -> bool:
 	for op in openings:
 		if op.open_fraction <= 0.0:
 			continue
 
-		var to_outside: bool = \
-			(op.a == room_id and op.b == OUTSIDE_ID) or \
+		var to_outside: bool = (
+			(op.a == room_id and op.b == OUTSIDE_ID) or
 			(op.b == room_id and op.a == OUTSIDE_ID)
+		)
 
 		if to_outside:
 			return true
 
 	return false
 
-
-func _estimate_vent_hrr_kw(room_id: int) -> float:
+func estimate_vent_hrr_kw(room_id: int) -> float:
 	var sum_AH_sqrtH: float = 0.0
 
 	for op in openings:
 		if op.open_fraction <= 0.0:
 			continue
 
-		var connects_outside: bool = \
-			(op.a == room_id and op.b == OUTSIDE_ID) or \
+		var connects_outside: bool = (
+			(op.a == room_id and op.b == OUTSIDE_ID) or
 			(op.b == room_id and op.a == OUTSIDE_ID)
+		)
 
 		if not connects_outside:
 			continue
@@ -232,6 +175,29 @@ func _estimate_vent_hrr_kw(room_id: int) -> float:
 		sum_AH_sqrtH += area_open * sqrt(height)
 
 	if sum_AH_sqrtH <= 0.0:
-		return hrr_max_kw + secondary_hrr_gain_kw
+		return 0.0
 
 	return vent_hrr_coeff_kw_per_sqrt_m5 * sum_AH_sqrtH
+
+func get_connected_openings(room_id: int) -> Array:
+	var result: Array = []
+
+	for op in openings:
+		if op.a == room_id or op.b == room_id:
+			result.append(op)
+
+	return result
+
+func get_neighbor_room_ids(room_id: int) -> Array[int]:
+	var neighbors: Array[int] = []
+
+	for op in openings:
+		if op.open_fraction <= 0.0:
+			continue
+
+		if op.a == room_id and op.b != OUTSIDE_ID:
+			neighbors.append(op.b)
+		elif op.b == room_id and op.a != OUTSIDE_ID:
+			neighbors.append(op.a)
+
+	return neighbors
