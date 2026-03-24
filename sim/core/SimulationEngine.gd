@@ -21,11 +21,16 @@ class_name SimulationEngine
 var building: BuildingModel
 var smoke_model: SmokeModel = SmokeModel.new()
 
+# Constantes de conversión y físicas que no estaban claras dónde ponerlas. 
+# Se pueden mover a un archivo de configuración o a BuildingModel si se quiere.
+const o2_consumption_kg_per_MJ: float = 0.27
+const o2_nominal: float = 0.209
+
 # ============================================================
 # TIEMPO
 # ============================================================
 
-@export var time_scale: float = 1.0
+@export var time_scale: float = 5.0
 var sim_time_s: float = 0.0
 
 # ============================================================
@@ -183,7 +188,6 @@ func ignite_room(room_id: int) -> void:
 # ============================================================
 # FUEGO
 # ============================================================
-
 func _step_fire(dt: float) -> void:
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -222,11 +226,20 @@ func _step_fire(dt: float) -> void:
 		_try_trigger_flashover(room)
 
 func _compute_o2_factor(o2: float, o2_nominal: float, o2_min_for_flame: float) -> float:
+	# Por debajo del mínimo: el fuego no se apaga del todo (fase latente)
 	if o2 <= o2_min_for_flame:
-		return 0.0
+		return 0.2
 
-	var span: float = maxf(0.0001, o2_nominal - o2_min_for_flame)
-	return clampf((o2 - o2_min_for_flame) / span, 0.0, 1.0)
+	# Por encima del nominal: sin limitación
+	if o2 >= o2_nominal:
+		return 1.0
+
+	# Interpolación suave entre mínimo y nominal
+	var t: float = (o2 - o2_min_for_flame) / (o2_nominal - o2_min_for_flame)
+	t = clamp(t, 0.0, 1.0)
+
+	# Curva suavizada (clave)
+	return 0.2 + 0.8 * sqrt(t)
 
 func _compute_smoke_production_kg_s(hrr_kw: float, smoke_yield_kg_per_MJ: float) -> float:
 	var hrr_MJ_s: float = hrr_kw / 1000.0
@@ -258,20 +271,14 @@ func _step_oxygen(dt: float) -> void:
 		if room == null:
 			continue
 
-		var o2_consumption: float = 0.0
+		if room.hrr_kw > 0.0:
+			var o2_consumed: float = (room.hrr_kw / 1000.0) * o2_consumption_kg_per_MJ * dt
+			room.o2 -= o2_consumed
 
-		if room.fire != null and room.hrr_kw > 0.0:
-			o2_consumption = 0.000008 * room.hrr_kw * dt
+		var mix_rate: float = o2_mix_rate * dt
+		room.o2 = lerp(room.o2, o2_nominal, mix_rate)
 
-		room.o2 -= o2_consumption
-
-		# Mezcla interna simple
-		room.o2 += (fire_o2_nominal - room.o2) * o2_mix_rate * dt
-
-		# Recuperación exterior
-		if building.has_outside_opening(room.id):
-			room.o2 += (building.outside_o2 - room.o2) * o2_vent_rate * dt
-
+		room.o2 = clamp(room.o2, 0.10, o2_nominal)
 # ============================================================
 # TEMPERATURA
 # ============================================================
@@ -282,19 +289,37 @@ func _step_temperature(dt: float) -> void:
 		if room == null:
 			continue
 
+		# ----------------------------------------------------
+		# 1) Aporte térmico del fuego
+		# ----------------------------------------------------
+		# Simplificación:
+		# - más HRR => más calor
+		# - más volumen => cuesta más calentar la sala
+		var room_volume_m3: float = maxf(1.0, room.volume_m3())
 		var hrr_term: float = room.hrr_kw * 0.006 * dt
+
 		room.temp_upper_c += hrr_term
 
-		var loss_to_lower: float = maxf(0.0, room.temp_upper_c - room.temp_lower_c) * upper_to_lower_loss_rate * dt
+		# ----------------------------------------------------
+		# 2) Pérdidas / transferencia entre capas
+		# ----------------------------------------------------
+		var delta_ul: float = maxf(0.0, room.temp_upper_c - room.temp_lower_c)
+
+		var loss_to_lower: float = delta_ul * upper_to_lower_loss_rate * dt
 		var loss_to_ambient: float = maxf(0.0, room.temp_upper_c - building.outside_temp_c) * upper_to_ambient_loss_rate * dt
-		var lower_warming: float = maxf(0.0, room.temp_upper_c - room.temp_lower_c) * lower_layer_warming_rate * dt
-		var lower_loss_to_ambient: float = maxf(0.0, room.temp_lower_c - building.outside_temp_c) * 0.01 * dt
+		var lower_warming: float = delta_ul * lower_layer_warming_rate * dt
+		var lower_loss_to_ambient: float = maxf(0.0, room.temp_lower_c - building.outside_temp_c) * 0.015 * dt
 
 		room.temp_upper_c -= loss_to_lower
 		room.temp_upper_c -= loss_to_ambient
 
 		room.temp_lower_c += lower_warming
 		room.temp_lower_c -= lower_loss_to_ambient
+
+		# ----------------------------------------------------
+		# 3) Seguridad numérica
+		# ----------------------------------------------------
+		room.temp_lower_c = maxf(building.outside_temp_c, room.temp_lower_c)
 		room.temp_lower_c = minf(room.temp_lower_c, room.temp_upper_c)
 
 # ============================================================
@@ -309,6 +334,14 @@ func _step_temperature(dt: float) -> void:
 
 func _step_smoke(dt: float) -> void:
 	# --------------------------------------------------------
+	# 0) Preparar deltas por sala
+	# --------------------------------------------------------
+	var smoke_delta_kg: Dictionary = {}
+
+	for room_id in building.get_rooms().keys():
+		smoke_delta_kg[int(room_id)] = 0.0
+
+	# --------------------------------------------------------
 	# 1) Generación de humo
 	# --------------------------------------------------------
 	for room_id in building.get_rooms().keys():
@@ -318,19 +351,140 @@ func _step_smoke(dt: float) -> void:
 
 		var generated_kg: float = smoke_model.add_generated_smoke(room, dt)
 		smoke_generated_total_kg += generated_kg
+		smoke_delta_kg[int(room_id)] += generated_kg
 
 	# --------------------------------------------------------
-	# 2) Transferencias por aperturas
+	# 2) Calcular transferencias usando snapshot del frame
+	#    PERO SIN aplicarlas todavía
 	# --------------------------------------------------------
+	var room_transfers: Array[Dictionary] = []
+
 	for op in building.get_openings():
 		if op.open_fraction <= 0.0:
 			continue
 
-		var vented_kg: float = smoke_model.transfer_between_opening(building, op, dt)
-		smoke_vented_total_kg += vented_kg
+		# ----------------------------------------------------
+		# Caso exterior
+		# ----------------------------------------------------
+		var room_out: RoomModel = null
+
+		if op.a != BuildingModel.OUTSIDE_ID and op.b == BuildingModel.OUTSIDE_ID:
+			room_out = building.get_room(op.a)
+		elif op.b != BuildingModel.OUTSIDE_ID and op.a == BuildingModel.OUTSIDE_ID:
+			room_out = building.get_room(op.b)
+
+		if room_out != null:
+			var vented_kg: float = smoke_model.compute_outside_vented_kg(room_out, op, dt)
+			if vented_kg > 0.0:
+				smoke_delta_kg[room_out.id] -= vented_kg
+				smoke_vented_total_kg += vented_kg
+
+				# Pérdida de calor con el humo al exterior
+				if room_out.smoke_kg > 0.0:
+					var heat_loss_factor: float = vented_kg / (room_out.smoke_kg + 0.1)
+					room_out.temp_upper_c *= (1.0 - heat_loss_factor * 0.5)
+
+			continue
+
+		# ----------------------------------------------------
+		# Caso entre salas
+		# ----------------------------------------------------
+		var room_a: RoomModel = building.get_room(op.a)
+		var room_b: RoomModel = building.get_room(op.b)
+
+		if room_a == null or room_b == null:
+			continue
+
+		var transfer: Dictionary = smoke_model.compute_room_transfer(room_a, room_b, op, dt)
+		var from_id: int = int(transfer.get("from", -1))
+		var to_id: int = int(transfer.get("to", -1))
+		var kg: float = float(transfer.get("kg", 0.0))
+
+		if from_id == -1 or to_id == -1 or kg <= 0.0:
+			continue
+
+		room_transfers.append({
+			"from": from_id,
+			"to": to_id,
+			"kg": kg
+		})
 
 	# --------------------------------------------------------
-	# 3) Recalcular capa desde masa
+	# 3) LIMITAR CAUDAL TOTAL POR SALA ORIGEN
+	# --------------------------------------------------------
+	var outgoing: Dictionary = {}
+
+	for t in room_transfers:
+		var from_id: int = int(t["from"])
+
+		if not outgoing.has(from_id):
+			outgoing[from_id] = []
+
+		outgoing[from_id].append(t)
+
+	for from_id in outgoing.keys():
+		var room: RoomModel = building.get_room(int(from_id))
+		if room == null:
+			continue
+
+		var total_requested: float = 0.0
+		for t in outgoing[from_id]:
+			total_requested += float(t["kg"])
+
+		var max_allowed: float = room.smoke_kg * 0.03 * dt
+
+		if total_requested > max_allowed and total_requested > 0.0:
+			var scale: float = max_allowed / total_requested
+
+			for t in outgoing[from_id]:
+				t["kg"] = float(t["kg"]) * scale
+
+	# --------------------------------------------------------
+	# 4) Convertir transfers limitados en deltas
+	#    + mezclar temperatura con el humo
+	# --------------------------------------------------------
+	for t in room_transfers:
+		var from_id: int = int(t["from"])
+		var to_id: int = int(t["to"])
+		var kg: float = float(t["kg"])
+
+		if kg <= 0.0:
+			continue
+
+		smoke_delta_kg[from_id] -= kg
+		smoke_delta_kg[to_id] += kg
+
+		# Transferencia de calor con el humo
+		var source: RoomModel = building.get_room(from_id)
+		var target: RoomModel = building.get_room(to_id)
+
+		if source != null and target != null:
+			var mix_factor: float = kg / (target.smoke_kg + kg + 0.1)
+
+			target.temp_upper_c = lerp(
+				target.temp_upper_c,
+				source.temp_upper_c,
+				mix_factor * 1.4
+			)
+
+			source.temp_upper_c -= (
+				(source.temp_upper_c - target.temp_upper_c)
+				* mix_factor * 0.05
+			)
+
+	# --------------------------------------------------------
+	# 5) Aplicar deltas al final
+	# --------------------------------------------------------
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+
+		room.smoke_kg += float(smoke_delta_kg[int(room_id)])
+		room.smoke_kg = maxf(0.0, room.smoke_kg)
+
+	# --------------------------------------------------------
+	# 6) Recalcular capa desde la masa final
 	# --------------------------------------------------------
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -338,8 +492,6 @@ func _step_smoke(dt: float) -> void:
 			continue
 
 		smoke_model.recompute_layer_from_mass(room, dt)
-
-	#debug_check_smoke_conservation()
 
 # ============================================================
 # DEBUG DE CONSERVACIÓN DE MASA DE HUMO
