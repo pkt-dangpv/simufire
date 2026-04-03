@@ -106,16 +106,47 @@ var smoke_vented_total_kg: float = 0.0
 @export var layer_relax_up: float = 0.015
 
 # ============================================================
+# REGISTRO DE VALORES
+#=============================================================
+
+@export var enable_logging: bool = true
+@export var log_interval_s: float = 10.0
+@export var log_file_path: String = "user://sim_log.txt"
+
+var _next_log_time_s: float = 0.0
+
+# ============================================================
 # READY
 # ============================================================
 
 func _ready() -> void:
 	_resolve_building()
 	_sync_smoke_model_settings()
+	_reset_log_file()
 
 	if auto_ignite_on_ready:
 		ignite_room(ignition_room_id)
 
+	print(ProjectSettings.globalize_path(log_file_path))
+
+# ============================================================
+# REINCIAR LOG
+# ============================================================
+
+func _reset_log_file() -> void:
+	if not enable_logging:
+		return
+
+	var file := FileAccess.open(log_file_path, FileAccess.WRITE)
+	if file == null:
+		push_error("No se pudo crear/resetear el log: " + log_file_path)
+		return
+
+	file.store_line("SIMULATION LOG")
+	file.store_line("")
+	file.close()
+
+	_next_log_time_s = 0.0
 # ============================================================
 # SETUP
 # ============================================================
@@ -155,7 +186,7 @@ func step(delta: float) -> void:
 	_step_temperature(dt)
 	_step_smoke(dt)
 	_clamp_rooms()
-
+	_maybe_log_state()
 # ============================================================
 # IGNICIÓN
 # ============================================================
@@ -266,19 +297,65 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 # ============================================================
 
 func _step_oxygen(dt: float) -> void:
+	var air_density_kg_m3: float = 1.2
+
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
 			continue
 
+		var room_volume_m3: float = maxf(0.1, room.volume_m3())
+		var air_mass_kg: float = room_volume_m3 * air_density_kg_m3
+
+		# Masa actual de O2 en la sala
+		var o2_mass_kg: float = air_mass_kg * room.o2
+
+		# ----------------------------------------------------
+		# 1) Consumo de O2 por combustión
+		# ----------------------------------------------------
 		if room.hrr_kw > 0.0:
-			var o2_consumed: float = (room.hrr_kw / 1000.0) * o2_consumption_kg_per_MJ * dt
-			room.o2 -= o2_consumed
+			var consumed: float = (room.hrr_kw / 1000.0) * o2_consumption_kg_per_MJ * dt
 
-		var mix_rate: float = o2_mix_rate * dt
-		room.o2 = lerp(room.o2, o2_nominal, mix_rate)
+			# Si el O2 baja, el fuego también debe poder consumir menos
+			var availability_factor: float = clampf(
+				(room.o2 - 0.12) / (o2_nominal - 0.12),
+				0.0,
+				1.0
+			)
+			consumed *= availability_factor
 
-		room.o2 = clamp(room.o2, 0.10, o2_nominal)
+			# Evitar colapso brusco en un solo tick
+			consumed = minf(consumed, o2_mass_kg * 0.2)
+
+			o2_mass_kg -= consumed
+			o2_mass_kg = maxf(0.0, o2_mass_kg)
+
+		# ----------------------------------------------------
+		# 2) Convertir a fracción objetivo
+		# ----------------------------------------------------
+		var target_o2: float = o2_mass_kg / air_mass_kg
+
+		# ----------------------------------------------------
+		# 3) Mezcla suave hacia aire fresco
+		# ----------------------------------------------------
+		target_o2 = lerpf(target_o2, o2_nominal, o2_mix_rate * dt)
+
+		# ----------------------------------------------------
+		# 4) Inercia: el O2 no cambia de golpe
+		# ----------------------------------------------------
+		room.o2 = lerpf(room.o2, target_o2, 0.2 * dt)
+
+		# ----------------------------------------------------
+		# 5) Fuga basal mínima desde exterior
+		# ----------------------------------------------------
+		var leakage_mix_rate: float = 0.01 * dt
+		room.o2 = lerpf(room.o2, o2_nominal, leakage_mix_rate)
+
+		# ----------------------------------------------------
+		# 6) Clamp final
+		# ----------------------------------------------------
+		room.o2 = clampf(room.o2, 0.10, o2_nominal)
+
 # ============================================================
 # TEMPERATURA
 # ============================================================
@@ -459,18 +536,32 @@ func _step_smoke(dt: float) -> void:
 		var target: RoomModel = building.get_room(to_id)
 
 		if source != null and target != null:
-			var mix_factor: float = kg / (target.smoke_kg + kg + 0.1)
+			var flow_ratio: float = kg / (target.smoke_kg + kg + 0.1)
+
+			# ----------------------------------------------------
+			# Mezcla térmica más suave
+			# ----------------------------------------------------
+			var temp_mix: float = 0.15 * flow_ratio
 
 			target.temp_upper_c = lerp(
 				target.temp_upper_c,
 				source.temp_upper_c,
-				mix_factor * 1.4
+				temp_mix
 			)
 
 			source.temp_upper_c -= (
 				(source.temp_upper_c - target.temp_upper_c)
-				* mix_factor * 0.05
+				* temp_mix * 0.03
 			)
+
+			# ----------------------------------------------------
+			# Mezcla de O2 entre salas
+			# ----------------------------------------------------
+			var o2_mix_factor: float = 0.3 * flow_ratio
+			target.o2 = lerpf(target.o2, source.o2, o2_mix_factor)
+
+			var back_mix: float = 0.1 * flow_ratio
+			source.o2 = lerpf(source.o2, target.o2, back_mix)
 
 	# --------------------------------------------------------
 	# 5) Aplicar deltas al final
@@ -580,3 +671,49 @@ func get_state() -> Dictionary:
 			"flashover_triggered": room.flashover_triggered
 		}
 	return state
+
+#===========================================================
+# REGISTRO DE VALORES
+#===========================================================
+
+func _maybe_log_state() -> void:
+	if not enable_logging:
+		return
+
+	if sim_time_s < _next_log_time_s:
+		return
+
+	_append_log_snapshot()
+	_next_log_time_s += log_interval_s
+
+
+func _append_log_snapshot() -> void:
+	var file := FileAccess.open(log_file_path, FileAccess.READ_WRITE)
+	if file == null:
+		push_error("No se pudo abrir el log: " + log_file_path)
+		return
+
+	file.seek_end()
+
+	# Cabecera de snapshot
+	file.store_line("==================================================")
+	file.store_line("TIME=%.1f s" % sim_time_s)
+
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+
+		var line := "ROOM %s | HRR=%.2f | Up=%.2f | Low=%.2f | Smoke=%.4f | Layer=%.2f | O2=%.4f" % [
+			str(room.id),
+			room.hrr_kw,
+			room.temp_upper_c,
+			room.temp_lower_c,
+			room.smoke_kg,
+			room.h_layer_m,
+			room.o2
+		]
+		file.store_line(line)
+
+	file.store_line("")
+	file.close()
