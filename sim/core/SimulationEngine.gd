@@ -23,7 +23,7 @@ var smoke_model: SmokeModel = SmokeModel.new()
 
 # Constantes de conversión y físicas que no estaban claras dónde ponerlas. 
 # Se pueden mover a un archivo de configuración o a BuildingModel si se quiere.
-const o2_consumption_kg_per_MJ: float = 0.27
+const o2_consumption_kg_per_MJ: float = 0.12
 const o2_nominal: float = 0.209
 
 # ============================================================
@@ -235,10 +235,8 @@ func _step_fire(dt: float) -> void:
 		var hrr_ideal_kw: float = room.fire.compute_hrr_kw(room.fire_time_s)
 		var vent_limit_kw: float = building.estimate_vent_hrr_kw(room.id)
 
-		# Si no hay hueco exterior, por ahora usamos el máximo del fuego
-		# para no colapsar artificialmente a 0.
-		if vent_limit_kw <= 0.0:
-			vent_limit_kw = room.fire.max_hrr_kw
+		# Evitar infinito o 0 → límite físico mínimo
+		vent_limit_kw = clampf(vent_limit_kw, 500.0, room.fire.max_hrr_kw)
 
 		var o2_factor: float = _compute_o2_factor(
 			room.o2,
@@ -256,21 +254,14 @@ func _step_fire(dt: float) -> void:
 
 		_try_trigger_flashover(room)
 
-func _compute_o2_factor(o2: float, o2_nominal: float, o2_min_for_flame: float) -> float:
-	# Por debajo del mínimo: el fuego no se apaga del todo (fase latente)
-	if o2 <= o2_min_for_flame:
-		return 0.2
+func _compute_o2_factor(o2: float, nominal: float, min_o2: float) -> float:
+	if o2 <= min_o2:
+		return 0.0
 
-	# Por encima del nominal: sin limitación
-	if o2 >= o2_nominal:
-		return 1.0
+	var x = (o2 - min_o2) / (nominal - min_o2)
 
-	# Interpolación suave entre mínimo y nominal
-	var t: float = (o2 - o2_min_for_flame) / (o2_nominal - o2_min_for_flame)
-	t = clamp(t, 0.0, 1.0)
-
-	# Curva suavizada (clave)
-	return 0.2 + 0.8 * sqrt(t)
+	# Curva no lineal → el fuego sufre antes
+	return pow(x, 2.0)
 
 func _compute_smoke_production_kg_s(hrr_kw: float, smoke_yield_kg_per_MJ: float) -> float:
 	var hrr_MJ_s: float = hrr_kw / 1000.0
@@ -304,8 +295,8 @@ func _step_oxygen(dt: float) -> void:
 		if room == null:
 			continue
 
-		var room_volume_m3: float = maxf(0.1, room.volume_m3())
-		var air_mass_kg: float = room_volume_m3 * air_density_kg_m3
+		var _room_volume_m3: float = maxf(0.1, room.volume_m3())
+		var air_mass_kg: float = _room_volume_m3 * air_density_kg_m3
 
 		# Masa actual de O2 en la sala
 		var o2_mass_kg: float = air_mass_kg * room.o2
@@ -348,7 +339,7 @@ func _step_oxygen(dt: float) -> void:
 		# ----------------------------------------------------
 		# 5) Fuga basal mínima desde exterior
 		# ----------------------------------------------------
-		var leakage_mix_rate: float = 0.01 * dt
+		var leakage_mix_rate: float = 0.03 * dt
 		room.o2 = lerpf(room.o2, o2_nominal, leakage_mix_rate)
 
 		# ----------------------------------------------------
@@ -372,7 +363,7 @@ func _step_temperature(dt: float) -> void:
 		# Simplificación:
 		# - más HRR => más calor
 		# - más volumen => cuesta más calentar la sala
-		var room_volume_m3: float = maxf(1.0, room.volume_m3())
+		# var _room_volume_m3: float = maxf(1.0, room.volume_m3())
 		var hrr_term: float = room.hrr_kw * 0.006 * dt
 
 		room.temp_upper_c += hrr_term
@@ -557,7 +548,7 @@ func _step_smoke(dt: float) -> void:
 			# ----------------------------------------------------
 			# Mezcla de O2 entre salas
 			# ----------------------------------------------------
-			var o2_mix_factor: float = 0.3 * flow_ratio
+			var o2_mix_factor: float = 0.6 * flow_ratio
 			target.o2 = lerpf(target.o2, source.o2, o2_mix_factor)
 
 			var back_mix: float = 0.1 * flow_ratio
