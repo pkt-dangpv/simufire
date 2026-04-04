@@ -28,6 +28,9 @@ class_name Visualizer
 @export var room_outline_color: Color = Color(1.0, 1.0, 1.0, 1.0)
 @export var room_fill_color: Color = Color(1.0, 1.0, 1.0, 0.02)
 
+@export var auto_fit_to_view: bool = true
+@export var view_margin_px: float = 20.0
+
 # ============================================================
 # TOGGLES DE DIBUJO
 # ============================================================
@@ -349,8 +352,12 @@ func _draw_openings() -> void:
 		if seg_m.size() != 2:
 			continue
 
-		var p1: Vector2 = seg_m[0] * meters_to_px
-		var p2: Vector2 = seg_m[1] * meters_to_px
+		var tf: Dictionary = _get_draw_transform()
+		var scale_px: float = float(tf["scale"])
+		var offset: Vector2 = tf["offset"]
+
+		var p1: Vector2 = seg_m[0] * scale_px + offset
+		var p2: Vector2 = seg_m[1] * scale_px + offset
 
 		var alpha: float = 0.25 + 0.75 * clampf(op.open_fraction, 0.0, 1.0)
 
@@ -434,8 +441,12 @@ func _default_exterior_segment_m(r: Rect2, width_m: float) -> PackedVector2Array
 # ============================================================
 
 func _to_px(rm: Rect2) -> Rect2:
-	var pos: Vector2 = rm.position * meters_to_px
-	var size: Vector2 = rm.size * meters_to_px
+	var tf: Dictionary = _get_draw_transform()
+	var scale_px: float = float(tf["scale"])
+	var offset: Vector2 = tf["offset"]
+
+	var pos: Vector2 = rm.position * scale_px + offset
+	var size: Vector2 = rm.size * scale_px
 	return Rect2(pos, size)
 
 
@@ -445,3 +456,50 @@ func _get_sorted_room_ids() -> Array[int]:
 		ids.append(int(k))
 	ids.sort()
 	return ids
+
+func _get_building_bounds_m() -> Rect2:
+	var first: bool = true
+	var bounds: Rect2 = Rect2()
+
+	for id in _get_sorted_room_ids():
+		var r: Rect2 = rects_m[id]
+		if first:
+			bounds = r
+			first = false
+		else:
+			bounds = bounds.merge(r)
+
+	return bounds
+
+
+func _get_draw_transform() -> Dictionary:
+	var bounds_m: Rect2 = _get_building_bounds_m()
+
+	if bounds_m.size.x <= 0.0 or bounds_m.size.y <= 0.0:
+		return {
+			"scale": meters_to_px,
+			"offset": Vector2.ZERO
+		}
+
+	var viewport_rect: Rect2 = get_viewport_rect()
+	var available_w: float = maxf(1.0, viewport_rect.size.x - view_margin_px * 2.0)
+	var available_h: float = maxf(1.0, viewport_rect.size.y - view_margin_px * 2.0)
+
+	var scale_px: float = meters_to_px
+
+	if auto_fit_to_view:
+		var scale_x: float = available_w / bounds_m.size.x
+		var scale_y: float = available_h / bounds_m.size.y
+		scale_px = minf(scale_x, scale_y)
+
+	var drawing_size_px: Vector2 = bounds_m.size * scale_px
+
+	var offset: Vector2 = Vector2(
+		(viewport_rect.size.x - drawing_size_px.x) * 0.5,
+		(viewport_rect.size.y - drawing_size_px.y) * 0.5
+	) - bounds_m.position * scale_px
+
+	return {
+		"scale": scale_px,
+		"offset": offset
+	}

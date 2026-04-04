@@ -11,9 +11,8 @@ func update_state(state: Dictionary) -> void:
 	var sim_time_s: float = float(state.get("sim_time_s", 0.0))
 	var total_seconds: int = int(sim_time_s)
 
-	var minutes: int = floori (total_seconds / 60)
-	var seconds: int = total_seconds % 60
-
+	var minutes: int = int(float(total_seconds) / 60.0)
+	var seconds: int = int(total_seconds % 60)
 	time_label.text = "TIME %02d:%02d" % [minutes, seconds]
 
 	

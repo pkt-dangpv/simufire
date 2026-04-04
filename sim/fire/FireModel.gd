@@ -8,6 +8,11 @@ class_name FireModel
 # Aquí viven los parámetros propios del incendio, no del edificio.
 # ============================================================
 
+# FUEL
+var fuel_energy_MJ: float = 2000.0
+var remaining_fuel_MJ: float = 5000.0
+var max_burn_rate_kw: float = 2000.0
+
 # Crecimiento t²
 var growth_alpha_kw_s2: float = 0.03
 
@@ -24,6 +29,7 @@ var flashover_min_hrr_kw: float = 300.0
 # Oxígeno
 var o2_nominal: float = 0.209
 var o2_min_for_flame: float = 0.12
+var o2_consumption_kg_per_MJ: float = 0.20
 
 # Producción de humo
 var smoke_yield_kg_per_MJ: float = 0.06

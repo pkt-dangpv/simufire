@@ -60,13 +60,20 @@ func recompute_layer_from_mass(room: RoomModel, dt: float) -> void:
 	var floor_area_m2: float = maxf(0.01, room.floor_area_m2())
 	var smoke_depth_m: float = smoke_volume_m3 / floor_area_m2
 
-	var target_layer_m: float = clampf(room.height_m - smoke_depth_m, 0.0, room.height_m)
+	# Hacer la bajada de capa más agresiva
+	smoke_depth_m *= 1.35
+
+	var target_layer_m: float = clampf(
+		room.height_m - smoke_depth_m,
+		0.0,
+		room.height_m
+	)
 
 	if target_layer_m < room.h_layer_m:
 		room.h_layer_m = lerpf(
 			room.h_layer_m,
 			target_layer_m,
-			clampf(layer_relax_down * dt, 0.0, 1.0)
+			clampf(layer_relax_down * dt * 2.0, 0.0, 1.0)
 		)
 	else:
 		room.h_layer_m = lerpf(
