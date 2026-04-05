@@ -91,7 +91,7 @@ var smoke_vented_total_kg: float = 0.0
 # OXÍGENO / MEZCLA
 # ============================================================
 
-@export var o2_mix_rate: float = 0.12
+@export var o2_mix_rate: float = 0.02
 @export var o2_vent_rate: float = 0.08
 
 # ============================================================
@@ -213,6 +213,8 @@ func ignite_room(room_id: int) -> void:
 	fire.o2_min_for_flame = fire_o2_min_for_flame
 	fire.smoke_yield_kg_per_MJ = fire_smoke_yield_kg_per_MJ
 	fire.o2_consumption_kg_per_MJ = fire_o2_consumption_kg_per_MJ
+	fire.remaining_fuel_MJ = fire.fuel_energy_MJ
+	
 
 	room.fire = fire
 	room.fire_time_s = 0.0
@@ -232,78 +234,84 @@ func _step_fire(dt: float) -> void:
 			room.smoke_prod_kg_s = 0.0
 			continue
 
+		var fire: FireModel = room.fire
+
+		# ----------------------------------------------------
+		# 1) Avance temporal
+		# ----------------------------------------------------
 		room.fire_time_s += dt
 
 		# ----------------------------------------------------
-		# 1) HRR ideal por curva t²
+		# 2) HRR ideal por curva t²
 		# ----------------------------------------------------
-		var hrr_t2: float = room.fire.compute_hrr_kw(room.fire_time_s)
-
-		# ----------------------------------------------------
-		# 2) Límite por ventilación
-		# ----------------------------------------------------
-		var vent_limit_kw: float = building.estimate_vent_hrr_kw(room.id)
-		if vent_limit_kw <= 0.0:
-			vent_limit_kw = room.fire.max_hrr_kw
-		else:
-			vent_limit_kw = minf(vent_limit_kw, room.fire.max_hrr_kw)
+		var hrr_target_kw: float = fire.compute_hrr_kw(room.fire_time_s)
 
 		# ----------------------------------------------------
 		# 3) Límite por combustible disponible
+		#    MJ -> kW  (MJ/s * 1000)
 		# ----------------------------------------------------
-		var fuel_limit_kw: float = room.fire.remaining_fuel_MJ / dt * 1000.0
+		var fuel_limited_hrr_kw: float = fire.remaining_fuel_MJ / maxf(dt, 0.001) * 1000.0
 
 		# ----------------------------------------------------
 		# 4) Límite por tasa máxima de combustión
 		# ----------------------------------------------------
-		var burn_rate_limit_kw: float = room.fire.max_burn_rate_kw
+		var burn_rate_limited_hrr_kw: float = fire.max_burn_rate_kw
 
 		# ----------------------------------------------------
-		# 5) HRR antes de O2
+		# 5) HRR base limitado por combustible
 		# ----------------------------------------------------
-		var hrr_limited_kw: float = minf(
-			minf(hrr_t2, vent_limit_kw),
-			minf(fuel_limit_kw, burn_rate_limit_kw)
+		var hrr_kw: float = minf(
+			hrr_target_kw,
+			minf(fuel_limited_hrr_kw, burn_rate_limited_hrr_kw)
 		)
 
 		# ----------------------------------------------------
-		# 6) Factor por oxígeno
+		# 6) Factor por O2 (fuerte, cuadrático)
 		# ----------------------------------------------------
-		var o2_factor: float = _compute_o2_factor(
-			room.o2,
-			room.fire.o2_nominal,
-			room.fire.o2_min_for_flame
-		)
-
-		room.hrr_kw = hrr_limited_kw * o2_factor
-
-		# ----------------------------------------------------
-		# 7) Consumo de combustible
-		# ----------------------------------------------------
-		var burned_MJ: float = room.hrr_kw / 1000.0 * dt
-		room.fire.remaining_fuel_MJ = maxf(
+		var o2_factor: float = clampf(
+			(room.o2 - fire.o2_min_for_flame) / maxf(0.001, fire.o2_nominal - fire.o2_min_for_flame),
 			0.0,
-			room.fire.remaining_fuel_MJ - burned_MJ
+			1.0
 		)
 
-		# ----------------------------------------------------
-		# 8) Si se acaba el combustible, se apaga
-		# ----------------------------------------------------
-		if room.fire.remaining_fuel_MJ <= 0.0:
+		# MUCHO más agresivo
+		o2_factor = pow(o2_factor, 4.0)
+
+		if room.o2 <= fire.o2_min_for_flame + 0.01:
 			room.hrr_kw = 0.0
 			room.smoke_prod_kg_s = 0.0
 			continue
 
 		# ----------------------------------------------------
-		# 9) Producción de humo
+		# 7) Asignar HRR real afectado por O2
+		# ----------------------------------------------------
+		room.hrr_kw = hrr_kw * o2_factor
+
+		# ----------------------------------------------------
+		# 8) Producción de humo
 		# ----------------------------------------------------
 		room.smoke_prod_kg_s = _compute_smoke_production_kg_s(
 			room.hrr_kw,
-			room.fire.smoke_yield_kg_per_MJ
+			fire.smoke_yield_kg_per_MJ
 		)
 
 		# ----------------------------------------------------
-		# 10) Flashover
+		# 9) Consumo de combustible
+		# ----------------------------------------------------
+		var energy_released_MJ: float = room.hrr_kw * dt / 1000.0
+		fire.remaining_fuel_MJ -= energy_released_MJ
+		fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ)
+
+		# ----------------------------------------------------
+		# 10) Si no queda combustible, apagar
+		# ----------------------------------------------------
+		if fire.remaining_fuel_MJ <= 0.0:
+			room.hrr_kw = 0.0
+			room.smoke_prod_kg_s = 0.0
+			continue
+
+		# ----------------------------------------------------
+		# 11) Flashover
 		# ----------------------------------------------------
 		_try_trigger_flashover(room)
 
@@ -348,8 +356,8 @@ func _step_oxygen(dt: float) -> void:
 		if room == null:
 			continue
 
-		var _room_volume_m3: float = maxf(0.1, room.volume_m3())
-		var air_mass_kg: float = _room_volume_m3 * air_density_kg_m3
+		var room_volume_m3: float = maxf(0.1, room.volume_m3())
+		var air_mass_kg: float = room_volume_m3 * air_density_kg_m3
 
 		# Masa actual de O2 en la sala
 		var o2_mass_kg: float = air_mass_kg * room.o2
@@ -361,16 +369,16 @@ func _step_oxygen(dt: float) -> void:
 			var consumption_rate: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.20
 			var consumed: float = (room.hrr_kw / 1000.0) * consumption_rate * dt
 
-			# Si el O2 baja, el fuego también debe poder consumir menos
 			var availability_factor: float = clampf(
-				(room.o2 - 0.12) / (o2_nominal - 0.12),
+				(room.o2 - 0.12) / maxf(0.001, o2_nominal - 0.12),
 				0.0,
 				1.0
 			)
+
 			consumed *= availability_factor
 
-			# Evitar colapso brusco en un solo tick
-			consumed = minf(consumed, o2_mass_kg * 0.2)
+			# Evitar consumir más O2 del que realmente hay disponible
+			consumed = minf(consumed, o2_mass_kg * 0.05)
 
 			o2_mass_kg -= consumed
 			o2_mass_kg = maxf(0.0, o2_mass_kg)
@@ -381,23 +389,12 @@ func _step_oxygen(dt: float) -> void:
 		var target_o2: float = o2_mass_kg / air_mass_kg
 
 		# ----------------------------------------------------
-		# 3) Mezcla suave hacia aire fresco
+		# 3) Inercia: el O2 no cambia de golpe
 		# ----------------------------------------------------
-		target_o2 = lerpf(target_o2, o2_nominal, o2_mix_rate * dt)
+		room.o2 = lerpf(room.o2, target_o2, 0.40 * dt)
 
 		# ----------------------------------------------------
-		# 4) Inercia: el O2 no cambia de golpe
-		# ----------------------------------------------------
-		room.o2 = lerpf(room.o2, target_o2, 0.2 * dt)
-
-		# ----------------------------------------------------
-		# 5) Fuga basal mínima desde exterior
-		# ----------------------------------------------------
-		var leakage_mix_rate: float = 0.0 * dt
-		room.o2 = lerpf(room.o2, o2_nominal, leakage_mix_rate)
-
-		# ----------------------------------------------------
-		# 6) Clamp final
+		# 4) Clamp final
 		# ----------------------------------------------------
 		room.o2 = clampf(room.o2, 0.10, o2_nominal)
 
@@ -418,7 +415,7 @@ func _step_temperature(dt: float) -> void:
 		# - más HRR => más calor
 		# - más volumen => cuesta más calentar la sala
 		# var _room_volume_m3: float = maxf(1.0, room.volume_m3())
-		var hrr_term: float = room.hrr_kw * 0.006 * dt
+		var hrr_term: float = room.hrr_kw * 0.0085 * dt
 
 		room.temp_upper_c += hrr_term
 
@@ -565,7 +562,7 @@ func _step_smoke(dt: float) -> void:
 		for t in outgoing[from_id]:
 			total_requested += float(t["kg"])
 
-		var max_allowed: float = room.smoke_kg * 0.03 * dt
+		var max_allowed: float = room.smoke_kg * 0.06 * dt
 
 		if total_requested > max_allowed and total_requested > 0.0:
 			var scale: float = max_allowed / total_requested
@@ -614,10 +611,10 @@ func _step_smoke(dt: float) -> void:
 			# ----------------------------------------------------
 			# Mezcla de O2 entre salas
 			# ----------------------------------------------------
-			var o2_mix_factor: float = 0.6 * flow_ratio
+			var o2_mix_factor: float = 0.15 * flow_ratio
 			target.o2 = lerpf(target.o2, source.o2, o2_mix_factor)
 
-			var back_mix: float = 0.1 * flow_ratio
+			var back_mix: float = 0.03 * flow_ratio
 			source.o2 = lerpf(source.o2, target.o2, back_mix)
 
 	# --------------------------------------------------------
@@ -643,7 +640,7 @@ func _step_smoke(dt: float) -> void:
 			continue
 
 		smoke_model.recompute_layer_from_mass(room, dt)
-
+		room.smoke_kg *= (1.0 - 0.003 * dt)
 # ============================================================
 # DEBUG DE CONSERVACIÓN DE MASA DE HUMO
 # ============================================================

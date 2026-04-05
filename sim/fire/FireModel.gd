@@ -10,7 +10,7 @@ class_name FireModel
 
 # FUEL
 var fuel_energy_MJ: float = 2000.0
-var remaining_fuel_MJ: float = 5000.0
+var remaining_fuel_MJ: float = 2000.0
 var max_burn_rate_kw: float = 2000.0
 
 # Crecimiento t²

@@ -140,10 +140,10 @@ layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.34800002
 anchor_right = 0.34800002
-offset_left = -74.89603
-offset_top = 7.0
+offset_left = -112.89603
+offset_top = 36.0
 offset_right = -33.896027
-offset_bottom = 43.0
+offset_bottom = 72.0
 grow_horizontal = 2
 
 [node name="TimeLabel" type="Label" parent="UI/HUD/MarginContainer" unique_id=2138669738]
