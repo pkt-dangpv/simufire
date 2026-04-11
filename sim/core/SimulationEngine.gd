@@ -82,9 +82,9 @@ var smoke_vented_total_kg: float = 0.0
 # AJUSTES TÉRMICOS
 # ============================================================
 
-@export var upper_to_lower_loss_rate: float = 0.035
-@export var upper_to_ambient_loss_rate: float = 0.015
-@export var lower_layer_warming_rate: float = 0.010
+@export var upper_to_lower_loss_rate: float = 0.025
+@export var upper_to_ambient_loss_rate: float = 0.6
+@export var lower_layer_warming_rate: float = 0.012
 @export var max_upper_temp_c: float = 900.0
 
 # ============================================================
@@ -98,7 +98,7 @@ var smoke_vented_total_kg: float = 0.0
 # AJUSTES DE HUMO (se copian al SmokeModel)
 # ============================================================
 
-@export var smoke_density_kg_m3: float = 0.9
+@export var smoke_density_kg_m3: float = 0.3
 @export var base_spill_kg_s_per_m2: float = 0.18
 @export var temp_push_factor: float = 0.008
 @export var max_spill_kg_s: float = 0.9
@@ -250,7 +250,7 @@ func _step_fire(dt: float) -> void:
 		# 3) Límite por combustible disponible
 		#    MJ -> kW  (MJ/s * 1000)
 		# ----------------------------------------------------
-		var fuel_limited_hrr_kw: float = fire.remaining_fuel_MJ / maxf(dt, 0.001) * 1000.0
+		var fuel_limited_hrr_kw: float = fire.remaining_fuel_MJ * 0.2
 
 		# ----------------------------------------------------
 		# 4) Límite por tasa máxima de combustión
@@ -274,8 +274,7 @@ func _step_fire(dt: float) -> void:
 			1.0
 		)
 
-		# MUCHO más agresivo
-		o2_factor = pow(o2_factor, 4.0)
+		
 
 		if room.o2 <= fire.o2_min_for_flame + 0.01:
 			room.hrr_kw = 0.0
@@ -285,7 +284,7 @@ func _step_fire(dt: float) -> void:
 		# ----------------------------------------------------
 		# 7) Asignar HRR real afectado por O2
 		# ----------------------------------------------------
-		room.hrr_kw = hrr_kw * o2_factor
+		room.hrr_kw = hrr_kw * pow(o2_factor, 2.5)
 
 		# ----------------------------------------------------
 		# 8) Producción de humo
@@ -411,13 +410,17 @@ func _step_temperature(dt: float) -> void:
 		# ----------------------------------------------------
 		# 1) Aporte térmico del fuego
 		# ----------------------------------------------------
-		# Simplificación:
-		# - más HRR => más calor
-		# - más volumen => cuesta más calentar la sala
-		# var _room_volume_m3: float = maxf(1.0, room.volume_m3())
-		var hrr_term: float = room.hrr_kw * 0.0085 * dt
+		var hrr_term: float = room.hrr_kw * 0.02 * dt
+		var smoke_factor: float = clampf(room.smoke_kg / 2.0, 0.0, 1.0)
+		room.temp_upper_c += room.temp_upper_c * smoke_factor * 0.04 * dt
+		#room.temp_upper_c += hrr_term
 
-		room.temp_upper_c += hrr_term
+		# ----------------------------------------------------
+		# 1.5) Efecto del humo sobre temperatura
+		# Retención/radiación simplificada
+		# ----------------------------------------------------
+		var smoke_heat_bonus: float = room.smoke_kg * 0.20 * dt
+		room.temp_upper_c += smoke_heat_bonus
 
 		# ----------------------------------------------------
 		# 2) Pérdidas / transferencia entre capas
@@ -427,7 +430,7 @@ func _step_temperature(dt: float) -> void:
 		var loss_to_lower: float = delta_ul * upper_to_lower_loss_rate * dt
 		var loss_to_ambient: float = maxf(0.0, room.temp_upper_c - building.outside_temp_c) * upper_to_ambient_loss_rate * dt
 		var lower_warming: float = delta_ul * lower_layer_warming_rate * dt
-		var lower_loss_to_ambient: float = maxf(0.0, room.temp_lower_c - building.outside_temp_c) * 0.015 * dt
+		var lower_loss_to_ambient: float = maxf(0.0, room.temp_lower_c - building.outside_temp_c) * 0.010 * dt
 
 		room.temp_upper_c -= loss_to_lower
 		room.temp_upper_c -= loss_to_ambient
@@ -440,7 +443,6 @@ func _step_temperature(dt: float) -> void:
 		# ----------------------------------------------------
 		room.temp_lower_c = maxf(building.outside_temp_c, room.temp_lower_c)
 		room.temp_lower_c = minf(room.temp_lower_c, room.temp_upper_c)
-
 # ============================================================
 # HUMO
 # ------------------------------------------------------------
@@ -522,11 +524,11 @@ func _step_smoke(dt: float) -> void:
 		# Aumentar derrame si la capa de humo está muy baja
 		var layer_factor: float = 1.0
 
-		if room_a.h_layer_m < 1.5:
+		if room_a.h_layer_m < 1.8:
 			layer_factor = 1.5
-		if room_a.h_layer_m < 1.0:
+		if room_a.h_layer_m < 1.2:
 			layer_factor = 2.5
-		if room_a.h_layer_m < 0.5:
+		if room_a.h_layer_m < 0.8:
 			layer_factor = 4.0
 
 		kg *= layer_factor
@@ -562,7 +564,7 @@ func _step_smoke(dt: float) -> void:
 		for t in outgoing[from_id]:
 			total_requested += float(t["kg"])
 
-		var max_allowed: float = room.smoke_kg * 0.06 * dt
+		var max_allowed: float = room.smoke_kg * 0.12 * dt
 
 		if total_requested > max_allowed and total_requested > 0.0:
 			var scale: float = max_allowed / total_requested
@@ -595,7 +597,7 @@ func _step_smoke(dt: float) -> void:
 			# ----------------------------------------------------
 			# Mezcla térmica más suave
 			# ----------------------------------------------------
-			var temp_mix: float = 0.15 * flow_ratio
+			var temp_mix: float = 0.30 * flow_ratio
 
 			target.temp_upper_c = lerp(
 				target.temp_upper_c,
@@ -640,7 +642,7 @@ func _step_smoke(dt: float) -> void:
 			continue
 
 		smoke_model.recompute_layer_from_mass(room, dt)
-		room.smoke_kg *= (1.0 - 0.003 * dt)
+		room.smoke_kg *= (1.0 - 0.001 * dt)
 # ============================================================
 # DEBUG DE CONSERVACIÓN DE MASA DE HUMO
 # ============================================================

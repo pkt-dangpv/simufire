@@ -61,13 +61,24 @@ func recompute_layer_from_mass(room: RoomModel, dt: float) -> void:
 	var smoke_depth_m: float = smoke_volume_m3 / floor_area_m2
 
 	# Hacer la bajada de capa más agresiva
-	smoke_depth_m *= 1.35
+	smoke_depth_m *= 2
 
 	var target_layer_m: float = clampf(
-		room.height_m - smoke_depth_m,
-		0.0,
-		room.height_m
+	room.height_m - smoke_depth_m,
+	0.0,
+	room.height_m
 	)
+
+	# 🔥 NUEVO: empuje físico del humo (clave)
+	var compression: float = clampf(room.smoke_kg / 5.0, 0.0, 1.0)
+	target_layer_m -= compression * 0.8 * dt
+
+	# 🔥 NUEVO: efecto temperatura
+	if room.temp_upper_c > 150.0:
+		target_layer_m -= 0.3 * dt
+
+	# Clamp otra vez (importante)
+	target_layer_m = clampf(target_layer_m, 0.0, room.height_m)
 
 	if target_layer_m < room.h_layer_m:
 		room.h_layer_m = lerpf(
