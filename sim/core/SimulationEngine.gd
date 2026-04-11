@@ -10,10 +10,6 @@ class_name SimulationEngine
 # - crear ignición inicial
 # - actualizar fuego, O2, temperatura y humo
 # - exponer estado agregado
-#
-# PRIORIDAD ACTUAL:
-# - estabilidad del motor físico
-# - conservación de masa de humo
 # ============================================================
 
 @export var building_path: NodePath
@@ -21,8 +17,6 @@ class_name SimulationEngine
 var building: BuildingModel
 var smoke_model: SmokeModel = SmokeModel.new()
 
-# Constantes de conversión y físicas que no estaban claras dónde ponerlas. 
-# Se pueden mover a un archivo de configuración o a BuildingModel si se quiere.
 const o2_consumption_kg_per_MJ: float = 0.35
 const o2_nominal: float = 0.209
 
@@ -35,14 +29,6 @@ var sim_time_s: float = 0.0
 
 # ============================================================
 # CONTABILIDAD GLOBAL DEL HUMO
-# ------------------------------------------------------------
-# Invariante buscada:
-#
-# smoke_generated_total_kg
-# =
-# sum(room.smoke_kg)
-# +
-# smoke_vented_total_kg
 # ============================================================
 
 var smoke_generated_total_kg: float = 0.0
@@ -83,7 +69,7 @@ var smoke_vented_total_kg: float = 0.0
 # ============================================================
 
 @export var upper_to_lower_loss_rate: float = 0.025
-@export var upper_to_ambient_loss_rate: float = 0.6
+@export var upper_to_ambient_loss_rate: float = 0.008
 @export var lower_layer_warming_rate: float = 0.012
 @export var max_upper_temp_c: float = 900.0
 
@@ -108,7 +94,7 @@ var smoke_vented_total_kg: float = 0.0
 
 # ============================================================
 # REGISTRO DE VALORES
-#=============================================================
+# ============================================================
 
 @export var enable_logging: bool = true
 @export var log_interval_s: float = 10.0
@@ -131,7 +117,7 @@ func _ready() -> void:
 	print(ProjectSettings.globalize_path(log_file_path))
 
 # ============================================================
-# REINCIAR LOG
+# REINICIAR LOG
 # ============================================================
 
 func _reset_log_file() -> void:
@@ -148,6 +134,7 @@ func _reset_log_file() -> void:
 	file.close()
 
 	_next_log_time_s = 0.0
+
 # ============================================================
 # SETUP
 # ============================================================
@@ -188,6 +175,7 @@ func step(delta: float) -> void:
 	_step_smoke(dt)
 	_clamp_rooms()
 	_maybe_log_state()
+
 # ============================================================
 # IGNICIÓN
 # ============================================================
@@ -214,7 +202,6 @@ func ignite_room(room_id: int) -> void:
 	fire.smoke_yield_kg_per_MJ = fire_smoke_yield_kg_per_MJ
 	fire.o2_consumption_kg_per_MJ = fire_o2_consumption_kg_per_MJ
 	fire.remaining_fuel_MJ = fire.fuel_energy_MJ
-	
 
 	room.fire = fire
 	room.fire_time_s = 0.0
@@ -223,6 +210,7 @@ func ignite_room(room_id: int) -> void:
 # ============================================================
 # FUEGO
 # ============================================================
+
 func _step_fire(dt: float) -> void:
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -236,92 +224,52 @@ func _step_fire(dt: float) -> void:
 
 		var fire: FireModel = room.fire
 
-		# ----------------------------------------------------
-		# 1) Avance temporal
-		# ----------------------------------------------------
 		room.fire_time_s += dt
 
-		# ----------------------------------------------------
-		# 2) HRR ideal por curva t²
-		# ----------------------------------------------------
 		var hrr_target_kw: float = fire.compute_hrr_kw(room.fire_time_s)
-
-		# ----------------------------------------------------
-		# 3) Límite por combustible disponible
-		#    MJ -> kW  (MJ/s * 1000)
-		# ----------------------------------------------------
 		var fuel_limited_hrr_kw: float = fire.remaining_fuel_MJ * 0.2
-
-		# ----------------------------------------------------
-		# 4) Límite por tasa máxima de combustión
-		# ----------------------------------------------------
 		var burn_rate_limited_hrr_kw: float = fire.max_burn_rate_kw
 
-		# ----------------------------------------------------
-		# 5) HRR base limitado por combustible
-		# ----------------------------------------------------
 		var hrr_kw: float = minf(
 			hrr_target_kw,
 			minf(fuel_limited_hrr_kw, burn_rate_limited_hrr_kw)
 		)
 
-		# ----------------------------------------------------
-		# 6) Factor por O2 (fuerte, cuadrático)
-		# ----------------------------------------------------
 		var o2_factor: float = clampf(
 			(room.o2 - fire.o2_min_for_flame) / maxf(0.001, fire.o2_nominal - fire.o2_min_for_flame),
 			0.0,
 			1.0
 		)
 
-		
-
 		if room.o2 <= fire.o2_min_for_flame + 0.01:
 			room.hrr_kw = 0.0
 			room.smoke_prod_kg_s = 0.0
 			continue
 
-		# ----------------------------------------------------
-		# 7) Asignar HRR real afectado por O2
-		# ----------------------------------------------------
 		room.hrr_kw = hrr_kw * pow(o2_factor, 2.5)
 
-		# ----------------------------------------------------
-		# 8) Producción de humo
-		# ----------------------------------------------------
 		room.smoke_prod_kg_s = _compute_smoke_production_kg_s(
 			room.hrr_kw,
 			fire.smoke_yield_kg_per_MJ
 		)
 
-		# ----------------------------------------------------
-		# 9) Consumo de combustible
-		# ----------------------------------------------------
 		var energy_released_MJ: float = room.hrr_kw * dt / 1000.0
 		fire.remaining_fuel_MJ -= energy_released_MJ
 		fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ)
 
-		# ----------------------------------------------------
-		# 10) Si no queda combustible, apagar
-		# ----------------------------------------------------
 		if fire.remaining_fuel_MJ <= 0.0:
 			room.hrr_kw = 0.0
 			room.smoke_prod_kg_s = 0.0
 			continue
 
-		# ----------------------------------------------------
-		# 11) Flashover
-		# ----------------------------------------------------
 		_try_trigger_flashover(room)
 
 func _compute_o2_factor(o2: float, nominal: float, min_o2: float) -> float:
 	if o2 <= min_o2:
 		return 0.0
 
-	var x = (o2 - min_o2) / (nominal - min_o2)
-
-	# Curva no lineal → el fuego sufre antes
-	return pow(x, 2.0)
+	var o2_ratio: float = (o2 - min_o2) / maxf(0.001, nominal - min_o2)
+	return clampf(o2_ratio, 0.0, 1.0)
 
 func _compute_smoke_production_kg_s(hrr_kw: float, smoke_yield_kg_per_MJ: float) -> float:
 	var hrr_MJ_s: float = hrr_kw / 1000.0
@@ -357,13 +305,8 @@ func _step_oxygen(dt: float) -> void:
 
 		var room_volume_m3: float = maxf(0.1, room.volume_m3())
 		var air_mass_kg: float = room_volume_m3 * air_density_kg_m3
-
-		# Masa actual de O2 en la sala
 		var o2_mass_kg: float = air_mass_kg * room.o2
 
-		# ----------------------------------------------------
-		# 1) Consumo de O2 por combustión
-		# ----------------------------------------------------
 		if room.hrr_kw > 0.0:
 			var consumption_rate: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.20
 			var consumed: float = (room.hrr_kw / 1000.0) * consumption_rate * dt
@@ -375,26 +318,13 @@ func _step_oxygen(dt: float) -> void:
 			)
 
 			consumed *= availability_factor
-
-			# Evitar consumir más O2 del que realmente hay disponible
 			consumed = minf(consumed, o2_mass_kg * 0.05)
 
 			o2_mass_kg -= consumed
 			o2_mass_kg = maxf(0.0, o2_mass_kg)
 
-		# ----------------------------------------------------
-		# 2) Convertir a fracción objetivo
-		# ----------------------------------------------------
 		var target_o2: float = o2_mass_kg / air_mass_kg
-
-		# ----------------------------------------------------
-		# 3) Inercia: el O2 no cambia de golpe
-		# ----------------------------------------------------
 		room.o2 = lerpf(room.o2, target_o2, 0.40 * dt)
-
-		# ----------------------------------------------------
-		# 4) Clamp final
-		# ----------------------------------------------------
 		room.o2 = clampf(room.o2, 0.10, o2_nominal)
 
 # ============================================================
@@ -407,24 +337,15 @@ func _step_temperature(dt: float) -> void:
 		if room == null:
 			continue
 
-		# ----------------------------------------------------
-		# 1) Aporte térmico del fuego
-		# ----------------------------------------------------
 		var hrr_term: float = room.hrr_kw * 0.02 * dt
+		room.temp_upper_c += hrr_term
+
 		var smoke_factor: float = clampf(room.smoke_kg / 2.0, 0.0, 1.0)
 		room.temp_upper_c += room.temp_upper_c * smoke_factor * 0.04 * dt
-		#room.temp_upper_c += hrr_term
 
-		# ----------------------------------------------------
-		# 1.5) Efecto del humo sobre temperatura
-		# Retención/radiación simplificada
-		# ----------------------------------------------------
 		var smoke_heat_bonus: float = room.smoke_kg * 0.20 * dt
 		room.temp_upper_c += smoke_heat_bonus
 
-		# ----------------------------------------------------
-		# 2) Pérdidas / transferencia entre capas
-		# ----------------------------------------------------
 		var delta_ul: float = maxf(0.0, room.temp_upper_c - room.temp_lower_c)
 
 		var loss_to_lower: float = delta_ul * upper_to_lower_loss_rate * dt
@@ -438,33 +359,19 @@ func _step_temperature(dt: float) -> void:
 		room.temp_lower_c += lower_warming
 		room.temp_lower_c -= lower_loss_to_ambient
 
-		# ----------------------------------------------------
-		# 3) Seguridad numérica
-		# ----------------------------------------------------
 		room.temp_lower_c = maxf(building.outside_temp_c, room.temp_lower_c)
 		room.temp_lower_c = minf(room.temp_lower_c, room.temp_upper_c)
+
 # ============================================================
 # HUMO
-# ------------------------------------------------------------
-# Orden correcto:
-# 1) generar masa
-# 2) transferir entre salas / exterior
-# 3) recalcular capa desde masa
-# 4) comprobar conservación
 # ============================================================
 
 func _step_smoke(dt: float) -> void:
-	# --------------------------------------------------------
-	# 0) Preparar deltas por sala
-	# --------------------------------------------------------
 	var smoke_delta_kg: Dictionary = {}
 
 	for room_id in building.get_rooms().keys():
 		smoke_delta_kg[int(room_id)] = 0.0
 
-	# --------------------------------------------------------
-	# 1) Generación de humo
-	# --------------------------------------------------------
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
@@ -474,19 +381,12 @@ func _step_smoke(dt: float) -> void:
 		smoke_generated_total_kg += generated_kg
 		smoke_delta_kg[int(room_id)] += generated_kg
 
-	# --------------------------------------------------------
-	# 2) Calcular transferencias usando snapshot del frame
-	#    PERO SIN aplicarlas todavía
-	# --------------------------------------------------------
 	var room_transfers: Array[Dictionary] = []
 
 	for op in building.get_openings():
 		if op.open_fraction <= 0.0:
 			continue
 
-		# ----------------------------------------------------
-		# Caso exterior
-		# ----------------------------------------------------
 		var room_out: RoomModel = null
 
 		if op.a != BuildingModel.OUTSIDE_ID and op.b == BuildingModel.OUTSIDE_ID:
@@ -500,16 +400,12 @@ func _step_smoke(dt: float) -> void:
 				smoke_delta_kg[room_out.id] -= vented_kg
 				smoke_vented_total_kg += vented_kg
 
-				# Pérdida de calor con el humo al exterior
 				if room_out.smoke_kg > 0.0:
 					var heat_loss_factor: float = vented_kg / (room_out.smoke_kg + 0.1)
 					room_out.temp_upper_c *= (1.0 - heat_loss_factor * 0.5)
 
 			continue
 
-		# ----------------------------------------------------
-		# Caso entre salas
-		# ----------------------------------------------------
 		var room_a: RoomModel = building.get_room(op.a)
 		var room_b: RoomModel = building.get_room(op.b)
 
@@ -521,7 +417,6 @@ func _step_smoke(dt: float) -> void:
 		var to_id: int = int(transfer.get("to", -1))
 		var kg: float = float(transfer.get("kg", 0.0))
 
-		# Aumentar derrame si la capa de humo está muy baja
 		var layer_factor: float = 1.0
 
 		if room_a.h_layer_m < 1.8:
@@ -542,9 +437,6 @@ func _step_smoke(dt: float) -> void:
 			"kg": kg
 		})
 
-	# --------------------------------------------------------
-	# 3) LIMITAR CAUDAL TOTAL POR SALA ORIGEN
-	# --------------------------------------------------------
 	var outgoing: Dictionary = {}
 
 	for t in room_transfers:
@@ -572,10 +464,6 @@ func _step_smoke(dt: float) -> void:
 			for t in outgoing[from_id]:
 				t["kg"] = float(t["kg"]) * scale
 
-	# --------------------------------------------------------
-	# 4) Convertir transfers limitados en deltas
-	#    + mezclar temperatura con el humo
-	# --------------------------------------------------------
 	for t in room_transfers:
 		var from_id: int = int(t["from"])
 		var to_id: int = int(t["to"])
@@ -587,16 +475,12 @@ func _step_smoke(dt: float) -> void:
 		smoke_delta_kg[from_id] -= kg
 		smoke_delta_kg[to_id] += kg
 
-		# Transferencia de calor con el humo
 		var source: RoomModel = building.get_room(from_id)
 		var target: RoomModel = building.get_room(to_id)
 
 		if source != null and target != null:
 			var flow_ratio: float = kg / (target.smoke_kg + kg + 0.1)
 
-			# ----------------------------------------------------
-			# Mezcla térmica más suave
-			# ----------------------------------------------------
 			var temp_mix: float = 0.30 * flow_ratio
 
 			target.temp_upper_c = lerp(
@@ -610,18 +494,12 @@ func _step_smoke(dt: float) -> void:
 				* temp_mix * 0.03
 			)
 
-			# ----------------------------------------------------
-			# Mezcla de O2 entre salas
-			# ----------------------------------------------------
 			var o2_mix_factor: float = 0.15 * flow_ratio
 			target.o2 = lerpf(target.o2, source.o2, o2_mix_factor)
 
 			var back_mix: float = 0.03 * flow_ratio
 			source.o2 = lerpf(source.o2, target.o2, back_mix)
 
-	# --------------------------------------------------------
-	# 5) Aplicar deltas al final
-	# --------------------------------------------------------
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
@@ -630,12 +508,9 @@ func _step_smoke(dt: float) -> void:
 		room.smoke_kg += float(smoke_delta_kg[int(room_id)])
 		room.smoke_kg = maxf(0.0, room.smoke_kg)
 
-		# Descarga extra si la capa ya está muy baja
 		if room.h_layer_m < 0.5:
 			room.smoke_kg *= 0.98
-	# --------------------------------------------------------
-	# 6) Recalcular capa desde la masa final
-	# --------------------------------------------------------
+
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
@@ -643,6 +518,7 @@ func _step_smoke(dt: float) -> void:
 
 		smoke_model.recompute_layer_from_mass(room, dt)
 		room.smoke_kg *= (1.0 - 0.001 * dt)
+
 # ============================================================
 # DEBUG DE CONSERVACIÓN DE MASA DE HUMO
 # ============================================================
@@ -731,9 +607,9 @@ func get_state() -> Dictionary:
 		}
 	return state
 
-#===========================================================
+# ============================================================
 # REGISTRO DE VALORES
-#===========================================================
+# ============================================================
 
 func _maybe_log_state() -> void:
 	if not enable_logging:
@@ -745,7 +621,6 @@ func _maybe_log_state() -> void:
 	_append_log_snapshot()
 	_next_log_time_s += log_interval_s
 
-
 func _append_log_snapshot() -> void:
 	var file := FileAccess.open(log_file_path, FileAccess.READ_WRITE)
 	if file == null:
@@ -754,7 +629,6 @@ func _append_log_snapshot() -> void:
 
 	file.seek_end()
 
-	# Cabecera de snapshot
 	file.store_line("==================================================")
 	file.store_line("TIME=%.1f s" % sim_time_s)
 
