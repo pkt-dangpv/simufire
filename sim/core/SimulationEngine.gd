@@ -337,11 +337,11 @@ func _step_temperature(dt: float) -> void:
 		if room == null:
 			continue
 
-		var hrr_term: float = room.hrr_kw * 0.02 * dt
+		var hrr_term: float = room.hrr_kw * 0.006 * dt
 		room.temp_upper_c += hrr_term
 
 		var smoke_factor: float = clampf(room.smoke_kg / 2.0, 0.0, 1.0)
-		room.temp_upper_c += room.temp_upper_c * smoke_factor * 0.04 * dt
+		room.temp_upper_c += room.hrr_kw * smoke_factor * 0.005 * dt
 
 		var smoke_heat_bonus: float = room.smoke_kg * 0.20 * dt
 		room.temp_upper_c += smoke_heat_bonus

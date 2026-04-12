@@ -9,12 +9,12 @@ class_name FireModel
 # ============================================================
 
 # FUEL
-var fuel_energy_MJ: float = 2000.0
-var remaining_fuel_MJ: float = 2000.0
+var fuel_energy_MJ: float = 5000.0
+var remaining_fuel_MJ: float = 5000.0
 var max_burn_rate_kw: float = 2000.0
 
 # Crecimiento t²
-var growth_alpha_kw_s2: float = 0.03
+var growth_alpha_kw_s2: float = 0.05
 
 # Techo base del fuego
 var max_hrr_kw: float = 3000.0
