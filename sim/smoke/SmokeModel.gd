@@ -58,26 +58,19 @@ func recompute_layer_from_mass(room: RoomModel, dt: float) -> void:
 		smoke_volume_m3 = room.smoke_kg / smoke_density_kg_m3
 
 	var floor_area_m2: float = maxf(0.01, room.floor_area_m2())
-	var smoke_depth_m: float = smoke_volume_m3 / floor_area_m2
 
-	# Hacer la bajada de capa más agresiva
-	smoke_depth_m *= 2.0
+	# Expansión térmica (ley de gases ideales): humo caliente ocupa más volumen
+	# A 20°C → factor 1.0; a 300°C → factor ~1.96; a 600°C → factor ~2.98
+	var temp_expansion: float = (room.temp_upper_c + 273.15) / 293.15
+	var effective_volume_m3: float = smoke_volume_m3 * maxf(1.0, temp_expansion)
+
+	var smoke_depth_m: float = effective_volume_m3 / floor_area_m2
 
 	var target_layer_m: float = clampf(
 		room.height_m - smoke_depth_m,
 		0.0,
 		room.height_m
 	)
-
-	# Empuje físico del humo
-	var compression: float = clampf(room.smoke_kg / 5.0, 0.0, 1.0)
-	target_layer_m -= compression * 0.8 * dt
-
-	# Efecto de temperatura
-	if room.temp_upper_c > 150.0:
-		target_layer_m -= 0.15 * dt
-
-	target_layer_m = clampf(target_layer_m, 0.0, room.height_m)
 
 	if target_layer_m < room.h_layer_m:
 		room.h_layer_m = lerpf(

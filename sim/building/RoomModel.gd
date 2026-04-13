@@ -37,6 +37,11 @@ var h_layer_m: float = 2.5
 var fire: FireModel = null
 var fire_time_s: float = 0.0
 var hrr_kw: float = 0.0
+var fire_low_hrr_time_s: float = 0.0  # contador de tiempo en agonía (HRR bajo sostenido)
+
+# Presión de la capa superior respecto al exterior
+# Sube por boyantez del gas caliente; baja al ventilar por fuga de ventanas.
+var overpressure_pa: float = 0.0
 
 # Eventos
 var flashover_triggered: bool = false

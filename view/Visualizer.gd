@@ -153,7 +153,7 @@ func _draw() -> void:
 			continue
 
 		var h_layer_m: float = float(rs.get("h_layer_m", room_height_m_default))
-		var smoke_kg: float = float(rs.get("smoke_mass_kg", 0.0))
+		var smoke_kg: float = float(rs.get("smoke_kg", 0.0))
 		var hrr_kw: float = float(rs.get("hrr_kw", 0.0))
 
 		# 4) humo
