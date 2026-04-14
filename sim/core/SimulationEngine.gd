@@ -54,6 +54,12 @@ var smoke_vented_total_kg: float = 0.0
 @export var fire_o2_consumption_kg_per_MJ: float = 0.076  # Regla de Thornton: 1/13.1 MJ/kgO2
 @export var fire_smoke_yield_kg_per_MJ: float = 0.06
 
+# Rendimiento de CO
+# Combustión bien ventilada (O2 nominal): ~0.004 kg/MJ (madera seca, ISO 19706)
+# Combustión en déficit de O2 (ventilation-controlled): ~0.20 kg/MJ
+@export var co_base_yield_kg_per_MJ: float = 0.004
+@export var co_max_yield_kg_per_MJ: float = 0.20
+
 # Umbral de extinción: si el HRR real cae por debajo durante fire_extinction_delay_s
 # segundos, el fuego se considera extinto (modela apagado por falta de ventilación).
 @export var fire_extinction_hrr_kw: float = 8.0
@@ -237,7 +243,8 @@ func ignite_room(room_id: int) -> void:
 
 	var fire: FireModel = FireModel.new()
 	fire.growth_alpha_kw_s2 = fire_alpha_kw_s2
-	fire.max_hrr_kw = fire_max_hrr_kw
+	# max_hrr_kw: usa el valor de la sala si está definido, si no el global del engine
+	fire.max_hrr_kw = room.max_hrr_kw if room.max_hrr_kw > 0.0 else fire_max_hrr_kw
 	fire.secondary_hrr_gain_kw = fire_secondary_hrr_gain_kw
 	fire.flashover_hrr_multiplier = fire_flashover_hrr_multiplier
 	fire.flashover_min_hrr_kw = fire_flashover_min_hrr_kw
@@ -245,6 +252,8 @@ func ignite_room(room_id: int) -> void:
 	fire.o2_min_for_flame = fire_o2_min_for_flame
 	fire.smoke_yield_kg_per_MJ = fire_smoke_yield_kg_per_MJ
 	fire.o2_consumption_kg_per_MJ = fire_o2_consumption_kg_per_MJ
+	# Carga de combustible específica de la sala (MJ según tipo y área)
+	fire.fuel_energy_MJ = room.fuel_energy_MJ if room.fuel_energy_MJ > 0.0 else fire.fuel_energy_MJ
 	fire.remaining_fuel_MJ = fire.fuel_energy_MJ
 
 	room.fire = fire
@@ -335,6 +344,11 @@ func _step_fire(dt: float) -> void:
 			room.fire_low_hrr_time_s = 0.0
 
 		var energy_released_MJ: float = room.hrr_kw * dt / 1000.0
+
+		# Generación de CO: mayor rendimiento con poco O2 (combustión incompleta)
+		var co_yield: float = lerpf(co_max_yield_kg_per_MJ, co_base_yield_kg_per_MJ, o2_factor)
+		room.co_kg += co_yield * energy_released_MJ
+
 		fire.remaining_fuel_MJ -= energy_released_MJ
 		fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ)
 
@@ -412,7 +426,11 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 	# La altura de capa NO es criterio de flashover — se eliminó esa condición.
 	if hot_enough and enough_hrr:
 		room.flashover_triggered = true
-		room.fire.max_hrr_kw += room.fire.secondary_hrr_gain_kw
+		# Escalar la ganancia secundaria en proporción al tamaño de la habitación.
+		# Evita que habitaciones pequeñas (pasillo, baño) reciban el mismo
+		# secondary_hrr_gain que la habitación de referencia (fire_max_hrr_kw).
+		var gain: float = room.fire.secondary_hrr_gain_kw * (room.fire.max_hrr_kw / fire_max_hrr_kw)
+		room.fire.max_hrr_kw += gain
 		room.hrr_kw *= room.fire.flashover_hrr_multiplier
 		# Sincronizar fire_time con el HRR boosted para que la curva t² no retroceda
 		var t_to_hrr: float = sqrt(room.hrr_kw / maxf(0.001, room.fire.growth_alpha_kw_s2))
@@ -569,6 +587,60 @@ func _step_temperature(dt: float) -> void:
 		room.temp_lower_c = maxf(building.outside_temp_c, room.temp_lower_c)
 		room.temp_lower_c = minf(room.temp_lower_c, room.temp_upper_c)
 
+	# --------------------------------------------------------
+	# Transferencia convectiva entre habitaciones a través de
+	# aperturas interiores abiertas (efecto chimenea bidireccional).
+	# Usa la misma fórmula de flujo boyante que _step_oxygen.
+	# --------------------------------------------------------
+	var g_grav: float = 9.8
+	var rho_air: float = 1.2  # kg/m³
+
+	for op in building.get_openings():
+		if op.open_fraction <= 0.0:
+			continue
+		if op.a == BuildingModel.OUTSIDE_ID or op.b == BuildingModel.OUTSIDE_ID:
+			continue
+
+		var room_a: RoomModel = building.get_room(op.a)
+		var room_b: RoomModel = building.get_room(op.b)
+		if room_a == null or room_b == null:
+			continue
+
+		var hot_room: RoomModel
+		var cold_room: RoomModel
+		if room_a.temp_upper_c >= room_b.temp_upper_c:
+			hot_room = room_a
+			cold_room = room_b
+		else:
+			hot_room = room_b
+			cold_room = room_a
+
+		var lintel_m: float = op.lintel_height_m()
+		var hot_band_m: float = maxf(0.0, lintel_m - hot_room.h_layer_m)
+		if hot_band_m <= 0.0:
+			continue
+
+		var t_hot_k: float = hot_room.temp_upper_c + 273.15
+		var t_cold_k: float = cold_room.temp_upper_c + 273.15
+		var delta_t_k: float = maxf(0.0, t_hot_k - t_cold_k)
+		if delta_t_k < 2.0:
+			continue
+
+		var area_eff: float = op.width_m * minf(hot_band_m, op.height_m) * op.open_fraction
+		var q_vol: float = 0.65 * 0.5 * area_eff * sqrt(g_grav * hot_band_m * delta_t_k / ((t_hot_k + t_cold_k) * 0.5))
+		var mass_exch: float = q_vol * rho_air * dt
+
+		var m_hot_kg: float = maxf(1.0, hot_room.volume_m3() * rho_air)
+		var m_cold_kg: float = maxf(1.0, cold_room.volume_m3() * rho_air)
+
+		# Limitar para evitar sobreoscilación: no puede transferirse más calor
+		# del que equilibraría ambas habitaciones en un solo paso.
+		var max_exch: float = (m_hot_kg * m_cold_kg) / (m_hot_kg + m_cold_kg)
+		mass_exch = minf(mass_exch, max_exch)
+
+		hot_room.temp_upper_c -= mass_exch * delta_t_k / m_hot_kg
+		cold_room.temp_upper_c += mass_exch * delta_t_k / m_cold_kg
+
 # ============================================================
 # VENTILACIÓN PULSANTE POR FUGAS EN VENTANAS
 # ============================================================
@@ -659,9 +731,11 @@ func _step_pressure_venting(dt: float) -> void:
 
 func _step_smoke(dt: float) -> void:
 	var smoke_delta_kg: Dictionary = {}
+	var co_delta_kg: Dictionary = {}
 
 	for room_id in building.get_rooms().keys():
 		smoke_delta_kg[int(room_id)] = 0.0
+		co_delta_kg[int(room_id)] = 0.0
 
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -690,6 +764,11 @@ func _step_smoke(dt: float) -> void:
 			if vented_kg > 0.0:
 				smoke_delta_kg[room_out.id] -= vented_kg
 				smoke_vented_total_kg += vented_kg
+
+				# CO ventilado proporcionalmente al humo que sale
+				if room_out.smoke_kg > 0.001:
+					var vent_frac: float = minf(1.0, vented_kg / room_out.smoke_kg)
+					co_delta_kg[room_out.id] -= vent_frac * room_out.co_kg
 
 				if room_out.smoke_kg > 0.0:
 					var heat_loss_factor: float = vented_kg / (room_out.smoke_kg + 0.1)
@@ -790,6 +869,12 @@ func _step_smoke(dt: float) -> void:
 			target.o2 = lerpf(target.o2, source.o2, o2_mix_factor)
 			source.o2 = lerpf(source.o2, target.o2, o2_mix_factor)
 
+			# CO viaja con el flujo de humo (misma proporción)
+			if source.smoke_kg > 0.001:
+				var co_moved: float = minf(kg / source.smoke_kg, 1.0) * source.co_kg
+				co_delta_kg[from_id] -= co_moved
+				co_delta_kg[to_id] += co_moved
+
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
@@ -797,6 +882,9 @@ func _step_smoke(dt: float) -> void:
 
 		room.smoke_kg += float(smoke_delta_kg[int(room_id)])
 		room.smoke_kg = maxf(0.0, room.smoke_kg)
+
+		room.co_kg += float(co_delta_kg[int(room_id)])
+		room.co_kg = maxf(0.0, room.co_kg)
 
 		if room.h_layer_m < 0.5:
 			room.smoke_kg *= 0.98
@@ -857,6 +945,7 @@ func _clamp_rooms() -> void:
 		room.hrr_kw = maxf(0.0, room.hrr_kw)
 		room.smoke_prod_kg_s = maxf(0.0, room.smoke_prod_kg_s)
 		room.smoke_kg = maxf(0.0, room.smoke_kg)
+		room.co_kg = maxf(0.0, room.co_kg)
 
 # ============================================================
 # ESTADO AGREGADO
@@ -892,7 +981,11 @@ func get_state() -> Dictionary:
 			"smoke_prod_kg_s": room.smoke_prod_kg_s,
 
 			"has_fire": room.fire != null,
-			"flashover_triggered": room.flashover_triggered
+			"flashover_triggered": room.flashover_triggered,
+
+			"fuel_energy_MJ": room.fuel_energy_MJ,
+			"remaining_fuel_MJ": room.fire.remaining_fuel_MJ if room.fire != null else 0.0,
+			"co_ppm": room.co_kg * 29.0e6 / maxf(0.1, room.volume_m3() * 1.2 * 28.0)
 		}
 	return state
 
@@ -926,14 +1019,16 @@ func _append_log_snapshot() -> void:
 		if room == null:
 			continue
 
-		var line := "ROOM %s | HRR=%.2f | Up=%.2f | Low=%.2f | Smoke=%.4f | Layer=%.2f | O2=%.4f" % [
+		var co_ppm_log: float = room.co_kg * 29.0e6 / maxf(0.1, room.volume_m3() * 1.2 * 28.0)
+		var line := "ROOM %s | HRR=%.2f | Up=%.2f | Low=%.2f | Smoke=%.4f | Layer=%.2f | O2=%.4f | CO=%.0fppm" % [
 			str(room.id),
 			room.hrr_kw,
 			room.temp_upper_c,
 			room.temp_lower_c,
 			room.smoke_kg,
 			room.h_layer_m,
-			room.o2
+			room.o2,
+			co_ppm_log
 		]
 		file.store_line(line)
 

@@ -84,6 +84,11 @@ func _load_from_template(data: Dictionary) -> void:
 			rect_m,
 			float(room_data["height_m"])
 		)
+		# Carga de combustible — opcional en template (0.0 = usa default del engine)
+		if room_data.has("fuel_energy_MJ"):
+			rooms[room_id].fuel_energy_MJ = float(room_data["fuel_energy_MJ"])
+		if room_data.has("max_hrr_kw"):
+			rooms[room_id].max_hrr_kw = float(room_data["max_hrr_kw"])
 
 	# Aperturas
 	for op_data in data.get("openings_data", []):

@@ -258,6 +258,9 @@ func _draw_room_label(id: int, rpx: Rect2, rs: Dictionary) -> void:
 	var hrr: float = float(rs.get("hrr_kw", 0.0))
 	var o2v: float = float(rs.get("o2", 0.0))
 	var room_name: String = String(rs.get("name", ""))
+	var fuel_mj: float = float(rs.get("fuel_energy_MJ", 0.0))
+	var rem_mj: float = float(rs.get("remaining_fuel_MJ", 0.0))
+	var co_ppm: float = float(rs.get("co_ppm", 0.0))
 
 	var lines: Array[String] = []
 
@@ -272,6 +275,9 @@ func _draw_room_label(id: int, rpx: Rect2, rs: Dictionary) -> void:
 	lines.append("Smoke %.4f" % sm)
 	lines.append("L %.2f" % lay)
 	lines.append("O2 %.3f" % o2v)
+	lines.append("Fuel %.0f MJ" % fuel_mj)
+	lines.append("Rem %.0f MJ" % rem_mj)
+	lines.append("CO %.0f ppm" % co_ppm)
 
 	var base_pos: Vector2 = rpx.position + room_label_offset
 

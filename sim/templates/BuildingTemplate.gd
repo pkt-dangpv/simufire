@@ -28,12 +28,24 @@ func create_simple_house() -> Dictionary:
 	# ----------------------------
 	# ROOMS
 	# ----------------------------
+	# fuel_energy_MJ: carga de combustible total (área × densidad de carga térmica)
+	# max_hrr_kw:     tasa máxima de liberación de calor físicamente posible en la sala
+	#
+	# Valores de referencia (EN 1991-1-2 / SFPE):
+	#   Salón   20m² × 300 MJ/m² = 6000 MJ  — muebles tapizados, madera, textiles
+	#   Pasillo 11m² ×  75 MJ/m² =  800 MJ  — poco combustible
+	#   Dormit. 10m² × 350 MJ/m² = 3500 MJ  — camas, armarios, textiles
+	#   Cocina  15m² × 230 MJ/m² = 3500 MJ  — menos madera, grasa acelera
+	#   Baño     7m² ×  55 MJ/m² =  400 MJ  — casi solo plásticos
+
 	rooms_data.append({
 		"id": 0,
 		"name": "Salon",
 		"kind": "salon",
 		"rect": r_salon,
-		"height_m": 2.4
+		"height_m": 2.4,
+		"fuel_energy_MJ": 6000.0,
+		"max_hrr_kw": 3000.0
 	})
 
 	rooms_data.append({
@@ -41,7 +53,9 @@ func create_simple_house() -> Dictionary:
 		"name": "Pasillo",
 		"kind": "pasillo",
 		"rect": r_pasillo,
-		"height_m": 2.4
+		"height_m": 2.4,
+		"fuel_energy_MJ": 800.0,
+		"max_hrr_kw": 600.0
 	})
 
 	rooms_data.append({
@@ -49,7 +63,9 @@ func create_simple_house() -> Dictionary:
 		"name": "Dormitorio1",
 		"kind": "dormitorio",
 		"rect": r_dorm1,
-		"height_m": 2.4
+		"height_m": 2.4,
+		"fuel_energy_MJ": 3500.0,
+		"max_hrr_kw": 2000.0
 	})
 
 	rooms_data.append({
@@ -57,7 +73,9 @@ func create_simple_house() -> Dictionary:
 		"name": "Dormitorio2",
 		"kind": "dormitorio",
 		"rect": r_dorm2,
-		"height_m": 2.4
+		"height_m": 2.4,
+		"fuel_energy_MJ": 2500.0,
+		"max_hrr_kw": 1800.0
 	})
 
 	rooms_data.append({
@@ -65,7 +83,9 @@ func create_simple_house() -> Dictionary:
 		"name": "Cocina",
 		"kind": "cocina",
 		"rect": r_cocina,
-		"height_m": 2.4
+		"height_m": 2.4,
+		"fuel_energy_MJ": 3500.0,
+		"max_hrr_kw": 2500.0
 	})
 
 	rooms_data.append({
@@ -73,7 +93,9 @@ func create_simple_house() -> Dictionary:
 		"name": "Bano",
 		"kind": "bano",
 		"rect": r_bano,
-		"height_m": 2.4
+		"height_m": 2.4,
+		"fuel_energy_MJ": 400.0,
+		"max_hrr_kw": 400.0
 	})
 
 	# ----------------------------

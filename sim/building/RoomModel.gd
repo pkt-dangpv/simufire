@@ -33,6 +33,16 @@ var smoke_kg: float = 0.0
 var smoke_prod_kg_s: float = 0.0
 var h_layer_m: float = 2.5
 
+# Monóxido de carbono — masa en la sala (kg)
+# Se convierte a ppm en SimulationEngine para exposición y log.
+var co_kg: float = 0.0
+
+# Carga de combustible y límite de HRR — se asignan desde la plantilla según kind
+# fuel_energy_MJ: energía total disponible. 0.0 = usa el valor por defecto del engine.
+# max_hrr_kw: tasa máxima de liberación de calor. 0.0 = usa el valor por defecto del engine.
+var fuel_energy_MJ: float = 0.0
+var max_hrr_kw: float = 0.0
+
 # Fuego
 var fire: FireModel = null
 var fire_time_s: float = 0.0
