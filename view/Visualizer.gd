@@ -81,7 +81,21 @@ class_name Visualizer
 
 @export var door_color: Color = Color(0.30, 1.00, 0.40, 1.0)
 @export var window_color: Color = Color(0.35, 0.70, 1.00, 1.0)
+# Color cuando el cristal está roto pero aún parcialmente abierto
+@export var window_broken_color: Color = Color(1.00, 0.55, 0.10, 1.0)
+# Color cuando la ventana está totalmente abierta (cristal caído)
+@export var window_open_color: Color = Color(1.00, 0.20, 0.05, 1.0)
 @export var opening_line_width: float = 4.0
+
+# ============================================================
+# BADGE DE VENTANA
+# ============================================================
+
+@export var show_window_badge: bool = true
+# open_fraction a partir del cual se considera "totalmente abierta"
+@export var window_full_open_threshold: float = 0.5
+# Tamaño del badge (px)
+@export var window_badge_size: Vector2 = Vector2(16.0, 7.0)
 
 # ============================================================
 # ESTADO Y GEOMETRÍA
@@ -168,7 +182,11 @@ func _draw() -> void:
 		if show_room_labels:
 			_draw_room_label(id, rpx, rs)
 
-	# 7) openings al final, para que queden por encima
+		# 7) badge de estado de ventanas exteriores
+		if show_window_badge:
+			_draw_window_badge(rpx, rs)
+
+	# 8) openings al final, para que queden por encima
 	if show_openings:
 		_draw_openings()
 
@@ -279,6 +297,21 @@ func _draw_room_label(id: int, rpx: Rect2, rs: Dictionary) -> void:
 	lines.append("Rem %.0f MJ" % rem_mj)
 	lines.append("CO %.0f ppm" % co_ppm)
 
+	# Estado ventana exterior (si la sala tiene alguna)
+	var w_open: float = float(rs.get("window_open_max", -1.0))
+	if w_open >= 0.0:
+		var kaw_kw: float = float(rs.get("kawagoe_hrr_max_kw", 0.0))
+		var w_txt: String
+		if w_open <= 0.0:
+			w_txt = "Win: CERRADA"
+		elif w_open < window_full_open_threshold:
+			w_txt = "Win: ROTA %.0f%%" % (w_open * 100.0)
+		else:
+			w_txt = "Win: ABIERTA %.0f%%" % (w_open * 100.0)
+		lines.append(w_txt)
+		if kaw_kw > 0.0:
+			lines.append("Kaw≤ %.0f kW" % kaw_kw)
+
 	var base_pos: Vector2 = rpx.position + room_label_offset
 
 	# Fondo de etiqueta (simple, ancho fijo suficiente para debug)
@@ -321,6 +354,53 @@ func _draw_text_line(text: String, pos: Vector2, color: Color) -> void:
 		-1.0,
 		room_label_font_size,
 		color
+	)
+
+
+# ============================================================
+# BADGE DE VENTANA
+# ============================================================
+
+## Dibuja un pequeño rectángulo de color en la esquina superior-derecha
+## de la sala indicando el estado de sus ventanas exteriores.
+## Azul = cerrada | Naranja = rota/entreabierta | Rojo = abierta
+func _draw_window_badge(rpx: Rect2, rs: Dictionary) -> void:
+	var wmax: float = float(rs.get("window_open_max", -1.0))
+	if wmax < 0.0:
+		return  # sala sin ventanas exteriores — no dibujar nada
+
+	var col: Color
+	if wmax <= 0.0:
+		col = Color(window_color.r, window_color.g, window_color.b, 0.75)
+	elif wmax < window_full_open_threshold:
+		var t: float = wmax / window_full_open_threshold
+		var lerped: Color = window_color.lerp(window_broken_color, t)
+		col = Color(lerped.r, lerped.g, lerped.b, 0.90)
+	else:
+		col = Color(window_open_color.r, window_open_color.g, window_open_color.b, 0.90)
+
+	var bx: float = rpx.position.x + rpx.size.x - window_badge_size.x - 4.0
+	var by_v: float = rpx.position.y + 4.0
+	var badge_rect: Rect2 = Rect2(Vector2(bx, by_v), window_badge_size)
+	draw_rect(badge_rect, col, true)
+
+	if ThemeDB.fallback_font == null:
+		return
+	var badge_label: String
+	if wmax <= 0.0:
+		badge_label = "CRD"
+	elif wmax < window_full_open_threshold:
+		badge_label = "ROT"
+	else:
+		badge_label = "ABT"
+	draw_string(
+		ThemeDB.fallback_font,
+		Vector2(bx + 1.0, by_v + 6.0),
+		badge_label,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1.0,
+		7,
+		Color(1.0, 1.0, 1.0, 0.95)
 	)
 
 
@@ -370,8 +450,14 @@ func _draw_openings() -> void:
 		var col: Color
 		if op.type == OpeningModel.Type.DOOR:
 			col = Color(door_color.r, door_color.g, door_color.b, alpha)
-		else:
+		elif op.open_fraction <= 0.0:
 			col = Color(window_color.r, window_color.g, window_color.b, alpha)
+		elif op.open_fraction >= window_full_open_threshold:
+			col = Color(window_open_color.r, window_open_color.g, window_open_color.b, alpha)
+		else:
+			var t: float = op.open_fraction / window_full_open_threshold
+			var lerped: Color = window_color.lerp(window_broken_color, t)
+			col = Color(lerped.r, lerped.g, lerped.b, alpha)
 
 		draw_line(p1, p2, col, opening_line_width)
 

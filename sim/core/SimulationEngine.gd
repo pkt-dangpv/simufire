@@ -27,6 +27,25 @@ const o2_nominal: float = 0.209
 @export var time_scale: float = 5.0
 var sim_time_s: float = 0.0
 
+# Segundos sin fuego activo antes de declarar la simulación terminada.
+@export var extinction_grace_s: float = 30.0
+var is_finished: bool = false
+var _extinction_countdown: float = 30.0
+
+# ============================================================
+# ROTURA DE CRISTAL
+# ============================================================
+# Temperatura de capa superior a la que el cristal puede romperse.
+@export var glass_break_temp_c: float = 250.0
+# Dispersión aleatoria: ± esta cantidad sobre glass_break_temp_c (distribución uniforme).
+@export var glass_break_temp_spread_c: float = 80.0
+# Velocidad a la que sube open_fraction tras la rotura (fracción/segundo).
+@export var glass_open_rate_per_s: float = 0.15
+# open_fraction máxima al romperse el cristal (1.0 = apertura completa).
+@export var glass_max_open_fraction: float = 0.85
+# Dict: opening_index → temperatura de rotura asignada aleatoriamente al inicio.
+var _glass_break_temps: Dictionary = {}
+
 # ============================================================
 # CONTABILIDAD GLOBAL DEL HUMO
 # ============================================================
@@ -49,16 +68,25 @@ var smoke_vented_total_kg: float = 0.0
 @export var fire_max_hrr_kw: float = 3000.0
 @export var fire_secondary_hrr_gain_kw: float = 2500.0
 
+# Coeficiente de Kawagoe (SFPE/Drysdale): HRR_max = kawagoe_coeff × Σ(A_v × √H_v)
+# Valor de referencia para madera: ~1500 kW/m^(5/2).  Reducir para materiales
+# con rendimiento calórico menor.  Solo aplica cuando hay ventanas exteriores abiertas.
+@export var kawagoe_coeff: float = 1500.0
+
 @export var fire_o2_nominal: float = 0.209
 @export var fire_o2_min_for_flame: float = 0.10
 @export var fire_o2_consumption_kg_per_MJ: float = 0.076  # Regla de Thornton: 1/13.1 MJ/kgO2
-@export var fire_smoke_yield_kg_per_MJ: float = 0.06
+# Rendimiento de humo (kg/MJ)
+# SFPE: ~0.06 kg/kg ÷ 16 MJ/kg = 0.00375 kg/MJ
+@export var fire_smoke_yield_kg_per_MJ: float = 0.00375
 
-# Rendimiento de CO
-# Combustión bien ventilada (O2 nominal): ~0.004 kg/MJ (madera seca, ISO 19706)
-# Combustión en déficit de O2 (ventilation-controlled): ~0.20 kg/MJ
-@export var co_base_yield_kg_per_MJ: float = 0.004
-@export var co_max_yield_kg_per_MJ: float = 0.20
+# Rendimiento de CO (kg/MJ)
+# Derivado de ISO 19706 dividiendo el yield másico (kg/kg) por el calor efectivo
+# de combustión de madera (~16 MJ/kg):
+#   Combustión ventilada: 0.004 kg/kg ÷ 16 = 0.00025 kg/MJ
+#   Combustión en déficit: 0.200 kg/kg ÷ 16 = 0.01250 kg/MJ
+@export var co_base_yield_kg_per_MJ: float = 0.00025
+@export var co_max_yield_kg_per_MJ: float = 0.01250
 
 # Umbral de extinción: si el HRR real cae por debajo durante fire_extinction_delay_s
 # segundos, el fuego se considera extinto (modela apagado por falta de ventilación).
@@ -221,10 +249,25 @@ func step(delta: float) -> void:
 	_step_fire_spread(dt)
 	_step_oxygen(dt)
 	_step_temperature(dt)
+	_step_glass_failure(dt)
 	_step_pressure_venting(dt)
 	_step_smoke(dt)
 	_clamp_rooms()
 	_maybe_log_state()
+
+	# Detener simulación cuando todos los fuegos se hayan extinguido.
+	var any_fire_active: bool = false
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room != null and room.fire != null and room.hrr_kw > 0.0:
+			any_fire_active = true
+			break
+	if not any_fire_active:
+		_extinction_countdown -= dt
+		if _extinction_countdown <= 0.0:
+			is_finished = true
+	else:
+		_extinction_countdown = extinction_grace_s
 
 # ============================================================
 # IGNICIÓN
@@ -259,6 +302,43 @@ func ignite_room(room_id: int) -> void:
 	room.fire = fire
 	room.fire_time_s = 0.0
 	room.flashover_triggered = false
+
+# ============================================================
+# ROTURA DE CRISTAL
+# ============================================================
+# Cada ventana exterior recibe una temperatura de rotura aleatoria la primera
+# vez que la capa superior supera glass_break_temp_c.  El cristal se abre
+# progresivamente una vez alcanzada esa temperatura personalizada.
+# La aleatoriedad modela variabilidad en calidad del cristal, sombreado, etc.
+
+func _step_glass_failure(dt: float) -> void:
+	var openings: Array = building.get_openings()
+	for i in range(openings.size()):
+		var op: OpeningModel = openings[i]
+		if op.type != OpeningModel.Type.WINDOW:
+			continue
+		# Determinar cuál lado es interior
+		var indoor_id: int = -1
+		if op.b == BuildingModel.OUTSIDE_ID:
+			indoor_id = op.a
+		elif op.a == BuildingModel.OUTSIDE_ID:
+			indoor_id = op.b
+		else:
+			continue
+		var room: RoomModel = building.get_room(indoor_id)
+		if room == null:
+			continue
+		# Asignar temperatura de rotura aleatoria una sola vez por ventana
+		if not _glass_break_temps.has(i):
+			_glass_break_temps[i] = glass_break_temp_c + randf_range(
+					-glass_break_temp_spread_c * 0.5,
+					glass_break_temp_spread_c)
+		var break_temp: float = _glass_break_temps[i]
+		# Abrir progresivamente una vez superada la temperatura de rotura
+		if room.temp_upper_c >= break_temp:
+			op.open_fraction = minf(glass_max_open_fraction,
+					op.open_fraction + glass_open_rate_per_s * dt)
+
 
 # ============================================================
 # FUEGO
@@ -325,6 +405,13 @@ func _step_fire(dt: float) -> void:
 
 		# Escala lineal: físicamente correcto, fires se apagan al llegar a o2_min no antes
 		room.hrr_kw = hrr_kw * o2_factor
+
+		# Límite de Kawagoe (ventilación controlada).
+		# Con ventanas exteriores abiertas la combustión no puede superar el calor
+		# que el flujo de O₂ a través de los huecos puede sostener.
+		var _kaw_fac: float = _kawagoe_factor_for_room(room_id)
+		if _kaw_fac > 0.0:
+			room.hrr_kw = minf(room.hrr_kw, kawagoe_coeff * _kaw_fac)
 
 		room.smoke_prod_kg_s = _compute_smoke_production_kg_s(
 			room.hrr_kw,
@@ -400,6 +487,54 @@ func _step_fire_spread(_dt: float) -> void:
 				ignite_room(op.a)
 				print("[FireSpread] Ignición por calor: Room %d → Room %d (%.0f°C)" % [op.b, op.a, room_a.temp_upper_c])
 
+
+# ============================================================
+# KAWAGOE — FACTOR DE VENTILACIÓN EXTERIOR
+# ============================================================
+
+## Retorna Σ(A_v_eff × √H_v) para todas las ventanas exteriores abiertas de
+## la sala indicada.  A_v_eff = width × height × open_fraction (m²).
+## Resultado en m^(5/2).  0.0 si no hay ventanas abiertas.
+func _kawagoe_factor_for_room(room_id: int) -> float:
+	var factor: float = 0.0
+	for op in building.get_openings():
+		if op.type != OpeningModel.Type.WINDOW:
+			continue
+		if op.open_fraction <= 0.0:
+			continue
+		var indoor_id: int = -1
+		if op.b == BuildingModel.OUTSIDE_ID:
+			indoor_id = op.a
+		elif op.a == BuildingModel.OUTSIDE_ID:
+			indoor_id = op.b
+		else:
+			continue
+		if indoor_id != room_id:
+			continue
+		var a_eff: float = op.width_m * op.height_m * op.open_fraction
+		factor += a_eff * sqrt(op.height_m)
+	return factor
+
+## Retorna la open_fraction máxima entre las ventanas exteriores de la sala.
+## Devuelve -1.0 si la sala no tiene ninguna ventana exterior.
+func _window_open_max_for_room(room_id: int) -> float:
+	var has_window: bool = false
+	var max_frac: float = 0.0
+	for op in building.get_openings():
+		if op.type != OpeningModel.Type.WINDOW:
+			continue
+		var indoor_id: int = -1
+		if op.b == BuildingModel.OUTSIDE_ID:
+			indoor_id = op.a
+		elif op.a == BuildingModel.OUTSIDE_ID:
+			indoor_id = op.b
+		else:
+			continue
+		if indoor_id != room_id:
+			continue
+		has_window = true
+		max_frac = maxf(max_frac, op.open_fraction)
+	return max_frac if has_window else -1.0
 
 func _compute_o2_factor(o2: float, nominal: float, min_o2: float) -> float:
 	if o2 <= min_o2:
@@ -492,23 +627,36 @@ func _step_oxygen(dt: float) -> void:
 			if indoor == null:
 				continue
 
-			# Solo hay flujo de gases calientes si la capa de humo ha bajado
-			# hasta el dintel. La altura efectiva del intercambio es la banda
-			# entre h_layer y el dintel (por arriba sale gas caliente,
-			# por abajo entra aire fresco).
-			var hot_band_m: float = maxf(0.0, lintel_m - indoor.h_layer_m)
-			if hot_band_m <= 0.0:
-				continue
+			# Fuerza motriz del efecto chimenea a través de la apertura exterior.
+			# Dos casos:
+			#  A) Capa de humo por debajo del dintel: banda caliente empuja gases hacia fuera.
+			#  B) Capa de humo por encima del dintel: la zona inferior (aire caliente limpio)
+			#     también genera corriente convectiva — es el caso normal con ventana rota
+			#     y fuego activo antes de que el humo llene la sala.
+			var area_eff: float
+			var t_in_k: float
+			var h_drive: float
 
-			# Área efectiva proporcional a la banda caliente sobre el dintel
-			var area_eff: float = op.width_m * minf(hot_band_m, op.height_m) * op.open_fraction
+			if indoor.h_layer_m <= lintel_m:
+				# (A) Humo ha bajado hasta el dintel o por debajo
+				var hot_band_m: float = lintel_m - indoor.h_layer_m
+				h_drive = maxf(0.05, hot_band_m)
+				area_eff = op.width_m * minf(h_drive, op.height_m) * op.open_fraction
+				t_in_k = indoor.temp_upper_c + 273.15
+			else:
+				# (B) Humo por encima del dintel: zona inferior caliente impulsa el flujo
+				h_drive = op.height_m
+				area_eff = op.width_m * op.height_m * op.open_fraction
+				t_in_k = indoor.temp_lower_c + 273.15
+
 			if area_eff <= 0.0:
 				continue
 
-			var t_in_k: float = indoor.temp_upper_c + 273.15
 			var t_out_k: float = building.outside_temp_c + 273.15
 			var delta_t_k: float = maxf(0.0, t_in_k - t_out_k)
-			var q: float = 0.65 * 0.5 * area_eff * sqrt(g_gravity * hot_band_m * delta_t_k / t_in_k)
+			if delta_t_k < 2.0:
+				continue
+			var q: float = 0.65 * 0.5 * area_eff * sqrt(g_gravity * h_drive * delta_t_k / t_in_k)
 			var air_in: float = q * air_density_kg_m3 * dt
 			var mass_room: float = maxf(0.1, indoor.volume_m3()) * air_density_kg_m3
 			indoor.o2 = clampf((indoor.o2 * mass_room + building.outside_o2 * air_in) / (mass_room + air_in), 0.0, o2_nominal)
@@ -529,18 +677,28 @@ func _step_oxygen(dt: float) -> void:
 				hot_room = room_b
 				cold_room = room_a
 
-			var hot_band_m: float = maxf(0.0, lintel_m - hot_room.h_layer_m)
-			if hot_band_m <= 0.0:
-				continue
+			# Fuerza motriz inter-sala (efecto chimenea bidireccional).
+			# Caso A: humo hasta/bajo el dintel → banda de gas caliente empuja.
+			# Caso B: humo por encima del dintel → zona inferior caliente impulsa
+			#         el intercambio (la puerta está en aire caliente no-humo).
+			var h_drive_int: float
+			var t_hot_k: float
 
-			var t_hot_k: float = hot_room.temp_upper_c + 273.15
+			if hot_room.h_layer_m <= lintel_m:
+				var hot_band_m: float = lintel_m - hot_room.h_layer_m
+				h_drive_int = maxf(0.05, hot_band_m)
+				t_hot_k = hot_room.temp_upper_c + 273.15
+			else:
+				h_drive_int = minf(lintel_m, op.height_m)
+				t_hot_k = hot_room.temp_lower_c + 273.15
+
 			var t_cold_k: float = cold_room.temp_upper_c + 273.15
 			var delta_t_k: float = maxf(0.0, t_hot_k - t_cold_k)
 			if delta_t_k < 2.0:
 				continue
 
-			var area_eff: float = op.width_m * minf(hot_band_m, op.height_m) * op.open_fraction
-			var q: float = 0.65 * 0.5 * area_eff * sqrt(g_gravity * hot_band_m * delta_t_k / ((t_hot_k + t_cold_k) * 0.5))
+			var area_eff: float = op.width_m * minf(h_drive_int, op.height_m) * op.open_fraction
+			var q: float = 0.65 * 0.5 * area_eff * sqrt(g_gravity * h_drive_int * delta_t_k / ((t_hot_k + t_cold_k) * 0.5))
 			var exch: float = q * air_density_kg_m3 * dt
 			var mass_hot: float = maxf(0.1, hot_room.volume_m3()) * air_density_kg_m3
 			var mass_cold: float = maxf(0.1, cold_room.volume_m3()) * air_density_kg_m3
@@ -875,6 +1033,8 @@ func _step_smoke(dt: float) -> void:
 				co_delta_kg[from_id] -= co_moved
 				co_delta_kg[to_id] += co_moved
 
+	var air_density_kg_m3_s: float = 1.2
+
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
@@ -885,6 +1045,18 @@ func _step_smoke(dt: float) -> void:
 
 		room.co_kg += float(co_delta_kg[int(room_id)])
 		room.co_kg = maxf(0.0, room.co_kg)
+
+		# ACH dilución: la misma infiltración que repone O2 arrastra CO y humo hacia fuera.
+		# CO: delta = -room.co_kg * (ach / 3600) * dt  (exterior CO ≈ 0 ppm)
+		var ach_rate: float = ach_infiltration / 3600.0
+		var co_removed: float = room.co_kg * ach_rate * dt
+		room.co_kg = maxf(0.0, room.co_kg - co_removed)
+
+		# Humo: mismo mecanismo — partículas arrastradas por flujo de infiltración.
+		var room_volume_m3_s: float = maxf(0.1, room.volume_m3())
+		var smoke_concentration: float = room.smoke_kg / (room_volume_m3_s * air_density_kg_m3_s)
+		var smoke_removed: float = room_volume_m3_s * air_density_kg_m3_s * smoke_concentration * ach_rate * dt
+		room.smoke_kg = maxf(0.0, room.smoke_kg - smoke_removed)
 
 		if room.h_layer_m < 0.5:
 			room.smoke_kg *= 0.98
@@ -985,7 +1157,13 @@ func get_state() -> Dictionary:
 
 			"fuel_energy_MJ": room.fuel_energy_MJ,
 			"remaining_fuel_MJ": room.fire.remaining_fuel_MJ if room.fire != null else 0.0,
-			"co_ppm": room.co_kg * 29.0e6 / maxf(0.1, room.volume_m3() * 1.2 * 28.0)
+			"co_ppm": room.co_kg * 29.0e6 / maxf(0.1, room.volume_m3() * 1.2 * 28.0),
+
+			# Ventanas exteriores
+			# window_open_max: -1 = sin ventanas, 0 = cerradas, >0 = rotas/abiertas
+			"window_open_max": _window_open_max_for_room(room_id),
+			"kawagoe_factor": _kawagoe_factor_for_room(room_id),
+			"kawagoe_hrr_max_kw": kawagoe_coeff * maxf(0.0, _kawagoe_factor_for_room(room_id))
 		}
 	return state
 
