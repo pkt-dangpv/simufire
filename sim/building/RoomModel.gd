@@ -33,6 +33,10 @@ var smoke_kg: float = 0.0
 var smoke_prod_kg_s: float = 0.0
 var h_layer_m: float = 2.5
 
+# Capa superior de gases calientes
+var upper_gas_kg: float = 0.0
+var upper_energy_kj: float = 0.0
+
 # Monóxido de carbono — masa en la sala (kg)
 # Se convierte a ppm en SimulationEngine para exposición y log.
 var co_kg: float = 0.0

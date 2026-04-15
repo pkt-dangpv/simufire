@@ -43,26 +43,33 @@ func add_generated_smoke(room: RoomModel, dt: float) -> float:
 # ============================================================
 # RECÁLCULO DE CAPA DESDE MASA
 # ------------------------------------------------------------
-# La capa sale SIEMPRE de la masa real acumulada.
+# La interfaz de capa se deduce del volumen real ocupado por los
+# gases calientes. La masa de humo sigue actuando como suelo
+# mínimo para no perder una capa ya contaminada.
 # ============================================================
 
 
 func recompute_layer_from_mass(room: RoomModel, dt: float) -> void:
-	if room.smoke_kg <= 0.000001:
+	var floor_area_m2: float = maxf(0.01, room.floor_area_m2())
+	var smoke_volume_m3: float = 0.0
+	var hot_gas_volume_m3: float = 0.0
+
+	if room.smoke_kg > 0.000001 and smoke_density_kg_m3 > 0.0:
+		smoke_volume_m3 = room.smoke_kg / smoke_density_kg_m3
+		var temp_expansion: float = (room.temp_upper_c + 273.15) / 293.15
+		smoke_volume_m3 *= maxf(1.0, temp_expansion)
+
+	if room.upper_gas_kg > 0.000001:
+		var ambient_k: float = 293.15
+		var upper_k: float = maxf(ambient_k, room.temp_upper_c + 273.15)
+		var hot_gas_density_kg_m3: float = 1.2 * ambient_k / upper_k
+		hot_gas_volume_m3 = room.upper_gas_kg / maxf(0.05, hot_gas_density_kg_m3)
+
+	var effective_volume_m3: float = maxf(smoke_volume_m3, hot_gas_volume_m3)
+	if effective_volume_m3 <= 0.000001:
 		room.smoke_kg = 0.0
 		room.h_layer_m = room.height_m
 		return
-
-	var smoke_volume_m3: float = 0.0
-	if smoke_density_kg_m3 > 0.0:
-		smoke_volume_m3 = room.smoke_kg / smoke_density_kg_m3
-
-	var floor_area_m2: float = maxf(0.01, room.floor_area_m2())
-
-	# Expansión térmica (ley de gases ideales): humo caliente ocupa más volumen
-	# A 20°C → factor 1.0; a 300°C → factor ~1.96; a 600°C → factor ~2.98
-	var temp_expansion: float = (room.temp_upper_c + 273.15) / 293.15
-	var effective_volume_m3: float = smoke_volume_m3 * maxf(1.0, temp_expansion)
 
 	var smoke_depth_m: float = effective_volume_m3 / floor_area_m2
 
@@ -93,15 +100,21 @@ func recompute_layer_from_mass(room: RoomModel, dt: float) -> void:
 # de la sala, pero NO modifica la sala.
 # ============================================================
 
-func compute_outside_vented_kg(room: RoomModel, op: OpeningModel, dt: float) -> float:
+func compute_outside_vented_kg(
+	room: RoomModel,
+	op: OpeningModel,
+	dt: float,
+	effective_layer_m: float = -1.0
+) -> float:
 	var area_open: float = maxf(0.0, op.width_m * op.height_m * op.open_fraction)
 	if area_open <= 0.0:
 		return 0.0
 
 	var lintel_m: float = op.lintel_height_m()
+	var layer_m: float = room.h_layer_m if effective_layer_m < 0.0 else effective_layer_m
 
 	# Si la capa no ha llegado al dintel, no hay derrame de humo caliente.
-	if room.h_layer_m >= (lintel_m - spill_margin_m):
+	if layer_m >= (lintel_m - spill_margin_m):
 		return 0.0
 
 	if room.smoke_kg <= 0.000001:
@@ -122,7 +135,12 @@ func compute_outside_vented_kg(room: RoomModel, op: OpeningModel, dt: float) -> 
 # ============================================================
 # TRANSFERENCIA ENTRE SALAS
 # ------------------------------------------------------------
-# Devuelve un diccionario:
+# Devuelve una lista de tránsitos de humo en la franja superior
+# de la abertura. Si ambas capas invaden el dintel, la misma
+# puerta puede derramar humo en ambos sentidos dentro del mismo
+# step, con un presupuesto total compartido por la abertura.
+#
+# Cada tránsito tiene la forma:
 # {
 #   "from": id_or_-1,
 #   "to": id_or_-1,
@@ -132,15 +150,18 @@ func compute_outside_vented_kg(room: RoomModel, op: OpeningModel, dt: float) -> 
 # NO modifica ninguna sala.
 # ============================================================
 
-func compute_room_transfer(room_a: RoomModel, room_b: RoomModel, op: OpeningModel, dt: float) -> Dictionary:
-	var result: Dictionary = {
-		"from": -1,
-		"to": -1,
-		"kg": 0.0
-	}
+func compute_room_transfers(
+	room_a: RoomModel,
+	room_b: RoomModel,
+	op: OpeningModel,
+	dt: float,
+	layer_a_m: float = -1.0,
+	layer_b_m: float = -1.0
+) -> Array[Dictionary]:
+	var transfers: Array[Dictionary] = []
 
 	if op.open_fraction <= 0.0:
-		return result
+		return transfers
 
 	var lintel_m: float = op.lintel_height_m()
 
@@ -149,74 +170,111 @@ func compute_room_transfer(room_a: RoomModel, room_b: RoomModel, op: OpeningMode
 	# --------------------------------------------------------
 	# Si h_layer está por debajo del dintel, hay humo "empujando"
 	# en la parte alta de la apertura.
-	var a_excess_m: float = maxf(0.0, lintel_m - room_a.h_layer_m)
-	var b_excess_m: float = maxf(0.0, lintel_m - room_b.h_layer_m)
+	var effective_a_layer_m: float = room_a.h_layer_m if layer_a_m < 0.0 else layer_a_m
+	var effective_b_layer_m: float = room_b.h_layer_m if layer_b_m < 0.0 else layer_b_m
+	var a_excess_m: float = maxf(0.0, lintel_m - effective_a_layer_m)
+	var b_excess_m: float = maxf(0.0, lintel_m - effective_b_layer_m)
 
 	# Si no hay exceso en ninguna sala, no hay transferencia.
 	if a_excess_m <= 0.0 and b_excess_m <= 0.0:
-		return result
+		return transfers
 
 	# Si no hay masa de humo, tampoco.
 	if room_a.smoke_kg <= 0.000001 and room_b.smoke_kg <= 0.000001:
+		return transfers
+
+	if a_excess_m > 0.0 and room_a.smoke_kg > 0.000001:
+		var kg_a_to_b: float = _compute_transfer_mass_kg_continuous(
+			room_a,
+			room_b,
+			op,
+			dt,
+			a_excess_m
+		)
+		if kg_a_to_b > 0.0:
+			transfers.append({
+				"from": room_a.id,
+				"to": room_b.id,
+				"kg": kg_a_to_b
+			})
+
+	if b_excess_m > 0.0 and room_b.smoke_kg > 0.000001:
+		var kg_b_to_a: float = _compute_transfer_mass_kg_continuous(
+			room_b,
+			room_a,
+			op,
+			dt,
+			b_excess_m
+		)
+		if kg_b_to_a > 0.0:
+			transfers.append({
+				"from": room_b.id,
+				"to": room_a.id,
+				"kg": kg_b_to_a
+			})
+
+	if transfers.size() <= 1:
+		return transfers
+
+	var total_requested_kg: float = 0.0
+	for transfer in transfers:
+		total_requested_kg += float(transfer.get("kg", 0.0))
+
+	var opening_budget_kg: float = _compute_opening_mass_budget_kg(op, dt)
+	if opening_budget_kg > 0.0 and total_requested_kg > opening_budget_kg:
+		var scale: float = opening_budget_kg / total_requested_kg
+		for transfer in transfers:
+			transfer["kg"] = float(transfer.get("kg", 0.0)) * scale
+
+	return transfers
+
+
+func compute_room_transfer(
+	room_a: RoomModel,
+	room_b: RoomModel,
+	op: OpeningModel,
+	dt: float,
+	layer_a_m: float = -1.0,
+	layer_b_m: float = -1.0
+) -> Dictionary:
+	var result: Dictionary = {
+		"from": -1,
+		"to": -1,
+		"kg": 0.0
+	}
+
+	var transfers: Array[Dictionary] = compute_room_transfers(
+		room_a,
+		room_b,
+		op,
+		dt,
+		layer_a_m,
+		layer_b_m
+	)
+	if transfers.is_empty():
 		return result
 
-	var source: RoomModel = null
-	var target: RoomModel = null
-	var source_excess_m: float = 0.0
+	var strongest: Dictionary = transfers[0]
+	for transfer in transfers:
+		if float(transfer.get("kg", 0.0)) > float(strongest.get("kg", 0.0)):
+			strongest = transfer
 
-	# --------------------------------------------------------
-	# Elegir dirección dominante
-	# --------------------------------------------------------
-	# 1) Mayor exceso sobre dintel
-	# 2) Si están parecidos, mayor temperatura upper
-	# 3) Si siguen parecidos, mayor masa de humo
-	var excess_eps: float = 0.03
-	var temp_eps: float = 5.0
-	var smoke_eps: float = 0.1
-
-	if a_excess_m > b_excess_m + excess_eps:
-		source = room_a
-		target = room_b
-		source_excess_m = a_excess_m
-	elif b_excess_m > a_excess_m + excess_eps:
-		source = room_b
-		target = room_a
-		source_excess_m = b_excess_m
-	else:
-		if room_a.temp_upper_c > room_b.temp_upper_c + temp_eps:
-			source = room_a
-			target = room_b
-			source_excess_m = a_excess_m
-		elif room_b.temp_upper_c > room_a.temp_upper_c + temp_eps:
-			source = room_b
-			target = room_a
-			source_excess_m = b_excess_m
-		elif room_a.smoke_kg > room_b.smoke_kg + smoke_eps:
-			source = room_a
-			target = room_b
-			source_excess_m = a_excess_m
-		elif room_b.smoke_kg > room_a.smoke_kg + smoke_eps:
-			source = room_b
-			target = room_a
-			source_excess_m = b_excess_m
-		else:
-			return result
-
-	if source == null or target == null:
-		return result
-
-	var kg: float = _compute_transfer_mass_kg_continuous(source, target, op, dt, source_excess_m)
-	if kg <= 0.0:
-		return result
-
-	result["from"] = source.id
-	result["to"] = target.id
-	result["kg"] = kg
+	result["from"] = int(strongest.get("from", -1))
+	result["to"] = int(strongest.get("to", -1))
+	result["kg"] = float(strongest.get("kg", 0.0))
 	return result
 
 # ============================================================
 # HELPERS
 # ============================================================
+
+func _compute_opening_mass_budget_kg(op: OpeningModel, dt: float) -> float:
+	var area_open: float = maxf(0.0, op.width_m * op.height_m * op.open_fraction)
+	if area_open <= 0.0:
+		return 0.0
+
+	var spill_kg_s: float = minf(base_spill_kg_s_per_m2 * area_open, max_spill_kg_s)
+	return maxf(0.0, spill_kg_s * dt)
 
 func _compute_transfer_mass_kg_continuous(
 	source: RoomModel,

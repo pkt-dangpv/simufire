@@ -136,6 +136,8 @@ func _add_room_from_rect(
 	room.temp_lower_c = outside_temp_c
 	room.o2 = outside_o2
 	room.h_layer_m = height_m
+	room.upper_gas_kg = 0.0
+	room.upper_energy_kj = 0.0
 
 	rooms[id] = room
 

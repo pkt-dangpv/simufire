@@ -35,6 +35,9 @@ var _extinction_countdown: float = 30.0
 # ============================================================
 # ROTURA DE CRISTAL
 # ============================================================
+# Mantener desactivado por defecto: las ventanas solo cambian si se abren
+# manualmente o si esta opción se reactiva explícitamente.
+@export var glass_auto_break_enabled: bool = false
 # Temperatura de capa superior a la que el cristal puede romperse.
 @export var glass_break_temp_c: float = 250.0
 # Dispersión aleatoria: ± esta cantidad sobre glass_break_temp_c (distribución uniforme).
@@ -79,6 +82,10 @@ var smoke_vented_total_kg: float = 0.0
 # Rendimiento de humo (kg/MJ)
 # SFPE: ~0.06 kg/kg ÷ 16 MJ/kg = 0.00375 kg/MJ
 @export var fire_smoke_yield_kg_per_MJ: float = 0.00375
+@export var fire_smoke_yield_low_o2_multiplier: float = 7.5
+@export var fire_smoke_basis_min_fraction: float = 0.40
+@export var fire_smolder_hrr_fraction: float = 0.10
+@export var fire_smolder_smoke_multiplier: float = 2.8
 
 # Rendimiento de CO (kg/MJ)
 # Derivado de ISO 19706 dividiendo el yield másico (kg/kg) por el calor efectivo
@@ -112,6 +119,8 @@ var smoke_vented_total_kg: float = 0.0
 
 @export var fire_spread_enabled: bool = true
 @export var fire_spread_ignition_temp_c: float = 300.0  # temperatura de la capa superior para ignición por calor
+@export var fire_spread_max_layer_m: float = 1.8
+@export var fire_spread_min_smoke_kg: float = 0.05
 
 # ============================================================
 # FLASHOVER SIMPLE
@@ -128,6 +137,8 @@ var smoke_vented_total_kg: float = 0.0
 @export var upper_to_ambient_loss_rate: float = 0.008
 @export var lower_layer_warming_rate: float = 0.012
 @export var max_upper_temp_c: float = 900.0
+@export var doorway_heat_exchange_coeff: float = 0.38
+@export var smoke_heat_mix_coeff: float = 0.025
 
 # Absorción de calor por paredes — término proporcional simple sobre (T_upper - T_ambient).
 # Mismo patrón que upper_to_ambient_loss_rate: sin dividir por m_upper_kg → estable.
@@ -155,18 +166,25 @@ var smoke_vented_total_kg: float = 0.0
 @export var o2_mix_rate: float = 0.02
 @export var o2_vent_rate: float = 0.08
 @export var ach_infiltration: float = 0.3  # Renovaciones de aire/hora por fugas del edificio
+@export var doorway_o2_min_band_m: float = 0.25
+@export var doorway_o2_exchange_coeff: float = 1.8
+@export var o2_network_iterations: int = 4
 
 # ============================================================
 # AJUSTES DE HUMO (se copian al SmokeModel)
 # ============================================================
 
 @export var smoke_density_kg_m3: float = 0.3
-@export var base_spill_kg_s_per_m2: float = 0.18
+@export var base_spill_kg_s_per_m2: float = 0.26
 @export var temp_push_factor: float = 0.008
-@export var max_spill_kg_s: float = 0.9
-@export var max_fraction_out_per_s: float = 0.025
+@export var max_spill_kg_s: float = 1.4
+@export var max_fraction_out_per_s: float = 0.08
 @export var layer_relax_down: float = 0.18
 @export var layer_relax_up: float = 0.015
+@export var plume_fill_depth_coeff: float = 0.60
+@export var plume_fill_response_s: float = 12.0
+@export var plume_fill_max_fraction: float = 0.85
+@export var thermal_plume_depth_scale: float = 0.40
 
 # ============================================================
 # REGISTRO DE VALORES
@@ -249,7 +267,8 @@ func step(delta: float) -> void:
 	_step_fire_spread(dt)
 	_step_oxygen(dt)
 	_step_temperature(dt)
-	_step_glass_failure(dt)
+	if glass_auto_break_enabled:
+		_step_glass_failure(dt)
 	_step_pressure_venting(dt)
 	_step_smoke(dt)
 	_clamp_rooms()
@@ -365,11 +384,12 @@ func _step_fire(dt: float) -> void:
 			0.0,
 			1.0
 		)
+		var can_flame: bool = room.o2 > fire.o2_min_for_flame
 
 		# Corte exacto en el mínimo absoluto. Sin buffer +0.01:
 		# evita el ciclo on/off cuando O2 oscila justo en el umbral.
 		# Para valores de O2 bajos pero > min, o2_factor ya reduce el HRR suavemente.
-		if room.o2 <= fire.o2_min_for_flame:
+		if false:
 			room.hrr_kw = 0.0
 			room.smoke_prod_kg_s = 0.0
 			# Fuego sofocado por O2 insuficiente: cuenta tiempo de agonía
@@ -380,7 +400,8 @@ func _step_fire(dt: float) -> void:
 					room.fire_low_hrr_time_s = 0.0
 			continue
 
-		room.fire_time_s += dt
+		if can_flame:
+			room.fire_time_s += dt
 
 		var hrr_target_kw: float = fire.compute_hrr_kw(room.fire_time_s)
 
@@ -402,6 +423,11 @@ func _step_fire(dt: float) -> void:
 				* maxf(0.0, room.temp_upper_c - ambient_c) / 500.0
 		rad_feedback = minf(rad_feedback, thermal_feedback_max)
 		hrr_kw *= rad_feedback
+		var smoke_basis_kw: float = lerpf(
+			hrr_kw * fire_smoke_basis_min_fraction,
+			hrr_kw,
+			sqrt(o2_factor)
+		)
 
 		# Escala lineal: físicamente correcto, fires se apagan al llegar a o2_min no antes
 		room.hrr_kw = hrr_kw * o2_factor
@@ -412,10 +438,20 @@ func _step_fire(dt: float) -> void:
 		var _kaw_fac: float = _kawagoe_factor_for_room(room_id)
 		if _kaw_fac > 0.0:
 			room.hrr_kw = minf(room.hrr_kw, kawagoe_coeff * _kaw_fac)
+		if not can_flame:
+			room.hrr_kw = 0.0
+			smoke_basis_kw = maxf(smoke_basis_kw, hrr_kw * fire_smolder_hrr_fraction)
 
+		var smoke_yield_kg_per_MJ: float = lerpf(
+			fire.smoke_yield_kg_per_MJ * fire_smoke_yield_low_o2_multiplier,
+			fire.smoke_yield_kg_per_MJ,
+			o2_factor
+		)
+		if not can_flame:
+			smoke_yield_kg_per_MJ *= fire_smolder_smoke_multiplier
 		room.smoke_prod_kg_s = _compute_smoke_production_kg_s(
-			room.hrr_kw,
-			fire.smoke_yield_kg_per_MJ
+			smoke_basis_kw,
+			smoke_yield_kg_per_MJ
 		)
 
 		# Extinción por HRR sostenido bajo (fuego en agonía post-pico)
@@ -434,7 +470,8 @@ func _step_fire(dt: float) -> void:
 
 		# Generación de CO: mayor rendimiento con poco O2 (combustión incompleta)
 		var co_yield: float = lerpf(co_max_yield_kg_per_MJ, co_base_yield_kg_per_MJ, o2_factor)
-		room.co_kg += co_yield * energy_released_MJ
+		var co_basis_MJ: float = maxf(energy_released_MJ, smoke_basis_kw * dt / 1000.0 * 0.35)
+		room.co_kg += co_yield * co_basis_MJ
 
 		fire.remaining_fuel_MJ -= energy_released_MJ
 		fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ)
@@ -477,13 +514,17 @@ func _step_fire_spread(_dt: float) -> void:
 
 		# Propagación A → B
 		if room_a.fire != null and room_b.fire == null:
-			if room_b.temp_upper_c >= fire_spread_ignition_temp_c:
+			if room_b.temp_upper_c >= fire_spread_ignition_temp_c \
+					and room_b.h_layer_m <= fire_spread_max_layer_m \
+					and room_b.smoke_kg >= fire_spread_min_smoke_kg:
 				ignite_room(op.b)
 				print("[FireSpread] Ignición por calor: Room %d → Room %d (%.0f°C)" % [op.a, op.b, room_b.temp_upper_c])
 
 		# Propagación B → A
 		if room_b.fire != null and room_a.fire == null:
-			if room_a.temp_upper_c >= fire_spread_ignition_temp_c:
+			if room_a.temp_upper_c >= fire_spread_ignition_temp_c \
+					and room_a.h_layer_m <= fire_spread_max_layer_m \
+					and room_a.smoke_kg >= fire_spread_min_smoke_kg:
 				ignite_room(op.a)
 				print("[FireSpread] Ignición por calor: Room %d → Room %d (%.0f°C)" % [op.b, op.a, room_a.temp_upper_c])
 
@@ -536,6 +577,82 @@ func _window_open_max_for_room(room_id: int) -> float:
 		max_frac = maxf(max_frac, op.open_fraction)
 	return max_frac if has_window else -1.0
 
+func _ambient_temp_c() -> float:
+	return building.outside_temp_c if building != null else 20.0
+
+func _gas_density_kg_m3(temp_c: float) -> float:
+	var ambient_k: float = _ambient_temp_c() + 273.15
+	var gas_k: float = maxf(ambient_k, temp_c + 273.15)
+	return 1.2 * ambient_k / gas_k
+
+func _estimate_target_upper_gas_mass_kg(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+
+	var target_depth_m: float = _estimate_plume_upper_depth_m(room)
+	if target_depth_m <= 0.0:
+		return 0.0
+
+	var target_volume_m3: float = room.floor_area_m2() * target_depth_m
+	var entrained_temp_c: float = maxf(
+		room.temp_lower_c + 60.0,
+		minf(room.temp_upper_c, room.temp_lower_c + 180.0)
+	)
+	return target_volume_m3 * _gas_density_kg_m3(entrained_temp_c)
+
+func _remove_upper_layer_fraction(room: RoomModel, fraction: float) -> void:
+	if room == null:
+		return
+
+	var frac: float = clampf(fraction, 0.0, 1.0)
+	if frac <= 0.0:
+		return
+
+	room.upper_gas_kg *= (1.0 - frac)
+	room.upper_energy_kj *= (1.0 - frac)
+
+func _sync_room_upper_layer(room: RoomModel, dt: float) -> void:
+	if room == null:
+		return
+
+	var ambient_c: float = _ambient_temp_c()
+	room.upper_gas_kg = maxf(0.0, room.upper_gas_kg)
+	room.upper_energy_kj = maxf(0.0, room.upper_energy_kj)
+
+	if room.upper_gas_kg <= 0.0001 or room.upper_energy_kj <= 0.0001:
+		room.upper_gas_kg = 0.0
+		room.upper_energy_kj = 0.0
+		room.temp_upper_c = maxf(room.temp_lower_c, ambient_c)
+		smoke_model.recompute_layer_from_mass(room, dt)
+		return
+
+	room.temp_upper_c = ambient_c + room.upper_energy_kj / maxf(0.05, room.upper_gas_kg)
+	room.temp_upper_c = clampf(room.temp_upper_c, room.temp_lower_c, max_upper_temp_c)
+	room.upper_energy_kj = room.upper_gas_kg * maxf(0.0, room.temp_upper_c - ambient_c)
+	smoke_model.recompute_layer_from_mass(room, dt)
+
+func _estimate_plume_upper_depth_m(room: RoomModel) -> float:
+	if room == null or room.hrr_kw <= 0.0:
+		return 0.0
+
+	var floor_area_m2: float = maxf(1.0, room.floor_area_m2())
+	var response: float = 1.0
+	if plume_fill_response_s > 0.0:
+		response = 1.0 - exp(-room.fire_time_s / plume_fill_response_s)
+
+	# Heurística simple de entrainment para aproximar la masa de gases calientes
+	# que alimenta la capa superior en un modelo zonal.
+	var depth_m: float = plume_fill_depth_coeff * sqrt(room.hrr_kw) * response / floor_area_m2
+	var max_depth_m: float = room.height_m * plume_fill_max_fraction
+	return clampf(depth_m, 0.0, max_depth_m)
+
+func _effective_hot_layer_height_m(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+
+	var plume_layer_m: float = room.height_m - _estimate_plume_upper_depth_m(room)
+	return clampf(minf(room.h_layer_m, plume_layer_m), 0.0, room.height_m)
+
 func _compute_o2_factor(o2: float, nominal: float, min_o2: float) -> float:
 	if o2 <= min_o2:
 		return 0.0
@@ -547,6 +664,123 @@ func _compute_smoke_production_kg_s(hrr_kw: float, smoke_yield_kg_per_MJ: float)
 	var hrr_MJ_s: float = hrr_kw / 1000.0
 	return hrr_MJ_s * smoke_yield_kg_per_MJ
 
+func _compute_room_air_mass_kg(room: RoomModel, air_density_kg_m3: float) -> float:
+	if room == null:
+		return 0.1
+
+	return maxf(0.1, room.volume_m3()) * air_density_kg_m3
+
+func _compute_room_o2_pull_factor(room: RoomModel) -> float:
+	if room == null:
+		return 1.0
+
+	var deficit: float = clampf(
+		(fire_o2_nominal - room.o2) / maxf(0.001, fire_o2_nominal - fire_o2_min_for_flame),
+		0.0,
+		1.0
+	)
+	var fire_pull: float = clampf(room.hrr_kw / maxf(1.0, fire_max_hrr_kw), 0.0, 1.0)
+	var thermal_pull: float = clampf((room.temp_upper_c - room.temp_lower_c) / 250.0, 0.0, 1.0)
+	return 1.0 + deficit * 1.5 + fire_pull * 1.25 + thermal_pull * 0.5
+
+func _redistribute_o2_across_open_network(dt: float, air_density_kg_m3: float) -> void:
+	var rooms: Dictionary = building.get_rooms()
+	if rooms.is_empty():
+		return
+
+	var air_mass_by_room: Dictionary = {}
+	var o2_mass_by_room: Dictionary = {}
+
+	for room_id in rooms.keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+
+		var air_mass_kg: float = _compute_room_air_mass_kg(room, air_density_kg_m3)
+		air_mass_by_room[room_id] = air_mass_kg
+		o2_mass_by_room[room_id] = air_mass_kg * clampf(room.o2, 0.0, o2_nominal)
+
+	var iterations: int = max(1, o2_network_iterations)
+	for _iteration in range(iterations):
+		var delta_o2_mass: Dictionary = {}
+		for room_id in air_mass_by_room.keys():
+			delta_o2_mass[room_id] = 0.0
+
+		for op in building.get_openings():
+			if op.open_fraction <= 0.0:
+				continue
+			if op.a == BuildingModel.OUTSIDE_ID or op.b == BuildingModel.OUTSIDE_ID:
+				continue
+
+			var room_a: RoomModel = building.get_room(op.a)
+			var room_b: RoomModel = building.get_room(op.b)
+			if room_a == null or room_b == null:
+				continue
+
+			var air_mass_a: float = air_mass_by_room.get(op.a, 0.0)
+			var air_mass_b: float = air_mass_by_room.get(op.b, 0.0)
+			if air_mass_a <= 0.0 or air_mass_b <= 0.0:
+				continue
+
+			var o2_a: float = o2_mass_by_room.get(op.a, 0.0) / air_mass_a
+			var o2_b: float = o2_mass_by_room.get(op.b, 0.0) / air_mass_b
+			var o2_diff: float = absf(o2_a - o2_b)
+			if o2_diff < 0.001:
+				continue
+
+			var source_id: int = op.a if o2_a >= o2_b else op.b
+			var sink_id: int = op.b if source_id == op.a else op.a
+			var sink_room: RoomModel = room_b if sink_id == op.b else room_a
+			var source_air_mass: float = air_mass_by_room.get(source_id, 0.0)
+			var sink_air_mass: float = air_mass_by_room.get(sink_id, 0.0)
+			if source_air_mass <= 0.0 or sink_air_mass <= 0.0:
+				continue
+
+			var area_open_m2: float = op.width_m * op.height_m * op.open_fraction
+			if area_open_m2 <= 0.0:
+				continue
+
+			var pull_factor: float = _compute_room_o2_pull_factor(sink_room)
+			var gradient_factor: float = clampf(
+				o2_diff / maxf(0.005, fire_o2_nominal - fire_o2_min_for_flame),
+				0.0,
+				1.0
+			)
+			var exchange_air_kg: float = area_open_m2 * air_density_kg_m3 * o2_mix_rate * dt
+			exchange_air_kg *= lerpf(0.7, 2.4, gradient_factor) * pull_factor
+
+			var min_air_mass: float = minf(source_air_mass, sink_air_mass)
+			exchange_air_kg = minf(exchange_air_kg, min_air_mass * 0.04)
+			if exchange_air_kg <= 0.0:
+				continue
+
+			var source_o2: float = o2_mass_by_room.get(source_id, 0.0) / source_air_mass
+			var sink_o2: float = o2_mass_by_room.get(sink_id, 0.0) / sink_air_mass
+			var net_source_delta: float = exchange_air_kg * (sink_o2 - source_o2)
+			var net_sink_delta: float = -net_source_delta
+
+			delta_o2_mass[source_id] = delta_o2_mass.get(source_id, 0.0) + net_source_delta
+			delta_o2_mass[sink_id] = delta_o2_mass.get(sink_id, 0.0) + net_sink_delta
+
+		for room_id in delta_o2_mass.keys():
+			var air_mass_kg: float = air_mass_by_room.get(room_id, 0.0)
+			if air_mass_kg <= 0.0:
+				continue
+
+			var updated_o2_mass: float = o2_mass_by_room.get(room_id, 0.0) + delta_o2_mass.get(room_id, 0.0)
+			o2_mass_by_room[room_id] = clampf(updated_o2_mass, 0.0, air_mass_kg * o2_nominal)
+
+	for room_id in air_mass_by_room.keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+
+		var air_mass_kg: float = air_mass_by_room.get(room_id, 0.0)
+		if air_mass_kg <= 0.0:
+			continue
+
+		room.o2 = clampf(o2_mass_by_room.get(room_id, 0.0) / air_mass_kg, 0.0, o2_nominal)
+
 func _try_trigger_flashover(room: RoomModel) -> void:
 	if room.fire == null:
 		return
@@ -556,10 +790,10 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 
 	var hot_enough: bool = room.temp_upper_c >= flashover_temp_c
 	var enough_hrr: bool = room.hrr_kw >= room.fire.flashover_min_hrr_kw
+	var layer_low_enough: bool = room.h_layer_m <= flashover_layer_m
 
-	# Criterio físico: temperatura capa superior >= flashover_temp_c (estándar 500-600°C).
-	# La altura de capa NO es criterio de flashover — se eliminó esa condición.
-	if hot_enough and enough_hrr:
+	# Requerimos calor alto, HRR sostenido y un descenso real de la capa caliente.
+	if hot_enough and enough_hrr and layer_low_enough:
 		room.flashover_triggered = true
 		# Escalar la ganancia secundaria en proporción al tamaño de la habitación.
 		# Evita que habitaciones pequeñas (pasillo, baño) reciban el mismo
@@ -637,9 +871,11 @@ func _step_oxygen(dt: float) -> void:
 			var t_in_k: float
 			var h_drive: float
 
-			if indoor.h_layer_m <= lintel_m:
+			var effective_layer_m: float = _effective_hot_layer_height_m(indoor)
+
+			if effective_layer_m <= lintel_m:
 				# (A) Humo ha bajado hasta el dintel o por debajo
-				var hot_band_m: float = lintel_m - indoor.h_layer_m
+				var hot_band_m: float = lintel_m - effective_layer_m
 				h_drive = maxf(0.05, hot_band_m)
 				area_eff = op.width_m * minf(h_drive, op.height_m) * op.open_fraction
 				t_in_k = indoor.temp_upper_c + 273.15
@@ -677,20 +913,15 @@ func _step_oxygen(dt: float) -> void:
 				hot_room = room_b
 				cold_room = room_a
 
-			# Fuerza motriz inter-sala (efecto chimenea bidireccional).
-			# Caso A: humo hasta/bajo el dintel → banda de gas caliente empuja.
-			# Caso B: humo por encima del dintel → zona inferior caliente impulsa
-			#         el intercambio (la puerta está en aire caliente no-humo).
-			var h_drive_int: float
-			var t_hot_k: float
+			# Mantener el intercambio de especies acoplado al mismo mecanismo
+			# que el calor y el humo entre salas: sin banda caliente sobre el
+			# dintel, no trasladamos O2.
+			var hot_band_m: float = lintel_m - _effective_hot_layer_height_m(hot_room)
+			if hot_band_m <= 0.0:
+				continue
 
-			if hot_room.h_layer_m <= lintel_m:
-				var hot_band_m: float = lintel_m - hot_room.h_layer_m
-				h_drive_int = maxf(0.05, hot_band_m)
-				t_hot_k = hot_room.temp_upper_c + 273.15
-			else:
-				h_drive_int = minf(lintel_m, op.height_m)
-				t_hot_k = hot_room.temp_lower_c + 273.15
+			var h_drive_int: float = maxf(doorway_o2_min_band_m, hot_band_m)
+			var t_hot_k: float = hot_room.temp_upper_c + 273.15
 
 			var t_cold_k: float = cold_room.temp_upper_c + 273.15
 			var delta_t_k: float = maxf(0.0, t_hot_k - t_cold_k)
@@ -699,7 +930,7 @@ func _step_oxygen(dt: float) -> void:
 
 			var area_eff: float = op.width_m * minf(h_drive_int, op.height_m) * op.open_fraction
 			var q: float = 0.65 * 0.5 * area_eff * sqrt(g_gravity * h_drive_int * delta_t_k / ((t_hot_k + t_cold_k) * 0.5))
-			var exch: float = q * air_density_kg_m3 * dt
+			var exch: float = q * air_density_kg_m3 * dt * doorway_o2_exchange_coeff
 			var mass_hot: float = maxf(0.1, hot_room.volume_m3()) * air_density_kg_m3
 			var mass_cold: float = maxf(0.1, cold_room.volume_m3()) * air_density_kg_m3
 			var new_hot: float = (hot_room.o2 * mass_hot + cold_room.o2 * exch) / (mass_hot + exch)
@@ -707,43 +938,58 @@ func _step_oxygen(dt: float) -> void:
 			hot_room.o2 = clampf(new_hot, 0.0, o2_nominal)
 			cold_room.o2 = clampf(new_cold, 0.0, o2_nominal)
 
+	# Mezcla adicional a escala de red: una sala en combustión puede tirar O2
+	# del resto del grafo de puertas abiertas, no solo de su vecino inmediato.
+	_redistribute_o2_across_open_network(dt, air_density_kg_m3)
+
 # ============================================================
 # TEMPERATURA
 # ============================================================
 
 func _step_temperature(dt: float) -> void:
+	var ambient_c: float = _ambient_temp_c()
+
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
 			continue
 
-		# Físicamente correcto: dT = HRR_conv * dt / (rho_aire * Cp_aire * V_capa_superior)
-		# conv_fraction = 0.35: fracción de HRR que calienta el gas (el resto a paredes/radiación)
-		# Escala automáticamente con el volumen: habitaciones pequeñas se calientan más rápido
-		var h_upper: float = maxf(0.1, room.height_m - room.h_layer_m)
-		var v_upper_m3: float = maxf(0.5, room.floor_area_m2() * h_upper)
-		var m_upper_kg: float = 1.2 * v_upper_m3  # rho = 1.2 kg/m³, Cp_aire = 1.0 kJ/(kg·K)
-		room.temp_upper_c += room.hrr_kw * 0.35 * dt / m_upper_kg
+		var target_upper_mass_kg: float = _estimate_target_upper_gas_mass_kg(room)
+		if target_upper_mass_kg > room.upper_gas_kg:
+			var mass_gain_kg: float = (target_upper_mass_kg - room.upper_gas_kg) * clampf(
+				dt / maxf(1.0, plume_fill_response_s),
+				0.0,
+				1.0
+			)
+			room.upper_gas_kg += mass_gain_kg
+			room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_lower_c - ambient_c)
+
+		room.upper_energy_kj += room.hrr_kw * 0.35 * dt
+		_sync_room_upper_layer(room, dt)
 
 		var delta_ul: float = maxf(0.0, room.temp_upper_c - room.temp_lower_c)
+		var energy_to_lower_kj: float = room.upper_gas_kg * delta_ul * upper_to_lower_loss_rate * dt
+		var energy_to_ambient_kj: float = room.upper_gas_kg \
+				* maxf(0.0, room.temp_upper_c - ambient_c) * upper_to_ambient_loss_rate * dt
+		var wall_absorption_kj: float = room.upper_gas_kg \
+				* maxf(0.0, room.temp_upper_c - ambient_c) * wall_absorption_rate * dt
 
-		var loss_to_lower: float = delta_ul * upper_to_lower_loss_rate * dt
-		var loss_to_ambient: float = maxf(0.0, room.temp_upper_c - building.outside_temp_c) * upper_to_ambient_loss_rate * dt
-		# Absorción por paredes: proporcional a (T_upper - T_ambient), sin denominar por masa.
-		# No interacciona con la fase de crecimiento porque es pequeño (~37% del loss_to_ambient).
-		var wall_absorption: float = maxf(0.0, room.temp_upper_c - building.outside_temp_c) * wall_absorption_rate * dt
-		var lower_warming: float = delta_ul * lower_layer_warming_rate * dt
-		var lower_loss_to_ambient: float = maxf(0.0, room.temp_lower_c - building.outside_temp_c) * 0.010 * dt
+		var requested_upper_loss_kj: float = energy_to_lower_kj + energy_to_ambient_kj + wall_absorption_kj
+		if requested_upper_loss_kj > 0.0 and room.upper_energy_kj > 0.0:
+			var loss_scale: float = minf(1.0, room.upper_energy_kj / requested_upper_loss_kj)
+			energy_to_lower_kj *= loss_scale
+			energy_to_ambient_kj *= loss_scale
+			wall_absorption_kj *= loss_scale
+			room.upper_energy_kj -= energy_to_lower_kj + energy_to_ambient_kj + wall_absorption_kj
 
-		room.temp_upper_c -= loss_to_lower
-		room.temp_upper_c -= loss_to_ambient
-		room.temp_upper_c -= wall_absorption
-
-		room.temp_lower_c += lower_warming
-		room.temp_lower_c -= lower_loss_to_ambient
-
-		room.temp_lower_c = maxf(building.outside_temp_c, room.temp_lower_c)
-		room.temp_lower_c = minf(room.temp_lower_c, room.temp_upper_c)
+		var lower_mass_kg: float = maxf(
+			1.0,
+			_gas_density_kg_m3(room.temp_lower_c) * room.floor_area_m2() * maxf(0.2, room.h_layer_m)
+		)
+		room.temp_lower_c += energy_to_lower_kj / lower_mass_kg
+		room.temp_lower_c -= maxf(0.0, room.temp_lower_c - ambient_c) * 0.010 * dt
+		room.temp_lower_c = maxf(ambient_c, room.temp_lower_c)
+		_sync_room_upper_layer(room, dt)
 
 	# --------------------------------------------------------
 	# Transferencia convectiva entre habitaciones a través de
@@ -774,11 +1020,15 @@ func _step_temperature(dt: float) -> void:
 			cold_room = room_a
 
 		var lintel_m: float = op.lintel_height_m()
-		var hot_band_m: float = maxf(0.0, lintel_m - hot_room.h_layer_m)
+		var hot_band_m: float = maxf(0.0, lintel_m - _effective_hot_layer_height_m(hot_room))
 		if hot_band_m <= 0.0:
 			continue
 
-		var t_hot_k: float = hot_room.temp_upper_c + 273.15
+		var band_frac: float = clampf(hot_band_m / maxf(0.1, op.height_m), 0.0, 1.0)
+		# El chorro que atraviesa la abertura no tiene la temperatura íntegra de la
+		# capa superior: llega mezclado con gases más fríos de la zona inferior.
+		var source_temp_c: float = lerpf(hot_room.temp_lower_c, hot_room.temp_upper_c, band_frac)
+		var t_hot_k: float = source_temp_c + 273.15
 		var t_cold_k: float = cold_room.temp_upper_c + 273.15
 		var delta_t_k: float = maxf(0.0, t_hot_k - t_cold_k)
 		if delta_t_k < 2.0:
@@ -786,7 +1036,7 @@ func _step_temperature(dt: float) -> void:
 
 		var area_eff: float = op.width_m * minf(hot_band_m, op.height_m) * op.open_fraction
 		var q_vol: float = 0.65 * 0.5 * area_eff * sqrt(g_grav * hot_band_m * delta_t_k / ((t_hot_k + t_cold_k) * 0.5))
-		var mass_exch: float = q_vol * rho_air * dt
+		var mass_exch: float = q_vol * rho_air * dt * doorway_heat_exchange_coeff
 
 		var m_hot_kg: float = maxf(1.0, hot_room.volume_m3() * rho_air)
 		var m_cold_kg: float = maxf(1.0, cold_room.volume_m3() * rho_air)
@@ -796,8 +1046,22 @@ func _step_temperature(dt: float) -> void:
 		var max_exch: float = (m_hot_kg * m_cold_kg) / (m_hot_kg + m_cold_kg)
 		mass_exch = minf(mass_exch, max_exch)
 
-		hot_room.temp_upper_c -= mass_exch * delta_t_k / m_hot_kg
-		cold_room.temp_upper_c += mass_exch * delta_t_k / m_cold_kg
+		var gas_cap_kg: float = minf(hot_room.upper_gas_kg, maxf(0.10, hot_room.upper_gas_kg * 0.55))
+		var gas_moved_kg: float = minf(mass_exch, gas_cap_kg)
+		if gas_moved_kg <= 0.0:
+			continue
+
+		var energy_moved_kj: float = gas_moved_kg * maxf(0.0, source_temp_c - ambient_c)
+		energy_moved_kj = minf(energy_moved_kj, hot_room.upper_energy_kj)
+
+		hot_room.upper_gas_kg -= gas_moved_kg
+		hot_room.upper_energy_kj = maxf(0.0, hot_room.upper_energy_kj - energy_moved_kj)
+
+		cold_room.upper_gas_kg += gas_moved_kg
+		cold_room.upper_energy_kj += energy_moved_kj
+
+		_sync_room_upper_layer(hot_room, dt)
+		_sync_room_upper_layer(cold_room, dt)
 
 # ============================================================
 # VENTILACIÓN PULSANTE POR FUGAS EN VENTANAS
@@ -867,8 +1131,9 @@ func _step_pressure_venting(dt: float) -> void:
 		room.smoke_kg = maxf(0.0, room.smoke_kg)
 		smoke_vented_total_kg += smoke_out_kg
 
-		# Al salir gas caliente, la capa superior pierde temperatura proporcional
-		room.temp_upper_c -= maxf(0.0, room.temp_upper_c - building.outside_temp_c) * frac_out * 0.20
+		_remove_upper_layer_fraction(room, frac_out)
+		room.co_kg = maxf(0.0, room.co_kg * (1.0 - frac_out))
+		_sync_room_upper_layer(room, dt)
 
 		# ── 5. Alivio de presión proporcional al venteo ───────────────────
 		room.overpressure_pa = maxf(0.0, room.overpressure_pa * (1.0 - frac_out * 0.9))
@@ -890,10 +1155,13 @@ func _step_pressure_venting(dt: float) -> void:
 func _step_smoke(dt: float) -> void:
 	var smoke_delta_kg: Dictionary = {}
 	var co_delta_kg: Dictionary = {}
+	var o2_delta_kg: Dictionary = {}
+	var air_density_kg_m3_s: float = 1.2
 
 	for room_id in building.get_rooms().keys():
 		smoke_delta_kg[int(room_id)] = 0.0
 		co_delta_kg[int(room_id)] = 0.0
+		o2_delta_kg[int(room_id)] = 0.0
 
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -918,7 +1186,12 @@ func _step_smoke(dt: float) -> void:
 			room_out = building.get_room(op.b)
 
 		if room_out != null:
-			var vented_kg: float = smoke_model.compute_outside_vented_kg(room_out, op, dt)
+			var vented_kg: float = smoke_model.compute_outside_vented_kg(
+				room_out,
+				op,
+				dt,
+				_effective_hot_layer_height_m(room_out)
+			)
 			if vented_kg > 0.0:
 				smoke_delta_kg[room_out.id] -= vented_kg
 				smoke_vented_total_kg += vented_kg
@@ -927,10 +1200,8 @@ func _step_smoke(dt: float) -> void:
 				if room_out.smoke_kg > 0.001:
 					var vent_frac: float = minf(1.0, vented_kg / room_out.smoke_kg)
 					co_delta_kg[room_out.id] -= vent_frac * room_out.co_kg
-
-				if room_out.smoke_kg > 0.0:
-					var heat_loss_factor: float = vented_kg / (room_out.smoke_kg + 0.1)
-					room_out.temp_upper_c *= (1.0 - heat_loss_factor * 0.5)
+					_remove_upper_layer_fraction(room_out, vent_frac)
+					_sync_room_upper_layer(room_out, dt)
 
 			continue
 
@@ -940,30 +1211,43 @@ func _step_smoke(dt: float) -> void:
 		if room_a == null or room_b == null:
 			continue
 
-		var transfer: Dictionary = smoke_model.compute_room_transfer(room_a, room_b, op, dt)
-		var from_id: int = int(transfer.get("from", -1))
-		var to_id: int = int(transfer.get("to", -1))
-		var kg: float = float(transfer.get("kg", 0.0))
+		var transfers: Array[Dictionary] = smoke_model.compute_room_transfers(
+			room_a,
+			room_b,
+			op,
+			dt,
+			_effective_hot_layer_height_m(room_a),
+			_effective_hot_layer_height_m(room_b)
+		)
+		for transfer in transfers:
+			var from_id: int = int(transfer.get("from", -1))
+			var to_id: int = int(transfer.get("to", -1))
+			var kg: float = float(transfer.get("kg", 0.0))
 
-		var layer_factor: float = 1.0
+			var layer_factor: float = 1.0
+			var source_room: RoomModel = null
+			if from_id == room_a.id:
+				source_room = room_a
+			elif from_id == room_b.id:
+				source_room = room_b
 
-		if room_a.h_layer_m < 1.8:
-			layer_factor = 1.5
-		if room_a.h_layer_m < 1.2:
-			layer_factor = 2.5
-		if room_a.h_layer_m < 0.8:
-			layer_factor = 4.0
+			if source_room != null and source_room.h_layer_m < 1.8:
+				layer_factor = 1.5
+			if source_room != null and source_room.h_layer_m < 1.2:
+				layer_factor = 2.5
+			if source_room != null and source_room.h_layer_m < 0.8:
+				layer_factor = 4.0
 
-		kg *= layer_factor
+			kg *= layer_factor
 
-		if from_id == -1 or to_id == -1 or kg <= 0.0:
-			continue
+			if from_id == -1 or to_id == -1 or kg <= 0.0:
+				continue
 
-		room_transfers.append({
-			"from": from_id,
-			"to": to_id,
-			"kg": kg
-		})
+			room_transfers.append({
+				"from": from_id,
+				"to": to_id,
+				"kg": kg
+			})
 
 	var outgoing: Dictionary = {}
 
@@ -984,7 +1268,7 @@ func _step_smoke(dt: float) -> void:
 		for t in outgoing[from_id]:
 			total_requested += float(t["kg"])
 
-		var max_allowed: float = room.smoke_kg * 0.12 * dt
+		var max_allowed: float = room.smoke_kg * 0.25 * dt
 
 		if total_requested > max_allowed and total_requested > 0.0:
 			var scale: float = max_allowed / total_requested
@@ -1008,24 +1292,35 @@ func _step_smoke(dt: float) -> void:
 
 		if source != null and target != null:
 			var flow_ratio: float = kg / (target.smoke_kg + kg + 0.1)
+			if source.smoke_kg > 0.001 and source.upper_gas_kg > 0.001:
+				var transfer_frac: float = minf(1.0, kg / source.smoke_kg)
+				var gas_moved_kg: float = minf(
+					source.upper_gas_kg * transfer_frac,
+					maxf(0.02, source.upper_gas_kg * 0.18)
+				)
+				var energy_moved_kj: float = minf(
+					source.upper_energy_kj * transfer_frac,
+					source.upper_energy_kj
+				)
 
-			var temp_mix: float = 0.30 * flow_ratio
-
-			target.temp_upper_c = lerp(
-				target.temp_upper_c,
-				source.temp_upper_c,
-				temp_mix
-			)
-
-			source.temp_upper_c -= (
-				(source.temp_upper_c - target.temp_upper_c)
-				* temp_mix * 0.03
-			)
+				source.upper_gas_kg = maxf(0.0, source.upper_gas_kg - gas_moved_kg)
+				source.upper_energy_kj = maxf(0.0, source.upper_energy_kj - energy_moved_kj)
+				target.upper_gas_kg += gas_moved_kg
+				target.upper_energy_kj += energy_moved_kj
 
 			# Contra-flujo: humo sale source→target, aire fresco entra target→source
 			var o2_mix_factor: float = 0.08 * flow_ratio
-			target.o2 = lerpf(target.o2, source.o2, o2_mix_factor)
-			source.o2 = lerpf(source.o2, target.o2, o2_mix_factor)
+			if o2_mix_factor > 0.0:
+				var source_air_mass_kg: float = maxf(0.1, source.volume_m3()) * air_density_kg_m3_s
+				var target_air_mass_kg: float = maxf(0.1, target.volume_m3()) * air_density_kg_m3_s
+				var exchange_air_mass_kg: float = minf(source_air_mass_kg, target_air_mass_kg) \
+						* clampf(o2_mix_factor, 0.0, 1.0)
+
+				if exchange_air_mass_kg > 0.0:
+					var source_o2_out_kg: float = source.o2 * exchange_air_mass_kg
+					var target_o2_out_kg: float = target.o2 * exchange_air_mass_kg
+					o2_delta_kg[from_id] += target_o2_out_kg - source_o2_out_kg
+					o2_delta_kg[to_id] += source_o2_out_kg - target_o2_out_kg
 
 			# CO viaja con el flujo de humo (misma proporción)
 			if source.smoke_kg > 0.001:
@@ -1033,12 +1328,15 @@ func _step_smoke(dt: float) -> void:
 				co_delta_kg[from_id] -= co_moved
 				co_delta_kg[to_id] += co_moved
 
-	var air_density_kg_m3_s: float = 1.2
-
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
 			continue
+
+		var room_volume_m3_s: float = maxf(0.1, room.volume_m3())
+		var room_air_mass_kg: float = room_volume_m3_s * air_density_kg_m3_s
+		var room_o2_mass_kg: float = room.o2 * room_air_mass_kg + float(o2_delta_kg[int(room_id)])
+		room.o2 = clampf(room_o2_mass_kg / room_air_mass_kg, 0.0, o2_nominal)
 
 		room.smoke_kg += float(smoke_delta_kg[int(room_id)])
 		room.smoke_kg = maxf(0.0, room.smoke_kg)
@@ -1053,20 +1351,16 @@ func _step_smoke(dt: float) -> void:
 		room.co_kg = maxf(0.0, room.co_kg - co_removed)
 
 		# Humo: mismo mecanismo — partículas arrastradas por flujo de infiltración.
-		var room_volume_m3_s: float = maxf(0.1, room.volume_m3())
 		var smoke_concentration: float = room.smoke_kg / (room_volume_m3_s * air_density_kg_m3_s)
 		var smoke_removed: float = room_volume_m3_s * air_density_kg_m3_s * smoke_concentration * ach_rate * dt
 		room.smoke_kg = maxf(0.0, room.smoke_kg - smoke_removed)
-
-		if room.h_layer_m < 0.5:
-			room.smoke_kg *= 0.98
 
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
 			continue
 
-		smoke_model.recompute_layer_from_mass(room, dt)
+		_sync_room_upper_layer(room, dt)
 
 # ============================================================
 # DEBUG DE CONSERVACIÓN DE MASA DE HUMO
@@ -1107,12 +1401,15 @@ func _clamp_rooms() -> void:
 
 		room.o2 = clampf(room.o2, 0.0, fire_o2_nominal)
 		room.h_layer_m = clampf(room.h_layer_m, 0.0, room.height_m)
+		room.upper_gas_kg = maxf(0.0, room.upper_gas_kg)
+		room.upper_energy_kj = maxf(0.0, room.upper_energy_kj)
 
 		room.temp_lower_c = maxf(building.outside_temp_c, room.temp_lower_c)
 
 		room.temp_upper_c = minf(room.temp_upper_c, max_upper_temp_c)
 		if room.temp_upper_c < room.temp_lower_c:
 			room.temp_lower_c = room.temp_upper_c
+		room.upper_energy_kj = room.upper_gas_kg * maxf(0.0, room.temp_upper_c - _ambient_temp_c())
 
 		room.hrr_kw = maxf(0.0, room.hrr_kw)
 		room.smoke_prod_kg_s = maxf(0.0, room.smoke_prod_kg_s)
@@ -1151,6 +1448,8 @@ func get_state() -> Dictionary:
 			"h_layer_m": room.h_layer_m,
 			"smoke_kg": room.smoke_kg,
 			"smoke_prod_kg_s": room.smoke_prod_kg_s,
+			"upper_gas_kg": room.upper_gas_kg,
+			"upper_energy_kj": room.upper_energy_kj,
 
 			"has_fire": room.fire != null,
 			"flashover_triggered": room.flashover_triggered,
