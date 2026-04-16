@@ -1,0 +1,85 @@
+{
+	"baseline": {
+		"all_pass": true,
+		"checks": {
+			"room_0_final_layer_150c_m": {
+				"actual": 0.140066254160385,
+				"pass": true,
+				"rule": {
+					"expected": 0.14,
+					"tolerance": 0.08
+				}
+			},
+			"room_1_final_temp_at_1_8m_c": {
+				"actual": 80.218531686731,
+				"pass": true,
+				"rule": {
+					"expected": 80.22,
+					"tolerance": 12.0
+				}
+			},
+			"room_1_min_l150_m": {
+				"actual": 2.39298024636063,
+				"pass": true,
+				"rule": {
+					"expected": 2.39,
+					"tolerance": 0.08
+				}
+			},
+			"room_1_peak_temp_upper_c": {
+				"actual": 157.437212238837,
+				"pass": true,
+				"rule": {
+					"expected": 157.44,
+					"tolerance": 20.0
+				}
+			},
+			"time_room_0_smoke_layer_2m_s": {
+				"actual": 143.999999999999,
+				"pass": true,
+				"rule": {
+					"expected": 144.0,
+					"tolerance": 6.0
+				}
+			},
+			"time_room_1_smoke_start_s": {
+				"actual": 144.166666666666,
+				"pass": true,
+				"rule": {
+					"expected": 144.17,
+					"tolerance": 6.0
+				}
+			}
+		}
+	},
+	"case": "living_room_hallway",
+	"duration_s": 260.0,
+	"metrics": {
+		"peak_co_ppm_global": 11656.8988276123,
+		"peak_hrr_kw_global": 1212.85004695084,
+		"peak_temp_upper_c_global": 900.0,
+		"room_0_final_co_ppm": 3806.75830512152,
+		"room_0_final_hot_layer_m": 1.67313831157794,
+		"room_0_final_layer_150c_m": 0.140066254160385,
+		"room_0_final_smoke_kg": 0.604082296108693,
+		"room_0_final_smoke_layer_m": 1.99728760062559,
+		"room_0_final_temp_at_1_8m_c": 424.071574716036,
+		"room_0_min_l150_m": 0.13942541088597,
+		"room_0_peak_co_ppm": 3883.68878961007,
+		"room_0_peak_hrr_kw": 1212.85004695084,
+		"room_0_peak_temp_upper_c": 900.0,
+		"room_1_final_co_ppm": 10995.3434934585,
+		"room_1_final_hot_layer_m": 1.71080867090542,
+		"room_1_final_layer_150c_m": 2.4,
+		"room_1_final_smoke_kg": 0.903221387871808,
+		"room_1_final_smoke_layer_m": 1.99812959996095,
+		"room_1_final_temp_at_1_8m_c": 80.218531686731,
+		"room_1_min_l150_m": 2.39298024636063,
+		"room_1_peak_co_ppm": 11656.8988276123,
+		"room_1_peak_hrr_kw": 0.0,
+		"room_1_peak_temp_upper_c": 157.437212238837,
+		"time_room_0_smoke_layer_2m_s": 143.999999999999,
+		"time_room_1_smoke_start_s": 144.166666666666
+	},
+	"sim_time_s": 260.000000000011
+}

@@ -6,7 +6,7 @@ class_name Visualizer
 ## ------------------------------------------------------------
 ## Responsabilidad:
 ## - Dibujar habitaciones a partir de rects del BuildingModel
-## - Mostrar capa superior de humo usando h_layer_m / smoke_mass_kg
+## - Mostrar capa visible de humo y capa térmica por separado
 ## - Dibujar puertas/ventanas (openings)
 ## - Dibujar barra HRR por habitación
 ## - Dibujar etiquetas de estado dentro de cada sala
@@ -37,6 +37,8 @@ class_name Visualizer
 
 @export var show_room_fill: bool = true
 @export var show_smoke_layer: bool = true
+@export var show_hot_layer_overlay: bool = true
+@export var show_150c_layer: bool = true
 @export var show_hrr_bar: bool = true
 @export var show_openings: bool = true
 @export var show_room_labels: bool = true
@@ -51,6 +53,11 @@ class_name Visualizer
 @export var smoke_min_alpha: float = 0.30
 @export var smoke_max_alpha_bonus: float = 0.55
 @export var smoke_mass_reference_kg: float = 8.0
+@export var smoke_concentration_reference_kg_m3: float = 0.08
+@export var smoke_visible_threshold_kg: float = 0.01
+@export var hot_layer_color: Color = Color(1.0, 0.55, 0.15, 0.18)
+@export var layer_150c_color: Color = Color(1.0, 0.10, 0.10, 0.95)
+@export var layer_150c_line_width: float = 2.0
 
 # ============================================================
 # ETIQUETAS
@@ -104,6 +111,7 @@ class_name Visualizer
 ## Estado recibido desde Main / SimulationEngine:
 ## state["0"] = {
 ##   "h_layer_m": ...,
+##   "thermal_layer_m": ...,
 ##   "smoke_mass_kg": ...,
 ##   "hrr_kw": ...,
 ##   "temp_upper_c": ...,
@@ -166,27 +174,38 @@ func _draw() -> void:
 			# Aunque no haya estado, seguimos dibujando openings después
 			continue
 
-		var h_layer_m: float = float(rs.get("h_layer_m", room_height_m_default))
+		var room_height_m: float = float(rs.get("height_m", room_height_m_default))
+		var room_floor_area_m2: float = maxf(0.01, rm.size.x * rm.size.y)
+		var smoke_layer_m: float = float(rs.get("smoke_layer_m", rs.get("h_layer_m", room_height_m)))
+		var hot_layer_m: float = float(rs.get("hot_layer_m", rs.get("thermal_layer_m", room_height_m)))
+		var layer_150c_m: float = float(rs.get("layer_150c_m", room_height_m))
 		var smoke_kg: float = float(rs.get("smoke_kg", 0.0))
 		var hrr_kw: float = float(rs.get("hrr_kw", 0.0))
 
-		# 4) humo
-		if show_smoke_layer:
-			_draw_smoke_layer(rpx, h_layer_m, smoke_kg)
+		# 4) capa térmica
+		if show_hot_layer_overlay:
+			_draw_hot_layer_overlay(rpx, hot_layer_m, room_height_m)
 
-		# 5) barra HRR
+		# 5) humo
+		if show_smoke_layer:
+			_draw_smoke_layer(rpx, smoke_layer_m, smoke_kg, room_height_m, room_floor_area_m2)
+
+		if show_150c_layer:
+			_draw_150c_line(rpx, layer_150c_m, room_height_m)
+
+		# 6) barra HRR
 		if show_hrr_bar:
 			_draw_hrr_bar(rpx, hrr_kw)
 
-		# 6) etiqueta de sala
+		# 7) etiqueta de sala
 		if show_room_labels:
 			_draw_room_label(id, rpx, rs)
 
-		# 7) badge de estado de ventanas exteriores
+		# 8) badge de estado de ventanas exteriores
 		if show_window_badge:
 			_draw_window_badge(rpx, rs)
 
-	# 8) openings al final, para que queden por encima
+	# 9) openings al final, para que queden por encima
 	if show_openings:
 		_draw_openings()
 
@@ -203,17 +222,30 @@ func _draw_background() -> void:
 # HUMO
 # ============================================================
 
-func _draw_smoke_layer(rpx: Rect2, h_layer_m: float, smoke_kg: float) -> void:
-	var room_h: float = room_height_m_default
+func _draw_smoke_layer(
+	rpx: Rect2,
+	h_layer_m: float,
+	smoke_kg: float,
+	room_h: float = room_height_m_default,
+	floor_area_m2: float = 1.0
+) -> void:
+	if smoke_kg <= smoke_visible_threshold_kg:
+		return
+
 	var upper_thick_m: float = maxf(0.0, room_h - h_layer_m)
 	var upper_frac: float = clampf(upper_thick_m / room_h, 0.0, 1.0)
 
 	if upper_frac <= 0.0:
 		return
 
-	# Intensidad combinando altura ocupada + masa de humo
+	var upper_volume_m3: float = maxf(0.05, floor_area_m2 * upper_thick_m)
+	var smoke_concentration_kg_m3: float = smoke_kg / upper_volume_m3
+
+	# Intensidad combinando altura ocupada + concentracion local.
 	var intensity: float = clampf(
-		0.35 * upper_frac + 0.65 * (smoke_kg / maxf(0.1, smoke_mass_reference_kg)),
+		0.25 * upper_frac
+			+ 0.55 * (smoke_concentration_kg_m3 / maxf(0.01, smoke_concentration_reference_kg_m3))
+			+ 0.20 * (smoke_kg / maxf(0.1, smoke_mass_reference_kg)),
 		0.0,
 		1.0
 	)
@@ -235,6 +267,39 @@ func _draw_smoke_layer(rpx: Rect2, h_layer_m: float, smoke_kg: float) -> void:
 	)
 
 	draw_rect(smoke_rect, smoke_color, true)
+
+
+func _draw_hot_layer_overlay(rpx: Rect2, hot_layer_m: float, room_h: float = room_height_m_default) -> void:
+	var upper_thick_m: float = maxf(0.0, room_h - hot_layer_m)
+	var upper_frac: float = clampf(upper_thick_m / room_h, 0.0, 1.0)
+	if upper_frac <= 0.0:
+		return
+
+	var hot_rect: Rect2 = Rect2(
+		rpx.position.x,
+		rpx.position.y,
+		rpx.size.x,
+		rpx.size.y * upper_frac
+	)
+	draw_rect(hot_rect, hot_layer_color, true)
+
+
+func _draw_150c_line(rpx: Rect2, layer_150c_m: float, room_h: float = room_height_m_default) -> void:
+	var h_m: float = layer_150c_m
+	if h_m <= 0.01:
+		h_m = 0.02
+	elif h_m >= room_h - 0.01:
+		h_m = room_h - 0.02
+	else:
+		h_m = clampf(h_m, 0.0, room_h)
+
+	var y_px: float = rpx.position.y + rpx.size.y * (1.0 - h_m / maxf(0.01, room_h))
+	draw_line(
+		Vector2(rpx.position.x, y_px),
+		Vector2(rpx.position.x + rpx.size.x, y_px),
+		layer_150c_color,
+		layer_150c_line_width
+	)
 
 
 # ============================================================
@@ -272,9 +337,11 @@ func _draw_room_label(id: int, rpx: Rect2, rs: Dictionary) -> void:
 	var up: float = float(rs.get("temp_upper_c", 0.0))
 	var low: float = float(rs.get("temp_lower_c", 0.0))
 	var sm: float = float(rs.get("smoke_kg", 0.0))
-	var lay: float = float(rs.get("h_layer_m", 0.0))
+	var smoke_lay: float = float(rs.get("smoke_layer_m", rs.get("h_layer_m", 0.0)))
+	var hot_lay: float = float(rs.get("hot_layer_m", rs.get("thermal_layer_m", 0.0)))
+	var layer_150c: float = float(rs.get("layer_150c_m", 0.0))
 	var hrr: float = float(rs.get("hrr_kw", 0.0))
-	var o2v: float = float(rs.get("o2", 0.0))
+	var o2v: float = float(rs.get("o2", 0.0)*100.0)
 	var room_name: String = String(rs.get("name", ""))
 	var fuel_mj: float = float(rs.get("fuel_energy_MJ", 0.0))
 	var rem_mj: float = float(rs.get("remaining_fuel_MJ", 0.0))
@@ -291,7 +358,9 @@ func _draw_room_label(id: int, rpx: Rect2, rs: Dictionary) -> void:
 	lines.append("Up %.0f" % up)
 	lines.append("Low %.0f" % low)
 	lines.append("Smoke %.4f" % sm)
-	lines.append("L %.2f" % lay)
+	lines.append("SmL %.2f" % smoke_lay)
+	lines.append("HotL %.2f" % hot_lay)
+	lines.append("150C %.2f" % layer_150c)
 	lines.append("O2 %.3f" % o2v)
 	lines.append("Fuel %.0f MJ" % fuel_mj)
 	lines.append("Rem %.0f MJ" % rem_mj)
@@ -303,11 +372,11 @@ func _draw_room_label(id: int, rpx: Rect2, rs: Dictionary) -> void:
 		var kaw_kw: float = float(rs.get("kawagoe_hrr_max_kw", 0.0))
 		var w_txt: String
 		if w_open <= 0.0:
-			w_txt = "Win: CERRADA"
+			w_txt = "Win: CLOSED"
 		elif w_open < window_full_open_threshold:
-			w_txt = "Win: ROTA %.0f%%" % (w_open * 100.0)
+			w_txt = "Win: BROKEN %.0f%%" % (w_open * 100.0)
 		else:
-			w_txt = "Win: ABIERTA %.0f%%" % (w_open * 100.0)
+			w_txt = "Win: OPEN %.0f%%" % (w_open * 100.0)
 		lines.append(w_txt)
 		if kaw_kw > 0.0:
 			lines.append("Kaw≤ %.0f kW" % kaw_kw)

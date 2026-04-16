@@ -1,0 +1,27 @@
+{
+	"metrics": {
+		"time_room_0_l150_below_1_8m_s": {
+			"expected": 116.33,
+			"tolerance": 12.0
+		},
+		"time_room_0_l150_below_0_5m_s": {
+			"expected": 135.08,
+			"tolerance": 12.0
+		},
+		"time_to_extinction_s": {
+			"expected": 733.92,
+			"tolerance": 45.0
+		},
+		"room_0_final_hot_layer_m": {
+			"expected": 2.4,
+			"tolerance": 0.05
+		},
+		"room_0_final_temp_at_1_8m_c": {
+			"expected": 20.0,
+			"tolerance": 2.0
+		},
+		"room_1_final_smoke_kg": {
+			"max": 0.005
+		}
+	}
+}

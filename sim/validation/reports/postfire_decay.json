@@ -1,0 +1,88 @@
+{
+	"baseline": {
+		"all_pass": true,
+		"checks": {
+			"room_0_final_hot_layer_m": {
+				"actual": 2.4,
+				"pass": true,
+				"rule": {
+					"expected": 2.4,
+					"tolerance": 0.05
+				}
+			},
+			"room_0_final_temp_at_1_8m_c": {
+				"actual": 20.0007362248529,
+				"pass": true,
+				"rule": {
+					"expected": 20.0,
+					"tolerance": 2.0
+				}
+			},
+			"room_1_final_smoke_kg": {
+				"actual": 0.000113658412354932,
+				"pass": true,
+				"rule": {
+					"max": 0.005
+				}
+			},
+			"time_room_0_l150_below_0_5m_s": {
+				"actual": 135.083333333331,
+				"pass": true,
+				"rule": {
+					"expected": 135.08,
+					"tolerance": 12.0
+				}
+			},
+			"time_room_0_l150_below_1_8m_s": {
+				"actual": 116.333333333331,
+				"pass": true,
+				"rule": {
+					"expected": 116.33,
+					"tolerance": 12.0
+				}
+			},
+			"time_to_extinction_s": {
+				"actual": 733.916666666721,
+				"pass": true,
+				"rule": {
+					"expected": 733.92,
+					"tolerance": 45.0
+				}
+			}
+		}
+	},
+	"case": "postfire_decay",
+	"duration_s": 1900.0,
+	"metrics": {
+		"peak_co_ppm_global": 13203.2074062021,
+		"peak_hrr_kw_global": 1212.85004695084,
+		"peak_temp_upper_c_global": 900.0,
+		"room_0_final_co_ppm": 183.818196986919,
+		"room_0_final_hot_layer_m": 2.4,
+		"room_0_final_layer_150c_m": 2.4,
+		"room_0_final_smoke_kg": 0.00100651893285713,
+		"room_0_final_smoke_layer_m": 2.39983224642322,
+		"room_0_final_temp_at_1_8m_c": 20.0007362248529,
+		"room_0_min_l150_m": 0.13942541088597,
+		"room_0_peak_co_ppm": 6133.02814485138,
+		"room_0_peak_hrr_kw": 1212.85004695084,
+		"room_0_peak_temp_upper_c": 900.0,
+		"room_1_final_co_ppm": 126.451276148685,
+		"room_1_final_hot_layer_m": 2.4,
+		"room_1_final_layer_150c_m": 2.4,
+		"room_1_final_smoke_kg": 0.000113658412354932,
+		"room_1_final_smoke_layer_m": 2.39996391796282,
+		"room_1_final_temp_at_1_8m_c": 20.000012280836,
+		"room_1_min_l150_m": 2.39298024636063,
+		"room_1_peak_co_ppm": 13203.2074062021,
+		"room_1_peak_hrr_kw": 0.0,
+		"room_1_peak_temp_upper_c": 157.437212238837,
+		"time_room_0_l150_below_0_5m_s": 135.083333333331,
+		"time_room_0_l150_below_1_8m_s": 116.333333333331,
+		"time_room_0_smoke_layer_2m_s": 143.999999999999,
+		"time_room_0_temp_1_8m_above_150c_s": 116.333333333331,
+		"time_room_1_smoke_start_s": 144.166666666666,
+		"time_to_extinction_s": 733.916666666721
+	},
+	"sim_time_s": 1900.08333333272
+}

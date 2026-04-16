@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://1sbehqy3k8" path="res://sim/BuildingModel.gd" id="3_1bvp3"]
 [ext_resource type="Script" uid="uid://bi64gqhwao7fw" path="res://ui/hud.gd" id="3_h2yge"]
 [ext_resource type="Script" uid="uid://b4jh4ba6wx5ye" path="res://sim/core/SimulationEngine.gd" id="4_lquwl"]
+[ext_resource type="Script" path="res://sim/validation/CaseRunner.gd" id="5_case"]
 
 [node name="Main" type="Node" unique_id=1481794009]
 script = ExtResource("1_ig7tw")
@@ -151,3 +152,8 @@ layout_mode = 2
 text = "TIME"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="CaseRunner" type="Node" parent="."]
+script = ExtResource("5_case")
+building_path = NodePath("../World/BuildingModel")
+engine_path = NodePath("../World/SimulationEngine")

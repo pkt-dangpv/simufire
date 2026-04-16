@@ -1,6 +1,8 @@
 extends Node
 class_name BuildingModel
 
+const FuelObjectModelScript = preload("res://sim/fire/FuelObjectModel.gd")
+
 # ============================================================
 # BUILDING MODEL
 # ------------------------------------------------------------
@@ -57,6 +59,9 @@ func get_rooms() -> Dictionary:
 func get_openings() -> Array:
 	return openings
 
+func load_template_data(data: Dictionary) -> void:
+	_load_from_template(data)
+
 # ============================================================
 # CARGA DE PLANTILLA
 # ============================================================
@@ -89,6 +94,8 @@ func _load_from_template(data: Dictionary) -> void:
 			rooms[room_id].fuel_energy_MJ = float(room_data["fuel_energy_MJ"])
 		if room_data.has("max_hrr_kw"):
 			rooms[room_id].max_hrr_kw = float(room_data["max_hrr_kw"])
+		if room_data.has("fuel_objects"):
+			rooms[room_id].fuel_objects = _build_fuel_objects(room_data["fuel_objects"])
 
 	# Aperturas
 	for op_data in data.get("openings_data", []):
@@ -131,15 +138,40 @@ func _add_room_from_rect(
 	room.width_m = rect_m.size.x
 	room.length_m = rect_m.size.y
 	room.height_m = height_m
-
-	room.temp_upper_c = outside_temp_c
-	room.temp_lower_c = outside_temp_c
-	room.o2 = outside_o2
-	room.h_layer_m = height_m
-	room.upper_gas_kg = 0.0
-	room.upper_energy_kj = 0.0
+	room.reset_dynamic_state(outside_temp_c, outside_o2)
 
 	rooms[id] = room
+
+
+func _build_fuel_objects(raw_objects: Variant) -> Array:
+	var result: Array = []
+	if typeof(raw_objects) != TYPE_ARRAY:
+		return result
+
+	for entry in raw_objects:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+
+		var data: Dictionary = entry
+		var obj = FuelObjectModelScript.new()
+		obj.id = String(data.get("id", ""))
+		obj.name = String(data.get("name", obj.id))
+		obj.kind = String(data.get("kind", "generic"))
+		obj.footprint_m2 = float(data.get("footprint_m2", 0.0))
+		obj.exposed_area_m2 = float(data.get("exposed_area_m2", obj.footprint_m2))
+		obj.elevation_m = float(data.get("elevation_m", 0.0))
+		obj.fuel_energy_MJ = float(data.get("fuel_energy_MJ", 0.0))
+		obj.remaining_fuel_MJ = float(data.get("remaining_fuel_MJ", obj.fuel_energy_MJ))
+		obj.max_hrr_kw = float(data.get("max_hrr_kw", 0.0))
+		obj.ignition_temp_c = float(data.get("ignition_temp_c", obj.ignition_temp_c))
+		obj.ignition_flux_kw_m2 = float(data.get("ignition_flux_kw_m2", obj.ignition_flux_kw_m2))
+		obj.smoke_yield_kg_per_MJ = float(data.get("smoke_yield_kg_per_MJ", obj.smoke_yield_kg_per_MJ))
+		obj.co_yield_kg_per_MJ = float(data.get("co_yield_kg_per_MJ", obj.co_yield_kg_per_MJ))
+		obj.o2_consumption_kg_per_MJ = float(data.get("o2_consumption_kg_per_MJ", obj.o2_consumption_kg_per_MJ))
+		obj.is_primary_ignition_source = bool(data.get("is_primary_ignition_source", false))
+		result.append(obj)
+
+	return result
 
 # ============================================================
 # HELPERS GEOMÉTRICOS
