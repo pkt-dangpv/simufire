@@ -64,6 +64,16 @@ func estimate_smoke_layer_height_m(room: RoomModel) -> float:
 	return clampf(room.height_m - smoke_depth_m, 0.0, room.height_m)
 
 
+func get_visible_smoke_layer_height_m(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+
+	if room.h_layer_m < 0.0 or room.h_layer_m > room.height_m:
+		return estimate_smoke_layer_height_m(room)
+
+	return clampf(room.h_layer_m, 0.0, room.height_m)
+
+
 # ============================================================
 # RECÁLCULO DE CAPA DESDE MASA
 # ------------------------------------------------------------
@@ -125,7 +135,7 @@ func compute_outside_vented_kg(
 		return 0.0
 
 	var lintel_m: float = op.lintel_height_m()
-	var layer_m: float = estimate_smoke_layer_height_m(room)
+	var layer_m: float = get_visible_smoke_layer_height_m(room)
 
 	# Si la capa no ha llegado al dintel, no hay derrame de humo caliente.
 	if layer_m >= (lintel_m - spill_margin_m):
@@ -186,8 +196,8 @@ func compute_room_transfers(
 	# --------------------------------------------------------
 	# El derrame de HUMO arranca cuando la interfaz visible desciende
 	# hasta el dintel de la puerta.
-	var smoke_a_layer_m: float = estimate_smoke_layer_height_m(room_a)
-	var smoke_b_layer_m: float = estimate_smoke_layer_height_m(room_b)
+	var smoke_a_layer_m: float = get_visible_smoke_layer_height_m(room_a)
+	var smoke_b_layer_m: float = get_visible_smoke_layer_height_m(room_b)
 	var a_trigger_layer_m: float = _interior_spill_trigger_layer_m(room_a, lintel_m)
 	var b_trigger_layer_m: float = _interior_spill_trigger_layer_m(room_b, lintel_m)
 	var a_excess_m: float = maxf(0.0, a_trigger_layer_m - smoke_a_layer_m)
@@ -334,7 +344,7 @@ func _compute_transfer_mass_kg_continuous(
 	# Si la sala destino ya tiene la capa muy baja, la abertura deja de aceptar humo
 	# con la misma facilidad y el pasillo deja de actuar como sumidero infinito.
 	var target_layer_factor: float = 1.0
-	var target_smoke_layer_m: float = estimate_smoke_layer_height_m(target)
+	var target_smoke_layer_m: float = get_visible_smoke_layer_height_m(target)
 	if target_smoke_layer_m <= target_layer_block_start_m:
 		target_layer_factor = inverse_lerp(
 			target_layer_block_full_m,

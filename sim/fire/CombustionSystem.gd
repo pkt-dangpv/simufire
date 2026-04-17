@@ -85,8 +85,42 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 
 	var fire: FireModel = room.fire
 	var ambient_c: float = float(context.get("ambient_c", 20.0))
-	var o2_factor: float = _compute_o2_factor(room.o2, fire.o2_nominal, fire.o2_min_for_flame)
+	var raw_o2_factor: float = _compute_o2_factor(room.o2, fire.o2_nominal, fire.o2_min_for_flame)
+	var o2_factor: float = raw_o2_factor
+	var previous_hrr_kw: float = room.hrr_kw
+	var flame_hold_margin: float = 0.005
 	var can_flame: bool = room.o2 > fire.o2_min_for_flame
+	if previous_hrr_kw > 0.01:
+		can_flame = room.o2 > (fire.o2_min_for_flame - flame_hold_margin)
+	# Una vez que el fuego se apaga por falta de O2 (después del periodo inicial),
+	# marcarlo como extinto permanentemente para evitar re-ignición por recuperación
+	# mínima de O2 via ACH infiltración (físicamente imposible).
+	if not can_flame and room.fire_time_s > 60.0:
+		room.fire_o2_extinguished = true
+	if room.fire_o2_extinguished:
+		can_flame = false
+	var smoke_fill_fraction: float = clampf(
+		(room.height_m - clampf(room.h_layer_m, 0.0, room.height_m)) / maxf(0.1, room.height_m),
+		0.0,
+		1.0
+	)
+	var subvent_temp_factor: float = inverse_lerp(
+		float(context.get("fire_subvent_temp_start_c", ambient_c)),
+		float(context.get("fire_subvent_temp_full_c", ambient_c)),
+		room.temp_upper_c
+	)
+	var subvent_fill_factor: float = inverse_lerp(
+		float(context.get("fire_subvent_fill_start_fraction", 0.0)),
+		float(context.get("fire_subvent_fill_full_fraction", 1.0)),
+		smoke_fill_fraction
+	)
+	var subvent_o2_floor: float = float(context.get("fire_subvent_o2_floor", 0.0)) \
+			* clampf(subvent_temp_factor, 0.0, 1.0) \
+			* clampf(subvent_fill_factor, 0.0, 1.0)
+	if room.fire_time_s > 45.0:
+		# El foco ve una mezcla local algo mejor oxigenada que el promedio de la sala
+		# mientras el recinto siga muy caliente y parcialmente rellenado por humo.
+		o2_factor = maxf(o2_factor, subvent_o2_floor)
 
 	if can_flame:
 		room.fire_time_s += dt
@@ -155,7 +189,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	room.smoke_prod_kg_s = _compute_smoke_production_kg_s(smoke_basis_kw, smoke_yield_kg_per_MJ)
 
 	var oxygen_starved: bool = room.fire_time_s > 60.0 \
-			and o2_factor <= float(context.get("fire_starvation_o2_factor", 0.0))
+			and raw_o2_factor <= float(context.get("fire_starvation_o2_factor", 0.0))
 	if (room.hrr_kw < float(context.get("fire_extinction_hrr_kw", 0.0)) or oxygen_starved) \
 			and room.fire_time_s > 60.0:
 		room.fire_low_hrr_time_s += dt

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dmu0mrm5y68ju"
-path="res://.godot/imported/tmp_camscanner_p44-046.png-dfd8b7598039bc3a98d2180955de96c2.ctex"
+path="res://.godot/imported/tmp_camscanner_p44-046.png-af575c4da1be224cb5c6e589c8cb0b51.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://tmp_camscanner_p44-046.png"
-dest_files=["res://.godot/imported/tmp_camscanner_p44-046.png-dfd8b7598039bc3a98d2180955de96c2.ctex"]
+source_file="res://Docu Simufire/tmp_camscanner_p44-046.png"
+dest_files=["res://.godot/imported/tmp_camscanner_p44-046.png-af575c4da1be224cb5c6e589c8cb0b51.ctex"]
 
 [params]
 

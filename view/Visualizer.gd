@@ -37,6 +37,7 @@ class_name Visualizer
 
 @export var show_room_fill: bool = true
 @export var show_smoke_layer: bool = true
+@export var show_smoke_layer_line: bool = true
 @export var show_hot_layer_overlay: bool = true
 @export var show_150c_layer: bool = true
 @export var show_hrr_bar: bool = true
@@ -55,6 +56,8 @@ class_name Visualizer
 @export var smoke_mass_reference_kg: float = 8.0
 @export var smoke_concentration_reference_kg_m3: float = 0.08
 @export var smoke_visible_threshold_kg: float = 0.01
+@export var smoke_layer_line_color: Color = Color(0.72, 0.72, 0.72, 0.95)
+@export var smoke_layer_line_width: float = 2.0
 @export var hot_layer_color: Color = Color(1.0, 0.55, 0.15, 0.18)
 @export var layer_150c_color: Color = Color(1.0, 0.10, 0.10, 0.95)
 @export var layer_150c_line_width: float = 2.0
@@ -267,6 +270,21 @@ func _draw_smoke_layer(
 	)
 
 	draw_rect(smoke_rect, smoke_color, true)
+
+	if show_smoke_layer_line:
+		var layer_h_m: float = clampf(h_layer_m, 0.0, room_h)
+		if layer_h_m <= 0.01:
+			layer_h_m = 0.02
+		elif layer_h_m >= room_h - 0.01:
+			layer_h_m = room_h - 0.02
+
+		var y_px: float = rpx.position.y + rpx.size.y * (1.0 - layer_h_m / maxf(0.01, room_h))
+		draw_line(
+			Vector2(rpx.position.x, y_px),
+			Vector2(rpx.position.x + rpx.size.x, y_px),
+			smoke_layer_line_color,
+			smoke_layer_line_width
+		)
 
 
 func _draw_hot_layer_overlay(rpx: Rect2, hot_layer_m: float, room_h: float = room_height_m_default) -> void:

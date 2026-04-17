@@ -58,6 +58,7 @@ var fire: FireModel = null
 var fire_time_s: float = 0.0
 var hrr_kw: float = 0.0
 var fire_low_hrr_time_s: float = 0.0  # contador de tiempo en agonía (HRR bajo sostenido)
+var fire_o2_extinguished: bool = false  # true una vez que el fuego se apaga por falta de O2 — impide re-ignición
 
 # Presión de la capa superior respecto al exterior
 # Sube por boyantez del gas caliente; baja al ventilar por fuga de ventanas.
@@ -94,6 +95,7 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	fire_time_s = 0.0
 	hrr_kw = 0.0
 	fire_low_hrr_time_s = 0.0
+	fire_o2_extinguished = false
 	overpressure_pa = 0.0
 	flashover_triggered = false
 	fire_spread_exposure_s = 0.0

@@ -85,12 +85,17 @@ var smoke_deposited_total_kg: float = 0.0
 @export var fire_o2_consumption_kg_per_MJ: float = 0.076  # Regla de Thornton: 1/13.1 MJ/kgO2
 # Rendimiento de humo (kg/MJ)
 # SFPE: ~0.06 kg/kg ÷ 16 MJ/kg = 0.00375 kg/MJ
-@export var fire_smoke_yield_kg_per_MJ: float = 0.00375
-@export var fire_smoke_yield_low_o2_multiplier: float = 7.5
+@export var fire_smoke_yield_kg_per_MJ: float = 0.007
+@export var fire_smoke_yield_low_o2_multiplier: float = 5.0
 @export var fire_smoke_basis_min_fraction: float = 0.40
 @export var fire_smolder_hrr_fraction: float = 0.10
 @export var fire_smolder_smoke_multiplier: float = 2.8
-@export var fire_starvation_o2_factor: float = 0.008
+@export var fire_subvent_o2_floor: float = 0.085
+@export var fire_subvent_temp_start_c: float = 140.0
+@export var fire_subvent_temp_full_c: float = 420.0
+@export var fire_subvent_fill_start_fraction: float = 0.06
+@export var fire_subvent_fill_full_fraction: float = 0.18
+@export var fire_starvation_o2_factor: float = 0.003
 
 # Rendimiento de CO (kg/MJ)
 # Derivado de ISO 19706 dividiendo el yield másico (kg/kg) por el calor efectivo
@@ -103,7 +108,7 @@ var smoke_deposited_total_kg: float = 0.0
 # Umbral de extinción: si el HRR real cae por debajo durante fire_extinction_delay_s
 # segundos, el fuego se considera extinto (modela apagado por falta de ventilación).
 @export var fire_extinction_hrr_kw: float = 8.0
-@export var fire_extinction_delay_s: float = 300.0
+@export var fire_extinction_delay_s: float = 360.0
 
 # Tiempo máximo de actividad del fuego. Pasado este tiempo el combustible se considera
 # agotado y el fuego se extingue (evita zombie fire en equilibrio O2/HRR).
@@ -145,7 +150,7 @@ var smoke_deposited_total_kg: float = 0.0
 @export var upper_to_ambient_loss_rate: float = 0.008
 @export var lower_layer_warming_rate: float = 0.012
 @export var max_upper_temp_c: float = 900.0
-@export var doorway_heat_exchange_coeff: float = 0.38
+@export var doorway_heat_exchange_coeff: float = 0.26
 @export var smoke_heat_mix_coeff: float = 0.025
 @export var thermal_gradient_min_band_m: float = 0.20
 @export var thermal_gradient_max_band_m: float = 0.70
@@ -179,32 +184,36 @@ var smoke_deposited_total_kg: float = 0.0
 # OXÍGENO / MEZCLA
 # ============================================================
 
-@export var ach_infiltration: float = 0.3  # Renovaciones de aire/hora por fugas del edificio
+@export var ach_infiltration: float = 0.5  # Renovaciones de aire/hora por fugas del edificio
 @export var doorway_o2_min_band_m: float = 0.25
-@export var doorway_o2_exchange_coeff: float = 1.35
-@export var doorway_o2_smoke_weight: float = 0.65
-@export var doorway_o2_pressure_weight: float = 0.45
+@export var doorway_o2_exchange_coeff: float = 1.70
+@export var doorway_o2_smoke_weight: float = 0.35
+@export var doorway_o2_pressure_weight: float = 0.65
+@export var doorway_o2_background_exchange_kg_s_m2: float = 0.06
+@export var doorway_o2_background_max_fraction_per_step: float = 0.015
+@export var doorway_o2_background_pressure_ref_pa: float = 1.5
+@export var doorway_o2_background_min_factor: float = 0.30
 
 # ============================================================
 # AJUSTES DE HUMO (se copian al SmokeModel)
 # ============================================================
 
-@export var smoke_density_kg_m3: float = 0.3
-@export var base_spill_kg_s_per_m2: float = 0.26
+@export var smoke_density_kg_m3: float = 0.22
+@export var base_spill_kg_s_per_m2: float = 0.50
 @export var temp_push_factor: float = 0.008
-@export var max_spill_kg_s: float = 1.4
-@export var max_fraction_out_per_s: float = 0.08
+@export var max_spill_kg_s: float = 2.0
+@export var max_fraction_out_per_s: float = 0.18
 @export var layer_relax_down: float = 0.18
 @export var layer_relax_up: float = 0.015
 @export var plume_fill_depth_coeff: float = 0.60
 @export var plume_fill_response_s: float = 12.0
 @export var plume_fill_max_fraction: float = 0.85
 @export var thermal_plume_depth_scale: float = 0.40
-@export var target_smoke_resistance_coeff: float = 0.45
-@export var target_layer_block_start_m: float = 1.10
-@export var target_layer_block_full_m: float = 0.35
+@export var target_smoke_resistance_coeff: float = 0.20
+@export var target_layer_block_start_m: float = 0.65
+@export var target_layer_block_full_m: float = 0.10
 @export var interior_spill_start_layer_m: float = 2.0
-@export var interior_spill_full_layer_m: float = 1.2
+@export var interior_spill_full_layer_m: float = 0.8
 @export var pressure_spill_min_delta_pa: float = 0.5
 @export var pressure_spill_ref_delta_pa: float = 8.0
 @export var pressure_spill_max_multiplier: float = 2.5
@@ -479,6 +488,7 @@ func ignite_room(room_id: int) -> void:
 	room.fire_time_s = 0.0
 	room.flashover_triggered = false
 	room.fire_spread_exposure_s = 0.0
+	room.fire_o2_extinguished = false
 
 
 func _build_fire_defaults() -> Dictionary:
@@ -509,6 +519,11 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_smoke_yield_low_o2_multiplier": fire_smoke_yield_low_o2_multiplier,
 		"fire_smolder_hrr_fraction": fire_smolder_hrr_fraction,
 		"fire_smolder_smoke_multiplier": fire_smolder_smoke_multiplier,
+		"fire_subvent_o2_floor": fire_subvent_o2_floor,
+		"fire_subvent_temp_start_c": fire_subvent_temp_start_c,
+		"fire_subvent_temp_full_c": fire_subvent_temp_full_c,
+		"fire_subvent_fill_start_fraction": fire_subvent_fill_start_fraction,
+		"fire_subvent_fill_full_fraction": fire_subvent_fill_full_fraction,
 		"fire_starvation_o2_factor": fire_starvation_o2_factor,
 		"fire_extinction_hrr_kw": fire_extinction_hrr_kw,
 		"fire_extinction_delay_s": fire_extinction_delay_s,
@@ -617,7 +632,7 @@ func _update_fire_spread_exposure(source: RoomModel, target: RoomModel, dt: floa
 
 	var source_hot_enough: bool = source.hrr_kw >= fire_spread_min_source_hrr_kw
 	var target_hot_enough: bool = target.temp_upper_c >= fire_spread_ignition_temp_c
-	var target_layer_low_enough: bool = smoke_model.estimate_smoke_layer_height_m(target) <= fire_spread_max_layer_m
+	var target_layer_low_enough: bool = smoke_model.get_visible_smoke_layer_height_m(target) <= fire_spread_max_layer_m
 	var target_smoky_enough: bool = target.smoke_kg >= fire_spread_min_smoke_kg
 
 	if source_hot_enough and target_hot_enough and target_layer_low_enough and target_smoky_enough:
@@ -749,7 +764,7 @@ func _estimate_thermal_gradient_depth_m(room: RoomModel) -> float:
 		return 0.0
 
 	var hot_depth_m: float = maxf(0.0, room.height_m - _effective_hot_layer_height_m(room))
-	var smoke_depth_m: float = maxf(0.0, room.height_m - smoke_model.estimate_smoke_layer_height_m(room))
+	var smoke_depth_m: float = maxf(0.0, room.height_m - smoke_model.get_visible_smoke_layer_height_m(room))
 	var ref_depth_m: float = maxf(hot_depth_m, smoke_depth_m * thermal_gradient_band_fraction)
 	if ref_depth_m <= 0.000001:
 		return 0.0
@@ -890,6 +905,19 @@ func _is_room_quiescent(room: RoomModel) -> bool:
 		and absf(room.temp_upper_c - _ambient_temp_c()) <= 0.5
 	)
 
+
+func _has_any_active_fire() -> bool:
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+
+		if room.fire != null or room.hrr_kw > 0.0 or room.smoke_prod_kg_s > 0.0:
+			return true
+
+	return false
+
+
 func _should_collapse_thermal_layer(room: RoomModel) -> bool:
 	if room == null:
 		return true
@@ -1017,7 +1045,7 @@ func _build_interior_opening_flow_state(room_a: RoomModel, room_b: RoomModel, op
 	var hot_band_m: float = maxf(0.0, spill_trigger_layer_m - _effective_hot_layer_height_m(hot_room))
 	var smoke_band_m: float = maxf(
 		0.0,
-		spill_trigger_layer_m - smoke_model.estimate_smoke_layer_height_m(hot_room)
+		spill_trigger_layer_m - smoke_model.get_visible_smoke_layer_height_m(hot_room)
 	)
 	var band_ref_m: float = maxf(doorway_o2_min_band_m, op.height_m * 0.24)
 	var smoke_factor: float = clampf(smoke_band_m / band_ref_m, 0.0, 1.0)
@@ -1079,7 +1107,7 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 
 	var hot_enough: bool = room.temp_upper_c >= flashover_temp_c
 	var enough_hrr: bool = room.hrr_kw >= room.fire.flashover_min_hrr_kw
-	var layer_low_enough: bool = smoke_model.estimate_smoke_layer_height_m(room) <= flashover_layer_m
+	var layer_low_enough: bool = smoke_model.get_visible_smoke_layer_height_m(room) <= flashover_layer_m
 
 	# Requerimos calor alto, HRR sostenido y un descenso real de la capa caliente.
 	if hot_enough and enough_hrr and layer_low_enough:
@@ -1190,6 +1218,33 @@ func _step_oxygen(dt: float) -> void:
 			var room_b: RoomModel = building.get_room(op.b)
 			if room_a == null or room_b == null:
 				continue
+
+			var base_area_eff: float = maxf(0.0, op.width_m * op.height_m * op.open_fraction)
+			if base_area_eff > 0.0:
+				var mass_a_base: float = maxf(0.1, room_a.volume_m3()) * air_density_kg_m3
+				var mass_b_base: float = maxf(0.1, room_b.volume_m3()) * air_density_kg_m3
+				var background_pressure_factor: float = maxf(
+					doorway_o2_background_min_factor,
+					clampf(
+						maxf(room_a.overpressure_pa, room_b.overpressure_pa) / maxf(
+							0.1,
+							doorway_o2_background_pressure_ref_pa
+						),
+						0.0,
+						1.0
+					)
+				)
+				var base_exch: float = base_area_eff \
+						* doorway_o2_background_exchange_kg_s_m2 \
+						* background_pressure_factor \
+						* dt
+				var base_max_exch: float = minf(mass_a_base, mass_b_base) * doorway_o2_background_max_fraction_per_step
+				base_exch = minf(base_exch, base_max_exch)
+				if base_exch > 0.0:
+					var base_new_a: float = (room_a.o2 * mass_a_base + room_b.o2 * base_exch) / (mass_a_base + base_exch)
+					var base_new_b: float = (room_b.o2 * mass_b_base + room_a.o2 * base_exch) / (mass_b_base + base_exch)
+					room_a.o2 = clampf(base_new_a, 0.0, o2_nominal)
+					room_b.o2 = clampf(base_new_b, 0.0, o2_nominal)
 
 			var flow_state: Dictionary = _build_interior_opening_flow_state(room_a, room_b, op)
 			if not bool(flow_state.get("active", false)):
@@ -1318,7 +1373,8 @@ func _step_temperature(dt: float) -> void:
 			continue
 
 		var q_vol: float = 0.65 * 0.5 * area_eff * sqrt(g_grav * hot_band_m * delta_t_k / ((t_hot_k + t_cold_k) * 0.5))
-		var mass_exch: float = q_vol * rho_air * dt * doorway_heat_exchange_coeff * engagement
+		var thermal_engagement: float = engagement * 0.65
+		var mass_exch: float = q_vol * rho_air * dt * doorway_heat_exchange_coeff * thermal_engagement
 
 		var m_hot_kg: float = maxf(1.0, hot_room.volume_m3() * rho_air)
 		var m_cold_kg: float = maxf(1.0, cold_room.volume_m3() * rho_air)
@@ -1328,7 +1384,7 @@ func _step_temperature(dt: float) -> void:
 		var max_exch: float = (m_hot_kg * m_cold_kg) / (m_hot_kg + m_cold_kg)
 		mass_exch = minf(mass_exch, max_exch)
 
-		var gas_cap_kg: float = minf(hot_room.upper_gas_kg, maxf(0.05, hot_room.upper_gas_kg * 0.22))
+		var gas_cap_kg: float = minf(hot_room.upper_gas_kg, maxf(0.05, hot_room.upper_gas_kg * 0.16))
 		var gas_moved_kg: float = minf(mass_exch, gas_cap_kg)
 		if gas_moved_kg <= 0.0:
 			continue
@@ -1441,6 +1497,7 @@ func _step_smoke(dt: float) -> void:
 	var co_delta_kg: Dictionary = {}
 	var o2_delta_kg: Dictionary = {}
 	var air_density_kg_m3_s: float = 1.2
+	var incident_active: bool = _has_any_active_fire()
 
 	for room_id in building.get_rooms().keys():
 		smoke_delta_kg[int(room_id)] = 0.0
@@ -1533,7 +1590,7 @@ func _step_smoke(dt: float) -> void:
 		for t in outgoing[from_id]:
 			total_requested += float(t["kg"])
 
-		var max_allowed: float = room.smoke_kg * 0.25 * dt
+		var max_allowed: float = room.smoke_kg * 0.60 * dt
 
 		if total_requested > max_allowed and total_requested > 0.0:
 			var scale: float = max_allowed / total_requested
@@ -1561,7 +1618,7 @@ func _step_smoke(dt: float) -> void:
 				var transfer_frac: float = minf(1.0, kg / source.smoke_kg)
 				var gas_moved_kg: float = minf(
 					source.upper_gas_kg * transfer_frac,
-					maxf(0.01, source.upper_gas_kg * 0.10)
+					maxf(0.01, source.upper_gas_kg * 0.07)
 				)
 				var transferred_temp_c: float = _compute_interroom_transfer_temp_c(source, target, transfer_frac)
 				var energy_moved_kj: float = gas_moved_kg * maxf(0.0, transferred_temp_c - _ambient_temp_c())
@@ -1585,6 +1642,21 @@ func _step_smoke(dt: float) -> void:
 					var target_o2_out_kg: float = target.o2 * exchange_air_mass_kg
 					o2_delta_kg[from_id] += target_o2_out_kg - source_o2_out_kg
 					o2_delta_kg[to_id] += source_o2_out_kg - target_o2_out_kg
+
+					# El mismo contra-flujo de aire mezcla CO en ambas direcciones.
+					# Usar concentración másica (kg CO / kg aire) evita sesgos por volumen.
+					var source_co_total_kg: float = maxf(
+						0.0,
+						source.co_kg + float(co_delta_kg[from_id])
+					)
+					var target_co_total_kg: float = maxf(
+						0.0,
+						target.co_kg + float(co_delta_kg[to_id])
+					)
+					var source_co_out_kg: float = source_co_total_kg / source_air_mass_kg * exchange_air_mass_kg
+					var target_co_out_kg: float = target_co_total_kg / target_air_mass_kg * exchange_air_mass_kg
+					co_delta_kg[from_id] += target_co_out_kg - source_co_out_kg
+					co_delta_kg[to_id] += source_co_out_kg - target_co_out_kg
 
 			# CO viaja con el flujo de humo (misma proporción)
 			if source.smoke_kg > 0.001:
@@ -1619,7 +1691,7 @@ func _step_smoke(dt: float) -> void:
 		var smoke_removed: float = room_volume_m3_s * air_density_kg_m3_s * smoke_concentration * ach_rate * dt
 		room.smoke_kg = maxf(0.0, room.smoke_kg - smoke_removed)
 
-		var cleanup_factor: float = _compute_postfire_cleanup_factor(room)
+		var cleanup_factor: float = _compute_postfire_cleanup_factor(room, incident_active)
 		if cleanup_factor > 0.0:
 			var smoke_settling_rate: float = smoke_settling_base_per_s + smoke_settling_bonus_per_s * cleanup_factor
 			var deposited_smoke_kg: float = minf(room.smoke_kg, room.smoke_kg * smoke_settling_rate * dt)
@@ -1641,8 +1713,11 @@ func _step_smoke(dt: float) -> void:
 # DEBUG DE CONSERVACIÓN DE MASA DE HUMO
 # ============================================================
 
-func _compute_postfire_cleanup_factor(room: RoomModel) -> float:
+func _compute_postfire_cleanup_factor(room: RoomModel, incident_active: bool = false) -> float:
 	if room == null:
+		return 0.0
+
+	if incident_active:
 		return 0.0
 
 	if room.fire != null or room.hrr_kw > 0.0:
@@ -1745,7 +1820,7 @@ func get_state() -> Dictionary:
 		if room == null:
 			continue
 
-		var smoke_layer_m: float = smoke_model.estimate_smoke_layer_height_m(room)
+		var smoke_layer_m: float = smoke_model.get_visible_smoke_layer_height_m(room)
 		var effective_hot_layer_m: float = _effective_hot_layer_height_m(room)
 		var thermal_layer_m: float = clampf(room.thermal_layer_m, 0.0, room.height_m)
 		var layer_150c_m: float = clampf(room.layer_150c_m, 0.0, room.height_m)
@@ -1836,7 +1911,7 @@ func _append_log_snapshot() -> void:
 			room.temp_upper_c,
 			room.temp_lower_c,
 			room.smoke_kg,
-			smoke_model.estimate_smoke_layer_height_m(room),
+			smoke_model.get_visible_smoke_layer_height_m(room),
 			hot_layer_m,
 			layer_150c_m,
 			room.overpressure_pa,
