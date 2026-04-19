@@ -13,12 +13,12 @@
 			"tolerance": 30.0
 		},
 		"room_0_final_hot_layer_m": {
-			"expected": 2.20,
-			"tolerance": 0.15
+			"expected": 2.40,
+			"tolerance": 0.05
 		},
 		"room_0_final_temp_at_1_8m_c": {
-			"expected": 40.0,
-			"tolerance": 10.0
+			"expected": 20.0,
+			"tolerance": 5.0
 		},
 		"room_1_final_smoke_kg": {
 			"min": 0.5

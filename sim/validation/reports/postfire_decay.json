@@ -1,26 +1,26 @@
 {
 	"baseline": {
-		"all_pass": false,
+		"all_pass": true,
 		"checks": {
 			"room_0_final_hot_layer_m": {
 				"actual": 2.4,
-				"pass": false,
+				"pass": true,
 				"rule": {
-					"expected": 2.2,
-					"tolerance": 0.15
+					"expected": 2.4,
+					"tolerance": 0.05
 				}
 			},
 			"room_0_final_temp_at_1_8m_c": {
 				"actual": 20.0000374630204,
-				"pass": false,
+				"pass": true,
 				"rule": {
-					"expected": 40.0,
-					"tolerance": 10.0
+					"expected": 20.0,
+					"tolerance": 5.0
 				}
 			},
 			"room_1_final_smoke_kg": {
-				"actual": 0.000194056858577745,
-				"pass": false,
+				"actual": 0.610825074346551,
+				"pass": true,
 				"rule": {
 					"min": 0.5
 				}
@@ -57,21 +57,21 @@
 		"peak_co_ppm_global": 6750.19637360802,
 		"peak_hrr_kw_global": 1096.65563181198,
 		"peak_temp_upper_c_global": 900.0,
-		"room_0_final_co_ppm": 37.5011868035001,
+		"room_0_final_co_ppm": 2102.83734224948,
 		"room_0_final_hot_layer_m": 2.4,
-		"room_0_final_layer_150c_m": 2.4,
-		"room_0_final_smoke_kg": 0.000420100302109886,
-		"room_0_final_smoke_layer_m": 2.39988828702052,
+		"room_0_final_layer_150c_m": 2.39999999999991,
+		"room_0_final_smoke_kg": 1.32233305305453,
+		"room_0_final_smoke_layer_m": 2.09853927380715,
 		"room_0_final_temp_at_1_8m_c": 20.0000374630204,
 		"room_0_min_l150_m": 0.174667785739885,
 		"room_0_peak_co_ppm": 2640.46079510939,
 		"room_0_peak_hrr_kw": 1096.65563181198,
 		"room_0_peak_temp_upper_c": 900.0,
-		"room_1_final_co_ppm": 95.3732427394864,
+		"room_1_final_co_ppm": 5347.94851520006,
 		"room_1_final_hot_layer_m": 2.4,
-		"room_1_final_layer_150c_m": 2.4,
-		"room_1_final_smoke_kg": 0.000194056858577745,
-		"room_1_final_smoke_layer_m": 2.399901707525,
+		"room_1_final_layer_150c_m": 2.39999999999991,
+		"room_1_final_smoke_kg": 0.610825074346551,
+		"room_1_final_smoke_layer_m": 2.13475489385161,
 		"room_1_final_temp_at_1_8m_c": 20.0000056584854,
 		"room_1_min_l150_m": 2.16926726803645,
 		"room_1_peak_co_ppm": 6750.19637360802,
@@ -82,8 +82,7 @@
 		"time_room_0_smoke_layer_2m_s": 126.666666666664,
 		"time_room_0_temp_1_8m_above_150c_s": 110.499999999998,
 		"time_room_1_smoke_start_s": 126.749999999997,
-		"time_to_extinction_s": 318.249999999997,
-		"time_to_quiescent_s": 1873.49999999941
+		"time_to_extinction_s": 318.249999999997
 	},
 	"sim_time_s": 1900.08333333272
 }
