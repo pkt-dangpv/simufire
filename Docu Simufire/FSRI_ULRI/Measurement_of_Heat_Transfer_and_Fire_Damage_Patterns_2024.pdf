@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" prefix="og: https://ogp.me/ns#">
+  <head>
+    <meta charset="utf-8" />
+<meta name="description" content="FSRI released the technical report Measurement of Heat Transfer and Fire Damage Patterns on Walls for Fire Model Validation." />
+<meta name="keywords" content="heat transfer, technical report, heat flux, fire damage patterns" />
+<link rel="canonical" href="https://fsri.org/research-update/heat-transfer-and-fire-damage-patterns-walls-released-fsri" />
+<meta name="referrer" content="unsafe-url" />
+<meta property="og:image" content="https://d1gi3fvbl0xj2a.cloudfront.net/2024-08/Heat%20Flux%20Through%20Walls%20-%20Technical%20Report%20Update%20Hero.jpg" />
+<meta name="Generator" content="Drupal 10 (https://www.drupal.org)" />
+<meta name="MobileOptimized" content="width" />
+<meta name="HandheldFriendly" content="true" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" href="/themes/custom/fsri/favicon.ico" type="image/vnd.microsoft.icon" />
+
+    <title>Read the Heat Transfer and Fire Damage Patterns on Walls Report</title>
+      <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap" rel="stylesheet" >
+    <link rel="stylesheet" media="all" href="/core/assets/vendor/jquery.ui/themes/base/core.css?tdljek" />
+<link rel="stylesheet" media="all" href="/core/assets/vendor/jquery.ui/themes/base/controlgroup.css?tdljek" />
+<link rel="stylesheet" media="all" href="/core/assets/vendor/jquery.ui/themes/base/checkboxradio.css?tdljek" />
+<link rel="stylesheet" media="all" href="/core/assets/vendor/jquery.ui/themes/base/resizable.css?tdljek" />
+<link rel="stylesheet" media="all" href="/core/assets/vendor/jquery.ui/themes/base/button.css?tdljek" />
+<link rel="stylesheet" media="all" href="/core/assets/vendor/jquery.ui/themes/base/dialog.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/core/components/progress.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/core/components/ajax-progress.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/align.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/fieldgroup.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/container-inline.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/clearfix.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/details.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/hidden.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/item-list.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/js.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/nowrap.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/position-container.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/reset-appearance.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/resize.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/system-status-counter.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/system-status-report-counters.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/system-status-report-general-info.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/system/components/tablesort.module.css?tdljek" />
+<link rel="stylesheet" media="all" href="/modules/contrib/footnotes/assets/css/footnotes.css?tdljek" />
+<link rel="stylesheet" media="all" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" />
+<link rel="stylesheet" media="all" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/v4-shims.min.css" />
+<link rel="stylesheet" media="all" href="/core/assets/vendor/jquery.ui/themes/base/theme.css?tdljek" />
+<link rel="stylesheet" media="all" href="/modules/contrib/extlink/css/extlink.css?tdljek" />
+<link rel="stylesheet" media="all" href="/modules/contrib/paragraphs/css/paragraphs.unpublished.css?tdljek" />
+<link rel="stylesheet" media="all" href="https://d1gi3fvbl0xj2a.cloudfront.net/public/css/responsive_menu_breakpoint.css?VersionId=s1N5AZ4dFNdII6ZCKPP4H6_Kp9sQEla0?tdljek" />
+<link rel="stylesheet" media="all" href="/libraries/mmenu/dist/mmenu.css?tdljek" />
+<link rel="stylesheet" media="all" href="/modules/contrib/responsive_menu/css/responsive_menu.css?tdljek" />
+<link rel="stylesheet" media="all" href="/modules/contrib/social_link_field/css/social-link-field-font-awesome-formatter.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/core/assets/vendor/normalize-css/normalize.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/stable/css/core/normalize-fixes.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/action-links.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/breadcrumb.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/button.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/collapse-processed.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/container-inline.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/details.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/exposed-filters.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/field.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/form.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/icons.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/inline-form.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/item-list.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/link.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/links.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/menu.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/more-link.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/pager.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/tabledrag.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/tableselect.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/tablesort.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/tabs.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/textarea.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/ui-dialog.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/messages.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/node.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/progress.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/contrib/classy/css/components/dialog.css?tdljek" />
+<link rel="stylesheet" media="all" href="//cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" />
+<link rel="stylesheet" media="all" href="/themes/custom/fsri/css/patterns.css?tdljek" />
+<link rel="stylesheet" media="all" href="/themes/custom/fsri/css/styles.css?tdljek" />
+
+    <script type="application/json" data-drupal-selector="drupal-settings-json">{"path":{"baseUrl":"\/","pathPrefix":"","currentPath":"node\/1345","currentPathIsAdmin":false,"isFront":false,"currentLanguage":"en"},"pluralDelimiter":"\u0003","suppressDeprecationErrors":true,"ajaxPageState":{"libraries":"eJyFUkFywyAM_BA1T2JkEIRGIAaJNu7ri-u4nSaHXBjtsitpFjyByGZXEDT-qAuKQEI5ceUw77jjrHoByl9o8KaU69WGPhrQcocmMmtlRbG_lYnSs10nFO3QnA_1oBLxCvQmuk1rOrgCuZrEnAidQrJpHo94gXe4_SeL4TUO8aDocPYgGzDCIDUNOqQ59iLnqn_MMmobK2W5YDAdpXGV_IGuYB32AS9rR7g2zlVfSj3XmNNLWWPaYiaSl8ozImGfgdyetIsZKcyUq8InChecY8t04VzwWffELLvT3a0u7u-qit3IJorl5zt8A9QO1U0","theme":"fsri","theme_token":null},"ajaxTrustedUrl":{"\/search":true},"gtag":{"tagId":"","consentMode":false,"otherIds":[],"events":[],"additionalConfigInfo":[]},"gtm":{"tagId":null,"settings":{"data_layer":"dataLayer","include_environment":false},"tagIds":["GTM-5HVFDSG"]},"responsive_menu":{"position":"left","theme":"theme-white","pagedim":"pagedim","modifyViewport":true,"use_bootstrap":false,"breakpoint":"all and (min-width: 1023px)","drag":false},"data":{"extlink":{"extTarget":true,"extTargetAppendNewWindowLabel":"(opens in a new window)","extTargetNoOverride":false,"extNofollow":true,"extTitleNoOverride":false,"extNoreferrer":true,"extFollowNoOverride":false,"extClass":"0","extLabel":"(link is external)","extImgClass":false,"extSubdomains":true,"extExclude":"","extInclude":"sites\\\/default\\\/files","extCssExclude":"","extCssInclude":"","extCssExplicit":"","extAlert":false,"extAlertText":"This link will take you to an external web site. We are not responsible for their content.","extHideIcons":false,"mailtoClass":"0","telClass":"","mailtoLabel":"(link sends email)","telLabel":"(link is a phone number)","extUseFontAwesome":false,"extIconPlacement":"before","extPreventOrphan":false,"extFaLinkClasses":"fa fa-external-link","extFaMailtoClasses":"fa fa-envelope-o","extAdditionalLinkClasses":"","extAdditionalMailtoClasses":"","extAdditionalTelClasses":"","extFaTelClasses":"fa fa-phone","whitelistedDomains":[],"extExcludeNoreferrer":""}},"csp":{"nonce":"q-NcSI53t3heN-tlzWBmcQ"},"user":{"uid":0,"permissionsHash":"9355566a609cddf73c974cde1a6b573f5f1b2c59d61b65f355ee6d7dfe3d7bfb"}}</script>
+<script src="/core/misc/drupalSettingsLoader.js?v=10.6.6"></script>
+<script src="/modules/contrib/google_tag/js/gtag.js?tdljek"></script>
+<script src="/modules/contrib/google_tag/js/gtm.js?tdljek"></script>
+
+      <meta name="google-site-verification" content="9d9DYwzJcSi9Ss5PQAlGdO0HTB4QnlKnZZS8Qc3erEs" />
+      <meta name="google-site-verification" content="pCPH7ZLyftv9ZaOFQD1yaHybdkliNiOIrEO_aqjEGNA" />
+    <!-- Meta Pixel Code -->
+    <script>
+      !function(f,b,e,v,n,t,s)
+      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+        n.queue=[];t=b.createElement(e);t.async=!0;
+        t.src=v;s=b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t,s)}(window, document,'script',
+        'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '619254882580006');
+      fbq('track', 'PageView');
+    </script>
+    <noscript>
+      <img height="1" width="1" style="display:none" src=https://www.facebook.com/tr?id=619254882580006&ev=PageView&noscript=1/>
+    </noscript>
+    <!-- End Meta Pixel Code -->
+  </head>
+  <body class="path-node page-node-type-research-update">
+        <a href="#main-content" class="visually-hidden focusable skip-link">
+      Skip to main content
+    </a>
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5HVFDSG"
+                  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+
+      <div class="dialog-off-canvas-main-canvas" data-off-canvas-main-canvas>
+    <div class="layout-container">
+  <header role="banner" class="site-header">
+    
+  <div class="region region-header">
+    <div id="block-responsivemenumobileicon" class="responsive-menu-toggle-wrapper responsive-menu-toggle block block-responsive-menu block-responsive-menu-toggle">
+  
+    
+      <a id="toggle-icon" class="toggle responsive-menu-toggle-icon" title="Menu" href="#off-canvas">
+  <span class="icon"></span><span class="label">Menu</span>
+</a>
+  </div>
+<div id="block-sitebranding" class="block block-system block-system-branding-block">
+  
+    
+        <a href="/" rel="home" class="site-logo">
+      <img src="/themes/custom/fsri/creative/FSRI-logo-lockup.svg" alt="Home" />
+    </a>
+      </div>
+<nav role="navigation" aria-labelledby="block-mainnavigation-menu" id="block-mainnavigation" class="block block-menu navigation menu--main">
+            
+  <h2 class="visually-hidden" id="block-mainnavigation-menu">Main navigation</h2>
+  
+
+        
+              <ul class="menu">
+                    <li class="menu-item menu-item--expanded">
+        <a href="/about" data-drupal-link-system-path="node/125">About</a>
+                                <ul class="menu">
+                    <li class="menu-item">
+        <a href="/about" data-drupal-link-system-path="node/125">Overview</a>
+              </li>
+                <li class="menu-item">
+        <a href="/about/people" data-drupal-link-system-path="node/126">People</a>
+              </li>
+                <li class="menu-item">
+        <a href="/about/expertise" data-drupal-link-system-path="node/128">Expertise</a>
+              </li>
+        </ul>
+  
+              </li>
+                <li class="menu-item">
+        <a href="/research" data-drupal-link-system-path="node/103">Research</a>
+              </li>
+                <li class="menu-item">
+        <a href="/programs" data-drupal-link-system-path="node/130">Programs</a>
+              </li>
+                <li class="menu-item menu-item--expanded">
+        <a href="/programs/training-education" data-drupal-link-system-path="node/1217">Training</a>
+                                <ul class="menu">
+                    <li class="menu-item">
+        <a href="https://training.fsri.org">Fire Safety Academy</a>
+              </li>
+        </ul>
+  
+              </li>
+                <li class="menu-item">
+        <a href="/resources" data-drupal-link-system-path="node/131">Resources</a>
+              </li>
+                <li class="menu-item">
+        <a href="/news" data-drupal-link-system-path="node/132">News</a>
+              </li>
+                <li class="menu-item">
+        <a href="/events" data-drupal-link-system-path="node/133">Events</a>
+              </li>
+        </ul>
+  
+
+
+  </nav>
+<div id="block-fsrisearchblock" class="block block-fsri-search block-fsri-search-block">
+  
+    
+      <div class="search-icon"></div>
+    <div class="search-form hidden">
+      <form class="fsri-search-form" data-drupal-selector="fsri-search-form" action="/search" method="GET" id="fsri-search-form" accept-charset="UTF-8">
+  <div class="js-form-item form-item js-form-type-search form-type-search js-form-item-keyword form-item-keyword form-no-label">
+      <label for="edit-keyword" class="visually-hidden">Search</label>
+        <input placeholder="Search" class="form-text form-search" data-drupal-selector="edit-keyword" type="search" id="edit-keyword" name="keyword" value="" size="60" maxlength="128" />
+
+        </div>
+<div data-drupal-selector="edit-actions" class="form-actions js-form-wrapper form-wrapper" id="edit-actions"><input data-drupal-selector="edit-submit" type="submit" id="edit-submit" value="Search" class="button js-form-submit form-submit btn-danger" />
+</div>
+
+</form>
+
+    </div>
+  </div>
+<nav role="navigation" aria-labelledby="block-connect-menu" id="block-connect" class="block block-menu navigation menu--connect">
+      
+  <h2 id="block-connect-menu">Connect</h2>
+  
+
+        
+              <ul class="menu">
+                    <li class="menu-item">
+        <a href="/contact-fire-safety-research-institute" data-drupal-link-system-path="node/354">Contact</a>
+              </li>
+                <li class="menu-item">
+        <a href="/subscribe" data-drupal-link-system-path="node/1161">Subscribe</a>
+              </li>
+                <li class="menu-item">
+        <a href="/social-media-hub" title="Social Media Hub" data-drupal-link-system-path="node/519">Social Media Hub</a>
+              </li>
+                <li class="menu-item">
+        <a href="https://ul.org/careers">Apply for a Job</a>
+              </li>
+        </ul>
+  
+
+
+  </nav>
+
+  </div>
+
+  </header>
+
+  <main role="main">
+    <a id="main-content" tabindex="-1"></a>
+    
+    <div class="layout-content">
+      
+        <div class="region region-content">
+    <div id="block-breadcrumbs-2" class="crumbs block block-system block-system-breadcrumb-block">
+  
+    
+        <nav class="breadcrumb" role="navigation" aria-labelledby="system-breadcrumb">
+    <h2 id="system-breadcrumb" class="visually-hidden">Breadcrumb</h2>
+    <ol>
+          <li>
+                  <a href="/">Home</a>
+              </li>
+          <li>
+                  <a href="/research">Research</a>
+              </li>
+          <li>
+                  <a href="/research/heat-transfer-and-fire-damage-patterns-walls-fire-model-validation">Heat Transfer and Fire D…</a>
+              </li>
+          <li>
+                  Technical Report on Heat…
+              </li>
+        </ol>
+  </nav>
+
+  </div>
+<div data-drupal-messages-fallback class="hidden"></div>
+<div id="block-mainpagecontent" class="block block-system block-system-main-block">
+  
+    
+      
+<article  class="node node--type-research-update node--view-mode-full">
+  <div class="hero-research-update">
+    <div class="img">  <div class="media">    <picture>
+                  <source srcset="https://d1gi3fvbl0xj2a.cloudfront.net/styles/full_screen_desktop_1_x/s3/2024-08/Heat%20Flux%20Through%20Walls%20-%20Technical%20Report%20Update%20Hero.jpg?itok=VFfOc9NC 1x, https://d1gi3fvbl0xj2a.cloudfront.net/styles/full_screen_desktop_2_x/s3/2024-08/Heat%20Flux%20Through%20Walls%20-%20Technical%20Report%20Update%20Hero.jpg?itok=Yt_oUOs4 2x" media="all and (min-width: 851px)" type="image/jpeg" width="1440" height="750"/>
+              <source srcset="https://d1gi3fvbl0xj2a.cloudfront.net/styles/full_screen_mobile_1_x/s3/2024-08/Heat%20Flux%20Through%20Walls%20-%20Technical%20Report%20Update%20Hero.jpg?itok=JwtejlOK 1x, https://d1gi3fvbl0xj2a.cloudfront.net/styles/full_screen_mobile_2_x/s3/2024-08/Heat%20Flux%20Through%20Walls%20-%20Technical%20Report%20Update%20Hero.jpg?itok=WN5SN2CS 2x" media="all and (max-width: 850px)" type="image/jpeg" width="1024" height="533"/>
+                  <img loading="eager" src="https://d1gi3fvbl0xj2a.cloudfront.net/styles/full_screen_mobile_1_x/s3/2024-08/Heat%20Flux%20Through%20Walls%20-%20Technical%20Report%20Update%20Hero.jpg?itok=JwtejlOK" alt="Comparative data shows mass loss, heat flux, and damage pattern to gypsum wallboard exposed to a wood crib fire." />
+
+  </picture>
+
+</div>
+</div>
+  </div>
+  <section class="light-split">
+    <div  class="node__content content content-research-update">
+      <div class="left-col">
+        <div class="card_detail">
+          <h1>Technical Report on Heat Transfer and Fire Damage Patterns on Walls Released by FSRI</h1>
+          <div class="last-updated">September 4, 2024</div>
+          
+            <div class="clearfix text-formatted w-100 field field--name-body field--type-text-with-summary field--label-hidden field__item"><hr />
+<p>The Fire Safety Research Institute (FSRI), part of UL Research Institutes, in collaboration with the <a href="https://www.atf.gov/laboratories/fire-research-laboratory">Bureau of Alcohol, Tobacco, Firearms and Explosives Fire Research Laboratory</a> released the technical report <a href="https://d1gi3fvbl0xj2a.cloudfront.net/2024-07/Measurement%20of%20Heat%20Transfer%20and%20Fire%20Damage%20Patterns%20on%20Walls%20for%20Fire%20Model%20Validation%20240709_0.pdf">Measurement of Heat Transfer and Fire Damage Patterns on Walls for Fire Model Validation</a>. The report is part of the <a href="https://fsri.org/research/heat-transfer-and-fire-damage-patterns-walls-fire-model-validation">Heat Transfer and Fire Damage Patterns on Walls for Fire Model Validation</a> research project that was funded through a grant from the <a href="https://nij.ojp.gov/">National Institute of Justice</a>.</p>
+
+<h2>Heat Transfer and Fire Damage Patterns on Walls Exposed to Fire</h2>
+
+<p>Fire models may be used by fire investigators to make predictions of fire dynamics in structures. However, suitable data for validating fire model predictions of heat transfer and fire damage patterns on walls exposed to fires is limited. Since mass loss and discoloration fire effects are related to heat transfer and thermal decomposition of walls, this report provides a novel dataset for validation of fire models addressing these topics.</p>
+
+<p>The report details the measurements and findings from a series of experiments that address three validation spaces: thermal exposure to walls, heat transfer within walls, and fire damage patterns on walls. A total of 63 experiments were conducted, encompassing seven fire sources and three wall types (each combination in triplicate). Fire sources include a natural gas burner, gasoline and heptane pools, wood cribs, and upholstered furniture. Three types of walls were used to address the three validation spaces:</p>
+
+<ul>
+	<li aria-level="1">A calcium silicate board (CSB) wall was used to address the heat transfer through walls validation objective. Heat flux and surface temperatures were measured in these experiments.</li>
+	<li aria-level="1">A gypsum wallboard (GWB) wall was used to address the fire damage patterns validation objective. Discoloration and mass loss fire effects were measured in these experiments.</li>
+	<li aria-level="1">A steel wall (in the form of a plate heat flux sensor of equivalent area to the CSB and GWB walls) was used to address the heat transfer to walls validation objective. The plate temperature and gas temperatures on both sides of the sensor were measured in these experiments.</li>
+</ul>
+
+<h3>Research Findings</h3>
+
+<p>This study revealed that the cumulative heat flux over the surface of a fire-exposed GWB wall was not consistent with the observed discoloration and mass loss fire effects. On the other hand, a distinct relationship was found between mass loss and discoloration fire effects, and it was determined that lines of demarcation between charred and un-charred regions of the fire-exposed wall coincided with a mass loss ratio of 14.9 ±2.1% for the GWB considered. This study revealed a pathway for fire investigators to relate fire model predictions (mass loss occurring in a GWB wall, driven by thermal decomposition of the material) to physical evidence collected in an investigation (discoloration fire damage patterns). The dataset from this project is available in a <a href="https://doi.org/10.5281/zenodo.10543089">public repository</a>, and is expected to be leveraged in future validation studies.</p>
+
+<blockquote>
+<p>“This research has produced a novel dataset encompassing heat transfer and fire damage patterns on walls exposed to fires. By measuring heat flux and mass loss fields over the surface of gypsum wallboard, we have identified key relationships between fire exposures and discoloration and mass loss fire effects.”<br />
+—Matt DiDomizio, lead research engineer, FSRI</p>
+</blockquote>
+
+<p><a class="fsri-btn-red-round" href="https://d1gi3fvbl0xj2a.cloudfront.net/2024-07/Measurement%20of%20Heat%20Transfer%20and%20Fire%20Damage%20Patterns%20on%20Walls%20for%20Fire%20Model%20Validation%20240709_0.pdf">Download the Report&nbsp;</a></p>
+
+<p><a class="fsri-btn-red-round" href="https://doi.org/10.5281/zenodo.10543089">Review the Dataset&nbsp;</a></p>
+
+<p>This research was supported by Award No. 15PNIJ-21-GG-04167-RESS, from the National Institute of Justice, Office of Justice Programs, U.S. Department of Justice. The opinions, findings, and conclusions or recommendations expressed in this publication / program / exhibition are those of the author(s) and do not necessarily reflect those of the Department of Justice.</p>
+
+<hr />
+<p>Research Project: <a href="https://fsri.org/research/heat-transfer-and-fire-damage-patterns-walls-fire-model-validation">Heat Transfer and Fire Damage Patterns on Walls for Fire Model Validation</a><br />
+Report Title: Measurement of Heat Transfer and Fire Damage Patterns on Walls for Fire Model Validation<br />
+Report Authors: <a href="/matt-didomizio">Matthew J. DiDomizio</a> and&nbsp;Jonathan W. Butta, P.E.<br />
+Download the Report: <a href="https://dx.doi.org/10.54206/102376/HNKR9109">https://dx.doi.org/10.54206/102376/HNKR9109</a><br />
+Release Date: September 4, 2024<br />
+This report may be cited as follows: M.J. DiDomizio and J.W. Butta, Measurement of Heat Transfer and Fire Damage Patterns on Walls for Fire Model Validation, Tech. Rep., UL Research Institutes, Fire Safety Research Institute, Columbia, MD, 2024.</p>
+</div>
+      
+      <div class="field field--name-field-content field--type-entity-reference field--label-hidden field__items">
+              <div class="field__item">Heat Transfer and Fire Damage Patterns on Walls for Fire Model Validation</div>
+          </div>
+  <h2 class="pt-24">Research Partners</h2>
+      <div class="field field--name-field-partners field--type-entity-reference field--label-hidden cards_partners w-100 field__items card">
+              <div class="field__item card">
+<article class="node node--type-partner node--view-mode-teaser card-body">
+  <div class="node__content">
+    <a href="https://nij.ojp.gov/" rel="bookmark">
+      <div class="img-wrapper">
+          <div class="img">
+              <div class="media">  <img loading="lazy" src="https://d1gi3fvbl0xj2a.cloudfront.net/public/styles/logo/public/2021-07/nij-ec858e140c314f5b08020ade41d10293412424bb88fb09aa8510faa73571847c.png?itok=nGDFSSM-" alt="National Institute of Justice logo" class="image-style-logo" />
+
+
+</div>
+
+          </div>
+      </div>
+    </a>
+  </div>
+</article>
+</div>
+          </div>
+  
+                  </div>
+      </div>
+      <div class="right-col">
+        
+      <div class="field field--name-field-sidebar-items field--type-entity-reference-revisions field--label-hidden field__items">
+              <div class="field__item">  
+            <div class="field field--name-paragraphs field--type-entity-reference-revisions field--label-hidden field__item">  <div class="paragraph paragraph--type--sidebar-card paragraph--view-mode--default none card_join-our-team">
+          <a href="https://doi.org/10.5281/zenodo.10543089">
+        <div class="img-wrapper">
+          <div class="img">
+              <div class="media">  <img loading="lazy" src="https://d1gi3fvbl0xj2a.cloudfront.net/styles/sidebar_card/s3/2024-01/unnamed%20%281%29.jpg?h=9c86ceb9&amp;itok=TmgmUlEC" alt="Large scale heat transfer experiment validation" class="image-style-sidebar-card" />
+
+
+</div>
+
+          </div>
+        </div>
+        <div>
+          <h4>Fire Modeling Dataset</h4>
+            <p style="color:#122C49">
+    <strong>
+      Research
+    </strong>
+  </p>
+
+            <div class="clearfix text-formatted field field--name-field-description field--type-text-long field--label-hidden field__item"><p>Access the data repository built from experiments exposing a free-standing wall to various fire sources.</p>
+</div>
+      
+        </div>
+      </a>
+      </div>
+</div>
+      
+</div>
+              <div class="field__item">  <div class="paragraph paragraph--type--sidebar-card paragraph--view-mode--default none card_join-our-team">
+          <a href="https://fsri.org/research-update/large-scale-experiments-conclude-heat-transfer-and-fire-damage-patterns-walls">
+        <div class="img-wrapper">
+          <div class="img">
+              <div class="media">  <img loading="lazy" src="https://d1gi3fvbl0xj2a.cloudfront.net/styles/sidebar_card/s3/2024-08/LArge%20Scale%20Exp.png?h=d49c3785&amp;itok=rg8bJ_Dk" alt="A chair on fire for Large Scale Heat Transfer Experiments" class="image-style-sidebar-card" />
+
+
+</div>
+
+          </div>
+        </div>
+        <div>
+          <h4>Large Scale Heat Transfer Experiments</h4>
+            <p style="color:#122C49">
+    <strong>
+      Research
+    </strong>
+  </p>
+
+            <div class="clearfix text-formatted field field--name-field-description field--type-text-long field--label-hidden field__item"><p>Learn about the heat transfer and fire damage pattern experiments conducted at ATF-FRL</p>
+</div>
+      
+        </div>
+      </a>
+      </div>
+</div>
+          </div>
+  
+        
+      </div>
+    </div>
+  </section>
+</article>
+
+  </div>
+
+  </div>
+
+    </div>  </main>
+
+      <footer role="contentinfo">
+        <div class="region region-footer">
+    <div>
+      <nav role="navigation" aria-labelledby="block-explore-menu" id="block-explore" class="block block-menu navigation menu--footer">
+      
+  <h2 id="block-explore-menu">Explore</h2>
+  
+
+        
+              <ul class="menu">
+                    <li class="menu-item">
+        <a href="https://neris.fsri.org">NERIS</a>
+              </li>
+                <li class="menu-item">
+        <a href="https://CloseyourDoor.org">Close Before You Doze</a>
+              </li>
+                <li class="menu-item">
+        <a href="https://smokealarms.ul.org/">Smoke Alarm Safety</a>
+              </li>
+                <li class="menu-item">
+        <a href="https://batteryfiresafety.org/">Take C.H.A.R.G.E.</a>
+              </li>
+                <li class="menu-item">
+        <a href="https://xplorlabs.org/">Xplorlabs	</a>
+              </li>
+                <li class="menu-item">
+        <a href="/social-media-hub" data-drupal-link-system-path="node/519">Social Media Hub</a>
+              </li>
+        </ul>
+  
+
+
+  </nav>
+<nav role="navigation" aria-labelledby="block-externallinks-menu" id="block-externallinks" class="block block-menu navigation menu--external-links">
+      
+  <h2 id="block-externallinks-menu">External Links</h2>
+  
+
+        
+              <ul class="menu">
+                    <li class="menu-item">
+        <a href="https://ul.org">UL Research Institutes</a>
+              </li>
+                <li class="menu-item">
+        <a href="https://ul.com">UL Solutions</a>
+              </li>
+                <li class="menu-item">
+        <a href="https://ul.org/careers">Join Our Team</a>
+              </li>
+        </ul>
+  
+
+
+  </nav>
+<nav role="navigation" aria-labelledby="block-legal-menu" id="block-legal" class="block block-menu navigation menu--legal">
+      
+  <h2 id="block-legal-menu">Legal</h2>
+  
+
+        
+              <ul class="menu">
+                    <li class="menu-item">
+        <a href="/privacy-policy" data-drupal-link-system-path="node/382">Privacy Policy</a>
+              </li>
+                <li class="menu-item">
+        <a href="/terms-and-conditions" data-drupal-link-system-path="node/381">Terms of Use</a>
+              </li>
+                <li class="menu-item">
+        <a href="/media-inquiries" data-drupal-link-system-path="node/1002">Media Inquiries</a>
+              </li>
+                <li class="menu-item">
+        <a href="/sitemap" data-drupal-link-system-path="node/1624">Sitemap</a>
+              </li>
+            <li><div id="teconsent"></div></li>
+    </ul>
+  
+
+
+  </nav>
+
+    </div>
+    <div class="logos">
+      <a href="https://ul.org/" target="_blank" rel="bookmark">
+        <img src="/themes/custom/fsri/creative/FSRIwordmark.svg" alt=""/>
+      </a>
+    </div>
+  </div>
+
+        <div class="region region-footer-bottom">
+    <div id="block-renderedsitesettingsblock" class="block block-site-settings block-single-rendered-site-settings-block">
+  
+    
+      <div class="site_setting_entity">
+  
+            <div class="clearfix text-formatted field field--name-field-copyright field--type-text-long field--label-hidden field__item"><p>© 2026 Underwriters Laboratories Inc. All rights reserved.</p>
+</div>
+      </div>
+
+  </div>
+<div id="block-renderedsitesettingsblock-2" class="block block-site-settings block-single-rendered-site-settings-block">
+  
+    
+      <div class="site_setting_entity">
+  
+
+<ul  class="social-link-field horizontal"><li><a href="https://www.facebook.com/FSRI.org" class="" title="Facebook" target="_blank"><i class="fa-brands fa-facebook-f"></i></a></li><li><a href="http://www.youtube.com/firesafetyresearchinstitute" class="" title="Youtube Page" target="_blank"><i class="fa-brands fa-youtube"></i></a></li><li><a href="https://www.instagram.com/ulfsri" class="" title="Instagram" target="_blank"><i class="fa-brands fa-instagram"></i></a></li><li><a href="http://www.vimeo.com/fsri" class="" title="Vimeo" target="_blank"><i class="fa-brands fa-vimeo"></i></a></li><li><a href="https://www.linkedin.com/showcase/fsri-org" class="" title="LinkedIn" target="_blank"><i class="fa-brands fa-linkedin-in"></i></a></li></ul></div>
+
+  </div>
+
+  </div>
+
+    </footer>
+  
+</div>
+  </div>
+
+    <div class="off-canvas-wrapper"><div id="off-canvas">
+              <ul>
+                    <li class="menu-item--de7950fd-2577-46a1-9127-998bc13b128c menu-name--main">
+        <a href="/about" data-drupal-link-system-path="node/125">About</a>
+                                <ul>
+                    <li class="menu-item--_e5852c7-fc95-4169-9ee1-2416cd1c7c1a menu-name--main">
+        <a href="/about" data-drupal-link-system-path="node/125">Overview</a>
+              </li>
+                <li class="menu-item--_fce2e89-79a2-4e43-a9c2-33a651bed890 menu-name--main">
+        <a href="/about/people" data-drupal-link-system-path="node/126">People</a>
+              </li>
+                <li class="menu-item--db93a20f-8e5f-4bd0-8adf-1d2368db4e36 menu-name--main">
+        <a href="/about/expertise" data-drupal-link-system-path="node/128">Expertise</a>
+              </li>
+        </ul>
+  
+              </li>
+                <li class="menu-item--_68d581c-4d84-4323-b66f-08a5eef63414 menu-name--main">
+        <a href="/research" data-drupal-link-system-path="node/103">Research</a>
+              </li>
+                <li class="menu-item--_76a7f24-d9f5-422a-87bc-f5c05dfc236e menu-name--main">
+        <a href="/programs" data-drupal-link-system-path="node/130">Programs</a>
+              </li>
+                <li class="menu-item--_2828e73-09ae-4d57-9da2-97a2f4a55f88 menu-name--main">
+        <a href="/programs/training-education" data-drupal-link-system-path="node/1217">Training</a>
+                                <ul>
+                    <li class="menu-item--_f840c73-9540-4562-8ab5-784f60993a49 menu-name--main">
+        <a href="https://training.fsri.org">Fire Safety Academy</a>
+              </li>
+        </ul>
+  
+              </li>
+                <li class="menu-item--a515ba3e-111e-4ac4-a946-9622f4e1bf28 menu-name--main">
+        <a href="/resources" data-drupal-link-system-path="node/131">Resources</a>
+              </li>
+                <li class="menu-item--_6a67905-1ba6-4c83-849c-13f9fdd09402 menu-name--main">
+        <a href="/news" data-drupal-link-system-path="node/132">News</a>
+              </li>
+                <li class="menu-item--_44672e0-f0d6-4f31-8ce5-d4f94a0c8800 menu-name--main">
+        <a href="/events" data-drupal-link-system-path="node/133">Events</a>
+              </li>
+                <li class="menu-item--_80f92f0-ee9a-4648-9494-284d910ea762 menu-name--connect">
+        <a href="/contact-fire-safety-research-institute" data-drupal-link-system-path="node/354">Contact</a>
+              </li>
+                <li class="menu-item--_a25636c-e669-4d93-8603-53cb71879dd5 menu-name--connect">
+        <a href="/subscribe" data-drupal-link-system-path="node/1161">Subscribe</a>
+              </li>
+                <li class="menu-item--_8a6a80e-2972-484c-ba43-362928df86ba menu-name--connect">
+        <a href="/social-media-hub" title="Social Media Hub" data-drupal-link-system-path="node/519">Social Media Hub</a>
+              </li>
+                <li class="menu-item--_a6161f6-1dde-4391-9072-2fca3842a92c menu-name--connect">
+        <a href="https://ul.org/careers">Apply for a Job</a>
+              </li>
+        </ul>
+  
+
+</div></div>
+    <script src="/core/assets/vendor/jquery/jquery.min.js?v=3.7.1"></script>
+<script src="/core/assets/vendor/once/once.min.js?v=1.0.1"></script>
+<script src="/core/misc/drupal.js?v=10.6.6"></script>
+<script src="/core/misc/drupal.init.js?v=10.6.6"></script>
+<script src="/core/misc/debounce.js?v=10.6.6"></script>
+<script src="//cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/version-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/data-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/disable-selection-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/jquery-patch-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/scroll-parent-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/unique-id-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/focusable-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/keycode-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/plugin-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/widget-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/labels-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/widgets/controlgroup-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/form-reset-mixin-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/widgets/mouse-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/widgets/checkboxradio-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/widgets/draggable-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/widgets/resizable-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/widgets/button-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/jquery.ui/ui/widgets/dialog-min.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/tabbable/index.umd.min.js?v=6.3.0"></script>
+<script src="/core/assets/vendor/tua-body-scroll-lock/tua-bsl.umd.min.js?v=10.6.6"></script>
+<script src="/modules/contrib/extlink/js/extlink.js?v=10.6.6"></script>
+<script src="/core/misc/progress.js?v=10.6.6"></script>
+<script src="/core/assets/vendor/loadjs/loadjs.min.js?v=4.3.0"></script>
+<script src="/core/misc/announce.js?v=10.6.6"></script>
+<script src="/core/misc/message.js?v=10.6.6"></script>
+<script src="/core/misc/ajax.js?v=10.6.6"></script>
+<script src="/themes/contrib/stable/js/ajax.js?v=10.6.6"></script>
+<script src="/core/misc/displace.js?v=10.6.6"></script>
+<script src="/core/misc/jquery.tabbable.shim.js?v=10.6.6"></script>
+<script src="/core/misc/position.js?v=10.6.6"></script>
+<script src="/core/misc/dialog/dialog-deprecation.js?v=10.6.6"></script>
+<script src="/core/misc/dialog/dialog.js?v=10.6.6"></script>
+<script src="/core/misc/dialog/dialog.position.js?v=10.6.6"></script>
+<script src="/core/misc/dialog/dialog.jquery-ui.js?v=10.6.6"></script>
+<script src="/core/misc/dialog/dialog.ajax.js?v=10.6.6"></script>
+<script src="/themes/custom/fsri/js/main.js?v=10.6.6"></script>
+<script src="/themes/custom/fsri/js/fsri.js?tdljek"></script>
+<script src="/modules/contrib/google_tag/js/gtag.ajax.js?tdljek"></script>
+<script src="/modules/contrib/obfuscate_email/js/obfuscate_email.js?tdljek"></script>
+<script src="/libraries/mmenu/dist/mmenu.js?v=10.6.6"></script>
+<script src="/modules/contrib/responsive_menu/js/responsive_menu.config.js?v=10.6.6"></script>
+<script src="/libraries/mmenu/dist/mmenu.polyfills.js?v=10.6.6"></script>
+
+  </body>
+</html>
