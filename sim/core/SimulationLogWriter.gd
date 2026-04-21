@@ -137,7 +137,46 @@ func _append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		if room_state.is_empty():
 			continue
 
-		var line := "ROOM %s | HRR=%.2f | Up=%.2f | Low=%.2f | Smoke=%.4f | SmokeLayer=%.2f | HotLayer=%.2f | L150=%.2f | P=%.2fPa | O2=%.4f | CO=%.0fppm" % [
+		var fed_val: float = float(room_state.get("fed", 0.0))
+		var svv_worst_pct_state: float = clampf(float(room_state.get("svv_worst_pct", -1.0)), 0.0, 100.0)
+		var height_m: float = float(room_state.get("height_m", 2.4))
+		var layer_150c: float = clampf(float(room_state.get("layer_150c_m", height_m)), 0.0, height_m)
+
+		# Criterio térmico (isoterma 150°C) — diagrama SVV pág. 47
+		var thermal_svv: float
+		if layer_150c >= 1.8:
+			thermal_svv = 1.0
+		elif layer_150c >= 0.5:
+			thermal_svv = 0.90 + 0.09 * (layer_150c - 0.5) / 1.3
+		elif layer_150c > 0.10:
+			thermal_svv = 0.05 + 0.85 * ((layer_150c - 0.10) / 0.40)
+		else:
+			thermal_svv = 0.0
+		# Criterio FED (narcosis CO)
+		var fed_svv: float
+		if fed_val <= 0.1:
+			fed_svv = 1.0 - 0.01 * (fed_val / 0.1)
+		elif fed_val <= 0.3:
+			fed_svv = 0.99 - 0.09 * ((fed_val - 0.1) / 0.2)
+		elif fed_val < 1.0:
+			var t_fed: float = (fed_val - 0.3) / 0.7
+			fed_svv = 0.90 * pow(1.0 - t_fed, 1.5)
+		else:
+			fed_svv = 0.0
+		var svv_pct: float = minf(thermal_svv, fed_svv) * 100.0
+		if room_state.has("svv_worst_pct"):
+			svv_pct = svv_worst_pct_state
+
+		var svv_zone: String
+		if svv_pct > 99.0:
+			svv_zone = "ALTA"
+		elif svv_pct >= 90.0:
+			svv_zone = "MEDIA"
+		elif svv_pct >= 5.0:
+			svv_zone = "BAJA"
+		else:
+			svv_zone = "MINIMA"
+		var line := "ROOM %s | HRR=%.2f | Up=%.2f | Low=%.2f | Smoke=%.4f | SmokeLayer=%.2f | HotLayer=%.2f | L150=%.2f | P=%.2fPa | O2=%.4f | CO=%.0fppm | CO2=%.0fppm | FED=%.3f SVV=%.0f%% [%s]" % [
 			str(room_state.get("id", room_id)),
 			float(room_state.get("hrr_kw", 0.0)),
 			float(room_state.get("temp_upper_c", 0.0)),
@@ -148,7 +187,11 @@ func _append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 			float(room_state.get("layer_150c_m", 0.0)),
 			float(room_state.get("overpressure_pa", 0.0)),
 			float(room_state.get("o2", 0.0)),
-			float(room_state.get("co_ppm", 0.0))
+			float(room_state.get("co_ppm", 0.0)),
+			float(room_state.get("co2_ppm", 0.0)),
+			fed_val,
+			svv_pct,
+			svv_zone
 		]
 		file.store_line(line)
 

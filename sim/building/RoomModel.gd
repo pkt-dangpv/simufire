@@ -45,6 +45,21 @@ var layer_150c_m: float = 2.5
 # Se convierte a ppm en SimulationEngine para exposición y log.
 var co_kg: float = 0.0
 
+# Dióxido de carbono — masa en la sala (kg)
+# Producto principal de combustión completa. ISO 19706.
+var co2_kg: float = 0.0
+
+# FED acumulado (Fractional Effective Dose) — ISO 13571
+# Integrado a lo largo del tiempo a partir de CO y CO2.
+# 0.3 = incapacitación probable, 1.0 = dosis letal.
+var fed: float = 0.0
+
+# Supervivencia de Víctimas (%):
+# - svv_pct: estimación instantánea
+# - svv_worst_pct: peor valor histórico (no mejora con el tiempo)
+var svv_pct: float = 100.0
+var svv_worst_pct: float = 100.0
+
 # Carga de combustible y límite de HRR — se asignan desde la plantilla según kind
 # fuel_energy_MJ: energía total disponible. 0.0 = usa el valor por defecto del engine.
 # max_hrr_kw: tasa máxima de liberación de calor. 0.0 = usa el valor por defecto del engine.
@@ -91,6 +106,10 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	upper_energy_kj = 0.0
 	layer_150c_m = height_m
 	co_kg = 0.0
+	co2_kg = 0.0
+	fed = 0.0
+	svv_pct = 100.0
+	svv_worst_pct = 100.0
 	fire = null
 	fire_time_s = 0.0
 	hrr_kw = 0.0

@@ -1,0 +1,225 @@
+﻿{
+    "generated_at":  "2026-04-20 11:59:38",
+    "duration_s":  420,
+    "targets":  {
+                    "flashover_s":  186,
+                    "flashover_temp_0_9m_c":  600,
+                    "o2_hallway_s":  198,
+                    "co_hallway_s":  204,
+                    "idlh_proxy_co1200_s":  216
+                },
+    "results":  [
+                    {
+                        "name":  "current_wired",
+                        "description":  "Caso actual con lower_layer_warming_rate activo por defecto",
+                        "score":  231.89,
+                        "report":  "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\micro_sweeps\\_micro_ghanekar_current_wired.json",
+                        "metrics":  {
+                                        "time_room_0_temp_0_9m_above_600c_s":  198.583333333338,
+                                        "room_0_final_temp_at_0_9m_c":  528.786247055786,
+                                        "time_room_2_o2_below_20_4pct_s":  137.749999999998,
+                                        "time_room_2_co_above_200ppm_s":  146.999999999999,
+                                        "time_room_2_co_above_1200ppm_s":  153.75,
+                                        "time_room_2_smoke_start_s":  146.333333333332,
+                                        "room_0_peak_hrr_kw":  1254.8466041712,
+                                        "room_2_peak_co_ppm":  8398.52162464883,
+                                        "room_2_peak_temp_upper_c":  77.3393996324571
+                                    },
+                        "engine_overrides":  {
+
+                                             }
+                    },
+                    {
+                        "name":  "combo_balanced_llw016",
+                        "description":  "Combo balanced con calentamiento moderado de capa baja",
+                        "score":  274.63,
+                        "report":  "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\micro_sweeps\\_micro_ghanekar_combo_balanced_llw016.json",
+                        "metrics":  {
+                                        "time_room_0_temp_0_9m_above_600c_s":  146.749999999999,
+                                        "room_0_final_temp_at_0_9m_c":  604.493307867168,
+                                        "time_room_2_o2_below_20_4pct_s":  142.083333333332,
+                                        "time_room_2_co_above_200ppm_s":  146.499999999999,
+                                        "time_room_2_co_above_1200ppm_s":  152.916666666667,
+                                        "time_room_2_smoke_start_s":  145.666666666666,
+                                        "room_0_peak_hrr_kw":  1254.8466041712,
+                                        "room_2_peak_co_ppm":  8634.45148881542,
+                                        "room_2_peak_temp_upper_c":  75.6209673299001
+                                    },
+                        "engine_overrides":  {
+                                                 "doorway_o2_exchange_coeff":  1.2,
+                                                 "doorway_o2_background_exchange_kg_s_m2":  0.045,
+                                                 "base_spill_kg_s_per_m2":  0.38,
+                                                 "temp_push_factor":  0.0065,
+                                                 "ach_infiltration":  0.9,
+                                                 "upper_to_lower_loss_rate":  0.038,
+                                                 "upper_to_ambient_loss_rate":  0.0065,
+                                                 "wall_absorption_rate":  0.0025,
+                                                 "thermal_gradient_band_fraction":  0.5,
+                                                 "thermal_gradient_max_band_m":  0.9,
+                                                 "floor_cooling_band_fraction":  0.12,
+                                                 "floor_cooling_band_max_m":  0.2,
+                                                 "lower_layer_warming_rate":  0.016
+                                             }
+                    },
+                    {
+                        "name":  "hybrid_transport_thermal",
+                        "description":  "Pasillo mas amortiguado con termica balanceada y capa baja activa",
+                        "score":  285.69,
+                        "report":  "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\micro_sweeps\\_micro_ghanekar_hybrid_transport_thermal.json",
+                        "metrics":  {
+                                        "time_room_0_temp_0_9m_above_600c_s":  138.583333333332,
+                                        "room_0_final_temp_at_0_9m_c":  624.683901357454,
+                                        "time_room_2_o2_below_20_4pct_s":  144.999999999999,
+                                        "time_room_2_co_above_200ppm_s":  146.333333333332,
+                                        "time_room_2_co_above_1200ppm_s":  153.083333333333,
+                                        "time_room_2_smoke_start_s":  145.499999999999,
+                                        "room_0_peak_hrr_kw":  1190.10697295302,
+                                        "room_2_peak_co_ppm":  8644.43111030094,
+                                        "room_2_peak_temp_upper_c":  76.5907783566452
+                                    },
+                        "engine_overrides":  {
+                                                 "doorway_o2_exchange_coeff":  1,
+                                                 "doorway_o2_background_exchange_kg_s_m2":  0.035,
+                                                 "base_spill_kg_s_per_m2":  0.32,
+                                                 "temp_push_factor":  0.0055,
+                                                 "ach_infiltration":  1,
+                                                 "upper_to_lower_loss_rate":  0.038,
+                                                 "upper_to_ambient_loss_rate":  0.0065,
+                                                 "wall_absorption_rate":  0.0025,
+                                                 "thermal_gradient_band_fraction":  0.5,
+                                                 "thermal_gradient_max_band_m":  0.9,
+                                                 "floor_cooling_band_fraction":  0.12,
+                                                 "floor_cooling_band_max_m":  0.2,
+                                                 "lower_layer_warming_rate":  0.02
+                                             }
+                    },
+                    {
+                        "name":  "combo_balanced_llw020",
+                        "description":  "Combo balanced con calentamiento fuerte de capa baja",
+                        "score":  293.43,
+                        "report":  "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\micro_sweeps\\_micro_ghanekar_combo_balanced_llw020.json",
+                        "metrics":  {
+                                        "time_room_0_temp_0_9m_above_600c_s":  137.083333333331,
+                                        "room_0_final_temp_at_0_9m_c":  625.471194357781,
+                                        "time_room_2_o2_below_20_4pct_s":  141.833333333332,
+                                        "time_room_2_co_above_200ppm_s":  145.666666666666,
+                                        "time_room_2_co_above_1200ppm_s":  152.083333333333,
+                                        "time_room_2_smoke_start_s":  144.916666666666,
+                                        "room_0_peak_hrr_kw":  1254.8466041712,
+                                        "room_2_peak_co_ppm":  8573.61013481006,
+                                        "room_2_peak_temp_upper_c":  78.966461742586
+                                    },
+                        "engine_overrides":  {
+                                                 "doorway_o2_exchange_coeff":  1.2,
+                                                 "doorway_o2_background_exchange_kg_s_m2":  0.045,
+                                                 "base_spill_kg_s_per_m2":  0.38,
+                                                 "temp_push_factor":  0.0065,
+                                                 "ach_infiltration":  0.9,
+                                                 "upper_to_lower_loss_rate":  0.038,
+                                                 "upper_to_ambient_loss_rate":  0.0065,
+                                                 "wall_absorption_rate":  0.0025,
+                                                 "thermal_gradient_band_fraction":  0.5,
+                                                 "thermal_gradient_max_band_m":  0.9,
+                                                 "floor_cooling_band_fraction":  0.12,
+                                                 "floor_cooling_band_max_m":  0.2,
+                                                 "lower_layer_warming_rate":  0.02
+                                             }
+                    },
+                    {
+                        "name":  "transport_soft_plus_hotfloor",
+                        "description":  "Mejor transporte del barrido previo con calentamiento respirable adicional",
+                        "score":  297.46,
+                        "report":  "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\micro_sweeps\\_micro_ghanekar_transport_soft_plus_hotfloor.json",
+                        "metrics":  {
+                                        "time_room_0_temp_0_9m_above_600c_s":  132.249999999998,
+                                        "room_0_final_temp_at_0_9m_c":  640.090961990712,
+                                        "time_room_2_o2_below_20_4pct_s":  144.999999999999,
+                                        "time_room_2_co_above_200ppm_s":  145.999999999999,
+                                        "time_room_2_co_above_1200ppm_s":  152.666666666667,
+                                        "time_room_2_smoke_start_s":  145.083333333332,
+                                        "room_0_peak_hrr_kw":  1191.20065070871,
+                                        "room_2_peak_co_ppm":  8590.59838374978,
+                                        "room_2_peak_temp_upper_c":  78.0861852054936
+                                    },
+                        "engine_overrides":  {
+                                                 "doorway_o2_exchange_coeff":  1,
+                                                 "doorway_o2_background_exchange_kg_s_m2":  0.035,
+                                                 "base_spill_kg_s_per_m2":  0.3,
+                                                 "temp_push_factor":  0.005,
+                                                 "ach_infiltration":  1.1,
+                                                 "upper_to_lower_loss_rate":  0.04,
+                                                 "upper_to_ambient_loss_rate":  0.006,
+                                                 "wall_absorption_rate":  0.0022,
+                                                 "thermal_gradient_band_fraction":  0.55,
+                                                 "thermal_gradient_max_band_m":  0.95,
+                                                 "floor_cooling_band_fraction":  0.1,
+                                                 "floor_cooling_band_max_m":  0.18,
+                                                 "lower_layer_warming_rate":  0.022
+                                             }
+                    },
+                    {
+                        "name":  "hybrid_transport_thermal_hot",
+                        "description":  "Como el hybrid pero empujando mas la zona respirable",
+                        "score":  299.93,
+                        "report":  "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\micro_sweeps\\_micro_ghanekar_hybrid_transport_thermal_hot.json",
+                        "metrics":  {
+                                        "time_room_0_temp_0_9m_above_600c_s":  130.666666666664,
+                                        "room_0_final_temp_at_0_9m_c":  644.372277528776,
+                                        "time_room_2_o2_below_20_4pct_s":  145.083333333332,
+                                        "time_room_2_co_above_200ppm_s":  145.999999999999,
+                                        "time_room_2_co_above_1200ppm_s":  152.75,
+                                        "time_room_2_smoke_start_s":  145.166666666666,
+                                        "room_0_peak_hrr_kw":  1188.6338777619,
+                                        "room_2_peak_co_ppm":  8600.64203230779,
+                                        "room_2_peak_temp_upper_c":  76.8718477336265
+                                    },
+                        "engine_overrides":  {
+                                                 "doorway_o2_exchange_coeff":  1,
+                                                 "doorway_o2_background_exchange_kg_s_m2":  0.035,
+                                                 "base_spill_kg_s_per_m2":  0.32,
+                                                 "temp_push_factor":  0.0055,
+                                                 "ach_infiltration":  1,
+                                                 "upper_to_lower_loss_rate":  0.042,
+                                                 "upper_to_ambient_loss_rate":  0.006,
+                                                 "wall_absorption_rate":  0.0022,
+                                                 "thermal_gradient_band_fraction":  0.55,
+                                                 "thermal_gradient_max_band_m":  0.95,
+                                                 "floor_cooling_band_fraction":  0.1,
+                                                 "floor_cooling_band_max_m":  0.18,
+                                                 "lower_layer_warming_rate":  0.022
+                                             }
+                    },
+                    {
+                        "name":  "combo_balanced_llw024",
+                        "description":  "Combo balanced con calentamiento muy fuerte de capa baja",
+                        "score":  308.01,
+                        "report":  "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\micro_sweeps\\_micro_ghanekar_combo_balanced_llw024.json",
+                        "metrics":  {
+                                        "time_room_0_temp_0_9m_above_600c_s":  129.749999999997,
+                                        "room_0_final_temp_at_0_9m_c":  644.578100754448,
+                                        "time_room_2_o2_below_20_4pct_s":  141.666666666665,
+                                        "time_room_2_co_above_200ppm_s":  144.916666666666,
+                                        "time_room_2_co_above_1200ppm_s":  151.333333333333,
+                                        "time_room_2_smoke_start_s":  144.166666666666,
+                                        "room_0_peak_hrr_kw":  1254.8466041712,
+                                        "room_2_peak_co_ppm":  8507.76613187633,
+                                        "room_2_peak_temp_upper_c":  82.1292424502407
+                                    },
+                        "engine_overrides":  {
+                                                 "doorway_o2_exchange_coeff":  1.2,
+                                                 "doorway_o2_background_exchange_kg_s_m2":  0.045,
+                                                 "base_spill_kg_s_per_m2":  0.38,
+                                                 "temp_push_factor":  0.0065,
+                                                 "ach_infiltration":  0.9,
+                                                 "upper_to_lower_loss_rate":  0.038,
+                                                 "upper_to_ambient_loss_rate":  0.0065,
+                                                 "wall_absorption_rate":  0.0025,
+                                                 "thermal_gradient_band_fraction":  0.5,
+                                                 "thermal_gradient_max_band_m":  0.9,
+                                                 "floor_cooling_band_fraction":  0.12,
+                                                 "floor_cooling_band_max_m":  0.2,
+                                                 "lower_layer_warming_rate":  0.024
+                                             }
+                    }
+                ]
+}

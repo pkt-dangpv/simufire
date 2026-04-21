@@ -211,6 +211,14 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var co_basis_MJ: float = maxf(heat_release_MJ, pyrolysis_consumption_MJ)
 	room.co_kg += co_yield * co_basis_MJ
 
+	# CO2: producción inversamente correlacionada con CO (combustión completa vs incompleta)
+	var co2_yield: float = lerpf(
+		float(context.get("co2_min_yield_kg_per_MJ", 0.0594)),
+		float(context.get("co2_base_yield_kg_per_MJ", 0.0831)),
+		o2_factor
+	)
+	room.co2_kg += co2_yield * co_basis_MJ
+
 	var fuel_consumed_MJ: float = maxf(heat_release_MJ, pyrolysis_consumption_MJ)
 	fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ - fuel_consumed_MJ)
 

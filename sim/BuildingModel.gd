@@ -31,6 +31,8 @@ const OUTSIDE_ID: int = -1
 # Recursos
 var building_template = preload("res://sim/templates/BuildingTemplate.gd").new()
 
+@export_enum("simple_house", "ghanekar_bedroom_hallway") var template_name: String = "simple_house"
+
 # Datos estructurales
 var room_rect_m: Dictionary[int, Rect2] = {}
 var rooms: Dictionary = {}
@@ -41,7 +43,11 @@ var openings: Array = []
 # ============================================================
 
 func _ready() -> void:
-	_load_from_template(building_template.create_simple_house())
+	match template_name:
+		"ghanekar_bedroom_hallway":
+			_load_from_template(building_template.create_ghanekar_bedroom_hallway())
+		_:
+			_load_from_template(building_template.create_simple_house())
 
 # ============================================================
 # GETTERS
@@ -49,6 +55,18 @@ func _ready() -> void:
 
 func get_room_rects_m() -> Dictionary[int, Rect2]:
 	return room_rect_m
+
+
+func get_room_centroid_m(room_id: int) -> Vector2:
+	var rect: Rect2 = room_rect_m.get(room_id, Rect2())
+	return rect.position + rect.size * 0.5
+
+
+func estimate_room_connection_length_m(room_a_id: int, room_b_id: int) -> float:
+	if not room_rect_m.has(room_a_id) or not room_rect_m.has(room_b_id):
+		return 1.0
+
+	return maxf(0.5, get_room_centroid_m(room_a_id).distance_to(get_room_centroid_m(room_b_id)))
 
 func get_room(room_id: int) -> RoomModel:
 	return rooms.get(room_id)

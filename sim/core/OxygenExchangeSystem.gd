@@ -3,16 +3,28 @@ class_name OxygenExchangeSystem
 
 var o2_nominal: float = 0.209
 var ach_infiltration: float = 0.5
+var interior_transport_enabled: bool = true
+var interior_transport_speed_m_s: float = 0.20
+var interior_transport_min_distance_m: float = 0.50
+var interior_o2_transport_delay_multiplier: float = 1.0
 var doorway_o2_exchange_coeff: float = 1.70
 var doorway_o2_background_exchange_kg_s_m2: float = 0.06
 var doorway_o2_background_max_fraction_per_step: float = 0.015
 var doorway_o2_background_pressure_ref_pa: float = 1.5
 var doorway_o2_background_min_factor: float = 0.30
+var _pending_o2_deliveries: Array[Dictionary] = []
+var _reserved_transport_o2_delta_kg: Dictionary = {}
 
 
 func configure(settings: Dictionary) -> void:
 	o2_nominal = float(settings.get("o2_nominal", o2_nominal))
 	ach_infiltration = float(settings.get("ach_infiltration", ach_infiltration))
+	interior_transport_enabled = bool(settings.get("interior_transport_enabled", interior_transport_enabled))
+	interior_transport_speed_m_s = float(settings.get("interior_transport_speed_m_s", interior_transport_speed_m_s))
+	interior_transport_min_distance_m = float(settings.get("interior_transport_min_distance_m", interior_transport_min_distance_m))
+	interior_o2_transport_delay_multiplier = float(
+		settings.get("interior_o2_transport_delay_multiplier", interior_o2_transport_delay_multiplier)
+	)
 	doorway_o2_exchange_coeff = float(
 		settings.get("doorway_o2_exchange_coeff", doorway_o2_exchange_coeff)
 	)
@@ -42,6 +54,11 @@ func configure(settings: Dictionary) -> void:
 	)
 
 
+func reset() -> void:
+	_pending_o2_deliveries.clear()
+	_reserved_transport_o2_delta_kg.clear()
+
+
 func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 	if building == null:
 		return
@@ -55,6 +72,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		Callable()
 	)
 	var air_density_kg_m3: float = 1.2
+
+	_release_pending_o2_deliveries(building, dt, air_density_kg_m3)
 
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -99,6 +118,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			continue
 
 		_step_interior_opening_o2(
+			building,
 			dt,
 			op,
 			room_a,
@@ -160,6 +180,7 @@ func _step_outside_opening_o2(
 
 
 func _step_interior_opening_o2(
+	building: BuildingModel,
 	dt: float,
 	op: OpeningModel,
 	room_a: RoomModel,
@@ -191,12 +212,7 @@ func _step_interior_opening_o2(
 			* doorway_o2_background_max_fraction_per_step
 		base_exchange_kg = minf(base_exchange_kg, base_max_exchange_kg)
 		if base_exchange_kg > 0.0:
-			var new_a_o2: float = (room_a.o2 * mass_a_base_kg + room_b.o2 * base_exchange_kg) \
-				/ (mass_a_base_kg + base_exchange_kg)
-			var new_b_o2: float = (room_b.o2 * mass_b_base_kg + room_a.o2 * base_exchange_kg) \
-				/ (mass_b_base_kg + base_exchange_kg)
-			room_a.o2 = clampf(new_a_o2, 0.0, o2_nominal)
-			room_b.o2 = clampf(new_b_o2, 0.0, o2_nominal)
+			_exchange_room_o2_immediate(room_a, room_b, base_exchange_kg, air_density_kg_m3)
 
 	var flow_state: Dictionary = _call_interior_flow_state(
 		build_interior_flow_callable,
@@ -233,12 +249,149 @@ func _step_interior_opening_o2(
 	if exchange_kg <= 0.0:
 		return
 
-	var new_hot_o2: float = (hot_room.o2 * mass_hot_kg + cold_room.o2 * exchange_kg) \
-		/ (mass_hot_kg + exchange_kg)
-	var new_cold_o2: float = (cold_room.o2 * mass_cold_kg + hot_room.o2 * exchange_kg) \
-		/ (mass_cold_kg + exchange_kg)
-	hot_room.o2 = clampf(new_hot_o2, 0.0, o2_nominal)
-	cold_room.o2 = clampf(new_cold_o2, 0.0, o2_nominal)
+	_exchange_room_o2_active_flow(building, hot_room, cold_room, exchange_kg, air_density_kg_m3)
+
+
+func _exchange_room_o2_immediate(
+	room_a: RoomModel,
+	room_b: RoomModel,
+	exchange_kg: float,
+	air_density_kg_m3: float
+) -> void:
+	if room_a == null or room_b == null or exchange_kg <= 0.0:
+		return
+
+	var mass_a_kg: float = _compute_room_air_mass_kg(room_a, air_density_kg_m3)
+	var mass_b_kg: float = _compute_room_air_mass_kg(room_b, air_density_kg_m3)
+	var o2_a_out_kg: float = room_a.o2 * exchange_kg
+	var o2_b_out_kg: float = room_b.o2 * exchange_kg
+
+	room_a.o2 = clampf((room_a.o2 * mass_a_kg - o2_a_out_kg) / mass_a_kg, 0.0, o2_nominal)
+	room_b.o2 = clampf((room_b.o2 * mass_b_kg - o2_b_out_kg) / mass_b_kg, 0.0, o2_nominal)
+
+	_apply_room_o2_mass_delta(room_a, o2_b_out_kg, air_density_kg_m3)
+	_apply_room_o2_mass_delta(room_b, o2_a_out_kg, air_density_kg_m3)
+
+	# CO2 (gas de combustión) se mezcla bidireccional con el intercambio de aire.
+	# El CO permanece ligado al transporte de humo (GasExchangeSystem) para preservar
+	# la calibración de timing; CO2 sí difunde libremente como gas de combustión.
+	var co2_conc_a: float = room_a.co2_kg / maxf(0.1, mass_a_kg)
+	var co2_conc_b: float = room_b.co2_kg / maxf(0.1, mass_b_kg)
+	var net_co2_a_to_b: float = (co2_conc_a - co2_conc_b) * exchange_kg
+	room_a.co2_kg = maxf(0.0, room_a.co2_kg - net_co2_a_to_b)
+	room_b.co2_kg = maxf(0.0, room_b.co2_kg + net_co2_a_to_b)
+
+
+func _exchange_room_o2_active_flow(
+	building: BuildingModel,
+	hot_room: RoomModel,
+	cold_room: RoomModel,
+	exchange_kg: float,
+	air_density_kg_m3: float
+) -> void:
+	if building == null or hot_room == null or cold_room == null or exchange_kg <= 0.0:
+		return
+
+	var hot_o2_parcel_kg: float = _effective_room_o2_fraction(hot_room, air_density_kg_m3) * exchange_kg
+	var cold_o2_parcel_kg: float = _effective_room_o2_fraction(cold_room, air_density_kg_m3) * exchange_kg
+	var hot_room_delta_o2_kg: float = cold_o2_parcel_kg - hot_o2_parcel_kg
+	var cold_room_delta_o2_kg: float = hot_o2_parcel_kg - cold_o2_parcel_kg
+
+	# Keep the fresh compensating inflow to the fire room immediate, but delay
+	# the downstream room's net concentration change until the hot parcel arrives.
+	_apply_room_o2_mass_delta(hot_room, hot_room_delta_o2_kg, air_density_kg_m3)
+
+	var hot_air_mass_kg: float = _compute_room_air_mass_kg(hot_room, air_density_kg_m3)
+	var cold_air_mass_kg: float = _compute_room_air_mass_kg(cold_room, air_density_kg_m3)
+
+	# CO y CO2 se transportan con el flujo boyante (dirección dominante: caliente→frío)
+	# El CO2 (gas de combustión) sigue el flujo boyante; el CO permanece ligado al
+	# transporte de humo (GasExchangeSystem) para preservar la calibración de timing.
+	var hot_co2_conc: float = hot_room.co2_kg / maxf(0.1, hot_air_mass_kg)
+	var cold_co2_conc: float = cold_room.co2_kg / maxf(0.1, cold_air_mass_kg)
+	var net_co2_hot_to_cold: float = (hot_co2_conc - cold_co2_conc) * exchange_kg
+	hot_room.co2_kg = maxf(0.0, hot_room.co2_kg - net_co2_hot_to_cold)
+	cold_room.co2_kg = maxf(0.0, cold_room.co2_kg + net_co2_hot_to_cold)
+
+	var delay_s: float = _estimate_interior_transport_delay_s(building, hot_room.id, cold_room.id)
+	if interior_transport_enabled and delay_s > 0.000001:
+		_reserve_room_o2_delta(cold_room.id, cold_room_delta_o2_kg)
+		_pending_o2_deliveries.append({
+			"target": cold_room.id,
+			"delay_s": delay_s,
+			"delta_o2_kg": cold_room_delta_o2_kg
+		})
+		return
+
+	_apply_room_o2_mass_delta(cold_room, cold_room_delta_o2_kg, air_density_kg_m3)
+
+
+func _release_pending_o2_deliveries(building: BuildingModel, dt: float, air_density_kg_m3: float) -> void:
+	if building == null or _pending_o2_deliveries.is_empty():
+		return
+
+	var remaining: Array[Dictionary] = []
+	for raw_entry in _pending_o2_deliveries:
+		var entry: Dictionary = raw_entry
+		entry["delay_s"] = maxf(0.0, float(entry.get("delay_s", 0.0)) - dt)
+		if float(entry.get("delay_s", 0.0)) > 0.000001:
+			remaining.append(entry)
+			continue
+
+		var target_id: int = int(entry.get("target", -1))
+		var target: RoomModel = building.get_room(target_id)
+		if target == null:
+			continue
+		var delta_o2_kg: float = float(entry.get("delta_o2_kg", 0.0))
+		_apply_room_o2_mass_delta(target, delta_o2_kg, air_density_kg_m3)
+		_reserve_room_o2_delta(target_id, -delta_o2_kg)
+
+	_pending_o2_deliveries = remaining
+
+
+func _reserve_room_o2_delta(room_id: int, delta_o2_kg: float) -> void:
+	if absf(delta_o2_kg) <= 0.000001:
+		return
+
+	var updated_delta_kg: float = float(_reserved_transport_o2_delta_kg.get(room_id, 0.0)) + delta_o2_kg
+	if absf(updated_delta_kg) <= 0.000001:
+		_reserved_transport_o2_delta_kg.erase(room_id)
+	else:
+		_reserved_transport_o2_delta_kg[room_id] = updated_delta_kg
+
+
+func _apply_room_o2_mass_delta(room: RoomModel, delta_o2_kg: float, air_density_kg_m3: float) -> void:
+	if room == null or absf(delta_o2_kg) <= 0.000001:
+		return
+
+	var room_air_mass_kg: float = _compute_room_air_mass_kg(room, air_density_kg_m3)
+	var room_o2_mass_kg: float = room.o2 * room_air_mass_kg + delta_o2_kg
+	room.o2 = clampf(room_o2_mass_kg / room_air_mass_kg, 0.0, o2_nominal)
+
+
+func _effective_room_o2_fraction(room: RoomModel, air_density_kg_m3: float) -> float:
+	if room == null:
+		return o2_nominal
+
+	var room_air_mass_kg: float = _compute_room_air_mass_kg(room, air_density_kg_m3)
+	var reserved_delta_kg: float = float(_reserved_transport_o2_delta_kg.get(room.id, 0.0))
+	var effective_o2_mass_kg: float = clampf(
+		room.o2 * room_air_mass_kg + reserved_delta_kg,
+		0.0,
+		room_air_mass_kg * o2_nominal
+	)
+	return effective_o2_mass_kg / room_air_mass_kg
+
+
+func _estimate_interior_transport_delay_s(building: BuildingModel, room_a_id: int, room_b_id: int) -> float:
+	if building == null or not interior_transport_enabled:
+		return 0.0
+
+	var distance_m: float = maxf(
+		interior_transport_min_distance_m,
+		building.estimate_room_connection_length_m(room_a_id, room_b_id)
+	)
+	return distance_m / maxf(0.05, interior_transport_speed_m_s) * maxf(0.1, interior_o2_transport_delay_multiplier)
 
 
 func _compute_room_air_mass_kg(room: RoomModel, air_density_kg_m3: float) -> float:

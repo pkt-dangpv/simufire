@@ -5,6 +5,9 @@ var o2_nominal: float = 0.209
 var window_leakage_area_m2: float = 0.005
 var pressure_vent_threshold_pa: float = 2.0
 var ach_infiltration: float = 0.5
+var interior_transport_enabled: bool = true
+var interior_transport_speed_m_s: float = 0.20
+var interior_transport_min_distance_m: float = 0.50
 var postfire_cleanup_hot_stop_c: float = 90.0
 var postfire_cleanup_cool_full_c: float = 35.0
 var postfire_cleanup_pressure_stop_pa: float = 0.8
@@ -13,6 +16,7 @@ var smoke_settling_base_per_s: float = 0.0
 var smoke_settling_bonus_per_s: float = 0.0
 var co_postfire_purge_base_per_s: float = 0.0
 var co_postfire_purge_bonus_per_s: float = 0.0
+var _pending_interior_deliveries: Array[Dictionary] = []
 
 
 func configure(settings: Dictionary) -> void:
@@ -20,6 +24,9 @@ func configure(settings: Dictionary) -> void:
 	window_leakage_area_m2 = float(settings.get("window_leakage_area_m2", window_leakage_area_m2))
 	pressure_vent_threshold_pa = float(settings.get("pressure_vent_threshold_pa", pressure_vent_threshold_pa))
 	ach_infiltration = float(settings.get("ach_infiltration", ach_infiltration))
+	interior_transport_enabled = bool(settings.get("interior_transport_enabled", interior_transport_enabled))
+	interior_transport_speed_m_s = float(settings.get("interior_transport_speed_m_s", interior_transport_speed_m_s))
+	interior_transport_min_distance_m = float(settings.get("interior_transport_min_distance_m", interior_transport_min_distance_m))
 	postfire_cleanup_hot_stop_c = float(settings.get("postfire_cleanup_hot_stop_c", postfire_cleanup_hot_stop_c))
 	postfire_cleanup_cool_full_c = float(settings.get("postfire_cleanup_cool_full_c", postfire_cleanup_cool_full_c))
 	postfire_cleanup_pressure_stop_pa = float(settings.get("postfire_cleanup_pressure_stop_pa", postfire_cleanup_pressure_stop_pa))
@@ -28,6 +35,10 @@ func configure(settings: Dictionary) -> void:
 	smoke_settling_bonus_per_s = float(settings.get("smoke_settling_bonus_per_s", smoke_settling_bonus_per_s))
 	co_postfire_purge_base_per_s = float(settings.get("co_postfire_purge_base_per_s", co_postfire_purge_base_per_s))
 	co_postfire_purge_bonus_per_s = float(settings.get("co_postfire_purge_bonus_per_s", co_postfire_purge_bonus_per_s))
+
+
+func reset() -> void:
+	_pending_interior_deliveries.clear()
 
 
 func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictionary:
@@ -93,6 +104,7 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 
 		_call_room_fraction(remove_upper_layer_fraction_callable, room, frac_out)
 		room.co_kg = maxf(0.0, room.co_kg * (1.0 - frac_out))
+		room.co2_kg = maxf(0.0, room.co2_kg * (1.0 - frac_out))
 		_call_room_dt(sync_room_upper_layer_callable, room, dt)
 
 		room.overpressure_pa = maxf(0.0, room.overpressure_pa * (1.0 - frac_out * 0.9))
@@ -124,13 +136,17 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 	var incident_active: bool = _has_any_active_fire(building)
 	var ambient_c: float = building.outside_temp_c
 
+	_release_pending_interior_deliveries(building, dt, sync_room_upper_layer_callable)
+
 	var smoke_delta_kg: Dictionary = {}
 	var co_delta_kg: Dictionary = {}
+	var co2_delta_kg: Dictionary = {}
 	var o2_delta_kg: Dictionary = {}
 
 	for room_id in building.get_rooms().keys():
 		smoke_delta_kg[int(room_id)] = 0.0
 		co_delta_kg[int(room_id)] = 0.0
+		co2_delta_kg[int(room_id)] = 0.0
 		o2_delta_kg[int(room_id)] = 0.0
 
 	for room_id in building.get_rooms().keys():
@@ -162,6 +178,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 				if room_out.smoke_kg > 0.001:
 					var vent_frac: float = minf(1.0, vented_kg / room_out.smoke_kg)
 					co_delta_kg[room_out.id] -= vent_frac * room_out.co_kg
+					co2_delta_kg[room_out.id] -= vent_frac * room_out.co2_kg
 					_call_room_fraction(remove_upper_layer_fraction_callable, room_out, vent_frac)
 					_call_room_dt(sync_room_upper_layer_callable, room_out, dt)
 
@@ -215,18 +232,22 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		if kg <= 0.0:
 			continue
 
-		smoke_delta_kg[from_id] -= kg
-		smoke_delta_kg[to_id] += kg
-
 		var source: RoomModel = building.get_room(from_id)
 		var target: RoomModel = building.get_room(to_id)
 		if source == null or target == null:
 			continue
 
+		smoke_delta_kg[from_id] -= kg
+
 		var flow_ratio: float = kg / (target.smoke_kg + kg + 0.1)
+		var travel_delay_s: float = _estimate_interior_transport_delay_s(building, from_id, to_id)
+		var use_transport_delay: bool = interior_transport_enabled and travel_delay_s > 0.000001
+		var delayed_upper_carry_fraction: float = 0.45
+		var moved_upper_gas_kg: float = 0.0
+		var moved_upper_energy_kj: float = 0.0
 		if source.smoke_kg > 0.001 and source.upper_gas_kg > 0.001:
 			var transfer_frac: float = minf(1.0, kg / source.smoke_kg)
-			var gas_moved_kg: float = minf(
+			moved_upper_gas_kg = minf(
 				source.upper_gas_kg * transfer_frac,
 				maxf(0.01, source.upper_gas_kg * 0.07)
 			)
@@ -237,37 +258,65 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 				transfer_frac,
 				ambient_c
 			)
-			var energy_moved_kj: float = gas_moved_kg * maxf(0.0, transferred_temp_c - ambient_c)
-			energy_moved_kj = minf(energy_moved_kj, source.upper_energy_kj)
+			moved_upper_energy_kj = moved_upper_gas_kg * maxf(0.0, transferred_temp_c - ambient_c)
+			moved_upper_energy_kj = minf(moved_upper_energy_kj, source.upper_energy_kj)
+			if use_transport_delay:
+				moved_upper_gas_kg *= delayed_upper_carry_fraction
+				moved_upper_energy_kj *= delayed_upper_carry_fraction
 
-			source.upper_gas_kg = maxf(0.0, source.upper_gas_kg - gas_moved_kg)
-			source.upper_energy_kj = maxf(0.0, source.upper_energy_kj - energy_moved_kj)
-			target.upper_gas_kg += gas_moved_kg
-			target.upper_energy_kj += energy_moved_kj
+			source.upper_gas_kg = maxf(0.0, source.upper_gas_kg - moved_upper_gas_kg)
+			source.upper_energy_kj = maxf(0.0, source.upper_energy_kj - moved_upper_energy_kj)
 
-		var o2_mix_factor: float = 0.08 * flow_ratio
-		if o2_mix_factor > 0.0:
-			var source_air_mass_kg: float = maxf(0.1, source.volume_m3()) * air_density_kg_m3_s
-			var target_air_mass_kg: float = maxf(0.1, target.volume_m3()) * air_density_kg_m3_s
-			var exchange_air_mass_kg: float = minf(source_air_mass_kg, target_air_mass_kg) * clampf(o2_mix_factor, 0.0, 1.0)
-
-			if exchange_air_mass_kg > 0.0:
-				var source_o2_out_kg: float = source.o2 * exchange_air_mass_kg
-				var target_o2_out_kg: float = target.o2 * exchange_air_mass_kg
-				o2_delta_kg[from_id] += target_o2_out_kg - source_o2_out_kg
-				o2_delta_kg[to_id] += source_o2_out_kg - target_o2_out_kg
-
-				var source_co_total_kg: float = maxf(0.0, source.co_kg + float(co_delta_kg[from_id]))
-				var target_co_total_kg: float = maxf(0.0, target.co_kg + float(co_delta_kg[to_id]))
-				var source_co_out_kg: float = source_co_total_kg / source_air_mass_kg * exchange_air_mass_kg
-				var target_co_out_kg: float = target_co_total_kg / target_air_mass_kg * exchange_air_mass_kg
-				co_delta_kg[from_id] += target_co_out_kg - source_co_out_kg
-				co_delta_kg[to_id] += source_co_out_kg - target_co_out_kg
-
+		var co_moved_kg: float = 0.0
+		var co2_moved_kg: float = 0.0
 		if source.smoke_kg > 0.001:
-			var co_moved: float = minf(kg / source.smoke_kg, 1.0) * source.co_kg
-			co_delta_kg[from_id] -= co_moved
-			co_delta_kg[to_id] += co_moved
+			co_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.co_kg
+			co_delta_kg[from_id] -= co_moved_kg
+			co2_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.co2_kg
+			co2_delta_kg[from_id] -= co2_moved_kg
+
+		if use_transport_delay:
+			_pending_interior_deliveries.append({
+				"target": to_id,
+				"delay_s": travel_delay_s,
+				"smoke_kg": kg,
+				"co_kg": co_moved_kg,
+				"co2_kg": co2_moved_kg,
+				"upper_gas_kg": moved_upper_gas_kg,
+				"upper_energy_kj": moved_upper_energy_kj
+			})
+		else:
+			smoke_delta_kg[to_id] += kg
+			co_delta_kg[to_id] += co_moved_kg
+			co2_delta_kg[to_id] += co2_moved_kg
+			target.upper_gas_kg += moved_upper_gas_kg
+			target.upper_energy_kj += moved_upper_energy_kj
+
+			var o2_mix_factor: float = 0.08 * flow_ratio
+			if o2_mix_factor > 0.0:
+				var source_air_mass_kg: float = maxf(0.1, source.volume_m3()) * air_density_kg_m3_s
+				var target_air_mass_kg: float = maxf(0.1, target.volume_m3()) * air_density_kg_m3_s
+				var exchange_air_mass_kg: float = minf(source_air_mass_kg, target_air_mass_kg) * clampf(o2_mix_factor, 0.0, 1.0)
+
+				if exchange_air_mass_kg > 0.0:
+					var source_o2_out_kg: float = source.o2 * exchange_air_mass_kg
+					var target_o2_out_kg: float = target.o2 * exchange_air_mass_kg
+					o2_delta_kg[from_id] += target_o2_out_kg - source_o2_out_kg
+					o2_delta_kg[to_id] += source_o2_out_kg - target_o2_out_kg
+
+					var source_co_total_kg: float = maxf(0.0, source.co_kg + float(co_delta_kg[from_id]))
+					var target_co_total_kg: float = maxf(0.0, target.co_kg + float(co_delta_kg[to_id]))
+					var source_co_out_kg: float = source_co_total_kg / source_air_mass_kg * exchange_air_mass_kg
+					var target_co_out_kg: float = target_co_total_kg / target_air_mass_kg * exchange_air_mass_kg
+					co_delta_kg[from_id] += target_co_out_kg - source_co_out_kg
+					co_delta_kg[to_id] += source_co_out_kg - target_co_out_kg
+
+					var source_co2_total_kg: float = maxf(0.0, source.co2_kg + float(co2_delta_kg[from_id]))
+					var target_co2_total_kg: float = maxf(0.0, target.co2_kg + float(co2_delta_kg[to_id]))
+					var source_co2_out_kg: float = source_co2_total_kg / source_air_mass_kg * exchange_air_mass_kg
+					var target_co2_out_kg: float = target_co2_total_kg / target_air_mass_kg * exchange_air_mass_kg
+					co2_delta_kg[from_id] += target_co2_out_kg - source_co2_out_kg
+					co2_delta_kg[to_id] += source_co2_out_kg - target_co2_out_kg
 
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -281,10 +330,13 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 		room.smoke_kg = maxf(0.0, room.smoke_kg + float(smoke_delta_kg[int(room_id)]))
 		room.co_kg = maxf(0.0, room.co_kg + float(co_delta_kg[int(room_id)]))
+		room.co2_kg = maxf(0.0, room.co2_kg + float(co2_delta_kg[int(room_id)]))
 
 		var ach_rate: float = ach_infiltration / 3600.0
 		var co_removed: float = room.co_kg * ach_rate * dt
 		room.co_kg = maxf(0.0, room.co_kg - co_removed)
+		var co2_removed: float = room.co2_kg * ach_rate * dt
+		room.co2_kg = maxf(0.0, room.co2_kg - co2_removed)
 
 		var smoke_concentration: float = room.smoke_kg / (room_volume_m3_s * air_density_kg_m3_s)
 		var smoke_removed: float = room_volume_m3_s * air_density_kg_m3_s * smoke_concentration * ach_rate * dt
@@ -300,6 +352,9 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			var co_purge_rate: float = co_postfire_purge_base_per_s + co_postfire_purge_bonus_per_s * cleanup_factor
 			var purged_co_kg: float = minf(room.co_kg, room.co_kg * co_purge_rate * dt)
 			room.co_kg = maxf(0.0, room.co_kg - purged_co_kg)
+
+			var purged_co2_kg: float = minf(room.co2_kg, room.co2_kg * co_purge_rate * dt)
+			room.co2_kg = maxf(0.0, room.co2_kg - purged_co2_kg)
 
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -334,6 +389,56 @@ func _compute_postfire_cleanup_factor(room: RoomModel, incident_active: bool) ->
 	)
 
 	return clampf(temp_factor * pressure_factor, 0.0, 1.0)
+
+
+func _release_pending_interior_deliveries(
+	building: BuildingModel,
+	dt: float,
+	sync_room_upper_layer_callable: Callable
+) -> void:
+	if building == null or _pending_interior_deliveries.is_empty():
+		return
+
+	var remaining: Array[Dictionary] = []
+	var touched_rooms: Dictionary = {}
+
+	for raw_entry in _pending_interior_deliveries:
+		var entry: Dictionary = raw_entry
+		entry["delay_s"] = maxf(0.0, float(entry.get("delay_s", 0.0)) - dt)
+		if float(entry.get("delay_s", 0.0)) > 0.000001:
+			remaining.append(entry)
+			continue
+
+		var target_id: int = int(entry.get("target", -1))
+		var target: RoomModel = building.get_room(target_id)
+		if target == null:
+			continue
+
+		target.smoke_kg = maxf(0.0, target.smoke_kg + float(entry.get("smoke_kg", 0.0)))
+		target.co_kg = maxf(0.0, target.co_kg + float(entry.get("co_kg", 0.0)))
+		target.co2_kg = maxf(0.0, target.co2_kg + float(entry.get("co2_kg", 0.0)))
+		target.upper_gas_kg = maxf(0.0, target.upper_gas_kg + float(entry.get("upper_gas_kg", 0.0)))
+		target.upper_energy_kj = maxf(0.0, target.upper_energy_kj + float(entry.get("upper_energy_kj", 0.0)))
+		touched_rooms[target_id] = true
+
+	_pending_interior_deliveries = remaining
+
+	for room_id in touched_rooms.keys():
+		var room: RoomModel = building.get_room(int(room_id))
+		if room == null:
+			continue
+		_call_room_dt(sync_room_upper_layer_callable, room, dt)
+
+
+func _estimate_interior_transport_delay_s(building: BuildingModel, from_id: int, to_id: int) -> float:
+	if building == null or not interior_transport_enabled:
+		return 0.0
+
+	var distance_m: float = maxf(
+		interior_transport_min_distance_m,
+		building.estimate_room_connection_length_m(from_id, to_id)
+	)
+	return distance_m / maxf(0.05, interior_transport_speed_m_s)
 
 
 func _has_any_active_fire(building: BuildingModel) -> bool:

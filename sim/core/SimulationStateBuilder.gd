@@ -18,6 +18,7 @@ func build_state(context: Dictionary) -> Dictionary:
 	var estimate_temperature_callable: Callable = context.get("estimate_temperature_callable", Callable())
 	var effective_hot_layer_callable: Callable = context.get("effective_hot_layer_callable", Callable())
 	var compute_co_ppm_callable: Callable = context.get("compute_co_ppm_callable", Callable())
+	var compute_co2_ppm_callable: Callable = context.get("compute_co2_ppm_callable", Callable())
 	var is_quiescent_callable: Callable = context.get("is_quiescent_callable", Callable())
 	var window_open_max_callable: Callable = context.get("window_open_max_callable", Callable())
 	var kawagoe_factor_callable: Callable = context.get("kawagoe_factor_callable", Callable())
@@ -61,6 +62,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"temp_at_1_8m_c": _call_room_height_float(estimate_temperature_callable, room, 1.8, room.temp_lower_c),
 			"temp_at_1_5m_c": _call_room_height_float(estimate_temperature_callable, room, 1.5, room.temp_lower_c),
 			"temp_at_1_1m_c": _call_room_height_float(estimate_temperature_callable, room, 1.1, room.temp_lower_c),
+			"temp_at_0_9m_c": _call_room_height_float(estimate_temperature_callable, room, 0.9, room.temp_lower_c),
 
 			"has_fire": room.fire != null,
 			"flashover_triggered": room.flashover_triggered,
@@ -72,6 +74,10 @@ func build_state(context: Dictionary) -> Dictionary:
 			"fuel_objects_max_hrr_kw": combustion_system.get_room_total_max_hrr_kw(room) if combustion_system != null else 0.0,
 			"fuel_objects_active_count": combustion_system.get_room_active_object_count(room) if combustion_system != null else 0,
 			"co_ppm": _call_room_float(compute_co_ppm_callable, room, 0.0),
+			"co2_ppm": _call_room_float(compute_co2_ppm_callable, room, 0.0),
+			"fed": room.fed,
+			"svv_pct": room.svv_pct,
+			"svv_worst_pct": room.svv_worst_pct,
 			"is_quiescent": _call_room_bool(is_quiescent_callable, room, false),
 
 			"window_open_max": _call_room_id_float(window_open_max_callable, room_id, -1.0),

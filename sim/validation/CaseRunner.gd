@@ -142,6 +142,8 @@ func _build_case_template(case_config: Dictionary) -> Dictionary:
 	match template_name:
 		"simple_house":
 			template_data = builder.create_simple_house()
+		"ghanekar_bedroom_hallway":
+			template_data = builder.create_ghanekar_bedroom_hallway()
 		_:
 			push_error("CaseRunner: template no soportado '%s'" % template_name)
 			return {}
@@ -279,6 +281,8 @@ func _update_metrics(state: Dictionary) -> void:
 			if float(l150_room_state.get("temp_at_1_8m_c", 0.0)) >= float(engine.survival_temp_threshold_c):
 				_metrics["time_room_%d_temp_1_8m_above_150c_s" % l150_room_id] = sim_time_s
 
+	_update_threshold_metrics(state, sim_time_s)
+
 	if all_rooms_extinguished and not _metrics.has("time_to_extinction_s"):
 		_metrics["time_to_extinction_s"] = sim_time_s
 	if all_rooms_quiescent and not _metrics.has("time_to_quiescent_s"):
@@ -299,6 +303,14 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 		float(_metrics.get(prefix + "peak_co_ppm", 0.0)),
 		float(room_state.get("co_ppm", 0.0))
 	)
+	_metrics[prefix + "peak_co2_ppm"] = maxf(
+		float(_metrics.get(prefix + "peak_co2_ppm", 0.0)),
+		float(room_state.get("co2_ppm", 0.0))
+	)
+	_metrics[prefix + "max_fed"] = maxf(
+		float(_metrics.get(prefix + "max_fed", 0.0)),
+		float(room_state.get("fed", 0.0))
+	)
 	_metrics[prefix + "min_l150_m"] = minf(
 		float(_metrics.get(prefix + "min_l150_m", float(room_state.get("height_m", 0.0)))),
 		float(room_state.get("layer_150c_m", float(room_state.get("height_m", 0.0))))
@@ -312,11 +324,15 @@ func _capture_final_metrics(state: Dictionary) -> void:
 			continue
 
 		var prefix: String = "room_%d_final_" % room_id
+		_metrics[prefix + "o2"] = float(room_state.get("o2", 0.0))
 		_metrics[prefix + "smoke_kg"] = float(room_state.get("smoke_kg", 0.0))
 		_metrics[prefix + "co_ppm"] = float(room_state.get("co_ppm", 0.0))
+		_metrics[prefix + "co2_ppm"] = float(room_state.get("co2_ppm", 0.0))
+		_metrics[prefix + "fed"] = float(room_state.get("fed", 0.0))
 		_metrics[prefix + "hot_layer_m"] = float(room_state.get("hot_layer_m", 0.0))
 		_metrics[prefix + "smoke_layer_m"] = float(room_state.get("smoke_layer_m", 0.0))
 		_metrics[prefix + "layer_150c_m"] = float(room_state.get("layer_150c_m", 0.0))
+		_metrics[prefix + "temp_at_0_9m_c"] = float(room_state.get("temp_at_0_9m_c", 0.0))
 		_metrics[prefix + "temp_at_1_8m_c"] = float(room_state.get("temp_at_1_8m_c", 0.0))
 
 
@@ -406,6 +422,70 @@ func _get_watch_room_ids() -> Array[int]:
 	for raw_id in raw_ids:
 		result.append(int(raw_id))
 	return result
+
+
+func _update_threshold_metrics(state: Dictionary, sim_time_s: float) -> void:
+	var raw_thresholds: Variant = _case_config.get("threshold_metrics", [])
+	if typeof(raw_thresholds) != TYPE_ARRAY:
+		return
+
+	for raw_threshold in raw_thresholds:
+		if typeof(raw_threshold) != TYPE_DICTIONARY:
+			continue
+
+		var threshold_config: Dictionary = raw_threshold
+		var metric_name: String = String(threshold_config.get("metric_name", ""))
+		if metric_name.is_empty() or _metrics.has(metric_name):
+			continue
+
+		var resolved: Dictionary = _resolve_threshold_value(state, threshold_config)
+		if not bool(resolved.get("ok", false)):
+			continue
+
+		var actual_value: float = float(resolved.get("value", 0.0))
+		var threshold_value: float = float(threshold_config.get("value", 0.0))
+		var op: String = String(threshold_config.get("op", ">="))
+		if _threshold_passes(actual_value, op, threshold_value):
+			_metrics[metric_name] = sim_time_s
+
+
+func _resolve_threshold_value(state: Dictionary, threshold_config: Dictionary) -> Dictionary:
+	var field_name: String = String(threshold_config.get("field", ""))
+	if field_name.is_empty():
+		return {"ok": false}
+
+	if threshold_config.has("room_id"):
+		var room_id: int = int(threshold_config.get("room_id", -1))
+		var room_state: Dictionary = state.get(str(room_id), {})
+		if room_state.is_empty() or not room_state.has(field_name):
+			return {"ok": false}
+		return {
+			"ok": true,
+			"value": float(room_state.get(field_name, 0.0))
+		}
+
+	if not state.has(field_name):
+		return {"ok": false}
+
+	return {
+		"ok": true,
+		"value": float(state.get(field_name, 0.0))
+	}
+
+
+func _threshold_passes(actual_value: float, op: String, threshold_value: float) -> bool:
+	match op:
+		">":
+			return actual_value > threshold_value
+		">=":
+			return actual_value >= threshold_value
+		"<":
+			return actual_value < threshold_value
+		"<=":
+			return actual_value <= threshold_value
+		_:
+			push_warning("CaseRunner: operador de umbral no soportado '%s'" % op)
+			return false
 
 
 func _read_text_file(path: String) -> String:

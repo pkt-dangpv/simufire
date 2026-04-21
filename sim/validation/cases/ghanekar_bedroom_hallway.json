@@ -1,0 +1,69 @@
+{
+	"template": "ghanekar_bedroom_hallway",
+	"duration_s": 420.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 0,
+	"enable_logging": true,
+	"watch_room_ids": [0, 1, 2, 3, 4, 5, 6, 7],
+	"smoke_trigger_room_id": 0,
+	"spread_target_room_id": 2,
+	"l150_room_id": 0,
+	"threshold_metrics": [
+		{
+			"metric_name": "time_room_0_temp_0_9m_above_600c_s",
+			"room_id": 0,
+			"field": "temp_at_0_9m_c",
+			"op": ">=",
+			"value": 600.0
+		},
+		{
+			"metric_name": "time_room_2_o2_below_20_4pct_s",
+			"room_id": 2,
+			"field": "o2",
+			"op": "<=",
+			"value": 0.204
+		},
+		{
+			"metric_name": "time_room_2_co_above_200ppm_s",
+			"room_id": 2,
+			"field": "co_ppm",
+			"op": ">=",
+			"value": 200.0
+		},
+		{
+			"metric_name": "time_room_2_co_above_1200ppm_s",
+			"room_id": 2,
+			"field": "co_ppm",
+			"op": ">=",
+			"value": 1200.0
+		},
+		{
+			"metric_name": "time_room_2_co2_above_5000ppm_s",
+			"room_id": 2,
+			"field": "co2_ppm",
+			"op": ">=",
+			"value": 5000.0
+		},
+		{
+			"metric_name": "time_room_2_fed_above_0_3_s",
+			"room_id": 2,
+			"field": "fed",
+			"op": ">=",
+			"value": 0.3
+		},
+		{
+			"metric_name": "time_room_2_fed_above_1_0_s",
+			"room_id": 2,
+			"field": "fed",
+			"op": ">=",
+			"value": 1.0
+		}
+	],
+	"engine_overrides": {
+		"time_scale": 5.0,
+		"log_interval_s": 10.0,
+		"log_file_path": "res://sim/validation/reports/ghanekar_bedroom_hallway.log",
+		"fire_spread_enabled": false,
+		"glass_auto_break_enabled": false
+	}
+}

@@ -6,12 +6,11 @@ class_name Visualizer
 ## ------------------------------------------------------------
 ## Responsabilidad:
 ## - Dibujar habitaciones a partir de rects del BuildingModel
-## - Mostrar capa visible de humo y capa térmica por separado
-## - Dibujar puertas/ventanas (openings)
-## - Dibujar barra HRR por habitación
-## - Dibujar etiquetas de estado dentro de cada sala
+## - Representar la atmosfera de cada sala en planta
+## - Mostrar una mini-seccion lateral con la estratificacion real
+## - Dibujar puertas/ventanas, barra HRR y etiquetas
 ##
-## Este nodo NO calcula simulación.
+## Este nodo NO calcula simulacion.
 ## Solo representa el estado que recibe desde Main / SimulationEngine.
 ## ============================================================
 
@@ -36,6 +35,10 @@ class_name Visualizer
 # ============================================================
 
 @export var show_room_fill: bool = true
+@export var show_plan_atmosphere_overlay: bool = true
+@export var show_fire_overlay: bool = false
+@export var show_section_gauge: bool = true
+@export var show_flashover_highlight: bool = true
 @export var show_smoke_layer: bool = true
 @export var show_smoke_layer_line: bool = true
 @export var show_hot_layer_overlay: bool = true
@@ -47,7 +50,7 @@ class_name Visualizer
 @export var show_opening_labels: bool = false
 
 # ============================================================
-# HUMO
+# HUMO / CALOR / FUEGO
 # ============================================================
 
 @export var smoke_base_color: Color = Color(0.32, 0.32, 0.36, 1.0)
@@ -61,26 +64,49 @@ class_name Visualizer
 @export var hot_layer_color: Color = Color(1.0, 0.55, 0.15, 0.18)
 @export var layer_150c_color: Color = Color(1.0, 0.10, 0.10, 0.95)
 @export var layer_150c_line_width: float = 2.0
+@export var heat_room_tint_color: Color = Color(1.0, 0.42, 0.10, 1.0)
+@export var fire_glow_color: Color = Color(1.0, 0.40, 0.10, 1.0)
+@export var fire_core_color: Color = Color(1.0, 0.82, 0.35, 1.0)
+@export var flashover_fill_color: Color = Color(1.0, 0.20, 0.05, 0.24)
+@export var flashover_outline_color: Color = Color(1.0, 0.45, 0.05, 1.0)
+@export var active_fire_outline_color: Color = Color(1.0, 0.62, 0.14, 1.0)
+@export var low_o2_outline_color: Color = Color(0.85, 0.25, 0.25, 1.0)
+
+# ============================================================
+# MINI-SECCION
+# ============================================================
+
+@export var section_gauge_bg_color: Color = Color(0.0, 0.0, 0.0, 0.35)
+@export var section_gauge_outline_color: Color = Color(1.0, 1.0, 1.0, 0.30)
+@export var section_gauge_margin_px: float = 4.0
+@export var section_gauge_width_px: float = 16.0
+@export var section_gauge_min_height_px: float = 34.0
 
 # ============================================================
 # ETIQUETAS
 # ============================================================
 
-@export var room_label_font_size: int = 11
+@export var room_label_font_size: int = 10
 @export var room_label_color: Color = Color(1.0, 1.0, 1.0, 0.95)
 @export var room_label_shadow: bool = true
 @export var room_label_bg: bool = false
 @export var room_label_bg_color: Color = Color(0.0, 0.0, 0.0, 0.40)
 @export var room_label_padding: float = 4.0
-@export var room_label_offset: Vector2 = Vector2(6.0, 14.0)
-@export var room_label_line_h: float = 13.0
+@export var room_label_offset: Vector2 = Vector2(4.0, 11.0)
+@export var room_label_line_h: float = 11.0
+@export var room_label_tiny_threshold_w_px: float = 60.0
+@export var room_label_tiny_threshold_h_px: float = 40.0
+@export var room_label_compact_threshold_w_px: float = 85.0
+@export var room_label_compact_threshold_h_px: float = 72.0
+@export var room_label_medium_threshold_w_px: float = 135.0
+@export var room_label_medium_threshold_h_px: float = 120.0
 
 # ============================================================
 # BARRA HRR
 # ============================================================
 
-@export var hrr_bar_height_px: float = 6.0
-@export var hrr_bar_margin_px: float = 5.0
+@export var hrr_bar_height_px: float = 4.0
+@export var hrr_bar_margin_px: float = 3.0
 @export var hrr_bar_max_kw: float = 3000.0
 @export var hrr_bar_color: Color = Color(1.0, 0.35, 0.15, 0.90)
 @export var hrr_bar_bg_color: Color = Color(1.0, 1.0, 1.0, 0.08)
@@ -91,9 +117,7 @@ class_name Visualizer
 
 @export var door_color: Color = Color(0.30, 1.00, 0.40, 1.0)
 @export var window_color: Color = Color(0.35, 0.70, 1.00, 1.0)
-# Color cuando el cristal está roto pero aún parcialmente abierto
 @export var window_broken_color: Color = Color(1.00, 0.55, 0.10, 1.0)
-# Color cuando la ventana está totalmente abierta (cristal caído)
 @export var window_open_color: Color = Color(1.00, 0.20, 0.05, 1.0)
 @export var opening_line_width: float = 4.0
 
@@ -102,28 +126,14 @@ class_name Visualizer
 # ============================================================
 
 @export var show_window_badge: bool = true
-# open_fraction a partir del cual se considera "totalmente abierta"
 @export var window_full_open_threshold: float = 0.5
-# Tamaño del badge (px)
 @export var window_badge_size: Vector2 = Vector2(16.0, 7.0)
 
 # ============================================================
-# ESTADO Y GEOMETRÍA
+# ESTADO Y GEOMETRIA
 # ============================================================
 
-## Estado recibido desde Main / SimulationEngine:
-## state["0"] = {
-##   "h_layer_m": ...,
-##   "thermal_layer_m": ...,
-##   "smoke_mass_kg": ...,
-##   "hrr_kw": ...,
-##   "temp_upper_c": ...,
-##   "temp_lower_c": ...,
-##   "o2": ...
-## }
 var state: Dictionary = {}
-
-## Geometría en metros: room_id -> Rect2
 var rects_m: Dictionary[int, Rect2] = {}
 
 @onready var building: BuildingModel = $"../BuildingModel" as BuildingModel
@@ -134,8 +144,6 @@ var rects_m: Dictionary[int, Rect2] = {}
 # ============================================================
 
 func _ready() -> void:
-	# Solo cacheamos geometría.
-	# El estado lo debe enviar Main con set_state().
 	if building != null:
 		rects_m = building.get_room_rects_m()
 
@@ -143,7 +151,7 @@ func _ready() -> void:
 
 
 # ============================================================
-# API PÚBLICA
+# API PUBLICA
 # ============================================================
 
 func set_state(s: Dictionary) -> void:
@@ -159,22 +167,16 @@ func _draw() -> void:
 	_draw_background()
 
 	var room_ids: Array[int] = _get_sorted_room_ids()
-
 	for id in room_ids:
 		var rm: Rect2 = rects_m[id]
 		var rpx: Rect2 = _to_px(rm)
 
-		# 1) relleno base de sala
 		if show_room_fill:
 			draw_rect(rpx, room_fill_color, true)
 
-		# 2) paredes
-		draw_rect(rpx, room_outline_color, false, wall_thickness)
-
-		# 3) estado de esta sala
 		var rs: Dictionary = state.get(str(id), {})
 		if rs.is_empty():
-			# Aunque no haya estado, seguimos dibujando openings después
+			draw_rect(rpx, room_outline_color, false, wall_thickness)
 			continue
 
 		var room_height_m: float = float(rs.get("height_m", room_height_m_default))
@@ -184,31 +186,51 @@ func _draw() -> void:
 		var layer_150c_m: float = float(rs.get("layer_150c_m", room_height_m))
 		var smoke_kg: float = float(rs.get("smoke_kg", 0.0))
 		var hrr_kw: float = float(rs.get("hrr_kw", 0.0))
+		var content_rect: Rect2 = _get_room_content_rect(rpx)
+		var gauge_rect: Rect2 = _build_section_gauge_rect(rpx)
 
-		# 4) capa térmica
-		if show_hot_layer_overlay:
-			_draw_hot_layer_overlay(rpx, hot_layer_m, room_height_m)
+		if show_plan_atmosphere_overlay:
+			_draw_room_atmosphere_overlay(
+				content_rect,
+				rs,
+				smoke_layer_m,
+				hot_layer_m,
+				smoke_kg,
+				room_height_m,
+				room_floor_area_m2
+			)
 
-		# 5) humo
-		if show_smoke_layer:
-			_draw_smoke_layer(rpx, smoke_layer_m, smoke_kg, room_height_m, room_floor_area_m2)
+		if show_fire_overlay:
+			_draw_room_fire_overlay(content_rect, rs)
 
-		if show_150c_layer:
-			_draw_150c_line(rpx, layer_150c_m, room_height_m)
+		if show_section_gauge:
+			_draw_section_gauge(
+				gauge_rect,
+				smoke_layer_m,
+				hot_layer_m,
+				layer_150c_m,
+				smoke_kg,
+				room_height_m,
+				room_floor_area_m2
+			)
 
-		# 6) barra HRR
 		if show_hrr_bar:
-			_draw_hrr_bar(rpx, hrr_kw)
+			_draw_hrr_bar(content_rect, hrr_kw)
 
-		# 7) etiqueta de sala
 		if show_room_labels:
 			_draw_room_label(id, rpx, rs)
 
-		# 8) badge de estado de ventanas exteriores
 		if show_window_badge:
 			_draw_window_badge(rpx, rs)
 
-	# 9) openings al final, para que queden por encima
+		var outline_style: Dictionary = _build_room_outline_style(rs)
+		draw_rect(
+			rpx,
+			Color(outline_style.get("color", room_outline_color)),
+			false,
+			float(outline_style.get("width", wall_thickness))
+		)
+
 	if show_openings:
 		_draw_openings()
 
@@ -222,7 +244,140 @@ func _draw_background() -> void:
 
 
 # ============================================================
-# HUMO
+# ATMOSFERA / FUEGO
+# ============================================================
+
+func _draw_room_atmosphere_overlay(
+	rpx: Rect2,
+	rs: Dictionary,
+	smoke_layer_m: float,
+	hot_layer_m: float,
+	smoke_kg: float,
+	room_h: float,
+	floor_area_m2: float
+) -> void:
+	if rpx.size.x <= 1.0 or rpx.size.y <= 1.0:
+		return
+
+	var upper_hot_thickness_m: float = maxf(0.0, room_h - hot_layer_m)
+	var upper_smoke_thickness_m: float = maxf(0.0, room_h - smoke_layer_m)
+	var temp_upper_c: float = float(rs.get("temp_upper_c", 20.0))
+	var temp_lower_c: float = float(rs.get("temp_lower_c", 20.0))
+	var temp_0_9m_c: float = float(rs.get("temp_at_0_9m_c", temp_lower_c))
+
+	var hot_intensity: float = clampf(
+		0.40 * maxf(0.0, temp_upper_c - 60.0) / 540.0
+			+ 0.35 * maxf(0.0, temp_0_9m_c - 35.0) / 320.0
+			+ 0.25 * (upper_hot_thickness_m / maxf(0.1, room_h)),
+		0.0,
+		1.0
+	)
+	if hot_intensity > 0.0001:
+		draw_rect(
+			rpx,
+			Color(
+				heat_room_tint_color.r,
+				heat_room_tint_color.g,
+				heat_room_tint_color.b,
+				0.04 + 0.22 * hot_intensity
+			),
+			true
+		)
+
+	var upper_volume_m3: float = maxf(0.05, floor_area_m2 * maxf(0.05, upper_smoke_thickness_m))
+	var smoke_concentration_kg_m3: float = smoke_kg / upper_volume_m3
+	var smoke_intensity: float = clampf(
+		0.45 * (upper_smoke_thickness_m / maxf(0.1, room_h))
+			+ 0.35 * (smoke_concentration_kg_m3 / maxf(0.01, smoke_concentration_reference_kg_m3))
+			+ 0.20 * (smoke_kg / maxf(0.1, smoke_mass_reference_kg)),
+		0.0,
+		1.0
+	)
+	if smoke_intensity > 0.0001:
+		draw_rect(
+			rpx,
+			Color(
+				smoke_base_color.r,
+				smoke_base_color.g,
+				smoke_base_color.b,
+				0.05 + 0.28 * smoke_intensity
+			),
+			true
+		)
+
+	if show_flashover_highlight and bool(rs.get("flashover_triggered", false)):
+		var pulse: float = 0.72 + 0.28 * (0.5 + 0.5 * sin(float(state.get("sim_time_s", 0.0)) * 6.0))
+		draw_rect(
+			rpx,
+			Color(
+				flashover_fill_color.r,
+				flashover_fill_color.g,
+				flashover_fill_color.b,
+				flashover_fill_color.a * pulse
+			),
+			true
+		)
+
+
+func _draw_room_fire_overlay(rpx: Rect2, rs: Dictionary) -> void:
+	var has_fire: bool = bool(rs.get("has_fire", false))
+	var hrr_kw: float = float(rs.get("hrr_kw", 0.0))
+	if not has_fire and hrr_kw <= 5.0:
+		return
+
+	if rpx.size.x <= 2.0 or rpx.size.y <= 2.0:
+		return
+
+	var fire_intensity: float = clampf(hrr_kw / maxf(1.0, hrr_bar_max_kw), 0.0, 1.0)
+	var center: Vector2 = rpx.position + rpx.size * 0.5
+	var base_radius: float = minf(rpx.size.x, rpx.size.y) * (0.08 + 0.14 * fire_intensity)
+
+	draw_circle(
+		center,
+		base_radius * 1.8,
+		Color(fire_glow_color.r, fire_glow_color.g, fire_glow_color.b, 0.08 + 0.16 * fire_intensity)
+	)
+	draw_circle(
+		center,
+		base_radius,
+		Color(fire_core_color.r, fire_core_color.g, fire_core_color.b, 0.14 + 0.34 * fire_intensity)
+	)
+
+	if bool(rs.get("flashover_triggered", false)):
+		var pulse: float = 0.75 + 0.25 * (0.5 + 0.5 * sin(float(state.get("sim_time_s", 0.0)) * 7.0))
+		draw_circle(
+			center,
+			base_radius * 2.6,
+			Color(1.0, 0.30, 0.10, 0.08 + 0.10 * pulse)
+		)
+
+
+func _draw_section_gauge(
+	gauge_rect: Rect2,
+	smoke_layer_m: float,
+	hot_layer_m: float,
+	layer_150c_m: float,
+	smoke_kg: float,
+	room_h: float,
+	floor_area_m2: float
+) -> void:
+	if gauge_rect.size.x <= 1.0 or gauge_rect.size.y <= 1.0:
+		return
+
+	draw_rect(gauge_rect, section_gauge_bg_color, true)
+
+	if show_hot_layer_overlay:
+		_draw_hot_layer_overlay(gauge_rect, hot_layer_m, room_h)
+	if show_smoke_layer:
+		_draw_smoke_layer(gauge_rect, smoke_layer_m, smoke_kg, room_h, floor_area_m2)
+	if show_150c_layer:
+		_draw_150c_line(gauge_rect, layer_150c_m, room_h)
+
+	draw_rect(gauge_rect, section_gauge_outline_color, false, 1.0)
+
+
+# ============================================================
+# HUMO / CAPAS
 # ============================================================
 
 func _draw_smoke_layer(
@@ -237,14 +392,11 @@ func _draw_smoke_layer(
 
 	var upper_thick_m: float = maxf(0.0, room_h - h_layer_m)
 	var upper_frac: float = clampf(upper_thick_m / room_h, 0.0, 1.0)
-
 	if upper_frac <= 0.0:
 		return
 
 	var upper_volume_m3: float = maxf(0.05, floor_area_m2 * upper_thick_m)
 	var smoke_concentration_kg_m3: float = smoke_kg / upper_volume_m3
-
-	# Intensidad combinando altura ocupada + concentracion local.
 	var intensity: float = clampf(
 		0.25 * upper_frac
 			+ 0.55 * (smoke_concentration_kg_m3 / maxf(0.01, smoke_concentration_reference_kg_m3))
@@ -268,7 +420,6 @@ func _draw_smoke_layer(
 		smoke_base_color.b,
 		alpha
 	)
-
 	draw_rect(smoke_rect, smoke_color, true)
 
 	if show_smoke_layer_line:
@@ -333,7 +484,6 @@ func _draw_hrr_bar(rpx: Rect2, hrr_kw: float) -> void:
 		bar_w,
 		hrr_bar_height_px
 	)
-
 	draw_rect(bar_rect_bg, hrr_bar_bg_color, true)
 
 	var bar_frac: float = clampf(hrr_kw / maxf(1.0, hrr_bar_max_kw), 0.0, 1.0)
@@ -343,7 +493,6 @@ func _draw_hrr_bar(rpx: Rect2, hrr_kw: float) -> void:
 		bar_w * bar_frac,
 		hrr_bar_height_px
 	)
-
 	draw_rect(bar_rect, hrr_bar_color, true)
 
 
@@ -351,71 +500,221 @@ func _draw_hrr_bar(rpx: Rect2, hrr_kw: float) -> void:
 # ETIQUETA DE SALA
 # ============================================================
 
+## Calcula probabilidad de supervivencia (%) combinando criterio térmico (isoterma 150°C)
+## y criterio FED (narcosis CO). Toma el peor caso de ambos.
+## Referencia: diagrama SVV — Fundamentos pág. 47
+func _compute_svv_pct(rs: Dictionary) -> float:
+	if rs.has("svv_worst_pct"):
+		return clampf(float(rs.get("svv_worst_pct", 100.0)), 0.0, 100.0)
+
+	var height_m: float = float(rs.get("height_m", 2.4))
+	var layer_150c: float = clampf(float(rs.get("layer_150c_m", height_m)), 0.0, height_m)
+	var fed_val: float = float(rs.get("fed", 0.0))
+
+	# Criterio térmico: altura isoterma 150°C desde el suelo
+	var thermal_svv: float
+	if layer_150c >= 1.8:
+		thermal_svv = 1.0                                                  # ALTA >99%
+	elif layer_150c >= 0.5:
+		thermal_svv = 0.90 + 0.09 * (layer_150c - 0.5) / 1.3            # MEDIA 90-99%
+	elif layer_150c > 0.10:
+		thermal_svv = 0.05 + 0.85 * ((layer_150c - 0.10) / 0.40)       # BAJA 5-90%
+	else:
+		thermal_svv = 0.0                                                 # MÍNIMA 0%
+
+	# Criterio FED por zonas (más consistente con tenabilidad por umbrales)
+	var fed_svv: float
+	if fed_val <= 0.1:
+		fed_svv = 1.0 - 0.01 * (fed_val / 0.1)
+	elif fed_val <= 0.3:
+		fed_svv = 0.99 - 0.09 * ((fed_val - 0.1) / 0.2)
+	elif fed_val < 1.0:
+		var t_fed: float = (fed_val - 0.3) / 0.7
+		fed_svv = 0.90 * pow(1.0 - t_fed, 1.5)
+	else:
+		fed_svv = 0.0
+
+	# Peor caso de ambos criterios
+	return minf(thermal_svv, fed_svv) * 100.0
+
+
+func _get_svv_color(svv_pct: float) -> Color:
+	# Colores según zonas SVV del diagrama
+	if svv_pct > 99.0:
+		return Color(0.88, 0.88, 0.88, 1.0)  # ALTA >99%: blanco
+	elif svv_pct >= 90.0:
+		return Color(1.00, 0.55, 0.10, 1.0)  # MEDIA 90-99%: naranja
+	elif svv_pct >= 5.0:
+		return Color(0.95, 0.20, 0.20, 1.0)  # BAJA 5-90%: rojo
+	else:
+		return Color(0.35, 0.35, 0.35, 1.0)  # MÍNIMA <5%: gris oscuro
+
+
 func _draw_room_label(id: int, rpx: Rect2, rs: Dictionary) -> void:
-	var up: float = float(rs.get("temp_upper_c", 0.0))
-	var low: float = float(rs.get("temp_lower_c", 0.0))
-	var sm: float = float(rs.get("smoke_kg", 0.0))
-	var smoke_lay: float = float(rs.get("smoke_layer_m", rs.get("h_layer_m", 0.0)))
-	var hot_lay: float = float(rs.get("hot_layer_m", rs.get("thermal_layer_m", 0.0)))
-	var layer_150c: float = float(rs.get("layer_150c_m", 0.0))
-	var hrr: float = float(rs.get("hrr_kw", 0.0))
-	var o2v: float = float(rs.get("o2", 0.0)*100.0)
-	var room_name: String = String(rs.get("name", ""))
-	var fuel_mj: float = float(rs.get("fuel_energy_MJ", 0.0))
-	var rem_mj: float = float(rs.get("remaining_fuel_MJ", 0.0))
-	var co_ppm: float = float(rs.get("co_ppm", 0.0))
+	var content_rect: Rect2 = _get_room_content_rect(rpx)
+	var lines: Array[String] = _build_room_label_lines(id, content_rect, rs)
+	if lines.is_empty():
+		return
 
-	var lines: Array[String] = []
+	var base_pos: Vector2 = Vector2(
+		content_rect.position.x + room_label_offset.x,
+		content_rect.position.y + room_label_offset.y
+	)
 
-	lines.append("R%d" % id)
-
-	if show_room_name and room_name != "":
-		lines.append(room_name)
-
-	lines.append("HRR %.0f" % hrr)
-	lines.append("Up %.0f" % up)
-	lines.append("Low %.0f" % low)
-	lines.append("Smoke %.4f" % sm)
-	lines.append("SmL %.2f" % smoke_lay)
-	lines.append("HotL %.2f" % hot_lay)
-	lines.append("150C %.2f" % layer_150c)
-	lines.append("O2 %.3f" % o2v)
-	lines.append("Fuel %.0f MJ" % fuel_mj)
-	lines.append("Rem %.0f MJ" % rem_mj)
-	lines.append("CO %.0f ppm" % co_ppm)
-
-	# Estado ventana exterior (si la sala tiene alguna)
-	var w_open: float = float(rs.get("window_open_max", -1.0))
-	if w_open >= 0.0:
-		var kaw_kw: float = float(rs.get("kawagoe_hrr_max_kw", 0.0))
-		var w_txt: String
-		if w_open <= 0.0:
-			w_txt = "Win: CLOSED"
-		elif w_open < window_full_open_threshold:
-			w_txt = "Win: BROKEN %.0f%%" % (w_open * 100.0)
-		else:
-			w_txt = "Win: OPEN %.0f%%" % (w_open * 100.0)
-		lines.append(w_txt)
-		if kaw_kw > 0.0:
-			lines.append("Kaw≤ %.0f kW" % kaw_kw)
-
-	var base_pos: Vector2 = rpx.position + room_label_offset
-
-	# Fondo de etiqueta (simple, ancho fijo suficiente para debug)
 	if room_label_bg:
-		var bg_w: float = minf(120.0, rpx.size.x - 12.0)
-		var bg_h: float = room_label_padding * 2.0 + room_label_line_h * float(lines.size())
+		var bottom_reserved_px: float = _get_room_label_bottom_reserved_px()
+		var bg_w: float = minf(156.0, maxf(20.0, content_rect.size.x - 4.0))
+		var bg_h: float = minf(
+			maxf(18.0, content_rect.size.y - bottom_reserved_px - 4.0),
+			room_label_padding * 2.0 + room_label_line_h * float(lines.size())
+		)
 		var bg_rect: Rect2 = Rect2(
-			rpx.position.x + 4.0,
-			rpx.position.y + 4.0,
+			content_rect.position.x + 2.0,
+			content_rect.position.y + 2.0,
 			bg_w,
 			bg_h
 		)
 		draw_rect(bg_rect, room_label_bg_color, true)
 
+	var svv_pct: float = _compute_svv_pct(rs)
+	var svv_col: Color = _get_svv_color(svv_pct)
+
 	for i in range(lines.size()):
 		var pos: Vector2 = base_pos + Vector2(0.0, room_label_line_h * float(i))
-		_draw_text_line(lines[i], pos, room_label_color)
+		var col: Color = svv_col if lines[i].begins_with("FED") else room_label_color
+		_draw_text_line(lines[i], pos, col)
+
+
+func _build_room_label_lines(id: int, content_rect: Rect2, rs: Dictionary) -> Array[String]:
+	var up: float = float(rs.get("temp_upper_c", 0.0))
+	var low: float = float(rs.get("temp_lower_c", 0.0))
+	var temp_0_9m: float = float(rs.get("temp_at_0_9m_c", low))
+	var smoke_lay: float = float(rs.get("smoke_layer_m", rs.get("h_layer_m", 0.0)))
+	var hot_lay: float = float(rs.get("hot_layer_m", rs.get("thermal_layer_m", 0.0)))
+	var layer_150c: float = float(rs.get("layer_150c_m", 0.0))
+	var hrr: float = float(rs.get("hrr_kw", 0.0))
+	var o2v: float = float(rs.get("o2", 0.0) * 100.0)
+	var room_name: String = String(rs.get("name", ""))
+	var fuel_mj: float = float(rs.get("fuel_energy_MJ", 0.0))
+	var rem_mj: float = float(rs.get("remaining_fuel_MJ", 0.0))
+	var co_ppm: float = float(rs.get("co_ppm", 0.0))
+	var fed_val: float = float(rs.get("fed", 0.0))
+	var flashover_triggered: bool = bool(rs.get("flashover_triggered", false))
+	var detail: String = _pick_room_label_detail(content_rect)
+
+	var lines: Array[String] = []
+	lines.append("R%d" % id)
+
+	if show_room_name and room_name != "" and detail == "full":
+		lines.append(room_name)
+
+	match detail:
+		"tiny":
+			lines.append("T0.9 %.0f" % temp_0_9m)
+			lines.append("O2 %.1f%%" % o2v)
+			if flashover_triggered:
+				lines.append("FLASHOVER")
+			elif hrr > 0.5:
+				lines.append("HRR %.0f" % hrr)
+			elif co_ppm > 0.5:
+				lines.append("CO %.0f" % co_ppm)
+		"compact":
+			lines.append("HRR %.0f  T0.9 %.0f" % [hrr, temp_0_9m])
+			lines.append("SmL %.2f  HotL %.2f" % [smoke_lay, hot_lay])
+			lines.append("O2 %.1f%%  CO %.0f" % [o2v, co_ppm])
+			lines.append("FED %.3f  SVV%.0f%%" % [fed_val, _compute_svv_pct(rs)])
+			var compact_window_line: String = _build_window_status_label(rs)
+			if compact_window_line != "":
+				lines.append(compact_window_line)
+			if flashover_triggered:
+				lines.append("FLASHOVER")
+		"medium":
+			lines.append("HRR %.0f" % hrr)
+			lines.append("Up %.0f  Low %.0f" % [up, low])
+			lines.append("T0.9 %.0f  O2 %.1f%%" % [temp_0_9m, o2v])
+			lines.append("SmL %.2f  HotL %.2f" % [smoke_lay, hot_lay])
+			lines.append("CO %.0f ppm" % co_ppm)
+			lines.append("FED %.3f  SVV%.0f%%" % [fed_val, _compute_svv_pct(rs)])
+			var medium_window_line: String = _build_window_status_label(rs)
+			if medium_window_line != "":
+				lines.append(medium_window_line)
+			if flashover_triggered:
+				lines.append("FLASHOVER")
+		_:
+			lines.append("HRR %.0f" % hrr)
+			lines.append("Up %.0f  Low %.0f" % [up, low])
+			lines.append("T0.9 %.0f" % temp_0_9m)
+			lines.append("SmL %.2f  HotL %.2f" % [smoke_lay, hot_lay])
+			lines.append("150C %.2f" % layer_150c)
+			lines.append("O2 %.1f%%" % o2v)
+			lines.append("Fuel %.0f  Rem %.0f MJ" % [fuel_mj, rem_mj])
+			lines.append("CO %.0f ppm" % co_ppm)
+			lines.append("FED %.3f  SVV%.0f%%" % [fed_val, _compute_svv_pct(rs)])
+			var full_window_line: String = _build_window_status_label(rs)
+			if full_window_line != "":
+				lines.append(full_window_line)
+			var kaw_kw: float = float(rs.get("kawagoe_hrr_max_kw", 0.0))
+			if kaw_kw > 0.0:
+				lines.append("Kaw<= %.0f kW" % kaw_kw)
+			if flashover_triggered:
+				lines.append("FLASHOVER")
+
+	return _fit_room_label_lines(content_rect, lines, flashover_triggered)
+
+
+func _pick_room_label_detail(content_rect: Rect2) -> String:
+	if content_rect.size.x < room_label_tiny_threshold_w_px or content_rect.size.y < room_label_tiny_threshold_h_px:
+		return "tiny"
+	if content_rect.size.x < room_label_compact_threshold_w_px or content_rect.size.y < room_label_compact_threshold_h_px:
+		return "compact"
+	if content_rect.size.x < room_label_medium_threshold_w_px or content_rect.size.y < room_label_medium_threshold_h_px:
+		return "medium"
+	return "full"
+
+
+func _fit_room_label_lines(content_rect: Rect2, lines: Array[String], flashover_triggered: bool) -> Array[String]:
+	var usable_height_px: float = (
+		content_rect.size.y
+		- room_label_offset.y
+		- _get_room_label_bottom_reserved_px()
+		+ room_label_padding
+		+ 2.0
+	)
+	var max_lines: int = int(floor(usable_height_px / maxf(1.0, room_label_line_h)))
+	if max_lines <= 0:
+		return []
+	if lines.size() <= max_lines:
+		return lines
+
+	var trimmed: Array[String] = []
+	var kept_count: int = mini(max_lines, lines.size())
+	for i in range(kept_count):
+		trimmed.append(lines[i])
+
+	if kept_count >= 2:
+		if flashover_triggered:
+			trimmed[kept_count - 1] = "FLASHOVER"
+		elif lines.size() > kept_count:
+			trimmed[kept_count - 1] = "..."
+
+	return trimmed
+
+
+func _build_window_status_label(rs: Dictionary) -> String:
+	var w_open: float = float(rs.get("window_open_max", -1.0))
+	if w_open < 0.0:
+		return ""
+	if w_open <= 0.0:
+		return "Win CLOSED"
+	if w_open < window_full_open_threshold:
+		return "Win BROKEN %.0f%%" % (w_open * 100.0)
+	return "Win OPEN %.0f%%" % (w_open * 100.0)
+
+
+func _get_room_label_bottom_reserved_px() -> float:
+	if not show_hrr_bar:
+		return 2.0
+	return hrr_bar_height_px + hrr_bar_margin_px + 4.0
 
 
 func _draw_text_line(text: String, pos: Vector2, color: Color) -> void:
@@ -448,13 +747,10 @@ func _draw_text_line(text: String, pos: Vector2, color: Color) -> void:
 # BADGE DE VENTANA
 # ============================================================
 
-## Dibuja un pequeño rectángulo de color en la esquina superior-derecha
-## de la sala indicando el estado de sus ventanas exteriores.
-## Azul = cerrada | Naranja = rota/entreabierta | Rojo = abierta
 func _draw_window_badge(rpx: Rect2, rs: Dictionary) -> void:
 	var wmax: float = float(rs.get("window_open_max", -1.0))
 	if wmax < 0.0:
-		return  # sala sin ventanas exteriores — no dibujar nada
+		return
 
 	var col: Color
 	if wmax <= 0.0:
@@ -473,6 +769,7 @@ func _draw_window_badge(rpx: Rect2, rs: Dictionary) -> void:
 
 	if ThemeDB.fallback_font == null:
 		return
+
 	var badge_label: String
 	if wmax <= 0.0:
 		badge_label = "CRD"
@@ -480,6 +777,7 @@ func _draw_window_badge(rpx: Rect2, rs: Dictionary) -> void:
 		badge_label = "ROT"
 	else:
 		badge_label = "ABT"
+
 	draw_string(
 		ThemeDB.fallback_font,
 		Vector2(bx + 1.0, by_v + 6.0),
@@ -509,17 +807,13 @@ func _draw_openings() -> void:
 		var ra: Rect2 = rects_m[a_id]
 		var rb: Rect2 = Rect2()
 		var b_exists: bool = rects_m.has(b_id)
-
 		if b_exists:
 			rb = rects_m[b_id]
 
 		var seg_m: PackedVector2Array = PackedVector2Array()
-
-		# Si conecta con otra habitación, calcular borde compartido real
 		if b_exists:
 			seg_m = _shared_edge_segment_m(ra, rb)
 		else:
-			# Exterior: segmento genérico en pared superior de A
 			seg_m = _default_exterior_segment_m(ra, op.width_m)
 
 		if seg_m.size() != 2:
@@ -533,10 +827,24 @@ func _draw_openings() -> void:
 		var p2: Vector2 = seg_m[1] * scale_px + offset
 
 		var alpha: float = 0.25 + 0.75 * clampf(op.open_fraction, 0.0, 1.0)
-
 		var col: Color
 		if op.type == OpeningModel.Type.DOOR:
 			col = Color(door_color.r, door_color.g, door_color.b, alpha)
+			if b_exists:
+				var tf2: Dictionary = _get_draw_transform()
+				var scale_px2: float = float(tf2["scale"])
+				var door_px: float = maxf(8.0, op.width_m * scale_px2)
+				var seg_dir: Vector2 = (p2 - p1).normalized() if p1.distance_to(p2) > 0.01 else Vector2(1, 0)
+				var seg_mid: Vector2 = (p1 + p2) * 0.5
+				var hinge_px: Vector2 = seg_mid - seg_dir * door_px * 0.5
+				# Borrar solo el vano de la puerta
+				draw_line(hinge_px, hinge_px + seg_dir * door_px, background_color, wall_thickness + 2.0)
+				var rb_center_px: Vector2 = _to_px(rb).get_center()
+				_draw_door_top_view(hinge_px, door_px, seg_dir, rb_center_px, col)
+			else:
+				draw_line(p1, p2, background_color, wall_thickness + 2.0)
+				draw_line(p1, p2, col, opening_line_width)
+			continue
 		elif op.open_fraction <= 0.0:
 			col = Color(window_color.r, window_color.g, window_color.b, alpha)
 		elif op.open_fraction >= window_full_open_threshold:
@@ -558,20 +866,42 @@ func _draw_openings() -> void:
 				HORIZONTAL_ALIGNMENT_LEFT,
 				-1.0,
 				12,
-				Color(1, 1, 1, 0.85)
+				Color(1.0, 1.0, 1.0, 0.85)
 			)
 
 
 # ============================================================
-# GEOMETRÍA DE OPENINGS
+# GEOMETRIA DE OPENINGS
 # ============================================================
 
-## Devuelve un segmento (2 puntos) en METROS del borde compartido
-## entre dos rects (si se tocan).
+func _draw_door_top_view(hinge: Vector2, door_px: float, wall_dir: Vector2, room_b_center: Vector2, col: Color) -> void:
+	# wall_dir: dirección normalizada de la pared (desde bisagra hacia lado libre)
+	# Perpendiculares respecto a la pared
+	var perp_cw: Vector2 = Vector2(wall_dir.y, -wall_dir.x)
+	var perp_ccw: Vector2 = Vector2(-wall_dir.y, wall_dir.x)
+	# Abrir hacia la habitación A (hacia adentro)
+	var to_a: Vector2 = (hinge - room_b_center).normalized()
+	var swing: Vector2 = perp_cw if to_a.dot(perp_cw) >= 0.0 else perp_ccw
+	# Hoja de puerta: posición abierta (perpendicular a la pared)
+	var tip_open: Vector2 = hinge + swing * door_px
+
+	draw_line(hinge, tip_open, col, 1.5)
+	# Marco libre (línea corta en la pared en el lado opuesto)
+	draw_line(hinge + wall_dir * door_px, hinge + wall_dir * door_px + swing * 3.0, col, 1.0)
+	# Arco de 90° desde posición abierta hasta posición cerrada
+	var a_open: float = atan2(swing.y, swing.x)
+	var a_close: float = atan2(wall_dir.y, wall_dir.x)
+	var da: float = a_close - a_open
+	while da > PI:
+		da -= TAU
+	while da < -PI:
+		da += TAU
+	draw_arc(hinge, door_px, a_open, a_open + da, 18, col, 1.0, true)
+
+
 func _shared_edge_segment_m(a: Rect2, b: Rect2) -> PackedVector2Array:
 	var eps: float = 0.0001
 
-	# a.right == b.left
 	if absf((a.position.x + a.size.x) - b.position.x) < eps:
 		var x: float = a.position.x + a.size.x
 		var y1: float = maxf(a.position.y, b.position.y)
@@ -579,7 +909,6 @@ func _shared_edge_segment_m(a: Rect2, b: Rect2) -> PackedVector2Array:
 		if y2 > y1:
 			return PackedVector2Array([Vector2(x, y1), Vector2(x, y2)])
 
-	# a.left == b.right
 	if absf(a.position.x - (b.position.x + b.size.x)) < eps:
 		var x2: float = a.position.x
 		var yy1: float = maxf(a.position.y, b.position.y)
@@ -587,7 +916,6 @@ func _shared_edge_segment_m(a: Rect2, b: Rect2) -> PackedVector2Array:
 		if yy2 > yy1:
 			return PackedVector2Array([Vector2(x2, yy1), Vector2(x2, yy2)])
 
-	# a.bottom == b.top
 	if absf((a.position.y + a.size.y) - b.position.y) < eps:
 		var y: float = a.position.y + a.size.y
 		var xx1: float = maxf(a.position.x, b.position.x)
@@ -595,7 +923,6 @@ func _shared_edge_segment_m(a: Rect2, b: Rect2) -> PackedVector2Array:
 		if xx2 > xx1:
 			return PackedVector2Array([Vector2(xx1, y), Vector2(xx2, y)])
 
-	# a.top == b.bottom
 	if absf(a.position.y - (b.position.y + b.size.y)) < eps:
 		var y2: float = a.position.y
 		var xxx1: float = maxf(a.position.x, b.position.x)
@@ -607,7 +934,6 @@ func _shared_edge_segment_m(a: Rect2, b: Rect2) -> PackedVector2Array:
 
 
 func _default_exterior_segment_m(r: Rect2, width_m: float) -> PackedVector2Array:
-	# Segmento centrado en la pared superior del rect
 	var safe_width: float = clampf(width_m, 0.20, maxf(0.20, r.size.x))
 	var x1: float = r.position.x + (r.size.x - safe_width) * 0.5
 	var x2: float = x1 + safe_width
@@ -618,6 +944,80 @@ func _default_exterior_segment_m(r: Rect2, width_m: float) -> PackedVector2Array
 # ============================================================
 # UTILS
 # ============================================================
+
+func _build_room_outline_style(rs: Dictionary) -> Dictionary:
+	var outline_color: Color = room_outline_color
+	var outline_width: float = wall_thickness
+	var hrr_kw: float = float(rs.get("hrr_kw", 0.0))
+	var o2_fraction: float = float(rs.get("o2", 0.209))
+	var sim_time_s: float = float(state.get("sim_time_s", 0.0))
+
+	if show_flashover_highlight and bool(rs.get("flashover_triggered", false)):
+		var pulse: float = 0.70 + 0.30 * (0.5 + 0.5 * sin(sim_time_s * 6.0))
+		outline_color = Color(
+			flashover_outline_color.r,
+			flashover_outline_color.g,
+			flashover_outline_color.b,
+			0.85 + 0.15 * pulse
+		)
+		outline_width = wall_thickness + 2.0 + pulse * 1.5
+	elif hrr_kw > 20.0:
+		var fire_intensity: float = clampf(hrr_kw / maxf(1.0, hrr_bar_max_kw), 0.0, 1.0)
+		outline_color = Color(
+			active_fire_outline_color.r,
+			active_fire_outline_color.g,
+			active_fire_outline_color.b,
+			0.85
+		)
+		outline_width = wall_thickness + 0.6 + 1.6 * fire_intensity
+	elif o2_fraction < 0.18:
+		outline_color = low_o2_outline_color
+		outline_width = wall_thickness + 0.8
+
+	return {
+		"color": outline_color,
+		"width": outline_width
+	}
+
+
+func _build_section_gauge_rect(rpx: Rect2) -> Rect2:
+	if not show_section_gauge:
+		return Rect2()
+
+	var gauge_h: float = maxf(0.0, rpx.size.y - section_gauge_margin_px * 2.0)
+	if gauge_h < section_gauge_min_height_px:
+		return Rect2()
+
+	var gauge_w: float = minf(section_gauge_width_px, rpx.size.x * 0.20)
+	gauge_w = maxf(10.0, gauge_w)
+	if rpx.size.x < gauge_w + 18.0:
+		return Rect2()
+
+	return Rect2(
+		rpx.position.x + rpx.size.x - gauge_w - section_gauge_margin_px,
+		rpx.position.y + section_gauge_margin_px,
+		gauge_w,
+		gauge_h
+	)
+
+
+func _get_room_content_rect(rpx: Rect2) -> Rect2:
+	var left: float = rpx.position.x + 1.0
+	var top: float = rpx.position.y + 1.0
+	var right: float = rpx.position.x + rpx.size.x - 1.0
+	var bottom: float = rpx.position.y + rpx.size.y - 1.0
+
+	var gauge_rect: Rect2 = _build_section_gauge_rect(rpx)
+	if gauge_rect.size.x > 0.0:
+		right = minf(right, gauge_rect.position.x - 4.0)
+
+	return Rect2(
+		left,
+		top,
+		maxf(6.0, right - left),
+		maxf(6.0, bottom - top)
+	)
+
 
 func _to_px(rm: Rect2) -> Rect2:
 	var tf: Dictionary = _get_draw_transform()
@@ -636,6 +1036,7 @@ func _get_sorted_room_ids() -> Array[int]:
 	ids.sort()
 	return ids
 
+
 func _get_building_bounds_m() -> Rect2:
 	var first: bool = true
 	var bounds: Rect2 = Rect2()
@@ -653,7 +1054,6 @@ func _get_building_bounds_m() -> Rect2:
 
 func _get_draw_transform() -> Dictionary:
 	var bounds_m: Rect2 = _get_building_bounds_m()
-
 	if bounds_m.size.x <= 0.0 or bounds_m.size.y <= 0.0:
 		return {
 			"scale": meters_to_px,
@@ -665,14 +1065,12 @@ func _get_draw_transform() -> Dictionary:
 	var available_h: float = maxf(1.0, viewport_rect.size.y - view_margin_px * 2.0)
 
 	var scale_px: float = meters_to_px
-
 	if auto_fit_to_view:
 		var scale_x: float = available_w / bounds_m.size.x
 		var scale_y: float = available_h / bounds_m.size.y
 		scale_px = minf(scale_x, scale_y)
 
 	var drawing_size_px: Vector2 = bounds_m.size * scale_px
-
 	var offset: Vector2 = Vector2(
 		(viewport_rect.size.x - drawing_size_px.x) * 0.5,
 		(viewport_rect.size.y - drawing_size_px.y) * 0.5

@@ -1,0 +1,170 @@
+﻿{
+    "generated_at":  "2026-04-20 09:08:39",
+    "duration_s":  300,
+    "targets":  {
+                    "flashover_s":  186,
+                    "o2_hallway_s":  198,
+                    "co_hallway_s":  204,
+                    "idlh_proxy_co1200_s":  216
+                },
+    "results":  [
+                    {
+                        "name":  "transport_soft_plus",
+                        "description":  "Transporte aun mas amortiguado con mas aire exterior",
+                        "score":  507.75,
+                        "report":  "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\sweeps\\_sweep_ghanekar_transport_soft_plus.json",
+                        "metrics":  {
+                                        "time_room_0_temp_0_9m_above_600c_s":  null,
+                                        "time_room_2_o2_below_20_4pct_s":  148.666666666666,
+                                        "time_room_2_co_above_200ppm_s":  153.75,
+                                        "time_room_2_co_above_1200ppm_s":  160.500000000001,
+                                        "time_room_2_smoke_start_s":  152.666666666667,
+                                        "room_0_peak_hrr_kw":  1180.45889096749,
+                                        "room_0_final_temp_at_0_9m_c":  393.109929230732,
+                                        "room_2_peak_temp_upper_c":  56.5054219152837,
+                                        "room_2_peak_co_ppm":  8411.4674161882
+                                    },
+                        "engine_overrides":  {
+                                                 "doorway_o2_exchange_coeff":  1,
+                                                 "doorway_o2_background_exchange_kg_s_m2":  0.035,
+                                                 "base_spill_kg_s_per_m2":  0.3,
+                                                 "temp_push_factor":  0.005,
+                                                 "ach_infiltration":  1.1
+                                             }
+                    },
+                    {
+                        "name":  "transport_soft",
+                        "description":  "Menos intercambio interior y algo mas de renovacion exterior",
+                        "score":  514.17,
+                        "report":  "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\sweeps\\_sweep_ghanekar_transport_soft.json",
+                        "metrics":  {
+                                        "time_room_0_temp_0_9m_above_600c_s":  null,
+                                        "time_room_2_o2_below_20_4pct_s":  145.333333333332,
+                                        "time_room_2_co_above_200ppm_s":  152.5,
+                                        "time_room_2_co_above_1200ppm_s":  159.166666666667,
+                                        "time_room_2_smoke_start_s":  151.666666666666,
+                                        "room_0_peak_hrr_kw":  1242.23659794566,
+                                        "room_0_final_temp_at_0_9m_c":  410.534255865246,
+                                        "room_2_peak_temp_upper_c":  59.20834375166,
+                                        "room_2_peak_co_ppm":  8867.78284719374
+                                    },
+                        "engine_overrides":  {
+                                                 "doorway_o2_exchange_coeff":  1.2,
+                                                 "doorway_o2_background_exchange_kg_s_m2":  0.045,
+                                                 "base_spill_kg_s_per_m2":  0.38,
+                                                 "temp_push_factor":  0.0065,
+                                                 "ach_infiltration":  0.9
+                                             }
+                    },
+                    {
+                        "name":  "combo_balanced",
+                        "description":  "Retrasa transporte y calienta mas la zona baja del cuarto de fuego",
+                        "score":  516.29,
+                        "report":  "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\sweeps\\_sweep_ghanekar_combo_balanced.json",
+                        "metrics":  {
+                                        "time_room_0_temp_0_9m_above_600c_s":  null,
+                                        "time_room_2_o2_below_20_4pct_s":  145.416666666666,
+                                        "time_room_2_co_above_200ppm_s":  151.583333333333,
+                                        "time_room_2_co_above_1200ppm_s":  158.333333333334,
+                                        "time_room_2_smoke_start_s":  150.75,
+                                        "room_0_peak_hrr_kw":  1237.97146735605,
+                                        "room_0_final_temp_at_0_9m_c":  498.070005476751,
+                                        "room_2_peak_temp_upper_c":  58.7409601248759,
+                                        "room_2_peak_co_ppm":  8890.1757394229
+                                    },
+                        "engine_overrides":  {
+                                                 "doorway_o2_exchange_coeff":  1.2,
+                                                 "doorway_o2_background_exchange_kg_s_m2":  0.045,
+                                                 "base_spill_kg_s_per_m2":  0.38,
+                                                 "temp_push_factor":  0.0065,
+                                                 "ach_infiltration":  0.9,
+                                                 "upper_to_lower_loss_rate":  0.038,
+                                                 "upper_to_ambient_loss_rate":  0.0065,
+                                                 "wall_absorption_rate":  0.0025,
+                                                 "thermal_gradient_band_fraction":  0.5,
+                                                 "thermal_gradient_max_band_m":  0.9,
+                                                 "floor_cooling_band_fraction":  0.12,
+                                                 "floor_cooling_band_max_m":  0.2
+                                             }
+                    },
+                    {
+                        "name":  "baseline",
+                        "description":  "Caso base empirico actual",
+                        "score":  520.29,
+                        "report":  "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\sweeps\\_sweep_ghanekar_baseline.json",
+                        "metrics":  {
+                                        "time_room_0_temp_0_9m_above_600c_s":  null,
+                                        "time_room_2_o2_below_20_4pct_s":  140.999999999999,
+                                        "time_room_2_co_above_200ppm_s":  151.666666666666,
+                                        "time_room_2_co_above_1200ppm_s":  158.583333333334,
+                                        "time_room_2_smoke_start_s":  150.916666666666,
+                                        "room_0_peak_hrr_kw":  1254.8466041712,
+                                        "room_0_final_temp_at_0_9m_c":  450.595388230291,
+                                        "room_2_peak_temp_upper_c":  60.6249041743219,
+                                        "room_2_peak_co_ppm":  8567.34810453465
+                                    },
+                        "engine_overrides":  {
+
+                                             }
+                    },
+                    {
+                        "name":  "thermal_fire_room",
+                        "description":  "Mas acople termico hacia capa baja en el compartimento de fuego",
+                        "score":  523.71,
+                        "report":  "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\sweeps\\_sweep_ghanekar_thermal_fire_room.json",
+                        "metrics":  {
+                                        "time_room_0_temp_0_9m_above_600c_s":  null,
+                                        "time_room_2_o2_below_20_4pct_s":  140.666666666665,
+                                        "time_room_2_co_above_200ppm_s":  150.416666666666,
+                                        "time_room_2_co_above_1200ppm_s":  157.333333333334,
+                                        "time_room_2_smoke_start_s":  149.75,
+                                        "room_0_peak_hrr_kw":  1254.8466041712,
+                                        "room_0_final_temp_at_0_9m_c":  534.666186113398,
+                                        "room_2_peak_temp_upper_c":  61.0762980508378,
+                                        "room_2_peak_co_ppm":  8590.4253678849
+                                    },
+                        "engine_overrides":  {
+                                                 "upper_to_lower_loss_rate":  0.04,
+                                                 "upper_to_ambient_loss_rate":  0.006,
+                                                 "wall_absorption_rate":  0.002,
+                                                 "thermal_gradient_band_fraction":  0.55,
+                                                 "thermal_gradient_max_band_m":  0.95,
+                                                 "floor_cooling_band_fraction":  0.1,
+                                                 "floor_cooling_band_max_m":  0.18
+                                             }
+                    },
+                    {
+                        "name":  "combo_aggressive",
+                        "description":  "Variante agresiva para acercar tanto transporte como flashover",
+                        "score":  548.96,
+                        "report":  "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\sweeps\\_sweep_ghanekar_combo_aggressive.json",
+                        "metrics":  {
+                                        "time_room_0_temp_0_9m_above_600c_s":  null,
+                                        "time_room_2_o2_below_20_4pct_s":  138.666666666665,
+                                        "time_room_2_co_above_200ppm_s":  141.499999999999,
+                                        "time_room_2_co_above_1200ppm_s":  147.583333333333,
+                                        "time_room_2_smoke_start_s":  140.583333333332,
+                                        "room_0_peak_hrr_kw":  1254.8466041712,
+                                        "room_0_final_temp_at_0_9m_c":  527.474918710525,
+                                        "room_2_peak_temp_upper_c":  59.7315008419376,
+                                        "room_2_peak_co_ppm":  8889.56938912616
+                                    },
+                        "engine_overrides":  {
+                                                 "doorway_o2_exchange_coeff":  1,
+                                                 "doorway_o2_background_exchange_kg_s_m2":  0.035,
+                                                 "base_spill_kg_s_per_m2":  0.3,
+                                                 "temp_push_factor":  0.005,
+                                                 "ach_infiltration":  1.1,
+                                                 "upper_to_lower_loss_rate":  0.045,
+                                                 "upper_to_ambient_loss_rate":  0.0055,
+                                                 "wall_absorption_rate":  0.0018,
+                                                 "thermal_gradient_band_fraction":  0.6,
+                                                 "thermal_gradient_max_band_m":  1.1,
+                                                 "floor_cooling_band_fraction":  0.08,
+                                                 "floor_cooling_band_max_m":  0.16,
+                                                 "thermal_feedback_coeff":  0.18,
+                                                 "fire_alpha_kw_s2":  0.14
+                                             }
+                    }
+                ]
+}
