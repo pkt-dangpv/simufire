@@ -42,13 +42,17 @@ const o2_nominal: float = 0.209
 # TIEMPO
 # ============================================================
 
-@export var time_scale: float = 1.0
+@export var time_scale: float = 5.0
 var sim_time_s: float = 0.0
 
 # Segundos sin fuego activo antes de declarar la simulación terminada.
 @export var extinction_grace_s: float = 30.0
 var is_finished: bool = false
 var _extinction_countdown: float = 30.0
+# Fraccion de apertura del step anterior por índice, para detectar cambios.
+var _prev_open_fracs: Dictionary = {}
+# Evita lanzar Python más de una vez por simulación.
+var _graphs_launched: bool = false
 
 # ============================================================
 # ROTURA DE CRISTAL
@@ -103,6 +107,15 @@ var smoke_deposited_total_kg: float = 0.0
 @export var fire_smoke_basis_min_fraction: float = 0.40
 @export var fire_smolder_hrr_fraction: float = 0.10
 @export var fire_smolder_smoke_multiplier: float = 2.8
+@export var fire_retained_smoke_fraction: float = 0.38
+@export var fire_pool_smoke_fraction: float = 0.42
+@export var fire_latent_hrr_cap_min_fraction: float = 0.15
+@export var fire_latent_hrr_cap_max_fraction: float = 0.85
+@export var fire_latent_co_yield_multiplier: float = 0.06
+@export var fire_retained_co_fraction: float = 0.08
+@export var fire_pool_co_fraction: float = 0.40
+@export var fire_co_low_quality_yield_multiplier: float = 8.0
+@export var fire_co_max_effective_fraction: float = 0.22
 @export var fire_subvent_o2_floor: float = 0.085
 @export var fire_subvent_temp_start_c: float = 140.0
 @export var fire_subvent_temp_full_c: float = 420.0
@@ -119,17 +132,21 @@ var smoke_deposited_total_kg: float = 0.0
 @export var co_max_yield_kg_per_MJ: float = 0.01250
 
 # Rendimiento de CO2 (kg/MJ)
-# Derivado de ISO 19706 dividiendo el yield másico (kg/kg) por el calor efectivo
-# de combustión de madera (~16 MJ/kg):
-#   Combustión ventilada: 1.33 kg/kg ÷ 16 = 0.0831 kg/MJ
-#   Combustión en déficit: 0.95 kg/kg ÷ 16 = 0.0594 kg/MJ
-@export var co2_base_yield_kg_per_MJ: float = 0.1000
-@export var co2_min_yield_kg_per_MJ: float = 0.0715
+# ISO 19706 — madera (combustible residencial dominante):
+#   Combustión ventilada: 1.33 kg/kg ÷ 16 MJ/kg = 0.0831 kg/MJ
+#   Combustión en déficit: 0.95 kg/kg ÷ 16 MJ/kg = 0.0594 kg/MJ
+@export var co2_base_yield_kg_per_MJ: float = 0.0831
+@export var co2_min_yield_kg_per_MJ: float = 0.0594
 
 # Umbral de extinción: si el HRR real cae por debajo durante fire_extinction_delay_s
 # segundos, el fuego se considera extinto (modela apagado por falta de ventilación).
 @export var fire_extinction_hrr_kw: float = 8.0
 @export var fire_extinction_delay_s: float = 360.0
+@export var fire_latent_enabled: bool = true
+@export var fire_latent_extinction_delay_s: float = 900.0
+@export var fire_latent_hold_upper_temp_c: float = 120.0
+@export var fire_latent_hold_lower_temp_c: float = 55.0
+@export var fire_latent_min_remaining_fuel_MJ: float = 25.0
 
 # Tiempo máximo de actividad del fuego. Pasado este tiempo el combustible se considera
 # agotado y el fuego se extingue (evita zombie fire en equilibrio O2/HRR).
@@ -143,6 +160,28 @@ var smoke_deposited_total_kg: float = 0.0
 # Stefan-Boltzmann). 0.0 = desactivado. Con 0.25: +25% de HRR a 520°C sobre ambiente.
 @export var thermal_feedback_coeff: float = 0.15
 @export var thermal_feedback_max: float = 1.5
+
+# Filtrado temporal del oxidante efectivo y respuesta de HRR a la ventilacion.
+@export var fire_o2_hrr_rise_tau_s: float = 14.0
+@export var fire_o2_hrr_fall_tau_s: float = 32.0
+@export var fire_subvent_pyrolysis_min_fraction: float = 0.20
+@export var fire_subvent_pyrolysis_max_fraction: float = 0.40
+@export var fire_unburned_generation_fraction: float = 0.30
+@export var fire_unburned_capacity_MJ_per_m2: float = 1.20
+@export var fire_unburned_decay_per_s: float = 0.0025
+@export var fire_vent_response_temp_start_c: float = 140.0
+@export var fire_vent_response_temp_full_c: float = 300.0
+@export var fire_vent_response_rise_tau_s: float = 10.0
+@export var fire_vent_response_fall_tau_s: float = 30.0
+@export var fire_pool_release_tau_slow_s: float = 180.0
+@export var fire_pool_release_tau_fast_s: float = 18.0
+@export var fire_pool_release_max_fraction: float = 0.18
+@export var fire_hrr_rise_tau_s: float = 6.0
+@export var fire_hrr_fall_tau_s: float = 20.0
+@export var fire_backdraft_pool_threshold_MJ: float = 8.0
+@export var fire_backdraft_o2_max: float = 0.13
+@export var fire_backdraft_temp_min_c: float = 180.0
+@export var fire_backdraft_release_boost: float = 1.35
 
 # ============================================================
 # PROPAGACIÓN DEL INCENDIO
@@ -164,6 +203,8 @@ var smoke_deposited_total_kg: float = 0.0
 @export var flashover_layer_m: float = 1.2
 @export var flashover_head_height_m: float = 1.8
 @export var flashover_head_temp_c: float = 150.0
+@export var flashover_breathing_height_m: float = 0.9
+@export var flashover_breathing_temp_c: float = 600.0
 @export var flashover_require_tenability_loss: bool = true
 
 # ============================================================
@@ -176,14 +217,26 @@ var smoke_deposited_total_kg: float = 0.0
 @export var max_upper_temp_c: float = 900.0
 @export var doorway_heat_exchange_coeff: float = 0.26
 @export var smoke_heat_mix_coeff: float = 0.025
+@export var retained_hot_layer_temp_start_c: float = 100.0
+@export var retained_hot_layer_temp_full_c: float = 350.0
+@export var retained_hot_layer_o2_start: float = 0.18
+@export var retained_hot_layer_o2_full: float = 0.10
+@export var retained_hot_layer_max_fraction: float = 0.85
+@export var outside_open_loss_area_fraction: float = 0.12
+@export var outside_open_ambient_loss_multiplier: float = 16.0
+@export var outside_open_wall_absorption_multiplier: float = 0.80
+@export var outside_open_upper_mix_rate: float = 0.10
 @export var thermal_gradient_min_band_m: float = 0.20
 @export var thermal_gradient_max_band_m: float = 0.70
 @export var thermal_gradient_band_fraction: float = 0.35
 @export var floor_cooling_band_fraction: float = 0.24
 @export var floor_cooling_band_max_m: float = 0.35
 @export var survival_temp_threshold_c: float = 150.0
-@export var layer_150c_relax_down_per_s: float = 0.35
-@export var layer_150c_relax_up_per_s: float = 0.03
+# Con dt=10 s: lerp = 0.05*10 = 0.50 (descenso rápido pero no instantáneo).
+# ISO 19706 / NFPA: la interfaz 150°C desciende en segundos en flashover,
+# pero no instantáneamente al primer step de 10 s.
+@export var layer_150c_relax_down_per_s: float = 0.05
+@export var layer_150c_relax_up_per_s: float = 0.01
 
 # Absorción de calor por paredes — término proporcional simple sobre (T_upper - T_ambient).
 # Mismo patrón que upper_to_ambient_loss_rate: sin dividir por m_upper_kg → estable.
@@ -227,12 +280,19 @@ var smoke_deposited_total_kg: float = 0.0
 # ============================================================
 
 @export var smoke_density_kg_m3: float = 0.22
+@export var smoke_temp_expansion_upper_weight: float = 0.45
+@export var smoke_temp_expansion_cap_c: float = 400.0
 @export var base_spill_kg_s_per_m2: float = 0.30
 @export var temp_push_factor: float = 0.005
 @export var max_spill_kg_s: float = 2.0
 @export var max_fraction_out_per_s: float = 0.18
 @export var layer_relax_down: float = 0.18
 @export var layer_relax_up: float = 0.015
+@export var layer_recovery_gap_start_m: float = 0.20
+@export var layer_recovery_gap_full_m: float = 1.00
+@export var layer_recovery_boost_max: float = 6.0
+@export var layer_recovery_low_hrr_threshold_kw: float = 120.0
+@export var layer_recovery_low_hrr_boost: float = 1.6
 @export var plume_fill_depth_coeff: float = 0.60
 @export var plume_fill_response_s: float = 12.0
 @export var plume_fill_max_fraction: float = 0.85
@@ -253,6 +313,12 @@ var smoke_deposited_total_kg: float = 0.0
 @export var smoke_settling_bonus_per_s: float = 0.0
 @export var co_postfire_purge_base_per_s: float = 0.0
 @export var co_postfire_purge_bonus_per_s: float = 0.0
+@export var outside_open_species_purge_base_per_s: float = 0.015
+@export var outside_open_species_purge_bonus_per_s: float = 0.11
+@export var outside_open_species_temp_start_c: float = 60.0
+@export var outside_open_species_temp_full_c: float = 220.0
+@export var outside_open_species_pressure_ref_pa: float = 4.0
+@export var outside_open_species_upper_bias: float = 0.80
 
 # ============================================================
 # REGISTRO DE VALORES
@@ -260,7 +326,7 @@ var smoke_deposited_total_kg: float = 0.0
 
 @export var enable_logging: bool = true
 @export var log_interval_s: float = 10.0
-@export var log_file_path: String = "user://sim_log.txt"
+@export var log_file_path: String = "res://sim_log.txt"
 
 # ============================================================
 # SERVICIOS AUXILIARES
@@ -276,6 +342,15 @@ func _sync_auxiliary_services() -> void:
 		"max_upper_temp_c": max_upper_temp_c,
 		"doorway_heat_exchange_coeff": doorway_heat_exchange_coeff,
 		"smoke_heat_mix_coeff": smoke_heat_mix_coeff,
+		"retained_hot_layer_temp_start_c": retained_hot_layer_temp_start_c,
+		"retained_hot_layer_temp_full_c": retained_hot_layer_temp_full_c,
+		"retained_hot_layer_o2_start": retained_hot_layer_o2_start,
+		"retained_hot_layer_o2_full": retained_hot_layer_o2_full,
+		"retained_hot_layer_max_fraction": retained_hot_layer_max_fraction,
+		"outside_open_loss_area_fraction": outside_open_loss_area_fraction,
+		"outside_open_ambient_loss_multiplier": outside_open_ambient_loss_multiplier,
+		"outside_open_wall_absorption_multiplier": outside_open_wall_absorption_multiplier,
+		"outside_open_upper_mix_rate": outside_open_upper_mix_rate,
 		"thermal_gradient_min_band_m": thermal_gradient_min_band_m,
 		"thermal_gradient_max_band_m": thermal_gradient_max_band_m,
 		"thermal_gradient_band_fraction": thermal_gradient_band_fraction,
@@ -295,7 +370,7 @@ func _sync_auxiliary_services() -> void:
 		"pressure_spill_ref_delta_pa": pressure_spill_ref_delta_pa,
 		"interior_spill_start_layer_m": interior_spill_start_layer_m
 	})
-	fire_spread_system.set_references(building, smoke_model)
+	fire_spread_system.set_references(building, smoke_model, combustion_system)
 	fire_spread_system.configure({
 		"fire_spread_enabled": fire_spread_enabled,
 		"fire_spread_ignition_temp_c": fire_spread_ignition_temp_c,
@@ -327,7 +402,13 @@ func _sync_auxiliary_services() -> void:
 		"smoke_settling_base_per_s": smoke_settling_base_per_s,
 		"smoke_settling_bonus_per_s": smoke_settling_bonus_per_s,
 		"co_postfire_purge_base_per_s": co_postfire_purge_base_per_s,
-		"co_postfire_purge_bonus_per_s": co_postfire_purge_bonus_per_s
+		"co_postfire_purge_bonus_per_s": co_postfire_purge_bonus_per_s,
+		"outside_open_species_purge_base_per_s": outside_open_species_purge_base_per_s,
+		"outside_open_species_purge_bonus_per_s": outside_open_species_purge_bonus_per_s,
+		"outside_open_species_temp_start_c": outside_open_species_temp_start_c,
+		"outside_open_species_temp_full_c": outside_open_species_temp_full_c,
+		"outside_open_species_pressure_ref_pa": outside_open_species_pressure_ref_pa,
+		"outside_open_species_upper_bias": outside_open_species_upper_bias
 	})
 	oxygen_exchange_system.configure({
 		"o2_nominal": o2_nominal,
@@ -357,6 +438,8 @@ func _build_state_context() -> Dictionary:
 		"estimate_temperature_callable": Callable(thermal_system, "estimate_temperature_at_height_m"),
 		"effective_hot_layer_callable": Callable(thermal_system, "effective_hot_layer_height_m"),
 		"compute_co_ppm_callable": Callable(thermal_system, "compute_co_ppm"),
+		"compute_co_upper_ppm_callable": Callable(thermal_system, "compute_co_upper_ppm"),
+		"compute_co_lower_ppm_callable": Callable(thermal_system, "compute_co_lower_ppm"),
 		"compute_co2_ppm_callable": Callable(thermal_system, "compute_co2_ppm"),
 		"is_quiescent_callable": Callable(thermal_system, "is_room_quiescent"),
 		"window_open_max_callable": Callable(self, "_window_open_max_for_room"),
@@ -418,12 +501,19 @@ func _resolve_building() -> void:
 
 func _sync_smoke_model_settings() -> void:
 	smoke_model.smoke_density_kg_m3 = smoke_density_kg_m3
+	smoke_model.smoke_temp_expansion_upper_weight = smoke_temp_expansion_upper_weight
+	smoke_model.smoke_temp_expansion_cap_c = smoke_temp_expansion_cap_c
 	smoke_model.base_spill_kg_s_per_m2 = base_spill_kg_s_per_m2
 	smoke_model.temp_push_factor = temp_push_factor
 	smoke_model.max_spill_kg_s = max_spill_kg_s
 	smoke_model.max_fraction_out_per_s = max_fraction_out_per_s
 	smoke_model.layer_relax_down = layer_relax_down
 	smoke_model.layer_relax_up = layer_relax_up
+	smoke_model.layer_recovery_gap_start_m = layer_recovery_gap_start_m
+	smoke_model.layer_recovery_gap_full_m = layer_recovery_gap_full_m
+	smoke_model.layer_recovery_boost_max = layer_recovery_boost_max
+	smoke_model.layer_recovery_low_hrr_threshold_kw = layer_recovery_low_hrr_threshold_kw
+	smoke_model.layer_recovery_low_hrr_boost = layer_recovery_low_hrr_boost
 	smoke_model.target_smoke_resistance_coeff = target_smoke_resistance_coeff
 	smoke_model.target_layer_block_start_m = target_layer_block_start_m
 	smoke_model.target_layer_block_full_m = target_layer_block_full_m
@@ -449,6 +539,8 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	sim_time_s = 0.0
 	is_finished = false
 	_extinction_countdown = extinction_grace_s
+	_prev_open_fracs.clear()
+	_graphs_launched = false
 	glass_failure_system.reset()
 
 	for room_id in building.get_rooms().keys():
@@ -488,13 +580,17 @@ func step(delta: float) -> void:
 	sim_time_s += dt
 
 	_step_fire(dt)
-	fire_spread_system.step(dt, Callable(self, "ignite_room"))
 	_step_oxygen(dt)
 	thermal_system.step(building, dt)
 	if glass_auto_break_enabled:
 		glass_failure_system.step(dt)
+		for broken_idx in glass_failure_system.newly_broken_indices:
+			_log_opening_event(broken_idx, "glass_break")
 	_step_gas_exchange(dt)
+	_step_passive_fuel(dt)
+	fire_spread_system.step(dt, Callable(self, "ignite_room"))
 	_clamp_rooms()
+	_detect_and_log_opening_events()
 	_maybe_log_state()
 
 	# Detener simulación cuando todos los fuegos se hayan extinguido.
@@ -507,7 +603,9 @@ func step(delta: float) -> void:
 	if not any_fire_active:
 		_extinction_countdown -= dt
 		if _extinction_countdown <= 0.0:
-			is_finished = true
+			if not is_finished:
+				is_finished = true
+				_on_sim_finished()
 	else:
 		_extinction_countdown = extinction_grace_s
 
@@ -535,6 +633,7 @@ func ignite_room(room_id: int) -> void:
 
 	room.fire = fire
 	room.fire_time_s = 0.0
+	room.fire_dormant_time_s = 0.0
 	room.flashover_triggered = false
 	room.fire_spread_exposure_s = 0.0
 	room.fire_o2_extinguished = false
@@ -557,6 +656,7 @@ func _build_fire_defaults() -> Dictionary:
 func _build_room_combustion_context(room_id: int) -> Dictionary:
 	var kawagoe_limit_kw: float = 0.0
 	var kawagoe_factor: float = _kawagoe_factor_for_room(room_id)
+	var room: RoomModel = building.get_room(room_id) if building != null else null
 	if kawagoe_factor > 0.0:
 		kawagoe_limit_kw = kawagoe_coeff * kawagoe_factor
 
@@ -568,20 +668,56 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_smoke_yield_low_o2_multiplier": fire_smoke_yield_low_o2_multiplier,
 		"fire_smolder_hrr_fraction": fire_smolder_hrr_fraction,
 		"fire_smolder_smoke_multiplier": fire_smolder_smoke_multiplier,
+		"fire_retained_smoke_fraction": fire_retained_smoke_fraction,
+		"fire_pool_smoke_fraction": fire_pool_smoke_fraction,
+		"fire_latent_hrr_cap_min_fraction": fire_latent_hrr_cap_min_fraction,
+		"fire_latent_hrr_cap_max_fraction": fire_latent_hrr_cap_max_fraction,
+		"fire_latent_co_yield_multiplier": fire_latent_co_yield_multiplier,
+		"fire_retained_co_fraction": fire_retained_co_fraction,
+		"fire_pool_co_fraction": fire_pool_co_fraction,
+		"fire_co_low_quality_yield_multiplier": fire_co_low_quality_yield_multiplier,
+		"fire_co_max_effective_fraction": fire_co_max_effective_fraction,
 		"fire_subvent_o2_floor": fire_subvent_o2_floor,
 		"fire_subvent_temp_start_c": fire_subvent_temp_start_c,
 		"fire_subvent_temp_full_c": fire_subvent_temp_full_c,
 		"fire_subvent_fill_start_fraction": fire_subvent_fill_start_fraction,
 		"fire_subvent_fill_full_fraction": fire_subvent_fill_full_fraction,
+		"fire_subvent_pyrolysis_min_fraction": fire_subvent_pyrolysis_min_fraction,
+		"fire_subvent_pyrolysis_max_fraction": fire_subvent_pyrolysis_max_fraction,
 		"fire_starvation_o2_factor": fire_starvation_o2_factor,
+		"fire_o2_hrr_rise_tau_s": fire_o2_hrr_rise_tau_s,
+		"fire_o2_hrr_fall_tau_s": fire_o2_hrr_fall_tau_s,
+		"fire_unburned_generation_fraction": fire_unburned_generation_fraction,
+		"fire_unburned_capacity_MJ_per_m2": fire_unburned_capacity_MJ_per_m2,
+		"fire_unburned_decay_per_s": fire_unburned_decay_per_s,
+		"fire_vent_response_temp_start_c": fire_vent_response_temp_start_c,
+		"fire_vent_response_temp_full_c": fire_vent_response_temp_full_c,
+		"fire_vent_response_rise_tau_s": fire_vent_response_rise_tau_s,
+		"fire_vent_response_fall_tau_s": fire_vent_response_fall_tau_s,
+		"fire_pool_release_tau_slow_s": fire_pool_release_tau_slow_s,
+		"fire_pool_release_tau_fast_s": fire_pool_release_tau_fast_s,
+		"fire_pool_release_max_fraction": fire_pool_release_max_fraction,
+		"fire_hrr_rise_tau_s": fire_hrr_rise_tau_s,
+		"fire_hrr_fall_tau_s": fire_hrr_fall_tau_s,
+		"fire_backdraft_pool_threshold_MJ": fire_backdraft_pool_threshold_MJ,
+		"fire_backdraft_o2_max": fire_backdraft_o2_max,
+		"fire_backdraft_temp_min_c": fire_backdraft_temp_min_c,
+		"fire_backdraft_release_boost": fire_backdraft_release_boost,
 		"fire_extinction_hrr_kw": fire_extinction_hrr_kw,
 		"fire_extinction_delay_s": fire_extinction_delay_s,
+		"fire_latent_enabled": fire_latent_enabled,
+		"fire_latent_extinction_delay_s": fire_latent_extinction_delay_s,
+		"fire_latent_hold_upper_temp_c": fire_latent_hold_upper_temp_c,
+		"fire_latent_hold_lower_temp_c": fire_latent_hold_lower_temp_c,
+		"fire_latent_min_remaining_fuel_MJ": fire_latent_min_remaining_fuel_MJ,
 		"fire_max_active_s": fire_max_active_s,
 		"co_base_yield_kg_per_MJ": co_base_yield_kg_per_MJ,
 		"co_max_yield_kg_per_MJ": co_max_yield_kg_per_MJ,
 		"co2_base_yield_kg_per_MJ": co2_base_yield_kg_per_MJ,
 		"co2_min_yield_kg_per_MJ": co2_min_yield_kg_per_MJ,
-		"kawagoe_limit_kw": kawagoe_limit_kw
+		"kawagoe_limit_kw": kawagoe_limit_kw,
+		"window_open_max": _window_open_max_for_room(room_id),
+		"outside_open_factor": thermal_system.estimate_room_outside_open_factor(room) if room != null else 0.0
 	}
 
 # ============================================================
@@ -600,6 +736,82 @@ func _step_gas_exchange(dt: float) -> void:
 	smoke_generated_total_kg += float(smoke_result.get("smoke_generated_kg", 0.0))
 	smoke_vented_total_kg += float(smoke_result.get("smoke_vented_kg", 0.0))
 	smoke_deposited_total_kg += float(smoke_result.get("smoke_deposited_kg", 0.0))
+
+
+func _step_passive_fuel(dt: float) -> void:
+	if building == null:
+		return
+
+	var ambient_c: float = thermal_system.ambient_temp_c()
+	var auto_ignite_room_ids: Array[int] = []
+
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null or room.fire != null:
+			continue
+
+		if combustion_system.update_passive_room_fuel(
+			room,
+			dt,
+			ambient_c,
+			_build_passive_fuel_context(int(room_id))
+		):
+			auto_ignite_room_ids.append(int(room_id))
+
+	for room_id in auto_ignite_room_ids:
+		ignite_room(room_id)
+
+
+func _build_passive_fuel_context(room_id: int) -> Dictionary:
+	var room: RoomModel = building.get_room(room_id)
+	if room == null:
+		return {}
+
+	var max_opening_gas_temp_c: float = room.temp_lower_c
+	var max_opening_engagement: float = 0.0
+	var max_adjacent_source_hrr_kw: float = 0.0
+
+	for op in building.get_openings():
+		if op == null or op.open_fraction <= 0.0:
+			continue
+		if op.a == BuildingModel.OUTSIDE_ID or op.b == BuildingModel.OUTSIDE_ID:
+			continue
+		if op.a != room_id and op.b != room_id:
+			continue
+
+		var other_room_id: int = op.b if op.a == room_id else op.a
+		var other_room: RoomModel = building.get_room(other_room_id)
+		if other_room == null or other_room.fire == null:
+			continue
+
+		var flow_state: Dictionary = thermal_system.build_interior_opening_flow_state(
+			room,
+			other_room,
+			op
+		)
+		if not bool(flow_state.get("active", false)):
+			continue
+
+		var hot_room: RoomModel = flow_state.get("hot_room", null)
+		var cold_room: RoomModel = flow_state.get("cold_room", null)
+		if hot_room != other_room or cold_room != room:
+			continue
+
+		max_opening_gas_temp_c = maxf(
+			max_opening_gas_temp_c,
+			float(flow_state.get("source_temp_c", other_room.temp_upper_c))
+		)
+		max_opening_engagement = maxf(
+			max_opening_engagement,
+			clampf(float(flow_state.get("engagement", 0.0)), 0.0, 1.0)
+		)
+		max_adjacent_source_hrr_kw = maxf(max_adjacent_source_hrr_kw, other_room.hrr_kw)
+
+	return {
+		"opening_gas_temp_c": max_opening_gas_temp_c,
+		"opening_engagement": max_opening_engagement,
+		"adjacent_source_hrr_kw": max_adjacent_source_hrr_kw
+	}
 
 
 # ============================================================
@@ -681,14 +893,26 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 
 	var hot_enough: bool = room.temp_upper_c >= flashover_temp_c
 	var enough_hrr: bool = room.hrr_kw >= room.fire.flashover_min_hrr_kw
-	var layer_low_enough: bool = smoke_model.get_visible_smoke_layer_height_m(room) <= flashover_layer_m
+	var effective_layer_m: float = smoke_model.get_effective_smoke_spill_layer_height_m(room)
+	var layer_low_enough: bool = effective_layer_m <= flashover_layer_m
 	var head_temp_c: float = thermal_system.estimate_temperature_at_height_m(room, flashover_head_height_m)
 	var head_hot_enough: bool = head_temp_c >= flashover_head_temp_c
+	var breathing_temp_c: float = thermal_system.estimate_temperature_at_height_m(
+		room,
+		flashover_breathing_height_m
+	)
+	var breathing_hot_enough: bool = breathing_temp_c >= flashover_breathing_temp_c
 	var layer_150_low_enough: bool = room.layer_150c_m <= flashover_head_height_m
 	var tenability_lost: bool = head_hot_enough or layer_150_low_enough
 
-	# Requerimos calor alto, HRR sostenido y un descenso real de la capa caliente.
-	if hot_enough and enough_hrr and layer_low_enough and (not flashover_require_tenability_loss or tenability_lost):
+	# Criterio más cercano a la referencia residencial local:
+	# no basta con T_upper alta; exigimos además un nivel térmico muy severo
+	# a altura de respiración (0.9 m) y un descenso real de la capa.
+	if hot_enough \
+			and enough_hrr \
+			and layer_low_enough \
+			and breathing_hot_enough \
+			and (not flashover_require_tenability_loss or tenability_lost):
 		room.flashover_triggered = true
 		# Escalar la ganancia secundaria en proporción al tamaño de la habitación.
 		# Evita que recintos con menor capacidad térmica reciban la misma
@@ -772,6 +996,7 @@ func _clamp_rooms() -> void:
 		room.smoke_prod_kg_s = maxf(0.0, room.smoke_prod_kg_s)
 		room.smoke_kg = maxf(0.0, room.smoke_kg)
 		room.co_kg = maxf(0.0, room.co_kg)
+		room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg)
 		room.co2_kg = maxf(0.0, room.co2_kg)
 		room.fed = maxf(0.0, room.fed)
 		room.svv_pct = clampf(room.svv_pct, 0.0, 100.0)
@@ -783,6 +1008,88 @@ func _clamp_rooms() -> void:
 
 func get_state() -> Dictionary:
 	return state_builder.build_state(_build_state_context())
+
+# ============================================================
+# EVENTOS Y GENERACIÓN DE GRÁFICAS
+# ============================================================
+
+## Detecta cambios en open_fraction de puertas y ventanas y los registra como
+## eventos en el log. Se llama cada step. Los eventos de rotura de cristal ya
+## son registrados directamente en step() antes de llamar a esta función.
+func _detect_and_log_opening_events() -> void:
+	if building == null:
+		return
+	var openings: Array = building.get_openings()
+	for i in range(openings.size()):
+		var op: OpeningModel = openings[i]
+		# Primera vez que vemos esta apertura: solo guardamos el estado base.
+		if not _prev_open_fracs.has(i):
+			_prev_open_fracs[i] = op.open_fraction
+			continue
+		var prev: float = float(_prev_open_fracs[i])
+		var curr: float = op.open_fraction
+		# Cambio significativo (>5 % de apertura total)
+		if abs(curr - prev) > 0.05:
+			# Los rotura de cristal ya están registradas; solo registrar el resto.
+			var is_new_glass_break: bool = glass_failure_system.newly_broken_indices.has(i)
+			if not is_new_glass_break:
+				var opened: bool = curr > prev
+				var etype: String
+				if op.type == OpeningModel.Type.DOOR:
+					etype = "door_open" if opened else "door_close"
+				else:
+					etype = "window_open" if opened else "window_close"
+				_log_opening_event(i, etype)
+		_prev_open_fracs[i] = curr
+
+
+func _log_opening_event(opening_idx: int, event_type: String) -> void:
+	var op: OpeningModel = building.get_opening_at(opening_idx)
+	if op == null:
+		return
+	var type_str: String = "door" if op.type == OpeningModel.Type.DOOR else "window"
+	var details: String = "opening=%d kind=%s room_a=%d room_b=%d frac=%.2f" % [
+		opening_idx, type_str, op.a, op.b, op.open_fraction
+	]
+	log_writer.append_event(sim_time_s, event_type, details)
+
+
+## Llamado cuando la simulación termina naturalmente O cuando el usuario para el
+## juego (a través de _exit_tree). Escribe sim_end y lanza Python.
+func _on_sim_finished() -> void:
+	if _graphs_launched:
+		return
+	_graphs_launched = true
+
+	log_writer.append_event(sim_time_s, "sim_end", "")
+	_launch_graph_generator()
+
+
+func _launch_graph_generator() -> void:
+	var script_path: String = ProjectSettings.globalize_path("res://scripts/generate_fire_graphs.py")
+	var pid: int = -1
+	# En Windows, "python" puede no estar en el PATH de Godot.
+	# cmd.exe /c busca en el PATH del sistema, igual que un terminal normal.
+	if OS.get_name() == "Windows":
+		pid = OS.create_process("cmd.exe", ["/c", "python", script_path])
+	else:
+		pid = OS.create_process("python3", [script_path])
+		if pid <= 0:
+			pid = OS.create_process("python", [script_path])
+	if pid > 0:
+		print("[SimulationEngine] Generando gráficas (PID %d)..." % pid)
+	else:
+		push_warning("[SimulationEngine] No se pudo lanzar Python. Ejecuta: python scripts/generate_fire_graphs.py")
+
+
+## Godot llama _exit_tree cuando se detiene el juego (botón Stop del editor
+## o cierre de ventana). Garantiza que las gráficas se generen aunque la
+## simulación no haya terminado por extinción natural del fuego.
+func _exit_tree() -> void:
+	if not _graphs_launched and sim_time_s > 0.0:
+		_graphs_launched = true   # evitar doble llamada
+		log_writer.append_event(sim_time_s, "sim_end", "forced")
+		_launch_graph_generator()
 
 # ============================================================
 # REGISTRO DE VALORES

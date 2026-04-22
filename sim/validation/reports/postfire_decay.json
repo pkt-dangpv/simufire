@@ -1,49 +1,49 @@
 {
 	"baseline": {
-		"all_pass": true,
+		"all_pass": false,
 		"checks": {
 			"room_0_final_hot_layer_m": {
-				"actual": 2.4,
-				"pass": true,
+				"actual": 1.3236665208852,
+				"pass": false,
 				"rule": {
 					"expected": 2.4,
 					"tolerance": 0.05
 				}
 			},
 			"room_0_final_temp_at_1_8m_c": {
-				"actual": 20.0000374630204,
-				"pass": true,
+				"actual": 621.315143477995,
+				"pass": false,
 				"rule": {
 					"expected": 20.0,
 					"tolerance": 5.0
 				}
 			},
 			"room_1_final_smoke_kg": {
-				"actual": 0.610825074346551,
-				"pass": true,
+				"actual": 0.0,
+				"pass": false,
 				"rule": {
 					"min": 0.5
 				}
 			},
 			"time_room_0_l150_below_0_5m_s": {
-				"actual": 131.499999999997,
-				"pass": true,
+				"actual": 97.9166666666655,
+				"pass": false,
 				"rule": {
 					"expected": 135.08,
 					"tolerance": 12.0
 				}
 			},
 			"time_room_0_l150_below_1_8m_s": {
-				"actual": 111.833333333331,
-				"pass": true,
+				"actual": 81.5833333333331,
+				"pass": false,
 				"rule": {
 					"expected": 116.33,
 					"tolerance": 12.0
 				}
 			},
 			"time_to_extinction_s": {
-				"actual": 318.249999999997,
-				"pass": true,
+				"actual": null,
+				"pass": false,
 				"rule": {
 					"expected": 318.25,
 					"tolerance": 30.0
@@ -52,37 +52,48 @@
 		}
 	},
 	"case": "postfire_decay",
-	"duration_s": 1900.0,
+	"duration_s": 520.0,
 	"metrics": {
-		"peak_co_ppm_global": 6750.19637360802,
-		"peak_hrr_kw_global": 1096.65563181198,
-		"peak_temp_upper_c_global": 900.0,
-		"room_0_final_co_ppm": 2102.83734224948,
-		"room_0_final_hot_layer_m": 2.4,
-		"room_0_final_layer_150c_m": 2.39999999999991,
-		"room_0_final_smoke_kg": 1.32233305305453,
-		"room_0_final_smoke_layer_m": 2.09853927380715,
-		"room_0_final_temp_at_1_8m_c": 20.0000374630204,
-		"room_0_min_l150_m": 0.174667785739885,
-		"room_0_peak_co_ppm": 2640.46079510939,
-		"room_0_peak_hrr_kw": 1096.65563181198,
-		"room_0_peak_temp_upper_c": 900.0,
-		"room_1_final_co_ppm": 5347.94851520006,
+		"opening_event_0_time_s": 360.083333333321,
+		"peak_co_ppm_global": 6326.08349385056,
+		"peak_hrr_kw_global": 1287.21528695959,
+		"peak_temp_upper_c_global": 898.516466593717,
+		"room_0_final_co2_ppm": 11363.7042389974,
+		"room_0_final_co_ppm": 1834.69551878893,
+		"room_0_final_fed": 2.49580503730928,
+		"room_0_final_hot_layer_m": 1.3236665208852,
+		"room_0_final_layer_150c_m": 0.0744731660419483,
+		"room_0_final_o2": 0.137013692221552,
+		"room_0_final_smoke_kg": 0.367106613817885,
+		"room_0_final_smoke_layer_m": 2.04996152708057,
+		"room_0_final_temp_at_0_9m_c": 575.114922958708,
+		"room_0_final_temp_at_1_8m_c": 621.315143477995,
+		"room_0_max_fed": 2.49580503730928,
+		"room_0_min_l150_m": 0.0744731660419483,
+		"room_0_peak_co2_ppm": 35486.6862558706,
+		"room_0_peak_co_ppm": 6326.08349385056,
+		"room_0_peak_hrr_kw": 1287.21528695959,
+		"room_0_peak_temp_upper_c": 898.516466593717,
+		"room_1_final_co2_ppm": 0.0,
+		"room_1_final_co_ppm": 0.0,
+		"room_1_final_fed": 0.0,
 		"room_1_final_hot_layer_m": 2.4,
-		"room_1_final_layer_150c_m": 2.39999999999991,
-		"room_1_final_smoke_kg": 0.610825074346551,
-		"room_1_final_smoke_layer_m": 2.13475489385161,
-		"room_1_final_temp_at_1_8m_c": 20.0000056584854,
-		"room_1_min_l150_m": 2.16926726803645,
-		"room_1_peak_co_ppm": 6750.19637360802,
+		"room_1_final_layer_150c_m": 2.4,
+		"room_1_final_o2": 0.209,
+		"room_1_final_smoke_kg": 0.0,
+		"room_1_final_smoke_layer_m": 2.4,
+		"room_1_final_temp_at_0_9m_c": 20.0,
+		"room_1_final_temp_at_1_8m_c": 20.0,
+		"room_1_max_fed": 0.0,
+		"room_1_min_l150_m": 2.4,
+		"room_1_peak_co2_ppm": 0.0,
+		"room_1_peak_co_ppm": 0.0,
 		"room_1_peak_hrr_kw": 0.0,
-		"room_1_peak_temp_upper_c": 190.270030483737,
-		"time_room_0_l150_below_0_5m_s": 131.499999999997,
-		"time_room_0_l150_below_1_8m_s": 111.833333333331,
-		"time_room_0_smoke_layer_2m_s": 126.666666666664,
-		"time_room_0_temp_1_8m_above_150c_s": 110.499999999998,
-		"time_room_1_smoke_start_s": 126.749999999997,
-		"time_to_extinction_s": 318.249999999997
+		"room_1_peak_temp_upper_c": 20.0,
+		"time_room_0_l150_below_0_5m_s": 97.9166666666655,
+		"time_room_0_l150_below_1_8m_s": 81.5833333333331,
+		"time_room_0_smoke_layer_2m_s": 120.333333333331,
+		"time_room_0_temp_1_8m_above_150c_s": 78.7499999999999
 	},
-	"sim_time_s": 1900.08333333272
+	"sim_time_s": 520.08333333329
 }

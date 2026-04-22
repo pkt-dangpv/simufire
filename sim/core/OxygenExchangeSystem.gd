@@ -148,35 +148,86 @@ func _step_outside_opening_o2(
 		indoor,
 		clampf(indoor.thermal_layer_m, 0.0, indoor.height_m)
 	)
-	var area_eff_m2: float = 0.0
-	var h_drive_m: float = 0.0
-	var t_in_k: float = building.outside_temp_c + 273.15
+	var opening_bottom_m: float = op.sill_m
+	var opening_top_m: float = lintel_m
+	var available_inlet_height_m: float = clampf(
+		minf(opening_top_m, effective_layer_m) - opening_bottom_m,
+		0.0,
+		op.height_m
+	)
+	var upper_outlet_height_m: float = clampf(
+		opening_top_m - maxf(opening_bottom_m, effective_layer_m),
+		0.0,
+		op.height_m
+	)
+	var oxygen_deficit_factor: float = clampf(
+		(o2_nominal - indoor.o2) / maxf(0.04, o2_nominal - 0.12),
+		0.0,
+		1.0
+	)
+	oxygen_deficit_factor *= oxygen_deficit_factor
 
-	if effective_layer_m <= lintel_m:
-		h_drive_m = maxf(0.05, lintel_m - effective_layer_m)
-		area_eff_m2 = op.width_m * minf(h_drive_m, op.height_m) * op.open_fraction
-		t_in_k = indoor.temp_upper_c + 273.15
-	else:
-		h_drive_m = op.height_m
-		area_eff_m2 = op.width_m * op.height_m * op.open_fraction
-		t_in_k = indoor.temp_lower_c + 273.15
+	var baseline_inlet_height_m: float = minf(
+		available_inlet_height_m,
+		maxf(0.06, op.height_m * 0.08)
+	)
+	var lower_inlet_height_m: float = lerpf(
+		baseline_inlet_height_m,
+		available_inlet_height_m,
+		oxygen_deficit_factor
+	)
 
-	if area_eff_m2 <= 0.0:
+	# When the interface is very near the lintel, most of the opening is still
+	# available for cool inflow. The previous model only used the tiny upper band,
+	# so a "window open" behaved almost like a crack and the room never re-oxygenated.
+	if lower_inlet_height_m <= 0.000001 and indoor.overpressure_pa > 0.2 and oxygen_deficit_factor > 0.35:
+		lower_inlet_height_m = minf(op.height_m, maxf(0.10, op.height_m * 0.20))
+
+	var inlet_area_m2: float = op.width_m * lower_inlet_height_m * op.open_fraction
+	if inlet_area_m2 <= 0.0:
 		return
 
 	var t_out_k: float = building.outside_temp_c + 273.15
-	var delta_t_k: float = maxf(0.0, t_in_k - t_out_k)
+	var hot_reference_temp_c: float = lerpf(
+		indoor.temp_lower_c,
+		indoor.temp_upper_c,
+		clampf(0.45 + 0.40 * (upper_outlet_height_m / maxf(0.05, op.height_m)), 0.45, 0.90)
+	)
+	var t_hot_k: float = hot_reference_temp_c + 273.15
+	var delta_t_k: float = maxf(0.0, t_hot_k - t_out_k)
 	if delta_t_k < 2.0:
 		return
 
-	var q_m3_s: float = 0.65 * 0.5 * area_eff_m2 * sqrt(g_gravity * h_drive_m * delta_t_k / t_in_k)
+	var drive_height_m: float = maxf(
+		0.10,
+		maxf(upper_outlet_height_m, 0.08) + lower_inlet_height_m * (0.25 + 0.25 * oxygen_deficit_factor)
+	)
+	var buoyancy_dp_pa: float = air_density_kg_m3 * g_gravity * drive_height_m * maxf(
+		0.0,
+		1.0 - t_out_k / maxf(t_out_k, t_hot_k)
+	)
+	var pressure_dp_pa: float = maxf(0.0, indoor.overpressure_pa)
+	var delta_p_pa: float = maxf(
+		buoyancy_dp_pa,
+		pressure_dp_pa * (0.20 + 0.55 * oxygen_deficit_factor)
+	)
+	if delta_p_pa <= 0.01:
+		return
+
+	var q_m3_s: float = 0.61 * inlet_area_m2 * sqrt(2.0 * delta_p_pa / maxf(0.05, air_density_kg_m3))
 	var air_in_kg: float = q_m3_s * air_density_kg_m3 * dt
 	var room_air_mass_kg: float = _compute_room_air_mass_kg(indoor, air_density_kg_m3)
+	var max_exchange_fraction: float = lerpf(0.01, 0.12, oxygen_deficit_factor)
+	air_in_kg = minf(air_in_kg, room_air_mass_kg * max_exchange_fraction)
+	if air_in_kg <= 0.0:
+		return
+
 	indoor.o2 = clampf(
 		(indoor.o2 * room_air_mass_kg + building.outside_o2 * air_in_kg) / (room_air_mass_kg + air_in_kg),
 		0.0,
 		o2_nominal
 	)
+	indoor.overpressure_pa = maxf(0.0, indoor.overpressure_pa * (1.0 - minf(0.55, air_in_kg / room_air_mass_kg)))
 
 
 func _step_interior_opening_o2(

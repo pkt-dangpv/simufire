@@ -36,12 +36,56 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 1.0
-offset_top = 2.0
+offset_top = -1.0
 offset_right = 1.0
-offset_bottom = 4.0
+offset_bottom = -3.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("3_h2yge")
+
+[node name="OpeningsPanel" type="PanelContainer" parent="UI/HUD" unique_id=938201145]
+layout_mode = 0
+offset_left = 12.0
+offset_top = 513.0
+offset_right = 360.0
+offset_bottom = 647.0
+
+[node name="MarginContainer" type="MarginContainer" parent="UI/HUD/OpeningsPanel" unique_id=194826401]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/HUD/OpeningsPanel/MarginContainer" unique_id=187420816]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="OpeningsTitle" type="Label" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer" unique_id=257008392]
+layout_mode = 2
+text = "Puertas y ventanas"
+
+[node name="OpeningSelector" type="OptionButton" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer" unique_id=131153090]
+custom_minimum_size = Vector2(316, 0)
+layout_mode = 2
+
+[node name="OpeningStatusLabel" type="Label" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer" unique_id=163613667]
+layout_mode = 2
+text = "Sin seleccion"
+
+[node name="ButtonsRow" type="HBoxContainer" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer" unique_id=1012246318]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BtnOpeningClose" type="Button" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1671433642]
+custom_minimum_size = Vector2(120, 34)
+layout_mode = 2
+text = "Cerrar"
+
+[node name="BtnOpeningOpen" type="Button" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1991717756]
+custom_minimum_size = Vector2(120, 34)
+layout_mode = 2
+text = "Abrir"
 
 [node name="WaterPanel" type="PanelContainer" parent="UI/HUD" unique_id=1426646807]
 visible = false

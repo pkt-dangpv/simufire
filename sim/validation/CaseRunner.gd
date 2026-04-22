@@ -18,6 +18,7 @@ var _cli_args: Dictionary = {}
 var _metrics: Dictionary = {}
 var _output_path: String = ""
 var _baseline_path: String = ""
+var _opening_events: Array = []
 
 
 func _ready() -> void:
@@ -34,9 +35,11 @@ func _process(_delta: float) -> void:
 		return
 
 	var state: Dictionary = engine.get_state()
+	var sim_time_s: float = float(state.get("sim_time_s", 0.0))
+	if _apply_due_opening_events(sim_time_s):
+		state = engine.get_state()
 	_update_metrics(state)
 
-	var sim_time_s: float = float(state.get("sim_time_s", 0.0))
 	var duration_s: float = float(_case_config.get("duration_s", 600.0))
 	if sim_time_s >= duration_s:
 		_finalize_validation_run(state)
@@ -109,6 +112,7 @@ func _begin_validation_run() -> void:
 	engine.enable_logging = bool(_case_config.get("enable_logging", false))
 	engine.ignition_room_id = int(_case_config.get("ignition_room_id", engine.ignition_room_id))
 	engine.reset_simulation(engine.ignition_room_id, bool(_case_config.get("ignite_on_start", true)))
+	_opening_events = _prepare_opening_events(_case_config.get("opening_events", []))
 
 	_metrics.clear()
 	_output_path = String(_cli_args.get(
@@ -215,6 +219,99 @@ func _apply_engine_overrides(overrides: Dictionary) -> void:
 		engine.set(String(key), overrides[key])
 
 
+func _prepare_opening_events(raw_events: Variant) -> Array:
+	var result: Array = []
+	if typeof(raw_events) != TYPE_ARRAY:
+		return result
+
+	for raw_event in raw_events:
+		if typeof(raw_event) != TYPE_DICTIONARY:
+			continue
+
+		var event_data: Dictionary = raw_event.duplicate(true)
+		event_data["time_s"] = float(event_data.get("time_s", 0.0))
+		event_data["applied"] = false
+		result.append(event_data)
+
+	return result
+
+
+func _apply_due_opening_events(sim_time_s: float) -> bool:
+	if building == null or _opening_events.is_empty():
+		return false
+
+	var changed: bool = false
+	for index in range(_opening_events.size()):
+		var event_data: Dictionary = _opening_events[index]
+		if bool(event_data.get("applied", false)):
+			continue
+		if sim_time_s < float(event_data.get("time_s", 0.0)):
+			continue
+
+		var opening_index: int = _resolve_opening_event_index(event_data)
+		if opening_index < 0:
+			push_warning("CaseRunner: no se encontro apertura para evento %s" % JSON.stringify(event_data))
+			event_data["applied"] = true
+			_opening_events[index] = event_data
+			continue
+
+		var open_fraction: float = _resolve_opening_event_fraction(event_data)
+		if building.set_opening_fraction(opening_index, open_fraction):
+			print("[Validation] Evento apertura aplicado t=%.1f s -> #%d %.2f" % [
+				sim_time_s,
+				opening_index,
+				open_fraction
+			])
+			_metrics["opening_event_%d_time_s" % index] = sim_time_s
+			changed = true
+
+		event_data["applied"] = true
+		_opening_events[index] = event_data
+
+	return changed
+
+
+func _resolve_opening_event_index(event_data: Dictionary) -> int:
+	if event_data.has("index"):
+		return int(event_data.get("index", -1))
+
+	var match_a: int = int(event_data.get("a", 999999))
+	var match_b: int = int(event_data.get("b", 999999))
+	var match_type: String = String(event_data.get("type", ""))
+
+	for opening_index in range(building.get_opening_count()):
+		var op: OpeningModel = building.get_opening_at(opening_index)
+		if op == null:
+			continue
+
+		var same_direction: bool = op.a == match_a and op.b == match_b
+		var reverse_direction: bool = op.a == match_b and op.b == match_a
+		if not same_direction and not reverse_direction:
+			continue
+
+		if match_type != "":
+			var type_name: String = "door" if op.type == OpeningModel.Type.DOOR else "window"
+			if type_name != match_type:
+				continue
+
+		return opening_index
+
+	return -1
+
+
+func _resolve_opening_event_fraction(event_data: Dictionary) -> float:
+	if event_data.has("open_fraction"):
+		return clampf(float(event_data.get("open_fraction", 0.0)), 0.0, 1.0)
+
+	match String(event_data.get("action", "open")).to_lower():
+		"close":
+			return 0.0
+		"open":
+			return 1.0
+		_:
+			return clampf(float(event_data.get("value", 1.0)), 0.0, 1.0)
+
+
 func _update_metrics(state: Dictionary) -> void:
 	var sim_time_s: float = float(state.get("sim_time_s", 0.0))
 	var room_ids: Array[int] = _collect_room_ids(state)
@@ -225,6 +322,7 @@ func _update_metrics(state: Dictionary) -> void:
 	var global_peak_hrr_kw: float = float(_metrics.get("peak_hrr_kw_global", 0.0))
 	var global_peak_temp_upper_c: float = float(_metrics.get("peak_temp_upper_c_global", 0.0))
 	var global_peak_co_ppm: float = float(_metrics.get("peak_co_ppm_global", 0.0))
+	var global_peak_co_upper_ppm: float = float(_metrics.get("peak_co_upper_ppm_global", 0.0))
 	var all_rooms_extinguished: bool = true
 	var all_rooms_quiescent: bool = true
 
@@ -236,10 +334,12 @@ func _update_metrics(state: Dictionary) -> void:
 		var hrr_kw: float = float(room_state.get("hrr_kw", 0.0))
 		var temp_upper_c: float = float(room_state.get("temp_upper_c", 0.0))
 		var co_ppm: float = float(room_state.get("co_ppm", 0.0))
+		var co_upper_ppm: float = float(room_state.get("co_upper_ppm", 0.0))
 
 		global_peak_hrr_kw = maxf(global_peak_hrr_kw, hrr_kw)
 		global_peak_temp_upper_c = maxf(global_peak_temp_upper_c, temp_upper_c)
 		global_peak_co_ppm = maxf(global_peak_co_ppm, co_ppm)
+		global_peak_co_upper_ppm = maxf(global_peak_co_upper_ppm, co_upper_ppm)
 
 		if hrr_kw > 0.01:
 			all_rooms_extinguished = false
@@ -251,6 +351,7 @@ func _update_metrics(state: Dictionary) -> void:
 	_metrics["peak_hrr_kw_global"] = global_peak_hrr_kw
 	_metrics["peak_temp_upper_c_global"] = global_peak_temp_upper_c
 	_metrics["peak_co_ppm_global"] = global_peak_co_ppm
+	_metrics["peak_co_upper_ppm_global"] = global_peak_co_upper_ppm
 
 	var trigger_room_id: int = int(_case_config.get("smoke_trigger_room_id", 0))
 	var target_room_id: int = int(_case_config.get("spread_target_room_id", 1))
@@ -303,6 +404,10 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 		float(_metrics.get(prefix + "peak_co_ppm", 0.0)),
 		float(room_state.get("co_ppm", 0.0))
 	)
+	_metrics[prefix + "peak_co_upper_ppm"] = maxf(
+		float(_metrics.get(prefix + "peak_co_upper_ppm", 0.0)),
+		float(room_state.get("co_upper_ppm", 0.0))
+	)
 	_metrics[prefix + "peak_co2_ppm"] = maxf(
 		float(_metrics.get(prefix + "peak_co2_ppm", 0.0)),
 		float(room_state.get("co2_ppm", 0.0))
@@ -327,6 +432,7 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "o2"] = float(room_state.get("o2", 0.0))
 		_metrics[prefix + "smoke_kg"] = float(room_state.get("smoke_kg", 0.0))
 		_metrics[prefix + "co_ppm"] = float(room_state.get("co_ppm", 0.0))
+		_metrics[prefix + "co_upper_ppm"] = float(room_state.get("co_upper_ppm", 0.0))
 		_metrics[prefix + "co2_ppm"] = float(room_state.get("co2_ppm", 0.0))
 		_metrics[prefix + "fed"] = float(room_state.get("fed", 0.0))
 		_metrics[prefix + "hot_layer_m"] = float(room_state.get("hot_layer_m", 0.0))
@@ -436,6 +542,8 @@ func _update_threshold_metrics(state: Dictionary, sim_time_s: float) -> void:
 		var threshold_config: Dictionary = raw_threshold
 		var metric_name: String = String(threshold_config.get("metric_name", ""))
 		if metric_name.is_empty() or _metrics.has(metric_name):
+			continue
+		if sim_time_s < float(threshold_config.get("after_time_s", 0.0)):
 			continue
 
 		var resolved: Dictionary = _resolve_threshold_value(state, threshold_config)

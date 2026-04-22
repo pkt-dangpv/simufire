@@ -6,10 +6,10 @@ const FuelObjectModelScript = preload("res://sim/fire/FuelObjectModel.gd")
 # ============================================================
 # ROOM MODEL
 # ------------------------------------------------------------
-# Estado de una habitación individual.
+# Estado de una habitacion individual.
 # Guarda:
-# - geometría básica
-# - estado térmico
+# - geometria basica
+# - estado termico
 # - estado de gases/humo
 # - referencia al fuego si existe
 # ============================================================
@@ -18,16 +18,16 @@ var id: int = -1
 var name: String = ""
 var kind: String = ""
 
-# Geometría
+# Geometria
 var width_m: float = 0.0
 var length_m: float = 0.0
 var height_m: float = 2.5
 
-# Estado térmico
+# Estado termico
 var temp_upper_c: float = 20.0
 var temp_lower_c: float = 20.0
 
-# Gases / oxígeno
+# Gases / oxigeno
 var o2: float = 0.209
 
 # Humo
@@ -41,29 +41,21 @@ var upper_gas_kg: float = 0.0
 var upper_energy_kj: float = 0.0
 var layer_150c_m: float = 2.5
 
-# Monóxido de carbono — masa en la sala (kg)
-# Se convierte a ppm en SimulationEngine para exposición y log.
+# Monoxido de carbono - masa en la sala (kg)
 var co_kg: float = 0.0
+var co_upper_kg: float = 0.0
 
-# Dióxido de carbono — masa en la sala (kg)
-# Producto principal de combustión completa. ISO 19706.
+# Dioxido de carbono - masa en la sala (kg)
 var co2_kg: float = 0.0
 
-# FED acumulado (Fractional Effective Dose) — ISO 13571
-# Integrado a lo largo del tiempo a partir de CO y CO2.
-# 0.3 = incapacitación probable, 1.0 = dosis letal.
+# FED acumulado (Fractional Effective Dose) - ISO 13571
 var fed: float = 0.0
 
-# Supervivencia de Víctimas (%):
-# - svv_pct: estimación instantánea
-# - svv_worst_pct: peor valor histórico (no mejora con el tiempo)
+# Supervivencia de Victimas (%)
 var svv_pct: float = 100.0
 var svv_worst_pct: float = 100.0
 
-# Carga de combustible y límite de HRR — se asignan desde la plantilla según kind
-# fuel_energy_MJ: energía total disponible. 0.0 = usa el valor por defecto del engine.
-# max_hrr_kw: tasa máxima de liberación de calor. 0.0 = usa el valor por defecto del engine.
-# Estos campos quedan como compatibilidad mientras migramos a fuel_objects.
+# Carga de combustible y limite de HRR
 var fuel_energy_MJ: float = 0.0
 var max_hrr_kw: float = 0.0
 var fuel_objects: Array = []
@@ -72,23 +64,25 @@ var fuel_objects: Array = []
 var fire: FireModel = null
 var fire_time_s: float = 0.0
 var hrr_kw: float = 0.0
-var fire_low_hrr_time_s: float = 0.0  # contador de tiempo en agonía (HRR bajo sostenido)
-var fire_o2_extinguished: bool = false  # true una vez que el fuego se apaga por falta de O2 — impide re-ignición
+var hrr_target_kw: float = 0.0
+var fire_dormant_time_s: float = 0.0
+var fire_low_hrr_time_s: float = 0.0
+var fire_o2_extinguished: bool = false
+var o2_hrr_factor: float = 1.0
+var retained_unburned_MJ: float = 0.0
+var ventilation_response_factor: float = 0.0
 
-# Presión de la capa superior respecto al exterior
-# Sube por boyantez del gas caliente; baja al ventilar por fuga de ventanas.
+# Presion de la capa superior respecto al exterior
 var overpressure_pa: float = 0.0
 
 # Eventos
 var flashover_triggered: bool = false
 var fire_spread_exposure_s: float = 0.0
 
-# ------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------
 
 func floor_area_m2() -> float:
 	return width_m * length_m
+
 
 func volume_m3() -> float:
 	return width_m * length_m * height_m
@@ -106,6 +100,7 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	upper_energy_kj = 0.0
 	layer_150c_m = height_m
 	co_kg = 0.0
+	co_upper_kg = 0.0
 	co2_kg = 0.0
 	fed = 0.0
 	svv_pct = 100.0
@@ -113,9 +108,13 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	fire = null
 	fire_time_s = 0.0
 	hrr_kw = 0.0
+	hrr_target_kw = 0.0
+	fire_dormant_time_s = 0.0
 	fire_low_hrr_time_s = 0.0
 	fire_o2_extinguished = false
+	o2_hrr_factor = 1.0
+	retained_unburned_MJ = 0.0
+	ventilation_response_factor = 0.0
 	overpressure_pa = 0.0
 	flashover_triggered = false
 	fire_spread_exposure_s = 0.0
-	

@@ -129,10 +129,13 @@ func _load_from_template(data: Dictionary) -> void:
 			op_type = OpeningModel.Type.WINDOW
 
 		var op: OpeningModel = OpeningModel.new(a, b, op_type, width_m, height_m, 1.0)
-		op.open_fraction = clampf(open_fraction, 0.0, 1.0)
+		op.set_open_fraction(open_fraction)
+		op.opening_index = openings.size()
 
 		if op_data.has("sill_m"):
 			op.sill_m = float(op_data["sill_m"])
+		if op_data.has("wall"):
+			op.wall_side = String(op_data["wall"]).to_lower()
 
 		openings.append(op)
 
@@ -258,3 +261,90 @@ func get_neighbor_room_ids(room_id: int) -> Array[int]:
 			neighbors.append(op.a)
 
 	return neighbors
+
+
+func get_opening_count() -> int:
+	return openings.size()
+
+
+func get_opening_at(index: int):
+	if index < 0 or index >= openings.size():
+		return null
+	return openings[index]
+
+
+func set_opening_fraction(index: int, open_fraction: float) -> bool:
+	var op: OpeningModel = get_opening_at(index)
+	if op == null:
+		return false
+
+	op.set_open_fraction(open_fraction)
+	return true
+
+
+func open_opening(index: int) -> bool:
+	return set_opening_fraction(index, 1.0)
+
+
+func close_opening(index: int) -> bool:
+	return set_opening_fraction(index, 0.0)
+
+
+func get_opening_label(index: int) -> String:
+	var op: OpeningModel = get_opening_at(index)
+	if op == null:
+		return "Apertura"
+
+	var prefix: String = "P" if op.type == OpeningModel.Type.DOOR else "V"
+	return "%s%02d %s-%s" % [
+		prefix,
+		index,
+		_get_room_display_name(op.a),
+		_get_room_display_name(op.b)
+	]
+
+
+func get_opening_status_text(index: int) -> String:
+	var op: OpeningModel = get_opening_at(index)
+	if op == null:
+		return "Sin apertura seleccionada"
+
+	var area_eff_m2: float = op.width_m * op.height_m * clampf(op.open_fraction, 0.0, 1.0)
+	return "%s | %.0f%% | Aeff %.2f m2" % [
+		op.state_label(),
+		op.open_fraction * 100.0,
+		area_eff_m2
+	]
+
+
+func build_opening_summaries() -> Array[Dictionary]:
+	var summaries: Array[Dictionary] = []
+	for index in range(openings.size()):
+		var op: OpeningModel = openings[index]
+		if op == null:
+			continue
+
+		summaries.append({
+			"index": index,
+			"label": get_opening_label(index),
+			"status": get_opening_status_text(index),
+			"type": "door" if op.type == OpeningModel.Type.DOOR else "window",
+			"state_label": op.state_label(),
+			"open_fraction": op.open_fraction,
+			"is_exterior": op.is_exterior_opening()
+		})
+
+	return summaries
+
+
+func _get_room_display_name(room_id: int) -> String:
+	if room_id == OUTSIDE_ID:
+		return "Exterior"
+
+	var room: RoomModel = get_room(room_id)
+	if room == null:
+		return "Sala %d" % room_id
+
+	if room.name != "":
+		return room.name
+	return "Sala %d" % room.id

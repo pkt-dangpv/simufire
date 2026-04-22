@@ -21,6 +21,8 @@ var glass_max_open_fraction: float = 0.85
 
 # Estado: opening_index → temperatura de rotura asignada aleatoriamente al inicio.
 var _glass_break_temps: Dictionary = {}
+## Índices de aperturas que se han roto en el step actual (se limpia al inicio de cada step).
+var newly_broken_indices: Array[int] = []
 
 
 func set_references(building: BuildingModel) -> void:
@@ -47,6 +49,7 @@ func reset() -> void:
 # La aleatoriedad modela variabilidad en calidad del cristal, sombreado, etc.
 
 func step(dt: float) -> void:
+	newly_broken_indices.clear()
 	var openings: Array = _building.get_openings()
 	for i in range(openings.size()):
 		var op: OpeningModel = openings[i]
@@ -71,5 +74,8 @@ func step(dt: float) -> void:
 		var break_temp: float = _glass_break_temps[i]
 		# Abrir progresivamente una vez superada la temperatura de rotura
 		if room.temp_upper_c >= break_temp:
+			var was_intact: bool = op.open_fraction < 0.001
 			op.open_fraction = minf(glass_max_open_fraction,
 					op.open_fraction + glass_open_rate_per_s * dt)
+			if was_intact:
+				newly_broken_indices.append(i)

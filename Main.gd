@@ -33,6 +33,7 @@ func _ready() -> void:
 		push_error("Main: HUD no encontrado en $UI/HUD")
 		return
 
+	hud.bind_building(building)
 	_apply_state_to_ui(engine.get_state())
 
 

@@ -42,8 +42,10 @@ var o2_consumption_kg_per_MJ: float = 0.076
 # Estado dinámico
 var state: int = State.COLD
 var surface_temp_c: float = 20.0
+var incident_heat_flux_kw_m2: float = 0.0
 var exposure_s: float = 0.0
 var hrr_kw: float = 0.0
+var autoignite_ready: bool = false
 var ignited_by_object_id: String = ""
 var is_primary_ignition_source: bool = false
 
@@ -68,8 +70,10 @@ func reset_dynamic_state(ambient_temp_c: float = 20.0) -> void:
 	remaining_fuel_MJ = fuel_energy_MJ
 	state = State.COLD
 	surface_temp_c = ambient_temp_c
+	incident_heat_flux_kw_m2 = 0.0
 	exposure_s = 0.0
 	hrr_kw = 0.0
+	autoignite_ready = false
 	ignited_by_object_id = ""
 
 

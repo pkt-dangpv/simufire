@@ -29,6 +29,9 @@ class_name Visualizer
 
 @export var auto_fit_to_view: bool = true
 @export var view_margin_px: float = 20.0
+# Espacio reservado para el panel de UI (HUD) en cada borde
+@export var ui_reserved_right_px: float = 200.0
+@export var ui_reserved_top_px: float = 0.0
 
 # ============================================================
 # TOGGLES DE DIBUJO
@@ -602,60 +605,55 @@ func _build_room_label_lines(id: int, content_rect: Rect2, rs: Dictionary) -> Ar
 	var flashover_triggered: bool = bool(rs.get("flashover_triggered", false))
 	var detail: String = _pick_room_label_detail(content_rect)
 
+	var svv_pct_val: float = _compute_svv_pct(rs)
 	var lines: Array[String] = []
-	lines.append("R%d" % id)
 
-	if show_room_name and room_name != "" and detail == "full":
-		lines.append(room_name)
+	# Cabecera siempre: ID [nombre si cabe]
+	var header: String = "R%d" % id
+	if show_room_name and room_name != "" and detail != "tiny":
+		header += " %s" % room_name
+	lines.append(header)
 
 	match detail:
 		"tiny":
-			lines.append("T0.9 %.0f" % temp_0_9m)
-			lines.append("O2 %.1f%%" % o2v)
+			# Solo lo crítico: temperatura y supervivencia
+			lines.append("T %.0fC" % temp_0_9m)
+			lines.append("SVV %.0f%%" % svv_pct_val)
 			if flashover_triggered:
 				lines.append("FLASHOVER")
-			elif hrr > 0.5:
-				lines.append("HRR %.0f" % hrr)
-			elif co_ppm > 0.5:
-				lines.append("CO %.0f" % co_ppm)
 		"compact":
-			lines.append("HRR %.0f  T0.9 %.0f" % [hrr, temp_0_9m])
-			lines.append("SmL %.2f  HotL %.2f" % [smoke_lay, hot_lay])
+			# 4 líneas: HRR/T, capas, gases, seguridad
+			lines.append("HRR %.0f kW" % hrr)
+			lines.append("T %.0f / %.0f C" % [up, low])
 			lines.append("O2 %.1f%%  CO %.0f" % [o2v, co_ppm])
-			lines.append("FED %.3f  SVV%.0f%%" % [fed_val, _compute_svv_pct(rs)])
-			var compact_window_line: String = _build_window_status_label(rs)
-			if compact_window_line != "":
-				lines.append(compact_window_line)
+			lines.append("FED %.2f  SVV %.0f%%" % [fed_val, svv_pct_val])
 			if flashover_triggered:
 				lines.append("FLASHOVER")
 		"medium":
-			lines.append("HRR %.0f" % hrr)
-			lines.append("Up %.0f  Low %.0f" % [up, low])
-			lines.append("T0.9 %.0f  O2 %.1f%%" % [temp_0_9m, o2v])
-			lines.append("SmL %.2f  HotL %.2f" % [smoke_lay, hot_lay])
-			lines.append("CO %.0f ppm" % co_ppm)
-			lines.append("FED %.3f  SVV%.0f%%" % [fed_val, _compute_svv_pct(rs)])
-			var medium_window_line: String = _build_window_status_label(rs)
-			if medium_window_line != "":
-				lines.append(medium_window_line)
+			# 6 líneas: HRR, temp, capas, gases, FED/SVV
+			lines.append("HRR %.0f kW" % hrr)
+			lines.append("T↑ %.0f  T↓ %.0f C" % [up, low])
+			lines.append("SmL %.2f m  L150 %.2f" % [smoke_lay, layer_150c])
+			lines.append("O2 %.1f%%  CO %.0f ppm" % [o2v, co_ppm])
+			lines.append("FED %.3f  SVV %.0f%%" % [fed_val, svv_pct_val])
+			var med_win: String = _build_window_status_label(rs)
+			if med_win != "":
+				lines.append(med_win)
 			if flashover_triggered:
 				lines.append("FLASHOVER")
 		_:
-			lines.append("HRR %.0f" % hrr)
-			lines.append("Up %.0f  Low %.0f" % [up, low])
-			lines.append("T0.9 %.0f" % temp_0_9m)
-			lines.append("SmL %.2f  HotL %.2f" % [smoke_lay, hot_lay])
-			lines.append("150C %.2f" % layer_150c)
-			lines.append("O2 %.1f%%" % o2v)
-			lines.append("Fuel %.0f  Rem %.0f MJ" % [fuel_mj, rem_mj])
-			lines.append("CO %.0f ppm" % co_ppm)
-			lines.append("FED %.3f  SVV%.0f%%" % [fed_val, _compute_svv_pct(rs)])
-			var full_window_line: String = _build_window_status_label(rs)
-			if full_window_line != "":
-				lines.append(full_window_line)
-			var kaw_kw: float = float(rs.get("kawagoe_hrr_max_kw", 0.0))
-			if kaw_kw > 0.0:
-				lines.append("Kaw<= %.0f kW" % kaw_kw)
+			# Detalle completo
+			lines.append("HRR %.0f kW" % hrr)
+			lines.append("T↑ %.0f  T↓ %.0f C" % [up, low])
+			lines.append("T@0.9m %.0f C" % temp_0_9m)
+			lines.append("SmL %.2f  HotL %.2f m" % [smoke_lay, hot_lay])
+			lines.append("L150 %.2f m" % layer_150c)
+			lines.append("O2 %.1f%%  CO %.0f ppm" % [o2v, co_ppm])
+			lines.append("FED %.3f  SVV %.0f%%" % [fed_val, svv_pct_val])
+			lines.append("Comb %.0f / %.0f MJ" % [rem_mj, fuel_mj])
+			var full_win: String = _build_window_status_label(rs)
+			if full_win != "":
+				lines.append(full_win)
 			if flashover_triggered:
 				lines.append("FLASHOVER")
 
@@ -814,7 +812,7 @@ func _draw_openings() -> void:
 		if b_exists:
 			seg_m = _shared_edge_segment_m(ra, rb)
 		else:
-			seg_m = _default_exterior_segment_m(ra, op.width_m)
+			seg_m = _default_exterior_segment_m(ra, op.width_m, op.wall_side)
 
 		if seg_m.size() != 2:
 			continue
@@ -840,7 +838,7 @@ func _draw_openings() -> void:
 				# Borrar solo el vano de la puerta
 				draw_line(hinge_px, hinge_px + seg_dir * door_px, background_color, wall_thickness + 2.0)
 				var rb_center_px: Vector2 = _to_px(rb).get_center()
-				_draw_door_top_view(hinge_px, door_px, seg_dir, rb_center_px, col)
+				_draw_door_top_view(hinge_px, door_px, seg_dir, rb_center_px, col, op.open_fraction)
 			else:
 				draw_line(p1, p2, background_color, wall_thickness + 2.0)
 				draw_line(p1, p2, col, opening_line_width)
@@ -874,7 +872,14 @@ func _draw_openings() -> void:
 # GEOMETRIA DE OPENINGS
 # ============================================================
 
-func _draw_door_top_view(hinge: Vector2, door_px: float, wall_dir: Vector2, room_b_center: Vector2, col: Color) -> void:
+func _draw_door_top_view(
+	hinge: Vector2,
+	door_px: float,
+	wall_dir: Vector2,
+	room_b_center: Vector2,
+	col: Color,
+	open_fraction: float
+) -> void:
 	# wall_dir: dirección normalizada de la pared (desde bisagra hacia lado libre)
 	# Perpendiculares respecto a la pared
 	var perp_cw: Vector2 = Vector2(wall_dir.y, -wall_dir.x)
@@ -883,9 +888,13 @@ func _draw_door_top_view(hinge: Vector2, door_px: float, wall_dir: Vector2, room
 	var to_a: Vector2 = (hinge - room_b_center).normalized()
 	var swing: Vector2 = perp_cw if to_a.dot(perp_cw) >= 0.0 else perp_ccw
 	# Hoja de puerta: posición abierta (perpendicular a la pared)
-	var tip_open: Vector2 = hinge + swing * door_px
+	var open_t: float = clampf(open_fraction, 0.0, 1.0)
+	var door_dir: Vector2 = wall_dir.lerp(swing, open_t).normalized()
+	if door_dir.length_squared() <= 0.000001:
+		door_dir = wall_dir
+	var tip_leaf: Vector2 = hinge + door_dir * door_px
 
-	draw_line(hinge, tip_open, col, 1.5)
+	draw_line(hinge, tip_leaf, col, 1.5)
 	# Marco libre (línea corta en la pared en el lado opuesto)
 	draw_line(hinge + wall_dir * door_px, hinge + wall_dir * door_px + swing * 3.0, col, 1.0)
 	# Arco de 90° desde posición abierta hasta posición cerrada
@@ -933,11 +942,20 @@ func _shared_edge_segment_m(a: Rect2, b: Rect2) -> PackedVector2Array:
 	return PackedVector2Array()
 
 
-func _default_exterior_segment_m(r: Rect2, width_m: float) -> PackedVector2Array:
+func _default_exterior_segment_m(r: Rect2, width_m: float, wall_side: String = "") -> PackedVector2Array:
+	var side: String = wall_side.to_lower()
+
+	if side == "left" or side == "right":
+		var safe_height: float = clampf(width_m, 0.20, maxf(0.20, r.size.y))
+		var y1: float = r.position.y + (r.size.y - safe_height) * 0.5
+		var y2: float = y1 + safe_height
+		var x_vertical: float = r.position.x if side == "left" else (r.position.x + r.size.x)
+		return PackedVector2Array([Vector2(x_vertical, y1), Vector2(x_vertical, y2)])
+
 	var safe_width: float = clampf(width_m, 0.20, maxf(0.20, r.size.x))
 	var x1: float = r.position.x + (r.size.x - safe_width) * 0.5
 	var x2: float = x1 + safe_width
-	var y: float = r.position.y
+	var y: float = r.position.y if side != "bottom" else (r.position.y + r.size.y)
 	return PackedVector2Array([Vector2(x1, y), Vector2(x2, y)])
 
 
@@ -1061,8 +1079,11 @@ func _get_draw_transform() -> Dictionary:
 		}
 
 	var viewport_rect: Rect2 = get_viewport_rect()
-	var available_w: float = maxf(1.0, viewport_rect.size.x - view_margin_px * 2.0)
-	var available_h: float = maxf(1.0, viewport_rect.size.y - view_margin_px * 2.0)
+	# Área disponible descontando el panel de UI y márgenes
+	var avail_x: float = view_margin_px
+	var avail_y: float = view_margin_px + ui_reserved_top_px
+	var available_w: float = maxf(1.0, viewport_rect.size.x - ui_reserved_right_px - view_margin_px * 2.0)
+	var available_h: float = maxf(1.0, viewport_rect.size.y - ui_reserved_top_px - view_margin_px * 2.0)
 
 	var scale_px: float = meters_to_px
 	if auto_fit_to_view:
@@ -1071,9 +1092,10 @@ func _get_draw_transform() -> Dictionary:
 		scale_px = minf(scale_x, scale_y)
 
 	var drawing_size_px: Vector2 = bounds_m.size * scale_px
+	# Centrar en el área disponible (sin el HUD)
 	var offset: Vector2 = Vector2(
-		(viewport_rect.size.x - drawing_size_px.x) * 0.5,
-		(viewport_rect.size.y - drawing_size_px.y) * 0.5
+		avail_x + (available_w - drawing_size_px.x) * 0.5,
+		avail_y + (available_h - drawing_size_px.y) * 0.5
 	) - bounds_m.position * scale_px
 
 	return {

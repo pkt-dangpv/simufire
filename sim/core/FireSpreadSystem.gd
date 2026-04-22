@@ -14,6 +14,7 @@ class_name FireSpreadSystem
 # Dependencias externas
 var _building: BuildingModel
 var _smoke_model: SmokeModel
+var _combustion_system: CombustionSystem
 
 # Parámetros de propagación
 var fire_spread_enabled: bool = true
@@ -25,9 +26,14 @@ var fire_spread_required_exposure_s: float = 35.0
 var fire_spread_exposure_decay_s: float = 12.0
 
 
-func set_references(building: BuildingModel, smoke_model: SmokeModel) -> void:
+func set_references(
+	building: BuildingModel,
+	smoke_model: SmokeModel,
+	combustion_system: CombustionSystem = null
+) -> void:
 	_building = building
 	_smoke_model = smoke_model
+	_combustion_system = combustion_system
 
 
 func configure(settings: Dictionary) -> void:
@@ -84,10 +90,29 @@ func _update_fire_spread_exposure(source: RoomModel, target: RoomModel, dt: floa
 
 	var source_hot_enough: bool = source.hrr_kw >= fire_spread_min_source_hrr_kw
 	var target_hot_enough: bool = target.temp_upper_c >= fire_spread_ignition_temp_c
-	var target_layer_low_enough: bool = _smoke_model.get_visible_smoke_layer_height_m(target) <= fire_spread_max_layer_m
+	var target_effective_layer_m: float = _smoke_model.get_effective_smoke_spill_layer_height_m(target)
+	var target_layer_low_enough: bool = target_effective_layer_m <= fire_spread_max_layer_m
 	var target_smoky_enough: bool = target.smoke_kg >= fire_spread_min_smoke_kg
+	var passive_surface_temp_c: float = 0.0
+	var passive_flux_kw_m2: float = 0.0
+	var passive_ignition_flux_kw_m2: float = 18.0
+	var passive_autoignite_ready: bool = false
+	var passive_pyrolyzing: bool = false
+	if _combustion_system != null:
+		passive_surface_temp_c = _combustion_system.get_room_passive_surface_temp_c(target)
+		passive_flux_kw_m2 = _combustion_system.get_room_passive_flux_kw_m2(target)
+		passive_ignition_flux_kw_m2 = _combustion_system.get_room_passive_ignition_flux_kw_m2(target)
+		passive_autoignite_ready = _combustion_system.is_room_passive_autoignite_ready(target)
+		passive_pyrolyzing = _combustion_system.get_room_pyrolyzing_object_count(target) > 0
+	var target_preheated_enough: bool = passive_autoignite_ready \
+			or passive_pyrolyzing \
+			or passive_surface_temp_c >= fire_spread_ignition_temp_c - 25.0 \
+			or passive_flux_kw_m2 >= passive_ignition_flux_kw_m2 * 0.80
 
-	if source_hot_enough and target_hot_enough and target_layer_low_enough and target_smoky_enough:
+	if source_hot_enough \
+			and (target_hot_enough or target_preheated_enough) \
+			and target_layer_low_enough \
+			and target_smoky_enough:
 		target.fire_spread_exposure_s += dt
 	else:
 		var decay_step: float = dt * fire_spread_required_exposure_s / maxf(1.0, fire_spread_exposure_decay_s)

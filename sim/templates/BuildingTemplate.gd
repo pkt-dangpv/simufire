@@ -147,6 +147,21 @@ func create_simple_house() -> Dictionary:
 	}) # baño -> pasillo
 
 	# ----------------------------
+	# PUERTA ENTRADA PRINCIPAL
+	# ----------------------------
+	# Pasillo r_pasillo = Rect2(5.0, 0.0, 1.5, 7.0)
+	# La pared "bottom" del pasillo es el acceso al exterior (entry)
+	openings_data.append({
+		"a": 1,
+		"b": -1,
+		"type": "door",
+		"width_m": 0.9,
+		"height_m": 2.1,
+		"open_fraction": 0.0,
+		"wall": "bottom"
+	}) # puerta principal pasillo -> exterior
+
+	# ----------------------------
 	# VENTANAS EXTERIORES
 	# ----------------------------
 	openings_data.append({
@@ -156,7 +171,8 @@ func create_simple_house() -> Dictionary:
 		"width_m": 2.0,
 		"height_m": 1.2,
 		"open_fraction": 0.0,
-		"sill_m": 1.0
+		"sill_m": 0.8,
+		"wall": "top"
 	}) # salon
 
 	openings_data.append({
@@ -166,7 +182,8 @@ func create_simple_house() -> Dictionary:
 		"width_m": 1.2,
 		"height_m": 1.0,
 		"open_fraction": 0.0,
-		"sill_m": 1.0
+		"sill_m": 1.0,
+		"wall": "bottom"
 	}) # cocina
 
 	openings_data.append({
@@ -176,7 +193,8 @@ func create_simple_house() -> Dictionary:
 		"width_m": 1.4,
 		"height_m": 1.1,
 		"open_fraction": 0.0,
-		"sill_m": 1.0
+		"sill_m": 0.9,
+		"wall": "right"
 	}) # dorm1
 
 	openings_data.append({
@@ -186,7 +204,8 @@ func create_simple_house() -> Dictionary:
 		"width_m": 1.4,
 		"height_m": 1.1,
 		"open_fraction": 0.0,
-		"sill_m": 1.0
+		"sill_m": 0.9,
+		"wall": "right"
 	}) # dorm2
 
 	openings_data.append({
@@ -196,7 +215,8 @@ func create_simple_house() -> Dictionary:
 		"width_m": 0.6,
 		"height_m": 0.6,
 		"open_fraction": 0.0,
-		"sill_m": 1.4
+		"sill_m": 1.4,
+		"wall": "bottom"
 	}) # baño
 
 	return {
@@ -437,7 +457,8 @@ func create_ghanekar_bedroom_hallway() -> Dictionary:
 		"width_m": 1.8,
 		"height_m": 0.6,
 		"open_fraction": 1.0,
-		"sill_m": 0.9
+		"sill_m": 0.9,
+		"wall": "left"
 	})
 
 	openings_data.append({
@@ -446,7 +467,8 @@ func create_ghanekar_bedroom_hallway() -> Dictionary:
 		"type": "door",
 		"width_m": 0.9,
 		"height_m": 2.0,
-		"open_fraction": 1.0
+		"open_fraction": 1.0,
+		"wall": "right"
 	})
 
 	openings_data.append({
@@ -456,7 +478,8 @@ func create_ghanekar_bedroom_hallway() -> Dictionary:
 		"width_m": 2.4,
 		"height_m": 1.2,
 		"open_fraction": 0.0,
-		"sill_m": 0.8
+		"sill_m": 0.8,
+		"wall": "top"
 	})
 
 	openings_data.append({
@@ -466,7 +489,8 @@ func create_ghanekar_bedroom_hallway() -> Dictionary:
 		"width_m": 0.9,
 		"height_m": 0.9,
 		"open_fraction": 0.0,
-		"sill_m": 1.2
+		"sill_m": 1.2,
+		"wall": "bottom"
 	})
 
 	openings_data.append({
@@ -476,7 +500,8 @@ func create_ghanekar_bedroom_hallway() -> Dictionary:
 		"width_m": 1.4,
 		"height_m": 1.1,
 		"open_fraction": 0.0,
-		"sill_m": 0.9
+		"sill_m": 0.9,
+		"wall": "left"
 	})
 
 	openings_data.append({
@@ -486,7 +511,8 @@ func create_ghanekar_bedroom_hallway() -> Dictionary:
 		"width_m": 1.4,
 		"height_m": 1.1,
 		"open_fraction": 0.0,
-		"sill_m": 0.9
+		"sill_m": 0.9,
+		"wall": "left"
 	})
 
 	openings_data.append({
@@ -496,7 +522,8 @@ func create_ghanekar_bedroom_hallway() -> Dictionary:
 		"width_m": 1.4,
 		"height_m": 1.1,
 		"open_fraction": 0.0,
-		"sill_m": 0.9
+		"sill_m": 0.9,
+		"wall": "left"
 	})
 
 	openings_data.append({
@@ -506,7 +533,8 @@ func create_ghanekar_bedroom_hallway() -> Dictionary:
 		"width_m": 0.5,
 		"height_m": 0.5,
 		"open_fraction": 0.0,
-		"sill_m": 1.4
+		"sill_m": 1.4,
+		"wall": "right"
 	})
 
 	openings_data.append({
@@ -516,7 +544,8 @@ func create_ghanekar_bedroom_hallway() -> Dictionary:
 		"width_m": 0.5,
 		"height_m": 0.5,
 		"open_fraction": 0.0,
-		"sill_m": 1.4
+		"sill_m": 1.4,
+		"wall": "right"
 	})
 
 	return {

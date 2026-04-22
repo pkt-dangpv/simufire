@@ -18,6 +18,8 @@ func build_state(context: Dictionary) -> Dictionary:
 	var estimate_temperature_callable: Callable = context.get("estimate_temperature_callable", Callable())
 	var effective_hot_layer_callable: Callable = context.get("effective_hot_layer_callable", Callable())
 	var compute_co_ppm_callable: Callable = context.get("compute_co_ppm_callable", Callable())
+	var compute_co_upper_ppm_callable: Callable = context.get("compute_co_upper_ppm_callable", Callable())
+	var compute_co_lower_ppm_callable: Callable = context.get("compute_co_lower_ppm_callable", Callable())
 	var compute_co2_ppm_callable: Callable = context.get("compute_co2_ppm_callable", Callable())
 	var is_quiescent_callable: Callable = context.get("is_quiescent_callable", Callable())
 	var window_open_max_callable: Callable = context.get("window_open_max_callable", Callable())
@@ -42,6 +44,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"height_m": room.height_m,
 
 			"hrr_kw": room.hrr_kw,
+			"hrr_target_kw": room.hrr_target_kw,
 			"fire_time_s": room.fire_time_s,
 
 			"temp_upper_c": room.temp_upper_c,
@@ -72,8 +75,19 @@ func build_state(context: Dictionary) -> Dictionary:
 			"fuel_object_count": room.fuel_objects.size(),
 			"fuel_objects_remaining_MJ": combustion_system.get_room_total_remaining_fuel_MJ(room) if combustion_system != null else 0.0,
 			"fuel_objects_max_hrr_kw": combustion_system.get_room_total_max_hrr_kw(room) if combustion_system != null else 0.0,
+			"fuel_objects_heating_count": combustion_system.get_room_heating_object_count(room) if combustion_system != null else 0,
+			"fuel_objects_pyrolyzing_count": combustion_system.get_room_pyrolyzing_object_count(room) if combustion_system != null else 0,
 			"fuel_objects_active_count": combustion_system.get_room_active_object_count(room) if combustion_system != null else 0,
+			"passive_fuel_surface_temp_c": combustion_system.get_room_passive_surface_temp_c(room) if combustion_system != null else 0.0,
+			"passive_fuel_flux_kw_m2": combustion_system.get_room_passive_flux_kw_m2(room) if combustion_system != null else 0.0,
+			"passive_fuel_autoignite_ready": combustion_system.is_room_passive_autoignite_ready(room) if combustion_system != null else false,
+			"fire_spread_exposure_s": room.fire_spread_exposure_s,
+			"o2_hrr_factor": room.o2_hrr_factor,
+			"retained_unburned_MJ": room.retained_unburned_MJ,
+			"ventilation_response_factor": room.ventilation_response_factor,
 			"co_ppm": _call_room_float(compute_co_ppm_callable, room, 0.0),
+			"co_upper_ppm": _call_room_float(compute_co_upper_ppm_callable, room, 0.0),
+			"co_lower_ppm": _call_room_float(compute_co_lower_ppm_callable, room, 0.0),
 			"co2_ppm": _call_room_float(compute_co2_ppm_callable, room, 0.0),
 			"fed": room.fed,
 			"svv_pct": room.svv_pct,

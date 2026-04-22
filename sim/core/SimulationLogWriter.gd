@@ -53,6 +53,22 @@ func append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 	_next_log_time_s += interval_s
 
 
+## Escribe una línea de evento al log de forma inmediata (fuera del intervalo normal).
+## Formato: EVENT t=600.0 type=door_open opening=2 room_a=1 room_b=-1 frac=1.00
+func append_event(sim_time_s: float, event_type: String, details: String) -> void:
+	if not enabled:
+		return
+	var file := _open_log_file(FileAccess.READ_WRITE, true)
+	if file == null:
+		return
+	file.seek_end()
+	if details.is_empty():
+		file.store_line("EVENT t=%.1f type=%s" % [sim_time_s, event_type])
+	else:
+		file.store_line("EVENT t=%.1f type=%s %s" % [sim_time_s, event_type, details])
+	file.close()
+
+
 func _normalize_log_path(path: String) -> String:
 	if path.begins_with("user://") or path.begins_with("res://"):
 		return ProjectSettings.globalize_path(path)
@@ -176,8 +192,12 @@ func _append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 			svv_zone = "BAJA"
 		else:
 			svv_zone = "MINIMA"
-		var line := "ROOM %s | HRR=%.2f | Up=%.2f | Low=%.2f | Smoke=%.4f | SmokeLayer=%.2f | HotLayer=%.2f | L150=%.2f | P=%.2fPa | O2=%.4f | CO=%.0fppm | CO2=%.0fppm | FED=%.3f SVV=%.0f%% [%s]" % [
-			str(room_state.get("id", room_id)),
+		var room_name_val: String = str(room_state.get("name", ""))
+		var room_label: String = str(room_state.get("id", room_id))
+		if room_name_val != "":
+			room_label = "%s(%s)" % [str(room_state.get("id", room_id)), room_name_val]
+		var line := "ROOM %s | HRR=%.2f | Up=%.2f | Low=%.2f | Smoke=%.4f | SmokeLayer=%.2f | HotLayer=%.2f | L150=%.2f | P=%.2fPa | O2=%.4f | CO=%.0fppm | COu=%.0fppm | CO2=%.0fppm | FED=%.3f | SVV=%.0f%% [%s]" % [
+			room_label,
 			float(room_state.get("hrr_kw", 0.0)),
 			float(room_state.get("temp_upper_c", 0.0)),
 			float(room_state.get("temp_lower_c", 0.0)),
@@ -188,10 +208,24 @@ func _append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 			float(room_state.get("overpressure_pa", 0.0)),
 			float(room_state.get("o2", 0.0)),
 			float(room_state.get("co_ppm", 0.0)),
+			float(room_state.get("co_upper_ppm", 0.0)),
 			float(room_state.get("co2_ppm", 0.0)),
 			fed_val,
 			svv_pct,
 			svv_zone
+		]
+		line += " | FuelH=%d | FuelP=%d | FuelT=%.0f | Flux=%.1f | Spread=%.1f" % [
+			int(room_state.get("fuel_objects_heating_count", 0)),
+			int(room_state.get("fuel_objects_pyrolyzing_count", 0)),
+			float(room_state.get("passive_fuel_surface_temp_c", 0.0)),
+			float(room_state.get("passive_fuel_flux_kw_m2", 0.0)),
+			float(room_state.get("fire_spread_exposure_s", 0.0))
+		]
+		line += " | HRRt=%.1f | O2f=%.2f | GasMJ=%.2f | VentR=%.2f" % [
+			float(room_state.get("hrr_target_kw", 0.0)),
+			float(room_state.get("o2_hrr_factor", 0.0)),
+			float(room_state.get("retained_unburned_MJ", 0.0)),
+			float(room_state.get("ventilation_response_factor", 0.0))
 		]
 		file.store_line(line)
 

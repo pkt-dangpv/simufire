@@ -14,6 +14,8 @@ class_name SmokeModel
 # ============================================================
 
 var smoke_density_kg_m3: float = 0.9
+var smoke_temp_expansion_upper_weight: float = 0.45
+var smoke_temp_expansion_cap_c: float = 400.0
 
 # Transferencia / derrame
 var base_spill_kg_s_per_m2: float = 0.18
@@ -32,9 +34,19 @@ var pressure_spill_max_multiplier: float = 2.5
 # Suavizado de capa
 var layer_relax_down: float = 0.10
 var layer_relax_up: float = 0.008
+var layer_recovery_gap_start_m: float = 0.20
+var layer_recovery_gap_full_m: float = 1.00
+var layer_recovery_boost_max: float = 6.0
+var layer_recovery_low_hrr_threshold_kw: float = 120.0
+var layer_recovery_low_hrr_boost: float = 1.6
 
 # Histéresis simple para evitar parpadeo en el dintel
 var spill_margin_m: float = 0.15
+var thermal_smoke_bridge_min_kg: float = 0.03
+var thermal_smoke_bridge_gap_start_m: float = 0.12
+var thermal_smoke_bridge_gap_full_m: float = 0.90
+var thermal_smoke_bridge_ref_kg_m3: float = 0.015
+var thermal_smoke_bridge_max_weight: float = 0.28
 
 
 # ============================================================
@@ -57,7 +69,7 @@ func estimate_smoke_layer_height_m(room: RoomModel) -> float:
 
 	var floor_area_m2: float = maxf(0.01, room.floor_area_m2())
 	var smoke_volume_m3: float = room.smoke_kg / smoke_density_kg_m3
-	var temp_expansion: float = (room.temp_upper_c + 273.15) / 293.15
+	var temp_expansion: float = _compute_smoke_temp_expansion(room)
 	smoke_volume_m3 *= maxf(1.0, temp_expansion)
 
 	var smoke_depth_m: float = smoke_volume_m3 / floor_area_m2
@@ -74,6 +86,43 @@ func get_visible_smoke_layer_height_m(room: RoomModel) -> float:
 	return clampf(room.h_layer_m, 0.0, room.height_m)
 
 
+func get_effective_smoke_spill_layer_height_m(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+
+	var visible_layer_m: float = get_visible_smoke_layer_height_m(room)
+	var thermal_layer_m: float = clampf(room.thermal_layer_m, 0.0, room.height_m)
+	if thermal_layer_m >= visible_layer_m:
+		return visible_layer_m
+
+	if room.smoke_kg <= thermal_smoke_bridge_min_kg:
+		return visible_layer_m
+
+	var upper_depth_m: float = maxf(0.05, room.height_m - thermal_layer_m)
+	var upper_volume_m3: float = maxf(0.10, room.floor_area_m2() * upper_depth_m)
+	var upper_smoke_concentration_kg_m3: float = room.smoke_kg / upper_volume_m3
+	var concentration_factor: float = clampf(
+		upper_smoke_concentration_kg_m3 / maxf(0.0001, thermal_smoke_bridge_ref_kg_m3),
+		0.0,
+		1.0
+	)
+	var gap_factor: float = clampf(
+		inverse_lerp(
+			thermal_smoke_bridge_gap_start_m,
+			thermal_smoke_bridge_gap_full_m,
+			visible_layer_m - thermal_layer_m
+		),
+		0.0,
+		1.0
+	)
+	var bridge_weight: float = thermal_smoke_bridge_max_weight * concentration_factor * gap_factor
+	return lerpf(visible_layer_m, thermal_layer_m, bridge_weight)
+
+
+func get_spill_layer_height_m(room: RoomModel) -> float:
+	return get_effective_smoke_spill_layer_height_m(room)
+
+
 # ============================================================
 # RECÁLCULO DE CAPA DESDE MASA
 # ------------------------------------------------------------
@@ -88,7 +137,7 @@ func recompute_layer_from_mass(room: RoomModel, dt: float) -> void:
 
 	if room.smoke_kg > 0.000001 and smoke_density_kg_m3 > 0.0:
 		smoke_volume_m3 = room.smoke_kg / smoke_density_kg_m3
-		var temp_expansion: float = (room.temp_upper_c + 273.15) / 293.15
+		var temp_expansion: float = _compute_smoke_temp_expansion(room)
 		smoke_volume_m3 *= maxf(1.0, temp_expansion)
 
 	if smoke_volume_m3 <= 0.000001:
@@ -108,13 +157,30 @@ func recompute_layer_from_mass(room: RoomModel, dt: float) -> void:
 		room.h_layer_m = lerpf(
 			room.h_layer_m,
 			target_layer_m,
-			clampf(layer_relax_down * dt * 2.0, 0.0, 1.0)
+			clampf(layer_relax_down * dt, 0.0, 1.0)
 		)
 	else:
+		var relax_up_rate: float = layer_relax_up
+		var recovery_gap_m: float = target_layer_m - room.h_layer_m
+		if recovery_gap_m > layer_recovery_gap_start_m:
+			var gap_factor: float = clampf(
+				inverse_lerp(
+					layer_recovery_gap_start_m,
+					maxf(layer_recovery_gap_start_m + 0.05, layer_recovery_gap_full_m),
+					recovery_gap_m
+				),
+				0.0,
+				1.0
+			)
+			relax_up_rate *= lerpf(1.0, maxf(1.0, layer_recovery_boost_max), gap_factor)
+
+		if room.hrr_kw <= layer_recovery_low_hrr_threshold_kw:
+			relax_up_rate *= maxf(1.0, layer_recovery_low_hrr_boost)
+
 		room.h_layer_m = lerpf(
 			room.h_layer_m,
 			target_layer_m,
-			clampf(layer_relax_up * dt, 0.0, 1.0)
+			clampf(relax_up_rate * dt, 0.0, 1.0)
 		)
 
 
@@ -135,9 +201,12 @@ func compute_outside_vented_kg(
 		return 0.0
 
 	var lintel_m: float = op.lintel_height_m()
-	var layer_m: float = get_visible_smoke_layer_height_m(room)
+	var layer_m: float = get_effective_smoke_spill_layer_height_m(room)
 
-	# Si la capa no ha llegado al dintel, no hay derrame de humo caliente.
+	# Para flujo por puertas/ventanas debemos usar la interfaz de la capa
+	# superior (zona caliente), no solo la visibilidad. CFAST segmenta el
+	# flujo por la interfaz de zona y el plano neutro, y no por un umbral
+	# óptico de humo.
 	if layer_m >= (lintel_m - spill_margin_m):
 		return 0.0
 
@@ -196,8 +265,8 @@ func compute_room_transfers(
 	# --------------------------------------------------------
 	# El derrame de HUMO arranca cuando la interfaz visible desciende
 	# hasta el dintel de la puerta.
-	var smoke_a_layer_m: float = get_visible_smoke_layer_height_m(room_a)
-	var smoke_b_layer_m: float = get_visible_smoke_layer_height_m(room_b)
+	var smoke_a_layer_m: float = get_effective_smoke_spill_layer_height_m(room_a)
+	var smoke_b_layer_m: float = get_effective_smoke_spill_layer_height_m(room_b)
 	var a_trigger_layer_m: float = _interior_spill_trigger_layer_m(room_a, lintel_m)
 	var b_trigger_layer_m: float = _interior_spill_trigger_layer_m(room_b, lintel_m)
 	var a_excess_m: float = maxf(0.0, a_trigger_layer_m - smoke_a_layer_m)
@@ -344,7 +413,7 @@ func _compute_transfer_mass_kg_continuous(
 	# Si la sala destino ya tiene la capa muy baja, la abertura deja de aceptar humo
 	# con la misma facilidad y el pasillo deja de actuar como sumidero infinito.
 	var target_layer_factor: float = 1.0
-	var target_smoke_layer_m: float = get_visible_smoke_layer_height_m(target)
+	var target_smoke_layer_m: float = get_effective_smoke_spill_layer_height_m(target)
 	if target_smoke_layer_m <= target_layer_block_start_m:
 		target_layer_factor = inverse_lerp(
 			target_layer_block_full_m,
@@ -400,3 +469,19 @@ func _compute_pressure_spill_multiplier(source: RoomModel, target: RoomModel = n
 		1.0
 	)
 	return lerpf(1.0, pressure_spill_max_multiplier, t)
+
+
+func _compute_smoke_temp_expansion(room: RoomModel) -> float:
+	if room == null:
+		return 1.0
+
+	var ambient_k: float = 293.15
+	var effective_smoke_temp_c: float = lerpf(
+		room.temp_lower_c,
+		room.temp_upper_c,
+		clampf(smoke_temp_expansion_upper_weight, 0.0, 1.0)
+	)
+	if smoke_temp_expansion_cap_c > 0.0:
+		effective_smoke_temp_c = minf(effective_smoke_temp_c, smoke_temp_expansion_cap_c)
+
+	return (effective_smoke_temp_c + 273.15) / ambient_k
