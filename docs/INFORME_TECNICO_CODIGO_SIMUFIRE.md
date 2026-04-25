@@ -40,6 +40,42 @@ FuelObjectModel permite tratar combustible por objetos aunque muchas salas usan 
 
 FireModel guarda parametros sencillos de incendio, sobre todo crecimiento t-cuadrado: HRR = alpha * t^2 limitado por max_hrr_kw.
 
+## Guia de variables principales
+
+En RoomModel, id/name/kind identifican la sala; width_m/length_m/height_m definen geometria; temp_upper_c/temp_lower_c son temperaturas de capa alta y baja; thermal_layer_m, upper_gas_kg, upper_energy_kj y layer_150c_m sostienen el modelo termico; o2, smoke_kg, smoke_prod_kg_s, h_layer_m, co_kg, co_upper_kg, co2_kg y overpressure_pa describen atmosfera, gases y presion.
+
+Tambien en RoomModel, fuel_energy_MJ, max_hrr_kw y fuel_objects representan combustible; fire, fire_time_s, hrr_kw, hrr_target_kw, fire_dormant_time_s, fire_low_hrr_time_s y fire_o2_extinguished describen evolucion del incendio; o2_hrr_factor suaviza la limitacion por oxigeno; retained_unburned_MJ almacena gases combustibles no quemados; ventilation_response_factor mide respuesta a nueva ventilacion; flashover_triggered y fire_spread_exposure_s guardan eventos criticos.
+
+En OpeningModel, a y b son habitaciones conectadas, con b = -1 como exterior; type distingue puerta/ventana; width_m, height_m y sill_m dan geometria vertical; open_fraction es la apertura efectiva 0..1; wall_side ayuda al dibujo de ventanas exteriores; spill_coeff modula derrame de humo por el hueco.
+
+En FuelObjectModel, state indica frio/calendando/pirolizando/en llama/decaimiento/agotado; remaining_energy_MJ es energia disponible; max_hrr_kw limita potencia; surface_temp_c y received_flux_kw_m2 acumulan calentamiento; ignition_temp_c, pyrolysis_temp_c y ignition_flux_kw_m2 son umbrales; smoke_yield_kg_per_MJ, co_yield_kg_per_MJ y co2_yield_kg_per_MJ controlan productos.
+
+En SimulationEngine, los exports se agrupan por comportamiento: time_scale y auto_finish_on_extinction controlan ejecucion; glass_* controla rotura de ventanas; fire_* controla crecimiento, O2, yields, latencia, gases no quemados, respuesta a ventilacion, backdraft y extincion; fire_remote_vent_path_* controla la ventilacion por rutas interiores; fire_spread_* controla propagacion; flashover_* controla umbrales de flashover; parametros thermal/smoke/gas/o2/log calibran termica, transporte, capas y salidas.
+
+En Visualizer, los exports no son fisica: son colores, grosores, toggles de dibujo, tamano de etiquetas, limites para seleccionar densidad visual y conversion metros-pixeles. Cambiarlos altera la lectura visual, no la simulacion.
+
+## Calculos y formulas clave
+
+Crecimiento base del fuego: FireModel usa HRR_ideal = min(alpha * t^2, max_hrr_kw). CombustionSystem despues multiplica/limita ese valor por combustible restante, realimentacion termica, oxigeno, subventilacion, smolder y ventilacion.
+
+Oxigeno: el factor de llama normaliza o2 entre fire_o2_min_for_flame y fire_o2_nominal. El consumo usa kg_O2 = HRR_MW * fire_o2_consumption_kg_per_MJ * dt. El codigo usa 0.076 kg/MJ, equivalente aproximado de Thornton.
+
+Humo: la produccion base es smoke_kg_s = HRR_MW * smoke_yield_kg_per_MJ, con multiplicadores por combustion pobre, smolder y gases retenidos. La altura de capa se estima como H - volumen_humo/area, donde volumen_humo = smoke_kg / smoke_density corregido por expansion termica.
+
+Ventilacion por ventana local: el limite tipo Kawagoe se estima con hrr_max = kawagoe_coeff * sum(area_abierta * sqrt(altura)). No predice toda la dinamica, pero impone un techo de potencia cuando el fuego esta limitado por ventilacion exterior directa.
+
+Ventilacion remota: _outside_open_path_factor_for_room hace una busqueda por puertas abiertas hasta el exterior. Cada tramo se atenuta por fraccion de puerta, area relativa y fire_remote_vent_path_decay_per_door. El mayor camino encontrado se usa como senal de ventilacion disponible.
+
+Flujos por orificio: entradas/salidas por huecos usan la forma q = Cd * A * sqrt(2 * dp / rho), con dp derivado de presion, flotabilidad o deficit. Es una correlacion simplificada de flujo, no una resolucion CFD.
+
+Presion de capa caliente: GasExchangeSystem estima dp_buoyancy = rho_ext * g * h_smoke * max(0, 1 - T_ext/T_upper), relajado en el tiempo. Si supera pressure_vent_threshold_pa, purga humo/gases por fugas y huecos.
+
+Intercambio termico interior: ThermalSystem calcula flujo convectivo aproximado por puertas con area efectiva y raiz de g*h*DeltaT/T. La masa caliente transportada mueve tambien energia de capa alta y afecta a la sala fria.
+
+Suavizado temporal: muchos estados usan blend = 1 - exp(-dt/tau). Esto evita saltos cuando cambia O2, ventilacion o HRR objetivo, y hace que la respuesta sea estable en tiempo real.
+
+Tenabilidad: FED suma dosis por CO, hiper-ventilacion por CO2 y deficit de O2. SVV toma el peor caso entre criterio FED y criterio termico por altura de la isoterma 150 C.
+
 ## Algoritmo de combustion
 
 CombustionSystem.step_room_fire es el nucleo mas importante. Calcula un HRR ideal por curva t-cuadrado, lo limita por combustible restante y capacidad maxima, y luego lo modula por oxigeno, temperatura, humo, ventilacion y estado latente.
