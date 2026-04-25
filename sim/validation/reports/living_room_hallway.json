@@ -3,7 +3,7 @@
 		"all_pass": true,
 		"checks": {
 			"room_0_final_layer_150c_m": {
-				"actual": 0.177507349720997,
+				"actual": 0.134716017013212,
 				"pass": true,
 				"rule": {
 					"expected": 0.14,
@@ -11,7 +11,7 @@
 				}
 			},
 			"room_1_final_temp_at_1_8m_c": {
-				"actual": 72.2702984913173,
+				"actual": 87.7158313635017,
 				"pass": true,
 				"rule": {
 					"expected": 80.22,
@@ -19,7 +19,7 @@
 				}
 			},
 			"room_1_min_l150_m": {
-				"actual": 2.16926726803645,
+				"actual": 2.25990940683289,
 				"pass": true,
 				"rule": {
 					"expected": 2.17,
@@ -27,7 +27,7 @@
 				}
 			},
 			"room_1_peak_temp_upper_c": {
-				"actual": 190.270030483737,
+				"actual": 178.388477263291,
 				"pass": true,
 				"rule": {
 					"expected": 187.0,
@@ -35,7 +35,7 @@
 				}
 			},
 			"time_room_0_smoke_layer_2m_s": {
-				"actual": 126.666666666664,
+				"actual": 128.249999999997,
 				"pass": true,
 				"rule": {
 					"expected": 126.75,
@@ -43,7 +43,7 @@
 				}
 			},
 			"time_room_1_smoke_start_s": {
-				"actual": 126.749999999997,
+				"actual": 126.166666666664,
 				"pass": true,
 				"rule": {
 					"expected": 126.83,
@@ -55,31 +55,69 @@
 	"case": "living_room_hallway",
 	"duration_s": 260.0,
 	"metrics": {
-		"peak_co_ppm_global": 6418.25233146907,
-		"peak_hrr_kw_global": 1096.65563181198,
+		"peak_co_ppm_global": 363.617781865707,
+		"peak_co_upper_ppm_global": 3087.08085666069,
+		"peak_hrr_kw_global": 1321.45240811451,
 		"peak_temp_upper_c_global": 900.0,
-		"room_0_final_co_ppm": 2373.31643572927,
-		"room_0_final_hot_layer_m": 1.80933840510004,
-		"room_0_final_layer_150c_m": 0.177507349720997,
-		"room_0_final_smoke_kg": 0.473378497154333,
-		"room_0_final_smoke_layer_m": 1.99901452688468,
-		"room_0_final_temp_at_1_8m_c": 272.240022734521,
-		"room_0_min_l150_m": 0.174667785739885,
-		"room_0_peak_co_ppm": 2640.46079510939,
-		"room_0_peak_hrr_kw": 1096.65563181198,
+		"room_0_final_co2_ppm": 7565.51722593087,
+		"room_0_final_co_ppm": 51.8151559798049,
+		"room_0_final_co_upper_ppm": 1613.28130793573,
+		"room_0_final_fed": 0.285099443551533,
+		"room_0_final_fire_time_s": 147.546849217844,
+		"room_0_final_fuel_objects_remaining_MJ": 5850.35475558783,
+		"room_0_final_hot_layer_m": 2.18450416714897,
+		"room_0_final_hrr_kw": 22.0359692701805,
+		"room_0_final_hrr_target_kw": 12.4853024335882,
+		"room_0_final_layer_150c_m": 0.134716017013212,
+		"room_0_final_o2": 0.0936451122643479,
+		"room_0_final_o2_hrr_factor": 0.0873658592326184,
+		"room_0_final_outside_open_path_factor": 0.0,
+		"room_0_final_remaining_fuel_MJ": 5849.9401645766,
+		"room_0_final_retained_unburned_MJ": 0.414591011228795,
+		"room_0_final_smoke_kg": 0.66862599576326,
+		"room_0_final_smoke_layer_m": 2.00766077413662,
+		"room_0_final_temp_at_0_9m_c": 283.691566785058,
+		"room_0_final_temp_at_1_8m_c": 283.691566785058,
+		"room_0_final_ventilation_response_factor": 0.0,
+		"room_0_max_fed": 0.285099443551533,
+		"room_0_min_l150_m": 0.124798698615838,
+		"room_0_peak_co2_ppm": 18131.0957788524,
+		"room_0_peak_co_ppm": 220.793572561582,
+		"room_0_peak_co_upper_ppm": 3087.08085666069,
+		"room_0_peak_hrr_kw": 1321.45240811451,
 		"room_0_peak_temp_upper_c": 900.0,
-		"room_1_final_co_ppm": 6297.86741252287,
-		"room_1_final_hot_layer_m": 1.77272276612825,
-		"room_1_final_layer_150c_m": 2.39995429723717,
-		"room_1_final_smoke_kg": 0.720686810290959,
-		"room_1_final_smoke_layer_m": 1.99904757693756,
-		"room_1_final_temp_at_1_8m_c": 72.2702984913173,
-		"room_1_min_l150_m": 2.16926726803645,
-		"room_1_peak_co_ppm": 6418.25233146907,
+		"room_1_final_co2_ppm": 17280.523985754,
+		"room_1_final_co_ppm": 193.747107727272,
+		"room_1_final_co_upper_ppm": 2021.49296673494,
+		"room_1_final_fed": 0.0354801156702238,
+		"room_1_final_fire_time_s": 0.0,
+		"room_1_final_fuel_objects_remaining_MJ": 800.0,
+		"room_1_final_hot_layer_m": 2.08925131809706,
+		"room_1_final_hrr_kw": 0.0,
+		"room_1_final_hrr_target_kw": 0.0,
+		"room_1_final_layer_150c_m": 2.31003105766737,
+		"room_1_final_o2": 0.169712474990038,
+		"room_1_final_o2_hrr_factor": 1.0,
+		"room_1_final_outside_open_path_factor": 0.0,
+		"room_1_final_remaining_fuel_MJ": 0.0,
+		"room_1_final_retained_unburned_MJ": 0.0,
+		"room_1_final_smoke_kg": 0.595111434260638,
+		"room_1_final_smoke_layer_m": 2.00303384413306,
+		"room_1_final_temp_at_0_9m_c": 87.7158313635017,
+		"room_1_final_temp_at_1_8m_c": 87.7158313635017,
+		"room_1_final_ventilation_response_factor": 0.0,
+		"room_1_max_fed": 0.0354801156702238,
+		"room_1_min_l150_m": 2.25990940683289,
+		"room_1_peak_co2_ppm": 29374.5138530044,
+		"room_1_peak_co_ppm": 363.617781865707,
+		"room_1_peak_co_upper_ppm": 2321.52852353453,
 		"room_1_peak_hrr_kw": 0.0,
-		"room_1_peak_temp_upper_c": 190.270030483737,
-		"time_room_0_smoke_layer_2m_s": 126.666666666664,
-		"time_room_1_smoke_start_s": 126.749999999997
+		"room_1_peak_temp_upper_c": 178.388477263291,
+		"smoke_deposited_total_kg": 0.0137215890690011,
+		"smoke_generated_total_kg": 3.89810372777988,
+		"smoke_vented_total_kg": 1.47470778416515,
+		"time_room_0_smoke_layer_2m_s": 128.249999999997,
+		"time_room_1_smoke_start_s": 126.166666666664
 	},
 	"sim_time_s": 260.000000000011
 }

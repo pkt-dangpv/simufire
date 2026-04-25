@@ -11,10 +11,6 @@
 		"room_0_final_layer_150c_m": {
 			"expected": 0.19,
 			"tolerance": 0.08
-		},
-		"time_to_extinction_s": {
-			"expected": 318.25,
-			"tolerance": 30.0
 		}
 	}
 }

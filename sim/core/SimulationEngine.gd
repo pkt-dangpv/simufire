@@ -47,6 +47,7 @@ var sim_time_s: float = 0.0
 
 # Segundos sin fuego activo antes de declarar la simulación terminada.
 @export var extinction_grace_s: float = 30.0
+@export var auto_finish_on_extinction: bool = true
 var is_finished: bool = false
 var _extinction_countdown: float = 30.0
 # Fraccion de apertura del step anterior por índice, para detectar cambios.
@@ -102,15 +103,15 @@ var smoke_deposited_total_kg: float = 0.0
 @export var fire_o2_consumption_kg_per_MJ: float = 0.076  # Regla de Thornton: 1/13.1 MJ/kgO2
 # Rendimiento de humo (kg/MJ)
 # SFPE: ~0.06 kg/kg ÷ 16 MJ/kg = 0.00375 kg/MJ
-@export var fire_smoke_yield_kg_per_MJ: float = 0.007
+@export var fire_smoke_yield_kg_per_MJ: float = 0.0088
 @export var fire_smoke_yield_low_o2_multiplier: float = 5.0
 @export var fire_smoke_basis_min_fraction: float = 0.40
-@export var fire_smolder_hrr_fraction: float = 0.10
+@export var fire_smolder_hrr_fraction: float = 0.03
 @export var fire_smolder_smoke_multiplier: float = 2.8
 @export var fire_retained_smoke_fraction: float = 0.38
 @export var fire_pool_smoke_fraction: float = 0.42
-@export var fire_latent_hrr_cap_min_fraction: float = 0.15
-@export var fire_latent_hrr_cap_max_fraction: float = 0.85
+@export var fire_latent_hrr_cap_min_fraction: float = 0.08
+@export var fire_latent_hrr_cap_max_fraction: float = 0.35
 @export var fire_latent_co_yield_multiplier: float = 0.06
 @export var fire_retained_co_fraction: float = 0.08
 @export var fire_pool_co_fraction: float = 0.40
@@ -141,11 +142,11 @@ var smoke_deposited_total_kg: float = 0.0
 # Umbral de extinción: si el HRR real cae por debajo durante fire_extinction_delay_s
 # segundos, el fuego se considera extinto (modela apagado por falta de ventilación).
 @export var fire_extinction_hrr_kw: float = 8.0
-@export var fire_extinction_delay_s: float = 360.0
+@export var fire_extinction_delay_s: float = 240.0
 @export var fire_latent_enabled: bool = true
-@export var fire_latent_extinction_delay_s: float = 900.0
-@export var fire_latent_hold_upper_temp_c: float = 120.0
-@export var fire_latent_hold_lower_temp_c: float = 55.0
+@export var fire_latent_extinction_delay_s: float = 300.0
+@export var fire_latent_hold_upper_temp_c: float = 140.0
+@export var fire_latent_hold_lower_temp_c: float = 60.0
 @export var fire_latent_min_remaining_fuel_MJ: float = 25.0
 
 # Tiempo máximo de actividad del fuego. Pasado este tiempo el combustible se considera
@@ -164,8 +165,8 @@ var smoke_deposited_total_kg: float = 0.0
 # Filtrado temporal del oxidante efectivo y respuesta de HRR a la ventilacion.
 @export var fire_o2_hrr_rise_tau_s: float = 14.0
 @export var fire_o2_hrr_fall_tau_s: float = 32.0
-@export var fire_subvent_pyrolysis_min_fraction: float = 0.20
-@export var fire_subvent_pyrolysis_max_fraction: float = 0.40
+@export var fire_subvent_pyrolysis_min_fraction: float = 0.08
+@export var fire_subvent_pyrolysis_max_fraction: float = 0.18
 @export var fire_unburned_generation_fraction: float = 0.30
 @export var fire_unburned_capacity_MJ_per_m2: float = 1.20
 @export var fire_unburned_decay_per_s: float = 0.0025
@@ -182,18 +183,27 @@ var smoke_deposited_total_kg: float = 0.0
 @export var fire_backdraft_o2_max: float = 0.13
 @export var fire_backdraft_temp_min_c: float = 180.0
 @export var fire_backdraft_release_boost: float = 1.35
+@export var fire_remote_vent_path_enabled: bool = true
+@export var fire_remote_vent_path_decay_per_door: float = 0.60
+@export var fire_remote_vent_path_min_signal: float = 0.02
+@export var fire_remote_vent_path_max_doors: int = 4
 
 # ============================================================
 # PROPAGACIÓN DEL INCENDIO
 # ============================================================
 
-@export var fire_spread_enabled: bool = true
+@export var fire_spread_enabled: bool = false
 @export var fire_spread_ignition_temp_c: float = 340.0  # temperatura de la capa superior para ignición por calor
 @export var fire_spread_max_layer_m: float = 1.6
 @export var fire_spread_min_smoke_kg: float = 0.08
 @export var fire_spread_min_source_hrr_kw: float = 180.0
 @export var fire_spread_required_exposure_s: float = 35.0
 @export var fire_spread_exposure_decay_s: float = 12.0
+
+# La autoignicion de proxies "sala completa" genera propagaciones demasiado
+# agresivas para el escenario base y las validaciones zonales. Se mantiene como
+# capacidad opt-in para futuros casos con combustible objetual mas detallado.
+@export var passive_room_autoignite_enabled: bool = false
 
 # ============================================================
 # FLASHOVER SIMPLE
@@ -213,7 +223,7 @@ var smoke_deposited_total_kg: float = 0.0
 
 @export var upper_to_lower_loss_rate: float = 0.025
 @export var upper_to_ambient_loss_rate: float = 0.008
-@export var lower_layer_warming_rate: float = 0.0180
+@export var lower_layer_warming_rate: float = 0.0120
 @export var max_upper_temp_c: float = 900.0
 @export var doorway_heat_exchange_coeff: float = 0.26
 @export var smoke_heat_mix_coeff: float = 0.025
@@ -223,9 +233,12 @@ var smoke_deposited_total_kg: float = 0.0
 @export var retained_hot_layer_o2_full: float = 0.10
 @export var retained_hot_layer_max_fraction: float = 0.85
 @export var outside_open_loss_area_fraction: float = 0.12
-@export var outside_open_ambient_loss_multiplier: float = 16.0
+@export var outside_open_ambient_loss_multiplier: float = 5.0
 @export var outside_open_wall_absorption_multiplier: float = 0.80
 @export var outside_open_upper_mix_rate: float = 0.10
+@export var outside_open_background_heat_exchange_kg_s_m2: float = 0.030
+@export var outside_open_background_heat_max_fraction_per_step: float = 0.020
+@export var outside_open_background_heat_carry_factor: float = 0.42
 @export var thermal_gradient_min_band_m: float = 0.20
 @export var thermal_gradient_max_band_m: float = 0.70
 @export var thermal_gradient_band_fraction: float = 0.35
@@ -261,9 +274,9 @@ var smoke_deposited_total_kg: float = 0.0
 # OXÍGENO / MEZCLA
 # ============================================================
 
-@export var ach_infiltration: float = 0.70  # Renovaciones de aire/hora — incluye fugas + retorno pasivo HVAC
+@export var ach_infiltration: float = 0.50  # Renovaciones de aire/hora por fugas del edificio
 @export var interior_transport_enabled: bool = true
-@export var interior_transport_speed_m_s: float = 0.20
+@export var interior_transport_speed_m_s: float = 0.28
 @export var interior_transport_min_distance_m: float = 0.50
 @export var interior_o2_transport_delay_multiplier: float = 1.60
 @export var doorway_o2_min_band_m: float = 0.25
@@ -279,7 +292,7 @@ var smoke_deposited_total_kg: float = 0.0
 # AJUSTES DE HUMO (se copian al SmokeModel)
 # ============================================================
 
-@export var smoke_density_kg_m3: float = 0.22
+@export var smoke_density_kg_m3: float = 0.18
 @export var smoke_temp_expansion_upper_weight: float = 0.45
 @export var smoke_temp_expansion_cap_c: float = 400.0
 @export var base_spill_kg_s_per_m2: float = 0.30
@@ -309,8 +322,8 @@ var smoke_deposited_total_kg: float = 0.0
 @export var postfire_cleanup_cool_full_c: float = 35.0
 @export var postfire_cleanup_pressure_stop_pa: float = 0.8
 @export var postfire_cleanup_pressure_full_pa: float = 0.10
-@export var smoke_settling_base_per_s: float = 0.0
-@export var smoke_settling_bonus_per_s: float = 0.0
+@export var smoke_settling_base_per_s: float = 0.00004
+@export var smoke_settling_bonus_per_s: float = 0.00018
 @export var co_postfire_purge_base_per_s: float = 0.0
 @export var co_postfire_purge_bonus_per_s: float = 0.0
 @export var outside_open_species_purge_base_per_s: float = 0.015
@@ -333,6 +346,10 @@ var smoke_deposited_total_kg: float = 0.0
 # ============================================================
 
 func _sync_auxiliary_services() -> void:
+	if not is_ready_for_validation():
+		push_error("SimulationEngine: subsistemas no inicializados; no se puede sincronizar")
+		return
+
 	thermal_system.set_references(building, smoke_model)
 	thermal_system.configure({
 		"upper_to_lower_loss_rate": upper_to_lower_loss_rate,
@@ -351,6 +368,9 @@ func _sync_auxiliary_services() -> void:
 		"outside_open_ambient_loss_multiplier": outside_open_ambient_loss_multiplier,
 		"outside_open_wall_absorption_multiplier": outside_open_wall_absorption_multiplier,
 		"outside_open_upper_mix_rate": outside_open_upper_mix_rate,
+		"outside_open_background_heat_exchange_kg_s_m2": outside_open_background_heat_exchange_kg_s_m2,
+		"outside_open_background_heat_max_fraction_per_step": outside_open_background_heat_max_fraction_per_step,
+		"outside_open_background_heat_carry_factor": outside_open_background_heat_carry_factor,
 		"thermal_gradient_min_band_m": thermal_gradient_min_band_m,
 		"thermal_gradient_max_band_m": thermal_gradient_max_band_m,
 		"thermal_gradient_band_fraction": thermal_gradient_band_fraction,
@@ -434,6 +454,7 @@ func _build_state_context() -> Dictionary:
 		"sim_time_s": sim_time_s,
 		"smoke_generated_total_kg": smoke_generated_total_kg,
 		"smoke_vented_total_kg": smoke_vented_total_kg,
+		"smoke_deposited_total_kg": smoke_deposited_total_kg,
 		"kawagoe_coeff": kawagoe_coeff,
 		"estimate_temperature_callable": Callable(thermal_system, "estimate_temperature_at_height_m"),
 		"effective_hot_layer_callable": Callable(thermal_system, "effective_hot_layer_height_m"),
@@ -443,6 +464,7 @@ func _build_state_context() -> Dictionary:
 		"compute_co2_ppm_callable": Callable(thermal_system, "compute_co2_ppm"),
 		"is_quiescent_callable": Callable(thermal_system, "is_room_quiescent"),
 		"window_open_max_callable": Callable(self, "_window_open_max_for_room"),
+		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
 		"kawagoe_factor_callable": Callable(self, "_kawagoe_factor_for_room")
 	}
 
@@ -452,14 +474,16 @@ func _build_gas_exchange_hooks() -> Dictionary:
 		"effective_hot_layer_height_callable": Callable(thermal_system, "effective_hot_layer_height_m"),
 		"remove_upper_layer_fraction_callable": Callable(thermal_system, "remove_upper_layer_fraction"),
 		"sync_room_upper_layer_callable": Callable(thermal_system, "sync_room_upper_layer"),
-		"compute_interroom_transfer_temp_callable": Callable(thermal_system, "compute_interroom_transfer_temp_c")
+		"compute_interroom_transfer_temp_callable": Callable(thermal_system, "compute_interroom_transfer_temp_c"),
+		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room")
 	}
 
 
 func _build_oxygen_exchange_hooks() -> Dictionary:
 	return {
 		"effective_hot_layer_height_callable": Callable(thermal_system, "effective_hot_layer_height_m"),
-		"build_interior_opening_flow_state_callable": Callable(thermal_system, "build_interior_opening_flow_state")
+		"build_interior_opening_flow_state_callable": Callable(thermal_system, "build_interior_opening_flow_state"),
+		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room")
 	}
 
 # ============================================================
@@ -526,7 +550,7 @@ func _sync_smoke_model_settings() -> void:
 func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_initial_fire: bool = true) -> void:
 	if building == null:
 		_resolve_building()
-	if building == null:
+	if building == null or not is_ready_for_validation():
 		return
 
 	_sync_smoke_model_settings()
@@ -570,7 +594,7 @@ func _reset_room_state(room: RoomModel) -> void:
 # ============================================================
 
 func step(delta: float) -> void:
-	if building == null:
+	if building == null or is_finished:
 		return
 
 	var dt: float = maxf(0.0, delta * time_scale)
@@ -581,7 +605,9 @@ func step(delta: float) -> void:
 
 	_step_fire(dt)
 	_step_oxygen(dt)
-	thermal_system.step(building, dt)
+	thermal_system.step(building, dt, {
+		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room")
+	})
 	if glass_auto_break_enabled:
 		glass_failure_system.step(dt)
 		for broken_idx in glass_failure_system.newly_broken_indices:
@@ -603,9 +629,11 @@ func step(delta: float) -> void:
 	if not any_fire_active:
 		_extinction_countdown -= dt
 		if _extinction_countdown <= 0.0:
-			if not is_finished:
+			if auto_finish_on_extinction and not is_finished:
 				is_finished = true
 				_on_sim_finished()
+			elif not auto_finish_on_extinction:
+				_extinction_countdown = 0.0
 	else:
 		_extinction_countdown = extinction_grace_s
 
@@ -657,6 +685,8 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 	var kawagoe_limit_kw: float = 0.0
 	var kawagoe_factor: float = _kawagoe_factor_for_room(room_id)
 	var room: RoomModel = building.get_room(room_id) if building != null else null
+	var local_outside_open_factor: float = thermal_system.estimate_room_outside_open_factor(room) if room != null else 0.0
+	var outside_open_path_factor: float = _outside_open_path_factor_for_room(room_id)
 	if kawagoe_factor > 0.0:
 		kawagoe_limit_kw = kawagoe_coeff * kawagoe_factor
 
@@ -717,7 +747,8 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"co2_min_yield_kg_per_MJ": co2_min_yield_kg_per_MJ,
 		"kawagoe_limit_kw": kawagoe_limit_kw,
 		"window_open_max": _window_open_max_for_room(room_id),
-		"outside_open_factor": thermal_system.estimate_room_outside_open_factor(room) if room != null else 0.0
+		"outside_open_factor": local_outside_open_factor,
+		"outside_open_path_factor": outside_open_path_factor
 	}
 
 # ============================================================
@@ -739,7 +770,7 @@ func _step_gas_exchange(dt: float) -> void:
 
 
 func _step_passive_fuel(dt: float) -> void:
-	if building == null:
+	if building == null or not passive_room_autoignite_enabled:
 		return
 
 	var ambient_c: float = thermal_system.ambient_temp_c()
@@ -880,6 +911,69 @@ func _window_open_max_for_room(room_id: int) -> float:
 		max_frac = maxf(max_frac, op.open_fraction)
 	return max_frac if has_window else -1.0
 
+
+func _outside_open_path_factor_for_room(room_id: int) -> float:
+	if building == null or not fire_remote_vent_path_enabled:
+		return 0.0
+	if thermal_system == null or building.get_room(room_id) == null:
+		return 0.0
+
+	var best_path_by_room: Dictionary = {}
+	var depth_by_room: Dictionary = {}
+	var queue: Array[int] = []
+	best_path_by_room[room_id] = 1.0
+	depth_by_room[room_id] = 0
+	queue.append(room_id)
+
+	var best_factor: float = 0.0
+	while not queue.is_empty():
+		var current_id: int = int(queue.pop_front())
+		var current_room: RoomModel = building.get_room(current_id)
+		var current_path_factor: float = float(best_path_by_room.get(current_id, 0.0))
+		var current_depth: int = int(depth_by_room.get(current_id, 0))
+
+		if current_room != null:
+			best_factor = maxf(
+				best_factor,
+				thermal_system.estimate_room_outside_open_factor(current_room) * current_path_factor
+			)
+
+		if current_depth >= fire_remote_vent_path_max_doors:
+			continue
+
+		for op in building.get_connected_openings(current_id):
+			if op == null or op.open_fraction <= 0.0:
+				continue
+			if op.type != OpeningModel.Type.DOOR:
+				continue
+			if op.a == BuildingModel.OUTSIDE_ID or op.b == BuildingModel.OUTSIDE_ID:
+				continue
+
+			var next_id: int = op.b if op.a == current_id else op.a
+			if next_id == BuildingModel.OUTSIDE_ID or building.get_room(next_id) == null:
+				continue
+
+			var area_factor: float = clampf(
+				(op.width_m * op.height_m) / maxf(0.1, 0.8 * 2.0),
+				0.35,
+				1.25
+			)
+			var next_path_factor: float = current_path_factor \
+					* clampf(op.open_fraction, 0.0, 1.0) \
+					* clampf(fire_remote_vent_path_decay_per_door, 0.0, 1.0) \
+					* area_factor
+			next_path_factor = clampf(next_path_factor, 0.0, 1.0)
+			if next_path_factor < fire_remote_vent_path_min_signal:
+				continue
+			if next_path_factor <= float(best_path_by_room.get(next_id, -1.0)):
+				continue
+
+			best_path_by_room[next_id] = next_path_factor
+			depth_by_room[next_id] = current_depth + 1
+			queue.append(next_id)
+
+	return clampf(best_factor, 0.0, 1.0)
+
 # ============================================================
 # FLASHOVER
 # ============================================================
@@ -1007,7 +1101,33 @@ func _clamp_rooms() -> void:
 # ============================================================
 
 func get_state() -> Dictionary:
+	if state_builder == null:
+		return {}
 	return state_builder.build_state(_build_state_context())
+
+
+func is_ready_for_validation() -> bool:
+	return smoke_model != null \
+			and combustion_system != null \
+			and gas_exchange_system != null \
+			and oxygen_exchange_system != null \
+			and log_writer != null \
+			and state_builder != null \
+			and thermal_system != null \
+			and fire_spread_system != null \
+			and glass_failure_system != null
+
+
+func are_graphs_launched() -> bool:
+	return _graphs_launched
+
+
+func stop_and_generate_graphs(details: String = "manual_stop_button") -> bool:
+	if sim_time_s <= 0.0 or _graphs_launched:
+		return false
+
+	_finish_and_launch_graphs(details)
+	return true
 
 # ============================================================
 # EVENTOS Y GENERACIÓN DE GRÁFICAS
@@ -1057,12 +1177,28 @@ func _log_opening_event(opening_idx: int, event_type: String) -> void:
 ## Llamado cuando la simulación termina naturalmente O cuando el usuario para el
 ## juego (a través de _exit_tree). Escribe sim_end y lanza Python.
 func _on_sim_finished() -> void:
-	if _graphs_launched:
+	_finish_and_launch_graphs("")
+
+
+func _finish_and_launch_graphs(details: String) -> void:
+	if _graphs_launched or sim_time_s <= 0.0:
 		return
+
+	is_finished = true
+	_force_log_final_snapshot()
 	_graphs_launched = true
 
-	log_writer.append_event(sim_time_s, "sim_end", "")
-	_launch_graph_generator()
+	if details.is_empty():
+		log_writer.append_event(sim_time_s, "sim_end", "")
+	else:
+		log_writer.append_event(sim_time_s, "sim_end", details)
+	if _should_launch_graphs():
+		_launch_graph_generator()
+
+
+func _force_log_final_snapshot() -> void:
+	_sync_auxiliary_services()
+	log_writer.append_snapshot_now(sim_time_s, get_state())
 
 
 func _launch_graph_generator() -> void:
@@ -1082,14 +1218,19 @@ func _launch_graph_generator() -> void:
 		push_warning("[SimulationEngine] No se pudo lanzar Python. Ejecuta: python scripts/generate_fire_graphs.py")
 
 
+func _should_launch_graphs() -> bool:
+	for arg in OS.get_cmdline_user_args():
+		var arg_str: String = String(arg)
+		if arg_str.begins_with("--validation-case"):
+			return false
+	return true
+
+
 ## Godot llama _exit_tree cuando se detiene el juego (botón Stop del editor
 ## o cierre de ventana). Garantiza que las gráficas se generen aunque la
 ## simulación no haya terminado por extinción natural del fuego.
 func _exit_tree() -> void:
-	if not _graphs_launched and sim_time_s > 0.0:
-		_graphs_launched = true   # evitar doble llamada
-		log_writer.append_event(sim_time_s, "sim_end", "forced")
-		_launch_graph_generator()
+	_finish_and_launch_graphs("forced")
 
 # ============================================================
 # REGISTRO DE VALORES

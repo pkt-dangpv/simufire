@@ -53,6 +53,13 @@ func append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 	_next_log_time_s += interval_s
 
 
+func append_snapshot_now(sim_time_s: float, state: Dictionary) -> void:
+	if not enabled:
+		return
+
+	_append_snapshot(sim_time_s, state)
+
+
 ## Escribe una línea de evento al log de forma inmediata (fuera del intervalo normal).
 ## Formato: EVENT t=600.0 type=door_open opening=2 room_a=1 room_b=-1 frac=1.00
 func append_event(sim_time_s: float, event_type: String, details: String) -> void:

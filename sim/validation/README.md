@@ -16,6 +16,14 @@ Para correr toda la bateria con parada al primer fallo y resumen final:
 powershell -ExecutionPolicy Bypass -File .\sim\validation\run_all_cases.ps1
 ```
 
+Para proteger la sesion de cuelgues, ambos wrappers aceptan `-TimeoutSeconds`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\sim\validation\run_all_cases.ps1 `
+  -TimeoutSeconds 120 `
+  -ContinueOnFailure
+```
+
 Tambien acepta overrides opcionales:
 
 ```powershell
@@ -49,10 +57,16 @@ al proyecto para no depender del log por defecto de `user://logs`:
 ## Casos
 
 - `living_room_hallway`: propagacion corta de humo y calor entre salon y pasillo
-- `postfire_decay`: extincion, cola residual de humo y retorno termico casi ambiente
+- `postfire_decay`: extincion, deposicion de humo residual y retorno termico casi ambiente
 - `layer150_tenability`: mismo escenario base prolongado, centrado en `L150` y temperatura a `1.8 m`
+- `tmp_r2_window_open_start`: fuego en salon con ventana exterior abierta desde inicio en Dormitorio1; valida contaminantes, calentamiento moderado por ruta remota de ventilacion y que `R0` no se extinga falsamente cuando la ruta `R0 -> pasillo -> R2 -> exterior` sigue abierta
 
 ## Salidas
 
 - reportes JSON en `sim/validation/reports/`
 - si existe un baseline con el mismo nombre en `sim/validation/baselines/`, el runner compara y devuelve `PASS/FAIL`
+
+## Nota sobre extincion
+
+`time_to_extinction_s` se registra cuando no queda ningun `has_fire` activo. No debe
+interpretarse como extincion real un cruce momentaneo por debajo del umbral de HRR.

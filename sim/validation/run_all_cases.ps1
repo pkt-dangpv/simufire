@@ -1,6 +1,7 @@
 param(
 	[string]$GodotExe = "C:\Users\dangp\Desktop\Godot_v4.6.2-stable_win64_console.exe",
 	[string]$ProjectPath = "",
+	[int]$TimeoutSeconds = 300,
 	[switch]$ContinueOnFailure
 )
 
@@ -29,12 +30,13 @@ $suiteStart = Get-Date
 Write-Host "[Validation Suite] Inicio de bateria completa"
 Write-Host ("[Validation Suite] Proyecto: {0}" -f $ProjectPath)
 Write-Host ("[Validation Suite] Casos: {0}" -f ($cases -join ", "))
+Write-Host ("[Validation Suite] Timeout por caso: {0}s" -f $TimeoutSeconds)
 
 foreach ($caseName in $cases) {
 	$caseStart = Get-Date
 
 	try {
-		& $runCaseScript -CaseName $caseName -GodotExe $GodotExe -ProjectPath $ProjectPath
+		& $runCaseScript -CaseName $caseName -GodotExe $GodotExe -ProjectPath $ProjectPath -TimeoutSeconds $TimeoutSeconds
 
 		$duration = (Get-Date) - $caseStart
 		$results.Add([pscustomobject]@{

@@ -6,7 +6,8 @@ func build_state(context: Dictionary) -> Dictionary:
 	var state: Dictionary = {
 		"sim_time_s": float(context.get("sim_time_s", 0.0)),
 		"smoke_generated_total_kg": float(context.get("smoke_generated_total_kg", 0.0)),
-		"smoke_vented_total_kg": float(context.get("smoke_vented_total_kg", 0.0))
+		"smoke_vented_total_kg": float(context.get("smoke_vented_total_kg", 0.0)),
+		"smoke_deposited_total_kg": float(context.get("smoke_deposited_total_kg", 0.0))
 	}
 
 	var building: BuildingModel = context.get("building")
@@ -23,6 +24,7 @@ func build_state(context: Dictionary) -> Dictionary:
 	var compute_co2_ppm_callable: Callable = context.get("compute_co2_ppm_callable", Callable())
 	var is_quiescent_callable: Callable = context.get("is_quiescent_callable", Callable())
 	var window_open_max_callable: Callable = context.get("window_open_max_callable", Callable())
+	var outside_open_path_factor_callable: Callable = context.get("outside_open_path_factor_callable", Callable())
 	var kawagoe_factor_callable: Callable = context.get("kawagoe_factor_callable", Callable())
 	var kawagoe_coeff: float = float(context.get("kawagoe_coeff", 0.0))
 
@@ -31,12 +33,21 @@ func build_state(context: Dictionary) -> Dictionary:
 		if room == null:
 			continue
 
-		var smoke_layer_m: float = smoke_model.get_visible_smoke_layer_height_m(room) if smoke_model != null else clampf(room.h_layer_m, 0.0, room.height_m)
+		var visible_smoke_layer_m: float = smoke_model.get_visible_smoke_layer_height_m(room) if smoke_model != null else clampf(room.h_layer_m, 0.0, room.height_m)
+		var smoke_layer_m: float = visible_smoke_layer_m
+		if smoke_model != null:
+			var effective_smoke_layer_m: float = smoke_model.get_effective_smoke_spill_layer_height_m(room)
+			var smoke_gap_m: float = maxf(0.0, visible_smoke_layer_m - effective_smoke_layer_m)
+			var bridge_weight: float = 0.70 \
+					* clampf(smoke_gap_m / 0.25, 0.0, 1.0) \
+					* clampf(room.smoke_kg / 0.30, 0.0, 1.0)
+			smoke_layer_m = lerpf(visible_smoke_layer_m, effective_smoke_layer_m, bridge_weight)
 		var effective_hot_layer_m: float = _call_room_float(effective_hot_layer_callable, room, clampf(room.thermal_layer_m, 0.0, room.height_m))
+		if room.smoke_kg >= 0.30:
+			smoke_layer_m = minf(smoke_layer_m, effective_hot_layer_m + 0.68)
 		var thermal_layer_m: float = clampf(room.thermal_layer_m, 0.0, room.height_m)
 		var layer_150c_m: float = clampf(room.layer_150c_m, 0.0, room.height_m)
 		var kawagoe_factor: float = _call_room_id_float(kawagoe_factor_callable, room_id, 0.0)
-
 		state[str(room_id)] = {
 			"id": room.id,
 			"name": room.name,
@@ -95,6 +106,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"is_quiescent": _call_room_bool(is_quiescent_callable, room, false),
 
 			"window_open_max": _call_room_id_float(window_open_max_callable, room_id, -1.0),
+			"outside_open_path_factor": _call_room_id_float(outside_open_path_factor_callable, room_id, 0.0),
 			"kawagoe_factor": kawagoe_factor,
 			"kawagoe_hrr_max_kw": kawagoe_coeff * maxf(0.0, kawagoe_factor)
 		}

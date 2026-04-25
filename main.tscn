@@ -37,8 +37,8 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 1.0
 offset_top = -1.0
-offset_right = 1.0
-offset_bottom = -3.0
+offset_right = 131.0
+offset_bottom = 69.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("3_h2yge")
@@ -197,6 +197,72 @@ layout_mode = 2
 text = "TIME"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="TimeControlsPanel" type="PanelContainer" parent="UI/HUD" unique_id=1269298299]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -213.0
+offset_top = 566.0
+offset_right = 263.0
+offset_bottom = 645.0
+grow_horizontal = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="UI/HUD/TimeControlsPanel" unique_id=477682015]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/HUD/TimeControlsPanel/MarginContainer" unique_id=961574159]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ButtonsRow" type="HBoxContainer" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer" unique_id=398678556]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BtnStopGraphs" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1783538795]
+custom_minimum_size = Vector2(118, 34)
+layout_mode = 2
+text = "Parar + graficas"
+
+[node name="BtnTimeBack" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1529251814]
+custom_minimum_size = Vector2(70, 34)
+layout_mode = 2
+text = "Atras"
+
+[node name="BtnPlay" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=113975287]
+custom_minimum_size = Vector2(62, 34)
+layout_mode = 2
+text = "Play"
+
+[node name="BtnPause" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1951494211]
+custom_minimum_size = Vector2(68, 34)
+layout_mode = 2
+text = "Pausa"
+
+[node name="BtnTimeForward" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1402831685]
+custom_minimum_size = Vector2(84, 34)
+layout_mode = 2
+text = "Adelante"
+
+[node name="InfoRow" type="HBoxContainer" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer" unique_id=1371752556]
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="TimeScaleLabel" type="Label" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow" unique_id=969375991]
+layout_mode = 2
+text = "x5"
+horizontal_alignment = 1
+
+[node name="PlaybackStatusLabel" type="Label" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow" unique_id=2074043749]
+layout_mode = 2
+text = "PLAY"
+horizontal_alignment = 1
 
 [node name="CaseRunner" type="Node" parent="." unique_id=2023234799]
 script = ExtResource("5_case")

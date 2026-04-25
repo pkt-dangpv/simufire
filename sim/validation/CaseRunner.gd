@@ -19,6 +19,8 @@ var _metrics: Dictionary = {}
 var _output_path: String = ""
 var _baseline_path: String = ""
 var _opening_events: Array = []
+var _incident_started: bool = false
+var _runtime_error_reported: bool = false
 
 
 func _ready() -> void:
@@ -35,6 +37,10 @@ func _process(_delta: float) -> void:
 		return
 
 	var state: Dictionary = engine.get_state()
+	if state.is_empty():
+		_abort_validation_run("CaseRunner: engine devolvio estado vacio; abortando validacion")
+		return
+
 	var sim_time_s: float = float(state.get("sim_time_s", 0.0))
 	if _apply_due_opening_events(sim_time_s):
 		state = engine.get_state()
@@ -84,17 +90,17 @@ func _parse_validation_args(args: Array[String]) -> Dictionary:
 
 func _begin_validation_run() -> void:
 	if building == null or engine == null:
-		push_error("CaseRunner: faltan referencias a BuildingModel / SimulationEngine")
-		if auto_quit:
-			get_tree().quit(1)
+		_abort_validation_run("CaseRunner: faltan referencias a BuildingModel / SimulationEngine")
+		return
+
+	if not engine.has_method("is_ready_for_validation") or not engine.is_ready_for_validation():
+		_abort_validation_run("CaseRunner: SimulationEngine no esta operativo; revisa errores de compilacion")
 		return
 
 	_case_name = String(_cli_args.get("validation_case", ""))
 	_case_config = _load_case_config(_case_name)
 	if _case_config.is_empty():
-		push_error("CaseRunner: no se pudo cargar el caso '%s'" % _case_name)
-		if auto_quit:
-			get_tree().quit(1)
+		_abort_validation_run("CaseRunner: no se pudo cargar el caso '%s'" % _case_name)
 		return
 
 	if _cli_args.has("validation_duration"):
@@ -102,19 +108,24 @@ func _begin_validation_run() -> void:
 
 	var template_data: Dictionary = _build_case_template(_case_config)
 	if template_data.is_empty():
-		push_error("CaseRunner: template vacio para '%s'" % _case_name)
-		if auto_quit:
-			get_tree().quit(1)
+		_abort_validation_run("CaseRunner: template vacio para '%s'" % _case_name)
 		return
 
 	building.load_template_data(template_data)
 	_apply_engine_overrides(Dictionary(_case_config.get("engine_overrides", {})))
+	engine.auto_finish_on_extinction = false
 	engine.enable_logging = bool(_case_config.get("enable_logging", false))
 	engine.ignition_room_id = int(_case_config.get("ignition_room_id", engine.ignition_room_id))
 	engine.reset_simulation(engine.ignition_room_id, bool(_case_config.get("ignite_on_start", true)))
+	var initial_state: Dictionary = engine.get_state()
+	if initial_state.is_empty():
+		_abort_validation_run("CaseRunner: reset sin estado valido; abortando validacion")
+		return
+
 	_opening_events = _prepare_opening_events(_case_config.get("opening_events", []))
 
 	_metrics.clear()
+	_incident_started = false
 	_output_path = String(_cli_args.get(
 		"validation_output",
 		"%s/%s.json" % [reports_dir, _case_name]
@@ -126,6 +137,71 @@ func _begin_validation_run() -> void:
 		_case_name,
 		float(_case_config.get("duration_s", 600.0))
 	])
+	_run_validation_loop()
+
+
+func _run_validation_loop() -> void:
+	var duration_s: float = float(_case_config.get("duration_s", 600.0))
+	var validation_step_s: float = maxf(
+		0.001,
+		float(_case_config.get("validation_step_s", 1.0 / 12.0))
+	)
+	var max_iterations: int = int(ceil(duration_s / validation_step_s)) + 1000
+	var stagnant_steps: int = 0
+
+	for _iteration in range(max_iterations):
+		if not _active:
+			return
+
+		var state: Dictionary = engine.get_state()
+		if state.is_empty():
+			_abort_validation_run("CaseRunner: engine devolvio estado vacio; abortando validacion")
+			return
+
+		var sim_time_s: float = float(state.get("sim_time_s", 0.0))
+		if _apply_due_opening_events(sim_time_s):
+			state = engine.get_state()
+			if state.is_empty():
+				_abort_validation_run("CaseRunner: estado vacio tras evento de apertura")
+				return
+
+		if sim_time_s >= duration_s:
+			_finalize_validation_run(state)
+			return
+
+		var previous_time_s: float = sim_time_s
+		engine.step(validation_step_s / maxf(0.001, engine.time_scale))
+		state = engine.get_state()
+		if state.is_empty():
+			_abort_validation_run("CaseRunner: estado vacio tras step de validacion")
+			return
+
+		sim_time_s = float(state.get("sim_time_s", 0.0))
+		if sim_time_s <= previous_time_s + 0.000001:
+			stagnant_steps += 1
+			if stagnant_steps >= 10:
+				_abort_validation_run("CaseRunner: la simulacion no avanza; abortando validacion")
+				return
+		else:
+			stagnant_steps = 0
+
+		_update_metrics(state)
+		if sim_time_s >= duration_s:
+			_finalize_validation_run(state)
+			return
+
+	_abort_validation_run("CaseRunner: se alcanzo el limite interno de iteraciones")
+
+
+func _abort_validation_run(message: String, exit_code: int = 1) -> void:
+	if _runtime_error_reported:
+		return
+
+	_runtime_error_reported = true
+	_active = false
+	push_error(message)
+	if auto_quit and not bool(_cli_args.get("validation_no_quit", false)):
+		get_tree().quit(exit_code)
 
 
 func _load_case_config(case_name: String) -> Dictionary:
@@ -325,6 +401,7 @@ func _update_metrics(state: Dictionary) -> void:
 	var global_peak_co_upper_ppm: float = float(_metrics.get("peak_co_upper_ppm_global", 0.0))
 	var all_rooms_extinguished: bool = true
 	var all_rooms_quiescent: bool = true
+	var extinction_hrr_kw: float = maxf(0.01, engine.fire_extinction_hrr_kw)
 
 	for room_id in room_ids:
 		var room_state: Dictionary = state.get(str(room_id), {})
@@ -335,13 +412,16 @@ func _update_metrics(state: Dictionary) -> void:
 		var temp_upper_c: float = float(room_state.get("temp_upper_c", 0.0))
 		var co_ppm: float = float(room_state.get("co_ppm", 0.0))
 		var co_upper_ppm: float = float(room_state.get("co_upper_ppm", 0.0))
+		var has_fire: bool = bool(room_state.get("has_fire", false))
 
 		global_peak_hrr_kw = maxf(global_peak_hrr_kw, hrr_kw)
 		global_peak_temp_upper_c = maxf(global_peak_temp_upper_c, temp_upper_c)
 		global_peak_co_ppm = maxf(global_peak_co_ppm, co_ppm)
 		global_peak_co_upper_ppm = maxf(global_peak_co_upper_ppm, co_upper_ppm)
+		if hrr_kw > extinction_hrr_kw:
+			_incident_started = true
 
-		if hrr_kw > 0.01:
+		if has_fire:
 			all_rooms_extinguished = false
 		if not bool(room_state.get("is_quiescent", false)):
 			all_rooms_quiescent = false
@@ -352,6 +432,9 @@ func _update_metrics(state: Dictionary) -> void:
 	_metrics["peak_temp_upper_c_global"] = global_peak_temp_upper_c
 	_metrics["peak_co_ppm_global"] = global_peak_co_ppm
 	_metrics["peak_co_upper_ppm_global"] = global_peak_co_upper_ppm
+	_metrics["smoke_generated_total_kg"] = float(state.get("smoke_generated_total_kg", 0.0))
+	_metrics["smoke_vented_total_kg"] = float(state.get("smoke_vented_total_kg", 0.0))
+	_metrics["smoke_deposited_total_kg"] = float(state.get("smoke_deposited_total_kg", 0.0))
 
 	var trigger_room_id: int = int(_case_config.get("smoke_trigger_room_id", 0))
 	var target_room_id: int = int(_case_config.get("spread_target_room_id", 1))
@@ -384,9 +467,9 @@ func _update_metrics(state: Dictionary) -> void:
 
 	_update_threshold_metrics(state, sim_time_s)
 
-	if all_rooms_extinguished and not _metrics.has("time_to_extinction_s"):
+	if _incident_started and all_rooms_extinguished and not _metrics.has("time_to_extinction_s"):
 		_metrics["time_to_extinction_s"] = sim_time_s
-	if all_rooms_quiescent and not _metrics.has("time_to_quiescent_s"):
+	if _incident_started and all_rooms_quiescent and not _metrics.has("time_to_quiescent_s"):
 		_metrics["time_to_quiescent_s"] = sim_time_s
 
 
@@ -429,6 +512,9 @@ func _capture_final_metrics(state: Dictionary) -> void:
 			continue
 
 		var prefix: String = "room_%d_final_" % room_id
+		_metrics[prefix + "hrr_kw"] = float(room_state.get("hrr_kw", 0.0))
+		_metrics[prefix + "hrr_target_kw"] = float(room_state.get("hrr_target_kw", 0.0))
+		_metrics[prefix + "fire_time_s"] = float(room_state.get("fire_time_s", 0.0))
 		_metrics[prefix + "o2"] = float(room_state.get("o2", 0.0))
 		_metrics[prefix + "smoke_kg"] = float(room_state.get("smoke_kg", 0.0))
 		_metrics[prefix + "co_ppm"] = float(room_state.get("co_ppm", 0.0))
@@ -440,6 +526,12 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "layer_150c_m"] = float(room_state.get("layer_150c_m", 0.0))
 		_metrics[prefix + "temp_at_0_9m_c"] = float(room_state.get("temp_at_0_9m_c", 0.0))
 		_metrics[prefix + "temp_at_1_8m_c"] = float(room_state.get("temp_at_1_8m_c", 0.0))
+		_metrics[prefix + "remaining_fuel_MJ"] = float(room_state.get("remaining_fuel_MJ", 0.0))
+		_metrics[prefix + "fuel_objects_remaining_MJ"] = float(room_state.get("fuel_objects_remaining_MJ", 0.0))
+		_metrics[prefix + "retained_unburned_MJ"] = float(room_state.get("retained_unburned_MJ", 0.0))
+		_metrics[prefix + "o2_hrr_factor"] = float(room_state.get("o2_hrr_factor", 0.0))
+		_metrics[prefix + "ventilation_response_factor"] = float(room_state.get("ventilation_response_factor", 0.0))
+		_metrics[prefix + "outside_open_path_factor"] = float(room_state.get("outside_open_path_factor", 0.0))
 
 
 func _finalize_validation_run(state: Dictionary) -> void:

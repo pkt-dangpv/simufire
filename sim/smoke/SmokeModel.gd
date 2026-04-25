@@ -157,7 +157,7 @@ func recompute_layer_from_mass(room: RoomModel, dt: float) -> void:
 		room.h_layer_m = lerpf(
 			room.h_layer_m,
 			target_layer_m,
-			clampf(layer_relax_down * dt, 0.0, 1.0)
+			clampf(layer_relax_down * dt * 2.0, 0.0, 1.0)
 		)
 	else:
 		var relax_up_rate: float = layer_relax_up

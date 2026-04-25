@@ -1,6 +1,12 @@
 extends Control
 class_name HUD
 
+signal play_requested
+signal pause_requested
+signal slower_requested
+signal faster_requested
+signal stop_and_generate_requested
+
 @export var show_status_panel: bool = false
 @export var status_panel_room_id: int = 0
 @export var compact_status_panel: bool = true
@@ -14,6 +20,13 @@ class_name HUD
 @onready var opening_status_label: Label = $OpeningsPanel/MarginContainer/VBoxContainer/OpeningStatusLabel
 @onready var btn_opening_close: Button = $OpeningsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnOpeningClose
 @onready var btn_opening_open: Button = $OpeningsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnOpeningOpen
+@onready var btn_stop_graphs: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnStopGraphs") as Button
+@onready var btn_time_back: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnTimeBack") as Button
+@onready var btn_play: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnPlay") as Button
+@onready var btn_pause: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnPause") as Button
+@onready var btn_time_forward: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnTimeForward") as Button
+@onready var time_scale_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow/TimeScaleLabel") as Label
+@onready var playback_status_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow/PlaybackStatusLabel") as Label
 
 var building: BuildingModel = null
 var selected_opening_index: int = 0
@@ -33,8 +46,19 @@ func _ready() -> void:
 		btn_opening_open.pressed.connect(_on_open_button_pressed)
 	if btn_opening_close != null and not btn_opening_close.pressed.is_connected(_on_close_button_pressed):
 		btn_opening_close.pressed.connect(_on_close_button_pressed)
+	if btn_stop_graphs != null and not btn_stop_graphs.pressed.is_connected(_on_stop_graphs_pressed):
+		btn_stop_graphs.pressed.connect(_on_stop_graphs_pressed)
+	if btn_time_back != null and not btn_time_back.pressed.is_connected(_on_time_back_pressed):
+		btn_time_back.pressed.connect(_on_time_back_pressed)
+	if btn_play != null and not btn_play.pressed.is_connected(_on_play_pressed):
+		btn_play.pressed.connect(_on_play_pressed)
+	if btn_pause != null and not btn_pause.pressed.is_connected(_on_pause_pressed):
+		btn_pause.pressed.connect(_on_pause_pressed)
+	if btn_time_forward != null and not btn_time_forward.pressed.is_connected(_on_time_forward_pressed):
+		btn_time_forward.pressed.connect(_on_time_forward_pressed)
 
 	_refresh_opening_controls()
+	_update_time_controls(0.0, false, false, false, 1.0)
 
 
 func bind_building(next_building: BuildingModel) -> void:
@@ -52,6 +76,13 @@ func update_state(state: Dictionary) -> void:
 	var minutes: int = int(float(total_seconds) / 60.0)
 	var seconds: int = int(total_seconds % 60)
 	time_label.text = "TIME %02d:%02d" % [minutes, seconds]
+	_update_time_controls(
+		sim_time_s,
+		bool(state.get("playback_paused", false)),
+		bool(state.get("simulation_finished", false)),
+		bool(state.get("graphs_launched", false)),
+		float(state.get("time_scale", 0.0))
+	)
 
 	_refresh_opening_controls()
 
@@ -178,6 +209,46 @@ func _set_openings_panel_empty(message: String) -> void:
 		btn_opening_close.disabled = true
 
 
+func _update_time_controls(
+	sim_time_s: float,
+	playback_paused: bool,
+	simulation_finished: bool,
+	graphs_launched: bool,
+	time_scale: float
+) -> void:
+	if time_scale_label != null:
+		time_scale_label.text = _format_time_scale_label(time_scale)
+
+	if playback_status_label != null:
+		if simulation_finished:
+			playback_status_label.text = "DETENIDA"
+		elif playback_paused:
+			playback_status_label.text = "PAUSA"
+		else:
+			playback_status_label.text = "PLAY"
+
+	if btn_play != null:
+		btn_play.disabled = simulation_finished or not playback_paused
+	if btn_pause != null:
+		btn_pause.disabled = simulation_finished or playback_paused
+	if btn_time_back != null:
+		btn_time_back.disabled = simulation_finished
+	if btn_time_forward != null:
+		btn_time_forward.disabled = simulation_finished
+	if btn_stop_graphs != null:
+		btn_stop_graphs.disabled = sim_time_s <= 0.0 or graphs_launched
+		btn_stop_graphs.text = "Generacion lanzada" if graphs_launched else "Parar + graficas"
+
+
+func _format_time_scale_label(time_scale: float) -> String:
+	var snapped_scale: float = snappedf(maxf(0.0, time_scale), 0.01)
+	if absf(snapped_scale - round(snapped_scale)) < 0.001:
+		return "x%d" % int(round(snapped_scale))
+	if absf(snapped_scale * 10.0 - round(snapped_scale * 10.0)) < 0.001:
+		return "x%.1f" % snapped_scale
+	return "x%.2f" % snapped_scale
+
+
 func _find_selector_item_by_opening_index(opening_index: int) -> int:
 	if opening_selector == null:
 		return -1
@@ -210,3 +281,23 @@ func _on_close_button_pressed() -> void:
 
 	building.close_opening(selected_opening_index)
 	_refresh_opening_status()
+
+
+func _on_stop_graphs_pressed() -> void:
+	stop_and_generate_requested.emit()
+
+
+func _on_time_back_pressed() -> void:
+	slower_requested.emit()
+
+
+func _on_play_pressed() -> void:
+	play_requested.emit()
+
+
+func _on_pause_pressed() -> void:
+	pause_requested.emit()
+
+
+func _on_time_forward_pressed() -> void:
+	faster_requested.emit()

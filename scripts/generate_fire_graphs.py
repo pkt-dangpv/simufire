@@ -18,6 +18,13 @@ termina (desde SimulationEngine._on_sim_finished()).
 import os
 import re
 import sys
+
+_MPL_CACHE_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", ".matplotlib-cache")
+)
+os.makedirs(_MPL_CACHE_DIR, exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", _MPL_CACHE_DIR)
+
 import matplotlib
 matplotlib.use("Agg")  # Sin GUI, para no interferir con Godot
 import matplotlib.pyplot as plt
@@ -35,8 +42,9 @@ _godot_user_log = os.path.join(
     r"Godot\app_userdata\simufire\sim_log.txt"
 )
 
-# Prioridad: log del proyecto (res://); si no, el de user://
-if os.path.exists(_project_log) and os.path.getsize(_project_log) > 5000:
+# Prioridad: log del proyecto (res://) siempre que exista y no este vacio;
+# si no, se usa el de user:// como respaldo.
+if os.path.exists(_project_log) and os.path.getsize(_project_log) > 0:
     LOG_PATH = _project_log
 elif os.path.exists(_godot_user_log):
     LOG_PATH = _godot_user_log
@@ -476,4 +484,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

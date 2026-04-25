@@ -71,6 +71,10 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		"build_interior_opening_flow_state_callable",
 		Callable()
 	)
+	var outside_open_path_factor_callable: Callable = hooks.get(
+		"outside_open_path_factor_callable",
+		Callable()
+	)
 	var air_density_kg_m3: float = 1.2
 
 	_release_pending_o2_deliveries(building, dt, air_density_kg_m3)
@@ -125,7 +129,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			room_b,
 			air_density_kg_m3,
 			g_gravity,
-			build_interior_flow_callable
+			build_interior_flow_callable,
+			outside_open_path_factor_callable
 		)
 
 
@@ -238,21 +243,36 @@ func _step_interior_opening_o2(
 	room_b: RoomModel,
 	air_density_kg_m3: float,
 	g_gravity: float,
-	build_interior_flow_callable: Callable
+	build_interior_flow_callable: Callable,
+	outside_open_path_factor_callable: Callable
 ) -> void:
 	var base_area_eff_m2: float = maxf(0.0, op.width_m * op.height_m * op.open_fraction)
 	if base_area_eff_m2 > 0.0:
 		var mass_a_base_kg: float = _compute_room_air_mass_kg(room_a, air_density_kg_m3)
 		var mass_b_base_kg: float = _compute_room_air_mass_kg(room_b, air_density_kg_m3)
+		var outside_open_factor: float = maxf(
+			_estimate_room_outside_open_factor(building, room_a),
+			_estimate_room_outside_open_factor(building, room_b)
+		)
+		outside_open_factor = maxf(
+			outside_open_factor,
+			maxf(
+				_call_room_id_float(outside_open_path_factor_callable, room_a.id, 0.0),
+				_call_room_id_float(outside_open_path_factor_callable, room_b.id, 0.0)
+			)
+		)
 		var background_pressure_factor: float = maxf(
 			doorway_o2_background_min_factor,
-			clampf(
-				maxf(room_a.overpressure_pa, room_b.overpressure_pa) / maxf(
-					0.1,
-					doorway_o2_background_pressure_ref_pa
+			maxf(
+				clampf(
+					maxf(room_a.overpressure_pa, room_b.overpressure_pa) / maxf(
+						0.1,
+						doorway_o2_background_pressure_ref_pa
+					),
+					0.0,
+					1.0
 				),
-				0.0,
-				1.0
+				clampf(outside_open_factor * 0.80, 0.0, 1.0)
 			)
 		)
 		var base_exchange_kg: float = base_area_eff_m2 \
@@ -260,7 +280,12 @@ func _step_interior_opening_o2(
 			* background_pressure_factor \
 			* dt
 		var base_max_exchange_kg: float = minf(mass_a_base_kg, mass_b_base_kg) \
-			* doorway_o2_background_max_fraction_per_step
+			* lerpf(
+				doorway_o2_background_max_fraction_per_step,
+				0.045,
+				clampf(outside_open_factor, 0.0, 1.0)
+			)
+		base_exchange_kg *= lerpf(1.0, 3.0, clampf(outside_open_factor, 0.0, 1.0))
 		base_exchange_kg = minf(base_exchange_kg, base_max_exchange_kg)
 		if base_exchange_kg > 0.0:
 			_exchange_room_o2_immediate(room_a, room_b, base_exchange_kg, air_density_kg_m3)
@@ -449,6 +474,37 @@ func _compute_room_air_mass_kg(room: RoomModel, air_density_kg_m3: float) -> flo
 	if room == null:
 		return 0.1
 	return maxf(0.1, room.volume_m3()) * air_density_kg_m3
+
+
+func _estimate_room_outside_open_factor(building: BuildingModel, room: RoomModel) -> float:
+	if building == null or room == null:
+		return 0.0
+
+	var total_open_area_m2: float = 0.0
+	for op in building.get_openings():
+		if op == null or op.open_fraction <= 0.0:
+			continue
+
+		var connects_outside: bool = (
+			(op.a == room.id and op.b == BuildingModel.OUTSIDE_ID)
+			or (op.b == room.id and op.a == BuildingModel.OUTSIDE_ID)
+		)
+		if not connects_outside:
+			continue
+
+		total_open_area_m2 += op.width_m * op.height_m * op.open_fraction
+
+	if total_open_area_m2 <= 0.0:
+		return 0.0
+
+	var reference_area_m2: float = maxf(0.20, room.floor_area_m2() * 0.12)
+	return clampf(total_open_area_m2 / reference_area_m2, 0.0, 1.0)
+
+
+func _call_room_id_float(callable: Callable, room_id: int, default_value: float) -> float:
+	if not callable.is_valid():
+		return default_value
+	return float(callable.call(room_id))
 
 
 func _call_room_float(callable: Callable, room: RoomModel, default_value: float) -> float:

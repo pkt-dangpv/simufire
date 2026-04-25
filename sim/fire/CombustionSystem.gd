@@ -132,16 +132,15 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		0.0,
 		1.0
 	)
-	var flaming_drive: float = room.o2_hrr_factor * flame_possible_factor
+	var flame_drive: float = room.o2_hrr_factor * flame_possible_factor
+	var latent_drive: float = 0.0
 	if latent_viable:
-		flaming_drive = maxf(
-			flaming_drive,
-			subvent_o2_floor * lerpf(0.35, 1.0, subvent_engagement)
-		)
-	var can_flame: bool = flaming_drive > 0.08
+		latent_drive = subvent_o2_floor * lerpf(0.35, 1.0, subvent_engagement)
+	var pyrolysis_drive: float = maxf(flame_drive, latent_drive)
+	var can_flame: bool = flame_drive > 0.08
 	if can_flame or latent_viable:
 		var fire_time_gain_factor: float = clampf(
-			maxf(0.15 if latent_viable else 0.0, flaming_drive),
+			maxf(0.15 if latent_viable else 0.0, pyrolysis_drive),
 			0.0,
 			1.0
 		)
@@ -180,13 +179,25 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 
 	var smolder_fraction: float = float(context.get("fire_smolder_hrr_fraction", 0.10))
 	var latent_cap_basis_kw: float = minf(fire.max_hrr_kw, maxf(previous_hrr_kw, ideal_hrr_kw))
+	var extinction_hrr_kw: float = float(context.get("fire_extinction_hrr_kw", 0.0))
+	if not can_flame and latent_viable:
+		var dormant_decay: float = clampf(
+			inverse_lerp(45.0, 120.0, room.fire_dormant_time_s),
+			0.0,
+			1.0
+		)
+		latent_cap_basis_kw = lerpf(
+			latent_cap_basis_kw,
+			maxf(previous_hrr_kw, extinction_hrr_kw * 0.5),
+			dormant_decay
+		)
 	var latent_cap_scale: float = lerpf(
 		float(context.get("fire_latent_hrr_cap_min_fraction", 0.15)),
 		float(context.get("fire_latent_hrr_cap_max_fraction", 1.0)),
 		subvent_engagement
 	)
 	var residual_smolder_cap_kw: float = maxf(
-		float(context.get("fire_extinction_hrr_kw", 0.0)),
+		extinction_hrr_kw * 0.25,
 		latent_cap_basis_kw * smolder_fraction * latent_cap_scale
 	)
 
@@ -198,15 +209,17 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			subvent_engagement
 		)
 	var solid_pyrolysis_fraction: float = clampf(
-		maxf(flaming_drive, pyrolysis_floor_fraction),
+		maxf(pyrolysis_drive, pyrolysis_floor_fraction),
 		0.0,
 		1.0
 	)
 	var solid_pyrolysis_kw: float = ideal_hrr_kw * solid_pyrolysis_fraction
-	var fresh_flame_target_kw: float = minf(
-		solid_pyrolysis_kw,
-		ideal_hrr_kw * clampf(flaming_drive, 0.0, 1.0)
-	)
+	var fresh_flame_target_kw: float = 0.0
+	if can_flame:
+		fresh_flame_target_kw = minf(
+			solid_pyrolysis_kw,
+			ideal_hrr_kw * clampf(flame_drive, 0.0, 1.0)
+		)
 	var smolder_target_kw: float = 0.0
 	if not can_flame:
 		if latent_viable:
@@ -220,6 +233,9 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		0.0,
 		solid_pyrolysis_kw - fresh_flame_target_kw - smolder_target_kw
 	) * float(context.get("fire_unburned_generation_fraction", 0.30))
+	if not can_flame and latent_viable:
+		# En fase latente no seguimos cargando la bolsa de gases retenidos.
+		retained_generation_kw = 0.0
 
 	var available_fuel_MJ: float = maxf(0.0, fire.remaining_fuel_MJ)
 	var solid_fuel_demand_MJ: float = solid_pyrolysis_kw * dt / 1000.0
@@ -241,11 +257,12 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		maxf(0.0, room.retained_unburned_MJ + retained_generation_kw * dt / 1000.0)
 	)
 
+	var local_opening_signal: float = maxf(
+		float(context.get("outside_open_factor", 0.0)),
+		maxf(0.0, float(context.get("window_open_max", 0.0)))
+	)
 	var opening_signal: float = clampf(
-		maxf(
-			float(context.get("outside_open_factor", 0.0)),
-			maxf(0.0, float(context.get("window_open_max", 0.0)))
-		),
+		maxf(local_opening_signal, float(context.get("outside_open_path_factor", 0.0))),
 		0.0,
 		1.0
 	)
@@ -385,15 +402,15 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	)
 	if not can_flame \
 			and latent_viable \
-			and room.fire_dormant_time_s >= latent_timeout_s \
-			and room.retained_unburned_MJ < 0.5:
-		return _extinguish_room_fire(room, fire)
+			and room.fire_dormant_time_s >= latent_timeout_s:
+		if room.retained_unburned_MJ < 0.5 or room.hrr_kw <= extinction_hrr_kw:
+			return _extinguish_room_fire(room, fire)
 
 	var oxygen_starved: bool = room.fire_time_s > 60.0 \
 			and raw_o2_factor <= float(context.get("fire_starvation_o2_factor", 0.0)) \
 			and room.retained_unburned_MJ < 0.5
 	if not (not can_flame and latent_viable) \
-			and (room.hrr_kw < float(context.get("fire_extinction_hrr_kw", 0.0)) or oxygen_starved) \
+			and (room.hrr_kw < extinction_hrr_kw or oxygen_starved) \
 			and room.fire_time_s > 60.0:
 		room.fire_low_hrr_time_s += dt
 		if room.fire_low_hrr_time_s >= float(context.get("fire_extinction_delay_s", 0.0)):
@@ -764,15 +781,40 @@ func _can_sustain_latent_fire(
 	if room == null or fire == null:
 		return false
 
+	var upper_hold_c: float = float(context.get("fire_latent_hold_upper_temp_c", ambient_c))
+	var lower_hold_c: float = float(context.get("fire_latent_hold_lower_temp_c", ambient_c))
+	var thermal_hold: bool = room.temp_upper_c >= upper_hold_c or room.temp_lower_c >= lower_hold_c
+	if not thermal_hold:
+		return false
+
+	var latent_o2_floor: float = minf(
+		fire.o2_min_for_flame,
+		maxf(0.02, fire.o2_min_for_flame * 0.25)
+	)
+	if room.o2 < latent_o2_floor:
+		return false
+
 	if room.retained_unburned_MJ >= 1.0:
 		return true
 
 	if fire.remaining_fuel_MJ <= float(context.get("fire_latent_min_remaining_fuel_MJ", 25.0)):
 		return false
 
-	var upper_hold_c: float = float(context.get("fire_latent_hold_upper_temp_c", ambient_c))
-	var lower_hold_c: float = float(context.get("fire_latent_hold_lower_temp_c", ambient_c))
-	return room.temp_upper_c >= upper_hold_c or room.temp_lower_c >= lower_hold_c
+	# Extinción por dormancia prolongada: si la llama está ausente durante más de
+	# 2× el timeout de extinción latente Y el HRR está por debajo de 3× el umbral
+	# de extinción, dejar de sostener la fase latente. Esto evita el fuego zombi
+	# en salas con mucho combustible pero O2 agotado (ej. pasillo tras flashover).
+	var latent_timeout_s: float = float(
+		context.get("fire_latent_extinction_delay_s", float(context.get("fire_extinction_delay_s", 0.0)))
+	)
+	var extinction_hrr_kw: float = float(context.get("fire_extinction_hrr_kw", 0.0))
+	if latent_timeout_s > 0.0 \
+			and room.fire_dormant_time_s >= latent_timeout_s * 2.0 \
+			and extinction_hrr_kw > 0.0 \
+			and room.hrr_kw <= extinction_hrr_kw * 3.0:
+		return false
+
+	return true
 
 
 func _extinguish_room_fire(room: RoomModel, fire: FireModel, burned_out: bool = false) -> bool:
