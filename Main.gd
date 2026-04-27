@@ -36,6 +36,9 @@ func _update_views() -> void:
 		return
 	var state := engine.get_state()
 	state["playback_paused"] = playback_paused
+	state["time_scale"] = engine.time_scale
+	state["simulation_finished"] = engine.is_finished
+	state["graphs_launched"] = engine.are_graphs_launched()
 	if visualizer != null:
 		visualizer.set_state(state)
 	if hud != null:
