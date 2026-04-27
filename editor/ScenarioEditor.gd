@@ -36,6 +36,9 @@ var drag_start_m: Vector2 = Vector2.ZERO
 var drag_current_m: Vector2 = Vector2.ZERO
 var pending_door_room_id: int = -1
 
+var is_dragging_object: bool = false
+var drag_object_cursor_offset_m: Vector2 = Vector2.ZERO
+
 var _ui_root: Control
 var _status_label: Label
 var _path_edit: LineEdit
@@ -57,6 +60,14 @@ var _obj_fuel_spin: SpinBox
 var _obj_hrr_spin: SpinBox
 var _obj_props_container: Control
 
+# Propiedades de apertura seleccionada
+var _opening_props_container: Control
+var _opening_type_label: Label
+var _opening_width_spin: SpinBox
+var _opening_height_spin: SpinBox
+var _opening_sill_spin: SpinBox
+var _opening_open_option: OptionButton
+
 var _room_fill: Color = Color(0.14, 0.18, 0.21, 0.62)
 var _room_selected_fill: Color = Color(0.17, 0.29, 0.36, 0.70)
 var _room_outline: Color = Color(0.74, 0.82, 0.88, 0.92)
@@ -70,7 +81,8 @@ var _ignition_color: Color = Color(1.0, 0.18, 0.08, 0.98)
 func _ready() -> void:
 	_create_empty_scenario()
 	_setup_grid()
-	_setup_ui()
+	if not _bind_existing_ui():
+		_setup_ui()
 	_set_tool(Tool.SELECT)
 	queue_redraw()
 
@@ -190,6 +202,43 @@ func _setup_ui() -> void:
 	delete_obj_button.text = "Borrar objeto (Del)"
 	delete_obj_button.pressed.connect(_delete_selected)
 	_obj_props_container.add_child(delete_obj_button)
+
+	main.add_child(HSeparator.new())
+
+	# --- Propiedades de apertura seleccionada ---
+	var opening_title_label := Label.new()
+	opening_title_label.text = "Propiedades de apertura"
+	main.add_child(opening_title_label)
+
+	_opening_props_container = VBoxContainer.new()
+	_opening_props_container.add_theme_constant_override("separation", 4)
+	main.add_child(_opening_props_container)
+
+	_opening_type_label = Label.new()
+	_opening_type_label.add_theme_font_size_override("font_size", 11)
+	_opening_type_label.modulate = Color(0.75, 0.88, 1.0, 1.0)
+	_opening_props_container.add_child(_opening_type_label)
+
+	_opening_width_spin = _add_spin(_opening_props_container, "Ancho (m)", 0.3, 6.0, 0.05)
+	_opening_height_spin = _add_spin(_opening_props_container, "Alto (m)", 0.5, 3.5, 0.05)
+	_opening_sill_spin = _add_spin(_opening_props_container, "Alféizar (m)", 0.0, 2.0, 0.05)
+
+	var op_open_row := HBoxContainer.new()
+	_opening_props_container.add_child(op_open_row)
+	var op_open_label := Label.new()
+	op_open_label.text = "Estado inicial"
+	op_open_label.custom_minimum_size.x = 96.0
+	op_open_row.add_child(op_open_label)
+	_opening_open_option = OptionButton.new()
+	_opening_open_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_opening_open_option.add_item("Cerrada", 0)
+	_opening_open_option.add_item("Abierta", 1)
+	op_open_row.add_child(_opening_open_option)
+
+	var apply_opening_button := Button.new()
+	apply_opening_button.text = "Aplicar apertura"
+	apply_opening_button.pressed.connect(_apply_opening_properties)
+	_opening_props_container.add_child(apply_opening_button)
 
 	main.add_child(HSeparator.new())
 
@@ -349,6 +398,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if is_dragging_room:
 			drag_current_m = _screen_to_m(event.position)
 			queue_redraw()
+		elif is_dragging_object:
+			_update_dragged_object(_screen_to_m(event.position))
 		return
 
 	if not (event is InputEventMouseButton):
@@ -374,6 +425,16 @@ func _handle_press(pos_m: Vector2) -> void:
 			drag_start_m = pos_m
 			drag_current_m = pos_m
 		Tool.SELECT:
+			# Si el objeto ya está seleccionado, iniciar arrastre
+			if selected_object_room_id >= 0 and selected_object_index >= 0:
+				var hit: Dictionary = _find_object_at(pos_m)
+				if not hit.is_empty() and int(hit["room_id"]) == selected_object_room_id and int(hit["object_index"]) == selected_object_index:
+					var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+					var rr: Rect2 = _get_room_rect(selected_object_room_id)
+					var obj_pos: Vector2 = Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO))
+					drag_object_cursor_offset_m = (rr.position + obj_pos) - pos_m
+					is_dragging_object = true
+					return
 			_select_at(pos_m)
 		Tool.DOOR:
 			_create_door_at(pos_m)
@@ -388,6 +449,13 @@ func _handle_press(pos_m: Vector2) -> void:
 
 
 func _handle_release(pos_m: Vector2) -> void:
+	if is_dragging_object:
+		is_dragging_object = false
+		drag_object_cursor_offset_m = Vector2.ZERO
+		_set_status("Objeto movido.")
+		queue_redraw()
+		return
+
 	if current_tool != Tool.ROOM or not is_dragging_room:
 		return
 
@@ -438,6 +506,41 @@ func _clear_drag() -> void:
 	is_dragging_room = false
 	drag_start_m = Vector2.ZERO
 	drag_current_m = Vector2.ZERO
+
+
+func _update_dragged_object(pos_m: Vector2) -> void:
+	if selected_object_room_id < 0 or selected_object_index < 0:
+		is_dragging_object = false
+		return
+	var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+	if obj.is_empty():
+		is_dragging_object = false
+		return
+	var rr: Rect2 = _get_room_rect(selected_object_room_id)
+	var size: Vector2 = Serializer.vector2_from_data(obj.get("size_m", Vector2.ONE))
+	var new_world_m: Vector2 = _snap_m(pos_m + drag_object_cursor_offset_m)
+	var new_local_m: Vector2 = new_world_m - rr.position
+	new_local_m.x = clampf(new_local_m.x, 0.0, maxf(0.0, rr.size.x - size.x))
+	new_local_m.y = clampf(new_local_m.y, 0.0, maxf(0.0, rr.size.y - size.y))
+	_set_object_position(selected_object_room_id, selected_object_index, new_local_m)
+	queue_redraw()
+
+
+func _set_object_position(room_id: int, obj_index: int, local_pos: Vector2) -> void:
+	var rooms: Array = editor_data.get("rooms_data", [])
+	for i in range(rooms.size()):
+		if typeof(rooms[i]) != TYPE_DICTIONARY or int(rooms[i].get("id", -1)) != room_id:
+			continue
+		var room: Dictionary = rooms[i]
+		var objects: Array = room.get("fuel_objects", [])
+		if obj_index >= 0 and obj_index < objects.size() and typeof(objects[obj_index]) == TYPE_DICTIONARY:
+			var obj: Dictionary = objects[obj_index]
+			obj["position_m"] = Serializer.vector_to_data(local_pos)
+			objects[obj_index] = obj
+			room["fuel_objects"] = objects
+			rooms[i] = room
+			editor_data["rooms_data"] = rooms
+		return
 
 
 func _create_room(rect: Rect2) -> int:
@@ -578,6 +681,25 @@ func _refresh_property_panel() -> void:
 			_obj_height_spin.value = sz.y
 			_obj_fuel_spin.value = float(obj.get("fuel_energy_MJ", 0.0))
 			_obj_hrr_spin.value = float(obj.get("max_hrr_kw", 0.0))
+
+	# Panel apertura
+	var openings_arr: Array = editor_data.get("openings_data", [])
+	var has_opening_sel: bool = selected_opening_index >= 0 and selected_opening_index < openings_arr.size()
+	if _opening_props_container != null:
+		_opening_props_container.visible = has_opening_sel
+	if has_opening_sel and _opening_width_spin != null:
+		var opening: Dictionary = openings_arr[selected_opening_index]
+		var op_type: String = String(opening.get("type", "door"))
+		if _opening_type_label != null:
+			_opening_type_label.text = "Puerta" if op_type == "door" else "Ventana"
+		_opening_width_spin.value = float(opening.get("width_m", 0.9))
+		_opening_height_spin.value = float(opening.get("height_m", 2.0))
+		if _opening_sill_spin != null:
+			_opening_sill_spin.editable = op_type == "window"
+			_opening_sill_spin.value = float(opening.get("sill_m", 0.0))
+		if _opening_open_option != null:
+			var frac: float = float(opening.get("open_fraction", 1.0))
+			_opening_open_option.select(0 if frac <= 0.01 else 1)
 
 
 func _apply_room_properties() -> void:
@@ -1107,6 +1229,28 @@ func _apply_object_properties() -> void:
 		return
 
 
+func _apply_opening_properties() -> void:
+	if selected_opening_index < 0:
+		_set_status("Selecciona una puerta o ventana primero.")
+		return
+	var openings: Array = editor_data.get("openings_data", [])
+	if selected_opening_index >= openings.size():
+		return
+	var op: Dictionary = openings[selected_opening_index]
+	if _opening_width_spin != null:
+		op["width_m"] = _opening_width_spin.value
+	if _opening_height_spin != null:
+		op["height_m"] = _opening_height_spin.value
+	if _opening_sill_spin != null:
+		op["sill_m"] = _opening_sill_spin.value
+	if _opening_open_option != null:
+		op["open_fraction"] = 0.0 if _opening_open_option.selected == 0 else 1.0
+	openings[selected_opening_index] = op
+	editor_data["openings_data"] = openings
+	_set_status("Apertura actualizada.")
+	queue_redraw()
+
+
 func _draw() -> void:
 	_draw_rooms()
 	_draw_openings()
@@ -1289,3 +1433,126 @@ func _run_simulation_pressed() -> void:
 
 func _cancel_pressed() -> void:
 	get_tree().change_scene_to_file(MAIN_MENU_PATH)
+
+
+# ============================================================
+# UI FÍSICA EN ESCENA
+# ------------------------------------------------------------
+# Permite editar la interfaz directamente desde Godot.
+# Si los nodos existen en ScenarioEditorScene.tscn, se usan;
+# si no existen, el script cae al _setup_ui() antiguo.
+# ============================================================
+func _bind_existing_ui() -> bool:
+	var canvas: CanvasLayer = get_node_or_null("CanvasLayer") as CanvasLayer
+	if canvas == null:
+		return false
+	_ui_root = canvas.get_node_or_null("UI") as Control
+	if _ui_root == null:
+		return false
+
+	var btn_select := _ui_root.get_node_or_null("TopBar/HBox/BtnSelect") as Button
+	var btn_room := _ui_root.get_node_or_null("TopBar/HBox/BtnRoom") as Button
+	var btn_door := _ui_root.get_node_or_null("TopBar/HBox/BtnDoor") as Button
+	var btn_window := _ui_root.get_node_or_null("TopBar/HBox/BtnWindow") as Button
+	var btn_object := _ui_root.get_node_or_null("TopBar/HBox/BtnObject") as Button
+	var btn_ignite := _ui_root.get_node_or_null("TopBar/HBox/BtnIgnite") as Button
+	var btn_delete := _ui_root.get_node_or_null("TopBar/HBox/BtnDelete") as Button
+	var required_buttons: Array[Button] = [btn_select, btn_room, btn_door, btn_window, btn_object, btn_ignite, btn_delete]
+	for b in required_buttons:
+		if b == null:
+			return false
+
+	_tool_buttons.clear()
+	_register_tool_button(btn_select, Tool.SELECT)
+	_register_tool_button(btn_room, Tool.ROOM)
+	_register_tool_button(btn_door, Tool.DOOR)
+	_register_tool_button(btn_window, Tool.WINDOW)
+	_register_tool_button(btn_object, Tool.OBJECT)
+	_register_tool_button(btn_ignite, Tool.IGNITION)
+	_register_tool_button(btn_delete, Tool.DELETE)
+
+	_object_kind_option = _ui_root.get_node_or_null("LeftPanel/VBox/ObjectTypeOption") as OptionButton
+	_path_edit = _ui_root.get_node_or_null("LeftPanel/VBox/PathEdit") as LineEdit
+	_scenario_option = _ui_root.get_node_or_null("LeftPanel/VBox/ScenarioOption") as OptionButton
+	_stop_time_spin = _ui_root.get_node_or_null("LeftPanel/VBox/StopTimeSpin") as SpinBox
+	_status_label = _ui_root.get_node_or_null("LeftPanel/VBox/StatusLabel") as Label
+
+	_name_edit = _ui_root.get_node_or_null("RightPanel/VBox/RoomNameEdit") as LineEdit
+	_kind_edit = _ui_root.get_node_or_null("RightPanel/VBox/RoomKindEdit") as LineEdit
+	_height_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomHeightSpin") as SpinBox
+	_fuel_spin = _ui_root.get_node_or_null("RightPanel/VBox/FuelEnergySpin") as SpinBox
+	_hrr_spin = _ui_root.get_node_or_null("RightPanel/VBox/MaxHrrSpin") as SpinBox
+
+	_obj_props_container = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps") as Control
+	_obj_name_edit = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjNameEdit") as LineEdit
+	_obj_width_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjWidthSpin") as SpinBox
+	_obj_height_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjHeightSpin") as SpinBox
+	_obj_fuel_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjFuelSpin") as SpinBox
+	_obj_hrr_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjHrrSpin") as SpinBox
+
+	_opening_props_container = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps") as Control
+	_opening_type_label = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningTypeLabel") as Label
+	_opening_width_spin = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningWidthSpin") as SpinBox
+	_opening_height_spin = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningHeightSpin") as SpinBox
+	_opening_sill_spin = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningSillSpin") as SpinBox
+	_opening_open_option = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningOpenOption") as OptionButton
+	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/BtnApplyOpening") as Button, _apply_opening_properties)
+
+	if _object_kind_option == null or _path_edit == null or _scenario_option == null or _status_label == null:
+		return false
+	if _name_edit == null or _kind_edit == null or _height_spin == null or _fuel_spin == null or _hrr_spin == null:
+		return false
+
+	_populate_object_type_option()
+	_path_edit.text = DEFAULT_SAVE_PATH
+
+	# Poblamos el OptionButton de estado inicial de apertura
+	if _opening_open_option != null and _opening_open_option.get_item_count() == 0:
+		_opening_open_option.add_item("Cerrada", 0)
+		_opening_open_option.add_item("Abierta", 1)
+
+	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnSave") as Button, _save_pressed)
+	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnLoad") as Button, _load_pressed)
+	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnExportRuntime") as Button, _export_runtime_pressed)
+	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnLoadScenario") as Button, _load_scenario_pressed)
+	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/BtnApplyRoom") as Button, _apply_room_properties)
+	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/ObjProps/BtnApplyObject") as Button, _apply_object_properties)
+	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/ObjProps/BtnDeleteObject") as Button, _delete_selected)
+	_connect_button(_ui_root.get_node_or_null("BottomBar/HBox/BtnStartSimulation") as Button, _run_simulation_pressed)
+	_connect_button(_ui_root.get_node_or_null("BottomBar/HBox/BtnCancel") as Button, _cancel_pressed)
+
+	if _stop_time_spin != null:
+		_stop_time_spin.value = 0.0
+		if not _stop_time_spin.value_changed.is_connected(_on_stop_time_changed):
+			_stop_time_spin.value_changed.connect(_on_stop_time_changed)
+
+	_scan_scenario_files()
+	_refresh_property_panel()
+	_set_status("Listo. UI editable desde la escena. Dibuja habitaciones con Room.")
+	return true
+
+
+func _register_tool_button(button: Button, tool_id: int) -> void:
+	button.toggle_mode = true
+	if not button.pressed.is_connected(Callable(self, "_set_tool").bind(tool_id)):
+		button.pressed.connect(Callable(self, "_set_tool").bind(tool_id))
+	_tool_buttons[tool_id] = button
+
+
+func _connect_button(button: Button, callback: Callable) -> void:
+	if button == null:
+		return
+	if not button.pressed.is_connected(callback):
+		button.pressed.connect(callback)
+
+
+func _populate_object_type_option() -> void:
+	if _object_kind_option == null:
+		return
+	_object_kind_option.clear()
+	for kind in ObjectLibraryScript.get_object_kinds():
+		_object_kind_option.add_item(kind)
+
+
+func _on_stop_time_changed(v: float) -> void:
+	editor_data["stop_time_s"] = v

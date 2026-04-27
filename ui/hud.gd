@@ -27,11 +27,13 @@ signal stop_and_generate_requested
 @onready var btn_time_forward: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnTimeForward") as Button
 @onready var time_scale_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow/TimeScaleLabel") as Label
 @onready var playback_status_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow/PlaybackStatusLabel") as Label
+@onready var rooms_data_vbox: GridContainer = get_node_or_null("RoomsDataPanel/MarginContainer/ScrollContainer/RoomsGrid") as GridContainer
 
 var building: BuildingModel = null
 var selected_opening_index: int = 0
 var _selector_sync_in_progress: bool = false
 var _known_opening_count: int = -1
+var _room_cards: Dictionary = {}  # room_id -> {header, data, card}
 
 
 func _ready() -> void:
@@ -65,6 +67,7 @@ func bind_building(next_building: BuildingModel) -> void:
 	building = next_building
 	_known_opening_count = -1
 	_refresh_opening_controls()
+	_rebuild_rooms_panel()
 
 
 func update_state(state: Dictionary) -> void:
@@ -85,6 +88,7 @@ func update_state(state: Dictionary) -> void:
 	)
 
 	_refresh_opening_controls()
+	_update_rooms_panel(state)
 
 	if status_panel == null or not show_status_panel:
 		return
@@ -134,6 +138,112 @@ func build_room_status_text(room_state: Dictionary) -> String:
 		lines.append("Flashover: true")
 
 	return "\n".join(PackedStringArray(lines))
+
+
+func _rebuild_rooms_panel() -> void:
+	if rooms_data_vbox == null:
+		return
+	for child in rooms_data_vbox.get_children():
+		child.queue_free()
+	_room_cards.clear()
+
+	if building == null:
+		return
+
+	var rects: Dictionary = building.get_room_rects_m()
+	var sorted_ids: Array = []
+	for k in rects.keys():
+		sorted_ids.append(int(k))
+	sorted_ids.sort()
+
+	for room_id in sorted_ids:
+		var card := PanelContainer.new()
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var margin := MarginContainer.new()
+		margin.add_theme_constant_override("margin_left", 5)
+		margin.add_theme_constant_override("margin_top", 4)
+		margin.add_theme_constant_override("margin_right", 5)
+		margin.add_theme_constant_override("margin_bottom", 4)
+		card.add_child(margin)
+
+		var vbox := VBoxContainer.new()
+		vbox.add_theme_constant_override("separation", 1)
+		margin.add_child(vbox)
+
+		var header := Label.new()
+		header.add_theme_font_size_override("font_size", 11)
+		header.text = "R%d" % room_id
+		vbox.add_child(header)
+
+		var data_lbl := Label.new()
+		data_lbl.add_theme_font_size_override("font_size", 10)
+		data_lbl.text = "\u2014"
+		data_lbl.modulate = Color(0.80, 0.90, 0.80, 1.0)
+		vbox.add_child(data_lbl)
+
+		rooms_data_vbox.add_child(card)
+		_room_cards[room_id] = {"header": header, "data": data_lbl, "card": card}
+
+
+func _update_rooms_panel(state: Dictionary) -> void:
+	for room_id in _room_cards.keys():
+		var d: Dictionary = _room_cards[room_id]
+		var rs: Dictionary = state.get(str(room_id), {})
+		var header_lbl: Label = d["header"] as Label
+		var data_lbl: Label = d["data"] as Label
+		var card: PanelContainer = d["card"] as PanelContainer
+
+		if rs.is_empty():
+			data_lbl.text = "Sin datos"
+			card.modulate = Color(1, 1, 1, 1)
+			continue
+
+		var room_name: String = String(rs.get("name", ""))
+		if room_name != "":
+			header_lbl.text = "R%d %s" % [room_id, room_name]
+		else:
+			header_lbl.text = "R%d" % room_id
+
+		var hrr: float = float(rs.get("hrr_kw", 0.0))
+		var t_upper: float = float(rs.get("temp_upper_c", 20.0))
+		var t_lower: float = float(rs.get("temp_lower_c", 20.0))
+		var t09: float = float(rs.get("temp_at_0_9m_c", t_lower))
+		var o2_pct: float = float(rs.get("o2", 0.209)) * 100.0
+		var smoke_l: float = float(rs.get("smoke_layer_m", rs.get("h_layer_m", float(rs.get("height_m", 2.4)))))
+		var co_ppm: float = float(rs.get("co_ppm", 0.0))
+		var fed: float = float(rs.get("fed", 0.0))
+		var flashover: bool = bool(rs.get("flashover_triggered", false))
+
+		var svv_pct: float = float(rs.get("svv_worst_pct", -1.0))
+		if svv_pct < 0.0:
+			var h_m: float = float(rs.get("height_m", 2.4))
+			var l150: float = float(rs.get("layer_150c_m", h_m))
+			if l150 >= 1.8:
+				svv_pct = 100.0
+			elif l150 >= 0.5:
+				svv_pct = 90.0 + 9.0 * (l150 - 0.5) / 1.3
+			else:
+				svv_pct = clampf(l150 / 0.5 * 90.0, 0.0, 90.0)
+
+		var lines: PackedStringArray = PackedStringArray()
+		if hrr > 0.5:
+			lines.append("HRR %.0fkW" % hrr)
+		lines.append("T+ %.0f  T- %.0fC" % [t_upper, t_lower])
+		lines.append("T@0.9m %.0fC" % t09)
+		lines.append("O2 %.1f%%  SmL %.2fm" % [o2_pct, smoke_l])
+		if co_ppm > 1.0:
+			lines.append("CO %.0fppm" % co_ppm)
+		lines.append("FED %.2f  SVV %.0f%%" % [fed, svv_pct])
+		if flashover:
+			lines.append("!FLASHOVER!")
+		data_lbl.text = "\n".join(lines)
+
+		if flashover or hrr > 500.0:
+			card.modulate = Color(1.0, 0.55, 0.55, 1.0)
+		elif o2_pct < 18.0 or fed > 0.3:
+			card.modulate = Color(1.0, 0.82, 0.65, 1.0)
+		else:
+			card.modulate = Color(1.0, 1.0, 1.0, 1.0)
 
 
 func _refresh_opening_controls() -> void:

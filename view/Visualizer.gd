@@ -30,7 +30,7 @@ class_name Visualizer
 @export var auto_fit_to_view: bool = true
 @export var view_margin_px: float = 20.0
 # Espacio reservado para el panel de UI (HUD) en cada borde
-@export var ui_reserved_right_px: float = 200.0
+@export var ui_reserved_right_px: float = 400.0
 @export var ui_reserved_top_px: float = 0.0
 
 # ============================================================

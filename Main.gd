@@ -1,173 +1,69 @@
 extends Node
 
-# ============================================================
-# MAIN
-# ------------------------------------------------------------
-# Responsabilidad:
-# - arrancar la simulacion
-# - localizar referencias de escena
-# - avanzar el SimulationEngine
-# - leer el estado agregado del engine
-# - actualizar HUD y Visualizer
-#
-# Main NO debe:
-# - hacer fisica del incendio
-# - recalcular HRR, humo, O2 o temperatura
-# - contener logica del modelo
-# ============================================================
-
 @onready var building: BuildingModel = $World/BuildingModel
 @onready var engine: SimulationEngine = $World/SimulationEngine
-@onready var hud: HUD = $UI/HUD
 @onready var visualizer: Visualizer = $World/Visualizer
+@onready var hud: HUD = $UI/HUD
 
-const TIME_SCALE_STEPS: Array[float] = [0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0]
-const EDITOR_SCENE_PATH: String = "res://scenes/MainMenu.tscn"
-
-var _simulation_paused: bool = false
-var _validation_mode: bool = false
+var playback_paused: bool = false
 
 
 func _ready() -> void:
-	_validation_mode = _is_validation_mode()
-
-	if building == null:
-		push_error("Main: BuildingModel no encontrado en $World/BuildingModel")
-		return
-	if engine == null:
-		push_error("Main: SimulationEngine no encontrado en $World/SimulationEngine")
-		return
-	if hud == null:
-		push_error("Main: HUD no encontrado en $UI/HUD")
-		return
-
-	hud.bind_building(building)
-	if not hud.play_requested.is_connected(_on_play_requested):
-		hud.play_requested.connect(_on_play_requested)
-	if not hud.pause_requested.is_connected(_on_pause_requested):
-		hud.pause_requested.connect(_on_pause_requested)
-	if not hud.slower_requested.is_connected(_on_slower_requested):
-		hud.slower_requested.connect(_on_slower_requested)
-	if not hud.faster_requested.is_connected(_on_faster_requested):
-		hud.faster_requested.connect(_on_faster_requested)
-	if not hud.stop_and_generate_requested.is_connected(_on_stop_and_generate_requested):
-		hud.stop_and_generate_requested.connect(_on_stop_and_generate_requested)
-
-	# Aplicar límite de tiempo del escenario (0 = sin límite).
-	if engine != null and building != null:
-		engine.sim_duration_limit_s = building.sim_stop_time_s
-
-	if not _validation_mode:
-		_create_editor_button()
-		_apply_state_to_ui(_build_ui_state())
-
-
-func _create_editor_button() -> void:
-	var ui_layer: CanvasLayer = $UI as CanvasLayer
-	if ui_layer == null:
-		return
-	var btn := Button.new()
-	btn.text = "◄ Menú"
-	btn.custom_minimum_size = Vector2(90.0, 30.0)
-	btn.position = Vector2(8.0, 8.0)
-	btn.pressed.connect(_on_back_to_editor_pressed)
-	ui_layer.add_child(btn)
-
-
-func _on_back_to_editor_pressed() -> void:
-	get_tree().change_scene_to_file(EDITOR_SCENE_PATH)
+	if hud != null:
+		hud.bind_building(building)
+		if not hud.play_requested.is_connected(_on_play_requested):
+			hud.play_requested.connect(_on_play_requested)
+		if not hud.pause_requested.is_connected(_on_pause_requested):
+			hud.pause_requested.connect(_on_pause_requested)
+		if not hud.slower_requested.is_connected(_on_slower_requested):
+			hud.slower_requested.connect(_on_slower_requested)
+		if not hud.faster_requested.is_connected(_on_faster_requested):
+			hud.faster_requested.connect(_on_faster_requested)
+		if not hud.stop_and_generate_requested.is_connected(_on_stop_and_generate_requested):
+			hud.stop_and_generate_requested.connect(_on_stop_and_generate_requested)
+	_update_views()
 
 
 func _physics_process(delta: float) -> void:
-	if _validation_mode:
+	if playback_paused or engine == null:
 		return
+	engine.step(delta)
+	_update_views()
+
+
+func _update_views() -> void:
 	if engine == null:
 		return
-
-	if not _simulation_paused and not engine.is_finished:
-		engine.step(delta)
-	_apply_state_to_ui(_build_ui_state())
-
-
-func _apply_state_to_ui(state: Dictionary) -> void:
-	if hud != null:
-		hud.update_state(state)
+	var state := engine.get_state()
+	state["playback_paused"] = playback_paused
 	if visualizer != null:
 		visualizer.set_state(state)
-
-
-func _build_ui_state() -> Dictionary:
-	if engine == null:
-		return {}
-
-	var state: Dictionary = engine.get_state()
-	state["playback_paused"] = _simulation_paused or engine.is_finished
-	state["time_scale"] = engine.time_scale
-	state["simulation_finished"] = engine.is_finished
-	state["graphs_launched"] = engine.are_graphs_launched()
-	return state
+	if hud != null:
+		hud.update_state(state)
 
 
 func _on_play_requested() -> void:
-	if engine == null or engine.is_finished:
-		return
-
-	_simulation_paused = false
+	playback_paused = false
+	_update_views()
 
 
 func _on_pause_requested() -> void:
-	if engine == null or engine.is_finished:
-		return
-
-	_simulation_paused = true
+	playback_paused = true
+	_update_views()
 
 
 func _on_slower_requested() -> void:
-	if engine == null or engine.is_finished:
-		return
-
-	_set_time_scale_by_step(_find_time_scale_step_index(engine.time_scale) - 1)
+	if engine != null:
+		engine.time_scale = maxf(0.25, engine.time_scale / 2.0)
+	_update_views()
 
 
 func _on_faster_requested() -> void:
-	if engine == null or engine.is_finished:
-		return
-
-	_set_time_scale_by_step(_find_time_scale_step_index(engine.time_scale) + 1)
+	if engine != null:
+		engine.time_scale = minf(64.0, engine.time_scale * 2.0)
+	_update_views()
 
 
 func _on_stop_and_generate_requested() -> void:
-	if engine == null:
-		return
-
-	if engine.stop_and_generate_graphs():
-		_simulation_paused = true
-
-
-func _find_time_scale_step_index(current_scale: float) -> int:
-	var best_index: int = 0
-	var best_diff: float = INF
-
-	for idx in range(TIME_SCALE_STEPS.size()):
-		var diff: float = absf(TIME_SCALE_STEPS[idx] - current_scale)
-		if diff < best_diff:
-			best_diff = diff
-			best_index = idx
-
-	return best_index
-
-
-func _set_time_scale_by_step(step_index: int) -> void:
-	if engine == null:
-		return
-
-	var clamped_index: int = clampi(step_index, 0, TIME_SCALE_STEPS.size() - 1)
-	engine.time_scale = TIME_SCALE_STEPS[clamped_index]
-
-
-func _is_validation_mode() -> bool:
-	for arg in OS.get_cmdline_user_args():
-		var arg_text: String = String(arg)
-		if arg_text == "--validation-case" or arg_text.begins_with("--validation-case="):
-			return true
-	return false
+	playback_paused = true
+	_update_views()

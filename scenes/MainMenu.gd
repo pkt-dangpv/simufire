@@ -18,7 +18,23 @@ func _ready() -> void:
 	if _is_validation_mode():
 		get_tree().change_scene_to_file(SIM_SCENE_PATH)
 		return
-	_setup_ui()
+	if not _bind_existing_ui():
+		_setup_ui()
+
+
+func _bind_existing_ui() -> bool:
+	var btn_new := get_node_or_null("Center/VBox/BtnNewSim") as Button
+	var btn_editor := get_node_or_null("Center/VBox/BtnEditor") as Button
+	var btn_quit := get_node_or_null("Center/VBox/BtnQuit") as Button
+	if btn_new == null or btn_editor == null or btn_quit == null:
+		return false
+	if not btn_new.pressed.is_connected(_on_new_sim_pressed):
+		btn_new.pressed.connect(_on_new_sim_pressed)
+	if not btn_editor.pressed.is_connected(_on_editor_pressed):
+		btn_editor.pressed.connect(_on_editor_pressed)
+	if not btn_quit.pressed.is_connected(_on_quit_pressed):
+		btn_quit.pressed.connect(_on_quit_pressed)
+	return true
 
 
 func _setup_ui() -> void:
