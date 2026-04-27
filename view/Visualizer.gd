@@ -513,11 +513,19 @@ func _compute_svv_pct(rs: Dictionary) -> float:
 	var height_m: float = float(rs.get("height_m", 2.4))
 	var layer_150c: float = clampf(float(rs.get("layer_150c_m", height_m)), 0.0, height_m)
 	var fed_val: float = float(rs.get("fed", 0.0))
+	var hot_layer_m: float = float(rs.get("hot_layer_m", height_m))
+	var temp_upper_c: float = float(rs.get("temp_upper_c", 20.0))
 
 	# Criterio térmico: altura isoterma 150°C desde el suelo
 	var thermal_svv: float
 	if layer_150c >= 1.8:
-		thermal_svv = 1.0                                                  # ALTA >99%
+		# Isoterma segura, pero verificar capa caliente bajo altura de respiración.
+		if hot_layer_m < 1.8 and temp_upper_c > 60.0:
+			var penetration: float = clampf((1.8 - hot_layer_m) / 0.3, 0.0, 1.0)
+			var temp_factor: float = clampf((temp_upper_c - 60.0) / 90.0, 0.0, 1.0)
+			thermal_svv = 1.0 - penetration * temp_factor
+		else:
+			thermal_svv = 1.0                                                  # ALTA >99%
 	elif layer_150c >= 0.5:
 		thermal_svv = 0.90 + 0.09 * (layer_150c - 0.5) / 1.3            # MEDIA 90-99%
 	elif layer_150c > 0.10:

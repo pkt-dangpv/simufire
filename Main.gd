@@ -22,6 +22,7 @@ extends Node
 @onready var visualizer: Visualizer = $World/Visualizer
 
 const TIME_SCALE_STEPS: Array[float] = [0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0]
+const EDITOR_SCENE_PATH: String = "res://scenes/MainMenu.tscn"
 
 var _simulation_paused: bool = false
 var _validation_mode: bool = false
@@ -52,8 +53,29 @@ func _ready() -> void:
 	if not hud.stop_and_generate_requested.is_connected(_on_stop_and_generate_requested):
 		hud.stop_and_generate_requested.connect(_on_stop_and_generate_requested)
 
+	# Aplicar límite de tiempo del escenario (0 = sin límite).
+	if engine != null and building != null:
+		engine.sim_duration_limit_s = building.sim_stop_time_s
+
 	if not _validation_mode:
+		_create_editor_button()
 		_apply_state_to_ui(_build_ui_state())
+
+
+func _create_editor_button() -> void:
+	var ui_layer: CanvasLayer = $UI as CanvasLayer
+	if ui_layer == null:
+		return
+	var btn := Button.new()
+	btn.text = "◄ Menú"
+	btn.custom_minimum_size = Vector2(90.0, 30.0)
+	btn.position = Vector2(8.0, 8.0)
+	btn.pressed.connect(_on_back_to_editor_pressed)
+	ui_layer.add_child(btn)
+
+
+func _on_back_to_editor_pressed() -> void:
+	get_tree().change_scene_to_file(EDITOR_SCENE_PATH)
 
 
 func _physics_process(delta: float) -> void:

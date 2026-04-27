@@ -1,6 +1,18 @@
 extends RefCounted
 class_name OxygenExchangeSystem
 
+# ============================================================
+# OXYGEN EXCHANGE SYSTEM
+# ------------------------------------------------------------
+# Gestiona el transporte de O2 entre habitaciones y con el
+# exterior:
+# - Consumo de O2 por combustión (Regla de Thornton)
+# - Infiltración ACH desde el exterior
+# - Intercambio boyante por aperturas interiores (Kawagoe)
+# - Intercambio directo por aperturas exteriores
+# - Transporte retardado interior (pendientes en cola)
+# ============================================================
+
 var o2_nominal: float = 0.209
 var ach_infiltration: float = 0.5
 var interior_transport_enabled: bool = true

@@ -19,10 +19,11 @@ func ensure_room_fuel_objects(room: RoomModel) -> void:
 	if room.fuel_objects == null:
 		room.fuel_objects = []
 
-	if not room.fuel_objects.is_empty():
+	# Si ya existe un proxy, no crear otro.
+	if _get_legacy_room_proxy(room) != null:
 		return
 
-	if room.fuel_energy_MJ <= 0.0 and room.max_hrr_kw <= 0.0:
+	if room.fuel_energy_MJ <= 0.0 and room.max_hrr_kw <= 0.0 and get_room_total_remaining_fuel_MJ(room) <= 0.0:
 		return
 
 	var proxy = FuelObjectModelScript.new()
@@ -44,6 +45,7 @@ func create_legacy_room_fire(room: RoomModel, defaults: Dictionary) -> FireModel
 		return null
 
 	ensure_room_fuel_objects(room)
+	_mark_room_ignition_object(room)
 
 	var fire: FireModel = FireModelScript.new()
 	fire.growth_alpha_kw_s2 = float(defaults.get("growth_alpha_kw_s2", fire.growth_alpha_kw_s2))
@@ -461,6 +463,13 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	room.co2_kg += co2_yield * maxf(heat_release_MJ, smoke_basis_MJ * 0.60)
 
 	fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ - solid_fuel_demand_MJ)
+	_sync_explicit_objects_from_active_fire(
+		room,
+		actual_solid_burn_kw,
+		solid_fuel_demand_MJ,
+		can_flame,
+		dt
+	)
 
 	_sync_legacy_proxy_from_fire(room, fire, room.hrr_kw, can_flame)
 
@@ -474,13 +483,27 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	return true
 
 
+func is_any_object_autoignite_ready(room: RoomModel) -> bool:
+	if room == null:
+		return false
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+		if bool(obj.autoignite_ready):
+			return true
+	return false
+
+
 func get_room_total_remaining_fuel_MJ(room: RoomModel) -> float:
 	if room == null:
 		return 0.0
 
 	var total_MJ: float = 0.0
+	var ignore_legacy_proxy: bool = _has_explicit_fuel_objects(room)
 	for obj in room.fuel_objects:
 		if obj == null:
+			continue
+		if ignore_legacy_proxy and _is_legacy_room_proxy(obj):
 			continue
 		total_MJ += maxf(0.0, obj.remaining_fuel_MJ)
 	return total_MJ
@@ -491,11 +514,21 @@ func get_room_total_max_hrr_kw(room: RoomModel) -> float:
 		return 0.0
 
 	var total_kw: float = 0.0
+	var ignore_legacy_proxy: bool = _has_explicit_fuel_objects(room)
 	for obj in room.fuel_objects:
 		if obj == null:
 			continue
+		if ignore_legacy_proxy and _is_legacy_room_proxy(obj):
+			continue
 		total_kw += maxf(0.0, obj.max_hrr_kw)
 	return total_kw
+
+
+func get_room_legacy_proxy_remaining_fuel_MJ(room: RoomModel) -> float:
+	var proxy = _get_legacy_room_proxy(room)
+	if proxy == null:
+		return 0.0
+	return maxf(0.0, proxy.remaining_fuel_MJ)
 
 
 func get_room_active_object_count(room: RoomModel) -> int:
@@ -504,7 +537,7 @@ func get_room_active_object_count(room: RoomModel) -> int:
 
 	var count: int = 0
 	for obj in room.fuel_objects:
-		if obj == null:
+		if _should_skip_object_for_room(room, obj):
 			continue
 		if obj.state == FuelObjectModelScript.State.PYROLYZING or obj.state == FuelObjectModelScript.State.FLAMING:
 			count += 1
@@ -517,7 +550,7 @@ func get_room_heating_object_count(room: RoomModel) -> int:
 
 	var count: int = 0
 	for obj in room.fuel_objects:
-		if obj == null:
+		if _should_skip_object_for_room(room, obj):
 			continue
 		if obj.state == FuelObjectModelScript.State.HEATING:
 			count += 1
@@ -530,31 +563,86 @@ func get_room_pyrolyzing_object_count(room: RoomModel) -> int:
 
 	var count: int = 0
 	for obj in room.fuel_objects:
-		if obj == null:
+		if _should_skip_object_for_room(room, obj):
 			continue
 		if obj.state == FuelObjectModelScript.State.PYROLYZING:
 			count += 1
 	return count
 
 
+func get_room_flaming_object_count(room: RoomModel) -> int:
+	if room == null:
+		return 0
+
+	var count: int = 0
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+		if obj.state == FuelObjectModelScript.State.FLAMING:
+			count += 1
+	return count
+
+
 func get_room_passive_surface_temp_c(room: RoomModel) -> float:
-	var proxy = _get_legacy_room_proxy(room)
-	return proxy.surface_temp_c if proxy != null else 0.0
+	var obj = _get_dominant_fuel_object(room)
+	return obj.surface_temp_c if obj != null else 0.0
 
 
 func get_room_passive_flux_kw_m2(room: RoomModel) -> float:
-	var proxy = _get_legacy_room_proxy(room)
-	return proxy.incident_heat_flux_kw_m2 if proxy != null else 0.0
+	var obj = _get_dominant_fuel_object(room)
+	return obj.incident_heat_flux_kw_m2 if obj != null else 0.0
 
 
 func get_room_passive_ignition_flux_kw_m2(room: RoomModel) -> float:
-	var proxy = _get_legacy_room_proxy(room)
-	return proxy.ignition_flux_kw_m2 if proxy != null else 18.0
+	var obj = _get_dominant_fuel_object(room)
+	return obj.ignition_flux_kw_m2 if obj != null else 18.0
 
 
 func is_room_passive_autoignite_ready(room: RoomModel) -> bool:
-	var proxy = _get_legacy_room_proxy(room)
-	return bool(proxy.autoignite_ready) if proxy != null else false
+	return is_any_object_autoignite_ready(room)
+
+
+func get_room_dominant_fuel_object_id(room: RoomModel) -> String:
+	var obj = _get_dominant_fuel_object(room)
+	return String(obj.id) if obj != null else ""
+
+
+func get_room_dominant_fuel_object_name(room: RoomModel) -> String:
+	var obj = _get_dominant_fuel_object(room)
+	return String(obj.name) if obj != null else ""
+
+
+func get_room_dominant_fuel_object_state(room: RoomModel) -> String:
+	var obj = _get_dominant_fuel_object(room)
+	return fuel_object_state_to_string(int(obj.state)) if obj != null else "none"
+
+
+func get_room_dominant_fuel_object_exposure_s(room: RoomModel) -> float:
+	var obj = _get_dominant_fuel_object(room)
+	return float(obj.exposure_s) if obj != null else 0.0
+
+
+func get_room_dominant_fuel_object_remaining_MJ(room: RoomModel) -> float:
+	var obj = _get_dominant_fuel_object(room)
+	return maxf(0.0, obj.remaining_fuel_MJ) if obj != null else 0.0
+
+
+func fuel_object_state_to_string(state: int) -> String:
+	match state:
+		FuelObjectModelScript.State.COLD:
+			return "cold"
+		FuelObjectModelScript.State.HEATING:
+			return "heating"
+		FuelObjectModelScript.State.PYROLYZING:
+			return "pyrolyzing"
+		FuelObjectModelScript.State.FLAMING:
+			return "flaming"
+		FuelObjectModelScript.State.DECAYING:
+			return "decaying"
+		FuelObjectModelScript.State.BURNED_OUT:
+			return "burned_out"
+		_:
+			return "unknown"
 
 
 func update_passive_room_fuel(
@@ -563,18 +651,38 @@ func update_passive_room_fuel(
 	ambient_c: float,
 	context: Dictionary = {}
 ) -> bool:
-	var proxy = _get_legacy_room_proxy(room)
-	if proxy == null:
+	if room == null:
 		return false
 
 	if room.fire != null:
 		return false
 
-	if proxy.remaining_fuel_MJ <= 0.001:
-		proxy.state = FuelObjectModelScript.State.BURNED_OUT
-		proxy.hrr_kw = 0.0
-		proxy.incident_heat_flux_kw_m2 = 0.0
-		proxy.autoignite_ready = false
+	ensure_room_fuel_objects(room)
+	var any_autoignite_ready: bool = false
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+		if _update_passive_fuel_object(room, obj, dt, ambient_c, context):
+			any_autoignite_ready = true
+
+	return any_autoignite_ready
+
+
+func _update_passive_fuel_object(
+	room: RoomModel,
+	obj,
+	dt: float,
+	ambient_c: float,
+	context: Dictionary = {}
+) -> bool:
+	if obj == null:
+		return false
+
+	if obj.remaining_fuel_MJ <= 0.001:
+		obj.state = FuelObjectModelScript.State.BURNED_OUT
+		obj.hrr_kw = 0.0
+		obj.incident_heat_flux_kw_m2 = 0.0
+		obj.autoignite_ready = false
 		return false
 
 	var hot_fill_fraction: float = clampf(
@@ -587,13 +695,26 @@ func update_passive_room_fuel(
 		0.0,
 		1.0
 	)
+	var smoke_layer_depth_m: float = maxf(0.0, room.height_m - clampf(room.h_layer_m, 0.0, room.height_m))
+	var smoke_volume_m3: float = maxf(0.1, room.floor_area_m2() * maxf(0.1, smoke_layer_depth_m))
+	var smoke_density_signal: float = clampf(room.smoke_kg / maxf(0.02, smoke_volume_m3 * 0.08), 0.0, 1.0)
+	var smoke_radiation_factor: float = maxf(smoke_fill_fraction, smoke_density_signal)
 	var coupled_fill_fraction: float = maxf(hot_fill_fraction, smoke_fill_fraction)
+	var object_height_factor: float = clampf(
+		inverse_lerp(0.0, maxf(0.1, room.height_m), float(obj.elevation_m)),
+		0.0,
+		1.0
+	)
 	var upper_influence: float = clampf(
-		0.12 + 0.78 * coupled_fill_fraction,
+		0.10 + 0.72 * coupled_fill_fraction + 0.12 * object_height_factor,
 		0.12,
 		0.90
 	)
-	var upper_target_surface_temp_c: float = lerpf(room.temp_lower_c, room.temp_upper_c, upper_influence)
+	var upper_target_surface_temp_c: float = lerpf(
+		room.temp_lower_c,
+		room.temp_upper_c,
+		upper_influence
+	)
 	var opening_gas_temp_c: float = maxf(
 		room.temp_lower_c,
 		float(context.get("opening_gas_temp_c", room.temp_lower_c))
@@ -609,31 +730,31 @@ func update_passive_room_fuel(
 	)
 	var upper_radiation_flux_kw_m2: float = _estimate_radiative_flux_kw_m2(
 		room.temp_upper_c,
-		proxy.surface_temp_c,
+		obj.surface_temp_c,
 		0.82
-	) * clampf(0.08 + 0.82 * coupled_fill_fraction, 0.08, 0.90)
+	) * clampf(0.08 + 0.60 * hot_fill_fraction + 0.28 * smoke_radiation_factor, 0.08, 0.96)
 	var doorway_radiation_flux_kw_m2: float = _estimate_radiative_flux_kw_m2(
 		opening_gas_temp_c,
-		proxy.surface_temp_c,
+		obj.surface_temp_c,
 		0.70
 	) * opening_engagement * 0.85
-	var layer_convective_flux_kw_m2: float = maxf(0.0, room.temp_upper_c - proxy.surface_temp_c) \
+	var layer_convective_flux_kw_m2: float = maxf(0.0, room.temp_upper_c - obj.surface_temp_c) \
 			* 0.006 \
 			* coupled_fill_fraction
-	var doorway_convective_flux_kw_m2: float = maxf(0.0, opening_gas_temp_c - proxy.surface_temp_c) \
+	var doorway_convective_flux_kw_m2: float = maxf(0.0, opening_gas_temp_c - obj.surface_temp_c) \
 			* lerpf(0.0, 0.018, opening_engagement)
 	var flame_bonus_flux_kw_m2: float = minf(
 		6.0,
 		adjacent_source_hrr_kw * 0.0008 * opening_engagement
 	)
-	proxy.incident_heat_flux_kw_m2 = upper_radiation_flux_kw_m2 \
+	obj.incident_heat_flux_kw_m2 = upper_radiation_flux_kw_m2 \
 			+ doorway_radiation_flux_kw_m2 \
 			+ layer_convective_flux_kw_m2 \
 			+ doorway_convective_flux_kw_m2 \
 			+ flame_bonus_flux_kw_m2
 
 	var flux_ratio: float = clampf(
-		proxy.incident_heat_flux_kw_m2 / maxf(1.0, proxy.ignition_flux_kw_m2),
+		obj.incident_heat_flux_kw_m2 / maxf(1.0, obj.ignition_flux_kw_m2),
 		0.0,
 		1.25
 	)
@@ -647,57 +768,62 @@ func update_passive_room_fuel(
 		opening_target_surface_temp_c,
 		clampf(0.25 + 0.55 * flux_ratio, 0.0, 1.0)
 	)
-	var heating_rate: float = clampf(dt / lerpf(180.0, 35.0, flux_ratio), 0.0, 1.0)
+	var exposed_area_factor: float = clampf(
+		maxf(0.1, float(obj.exposed_area_m2)) / maxf(0.1, float(obj.footprint_m2)),
+		0.35,
+		2.0
+	)
+	var heating_rate: float = clampf(dt / lerpf(210.0, 35.0, flux_ratio) * sqrt(exposed_area_factor), 0.0, 1.0)
 	var cooling_rate: float = clampf(dt / 240.0, 0.0, 1.0)
-	if target_surface_temp_c >= proxy.surface_temp_c:
-		proxy.surface_temp_c = lerpf(proxy.surface_temp_c, target_surface_temp_c, heating_rate)
+	if target_surface_temp_c >= obj.surface_temp_c:
+		obj.surface_temp_c = lerpf(obj.surface_temp_c, target_surface_temp_c, heating_rate)
 	else:
-		proxy.surface_temp_c = lerpf(proxy.surface_temp_c, target_surface_temp_c, cooling_rate)
+		obj.surface_temp_c = lerpf(obj.surface_temp_c, target_surface_temp_c, cooling_rate)
 
 	var heating_threshold_c: float = ambient_c + 35.0
-	var pyrolysis_threshold_c: float = proxy.ignition_temp_c - 45.0
-	var heating_flux_threshold_kw_m2: float = proxy.ignition_flux_kw_m2 * 0.30
-	var pyrolysis_flux_threshold_kw_m2: float = proxy.ignition_flux_kw_m2 * 0.70
+	var pyrolysis_threshold_c: float = obj.ignition_temp_c - 45.0
+	var heating_flux_threshold_kw_m2: float = obj.ignition_flux_kw_m2 * 0.30
+	var pyrolysis_flux_threshold_kw_m2: float = obj.ignition_flux_kw_m2 * 0.70
 
 	var thermal_signal: float = clampf(
-		inverse_lerp(heating_threshold_c, proxy.ignition_temp_c, proxy.surface_temp_c),
+		inverse_lerp(heating_threshold_c, obj.ignition_temp_c, obj.surface_temp_c),
 		0.0,
 		1.0
 	)
 	var flux_signal: float = clampf(
-		inverse_lerp(heating_flux_threshold_kw_m2, proxy.ignition_flux_kw_m2, proxy.incident_heat_flux_kw_m2),
+		inverse_lerp(heating_flux_threshold_kw_m2, obj.ignition_flux_kw_m2, obj.incident_heat_flux_kw_m2),
 		0.0,
 		1.0
 	)
 	var preheat_signal: float = maxf(thermal_signal, flux_signal)
 
 	if preheat_signal > 0.0:
-		proxy.exposure_s += dt * lerpf(0.35, 1.35, preheat_signal)
+		obj.exposure_s += dt * lerpf(0.35, 1.35, preheat_signal)
 	else:
-		proxy.exposure_s = maxf(0.0, proxy.exposure_s - dt * 1.5)
+		obj.exposure_s = maxf(0.0, obj.exposure_s - dt * 1.5)
 
 	var pyrolysis_ready: bool = (
-		proxy.surface_temp_c >= pyrolysis_threshold_c
-		or proxy.incident_heat_flux_kw_m2 >= pyrolysis_flux_threshold_kw_m2
-	) and proxy.exposure_s >= 30.0
-	var autoignite_ready: bool = proxy.exposure_s >= 75.0 and (
-		proxy.surface_temp_c >= proxy.ignition_temp_c
+		obj.surface_temp_c >= pyrolysis_threshold_c
+		or obj.incident_heat_flux_kw_m2 >= pyrolysis_flux_threshold_kw_m2
+	) and obj.exposure_s >= 30.0
+	var autoignite_ready: bool = obj.exposure_s >= 75.0 and (
+		obj.surface_temp_c >= obj.ignition_temp_c
 		or (
-			proxy.surface_temp_c >= pyrolysis_threshold_c
-			and proxy.incident_heat_flux_kw_m2 >= proxy.ignition_flux_kw_m2
+			obj.surface_temp_c >= pyrolysis_threshold_c
+			and obj.incident_heat_flux_kw_m2 >= obj.ignition_flux_kw_m2
 		)
 	)
-	proxy.autoignite_ready = autoignite_ready
+	obj.autoignite_ready = autoignite_ready
 
 	if pyrolysis_ready:
-		proxy.state = FuelObjectModelScript.State.PYROLYZING
-	elif proxy.surface_temp_c >= heating_threshold_c \
-			or proxy.incident_heat_flux_kw_m2 >= heating_flux_threshold_kw_m2:
-		proxy.state = FuelObjectModelScript.State.HEATING
+		obj.state = FuelObjectModelScript.State.PYROLYZING
+	elif obj.surface_temp_c >= heating_threshold_c \
+			or obj.incident_heat_flux_kw_m2 >= heating_flux_threshold_kw_m2:
+		obj.state = FuelObjectModelScript.State.HEATING
 	else:
-		proxy.state = FuelObjectModelScript.State.COLD
+		obj.state = FuelObjectModelScript.State.COLD
 
-	proxy.hrr_kw = 0.0
+	obj.hrr_kw = 0.0
 	return autoignite_ready
 
 
@@ -837,20 +963,242 @@ func _extinguish_room_fire(room: RoomModel, fire: FireModel, burned_out: bool = 
 	return false
 
 
+func _mark_room_ignition_object(room: RoomModel) -> void:
+	if room == null or not _has_explicit_fuel_objects(room):
+		return
+
+	var ignition_object = _select_room_ignition_object(room)
+	if ignition_object == null:
+		return
+
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+		obj.hrr_kw = 0.0
+		obj.autoignite_ready = false
+		if obj == ignition_object:
+			obj.is_primary_ignition_source = true
+			obj.state = FuelObjectModelScript.State.FLAMING
+			obj.surface_temp_c = maxf(obj.surface_temp_c, obj.ignition_temp_c + 35.0)
+			obj.exposure_s = maxf(obj.exposure_s, 75.0)
+			obj.ignited_by_object_id = String(obj.id)
+
+
+func _select_room_ignition_object(room: RoomModel):
+	var best_obj = null
+	var best_score: float = -1.0e20
+
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+		if obj.remaining_fuel_MJ <= 0.001:
+			continue
+
+		var score: float = _fuel_object_preheat_score(obj)
+		if bool(obj.is_primary_ignition_source):
+			score += 8.0
+		if bool(obj.autoignite_ready):
+			score += 12.0
+		if obj.state == FuelObjectModelScript.State.PYROLYZING:
+			score += 6.0
+		elif obj.state == FuelObjectModelScript.State.HEATING:
+			score += 3.0
+		score += 2.0 / maxf(1.0, obj.ignition_flux_kw_m2)
+		score += 1.0 / maxf(1.0, obj.ignition_temp_c)
+
+		if score > best_score:
+			best_score = score
+			best_obj = obj
+
+	return best_obj
+
+
+func _sync_explicit_objects_from_active_fire(
+	room: RoomModel,
+	actual_solid_burn_kw: float,
+	solid_fuel_demand_MJ: float,
+	can_flame: bool,
+	dt: float
+) -> void:
+	if room == null or not _has_explicit_fuel_objects(room):
+		return
+
+	var candidates: Array = []
+	var total_weight: float = 0.0
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+
+		obj.autoignite_ready = false
+		if obj.remaining_fuel_MJ <= 0.001:
+			obj.remaining_fuel_MJ = 0.0
+			obj.hrr_kw = 0.0
+			obj.state = FuelObjectModelScript.State.BURNED_OUT
+			continue
+
+		var active_target_temp_c: float = maxf(room.temp_upper_c, obj.ignition_temp_c + 80.0)
+		var heat_blend: float = clampf(dt / 60.0, 0.0, 1.0)
+		obj.surface_temp_c = lerpf(obj.surface_temp_c, active_target_temp_c, heat_blend)
+		obj.incident_heat_flux_kw_m2 = maxf(
+			obj.incident_heat_flux_kw_m2,
+			_estimate_radiative_flux_kw_m2(room.temp_upper_c, obj.surface_temp_c, 0.85)
+		)
+
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * (0.35 + 0.65 * _fuel_object_preheat_score(obj) / 8.0)
+		if bool(obj.is_primary_ignition_source):
+			weight *= 1.40
+		if obj.state == FuelObjectModelScript.State.FLAMING:
+			weight *= 1.35
+		elif obj.state == FuelObjectModelScript.State.PYROLYZING:
+			weight *= 1.20
+		weight = maxf(0.01, weight)
+
+		candidates.append({
+			"obj": obj,
+			"weight": weight,
+			"burn_MJ": 0.0
+		})
+		total_weight += weight
+
+	if candidates.is_empty():
+		return
+
+	if solid_fuel_demand_MJ <= 0.000001 or actual_solid_burn_kw <= 0.000001:
+		for index in range(candidates.size()):
+			var idle_obj = candidates[index]["obj"]
+			idle_obj.hrr_kw = 0.0
+			if idle_obj.state == FuelObjectModelScript.State.FLAMING:
+				idle_obj.state = FuelObjectModelScript.State.DECAYING
+		return
+
+	var consumed_MJ: float = 0.0
+	for index in range(candidates.size()):
+		var entry: Dictionary = candidates[index]
+		var obj = entry["obj"]
+		var share_MJ: float = solid_fuel_demand_MJ * float(entry["weight"]) / maxf(0.001, total_weight)
+		share_MJ = minf(maxf(0.0, share_MJ), obj.remaining_fuel_MJ)
+		obj.remaining_fuel_MJ = maxf(0.0, obj.remaining_fuel_MJ - share_MJ)
+		entry["burn_MJ"] = share_MJ
+		candidates[index] = entry
+		consumed_MJ += share_MJ
+
+	var leftover_MJ: float = maxf(0.0, solid_fuel_demand_MJ - consumed_MJ)
+	if leftover_MJ > 0.000001:
+		var remaining_capacity_MJ: float = 0.0
+		for entry in candidates:
+			var capacity_obj = entry["obj"]
+			remaining_capacity_MJ += maxf(0.0, capacity_obj.remaining_fuel_MJ)
+		if remaining_capacity_MJ > 0.000001:
+			for index in range(candidates.size()):
+				var entry: Dictionary = candidates[index]
+				var obj = entry["obj"]
+				var extra_MJ: float = leftover_MJ * maxf(0.0, obj.remaining_fuel_MJ) / remaining_capacity_MJ
+				extra_MJ = minf(extra_MJ, obj.remaining_fuel_MJ)
+				obj.remaining_fuel_MJ = maxf(0.0, obj.remaining_fuel_MJ - extra_MJ)
+				entry["burn_MJ"] = float(entry["burn_MJ"]) + extra_MJ
+				candidates[index] = entry
+				consumed_MJ += extra_MJ
+
+	for entry in candidates:
+		var obj = entry["obj"]
+		var burn_MJ: float = float(entry["burn_MJ"])
+		if burn_MJ > 0.000001 and consumed_MJ > 0.000001:
+			obj.hrr_kw = actual_solid_burn_kw * burn_MJ / consumed_MJ
+			obj.state = FuelObjectModelScript.State.FLAMING if can_flame else FuelObjectModelScript.State.DECAYING
+			obj.exposure_s = maxf(obj.exposure_s, 75.0)
+		else:
+			obj.hrr_kw = 0.0
+			if obj.remaining_fuel_MJ <= 0.001:
+				obj.state = FuelObjectModelScript.State.BURNED_OUT
+			elif obj.surface_temp_c >= obj.ignition_temp_c - 45.0:
+				obj.state = FuelObjectModelScript.State.PYROLYZING
+			elif obj.surface_temp_c >= room.temp_lower_c + 35.0:
+				obj.state = FuelObjectModelScript.State.HEATING
+
+
+func _get_dominant_fuel_object(room: RoomModel):
+	if room == null:
+		return null
+
+	var best_obj = null
+	var best_score: float = -1.0e20
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+
+		var score: float = _fuel_object_preheat_score(obj)
+		if score > best_score:
+			best_score = score
+			best_obj = obj
+
+	return best_obj
+
+
+func _fuel_object_preheat_score(obj) -> float:
+	if obj == null:
+		return -1.0e20
+
+	var state_score: float = 0.0
+	match int(obj.state):
+		FuelObjectModelScript.State.HEATING:
+			state_score = 2.0
+		FuelObjectModelScript.State.PYROLYZING:
+			state_score = 5.0
+		FuelObjectModelScript.State.FLAMING:
+			state_score = 7.0
+		FuelObjectModelScript.State.DECAYING:
+			state_score = 1.0
+		FuelObjectModelScript.State.BURNED_OUT:
+			state_score = -6.0
+		_:
+			state_score = 0.0
+
+	var thermal_signal: float = clampf(
+		inverse_lerp(obj.ignition_temp_c - 75.0, obj.ignition_temp_c, obj.surface_temp_c),
+		0.0,
+		1.0
+	)
+	var flux_signal: float = clampf(
+		obj.incident_heat_flux_kw_m2 / maxf(1.0, obj.ignition_flux_kw_m2),
+		0.0,
+		1.5
+	)
+	var exposure_signal: float = clampf(obj.exposure_s / 75.0, 0.0, 1.5)
+	var hrr_signal: float = clampf(obj.hrr_kw / maxf(1.0, obj.max_hrr_kw), 0.0, 1.0)
+	var ready_bonus: float = 3.0 if bool(obj.autoignite_ready) else 0.0
+	return state_score + ready_bonus + maxf(thermal_signal, flux_signal) * 2.0 + exposure_signal + hrr_signal
+
+
 func _get_legacy_room_proxy(room: RoomModel):
 	if room == null or room.fuel_objects.is_empty():
 		return null
 
-	if room.fuel_objects.size() != 1:
-		return null
+	for obj in room.fuel_objects:
+		if _is_legacy_room_proxy(obj):
+			return obj
 
-	var proxy = room.fuel_objects[0]
-	if proxy == null:
-		return null
-	if not String(proxy.id).begins_with("room_proxy_"):
-		return null
+	return null
 
-	return proxy
+
+func _has_explicit_fuel_objects(room: RoomModel) -> bool:
+	if room == null or room.fuel_objects.is_empty():
+		return false
+
+	for obj in room.fuel_objects:
+		if obj != null and not _is_legacy_room_proxy(obj):
+			return true
+
+	return false
+
+
+func _is_legacy_room_proxy(obj) -> bool:
+	return obj != null and String(obj.id).begins_with("room_proxy_")
+
+
+func _should_skip_object_for_room(room: RoomModel, obj) -> bool:
+	if obj == null:
+		return true
+	return _has_explicit_fuel_objects(room) and _is_legacy_room_proxy(obj)
 
 
 func _sync_legacy_proxy_idle(room: RoomModel) -> void:

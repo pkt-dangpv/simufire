@@ -1,6 +1,14 @@
 extends Node
 class_name ApartmentTemplates
 
+# ============================================================
+# APARTMENT TEMPLATES
+# ------------------------------------------------------------
+# Plantillas adicionales de edificio (uso futuro).
+# Devuelven Dictionary con "rooms" y "openings".
+# NOTA: Actualmente no se usan en ningún caso de validación.
+# ============================================================
+
 
 static func small_apartment() -> Dictionary:
 

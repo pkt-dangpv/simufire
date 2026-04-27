@@ -35,7 +35,6 @@ var thermal_system = ThermalSystemScript.new()
 var fire_spread_system = FireSpreadSystemScript.new()
 var glass_failure_system = GlassFailureSystemScript.new()
 
-const o2_consumption_kg_per_MJ: float = 0.35
 const o2_nominal: float = 0.209
 
 # ============================================================
@@ -47,7 +46,9 @@ var sim_time_s: float = 0.0
 
 # Segundos sin fuego activo antes de declarar la simulación terminada.
 @export var extinction_grace_s: float = 30.0
-@export var auto_finish_on_extinction: bool = true
+@export var auto_finish_on_extinction: bool = false
+## Si > 0, la simulación se detiene automáticamente al alcanzar este tiempo (s).
+@export var sim_duration_limit_s: float = 0.0
 var is_finished: bool = false
 var _extinction_countdown: float = 30.0
 # Fraccion de apertura del step anterior por índice, para detectar cambios.
@@ -193,12 +194,18 @@ var smoke_deposited_total_kg: float = 0.0
 # ============================================================
 
 @export var fire_spread_enabled: bool = false
-@export var fire_spread_ignition_temp_c: float = 340.0  # temperatura de la capa superior para ignición por calor
+# Temperatura de capa superior del destino para propagación térmica directa.
+# Referencia: temperatura de gas de ignición pilotada de madera ~300°C (SFPE).
+@export var fire_spread_ignition_temp_c: float = 300.0
 @export var fire_spread_max_layer_m: float = 1.6
 @export var fire_spread_min_smoke_kg: float = 0.08
-@export var fire_spread_min_source_hrr_kw: float = 180.0
-@export var fire_spread_required_exposure_s: float = 35.0
-@export var fire_spread_exposure_decay_s: float = 12.0
+# Mínimo HRR de la sala fuente para iniciar evaluación de propagación.
+@export var fire_spread_min_source_hrr_kw: float = 150.0
+# Tiempo de exposición sostenida necesario para ignición. A 90 s equivale
+# a ~1.5 min de condiciones críticas mantenidas antes de ignorizar.
+@export var fire_spread_required_exposure_s: float = 90.0
+# Semivida de decaimiento de la exposición cuando las condiciones no se cumplen.
+@export var fire_spread_exposure_decay_s: float = 20.0
 
 # La autoignicion de proxies "sala completa" genera propagaciones demasiado
 # agresivas para el escenario base y las validaciones zonales. Se mantiene como
@@ -225,6 +232,11 @@ var smoke_deposited_total_kg: float = 0.0
 @export var upper_to_ambient_loss_rate: float = 0.008
 @export var lower_layer_warming_rate: float = 0.0120
 @export var max_upper_temp_c: float = 900.0
+@export var upper_radiative_loss_enabled: bool = true
+@export var upper_radiative_loss_start_c: float = 880.0
+@export var upper_radiative_loss_emissivity: float = 0.90
+@export var upper_radiative_loss_area_factor: float = 1.10
+@export var upper_radiative_loss_max_fraction_per_step: float = 0.45
 @export var doorway_heat_exchange_coeff: float = 0.26
 @export var smoke_heat_mix_coeff: float = 0.025
 @export var retained_hot_layer_temp_start_c: float = 100.0
@@ -255,9 +267,6 @@ var smoke_deposited_total_kg: float = 0.0
 # Mismo patrón que upper_to_ambient_loss_rate: sin dividir por m_upper_kg → estable.
 # 0.003 /s → a 800°C de diferencia: 2.4°C/s adicionales (modest, calibratable).
 @export var wall_absorption_rate: float = 0.003
-
-# Parámetro heredado de intento anterior (no usado en cálculo, conservado por compatibilidad)
-@export var wall_heat_transfer_w_m2k: float = 6.0
 
 # ============================================================
 # VENTILACIÓN PULSANTE POR FUGAS EN VENTANAS
@@ -357,6 +366,11 @@ func _sync_auxiliary_services() -> void:
 		"lower_layer_warming_rate": lower_layer_warming_rate,
 		"wall_absorption_rate": wall_absorption_rate,
 		"max_upper_temp_c": max_upper_temp_c,
+		"upper_radiative_loss_enabled": upper_radiative_loss_enabled,
+		"upper_radiative_loss_start_c": upper_radiative_loss_start_c,
+		"upper_radiative_loss_emissivity": upper_radiative_loss_emissivity,
+		"upper_radiative_loss_area_factor": upper_radiative_loss_area_factor,
+		"upper_radiative_loss_max_fraction_per_step": upper_radiative_loss_max_fraction_per_step,
 		"doorway_heat_exchange_coeff": doorway_heat_exchange_coeff,
 		"smoke_heat_mix_coeff": smoke_heat_mix_coeff,
 		"retained_hot_layer_temp_start_c": retained_hot_layer_temp_start_c,
@@ -492,6 +506,8 @@ func _build_oxygen_exchange_hooks() -> Dictionary:
 
 func _ready() -> void:
 	_resolve_building()
+	if building != null and building.default_ignition_room_id != 0:
+		ignition_room_id = building.default_ignition_room_id
 	combustion_system.bootstrap_building(building)
 	_sync_smoke_model_settings()
 	_sync_auxiliary_services()
@@ -603,6 +619,13 @@ func step(delta: float) -> void:
 
 	sim_time_s += dt
 
+	# Límite de tiempo configurado desde el editor.
+	if sim_duration_limit_s > 0.0 and sim_time_s >= sim_duration_limit_s:
+		if not is_finished:
+			is_finished = true
+			_on_sim_finished()
+		return
+
 	_step_fire(dt)
 	_step_oxygen(dt)
 	thermal_system.step(building, dt, {
@@ -615,7 +638,7 @@ func step(delta: float) -> void:
 	_step_gas_exchange(dt)
 	_step_passive_fuel(dt)
 	fire_spread_system.step(dt, Callable(self, "ignite_room"))
-	_clamp_rooms()
+	_clamp_rooms(dt)
 	_detect_and_log_opening_events()
 	_maybe_log_state()
 
@@ -770,7 +793,9 @@ func _step_gas_exchange(dt: float) -> void:
 
 
 func _step_passive_fuel(dt: float) -> void:
-	if building == null or not passive_room_autoignite_enabled:
+	# Siempre actualiza el estado térmico de los combustibles pasivos (necesario para
+	# FireSpreadSystem). La auto-ignición solo se dispara si passive_room_autoignite_enabled.
+	if building == null:
 		return
 
 	var ambient_c: float = thermal_system.ambient_temp_c()
@@ -781,12 +806,13 @@ func _step_passive_fuel(dt: float) -> void:
 		if room == null or room.fire != null:
 			continue
 
-		if combustion_system.update_passive_room_fuel(
+		var ready: bool = combustion_system.update_passive_room_fuel(
 			room,
 			dt,
 			ambient_c,
 			_build_passive_fuel_context(int(room_id))
-		):
+		)
+		if ready and passive_room_autoignite_enabled:
 			auto_ignite_room_ids.append(int(room_id))
 
 	for room_id in auto_ignite_room_ids:
@@ -1059,7 +1085,7 @@ func debug_check_smoke_conservation() -> void:
 # CLAMP / LIMPIEZA
 # ============================================================
 
-func _clamp_rooms() -> void:
+func _clamp_rooms(dt: float) -> void:
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
@@ -1074,6 +1100,9 @@ func _clamp_rooms() -> void:
 
 		room.temp_lower_c = maxf(building.outside_temp_c, room.temp_lower_c)
 
+		if room.temp_upper_c > max_upper_temp_c:
+			room.temp_upper_raw_c = maxf(room.temp_upper_raw_c, room.temp_upper_c)
+			room.temp_upper_clamped = true
 		room.temp_upper_c = minf(room.temp_upper_c, max_upper_temp_c)
 		if room.temp_upper_c < room.temp_lower_c:
 			room.temp_lower_c = room.temp_upper_c
@@ -1081,10 +1110,16 @@ func _clamp_rooms() -> void:
 			room.upper_gas_kg = 0.0
 			room.upper_energy_kj = 0.0
 			room.temp_upper_c = room.temp_lower_c
+			room.temp_upper_raw_c = room.temp_upper_c
+			room.temp_upper_clamped = false
+			room.upper_radiative_loss_kw = 0.0
 			thermal_system.reset_thermal_layer(room)
 			room.layer_150c_m = room.height_m
 		else:
+			room.temp_upper_raw_c = maxf(room.temp_upper_raw_c, room.temp_upper_c)
+			room.temp_upper_clamped = room.temp_upper_clamped or room.temp_upper_raw_c > max_upper_temp_c
 			room.upper_energy_kj = room.upper_gas_kg * maxf(0.0, room.temp_upper_c - thermal_system.ambient_temp_c())
+			thermal_system.update_temperature_cap_telemetry(room, dt)
 
 		room.hrr_kw = maxf(0.0, room.hrr_kw)
 		room.smoke_prod_kg_s = maxf(0.0, room.smoke_prod_kg_s)
@@ -1226,10 +1261,21 @@ func _should_launch_graphs() -> bool:
 	return true
 
 
+func _is_validation_mode() -> bool:
+	for arg in OS.get_cmdline_user_args():
+		var arg_str: String = String(arg)
+		if arg_str == "--validation-case" or arg_str.begins_with("--validation-case="):
+			return true
+	return false
+
+
 ## Godot llama _exit_tree cuando se detiene el juego (botón Stop del editor
 ## o cierre de ventana). Garantiza que las gráficas se generen aunque la
 ## simulación no haya terminado por extinción natural del fuego.
 func _exit_tree() -> void:
+	if _is_validation_mode():
+		return
+
 	_finish_and_launch_graphs("forced")
 
 # ============================================================

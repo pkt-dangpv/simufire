@@ -38,11 +38,29 @@ var room_rect_m: Dictionary[int, Rect2] = {}
 var rooms: Dictionary = {}
 var openings: Array = []
 
+## Habitación donde se iniciará el incendio (puede venir del escenario JSON).
+var default_ignition_room_id: int = 0
+## Tiempo máximo de simulación en segundos (0 = sin límite).
+var sim_stop_time_s: float = 0.0
+
+## Ruta del archivo de template runtime exportado por el editor.
+const EDITOR_RUNTIME_PATH: String = "user://last_editor_runtime_template.json"
+
 # ============================================================
 # READY
 # ============================================================
 
 func _ready() -> void:
+	if FileAccess.file_exists(EDITOR_RUNTIME_PATH):
+		var file := FileAccess.open(EDITOR_RUNTIME_PATH, FileAccess.READ)
+		if file != null:
+			var text: String = file.get_as_text()
+			file.close()
+			var parsed: Variant = JSON.parse_string(text)
+			if typeof(parsed) == TYPE_DICTIONARY:
+				_load_from_template(parsed)
+				return
+
 	match template_name:
 		"ghanekar_bedroom_hallway":
 			_load_from_template(building_template.create_ghanekar_bedroom_hallway())
@@ -88,17 +106,25 @@ func _load_from_template(data: Dictionary) -> void:
 	rooms.clear()
 	openings.clear()
 	room_rect_m.clear()
+	if data.has("outside_temp_c"):
+		outside_temp_c = float(data["outside_temp_c"])
+	if data.has("outside_o2"):
+		outside_o2 = float(data["outside_o2"])
+	if data.has("ignition_room_id"):
+		default_ignition_room_id = int(data["ignition_room_id"])
+	if data.has("stop_time_s"):
+		sim_stop_time_s = float(data["stop_time_s"])
 
 	var rects_data: Dictionary = data.get("room_rect_m", {})
 
 	# Geometría 2D
 	for k in rects_data.keys():
-		room_rect_m[int(k)] = rects_data[k] as Rect2
+		room_rect_m[int(k)] = _rect2_from_variant(rects_data[k])
 
 	# Habitaciones
 	for room_data in data.get("rooms_data", []):
 		var room_id: int = int(room_data["id"])
-		var rect_m: Rect2 = rects_data[room_id] as Rect2
+		var rect_m: Rect2 = room_rect_m.get(room_id, Rect2())
 
 		_add_room_from_rect(
 			room_id,
@@ -136,6 +162,8 @@ func _load_from_template(data: Dictionary) -> void:
 			op.sill_m = float(op_data["sill_m"])
 		if op_data.has("wall"):
 			op.wall_side = String(op_data["wall"]).to_lower()
+		if op_data.has("offset_m"):
+			op.offset_m = float(op_data["offset_m"])
 
 		openings.append(op)
 
@@ -178,6 +206,10 @@ func _build_fuel_objects(raw_objects: Variant) -> Array:
 		obj.id = String(data.get("id", ""))
 		obj.name = String(data.get("name", obj.id))
 		obj.kind = String(data.get("kind", "generic"))
+		obj.room_id = int(data.get("room_id", -1))
+		obj.position_m = _vector2_from_variant(data.get("position_m", Vector2.ZERO), Vector2.ZERO)
+		obj.size_m = _vector2_from_variant(data.get("size_m", Vector2.ONE), Vector2.ONE)
+		obj.rotation_deg = float(data.get("rotation_deg", 0.0))
 		obj.footprint_m2 = float(data.get("footprint_m2", 0.0))
 		obj.exposed_area_m2 = float(data.get("exposed_area_m2", obj.footprint_m2))
 		obj.elevation_m = float(data.get("elevation_m", 0.0))
@@ -193,6 +225,37 @@ func _build_fuel_objects(raw_objects: Variant) -> Array:
 		result.append(obj)
 
 	return result
+
+
+func _rect2_from_variant(value: Variant) -> Rect2:
+	if typeof(value) == TYPE_RECT2:
+		return value
+	if typeof(value) == TYPE_DICTIONARY:
+		var data: Dictionary = value
+		return Rect2(
+			float(data.get("x", 0.0)),
+			float(data.get("y", 0.0)),
+			float(data.get("w", data.get("width", 0.0))),
+			float(data.get("h", data.get("height", 0.0)))
+		)
+	if typeof(value) == TYPE_ARRAY:
+		var values: Array = value
+		if values.size() >= 4:
+			return Rect2(float(values[0]), float(values[1]), float(values[2]), float(values[3]))
+	return Rect2()
+
+
+func _vector2_from_variant(value: Variant, fallback: Vector2 = Vector2.ZERO) -> Vector2:
+	if typeof(value) == TYPE_VECTOR2:
+		return value
+	if typeof(value) == TYPE_DICTIONARY:
+		var data: Dictionary = value
+		return Vector2(float(data.get("x", fallback.x)), float(data.get("y", fallback.y)))
+	if typeof(value) == TYPE_ARRAY:
+		var values: Array = value
+		if values.size() >= 2:
+			return Vector2(float(values[0]), float(values[1]))
+	return fallback
 
 # ============================================================
 # HELPERS GEOMÉTRICOS

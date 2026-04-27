@@ -25,6 +25,10 @@ var height_m: float = 2.5
 
 # Estado termico
 var temp_upper_c: float = 20.0
+var temp_upper_raw_c: float = 20.0
+var temp_upper_clamped: bool = false
+var temp_upper_clamp_time_s: float = 0.0
+var temp_upper_clamp_count: int = 0
 var temp_lower_c: float = 20.0
 
 # Gases / oxigeno
@@ -39,6 +43,7 @@ var h_layer_m: float = 2.5
 var thermal_layer_m: float = 2.5
 var upper_gas_kg: float = 0.0
 var upper_energy_kj: float = 0.0
+var upper_radiative_loss_kw: float = 0.0
 var layer_150c_m: float = 2.5
 
 # Monoxido de carbono - masa en la sala (kg)
@@ -90,6 +95,10 @@ func volume_m3() -> float:
 
 func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	temp_upper_c = ambient_temp_c
+	temp_upper_raw_c = ambient_temp_c
+	temp_upper_clamped = false
+	temp_upper_clamp_time_s = 0.0
+	temp_upper_clamp_count = 0
 	temp_lower_c = ambient_temp_c
 	o2 = ambient_o2
 	smoke_kg = 0.0
@@ -98,6 +107,7 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	thermal_layer_m = height_m
 	upper_gas_kg = 0.0
 	upper_energy_kj = 0.0
+	upper_radiative_loss_kw = 0.0
 	layer_150c_m = height_m
 	co_kg = 0.0
 	co_upper_kg = 0.0

@@ -22,6 +22,12 @@ var id: String = ""
 var name: String = ""
 var kind: String = ""
 
+# Ubicacion estructural para editores/visualizadores 2D.
+var room_id: int = -1
+var position_m: Vector2 = Vector2.ZERO
+var size_m: Vector2 = Vector2.ONE
+var rotation_deg: float = 0.0
+
 # Geometría / exposición simplificadas
 var footprint_m2: float = 0.0
 var exposed_area_m2: float = 0.0
@@ -57,6 +63,10 @@ func configure_from_legacy_room(room: RoomModel) -> void:
 	id = "room_proxy_%d" % room.id
 	name = "%s (proxy)" % room.name
 	kind = room.kind
+	room_id = room.id
+	position_m = Vector2.ZERO
+	size_m = Vector2(maxf(0.1, room.width_m), maxf(0.1, room.length_m))
+	rotation_deg = 0.0
 	fuel_energy_MJ = maxf(0.0, room.fuel_energy_MJ)
 	remaining_fuel_MJ = fuel_energy_MJ
 	max_hrr_kw = maxf(0.0, room.max_hrr_kw)

@@ -1,6 +1,16 @@
 extends RefCounted
 class_name OpeningModel
 
+# ============================================================
+# OPENING MODEL
+# ------------------------------------------------------------
+# Representa una apertura (puerta o ventana) entre dos salas
+# o entre una sala y el exterior (b == OUTSIDE_ID).
+# - open_fraction: 0.0 = cerrado, 1.0 = totalmente abierto
+# - sill_m: altura del alféizar desde el suelo (ventanas)
+# - lintel_height_m(): altura total = sill_m + height_m
+# ============================================================
+
 enum Type { DOOR, WINDOW }
 
 const EPSILON: float = 0.001
@@ -16,6 +26,7 @@ var sill_m: float = 0.0           # para ventanas (altura del alféizar)
 var open_fraction: float = 1.0    # 0..1
 var opening_index: int = -1
 var wall_side: String = ""
+var offset_m: float = 0.5
 
 # Coeficiente de "derrame" (tunable)
 var spill_coeff: float = 0.65

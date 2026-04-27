@@ -1,0 +1,160 @@
+{
+	"version": 1,
+	"outside_temp_c": 20.0,
+	"outside_o2": 0.209,
+	"ignition_room_id": 0,
+	"room_rect_m": {
+		"0": { "x": 0.0, "y": 0.0, "w": 5.0, "h": 4.0 },
+		"1": { "x": 5.0, "y": 0.0, "w": 1.5, "h": 7.0 },
+		"2": { "x": 6.5, "y": 0.0, "w": 3.5, "h": 3.0 },
+		"3": { "x": 6.5, "y": 3.0, "w": 3.5, "h": 2.0 },
+		"4": { "x": 0.0, "y": 4.0, "w": 5.0, "h": 3.0 },
+		"5": { "x": 6.5, "y": 5.0, "w": 3.5, "h": 2.0 }
+	},
+	"rooms_data": [
+		{
+			"id": 0,
+			"name": "Salon",
+			"kind": "salon",
+			"height_m": 2.4,
+			"fuel_energy_MJ": 6000.0,
+			"max_hrr_kw": 3000.0,
+			"fuel_objects": [
+				{
+					"id": "sofa_salon",
+					"name": "Sofa",
+					"kind": "sofa",
+					"room_id": 0,
+					"position_m": { "x": 0.4, "y": 0.6 },
+					"size_m": { "x": 2.0, "y": 0.9 },
+					"rotation_deg": 0.0,
+					"footprint_m2": 1.8,
+					"exposed_area_m2": 2.5,
+					"elevation_m": 0.35,
+					"fuel_energy_MJ": 500.0,
+					"remaining_fuel_MJ": 500.0,
+					"max_hrr_kw": 1000.0,
+					"ignition_temp_c": 320.0,
+					"ignition_flux_kw_m2": 18.0,
+					"smoke_yield_kg_per_MJ": 0.012,
+					"co_yield_kg_per_MJ": 0.0004,
+					"is_primary_ignition_source": true
+				},
+				{
+					"id": "mesa_salon",
+					"name": "Mesa",
+					"kind": "table",
+					"room_id": 0,
+					"position_m": { "x": 3.0, "y": 1.5 },
+					"size_m": { "x": 1.4, "y": 0.8 },
+					"rotation_deg": 0.0,
+					"footprint_m2": 1.12,
+					"exposed_area_m2": 1.6,
+					"elevation_m": 0.7,
+					"fuel_energy_MJ": 180.0,
+					"remaining_fuel_MJ": 180.0,
+					"max_hrr_kw": 250.0,
+					"ignition_temp_c": 330.0,
+					"ignition_flux_kw_m2": 18.0,
+					"smoke_yield_kg_per_MJ": 0.008,
+					"co_yield_kg_per_MJ": 0.00025
+				}
+			]
+		},
+		{
+			"id": 1,
+			"name": "Pasillo",
+			"kind": "pasillo",
+			"height_m": 2.4,
+			"fuel_energy_MJ": 800.0,
+			"max_hrr_kw": 600.0,
+			"fuel_objects": []
+		},
+		{
+			"id": 2,
+			"name": "Dormitorio1",
+			"kind": "dormitorio",
+			"height_m": 2.4,
+			"fuel_energy_MJ": 3500.0,
+			"max_hrr_kw": 1800.0,
+			"fuel_objects": [
+				{
+					"id": "cama_dorm1",
+					"name": "Cama",
+					"kind": "bed",
+					"room_id": 2,
+					"position_m": { "x": 0.3, "y": 0.4 },
+					"size_m": { "x": 2.0, "y": 1.4 },
+					"rotation_deg": 0.0,
+					"footprint_m2": 2.8,
+					"exposed_area_m2": 3.5,
+					"elevation_m": 0.45,
+					"fuel_energy_MJ": 900.0,
+					"remaining_fuel_MJ": 900.0,
+					"max_hrr_kw": 1200.0,
+					"ignition_temp_c": 295.0,
+					"ignition_flux_kw_m2": 15.0,
+					"smoke_yield_kg_per_MJ": 0.013,
+					"co_yield_kg_per_MJ": 0.0004
+				}
+			]
+		},
+		{
+			"id": 3,
+			"name": "Dormitorio2",
+			"kind": "dormitorio",
+			"height_m": 2.4,
+			"fuel_energy_MJ": 2500.0,
+			"max_hrr_kw": 1600.0,
+			"fuel_objects": []
+		},
+		{
+			"id": 4,
+			"name": "Cocina",
+			"kind": "cocina",
+			"height_m": 2.4,
+			"fuel_energy_MJ": 3500.0,
+			"max_hrr_kw": 2500.0,
+			"fuel_objects": [
+				{
+					"id": "cocina_muebles",
+					"name": "Muebles cocina",
+					"kind": "kitchen_unit",
+					"room_id": 4,
+					"position_m": { "x": 0.3, "y": 0.3 },
+					"size_m": { "x": 2.5, "y": 0.7 },
+					"rotation_deg": 0.0,
+					"footprint_m2": 1.8,
+					"exposed_area_m2": 3.0,
+					"elevation_m": 0.8,
+					"fuel_energy_MJ": 1000.0,
+					"remaining_fuel_MJ": 1000.0,
+					"max_hrr_kw": 500.0,
+					"ignition_temp_c": 285.0,
+					"ignition_flux_kw_m2": 14.0,
+					"smoke_yield_kg_per_MJ": 0.009,
+					"co_yield_kg_per_MJ": 0.00028
+				}
+			]
+		},
+		{
+			"id": 5,
+			"name": "Bano",
+			"kind": "bano",
+			"height_m": 2.4,
+			"fuel_energy_MJ": 400.0,
+			"max_hrr_kw": 300.0,
+			"fuel_objects": []
+		}
+	],
+	"openings_data": [
+		{ "a": 0, "b": 1, "type": "door", "wall": "right", "offset_m": 2.0, "width_m": 0.9, "height_m": 2.05, "sill_m": 0.0, "open_fraction": 1.0 },
+		{ "a": 4, "b": 1, "type": "door", "wall": "right", "offset_m": 1.5, "width_m": 0.9, "height_m": 2.05, "sill_m": 0.0, "open_fraction": 1.0 },
+		{ "a": 2, "b": 1, "type": "door", "wall": "left",  "offset_m": 1.0, "width_m": 0.8, "height_m": 2.05, "sill_m": 0.0, "open_fraction": 1.0 },
+		{ "a": 3, "b": 1, "type": "door", "wall": "left",  "offset_m": 1.0, "width_m": 0.8, "height_m": 2.05, "sill_m": 0.0, "open_fraction": 1.0 },
+		{ "a": 5, "b": 1, "type": "door", "wall": "left",  "offset_m": 1.0, "width_m": 0.7, "height_m": 2.05, "sill_m": 0.0, "open_fraction": 1.0 },
+		{ "a": 0, "b": -1, "type": "window", "wall": "top",    "offset_m": 2.0, "width_m": 1.4, "height_m": 1.1, "sill_m": 0.9, "open_fraction": 0.0 },
+		{ "a": 4, "b": -1, "type": "window", "wall": "bottom", "offset_m": 2.0, "width_m": 1.2, "height_m": 1.0, "sill_m": 1.0, "open_fraction": 0.0 },
+		{ "a": 2, "b": -1, "type": "window", "wall": "top",    "offset_m": 1.5, "width_m": 1.1, "height_m": 1.0, "sill_m": 0.9, "open_fraction": 0.0 }
+	]
+}

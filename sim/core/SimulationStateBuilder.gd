@@ -1,6 +1,15 @@
 extends RefCounted
 class_name SimulationStateBuilder
 
+# ============================================================
+# SIMULATION STATE BUILDER
+# ------------------------------------------------------------
+# Convierte el estado interno del engine en un Dictionary
+# serializable usado por CaseRunner, el log writer y la UI.
+# Centraliza la construcción del snapshot para evitar
+# duplicación entre subsistemas.
+# ============================================================
+
 
 func build_state(context: Dictionary) -> Dictionary:
 	var state: Dictionary = {
@@ -59,6 +68,10 @@ func build_state(context: Dictionary) -> Dictionary:
 			"fire_time_s": room.fire_time_s,
 
 			"temp_upper_c": room.temp_upper_c,
+			"temp_upper_raw_c": room.temp_upper_raw_c,
+			"temp_upper_clamped": room.temp_upper_clamped,
+			"temp_upper_clamp_time_s": room.temp_upper_clamp_time_s,
+			"temp_upper_clamp_count": room.temp_upper_clamp_count,
 			"temp_lower_c": room.temp_lower_c,
 
 			"o2": room.o2,
@@ -73,6 +86,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"smoke_prod_kg_s": room.smoke_prod_kg_s,
 			"upper_gas_kg": room.upper_gas_kg,
 			"upper_energy_kj": room.upper_energy_kj,
+			"upper_radiative_loss_kw": room.upper_radiative_loss_kw,
 			"temp_at_1_8m_c": _call_room_height_float(estimate_temperature_callable, room, 1.8, room.temp_lower_c),
 			"temp_at_1_5m_c": _call_room_height_float(estimate_temperature_callable, room, 1.5, room.temp_lower_c),
 			"temp_at_1_1m_c": _call_room_height_float(estimate_temperature_callable, room, 1.1, room.temp_lower_c),
@@ -82,16 +96,22 @@ func build_state(context: Dictionary) -> Dictionary:
 			"flashover_triggered": room.flashover_triggered,
 
 			"fuel_energy_MJ": room.fuel_energy_MJ,
-			"remaining_fuel_MJ": room.fire.remaining_fuel_MJ if room.fire != null else 0.0,
+			"remaining_fuel_MJ": _resolve_remaining_fuel_MJ(room, combustion_system),
 			"fuel_object_count": room.fuel_objects.size(),
 			"fuel_objects_remaining_MJ": combustion_system.get_room_total_remaining_fuel_MJ(room) if combustion_system != null else 0.0,
 			"fuel_objects_max_hrr_kw": combustion_system.get_room_total_max_hrr_kw(room) if combustion_system != null else 0.0,
 			"fuel_objects_heating_count": combustion_system.get_room_heating_object_count(room) if combustion_system != null else 0,
 			"fuel_objects_pyrolyzing_count": combustion_system.get_room_pyrolyzing_object_count(room) if combustion_system != null else 0,
+			"fuel_objects_flaming_count": combustion_system.get_room_flaming_object_count(room) if combustion_system != null else 0,
 			"fuel_objects_active_count": combustion_system.get_room_active_object_count(room) if combustion_system != null else 0,
 			"passive_fuel_surface_temp_c": combustion_system.get_room_passive_surface_temp_c(room) if combustion_system != null else 0.0,
 			"passive_fuel_flux_kw_m2": combustion_system.get_room_passive_flux_kw_m2(room) if combustion_system != null else 0.0,
 			"passive_fuel_autoignite_ready": combustion_system.is_room_passive_autoignite_ready(room) if combustion_system != null else false,
+			"dominant_fuel_object_id": combustion_system.get_room_dominant_fuel_object_id(room) if combustion_system != null else "",
+			"dominant_fuel_object_name": combustion_system.get_room_dominant_fuel_object_name(room) if combustion_system != null else "",
+			"dominant_fuel_object_state": combustion_system.get_room_dominant_fuel_object_state(room) if combustion_system != null else "none",
+			"dominant_fuel_object_exposure_s": combustion_system.get_room_dominant_fuel_object_exposure_s(room) if combustion_system != null else 0.0,
+			"dominant_fuel_object_remaining_MJ": combustion_system.get_room_dominant_fuel_object_remaining_MJ(room) if combustion_system != null else 0.0,
 			"fire_spread_exposure_s": room.fire_spread_exposure_s,
 			"o2_hrr_factor": room.o2_hrr_factor,
 			"retained_unburned_MJ": room.retained_unburned_MJ,
@@ -112,6 +132,18 @@ func build_state(context: Dictionary) -> Dictionary:
 		}
 
 	return state
+
+
+func _resolve_remaining_fuel_MJ(room: RoomModel, combustion_system: CombustionSystem) -> float:
+	if room == null:
+		return 0.0
+	if room.fire != null:
+		return maxf(0.0, room.fire.remaining_fuel_MJ)
+	if combustion_system == null:
+		return 0.0
+	if room.fire_time_s > 0.0:
+		return combustion_system.get_room_legacy_proxy_remaining_fuel_MJ(room)
+	return combustion_system.get_room_total_remaining_fuel_MJ(room)
 
 
 func _collect_sorted_room_ids(building: BuildingModel) -> Array[int]:

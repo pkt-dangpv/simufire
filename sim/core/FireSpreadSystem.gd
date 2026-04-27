@@ -70,13 +70,17 @@ func step(dt: float, ignite_callable: Callable) -> void:
 		# Propagación A → B
 		if room_a.fire != null and room_b.fire == null:
 			if _update_fire_spread_exposure(room_a, room_b, dt):
+				var exposure_s: float = room_b.fire_spread_exposure_s
 				ignite_callable.call(op.b)
+				room_b.fire_spread_exposure_s = exposure_s
 				print("[FireSpread] Ignición por calor: Room %d → Room %d (%.0f°C, %.1fs)" % [op.a, op.b, room_b.temp_upper_c, room_b.fire_spread_exposure_s])
 
 		# Propagación B → A
 		if room_b.fire != null and room_a.fire == null:
 			if _update_fire_spread_exposure(room_b, room_a, dt):
+				var exposure_s: float = room_a.fire_spread_exposure_s
 				ignite_callable.call(op.a)
+				room_a.fire_spread_exposure_s = exposure_s
 				print("[FireSpread] Ignición por calor: Room %d → Room %d (%.0f°C, %.1fs)" % [op.b, op.a, room_a.temp_upper_c, room_a.fire_spread_exposure_s])
 
 
@@ -98,24 +102,38 @@ func _update_fire_spread_exposure(source: RoomModel, target: RoomModel, dt: floa
 	var passive_ignition_flux_kw_m2: float = 18.0
 	var passive_autoignite_ready: bool = false
 	var passive_pyrolyzing: bool = false
+
 	if _combustion_system != null:
 		passive_surface_temp_c = _combustion_system.get_room_passive_surface_temp_c(target)
 		passive_flux_kw_m2 = _combustion_system.get_room_passive_flux_kw_m2(target)
 		passive_ignition_flux_kw_m2 = _combustion_system.get_room_passive_ignition_flux_kw_m2(target)
-		passive_autoignite_ready = _combustion_system.is_room_passive_autoignite_ready(target)
+		passive_autoignite_ready = _combustion_system.is_room_passive_autoignite_ready(target) \
+				or _combustion_system.is_any_object_autoignite_ready(target)
 		passive_pyrolyzing = _combustion_system.get_room_pyrolyzing_object_count(target) > 0
+
+	# Camino térmico: la capa superior del destino ha superado el umbral de ignición.
+	# No requiere seguimiento de objetos individuales.
+	var thermal_pathway: bool = source_hot_enough and target_hot_enough
+
+	# Camino por objeto: capa de humo baja + atmósfera cargada + objeto listo.
 	var target_preheated_enough: bool = passive_autoignite_ready \
 			or passive_pyrolyzing \
 			or passive_surface_temp_c >= fire_spread_ignition_temp_c - 25.0 \
 			or passive_flux_kw_m2 >= passive_ignition_flux_kw_m2 * 0.80
 
-	if source_hot_enough \
-			and (target_hot_enough or target_preheated_enough) \
+	var object_pathway: bool = source_hot_enough \
 			and target_layer_low_enough \
-			and target_smoky_enough:
+			and target_smoky_enough \
+			and target_preheated_enough
+
+	var conditions_met: bool = thermal_pathway or object_pathway
+
+	if conditions_met:
 		target.fire_spread_exposure_s += dt
 	else:
-		var decay_step: float = dt * fire_spread_required_exposure_s / maxf(1.0, fire_spread_exposure_decay_s)
-		target.fire_spread_exposure_s = maxf(0.0, target.fire_spread_exposure_s - decay_step)
+		target.fire_spread_exposure_s = maxf(
+			0.0,
+			target.fire_spread_exposure_s - dt / maxf(1.0, fire_spread_exposure_decay_s)
+		)
 
 	return target.fire_spread_exposure_s >= fire_spread_required_exposure_s

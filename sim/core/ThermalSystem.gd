@@ -17,12 +17,19 @@ class_name ThermalSystem
 var _building: BuildingModel
 var _smoke_model: SmokeModel
 
+const STEFAN_BOLTZMANN_KW_M2_K4: float = 5.670374419e-11
+
 # Parámetros térmicos
 var upper_to_lower_loss_rate: float = 0.025
 var upper_to_ambient_loss_rate: float = 0.008
 var lower_layer_warming_rate: float = 0.012
 var wall_absorption_rate: float = 0.003
 var max_upper_temp_c: float = 900.0
+var upper_radiative_loss_enabled: bool = true
+var upper_radiative_loss_start_c: float = 880.0
+var upper_radiative_loss_emissivity: float = 0.90
+var upper_radiative_loss_area_factor: float = 1.10
+var upper_radiative_loss_max_fraction_per_step: float = 0.45
 var doorway_heat_exchange_coeff: float = 0.26
 var smoke_heat_mix_coeff: float = 0.025
 var retained_hot_layer_temp_start_c: float = 100.0
@@ -85,6 +92,16 @@ func configure(settings: Dictionary) -> void:
 	lower_layer_warming_rate = float(settings.get("lower_layer_warming_rate", lower_layer_warming_rate))
 	wall_absorption_rate = float(settings.get("wall_absorption_rate", wall_absorption_rate))
 	max_upper_temp_c = float(settings.get("max_upper_temp_c", max_upper_temp_c))
+	upper_radiative_loss_enabled = bool(settings.get("upper_radiative_loss_enabled", upper_radiative_loss_enabled))
+	upper_radiative_loss_start_c = float(settings.get("upper_radiative_loss_start_c", upper_radiative_loss_start_c))
+	upper_radiative_loss_emissivity = float(settings.get("upper_radiative_loss_emissivity", upper_radiative_loss_emissivity))
+	upper_radiative_loss_area_factor = float(settings.get("upper_radiative_loss_area_factor", upper_radiative_loss_area_factor))
+	upper_radiative_loss_max_fraction_per_step = float(
+		settings.get(
+			"upper_radiative_loss_max_fraction_per_step",
+			upper_radiative_loss_max_fraction_per_step
+		)
+	)
 	doorway_heat_exchange_coeff = float(settings.get("doorway_heat_exchange_coeff", doorway_heat_exchange_coeff))
 	smoke_heat_mix_coeff = float(settings.get("smoke_heat_mix_coeff", smoke_heat_mix_coeff))
 	retained_hot_layer_temp_start_c = float(
@@ -176,6 +193,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		if room == null:
 			continue
 
+		room.upper_radiative_loss_kw = 0.0
 		var target_upper_mass_kg: float = estimate_target_upper_gas_mass_kg(room)
 		if target_upper_mass_kg > room.upper_gas_kg:
 			var mass_gain_kg: float = (target_upper_mass_kg - room.upper_gas_kg) * clampf(
@@ -192,10 +210,21 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			clampf(inverse_lerp(0.06, 0.12, room.o2), 0.0, 1.0)
 		)
 		room.upper_energy_kj += room.hrr_kw * upper_heat_capture_fraction * dt
+		var outside_open_factor: float = estimate_room_outside_open_factor(room)
+		var pre_sync_upper_temp_c: float = _estimate_raw_upper_temp_c(room, ambient_c)
+		var radiative_loss_kj: float = _compute_upper_radiative_loss_kj(
+			room,
+			ambient_c,
+			dt,
+			outside_open_factor,
+			pre_sync_upper_temp_c
+		)
+		if radiative_loss_kj > 0.0:
+			room.upper_energy_kj = maxf(0.0, room.upper_energy_kj - radiative_loss_kj)
+			room.upper_radiative_loss_kw = radiative_loss_kj / maxf(0.001, dt)
 		sync_room_upper_layer(room, dt)
 
 		var delta_ul: float = maxf(0.0, room.temp_upper_c - room.temp_lower_c)
-		var outside_open_factor: float = estimate_room_outside_open_factor(room)
 		var lower_transfer_rate: float = upper_to_lower_loss_rate + lower_layer_warming_rate
 		lower_transfer_rate += _compute_room_vertical_mix_bonus(room)
 		var energy_to_lower_kj: float = room.upper_gas_kg * delta_ul * lower_transfer_rate * dt
@@ -411,6 +440,66 @@ func estimate_room_outside_open_factor(room: RoomModel) -> float:
 
 	var reference_area_m2: float = maxf(0.20, room.floor_area_m2() * outside_open_loss_area_fraction)
 	return clampf(total_open_area_m2 / reference_area_m2, 0.0, 1.0)
+
+
+func _estimate_raw_upper_temp_c(room: RoomModel, ambient_c: float) -> float:
+	if room == null:
+		return ambient_c
+	if room.upper_gas_kg <= 0.0001 or room.upper_energy_kj <= 0.0001:
+		return maxf(room.temp_lower_c, ambient_c)
+	return maxf(room.temp_lower_c, ambient_c + room.upper_energy_kj / maxf(0.05, room.upper_gas_kg))
+
+
+func _compute_upper_radiative_loss_kj(
+	room: RoomModel,
+	ambient_c: float,
+	dt: float,
+	outside_open_factor: float,
+	upper_temp_c: float
+) -> float:
+	if not upper_radiative_loss_enabled:
+		return 0.0
+	if room == null or dt <= 0.0 or room.upper_energy_kj <= 0.0:
+		return 0.0
+	if upper_temp_c <= upper_radiative_loss_start_c:
+		return 0.0
+
+	var hot_layer_depth_m: float = clampf(
+		room.height_m - effective_hot_layer_height_m(room),
+		0.0,
+		room.height_m
+	)
+	var ceiling_area_m2: float = maxf(0.0, room.floor_area_m2())
+	var hot_wall_area_m2: float = 2.0 * (room.width_m + room.length_m) * hot_layer_depth_m
+	var exchange_area_m2: float = maxf(
+		0.0,
+		(ceiling_area_m2 + hot_wall_area_m2) * upper_radiative_loss_area_factor
+	)
+	if exchange_area_m2 <= 0.0:
+		return 0.0
+
+	var activation: float = clampf(
+		(upper_temp_c - upper_radiative_loss_start_c)
+				/ maxf(1.0, max_upper_temp_c - upper_radiative_loss_start_c),
+		0.0,
+		1.0
+	)
+	activation *= activation
+
+	var hot_k: float = upper_temp_c + 273.15
+	var sink_k: float = maxf(ambient_c, room.temp_lower_c) + 273.15
+	var temperature_power_delta: float = maxf(0.0, pow(hot_k, 4.0) - pow(sink_k, 4.0))
+	var q_kw: float = upper_radiative_loss_emissivity \
+			* STEFAN_BOLTZMANN_KW_M2_K4 \
+			* exchange_area_m2 \
+			* temperature_power_delta \
+			* activation
+	q_kw *= 1.0 + 0.25 * clampf(outside_open_factor, 0.0, 1.0)
+
+	var requested_loss_kj: float = maxf(0.0, q_kw * dt)
+	var max_loss_fraction: float = clampf(upper_radiative_loss_max_fraction_per_step, 0.0, 1.0)
+	var max_loss_kj: float = room.upper_energy_kj * max_loss_fraction
+	return minf(requested_loss_kj, max_loss_kj)
 
 
 func _apply_outside_assisted_background_heat_exchange(
@@ -834,7 +923,10 @@ func step_fed(room: RoomModel, dt: float) -> void:
 	if room == null or dt <= 0.0:
 		return
 
-	var co_ppm: float = compute_co_ppm(room)
+	# Cuando la capa caliente desciende bajo la altura de respiración (1.8 m),
+	# una persona de pie está inmersa en la capa superior — usar CO de capa alta.
+	var in_upper_layer: bool = (room.h_layer_m < 1.8 and room.upper_gas_kg > 0.1)
+	var co_ppm: float = compute_co_upper_ppm(room) if in_upper_layer else compute_co_ppm(room)
 	var co2_ppm: float = compute_co2_ppm(room)
 
 	var dt_min: float = dt / 60.0
@@ -875,7 +967,16 @@ func _compute_svv_pct_from_room(room: RoomModel) -> float:
 	# Criterio térmico (isoterma 150°C, altura desde suelo).
 	var thermal_svv: float
 	if layer_150c >= 1.8:
-		thermal_svv = 1.0
+		# La isoterma 150°C aún está por encima de 1.8 m.
+		# Verificar si la capa caliente ha descendido bajo la altura de respiración
+		# con temperatura suficiente para ser peligrosa (ISO 13571: límite 60°C a 1.8 m).
+		var hot_h: float = clampf(room.h_layer_m, 0.0, height_m)
+		if hot_h < 1.8 and room.temp_upper_c > 60.0:
+			var penetration: float = clampf((1.8 - hot_h) / 0.3, 0.0, 1.0)
+			var temp_factor: float = clampf((room.temp_upper_c - 60.0) / 90.0, 0.0, 1.0)
+			thermal_svv = 1.0 - penetration * temp_factor
+		else:
+			thermal_svv = 1.0
 	elif layer_150c >= 0.5:
 		thermal_svv = 0.90 + 0.09 * (layer_150c - 0.5) / 1.3
 	elif layer_150c > 0.10:
@@ -948,6 +1049,9 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 		room.upper_energy_kj = 0.0
 		room.co_upper_kg = 0.0
 		room.temp_upper_c = room.temp_lower_c
+		room.temp_upper_raw_c = room.temp_upper_c
+		room.temp_upper_clamped = false
+		room.upper_radiative_loss_kw = 0.0
 		reset_thermal_layer(room)
 		_smoke_model.recompute_layer_from_mass(room, dt)
 		return
@@ -957,13 +1061,17 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 		room.upper_energy_kj = 0.0
 		room.co_upper_kg = 0.0
 		room.temp_upper_c = maxf(room.temp_lower_c, ambient_c)
+		room.temp_upper_raw_c = room.temp_upper_c
+		room.temp_upper_clamped = false
+		room.upper_radiative_loss_kw = 0.0
 		reset_thermal_layer(room)
 		_smoke_model.recompute_layer_from_mass(room, dt)
 		return
 
 	room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg)
-	room.temp_upper_c = ambient_c + room.upper_energy_kj / maxf(0.05, room.upper_gas_kg)
-	room.temp_upper_c = clampf(room.temp_upper_c, room.temp_lower_c, max_upper_temp_c)
+	room.temp_upper_raw_c = _estimate_raw_upper_temp_c(room, ambient_c)
+	room.temp_upper_clamped = room.temp_upper_raw_c > max_upper_temp_c
+	room.temp_upper_c = maxf(room.temp_lower_c, minf(room.temp_upper_raw_c, max_upper_temp_c))
 	room.upper_energy_kj = room.upper_gas_kg * maxf(0.0, room.temp_upper_c - ambient_c)
 	var target_thermal_layer_m: float = estimate_thermal_layer_height_m(room)
 	if target_thermal_layer_m < room.thermal_layer_m:
@@ -979,6 +1087,16 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 			clampf(layer_relax_up * dt, 0.0, 1.0)
 		)
 	_smoke_model.recompute_layer_from_mass(room, dt)
+
+
+func update_temperature_cap_telemetry(room: RoomModel, dt: float) -> void:
+	if room == null or dt <= 0.0:
+		return
+	if not room.temp_upper_clamped:
+		return
+
+	room.temp_upper_clamp_time_s += dt
+	room.temp_upper_clamp_count += 1
 
 
 func estimate_plume_upper_depth_m(room: RoomModel) -> float:

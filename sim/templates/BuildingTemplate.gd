@@ -1,5 +1,17 @@
 extends RefCounted
 
+# ============================================================
+# BUILDING TEMPLATE
+# ------------------------------------------------------------
+# Fábrica de planos de edificio para la simulación.
+# Cada método devuelve un Dictionary con las claves:
+#   "rooms": Array[Dictionary] con datos de habitaciones
+#   "openings": Array[Dictionary] con datos de aperturas
+# Plantillas disponibles:
+#   create_simple_house()            – 6 habitaciones residencial
+#   create_ghanekar_bedroom_hallway()– 10 habitaciones (Ghanekar)
+# ============================================================
+
 func create_simple_house() -> Dictionary:
 	var room_rect_m: Dictionary = {}
 	var rooms_data: Array[Dictionary] = []
@@ -45,7 +57,34 @@ func create_simple_house() -> Dictionary:
 		"rect": r_salon,
 		"height_m": 2.4,
 		"fuel_energy_MJ": 6000.0,
-		"max_hrr_kw": 3000.0
+		"max_hrr_kw": 3000.0,
+		"fuel_objects": [
+			{"id": "salon_sofa", "name": "Sofá", "kind": "mobiliario_tapizado",
+				"footprint_m2": 2.0, "exposed_area_m2": 3.5, "elevation_m": 0.4,
+				"fuel_energy_MJ": 700.0, "max_hrr_kw": 400.0,
+				"ignition_temp_c": 310.0, "ignition_flux_kw_m2": 16.0,
+				"smoke_yield_kg_per_MJ": 0.012, "co_yield_kg_per_MJ": 0.0004},
+			{"id": "salon_libreria", "name": "Librería", "kind": "mobiliario_madera",
+				"footprint_m2": 1.0, "exposed_area_m2": 2.0, "elevation_m": 0.0,
+				"fuel_energy_MJ": 1200.0, "max_hrr_kw": 300.0,
+				"ignition_temp_c": 290.0, "ignition_flux_kw_m2": 14.0,
+				"smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025},
+			{"id": "salon_textiles", "name": "Alfombra y textiles", "kind": "textiles",
+				"footprint_m2": 3.0, "exposed_area_m2": 3.0, "elevation_m": 0.05,
+				"fuel_energy_MJ": 500.0, "max_hrr_kw": 350.0,
+				"ignition_temp_c": 275.0, "ignition_flux_kw_m2": 13.0,
+				"smoke_yield_kg_per_MJ": 0.015, "co_yield_kg_per_MJ": 0.0005},
+			{"id": "salon_mesa", "name": "Mesa y TV", "kind": "mobiliario_mixto",
+				"footprint_m2": 1.5, "exposed_area_m2": 2.0, "elevation_m": 0.7,
+				"fuel_energy_MJ": 300.0, "max_hrr_kw": 200.0,
+				"ignition_temp_c": 330.0, "ignition_flux_kw_m2": 18.0,
+				"smoke_yield_kg_per_MJ": 0.018, "co_yield_kg_per_MJ": 0.0006},
+			{"id": "salon_resto", "name": "Resto mobiliario", "kind": "mobiliario_madera",
+				"footprint_m2": 4.0, "exposed_area_m2": 5.0, "elevation_m": 0.5,
+				"fuel_energy_MJ": 3300.0, "max_hrr_kw": 2000.0,
+				"ignition_temp_c": 310.0, "ignition_flux_kw_m2": 16.0,
+				"smoke_yield_kg_per_MJ": 0.009, "co_yield_kg_per_MJ": 0.00025}
+		]
 	})
 
 	rooms_data.append({
@@ -55,7 +94,24 @@ func create_simple_house() -> Dictionary:
 		"rect": r_pasillo,
 		"height_m": 2.4,
 		"fuel_energy_MJ": 800.0,
-		"max_hrr_kw": 600.0
+		"max_hrr_kw": 600.0,
+		"fuel_objects": [
+			{"id": "pasillo_textiles", "name": "Alfombra pasillo", "kind": "textiles",
+				"footprint_m2": 1.5, "exposed_area_m2": 1.5, "elevation_m": 0.05,
+				"fuel_energy_MJ": 200.0, "max_hrr_kw": 100.0,
+				"ignition_temp_c": 270.0, "ignition_flux_kw_m2": 12.0,
+				"smoke_yield_kg_per_MJ": 0.014, "co_yield_kg_per_MJ": 0.0004},
+			{"id": "pasillo_mueble", "name": "Mueble recibidor", "kind": "mobiliario_madera",
+				"footprint_m2": 0.5, "exposed_area_m2": 1.0, "elevation_m": 0.8,
+				"fuel_energy_MJ": 200.0, "max_hrr_kw": 100.0,
+				"ignition_temp_c": 310.0, "ignition_flux_kw_m2": 16.0,
+				"smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025},
+			{"id": "pasillo_resto", "name": "Resto carga pasillo", "kind": "mobiliario_madera",
+				"footprint_m2": 2.0, "exposed_area_m2": 2.0, "elevation_m": 0.5,
+				"fuel_energy_MJ": 400.0, "max_hrr_kw": 400.0,
+				"ignition_temp_c": 310.0, "ignition_flux_kw_m2": 16.0,
+				"smoke_yield_kg_per_MJ": 0.009, "co_yield_kg_per_MJ": 0.00025}
+		]
 	})
 
 	rooms_data.append({
@@ -65,7 +121,29 @@ func create_simple_house() -> Dictionary:
 		"rect": r_dorm1,
 		"height_m": 2.4,
 		"fuel_energy_MJ": 3500.0,
-		"max_hrr_kw": 2000.0
+		"max_hrr_kw": 2000.0,
+		"fuel_objects": [
+			{"id": "dorm1_cama", "name": "Cama", "kind": "mobiliario_tapizado",
+				"footprint_m2": 2.0, "exposed_area_m2": 3.0, "elevation_m": 0.5,
+				"fuel_energy_MJ": 900.0, "max_hrr_kw": 500.0,
+				"ignition_temp_c": 295.0, "ignition_flux_kw_m2": 15.0,
+				"smoke_yield_kg_per_MJ": 0.013, "co_yield_kg_per_MJ": 0.0004},
+			{"id": "dorm1_armario", "name": "Armario", "kind": "mobiliario_madera",
+				"footprint_m2": 1.0, "exposed_area_m2": 2.2, "elevation_m": 0.0,
+				"fuel_energy_MJ": 800.0, "max_hrr_kw": 350.0,
+				"ignition_temp_c": 300.0, "ignition_flux_kw_m2": 16.0,
+				"smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025},
+			{"id": "dorm1_textiles", "name": "Textiles y cortinas", "kind": "textiles",
+				"footprint_m2": 2.0, "exposed_area_m2": 2.5, "elevation_m": 0.3,
+				"fuel_energy_MJ": 400.0, "max_hrr_kw": 200.0,
+				"ignition_temp_c": 270.0, "ignition_flux_kw_m2": 12.0,
+				"smoke_yield_kg_per_MJ": 0.016, "co_yield_kg_per_MJ": 0.0005},
+			{"id": "dorm1_resto", "name": "Resto mobiliario", "kind": "mobiliario_madera",
+				"footprint_m2": 2.0, "exposed_area_m2": 2.5, "elevation_m": 0.5,
+				"fuel_energy_MJ": 1400.0, "max_hrr_kw": 1000.0,
+				"ignition_temp_c": 305.0, "ignition_flux_kw_m2": 16.0,
+				"smoke_yield_kg_per_MJ": 0.009, "co_yield_kg_per_MJ": 0.00025}
+		]
 	})
 
 	rooms_data.append({
@@ -75,7 +153,29 @@ func create_simple_house() -> Dictionary:
 		"rect": r_dorm2,
 		"height_m": 2.4,
 		"fuel_energy_MJ": 2500.0,
-		"max_hrr_kw": 1800.0
+		"max_hrr_kw": 1800.0,
+		"fuel_objects": [
+			{"id": "dorm2_cama", "name": "Cama", "kind": "mobiliario_tapizado",
+				"footprint_m2": 1.5, "exposed_area_m2": 2.5, "elevation_m": 0.5,
+				"fuel_energy_MJ": 700.0, "max_hrr_kw": 400.0,
+				"ignition_temp_c": 295.0, "ignition_flux_kw_m2": 15.0,
+				"smoke_yield_kg_per_MJ": 0.013, "co_yield_kg_per_MJ": 0.0004},
+			{"id": "dorm2_armario", "name": "Armario", "kind": "mobiliario_madera",
+				"footprint_m2": 0.8, "exposed_area_m2": 1.8, "elevation_m": 0.0,
+				"fuel_energy_MJ": 600.0, "max_hrr_kw": 250.0,
+				"ignition_temp_c": 300.0, "ignition_flux_kw_m2": 16.0,
+				"smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025},
+			{"id": "dorm2_textiles", "name": "Textiles", "kind": "textiles",
+				"footprint_m2": 1.5, "exposed_area_m2": 2.0, "elevation_m": 0.3,
+				"fuel_energy_MJ": 300.0, "max_hrr_kw": 150.0,
+				"ignition_temp_c": 270.0, "ignition_flux_kw_m2": 12.0,
+				"smoke_yield_kg_per_MJ": 0.016, "co_yield_kg_per_MJ": 0.0005},
+			{"id": "dorm2_resto", "name": "Resto mobiliario", "kind": "mobiliario_madera",
+				"footprint_m2": 1.5, "exposed_area_m2": 2.0, "elevation_m": 0.5,
+				"fuel_energy_MJ": 900.0, "max_hrr_kw": 800.0,
+				"ignition_temp_c": 305.0, "ignition_flux_kw_m2": 16.0,
+				"smoke_yield_kg_per_MJ": 0.009, "co_yield_kg_per_MJ": 0.00025}
+		]
 	})
 
 	rooms_data.append({
@@ -85,7 +185,29 @@ func create_simple_house() -> Dictionary:
 		"rect": r_cocina,
 		"height_m": 2.4,
 		"fuel_energy_MJ": 3500.0,
-		"max_hrr_kw": 2500.0
+		"max_hrr_kw": 2500.0,
+		"fuel_objects": [
+			{"id": "cocina_muebles", "name": "Muebles cocina", "kind": "mobiliario_madera",
+				"footprint_m2": 2.0, "exposed_area_m2": 3.0, "elevation_m": 0.8,
+				"fuel_energy_MJ": 1000.0, "max_hrr_kw": 500.0,
+				"ignition_temp_c": 285.0, "ignition_flux_kw_m2": 14.0,
+				"smoke_yield_kg_per_MJ": 0.009, "co_yield_kg_per_MJ": 0.00028},
+			{"id": "cocina_grasa", "name": "Grasa y aceites", "kind": "liquido_combustible",
+				"footprint_m2": 0.5, "exposed_area_m2": 0.5, "elevation_m": 0.9,
+				"fuel_energy_MJ": 600.0, "max_hrr_kw": 800.0,
+				"ignition_temp_c": 260.0, "ignition_flux_kw_m2": 11.0,
+				"smoke_yield_kg_per_MJ": 0.022, "co_yield_kg_per_MJ": 0.0007},
+			{"id": "cocina_textiles", "name": "Textiles cocina", "kind": "textiles",
+				"footprint_m2": 1.0, "exposed_area_m2": 1.0, "elevation_m": 0.5,
+				"fuel_energy_MJ": 300.0, "max_hrr_kw": 200.0,
+				"ignition_temp_c": 280.0, "ignition_flux_kw_m2": 13.0,
+				"smoke_yield_kg_per_MJ": 0.014, "co_yield_kg_per_MJ": 0.0004},
+			{"id": "cocina_resto", "name": "Resto carga cocina", "kind": "mobiliario_mixto",
+				"footprint_m2": 3.0, "exposed_area_m2": 3.5, "elevation_m": 0.7,
+				"fuel_energy_MJ": 1600.0, "max_hrr_kw": 1500.0,
+				"ignition_temp_c": 305.0, "ignition_flux_kw_m2": 16.0,
+				"smoke_yield_kg_per_MJ": 0.012, "co_yield_kg_per_MJ": 0.00035}
+		]
 	})
 
 	rooms_data.append({
@@ -95,7 +217,24 @@ func create_simple_house() -> Dictionary:
 		"rect": r_bano,
 		"height_m": 2.4,
 		"fuel_energy_MJ": 400.0,
-		"max_hrr_kw": 400.0
+		"max_hrr_kw": 400.0,
+		"fuel_objects": [
+			{"id": "bano_plasticos", "name": "Plásticos y WC", "kind": "plasticos",
+				"footprint_m2": 1.0, "exposed_area_m2": 1.5, "elevation_m": 0.8,
+				"fuel_energy_MJ": 200.0, "max_hrr_kw": 150.0,
+				"ignition_temp_c": 350.0, "ignition_flux_kw_m2": 20.0,
+				"smoke_yield_kg_per_MJ": 0.025, "co_yield_kg_per_MJ": 0.0009},
+			{"id": "bano_textiles", "name": "Textiles baño", "kind": "textiles",
+				"footprint_m2": 1.0, "exposed_area_m2": 1.0, "elevation_m": 0.5,
+				"fuel_energy_MJ": 100.0, "max_hrr_kw": 80.0,
+				"ignition_temp_c": 275.0, "ignition_flux_kw_m2": 13.0,
+				"smoke_yield_kg_per_MJ": 0.014, "co_yield_kg_per_MJ": 0.0004},
+			{"id": "bano_resto", "name": "Resto carga baño", "kind": "mobiliario_madera",
+				"footprint_m2": 1.0, "exposed_area_m2": 1.0, "elevation_m": 0.7,
+				"fuel_energy_MJ": 100.0, "max_hrr_kw": 200.0,
+				"ignition_temp_c": 310.0, "ignition_flux_kw_m2": 16.0,
+				"smoke_yield_kg_per_MJ": 0.009, "co_yield_kg_per_MJ": 0.00025}
+		]
 	})
 
 	# ----------------------------

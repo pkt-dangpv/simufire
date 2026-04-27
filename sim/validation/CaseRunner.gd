@@ -1,6 +1,19 @@
 extends Node
 class_name CaseRunner
 
+# ============================================================
+# CASE RUNNER
+# ------------------------------------------------------------
+# Ejecuta un caso de validación desde un fichero JSON.
+# Flujo:
+#   1. Carga caso (.json) y baseline opcional
+#   2. Configura el edificio con BuildingTemplate
+#   3. Avanza la simulación hasta duration_s
+#   4. Aplica engine_overrides y opening_events del JSON
+#   5. Compara métricas contra baseline y guarda reporte
+# Salida: informe JSON en reports_dir/
+# ============================================================
+
 const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
 
 @export var building_path: NodePath
@@ -397,11 +410,14 @@ func _update_metrics(state: Dictionary) -> void:
 
 	var global_peak_hrr_kw: float = float(_metrics.get("peak_hrr_kw_global", 0.0))
 	var global_peak_temp_upper_c: float = float(_metrics.get("peak_temp_upper_c_global", 0.0))
+	var global_peak_temp_upper_raw_c: float = float(_metrics.get("peak_temp_upper_raw_c_global", 0.0))
+	var global_max_upper_radiative_loss_kw: float = float(_metrics.get("max_upper_radiative_loss_kw_global", 0.0))
 	var global_peak_co_ppm: float = float(_metrics.get("peak_co_ppm_global", 0.0))
 	var global_peak_co_upper_ppm: float = float(_metrics.get("peak_co_upper_ppm_global", 0.0))
 	var all_rooms_extinguished: bool = true
 	var all_rooms_quiescent: bool = true
 	var extinction_hrr_kw: float = maxf(0.01, engine.fire_extinction_hrr_kw)
+	var any_room_clamped: bool = false
 
 	for room_id in room_ids:
 		var room_state: Dictionary = state.get(str(room_id), {})
@@ -410,14 +426,32 @@ func _update_metrics(state: Dictionary) -> void:
 
 		var hrr_kw: float = float(room_state.get("hrr_kw", 0.0))
 		var temp_upper_c: float = float(room_state.get("temp_upper_c", 0.0))
+		var temp_upper_raw_c: float = float(room_state.get("temp_upper_raw_c", temp_upper_c))
+		var upper_radiative_loss_kw: float = float(room_state.get("upper_radiative_loss_kw", 0.0))
 		var co_ppm: float = float(room_state.get("co_ppm", 0.0))
 		var co_upper_ppm: float = float(room_state.get("co_upper_ppm", 0.0))
 		var has_fire: bool = bool(room_state.get("has_fire", false))
+		var temp_upper_clamped: bool = bool(room_state.get("temp_upper_clamped", false))
+		var fuel_pyrolyzing_count: int = int(room_state.get("fuel_objects_pyrolyzing_count", 0))
+		var fuel_flaming_count: int = int(room_state.get("fuel_objects_flaming_count", 0))
 
 		global_peak_hrr_kw = maxf(global_peak_hrr_kw, hrr_kw)
 		global_peak_temp_upper_c = maxf(global_peak_temp_upper_c, temp_upper_c)
+		global_peak_temp_upper_raw_c = maxf(global_peak_temp_upper_raw_c, temp_upper_raw_c)
+		global_max_upper_radiative_loss_kw = maxf(global_max_upper_radiative_loss_kw, upper_radiative_loss_kw)
 		global_peak_co_ppm = maxf(global_peak_co_ppm, co_ppm)
 		global_peak_co_upper_ppm = maxf(global_peak_co_upper_ppm, co_upper_ppm)
+		if temp_upper_clamped:
+			any_room_clamped = true
+			if not _metrics.has("time_room_%d_temp_upper_clamped_s" % room_id):
+				_metrics["time_room_%d_temp_upper_clamped_s" % room_id] = sim_time_s
+		if fuel_pyrolyzing_count > 0 and not _metrics.has("time_room_%d_fuel_pyrolysis_s" % room_id):
+			_metrics["time_room_%d_fuel_pyrolysis_s" % room_id] = sim_time_s
+		if fuel_flaming_count > 0 and not _metrics.has("time_room_%d_fuel_flaming_s" % room_id):
+			_metrics["time_room_%d_fuel_flaming_s" % room_id] = sim_time_s
+		if bool(room_state.get("passive_fuel_autoignite_ready", false)) \
+				and not _metrics.has("time_room_%d_fuel_autoignite_ready_s" % room_id):
+			_metrics["time_room_%d_fuel_autoignite_ready_s" % room_id] = sim_time_s
 		if hrr_kw > extinction_hrr_kw:
 			_incident_started = true
 
@@ -430,8 +464,16 @@ func _update_metrics(state: Dictionary) -> void:
 
 	_metrics["peak_hrr_kw_global"] = global_peak_hrr_kw
 	_metrics["peak_temp_upper_c_global"] = global_peak_temp_upper_c
+	_metrics["peak_temp_upper_raw_c_global"] = global_peak_temp_upper_raw_c
+	_metrics["max_upper_radiative_loss_kw_global"] = global_max_upper_radiative_loss_kw
 	_metrics["peak_co_ppm_global"] = global_peak_co_ppm
 	_metrics["peak_co_upper_ppm_global"] = global_peak_co_upper_ppm
+	if any_room_clamped:
+		if not _metrics.has("time_temp_upper_clamped_global_s"):
+			_metrics["time_temp_upper_clamped_global_s"] = sim_time_s
+		_metrics["temp_upper_clamp_sample_count_global"] = int(
+			_metrics.get("temp_upper_clamp_sample_count_global", 0)
+		) + 1
 	_metrics["smoke_generated_total_kg"] = float(state.get("smoke_generated_total_kg", 0.0))
 	_metrics["smoke_vented_total_kg"] = float(state.get("smoke_vented_total_kg", 0.0))
 	_metrics["smoke_deposited_total_kg"] = float(state.get("smoke_deposited_total_kg", 0.0))
@@ -483,6 +525,34 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 		float(_metrics.get(prefix + "peak_temp_upper_c", 0.0)),
 		float(room_state.get("temp_upper_c", 0.0))
 	)
+	_metrics[prefix + "peak_temp_upper_raw_c"] = maxf(
+		float(_metrics.get(prefix + "peak_temp_upper_raw_c", 0.0)),
+		float(room_state.get("temp_upper_raw_c", room_state.get("temp_upper_c", 0.0)))
+	)
+	_metrics[prefix + "max_upper_radiative_loss_kw"] = maxf(
+		float(_metrics.get(prefix + "max_upper_radiative_loss_kw", 0.0)),
+		float(room_state.get("upper_radiative_loss_kw", 0.0))
+	)
+	_metrics[prefix + "max_passive_fuel_surface_temp_c"] = maxf(
+		float(_metrics.get(prefix + "max_passive_fuel_surface_temp_c", 0.0)),
+		float(room_state.get("passive_fuel_surface_temp_c", 0.0))
+	)
+	_metrics[prefix + "max_passive_fuel_flux_kw_m2"] = maxf(
+		float(_metrics.get(prefix + "max_passive_fuel_flux_kw_m2", 0.0)),
+		float(room_state.get("passive_fuel_flux_kw_m2", 0.0))
+	)
+	_metrics[prefix + "max_fuel_objects_heating_count"] = maxi(
+		int(_metrics.get(prefix + "max_fuel_objects_heating_count", 0)),
+		int(room_state.get("fuel_objects_heating_count", 0))
+	)
+	_metrics[prefix + "max_fuel_objects_pyrolyzing_count"] = maxi(
+		int(_metrics.get(prefix + "max_fuel_objects_pyrolyzing_count", 0)),
+		int(room_state.get("fuel_objects_pyrolyzing_count", 0))
+	)
+	_metrics[prefix + "max_fuel_objects_flaming_count"] = maxi(
+		int(_metrics.get(prefix + "max_fuel_objects_flaming_count", 0)),
+		int(room_state.get("fuel_objects_flaming_count", 0))
+	)
 	_metrics[prefix + "peak_co_ppm"] = maxf(
 		float(_metrics.get(prefix + "peak_co_ppm", 0.0)),
 		float(room_state.get("co_ppm", 0.0))
@@ -506,6 +576,8 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 
 
 func _capture_final_metrics(state: Dictionary) -> void:
+	var watched_clamp_time_s: float = 0.0
+	var watched_clamp_count: int = 0
 	for room_id in _get_watch_room_ids():
 		var room_state: Dictionary = state.get(str(room_id), {})
 		if room_state.is_empty():
@@ -516,6 +588,10 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "hrr_target_kw"] = float(room_state.get("hrr_target_kw", 0.0))
 		_metrics[prefix + "fire_time_s"] = float(room_state.get("fire_time_s", 0.0))
 		_metrics[prefix + "o2"] = float(room_state.get("o2", 0.0))
+		_metrics[prefix + "temp_upper_raw_c"] = float(room_state.get("temp_upper_raw_c", room_state.get("temp_upper_c", 0.0)))
+		_metrics[prefix + "temp_upper_clamped"] = bool(room_state.get("temp_upper_clamped", false))
+		_metrics[prefix + "temp_upper_clamp_time_s"] = float(room_state.get("temp_upper_clamp_time_s", 0.0))
+		_metrics[prefix + "temp_upper_clamp_count"] = int(room_state.get("temp_upper_clamp_count", 0))
 		_metrics[prefix + "smoke_kg"] = float(room_state.get("smoke_kg", 0.0))
 		_metrics[prefix + "co_ppm"] = float(room_state.get("co_ppm", 0.0))
 		_metrics[prefix + "co_upper_ppm"] = float(room_state.get("co_upper_ppm", 0.0))
@@ -528,10 +604,23 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "temp_at_1_8m_c"] = float(room_state.get("temp_at_1_8m_c", 0.0))
 		_metrics[prefix + "remaining_fuel_MJ"] = float(room_state.get("remaining_fuel_MJ", 0.0))
 		_metrics[prefix + "fuel_objects_remaining_MJ"] = float(room_state.get("fuel_objects_remaining_MJ", 0.0))
+		_metrics[prefix + "fuel_objects_heating_count"] = int(room_state.get("fuel_objects_heating_count", 0))
+		_metrics[prefix + "fuel_objects_pyrolyzing_count"] = int(room_state.get("fuel_objects_pyrolyzing_count", 0))
+		_metrics[prefix + "fuel_objects_flaming_count"] = int(room_state.get("fuel_objects_flaming_count", 0))
+		_metrics[prefix + "dominant_fuel_object_id"] = String(room_state.get("dominant_fuel_object_id", ""))
+		_metrics[prefix + "dominant_fuel_object_state"] = String(room_state.get("dominant_fuel_object_state", "none"))
+		_metrics[prefix + "dominant_fuel_object_exposure_s"] = float(room_state.get("dominant_fuel_object_exposure_s", 0.0))
+		_metrics[prefix + "dominant_fuel_object_remaining_MJ"] = float(room_state.get("dominant_fuel_object_remaining_MJ", 0.0))
 		_metrics[prefix + "retained_unburned_MJ"] = float(room_state.get("retained_unburned_MJ", 0.0))
 		_metrics[prefix + "o2_hrr_factor"] = float(room_state.get("o2_hrr_factor", 0.0))
 		_metrics[prefix + "ventilation_response_factor"] = float(room_state.get("ventilation_response_factor", 0.0))
 		_metrics[prefix + "outside_open_path_factor"] = float(room_state.get("outside_open_path_factor", 0.0))
+		_metrics[prefix + "upper_radiative_loss_kw"] = float(room_state.get("upper_radiative_loss_kw", 0.0))
+		watched_clamp_time_s += float(room_state.get("temp_upper_clamp_time_s", 0.0))
+		watched_clamp_count += int(room_state.get("temp_upper_clamp_count", 0))
+
+	_metrics["watched_temp_upper_clamp_time_s"] = watched_clamp_time_s
+	_metrics["watched_temp_upper_clamp_count"] = watched_clamp_count
 
 
 func _finalize_validation_run(state: Dictionary) -> void:

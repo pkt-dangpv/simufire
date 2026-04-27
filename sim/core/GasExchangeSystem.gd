@@ -1,6 +1,17 @@
 extends RefCounted
 class_name GasExchangeSystem
 
+# ============================================================
+# GAS EXCHANGE SYSTEM
+# ------------------------------------------------------------
+# Gestiona el transporte de gases (humo, CO, CO2) y
+# la presión entre habitaciones y con el exterior:
+# - step_pressure_venting: venting boyante por aperturas
+# - step_smoke: generación, transporte y deposición de humo
+# - Purga post-incendio de CO/CO2/humo al reventilarse
+# - Transporte retardado interior (pendientes en cola)
+# ============================================================
+
 var o2_nominal: float = 0.209
 var window_leakage_area_m2: float = 0.005
 var pressure_vent_threshold_pa: float = 2.0
@@ -490,12 +501,22 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 		var cleanup_factor: float = _compute_postfire_cleanup_factor(room)
 		if cleanup_factor > 0.0:
-			var smoke_settling_rate: float = smoke_settling_base_per_s + smoke_settling_bonus_per_s * cleanup_factor
+			# Durante un incendio activo las salas secundarias (sin fuego) NO
+			# deben sedimentar al ritmo post-incendio completo: el humo sigue
+			# caliente y en suspensión. Solo se aplica la tasa base.
+			# El bonus de limpieza post-incendio solo aplica cuando ya no hay
+			# ningún foco activo en el edificio.
+			var smoke_settling_rate: float = smoke_settling_base_per_s
+			if not incident_active:
+				smoke_settling_rate += smoke_settling_bonus_per_s * cleanup_factor
 			var deposited_smoke_kg: float = minf(room.smoke_kg, room.smoke_kg * smoke_settling_rate * dt)
 			room.smoke_kg = maxf(0.0, room.smoke_kg - deposited_smoke_kg)
 			result["smoke_deposited_kg"] = float(result.get("smoke_deposited_kg", 0.0)) + deposited_smoke_kg
 
-			var co_purge_rate: float = co_postfire_purge_base_per_s + co_postfire_purge_bonus_per_s * cleanup_factor
+			# Igual para CO/CO2: purga post-incendio solo cuando el fuego está extinto.
+			var co_purge_rate: float = 0.0
+			if not incident_active:
+				co_purge_rate = co_postfire_purge_base_per_s + co_postfire_purge_bonus_per_s * cleanup_factor
 			var purged_co_kg: float = minf(room.co_kg, room.co_kg * co_purge_rate * dt)
 			var purge_co_fraction: float = 0.0
 			if room.co_kg > 0.000001:

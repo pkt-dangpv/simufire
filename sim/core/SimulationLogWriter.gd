@@ -1,6 +1,16 @@
 extends RefCounted
 class_name SimulationLogWriter
 
+# ============================================================
+# SIMULATION LOG WRITER
+# ------------------------------------------------------------
+# Escribe el estado de la simulación en un fichero de texto
+# plano a intervalos configurables.
+# - Formato legible por humanos y por generate_fire_graphs.py
+# - Solo escribe si el tiempo supera _next_log_time_s
+# - Falla de forma silenciosa si el fichero no es accesible
+# ============================================================
+
 var enabled: bool = true
 var interval_s: float = 10.0
 var log_file_path: String = "user://sim_log.txt"
@@ -228,11 +238,23 @@ func _append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 			float(room_state.get("passive_fuel_flux_kw_m2", 0.0)),
 			float(room_state.get("fire_spread_exposure_s", 0.0))
 		]
+		line += " | Obj=%s:%s | ObjExp=%.0f | ObjMJ=%.1f" % [
+			String(room_state.get("dominant_fuel_object_id", "")),
+			String(room_state.get("dominant_fuel_object_state", "none")),
+			float(room_state.get("dominant_fuel_object_exposure_s", 0.0)),
+			float(room_state.get("dominant_fuel_object_remaining_MJ", 0.0))
+		]
 		line += " | HRRt=%.1f | O2f=%.2f | GasMJ=%.2f | VentR=%.2f" % [
 			float(room_state.get("hrr_target_kw", 0.0)),
 			float(room_state.get("o2_hrr_factor", 0.0)),
 			float(room_state.get("retained_unburned_MJ", 0.0)),
 			float(room_state.get("ventilation_response_factor", 0.0))
+		]
+		line += " | RawUp=%.1f | Cap=%s | CapT=%.1f | Rad=%.1f" % [
+			float(room_state.get("temp_upper_raw_c", room_state.get("temp_upper_c", 0.0))),
+			"Y" if bool(room_state.get("temp_upper_clamped", false)) else "N",
+			float(room_state.get("temp_upper_clamp_time_s", 0.0)),
+			float(room_state.get("upper_radiative_loss_kw", 0.0))
 		]
 		file.store_line(line)
 
