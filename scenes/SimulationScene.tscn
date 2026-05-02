@@ -18,8 +18,8 @@ autostart = true
 [node name="Visualizer" type="Node2D" parent="World" unique_id=1293810110]
 script = ExtResource("2_0xm2m")
 show_section_gauge = false
-show_hrr_bar = false
-show_room_labels = false
+show_hrr_bar = true
+show_room_labels = true
 show_window_badge = false
 
 [node name="BuildingModel" type="Node" parent="World" unique_id=1887044570]

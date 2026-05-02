@@ -12,6 +12,19 @@ signal stop_and_generate_requested
 @export var compact_status_panel: bool = true
 @export var show_openings_panel: bool = true
 
+## Tamaño de fuente del encabezado de cada tarjeta de sala.
+@export var font_size_header: int = 11
+## Tamaño de fuente de los datos de cada tarjeta de sala.
+@export var font_size_data: int = 10
+## Margen interior (px) de cada tarjeta de sala.
+@export var card_margin_px: int = 5
+## Color normal de los datos de cada tarjeta (sin alerta).
+@export var card_data_color: Color = Color(0.80, 0.90, 0.80, 1.0)
+## Color de tarjeta en estado de alerta (O2 bajo o FED alto).
+@export var card_alert_color: Color = Color(1.0, 0.82, 0.65, 1.0)
+## Color de tarjeta en estado de flashover o HRR muy alto.
+@export var card_flashover_color: Color = Color(1.0, 0.55, 0.55, 1.0)
+
 @onready var status_panel: PanelContainer = $StatusPanel
 @onready var status_label: Label = $StatusPanel/MarginContainer/StatusLabel
 @onready var time_label: Label = $MarginContainer/TimeLabel
@@ -160,10 +173,10 @@ func _rebuild_rooms_panel() -> void:
 		var card := PanelContainer.new()
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var margin := MarginContainer.new()
-		margin.add_theme_constant_override("margin_left", 5)
-		margin.add_theme_constant_override("margin_top", 4)
-		margin.add_theme_constant_override("margin_right", 5)
-		margin.add_theme_constant_override("margin_bottom", 4)
+		margin.add_theme_constant_override("margin_left", card_margin_px)
+		margin.add_theme_constant_override("margin_top", card_margin_px - 1)
+		margin.add_theme_constant_override("margin_right", card_margin_px)
+		margin.add_theme_constant_override("margin_bottom", card_margin_px - 1)
 		card.add_child(margin)
 
 		var vbox := VBoxContainer.new()
@@ -171,14 +184,14 @@ func _rebuild_rooms_panel() -> void:
 		margin.add_child(vbox)
 
 		var header := Label.new()
-		header.add_theme_font_size_override("font_size", 11)
+		header.add_theme_font_size_override("font_size", font_size_header)
 		header.text = "R%d" % room_id
 		vbox.add_child(header)
 
 		var data_lbl := Label.new()
-		data_lbl.add_theme_font_size_override("font_size", 10)
+		data_lbl.add_theme_font_size_override("font_size", font_size_data)
 		data_lbl.text = "\u2014"
-		data_lbl.modulate = Color(0.80, 0.90, 0.80, 1.0)
+		data_lbl.modulate = card_data_color
 		vbox.add_child(data_lbl)
 
 		rooms_data_vbox.add_child(card)
@@ -186,6 +199,7 @@ func _rebuild_rooms_panel() -> void:
 
 
 func _update_rooms_panel(state: Dictionary) -> void:
+	var sim_time_s: float = float(state.get("sim_time_s", 0.0))
 	for room_id in _room_cards.keys():
 		var d: Dictionary = _room_cards[room_id]
 		var rs: Dictionary = state.get(str(room_id), {})
@@ -212,7 +226,9 @@ func _update_rooms_panel(state: Dictionary) -> void:
 		var smoke_l: float = float(rs.get("smoke_layer_m", rs.get("h_layer_m", float(rs.get("height_m", 2.4)))))
 		var co_ppm: float = float(rs.get("co_ppm", 0.0))
 		var fed: float = float(rs.get("fed", 0.0))
-		var flashover: bool = bool(rs.get("flashover_triggered", false))
+		var flashover: bool = _is_flashover_indicator_visible(rs, sim_time_s)
+		var fuel_capacity_mj: float = float(rs.get("fuel_capacity_MJ", rs.get("fuel_energy_MJ", 0.0)))
+		var remaining_fuel_mj: float = float(rs.get("fuel_objects_remaining_MJ", rs.get("remaining_fuel_MJ", 0.0)))
 
 		var svv_pct: float = float(rs.get("svv_worst_pct", -1.0))
 		if svv_pct < 0.0:
@@ -233,17 +249,27 @@ func _update_rooms_panel(state: Dictionary) -> void:
 		lines.append("O2 %.1f%%  SmL %.2fm" % [o2_pct, smoke_l])
 		if co_ppm > 1.0:
 			lines.append("CO %.0fppm" % co_ppm)
+		lines.append("Comb %.0f/%.0fMJ" % [remaining_fuel_mj, fuel_capacity_mj])
 		lines.append("FED %.2f  SVV %.0f%%" % [fed, svv_pct])
 		if flashover:
 			lines.append("!FLASHOVER!")
 		data_lbl.text = "\n".join(lines)
 
 		if flashover or hrr > 500.0:
-			card.modulate = Color(1.0, 0.55, 0.55, 1.0)
+			card.modulate = card_flashover_color
 		elif o2_pct < 18.0 or fed > 0.3:
-			card.modulate = Color(1.0, 0.82, 0.65, 1.0)
+			card.modulate = card_alert_color
 		else:
 			card.modulate = Color(1.0, 1.0, 1.0, 1.0)
+
+
+func _is_flashover_indicator_visible(room_state: Dictionary, sim_time_s: float) -> bool:
+	if not bool(room_state.get("flashover_triggered", false)):
+		return false
+	var flash_time_s: float = float(room_state.get("flashover_time_s", -1.0))
+	if flash_time_s < 0.0:
+		return true
+	return sim_time_s <= flash_time_s + 22.0
 
 
 func _refresh_opening_controls() -> void:

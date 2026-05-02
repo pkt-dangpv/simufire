@@ -13,7 +13,7 @@ class_name SmokeModel
 # La aplicación real de deltas la hace SimulationEngine.
 # ============================================================
 
-var smoke_density_kg_m3: float = 0.9
+var smoke_density_kg_m3: float = 0.18
 var smoke_temp_expansion_upper_weight: float = 0.45
 var smoke_temp_expansion_cap_c: float = 400.0
 

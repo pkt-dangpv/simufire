@@ -18,6 +18,8 @@ termina (desde SimulationEngine._on_sim_finished()).
 import os
 import re
 import sys
+import argparse
+import shutil
 
 _MPL_CACHE_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", ".matplotlib-cache")
@@ -51,7 +53,7 @@ elif os.path.exists(_godot_user_log):
 else:
     LOG_PATH = _project_log
 
-GRAPHS_ROOT = os.path.abspath(
+DEFAULT_GRAPHS_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "graphs")
 )
 
@@ -458,15 +460,28 @@ def plot_room(room_id, r, room_dir, events=None):
 # MAIN
 # -----------------------------------------------------------------------
 
+def _parse_args():
+    parser = argparse.ArgumentParser(description="Genera graficas de SimuFire desde sim_log.txt")
+    parser.add_argument("--log", default=LOG_PATH, help="Ruta del log de simulacion")
+    parser.add_argument("--out-root", default=DEFAULT_GRAPHS_ROOT, help="Carpeta donde crear la subcarpeta de graficas")
+    parser.add_argument("--latest-file", default="", help="Archivo donde escribir la carpeta final generada")
+    parser.add_argument("--copy-log", action="store_true", help="Copia el log usado dentro de la carpeta final")
+    return parser.parse_args()
+
+
 def main():
-    print("Leyendo log: " + LOG_PATH)
-    sim_label, rooms, events = parse_log(LOG_PATH)
+    args = _parse_args()
+    log_path = os.path.abspath(args.log)
+    graphs_root = os.path.abspath(args.out_root)
+
+    print("Leyendo log: " + log_path)
+    sim_label, rooms, events = parse_log(log_path)
 
     if not rooms:
         print("El log no contiene datos de habitaciones. Corre la simulacion primero.")
-        return
+        return 1
 
-    out_root = os.path.join(GRAPHS_ROOT, sim_label)
+    out_root = os.path.join(graphs_root, sim_label)
     os.makedirs(out_root, exist_ok=True)
     print("Carpeta de salida: " + out_root)
     print("Habitaciones: %s  |  Eventos: %d\n" % (
@@ -479,8 +494,23 @@ def main():
         os.makedirs(room_dir, exist_ok=True)
         plot_room(room_id, r, room_dir, events=events)
 
+    if args.copy_log:
+        try:
+            shutil.copy2(log_path, os.path.join(out_root, "sim_log.txt"))
+        except OSError as exc:
+            print("Aviso: no se pudo copiar el log: %s" % exc)
+
+    if args.latest_file:
+        latest_path = os.path.abspath(args.latest_file)
+        latest_dir = os.path.dirname(latest_path)
+        if latest_dir:
+            os.makedirs(latest_dir, exist_ok=True)
+        with open(latest_path, "w", encoding="utf-8") as f:
+            f.write(out_root)
+
     print("\nListo. Graficas en:\n  " + out_root)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

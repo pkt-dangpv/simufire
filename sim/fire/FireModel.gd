@@ -29,7 +29,8 @@ var flashover_min_hrr_kw: float = 300.0
 # Oxígeno
 var o2_nominal: float = 0.209
 var o2_min_for_flame: float = 0.12
-var o2_consumption_kg_per_MJ: float = 0.20
+# Regla de Thornton: 1 kg O2 libera ~13.1 MJ → 1/13.1 ≈ 0.0763 kg/MJ
+var o2_consumption_kg_per_MJ: float = 0.076
 
 # Producción de humo
 var smoke_yield_kg_per_MJ: float = 0.06

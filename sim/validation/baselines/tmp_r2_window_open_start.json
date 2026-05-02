@@ -13,14 +13,14 @@
 			"max": 18000.0
 		},
 		"room_2_final_smoke_kg": {
-			"min": 0.35,
+			"min": 0.20,
 			"max": 0.75
 		},
 		"room_2_final_fed": {
 			"max": 0.10
 		},
 		"room_1_peak_temp_upper_c": {
-			"expected": 195.0,
+			"expected": 155.0,
 			"tolerance": 30.0
 		},
 		"room_0_final_hrr_kw": {

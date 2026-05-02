@@ -1,11 +1,11 @@
 {
 	"metrics": {
 		"room_1_min_l150_m": {
-			"expected": 2.17,
+			"expected": 2.29,
 			"tolerance": 0.12
 		},
 		"room_1_final_temp_at_1_8m_c": {
-			"expected": 56.90,
+			"expected": 57.9,
 			"tolerance": 12.0
 		},
 		"room_0_final_layer_150c_m": {

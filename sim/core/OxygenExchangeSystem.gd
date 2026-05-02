@@ -359,15 +359,8 @@ func _exchange_room_o2_immediate(
 
 	_apply_room_o2_mass_delta(room_a, o2_b_out_kg, air_density_kg_m3)
 	_apply_room_o2_mass_delta(room_b, o2_a_out_kg, air_density_kg_m3)
-
-	# CO2 (gas de combustión) se mezcla bidireccional con el intercambio de aire.
-	# El CO permanece ligado al transporte de humo (GasExchangeSystem) para preservar
-	# la calibración de timing; CO2 sí difunde libremente como gas de combustión.
-	var co2_conc_a: float = room_a.co2_kg / maxf(0.1, mass_a_kg)
-	var co2_conc_b: float = room_b.co2_kg / maxf(0.1, mass_b_kg)
-	var net_co2_a_to_b: float = (co2_conc_a - co2_conc_b) * exchange_kg
-	room_a.co2_kg = maxf(0.0, room_a.co2_kg - net_co2_a_to_b)
-	room_b.co2_kg = maxf(0.0, room_b.co2_kg + net_co2_a_to_b)
+	# CO2 lo gestiona exclusivamente GasExchangeSystem._apply_background_species_exchange()
+	# para evitar doble transporte por step.
 
 
 func _exchange_room_o2_active_flow(
@@ -392,15 +385,7 @@ func _exchange_room_o2_active_flow(
 	var hot_air_mass_kg: float = _compute_room_air_mass_kg(hot_room, air_density_kg_m3)
 	var cold_air_mass_kg: float = _compute_room_air_mass_kg(cold_room, air_density_kg_m3)
 
-	# CO y CO2 se transportan con el flujo boyante (dirección dominante: caliente→frío)
-	# El CO2 (gas de combustión) sigue el flujo boyante; el CO permanece ligado al
-	# transporte de humo (GasExchangeSystem) para preservar la calibración de timing.
-	var hot_co2_conc: float = hot_room.co2_kg / maxf(0.1, hot_air_mass_kg)
-	var cold_co2_conc: float = cold_room.co2_kg / maxf(0.1, cold_air_mass_kg)
-	var net_co2_hot_to_cold: float = (hot_co2_conc - cold_co2_conc) * exchange_kg
-	hot_room.co2_kg = maxf(0.0, hot_room.co2_kg - net_co2_hot_to_cold)
-	cold_room.co2_kg = maxf(0.0, cold_room.co2_kg + net_co2_hot_to_cold)
-
+	# CO2 lo gestiona exclusivamente GasExchangeSystem — no se duplica aquí.
 	var delay_s: float = _estimate_interior_transport_delay_s(building, hot_room.id, cold_room.id)
 	if interior_transport_enabled and delay_s > 0.000001:
 		_reserve_room_o2_delta(cold_room.id, cold_room_delta_o2_kg)

@@ -82,6 +82,7 @@ var overpressure_pa: float = 0.0
 
 # Eventos
 var flashover_triggered: bool = false
+var flashover_time_s: float = -1.0
 var fire_spread_exposure_s: float = 0.0
 
 
@@ -127,4 +128,5 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	ventilation_response_factor = 0.0
 	overpressure_pa = 0.0
 	flashover_triggered = false
+	flashover_time_s = -1.0
 	fire_spread_exposure_s = 0.0

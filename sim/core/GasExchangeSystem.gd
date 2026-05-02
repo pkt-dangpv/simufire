@@ -463,11 +463,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - clampf(co_remove_fraction, 0.0, 1.0)))
 		var co2_removed: float = room.co2_kg * ach_rate * dt
 		room.co2_kg = maxf(0.0, room.co2_kg - co2_removed)
-
-		# ACH infiltración: el aire fresco que entra por fisuras también aporta O2.
-		# Efecto pequeño pero físicamente correcto, especialmente en salas selladas.
-		var o2_ach_delta: float = (building.outside_o2 - room.o2) * room_air_mass_kg * ach_rate * dt
-		room.o2 = clampf(room.o2 + o2_ach_delta / room_air_mass_kg, 0.0, o2_nominal)
+		# NOTA: la recuperación de O2 por ACH la gestiona OxygenExchangeSystem.step().
+		# No se duplica aquí para evitar doble aplicación por step.
 
 		var smoke_concentration: float = room.smoke_kg / (room_volume_m3_s * air_density_kg_m3_s)
 		var smoke_ach_efficiency: float = 1.0

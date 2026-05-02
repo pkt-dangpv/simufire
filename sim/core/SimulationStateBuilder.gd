@@ -94,9 +94,12 @@ func build_state(context: Dictionary) -> Dictionary:
 
 			"has_fire": room.fire != null,
 			"flashover_triggered": room.flashover_triggered,
+			"flashover_time_s": room.flashover_time_s,
 
 			"fuel_energy_MJ": room.fuel_energy_MJ,
+			"fuel_capacity_MJ": _resolve_fuel_capacity_MJ(room),
 			"remaining_fuel_MJ": _resolve_remaining_fuel_MJ(room, combustion_system),
+			"fuel_objects": _build_fuel_object_snapshots(room, combustion_system),
 			"fuel_object_count": room.fuel_objects.size(),
 			"fuel_objects_remaining_MJ": combustion_system.get_room_total_remaining_fuel_MJ(room) if combustion_system != null else 0.0,
 			"fuel_objects_max_hrr_kw": combustion_system.get_room_total_max_hrr_kw(room) if combustion_system != null else 0.0,
@@ -134,6 +137,22 @@ func build_state(context: Dictionary) -> Dictionary:
 	return state
 
 
+func _resolve_fuel_capacity_MJ(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+	var total_MJ: float = 0.0
+	var has_explicit: bool = _has_explicit_fuel_objects(room)
+	for obj in room.fuel_objects:
+		if obj == null:
+			continue
+		if has_explicit and String(obj.id).begins_with("room_proxy_"):
+			continue
+		total_MJ += maxf(0.0, obj.fuel_energy_MJ)
+	if total_MJ > 0.0:
+		return total_MJ
+	return maxf(0.0, room.fuel_energy_MJ)
+
+
 func _resolve_remaining_fuel_MJ(room: RoomModel, combustion_system: CombustionSystem) -> float:
 	if room == null:
 		return 0.0
@@ -144,6 +163,49 @@ func _resolve_remaining_fuel_MJ(room: RoomModel, combustion_system: CombustionSy
 	if room.fire_time_s > 0.0:
 		return combustion_system.get_room_legacy_proxy_remaining_fuel_MJ(room)
 	return combustion_system.get_room_total_remaining_fuel_MJ(room)
+
+
+func _build_fuel_object_snapshots(room: RoomModel, combustion_system: CombustionSystem) -> Array[Dictionary]:
+	var snapshots: Array[Dictionary] = []
+	if room == null:
+		return snapshots
+
+	var has_explicit: bool = _has_explicit_fuel_objects(room)
+	for obj in room.fuel_objects:
+		if obj == null:
+			continue
+		if has_explicit and String(obj.id).begins_with("room_proxy_"):
+			continue
+		var state_name: String = "unknown"
+		if combustion_system != null:
+			state_name = combustion_system.fuel_object_state_to_string(int(obj.state))
+		snapshots.append({
+			"id": String(obj.id),
+			"name": String(obj.name),
+			"kind": String(obj.kind),
+			"room_id": int(obj.room_id),
+			"position_m": obj.position_m,
+			"size_m": obj.size_m,
+			"rotation_deg": float(obj.rotation_deg),
+			"fuel_energy_MJ": maxf(0.0, obj.fuel_energy_MJ),
+			"remaining_fuel_MJ": maxf(0.0, obj.remaining_fuel_MJ),
+			"max_hrr_kw": maxf(0.0, obj.max_hrr_kw),
+			"hrr_kw": maxf(0.0, obj.hrr_kw),
+			"state": state_name,
+			"surface_temp_c": float(obj.surface_temp_c),
+			"incident_heat_flux_kw_m2": float(obj.incident_heat_flux_kw_m2),
+			"is_primary_ignition_source": bool(obj.is_primary_ignition_source)
+		})
+	return snapshots
+
+
+func _has_explicit_fuel_objects(room: RoomModel) -> bool:
+	if room == null:
+		return false
+	for obj in room.fuel_objects:
+		if obj != null and not String(obj.id).begins_with("room_proxy_"):
+			return true
+	return false
 
 
 func _collect_sorted_room_ids(building: BuildingModel) -> Array[int]:

@@ -4,6 +4,7 @@ class_name ScenarioEditor
 enum Tool {
 	SELECT,
 	ROOM,
+	CORRIDOR_L,
 	DOOR,
 	WINDOW,
 	OBJECT,
@@ -35,6 +36,7 @@ var is_dragging_room: bool = false
 var drag_start_m: Vector2 = Vector2.ZERO
 var drag_current_m: Vector2 = Vector2.ZERO
 var pending_door_room_id: int = -1
+var corridor_width_m: float = 1.20
 
 var is_dragging_object: bool = false
 var drag_object_cursor_offset_m: Vector2 = Vector2.ZERO
@@ -141,6 +143,7 @@ func _setup_ui() -> void:
 	main.add_child(toolbar)
 	_add_tool_button(toolbar, "Sel", Tool.SELECT)
 	_add_tool_button(toolbar, "Room", Tool.ROOM)
+	_add_tool_button(toolbar, "Corr L", Tool.CORRIDOR_L)
 	_add_tool_button(toolbar, "Door", Tool.DOOR)
 	_add_tool_button(toolbar, "Window", Tool.WINDOW)
 	_add_tool_button(toolbar, "Object", Tool.OBJECT)
@@ -374,8 +377,10 @@ func _tool_hint(tool_id: int) -> String:
 			return "Select: selecciona habitaciones, objetos o aperturas."
 		Tool.ROOM:
 			return "Room: arrastra para crear una estancia."
+		Tool.CORRIDOR_L:
+			return "Corr L: arrastra una diagonal para crear un pasillo con giro de 90 grados."
 		Tool.DOOR:
-			return "Door: pulsa sobre una pared compartida o selecciona dos estancias adyacentes."
+			return "Door: pulsa una pared compartida o una pared exterior para crear puerta."
 		Tool.WINDOW:
 			return "Window: pulsa cerca de una pared exterior."
 		Tool.OBJECT:
@@ -420,7 +425,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _handle_press(pos_m: Vector2) -> void:
 	match current_tool:
-		Tool.ROOM:
+		Tool.ROOM, Tool.CORRIDOR_L:
 			is_dragging_room = true
 			drag_start_m = pos_m
 			drag_current_m = pos_m
@@ -456,11 +461,13 @@ func _handle_release(pos_m: Vector2) -> void:
 		queue_redraw()
 		return
 
-	if current_tool != Tool.ROOM or not is_dragging_room:
+	if (current_tool != Tool.ROOM and current_tool != Tool.CORRIDOR_L) or not is_dragging_room:
 		return
 
 	drag_current_m = pos_m
-	var rect: Rect2 = _normalized_rect(drag_start_m, drag_current_m)
+	var start_m: Vector2 = drag_start_m
+	var end_m: Vector2 = drag_current_m
+	var rect: Rect2 = _normalized_rect(start_m, end_m)
 	_clear_drag()
 
 	if rect.size.x < GRID_M or rect.size.y < GRID_M:
@@ -468,9 +475,12 @@ func _handle_release(pos_m: Vector2) -> void:
 		queue_redraw()
 		return
 
-	var room_id: int = _create_room(rect)
-	_select_room(room_id)
-	_set_status("Habitacion %d creada." % room_id)
+	if current_tool == Tool.CORRIDOR_L:
+		_create_l_corridor(start_m, end_m)
+	else:
+		var room_id: int = _create_room(rect)
+		_select_room(room_id)
+		_set_status("Habitacion %d creada." % room_id)
 	queue_redraw()
 
 
@@ -543,14 +553,14 @@ func _set_object_position(room_id: int, obj_index: int, local_pos: Vector2) -> v
 		return
 
 
-func _create_room(rect: Rect2) -> int:
+func _create_room(rect: Rect2, room_name: String = "", kind_name: String = "generic") -> int:
 	var id: int = _next_room_id()
 	var rooms: Array = editor_data.get("rooms_data", [])
 	var rects: Dictionary = editor_data.get("room_rect_m", {})
 	var room := {
 		"id": id,
-		"name": "Room %d" % id,
-		"kind": "generic",
+		"name": room_name if room_name != "" else "Room %d" % id,
+		"kind": kind_name,
 		"height_m": 2.7,
 		"fuel_energy_MJ": 0.0,
 		"max_hrr_kw": 0.0,
@@ -561,6 +571,49 @@ func _create_room(rect: Rect2) -> int:
 	editor_data["rooms_data"] = rooms
 	editor_data["room_rect_m"] = rects
 	return id
+
+
+func _create_l_corridor(start_m: Vector2, end_m: Vector2) -> void:
+	var dx: float = end_m.x - start_m.x
+	var dy: float = end_m.y - start_m.y
+	var width_m: float = corridor_width_m
+	if absf(dx) < width_m * 1.5 or absf(dy) < width_m * 1.5:
+		_set_status("El pasillo en L necesita ancho y largo suficientes en ambos brazos.")
+		return
+
+	var sx: float = 1.0 if dx >= 0.0 else -1.0
+	var sy: float = 1.0 if dy >= 0.0 else -1.0
+	var corner_x: float = end_m.x
+	var h_a: Vector2 = start_m
+	var h_b: Vector2 = Vector2(corner_x, start_m.y + sy * width_m)
+	var v_a: Vector2 = Vector2(corner_x - sx * width_m, start_m.y + sy * width_m)
+	var v_b: Vector2 = end_m
+
+	var horizontal_rect: Rect2 = _normalized_rect(h_a, h_b)
+	var vertical_rect: Rect2 = _normalized_rect(v_a, v_b)
+	if horizontal_rect.size.x < width_m or horizontal_rect.size.y < GRID_M \
+			or vertical_rect.size.x < GRID_M or vertical_rect.size.y < width_m:
+		_set_status("El giro del pasillo queda demasiado pequeno.")
+		return
+
+	var base_name: String = "Pasillo %d" % _next_room_id()
+	var first_id: int = _create_room(horizontal_rect, "%s A" % base_name, "corridor")
+	var second_id: int = _create_room(vertical_rect, "%s B" % base_name, "corridor")
+	var shared: Dictionary = _shared_wall_between(first_id, second_id)
+	if not shared.is_empty():
+		_add_opening(
+			first_id,
+			second_id,
+			"door",
+			String(shared["wall"]),
+			float(shared["offset_m"]),
+			minf(width_m, 1.20),
+			2.05,
+			0.0,
+			1.0
+		)
+	_select_room(first_id)
+	_set_status("Pasillo en L creado como habitaciones %d y %d conectadas." % [first_id, second_id])
 
 
 func _next_room_id() -> int:
@@ -691,7 +744,8 @@ func _refresh_property_panel() -> void:
 		var opening: Dictionary = openings_arr[selected_opening_index]
 		var op_type: String = String(opening.get("type", "door"))
 		if _opening_type_label != null:
-			_opening_type_label.text = "Puerta" if op_type == "door" else "Ventana"
+			var exterior_suffix: String = " exterior" if int(opening.get("b", OUTSIDE_ID)) == OUTSIDE_ID else ""
+			_opening_type_label.text = ("Puerta" if op_type == "door" else "Ventana") + exterior_suffix
 		_opening_width_spin.value = float(opening.get("width_m", 0.9))
 		_opening_height_spin.value = float(opening.get("height_m", 2.0))
 		if _opening_sill_spin != null:
@@ -863,9 +917,32 @@ func _create_door_at(pos_m: Vector2) -> void:
 		queue_redraw()
 		return
 
+	var exterior_wall: Dictionary = _find_wall_at(pos_m)
+	var door_width_m: float = 0.95
+	if not exterior_wall.is_empty() and _is_wall_exterior(
+		int(exterior_wall["room_id"]),
+		String(exterior_wall["wall"]),
+		float(exterior_wall["offset_m"]),
+		door_width_m
+	):
+		_add_opening(
+			int(exterior_wall["room_id"]),
+			OUTSIDE_ID,
+			"door",
+			String(exterior_wall["wall"]),
+			float(exterior_wall["offset_m"]),
+			door_width_m,
+			2.05,
+			0.0,
+			1.0
+		)
+		_set_status("Puerta exterior creada en habitacion %d." % int(exterior_wall["room_id"]))
+		queue_redraw()
+		return
+
 	var room_id: int = _find_room_at(pos_m)
 	if room_id < 0:
-		_set_status("Pulsa una pared compartida o una habitacion.")
+		_set_status("Pulsa una pared compartida, una pared exterior o una habitacion.")
 		return
 
 	if pending_door_room_id < 0:
@@ -905,7 +982,12 @@ func _create_window_at(pos_m: Vector2) -> void:
 		_set_status("Pulsa cerca de una pared para crear una ventana.")
 		return
 
-	_add_opening(int(wall["room_id"]), OUTSIDE_ID, "window", String(wall["wall"]), float(wall["offset_m"]), 1.2, 1.1, 0.9, 1.0)
+	var window_width_m: float = 1.2
+	if not _is_wall_exterior(int(wall["room_id"]), String(wall["wall"]), float(wall["offset_m"]), window_width_m):
+		_set_status("Pulsa un tramo de pared exterior para crear una ventana.")
+		return
+
+	_add_opening(int(wall["room_id"]), OUTSIDE_ID, "window", String(wall["wall"]), float(wall["offset_m"]), window_width_m, 1.1, 0.9, 1.0)
 	_set_status("Ventana exterior creada en habitacion %d." % int(wall["room_id"]))
 	queue_redraw()
 
@@ -1031,6 +1113,69 @@ func _find_shared_wall_at(pos_m: Vector2) -> Dictionary:
 			if not shared.is_empty():
 				return shared
 	return {}
+
+
+func _is_wall_exterior(room_id: int, wall: String, offset_m: float, width_m: float) -> bool:
+	var rect: Rect2 = _get_room_rect(room_id)
+	var wall_seg: PackedVector2Array = _wall_segment(rect, wall, offset_m, width_m)
+	if wall_seg.size() != 2:
+		return false
+
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var other_id: int = int(room.get("id", -1))
+		if other_id == room_id:
+			continue
+		var shared: Dictionary = _shared_wall_between(room_id, other_id)
+		if shared.is_empty() or String(shared.get("wall", "")) != wall:
+			continue
+		var other_seg: PackedVector2Array = _shared_wall_segment(room_id, other_id, wall)
+		if other_seg.size() == 2 and _segments_overlap_m(wall_seg[0], wall_seg[1], other_seg[0], other_seg[1]):
+			return false
+	return true
+
+
+func _shared_wall_segment(room_id: int, other_id: int, wall: String) -> PackedVector2Array:
+	var rect: Rect2 = _get_room_rect(room_id)
+	var other_rect: Rect2 = _get_room_rect(other_id)
+	match wall:
+		"left", "right":
+			var start_y: float = maxf(rect.position.y, other_rect.position.y)
+			var end_y: float = minf(rect.position.y + rect.size.y, other_rect.position.y + other_rect.size.y)
+			if end_y - start_y <= 0.05:
+				return PackedVector2Array()
+			var edge_x: float = rect.position.x if wall == "left" else rect.position.x + rect.size.x
+			return PackedVector2Array([Vector2(edge_x, start_y), Vector2(edge_x, end_y)])
+		"top", "bottom":
+			var start_x: float = maxf(rect.position.x, other_rect.position.x)
+			var end_x: float = minf(rect.position.x + rect.size.x, other_rect.position.x + other_rect.size.x)
+			if end_x - start_x <= 0.05:
+				return PackedVector2Array()
+			var edge_y: float = rect.position.y if wall == "top" else rect.position.y + rect.size.y
+			return PackedVector2Array([Vector2(start_x, edge_y), Vector2(end_x, edge_y)])
+	return PackedVector2Array()
+
+
+func _segments_overlap_m(a1: Vector2, a2: Vector2, b1: Vector2, b2: Vector2) -> bool:
+	if a1.distance_to(a2) <= 0.0001 or b1.distance_to(b2) <= 0.0001:
+		return false
+	var horizontal: bool = absf(a1.y - a2.y) <= 0.001
+	if horizontal:
+		if absf(a1.y - b1.y) > 0.05:
+			return false
+		var a_min: float = minf(a1.x, a2.x)
+		var a_max: float = maxf(a1.x, a2.x)
+		var b_min: float = minf(b1.x, b2.x)
+		var b_max: float = maxf(b1.x, b2.x)
+		return minf(a_max, b_max) - maxf(a_min, b_min) > 0.05
+	if absf(a1.x - b1.x) > 0.05:
+		return false
+	var ay_min: float = minf(a1.y, a2.y)
+	var ay_max: float = maxf(a1.y, a2.y)
+	var by_min: float = minf(b1.y, b2.y)
+	var by_max: float = maxf(b1.y, b2.y)
+	return minf(ay_max, by_max) - maxf(ay_min, by_min) > 0.05
 
 
 func _shared_wall_between(a_id: int, b_id: int, click_m: Vector2 = Vector2(1.0e20, 1.0e20)) -> Dictionary:
@@ -1365,7 +1510,7 @@ func _draw_objects() -> void:
 				draw_string(
 					ThemeDB.fallback_font,
 					obj_rect_px.position + Vector2(4.0, 13.0),
-					String(obj.get("kind", "")),
+					String(obj.get("name", obj.get("kind", ""))),
 					HORIZONTAL_ALIGNMENT_LEFT,
 					obj_rect_px.size.x - 8.0,
 					10,
@@ -1452,12 +1597,22 @@ func _bind_existing_ui() -> bool:
 
 	var btn_select := _ui_root.get_node_or_null("TopBar/HBox/BtnSelect") as Button
 	var btn_room := _ui_root.get_node_or_null("TopBar/HBox/BtnRoom") as Button
+	var btn_corridor := _ui_root.get_node_or_null("TopBar/HBox/BtnCorridorL") as Button
 	var btn_door := _ui_root.get_node_or_null("TopBar/HBox/BtnDoor") as Button
 	var btn_window := _ui_root.get_node_or_null("TopBar/HBox/BtnWindow") as Button
 	var btn_object := _ui_root.get_node_or_null("TopBar/HBox/BtnObject") as Button
 	var btn_ignite := _ui_root.get_node_or_null("TopBar/HBox/BtnIgnite") as Button
 	var btn_delete := _ui_root.get_node_or_null("TopBar/HBox/BtnDelete") as Button
-	var required_buttons: Array[Button] = [btn_select, btn_room, btn_door, btn_window, btn_object, btn_ignite, btn_delete]
+	if btn_corridor == null:
+		var topbar := _ui_root.get_node_or_null("TopBar/HBox") as HBoxContainer
+		if topbar != null:
+			btn_corridor = Button.new()
+			btn_corridor.name = "BtnCorridorL"
+			btn_corridor.text = "Corr L"
+			btn_corridor.custom_minimum_size = Vector2(82.0, 34.0)
+			topbar.add_child(btn_corridor)
+
+	var required_buttons: Array[Button] = [btn_select, btn_room, btn_corridor, btn_door, btn_window, btn_object, btn_ignite, btn_delete]
 	for b in required_buttons:
 		if b == null:
 			return false
@@ -1465,6 +1620,7 @@ func _bind_existing_ui() -> bool:
 	_tool_buttons.clear()
 	_register_tool_button(btn_select, Tool.SELECT)
 	_register_tool_button(btn_room, Tool.ROOM)
+	_register_tool_button(btn_corridor, Tool.CORRIDOR_L)
 	_register_tool_button(btn_door, Tool.DOOR)
 	_register_tool_button(btn_window, Tool.WINDOW)
 	_register_tool_button(btn_object, Tool.OBJECT)

@@ -17,6 +17,12 @@ class_name ThermalSystem
 var _building: BuildingModel
 var _smoke_model: SmokeModel
 
+# Masa térmica de paredes
+var wall_heat_capacity_kj_m2_k: float = 20.0  # kJ/m²K — cap. efectiva superficie (~5cm yeso)
+var wall_core_decay_per_s: float = 0.0002     # τ ≈ 5000 s — conducción de la superficie al núcleo
+# Temperatura actual de la superficie de pared por habitación (se resetea en configure())
+var _wall_surface_temp_c: Dictionary = {}
+
 const STEFAN_BOLTZMANN_KW_M2_K4: float = 5.670374419e-11
 
 # Parámetros térmicos
@@ -36,9 +42,9 @@ var retained_hot_layer_temp_start_c: float = 100.0
 var retained_hot_layer_temp_full_c: float = 350.0
 var retained_hot_layer_o2_start: float = 0.18
 var retained_hot_layer_o2_full: float = 0.10
-var retained_hot_layer_max_fraction: float = 0.85
+var retained_hot_layer_max_fraction: float = 0.0
 var outside_open_loss_area_fraction: float = 0.12
-var outside_open_ambient_loss_multiplier: float = 16.0
+var outside_open_ambient_loss_multiplier: float = 5.0
 var outside_open_wall_absorption_multiplier: float = 0.80
 var outside_open_upper_mix_rate: float = 0.0
 var outside_open_background_heat_exchange_kg_s_m2: float = 0.030
@@ -56,13 +62,39 @@ var floor_cooling_band_max_m: float = 0.35
 var survival_temp_threshold_c: float = 150.0
 
 # Relajación de capa 150°C
-var layer_150c_relax_down_per_s: float = 0.35
+var layer_150c_relax_down_per_s: float = 0.05
 var layer_150c_relax_up_per_s: float = 0.03
 
 # Plume
 var plume_fill_depth_coeff: float = 0.60
 var plume_fill_response_s: float = 12.0
 var plume_fill_max_fraction: float = 0.85
+# McCaffrey (NBSIR 79-1910, 1979) far-field plume: ṁ_p = 0.071·Qc^(1/3)·z_eff^(5/3) [kg/s]
+# Qc en kW, z_eff = max(0.1, z_interfaz - L_llama)  [m]
+# Altura de llama Heskestad (1983): L_f = 0.235·Q_kW^0.4 - 1.02·D  [m]
+# Cuando L_llama ≥ z_interfaz (llamas alcanzan capa superior) se usa el heurístico.
+@export var plume_mccaffrey_enabled: bool = true
+@export var plume_mccaffrey_qc_fraction: float = 0.70
+# Diámetro de la base del fuego para la correlación de Heskestad.
+# Valor por defecto 1.0 m, típico de un sofá/mueble residencial.
+@export var plume_fire_diameter_m: float = 1.0
+
+# FED calor
+var fed_heat_enabled: bool = true
+# ISO 13571 sec. 8.3: tIconv(min) = A * T^-n para exposicion convectiva.
+# Rama por defecto: sujeto vestido, A=4.1e8 y n=3.61. La rama ligera/desnuda
+# puede configurarse con A=5e7 y n=3.4 desde overrides.
+@export var fed_heat_conv_a: float = 4.1e8
+@export var fed_heat_conv_n: float = 3.61
+# Umbral mínimo de temperatura para acumular FED térmico convectivo.
+@export var fed_heat_conv_min_c: float = 60.0
+# FED radiante: ISO 13571 §5.4.3
+# Flujo crítico de tenabilidad: 2.5 kW/m² (ISO 13571, Table 1).
+# t_tenab = fed_heat_rad_coeff / q^1.33 (ISO 13571 Eq. B.2).
+@export var fed_heat_rad_a: float = 1.33e4   # constante para q en kW/m², t en s
+# Fracción del flujo radiante de la capa superior que incide sobre la persona
+# (depende de la geometría; 0.2 es un valor conservador para zona caliente).
+@export var fed_heat_rad_view_factor: float = 0.20
 
 # Relajación de capa
 var layer_relax_down: float = 0.18
@@ -91,6 +123,9 @@ func configure(settings: Dictionary) -> void:
 	upper_to_ambient_loss_rate = float(settings.get("upper_to_ambient_loss_rate", upper_to_ambient_loss_rate))
 	lower_layer_warming_rate = float(settings.get("lower_layer_warming_rate", lower_layer_warming_rate))
 	wall_absorption_rate = float(settings.get("wall_absorption_rate", wall_absorption_rate))
+	wall_heat_capacity_kj_m2_k = float(settings.get("wall_heat_capacity_kj_m2_k", wall_heat_capacity_kj_m2_k))
+	wall_core_decay_per_s = float(settings.get("wall_core_decay_per_s", wall_core_decay_per_s))
+	_wall_surface_temp_c.clear()  # Resetear temperaturas de pared al reconfigurar
 	max_upper_temp_c = float(settings.get("max_upper_temp_c", max_upper_temp_c))
 	upper_radiative_loss_enabled = bool(settings.get("upper_radiative_loss_enabled", upper_radiative_loss_enabled))
 	upper_radiative_loss_start_c = float(settings.get("upper_radiative_loss_start_c", upper_radiative_loss_start_c))
@@ -173,9 +208,18 @@ func configure(settings: Dictionary) -> void:
 	doorway_o2_pressure_weight = float(settings.get("doorway_o2_pressure_weight", doorway_o2_pressure_weight))
 	pressure_spill_ref_delta_pa = float(settings.get("pressure_spill_ref_delta_pa", pressure_spill_ref_delta_pa))
 	interior_spill_start_layer_m = float(settings.get("interior_spill_start_layer_m", interior_spill_start_layer_m))
+	plume_mccaffrey_enabled = bool(settings.get("plume_mccaffrey_enabled", plume_mccaffrey_enabled))
+	plume_mccaffrey_qc_fraction = float(settings.get("plume_mccaffrey_qc_fraction", plume_mccaffrey_qc_fraction))
+	plume_fire_diameter_m = float(settings.get("plume_fire_diameter_m", plume_fire_diameter_m))
 	fed_hypoxia_enabled = bool(settings.get("fed_hypoxia_enabled", fed_hypoxia_enabled))
 	fed_hypoxia_a = float(settings.get("fed_hypoxia_a", fed_hypoxia_a))
 	fed_hypoxia_b = float(settings.get("fed_hypoxia_b", fed_hypoxia_b))
+	fed_heat_enabled = bool(settings.get("fed_heat_enabled", fed_heat_enabled))
+	fed_heat_conv_a = float(settings.get("fed_heat_conv_a", fed_heat_conv_a))
+	fed_heat_conv_n = float(settings.get("fed_heat_conv_n", fed_heat_conv_n))
+	fed_heat_conv_min_c = float(settings.get("fed_heat_conv_min_c", fed_heat_conv_min_c))
+	fed_heat_rad_a = float(settings.get("fed_heat_rad_a", fed_heat_rad_a))
+	fed_heat_rad_view_factor = float(settings.get("fed_heat_rad_view_factor", fed_heat_rad_view_factor))
 
 
 # ============================================================
@@ -194,15 +238,43 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			continue
 
 		room.upper_radiative_loss_kw = 0.0
-		var target_upper_mass_kg: float = estimate_target_upper_gas_mass_kg(room)
-		if target_upper_mass_kg > room.upper_gas_kg:
-			var mass_gain_kg: float = (target_upper_mass_kg - room.upper_gas_kg) * clampf(
-				dt / maxf(1.0, plume_fill_response_s),
-				0.0,
-				1.0
-			)
-			room.upper_gas_kg += mass_gain_kg
-			room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_lower_c - ambient_c)
+		# Entrainamiento de pluma — McCaffrey (NBSIR 79-1910) + Heskestad (1983)
+		if plume_mccaffrey_enabled and room.hrr_kw > 0.0:
+			var qc_kw: float = room.hrr_kw * plume_mccaffrey_qc_fraction
+			# Altura de llama Heskestad: L_f = 0.235·Q^0.4 - 1.02·D  [Q en kW, L en m]
+			var l_flame_m: float = maxf(0.0, 0.235 * pow(room.hrr_kw, 0.4) - 1.02 * plume_fire_diameter_m)
+			var z_m: float = room.thermal_layer_m
+			if l_flame_m < z_m:
+				# Far-field: pluma por encima de la llama. z_eff = altura sobre la punta de llama
+				var z_eff_m: float = maxf(0.1, z_m - l_flame_m)
+				var m_dot_p_kg_s: float = 0.071 * pow(qc_kw, 1.0 / 3.0) * pow(z_eff_m, 5.0 / 3.0)
+				# Cap: no consumir más masa de la zona inferior disponible en este paso
+				var lower_mass_kg: float = room.floor_area_m2() * maxf(0.0, z_m) * gas_density_kg_m3(room.temp_lower_c)
+				m_dot_p_kg_s = minf(m_dot_p_kg_s, lower_mass_kg / maxf(dt, 0.1))
+				var mass_gain_kg: float = m_dot_p_kg_s * dt
+				room.upper_gas_kg += mass_gain_kg
+				room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_lower_c - ambient_c)
+			else:
+				# Llamas alcanzan/superan la interfaz → modelo de dos zonas no aplica;
+				# se usa el heurístico calibrado para este régimen
+				var target_upper_mass_kg: float = estimate_target_upper_gas_mass_kg(room)
+				if target_upper_mass_kg > room.upper_gas_kg:
+					var mass_gain_kg: float = (target_upper_mass_kg - room.upper_gas_kg) * clampf(
+						dt / maxf(1.0, plume_fill_response_s), 0.0, 1.0
+					)
+					room.upper_gas_kg += mass_gain_kg
+					room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_lower_c - ambient_c)
+		else:
+			# Sin fuego activo o McCaffrey deshabilitado → heurístico
+			var target_upper_mass_kg: float = estimate_target_upper_gas_mass_kg(room)
+			if target_upper_mass_kg > room.upper_gas_kg:
+				var mass_gain_kg: float = (target_upper_mass_kg - room.upper_gas_kg) * clampf(
+					dt / maxf(1.0, plume_fill_response_s),
+					0.0,
+					1.0
+				)
+				room.upper_gas_kg += mass_gain_kg
+				room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_lower_c - ambient_c)
 
 		var upper_heat_capture_fraction: float = lerpf(
 			0.18,
@@ -233,11 +305,21 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 				* upper_to_ambient_loss_rate \
 				* (1.0 + outside_open_ambient_loss_multiplier * outside_open_factor) \
 				* dt
+		# Masa térmica de paredes: T_wall sube al absorber calor y enfría lentamente.
+		# Área de paredes ≈ 2·floor_area (aproximación para sala con proporciones normales).
+		var t_wall_c: float = _wall_surface_temp_c.get(room.id, ambient_c)
+		var wall_delta_t: float = maxf(0.0, room.temp_upper_c - t_wall_c)
 		var wall_absorption_kj: float = room.upper_gas_kg \
-				* maxf(0.0, room.temp_upper_c - ambient_c) \
+				* wall_delta_t \
 				* wall_absorption_rate \
 				* (1.0 + outside_open_wall_absorption_multiplier * outside_open_factor) \
 				* dt
+		# Actualizar temperatura de pared (área efectiva = 2 × área suelo)
+		var wall_capacity_kj_k: float = wall_heat_capacity_kj_m2_k * room.floor_area_m2() * 2.0
+		t_wall_c += wall_absorption_kj / maxf(0.1, wall_capacity_kj_k)
+		# Enfriamiento lento de la superficie hacia el núcleo/ambiente
+		t_wall_c = lerpf(t_wall_c, ambient_c, minf(wall_core_decay_per_s * dt, 0.99))
+		_wall_surface_temp_c[room.id] = t_wall_c
 
 		var requested_upper_loss_kj: float = energy_to_lower_kj + energy_to_ambient_kj + wall_absorption_kj
 		if requested_upper_loss_kj > 0.0 and room.upper_energy_kj > 0.0:
@@ -374,7 +456,10 @@ func estimate_target_upper_gas_mass_kg(room: RoomModel) -> float:
 	if room == null:
 		return 0.0
 
-	var target_depth_m: float = estimate_plume_upper_depth_m(room)
+	var target_depth_m: float = maxf(
+		estimate_plume_upper_depth_m(room),
+		estimate_retained_hot_layer_depth_m(room)
+	)
 	if target_depth_m <= 0.0:
 		return 0.0
 
@@ -388,6 +473,8 @@ func estimate_target_upper_gas_mass_kg(room: RoomModel) -> float:
 
 func estimate_retained_hot_layer_depth_m(room: RoomModel) -> float:
 	if room == null:
+		return 0.0
+	if retained_hot_layer_max_fraction <= 0.0:
 		return 0.0
 
 	var heat_factor: float = inverse_lerp(
@@ -949,6 +1036,23 @@ func step_fed(room: RoomModel, dt: float) -> void:
 			if t_crit_min > 0.0:
 				delta_fed += dt_min / t_crit_min
 
+	# ISO 13571 §5.5 + §5.4.3: FED térmico (calor convectivo + radiante).
+	# Solo aplica cuando la persona está expuesta a la capa superior caliente.
+	if fed_heat_enabled and in_upper_layer:
+		# --- Componente convectiva (ISO 13571 sec. 8.3) ---
+		var t_gas_c: float = room.temp_upper_c
+		if t_gas_c > fed_heat_conv_min_c:
+			var tenab_min: float = fed_heat_conv_a * pow(t_gas_c, -fed_heat_conv_n)
+			var tenab_s: float = tenab_min * 60.0
+			if tenab_s > 0.0:
+				delta_fed += dt / tenab_s
+		# --- Componente radiante (ISO 13571 §5.4.3) ---
+		var q_rad_kw_m2: float = room.upper_radiative_loss_kw * fed_heat_rad_view_factor
+		if q_rad_kw_m2 > 2.5:
+			var tenab_rad_s: float = fed_heat_rad_a / pow(q_rad_kw_m2, 1.33)
+			if tenab_rad_s > 0.0 and tenab_rad_s < 3600.0:
+				delta_fed += dt / tenab_rad_s
+
 	room.fed += maxf(0.0, delta_fed)
 
 	# SVV instantánea y peor histórica (monótona no creciente).
@@ -1108,8 +1212,11 @@ func estimate_plume_upper_depth_m(room: RoomModel) -> float:
 	if plume_fill_response_s > 0.0:
 		response = 1.0 - exp(-room.fire_time_s / plume_fill_response_s)
 
-	# Heurística simple de entrainment para aproximar la masa de gases calientes
-	# que alimenta la capa superior en un modelo zonal.
+	# Heurístico calibrado: plume_fill_depth_coeff × √HRR / A_floor.
+	# NOTA: McCaffrey (NBSIR 79-1910) da un caudal másico ṁ = 0.071·Qc^(1/3)·z^(5/3) [kg/s]
+	# que requiere integración temporal dz/dt = -ṁ/(ρ·A) para obtener la posición de la interface,
+	# no puede usarse directamente como "profundidad de capa" estática sin integración.
+	# Mientras se implementa la ODE de descenso de capa, se mantiene el coeficiente empírico.
 	var depth_m: float = plume_fill_depth_coeff * sqrt(room.hrr_kw) * response / floor_area_m2
 	var max_depth_m: float = room.height_m * plume_fill_max_fraction
 	return clampf(depth_m, 0.0, max_depth_m)
@@ -1119,7 +1226,11 @@ func effective_hot_layer_height_m(room: RoomModel) -> float:
 	if room == null:
 		return 0.0
 
-	var plume_layer_m: float = room.height_m - estimate_plume_upper_depth_m(room)
+	var hot_depth_m: float = maxf(
+		estimate_plume_upper_depth_m(room),
+		estimate_retained_hot_layer_depth_m(room)
+	)
+	var plume_layer_m: float = room.height_m - hot_depth_m
 	return clampf(minf(room.thermal_layer_m, plume_layer_m), 0.0, room.height_m)
 
 

@@ -9,6 +9,11 @@
 	"spread_target_room_id": 1,
 	"l150_room_id": 0,
 	"engine_overrides": {
-		"time_scale": 5.0
+		"time_scale": 5.0,
+		"fire_latent_enabled": false,
+		"fire_unburned_generation_fraction": 0.0,
+		"fire_pool_release_max_fraction": 0.0,
+		"fire_extinction_hrr_kw": 120.0,
+		"fire_extinction_delay_s": 300.0
 	}
 }

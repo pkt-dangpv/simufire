@@ -16,6 +16,13 @@ Para correr toda la bateria con parada al primer fallo y resumen final:
 powershell -ExecutionPolicy Bypass -File .\sim\validation\run_all_cases.ps1
 ```
 
+Para regenerar los casos de referencia externa y comparar contra el CSV CFAST/NIST
+local y las metricas del paper de Ghanekar:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\sim\validation\run_reference_checks.ps1
+```
+
 Para proteger la sesion de cuelgues, ambos wrappers aceptan `-TimeoutSeconds`:
 
 ```powershell
@@ -60,11 +67,14 @@ al proyecto para no depender del log por defecto de `user://logs`:
 - `postfire_decay`: extincion, deposicion de humo residual y retorno termico casi ambiente
 - `layer150_tenability`: mismo escenario base prolongado, centrado en `L150` y temperatura a `1.8 m`
 - `tmp_r2_window_open_start`: fuego en salon con ventana exterior abierta desde inicio en Dormitorio1; valida contaminantes, calentamiento moderado por ruta remota de ventilacion y que `R0` no se extinga falsamente cuando la ruta `R0 -> pasillo -> R2 -> exterior` sigue abierta
+- `cfast_r0_window_360`: caso de ventana a exterior abierta en `t=360 s`, calibrado contra el input/CSV CFAST local de NIST
+- `ghanekar_bedroom_hallway`: caso residencial calibrado contra metricas medibles del paper de Ghanekar
 
 ## Salidas
 
 - reportes JSON en `sim/validation/reports/`
 - si existe un baseline con el mismo nombre en `sim/validation/baselines/`, el runner compara y devuelve `PASS/FAIL`
+- `run_reference_checks.ps1` escribe `sim/validation/reports/reference_checks.json` con checks obligatorios y gaps conocidos no bloqueantes
 
 ## Nota sobre extincion
 

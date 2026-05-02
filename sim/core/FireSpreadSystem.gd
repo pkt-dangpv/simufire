@@ -18,7 +18,7 @@ var _combustion_system: CombustionSystem
 
 # Parámetros de propagación
 var fire_spread_enabled: bool = true
-var fire_spread_ignition_temp_c: float = 340.0
+var fire_spread_ignition_temp_c: float = 300.0
 var fire_spread_max_layer_m: float = 1.6
 var fire_spread_min_smoke_kg: float = 0.08
 var fire_spread_min_source_hrr_kw: float = 180.0

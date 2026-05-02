@@ -55,6 +55,8 @@ var _extinction_countdown: float = 30.0
 var _prev_open_fracs: Dictionary = {}
 # Evita lanzar Python más de una vez por simulación.
 var _graphs_launched: bool = false
+var _last_graphs_dir: String = ""
+var _last_graph_generation_ok: bool = false
 
 # ============================================================
 # ROTURA DE CRISTAL
@@ -149,6 +151,9 @@ var smoke_deposited_total_kg: float = 0.0
 @export var fire_latent_hold_upper_temp_c: float = 140.0
 @export var fire_latent_hold_lower_temp_c: float = 60.0
 @export var fire_latent_min_remaining_fuel_MJ: float = 25.0
+# Margen de O2 por encima de o2_min_for_flame necesario para sostener fuego latente.
+# Evita el fuego zombi cuando ACH mantiene O2 justo por encima del umbral de llama.
+@export var fire_latent_o2_viable_margin: float = 0.008
 
 # Tiempo máximo de actividad del fuego. Pasado este tiempo el combustible se considera
 # agotado y el fuego se extingue (evita zombie fire en equilibrio O2/HRR).
@@ -243,7 +248,7 @@ var smoke_deposited_total_kg: float = 0.0
 @export var retained_hot_layer_temp_full_c: float = 350.0
 @export var retained_hot_layer_o2_start: float = 0.18
 @export var retained_hot_layer_o2_full: float = 0.10
-@export var retained_hot_layer_max_fraction: float = 0.85
+@export var retained_hot_layer_max_fraction: float = 0.0
 @export var outside_open_loss_area_fraction: float = 0.12
 @export var outside_open_ambient_loss_multiplier: float = 5.0
 @export var outside_open_wall_absorption_multiplier: float = 0.80
@@ -261,12 +266,44 @@ var smoke_deposited_total_kg: float = 0.0
 # ISO 19706 / NFPA: la interfaz 150°C desciende en segundos en flashover,
 # pero no instantáneamente al primer step de 10 s.
 @export var layer_150c_relax_down_per_s: float = 0.05
+
+# ============================================================
+# FED — HIPOXIA (ISO 13571)
+# ============================================================
+## Activar/desactivar el componente de hipoxia en el FED.
+@export var fed_hypoxia_enabled: bool = true
+## Constante a del modelo exponencial de hipoxia: t_crit = exp(a - b * déficit_O2%)
+## Valor de referencia ISO 13571: a = 8.13
+@export var fed_hypoxia_a: float = 8.13
+## Constante b del modelo exponencial de hipoxia.
+## Valor de referencia ISO 13571: b = 0.54
+@export var fed_hypoxia_b: float = 0.54
+
+# ============================================================
+# FED — CALOR (ISO 13571 §5.5)
+# ============================================================
+## Activar/desactivar el componente térmico (calor convectivo + radiante) en el FED.
+@export var fed_heat_enabled: bool = true
+## Constante A de la curva convectiva ISO 13571 sec. 8.3: tIconv(min)=A*T^-n.
+@export var fed_heat_conv_a: float = 4.1e8
+## Exponente n de la curva convectiva ISO 13571 sec. 8.3.
+@export var fed_heat_conv_n: float = 3.61
+## Temperatura mínima de gas (°C) para acumular FED convectivo (ISO 13571: 60°C).
+@export var fed_heat_conv_min_c: float = 60.0
+## Constante para el tiempo de tenabilidad radiante (ISO 13571 §5.4.3): t = A/q^1.33 [s, kW/m²].
+@export var fed_heat_rad_a: float = 1.33e4
+## Factor de vista radiante: fracción del flujo radiante total que incide sobre la persona.
+@export var fed_heat_rad_view_factor: float = 0.20
+
 @export var layer_150c_relax_up_per_s: float = 0.01
+
 
 # Absorción de calor por paredes — término proporcional simple sobre (T_upper - T_ambient).
 # Mismo patrón que upper_to_ambient_loss_rate: sin dividir por m_upper_kg → estable.
 # 0.003 /s → a 800°C de diferencia: 2.4°C/s adicionales (modest, calibratable).
 @export var wall_absorption_rate: float = 0.003
+@export var wall_heat_capacity_kj_m2_k: float = 20.0
+@export var wall_core_decay_per_s: float = 0.0002
 
 # ============================================================
 # VENTILACIÓN PULSANTE POR FUGAS EN VENTANAS
@@ -318,6 +355,9 @@ var smoke_deposited_total_kg: float = 0.0
 @export var plume_fill_depth_coeff: float = 0.60
 @export var plume_fill_response_s: float = 12.0
 @export var plume_fill_max_fraction: float = 0.85
+@export var plume_mccaffrey_enabled: bool = true
+@export var plume_mccaffrey_qc_fraction: float = 0.70
+@export var plume_fire_diameter_m: float = 1.0
 @export var thermal_plume_depth_scale: float = 0.40
 @export var target_smoke_resistance_coeff: float = 0.20
 @export var target_layer_block_start_m: float = 0.65
@@ -365,6 +405,8 @@ func _sync_auxiliary_services() -> void:
 		"upper_to_ambient_loss_rate": upper_to_ambient_loss_rate,
 		"lower_layer_warming_rate": lower_layer_warming_rate,
 		"wall_absorption_rate": wall_absorption_rate,
+		"wall_heat_capacity_kj_m2_k": wall_heat_capacity_kj_m2_k,
+		"wall_core_decay_per_s": wall_core_decay_per_s,
 		"max_upper_temp_c": max_upper_temp_c,
 		"upper_radiative_loss_enabled": upper_radiative_loss_enabled,
 		"upper_radiative_loss_start_c": upper_radiative_loss_start_c,
@@ -402,7 +444,19 @@ func _sync_auxiliary_services() -> void:
 		"doorway_o2_smoke_weight": doorway_o2_smoke_weight,
 		"doorway_o2_pressure_weight": doorway_o2_pressure_weight,
 		"pressure_spill_ref_delta_pa": pressure_spill_ref_delta_pa,
-		"interior_spill_start_layer_m": interior_spill_start_layer_m
+		"interior_spill_start_layer_m": interior_spill_start_layer_m,
+		"plume_mccaffrey_enabled": plume_mccaffrey_enabled,
+		"plume_mccaffrey_qc_fraction": plume_mccaffrey_qc_fraction,
+		"plume_fire_diameter_m": plume_fire_diameter_m,
+		"fed_hypoxia_enabled": fed_hypoxia_enabled,
+		"fed_hypoxia_a": fed_hypoxia_a,
+		"fed_hypoxia_b": fed_hypoxia_b,
+		"fed_heat_enabled": fed_heat_enabled,
+		"fed_heat_conv_a": fed_heat_conv_a,
+		"fed_heat_conv_n": fed_heat_conv_n,
+		"fed_heat_conv_min_c": fed_heat_conv_min_c,
+		"fed_heat_rad_a": fed_heat_rad_a,
+		"fed_heat_rad_view_factor": fed_heat_rad_view_factor
 	})
 	fire_spread_system.set_references(building, smoke_model, combustion_system)
 	fire_spread_system.configure({
@@ -508,6 +562,8 @@ func _ready() -> void:
 	_resolve_building()
 	if building != null and building.default_ignition_room_id != 0:
 		ignition_room_id = building.default_ignition_room_id
+	if building != null and building.sim_stop_time_s > 0.0:
+		sim_duration_limit_s = building.sim_stop_time_s
 	combustion_system.bootstrap_building(building)
 	_sync_smoke_model_settings()
 	_sync_auxiliary_services()
@@ -525,7 +581,6 @@ func _ready() -> void:
 # ============================================================
 
 func _reset_log_file() -> void:
-	_sync_auxiliary_services()
 	log_writer.reset_log_file()
 
 # ============================================================
@@ -581,6 +636,8 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	_extinction_countdown = extinction_grace_s
 	_prev_open_fracs.clear()
 	_graphs_launched = false
+	_last_graphs_dir = ""
+	_last_graph_generation_ok = false
 	glass_failure_system.reset()
 
 	for room_id in building.get_rooms().keys():
@@ -588,6 +645,8 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 		_reset_room_state(room)
 
 	combustion_system.bootstrap_building(building)
+	if building != null and building.sim_stop_time_s > 0.0:
+		sim_duration_limit_s = building.sim_stop_time_s
 	_reset_log_file()
 
 	if ignite_initial_fire:
@@ -763,6 +822,7 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_latent_hold_upper_temp_c": fire_latent_hold_upper_temp_c,
 		"fire_latent_hold_lower_temp_c": fire_latent_hold_lower_temp_c,
 		"fire_latent_min_remaining_fuel_MJ": fire_latent_min_remaining_fuel_MJ,
+		"fire_latent_o2_viable_margin": fire_latent_o2_viable_margin,
 		"fire_max_active_s": fire_max_active_s,
 		"co_base_yield_kg_per_MJ": co_base_yield_kg_per_MJ,
 		"co_max_yield_kg_per_MJ": co_max_yield_kg_per_MJ,
@@ -1034,6 +1094,7 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 			and breathing_hot_enough \
 			and (not flashover_require_tenability_loss or tenability_lost):
 		room.flashover_triggered = true
+		room.flashover_time_s = sim_time_s
 		# Escalar la ganancia secundaria en proporción al tamaño de la habitación.
 		# Evita que recintos con menor capacidad térmica reciban la misma
 		# secondary_hrr_gain que la habitación de referencia (fire_max_hrr_kw).
@@ -1157,11 +1218,19 @@ func are_graphs_launched() -> bool:
 	return _graphs_launched
 
 
-func stop_and_generate_graphs(details: String = "manual_stop_button") -> bool:
+func get_last_graphs_dir() -> String:
+	return _last_graphs_dir
+
+
+func was_last_graph_generation_ok() -> bool:
+	return _last_graph_generation_ok
+
+
+func stop_and_generate_graphs(details: String = "manual_stop_button", graphs_root: String = "") -> bool:
 	if sim_time_s <= 0.0 or _graphs_launched:
 		return false
 
-	_finish_and_launch_graphs(details)
+	_finish_and_launch_graphs(details, graphs_root, true)
 	return true
 
 # ============================================================
@@ -1215,20 +1284,22 @@ func _on_sim_finished() -> void:
 	_finish_and_launch_graphs("")
 
 
-func _finish_and_launch_graphs(details: String) -> void:
+func _finish_and_launch_graphs(details: String, graphs_root: String = "", wait_for_finish: bool = false) -> void:
 	if _graphs_launched or sim_time_s <= 0.0:
 		return
 
 	is_finished = true
 	_force_log_final_snapshot()
 	_graphs_launched = true
+	_last_graphs_dir = ""
+	_last_graph_generation_ok = false
 
 	if details.is_empty():
 		log_writer.append_event(sim_time_s, "sim_end", "")
 	else:
 		log_writer.append_event(sim_time_s, "sim_end", details)
 	if _should_launch_graphs():
-		_launch_graph_generator()
+		_launch_graph_generator(graphs_root, wait_for_finish)
 
 
 func _force_log_final_snapshot() -> void:
@@ -1236,21 +1307,60 @@ func _force_log_final_snapshot() -> void:
 	log_writer.append_snapshot_now(sim_time_s, get_state())
 
 
-func _launch_graph_generator() -> void:
+func _launch_graph_generator(graphs_root: String = "", wait_for_finish: bool = false) -> void:
 	var script_path: String = ProjectSettings.globalize_path("res://scripts/generate_fire_graphs.py")
+	var latest_path: String = ProjectSettings.globalize_path("user://latest_graphs_dir.txt")
+	var args: PackedStringArray = PackedStringArray([script_path, "--latest-file", latest_path, "--copy-log"])
+	if graphs_root.strip_edges() != "":
+		args.append("--out-root")
+		args.append(graphs_root)
+
 	var pid: int = -1
+	var exit_code: int = -1
+	var output: Array = []
 	# En Windows, "python" puede no estar en el PATH de Godot.
 	# cmd.exe /c busca en el PATH del sistema, igual que un terminal normal.
+	if wait_for_finish:
+		if OS.get_name() == "Windows":
+			var win_args: PackedStringArray = PackedStringArray(["/c", "python"])
+			win_args.append_array(args)
+			exit_code = OS.execute("cmd.exe", win_args, output, true)
+		else:
+			exit_code = OS.execute("python3", args, output, true)
+			if exit_code != 0:
+				exit_code = OS.execute("python", args, output, true)
+
+		_last_graph_generation_ok = exit_code == 0
+		_last_graphs_dir = _read_latest_graphs_dir(latest_path)
+		if _last_graph_generation_ok:
+			print("[SimulationEngine] Graficas generadas en: %s" % _last_graphs_dir)
+		else:
+			push_warning("[SimulationEngine] No se pudieron generar graficas. Ejecuta: python scripts/generate_fire_graphs.py")
+		return
+
 	if OS.get_name() == "Windows":
-		pid = OS.create_process("cmd.exe", ["/c", "python", script_path])
+		var win_process_args: PackedStringArray = PackedStringArray(["/c", "python"])
+		win_process_args.append_array(args)
+		pid = OS.create_process("cmd.exe", win_process_args)
 	else:
-		pid = OS.create_process("python3", [script_path])
+		pid = OS.create_process("python3", args)
 		if pid <= 0:
-			pid = OS.create_process("python", [script_path])
+			pid = OS.create_process("python", args)
 	if pid > 0:
 		print("[SimulationEngine] Generando gráficas (PID %d)..." % pid)
 	else:
 		push_warning("[SimulationEngine] No se pudo lanzar Python. Ejecuta: python scripts/generate_fire_graphs.py")
+
+
+func _read_latest_graphs_dir(latest_path: String) -> String:
+	if not FileAccess.file_exists(latest_path):
+		return ""
+	var file := FileAccess.open(latest_path, FileAccess.READ)
+	if file == null:
+		return ""
+	var value: String = file.get_as_text().strip_edges()
+	file.close()
+	return value
 
 
 func _should_launch_graphs() -> bool:

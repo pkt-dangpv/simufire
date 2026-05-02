@@ -49,8 +49,10 @@ class_name Visualizer
 @export var show_hrr_bar: bool = true
 @export var show_openings: bool = true
 @export var show_room_labels: bool = true
-@export var show_room_name: bool = false
+@export var show_room_name: bool = true
 @export var show_opening_labels: bool = false
+@export var show_fuel_objects: bool = true
+@export var show_fuel_object_names: bool = true
 
 # ============================================================
 # HUMO / CALOR / FUEGO
@@ -72,8 +74,13 @@ class_name Visualizer
 @export var fire_core_color: Color = Color(1.0, 0.82, 0.35, 1.0)
 @export var flashover_fill_color: Color = Color(1.0, 0.20, 0.05, 0.24)
 @export var flashover_outline_color: Color = Color(1.0, 0.45, 0.05, 1.0)
+@export var flashover_indicator_duration_s: float = 22.0
 @export var active_fire_outline_color: Color = Color(1.0, 0.62, 0.14, 1.0)
-@export var low_o2_outline_color: Color = Color(0.85, 0.25, 0.25, 1.0)
+@export var low_o2_outline_color: Color = Color(0.30, 0.68, 1.0, 1.0)
+
+@export var fuel_object_fill_color: Color = Color(0.95, 0.55, 0.22, 0.72)
+@export var fuel_object_outline_color: Color = Color(0.16, 0.08, 0.04, 0.92)
+@export var fuel_object_label_color: Color = Color(1.0, 0.96, 0.86, 0.96)
 
 # ============================================================
 # MINI-SECCION
@@ -139,7 +146,8 @@ class_name Visualizer
 var state: Dictionary = {}
 var rects_m: Dictionary[int, Rect2] = {}
 
-@onready var building: BuildingModel = $"../BuildingModel" as BuildingModel
+@export var building_path: NodePath
+var building: BuildingModel = null
 
 
 # ============================================================
@@ -147,6 +155,10 @@ var rects_m: Dictionary[int, Rect2] = {}
 # ============================================================
 
 func _ready() -> void:
+	if building_path and not building_path.is_empty():
+		building = get_node(building_path) as BuildingModel
+	if building == null:
+		building = get_node_or_null("../BuildingModel") as BuildingModel
 	if building != null:
 		rects_m = building.get_room_rects_m()
 
@@ -219,6 +231,9 @@ func _draw() -> void:
 
 		if show_hrr_bar:
 			_draw_hrr_bar(content_rect, hrr_kw)
+
+		if show_fuel_objects:
+			_draw_room_fuel_objects(id, rs)
 
 		if show_room_labels:
 			_draw_room_label(id, rpx, rs)
@@ -308,7 +323,7 @@ func _draw_room_atmosphere_overlay(
 			true
 		)
 
-	if show_flashover_highlight and bool(rs.get("flashover_triggered", false)):
+	if show_flashover_highlight and _is_flashover_indicator_visible(rs):
 		var pulse: float = 0.72 + 0.28 * (0.5 + 0.5 * sin(float(state.get("sim_time_s", 0.0)) * 6.0))
 		draw_rect(
 			rpx,
@@ -346,7 +361,7 @@ func _draw_room_fire_overlay(rpx: Rect2, rs: Dictionary) -> void:
 		Color(fire_core_color.r, fire_core_color.g, fire_core_color.b, 0.14 + 0.34 * fire_intensity)
 	)
 
-	if bool(rs.get("flashover_triggered", false)):
+	if _is_flashover_indicator_visible(rs):
 		var pulse: float = 0.75 + 0.25 * (0.5 + 0.5 * sin(float(state.get("sim_time_s", 0.0)) * 7.0))
 		draw_circle(
 			center,
@@ -500,6 +515,81 @@ func _draw_hrr_bar(rpx: Rect2, hrr_kw: float) -> void:
 
 
 # ============================================================
+# OBJETOS COMBUSTIBLES
+# ============================================================
+
+func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
+	if not rects_m.has(room_id):
+		return
+
+	var objects: Array = rs.get("fuel_objects", [])
+	if objects.is_empty():
+		return
+
+	var room_rect_m: Rect2 = rects_m[room_id]
+	for raw_obj in objects:
+		if typeof(raw_obj) != TYPE_DICTIONARY:
+			continue
+		var obj: Dictionary = raw_obj
+		var pos_m: Vector2 = _vector2_from_variant(obj.get("position_m", Vector2.ZERO))
+		var size_m: Vector2 = _vector2_from_variant(obj.get("size_m", Vector2.ONE))
+		if size_m.x <= 0.01 or size_m.y <= 0.01:
+			continue
+
+		var obj_rect_px: Rect2 = _to_px(Rect2(room_rect_m.position + pos_m, size_m))
+		if obj_rect_px.size.x < 3.0 or obj_rect_px.size.y < 3.0:
+			continue
+
+		var state_name: String = String(obj.get("state", "cold"))
+		var fill: Color = _fuel_object_color_for_state(state_name)
+		draw_rect(obj_rect_px, fill, true)
+		draw_rect(obj_rect_px, fuel_object_outline_color, false, 1.0)
+
+		if bool(obj.get("is_primary_ignition_source", false)):
+			draw_circle(obj_rect_px.get_center(), minf(obj_rect_px.size.x, obj_rect_px.size.y) * 0.18, fire_core_color)
+
+		if show_fuel_object_names and ThemeDB.fallback_font != null and obj_rect_px.size.x >= 24.0 and obj_rect_px.size.y >= 14.0:
+			var label: String = String(obj.get("name", obj.get("kind", "")))
+			if label == "":
+				label = String(obj.get("id", "obj"))
+			var label_pos: Vector2 = obj_rect_px.position + Vector2(3.0, minf(13.0, obj_rect_px.size.y - 2.0))
+			draw_string(
+				ThemeDB.fallback_font,
+				label_pos + Vector2(1.0, 1.0),
+				label,
+				HORIZONTAL_ALIGNMENT_LEFT,
+				maxf(12.0, obj_rect_px.size.x - 6.0),
+				9,
+				Color(0.0, 0.0, 0.0, 0.80)
+			)
+			draw_string(
+				ThemeDB.fallback_font,
+				label_pos,
+				label,
+				HORIZONTAL_ALIGNMENT_LEFT,
+				maxf(12.0, obj_rect_px.size.x - 6.0),
+				9,
+				fuel_object_label_color
+			)
+
+
+func _fuel_object_color_for_state(state_name: String) -> Color:
+	match state_name:
+		"flaming":
+			return Color(1.0, 0.24, 0.10, 0.82)
+		"pyrolyzing":
+			return Color(1.0, 0.55, 0.12, 0.78)
+		"heating":
+			return Color(1.0, 0.78, 0.22, 0.72)
+		"decaying":
+			return Color(0.75, 0.38, 0.18, 0.62)
+		"burned_out":
+			return Color(0.24, 0.24, 0.24, 0.55)
+		_:
+			return fuel_object_fill_color
+
+
+# ============================================================
 # ETIQUETA DE SALA
 # ============================================================
 
@@ -606,11 +696,11 @@ func _build_room_label_lines(id: int, content_rect: Rect2, rs: Dictionary) -> Ar
 	var hrr: float = float(rs.get("hrr_kw", 0.0))
 	var o2v: float = float(rs.get("o2", 0.0) * 100.0)
 	var room_name: String = String(rs.get("name", ""))
-	var fuel_mj: float = float(rs.get("fuel_energy_MJ", 0.0))
-	var rem_mj: float = float(rs.get("remaining_fuel_MJ", 0.0))
+	var fuel_mj: float = float(rs.get("fuel_capacity_MJ", rs.get("fuel_energy_MJ", 0.0)))
+	var rem_mj: float = float(rs.get("fuel_objects_remaining_MJ", rs.get("remaining_fuel_MJ", 0.0)))
 	var co_ppm: float = float(rs.get("co_ppm", 0.0))
 	var fed_val: float = float(rs.get("fed", 0.0))
-	var flashover_triggered: bool = bool(rs.get("flashover_triggered", false))
+	var flashover_triggered: bool = _is_flashover_indicator_visible(rs)
 	var detail: String = _pick_room_label_detail(content_rect)
 
 	var svv_pct_val: float = _compute_svv_pct(rs)
@@ -634,6 +724,7 @@ func _build_room_label_lines(id: int, content_rect: Rect2, rs: Dictionary) -> Ar
 			lines.append("HRR %.0f kW" % hrr)
 			lines.append("T %.0f / %.0f C" % [up, low])
 			lines.append("O2 %.1f%%  CO %.0f" % [o2v, co_ppm])
+			lines.append("Comb %.0f MJ" % rem_mj)
 			lines.append("FED %.2f  SVV %.0f%%" % [fed_val, svv_pct_val])
 			if flashover_triggered:
 				lines.append("FLASHOVER")
@@ -643,6 +734,7 @@ func _build_room_label_lines(id: int, content_rect: Rect2, rs: Dictionary) -> Ar
 			lines.append("T↑ %.0f  T↓ %.0f C" % [up, low])
 			lines.append("SmL %.2f m  L150 %.2f" % [smoke_lay, layer_150c])
 			lines.append("O2 %.1f%%  CO %.0f ppm" % [o2v, co_ppm])
+			lines.append("Comb %.0f / %.0f MJ" % [rem_mj, fuel_mj])
 			lines.append("FED %.3f  SVV %.0f%%" % [fed_val, svv_pct_val])
 			var med_win: String = _build_window_status_label(rs)
 			if med_win != "":
@@ -978,7 +1070,7 @@ func _build_room_outline_style(rs: Dictionary) -> Dictionary:
 	var o2_fraction: float = float(rs.get("o2", 0.209))
 	var sim_time_s: float = float(state.get("sim_time_s", 0.0))
 
-	if show_flashover_highlight and bool(rs.get("flashover_triggered", false)):
+	if show_flashover_highlight and _is_flashover_indicator_visible(rs):
 		var pulse: float = 0.70 + 0.30 * (0.5 + 0.5 * sin(sim_time_s * 6.0))
 		outline_color = Color(
 			flashover_outline_color.r,
@@ -1004,6 +1096,29 @@ func _build_room_outline_style(rs: Dictionary) -> Dictionary:
 		"color": outline_color,
 		"width": outline_width
 	}
+
+
+func _is_flashover_indicator_visible(rs: Dictionary) -> bool:
+	if not bool(rs.get("flashover_triggered", false)):
+		return false
+	var flash_time_s: float = float(rs.get("flashover_time_s", -1.0))
+	if flash_time_s < 0.0:
+		return true
+	var sim_time_s: float = float(state.get("sim_time_s", 0.0))
+	return sim_time_s <= flash_time_s + maxf(1.0, flashover_indicator_duration_s)
+
+
+func _vector2_from_variant(value: Variant) -> Vector2:
+	if typeof(value) == TYPE_VECTOR2:
+		return value
+	if typeof(value) == TYPE_DICTIONARY:
+		var data: Dictionary = value
+		return Vector2(float(data.get("x", 0.0)), float(data.get("y", 0.0)))
+	if typeof(value) == TYPE_ARRAY:
+		var values: Array = value
+		if values.size() >= 2:
+			return Vector2(float(values[0]), float(values[1]))
+	return Vector2.ZERO
 
 
 func _build_section_gauge_rect(rpx: Rect2) -> Rect2:

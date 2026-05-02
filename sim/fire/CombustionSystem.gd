@@ -408,14 +408,21 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		if room.retained_unburned_MJ < 0.5 or room.hrr_kw <= extinction_hrr_kw:
 			return _extinguish_room_fire(room, fire)
 
+	var extinction_delay_s: float = float(context.get("fire_extinction_delay_s", 0.0))
+	if not can_flame \
+			and not latent_viable \
+			and room.fire_dormant_time_s >= extinction_delay_s:
+		return _extinguish_room_fire(room, fire)
+
 	var oxygen_starved: bool = room.fire_time_s > 60.0 \
 			and raw_o2_factor <= float(context.get("fire_starvation_o2_factor", 0.0)) \
 			and room.retained_unburned_MJ < 0.5
+	var heat_release_collapsed: bool = room.hrr_target_kw <= extinction_hrr_kw * 0.25
 	if not (not can_flame and latent_viable) \
-			and (room.hrr_kw < extinction_hrr_kw or oxygen_starved) \
+			and (room.hrr_kw < extinction_hrr_kw or oxygen_starved or heat_release_collapsed) \
 			and room.fire_time_s > 60.0:
 		room.fire_low_hrr_time_s += dt
-		if room.fire_low_hrr_time_s >= float(context.get("fire_extinction_delay_s", 0.0)):
+		if room.fire_low_hrr_time_s >= extinction_delay_s:
 			return _extinguish_room_fire(room, fire)
 	else:
 		room.fire_low_hrr_time_s = 0.0
@@ -918,6 +925,14 @@ func _can_sustain_latent_fire(
 		maxf(0.02, fire.o2_min_for_flame * 0.25)
 	)
 	if room.o2 < latent_o2_floor:
+		return false
+
+	# El pool retenido necesita O2 significativamente por encima del mínimo de llama
+	# para sostener combustión latente/smoldering. Si O2 está apenas por encima del
+	# umbral (ej. equilibrio ACH), la infiltración mantiene el fuego zombi vivo.
+	# fire_latent_o2_viable_margin = margen mínimo por encima de o2_min_for_flame.
+	var latent_o2_viable_margin: float = float(context.get("fire_latent_o2_viable_margin", 0.008))
+	if room.o2 < fire.o2_min_for_flame + latent_o2_viable_margin:
 		return false
 
 	if room.retained_unburned_MJ >= 1.0:
