@@ -21,6 +21,12 @@
 		"log_interval_s": 10.0,
 		"log_file_path": "res://sim/validation/reports/tmp_r2_window_open_start.log",
 		"glass_auto_break_enabled": false,
-		"fire_spread_enabled": false
+		"fire_spread_enabled": false,
+		"fire_alpha_kw_s2": 0.12,
+		"fire_o2_min_for_flame": 0.10,
+		"fire_secondary_hrr_gain_kw": 2500.0,
+		"fire_latent_o2_viable_margin": 0.008,
+		"fire_extinction_delay_s": 240.0,
+		"fire_latent_extinction_delay_s": 300.0
 	}
 }

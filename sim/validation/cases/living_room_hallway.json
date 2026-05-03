@@ -9,6 +9,12 @@
 	"spread_target_room_id": 1,
 	"l150_room_id": 1,
 	"engine_overrides": {
-		"time_scale": 5.0
+		"time_scale": 5.0,
+		"fire_alpha_kw_s2": 0.12,
+		"fire_o2_min_for_flame": 0.10,
+		"fire_secondary_hrr_gain_kw": 2500.0,
+		"fire_latent_o2_viable_margin": 0.008,
+		"fire_extinction_delay_s": 240.0,
+		"fire_latent_extinction_delay_s": 300.0
 	}
 }

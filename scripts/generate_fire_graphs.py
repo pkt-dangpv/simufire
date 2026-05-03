@@ -43,6 +43,13 @@ _godot_user_log = os.path.join(
     os.environ.get("APPDATA", ""),
     r"Godot\app_userdata\simufire\sim_log.txt"
 )
+_project_csv = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "sim_log.csv")
+)
+_godot_user_csv = os.path.join(
+    os.environ.get("APPDATA", ""),
+    r"Godot\app_userdata\simufire\sim_log.csv"
+)
 
 # Prioridad: log del proyecto (res://) siempre que exista y no este vacio;
 # si no, se usa el de user:// como respaldo.
@@ -52,6 +59,13 @@ elif os.path.exists(_godot_user_log):
     LOG_PATH = _godot_user_log
 else:
     LOG_PATH = _project_log
+
+if os.path.exists(_project_csv) and os.path.getsize(_project_csv) > 0:
+    CSV_PATH = _project_csv
+elif os.path.exists(_godot_user_csv):
+    CSV_PATH = _godot_user_csv
+else:
+    CSV_PATH = _project_csv
 
 DEFAULT_GRAPHS_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "graphs")
@@ -463,9 +477,11 @@ def plot_room(room_id, r, room_dir, events=None):
 def _parse_args():
     parser = argparse.ArgumentParser(description="Genera graficas de SimuFire desde sim_log.txt")
     parser.add_argument("--log", default=LOG_PATH, help="Ruta del log de simulacion")
+    parser.add_argument("--csv", default=CSV_PATH, help="Ruta del CSV de simulacion")
     parser.add_argument("--out-root", default=DEFAULT_GRAPHS_ROOT, help="Carpeta donde crear la subcarpeta de graficas")
     parser.add_argument("--latest-file", default="", help="Archivo donde escribir la carpeta final generada")
     parser.add_argument("--copy-log", action="store_true", help="Copia el log usado dentro de la carpeta final")
+    parser.add_argument("--copy-csv", action="store_true", help="Copia el CSV usado dentro de la carpeta final")
     return parser.parse_args()
 
 
@@ -499,6 +515,16 @@ def main():
             shutil.copy2(log_path, os.path.join(out_root, "sim_log.txt"))
         except OSError as exc:
             print("Aviso: no se pudo copiar el log: %s" % exc)
+
+    if args.copy_csv:
+        csv_path = os.path.abspath(args.csv)
+        if os.path.exists(csv_path) and os.path.getsize(csv_path) > 0:
+            try:
+                shutil.copy2(csv_path, os.path.join(out_root, "sim_log.csv"))
+            except OSError as exc:
+                print("Aviso: no se pudo copiar el CSV: %s" % exc)
+        else:
+            print("Aviso: no se encontro CSV para copiar: %s" % csv_path)
 
     if args.latest_file:
         latest_path = os.path.abspath(args.latest_file)

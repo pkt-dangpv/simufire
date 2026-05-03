@@ -92,9 +92,15 @@ var smoke_deposited_total_kg: float = 0.0
 # PARÁMETROS BASE DEL FUEGO
 # ============================================================
 
-@export var fire_alpha_kw_s2: float = 0.12
+# NFPA 72 categorías: lento=0.003, medio=0.012, rápido=0.047, ultra-rápido=0.188 kW/s²
+# Para mobiliario residencial tapizado (sofá, textiles) la categoría «rápido» es la
+# referencia habitual en estudios NFPA/SFPE. Con α=0.047 el fuego alcanza 1 MW en ~146s.
+@export var fire_alpha_kw_s2: float = 0.047
 @export var fire_max_hrr_kw: float = 3000.0
-@export var fire_secondary_hrr_gain_kw: float = 2500.0
+# Incremento de max_hrr tras flashover. Refleja la incorporación simultánea de todos
+# los combustibles de la sala. Limitado a 800 kW: el pico real está acotado por la
+# ventilación (Kawagoe) y el O2 disponible, no por un bonus arbitrario.
+@export var fire_secondary_hrr_gain_kw: float = 800.0
 
 # Coeficiente de Kawagoe (SFPE/Drysdale): HRR_max = kawagoe_coeff × Σ(A_v × √H_v)
 # Valor de referencia para madera: ~1500 kW/m^(5/2).  Reducir para materiales
@@ -102,7 +108,10 @@ var smoke_deposited_total_kg: float = 0.0
 @export var kawagoe_coeff: float = 1500.0
 
 @export var fire_o2_nominal: float = 0.209
-@export var fire_o2_min_for_flame: float = 0.10
+# Concentración mínima de O2 (fracción volumétrica) para mantener llama sostenida.
+# SFPE/Drysdale: la combustión con llama de sólidos orgánicos cesa generalmente
+# por debajo del 12-14 % de O2. Valor de referencia: 0.122 (12.2 %).
+@export var fire_o2_min_for_flame: float = 0.122
 @export var fire_o2_consumption_kg_per_MJ: float = 0.076  # Regla de Thornton: 1/13.1 MJ/kgO2
 # Rendimiento de humo (kg/MJ)
 # SFPE: ~0.06 kg/kg ÷ 16 MJ/kg = 0.00375 kg/MJ
@@ -145,15 +154,16 @@ var smoke_deposited_total_kg: float = 0.0
 # Umbral de extinción: si el HRR real cae por debajo durante fire_extinction_delay_s
 # segundos, el fuego se considera extinto (modela apagado por falta de ventilación).
 @export var fire_extinction_hrr_kw: float = 8.0
-@export var fire_extinction_delay_s: float = 240.0
+@export var fire_extinction_delay_s: float = 180.0
 @export var fire_latent_enabled: bool = true
-@export var fire_latent_extinction_delay_s: float = 300.0
+@export var fire_latent_extinction_delay_s: float = 180.0
 @export var fire_latent_hold_upper_temp_c: float = 140.0
 @export var fire_latent_hold_lower_temp_c: float = 60.0
 @export var fire_latent_min_remaining_fuel_MJ: float = 25.0
 # Margen de O2 por encima de o2_min_for_flame necesario para sostener fuego latente.
-# Evita el fuego zombi cuando ACH mantiene O2 justo por encima del umbral de llama.
-@export var fire_latent_o2_viable_margin: float = 0.008
+# Con o2_min_for_flame=0.122, el fuego latente requiere O2 > 0.122+0.015 = 13.7 %.
+# Evita el fuego zombi (ACH no puede mantener 13.7 % en sala casi sellada con fuego).
+@export var fire_latent_o2_viable_margin: float = 0.015
 
 # Tiempo máximo de actividad del fuego. Pasado este tiempo el combustible se considera
 # agotado y el fuego se extingue (evita zombie fire en equilibrio O2/HRR).
@@ -389,6 +399,9 @@ var smoke_deposited_total_kg: float = 0.0
 @export var enable_logging: bool = true
 @export var log_interval_s: float = 10.0
 @export var log_file_path: String = "res://sim_log.txt"
+## Si es true, también guarda el log en formato CSV al parar la simulación.
+@export var enable_csv_log: bool = true
+@export var csv_log_file_path: String = "res://sim_log.csv"
 
 # ============================================================
 # SERVICIOS AUXILIARES
@@ -512,6 +525,7 @@ func _sync_auxiliary_services() -> void:
 		"doorway_o2_background_min_factor": doorway_o2_background_min_factor
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
+	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
 
 
 func _build_state_context() -> Dictionary:
@@ -1311,6 +1325,12 @@ func _launch_graph_generator(graphs_root: String = "", wait_for_finish: bool = f
 	var script_path: String = ProjectSettings.globalize_path("res://scripts/generate_fire_graphs.py")
 	var latest_path: String = ProjectSettings.globalize_path("user://latest_graphs_dir.txt")
 	var args: PackedStringArray = PackedStringArray([script_path, "--latest-file", latest_path, "--copy-log"])
+	if enable_csv_log:
+		var csv_path: String = log_writer.resolve_csv_file_path()
+		if csv_path.strip_edges() != "":
+			args.append("--csv")
+			args.append(csv_path)
+			args.append("--copy-csv")
 	if graphs_root.strip_edges() != "":
 		args.append("--out-root")
 		args.append(graphs_root)

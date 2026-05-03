@@ -15,9 +15,15 @@ var enabled: bool = true
 var interval_s: float = 10.0
 var log_file_path: String = "user://sim_log.txt"
 
+var csv_enabled: bool = true
+var csv_file_path: String = "user://sim_log.csv"
+
 var _next_log_time_s: float = 0.0
 var _resolved_log_file_path: String = ""
 var _log_io_failed: bool = false
+var _resolved_csv_file_path: String = ""
+var _csv_io_failed: bool = false
+var _csv_header_written: bool = false
 
 
 func configure(is_enabled: bool, interval_seconds: float, path: String) -> void:
@@ -26,10 +32,18 @@ func configure(is_enabled: bool, interval_seconds: float, path: String) -> void:
 	log_file_path = path
 
 
+func configure_csv(is_enabled: bool, path: String) -> void:
+	csv_enabled = is_enabled
+	csv_file_path = path
+
+
 func reset_log_file() -> void:
 	_next_log_time_s = 0.0
 	_resolved_log_file_path = ""
 	_log_io_failed = false
+	_resolved_csv_file_path = ""
+	_csv_io_failed = false
+	_csv_header_written = false
 
 	if not enabled:
 		return
@@ -42,6 +56,13 @@ func reset_log_file() -> void:
 	file.store_line("")
 	file.close()
 
+	if csv_enabled:
+		var csv_file := _open_csv_file(FileAccess.WRITE)
+		if csv_file != null:
+			csv_file.store_line(_build_csv_header())
+			csv_file.close()
+			_csv_header_written = true
+
 
 func resolve_log_file_path() -> String:
 	if not _resolved_log_file_path.is_empty():
@@ -49,6 +70,13 @@ func resolve_log_file_path() -> String:
 
 	var candidates: Array[String] = _get_log_file_candidates()
 	return candidates[0] if not candidates.is_empty() else log_file_path
+
+
+func resolve_csv_file_path() -> String:
+	if not _resolved_csv_file_path.is_empty():
+		return _resolved_csv_file_path
+
+	return _normalize_log_path(csv_file_path)
 
 
 func should_log(sim_time_s: float) -> bool:
@@ -60,6 +88,8 @@ func append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		return
 
 	_append_snapshot(sim_time_s, state)
+	if csv_enabled:
+		_append_csv_snapshot(sim_time_s, state)
 	_next_log_time_s += interval_s
 
 
@@ -68,6 +98,8 @@ func append_snapshot_now(sim_time_s: float, state: Dictionary) -> void:
 		return
 
 	_append_snapshot(sim_time_s, state)
+	if csv_enabled:
+		_append_csv_snapshot(sim_time_s, state)
 
 
 ## Escribe una línea de evento al log de forma inmediata (fuera del intervalo normal).
@@ -270,3 +302,72 @@ func _collect_room_ids(state: Dictionary) -> Array[int]:
 			room_ids.append(int(key_str))
 	room_ids.sort()
 	return room_ids
+
+
+# ============================================================
+# CSV
+# ============================================================
+
+func _build_csv_header() -> String:
+	return "time_s,room_id,room_name,hrr_kw,temp_upper_c,temp_lower_c,temp_at_0_9m_c,smoke_kg,smoke_layer_m,hot_layer_m,layer_150c_m,overpressure_pa,o2,co_ppm,co_upper_ppm,co2_ppm,fed,svv_worst_pct,flashover_triggered,flashover_time_s,fuel_remaining_MJ,ventilation_response_factor"
+
+
+func _open_csv_file(mode: FileAccess.ModeFlags) -> FileAccess:
+	if _csv_io_failed:
+		return null
+
+	var path: String = _normalize_log_path(csv_file_path)
+	if not _ensure_log_directory(path):
+		return null
+	var file := FileAccess.open(path, mode)
+	if file != null:
+		_resolved_csv_file_path = path
+		return file
+
+	_csv_io_failed = true
+	push_error("SimulationLogWriter: no se pudo abrir CSV en %s (err=%d)" % [path, FileAccess.get_open_error()])
+	return null
+
+
+func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
+	var file := _open_csv_file(FileAccess.READ_WRITE)
+	if file == null:
+		return
+	file.seek_end()
+
+	for room_id in _collect_room_ids(state):
+		var rs: Dictionary = state.get(str(room_id), {})
+		if rs.is_empty():
+			continue
+		var fields: PackedStringArray = PackedStringArray()
+		fields.append("%.1f" % sim_time_s)
+		fields.append(str(room_id))
+		fields.append(_csv_escape(str(rs.get("name", ""))))
+		fields.append("%.2f" % float(rs.get("hrr_kw", 0.0)))
+		fields.append("%.2f" % float(rs.get("temp_upper_c", 0.0)))
+		fields.append("%.2f" % float(rs.get("temp_lower_c", 0.0)))
+		fields.append("%.2f" % float(rs.get("temp_at_0_9m_c", rs.get("temp_lower_c", 0.0))))
+		fields.append("%.4f" % float(rs.get("smoke_kg", 0.0)))
+		fields.append("%.3f" % float(rs.get("smoke_layer_m", 0.0)))
+		fields.append("%.3f" % float(rs.get("hot_layer_m", 0.0)))
+		fields.append("%.3f" % float(rs.get("layer_150c_m", 0.0)))
+		fields.append("%.3f" % float(rs.get("overpressure_pa", 0.0)))
+		fields.append("%.5f" % float(rs.get("o2", 0.0)))
+		fields.append("%.0f" % float(rs.get("co_ppm", 0.0)))
+		fields.append("%.0f" % float(rs.get("co_upper_ppm", 0.0)))
+		fields.append("%.0f" % float(rs.get("co2_ppm", 0.0)))
+		fields.append("%.4f" % float(rs.get("fed", 0.0)))
+		fields.append("%.1f" % float(rs.get("svv_worst_pct", 100.0)))
+		fields.append("1" if bool(rs.get("flashover_triggered", false)) else "0")
+		fields.append("%.1f" % float(rs.get("flashover_time_s", -1.0)))
+		fields.append("%.2f" % float(rs.get("fuel_objects_remaining_MJ", rs.get("remaining_fuel_MJ", 0.0))))
+		fields.append("%.4f" % float(rs.get("ventilation_response_factor", 0.0)))
+		file.store_line(",".join(fields))
+
+	file.close()
+
+
+func _csv_escape(value: String) -> String:
+	if value.find(",") >= 0 or value.find("\"") >= 0 or value.find("\n") >= 0:
+		return "\"" + value.replace("\"", "\"\"") + "\""
+	return value

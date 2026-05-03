@@ -6,11 +6,13 @@ signal pause_requested
 signal slower_requested
 signal faster_requested
 signal stop_and_generate_requested
+signal view_3d_toggled(enabled: bool)
 
 @export var show_status_panel: bool = false
 @export var status_panel_room_id: int = 0
 @export var compact_status_panel: bool = true
 @export var show_openings_panel: bool = true
+@export var show_view_toggle: bool = true
 
 ## Tamaño de fuente del encabezado de cada tarjeta de sala.
 @export var font_size_header: int = 11
@@ -24,6 +26,8 @@ signal stop_and_generate_requested
 @export var card_alert_color: Color = Color(1.0, 0.82, 0.65, 1.0)
 ## Color de tarjeta en estado de flashover o HRR muy alto.
 @export var card_flashover_color: Color = Color(1.0, 0.55, 0.55, 1.0)
+## Si es true, el aviso de flashover permanece visible mientras flashover_triggered sea true.
+@export var flashover_indicator_permanent: bool = true
 
 @onready var status_panel: PanelContainer = $StatusPanel
 @onready var status_label: Label = $StatusPanel/MarginContainer/StatusLabel
@@ -38,6 +42,7 @@ signal stop_and_generate_requested
 @onready var btn_play: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnPlay") as Button
 @onready var btn_pause: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnPause") as Button
 @onready var btn_time_forward: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnTimeForward") as Button
+@onready var btn_view_3d: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnView3D") as Button
 @onready var time_scale_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow/TimeScaleLabel") as Label
 @onready var playback_status_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow/PlaybackStatusLabel") as Label
 @onready var rooms_data_vbox: GridContainer = get_node_or_null("RoomsDataPanel/MarginContainer/ScrollContainer/RoomsGrid") as GridContainer
@@ -71,9 +76,14 @@ func _ready() -> void:
 		btn_pause.pressed.connect(_on_pause_pressed)
 	if btn_time_forward != null and not btn_time_forward.pressed.is_connected(_on_time_forward_pressed):
 		btn_time_forward.pressed.connect(_on_time_forward_pressed)
+	if btn_view_3d != null and not btn_view_3d.pressed.is_connected(_on_view_3d_pressed):
+		btn_view_3d.pressed.connect(_on_view_3d_pressed)
+	if btn_view_3d != null:
+		btn_view_3d.visible = show_view_toggle
 
 	_refresh_opening_controls()
 	_update_time_controls(0.0, false, false, false, 1.0)
+	_update_view_toggle(false)
 
 
 func bind_building(next_building: BuildingModel) -> void:
@@ -99,6 +109,7 @@ func update_state(state: Dictionary) -> void:
 		bool(state.get("graphs_launched", false)),
 		float(state.get("time_scale", 0.0))
 	)
+	_update_view_toggle(bool(state.get("view_3d_enabled", false)))
 
 	_refresh_opening_controls()
 	_update_rooms_panel(state)
@@ -266,10 +277,20 @@ func _update_rooms_panel(state: Dictionary) -> void:
 func _is_flashover_indicator_visible(room_state: Dictionary, sim_time_s: float) -> bool:
 	if not bool(room_state.get("flashover_triggered", false)):
 		return false
+	if flashover_indicator_permanent:
+		return true
 	var flash_time_s: float = float(room_state.get("flashover_time_s", -1.0))
 	if flash_time_s < 0.0:
 		return true
 	return sim_time_s <= flash_time_s + 22.0
+
+
+func _update_view_toggle(is_3d_enabled: bool) -> void:
+	if btn_view_3d == null:
+		return
+	btn_view_3d.visible = show_view_toggle
+	btn_view_3d.set_pressed_no_signal(is_3d_enabled)
+	btn_view_3d.text = "Vista 3D" if not is_3d_enabled else "Vista 2D"
 
 
 func _refresh_opening_controls() -> void:
@@ -437,3 +458,9 @@ func _on_pause_pressed() -> void:
 
 func _on_time_forward_pressed() -> void:
 	faster_requested.emit()
+
+
+func _on_view_3d_pressed() -> void:
+	if btn_view_3d == null:
+		return
+	view_3d_toggled.emit(btn_view_3d.button_pressed)

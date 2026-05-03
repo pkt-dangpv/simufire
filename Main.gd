@@ -3,6 +3,8 @@ extends Node
 @onready var building: BuildingModel = $World/BuildingModel
 @onready var engine: SimulationEngine = $World/SimulationEngine
 @onready var visualizer: Visualizer = $World/Visualizer
+@onready var world_3d: Node3D = get_node_or_null("World3D") as Node3D
+@onready var visualizer_3d: Visualizer3D = get_node_or_null("World3D/Visualizer3D") as Visualizer3D
 @onready var hud: HUD = $UI/HUD
 
 const TIME_SPEEDS: Array[float] = [0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0]
@@ -11,6 +13,9 @@ var playback_paused: bool = false
 var _graphs_dir_dialog: FileDialog = null
 var _graphs_view_window: Window = null
 var _graph_textures: Array[Texture2D] = []
+var _graph_image_cells: Array[Control] = []
+var _graph_zoom: float = 1.0
+var view_3d_enabled: bool = false
 
 
 func _ready() -> void:
@@ -27,6 +32,9 @@ func _ready() -> void:
 			hud.faster_requested.connect(_on_faster_requested)
 		if not hud.stop_and_generate_requested.is_connected(_on_stop_and_generate_requested):
 			hud.stop_and_generate_requested.connect(_on_stop_and_generate_requested)
+		if not hud.view_3d_toggled.is_connected(_on_view_3d_toggled):
+			hud.view_3d_toggled.connect(_on_view_3d_toggled)
+	_set_3d_view_enabled(view_3d_enabled)
 	_update_views()
 
 
@@ -45,8 +53,11 @@ func _update_views() -> void:
 	state["time_scale"] = engine.time_scale
 	state["simulation_finished"] = engine.is_finished
 	state["graphs_launched"] = engine.are_graphs_launched()
+	state["view_3d_enabled"] = view_3d_enabled
 	if visualizer != null:
 		visualizer.set_state(state)
+	if visualizer_3d != null:
+		visualizer_3d.set_state(state)
 	if hud != null:
 		hud.update_state(state)
 
@@ -71,6 +82,21 @@ func _on_faster_requested() -> void:
 	if engine != null:
 		engine.time_scale = _pick_time_speed(engine.time_scale, 1)
 	_update_views()
+
+
+func _on_view_3d_toggled(enabled: bool) -> void:
+	_set_3d_view_enabled(enabled)
+	_update_views()
+
+
+func _set_3d_view_enabled(enabled: bool) -> void:
+	view_3d_enabled = enabled
+	if visualizer != null:
+		visualizer.visible = not enabled
+	if world_3d != null:
+		world_3d.visible = enabled
+	if visualizer_3d != null:
+		visualizer_3d.set_active(enabled)
 
 
 func _on_stop_and_generate_requested() -> void:
@@ -111,7 +137,9 @@ func _setup_graph_dialogs() -> void:
 	_graphs_view_window.name = "GraphsViewer"
 	_graphs_view_window.title = "Graficas de simulacion"
 	_graphs_view_window.size = Vector2i(1060, 660)
+	_graphs_view_window.wrap_controls = true
 	_graphs_view_window.visible = false
+	_graphs_view_window.close_requested.connect(_on_graphs_window_close_requested)
 	add_child(_graphs_view_window)
 
 
@@ -137,16 +165,37 @@ func _show_graphs_window(graphs_dir: String) -> void:
 		return
 
 	_clear_graphs_view_window()
+	_graph_zoom = 1.0
 
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 6)
+	root.add_theme_constant_override("separation", 4)
 	_graphs_view_window.add_child(root)
 
 	var header := Label.new()
 	header.text = "Graficas y log guardados en: %s" % graphs_dir
 	header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	root.add_child(header)
+
+	# Barra de zoom
+	var zoom_bar := HBoxContainer.new()
+	zoom_bar.add_theme_constant_override("separation", 6)
+	root.add_child(zoom_bar)
+	var lbl_zoom := Label.new()
+	lbl_zoom.text = "Zoom:"
+	zoom_bar.add_child(lbl_zoom)
+	var btn_zoom_out := Button.new()
+	btn_zoom_out.text = "  -  "
+	btn_zoom_out.pressed.connect(_on_graph_zoom_out)
+	zoom_bar.add_child(btn_zoom_out)
+	var btn_zoom_in := Button.new()
+	btn_zoom_in.text = "  +  "
+	btn_zoom_in.pressed.connect(_on_graph_zoom_in)
+	zoom_bar.add_child(btn_zoom_in)
+	var btn_zoom_reset := Button.new()
+	btn_zoom_reset.text = "100%"
+	btn_zoom_reset.pressed.connect(_on_graph_zoom_reset)
+	zoom_bar.add_child(btn_zoom_reset)
 
 	var tabs := TabContainer.new()
 	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -188,9 +237,10 @@ func _show_graphs_window(graphs_dir: String) -> void:
 
 		for image_name in _collect_graph_images(room_path):
 			var cell := VBoxContainer.new()
-			cell.custom_minimum_size = Vector2(480.0, 300.0)
+			cell.custom_minimum_size = Vector2(480.0 * _graph_zoom, 300.0 * _graph_zoom)
 			cell.add_theme_constant_override("separation", 4)
 			grid.add_child(cell)
+			_graph_image_cells.append(cell)
 
 			var title := Label.new()
 			title.text = image_name.get_basename().capitalize()
@@ -199,7 +249,7 @@ func _show_graphs_window(graphs_dir: String) -> void:
 			var tex_rect := TextureRect.new()
 			tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 			tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			tex_rect.custom_minimum_size = Vector2(470.0, 260.0)
+			tex_rect.custom_minimum_size = Vector2(470.0 * _graph_zoom, 260.0 * _graph_zoom)
 			tex_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			tex_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			cell.add_child(tex_rect)
@@ -237,10 +287,41 @@ func _show_graphs_message(message: String) -> void:
 	_graphs_view_window.popup_centered()
 
 
+func _on_graphs_window_close_requested() -> void:
+	if _graphs_view_window != null:
+		_graphs_view_window.hide()
+
+
 func _clear_graphs_view_window() -> void:
 	for child in _graphs_view_window.get_children():
 		child.queue_free()
 	_graph_textures.clear()
+	_graph_image_cells.clear()
+
+
+func _on_graph_zoom_in() -> void:
+	_graph_zoom = minf(_graph_zoom * 1.25, 4.0)
+	_apply_graph_zoom()
+
+
+func _on_graph_zoom_out() -> void:
+	_graph_zoom = maxf(_graph_zoom / 1.25, 0.25)
+	_apply_graph_zoom()
+
+
+func _on_graph_zoom_reset() -> void:
+	_graph_zoom = 1.0
+	_apply_graph_zoom()
+
+
+func _apply_graph_zoom() -> void:
+	for cell in _graph_image_cells:
+		if not is_instance_valid(cell):
+			continue
+		cell.custom_minimum_size = Vector2(480.0 * _graph_zoom, 300.0 * _graph_zoom)
+		for child in cell.get_children():
+			if child is TextureRect:
+				child.custom_minimum_size = Vector2(470.0 * _graph_zoom, 260.0 * _graph_zoom)
 
 
 func _collect_graph_images(room_path: String) -> Array[String]:

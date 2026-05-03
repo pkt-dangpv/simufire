@@ -75,6 +75,8 @@ class_name Visualizer
 @export var flashover_fill_color: Color = Color(1.0, 0.20, 0.05, 0.24)
 @export var flashover_outline_color: Color = Color(1.0, 0.45, 0.05, 1.0)
 @export var flashover_indicator_duration_s: float = 22.0
+## Si es true, el aviso de flashover permanece visible mientras flashover_triggered sea true (ignorando la duración).
+@export var flashover_indicator_permanent: bool = true
 @export var active_fire_outline_color: Color = Color(1.0, 0.62, 0.14, 1.0)
 @export var low_o2_outline_color: Color = Color(0.30, 0.68, 1.0, 1.0)
 
@@ -98,6 +100,8 @@ class_name Visualizer
 
 @export var room_label_font_size: int = 10
 @export var room_label_color: Color = Color(1.0, 1.0, 1.0, 0.95)
+## Cuando es false, solo se muestra el nombre/ID de la habitación (sin datos de simulación).
+@export var show_room_data_in_label: bool = true
 @export var room_label_shadow: bool = true
 @export var room_label_bg: bool = false
 @export var room_label_bg_color: Color = Color(0.0, 0.0, 0.0, 0.40)
@@ -110,6 +114,19 @@ class_name Visualizer
 @export var room_label_compact_threshold_h_px: float = 72.0
 @export var room_label_medium_threshold_w_px: float = 135.0
 @export var room_label_medium_threshold_h_px: float = 120.0
+
+# ============================================================
+# MARCA DE AGUA (nombre de sala)
+# ============================================================
+
+## Muestra el nombre de la sala como texto grande y semitransparente centrado en el plano.
+@export var show_room_name_watermark: bool = true
+## Tamaño de fuente. 0 = automático (escala con el tamaño de la sala).
+@export var room_watermark_font_size: int = 0
+## Color/alpha del texto marca de agua. Alpha bajo para transparencia.
+@export var room_watermark_color: Color = Color(1.0, 1.0, 1.0, 0.13)
+## Tamaño mínimo de la sala (px) para mostrar la marca de agua.
+@export var room_watermark_min_room_px: float = 40.0
 
 # ============================================================
 # BARRA HRR
@@ -234,6 +251,9 @@ func _draw() -> void:
 
 		if show_fuel_objects:
 			_draw_room_fuel_objects(id, rs)
+
+		if show_room_name_watermark:
+			_draw_room_name_watermark(id, rs, content_rect)
 
 		if show_room_labels:
 			_draw_room_label(id, rpx, rs)
@@ -573,6 +593,43 @@ func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
 			)
 
 
+func _draw_room_name_watermark(id: int, rs: Dictionary, content_rect: Rect2) -> void:
+	if ThemeDB.fallback_font == null:
+		return
+	if content_rect.size.x < room_watermark_min_room_px or content_rect.size.y < room_watermark_min_room_px:
+		return
+	var room_name: String = String(rs.get("name", ""))
+	if room_name == "":
+		return
+	var min_dim: float = minf(content_rect.size.x, content_rect.size.y)
+	var font_size: int = room_watermark_font_size if room_watermark_font_size > 0 \
+			else clampi(int(min_dim * 0.30), 14, 52)
+	var text_size: Vector2 = ThemeDB.fallback_font.get_string_size(
+			room_name, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+	var center: Vector2 = content_rect.get_center()
+	var text_x: float = center.x - text_size.x * 0.5
+	var text_y: float = center.y + text_size.y * 0.35
+	# Sombra para contraste sobre fondos claros
+	draw_string(
+			ThemeDB.fallback_font,
+			Vector2(text_x + 1.0, text_y + 1.0),
+			room_name,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			font_size,
+			Color(0.0, 0.0, 0.0, room_watermark_color.a * 0.7)
+	)
+	draw_string(
+			ThemeDB.fallback_font,
+			Vector2(text_x, text_y),
+			room_name,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			font_size,
+			room_watermark_color
+	)
+
+
 func _fuel_object_color_for_state(state_name: String) -> Color:
 	match state_name:
 		"flaming":
@@ -706,11 +763,11 @@ func _build_room_label_lines(id: int, content_rect: Rect2, rs: Dictionary) -> Ar
 	var svv_pct_val: float = _compute_svv_pct(rs)
 	var lines: Array[String] = []
 
-	# Cabecera siempre: ID [nombre si cabe]
-	var header: String = "R%d" % id
-	if show_room_name and room_name != "" and detail != "tiny":
-		header += " %s" % room_name
-	lines.append(header)
+	# Cabecera: intencionalmente vacía (no mostrar ID ni nombre aquí)
+
+	# Solo nombre/ID cuando show_room_data_in_label es false
+	if not show_room_data_in_label:
+		return lines
 
 	match detail:
 		"tiny":
@@ -1101,6 +1158,8 @@ func _build_room_outline_style(rs: Dictionary) -> Dictionary:
 func _is_flashover_indicator_visible(rs: Dictionary) -> bool:
 	if not bool(rs.get("flashover_triggered", false)):
 		return false
+	if flashover_indicator_permanent:
+		return true
 	var flash_time_s: float = float(rs.get("flashover_time_s", -1.0))
 	if flash_time_s < 0.0:
 		return true

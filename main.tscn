@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://bi64gqhwao7fw" path="res://ui/hud.gd" id="3_h2yge"]
 [ext_resource type="Script" uid="uid://b4jh4ba6wx5ye" path="res://sim/core/SimulationEngine.gd" id="4_lquwl"]
 [ext_resource type="Script" uid="uid://dgomuflgrvt3r" path="res://sim/validation/CaseRunner.gd" id="5_case"]
+[ext_resource type="Script" uid="uid://b0fuen3e64cbj" path="res://view/Visualizer3D.gd" id="6_3dviz"]
 
 [node name="Main" type="Node" unique_id=1481794009]
 script = ExtResource("1_ig7tw")
@@ -27,6 +28,37 @@ script = ExtResource("3_1bvp3")
 [node name="SimulationEngine" type="Node" parent="World" unique_id=1397860845]
 script = ExtResource("4_lquwl")
 building_path = NodePath("../BuildingModel")
+
+[node name="World3D" type="Node3D" parent="." unique_id=1315074701]
+visible = false
+
+[node name="Visualizer3D" type="Node3D" parent="World3D" unique_id=1970939070]
+script = ExtResource("6_3dviz")
+building_path = NodePath("../../World/BuildingModel")
+
+[node name="Rooms" type="Node3D" parent="World3D/Visualizer3D" unique_id=1938223840]
+
+[node name="Openings" type="Node3D" parent="World3D/Visualizer3D" unique_id=593674306]
+
+[node name="Atmosphere" type="Node3D" parent="World3D/Visualizer3D" unique_id=1429607517]
+
+[node name="Labels" type="Node3D" parent="World3D/Visualizer3D" unique_id=1194666166]
+
+[node name="CameraRig" type="Node3D" parent="World3D/Visualizer3D" unique_id=1164354743]
+rotation = Vector3(-0.977384, 0.733038, 0)
+
+[node name="Camera3D" type="Camera3D" parent="World3D/Visualizer3D/CameraRig" unique_id=690878390]
+position = Vector3(0, 0, 13)
+fov = 45.0
+
+[node name="Sun" type="DirectionalLight3D" parent="World3D/Visualizer3D" unique_id=820074114]
+rotation = Vector3(-0.872665, -0.523599, 0)
+light_energy = 1.8
+
+[node name="FillLight" type="OmniLight3D" parent="World3D/Visualizer3D" unique_id=1797330950]
+position = Vector3(0, 5, 0)
+light_energy = 0.35
+omni_range = 18.0
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=894412047]
 
@@ -203,9 +235,9 @@ layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -213.0
+offset_left = -275.0
 offset_top = 566.0
-offset_right = 263.0
+offset_right = 325.0
 offset_bottom = 645.0
 grow_horizontal = 2
 
@@ -248,6 +280,12 @@ text = "Pausa"
 custom_minimum_size = Vector2(84, 34)
 layout_mode = 2
 text = "Adelante"
+
+[node name="BtnView3D" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1889186757]
+custom_minimum_size = Vector2(82, 34)
+layout_mode = 2
+toggle_mode = true
+text = "Vista 3D"
 
 [node name="InfoRow" type="HBoxContainer" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer" unique_id=1371752556]
 layout_mode = 2
