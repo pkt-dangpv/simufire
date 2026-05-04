@@ -16,7 +16,9 @@ func build_state(context: Dictionary) -> Dictionary:
 		"sim_time_s": float(context.get("sim_time_s", 0.0)),
 		"smoke_generated_total_kg": float(context.get("smoke_generated_total_kg", 0.0)),
 		"smoke_vented_total_kg": float(context.get("smoke_vented_total_kg", 0.0)),
-		"smoke_deposited_total_kg": float(context.get("smoke_deposited_total_kg", 0.0))
+		"smoke_deposited_total_kg": float(context.get("smoke_deposited_total_kg", 0.0)),
+		"suppression_water_applied_l": float(context.get("suppression_water_applied_l", 0.0)),
+		"suppression_cooling_total_kj": float(context.get("suppression_cooling_total_kj", 0.0))
 	}
 
 	var building: BuildingModel = context.get("building")

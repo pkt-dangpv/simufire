@@ -69,6 +69,14 @@ al proyecto para no depender del log por defecto de `user://logs`:
 - `tmp_r2_window_open_start`: fuego en salon con ventana exterior abierta desde inicio en Dormitorio1; valida contaminantes, calentamiento moderado por ruta remota de ventilacion y que `R0` no se extinga falsamente cuando la ruta `R0 -> pasillo -> R2 -> exterior` sigue abierta
 - `cfast_r0_window_360`: caso de ventana a exterior abierta en `t=360 s`, calibrado contra el input/CSV CFAST local de NIST
 - `ghanekar_bedroom_hallway`: caso residencial calibrado contra metricas medibles del paper de Ghanekar
+- `ul_exterior_water_knockdown`: golpe de agua UL/FSRI de 570 l/min durante 10 s en el compartimento de fuego; valida 95 l aplicados, extraccion termica y reduccion rapida de temperatura/HRR
+
+## Eventos de supresion
+
+Los casos pueden incluir `suppression_events` con `time_s`, `room_id`, `duration_s`,
+`flow_lpm` y `effectiveness`. El runner reparte el volumen durante la duracion del
+evento para representar un golpe corto de agua, como los ensayos UL/FSRI de ataque
+transicional.
 
 ## Salidas
 

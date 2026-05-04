@@ -389,20 +389,51 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		if hot_band_m <= 0.0:
 			continue
 
-		var engagement: float = float(flow_state.get("engagement", 0.0))
-		var source_temp_c: float = float(flow_state.get("source_temp_c", hot_room.temp_upper_c))
+		var band_ref_m: float = maxf(doorway_o2_min_band_m, op.height_m * 0.24)
+		var thermal_factor: float = clampf(hot_band_m / band_ref_m, 0.0, 1.0)
+		var smoke_factor: float = clampf(
+			float(flow_state.get("smoke_band_m", 0.0)) / band_ref_m,
+			0.0,
+			1.0
+		)
+		var pressure_factor: float = clampf(
+			maxf(0.0, hot_room.overpressure_pa - cold_room.overpressure_pa) / maxf(
+				1.0,
+				pressure_spill_ref_delta_pa
+			),
+			0.0,
+			1.0
+		)
+		var heat_engagement: float = clampf(
+			thermal_factor + pressure_factor * doorway_o2_pressure_weight * 0.35,
+			0.0,
+			1.0
+		)
+		if heat_engagement <= 0.0:
+			continue
+
+		var heat_h_drive_m: float = maxf(
+			hot_band_m,
+			doorway_o2_min_band_m * heat_engagement * 0.45
+		)
+		var area_eff: float = op.width_m * minf(heat_h_drive_m, op.height_m) * op.open_fraction
+		var source_temp_c: float = compute_interroom_transfer_temp_c(
+			hot_room,
+			cold_room,
+			clampf(0.25 + 0.75 * heat_engagement, 0.0, 1.0),
+			minf(smoke_factor, 0.25)
+		)
 		var t_hot_k: float = source_temp_c + 273.15
 		var t_cold_k: float = cold_room.temp_upper_c + 273.15
 		var delta_t_k: float = maxf(0.0, t_hot_k - t_cold_k)
 		if delta_t_k < 2.0:
 			continue
 
-		var area_eff: float = float(flow_state.get("area_eff_m2", 0.0))
 		if area_eff <= 0.0:
 			continue
 
 		var q_vol: float = 0.65 * 0.5 * area_eff * sqrt(g_grav * hot_band_m * delta_t_k / ((t_hot_k + t_cold_k) * 0.5))
-		var thermal_engagement: float = clampf(0.14 + engagement * 0.70, 0.14, 1.0)
+		var thermal_engagement: float = clampf(0.12 + heat_engagement * 0.65, 0.12, 0.90)
 		var mass_exch: float = q_vol * rho_air * dt * doorway_heat_exchange_coeff * thermal_engagement
 
 		var m_hot_kg: float = maxf(1.0, hot_room.volume_m3() * rho_air)

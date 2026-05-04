@@ -16,10 +16,15 @@ const RUNTIME_TEMPLATE_PATH: String = "user://last_editor_runtime_template.json"
 
 func _ready() -> void:
 	if _is_validation_mode():
-		get_tree().change_scene_to_file.call_deferred(SIM_SCENE_PATH)
+		_open_validation_scene_next_frame()
 		return
 	if not _bind_existing_ui():
 		_setup_ui()
+
+
+func _open_validation_scene_next_frame() -> void:
+	await get_tree().process_frame
+	get_tree().change_scene_to_file(SIM_SCENE_PATH)
 
 
 func _bind_existing_ui() -> bool:

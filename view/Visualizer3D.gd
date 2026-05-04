@@ -44,6 +44,7 @@ class_name Visualizer3D
 @export var fire_color: Color = Color(1.00, 0.38, 0.06, 0.88)
 @export var fire_core_color: Color = Color(1.0, 0.84, 0.24, 0.96)
 @export var fire_glow_color: Color = Color(1.0, 0.22, 0.04, 0.28)
+@export var fire_ceiling_cap_color: Color = Color(1.0, 0.34, 0.05, 0.42)
 @export var door_color: Color = Color(0.26, 0.86, 0.32, 0.92)
 @export var window_color: Color = Color(0.24, 0.56, 1.00, 0.92)
 @export var closed_opening_color: Color = Color(0.54, 0.56, 0.58, 0.70)
@@ -53,6 +54,9 @@ class_name Visualizer3D
 @export var smoke_visible_threshold_kg: float = 0.01
 @export var smoke_reference_kg: float = 1.2
 @export var smoke_min_visible_depth_m: float = 0.05
+@export var smoke_hrr_reference_kw: float = 900.0
+@export var smoke_hrr_depth_boost_m: float = 0.55
+@export var smoke_hrr_alpha_boost: float = 0.18
 @export var smoke_grow_lerp: float = 0.08
 @export var smoke_clear_lerp: float = 0.035
 @export var hot_layer_visible_drop_m: float = 0.12
@@ -62,6 +66,11 @@ class_name Visualizer3D
 @export var fire_base_radius_m: float = 0.16
 @export var fire_max_radius_m: float = 0.52
 @export var fire_max_extra_height_m: float = 2.2
+@export var fire_ceiling_clearance_m: float = 0.06
+@export var fire_ceiling_cap_start_fraction: float = 0.86
+@export var fire_ceiling_cap_min_radius_m: float = 0.36
+@export var fire_ceiling_cap_max_radius_m: float = 1.35
+@export var fire_ceiling_cap_thickness_m: float = 0.14
 @export var fire_flicker_strength: float = 0.12
 @export var temp_heat_floor_start_c: float = 80.0
 @export var temp_heat_floor_full_c: float = 450.0
@@ -307,6 +316,9 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	_atmosphere_root.add_child(fire_root)
 	var fire_glow := _create_flame_mesh("Glow", fire_glow_color)
 	fire_root.add_child(fire_glow)
+	var fire_cap := _create_fire_ceiling_cap_mesh("CeilingCap", fire_ceiling_cap_color)
+	fire_cap.visible = false
+	fire_root.add_child(fire_cap)
 	var fire_core := _create_flame_mesh("Core", fire_core_color)
 	fire_root.add_child(fire_core)
 
@@ -334,10 +346,13 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 		"l150": l150,
 		"fire_root": fire_root,
 		"fire_glow": fire_glow,
+		"fire_cap": fire_cap,
 		"fire_core": fire_core,
 		"label": label,
 		"fire_height_m": 0.0,
 		"fire_radius_m": fire_base_radius_m,
+		"fire_cap_radius_m": 0.0,
+		"fire_cap_weight": 0.0,
 		"fire_phase": float(room_id) * 1.37,
 		"smoke_visual_depth_m": 0.0
 	}
@@ -481,7 +496,7 @@ func _update_room(room_id: int) -> void:
 		floor_mat.albedo_color = floor_color.lerp(hot_floor_color, heat_t)
 	_update_wall_temperature(walls, temp_upper_c)
 
-	_update_smoke_volume(item, smoke, smoke_edge, rect, height_m, smoke_layer_m, smoke_kg)
+	_update_smoke_volume(item, smoke, smoke_edge, rect, height_m, smoke_layer_m, smoke_kg, hrr_kw)
 	_update_layer_box(
 		hot,
 		rect,
@@ -528,13 +543,18 @@ func _update_smoke_volume(
 	rect: Rect2,
 	height_m: float,
 	smoke_layer_m: float,
-	smoke_kg: float
+	smoke_kg: float,
+	hrr_kw: float
 ) -> void:
 	if node == null:
 		return
 	var target_depth_m: float = maxf(0.0, height_m - smoke_layer_m)
 	if smoke_kg <= smoke_visible_threshold_kg:
 		target_depth_m = 0.0
+	var hrr_smoke_t: float = clampf(sqrt(maxf(0.0, hrr_kw) / maxf(1.0, smoke_hrr_reference_kw)), 0.0, 1.0)
+	if hrr_kw > fire_min_visible_hrr_kw:
+		target_depth_m = maxf(target_depth_m, smoke_hrr_depth_boost_m * hrr_smoke_t)
+	target_depth_m = clampf(target_depth_m, 0.0, height_m)
 
 	var current_depth_m: float = float(item.get("smoke_visual_depth_m", 0.0))
 	var lerp_weight: float = smoke_grow_lerp if target_depth_m > current_depth_m else smoke_clear_lerp
@@ -557,7 +577,13 @@ func _update_smoke_volume(
 			maxf(0.05, rect.size.y - room_inset_m * 2.0)
 		) * meters_to_units
 
-	var alpha: float = clampf(smoke_color.a + smoke_kg / maxf(0.01, smoke_reference_kg) * 0.28, 0.12, 0.72)
+	var alpha: float = clampf(
+		smoke_color.a
+			+ smoke_kg / maxf(0.01, smoke_reference_kg) * 0.28
+			+ hrr_smoke_t * smoke_hrr_alpha_boost,
+		0.12,
+		0.78
+	)
 	var mat := node.material_override as StandardMaterial3D
 	if mat != null:
 		mat.albedo_color = Color(smoke_color.r, smoke_color.g, smoke_color.b, alpha)
@@ -609,17 +635,52 @@ func _update_fire_visual(item: Dictionary, rect: Rect2, room_height_m: float, hr
 		return
 	var target_height: float = 0.0
 	var target_radius: float = fire_base_radius_m
+	var target_cap_radius: float = 0.0
+	var target_cap_weight: float = 0.0
 	if show_hrr_columns and hrr_kw > fire_min_visible_hrr_kw:
 		var fire_t: float = clampf(hrr_kw / maxf(1.0, hrr_reference_kw), 0.0, 1.8)
-		target_height = clampf(fire_t * fire_max_extra_height_m, 0.16, room_height_m + fire_max_extra_height_m)
+		var ceiling_height_m: float = maxf(0.16, room_height_m - fire_ceiling_clearance_m)
+		var free_plume_height_m: float = clampf(
+			0.16 + fire_t * fire_max_extra_height_m,
+			0.16,
+			room_height_m + fire_max_extra_height_m
+		)
+		target_height = minf(free_plume_height_m, ceiling_height_m)
 		target_radius = lerpf(fire_base_radius_m, fire_max_radius_m, clampf(fire_t, 0.0, 1.0))
+		var near_ceiling_t: float = clampf(
+			inverse_lerp(ceiling_height_m * fire_ceiling_cap_start_fraction, ceiling_height_m, free_plume_height_m),
+			0.0,
+			1.0
+		)
+		var over_ceiling_t: float = clampf(
+			(free_plume_height_m - ceiling_height_m) / maxf(0.10, fire_max_extra_height_m),
+			0.0,
+			1.0
+		)
+		target_cap_weight = maxf(near_ceiling_t * 0.35, over_ceiling_t)
+		if target_cap_weight > 0.0:
+			var room_cap_limit_m: float = maxf(
+				fire_ceiling_cap_min_radius_m,
+				minf(fire_ceiling_cap_max_radius_m, minf(rect.size.x, rect.size.y) * 0.46)
+			)
+			target_cap_radius = lerpf(
+				fire_ceiling_cap_min_radius_m,
+				room_cap_limit_m,
+				clampf(maxf(near_ceiling_t, over_ceiling_t), 0.0, 1.0)
+			)
 
 	var current_height: float = float(item.get("fire_height_m", 0.0))
 	var current_radius: float = float(item.get("fire_radius_m", fire_base_radius_m))
+	var current_cap_radius: float = float(item.get("fire_cap_radius_m", 0.0))
+	var current_cap_weight: float = float(item.get("fire_cap_weight", 0.0))
 	current_height = lerpf(current_height, target_height, 0.20)
 	current_radius = lerpf(current_radius, target_radius, 0.24)
+	current_cap_radius = lerpf(current_cap_radius, target_cap_radius, 0.22)
+	current_cap_weight = lerpf(current_cap_weight, target_cap_weight, 0.22)
 	item["fire_height_m"] = current_height
 	item["fire_radius_m"] = current_radius
+	item["fire_cap_radius_m"] = current_cap_radius
+	item["fire_cap_weight"] = current_cap_weight
 
 	fire_root.visible = current_height > 0.05
 	fire_root.position = _room_center(rect, 0.0)
@@ -639,17 +700,22 @@ func _animate_fire_item(item: Dictionary) -> void:
 	var fire_root := item.get("fire_root") as Node3D
 	var fire_core := item.get("fire_core") as MeshInstance3D
 	var fire_glow := item.get("fire_glow") as MeshInstance3D
+	var fire_cap := item.get("fire_cap") as MeshInstance3D
 	if fire_root == null or fire_core == null or fire_glow == null:
 		return
 
 	var height_m: float = float(item.get("fire_height_m", 0.0))
 	var radius_m: float = float(item.get("fire_radius_m", fire_base_radius_m))
+	var room_height_m: float = float(item.get("height_m", default_room_height_m))
+	var cap_radius_m: float = float(item.get("fire_cap_radius_m", 0.0))
+	var cap_weight: float = clampf(float(item.get("fire_cap_weight", 0.0)), 0.0, 1.0)
 	var phase: float = float(item.get("fire_phase", 0.0))
 	var flicker: float = 1.0 \
 			+ sin(_fire_phase * 8.5 + phase) * fire_flicker_strength \
 			+ sin(_fire_phase * 15.0 + phase * 0.7) * fire_flicker_strength * 0.45
-	var core_h: float = maxf(0.04, height_m * flicker)
-	var glow_h: float = maxf(0.04, height_m * 0.76 * (1.0 + (flicker - 1.0) * 0.55))
+	var max_column_h: float = maxf(0.04, room_height_m - fire_ceiling_clearance_m)
+	var core_h: float = minf(max_column_h, maxf(0.04, height_m * flicker))
+	var glow_h: float = minf(max_column_h, maxf(0.04, height_m * 0.76 * (1.0 + (flicker - 1.0) * 0.55)))
 	var core_r: float = maxf(0.03, radius_m * flicker)
 	var glow_r: float = maxf(0.04, radius_m * 1.85)
 
@@ -657,6 +723,16 @@ func _animate_fire_item(item: Dictionary) -> void:
 	fire_core.position = Vector3(0.0, core_h * meters_to_units * 0.5, 0.0)
 	fire_glow.scale = Vector3(glow_r, glow_h, glow_r) * meters_to_units
 	fire_glow.position = Vector3(0.0, glow_h * meters_to_units * 0.38, 0.0)
+
+	if fire_cap != null:
+		fire_cap.visible = cap_weight > 0.03 and cap_radius_m > 0.03
+		if fire_cap.visible:
+			var cap_wave: float = 1.0 + sin(_fire_phase * 5.4 + phase) * fire_flicker_strength * 0.22
+			var cap_h: float = fire_ceiling_cap_thickness_m * lerpf(0.65, 1.25, cap_weight)
+			var ceiling_y_m: float = maxf(cap_h, room_height_m - fire_ceiling_clearance_m)
+			var cap_r: float = cap_radius_m * cap_wave
+			fire_cap.scale = Vector3(cap_r, cap_h, cap_r * 0.82) * meters_to_units
+			fire_cap.position = Vector3(0.0, (ceiling_y_m - cap_h * 0.5) * meters_to_units, 0.0)
 
 
 func _update_openings() -> void:
@@ -697,6 +773,26 @@ func _create_flame_mesh(node_name: String, color: Color) -> MeshInstance3D:
 	material.emission = Color(color.r, color.g * 0.75, color.b * 0.45, 1.0)
 	material.emission_energy_multiplier = 0.65
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var node := MeshInstance3D.new()
+	node.name = node_name
+	node.mesh = mesh
+	node.material_override = material
+	return node
+
+
+func _create_fire_ceiling_cap_mesh(node_name: String, color: Color) -> MeshInstance3D:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.82
+	mesh.bottom_radius = 1.0
+	mesh.height = 1.0
+	mesh.radial_segments = 28
+	mesh.rings = 2
+	var material := _make_material(color, true)
+	material.emission_enabled = true
+	material.emission = Color(color.r, color.g * 0.72, color.b * 0.45, 1.0)
+	material.emission_energy_multiplier = 0.42
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var node := MeshInstance3D.new()
 	node.name = node_name
 	node.mesh = mesh

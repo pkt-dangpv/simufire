@@ -4,7 +4,7 @@ extends Node
 @onready var engine: SimulationEngine = $World/SimulationEngine
 @onready var visualizer: Visualizer = $World/Visualizer
 @onready var world_3d: Node3D = get_node_or_null("World3D") as Node3D
-@onready var visualizer_3d: Visualizer3D = get_node_or_null("World3D/Visualizer3D") as Visualizer3D
+@onready var visualizer_3d = get_node_or_null("World3D/Visualizer3D")
 @onready var hud: HUD = $UI/HUD
 
 const TIME_SPEEDS: Array[float] = [0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0]

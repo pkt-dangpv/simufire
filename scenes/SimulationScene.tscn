@@ -6,7 +6,7 @@
 [ext_resource type="Script" uid="uid://bi64gqhwao7fw" path="res://ui/hud.gd" id="3_h2yge"]
 [ext_resource type="Script" uid="uid://b4jh4ba6wx5ye" path="res://sim/core/SimulationEngine.gd" id="4_lquwl"]
 [ext_resource type="Script" uid="uid://dgomuflgrvt3r" path="res://sim/validation/CaseRunner.gd" id="5_case"]
-[ext_resource type="Script" uid="uid://b0fuen3e64cbj" path="res://view/Visualizer3D.gd" id="6_3dviz"]
+[ext_resource type="Script" path="res://view/Visualizer3D.gd" id="6_3dviz"]
 
 [node name="Main" type="Node" unique_id=655075668]
 script = ExtResource("1_ig7tw")

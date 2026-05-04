@@ -387,9 +387,13 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		else:
 			smoke_basis_kw = 0.0
 
+	var base_smoke_yield_kg_per_MJ: float = _resolve_room_smoke_yield_kg_per_MJ(
+		room,
+		fire.smoke_yield_kg_per_MJ
+	)
 	var smoke_yield_kg_per_MJ: float = lerpf(
-		fire.smoke_yield_kg_per_MJ * float(context.get("fire_smoke_yield_low_o2_multiplier", 1.0)),
-		fire.smoke_yield_kg_per_MJ,
+		base_smoke_yield_kg_per_MJ * float(context.get("fire_smoke_yield_low_o2_multiplier", 1.0)),
+		base_smoke_yield_kg_per_MJ,
 		room.o2_hrr_factor
 	)
 	if not can_flame:
@@ -437,7 +441,10 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		0.0,
 		1.0
 	)
-	var co_base_yield: float = float(context.get("co_base_yield_kg_per_MJ", 0.0))
+	var co_base_yield: float = _resolve_room_co_yield_kg_per_MJ(
+		room,
+		float(context.get("co_base_yield_kg_per_MJ", 0.0))
+	)
 	var co_max_yield: float = float(context.get("co_max_yield_kg_per_MJ", 0.0))
 	var co_low_quality_yield: float = minf(
 		co_base_yield * float(context.get("fire_co_low_quality_yield_multiplier", 8.0)),
@@ -607,6 +614,24 @@ func get_room_passive_ignition_flux_kw_m2(room: RoomModel) -> float:
 
 func is_room_passive_autoignite_ready(room: RoomModel) -> bool:
 	return is_any_object_autoignite_ready(room)
+
+
+func generalize_room_combustion_after_flashover(room: RoomModel) -> void:
+	if room == null or not _has_explicit_fuel_objects(room):
+		return
+
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+		if obj.remaining_fuel_MJ <= 0.001:
+			continue
+
+		obj.state = FuelObjectModelScript.State.FLAMING
+		obj.surface_temp_c = maxf(obj.surface_temp_c, obj.ignition_temp_c + 80.0)
+		obj.exposure_s = maxf(obj.exposure_s, 90.0)
+		obj.autoignite_ready = false
+		if String(obj.ignited_by_object_id).is_empty():
+			obj.ignited_by_object_id = "flashover"
 
 
 func get_room_dominant_fuel_object_id(room: RoomModel) -> String:
@@ -873,6 +898,74 @@ func _compute_smoke_production_kg_s(hrr_kw: float, smoke_yield_kg_per_MJ: float)
 	return hrr_MJ_s * maxf(0.0, smoke_yield_kg_per_MJ)
 
 
+func _resolve_room_smoke_yield_kg_per_MJ(room: RoomModel, fallback_yield: float) -> float:
+	if room == null or not _has_explicit_fuel_objects(room):
+		return fallback_yield
+
+	var weighted_yield: float = 0.0
+	var total_weight: float = 0.0
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+		if obj.remaining_fuel_MJ <= 0.001:
+			continue
+
+		var object_yield: float = maxf(0.0, float(obj.smoke_yield_kg_per_MJ))
+		if object_yield <= 0.0:
+			continue
+
+		var preheat_fraction: float = clampf(_fuel_object_preheat_score(obj) / 8.0, 0.0, 1.0)
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * lerpf(0.35, 1.0, preheat_fraction)
+		if bool(obj.is_primary_ignition_source):
+			weight *= 1.40
+		if obj.state == FuelObjectModelScript.State.FLAMING:
+			weight *= 1.35
+		elif obj.state == FuelObjectModelScript.State.PYROLYZING:
+			weight *= 1.20
+
+		weighted_yield += object_yield * weight
+		total_weight += weight
+
+	if total_weight <= 0.000001:
+		return fallback_yield
+
+	return weighted_yield / total_weight
+
+
+func _resolve_room_co_yield_kg_per_MJ(room: RoomModel, fallback_yield: float) -> float:
+	if room == null or not _has_explicit_fuel_objects(room):
+		return fallback_yield
+
+	var weighted_yield: float = 0.0
+	var total_weight: float = 0.0
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+		if obj.remaining_fuel_MJ <= 0.001:
+			continue
+
+		var object_yield: float = maxf(0.0, float(obj.co_yield_kg_per_MJ))
+		if object_yield <= 0.0:
+			continue
+
+		var preheat_fraction: float = clampf(_fuel_object_preheat_score(obj) / 8.0, 0.0, 1.0)
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * lerpf(0.35, 1.0, preheat_fraction)
+		if bool(obj.is_primary_ignition_source):
+			weight *= 1.40
+		if obj.state == FuelObjectModelScript.State.FLAMING:
+			weight *= 1.35
+		elif obj.state == FuelObjectModelScript.State.PYROLYZING:
+			weight *= 1.20
+
+		weighted_yield += object_yield * weight
+		total_weight += weight
+
+	if total_weight <= 0.000001:
+		return fallback_yield
+
+	return weighted_yield / total_weight
+
+
 func _smooth_state_value(
 	current: float,
 	target: float,
@@ -1059,7 +1152,24 @@ func _sync_explicit_objects_from_active_fire(
 			_estimate_radiative_flux_kw_m2(room.temp_upper_c, obj.surface_temp_c, 0.85)
 		)
 
-		var weight: float = maxf(1.0, obj.max_hrr_kw) * (0.35 + 0.65 * _fuel_object_preheat_score(obj) / 8.0)
+		var preheat_score: float = _fuel_object_preheat_score(obj)
+		var active_burn_candidate: bool = room.flashover_triggered \
+				or bool(obj.is_primary_ignition_source) \
+				or bool(obj.autoignite_ready) \
+				or obj.state == FuelObjectModelScript.State.FLAMING \
+				or obj.state == FuelObjectModelScript.State.PYROLYZING \
+				or preheat_score >= 6.0
+		if not active_burn_candidate:
+			obj.hrr_kw = 0.0
+			if obj.remaining_fuel_MJ <= 0.001:
+				obj.state = FuelObjectModelScript.State.BURNED_OUT
+			elif obj.surface_temp_c >= obj.ignition_temp_c - 45.0:
+				obj.state = FuelObjectModelScript.State.PYROLYZING
+			elif obj.surface_temp_c >= room.temp_lower_c + 35.0:
+				obj.state = FuelObjectModelScript.State.HEATING
+			continue
+
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * (0.35 + 0.65 * preheat_score / 8.0)
 		if bool(obj.is_primary_ignition_source):
 			weight *= 1.40
 		if obj.state == FuelObjectModelScript.State.FLAMING:

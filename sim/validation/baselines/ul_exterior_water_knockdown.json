@@ -1,0 +1,26 @@
+{
+	"metrics": {
+		"suppression_water_applied_l": {
+			"expected": 95.0,
+			"tolerance": 0.1
+		},
+		"suppression_cooling_total_kj": {
+			"min": 85000.0,
+			"max": 95000.0
+		},
+		"time_room_0_temp_1_8m_below_150c_after_suppression_s": {
+			"min": 170.0,
+			"max": 180.0
+		},
+		"time_room_0_hrr_below_50kw_after_suppression_s": {
+			"min": 170.0,
+			"max": 185.0
+		},
+		"room_0_final_temp_at_1_8m_c": {
+			"max": 60.0
+		},
+		"room_0_final_hrr_kw": {
+			"max": 1.0
+		}
+	}
+}

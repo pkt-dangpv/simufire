@@ -32,6 +32,7 @@ var _metrics: Dictionary = {}
 var _output_path: String = ""
 var _baseline_path: String = ""
 var _opening_events: Array = []
+var _suppression_events: Array = []
 var _incident_started: bool = false
 var _runtime_error_reported: bool = false
 
@@ -56,6 +57,8 @@ func _process(_delta: float) -> void:
 
 	var sim_time_s: float = float(state.get("sim_time_s", 0.0))
 	if _apply_due_opening_events(sim_time_s):
+		state = engine.get_state()
+	if _apply_due_suppression_events(sim_time_s):
 		state = engine.get_state()
 	_update_metrics(state)
 
@@ -136,6 +139,7 @@ func _begin_validation_run() -> void:
 		return
 
 	_opening_events = _prepare_opening_events(_case_config.get("opening_events", []))
+	_suppression_events = _prepare_suppression_events(_case_config.get("suppression_events", []))
 
 	_metrics.clear()
 	_incident_started = false
@@ -176,6 +180,11 @@ func _run_validation_loop() -> void:
 			state = engine.get_state()
 			if state.is_empty():
 				_abort_validation_run("CaseRunner: estado vacio tras evento de apertura")
+				return
+		if _apply_due_suppression_events(sim_time_s):
+			state = engine.get_state()
+			if state.is_empty():
+				_abort_validation_run("CaseRunner: estado vacio tras evento de supresion")
 				return
 
 		if sim_time_s >= duration_s:
@@ -325,6 +334,33 @@ func _prepare_opening_events(raw_events: Variant) -> Array:
 	return result
 
 
+func _prepare_suppression_events(raw_events: Variant) -> Array:
+	var result: Array = []
+	if typeof(raw_events) != TYPE_ARRAY:
+		return result
+
+	for raw_event in raw_events:
+		if typeof(raw_event) != TYPE_DICTIONARY:
+			continue
+
+		var raw_data: Dictionary = raw_event
+		var event_data: Dictionary = raw_data.duplicate(true)
+		var room_id: int = 0
+		if event_data.has("room_id"):
+			room_id = int(event_data["room_id"])
+		elif event_data.has("room"):
+			room_id = int(event_data["room"])
+		event_data["time_s"] = float(event_data.get("time_s", 0.0))
+		event_data["room_id"] = room_id
+		event_data["duration_s"] = float(event_data.get("duration_s", 10.0))
+		event_data["flow_lpm"] = float(event_data.get("flow_lpm", 570.0))
+		event_data["effectiveness"] = float(event_data.get("effectiveness", 0.75))
+		event_data["applied"] = false
+		result.append(event_data)
+
+	return result
+
+
 func _apply_due_opening_events(sim_time_s: float) -> bool:
 	if building == null or _opening_events.is_empty():
 		return false
@@ -356,6 +392,37 @@ func _apply_due_opening_events(sim_time_s: float) -> bool:
 
 		event_data["applied"] = true
 		_opening_events[index] = event_data
+
+	return changed
+
+
+func _apply_due_suppression_events(sim_time_s: float) -> bool:
+	if engine == null or _suppression_events.is_empty():
+		return false
+
+	var changed: bool = false
+	for index in range(_suppression_events.size()):
+		var event_data: Dictionary = _suppression_events[index]
+		if bool(event_data.get("applied", false)):
+			continue
+		if sim_time_s < float(event_data.get("time_s", 0.0)):
+			continue
+
+		var room_id: int = int(event_data.get("room_id", 0))
+		var duration_s: float = maxf(0.0, float(event_data.get("duration_s", 10.0)))
+		var flow_lpm: float = maxf(0.0, float(event_data.get("flow_lpm", 570.0)))
+		var effectiveness: float = clampf(float(event_data.get("effectiveness", 0.75)), 0.0, 1.0)
+		engine.apply_suppression(room_id, duration_s, flow_lpm, effectiveness)
+		print("[Validation] Supresion aplicada t=%.1f s -> room %d %.0f L/min %.1f s" % [
+			sim_time_s,
+			room_id,
+			flow_lpm,
+			duration_s
+		])
+		_metrics["suppression_event_%d_time_s" % index] = sim_time_s
+		event_data["applied"] = true
+		_suppression_events[index] = event_data
+		changed = true
 
 	return changed
 
@@ -477,6 +544,8 @@ func _update_metrics(state: Dictionary) -> void:
 	_metrics["smoke_generated_total_kg"] = float(state.get("smoke_generated_total_kg", 0.0))
 	_metrics["smoke_vented_total_kg"] = float(state.get("smoke_vented_total_kg", 0.0))
 	_metrics["smoke_deposited_total_kg"] = float(state.get("smoke_deposited_total_kg", 0.0))
+	_metrics["suppression_water_applied_l"] = float(state.get("suppression_water_applied_l", 0.0))
+	_metrics["suppression_cooling_total_kj"] = float(state.get("suppression_cooling_total_kj", 0.0))
 
 	var trigger_room_id: int = int(_case_config.get("smoke_trigger_room_id", 0))
 	var target_room_id: int = int(_case_config.get("spread_target_room_id", 1))
@@ -779,6 +848,12 @@ func _threshold_passes(actual_value: float, op: String, threshold_value: float) 
 
 func _read_text_file(path: String) -> String:
 	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null and path.begins_with("res://"):
+		file = FileAccess.open(ProjectSettings.globalize_path(path), FileAccess.READ)
+	if file == null and path.begins_with("res://"):
+		var project_root: String = ProjectSettings.globalize_path("res://")
+		var absolute_path: String = project_root.path_join(path.trim_prefix("res://"))
+		file = FileAccess.open(absolute_path, FileAccess.READ)
 	if file == null:
 		return ""
 	var text: String = file.get_as_text()

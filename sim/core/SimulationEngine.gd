@@ -80,6 +80,9 @@ var _last_graph_generation_ok: bool = false
 var smoke_generated_total_kg: float = 0.0
 var smoke_vented_total_kg: float = 0.0
 var smoke_deposited_total_kg: float = 0.0
+var suppression_water_applied_l: float = 0.0
+var suppression_cooling_total_kj: float = 0.0
+var _active_suppression_by_room: Dictionary = {}
 
 # ============================================================
 # IGNICIÓN INICIAL
@@ -164,6 +167,14 @@ var smoke_deposited_total_kg: float = 0.0
 # Con o2_min_for_flame=0.122, el fuego latente requiere O2 > 0.122+0.015 = 13.7 %.
 # Evita el fuego zombi (ACH no puede mantener 13.7 % en sala casi sellada con fuego).
 @export var fire_latent_o2_viable_margin: float = 0.015
+
+# Supresion con agua: el caso UL/FSRI usa un golpe corto de 570 l/min durante 10 s
+# (95 l) y reparte la extraccion termica a lo largo de la duracion del evento.
+@export var suppression_heat_absorption_kj_per_l: float = 950.0
+@export var suppression_hrr_decay_per_l: float = 0.024
+@export var suppression_upper_heat_fraction: float = 0.68
+@export var suppression_lower_cooling_fraction: float = 0.18
+@export var suppression_surface_cooling_fraction: float = 0.26
 
 # Tiempo máximo de actividad del fuego. Pasado este tiempo el combustible se considera
 # agotado y el fuego se extingue (evita zombie fire en equilibrio O2/HRR).
@@ -537,6 +548,8 @@ func _build_state_context() -> Dictionary:
 		"smoke_generated_total_kg": smoke_generated_total_kg,
 		"smoke_vented_total_kg": smoke_vented_total_kg,
 		"smoke_deposited_total_kg": smoke_deposited_total_kg,
+		"suppression_water_applied_l": suppression_water_applied_l,
+		"suppression_cooling_total_kj": suppression_cooling_total_kj,
 		"kawagoe_coeff": kawagoe_coeff,
 		"estimate_temperature_callable": Callable(thermal_system, "estimate_temperature_at_height_m"),
 		"effective_hot_layer_callable": Callable(thermal_system, "effective_hot_layer_height_m"),
@@ -645,6 +658,9 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	smoke_generated_total_kg = 0.0
 	smoke_vented_total_kg = 0.0
 	smoke_deposited_total_kg = 0.0
+	suppression_water_applied_l = 0.0
+	suppression_cooling_total_kj = 0.0
+	_active_suppression_by_room.clear()
 	sim_time_s = 0.0
 	is_finished = false
 	_extinction_countdown = extinction_grace_s
@@ -704,6 +720,7 @@ func step(delta: float) -> void:
 	thermal_system.step(building, dt, {
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room")
 	})
+	_step_suppression(dt)
 	if glass_auto_break_enabled:
 		glass_failure_system.step(dt)
 		for broken_idx in glass_failure_system.newly_broken_indices:
@@ -864,6 +881,113 @@ func _step_gas_exchange(dt: float) -> void:
 	smoke_generated_total_kg += float(smoke_result.get("smoke_generated_kg", 0.0))
 	smoke_vented_total_kg += float(smoke_result.get("smoke_vented_kg", 0.0))
 	smoke_deposited_total_kg += float(smoke_result.get("smoke_deposited_kg", 0.0))
+
+
+func apply_suppression(
+	room_id: int,
+	duration_s: float,
+	flow_lpm: float = 570.0,
+	effectiveness: float = 0.75
+) -> void:
+	if duration_s <= 0.0 or flow_lpm <= 0.0:
+		return
+
+	if building == null:
+		return
+
+	var room: RoomModel = building.get_room(room_id)
+	if room == null:
+		return
+
+	_active_suppression_by_room[room_id] = {
+		"remaining_s": duration_s,
+		"flow_lpm": flow_lpm,
+		"effectiveness": clampf(effectiveness, 0.0, 1.0)
+	}
+
+
+func _step_suppression(dt: float) -> void:
+	if building == null or _active_suppression_by_room.is_empty() or dt <= 0.0:
+		return
+
+	var finished_room_ids: Array = []
+	for room_id in _active_suppression_by_room.keys():
+		var event: Dictionary = _active_suppression_by_room.get(room_id, {})
+		var remaining_s: float = float(event.get("remaining_s", 0.0))
+		if remaining_s <= 0.0:
+			finished_room_ids.append(room_id)
+			continue
+
+		var room: RoomModel = building.get_room(int(room_id))
+		var applied_dt: float = minf(dt, remaining_s)
+		var flow_lpm: float = maxf(0.0, float(event.get("flow_lpm", 0.0)))
+		var effectiveness: float = clampf(float(event.get("effectiveness", 0.0)), 0.0, 1.0)
+		var water_l: float = flow_lpm * applied_dt / 60.0 * effectiveness
+		if room != null and water_l > 0.0:
+			_apply_suppression_to_room(room, water_l, applied_dt)
+
+		remaining_s -= applied_dt
+		if remaining_s <= 0.000001:
+			finished_room_ids.append(room_id)
+		else:
+			event["remaining_s"] = remaining_s
+			_active_suppression_by_room[room_id] = event
+
+	for room_id in finished_room_ids:
+		_active_suppression_by_room.erase(room_id)
+
+
+func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> void:
+	if room == null or water_l <= 0.0:
+		return
+
+	var ambient_c: float = thermal_system.ambient_temp_c()
+	var cooling_kj: float = water_l * maxf(0.0, suppression_heat_absorption_kj_per_l)
+	suppression_water_applied_l += water_l
+	suppression_cooling_total_kj += cooling_kj
+
+	var upper_loss_kj: float = minf(
+		room.upper_energy_kj,
+		cooling_kj * clampf(suppression_upper_heat_fraction, 0.0, 1.0)
+	)
+	room.upper_energy_kj = maxf(0.0, room.upper_energy_kj - upper_loss_kj)
+
+	var lower_mass_kg: float = maxf(
+		1.0,
+		thermal_system.gas_density_kg_m3(room.temp_lower_c) * room.volume_m3()
+	)
+	var lower_cooling_kj: float = cooling_kj * clampf(suppression_lower_cooling_fraction, 0.0, 1.0)
+	var lower_drop_c: float = minf(
+		maxf(0.0, room.temp_lower_c - ambient_c),
+		lower_cooling_kj / lower_mass_kg
+	)
+	room.temp_lower_c = maxf(ambient_c, room.temp_lower_c - lower_drop_c)
+
+	var hrr_factor: float = exp(-water_l * maxf(0.0, suppression_hrr_decay_per_l))
+	hrr_factor = clampf(hrr_factor, 0.03, 1.0)
+	room.hrr_kw *= hrr_factor
+	room.hrr_target_kw *= hrr_factor
+	room.retained_unburned_MJ *= lerpf(0.30, 1.0, hrr_factor)
+	if room.fire != null:
+		room.fire_time_s *= sqrt(hrr_factor)
+		room.fire_dormant_time_s = 0.0
+		room.fire_low_hrr_time_s = 0.0
+
+	var surface_cool_t: float = clampf(
+		water_l / 120.0 * clampf(suppression_surface_cooling_fraction, 0.0, 1.0),
+		0.0,
+		0.85
+	)
+	for obj in room.fuel_objects:
+		if obj == null:
+			continue
+		obj.surface_temp_c = lerpf(obj.surface_temp_c, ambient_c, surface_cool_t)
+		obj.hrr_kw *= hrr_factor
+		if obj.state == 3 and obj.surface_temp_c < obj.ignition_temp_c:
+			obj.state = 4
+
+	thermal_system.sync_room_upper_layer(room, dt)
+	thermal_system.update_room_layer_150c(room, dt)
 
 
 func _step_passive_fuel(dt: float) -> void:
@@ -1089,6 +1213,8 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 	var enough_hrr: bool = room.hrr_kw >= room.fire.flashover_min_hrr_kw
 	var effective_layer_m: float = smoke_model.get_effective_smoke_spill_layer_height_m(room)
 	var layer_low_enough: bool = effective_layer_m <= flashover_layer_m
+	var effective_thermal_layer_m: float = thermal_system.effective_hot_layer_height_m(room)
+	var thermal_layer_low_enough: bool = effective_thermal_layer_m <= flashover_layer_m + 0.45
 	var head_temp_c: float = thermal_system.estimate_temperature_at_height_m(room, flashover_head_height_m)
 	var head_hot_enough: bool = head_temp_c >= flashover_head_temp_c
 	var breathing_temp_c: float = thermal_system.estimate_temperature_at_height_m(
@@ -1102,11 +1228,20 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 	# Criterio más cercano a la referencia residencial local:
 	# no basta con T_upper alta; exigimos además un nivel térmico muy severo
 	# a altura de respiración (0.9 m) y un descenso real de la capa.
-	if hot_enough \
+	var direct_vent_open: bool = thermal_system.estimate_room_outside_open_factor(room) > 0.05
+	var radiant_feedback_flashover: bool = direct_vent_open \
+			and room.temp_upper_c >= flashover_temp_c + 100.0 \
+			and enough_hrr \
+			and thermal_layer_low_enough \
+			and (head_hot_enough or effective_thermal_layer_m <= flashover_head_height_m) \
+			and room.o2 >= room.fire.o2_min_for_flame
+
+	if (hot_enough \
 			and enough_hrr \
 			and layer_low_enough \
 			and breathing_hot_enough \
-			and (not flashover_require_tenability_loss or tenability_lost):
+			and (not flashover_require_tenability_loss or tenability_lost)) \
+			or radiant_feedback_flashover:
 		room.flashover_triggered = true
 		room.flashover_time_s = sim_time_s
 		# Escalar la ganancia secundaria en proporción al tamaño de la habitación.
@@ -1115,6 +1250,7 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 		var gain: float = room.fire.secondary_hrr_gain_kw * (room.fire.max_hrr_kw / fire_max_hrr_kw)
 		room.fire.max_hrr_kw += gain
 		room.hrr_kw *= room.fire.flashover_hrr_multiplier
+		combustion_system.generalize_room_combustion_after_flashover(room)
 		# Sincronizar fire_time con el HRR boosted para que la curva t² no retroceda
 		var t_to_hrr: float = sqrt(room.hrr_kw / maxf(0.001, room.fire.growth_alpha_kw_s2))
 		room.fire_time_s = maxf(room.fire_time_s, t_to_hrr)
