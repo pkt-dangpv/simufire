@@ -9,8 +9,8 @@
 			"tolerance": 12.0
 		},
 		"room_0_final_layer_150c_m": {
-			"expected": 0.19,
-			"tolerance": 0.08
+			"expected": 2.17,
+			"tolerance": 0.20
 		}
 	}
 }

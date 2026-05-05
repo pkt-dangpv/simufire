@@ -71,6 +71,19 @@ al proyecto para no depender del log por defecto de `user://logs`:
 - `ghanekar_bedroom_hallway`: caso residencial calibrado contra metricas medibles del paper de Ghanekar
 - `ul_exterior_water_knockdown`: golpe de agua UL/FSRI de 570 l/min durante 10 s en el compartimento de fuego; valida 95 l aplicados, extraccion termica y reduccion rapida de temperatura/HRR
 
+## Referencias externas
+
+`cfast_r0_window_360` compara HRR, O2, temperaturas, altura de capa y CO de capa
+alta contra el CSV local de CFAST/NIST. En ese caso `fed_heat_enabled=false`
+porque el objetivo es validar el compartimento contra CFAST, no una exposicion de
+victima dentro de la capa caliente.
+
+`ghanekar_bedroom_hallway` usa combustible mixto de dormitorio moderno y una
+frontera numerica amplia entre los dos tramos del pasillo. Los checks obligatorios
+cubren respuesta de O2, temperatura superior razonable y ausencia de clamp de
+temperatura. Siguen como gaps conocidos no bloqueantes el flashover a `0.9 m` y
+la temporizacion completa de CO/HCN/FED del paper.
+
 ## Eventos de supresion
 
 Los casos pueden incluir `suppression_events` con `time_s`, `room_id`, `duration_s`,

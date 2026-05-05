@@ -57,3 +57,6 @@ This file records source-derived calibration targets used by the validation case
 - `suppression_heat_absorption_kj_per_l`, `suppression_hrr_decay_per_l`, and related fractions model short exterior/interior water knockdown.
 - Door/window `opening_events` remain the calibration hook for flow-path and ventilation timing.
 - Object-level `smoke_yield_kg_per_MJ` and `co_yield_kg_per_MJ` are now used during combustion.
+- `hot_gas_species_carry_fraction` and related thermal-system settings couple CO/CO2 transport to hot-gas parcels crossing openings.
+- `thermal_smoke_bridge_*` settings bridge visible smoke-layer spill with the hotter two-zone layer. Defaults are conservative; Ghanekar uses stronger case overrides for the ranch hallway flow path.
+- The Ghanekar bedroom case treats the near/far hallway split as a computational subdivision, so the internal near/far opening uses a wide virtual boundary rather than a normal door.

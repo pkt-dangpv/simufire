@@ -1,0 +1,675 @@
+TITLE
+ SimuFire default simple_house FDS comparison case
+
+FDSVERSION
+FDS-6.10.1-0-g12efa16-release
+
+INPF
+ simufire_simple_house_default.fds
+
+REVISION
+Revisio
+
+CHID
+ simufire_simple_house_default
+
+CSVF
+ hrr
+ simufire_simple_house_default_hrr.csv
+
+CSVF
+ steps
+ simufire_simple_house_default_steps.csv
+
+CSVF
+ devc
+ simufire_simple_house_default_devc.csv
+
+NMESHES
+     1
+
+TIMES
+          0.000        260.000
+
+VIEWTIMES
+           0.00         260.00  1000
+
+ALBEDO
+      0.30000
+
+HRRPUV_MINMAX
+      0.00000   1200.00000
+
+TEMP_MINMAX
+     20.00000   2000.00000
+
+IBLANK
+ 1
+
+GVEC
+      0.00000      0.00000     -9.80665
+
+SURFDEF
+ WALL
+
+SURFACE
+ INERT
+ 5000.00    1.00
+ 0      1.00000      1.00000      1.00000      0.80000      0.40000      1.00000
+ null
+
+SURFACE
+ WALL
+ 5000.00    1.00
+ 0      1.00000      1.00000      0.50196      0.50196      0.50196      1.00000
+ null
+
+SURFACE
+ FIRE
+ 5000.00    1.00
+ 0      1.00000      1.00000      1.00000      0.00000      0.00000      1.00000
+ null
+
+SURFACE
+ OPEN
+ 5000.00    1.00
+ 2      1.00000      1.00000      1.00000      0.00000      1.00000      1.00000
+ null
+
+SURFACE
+ MIRROR
+ 5000.00    1.00
+-2      1.00000      1.00000      1.00000      0.80000      0.40000      1.00000
+ null
+
+SURFACE
+ INTERPOLATED
+ 5000.00    1.00
+ 0      1.00000      1.00000      1.00000      0.80000      0.40000      1.00000
+ null
+
+SURFACE
+ PERIODIC
+ 5000.00    1.00
+ 0      1.00000      1.00000      1.00000      0.80000      0.40000      1.00000
+ null
+
+SURFACE
+ HVAC
+ 5000.00    1.00
+ 0      1.00000      1.00000      1.00000      0.80000      0.40000      1.00000
+ null
+
+SURFACE
+ MASSLESS TRACER
+ 5000.00    1.00
+ 0      1.00000      1.00000      1.00000      0.80000      0.40000      1.00000
+ null
+
+SURFACE
+ DROPLET
+ 5000.00    1.00
+ 0      1.00000      1.00000      1.00000      0.80000      0.40000      1.00000
+ null
+
+SURFACE
+ MASSLESS TARGET
+ 5000.00    1.00
+ 0      1.00000      1.00000      1.00000      0.80000      0.40000      1.00000
+ null
+
+SURFACE
+ PERIODIC FLOW ONLY
+ 5000.00    1.00
+ 0      1.00000      1.00000      1.00000      0.80000      0.40000      1.00000
+ null
+
+OUTLINE
+  12
+        0.0000        0.0000        0.0000        0.0000        0.0000        2.4000
+        0.0000        7.0000        0.0000        0.0000        7.0000        2.4000
+       10.0000        0.0000        0.0000       10.0000        0.0000        2.4000
+       10.0000        7.0000        0.0000       10.0000        7.0000        2.4000
+        0.0000        0.0000        0.0000        0.0000        7.0000        0.0000
+        0.0000        0.0000        2.4000        0.0000        7.0000        2.4000
+       10.0000        0.0000        0.0000       10.0000        7.0000        0.0000
+       10.0000        0.0000        2.4000       10.0000        7.0000        2.4000
+        0.0000        0.0000        0.0000       10.0000        0.0000        0.0000
+        0.0000        7.0000        0.0000       10.0000        7.0000        0.0000
+        0.0000        0.0000        2.4000       10.0000        0.0000        2.4000
+        0.0000        7.0000        2.4000       10.0000        7.0000        2.4000
+
+TOFFSET
+      0.00000      0.00000      0.00000
+
+HRRPUVCUT
+     1
+    100.00000
+
+HoC
+ 1
+   20000.00000
+
+FUEL
+ 1
+ PROPANE
+
+PROP
+ null
+  1
+ sensor
+  0
+
+DEVICE
+ Salon_T_upper % TEMPERATURE
+       2.50000       2.00000       2.10000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Salon_T_lower % TEMPERATURE
+       2.50000       2.00000       0.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Salon_O2_pct % OXYGEN
+       2.50000       2.00000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Salon_CO_pct % CARBON MONOXIDE
+       2.50000       2.00000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Salon_CO2_pct % CARBON DIOXIDE
+       2.50000       2.00000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Salon_visibility_m % VISIBILITY
+       2.50000       2.00000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Pasillo_T_upper % TEMPERATURE
+       5.75000       3.50000       2.10000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Pasillo_T_lower % TEMPERATURE
+       5.75000       3.50000       0.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Pasillo_O2_pct % OXYGEN
+       5.75000       3.50000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Pasillo_CO_pct % CARBON MONOXIDE
+       5.75000       3.50000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Pasillo_CO2_pct % CARBON DIOXIDE
+       5.75000       3.50000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Pasillo_visibility_m % VISIBILITY
+       5.75000       3.50000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Dormitorio1_T_upper % TEMPERATURE
+       8.25000       1.50000       2.10000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Dormitorio1_T_lower % TEMPERATURE
+       8.25000       1.50000       0.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Dormitorio1_O2_pct % OXYGEN
+       8.25000       1.50000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Dormitorio1_CO_pct % CARBON MONOXIDE
+       8.25000       1.50000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Dormitorio1_CO2_pct % CARBON DIOXIDE
+       8.25000       1.50000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Dormitorio1_visibility_m % VISIBILITY
+       8.25000       1.50000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Dormitorio2_T_upper % TEMPERATURE
+       8.25000       4.00000       2.10000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Dormitorio2_T_lower % TEMPERATURE
+       8.25000       4.00000       0.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Dormitorio2_O2_pct % OXYGEN
+       8.25000       4.00000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Dormitorio2_CO_pct % CARBON MONOXIDE
+       8.25000       4.00000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Dormitorio2_CO2_pct % CARBON DIOXIDE
+       8.25000       4.00000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Dormitorio2_visibility_m % VISIBILITY
+       8.25000       4.00000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Cocina_T_upper % TEMPERATURE
+       2.50000       5.50000       2.10000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Cocina_T_lower % TEMPERATURE
+       2.50000       5.50000       0.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Cocina_O2_pct % OXYGEN
+       2.50000       5.50000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Cocina_CO_pct % CARBON MONOXIDE
+       2.50000       5.50000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Cocina_CO2_pct % CARBON DIOXIDE
+       2.50000       5.50000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Cocina_visibility_m % VISIBILITY
+       2.50000       5.50000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Bano_T_upper % TEMPERATURE
+       8.25000       6.00000       2.10000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Bano_T_lower % TEMPERATURE
+       8.25000       6.00000       0.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Bano_O2_pct % OXYGEN
+       8.25000       6.00000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Bano_CO_pct % CARBON MONOXIDE
+       8.25000       6.00000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Bano_CO2_pct % CARBON DIOXIDE
+       8.25000       6.00000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+DEVICE
+ Bano_visibility_m % VISIBILITY
+       8.25000       6.00000       1.60000       0.00000       0.00000      -1.00000  0  0 % null
+
+VENTORIG
+ 0
+
+OFFSET
+      0.00000      0.00000      0.00000
+
+GRID   MESH_0000001
+    50    35    12     0     0     0     0     0     0
+
+PDIM
+       0.00000      10.00000       0.00000       7.00000       0.00000       2.40000       0.00000       0.00000       0.00000
+
+TRNX
+    0
+    0       0.00000
+    1       0.20000
+    2       0.40000
+    3       0.60000
+    4       0.80000
+    5       1.00000
+    6       1.20000
+    7       1.40000
+    8       1.60000
+    9       1.80000
+   10       2.00000
+   11       2.20000
+   12       2.40000
+   13       2.60000
+   14       2.80000
+   15       3.00000
+   16       3.20000
+   17       3.40000
+   18       3.60000
+   19       3.80000
+   20       4.00000
+   21       4.20000
+   22       4.40000
+   23       4.60000
+   24       4.80000
+   25       5.00000
+   26       5.20000
+   27       5.40000
+   28       5.60000
+   29       5.80000
+   30       6.00000
+   31       6.20000
+   32       6.40000
+   33       6.60000
+   34       6.80000
+   35       7.00000
+   36       7.20000
+   37       7.40000
+   38       7.60000
+   39       7.80000
+   40       8.00000
+   41       8.20000
+   42       8.40000
+   43       8.60000
+   44       8.80000
+   45       9.00000
+   46       9.20000
+   47       9.40000
+   48       9.60000
+   49       9.80000
+   50      10.00000
+
+TRNY
+    0
+    0       0.00000
+    1       0.20000
+    2       0.40000
+    3       0.60000
+    4       0.80000
+    5       1.00000
+    6       1.20000
+    7       1.40000
+    8       1.60000
+    9       1.80000
+   10       2.00000
+   11       2.20000
+   12       2.40000
+   13       2.60000
+   14       2.80000
+   15       3.00000
+   16       3.20000
+   17       3.40000
+   18       3.60000
+   19       3.80000
+   20       4.00000
+   21       4.20000
+   22       4.40000
+   23       4.60000
+   24       4.80000
+   25       5.00000
+   26       5.20000
+   27       5.40000
+   28       5.60000
+   29       5.80000
+   30       6.00000
+   31       6.20000
+   32       6.40000
+   33       6.60000
+   34       6.80000
+   35       7.00000
+
+TRNZ
+    0
+    0       0.00000
+    1       0.20000
+    2       0.40000
+    3       0.60000
+    4       0.80000
+    5       1.00000
+    6       1.20000
+    7       1.40000
+    8       1.60000
+    9       1.80000
+   10       2.00000
+   11       2.20000
+   12       2.40000
+
+OBST
+          17
+       5.00000       5.20000       0.00000       1.55000       0.00000       2.40000      1   1   1   1   1   1   1  ! X5 salon wall S
+       5.00000       5.20000       1.55000       2.45000       2.05000       2.40000      2   1   1   1   1   1   1  ! X5 salon door header
+       5.00000       5.20000       2.45000       4.00000       0.00000       2.40000      3   1   1   1   1   1   1  ! X5 salon wall N
+       5.00000       5.20000       4.00000       5.05000       0.00000       2.40000      4   1   1   1   1   1   1  ! X5 cocina wall S
+       5.00000       5.20000       5.05000       5.95000       2.05000       2.40000      5   1   1   1   1   1   1  ! X5 cocina door header
+       5.00000       5.20000       5.95000       7.00000       0.00000       2.40000      6   1   1   1   1   1   1  ! X5 cocina wall N
+       6.45000       6.55000       0.00000       0.60000       0.00000       2.40000      7   1   1   1   1   1   1  ! X65 dorm1 wall S
+       6.45000       6.55000       0.60000       1.40000       2.05000       2.40000      8   1   1   1   1   1   1  ! X65 dorm1 door header
+       6.45000       6.55000       1.40000       3.60000       0.00000       2.40000      9   1   1   1   1   1   1  ! X65 dorm1 wall N
+       6.45000       6.55000       3.60000       4.40000       2.05000       2.40000     10   1   1   1   1   1   1  ! X65 dorm2 door header
+       6.45000       6.55000       4.40000       5.65000       0.00000       2.40000     11   1   1   1   1   1   1  ! X65 dorm2 wall N
+       6.45000       6.55000       5.65000       6.35000       2.05000       2.40000     12   1   1   1   1   1   1  ! X65 bano door header
+       6.45000       6.55000       6.35000       7.00000       0.00000       2.40000     13   1   1   1   1   1   1  ! X65 bano wall N
+       0.00000       5.00000       4.00000       4.20000       0.00000       2.40000     14   1   1   1   1   1   1  ! Y4 salon cocina wall
+       6.50000      10.00000       3.00000       3.20000       0.00000       2.40000     15   1   1   1   1   1   1  ! Y3 dorm wall
+       6.50000      10.00000       5.00000       5.20000       0.00000       2.40000     16   1   1   1   1   1   1  ! Y5 dorm bano wall
+       1.00000       2.00000       0.80000       1.80000       0.00000       0.10000     17   0   0   0   0   0   2  ! Salon prescribed fire
+   25   26    0    8    0   12   -1   -1 ! F  1 1 1 1 1 1
+   25   26    8   12   10   12   -1   -1 ! F  1 1 0 0 1 1
+   25   26   12   20    0   12   -1   -1 ! F  1 1 1 0 1 1
+   25   26   20   25    0   12   -1   -1 ! F  1 1 0 1 1 1
+   25   26   25   30   10   12   -1   -1 ! F  1 1 0 0 1 1
+   25   26   30   35    0   12   -1   -1 ! F  1 1 1 1 1 1
+   32   33    0    3    0   12   -1   -1 ! F  1 1 1 1 1 1
+   32   33    3    7   10   12   -1   -1 ! F  1 1 0 0 1 1
+   32   33    7   18    0   12   -1   -1 ! F  1 1 1 1 1 1
+   32   33   18   22   10   12   -1   -1 ! F  1 1 0 0 1 1
+   32   33   22   28    0   12   -1   -1 ! F  1 1 1 1 1 1
+   32   33   28   32   10   12   -1   -1 ! F  1 1 0 0 1 1
+   32   33   32   35    0   12   -1   -1 ! F  1 1 1 1 1 1
+    0   25   20   21    0   12   -1   -1 ! F  1 0 1 1 1 1
+   33   50   15   16    0   12   -1   -1 ! F  0 1 1 1 1 1
+   33   50   25   26    0   12   -1   -1 ! F  0 1 1 1 1 1
+    5   10    4    9    0    1   -1   -1 ! F  1 1 1 1 1 1
+
+VENT
+    6    6
+       0.00000       0.00000       0.00000       7.00000       0.00000       2.40000     1   1
+      10.00000      10.00000       0.00000       7.00000       0.00000       2.40000     2   1
+       0.00000      10.00000       0.00000       0.00000       0.00000       2.40000     3   1
+       0.00000      10.00000       7.00000       7.00000       0.00000       2.40000     4   1
+       0.00000      10.00000       0.00000       7.00000       0.00000       0.00000     5   1
+       0.00000      10.00000       0.00000       7.00000       2.40000       2.40000     6   1
+    0    0    0   35    0   12   99    0
+   50   50    0   35    0   12   99    0
+    0   50    0    0    0   12   99    0
+    0   50   35   35    0   12   99    0
+    0   50    0   35    0    0   99    0
+    0   50    0   35   12   12   99    0
+
+CVENT
+    0
+
+
+SMOKF3D     1   8700.000
+ simufire_simple_house_default_1_1.s3d
+ SOOT DENSITY
+ rho_C
+ kg/m3
+SMOKF3D     1      0.000
+ simufire_simple_house_default_1_2.s3d
+ HRRPUV
+ hrrpuv
+ kW/m3
+SMOKF3D     1      0.000
+ simufire_simple_house_default_1_3.s3d
+ TEMPERATURE
+ temp
+ C
+SLCF     1 # STRUCTURED &     0    50     0    35     8     8 !      1      0      3
+ simufire_simple_house_default_1_1.sf
+ TEMPERATURE
+ temp
+ C
+SLCF     1 # STRUCTURED &     0    50     0    35     8     8 !      1      0      3
+ simufire_simple_house_default_1_2.sf
+ U-VELOCITY
+ U-VEL
+ m/s
+SLCF     1 # STRUCTURED &     0    50     0    35     8     8 !      1      0      3
+ simufire_simple_house_default_1_3.sf
+ V-VELOCITY
+ V-VEL
+ m/s
+SLCF     1 # STRUCTURED &     0    50     0    35     8     8 !      1      0      3
+ simufire_simple_house_default_1_4.sf
+ W-VELOCITY
+ W-VEL
+ m/s
+SLCF     1 # STRUCTURED &     0    50     0    35     8     8 !      2      0      3
+ simufire_simple_house_default_1_5.sf
+ OXYGEN VOLUME FRACTION
+ X_O2
+ mol/mol
+SLCF     1 # STRUCTURED &     0    50     0    35     8     8 !      3      0      3
+ simufire_simple_house_default_1_6.sf
+ CARBON MONOXIDE VOLUME FRACTION
+ X_CO
+ mol/mol
+SLCF     1 # STRUCTURED &     0    50     0    35     8     8 !      4      0      3
+ simufire_simple_house_default_1_7.sf
+ CARBON DIOXIDE VOLUME FRACTION
+ X_CO2
+ mol/mol
+SLCF     1 # STRUCTURED &     0    50     0    35     8     8 !      5      0      3
+ simufire_simple_house_default_1_8.sf
+ SOOT VISIBILITY
+ VIS_C
+ m
+SLCF     1 # STRUCTURED &     0    50     0    35     8     8 !      6      0      3
+ simufire_simple_house_default_1_9.sf
+ VELOCITY
+ vel
+ m/s
+SLCF     1 # STRUCTURED &     0    50     0    35     8     8 !      6      0      3
+ simufire_simple_house_default_1_10.sf
+ U-VELOCITY
+ U-VEL
+ m/s
+SLCF     1 # STRUCTURED &     0    50     0    35     8     8 !      6      0      3
+ simufire_simple_house_default_1_11.sf
+ V-VELOCITY
+ V-VEL
+ m/s
+SLCF     1 # STRUCTURED &     0    50     0    35     8     8 !      6      0      3
+ simufire_simple_house_default_1_12.sf
+ W-VELOCITY
+ W-VEL
+ m/s
+SLCF     1 # STRUCTURED &     0    50    18    18     0    12 !      7      0      2
+ simufire_simple_house_default_1_13.sf
+ TEMPERATURE
+ temp
+ C
+SLCF     1 # STRUCTURED &     0    50    18    18     0    12 !      7      0      2
+ simufire_simple_house_default_1_14.sf
+ U-VELOCITY
+ U-VEL
+ m/s
+SLCF     1 # STRUCTURED &     0    50    18    18     0    12 !      7      0      2
+ simufire_simple_house_default_1_15.sf
+ V-VELOCITY
+ V-VEL
+ m/s
+SLCF     1 # STRUCTURED &     0    50    18    18     0    12 !      7      0      2
+ simufire_simple_house_default_1_16.sf
+ W-VELOCITY
+ W-VEL
+ m/s
+SLCF     1 # STRUCTURED &     0    50    18    18     0    12 !      8      0      2
+ simufire_simple_house_default_1_17.sf
+ SOOT VISIBILITY
+ VIS_C
+ m
+SLCF     1 # STRUCTURED &     0    50    18    18     0    12 !      9      0      2
+ simufire_simple_house_default_1_18.sf
+ VELOCITY
+ vel
+ m/s
+SLCF     1 # STRUCTURED &     0    50    18    18     0    12 !      9      0      2
+ simufire_simple_house_default_1_19.sf
+ U-VELOCITY
+ U-VEL
+ m/s
+SLCF     1 # STRUCTURED &     0    50    18    18     0    12 !      9      0      2
+ simufire_simple_house_default_1_20.sf
+ V-VELOCITY
+ V-VEL
+ m/s
+SLCF     1 # STRUCTURED &     0    50    18    18     0    12 !      9      0      2
+ simufire_simple_house_default_1_21.sf
+ W-VELOCITY
+ W-VEL
+ m/s
+DEVICE_ACT     Salon_T_upper
+     1      0.00     0
+DEVICE_ACT     Salon_T_lower
+     2      0.00     0
+DEVICE_ACT     Salon_O2_pct
+     3      0.00     0
+DEVICE_ACT     Salon_CO_pct
+     4      0.00     0
+DEVICE_ACT     Salon_CO2_pct
+     5      0.00     0
+DEVICE_ACT     Salon_visibility_m
+     6      0.00     0
+DEVICE_ACT     Pasillo_T_upper
+     7      0.00     0
+DEVICE_ACT     Pasillo_T_lower
+     8      0.00     0
+DEVICE_ACT     Pasillo_O2_pct
+     9      0.00     0
+DEVICE_ACT     Pasillo_CO_pct
+    10      0.00     0
+DEVICE_ACT     Pasillo_CO2_pct
+    11      0.00     0
+DEVICE_ACT     Pasillo_visibility_m
+    12      0.00     0
+DEVICE_ACT     Dormitorio1_T_upper
+    13      0.00     0
+DEVICE_ACT     Dormitorio1_T_lower
+    14      0.00     0
+DEVICE_ACT     Dormitorio1_O2_pct
+    15      0.00     0
+DEVICE_ACT     Dormitorio1_CO_pct
+    16      0.00     0
+DEVICE_ACT     Dormitorio1_CO2_pct
+    17      0.00     0
+DEVICE_ACT     Dormitorio1_visibility_m
+    18      0.00     0
+DEVICE_ACT     Dormitorio2_T_upper
+    19      0.00     0
+DEVICE_ACT     Dormitorio2_T_lower
+    20      0.00     0
+DEVICE_ACT     Dormitorio2_O2_pct
+    21      0.00     0
+DEVICE_ACT     Dormitorio2_CO_pct
+    22      0.00     0
+DEVICE_ACT     Dormitorio2_CO2_pct
+    23      0.00     0
+DEVICE_ACT     Dormitorio2_visibility_m
+    24      0.00     0
+DEVICE_ACT     Cocina_T_upper
+    25      0.00     0
+DEVICE_ACT     Cocina_T_lower
+    26      0.00     0
+DEVICE_ACT     Cocina_O2_pct
+    27      0.00     0
+DEVICE_ACT     Cocina_CO_pct
+    28      0.00     0
+DEVICE_ACT     Cocina_CO2_pct
+    29      0.00     0
+DEVICE_ACT     Cocina_visibility_m
+    30      0.00     0
+DEVICE_ACT     Bano_T_upper
+    31      0.00     0
+DEVICE_ACT     Bano_T_lower
+    32      0.00     0
+DEVICE_ACT     Bano_O2_pct
+    33      0.00     0
+DEVICE_ACT     Bano_CO_pct
+    34      0.00     0
+DEVICE_ACT     Bano_CO2_pct
+    35      0.00     0
+DEVICE_ACT     Bano_visibility_m
+    36      0.00     0

@@ -1,0 +1,122 @@
+! SimuFire small_apartment() approximate FDS comparison case.
+! This is a trend-comparison CFD reference, not an exact validation dataset.
+
+&HEAD CHID='simufire_small_apartment', TITLE='SimuFire small apartment approximate comparison case' /
+
+! One-storey apartment, nominal height 2.5 m.
+! Footprint: 8.0 m x 9.5 m. Mesh spacing is about 0.10 m x 0.10 m x 0.25 m.
+&MESH IJK=80,95,10, XB=0.0,8.0,0.0,9.5,0.0,2.5 /
+
+&TIME T_END=600.0 /
+&DUMP DT_HRR=1.0, DT_DEVC=1.0, DT_SLCF=5.0 /
+
+! Generic smoky residential fuel approximation.
+&REAC FUEL='PROPANE', SOOT_YIELD=0.08, CO_YIELD=0.04, HEAT_OF_COMBUSTION=20000. /
+
+&SURF ID='WALL', COLOR='GRAY' /
+&SURF ID='FIRE', HRRPUA=1000.0, RAMP_Q='T2_FIRE', COLOR='RED' /
+
+! ---------------------------------------------------------------------------
+! Nominal room layout before wall thickness:
+! Salon       x=0.0..5.2, y=0.0..4.6  -> about 60 m3
+! Dormitorio2 x=5.2..8.0, y=0.0..4.6  -> about 32 m3
+! Pasillo     x=0.0..8.0, y=4.6..5.5  -> about 18 m3
+! Cocina      x=0.0..3.0, y=5.5..9.5  -> about 30 m3
+! Dormitorio1 x=3.0..6.6, y=5.5..9.5  -> about 36 m3
+! Bano        x=6.6..8.0, y=5.5..9.5  -> about 14 m3
+! ---------------------------------------------------------------------------
+
+! Wall between Salon/Dormitorio2 and Pasillo, with open doorways.
+&OBST ID='Wall Salon-Pasillo W', XB=0.0,2.5,4.55,4.65,0.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Header Salon-Pasillo', XB=2.5,3.5,4.55,4.65,2.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Wall Salon-Pasillo E', XB=3.5,5.2,4.55,4.65,0.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Wall Dorm2-Pasillo W', XB=5.2,6.3,4.55,4.65,0.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Header Dorm2-Pasillo', XB=6.3,7.3,4.55,4.65,2.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Wall Dorm2-Pasillo E', XB=7.3,8.0,4.55,4.65,0.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+
+! Wall between upper rooms and Pasillo, with open doorways.
+&OBST ID='Wall Cocina-Pasillo W', XB=0.0,1.0,5.45,5.55,0.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Header Cocina-Pasillo', XB=1.0,2.0,5.45,5.55,2.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Wall Cocina-Pasillo E', XB=2.0,3.0,5.45,5.55,0.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Wall Dorm1-Pasillo W', XB=3.0,4.3,5.45,5.55,0.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Header Dorm1-Pasillo', XB=4.3,5.3,5.45,5.55,2.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Wall Dorm1-Pasillo E', XB=5.3,6.6,5.45,5.55,0.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Wall Bano-Pasillo W', XB=6.6,6.8,5.45,5.55,0.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Header Bano-Pasillo', XB=6.8,7.6,5.45,5.55,2.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Wall Bano-Pasillo E', XB=7.6,8.0,5.45,5.55,0.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+
+! Room separation walls.
+&OBST ID='Wall Salon-Dorm2', XB=5.15,5.25,0.0,4.55,0.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Wall Cocina-Dorm1', XB=2.95,3.05,5.55,9.5,0.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+&OBST ID='Wall Dorm1-Bano', XB=6.55,6.65,5.55,9.5,0.0,2.5, SURF_ID='WALL', THICKEN=.TRUE. /
+
+! Initial fire in Salon: 1 m2 burner, t-squared growth capped at about 1000 kW.
+&OBST ID='Salon burner', XB=2.0,3.0,1.8,2.8,0.0,0.1, SURF_IDS='FIRE','INERT','INERT' /
+
+&RAMP ID='T2_FIRE', T=0.0, F=0.00 /
+&RAMP ID='T2_FIRE', T=30.0, F=0.01 /
+&RAMP ID='T2_FIRE', T=60.0, F=0.04 /
+&RAMP ID='T2_FIRE', T=90.0, F=0.09 /
+&RAMP ID='T2_FIRE', T=120.0, F=0.16 /
+&RAMP ID='T2_FIRE', T=150.0, F=0.25 /
+&RAMP ID='T2_FIRE', T=180.0, F=0.36 /
+&RAMP ID='T2_FIRE', T=210.0, F=0.49 /
+&RAMP ID='T2_FIRE', T=240.0, F=0.64 /
+&RAMP ID='T2_FIRE', T=270.0, F=0.81 /
+&RAMP ID='T2_FIRE', T=300.0, F=1.00 /
+&RAMP ID='T2_FIRE', T=600.0, F=1.00 /
+
+! ---------------------------------------------------------------------------
+! Room sensors. Upper/lower temperatures are at 2.1 m and 0.6 m.
+! Species and visibility are at a nominal breathing height of 1.6 m.
+! O2 and CO2 are output as percent by volume.
+! ---------------------------------------------------------------------------
+
+&DEVC ID='Salon_T_upper', XYZ=2.6,2.3,2.1, QUANTITY='TEMPERATURE' /
+&DEVC ID='Salon_T_lower', XYZ=2.6,2.3,0.6, QUANTITY='TEMPERATURE' /
+&DEVC ID='Salon_O2_pct', XYZ=2.6,2.3,1.6, QUANTITY='VOLUME FRACTION', SPEC_ID='OXYGEN', CONVERSION_FACTOR=100.0, UNITS='%' /
+&DEVC ID='Salon_CO2_pct', XYZ=2.6,2.3,1.6, QUANTITY='VOLUME FRACTION', SPEC_ID='CARBON DIOXIDE', CONVERSION_FACTOR=100.0, UNITS='%' /
+&DEVC ID='Salon_visibility_m', XYZ=2.6,2.3,1.6, QUANTITY='VISIBILITY' /
+
+&DEVC ID='Cocina_T_upper', XYZ=1.5,7.5,2.1, QUANTITY='TEMPERATURE' /
+&DEVC ID='Cocina_T_lower', XYZ=1.5,7.5,0.6, QUANTITY='TEMPERATURE' /
+&DEVC ID='Cocina_O2_pct', XYZ=1.5,7.5,1.6, QUANTITY='VOLUME FRACTION', SPEC_ID='OXYGEN', CONVERSION_FACTOR=100.0, UNITS='%' /
+&DEVC ID='Cocina_CO2_pct', XYZ=1.5,7.5,1.6, QUANTITY='VOLUME FRACTION', SPEC_ID='CARBON DIOXIDE', CONVERSION_FACTOR=100.0, UNITS='%' /
+&DEVC ID='Cocina_visibility_m', XYZ=1.5,7.5,1.6, QUANTITY='VISIBILITY' /
+
+&DEVC ID='Pasillo_T_upper', XYZ=4.0,5.05,2.1, QUANTITY='TEMPERATURE' /
+&DEVC ID='Pasillo_T_lower', XYZ=4.0,5.05,0.6, QUANTITY='TEMPERATURE' /
+&DEVC ID='Pasillo_O2_pct', XYZ=4.0,5.05,1.6, QUANTITY='VOLUME FRACTION', SPEC_ID='OXYGEN', CONVERSION_FACTOR=100.0, UNITS='%' /
+&DEVC ID='Pasillo_CO2_pct', XYZ=4.0,5.05,1.6, QUANTITY='VOLUME FRACTION', SPEC_ID='CARBON DIOXIDE', CONVERSION_FACTOR=100.0, UNITS='%' /
+&DEVC ID='Pasillo_visibility_m', XYZ=4.0,5.05,1.6, QUANTITY='VISIBILITY' /
+
+&DEVC ID='Dormitorio1_T_upper', XYZ=4.8,7.5,2.1, QUANTITY='TEMPERATURE' /
+&DEVC ID='Dormitorio1_T_lower', XYZ=4.8,7.5,0.6, QUANTITY='TEMPERATURE' /
+&DEVC ID='Dormitorio1_O2_pct', XYZ=4.8,7.5,1.6, QUANTITY='VOLUME FRACTION', SPEC_ID='OXYGEN', CONVERSION_FACTOR=100.0, UNITS='%' /
+&DEVC ID='Dormitorio1_CO2_pct', XYZ=4.8,7.5,1.6, QUANTITY='VOLUME FRACTION', SPEC_ID='CARBON DIOXIDE', CONVERSION_FACTOR=100.0, UNITS='%' /
+&DEVC ID='Dormitorio1_visibility_m', XYZ=4.8,7.5,1.6, QUANTITY='VISIBILITY' /
+
+&DEVC ID='Dormitorio2_T_upper', XYZ=6.6,2.3,2.1, QUANTITY='TEMPERATURE' /
+&DEVC ID='Dormitorio2_T_lower', XYZ=6.6,2.3,0.6, QUANTITY='TEMPERATURE' /
+&DEVC ID='Dormitorio2_O2_pct', XYZ=6.6,2.3,1.6, QUANTITY='VOLUME FRACTION', SPEC_ID='OXYGEN', CONVERSION_FACTOR=100.0, UNITS='%' /
+&DEVC ID='Dormitorio2_CO2_pct', XYZ=6.6,2.3,1.6, QUANTITY='VOLUME FRACTION', SPEC_ID='CARBON DIOXIDE', CONVERSION_FACTOR=100.0, UNITS='%' /
+&DEVC ID='Dormitorio2_visibility_m', XYZ=6.6,2.3,1.6, QUANTITY='VISIBILITY' /
+
+&DEVC ID='Bano_T_upper', XYZ=7.3,7.5,2.1, QUANTITY='TEMPERATURE' /
+&DEVC ID='Bano_T_lower', XYZ=7.3,7.5,0.6, QUANTITY='TEMPERATURE' /
+&DEVC ID='Bano_O2_pct', XYZ=7.3,7.5,1.6, QUANTITY='VOLUME FRACTION', SPEC_ID='OXYGEN', CONVERSION_FACTOR=100.0, UNITS='%' /
+&DEVC ID='Bano_CO2_pct', XYZ=7.3,7.5,1.6, QUANTITY='VOLUME FRACTION', SPEC_ID='CARBON DIOXIDE', CONVERSION_FACTOR=100.0, UNITS='%' /
+&DEVC ID='Bano_visibility_m', XYZ=7.3,7.5,1.6, QUANTITY='VISIBILITY' /
+
+! Smokeview slices: horizontal breathing plane and vertical corridor plane.
+&SLCF PBZ=1.50, QUANTITY='TEMPERATURE', VECTOR=.TRUE. /
+&SLCF PBZ=1.50, QUANTITY='VOLUME FRACTION', SPEC_ID='OXYGEN' /
+&SLCF PBZ=1.50, QUANTITY='VISIBILITY' /
+&SLCF PBZ=1.50, QUANTITY='VELOCITY', VECTOR=.TRUE. /
+
+&SLCF PBY=5.05, QUANTITY='TEMPERATURE', VECTOR=.TRUE. /
+&SLCF PBY=5.05, QUANTITY='VOLUME FRACTION', SPEC_ID='OXYGEN' /
+&SLCF PBY=5.05, QUANTITY='VISIBILITY' /
+&SLCF PBY=5.05, QUANTITY='VELOCITY', VECTOR=.TRUE. /
+
+&TAIL /

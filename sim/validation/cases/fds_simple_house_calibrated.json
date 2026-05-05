@@ -1,0 +1,64 @@
+{
+	"template": "simple_house",
+	"duration_s": 260.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 0,
+	"enable_logging": true,
+	"watch_room_ids": [0, 1, 2, 3, 4, 5],
+	"smoke_trigger_room_id": 0,
+	"spread_target_room_id": 1,
+	"l150_room_id": 1,
+	"validation_step_s": 0.08333333333333333,
+	"engine_overrides": {
+		"log_interval_s": 1.0,
+		"log_file_path": "res://external/fds/simufire_simple_house_calibrated_simufire.log",
+		"csv_log_file_path": "res://external/fds/simufire_simple_house_calibrated_simufire.csv",
+		"fire_fds_extinction_enabled": true,
+		"fire_fds_extinction_o2_limit_ambient": 0.135,
+		"fire_fds_extinction_hot_gas_c": 900.0,
+		"fire_fds_extinction_hot_o2_floor": 0.105,
+		"fire_fds_extinction_transition_width": 0.030,
+		"fire_fds_extinction_pyrolysis_floor": 0.04,
+
+		"upper_radiative_loss_start_c": 80.0,
+		"upper_radiative_loss_emissivity": 0.90,
+		"upper_radiative_loss_area_factor": 1.15,
+		"upper_radiative_loss_max_fraction_per_step": 0.45,
+
+		"upper_heat_capture_min": 0.10,
+		"upper_heat_capture_max": 0.25,
+
+		"plume_fire_diameter_m": 1.60,
+
+		"doorway_heat_exchange_coeff": 1.0,
+		"smoke_heat_mix_coeff": 0.040,
+
+		"hot_gas_species_carry_fraction": 0.90,
+		"hot_gas_smoke_carry_fraction": 0.30,
+		"hot_gas_species_max_fraction_per_step": 0.34,
+
+		"interior_background_heat_exchange_kg_s_m2": 0.040,
+		"interior_background_heat_max_fraction_per_step": 0.030,
+		"interior_background_heat_carry_factor": 0.55,
+
+		"thermal_smoke_bridge_ref_kg_m3": 0.008,
+		"thermal_smoke_bridge_max_weight": 0.55,
+		"thermal_smoke_bridge_hot_temp_start_c": 90.0,
+		"thermal_smoke_bridge_hot_temp_full_c": 260.0,
+		"thermal_smoke_bridge_hot_max_weight": 0.55,
+		"base_spill_kg_s_per_m2": 0.36,
+		"max_spill_kg_s": 2.20,
+		"max_fraction_out_per_s": 0.20,
+		"target_smoke_resistance_coeff": 0.20,
+
+		"flow_path_interior_pull_boost": 0.0,
+		"flow_path_interior_pull_max_multiplier": 1.0,
+
+		"background_species_exchange_kg_s_m2": 0.032,
+		"background_species_max_fraction_closed": 0.012,
+
+		"doorway_o2_background_exchange_kg_s_m2": 0.055,
+		"doorway_o2_background_max_fraction_per_step": 0.022,
+		"doorway_o2_exchange_coeff": 1.40
+	}
+}

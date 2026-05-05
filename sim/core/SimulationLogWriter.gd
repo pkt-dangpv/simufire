@@ -245,12 +245,13 @@ func _append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		var room_label: String = str(room_state.get("id", room_id))
 		if room_name_val != "":
 			room_label = "%s(%s)" % [str(room_state.get("id", room_id)), room_name_val]
-		var line := "ROOM %s | HRR=%.2f | Up=%.2f | Low=%.2f | Smoke=%.4f | SmokeLayer=%.2f | HotLayer=%.2f | L150=%.2f | P=%.2fPa | O2=%.4f | CO=%.0fppm | COu=%.0fppm | CO2=%.0fppm | FED=%.3f | SVV=%.0f%% [%s]" % [
+		var line := "ROOM %s | HRR=%.2f | Up=%.2f | Low=%.2f | Smoke=%.4f | Vis=%.1fm | SmokeLayer=%.2f | HotLayer=%.2f | L150=%.2f | P=%.2fPa | O2=%.4f | CO=%.0fppm | COu=%.0fppm | CO2=%.0fppm | FED=%.3f | SVV=%.0f%% [%s]" % [
 			room_label,
 			float(room_state.get("hrr_kw", 0.0)),
 			float(room_state.get("temp_upper_c", 0.0)),
 			float(room_state.get("temp_lower_c", 0.0)),
 			float(room_state.get("smoke_kg", 0.0)),
+			float(room_state.get("visibility_m", 30.0)),
 			float(room_state.get("smoke_layer_m", 0.0)),
 			float(room_state.get("hot_layer_m", 0.0)),
 			float(room_state.get("layer_150c_m", 0.0)),
@@ -276,8 +277,11 @@ func _append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 			float(room_state.get("dominant_fuel_object_exposure_s", 0.0)),
 			float(room_state.get("dominant_fuel_object_remaining_MJ", 0.0))
 		]
-		line += " | HRRt=%.1f | O2f=%.2f | GasMJ=%.2f | VentR=%.2f" % [
+		line += " | HRRt=%.1f | Pyro=%.1f | Burn=%.1f | UnburnGen=%.1f | O2f=%.2f | GasMJ=%.2f | VentR=%.2f" % [
 			float(room_state.get("hrr_target_kw", 0.0)),
+			float(room_state.get("pyrolysis_kw", 0.0)),
+			float(room_state.get("burned_hrr_kw", room_state.get("hrr_kw", 0.0))),
+			float(room_state.get("unburned_generation_kw", 0.0)),
 			float(room_state.get("o2_hrr_factor", 0.0)),
 			float(room_state.get("retained_unburned_MJ", 0.0)),
 			float(room_state.get("ventilation_response_factor", 0.0))
@@ -309,7 +313,7 @@ func _collect_room_ids(state: Dictionary) -> Array[int]:
 # ============================================================
 
 func _build_csv_header() -> String:
-	return "time_s,room_id,room_name,hrr_kw,temp_upper_c,temp_lower_c,temp_at_0_9m_c,smoke_kg,smoke_layer_m,hot_layer_m,layer_150c_m,overpressure_pa,o2,co_ppm,co_upper_ppm,co2_ppm,fed,svv_worst_pct,flashover_triggered,flashover_time_s,fuel_remaining_MJ,ventilation_response_factor"
+	return "time_s,room_id,room_name,hrr_kw,temp_upper_c,temp_lower_c,temp_at_0_9m_c,smoke_kg,visibility_m,smoke_layer_m,hot_layer_m,layer_150c_m,overpressure_pa,o2,co_ppm,co_upper_ppm,co2_ppm,fed,svv_worst_pct,flashover_triggered,flashover_time_s,fuel_remaining_MJ,ventilation_response_factor,pyrolysis_kw,burned_hrr_kw,unburned_generation_kw,retained_unburned_MJ,flame_hrr_target_kw,smolder_hrr_target_kw,pool_release_hrr_target_kw,o2_hrr_factor"
 
 
 func _open_csv_file(mode: FileAccess.ModeFlags) -> FileAccess:
@@ -348,6 +352,7 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		fields.append("%.2f" % float(rs.get("temp_lower_c", 0.0)))
 		fields.append("%.2f" % float(rs.get("temp_at_0_9m_c", rs.get("temp_lower_c", 0.0))))
 		fields.append("%.4f" % float(rs.get("smoke_kg", 0.0)))
+		fields.append("%.2f" % float(rs.get("visibility_m", 30.0)))
 		fields.append("%.3f" % float(rs.get("smoke_layer_m", 0.0)))
 		fields.append("%.3f" % float(rs.get("hot_layer_m", 0.0)))
 		fields.append("%.3f" % float(rs.get("layer_150c_m", 0.0)))
@@ -362,6 +367,14 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		fields.append("%.1f" % float(rs.get("flashover_time_s", -1.0)))
 		fields.append("%.2f" % float(rs.get("fuel_objects_remaining_MJ", rs.get("remaining_fuel_MJ", 0.0))))
 		fields.append("%.4f" % float(rs.get("ventilation_response_factor", 0.0)))
+		fields.append("%.2f" % float(rs.get("pyrolysis_kw", 0.0)))
+		fields.append("%.2f" % float(rs.get("burned_hrr_kw", rs.get("hrr_kw", 0.0))))
+		fields.append("%.2f" % float(rs.get("unburned_generation_kw", 0.0)))
+		fields.append("%.4f" % float(rs.get("retained_unburned_MJ", 0.0)))
+		fields.append("%.2f" % float(rs.get("flame_hrr_target_kw", 0.0)))
+		fields.append("%.2f" % float(rs.get("smolder_hrr_target_kw", 0.0)))
+		fields.append("%.2f" % float(rs.get("pool_release_hrr_target_kw", 0.0)))
+		fields.append("%.4f" % float(rs.get("o2_hrr_factor", 0.0)))
 		file.store_line(",".join(fields))
 
 	file.close()

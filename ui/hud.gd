@@ -15,11 +15,11 @@ signal view_3d_toggled(enabled: bool)
 @export var show_view_toggle: bool = true
 
 ## Tamaño de fuente del encabezado de cada tarjeta de sala.
-@export var font_size_header: int = 11
+@export var font_size_header: int = 13
 ## Tamaño de fuente de los datos de cada tarjeta de sala.
-@export var font_size_data: int = 10
+@export var font_size_data: int = 12
 ## Margen interior (px) de cada tarjeta de sala.
-@export var card_margin_px: int = 5
+@export var card_margin_px: int = 7
 ## Color normal de los datos de cada tarjeta (sin alerta).
 @export var card_data_color: Color = Color(0.80, 0.90, 0.80, 1.0)
 ## Color de tarjeta en estado de alerta (O2 bajo o FED alto).
@@ -121,47 +121,55 @@ func update_state(state: Dictionary) -> void:
 	status_label.text = build_room_status_text(room_state)
 
 
+func show_room_detail(room_id: int) -> void:
+	if room_id < 0:
+		show_status_panel = false
+		if status_panel != null:
+			status_panel.visible = false
+		return
+	status_panel_room_id = room_id
+	show_status_panel = true
+	if status_panel != null:
+		status_panel.visible = true
+
+
 func build_room_status_text(room_state: Dictionary) -> String:
 	if room_state.is_empty():
 		return "Sin datos"
 
-	if compact_status_panel:
-		var compact_lines: Array[String] = [
-			"HRR %.0f kW" % float(room_state.get("hrr_kw", 0.0)),
-			"T@0.9 %.0f C | O2 %.1f%%" % [
-				float(room_state.get("temp_at_0_9m_c", room_state.get("temp_lower_c", 0.0))),
-				float(room_state.get("o2", 0.0)) * 100.0
-			],
-			"SmL %.2f m | CO %.0f ppm" % [
-				float(room_state.get("smoke_layer_m", room_state.get("h_layer_m", 0.0))),
-				float(room_state.get("co_ppm", 0.0))
-			]
-		]
+	var room_name: String = String(room_state.get("name", ""))
+	var fed: float = float(room_state.get("fed", 0.0))
+	var svv_pct: float = float(room_state.get("svv_worst_pct", -1.0))
+	if svv_pct < 0.0:
+		var h_m: float = float(room_state.get("height_m", 2.4))
+		var l150: float = float(room_state.get("layer_150c_m", h_m))
+		if l150 >= 1.8:
+			svv_pct = 100.0
+		elif l150 >= 0.5:
+			svv_pct = 90.0 + 9.0 * (l150 - 0.5) / 1.3
+		else:
+			svv_pct = clampf(l150 / 0.5 * 90.0, 0.0, 90.0)
 
-		if bool(room_state.get("flashover_triggered", false)):
-			compact_lines.append("FLASHOVER")
+	var header_line: String = ""
+	if room_name != "":
+		header_line = "%s\nFED %.3f  SVV %.0f%%" % [room_name, fed, svv_pct]
+	else:
+		header_line = "FED %.3f  SVV %.0f%%" % [fed, svv_pct]
 
-		return "\n".join(PackedStringArray(compact_lines))
-
-	var lines: Array[String] = [
+	var data_lines: Array[String] = [
 		"HRR: %.0f kW" % float(room_state.get("hrr_kw", 0.0)),
-		"Upper: %.1f C" % float(room_state.get("temp_upper_c", 0.0)),
-		"Lower: %.1f C" % float(room_state.get("temp_lower_c", 0.0)),
-		"T@0.9m: %.1f C" % float(room_state.get("temp_at_0_9m_c", room_state.get("temp_lower_c", 0.0))),
-		"SmokeLayer: %.2f m" % float(room_state.get("smoke_layer_m", room_state.get("h_layer_m", 0.0))),
-		"HotLayer: %.2f m" % float(room_state.get("hot_layer_m", room_state.get("thermal_layer_m", 0.0))),
-		"Layer150C: %.2f m" % float(room_state.get("layer_150c_m", 0.0)),
-		"T@1.8m: %.1f C" % float(room_state.get("temp_at_1_8m_c", 0.0)),
-		"O2: %.1f%%" % (float(room_state.get("o2", 0.0)) * 100.0),
-		"Smoke: %.4f kg" % float(room_state.get("smoke_kg", 0.0)),
-		"CO: %.0f ppm" % float(room_state.get("co_ppm", 0.0)),
-		"P: %.2f Pa" % float(room_state.get("overpressure_pa", 0.0))
+		"T↑ %.0f  T↓ %.0f C" % [float(room_state.get("temp_upper_c", 0.0)), float(room_state.get("temp_lower_c", 0.0))],
+		"T@0.9m: %.0f C  T@1.8m: %.0f C" % [float(room_state.get("temp_at_0_9m_c", room_state.get("temp_lower_c", 0.0))), float(room_state.get("temp_at_1_8m_c", 0.0))],
+		"O2: %.1f%%  CO2: %.2f%%" % [float(room_state.get("o2", 0.0)) * 100.0, float(room_state.get("co2", 0.0)) * 100.0],
+		"SmL: %.2f m  L150: %.2f m" % [float(room_state.get("smoke_layer_m", room_state.get("h_layer_m", 0.0))), float(room_state.get("layer_150c_m", 0.0))],
+		"CO: %.0f ppm  HCN: %.1f ppm" % [float(room_state.get("co_ppm", 0.0)), float(room_state.get("hcn_ppm", 0.0))],
+		"P: %.1f Pa  Smoke: %.3f kg" % [float(room_state.get("overpressure_pa", 0.0)), float(room_state.get("smoke_kg", 0.0))],
 	]
 
 	if bool(room_state.get("flashover_triggered", false)):
-		lines.append("Flashover: true")
+		data_lines.append("!!! FLASHOVER !!!")
 
-	return "\n".join(PackedStringArray(lines))
+	return header_line + "\n" + "\n".join(PackedStringArray(data_lines))
 
 
 func _rebuild_rooms_panel() -> void:
@@ -191,7 +199,7 @@ func _rebuild_rooms_panel() -> void:
 		card.add_child(margin)
 
 		var vbox := VBoxContainer.new()
-		vbox.add_theme_constant_override("separation", 1)
+		vbox.add_theme_constant_override("separation", 3)
 		margin.add_child(vbox)
 
 		var header := Label.new()

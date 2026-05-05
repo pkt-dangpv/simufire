@@ -590,6 +590,18 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 		float(_metrics.get(prefix + "peak_hrr_kw", 0.0)),
 		float(room_state.get("hrr_kw", 0.0))
 	)
+	_metrics[prefix + "peak_pyrolysis_kw"] = maxf(
+		float(_metrics.get(prefix + "peak_pyrolysis_kw", 0.0)),
+		float(room_state.get("pyrolysis_kw", 0.0))
+	)
+	_metrics[prefix + "peak_burned_hrr_kw"] = maxf(
+		float(_metrics.get(prefix + "peak_burned_hrr_kw", 0.0)),
+		float(room_state.get("burned_hrr_kw", room_state.get("hrr_kw", 0.0)))
+	)
+	_metrics[prefix + "max_unburned_generation_kw"] = maxf(
+		float(_metrics.get(prefix + "max_unburned_generation_kw", 0.0)),
+		float(room_state.get("unburned_generation_kw", 0.0))
+	)
 	_metrics[prefix + "peak_temp_upper_c"] = maxf(
 		float(_metrics.get(prefix + "peak_temp_upper_c", 0.0)),
 		float(room_state.get("temp_upper_c", 0.0))
@@ -638,6 +650,10 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 		float(_metrics.get(prefix + "max_fed", 0.0)),
 		float(room_state.get("fed", 0.0))
 	)
+	_metrics[prefix + "min_visibility_m"] = minf(
+		float(_metrics.get(prefix + "min_visibility_m", float(room_state.get("visibility_m", 30.0)))),
+		float(room_state.get("visibility_m", 30.0))
+	)
 	_metrics[prefix + "min_l150_m"] = minf(
 		float(_metrics.get(prefix + "min_l150_m", float(room_state.get("height_m", 0.0)))),
 		float(room_state.get("layer_150c_m", float(room_state.get("height_m", 0.0))))
@@ -655,6 +671,12 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		var prefix: String = "room_%d_final_" % room_id
 		_metrics[prefix + "hrr_kw"] = float(room_state.get("hrr_kw", 0.0))
 		_metrics[prefix + "hrr_target_kw"] = float(room_state.get("hrr_target_kw", 0.0))
+		_metrics[prefix + "pyrolysis_kw"] = float(room_state.get("pyrolysis_kw", 0.0))
+		_metrics[prefix + "burned_hrr_kw"] = float(room_state.get("burned_hrr_kw", room_state.get("hrr_kw", 0.0)))
+		_metrics[prefix + "unburned_generation_kw"] = float(room_state.get("unburned_generation_kw", 0.0))
+		_metrics[prefix + "flame_hrr_target_kw"] = float(room_state.get("flame_hrr_target_kw", 0.0))
+		_metrics[prefix + "smolder_hrr_target_kw"] = float(room_state.get("smolder_hrr_target_kw", 0.0))
+		_metrics[prefix + "pool_release_hrr_target_kw"] = float(room_state.get("pool_release_hrr_target_kw", 0.0))
 		_metrics[prefix + "fire_time_s"] = float(room_state.get("fire_time_s", 0.0))
 		_metrics[prefix + "o2"] = float(room_state.get("o2", 0.0))
 		_metrics[prefix + "temp_upper_raw_c"] = float(room_state.get("temp_upper_raw_c", room_state.get("temp_upper_c", 0.0)))
@@ -662,6 +684,7 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "temp_upper_clamp_time_s"] = float(room_state.get("temp_upper_clamp_time_s", 0.0))
 		_metrics[prefix + "temp_upper_clamp_count"] = int(room_state.get("temp_upper_clamp_count", 0))
 		_metrics[prefix + "smoke_kg"] = float(room_state.get("smoke_kg", 0.0))
+		_metrics[prefix + "visibility_m"] = float(room_state.get("visibility_m", 30.0))
 		_metrics[prefix + "co_ppm"] = float(room_state.get("co_ppm", 0.0))
 		_metrics[prefix + "co_upper_ppm"] = float(room_state.get("co_upper_ppm", 0.0))
 		_metrics[prefix + "co2_ppm"] = float(room_state.get("co2_ppm", 0.0))

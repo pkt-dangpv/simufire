@@ -66,6 +66,7 @@
 		"retained_hot_layer_max_fraction": 0.95,
 		"outside_open_ambient_loss_multiplier": 2.0,
 		"outside_open_wall_absorption_multiplier": 0.30,
+		"fed_heat_enabled": false,
 		"fire_spread_enabled": false,
 		"glass_auto_break_enabled": false
 	}

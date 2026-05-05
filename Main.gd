@@ -9,7 +9,7 @@ extends Node
 
 const TIME_SPEEDS: Array[float] = [0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0]
 
-var playback_paused: bool = false
+var playback_paused: bool = true
 var _graphs_dir_dialog: FileDialog = null
 var _graphs_view_window: Window = null
 var _graph_textures: Array[Texture2D] = []
@@ -35,6 +35,12 @@ func _ready() -> void:
 		if not hud.view_3d_toggled.is_connected(_on_view_3d_toggled):
 			hud.view_3d_toggled.connect(_on_view_3d_toggled)
 	_set_3d_view_enabled(view_3d_enabled)
+	if engine != null:
+		engine.time_scale = 1.0
+	if visualizer != null and not visualizer.room_clicked.is_connected(_on_room_clicked):
+		visualizer.room_clicked.connect(_on_room_clicked)
+	if visualizer_3d != null and not visualizer_3d.room_clicked.is_connected(_on_room_clicked):
+		visualizer_3d.room_clicked.connect(_on_room_clicked)
 	_update_views()
 
 
@@ -86,6 +92,11 @@ func _on_faster_requested() -> void:
 
 func _on_view_3d_toggled(enabled: bool) -> void:
 	_set_3d_view_enabled(enabled)
+
+
+func _on_room_clicked(room_id: int) -> void:
+	if hud != null:
+		hud.show_room_detail(room_id)
 	_update_views()
 
 
@@ -137,7 +148,8 @@ func _setup_graph_dialogs() -> void:
 	_graphs_view_window.name = "GraphsViewer"
 	_graphs_view_window.title = "Graficas de simulacion"
 	_graphs_view_window.size = Vector2i(1060, 660)
-	_graphs_view_window.wrap_controls = true
+	_graphs_view_window.min_size = Vector2i(800, 500)
+	_graphs_view_window.wrap_controls = false
 	_graphs_view_window.visible = false
 	_graphs_view_window.close_requested.connect(_on_graphs_window_close_requested)
 	add_child(_graphs_view_window)
@@ -163,6 +175,12 @@ func _on_graphs_dir_selected(dir_path: String) -> void:
 func _show_graphs_window(graphs_dir: String) -> void:
 	if _graphs_view_window == null:
 		return
+
+	# Ajustar tamaño al de la ventana principal antes de mostrar.
+	var main_win: Window = get_window()
+	if main_win != null:
+		var ws: Vector2i = main_win.size
+		_graphs_view_window.size = Vector2i(maxi(ws.x - 40, 1060), maxi(ws.y - 60, 660))
 
 	_clear_graphs_view_window()
 	_graph_zoom = 1.0

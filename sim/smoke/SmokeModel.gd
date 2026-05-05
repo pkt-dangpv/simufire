@@ -16,6 +16,9 @@ class_name SmokeModel
 var smoke_density_kg_m3: float = 0.18
 var smoke_temp_expansion_upper_weight: float = 0.45
 var smoke_temp_expansion_cap_c: float = 400.0
+var visibility_extinction_m2_per_kg: float = 8700.0
+var visibility_c_factor: float = 3.0
+var visibility_max_m: float = 30.0
 
 # Transferencia / derrame
 var base_spill_kg_s_per_m2: float = 0.18
@@ -45,8 +48,11 @@ var spill_margin_m: float = 0.15
 var thermal_smoke_bridge_min_kg: float = 0.03
 var thermal_smoke_bridge_gap_start_m: float = 0.12
 var thermal_smoke_bridge_gap_full_m: float = 0.90
-var thermal_smoke_bridge_ref_kg_m3: float = 0.015
-var thermal_smoke_bridge_max_weight: float = 0.28
+var thermal_smoke_bridge_ref_kg_m3: float = 0.006
+var thermal_smoke_bridge_max_weight: float = 0.65
+var thermal_smoke_bridge_hot_temp_start_c: float = 60.0
+var thermal_smoke_bridge_hot_temp_full_c: float = 220.0
+var thermal_smoke_bridge_hot_max_weight: float = 0.75
 
 
 # ============================================================
@@ -86,6 +92,40 @@ func get_visible_smoke_layer_height_m(room: RoomModel) -> float:
 	return clampf(room.h_layer_m, 0.0, room.height_m)
 
 
+func estimate_visibility_m(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+
+	# Si la interfaz humo/aire está por encima de la zona de respiración (1.8 m),
+	# la persona está en capa baja limpia → visibilidad máxima.
+	var h_layer: float = clampf(room.h_layer_m, 0.0, room.height_m)
+	if h_layer >= 1.8:
+		return maxf(0.0, visibility_max_m)
+
+	# La capa de humo ha descendido a la zona de respiración.
+	# Calcular concentración con el volumen real de la capa alta (desde h_layer hasta techo)
+	# para no diluir artificialmente el humo en toda la sala.
+	var upper_depth_m: float = maxf(0.05, room.height_m - h_layer)
+	var upper_volume_m3: float = maxf(0.10, room.floor_area_m2() * upper_depth_m)
+	return estimate_visibility_from_mass(room.smoke_kg, upper_volume_m3)
+
+
+func estimate_visibility_from_mass(smoke_kg: float, volume_m3: float) -> float:
+	var max_visibility_m: float = maxf(0.0, visibility_max_m)
+	if smoke_kg <= 0.0 \
+			or volume_m3 <= 0.0 \
+			or visibility_extinction_m2_per_kg <= 0.0 \
+			or visibility_c_factor <= 0.0:
+		return max_visibility_m
+
+	var concentration_kg_m3: float = smoke_kg / maxf(0.1, volume_m3)
+	var extinction_per_m: float = visibility_extinction_m2_per_kg * concentration_kg_m3
+	if extinction_per_m <= 0.000001:
+		return max_visibility_m
+
+	return clampf(visibility_c_factor / extinction_per_m, 0.0, max_visibility_m)
+
+
 func get_effective_smoke_spill_layer_height_m(room: RoomModel) -> float:
 	if room == null:
 		return 0.0
@@ -116,6 +156,19 @@ func get_effective_smoke_spill_layer_height_m(room: RoomModel) -> float:
 		1.0
 	)
 	var bridge_weight: float = thermal_smoke_bridge_max_weight * concentration_factor * gap_factor
+	var hot_signal: float = clampf(
+		inverse_lerp(
+			thermal_smoke_bridge_hot_temp_start_c,
+			thermal_smoke_bridge_hot_temp_full_c,
+			room.temp_upper_c
+		),
+		0.0,
+		1.0
+	)
+	bridge_weight = maxf(
+		bridge_weight,
+		thermal_smoke_bridge_hot_max_weight * hot_signal * concentration_factor
+	)
 	return lerpf(visible_layer_m, thermal_layer_m, bridge_weight)
 
 

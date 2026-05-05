@@ -53,12 +53,18 @@ var co_upper_kg: float = 0.0
 # Dioxido de carbono - masa en la sala (kg)
 var co2_kg: float = 0.0
 
+# Cianuro de hidrógeno - masa en la sala (kg)
+var hcn_kg: float = 0.0
+
 # FED acumulado (Fractional Effective Dose) - ISO 13571
 var fed: float = 0.0
 
 # Supervivencia de Victimas (%)
 var svv_pct: float = 100.0
 var svv_worst_pct: float = 100.0
+
+# Visibilidad instantánea (Purser) en metros
+var visibility_m: float = 30.0
 
 # Carga de combustible y limite de HRR
 var fuel_energy_MJ: float = 0.0
@@ -70,6 +76,12 @@ var fire: FireModel = null
 var fire_time_s: float = 0.0
 var hrr_kw: float = 0.0
 var hrr_target_kw: float = 0.0
+var pyrolysis_kw: float = 0.0
+var burned_hrr_kw: float = 0.0
+var unburned_generation_kw: float = 0.0
+var flame_hrr_target_kw: float = 0.0
+var smolder_hrr_target_kw: float = 0.0
+var pool_release_hrr_target_kw: float = 0.0
 var fire_dormant_time_s: float = 0.0
 var fire_low_hrr_time_s: float = 0.0
 var fire_o2_extinguished: bool = false
@@ -113,13 +125,21 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	co_kg = 0.0
 	co_upper_kg = 0.0
 	co2_kg = 0.0
+	hcn_kg = 0.0
 	fed = 0.0
 	svv_pct = 100.0
 	svv_worst_pct = 100.0
+	visibility_m = 30.0
 	fire = null
 	fire_time_s = 0.0
 	hrr_kw = 0.0
 	hrr_target_kw = 0.0
+	pyrolysis_kw = 0.0
+	burned_hrr_kw = 0.0
+	unburned_generation_kw = 0.0
+	flame_hrr_target_kw = 0.0
+	smolder_hrr_target_kw = 0.0
+	pool_release_hrr_target_kw = 0.0
 	fire_dormant_time_s = 0.0
 	fire_low_hrr_time_s = 0.0
 	fire_o2_extinguished = false

@@ -1,6 +1,8 @@
 extends Node3D
 class_name Visualizer3D
 
+signal room_clicked(room_id: int)
+
 ## Basic editable 3D view for the same BuildingModel / SimulationEngine state.
 ## The scene owns the camera, lights, and container nodes; this script only
 ## rebuilds generated room meshes from the current building template.
@@ -107,6 +109,7 @@ var _camera_distance: float = 13.0
 var _orbit_x: float = 0.0
 var _orbit_y: float = 0.0
 var _orbit_dragging: bool = false
+var _selected_room_id: int = -1
 var _fire_phase: float = 0.0
 
 
@@ -169,14 +172,24 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
-		if mb.button_index == MOUSE_BUTTON_LEFT and orbit_with_left_drag_on_model:
+		if mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
-				_orbit_dragging = _is_screen_point_over_model(mb.position)
-				if _orbit_dragging:
-					get_viewport().set_input_as_handled()
-			else:
-				_orbit_dragging = false
-		elif mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT:
+				if _is_screen_point_over_model(mb.position):
+					var rid: int = _get_room_id_at_screen_pos(mb.position)
+					if rid >= 0:
+						_selected_room_id = rid
+						room_clicked.emit(rid)
+						get_viewport().set_input_as_handled()
+					elif _selected_room_id >= 0:
+						_selected_room_id = -1
+						room_clicked.emit(-1)
+						get_viewport().set_input_as_handled()
+				else:
+					if _selected_room_id >= 0:
+						_selected_room_id = -1
+						room_clicked.emit(-1)
+						get_viewport().set_input_as_handled()
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT and _is_screen_point_over_model(mb.position):
 			_orbit_dragging = true
 			get_viewport().set_input_as_handled()
 		elif not mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT:
@@ -330,6 +343,9 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	label.pixel_size = 0.014
 	label.outline_size = 6
 	label.no_depth_test = false
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = 3  # TextServer.AUTOWRAP_WORD_ARBITRARY
+	label.width = (minf(rect_m.size.x, rect_m.size.y) * 0.82) / 0.014
 	label.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
 	label.position = _room_center(rect_m, floor_thickness_m + 0.012)
 	label.visible = show_room_labels
@@ -836,11 +852,34 @@ func _get_room_name(room_id: int) -> String:
 	return "Sala_%02d" % room_id
 
 
-func _get_room_label(room_id: int, room_state: Dictionary = {}) -> String:
-	var name: String = String(room_state.get("name", _get_room_name(room_id)))
-	if name == "":
-		name = "Sala %d" % room_id
-	return "R%d %s" % [room_id, name]
+func _get_room_label(room_id: int, _room_state: Dictionary = {}) -> String:
+	return "R%d" % room_id
+
+
+func _get_room_id_at_screen_pos(screen_pos: Vector2) -> int:
+	if _camera == null or building == null:
+		return -1
+	var ray_origin: Vector3 = _camera.project_ray_origin(screen_pos)
+	var ray_dir: Vector3 = _camera.project_ray_normal(screen_pos)
+	if absf(ray_dir.y) < 0.0001:
+		return -1
+	var t: float = -ray_origin.y / ray_dir.y
+	if t < 0.0:
+		return -1
+	var hit: Vector3 = ray_origin + ray_dir * t
+	var hit_m := Vector2(
+		hit.x / maxf(0.0001, meters_to_units) - _origin_offset_m.x,
+		hit.z / maxf(0.0001, meters_to_units) - _origin_offset_m.y
+	)
+	var rects: Dictionary = building.get_room_rects_m()
+	var sorted_ids: Array = []
+	for k in rects.keys():
+		sorted_ids.append(int(k))
+	sorted_ids.sort()
+	for room_id in sorted_ids:
+		if rects[room_id].has_point(hit_m):
+			return room_id
+	return -1
 
 
 func _safe_name(value: String) -> String:

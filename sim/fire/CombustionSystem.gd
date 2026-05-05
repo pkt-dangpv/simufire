@@ -77,6 +77,12 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	if room.fire == null:
 		room.hrr_kw = 0.0
 		room.hrr_target_kw = 0.0
+		room.pyrolysis_kw = 0.0
+		room.burned_hrr_kw = 0.0
+		room.unburned_generation_kw = 0.0
+		room.flame_hrr_target_kw = 0.0
+		room.smolder_hrr_target_kw = 0.0
+		room.pool_release_hrr_target_kw = 0.0
 		room.smoke_prod_kg_s = 0.0
 		_sync_legacy_proxy_idle(room)
 		return false
@@ -84,6 +90,20 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var fire: FireModel = room.fire
 	var ambient_c: float = float(context.get("ambient_c", 20.0))
 	var raw_o2_factor: float = _compute_o2_factor(room.o2, fire.o2_nominal, fire.o2_min_for_flame)
+	var use_fds_extinction: bool = bool(context.get("fire_fds_extinction_enabled", false))
+	var extinction_o2_limit: float = _compute_extinction_o2_limit(
+		room,
+		context,
+		ambient_c,
+		fire.o2_min_for_flame
+	)
+	var extinction_factor: float = raw_o2_factor
+	if use_fds_extinction:
+		extinction_factor = _compute_extinction_factor(
+			room.o2,
+			extinction_o2_limit,
+			float(context.get("fire_fds_extinction_transition_width", 0.030))
+		)
 	var previous_hrr_kw: float = room.hrr_kw
 
 	var smoke_fill_fraction: float = clampf(
@@ -113,7 +133,11 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		ambient_c
 	)
 
-	var o2_factor_target: float = raw_o2_factor
+	# Si fire_o2_independent=true, el fuego sigue la curva t2 sin limitacion de O2.
+	# Es un modo analitico ideal, no el criterio de extincion oxygen-limited de FDS.
+	var o2_independent: bool = bool(context.get("fire_o2_independent", false))
+
+	var o2_factor_target: float = extinction_factor if use_fds_extinction else raw_o2_factor
 	if room.fire_time_s > 45.0:
 		o2_factor_target = maxf(o2_factor_target, subvent_o2_floor)
 	room.o2_hrr_factor = _smooth_state_value(
@@ -125,21 +149,34 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	)
 	room.o2_hrr_factor = clampf(room.o2_hrr_factor, 0.0, 1.0)
 
-	var flame_possible_factor: float = clampf(
-		inverse_lerp(
-			fire.o2_min_for_flame - 0.015,
-			fire.o2_min_for_flame + 0.025,
-			room.o2
-		),
-		0.0,
-		1.0
-	)
+	var flame_possible_factor: float = extinction_factor
+	if not use_fds_extinction:
+		flame_possible_factor = clampf(
+			inverse_lerp(
+				fire.o2_min_for_flame - 0.015,
+				fire.o2_min_for_flame + 0.025,
+				room.o2
+			),
+			0.0,
+			1.0
+		)
 	var flame_drive: float = room.o2_hrr_factor * flame_possible_factor
 	var latent_drive: float = 0.0
 	if latent_viable:
 		latent_drive = subvent_o2_floor * lerpf(0.35, 1.0, subvent_engagement)
 	var pyrolysis_drive: float = maxf(flame_drive, latent_drive)
 	var can_flame: bool = flame_drive > 0.08
+	if use_fds_extinction and not can_flame and room.temp_upper_c > ambient_c:
+		var hot_pyrolysis_floor: float = float(context.get("fire_fds_extinction_pyrolysis_floor", 0.0)) \
+				* subvent_engagement \
+				* (1.0 - flame_possible_factor)
+		pyrolysis_drive = maxf(pyrolysis_drive, hot_pyrolysis_floor)
+
+	if o2_independent:
+		# Fuego prescrito: ignora limitacion O2, HRR sigue curva t2 sin restriccion.
+		pyrolysis_drive = 1.0
+		can_flame = true
+		room.o2_hrr_factor = 1.0
 	if can_flame or latent_viable:
 		var fire_time_gain_factor: float = clampf(
 			maxf(0.15 if latent_viable else 0.0, pyrolysis_drive),
@@ -167,7 +204,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var rad_feedback: float = 1.0 + thermal_feedback_coeff \
 			* maxf(0.0, room.temp_upper_c - ambient_c) / 500.0
 	rad_feedback = minf(rad_feedback, thermal_feedback_max)
-	var feedback_o2_engagement: float = clampf(
+	var feedback_o2_engagement: float = room.o2_hrr_factor if use_fds_extinction else clampf(
 		inverse_lerp(
 			fire.o2_min_for_flame - 0.005,
 			fire.o2_min_for_flame + 0.035,
@@ -324,6 +361,11 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		) * clampf(release_drive, 0.0, 2.0)
 
 	var kawagoe_limit_kw: float = float(context.get("kawagoe_limit_kw", 0.0))
+	room.pyrolysis_kw = maxf(0.0, solid_pyrolysis_kw)
+	room.unburned_generation_kw = maxf(0.0, retained_generation_kw)
+	room.flame_hrr_target_kw = maxf(0.0, fresh_flame_target_kw)
+	room.smolder_hrr_target_kw = maxf(0.0, smolder_target_kw)
+	room.pool_release_hrr_target_kw = maxf(0.0, pool_release_target_kw)
 	room.hrr_target_kw = fresh_flame_target_kw + smolder_target_kw + pool_release_target_kw
 	if not latent_viable and not can_flame and room.o2_hrr_factor < 0.02:
 		room.hrr_target_kw = 0.0
@@ -347,6 +389,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			and room.hrr_target_kw <= 0.0 \
 			and room.hrr_kw < float(context.get("fire_extinction_hrr_kw", 0.0)) * 0.25:
 		room.hrr_kw = 0.0
+	room.burned_hrr_kw = maxf(0.0, room.hrr_kw)
 
 	var total_target_kw: float = maxf(
 		0.0001,
@@ -418,8 +461,9 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			and room.fire_dormant_time_s >= extinction_delay_s:
 		return _extinguish_room_fire(room, fire)
 
+	var starvation_factor: float = extinction_factor if use_fds_extinction else raw_o2_factor
 	var oxygen_starved: bool = room.fire_time_s > 60.0 \
-			and raw_o2_factor <= float(context.get("fire_starvation_o2_factor", 0.0)) \
+			and starvation_factor <= float(context.get("fire_starvation_o2_factor", 0.0)) \
 			and room.retained_unburned_MJ < 0.5
 	var heat_release_collapsed: bool = room.hrr_target_kw <= extinction_hrr_kw * 0.25
 	if not (not can_flame and latent_viable) \
@@ -469,10 +513,25 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	room.co_kg += generated_co_kg
 	room.co_upper_kg += generated_co_kg
 
+	# HCN yield: proporcional a la calidad de combustión (más HCN en déficit de O2).
+	# Rango residencial según ISO 19706 para madera/espumas.
+	var hcn_base_yield: float = float(context.get("hcn_base_yield_kg_per_MJ", 0.0))
+	var hcn_max_yield: float = float(context.get("hcn_max_yield_kg_per_MJ", 0.0))
+	if hcn_base_yield > 0.0:
+		var hcn_low_quality_yield: float = minf(
+			hcn_base_yield * float(context.get("fire_co_low_quality_yield_multiplier", 8.0)),
+			hcn_max_yield
+		)
+		var hcn_yield: float = lerpf(hcn_low_quality_yield, hcn_base_yield, sqrt(combustion_quality))
+		room.hcn_kg += hcn_yield * co_basis_MJ
+
+	# CO2 yield: combustion_quality (no o2_hrr_factor solo) refleja mejor la
+	# estequiometría real. La reducción de HRR ya captura menor masa quemada;
+	# el yield por MJ liberado debe permanecer cerca del valor base.
 	var co2_yield: float = lerpf(
 		float(context.get("co2_min_yield_kg_per_MJ", 0.0594)),
 		float(context.get("co2_base_yield_kg_per_MJ", 0.0831)),
-		room.o2_hrr_factor
+		sqrt(combustion_quality)
 	)
 	room.co2_kg += co2_yield * maxf(heat_release_MJ, smoke_basis_MJ * 0.60)
 
@@ -893,6 +952,47 @@ func _compute_o2_factor(o2: float, nominal: float, min_o2: float) -> float:
 	return clampf(o2_ratio, 0.0, 1.0)
 
 
+func _compute_extinction_o2_limit(
+	room: RoomModel,
+	context: Dictionary,
+	ambient_c: float,
+	fallback_min_o2: float
+) -> float:
+	if not bool(context.get("fire_fds_extinction_enabled", false)):
+		return fallback_min_o2
+	if room == null:
+		return fallback_min_o2
+
+	var ambient_limit: float = float(context.get("fire_fds_extinction_o2_limit_ambient", 0.135))
+	var ambient_ref_c: float = float(context.get("fire_fds_extinction_ambient_c", ambient_c))
+	var hot_gas_c: float = maxf(
+		ambient_ref_c + 1.0,
+		float(context.get("fire_fds_extinction_hot_gas_c", 900.0))
+	)
+	var hot_floor: float = clampf(
+		float(context.get("fire_fds_extinction_hot_o2_floor", 0.105)),
+		0.0,
+		ambient_limit
+	)
+	var gas_temp_c: float = maxf(room.temp_upper_c, ambient_c)
+	var hot_fraction: float = clampf(
+		(gas_temp_c - ambient_ref_c) / maxf(1.0, hot_gas_c - ambient_ref_c),
+		0.0,
+		1.0
+	)
+
+	return clampf(
+		lerpf(ambient_limit, hot_floor, hot_fraction),
+		0.0,
+		float(context.get("o2_nominal", 0.209))
+	)
+
+
+func _compute_extinction_factor(o2: float, o2_limit: float, transition_width: float) -> float:
+	var width: float = maxf(0.001, transition_width)
+	return clampf((o2 - o2_limit) / width, 0.0, 1.0)
+
+
 func _compute_smoke_production_kg_s(hrr_kw: float, smoke_yield_kg_per_MJ: float) -> float:
 	var hrr_MJ_s: float = maxf(0.0, hrr_kw) / 1000.0
 	return hrr_MJ_s * maxf(0.0, smoke_yield_kg_per_MJ)
@@ -1023,9 +1123,15 @@ func _can_sustain_latent_fire(
 	# El pool retenido necesita O2 significativamente por encima del mínimo de llama
 	# para sostener combustión latente/smoldering. Si O2 está apenas por encima del
 	# umbral (ej. equilibrio ACH), la infiltración mantiene el fuego zombi vivo.
-	# fire_latent_o2_viable_margin = margen mínimo por encima de o2_min_for_flame.
+	# fire_latent_o2_viable_margin = margen mínimo por encima del umbral efectivo.
 	var latent_o2_viable_margin: float = float(context.get("fire_latent_o2_viable_margin", 0.008))
-	if room.o2 < fire.o2_min_for_flame + latent_o2_viable_margin:
+	var latent_o2_limit: float = _compute_extinction_o2_limit(
+		room,
+		context,
+		ambient_c,
+		fire.o2_min_for_flame
+	)
+	if room.o2 < latent_o2_limit + latent_o2_viable_margin:
 		return false
 
 	if room.retained_unburned_MJ >= 1.0:
@@ -1062,6 +1168,12 @@ func _extinguish_room_fire(room: RoomModel, fire: FireModel, burned_out: bool = 
 
 	room.hrr_kw = 0.0
 	room.hrr_target_kw = 0.0
+	room.pyrolysis_kw = 0.0
+	room.burned_hrr_kw = 0.0
+	room.unburned_generation_kw = 0.0
+	room.flame_hrr_target_kw = 0.0
+	room.smolder_hrr_target_kw = 0.0
+	room.pool_release_hrr_target_kw = 0.0
 	room.smoke_prod_kg_s = 0.0
 	room.fire = null
 	room.fire_low_hrr_time_s = 0.0

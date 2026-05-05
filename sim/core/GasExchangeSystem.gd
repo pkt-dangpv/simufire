@@ -33,6 +33,16 @@ var outside_open_species_temp_start_c: float = 60.0
 var outside_open_species_temp_full_c: float = 220.0
 var outside_open_species_pressure_ref_pa: float = 4.0
 var outside_open_species_upper_bias: float = 0.80
+var background_species_exchange_kg_s_m2: float = 0.035
+var background_species_path_multiplier_max: float = 3.00
+var background_species_max_fraction_closed: float = 0.010
+var background_species_max_fraction_open: float = 0.040
+var flow_path_direct_fire_vent_reduction: float = 0.70
+var flow_path_direct_fire_min_vent_fraction: float = 0.25
+var flow_path_interior_pull_boost: float = 1.50
+var flow_path_interior_pull_max_multiplier: float = 3.00
+var flow_path_remote_decay_per_door: float = 0.60
+var flow_path_remote_max_doors: int = 4
 var _pending_interior_deliveries: Array[Dictionary] = []
 
 
@@ -69,6 +79,36 @@ func configure(settings: Dictionary) -> void:
 	)
 	outside_open_species_upper_bias = float(
 		settings.get("outside_open_species_upper_bias", outside_open_species_upper_bias)
+	)
+	background_species_exchange_kg_s_m2 = float(
+		settings.get("background_species_exchange_kg_s_m2", background_species_exchange_kg_s_m2)
+	)
+	background_species_path_multiplier_max = float(
+		settings.get("background_species_path_multiplier_max", background_species_path_multiplier_max)
+	)
+	background_species_max_fraction_closed = float(
+		settings.get("background_species_max_fraction_closed", background_species_max_fraction_closed)
+	)
+	background_species_max_fraction_open = float(
+		settings.get("background_species_max_fraction_open", background_species_max_fraction_open)
+	)
+	flow_path_direct_fire_vent_reduction = float(
+		settings.get("flow_path_direct_fire_vent_reduction", flow_path_direct_fire_vent_reduction)
+	)
+	flow_path_direct_fire_min_vent_fraction = float(
+		settings.get("flow_path_direct_fire_min_vent_fraction", flow_path_direct_fire_min_vent_fraction)
+	)
+	flow_path_interior_pull_boost = float(
+		settings.get("flow_path_interior_pull_boost", flow_path_interior_pull_boost)
+	)
+	flow_path_interior_pull_max_multiplier = float(
+		settings.get("flow_path_interior_pull_max_multiplier", flow_path_interior_pull_max_multiplier)
+	)
+	flow_path_remote_decay_per_door = float(
+		settings.get("flow_path_remote_decay_per_door", flow_path_remote_decay_per_door)
+	)
+	flow_path_remote_max_doors = int(
+		settings.get("flow_path_remote_max_doors", flow_path_remote_max_doors)
 	)
 
 
@@ -128,6 +168,9 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 
 		if total_leakage_m2 <= 0.0:
 			continue
+		total_leakage_m2 *= _compute_flow_path_direct_exterior_vent_fraction(building, room)
+		if total_leakage_m2 <= 0.0:
+			continue
 
 		var rho_hot: float = rho_ext * t_ext_k / t_upper_k
 		var v_out: float = sqrt(2.0 * room.overpressure_pa / maxf(0.05, rho_hot))
@@ -139,14 +182,21 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 			continue
 
 		var frac_out: float = smoke_out_kg / maxf(0.001, room.smoke_kg)
+		# CO/CO2 son gases disueltos en el aire: la fracción que sale es proporcional
+		# al volumen de aire purgado, no a la fracción de partículas de humo.
+		# Usar frac_out (basado en humo) sobreestima masivamente la purga gaseosa
+		# cuando la sala tiene poco humo relativo a CO2 generado.
+		var room_vol_m3: float = maxf(1.0, room.volume_m3())
+		var air_frac_out: float = clampf(q_out_m3s * dt / room_vol_m3, 0.0, 0.10)
 
 		room.smoke_kg = maxf(0.0, room.smoke_kg - smoke_out_kg)
 		result["smoke_vented_kg"] = float(result.get("smoke_vented_kg", 0.0)) + smoke_out_kg
 
 		_call_room_fraction(remove_upper_layer_fraction_callable, room, frac_out)
-		room.co_kg = maxf(0.0, room.co_kg * (1.0 - frac_out))
-		room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - frac_out))
-		room.co2_kg = maxf(0.0, room.co2_kg * (1.0 - frac_out))
+		room.co_kg = maxf(0.0, room.co_kg * (1.0 - air_frac_out))
+		room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - air_frac_out))
+		room.co2_kg = maxf(0.0, room.co2_kg * (1.0 - air_frac_out))
+		room.hcn_kg = maxf(0.0, room.hcn_kg * (1.0 - air_frac_out))
 		_call_room_dt(sync_room_upper_layer_callable, room, dt)
 
 		room.overpressure_pa = maxf(0.0, room.overpressure_pa * (1.0 - frac_out * 0.9))
@@ -185,6 +235,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 	var co_delta_kg: Dictionary = {}
 	var co_upper_delta_kg: Dictionary = {}
 	var co2_delta_kg: Dictionary = {}
+	var hcn_delta_kg: Dictionary = {}
 	var o2_delta_kg: Dictionary = {}
 
 	for room_id in building.get_rooms().keys():
@@ -192,6 +243,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		co_delta_kg[int(room_id)] = 0.0
 		co_upper_delta_kg[int(room_id)] = 0.0
 		co2_delta_kg[int(room_id)] = 0.0
+		hcn_delta_kg[int(room_id)] = 0.0
 		o2_delta_kg[int(room_id)] = 0.0
 
 	for room_id in building.get_rooms().keys():
@@ -216,6 +268,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 		if room_out != null:
 			var vented_kg: float = smoke_model.compute_outside_vented_kg(room_out, op, dt)
+			vented_kg *= _compute_flow_path_direct_exterior_vent_fraction(building, room_out)
 			if vented_kg > 0.0:
 				smoke_delta_kg[room_out.id] -= vented_kg
 				result["smoke_vented_kg"] = float(result.get("smoke_vented_kg", 0.0)) + vented_kg
@@ -225,6 +278,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					co_delta_kg[room_out.id] -= vent_frac * room_out.co_kg
 					co_upper_delta_kg[room_out.id] -= vent_frac * room_out.co_upper_kg
 					co2_delta_kg[room_out.id] -= vent_frac * room_out.co2_kg
+					hcn_delta_kg[room_out.id] -= vent_frac * room_out.hcn_kg
 					_call_room_fraction(remove_upper_layer_fraction_callable, room_out, vent_frac)
 					_call_room_dt(sync_room_upper_layer_callable, room_out, dt)
 
@@ -260,6 +314,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					# Purga de especies: el aire caliente sale por la mitad superior,
 					# diluyendo humo/CO/CO2 en proporción al caudal de intercambio
 					var purge_frac: float = clampf(fresh_air_kg / room_mass_kg, 0.0, 0.30)
+					purge_frac *= _compute_flow_path_direct_exterior_vent_fraction(building, room_out)
 					smoke_delta_kg[room_out.id] -= room_out.smoke_kg * purge_frac
 					co_delta_kg[room_out.id] -= room_out.co_kg * purge_frac
 					co_upper_delta_kg[room_out.id] -= room_out.co_upper_kg * purge_frac
@@ -282,6 +337,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			co_delta_kg,
 			co_upper_delta_kg,
 			co2_delta_kg,
+			hcn_delta_kg,
 			o2_delta_kg,
 			outside_open_path_factor_callable
 		)
@@ -293,6 +349,10 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			var kg: float = float(transfer.get("kg", 0.0))
 			if from_id == -1 or to_id == -1 or kg <= 0.0:
 				continue
+
+			var source_room: RoomModel = building.get_room(from_id)
+			var target_room: RoomModel = building.get_room(to_id)
+			kg *= _compute_flow_path_interior_pull_multiplier(building, source_room, target_room)
 
 			room_transfers.append({
 				"from": from_id,
@@ -366,6 +426,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 		var co_moved_kg: float = 0.0
 		var co2_moved_kg: float = 0.0
+		var hcn_moved_kg: float = 0.0
 		if source.smoke_kg > 0.001:
 			co_moved_kg = minf(
 				minf(kg / source.smoke_kg, 1.0) * source.co_upper_kg,
@@ -374,6 +435,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			co_delta_kg[from_id] -= co_moved_kg
 			co2_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.co2_kg
 			co2_delta_kg[from_id] -= co2_moved_kg
+			hcn_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.hcn_kg
+			hcn_delta_kg[from_id] -= hcn_moved_kg
 
 		if use_transport_delay:
 			_pending_interior_deliveries.append({
@@ -383,6 +446,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 				"co_kg": co_moved_kg,
 				"co_upper_kg": co_moved_kg,
 				"co2_kg": co2_moved_kg,
+				"hcn_kg": hcn_moved_kg,
 				"upper_gas_kg": moved_upper_gas_kg,
 				"upper_energy_kj": moved_upper_energy_kj
 			})
@@ -391,6 +455,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			co_delta_kg[to_id] += co_moved_kg
 			co_upper_delta_kg[to_id] += co_moved_kg
 			co2_delta_kg[to_id] += co2_moved_kg
+			hcn_delta_kg[to_id] += hcn_moved_kg
 			target.upper_gas_kg += moved_upper_gas_kg
 			target.upper_energy_kj += moved_upper_energy_kj
 
@@ -439,6 +504,13 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					co2_delta_kg[from_id] += target_co2_out_kg - source_co2_out_kg
 					co2_delta_kg[to_id] += source_co2_out_kg - target_co2_out_kg
 
+					var source_hcn_total_kg: float = maxf(0.0, source.hcn_kg + float(hcn_delta_kg[from_id]))
+					var target_hcn_total_kg: float = maxf(0.0, target.hcn_kg + float(hcn_delta_kg[to_id]))
+					var source_hcn_out_kg: float = source_hcn_total_kg / source_air_mass_kg * exchange_air_mass_kg
+					var target_hcn_out_kg: float = target_hcn_total_kg / target_air_mass_kg * exchange_air_mass_kg
+					hcn_delta_kg[from_id] += target_hcn_out_kg - source_hcn_out_kg
+					hcn_delta_kg[to_id] += source_hcn_out_kg - target_hcn_out_kg
+
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
@@ -453,6 +525,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		room.co_kg = maxf(0.0, room.co_kg + float(co_delta_kg[int(room_id)]))
 		room.co_upper_kg = maxf(0.0, room.co_upper_kg + float(co_upper_delta_kg[int(room_id)]))
 		room.co2_kg = maxf(0.0, room.co2_kg + float(co2_delta_kg[int(room_id)]))
+		room.hcn_kg = maxf(0.0, room.hcn_kg + float(hcn_delta_kg[int(room_id)]))
 
 		var ach_rate: float = ach_infiltration / 3600.0
 		var co_removed: float = room.co_kg * ach_rate * dt
@@ -463,6 +536,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - clampf(co_remove_fraction, 0.0, 1.0)))
 		var co2_removed: float = room.co2_kg * ach_rate * dt
 		room.co2_kg = maxf(0.0, room.co2_kg - co2_removed)
+		var hcn_removed: float = room.hcn_kg * ach_rate * dt
+		room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_removed)
 		# NOTA: la recuperación de O2 por ACH la gestiona OxygenExchangeSystem.step().
 		# No se duplica aquí para evitar doble aplicación por step.
 
@@ -495,6 +570,10 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					* open_species_purge_fraction \
 					* lerpf(0.40, 0.75, upper_bias)
 			room.co2_kg = maxf(0.0, room.co2_kg - co2_removed_kg)
+			var hcn_removed_kg: float = room.hcn_kg \
+					* open_species_purge_fraction \
+					* lerpf(0.40, 0.75, upper_bias)
+			room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_removed_kg)
 
 		var cleanup_factor: float = _compute_postfire_cleanup_factor(room)
 		if cleanup_factor > 0.0:
@@ -523,6 +602,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 			var purged_co2_kg: float = minf(room.co2_kg, room.co2_kg * co_purge_rate * dt)
 			room.co2_kg = maxf(0.0, room.co2_kg - purged_co2_kg)
+			var purged_hcn_kg: float = minf(room.hcn_kg, room.hcn_kg * co_purge_rate * dt)
+			room.hcn_kg = maxf(0.0, room.hcn_kg - purged_hcn_kg)
 
 		room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg)
 
@@ -588,6 +669,7 @@ func _release_pending_interior_deliveries(
 		target.co_kg = maxf(0.0, target.co_kg + float(entry.get("co_kg", 0.0)))
 		target.co_upper_kg = maxf(0.0, target.co_upper_kg + float(entry.get("co_upper_kg", 0.0)))
 		target.co2_kg = maxf(0.0, target.co2_kg + float(entry.get("co2_kg", 0.0)))
+		target.hcn_kg = maxf(0.0, target.hcn_kg + float(entry.get("hcn_kg", 0.0)))
 		target.upper_gas_kg = maxf(0.0, target.upper_gas_kg + float(entry.get("upper_gas_kg", 0.0)))
 		target.upper_energy_kj = maxf(0.0, target.upper_energy_kj + float(entry.get("upper_energy_kj", 0.0)))
 		target.co_upper_kg = clampf(target.co_upper_kg, 0.0, target.co_kg)
@@ -623,6 +705,7 @@ func _apply_background_species_exchange(
 	co_delta_kg: Dictionary,
 	co_upper_delta_kg: Dictionary,
 	co2_delta_kg: Dictionary,
+	hcn_delta_kg: Dictionary = {},
 	o2_delta_kg: Dictionary = {},
 	outside_open_path_factor_callable: Callable = Callable()
 ) -> void:
@@ -647,8 +730,11 @@ func _apply_background_species_exchange(
 		var path_a: float = _call_room_id_float(outside_open_path_factor_callable, room_a.id, 0.0)
 		var path_b: float = _call_room_id_float(outside_open_path_factor_callable, room_b.id, 0.0)
 		outside_open_factor = maxf(path_a, path_b) * 0.25
-		if outside_open_factor <= 0.0:
-			return
+		# Si no hay ruta al exterior, permitir difusión mínima entre salas interiores
+		# conectadas (ej. CO, humo, CO2). Física real: incluso en edificio cerrado hay
+		# mezcla turbulenta por gradientes de temperatura/presión a través de la puerta.
+		# outside_open_factor queda en 0.0 → background_drive será 0.25 (mínimo), lo que
+		# activa el intercambio a tasa reducida sin la atenuación extra del exterior.
 
 	var background_drive: float = maxf(
 		0.25,
@@ -657,9 +743,20 @@ func _apply_background_species_exchange(
 			clampf(outside_open_factor * 0.85, 0.0, 1.0)
 		)
 	)
-	var exchange_air_kg: float = area_eff_m2 * 0.035 * background_drive * dt
-	exchange_air_kg *= lerpf(1.0, 3.0, clampf(outside_open_factor, 0.0, 1.0))
-	var max_exchange_kg: float = minf(mass_a_kg, mass_b_kg) * lerpf(0.010, 0.040, clampf(outside_open_factor, 0.0, 1.0))
+	var exchange_air_kg: float = area_eff_m2 \
+			* maxf(0.0, background_species_exchange_kg_s_m2) \
+			* background_drive \
+			* dt
+	exchange_air_kg *= lerpf(
+		1.0,
+		maxf(1.0, background_species_path_multiplier_max),
+		clampf(outside_open_factor, 0.0, 1.0)
+	)
+	var max_exchange_kg: float = minf(mass_a_kg, mass_b_kg) * lerpf(
+		clampf(background_species_max_fraction_closed, 0.0, 0.50),
+		clampf(background_species_max_fraction_open, 0.0, 0.50),
+		clampf(outside_open_factor, 0.0, 1.0)
+	)
 	exchange_air_kg = minf(exchange_air_kg, max_exchange_kg)
 	if exchange_air_kg <= 0.0:
 		return
@@ -689,6 +786,13 @@ func _apply_background_species_exchange(
 	) * exchange_air_kg
 	co2_delta_kg[room_a.id] -= net_co2_a_to_b
 	co2_delta_kg[room_b.id] += net_co2_a_to_b
+
+	if not hcn_delta_kg.is_empty():
+		var net_hcn_a_to_b: float = (
+			room_a.hcn_kg / mass_a_kg - room_b.hcn_kg / mass_b_kg
+		) * exchange_air_kg
+		hcn_delta_kg[room_a.id] -= net_hcn_a_to_b
+		hcn_delta_kg[room_b.id] += net_hcn_a_to_b
 
 	# O2: intercambio por gradiente de concentración entre salas conectadas.
 	# El O2 fluye de la sala con más O2 hacia la sala con menos O2 (difusión).
@@ -725,6 +829,7 @@ func _compute_outside_species_purge_fraction(building: BuildingModel, room: Room
 		return 0.0
 
 	var outside_open_factor: float = _estimate_room_outside_open_factor(building, room)
+	outside_open_factor *= _compute_flow_path_direct_exterior_vent_fraction(building, room)
 	if outside_open_factor <= 0.0:
 		return 0.0
 
@@ -771,6 +876,131 @@ func _estimate_room_outside_open_factor(building: BuildingModel, room: RoomModel
 
 	var reference_area_m2: float = maxf(0.20, room.floor_area_m2() * 0.12)
 	return clampf(total_open_area_m2 / reference_area_m2, 0.0, 1.0)
+
+
+func _compute_flow_path_direct_exterior_vent_fraction(building: BuildingModel, room: RoomModel) -> float:
+	if building == null or room == null:
+		return 1.0
+	if flow_path_direct_fire_vent_reduction <= 0.0:
+		return 1.0
+	if room.fire == null and room.hrr_kw <= 25.0:
+		return 1.0
+
+	var remote_path: float = _estimate_remote_exterior_path_factor(building, room.id, room.id)
+	if remote_path <= 0.0:
+		return 1.0
+
+	var fire_strength: float = clampf(room.hrr_kw / 700.0, 0.0, 1.0)
+	var reduction: float = clampf(flow_path_direct_fire_vent_reduction, 0.0, 0.95) \
+			* remote_path \
+			* fire_strength
+	return clampf(
+		1.0 - reduction,
+		clampf(flow_path_direct_fire_min_vent_fraction, 0.05, 1.0),
+		1.0
+	)
+
+
+func _compute_flow_path_interior_pull_multiplier(
+	building: BuildingModel,
+	source: RoomModel,
+	target: RoomModel
+) -> float:
+	if building == null or source == null or target == null:
+		return 1.0
+	if flow_path_interior_pull_boost <= 0.0:
+		return 1.0
+
+	var remote_path: float = _estimate_remote_exterior_path_factor(building, target.id, source.id)
+	if remote_path <= 0.0:
+		return 1.0
+
+	var pressure_drive: float = clampf(
+		(source.overpressure_pa - target.overpressure_pa) / maxf(0.5, outside_open_species_pressure_ref_pa),
+		0.0,
+		1.0
+	)
+	var temp_drive: float = clampf((source.temp_upper_c - target.temp_upper_c) / 350.0, 0.0, 1.0)
+	var hrr_drive: float = 0.0
+	if source.fire != null or source.hrr_kw > 0.0:
+		hrr_drive = clampf(source.hrr_kw / 1000.0, 0.0, 1.0)
+
+	var drive: float = maxf(maxf(pressure_drive, temp_drive), hrr_drive * 0.75)
+	if drive <= 0.0:
+		return 1.0
+
+	return clampf(
+		1.0 + flow_path_interior_pull_boost * remote_path * drive,
+		1.0,
+		maxf(1.0, flow_path_interior_pull_max_multiplier)
+	)
+
+
+func _estimate_remote_exterior_path_factor(
+	building: BuildingModel,
+	start_room_id: int,
+	excluded_room_id: int = -999999
+) -> float:
+	if building == null or building.get_room(start_room_id) == null:
+		return 0.0
+
+	var best_path_by_room: Dictionary = {}
+	var depth_by_room: Dictionary = {}
+	var queue: Array[int] = []
+	best_path_by_room[start_room_id] = 1.0
+	depth_by_room[start_room_id] = 0
+	queue.append(start_room_id)
+
+	var best_factor: float = 0.0
+	while not queue.is_empty():
+		var current_id: int = int(queue.pop_front())
+		var current_room: RoomModel = building.get_room(current_id)
+		if current_room == null:
+			continue
+
+		var current_path_factor: float = float(best_path_by_room.get(current_id, 0.0))
+		var current_depth: int = int(depth_by_room.get(current_id, 0))
+		if current_id != excluded_room_id:
+			best_factor = maxf(
+				best_factor,
+				_estimate_room_outside_open_factor(building, current_room) * current_path_factor
+			)
+
+		if current_depth >= flow_path_remote_max_doors:
+			continue
+
+		for op in building.get_connected_openings(current_id):
+			if op == null or op.open_fraction <= 0.0:
+				continue
+			if op.type != OpeningModel.Type.DOOR:
+				continue
+			if op.a == BuildingModel.OUTSIDE_ID or op.b == BuildingModel.OUTSIDE_ID:
+				continue
+
+			var next_id: int = op.b if op.a == current_id else op.a
+			if next_id == excluded_room_id:
+				continue
+			if building.get_room(next_id) == null:
+				continue
+
+			var area_factor: float = clampf(
+				(op.width_m * op.height_m) / maxf(0.1, 0.8 * 2.0),
+				0.35,
+				1.25
+			)
+			var next_path_factor: float = current_path_factor \
+					* clampf(op.open_fraction, 0.0, 1.0) \
+					* clampf(flow_path_remote_decay_per_door, 0.0, 1.0) \
+					* area_factor
+			next_path_factor = clampf(next_path_factor, 0.0, 1.0)
+			if next_path_factor <= float(best_path_by_room.get(next_id, -1.0)):
+				continue
+
+			best_path_by_room[next_id] = next_path_factor
+			depth_by_room[next_id] = current_depth + 1
+			queue.append(next_id)
+
+	return clampf(best_factor, 0.0, 1.0)
 
 
 func _has_any_active_fire(building: BuildingModel) -> bool:

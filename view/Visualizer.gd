@@ -157,11 +157,21 @@ class_name Visualizer
 @export var window_badge_size: Vector2 = Vector2(16.0, 7.0)
 
 # ============================================================
+# SELECCION DE SALA
+# ============================================================
+
+@export var selected_room_outline_color: Color = Color(1.0, 0.88, 0.18, 1.0)
+@export var selected_room_outline_width: float = 3.5
+
+# ============================================================
 # ESTADO Y GEOMETRIA
 # ============================================================
 
+signal room_clicked(room_id: int)
+
 var state: Dictionary = {}
 var rects_m: Dictionary[int, Rect2] = {}
+var selected_room_id: int = -1
 
 @export var building_path: NodePath
 var building: BuildingModel = null
@@ -268,6 +278,8 @@ func _draw() -> void:
 			false,
 			float(outline_style.get("width", wall_thickness))
 		)
+		if id == selected_room_id:
+			draw_rect(rpx.grow(-wall_thickness - 1.0), selected_room_outline_color, false, selected_room_outline_width)
 
 	if show_openings:
 		_draw_openings()
@@ -276,6 +288,39 @@ func _draw() -> void:
 # ============================================================
 # FONDO
 # ============================================================
+
+func _input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if not (event is InputEventMouseButton):
+		return
+	var mb := event as InputEventMouseButton
+	if not (mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT):
+		return
+	var clicked_id: int = _get_room_id_at_local_pos(mb.position)
+	if clicked_id >= 0:
+		selected_room_id = clicked_id
+		queue_redraw()
+		room_clicked.emit(clicked_id)
+		get_viewport().set_input_as_handled()
+	else:
+		if selected_room_id >= 0:
+			selected_room_id = -1
+			queue_redraw()
+			room_clicked.emit(-1)
+			get_viewport().set_input_as_handled()
+
+
+func _get_room_id_at_local_pos(local_pos: Vector2) -> int:
+	var tf: Dictionary = _get_draw_transform()
+	var scale_px: float = maxf(0.001, float(tf["scale"]))
+	var offset: Vector2 = tf["offset"]
+	var pos_m: Vector2 = (local_pos - offset) / scale_px
+	for id in _get_sorted_room_ids():
+		if rects_m[id].has_point(pos_m):
+			return id
+	return -1
+
 
 func _draw_background() -> void:
 	draw_rect(Rect2(-50, -50, 4000, 2500), background_color, true)
@@ -598,14 +643,12 @@ func _draw_room_name_watermark(id: int, rs: Dictionary, content_rect: Rect2) -> 
 		return
 	if content_rect.size.x < room_watermark_min_room_px or content_rect.size.y < room_watermark_min_room_px:
 		return
-	var room_name: String = String(rs.get("name", ""))
-	if room_name == "":
-		return
+	var label_text: String = "R%d" % id
 	var min_dim: float = minf(content_rect.size.x, content_rect.size.y)
 	var font_size: int = room_watermark_font_size if room_watermark_font_size > 0 \
 			else clampi(int(min_dim * 0.30), 14, 52)
 	var text_size: Vector2 = ThemeDB.fallback_font.get_string_size(
-			room_name, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+			label_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 	var center: Vector2 = content_rect.get_center()
 	var text_x: float = center.x - text_size.x * 0.5
 	var text_y: float = center.y + text_size.y * 0.35
@@ -613,7 +656,7 @@ func _draw_room_name_watermark(id: int, rs: Dictionary, content_rect: Rect2) -> 
 	draw_string(
 			ThemeDB.fallback_font,
 			Vector2(text_x + 1.0, text_y + 1.0),
-			room_name,
+			label_text,
 			HORIZONTAL_ALIGNMENT_LEFT,
 			-1,
 			font_size,
@@ -622,7 +665,7 @@ func _draw_room_name_watermark(id: int, rs: Dictionary, content_rect: Rect2) -> 
 	draw_string(
 			ThemeDB.fallback_font,
 			Vector2(text_x, text_y),
-			room_name,
+			label_text,
 			HORIZONTAL_ALIGNMENT_LEFT,
 			-1,
 			font_size,
@@ -743,7 +786,11 @@ func _draw_room_label(id: int, rpx: Rect2, rs: Dictionary) -> void:
 		_draw_text_line(lines[i], pos, col)
 
 
-func _build_room_label_lines(id: int, content_rect: Rect2, rs: Dictionary) -> Array[String]:
+func _build_room_label_lines(_id: int, _content_rect: Rect2, _rs: Dictionary) -> Array[String]:
+	return []
+
+
+func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) -> Array[String]:
 	var up: float = float(rs.get("temp_upper_c", 0.0))
 	var low: float = float(rs.get("temp_lower_c", 0.0))
 	var temp_0_9m: float = float(rs.get("temp_at_0_9m_c", low))

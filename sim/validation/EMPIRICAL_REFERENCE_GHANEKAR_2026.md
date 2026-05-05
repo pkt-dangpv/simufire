@@ -90,50 +90,36 @@ Eso lo convierte en una referencia mucho mas fuerte que nuestros baselines actua
 ## Lo que esto dice sobre nuestro simulador actual
 
 ### Lo comparable hoy
-- Simufire ya modela `O2` y `CO`.
-- Simufire todavia no modela:
-  - `CO2`
-  - `HCN`
-  - `FED`
-  - un punto de sonda a `0.9 m` con retardo de transporte
+- Simufire modela `O2`, `CO`, `CO2` y `FED` asfixiante/termico.
+- El caso `ghanekar_bedroom_hallway` replica los rasgos principales del ensayo de dormitorio: techo de `2.45 m`, ventana del dormitorio abierta, puerta exterior abierta y transporte por pasillo.
+- El pasillo se divide en dos zonas numericas (`Hallway_Near` y `Hallway_Far`); la union entre ambas se trata como frontera amplia, no como puerta fisica.
+- Simufire todavia no modela `HCN` ni una sonda localizada a `0.9 m` con retardo de linea de muestreo.
 
-### Diferencia de escenario
-- Nuestro caso principal actual usa `simple_house` en [`BuildingTemplate.gd`](/F:/OneDrive/Documentos/GitHub/simufire/sim/templates/BuildingTemplate.gd:1).
-- Ese escenario no replica el del paper:
-  - geometrias distintas
-  - puertas interiores distintas
-  - sin puerta principal exterior abierta
-  - ventanas exteriores cerradas por defecto (`open_fraction = 0.0`)
-  - fuego principal en `salon` o diagnostico interno, no en dormitorio/cocina del ensayo
-
-### Contraste con la corrida larga actual del repo
-- Corrida fresca ejecutada hoy:
-  - [`long_smoke_o2_debug.json`](/F:/OneDrive/Documentos/GitHub/simufire/sim/validation/reports/long_smoke_o2_debug.json:1)
-  - [`long_smoke_o2_debug.log`](/F:/OneDrive/Documentos/GitHub/simufire/sim/validation/reports/long_smoke_o2_debug.log:1)
-
-- Hitos actuales:
-  - `time_room_1_smoke_start_s = 126.75 s` (`2.11 min`)
-  - `time_to_extinction_s = 318.25 s` (`5.30 min`)
-
-- Lectura del pasillo en la corrida larga:
-  - a `130.1 s` (`2.17 min`): `ROOM 1 O2 = 17.23 %`, `CO = 2436 ppm`
-  - a `150.1 s` (`2.50 min`): `ROOM 1 O2 = 17.01 %`, `CO = 6322 ppm`
+### Estado de calibracion actual
+- Ultima corrida de `ghanekar_bedroom_hallway`:
+  - `time_room_2_o2_below_20_4pct_s = 176.7 s`
+  - `time_room_2_co_above_200ppm_s = 276.3 s`
+  - `room_2_peak_co_ppm = 518.9 ppm`
+  - `room_2_peak_co2_ppm = 8221.6 ppm`
+  - `peak_temp_upper_c_global = 611.1 C`
+- `run_reference_checks.ps1` mantiene 28/28 checks obligatorios en `PASS`.
+- El check de O2 remoto queda dentro de la ventana del paper (`198 +/- 30 s`).
+- El CO remoto supera 200 ppm, pero todavia llega tarde frente al objetivo no bloqueante (`204 +/- 45 s`).
 
 ### Interpretacion honesta
-- Si tomamos `ROOM 1` como proxy burdo del pasillo, el modelo entra en condiciones `IDLH` bastante antes que el benchmark empirico de dormitorio (`3.6 min`).
-- El desajuste no demuestra por si solo que la fisica este mal, porque la configuracion de ventilacion y geometria no coincide con la del paper.
-- Pero si demuestra que hoy no podemos decir que el modelo este calibrado contra esta evidencia experimental.
+- La tendencia fisica ya es coherente: combustible sintetico moderno produce mas humo/CO y el flow-path arrastra gases al pasillo remoto.
+- La calibracion no debe leerse como una replica completa de la sonda experimental del paper.
+- Para cerrar Ghanekar del todo hace falta modelar medicion a `0.9 m`, `HCN`, retardo de linea de muestreo y mezcla vertical/local, no solo promedios por sala.
 
 ## Brechas de modelo mas relevantes
 
 1. Medimos por sala promediada, no en una sonda localizada a `0.9 m`.
-2. No existe `CO2`, asi que no podemos contrastar dilucion/ventilacion con el paper.
-3. No existe `HCN`, que en el paper es clave para tenabilidad.
-4. No existe calculo de `IDLH` y `FED` a partir de especies medidas.
-5. Nuestro criterio de `flashover` no es el del paper:
+2. No existe `HCN`, que en el paper es clave para tenabilidad.
+3. Falta retardo de linea de muestreo (`16-23 s`) y postproceso de sonda.
+4. Nuestro criterio de `flashover` no es el del paper:
    - paper: `T(0.9 m) > 600 C`
    - Simufire: umbral interno por `temp_upper_c` y descenso de capa.
-6. La ventilacion inicial del benchmark experimental no esta representada.
+5. La mezcla vertical/local en pasillos sigue siendo aproximada por zonas.
 
 ## Siguiente paso recomendado
 
@@ -152,7 +138,7 @@ Eso lo convierte en una referencia mucho mas fuerte que nuestros baselines actua
 ## Decision de producto / validacion
 
 Hasta tener esos casos, los `PASS` actuales deben leerse como:
-- "coincide con nuestros baselines internos"
+- "coincide con checks obligatorios internos y referencias CFAST/Ghanekar seleccionadas"
 
 y no como:
 - "coincide con evidencia experimental residencial a escala real".

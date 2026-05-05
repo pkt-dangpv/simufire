@@ -412,27 +412,27 @@ func create_ghanekar_bedroom_hallway() -> Dictionary:
 				"footprint_m2": 2.0, "exposed_area_m2": 3.2, "elevation_m": 0.45,
 				"fuel_energy_MJ": 900.0, "max_hrr_kw": 650.0,
 				"ignition_temp_c": 295.0, "ignition_flux_kw_m2": 15.0,
-				"smoke_yield_kg_per_MJ": 0.016, "co_yield_kg_per_MJ": 0.00055},
+				"smoke_yield_kg_per_MJ": 0.026, "co_yield_kg_per_MJ": 0.00110},
 			{"id": "ghanekar_bedding_textiles", "name": "Bedding and textiles", "kind": "textiles",
 				"footprint_m2": 1.6, "exposed_area_m2": 2.4, "elevation_m": 0.55,
 				"fuel_energy_MJ": 350.0, "max_hrr_kw": 450.0,
 				"ignition_temp_c": 270.0, "ignition_flux_kw_m2": 12.0,
-				"smoke_yield_kg_per_MJ": 0.018, "co_yield_kg_per_MJ": 0.00065},
+				"smoke_yield_kg_per_MJ": 0.024, "co_yield_kg_per_MJ": 0.00120},
 			{"id": "ghanekar_wardrobe_wood", "name": "Wardrobe and wood furniture", "kind": "mobiliario_madera",
 				"footprint_m2": 1.2, "exposed_area_m2": 2.4, "elevation_m": 0.0,
 				"fuel_energy_MJ": 700.0, "max_hrr_kw": 300.0,
 				"ignition_temp_c": 305.0, "ignition_flux_kw_m2": 16.0,
-				"smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025},
+				"smoke_yield_kg_per_MJ": 0.010, "co_yield_kg_per_MJ": 0.00030},
 			{"id": "ghanekar_mixed_contents", "name": "Mixed contents and plastics", "kind": "mobiliario_mixto",
 				"footprint_m2": 1.6, "exposed_area_m2": 2.2, "elevation_m": 0.6,
 				"fuel_energy_MJ": 500.0, "max_hrr_kw": 350.0,
 				"ignition_temp_c": 320.0, "ignition_flux_kw_m2": 18.0,
-				"smoke_yield_kg_per_MJ": 0.022, "co_yield_kg_per_MJ": 0.00090},
+				"smoke_yield_kg_per_MJ": 0.032, "co_yield_kg_per_MJ": 0.00160},
 			{"id": "ghanekar_remaining_load", "name": "Remaining bedroom load", "kind": "mobiliario_mixto",
 				"footprint_m2": 3.0, "exposed_area_m2": 3.6, "elevation_m": 0.5,
 				"fuel_energy_MJ": 1750.0, "max_hrr_kw": 850.0,
 				"ignition_temp_c": 310.0, "ignition_flux_kw_m2": 16.0,
-				"smoke_yield_kg_per_MJ": 0.012, "co_yield_kg_per_MJ": 0.00040}
+				"smoke_yield_kg_per_MJ": 0.016, "co_yield_kg_per_MJ": 0.00075}
 		]
 	})
 
@@ -566,8 +566,8 @@ func create_ghanekar_bedroom_hallway() -> Dictionary:
 		"a": 1,
 		"b": 2,
 		"type": "door",
-		"width_m": 1.1,
-		"height_m": 2.1,
+		"width_m": 3.2,
+		"height_m": 2.45,
 		"open_fraction": 1.0
 	})
 

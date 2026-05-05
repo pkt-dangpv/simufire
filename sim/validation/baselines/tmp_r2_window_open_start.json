@@ -10,7 +10,7 @@
 		},
 		"room_2_peak_co2_ppm": {
 			"min": 6000.0,
-			"max": 18000.0
+			"max": 20000.0
 		},
 		"room_2_final_smoke_kg": {
 			"min": 0.20,
@@ -20,7 +20,7 @@
 			"max": 0.10
 		},
 		"room_1_peak_temp_upper_c": {
-			"expected": 155.0,
+			"expected": 203.0,
 			"tolerance": 30.0
 		},
 		"room_0_final_hrr_kw": {

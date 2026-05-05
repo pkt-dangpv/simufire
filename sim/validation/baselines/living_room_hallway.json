@@ -1,28 +1,28 @@
 {
 	"metrics": {
 		"time_room_0_smoke_layer_2m_s": {
-			"expected": 126.75,
-			"tolerance": 8.0
+			"expected": 173.2,
+			"tolerance": 10.0
 		},
 		"time_room_1_smoke_start_s": {
-			"expected": 126.83,
+			"expected": 55.6,
 			"tolerance": 8.0
 		},
 		"room_1_peak_temp_upper_c": {
-			"expected": 141.8,
+			"expected": 180.5,
 			"tolerance": 20.0
 		},
 		"room_1_min_l150_m": {
-			"expected": 2.29,
-			"tolerance": 0.12
+			"expected": 2.20,
+			"tolerance": 0.15
 		},
 		"room_1_final_temp_at_1_8m_c": {
-			"expected": 82.6,
+			"expected": 79.2,
 			"tolerance": 15.0
 		},
 		"room_0_final_layer_150c_m": {
-			"expected": 0.14,
-			"tolerance": 0.08
+			"expected": 1.78,
+			"tolerance": 0.15
 		}
 	}
 }

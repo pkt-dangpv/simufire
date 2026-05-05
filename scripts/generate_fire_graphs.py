@@ -160,14 +160,15 @@ def parse_log(path):
                 temp_up   = _val(parts[2],  "Up")
                 temp_low  = _val(parts[3],  "Low")
                 smoke     = _val(parts[4],  "Smoke")
-                smoke_lyr = _val(parts[5],  "SmokeLayer")
-                hot_lyr   = _val(parts[6],  "HotLayer")  if len(parts) > 6  else 0.0
-                l150      = _val(parts[7],  "L150")      if len(parts) > 7  else 0.0
-                press     = _val(parts[8],  "P", "Pa")   if len(parts) > 8  else 0.0
-                o2        = _val(parts[9],  "O2")        if len(parts) > 9  else 0.0
-                co        = _val(parts[10], "CO",  "ppm") if len(parts) > 10 else 0.0
-                co_u      = _val(parts[11], "COu", "ppm") if len(parts) > 11 else 0.0
-                co2       = _val(parts[12], "CO2", "ppm") if len(parts) > 12 else 0.0
+                vis       = _val(parts[5],  "Vis")
+                smoke_lyr = _val(parts[6],  "SmokeLayer") if len(parts) > 6  else 0.0
+                hot_lyr   = _val(parts[7],  "HotLayer")   if len(parts) > 7  else 0.0
+                l150      = _val(parts[8],  "L150")       if len(parts) > 8  else 0.0
+                press     = _val(parts[9],  "P", "Pa")    if len(parts) > 9  else 0.0
+                o2        = _val(parts[10], "O2")         if len(parts) > 10 else 0.0
+                co        = _val(parts[11], "CO",  "ppm") if len(parts) > 11 else 0.0
+                co_u      = _val(parts[12], "COu", "ppm") if len(parts) > 12 else 0.0
+                co2       = _val(parts[13], "CO2", "ppm") if len(parts) > 13 else 0.0
 
                 fed = 0.0
                 svv = 0.0
@@ -186,7 +187,7 @@ def parse_log(path):
                 rooms[room_id] = {
                     "name": str(room_name),
                     "times": [], "hrr": [], "temp_up": [], "temp_low": [],
-                    "smoke": [], "smoke_lyr": [], "hot_lyr": [], "l150": [],
+                    "smoke": [], "vis": [], "smoke_lyr": [], "hot_lyr": [], "l150": [],
                     "press": [], "o2": [], "co": [], "co_u": [], "co2": [],
                     "fed": [], "svv": [],
                 }
@@ -197,6 +198,7 @@ def parse_log(path):
             r["temp_up"].append(temp_up)
             r["temp_low"].append(temp_low)
             r["smoke"].append(smoke)
+            r["vis"].append(vis)
             r["smoke_lyr"].append(smoke_lyr)
             r["hot_lyr"].append(hot_lyr)
             r["l150"].append(l150)
@@ -453,7 +455,14 @@ def plot_room(room_id, r, room_dir, events=None):
     ax2 = ax1.twinx()
     c_svv = "steelblue"
     ax2.plot(t, r["svv"], color=c_svv, linewidth=1.5, label="SVV (%)")
-    ax2.set_ylabel("SVV (%)", color=c_svv)
+    # Visibilidad escalada a 0-100% (30 m = 100%) para mostrar por qué SVV baja
+    # antes de que FED acumule: la sala se llena de humo más rápido que la dosis.
+    vis_raw = r.get("vis", [])
+    if vis_raw:
+        vis_pct = [min(v / 30.0, 1.0) * 100.0 for v in vis_raw]
+        ax2.plot(t, vis_pct, color="mediumseagreen", linewidth=1.0,
+                 linestyle=":", alpha=0.75, label="Vis (% de 30m)")
+    ax2.set_ylabel("SVV / Vis (%)", color=c_svv)
     ax2.tick_params(axis="y", labelcolor=c_svv)
     ax2.set_ylim(0, 105)
 
@@ -462,7 +471,7 @@ def plot_room(room_id, r, room_dir, events=None):
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines1 + lines2, labels1 + labels2, fontsize=8)
-    fig.suptitle("FED / SVV -- ROOM %s %s" % (room_id, name))
+    fig.suptitle("FED / SVV -- ROOM %s %s\n(SVV=0 antes de FED=1 → humo reduce visibilidad antes de incapacitar)" % (room_id, name))
     ax1.grid(True, alpha=0.3)
     _save(fig, os.path.join(room_dir, "fed_svv.png"))
 

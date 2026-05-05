@@ -41,7 +41,7 @@ const o2_nominal: float = 0.209
 # TIEMPO
 # ============================================================
 
-@export var time_scale: float = 5.0
+@export var time_scale: float = 1.0
 var sim_time_s: float = 0.0
 
 # Segundos sin fuego activo antes de declarar la simulación terminada.
@@ -138,6 +138,19 @@ var _active_suppression_by_room: Dictionary = {}
 @export var fire_subvent_fill_start_fraction: float = 0.06
 @export var fire_subvent_fill_full_fraction: float = 0.18
 @export var fire_starvation_o2_factor: float = 0.003
+# Cuando es true, el fuego ignora la limitacion de O2 y sigue la curva t2 pura.
+# Util solo para pruebas analiticas: no representa el modelo de extincion de FDS.
+@export var fire_o2_independent: bool = false
+# Criterio simplificado inspirado en FDS EXTINCTION 1: a 20 C la llama deja de ser
+# viable cerca de 13.5 % O2, y ese umbral baja al calentarse el gas. Como SimuFire
+# es zonal, mantenemos un suelo de O2 para no liberar HRR sin oxidante local.
+@export var fire_fds_extinction_enabled: bool = false
+@export var fire_fds_extinction_o2_limit_ambient: float = 0.135
+@export var fire_fds_extinction_ambient_c: float = 20.0
+@export var fire_fds_extinction_hot_gas_c: float = 900.0
+@export var fire_fds_extinction_hot_o2_floor: float = 0.105
+@export var fire_fds_extinction_transition_width: float = 0.030
+@export var fire_fds_extinction_pyrolysis_floor: float = 0.04
 
 # Rendimiento de CO (kg/MJ)
 # Derivado de ISO 19706 dividiendo el yield másico (kg/kg) por el calor efectivo
@@ -153,6 +166,12 @@ var _active_suppression_by_room: Dictionary = {}
 #   Combustión en déficit: 0.95 kg/kg ÷ 16 MJ/kg = 0.0594 kg/MJ
 @export var co2_base_yield_kg_per_MJ: float = 0.0831
 @export var co2_min_yield_kg_per_MJ: float = 0.0594
+
+# Rendimiento de HCN (kg/MJ)
+# ISO 19706: madera ventilada ~0.001 kg/kg ÷ 20 MJ/kg = 0.00005 kg/MJ.
+# Mezcla residencial con algo de espumas de poliuretano (muebles tapizados).
+@export var hcn_base_yield_kg_per_MJ: float = 0.000040
+@export var hcn_max_yield_kg_per_MJ: float = 0.000250
 
 # Umbral de extinción: si el HRR real cae por debajo durante fire_extinction_delay_s
 # segundos, el fuego se considera extinto (modela apagado por falta de ventilación).
@@ -259,11 +278,12 @@ var _active_suppression_by_room: Dictionary = {}
 @export var lower_layer_warming_rate: float = 0.0120
 @export var max_upper_temp_c: float = 900.0
 @export var upper_radiative_loss_enabled: bool = true
-@export var upper_radiative_loss_start_c: float = 880.0
+@export var upper_radiative_loss_start_c: float = 80.0
 @export var upper_radiative_loss_emissivity: float = 0.90
 @export var upper_radiative_loss_area_factor: float = 1.10
 @export var upper_radiative_loss_max_fraction_per_step: float = 0.45
-@export var doorway_heat_exchange_coeff: float = 0.26
+@export var doorway_heat_exchange_coeff: float = 1.0
+@export var doorway_source_upper_weight: float = 0.60
 @export var smoke_heat_mix_coeff: float = 0.025
 @export var retained_hot_layer_temp_start_c: float = 100.0
 @export var retained_hot_layer_temp_full_c: float = 350.0
@@ -277,6 +297,12 @@ var _active_suppression_by_room: Dictionary = {}
 @export var outside_open_background_heat_exchange_kg_s_m2: float = 0.030
 @export var outside_open_background_heat_max_fraction_per_step: float = 0.020
 @export var outside_open_background_heat_carry_factor: float = 0.42
+@export var interior_background_heat_exchange_kg_s_m2: float = 0.015
+@export var interior_background_heat_max_fraction_per_step: float = 0.012
+@export var interior_background_heat_carry_factor: float = 0.38
+@export var hot_gas_species_carry_fraction: float = 0.72
+@export var hot_gas_smoke_carry_fraction: float = 0.30
+@export var hot_gas_species_max_fraction_per_step: float = 0.22
 @export var thermal_gradient_min_band_m: float = 0.20
 @export var thermal_gradient_max_band_m: float = 0.70
 @export var thermal_gradient_band_fraction: float = 0.35
@@ -362,6 +388,9 @@ var _active_suppression_by_room: Dictionary = {}
 @export var smoke_density_kg_m3: float = 0.18
 @export var smoke_temp_expansion_upper_weight: float = 0.45
 @export var smoke_temp_expansion_cap_c: float = 400.0
+@export var smoke_visibility_extinction_m2_per_kg: float = 8700.0
+@export var smoke_visibility_c_factor: float = 3.0
+@export var smoke_visibility_max_m: float = 30.0
 @export var base_spill_kg_s_per_m2: float = 0.30
 @export var temp_push_factor: float = 0.005
 @export var max_spill_kg_s: float = 2.0
@@ -388,6 +417,11 @@ var _active_suppression_by_room: Dictionary = {}
 @export var pressure_spill_min_delta_pa: float = 0.5
 @export var pressure_spill_ref_delta_pa: float = 8.0
 @export var pressure_spill_max_multiplier: float = 2.5
+@export var thermal_smoke_bridge_ref_kg_m3: float = 0.014
+@export var thermal_smoke_bridge_max_weight: float = 0.35
+@export var thermal_smoke_bridge_hot_temp_start_c: float = 150.0
+@export var thermal_smoke_bridge_hot_temp_full_c: float = 360.0
+@export var thermal_smoke_bridge_hot_max_weight: float = 0.18
 @export var postfire_cleanup_hot_stop_c: float = 90.0
 @export var postfire_cleanup_cool_full_c: float = 35.0
 @export var postfire_cleanup_pressure_stop_pa: float = 0.8
@@ -402,6 +436,14 @@ var _active_suppression_by_room: Dictionary = {}
 @export var outside_open_species_temp_full_c: float = 220.0
 @export var outside_open_species_pressure_ref_pa: float = 4.0
 @export var outside_open_species_upper_bias: float = 0.80
+@export var background_species_exchange_kg_s_m2: float = 0.035
+@export var background_species_path_multiplier_max: float = 3.00
+@export var background_species_max_fraction_closed: float = 0.010
+@export var background_species_max_fraction_open: float = 0.040
+@export var flow_path_direct_fire_vent_reduction: float = 0.70
+@export var flow_path_direct_fire_min_vent_fraction: float = 0.25
+@export var flow_path_interior_pull_boost: float = 1.50
+@export var flow_path_interior_pull_max_multiplier: float = 3.00
 
 # ============================================================
 # REGISTRO DE VALORES
@@ -438,6 +480,7 @@ func _sync_auxiliary_services() -> void:
 		"upper_radiative_loss_area_factor": upper_radiative_loss_area_factor,
 		"upper_radiative_loss_max_fraction_per_step": upper_radiative_loss_max_fraction_per_step,
 		"doorway_heat_exchange_coeff": doorway_heat_exchange_coeff,
+		"doorway_source_upper_weight": doorway_source_upper_weight,
 		"smoke_heat_mix_coeff": smoke_heat_mix_coeff,
 		"retained_hot_layer_temp_start_c": retained_hot_layer_temp_start_c,
 		"retained_hot_layer_temp_full_c": retained_hot_layer_temp_full_c,
@@ -451,6 +494,12 @@ func _sync_auxiliary_services() -> void:
 		"outside_open_background_heat_exchange_kg_s_m2": outside_open_background_heat_exchange_kg_s_m2,
 		"outside_open_background_heat_max_fraction_per_step": outside_open_background_heat_max_fraction_per_step,
 		"outside_open_background_heat_carry_factor": outside_open_background_heat_carry_factor,
+		"interior_background_heat_exchange_kg_s_m2": interior_background_heat_exchange_kg_s_m2,
+		"interior_background_heat_max_fraction_per_step": interior_background_heat_max_fraction_per_step,
+		"interior_background_heat_carry_factor": interior_background_heat_carry_factor,
+		"hot_gas_species_carry_fraction": hot_gas_species_carry_fraction,
+		"hot_gas_smoke_carry_fraction": hot_gas_smoke_carry_fraction,
+		"hot_gas_species_max_fraction_per_step": hot_gas_species_max_fraction_per_step,
 		"thermal_gradient_min_band_m": thermal_gradient_min_band_m,
 		"thermal_gradient_max_band_m": thermal_gradient_max_band_m,
 		"thermal_gradient_band_fraction": thermal_gradient_band_fraction,
@@ -520,7 +569,17 @@ func _sync_auxiliary_services() -> void:
 		"outside_open_species_temp_start_c": outside_open_species_temp_start_c,
 		"outside_open_species_temp_full_c": outside_open_species_temp_full_c,
 		"outside_open_species_pressure_ref_pa": outside_open_species_pressure_ref_pa,
-		"outside_open_species_upper_bias": outside_open_species_upper_bias
+		"outside_open_species_upper_bias": outside_open_species_upper_bias,
+		"background_species_exchange_kg_s_m2": background_species_exchange_kg_s_m2,
+		"background_species_path_multiplier_max": background_species_path_multiplier_max,
+		"background_species_max_fraction_closed": background_species_max_fraction_closed,
+		"background_species_max_fraction_open": background_species_max_fraction_open,
+		"flow_path_direct_fire_vent_reduction": flow_path_direct_fire_vent_reduction,
+		"flow_path_direct_fire_min_vent_fraction": flow_path_direct_fire_min_vent_fraction,
+		"flow_path_interior_pull_boost": flow_path_interior_pull_boost,
+		"flow_path_interior_pull_max_multiplier": flow_path_interior_pull_max_multiplier,
+		"flow_path_remote_decay_per_door": fire_remote_vent_path_decay_per_door,
+		"flow_path_remote_max_doors": fire_remote_vent_path_max_doors
 	})
 	oxygen_exchange_system.configure({
 		"o2_nominal": o2_nominal,
@@ -557,6 +616,7 @@ func _build_state_context() -> Dictionary:
 		"compute_co_upper_ppm_callable": Callable(thermal_system, "compute_co_upper_ppm"),
 		"compute_co_lower_ppm_callable": Callable(thermal_system, "compute_co_lower_ppm"),
 		"compute_co2_ppm_callable": Callable(thermal_system, "compute_co2_ppm"),
+		"compute_hcn_ppm_callable": Callable(thermal_system, "compute_hcn_ppm"),
 		"is_quiescent_callable": Callable(thermal_system, "is_room_quiescent"),
 		"window_open_max_callable": Callable(self, "_window_open_max_for_room"),
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
@@ -625,6 +685,9 @@ func _sync_smoke_model_settings() -> void:
 	smoke_model.smoke_density_kg_m3 = smoke_density_kg_m3
 	smoke_model.smoke_temp_expansion_upper_weight = smoke_temp_expansion_upper_weight
 	smoke_model.smoke_temp_expansion_cap_c = smoke_temp_expansion_cap_c
+	smoke_model.visibility_extinction_m2_per_kg = smoke_visibility_extinction_m2_per_kg
+	smoke_model.visibility_c_factor = smoke_visibility_c_factor
+	smoke_model.visibility_max_m = smoke_visibility_max_m
 	smoke_model.base_spill_kg_s_per_m2 = base_spill_kg_s_per_m2
 	smoke_model.temp_push_factor = temp_push_factor
 	smoke_model.max_spill_kg_s = max_spill_kg_s
@@ -644,6 +707,11 @@ func _sync_smoke_model_settings() -> void:
 	smoke_model.pressure_spill_min_delta_pa = pressure_spill_min_delta_pa
 	smoke_model.pressure_spill_ref_delta_pa = pressure_spill_ref_delta_pa
 	smoke_model.pressure_spill_max_multiplier = pressure_spill_max_multiplier
+	smoke_model.thermal_smoke_bridge_ref_kg_m3 = thermal_smoke_bridge_ref_kg_m3
+	smoke_model.thermal_smoke_bridge_max_weight = thermal_smoke_bridge_max_weight
+	smoke_model.thermal_smoke_bridge_hot_temp_start_c = thermal_smoke_bridge_hot_temp_start_c
+	smoke_model.thermal_smoke_bridge_hot_temp_full_c = thermal_smoke_bridge_hot_temp_full_c
+	smoke_model.thermal_smoke_bridge_hot_max_weight = thermal_smoke_bridge_hot_max_weight
 
 func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_initial_fire: bool = true) -> void:
 	if building == null:
@@ -669,6 +737,7 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	_last_graphs_dir = ""
 	_last_graph_generation_ok = false
 	glass_failure_system.reset()
+	thermal_system.reset_wall_temps()
 
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -859,10 +928,20 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"co_max_yield_kg_per_MJ": co_max_yield_kg_per_MJ,
 		"co2_base_yield_kg_per_MJ": co2_base_yield_kg_per_MJ,
 		"co2_min_yield_kg_per_MJ": co2_min_yield_kg_per_MJ,
+		"hcn_base_yield_kg_per_MJ": hcn_base_yield_kg_per_MJ,
+		"hcn_max_yield_kg_per_MJ": hcn_max_yield_kg_per_MJ,
 		"kawagoe_limit_kw": kawagoe_limit_kw,
 		"window_open_max": _window_open_max_for_room(room_id),
 		"outside_open_factor": local_outside_open_factor,
-		"outside_open_path_factor": outside_open_path_factor
+		"outside_open_path_factor": outside_open_path_factor,
+		"fire_o2_independent": fire_o2_independent,
+		"fire_fds_extinction_enabled": fire_fds_extinction_enabled,
+		"fire_fds_extinction_o2_limit_ambient": fire_fds_extinction_o2_limit_ambient,
+		"fire_fds_extinction_ambient_c": fire_fds_extinction_ambient_c,
+		"fire_fds_extinction_hot_gas_c": fire_fds_extinction_hot_gas_c,
+		"fire_fds_extinction_hot_o2_floor": fire_fds_extinction_hot_o2_floor,
+		"fire_fds_extinction_transition_width": fire_fds_extinction_transition_width,
+		"fire_fds_extinction_pyrolysis_floor": fire_fds_extinction_pyrolysis_floor
 	}
 
 # ============================================================
@@ -967,6 +1046,7 @@ func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> v
 	hrr_factor = clampf(hrr_factor, 0.03, 1.0)
 	room.hrr_kw *= hrr_factor
 	room.hrr_target_kw *= hrr_factor
+	room.burned_hrr_kw = room.hrr_kw
 	room.retained_unburned_MJ *= lerpf(0.30, 1.0, hrr_factor)
 	if room.fire != null:
 		room.fire_time_s *= sqrt(hrr_factor)
@@ -1333,11 +1413,18 @@ func _clamp_rooms(dt: float) -> void:
 			thermal_system.update_temperature_cap_telemetry(room, dt)
 
 		room.hrr_kw = maxf(0.0, room.hrr_kw)
+		room.burned_hrr_kw = room.hrr_kw
+		room.pyrolysis_kw = maxf(0.0, room.pyrolysis_kw)
+		room.unburned_generation_kw = maxf(0.0, room.unburned_generation_kw)
+		room.flame_hrr_target_kw = maxf(0.0, room.flame_hrr_target_kw)
+		room.smolder_hrr_target_kw = maxf(0.0, room.smolder_hrr_target_kw)
+		room.pool_release_hrr_target_kw = maxf(0.0, room.pool_release_hrr_target_kw)
 		room.smoke_prod_kg_s = maxf(0.0, room.smoke_prod_kg_s)
 		room.smoke_kg = maxf(0.0, room.smoke_kg)
 		room.co_kg = maxf(0.0, room.co_kg)
 		room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg)
 		room.co2_kg = maxf(0.0, room.co2_kg)
+		room.hcn_kg = maxf(0.0, room.hcn_kg)
 		room.fed = maxf(0.0, room.fed)
 		room.svv_pct = clampf(room.svv_pct, 0.0, 100.0)
 		room.svv_worst_pct = minf(clampf(room.svv_worst_pct, 0.0, 100.0), room.svv_pct)

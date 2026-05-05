@@ -33,6 +33,7 @@ func build_state(context: Dictionary) -> Dictionary:
 	var compute_co_upper_ppm_callable: Callable = context.get("compute_co_upper_ppm_callable", Callable())
 	var compute_co_lower_ppm_callable: Callable = context.get("compute_co_lower_ppm_callable", Callable())
 	var compute_co2_ppm_callable: Callable = context.get("compute_co2_ppm_callable", Callable())
+	var compute_hcn_ppm_callable: Callable = context.get("compute_hcn_ppm_callable", Callable())
 	var is_quiescent_callable: Callable = context.get("is_quiescent_callable", Callable())
 	var window_open_max_callable: Callable = context.get("window_open_max_callable", Callable())
 	var outside_open_path_factor_callable: Callable = context.get("outside_open_path_factor_callable", Callable())
@@ -58,6 +59,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			smoke_layer_m = minf(smoke_layer_m, effective_hot_layer_m + 0.68)
 		var thermal_layer_m: float = clampf(room.thermal_layer_m, 0.0, room.height_m)
 		var layer_150c_m: float = clampf(room.layer_150c_m, 0.0, room.height_m)
+		var visibility_m: float = room.visibility_m
 		var kawagoe_factor: float = _call_room_id_float(kawagoe_factor_callable, room_id, 0.0)
 		state[str(room_id)] = {
 			"id": room.id,
@@ -67,6 +69,12 @@ func build_state(context: Dictionary) -> Dictionary:
 
 			"hrr_kw": room.hrr_kw,
 			"hrr_target_kw": room.hrr_target_kw,
+			"pyrolysis_kw": room.pyrolysis_kw,
+			"burned_hrr_kw": room.burned_hrr_kw,
+			"unburned_generation_kw": room.unburned_generation_kw,
+			"flame_hrr_target_kw": room.flame_hrr_target_kw,
+			"smolder_hrr_target_kw": room.smolder_hrr_target_kw,
+			"pool_release_hrr_target_kw": room.pool_release_hrr_target_kw,
 			"fire_time_s": room.fire_time_s,
 
 			"temp_upper_c": room.temp_upper_c,
@@ -85,6 +93,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"layer_150c_m": layer_150c_m,
 			"overpressure_pa": room.overpressure_pa,
 			"smoke_kg": room.smoke_kg,
+			"visibility_m": visibility_m,
 			"smoke_prod_kg_s": room.smoke_prod_kg_s,
 			"upper_gas_kg": room.upper_gas_kg,
 			"upper_energy_kj": room.upper_energy_kj,
@@ -120,11 +129,13 @@ func build_state(context: Dictionary) -> Dictionary:
 			"fire_spread_exposure_s": room.fire_spread_exposure_s,
 			"o2_hrr_factor": room.o2_hrr_factor,
 			"retained_unburned_MJ": room.retained_unburned_MJ,
+			"unburned_fuel_MJ": room.retained_unburned_MJ,
 			"ventilation_response_factor": room.ventilation_response_factor,
 			"co_ppm": _call_room_float(compute_co_ppm_callable, room, 0.0),
 			"co_upper_ppm": _call_room_float(compute_co_upper_ppm_callable, room, 0.0),
 			"co_lower_ppm": _call_room_float(compute_co_lower_ppm_callable, room, 0.0),
 			"co2_ppm": _call_room_float(compute_co2_ppm_callable, room, 0.0),
+			"hcn_ppm": _call_room_float(compute_hcn_ppm_callable, room, 0.0),
 			"fed": room.fed,
 			"svv_pct": room.svv_pct,
 			"svv_worst_pct": room.svv_worst_pct,
