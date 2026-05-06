@@ -32,6 +32,8 @@ signal room_clicked(room_id: int)
 @export var show_hot_layer: bool = false
 @export var show_layer_150c: bool = false
 @export var show_hrr_columns: bool = true
+@export var show_fuel_objects_3d: bool = true
+@export var fuel_object_3d_height_m: float = 0.22
 
 @export_group("Colors")
 @export var floor_color: Color = Color(0.18, 0.18, 0.17, 1.0)
@@ -351,6 +353,10 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	label.visible = show_room_labels
 	_labels_root.add_child(label)
 
+	var fuel_objects_root := Node3D.new()
+	fuel_objects_root.name = "FuelObjects_%02d" % room_id
+	_atmosphere_root.add_child(fuel_objects_root)
+
 	_room_items[room_id] = {
 		"rect": rect_m,
 		"height_m": height_m,
@@ -370,7 +376,9 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 		"fire_cap_radius_m": 0.0,
 		"fire_cap_weight": 0.0,
 		"fire_phase": float(room_id) * 1.37,
-		"smoke_visual_depth_m": 0.0
+		"smoke_visual_depth_m": 0.0,
+		"fuel_objects_root": fuel_objects_root,
+		"fuel_obj_nodes": {}
 	}
 
 
@@ -529,11 +537,13 @@ func _update_room(room_id: int) -> void:
 		layer_150c_color,
 		show_layer_150c and temp_upper_c >= 150.0 and layer_150c_m < height_m - layer_150c_visible_drop_m
 	)
-	_update_fire_visual(item, rect, height_m, hrr_kw)
+	_update_fire_visual(item, rect, height_m, hrr_kw, rs)
 
 	if label != null:
 		label.visible = show_room_labels
 		label.text = _get_room_label(room_id, rs)
+
+	_update_room_fuel_objects_3d(item, rs, rect)
 
 
 func _update_wall_temperature(walls: Array, temp_upper_c: float) -> void:
@@ -645,7 +655,7 @@ func _update_layer_box(
 	node.position = _room_center(rect, layer_m)
 
 
-func _update_fire_visual(item: Dictionary, rect: Rect2, room_height_m: float, hrr_kw: float) -> void:
+func _update_fire_visual(item: Dictionary, rect: Rect2, room_height_m: float, hrr_kw: float, rs: Dictionary = {}) -> void:
 	var fire_root := item.get("fire_root") as Node3D
 	if fire_root == null:
 		return
@@ -698,8 +708,38 @@ func _update_fire_visual(item: Dictionary, rect: Rect2, room_height_m: float, hr
 	item["fire_cap_radius_m"] = current_cap_radius
 	item["fire_cap_weight"] = current_cap_weight
 
+	# Ancla el fuego al objeto dominante en llamas; si no hay ninguno, centro de sala.
+	var fire_pos: Vector3 = _room_center(rect, 0.0)
+	var fuel_objects: Array = rs.get("fuel_objects", [])
+	if not fuel_objects.is_empty():
+		var best_obj: Dictionary = {}
+		var best_score: float = -1.0
+		for raw in fuel_objects:
+			if typeof(raw) != TYPE_DICTIONARY:
+				continue
+			var s: String = String(raw.get("state", "cold"))
+			if s != "flaming" and s != "pyrolyzing":
+				continue
+			var score: float = float(raw.get("hrr_kw", 0.0))
+			if bool(raw.get("is_primary_ignition_source", false)):
+				score += 1000.0
+			if score > best_score:
+				best_score = score
+				best_obj = raw
+		if not best_obj.is_empty():
+			var pos_v = best_obj.get("position_m", Vector2.ZERO)
+			var sz_v = best_obj.get("size_m", Vector2(0.5, 0.5))
+			var px: float = float(pos_v.x) if typeof(pos_v) == TYPE_VECTOR2 else float(pos_v.get("x", 0.0))
+			var pz: float = float(pos_v.y) if typeof(pos_v) == TYPE_VECTOR2 else float(pos_v.get("y", 0.0))
+			var sx: float = float(sz_v.x) if typeof(sz_v) == TYPE_VECTOR2 else float(sz_v.get("x", 0.5))
+			var sz: float = float(sz_v.y) if typeof(sz_v) == TYPE_VECTOR2 else float(sz_v.get("y", 0.5))
+			fire_pos = _to_world(Vector3(
+				rect.position.x + px + sx * 0.5,
+				0.0,
+				rect.position.y + pz + sz * 0.5
+			))
 	fire_root.visible = current_height > 0.05
-	fire_root.position = _room_center(rect, 0.0)
+	fire_root.position = fire_pos
 	if fire_root.visible:
 		_animate_fire_item(item)
 
@@ -854,6 +894,95 @@ func _get_room_name(room_id: int) -> String:
 
 func _get_room_label(room_id: int, _room_state: Dictionary = {}) -> String:
 	return "R%d" % room_id
+
+
+func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2) -> void:
+	var fuel_objects_root := item.get("fuel_objects_root") as Node3D
+	if fuel_objects_root == null:
+		return
+	var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
+	var objects: Array = rs.get("fuel_objects", [])
+
+	if not show_fuel_objects_3d or objects.is_empty():
+		fuel_objects_root.visible = false
+		return
+	fuel_objects_root.visible = true
+
+	var slab_h: float = fuel_object_3d_height_m
+	for raw_obj in objects:
+		if typeof(raw_obj) != TYPE_DICTIONARY:
+			continue
+		var obj: Dictionary = raw_obj
+		var obj_id: String = String(obj.get("id", ""))
+		if obj_id == "":
+			continue
+
+		var pos_v = obj.get("position_m", Vector2.ZERO)
+		var sz_v = obj.get("size_m", Vector2(0.5, 0.5))
+		var pos_m := Vector2(float(pos_v.x) if typeof(pos_v) == TYPE_VECTOR2 else float(pos_v.get("x", 0.0)),
+				float(pos_v.y) if typeof(pos_v) == TYPE_VECTOR2 else float(pos_v.get("y", 0.0)))
+		var size_m := Vector2(float(sz_v.x) if typeof(sz_v) == TYPE_VECTOR2 else float(sz_v.get("x", 0.5)),
+				float(sz_v.y) if typeof(sz_v) == TYPE_VECTOR2 else float(sz_v.get("y", 0.5)))
+		if size_m.x < 0.05 or size_m.y < 0.05:
+			continue
+
+		var state_name: String = String(obj.get("state", "cold"))
+
+		var node: MeshInstance3D
+		if fuel_obj_nodes.has(obj_id):
+			node = fuel_obj_nodes[obj_id] as MeshInstance3D
+		else:
+			node = _create_fuel_object_box(obj_id, size_m, slab_h)
+			fuel_objects_root.add_child(node)
+			fuel_obj_nodes[obj_id] = node
+
+		if node == null:
+			continue
+
+		var center_x: float = rect.position.x + pos_m.x + size_m.x * 0.5
+		var center_z: float = rect.position.y + pos_m.y + size_m.y * 0.5
+		node.position = _to_world(Vector3(center_x, slab_h * 0.5, center_z))
+
+		var color: Color = _fuel_object_color_3d(state_name)
+		var mat := node.material_override as StandardMaterial3D
+		if mat != null:
+			mat.albedo_color = color
+			var is_hot: bool = state_name == "flaming" or state_name == "pyrolyzing"
+			mat.emission_enabled = is_hot
+			if is_hot:
+				var emit_strength: float = 1.4 if state_name == "flaming" else 0.55
+				mat.emission = Color(color.r, color.g * 0.65, color.b * 0.2, 1.0)
+				mat.emission_energy_multiplier = emit_strength
+			else:
+				mat.emission_energy_multiplier = 0.0
+
+	item["fuel_obj_nodes"] = fuel_obj_nodes
+
+
+func _create_fuel_object_box(obj_id: String, size_m: Vector2, height_m: float) -> MeshInstance3D:
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(
+		maxf(0.05, size_m.x) * meters_to_units,
+		maxf(0.05, height_m) * meters_to_units,
+		maxf(0.05, size_m.y) * meters_to_units
+	)
+	var mat := _make_material(Color(0.55, 0.52, 0.48, 0.72), true)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	var node := MeshInstance3D.new()
+	node.name = "FuelObj_" + obj_id
+	node.mesh = mesh
+	node.material_override = mat
+	return node
+
+
+func _fuel_object_color_3d(state_name: String) -> Color:
+	match state_name:
+		"flaming":    return Color(1.00, 0.22, 0.08, 0.92)
+		"pyrolyzing": return Color(1.00, 0.54, 0.10, 0.88)
+		"heating":    return Color(1.00, 0.80, 0.22, 0.82)
+		"decaying":   return Color(0.72, 0.36, 0.16, 0.75)
+		"burned_out": return Color(0.18, 0.18, 0.18, 0.62)
+		_:            return Color(0.55, 0.52, 0.48, 0.72)
 
 
 func _get_room_id_at_screen_pos(screen_pos: Vector2) -> int:

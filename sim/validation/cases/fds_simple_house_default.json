@@ -24,7 +24,7 @@
 		"fire_max_hrr_kw": 1100.0,
 		"doorway_heat_exchange_coeff": 1.0,
 		"doorway_source_upper_weight": 0.92,
-		"fire_co_low_quality_yield_multiplier": 7.0,
+		"fire_co_low_quality_yield_multiplier": 8.5,
 		"fire_co_max_effective_fraction": 0.40,
 		"fire_unburned_generation_fraction": 0.02,
 		"fire_pool_release_max_fraction": 0.0,

@@ -9,7 +9,7 @@
 			"tolerance": 8.0
 		},
 		"room_1_peak_temp_upper_c": {
-			"expected": 180.5,
+			"expected": 205.0,
 			"tolerance": 20.0
 		},
 		"room_1_min_l150_m": {

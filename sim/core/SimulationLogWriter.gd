@@ -313,7 +313,7 @@ func _collect_room_ids(state: Dictionary) -> Array[int]:
 # ============================================================
 
 func _build_csv_header() -> String:
-	return "time_s,room_id,room_name,hrr_kw,temp_upper_c,temp_lower_c,temp_at_0_9m_c,smoke_kg,visibility_m,smoke_layer_m,hot_layer_m,layer_150c_m,overpressure_pa,o2,co_ppm,co_upper_ppm,co2_ppm,fed,svv_worst_pct,flashover_triggered,flashover_time_s,fuel_remaining_MJ,ventilation_response_factor,pyrolysis_kw,burned_hrr_kw,unburned_generation_kw,retained_unburned_MJ,flame_hrr_target_kw,smolder_hrr_target_kw,pool_release_hrr_target_kw,o2_hrr_factor"
+	return "time_s,room_id,room_name,hrr_kw,temp_upper_c,temp_lower_c,temp_at_0_9m_c,smoke_kg,visibility_m,smoke_layer_m,hot_layer_m,layer_150c_m,overpressure_pa,o2,co_ppm,co_upper_ppm,co2_ppm,fed,svv_worst_pct,flashover_triggered,flashover_time_s,fuel_remaining_MJ,ventilation_response_factor,pyrolysis_kw,burned_hrr_kw,unburned_generation_kw,retained_unburned_MJ,flame_hrr_target_kw,smolder_hrr_target_kw,pool_release_hrr_target_kw,o2_hrr_factor,fire_smoldering,backdraft_triggered"
 
 
 func _open_csv_file(mode: FileAccess.ModeFlags) -> FileAccess:
@@ -375,6 +375,8 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		fields.append("%.2f" % float(rs.get("smolder_hrr_target_kw", 0.0)))
 		fields.append("%.2f" % float(rs.get("pool_release_hrr_target_kw", 0.0)))
 		fields.append("%.4f" % float(rs.get("o2_hrr_factor", 0.0)))
+		fields.append("1" if bool(rs.get("fire_smoldering", false)) else "0")
+		fields.append("1" if bool(rs.get("backdraft_triggered", false)) else "0")
 		file.store_line(",".join(fields))
 
 	file.close()

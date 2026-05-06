@@ -287,6 +287,15 @@ func _step_interior_opening_o2(
 				clampf(outside_open_factor * 0.80, 0.0, 1.0)
 			)
 		)
+		# Boost de humo: la presencia de humo en cualquiera de las salas genera un
+		# gradiente de flotabilidad que incrementa el intercambio de O2 de fondo.
+		# Mismo mecanismo que en GasExchangeSystem para consistencia.
+		var smoke_conc_o2: float = maxf(
+			room_a.smoke_kg / maxf(0.1, room_a.volume_m3()),
+			room_b.smoke_kg / maxf(0.1, room_b.volume_m3())
+		)
+		var smoke_drive_o2: float = clampf(smoke_conc_o2 / 0.050, 0.0, 0.60)
+		background_pressure_factor = maxf(background_pressure_factor, smoke_drive_o2)
 		var base_exchange_kg: float = base_area_eff_m2 \
 			* doorway_o2_background_exchange_kg_s_m2 \
 			* background_pressure_factor \
@@ -326,7 +335,8 @@ func _step_interior_opening_o2(
 	var t_hot_k: float = source_temp_c + 273.15
 	var t_cold_k: float = cold_room.temp_lower_c + 273.15
 	var delta_t_k: float = float(flow_state.get("temp_delta_k", 0.0))
-	var q_m3_s: float = 0.65 * 0.5 * area_eff_m2 * sqrt(
+	var neutral_pf: float = float(flow_state.get("neutral_plane_f", 0.5))
+	var q_m3_s: float = 0.65 * neutral_pf * area_eff_m2 * sqrt(
 		g_gravity * h_drive_m * delta_t_k / ((t_hot_k + t_cold_k) * 0.5)
 	)
 	var exchange_kg: float = q_m3_s * air_density_kg_m3 * dt * doorway_o2_exchange_coeff * engagement

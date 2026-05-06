@@ -61,6 +61,16 @@ var hot_gas_species_carry_fraction: float = 0.72
 var hot_gas_smoke_carry_fraction: float = 0.38
 var hot_gas_species_max_fraction_per_step: float = 0.22
 
+# Propagación por radiación a través de aperturas interiores
+# Basado en Stefan-Boltzmann: q''_rad = φ·ε·σ·(T_src⁴ − T_tgt⁴) · A_eff · smoke_atten
+# φ=0.25 es el factor de vista efectivo para una apertura de puerta a sala adyacente.
+var radiation_opening_enabled: bool = true
+var radiation_flame_emissivity: float = 0.85
+var radiation_opening_view_factor: float = 0.25
+var radiation_smoke_attenuation_factor: float = 0.55
+var radiation_min_source_temp_c: float = 200.0
+var radiation_max_fraction_per_step: float = 0.25
+
 # Gradiente térmico
 var thermal_gradient_min_band_m: float = 0.20
 var thermal_gradient_max_band_m: float = 0.70
@@ -102,9 +112,12 @@ var fed_heat_enabled: bool = true
 # Flujo crítico de tenabilidad: 2.5 kW/m² (ISO 13571, Table 1).
 # t_tenab = fed_heat_rad_coeff / q^1.33 (ISO 13571 Eq. B.2).
 @export var fed_heat_rad_a: float = 1.33e4   # constante para q en kW/m², t en s
-# Fracción del flujo radiante de la capa superior que incide sobre la persona
-# (depende de la geometría; 0.2 es un valor conservador para zona caliente).
-@export var fed_heat_rad_view_factor: float = 0.20
+# Factor de vista radiante cuando el ocupante está INMERSO en la capa caliente
+# (hemisferio casi completo: ~0.50). Referencia: ISO 13571 §5.4.3.
+@export var fed_heat_rad_view_factor: float = 0.50
+# Factor de vista radiante cuando el ocupante está POR DEBAJO de la capa caliente
+# (solo el hemisferio superior recibe la radiación de la capa: ~0.35).
+@export var fed_heat_rad_view_factor_below: float = 0.35
 
 # Relajación de capa
 var layer_relax_down: float = 0.18
@@ -265,8 +278,15 @@ func configure(settings: Dictionary) -> void:
 	fed_heat_conv_min_c = float(settings.get("fed_heat_conv_min_c", fed_heat_conv_min_c))
 	fed_heat_rad_a = float(settings.get("fed_heat_rad_a", fed_heat_rad_a))
 	fed_heat_rad_view_factor = float(settings.get("fed_heat_rad_view_factor", fed_heat_rad_view_factor))
+	fed_heat_rad_view_factor_below = float(settings.get("fed_heat_rad_view_factor_below", fed_heat_rad_view_factor_below))
 	upper_heat_capture_min = float(settings.get("upper_heat_capture_min", upper_heat_capture_min))
 	upper_heat_capture_max = float(settings.get("upper_heat_capture_max", upper_heat_capture_max))
+	radiation_opening_enabled = bool(settings.get("radiation_opening_enabled", radiation_opening_enabled))
+	radiation_flame_emissivity = float(settings.get("radiation_flame_emissivity", radiation_flame_emissivity))
+	radiation_opening_view_factor = float(settings.get("radiation_opening_view_factor", radiation_opening_view_factor))
+	radiation_smoke_attenuation_factor = float(settings.get("radiation_smoke_attenuation_factor", radiation_smoke_attenuation_factor))
+	radiation_min_source_temp_c = float(settings.get("radiation_min_source_temp_c", radiation_min_source_temp_c))
+	radiation_max_fraction_per_step = float(settings.get("radiation_max_fraction_per_step", radiation_max_fraction_per_step))
 
 
 # ============================================================
@@ -430,6 +450,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		update_room_layer_150c(room, dt)
 		step_fed(room, dt)
 
+	# ── Radiación inter-sala a través de aperturas ────────────────────────────
+	_step_radiation_openings(building, dt, ambient_c)
+
 	# --------------------------------------------------------
 	# Transferencia convectiva entre habitaciones a través de
 	# aperturas interiores abiertas (efecto chimenea bidireccional).
@@ -515,7 +538,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		if area_eff <= 0.0:
 			continue
 
-		var q_vol: float = 0.65 * 0.5 * area_eff * sqrt(g_grav * hot_band_m * delta_t_k / ((t_hot_k + t_amb_k) * 0.5))
+		var neutral_pf: float = float(flow_state.get("neutral_plane_f", 0.5))
+		var q_vol: float = 0.65 * neutral_pf * area_eff * sqrt(g_grav * hot_band_m * delta_t_k / ((t_hot_k + t_amb_k) * 0.5))
 		var thermal_engagement: float = clampf(0.12 + heat_engagement * 0.65, 0.12, 0.90)
 		var mass_exch: float = q_vol * rho_air * dt * doorway_heat_exchange_coeff * thermal_engagement
 
@@ -567,6 +591,92 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		_apply_post_transfer_vertical_mix(cold_room, dt)
 		update_room_layer_150c(hot_room, dt)
 		update_room_layer_150c(cold_room, dt)
+
+
+# ============================================================
+# RADIACIÓN INTER-SALA A TRAVÉS DE APERTURAS
+# ============================================================
+# q_rad = ε · σ · (T_src⁴ − T_tgt⁴) · A_eff · φ · smoke_atten
+# Modela el calentamiento radiativo de salas adyacentes por la llama/capa caliente
+# que irradia a través de puertas y ventanas abiertas (Drysdale, 2011 §9.2).
+# ============================================================
+
+func _step_radiation_openings(building: BuildingModel, dt: float, ambient_c: float) -> void:
+	if not radiation_opening_enabled:
+		return
+
+	for op in building.get_openings():
+		if op.open_fraction <= 0.0:
+			continue
+		if op.a == BuildingModel.OUTSIDE_ID or op.b == BuildingModel.OUTSIDE_ID:
+			continue
+
+		var room_a: RoomModel = building.get_room(op.a)
+		var room_b: RoomModel = building.get_room(op.b)
+		if room_a == null or room_b == null:
+			continue
+
+		# Identificar sala fuente (la más caliente que supera el umbral mínimo)
+		var src: RoomModel = null
+		var tgt: RoomModel = null
+		if room_a.temp_upper_c >= radiation_min_source_temp_c \
+				and room_a.temp_upper_c > room_b.temp_upper_c:
+			src = room_a
+			tgt = room_b
+		elif room_b.temp_upper_c >= radiation_min_source_temp_c \
+				and room_b.temp_upper_c > room_a.temp_upper_c:
+			src = room_b
+			tgt = room_a
+		else:
+			continue
+
+		if src.upper_gas_kg <= 0.0001 or src.upper_energy_kj <= 0.0:
+			continue
+
+		var t_src_k: float = src.temp_upper_c + 273.15
+		var t_tgt_k: float = maxf(ambient_c, tgt.temp_upper_c) + 273.15
+		var dt4: float = maxf(0.0, pow(t_src_k, 4.0) - pow(t_tgt_k, 4.0))
+		if dt4 <= 0.0:
+			continue
+
+		var area_eff: float = op.width_m * op.height_m * op.open_fraction
+		if area_eff <= 0.0:
+			continue
+
+		# Atenuación por humo en ambas salas (reduce el flujo radiante transmitido)
+		var smoke_atten: float = 1.0
+		if src.smoke_kg + tgt.smoke_kg > 0.005:
+			smoke_atten = radiation_smoke_attenuation_factor
+
+		var q_rad_kw: float = radiation_flame_emissivity \
+				* STEFAN_BOLTZMANN_KW_M2_K4 \
+				* dt4 \
+				* area_eff \
+				* radiation_opening_view_factor \
+				* smoke_atten
+		if q_rad_kw <= 0.0:
+			continue
+
+		var energy_kj: float = q_rad_kw * dt
+		# Estabilidad: no transferir más del fraction máximo de la energía de la capa superior
+		var max_transfer_kj: float = src.upper_energy_kj * radiation_max_fraction_per_step
+		energy_kj = minf(energy_kj, max_transfer_kj)
+		if energy_kj <= 0.0:
+			continue
+
+		src.upper_energy_kj = maxf(0.0, src.upper_energy_kj - energy_kj)
+
+		# Si el destino no tiene capa superior formada, crear masa mínima para absorber la energía
+		if tgt.upper_gas_kg <= 0.0001:
+			var tgt_density: float = gas_density_kg_m3(tgt.temp_lower_c)
+			tgt.upper_gas_kg = tgt.floor_area_m2() * 0.08 * tgt_density
+
+		tgt.upper_energy_kj += energy_kj
+
+		sync_room_upper_layer(src, dt)
+		sync_room_upper_layer(tgt, dt)
+		update_room_layer_150c(src, dt)
+		update_room_layer_150c(tgt, dt)
 
 
 # ============================================================
@@ -1376,17 +1486,27 @@ func step_fed(room: RoomModel, dt: float) -> void:
 				delta_fed += dt_min / t_crit_min
 
 	# ISO 13571 §5.5 + §5.4.3: FED térmico (calor convectivo + radiante).
-	# Solo aplica cuando la persona está expuesta a la capa superior caliente.
-	if fed_heat_enabled and in_upper_layer:
+	if fed_heat_enabled and room.upper_gas_kg > 0.01:
 		# --- Componente convectiva (ISO 13571 sec. 8.3) ---
-		var t_gas_c: float = room.temp_upper_c
-		if t_gas_c > fed_heat_conv_min_c:
-			var tenab_min: float = fed_heat_conv_a * pow(t_gas_c, -fed_heat_conv_n)
+		# Solo cuando el ocupante respira el gas caliente (inmerso en la capa superior).
+		if in_upper_layer and room.temp_upper_c > fed_heat_conv_min_c:
+			var tenab_min: float = fed_heat_conv_a * pow(room.temp_upper_c, -fed_heat_conv_n)
 			var tenab_s: float = tenab_min * 60.0
 			if tenab_s > 0.0:
 				delta_fed += dt / tenab_s
 		# --- Componente radiante (ISO 13571 §5.4.3) ---
-		var q_rad_kw_m2: float = room.upper_radiative_loss_kw * fed_heat_rad_view_factor
+		# Se aplica SIEMPRE que la capa superior esté caliente, incluso cuando el
+		# ocupante está por debajo: la radiación viaja sin contacto con el gas.
+		# CORRECCIÓN: fórmula Stefan-Boltzmann directa (la anterior usaba
+		# upper_radiative_loss_kw × view_factor, que mezcla kW con kW/m²).
+		# q''_rad = ε·σ·(T_capa⁴ − T_piel⁴) · F_vista
+		var sigma_kw_m2_k4: float = 5.670374419e-11
+		var t_upper_k: float = room.temp_upper_c + 273.15
+		var t_skin_k: float = 310.0  # 37°C — temperatura superficie piel
+		var vf: float = fed_heat_rad_view_factor if in_upper_layer else fed_heat_rad_view_factor_below
+		var q_rad_kw_m2: float = maxf(0.0,
+			0.85 * sigma_kw_m2_k4 * (pow(t_upper_k, 4.0) - pow(t_skin_k, 4.0)) * vf
+		)
 		if q_rad_kw_m2 > 2.5:
 			var tenab_rad_s: float = fed_heat_rad_a / pow(q_rad_kw_m2, 1.33)
 			if tenab_rad_s > 0.0 and tenab_rad_s < 3600.0:
@@ -1679,6 +1799,14 @@ func build_interior_opening_flow_state(room_a: RoomModel, room_b: RoomModel, op:
 	if temp_delta_k < 2.0:
 		return state
 
+	# Posición del plano neutro en el vano (Bernoulli zonal, Drysdale §4.3).
+	# f = T_hot / (T_hot + T_cold): fracción del vano ocupada por el gas caliente saliente.
+	# A T_hot=400°C, T_cold=20°C → f=0.697 (vs 0.5 fijo anterior).
+	# Rango acotado [0.35, 0.75] para evitar inestabilidad en casos extremos.
+	var t_src_k: float = source_temp_c + 273.15
+	var t_snk_k: float = sink_temp_c + 273.15
+	var neutral_plane_f: float = clampf(t_src_k / (t_src_k + t_snk_k), 0.35, 0.75)
+
 	state["active"] = true
 	state["hot_room"] = hot_room
 	state["cold_room"] = cold_room
@@ -1689,4 +1817,5 @@ func build_interior_opening_flow_state(room_a: RoomModel, room_b: RoomModel, op:
 	state["engagement"] = engagement
 	state["source_temp_c"] = source_temp_c
 	state["temp_delta_k"] = temp_delta_k
+	state["neutral_plane_f"] = neutral_plane_f
 	return state

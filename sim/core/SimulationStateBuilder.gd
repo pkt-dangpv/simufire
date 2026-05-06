@@ -84,7 +84,12 @@ func build_state(context: Dictionary) -> Dictionary:
 			"temp_upper_clamp_count": room.temp_upper_clamp_count,
 			"temp_lower_c": room.temp_lower_c,
 
-			"o2": room.o2,
+			# Fracción de O2 corregida por dilución molar de CO2 (solo para reporte/CSV).
+			# La física de combustión sigue usando room.o2 directamente.
+			# En salas con fuego activo el O2 ya se consume por combustión — no aplicar
+			# la dilución CO2 (sería double-counting). Solo corregir en salas frías.
+			# Fórmula salas frías: x_O2_eff = room.o2 / (1 + co2_kg/air_kg * Mair/Mco2)
+			"o2": room.o2 if room.hrr_kw > 0.0 else room.o2 / (1.0 + room.co2_kg / maxf(0.1, room.volume_m3() * 1.2) * (29.0 / 44.0)),
 
 			"h_layer_m": room.h_layer_m,
 			"thermal_layer_m": thermal_layer_m,
@@ -104,6 +109,10 @@ func build_state(context: Dictionary) -> Dictionary:
 			"temp_at_0_9m_c": _call_room_height_float(estimate_temperature_callable, room, 0.9, room.temp_lower_c),
 
 			"has_fire": room.fire != null,
+			"fire_smoldering": room.fire_smoldering,
+			"backdraft_triggered": room.backdraft_triggered,
+			"backdraft_time_s": room.backdraft_time_s,
+			"backdraft_active": room.backdraft_active,
 			"flashover_triggered": room.flashover_triggered,
 			"flashover_time_s": room.flashover_time_s,
 

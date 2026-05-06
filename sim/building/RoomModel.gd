@@ -82,6 +82,7 @@ var unburned_generation_kw: float = 0.0
 var flame_hrr_target_kw: float = 0.0
 var smolder_hrr_target_kw: float = 0.0
 var pool_release_hrr_target_kw: float = 0.0
+var fire_smoldering: bool = false
 var fire_dormant_time_s: float = 0.0
 var fire_low_hrr_time_s: float = 0.0
 var fire_o2_extinguished: bool = false
@@ -96,6 +97,11 @@ var overpressure_pa: float = 0.0
 var flashover_triggered: bool = false
 var flashover_time_s: float = -1.0
 var fire_spread_exposure_s: float = 0.0
+var backdraft_triggered: bool = false
+var backdraft_time_s: float = -1.0
+var backdraft_active: bool = false
+var backdraft_phase_time_s: float = 0.0
+var backdraft_cooldown_s: float = 0.0
 
 
 func floor_area_m2() -> float:
@@ -140,6 +146,7 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	flame_hrr_target_kw = 0.0
 	smolder_hrr_target_kw = 0.0
 	pool_release_hrr_target_kw = 0.0
+	fire_smoldering = false
 	fire_dormant_time_s = 0.0
 	fire_low_hrr_time_s = 0.0
 	fire_o2_extinguished = false
@@ -150,3 +157,8 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	flashover_triggered = false
 	flashover_time_s = -1.0
 	fire_spread_exposure_s = 0.0
+	backdraft_triggered = false
+	backdraft_time_s = -1.0
+	backdraft_active = false
+	backdraft_phase_time_s = 0.0
+	backdraft_cooldown_s = 0.0

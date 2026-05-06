@@ -121,13 +121,18 @@ var _active_suppression_by_room: Dictionary = {}
 @export var fire_smoke_yield_kg_per_MJ: float = 0.0088
 @export var fire_smoke_yield_low_o2_multiplier: float = 5.0
 @export var fire_smoke_basis_min_fraction: float = 0.40
-@export var fire_smolder_hrr_fraction: float = 0.03
+# Fracción del HRR ideal que se libera como smoldering cuando la llama se extingue.
+# Literatura (Drysdale 2011, §1.2): smoldering típico es 5-15% del HRR en llama.
+@export var fire_smolder_hrr_fraction: float = 0.06
 @export var fire_smolder_smoke_multiplier: float = 2.8
 @export var fire_retained_smoke_fraction: float = 0.38
 @export var fire_pool_smoke_fraction: float = 0.42
 @export var fire_latent_hrr_cap_min_fraction: float = 0.08
 @export var fire_latent_hrr_cap_max_fraction: float = 0.35
-@export var fire_latent_co_yield_multiplier: float = 0.06
+# Multiplicador de yield de CO durante fase smoldering respecto a combustión deficiente.
+# ISO 19706: smoldering madera CO ~0.08-0.15 kg/kg vs llama ~0.004 kg/kg → ×20-40.
+# co_low_quality_yield ya es ×8 del base; multiplicar ×4 → ×32 total (≈0.008 kg/MJ).
+@export var fire_latent_co_yield_multiplier: float = 4.0
 @export var fire_retained_co_fraction: float = 0.08
 @export var fire_pool_co_fraction: float = 0.40
 @export var fire_co_low_quality_yield_multiplier: float = 8.0
@@ -166,6 +171,10 @@ var _active_suppression_by_room: Dictionary = {}
 #   Combustión en déficit: 0.95 kg/kg ÷ 16 MJ/kg = 0.0594 kg/MJ
 @export var co2_base_yield_kg_per_MJ: float = 0.0831
 @export var co2_min_yield_kg_per_MJ: float = 0.0594
+# Peso del combustion_completion_factor como suelo para el yield de CO2.
+# Evita que CO2 caiga demasiado cuando el fuego está activo pero con déficit de O2.
+# 0 = deshabilitado (comportamiento clásico); 0.55 = valor físicamente justificado.
+@export var co2_completion_yield_weight: float = 0.55
 
 # Rendimiento de HCN (kg/MJ)
 # ISO 19706: madera ventilada ~0.001 kg/kg ÷ 20 MJ/kg = 0.00005 kg/MJ.
@@ -229,10 +238,30 @@ var _active_suppression_by_room: Dictionary = {}
 @export var fire_backdraft_o2_max: float = 0.13
 @export var fire_backdraft_temp_min_c: float = 180.0
 @export var fire_backdraft_release_boost: float = 1.35
+# Evento backdraft: multiplicador de HRR pico, duración del blast y cooldown de re-armado.
+# Literatura (Gottuk 1992): bacakdraft genera picos de HRR 3-6× el máximo pre-extincion.
+@export var fire_backdraft_hrr_multiplier: float = 4.0
+@export var fire_backdraft_duration_s: float = 12.0
+@export var fire_backdraft_cooldown_s: float = 180.0
 @export var fire_remote_vent_path_enabled: bool = true
 @export var fire_remote_vent_path_decay_per_door: float = 0.60
 @export var fire_remote_vent_path_min_signal: float = 0.02
 @export var fire_remote_vent_path_max_doors: int = 4
+
+# ============================================================
+# PROPAGACIÓN INTRA-SALA (ÍTEM 10 — GEOMETRÍA)
+# ============================================================
+
+# Activar cadena de ignición por radiación objeto-a-objeto dentro de la sala.
+# Modelo punto fuente: q'' = Σ(hrr_src * view_factor / max(falloff², dist²)).
+# Referencia: Drysdale "Introduction to Fire Dynamics", punto fuente de radiación.
+@export var fire_intraroom_spread_enabled: bool = true
+# Coeficiente de factor de vista punto-fuente para la sala (adimensional).
+# 0.10 corresponde a un factor de vista efectivo de ~0.03 a 1.8 m — conservador.
+@export var fire_intraroom_view_factor: float = 0.10
+# Distancia de caída (m) que limita el flux en el campo cercano.
+# Equivale a radio de zona de mezcla turbulenta de la llama (≈ 1 m).
+@export var fire_intraroom_falloff_m: float = 1.0
 
 # ============================================================
 # PROPAGACIÓN DEL INCENDIO
@@ -343,6 +372,24 @@ var _active_suppression_by_room: Dictionary = {}
 @export var fed_heat_rad_view_factor: float = 0.20
 
 @export var layer_150c_relax_up_per_s: float = 0.01
+
+# ============================================================
+# PROPAGACIÓN POR RADIACIÓN A TRAVÉS DE APERTURAS
+# ============================================================
+# Modela la irradiación de la capa superior caliente hacia salas adyacentes a través
+# de puertas y ventanas abiertas. Física: Stefan-Boltzmann con factor de vista empírico.
+# φ=0.25 es representativo para apertura de puerta a habitación adyacente (Drysdale 2011).
+@export var radiation_opening_enabled: bool = true
+## Emisividad efectiva de la llama/capa caliente (mezcla gas + partículas de hollín).
+@export var radiation_flame_emissivity: float = 0.85
+## Factor de vista efectivo apertura→sala adyacente (geometría típica de puerta residencial).
+@export var radiation_opening_view_factor: float = 0.25
+## Fracción del flujo radiante que pasa a través del humo (resto es absorbido/dispersado).
+@export var radiation_smoke_attenuation_factor: float = 0.55
+## Temperatura mínima de la capa superior fuente para emitir radiación significativa.
+@export var radiation_min_source_temp_c: float = 200.0
+## Fracción máxima de la energía de la capa superior transferible por radiación en un paso.
+@export var radiation_max_fraction_per_step: float = 0.25
 
 
 # Absorción de calor por paredes — término proporcional simple sobre (T_upper - T_ambient).
@@ -529,7 +576,13 @@ func _sync_auxiliary_services() -> void:
 		"fed_heat_conv_n": fed_heat_conv_n,
 		"fed_heat_conv_min_c": fed_heat_conv_min_c,
 		"fed_heat_rad_a": fed_heat_rad_a,
-		"fed_heat_rad_view_factor": fed_heat_rad_view_factor
+		"fed_heat_rad_view_factor": fed_heat_rad_view_factor,
+		"radiation_opening_enabled": radiation_opening_enabled,
+		"radiation_flame_emissivity": radiation_flame_emissivity,
+		"radiation_opening_view_factor": radiation_opening_view_factor,
+		"radiation_smoke_attenuation_factor": radiation_smoke_attenuation_factor,
+		"radiation_min_source_temp_c": radiation_min_source_temp_c,
+		"radiation_max_fraction_per_step": radiation_max_fraction_per_step
 	})
 	fire_spread_system.set_references(building, smoke_model, combustion_system)
 	fire_spread_system.configure({
@@ -915,6 +968,9 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_backdraft_o2_max": fire_backdraft_o2_max,
 		"fire_backdraft_temp_min_c": fire_backdraft_temp_min_c,
 		"fire_backdraft_release_boost": fire_backdraft_release_boost,
+		"fire_backdraft_hrr_multiplier": fire_backdraft_hrr_multiplier,
+		"fire_backdraft_duration_s": fire_backdraft_duration_s,
+		"fire_backdraft_cooldown_s": fire_backdraft_cooldown_s,
 		"fire_extinction_hrr_kw": fire_extinction_hrr_kw,
 		"fire_extinction_delay_s": fire_extinction_delay_s,
 		"fire_latent_enabled": fire_latent_enabled,
@@ -928,6 +984,7 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"co_max_yield_kg_per_MJ": co_max_yield_kg_per_MJ,
 		"co2_base_yield_kg_per_MJ": co2_base_yield_kg_per_MJ,
 		"co2_min_yield_kg_per_MJ": co2_min_yield_kg_per_MJ,
+		"co2_completion_yield_weight": co2_completion_yield_weight,
 		"hcn_base_yield_kg_per_MJ": hcn_base_yield_kg_per_MJ,
 		"hcn_max_yield_kg_per_MJ": hcn_max_yield_kg_per_MJ,
 		"kawagoe_limit_kw": kawagoe_limit_kw,
@@ -941,7 +998,10 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_fds_extinction_hot_gas_c": fire_fds_extinction_hot_gas_c,
 		"fire_fds_extinction_hot_o2_floor": fire_fds_extinction_hot_o2_floor,
 		"fire_fds_extinction_transition_width": fire_fds_extinction_transition_width,
-		"fire_fds_extinction_pyrolysis_floor": fire_fds_extinction_pyrolysis_floor
+		"fire_fds_extinction_pyrolysis_floor": fire_fds_extinction_pyrolysis_floor,
+		"fire_intraroom_spread_enabled": fire_intraroom_spread_enabled,
+		"fire_intraroom_view_factor": fire_intraroom_view_factor,
+		"fire_intraroom_falloff_m": fire_intraroom_falloff_m
 	}
 
 # ============================================================
@@ -1105,6 +1165,10 @@ func _build_passive_fuel_context(room_id: int) -> Dictionary:
 	var max_opening_gas_temp_c: float = room.temp_lower_c
 	var max_opening_engagement: float = 0.0
 	var max_adjacent_source_hrr_kw: float = 0.0
+	# Radiación directa desde sala adyacente con fuego, independiente del flujo convectivo.
+	# φ = A_apertura / A_paredes_sala_pasiva × 2 (factor de vista simplificado).
+	var max_adjacent_fire_temp_c: float = 0.0
+	var max_adjacent_rad_engagement: float = 0.0
 
 	for op in building.get_openings():
 		if op == null or op.open_fraction <= 0.0:
@@ -1118,6 +1182,17 @@ func _build_passive_fuel_context(room_id: int) -> Dictionary:
 		var other_room: RoomModel = building.get_room(other_room_id)
 		if other_room == null or other_room.fire == null:
 			continue
+
+		# Radiación a través del vano: independiente del flujo (la luz viaja sin masa).
+		# φ = A_vano / A_paredes × 2  →  fracción del campo radiante que llega al objeto.
+		var opening_area_m2: float = op.width_m * op.height_m * op.open_fraction
+		var wall_area_m2: float = maxf(
+			1.0,
+			2.0 * (room.width_m * room.height_m + room.length_m * room.height_m)
+		)
+		var rad_vf: float = clampf(opening_area_m2 / wall_area_m2 * 2.0, 0.0, 0.50)
+		max_adjacent_fire_temp_c = maxf(max_adjacent_fire_temp_c, other_room.temp_upper_c)
+		max_adjacent_rad_engagement = maxf(max_adjacent_rad_engagement, rad_vf)
 
 		var flow_state: Dictionary = thermal_system.build_interior_opening_flow_state(
 			room,
@@ -1145,7 +1220,9 @@ func _build_passive_fuel_context(room_id: int) -> Dictionary:
 	return {
 		"opening_gas_temp_c": max_opening_gas_temp_c,
 		"opening_engagement": max_opening_engagement,
-		"adjacent_source_hrr_kw": max_adjacent_source_hrr_kw
+		"adjacent_source_hrr_kw": max_adjacent_source_hrr_kw,
+		"adjacent_fire_temp_c": max_adjacent_fire_temp_c,
+		"adjacent_rad_engagement": max_adjacent_rad_engagement
 	}
 
 

@@ -459,7 +459,13 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			target.upper_gas_kg += moved_upper_gas_kg
 			target.upper_energy_kj += moved_upper_energy_kj
 
-			var o2_mix_factor: float = 0.08 * flow_ratio
+			# O2 counterflow: cuando el humo pasa de sala A a B sin delay,
+			# la corriente de retorno transporta O2 bidireccional en el dintel.
+			# (Con delay activo, OxygenExchangeSystem maneja el intercambio de O2.)
+				# O2 counterflow: cuando el humo pasa de sala A a B sin delay,
+			# la corriente de retorno transporta O2 bidireccional en el dintel.
+			# (Con delay activo, OxygenExchangeSystem maneja el intercambio de O2.)
+			var o2_mix_factor: float = 0.18 * flow_ratio
 			if o2_mix_factor > 0.0:
 				var source_air_mass_kg: float = maxf(0.1, source.volume_m3()) * air_density_kg_m3_s
 				var target_air_mass_kg: float = maxf(0.1, target.volume_m3()) * air_density_kg_m3_s
@@ -736,11 +742,22 @@ func _apply_background_species_exchange(
 		# outside_open_factor queda en 0.0 → background_drive será 0.25 (mínimo), lo que
 		# activa el intercambio a tasa reducida sin la atenuación extra del exterior.
 
+	# Boost de difusión por presencia de humo: el humo acumulado genera gradientes
+	# de presión/flotabilidad que incrementan el intercambio incluso sin apertura exterior.
+	# Referencia: 50 g/m³ de humo (visible) ≈ señal significativa de presión diferencial.
+	var smoke_conc_signal: float = maxf(
+		room_a.smoke_kg / maxf(0.1, room_a.volume_m3()),
+		room_b.smoke_kg / maxf(0.1, room_b.volume_m3())
+	)
+	var smoke_drive: float = clampf(smoke_conc_signal / 0.050, 0.0, 0.65)
 	var background_drive: float = maxf(
 		0.25,
 		maxf(
 			clampf(maxf(room_a.overpressure_pa, room_b.overpressure_pa) / 1.5, 0.0, 1.0),
-			clampf(outside_open_factor * 0.85, 0.0, 1.0)
+			maxf(
+				clampf(outside_open_factor * 0.85, 0.0, 1.0),
+				smoke_drive
+			)
 		)
 	)
 	var exchange_air_kg: float = area_eff_m2 \

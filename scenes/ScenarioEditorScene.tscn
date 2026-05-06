@@ -1,17 +1,17 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://dyq1lmxeqddfr"]
 
-[ext_resource type="Script" path="res://editor/ScenarioEditor.gd" id="1_scenario_editor"]
-[ext_resource type="Script" path="res://editor/EditorGrid.gd" id="2_editor_grid"]
+[ext_resource type="Script" uid="uid://dsqdpf2tdhpcj" path="res://editor/ScenarioEditor.gd" id="1_scenario_editor"]
+[ext_resource type="Script" uid="uid://cvnba1cw8jujl" path="res://editor/EditorGrid.gd" id="2_editor_grid"]
 
-[node name="ScenarioEditor" type="Node2D"]
+[node name="ScenarioEditor" type="Node2D" unique_id=1966896303]
 script = ExtResource("1_scenario_editor")
 
-[node name="EditorGrid" type="Node2D" parent="."]
+[node name="EditorGrid" type="Node2D" parent="." unique_id=1092522967]
 script = ExtResource("2_editor_grid")
 
-[node name="CanvasLayer" type="CanvasLayer" parent="."]
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=347429840]
 
-[node name="UI" type="Control" parent="CanvasLayer"]
+[node name="UI" type="Control" parent="CanvasLayer" unique_id=630610743]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -20,276 +20,273 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
 
-[node name="TopBar" type="PanelContainer" parent="CanvasLayer/UI"]
+[node name="TopBar" type="PanelContainer" parent="CanvasLayer/UI" unique_id=1228911550]
 layout_mode = 0
 offset_left = 12.0
 offset_top = 12.0
 offset_right = 738.0
 offset_bottom = 58.0
-mouse_filter = 0
 
-[node name="HBox" type="HBoxContainer" parent="CanvasLayer/UI/TopBar"]
+[node name="HBox" type="HBoxContainer" parent="CanvasLayer/UI/TopBar" unique_id=452000251]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="BtnSelect" type="Button" parent="CanvasLayer/UI/TopBar/HBox"]
+[node name="BtnSelect" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=627942734]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
 text = "Select"
 
-[node name="BtnRoom" type="Button" parent="CanvasLayer/UI/TopBar/HBox"]
+[node name="BtnRoom" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=557386662]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
 text = "Room"
 
-[node name="BtnDoor" type="Button" parent="CanvasLayer/UI/TopBar/HBox"]
+[node name="BtnDoor" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=405410531]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
 text = "Door"
 
-[node name="BtnWindow" type="Button" parent="CanvasLayer/UI/TopBar/HBox"]
+[node name="BtnWindow" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1269220202]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
 text = "Window"
 
-[node name="BtnObject" type="Button" parent="CanvasLayer/UI/TopBar/HBox"]
+[node name="BtnObject" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=161774304]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
 text = "Object"
 
-[node name="BtnIgnite" type="Button" parent="CanvasLayer/UI/TopBar/HBox"]
+[node name="BtnIgnite" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1799331828]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
 text = "Ignite"
 
-[node name="BtnDelete" type="Button" parent="CanvasLayer/UI/TopBar/HBox"]
+[node name="BtnDelete" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=713133688]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
 text = "Delete"
 
-[node name="LeftPanel" type="PanelContainer" parent="CanvasLayer/UI"]
+[node name="LeftPanel" type="PanelContainer" parent="CanvasLayer/UI" unique_id=260976689]
 layout_mode = 0
 offset_left = 12.0
 offset_top = 72.0
 offset_right = 362.0
 offset_bottom = 706.0
-mouse_filter = 0
 
-[node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel"]
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel" unique_id=1144839810]
 layout_mode = 2
 theme_override_constants/separation = 7
 
-[node name="ObjectLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="ObjectLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1026911107]
 layout_mode = 2
 text = "Objeto a colocar"
 
-[node name="ObjectTypeOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="ObjectTypeOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=137288235]
 layout_mode = 2
 
-[node name="PathEdit" type="LineEdit" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="PathEdit" type="LineEdit" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1659549896]
 layout_mode = 2
 text = "user://editor_scenario.json"
 
-[node name="BtnSave" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="BtnSave" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=55829757]
 layout_mode = 2
 text = "Guardar"
 
-[node name="BtnLoad" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="BtnLoad" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=456158521]
 layout_mode = 2
 text = "Cargar"
 
-[node name="BtnExportRuntime" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="BtnExportRuntime" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=2085730832]
 layout_mode = 2
 text = "Export runtime"
 
-[node name="SeparatorA" type="HSeparator" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="SeparatorA" type="HSeparator" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=2108069766]
 layout_mode = 2
 
-[node name="StopTimeLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="StopTimeLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1405461915]
 layout_mode = 2
 text = "Parar a (s)"
 
-[node name="StopTimeSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="StopTimeSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1085679699]
 layout_mode = 2
 max_value = 86400.0
 step = 30.0
 
-[node name="ScenarioLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="ScenarioLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1893888048]
 layout_mode = 2
 text = "Escenarios predefinidos"
 
-[node name="ScenarioOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="ScenarioOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1034367345]
 layout_mode = 2
 
-[node name="BtnLoadScenario" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="BtnLoadScenario" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=445792796]
 layout_mode = 2
 text = "Cargar escenario"
 
-[node name="StatusLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="StatusLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1852960015]
 custom_minimum_size = Vector2(320, 120)
 layout_mode = 2
-autowrap_mode = 3
 text = "Editor listo"
+autowrap_mode = 3
 
-[node name="RightPanel" type="PanelContainer" parent="CanvasLayer/UI"]
+[node name="RightPanel" type="PanelContainer" parent="CanvasLayer/UI" unique_id=711849844]
 layout_mode = 0
-offset_left = 884.0
-offset_top = 72.0
-offset_right = 1268.0
-offset_bottom = 860.0
-mouse_filter = 0
+offset_left = 898.0
+offset_top = 6.0
+offset_right = 1282.0
+offset_bottom = 794.0
+scale = Vector2(1.0132809, 0.91129804)
 
-[node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel"]
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel" unique_id=216967571]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="RoomTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox"]
+[node name="RoomTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1841010525]
 layout_mode = 2
 text = "Propiedades de habitación"
 
-[node name="RoomNameEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox"]
+[node name="RoomNameEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=762771066]
 layout_mode = 2
 placeholder_text = "Nombre"
 
-[node name="RoomKindEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox"]
+[node name="RoomKindEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=231177903]
 layout_mode = 2
 placeholder_text = "Tipo"
 
-[node name="RoomHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox"]
+[node name="RoomHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1355792470]
 layout_mode = 2
 min_value = 1.8
 max_value = 6.0
 step = 0.1
 value = 2.7
 
-[node name="FuelEnergySpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox"]
+[node name="FuelEnergySpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1716212050]
 layout_mode = 2
 max_value = 10000.0
 step = 10.0
 
-[node name="MaxHrrSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox"]
+[node name="MaxHrrSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=655296354]
 layout_mode = 2
 max_value = 5000.0
 step = 10.0
 
-[node name="BtnApplyRoom" type="Button" parent="CanvasLayer/UI/RightPanel/VBox"]
+[node name="BtnApplyRoom" type="Button" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=964308888]
 layout_mode = 2
 text = "Aplicar habitación"
 
-[node name="SeparatorB" type="HSeparator" parent="CanvasLayer/UI/RightPanel/VBox"]
+[node name="SeparatorB" type="HSeparator" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=175276598]
 layout_mode = 2
 
-[node name="ObjectTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox"]
+[node name="ObjectTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=643658256]
 layout_mode = 2
 text = "Propiedades del objeto seleccionado"
 
-[node name="ObjProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox"]
+[node name="ObjProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1481127137]
 layout_mode = 2
 theme_override_constants/separation = 5
 
-[node name="ObjNameEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps"]
+[node name="ObjNameEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1161814676]
 layout_mode = 2
 placeholder_text = "Nombre objeto"
 
-[node name="ObjWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps"]
+[node name="ObjWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=504730624]
 layout_mode = 2
 min_value = 0.1
 max_value = 20.0
 step = 0.05
+value = 0.1
 
-[node name="ObjHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps"]
+[node name="ObjHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1410567642]
 layout_mode = 2
 min_value = 0.1
 max_value = 20.0
 step = 0.05
+value = 0.1
 
-[node name="ObjFuelSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps"]
+[node name="ObjFuelSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1573415355]
 layout_mode = 2
 max_value = 5000.0
 step = 10.0
 
-[node name="ObjHrrSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps"]
+[node name="ObjHrrSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=703785309]
 layout_mode = 2
 max_value = 5000.0
 step = 10.0
 
-[node name="BtnApplyObject" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps"]
+[node name="BtnApplyObject" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1849481972]
 layout_mode = 2
 text = "Aplicar objeto"
 
-[node name="BtnDeleteObject" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps"]
+[node name="BtnDeleteObject" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=670449681]
 layout_mode = 2
 text = "Borrar objeto"
 
-[node name="SeparatorC" type="HSeparator" parent="CanvasLayer/UI/RightPanel/VBox"]
+[node name="SeparatorC" type="HSeparator" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=110912611]
 layout_mode = 2
 
-[node name="OpeningTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox"]
+[node name="OpeningTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1162256429]
 layout_mode = 2
 text = "Propiedades de apertura"
 
-[node name="OpeningProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox"]
+[node name="OpeningProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=162593781]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="OpeningTypeLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps"]
-layout_mode = 2
+[node name="OpeningTypeLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=38058230]
 modulate = Color(0.75, 0.878431, 1, 1)
+layout_mode = 2
 text = "Tipo: —"
 
-[node name="OpeningWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps"]
+[node name="OpeningWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=878676402]
 layout_mode = 2
 min_value = 0.3
 max_value = 6.0
 step = 0.05
-value = 0.9
+value = 0.8999999999999999
 
-[node name="OpeningHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps"]
+[node name="OpeningHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=268589647]
 layout_mode = 2
 min_value = 0.5
 max_value = 3.5
 step = 0.05
 value = 2.0
 
-[node name="OpeningSillSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps"]
+[node name="OpeningSillSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=1242201272]
 layout_mode = 2
-min_value = 0.0
 max_value = 2.0
 step = 0.05
-value = 0.0
 
-[node name="OpeningOpenOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps"]
+[node name="OpeningOpenOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=53628024]
 layout_mode = 2
 
-[node name="BtnApplyOpening" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps"]
+[node name="BtnApplyOpening" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=1200648205]
 layout_mode = 2
 text = "Aplicar apertura"
 
-[node name="BottomBar" type="PanelContainer" parent="CanvasLayer/UI"]
+[node name="BottomBar" type="PanelContainer" parent="CanvasLayer/UI" unique_id=475357514]
 layout_mode = 0
 offset_left = 380.0
 offset_top = 648.0
 offset_right = 866.0
 offset_bottom = 706.0
-mouse_filter = 0
 
-[node name="HBox" type="HBoxContainer" parent="CanvasLayer/UI/BottomBar"]
+[node name="HBox" type="HBoxContainer" parent="CanvasLayer/UI/BottomBar" unique_id=1218321673]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="BtnStartSimulation" type="Button" parent="CanvasLayer/UI/BottomBar/HBox"]
+[node name="BtnStartSimulation" type="Button" parent="CanvasLayer/UI/BottomBar/HBox" unique_id=973282199]
 custom_minimum_size = Vector2(260, 42)
 layout_mode = 2
 text = "✓ Iniciar simulación"
 
-[node name="BtnCancel" type="Button" parent="CanvasLayer/UI/BottomBar/HBox"]
+[node name="BtnCancel" type="Button" parent="CanvasLayer/UI/BottomBar/HBox" unique_id=2143511484]
 custom_minimum_size = Vector2(160, 42)
 layout_mode = 2
 text = "✗ Cancelar"

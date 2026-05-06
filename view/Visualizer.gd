@@ -243,7 +243,7 @@ func _draw() -> void:
 			)
 
 		if show_fire_overlay:
-			_draw_room_fire_overlay(content_rect, rs)
+			_draw_room_fire_overlay(content_rect, rs, id)
 
 		if show_section_gauge:
 			_draw_section_gauge(
@@ -402,18 +402,74 @@ func _draw_room_atmosphere_overlay(
 		)
 
 
-func _draw_room_fire_overlay(rpx: Rect2, rs: Dictionary) -> void:
+func _draw_room_fire_overlay(rpx: Rect2, rs: Dictionary, room_id: int = -1) -> void:
 	var has_fire: bool = bool(rs.get("has_fire", false))
 	var hrr_kw: float = float(rs.get("hrr_kw", 0.0))
-	if not has_fire and hrr_kw <= 5.0:
+	var fire_smoldering: bool = bool(rs.get("fire_smoldering", false))
+	var backdraft_active: bool = bool(rs.get("backdraft_active", false))
+	var backdraft_triggered: bool = bool(rs.get("backdraft_triggered", false))
+	if not has_fire and hrr_kw <= 5.0 and not fire_smoldering and not backdraft_active and not backdraft_triggered:
 		return
 
 	if rpx.size.x <= 2.0 or rpx.size.y <= 2.0:
 		return
 
-	var fire_intensity: float = clampf(hrr_kw / maxf(1.0, hrr_bar_max_kw), 0.0, 1.0)
+	# Por defecto: centro de la sala. Si hay objetos con fuego, ancla al objeto dominante.
 	var center: Vector2 = rpx.position + rpx.size * 0.5
-	var base_radius: float = minf(rpx.size.x, rpx.size.y) * (0.08 + 0.14 * fire_intensity)
+	if room_id >= 0 and rects_m.has(room_id):
+		var objects: Array = rs.get("fuel_objects", [])
+		var best_obj: Dictionary = {}
+		var best_score: float = -1.0
+		for raw in objects:
+			if typeof(raw) != TYPE_DICTIONARY:
+				continue
+			var s: String = String(raw.get("state", "cold"))
+			if s != "flaming" and s != "pyrolyzing":
+				continue
+			var score: float = float(raw.get("hrr_kw", 0.0))
+			if bool(raw.get("is_primary_ignition_source", false)):
+				score += 1000.0
+			if score > best_score:
+				best_score = score
+				best_obj = raw
+		if not best_obj.is_empty():
+			var rm: Rect2 = rects_m[room_id]
+			var pos_m: Vector2 = _vector2_from_variant(best_obj.get("position_m", Vector2.ZERO))
+			var sz_m: Vector2 = _vector2_from_variant(best_obj.get("size_m", Vector2.ONE))
+			var tf: Dictionary = _get_draw_transform()
+			var sc: float = float(tf["scale"])
+			var off: Vector2 = Vector2(tf["offset"])
+			center = (rm.position + pos_m + sz_m * 0.5) * sc + off
+	var base_size: float = minf(rpx.size.x, rpx.size.y)
+
+	# Indicador backdraft: destello blanco-naranja intenso durante la fase explosiva
+	# Post-evento: halo naranja residual permanente (backdraft_triggered pero no active)
+	if backdraft_active:
+		var t: float = float(state.get("sim_time_s", 0.0))
+		var flash: float = 0.70 + 0.30 * (0.5 + 0.5 * sin(t * 18.0))  # parpadeo rápido
+		draw_circle(center, base_size * 0.55,
+			Color(1.0, 0.85, 0.30, 0.18 + 0.22 * flash))  # fulgor exterior amarillo-blanco
+		draw_circle(center, base_size * 0.32,
+			Color(1.0, 0.95, 0.70, 0.55 + 0.35 * flash))  # núcleo blanco-caliente
+	elif backdraft_triggered:
+		# Halo naranja residual: indica que esta sala tuvo backdraft
+		draw_circle(center, base_size * 0.40,
+			Color(0.90, 0.40, 0.05, 0.12))
+
+	# Indicador smoldering: halo naranja pulsante con símbolo de brasa
+	if fire_smoldering:
+		var t: float = float(state.get("sim_time_s", 0.0))
+		var pulse: float = 0.5 + 0.5 * sin(t * 2.0)
+		var smolder_radius: float = base_size * (0.10 + 0.04 * pulse)
+		draw_circle(center, smolder_radius * 2.2,
+			Color(0.65, 0.28, 0.05, 0.08 + 0.07 * pulse))
+		draw_circle(center, smolder_radius,
+			Color(0.75, 0.35, 0.05, 0.25 + 0.20 * pulse))
+		if hrr_kw <= 5.0:
+			return
+
+	var fire_intensity: float = clampf(hrr_kw / maxf(1.0, hrr_bar_max_kw), 0.0, 1.0)
+	var base_radius: float = base_size * (0.08 + 0.14 * fire_intensity)
 
 	draw_circle(
 		center,
@@ -818,20 +874,26 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 
 	match detail:
 		"tiny":
-			# Solo lo crítico: temperatura y supervivencia
 			lines.append("T %.0fC" % temp_0_9m)
 			lines.append("SVV %.0f%%" % svv_pct_val)
-			if flashover_triggered:
+			if bool(rs.get("backdraft_active", false)):
+				lines.append("BACKDRAFT")
+			elif flashover_triggered:
 				lines.append("FLASHOVER")
+			elif bool(rs.get("fire_smoldering", false)):
+				lines.append("SMOLD")
 		"compact":
-			# 4 líneas: HRR/T, capas, gases, seguridad
 			lines.append("HRR %.0f kW" % hrr)
 			lines.append("T %.0f / %.0f C" % [up, low])
 			lines.append("O2 %.1f%%  CO %.0f" % [o2v, co_ppm])
 			lines.append("Comb %.0f MJ" % rem_mj)
 			lines.append("FED %.2f  SVV %.0f%%" % [fed_val, svv_pct_val])
-			if flashover_triggered:
+			if bool(rs.get("backdraft_active", false)):
+				lines.append("BACKDRAFT")
+			elif flashover_triggered:
 				lines.append("FLASHOVER")
+			elif bool(rs.get("fire_smoldering", false)):
+				lines.append("SMOLD")
 		"medium":
 			# 6 líneas: HRR, temp, capas, gases, FED/SVV
 			lines.append("HRR %.0f kW" % hrr)
@@ -843,8 +905,12 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 			var med_win: String = _build_window_status_label(rs)
 			if med_win != "":
 				lines.append(med_win)
-			if flashover_triggered:
+			if bool(rs.get("backdraft_active", false)):
+				lines.append("BACKDRAFT")
+			elif flashover_triggered:
 				lines.append("FLASHOVER")
+			elif bool(rs.get("fire_smoldering", false)):
+				lines.append("SMOLDERING")
 		_:
 			# Detalle completo
 			lines.append("HRR %.0f kW" % hrr)
@@ -858,8 +924,12 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 			var full_win: String = _build_window_status_label(rs)
 			if full_win != "":
 				lines.append(full_win)
-			if flashover_triggered:
+			if bool(rs.get("backdraft_active", false)):
+				lines.append("BACKDRAFT")
+			elif flashover_triggered:
 				lines.append("FLASHOVER")
+			elif bool(rs.get("fire_smoldering", false)):
+				lines.append("SMOLDERING")
 
 	return _fit_room_label_lines(content_rect, lines, flashover_triggered)
 

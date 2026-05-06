@@ -84,6 +84,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		room.smolder_hrr_target_kw = 0.0
 		room.pool_release_hrr_target_kw = 0.0
 		room.smoke_prod_kg_s = 0.0
+		room.fire_smoldering = false
 		_sync_legacy_proxy_idle(room)
 		return false
 
@@ -337,6 +338,9 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	room.ventilation_response_factor = clampf(room.ventilation_response_factor, 0.0, 1.0)
 
 	var pool_release_target_kw: float = 0.0
+	# Temporizador de re-armado del backdraft
+	if room.backdraft_cooldown_s > 0.0:
+		room.backdraft_cooldown_s = maxf(0.0, room.backdraft_cooldown_s - dt)
 	if room.retained_unburned_MJ > 0.001 and opening_signal > 0.01:
 		var release_drive: float = room.ventilation_response_factor * maxf(0.15, oxygen_recovery_signal)
 		var backdraft_ready: bool = room.retained_unburned_MJ \
@@ -346,6 +350,13 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 				and opening_signal > 0.08
 		if backdraft_ready:
 			release_drive *= float(context.get("fire_backdraft_release_boost", 1.35))
+			# Disparo del evento backdraft: acumulación de inquémados + entrada súbita de O2
+			if not room.backdraft_active and room.backdraft_cooldown_s <= 0.0:
+				room.backdraft_triggered = true
+				room.backdraft_time_s = room.fire_time_s
+				room.backdraft_active = true
+				room.backdraft_phase_time_s = 0.0
+				room.backdraft_cooldown_s = float(context.get("fire_backdraft_cooldown_s", 180.0))
 
 		var release_tau_s: float = lerpf(
 			float(context.get("fire_pool_release_tau_slow_s", 180.0)),
@@ -391,6 +402,23 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		room.hrr_kw = 0.0
 	room.burned_hrr_kw = maxf(0.0, room.hrr_kw)
 
+	# Backdraft: fase explosiva — pico de HRR con envolvente sinusoidal.
+	# Gottuk (1992): backdraft genera picos de HRR 3-6× el máximo pre-extinción en <15 s.
+	if room.backdraft_active:
+		room.backdraft_phase_time_s += dt
+		var bd_duration: float = float(context.get("fire_backdraft_duration_s", 12.0))
+		if room.backdraft_phase_time_s >= bd_duration:
+			room.backdraft_active = false
+		else:
+			var bd_progress: float = room.backdraft_phase_time_s / bd_duration
+			var bd_envelope: float = sin(bd_progress * PI)  # 0→1→0 en [0, dur]
+			var bd_hrr_kw: float = fire.max_hrr_kw \
+					* float(context.get("fire_backdraft_hrr_multiplier", 4.0)) \
+					* bd_envelope
+			room.hrr_kw = maxf(room.hrr_kw, bd_hrr_kw)
+			room.hrr_target_kw = maxf(room.hrr_target_kw, bd_hrr_kw)
+			room.burned_hrr_kw = maxf(0.0, room.hrr_kw)
+
 	var total_target_kw: float = maxf(
 		0.0001,
 		fresh_flame_target_kw + smolder_target_kw + pool_release_target_kw
@@ -409,6 +437,14 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			* (1.0 + opening_signal * 1.5 + (1.0 - temp_signal) * 0.5) \
 			* dt
 	)
+
+	# Backdraft: consume retained fuel explosivamente (bypass del límite pool_release_max_fraction)
+	if room.backdraft_active and room.retained_unburned_MJ > 0.0:
+		var bd_consume_MJ: float = minf(
+			room.retained_unburned_MJ,
+			room.hrr_kw * dt / 1000.0 * 0.60
+		)
+		room.retained_unburned_MJ = maxf(0.0, room.retained_unburned_MJ - bd_consume_MJ)
 
 	var smoke_basis_multiplier: float = lerpf(
 		1.0 + float(context.get("fire_smoke_basis_min_fraction", 0.0)),
@@ -525,13 +561,18 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		var hcn_yield: float = lerpf(hcn_low_quality_yield, hcn_base_yield, sqrt(combustion_quality))
 		room.hcn_kg += hcn_yield * co_basis_MJ
 
-	# CO2 yield: combustion_quality (no o2_hrr_factor solo) refleja mejor la
-	# estequiometría real. La reducción de HRR ya captura menor masa quemada;
-	# el yield por MJ liberado debe permanecer cerca del valor base.
+	# CO2 yield: incluso en combustión bajo déficit de O2, el CO2 es el producto
+	# carbonado dominante. Se añade un suelo basado en combustion_completion_factor
+	# (cuánto combustible está realmente quemándose) para evitar que el yield caiga
+	# demasiado solo por el bajo o2_hrr_factor. Referencia SFPE: phi=2 → ~0.053 kg/MJ,
+	# pero en fuegos residenciales activos el suelo real es ~0.072 kg/MJ.
+	var co2_completion_floor: float = combustion_completion_factor \
+			* float(context.get("co2_completion_yield_weight", 0.55))
+	var co2_lerp_t: float = maxf(co2_completion_floor, sqrt(combustion_quality))
 	var co2_yield: float = lerpf(
 		float(context.get("co2_min_yield_kg_per_MJ", 0.0594)),
 		float(context.get("co2_base_yield_kg_per_MJ", 0.0831)),
-		sqrt(combustion_quality)
+		co2_lerp_t
 	)
 	room.co2_kg += co2_yield * maxf(heat_release_MJ, smoke_basis_MJ * 0.60)
 
@@ -541,10 +582,15 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		actual_solid_burn_kw,
 		solid_fuel_demand_MJ,
 		can_flame,
-		dt
+		dt,
+		context
 	)
 
 	_sync_legacy_proxy_from_fire(room, fire, room.hrr_kw, can_flame)
+
+	# Actualizar flag de smoldering para UI y exportación.
+	# "smoldering" = fuego latente activo (sin llama) con emisión de humo/CO visible.
+	room.fire_smoldering = (not can_flame) and latent_viable and (room.hrr_kw > 0.5)
 
 	if fire.remaining_fuel_MJ <= 0.0 and room.retained_unburned_MJ <= 0.01:
 		return _extinguish_room_fire(room, fire, true)
@@ -838,11 +884,24 @@ func _update_passive_fuel_object(
 		6.0,
 		adjacent_source_hrr_kw * 0.0008 * opening_engagement
 	)
+	# Radiación directa desde sala adyacente en llamas — independiente del flujo convectivo.
+	# Cubre la fase temprana cuando la capa caliente no ha alcanzado el dintel todavía.
+	var adjacent_fire_temp_c: float = maxf(
+		room.temp_lower_c,
+		float(context.get("adjacent_fire_temp_c", 0.0))
+	)
+	var adjacent_rad_engagement: float = clampf(
+		float(context.get("adjacent_rad_engagement", 0.0)), 0.0, 0.50
+	)
+	var direct_fire_rad_flux_kw_m2: float = _estimate_radiative_flux_kw_m2(
+		adjacent_fire_temp_c, obj.surface_temp_c, 0.80
+	) * adjacent_rad_engagement
 	obj.incident_heat_flux_kw_m2 = upper_radiation_flux_kw_m2 \
 			+ doorway_radiation_flux_kw_m2 \
 			+ layer_convective_flux_kw_m2 \
 			+ doorway_convective_flux_kw_m2 \
-			+ flame_bonus_flux_kw_m2
+			+ flame_bonus_flux_kw_m2 \
+			+ direct_fire_rad_flux_kw_m2
 
 	var flux_ratio: float = clampf(
 		obj.incident_heat_flux_kw_m2 / maxf(1.0, obj.ignition_flux_kw_m2),
@@ -1233,15 +1292,94 @@ func _select_room_ignition_object(room: RoomModel):
 	return best_obj
 
 
+func _apply_intraroom_object_radiation(room: RoomModel, context: Dictionary) -> void:
+	# Point-source radiation model: burning objects irradiate nearby non-burning
+	# objects, causing sequential ignition based on geometry (position_m).
+	# q'' = Σ(hrr_src * view_factor_coeff / max(falloff_m², dist²))
+	# Reference: Drysdale "Introduction to Fire Dynamics", point source model.
+	if room == null or not _has_explicit_fuel_objects(room):
+		return
+	if not bool(context.get("fire_intraroom_spread_enabled", true)):
+		return
+
+	var view_factor_coeff: float = float(context.get("fire_intraroom_view_factor", 0.10))
+	var falloff_m2: float = float(context.get("fire_intraroom_falloff_m", 1.0)) \
+			* float(context.get("fire_intraroom_falloff_m", 1.0))
+
+	# Collect FLAMING source objects (need hrr > 1 kW to contribute).
+	var sources: Array = []
+	for src_obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, src_obj):
+			continue
+		if src_obj.remaining_fuel_MJ <= 0.001 or float(src_obj.hrr_kw) < 1.0:
+			continue
+		if int(src_obj.state) == FuelObjectModelScript.State.FLAMING:
+			sources.append({
+				"pos": Vector2(float(src_obj.position_m.x), float(src_obj.position_m.y)),
+				"hrr_kw": float(src_obj.hrr_kw)
+			})
+
+	if sources.is_empty():
+		return
+
+	# Apply radiation flux to non-burning target objects.
+	for tgt_obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, tgt_obj):
+			continue
+		if tgt_obj.remaining_fuel_MJ <= 0.001:
+			continue
+		var tgt_state: int = int(tgt_obj.state)
+		if tgt_state == FuelObjectModelScript.State.FLAMING \
+				or tgt_state == FuelObjectModelScript.State.BURNED_OUT:
+			continue
+
+		var tgt_pos: Vector2 = Vector2(float(tgt_obj.position_m.x), float(tgt_obj.position_m.y))
+		var total_flux_kw_m2: float = 0.0
+		for src in sources:
+			var dist_sq: float = tgt_pos.distance_squared_to(src["pos"])
+			total_flux_kw_m2 += float(src["hrr_kw"]) * view_factor_coeff \
+					/ maxf(falloff_m2, dist_sq)
+
+		if total_flux_kw_m2 < 0.5:
+			continue
+
+		# Store 55% of computed radiation as incident flux (view factor, orientation).
+		tgt_obj.incident_heat_flux_kw_m2 = maxf(
+			float(tgt_obj.incident_heat_flux_kw_m2), total_flux_kw_m2 * 0.55
+		)
+
+		# Advance state to PYROLYZING when flux reaches 70% of ignition threshold
+		# and the object has been exposed for at least 15 s.
+		var ign_flux: float = maxf(8.0, float(tgt_obj.ignition_flux_kw_m2))
+		if total_flux_kw_m2 >= ign_flux * 0.70 \
+				and tgt_state != FuelObjectModelScript.State.PYROLYZING \
+				and float(tgt_obj.exposure_s) >= 15.0:
+			tgt_obj.state = FuelObjectModelScript.State.PYROLYZING
+
+		# Mark autoignite_ready: PYROLYZING + full flux + 60 s exposure.
+		# The main loop in _sync_explicit_objects_from_active_fire reads and then
+		# clears this flag via was_autoignite_ready, so the object becomes a burn
+		# candidate in the same timestep.
+		if total_flux_kw_m2 >= ign_flux \
+				and tgt_state == FuelObjectModelScript.State.PYROLYZING \
+				and float(tgt_obj.exposure_s) >= 60.0:
+			tgt_obj.autoignite_ready = true
+
+
 func _sync_explicit_objects_from_active_fire(
 	room: RoomModel,
 	actual_solid_burn_kw: float,
 	solid_fuel_demand_MJ: float,
 	can_flame: bool,
-	dt: float
+	dt: float,
+	context: Dictionary = {}
 ) -> void:
 	if room == null or not _has_explicit_fuel_objects(room):
 		return
+
+	# Intra-room object-to-object radiation: burning objects irradiate nearby
+	# non-burning objects, accelerating sequential ignition based on geometry.
+	_apply_intraroom_object_radiation(room, context)
 
 	var candidates: Array = []
 	var total_weight: float = 0.0
@@ -1249,6 +1387,8 @@ func _sync_explicit_objects_from_active_fire(
 		if _should_skip_object_for_room(room, obj):
 			continue
 
+		# Save before clearing — preserves radiation-triggered flag from above.
+		var was_autoignite_ready: bool = bool(obj.autoignite_ready)
 		obj.autoignite_ready = false
 		if obj.remaining_fuel_MJ <= 0.001:
 			obj.remaining_fuel_MJ = 0.0
@@ -1267,7 +1407,7 @@ func _sync_explicit_objects_from_active_fire(
 		var preheat_score: float = _fuel_object_preheat_score(obj)
 		var active_burn_candidate: bool = room.flashover_triggered \
 				or bool(obj.is_primary_ignition_source) \
-				or bool(obj.autoignite_ready) \
+				or was_autoignite_ready \
 				or obj.state == FuelObjectModelScript.State.FLAMING \
 				or obj.state == FuelObjectModelScript.State.PYROLYZING \
 				or preheat_score >= 6.0
