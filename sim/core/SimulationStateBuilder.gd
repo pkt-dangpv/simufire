@@ -20,6 +20,14 @@ func build_state(context: Dictionary) -> Dictionary:
 		"suppression_water_applied_l": float(context.get("suppression_water_applied_l", 0.0)),
 		"suppression_cooling_total_kj": float(context.get("suppression_cooling_total_kj", 0.0))
 	}
+	var hvac: Dictionary = context.get("hvac", {})
+	state["hvac_exists"] = bool(hvac.get("exists", false))
+	state["hvac_on"] = bool(hvac.get("on", false))
+	state["hvac_mode"] = String(hvac.get("mode", "none"))
+	state["hvac_status"] = String(hvac.get("status", "Sin HVAC"))
+	state["hvac_fan_flow_m3_s"] = float(hvac.get("fan_flow_m3_s", 0.0))
+	state["hvac_off_passive_flow_m3_s"] = float(hvac.get("off_passive_flow_m3_s", 0.0))
+	state["hvac_outside_air_fraction"] = float(hvac.get("outside_air_fraction", 0.0))
 
 	var building: BuildingModel = context.get("building")
 	if building == null:
@@ -45,21 +53,22 @@ func build_state(context: Dictionary) -> Dictionary:
 		if room == null:
 			continue
 
-		var visible_smoke_layer_m: float = smoke_model.get_visible_smoke_layer_height_m(room) if smoke_model != null else clampf(room.h_layer_m, 0.0, room.height_m)
-		var smoke_layer_m: float = visible_smoke_layer_m
-		if smoke_model != null:
-			var effective_smoke_layer_m: float = smoke_model.get_effective_smoke_spill_layer_height_m(room)
-			var smoke_gap_m: float = maxf(0.0, visible_smoke_layer_m - effective_smoke_layer_m)
-			var bridge_weight: float = 0.70 \
-					* clampf(smoke_gap_m / 0.25, 0.0, 1.0) \
-					* clampf(room.smoke_kg / 0.30, 0.0, 1.0)
-			smoke_layer_m = lerpf(visible_smoke_layer_m, effective_smoke_layer_m, bridge_weight)
+		# smoke_layer_m: usa get_effective_smoke_spill_layer_height_m que ya unifica capa óptica y
+		# capa térmica internamente (SmokeModel). Eliminado doble-bridge empírico del StateBuilder
+		# (pesos 0.70/0.25m/0.30kg arbitrarios). Única fuente de verdad para visibilidad y SVV.
+		var smoke_layer_m: float = smoke_model.get_effective_smoke_spill_layer_height_m(room) if smoke_model != null else clampf(room.h_layer_m, 0.0, room.height_m)
+		var visible_smoke_layer_m: float = smoke_model.get_visible_smoke_layer_height_m(room) if smoke_model != null else smoke_layer_m
 		var effective_hot_layer_m: float = _call_room_float(effective_hot_layer_callable, room, clampf(room.thermal_layer_m, 0.0, room.height_m))
 		if room.smoke_kg >= 0.30:
 			smoke_layer_m = minf(smoke_layer_m, effective_hot_layer_m + 0.68)
 		var thermal_layer_m: float = clampf(room.thermal_layer_m, 0.0, room.height_m)
 		var layer_150c_m: float = clampf(room.layer_150c_m, 0.0, room.height_m)
+		# Visibilidad acoplada al smoke_layer_m efectivo que se exporta al CSV
+		# (única fuente de verdad). Evita el desacople histórico room.visibility_m vs smoke_layer_m.
 		var visibility_m: float = room.visibility_m
+		if smoke_model != null:
+			visibility_m = smoke_model.estimate_visibility_for_layer_m(room, smoke_layer_m)
+			room.visibility_m = visibility_m
 		var kawagoe_factor: float = _call_room_id_float(kawagoe_factor_callable, room_id, 0.0)
 		state[str(room_id)] = {
 			"id": room.id,
@@ -155,6 +164,20 @@ func build_state(context: Dictionary) -> Dictionary:
 			"kawagoe_factor": kawagoe_factor,
 			"kawagoe_hrr_max_kw": kawagoe_coeff * maxf(0.0, kawagoe_factor)
 		}
+
+	# Detectores: estado triggered de cada detector definido en el template.
+	if building.detectors.size() > 0:
+		var det_list: Array = []
+		for det in building.detectors:
+			det_list.append({
+				"id": String(det.get("id", "")),
+				"room_id": int(det.get("room_id", -1)),
+				"type": String(det.get("type", "smoke")),
+				"threshold": float(det.get("threshold", 0.0)),
+				"triggered": bool(det.get("triggered", false)),
+				"triggered_at_s": float(det.get("triggered_at_s", -1.0))
+			})
+		state["detectors"] = det_list
 
 	return state
 

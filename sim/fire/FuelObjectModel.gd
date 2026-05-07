@@ -55,6 +55,16 @@ var autoignite_ready: bool = false
 var ignited_by_object_id: String = ""
 var is_primary_ignition_source: bool = false
 
+# Fuego de charco (pool fire) — solo activo si pool_spread_rate_m2_s > 0.
+# El área del charco crece a la tasa indicada hasta pool_max_area_m2 (0 = sin límite,
+# se usa el área del suelo de la sala). La potencia calórica es:
+#   HRR = pool_hrr_kw_m2 * pool_area_m2  (kW)
+var pool_area_m2: float = 0.0           # área inicial / actual del charco (m²)
+var pool_initial_area_m2: float = 0.0   # área inicial para reset
+var pool_spread_rate_m2_s: float = 0.0  # tasa de expansión (m²/s); 0 = no es pool fire
+var pool_hrr_kw_m2: float = 1000.0     # intensidad de quemado por área (kW/m²)
+var pool_max_area_m2: float = 0.0       # límite de área (0 = usar suelo de la sala)
+
 
 func configure_from_legacy_room(room: RoomModel) -> void:
 	if room == null:
@@ -85,6 +95,7 @@ func reset_dynamic_state(ambient_temp_c: float = 20.0) -> void:
 	hrr_kw = 0.0
 	autoignite_ready = false
 	ignited_by_object_id = ""
+	pool_area_m2 = pool_initial_area_m2
 
 
 func has_remaining_fuel() -> bool:

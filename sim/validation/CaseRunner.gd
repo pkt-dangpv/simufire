@@ -239,16 +239,17 @@ func _load_case_config(case_name: String) -> Dictionary:
 func _build_case_template(case_config: Dictionary) -> Dictionary:
 	var template_name: String = String(case_config.get("template", "simple_house"))
 	var builder = BuildingTemplateScript.new()
-	var template_data: Dictionary = {}
-
-	match template_name:
-		"simple_house":
-			template_data = builder.create_simple_house()
-		"ghanekar_bedroom_hallway":
-			template_data = builder.create_ghanekar_bedroom_hallway()
-		_:
-			push_error("CaseRunner: template no soportado '%s'" % template_name)
-			return {}
+	var template_data: Dictionary = builder.create_by_name(template_name)
+	var supported_ids: Array[String] = []
+	for preset in builder.get_preset_definitions():
+		supported_ids.append(String(preset.get("id", "")))
+	if not supported_ids.has(template_name):
+		push_error("CaseRunner: template no soportado '%s'" % template_name)
+		return {}
+	if case_config.has("hvac_mode"):
+		template_data["hvac_mode"] = String(case_config.get("hvac_mode", "none"))
+	if case_config.has("hvac_data"):
+		template_data["hvac_data"] = Dictionary(case_config.get("hvac_data", {})).duplicate(true)
 
 	_apply_room_overrides(template_data, case_config.get("room_overrides", []))
 	_apply_opening_overrides(template_data, case_config.get("opening_overrides", []))

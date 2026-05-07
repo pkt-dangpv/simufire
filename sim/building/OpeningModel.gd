@@ -28,6 +28,11 @@ var opening_index: int = -1
 var wall_side: String = ""
 var offset_m: float = 0.5
 
+# Fracción de apertura efectiva adicional por deformación térmica del marco.
+# Calculada cada paso por GasExchangeSystem según la temp. de la sala adyacente.
+# NO se persiste en JSON; solo aplica a puertas interiores (type == DOOR).
+var thermal_gap_fraction: float = 0.0
+
 # Coeficiente de "derrame" (tunable)
 var spill_coeff: float = 0.65
 
@@ -56,6 +61,12 @@ func is_exterior_opening() -> bool:
 
 func is_closed() -> bool:
 	return open_fraction <= EPSILON
+
+
+func effective_open_fraction() -> float:
+	# Suma la fracción base (decisión del usuario/script) y el gap térmico
+	# (deformación del marco por calor). El resultado se acota a [0, 1].
+	return clampf(open_fraction + thermal_gap_fraction, 0.0, 1.0)
 
 
 func is_fully_open() -> bool:

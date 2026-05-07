@@ -7,6 +7,8 @@ signal slower_requested
 signal faster_requested
 signal stop_and_generate_requested
 signal view_3d_toggled(enabled: bool)
+signal first_person_toggled(enabled: bool)
+signal hvac_toggled(enabled: bool)
 
 @export var show_status_panel: bool = false
 @export var status_panel_room_id: int = 0
@@ -43,6 +45,8 @@ signal view_3d_toggled(enabled: bool)
 @onready var btn_pause: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnPause") as Button
 @onready var btn_time_forward: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnTimeForward") as Button
 @onready var btn_view_3d: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnView3D") as Button
+@onready var btn_first_person: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnFirstPerson") as Button
+@onready var btn_hvac: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnHVAC") as Button
 @onready var time_scale_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow/TimeScaleLabel") as Label
 @onready var playback_status_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow/PlaybackStatusLabel") as Label
 @onready var rooms_data_vbox: GridContainer = get_node_or_null("RoomsDataPanel/MarginContainer/ScrollContainer/RoomsGrid") as GridContainer
@@ -80,10 +84,18 @@ func _ready() -> void:
 		btn_view_3d.pressed.connect(_on_view_3d_pressed)
 	if btn_view_3d != null:
 		btn_view_3d.visible = show_view_toggle
+	_ensure_first_person_button()
+	if btn_first_person != null and not btn_first_person.pressed.is_connected(_on_first_person_pressed):
+		btn_first_person.pressed.connect(_on_first_person_pressed)
+	_ensure_hvac_button()
+	if btn_hvac != null and not btn_hvac.pressed.is_connected(_on_hvac_pressed):
+		btn_hvac.pressed.connect(_on_hvac_pressed)
 
 	_refresh_opening_controls()
 	_update_time_controls(0.0, false, false, false, 1.0)
 	_update_view_toggle(false)
+	_update_first_person_toggle(false)
+	_update_hvac_button(false, false)
 
 
 func bind_building(next_building: BuildingModel) -> void:
@@ -91,6 +103,8 @@ func bind_building(next_building: BuildingModel) -> void:
 	_known_opening_count = -1
 	_refresh_opening_controls()
 	_rebuild_rooms_panel()
+	if building != null:
+		_update_hvac_button(building.is_hvac_available(), building.is_hvac_on())
 
 
 func update_state(state: Dictionary) -> void:
@@ -110,6 +124,8 @@ func update_state(state: Dictionary) -> void:
 		float(state.get("time_scale", 0.0))
 	)
 	_update_view_toggle(bool(state.get("view_3d_enabled", false)))
+	_update_first_person_toggle(bool(state.get("first_person_enabled", false)))
+	_update_hvac_button(bool(state.get("hvac_exists", false)), bool(state.get("hvac_on", false)))
 
 	_refresh_opening_controls()
 	_update_rooms_panel(state)
@@ -301,6 +317,50 @@ func _update_view_toggle(is_3d_enabled: bool) -> void:
 	btn_view_3d.text = "Vista 3D" if not is_3d_enabled else "Vista 2D"
 
 
+func _ensure_first_person_button() -> void:
+	if btn_first_person != null:
+		return
+	var row := get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow") as HBoxContainer
+	if row == null:
+		return
+	btn_first_person = Button.new()
+	btn_first_person.name = "BtnFirstPerson"
+	btn_first_person.custom_minimum_size = Vector2(70.0, 34.0)
+	btn_first_person.toggle_mode = true
+	btn_first_person.text = "FP"
+	row.add_child(btn_first_person)
+
+
+func _update_first_person_toggle(enabled: bool) -> void:
+	if btn_first_person == null:
+		return
+	btn_first_person.set_pressed_no_signal(enabled)
+	btn_first_person.text = "Salir FP" if enabled else "FP"
+
+
+func _ensure_hvac_button() -> void:
+	if btn_hvac != null:
+		return
+	var row := get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow") as HBoxContainer
+	if row == null:
+		return
+	btn_hvac = Button.new()
+	btn_hvac.name = "BtnHVAC"
+	btn_hvac.custom_minimum_size = Vector2(92.0, 34.0)
+	btn_hvac.toggle_mode = true
+	btn_hvac.text = "HVAC OFF"
+	row.add_child(btn_hvac)
+
+
+func _update_hvac_button(hvac_exists: bool, hvac_on: bool) -> void:
+	if btn_hvac == null:
+		return
+	btn_hvac.visible = hvac_exists
+	btn_hvac.disabled = not hvac_exists
+	btn_hvac.set_pressed_no_signal(hvac_on)
+	btn_hvac.text = "HVAC ON" if hvac_on else "HVAC OFF"
+
+
 func _refresh_opening_controls() -> void:
 	if openings_panel == null:
 		return
@@ -472,3 +532,15 @@ func _on_view_3d_pressed() -> void:
 	if btn_view_3d == null:
 		return
 	view_3d_toggled.emit(btn_view_3d.button_pressed)
+
+
+func _on_first_person_pressed() -> void:
+	if btn_first_person == null:
+		return
+	first_person_toggled.emit(btn_first_person.button_pressed)
+
+
+func _on_hvac_pressed() -> void:
+	if btn_hvac == null:
+		return
+	hvac_toggled.emit(btn_hvac.button_pressed)

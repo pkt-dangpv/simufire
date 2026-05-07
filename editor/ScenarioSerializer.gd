@@ -80,7 +80,9 @@ static func to_runtime_template(editor_data: Dictionary) -> Dictionary:
 		"outside_o2": float(data.get("outside_o2", 0.209)),
 		"room_rect_m": runtime_rects,
 		"rooms_data": rooms_data,
-		"openings_data": openings_data
+		"openings_data": openings_data,
+		"hvac_mode": String(data.get("hvac_mode", "none")),
+		"hvac_data": Dictionary(data.get("hvac_data", {})).duplicate(true)
 	}
 
 
@@ -92,7 +94,9 @@ static func to_runtime_json_data(editor_data: Dictionary) -> Dictionary:
 		"stop_time_s": float(data.get("stop_time_s", 0.0)),
 		"room_rect_m": Dictionary(data.get("room_rect_m", {})).duplicate(true),
 		"rooms_data": Array(data.get("rooms_data", [])).duplicate(true),
-		"openings_data": Array(data.get("openings_data", [])).duplicate(true)
+		"openings_data": Array(data.get("openings_data", [])).duplicate(true),
+		"hvac_mode": String(data.get("hvac_mode", "none")),
+		"hvac_data": Dictionary(data.get("hvac_data", {})).duplicate(true)
 	}
 
 
@@ -102,6 +106,17 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 	data["outside_temp_c"] = float(data.get("outside_temp_c", 20.0))
 	data["outside_o2"] = float(data.get("outside_o2", 0.209))
 	data["stop_time_s"] = float(data.get("stop_time_s", 0.0))
+	var hvac_mode: String = String(data.get("hvac_mode", "none")).to_lower()
+	if hvac_mode != "off" and hvac_mode != "on":
+		hvac_mode = "none"
+	data["hvac_mode"] = hvac_mode
+	var hvac_data: Dictionary = {}
+	if typeof(data.get("hvac_data", {})) == TYPE_DICTIONARY:
+		hvac_data = Dictionary(data.get("hvac_data", {})).duplicate(true)
+	hvac_data["exists"] = hvac_mode != "none"
+	hvac_data["on"] = hvac_mode == "on"
+	hvac_data["mode"] = hvac_mode
+	data["hvac_data"] = hvac_data
 
 	var rects: Dictionary = {}
 	var raw_rects: Dictionary = data.get("room_rect_m", {})

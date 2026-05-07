@@ -142,7 +142,7 @@ class_name Visualizer
 # OPENINGS
 # ============================================================
 
-@export var door_color: Color = Color(0.30, 1.00, 0.40, 1.0)
+@export var door_color: Color = Color(0.55, 0.30, 0.08, 1.0)
 @export var window_color: Color = Color(0.35, 0.70, 1.00, 1.0)
 @export var window_broken_color: Color = Color(1.00, 0.55, 0.10, 1.0)
 @export var window_open_color: Color = Color(1.00, 0.20, 0.05, 1.0)
@@ -400,6 +400,13 @@ func _draw_room_atmosphere_overlay(
 			),
 			true
 		)
+
+	# Extra darkening when smoke layer drops to eye level (~1.8 m)
+	if smoke_layer_m < 1.8 and smoke_kg > smoke_visible_threshold_kg:
+		var eye_depth: float = clampf((1.8 - smoke_layer_m) / 1.8, 0.0, 1.0)
+		var smoke_conc: float = clampf(smoke_concentration_kg_m3 / maxf(0.001, smoke_concentration_reference_kg_m3), 0.0, 1.0)
+		var dark_alpha: float = 0.08 + 0.35 * eye_depth * smoke_conc
+		draw_rect(rpx, Color(0.04, 0.04, 0.06, dark_alpha), true)
 
 
 func _draw_room_fire_overlay(rpx: Rect2, rs: Dictionary, room_id: int = -1) -> void:
@@ -1111,20 +1118,20 @@ func _draw_openings() -> void:
 				var hinge_px: Vector2 = seg_mid - seg_dir * door_px * 0.5
 				# Borrar solo el vano de la puerta
 				draw_line(hinge_px, hinge_px + seg_dir * door_px, background_color, wall_thickness + 2.0)
-				var rb_center_px: Vector2 = _to_px(rb).get_center()
-				_draw_door_top_view(hinge_px, door_px, seg_dir, rb_center_px, col, op.open_fraction)
+				# Door swings away from corridor → always into the destination room
+				var _room_a_ref: RoomModel = building.get_room(a_id)
+				var _room_b_ref: RoomModel = building.get_room(b_id)
+				var _corridor_kinds: Array = ["pasillo", "distribuidor", "corridor", "hallway", "entrada", "recibidor"]
+				var _a_is_corridor: bool = _room_a_ref != null and _corridor_kinds.has(_room_a_ref.kind.to_lower())
+				var _b_is_corridor: bool = _room_b_ref != null and _corridor_kinds.has(_room_b_ref.kind.to_lower())
+				var swing_ref_px: Vector2 = _to_px(ra).get_center() if (_a_is_corridor and not _b_is_corridor) else _to_px(rb).get_center()
+				_draw_door_top_view(hinge_px, door_px, seg_dir, swing_ref_px, col, op.open_fraction)
 			else:
 				draw_line(p1, p2, background_color, wall_thickness + 2.0)
 				draw_line(p1, p2, col, opening_line_width)
 			continue
-		elif op.open_fraction <= 0.0:
-			col = Color(window_color.r, window_color.g, window_color.b, alpha)
-		elif op.open_fraction >= window_full_open_threshold:
-			col = Color(window_open_color.r, window_open_color.g, window_open_color.b, alpha)
 		else:
-			var t: float = op.open_fraction / window_full_open_threshold
-			var lerped: Color = window_color.lerp(window_broken_color, t)
-			col = Color(lerped.r, lerped.g, lerped.b, alpha)
+			col = Color(window_color.r, window_color.g, window_color.b, alpha)
 
 		draw_line(p1, p2, col, opening_line_width)
 

@@ -43,6 +43,28 @@ var flow_path_interior_pull_boost: float = 1.50
 var flow_path_interior_pull_max_multiplier: float = 3.00
 var flow_path_remote_decay_per_door: float = 0.60
 var flow_path_remote_max_doors: int = 4
+# Efecto chimenea (stack effect): incremento de presión en salas de plantas
+# superiores (floor_level_z_m > 0) por el gradiente térmico vertical.
+# ΔP_stack = ρ_ext × g × floor_level_z_m × (1 - T_ext / T_upper)
+# Referencia: SFPE Handbook, 5ª ed. §9.1 — stack effect in buildings.
+var stack_effect_enabled: bool = true
+# Efecto del viento en aperturas exteriores.
+# ΔP_viento = ½ × ρ × v² × Cp, donde Cp depende del ángulo entre la
+# dirección del viento y la normal exterior de la cara (wall_side).
+# Barlovento: Cp ≈ +0.6 × cos (presión positiva, dificulta el venteo).
+# Sotavento: Cp ≈ −0.4 × |cos| (succión, facilita el venteo).
+# Referencia: EN 1991-1-4 §7.2 — wind pressure coefficients.
+var wind_effect_enabled: bool = true
+# Deformación de puerta por temperatura: cuando la capa superior de la sala
+# adyacente supera door_deform_temp_start_c, el marco de madera se deforma y
+# crea un gap efectivo adicional (thermal_gap_fraction en OpeningModel).
+# Solo aplica a puertas interiores (type == DOOR). Simula la realidad de que
+# incluso una puerta cerrada pierde hermeticidad a altas temperaturas.
+# Referencia: NFPA 80, SFPE Handbook §2.9 — door gap under fire conditions.
+var door_deform_enabled: bool = true
+var door_deform_temp_start_c: float = 150.0  # temperatura a la que empieza la deformación
+var door_deform_temp_full_c: float = 350.0   # temperatura con gap máximo
+var door_deform_max_gap: float = 0.04        # fracción máxima de apertura adicional (4 %)
 var _pending_interior_deliveries: Array[Dictionary] = []
 
 
@@ -110,6 +132,12 @@ func configure(settings: Dictionary) -> void:
 	flow_path_remote_max_doors = int(
 		settings.get("flow_path_remote_max_doors", flow_path_remote_max_doors)
 	)
+	stack_effect_enabled = bool(settings.get("stack_effect_enabled", stack_effect_enabled))
+	wind_effect_enabled = bool(settings.get("wind_effect_enabled", wind_effect_enabled))
+	door_deform_enabled = bool(settings.get("door_deform_enabled", door_deform_enabled))
+	door_deform_temp_start_c = float(settings.get("door_deform_temp_start_c", door_deform_temp_start_c))
+	door_deform_temp_full_c = float(settings.get("door_deform_temp_full_c", door_deform_temp_full_c))
+	door_deform_max_gap = float(settings.get("door_deform_max_gap", door_deform_max_gap))
 
 
 func reset() -> void:
@@ -144,37 +172,55 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 		var h_smoke_m: float = maxf(0.0, room.height_m - effective_hot_layer_m)
 		var dp_buoyancy: float = rho_ext * g * h_smoke_m * maxf(0.0, 1.0 - t_ext_k / t_upper_k)
 
+		# Efecto chimenea: salas en plantas superiores generan presión adicional
+		# por la columna caliente que asciende desde la planta baja.
+		var dp_stack: float = 0.0
+		if stack_effect_enabled and room.floor_level_z_m > 0.01:
+			dp_stack = rho_ext * g * room.floor_level_z_m * maxf(0.0, 1.0 - t_ext_k / t_upper_k)
+
 		var tau_s: float = 5.0
-		room.overpressure_pa += (dp_buoyancy - room.overpressure_pa) * minf(1.0, dt / tau_s)
+		room.overpressure_pa += (dp_buoyancy + dp_stack - room.overpressure_pa) * minf(1.0, dt / tau_s)
 		room.overpressure_pa = maxf(0.0, room.overpressure_pa)
 
 		if room.overpressure_pa < pressure_vent_threshold_pa:
 			continue
 
-		var total_leakage_m2: float = 0.0
+		var rho_hot: float = rho_ext * t_ext_k / t_upper_k
+		var flow_path_factor: float = _compute_flow_path_direct_exterior_vent_fraction(building, room)
+		if flow_path_factor <= 0.0:
+			continue
+
+		# Iteración por apertura: cada una puede tener un ΔP_viento diferente
+		# según la orientación de su cara (wall_side) y la dirección del viento.
+		var total_q_out_m3s: float = 0.0
 		for op in building.get_openings():
 			var connects_outside: bool = (
 				(op.a == room.id and op.b == BuildingModel.OUTSIDE_ID) or
 				(op.b == room.id and op.a == BuildingModel.OUTSIDE_ID)
 			)
-			if connects_outside:
-				# Si la abertura está abierta, usa el área efectiva real en lugar
-				# del área de infiltración. Un ventana/puerta abierta alivia
-				# la presión mucho más rápido que las fugas de marco.
-				if op.open_fraction > 0.001:
-					total_leakage_m2 += op.width_m * op.height_m * op.open_fraction
-				else:
-					total_leakage_m2 += window_leakage_area_m2
+			if not connects_outside:
+				continue
+			# Presión de viento en esta apertura (barlovento > 0, sotavento < 0).
+			# eff_press = presión neta que impulsa el flujo de salida.
+			var dp_wind: float = _compute_wind_dp_pa(op, building)
+			var eff_press: float = maxf(0.0, room.overpressure_pa - dp_wind)
+			if eff_press < pressure_vent_threshold_pa:
+				continue
+			# Si la abertura está abierta, usa el área efectiva real en lugar
+			# del área de infiltración. Un ventana/puerta abierta alivia
+			# la presión mucho más rápido que las fugas de marco.
+			var area_m2: float
+			if op.open_fraction > 0.001:
+				area_m2 = op.width_m * op.height_m * op.open_fraction
+			else:
+				area_m2 = window_leakage_area_m2
+			area_m2 *= flow_path_factor
+			var v_op: float = sqrt(2.0 * eff_press / maxf(0.05, rho_hot))
+			total_q_out_m3s += 0.61 * area_m2 * v_op
 
-		if total_leakage_m2 <= 0.0:
+		if total_q_out_m3s <= 0.0:
 			continue
-		total_leakage_m2 *= _compute_flow_path_direct_exterior_vent_fraction(building, room)
-		if total_leakage_m2 <= 0.0:
-			continue
-
-		var rho_hot: float = rho_ext * t_ext_k / t_upper_k
-		var v_out: float = sqrt(2.0 * room.overpressure_pa / maxf(0.05, rho_hot))
-		var q_out_m3s: float = 0.61 * total_leakage_m2 * v_out
+		var q_out_m3s: float = total_q_out_m3s
 		var smoke_out_kg: float = q_out_m3s * rho_hot * dt
 
 		smoke_out_kg = minf(smoke_out_kg, room.smoke_kg * 0.15)
@@ -255,9 +301,12 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		result["smoke_generated_kg"] = float(result.get("smoke_generated_kg", 0.0)) + generated_kg
 		smoke_delta_kg[int(room_id)] += generated_kg
 
+	# Actualiza thermal_gap_fraction en puertas interiores calientes.
+	_step_door_deform(building)
+
 	var room_transfers: Array[Dictionary] = []
 	for op in building.get_openings():
-		if op.open_fraction <= 0.0:
+		if op.effective_open_fraction() <= 0.0:
 			continue
 
 		var room_out: RoomModel = null
@@ -718,7 +767,7 @@ func _apply_background_species_exchange(
 	if building == null or room_a == null or room_b == null or op == null or dt <= 0.0:
 		return
 
-	var area_eff_m2: float = maxf(0.0, op.width_m * op.height_m * op.open_fraction)
+	var area_eff_m2: float = maxf(0.0, op.width_m * op.height_m * op.effective_open_fraction())
 	if area_eff_m2 <= 0.0:
 		return
 
@@ -1018,6 +1067,102 @@ func _estimate_remote_exterior_path_factor(
 			queue.append(next_id)
 
 	return clampf(best_factor, 0.0, 1.0)
+
+
+# ============================================================
+# DEFORMACIÓN DE PUERTA POR TEMPERATURA
+# ============================================================
+# Actualiza thermal_gap_fraction para cada puerta interior caliente.
+# El gap crece linealmente desde 0% (en door_deform_temp_start_c)
+# hasta door_deform_max_gap (en door_deform_temp_full_c).
+# Solo aplica cuando la puerta está cerrada o casi cerrada (open_fraction < 0.5);
+# puertas abiertas ya dejan pasar el flujo sin necesitar el gap térmico.
+func _step_door_deform(building: BuildingModel) -> void:
+	if not door_deform_enabled:
+		# Limpia cualquier gap residual de pasos anteriores.
+		for op in building.get_openings():
+			op.thermal_gap_fraction = 0.0
+		return
+
+	var temp_range: float = maxf(1.0, door_deform_temp_full_c - door_deform_temp_start_c)
+
+	for op in building.get_openings():
+		# Solo puertas interiores cerradas/casi cerradas.
+		if op.type != OpeningModel.Type.DOOR:
+			op.thermal_gap_fraction = 0.0
+			continue
+		if op.a == BuildingModel.OUTSIDE_ID or op.b == BuildingModel.OUTSIDE_ID:
+			op.thermal_gap_fraction = 0.0
+			continue
+		if op.open_fraction >= 0.5:
+			# Puerta abierta: el gap térmico es irrelevante.
+			op.thermal_gap_fraction = 0.0
+			continue
+
+		var room_a: RoomModel = building.get_room(op.a)
+		var room_b: RoomModel = building.get_room(op.b)
+		if room_a == null or room_b == null:
+			op.thermal_gap_fraction = 0.0
+			continue
+
+		# La temperatura más alta de los dos lados define la deformación.
+		var t_hot: float = maxf(room_a.temp_upper_c, room_b.temp_upper_c)
+		var factor: float = clampf(
+			(t_hot - door_deform_temp_start_c) / temp_range,
+			0.0,
+			1.0
+		)
+		# Las puertas casi cerradas deforman más que las que tienen algo de apertura.
+		var closed_factor: float = clampf(1.0 - op.open_fraction * 2.0, 0.0, 1.0)
+		op.thermal_gap_fraction = factor * door_deform_max_gap * closed_factor
+
+
+# ============================================================
+# VIENTO — PRESIÓN DE VIENTO EN APERTURAS EXTERIORES
+# ============================================================
+# Calcula el ΔP que el viento ejerce sobre una apertura exterior.
+# Convención meteorológica: wind_direction_deg = ángulo desde donde VIENE
+# el viento (0=N, 90=E, 180=S, 270=O).
+# En coordenadas 2D del mapa (x derecha, y abajo, "top" = norte):
+#   Cp > 0 → barlovento (viento empuja hacia dentro → dificulta venteo)
+#   Cp < 0 → sotavento  (succión → facilita venteo)
+# Referencia: EN 1991-1-4 §7.2 — coeficientes de presión de viento.
+func _compute_wind_dp_pa(op: OpeningModel, building: BuildingModel) -> float:
+	if not wind_effect_enabled:
+		return 0.0
+	var v: float = building.wind_speed_m_s
+	if v <= 0.01:
+		return 0.0
+
+	# Vector unitario que apunta HACIA el origen del viento (de donde viene).
+	# En mapa 2D (y-abajo): N=top→(0,-1), E=right→(+1,0), S=bottom→(0,+1), W=left→(-1,0).
+	var dir_rad: float = deg_to_rad(building.wind_direction_deg)
+	var wfx: float = sin(dir_rad)   # componente x del vector "from-wind"
+	var wfy: float = -cos(dir_rad)  # componente y del vector "from-wind"
+
+	# Normal exterior de la cara (hacia fuera del edificio) según wall_side.
+	var nx: float
+	var ny: float
+	match op.wall_side:
+		"top":    nx = 0.0;  ny = -1.0  # cara norte
+		"bottom": nx = 0.0;  ny = 1.0   # cara sur
+		"left":   nx = -1.0; ny = 0.0   # cara oeste
+		"right":  nx = 1.0;  ny = 0.0   # cara este
+		_:
+			return 0.0  # sin wall_side conocido → sin efecto de viento
+
+	# cos(incidencia) = proyección del viento de origen sobre la normal.
+	# Positivo → barlovento; negativo → sotavento.
+	var cos_inc: float = nx * wfx + ny * wfy
+
+	# Coeficiente de presión simplificado (Eurocode EN 1991-1-4, valores ref.).
+	var cp: float
+	if cos_inc >= 0.0:
+		cp = 0.6 * cos_inc   # barlovento
+	else:
+		cp = 0.4 * cos_inc   # sotavento (Cp negativo → succión)
+
+	return 0.5 * 1.2 * v * v * cp
 
 
 func _has_any_active_fire(building: BuildingModel) -> bool:

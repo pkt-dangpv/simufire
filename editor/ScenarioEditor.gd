@@ -52,6 +52,7 @@ var _fuel_spin: SpinBox
 var _hrr_spin: SpinBox
 var _tool_buttons: Dictionary = {}
 var _scenario_option: OptionButton
+var _hvac_option: OptionButton
 var _scenario_paths: Array[String] = []
 var _stop_time_spin: SpinBox
 # Propiedades de objeto seleccionado
@@ -106,6 +107,8 @@ func _create_empty_scenario() -> void:
 		"outside_temp_c": 20.0,
 		"outside_o2": 0.209,
 		"stop_time_s": 0.0,
+		"hvac_mode": "none",
+		"hvac_data": {"exists": false, "on": false, "mode": "none"},
 		"room_rect_m": {},
 		"rooms_data": [],
 		"openings_data": []
@@ -271,6 +274,22 @@ func _setup_ui() -> void:
 	main.add_child(stop_hint)
 	_stop_time_spin.value_changed.connect(func(v: float):
 		editor_data["stop_time_s"] = v)
+
+	main.add_child(HSeparator.new())
+
+	var hvac_row := HBoxContainer.new()
+	hvac_row.add_theme_constant_override("separation", 4)
+	main.add_child(hvac_row)
+	var hvac_label := Label.new()
+	hvac_label.text = "HVAC"
+	hvac_label.custom_minimum_size.x = 86.0
+	hvac_row.add_child(hvac_label)
+	_hvac_option = OptionButton.new()
+	_hvac_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hvac_row.add_child(_hvac_option)
+	_populate_hvac_option()
+	if not _hvac_option.item_selected.is_connected(_on_hvac_option_selected):
+		_hvac_option.item_selected.connect(_on_hvac_option_selected)
 
 	main.add_child(HSeparator.new())
 
@@ -1310,6 +1329,7 @@ func _load_pressed() -> void:
 	editor_data = loaded
 	if _stop_time_spin != null:
 		_stop_time_spin.value = float(editor_data.get("stop_time_s", 0.0))
+	_sync_hvac_option_from_data()
 	_clear_selection()
 	_set_status("Escenario cargado desde %s." % _path_edit.text.strip_edges())
 	queue_redraw()
@@ -1558,6 +1578,7 @@ func _load_scenario_pressed() -> void:
 	editor_data = loaded
 	if _stop_time_spin != null:
 		_stop_time_spin.value = float(editor_data.get("stop_time_s", 0.0))
+	_sync_hvac_option_from_data()
 	_clear_selection()
 	_set_status("Escenario cargado: %s" % path.get_file())
 	queue_redraw()
@@ -1630,6 +1651,7 @@ func _bind_existing_ui() -> bool:
 	_object_kind_option = _ui_root.get_node_or_null("LeftPanel/VBox/ObjectTypeOption") as OptionButton
 	_path_edit = _ui_root.get_node_or_null("LeftPanel/VBox/PathEdit") as LineEdit
 	_scenario_option = _ui_root.get_node_or_null("LeftPanel/VBox/ScenarioOption") as OptionButton
+	_hvac_option = _ui_root.get_node_or_null("LeftPanel/VBox/HVACOption") as OptionButton
 	_stop_time_spin = _ui_root.get_node_or_null("LeftPanel/VBox/StopTimeSpin") as SpinBox
 	_status_label = _ui_root.get_node_or_null("LeftPanel/VBox/StatusLabel") as Label
 
@@ -1660,6 +1682,7 @@ func _bind_existing_ui() -> bool:
 		return false
 
 	_populate_object_type_option()
+	_ensure_hvac_option_in_existing_ui()
 	_path_edit.text = DEFAULT_SAVE_PATH
 
 	# Poblamos el OptionButton de estado inicial de apertura
@@ -1681,6 +1704,7 @@ func _bind_existing_ui() -> bool:
 		_stop_time_spin.value = 0.0
 		if not _stop_time_spin.value_changed.is_connected(_on_stop_time_changed):
 			_stop_time_spin.value_changed.connect(_on_stop_time_changed)
+	_sync_hvac_option_from_data()
 
 	_scan_scenario_files()
 	_refresh_property_panel()
@@ -1712,3 +1736,71 @@ func _populate_object_type_option() -> void:
 
 func _on_stop_time_changed(v: float) -> void:
 	editor_data["stop_time_s"] = v
+
+
+func _ensure_hvac_option_in_existing_ui() -> void:
+	if _hvac_option != null:
+		_populate_hvac_option()
+		if not _hvac_option.item_selected.is_connected(_on_hvac_option_selected):
+			_hvac_option.item_selected.connect(_on_hvac_option_selected)
+		return
+
+	var left_vbox := _ui_root.get_node_or_null("LeftPanel/VBox") as VBoxContainer
+	if left_vbox == null:
+		return
+
+	var row := HBoxContainer.new()
+	row.name = "HVACRow"
+	row.add_theme_constant_override("separation", 4)
+	var label := Label.new()
+	label.text = "HVAC"
+	label.custom_minimum_size.x = 82.0
+	row.add_child(label)
+	_hvac_option = OptionButton.new()
+	_hvac_option.name = "HVACOption"
+	_hvac_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_hvac_option)
+	left_vbox.add_child(row)
+	var scenario_option := left_vbox.get_node_or_null("ScenarioOption") as OptionButton
+	if scenario_option != null:
+		left_vbox.move_child(row, scenario_option.get_index())
+	_populate_hvac_option()
+	if not _hvac_option.item_selected.is_connected(_on_hvac_option_selected):
+		_hvac_option.item_selected.connect(_on_hvac_option_selected)
+
+
+func _populate_hvac_option() -> void:
+	if _hvac_option == null:
+		return
+	if _hvac_option.get_item_count() == 0:
+		_hvac_option.add_item("Sin HVAC", 0)
+		_hvac_option.add_item("Instalado OFF", 1)
+		_hvac_option.add_item("Instalado ON", 2)
+	_sync_hvac_option_from_data()
+
+
+func _sync_hvac_option_from_data() -> void:
+	if _hvac_option == null:
+		return
+	var mode: String = String(editor_data.get("hvac_mode", "none")).to_lower()
+	match mode:
+		"on":
+			_hvac_option.select(2)
+		"off":
+			_hvac_option.select(1)
+		_:
+			_hvac_option.select(0)
+
+
+func _on_hvac_option_selected(index: int) -> void:
+	var mode: String = "none"
+	if index == 1:
+		mode = "off"
+	elif index == 2:
+		mode = "on"
+	editor_data["hvac_mode"] = mode
+	editor_data["hvac_data"] = {
+		"exists": mode != "none",
+		"on": mode == "on",
+		"mode": mode
+	}

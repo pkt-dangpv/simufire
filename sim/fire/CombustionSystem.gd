@@ -90,7 +90,21 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 
 	var fire: FireModel = room.fire
 	var ambient_c: float = float(context.get("ambient_c", 20.0))
-	var raw_o2_factor: float = _compute_o2_factor(room.o2, fire.o2_nominal, fire.o2_min_for_flame)
+	var early_opening_signal: float = clampf(
+		maxf(
+			maxf(float(context.get("outside_open_factor", 0.0)), float(context.get("outside_open_path_factor", 0.0))),
+			maxf(0.0, float(context.get("window_open_max", 0.0)))
+		),
+		0.0,
+		1.0
+	)
+	var full_hrr_o2: float = lerpf(
+		fire.o2_nominal,
+		float(context.get("fire_o2_full_hrr_open", fire.o2_nominal)),
+		early_opening_signal
+	)
+	full_hrr_o2 = maxf(fire.o2_min_for_flame + 0.001, full_hrr_o2)
+	var raw_o2_factor: float = _compute_o2_factor(room.o2, full_hrr_o2, fire.o2_min_for_flame)
 	var use_fds_extinction: bool = bool(context.get("fire_fds_extinction_enabled", false))
 	var extinction_o2_limit: float = _compute_extinction_o2_limit(
 		room,

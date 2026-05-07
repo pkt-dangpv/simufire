@@ -1,5 +1,7 @@
 extends Node
 
+const FirstPersonControllerScript = preload("res://view/FirstPersonController.gd")
+
 @onready var building: BuildingModel = $World/BuildingModel
 @onready var engine: SimulationEngine = $World/SimulationEngine
 @onready var visualizer: Visualizer = $World/Visualizer
@@ -16,6 +18,8 @@ var _graph_textures: Array[Texture2D] = []
 var _graph_image_cells: Array[Control] = []
 var _graph_zoom: float = 1.0
 var view_3d_enabled: bool = false
+var first_person_enabled: bool = false
+var first_person_controller = null
 
 
 func _ready() -> void:
@@ -34,6 +38,11 @@ func _ready() -> void:
 			hud.stop_and_generate_requested.connect(_on_stop_and_generate_requested)
 		if not hud.view_3d_toggled.is_connected(_on_view_3d_toggled):
 			hud.view_3d_toggled.connect(_on_view_3d_toggled)
+		if not hud.first_person_toggled.is_connected(_on_first_person_toggled):
+			hud.first_person_toggled.connect(_on_first_person_toggled)
+		if not hud.hvac_toggled.is_connected(_on_hvac_toggled):
+			hud.hvac_toggled.connect(_on_hvac_toggled)
+	_setup_first_person_controller()
 	_set_3d_view_enabled(view_3d_enabled)
 	if engine != null:
 		engine.time_scale = 1.0
@@ -60,12 +69,15 @@ func _update_views() -> void:
 	state["simulation_finished"] = engine.is_finished
 	state["graphs_launched"] = engine.are_graphs_launched()
 	state["view_3d_enabled"] = view_3d_enabled
+	state["first_person_enabled"] = first_person_enabled
 	if visualizer != null:
 		visualizer.set_state(state)
 	if visualizer_3d != null:
 		visualizer_3d.set_state(state)
 	if hud != null:
 		hud.update_state(state)
+	if first_person_controller != null:
+		first_person_controller.set_state(state)
 
 
 func _on_play_requested() -> void:
@@ -94,6 +106,16 @@ func _on_view_3d_toggled(enabled: bool) -> void:
 	_set_3d_view_enabled(enabled)
 
 
+func _on_first_person_toggled(enabled: bool) -> void:
+	_set_first_person_enabled(enabled)
+
+
+func _on_hvac_toggled(enabled: bool) -> void:
+	if building != null:
+		building.set_hvac_on(enabled)
+	_update_views()
+
+
 func _on_room_clicked(room_id: int) -> void:
 	if hud != null:
 		hud.show_room_detail(room_id)
@@ -102,12 +124,57 @@ func _on_room_clicked(room_id: int) -> void:
 
 func _set_3d_view_enabled(enabled: bool) -> void:
 	view_3d_enabled = enabled
+	if enabled:
+		first_person_enabled = false
 	if visualizer != null:
-		visualizer.visible = not enabled
+		visualizer.visible = not view_3d_enabled and not first_person_enabled
 	if world_3d != null:
-		world_3d.visible = enabled
+		world_3d.visible = view_3d_enabled or first_person_enabled
 	if visualizer_3d != null:
-		visualizer_3d.set_active(enabled)
+		visualizer_3d.set_active(view_3d_enabled and not first_person_enabled, true, true, false)
+	if first_person_controller != null:
+		first_person_controller.set_active(first_person_enabled)
+	_update_views()
+
+
+func _set_first_person_enabled(enabled: bool) -> void:
+	first_person_enabled = enabled
+	if enabled:
+		view_3d_enabled = false
+	if visualizer != null:
+		visualizer.visible = not view_3d_enabled and not first_person_enabled
+	if world_3d != null:
+		world_3d.visible = view_3d_enabled or first_person_enabled
+	if visualizer_3d != null:
+		visualizer_3d.set_active(view_3d_enabled or first_person_enabled, view_3d_enabled and not first_person_enabled, view_3d_enabled and not first_person_enabled, first_person_enabled)
+	if first_person_controller != null:
+		if first_person_enabled:
+			first_person_controller.rebuild_from_building()
+		first_person_controller.set_active(first_person_enabled)
+	_update_views()
+
+
+func _setup_first_person_controller() -> void:
+	if world_3d == null or first_person_controller != null:
+		return
+	first_person_controller = world_3d.get_node_or_null("FirstPersonController")
+	if first_person_controller == null:
+		first_person_controller = FirstPersonControllerScript.new()
+		first_person_controller.name = "FirstPersonController"
+		world_3d.add_child(first_person_controller)
+	first_person_controller.setup(building)
+	if not first_person_controller.exit_requested.is_connected(_on_first_person_exit_requested):
+		first_person_controller.exit_requested.connect(_on_first_person_exit_requested)
+	if not first_person_controller.opening_changed.is_connected(_on_first_person_opening_changed):
+		first_person_controller.opening_changed.connect(_on_first_person_opening_changed)
+
+
+func _on_first_person_exit_requested() -> void:
+	_set_first_person_enabled(false)
+
+
+func _on_first_person_opening_changed() -> void:
+	_update_views()
 
 
 func _on_stop_and_generate_requested() -> void:

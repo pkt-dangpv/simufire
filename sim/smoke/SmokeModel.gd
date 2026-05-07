@@ -96,18 +96,40 @@ func estimate_visibility_m(room: RoomModel) -> float:
 	if room == null:
 		return 0.0
 
-	# Si la interfaz humo/aire está por encima de la zona de respiración (1.8 m),
-	# la persona está en capa baja limpia → visibilidad máxima.
-	var h_layer: float = clampf(room.h_layer_m, 0.0, room.height_m)
-	if h_layer >= 1.8:
+	# Visibilidad reportada = visibilidad ÓPTICA en la capa de humo (estilo CFAST/FDS VIS@upper).
+	# No hay cliff por altura: la concentración real en la capa alta determina la visibilidad,
+	# sin importar si la interfaz está sobre o bajo la zona de respiración. El criterio de
+	# tenabilidad por altura (capa baja despejada) se aplica aparte en SVV térmico.
+	var visible_layer_m: float = get_visible_smoke_layer_height_m(room)
+	return estimate_visibility_for_layer_m(room, visible_layer_m)
+
+
+# Variante con la capa de humo ya calculada externamente (p. ej. la `smoke_layer_m`
+# efectiva que se exporta al CSV en SimulationStateBuilder). Garantiza que la visibilidad
+# y la altura de capa publicadas estén acopladas y sean coherentes.
+func estimate_visibility_for_layer_m(room: RoomModel, smoke_layer_m: float) -> float:
+	if room == null:
+		return maxf(0.0, visibility_max_m)
+	if room.smoke_kg <= 0.0:
 		return maxf(0.0, visibility_max_m)
 
-	# La capa de humo ha descendido a la zona de respiración.
-	# Calcular concentración con el volumen real de la capa alta (desde h_layer hasta techo)
-	# para no diluir artificialmente el humo en toda la sala.
-	var upper_depth_m: float = maxf(0.05, room.height_m - h_layer)
-	var upper_volume_m3: float = maxf(0.10, room.floor_area_m2() * upper_depth_m)
-	return estimate_visibility_from_mass(room.smoke_kg, upper_volume_m3)
+	var height_m: float = maxf(0.1, room.height_m)
+	var floor_area_m2: float = maxf(0.01, room.floor_area_m2())
+	var layer_m: float = clampf(smoke_layer_m, 0.0, height_m)
+
+	# Profundidad de capa caliente. Si la interfaz está prácticamente al techo
+	# (no hay estratificación todavía), el humo está difuso en TODA la sala —
+	# no concentrado en una banda artificial de 5 cm. Usar volumen total para
+	# no hacer explotar la concentración con masas triviales en steps iniciales.
+	var upper_depth_m: float = height_m - layer_m
+	var stratified_min_depth_m: float = 0.20
+	var volume_m3: float
+	if upper_depth_m < stratified_min_depth_m:
+		volume_m3 = floor_area_m2 * height_m
+	else:
+		volume_m3 = floor_area_m2 * upper_depth_m
+
+	return estimate_visibility_from_mass(room.smoke_kg, maxf(0.10, volume_m3))
 
 
 func estimate_visibility_from_mass(smoke_kg: float, volume_m3: float) -> float:
@@ -184,27 +206,38 @@ func get_spill_layer_height_m(room: RoomModel) -> float:
 # ============================================================
 
 
-func recompute_layer_from_mass(room: RoomModel, dt: float) -> void:
+func recompute_layer_from_mass(room: RoomModel, dt: float, ambient_c: float = 20.0) -> void:
 	var floor_area_m2: float = maxf(0.01, room.floor_area_m2())
-	var smoke_volume_m3: float = 0.0
 
+	# --- Capa por masa de hollín (soot) ---
+	var soot_target_layer_m: float = room.height_m
 	if room.smoke_kg > 0.000001 and smoke_density_kg_m3 > 0.0:
-		smoke_volume_m3 = room.smoke_kg / smoke_density_kg_m3
+		var smoke_volume_m3: float = room.smoke_kg / smoke_density_kg_m3
 		var temp_expansion: float = _compute_smoke_temp_expansion(room)
 		smoke_volume_m3 *= maxf(1.0, temp_expansion)
-
-	if smoke_volume_m3 <= 0.000001:
+		var smoke_depth_m: float = smoke_volume_m3 / floor_area_m2
+		soot_target_layer_m = clampf(room.height_m - smoke_depth_m, 0.0, room.height_m)
+	else:
 		room.smoke_kg = 0.0
+
+	# --- Capa por masa de gas caliente: método clásico de dos zonas (CFAST/FAST) ---
+	# h_layer = H - V_upper / A_floor;  V_upper = m_upper / rho_upper
+	var gas_target_layer_m: float = room.height_m
+	if room.upper_gas_kg > 0.001:
+		var ambient_k: float = ambient_c + 273.15
+		var upper_k: float = maxf(ambient_k + 1.0, room.temp_upper_c + 273.15)
+		var rho_upper: float = 1.2 * ambient_k / upper_k
+		var hot_volume_m3: float = room.upper_gas_kg / maxf(0.05, rho_upper)
+		var hot_depth_m: float = hot_volume_m3 / floor_area_m2
+		gas_target_layer_m = clampf(room.height_m - hot_depth_m, 0.0, room.height_m)
+
+	# Sin señal en ninguna fuente → habitación limpia
+	if room.smoke_kg <= 0.000001 and room.upper_gas_kg <= 0.001:
 		room.h_layer_m = room.height_m
 		return
 
-	var smoke_depth_m: float = smoke_volume_m3 / floor_area_m2
-
-	var target_layer_m: float = clampf(
-		room.height_m - smoke_depth_m,
-		0.0,
-		room.height_m
-	)
+	# El plano neutro sigue al más bajo de los dos (la interfaz más descendida gana)
+	var target_layer_m: float = minf(soot_target_layer_m, gas_target_layer_m)
 
 	if target_layer_m < room.h_layer_m:
 		room.h_layer_m = lerpf(
@@ -308,7 +341,7 @@ func compute_room_transfers(
 ) -> Array[Dictionary]:
 	var transfers: Array[Dictionary] = []
 
-	if op.open_fraction <= 0.0:
+	if op.effective_open_fraction() <= 0.0:
 		return transfers
 
 	var lintel_m: float = op.lintel_height_m()

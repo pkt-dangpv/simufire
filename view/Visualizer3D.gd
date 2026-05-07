@@ -76,6 +76,9 @@ signal room_clicked(room_id: int)
 @export var fire_ceiling_cap_max_radius_m: float = 1.35
 @export var fire_ceiling_cap_thickness_m: float = 0.14
 @export var fire_flicker_strength: float = 0.12
+@export var fire_light_energy_per_1000kw: float = 2.4
+@export var fire_light_range_min_m: float = 2.0
+@export var fire_light_range_max_m: float = 9.5
 @export var temp_heat_floor_start_c: float = 80.0
 @export var temp_heat_floor_full_c: float = 450.0
 @export var temp_heat_wall_start_c: float = 60.0
@@ -113,6 +116,8 @@ var _orbit_y: float = 0.0
 var _orbit_dragging: bool = false
 var _selected_room_id: int = -1
 var _fire_phase: float = 0.0
+var _input_active: bool = true
+var _first_person_overlay: bool = false
 
 
 func _ready() -> void:
@@ -135,10 +140,13 @@ func _process(delta: float) -> void:
 	_update_fire_animation()
 
 
-func set_active(active: bool) -> void:
+func set_active(active: bool, camera_active: bool = true, input_active: bool = true, first_person_overlay: bool = false) -> void:
 	visible = active
+	_input_active = active and input_active
+	_first_person_overlay = active and first_person_overlay
 	if _camera != null:
-		_camera.current = active
+		_camera.current = active and camera_active
+	_apply_overlay_visibility()
 	if not active:
 		_orbit_dragging = false
 
@@ -159,7 +167,7 @@ func rebuild_from_building() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not enable_mouse_camera or not is_visible_in_tree():
+	if not _input_active or not enable_mouse_camera or not is_visible_in_tree():
 		return
 
 	if event is InputEventMouseMotion and _orbit_dragging:
@@ -213,6 +221,24 @@ func _resolve_nodes() -> void:
 	_labels_root = _get_or_create_node3d(labels_path, "Labels")
 	_camera_rig = get_node_or_null(camera_rig_path) as Node3D
 	_camera = get_node_or_null(camera_path) as Camera3D
+	_apply_overlay_visibility()
+
+
+func _apply_overlay_visibility() -> void:
+	if _rooms_root != null:
+		_rooms_root.visible = not _first_person_overlay
+	if _openings_root != null:
+		_openings_root.visible = not _first_person_overlay
+	if _labels_root != null:
+		_labels_root.visible = not _first_person_overlay
+	if _atmosphere_root != null:
+		_atmosphere_root.visible = true
+	var sun := get_node_or_null("Sun") as Light3D
+	if sun != null:
+		sun.visible = not _first_person_overlay
+	var fill := get_node_or_null("FillLight") as Light3D
+	if fill != null:
+		fill.visible = not _first_person_overlay
 
 
 func _resolve_building() -> void:
@@ -271,7 +297,7 @@ func _clear_container(container: Node) -> void:
 	if container == null:
 		return
 	for child in container.get_children():
-		child.queue_free()
+		child.free()
 
 
 func _compute_bounds(rects: Dictionary) -> Rect2:
@@ -336,6 +362,13 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	fire_root.add_child(fire_cap)
 	var fire_core := _create_flame_mesh("Core", fire_core_color)
 	fire_root.add_child(fire_core)
+	var fire_light := OmniLight3D.new()
+	fire_light.name = "FireLight"
+	fire_light.light_color = Color(1.0, 0.42, 0.12, 1.0)
+	fire_light.light_energy = 0.0
+	fire_light.omni_range = fire_light_range_min_m
+	fire_light.position = Vector3(0.0, 0.9, 0.0)
+	fire_root.add_child(fire_light)
 
 	var label := Label3D.new()
 	label.name = "Label_%02d" % room_id
@@ -370,6 +403,7 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 		"fire_glow": fire_glow,
 		"fire_cap": fire_cap,
 		"fire_core": fire_core,
+		"fire_light": fire_light,
 		"label": label,
 		"fire_height_m": 0.0,
 		"fire_radius_m": fire_base_radius_m,
@@ -740,6 +774,12 @@ func _update_fire_visual(item: Dictionary, rect: Rect2, room_height_m: float, hr
 			))
 	fire_root.visible = current_height > 0.05
 	fire_root.position = fire_pos
+	var fire_light := item.get("fire_light") as OmniLight3D
+	if fire_light != null:
+		var hrr_t: float = clampf(hrr_kw / 1000.0, 0.0, 4.0)
+		fire_light.light_energy = fire_light_energy_per_1000kw * hrr_t if fire_root.visible else 0.0
+		fire_light.omni_range = lerpf(fire_light_range_min_m, fire_light_range_max_m, clampf(hrr_kw / 1800.0, 0.0, 1.0))
+		fire_light.position.y = maxf(0.55, minf(room_height_m - 0.25, current_height * 0.45 + 0.55)) * meters_to_units
 	if fire_root.visible:
 		_animate_fire_item(item)
 
@@ -859,7 +899,8 @@ func _create_fire_ceiling_cap_mesh(node_name: String, color: Color) -> MeshInsta
 func _make_material(color: Color, transparent: bool) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
-	material.roughness = 0.82
+	material.roughness = 0.94
+	material.metallic = 0.0
 	if transparent or color.a < 1.0:
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	return material
@@ -903,8 +944,11 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 	var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
 	var objects: Array = rs.get("fuel_objects", [])
 
-	if not show_fuel_objects_3d or objects.is_empty():
+	if not show_fuel_objects_3d:
 		fuel_objects_root.visible = false
+		return
+	if objects.is_empty():
+		fuel_objects_root.visible = fuel_obj_nodes.size() > 0
 		return
 	fuel_objects_root.visible = true
 
@@ -966,7 +1010,7 @@ func _create_fuel_object_box(obj_id: String, size_m: Vector2, height_m: float) -
 		maxf(0.05, height_m) * meters_to_units,
 		maxf(0.05, size_m.y) * meters_to_units
 	)
-	var mat := _make_material(Color(0.55, 0.52, 0.48, 0.72), true)
+	var mat := _make_material(Color(0.55, 0.52, 0.48, 1.0), false)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	var node := MeshInstance3D.new()
 	node.name = "FuelObj_" + obj_id
@@ -977,12 +1021,12 @@ func _create_fuel_object_box(obj_id: String, size_m: Vector2, height_m: float) -
 
 func _fuel_object_color_3d(state_name: String) -> Color:
 	match state_name:
-		"flaming":    return Color(1.00, 0.22, 0.08, 0.92)
-		"pyrolyzing": return Color(1.00, 0.54, 0.10, 0.88)
-		"heating":    return Color(1.00, 0.80, 0.22, 0.82)
-		"decaying":   return Color(0.72, 0.36, 0.16, 0.75)
-		"burned_out": return Color(0.18, 0.18, 0.18, 0.62)
-		_:            return Color(0.55, 0.52, 0.48, 0.72)
+		"flaming":    return Color(1.00, 0.22, 0.08, 1.0)
+		"pyrolyzing": return Color(1.00, 0.54, 0.10, 1.0)
+		"heating":    return Color(1.00, 0.80, 0.22, 1.0)
+		"decaying":   return Color(0.72, 0.36, 0.16, 1.0)
+		"burned_out": return Color(0.18, 0.18, 0.18, 1.0)
+		_:            return Color(0.55, 0.52, 0.48, 1.0)
 
 
 func _get_room_id_at_screen_pos(screen_pos: Vector2) -> int:

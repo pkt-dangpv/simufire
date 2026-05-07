@@ -12,6 +12,14 @@ class_name MainMenu
 const SIM_SCENE_PATH: String = "res://scenes/SimulationScene.tscn"
 const EDITOR_SCENE_PATH: String = "res://scenes/ScenarioEditorScene.tscn"
 const RUNTIME_TEMPLATE_PATH: String = "user://last_editor_runtime_template.json"
+const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
+const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
+
+var _template_builder = BuildingTemplateScript.new()
+var _template_option: OptionButton = null
+var _hvac_option: OptionButton = null
+var _preset_ids: Array[String] = []
+var _hvac_modes: Array[String] = ["none", "off", "on"]
 
 
 func _ready() -> void:
@@ -39,6 +47,8 @@ func _bind_existing_ui() -> bool:
 		btn_editor.pressed.connect(_on_editor_pressed)
 	if not btn_quit.pressed.is_connected(_on_quit_pressed):
 		btn_quit.pressed.connect(_on_quit_pressed)
+	btn_new.text = "Iniciar simulacion"
+	_ensure_start_options_ui()
 	return true
 
 
@@ -70,10 +80,91 @@ func _setup_ui() -> void:
 	vbox.add_child(subtitle)
 
 	vbox.add_child(HSeparator.new())
+	_ensure_start_options_ui(vbox)
 
 	_add_menu_button(vbox, "▶  Nueva simulación (plantilla por defecto)", _on_new_sim_pressed)
 	_add_menu_button(vbox, "✏  Editor de vivienda", _on_editor_pressed)
 	_add_menu_button(vbox, "✗  Salir", _on_quit_pressed)
+
+
+func _ensure_start_options_ui(parent_override: Control = null) -> void:
+	var vbox: Control = parent_override
+	if vbox == null:
+		vbox = get_node_or_null("Center/VBox") as Control
+	if vbox == null:
+		return
+
+	var preset_row := vbox.get_node_or_null("PresetRow") as HBoxContainer
+	if preset_row == null:
+		preset_row = _make_option_row("PresetRow", "Plantilla")
+		vbox.add_child(preset_row)
+		_move_before_first_button(vbox, preset_row)
+	_template_option = preset_row.get_node_or_null("Option") as OptionButton
+	_populate_template_option()
+
+	var hvac_row := vbox.get_node_or_null("HvacRow") as HBoxContainer
+	if hvac_row == null:
+		hvac_row = _make_option_row("HvacRow", "HVAC")
+		vbox.add_child(hvac_row)
+		_move_before_first_button(vbox, hvac_row)
+	_hvac_option = hvac_row.get_node_or_null("Option") as OptionButton
+	_populate_hvac_option()
+
+
+func _make_option_row(row_name: String, label_text: String) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.name = row_name
+	row.add_theme_constant_override("separation", 8)
+	var label := Label.new()
+	label.custom_minimum_size = Vector2(92.0, 0.0)
+	label.text = label_text
+	row.add_child(label)
+	var option := OptionButton.new()
+	option.name = "Option"
+	option.custom_minimum_size = Vector2(250.0, 34.0)
+	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(option)
+	return row
+
+
+func _move_before_first_button(parent: Control, child: Control) -> void:
+	for i in range(parent.get_child_count()):
+		if parent.get_child(i) is Button:
+			parent.move_child(child, i)
+			return
+
+
+func _populate_template_option() -> void:
+	if _template_option == null:
+		return
+	if _template_option.get_item_count() > 0:
+		return
+
+	_preset_ids.clear()
+	for preset in _template_builder.get_preset_definitions():
+		var preset_id: String = String(preset.get("id", "simple_house"))
+		_preset_ids.append(preset_id)
+		_template_option.add_item(String(preset.get("name", preset_id)), _preset_ids.size() - 1)
+
+	var saved: Dictionary = _load_startup_options()
+	var selected_id: String = String(saved.get("template_name", "simple_house"))
+	var selected_index: int = maxi(0, _preset_ids.find(selected_id))
+	_template_option.select(selected_index)
+
+
+func _populate_hvac_option() -> void:
+	if _hvac_option == null:
+		return
+	if _hvac_option.get_item_count() > 0:
+		return
+
+	_hvac_option.add_item("Sin HVAC", 0)
+	_hvac_option.add_item("HVAC instalado OFF", 1)
+	_hvac_option.add_item("HVAC instalado ON", 2)
+	var saved: Dictionary = _load_startup_options()
+	var selected_mode: String = String(saved.get("hvac_mode", "none"))
+	var selected_index: int = maxi(0, _hvac_modes.find(selected_mode))
+	_hvac_option.select(selected_index)
 
 
 func _add_menu_button(parent: Control, text: String, callback: Callable) -> void:
@@ -84,12 +175,49 @@ func _add_menu_button(parent: Control, text: String, callback: Callable) -> void
 	parent.add_child(btn)
 
 
+func _load_startup_options() -> Dictionary:
+	if not FileAccess.file_exists(STARTUP_OPTIONS_PATH):
+		return {}
+	var file := FileAccess.open(STARTUP_OPTIONS_PATH, FileAccess.READ)
+	if file == null:
+		return {}
+	var text: String = file.get_as_text()
+	file.close()
+	var parsed: Variant = JSON.parse_string(text)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {}
+	return parsed
+
+
+func _save_startup_options() -> void:
+	var selected_template_id: String = "simple_house"
+	if _template_option != null and not _preset_ids.is_empty():
+		var idx: int = clampi(_template_option.selected, 0, _preset_ids.size() - 1)
+		selected_template_id = _preset_ids[idx]
+
+	var selected_hvac_mode: String = "none"
+	if _hvac_option != null:
+		var hvac_idx: int = clampi(_hvac_option.selected, 0, _hvac_modes.size() - 1)
+		selected_hvac_mode = _hvac_modes[hvac_idx]
+
+	var file := FileAccess.open(STARTUP_OPTIONS_PATH, FileAccess.WRITE)
+	if file == null:
+		push_error("MainMenu: no se pudieron guardar opciones de inicio")
+		return
+	file.store_string(JSON.stringify({
+		"template_name": selected_template_id,
+		"hvac_mode": selected_hvac_mode
+	}, "\t"))
+	file.close()
+
+
 func _on_new_sim_pressed() -> void:
 	# Borra la plantilla del editor para que BuildingModel use la plantilla por defecto.
 	if FileAccess.file_exists(RUNTIME_TEMPLATE_PATH):
 		var dir := DirAccess.open("user://")
 		if dir != null:
 			dir.remove("last_editor_runtime_template.json")
+	_save_startup_options()
 	get_tree().change_scene_to_file(SIM_SCENE_PATH)
 
 

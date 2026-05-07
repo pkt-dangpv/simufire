@@ -22,6 +22,10 @@ var kind: String = ""
 var width_m: float = 0.0
 var length_m: float = 0.0
 var height_m: float = 2.5
+# Nivel de suelo sobre la planta de referencia (planta baja = 0.0).
+# Necesario para calcular el efecto chimenea (stack effect) en edificios
+# con más de una planta. Unidades: metros.
+var floor_level_z_m: float = 0.0
 
 # Estado termico
 var temp_upper_c: float = 20.0
