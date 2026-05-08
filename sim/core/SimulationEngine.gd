@@ -330,6 +330,7 @@ var _active_suppression_by_room: Dictionary = {}
 @export var outside_open_wall_absorption_multiplier: float = 0.80
 @export var outside_open_upper_mix_rate: float = 0.10
 @export var outside_open_lower_warming_rate: float = 0.0
+@export var natural_vent_inlet_fraction: float = 0.5
 @export var outside_open_background_heat_exchange_kg_s_m2: float = 0.030
 @export var outside_open_background_heat_max_fraction_per_step: float = 0.020
 @export var outside_open_background_heat_carry_factor: float = 0.42
@@ -693,7 +694,8 @@ func _sync_auxiliary_services() -> void:
 		"door_deform_enabled": door_deform_enabled,
 		"door_deform_temp_start_c": door_deform_temp_start_c,
 		"door_deform_temp_full_c": door_deform_temp_full_c,
-		"door_deform_max_gap": door_deform_max_gap
+		"door_deform_max_gap": door_deform_max_gap,
+		"natural_vent_inlet_fraction": natural_vent_inlet_fraction
 	})
 	oxygen_exchange_system.configure({
 		"o2_nominal": o2_nominal,

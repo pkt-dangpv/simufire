@@ -372,18 +372,23 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 				room.backdraft_phase_time_s = 0.0
 				room.backdraft_cooldown_s = float(context.get("fire_backdraft_cooldown_s", 180.0))
 
-		var release_tau_s: float = lerpf(
-			float(context.get("fire_pool_release_tau_slow_s", 180.0)),
-			float(context.get("fire_pool_release_tau_fast_s", 18.0)),
-			room.ventilation_response_factor
-		)
-		var pool_release_cap_kw: float = fire.max_hrr_kw \
-				* float(context.get("fire_pool_release_max_fraction", 0.18)) \
-				* lerpf(0.55, 1.0, opening_signal)
-		pool_release_target_kw = minf(
-			room.retained_unburned_MJ * 1000.0 / maxf(1.0, release_tau_s),
-			pool_release_cap_kw
-		) * clampf(release_drive, 0.0, 2.0)
+		# M7: solo liberar pool cuando hay suficiente O₂ para quemar.
+		# Con O₂ < umbral de backdraft, el pool acumula gas sin quemar hasta que
+		# una apertura introduce O₂ y dispara el backdraft.
+		var o2_allows_pool_burn: bool = room.o2 >= float(context.get("fire_backdraft_o2_max", 0.13))
+		if o2_allows_pool_burn:
+			var release_tau_s: float = lerpf(
+				float(context.get("fire_pool_release_tau_slow_s", 180.0)),
+				float(context.get("fire_pool_release_tau_fast_s", 18.0)),
+				room.ventilation_response_factor
+			)
+			var pool_release_cap_kw: float = fire.max_hrr_kw \
+					* float(context.get("fire_pool_release_max_fraction", 0.18)) \
+					* lerpf(0.55, 1.0, opening_signal)
+			pool_release_target_kw = minf(
+				room.retained_unburned_MJ * 1000.0 / maxf(1.0, release_tau_s),
+				pool_release_cap_kw
+			) * clampf(release_drive, 0.0, 2.0)
 
 	var kawagoe_limit_kw: float = float(context.get("kawagoe_limit_kw", 0.0))
 	room.pyrolysis_kw = maxf(0.0, solid_pyrolysis_kw)

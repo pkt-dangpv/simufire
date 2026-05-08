@@ -65,6 +65,10 @@ var door_deform_enabled: bool = true
 var door_deform_temp_start_c: float = 150.0  # temperatura a la que empieza la deformación
 var door_deform_temp_full_c: float = 350.0   # temperatura con gap máximo
 var door_deform_max_gap: float = 0.04        # fracción máxima de apertura adicional (4 %)
+# Fracción del área de la abertura exterior que actúa como entrada de aire fresco.
+# Asume plano neutro a mid-height por defecto (0.5). En salas muy calientes el
+# plano neutro sube y la fracción de entrada efectiva baja (<0.5).
+var natural_vent_inlet_fraction: float = 0.5
 var _pending_interior_deliveries: Array[Dictionary] = []
 
 
@@ -138,6 +142,7 @@ func configure(settings: Dictionary) -> void:
 	door_deform_temp_start_c = float(settings.get("door_deform_temp_start_c", door_deform_temp_start_c))
 	door_deform_temp_full_c = float(settings.get("door_deform_temp_full_c", door_deform_temp_full_c))
 	door_deform_max_gap = float(settings.get("door_deform_max_gap", door_deform_max_gap))
+	natural_vent_inlet_fraction = float(settings.get("natural_vent_inlet_fraction", natural_vent_inlet_fraction))
 
 
 func reset() -> void:
@@ -353,8 +358,9 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					v_buoy_m_s = sqrt(2.0 * 9.81 * h_eff_m * delta_t / t_room_k)
 				# Velocidad mínima por viento: siempre presente con ventana abierta al exterior
 				var v_nat_m_s: float = maxf(0.30, v_buoy_m_s)
-				# La mitad inferior de la abertura es la entrada de aire fresco (Cd≈0.61)
-				var fresh_air_kg: float = 0.61 * (nat_area_m2 * 0.5) * v_nat_m_s * air_density_kg_m3_s * dt
+				# La fracción inferior de la abertura es la entrada de aire fresco (Cd≈0.61).
+				# natural_vent_inlet_fraction=0.5 asume plano neutro a mid-height.
+				var fresh_air_kg: float = 0.61 * (nat_area_m2 * natural_vent_inlet_fraction) * v_nat_m_s * air_density_kg_m3_s * dt
 				var room_mass_kg: float = maxf(1.0, room_out.volume_m3()) * air_density_kg_m3_s
 				fresh_air_kg = minf(fresh_air_kg, room_mass_kg * 0.30)
 				if fresh_air_kg > 0.0:

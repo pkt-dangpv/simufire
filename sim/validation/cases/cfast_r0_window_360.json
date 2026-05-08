@@ -73,6 +73,7 @@
 		"outside_open_ambient_loss_multiplier": 1.0,
 		"outside_open_wall_absorption_multiplier": 0.30,
 		"outside_open_lower_warming_rate": 0.100,
+		"natural_vent_inlet_fraction": 0.20,
 		"fed_heat_enabled": false,
 		"fire_spread_enabled": false,
 		"glass_auto_break_enabled": false

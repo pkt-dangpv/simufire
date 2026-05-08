@@ -1,0 +1,12 @@
+{
+	"metrics": {
+		"time_room_1_smoke_start_s": { "expected": 47.0, "tolerance": 15.0 },
+		"time_room_1_co_upper_above_1200_s": { "expected": 121.7, "tolerance": 25.0 },
+		"time_room_1_fed_above_0_1_s": { "expected": 518.5, "tolerance": 50.0 },
+		"time_room_1_fed_above_0_3_s": { "expected": 520.7, "tolerance": 50.0 },
+		"room_0_peak_hrr_kw": { "expected": 713.0, "tolerance": 100.0 },
+		"room_1_peak_temp_upper_c": { "expected": 664.3, "tolerance": 60.0 },
+		"room_1_max_fed": { "min": 1.0 },
+		"smoke_generated_total_kg": { "min": 5.0 }
+	}
+}
