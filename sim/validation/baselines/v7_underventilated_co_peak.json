@@ -1,0 +1,22 @@
+﻿{
+    "metrics":  {
+                    "time_room_0_o2_below_18pct_s":  {
+                                                         "expected":  130.416667,
+                                                         "tolerance":  0.25
+                                                     },
+                    "time_room_0_o2_below_15pct_s":  {
+                                                         "expected":  167.916667,
+                                                         "tolerance":  0.25
+                                                     },
+                    "time_room_0_co_upper_above_5000_s":  {
+                                                              "expected":  169.000000,
+                                                              "tolerance":  0.25
+                                                          },
+                    "room_0_peak_co_upper_ppm":  {
+                                                     "min":  5000.0
+                                                 },
+                    "room_0_peak_hrr_kw":  {
+                                               "min":  500.0
+                                           }
+                }
+}

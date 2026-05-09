@@ -1,0 +1,17 @@
+﻿{
+    "metrics":  {
+                    "time_room_1_smoke_below_0_1kg_post_vent_s":  {
+                                                                      "expected":  250.000000,
+                                                                      "tolerance":  0.25
+                                                                  },
+                    "room_0_peak_hrr_kw":  {
+                                               "min":  1000.0
+                                           },
+                    "suppression_water_applied_l":  {
+                                                        "min":  80.0
+                                                    },
+                    "room_1_peak_co_upper_ppm":  {
+                                                     "min":  2000.0
+                                                 }
+                }
+}

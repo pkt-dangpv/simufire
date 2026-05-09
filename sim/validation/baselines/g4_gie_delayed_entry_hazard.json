@@ -1,0 +1,22 @@
+﻿{
+    "metrics":  {
+                    "time_room_1_fed_above_0_1_s":  {
+                                                        "expected":  386.250000,
+                                                        "tolerance":  0.25
+                                                    },
+                    "time_room_1_temp_upper_above_100c_s":  {
+                                                                "expected":  85.500000,
+                                                                "tolerance":  0.25
+                                                            },
+                    "time_room_1_co_upper_above_1200_s":  {
+                                                              "expected":  91.750000,
+                                                              "tolerance":  0.25
+                                                          },
+                    "room_1_peak_temp_upper_c":  {
+                                                     "min":  200.0
+                                                 },
+                    "room_1_peak_co_upper_ppm":  {
+                                                     "min":  2000.0
+                                                 }
+                }
+}

@@ -1,0 +1,7 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+F:/OneDrive/Documentos/GitHub/simufire/sim_log.txt
+[Validation] Ejecutando caso 'ul_exterior_water_knockdown' hasta 260.0 s
+[Validation] Supresion aplicada t=170.0 s -> room 0 570 L/min 10.0 s
+[Validation] Reporte guardado en res://sim/validation/reports/ul_exterior_water_knockdown.json
+[Validation] Baseline PASS

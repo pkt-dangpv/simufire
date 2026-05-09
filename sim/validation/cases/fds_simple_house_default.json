@@ -33,7 +33,8 @@
 		"background_species_exchange_kg_s_m2": 0.250,
 		"background_species_max_fraction_closed": 0.040,
 		"background_species_path_multiplier_max": 6.0,
-		"doorway_o2_exchange_coeff": 2.50,
+		"doorway_o2_exchange_coeff": 12.00,
+		"doorway_o2_active_max_fraction_per_step": 0.30,
 		"doorway_o2_background_exchange_kg_s_m2": 0.18,
 		"doorway_o2_background_max_fraction_per_step": 0.060
 	}

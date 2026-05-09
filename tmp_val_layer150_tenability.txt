@@ -1,0 +1,6 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+F:/OneDrive/Documentos/GitHub/simufire/sim_log.txt
+[Validation] Ejecutando caso 'layer150_tenability' hasta 320.0 s
+[Validation] Reporte guardado en res://sim/validation/reports/layer150_tenability.json
+[Validation] Baseline PASS

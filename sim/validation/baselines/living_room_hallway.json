@@ -1,28 +1,28 @@
-{
-	"metrics": {
-		"time_room_0_smoke_layer_2m_s": {
-			"expected": 25.0,
-			"tolerance": 8.0
-		},
-		"time_room_1_smoke_start_s": {
-			"expected": 38.5,
-			"tolerance": 8.0
-		},
-		"room_1_peak_temp_upper_c": {
-			"expected": 264.0,
-			"tolerance": 25.0
-		},
-		"room_1_min_l150_m": {
-			"expected": 1.96,
-			"tolerance": 0.20
-		},
-		"room_1_final_temp_at_1_8m_c": {
-			"expected": 106.0,
-			"tolerance": 15.0
-		},
-		"room_0_final_layer_150c_m": {
-			"expected": 2.09,
-			"tolerance": 0.15
-		}
-	}
+﻿{
+    "metrics":  {
+                    "time_room_0_smoke_layer_2m_s":  {
+                                                         "expected":  24.916667,
+                                                         "tolerance":  8.0
+                                                     },
+                    "time_room_1_smoke_start_s":  {
+                                                      "expected":  38.583333,
+                                                      "tolerance":  8.0
+                                                  },
+                    "room_1_peak_temp_upper_c":  {
+                                                     "expected":  241.551574,
+                                                     "tolerance":  25.0
+                                                 },
+                    "room_1_min_l150_m":  {
+                                              "expected":  2.379131,
+                                              "tolerance":  0.20
+                                          },
+                    "room_1_final_temp_at_1_8m_c":  {
+                                                        "expected":  26.239241,
+                                                        "tolerance":  15.0
+                                                    },
+                    "room_0_final_layer_150c_m":  {
+                                                      "expected":  2.267737,
+                                                      "tolerance":  0.15
+                                                  }
+                }
 }

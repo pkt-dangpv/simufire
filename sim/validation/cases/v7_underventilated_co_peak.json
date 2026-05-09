@@ -1,0 +1,47 @@
+{
+	"template": "simple_house",
+	"duration_s": 600.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 0,
+	"enable_logging": false,
+	"watch_room_ids": [0],
+	"smoke_trigger_room_id": 0,
+	"l150_room_id": 0,
+	"opening_overrides": [
+		{ "a": 0, "b": 1, "type": "door", "open_fraction": 0.0 }
+	],
+	"threshold_metrics": [
+		{
+			"metric_name": "time_room_0_o2_below_18pct_s",
+			"field": "o2",
+			"room_id": 0,
+			"op": "<=",
+			"value": 0.18
+		},
+		{
+			"metric_name": "time_room_0_o2_below_15pct_s",
+			"field": "o2",
+			"room_id": 0,
+			"op": "<=",
+			"value": 0.15
+		},
+		{
+			"metric_name": "time_room_0_co_upper_above_5000_s",
+			"field": "co_upper_ppm",
+			"room_id": 0,
+			"op": ">=",
+			"value": 5000.0
+		}
+	],
+	"engine_overrides": {
+		"time_scale": 5.0,
+		"fire_spread_enabled": false,
+		"glass_auto_break_enabled": false,
+		"fire_alpha_kw_s2": 0.04,
+		"fire_o2_min_for_flame": 0.10,
+		"fire_secondary_hrr_gain_kw": 2500.0,
+		"fire_latent_o2_viable_margin": 0.008,
+		"fire_extinction_delay_s": 240.0,
+		"fire_latent_extinction_delay_s": 300.0
+	}
+}

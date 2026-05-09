@@ -1,0 +1,16 @@
+﻿{
+    "metrics":  {
+                    "time_room_0_hrr_above_100_post_window_s":  {
+                                                                    "min":  1.0
+                                                                },
+                    "room_0_peak_hrr_kw":  {
+                                               "min":  1000.0
+                                           },
+                    "suppression_water_applied_l":  {
+                                                        "min":  80.0
+                                                    },
+                    "room_0_peak_co_upper_ppm":  {
+                                                     "min":  2000.0
+                                                 }
+                }
+}

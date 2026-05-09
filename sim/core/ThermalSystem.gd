@@ -366,7 +366,11 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			var qc_kw: float = room.hrr_kw * plume_mccaffrey_qc_fraction
 			# Altura de llama Heskestad: L_f = 0.235·Q^0.4 - 1.02·D  [Q en kW, L en m]
 			var l_flame_m: float = maxf(0.0, 0.235 * pow(room.hrr_kw, 0.4) - 1.02 * plume_fire_diameter_m)
-			var z_m: float = effective_hot_layer_height_m(room)
+			# Usar thermal_layer_m directamente (posición dinámica real de la interfaz).
+			# effective_hot_layer_height_m() devuelve el mínimo con un heurístico estático
+			# basado en HRR, lo que subestima z_m en fase temprana y reduce el entrainment
+			# de McCaffrey a la mitad. Con thermal_layer_m la ODE converge correctamente.
+			var z_m: float = maxf(room.thermal_layer_m, l_flame_m + 0.05)
 			if l_flame_m < z_m:
 				# Far-field: pluma por encima de la llama. z_eff = altura sobre la punta de llama
 				var z_eff_m: float = maxf(0.1, z_m - l_flame_m)

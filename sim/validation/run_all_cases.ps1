@@ -21,7 +21,21 @@ if (-not (Test-Path $runCaseScript)) {
 $cases = @(
 	"living_room_hallway",
 	"layer150_tenability",
-	"postfire_decay"
+	"postfire_decay",
+	"ul_exterior_water_knockdown",
+	"confinement_open_close",
+	"v1_backdraft_accumulation",
+	"v2_sealed_room_o2_depletion",
+	"v3_hallway_fed_exposure",
+	"v4_co_remote_rooms",
+	"v5_ventilation_hrr_spike",
+	"v6_spread_to_hallway",
+	"v7_underventilated_co_peak",
+	"v8_suppression_reburn",
+	"g1_gie_confinement_attack",
+	"g2_gie_transitional_attack",
+	"g3_gie_ppv_post_knockdown",
+	"g4_gie_delayed_entry_hazard"
 )
 
 $results = New-Object System.Collections.Generic.List[object]

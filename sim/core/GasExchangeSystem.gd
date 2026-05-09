@@ -493,6 +493,12 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			hcn_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.hcn_kg
 			hcn_delta_kg[from_id] -= hcn_moved_kg
 
+		# O2 carry con el parcel caliente — DESHABILITADO (2026-05-09).
+		# Intentado con enfoque unidireccional (solo target pierde O2), pero
+		# `moved_upper_gas_kg` tiene un floor de 0.03 kg que hace el carry
+		# demasiado agresivo en escenarios con reapertura de puertas (confinement).
+		# El gap de O2 en salas remotas (A2) requiere una solución diferente.
+
 		if use_transport_delay:
 			_pending_interior_deliveries.append({
 				"target": to_id,
@@ -515,9 +521,6 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			target.upper_energy_kj += moved_upper_energy_kj
 
 			# O2 counterflow: cuando el humo pasa de sala A a B sin delay,
-			# la corriente de retorno transporta O2 bidireccional en el dintel.
-			# (Con delay activo, OxygenExchangeSystem maneja el intercambio de O2.)
-				# O2 counterflow: cuando el humo pasa de sala A a B sin delay,
 			# la corriente de retorno transporta O2 bidireccional en el dintel.
 			# (Con delay activo, OxygenExchangeSystem maneja el intercambio de O2.)
 			var o2_mix_factor: float = 0.18 * flow_ratio

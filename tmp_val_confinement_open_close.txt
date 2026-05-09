@@ -1,0 +1,8 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+F:/OneDrive/Documentos/GitHub/simufire/sim_log.txt
+[Validation] Ejecutando caso 'confinement_open_close' hasta 900.0 s
+[Validation] Evento apertura aplicado t=200.0 s -> #6 1.00
+[Validation] Evento apertura aplicado t=550.1 s -> #6 0.00
+[Validation] Reporte guardado en res://sim/validation/reports/confinement_open_close.json
+[Validation] Baseline PASS

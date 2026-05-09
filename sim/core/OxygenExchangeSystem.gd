@@ -20,6 +20,7 @@ var interior_transport_speed_m_s: float = 0.20
 var interior_transport_min_distance_m: float = 0.50
 var interior_o2_transport_delay_multiplier: float = 1.0
 var doorway_o2_exchange_coeff: float = 1.70
+var doorway_o2_active_max_fraction_per_step: float = 0.08
 var doorway_o2_background_exchange_kg_s_m2: float = 0.06
 var doorway_o2_background_max_fraction_per_step: float = 0.015
 var doorway_o2_background_pressure_ref_pa: float = 1.5
@@ -39,6 +40,12 @@ func configure(settings: Dictionary) -> void:
 	)
 	doorway_o2_exchange_coeff = float(
 		settings.get("doorway_o2_exchange_coeff", doorway_o2_exchange_coeff)
+	)
+	doorway_o2_active_max_fraction_per_step = float(
+		settings.get(
+			"doorway_o2_active_max_fraction_per_step",
+			doorway_o2_active_max_fraction_per_step
+		)
 	)
 	doorway_o2_background_exchange_kg_s_m2 = float(
 		settings.get(
@@ -342,7 +349,7 @@ func _step_interior_opening_o2(
 	var exchange_kg: float = q_m3_s * air_density_kg_m3 * dt * doorway_o2_exchange_coeff * engagement
 	var mass_hot_kg: float = _compute_room_air_mass_kg(hot_room, air_density_kg_m3)
 	var mass_cold_kg: float = _compute_room_air_mass_kg(cold_room, air_density_kg_m3)
-	var max_exchange_kg: float = minf(mass_hot_kg, mass_cold_kg) * 0.08
+	var max_exchange_kg: float = minf(mass_hot_kg, mass_cold_kg) * doorway_o2_active_max_fraction_per_step
 	exchange_kg = minf(exchange_kg, max_exchange_kg)
 	if exchange_kg <= 0.0:
 		return
