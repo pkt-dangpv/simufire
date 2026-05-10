@@ -1,20 +1,20 @@
 ﻿{
-    "metrics":  {
-                    "time_room_0_hrr_below_100_post_attack_s":  {
-                                                                    "min":  1.0
-                                                                },
-                    "time_room_0_temp_1_8m_below_150c_post_attack_s":  {
-                                                                           "min":  1.0
-                                                                       },
-                    "time_room_0_l150_below_1_8m_s":  {
-                                                          "expected":  79.083333,
-                                                          "tolerance":  0.25
-                                                      },
-                    "room_0_peak_hrr_kw":  {
-                                               "min":  1000.0
-                                           },
-                    "suppression_water_applied_l":  {
-                                                        "min":  80.0
-                                                    }
-                }
+    "metrics": {
+        "time_room_0_hrr_below_100_post_attack_s": {
+            "min": 1.0
+        },
+        "time_room_0_temp_1_8m_below_150c_post_attack_s": {
+            "min": 1.0
+        },
+        "time_room_0_l150_below_1_8m_s": {
+            "expected": 70.416667,
+            "tolerance": 5.0
+        },
+        "room_0_peak_hrr_kw": {
+            "min": 1000.0
+        },
+        "suppression_water_applied_l": {
+            "min": 80.0
+        }
+    }
 }

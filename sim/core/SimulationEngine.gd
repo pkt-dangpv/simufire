@@ -320,6 +320,10 @@ var _active_suppression_by_room: Dictionary = {}
 @export var upper_heat_capture_min: float = 0.10
 @export var upper_heat_capture_max: float = 0.25
 @export var upper_heat_capture_outside_open_bonus: float = 0.0
+# Fracción radiativa χ_rad del HRR. Reemplaza upper_heat_capture_min/max con física real.
+# 0.35 = valor típico para combustibles sólidos (SFPE Handbook 3rd Ed. §3.4).
+@export var hrr_chi_rad_normal: float = 0.35
+@export var hrr_chi_rad_low_o2: float = 0.50
 @export var retained_hot_layer_temp_start_c: float = 100.0
 @export var retained_hot_layer_temp_full_c: float = 350.0
 @export var retained_hot_layer_o2_start: float = 0.18
@@ -469,6 +473,11 @@ var _active_suppression_by_room: Dictionary = {}
 @export var doorway_o2_background_max_fraction_per_step: float = 0.015
 @export var doorway_o2_background_pressure_ref_pa: float = 1.5
 @export var doorway_o2_background_min_factor: float = 0.30
+# Carry de O2 con el parcel de gas caliente en el transporte de humo inter-sala.
+# 0.0 = deshabilitado (default; baselines sin cambio).
+# Cuando > 0: bidireccional, neto = (source.o2 - target.o2) × gas_parcel_kg × coeff.
+# Rango útil: 0.10-0.50. No usar con moved_upper_gas_kg (tiene floor de 0.03 kg).
+@export var o2_smoke_carry_coeff: float = 0.0
 
 # ============================================================
 # AJUSTES DE HUMO (se copian al SmokeModel)
@@ -485,7 +494,7 @@ var _active_suppression_by_room: Dictionary = {}
 @export var max_spill_kg_s: float = 2.0
 @export var max_fraction_out_per_s: float = 0.18
 @export var layer_relax_down: float = 0.18
-@export var layer_relax_up: float = 0.015
+@export var layer_relax_up: float = 0.10
 @export var layer_recovery_gap_start_m: float = 0.20
 @export var layer_recovery_gap_full_m: float = 1.00
 @export var layer_recovery_boost_max: float = 6.0
@@ -580,6 +589,8 @@ func _sync_auxiliary_services() -> void:
 		"upper_heat_capture_min": upper_heat_capture_min,
 		"upper_heat_capture_max": upper_heat_capture_max,
 		"upper_heat_capture_outside_open_bonus": upper_heat_capture_outside_open_bonus,
+		"hrr_chi_rad_normal": hrr_chi_rad_normal,
+		"hrr_chi_rad_low_o2": hrr_chi_rad_low_o2,
 		"retained_hot_layer_temp_start_c": retained_hot_layer_temp_start_c,
 		"retained_hot_layer_temp_full_c": retained_hot_layer_temp_full_c,
 		"retained_hot_layer_o2_start": retained_hot_layer_o2_start,
@@ -695,7 +706,8 @@ func _sync_auxiliary_services() -> void:
 		"door_deform_temp_start_c": door_deform_temp_start_c,
 		"door_deform_temp_full_c": door_deform_temp_full_c,
 		"door_deform_max_gap": door_deform_max_gap,
-		"natural_vent_inlet_fraction": natural_vent_inlet_fraction
+		"natural_vent_inlet_fraction": natural_vent_inlet_fraction,
+		"o2_smoke_carry_coeff": o2_smoke_carry_coeff
 	})
 	oxygen_exchange_system.configure({
 		"o2_nominal": o2_nominal,
@@ -747,7 +759,8 @@ func _build_gas_exchange_hooks() -> Dictionary:
 		"remove_upper_layer_fraction_callable": Callable(thermal_system, "remove_upper_layer_fraction"),
 		"sync_room_upper_layer_callable": Callable(thermal_system, "sync_room_upper_layer"),
 		"compute_interroom_transfer_temp_callable": Callable(thermal_system, "compute_interroom_transfer_temp_c"),
-		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room")
+		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
+		"build_interior_opening_flow_state_callable": Callable(thermal_system, "build_interior_opening_flow_state")
 	}
 
 

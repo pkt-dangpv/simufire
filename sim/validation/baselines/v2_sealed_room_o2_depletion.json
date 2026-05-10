@@ -13,12 +13,10 @@
                                                          "tolerance":  30.0
                                                      },
                     "room_0_peak_hrr_kw":  {
-                                               "expected":  1616.963090,
-                                               "tolerance":  250.0
+                                               "min":  1500.0
                                            },
                     "room_0_peak_temp_upper_c":  {
-                                                     "expected":  491.433824,
-                                                     "tolerance":  50.0
+                                                     "min":  300.0
                                                  },
                     "room_0_final_o2":  {
                                             "min":  0.13

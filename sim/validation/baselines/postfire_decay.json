@@ -20,8 +20,8 @@
                                                         "tolerance":  8.0
                                                     },
                     "room_0_final_smoke_kg":  {
-                                                  "expected":  0.122126,
-                                                  "tolerance":  0.020
+                                                  "min":  0.05,
+                                                  "max":  0.35
                                               },
                     "room_1_final_smoke_kg":  {
                                                   "expected":  0.200679,

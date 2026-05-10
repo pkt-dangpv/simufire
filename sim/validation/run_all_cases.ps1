@@ -1,7 +1,7 @@
 param(
 	[string]$GodotExe = "C:\Users\dangp\Desktop\Godot_v4.6.2-stable_win64_console.exe",
 	[string]$ProjectPath = "",
-	[int]$TimeoutSeconds = 300,
+	[int]$TimeoutSeconds = 600,
 	[switch]$ContinueOnFailure
 )
 

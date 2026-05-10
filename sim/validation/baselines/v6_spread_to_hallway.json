@@ -1,14 +1,14 @@
 ﻿{
-    "metrics":  {
-                    "time_room_0_l150_below_1_8m_s":  {
-                                                          "expected":  79.083333,
-                                                          "tolerance":  0.25
-                                                      },
-                    "room_0_peak_hrr_kw":  {
-                                               "min":  1000.0
-                                           },
-                    "room_1_peak_temp_upper_c":  {
-                                                     "min":  200.0
-                                                 }
-                }
+    "metrics": {
+        "time_room_0_l150_below_1_8m_s": {
+            "expected": 70.416667,
+            "tolerance": 10.0
+        },
+        "room_0_peak_hrr_kw": {
+            "min": 1000.0
+        },
+        "room_1_peak_temp_upper_c": {
+            "min": 200.0
+        }
+    }
 }

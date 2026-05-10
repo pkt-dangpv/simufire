@@ -69,6 +69,9 @@ var door_deform_max_gap: float = 0.04        # fracción máxima de apertura adi
 # Asume plano neutro a mid-height por defecto (0.5). En salas muy calientes el
 # plano neutro sube y la fracción de entrada efectiva baja (<0.5).
 var natural_vent_inlet_fraction: float = 0.5
+# Carry de O2 con el parcel caliente en transporte de humo inter-sala.
+# 0.0 = deshabilitado (default; baselines sin cambio).
+var o2_smoke_carry_coeff: float = 0.0
 var _pending_interior_deliveries: Array[Dictionary] = []
 
 
@@ -143,6 +146,7 @@ func configure(settings: Dictionary) -> void:
 	door_deform_temp_full_c = float(settings.get("door_deform_temp_full_c", door_deform_temp_full_c))
 	door_deform_max_gap = float(settings.get("door_deform_max_gap", door_deform_max_gap))
 	natural_vent_inlet_fraction = float(settings.get("natural_vent_inlet_fraction", natural_vent_inlet_fraction))
+	o2_smoke_carry_coeff = float(settings.get("o2_smoke_carry_coeff", o2_smoke_carry_coeff))
 
 
 func reset() -> void:
@@ -493,11 +497,21 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			hcn_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.hcn_kg
 			hcn_delta_kg[from_id] -= hcn_moved_kg
 
-		# O2 carry con el parcel caliente — DESHABILITADO (2026-05-09).
-		# Intentado con enfoque unidireccional (solo target pierde O2), pero
-		# `moved_upper_gas_kg` tiene un floor de 0.03 kg que hace el carry
-		# demasiado agresivo en escenarios con reapertura de puertas (confinement).
-		# El gap de O2 en salas remotas (A2) requiere una solución diferente.
+		# O2 carry bidireccional con el parcel de gas caliente.
+		# Usa transfer_frac × upper_gas_kg sin floor: transporte proporcional real.
+		# Net = (source.o2 - target.o2) × gas_parcel × coeff.
+		# Con coeff=0.0 (default) no hay carry y los baselines no cambian.
+		var o2_carry_kg: float = 0.0
+		if o2_smoke_carry_coeff > 0.0 and source.upper_gas_kg > 0.001 and source.smoke_kg > 0.001:
+			var frac_moved: float = minf(1.0, kg / source.smoke_kg)
+			var gas_parcel_kg: float = source.upper_gas_kg * frac_moved
+			var o2_net: float = (source.o2 - target.o2) * gas_parcel_kg * o2_smoke_carry_coeff
+			o2_carry_kg = clampf(
+				o2_net,
+				-target.o2 * gas_parcel_kg * o2_smoke_carry_coeff,
+				source.o2 * gas_parcel_kg * o2_smoke_carry_coeff
+			)
+			o2_delta_kg[from_id] -= o2_carry_kg
 
 		if use_transport_delay:
 			_pending_interior_deliveries.append({
@@ -509,7 +523,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 				"co2_kg": co2_moved_kg,
 				"hcn_kg": hcn_moved_kg,
 				"upper_gas_kg": moved_upper_gas_kg,
-				"upper_energy_kj": moved_upper_energy_kj
+				"upper_energy_kj": moved_upper_energy_kj,
+				"o2_kg": o2_carry_kg
 			})
 		else:
 			smoke_delta_kg[to_id] += kg
@@ -519,6 +534,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			hcn_delta_kg[to_id] += hcn_moved_kg
 			target.upper_gas_kg += moved_upper_gas_kg
 			target.upper_energy_kj += moved_upper_energy_kj
+			o2_delta_kg[to_id] += o2_carry_kg
 
 			# O2 counterflow: cuando el humo pasa de sala A a B sin delay,
 			# la corriente de retorno transporta O2 bidireccional en el dintel.
@@ -736,6 +752,14 @@ func _release_pending_interior_deliveries(
 		target.hcn_kg = maxf(0.0, target.hcn_kg + float(entry.get("hcn_kg", 0.0)))
 		target.upper_gas_kg = maxf(0.0, target.upper_gas_kg + float(entry.get("upper_gas_kg", 0.0)))
 		target.upper_energy_kj = maxf(0.0, target.upper_energy_kj + float(entry.get("upper_energy_kj", 0.0)))
+		var o2_delivery_kg: float = float(entry.get("o2_kg", 0.0))
+		if o2_delivery_kg != 0.0:
+			var target_air_mass_kg: float = maxf(0.1, target.volume_m3()) * 1.2
+			target.o2 = clampf(
+				(target.o2 * target_air_mass_kg + o2_delivery_kg) / target_air_mass_kg,
+				0.0,
+				o2_nominal
+			)
 		target.co_upper_kg = clampf(target.co_upper_kg, 0.0, target.co_kg)
 		touched_rooms[target_id] = true
 

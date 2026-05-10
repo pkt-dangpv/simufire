@@ -129,13 +129,17 @@ var layer_relax_down: float = 0.18
 var layer_relax_up: float = 0.015
 
 # Flujo en aberturas interiores
-# Fracción mínima y máxima de la HRR que se deposita directamente en la
-# energía de la capa superior. Configurable para ajustar a referencias CFD.
-# A O2 normal (~21 %) se usa upper_heat_capture_max; a O2 bajo (6 %) se usa
-# upper_heat_capture_min (combustión más pobre, menos calor convectivo).
-var upper_heat_capture_min: float = 0.10
-var upper_heat_capture_max: float = 0.25
-var upper_heat_capture_outside_open_bonus: float = 0.0
+# Fracción radiativa χ_rad del HRR — física de zonas (SFPE Handbook 3rd Ed. §3.4).
+# fracción convectiva = (1 − χ_rad) va directamente a la capa superior.
+# A O2 normal (~21 %): χ_rad ≈ 0.35 → conv ≈ 0.65.
+# A O2 bajo (6 %): combustión incompleta → más hollín → χ_rad sube a ≈ 0.50.
+# Las variables upper_heat_capture_min/max se mantienen por compatibilidad de escenarios
+# pero ya no controlan la física; usar hrr_chi_rad_normal/low_o2 para ajustar.
+var hrr_chi_rad_normal: float = 0.35
+var hrr_chi_rad_low_o2: float = 0.50
+var upper_heat_capture_min: float = 0.10      # obsoleto — usar hrr_chi_rad_normal
+var upper_heat_capture_max: float = 0.25      # obsoleto — usar hrr_chi_rad_normal
+var upper_heat_capture_outside_open_bonus: float = 0.0  # obsoleto
 
 var doorway_o2_min_band_m: float = 0.25
 var doorway_o2_smoke_weight: float = 0.35
@@ -329,6 +333,8 @@ func configure(settings: Dictionary) -> void:
 	upper_heat_capture_outside_open_bonus = float(
 		settings.get("upper_heat_capture_outside_open_bonus", upper_heat_capture_outside_open_bonus)
 	)
+	hrr_chi_rad_normal = float(settings.get("hrr_chi_rad_normal", hrr_chi_rad_normal))
+	hrr_chi_rad_low_o2 = float(settings.get("hrr_chi_rad_low_o2", hrr_chi_rad_low_o2))
 	radiation_opening_enabled = bool(settings.get("radiation_opening_enabled", radiation_opening_enabled))
 	radiation_flame_emissivity = float(settings.get("radiation_flame_emissivity", radiation_flame_emissivity))
 	radiation_opening_view_factor = float(settings.get("radiation_opening_view_factor", radiation_opening_view_factor))
@@ -405,15 +411,15 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 				room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_lower_c - ambient_c)
 
 		var outside_open_factor: float = estimate_room_outside_open_factor(room)
-		var upper_heat_capture_fraction: float = lerpf(
-			upper_heat_capture_min,
-			upper_heat_capture_max,
+		# Fracción convectiva = (1 − χ_rad) — física de zonas CFAST/SFPE §3.4.
+		# χ_rad aumenta con O2 bajo (combustión incompleta → más hollín → más radiación).
+		var chi_rad: float = lerpf(
+			hrr_chi_rad_low_o2,
+			hrr_chi_rad_normal,
 			clampf(inverse_lerp(0.06, 0.12, room.o2), 0.0, 1.0)
 		)
-		upper_heat_capture_fraction += clampf(upper_heat_capture_outside_open_bonus, 0.0, 0.75) \
-				* outside_open_factor
-		upper_heat_capture_fraction = clampf(upper_heat_capture_fraction, 0.0, 0.85)
-		room.upper_energy_kj += room.hrr_kw * upper_heat_capture_fraction * dt
+		var conv_fraction: float = clampf(1.0 - chi_rad, 0.0, 0.90)
+		room.upper_energy_kj += room.hrr_kw * conv_fraction * dt
 		var pre_sync_upper_temp_c: float = _estimate_raw_upper_temp_c(room, ambient_c)
 		var radiative_loss_kj: float = _compute_upper_radiative_loss_kj(
 			room,
@@ -1900,12 +1906,11 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 	room.upper_energy_kj = room.upper_gas_kg * maxf(0.0, room.temp_upper_c - ambient_c)
 	var target_thermal_layer_m: float = estimate_thermal_layer_height_m(room)
 	if target_thermal_layer_m < room.thermal_layer_m:
-		room.thermal_layer_m = lerpf(
-			room.thermal_layer_m,
-			target_thermal_layer_m,
-			clampf(layer_relax_down * dt * 2.0, 0.0, 1.0)
-		)
+		# Capa descendiendo: asignación directa (sin relajación).
+		# La masa en la capa superior ya es conservada — la interfaz ES la fórmula.
+		room.thermal_layer_m = target_thermal_layer_m
 	else:
+		# Capa recuperándose (sube): relajación moderada para evitar saltos bruscos.
 		room.thermal_layer_m = lerpf(
 			room.thermal_layer_m,
 			target_thermal_layer_m,
