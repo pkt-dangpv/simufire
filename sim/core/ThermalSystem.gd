@@ -169,6 +169,14 @@ var wall_adjacency_tolerance_m: float = 0.10
 var _adjacent_pairs: Array = []
 var _adjacency_built: bool = false
 
+# Budget energético — diagnóstico CFAST-lite (no intrusivo)
+# Activar con energy_budget_enabled=true en configure(). Warning si residual > umbral.
+var energy_budget_enabled: bool = false
+var energy_budget_warn_fraction: float = 0.10
+## Último budget por sala: {room_id -> {e_fire_kj, q_rad_kj, q_to_lower_kj, q_to_ambient_kj,
+## q_wall_abs_kj, q_wall_emit_kj, de_upper_kj, q_residual_kj, chi_rad}}
+var _energy_budget: Dictionary = {}
+
 
 func set_references(building: BuildingModel, smoke_model: SmokeModel) -> void:
 	_building = building
@@ -341,6 +349,8 @@ func configure(settings: Dictionary) -> void:
 	radiation_smoke_attenuation_factor = float(settings.get("radiation_smoke_attenuation_factor", radiation_smoke_attenuation_factor))
 	radiation_min_source_temp_c = float(settings.get("radiation_min_source_temp_c", radiation_min_source_temp_c))
 	radiation_max_fraction_per_step = float(settings.get("radiation_max_fraction_per_step", radiation_max_fraction_per_step))
+	energy_budget_enabled = bool(settings.get("energy_budget_enabled", energy_budget_enabled))
+	energy_budget_warn_fraction = float(settings.get("energy_budget_warn_fraction", energy_budget_warn_fraction))
 
 
 # ============================================================
@@ -361,12 +371,18 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			any_fire_active = true
 			break
 
+	var _bud_total_fire_kj: float = 0.0
+	var _bud_total_residual_kj: float = 0.0
+	if energy_budget_enabled:
+		_energy_budget.clear()
+
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
 			continue
 
 		room.upper_radiative_loss_kw = 0.0
+		var _bud_e_before_kj: float = room.upper_energy_kj if energy_budget_enabled else 0.0
 		# Entrainamiento de pluma — McCaffrey (NBSIR 79-1910) + Heskestad (1983)
 		if plume_mccaffrey_enabled and room.hrr_kw > 0.0:
 			var qc_kw: float = room.hrr_kw * plume_mccaffrey_qc_fraction
@@ -420,6 +436,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		)
 		var conv_fraction: float = clampf(1.0 - chi_rad, 0.0, 0.90)
 		room.upper_energy_kj += room.hrr_kw * conv_fraction * dt
+		var _bud_e_fire_kj: float = room.hrr_kw * conv_fraction * dt if energy_budget_enabled else 0.0
 		var pre_sync_upper_temp_c: float = _estimate_raw_upper_temp_c(room, ambient_c)
 		var radiative_loss_kj: float = _compute_upper_radiative_loss_kj(
 			room,
@@ -512,6 +529,28 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		sync_room_upper_layer(room, dt)
 		update_room_layer_150c(room, dt)
 		step_fed(room, dt)
+
+		if energy_budget_enabled:
+			var _bud_de_upper_kj: float = room.upper_energy_kj - _bud_e_before_kj
+			# Residual: E_fire + Q_wall_emit - Q_rad - Q_to_lower - Q_to_ambient - Q_wall_abs - ΔE_upper
+			# (el plume mueve energía de lower a upper; no crea ni destruye energía)
+			var _bud_q_residual_kj: float = _bud_e_fire_kj + wall_emission_kj \
+					- radiative_loss_kj - energy_to_lower_kj - energy_to_ambient_kj \
+					- wall_absorption_kj - _bud_de_upper_kj
+			_energy_budget[room.id] = {
+				"e_fire_kj": _bud_e_fire_kj,
+				"q_rad_kj": radiative_loss_kj,
+				"q_to_lower_kj": energy_to_lower_kj,
+				"q_to_ambient_kj": energy_to_ambient_kj,
+				"q_wall_abs_kj": wall_absorption_kj,
+				"q_wall_emit_kj": wall_emission_kj,
+				"de_upper_kj": _bud_de_upper_kj,
+				"q_residual_kj": _bud_q_residual_kj,
+				"chi_rad": chi_rad,
+			}
+			if _bud_e_fire_kj > 0.01:
+				_bud_total_fire_kj += _bud_e_fire_kj
+				_bud_total_residual_kj += _bud_q_residual_kj
 
 	# ── Radiación inter-sala a través de aperturas ────────────────────────────
 	_step_radiation_openings(building, dt, ambient_c)
@@ -657,6 +696,15 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		_apply_post_transfer_vertical_mix(cold_room, dt)
 		update_room_layer_150c(hot_room, dt)
 		update_room_layer_150c(cold_room, dt)
+
+	if energy_budget_enabled and _bud_total_fire_kj > 0.1:
+		var residual_frac: float = abs(_bud_total_residual_kj) / _bud_total_fire_kj
+		if residual_frac > energy_budget_warn_fraction:
+			push_warning(
+				"[ThermalSystem] Budget: residual=%.2f kJ (%.1f%% de E_fire=%.2f kJ)" % [
+					_bud_total_residual_kj, residual_frac * 100.0, _bud_total_fire_kj
+				]
+			)
 
 
 # ============================================================

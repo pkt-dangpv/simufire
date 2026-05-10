@@ -10,6 +10,8 @@ signal view_3d_toggled(enabled: bool)
 signal first_person_toggled(enabled: bool)
 signal hvac_toggled(enabled: bool)
 
+const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
+
 @export var show_status_panel: bool = false
 @export var status_panel_room_id: int = 0
 @export var compact_status_panel: bool = true
@@ -59,6 +61,7 @@ var _room_cards: Dictionary = {}  # room_id -> {header, data, card}
 
 
 func _ready() -> void:
+	_apply_hud_visual_style()
 	if status_panel != null:
 		status_panel.visible = show_status_panel
 	if openings_panel != null:
@@ -96,6 +99,40 @@ func _ready() -> void:
 	_update_view_toggle(false)
 	_update_first_person_toggle(false)
 	_update_hvac_button(false, false)
+	_apply_hud_visual_style()
+
+
+func _apply_hud_visual_style() -> void:
+	theme = SimuFireThemeScript.build_theme()
+	SimuFireThemeScript.apply_control_tree(self)
+
+	if time_label != null:
+		time_label.add_theme_font_override("font", SimuFireThemeScript.title_font())
+		time_label.add_theme_font_size_override("font_size", 18)
+		time_label.add_theme_color_override("font_color", SimuFireThemeScript.TEXT)
+	if time_scale_label != null:
+		time_scale_label.add_theme_color_override("font_color", SimuFireThemeScript.TEXT)
+	if playback_status_label != null:
+		playback_status_label.add_theme_color_override("font_color", SimuFireThemeScript.ORANGE)
+	if opening_status_label != null:
+		opening_status_label.add_theme_font_override("font", SimuFireThemeScript.title_font())
+		opening_status_label.add_theme_font_size_override("font_size", 12)
+
+	for panel_path in ["OpeningsPanel", "TimeControlsPanel", "RoomsDataPanel", "StatusPanel", "WaterPanel", "VentPanel", "RescuePanel"]:
+		var panel := get_node_or_null(panel_path) as PanelContainer
+		if panel != null:
+			panel.add_theme_stylebox_override("panel", SimuFireThemeScript.stylebox(SimuFireThemeScript.PANEL, SimuFireThemeScript.BORDER, 1, 0, Vector2(12.0, 10.0)))
+
+	var action_buttons: Array[Button] = [
+		btn_play, btn_pause, btn_time_forward, btn_time_back, btn_view_3d,
+		btn_first_person, btn_hvac, btn_opening_close, btn_opening_open, btn_stop_graphs
+	]
+	for button in action_buttons:
+		if button == null:
+			continue
+		button.text = button.text.to_upper()
+		button.add_theme_font_override("font", SimuFireThemeScript.title_font())
+		button.add_theme_font_size_override("font_size", 12)
 
 
 func bind_building(next_building: BuildingModel) -> void:
@@ -207,6 +244,7 @@ func _rebuild_rooms_panel() -> void:
 	for room_id in sorted_ids:
 		var card := PanelContainer.new()
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.add_theme_stylebox_override("panel", SimuFireThemeScript.stylebox(Color(0.01, 0.03, 0.04, 0.86), Color(0.12, 0.20, 0.24, 0.90), 1, 0, Vector2(7.0, 6.0)))
 		var margin := MarginContainer.new()
 		margin.add_theme_constant_override("margin_left", card_margin_px)
 		margin.add_theme_constant_override("margin_top", card_margin_px - 1)
@@ -219,14 +257,17 @@ func _rebuild_rooms_panel() -> void:
 		margin.add_child(vbox)
 
 		var header := Label.new()
+		header.add_theme_font_override("font", SimuFireThemeScript.title_font())
 		header.add_theme_font_size_override("font_size", font_size_header)
+		header.add_theme_color_override("font_color", SimuFireThemeScript.TEXT)
 		header.text = "R%d" % room_id
 		vbox.add_child(header)
 
 		var data_lbl := Label.new()
+		data_lbl.add_theme_font_override("font", SimuFireThemeScript.body_font())
 		data_lbl.add_theme_font_size_override("font_size", font_size_data)
 		data_lbl.text = "\u2014"
-		data_lbl.modulate = card_data_color
+		data_lbl.modulate = SimuFireThemeScript.GREEN
 		vbox.add_child(data_lbl)
 
 		rooms_data_vbox.add_child(card)

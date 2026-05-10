@@ -48,7 +48,7 @@ text = "Room"
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
-text = "Corr L"
+text = "Pasillo"
 
 [node name="BtnDoor" type="Button" parent="CanvasLayer/UI/TopBar/HBox"]
 custom_minimum_size = Vector2(82, 34)

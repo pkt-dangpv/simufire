@@ -294,15 +294,18 @@ func _step_interior_opening_o2(
 				clampf(outside_open_factor * 0.80, 0.0, 1.0)
 			)
 		)
-		# Boost de humo: la presencia de humo en cualquiera de las salas genera un
-		# gradiente de flotabilidad que incrementa el intercambio de O2 de fondo.
-		# Mismo mecanismo que en GasExchangeSystem para consistencia.
-		var smoke_conc_o2: float = maxf(
-			room_a.smoke_kg / maxf(0.1, room_a.volume_m3()),
-			room_b.smoke_kg / maxf(0.1, room_b.volume_m3())
-		)
-		var smoke_drive_o2: float = clampf(smoke_conc_o2 / 0.050, 0.0, 0.60)
-		background_pressure_factor = maxf(background_pressure_factor, smoke_drive_o2)
+		# Smoke-buoyancy boost: smoke present while fire is alive (not yet permanently
+		# extinguished) creates a thermal gradient that increases background O2 exchange
+		# through the doorway. Gated on fire object existence to avoid boosting exchange
+		# from residual smoke after final extinction (which would interfere with
+		# postfire smoke decay scenarios).
+		if (room_a.fire != null) or (room_b.fire != null):
+			var smoke_conc_o2: float = maxf(
+				room_a.smoke_kg / maxf(0.1, room_a.volume_m3()),
+				room_b.smoke_kg / maxf(0.1, room_b.volume_m3())
+			)
+			var smoke_drive_o2: float = clampf(smoke_conc_o2 / 0.050, 0.0, 1.0)
+			background_pressure_factor = maxf(background_pressure_factor, smoke_drive_o2)
 		var base_exchange_kg: float = base_area_eff_m2 \
 			* doorway_o2_background_exchange_kg_s_m2 \
 			* background_pressure_factor \

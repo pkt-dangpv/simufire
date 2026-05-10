@@ -23,6 +23,20 @@ const MAIN_MENU_PATH: String = "res://scenes/MainMenu.tscn"
 const EditorGridScript = preload("res://editor/EditorGrid.gd")
 const ObjectLibraryScript = preload("res://editor/ObjectLibrary.gd")
 const Serializer = preload("res://editor/ScenarioSerializer.gd")
+const EDITOR_LOGO_PATH: String = "res://assets/ui/simufire_logo_editor.png"
+const EDITOR_FONT_PATH: String = "res://assets/fonts/bahnschrift.ttf"
+
+const UI_BG: Color = Color(0.00, 0.01, 0.01, 1.0)
+const UI_PANEL: Color = Color(0.02, 0.05, 0.07, 0.94)
+const UI_PANEL_DARK: Color = Color(0.00, 0.02, 0.03, 0.98)
+const UI_FIELD: Color = Color(0.03, 0.07, 0.09, 0.96)
+const UI_BORDER: Color = Color(0.18, 0.22, 0.25, 0.92)
+const UI_BORDER_HOT: Color = Color(1.00, 0.25, 0.00, 0.98)
+const UI_BLUE: Color = Color(0.00, 0.70, 0.88, 0.96)
+const UI_GREEN: Color = Color(0.55, 1.00, 0.36, 0.96)
+const UI_YELLOW: Color = Color(1.00, 0.78, 0.00, 0.96)
+const UI_TEXT: Color = Color(0.90, 0.94, 0.96, 0.98)
+const UI_TEXT_MUTED: Color = Color(0.49, 0.55, 0.60, 0.92)
 
 var editor_data: Dictionary = {}
 var current_tool: int = Tool.SELECT
@@ -55,6 +69,7 @@ var _scenario_option: OptionButton
 var _hvac_option: OptionButton
 var _scenario_paths: Array[String] = []
 var _stop_time_spin: SpinBox
+var _corridor_width_spin: SpinBox
 # Propiedades de objeto seleccionado
 var _obj_name_edit: LineEdit
 var _obj_width_spin: SpinBox
@@ -71,14 +86,24 @@ var _opening_height_spin: SpinBox
 var _opening_sill_spin: SpinBox
 var _opening_open_option: OptionButton
 
-var _room_fill: Color = Color(0.14, 0.18, 0.21, 0.62)
-var _room_selected_fill: Color = Color(0.17, 0.29, 0.36, 0.70)
-var _room_outline: Color = Color(0.74, 0.82, 0.88, 0.92)
-var _door_color: Color = Color(0.35, 0.92, 0.58, 0.95)
-var _window_color: Color = Color(0.25, 0.72, 1.0, 0.95)
-var _object_color: Color = Color(0.95, 0.55, 0.22, 0.88)
-var _object_selected_color: Color = Color(1.0, 0.78, 0.30, 0.96)
-var _ignition_color: Color = Color(1.0, 0.18, 0.08, 0.98)
+var _room_fill: Color = Color(0.05, 0.07, 0.09, 0.72)
+var _room_selected_fill: Color = Color(0.08, 0.14, 0.16, 0.84)
+var _room_outline: Color = Color(0.28, 0.32, 0.35, 0.95)
+var _corridor_fill: Color = Color(0.03, 0.10, 0.11, 0.76)
+var _corridor_selected_fill: Color = Color(0.04, 0.18, 0.19, 0.88)
+var _corridor_outline: Color = UI_BLUE
+var _corridor_preview_fill: Color = Color(0.00, 0.70, 0.88, 0.22)
+var _corridor_preview_outline: Color = Color(0.00, 0.84, 1.00, 0.92)
+var _corridor_path_color: Color = UI_YELLOW
+var _door_color: Color = UI_GREEN
+var _window_color: Color = UI_BLUE
+var _object_color: Color = Color(1.00, 0.25, 0.00, 0.86)
+var _object_selected_color: Color = UI_YELLOW
+var _ignition_color: Color = Color(1.00, 0.08, 0.02, 0.98)
+
+var _editor_theme: Theme
+var _editor_font: Font
+var _editor_title_font: Font
 
 
 func _ready() -> void:
@@ -86,6 +111,9 @@ func _ready() -> void:
 	_setup_grid()
 	if not _bind_existing_ui():
 		_setup_ui()
+	if not get_viewport().size_changed.is_connected(_layout_editor_shell):
+		get_viewport().size_changed.connect(_layout_editor_shell)
+	_apply_editor_visual_style()
 	_set_tool(Tool.SELECT)
 	queue_redraw()
 
@@ -99,6 +127,253 @@ func _setup_grid() -> void:
 		move_child(grid, 0)
 	grid.set("pixels_per_meter", PIXELS_PER_METER)
 	grid.set("grid_m", GRID_M)
+	grid.z_index = -100
+	grid.set("background_color", UI_BG)
+	grid.set("minor_color", Color(0.05, 0.08, 0.10, 0.62))
+	grid.set("major_color", Color(0.13, 0.17, 0.20, 0.80))
+	grid.set("axis_color", Color(1.00, 0.25, 0.00, 0.50))
+
+
+func _apply_editor_visual_style() -> void:
+	RenderingServer.set_default_clear_color(UI_BG)
+	if _ui_root == null:
+		return
+	_editor_font = _make_system_font(PackedStringArray(["Roboto Condensed", "Bahnschrift", "Segoe UI", "Arial Narrow", "Arial"]), 500, 92)
+	_editor_title_font = _make_system_font(PackedStringArray(["Bahnschrift SemiBold Condensed", "Agency FB", "Roboto Condensed", "Arial Narrow", "Arial"]), 700, 82)
+	_editor_theme = _build_editor_theme()
+	_ui_root.theme = _editor_theme
+	_ensure_editor_branding()
+	_layout_editor_shell()
+	_style_editor_controls(_ui_root)
+
+
+func _make_system_font(names: PackedStringArray, weight: int, stretch: int) -> Font:
+	var project_font := load(EDITOR_FONT_PATH) as FontFile
+	if project_font != null:
+		return project_font
+	var font := SystemFont.new()
+	font.font_names = names
+	font.font_weight = weight
+	font.font_stretch = stretch
+	return font
+
+
+func _build_editor_theme() -> Theme:
+	var theme := Theme.new()
+	var control_types: Array[String] = [
+		"Label", "Button", "LineEdit", "OptionButton", "SpinBox", "PopupMenu",
+		"CheckBox", "Tree", "ItemList"
+	]
+	for type_name in control_types:
+		theme.set_font("font", type_name, _editor_font)
+
+	theme.set_font_size("font_size", "Label", 12)
+	theme.set_font_size("font_size", "Button", 11)
+	theme.set_font_size("font_size", "LineEdit", 12)
+	theme.set_font_size("font_size", "OptionButton", 11)
+	theme.set_font_size("font_size", "SpinBox", 12)
+
+	theme.set_color("font_color", "Label", UI_TEXT)
+	theme.set_color("font_color", "Button", UI_TEXT)
+	theme.set_color("font_hover_color", "Button", Color(1.0, 1.0, 1.0, 1.0))
+	theme.set_color("font_pressed_color", "Button", UI_BORDER_HOT)
+	theme.set_color("font_focus_color", "Button", UI_TEXT)
+	theme.set_color("font_disabled_color", "Button", Color(0.34, 0.38, 0.42, 0.72))
+	theme.set_color("font_color", "LineEdit", UI_TEXT)
+	theme.set_color("font_placeholder_color", "LineEdit", UI_TEXT_MUTED)
+	theme.set_color("caret_color", "LineEdit", UI_BORDER_HOT)
+	theme.set_color("font_color", "OptionButton", UI_TEXT)
+
+	var panel_box: StyleBoxFlat = _stylebox(UI_PANEL, UI_BORDER, 1, 0, Vector2(12.0, 12.0))
+	var field_box: StyleBoxFlat = _stylebox(UI_FIELD, UI_BORDER, 1, 0, Vector2(8.0, 6.0))
+	var field_focus_box: StyleBoxFlat = _stylebox(UI_FIELD, UI_BLUE, 1, 0, Vector2(8.0, 6.0))
+	var button_box: StyleBoxFlat = _stylebox(UI_PANEL_DARK, UI_BORDER, 1, 0, Vector2(12.0, 7.0))
+	var button_hover_box: StyleBoxFlat = _stylebox(Color(0.04, 0.10, 0.12, 0.98), UI_BLUE, 1, 0, Vector2(12.0, 7.0))
+	var button_pressed_box: StyleBoxFlat = _stylebox(Color(0.16, 0.05, 0.01, 0.98), UI_BORDER_HOT, 1, 0, Vector2(12.0, 7.0))
+	var button_disabled_box: StyleBoxFlat = _stylebox(Color(0.03, 0.04, 0.05, 0.82), Color(0.10, 0.12, 0.14, 0.80), 1, 0, Vector2(12.0, 7.0))
+
+	theme.set_stylebox("panel", "PanelContainer", panel_box)
+	for type_name in ["Button", "OptionButton"]:
+		theme.set_stylebox("normal", type_name, button_box)
+		theme.set_stylebox("hover", type_name, button_hover_box)
+		theme.set_stylebox("pressed", type_name, button_pressed_box)
+		theme.set_stylebox("focus", type_name, _stylebox(Color(0.04, 0.08, 0.10, 0.58), UI_BLUE, 1, 0, Vector2(12.0, 7.0)))
+		theme.set_stylebox("disabled", type_name, button_disabled_box)
+	for type_name in ["LineEdit", "SpinBox"]:
+		theme.set_stylebox("normal", type_name, field_box)
+		theme.set_stylebox("focus", type_name, field_focus_box)
+		theme.set_stylebox("read_only", type_name, _stylebox(Color(0.02, 0.03, 0.04, 0.85), UI_BORDER, 1, 0, Vector2(8.0, 6.0)))
+
+	var separator := StyleBoxLine.new()
+	separator.color = Color(0.18, 0.22, 0.25, 0.72)
+	separator.thickness = 1
+	theme.set_stylebox("separator", "HSeparator", separator)
+	return theme
+
+
+func _stylebox(bg: Color, border: Color, border_width: int, radius: int, margin: Vector2) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = bg
+	box.border_color = border
+	box.border_width_left = border_width
+	box.border_width_top = border_width
+	box.border_width_right = border_width
+	box.border_width_bottom = border_width
+	box.corner_radius_top_left = radius
+	box.corner_radius_top_right = radius
+	box.corner_radius_bottom_right = radius
+	box.corner_radius_bottom_left = radius
+	box.content_margin_left = margin.x
+	box.content_margin_right = margin.x
+	box.content_margin_top = margin.y
+	box.content_margin_bottom = margin.y
+	return box
+
+
+func _layout_editor_shell() -> void:
+	if _ui_root == null:
+		return
+	var viewport_size: Vector2 = get_viewport_rect().size
+	if viewport_size.x <= 1.0 or viewport_size.y <= 1.0:
+		return
+	var pad: float = 14.0
+	var left_w: float = 336.0
+	var right_w: float = 382.0
+	if viewport_size.x < 1180.0:
+		left_w = 304.0
+		right_w = 336.0
+	var left_panel := _ui_root.get_node_or_null("LeftPanel") as Control
+	if left_panel == null:
+		left_panel = _ui_root.get_node_or_null("ToolsPanel") as Control
+	var right_panel := _ui_root.get_node_or_null("RightPanel") as Control
+	var top_bar := _ui_root.get_node_or_null("TopBar") as Control
+	var bottom_bar := _ui_root.get_node_or_null("BottomBar") as Control
+
+	if left_panel != null:
+		left_panel.scale = Vector2.ONE
+		left_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		left_panel.position = Vector2(pad, pad)
+		left_panel.size = Vector2(left_w, maxf(540.0, viewport_size.y - pad * 2.0))
+
+	var right_left: float = viewport_size.x - right_w - pad
+	if right_panel != null:
+		right_panel.scale = Vector2.ONE
+		right_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		right_panel.position = Vector2(maxf(pad, right_left), pad)
+		right_panel.size = Vector2(right_w, maxf(540.0, viewport_size.y - pad * 2.0))
+
+	var center_left: float = pad * 2.0 + left_w
+	var center_right: float = right_left - pad
+	if center_right < center_left + 420.0:
+		center_right = viewport_size.x - pad
+	if top_bar != null:
+		top_bar.scale = Vector2.ONE
+		top_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		top_bar.position = Vector2(center_left, pad)
+		top_bar.size = Vector2(maxf(420.0, center_right - center_left), 50.0)
+	if bottom_bar != null:
+		bottom_bar.scale = Vector2.ONE
+		bottom_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		bottom_bar.position = Vector2(center_left, maxf(78.0, viewport_size.y - 78.0))
+		bottom_bar.size = Vector2(maxf(420.0, center_right - center_left), 62.0)
+
+
+func _ensure_editor_branding() -> void:
+	var left_vbox := _find_left_vbox()
+	if left_vbox == null:
+		return
+	var brand := left_vbox.get_node_or_null("BrandHeader") as VBoxContainer
+	if brand == null:
+		brand = VBoxContainer.new()
+		brand.name = "BrandHeader"
+		brand.custom_minimum_size = Vector2(0.0, 220.0)
+		brand.add_theme_constant_override("separation", 6)
+		left_vbox.add_child(brand)
+		left_vbox.move_child(brand, 0)
+
+	var logo := brand.get_node_or_null("Logo") as TextureRect
+	if logo == null:
+		logo = TextureRect.new()
+		logo.name = "Logo"
+		logo.custom_minimum_size = Vector2(292.0, 205.0)
+		logo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		brand.add_child(logo)
+	logo.texture = load(EDITOR_LOGO_PATH) as Texture2D
+
+	var mode_label := brand.get_node_or_null("EditorModeLabel") as Label
+	if mode_label == null:
+		mode_label = Label.new()
+		mode_label.name = "EditorModeLabel"
+		mode_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		brand.add_child(mode_label)
+	mode_label.text = "TACTICAL SCENARIO EDITOR"
+	mode_label.add_theme_font_override("font", _editor_title_font)
+	mode_label.add_theme_font_size_override("font_size", 14)
+	mode_label.add_theme_color_override("font_color", UI_TEXT_MUTED)
+
+
+func _find_left_vbox() -> VBoxContainer:
+	var left_vbox := _ui_root.get_node_or_null("LeftPanel/VBox") as VBoxContainer
+	if left_vbox != null:
+		return left_vbox
+	left_vbox = _ui_root.get_node_or_null("ToolsPanel/VBox") as VBoxContainer
+	if left_vbox != null:
+		return left_vbox
+	var panel := _ui_root.get_node_or_null("ToolsPanel") as PanelContainer
+	if panel != null:
+		for child in panel.get_children():
+			if child is VBoxContainer:
+				return child as VBoxContainer
+	return null
+
+
+func _style_editor_controls(node: Node) -> void:
+	if node is PanelContainer:
+		(node as PanelContainer).add_theme_stylebox_override("panel", _stylebox(UI_PANEL, UI_BORDER, 1, 0, Vector2(12.0, 12.0)))
+	if node is Label:
+		var label := node as Label
+		label.add_theme_font_override("font", _editor_font)
+		label.add_theme_color_override("font_color", UI_TEXT)
+		if _is_heading_label(label):
+			label.text = label.text.to_upper()
+			label.add_theme_font_override("font", _editor_title_font)
+			label.add_theme_font_size_override("font_size", 13)
+			label.add_theme_color_override("font_color", UI_BORDER_HOT)
+		elif label.name == "StatusLabel":
+			label.add_theme_font_size_override("font_size", 11)
+			label.add_theme_color_override("font_color", UI_TEXT_MUTED)
+		elif label.name == "EditorModeLabel":
+			label.add_theme_font_override("font", _editor_title_font)
+			label.add_theme_font_size_override("font_size", 14)
+			label.add_theme_color_override("font_color", UI_TEXT_MUTED)
+		else:
+			label.add_theme_font_size_override("font_size", 11)
+			if not label.text.contains(":") and label.text.length() <= 36:
+				label.text = label.text.to_upper()
+	if node is Button:
+		var button := node as Button
+		button.text = button.text.to_upper()
+		button.add_theme_font_override("font", _editor_title_font)
+		button.add_theme_font_size_override("font_size", 11)
+	if node is LineEdit:
+		var edit := node as LineEdit
+		edit.add_theme_font_override("font", _editor_font)
+		edit.add_theme_font_size_override("font_size", 12)
+	if node is OptionButton:
+		var option := node as OptionButton
+		option.add_theme_font_override("font", _editor_title_font)
+		option.add_theme_font_size_override("font_size", 11)
+	for child in node.get_children():
+		_style_editor_controls(child)
+
+
+func _is_heading_label(label: Label) -> bool:
+	var n: String = label.name.to_lower()
+	if n == "editormodelabel":
+		return false
+	return n.ends_with("title") or n == "objectlabel" or n == "scenariolabel" or n == "stoptimelabel"
 
 
 func _create_empty_scenario() -> void:
@@ -138,6 +413,7 @@ func _setup_ui() -> void:
 	_ui_root.add_child(panel)
 
 	var main := VBoxContainer.new()
+	main.name = "VBox"
 	main.add_theme_constant_override("separation", 8)
 	panel.add_child(main)
 
@@ -146,7 +422,7 @@ func _setup_ui() -> void:
 	main.add_child(toolbar)
 	_add_tool_button(toolbar, "Sel", Tool.SELECT)
 	_add_tool_button(toolbar, "Room", Tool.ROOM)
-	_add_tool_button(toolbar, "Corr L", Tool.CORRIDOR_L)
+	_add_tool_button(toolbar, "Pasillo", Tool.CORRIDOR_L)
 	_add_tool_button(toolbar, "Door", Tool.DOOR)
 	_add_tool_button(toolbar, "Window", Tool.WINDOW)
 	_add_tool_button(toolbar, "Object", Tool.OBJECT)
@@ -164,6 +440,10 @@ func _setup_ui() -> void:
 	for kind in ObjectLibraryScript.get_object_kinds():
 		_object_kind_option.add_item(kind)
 	object_row.add_child(_object_kind_option)
+
+	_corridor_width_spin = _add_spin(main, "Pasillo (m)", 0.6, 3.0, 0.05)
+	_corridor_width_spin.value = corridor_width_m
+	_corridor_width_spin.value_changed.connect(_on_corridor_width_changed)
 
 	main.add_child(HSeparator.new())
 
@@ -397,7 +677,7 @@ func _tool_hint(tool_id: int) -> String:
 		Tool.ROOM:
 			return "Room: arrastra para crear una estancia."
 		Tool.CORRIDOR_L:
-			return "Corr L: arrastra una diagonal para crear un pasillo con giro de 90 grados."
+			return "Pasillo: arrastra recto para un tramo lineal o en diagonal para un giro en L. Ancho %.2f m." % corridor_width_m
 		Tool.DOOR:
 			return "Door: pulsa una pared compartida o una pared exterior para crear puerta."
 		Tool.WINDOW:
@@ -489,17 +769,19 @@ func _handle_release(pos_m: Vector2) -> void:
 	var rect: Rect2 = _normalized_rect(start_m, end_m)
 	_clear_drag()
 
+	if current_tool == Tool.CORRIDOR_L:
+		_create_corridor_from_drag(start_m, end_m)
+		queue_redraw()
+		return
+
 	if rect.size.x < GRID_M or rect.size.y < GRID_M:
 		_set_status("La habitacion es demasiado pequena.")
 		queue_redraw()
 		return
 
-	if current_tool == Tool.CORRIDOR_L:
-		_create_l_corridor(start_m, end_m)
-	else:
-		var room_id: int = _create_room(rect)
-		_select_room(room_id)
-		_set_status("Habitacion %d creada." % room_id)
+	var room_id: int = _create_room(rect)
+	_select_room(room_id)
+	_set_status("Habitacion %d creada." % room_id)
 	queue_redraw()
 
 
@@ -592,13 +874,86 @@ func _create_room(rect: Rect2, room_name: String = "", kind_name: String = "gene
 	return id
 
 
+func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
+	var layout: Dictionary = _build_corridor_layout(start_m, end_m)
+	if layout.has("error"):
+		_set_status(String(layout["error"]))
+		return
+
+	var rects: Array = layout.get("rects", [])
+	if rects.is_empty():
+		_set_status("El pasillo no tiene tamano suficiente.")
+		return
+
+	var base_id: int = _next_room_id()
+	var base_name: String = "Pasillo %d" % base_id
+	var mode: String = String(layout.get("mode", "straight"))
+	if mode == "straight":
+		var corridor_id: int = _create_room(Rect2(rects[0]), base_name, "corridor")
+		_select_room(corridor_id)
+		_set_status("%s creado como tramo recto de %.2f m." % [base_name, float(layout.get("length_m", 0.0))])
+		return
+
+	var first_id: int = _create_room(Rect2(rects[0]), "%s tramo A" % base_name, "corridor")
+	var second_id: int = _create_room(Rect2(rects[1]), "%s tramo B" % base_name, "corridor")
+	var shared: Dictionary = _shared_wall_between(first_id, second_id)
+	if not shared.is_empty():
+		_add_opening(
+			first_id,
+			second_id,
+			"door",
+			String(shared["wall"]),
+			float(shared["offset_m"]),
+			minf(corridor_width_m, 1.20),
+			2.05,
+			0.0,
+			1.0
+		)
+	_select_room(first_id)
+	_set_status("%s creado en L como tramos %d y %d." % [base_name, first_id, second_id])
+
+
 func _create_l_corridor(start_m: Vector2, end_m: Vector2) -> void:
+	_create_corridor_from_drag(start_m, end_m)
+
+
+func _build_corridor_layout(start_m: Vector2, end_m: Vector2) -> Dictionary:
 	var dx: float = end_m.x - start_m.x
 	var dy: float = end_m.y - start_m.y
-	var width_m: float = corridor_width_m
-	if absf(dx) < width_m * 1.5 or absf(dy) < width_m * 1.5:
-		_set_status("El pasillo en L necesita ancho y largo suficientes en ambos brazos.")
-		return
+	var width_m: float = maxf(GRID_M, corridor_width_m)
+	var abs_dx: float = absf(dx)
+	var abs_dy: float = absf(dy)
+	if abs_dx < GRID_M and abs_dy < GRID_M:
+		return {"error": "Arrastra para marcar la direccion del pasillo."}
+
+	if abs_dx >= maxf(width_m * 1.25, abs_dy * 2.0) or abs_dy < width_m * 0.60:
+		var length_x: float = abs_dx
+		if length_x < width_m:
+			return {"error": "El tramo recto es demasiado corto para el ancho elegido."}
+		var y_center: float = start_m.y
+		var x_min: float = minf(start_m.x, end_m.x)
+		return {
+			"mode": "straight",
+			"orientation": "horizontal",
+			"rects": [Rect2(Vector2(x_min, y_center - width_m * 0.5), Vector2(length_x, width_m))],
+			"length_m": length_x
+		}
+
+	if abs_dy >= maxf(width_m * 1.25, abs_dx * 2.0) or abs_dx < width_m * 0.60:
+		var length_y: float = abs_dy
+		if length_y < width_m:
+			return {"error": "El tramo recto es demasiado corto para el ancho elegido."}
+		var x_center: float = start_m.x
+		var y_min: float = minf(start_m.y, end_m.y)
+		return {
+			"mode": "straight",
+			"orientation": "vertical",
+			"rects": [Rect2(Vector2(x_center - width_m * 0.5, y_min), Vector2(width_m, length_y))],
+			"length_m": length_y
+		}
+
+	if abs_dx < width_m * 1.5 or abs_dy < width_m * 1.5:
+		return {"error": "El pasillo en L necesita largo suficiente en ambos brazos."}
 
 	var sx: float = 1.0 if dx >= 0.0 else -1.0
 	var sy: float = 1.0 if dy >= 0.0 else -1.0
@@ -612,27 +967,15 @@ func _create_l_corridor(start_m: Vector2, end_m: Vector2) -> void:
 	var vertical_rect: Rect2 = _normalized_rect(v_a, v_b)
 	if horizontal_rect.size.x < width_m or horizontal_rect.size.y < GRID_M \
 			or vertical_rect.size.x < GRID_M or vertical_rect.size.y < width_m:
-		_set_status("El giro del pasillo queda demasiado pequeno.")
-		return
+		return {"error": "El giro del pasillo queda demasiado pequeno."}
 
-	var base_name: String = "Pasillo %d" % _next_room_id()
-	var first_id: int = _create_room(horizontal_rect, "%s A" % base_name, "corridor")
-	var second_id: int = _create_room(vertical_rect, "%s B" % base_name, "corridor")
-	var shared: Dictionary = _shared_wall_between(first_id, second_id)
-	if not shared.is_empty():
-		_add_opening(
-			first_id,
-			second_id,
-			"door",
-			String(shared["wall"]),
-			float(shared["offset_m"]),
-			minf(width_m, 1.20),
-			2.05,
-			0.0,
-			1.0
-		)
-	_select_room(first_id)
-	_set_status("Pasillo en L creado como habitaciones %d y %d conectadas." % [first_id, second_id])
+	return {
+		"mode": "l",
+		"orientation": "horizontal_first",
+		"rects": [horizontal_rect, vertical_rect],
+		"corner_m": Vector2(corner_x, start_m.y),
+		"length_m": horizontal_rect.size.x + vertical_rect.size.y
+	}
 
 
 func _next_room_id() -> int:
@@ -804,6 +1147,12 @@ func _get_room(room_id: int) -> Dictionary:
 		if typeof(room) == TYPE_DICTIONARY and int(room.get("id", -1)) == room_id:
 			return room
 	return {}
+
+
+func _is_corridor_room(room: Dictionary) -> bool:
+	var kind_name: String = String(room.get("kind", "")).strip_edges().to_lower()
+	var name_text: String = String(room.get("name", "")).strip_edges().to_lower()
+	return kind_name in ["corridor", "pasillo", "hallway", "distribuidor"] or name_text.begins_with("pasillo")
 
 
 func _get_room_rect(room_id: int) -> Rect2:
@@ -1421,6 +1770,9 @@ func _draw() -> void:
 	_draw_openings()
 	_draw_objects()
 	if is_dragging_room:
+		if current_tool == Tool.CORRIDOR_L:
+			_draw_corridor_drag_preview()
+			return
 		var rect: Rect2 = _normalized_rect(drag_start_m, drag_current_m)
 		var rect_px: Rect2 = _rect_to_px(rect)
 		draw_rect(rect_px, Color(0.25, 0.68, 0.95, 0.18), true)
@@ -1439,6 +1791,56 @@ func _draw() -> void:
 			)
 
 
+func _draw_corridor_drag_preview() -> void:
+	var layout: Dictionary = _build_corridor_layout(drag_start_m, drag_current_m)
+	if layout.has("error"):
+		draw_line(_m_to_px(drag_start_m), _m_to_px(drag_current_m), Color(1.0, 0.34, 0.24, 0.85), 2.0)
+		if ThemeDB.fallback_font != null:
+			draw_string(
+				ThemeDB.fallback_font,
+				_m_to_px(drag_current_m) + Vector2(8.0, -8.0),
+				String(layout["error"]),
+				HORIZONTAL_ALIGNMENT_LEFT,
+				260.0,
+				12,
+				Color(1.0, 0.70, 0.62, 0.95)
+			)
+		return
+
+	var rects: Array = layout.get("rects", [])
+	for raw_rect in rects:
+		var rect := Rect2(raw_rect)
+		var rect_px: Rect2 = _rect_to_px(rect)
+		draw_rect(rect_px, _corridor_preview_fill, true)
+		draw_rect(rect_px, _corridor_preview_outline, false, 2.5)
+
+	var mode: String = String(layout.get("mode", "straight"))
+	var start_px: Vector2 = _m_to_px(drag_start_m)
+	var end_px: Vector2 = _m_to_px(drag_current_m)
+	if mode == "l":
+		var corner_m: Vector2 = Vector2(layout.get("corner_m", Vector2(drag_current_m.x, drag_start_m.y)))
+		var corner_px: Vector2 = _m_to_px(corner_m)
+		draw_line(start_px, corner_px, _corridor_path_color, 3.0)
+		draw_line(corner_px, end_px, _corridor_path_color, 3.0)
+		draw_circle(corner_px, 4.0, _corridor_path_color)
+	else:
+		draw_line(start_px, end_px, _corridor_path_color, 3.0)
+	draw_circle(start_px, 4.0, Color(0.98, 1.0, 0.80, 0.95))
+	draw_circle(end_px, 4.0, Color(0.98, 1.0, 0.80, 0.95))
+
+	if ThemeDB.fallback_font != null:
+		var label: String = "Pasillo %s  ancho %.2f m" % ["L" if mode == "l" else "recto", corridor_width_m]
+		draw_string(
+			ThemeDB.fallback_font,
+			end_px + Vector2(8.0, -8.0),
+			label,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			220.0,
+			12,
+			Color(0.72, 1.0, 0.94, 0.96)
+		)
+
+
 func _draw_rooms() -> void:
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) != TYPE_DICTIONARY:
@@ -1446,9 +1848,16 @@ func _draw_rooms() -> void:
 		var room_id: int = int(room.get("id", -1))
 		var rect: Rect2 = _get_room_rect(room_id)
 		var rect_px: Rect2 = _rect_to_px(rect)
+		var is_corridor: bool = _is_corridor_room(room)
 		var fill: Color = _room_selected_fill if room_id == selected_room_id else _room_fill
+		var outline: Color = _room_outline
+		if is_corridor:
+			fill = _corridor_selected_fill if room_id == selected_room_id else _corridor_fill
+			outline = _corridor_outline
 		draw_rect(rect_px, fill, true)
-		draw_rect(rect_px, _room_outline, false, 2.0)
+		draw_rect(rect_px, outline, false, 2.0)
+		if is_corridor:
+			_draw_corridor_room_guides(rect_px)
 		if ThemeDB.fallback_font != null:
 			var h: float = float(room.get("height_m", 2.7))
 			var area_m2: float = rect.size.x * rect.size.y
@@ -1484,6 +1893,24 @@ func _draw_rooms() -> void:
 					11,
 					Color(0.65, 0.82, 0.65, 0.85)
 				)
+
+
+func _draw_corridor_room_guides(rect_px: Rect2) -> void:
+	var center: Vector2 = rect_px.get_center()
+	var half_major: float = maxf(rect_px.size.x, rect_px.size.y) * 0.5 - 10.0
+	if half_major <= 4.0:
+		return
+	var a: Vector2
+	var b: Vector2
+	if rect_px.size.x >= rect_px.size.y:
+		a = center - Vector2(half_major, 0.0)
+		b = center + Vector2(half_major, 0.0)
+	else:
+		a = center - Vector2(0.0, half_major)
+		b = center + Vector2(0.0, half_major)
+	draw_line(a, b, Color(0.80, 1.0, 0.92, 0.36), 2.0)
+	draw_circle(a, 2.5, Color(0.80, 1.0, 0.92, 0.50))
+	draw_circle(b, 2.5, Color(0.80, 1.0, 0.92, 0.50))
 
 
 func _draw_openings() -> void:
@@ -1629,9 +2056,13 @@ func _bind_existing_ui() -> bool:
 		if topbar != null:
 			btn_corridor = Button.new()
 			btn_corridor.name = "BtnCorridorL"
-			btn_corridor.text = "Corr L"
+			btn_corridor.text = "Pasillo"
 			btn_corridor.custom_minimum_size = Vector2(82.0, 34.0)
 			topbar.add_child(btn_corridor)
+			if btn_room != null:
+				topbar.move_child(btn_corridor, btn_room.get_index() + 1)
+	if btn_corridor != null:
+		btn_corridor.text = "Pasillo"
 
 	var required_buttons: Array[Button] = [btn_select, btn_room, btn_corridor, btn_door, btn_window, btn_object, btn_ignite, btn_delete]
 	for b in required_buttons:
@@ -1653,6 +2084,7 @@ func _bind_existing_ui() -> bool:
 	_scenario_option = _ui_root.get_node_or_null("LeftPanel/VBox/ScenarioOption") as OptionButton
 	_hvac_option = _ui_root.get_node_or_null("LeftPanel/VBox/HVACOption") as OptionButton
 	_stop_time_spin = _ui_root.get_node_or_null("LeftPanel/VBox/StopTimeSpin") as SpinBox
+	_corridor_width_spin = _ui_root.get_node_or_null("LeftPanel/VBox/CorridorWidthSpin") as SpinBox
 	_status_label = _ui_root.get_node_or_null("LeftPanel/VBox/StatusLabel") as Label
 
 	_name_edit = _ui_root.get_node_or_null("RightPanel/VBox/RoomNameEdit") as LineEdit
@@ -1682,6 +2114,7 @@ func _bind_existing_ui() -> bool:
 		return false
 
 	_populate_object_type_option()
+	_ensure_corridor_width_control_in_existing_ui()
 	_ensure_hvac_option_in_existing_ui()
 	_path_edit.text = DEFAULT_SAVE_PATH
 
@@ -1736,6 +2169,43 @@ func _populate_object_type_option() -> void:
 
 func _on_stop_time_changed(v: float) -> void:
 	editor_data["stop_time_s"] = v
+
+
+func _on_corridor_width_changed(v: float) -> void:
+	corridor_width_m = clampf(v, 0.6, 3.0)
+	if current_tool == Tool.CORRIDOR_L:
+		_set_status(_tool_hint(current_tool))
+	queue_redraw()
+
+
+func _ensure_corridor_width_control_in_existing_ui() -> void:
+	var left_vbox := _ui_root.get_node_or_null("LeftPanel/VBox") as VBoxContainer
+	if left_vbox == null:
+		return
+
+	if _corridor_width_spin == null:
+		var row := HBoxContainer.new()
+		row.name = "CorridorWidthRow"
+		row.add_theme_constant_override("separation", 4)
+		var label := Label.new()
+		label.text = "Ancho pasillo"
+		label.custom_minimum_size.x = 112.0
+		row.add_child(label)
+		_corridor_width_spin = SpinBox.new()
+		_corridor_width_spin.name = "CorridorWidthSpin"
+		_corridor_width_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(_corridor_width_spin)
+		left_vbox.add_child(row)
+		var path_edit := left_vbox.get_node_or_null("PathEdit") as LineEdit
+		if path_edit != null:
+			left_vbox.move_child(row, path_edit.get_index())
+
+	_corridor_width_spin.min_value = 0.6
+	_corridor_width_spin.max_value = 3.0
+	_corridor_width_spin.step = 0.05
+	_corridor_width_spin.value = corridor_width_m
+	if not _corridor_width_spin.value_changed.is_connected(_on_corridor_width_changed):
+		_corridor_width_spin.value_changed.connect(_on_corridor_width_changed)
 
 
 func _ensure_hvac_option_in_existing_ui() -> void:

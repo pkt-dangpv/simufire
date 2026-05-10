@@ -14,6 +14,7 @@ const EDITOR_SCENE_PATH: String = "res://scenes/ScenarioEditorScene.tscn"
 const RUNTIME_TEMPLATE_PATH: String = "user://last_editor_runtime_template.json"
 const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
+const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
 
 var _template_builder = BuildingTemplateScript.new()
 var _template_option: OptionButton = null
@@ -28,6 +29,7 @@ func _ready() -> void:
 		return
 	if not _bind_existing_ui():
 		_setup_ui()
+	_apply_main_menu_visual_style()
 
 
 func _open_validation_scene_next_frame() -> void:
@@ -48,6 +50,8 @@ func _bind_existing_ui() -> bool:
 	if not btn_quit.pressed.is_connected(_on_quit_pressed):
 		btn_quit.pressed.connect(_on_quit_pressed)
 	btn_new.text = "Iniciar simulacion"
+	btn_editor.text = "Editor de vivienda"
+	btn_quit.text = "Salir"
 	_ensure_start_options_ui()
 	return true
 
@@ -85,6 +89,71 @@ func _setup_ui() -> void:
 	_add_menu_button(vbox, "▶  Nueva simulación (plantilla por defecto)", _on_new_sim_pressed)
 	_add_menu_button(vbox, "✏  Editor de vivienda", _on_editor_pressed)
 	_add_menu_button(vbox, "✗  Salir", _on_quit_pressed)
+
+
+func _apply_main_menu_visual_style() -> void:
+	RenderingServer.set_default_clear_color(SimuFireThemeScript.BG)
+	theme = SimuFireThemeScript.build_theme()
+
+	var bg := get_node_or_null("Background") as ColorRect
+	if bg == null:
+		bg = ColorRect.new()
+		bg.name = "Background"
+		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		add_child(bg)
+		move_child(bg, 0)
+	bg.color = SimuFireThemeScript.BG
+
+	var vbox := get_node_or_null("Center/VBox") as VBoxContainer
+	if vbox == null:
+		return
+	vbox.custom_minimum_size = Vector2(430.0, 0.0)
+	vbox.add_theme_constant_override("separation", 10)
+
+	var title := vbox.get_node_or_null("Title") as Label
+	if title != null:
+		title.visible = false
+
+	var logo := vbox.get_node_or_null("Logo") as TextureRect
+	if logo == null:
+		logo = TextureRect.new()
+		logo.name = "Logo"
+		logo.custom_minimum_size = Vector2(430.0, 320.0)
+		logo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		vbox.add_child(logo)
+		vbox.move_child(logo, 0)
+	logo.texture = load(SimuFireThemeScript.LOGO_PATH) as Texture2D
+
+	var subtitle := vbox.get_node_or_null("Subtitle") as Label
+	if subtitle != null:
+		subtitle.text = "TACTICAL FIRE SIMULATOR"
+		subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		subtitle.add_theme_font_override("font", SimuFireThemeScript.title_font())
+		subtitle.add_theme_font_size_override("font_size", 16)
+		subtitle.add_theme_color_override("font_color", SimuFireThemeScript.MUTED)
+
+	var btn_new := get_node_or_null("Center/VBox/BtnNewSim") as Button
+	var btn_editor := get_node_or_null("Center/VBox/BtnEditor") as Button
+	var btn_quit := get_node_or_null("Center/VBox/BtnQuit") as Button
+	if btn_new != null:
+		btn_new.text = "INICIAR SIMULACION"
+		btn_new.custom_minimum_size = Vector2(420.0, 48.0)
+		btn_new.add_theme_stylebox_override("normal", SimuFireThemeScript.stylebox(Color(0.16, 0.05, 0.01, 0.98), SimuFireThemeScript.ORANGE, 1, 0, Vector2(14.0, 9.0)))
+		btn_new.add_theme_stylebox_override("hover", SimuFireThemeScript.stylebox(Color(0.24, 0.07, 0.01, 0.98), SimuFireThemeScript.ORANGE, 1, 0, Vector2(14.0, 9.0)))
+	if btn_editor != null:
+		btn_editor.text = "EDITOR DE VIVIENDA"
+		btn_editor.custom_minimum_size = Vector2(420.0, 48.0)
+	if btn_quit != null:
+		btn_quit.text = "SALIR"
+		btn_quit.custom_minimum_size = Vector2(420.0, 48.0)
+
+	SimuFireThemeScript.apply_control_tree(vbox)
+	if subtitle != null:
+		subtitle.add_theme_font_override("font", SimuFireThemeScript.title_font())
+		subtitle.add_theme_font_size_override("font_size", 16)
+		subtitle.add_theme_color_override("font_color", SimuFireThemeScript.MUTED)
 
 
 func _ensure_start_options_ui(parent_override: Control = null) -> void:

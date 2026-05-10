@@ -23,9 +23,9 @@ class_name Visualizer
 @export var wall_thickness: float = 2.0
 @export var room_height_m_default: float = 2.4
 
-@export var background_color: Color = Color(0.10, 0.10, 0.11, 1.0)
-@export var room_outline_color: Color = Color(1.0, 1.0, 1.0, 1.0)
-@export var room_fill_color: Color = Color(1.0, 1.0, 1.0, 0.02)
+@export var background_color: Color = Color(0.00, 0.01, 0.01, 1.0)
+@export var room_outline_color: Color = Color(0.82, 0.87, 0.88, 1.0)
+@export var room_fill_color: Color = Color(0.05, 0.07, 0.08, 0.48)
 
 @export var auto_fit_to_view: bool = true
 @export var view_margin_px: float = 20.0
@@ -58,16 +58,16 @@ class_name Visualizer
 # HUMO / CALOR / FUEGO
 # ============================================================
 
-@export var smoke_base_color: Color = Color(0.32, 0.32, 0.36, 1.0)
+@export var smoke_base_color: Color = Color(0.33, 0.38, 0.40, 1.0)
 @export var smoke_min_alpha: float = 0.30
 @export var smoke_max_alpha_bonus: float = 0.55
 @export var smoke_mass_reference_kg: float = 8.0
 @export var smoke_concentration_reference_kg_m3: float = 0.08
 @export var smoke_visible_threshold_kg: float = 0.01
-@export var smoke_layer_line_color: Color = Color(0.72, 0.72, 0.72, 0.95)
+@export var smoke_layer_line_color: Color = Color(0.00, 0.70, 0.88, 0.95)
 @export var smoke_layer_line_width: float = 2.0
-@export var hot_layer_color: Color = Color(1.0, 0.55, 0.15, 0.18)
-@export var layer_150c_color: Color = Color(1.0, 0.10, 0.10, 0.95)
+@export var hot_layer_color: Color = Color(1.0, 0.25, 0.00, 0.18)
+@export var layer_150c_color: Color = Color(1.0, 0.12, 0.04, 0.95)
 @export var layer_150c_line_width: float = 2.0
 @export var heat_room_tint_color: Color = Color(1.0, 0.42, 0.10, 1.0)
 @export var fire_glow_color: Color = Color(1.0, 0.40, 0.10, 1.0)
@@ -80,8 +80,8 @@ class_name Visualizer
 @export var active_fire_outline_color: Color = Color(1.0, 0.62, 0.14, 1.0)
 @export var low_o2_outline_color: Color = Color(0.30, 0.68, 1.0, 1.0)
 
-@export var fuel_object_fill_color: Color = Color(0.95, 0.55, 0.22, 0.72)
-@export var fuel_object_outline_color: Color = Color(0.16, 0.08, 0.04, 0.92)
+@export var fuel_object_fill_color: Color = Color(1.00, 0.30, 0.00, 0.76)
+@export var fuel_object_outline_color: Color = Color(0.00, 0.01, 0.01, 0.95)
 @export var fuel_object_label_color: Color = Color(1.0, 0.96, 0.86, 0.96)
 
 # ============================================================
@@ -124,7 +124,7 @@ class_name Visualizer
 ## Tamaño de fuente. 0 = automático (escala con el tamaño de la sala).
 @export var room_watermark_font_size: int = 0
 ## Color/alpha del texto marca de agua. Alpha bajo para transparencia.
-@export var room_watermark_color: Color = Color(1.0, 1.0, 1.0, 0.13)
+@export var room_watermark_color: Color = Color(0.90, 0.94, 0.96, 0.12)
 ## Tamaño mínimo de la sala (px) para mostrar la marca de agua.
 @export var room_watermark_min_room_px: float = 40.0
 
@@ -135,17 +135,17 @@ class_name Visualizer
 @export var hrr_bar_height_px: float = 4.0
 @export var hrr_bar_margin_px: float = 3.0
 @export var hrr_bar_max_kw: float = 3000.0
-@export var hrr_bar_color: Color = Color(1.0, 0.35, 0.15, 0.90)
-@export var hrr_bar_bg_color: Color = Color(1.0, 1.0, 1.0, 0.08)
+@export var hrr_bar_color: Color = Color(1.0, 0.25, 0.00, 0.92)
+@export var hrr_bar_bg_color: Color = Color(0.00, 0.70, 0.88, 0.20)
 
 # ============================================================
 # OPENINGS
 # ============================================================
 
-@export var door_color: Color = Color(0.55, 0.30, 0.08, 1.0)
-@export var window_color: Color = Color(0.35, 0.70, 1.00, 1.0)
-@export var window_broken_color: Color = Color(1.00, 0.55, 0.10, 1.0)
-@export var window_open_color: Color = Color(1.00, 0.20, 0.05, 1.0)
+@export var door_color: Color = Color(0.55, 1.00, 0.36, 1.0)
+@export var window_color: Color = Color(0.00, 0.70, 0.88, 1.0)
+@export var window_broken_color: Color = Color(1.00, 0.78, 0.00, 1.0)
+@export var window_open_color: Color = Color(1.00, 0.25, 0.00, 1.0)
 @export var opening_line_width: float = 4.0
 
 # ============================================================

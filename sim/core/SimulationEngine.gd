@@ -403,6 +403,11 @@ var _active_suppression_by_room: Dictionary = {}
 ## Fracción máxima de la energía de la capa superior transferible por radiación en un paso.
 @export var radiation_max_fraction_per_step: float = 0.25
 
+## Budget energético por sala — diagnóstico CFAST-lite.
+## Activar para imprimir warning si el residual térmico supera el umbral.
+@export var energy_budget_enabled: bool = false
+@export var energy_budget_warn_fraction: float = 0.10
+
 
 # Absorción de calor por paredes — término proporcional simple sobre (T_upper - T_ambient).
 # Mismo patrón que upper_to_ambient_loss_rate: sin dividir por m_upper_kg → estable.
@@ -542,10 +547,10 @@ var _active_suppression_by_room: Dictionary = {}
 @export var background_species_path_multiplier_max: float = 3.00
 @export var background_species_max_fraction_closed: float = 0.010
 @export var background_species_max_fraction_open: float = 0.040
-@export var flow_path_direct_fire_vent_reduction: float = 0.70
-@export var flow_path_direct_fire_min_vent_fraction: float = 0.25
-@export var flow_path_interior_pull_boost: float = 1.50
-@export var flow_path_interior_pull_max_multiplier: float = 3.00
+@export var flow_path_direct_fire_vent_reduction: float = 0.0
+@export var flow_path_direct_fire_min_vent_fraction: float = 0.0
+@export var flow_path_interior_pull_boost: float = 0.0
+@export var flow_path_interior_pull_max_multiplier: float = 1.0
 
 # ============================================================
 # REGISTRO DE VALORES
@@ -649,7 +654,9 @@ func _sync_auxiliary_services() -> void:
 		"radiation_opening_view_factor": radiation_opening_view_factor,
 		"radiation_smoke_attenuation_factor": radiation_smoke_attenuation_factor,
 		"radiation_min_source_temp_c": radiation_min_source_temp_c,
-		"radiation_max_fraction_per_step": radiation_max_fraction_per_step
+		"radiation_max_fraction_per_step": radiation_max_fraction_per_step,
+		"energy_budget_enabled": energy_budget_enabled,
+		"energy_budget_warn_fraction": energy_budget_warn_fraction
 	})
 	fire_spread_system.set_references(building, smoke_model, combustion_system)
 	fire_spread_system.configure({

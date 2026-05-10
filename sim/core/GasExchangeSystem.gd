@@ -37,10 +37,10 @@ var background_species_exchange_kg_s_m2: float = 0.035
 var background_species_path_multiplier_max: float = 3.00
 var background_species_max_fraction_closed: float = 0.010
 var background_species_max_fraction_open: float = 0.040
-var flow_path_direct_fire_vent_reduction: float = 0.70
-var flow_path_direct_fire_min_vent_fraction: float = 0.25
-var flow_path_interior_pull_boost: float = 1.50
-var flow_path_interior_pull_max_multiplier: float = 3.00
+var flow_path_direct_fire_vent_reduction: float = 0.0
+var flow_path_direct_fire_min_vent_fraction: float = 0.0
+var flow_path_interior_pull_boost: float = 0.0
+var flow_path_interior_pull_max_multiplier: float = 1.0
 var flow_path_remote_decay_per_door: float = 0.60
 var flow_path_remote_max_doors: int = 4
 # Efecto chimenea (stack effect): incremento de presión en salas de plantas
@@ -337,7 +337,10 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					co_upper_delta_kg[room_out.id] -= vent_frac * room_out.co_upper_kg
 					co2_delta_kg[room_out.id] -= vent_frac * room_out.co2_kg
 					hcn_delta_kg[room_out.id] -= vent_frac * room_out.hcn_kg
-					_call_room_fraction(remove_upper_layer_fraction_callable, room_out, vent_frac)
+					# Gas térmico: usa fracción volumétrica real, no la fracción de humo.
+					var rho_upper: float = maxf(0.05, air_density_kg_m3_s * 293.15 / maxf(50.0, room_out.temp_upper_c + 273.15))
+					var vol_frac: float = clampf(vented_kg / (rho_upper * maxf(1.0, room_out.volume_m3())), 0.0, 0.15)
+					_call_room_fraction(remove_upper_layer_fraction_callable, room_out, vol_frac)
 					_call_room_dt(sync_room_upper_layer_callable, room_out, dt)
 
 				# Inyección de O2: cuando el humo sale por la ventana, entra aire fresco.

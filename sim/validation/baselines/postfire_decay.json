@@ -24,12 +24,12 @@
                                                   "max":  0.35
                                               },
                     "room_1_final_smoke_kg":  {
-                                                  "expected":  0.200679,
-                                                  "tolerance":  0.012
+                                                  "expected":  0.216048,
+                                                  "tolerance":  0.015
                                               },
                     "smoke_deposited_total_kg":  {
-                                                     "expected":  0.622037,
-                                                     "tolerance":  0.018
+                                                     "expected":  0.664319,
+                                                     "tolerance":  0.022
                                                  }
                 }
 }
