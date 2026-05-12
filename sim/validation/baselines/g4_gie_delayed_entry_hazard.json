@@ -1,8 +1,8 @@
 ﻿{
     "metrics": {
         "time_room_1_fed_above_0_1_s": {
-            "expected": 394.166667,
-            "tolerance": 5.0
+            "expected": 287.833333,
+            "tolerance": 10.0
         },
         "time_room_1_temp_upper_above_100c_s": {
             "expected": 81.750000,

@@ -223,7 +223,7 @@ func _draw() -> void:
 
 		var room_height_m: float = float(rs.get("height_m", room_height_m_default))
 		var room_floor_area_m2: float = maxf(0.01, rm.size.x * rm.size.y)
-		var smoke_layer_m: float = float(rs.get("smoke_layer_m", rs.get("h_layer_m", room_height_m)))
+		var smoke_layer_m: float = float(rs.get("smoke_display_layer_m", rs.get("smoke_layer_m", rs.get("h_layer_m", room_height_m))))
 		var hot_layer_m: float = float(rs.get("hot_layer_m", rs.get("thermal_layer_m", room_height_m)))
 		var layer_150c_m: float = float(rs.get("layer_150c_m", room_height_m))
 		var smoke_kg: float = float(rs.get("smoke_kg", 0.0))
@@ -289,7 +289,7 @@ func _draw() -> void:
 # FONDO
 # ============================================================
 
-func _input(event: InputEvent) -> void:
+func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
 	if not (event is InputEventMouseButton):
@@ -659,6 +659,8 @@ func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
 		if typeof(raw_obj) != TYPE_DICTIONARY:
 			continue
 		var obj: Dictionary = raw_obj
+		if String(obj.get("id", "")).begins_with("room_proxy_"):
+			continue
 		var pos_m: Vector2 = _vector2_from_variant(obj.get("position_m", Vector2.ZERO))
 		var size_m: Vector2 = _vector2_from_variant(obj.get("size_m", Vector2.ONE))
 		if size_m.x <= 0.01 or size_m.y <= 0.01:

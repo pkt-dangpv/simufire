@@ -18,6 +18,17 @@ const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
 @export var show_openings_panel: bool = true
 @export var show_view_toggle: bool = true
 
+@export_group("Atajos de teclado")
+@export var keyboard_shortcuts_enabled: bool = true
+@export var key_time_back: Key = KEY_LEFT
+@export var key_time_forward: Key = KEY_RIGHT
+@export var key_rooms_scroll_up: Key = KEY_UP
+@export var key_rooms_scroll_down: Key = KEY_DOWN
+@export var key_play_pause: Key = KEY_SPACE
+@export var key_stop_and_generate: Key = KEY_END
+@export var rooms_scroll_step_px: float = 78.0
+
+@export_group("Tarjetas de salas")
 ## Tamaño de fuente del encabezado de cada tarjeta de sala.
 @export var font_size_header: int = 13
 ## Tamaño de fuente de los datos de cada tarjeta de sala.
@@ -51,6 +62,8 @@ const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
 @onready var btn_hvac: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnHVAC") as Button
 @onready var time_scale_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow/TimeScaleLabel") as Label
 @onready var playback_status_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow/PlaybackStatusLabel") as Label
+@onready var shortcut_help_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ShortcutHelpLabel") as Label
+@onready var rooms_scroll_container: ScrollContainer = get_node_or_null("RoomsDataPanel/MarginContainer/ScrollContainer") as ScrollContainer
 @onready var rooms_data_vbox: GridContainer = get_node_or_null("RoomsDataPanel/MarginContainer/ScrollContainer/RoomsGrid") as GridContainer
 
 var building: BuildingModel = null
@@ -58,9 +71,14 @@ var selected_opening_index: int = 0
 var _selector_sync_in_progress: bool = false
 var _known_opening_count: int = -1
 var _room_cards: Dictionary = {}  # room_id -> {header, data, card}
+var _playback_paused: bool = true
+var _simulation_finished: bool = false
+var _graphs_launched: bool = false
+var _sim_time_s: float = 0.0
 
 
 func _ready() -> void:
+	_configure_mouse_filters()
 	_apply_hud_visual_style()
 	if status_panel != null:
 		status_panel.visible = show_status_panel
@@ -100,6 +118,7 @@ func _ready() -> void:
 	_update_first_person_toggle(false)
 	_update_hvac_button(false, false)
 	_apply_hud_visual_style()
+	_sync_shortcut_labels()
 
 
 func _apply_hud_visual_style() -> void:
@@ -114,6 +133,12 @@ func _apply_hud_visual_style() -> void:
 		time_scale_label.add_theme_color_override("font_color", SimuFireThemeScript.TEXT)
 	if playback_status_label != null:
 		playback_status_label.add_theme_color_override("font_color", SimuFireThemeScript.ORANGE)
+	if shortcut_help_label != null:
+		shortcut_help_label.add_theme_font_override("font", SimuFireThemeScript.body_font())
+		shortcut_help_label.add_theme_font_size_override("font_size", 11)
+		shortcut_help_label.add_theme_color_override("font_color", SimuFireThemeScript.MUTED)
+		shortcut_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		shortcut_help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if opening_status_label != null:
 		opening_status_label.add_theme_font_override("font", SimuFireThemeScript.title_font())
 		opening_status_label.add_theme_font_size_override("font_size", 12)
@@ -133,6 +158,60 @@ func _apply_hud_visual_style() -> void:
 		button.text = button.text.to_upper()
 		button.add_theme_font_override("font", SimuFireThemeScript.title_font())
 		button.add_theme_font_size_override("font_size", 12)
+		button.focus_mode = Control.FOCUS_NONE
+
+
+func _configure_mouse_filters() -> void:
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for panel_path in ["OpeningsPanel", "TimeControlsPanel", "RoomsDataPanel", "StatusPanel", "WaterPanel", "VentPanel", "RescuePanel"]:
+		var panel := get_node_or_null(panel_path) as Control
+		if panel != null:
+			panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	if rooms_scroll_container != null:
+		rooms_scroll_container.mouse_filter = Control.MOUSE_FILTER_STOP
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not keyboard_shortcuts_enabled:
+		return
+	if not (event is InputEventKey):
+		return
+	var key_event := event as InputEventKey
+	if not key_event.pressed or key_event.echo:
+		return
+
+	if _matches_shortcut(key_event, key_time_back):
+		_on_time_back_pressed()
+		get_viewport().set_input_as_handled()
+	elif _matches_shortcut(key_event, key_time_forward):
+		_on_time_forward_pressed()
+		get_viewport().set_input_as_handled()
+	elif _matches_shortcut(key_event, key_rooms_scroll_up):
+		scroll_rooms_panel(-1)
+		get_viewport().set_input_as_handled()
+	elif _matches_shortcut(key_event, key_rooms_scroll_down):
+		scroll_rooms_panel(1)
+		get_viewport().set_input_as_handled()
+	elif _matches_shortcut(key_event, key_play_pause):
+		_on_play_pause_shortcut_pressed()
+		get_viewport().set_input_as_handled()
+	elif _matches_shortcut(key_event, key_stop_and_generate):
+		if _can_stop_and_generate_graphs():
+			_on_stop_graphs_pressed()
+		get_viewport().set_input_as_handled()
+
+
+func scroll_rooms_panel(direction: int) -> void:
+	if rooms_scroll_container == null or direction == 0:
+		return
+	var scrollbar := rooms_scroll_container.get_v_scroll_bar()
+	if scrollbar == null:
+		return
+	scrollbar.value = clampf(
+		scrollbar.value + rooms_scroll_step_px * float(direction),
+		scrollbar.min_value,
+		scrollbar.max_value
+	)
 
 
 func bind_building(next_building: BuildingModel) -> void:
@@ -355,7 +434,7 @@ func _update_view_toggle(is_3d_enabled: bool) -> void:
 		return
 	btn_view_3d.visible = show_view_toggle
 	btn_view_3d.set_pressed_no_signal(is_3d_enabled)
-	btn_view_3d.text = "Vista 3D" if not is_3d_enabled else "Vista 2D"
+	btn_view_3d.text = "Vista 3D"
 
 
 func _ensure_first_person_button() -> void:
@@ -482,6 +561,11 @@ func _update_time_controls(
 	graphs_launched: bool,
 	time_scale: float
 ) -> void:
+	_sim_time_s = sim_time_s
+	_playback_paused = playback_paused
+	_simulation_finished = simulation_finished
+	_graphs_launched = graphs_launched
+
 	if time_scale_label != null:
 		time_scale_label.text = _format_time_scale_label(time_scale)
 
@@ -503,7 +587,56 @@ func _update_time_controls(
 		btn_time_forward.disabled = simulation_finished
 	if btn_stop_graphs != null:
 		btn_stop_graphs.disabled = sim_time_s <= 0.0 or graphs_launched
-		btn_stop_graphs.text = "Generacion lanzada" if graphs_launched else "Parar + graficas"
+		btn_stop_graphs.text = "Generacion lanzada" if graphs_launched else "%s Parar + graficas" % _format_key_label(key_stop_and_generate)
+	_sync_shortcut_labels()
+
+
+func _sync_shortcut_labels() -> void:
+	if btn_time_back != null:
+		btn_time_back.text = "%s Atras" % _format_key_label(key_time_back)
+	if btn_time_forward != null:
+		btn_time_forward.text = "%s Adelante" % _format_key_label(key_time_forward)
+	if btn_play != null:
+		btn_play.text = "%s Play/Pausa" % _format_key_label(key_play_pause)
+	if btn_pause != null:
+		btn_pause.visible = false
+	if btn_stop_graphs != null and not _graphs_launched:
+		btn_stop_graphs.text = "%s Parar + graficas" % _format_key_label(key_stop_and_generate)
+	if shortcut_help_label != null:
+		shortcut_help_label.text = "%s/%s tiempo   %s/%s scroll salas   %s play/pausa   %s parar + graficas" % [
+			_format_key_label(key_time_back),
+			_format_key_label(key_time_forward),
+			_format_key_label(key_rooms_scroll_up),
+			_format_key_label(key_rooms_scroll_down),
+			_format_key_label(key_play_pause),
+			_format_key_label(key_stop_and_generate)
+		]
+
+
+func _matches_shortcut(event: InputEventKey, keycode: Key) -> bool:
+	return event.keycode == keycode or event.physical_keycode == keycode
+
+
+func _format_key_label(keycode: Key) -> String:
+	match keycode:
+		KEY_LEFT:
+			return "Izq"
+		KEY_RIGHT:
+			return "Der"
+		KEY_UP:
+			return "Arriba"
+		KEY_DOWN:
+			return "Abajo"
+		KEY_SPACE:
+			return "Espacio"
+		KEY_END:
+			return "Fin"
+		_:
+			return str(int(keycode))
+
+
+func _can_stop_and_generate_graphs() -> bool:
+	return _sim_time_s > 0.0 and not _graphs_launched
 
 
 func _format_time_scale_label(time_scale: float) -> String:
@@ -563,6 +696,15 @@ func _on_play_pressed() -> void:
 
 func _on_pause_pressed() -> void:
 	pause_requested.emit()
+
+
+func _on_play_pause_shortcut_pressed() -> void:
+	if _simulation_finished:
+		return
+	if _playback_paused:
+		play_requested.emit()
+	else:
+		pause_requested.emit()
 
 
 func _on_time_forward_pressed() -> void:

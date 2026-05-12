@@ -1,0 +1,49 @@
+[gd_scene format=3]
+
+[sub_resource type="BoxMesh" id="BoxMesh_unit"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood"]
+albedo_color = Color(0.46, 0.31, 0.19, 1)
+roughness = 0.93
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood_dark"]
+albedo_color = Color(0.29, 0.18, 0.11, 1)
+roughness = 0.93
+
+[node name="Table" type="Node3D"]
+
+[node name="Top" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_wood")
+position = Vector3(0, 0.74, 0)
+scale = Vector3(1, 0.075, 1)
+
+[node name="LegFrontLeft" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_wood_dark")
+position = Vector3(-0.42, 0.37, 0.42)
+scale = Vector3(0.075, 0.74, 0.075)
+
+[node name="LegFrontRight" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_wood_dark")
+position = Vector3(0.42, 0.37, 0.42)
+scale = Vector3(0.075, 0.74, 0.075)
+
+[node name="LegBackLeft" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_wood_dark")
+position = Vector3(-0.42, 0.37, -0.42)
+scale = Vector3(0.075, 0.74, 0.075)
+
+[node name="LegBackRight" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_wood_dark")
+position = Vector3(0.42, 0.37, -0.42)
+scale = Vector3(0.075, 0.74, 0.075)
+
+[node name="DeskDrawer" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_wood_dark")
+position = Vector3(-0.24, 0.58, 0.46)
+scale = Vector3(0.32, 0.16, 0.08)

@@ -1,0 +1,31 @@
+[gd_scene format=3]
+
+[sub_resource type="BoxMesh" id="BoxMesh_unit"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_rug"]
+albedo_color = Color(0.47, 0.28, 0.22, 1)
+roughness = 0.99
+
+[sub_resource type="StandardMaterial3D" id="Mat_rug_edge"]
+albedo_color = Color(0.34, 0.20, 0.16, 1)
+roughness = 0.99
+
+[node name="Rug" type="Node3D"]
+
+[node name="Body" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_rug")
+position = Vector3(0, 0.025, 0)
+scale = Vector3(1, 0.035, 1)
+
+[node name="BorderFront" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_rug_edge")
+position = Vector3(0, 0.048, 0.47)
+scale = Vector3(0.94, 0.018, 0.035)
+
+[node name="BorderBack" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_rug_edge")
+position = Vector3(0, 0.048, -0.47)
+scale = Vector3(0.94, 0.018, 0.035)

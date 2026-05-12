@@ -1,0 +1,49 @@
+[gd_scene format=3]
+
+[sub_resource type="BoxMesh" id="BoxMesh_unit"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood"]
+albedo_color = Color(0.45, 0.30, 0.18, 1)
+roughness = 0.93
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood_dark"]
+albedo_color = Color(0.27, 0.17, 0.1, 1)
+roughness = 0.93
+
+[node name="CoffeeTable" type="Node3D"]
+
+[node name="Top" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_wood")
+position = Vector3(0, 0.42, 0)
+scale = Vector3(1, 0.075, 1)
+
+[node name="Shelf" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_wood_dark")
+position = Vector3(0, 0.22, 0)
+scale = Vector3(0.82, 0.05, 0.78)
+
+[node name="LegFrontLeft" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_wood_dark")
+position = Vector3(-0.42, 0.22, 0.42)
+scale = Vector3(0.065, 0.42, 0.065)
+
+[node name="LegFrontRight" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_wood_dark")
+position = Vector3(0.42, 0.22, 0.42)
+scale = Vector3(0.065, 0.42, 0.065)
+
+[node name="LegBackLeft" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_wood_dark")
+position = Vector3(-0.42, 0.22, -0.42)
+scale = Vector3(0.065, 0.42, 0.065)
+
+[node name="LegBackRight" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_wood_dark")
+position = Vector3(0.42, 0.22, -0.42)
+scale = Vector3(0.065, 0.42, 0.065)

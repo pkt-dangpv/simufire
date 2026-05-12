@@ -37,6 +37,11 @@ var fire_spread_system = FireSpreadSystemScript.new()
 var glass_failure_system = GlassFailureSystemScript.new()
 var hvac_system = HVACSystemScript.new()
 
+# Cache de estados de flujo pre-computados para todas las aberturas interiores.
+# Se recalcula una vez al comienzo de cada paso de tiempo y se comparte entre
+# ThermalSystem y OxygenExchangeSystem para garantizar consistencia física.
+var _opening_flow_cache: Dictionary = {}
+
 const o2_nominal: float = 0.209
 
 # ============================================================
@@ -756,7 +761,8 @@ func _build_state_context() -> Dictionary:
 		"is_quiescent_callable": Callable(thermal_system, "is_room_quiescent"),
 		"window_open_max_callable": Callable(self, "_window_open_max_for_room"),
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
-		"kawagoe_factor_callable": Callable(self, "_kawagoe_factor_for_room")
+		"kawagoe_factor_callable": Callable(self, "_kawagoe_factor_for_room"),
+		"energy_budget": thermal_system.get_energy_budget() if energy_budget_enabled else {}
 	}
 
 
@@ -775,8 +781,30 @@ func _build_oxygen_exchange_hooks() -> Dictionary:
 	return {
 		"effective_hot_layer_height_callable": Callable(thermal_system, "effective_hot_layer_height_m"),
 		"build_interior_opening_flow_state_callable": Callable(thermal_system, "build_interior_opening_flow_state"),
+		"opening_flow_cache": _opening_flow_cache,
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room")
 	}
+
+
+# Construye un diccionario {op → flow_state} para todas las aberturas interiores
+# activas. La clave es el objeto OpeningModel; el valor es el dict devuelto por
+# ThermalSystem.build_interior_opening_flow_state(). Solo aberturas entre dos
+# habitaciones (sin OUTSIDE_ID) y con open_fraction > 0 son incluidas.
+func _build_opening_flow_cache() -> Dictionary:
+	var cache: Dictionary = {}
+	if building == null:
+		return cache
+	for op in building.get_openings():
+		if op == null or op.open_fraction <= 0.0:
+			continue
+		if op.a == BuildingModel.OUTSIDE_ID or op.b == BuildingModel.OUTSIDE_ID:
+			continue
+		var room_a: RoomModel = building.get_room(op.a)
+		var room_b: RoomModel = building.get_room(op.b)
+		if room_a == null or room_b == null:
+			continue
+		cache[op] = thermal_system.build_interior_opening_flow_state(room_a, room_b, op)
+	return cache
 
 
 func _build_hvac_hooks() -> Dictionary:
@@ -935,11 +963,19 @@ func step(delta: float) -> void:
 			_on_sim_finished()
 		return
 
+	# Pre-computar el estado de flujo de cada abertura interior una sola vez,
+	# con las condiciones de sala al inicio de este paso. Esto garantiza que
+	# ThermalSystem y OxygenExchangeSystem operen sobre la misma "realidad física"
+	# dentro del mismo timestep, evitando que uno de ellos vea estados ya
+	# modificados por el otro.
+	_opening_flow_cache = _build_opening_flow_cache()
+
 	_step_pool_fires(dt)
 	_step_fire(dt)
 	_step_oxygen(dt)
 	thermal_system.step(building, dt, {
-		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room")
+		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
+		"opening_flow_cache": _opening_flow_cache
 	})
 	_step_suppression(dt)
 	if glass_auto_break_enabled:

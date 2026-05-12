@@ -47,6 +47,7 @@ func build_state(context: Dictionary) -> Dictionary:
 	var outside_open_path_factor_callable: Callable = context.get("outside_open_path_factor_callable", Callable())
 	var kawagoe_factor_callable: Callable = context.get("kawagoe_factor_callable", Callable())
 	var kawagoe_coeff: float = float(context.get("kawagoe_coeff", 0.0))
+	var energy_budget: Dictionary = context.get("energy_budget", {})
 
 	for room_id in _collect_sorted_room_ids(building):
 		var room: RoomModel = building.get_room(room_id)
@@ -61,6 +62,12 @@ func build_state(context: Dictionary) -> Dictionary:
 		var effective_hot_layer_m: float = _call_room_float(effective_hot_layer_callable, room, clampf(room.thermal_layer_m, 0.0, room.height_m))
 		if room.smoke_kg >= 0.30:
 			smoke_layer_m = minf(smoke_layer_m, effective_hot_layer_m + 0.68)
+		# Capa visual basada solo en masa de hollín — sin influencia del gas caliente limpio.
+		# Evita que upper_gas_kg sin humo real arrastre el plano neutro visual hacia abajo
+		# (p.ej. pasillo que recibe gas caliente cuando se reabre una puerta tras ventilar).
+		var smoke_display_layer_m: float = smoke_layer_m
+		if smoke_model != null:
+			smoke_display_layer_m = maxf(smoke_layer_m, smoke_model.estimate_smoke_layer_height_m(room))
 		var thermal_layer_m: float = clampf(room.thermal_layer_m, 0.0, room.height_m)
 		var layer_150c_m: float = clampf(room.layer_150c_m, 0.0, room.height_m)
 		# Visibilidad acoplada al smoke_layer_m efectivo que se exporta al CSV
@@ -104,6 +111,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"thermal_layer_m": thermal_layer_m,
 			"hot_layer_m": effective_hot_layer_m,
 			"smoke_layer_m": smoke_layer_m,
+			"smoke_display_layer_m": smoke_display_layer_m,
 			"layer_150c_m": layer_150c_m,
 			"overpressure_pa": room.overpressure_pa,
 			"smoke_kg": room.smoke_kg,
@@ -162,7 +170,19 @@ func build_state(context: Dictionary) -> Dictionary:
 			"window_open_max": _call_room_id_float(window_open_max_callable, room_id, -1.0),
 			"outside_open_path_factor": _call_room_id_float(outside_open_path_factor_callable, room_id, 0.0),
 			"kawagoe_factor": kawagoe_factor,
-			"kawagoe_hrr_max_kw": kawagoe_coeff * maxf(0.0, kawagoe_factor)
+			"kawagoe_hrr_max_kw": kawagoe_coeff * maxf(0.0, kawagoe_factor),
+
+			# Budget energético (solo cuando energy_budget_enabled=true en el engine)
+			"bud_e_fire_kj": float(energy_budget.get(room_id, {}).get("e_fire_kj", 0.0)),
+			"bud_q_rad_kj": float(energy_budget.get(room_id, {}).get("q_rad_kj", 0.0)),
+			"bud_q_to_lower_kj": float(energy_budget.get(room_id, {}).get("q_to_lower_kj", 0.0)),
+			"bud_q_to_ambient_kj": float(energy_budget.get(room_id, {}).get("q_to_ambient_kj", 0.0)),
+			"bud_q_wall_abs_kj": float(energy_budget.get(room_id, {}).get("q_wall_abs_kj", 0.0)),
+			"bud_q_wall_emit_kj": float(energy_budget.get(room_id, {}).get("q_wall_emit_kj", 0.0)),
+			"bud_de_upper_kj": float(energy_budget.get(room_id, {}).get("de_upper_kj", 0.0)),
+			"bud_q_residual_kj": float(energy_budget.get(room_id, {}).get("q_residual_kj", 0.0)),
+			"bud_chi_rad": float(energy_budget.get(room_id, {}).get("chi_rad", 0.0)),
+			"bud_q_fire_rad_kj": float(energy_budget.get(room_id, {}).get("q_fire_rad_kj", 0.0))
 		}
 
 	# Detectores: estado triggered de cada detector definido en el template.

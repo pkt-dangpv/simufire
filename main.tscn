@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://b4jh4ba6wx5ye" path="res://sim/core/SimulationEngine.gd" id="4_lquwl"]
 [ext_resource type="Script" uid="uid://dgomuflgrvt3r" path="res://sim/validation/CaseRunner.gd" id="5_case"]
 [ext_resource type="Script" uid="uid://b0fuen3e64cbj" path="res://view/Visualizer3D.gd" id="6_3dviz"]
+[ext_resource type="Script" uid="uid://dp46g35hj2x73" path="res://view/FirstPersonController.gd" id="7_fp"]
 
 [node name="Main" type="Node" unique_id=1481794009]
 script = ExtResource("1_ig7tw")
@@ -60,6 +61,15 @@ position = Vector3(0, 5, 0)
 light_energy = 0.35
 omni_range = 18.0
 
+[node name="FirstPersonController" type="CharacterBody3D" parent="World3D"]
+visible = false
+script = ExtResource("7_fp")
+ambient_fill_energy = 0.24
+room_ceiling_light_energy = 0.52
+landing_light_energy = 0.95
+landing_light_range_m = 3.8
+window_light_energy = 0.32
+
 [node name="UI" type="CanvasLayer" parent="." unique_id=894412047]
 
 [node name="HUD" type="Control" parent="UI" unique_id=1471733191]
@@ -73,6 +83,7 @@ offset_right = 131.0
 offset_bottom = 69.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 script = ExtResource("3_h2yge")
 
 [node name="OpeningsPanel" type="PanelContainer" parent="UI/HUD" unique_id=938201145]
@@ -86,6 +97,7 @@ offset_left = -174.0
 offset_top = -67.0
 offset_right = 174.0
 offset_bottom = 67.0
+mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/OpeningsPanel" unique_id=194826401]
 layout_mode = 2
@@ -131,6 +143,7 @@ offset_left = 4.0
 offset_top = 491.0
 offset_right = 304.0
 offset_bottom = 641.0
+mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/WaterPanel" unique_id=794870555]
 visible = false
@@ -168,6 +181,7 @@ offset_left = 504.0
 offset_top = 564.0
 offset_right = 621.0
 offset_bottom = 630.0
+mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/VentPanel" unique_id=1263524161]
 layout_mode = 2
@@ -192,6 +206,7 @@ offset_left = 338.0
 offset_top = 587.0
 offset_right = 472.0
 offset_bottom = 627.0
+mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/RescuePanel" unique_id=1598199862]
 layout_mode = 2
@@ -211,6 +226,7 @@ offset_left = 288.0
 offset_top = 4.0
 offset_right = 406.0
 offset_bottom = 44.0
+mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/StatusPanel" unique_id=321614049]
 layout_mode = 2
@@ -240,11 +256,12 @@ layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -275.0
-offset_top = 566.0
-offset_right = 325.0
+offset_left = -390.0
+offset_top = 544.0
+offset_right = 390.0
 offset_bottom = 645.0
 grow_horizontal = 2
+mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/TimeControlsPanel" unique_id=477682015]
 layout_mode = 2
@@ -262,35 +279,56 @@ layout_mode = 2
 theme_override_constants/separation = 6
 
 [node name="BtnStopGraphs" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1783538795]
-custom_minimum_size = Vector2(118, 34)
+custom_minimum_size = Vector2(152, 34)
 layout_mode = 2
-text = "Parar + graficas"
+focus_mode = 0
+text = "Fin Parar + graficas"
 
 [node name="BtnTimeBack" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1529251814]
-custom_minimum_size = Vector2(70, 34)
+custom_minimum_size = Vector2(78, 34)
 layout_mode = 2
-text = "Atras"
+focus_mode = 0
+text = "Izq Atras"
 
 [node name="BtnPlay" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=113975287]
-custom_minimum_size = Vector2(62, 34)
+custom_minimum_size = Vector2(140, 34)
 layout_mode = 2
-text = "Play"
+focus_mode = 0
+text = "Espacio Play/Pausa"
 
 [node name="BtnPause" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1951494211]
+visible = false
 custom_minimum_size = Vector2(68, 34)
 layout_mode = 2
+focus_mode = 0
 text = "Pausa"
 
 [node name="BtnTimeForward" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1402831685]
-custom_minimum_size = Vector2(84, 34)
+custom_minimum_size = Vector2(96, 34)
 layout_mode = 2
-text = "Adelante"
+focus_mode = 0
+text = "Der Adelante"
 
 [node name="BtnView3D" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1889186757]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
+focus_mode = 0
 toggle_mode = true
 text = "Vista 3D"
+
+[node name="BtnFirstPerson" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow"]
+custom_minimum_size = Vector2(70, 34)
+layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+text = "FP"
+
+[node name="BtnHVAC" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow"]
+custom_minimum_size = Vector2(92, 34)
+layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+text = "HVAC OFF"
 
 [node name="InfoRow" type="HBoxContainer" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer" unique_id=1371752556]
 layout_mode = 2
@@ -306,6 +344,45 @@ horizontal_alignment = 1
 layout_mode = 2
 text = "PLAY"
 horizontal_alignment = 1
+
+[node name="ShortcutHelpLabel" type="Label" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Izq/Der tiempo   Arriba/Abajo scroll salas   Espacio play/pausa   Fin parar + graficas"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="RoomsDataPanel" type="PanelContainer" parent="UI/HUD"]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -392.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -287.0
+grow_horizontal = 0
+grow_vertical = 2
+mouse_filter = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="UI/HUD/RoomsDataPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="ScrollContainer" type="ScrollContainer" parent="UI/HUD/RoomsDataPanel/MarginContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 0
+
+[node name="RoomsGrid" type="GridContainer" parent="UI/HUD/RoomsDataPanel/MarginContainer/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+columns = 2
 
 [node name="CaseRunner" type="Node" parent="." unique_id=2023234799]
 script = ExtResource("5_case")

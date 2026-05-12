@@ -1,0 +1,32 @@
+[gd_scene format=3]
+
+[sub_resource type="BoxMesh" id="BoxMesh_unit"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_curtain"]
+albedo_color = Color(0.65, 0.58, 0.48, 0.72)
+roughness = 0.98
+transparency = 1
+
+[sub_resource type="StandardMaterial3D" id="Mat_rod"]
+albedo_color = Color(0.18, 0.14, 0.11, 1)
+roughness = 0.75
+
+[node name="Curtain" type="Node3D"]
+
+[node name="PanelLeft" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_curtain")
+position = Vector3(-0.22, 1.05, 0)
+scale = Vector3(0.42, 1.5, 0.035)
+
+[node name="PanelRight" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_curtain")
+position = Vector3(0.22, 1.05, 0)
+scale = Vector3(0.42, 1.5, 0.035)
+
+[node name="Rod" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_rod")
+position = Vector3(0, 1.84, -0.015)
+scale = Vector3(1, 0.045, 0.045)

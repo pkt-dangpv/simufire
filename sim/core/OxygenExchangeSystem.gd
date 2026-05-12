@@ -90,6 +90,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		"build_interior_opening_flow_state_callable",
 		Callable()
 	)
+	# Cache pre-computado en SimulationEngine: {op -> flow_state}. Tiene prioridad
+	# sobre el callable; el callable se usa como fallback si la abertura no está en cache.
+	var opening_flow_cache: Dictionary = hooks.get("opening_flow_cache", {})
 	var outside_open_path_factor_callable: Callable = hooks.get(
 		"outside_open_path_factor_callable",
 		Callable()
@@ -149,7 +152,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			air_density_kg_m3,
 			g_gravity,
 			build_interior_flow_callable,
-			outside_open_path_factor_callable
+			outside_open_path_factor_callable,
+			opening_flow_cache
 		)
 
 
@@ -263,7 +267,8 @@ func _step_interior_opening_o2(
 	air_density_kg_m3: float,
 	g_gravity: float,
 	build_interior_flow_callable: Callable,
-	outside_open_path_factor_callable: Callable
+	outside_open_path_factor_callable: Callable,
+	opening_flow_cache: Dictionary = {}
 ) -> void:
 	var base_area_eff_m2: float = maxf(0.0, op.width_m * op.height_m * op.open_fraction)
 	if base_area_eff_m2 > 0.0:
@@ -321,12 +326,12 @@ func _step_interior_opening_o2(
 		if base_exchange_kg > 0.0:
 			_exchange_room_o2_immediate(room_a, room_b, base_exchange_kg, air_density_kg_m3)
 
-	var flow_state: Dictionary = _call_interior_flow_state(
-		build_interior_flow_callable,
-		room_a,
-		room_b,
-		op
-	)
+	# Usar el cache pre-computado si está disponible; fallback al callable si no.
+	var flow_state: Dictionary
+	if opening_flow_cache.has(op):
+		flow_state = opening_flow_cache[op]
+	else:
+		flow_state = _call_interior_flow_state(build_interior_flow_callable, room_a, room_b, op)
 	if not bool(flow_state.get("active", false)):
 		return
 

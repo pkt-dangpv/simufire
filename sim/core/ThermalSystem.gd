@@ -137,6 +137,7 @@ var layer_relax_up: float = 0.015
 # pero ya no controlan la física; usar hrr_chi_rad_normal/low_o2 para ajustar.
 var hrr_chi_rad_normal: float = 0.35
 var hrr_chi_rad_low_o2: float = 0.50
+var hrr_rad_wall_fraction: float = 0.0       # fracción de χ_rad·HRR que va directamente a paredes
 var upper_heat_capture_min: float = 0.10      # obsoleto — usar hrr_chi_rad_normal
 var upper_heat_capture_max: float = 0.25      # obsoleto — usar hrr_chi_rad_normal
 var upper_heat_capture_outside_open_bonus: float = 0.0  # obsoleto
@@ -176,6 +177,10 @@ var energy_budget_warn_fraction: float = 0.10
 ## Último budget por sala: {room_id -> {e_fire_kj, q_rad_kj, q_to_lower_kj, q_to_ambient_kj,
 ## q_wall_abs_kj, q_wall_emit_kj, de_upper_kj, q_residual_kj, chi_rad}}
 var _energy_budget: Dictionary = {}
+
+
+func get_energy_budget() -> Dictionary:
+	return _energy_budget
 
 
 func set_references(building: BuildingModel, smoke_model: SmokeModel) -> void:
@@ -343,6 +348,7 @@ func configure(settings: Dictionary) -> void:
 	)
 	hrr_chi_rad_normal = float(settings.get("hrr_chi_rad_normal", hrr_chi_rad_normal))
 	hrr_chi_rad_low_o2 = float(settings.get("hrr_chi_rad_low_o2", hrr_chi_rad_low_o2))
+	hrr_rad_wall_fraction = float(settings.get("hrr_rad_wall_fraction", hrr_rad_wall_fraction))
 	radiation_opening_enabled = bool(settings.get("radiation_opening_enabled", radiation_opening_enabled))
 	radiation_flame_emissivity = float(settings.get("radiation_flame_emissivity", radiation_flame_emissivity))
 	radiation_opening_view_factor = float(settings.get("radiation_opening_view_factor", radiation_opening_view_factor))
@@ -361,6 +367,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 	var _outside_open_path_factor_callable: Callable = hooks.get(
 		"outside_open_path_factor_callable", Callable()
 	)
+	# Cache pre-computado en SimulationEngine: {op -> flow_state} para todas las
+	# aberturas interiores. Si no se pasa (llamadas antiguas o tests), fallback al cálculo.
+	var _flow_cache: Dictionary = hooks.get("opening_flow_cache", {})
 	var ambient_c: float = ambient_temp_c()
 
 	# Determinar si hay algún fuego activo en el edificio (para re-emisión de paredes).
@@ -488,8 +497,10 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 				wall_emission_kj,
 				maxf(0.0, t_wall_c - ambient_c) * wall_capacity_kj_k * 0.15
 			)
+		# Radiación directa del fuego → paredes (χ_rad · HRR · dt, bypasses upper gas)
+		var q_rad_fire_kj: float = room.hrr_kw * chi_rad * dt
 		# Actualizar temperatura de pared
-		t_wall_c += wall_absorption_kj / maxf(0.1, wall_capacity_kj_k)
+		t_wall_c += (wall_absorption_kj + q_rad_fire_kj * hrr_rad_wall_fraction) / maxf(0.1, wall_capacity_kj_k)
 		t_wall_c -= wall_emission_kj / maxf(0.1, wall_capacity_kj_k)
 		# Enfriamiento lento de la superficie hacia el núcleo/ambiente
 		t_wall_c = lerpf(t_wall_c, ambient_c, minf(wall_core_decay_per_s * dt, 0.99))
@@ -539,6 +550,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 					- wall_absorption_kj - _bud_de_upper_kj
 			_energy_budget[room.id] = {
 				"e_fire_kj": _bud_e_fire_kj,
+				"q_fire_rad_kj": q_rad_fire_kj,
 				"q_rad_kj": radiative_loss_kj,
 				"q_to_lower_kj": energy_to_lower_kj,
 				"q_to_ambient_kj": energy_to_ambient_kj,
@@ -577,7 +589,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		if room_a == null or room_b == null:
 			continue
 
-		var flow_state: Dictionary = build_interior_opening_flow_state(room_a, room_b, op)
+		var flow_state: Dictionary = _flow_cache.get(op, build_interior_opening_flow_state(room_a, room_b, op))
 		_apply_outside_assisted_background_heat_exchange(
 			room_a, room_b, op, dt, ambient_c, _outside_open_path_factor_callable
 		)

@@ -1,0 +1,35 @@
+[gd_scene format=3]
+
+[sub_resource type="BoxMesh" id="BoxMesh_unit"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood"]
+albedo_color = Color(0.38, 0.23, 0.13, 1)
+roughness = 0.94
+
+[sub_resource type="StandardMaterial3D" id="Mat_black"]
+albedo_color = Color(0.02, 0.025, 0.028, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="Mat_screen"]
+albedo_color = Color(0.04, 0.07, 0.08, 1)
+roughness = 0.7
+
+[node name="TVStand" type="Node3D"]
+
+[node name="Cabinet" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_wood")
+position = Vector3(0, 0.25, 0)
+scale = Vector3(1, 0.5, 1)
+
+[node name="FrontSlot" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_black")
+position = Vector3(0, 0.34, 0.515)
+scale = Vector3(0.72, 0.11, 0.025)
+
+[node name="Screen" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_screen")
+position = Vector3(0, 0.91, 0.28)
+scale = Vector3(0.78, 0.64, 0.035)

@@ -1,0 +1,42 @@
+[gd_scene format=3]
+
+[sub_resource type="BoxMesh" id="BoxMesh_unit"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_door"]
+albedo_color = Color(0.42, 0.25, 0.12, 1)
+roughness = 0.94
+
+[sub_resource type="StandardMaterial3D" id="Mat_door_light"]
+albedo_color = Color(0.54, 0.33, 0.17, 1)
+roughness = 0.94
+
+[sub_resource type="StandardMaterial3D" id="Mat_handle"]
+albedo_color = Color(0.75, 0.60, 0.34, 1)
+roughness = 0.45
+metallic = 0.25
+
+[node name="DoorPanel" type="Node3D"]
+
+[node name="Slab" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_door")
+position = Vector3(0, 0, 0)
+scale = Vector3(1, 1, 1)
+
+[node name="InsetTop" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_door_light")
+position = Vector3(0, 0.22, -0.53)
+scale = Vector3(0.62, 0.26, 0.055)
+
+[node name="InsetBottom" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_door_light")
+position = Vector3(0, -0.24, -0.53)
+scale = Vector3(0.62, 0.32, 0.055)
+
+[node name="Handle" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_handle")
+position = Vector3(0.34, 0.03, -0.59)
+scale = Vector3(0.08, 0.04, 0.08)

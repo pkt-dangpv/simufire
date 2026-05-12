@@ -483,7 +483,14 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 				moved_upper_gas_kg *= delayed_upper_carry_fraction
 				moved_upper_energy_kj *= delayed_upper_carry_fraction
 
-			source.upper_gas_kg = maxf(0.0, source.upper_gas_kg - moved_upper_gas_kg)
+			# Conservación de masa: no transferir más gas del que realmente tiene la fuente.
+			# moved_upper_gas_kg puede superar source.upper_gas_kg cuando éste es pequeño
+			# (< ~0.02 kg) debido al multiplicador ×1.50 y al piso maxf(0.03, ...).
+			# Sin este cap, source se recorta a 0 pero target recibe el valor completo.
+			moved_upper_gas_kg = minf(moved_upper_gas_kg, source.upper_gas_kg)
+			moved_upper_energy_kj = minf(moved_upper_energy_kj, source.upper_energy_kj)
+
+			source.upper_gas_kg -= moved_upper_gas_kg
 			source.upper_energy_kj = maxf(0.0, source.upper_energy_kj - moved_upper_energy_kj)
 
 		var co_moved_kg: float = 0.0

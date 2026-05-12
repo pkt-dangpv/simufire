@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://b4jh4ba6wx5ye" path="res://sim/core/SimulationEngine.gd" id="4_lquwl"]
 [ext_resource type="Script" uid="uid://dgomuflgrvt3r" path="res://sim/validation/CaseRunner.gd" id="5_case"]
 [ext_resource type="Script" path="res://view/Visualizer3D.gd" id="6_3dviz"]
+[ext_resource type="Script" uid="uid://dp46g35hj2x73" path="res://view/FirstPersonController.gd" id="7_fp"]
 
 [node name="Main" type="Node" unique_id=655075668]
 script = ExtResource("1_ig7tw")
@@ -63,6 +64,15 @@ position = Vector3(0, 5, 0)
 light_energy = 0.35
 omni_range = 18.0
 
+[node name="FirstPersonController" type="CharacterBody3D" parent="World3D"]
+visible = false
+script = ExtResource("7_fp")
+ambient_fill_energy = 0.24
+room_ceiling_light_energy = 0.52
+landing_light_energy = 0.95
+landing_light_range_m = 3.8
+window_light_energy = 0.32
+
 [node name="UI" type="CanvasLayer" parent="." unique_id=2071092191]
 
 [node name="HUD" type="Control" parent="UI" unique_id=1152768475]
@@ -72,6 +82,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 script = ExtResource("3_h2yge")
 
 [node name="TimeControlsPanel" type="PanelContainer" parent="UI/HUD" unique_id=1869382980]
@@ -82,11 +93,12 @@ anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
 offset_left = -390.0
-offset_top = -82.0
+offset_top = -104.0
 offset_right = 390.0
 offset_bottom = -3.0
 grow_horizontal = 2
 grow_vertical = 0
+mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/TimeControlsPanel" unique_id=1852143337]
 layout_mode = 2
@@ -104,35 +116,56 @@ layout_mode = 2
 theme_override_constants/separation = 6
 
 [node name="BtnStopGraphs" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=362111269]
-custom_minimum_size = Vector2(118, 34)
+custom_minimum_size = Vector2(152, 34)
 layout_mode = 2
-text = "Parar + graficas"
+focus_mode = 0
+text = "Fin Parar + graficas"
 
 [node name="BtnTimeBack" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=994542229]
-custom_minimum_size = Vector2(70, 34)
+custom_minimum_size = Vector2(78, 34)
 layout_mode = 2
-text = "Atras"
+focus_mode = 0
+text = "Izq Atras"
 
 [node name="BtnPlay" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=2135431500]
-custom_minimum_size = Vector2(62, 34)
+custom_minimum_size = Vector2(140, 34)
 layout_mode = 2
-text = "Play"
+focus_mode = 0
+text = "Espacio Play/Pausa"
 
 [node name="BtnPause" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1303183902]
+visible = false
 custom_minimum_size = Vector2(68, 34)
 layout_mode = 2
+focus_mode = 0
 text = "Pausa"
 
 [node name="BtnTimeForward" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=15736324]
-custom_minimum_size = Vector2(84, 34)
+custom_minimum_size = Vector2(96, 34)
 layout_mode = 2
-text = "Adelante"
+focus_mode = 0
+text = "Der Adelante"
 
 [node name="BtnView3D" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1759555572]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
+focus_mode = 0
 toggle_mode = true
 text = "Vista 3D"
+
+[node name="BtnFirstPerson" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow"]
+custom_minimum_size = Vector2(70, 34)
+layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+text = "FP"
+
+[node name="BtnHVAC" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow"]
+custom_minimum_size = Vector2(92, 34)
+layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+text = "HVAC OFF"
 
 [node name="InfoRow" type="HBoxContainer" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer" unique_id=2133574372]
 layout_mode = 2
@@ -149,6 +182,12 @@ layout_mode = 2
 text = "PLAY"
 horizontal_alignment = 1
 
+[node name="ShortcutHelpLabel" type="Label" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Izq/Der tiempo   Arriba/Abajo scroll salas   Espacio play/pausa   Fin parar + graficas"
+horizontal_alignment = 1
+autowrap_mode = 3
+
 [node name="OpeningsPanel" type="PanelContainer" parent="UI/HUD" unique_id=1236821392]
 layout_mode = 1
 anchors_preset = -1
@@ -159,6 +198,7 @@ offset_top = -227.0
 offset_right = 1277.0
 offset_bottom = -85.0
 grow_vertical = 0
+mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/OpeningsPanel" unique_id=2003081541]
 layout_mode = 2
@@ -204,6 +244,7 @@ offset_left = 4.0
 offset_top = 491.0
 offset_right = 304.0
 offset_bottom = 641.0
+mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/WaterPanel" unique_id=124383124]
 visible = false
@@ -241,6 +282,7 @@ offset_left = 504.0
 offset_top = 564.0
 offset_right = 621.0
 offset_bottom = 630.0
+mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/VentPanel" unique_id=1396758045]
 layout_mode = 2
@@ -265,6 +307,7 @@ offset_left = 338.0
 offset_top = 587.0
 offset_right = 472.0
 offset_bottom = 627.0
+mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/RescuePanel" unique_id=2025115242]
 layout_mode = 2
@@ -284,6 +327,7 @@ offset_left = 288.0
 offset_top = 4.0
 offset_right = 406.0
 offset_bottom = 44.0
+mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/StatusPanel" unique_id=729912202]
 layout_mode = 2
@@ -320,6 +364,7 @@ offset_right = -8.0
 offset_bottom = -287.0
 grow_horizontal = 0
 grow_vertical = 2
+mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/RoomsDataPanel" unique_id=2047950527]
 layout_mode = 2
@@ -331,6 +376,7 @@ theme_override_constants/margin_bottom = 6
 [node name="ScrollContainer" type="ScrollContainer" parent="UI/HUD/RoomsDataPanel/MarginContainer" unique_id=476951495]
 layout_mode = 2
 size_flags_vertical = 3
+mouse_filter = 0
 
 [node name="RoomsGrid" type="GridContainer" parent="UI/HUD/RoomsDataPanel/MarginContainer/ScrollContainer" unique_id=1684044175]
 layout_mode = 2

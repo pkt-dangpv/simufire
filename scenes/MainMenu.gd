@@ -29,7 +29,9 @@ func _ready() -> void:
 		return
 	if not _bind_existing_ui():
 		_setup_ui()
-	_apply_main_menu_visual_style()
+		_apply_main_menu_visual_style()
+	else:
+		RenderingServer.set_default_clear_color(SimuFireThemeScript.BG)
 
 
 func _open_validation_scene_next_frame() -> void:
@@ -49,9 +51,6 @@ func _bind_existing_ui() -> bool:
 		btn_editor.pressed.connect(_on_editor_pressed)
 	if not btn_quit.pressed.is_connected(_on_quit_pressed):
 		btn_quit.pressed.connect(_on_quit_pressed)
-	btn_new.text = "Iniciar simulacion"
-	btn_editor.text = "Editor de vivienda"
-	btn_quit.text = "Salir"
 	_ensure_start_options_ui()
 	return true
 
@@ -86,9 +85,9 @@ func _setup_ui() -> void:
 	vbox.add_child(HSeparator.new())
 	_ensure_start_options_ui(vbox)
 
-	_add_menu_button(vbox, "▶  Nueva simulación (plantilla por defecto)", _on_new_sim_pressed)
-	_add_menu_button(vbox, "✏  Editor de vivienda", _on_editor_pressed)
-	_add_menu_button(vbox, "✗  Salir", _on_quit_pressed)
+	_add_menu_button(vbox, "INICIAR SIMULACION", _on_new_sim_pressed, "BtnNewSim")
+	_add_menu_button(vbox, "EDITOR DE VIVIENDA", _on_editor_pressed, "BtnEditor")
+	_add_menu_button(vbox, "SALIR", _on_quit_pressed, "BtnQuit")
 
 
 func _apply_main_menu_visual_style() -> void:
@@ -185,6 +184,7 @@ func _make_option_row(row_name: String, label_text: String) -> HBoxContainer:
 	row.name = row_name
 	row.add_theme_constant_override("separation", 8)
 	var label := Label.new()
+	label.name = row_name.replace("Row", "Label")
 	label.custom_minimum_size = Vector2(92.0, 0.0)
 	label.text = label_text
 	row.add_child(label)
@@ -206,40 +206,46 @@ func _move_before_first_button(parent: Control, child: Control) -> void:
 func _populate_template_option() -> void:
 	if _template_option == null:
 		return
-	if _template_option.get_item_count() > 0:
-		return
 
+	var presets: Array[Dictionary] = _template_builder.get_preset_definitions()
 	_preset_ids.clear()
-	for preset in _template_builder.get_preset_definitions():
+	for preset in presets:
 		var preset_id: String = String(preset.get("id", "simple_house"))
 		_preset_ids.append(preset_id)
-		_template_option.add_item(String(preset.get("name", preset_id)), _preset_ids.size() - 1)
+	if _template_option.get_item_count() == 0:
+		for i in range(presets.size()):
+			var preset: Dictionary = presets[i]
+			var preset_id: String = _preset_ids[i]
+			_template_option.add_item(String(preset.get("name", preset_id)), i)
 
 	var saved: Dictionary = _load_startup_options()
 	var selected_id: String = String(saved.get("template_name", "simple_house"))
 	var selected_index: int = maxi(0, _preset_ids.find(selected_id))
-	_template_option.select(selected_index)
+	if _template_option.get_item_count() > 0:
+		_template_option.select(clampi(selected_index, 0, _template_option.get_item_count() - 1))
 
 
 func _populate_hvac_option() -> void:
 	if _hvac_option == null:
 		return
-	if _hvac_option.get_item_count() > 0:
-		return
 
-	_hvac_option.add_item("Sin HVAC", 0)
-	_hvac_option.add_item("HVAC instalado OFF", 1)
-	_hvac_option.add_item("HVAC instalado ON", 2)
+	if _hvac_option.get_item_count() == 0:
+		_hvac_option.add_item("Sin HVAC", 0)
+		_hvac_option.add_item("HVAC instalado OFF", 1)
+		_hvac_option.add_item("HVAC instalado ON", 2)
 	var saved: Dictionary = _load_startup_options()
 	var selected_mode: String = String(saved.get("hvac_mode", "none"))
 	var selected_index: int = maxi(0, _hvac_modes.find(selected_mode))
-	_hvac_option.select(selected_index)
+	if _hvac_option.get_item_count() > 0:
+		_hvac_option.select(clampi(selected_index, 0, _hvac_option.get_item_count() - 1))
 
 
-func _add_menu_button(parent: Control, text: String, callback: Callable) -> void:
+func _add_menu_button(parent: Control, text: String, callback: Callable, node_name: String = "") -> void:
 	var btn := Button.new()
+	if not node_name.is_empty():
+		btn.name = node_name
 	btn.text = text
-	btn.custom_minimum_size = Vector2(320.0, 52.0)
+	btn.custom_minimum_size = Vector2(420.0, 48.0)
 	btn.pressed.connect(callback)
 	parent.add_child(btn)
 
