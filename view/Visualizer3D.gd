@@ -12,7 +12,7 @@ const SMOKE_TEXTURE_MEDIUM := preload("res://assets/smoke/03_humo_superior_medio
 const SMOKE_TEXTURE_DENSE := preload("res://assets/smoke/04_humo_superior_denso_spritesheet_128.png")
 const SMOKE_VOLUME_SHADER_CODE := """
 shader_type spatial;
-render_mode unshaded, cull_disabled, blend_mix, depth_draw_always;
+render_mode unshaded, cull_disabled, blend_mix, depth_draw_never;
 
 uniform vec4 smoke_color : source_color = vec4(0.18, 0.19, 0.20, 0.34);
 uniform float density = 1.0;
@@ -40,10 +40,12 @@ void fragment() {
 	float n1 = noise(uv * 3.5 + vec2(t, -t * 0.7));
 	float n2 = noise(uv * 8.0 + vec2(-t * 1.6, t * 1.1));
 	float n = mix(n1, n2, turbulence);
-	float soft_edge = smoothstep(0.00, 0.10, uv.y) * (1.0 - smoothstep(0.94, 1.0, uv.y));
-	float alpha = smoke_color.a * density * mix(0.42, 1.05, n) * max(0.42, soft_edge);
-	ALBEDO = smoke_color.rgb * mix(0.72, 1.08, n);
-	ALPHA = clamp(alpha, 0.0, smoke_color.a);
+	float vertical_edge = smoothstep(0.00, 0.18, uv.y) * (1.0 - smoothstep(0.82, 1.0, uv.y));
+	float side_edge = smoothstep(0.00, 0.05, uv.x) * (1.0 - smoothstep(0.95, 1.0, uv.x));
+	float filament = smoothstep(0.18, 0.92, n);
+	float alpha = smoke_color.a * density * mix(0.14, 0.76, filament) * max(0.34, vertical_edge) * max(0.68, side_edge);
+	ALBEDO = smoke_color.rgb * mix(0.62, 1.10, n);
+	ALPHA = clamp(alpha, 0.0, smoke_color.a * 0.86);
 }
 """
 const FLAME_SHADER_CODE := """
@@ -75,16 +77,17 @@ void fragment() {
 	float t = TIME * flicker_speed;
 	float n = noise(vec2(uv.x * 3.0, uv.y * 5.5 - t));
 	float center = abs(uv.x - 0.5) * 2.0;
-	float width = mix(0.58, 0.04, pow(uv.y, 0.72));
-	float lick = sin((uv.y * 8.0 - t * 3.1) + n * 2.4) * 0.08;
-	float body = 1.0 - smoothstep(width, width + 0.20, center + lick);
+	float width = mix(0.70, 0.035, pow(uv.y, 0.68)) * mix(0.82, 1.16, n);
+	float lick = sin((uv.y * 8.0 - t * 3.1) + n * 2.4) * 0.10 + (n - 0.5) * 0.15;
+	float body = 1.0 - smoothstep(width, width + 0.18, center + lick);
 	float base = smoothstep(0.0, 0.10, uv.y);
-	float tip = 1.0 - smoothstep(0.72, 1.0, uv.y + n * 0.09);
+	float tip = 1.0 - smoothstep(0.66 + n * 0.16, 1.0, uv.y);
+	float split = mix(0.74, 1.0, smoothstep(0.18, 0.82, noise(vec2(uv.x * 12.0 + t, uv.y * 6.0))));
 	float alpha = clamp(body * base * tip * flame_color.a, 0.0, 1.0);
 	vec3 col = mix(flame_color.rgb, core_color.rgb, clamp((1.0 - center) * (1.0 - uv.y * 0.45), 0.0, 1.0));
 	ALBEDO = col;
 	EMISSION = col * emission_energy;
-	ALPHA = alpha;
+	ALPHA = alpha * split;
 }
 """
 const FIRE_CAP_SHADER_CODE := """
@@ -127,11 +130,11 @@ void fragment() {
 """
 const SMOKE_CEILING_MASK_SHADER_CODE := """
 shader_type spatial;
-render_mode unshaded, cull_disabled, blend_mix, depth_draw_always;
+render_mode unshaded, cull_disabled, blend_mix, depth_draw_never;
 
 void fragment() {
 	ALBEDO = vec3(0.55, 0.57, 0.58);
-	ALPHA = 0.075;
+	ALPHA = 0.040;
 }
 """
 
@@ -162,9 +165,9 @@ void fragment() {
 @export var show_hrr_columns: bool = true
 @export var show_fuel_objects_3d: bool = true
 @export var fuel_object_3d_height_m: float = 0.34
-@export var smoke_puff_count: int = 28
+@export var smoke_puff_count: int = 42
 @export var show_smoke_geometry_in_first_person: bool = true
-@export var show_smoke_puffs_in_first_person: bool = false
+@export var show_smoke_puffs_in_first_person: bool = true
 @export var show_smoke_ceiling_masks: bool = true
 
 @export_group("Colors")
@@ -173,9 +176,9 @@ void fragment() {
 @export var wall_color: Color = Color(0.84, 0.86, 0.82, 0.42)
 @export var hot_wall_color: Color = Color(1.00, 0.42, 0.12, 0.68)
 @export var wall_outline_color: Color = Color(0.95, 0.95, 0.90, 0.72)
-@export var smoke_color: Color = Color(0.26, 0.27, 0.30, 0.28)
-@export var smoke_puff_color: Color = Color(0.34, 0.35, 0.38, 0.30)
-@export var smoke_layer_edge_color: Color = Color(0.58, 0.62, 0.66, 0.55)
+@export var smoke_color: Color = Color(0.22, 0.23, 0.25, 0.22)
+@export var smoke_puff_color: Color = Color(0.42, 0.43, 0.45, 0.24)
+@export var smoke_layer_edge_color: Color = Color(0.50, 0.53, 0.56, 0.38)
 @export var hot_layer_color: Color = Color(1.00, 0.58, 0.18, 0.18)
 @export var layer_150c_color: Color = Color(1.00, 0.12, 0.06, 0.70)
 @export var fire_color: Color = Color(1.00, 0.38, 0.06, 0.88)
@@ -474,10 +477,12 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 
 	var smoke := _create_box("SmokeVolume", Vector3.ONE, _make_smoke_volume_material())
 	smoke.visible = false
+	_disable_shadow_casting(smoke)
 	_atmosphere_root.add_child(smoke)
 
 	var smoke_edge := _create_box("SmokeLayerEdge_%02d" % room_id, Vector3.ONE, _make_material(smoke_layer_edge_color, true))
 	smoke_edge.visible = false
+	_disable_shadow_casting(smoke_edge)
 	_atmosphere_root.add_child(smoke_edge)
 
 	var smoke_puffs_root := Node3D.new()
@@ -493,14 +498,17 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 
 	var smoke_ceiling_mask := _create_smoke_ceiling_mask("SmokeCeilingMask_%02d" % room_id)
 	smoke_ceiling_mask.visible = show_smoke_ceiling_masks
+	_disable_shadow_casting(smoke_ceiling_mask)
 	_atmosphere_root.add_child(smoke_ceiling_mask)
 
 	var hot := _create_box("HotLayer_%02d" % room_id, Vector3.ONE, _make_material(hot_layer_color, true))
 	hot.visible = false
+	_disable_shadow_casting(hot)
 	_atmosphere_root.add_child(hot)
 
 	var l150 := _create_box("Layer150C_%02d" % room_id, Vector3.ONE, _make_material(layer_150c_color, true))
 	l150.visible = false
+	_disable_shadow_casting(l150)
 	_atmosphere_root.add_child(l150)
 
 	var fire_root := Node3D.new()
@@ -510,7 +518,7 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	var fire_glow := _create_flame_mesh("Glow", fire_glow_color)
 	fire_root.add_child(fire_glow)
 	var fire_tongues: Array[MeshInstance3D] = []
-	for tongue_i in range(5):
+	for tongue_i in range(8):
 		var tongue_color: Color = fire_color.lerp(fire_core_color, 0.18 + float(tongue_i) * 0.08)
 		var tongue := _create_flame_mesh("Tongue_%02d" % tongue_i, tongue_color)
 		tongue.set_meta("seed", float(room_id * 19 + tongue_i * 11 + 5))
@@ -526,6 +534,7 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	fire_light.light_color = Color(1.0, 0.42, 0.12, 1.0)
 	fire_light.light_energy = 0.0
 	fire_light.omni_range = fire_light_range_min_m
+	fire_light.shadow_enabled = false
 	fire_light.position = Vector3(0.0, 0.9, 0.0)
 	fire_root.add_child(fire_light)
 
@@ -627,6 +636,7 @@ func _create_opening(index: int) -> void:
 		)
 		curtain.position = marker.position
 		curtain.visible = false
+		_disable_shadow_casting(curtain)
 		_atmosphere_root.add_child(curtain)
 		_opening_items[index]["smoke_curtain"] = curtain
 		_opening_items[index]["curtain_pose"] = pose
@@ -829,21 +839,21 @@ func _update_smoke_volume(
 
 	var alpha: float = clampf(
 		smoke_color.a
-			+ smoke_kg / maxf(0.01, smoke_reference_kg) * 0.28
-			+ hrr_smoke_t * smoke_hrr_alpha_boost,
-		0.10,
-		0.58
+			+ smoke_kg / maxf(0.01, smoke_reference_kg) * 0.20
+			+ hrr_smoke_t * smoke_hrr_alpha_boost * 0.72,
+		0.07,
+		0.44
 	)
 	var smoke_mat := node.material_override as ShaderMaterial
 	if smoke_mat != null:
-		smoke_mat.set_shader_parameter("smoke_color", Color(smoke_color.r, smoke_color.g, smoke_color.b, alpha * 0.78))
-		smoke_mat.set_shader_parameter("density", clampf(0.55 + alpha * 1.25, 0.45, 1.35))
-		smoke_mat.set_shader_parameter("turbulence", clampf(0.42 + hrr_smoke_t * 0.38, 0.42, 0.86))
-		smoke_mat.set_shader_parameter("drift_speed", 0.055 + hrr_smoke_t * 0.16)
+		smoke_mat.set_shader_parameter("smoke_color", Color(smoke_color.r, smoke_color.g, smoke_color.b, alpha * 0.68))
+		smoke_mat.set_shader_parameter("density", clampf(0.42 + alpha * 1.05, 0.38, 0.96))
+		smoke_mat.set_shader_parameter("turbulence", clampf(0.58 + hrr_smoke_t * 0.34, 0.50, 0.95))
+		smoke_mat.set_shader_parameter("drift_speed", 0.070 + hrr_smoke_t * 0.18)
 	else:
 		var mat := node.material_override as StandardMaterial3D
 		if mat != null:
-			mat.albedo_color = Color(smoke_color.r, smoke_color.g, smoke_color.b, alpha * 0.62)
+			mat.albedo_color = Color(smoke_color.r, smoke_color.g, smoke_color.b, alpha * 0.48)
 
 	var visual_bottom_m: float = height_m - current_depth_m
 	item["smoke_bottom_m"] = visual_bottom_m
@@ -1136,8 +1146,8 @@ func _animate_smoke_item(item: Dictionary) -> void:
 		puff.texture = smoke_texture
 		var frame_count: int = maxi(1, puff.hframes * puff.vframes)
 		puff.frame = int(fposmod(floor(_fire_phase * 5.0 + seed), float(frame_count)))
-		var puff_alpha: float = clampf(alpha * lerpf(0.42, 0.92, fposmod(seed * 0.47, 1.0)), 0.08, 0.62)
-		puff.modulate = Color(0.72, 0.74, 0.76, puff_alpha)
+		var puff_alpha: float = clampf(alpha * lerpf(0.30, 0.72, fposmod(seed * 0.47, 1.0)), 0.04, 0.38)
+		puff.modulate = Color(0.66, 0.68, 0.70, puff_alpha)
 
 
 func _smoke_texture_for_alpha(alpha: float) -> Texture2D:
@@ -1277,12 +1287,25 @@ func _update_openings() -> void:
 					minf(curtain_depth_m, door_height_m),
 					thickness_m
 				) * meters_to_units
-			var curtain_mat := curtain.material_override as StandardMaterial3D
-			if curtain_mat != null:
-				curtain_mat.albedo_color = Color(
-					smoke_color.r, smoke_color.g, smoke_color.b,
-					clampf(curtain_alpha * 0.55, 0.04, 0.45)
+			var curtain_shader := curtain.material_override as ShaderMaterial
+			if curtain_shader != null:
+				var curtain_color := Color(
+					smoke_color.r,
+					smoke_color.g,
+					smoke_color.b,
+					clampf(curtain_alpha * 0.42, 0.025, 0.26)
 				)
+				curtain_shader.set_shader_parameter("smoke_color", curtain_color)
+				curtain_shader.set_shader_parameter("density", clampf(0.32 + curtain_alpha * 0.90, 0.26, 0.72))
+				curtain_shader.set_shader_parameter("turbulence", 0.74)
+				curtain_shader.set_shader_parameter("drift_speed", 0.105)
+			else:
+				var curtain_mat := curtain.material_override as StandardMaterial3D
+				if curtain_mat != null:
+					curtain_mat.albedo_color = Color(
+						smoke_color.r, smoke_color.g, smoke_color.b,
+						clampf(curtain_alpha * 0.42, 0.025, 0.26)
+					)
 			var pos3: Vector3 = Vector3(pose["position"])
 			var curtain_center_y: float = curtain_bottom_m + minf(curtain_depth_m, door_height_m) * 0.5
 			curtain.position = _to_world(Vector3(pos3.x, curtain_center_y, pos3.z))
@@ -1330,6 +1353,7 @@ func _create_flame_mesh(node_name: String, color: Color) -> MeshInstance3D:
 	node.name = node_name
 	node.mesh = mesh
 	node.material_override = _make_flame_material(color)
+	_disable_shadow_casting(node)
 	return node
 
 
@@ -1386,6 +1410,7 @@ func _create_fire_ceiling_cap_mesh(node_name: String, color: Color) -> MeshInsta
 	node.name = node_name
 	node.mesh = mesh
 	node.material_override = material
+	_disable_shadow_casting(node)
 	return node
 
 
@@ -1414,6 +1439,7 @@ func _create_smoke_puff_sprite(node_name: String) -> Sprite3D:
 	node.double_sided = true
 	node.shaded = false
 	node.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
+	_disable_shadow_casting(node)
 	return node
 
 
@@ -1425,6 +1451,13 @@ func _make_material(color: Color, transparent: bool) -> StandardMaterial3D:
 	if transparent or color.a < 1.0:
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	return material
+
+
+func _disable_shadow_casting(root: Node) -> void:
+	if root is GeometryInstance3D:
+		(root as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for child in root.get_children():
+		_disable_shadow_casting(child)
 
 
 func _room_center(rect_m: Rect2, y_m: float) -> Vector3:

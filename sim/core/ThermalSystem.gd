@@ -29,6 +29,11 @@ const STEFAN_BOLTZMANN_KW_M2_K4: float = 5.670374419e-11
 var upper_to_lower_loss_rate: float = 0.025
 var upper_to_ambient_loss_rate: float = 0.008
 var lower_layer_warming_rate: float = 0.012
+# Altura umbral de la zona inferior por debajo de la cual la transferencia upper→lower
+# se atenúa linealmente hasta cero. Cuando la capa caliente desciende a nivel de
+# suelo (<0.3 m), el volumen de la zona inferior es ínfimo y upper_gas_kg×rate
+# sobreestima el flujo. CFAST muestra temp_lower estable (~67 °C) con HGT_1≈0.1 m.
+var lower_layer_energy_fade_m: float = 0.50
 var wall_absorption_rate: float = 0.003
 var max_upper_temp_c: float = 900.0
 var upper_radiative_loss_enabled: bool = true
@@ -192,6 +197,8 @@ func configure(settings: Dictionary) -> void:
 	upper_to_lower_loss_rate = float(settings.get("upper_to_lower_loss_rate", upper_to_lower_loss_rate))
 	upper_to_ambient_loss_rate = float(settings.get("upper_to_ambient_loss_rate", upper_to_ambient_loss_rate))
 	lower_layer_warming_rate = float(settings.get("lower_layer_warming_rate", lower_layer_warming_rate))
+	lower_layer_energy_fade_m = float(settings.get("lower_layer_energy_fade_m", lower_layer_energy_fade_m))
+	lower_layer_energy_fade_m = float(settings.get("lower_layer_energy_fade_m", lower_layer_energy_fade_m))
 	wall_absorption_rate = float(settings.get("wall_absorption_rate", wall_absorption_rate))
 	wall_heat_capacity_kj_m2_k = float(settings.get("wall_heat_capacity_kj_m2_k", wall_heat_capacity_kj_m2_k))
 	wall_core_decay_per_s = float(settings.get("wall_core_decay_per_s", wall_core_decay_per_s))
@@ -463,7 +470,12 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		var lower_transfer_rate: float = upper_to_lower_loss_rate + lower_layer_warming_rate
 		lower_transfer_rate += _compute_room_vertical_mix_bonus(room)
 		lower_transfer_rate += maxf(0.0, outside_open_lower_warming_rate) * outside_open_factor
-		var energy_to_lower_kj: float = room.upper_gas_kg * delta_ul * lower_transfer_rate * dt
+		# Fade factor: cuando la zona inferior tiene altura < lower_layer_energy_fade_m
+		# el flujo upper→lower se atenúa linealmente (zona inferior con volumen ínfimo
+		# no puede absorber la misma energía que una zona de altura normal).
+		var _lower_zone_m: float = effective_hot_layer_height_m(room)
+		var _lower_fade: float = clampf(_lower_zone_m / maxf(0.05, lower_layer_energy_fade_m), 0.0, 1.0)
+		var energy_to_lower_kj: float = room.upper_gas_kg * delta_ul * lower_transfer_rate * _lower_fade * dt
 		var energy_to_ambient_kj: float = room.upper_gas_kg \
 				* maxf(0.0, room.temp_upper_c - ambient_c) \
 				* upper_to_ambient_loss_rate \
@@ -1731,18 +1743,28 @@ func compute_co_upper_ppm(room: RoomModel) -> float:
 	if room == null:
 		return 0.0
 
-	var upper_gas_mass_kg: float = maxf(0.1, room.upper_gas_kg)
+	# Use the geometric upper-zone mass (CFAST-compatible zone model approach):
+	# upper zone spans from the hot-layer interface up to the ceiling.
+	var hot_h: float = effective_hot_layer_height_m(room)
+	var upper_height_m: float = maxf(0.05, room.height_m - hot_h)
+	var upper_zone_mass_kg: float = maxf(0.1,
+		room.floor_area_m2() * upper_height_m * gas_density_kg_m3(room.temp_upper_c))
 	var co_upper_kg: float = clampf(room.co_upper_kg, 0.0, room.co_kg)
-	return co_upper_kg * 29.0e6 / maxf(0.1, upper_gas_mass_kg * 28.0)
+	return co_upper_kg * 29.0e6 / maxf(0.1, upper_zone_mass_kg * 28.0)
 
 
 func compute_co_lower_ppm(room: RoomModel) -> float:
 	if room == null:
 		return 0.0
 
-	var lower_gas_mass_kg: float = maxf(0.1, room.volume_m3() * 1.2 - room.upper_gas_kg)
-	var co_lower_kg: float = maxf(0.0, room.co_kg - clampf(room.co_upper_kg, 0.0, room.co_kg))
-	return co_lower_kg * 29.0e6 / maxf(0.1, lower_gas_mass_kg * 28.0)
+	# Lower zone: from floor up to the hot-layer interface.
+	var hot_h: float = effective_hot_layer_height_m(room)
+	var lower_height_m: float = maxf(0.05, hot_h)
+	var lower_zone_mass_kg: float = maxf(0.1,
+		room.floor_area_m2() * lower_height_m * gas_density_kg_m3(room.temp_lower_c))
+	var co_upper_kg: float = clampf(room.co_upper_kg, 0.0, room.co_kg)
+	var co_lower_kg: float = maxf(0.0, room.co_kg - co_upper_kg)
+	return co_lower_kg * 29.0e6 / maxf(0.1, lower_zone_mass_kg * 28.0)
 
 
 func compute_co2_ppm(room: RoomModel) -> float:

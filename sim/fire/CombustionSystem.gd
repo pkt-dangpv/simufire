@@ -535,27 +535,44 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		0.0,
 		1.0
 	)
-	var combustion_quality: float = clampf(
-		0.55 * room.o2_hrr_factor + 0.45 * combustion_completion_factor,
-		0.0,
-		1.0
-	)
+	# Equivalence ratio φ: cuantas veces mas combustible se gasifica del que puede
+	# quemarse estequiometricamente con el O2 disponible.
+	# φ=1 → combustion completa (bien ventilado).
+	# φ>1 → subventilado → CO y soot aumentan drasticamente.
+	# Para smoldering (sin llama): φ fijo alto para reproducir emision de CO elevada.
+	# Referencia: Beyler (1986) SFPE; Gottuk & Roby, SFPE Handbook §3.4;
+	# Pitts, NIST TN 1603 (especies en fuegos ISO 9705 subventilados).
+	var phi: float
+	if can_flame:
+		# φ = razón de combustible disponible / capacidad de combustión con O2 actual.
+		# Usar o2_hrr_factor (suavizado, 0-1 según O2 disponible) como proxy:
+		# φ=1 cuando O2=nominal (bien ventilado), φ→10 cuando O2→o2_min_for_flame.
+		# Beyler (1986): CO aumenta exponencialmente cuando φ>1 (subventilado).
+		phi = clampf(1.0 / maxf(0.01, room.o2_hrr_factor), 1.0, 10.0)
+	else:
+		# Smoldering: combustion muy incompleta, phi efectiva alta
+		phi = float(context.get("fire_smolder_phi", 4.0))
 	var co_base_yield: float = _resolve_room_co_yield_kg_per_MJ(
 		room,
 		float(context.get("co_base_yield_kg_per_MJ", 0.0))
 	)
 	var co_max_yield: float = float(context.get("co_max_yield_kg_per_MJ", 0.0))
-	var co_low_quality_yield: float = minf(
-		co_base_yield * float(context.get("fire_co_low_quality_yield_multiplier", 8.0)),
-		co_max_yield * float(context.get("fire_co_max_effective_fraction", 0.22))
-	)
-	var co_yield: float = lerpf(
-		co_low_quality_yield,
+	# CO yield sube exponencialmente con phi para phi > 1.
+	# y_CO = y_CO_base * exp(k * (phi - 1)), con k = fire_co_phi_rate.
+	# k=2.0 → ~7x a phi=2, ~55x a phi=3, capeado en co_max_yield.
+	var k_phi_co: float = float(context.get("fire_co_phi_rate", 2.0))
+	var co_yield: float = clampf(
+		co_base_yield * exp(k_phi_co * (phi - 1.0)),
 		co_base_yield,
-		sqrt(combustion_quality)
+		co_max_yield
 	)
 	if not can_flame and latent_viable:
 		co_yield *= float(context.get("fire_latent_co_yield_multiplier", 1.0))
+	# Permite fijar un yield constante desde el caso (ej. para comparación CFAST que
+	# usa CO_YIELD fijo por kg de combustible sin escalar con la relación de equivalencia).
+	var co_yield_force: float = float(context.get("fire_co_yield_force_kg_per_MJ", -1.0))
+	if co_yield_force >= 0.0:
+		co_yield = co_yield_force
 	var retained_co_basis_kw: float = retained_generation_kw \
 			* float(context.get("fire_retained_co_fraction", 0.08))
 	var pool_co_basis_kw: float = actual_pool_burn_kw \
@@ -568,31 +585,26 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	room.co_kg += generated_co_kg
 	room.co_upper_kg += generated_co_kg
 
-	# HCN yield: proporcional a la calidad de combustión (más HCN en déficit de O2).
-	# Rango residencial según ISO 19706 para madera/espumas.
+	# HCN yield: tambien aumenta con phi (mas combustion incompleta = mas HCN).
+	# Referencia: ISO 19706; rango residencial para madera/espumas.
 	var hcn_base_yield: float = float(context.get("hcn_base_yield_kg_per_MJ", 0.0))
 	var hcn_max_yield: float = float(context.get("hcn_max_yield_kg_per_MJ", 0.0))
 	if hcn_base_yield > 0.0:
-		var hcn_low_quality_yield: float = minf(
-			hcn_base_yield * float(context.get("fire_co_low_quality_yield_multiplier", 8.0)),
+		var hcn_yield: float = clampf(
+			hcn_base_yield * exp(k_phi_co * (phi - 1.0)),
+			hcn_base_yield,
 			hcn_max_yield
 		)
-		var hcn_yield: float = lerpf(hcn_low_quality_yield, hcn_base_yield, sqrt(combustion_quality))
 		room.hcn_kg += hcn_yield * co_basis_MJ
 
-	# CO2 yield: incluso en combustión bajo déficit de O2, el CO2 es el producto
-	# carbonado dominante. Se añade un suelo basado en combustion_completion_factor
-	# (cuánto combustible está realmente quemándose) para evitar que el yield caiga
-	# demasiado solo por el bajo o2_hrr_factor. Referencia SFPE: phi=2 → ~0.053 kg/MJ,
-	# pero en fuegos residenciales activos el suelo real es ~0.072 kg/MJ.
-	var co2_completion_floor: float = combustion_completion_factor \
-			* float(context.get("co2_completion_yield_weight", 0.55))
-	var co2_lerp_t: float = maxf(co2_completion_floor, sqrt(combustion_quality))
-	var co2_yield: float = lerpf(
-		float(context.get("co2_min_yield_kg_per_MJ", 0.0594)),
-		float(context.get("co2_base_yield_kg_per_MJ", 0.0831)),
-		co2_lerp_t
-	)
+	# CO2 yield: decrece a medida que mas carbono va a CO en lugar de CO2.
+	# Balance aproximado de carbono: a phi=3, ~40% del carbono forma CO en vez de CO2.
+	# Lineal: y_CO2 = lerp(co2_min, co2_base, max(0, 1 - (phi-1)/co2_phi_decay_rate)).
+	# co2_phi_decay_rate=2.5 → y_CO2 llega al minimo en phi=3.5 (Pitts, NIST TN 1603).
+	var co2_base: float = float(context.get("co2_base_yield_kg_per_MJ", 0.0831))
+	var co2_min: float = float(context.get("co2_min_yield_kg_per_MJ", 0.0594))
+	var co2_phi_t: float = clampf(1.0 - (phi - 1.0) / float(context.get("co2_phi_decay_rate", 2.5)), 0.0, 1.0)
+	var co2_yield: float = lerpf(co2_min, co2_base, co2_phi_t)
 	room.co2_kg += co2_yield * maxf(heat_release_MJ, smoke_basis_MJ * 0.60)
 
 	fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ - solid_fuel_demand_MJ)

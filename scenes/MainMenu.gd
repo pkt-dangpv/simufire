@@ -19,8 +19,10 @@ const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
 var _template_builder = BuildingTemplateScript.new()
 var _template_option: OptionButton = null
 var _hvac_option: OptionButton = null
+var _lighting_option: OptionButton = null
 var _preset_ids: Array[String] = []
 var _hvac_modes: Array[String] = ["none", "off", "on"]
+var _lighting_modes: Array[String] = ["Dia", "Noche"]
 
 
 func _ready() -> void:
@@ -178,6 +180,14 @@ func _ensure_start_options_ui(parent_override: Control = null) -> void:
 	_hvac_option = hvac_row.get_node_or_null("Option") as OptionButton
 	_populate_hvac_option()
 
+	var lighting_row := vbox.get_node_or_null("LightingRow") as HBoxContainer
+	if lighting_row == null:
+		lighting_row = _make_option_row("LightingRow", "Iluminacion")
+		vbox.add_child(lighting_row)
+		_move_before_first_button(vbox, lighting_row)
+	_lighting_option = lighting_row.get_node_or_null("Option") as OptionButton
+	_populate_lighting_option()
+
 
 func _make_option_row(row_name: String, label_text: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
@@ -240,6 +250,20 @@ func _populate_hvac_option() -> void:
 		_hvac_option.select(clampi(selected_index, 0, _hvac_option.get_item_count() - 1))
 
 
+func _populate_lighting_option() -> void:
+	if _lighting_option == null:
+		return
+
+	if _lighting_option.get_item_count() == 0:
+		_lighting_option.add_item("Dia exterior", 0)
+		_lighting_option.add_item("Noche exterior", 1)
+	var saved: Dictionary = _load_startup_options()
+	var selected_mode: String = String(saved.get("exterior_lighting_mode", "Dia"))
+	var selected_index: int = maxi(0, _lighting_modes.find(selected_mode))
+	if _lighting_option.get_item_count() > 0:
+		_lighting_option.select(clampi(selected_index, 0, _lighting_option.get_item_count() - 1))
+
+
 func _add_menu_button(parent: Control, text: String, callback: Callable, node_name: String = "") -> void:
 	var btn := Button.new()
 	if not node_name.is_empty():
@@ -275,13 +299,19 @@ func _save_startup_options() -> void:
 		var hvac_idx: int = clampi(_hvac_option.selected, 0, _hvac_modes.size() - 1)
 		selected_hvac_mode = _hvac_modes[hvac_idx]
 
+	var selected_lighting_mode: String = "Dia"
+	if _lighting_option != null:
+		var lighting_idx: int = clampi(_lighting_option.selected, 0, _lighting_modes.size() - 1)
+		selected_lighting_mode = _lighting_modes[lighting_idx]
+
 	var file := FileAccess.open(STARTUP_OPTIONS_PATH, FileAccess.WRITE)
 	if file == null:
 		push_error("MainMenu: no se pudieron guardar opciones de inicio")
 		return
 	file.store_string(JSON.stringify({
 		"template_name": selected_template_id,
-		"hvac_mode": selected_hvac_mode
+		"hvac_mode": selected_hvac_mode,
+		"exterior_lighting_mode": selected_lighting_mode
 	}, "\t"))
 	file.close()
 

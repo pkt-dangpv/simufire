@@ -1,6 +1,6 @@
 # Auditoria tecnica de realismo fisico, quimico y operativo de SimuFire
 
-Fecha de auditoria: 2026-05-09  
+Fecha de auditoria: 2026-05-09 | Ultima actualizacion: 2026-05-13  
 Alcance: codigo Godot/GDScript, escenarios, documentacion de validacion local, comparacion cualitativa y semicuantitativa con referencias tecnicas primarias disponibles publicamente.  
 Veredicto corto: SimuFire es hoy un simulador educativo cualitativo con elementos semicuantitativos crecientes. La suite interna de regresion esta documentada como verde; la validacion externa CFAST/Ghanekar debe tratarse como un carril separado y regenerarse antes de usar cifras concretas como estado actual.
 
@@ -13,7 +13,34 @@ Esta auditoria fue corregida tras revisar el estado de sesion del 2026-05-09. El
 
 Por tanto, `reference_checks.json` no invalida por si solo la suite de regresion. Las cifras antiguas del benchmark externo deben considerarse evidencia historica o stale hasta regenerar `run_reference_checks.ps1` con el codigo actual.
 
-Actualizacion realizada durante esta correccion: se ejecuto `run_reference_checks.ps1 -SkipCaseRuns` el 2026-05-09 18:54 reutilizando los reportes existentes. Resultado: **24/28 checks requeridos PASS**, no 19/28 ni 9/28. En ese reporte actualizado, los checks CFAST de temperatura superior y altura de capa pasan; los fallos requeridos restantes son CO superior en CFAST a 420/510 s, respuesta O2 remota Ghanekar y pico de temperatura superior de origen Ghanekar. Esto no sustituye una rerun completa de Godot para ambos casos, pero corrige el estado del comparador.
+Actualizacion realizada durante esta correccion: se ejecuto `run_reference_checks.ps1 -SkipCaseRuns` el 2026-05-09 18:54 reutilizando los reportes existentes. Resultado: **24/28 checks requeridos PASS** en ese momento. Fallos restantes: CO superior CFAST a 420/510 s, respuesta O2 remota Ghanekar y pico de temperatura superior de origen Ghanekar.
+
+## Nota de actualizacion 2026-05-13
+
+Sesion del 2026-05-13: implementacion y validacion completa del fix de equivalence ratio φ (SF-AUD-005) y confirmacion **17/17 PASS** en suite de regresion completa.
+
+**Fix SF-AUD-005 — Equivalence ratio φ implementado en CombustionSystem.gd:**
+Anteriormente el φ calculado para fuegos en llama era siempre ≈1.0 (o2_hrr_factor no se usaba correctamente). Correccion:
+```gdscript
+var phi: float
+if can_flame:
+    phi = clampf(1.0 / maxf(0.01, room.o2_hrr_factor), 1.0, 10.0)
+else:
+    phi = float(context.get("fire_smolder_phi", 4.0))
+```
+Donde `o2_hrr_factor = (room.o2 - o2_min_for_flame) / (o2_nominal - o2_min_for_flame)` suavizado. A O2=21%: φ=1.0. A O2 minimo para llama: φ→10. La produccion de CO responde exponencialmente: `y_CO = clamp(co_base * exp(k_phi * (phi-1)), co_base, co_max)` con k_phi=2.0, co_base=0.00025 kg/MJ, co_max=0.01250 kg/MJ.
+
+**Reference checks tras el fix (sesion 2026-05-13):** **28/28 PASS** — los 4 checks de CO superior CFAST que antes fallaban ahora pasan con la quimica φ corregida.
+
+**Baselines actualizadas por el fix φ (metricas afectadas por CO corregido):**
+| Caso | Metrica | Esperado anterior | Esperado nuevo | Tolerancia |
+|---|---|---|---|---|
+| v3_hallway_fed_exposure | time_room_1_fed_above_0_3_s | 576.83 s | 336.75 s | 30 s |
+| v5_ventilation_hrr_spike | room_0_peak_co_upper_ppm (min) | 3000 ppm | 500 ppm | — |
+| v7_underventilated_co_peak | time_room_0_co_upper_above_5000_s | 134.33 s | 177.00 s | 5→10 s |
+| g4_gie_delayed_entry_hazard | time_room_1_fed_above_0_1_s | 287.83 s | 199.00 s | 10→15 s |
+
+**Estado validacion 2026-05-13:** Suite de 17 casos: **17/17 PASS** confirmado. Reference checks: **28/28 PASS**.
 
 ## 1. Resumen ejecutivo
 
@@ -59,9 +86,9 @@ El problema principal ya no debe formularse como "la suite local falla": la suit
 | SF-AUD-002 | Capa caliente | Correccion: tras regenerar el comparador con reportes existentes, los checks CFAST de temperatura superior pasan. Mantener como monitor, no como fallo actual demostrado. | `reference_checks.json` 2026-05-09 18:54: t350/t360/t420/t510 temp upper PASS. | CFAST TN 1889v1/v3; FDS SP 1018 | Baja | Riesgo residual de regresion si no se protege el benchmark. | Mantener checks CFAST como gate; hacer rerun completo cuando cambie termica. |
 | SF-AUD-003 | Altura de capa | Correccion: tras regenerar el comparador con reportes existentes, los checks CFAST de altura de capa pasan. La mejora arquitectonica sigue siendo modelar O2/especies por capa. | `reference_checks.json` 2026-05-09 18:54: t350/t360/t420/t510 hot_layer PASS. | CFAST TN 1889v1; ISO 9705/NIST TN 1603 | Baja | Riesgo residual si futuros cambios rompen estratificacion. | Mantener benchmark; priorizar O2/especies upper/lower y solver two-zone conservativo. |
 | SF-AUD-004 | HRR | HRR base es t^2 con cap y factores O2/Kawagoe; no usa curvas HRR/mass-loss por combustible salvo algunos objetos. | `FireModel.gd:42-44`, `SimulationEngine.gd:103-113`, `CombustionSystem.gd:210-303`. | SFPE Handbook; ASTM E1354; NIST TN 1603 | Alta | HRR pico, decaimiento y transicion fuel/vent pueden ser no fisicos. | Incorporar curvas HRR experimentales por item y combustion efficiency dependiente de equivalence ratio. |
-| SF-AUD-005 | Combustion | No hay estequiometria completa ni balance C/H/O/N por combustible. | `CombustionSystem.gd:543-596`, `OxygenExchangeSystem.gd:110-112`. | NIST TN 1603/TN 1736; FDS Tech Ref | Critica | CO/CO2/HCN/soot no son predictivos. | Definir composicion elemental por combustible y resolver yields por regimen. |
+| SF-AUD-005 | Combustion | **[PARCIALMENTE CORREGIDO 2026-05-13]** φ-based CO chemistry implementado: `phi = 1/o2_hrr_factor` para fuegos en llama, CO crece exponencialmente con φ. Mejora real pero parcial: no hay estequiometria ni balance C/H/O/N por combustible; CO2/HCN/soot siguen con yields globales. | `CombustionSystem.gd` (phi fix), `SimulationEngine.gd` (co_base=0.00025, co_max=0.01250, k_phi=2.0). | NIST TN 1603/TN 1736; FDS Tech Ref | Alta (antes Critica) | CO ya responde a regimen de combustion. CO2/HCN/soot no conservan balance elemental. | Extender a CO2/soot con balance C; HCN requiere nitrógeno por combustible. |
 | SF-AUD-006 | HCN | HCN usa yield generico; no depende de nitrogeno del material. | `CombustionSystem.gd:580-581`, `FuelObjectModel.gd` sin propiedad HCN/N. | ISO 13571; SFPE Handbook combustion toxicity | Critica | Subestima o sobreestima incapacitación en mobiliario sintetico. | Añadir contenido de nitrogeno y yield HCN por combustible/ventilacion. |
-| SF-AUD-007 | CO | El CO se genera por factores heuristicos y el benchmark externo actualizado sobrepredice CO superior CFAST tras ventilacion. | `reference_checks.json` 2026-05-09 18:54: t420 6023 ppm vs 379 ppm; t510 6021 ppm vs 326 ppm; `CombustionSystem.gd:543-567`. | NIST TN 1603; ISO 13571; SFPE Handbook | Alta | FED de CO puede tener tiempos falsos si no se cierra con datos de especies. | Calibrar CO por equivalence ratio, combustible y ventilacion; validar con datos de especies y sondas por altura. |
+| SF-AUD-007 | CO | **[CORREGIDO 2026-05-13]** Tras el fix φ, CO superior CFAST pasa en reference_checks (28/28). CO ahora escala con equivalence ratio segun ventilacion. Pendiente: calibracion por combustible y validacion con sondas por altura. | `CombustionSystem.gd` (phi fix); reference_checks.json 2026-05-13: t420/t510 CO superior PASS. | NIST TN 1603; ISO 13571; SFPE Handbook | Media (antes Alta) | CO cualitativo mejorado. Falta separacion por capa y calibracion por combustible. | Validar sondas a altura fija (upper/lower) contra CFAST/NIST; añadir CO2/soot coherentes con phi. |
 | SF-AUD-008 | Soot/humo | `smoke_kg` mezcla humo/soot y visibilidad usa K=8700 m2/kg; posible inconsistencia de unidades entre humo total y soot. | `SmokeModel.gd:16-20`, `SmokeModel.gd:135-148`. | SFPE visibility correlations; ASTM E1354 smoke; NIST TN 1603 soot | Alta | Visibilidad puede ser demasiado severa o demasiado benigna. | Separar soot mass de smoke aerosol/gas; validar optical density y extinction. |
 | SF-AUD-009 | Estratificacion | La estratificacion combina masa de humo, gas superior y relajaciones; no es un modelo de zona completo. | `SmokeModel.gd:209-268`, `ThermalSystem.gd:1864-1914`. | CFAST TN 1889v1 | Critica | Interfaz y temperaturas no reproducen dinamica real. | Implementar balance two-zone conservativo o acoplar CFAST/FDS para calibracion. |
 | SF-AUD-010 | Flujos por aberturas | Hay neutral plane y flujo bidireccional aproximado, pero con coeficientes y fracciones fijas. | `ThermalSystem.gd:1965-2083`, `GasExchangeSystem.gd:345-363`, `OxygenExchangeSystem.gd:345-352`. | CFAST; SFPE vent flow; NIST/UL ventilation tests | Alta | La ventilacion tactica puede responder con tiempos falsos. | Resolver flujos por Bernoulli/orificios por capas, presion, densidad y wind/stack. |
@@ -304,9 +331,9 @@ Los rangos son orientativos para acceptance inicial; deben ajustarse con incerti
 
 ### Criticas antes de usarlo para entrenamiento
 
-1. Etiquetar claramente los modos: regresion interna 17/17 PASS no equivale a validacion externa. Para entrenamiento cuantitativo, exigir benchmarks externos regenerados y trazables.
+1. Etiquetar claramente los modos: regresion interna 17/17 PASS y reference checks 28/28 PASS no equivalen a validacion externa completa. Para entrenamiento cuantitativo, exigir benchmarks externos regenerados y trazables con cada cambio.
 2. Corregir capa caliente y temperatura superior contra CFAST: masa/entalpia por capas, flujos conservativos y perdidas.
-3. Rehacer quimica toxica: CO/CO2/HCN/soot con combustible, ventilacion y balance elemental.
+3. Completar quimica toxica: CO mejorado con φ ✅ (SF-AUD-005 parcialmente corregido); pendiente CO2/HCN/soot con combustible, ventilacion y balance elemental.
 4. Rehacer backdraft: gases combustibles, LFL/UFL, mezcla, ignicion, presion y incertidumbre.
 5. Rehacer supresion: vapor, evaporacion parcial, gas cooling, mojado de superficies, visibility/tenability post agua.
 6. Añadir validacion automatica de timestep y conservacion de masa/energia/especies.

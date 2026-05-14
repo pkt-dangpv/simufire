@@ -8,6 +8,7 @@ const OUTSIDE_ID: int = -1
 const STANCE_STAND: int = 0
 const STANCE_CROUCH: int = 1
 const STANCE_PRONE: int = 2
+const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 
 @export var wall_thickness_m: float = 0.10
 @export var floor_thickness_m: float = 0.10
@@ -26,20 +27,20 @@ const STANCE_PRONE: int = 2
 
 @export_group("Iluminacion FP")
 @export var ambient_fill_enabled: bool = true
-@export var ambient_fill_energy: float = 0.22
+@export var ambient_fill_energy: float = 0.30
 @export var ambient_fill_color: Color = Color(0.72, 0.78, 0.82, 1.0)
 @export var room_ceiling_lights_enabled: bool = true
-@export var room_ceiling_light_energy: float = 0.48
+@export var room_ceiling_light_energy: float = 0.56
 @export var room_ceiling_light_range_extra_m: float = 1.25
 @export var room_ceiling_light_color: Color = Color(1.0, 0.88, 0.68, 1.0)
 @export var landing_light_energy: float = 0.92
 @export var landing_light_closed_ratio: float = 0.12
 @export var landing_light_range_m: float = 3.6
 @export var landing_light_color: Color = Color(1.0, 0.84, 0.56, 1.0)
-@export var window_light_energy: float = 0.36
-@export var window_light_range_m: float = 3.8
+@export var window_light_energy: float = 0.86
+@export var window_light_range_m: float = 4.8
 @export var window_light_color: Color = Color(0.66, 0.78, 1.0, 1.0)
-@export var opening_lights_cast_shadows: bool = true
+@export var opening_lights_cast_shadows: bool = false
 
 @export_group("Materiales FP")
 @export var use_procedural_surface_noise: bool = false
@@ -61,11 +62,11 @@ const STANCE_PRONE: int = 2
 @export var exterior_context_enabled: bool = true
 @export_enum("Dia", "Noche") var exterior_lighting_mode: String = "Dia"
 @export var exterior_floor_drop_m: float = 5.8
-@export var city_view_width_m: float = 18.0
-@export var city_building_distance_m: float = 9.5
-@export var city_backdrop_distance_m: float = 18.0
-@export var city_building_count_per_window: int = 5
-@export var exterior_day_window_light_energy: float = 0.62
+@export var city_view_width_m: float = 22.0
+@export var city_building_distance_m: float = 11.0
+@export var city_backdrop_distance_m: float = 24.0
+@export var city_building_count_per_window: int = 6
+@export var exterior_day_window_light_energy: float = 1.05
 @export var exterior_night_window_light_energy: float = 0.14
 @export var exterior_day_window_light_color: Color = Color(0.86, 0.92, 1.0, 1.0)
 @export var exterior_night_window_light_color: Color = Color(0.46, 0.58, 0.76, 1.0)
@@ -74,9 +75,9 @@ const STANCE_PRONE: int = 2
 @export var exterior_day_landing_light_color: Color = Color(0.92, 0.88, 0.76, 1.0)
 @export var exterior_night_landing_light_color: Color = Color(1.0, 0.70, 0.38, 1.0)
 @export var exterior_facade_color: Color = Color(0.62, 0.61, 0.56, 1.0)
-@export var city_sky_color: Color = Color(0.66, 0.76, 0.86, 1.0)
-@export var city_street_color: Color = Color(0.28, 0.29, 0.28, 1.0)
-@export var city_window_color: Color = Color(0.42, 0.54, 0.60, 1.0)
+@export var city_sky_color: Color = Color(0.74, 0.84, 0.92, 1.0)
+@export var city_street_color: Color = Color(0.34, 0.35, 0.34, 1.0)
+@export var city_window_color: Color = Color(0.46, 0.58, 0.64, 1.0)
 @export var city_window_lit_color: Color = Color(0.86, 0.92, 0.96, 1.0)
 @export var city_night_sky_color: Color = Color(0.08, 0.11, 0.16, 1.0)
 @export var city_night_street_color: Color = Color(0.08, 0.08, 0.09, 1.0)
@@ -131,6 +132,7 @@ func _ready() -> void:
 
 func setup(next_building: BuildingModel) -> void:
 	building = next_building
+	_apply_startup_lighting_options()
 	_rebuild_world()
 	_place_at_entry()
 
@@ -162,6 +164,7 @@ func set_active(enabled: bool) -> void:
 
 
 func rebuild_from_building() -> void:
+	_apply_startup_lighting_options()
 	_rebuild_world()
 	_place_at_entry()
 
@@ -269,6 +272,25 @@ func _ensure_world_root() -> void:
 	_world_root.set_as_top_level(true)
 	_world_root.global_transform = Transform3D.IDENTITY
 	_world_root.visible = _active
+
+
+func _apply_startup_lighting_options() -> void:
+	if not FileAccess.file_exists(STARTUP_OPTIONS_PATH):
+		return
+	var file := FileAccess.open(STARTUP_OPTIONS_PATH, FileAccess.READ)
+	if file == null:
+		return
+	var text: String = file.get_as_text()
+	file.close()
+	var parsed: Variant = JSON.parse_string(text)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return
+	var mode: String = String(Dictionary(parsed).get("exterior_lighting_mode", exterior_lighting_mode))
+	match mode.strip_edges().to_lower():
+		"noche":
+			exterior_lighting_mode = "Noche"
+		_:
+			exterior_lighting_mode = "Dia"
 
 
 func _rebuild_world() -> void:
@@ -478,14 +500,40 @@ func _create_opening_panels() -> void:
 		shape.name = "Collision"
 		shape.shape = BoxShape3D.new()
 		body.add_child(shape)
-		var asset := _try_build_opening_asset(body, op)
-		if asset != null:
+		var asset: Node3D = null
+		var window_leaf_left: Node3D = null
+		var window_leaf_right: Node3D = null
+		if op.type == OpeningModel.Type.WINDOW:
 			mesh.visible = false
+			var leaf_width_m: float = float(info.get("width_m", op.width_m)) * 0.5
+			var leaf_height_m: float = float(info.get("height_m", op.height_m))
+			window_leaf_left = _create_window_leaf_visual(
+				_world_root,
+				"WindowLeafLeft_%02d" % index,
+				leaf_width_m,
+				leaf_height_m,
+				0.045,
+				1.0
+			)
+			window_leaf_right = _create_window_leaf_visual(
+				_world_root,
+				"WindowLeafRight_%02d" % index,
+				leaf_width_m,
+				leaf_height_m,
+				0.045,
+				-1.0
+			)
+		else:
+			asset = _try_build_opening_asset(body, op)
+			if asset != null:
+				mesh.visible = false
 		_opening_nodes[index] = {
 			"body": body,
 			"mesh": mesh,
 			"shape": shape,
 			"asset": asset,
+			"window_leaf_left": window_leaf_left,
+			"window_leaf_right": window_leaf_right,
 			"info": info,
 			"frame": _create_opening_frame(index, op, info),
 			"light": _create_opening_light(op, info)
@@ -736,6 +784,7 @@ func _create_exterior_context() -> void:
 	var root := Node3D.new()
 	root.name = "ExteriorContext"
 	_world_root.add_child(root)
+	_create_exterior_lighting(root)
 
 	for index in range(building.get_opening_count()):
 		var op: OpeningModel = building.get_opening_at(index)
@@ -756,7 +805,7 @@ func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> v
 	var sill_m: float = float(info.get("sill_m", 0.9))
 
 	_create_exterior_window_reveal(parent, index, center, normal, tangent, width_m, height_m, sill_m)
-	_create_balcony_rail(parent, index, center, normal, tangent, width_m, sill_m)
+	_create_exterior_window_sill(parent, index, center, normal, tangent, width_m, sill_m)
 
 	var sky_center: Vector3 = center - normal * city_backdrop_distance_m
 	sky_center.y = 4.0
@@ -769,7 +818,7 @@ func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> v
 		city_view_width_m * 1.75,
 		14.0,
 		0.08,
-		_mat(sky_color, false, sky_color, 0.16),
+		_mat(sky_color, false, sky_color, 0.48 if not _exterior_is_night() else 0.22),
 		false
 	)
 
@@ -783,7 +832,7 @@ func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> v
 		city_view_width_m * 1.55,
 		0.055,
 		city_building_distance_m * 1.35,
-		_mat(_effective_city_street_color(), false),
+		_mat(_effective_city_street_color(), false, _effective_city_street_color(), 0.045 if not _exterior_is_night() else 0.0),
 		false
 	)
 
@@ -799,6 +848,7 @@ func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> v
 		var building_center: Vector3 = center - normal * distance + tangent * (slot_t * city_view_width_m)
 		building_center.y = -exterior_floor_drop_m + building_height * 0.5
 		var tone: float = fposmod(seed * 0.11, 0.24)
+		var building_color := Color(0.34 + tone, 0.36 + tone * 0.72, 0.37 + tone * 0.55, 1.0)
 		_add_oriented_box(
 			parent,
 			"CityBuilding_%02d_%02d" % [index, slot],
@@ -807,7 +857,7 @@ func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> v
 			building_width,
 			building_height,
 			building_depth,
-			_mat(Color(0.34 + tone, 0.36 + tone * 0.72, 0.37 + tone * 0.55, 1.0), false),
+			_mat(building_color, false, building_color, 0.035 if not _exterior_is_night() else 0.0),
 			false
 		)
 		_create_city_windows(parent, index, slot, building_center, normal, tangent, building_width, building_height, building_depth, seed)
@@ -839,22 +889,33 @@ func _create_exterior_window_reveal(
 		_add_oriented_box(parent, "ExteriorWindowSide_%02d" % index, side_center, tangent, band_m, height_m + band_m * 2.0, band_depth, facade_mat, false)
 
 
-func _create_balcony_rail(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, width_m: float, sill_m: float) -> void:
-	var metal_mat := _mat(Color(0.10, 0.10, 0.095, 1.0), false)
+func _create_exterior_lighting(parent: Node3D) -> void:
+	var sky_light := DirectionalLight3D.new()
+	sky_light.name = "ExteriorSkyLight"
+	sky_light.light_color = Color(0.88, 0.92, 1.0, 1.0) if not _exterior_is_night() else Color(0.34, 0.44, 0.62, 1.0)
+	sky_light.light_energy = 0.58 if not _exterior_is_night() else 0.16
+	sky_light.shadow_enabled = false
+	sky_light.rotation = Vector3(deg_to_rad(-38.0), deg_to_rad(28.0), 0.0)
+	parent.add_child(sky_light)
+
+	var exterior_fill := OmniLight3D.new()
+	exterior_fill.name = "ExteriorSoftFill"
+	exterior_fill.light_color = Color(0.78, 0.86, 0.94, 1.0) if not _exterior_is_night() else Color(0.25, 0.33, 0.46, 1.0)
+	exterior_fill.light_energy = 0.18 if not _exterior_is_night() else 0.06
+	exterior_fill.omni_range = maxf(14.0, city_view_width_m * 0.9)
+	exterior_fill.shadow_enabled = false
+	exterior_fill.position = _to_world(Vector3(
+		_bounds_m.position.x + _bounds_m.size.x * 0.5,
+		3.2,
+		_bounds_m.position.y + _bounds_m.size.y * 0.5
+	))
+	parent.add_child(exterior_fill)
+
+
+func _create_exterior_window_sill(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, width_m: float, sill_m: float) -> void:
 	var slab_center: Vector3 = center - normal * 0.40
 	slab_center.y = maxf(0.22, sill_m - 0.10)
 	_add_oriented_box(parent, "ExteriorSill_%02d" % index, slab_center, tangent, width_m + 0.52, 0.08, 0.42, _mat(Color(0.55, 0.54, 0.49, 1.0), false), false)
-
-	var rail_center: Vector3 = center - normal * 0.58
-	rail_center.y = sill_m + 0.62
-	_add_oriented_box(parent, "BalconyRail_%02d" % index, rail_center, tangent, width_m + 0.54, 0.045, 0.04, metal_mat, false)
-	_add_oriented_box(parent, "BalconyLowerRail_%02d" % index, rail_center - Vector3(0.0, 0.34, 0.0), tangent, width_m + 0.46, 0.035, 0.035, metal_mat, false)
-	var bars: int = maxi(3, int(round((width_m + 0.35) / 0.22)))
-	for i in range(bars):
-		var t: float = 0.0 if bars <= 1 else float(i) / float(bars - 1) - 0.5
-		var bar_center: Vector3 = rail_center + tangent * t * (width_m + 0.38)
-		bar_center.y -= 0.18
-		_add_oriented_box(parent, "BalconyBar_%02d_%02d" % [index, i], bar_center, tangent, 0.032, 0.38, 0.032, metal_mat, false)
 
 
 func _create_city_windows(
@@ -883,7 +944,7 @@ func _create_city_windows(
 			var win_center: Vector3 = face_center + tangent * (col_t * building_width * 0.72)
 			win_center.y = y
 			var win_color: Color = _effective_city_window_lit_color() if lit else _effective_city_window_color()
-			var emission_energy: float = 0.24 if lit and _exterior_is_night() else 0.04 if lit else 0.0
+			var emission_energy: float = 0.30 if lit and _exterior_is_night() else 0.08 if lit else 0.018 if not _exterior_is_night() else 0.0
 			_add_oriented_box(
 				parent,
 				"CityWindow_%02d_%02d_%02d_%02d" % [opening_index, building_slot, row, column],
@@ -936,6 +997,10 @@ func _fuel_object_furniture_specs(room: RoomModel, rect: Rect2) -> Array:
 		if obj == null:
 			continue
 		if String(obj.id).begins_with("room_proxy_"):
+			continue
+		var room_kind: String = room.kind.to_lower()
+		var visual_kind: String = _classify_furniture_kind(obj.kind, obj.name, obj.id)
+		if (room_kind.contains("pasillo") or room_kind.contains("hall") or room_kind.contains("corridor")) and visual_kind != "rug":
 			continue
 		var spec: Dictionary
 		if auto_layout:
@@ -1404,6 +1469,49 @@ func _try_build_opening_asset(parent: Node3D, op: OpeningModel) -> Node3D:
 	_prepare_asset_materials(instance)
 	parent.add_child(instance)
 	return instance
+
+
+func _create_window_leaf_visual(
+	parent: Node3D,
+	node_name: String,
+	leaf_width_m: float,
+	height_m: float,
+	thickness_m: float,
+	handle_sign: float
+) -> Node3D:
+	var leaf := Node3D.new()
+	leaf.name = node_name
+	parent.add_child(leaf)
+
+	var bar_m: float = clampf(leaf_width_m * 0.12, 0.050, 0.080)
+	var glass_w: float = maxf(0.08, leaf_width_m - bar_m * 2.1)
+	var glass_h: float = maxf(0.12, height_m - bar_m * 2.1)
+	var frame_color: Color = opening_frame_color.lightened(0.04)
+	_add_local_box(leaf, "Glass", Vector3.ZERO, Vector3(glass_w, glass_h, thickness_m * 0.36), window_glass_closed_color, false)
+	_add_local_box(leaf, "LeafFrameTop", Vector3(0.0, height_m * 0.5 - bar_m * 0.5, 0.0), Vector3(leaf_width_m, bar_m, thickness_m), frame_color, false)
+	_add_local_box(leaf, "LeafFrameBottom", Vector3(0.0, -height_m * 0.5 + bar_m * 0.5, 0.0), Vector3(leaf_width_m, bar_m, thickness_m), frame_color, false)
+	_add_local_box(leaf, "LeafFrameLeft", Vector3(-leaf_width_m * 0.5 + bar_m * 0.5, 0.0, 0.0), Vector3(bar_m, height_m, thickness_m), frame_color, false)
+	_add_local_box(leaf, "LeafFrameRight", Vector3(leaf_width_m * 0.5 - bar_m * 0.5, 0.0, 0.0), Vector3(bar_m, height_m, thickness_m), frame_color, false)
+	_add_local_box(
+		leaf,
+		"Handle",
+		Vector3(handle_sign * (leaf_width_m * 0.5 - bar_m * 1.35), -height_m * 0.08, -thickness_m * 0.64),
+		Vector3(0.035, 0.24, 0.035),
+		Color(0.72, 0.58, 0.32, 1.0),
+		false
+	)
+	return leaf
+
+
+func _set_window_leaf_glass_color(leaf: Node3D, color: Color) -> void:
+	if leaf == null:
+		return
+	var glass := leaf.get_node_or_null("Glass") as MeshInstance3D
+	if glass == null:
+		return
+	var mat := glass.material_override as StandardMaterial3D
+	if mat != null:
+		mat.albedo_color = color
 
 
 func _prepare_asset_materials(root: Node) -> void:
@@ -1935,6 +2043,79 @@ func _sync_opening_panels() -> void:
 		_update_opening_panel(int(index))
 
 
+func _update_window_leaf_pair(
+	left_leaf: Node3D,
+	right_leaf: Node3D,
+	center: Vector3,
+	tangent: Vector3,
+	normal: Vector3,
+	base_yaw: float,
+	width_m: float,
+	_height_m: float,
+	open_amount: float
+) -> void:
+	var leaf_width_m: float = maxf(0.08, width_m * 0.5)
+	var outward: Vector3 = -normal.normalized()
+	var clearance: Vector3 = outward * opening_panel_clearance_m
+	var left_closed_center: Vector3 = center - tangent * (leaf_width_m * 0.5) + clearance
+	var right_closed_center: Vector3 = center + tangent * (leaf_width_m * 0.5) + clearance
+	var left_yaw: float = base_yaw
+	var right_yaw: float = base_yaw
+	var left_center: Vector3 = left_closed_center
+	var right_center: Vector3 = right_closed_center
+
+	if open_amount > 0.01:
+		var angle: float = deg_to_rad(window_open_angle_deg) * open_amount
+		var left_hinge: Vector3 = center - tangent * (width_m * 0.5)
+		var right_hinge: Vector3 = center + tangent * (width_m * 0.5)
+		left_yaw = _pick_window_leaf_yaw(base_yaw, angle, left_hinge, leaf_width_m, left_closed_center, outward, true)
+		right_yaw = _pick_window_leaf_yaw(base_yaw, angle, right_hinge, leaf_width_m, right_closed_center, outward, false)
+		var left_axis: Vector3 = Basis(Vector3.UP, left_yaw).x.normalized()
+		var right_axis: Vector3 = Basis(Vector3.UP, right_yaw).x.normalized()
+		left_center = left_hinge + left_axis * (leaf_width_m * 0.5) + clearance
+		right_center = right_hinge - right_axis * (leaf_width_m * 0.5) + clearance
+
+	left_leaf.visible = true
+	right_leaf.visible = true
+	left_leaf.position = left_center
+	right_leaf.position = right_center
+	left_leaf.rotation = Vector3(0.0, left_yaw, 0.0)
+	right_leaf.rotation = Vector3(0.0, right_yaw, 0.0)
+	var glass_color: Color = window_glass_closed_color.lerp(window_glass_open_color, clampf(open_amount, 0.0, 1.0))
+	_set_window_leaf_glass_color(left_leaf, glass_color)
+	_set_window_leaf_glass_color(right_leaf, glass_color)
+
+
+func _pick_window_leaf_yaw(
+	base_yaw: float,
+	angle: float,
+	hinge: Vector3,
+	leaf_width_m: float,
+	closed_center: Vector3,
+	outward: Vector3,
+	extends_positive_axis: bool
+) -> float:
+	var yaw_a: float = base_yaw + angle
+	var yaw_b: float = base_yaw - angle
+	var score_a: float = _window_leaf_outward_score(yaw_a, hinge, leaf_width_m, closed_center, outward, extends_positive_axis)
+	var score_b: float = _window_leaf_outward_score(yaw_b, hinge, leaf_width_m, closed_center, outward, extends_positive_axis)
+	return yaw_a if score_a >= score_b else yaw_b
+
+
+func _window_leaf_outward_score(
+	yaw: float,
+	hinge: Vector3,
+	leaf_width_m: float,
+	closed_center: Vector3,
+	outward: Vector3,
+	extends_positive_axis: bool
+) -> float:
+	var axis: Vector3 = Basis(Vector3.UP, yaw).x.normalized()
+	var signed_half_width: float = leaf_width_m * 0.5 if extends_positive_axis else -leaf_width_m * 0.5
+	var candidate_center: Vector3 = hinge + axis * signed_half_width
+	return (candidate_center - closed_center).dot(outward)
+
+
 func _cycle_stance() -> void:
 	_stance = (_stance + 1) % 3
 	_apply_stance(false)
@@ -2003,6 +2184,8 @@ func _update_opening_panel(index: int) -> void:
 	var mesh := data.get("mesh") as MeshInstance3D
 	var shape := data.get("shape") as CollisionShape3D
 	var asset := data.get("asset") as Node3D
+	var window_leaf_left := data.get("window_leaf_left") as Node3D
+	var window_leaf_right := data.get("window_leaf_right") as Node3D
 	var light := data.get("light") as OmniLight3D
 	var info: Dictionary = data.get("info", {})
 	if body == null or mesh == null or shape == null or info.is_empty():
@@ -2035,20 +2218,35 @@ func _update_opening_panel(index: int) -> void:
 		var hinge: Vector3 = center - tangent * width_m * 0.5
 		var rotated_tangent: Vector3 = Basis(Vector3.UP, visual_yaw).x.normalized()
 		visual_center = hinge + rotated_tangent * width_m * 0.5 + normal * opening_panel_clearance_m
-	elif is_window and open_amount > 0.01:
-		var outward: Vector3 = -normal
-		var hinge: Vector3 = center - tangent * width_m * 0.5
-		var angle: float = deg_to_rad(window_open_angle_deg) * open_amount
-		var yaw_a: float = base_yaw + angle
-		var yaw_b: float = base_yaw - angle
-		var center_a: Vector3 = hinge + Basis(Vector3.UP, yaw_a).x.normalized() * width_m * 0.5
-		var center_b: Vector3 = hinge + Basis(Vector3.UP, yaw_b).x.normalized() * width_m * 0.5
-		if (center_a - center).dot(outward) >= (center_b - center).dot(outward):
-			visual_yaw = yaw_a
-			visual_center = center_a + outward * opening_panel_clearance_m
-		else:
-			visual_yaw = yaw_b
-			visual_center = center_b + outward * opening_panel_clearance_m
+	elif is_window and window_leaf_left != null and window_leaf_right != null:
+		_update_window_leaf_pair(
+			window_leaf_left,
+			window_leaf_right,
+			center,
+			tangent,
+			normal,
+			base_yaw,
+			width_m,
+			height_m,
+			open_amount
+		)
+		body.position = center - normal * opening_panel_clearance_m
+		body.rotation = Vector3(0.0, base_yaw, 0.0)
+		var window_box_mesh := mesh.mesh as BoxMesh
+		if window_box_mesh != null:
+			window_box_mesh.size = size
+		mesh.visible = false
+		var window_box_shape := shape.shape as BoxShape3D
+		if window_box_shape != null:
+			window_box_shape.size = size
+		shape.position = Vector3.ZERO
+		shape.disabled = (not window_collision_when_closed) or open_amount > 0.05
+		if light != null:
+			var window_area_factor: float = clampf(width_m * height_m / 2.2, 0.35, 1.55)
+			light.light_color = _effective_window_light_color()
+			light.light_energy = _effective_window_light_energy() * window_area_factor * lerpf(0.45, 1.0, open_amount)
+			light.omni_range = window_light_range_m * lerpf(0.72, 1.08, open_amount)
+		return
 
 	body.position = visual_center
 	body.rotation = Vector3(0.0, visual_yaw, 0.0)

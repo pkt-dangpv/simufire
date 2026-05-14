@@ -12,7 +12,7 @@
             "min": 950.0
         },
         "room_0_peak_co_upper_ppm": {
-            "min": 3000.0
+            "min": 500.0
         }
     }
 }

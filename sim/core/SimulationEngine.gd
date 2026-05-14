@@ -172,6 +172,18 @@ var _active_suppression_by_room: Dictionary = {}
 #   Combustión en déficit: 0.200 kg/kg ÷ 16 = 0.01250 kg/MJ
 @export var co_base_yield_kg_per_MJ: float = 0.00025
 @export var co_max_yield_kg_per_MJ: float = 0.01250
+# Yield forzado constante (≥0): cuando se establece, sustituye el cálculo adaptativo
+# de CO. Útil para comparación con CFAST/FDS que usan yields fijos por kg de combustible.
+# Valor -1.0 (por defecto) desactiva el forzado.
+@export var fire_co_yield_force_kg_per_MJ: float = -1.0
+# Tasa de incremento de CO con el equivalence ratio φ (curva exponencial).
+# y_CO = y_CO_base × exp(fire_co_phi_rate × (φ - 1)) para φ > 1.
+# k=2.0 → ~50× a φ=3, coincidiendo con datos de Beyler (1986) y NIST TN 1603
+# para madera residencial en condiciones subventiladas.
+@export var fire_co_phi_rate: float = 2.0
+# phi efectiva para smoldering (combustion sin llama). Valores tipicos: 3-5.
+# phi=4 reproduce la alta emision de CO de brasas/smoldering (ISO 19706).
+@export var fire_smolder_phi: float = 4.0
 
 # Rendimiento de CO2 (kg/MJ)
 # ISO 19706 — madera (combustible residencial dominante):
@@ -179,10 +191,9 @@ var _active_suppression_by_room: Dictionary = {}
 #   Combustión en déficit: 0.95 kg/kg ÷ 16 MJ/kg = 0.0594 kg/MJ
 @export var co2_base_yield_kg_per_MJ: float = 0.0831
 @export var co2_min_yield_kg_per_MJ: float = 0.0594
-# Peso del combustion_completion_factor como suelo para el yield de CO2.
-# Evita que CO2 caiga demasiado cuando el fuego está activo pero con déficit de O2.
-# 0 = deshabilitado (comportamiento clásico); 0.55 = valor físicamente justificado.
-@export var co2_completion_yield_weight: float = 0.75
+# Tasa de decaimiento de CO2 con phi. co2_phi_decay_rate=2.5 → CO2 llega al
+# minimo cuando phi=3.5 (Pitts, NIST TN 1603 datos de especies underventilated).
+@export var co2_phi_decay_rate: float = 2.5
 
 # Rendimiento de HCN (kg/MJ)
 # ISO 19706: madera ventilada ~0.001 kg/kg ÷ 20 MJ/kg = 0.00005 kg/MJ.
@@ -1120,9 +1131,12 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_max_active_s": fire_max_active_s,
 		"co_base_yield_kg_per_MJ": co_base_yield_kg_per_MJ,
 		"co_max_yield_kg_per_MJ": co_max_yield_kg_per_MJ,
+		"fire_co_yield_force_kg_per_MJ": fire_co_yield_force_kg_per_MJ,
+		"fire_co_phi_rate": fire_co_phi_rate,
+		"fire_smolder_phi": fire_smolder_phi,
 		"co2_base_yield_kg_per_MJ": co2_base_yield_kg_per_MJ,
 		"co2_min_yield_kg_per_MJ": co2_min_yield_kg_per_MJ,
-		"co2_completion_yield_weight": co2_completion_yield_weight,
+		"co2_phi_decay_rate": co2_phi_decay_rate,
 		"hcn_base_yield_kg_per_MJ": hcn_base_yield_kg_per_MJ,
 		"hcn_max_yield_kg_per_MJ": hcn_max_yield_kg_per_MJ,
 		"kawagoe_limit_kw": kawagoe_limit_kw,

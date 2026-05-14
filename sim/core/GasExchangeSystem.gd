@@ -34,6 +34,7 @@ var outside_open_species_temp_full_c: float = 220.0
 var outside_open_species_pressure_ref_pa: float = 4.0
 var outside_open_species_upper_bias: float = 0.80
 var background_species_exchange_kg_s_m2: float = 0.035
+var background_o2_exchange_multiplier: float = 1.0
 var background_species_path_multiplier_max: float = 3.00
 var background_species_max_fraction_closed: float = 0.010
 var background_species_max_fraction_open: float = 0.040
@@ -111,6 +112,9 @@ func configure(settings: Dictionary) -> void:
 	)
 	background_species_exchange_kg_s_m2 = float(
 		settings.get("background_species_exchange_kg_s_m2", background_species_exchange_kg_s_m2)
+	)
+	background_o2_exchange_multiplier = float(
+		settings.get("background_o2_exchange_multiplier", background_o2_exchange_multiplier)
 	)
 	background_species_path_multiplier_max = float(
 		settings.get("background_species_path_multiplier_max", background_species_path_multiplier_max)
@@ -906,7 +910,7 @@ func _apply_background_species_exchange(
 	# O2: intercambio por gradiente de concentración entre salas conectadas.
 	# El O2 fluye de la sala con más O2 hacia la sala con menos O2 (difusión).
 	if not o2_delta_kg.is_empty():
-		var net_o2_a_to_b: float = (room_a.o2 - room_b.o2) * exchange_air_kg
+		var net_o2_a_to_b: float = (room_a.o2 - room_b.o2) * exchange_air_kg * maxf(0.0, background_o2_exchange_multiplier)
 		o2_delta_kg[room_a.id] -= net_o2_a_to_b
 		o2_delta_kg[room_b.id] += net_o2_a_to_b
 

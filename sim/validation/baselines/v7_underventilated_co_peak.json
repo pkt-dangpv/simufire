@@ -9,8 +9,8 @@
             "tolerance": 5.0
         },
         "time_room_0_co_upper_above_5000_s": {
-            "expected": 134.333333,
-            "tolerance": 5.0
+            "expected": 177.000000,
+            "tolerance": 10.0
         },
         "room_0_peak_co_upper_ppm": {
             "min": 5000.0

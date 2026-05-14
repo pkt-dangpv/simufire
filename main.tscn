@@ -64,11 +64,11 @@ omni_range = 18.0
 [node name="FirstPersonController" type="CharacterBody3D" parent="World3D"]
 visible = false
 script = ExtResource("7_fp")
-ambient_fill_energy = 0.24
-room_ceiling_light_energy = 0.52
-landing_light_energy = 0.95
-landing_light_range_m = 3.8
-window_light_energy = 0.32
+ambient_fill_energy = 0.30
+room_ceiling_light_energy = 0.58
+landing_light_energy = 1.05
+landing_light_range_m = 4.2
+window_light_energy = 0.95
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=894412047]
 
