@@ -45,7 +45,20 @@ SOURCE_FILES = [
     "sim/validation/run_case.ps1",
     "sim/validation/run_all_cases.ps1",
     "ui/hud.gd",
-    "view/Visualizer.gd",
+    "view/2d/Visualizer.gd",
+    "view/3d/Visualizer3D.gd",
+    "view/3d/smoke/SmokeBridgeMesh.gd",
+    "view/3d/smoke/SmokeVolumeMaterialFactory.gd",
+    "view/3d/fire/FireMaterialFactory.gd",
+    "view/3d/furniture/FurnitureAssetLoader.gd",
+    "view/3d/furniture/FurniturePlacement3D.gd",
+    "view/3d/furniture/FurnitureShapeBuilder.gd",
+    "view/3d/furniture/FurnitureStateVisuals.gd",
+    "view/3d/furniture/FurnitureVisualClassifier.gd",
+    "view/3d/openings/OpeningPose3D.gd",
+    "view/fp/FirstPersonController.gd",
+    "view/fp/FPVisibilityOverlay.gd",
+    "view/fp/FPOpeningVisuals.gd",
     "scripts/generate_fire_graphs.py",
     "scripts/download_fire_literature.ps1",
     "scripts/simulation/run_ghanekar_sweep.ps1",
@@ -128,8 +141,8 @@ def describe_function(file_rel: str, name: str) -> str:
         ("sim/validation/CaseRunner.gd", "_run_validation_loop"): "Ejecuta headless en pasos fijos hasta la duracion del caso y aborta si no avanza.",
         ("sim/validation/CaseRunner.gd", "_update_metrics"): "Recolecta picos, umbrales temporales, extincion, quiescencia y metricas globales.",
         ("sim/validation/CaseRunner.gd", "_compare_against_baseline"): "Compara metricas contra reglas expected/tolerance/min/max de la baseline JSON.",
-        ("view/Visualizer.gd", "_draw"): "Dibuja habitaciones, capas, etiquetas, barras HRR, badges de ventana y aperturas.",
-        ("view/Visualizer.gd", "_compute_svv_pct"): "Replica el criterio SVV combinando isoterma 150 C y FED para colorear etiquetas.",
+        ("view/2d/Visualizer.gd", "_draw"): "Dibuja habitaciones, capas, etiquetas, barras HRR, badges de ventana y aperturas.",
+        ("view/2d/Visualizer.gd", "_compute_svv_pct"): "Replica el criterio SVV combinando isoterma 150 C y FED para colorear etiquetas.",
         ("ui/hud.gd", "update_state"): "Actualiza tiempo, play/pause, controles y panel de sala a partir del estado publico.",
         ("scripts/generate_fire_graphs.py", "parse_log"): "Parsea sim_log.txt en series temporales por habitacion y eventos.",
         ("scripts/generate_fire_graphs.py", "plot_room"): "Genera PNGs de HRR, temperaturas, capas, gases y FED/SVV para una habitacion.",
@@ -426,10 +439,49 @@ SCRIPT_EXPLANATIONS = {
         "Ejecuta casos principales y resume PASS/FAIL.",
     ]),
     "ui/hud.gd": ("Interfaz de controles.", [
-        "Muestra tiempo, escala, play/pause, selector de aperturas y panel de sala.",
+        "Muestra tiempo, escala, play/pause, estado de aperturas, panel contextual y datos de sala.",
     ]),
-    "view/Visualizer.gd": ("Visualizador 2D.", [
+    "view/2d/Visualizer.gd": ("Visualizador 2D.", [
         "Pinta habitaciones, capas, humo, calor, HRR, ventanas/puertas y etiquetas adaptativas.",
+    ]),
+    "view/3d/Visualizer3D.gd": ("Visualizador 3D.", [
+        "Construye la vivienda, camaras, mobiliario, fuego, humo y efectos volumetricos de la escena 3D.",
+    ]),
+    "view/3d/smoke/SmokeBridgeMesh.gd": ("Malla auxiliar de humo 3D.", [
+        "Genera la geometria diagonal que conecta capas de humo entre estancias sin mezclarla con el visualizador completo.",
+    ]),
+    "view/3d/smoke/SmokeVolumeMaterialFactory.gd": ("Materiales de humo 3D.", [
+        "Contiene shaders y parametros base para volumen de humo y mascara tenue de techo.",
+    ]),
+    "view/3d/fire/FireMaterialFactory.gd": ("Materiales de fuego 3D.", [
+        "Contiene shaders y parametros base para llamas y extension de fuego bajo techo.",
+    ]),
+    "view/3d/furniture/FurnitureAssetLoader.gd": ("Carga de mobiliario visual.", [
+        "Instancia assets de mobiliario FP reutilizados en 3D y prepara copias de materiales.",
+    ]),
+    "view/3d/furniture/FurniturePlacement3D.gd": ("Colocacion de mobiliario visual.", [
+        "Encaja muebles dentro de la habitacion segun tamano/rotacion y calcula la altura visual de anclaje del fuego.",
+    ]),
+    "view/3d/furniture/FurnitureShapeBuilder.gd": ("Formas procedurales de mobiliario.", [
+        "Construye sofas, camas, mesas, textiles, alfombras y otros combustibles visuales cuando no hay asset dedicado.",
+    ]),
+    "view/3d/furniture/FurnitureStateVisuals.gd": ("Estado visual de mobiliario.", [
+        "Aplica carbonizacion, emision y brillo termico segun estado de combustion del objeto.",
+    ]),
+    "view/3d/furniture/FurnitureVisualClassifier.gd": ("Clasificador visual de mobiliario.", [
+        "Mapea nombres/tipos de combustibles a arquetipos visuales y decide si una forma necesita reconstruirse.",
+    ]),
+    "view/3d/openings/OpeningPose3D.gd": ("Pose de aperturas 3D.", [
+        "Calcula posicion y tamano de puertas/ventanas en paredes exteriores o compartidas.",
+    ]),
+    "view/fp/FirstPersonController.gd": ("Controlador primera persona.", [
+        "Gestiona camara FP, colision, postura, raycast de interaccion y entrada de teclado/raton.",
+    ]),
+    "view/fp/FPVisibilityOverlay.gd": ("Visibilidad FP.", [
+        "Calcula el oscurecimiento del overlay y la visibilidad efectiva segun altura de ojos y capa de humo.",
+    ]),
+    "view/fp/FPOpeningVisuals.gd": ("Visuales de aperturas FP.", [
+        "Calcula poses y geometria de puertas/ventanas sin tocar el estado del simulador.",
     ]),
     "scripts/generate_fire_graphs.py": ("Generador de graficas.", [
         "Lee sim_log.txt, parsea series/eventos, detecta inflexiones y guarda PNGs.",

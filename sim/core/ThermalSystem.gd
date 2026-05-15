@@ -57,6 +57,17 @@ var outside_open_ambient_loss_multiplier: float = 5.0
 var outside_open_wall_absorption_multiplier: float = 0.80
 var outside_open_upper_mix_rate: float = 0.0
 var outside_open_lower_warming_rate: float = 0.0
+# Boost a la fracción convectiva cuando hay ventana exterior abierta.
+# Modela que con aporte de aire fresco el fuego quema más completamente
+# (chi_rad efectivo baja de ~0.70 a ~0.30 en fase bien ventilada).
+# Efecto: conv_fraction_eff = conv_fraction * (1 + outside_open_upper_heat_boost * open_factor)
+# Default 0.0 (sin efecto) — activar en JSON de caso para calibrar vs CFAST/FDS.
+var outside_open_upper_heat_boost: float = 0.0
+# Tasa de enfriamiento de la zona inferior por ingreso de aire fresco exterior.
+# Solo actúa cuando outside_open_factor > 0 (ventana/puerta exterior abierta).
+# Modela el reemplazamiento de gas caliente de la zona inferior por aire fresco.
+# Default 0.0 — activar en JSON de caso para calibrar vs CFAST/FDS.
+var outside_lower_fresh_air_cooling_rate: float = 0.0
 var outside_open_background_heat_exchange_kg_s_m2: float = 0.030
 var outside_open_background_heat_max_fraction_per_step: float = 0.020
 var outside_open_background_heat_carry_factor: float = 0.42
@@ -250,8 +261,14 @@ func configure(settings: Dictionary) -> void:
 	outside_open_upper_mix_rate = float(
 		settings.get("outside_open_upper_mix_rate", outside_open_upper_mix_rate)
 	)
+	outside_open_upper_heat_boost = float(
+		settings.get("outside_open_upper_heat_boost", outside_open_upper_heat_boost)
+	)
 	outside_open_lower_warming_rate = float(
 		settings.get("outside_open_lower_warming_rate", outside_open_lower_warming_rate)
+	)
+	outside_lower_fresh_air_cooling_rate = float(
+		settings.get("outside_lower_fresh_air_cooling_rate", outside_lower_fresh_air_cooling_rate)
 	)
 	outside_open_background_heat_exchange_kg_s_m2 = float(
 		settings.get(
@@ -404,17 +421,12 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			var qc_kw: float = room.hrr_kw * plume_mccaffrey_qc_fraction
 			# Altura de llama Heskestad: L_f = 0.235·Q^0.4 - 1.02·D  [Q en kW, L en m]
 			var l_flame_m: float = maxf(0.0, 0.235 * pow(room.hrr_kw, 0.4) - 1.02 * plume_fire_diameter_m)
-			# Usar thermal_layer_m directamente (posición dinámica real de la interfaz).
-			# effective_hot_layer_height_m() devuelve el mínimo con un heurístico estático
-			# basado en HRR, lo que subestima z_m en fase temprana y reduce el entrainment
-			# de McCaffrey a la mitad. Con thermal_layer_m la ODE converge correctamente.
 			var z_m: float = maxf(room.thermal_layer_m, l_flame_m + 0.05)
 			if l_flame_m < z_m:
-				# Far-field: pluma por encima de la llama. z_eff = altura sobre la punta de llama
 				var z_eff_m: float = maxf(0.1, z_m - l_flame_m)
 				var m_dot_p_kg_s: float = 0.071 * pow(qc_kw, 1.0 / 3.0) * pow(z_eff_m, 5.0 / 3.0)
 				# Cap: no consumir más masa de la zona inferior disponible en este paso
-				var lower_mass_kg: float = room.floor_area_m2() * maxf(0.0, z_m) * gas_density_kg_m3(room.temp_lower_c)
+				var lower_mass_kg: float = room.floor_area_m2() * maxf(0.0, room.thermal_layer_m) * gas_density_kg_m3(room.temp_lower_c)
 				m_dot_p_kg_s = minf(m_dot_p_kg_s, lower_mass_kg / maxf(dt, 0.1))
 				var mass_gain_kg: float = m_dot_p_kg_s * dt
 				room.upper_gas_kg += mass_gain_kg
@@ -422,11 +434,12 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			elif plume_flame_region_entrainment_enabled:
 				_add_flame_region_entrainment(room, qc_kw, z_m, dt, ambient_c)
 			else:
-				# Compatibilidad: rama heurística anterior para desactivar la ODE local.
 				var target_upper_mass_kg: float = estimate_target_upper_gas_mass_kg(room)
 				if target_upper_mass_kg > room.upper_gas_kg:
 					var mass_gain_kg: float = (target_upper_mass_kg - room.upper_gas_kg) * clampf(
-						dt / maxf(1.0, plume_fill_response_s), 0.0, 1.0
+						dt / maxf(1.0, plume_fill_response_s),
+						0.0,
+						1.0
 					)
 					room.upper_gas_kg += mass_gain_kg
 					room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_lower_c - ambient_c)
@@ -451,6 +464,10 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			clampf(inverse_lerp(0.06, 0.12, room.o2), 0.0, 1.0)
 		)
 		var conv_fraction: float = clampf(1.0 - chi_rad, 0.0, 0.90)
+		# Cuando hay ventana exterior abierta: el aporte de O2 fresco reduce chi_rad
+		# efectivo (combustión más completa). Modelado como boost proporcional a open_factor.
+		if outside_open_factor > 0.0 and outside_open_upper_heat_boost > 0.0:
+			conv_fraction = minf(0.90, conv_fraction * (1.0 + outside_open_upper_heat_boost * outside_open_factor))
 		room.upper_energy_kj += room.hrr_kw * conv_fraction * dt
 		var _bud_e_fire_kj: float = room.hrr_kw * conv_fraction * dt if energy_budget_enabled else 0.0
 		var pre_sync_upper_temp_c: float = _estimate_raw_upper_temp_c(room, ambient_c)
@@ -469,7 +486,10 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		var delta_ul: float = maxf(0.0, room.temp_upper_c - room.temp_lower_c)
 		var lower_transfer_rate: float = upper_to_lower_loss_rate + lower_layer_warming_rate
 		lower_transfer_rate += _compute_room_vertical_mix_bonus(room)
-		lower_transfer_rate += maxf(0.0, outside_open_lower_warming_rate) * outside_open_factor
+		# outside_open_lower_warming_rate puede ser positivo (añade transferencia al lower)
+		# o negativo (reduce la transferencia, modelando que el aire fresco externo
+		# sustituye el gas caliente de la zona inferior y la desacopla de la capa superior).
+		lower_transfer_rate = maxf(0.0, lower_transfer_rate + outside_open_lower_warming_rate * outside_open_factor)
 		# Fade factor: cuando la zona inferior tiene altura < lower_layer_energy_fade_m
 		# el flujo upper→lower se atenúa linealmente (zona inferior con volumen ínfimo
 		# no puede absorber la misma energía que una zona de altura normal).
@@ -548,6 +568,12 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 
 		room.temp_lower_c += energy_to_lower_kj / lower_mass_kg
 		room.temp_lower_c -= maxf(0.0, room.temp_lower_c - ambient_c) * 0.0085 * dt
+		# Enfriamiento por ingreso de aire fresco exterior (ventana/puerta abierta al exterior).
+		# Modela el reemplazamiento gradual de gas caliente en la zona inferior por aire
+		# ambiente entrante (análogo al flujo de entrada por debajo del plano neutro en CFAST).
+		if outside_open_factor > 0.0 and outside_lower_fresh_air_cooling_rate > 0.0:
+			room.temp_lower_c -= maxf(0.0, room.temp_lower_c - ambient_c) \
+					* outside_lower_fresh_air_cooling_rate * outside_open_factor * dt
 		room.temp_lower_c = maxf(ambient_c, room.temp_lower_c)
 		sync_room_upper_layer(room, dt)
 		update_room_layer_150c(room, dt)
@@ -1739,6 +1765,27 @@ func compute_hcn_ppm(room: RoomModel) -> float:
 	return room.hcn_kg * 29.0e6 / maxf(0.1, room.volume_m3() * 1.2 * 27.0)
 
 
+func compute_hcl_ppm(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+	# HCl MW = 36.5 g/mol
+	return room.hcl_kg * 29.0e6 / maxf(0.1, room.volume_m3() * 1.2 * 36.5)
+
+
+func compute_acrolein_ppm(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+	# Acroleína MW = 56 g/mol
+	return room.acrolein_kg * 29.0e6 / maxf(0.1, room.volume_m3() * 1.2 * 56.0)
+
+
+func compute_formaldehyde_ppm(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+	# Formaldehído MW = 30 g/mol
+	return room.formaldehyde_kg * 29.0e6 / maxf(0.1, room.volume_m3() * 1.2 * 30.0)
+
+
 func compute_co_upper_ppm(room: RoomModel) -> float:
 	if room == null:
 		return 0.0
@@ -1848,6 +1895,19 @@ func step_fed(room: RoomModel, dt: float) -> void:
 				delta_fed += dt / tenab_rad_s
 
 	room.fed += maxf(0.0, delta_fed)
+
+	# FEC irritantes — SF-AUD-018 (ISO 13571 §A.3, sensory irritants).
+	# FEC = [HCl]/IC50_HCl + [acrolein]/IC50_acrolein + [HCHO]/IC50_HCHO
+	# IC50 (sensory incapacitation): HCl=900 ppm, acrolein=4 ppm, formaldehyde=250 ppm.
+	# FEC ≥ 1.0 indica incapacitación por irritación; no es dosis acumulada.
+	var hcl_ppm_fec: float = compute_hcl_ppm(room)
+	var acrolein_ppm_fec: float = compute_acrolein_ppm(room)
+	var formaldehyde_ppm_fec: float = compute_formaldehyde_ppm(room)
+	room.fec_irritant = clampf(
+		hcl_ppm_fec / 900.0 + acrolein_ppm_fec / 4.0 + formaldehyde_ppm_fec / 250.0,
+		0.0,
+		100.0
+	)
 
 	# Visibilidad instantánea (Purser): actualizar en room para SVV y exportación.
 	room.visibility_m = _smoke_model.estimate_visibility_m(room) if _smoke_model != null else 30.0

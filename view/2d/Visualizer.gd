@@ -31,7 +31,9 @@ class_name Visualizer
 @export var view_margin_px: float = 20.0
 # Espacio reservado para el panel de UI (HUD) en cada borde
 @export var ui_reserved_right_px: float = 400.0
+@export var ui_reserved_left_px: float = 0.0
 @export var ui_reserved_top_px: float = 0.0
+@export var ui_reserved_bottom_px: float = 0.0
 
 # ============================================================
 # TOGGLES DE DIBUJO
@@ -168,10 +170,12 @@ class_name Visualizer
 # ============================================================
 
 signal room_clicked(room_id: int)
+signal opening_clicked(opening_index: int, screen_pos: Vector2)
 
 var state: Dictionary = {}
 var rects_m: Dictionary[int, Rect2] = {}
 var selected_room_id: int = -1
+var selected_opening_index: int = -1
 
 @export var building_path: NodePath
 var building: BuildingModel = null
@@ -297,18 +301,32 @@ func _unhandled_input(event: InputEvent) -> void:
 	var mb := event as InputEventMouseButton
 	if not (mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT):
 		return
+	var clicked_opening_index: int = _get_opening_index_at_local_pos(mb.position)
+	if clicked_opening_index >= 0:
+		selected_opening_index = clicked_opening_index
+		queue_redraw()
+		opening_clicked.emit(clicked_opening_index, mb.position)
+		get_viewport().set_input_as_handled()
+		return
 	var clicked_id: int = _get_room_id_at_local_pos(mb.position)
 	if clicked_id >= 0:
 		selected_room_id = clicked_id
+		selected_opening_index = -1
 		queue_redraw()
 		room_clicked.emit(clicked_id)
 		get_viewport().set_input_as_handled()
 	else:
-		if selected_room_id >= 0:
+		if selected_room_id >= 0 or selected_opening_index >= 0:
 			selected_room_id = -1
+			selected_opening_index = -1
 			queue_redraw()
 			room_clicked.emit(-1)
 			get_viewport().set_input_as_handled()
+
+
+func select_opening(opening_index: int) -> void:
+	selected_opening_index = opening_index
+	queue_redraw()
 
 
 func _get_room_id_at_local_pos(local_pos: Vector2) -> int:
@@ -320,6 +338,66 @@ func _get_room_id_at_local_pos(local_pos: Vector2) -> int:
 		if rects_m[id].has_point(pos_m):
 			return id
 	return -1
+
+
+func _get_opening_index_at_local_pos(local_pos: Vector2) -> int:
+	if building == null:
+		return -1
+	var best_index: int = -1
+	var best_distance: float = 999999.0
+	for index in range(building.get_opening_count()):
+		var segment: PackedVector2Array = _get_opening_segment_px(index)
+		if segment.size() != 2:
+			continue
+		var distance: float = _distance_point_to_segment(local_pos, segment[0], segment[1])
+		if distance < best_distance:
+			best_distance = distance
+			best_index = index
+	var tolerance_px: float = maxf(10.0, opening_line_width * 2.5)
+	return best_index if best_distance <= tolerance_px else -1
+
+
+func _get_opening_segment_px(index: int) -> PackedVector2Array:
+	var empty := PackedVector2Array()
+	if building == null or index < 0:
+		return empty
+	var op: OpeningModel = building.get_opening_at(index)
+	if op == null or not rects_m.has(op.a):
+		return empty
+
+	var a_id: int = op.a
+	var b_id: int = op.b
+	var ra: Rect2 = rects_m[a_id]
+	var rb: Rect2 = Rect2()
+	var b_exists: bool = rects_m.has(b_id)
+	if b_exists:
+		rb = rects_m[b_id]
+
+	var seg_m: PackedVector2Array = _shared_edge_segment_m(ra, rb) if b_exists else _default_exterior_segment_m(ra, op.width_m, op.wall_side)
+	if seg_m.size() != 2:
+		return empty
+
+	var tf: Dictionary = _get_draw_transform()
+	var scale_px: float = float(tf["scale"])
+	var offset: Vector2 = tf["offset"]
+	var p1: Vector2 = seg_m[0] * scale_px + offset
+	var p2: Vector2 = seg_m[1] * scale_px + offset
+	if op.type == OpeningModel.Type.DOOR and b_exists:
+		var door_px: float = maxf(8.0, op.width_m * scale_px)
+		var seg_dir: Vector2 = (p2 - p1).normalized() if p1.distance_to(p2) > 0.01 else Vector2(1, 0)
+		var seg_mid: Vector2 = (p1 + p2) * 0.5
+		var hinge_px: Vector2 = seg_mid - seg_dir * door_px * 0.5
+		return PackedVector2Array([hinge_px, hinge_px + seg_dir * door_px])
+	return PackedVector2Array([p1, p2])
+
+
+func _distance_point_to_segment(point: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab: Vector2 = b - a
+	var len_sq: float = ab.length_squared()
+	if len_sq <= 0.0001:
+		return point.distance_to(a)
+	var t: float = clampf((point - a).dot(ab) / len_sq, 0.0, 1.0)
+	return point.distance_to(a + ab * t)
 
 
 func _draw_background() -> void:
@@ -1078,7 +1156,10 @@ func _draw_openings() -> void:
 	if building == null:
 		return
 
-	for op: OpeningModel in building.openings:
+	for index in range(building.get_opening_count()):
+		var op: OpeningModel = building.get_opening_at(index)
+		if op == null:
+			continue
 		if not rects_m.has(op.a):
 			continue
 
@@ -1131,6 +1212,8 @@ func _draw_openings() -> void:
 			else:
 				draw_line(p1, p2, background_color, wall_thickness + 2.0)
 				draw_line(p1, p2, col, opening_line_width)
+			if index == selected_opening_index:
+				_draw_selected_opening_marker(index)
 			continue
 		else:
 			col = Color(window_color.r, window_color.g, window_color.b, alpha)
@@ -1149,6 +1232,8 @@ func _draw_openings() -> void:
 				12,
 				Color(1.0, 1.0, 1.0, 0.85)
 			)
+		if index == selected_opening_index:
+			_draw_selected_opening_marker(index)
 
 
 # ============================================================
@@ -1189,6 +1274,12 @@ func _draw_door_top_view(
 	while da < -PI:
 		da += TAU
 	draw_arc(hinge, door_px, a_open, a_open + da, 18, col, 1.0, true)
+
+
+func _draw_selected_opening_marker(opening_index: int) -> void:
+	var selected_segment: PackedVector2Array = _get_opening_segment_px(opening_index)
+	if selected_segment.size() == 2:
+		draw_line(selected_segment[0], selected_segment[1], selected_room_outline_color, opening_line_width + 4.0)
 
 
 func _shared_edge_segment_m(a: Rect2, b: Rect2) -> PackedVector2Array:
@@ -1388,10 +1479,10 @@ func _get_draw_transform() -> Dictionary:
 
 	var viewport_rect: Rect2 = get_viewport_rect()
 	# Área disponible descontando el panel de UI y márgenes
-	var avail_x: float = view_margin_px
+	var avail_x: float = view_margin_px + ui_reserved_left_px
 	var avail_y: float = view_margin_px + ui_reserved_top_px
-	var available_w: float = maxf(1.0, viewport_rect.size.x - ui_reserved_right_px - view_margin_px * 2.0)
-	var available_h: float = maxf(1.0, viewport_rect.size.y - ui_reserved_top_px - view_margin_px * 2.0)
+	var available_w: float = maxf(1.0, viewport_rect.size.x - ui_reserved_left_px - ui_reserved_right_px - view_margin_px * 2.0)
+	var available_h: float = maxf(1.0, viewport_rect.size.y - ui_reserved_top_px - ui_reserved_bottom_px - view_margin_px * 2.0)
 
 	var scale_px: float = meters_to_px
 	if auto_fit_to_view:

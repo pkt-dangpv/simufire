@@ -1,13 +1,13 @@
 [gd_scene format=3 uid="uid://cvoli3fiekrtb"]
 
 [ext_resource type="Script" uid="uid://beym4skcv32aa" path="res://Main.gd" id="1_ig7tw"]
-[ext_resource type="Script" uid="uid://clan116mabqti" path="res://view/Visualizer.gd" id="2_0xm2m"]
+[ext_resource type="Script" path="res://view/2d/Visualizer.gd" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://1sbehqy3k8" path="res://sim/BuildingModel.gd" id="3_1bvp3"]
 [ext_resource type="Script" uid="uid://bi64gqhwao7fw" path="res://ui/hud.gd" id="3_h2yge"]
 [ext_resource type="Script" uid="uid://b4jh4ba6wx5ye" path="res://sim/core/SimulationEngine.gd" id="4_lquwl"]
 [ext_resource type="Script" uid="uid://dgomuflgrvt3r" path="res://sim/validation/CaseRunner.gd" id="5_case"]
-[ext_resource type="Script" uid="uid://b0fuen3e64cbj" path="res://view/Visualizer3D.gd" id="6_3dviz"]
-[ext_resource type="Script" uid="uid://dp46g35hj2x73" path="res://view/FirstPersonController.gd" id="7_fp"]
+[ext_resource type="Script" path="res://view/3d/Visualizer3D.gd" id="6_3dviz"]
+[ext_resource type="Script" path="res://view/fp/FirstPersonController.gd" id="7_fp"]
 
 [node name="Main" type="Node" unique_id=1481794009]
 script = ExtResource("1_ig7tw")
@@ -19,6 +19,11 @@ autostart = true
 
 [node name="Visualizer" type="Node2D" parent="World" unique_id=1380777294]
 script = ExtResource("2_0xm2m")
+ui_reserved_left_px = 0.0
+ui_reserved_right_px = 408.0
+ui_reserved_top_px = 8.0
+ui_reserved_bottom_px = 116.0
+show_room_data_in_label = false
 
 [node name="Camera2D" type="Camera2D" parent="World" unique_id=1967755593]
 position = Vector2(576, 324)
@@ -36,6 +41,7 @@ visible = false
 [node name="Visualizer3D" type="Node3D" parent="World3D" unique_id=1970939070]
 script = ExtResource("6_3dviz")
 building_path = NodePath("../../World/BuildingModel")
+show_smoke_puffs_in_first_person = false
 
 [node name="Rooms" type="Node3D" parent="World3D/Visualizer3D" unique_id=1938223840]
 
@@ -88,15 +94,17 @@ script = ExtResource("3_h2yge")
 
 [node name="OpeningsPanel" type="PanelContainer" parent="UI/HUD" unique_id=938201145]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -174.0
-offset_top = -67.0
-offset_right = 174.0
-offset_bottom = 67.0
+anchors_preset = -1
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -376.0
+offset_top = -236.0
+offset_right = -8.0
+offset_bottom = -126.0
+grow_horizontal = 0
+grow_vertical = 0
 mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/OpeningsPanel" unique_id=194826401]
@@ -112,27 +120,30 @@ theme_override_constants/separation = 6
 
 [node name="OpeningsTitle" type="Label" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer" unique_id=257008392]
 layout_mode = 2
-text = "Puertas y ventanas"
+text = "Estado de aperturas"
 
 [node name="OpeningSelector" type="OptionButton" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer" unique_id=131153090]
-custom_minimum_size = Vector2(316, 0)
+visible = false
+custom_minimum_size = Vector2(276, 0)
 layout_mode = 2
 
 [node name="OpeningStatusLabel" type="Label" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer" unique_id=163613667]
+visible = false
 layout_mode = 2
 text = "Sin seleccion"
 
 [node name="ButtonsRow" type="HBoxContainer" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer" unique_id=1012246318]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="BtnOpeningClose" type="Button" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1671433642]
-custom_minimum_size = Vector2(120, 34)
+custom_minimum_size = Vector2(96, 34)
 layout_mode = 2
 text = "Cerrar"
 
 [node name="BtnOpeningOpen" type="Button" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1991717756]
-custom_minimum_size = Vector2(120, 34)
+custom_minimum_size = Vector2(96, 34)
 layout_mode = 2
 text = "Abrir"
 
@@ -222,10 +233,10 @@ text = "Rescate exterior"
 [node name="StatusPanel" type="PanelContainer" parent="UI/HUD" unique_id=1402371225]
 visible = false
 layout_mode = 0
-offset_left = 288.0
-offset_top = 4.0
-offset_right = 406.0
-offset_bottom = 44.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 312.0
+offset_bottom = 176.0
 mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/StatusPanel" unique_id=321614049]
@@ -255,12 +266,15 @@ vertical_alignment = 1
 layout_mode = 1
 anchors_preset = -1
 anchor_left = 0.5
+anchor_top = 1.0
 anchor_right = 0.5
-offset_left = -390.0
-offset_top = 544.0
-offset_right = 390.0
-offset_bottom = 645.0
+anchor_bottom = 1.0
+offset_left = -286.0
+offset_top = -106.0
+offset_right = 286.0
+offset_bottom = -8.0
 grow_horizontal = 2
+grow_vertical = 0
 mouse_filter = 0
 
 [node name="MarginContainer" type="MarginContainer" parent="UI/HUD/TimeControlsPanel" unique_id=477682015]
@@ -279,22 +293,22 @@ layout_mode = 2
 theme_override_constants/separation = 6
 
 [node name="BtnStopGraphs" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1783538795]
-custom_minimum_size = Vector2(152, 34)
+custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 focus_mode = 0
-text = "Fin Parar + graficas"
+text = "Fin/Graf"
 
 [node name="BtnTimeBack" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1529251814]
-custom_minimum_size = Vector2(78, 34)
+custom_minimum_size = Vector2(56, 34)
 layout_mode = 2
 focus_mode = 0
-text = "Izq Atras"
+text = "-T"
 
 [node name="BtnPlay" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=113975287]
-custom_minimum_size = Vector2(140, 34)
+custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 focus_mode = 0
-text = "Espacio Play/Pausa"
+text = "Play"
 
 [node name="BtnPause" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1951494211]
 visible = false
@@ -304,17 +318,17 @@ focus_mode = 0
 text = "Pausa"
 
 [node name="BtnTimeForward" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1402831685]
-custom_minimum_size = Vector2(96, 34)
+custom_minimum_size = Vector2(56, 34)
 layout_mode = 2
 focus_mode = 0
-text = "Der Adelante"
+text = "+T"
 
 [node name="BtnView3D" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow" unique_id=1889186757]
-custom_minimum_size = Vector2(82, 34)
+custom_minimum_size = Vector2(54, 34)
 layout_mode = 2
 focus_mode = 0
 toggle_mode = true
-text = "Vista 3D"
+text = "3D"
 
 [node name="BtnFirstPerson" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow"]
 custom_minimum_size = Vector2(70, 34)
@@ -324,7 +338,7 @@ toggle_mode = true
 text = "FP"
 
 [node name="BtnHVAC" type="Button" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow"]
-custom_minimum_size = Vector2(92, 34)
+custom_minimum_size = Vector2(76, 34)
 layout_mode = 2
 focus_mode = 0
 toggle_mode = true
@@ -347,7 +361,7 @@ horizontal_alignment = 1
 
 [node name="ShortcutHelpLabel" type="Label" parent="UI/HUD/TimeControlsPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Izq/Der tiempo   Arriba/Abajo scroll salas   Espacio play/pausa   Fin parar + graficas"
+text = "Izq/Der tiempo | Arriba/Abajo salas | Espacio play/pausa | Fin graficas"
 horizontal_alignment = 1
 autowrap_mode = 3
 
@@ -382,7 +396,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/h_separation = 4
 theme_override_constants/v_separation = 4
-columns = 2
+columns = 1
 
 [node name="CaseRunner" type="Node" parent="." unique_id=2023234799]
 script = ExtResource("5_case")

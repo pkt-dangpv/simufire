@@ -42,6 +42,9 @@ func build_state(context: Dictionary) -> Dictionary:
 	var compute_co_lower_ppm_callable: Callable = context.get("compute_co_lower_ppm_callable", Callable())
 	var compute_co2_ppm_callable: Callable = context.get("compute_co2_ppm_callable", Callable())
 	var compute_hcn_ppm_callable: Callable = context.get("compute_hcn_ppm_callable", Callable())
+	var compute_hcl_ppm_callable: Callable = context.get("compute_hcl_ppm_callable", Callable())
+	var compute_acrolein_ppm_callable: Callable = context.get("compute_acrolein_ppm_callable", Callable())
+	var compute_formaldehyde_ppm_callable: Callable = context.get("compute_formaldehyde_ppm_callable", Callable())
 	var is_quiescent_callable: Callable = context.get("is_quiescent_callable", Callable())
 	var window_open_max_callable: Callable = context.get("window_open_max_callable", Callable())
 	var outside_open_path_factor_callable: Callable = context.get("outside_open_path_factor_callable", Callable())
@@ -132,6 +135,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"backdraft_active": room.backdraft_active,
 			"flashover_triggered": room.flashover_triggered,
 			"flashover_time_s": room.flashover_time_s,
+			"floor_heat_flux_kw_m2": room.floor_heat_flux_kw_m2,
 
 			"fuel_energy_MJ": room.fuel_energy_MJ,
 			"fuel_capacity_MJ": _resolve_fuel_capacity_MJ(room),
@@ -162,6 +166,10 @@ func build_state(context: Dictionary) -> Dictionary:
 			"co_lower_ppm": _call_room_float(compute_co_lower_ppm_callable, room, 0.0),
 			"co2_ppm": _call_room_float(compute_co2_ppm_callable, room, 0.0),
 			"hcn_ppm": _call_room_float(compute_hcn_ppm_callable, room, 0.0),
+			"hcl_ppm": _call_room_float(compute_hcl_ppm_callable, room, 0.0),
+			"acrolein_ppm": _call_room_float(compute_acrolein_ppm_callable, room, 0.0),
+			"formaldehyde_ppm": _call_room_float(compute_formaldehyde_ppm_callable, room, 0.0),
+			"fec_irritant": room.fec_irritant,
 			"fed": room.fed,
 			"svv_pct": room.svv_pct,
 			"svv_worst_pct": room.svv_worst_pct,

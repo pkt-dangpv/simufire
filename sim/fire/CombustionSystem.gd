@@ -586,9 +586,17 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	room.co_upper_kg += generated_co_kg
 
 	# HCN yield: tambien aumenta con phi (mas combustion incompleta = mas HCN).
-	# Referencia: ISO 19706; rango residencial para madera/espumas.
-	var hcn_base_yield: float = float(context.get("hcn_base_yield_kg_per_MJ", 0.0))
-	var hcn_max_yield: float = float(context.get("hcn_max_yield_kg_per_MJ", 0.0))
+	# SF-AUD-006: el yield base se resuelve por combustible segun su contenido de N.
+	# Madera ~0.00004, PU flexible ~0.001-0.004, Nylon ~0.003-0.010 kg/MJ (ISO 19706).
+	var hcn_global_base: float = float(context.get("hcn_base_yield_kg_per_MJ", 0.0))
+	var hcn_base_yield: float = _resolve_room_hcn_base_yield_kg_per_MJ(room, hcn_global_base)
+	# El maximo escala proporcionalmente: si un objeto N-rico tiene base 25x mayor,
+	# su maximo tambien es 25x mayor (mantiene la relacion base/max = 1/6.25).
+	var hcn_global_max: float = float(context.get("hcn_max_yield_kg_per_MJ", 0.0))
+	var hcn_max_yield: float = maxf(
+		hcn_global_max,
+		hcn_base_yield * (hcn_global_max / maxf(hcn_global_base, 0.000001))
+	)
 	if hcn_base_yield > 0.0:
 		var hcn_yield: float = clampf(
 			hcn_base_yield * exp(k_phi_co * (phi - 1.0)),
@@ -597,7 +605,31 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		)
 		room.hcn_kg += hcn_yield * co_basis_MJ
 
-	# CO2 yield: decrece a medida que mas carbono va a CO en lugar de CO2.
+	# HCl, acroleína, formaldehído — SF-AUD-018 (FEC irritantes, ISO 13571 §A.3).
+	# Default yield = 0.0 → retrocompatible. Solo activos si el combustible tiene Cl / es PU/madera.
+	# HCl: solo materiales con Cl (PVC). No aumenta con phi (no es producto de combustion incompleta).
+	var hcl_yield: float = _resolve_room_irritant_yield_kg_per_MJ(room, "hcl_yield_kg_per_MJ", 0.0)
+	if hcl_yield > 0.0:
+		room.hcl_kg += hcl_yield * co_basis_MJ
+	# Acroleína y formaldehído aumentan con combustión incompleta (phi > 1), como CO.
+	var acrolein_yield: float = _resolve_room_irritant_yield_kg_per_MJ(room, "acrolein_yield_kg_per_MJ", 0.0)
+	if acrolein_yield > 0.0:
+		var acrolein_yield_eff: float = clampf(
+			acrolein_yield * exp(k_phi_co * (phi - 1.0) * 0.7),
+			acrolein_yield,
+			acrolein_yield * 4.0
+		)
+		room.acrolein_kg += acrolein_yield_eff * co_basis_MJ
+	var formaldehyde_yield: float = _resolve_room_irritant_yield_kg_per_MJ(room, "formaldehyde_yield_kg_per_MJ", 0.0)
+	if formaldehyde_yield > 0.0:
+		var formaldehyde_yield_eff: float = clampf(
+			formaldehyde_yield * exp(k_phi_co * (phi - 1.0) * 0.5),
+			formaldehyde_yield,
+			formaldehyde_yield * 3.0
+		)
+		room.formaldehyde_kg += formaldehyde_yield_eff * co_basis_MJ
+
+	# CO2 decrece a medida que mas carbono va a CO en lugar de CO2.
 	# Balance aproximado de carbono: a phi=3, ~40% del carbono forma CO en vez de CO2.
 	# Lineal: y_CO2 = lerp(co2_min, co2_base, max(0, 1 - (phi-1)/co2_phi_decay_rate)).
 	# co2_phi_decay_rate=2.5 → y_CO2 llega al minimo en phi=3.5 (Pitts, NIST TN 1603).
@@ -1152,6 +1184,71 @@ func _resolve_room_co_yield_kg_per_MJ(room: RoomModel, fallback_yield: float) ->
 
 	if total_weight <= 0.000001:
 		return fallback_yield
+
+	return weighted_yield / total_weight
+
+
+func _resolve_room_hcn_base_yield_kg_per_MJ(room: RoomModel, fallback_yield: float) -> float:
+	# SF-AUD-006: yield de HCN ponderado por HRR de objetos activos.
+	# Solo usa objetos con hcn_yield_kg_per_MJ definido (> 0).
+	if room == null or not _has_explicit_fuel_objects(room):
+		return fallback_yield
+
+	var weighted_yield: float = 0.0
+	var total_weight: float = 0.0
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+		if obj.remaining_fuel_MJ <= 0.001:
+			continue
+
+		var object_yield: float = maxf(0.0, float(obj.hcn_yield_kg_per_MJ))
+		var preheat_fraction: float = clampf(_fuel_object_preheat_score(obj) / 8.0, 0.0, 1.0)
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * lerpf(0.35, 1.0, preheat_fraction)
+		if bool(obj.is_primary_ignition_source):
+			weight *= 1.40
+		if obj.state == FuelObjectModelScript.State.FLAMING:
+			weight *= 1.35
+		elif obj.state == FuelObjectModelScript.State.PYROLYZING:
+			weight *= 1.20
+
+		weighted_yield += object_yield * weight
+		total_weight += weight
+
+	if total_weight <= 0.000001:
+		return fallback_yield
+
+	return weighted_yield / total_weight
+
+
+func _resolve_room_irritant_yield_kg_per_MJ(room: RoomModel, field: String, fallback: float) -> float:
+	# SF-AUD-018: yield ponderado para HCl/acroleína/formaldehído. Mismo patron que HCN.
+	if room == null or not _has_explicit_fuel_objects(room):
+		return fallback
+
+	var weighted_yield: float = 0.0
+	var total_weight: float = 0.0
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+		if obj.remaining_fuel_MJ <= 0.001:
+			continue
+
+		var object_yield: float = maxf(0.0, float(obj.get(field)))
+		var preheat_fraction: float = clampf(_fuel_object_preheat_score(obj) / 8.0, 0.0, 1.0)
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * lerpf(0.35, 1.0, preheat_fraction)
+		if bool(obj.is_primary_ignition_source):
+			weight *= 1.40
+		if obj.state == FuelObjectModelScript.State.FLAMING:
+			weight *= 1.35
+		elif obj.state == FuelObjectModelScript.State.PYROLYZING:
+			weight *= 1.20
+
+		weighted_yield += object_yield * weight
+		total_weight += weight
+
+	if total_weight <= 0.000001:
+		return fallback
 
 	return weighted_yield / total_weight
 

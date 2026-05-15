@@ -1,13 +1,13 @@
 [gd_scene format=3 uid="uid://co1mxiqe2dmnl"]
 
 [ext_resource type="Script" uid="uid://beym4skcv32aa" path="res://Main.gd" id="1_ig7tw"]
-[ext_resource type="Script" uid="uid://clan116mabqti" path="res://view/Visualizer.gd" id="2_0xm2m"]
+[ext_resource type="Script" path="res://view/2d/Visualizer.gd" id="2_0xm2m"]
 [ext_resource type="Script" uid="uid://1sbehqy3k8" path="res://sim/BuildingModel.gd" id="3_1bvp3"]
 [ext_resource type="Script" uid="uid://bi64gqhwao7fw" path="res://ui/hud.gd" id="3_h2yge"]
 [ext_resource type="Script" uid="uid://b4jh4ba6wx5ye" path="res://sim/core/SimulationEngine.gd" id="4_lquwl"]
 [ext_resource type="Script" uid="uid://dgomuflgrvt3r" path="res://sim/validation/CaseRunner.gd" id="5_case"]
-[ext_resource type="Script" path="res://view/Visualizer3D.gd" id="6_3dviz"]
-[ext_resource type="Script" uid="uid://dp46g35hj2x73" path="res://view/FirstPersonController.gd" id="7_fp"]
+[ext_resource type="Script" path="res://view/3d/Visualizer3D.gd" id="6_3dviz"]
+[ext_resource type="Script" path="res://view/fp/FirstPersonController.gd" id="7_fp"]
 
 [node name="Main" type="Node" unique_id=655075668]
 script = ExtResource("1_ig7tw")
@@ -19,6 +19,10 @@ autostart = true
 
 [node name="Visualizer" type="Node2D" parent="World" unique_id=1293810110]
 script = ExtResource("2_0xm2m")
+ui_reserved_left_px = 0.0
+ui_reserved_right_px = 408.0
+ui_reserved_top_px = 8.0
+ui_reserved_bottom_px = 116.0
 show_section_gauge = false
 show_hrr_bar = true
 show_room_labels = true
@@ -191,12 +195,15 @@ autowrap_mode = 3
 [node name="OpeningsPanel" type="PanelContainer" parent="UI/HUD" unique_id=1236821392]
 layout_mode = 1
 anchors_preset = -1
+anchor_left = 1.0
 anchor_top = 1.0
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 909.0
-offset_top = -227.0
-offset_right = 1277.0
-offset_bottom = -85.0
+offset_left = -376.0
+offset_top = -236.0
+offset_right = -8.0
+offset_bottom = -126.0
+grow_horizontal = 0
 grow_vertical = 0
 mouse_filter = 0
 
@@ -213,17 +220,20 @@ theme_override_constants/separation = 6
 
 [node name="OpeningsTitle" type="Label" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer" unique_id=1104830702]
 layout_mode = 2
-text = "Puertas y ventanas"
+text = "Estado de aperturas"
 
 [node name="OpeningSelector" type="OptionButton" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer" unique_id=913447151]
+visible = false
 custom_minimum_size = Vector2(316, 0)
 layout_mode = 2
 
 [node name="OpeningStatusLabel" type="Label" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer" unique_id=617863428]
+visible = false
 layout_mode = 2
 text = "Sin seleccion"
 
 [node name="ButtonsRow" type="HBoxContainer" parent="UI/HUD/OpeningsPanel/MarginContainer/VBoxContainer" unique_id=256798764]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 8
 

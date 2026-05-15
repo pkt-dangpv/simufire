@@ -1,6 +1,6 @@
 extends Node
 
-const FirstPersonControllerScript = preload("res://view/FirstPersonController.gd")
+const FirstPersonControllerScript = preload("res://view/fp/FirstPersonController.gd")
 
 @onready var building: BuildingModel = $World/BuildingModel
 @onready var engine: SimulationEngine = $World/SimulationEngine
@@ -16,10 +16,14 @@ var _graphs_dir_dialog: FileDialog = null
 var _graphs_view_window: Window = null
 var _graph_textures: Array[Texture2D] = []
 var _graph_image_cells: Array[Control] = []
+var _graph_scrolls: Array[ScrollContainer] = []
+var _graph_drag_scroll: ScrollContainer = null
 var _graph_zoom: float = 1.0
 var view_3d_enabled: bool = false
 var first_person_enabled: bool = false
 var first_person_controller = null
+#var _game_result: String = ""   # TODO(gameplay): victoria/derrota
+#var _fire_out_timer_s: float = 0.0  # TODO(gameplay)
 
 
 func _ready() -> void:
@@ -42,14 +46,27 @@ func _ready() -> void:
 			hud.first_person_toggled.connect(_on_first_person_toggled)
 		if not hud.hvac_toggled.is_connected(_on_hvac_toggled):
 			hud.hvac_toggled.connect(_on_hvac_toggled)
+		if not hud.opening_fraction_requested.is_connected(_on_opening_fraction_requested):
+			hud.opening_fraction_requested.connect(_on_opening_fraction_requested)
+		# TODO(gameplay): conexiones de señales de acción táctica — descomentar cuando se implemente la UI de juego
+		#if not hud.water_mode_changed.is_connected(_on_water_mode_changed):
+		#	hud.water_mode_changed.connect(_on_water_mode_changed)
+		#if not hud.vent_action_toggled.is_connected(_on_vent_action_toggled):
+		#	hud.vent_action_toggled.connect(_on_vent_action_toggled)
+		#if not hud.rescue_requested.is_connected(_on_rescue_requested):
+		#	hud.rescue_requested.connect(_on_rescue_requested)
 	_setup_first_person_controller()
 	_set_3d_view_enabled(view_3d_enabled)
 	if engine != null:
 		engine.time_scale = 1.0
 	if visualizer != null and not visualizer.room_clicked.is_connected(_on_room_clicked):
 		visualizer.room_clicked.connect(_on_room_clicked)
+	if visualizer != null and not visualizer.opening_clicked.is_connected(_on_opening_clicked):
+		visualizer.opening_clicked.connect(_on_opening_clicked)
 	if visualizer_3d != null and not visualizer_3d.room_clicked.is_connected(_on_room_clicked):
 		visualizer_3d.room_clicked.connect(_on_room_clicked)
+	if visualizer_3d != null and not visualizer_3d.opening_clicked.is_connected(_on_opening_clicked):
+		visualizer_3d.opening_clicked.connect(_on_opening_clicked)
 	_update_views()
 
 
@@ -57,7 +74,21 @@ func _physics_process(delta: float) -> void:
 	if playback_paused or engine == null:
 		return
 	engine.step(delta)
+	#_check_win_loss(delta)  # TODO(gameplay)
 	_update_views()
+
+
+func _input(event: InputEvent) -> void:
+	if _graph_drag_scroll == null or not is_instance_valid(_graph_drag_scroll):
+		return
+	if event is InputEventMouseMotion:
+		_pan_graph_scroll(_graph_drag_scroll, (event as InputEventMouseMotion).relative)
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT and not mouse_event.pressed:
+			_stop_graph_drag()
+			get_viewport().set_input_as_handled()
 
 
 func _update_views() -> void:
@@ -116,10 +147,92 @@ func _on_hvac_toggled(enabled: bool) -> void:
 	_update_views()
 
 
+# TODO(gameplay): handlers de acción táctica + victoria/derrota — descomentar cuando se implemente la UI de juego
+#func _on_water_mode_changed(mode: String) -> void:
+#	if engine == null: return
+#	engine.cancel_all_suppression()
+#	if mode == "": return
+#	if mode == "aoe":
+#		var fire_rooms: Array = engine.get_active_fire_room_ids()
+#		if fire_rooms.is_empty(): fire_rooms = [engine.get_highest_hrr_room_id()]
+#		var split_flow: float = 380.0 / max(1, fire_rooms.size())
+#		for rid in fire_rooms: engine.apply_suppression(int(rid), 99999.0, split_flow, 0.35)
+#		return
+#	var target_id: int = _get_suppression_target_room()
+#	match mode:
+#		"def_ext": engine.apply_suppression(target_id, 99999.0, 570.0, 0.50)
+#		"off_int": engine.apply_suppression(target_id, 99999.0, 570.0, 1.00)
+#		"def_in":  engine.apply_suppression(target_id, 99999.0, 570.0, 0.75)
+#
+#func _get_suppression_target_room() -> int:
+#	if hud != null and hud.status_panel_room_id >= 0: return hud.status_panel_room_id
+#	if engine != null: return engine.get_highest_hrr_room_id()
+#	return 0
+#
+#func _on_vent_action_toggled(action: String, on: bool) -> void:
+#	if building == null: return
+#	for i in range(building.get_opening_count()):
+#		var op: OpeningModel = building.get_opening_at(i)
+#		if op != null and (op.a == BuildingModel.OUTSIDE_ID or op.b == BuildingModel.OUTSIDE_ID):
+#			if on: building.open_opening(i)
+#			else: building.close_opening(i)
+#			if action == "exutorio": break
+#	_update_views()
+#
+#func _on_rescue_requested() -> void:
+#	pass
+#
+#func _check_win_loss(delta: float) -> void:
+#	if _game_result != "" or engine == null or building == null: return
+#	var state: Dictionary = engine.get_state()
+#	for room_id in building.get_rooms().keys():
+#		var rs: Dictionary = state.get(str(int(room_id)), {})
+#		if bool(rs.get("flashover_triggered", false)):
+#			_game_result = "loss"; playback_paused = true
+#			if hud != null: hud.show_game_result("DERROTA", "Flashover en %s" % String(rs.get("name", "R%d" % int(room_id))))
+#			return
+#	if engine.is_fire_extinguished():
+#		_fire_out_timer_s += delta
+#		if _fire_out_timer_s >= 10.0:
+#			_game_result = "win"; playback_paused = true
+#			if hud != null: hud.show_game_result("VICTORIA", "Fuego extinguido en %.0f s" % engine.sim_time_s)
+#	else:
+#		_fire_out_timer_s = 0.0
+
+
 func _on_room_clicked(room_id: int) -> void:
 	if hud != null:
+		hud.hide_opening_action()
 		hud.show_room_detail(room_id)
+	if visualizer != null:
+		visualizer.select_opening(-1)
+	if visualizer_3d != null:
+		visualizer_3d.select_opening(-1)
 	_update_views()
+
+
+func _on_opening_clicked(opening_index: int, screen_pos: Vector2) -> void:
+	if visualizer != null:
+		visualizer.select_opening(opening_index)
+	if visualizer_3d != null:
+		visualizer_3d.select_opening(opening_index)
+	if hud != null:
+		hud.show_room_detail(-1)
+		hud.show_opening_action(opening_index, screen_pos)
+	_update_views()
+
+
+func _on_opening_fraction_requested(opening_index: int, open_fraction: float) -> void:
+	if building == null:
+		return
+	if building.set_opening_fraction(opening_index, open_fraction):
+		if visualizer != null:
+			visualizer.select_opening(opening_index)
+		if visualizer_3d != null:
+			visualizer_3d.select_opening(opening_index)
+		if hud != null:
+			hud.show_opening_action(opening_index)
+		_update_views()
 
 
 func _set_3d_view_enabled(enabled: bool) -> void:
@@ -148,8 +261,6 @@ func _set_first_person_enabled(enabled: bool) -> void:
 	if visualizer_3d != null:
 		visualizer_3d.set_active(view_3d_enabled or first_person_enabled, view_3d_enabled and not first_person_enabled, view_3d_enabled and not first_person_enabled, first_person_enabled)
 	if first_person_controller != null:
-		if first_person_enabled:
-			first_person_controller.rebuild_from_building()
 		first_person_controller.set_active(first_person_enabled)
 	_update_views()
 
@@ -311,11 +422,15 @@ func _show_graphs_window(graphs_dir: String) -> void:
 		room_scroll.name = _format_room_tab_name(room_dir_name)
 		room_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		room_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		room_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+		room_scroll.gui_input.connect(_on_graph_scroll_gui_input.bind(room_scroll))
 		tabs.add_child(room_scroll)
+		_graph_scrolls.append(room_scroll)
 
 		var grid := GridContainer.new()
 		grid.columns = 2
 		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		grid.add_theme_constant_override("h_separation", 10)
 		grid.add_theme_constant_override("v_separation", 10)
 		room_scroll.add_child(grid)
@@ -324,11 +439,13 @@ func _show_graphs_window(graphs_dir: String) -> void:
 			var cell := VBoxContainer.new()
 			cell.custom_minimum_size = Vector2(480.0 * _graph_zoom, 300.0 * _graph_zoom)
 			cell.add_theme_constant_override("separation", 4)
+			cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			grid.add_child(cell)
 			_graph_image_cells.append(cell)
 
 			var title := Label.new()
 			title.text = image_name.get_basename().capitalize()
+			title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			cell.add_child(title)
 
 			var tex_rect := TextureRect.new()
@@ -337,6 +454,7 @@ func _show_graphs_window(graphs_dir: String) -> void:
 			tex_rect.custom_minimum_size = Vector2(470.0 * _graph_zoom, 260.0 * _graph_zoom)
 			tex_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			tex_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			cell.add_child(tex_rect)
 
 			var img := Image.new()
@@ -378,24 +496,28 @@ func _on_graphs_window_close_requested() -> void:
 
 
 func _clear_graphs_view_window() -> void:
+	_stop_graph_drag()
 	for child in _graphs_view_window.get_children():
 		child.queue_free()
 	_graph_textures.clear()
 	_graph_image_cells.clear()
+	_graph_scrolls.clear()
 
 
 func _on_graph_zoom_in() -> void:
-	_graph_zoom = minf(_graph_zoom * 1.25, 4.0)
-	_apply_graph_zoom()
+	_set_graph_zoom(_graph_zoom * 1.25)
 
 
 func _on_graph_zoom_out() -> void:
-	_graph_zoom = maxf(_graph_zoom / 1.25, 0.25)
-	_apply_graph_zoom()
+	_set_graph_zoom(_graph_zoom / 1.25)
 
 
 func _on_graph_zoom_reset() -> void:
-	_graph_zoom = 1.0
+	_set_graph_zoom(1.0)
+
+
+func _set_graph_zoom(next_zoom: float) -> void:
+	_graph_zoom = clampf(next_zoom, 0.25, 4.0)
 	_apply_graph_zoom()
 
 
@@ -407,6 +529,42 @@ func _apply_graph_zoom() -> void:
 		for child in cell.get_children():
 			if child is TextureRect:
 				child.custom_minimum_size = Vector2(470.0 * _graph_zoom, 260.0 * _graph_zoom)
+
+
+func _on_graph_scroll_gui_input(event: InputEvent, scroll: ScrollContainer) -> void:
+	if scroll == null:
+		return
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if not mouse_event.pressed:
+			if mouse_event.button_index == MOUSE_BUTTON_LEFT and _graph_drag_scroll == scroll:
+				_stop_graph_drag()
+				scroll.accept_event()
+			return
+		match mouse_event.button_index:
+			MOUSE_BUTTON_LEFT:
+				_graph_drag_scroll = scroll
+				scroll.accept_event()
+			MOUSE_BUTTON_WHEEL_UP:
+				_set_graph_zoom(_graph_zoom * 1.12)
+				scroll.accept_event()
+			MOUSE_BUTTON_WHEEL_DOWN:
+				_set_graph_zoom(_graph_zoom / 1.12)
+				scroll.accept_event()
+	elif event is InputEventMouseMotion and _graph_drag_scroll == scroll:
+		_pan_graph_scroll(scroll, (event as InputEventMouseMotion).relative)
+		scroll.accept_event()
+
+
+func _pan_graph_scroll(scroll: ScrollContainer, delta: Vector2) -> void:
+	if scroll == null or not is_instance_valid(scroll):
+		return
+	scroll.scroll_horizontal = maxi(0, int(round(float(scroll.scroll_horizontal) - delta.x)))
+	scroll.scroll_vertical = maxi(0, int(round(float(scroll.scroll_vertical) - delta.y)))
+
+
+func _stop_graph_drag() -> void:
+	_graph_drag_scroll = null
 
 
 func _collect_graph_images(room_path: String) -> Array[String]:

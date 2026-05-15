@@ -43,6 +43,18 @@ var ignition_flux_kw_m2: float = 18.0
 # Producción / consumo
 var smoke_yield_kg_per_MJ: float = 0.00375
 var co_yield_kg_per_MJ: float = 0.00025
+# HCN yield (kg/MJ). Depende del contenido de nitrogeno del combustible (SF-AUD-006).
+# Madera/celulosa (~0.1% N): 0.00004  |  PU flexible (~5% N): 0.0010-0.0040
+# Nylon (~12% N): 0.0030-0.0100      |  ISO 19706:2007 Tabla 1.
+# 0.00004 = default residencial conservador (mezcla con predominio de celulosa).
+var hcn_yield_kg_per_MJ: float = 0.00004
+# Irritantes (SF-AUD-018) — yields en kg/MJ. Default 0.0 = sin contenido de Cl/irritante.
+# HCl: PVC ~0.024 kg/MJ (Levin 1996); madera ~0 (sin Cl). IC50 sensory = 900 ppm.
+# Acroleína: madera ~0.00002; poliuretano ~0.000025; IC50 sensory = 4 ppm.
+# Formaldehído: madera ~0.000015; poliuretano ~0.00002; IC50 sensory = 250 ppm.
+var hcl_yield_kg_per_MJ: float = 0.0
+var acrolein_yield_kg_per_MJ: float = 0.0
+var formaldehyde_yield_kg_per_MJ: float = 0.0
 var o2_consumption_kg_per_MJ: float = 0.076
 
 # Estado dinámico

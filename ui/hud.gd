@@ -9,8 +9,14 @@ signal stop_and_generate_requested
 signal view_3d_toggled(enabled: bool)
 signal first_person_toggled(enabled: bool)
 signal hvac_toggled(enabled: bool)
+signal opening_fraction_requested(opening_index: int, open_fraction: float)
+# TODO(gameplay): señales de acción táctica — descomentar cuando se implemente la UI de juego
+#signal water_mode_changed(mode: String)
+#signal vent_action_toggled(action: String, on: bool)
+#signal rescue_requested()
 
 const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
+const OPENING_FRACTION_STEPS: Array[float] = [0.0, 0.25, 0.5, 0.75, 1.0]
 
 @export var show_status_panel: bool = false
 @export var status_panel_room_id: int = 0
@@ -48,8 +54,10 @@ const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
 @onready var status_label: Label = $StatusPanel/MarginContainer/StatusLabel
 @onready var time_label: Label = $MarginContainer/TimeLabel
 @onready var openings_panel: PanelContainer = $OpeningsPanel
+@onready var openings_title: Label = $OpeningsPanel/MarginContainer/VBoxContainer/OpeningsTitle
 @onready var opening_selector: OptionButton = $OpeningsPanel/MarginContainer/VBoxContainer/OpeningSelector
 @onready var opening_status_label: Label = $OpeningsPanel/MarginContainer/VBoxContainer/OpeningStatusLabel
+@onready var opening_buttons_row: HBoxContainer = $OpeningsPanel/MarginContainer/VBoxContainer/ButtonsRow
 @onready var btn_opening_close: Button = $OpeningsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnOpeningClose
 @onready var btn_opening_open: Button = $OpeningsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnOpeningOpen
 @onready var btn_stop_graphs: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnStopGraphs") as Button
@@ -66,6 +74,18 @@ const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
 @onready var rooms_scroll_container: ScrollContainer = get_node_or_null("RoomsDataPanel/MarginContainer/ScrollContainer") as ScrollContainer
 @onready var rooms_data_vbox: GridContainer = get_node_or_null("RoomsDataPanel/MarginContainer/ScrollContainer/RoomsGrid") as GridContainer
 
+# TODO(gameplay): @onready de paneles de acción táctica — descomentar cuando se implemente la UI de juego
+#@onready var water_panel: PanelContainer = get_node_or_null("WaterPanel") as PanelContainer
+#@onready var btn_aoe: Button = get_node_or_null("WaterPanel/MarginContainer/VBoxContainer/BtnAOE") as Button
+#@onready var btn_def_ext: Button = get_node_or_null("WaterPanel/MarginContainer/VBoxContainer/BtnDefExt") as Button
+#@onready var btn_off_int: Button = get_node_or_null("WaterPanel/MarginContainer/VBoxContainer/BtnOffInt") as Button
+#@onready var btn_def_in: Button = get_node_or_null("WaterPanel/MarginContainer/VBoxContainer/BtnDefIn") as Button
+#@onready var vent_panel: PanelContainer = get_node_or_null("VentPanel") as PanelContainer
+#@onready var btn_exutorio: Button = get_node_or_null("VentPanel/MarginContainer/VBoxContainer/BtnExutorio") as Button
+#@onready var btn_vpp: Button = get_node_or_null("VentPanel/MarginContainer/VBoxContainer/BtnVPP") as Button
+#@onready var rescue_panel: PanelContainer = get_node_or_null("RescuePanel") as PanelContainer
+#@onready var btn_ladder_rescue: Button = get_node_or_null("RescuePanel/MarginContainer/VBoxContainer/BtnLadderRescue") as Button
+
 var building: BuildingModel = null
 var selected_opening_index: int = 0
 var _selector_sync_in_progress: bool = false
@@ -75,10 +95,21 @@ var _playback_paused: bool = true
 var _simulation_finished: bool = false
 var _graphs_launched: bool = false
 var _sim_time_s: float = 0.0
+var _view_mode_label: String = "2D"
+var _first_person_enabled: bool = false
+var _opening_compact_grid: GridContainer = null
+var _openings_compact_signature: String = ""
+var _opening_action_panel: PanelContainer = null
+var _opening_action_title: Label = null
+var _opening_action_buttons: Array[Button] = []
+var _opening_action_index: int = -1
+#var _active_water_mode: String = ""  # TODO(gameplay)
 
 
 func _ready() -> void:
 	_configure_mouse_filters()
+	_ensure_openings_compact_list()
+	_ensure_opening_action_panel()
 	_apply_hud_visual_style()
 	if status_panel != null:
 		status_panel.visible = show_status_panel
@@ -112,6 +143,26 @@ func _ready() -> void:
 	if btn_hvac != null and not btn_hvac.pressed.is_connected(_on_hvac_pressed):
 		btn_hvac.pressed.connect(_on_hvac_pressed)
 
+	# TODO(gameplay): conexiones de paneles de acción táctica — descomentar cuando se implemente la UI de juego
+	#if water_panel != null:
+	#	water_panel.visible = true
+	#if vent_panel != null:
+	#	vent_panel.visible = true
+	#if rescue_panel != null:
+	#	rescue_panel.visible = true
+	#var _water_btn_list: Array[Button] = [btn_aoe, btn_def_ext, btn_off_int, btn_def_in]
+	#var _water_mode_list: Array[String] = ["aoe", "def_ext", "off_int", "def_in"]
+	#for _wi in range(_water_btn_list.size()):
+	#	var _wb: Button = _water_btn_list[_wi]
+	#	if _wb != null and not _wb.pressed.is_connected(_on_water_btn_pressed):
+	#		_wb.pressed.connect(_on_water_btn_pressed.bind(_water_mode_list[_wi]))
+	#if btn_exutorio != null and not btn_exutorio.pressed.is_connected(_on_vent_btn_pressed):
+	#	btn_exutorio.pressed.connect(_on_vent_btn_pressed.bind("exutorio"))
+	#if btn_vpp != null and not btn_vpp.pressed.is_connected(_on_vent_btn_pressed):
+	#	btn_vpp.pressed.connect(_on_vent_btn_pressed.bind("vpp"))
+	#if btn_ladder_rescue != null and not btn_ladder_rescue.pressed.is_connected(_on_rescue_btn_pressed):
+	#	btn_ladder_rescue.pressed.connect(_on_rescue_btn_pressed)
+
 	_refresh_opening_controls()
 	_update_time_controls(0.0, false, false, false, 1.0)
 	_update_view_toggle(false)
@@ -142,8 +193,11 @@ func _apply_hud_visual_style() -> void:
 	if opening_status_label != null:
 		opening_status_label.add_theme_font_override("font", SimuFireThemeScript.title_font())
 		opening_status_label.add_theme_font_size_override("font_size", 12)
+	if _opening_compact_grid != null:
+		_opening_compact_grid.add_theme_constant_override("h_separation", 10)
+		_opening_compact_grid.add_theme_constant_override("v_separation", 3)
 
-	for panel_path in ["OpeningsPanel", "TimeControlsPanel", "RoomsDataPanel", "StatusPanel", "WaterPanel", "VentPanel", "RescuePanel"]:
+	for panel_path in ["OpeningsPanel", "OpeningActionPanel", "TimeControlsPanel", "RoomsDataPanel", "StatusPanel", "WaterPanel", "VentPanel", "RescuePanel"]:
 		var panel := get_node_or_null(panel_path) as PanelContainer
 		if panel != null:
 			panel.add_theme_stylebox_override("panel", SimuFireThemeScript.stylebox(SimuFireThemeScript.PANEL, SimuFireThemeScript.BORDER, 1, 0, Vector2(12.0, 10.0)))
@@ -151,6 +205,7 @@ func _apply_hud_visual_style() -> void:
 	var action_buttons: Array[Button] = [
 		btn_play, btn_pause, btn_time_forward, btn_time_back, btn_view_3d,
 		btn_first_person, btn_hvac, btn_opening_close, btn_opening_open, btn_stop_graphs
+		# TODO(gameplay): btn_aoe, btn_def_ext, btn_off_int, btn_def_in, btn_exutorio, btn_vpp, btn_ladder_rescue
 	]
 	for button in action_buttons:
 		if button == null:
@@ -163,7 +218,7 @@ func _apply_hud_visual_style() -> void:
 
 func _configure_mouse_filters() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for panel_path in ["OpeningsPanel", "TimeControlsPanel", "RoomsDataPanel", "StatusPanel", "WaterPanel", "VentPanel", "RescuePanel"]:
+	for panel_path in ["OpeningsPanel", "OpeningActionPanel", "TimeControlsPanel", "RoomsDataPanel", "StatusPanel", "WaterPanel", "VentPanel", "RescuePanel"]:
 		var panel := get_node_or_null(panel_path) as Control
 		if panel != null:
 			panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -232,6 +287,11 @@ func update_state(state: Dictionary) -> void:
 	var minutes: int = int(float(total_seconds) / 60.0)
 	var seconds: int = int(total_seconds % 60)
 	time_label.text = "TIME %02d:%02d" % [minutes, seconds]
+	_view_mode_label = _build_view_mode_label(
+		bool(state.get("view_3d_enabled", false)),
+		bool(state.get("first_person_enabled", false))
+	)
+	_first_person_enabled = bool(state.get("first_person_enabled", false))
 	_update_time_controls(
 		sim_time_s,
 		bool(state.get("playback_paused", false)),
@@ -242,9 +302,15 @@ func update_state(state: Dictionary) -> void:
 	_update_view_toggle(bool(state.get("view_3d_enabled", false)))
 	_update_first_person_toggle(bool(state.get("first_person_enabled", false)))
 	_update_hvac_button(bool(state.get("hvac_exists", false)), bool(state.get("hvac_on", false)))
+	if _first_person_enabled:
+		show_status_panel = false
+		if status_panel != null:
+			status_panel.visible = false
+		hide_opening_action()
 
 	_refresh_opening_controls()
 	_update_rooms_panel(state)
+	_refresh_opening_action_panel()
 
 	if status_panel == null or not show_status_panel:
 		return
@@ -307,6 +373,7 @@ func build_room_status_text(room_state: Dictionary) -> String:
 func _rebuild_rooms_panel() -> void:
 	if rooms_data_vbox == null:
 		return
+	rooms_data_vbox.columns = 1
 	for child in rooms_data_vbox.get_children():
 		child.queue_free()
 	_room_cards.clear()
@@ -323,7 +390,8 @@ func _rebuild_rooms_panel() -> void:
 	for room_id in sorted_ids:
 		var card := PanelContainer.new()
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		card.add_theme_stylebox_override("panel", SimuFireThemeScript.stylebox(Color(0.01, 0.03, 0.04, 0.86), Color(0.12, 0.20, 0.24, 0.90), 1, 0, Vector2(7.0, 6.0)))
+		card.custom_minimum_size = Vector2(0.0, 62.0)
+		_style_room_card(card, "normal", false)
 		var margin := MarginContainer.new()
 		margin.add_theme_constant_override("margin_left", card_margin_px)
 		margin.add_theme_constant_override("margin_top", card_margin_px - 1)
@@ -345,8 +413,9 @@ func _rebuild_rooms_panel() -> void:
 		var data_lbl := Label.new()
 		data_lbl.add_theme_font_override("font", SimuFireThemeScript.body_font())
 		data_lbl.add_theme_font_size_override("font_size", font_size_data)
-		data_lbl.text = "\u2014"
-		data_lbl.modulate = SimuFireThemeScript.GREEN
+		data_lbl.text = "-"
+		data_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		data_lbl.add_theme_color_override("font_color", card_data_color)
 		vbox.add_child(data_lbl)
 
 		rooms_data_vbox.add_child(card)
@@ -364,7 +433,7 @@ func _update_rooms_panel(state: Dictionary) -> void:
 
 		if rs.is_empty():
 			data_lbl.text = "Sin datos"
-			card.modulate = Color(1, 1, 1, 1)
+			_style_room_card(card, "normal", show_status_panel and room_id == status_panel_room_id)
 			continue
 
 		var room_name: String = String(rs.get("name", ""))
@@ -397,25 +466,45 @@ func _update_rooms_panel(state: Dictionary) -> void:
 				svv_pct = clampf(l150 / 0.5 * 90.0, 0.0, 90.0)
 
 		var lines: PackedStringArray = PackedStringArray()
+		var fire_line: String = "HRR %.0fkW" % hrr if hrr > 0.5 else "Sin fuego"
+		lines.append("%s | T+ %.0f T- %.0fC" % [fire_line, t_upper, t_lower])
+		lines.append("O2 %.1f%% | Sm %.2fm | FED %.2f" % [o2_pct, smoke_l, fed])
 		if hrr > 0.5:
-			lines.append("HRR %.0fkW" % hrr)
-		lines.append("T+ %.0f  T- %.0fC" % [t_upper, t_lower])
-		lines.append("T@0.9m %.0fC" % t09)
-		lines.append("O2 %.1f%%  SmL %.2fm" % [o2_pct, smoke_l])
-		if co_ppm > 1.0:
-			lines.append("CO %.0fppm" % co_ppm)
-		lines.append("Comb %.0f/%.0fMJ" % [remaining_fuel_mj, fuel_capacity_mj])
-		lines.append("FED %.2f  SVV %.0f%%" % [fed, svv_pct])
-		if flashover:
-			lines.append("!FLASHOVER!")
-		data_lbl.text = "\n".join(lines)
-
-		if flashover or hrr > 500.0:
-			card.modulate = card_flashover_color
-		elif o2_pct < 18.0 or fed > 0.3:
-			card.modulate = card_alert_color
+			lines.append("T@0.9 %.0fC | Comb %.0f/%.0fMJ" % [t09, remaining_fuel_mj, fuel_capacity_mj])
+		elif co_ppm > 1.0:
+			lines.append("CO %.0fppm | SVV %.0f%%" % [co_ppm, svv_pct])
 		else:
-			card.modulate = Color(1.0, 1.0, 1.0, 1.0)
+			lines.append("SVV %.0f%% | Comb %.0fMJ" % [svv_pct, remaining_fuel_mj])
+		if flashover:
+			lines.append("FLASHOVER")
+		data_lbl.text = "\n".join(lines)
+		data_lbl.add_theme_color_override("font_color", card_data_color)
+
+		var severity: String = "normal"
+		if flashover or hrr > 500.0:
+			severity = "flash"
+		elif o2_pct < 18.0 or fed > 0.3:
+			severity = "alert"
+		_style_room_card(card, severity, show_status_panel and room_id == status_panel_room_id)
+
+
+func _style_room_card(card: PanelContainer, severity: String, selected: bool) -> void:
+	if card == null:
+		return
+	var bg: Color = Color(0.01, 0.03, 0.04, 0.88)
+	var border: Color = Color(0.12, 0.20, 0.24, 0.90)
+	var border_width: int = 1
+	if severity == "flash":
+		border = card_flashover_color
+		border_width = 2
+	elif severity == "alert":
+		border = card_alert_color
+		border_width = 2
+	elif selected:
+		border = SimuFireThemeScript.ORANGE
+		border_width = 2
+	card.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	card.add_theme_stylebox_override("panel", SimuFireThemeScript.stylebox(bg, border, border_width, 0, Vector2(7.0, 6.0)))
 
 
 func _is_flashover_indicator_visible(room_state: Dictionary, sim_time_s: float) -> bool:
@@ -434,7 +523,7 @@ func _update_view_toggle(is_3d_enabled: bool) -> void:
 		return
 	btn_view_3d.visible = show_view_toggle
 	btn_view_3d.set_pressed_no_signal(is_3d_enabled)
-	btn_view_3d.text = "Vista 3D"
+	btn_view_3d.text = "3D"
 
 
 func _ensure_first_person_button() -> void:
@@ -455,7 +544,7 @@ func _update_first_person_toggle(enabled: bool) -> void:
 	if btn_first_person == null:
 		return
 	btn_first_person.set_pressed_no_signal(enabled)
-	btn_first_person.text = "Salir FP" if enabled else "FP"
+	btn_first_person.text = "FP"
 
 
 func _ensure_hvac_button() -> void:
@@ -481,6 +570,158 @@ func _update_hvac_button(hvac_exists: bool, hvac_on: bool) -> void:
 	btn_hvac.text = "HVAC ON" if hvac_on else "HVAC OFF"
 
 
+func _ensure_openings_compact_list() -> void:
+	if _opening_compact_grid != null:
+		return
+	var box := get_node_or_null("OpeningsPanel/MarginContainer/VBoxContainer") as VBoxContainer
+	if box == null:
+		return
+	_opening_compact_grid = GridContainer.new()
+	_opening_compact_grid.name = "OpeningsCompactList"
+	_opening_compact_grid.visible = false
+	_opening_compact_grid.columns = 2
+	_opening_compact_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_opening_compact_grid.add_theme_constant_override("h_separation", 10)
+	_opening_compact_grid.add_theme_constant_override("v_separation", 3)
+	box.add_child(_opening_compact_grid)
+
+
+func _ensure_opening_action_panel() -> void:
+	if _opening_action_panel != null:
+		return
+	_opening_action_panel = PanelContainer.new()
+	_opening_action_panel.name = "OpeningActionPanel"
+	_opening_action_panel.visible = false
+	_opening_action_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_opening_action_panel.custom_minimum_size = Vector2(310.0, 92.0)
+	_opening_action_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	add_child(_opening_action_panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	_opening_action_panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 7)
+	margin.add_child(box)
+
+	_opening_action_title = Label.new()
+	_opening_action_title.text = "Apertura"
+	_opening_action_title.clip_text = true
+	_opening_action_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	box.add_child(_opening_action_title)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 5)
+	box.add_child(row)
+	for step in OPENING_FRACTION_STEPS:
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(52.0, 30.0)
+		button.toggle_mode = true
+		button.text = "%d%%" % int(round(step * 100.0))
+		button.focus_mode = Control.FOCUS_NONE
+		button.pressed.connect(_on_opening_fraction_button_pressed.bind(step))
+		row.add_child(button)
+		_opening_action_buttons.append(button)
+
+
+func _set_openings_panel_compact(compact: bool) -> void:
+	_ensure_openings_compact_list()
+	if opening_selector != null:
+		opening_selector.visible = false
+	if opening_status_label != null:
+		opening_status_label.visible = false
+	if opening_buttons_row != null:
+		opening_buttons_row.visible = false
+	if _opening_compact_grid != null:
+		_opening_compact_grid.visible = true
+	if openings_title != null:
+		openings_title.text = "Estado de aperturas"
+
+
+func _update_openings_compact_list() -> void:
+	if _opening_compact_grid == null:
+		return
+	if building == null:
+		_rebuild_openings_compact_grid(["Sin BuildingModel"], 1)
+		return
+	var summaries: Array[Dictionary] = building.build_opening_summaries()
+	if summaries.is_empty():
+		_rebuild_openings_compact_grid(["Sin aperturas"], 1)
+		return
+	var items: Array = []
+	var columns: int = 3 if summaries.size() > 10 else 2
+	var max_lines: int = columns * 7
+	for i in range(mini(summaries.size(), max_lines)):
+		items.append(summaries[i])
+	if summaries.size() > max_lines:
+		items.append("+%d mas" % (summaries.size() - max_lines))
+	_rebuild_openings_compact_grid(items, columns)
+
+
+func _rebuild_openings_compact_grid(items: Array, columns: int) -> void:
+	if _opening_compact_grid == null:
+		return
+	var signature: String = "%d|%s" % [columns, _build_openings_compact_signature(items)]
+	if signature == _openings_compact_signature:
+		return
+	_openings_compact_signature = signature
+	for child in _opening_compact_grid.get_children():
+		child.queue_free()
+	_opening_compact_grid.columns = maxi(1, columns)
+	for text_value in items:
+		var label := Label.new()
+		var summary: Dictionary = Dictionary(text_value) if text_value is Dictionary else {}
+		label.text = _format_compact_opening_summary(summary) if not summary.is_empty() else String(text_value)
+		label.clip_text = true
+		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		label.custom_minimum_size = Vector2(88.0 if columns >= 3 else 132.0, 0.0)
+		label.add_theme_font_override("font", SimuFireThemeScript.body_font())
+		label.add_theme_font_size_override("font_size", 11)
+		label.add_theme_color_override("font_color", _opening_summary_color(summary))
+		_opening_compact_grid.add_child(label)
+
+
+func _format_compact_opening_summary(summary: Dictionary) -> String:
+	if summary.is_empty():
+		return "Apertura"
+	var label: String = String(summary.get("label", "Apertura"))
+	var open_pct: int = int(round(float(summary.get("open_fraction", 0.0)) * 100.0))
+	var state_short: String = "AB" if open_pct >= 95 else ("CE" if open_pct <= 5 else "%d%%" % open_pct)
+	var prefix: String = label.substr(0, min(label.length(), 3))
+	var exterior: String = " E" if bool(summary.get("is_exterior", false)) else ""
+	return "%s %s%s" % [prefix, state_short, exterior]
+
+
+func _build_openings_compact_signature(items: Array) -> String:
+	var parts: PackedStringArray = PackedStringArray()
+	for item in items:
+		if item is Dictionary:
+			var summary := Dictionary(item)
+			parts.append("%s:%.2f:%s" % [
+				String(summary.get("label", "")),
+				float(summary.get("open_fraction", 0.0)),
+				str(bool(summary.get("is_exterior", false)))
+			])
+		else:
+			parts.append(String(item))
+	return "|".join(parts)
+
+
+func _opening_summary_color(summary: Dictionary) -> Color:
+	if summary.is_empty():
+		return SimuFireThemeScript.MUTED
+	var open_fraction: float = clampf(float(summary.get("open_fraction", 0.0)), 0.0, 1.0)
+	if open_fraction <= 0.05:
+		return Color(0.58, 0.64, 0.68, 0.92)
+	if open_fraction >= 0.95:
+		return SimuFireThemeScript.GREEN
+	return SimuFireThemeScript.YELLOW.lerp(SimuFireThemeScript.ORANGE, open_fraction)
+
+
 func _refresh_opening_controls() -> void:
 	if openings_panel == null:
 		return
@@ -489,33 +730,8 @@ func _refresh_opening_controls() -> void:
 	if not show_openings_panel:
 		return
 
-	if building == null or opening_selector == null:
-		_set_openings_panel_empty("Sin BuildingModel enlazado")
-		return
-
-	var opening_count: int = building.get_opening_count()
-	if opening_count <= 0:
-		_set_openings_panel_empty("No hay puertas ni ventanas")
-		return
-
-	if opening_count != _known_opening_count or opening_selector.get_item_count() != opening_count:
-		_selector_sync_in_progress = true
-		opening_selector.clear()
-		for summary in building.build_opening_summaries():
-			var item_label: String = String(summary.get("label", "Apertura"))
-			var opening_index: int = int(summary.get("index", opening_selector.get_item_count()))
-			opening_selector.add_item(item_label, opening_index)
-
-		selected_opening_index = clampi(selected_opening_index, 0, opening_count - 1)
-		var selector_idx: int = _find_selector_item_by_opening_index(selected_opening_index)
-		if selector_idx == -1:
-			selected_opening_index = int(opening_selector.get_item_id(0))
-			selector_idx = 0
-		opening_selector.select(selector_idx)
-		_known_opening_count = opening_count
-		_selector_sync_in_progress = false
-
-	_refresh_opening_status()
+	_set_openings_panel_compact(true)
+	_update_openings_compact_list()
 
 
 func _refresh_opening_status() -> void:
@@ -554,6 +770,68 @@ func _set_openings_panel_empty(message: String) -> void:
 		btn_opening_close.disabled = true
 
 
+func show_opening_action(opening_index: int, screen_pos: Vector2 = Vector2(-1.0, -1.0)) -> void:
+	if building == null or building.get_opening_at(opening_index) == null:
+		hide_opening_action()
+		return
+	_ensure_opening_action_panel()
+	_opening_action_index = opening_index
+	selected_opening_index = opening_index
+	if _opening_action_panel != null:
+		_opening_action_panel.visible = true
+		_refresh_opening_action_panel()
+		if screen_pos.x >= 0.0 and screen_pos.y >= 0.0:
+			_position_opening_action_panel(screen_pos)
+
+
+func hide_opening_action() -> void:
+	_opening_action_index = -1
+	if _opening_action_panel != null:
+		_opening_action_panel.visible = false
+
+
+func _refresh_opening_action_panel() -> void:
+	if _opening_action_panel == null or not _opening_action_panel.visible:
+		return
+	if building == null:
+		hide_opening_action()
+		return
+	var op: OpeningModel = building.get_opening_at(_opening_action_index)
+	if op == null:
+		hide_opening_action()
+		return
+	var open_fraction: float = clampf(op.open_fraction, 0.0, 1.0)
+	if _opening_action_title != null:
+		_opening_action_title.text = "%s | %s" % [
+			building.get_opening_label(_opening_action_index),
+			building.get_opening_status_text(_opening_action_index)
+		]
+	for i in range(_opening_action_buttons.size()):
+		var button: Button = _opening_action_buttons[i]
+		if button == null:
+			continue
+		var step: float = OPENING_FRACTION_STEPS[i]
+		button.set_pressed_no_signal(absf(open_fraction - step) < 0.01)
+
+
+func _position_opening_action_panel(screen_pos: Vector2) -> void:
+	if _opening_action_panel == null:
+		return
+	var viewport_size: Vector2 = get_viewport_rect().size
+	var desired_size: Vector2 = _opening_action_panel.get_combined_minimum_size()
+	if desired_size.x <= 0.0 or desired_size.y <= 0.0:
+		desired_size = Vector2(310.0, 92.0)
+	var pos: Vector2 = screen_pos + Vector2(14.0, 14.0)
+	if pos.x + desired_size.x > viewport_size.x - 8.0:
+		pos.x = screen_pos.x - desired_size.x - 14.0
+	if pos.y + desired_size.y > viewport_size.y - 118.0:
+		pos.y = screen_pos.y - desired_size.y - 14.0
+	pos.x = clampf(pos.x, 8.0, maxf(8.0, viewport_size.x - desired_size.x - 8.0))
+	pos.y = clampf(pos.y, 8.0, maxf(8.0, viewport_size.y - desired_size.y - 118.0))
+	_opening_action_panel.position = pos
+	_opening_action_panel.size = desired_size
+
+
 func _update_time_controls(
 	sim_time_s: float,
 	playback_paused: bool,
@@ -570,15 +848,18 @@ func _update_time_controls(
 		time_scale_label.text = _format_time_scale_label(time_scale)
 
 	if playback_status_label != null:
+		var playback_label: String = "PLAY"
 		if simulation_finished:
-			playback_status_label.text = "DETENIDA"
+			playback_label = "DETENIDA"
 		elif playback_paused:
-			playback_status_label.text = "PAUSA"
+			playback_label = "PAUSA"
 		else:
-			playback_status_label.text = "PLAY"
+			playback_label = "PLAY"
+		playback_status_label.text = "%s %s" % [_view_mode_label, playback_label]
 
 	if btn_play != null:
-		btn_play.disabled = simulation_finished or not playback_paused
+		btn_play.disabled = simulation_finished
+		btn_play.text = "PLAY" if playback_paused else "PAUSA"
 	if btn_pause != null:
 		btn_pause.disabled = simulation_finished or playback_paused
 	if btn_time_back != null:
@@ -587,23 +868,33 @@ func _update_time_controls(
 		btn_time_forward.disabled = simulation_finished
 	if btn_stop_graphs != null:
 		btn_stop_graphs.disabled = sim_time_s <= 0.0 or graphs_launched
-		btn_stop_graphs.text = "Generacion lanzada" if graphs_launched else "%s Parar + graficas" % _format_key_label(key_stop_and_generate)
+		btn_stop_graphs.text = "GRAF OK" if graphs_launched else "FIN/GRAF"
 	_sync_shortcut_labels()
 
 
 func _sync_shortcut_labels() -> void:
 	if btn_time_back != null:
-		btn_time_back.text = "%s Atras" % _format_key_label(key_time_back)
+		btn_time_back.text = "-T"
+		btn_time_back.tooltip_text = "%s: retroceder escala de tiempo" % _format_key_label(key_time_back)
 	if btn_time_forward != null:
-		btn_time_forward.text = "%s Adelante" % _format_key_label(key_time_forward)
+		btn_time_forward.text = "+T"
+		btn_time_forward.tooltip_text = "%s: avanzar escala de tiempo" % _format_key_label(key_time_forward)
 	if btn_play != null:
-		btn_play.text = "%s Play/Pausa" % _format_key_label(key_play_pause)
+		btn_play.text = "PLAY" if _playback_paused else "PAUSA"
+		btn_play.tooltip_text = "%s: play/pausa" % _format_key_label(key_play_pause)
 	if btn_pause != null:
 		btn_pause.visible = false
 	if btn_stop_graphs != null and not _graphs_launched:
-		btn_stop_graphs.text = "%s Parar + graficas" % _format_key_label(key_stop_and_generate)
+		btn_stop_graphs.text = "FIN/GRAF"
+		btn_stop_graphs.tooltip_text = "%s: parar simulacion y generar graficas" % _format_key_label(key_stop_and_generate)
+	if btn_view_3d != null:
+		btn_view_3d.tooltip_text = "Alternar vista 3D"
+	if btn_first_person != null:
+		btn_first_person.tooltip_text = "Entrar en primera persona"
+	if btn_hvac != null:
+		btn_hvac.tooltip_text = "Activar o desactivar HVAC"
 	if shortcut_help_label != null:
-		shortcut_help_label.text = "%s/%s tiempo   %s/%s scroll salas   %s play/pausa   %s parar + graficas" % [
+		shortcut_help_label.text = "%s/%s tiempo | %s/%s salas | %s play/pausa | %s graficas" % [
 			_format_key_label(key_time_back),
 			_format_key_label(key_time_forward),
 			_format_key_label(key_rooms_scroll_up),
@@ -648,6 +939,14 @@ func _format_time_scale_label(time_scale: float) -> String:
 	return "x%.2f" % snapped_scale
 
 
+func _build_view_mode_label(is_3d_enabled: bool, is_first_person_enabled: bool) -> String:
+	if is_first_person_enabled:
+		return "FP"
+	if is_3d_enabled:
+		return "3D"
+	return "2D"
+
+
 func _find_selector_item_by_opening_index(opening_index: int) -> int:
 	if opening_selector == null:
 		return -1
@@ -667,19 +966,17 @@ func _on_opening_selected(item_index: int) -> void:
 
 
 func _on_open_button_pressed() -> void:
-	if building == null:
-		return
-
-	building.open_opening(selected_opening_index)
-	_refresh_opening_status()
+	opening_fraction_requested.emit(selected_opening_index, 1.0)
 
 
 func _on_close_button_pressed() -> void:
-	if building == null:
-		return
+	opening_fraction_requested.emit(selected_opening_index, 0.0)
 
-	building.close_opening(selected_opening_index)
-	_refresh_opening_status()
+
+func _on_opening_fraction_button_pressed(open_fraction: float) -> void:
+	if _opening_action_index < 0:
+		return
+	opening_fraction_requested.emit(_opening_action_index, open_fraction)
 
 
 func _on_stop_graphs_pressed() -> void:
@@ -691,7 +988,12 @@ func _on_time_back_pressed() -> void:
 
 
 func _on_play_pressed() -> void:
-	play_requested.emit()
+	if _simulation_finished:
+		return
+	if _playback_paused:
+		play_requested.emit()
+	else:
+		pause_requested.emit()
 
 
 func _on_pause_pressed() -> void:
@@ -727,3 +1029,37 @@ func _on_hvac_pressed() -> void:
 	if btn_hvac == null:
 		return
 	hvac_toggled.emit(btn_hvac.button_pressed)
+
+
+# TODO(gameplay): handlers de paneles de acción táctica + victoria/derrota — descomentar cuando se implemente la UI de juego
+#func _on_water_btn_pressed(mode: String) -> void:
+#	var btn_map: Dictionary = {
+#		"aoe": btn_aoe, "def_ext": btn_def_ext,
+#		"off_int": btn_off_int, "def_in": btn_def_in
+#	}
+#	var active: bool = false
+#	if btn_map.has(mode) and btn_map[mode] != null:
+#		active = (btn_map[mode] as Button).button_pressed
+#	for m in btn_map.keys():
+#		if m != mode and btn_map[m] != null:
+#			(btn_map[m] as Button).set_pressed_no_signal(false)
+#	_active_water_mode = mode if active else ""
+#	water_mode_changed.emit(_active_water_mode)
+#
+#func _on_vent_btn_pressed(action: String) -> void:
+#	var btn: Button = null
+#	if action == "exutorio":
+#		btn = btn_exutorio
+#	elif action == "vpp":
+#		btn = btn_vpp
+#	if btn != null:
+#		vent_action_toggled.emit(action, btn.button_pressed)
+#
+#func _on_rescue_btn_pressed() -> void:
+#	rescue_requested.emit()
+#
+#func show_game_result(title: String, _message: String) -> void:
+#	if time_label != null:
+#		time_label.text = title
+#	if playback_status_label != null:
+#		playback_status_label.text = _message

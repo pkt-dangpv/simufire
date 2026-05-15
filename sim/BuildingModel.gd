@@ -325,6 +325,10 @@ func _build_fuel_objects(raw_objects: Variant) -> Array:
 		obj.ignition_flux_kw_m2 = float(data.get("ignition_flux_kw_m2", obj.ignition_flux_kw_m2))
 		obj.smoke_yield_kg_per_MJ = float(data.get("smoke_yield_kg_per_MJ", obj.smoke_yield_kg_per_MJ))
 		obj.co_yield_kg_per_MJ = float(data.get("co_yield_kg_per_MJ", obj.co_yield_kg_per_MJ))
+		obj.hcn_yield_kg_per_MJ = float(data.get("hcn_yield_kg_per_MJ", obj.hcn_yield_kg_per_MJ))
+		obj.hcl_yield_kg_per_MJ = float(data.get("hcl_yield_kg_per_MJ", obj.hcl_yield_kg_per_MJ))
+		obj.acrolein_yield_kg_per_MJ = float(data.get("acrolein_yield_kg_per_MJ", obj.acrolein_yield_kg_per_MJ))
+		obj.formaldehyde_yield_kg_per_MJ = float(data.get("formaldehyde_yield_kg_per_MJ", obj.formaldehyde_yield_kg_per_MJ))
 		obj.o2_consumption_kg_per_MJ = float(data.get("o2_consumption_kg_per_MJ", obj.o2_consumption_kg_per_MJ))
 		obj.is_primary_ignition_source = bool(data.get("is_primary_ignition_source", false))
 		# Pool fire fields

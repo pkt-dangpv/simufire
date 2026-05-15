@@ -4,6 +4,8 @@ class_name FirstPersonController
 signal exit_requested
 signal opening_changed
 
+const FPVisibilityOverlay := preload("res://view/fp/FPVisibilityOverlay.gd")
+const FPOpeningVisuals := preload("res://view/fp/FPOpeningVisuals.gd")
 const OUTSIDE_ID: int = -1
 const STANCE_STAND: int = 0
 const STANCE_CROUCH: int = 1
@@ -21,7 +23,8 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var crouch_speed_m_s: float = 1.15
 @export var prone_speed_m_s: float = 0.42
 @export var mouse_sensitivity: float = 0.0022
-@export var interaction_range_m: float = 1.75
+@export var interaction_range_m: float = 1.30
+@export var interaction_aim_dot_min: float = 0.48
 @export var gravity_m_s2: float = 12.0
 @export var boundary_height_m: float = 2.6
 
@@ -102,6 +105,7 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var smoke_overlay_layer_clearance_m: float = 0.10
 @export var smoke_overlay_layer_transition_m: float = 0.42
 @export var smoke_overlay_max_alpha: float = 0.92
+@export var fp_visibility_clear_m: float = 30.0
 
 var building: BuildingModel = null
 
@@ -110,7 +114,12 @@ var _collision_shape: CollisionShape3D = null
 var _capsule: CapsuleShape3D = null
 var _world_root: Node3D = null
 var _prompt_layer: CanvasLayer = null
+var _fp_status_panel: PanelContainer = null
+var _fp_status_label: Label = null
+var _prompt_panel: PanelContainer = null
 var _prompt_label: Label = null
+var _crosshair_h: ColorRect = null
+var _crosshair_v: ColorRect = null
 var _origin_offset_m: Vector2 = Vector2.ZERO
 var _bounds_m: Rect2 = Rect2()
 var _active: bool = false
@@ -152,13 +161,14 @@ func set_active(enabled: bool) -> void:
 		_prompt_layer.visible = enabled
 	if enabled:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		_update_status_hud()
 		_update_prompt()
 	else:
 		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		_nearest_opening_index = -1
-		if _prompt_label != null:
-			_prompt_label.visible = false
+		if _prompt_panel != null:
+			_prompt_panel.visible = false
 		if _visibility_overlay != null:
 			_visibility_overlay.color = Color(0.08, 0.09, 0.09, 0.0)
 
@@ -174,6 +184,7 @@ func set_state(next_state: Dictionary) -> void:
 	_sync_opening_panels()
 	_update_furniture_state_visuals()
 	_update_visibility_overlay()
+	_update_status_hud()
 
 
 func _physics_process(delta: float) -> void:
@@ -182,6 +193,7 @@ func _physics_process(delta: float) -> void:
 	_apply_movement(delta)
 	_update_prompt()
 	_update_visibility_overlay()
+	_update_status_hud()
 
 
 func _input(event: InputEvent) -> void:
@@ -243,18 +255,90 @@ func _create_player_nodes() -> void:
 	_visibility_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_visibility_overlay.color = Color(0.08, 0.09, 0.09, 0.0)
 	_prompt_layer.add_child(_visibility_overlay)
+
+	_fp_status_panel = PanelContainer.new()
+	_fp_status_panel.name = "FirstPersonStatusPanel"
+	_fp_status_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_fp_status_panel.offset_left = 12.0
+	_fp_status_panel.offset_top = 12.0
+	_fp_status_panel.offset_right = 372.0
+	_fp_status_panel.offset_bottom = 78.0
+	_fp_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fp_status_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
+	_prompt_layer.add_child(_fp_status_panel)
+	var status_margin := MarginContainer.new()
+	status_margin.add_theme_constant_override("margin_left", 10)
+	status_margin.add_theme_constant_override("margin_top", 7)
+	status_margin.add_theme_constant_override("margin_right", 10)
+	status_margin.add_theme_constant_override("margin_bottom", 7)
+	_fp_status_panel.add_child(status_margin)
+	_fp_status_label = Label.new()
+	_fp_status_label.name = "FirstPersonStatusLabel"
+	_fp_status_label.add_theme_font_size_override("font_size", 12)
+	_fp_status_label.add_theme_color_override("font_color", Color(0.88, 0.94, 0.92, 1.0))
+	_fp_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	status_margin.add_child(_fp_status_label)
+
+	_crosshair_h = ColorRect.new()
+	_crosshair_h.name = "CrosshairH"
+	_crosshair_h.set_anchors_preset(Control.PRESET_CENTER)
+	_crosshair_h.offset_left = -9.0
+	_crosshair_h.offset_top = -1.0
+	_crosshair_h.offset_right = 9.0
+	_crosshair_h.offset_bottom = 1.0
+	_crosshair_h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_crosshair_h.color = Color(1.0, 0.86, 0.45, 0.72)
+	_prompt_layer.add_child(_crosshair_h)
+	_crosshair_v = ColorRect.new()
+	_crosshair_v.name = "CrosshairV"
+	_crosshair_v.set_anchors_preset(Control.PRESET_CENTER)
+	_crosshair_v.offset_left = -1.0
+	_crosshair_v.offset_top = -9.0
+	_crosshair_v.offset_right = 1.0
+	_crosshair_v.offset_bottom = 9.0
+	_crosshair_v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_crosshair_v.color = Color(1.0, 0.86, 0.45, 0.72)
+	_prompt_layer.add_child(_crosshair_v)
+
+	_prompt_panel = PanelContainer.new()
+	_prompt_panel.name = "PromptPanel"
+	_prompt_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_prompt_panel.offset_left = -118.0
+	_prompt_panel.offset_right = 118.0
+	_prompt_panel.offset_top = 22.0
+	_prompt_panel.offset_bottom = 54.0
+	_prompt_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_prompt_panel.visible = false
+	_prompt_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
+	_prompt_layer.add_child(_prompt_panel)
+	var prompt_margin := MarginContainer.new()
+	prompt_margin.add_theme_constant_override("margin_left", 12)
+	prompt_margin.add_theme_constant_override("margin_top", 8)
+	prompt_margin.add_theme_constant_override("margin_right", 12)
+	prompt_margin.add_theme_constant_override("margin_bottom", 8)
+	_prompt_panel.add_child(prompt_margin)
 	_prompt_label = Label.new()
 	_prompt_label.name = "PromptLabel"
-	_prompt_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_prompt_label.offset_left = -260.0
-	_prompt_label.offset_right = 260.0
-	_prompt_label.offset_top = -92.0
-	_prompt_label.offset_bottom = -44.0
 	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_prompt_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_prompt_label.add_theme_font_size_override("font_size", 18)
-	_prompt_label.visible = false
-	_prompt_layer.add_child(_prompt_label)
+	_prompt_label.add_theme_font_size_override("font_size", 13)
+	_prompt_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.72, 1.0))
+	prompt_margin.add_child(_prompt_label)
+
+
+func _make_fp_hud_style() -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.01, 0.025, 0.03, 0.78)
+	box.border_color = Color(0.95, 0.58, 0.22, 0.76)
+	box.border_width_left = 1
+	box.border_width_top = 1
+	box.border_width_right = 1
+	box.border_width_bottom = 1
+	box.corner_radius_top_left = 0
+	box.corner_radius_top_right = 0
+	box.corner_radius_bottom_right = 0
+	box.corner_radius_bottom_left = 0
+	return box
 
 
 func _ensure_world_root() -> void:
@@ -1199,6 +1283,9 @@ func _create_furniture_piece(parent: Node3D, _room: RoomModel, room_rect: Rect2,
 	var local_rect: Rect2 = _clamp_furniture_rect(Rect2(pos_m, size_m), room_rect, kind)
 	if local_rect.size.x <= 0.05 or local_rect.size.y <= 0.05:
 		return
+	var room_id: int = _room.id if _room != null else -999
+	if _is_solid_furniture_kind(kind) and _furniture_blocks_opening(room_id, room_rect, local_rect):
+		return
 
 	var layout: Dictionary = _furniture_layout(kind, room_rect, local_rect, float(spec.get("rotation_deg", 0.0)))
 	var shape_size: Vector2 = Vector2(layout.get("shape_size", local_rect.size))
@@ -1215,6 +1302,51 @@ func _create_furniture_piece(parent: Node3D, _room: RoomModel, room_rect: Rect2,
 	_build_furniture_shape(root, kind, shape_size, float(spec.get("elevation_m", 0.0)))
 	if bool(spec.get("source_fuel", false)):
 		_furniture_nodes[obj_id] = root
+
+
+func _is_solid_furniture_kind(kind: String) -> bool:
+	return not (kind == "rug" or kind == "curtain" or kind == "pool" or kind == "textile_pile")
+
+
+func _furniture_blocks_opening(room_id: int, room_rect: Rect2, local_rect: Rect2) -> bool:
+	if building == null or room_id < 0:
+		return false
+	for clearance in _opening_clearance_rects_for_room(room_id, room_rect):
+		if local_rect.intersects(clearance, true):
+			return true
+	return false
+
+
+func _opening_clearance_rects_for_room(room_id: int, room_rect: Rect2) -> Array[Rect2]:
+	var clearances: Array[Rect2] = []
+	var clearance_depth_m: float = 0.74
+	var clearance_side_pad_m: float = 0.34
+	for index in range(building.get_opening_count()):
+		var op: OpeningModel = building.get_opening_at(index)
+		if op == null or (op.a != room_id and op.b != room_id):
+			continue
+		var info: Dictionary = _opening_info(index)
+		if info.is_empty():
+			continue
+		var side: String = String(info.get("side_for_%d" % room_id, ""))
+		if side == "":
+			continue
+		var axis_center: float = float(info.get("axis_center", 0.0))
+		var width_m: float = float(info.get("width_m", op.width_m)) + clearance_side_pad_m * 2.0
+		var half_w: float = width_m * 0.5
+		if side == "top" or side == "bottom":
+			var local_x: float = axis_center - room_rect.position.x
+			var x0: float = clampf(local_x - half_w, 0.0, room_rect.size.x)
+			var x1: float = clampf(local_x + half_w, 0.0, room_rect.size.x)
+			var y0: float = 0.0 if side == "top" else maxf(0.0, room_rect.size.y - clearance_depth_m)
+			clearances.append(Rect2(Vector2(x0, y0), Vector2(maxf(0.0, x1 - x0), minf(clearance_depth_m, room_rect.size.y))))
+		else:
+			var local_y: float = axis_center - room_rect.position.y
+			var y0: float = clampf(local_y - half_w, 0.0, room_rect.size.y)
+			var y1: float = clampf(local_y + half_w, 0.0, room_rect.size.y)
+			var x0: float = 0.0 if side == "left" else maxf(0.0, room_rect.size.x - clearance_depth_m)
+			clearances.append(Rect2(Vector2(x0, y0), Vector2(minf(clearance_depth_m, room_rect.size.x), maxf(0.0, y1 - y0))))
+	return clearances
 
 
 func _classify_furniture_kind(kind_text: String, name_text: String, id_text: String) -> String:
@@ -1941,16 +2073,23 @@ func _update_prompt() -> void:
 		return
 	_nearest_opening_index = _find_nearest_opening()
 	if _nearest_opening_index < 0:
-		_prompt_label.visible = false
+		if _prompt_panel != null:
+			_prompt_panel.visible = false
 		return
 	var op: OpeningModel = building.get_opening_at(_nearest_opening_index)
 	if op == null:
-		_prompt_label.visible = false
+		if _prompt_panel != null:
+			_prompt_panel.visible = false
 		return
 	var kind: String = "puerta" if op.type == OpeningModel.Type.DOOR else "ventana"
 	var action: String = "cerrar" if op.open_fraction > 0.5 else "abrir"
-	_prompt_label.text = "F para %s %s" % [action, kind]
-	_prompt_label.visible = true
+	_prompt_label.text = "F: %s %s (%d%%)" % [
+		action,
+		kind,
+		int(round(op.open_fraction * 100.0))
+	]
+	if _prompt_panel != null:
+		_prompt_panel.visible = true
 
 
 func _update_visibility_overlay() -> void:
@@ -1967,42 +2106,70 @@ func _update_visibility_overlay() -> void:
 	if room_state.is_empty():
 		_visibility_overlay.color = Color(0.08, 0.09, 0.09, 0.0)
 		return
-	var visibility_m: float = float(room_state.get("visibility_m", 30.0))
-	var smoke_kg: float = float(room_state.get("smoke_kg", 0.0))
-	var upper_temp_c: float = float(room_state.get("temp_upper_c", 20.0))
-	var room_height_m: float = float(room_state.get("height_m", 2.4))
-	var smoke_layer_m: float = clampf(
-		float(room_state.get("smoke_layer_m", room_state.get("h_layer_m", room_height_m))),
-		0.0,
-		room_height_m
-	)
-	var eye_height_m: float = _camera.global_position.y if _camera != null else _current_height()
-	var immersion: float = clampf(
-		(eye_height_m + smoke_overlay_layer_clearance_m - smoke_layer_m) / maxf(0.05, smoke_overlay_layer_transition_m),
-		0.0,
-		1.0
-	)
-	var rects: Dictionary = building.get_room_rects_m()
-	var room_rect: Rect2 = Rect2(rects.get(_current_room_id, Rect2()))
-	var upper_depth_m: float = maxf(0.05, room_height_m - smoke_layer_m)
-	var upper_volume_m3: float = maxf(0.05, room_rect.size.x * room_rect.size.y * upper_depth_m)
-	var smoke_density_t: float = clampf((smoke_kg / upper_volume_m3) / 0.018, 0.0, 1.0)
-	var alpha_from_visibility: float = clampf(
-		(smoke_overlay_visibility_reference_m - visibility_m) / maxf(0.1, smoke_overlay_visibility_reference_m),
-		0.0,
-		0.86
-	)
-	var alpha_from_smoke: float = clampf(smoke_kg / 1.4, 0.0, 0.55)
-	var alpha_from_layer: float = (0.24 + smoke_density_t * 0.48) * immersion
-	var heat_tint: float = clampf((upper_temp_c - 80.0) / 420.0, 0.0, 1.0)
-	var alpha: float = clampf(maxf(maxf(alpha_from_visibility, alpha_from_smoke) * immersion, alpha_from_layer), 0.0, smoke_overlay_max_alpha)
-	var color := Color(
+	var smoke_view: Dictionary = _compute_fp_smoke_view(room_state)
+	var heat_tint: float = float(smoke_view.get("heat_tint", 0.0))
+	var alpha: float = float(smoke_view.get("overlay_alpha", 0.0))
+	_visibility_overlay.color = Color(
 		lerpf(0.08, 0.18, heat_tint),
 		lerpf(0.09, 0.11, heat_tint),
 		lerpf(0.09, 0.07, heat_tint),
 		alpha
 	)
-	_visibility_overlay.color = color
+
+
+func _compute_fp_smoke_view(room_state: Dictionary) -> Dictionary:
+	var room_rect := Rect2()
+	if building != null and _current_room_id >= 0:
+		var rects: Dictionary = building.get_room_rects_m()
+		room_rect = Rect2(rects.get(_current_room_id, Rect2()))
+	var eye_height_m: float = _camera.global_position.y if _camera != null else _current_height()
+	return FPVisibilityOverlay.compute(room_state, room_rect, eye_height_m, {
+		"clear_visibility_m": fp_visibility_clear_m,
+		"visibility_reference_m": smoke_overlay_visibility_reference_m,
+		"layer_clearance_m": smoke_overlay_layer_clearance_m,
+		"layer_transition_m": smoke_overlay_layer_transition_m,
+		"max_alpha": smoke_overlay_max_alpha
+	})
+
+
+func _update_status_hud() -> void:
+	if _fp_status_label == null:
+		return
+	var room_label: String = "SIN SALA"
+	var visibility_label: String = "Vis --"
+	var o2_label: String = "O2 --"
+	if building != null:
+		_current_room_id = _find_current_room_id()
+		if _current_room_id >= 0:
+			room_label = "R%d" % _current_room_id
+			var room_state: Dictionary = Dictionary(_state.get(str(_current_room_id), {}))
+			var room_name: String = String(room_state.get("name", ""))
+			if room_name != "":
+				room_label = "%s %s" % [room_label, room_name]
+			if not room_state.is_empty():
+				var smoke_view: Dictionary = _compute_fp_smoke_view(room_state)
+				visibility_label = _format_fp_visibility(float(smoke_view.get("fp_visibility_m", room_state.get("visibility_m", 30.0))))
+				o2_label = "O2 %.1f%%" % (float(room_state.get("o2", 0.209)) * 100.0)
+	_fp_status_label.text = "FP | %s | %s\n%s | %s | ESC salir | F usar | CTRL" % [
+		room_label,
+		_stance_label(),
+		visibility_label,
+		o2_label
+	]
+
+
+func _format_fp_visibility(visibility_m: float) -> String:
+	return FPVisibilityOverlay.format_visibility(visibility_m, fp_visibility_clear_m)
+
+
+func _stance_label() -> String:
+	match _stance:
+		STANCE_CROUCH:
+			return "AGACHADO"
+		STANCE_PRONE:
+			return "RASTRO"
+		_:
+			return "DE PIE"
 
 
 func _find_current_room_id() -> int:
@@ -2054,71 +2221,32 @@ func _update_window_leaf_pair(
 	_height_m: float,
 	open_amount: float
 ) -> void:
-	var leaf_width_m: float = maxf(0.08, width_m * 0.5)
-	var outward: Vector3 = -normal.normalized()
-	var clearance: Vector3 = outward * opening_panel_clearance_m
-	var left_closed_center: Vector3 = center - tangent * (leaf_width_m * 0.5) + clearance
-	var right_closed_center: Vector3 = center + tangent * (leaf_width_m * 0.5) + clearance
-	var left_yaw: float = base_yaw
-	var right_yaw: float = base_yaw
-	var left_center: Vector3 = left_closed_center
-	var right_center: Vector3 = right_closed_center
-
-	if open_amount > 0.01:
-		var angle: float = deg_to_rad(window_open_angle_deg) * open_amount
-		var left_hinge: Vector3 = center - tangent * (width_m * 0.5)
-		var right_hinge: Vector3 = center + tangent * (width_m * 0.5)
-		left_yaw = _pick_window_leaf_yaw(base_yaw, angle, left_hinge, leaf_width_m, left_closed_center, outward, true)
-		right_yaw = _pick_window_leaf_yaw(base_yaw, angle, right_hinge, leaf_width_m, right_closed_center, outward, false)
-		var left_axis: Vector3 = Basis(Vector3.UP, left_yaw).x.normalized()
-		var right_axis: Vector3 = Basis(Vector3.UP, right_yaw).x.normalized()
-		left_center = left_hinge + left_axis * (leaf_width_m * 0.5) + clearance
-		right_center = right_hinge - right_axis * (leaf_width_m * 0.5) + clearance
+	var pose: Dictionary = FPOpeningVisuals.compute_window_leaf_pair(
+		center,
+		tangent,
+		normal,
+		base_yaw,
+		width_m,
+		open_amount,
+		deg_to_rad(window_open_angle_deg),
+		opening_panel_clearance_m
+	)
 
 	left_leaf.visible = true
 	right_leaf.visible = true
-	left_leaf.position = left_center
-	right_leaf.position = right_center
-	left_leaf.rotation = Vector3(0.0, left_yaw, 0.0)
-	right_leaf.rotation = Vector3(0.0, right_yaw, 0.0)
+	left_leaf.position = Vector3(pose.get("left_center", center))
+	right_leaf.position = Vector3(pose.get("right_center", center))
+	left_leaf.rotation = Vector3(0.0, float(pose.get("left_yaw", base_yaw)), 0.0)
+	right_leaf.rotation = Vector3(0.0, float(pose.get("right_yaw", base_yaw)), 0.0)
 	var glass_color: Color = window_glass_closed_color.lerp(window_glass_open_color, clampf(open_amount, 0.0, 1.0))
 	_set_window_leaf_glass_color(left_leaf, glass_color)
 	_set_window_leaf_glass_color(right_leaf, glass_color)
 
 
-func _pick_window_leaf_yaw(
-	base_yaw: float,
-	angle: float,
-	hinge: Vector3,
-	leaf_width_m: float,
-	closed_center: Vector3,
-	outward: Vector3,
-	extends_positive_axis: bool
-) -> float:
-	var yaw_a: float = base_yaw + angle
-	var yaw_b: float = base_yaw - angle
-	var score_a: float = _window_leaf_outward_score(yaw_a, hinge, leaf_width_m, closed_center, outward, extends_positive_axis)
-	var score_b: float = _window_leaf_outward_score(yaw_b, hinge, leaf_width_m, closed_center, outward, extends_positive_axis)
-	return yaw_a if score_a >= score_b else yaw_b
-
-
-func _window_leaf_outward_score(
-	yaw: float,
-	hinge: Vector3,
-	leaf_width_m: float,
-	closed_center: Vector3,
-	outward: Vector3,
-	extends_positive_axis: bool
-) -> float:
-	var axis: Vector3 = Basis(Vector3.UP, yaw).x.normalized()
-	var signed_half_width: float = leaf_width_m * 0.5 if extends_positive_axis else -leaf_width_m * 0.5
-	var candidate_center: Vector3 = hinge + axis * signed_half_width
-	return (candidate_center - closed_center).dot(outward)
-
-
 func _cycle_stance() -> void:
 	_stance = (_stance + 1) % 3
 	_apply_stance(false)
+	_update_status_hud()
 
 
 func _apply_stance(immediate: bool) -> void:
@@ -2158,8 +2286,10 @@ func _current_speed() -> float:
 
 func _find_nearest_opening() -> int:
 	var best_index: int = -1
-	var best_dist: float = interaction_range_m
+	var best_score: float = INF
 	var player_xz := Vector2(global_position.x, global_position.z)
+	var view_origin: Vector3 = _camera.global_position if _camera != null else global_position
+	var view_forward: Vector3 = (-_camera.global_transform.basis.z).normalized() if _camera != null else (-global_transform.basis.z).normalized()
 	for index in _opening_nodes.keys():
 		var op: OpeningModel = building.get_opening_at(int(index))
 		if op == null:
@@ -2167,8 +2297,16 @@ func _find_nearest_opening() -> int:
 		var info: Dictionary = Dictionary(_opening_nodes[index]).get("info", {})
 		var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
 		var dist: float = player_xz.distance_to(Vector2(center.x, center.z))
-		if dist < best_dist:
-			best_dist = dist
+		if dist > interaction_range_m:
+			continue
+		var aim_target := Vector3(center.x, clampf(view_origin.y, 0.65, center.y + 0.25), center.z)
+		var to_opening: Vector3 = (aim_target - view_origin).normalized()
+		var aim_dot: float = view_forward.dot(to_opening)
+		if aim_dot < interaction_aim_dot_min:
+			continue
+		var score: float = dist + (1.0 - aim_dot) * 0.55
+		if score < best_score:
+			best_score = score
 			best_index = int(index)
 	return best_index
 

@@ -60,6 +60,17 @@ var co2_kg: float = 0.0
 # Cianuro de hidrógeno - masa en la sala (kg)
 var hcn_kg: float = 0.0
 
+# Irritantes — SF-AUD-018 (ISO 13571 FEC).
+# Masa de gases irritantes: HCl (PVC), acroleína y formaldehído (madera/plásticos).
+var hcl_kg: float = 0.0
+var acrolein_kg: float = 0.0
+var formaldehyde_kg: float = 0.0
+
+# FEC instantáneo (Fractional Effective Concentration, ISO 13571 §A.3)
+# FEC = [HCl]/900 + [acrolein]/4 + [HCHO]/250  (ppm/IC50)
+# FEC ≥ 1.0 → incapacitación por irritación sensorial.
+var fec_irritant: float = 0.0
+
 # FED acumulado (Fractional Effective Dose) - ISO 13571
 var fed: float = 0.0
 
@@ -96,6 +107,11 @@ var ventilation_response_factor: float = 0.0
 
 # Presion de la capa superior respecto al exterior
 var overpressure_pa: float = 0.0
+
+# Flujo radiante al suelo — SF-AUD-012.
+# Calculado en cada paso como ε·σ·T_upper⁴ [kW/m²].
+# ~20 kW/m² es el umbral ISO 9705 para flashover por ignicion generalizada de superficies.
+var floor_heat_flux_kw_m2: float = 0.0
 
 # Eventos
 var flashover_triggered: bool = false
@@ -136,6 +152,10 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	co_upper_kg = 0.0
 	co2_kg = 0.0
 	hcn_kg = 0.0
+	hcl_kg = 0.0
+	acrolein_kg = 0.0
+	formaldehyde_kg = 0.0
+	fec_irritant = 0.0
 	fed = 0.0
 	svv_pct = 100.0
 	svv_worst_pct = 100.0
@@ -158,6 +178,7 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	retained_unburned_MJ = 0.0
 	ventilation_response_factor = 0.0
 	overpressure_pa = 0.0
+	floor_heat_flux_kw_m2 = 0.0
 	flashover_triggered = false
 	flashover_time_s = -1.0
 	fire_spread_exposure_s = 0.0

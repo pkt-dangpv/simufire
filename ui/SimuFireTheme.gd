@@ -138,4 +138,4 @@ static func apply_control_tree(root: Node, headings_orange: bool = true) -> void
 
 static func _looks_like_heading(label: Label) -> bool:
 	var n: String = label.name.to_lower()
-	return n.ends_with("title") or n.contains("label")
+	return n.ends_with("title") or n.ends_with("heading") or n.ends_with("header")

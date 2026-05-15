@@ -2,6 +2,7 @@ extends Node3D
 class_name Visualizer3D
 
 signal room_clicked(room_id: int)
+signal opening_clicked(opening_index: int, screen_pos: Vector2)
 
 ## Basic editable 3D view for the same BuildingModel / SimulationEngine state.
 ## The scene owns the camera, lights, and container nodes; this script only
@@ -10,133 +11,14 @@ signal room_clicked(room_id: int)
 const SMOKE_TEXTURE_LIGHT := preload("res://assets/smoke/02_humo_superior_ligero_spritesheet_128.png")
 const SMOKE_TEXTURE_MEDIUM := preload("res://assets/smoke/03_humo_superior_medio_spritesheet_128.png")
 const SMOKE_TEXTURE_DENSE := preload("res://assets/smoke/04_humo_superior_denso_spritesheet_128.png")
-const SMOKE_VOLUME_SHADER_CODE := """
-shader_type spatial;
-render_mode unshaded, cull_disabled, blend_mix, depth_draw_never;
-
-uniform vec4 smoke_color : source_color = vec4(0.18, 0.19, 0.20, 0.34);
-uniform float density = 1.0;
-uniform float turbulence = 0.55;
-uniform float drift_speed = 0.10;
-
-float hash(vec2 p) {
-	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
-}
-
-float noise(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	vec2 u = f * f * (3.0 - 2.0 * f);
-	return mix(
-		mix(hash(i + vec2(0.0, 0.0)), hash(i + vec2(1.0, 0.0)), u.x),
-		mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
-		u.y
-	);
-}
-
-void fragment() {
-	vec2 uv = UV;
-	float t = TIME * drift_speed;
-	float n1 = noise(uv * 3.5 + vec2(t, -t * 0.7));
-	float n2 = noise(uv * 8.0 + vec2(-t * 1.6, t * 1.1));
-	float n = mix(n1, n2, turbulence);
-	float vertical_edge = smoothstep(0.00, 0.18, uv.y) * (1.0 - smoothstep(0.82, 1.0, uv.y));
-	float side_edge = smoothstep(0.00, 0.05, uv.x) * (1.0 - smoothstep(0.95, 1.0, uv.x));
-	float filament = smoothstep(0.18, 0.92, n);
-	float alpha = smoke_color.a * density * mix(0.14, 0.76, filament) * max(0.34, vertical_edge) * max(0.68, side_edge);
-	ALBEDO = smoke_color.rgb * mix(0.62, 1.10, n);
-	ALPHA = clamp(alpha, 0.0, smoke_color.a * 0.86);
-}
-"""
-const FLAME_SHADER_CODE := """
-shader_type spatial;
-render_mode unshaded, cull_disabled, blend_add, depth_draw_never;
-
-uniform vec4 flame_color : source_color = vec4(1.0, 0.32, 0.04, 0.85);
-uniform vec4 core_color : source_color = vec4(1.0, 0.88, 0.26, 1.0);
-uniform float emission_energy = 1.35;
-uniform float flicker_speed = 2.8;
-
-float hash(vec2 p) {
-	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
-}
-
-float noise(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	vec2 u = f * f * (3.0 - 2.0 * f);
-	return mix(
-		mix(hash(i + vec2(0.0, 0.0)), hash(i + vec2(1.0, 0.0)), u.x),
-		mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
-		u.y
-	);
-}
-
-void fragment() {
-	vec2 uv = UV;
-	float t = TIME * flicker_speed;
-	float n = noise(vec2(uv.x * 3.0, uv.y * 5.5 - t));
-	float center = abs(uv.x - 0.5) * 2.0;
-	float width = mix(0.70, 0.035, pow(uv.y, 0.68)) * mix(0.82, 1.16, n);
-	float lick = sin((uv.y * 8.0 - t * 3.1) + n * 2.4) * 0.10 + (n - 0.5) * 0.15;
-	float body = 1.0 - smoothstep(width, width + 0.18, center + lick);
-	float base = smoothstep(0.0, 0.10, uv.y);
-	float tip = 1.0 - smoothstep(0.66 + n * 0.16, 1.0, uv.y);
-	float split = mix(0.74, 1.0, smoothstep(0.18, 0.82, noise(vec2(uv.x * 12.0 + t, uv.y * 6.0))));
-	float alpha = clamp(body * base * tip * flame_color.a, 0.0, 1.0);
-	vec3 col = mix(flame_color.rgb, core_color.rgb, clamp((1.0 - center) * (1.0 - uv.y * 0.45), 0.0, 1.0));
-	ALBEDO = col;
-	EMISSION = col * emission_energy;
-	ALPHA = alpha * split;
-}
-"""
-const FIRE_CAP_SHADER_CODE := """
-shader_type spatial;
-render_mode unshaded, cull_disabled, blend_add, depth_draw_never;
-
-uniform vec4 cap_color : source_color = vec4(1.0, 0.34, 0.05, 0.42);
-uniform vec4 core_color : source_color = vec4(1.0, 0.78, 0.22, 0.70);
-uniform float emission_energy = 0.95;
-uniform float flicker_speed = 1.8;
-
-float hash(vec2 p) {
-	return fract(sin(dot(p, vec2(269.5, 183.3))) * 43758.5453123);
-}
-
-float noise(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	vec2 u = f * f * (3.0 - 2.0 * f);
-	return mix(
-		mix(hash(i + vec2(0.0, 0.0)), hash(i + vec2(1.0, 0.0)), u.x),
-		mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
-		u.y
-	);
-}
-
-void fragment() {
-	vec2 centered = UV * 2.0 - vec2(1.0);
-	float r = length(centered);
-	float t = TIME * flicker_speed;
-	float n = noise(UV * 7.0 + vec2(t, -t * 0.63));
-	float broken_edge = 1.0 - smoothstep(0.58 + n * 0.18, 1.04, r);
-	float tongues = smoothstep(0.34, 0.95, n) * broken_edge;
-	float alpha = cap_color.a * broken_edge * mix(0.26, 1.0, tongues);
-	vec3 col = mix(cap_color.rgb, core_color.rgb, tongues * (1.0 - smoothstep(0.0, 0.95, r)));
-	ALBEDO = col;
-	EMISSION = col * emission_energy;
-	ALPHA = clamp(alpha, 0.0, cap_color.a);
-}
-"""
-const SMOKE_CEILING_MASK_SHADER_CODE := """
-shader_type spatial;
-render_mode unshaded, cull_disabled, blend_mix, depth_draw_never;
-
-void fragment() {
-	ALBEDO = vec3(0.55, 0.57, 0.58);
-	ALPHA = 0.040;
-}
-"""
+const SmokeBridgeMesh := preload("res://view/3d/smoke/SmokeBridgeMesh.gd")
+const SmokeVolumeMaterialFactory := preload("res://view/3d/smoke/SmokeVolumeMaterialFactory.gd")
+const FireMaterialFactory := preload("res://view/3d/fire/FireMaterialFactory.gd")
+const FurniturePlacement3D := preload("res://view/3d/furniture/FurniturePlacement3D.gd")
+const FurnitureShapeBuilder := preload("res://view/3d/furniture/FurnitureShapeBuilder.gd")
+const FurnitureStateVisuals := preload("res://view/3d/furniture/FurnitureStateVisuals.gd")
+const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVisualClassifier.gd")
+const OpeningPose3D := preload("res://view/3d/openings/OpeningPose3D.gd")
 
 @export_group("Scene Nodes")
 @export var building_path: NodePath
@@ -197,6 +79,7 @@ void fragment() {
 @export var smoke_hrr_reference_kw: float = 900.0
 @export var smoke_hrr_depth_boost_m: float = 0.55
 @export var smoke_hrr_alpha_boost: float = 0.18
+@export var smoke_opening_blend_depth_m: float = 1.55
 @export var smoke_grow_lerp: float = 0.08
 @export var smoke_clear_lerp: float = 0.035
 @export var hot_layer_visible_drop_m: float = 0.12
@@ -251,6 +134,7 @@ var _orbit_x: float = 0.0
 var _orbit_y: float = 0.0
 var _orbit_dragging: bool = false
 var _selected_room_id: int = -1
+var _selected_opening_index: int = -1
 var _fire_phase: float = 0.0
 var _input_active: bool = true
 var _first_person_overlay: bool = false
@@ -303,6 +187,11 @@ func rebuild_from_building() -> void:
 	_update_dynamic_state()
 
 
+func select_opening(opening_index: int) -> void:
+	_selected_opening_index = opening_index
+	_update_openings()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not _input_active or not enable_mouse_camera or not is_visible_in_tree():
 		return
@@ -322,18 +211,31 @@ func _unhandled_input(event: InputEvent) -> void:
 		if mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
 				if _is_screen_point_over_model(mb.position):
+					var opening_index: int = _get_opening_index_at_screen_pos(mb.position)
+					if opening_index >= 0:
+						_selected_opening_index = opening_index
+						_update_openings()
+						opening_clicked.emit(opening_index, mb.position)
+						get_viewport().set_input_as_handled()
+						return
 					var rid: int = _get_room_id_at_screen_pos(mb.position)
 					if rid >= 0:
 						_selected_room_id = rid
+						_selected_opening_index = -1
+						_update_openings()
 						room_clicked.emit(rid)
 						get_viewport().set_input_as_handled()
 					elif _selected_room_id >= 0:
 						_selected_room_id = -1
+						_selected_opening_index = -1
+						_update_openings()
 						room_clicked.emit(-1)
 						get_viewport().set_input_as_handled()
 				else:
-					if _selected_room_id >= 0:
+					if _selected_room_id >= 0 or _selected_opening_index >= 0:
 						_selected_room_id = -1
+						_selected_opening_index = -1
+						_update_openings()
 						room_clicked.emit(-1)
 						get_viewport().set_input_as_handled()
 		elif mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT and _is_screen_point_over_model(mb.position):
@@ -480,7 +382,7 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	_disable_shadow_casting(smoke)
 	_atmosphere_root.add_child(smoke)
 
-	var smoke_edge := _create_box("SmokeLayerEdge_%02d" % room_id, Vector3.ONE, _make_material(smoke_layer_edge_color, true))
+	var smoke_edge := _create_box("SmokeLayerEdge_%02d" % room_id, Vector3.ONE, _make_smoke_volume_material())
 	smoke_edge.visible = false
 	_disable_shadow_casting(smoke_edge)
 	_atmosphere_root.add_child(smoke_edge)
@@ -624,15 +526,13 @@ func _create_opening(index: int) -> void:
 	_openings_root.add_child(marker)
 	_opening_items[index] = {"marker": marker}
 
-	# Cortina de humo: para puertas interiores entre dos salas, añadir un quad
-	# que rellena el vano con el humo promedio de ambas salas, eliminando el
-	# salto visual de capa entre habitaciones con distinto smoke_bottom_m.
-	if op.type == OpeningModel.Type.DOOR and not op.is_exterior_opening() \
-			and op.a != BuildingModel.OUTSIDE_ID and op.b != BuildingModel.OUTSIDE_ID:
+	# Cortina de humo: rellena el vano abierto y suaviza el salto visual de capa
+	# entre estancias o hacia el exterior.
+	if op.type == OpeningModel.Type.DOOR or op.type == OpeningModel.Type.WINDOW:
 		var curtain := _create_box(
 			"SmokeCurtain_%02d" % index,
 			Vector3(pose["size"]) * meters_to_units,
-			_make_material(Color(smoke_color.r, smoke_color.g, smoke_color.b, 0.0), true)
+			_make_smoke_volume_material()
 		)
 		curtain.position = marker.position
 		curtain.visible = false
@@ -643,68 +543,9 @@ func _create_opening(index: int) -> void:
 
 
 func _opening_pose(op: OpeningModel) -> Dictionary:
-	var room_id: int = op.a if op.a != BuildingModel.OUTSIDE_ID else op.b
-	if not building.get_room_rects_m().has(room_id):
+	if building == null:
 		return {}
-
-	var rect := Rect2(building.get_room_rects_m()[room_id])
-	var center_y: float = op.sill_m + op.height_m * 0.5
-	var side: String = op.wall_side.strip_edges().to_lower()
-
-	if op.is_exterior_opening() and side != "":
-		return _opening_pose_on_wall(rect, side, op.width_m, op.height_m, center_y)
-
-	var other_id: int = op.b if op.a == room_id else op.a
-	if building.get_room_rects_m().has(other_id):
-		var other := Rect2(building.get_room_rects_m()[other_id])
-		var shared := _shared_wall_pose(rect, other, op.width_m, op.height_m, center_y)
-		if not shared.is_empty():
-			return shared
-
-	var c1: Vector2 = rect.position + rect.size * 0.5
-	var size := Vector3(op.width_m, op.height_m, opening_marker_depth_m)
-	return {"position": Vector3(c1.x, center_y, c1.y), "size": size}
-
-
-func _opening_pose_on_wall(rect: Rect2, side: String, width_m: float, height_m: float, center_y: float) -> Dictionary:
-	var x_mid: float = rect.position.x + rect.size.x * 0.5
-	var z_mid: float = rect.position.y + rect.size.y * 0.5
-	var d: float = opening_marker_depth_m
-	match side:
-		"top", "north":
-			return {"position": Vector3(x_mid, center_y, rect.position.y), "size": Vector3(width_m, height_m, d)}
-		"bottom", "south":
-			return {"position": Vector3(x_mid, center_y, rect.position.y + rect.size.y), "size": Vector3(width_m, height_m, d)}
-		"left", "west":
-			return {"position": Vector3(rect.position.x, center_y, z_mid), "size": Vector3(d, height_m, width_m)}
-		"right", "east":
-			return {"position": Vector3(rect.position.x + rect.size.x, center_y, z_mid), "size": Vector3(d, height_m, width_m)}
-		_:
-			return {"position": Vector3(x_mid, center_y, z_mid), "size": Vector3(width_m, height_m, d)}
-
-
-func _shared_wall_pose(a: Rect2, b: Rect2, width_m: float, height_m: float, center_y: float) -> Dictionary:
-	var eps: float = 0.01
-	var a_right: float = a.position.x + a.size.x
-	var b_right: float = b.position.x + b.size.x
-	var a_bottom: float = a.position.y + a.size.y
-	var b_bottom: float = b.position.y + b.size.y
-
-	if abs(a_right - b.position.x) < eps or abs(b_right - a.position.x) < eps:
-		var x: float = a_right if abs(a_right - b.position.x) < eps else a.position.x
-		var z1: float = maxf(a.position.y, b.position.y)
-		var z2: float = minf(a_bottom, b_bottom)
-		if z2 > z1:
-			return {"position": Vector3(x, center_y, (z1 + z2) * 0.5), "size": Vector3(opening_marker_depth_m, height_m, minf(width_m, z2 - z1))}
-
-	if abs(a_bottom - b.position.y) < eps or abs(b_bottom - a.position.y) < eps:
-		var z: float = a_bottom if abs(a_bottom - b.position.y) < eps else a.position.y
-		var x1: float = maxf(a.position.x, b.position.x)
-		var x2: float = minf(a_right, b_right)
-		if x2 > x1:
-			return {"position": Vector3((x1 + x2) * 0.5, center_y, z), "size": Vector3(minf(width_m, x2 - x1), height_m, opening_marker_depth_m)}
-
-	return {}
+	return OpeningPose3D.compute(op, building.get_room_rects_m(), BuildingModel.OUTSIDE_ID, opening_marker_depth_m)
 
 
 func _update_dynamic_state() -> void:
@@ -735,6 +576,7 @@ func _update_room(room_id: int) -> void:
 	var hot_layer_m: float = clampf(float(rs.get("hot_layer_m", rs.get("thermal_layer_m", height_m))), 0.0, height_m)
 	var layer_150c_m: float = clampf(float(rs.get("layer_150c_m", height_m)), 0.0, height_m)
 	var hrr_kw: float = maxf(0.0, float(rs.get("hrr_kw", 0.0)))
+	var visibility_m: float = float(rs.get("visibility_m", 30.0))
 
 	var floor_mat := floor.material_override as StandardMaterial3D
 	if floor_mat != null:
@@ -746,7 +588,7 @@ func _update_room(room_id: int) -> void:
 		floor_mat.albedo_color = floor_color.lerp(hot_floor_color, heat_t)
 	_update_wall_temperature(walls, temp_upper_c)
 
-	_update_smoke_volume(item, smoke, smoke_edge, rect, height_m, smoke_layer_m, smoke_kg, hrr_kw)
+	_update_smoke_volume(item, smoke, smoke_edge, rect, height_m, smoke_layer_m, smoke_kg, hrr_kw, visibility_m)
 	_update_layer_box(
 		hot,
 		rect,
@@ -796,7 +638,8 @@ func _update_smoke_volume(
 	height_m: float,
 	smoke_layer_m: float,
 	smoke_kg: float,
-	hrr_kw: float
+	hrr_kw: float,
+	visibility_m: float
 ) -> void:
 	if node == null:
 		return
@@ -826,7 +669,7 @@ func _update_smoke_volume(
 		edge_node.visible = smoke_geometry_visible
 	var ceiling_mask := item.get("smoke_ceiling_mask") as MeshInstance3D
 	if ceiling_mask != null:
-		ceiling_mask.visible = show_smoke_volume and show_smoke_ceiling_masks and current_depth_m > smoke_min_visible_depth_m
+		ceiling_mask.visible = show_smoke_volume and show_smoke_ceiling_masks and not _first_person_overlay and current_depth_m > smoke_min_visible_depth_m
 		if ceiling_mask.visible:
 			var ceiling_mesh := ceiling_mask.mesh as BoxMesh
 			if ceiling_mesh != null:
@@ -837,19 +680,35 @@ func _update_smoke_volume(
 				) * meters_to_units
 			ceiling_mask.position = _room_center(rect, height_m + 0.004)
 
+	var visibility_t: float = clampf((18.0 - visibility_m) / 18.0, 0.0, 1.0)
+	var alpha_cap: float = 0.62 if _first_person_overlay else 0.50
 	var alpha: float = clampf(
 		smoke_color.a
 			+ smoke_kg / maxf(0.01, smoke_reference_kg) * 0.20
+			+ visibility_t * (0.24 if _first_person_overlay else 0.14)
 			+ hrr_smoke_t * smoke_hrr_alpha_boost * 0.72,
 		0.07,
-		0.44
+		alpha_cap
+	)
+	var render_depth_m: float = maxf(
+		smoke_min_visible_depth_m,
+		current_depth_m - (0.045 if _first_person_overlay else 0.018)
 	)
 	var smoke_mat := node.material_override as ShaderMaterial
 	if smoke_mat != null:
-		smoke_mat.set_shader_parameter("smoke_color", Color(smoke_color.r, smoke_color.g, smoke_color.b, alpha * 0.68))
-		smoke_mat.set_shader_parameter("density", clampf(0.42 + alpha * 1.05, 0.38, 0.96))
+		var volume_alpha_scale: float = 1.52 if _first_person_overlay else 0.76
+		smoke_mat.set_shader_parameter("smoke_color", Color(smoke_color.r, smoke_color.g, smoke_color.b, alpha * volume_alpha_scale))
+		var volume_density: float = clampf(0.66 + alpha * 1.50 + visibility_t * 0.22, 0.56, 1.46) if _first_person_overlay else clampf(0.44 + alpha * 1.12 + visibility_t * 0.12, 0.38, 1.04)
+		smoke_mat.set_shader_parameter("density", volume_density)
 		smoke_mat.set_shader_parameter("turbulence", clampf(0.58 + hrr_smoke_t * 0.34, 0.50, 0.95))
 		smoke_mat.set_shader_parameter("drift_speed", 0.070 + hrr_smoke_t * 0.18)
+		smoke_mat.set_shader_parameter("volume_depth_m", maxf(render_depth_m, 0.05))
+		smoke_mat.set_shader_parameter("edge_softness", lerpf(0.16, 0.30, hrr_smoke_t) if _first_person_overlay else lerpf(0.12, 0.24, hrr_smoke_t))
+		smoke_mat.set_shader_parameter("bottom_waviness", lerpf(0.18, 0.34, hrr_smoke_t) if _first_person_overlay else lerpf(0.12, 0.26, hrr_smoke_t))
+		smoke_mat.set_shader_parameter("edge_band_strength", 0.76 if _first_person_overlay else 0.30)
+		smoke_mat.set_shader_parameter("side_visibility", 0.0 if _first_person_overlay else 0.22)
+		smoke_mat.set_shader_parameter("bottom_surface_strength", 1.10 if _first_person_overlay else 0.72)
+		smoke_mat.set_shader_parameter("top_visibility", 0.0)
 	else:
 		var mat := node.material_override as StandardMaterial3D
 		if mat != null:
@@ -864,20 +723,35 @@ func _update_smoke_volume(
 		if mesh != null:
 			mesh.size = Vector3(
 				maxf(0.05, rect.size.x - room_inset_m * 2.0),
-				current_depth_m,
+				render_depth_m,
 				maxf(0.05, rect.size.y - room_inset_m * 2.0)
 			) * meters_to_units
-		node.position = _room_center(rect, visual_bottom_m + current_depth_m * 0.5)
+		node.position = _room_center(rect, visual_bottom_m + render_depth_m * 0.5)
 
 		if edge_node != null:
 			var edge_mesh := edge_node.mesh as BoxMesh
+			var edge_height_m: float = 0.16 if _first_person_overlay else 0.030
 			if edge_mesh != null:
 				edge_mesh.size = Vector3(
 					maxf(0.05, rect.size.x - room_inset_m * 2.0),
-					0.018,
+					edge_height_m,
 					maxf(0.05, rect.size.y - room_inset_m * 2.0)
 				) * meters_to_units
-			edge_node.position = _room_center(rect, visual_bottom_m)
+			edge_node.position = _room_center(rect, visual_bottom_m + edge_height_m * 0.5)
+			var edge_shader := edge_node.material_override as ShaderMaterial
+			if edge_shader != null:
+				var edge_alpha: float = clampf(alpha * (0.74 if _first_person_overlay else 0.30), 0.06, 0.38)
+				edge_shader.set_shader_parameter("smoke_color", Color(smoke_layer_edge_color.r, smoke_layer_edge_color.g, smoke_layer_edge_color.b, edge_alpha))
+				edge_shader.set_shader_parameter("density", 1.05 if _first_person_overlay else 0.48)
+				edge_shader.set_shader_parameter("turbulence", 0.86)
+				edge_shader.set_shader_parameter("drift_speed", 0.13)
+				edge_shader.set_shader_parameter("volume_depth_m", maxf(edge_height_m, 0.05))
+				edge_shader.set_shader_parameter("edge_softness", 0.24)
+				edge_shader.set_shader_parameter("bottom_waviness", 0.42)
+				edge_shader.set_shader_parameter("edge_band_strength", 1.05 if _first_person_overlay else 0.78)
+				edge_shader.set_shader_parameter("side_visibility", 0.00 if _first_person_overlay else 0.10)
+				edge_shader.set_shader_parameter("bottom_surface_strength", 1.22 if _first_person_overlay else 0.88)
+				edge_shader.set_shader_parameter("top_visibility", 0.0)
 
 	var puffs_root := item.get("smoke_puffs_root") as Node3D
 	if puffs_root != null:
@@ -1045,7 +919,7 @@ func _find_fire_anchor(item: Dictionary, rect: Rect2, rs: Dictionary) -> Diction
 	var pos_m: Vector2 = _vector2_from_variant(best_obj.get("position_m", Vector2.ZERO), Vector2.ZERO)
 	var size_m: Vector2 = _vector2_from_variant(best_obj.get("size_m", Vector2(0.5, 0.5)), Vector2(0.5, 0.5))
 	var kind_name: String = _fuel_visual_archetype(best_obj)
-	anchor_y_m = _fire_base_height_for_fuel_object(best_obj, kind_name)
+	anchor_y_m = FurniturePlacement3D.fire_base_height_for(best_obj, kind_name)
 	anchor_radius_m = clampf(maxf(minf(size_m.x, size_m.y) * 0.34, sqrt(maxf(0.01, size_m.x * size_m.y)) * 0.20), fire_base_radius_m, fire_max_radius_m)
 	anchor_pos = _to_world(Vector3(
 		rect.position.x + pos_m.x + size_m.x * 0.5,
@@ -1053,29 +927,6 @@ func _find_fire_anchor(item: Dictionary, rect: Rect2, rs: Dictionary) -> Diction
 		rect.position.y + pos_m.y + size_m.y * 0.5
 	))
 	return {"position": anchor_pos, "base_y_m": anchor_y_m, "radius_m": anchor_radius_m}
-
-
-func _fire_base_height_for_fuel_object(obj: Dictionary, kind_name: String) -> float:
-	var elevation_m: float = maxf(0.0, float(obj.get("elevation_m", 0.0)))
-	match kind_name:
-		"sofa":
-			return maxf(elevation_m, 0.62)
-		"bed":
-			return maxf(elevation_m, 0.60)
-		"table":
-			return maxf(elevation_m, 0.78)
-		"wardrobe":
-			return maxf(elevation_m, 1.45)
-		"storage", "kitchen_unit":
-			return maxf(elevation_m, 0.86)
-		"curtain":
-			return maxf(elevation_m, 1.15)
-		"rug", "pool":
-			return maxf(elevation_m, 0.06)
-		"textile_pile", "containers", "clutter":
-			return maxf(elevation_m, 0.24)
-		_:
-			return maxf(elevation_m, 0.30)
 
 
 func _vector2_from_variant(value: Variant, fallback: Vector2 = Vector2.ZERO) -> Vector2:
@@ -1236,11 +1087,12 @@ func _update_openings() -> void:
 		var mat := marker.material_override as StandardMaterial3D
 		if mat != null:
 			var open_color: Color = door_color if op.type == OpeningModel.Type.DOOR else window_color
-			mat.albedo_color = closed_opening_color.lerp(open_color, clampf(op.open_fraction, 0.0, 1.0))
+			var marker_color: Color = closed_opening_color.lerp(open_color, clampf(op.open_fraction, 0.0, 1.0))
+			if int(index) == _selected_opening_index:
+				marker_color = marker_color.lerp(Color(1.0, 0.88, 0.18, 1.0), 0.55)
+			mat.albedo_color = marker_color
 
-		# Cortina de humo: suaviza el salto visual de capa entre salas adyacentes.
-		# La cortina es un quad en el vano de la puerta que toma la altura promedio
-		# de las capas de las dos salas, eliminando el escalón brusco de humo.
+		# Cortina de humo: suaviza el salto visual de capa entre estancias y exteriores.
 		var curtain := item_dict.get("smoke_curtain") as MeshInstance3D
 		if curtain == null:
 			continue
@@ -1256,58 +1108,89 @@ func _update_openings() -> void:
 
 		var item_a: Dictionary = _room_items.get(op.a, {})
 		var item_b: Dictionary = _room_items.get(op.b, {})
-		if item_a.is_empty() or item_b.is_empty():
+		if item_a.is_empty() and item_b.is_empty():
 			curtain.visible = false
 			continue
 
-		var height_a: float = float(item_a.get("height_m", 2.4))
-		var height_b: float = float(item_b.get("height_m", 2.4))
-		var room_height_m: float = (height_a + height_b) * 0.5
+		var height_a: float = float(item_a.get("height_m", 2.4)) if not item_a.is_empty() else 2.4
+		var height_b: float = float(item_b.get("height_m", 2.4)) if not item_b.is_empty() else height_a
+		var bottom_a: float = float(item_a.get("smoke_bottom_m", height_a)) if not item_a.is_empty() else height_b
+		var bottom_b: float = float(item_b.get("smoke_bottom_m", height_b)) if not item_b.is_empty() else height_a
+		var alpha_a: float = float(item_a.get("smoke_alpha", 0.0)) if not item_a.is_empty() else 0.0
+		var alpha_b: float = float(item_b.get("smoke_alpha", 0.0)) if not item_b.is_empty() else 0.0
 
-		var bottom_a: float = float(item_a.get("smoke_bottom_m", height_a))
-		var bottom_b: float = float(item_b.get("smoke_bottom_m", height_b))
-		var alpha_a: float = float(item_a.get("smoke_alpha", 0.0))
-		var alpha_b: float = float(item_b.get("smoke_alpha", 0.0))
+		var source_bottom_m: float = minf(bottom_a, bottom_b)
+		var source_alpha: float = maxf(alpha_a, alpha_b) * 0.72 + minf(alpha_a, alpha_b) * 0.28
+		if item_a.is_empty() or item_b.is_empty():
+			source_bottom_m = bottom_a if not item_a.is_empty() else bottom_b
+			source_alpha = maxf(alpha_a, alpha_b) * 0.88
+		var curtain_alpha: float = source_alpha * open_frac
 
-		# Usar el mínimo de las dos alturas de fondo para la cortina (el humo
-		# más bajo de las dos salas define la frontera visible del vano).
-		var curtain_bottom_m: float = minf(bottom_a, bottom_b)
-		var curtain_depth_m: float = maxf(0.0, room_height_m - curtain_bottom_m)
-		var curtain_alpha: float = (alpha_a + alpha_b) * 0.5 * open_frac
-
-		curtain.visible = curtain_depth_m > smoke_min_visible_depth_m and curtain_alpha > 0.02
+		var pose_size: Vector3 = Vector3(pose["size"])
+		var thin_axis_is_x: bool = pose_size.x <= pose_size.z
+		var opening_width_m: float = maxf(pose_size.x, pose_size.z)
+		var door_height_m: float = pose_size.y
+		var blend_depth_m: float = maxf(minf(pose_size.x, pose_size.z), smoke_opening_blend_depth_m * lerpf(0.58, 1.0, open_frac))
+		if op.is_exterior_opening():
+			blend_depth_m = maxf(blend_depth_m, 0.54)
+		var pos3: Vector3 = Vector3(pose["position"])
+		var opening_bottom_m: float = pos3.y - door_height_m * 0.5
+		var opening_top_m: float = pos3.y + door_height_m * 0.5
+		var bottom_neg_m: float = clampf(source_bottom_m, opening_bottom_m, opening_top_m)
+		var bottom_pos_m: float = bottom_neg_m
+		if not item_a.is_empty() and not item_b.is_empty():
+			var rect_a := Rect2(item_a.get("rect", Rect2()))
+			var rect_b := Rect2(item_b.get("rect", Rect2()))
+			var axis_a: float = rect_a.position.x + rect_a.size.x * 0.5 if thin_axis_is_x else rect_a.position.y + rect_a.size.y * 0.5
+			var axis_b: float = rect_b.position.x + rect_b.size.x * 0.5 if thin_axis_is_x else rect_b.position.y + rect_b.size.y * 0.5
+			var bottom_a_clamped: float = clampf(bottom_a, opening_bottom_m, opening_top_m)
+			var bottom_b_clamped: float = clampf(bottom_b, opening_bottom_m, opening_top_m)
+			if axis_a <= axis_b:
+				bottom_neg_m = bottom_a_clamped
+				bottom_pos_m = bottom_b_clamped
+			else:
+				bottom_neg_m = bottom_b_clamped
+				bottom_pos_m = bottom_a_clamped
+		var curtain_bottom_m: float = minf(bottom_neg_m, bottom_pos_m)
+		var curtain_depth_m: float = maxf(0.0, opening_top_m - curtain_bottom_m)
+		curtain.visible = curtain_depth_m > smoke_min_visible_depth_m and curtain_alpha > 0.012
 		if curtain.visible:
-			var door_width_m: float = float(Vector3(pose["size"]).x)
-			var door_height_m: float = float(Vector3(pose["size"]).y)
-			var thickness_m: float = float(Vector3(pose["size"]).z)
-			var curtain_mesh := curtain.mesh as BoxMesh
-			if curtain_mesh != null:
-				curtain_mesh.size = Vector3(
-					door_width_m,
-					minf(curtain_depth_m, door_height_m),
-					thickness_m
-				) * meters_to_units
+			var curtain_center_y: float = curtain_bottom_m + curtain_depth_m * 0.5
+			curtain.mesh = SmokeBridgeMesh.create(
+				thin_axis_is_x,
+				opening_width_m,
+				blend_depth_m,
+				bottom_neg_m - curtain_center_y,
+				bottom_pos_m - curtain_center_y,
+				opening_top_m - curtain_center_y,
+				meters_to_units
+			)
 			var curtain_shader := curtain.material_override as ShaderMaterial
 			if curtain_shader != null:
 				var curtain_color := Color(
 					smoke_color.r,
 					smoke_color.g,
 					smoke_color.b,
-					clampf(curtain_alpha * 0.42, 0.025, 0.26)
+					clampf(curtain_alpha * (0.72 if _first_person_overlay else 0.52), 0.035, 0.38)
 				)
 				curtain_shader.set_shader_parameter("smoke_color", curtain_color)
-				curtain_shader.set_shader_parameter("density", clampf(0.32 + curtain_alpha * 0.90, 0.26, 0.72))
-				curtain_shader.set_shader_parameter("turbulence", 0.74)
-				curtain_shader.set_shader_parameter("drift_speed", 0.105)
+				curtain_shader.set_shader_parameter("density", clampf(0.44 + curtain_alpha * 1.15, 0.34, 1.10))
+				curtain_shader.set_shader_parameter("turbulence", 0.88)
+				curtain_shader.set_shader_parameter("drift_speed", 0.14)
+				curtain_shader.set_shader_parameter("volume_depth_m", maxf(curtain_depth_m, 0.05))
+				curtain_shader.set_shader_parameter("edge_softness", 0.30)
+				curtain_shader.set_shader_parameter("bottom_waviness", 0.48)
+				curtain_shader.set_shader_parameter("edge_band_strength", 0.95)
+				curtain_shader.set_shader_parameter("side_visibility", 0.0 if _first_person_overlay else 0.18)
+				curtain_shader.set_shader_parameter("bottom_surface_strength", 1.08 if _first_person_overlay else 0.82)
+				curtain_shader.set_shader_parameter("top_visibility", 0.0)
 			else:
 				var curtain_mat := curtain.material_override as StandardMaterial3D
 				if curtain_mat != null:
 					curtain_mat.albedo_color = Color(
 						smoke_color.r, smoke_color.g, smoke_color.b,
-						clampf(curtain_alpha * 0.42, 0.025, 0.26)
+						clampf(curtain_alpha * 0.52, 0.035, 0.38)
 					)
-			var pos3: Vector3 = Vector3(pose["position"])
-			var curtain_center_y: float = curtain_bottom_m + minf(curtain_depth_m, door_height_m) * 0.5
 			curtain.position = _to_world(Vector3(pos3.x, curtain_center_y, pos3.z))
 
 
@@ -1322,28 +1205,16 @@ func _create_box(node_name: String, size: Vector3, material: Material) -> MeshIn
 
 
 func _make_smoke_volume_material() -> ShaderMaterial:
-	var shader := Shader.new()
-	shader.code = SMOKE_VOLUME_SHADER_CODE
-	var material := ShaderMaterial.new()
-	material.shader = shader
-	material.set_shader_parameter("smoke_color", smoke_color)
-	material.set_shader_parameter("density", 0.72)
-	material.set_shader_parameter("turbulence", 0.55)
-	material.set_shader_parameter("drift_speed", 0.08)
-	return material
+	return SmokeVolumeMaterialFactory.create_volume(smoke_color)
 
 
 func _create_smoke_ceiling_mask(node_name: String) -> MeshInstance3D:
 	var mesh := BoxMesh.new()
 	mesh.size = Vector3.ONE
-	var shader := Shader.new()
-	shader.code = SMOKE_CEILING_MASK_SHADER_CODE
-	var material := ShaderMaterial.new()
-	material.shader = shader
 	var node := MeshInstance3D.new()
 	node.name = node_name
 	node.mesh = mesh
-	node.material_override = material
+	node.material_override = SmokeVolumeMaterialFactory.create_ceiling_mask()
 	return node
 
 
@@ -1398,32 +1269,16 @@ func _create_fire_ceiling_cap_mesh(node_name: String, color: Color) -> MeshInsta
 	mesh.height = 1.0
 	mesh.radial_segments = 22
 	mesh.rings = 2
-	var shader := Shader.new()
-	shader.code = FIRE_CAP_SHADER_CODE
-	var material := ShaderMaterial.new()
-	material.shader = shader
-	material.set_shader_parameter("cap_color", color)
-	material.set_shader_parameter("core_color", fire_core_color)
-	material.set_shader_parameter("emission_energy", 0.95)
-	material.set_shader_parameter("flicker_speed", 1.65 + color.a)
 	var node := MeshInstance3D.new()
 	node.name = node_name
 	node.mesh = mesh
-	node.material_override = material
+	node.material_override = FireMaterialFactory.create_ceiling_cap(color, fire_core_color)
 	_disable_shadow_casting(node)
 	return node
 
 
 func _make_flame_material(color: Color) -> ShaderMaterial:
-	var shader := Shader.new()
-	shader.code = FLAME_SHADER_CODE
-	var material := ShaderMaterial.new()
-	material.shader = shader
-	material.set_shader_parameter("flame_color", color)
-	material.set_shader_parameter("core_color", fire_core_color)
-	material.set_shader_parameter("emission_energy", 1.45)
-	material.set_shader_parameter("flicker_speed", 2.4 + color.a)
-	return material
+	return FireMaterialFactory.create_flame(color, fire_core_color)
 
 
 func _create_smoke_puff_sprite(node_name: String) -> Sprite3D:
@@ -1532,29 +1387,33 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 
 		var state_name: String = String(obj.get("state", "cold"))
 		var kind_name: String = _fuel_visual_archetype(obj)
+		var rotation_deg: float = float(obj.get("rotation_deg", 0.0))
+		var visual_pose: Dictionary = FurniturePlacement3D.clamp_visual_pose(rect, pos_m, size_m, rotation_deg)
+		var visual_center_m: Vector2 = visual_pose.get("center_m", pos_m + size_m * 0.5)
+		var visual_size_m: Vector2 = visual_pose.get("size_m", size_m)
 
 		var node: Node3D
 		if fuel_obj_nodes.has(obj_id):
 			node = fuel_obj_nodes[obj_id] as Node3D
 		else:
-			node = _create_fuel_object_node(obj_id, kind_name, size_m)
+			node = _create_fuel_object_node(obj_id, kind_name, visual_size_m)
 			fuel_objects_root.add_child(node)
 			fuel_obj_nodes[obj_id] = node
 
 		if node == null:
 			continue
-		if _fuel_shape_needs_rebuild(node, kind_name, size_m):
-			_rebuild_fuel_object_shape(node, kind_name, size_m)
+		if _fuel_shape_needs_rebuild(node, kind_name, visual_size_m):
+			_rebuild_fuel_object_shape(node, kind_name, visual_size_m)
 
-		var center_x: float = rect.position.x + pos_m.x + size_m.x * 0.5
-		var center_z: float = rect.position.y + pos_m.y + size_m.y * 0.5
+		var center_x: float = rect.position.x + visual_center_m.x
+		var center_z: float = rect.position.y + visual_center_m.y
 		node.position = _to_world(Vector3(center_x, 0.0, center_z))
-		node.rotation_degrees.y = float(obj.get("rotation_deg", 0.0))
+		node.rotation_degrees.y = rotation_deg
 
-		var color: Color = _fuel_object_color_3d(state_name)
+		var color: Color = FurnitureStateVisuals.color_for_state(state_name)
 		var fuel_mj: float = maxf(0.01, float(obj.get("fuel_energy_MJ", 1.0)))
 		var remaining_ratio: float = clampf(float(obj.get("remaining_fuel_MJ", fuel_mj)) / fuel_mj, 0.0, 1.0)
-		_apply_fuel_object_state_visual(node, state_name, color, remaining_ratio, bool(obj.get("is_primary_ignition_source", false)))
+		FurnitureStateVisuals.apply(node, state_name, color, remaining_ratio, bool(obj.get("is_primary_ignition_source", false)))
 
 	for stale_id in fuel_obj_nodes.keys():
 		if seen_ids.has(stale_id):
@@ -1576,52 +1435,11 @@ func _create_fuel_object_node(obj_id: String, kind_name: String, size_m: Vector2
 
 
 func _fuel_visual_archetype(obj: Dictionary) -> String:
-	var kind_text: String = String(obj.get("kind", "")).strip_edges().to_lower()
-	var name_text: String = String(obj.get("name", "")).strip_edges().to_lower()
-	var id_text: String = String(obj.get("id", "")).strip_edges().to_lower()
-	var tokens: String = "%s %s %s" % [kind_text, name_text, id_text]
-
-	if tokens.contains("sofa") or tokens.contains("sillon") or tokens.contains("sillón") or tokens.contains("armchair") or tokens.contains("couch"):
-		return "sofa"
-	if tokens.contains("cama") or tokens.contains("bed") or tokens.contains("colchon"):
-		return "bed"
-	if tokens.contains("mesa") or tokens.contains("table") or tokens.contains("desk"):
-		return "table"
-	if tokens.contains("cortina") or tokens.contains("curtain"):
-		return "curtain"
-	if tokens.contains("armario") or tokens.contains("wardrobe"):
-		return "wardrobe"
-	if tokens.contains("libreria") or tokens.contains("librería") or tokens.contains("shelf") or tokens.contains("bookshelf") or tokens.contains("bookcase"):
-		return "storage"
-	if tokens.contains("alfombra") or tokens.contains("rug") or tokens.contains("moqueta") or tokens.contains("tapete"):
-		return "rug"
-	if tokens.contains("textil") or tokens.contains("textiles") or tokens.contains("ropa"):
-		return "textile_pile"
-	if tokens.contains("liquido") or tokens.contains("grasa") or tokens.contains("pool"):
-		return "pool"
-	if tokens.contains("plastico") or tokens.contains("plastic"):
-		return "containers"
-	if tokens.contains("cocina") or tokens.contains("kitchen"):
-		return "kitchen_unit"
-	if tokens.contains("mobiliario_tapizado"):
-		return "sofa"
-	if tokens.contains("mobiliario_madera"):
-		return "storage"
-	if tokens.contains("mobiliario_mixto"):
-		return "clutter"
-	if tokens.contains("resto"):
-		return "clutter"
-	return "clutter"
+	return FurnitureVisualClassifier.visual_archetype(obj)
 
 
 func _fuel_shape_needs_rebuild(node: Node3D, kind_name: String, size_m: Vector2) -> bool:
-	if String(node.get_meta("kind_name", "")) != kind_name:
-		return true
-	if absf(float(node.get_meta("size_x", -1.0)) - size_m.x) > 0.001:
-		return true
-	if absf(float(node.get_meta("size_y", -1.0)) - size_m.y) > 0.001:
-		return true
-	return false
+	return FurnitureVisualClassifier.shape_needs_rebuild(node, kind_name, size_m)
 
 
 func _rebuild_fuel_object_shape(node: Node3D, kind_name: String, size_m: Vector2) -> void:
@@ -1629,406 +1447,7 @@ func _rebuild_fuel_object_shape(node: Node3D, kind_name: String, size_m: Vector2
 	node.set_meta("kind_name", kind_name)
 	node.set_meta("size_x", size_m.x)
 	node.set_meta("size_y", size_m.y)
-
-	if _try_build_fp_furniture_asset(node, kind_name, size_m):
-		_add_fuel_heat_glow(node, size_m)
-		return
-
-	match kind_name:
-		"sofa":
-			_build_sofa_shape(node, size_m)
-		"bed":
-			_build_bed_shape(node, size_m)
-		"table":
-			_build_table_shape(node, size_m)
-		"curtain":
-			_build_curtain_shape(node, size_m)
-		"wardrobe":
-			_build_wardrobe_shape(node, size_m)
-		"storage":
-			_build_storage_shape(node, size_m)
-		"kitchen_unit":
-			_build_kitchen_unit_shape(node, size_m)
-		"rug":
-			_build_rug_shape(node, size_m)
-		"textile_pile":
-			_build_textile_pile_shape(node, size_m)
-		"pool":
-			_build_pool_shape(node, size_m)
-		"containers":
-			_build_container_shape(node, size_m)
-		"clutter":
-			_build_clutter_shape(node, size_m)
-		_:
-			_build_generic_fuel_shape(node, size_m)
-	_add_fuel_heat_glow(node, size_m)
-
-
-func _try_build_fp_furniture_asset(parent: Node3D, kind_name: String, size_m: Vector2) -> bool:
-	var asset_kind: String = kind_name
-	match kind_name:
-		"storage":
-			asset_kind = "dresser"
-		"containers":
-			asset_kind = "plastic_bin"
-		"table":
-			asset_kind = "table"
-		_:
-			asset_kind = kind_name
-	var scene_path: String = "res://assets/fp/furniture/%s.tscn" % asset_kind
-	if not ResourceLoader.exists(scene_path):
-		return false
-	var packed := load(scene_path) as PackedScene
-	if packed == null:
-		return false
-	var instance := packed.instantiate() as Node3D
-	if instance == null:
-		return false
-	instance.name = "Asset_%s" % asset_kind
-	instance.scale = Vector3(maxf(0.05, size_m.x), 1.0, maxf(0.05, size_m.y)) * meters_to_units
-	_prepare_asset_materials_3d(instance)
-	parent.add_child(instance)
-	return true
-
-
-func _prepare_asset_materials_3d(root: Node) -> void:
-	if root == null:
-		return
-	for child in root.get_children():
-		if child is MeshInstance3D:
-			var mesh_node := child as MeshInstance3D
-			var mat := mesh_node.material_override as StandardMaterial3D
-			if mat != null:
-				var material_copy := mat.duplicate() as StandardMaterial3D
-				mesh_node.material_override = material_copy
-				if not mesh_node.has_meta("base_color"):
-					mesh_node.set_meta("base_color", material_copy.albedo_color)
-		if child.get_child_count() > 0:
-			_prepare_asset_materials_3d(child)
-
-
-func _build_sofa_shape(parent: Node3D, size_m: Vector2) -> void:
-	var x: float = maxf(0.2, size_m.x)
-	var z: float = maxf(0.2, size_m.y)
-	var arm_w: float = minf(0.22, x * 0.13)
-	var back_d: float = minf(0.20, z * 0.24)
-	_add_fuel_box(parent, "ShadowBase", Vector3(0.0, 0.08, z * 0.05), Vector3(x * 0.94, 0.10, z * 0.72), Color(0.20, 0.16, 0.14, 1.0))
-	_add_fuel_ellipsoid(parent, "SeatRounded", Vector3(0.0, 0.27, z * 0.08), Vector3(x * 0.88, 0.30, z * 0.68), Color(0.50, 0.38, 0.31, 1.0))
-	_add_fuel_ellipsoid(parent, "BackRounded", Vector3(0.0, 0.58, -z * 0.5 + back_d * 0.62), Vector3(x * 0.92, 0.70, back_d * 1.35), Color(0.37, 0.28, 0.24, 1.0))
-	_add_fuel_ellipsoid(parent, "ArmLeft", Vector3(-x * 0.5 + arm_w * 0.65, 0.39, z * 0.05), Vector3(arm_w * 1.25, 0.48, z * 0.68), Color(0.39, 0.29, 0.24, 1.0))
-	_add_fuel_ellipsoid(parent, "ArmRight", Vector3(x * 0.5 - arm_w * 0.65, 0.39, z * 0.05), Vector3(arm_w * 1.25, 0.48, z * 0.68), Color(0.39, 0.29, 0.24, 1.0))
-	for i in range(3):
-		var cx: float = lerpf(-x * 0.26, x * 0.26, float(i) / 2.0)
-		_add_fuel_ellipsoid(parent, "Cushion_%d" % i, Vector3(cx, 0.45, z * 0.12), Vector3(x * 0.26, 0.10, z * 0.52), Color(0.58, 0.44, 0.36, 1.0))
-
-
-func _build_bed_shape(parent: Node3D, size_m: Vector2) -> void:
-	var x: float = maxf(0.2, size_m.x)
-	var z: float = maxf(0.2, size_m.y)
-	_add_fuel_box(parent, "BedFrame", Vector3(0.0, 0.16, 0.0), Vector3(x, 0.18, z), Color(0.32, 0.22, 0.17, 1.0))
-	_add_fuel_ellipsoid(parent, "MattressRounded", Vector3(0.0, 0.36, 0.0), Vector3(x * 0.95, 0.28, z * 0.92), Color(0.72, 0.68, 0.59, 1.0))
-	_add_fuel_ellipsoid(parent, "BlanketSoft", Vector3(0.0, 0.53, z * 0.10), Vector3(x * 0.90, 0.09, z * 0.58), Color(0.56, 0.44, 0.34, 1.0))
-	_add_fuel_ellipsoid(parent, "PillowA", Vector3(-x * 0.24, 0.61, -z * 0.34), Vector3(x * 0.36, 0.13, z * 0.18), Color(0.84, 0.80, 0.70, 1.0))
-	_add_fuel_ellipsoid(parent, "PillowB", Vector3(x * 0.24, 0.61, -z * 0.34), Vector3(x * 0.36, 0.13, z * 0.18), Color(0.84, 0.80, 0.70, 1.0))
-	_add_fuel_box(parent, "Headboard", Vector3(0.0, 0.55, -z * 0.52), Vector3(x, 0.72, 0.08), Color(0.36, 0.25, 0.18, 1.0))
-
-
-func _build_table_shape(parent: Node3D, size_m: Vector2) -> void:
-	var x: float = maxf(0.2, size_m.x)
-	var z: float = maxf(0.2, size_m.y)
-	var leg_w: float = minf(0.10, minf(x, z) * 0.14)
-	_add_fuel_ellipsoid(parent, "SoftTableTop", Vector3(0.0, 0.74, 0.0), Vector3(x, 0.10, z), Color(0.48, 0.34, 0.22, 1.0))
-	for sx in [-1.0, 1.0]:
-		for sz in [-1.0, 1.0]:
-			_add_fuel_cylinder(parent, "Leg", Vector3(sx * (x * 0.5 - leg_w), 0.36, sz * (z * 0.5 - leg_w)), Vector3(leg_w, 0.70, leg_w), Color(0.34, 0.22, 0.14, 1.0))
-
-
-func _build_curtain_shape(parent: Node3D, size_m: Vector2) -> void:
-	var x: float = maxf(0.2, size_m.x)
-	var z: float = maxf(0.05, size_m.y)
-	var panels: int = 6
-	var panel_w: float = x / float(panels)
-	for i in range(panels):
-		var offset_x: float = -x * 0.5 + panel_w * (float(i) + 0.5)
-		var fold_z: float = (-0.5 if i % 2 == 0 else 0.5) * minf(0.08, z)
-		_add_fuel_box(parent, "Panel_%d" % i, Vector3(offset_x, 0.90, fold_z), Vector3(panel_w * 0.72, 1.80, maxf(0.035, z * 0.55)), Color(0.53, 0.37, 0.30, 1.0))
-	_add_fuel_box(parent, "Rail", Vector3(0.0, 1.83, 0.0), Vector3(x, 0.04, maxf(0.04, z)), Color(0.30, 0.24, 0.20, 1.0))
-
-
-func _build_wardrobe_shape(parent: Node3D, size_m: Vector2) -> void:
-	var x: float = maxf(0.2, size_m.x)
-	var z: float = maxf(0.2, size_m.y)
-	_add_fuel_box(parent, "Body", Vector3(0.0, 0.88, 0.0), Vector3(x, 1.76, z), Color(0.45, 0.31, 0.19, 1.0))
-	_add_fuel_box(parent, "DoorLeft", Vector3(-x * 0.25, 0.90, z * 0.5 + 0.012), Vector3(x * 0.46, 1.58, 0.035), Color(0.54, 0.38, 0.23, 1.0))
-	_add_fuel_box(parent, "DoorRight", Vector3(x * 0.25, 0.90, z * 0.5 + 0.012), Vector3(x * 0.46, 1.58, 0.035), Color(0.54, 0.38, 0.23, 1.0))
-	_add_fuel_box(parent, "HandleLeft", Vector3(-x * 0.06, 0.90, z * 0.5 + 0.04), Vector3(0.025, 0.42, 0.025), Color(0.76, 0.62, 0.36, 1.0))
-	_add_fuel_box(parent, "HandleRight", Vector3(x * 0.06, 0.90, z * 0.5 + 0.04), Vector3(0.025, 0.42, 0.025), Color(0.76, 0.62, 0.36, 1.0))
-
-
-func _build_storage_shape(parent: Node3D, size_m: Vector2) -> void:
-	var x: float = maxf(0.2, size_m.x)
-	var z: float = maxf(0.2, size_m.y)
-	var long_axis: float = maxf(x, z)
-	var shallow_axis: float = minf(x, z)
-	var shelf_height: float = clampf(long_axis * 0.55, 0.70, 1.70)
-	var is_x_long: bool = x >= z
-	var width: float = long_axis
-	var depth: float = clampf(shallow_axis, 0.24, 0.62)
-	var body_size := Vector3(width, shelf_height, depth)
-	var body_center := Vector3(0.0, shelf_height * 0.5, 0.0)
-	if not is_x_long:
-		body_size = Vector3(depth, shelf_height, width)
-	_add_fuel_box(parent, "ShelfBack", body_center, body_size, Color(0.38, 0.26, 0.17, 1.0))
-	for level in range(3):
-		var y: float = shelf_height * (0.24 + float(level) * 0.25)
-		var shelf_size := Vector3(width * 0.92, 0.045, depth * 1.08)
-		if not is_x_long:
-			shelf_size = Vector3(depth * 1.08, 0.045, width * 0.92)
-		_add_fuel_box(parent, "Shelf_%d" % level, Vector3(0.0, y, 0.0), shelf_size, Color(0.55, 0.39, 0.24, 1.0))
-	var item_count: int = clampi(int(round(long_axis * 2.0)), 2, 5)
-	for i in range(item_count):
-		var t: float = (float(i) + 0.5) / float(item_count) - 0.5
-		var y_item: float = shelf_height * (0.34 + 0.18 * float(i % 3))
-		var offset := Vector3(t * width * 0.70, y_item, depth * 0.05)
-		var item_size := Vector3(width / float(item_count) * 0.45, 0.20 + 0.05 * float(i % 2), depth * 0.40)
-		if not is_x_long:
-			offset = Vector3(depth * 0.05, y_item, t * width * 0.70)
-			item_size = Vector3(depth * 0.40, 0.20 + 0.05 * float(i % 2), width / float(item_count) * 0.45)
-		_add_fuel_box(parent, "ShelfLoad_%d" % i, offset, item_size, Color(0.44, 0.32, 0.23, 1.0))
-
-
-func _build_kitchen_unit_shape(parent: Node3D, size_m: Vector2) -> void:
-	var x: float = maxf(0.2, size_m.x)
-	var z: float = maxf(0.2, size_m.y)
-	_add_fuel_box(parent, "Cabinet", Vector3(0.0, 0.42, 0.0), Vector3(x, 0.84, z), Color(0.50, 0.36, 0.24, 1.0))
-	_add_fuel_box(parent, "Counter", Vector3(0.0, 0.88, 0.0), Vector3(x * 1.04, 0.08, z * 1.06), Color(0.20, 0.20, 0.18, 1.0))
-	for i in range(3):
-		var cx: float = lerpf(-x * 0.32, x * 0.32, float(i) / 2.0)
-		_add_fuel_box(parent, "Door_%d" % i, Vector3(cx, 0.44, z * 0.5 + 0.012), Vector3(x * 0.25, 0.58, 0.035), Color(0.58, 0.42, 0.28, 1.0))
-		_add_fuel_box(parent, "Handle_%d" % i, Vector3(cx, 0.58, z * 0.5 + 0.04), Vector3(x * 0.12, 0.025, 0.025), Color(0.76, 0.62, 0.36, 1.0))
-
-
-func _build_textile_pile_shape(parent: Node3D, size_m: Vector2) -> void:
-	var x: float = maxf(0.2, size_m.x)
-	var z: float = maxf(0.2, size_m.y)
-	for i in range(6):
-		var seed: float = float(i) * 1.73
-		var offset := Vector3(
-			sin(seed) * x * 0.22,
-			0.10 + float(i % 3) * 0.055,
-			cos(seed * 0.8) * z * 0.20
-		)
-		var item_size := Vector3(
-			x * (0.34 + 0.08 * float(i % 2)),
-			0.12,
-			z * (0.28 + 0.07 * float((i + 1) % 2))
-		)
-		_add_fuel_ellipsoid(parent, "Fold_%d" % i, offset, item_size, Color(0.55, 0.42, 0.35, 1.0))
-
-
-func _build_rug_shape(parent: Node3D, size_m: Vector2) -> void:
-	var x: float = maxf(0.2, size_m.x)
-	var z: float = maxf(0.2, size_m.y)
-	_add_fuel_ellipsoid(parent, "RugBody", Vector3(0.0, 0.035, 0.0), Vector3(x, 0.055, z), Color(0.52, 0.32, 0.24, 1.0))
-	_add_fuel_ellipsoid(parent, "RugInner", Vector3(0.0, 0.052, 0.0), Vector3(x * 0.78, 0.035, z * 0.70), Color(0.70, 0.50, 0.36, 1.0))
-	var fringe_z: float = z * 0.5 + 0.025
-	_add_fuel_box(parent, "FringeA", Vector3(0.0, 0.045, -fringe_z), Vector3(x * 0.86, 0.018, 0.035), Color(0.80, 0.68, 0.52, 1.0))
-	_add_fuel_box(parent, "FringeB", Vector3(0.0, 0.045, fringe_z), Vector3(x * 0.86, 0.018, 0.035), Color(0.80, 0.68, 0.52, 1.0))
-
-
-func _build_pool_shape(parent: Node3D, size_m: Vector2) -> void:
-	var x: float = maxf(0.2, size_m.x)
-	var z: float = maxf(0.2, size_m.y)
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.5
-	mesh.bottom_radius = 0.5
-	mesh.height = 1.0
-	mesh.radial_segments = 36
-	var mat := _make_material(Color(0.18, 0.12, 0.08, 0.78), true)
-	mat.roughness = 0.42
-	var puddle := MeshInstance3D.new()
-	puddle.name = "FuelPuddle"
-	puddle.mesh = mesh
-	puddle.material_override = mat
-	puddle.position = Vector3(0.0, 0.018, 0.0) * meters_to_units
-	puddle.scale = Vector3(x, 0.025, z) * meters_to_units
-	puddle.set_meta("base_color", Color(0.18, 0.12, 0.08, 0.78))
-	parent.add_child(puddle)
-	_add_fuel_box(parent, "PanLip", Vector3(0.0, 0.045, 0.0), Vector3(x * 1.04, 0.035, 0.035), Color(0.24, 0.22, 0.20, 1.0))
-
-
-func _build_container_shape(parent: Node3D, size_m: Vector2) -> void:
-	var x: float = maxf(0.2, size_m.x)
-	var z: float = maxf(0.2, size_m.y)
-	var count: int = 3
-	for i in range(count):
-		var offset_x: float = lerpf(-x * 0.25, x * 0.25, float(i) / float(count - 1))
-		_add_fuel_cylinder(parent, "PlasticContainer_%d" % i, Vector3(offset_x, 0.24, sin(float(i)) * z * 0.12), Vector3(x * 0.20, 0.48, z * 0.20), Color(0.36, 0.38, 0.36, 1.0))
-		_add_fuel_box(parent, "Lid_%d" % i, Vector3(offset_x, 0.50, sin(float(i)) * z * 0.12), Vector3(x * 0.24, 0.045, z * 0.24), Color(0.24, 0.27, 0.25, 1.0))
-
-
-func _build_clutter_shape(parent: Node3D, size_m: Vector2) -> void:
-	var x: float = maxf(0.2, size_m.x)
-	var z: float = maxf(0.2, size_m.y)
-	for i in range(7):
-		var seed: float = float(i) * 2.11
-		var offset := Vector3(
-			sin(seed) * x * 0.28,
-			0.09 + float(i % 3) * 0.09,
-			cos(seed * 0.7) * z * 0.28
-		)
-		var color := Color(0.43 + 0.05 * float(i % 2), 0.32, 0.23, 1.0)
-		if i % 3 == 0:
-			_add_fuel_ellipsoid(parent, "SoftLoad_%d" % i, offset, Vector3(x * 0.24, 0.18, z * 0.22), color)
-		else:
-			_add_fuel_box(parent, "BoxLoad_%d" % i, offset, Vector3(x * 0.22, 0.18, z * 0.20), color)
-
-
-func _build_generic_fuel_shape(parent: Node3D, size_m: Vector2) -> void:
-	var x: float = maxf(0.2, size_m.x)
-	var z: float = maxf(0.2, size_m.y)
-	var h: float = maxf(0.22, fuel_object_3d_height_m)
-	_add_fuel_ellipsoid(parent, "GenericPile", Vector3(0.0, h * 0.5, 0.0), Vector3(x, h, z), Color(0.48, 0.42, 0.34, 1.0))
-
-
-func _add_fuel_box(parent: Node3D, node_name: String, center_m: Vector3, size_m: Vector3, color: Color) -> MeshInstance3D:
-	var mesh := _create_box(node_name, size_m * meters_to_units, _make_material(color, false))
-	mesh.position = center_m * meters_to_units
-	mesh.set_meta("base_color", color)
-	parent.add_child(mesh)
-	return mesh
-
-
-func _add_fuel_ellipsoid(parent: Node3D, node_name: String, center_m: Vector3, size_m: Vector3, color: Color) -> MeshInstance3D:
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.5
-	sphere.height = 1.0
-	sphere.radial_segments = 24
-	sphere.rings = 12
-	var node := MeshInstance3D.new()
-	node.name = node_name
-	node.mesh = sphere
-	node.material_override = _make_material(color, false)
-	node.position = center_m * meters_to_units
-	node.scale = size_m * meters_to_units
-	node.set_meta("base_color", color)
-	parent.add_child(node)
-	return node
-
-
-func _add_fuel_cylinder(parent: Node3D, node_name: String, center_m: Vector3, size_m: Vector3, color: Color) -> MeshInstance3D:
-	var cylinder := CylinderMesh.new()
-	cylinder.top_radius = 0.5
-	cylinder.bottom_radius = 0.5
-	cylinder.height = 1.0
-	cylinder.radial_segments = 14
-	var node := MeshInstance3D.new()
-	node.name = node_name
-	node.mesh = cylinder
-	node.material_override = _make_material(color, false)
-	node.position = center_m * meters_to_units
-	node.scale = size_m * meters_to_units
-	node.set_meta("base_color", color)
-	parent.add_child(node)
-	return node
-
-
-func _add_fuel_heat_glow(parent: Node3D, size_m: Vector2) -> void:
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.5
-	mesh.bottom_radius = 0.5
-	mesh.height = 1.0
-	mesh.radial_segments = 32
-	var mat := _make_material(Color(1.0, 0.32, 0.08, 0.0), true)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.26, 0.06, 1.0)
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var glow := MeshInstance3D.new()
-	glow.name = "HeatGlow"
-	glow.mesh = mesh
-	glow.material_override = mat
-	glow.visible = false
-	glow.position = Vector3(0.0, 0.025, 0.0) * meters_to_units
-	glow.scale = Vector3(maxf(0.1, size_m.x), 0.018, maxf(0.1, size_m.y)) * meters_to_units
-	parent.add_child(glow)
-
-
-func _apply_fuel_object_state_visual(root: Node3D, state_name: String, state_color: Color, remaining_ratio: float, is_ignition_source: bool) -> void:
-	var heat_t: float = 0.0
-	match state_name:
-		"flaming":
-			heat_t = 1.0
-		"pyrolyzing":
-			heat_t = 0.65
-		"heating":
-			heat_t = 0.32
-		"decaying":
-			heat_t = 0.18
-		_:
-			heat_t = 0.0
-	var char_t: float = clampf(1.0 - remaining_ratio, 0.0, 1.0)
-	_apply_fuel_materials_recursive(root, state_name, state_color, heat_t, char_t)
-
-	var glow := root.get_node_or_null("HeatGlow") as MeshInstance3D
-	if glow != null:
-		glow.visible = heat_t > 0.05 or is_ignition_source
-		var mat := glow.material_override as StandardMaterial3D
-		if mat != null:
-			var alpha: float = clampf(heat_t * 0.30 + (0.12 if is_ignition_source else 0.0), 0.0, 0.48)
-			mat.albedo_color = Color(state_color.r, state_color.g * 0.60, state_color.b * 0.30, alpha)
-			mat.emission_energy_multiplier = heat_t * 0.75 + (0.18 if is_ignition_source else 0.0)
-
-
-func _apply_fuel_materials_recursive(root: Node, state_name: String, state_color: Color, heat_t: float, char_t: float) -> void:
-	for child in root.get_children():
-		if child is MeshInstance3D:
-			var mesh_node := child as MeshInstance3D
-			if mesh_node.name == "HeatGlow":
-				continue
-			var mat := mesh_node.material_override as StandardMaterial3D
-			if mat != null:
-				var base_color: Color = Color(mesh_node.get_meta("base_color", Color(0.55, 0.52, 0.48, 1.0)))
-				var char_color: Color = Color(0.10, 0.09, 0.08, 1.0)
-				var final_color: Color = base_color.lerp(char_color, clampf(char_t * 0.75, 0.0, 0.85))
-				final_color = final_color.lerp(state_color, heat_t * 0.42)
-				if state_name == "burned_out":
-					final_color = Color(0.11, 0.11, 0.10, 1.0)
-				mat.albedo_color = final_color
-				mat.emission_enabled = heat_t > 0.05
-				if mat.emission_enabled:
-					mat.emission = Color(state_color.r, state_color.g * 0.65, state_color.b * 0.20, 1.0)
-					mat.emission_energy_multiplier = heat_t * (1.55 if state_name == "flaming" else 0.65)
-				else:
-					mat.emission_energy_multiplier = 0.0
-		if child.get_child_count() > 0:
-			_apply_fuel_materials_recursive(child, state_name, state_color, heat_t, char_t)
-
-
-func _create_fuel_object_box(obj_id: String, size_m: Vector2, height_m: float) -> MeshInstance3D:
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(
-		maxf(0.05, size_m.x) * meters_to_units,
-		maxf(0.05, height_m) * meters_to_units,
-		maxf(0.05, size_m.y) * meters_to_units
-	)
-	var mat := _make_material(Color(0.55, 0.52, 0.48, 1.0), false)
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	var node := MeshInstance3D.new()
-	node.name = "FuelObj_" + obj_id
-	node.mesh = mesh
-	node.material_override = mat
-	return node
-
-
-func _fuel_object_color_3d(state_name: String) -> Color:
-	match state_name:
-		"flaming":    return Color(1.00, 0.22, 0.08, 1.0)
-		"pyrolyzing": return Color(1.00, 0.54, 0.10, 1.0)
-		"heating":    return Color(1.00, 0.80, 0.22, 1.0)
-		"decaying":   return Color(0.72, 0.36, 0.16, 1.0)
-		"burned_out": return Color(0.18, 0.18, 0.18, 1.0)
-		_:            return Color(0.55, 0.52, 0.48, 1.0)
+	FurnitureShapeBuilder.rebuild(node, kind_name, size_m, meters_to_units, fuel_object_3d_height_m)
 
 
 func _get_room_id_at_screen_pos(screen_pos: Vector2) -> int:
@@ -2055,6 +1474,26 @@ func _get_room_id_at_screen_pos(screen_pos: Vector2) -> int:
 		if rects[room_id].has_point(hit_m):
 			return room_id
 	return -1
+
+
+func _get_opening_index_at_screen_pos(screen_pos: Vector2) -> int:
+	if _camera == null:
+		return -1
+	var best_index: int = -1
+	var best_distance: float = 999999.0
+	for index in _opening_items.keys():
+		var item: Dictionary = Dictionary(_opening_items[index])
+		var marker := item.get("marker") as MeshInstance3D
+		if marker == null or not marker.is_visible_in_tree():
+			continue
+		if _camera.is_position_behind(marker.global_position):
+			continue
+		var marker_pos: Vector2 = _camera.unproject_position(marker.global_position)
+		var distance: float = marker_pos.distance_to(screen_pos)
+		if distance < best_distance:
+			best_distance = distance
+			best_index = int(index)
+	return best_index if best_distance <= 26.0 else -1
 
 
 func _safe_name(value: String) -> String:

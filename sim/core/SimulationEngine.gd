@@ -49,6 +49,9 @@ const o2_nominal: float = 0.209
 # ============================================================
 
 @export var time_scale: float = 1.0
+## SF-AUD-019: dt fijo para barrido de sensibilidad numerica. Cuando > 0 sobreescribe
+## delta*time_scale y la simulacion avanza exactamente este valor por frame.
+@export var sim_fixed_dt: float = 0.0
 var sim_time_s: float = 0.0
 
 # Segundos sin fuego activo antes de declarar la simulación terminada.
@@ -66,19 +69,35 @@ var _last_graphs_dir: String = ""
 var _last_graph_generation_ok: bool = false
 
 # ============================================================
-# ROTURA DE CRISTAL
+# ROTURA DE CRISTAL (SF-AUD-011)
 # ============================================================
-# Mantener desactivado por defecto: las ventanas solo cambian si se abren
-# manualmente o si esta opción se reactiva explícitamente.
-@export var glass_auto_break_enabled: bool = false
-# Temperatura de capa superior a la que el cristal puede romperse.
+# Modo de rotura automatica:
+#   DISABLED(0)      — nunca se rompe (por defecto; ventanas solo cambian manualmente)
+#   DETERMINISTIC(1) — se rompe exactamente cuando T_upper >= glass_break_temp_c
+#   PROBABILISTIC(2) — hazard rate: probabilidad crece con temperatura y exposicion
+#                      sin umbral fijo, modela variabilidad real de cristales residenciales
+enum GlassBreakMode { DISABLED = 0, DETERMINISTIC = 1, PROBABILISTIC = 2 }
+@export var glass_break_mode: GlassBreakMode = GlassBreakMode.DISABLED
+# Temperatura de referencia de rotura para modo DETERMINISTIC y referencia hazard en PROBABILISTIC.
 @export var glass_break_temp_c: float = 250.0
-# Dispersión aleatoria: ± esta cantidad sobre glass_break_temp_c (distribución uniforme).
+# Dispersion aleatoria de la temperatura de rotura en modo DETERMINISTIC (± rango uniforme).
 @export var glass_break_temp_spread_c: float = 80.0
-# Velocidad a la que sube open_fraction tras la rotura (fracción/segundo).
+# Velocidad a la que sube open_fraction tras la rotura (fraccion/segundo).
 @export var glass_open_rate_per_s: float = 0.15
-# open_fraction máxima al romperse el cristal (1.0 = apertura completa).
+# open_fraction maxima al romperse el cristal (1.0 = apertura completa).
 @export var glass_max_open_fraction: float = 0.85
+# --- Parametros modo PROBABILISTIC (hazard rate) ---
+# Temperatura a partir de la cual comienza a acumularse tiempo de exposicion.
+@export var glass_break_exposure_start_temp_c: float = 100.0
+# Tasa de hazard base (1/s) cuando T_upper = glass_break_temp_c y exposicion = 0.
+# Con 0.008/s la vida media a T_ref es ~87 s; a T+100C sube mucho mas rapido.
+@export var glass_break_hazard_base_per_s: float = 0.008
+# Exponente de temperatura en la tasa de hazard: lambda ∝ f_temp^exp.
+# exp=2 → hazard se cuadruplica al doblar la temperatura normalizada (cuadratico).
+@export var glass_break_hazard_temp_exp: float = 2.0
+# Constante de tiempo de exposicion (s): la tasa de hazard se duplica tras este tiempo.
+# Con 120 s: en 2 min a temperatura critica la probabilidad de rotura se ha duplicado.
+@export var glass_break_hazard_exposure_tau_s: float = 120.0
 
 # ============================================================
 # CONTABILIDAD GLOBAL DEL HUMO
@@ -316,6 +335,13 @@ var _active_suppression_by_room: Dictionary = {}
 @export var flashover_breathing_height_m: float = 0.9
 @export var flashover_breathing_temp_c: float = 600.0
 @export var flashover_require_tenability_loss: bool = true
+# Criterio de flujo radiante al suelo (ISO 9705 / SFPE): ~20 kW/m² desencadena ignicion
+# generalizada de superficies. Se evalua con Stefan-Boltzmann de la capa superior.
+# Habilitado como criterio alternativo (OR) al de temperatura.
+@export var flashover_floor_flux_criterion_enabled: bool = true
+@export var flashover_floor_flux_kw_m2: float = 20.0
+# Emissividad efectiva de la capa caliente para el calculo radiante al suelo.
+@export var flashover_layer_emissivity: float = 0.9
 
 # ============================================================
 # AJUSTES TÉRMICOS
@@ -350,6 +376,8 @@ var _active_suppression_by_room: Dictionary = {}
 @export var outside_open_wall_absorption_multiplier: float = 0.80
 @export var outside_open_upper_mix_rate: float = 0.10
 @export var outside_open_lower_warming_rate: float = 0.0
+@export var outside_open_upper_heat_boost: float = 0.0
+@export var outside_lower_fresh_air_cooling_rate: float = 0.0
 @export var natural_vent_inlet_fraction: float = 0.5
 @export var outside_open_background_heat_exchange_kg_s_m2: float = 0.030
 @export var outside_open_background_heat_max_fraction_per_step: float = 0.020
@@ -574,10 +602,10 @@ var _active_suppression_by_room: Dictionary = {}
 
 @export var enable_logging: bool = true
 @export var log_interval_s: float = 10.0
-@export var log_file_path: String = "res://sim_log.txt"
+@export var log_file_path: String = "user://sim_log.txt"
 ## Si es true, también guarda el log en formato CSV al parar la simulación.
 @export var enable_csv_log: bool = true
-@export var csv_log_file_path: String = "res://sim_log.csv"
+@export var csv_log_file_path: String = "user://sim_log.csv"
 
 # ============================================================
 # SERVICIOS AUXILIARES
@@ -622,6 +650,8 @@ func _sync_auxiliary_services() -> void:
 		"outside_open_wall_absorption_multiplier": outside_open_wall_absorption_multiplier,
 		"outside_open_upper_mix_rate": outside_open_upper_mix_rate,
 		"outside_open_lower_warming_rate": outside_open_lower_warming_rate,
+		"outside_open_upper_heat_boost": outside_open_upper_heat_boost,
+		"outside_lower_fresh_air_cooling_rate": outside_lower_fresh_air_cooling_rate,
 		"outside_open_background_heat_exchange_kg_s_m2": outside_open_background_heat_exchange_kg_s_m2,
 		"outside_open_background_heat_max_fraction_per_step": outside_open_background_heat_max_fraction_per_step,
 		"outside_open_background_heat_carry_factor": outside_open_background_heat_carry_factor,
@@ -686,10 +716,15 @@ func _sync_auxiliary_services() -> void:
 	})
 	glass_failure_system.set_references(building)
 	glass_failure_system.configure({
+		"glass_break_mode": int(glass_break_mode),
 		"glass_break_temp_c": glass_break_temp_c,
 		"glass_break_temp_spread_c": glass_break_temp_spread_c,
 		"glass_open_rate_per_s": glass_open_rate_per_s,
-		"glass_max_open_fraction": glass_max_open_fraction
+		"glass_max_open_fraction": glass_max_open_fraction,
+		"glass_break_exposure_start_temp_c": glass_break_exposure_start_temp_c,
+		"glass_break_hazard_base_per_s": glass_break_hazard_base_per_s,
+		"glass_break_hazard_temp_exp": glass_break_hazard_temp_exp,
+		"glass_break_hazard_exposure_tau_s": glass_break_hazard_exposure_tau_s
 	})
 	gas_exchange_system.configure({
 		"o2_nominal": o2_nominal,
@@ -769,6 +804,9 @@ func _build_state_context() -> Dictionary:
 		"compute_co_lower_ppm_callable": Callable(thermal_system, "compute_co_lower_ppm"),
 		"compute_co2_ppm_callable": Callable(thermal_system, "compute_co2_ppm"),
 		"compute_hcn_ppm_callable": Callable(thermal_system, "compute_hcn_ppm"),
+		"compute_hcl_ppm_callable": Callable(thermal_system, "compute_hcl_ppm"),
+		"compute_acrolein_ppm_callable": Callable(thermal_system, "compute_acrolein_ppm"),
+		"compute_formaldehyde_ppm_callable": Callable(thermal_system, "compute_formaldehyde_ppm"),
 		"is_quiescent_callable": Callable(thermal_system, "is_room_quiescent"),
 		"window_open_max_callable": Callable(self, "_window_open_max_for_room"),
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
@@ -961,7 +999,7 @@ func step(delta: float) -> void:
 	if building == null or is_finished:
 		return
 
-	var dt: float = maxf(0.0, delta * time_scale)
+	var dt: float = sim_fixed_dt if sim_fixed_dt > 0.0 else maxf(0.0, delta * time_scale)
 	if dt <= 0.0:
 		return
 
@@ -989,7 +1027,7 @@ func step(delta: float) -> void:
 		"opening_flow_cache": _opening_flow_cache
 	})
 	_step_suppression(dt)
-	if glass_auto_break_enabled:
+	if glass_break_mode != GlassBreakMode.DISABLED:
 		glass_failure_system.step(dt)
 		for broken_idx in glass_failure_system.newly_broken_indices:
 			_log_opening_event(broken_idx, "glass_break")
@@ -1289,6 +1327,37 @@ func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> v
 	thermal_system.update_room_layer_150c(room, dt)
 
 
+# TODO(gameplay): helpers de supresión y estado de fuego — descomentar cuando se implemente la UI de juego
+#func cancel_suppression(room_id: int) -> void:
+#	_active_suppression_by_room.erase(room_id)
+#
+#func cancel_all_suppression() -> void:
+#	_active_suppression_by_room.clear()
+#
+#func get_highest_hrr_room_id() -> int:
+#	if building == null: return 0
+#	var best_id: int = 0; var best_hrr: float = -1.0
+#	for room_id in building.get_rooms().keys():
+#		var room: RoomModel = building.get_room(int(room_id))
+#		if room != null and room.hrr_kw > best_hrr: best_hrr = room.hrr_kw; best_id = int(room_id)
+#	return best_id
+#
+#func get_active_fire_room_ids() -> Array:
+#	if building == null: return []
+#	var result: Array = []
+#	for room_id in building.get_rooms().keys():
+#		var room: RoomModel = building.get_room(int(room_id))
+#		if room != null and room.hrr_kw > 10.0: result.append(int(room_id))
+#	return result
+#
+#func is_fire_extinguished() -> bool:
+#	if building == null: return true
+#	for room_id in building.get_rooms().keys():
+#		var room: RoomModel = building.get_room(int(room_id))
+#		if room != null and room.hrr_kw >= fire_extinction_hrr_kw: return false
+#	return true
+
+
 func _step_passive_fuel(dt: float) -> void:
 	# Siempre actualiza el estado térmico de los combustibles pasivos (necesario para
 	# FireSpreadSystem). La auto-ignición solo se dispara si passive_room_autoignite_enabled.
@@ -1569,6 +1638,30 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 	var layer_150_low_enough: bool = room.layer_150c_m <= flashover_head_height_m
 	var tenability_lost: bool = head_hot_enough or layer_150_low_enough
 
+	# Criterio de flujo radiante al suelo (SF-AUD-012 fix).
+	# La capa superior irradia como cuerpo gris: q = ε·σ·T⁴ [kW/m²].
+	# A 500°C → ~18 kW/m²; a 520°C → ~20 kW/m² (umbral ISO 9705 flashover).
+	# Se usa como criterio alternativo (OR) cuando la temperatura de capa ya es
+	# suficientemente alta aunque los criterios de capa/breathing no se cumplan.
+	var floor_flux_met: bool = false
+	if flashover_floor_flux_criterion_enabled and room.temp_upper_c > 200.0:
+		var t_k: float = room.temp_upper_c + 273.15
+		# σ = 5.67e-11 kW/m²K⁴
+		var q_floor_kw_m2: float = flashover_layer_emissivity * 5.67e-11 * t_k * t_k * t_k * t_k
+		room.floor_heat_flux_kw_m2 = q_floor_kw_m2
+		floor_flux_met = q_floor_kw_m2 >= flashover_floor_flux_kw_m2 \
+				and enough_hrr \
+				and layer_low_enough \
+				and breathing_hot_enough \
+				and (not flashover_require_tenability_loss or tenability_lost)
+	else:
+		# Con capa fría, actualizar con valor calculado igualmente (sin activar flashover)
+		if room.temp_upper_c > 0.0:
+			var t_k: float = room.temp_upper_c + 273.15
+			room.floor_heat_flux_kw_m2 = flashover_layer_emissivity * 5.67e-11 * t_k * t_k * t_k * t_k
+		else:
+			room.floor_heat_flux_kw_m2 = 0.0
+
 	# Criterio más cercano a la referencia residencial local:
 	# no basta con T_upper alta; exigimos además un nivel térmico muy severo
 	# a altura de respiración (0.9 m) y un descenso real de la capa.
@@ -1585,7 +1678,8 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 			and layer_low_enough \
 			and breathing_hot_enough \
 			and (not flashover_require_tenability_loss or tenability_lost)) \
-			or radiant_feedback_flashover:
+			or radiant_feedback_flashover \
+			or floor_flux_met:
 		room.flashover_triggered = true
 		room.flashover_time_s = sim_time_s
 		# Escalar la ganancia secundaria en proporción al tamaño de la habitación.
@@ -1689,6 +1783,9 @@ func _clamp_rooms(dt: float) -> void:
 		room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg)
 		room.co2_kg = maxf(0.0, room.co2_kg)
 		room.hcn_kg = maxf(0.0, room.hcn_kg)
+		room.hcl_kg = maxf(0.0, room.hcl_kg)
+		room.acrolein_kg = maxf(0.0, room.acrolein_kg)
+		room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg)
 		room.fed = maxf(0.0, room.fed)
 		room.svv_pct = clampf(room.svv_pct, 0.0, 100.0)
 		room.svv_worst_pct = minf(clampf(room.svv_worst_pct, 0.0, 100.0), room.svv_pct)
@@ -1884,7 +1981,8 @@ func _force_log_final_snapshot() -> void:
 func _launch_graph_generator(graphs_root: String = "", wait_for_finish: bool = false) -> void:
 	var script_path: String = ProjectSettings.globalize_path("res://scripts/generate_fire_graphs.py")
 	var latest_path: String = ProjectSettings.globalize_path("user://latest_graphs_dir.txt")
-	var args: PackedStringArray = PackedStringArray([script_path, "--latest-file", latest_path, "--copy-log"])
+	var log_path: String = log_writer.resolve_log_file_path()
+	var args: PackedStringArray = PackedStringArray([script_path, "--latest-file", latest_path, "--log", log_path, "--copy-log"])
 	if enable_csv_log:
 		var csv_path: String = log_writer.resolve_csv_file_path()
 		if csv_path.strip_edges() != "":

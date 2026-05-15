@@ -290,8 +290,14 @@ func _remove_species_from_room(room: RoomModel, air_fraction: float, upper_sampl
 	var well_mixed_fraction: float = clampf(air_fraction * lerpf(1.0, 1.35, upper_bias), 0.0, 0.22)
 	var co2_removed: float = minf(room.co2_kg, room.co2_kg * well_mixed_fraction)
 	var hcn_removed: float = minf(room.hcn_kg, room.hcn_kg * well_mixed_fraction)
+	var hcl_removed: float = minf(room.hcl_kg, room.hcl_kg * well_mixed_fraction)
+	var acrolein_removed: float = minf(room.acrolein_kg, room.acrolein_kg * well_mixed_fraction)
+	var formaldehyde_removed: float = minf(room.formaldehyde_kg, room.formaldehyde_kg * well_mixed_fraction)
 	room.co2_kg = maxf(0.0, room.co2_kg - co2_removed)
 	room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_removed)
+	room.hcl_kg = maxf(0.0, room.hcl_kg - hcl_removed)
+	room.acrolein_kg = maxf(0.0, room.acrolein_kg - acrolein_removed)
+	room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg - formaldehyde_removed)
 
 	removed["co_kg"] = co_upper_removed + co_lower_removed
 	removed["co_upper_kg"] = co_upper_removed

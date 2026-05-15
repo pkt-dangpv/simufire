@@ -313,7 +313,7 @@ func _collect_room_ids(state: Dictionary) -> Array[int]:
 # ============================================================
 
 func _build_csv_header() -> String:
-	return "time_s,room_id,room_name,hrr_kw,temp_upper_c,temp_lower_c,temp_at_0_9m_c,smoke_kg,visibility_m,smoke_layer_m,hot_layer_m,layer_150c_m,overpressure_pa,o2,co_ppm,co_upper_ppm,co2_ppm,fed,svv_worst_pct,flashover_triggered,flashover_time_s,fuel_remaining_MJ,ventilation_response_factor,pyrolysis_kw,burned_hrr_kw,unburned_generation_kw,retained_unburned_MJ,flame_hrr_target_kw,smolder_hrr_target_kw,pool_release_hrr_target_kw,o2_hrr_factor,fire_smoldering,backdraft_triggered,bud_e_fire_kj,bud_q_rad_kj,bud_q_to_lower_kj,bud_q_to_ambient_kj,bud_q_wall_abs_kj,bud_q_wall_emit_kj,bud_de_upper_kj,bud_q_residual_kj,bud_chi_rad,bud_q_fire_rad_kj"
+	return "time_s,room_id,room_name,hrr_kw,temp_upper_c,temp_lower_c,temp_at_0_9m_c,smoke_kg,visibility_m,smoke_layer_m,hot_layer_m,layer_150c_m,overpressure_pa,o2,co_ppm,co_upper_ppm,co2_ppm,hcn_ppm,hcl_ppm,acrolein_ppm,formaldehyde_ppm,fec_irritant,fed,svv_worst_pct,flashover_triggered,flashover_time_s,floor_heat_flux_kw_m2,fuel_remaining_MJ,ventilation_response_factor,pyrolysis_kw,burned_hrr_kw,unburned_generation_kw,retained_unburned_MJ,flame_hrr_target_kw,smolder_hrr_target_kw,pool_release_hrr_target_kw,o2_hrr_factor,fire_smoldering,backdraft_triggered,bud_e_fire_kj,bud_q_rad_kj,bud_q_to_lower_kj,bud_q_to_ambient_kj,bud_q_wall_abs_kj,bud_q_wall_emit_kj,bud_de_upper_kj,bud_q_residual_kj,bud_chi_rad,bud_q_fire_rad_kj"
 
 
 func _open_csv_file(mode: FileAccess.ModeFlags) -> FileAccess:
@@ -361,10 +361,16 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		fields.append("%.0f" % float(rs.get("co_ppm", 0.0)))
 		fields.append("%.0f" % float(rs.get("co_upper_ppm", 0.0)))
 		fields.append("%.0f" % float(rs.get("co2_ppm", 0.0)))
+		fields.append("%.2f" % float(rs.get("hcn_ppm", 0.0)))
+		fields.append("%.2f" % float(rs.get("hcl_ppm", 0.0)))
+		fields.append("%.4f" % float(rs.get("acrolein_ppm", 0.0)))
+		fields.append("%.4f" % float(rs.get("formaldehyde_ppm", 0.0)))
+		fields.append("%.4f" % float(rs.get("fec_irritant", 0.0)))
 		fields.append("%.4f" % float(rs.get("fed", 0.0)))
 		fields.append("%.1f" % float(rs.get("svv_worst_pct", 100.0)))
 		fields.append("1" if bool(rs.get("flashover_triggered", false)) else "0")
 		fields.append("%.1f" % float(rs.get("flashover_time_s", -1.0)))
+		fields.append("%.3f" % float(rs.get("floor_heat_flux_kw_m2", 0.0)))
 		fields.append("%.2f" % float(rs.get("fuel_objects_remaining_MJ", rs.get("remaining_fuel_MJ", 0.0))))
 		fields.append("%.4f" % float(rs.get("ventilation_response_factor", 0.0)))
 		fields.append("%.2f" % float(rs.get("pyrolysis_kw", 0.0)))
