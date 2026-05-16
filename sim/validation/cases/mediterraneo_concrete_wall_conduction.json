@@ -1,0 +1,49 @@
+{
+	"template": "piso_mediterraneo",
+	"duration_s": 600.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 0,
+	"enable_logging": false,
+	"watch_room_ids": [0, 2],
+	"smoke_trigger_room_id": 0,
+	"spread_target_room_id": 2,
+	"l150_room_id": 0,
+	"room_overrides": [
+		{
+			"id": 0,
+			"wall_k_kw_m_k": 0.001,
+			"wall_rho_kg_m3": 2300.0,
+			"wall_cp_kj_kg_k": 0.88,
+			"wall_thickness_m": 0.05
+		}
+	],
+	"threshold_metrics": [
+		{
+			"metric_name": "time_room_0_wall_mid_above_21c_s",
+			"field": "wall_T_mid_c",
+			"room_id": 0,
+			"op": ">=",
+			"value": 21.5,
+			"after_time_s": 10.0
+		},
+		{
+			"metric_name": "time_room_0_wall_outer_above_20c_s",
+			"field": "wall_T_outer_c",
+			"room_id": 0,
+			"op": ">=",
+			"value": 20.2,
+			"after_time_s": 10.0
+		}
+	],
+	"engine_overrides": {
+		"time_scale": 5.0,
+		"fire_spread_enabled": false,
+		"glass_auto_break_enabled": false,
+		"glass_break_mode": 0,
+		"fire_alpha_kw_s2": 0.047,
+		"fire_o2_min_for_flame": 0.10,
+		"fire_secondary_hrr_gain_kw": 2500.0,
+		"fire_extinction_delay_s": 240.0,
+		"wall_pde_enabled": true
+	}
+}

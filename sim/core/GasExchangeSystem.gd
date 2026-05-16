@@ -70,6 +70,9 @@ var door_deform_max_gap: float = 0.04        # fracción máxima de apertura adi
 # Asume plano neutro a mid-height por defecto (0.5). En salas muy calientes el
 # plano neutro sube y la fracción de entrada efectiva baja (<0.5).
 var natural_vent_inlet_fraction: float = 0.5
+# SF-AUD-010: cuando true, la ventilación natural exterior usa plano neutro
+# calculado por densidad (SFPE §3.2) en lugar de natural_vent_inlet_fraction fijo.
+var vent_bernoulli_enabled: bool = false
 # Carry de O2 con el parcel caliente en transporte de humo inter-sala.
 # 0.0 = deshabilitado (default; baselines sin cambio).
 var o2_smoke_carry_coeff: float = 0.0
@@ -150,6 +153,7 @@ func configure(settings: Dictionary) -> void:
 	door_deform_temp_full_c = float(settings.get("door_deform_temp_full_c", door_deform_temp_full_c))
 	door_deform_max_gap = float(settings.get("door_deform_max_gap", door_deform_max_gap))
 	natural_vent_inlet_fraction = float(settings.get("natural_vent_inlet_fraction", natural_vent_inlet_fraction))
+	vent_bernoulli_enabled = bool(settings.get("vent_bernoulli_enabled", vent_bernoulli_enabled))
 	o2_smoke_carry_coeff = float(settings.get("o2_smoke_carry_coeff", o2_smoke_carry_coeff))
 
 
@@ -372,18 +376,38 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			# de O2 y dilución de gases cuando hay una abertura exterior abierta.
 			var nat_area_m2: float = op.width_m * op.height_m * op.open_fraction
 			if nat_area_m2 > 0.0:
-				# Velocidad de flotabilidad térmica: v = sqrt(2·g·h_eff·|ΔT|/T_room)
-				var h_eff_m: float = op.height_m * 0.5
 				var delta_t: float = maxf(0.0, room_out.temp_upper_c - building.outside_temp_c)
 				var t_room_k: float = room_out.temp_upper_c + 273.15
-				var v_buoy_m_s: float = 0.0
-				if delta_t > 0.5:
-					v_buoy_m_s = sqrt(2.0 * 9.81 * h_eff_m * delta_t / t_room_k)
-				# Velocidad mínima por viento: siempre presente con ventana abierta al exterior
-				var v_nat_m_s: float = maxf(0.30, v_buoy_m_s)
-				# La fracción inferior de la abertura es la entrada de aire fresco (Cd≈0.61).
-				# natural_vent_inlet_fraction=0.5 asume plano neutro a mid-height.
-				var fresh_air_kg: float = 0.61 * (nat_area_m2 * natural_vent_inlet_fraction) * v_nat_m_s * air_density_kg_m3_s * dt
+				var t_amb_k: float = building.outside_temp_c + 273.15
+				var fresh_air_kg: float
+				if vent_bernoulli_enabled:
+					# SF-AUD-010: plano neutro calculado por conservación de masa (SFPE §3.2).
+					# Para sala caliente uniforme: z_n/H = α/(1+α), α = (T_amb/T_room)^(1/3).
+					var _alpha_b: float = pow(t_amb_k / maxf(50.0, t_room_k), 1.0 / 3.0)
+					var _neutral_f: float = clampf(_alpha_b / (1.0 + _alpha_b), 0.10, 0.90)
+					var _h_upper_e: float = (1.0 - _neutral_f) * op.height_m  # salida: gas caliente
+					var _dT_e: float = maxf(0.0, t_room_k - t_amb_k)
+					var _q_upper_e: float = 0.0
+					if _h_upper_e > 0.001 and _dT_e > 0.5:
+						var _T_ref_e: float = (t_room_k + t_amb_k) * 0.5
+						_q_upper_e = 0.61 * op.width_m * op.open_fraction \
+								* (2.0 / 3.0) * pow(_h_upper_e, 1.5) \
+								* sqrt(2.0 * 9.81 * _dT_e / _T_ref_e)
+					# Masa entrante: conservación ḟ_in = ḟ_out (ρ_hot × Q_out = ρ_cold × Q_in)
+					var _rho_hot_e: float = 353.0 / maxf(50.0, t_room_k)
+					var _rho_amb_e: float = 353.0 / maxf(50.0, t_amb_k)
+					var _q_lower_e: float = _q_upper_e * _rho_hot_e / maxf(0.001, _rho_amb_e)
+					fresh_air_kg = _q_lower_e * _rho_amb_e * dt
+				else:
+					# Comportamiento heredado: velocidad de flotabilidad + viento mínimo
+					var h_eff_m: float = op.height_m * 0.5
+					var v_buoy_m_s: float = 0.0
+					if delta_t > 0.5:
+						v_buoy_m_s = sqrt(2.0 * 9.81 * h_eff_m * delta_t / t_room_k)
+					var v_nat_m_s: float = maxf(0.30, v_buoy_m_s)
+					# La fracción inferior de la abertura es la entrada de aire fresco (Cd≈0.61).
+					# natural_vent_inlet_fraction=0.5 asume plano neutro a mid-height.
+					fresh_air_kg = 0.61 * (nat_area_m2 * natural_vent_inlet_fraction) * v_nat_m_s * air_density_kg_m3_s * dt
 				var room_mass_kg: float = maxf(1.0, room_out.volume_m3()) * air_density_kg_m3_s
 				fresh_air_kg = minf(fresh_air_kg, room_mass_kg * 0.30)
 				if fresh_air_kg > 0.0:
@@ -1360,3 +1384,129 @@ func _call_room_dt(callable: Callable, room: RoomModel, dt: float) -> void:
 	if not callable.is_valid():
 		return
 	callable.call(room, dt)
+
+
+# ============================================================
+# SF-AUD-036: PPV — Positive Pressure Ventilation
+# ------------------------------------------------------------
+# Para cada apertura exterior con ppv_flow_m3_s > 0, el ventilador PPV
+# fuerza un caudal Q_ppv (m³/s) hacia el interior de la sala (sala de entrada).
+# Esto crea una sobrepresión que expulsa humo/gases por las demás aberturas
+# (exhaustión natural). La sala opuesta a la entrada actúa como escape.
+#
+# Física simplificada (CFAST MVENT equivalente):
+#   - La abertura PPV INTRODUCE aire exterior fresco a caudal Q_ppv.
+#   - La sobrepresión resultante ΔP_ppv = ppv_delta_p_pa expulsa gases por
+#     todas las demás aberturas exteriores de la sala según Q = Cd·A·√(2·ΔP/ρ).
+#   - La purga de humo/especies sigue la proporción volumétrica exhaustida.
+# ============================================================
+func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictionary:
+	var result: Dictionary = {
+		"ppv_smoke_purged_kg": 0.0,
+		"ppv_fresh_air_injected_kg": 0.0
+	}
+	if building == null:
+		return result
+
+	var remove_upper_layer_fraction_callable: Callable = hooks.get("remove_upper_layer_fraction_callable", Callable())
+	var sync_room_upper_layer_callable: Callable = hooks.get("sync_room_upper_layer_callable", Callable())
+	var rho_ext: float = 1.20
+	var rho_ext_inv: float = 1.0 / rho_ext
+
+	for op in building.get_openings():
+		if float(op.ppv_flow_m3_s) <= 0.000001:
+			continue
+		if op.open_fraction < 0.01:
+			continue
+
+		# Determinar la sala de entrada (la sala que recibe el caudal PPV)
+		var inlet_room_id: int = -1
+		if op.a == BuildingModel.OUTSIDE_ID:
+			inlet_room_id = op.b
+		elif op.b == BuildingModel.OUTSIDE_ID:
+			inlet_room_id = op.a
+		else:
+			# Apertura interior: PPV no aplica directamente
+			continue
+
+		var inlet_room: RoomModel = building.get_room(inlet_room_id)
+		if inlet_room == null:
+			continue
+
+		var q_ppv_m3s: float = float(op.ppv_flow_m3_s)
+		var dp_ppv_pa: float = maxf(0.0, float(op.ppv_delta_p_pa))
+
+		# Paso 1: Inyectar aire fresco exterior en la sala de entrada
+		var injected_vol_m3: float = q_ppv_m3s * dt
+		var injected_kg: float = injected_vol_m3 * rho_ext
+		var room_vol_m3: float = maxf(1.0, inlet_room.volume_m3())
+
+		# Fracción de renovación de la sala (mezcla perfecta, cota de seguridad 0.25)
+		var mix_frac: float = clampf(injected_vol_m3 / room_vol_m3, 0.0, 0.25)
+		var room_air_mass_kg: float = room_vol_m3 * rho_ext
+
+		# Diluir O2 hacia el nominal
+		inlet_room.o2 = clampf(
+			lerpf(inlet_room.o2, building.outside_o2, mix_frac),
+			0.0,
+			o2_nominal
+		)
+		# Purgar humo y especies por dilución
+		var smoke_purged_inlet: float = inlet_room.smoke_kg * mix_frac
+		inlet_room.smoke_kg = maxf(0.0, inlet_room.smoke_kg - smoke_purged_inlet)
+		inlet_room.co_kg = maxf(0.0, inlet_room.co_kg * (1.0 - mix_frac))
+		inlet_room.co_upper_kg = maxf(0.0, inlet_room.co_upper_kg * (1.0 - mix_frac))
+		inlet_room.co2_kg = maxf(0.0, inlet_room.co2_kg * (1.0 - mix_frac))
+		inlet_room.hcn_kg = maxf(0.0, inlet_room.hcn_kg * (1.0 - mix_frac))
+		inlet_room.hcl_kg = maxf(0.0, inlet_room.hcl_kg * (1.0 - mix_frac))
+		inlet_room.acrolein_kg = maxf(0.0, inlet_room.acrolein_kg * (1.0 - mix_frac))
+		inlet_room.formaldehyde_kg = maxf(0.0, inlet_room.formaldehyde_kg * (1.0 - mix_frac))
+		_call_room_fraction(remove_upper_layer_fraction_callable, inlet_room, mix_frac * 0.5)
+		_call_room_dt(sync_room_upper_layer_callable, inlet_room, dt)
+
+		# Paso 2: Sobrepresión PPV en la sala → exhaustión por otras aberturas ext.
+		# Elevar overpressure_pa de la sala según la presión del ventilador.
+		inlet_room.overpressure_pa = maxf(inlet_room.overpressure_pa, dp_ppv_pa)
+
+		# Paso 3: Flujo forzado de exhaustión por aberturas exteriores de la misma sala
+		# (distintas de la abertura PPV de entrada). Simula flow path control.
+		var exhaust_q_total_m3s: float = 0.0
+		var exhaust_ops: Array = []
+		for ex_op in building.get_openings():
+			if ex_op.opening_index == op.opening_index:
+				continue  # misma abertura PPV
+			if ex_op.open_fraction < 0.01:
+				continue
+			var connects: bool = (
+				(ex_op.a == inlet_room_id and ex_op.b == BuildingModel.OUTSIDE_ID) or
+				(ex_op.b == inlet_room_id and ex_op.a == BuildingModel.OUTSIDE_ID)
+			)
+			if not connects:
+				continue
+			# Caudal de exhaustión por cada apertura: Q = Cd·A·√(2·ΔP/ρ)
+			var area_m2: float = ex_op.width_m * ex_op.height_m * ex_op.effective_open_fraction()
+			var v_ex: float = sqrt(2.0 * maxf(dp_ppv_pa, 1.0) * rho_ext_inv)
+			var q_ex: float = 0.61 * area_m2 * v_ex
+			exhaust_q_total_m3s += q_ex
+			exhaust_ops.append({"op": ex_op, "q": q_ex})
+
+		if exhaust_q_total_m3s > 0.0:
+			var ex_vol_total: float = exhaust_q_total_m3s * dt
+			var ex_frac: float = clampf(ex_vol_total / room_vol_m3, 0.0, 0.30)
+			var smoke_purged_ex: float = inlet_room.smoke_kg * ex_frac
+			inlet_room.smoke_kg = maxf(0.0, inlet_room.smoke_kg - smoke_purged_ex)
+			inlet_room.co_kg = maxf(0.0, inlet_room.co_kg * (1.0 - ex_frac))
+			inlet_room.co_upper_kg = maxf(0.0, inlet_room.co_upper_kg * (1.0 - ex_frac))
+			inlet_room.co2_kg = maxf(0.0, inlet_room.co2_kg * (1.0 - ex_frac))
+			inlet_room.hcn_kg = maxf(0.0, inlet_room.hcn_kg * (1.0 - ex_frac))
+			inlet_room.hcl_kg = maxf(0.0, inlet_room.hcl_kg * (1.0 - ex_frac))
+			inlet_room.acrolein_kg = maxf(0.0, inlet_room.acrolein_kg * (1.0 - ex_frac))
+			inlet_room.formaldehyde_kg = maxf(0.0, inlet_room.formaldehyde_kg * (1.0 - ex_frac))
+			_call_room_fraction(remove_upper_layer_fraction_callable, inlet_room, ex_frac)
+			_call_room_dt(sync_room_upper_layer_callable, inlet_room, dt)
+			result["ppv_smoke_purged_kg"] = float(result.get("ppv_smoke_purged_kg", 0.0)) + smoke_purged_ex
+
+		result["ppv_smoke_purged_kg"] = float(result.get("ppv_smoke_purged_kg", 0.0)) + smoke_purged_inlet
+		result["ppv_fresh_air_injected_kg"] = float(result.get("ppv_fresh_air_injected_kg", 0.0)) + injected_kg
+
+	return result

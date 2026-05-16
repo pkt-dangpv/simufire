@@ -1,0 +1,449 @@
+{
+  "_description": "Registro de clasificacion de parametros de engine_overrides en casos de validacion. SF-AUD-020.",
+  "_clases": {
+    "F": "FISICA — propiedad directamente medible del escenario, combustible o edificio. Respaldada por SFPE/NFPA/ASTM/ISO. Valida solo para el combustible o geometria del caso.",
+    "N": "NUMERICA — controla el solver, paso de tiempo, relajacion o salida. No tiene impacto fisico fuera del dominio de convergencia.",
+    "E": "EMPIRICA — coeficiente calibrado para reproducir datos de referencia (CFAST, FDS, ensayos). Dominio de validez limitado al tipo de escenario calibrado."
+  },
+  "_ref_claves": "SFPE Handbook 5a ed.; NFPA 72 2022; ASTM E1354; ISO 13571:2012; CFAST TN 1889v1; NIST TN 1603",
+  "parameters": {
+
+    "time_scale": {
+      "clase": "N",
+      "desc": "Factor de aceleracion de simulacion (dt_real = dt_godot * time_scale). No afecta la fisica si dt es estable.",
+      "ref": "Solver interno",
+      "dom": "Cualquier caso; sin limite fisico."
+    },
+    "log_interval_s": {
+      "clase": "N",
+      "desc": "Intervalo de muestreo de la salida CSV.",
+      "ref": "Solver interno",
+      "dom": "Cualquier caso."
+    },
+    "log_file_path": {
+      "clase": "N",
+      "desc": "Ruta del archivo de log; no afecta la simulacion.",
+      "ref": "Solver interno",
+      "dom": "Cualquier caso."
+    },
+
+    "fire_alpha_kw_s2": {
+      "clase": "F",
+      "desc": "Coeficiente de crecimiento t² del HRR (kW/s²). Representa la tasa de crecimiento del combustible.",
+      "ref": "NFPA 72 Tabla A.5.5.1; SFPE Handbook §3.1; ASTM E1354",
+      "dom": "Combustible especifico: madera 0.0117-0.0469, PU flexible 0.0469, PMMA 0.0117."
+    },
+    "fire_max_hrr_kw": {
+      "clase": "F",
+      "desc": "HRR pico del fuego (kW). Refleja la carga de combustible y geometria del escenario.",
+      "ref": "SFPE Handbook §3.1; medicion cone calorimeter ASTM E1354",
+      "dom": "Especifico del escenario; calibrar con carga de combustible medida."
+    },
+    "fire_secondary_hrr_gain_kw": {
+      "clase": "F",
+      "desc": "HRR adicional por ignicion secundaria (kW). Fisico si hay combustibles secundarios en el escenario.",
+      "ref": "SFPE §3.1",
+      "dom": "0.0 si no hay combustibles secundarios explicitamente modelados."
+    },
+    "fire_flashover_hrr_multiplier": {
+      "clase": "E",
+      "desc": "Multiplicador del HRR de flashover para ajustar sensibilidad del criterio de activacion.",
+      "ref": "Calibracion interna; sin referencia SFPE directa",
+      "dom": "1.0 = sin ajuste. Rango tipico 0.8-1.5."
+    },
+    "fire_flashover_min_hrr_kw": {
+      "clase": "N",
+      "desc": "HRR minimo para activar flashover. Valor muy alto (99999) = deshabilita flashover en el caso.",
+      "ref": "Selector de escenario",
+      "dom": "99999 = desactivado; valor fisico = umbral Thomas/MQH del caso."
+    },
+    "thermal_feedback_coeff": {
+      "clase": "E",
+      "desc": "Coeficiente de retroalimentacion termica desde la capa superior al HRR. 0 = sin retroalimentacion.",
+      "ref": "Calibracion Ghanekar 2026; sin referencia SFPE directa",
+      "dom": "0.0 para casos con HRR prescrito; >0 solo cuando hay datos de retroalimentacion medida."
+    },
+    "fire_o2_min_for_flame": {
+      "clase": "F",
+      "desc": "Fraccion molar minima de O2 para llama sostenida (~LOC). Limita fisica la ventilacion.",
+      "ref": "ISO 10294-1; Drysdale §5.3; tipico 0.10-0.14 para materiales organicos",
+      "dom": "0.05-0.12 segun combustible. Madera/celulosa ~0.10; aceptable 0.055-0.125."
+    },
+    "fire_o2_full_hrr_open": {
+      "clase": "F",
+      "desc": "Fraccion molar de O2 sobre la cual el HRR es independiente de la ventilacion.",
+      "ref": "SFPE §3.4; CFAST TN 1889 §4.2",
+      "dom": "Tipico 0.15-0.20 para fuegos de interior."
+    },
+    "fire_o2_hrr_rise_tau_s": {
+      "clase": "N",
+      "desc": "Constante de tiempo para suavizar la respuesta del HRR al O2 (evita oscilaciones numericas).",
+      "ref": "Solver interno; recomendado >= dt",
+      "dom": "2-10 s para casos con dt=1s."
+    },
+    "fire_hrr_rise_tau_s": {
+      "clase": "N",
+      "desc": "Constante de tiempo para suavizar la rampa de HRR prescrita.",
+      "ref": "Solver interno; estabilidad numerica",
+      "dom": "1-5 s tipico."
+    },
+    "fire_unburned_generation_fraction": {
+      "clase": "F",
+      "desc": "Fraccion del HRR que produce gas no quemado (combustibles liquidos y smoldering).",
+      "ref": "SFPE §3.4; NIST TN 1603",
+      "dom": "0.0 para fuegos bien ventilados; 0.05-0.30 para underventilated."
+    },
+    "fire_pool_release_max_fraction": {
+      "clase": "F",
+      "desc": "Fraccion maxima de combustible de charco que puede liberarse como gas en cada paso.",
+      "ref": "SFPE pool fire evaporation; NFPA 11",
+      "dom": "0.0 si no hay combustibles liquidos en el caso."
+    },
+    "fire_extinction_delay_s": {
+      "clase": "F",
+      "desc": "Tiempo minimo (s) que el fuego permanece activo antes de poder extinguirse (inercia termica).",
+      "ref": "Drysdale §6; observacion experimental en ensayos NIST/UL",
+      "dom": "Especifico del escenario; 30-120 s para madera; 520 s = fuego prescrito sin extincion."
+    },
+    "fire_latent_extinction_delay_s": {
+      "clase": "N",
+      "desc": "Tiempo de suavizado para la transicion al estado LATENTE post-extincion.",
+      "ref": "Solver interno; evita oscilaciones entre FLAMING/LATENT",
+      "dom": "Debe ser >= fire_extinction_delay_s."
+    },
+    "fire_max_active_s": {
+      "clase": "N",
+      "desc": "Duracion maxima del fuego activo (s). 9999 = sin limite para el caso.",
+      "ref": "Control de escenario",
+      "dom": "Cualquier caso."
+    },
+    "fire_extinction_hrr_kw": {
+      "clase": "F",
+      "desc": "HRR minimo para considerar el fuego activo (umbral de extincion).",
+      "ref": "SFPE §3.1; valor tipico 1-10 kW para fuegos residenciales",
+      "dom": "1-20 kW segun tamano del escenario."
+    },
+    "fire_latent_enabled": {
+      "clase": "N",
+      "desc": "Habilita/deshabilita el estado LATENTE (smoldering post-llama). Selector de modulo.",
+      "ref": "Control de escenario",
+      "dom": "true = habilita smoldering; false = extincion directa."
+    },
+    "fire_latent_o2_viable_margin": {
+      "clase": "F",
+      "desc": "Margen de O2 sobre el minimo para que el estado latente sea viable.",
+      "ref": "SFPE §3.4; smoldering LOC",
+      "dom": "0.01-0.03 tipico."
+    },
+    "fire_backdraft_pool_threshold_MJ": {
+      "clase": "F",
+      "desc": "Energia minima de gas no quemado acumulada (MJ) para posibilitar backdraft.",
+      "ref": "NFPA 921 §23; NIST backdraft experiments",
+      "dom": "Especifico del escenario; tipico 0.5-5 MJ."
+    },
+
+    "upper_to_lower_loss_rate": {
+      "clase": "E",
+      "desc": "Tasa de transferencia de energia de la capa superior a la inferior (1/s).",
+      "ref": "Calibracion vs CFAST TN 1889v1; sin referencia SFPE directa",
+      "dom": "0.001-0.005 para compartimentos residenciales tipo. Valido para geometrias similares a Ghanekar/CFAST."
+    },
+    "lower_layer_warming_rate": {
+      "clase": "E",
+      "desc": "Tasa de calentamiento directo de la capa inferior (1/s).",
+      "ref": "Calibracion interna vs CFAST",
+      "dom": "0.0005-0.002 para salas residenciales. Geometrias muy diferentes requieren recalibracion."
+    },
+    "upper_to_ambient_loss_rate": {
+      "clase": "E",
+      "desc": "Tasa de perdida de energia de la capa superior al ambiente (1/s).",
+      "ref": "Calibracion vs CFAST; aproxima perdidas por conduccion a estructura",
+      "dom": "0.005-0.02 para construccion ligera. No valido para edificios con muy alta masa termica."
+    },
+    "wall_absorption_rate": {
+      "clase": "E",
+      "desc": "Tasa de absorcion de calor del gas superior por las paredes (1/s). Sustituida por h_k×A en SF-AUD-014 cuando se define material.",
+      "ref": "Calibracion vs CFAST; no es h_k estandar de SFPE",
+      "dom": "0.002-0.010 para paredes de yeso estandar. Valido solo en el rango de temperatura calibrado (100-500°C)."
+    },
+    "wall_heat_capacity_kj_m2_k": {
+      "clase": "E",
+      "desc": "Capacidad termica efectiva de la pared superficial (kJ/m²·K). Aproxima masa termica superficial.",
+      "ref": "Calibracion vs CFAST. Valor fisico tipico: yeso 12.7mm = 16 kJ/m²·K",
+      "dom": "10-50 kJ/m²·K para construccion ligera. Sustituida por calculo 1D (SF-AUD-014) cuando k/rho/cp/d disponibles."
+    },
+    "retained_hot_layer_temp_start_c": {
+      "clase": "E",
+      "desc": "Temperatura minima de la capa superior para inicio de retencion de capa caliente.",
+      "ref": "Calibracion vs observacion CFAST/Ghanekar; sin referencia SFPE directa",
+      "dom": "40-80°C segun escenario calibrado."
+    },
+    "retained_hot_layer_temp_full_c": {
+      "clase": "E",
+      "desc": "Temperatura de capa superior con efecto pleno de retencion de capa caliente.",
+      "ref": "Calibracion vs CFAST",
+      "dom": "100-200°C. No extrapolar a escenarios con T_upper >500°C sin recalibracion."
+    },
+    "retained_hot_layer_o2_full": {
+      "clase": "E",
+      "desc": "Fraccion de O2 bajo la cual la retencion de capa caliente es plena.",
+      "ref": "Calibracion empirica; sin referencia SFPE directa",
+      "dom": "0.05-0.10. No valido para fuegos con fuentes de ventilacion no modeladas."
+    },
+    "retained_hot_layer_max_fraction": {
+      "clase": "E",
+      "desc": "Fraccion maxima de capa caliente retenida (0-1).",
+      "ref": "Calibracion interna",
+      "dom": "0.70-0.98 para compartimentos cerrados."
+    },
+    "upper_heat_capture_max": {
+      "clase": "E",
+      "desc": "Fraccion maxima del HRR que puede capturarse en la capa superior.",
+      "ref": "Calibracion vs CFAST; aprox. 1-chi_rad promedio",
+      "dom": "0.15-0.40 para fuegos en interior."
+    },
+    "plume_fill_depth_coeff": {
+      "clase": "E",
+      "desc": "Coeficiente de profundidad de relleno de pluma (fraccion de altura de llama).",
+      "ref": "Calibracion vs McCaffrey NBSIR 79-1910",
+      "dom": "0.5-1.0. Sensible a la geometria del techo."
+    },
+    "plume_flame_region_entrainment_enabled": {
+      "clase": "N",
+      "desc": "Habilita el modelo de entrainment en la region de llama (por debajo de z_m).",
+      "ref": "Control de modulo fisico",
+      "dom": "true para fuegos grandes (HRR >500 kW) donde la llama llega al techo."
+    },
+    "plume_flame_region_coeff": {
+      "clase": "E",
+      "desc": "Coeficiente de entrainment en region de llama.",
+      "ref": "Calibracion interna vs FDS",
+      "dom": "0.01-0.05. No extrapolar a geometrias con H >5m."
+    },
+    "upper_heat_capture_outside_open_bonus": {
+      "clase": "E",
+      "desc": "Bonus de captura de calor con ventana exterior abierta.",
+      "ref": "Calibracion vs datos UL/NIST ventilacion tactica",
+      "dom": "0.0-0.10. Valido para apertura de ventana unica exterior."
+    },
+    "outside_open_upper_heat_boost": {
+      "clase": "E",
+      "desc": "Multiplicador de fraccion convectiva cuando hay vent exterior abierto.",
+      "ref": "Calibracion vs datos UL ventilation",
+      "dom": "0.3-1.0. Valido para ventana residencial estandar."
+    },
+    "outside_open_ambient_loss_multiplier": {
+      "clase": "E",
+      "desc": "Multiplicador de perdida al ambiente con vent exterior abierto.",
+      "ref": "Calibracion interna",
+      "dom": "1.0-5.0. Sensible al area de apertura."
+    },
+    "outside_open_wall_absorption_multiplier": {
+      "clase": "E",
+      "desc": "Multiplicador de absorcion de pared con vent exterior abierto (conveccion forzada).",
+      "ref": "Calibracion vs datos UL",
+      "dom": "0.1-0.5. Reduce efecto cuando hay flujo de aire que desplaza la capa."
+    },
+    "outside_open_lower_warming_rate": {
+      "clase": "E",
+      "desc": "Tasa de variacion en el calentamiento de capa inferior con vent abierto (puede ser negativa = enfriamiento).",
+      "ref": "Calibracion vs datos de temperatura de capa inferior NIST/UL",
+      "dom": "-0.05 a 0.02. Negativo cuando el aire fresco barre la capa inferior."
+    },
+    "outside_lower_fresh_air_cooling_rate": {
+      "clase": "E",
+      "desc": "Tasa de enfriamiento de capa inferior por ingreso de aire fresco exterior.",
+      "ref": "Calibracion vs datos UL ventilacion",
+      "dom": "0.001-0.01. Valido para ventanas en la zona inferior."
+    },
+
+    "plume_fire_diameter_m": {
+      "clase": "F",
+      "desc": "Diametro de la base del fuego (m). Afecta la altura de llama Heskestad y el entrainment.",
+      "ref": "SFPE §2.1 Heskestad; medicion experimental del area quemada",
+      "dom": "0.3-5.0 m segun tamano real del fuego."
+    },
+    "plume_mccaffrey_qc_fraction": {
+      "clase": "F",
+      "desc": "Fraccion convectiva del HRR usada en McCaffrey (Qc = chi_c * Q). Tipico 0.7 para madera.",
+      "ref": "SFPE Handbook Tabla 2-1.3; McCaffrey NBSIR 79-1910",
+      "dom": "0.55-0.80. Madera: 0.65-0.75; polimeros: 0.55-0.65."
+    },
+    "hrr_chi_rad_normal": {
+      "clase": "F",
+      "desc": "Fraccion radiativa del HRR en combustion bien ventilada (chi_rad). Ahora reemplazable per-combustible (SF-AUD-015).",
+      "ref": "SFPE Handbook Tabla 3-4.8; Markstein 1979; Hamins 1994",
+      "dom": "0.20-0.60 segun combustible. Madera: 0.27-0.35; PU: 0.40-0.60; heptano: 0.20-0.25."
+    },
+    "hrr_chi_rad_low_o2": {
+      "clase": "F",
+      "desc": "Fraccion radiativa con O2 bajo (combustion incompleta, mas hollin). Ahora reemplazable per-combustible.",
+      "ref": "SFPE §3.4; Tewarson combustion en ventilacion deficiente",
+      "dom": "hrr_chi_rad_normal <= chi_rad_low_o2 <= 0.70."
+    },
+    "natural_vent_inlet_fraction": {
+      "clase": "F",
+      "desc": "Fraccion del area de ventilacion que actua como entrada de aire (vs. salida de gases calientes).",
+      "ref": "SFPE §4.4; CFAST vent flow model",
+      "dom": "0.1-0.5 para ventanas residenciales. Depende de posicion de la apertura respecto al plano neutro."
+    },
+
+    "layer_150c_relax_up_per_s": {
+      "clase": "N",
+      "desc": "Tasa de relajacion numerica para el ascenso de la capa a 150°C (evita saltos bruscos).",
+      "ref": "Solver interno",
+      "dom": "0.01-0.10 por segundo. Valores mas bajos = transicion mas suave."
+    },
+    "thermal_gradient_band_fraction": {
+      "clase": "E",
+      "desc": "Anchura de la banda de gradiente termico entre capas (fraccion de altura de sala). 0 = interfaz ideal.",
+      "ref": "Calibracion vs perfil de temperatura CFAST",
+      "dom": "0.0-0.30. 0.0 para casos con interfaz neta; >0 para escenarios con mezcla graduada."
+    },
+    "max_upper_temp_c": {
+      "clase": "F",
+      "desc": "Temperatura maxima de la capa superior (°C). Aproxima temperatura adiabatica de llama.",
+      "ref": "SFPE §3.4; temperatura adiabatica tipica 800-1200°C para combustibles organicos",
+      "dom": "400-1200°C. Valor tipico para escenarios residenciales: 600-900°C."
+    },
+    "fed_heat_enabled": {
+      "clase": "N",
+      "desc": "Habilita/deshabilita la componente de calor radiante en el calculo de FED.",
+      "ref": "ISO 13571:2012 §5.3; selector de modulo",
+      "dom": "false para casos donde no se evalua tenabilidad por calor."
+    },
+    "fire_spread_enabled": {
+      "clase": "N",
+      "desc": "Habilita/deshabilita la propagacion de fuego entre objetos combustibles.",
+      "ref": "Selector de modulo",
+      "dom": "false para casos con fuego prescrito unico."
+    },
+    "glass_auto_break_enabled": {
+      "clase": "N",
+      "desc": "Habilita/deshabilita la rotura automatica de cristales por calor.",
+      "ref": "Selector de modulo (SF-AUD-011)",
+      "dom": "false para casos con aperturas fijas o sin cristal."
+    },
+    "fire_co_yield_force_kg_per_MJ": {
+      "clase": "F",
+      "desc": "Rendimiento forzado de CO (kg/MJ) para el escenario. Sobreescribe el calculado por phi.",
+      "ref": "NIST TN 1603 Tabla 2 / medicion experimental del escenario",
+      "dom": "Especifico del combustible y ventilacion del caso. Solo usar con datos medidos."
+    },
+
+    "fire_co_low_quality_yield_multiplier": {
+      "clase": "E",
+      "desc": "Multiplicador empirico del rendimiento de CO en combustion de baja calidad.",
+      "ref": "Calibracion vs datos Ghanekar 2020 CO upper",
+      "dom": "0.5-3.0. Valido para compartimentos del tipo bedroom/living con combustible domestico."
+    },
+    "fire_co_max_effective_fraction": {
+      "clase": "E",
+      "desc": "Fraccion maxima efectiva de CO sobre el total de gases.",
+      "ref": "Calibracion empirica; sin referencia ISO/SFPE directa",
+      "dom": "0.01-0.10. Evita valores fisicamente imposibles en underventilated."
+    },
+    "doorway_heat_exchange_coeff": {
+      "clase": "E",
+      "desc": "Coeficiente de intercambio de calor por conveccion en el umbral de puerta.",
+      "ref": "Calibracion vs datos Ghanekar temperatura pasillo",
+      "dom": "0.0-0.05. Valido para puertas residenciales estandar (0.9x2.1m)."
+    },
+    "outside_open_background_heat_exchange_kg_s_m2": {
+      "clase": "E",
+      "desc": "Flujo de masa de fondo para intercambio de calor con vent exterior abierto.",
+      "ref": "Calibracion interna",
+      "dom": "0.0-0.01 kg/s·m². Solo valido con vent en zona baja."
+    },
+    "thermal_smoke_bridge_ref_kg_m3": {
+      "clase": "E",
+      "desc": "Densidad de referencia de humo para activar el puente termico entre salas.",
+      "ref": "Calibracion vs Ghanekar temperatura pasillo; sin referencia SFPE directa",
+      "dom": "0.00001-0.001 kg/m³. Recalibrar si se cambia el yield de humo."
+    },
+    "thermal_smoke_bridge_max_weight": {
+      "clase": "E",
+      "desc": "Peso maximo del puente termico de humo en la transferencia de calor entre salas.",
+      "ref": "Calibracion interna",
+      "dom": "0.0-1.0."
+    },
+    "thermal_smoke_bridge_hot_temp_start_c": {
+      "clase": "E",
+      "desc": "Temperatura de la capa superior fuente a partir de la cual el puente termico de humo actua.",
+      "ref": "Calibracion vs Ghanekar",
+      "dom": "50-150°C."
+    },
+    "thermal_smoke_bridge_hot_temp_full_c": {
+      "clase": "E",
+      "desc": "Temperatura con efecto pleno del puente termico.",
+      "ref": "Calibracion vs Ghanekar",
+      "dom": "150-300°C."
+    },
+    "thermal_smoke_bridge_hot_max_weight": {
+      "clase": "E",
+      "desc": "Peso maximo del componente de temperatura en el puente termico.",
+      "ref": "Calibracion interna",
+      "dom": "0.0-1.0."
+    },
+    "background_species_exchange_kg_s_m2": {
+      "clase": "E",
+      "desc": "Tasa de fondo de intercambio de especies entre salas adyacentes (kg/s·m²).",
+      "ref": "Calibracion vs Ghanekar O2 pasillo",
+      "dom": "0.0-0.001. Solo valido para puertas entornadas o con gaps."
+    },
+    "background_o2_exchange_multiplier": {
+      "clase": "E",
+      "desc": "Multiplicador del intercambio de O2 en el flujo de fondo.",
+      "ref": "Calibracion vs Ghanekar O2",
+      "dom": "0.5-2.0. Sensible a la sellabilidad de la puerta."
+    },
+    "flow_path_interior_pull_boost": {
+      "clase": "E",
+      "desc": "Impulso adicional al flujo interior para modelar el efecto de tiro termico entre salas.",
+      "ref": "Calibracion vs Ghanekar temperatura pasillo/dormitorio",
+      "dom": "0.0-0.05. No extrapolar a edificios con mas de 2 pisos sin recalibracion."
+    },
+    "flow_path_interior_pull_max_multiplier": {
+      "clase": "E",
+      "desc": "Multiplicador maximo del efecto de tiro termico interior.",
+      "ref": "Calibracion interna",
+      "dom": "1.0-5.0."
+    },
+    "hot_gas_species_carry_fraction": {
+      "clase": "E",
+      "desc": "Fraccion de especies arrastradas por el gas caliente en flujos entre salas.",
+      "ref": "Calibracion vs datos CO/HCN Ghanekar pasillo",
+      "dom": "0.1-0.8. Sensible a la diferencia de temperatura entre salas."
+    },
+    "hot_gas_smoke_carry_fraction": {
+      "clase": "E",
+      "desc": "Fraccion de humo arrastrada por el gas caliente entre salas.",
+      "ref": "Calibracion vs visibilidad pasillo Ghanekar",
+      "dom": "0.1-0.8."
+    },
+    "hot_gas_species_max_fraction_per_step": {
+      "clase": "N",
+      "desc": "Fraccion maxima de especies que puede transferirse en un solo paso (estabilidad numerica).",
+      "ref": "Solver interno; limite de Courant para transporte de especies",
+      "dom": "0.05-0.30 por paso. Reducir si dt > 2s."
+    },
+    "vent_bernoulli_enabled": {
+      "clase": "F",
+      "desc": "Activa el modelo Bernoulli dos zonas para flujos por aperturas: Q = Cd·W·f·(2/3)·h^(3/2)·sqrt(2g·ΔT/T). Plano neutro calculado desde balance de presiones hidrostáticas. Para aberturas exteriores: z_n/H = α/(1+α), α = (T_amb/T_room)^(1/3).",
+      "ref": "SFPE Handbook 3rd Ed. §3.2 (Cooper); CFAST Technical Note 1889v1 §2.2; Drysdale 2011 §4.5",
+      "dom": "true/false. Cuando true, doorway_heat_exchange_coeff y doorway_o2_exchange_coeff no se aplican (la física es self-contained). Validado para ΔT > 0.5 K y aberturas h > 0.001 m."
+    },
+    "suppression_evaporation_fraction": {
+      "clase": "F",
+      "desc": "Fracción del agua aplicada que efectivamente se evapora (el resto escurre como runoff). Determina la masa de vapor generada: steam_kg += water_l × suppression_evaporation_fraction. No altera la energía de enfriamiento (cooling_kj = water_l × suppression_heat_absorption_kj_per_l).",
+      "ref": "NFPA 1710 §A.5; SFPE Handbook 4th §16.2 (Särdqvist 2002); Factory Mutual DS 4-0",
+      "dom": "0.15–0.40. 0.27 corresponde a ataque exterior con buen contacto (energía latente ≈ 0.27×2591 + 0.73×335 ≈ 944 kJ/L). Reducir en ataque exterior rápido (≈0.15); aumentar en compartimento sellado caliente (≈0.40)."
+    },
+    "suppression_steam_condensation_rate": {
+      "clase": "F",
+      "desc": "Tasa de desaparición del vapor por condensación y arrastre ventilatorio [1/s]. Controla la vida media del vapor en la sala: t_1/2 = ln(2) / rate. A 0.5 /s → vida media ≈ 1.4 s en sala ventilada típica.",
+      "ref": "SFPE Handbook 4th §16.2; estimación de tiempo de residencia de vapor en compartimento incendiado con aberturas (Hadjisophocleous & McCartney 2005)",
+      "dom": "0.1–2.0 /s. Reducir (0.1–0.2) en salas muy selladas sin ventilación; aumentar (1.0–2.0) en aberturas grandes o PPV activo."
+    }
+  }
+}

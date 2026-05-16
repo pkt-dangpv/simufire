@@ -36,6 +36,14 @@ var thermal_gap_fraction: float = 0.0
 # Coeficiente de "derrame" (tunable)
 var spill_coeff: float = 0.65
 
+# SF-AUD-036: PPV — Positive Pressure Ventilation
+# Caudal forzado del ventilador [m³/s]. 0 = sin PPV.
+# Ejemplo: ventilador PPV táctico residencial ~2.0-5.0 m³/s.
+var ppv_flow_m3_s: float = 0.0
+# Presión manométrica del ventilador PPV [Pa]. Sobrepresión que impulsa exhaustión.
+# Típico: 50-120 Pa para ventiladores tácticos de bomberos.
+var ppv_delta_p_pa: float = 50.0
+
 
 func _init(_a: int, _b: int, _type: int, _w: float, _h: float, _open: float = 1.0, _sill: float = 0.0) -> void:
 	a = _a

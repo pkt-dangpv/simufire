@@ -1,0 +1,23 @@
+{
+    "_comment": "SF-AUD-032 — balance elemental C/H/O/N. El clamp de carbono previene que",
+    "_comment2": "CO+CO2+HCN excedan el C disponible del combustible. Post-clamp: frac ≤ 1.0.",
+    "metrics": {
+        "room_0_peak_c_balance_frac": {
+            "max": 1.05,
+            "comment": "Conservación de C: fracción post-clamp siempre ≤ 1 (SF-AUD-032)"
+        },
+        "room_0_peak_co_ppm": {
+            "min": 1000.0,
+            "max": 20000.0,
+            "comment": "CO elevado (subventilado) pero acotado por el balance de C"
+        },
+        "room_0_peak_co2_ppm": {
+            "min": 5000.0,
+            "comment": "CO2 significativo: combustión real ocurrió"
+        },
+        "room_0_peak_hrr_kw": {
+            "min": 500.0,
+            "comment": "HRR alto: condiciones de subventilación alcanzadas"
+        }
+    }
+}

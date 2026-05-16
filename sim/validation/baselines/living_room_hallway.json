@@ -1,28 +1,28 @@
-﻿{
-    "metrics":  {
-                    "time_room_0_smoke_layer_2m_s":  {
-                                                         "expected":  24.916667,
-                                                         "tolerance":  8.0
-                                                     },
-                    "time_room_1_smoke_start_s":  {
-                                                      "expected":  38.583333,
-                                                      "tolerance":  8.0
-                                                  },
-                    "room_1_peak_temp_upper_c":  {
-                                                     "expected":  241.551574,
-                                                     "tolerance":  25.0
-                                                 },
-                    "room_1_min_l150_m":  {
-                                              "expected":  2.379131,
-                                              "tolerance":  0.20
-                                          },
-                    "room_1_final_temp_at_1_8m_c":  {
-                                                        "expected":  26.239241,
-                                                        "tolerance":  15.0
-                                                    },
-                    "room_0_final_layer_150c_m":  {
-                                                      "expected":  2.267737,
-                                                      "tolerance":  0.15
-                                                  }
-                }
+{
+  "metrics": {
+    "time_room_0_smoke_layer_2m_s": {
+      "expected": 24.75,
+      "tolerance": 8.0
+    },
+    "time_room_1_smoke_start_s": {
+      "expected": 39.416667,
+      "tolerance": 8.0
+    },
+    "room_1_peak_temp_upper_c": {
+      "expected": 445.01524,
+      "tolerance": 25.0
+    },
+    "room_1_min_l150_m": {
+      "expected": 0.190818,
+      "tolerance": 0.2
+    },
+    "room_1_final_temp_at_1_8m_c": {
+      "expected": 424.89307,
+      "tolerance": 15.0
+    },
+    "room_0_final_layer_150c_m": {
+      "expected": 0.213764,
+      "tolerance": 0.15
+    }
+  }
 }

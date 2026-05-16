@@ -238,6 +238,11 @@ func _load_from_template(data: Dictionary) -> void:
 			rooms[room_id].floor_level_z_m = float(room_data["floor_level_z_m"])
 		if room_data.has("fuel_objects"):
 			rooms[room_id].fuel_objects = _build_fuel_objects(room_data["fuel_objects"])
+		# SF-AUD-014: propiedades de material de pared (1D lumped conduction). Sentinel -1.0 = global.
+		rooms[room_id].wall_k_kw_m_k = float(room_data.get("wall_k_kw_m_k", -1.0))
+		rooms[room_id].wall_rho_kg_m3 = float(room_data.get("wall_rho_kg_m3", -1.0))
+		rooms[room_id].wall_cp_kj_kg_k = float(room_data.get("wall_cp_kj_kg_k", -1.0))
+		rooms[room_id].wall_thickness_m = float(room_data.get("wall_thickness_m", -1.0))
 
 	# Aperturas
 	for op_data in data.get("openings_data", []):
@@ -262,6 +267,10 @@ func _load_from_template(data: Dictionary) -> void:
 			op.wall_side = String(op_data["wall"]).to_lower()
 		if op_data.has("offset_m"):
 			op.offset_m = float(op_data["offset_m"])
+		if op_data.has("ppv_flow_m3_s"):
+			op.ppv_flow_m3_s = float(op_data["ppv_flow_m3_s"])
+		if op_data.has("ppv_delta_p_pa"):
+			op.ppv_delta_p_pa = float(op_data["ppv_delta_p_pa"])
 
 		openings.append(op)
 
@@ -331,12 +340,34 @@ func _build_fuel_objects(raw_objects: Variant) -> Array:
 		obj.formaldehyde_yield_kg_per_MJ = float(data.get("formaldehyde_yield_kg_per_MJ", obj.formaldehyde_yield_kg_per_MJ))
 		obj.o2_consumption_kg_per_MJ = float(data.get("o2_consumption_kg_per_MJ", obj.o2_consumption_kg_per_MJ))
 		obj.is_primary_ignition_source = bool(data.get("is_primary_ignition_source", false))
+		# SF-AUD-016: campos de pirólisis física (Tewarson). Sentinel -1.0 = modelo empírico heredado.
+		obj.critical_heat_flux_kw_m2 = float(data.get("critical_heat_flux_kw_m2", obj.critical_heat_flux_kw_m2))
+		obj.heat_of_gasification_kj_kg = float(data.get("heat_of_gasification_kj_kg", obj.heat_of_gasification_kj_kg))
+		obj.heat_of_combustion_kj_kg = float(data.get("heat_of_combustion_kj_kg", obj.heat_of_combustion_kj_kg))
+		# SF-AUD-008: fracción soot ópticamente activa (1.0 = todo el smoke_kg contribuye a extinción).
+		obj.soot_fraction = clampf(float(data.get("soot_fraction", obj.soot_fraction)), 0.0, 1.0)
+		# SF-AUD-005: CO₂ yield base por combustible. Sentinel -1.0 = usar global de contexto.
+		obj.co2_yield_kg_per_MJ = float(data.get("co2_yield_kg_per_MJ", obj.co2_yield_kg_per_MJ))
+		# SF-AUD-015: fracción radiativa (bien ventilado). Sentinel -1.0 = global del motor.
+		obj.chi_rad_normal = float(data.get("chi_rad_normal", obj.chi_rad_normal))
 		# Pool fire fields
 		obj.pool_spread_rate_m2_s = float(data.get("pool_spread_rate_m2_s", 0.0))
 		obj.pool_hrr_kw_m2 = float(data.get("pool_hrr_kw_m2", 1000.0))
 		obj.pool_max_area_m2 = float(data.get("pool_max_area_m2", 0.0))
 		obj.pool_area_m2 = float(data.get("pool_area_m2", 0.0))
 		obj.pool_initial_area_m2 = obj.pool_area_m2
+		obj.pool_k_beta_per_m = float(data.get("pool_k_beta_per_m", 0.0))
+		# SF-AUD-004: curva t² propia del objeto. -1.0 = usa alpha global del motor.
+		obj.alpha_kw_s2 = float(data.get("alpha_kw_s2", obj.alpha_kw_s2))
+		# SF-AUD-033: curva HRR tabulada [[t_s, hrr_kw], ...].
+		# Cuando presente, anula el modelo t². t_s relativo a ignición del objeto.
+		if data.has("hrr_curve") and typeof(data["hrr_curve"]) == TYPE_ARRAY:
+			obj.hrr_curve = (data["hrr_curve"] as Array).duplicate(true)
+		# SF-AUD-034: char layer + LOI.
+		obj.char_growth_rate_m_per_kg = float(data.get("char_growth_rate_m_per_kg", obj.char_growth_rate_m_per_kg))
+		obj.k_char_kw_m_k = float(data.get("k_char_kw_m_k", obj.k_char_kw_m_k))
+		obj.loi_fraction = float(data.get("loi_fraction", obj.loi_fraction))
+		# char_thickness_m es estado dinámico; se inicializa a 0 en tiempo de ejecución.
 		result.append(obj)
 
 	return result

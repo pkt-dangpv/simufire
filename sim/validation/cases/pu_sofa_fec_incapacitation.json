@@ -1,0 +1,93 @@
+{
+	"template": "simple_house",
+	"duration_s": 800.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 0,
+	"enable_logging": false,
+	"watch_room_ids": [0, 1],
+	"smoke_trigger_room_id": 0,
+	"spread_target_room_id": 1,
+	"l150_room_id": 0,
+	"threshold_metrics": [
+		{
+			"metric_name": "time_room_0_fec_above_0_1_s",
+			"field": "fec_irritant",
+			"room_id": 0,
+			"op": ">=",
+			"value": 0.1
+		},
+		{
+			"metric_name": "time_room_1_fec_above_0_05_s",
+			"field": "fec_irritant",
+			"room_id": 1,
+			"op": ">=",
+			"value": 0.05
+		},
+		{
+			"metric_name": "time_room_0_fed_above_0_1_s",
+			"field": "fed",
+			"room_id": 0,
+			"op": ">=",
+			"value": 0.1
+		}
+	],
+	"room_overrides": [
+		{
+			"id": 0,
+			"fuel_objects": [
+				{
+					"id": "pu_sofa",
+					"name": "Sofa espuma PU",
+					"kind": "mobiliario_tapizado",
+					"position_m": {"x": 0.5, "y": 0.5},
+					"size_m": {"x": 2.2, "y": 0.9},
+					"footprint_m2": 2.0,
+					"exposed_area_m2": 3.5,
+					"elevation_m": 0.4,
+					"fuel_energy_MJ": 2000.0,
+					"max_hrr_kw": 900.0,
+					"ignition_temp_c": 280.0,
+					"ignition_flux_kw_m2": 13.0,
+					"smoke_yield_kg_per_MJ": 0.030,
+					"co_yield_kg_per_MJ": 0.000385,
+					"hcn_yield_kg_per_MJ": 0.000154,
+					"acrolein_yield_kg_per_MJ": 0.000038,
+					"formaldehyde_yield_kg_per_MJ": 0.000019,
+					"hcl_yield_kg_per_MJ": 0.0
+				},
+				{
+					"id": "pu_moqueta",
+					"name": "Moqueta sintetica",
+					"kind": "textiles",
+					"position_m": {"x": 0.0, "y": 0.0},
+					"size_m": {"x": 5.0, "y": 4.0},
+					"footprint_m2": 14.0,
+					"exposed_area_m2": 14.0,
+					"elevation_m": 0.0,
+					"fuel_energy_MJ": 1800.0,
+					"max_hrr_kw": 500.0,
+					"ignition_temp_c": 295.0,
+					"ignition_flux_kw_m2": 14.0,
+					"smoke_yield_kg_per_MJ": 0.025,
+					"co_yield_kg_per_MJ": 0.000310,
+					"hcn_yield_kg_per_MJ": 0.000100,
+					"acrolein_yield_kg_per_MJ": 0.000030,
+					"formaldehyde_yield_kg_per_MJ": 0.000015,
+					"hcl_yield_kg_per_MJ": 0.0
+				}
+			]
+		}
+	],
+	"engine_overrides": {
+		"time_scale": 5.0,
+		"fire_spread_enabled": false,
+		"glass_auto_break_enabled": false,
+		"glass_break_mode": 0,
+		"fire_alpha_kw_s2": 0.04,
+		"fire_o2_min_for_flame": 0.10,
+		"fire_secondary_hrr_gain_kw": 2500.0,
+		"fire_latent_o2_viable_margin": 0.008,
+		"fire_extinction_delay_s": 240.0,
+		"fire_latent_extinction_delay_s": 300.0
+	}
+}

@@ -1,0 +1,51 @@
+{
+	"template": "row_house_ground_floor",
+	"duration_s": 600.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 1,
+	"enable_logging": false,
+	"watch_room_ids": [0, 1, 2, 4],
+	"smoke_trigger_room_id": 1,
+	"spread_target_room_id": 2,
+	"l150_room_id": 1,
+	"building_params": {
+		"wind_speed_m_s": 8.0,
+		"wind_direction_deg": 0.0
+	},
+	"threshold_metrics": [
+		{
+			"metric_name": "time_room_2_smoke_start_s",
+			"field": "smoke_kg",
+			"room_id": 2,
+			"op": ">=",
+			"value": 0.01
+		},
+		{
+			"metric_name": "time_room_4_smoke_start_s",
+			"field": "smoke_kg",
+			"room_id": 4,
+			"op": ">=",
+			"value": 0.01
+		},
+		{
+			"metric_name": "time_room_1_l150_below_1_8m_s",
+			"field": "layer_150c_m",
+			"room_id": 1,
+			"op": "<=",
+			"value": 1.8
+		}
+	],
+	"engine_overrides": {
+		"time_scale": 5.0,
+		"wind_effect_enabled": true,
+		"fire_spread_enabled": false,
+		"glass_auto_break_enabled": false,
+		"glass_break_mode": 0,
+		"fire_alpha_kw_s2": 0.047,
+		"fire_o2_min_for_flame": 0.10,
+		"fire_secondary_hrr_gain_kw": 2500.0,
+		"fire_latent_o2_viable_margin": 0.008,
+		"fire_extinction_delay_s": 240.0,
+		"fire_latent_extinction_delay_s": 300.0
+	}
+}

@@ -4,9 +4,12 @@ Esta carpeta contiene solo presentacion e interaccion visual. La simulacion y su
 
 - `2d/`: visualizador plano, overlays 2D y escenas auxiliares del mapa.
 - `3d/`: escena 3D, geometria visual, humo, fuego, mobiliario y camaras.
-  - `3d/smoke/`: mallas y materiales de humo.
-  - `3d/fire/`: materiales de llama y fuego de techo.
+  - `3d/camera/`: camara orbital, zoom y ajuste al modelo.
+  - `3d/smoke/`: mallas, materiales, sprites, animacion y puentes de humo entre aberturas.
+- `3d/fire/`: materiales, mallas y animacion de llama y fuego de techo.
   - `3d/furniture/`: clasificacion, colocacion, carga, formas procedurales y estados visuales de mobiliario/combustibles.
+  - `3d/geometry/`: geometria base de habitaciones.
+  - `3d/interaction/`: picking de raton y conversion pantalla-modelo.
   - `3d/openings/`: pose y geometria base de puertas/ventanas.
 - `fp/`: control de primera persona, raycast de interaccion, postura y luces locales.
   - `fp/FPVisibilityOverlay.gd`: overlay de humo y visibilidad efectiva en FP.

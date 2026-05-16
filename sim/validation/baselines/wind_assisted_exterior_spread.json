@@ -1,0 +1,10 @@
+{
+	"metrics": {
+		"room_1_peak_hrr_kw": { "min": 700.0, "comment": "wind-aided O2 supply drives strong fire" },
+		"room_1_peak_temp_upper_c": { "min": 450.0, "comment": "flashover-level temperature with wind 8 m/s" },
+		"time_room_1_l150_below_1_8m_s": { "min": 50.0, "max": 300.0, "comment": "smoke layer descent driven by wind" },
+		"time_room_2_smoke_start_s": { "min": 20.0, "max": 120.0, "comment": "fast smoke spread to hallway" },
+		"time_room_4_smoke_start_s": { "min": 70.0, "max": 250.0, "comment": "smoke reaches kitchen via hallway" },
+		"room_1_min_l150_m": { "max": 1.0, "comment": "hot gas layer descends well below head height" }
+	}
+}

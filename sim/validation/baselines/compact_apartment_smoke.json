@@ -1,0 +1,21 @@
+{
+    "metrics": {
+        "time_room_1_smoke_start_s": {
+            "min": 20.0,
+            "max": 300.0
+        },
+        "time_room_2_smoke_start_s": {
+            "min": 30.0,
+            "max": 400.0
+        },
+        "room_0_peak_hrr_kw": {
+            "min": 400.0
+        },
+        "room_0_peak_temp_upper_c": {
+            "min": 250.0
+        },
+        "smoke_generated_total_kg": {
+            "min": 2.0
+        }
+    }
+}

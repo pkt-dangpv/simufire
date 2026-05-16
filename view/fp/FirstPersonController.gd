@@ -10,6 +10,7 @@ const OUTSIDE_ID: int = -1
 const STANCE_STAND: int = 0
 const STANCE_CROUCH: int = 1
 const STANCE_PRONE: int = 2
+const OPENING_FRACTION_STEPS: Array[float] = [0.0, 0.25, 0.5, 0.75, 1.0]
 const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 
 @export var wall_thickness_m: float = 0.10
@@ -2082,11 +2083,15 @@ func _update_prompt() -> void:
 			_prompt_panel.visible = false
 		return
 	var kind: String = "puerta" if op.type == OpeningModel.Type.DOOR else "ventana"
-	var action: String = "cerrar" if op.open_fraction > 0.5 else "abrir"
-	_prompt_label.text = "F: %s %s (%d%%)" % [
+	var next_frac: float = _next_opening_fraction(op.open_fraction)
+	var curr_pct: int = int(round(op.open_fraction * 100.0))
+	var next_pct: int = int(round(next_frac * 100.0))
+	var action: String = "cerrar" if next_frac < op.open_fraction else "abrir"
+	_prompt_label.text = "F: %s %s (%d%% → %d%%)" % [
 		action,
 		kind,
-		int(round(op.open_fraction * 100.0))
+		curr_pct,
+		next_pct
 	]
 	if _prompt_panel != null:
 		_prompt_panel.visible = true
@@ -2184,6 +2189,17 @@ func _find_current_room_id() -> int:
 	return -1
 
 
+func _next_opening_fraction(current: float) -> float:
+	var closest_idx: int = 0
+	var min_dist: float = INF
+	for i in range(OPENING_FRACTION_STEPS.size()):
+		var d: float = absf(current - OPENING_FRACTION_STEPS[i])
+		if d < min_dist:
+			min_dist = d
+			closest_idx = i
+	return OPENING_FRACTION_STEPS[(closest_idx + 1) % OPENING_FRACTION_STEPS.size()]
+
+
 func _interact_with_nearest_opening() -> void:
 	if building == null:
 		return
@@ -2194,10 +2210,8 @@ func _interact_with_nearest_opening() -> void:
 	var op: OpeningModel = building.get_opening_at(_nearest_opening_index)
 	if op == null:
 		return
-	if op.open_fraction > 0.5:
-		building.close_opening(_nearest_opening_index)
-	else:
-		building.open_opening(_nearest_opening_index)
+	var next_frac: float = _next_opening_fraction(op.open_fraction)
+	building.set_opening_fraction(_nearest_opening_index, next_frac)
 	_update_opening_panel(_nearest_opening_index)
 	opening_changed.emit()
 	_update_prompt()

@@ -1,0 +1,133 @@
+{
+	"baseline": {
+		"all_pass": true,
+		"checks": {
+			"room_0_final_dominant_fuel_object_remaining_MJ": {
+				"actual": 698.099425115962,
+				"pass": true,
+				"rule": {
+					"max": 890.0,
+					"min": 300.0
+				}
+			},
+			"room_0_max_fuel_objects_flaming_count": {
+				"actual": 1,
+				"pass": true,
+				"rule": {
+					"min": 1.0
+				}
+			},
+			"room_0_peak_hrr_kw": {
+				"actual": 707.278354450011,
+				"pass": true,
+				"rule": {
+					"max": 1500.0,
+					"min": 350.0
+				}
+			},
+			"room_0_peak_temp_upper_c": {
+				"actual": 729.5096422559,
+				"pass": true,
+				"rule": {
+					"max": 950.0,
+					"min": 350.0
+				}
+			}
+		}
+	},
+	"case": "char_layer_loi_wood",
+	"duration_s": 600.0,
+	"metrics": {
+		"max_upper_radiative_loss_kw_global": 461.923266876344,
+		"peak_co_ppm_global": 3803.75528257226,
+		"peak_co_upper_ppm_global": 48460.4647793673,
+		"peak_hrr_kw_global": 707.278354450011,
+		"peak_temp_upper_c_global": 729.5096422559,
+		"peak_temp_upper_raw_c_global": 729.5096422559,
+		"room_0_final_bud_e_fire_kj": 0.0,
+		"room_0_final_bud_q_residual_kj": 0.0,
+		"room_0_final_bud_residual_frac": 0.0,
+		"room_0_final_burned_hrr_kw": 72.9677333696398,
+		"room_0_final_c_balance_frac": 0.239082228662494,
+		"room_0_final_co2_ppm": 5184.00223119674,
+		"room_0_final_co_ppm": 1433.05393533972,
+		"room_0_final_co_upper_ppm": 9930.56492151625,
+		"room_0_final_dominant_fuel_object_exposure_s": 75.0,
+		"room_0_final_dominant_fuel_object_id": "wood_panel_char",
+		"room_0_final_dominant_fuel_object_remaining_MJ": 698.099425115962,
+		"room_0_final_dominant_fuel_object_state": "decaying",
+		"room_0_final_fed": 0.804708180619342,
+		"room_0_final_fire_time_s": 222.57409407333,
+		"room_0_final_flame_hrr_target_kw": 0.0,
+		"room_0_final_fuel_objects_flaming_count": 0,
+		"room_0_final_fuel_objects_heating_count": 0,
+		"room_0_final_fuel_objects_pyrolyzing_count": 0,
+		"room_0_final_fuel_objects_remaining_MJ": 698.099425115962,
+		"room_0_final_hot_layer_m": 1.89382809586346,
+		"room_0_final_hrr_kw": 72.9677333696398,
+		"room_0_final_hrr_target_kw": 25.5958342441981,
+		"room_0_final_layer_150c_m": 1.89624759673604,
+		"room_0_final_o2": 0.112589482035699,
+		"room_0_final_o2_hrr_factor": 0.114819467927487,
+		"room_0_final_outside_open_path_factor": 0.0,
+		"room_0_final_pool_release_hrr_target_kw": 0.0,
+		"room_0_final_pyrolysis_kw": 426.597237403302,
+		"room_0_final_remaining_fuel_MJ": 5798.09942264083,
+		"room_0_final_retained_unburned_MJ": 5.87311983841214,
+		"room_0_final_smoke_kg": 0.342567329123078,
+		"room_0_final_smoke_layer_m": 1.89648258420506,
+		"room_0_final_smolder_hrr_target_kw": 25.5958342441981,
+		"room_0_final_temp_at_0_1m_c": 48.6016807887573,
+		"room_0_final_temp_at_0_5m_c": 106.251153965791,
+		"room_0_final_temp_at_0_9m_c": 106.251153965791,
+		"room_0_final_temp_at_1_0m_c": 106.251153965791,
+		"room_0_final_temp_at_1_1m_c": 106.251153965791,
+		"room_0_final_temp_at_1_5m_c": 106.251153965791,
+		"room_0_final_temp_at_1_8m_c": 107.460425463775,
+		"room_0_final_temp_at_2_2m_c": 155.288125960553,
+		"room_0_final_temp_upper_clamp_count": 0,
+		"room_0_final_temp_upper_clamp_time_s": 0.0,
+		"room_0_final_temp_upper_clamped": false,
+		"room_0_final_temp_upper_raw_c": 155.288125960553,
+		"room_0_final_unburned_generation_kw": 0.0,
+		"room_0_final_upper_radiative_loss_kw": 1.98233884028264,
+		"room_0_final_ventilation_response_factor": 0.0,
+		"room_0_final_visibility_m": 0.0101367924107744,
+		"room_0_final_wall_T_mid_c": 20.0,
+		"room_0_final_wall_T_outer_c": 20.0,
+		"room_0_final_wall_k_kw_m_k": -1.0,
+		"room_0_final_wall_thickness_m": -1.0,
+		"room_0_max_fed": 0.804708180619342,
+		"room_0_max_fuel_objects_flaming_count": 1,
+		"room_0_max_fuel_objects_heating_count": 0,
+		"room_0_max_fuel_objects_pyrolyzing_count": 0,
+		"room_0_max_passive_fuel_flux_kw_m2": 37.9272154656532,
+		"room_0_max_passive_fuel_surface_temp_c": 414.748124289816,
+		"room_0_max_unburned_generation_kw": 69.5284518180195,
+		"room_0_max_upper_radiative_loss_kw": 461.923266876344,
+		"room_0_min_l150_m": 1.53610801127184,
+		"room_0_min_visibility_m": 0.00305378945610327,
+		"room_0_peak_burned_hrr_kw": 707.278354450011,
+		"room_0_peak_c_balance_frac": 1.0,
+		"room_0_peak_co2_ppm": 14878.0159130372,
+		"room_0_peak_co_ppm": 2054.12886929249,
+		"room_0_peak_co_upper_ppm": 20812.0805111965,
+		"room_0_peak_hrr_kw": 707.278354450011,
+		"room_0_peak_pyrolysis_kw": 809.056733675373,
+		"room_0_peak_temp_upper_c": 729.5096422559,
+		"room_0_peak_temp_upper_raw_c": 729.5096422559,
+		"smoke_deposited_total_kg": 0.0252486587940974,
+		"smoke_generated_total_kg": 8.07826967070185,
+		"smoke_vented_total_kg": 2.76762349725972,
+		"suppression_cooling_total_kj": 0.0,
+		"suppression_water_applied_l": 0.0,
+		"time_room_0_fuel_flaming_s": 0.583333333333333,
+		"time_room_0_l150_below_1_8m_s": 102.166666666665,
+		"time_room_0_smoke_layer_2m_s": 29.3333333333332,
+		"time_room_0_temp_1_8m_above_150c_s": 95.4166666666656,
+		"time_room_1_smoke_start_s": 44.4166666666668,
+		"watched_temp_upper_clamp_count": 0,
+		"watched_temp_upper_clamp_time_s": 0.0
+	},
+	"sim_time_s": 600.083333333327
+}

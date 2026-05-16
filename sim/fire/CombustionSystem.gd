@@ -357,11 +357,28 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		room.backdraft_cooldown_s = maxf(0.0, room.backdraft_cooldown_s - dt)
 	if room.retained_unburned_MJ > 0.001 and opening_signal > 0.01:
 		var release_drive: float = room.ventilation_response_factor * maxf(0.15, oxygen_recovery_signal)
+
+		# ── LFL/UFL: comprobar que la mezcla gas/aire está en rango inflamable ──────
+		# SF-AUD-013: masa de gas no quemado → volumen a densidad del gas de pirólisis.
+		# Fracción volumétrica = vol_gas / vol_compartimento.
+		# LFL ≈ 2% y UFL ≈ 20% para gas de pirólisis subventilado (CO/HC mix).
+		var fuel_heat_kj_kg: float = float(context.get("fire_backdraft_fuel_heat_kj_kg", 10000.0))
+		var fuel_density: float = maxf(0.1, float(context.get("fire_backdraft_fuel_gas_density", 0.8)))
+		var fuel_kg: float = room.retained_unburned_MJ * 1000.0 / maxf(1.0, fuel_heat_kj_kg)
+		var fuel_vol_m3: float = fuel_kg / fuel_density
+		var room_vol: float = maxf(0.1, room.volume_m3())
+		var fuel_vol_frac: float = fuel_vol_m3 / room_vol
+		room.unburned_gas_vol_frac = fuel_vol_frac
+		var lfl: float = float(context.get("fire_backdraft_lfl", 0.02))
+		var ufl: float = float(context.get("fire_backdraft_ufl", 0.20))
+		var mixture_flammable: bool = fuel_vol_frac >= lfl and fuel_vol_frac <= ufl
+
 		var backdraft_ready: bool = room.retained_unburned_MJ \
 				>= float(context.get("fire_backdraft_pool_threshold_MJ", 8.0)) \
 				and room.o2 <= float(context.get("fire_backdraft_o2_max", 0.13)) \
 				and room.temp_upper_c >= float(context.get("fire_backdraft_temp_min_c", 180.0)) \
-				and opening_signal > 0.08
+				and opening_signal > 0.08 \
+				and mixture_flammable
 		if backdraft_ready:
 			release_drive *= float(context.get("fire_backdraft_release_boost", 1.35))
 			# Disparo del evento backdraft: acumulación de inquémados + entrada súbita de O2
@@ -371,6 +388,13 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 				room.backdraft_active = true
 				room.backdraft_phase_time_s = 0.0
 				room.backdraft_cooldown_s = float(context.get("fire_backdraft_cooldown_s", 180.0))
+				# Sobrepresión de deflagración instantánea — SF-AUD-013.
+				# La combustión explosiva del gas acumulado genera una onda de
+				# sobrepresión (ref: NFPA 921 §23; NIST backdraft experiments).
+				var def_pa: float = float(context.get(
+					"fire_backdraft_deflagration_overpressure_pa", 500.0
+				))
+				room.overpressure_pa += def_pa
 
 		# M7: solo liberar pool cuando hay suficiente O₂ para quemar.
 		# Con O₂ < umbral de backdraft, el pool acumula gas sin quemar hasta que
@@ -500,6 +524,10 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var smoke_basis_MJ: float = smoke_basis_kw * dt / 1000.0
 	var heat_release_MJ: float = room.hrr_kw * dt / 1000.0
 	room.smoke_prod_kg_s = _compute_smoke_production_kg_s(smoke_basis_kw, smoke_yield_kg_per_MJ)
+	# SF-AUD-008: fracción de smoke_kg que es soot ópticamente activo (K_m = 8700 m²/kg).
+	room.soot_fraction = _resolve_room_soot_fraction(room, 1.0)
+	# SF-AUD-015: fracción radiativa bien ventilada por combustible (-1.0 = usar global del motor).
+	room.chi_rad_normal = _resolve_room_chi_rad_normal(room, -1.0)
 
 	var latent_timeout_s: float = float(
 		context.get("fire_latent_extinction_delay_s", context.get("fire_extinction_delay_s", 0.0))
@@ -582,8 +610,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		co_basis_kw = maxf(co_basis_kw, smolder_target_kw * 0.75 + retained_co_basis_kw)
 	var co_basis_MJ: float = co_basis_kw * dt / 1000.0
 	var generated_co_kg: float = co_yield * co_basis_MJ
-	room.co_kg += generated_co_kg
-	room.co_upper_kg += generated_co_kg
+	# room.co_kg / co_upper_kg se añaden más abajo, tras el balance de C (SF-AUD-032).
 
 	# HCN yield: tambien aumenta con phi (mas combustion incompleta = mas HCN).
 	# SF-AUD-006: el yield base se resuelve por combustible segun su contenido de N.
@@ -597,13 +624,15 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		hcn_global_max,
 		hcn_base_yield * (hcn_global_max / maxf(hcn_global_base, 0.000001))
 	)
+	# HCN se acumula en generated_hcn_kg y se aplica DESPUÉS del balance de C (SF-AUD-032).
+	var generated_hcn_kg: float = 0.0
 	if hcn_base_yield > 0.0:
 		var hcn_yield: float = clampf(
 			hcn_base_yield * exp(k_phi_co * (phi - 1.0)),
 			hcn_base_yield,
 			hcn_max_yield
 		)
-		room.hcn_kg += hcn_yield * co_basis_MJ
+		generated_hcn_kg = hcn_yield * co_basis_MJ
 
 	# HCl, acroleína, formaldehído — SF-AUD-018 (FEC irritantes, ISO 13571 §A.3).
 	# Default yield = 0.0 → retrocompatible. Solo activos si el combustible tiene Cl / es PU/madera.
@@ -633,11 +662,48 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	# Balance aproximado de carbono: a phi=3, ~40% del carbono forma CO en vez de CO2.
 	# Lineal: y_CO2 = lerp(co2_min, co2_base, max(0, 1 - (phi-1)/co2_phi_decay_rate)).
 	# co2_phi_decay_rate=2.5 → y_CO2 llega al minimo en phi=3.5 (Pitts, NIST TN 1603).
-	var co2_base: float = float(context.get("co2_base_yield_kg_per_MJ", 0.0831))
-	var co2_min: float = float(context.get("co2_min_yield_kg_per_MJ", 0.0594))
+	# SF-AUD-005: co2_base puede ser por combustible (co2_yield_kg_per_MJ en FuelObjectModel).
+	# co2_min escala proporcionalmente al base para mantener la relacion min/base constante.
+	var co2_base_global: float = float(context.get("co2_base_yield_kg_per_MJ", 0.0831))
+	var co2_base: float = _resolve_room_co2_yield_kg_per_MJ(room, co2_base_global)
+	var co2_min_global: float = float(context.get("co2_min_yield_kg_per_MJ", 0.0594))
+	var co2_min: float = co2_base * (co2_min_global / maxf(0.0001, co2_base_global))
 	var co2_phi_t: float = clampf(1.0 - (phi - 1.0) / float(context.get("co2_phi_decay_rate", 2.5)), 0.0, 1.0)
 	var co2_yield: float = lerpf(co2_min, co2_base, co2_phi_t)
-	room.co2_kg += co2_yield * maxf(heat_release_MJ, smoke_basis_MJ * 0.60)
+	var generated_co2_kg: float = co2_yield * maxf(heat_release_MJ, smoke_basis_MJ * 0.60)
+
+	# SF-AUD-032: balance elemental de carbono.
+	# El total de C en productos gaseosos (CO + CO₂ + HCN) no puede superar el C
+	# disponible en el combustible sólido quemado en este paso.
+	# Referencia: NFPA 921 §5.5; SFPE Handbook Table 3.4-1; Pitts NIST TN 1603.
+	# fuel_c_kg_per_MJ ≈ carbono disponible por MJ liberado (madera=0.027, PU=0.024).
+	# Nota: el carbono en soot/humo se contabiliza por separado en SmokeModel; aquí
+	# se conservan las especies gaseosas principales que forman el gas tóxico de capas.
+	var c_per_MJ: float = float(context.get("fuel_c_kg_per_MJ", 0.027))
+	var c_avail_kg: float = solid_fuel_demand_MJ * c_per_MJ
+	var c_in_co: float = generated_co_kg * (12.0 / 28.0)
+	var c_in_co2: float = generated_co2_kg * (12.0 / 44.0)
+	var c_in_hcn: float = generated_hcn_kg * (12.0 / 27.0)
+	var c_total: float = c_in_co + c_in_co2 + c_in_hcn
+	if c_avail_kg > 0.0 and c_total > c_avail_kg:
+		var c_scale: float = c_avail_kg / c_total
+		generated_co_kg *= c_scale
+		generated_co2_kg *= c_scale
+		generated_hcn_kg *= c_scale
+	# Fracción de carbono POST-clamp (diagnóstico SF-AUD-032).
+	# Siempre ≤ 1.0; confirma que la conservación se cumple paso a paso.
+	if c_avail_kg > 0.0:
+		var c_produced: float = generated_co_kg * (12.0 / 28.0) \
+				+ generated_co2_kg * (12.0 / 44.0) \
+				+ generated_hcn_kg * (12.0 / 27.0)
+		room.c_balance_frac = c_produced / c_avail_kg
+	else:
+		room.c_balance_frac = 0.0
+
+	room.co_kg += generated_co_kg
+	room.co_upper_kg += generated_co_kg
+	room.co2_kg += generated_co2_kg
+	room.hcn_kg += generated_hcn_kg
 
 	fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ - solid_fuel_demand_MJ)
 	_sync_explicit_objects_from_active_fire(
@@ -1037,6 +1103,39 @@ func _update_passive_fuel_object(
 		obj.state = FuelObjectModelScript.State.COLD
 
 	obj.hrr_kw = 0.0
+	obj.t_ignition_s = -1.0
+
+	# SF-AUD-016: MLR física (Tewarson): ṁ = (q_inc − q_crit) × A_eff / ΔHg; hrr = ṁ × ΔHc.
+	# Solo activa cuando ΔHg y ΔHc están configurados explícitamente (> 0); sentinel -1.0 = modelo heredado.
+	if obj.state == FuelObjectModelScript.State.PYROLYZING \
+			and float(obj.heat_of_gasification_kj_kg) > 0.0 \
+			and float(obj.heat_of_combustion_kj_kg) > 0.0:
+		# SF-AUD-034: LOI — si O2 de sala < LOI, el material no puede arder en aire empobrecido.
+		if float(obj.loi_fraction) > 0.0 and room.o2 < float(obj.loi_fraction):
+			obj.state = FuelObjectModelScript.State.HEATING
+			obj.hrr_kw = 0.0
+			return false
+		# SF-AUD-034: char layer — atenúa el flujo efectivo mediante resistencia térmica.
+		# R_char [m²K/kW] = char_thickness / k_char; factor adimensional = R_char × h_ref (0.025 kW/m²K).
+		var q_inc_eff_kw_m2: float = obj.incident_heat_flux_kw_m2
+		if float(obj.char_thickness_m) > 0.0 and float(obj.k_char_kw_m_k) > 0.0:
+			var R_char: float = float(obj.char_thickness_m) / maxf(1.0e-9, float(obj.k_char_kw_m_k))
+			q_inc_eff_kw_m2 = obj.incident_heat_flux_kw_m2 / maxf(1.0, 1.0 + R_char * 0.025)
+		var q_net_kw_m2: float = maxf(0.0,
+			q_inc_eff_kw_m2 - float(obj.critical_heat_flux_kw_m2))
+		var A_eff_m2: float = maxf(0.0,
+			float(obj.exposed_area_m2) if float(obj.exposed_area_m2) > 0.001
+			else float(obj.footprint_m2) * 0.5)
+		# ṁ [kg/s] = q_net [kW/m²] × A [m²] / ΔHg [kJ/kg]
+		var mlr_kg_s: float = q_net_kw_m2 * A_eff_m2 / float(obj.heat_of_gasification_kj_kg)
+		# hrr [kW] = ṁ [kg/s] × ΔHc [kJ/kg]; acotado por 35% del max_hrr_kw en fase pre-ignición
+		obj.hrr_kw = clampf(mlr_kg_s * float(obj.heat_of_combustion_kj_kg),
+			0.0, maxf(0.0, float(obj.max_hrr_kw)) * 0.35)
+		# Auto-extinción: si el flujo cae bajo el 70% del umbral crítico, la combustión no es sostenible
+		if obj.incident_heat_flux_kw_m2 < float(obj.critical_heat_flux_kw_m2) * 0.70:
+			obj.state = FuelObjectModelScript.State.HEATING
+			obj.hrr_kw = 0.0
+
 	return autoignite_ready
 
 
@@ -1186,6 +1285,113 @@ func _resolve_room_co_yield_kg_per_MJ(room: RoomModel, fallback_yield: float) ->
 		return fallback_yield
 
 	return weighted_yield / total_weight
+
+
+func _resolve_room_soot_fraction(room: RoomModel, fallback_fraction: float) -> float:
+	# SF-AUD-008: fracción soot ponderada por HRR de objetos activos.
+	# Determina qué parte de smoke_kg es ópticamente activa (K_m = 8700 m²/kg).
+	# Retrocompatible: objetos sin soot_fraction propio (= 1.0) conservan visibilidad original.
+	if room == null or not _has_explicit_fuel_objects(room):
+		return fallback_fraction
+
+	var weighted_frac: float = 0.0
+	var total_weight: float = 0.0
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+		if obj.remaining_fuel_MJ <= 0.001:
+			continue
+
+		var preheat_fraction: float = clampf(_fuel_object_preheat_score(obj) / 8.0, 0.0, 1.0)
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * lerpf(0.35, 1.0, preheat_fraction)
+		if bool(obj.is_primary_ignition_source):
+			weight *= 1.40
+		if obj.state == FuelObjectModelScript.State.FLAMING:
+			weight *= 1.35
+		elif obj.state == FuelObjectModelScript.State.PYROLYZING:
+			weight *= 1.20
+
+		weighted_frac += clampf(float(obj.soot_fraction), 0.0, 1.0) * weight
+		total_weight += weight
+
+	if total_weight <= 0.000001:
+		return fallback_fraction
+
+	return clampf(weighted_frac / total_weight, 0.0, 1.0)
+
+
+func _resolve_room_co2_yield_kg_per_MJ(room: RoomModel, fallback_yield: float) -> float:
+	# SF-AUD-005: CO₂ yield base ponderado por HRR de objetos activos.
+	# Sentinel -1.0 en el objeto = excluir de la ponderación (usa fallback global).
+	# Retrocompatible: si ningún objeto define co2_yield_kg_per_MJ > 0, devuelve fallback.
+	if room == null or not _has_explicit_fuel_objects(room):
+		return fallback_yield
+
+	var weighted_yield: float = 0.0
+	var total_weight: float = 0.0
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+		if obj.remaining_fuel_MJ <= 0.001:
+			continue
+
+		var object_yield: float = float(obj.co2_yield_kg_per_MJ)
+		if object_yield < 0.0:
+			continue  # sentinel: no contribuye a la media ponderada
+
+		var preheat_fraction: float = clampf(_fuel_object_preheat_score(obj) / 8.0, 0.0, 1.0)
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * lerpf(0.35, 1.0, preheat_fraction)
+		if bool(obj.is_primary_ignition_source):
+			weight *= 1.40
+		if obj.state == FuelObjectModelScript.State.FLAMING:
+			weight *= 1.35
+		elif obj.state == FuelObjectModelScript.State.PYROLYZING:
+			weight *= 1.20
+
+		weighted_yield += object_yield * weight
+		total_weight += weight
+
+	if total_weight <= 0.000001:
+		return fallback_yield
+
+	return maxf(0.0, weighted_yield / total_weight)
+
+
+func _resolve_room_chi_rad_normal(room: RoomModel, fallback: float) -> float:
+	# SF-AUD-015: fracción radiativa (φ=1, bien ventilado) ponderada por HRR de objetos activos.
+	# Sentinel -1.0 en el objeto = excluir de la ponderación (usa global del motor).
+	# Retrocompatible: si ningún objeto define chi_rad_normal ≥ 0, devuelve fallback (-1.0).
+	if room == null or not _has_explicit_fuel_objects(room):
+		return fallback
+
+	var weighted_frac: float = 0.0
+	var total_weight: float = 0.0
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+		if obj.remaining_fuel_MJ <= 0.001:
+			continue
+
+		var frac: float = float(obj.chi_rad_normal)
+		if frac < 0.0:
+			continue  # sentinel: no contribuye
+
+		var preheat_fraction: float = clampf(_fuel_object_preheat_score(obj) / 8.0, 0.0, 1.0)
+		var weight: float = maxf(1.0, obj.max_hrr_kw) * lerpf(0.35, 1.0, preheat_fraction)
+		if bool(obj.is_primary_ignition_source):
+			weight *= 1.40
+		if obj.state == FuelObjectModelScript.State.FLAMING:
+			weight *= 1.35
+		elif obj.state == FuelObjectModelScript.State.PYROLYZING:
+			weight *= 1.20
+
+		weighted_frac += clampf(frac, 0.0, 1.0) * weight
+		total_weight += weight
+
+	if total_weight <= 0.000001:
+		return fallback
+
+	return clampf(weighted_frac / total_weight, 0.0, 1.0)
 
 
 func _resolve_room_hcn_base_yield_kg_per_MJ(room: RoomModel, fallback_yield: float) -> float:
@@ -1549,14 +1755,53 @@ func _sync_explicit_objects_from_active_fire(
 				obj.state = FuelObjectModelScript.State.HEATING
 			continue
 
-		var weight: float = maxf(1.0, obj.max_hrr_kw) * (0.35 + 0.65 * preheat_score / 8.0)
-		if bool(obj.is_primary_ignition_source):
-			weight *= 1.40
+		# SF-AUD-004: si el objeto tiene su propia curva t², registrar ignición y calcular
+		# su HRR ideal independiente. Esto permite que objetos encendidos en distintos
+		# momentos crezcan según su propio alpha, en vez de compartir el alpha global.
+		# SF-AUD-033: también registrar ignición si el objeto tiene curva HRR tabulada.
 		if obj.state == FuelObjectModelScript.State.FLAMING:
-			weight *= 1.35
-		elif obj.state == FuelObjectModelScript.State.PYROLYZING:
-			weight *= 1.20
-		weight = maxf(0.01, weight)
+			if float(obj.alpha_kw_s2) > 0.0 or not obj.hrr_curve.is_empty():
+				if float(obj.t_ignition_s) < 0.0:
+					obj.t_ignition_s = room.fire_time_s
+		var weight: float
+		if float(obj.alpha_kw_s2) > 0.0 and float(obj.t_ignition_s) >= 0.0:
+			# Peso = HRR ideal del objeto en su propio tiempo t² desde su ignición.
+			var t_obj: float = maxf(0.0, room.fire_time_s - float(obj.t_ignition_s))
+			var obj_ideal_kw: float = float(obj.alpha_kw_s2) * t_obj * t_obj
+			if float(obj.max_hrr_kw) > 0.0:
+				obj_ideal_kw = minf(obj_ideal_kw, float(obj.max_hrr_kw))
+			weight = maxf(0.01, obj_ideal_kw)
+		elif not obj.hrr_curve.is_empty() and float(obj.t_ignition_s) >= 0.0:
+			# SF-AUD-033: curva HRR tabulada — interpolación lineal por tramos.
+			var t_obj: float = maxf(0.0, room.fire_time_s - float(obj.t_ignition_s))
+			var obj_ideal_kw: float = _interp_hrr_curve(obj.hrr_curve, t_obj)
+			if float(obj.max_hrr_kw) > 0.0:
+				obj_ideal_kw = minf(obj_ideal_kw, float(obj.max_hrr_kw))
+			weight = maxf(0.01, obj_ideal_kw)
+		elif float(obj.heat_of_gasification_kj_kg) > 0.0 \
+				and float(obj.heat_of_combustion_kj_kg) > 0.0 \
+				and obj.state == FuelObjectModelScript.State.FLAMING:
+			# SF-AUD-016: MLR-based weight cuando no hay curva t² propia.
+			# Peso = HRR instantáneo por pirólisis física: ṁ × ΔHc.
+			var q_net_kw_m2: float = maxf(0.0,
+				obj.incident_heat_flux_kw_m2 - float(obj.critical_heat_flux_kw_m2))
+			var A_eff_m2: float = maxf(0.01,
+				float(obj.exposed_area_m2) if float(obj.exposed_area_m2) > 0.001
+				else float(obj.footprint_m2) * 0.5)
+			var mlr_kg_s: float = q_net_kw_m2 * A_eff_m2 / float(obj.heat_of_gasification_kj_kg)
+			var obj_ideal_kw: float = mlr_kg_s * float(obj.heat_of_combustion_kj_kg)
+			if float(obj.max_hrr_kw) > 0.0:
+				obj_ideal_kw = minf(obj_ideal_kw, float(obj.max_hrr_kw))
+			weight = maxf(0.01, obj_ideal_kw)
+		else:
+			weight = maxf(1.0, obj.max_hrr_kw) * (0.35 + 0.65 * preheat_score / 8.0)
+			if bool(obj.is_primary_ignition_source):
+				weight *= 1.40
+			if obj.state == FuelObjectModelScript.State.FLAMING:
+				weight *= 1.35
+			elif obj.state == FuelObjectModelScript.State.PYROLYZING:
+				weight *= 1.20
+			weight = maxf(0.01, weight)
 
 		candidates.append({
 			"obj": obj,
@@ -1609,8 +1854,17 @@ func _sync_explicit_objects_from_active_fire(
 		var burn_MJ: float = float(entry["burn_MJ"])
 		if burn_MJ > 0.000001 and consumed_MJ > 0.000001:
 			obj.hrr_kw = actual_solid_burn_kw * burn_MJ / consumed_MJ
-			obj.state = FuelObjectModelScript.State.FLAMING if can_flame else FuelObjectModelScript.State.DECAYING
-			obj.exposure_s = maxf(obj.exposure_s, 75.0)
+			# SF-AUD-034: LOI — si O2_sala < LOI, la llama se apaga por falta de oxígeno.
+			if float(obj.loi_fraction) > 0.0 and room.o2 < float(obj.loi_fraction):
+				obj.state = FuelObjectModelScript.State.DECAYING
+				obj.hrr_kw = 0.0
+			else:
+				obj.state = FuelObjectModelScript.State.FLAMING if can_flame else FuelObjectModelScript.State.DECAYING
+				obj.exposure_s = maxf(obj.exposure_s, 75.0)
+				# SF-AUD-034: char growth — acumular espesor de char proporcional a masa quemada.
+				if float(obj.char_growth_rate_m_per_kg) > 0.0 and float(obj.heat_of_combustion_kj_kg) > 0.0:
+					var mass_kg: float = burn_MJ * 1000.0 / maxf(1.0, float(obj.heat_of_combustion_kj_kg))
+					obj.char_thickness_m = maxf(0.0, float(obj.char_thickness_m) + float(obj.char_growth_rate_m_per_kg) * mass_kg)
 		else:
 			obj.hrr_kw = 0.0
 			if obj.remaining_fuel_MJ <= 0.001:
@@ -1755,3 +2009,44 @@ func _mark_legacy_proxy_burned_out(room: RoomModel) -> void:
 	proxy.incident_heat_flux_kw_m2 = 0.0
 	proxy.autoignite_ready = false
 	proxy.state = FuelObjectModelScript.State.BURNED_OUT
+
+
+# ============================================================
+# SF-AUD-033: CURVA HRR TABULADA — interpolación lineal
+# ============================================================
+# Interpola linealmente la curva [[t0, h0], [t1, h1], ...] en t_s.
+# t_s es el tiempo desde la ignición del objeto (no el tiempo global).
+# Fuera del rango: se extrapola con el valor del extremo más cercano.
+func _interp_hrr_curve(curve: Array, t_s: float) -> float:
+	var n: int = curve.size()
+	if n == 0:
+		return 0.0
+	var first_entry: Variant = curve[0]
+	if typeof(first_entry) != TYPE_ARRAY or (first_entry as Array).size() < 2:
+		return 0.0
+	var t0: float = float((first_entry as Array)[0])
+	var h0: float = float((first_entry as Array)[1])
+	if t_s <= t0:
+		return maxf(0.0, h0)
+	var last_entry: Variant = curve[n - 1]
+	if typeof(last_entry) != TYPE_ARRAY or (last_entry as Array).size() < 2:
+		return 0.0
+	var t_last: float = float((last_entry as Array)[0])
+	var h_last: float = float((last_entry as Array)[1])
+	if t_s >= t_last:
+		return maxf(0.0, h_last)
+	for i: int in range(n - 1):
+		var entry_a: Variant = curve[i]
+		var entry_b: Variant = curve[i + 1]
+		if typeof(entry_a) != TYPE_ARRAY or (entry_a as Array).size() < 2:
+			continue
+		if typeof(entry_b) != TYPE_ARRAY or (entry_b as Array).size() < 2:
+			continue
+		var ta: float = float((entry_a as Array)[0])
+		var tb: float = float((entry_b as Array)[0])
+		if t_s >= ta and t_s <= tb:
+			var ha: float = float((entry_a as Array)[1])
+			var hb: float = float((entry_b as Array)[1])
+			var alpha: float = (t_s - ta) / maxf(0.0001, tb - ta)
+			return maxf(0.0, lerpf(ha, hb, alpha))
+	return maxf(0.0, h_last)

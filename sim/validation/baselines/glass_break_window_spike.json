@@ -1,0 +1,18 @@
+{
+    "metrics": {
+        "time_room_0_glass_broke_s": {
+            "min": 30.0,
+            "max": 200.0
+        },
+        "time_room_0_temp_above_250c_s": {
+            "min": 30.0,
+            "max": 200.0
+        },
+        "room_0_final_outside_open_path_factor": {
+            "min": 0.3
+        },
+        "room_0_peak_temp_upper_c": {
+            "min": 280.0
+        }
+    }
+}

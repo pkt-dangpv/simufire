@@ -1,0 +1,67 @@
+{
+	"template": "uk_bungalow",
+	"duration_s": 500.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 1,
+	"enable_logging": false,
+	"watch_room_ids": [1, 2, 0],
+	"smoke_trigger_room_id": 1,
+	"spread_target_room_id": 2,
+	"l150_room_id": 1,
+	"threshold_metrics": [
+		{
+			"metric_name": "time_room_2_smoke_start_s",
+			"field": "smoke_kg",
+			"room_id": 2,
+			"op": ">=",
+			"value": 0.01
+		},
+		{
+			"metric_name": "time_room_1_l150_below_1_5m_s",
+			"field": "layer_150c_m",
+			"room_id": 1,
+			"op": "<=",
+			"value": 1.5
+		}
+	],
+	"room_overrides": [
+		{
+			"id": 1,
+			"fuel_objects": [
+				{
+					"id": "grease_pool",
+					"name": "Aceite de cocina - charco",
+					"kind": "pool",
+					"position_m": {"x": 1.0, "y": 1.5},
+					"size_m": {"x": 0.5, "y": 0.5},
+					"footprint_m2": 0.1,
+					"exposed_area_m2": 0.1,
+					"elevation_m": 0.8,
+					"fuel_energy_MJ": 60.0,
+					"max_hrr_kw": 800.0,
+					"ignition_temp_c": 220.0,
+					"ignition_flux_kw_m2": 5.0,
+					"smoke_yield_kg_per_MJ": 0.030,
+					"co_yield_kg_per_MJ": 0.00080,
+					"pool_spread_rate_m2_s": 0.004,
+					"pool_hrr_kw_m2": 1500.0,
+					"pool_max_area_m2": 0.40,
+					"pool_area_m2": 0.1,
+					"pool_k_beta_per_m": 0.8
+				}
+			]
+		}
+	],
+	"engine_overrides": {
+		"time_scale": 5.0,
+		"fire_spread_enabled": false,
+		"glass_auto_break_enabled": false,
+		"glass_break_mode": 0,
+		"fire_alpha_kw_s2": 0.047,
+		"fire_o2_min_for_flame": 0.10,
+		"fire_secondary_hrr_gain_kw": 2500.0,
+		"fire_latent_o2_viable_margin": 0.008,
+		"fire_extinction_delay_s": 180.0,
+		"fire_latent_extinction_delay_s": 240.0
+	}
+}

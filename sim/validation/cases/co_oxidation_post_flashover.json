@@ -1,0 +1,50 @@
+{
+	"template": "simple_house",
+	"duration_s": 500.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 0,
+	"enable_logging": false,
+	"watch_room_ids": [0, 1],
+	"smoke_trigger_room_id": 0,
+	"spread_target_room_id": 1,
+	"l150_room_id": 0,
+	"room_overrides": [
+		{
+			"id": 0,
+			"fuel_objects": [
+				{
+					"id": "high_co_material",
+					"name": "Material alto rendimiento CO (PU subventilado)",
+					"kind": "mobiliario_tapizado",
+					"position_m": {"x": 1.0, "y": 1.5},
+					"size_m": {"x": 2.0, "y": 1.0},
+					"footprint_m2": 2.0,
+					"exposed_area_m2": 4.0,
+					"elevation_m": 0.4,
+					"fuel_energy_MJ": 1500.0,
+					"max_hrr_kw": 900.0,
+					"ignition_temp_c": 280.0,
+					"ignition_flux_kw_m2": 12.0,
+					"smoke_yield_kg_per_MJ": 0.030,
+					"co_yield_kg_per_MJ": 0.060
+				}
+			]
+		}
+	],
+	"engine_overrides": {
+		"time_scale": 5.0,
+		"fire_spread_enabled": false,
+		"glass_auto_break_enabled": false,
+		"glass_break_mode": 0,
+		"fire_alpha_kw_s2": 0.12,
+		"fire_o2_min_for_flame": 0.10,
+		"fire_secondary_hrr_gain_kw": 2500.0,
+		"fire_latent_o2_viable_margin": 0.008,
+		"fire_extinction_delay_s": 240.0,
+		"fire_latent_extinction_delay_s": 300.0,
+		"co_oxidation_enabled": true,
+		"co_oxidation_temp_min_c": 300.0,
+		"co_oxidation_o2_min": 0.01,
+		"co_oxidation_rate_per_s": 0.010
+	}
+}

@@ -67,6 +67,8 @@ var _prev_open_fracs: Dictionary = {}
 var _graphs_launched: bool = false
 var _last_graphs_dir: String = ""
 var _last_graph_generation_ok: bool = false
+# SF-AUD-029: targets radiantes pasivos
+var _targets: Array = []
 
 # ============================================================
 # ROTURA DE CRISTAL (SF-AUD-011)
@@ -241,6 +243,14 @@ var _active_suppression_by_room: Dictionary = {}
 @export var suppression_upper_heat_fraction: float = 0.68
 @export var suppression_lower_cooling_fraction: float = 0.18
 @export var suppression_surface_cooling_fraction: float = 0.26
+# SF-AUD-017: parámetros de vapor de agua generado por supresión
+# Fracción del agua aplicada que efectivamente se evapora (el resto escurre como runoff).
+# 0.27 → energía latente ≈ 0.27×2591 + 0.73×335 = 944 kJ/L ≈ suppression_heat_absorption_kj_per_l.
+# Ref: NFPA 1710 §A.5; SFPE Handbook 4th §16.2.
+@export var suppression_evaporation_fraction: float = 0.27
+# Tasa de desaparición del vapor por condensación + arrastre ventilatorio [1/s].
+# A 0.5 /s la vida media en sala ventilada es ~1.4 s.
+@export var suppression_steam_condensation_rate: float = 0.5
 
 # Tiempo máximo de actividad del fuego. Pasado este tiempo el combustible se considera
 # agotado y el fuego se extingue (evita zombie fire en equilibrio O2/HRR).
@@ -281,6 +291,21 @@ var _active_suppression_by_room: Dictionary = {}
 @export var fire_backdraft_hrr_multiplier: float = 4.0
 @export var fire_backdraft_duration_s: float = 12.0
 @export var fire_backdraft_cooldown_s: float = 180.0
+# LFL/UFL y deflagración — SF-AUD-013.
+# LFL/UFL como fracción volumétrica del gas combustible no quemado en la sala.
+# Gas de pirólisis en incendios subventilados: mezcla CO/H₂/HC. LFL≈2%, UFL≈20%.
+# Si la fracción de gas no quemado está FUERA del rango inflamable, no hay backdraft.
+@export var fire_backdraft_lfl: float = 0.02
+@export var fire_backdraft_ufl: float = 0.20
+# Calor de combustión del gas de pirólisis no quemado [kJ/kg].
+# CO: ~10 000; H₂: ~120 000; HC mixtos: ~40 000 → mix: ~10 000 kJ/kg conservador.
+@export var fire_backdraft_fuel_heat_kj_kg: float = 10000.0
+# Densidad del gas de pirólisis no quemado a temperatura de compartimento [kg/m³].
+# CO a ~300°C ≈ 0.80 kg/m³; mix típico ≈ 0.8 kg/m³.
+@export var fire_backdraft_fuel_gas_density: float = 0.8
+# Sobrepresión de deflagración instantánea al disparar backdraft [Pa].
+# 500 Pa ≈ sobrepresión de onda de choque leve; suficiente para sentirla pero no destructiva.
+@export var fire_backdraft_deflagration_overpressure_pa: float = 500.0
 @export var fire_remote_vent_path_enabled: bool = true
 @export var fire_remote_vent_path_decay_per_door: float = 0.60
 @export var fire_remote_vent_path_min_signal: float = 0.02
@@ -342,6 +367,15 @@ var _active_suppression_by_room: Dictionary = {}
 @export var flashover_floor_flux_kw_m2: float = 20.0
 # Emissividad efectiva de la capa caliente para el calculo radiante al suelo.
 @export var flashover_layer_emissivity: float = 0.9
+# Predictores Thomas (1981) y MQH (McCaffrey-Quintiere-Harkleroad, 1981) — SF-AUD-012.
+# Thomas: Q_fo = 7.8·A_T + 378·A_v·√H_v [kW]   (A_T = superficie total compartimento)
+# MQH:    Q_fo = 610·(h_k·A_T·A_v·√H_v)^½ [kW] (h_k = coef. transfer. térm. pared)
+# Se usan como criterio OR adicional cuando HRR supera el HRR crítico predicho.
+@export var flashover_thomas_enabled: bool = true
+@export var flashover_mqh_enabled: bool = true
+# Coeficiente de transferencia de calor efectivo de las paredes [kW/m²·K].
+# 0.012 kW/m²·K ≈ placa de yeso 12 mm (k=0.17 W/m·K / d=0.014 m).
+@export var flashover_mqh_hk_kw_m2k: float = 0.012
 
 # ============================================================
 # AJUSTES TÉRMICOS
@@ -451,6 +485,10 @@ var _active_suppression_by_room: Dictionary = {}
 ## Activar para imprimir warning si el residual térmico supera el umbral.
 @export var energy_budget_enabled: bool = false
 @export var energy_budget_warn_fraction: float = 0.10
+# SF-AUD-010: Bernoulli dos zonas para flujos por aperturas interiores y exteriores.
+# Cuando true: flujo calculado con Q = Cd·W·f·(2/3)·h^(3/2)·sqrt(2g·ΔT/T_ref) y plano
+# neutro calculado desde densidades. Default false → comportamiento heredado.
+@export var vent_bernoulli_enabled: bool = false
 
 
 # Absorción de calor por paredes — término proporcional simple sobre (T_upper - T_ambient).
@@ -459,10 +497,16 @@ var _active_suppression_by_room: Dictionary = {}
 @export var wall_absorption_rate: float = 0.003
 @export var wall_heat_capacity_kj_m2_k: float = 20.0
 @export var wall_core_decay_per_s: float = 0.0002
+# SF-AUD-030: activar/desactivar el perfil 1D pared (Crank-Nicolson 5 nodos).
+# Si false, wall_T_mid_c / wall_T_outer_c vuelven a temperatura ambiente.
+@export var wall_pde_enabled: bool = true
 # Conducción a través de paredes entre salas adyacentes (sin apertura abierta).
 # U = 1.5 W/m²K = 0.0015 kW/m²K — partición ligera (yeso + montante metálico).
 # Para mampostería: reducir a 0.0008-0.001. Desactivar con wall_conduction_enabled=false.
 @export var wall_conduction_enabled: bool = true
+# SF-AUD-031: cuando true, la conducción inter-sala usa temperatura ponderada por capa
+# (upper/lower) en lugar de la temperatura superficial promedio de la pared.
+@export var wall_layer_aware_conduction: bool = false
 @export var wall_conduction_u_kw_m2_k: float = 0.0015
 
 # ============================================================
@@ -504,6 +548,14 @@ var _active_suppression_by_room: Dictionary = {}
 # Modela incendios de líquidos inflamables (gasolina, aceite) donde la potencia
 # calorífica es proporcional al área del charco: HRR = pool_hrr_kw_m2 * area_m2.
 @export var pool_fire_enabled: bool = true
+# SF-AUD-035: oxidación de CO en capa caliente.
+# Cuando T_upper > co_oxidation_temp_min_c y O2 > co_oxidation_o2_min,
+# parte del CO se oxida a CO2.  Referencia: Drysdale «Fire Dynamics» §3.2;
+# Pitts NIST TN 1603.
+@export var co_oxidation_enabled: bool = false
+@export var co_oxidation_temp_min_c: float = 700.0
+@export var co_oxidation_o2_min: float = 0.05
+@export var co_oxidation_rate_per_s: float = 0.002
 
 # ============================================================
 # OXÍGENO / MEZCLA
@@ -624,6 +676,7 @@ func _sync_auxiliary_services() -> void:
 		"wall_absorption_rate": wall_absorption_rate,
 		"wall_heat_capacity_kj_m2_k": wall_heat_capacity_kj_m2_k,
 		"wall_core_decay_per_s": wall_core_decay_per_s,
+		"wall_pde_enabled": wall_pde_enabled,
 		"wall_conduction_enabled": wall_conduction_enabled,
 		"wall_conduction_u_kw_m2_k": wall_conduction_u_kw_m2_k,
 		"max_upper_temp_c": max_upper_temp_c,
@@ -702,7 +755,9 @@ func _sync_auxiliary_services() -> void:
 		"radiation_min_source_temp_c": radiation_min_source_temp_c,
 		"radiation_max_fraction_per_step": radiation_max_fraction_per_step,
 		"energy_budget_enabled": energy_budget_enabled,
-		"energy_budget_warn_fraction": energy_budget_warn_fraction
+		"energy_budget_warn_fraction": energy_budget_warn_fraction,
+		"vent_bernoulli_enabled": vent_bernoulli_enabled,
+		"wall_layer_aware_conduction": wall_layer_aware_conduction
 	})
 	fire_spread_system.set_references(building, smoke_model, combustion_system)
 	fire_spread_system.configure({
@@ -765,6 +820,7 @@ func _sync_auxiliary_services() -> void:
 		"door_deform_temp_full_c": door_deform_temp_full_c,
 		"door_deform_max_gap": door_deform_max_gap,
 		"natural_vent_inlet_fraction": natural_vent_inlet_fraction,
+		"vent_bernoulli_enabled": vent_bernoulli_enabled,
 		"o2_smoke_carry_coeff": o2_smoke_carry_coeff
 	})
 	oxygen_exchange_system.configure({
@@ -778,7 +834,8 @@ func _sync_auxiliary_services() -> void:
 		"doorway_o2_background_exchange_kg_s_m2": doorway_o2_background_exchange_kg_s_m2,
 		"doorway_o2_background_max_fraction_per_step": doorway_o2_background_max_fraction_per_step,
 		"doorway_o2_background_pressure_ref_pa": doorway_o2_background_pressure_ref_pa,
-		"doorway_o2_background_min_factor": doorway_o2_background_min_factor
+		"doorway_o2_background_min_factor": doorway_o2_background_min_factor,
+		"vent_bernoulli_enabled": vent_bernoulli_enabled
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
@@ -964,6 +1021,7 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	_last_graph_generation_ok = false
 	glass_failure_system.reset()
 	thermal_system.reset_wall_temps()
+	_targets.clear()
 	if building != null:
 		building.reset_detectors()
 
@@ -1021,12 +1079,15 @@ func step(delta: float) -> void:
 
 	_step_pool_fires(dt)
 	_step_fire(dt)
+	_step_co_oxidation(dt)
+	_step_targets(dt)
 	_step_oxygen(dt)
 	thermal_system.step(building, dt, {
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
 		"opening_flow_cache": _opening_flow_cache
 	})
 	_step_suppression(dt)
+	_step_steam_decay(dt)
 	if glass_break_mode != GlassBreakMode.DISABLED:
 		glass_failure_system.step(dt)
 		for broken_idx in glass_failure_system.newly_broken_indices:
@@ -1158,6 +1219,11 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_backdraft_hrr_multiplier": fire_backdraft_hrr_multiplier,
 		"fire_backdraft_duration_s": fire_backdraft_duration_s,
 		"fire_backdraft_cooldown_s": fire_backdraft_cooldown_s,
+		"fire_backdraft_lfl": fire_backdraft_lfl,
+		"fire_backdraft_ufl": fire_backdraft_ufl,
+		"fire_backdraft_fuel_heat_kj_kg": fire_backdraft_fuel_heat_kj_kg,
+		"fire_backdraft_fuel_gas_density": fire_backdraft_fuel_gas_density,
+		"fire_backdraft_deflagration_overpressure_pa": fire_backdraft_deflagration_overpressure_pa,
 		"fire_extinction_hrr_kw": fire_extinction_hrr_kw,
 		"fire_extinction_delay_s": fire_extinction_delay_s,
 		"fire_latent_enabled": fire_latent_enabled,
@@ -1205,6 +1271,10 @@ func _step_gas_exchange(dt: float) -> void:
 	var hooks: Dictionary = _build_gas_exchange_hooks()
 	var pressure_result: Dictionary = gas_exchange_system.step_pressure_venting(building, dt, hooks)
 	smoke_vented_total_kg += float(pressure_result.get("smoke_vented_kg", 0.0))
+
+	# SF-AUD-036: PPV mechanical ventilation
+	var ppv_result: Dictionary = gas_exchange_system.step_ppv(building, dt, hooks)
+	smoke_vented_total_kg += float(ppv_result.get("ppv_smoke_purged_kg", 0.0))
 
 	var smoke_result: Dictionary = gas_exchange_system.step_smoke(building, smoke_model, dt, hooks)
 	smoke_generated_total_kg += float(smoke_result.get("smoke_generated_kg", 0.0))
@@ -1282,6 +1352,11 @@ func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> v
 	suppression_water_applied_l += water_l
 	suppression_cooling_total_kj += cooling_kj
 
+	# SF-AUD-017: vapor generado por evaporación del agua del chorro.
+	# La energía de enfriamiento ya está contabilizada en cooling_kj (sin cambio);
+	# solo añadimos el seguimiento de masa de vapor para exportación y futuros efectos.
+	room.steam_kg += water_l * maxf(0.0, suppression_evaporation_fraction)
+
 	var upper_loss_kj: float = minf(
 		room.upper_energy_kj,
 		cooling_kj * clampf(suppression_upper_heat_fraction, 0.0, 1.0)
@@ -1325,6 +1400,22 @@ func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> v
 
 	thermal_system.sync_room_upper_layer(room, dt)
 	thermal_system.update_room_layer_150c(room, dt)
+
+
+# SF-AUD-017: decaimiento exponencial del vapor — condensación + arrastre ventilatorio.
+# Se llama una vez por paso de simulación sobre todas las salas; el vapor converge a 0
+# con constante de tiempo 1/suppression_steam_condensation_rate segundos.
+func _step_steam_decay(dt: float) -> void:
+	if building == null or dt <= 0.0:
+		return
+	var rate: float = maxf(0.0, suppression_steam_condensation_rate)
+	if rate == 0.0:
+		return
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(int(room_id))
+		if room == null or room.steam_kg <= 0.0:
+			continue
+		room.steam_kg = maxf(0.0, room.steam_kg - room.steam_kg * rate * dt)
 
 
 # TODO(gameplay): helpers de supresión y estado de fuego — descomentar cuando se implemente la UI de juego
@@ -1458,6 +1549,55 @@ func _build_passive_fuel_context(room_id: int) -> Dictionary:
 # FUEGO DE CHARCO (POOL FIRE)
 # ============================================================
 ## Expande el charco de combustible líquido y actualiza el HRR máximo del fuego.
+## SF-AUD-035: oxidación de CO en la capa caliente (upper layer).
+## Cuando la capa superior supera co_oxidation_temp_min_c y hay suficiente O2,
+## el CO se oxida parcialmente a CO2 (CO + ½O2 → CO2).
+## La tasa co_oxidation_rate_per_s es una constante empírica de 1er orden.
+## Pitts (NIST TN 1603): a T>700°C y O2>5%, la vida media del CO es ~0.5-1 s.
+# ============================================================
+# STEP TARGETS  — SF-AUD-029
+# ============================================================
+# Calcula el flujo neto incidente sobre cada TargetModel desde
+# la capa superior caliente de su sala: radiación S-B con
+# factor de visión (angle_factor) y emisividad superficial.
+# ============================================================
+func _step_targets(dt: float) -> void:
+	if _targets.is_empty():
+		return
+	const SIGMA_KW: float = 5.67e-11  # Stefan-Boltzmann [kW/m²/K⁴]
+	for t in _targets:
+		var room: RoomModel = building.get_room(t.room_id) if building != null else null
+		if room == null:
+			continue
+		var T_upper_K: float = room.temp_upper_c + 273.15
+		var T_tgt_K: float = t.temp_c + 273.15
+		var q_incident: float = t.angle_factor * t.emissivity * SIGMA_KW * pow(T_upper_K, 4.0)
+		var q_emit: float = t.emissivity * SIGMA_KW * pow(T_tgt_K, 4.0)
+		t.qnet_kw_m2 = maxf(q_incident - q_emit, 0.0)
+		if t.qnet_kw_m2 > t.peak_qnet_kw_m2:
+			t.peak_qnet_kw_m2 = t.qnet_kw_m2
+
+
+func _step_co_oxidation(dt: float) -> void:
+	if not co_oxidation_enabled or building == null:
+		return
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null or room.co_upper_kg <= 0.0:
+			continue
+		if room.temp_upper_c < co_oxidation_temp_min_c:
+			continue
+		if room.o2 < co_oxidation_o2_min:
+			continue
+		# Oxidación de primer orden: dm_CO/dt = -k * m_CO
+		var oxidized_kg: float = room.co_upper_kg * co_oxidation_rate_per_s * dt
+		oxidized_kg = minf(oxidized_kg, room.co_upper_kg)
+		room.co_upper_kg -= oxidized_kg
+		room.co_kg = maxf(0.0, room.co_kg - oxidized_kg)
+		# CO + ½O2 → CO2: por cada kg CO se producen 44/28 kg CO2.
+		room.co2_kg += oxidized_kg * (44.0 / 28.0)
+
+
 ## Solo afecta a FuelObjectModel con pool_spread_rate_m2_s > 0.
 ## El área del charco crece en pool_spread_rate_m2_s·dt hasta alcanzar el límite
 ## (pool_max_area_m2 o el área del suelo de la sala).
@@ -1476,7 +1616,14 @@ func _step_pool_fires(dt: float) -> void:
 				continue
 			var max_area: float = obj.pool_max_area_m2 if obj.pool_max_area_m2 > 0.0 else room.floor_area_m2()
 			obj.pool_area_m2 = minf(obj.pool_area_m2 + obj.pool_spread_rate_m2_s * dt, max_area)
-			pool_hrr_kw += obj.pool_hrr_kw_m2 * obj.pool_area_m2
+			# SF-AUD-038: corrección de Babrauskas por diámetro de charco.
+			# Para charcos pequeños (D<1m), HRR/m² es inferior al valor de charco infinito.
+			# eff_kw_m2 = pool_hrr_kw_m2 * (1 - exp(-k·β·D)), D = √(4·A/π).
+			var hrr_per_m2: float = obj.pool_hrr_kw_m2
+			if obj.pool_k_beta_per_m > 0.0 and obj.pool_area_m2 > 0.0:
+				var diam_m: float = sqrt(4.0 * obj.pool_area_m2 / PI)
+				hrr_per_m2 *= (1.0 - exp(-obj.pool_k_beta_per_m * diam_m))
+			pool_hrr_kw += hrr_per_m2 * obj.pool_area_m2
 		if pool_hrr_kw > 0.0:
 			# Actualizar el techo de HRR del fuego para reflejar el área actual del charco.
 			room.fire.max_hrr_kw = maxf(room.fire.max_hrr_kw, pool_hrr_kw)
@@ -1662,6 +1809,41 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 		else:
 			room.floor_heat_flux_kw_m2 = 0.0
 
+	# ── Thomas (1981) y MQH (McCaffrey-Quintiere-Harkleroad, 1981) ─────────────────
+	# Predictores de HRR crítico de flashover basados en geometría del compartimento
+	# y factor de ventilación. Se usan como criterio OR adicional cuando HRR supera
+	# Q_fo y la capa caliente ya ha descendido (kaw > 0 → hay ventilación exterior).
+	# Thomas: Q_fo = 7.8·A_T + 378·A_v·√H_v [kW]
+	# MQH:    Q_fo = 610·(h_k·A_T·A_v·√H_v)^½ [kW]
+	var thomas_mqh_met: bool = false
+	if (flashover_thomas_enabled or flashover_mqh_enabled) and enough_hrr and layer_low_enough:
+		var a_floor: float = room.floor_area_m2()
+		# Superficie total del compartimento: 2 suelos + 4 paredes
+		var a_t: float = 2.0 * a_floor \
+				+ 2.0 * (room.width_m + room.length_m) * room.height_m
+		# Factor de ventilación exterior Σ(A_v·√H_v) [m^(5/2)]
+		var kaw: float = _kawagoe_factor_for_room(room.id)
+		if a_t > 0.0 and kaw > 0.0:
+			if flashover_thomas_enabled:
+				room.flashover_q_thomas_kw = 7.8 * a_t + 378.0 * kaw
+			if flashover_mqh_enabled:
+				# SF-AUD-014: usar h_k del material de pared por sala si está definido.
+				var hk_eff: float = flashover_mqh_hk_kw_m2k
+				if room.wall_k_kw_m_k > 0.0 and room.wall_thickness_m > 0.0:
+					hk_eff = room.wall_k_kw_m_k / maxf(0.001, room.wall_thickness_m)
+				room.flashover_q_mqh_kw = 610.0 * sqrt(
+					maxf(0.0, hk_eff * a_t * kaw)
+				)
+			var thomas_ok: bool = flashover_thomas_enabled \
+					and room.flashover_q_thomas_kw > 0.0 \
+					and room.hrr_kw >= room.flashover_q_thomas_kw
+			var mqh_ok: bool = flashover_mqh_enabled \
+					and room.flashover_q_mqh_kw > 0.0 \
+					and room.hrr_kw >= room.flashover_q_mqh_kw
+			thomas_mqh_met = (thomas_ok or mqh_ok) \
+					and breathing_hot_enough \
+					and (not flashover_require_tenability_loss or tenability_lost)
+
 	# Criterio más cercano a la referencia residencial local:
 	# no basta con T_upper alta; exigimos además un nivel térmico muy severo
 	# a altura de respiración (0.9 m) y un descenso real de la capa.
@@ -1679,7 +1861,8 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 			and breathing_hot_enough \
 			and (not flashover_require_tenability_loss or tenability_lost)) \
 			or radiant_feedback_flashover \
-			or floor_flux_met:
+			or floor_flux_met \
+			or thomas_mqh_met:
 		room.flashover_triggered = true
 		room.flashover_time_s = sim_time_s
 		# Escalar la ganancia secundaria en proporción al tamaño de la habitación.
@@ -1797,7 +1980,25 @@ func _clamp_rooms(dt: float) -> void:
 func get_state() -> Dictionary:
 	if state_builder == null:
 		return {}
-	return state_builder.build_state(_build_state_context())
+	var state: Dictionary = state_builder.build_state(_build_state_context())
+	# SF-AUD-029: exportar targets al estado
+	var targets_dict: Dictionary = {}
+	for t in _targets:
+		targets_dict[t.id] = {
+			"qnet_kw_m2": t.qnet_kw_m2,
+			"peak_qnet_kw_m2": t.peak_qnet_kw_m2,
+			"temp_c": t.temp_c
+		}
+	state["targets"] = targets_dict
+	return state
+
+
+func add_target(t) -> void:
+	_targets.append(t)
+
+
+func get_targets() -> Array:
+	return _targets
 
 
 func is_ready_for_validation() -> bool:

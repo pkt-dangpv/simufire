@@ -47,14 +47,23 @@ SOURCE_FILES = [
     "ui/hud.gd",
     "view/2d/Visualizer.gd",
     "view/3d/Visualizer3D.gd",
+    "view/3d/camera/CameraOrbit3D.gd",
+    "view/3d/smoke/SmokeAnimation3D.gd",
     "view/3d/smoke/SmokeBridgeMesh.gd",
+    "view/3d/smoke/SmokeLayerVisuals.gd",
+    "view/3d/smoke/SmokeOpeningCurtain3D.gd",
+    "view/3d/smoke/SmokePuffSpriteFactory.gd",
     "view/3d/smoke/SmokeVolumeMaterialFactory.gd",
+    "view/3d/fire/FireAnimation3D.gd",
     "view/3d/fire/FireMaterialFactory.gd",
+    "view/3d/fire/FireMeshFactory.gd",
     "view/3d/furniture/FurnitureAssetLoader.gd",
     "view/3d/furniture/FurniturePlacement3D.gd",
     "view/3d/furniture/FurnitureShapeBuilder.gd",
     "view/3d/furniture/FurnitureStateVisuals.gd",
     "view/3d/furniture/FurnitureVisualClassifier.gd",
+    "view/3d/geometry/RoomShellFactory.gd",
+    "view/3d/interaction/ScreenPicking3D.gd",
     "view/3d/openings/OpeningPose3D.gd",
     "view/fp/FirstPersonController.gd",
     "view/fp/FPVisibilityOverlay.gd",
@@ -447,14 +456,35 @@ SCRIPT_EXPLANATIONS = {
     "view/3d/Visualizer3D.gd": ("Visualizador 3D.", [
         "Construye la vivienda, camaras, mobiliario, fuego, humo y efectos volumetricos de la escena 3D.",
     ]),
+    "view/3d/camera/CameraOrbit3D.gd": ("Camara orbital 3D.", [
+        "Calcula distancia de encuadre, arrastre orbital, zoom y transformacion de CameraRig/Camera3D.",
+    ]),
+    "view/3d/smoke/SmokeAnimation3D.gd": ("Animacion de humo 3D.", [
+        "Actualiza posicion, escala, textura, frame y alpha de los puffs volumetricos de humo.",
+    ]),
     "view/3d/smoke/SmokeBridgeMesh.gd": ("Malla auxiliar de humo 3D.", [
         "Genera la geometria diagonal que conecta capas de humo entre estancias sin mezclarla con el visualizador completo.",
+    ]),
+    "view/3d/smoke/SmokeLayerVisuals.gd": ("Capas visuales de humo 3D.", [
+        "Crea y actualiza mascaras de techo y planos de capas termicas/humo.",
+    ]),
+    "view/3d/smoke/SmokeOpeningCurtain3D.gd": ("Cortina de humo en aberturas 3D.", [
+        "Actualiza el puente de humo en puertas/ventanas segun apertura, capas vecinas y modo FP/3D.",
+    ]),
+    "view/3d/smoke/SmokePuffSpriteFactory.gd": ("Sprites de humo 3D.", [
+        "Centraliza texturas de humo y crea sprites billboard para particulas/wisps.",
     ]),
     "view/3d/smoke/SmokeVolumeMaterialFactory.gd": ("Materiales de humo 3D.", [
         "Contiene shaders y parametros base para volumen de humo y mascara tenue de techo.",
     ]),
+    "view/3d/fire/FireAnimation3D.gd": ("Animacion de fuego 3D.", [
+        "Actualiza escala, posicion, flicker, lenguas de llama, luz y fuego de techo de cada foco visual.",
+    ]),
     "view/3d/fire/FireMaterialFactory.gd": ("Materiales de fuego 3D.", [
         "Contiene shaders y parametros base para llamas y extension de fuego bajo techo.",
+    ]),
+    "view/3d/fire/FireMeshFactory.gd": ("Mallas de fuego 3D.", [
+        "Construye las mallas de llama cruzada y fuego de techo con sus materiales visuales.",
     ]),
     "view/3d/furniture/FurnitureAssetLoader.gd": ("Carga de mobiliario visual.", [
         "Instancia assets de mobiliario FP reutilizados en 3D y prepara copias de materiales.",
@@ -470,6 +500,12 @@ SCRIPT_EXPLANATIONS = {
     ]),
     "view/3d/furniture/FurnitureVisualClassifier.gd": ("Clasificador visual de mobiliario.", [
         "Mapea nombres/tipos de combustibles a arquetipos visuales y decide si una forma necesita reconstruirse.",
+    ]),
+    "view/3d/geometry/RoomShellFactory.gd": ("Geometria base de sala 3D.", [
+        "Construye nodos de sala, suelo, paredes y etiqueta sin mezclarlo con el estado dinamico.",
+    ]),
+    "view/3d/interaction/ScreenPicking3D.gd": ("Picking de pantalla 3D.", [
+        "Convierte posiciones de raton en sala, apertura o zona del modelo usando la camara 3D.",
     ]),
     "view/3d/openings/OpeningPose3D.gd": ("Pose de aperturas 3D.", [
         "Calcula posicion y tamano de puertas/ventanas en paredes exteriores o compartidas.",

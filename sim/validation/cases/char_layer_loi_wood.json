@@ -1,0 +1,52 @@
+{
+	"template": "simple_house",
+	"duration_s": 600.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 0,
+	"enable_logging": false,
+	"watch_room_ids": [0],
+	"smoke_trigger_room_id": 0,
+	"spread_target_room_id": 1,
+	"l150_room_id": 0,
+	"room_overrides": [
+		{
+			"id": 0,
+			"fuel_objects": [
+				{
+					"id": "wood_panel_char",
+					"name": "Panel de madera con char layer",
+					"kind": "madera_estructural",
+					"position_m": {"x": 1.0, "y": 1.0},
+					"size_m": {"x": 2.0, "y": 0.5},
+					"footprint_m2": 1.0,
+					"exposed_area_m2": 2.0,
+					"elevation_m": 0.0,
+					"fuel_energy_MJ": 900.0,
+					"max_hrr_kw": 400.0,
+					"ignition_temp_c": 300.0,
+					"ignition_flux_kw_m2": 12.5,
+					"critical_heat_flux_kw_m2": 12.5,
+					"heat_of_gasification_kj_kg": 640.0,
+					"heat_of_combustion_kj_kg": 17500.0,
+					"smoke_yield_kg_per_MJ": 0.015,
+					"co_yield_kg_per_MJ": 0.0003,
+					"char_growth_rate_m_per_kg": 0.0030,
+					"k_char_kw_m_k": 0.0001,
+					"loi_fraction": 0.18
+				}
+			]
+		}
+	],
+	"engine_overrides": {
+		"time_scale": 5.0,
+		"fire_spread_enabled": false,
+		"glass_auto_break_enabled": false,
+		"glass_break_mode": 0,
+		"fire_alpha_kw_s2": 0.047,
+		"fire_o2_min_for_flame": 0.10,
+		"fire_secondary_hrr_gain_kw": 2500.0,
+		"fire_latent_o2_viable_margin": 0.008,
+		"fire_extinction_delay_s": 180.0,
+		"fire_latent_extinction_delay_s": 240.0
+	}
+}

@@ -35,7 +35,45 @@ $cases = @(
 	"g1_gie_confinement_attack",
 	"g2_gie_transitional_attack",
 	"g3_gie_ppv_post_knockdown",
-	"g4_gie_delayed_entry_hazard"
+	"g4_gie_delayed_entry_hazard",
+	# SF-AUD-022: flashover criterion
+	"flashover_simple_house",
+	# SF-AUD-023: glass break window spike
+	"glass_break_window_spike",
+	# SF-AUD-024: FEC irritants – PU foam sofa
+	"pu_sofa_fec_incapacitation",
+	# SF-AUD-024: FEC irritants – PVC HCl release
+	"pvc_curtain_hcl_release",
+	# SF-AUD-021: template coverage
+	"compact_apartment_smoke",
+	"uk_bungalow_smoke",
+	"piso_mediterraneo_smoke",
+	"two_bed_apartment_smoke",
+	"three_bed_apartment_smoke",
+	"row_house_ground_floor_smoke",
+	"ranch_family_house_smoke",
+	# SF-AUD-028: energy budget diagnostic
+	"energy_budget_living_room",
+	# SF-AUD-038: Babrauskas pool fire (grease kitchen)
+	"kitchen_grease_pool_fire",
+	# SF-AUD-029: TargetModel radiation flux
+	"ranch_radiation_target_ignition",
+	# SF-AUD-035: CO oxidation in hot upper layer
+	"co_oxidation_post_flashover",
+	# SF-AUD-033: HRR tabulated curve per-object
+	"hrr_tabulated_curve_sofa",
+	# SF-AUD-034: char layer insulation + LOI extinction
+	"char_layer_loi_wood",
+	# SF-AUD-036: PPV mechanical ventilation + smoke purge
+	"ppv_attack_pressurized",
+	# SF-AUD-030: 1D wall PDE Crank-Nicolson 5 nodos
+	"mediterraneo_concrete_wall_conduction",
+	# SF-AUD-037: efecto viento Cp fachada + spread acelerado
+	"wind_assisted_exterior_spread",
+	# SF-AUD-039: TC array sondas alturas ISO 9705
+	"tc_array_iso9705",
+	# SF-AUD-032: balance elemental de carbono C/H/O/N (clamp conservación)
+	"c_balance_high_phi"
 )
 
 $results = New-Object System.Collections.Generic.List[object]

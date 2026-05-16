@@ -756,6 +756,21 @@ func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
 		if bool(obj.get("is_primary_ignition_source", false)):
 			draw_circle(obj_rect_px.get_center(), minf(obj_rect_px.size.x, obj_rect_px.size.y) * 0.18, fire_core_color)
 
+		# SF-AUD-004: llama por objeto — se dibuja cuando el objeto está en FLAMING o PYROLYZING.
+		# Tamaño proporcional a hrr_kw del objeto (mínimo visible aunque sea 0).
+		if state_name == "flaming" or state_name == "pyrolyzing":
+			var obj_hrr_kw: float = maxf(0.0, float(obj.get("hrr_kw", 0.0)))
+			var flame_r: float = clampf(
+				minf(obj_rect_px.size.x, obj_rect_px.size.y) * 0.22
+					+ sqrt(maxf(0.0, obj_hrr_kw)) * 0.18,
+				3.0,
+				minf(obj_rect_px.size.x, obj_rect_px.size.y) * 0.46
+			)
+			var center: Vector2 = obj_rect_px.get_center()
+			var flame_alpha: float = 0.90 if state_name == "flaming" else 0.55
+			draw_circle(center, flame_r, Color(1.0, 0.55, 0.08, flame_alpha * 0.50))
+			draw_circle(center, flame_r * 0.55, Color(1.0, 0.90, 0.22, flame_alpha))
+
 		if show_fuel_object_names and ThemeDB.fallback_font != null and obj_rect_px.size.x >= 24.0 and obj_rect_px.size.y >= 14.0:
 			var label: String = String(obj.get("name", obj.get("kind", "")))
 			if label == "":

@@ -120,13 +120,26 @@ func build_state(context: Dictionary) -> Dictionary:
 			"smoke_kg": room.smoke_kg,
 			"visibility_m": visibility_m,
 			"smoke_prod_kg_s": room.smoke_prod_kg_s,
+			"soot_fraction": room.soot_fraction,
+			"chi_rad_normal": room.chi_rad_normal,
+			"wall_k_kw_m_k": room.wall_k_kw_m_k,
+			"wall_rho_kg_m3": room.wall_rho_kg_m3,
+			"wall_cp_kj_kg_k": room.wall_cp_kj_kg_k,
+			"wall_thickness_m": room.wall_thickness_m,
+			# SF-AUD-030: perfil 1D pared Crank-Nicolson
+			"wall_T_mid_c": room.wall_T_mid_c,
+			"wall_T_outer_c": room.wall_T_outer_c,
 			"upper_gas_kg": room.upper_gas_kg,
 			"upper_energy_kj": room.upper_energy_kj,
 			"upper_radiative_loss_kw": room.upper_radiative_loss_kw,
 			"temp_at_1_8m_c": _call_room_height_float(estimate_temperature_callable, room, 1.8, room.temp_lower_c),
 			"temp_at_1_5m_c": _call_room_height_float(estimate_temperature_callable, room, 1.5, room.temp_lower_c),
 			"temp_at_1_1m_c": _call_room_height_float(estimate_temperature_callable, room, 1.1, room.temp_lower_c),
+			"temp_at_1_0m_c": _call_room_height_float(estimate_temperature_callable, room, 1.0, room.temp_lower_c),
 			"temp_at_0_9m_c": _call_room_height_float(estimate_temperature_callable, room, 0.9, room.temp_lower_c),
+			"temp_at_0_5m_c": _call_room_height_float(estimate_temperature_callable, room, 0.5, room.temp_lower_c),
+			"temp_at_2_2m_c": _call_room_height_float(estimate_temperature_callable, room, 2.2, room.temp_lower_c),
+			"temp_at_0_1m_c": _call_room_height_float(estimate_temperature_callable, room, 0.1, room.temp_lower_c),
 
 			"has_fire": room.fire != null,
 			"fire_smoldering": room.fire_smoldering,
@@ -136,7 +149,10 @@ func build_state(context: Dictionary) -> Dictionary:
 			"flashover_triggered": room.flashover_triggered,
 			"flashover_time_s": room.flashover_time_s,
 			"floor_heat_flux_kw_m2": room.floor_heat_flux_kw_m2,
-
+			"flashover_q_thomas_kw": room.flashover_q_thomas_kw,
+			"flashover_q_mqh_kw": room.flashover_q_mqh_kw,
+			"unburned_gas_vol_frac": room.unburned_gas_vol_frac,
+			"steam_kg": room.steam_kg,
 			"fuel_energy_MJ": room.fuel_energy_MJ,
 			"fuel_capacity_MJ": _resolve_fuel_capacity_MJ(room),
 			"remaining_fuel_MJ": _resolve_remaining_fuel_MJ(room, combustion_system),
@@ -171,6 +187,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"formaldehyde_ppm": _call_room_float(compute_formaldehyde_ppm_callable, room, 0.0),
 			"fec_irritant": room.fec_irritant,
 			"fed": room.fed,
+			"c_balance_frac": room.c_balance_frac,
 			"svv_pct": room.svv_pct,
 			"svv_worst_pct": room.svv_worst_pct,
 			"is_quiescent": _call_room_bool(is_quiescent_callable, room, false),
@@ -267,7 +284,15 @@ func _build_fuel_object_snapshots(room: RoomModel, combustion_system: Combustion
 			"state": state_name,
 			"surface_temp_c": float(obj.surface_temp_c),
 			"incident_heat_flux_kw_m2": float(obj.incident_heat_flux_kw_m2),
-			"is_primary_ignition_source": bool(obj.is_primary_ignition_source)
+			"is_primary_ignition_source": bool(obj.is_primary_ignition_source),
+			"alpha_kw_s2": float(obj.alpha_kw_s2),
+			"t_ignition_s": float(obj.t_ignition_s),
+			"critical_heat_flux_kw_m2": float(obj.critical_heat_flux_kw_m2),
+			"heat_of_gasification_kj_kg": float(obj.heat_of_gasification_kj_kg),
+			"heat_of_combustion_kj_kg": float(obj.heat_of_combustion_kj_kg),
+			"soot_fraction": float(obj.soot_fraction),
+			"co2_yield_kg_per_MJ": float(obj.co2_yield_kg_per_MJ),
+			"chi_rad_normal": float(obj.chi_rad_normal)
 		})
 	return snapshots
 

@@ -15,6 +15,7 @@ class_name CaseRunner
 # ============================================================
 
 const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
+const TargetModelScript = preload("res://sim/fire/TargetModel.gd")
 
 @export var building_path: NodePath
 @export var engine_path: NodePath
@@ -141,6 +142,20 @@ func _begin_validation_run() -> void:
 	_opening_events = _prepare_opening_events(_case_config.get("opening_events", []))
 	_suppression_events = _prepare_suppression_events(_case_config.get("suppression_events", []))
 
+	# SF-AUD-029: cargar targets radiantes pasivos del caso
+	var targets_data: Array = _case_config.get("targets", [])
+	for tdata in targets_data:
+		if typeof(tdata) != TYPE_DICTIONARY:
+			continue
+		var t = TargetModelScript.new()
+		t.id = String(tdata.get("id", "target_%d" % engine.get_targets().size()))
+		t.room_id = int(tdata.get("room_id", 0))
+		t.height_m = float(tdata.get("height_m", 1.0))
+		t.area_m2 = float(tdata.get("area_m2", 0.25))
+		t.emissivity = float(tdata.get("emissivity", 0.9))
+		t.angle_factor = float(tdata.get("angle_factor", 0.5))
+		engine.add_target(t)
+
 	_metrics.clear()
 	_incident_started = false
 	_output_path = String(_cli_args.get(
@@ -253,6 +268,11 @@ func _build_case_template(case_config: Dictionary) -> Dictionary:
 
 	_apply_room_overrides(template_data, case_config.get("room_overrides", []))
 	_apply_opening_overrides(template_data, case_config.get("opening_overrides", []))
+	# Parámetros de nivel building (wind_speed_m_s, wind_direction_deg, outside_temp_c, etc.)
+	if case_config.has("building_params"):
+		var bparams: Dictionary = Dictionary(case_config.get("building_params", {}))
+		for bkey: String in bparams.keys():
+			template_data[bkey] = bparams[bkey]
 	return template_data
 
 
@@ -651,6 +671,11 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 		float(_metrics.get(prefix + "max_fed", 0.0)),
 		float(room_state.get("fed", 0.0))
 	)
+	# SF-AUD-032: peak c_balance_frac (máximo alcanzado durante la simulación)
+	_metrics[prefix + "peak_c_balance_frac"] = maxf(
+		float(_metrics.get(prefix + "peak_c_balance_frac", 0.0)),
+		float(room_state.get("c_balance_frac", 0.0))
+	)
 	_metrics[prefix + "min_visibility_m"] = minf(
 		float(_metrics.get(prefix + "min_visibility_m", float(room_state.get("visibility_m", 30.0)))),
 		float(room_state.get("visibility_m", 30.0))
@@ -690,11 +715,20 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "co_upper_ppm"] = float(room_state.get("co_upper_ppm", 0.0))
 		_metrics[prefix + "co2_ppm"] = float(room_state.get("co2_ppm", 0.0))
 		_metrics[prefix + "fed"] = float(room_state.get("fed", 0.0))
+		# SF-AUD-032: balance elemental de carbono (fracción de C producido vs disponible)
+		_metrics[prefix + "c_balance_frac"] = float(room_state.get("c_balance_frac", 0.0))
 		_metrics[prefix + "hot_layer_m"] = float(room_state.get("hot_layer_m", 0.0))
 		_metrics[prefix + "smoke_layer_m"] = float(room_state.get("smoke_layer_m", 0.0))
 		_metrics[prefix + "layer_150c_m"] = float(room_state.get("layer_150c_m", 0.0))
 		_metrics[prefix + "temp_at_0_9m_c"] = float(room_state.get("temp_at_0_9m_c", 0.0))
 		_metrics[prefix + "temp_at_1_8m_c"] = float(room_state.get("temp_at_1_8m_c", 0.0))
+		# SF-AUD-039: TC array a alturas ISO 9705
+		_metrics[prefix + "temp_at_0_1m_c"] = float(room_state.get("temp_at_0_1m_c", 0.0))
+		_metrics[prefix + "temp_at_0_5m_c"] = float(room_state.get("temp_at_0_5m_c", 0.0))
+		_metrics[prefix + "temp_at_1_0m_c"] = float(room_state.get("temp_at_1_0m_c", 0.0))
+		_metrics[prefix + "temp_at_1_1m_c"] = float(room_state.get("temp_at_1_1m_c", 0.0))
+		_metrics[prefix + "temp_at_1_5m_c"] = float(room_state.get("temp_at_1_5m_c", 0.0))
+		_metrics[prefix + "temp_at_2_2m_c"] = float(room_state.get("temp_at_2_2m_c", 0.0))
 		_metrics[prefix + "remaining_fuel_MJ"] = float(room_state.get("remaining_fuel_MJ", 0.0))
 		_metrics[prefix + "fuel_objects_remaining_MJ"] = float(room_state.get("fuel_objects_remaining_MJ", 0.0))
 		_metrics[prefix + "fuel_objects_heating_count"] = int(room_state.get("fuel_objects_heating_count", 0))
@@ -709,11 +743,29 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "ventilation_response_factor"] = float(room_state.get("ventilation_response_factor", 0.0))
 		_metrics[prefix + "outside_open_path_factor"] = float(room_state.get("outside_open_path_factor", 0.0))
 		_metrics[prefix + "upper_radiative_loss_kw"] = float(room_state.get("upper_radiative_loss_kw", 0.0))
+		# SF-AUD-028: budget energético (disponible cuando energy_budget_enabled=true)
+		var bud_e_fire: float = float(room_state.get("bud_e_fire_kj", 0.0))
+		var bud_q_residual: float = float(room_state.get("bud_q_residual_kj", 0.0))
+		_metrics[prefix + "bud_e_fire_kj"] = bud_e_fire
+		_metrics[prefix + "bud_q_residual_kj"] = bud_q_residual
+		_metrics[prefix + "bud_residual_frac"] = absf(bud_q_residual) / maxf(bud_e_fire, 1e-9)
+		# SF-AUD-030: perfil 1D pared Crank-Nicolson
+		_metrics[prefix + "wall_T_mid_c"] = float(room_state.get("wall_T_mid_c", 20.0))
+		_metrics[prefix + "wall_T_outer_c"] = float(room_state.get("wall_T_outer_c", 20.0))
+		_metrics[prefix + "wall_k_kw_m_k"] = float(room_state.get("wall_k_kw_m_k", -1.0))
+		_metrics[prefix + "wall_thickness_m"] = float(room_state.get("wall_thickness_m", -999.0))
 		watched_clamp_time_s += float(room_state.get("temp_upper_clamp_time_s", 0.0))
 		watched_clamp_count += int(room_state.get("temp_upper_clamp_count", 0))
 
 	_metrics["watched_temp_upper_clamp_time_s"] = watched_clamp_time_s
 	_metrics["watched_temp_upper_clamp_count"] = watched_clamp_count
+
+	# SF-AUD-029: exportar métricas de targets radiantes pasivos
+	var targets_state: Dictionary = state.get("targets", {})
+	for target_id in targets_state.keys():
+		var ts: Dictionary = targets_state.get(target_id, {})
+		_metrics["target_%s_peak_qnet_kw_m2" % target_id] = float(ts.get("peak_qnet_kw_m2", 0.0))
+		_metrics["target_%s_final_qnet_kw_m2" % target_id] = float(ts.get("qnet_kw_m2", 0.0))
 
 
 func _finalize_validation_run(state: Dictionary) -> void:

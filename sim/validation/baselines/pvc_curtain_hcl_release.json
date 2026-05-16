@@ -1,0 +1,18 @@
+{
+    "metrics": {
+        "time_room_0_hcl_ppm_above_200_s": {
+            "min": 60.0,
+            "max": 580.0
+        },
+        "time_room_0_fec_above_0_2_s": {
+            "min": 30.0,
+            "max": 590.0
+        },
+        "room_0_peak_hrr_kw": {
+            "min": 200.0
+        },
+        "room_0_peak_temp_upper_c": {
+            "min": 150.0
+        }
+    }
+}

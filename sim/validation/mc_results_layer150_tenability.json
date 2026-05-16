@@ -1,0 +1,349 @@
+{
+  "case": "layer150_tenability",
+  "n_requested": 3,
+  "n_valid": 3,
+  "n_failed": 0,
+  "seed": 42,
+  "elapsed_s": 100.3,
+  "perturbation": {
+    "fire_alpha_kw_s2": {
+      "nominal": 0.047,
+      "cv": 0.3,
+      "sigma": 0.0141
+    },
+    "fire_secondary_hrr_gain_kw": {
+      "nominal": 800.0,
+      "cv": 0.2,
+      "sigma": 160.0
+    },
+    "fire_o2_min_for_flame": {
+      "nominal": 0.122,
+      "cv": 0.08,
+      "sigma": 0.00976
+    },
+    "fire_o2_consumption_kg_per_MJ": {
+      "nominal": 0.076,
+      "cv": 0.05,
+      "sigma": 0.0038
+    },
+    "fire_o2_hrr_rise_tau_s": {
+      "nominal": 14.0,
+      "cv": 0.2,
+      "sigma": 2.8
+    },
+    "fire_o2_hrr_fall_tau_s": {
+      "nominal": 32.0,
+      "cv": 0.2,
+      "sigma": 6.4
+    },
+    "fire_latent_o2_viable_margin": {
+      "nominal": 0.015,
+      "cv": 0.15,
+      "sigma": 0.00225
+    },
+    "fire_extinction_delay_s": {
+      "nominal": 240.0,
+      "cv": 0.15,
+      "sigma": 36.0
+    },
+    "fire_latent_extinction_delay_s": {
+      "nominal": 300.0,
+      "cv": 0.15,
+      "sigma": 45.0
+    },
+    "upper_radiative_loss_emissivity": {
+      "nominal": 0.9,
+      "cv": 0.05,
+      "sigma": 0.045
+    },
+    "upper_radiative_loss_area_factor": {
+      "nominal": 1.1,
+      "cv": 0.1,
+      "sigma": 0.11
+    },
+    "upper_radiative_loss_start_c": {
+      "nominal": 80.0,
+      "cv": 0.1,
+      "sigma": 8.0
+    },
+    "doorway_heat_exchange_coeff": {
+      "nominal": 1.0,
+      "cv": 0.15,
+      "sigma": 0.15
+    },
+    "smoke_heat_mix_coeff": {
+      "nominal": 0.025,
+      "cv": 0.2,
+      "sigma": 0.005
+    },
+    "hot_gas_smoke_carry_fraction": {
+      "nominal": 0.3,
+      "cv": 0.2,
+      "sigma": 0.06
+    },
+    "hot_gas_species_carry_fraction": {
+      "nominal": 0.72,
+      "cv": 0.05,
+      "sigma": 0.036
+    },
+    "interior_background_heat_exchange_kg_s_m2": {
+      "nominal": 0.015,
+      "cv": 0.15,
+      "sigma": 0.00225
+    },
+    "upper_heat_capture_min": {
+      "nominal": 0.1,
+      "cv": 0.2,
+      "sigma": 0.02
+    },
+    "upper_heat_capture_max": {
+      "nominal": 0.25,
+      "cv": 0.15,
+      "sigma": 0.0375
+    },
+    "plume_fire_diameter_m": {
+      "nominal": 1.0,
+      "cv": 0.2,
+      "sigma": 0.2
+    }
+  },
+  "percentiles": {
+    "room_0_max_fed": {
+      "n": 3,
+      "mean": 0.2647,
+      "std": 0.0194,
+      "p05": 0.243,
+      "p50": 0.2657,
+      "p95": 0.2858,
+      "min": 0.2405,
+      "max": 0.288
+    },
+    "room_0_final_fed": {
+      "n": 3,
+      "mean": 0.2647,
+      "std": 0.0194,
+      "p05": 0.243,
+      "p50": 0.2657,
+      "p95": 0.2858,
+      "min": 0.2405,
+      "max": 0.288
+    },
+    "room_0_min_visibility_m": {
+      "n": 3,
+      "mean": 0.0036,
+      "std": 0.0005,
+      "p05": 0.0031,
+      "p50": 0.0033,
+      "p95": 0.0042,
+      "min": 0.0031,
+      "max": 0.0043
+    },
+    "room_0_final_visibility_m": {
+      "n": 3,
+      "mean": 0.0576,
+      "std": 0.0275,
+      "p05": 0.0355,
+      "p50": 0.0417,
+      "p95": 0.0909,
+      "min": 0.0348,
+      "max": 0.0964
+    },
+    "room_0_min_l150_m": {
+      "n": 3,
+      "mean": 1.5805,
+      "std": 0.0316,
+      "p05": 1.5428,
+      "p50": 1.5924,
+      "p95": 1.6098,
+      "min": 1.5373,
+      "max": 1.6118
+    },
+    "room_0_final_layer_150c_m": {
+      "n": 3,
+      "mean": 2.177,
+      "std": 0.0482,
+      "p05": 2.1261,
+      "p50": 2.1713,
+      "p95": 2.232,
+      "min": 2.1211,
+      "max": 2.2387
+    },
+    "room_0_peak_hrr_kw": {
+      "n": 3,
+      "mean": 645.5149,
+      "std": 26.8895,
+      "p05": 614.1365,
+      "p50": 651.5596,
+      "p95": 672.6619,
+      "min": 609.9784,
+      "max": 675.0066
+    },
+    "room_0_final_hrr_kw": {
+      "n": 3,
+      "mean": 16.1134,
+      "std": 22.7878,
+      "p05": 0.0,
+      "p50": 0.0,
+      "p95": 43.5063,
+      "min": 0.0,
+      "max": 48.3403
+    },
+    "room_0_peak_temp_upper_c": {
+      "n": 3,
+      "mean": 562.6366,
+      "std": 108.357,
+      "p05": 475.4808,
+      "p50": 500.1049,
+      "p95": 693.5647,
+      "min": 472.7448,
+      "max": 715.0602
+    },
+    "room_0_final_temp_upper_raw_c": {
+      "n": 3,
+      "mean": 99.6494,
+      "std": 17.5612,
+      "p05": 80.2063,
+      "p50": 99.8975,
+      "p95": 118.9187,
+      "min": 78.0184,
+      "max": 121.0322
+    },
+    "room_0_final_smoke_layer_m": {
+      "n": 3,
+      "mean": 1.9942,
+      "std": 0.0063,
+      "p05": 1.9866,
+      "p50": 1.9973,
+      "p95": 1.9996,
+      "min": 1.9854,
+      "max": 1.9999
+    },
+    "room_0_final_co_ppm": {
+      "n": 3,
+      "mean": 271.1524,
+      "std": 38.2315,
+      "p05": 243.2,
+      "p50": 245.2857,
+      "p95": 317.2116,
+      "min": 242.9682,
+      "max": 325.2034
+    },
+    "room_0_peak_co_ppm": {
+      "n": 3,
+      "mean": 2198.0494,
+      "std": 398.1199,
+      "p05": 1717.6103,
+      "p50": 2454.2759,
+      "p95": 2499.1301,
+      "min": 1635.7586,
+      "max": 2504.1139
+    },
+    "room_0_final_temp_at_2_2m_c": {
+      "n": 3,
+      "mean": 99.6494,
+      "std": 17.5612,
+      "p05": 80.2063,
+      "p50": 99.8975,
+      "p95": 118.9187,
+      "min": 78.0184,
+      "max": 121.0322
+    },
+    "room_0_final_temp_at_1_8m_c": {
+      "n": 3,
+      "mean": 74.8465,
+      "std": 8.8512,
+      "p05": 64.1958,
+      "p50": 78.9156,
+      "p95": 82.6489,
+      "min": 62.5603,
+      "max": 83.0637
+    },
+    "room_0_final_temp_at_0_1m_c": {
+      "n": 3,
+      "mean": 47.169,
+      "std": 0.0885,
+      "p05": 47.0914,
+      "p50": 47.1276,
+      "p95": 47.2755,
+      "min": 47.0873,
+      "max": 47.2919
+    }
+  },
+  "run_params": [
+    {
+      "run": 0,
+      "params": {
+        "fire_alpha_kw_s2": 0.04496833,
+        "fire_secondary_hrr_gain_kw": 772.33542395,
+        "fire_o2_min_for_flame": 0.12091356,
+        "fire_o2_consumption_kg_per_MJ": 0.07866754,
+        "fire_o2_hrr_rise_tau_s": 13.64275281,
+        "fire_o2_hrr_fall_tau_s": 22.41693815,
+        "fire_latent_o2_viable_margin": 0.01574772,
+        "fire_extinction_delay_s": 230.37585077,
+        "fire_latent_extinction_delay_s": 290.23685921,
+        "upper_radiative_loss_emissivity": 0.90521482,
+        "upper_radiative_loss_area_factor": 1.12555275,
+        "upper_radiative_loss_start_c": 89.30846949,
+        "doorway_heat_exchange_coeff": 1.09849548,
+        "smoke_heat_mix_coeff": 0.02555254,
+        "hot_gas_smoke_carry_fraction": 0.2557007,
+        "hot_gas_species_carry_fraction": 0.68347215,
+        "interior_background_heat_exchange_kg_s_m2": 0.01555427,
+        "upper_heat_capture_min": 0.12622162,
+        "upper_heat_capture_max": 0.25156213,
+        "plume_fire_diameter_m": 0.97873534
+      }
+    },
+    {
+      "run": 1,
+      "params": {
+        "fire_alpha_kw_s2": 0.05449804,
+        "fire_secondary_hrr_gain_kw": 567.43275232,
+        "fire_o2_min_for_flame": 0.11895217,
+        "fire_o2_consumption_kg_per_MJ": 0.07786338,
+        "fire_o2_hrr_rise_tau_s": 16.44553228,
+        "fire_o2_hrr_fall_tau_s": 30.4599701,
+        "fire_latent_o2_viable_margin": 0.01584735,
+        "fire_extinction_delay_s": 248.93568418,
+        "fire_latent_extinction_delay_s": 335.20470639,
+        "upper_radiative_loss_emissivity": 0.849905,
+        "upper_radiative_loss_area_factor": 1.16250758,
+        "upper_radiative_loss_start_c": 67.88383687,
+        "doorway_heat_exchange_coeff": 0.7,
+        "smoke_heat_mix_coeff": 0.02196555,
+        "hot_gas_smoke_carry_fraction": 0.2450514,
+        "hot_gas_species_carry_fraction": 0.75153644,
+        "interior_background_heat_exchange_kg_s_m2": 0.0164946,
+        "upper_heat_capture_min": 0.07561851,
+        "upper_heat_capture_max": 0.28177605,
+        "plume_fire_diameter_m": 0.79955944
+      }
+    },
+    {
+      "run": 2,
+      "params": {
+        "fire_alpha_kw_s2": 0.04578396,
+        "fire_secondary_hrr_gain_kw": 752.97603553,
+        "fire_o2_min_for_flame": 0.12311674,
+        "fire_o2_consumption_kg_per_MJ": 0.07911082,
+        "fire_o2_hrr_rise_tau_s": 15.78755861,
+        "fire_o2_hrr_fall_tau_s": 34.23926465,
+        "fire_latent_o2_viable_margin": 0.01646238,
+        "fire_extinction_delay_s": 257.22571336,
+        "fire_latent_extinction_delay_s": 271.78565407,
+        "upper_radiative_loss_emissivity": 0.8677183,
+        "upper_radiative_loss_area_factor": 1.04830349,
+        "upper_radiative_loss_start_c": 83.9946112,
+        "doorway_heat_exchange_coeff": 0.96248266,
+        "smoke_heat_mix_coeff": 0.035,
+        "hot_gas_smoke_carry_fraction": 0.25084245,
+        "hot_gas_species_carry_fraction": 0.68044051,
+        "interior_background_heat_exchange_kg_s_m2": 0.01672907,
+        "upper_heat_capture_min": 0.128437,
+        "upper_heat_capture_max": 0.26896348,
+        "plume_fire_diameter_m": 1.16716347
+      }
+    }
+  ]
+}

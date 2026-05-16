@@ -20,6 +20,9 @@ var interior_transport_speed_m_s: float = 0.20
 var interior_transport_min_distance_m: float = 0.50
 var interior_o2_transport_delay_multiplier: float = 1.0
 var doorway_o2_exchange_coeff: float = 1.70
+# SF-AUD-010: sync con ThermalSystem; cuando true usa bernoulli_lower_kg_s
+# (aire fresco entrante por capa baja) para el intercambio de O2 activo.
+var vent_bernoulli_enabled: bool = false
 var doorway_o2_active_max_fraction_per_step: float = 0.08
 var doorway_o2_background_exchange_kg_s_m2: float = 0.06
 var doorway_o2_background_max_fraction_per_step: float = 0.015
@@ -71,6 +74,7 @@ func configure(settings: Dictionary) -> void:
 			doorway_o2_background_min_factor
 		)
 	)
+	vent_bernoulli_enabled = bool(settings.get("vent_bernoulli_enabled", vent_bernoulli_enabled))
 
 
 func reset() -> void:
@@ -351,10 +355,16 @@ func _step_interior_opening_o2(
 	var t_cold_k: float = cold_room.temp_lower_c + 273.15
 	var delta_t_k: float = float(flow_state.get("temp_delta_k", 0.0))
 	var neutral_pf: float = float(flow_state.get("neutral_plane_f", 0.5))
-	var q_m3_s: float = 0.65 * neutral_pf * area_eff_m2 * sqrt(
-		g_gravity * h_drive_m * delta_t_k / ((t_hot_k + t_cold_k) * 0.5)
-	)
-	var exchange_kg: float = q_m3_s * air_density_kg_m3 * dt * doorway_o2_exchange_coeff * engagement
+	var exchange_kg: float
+	if vent_bernoulli_enabled:
+		# SF-AUD-010: caudal másico Bernoulli — capa baja entrante (aire fresco)
+		# determina el O2 repuesto en la sala caliente.
+		exchange_kg = float(flow_state.get("bernoulli_lower_kg_s", 0.0)) * dt
+	else:
+		var q_m3_s: float = 0.65 * neutral_pf * area_eff_m2 * sqrt(
+				g_gravity * h_drive_m * delta_t_k / ((t_hot_k + t_cold_k) * 0.5)
+		)
+		exchange_kg = q_m3_s * air_density_kg_m3 * dt * doorway_o2_exchange_coeff * engagement
 	var mass_hot_kg: float = _compute_room_air_mass_kg(hot_room, air_density_kg_m3)
 	var mass_cold_kg: float = _compute_room_air_mass_kg(cold_room, air_density_kg_m3)
 	var max_exchange_kg: float = minf(mass_hot_kg, mass_cold_kg) * doorway_o2_active_max_fraction_per_step

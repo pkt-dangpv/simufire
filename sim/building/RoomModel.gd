@@ -41,7 +41,11 @@ var o2: float = 0.209
 # Humo
 var smoke_kg: float = 0.0
 var smoke_prod_kg_s: float = 0.0
+var soot_fraction: float = 1.0
 var h_layer_m: float = 2.5
+# Fracción radiativa efectiva del HRR (SF-AUD-015). Resuelta desde per-fuel chi_rad_normal.
+# -1.0 = no hay objetos con chi_rad propio; ThermalSystem usa el global hrr_chi_rad_normal.
+var chi_rad_normal: float = -1.0
 
 # Capa superior de gases calientes
 var thermal_layer_m: float = 2.5
@@ -59,6 +63,10 @@ var co2_kg: float = 0.0
 
 # Cianuro de hidrógeno - masa en la sala (kg)
 var hcn_kg: float = 0.0
+
+# Fracción de carbono producida vs disponible (diagnóstico SF-AUD-032).
+# Calculada en CombustionSystem cada paso; 1.0 = balance exacto; <1.0 = bien ventilado.
+var c_balance_frac: float = 0.0
 
 # Irritantes — SF-AUD-018 (ISO 13571 FEC).
 # Masa de gases irritantes: HCl (PVC), acroleína y formaldehído (madera/plásticos).
@@ -112,6 +120,27 @@ var overpressure_pa: float = 0.0
 # Calculado en cada paso como ε·σ·T_upper⁴ [kW/m²].
 # ~20 kW/m² es el umbral ISO 9705 para flashover por ignicion generalizada de superficies.
 var floor_heat_flux_kw_m2: float = 0.0
+# HRR crítico de flashover predicho por Thomas (1981) y MQH (1981) [kW].
+# 0.0 = aún sin ventilación exterior o sin fuego.
+var flashover_q_thomas_kw: float = 0.0
+var flashover_q_mqh_kw: float = 0.0
+
+# Propiedades térmicas de pared por sala — SF-AUD-014 (1D lumped conduction).
+# Sentinel -1.0 = usar parámetros globales (wall_heat_capacity_kj_m2_k / wall_absorption_rate).
+# Yeso 12.7mm: k=0.00016 kW/m·K, rho=1150 kg/m³, cp=1.09 kJ/kg·K, d=0.013 m
+# Hormigón 200mm: k=0.00100, rho=2300, cp=0.88, d=0.20
+# Madera/OSB 100mm: k=0.00009, rho=600, cp=1.70, d=0.10
+# Ref: SFPE Handbook Tabla 1-5.1; ISO 13786; NIST CFAST input guide
+var wall_k_kw_m_k: float = -1.0
+var wall_rho_kg_m3: float = -1.0
+var wall_cp_kj_kg_k: float = -1.0
+var wall_thickness_m: float = -1.0
+
+# SF-AUD-030: temperaturas del perfil 1D de pared (nodos Crank-Nicolson).
+# T[0]=cara interior (= _wall_surface_temp_c), T[2]=punto medio, T[4]=cara exterior.
+# Solo se actualizan cuando los 4 parámetros de material están definidos.
+var wall_T_mid_c: float = 20.0    # T[2] — nodo central  [°C]
+var wall_T_outer_c: float = 20.0  # T[4] — cara exterior [°C]
 
 # Eventos
 var flashover_triggered: bool = false
@@ -122,6 +151,15 @@ var backdraft_time_s: float = -1.0
 var backdraft_active: bool = false
 var backdraft_phase_time_s: float = 0.0
 var backdraft_cooldown_s: float = 0.0
+# Fracción volumétrica del gas combustible no quemado en la sala — SF-AUD-013.
+# Calculada a partir de retained_unburned_MJ, calor de combustión y densidad del gas.
+# Se compara con LFL/UFL para determinar si la mezcla es inflamable (backdraft).
+var unburned_gas_vol_frac: float = 0.0
+
+# Masa de vapor de agua generado por evaporación del chorro de supresión — SF-AUD-017.
+# Producido en proporción a suppression_evaporation_fraction; decae por condensación
+# y arrastre ventilatorio (suppression_steam_condensation_rate [1/s]).
+var steam_kg: float = 0.0
 
 
 func floor_area_m2() -> float:
@@ -142,6 +180,8 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	o2 = ambient_o2
 	smoke_kg = 0.0
 	smoke_prod_kg_s = 0.0
+	soot_fraction = 1.0
+	chi_rad_normal = -1.0
 	h_layer_m = height_m
 	thermal_layer_m = height_m
 	upper_gas_kg = 0.0
@@ -179,6 +219,8 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	ventilation_response_factor = 0.0
 	overpressure_pa = 0.0
 	floor_heat_flux_kw_m2 = 0.0
+	flashover_q_thomas_kw = 0.0
+	flashover_q_mqh_kw = 0.0
 	flashover_triggered = false
 	flashover_time_s = -1.0
 	fire_spread_exposure_s = 0.0
@@ -187,3 +229,8 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	backdraft_active = false
 	backdraft_phase_time_s = 0.0
 	backdraft_cooldown_s = 0.0
+	unburned_gas_vol_frac = 0.0
+	steam_kg = 0.0
+	# SF-AUD-030: resetear perfil 1D de pared
+	wall_T_mid_c = ambient_temp_c
+	wall_T_outer_c = ambient_temp_c

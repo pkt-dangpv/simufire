@@ -129,7 +129,10 @@ func estimate_visibility_for_layer_m(room: RoomModel, smoke_layer_m: float) -> f
 	else:
 		volume_m3 = floor_area_m2 * upper_depth_m
 
-	return estimate_visibility_from_mass(room.smoke_kg, maxf(0.10, volume_m3))
+	return estimate_visibility_from_mass(
+		room.smoke_kg * clampf(float(room.soot_fraction), 0.0, 1.0),
+		maxf(0.10, volume_m3)
+	)
 
 
 func estimate_visibility_from_mass(smoke_kg: float, volume_m3: float) -> float:

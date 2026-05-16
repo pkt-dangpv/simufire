@@ -1,0 +1,53 @@
+{
+	"_comment": "SF-AUD-032 — balance elemental de carbono C/H/O/N. Escenario: fuego de poliu",
+	"_comment2": "retano (co_yield alto) en habitación cerrada → phi >> 1 → clamp activo.",
+	"template": "simple_house",
+	"duration_s": 400.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 0,
+	"enable_logging": false,
+	"watch_room_ids": [0],
+	"smoke_trigger_room_id": 0,
+	"l150_room_id": 0,
+	"room_overrides": [
+		{
+			"id": 0,
+			"fuel_objects": [
+				{
+					"id": "pu_foam_high_co",
+					"name": "Sillón PU (alto CO) — SF-AUD-032",
+					"kind": "mobiliario_tapizado",
+					"position_m": {"x": 1.5, "y": 1.5},
+					"size_m": {"x": 1.5, "y": 0.8},
+					"footprint_m2": 1.2,
+					"exposed_area_m2": 3.5,
+					"elevation_m": 0.4,
+					"fuel_energy_MJ": 1200.0,
+					"max_hrr_kw": 700.0,
+					"ignition_temp_c": 280.0,
+					"ignition_flux_kw_m2": 12.0,
+					"smoke_yield_kg_per_MJ": 0.025,
+					"co_yield_kg_per_MJ": 0.050,
+					"hcn_base_yield_kg_per_MJ": 0.004,
+					"fuel_c_kg_per_MJ": 0.024
+				}
+			]
+		}
+	],
+	"engine_overrides": {
+		"time_scale": 5.0,
+		"fire_spread_enabled": false,
+		"glass_auto_break_enabled": false,
+		"glass_break_mode": 0,
+		"fire_alpha_kw_s2": 0.12,
+		"fire_o2_min_for_flame": 0.10,
+		"fire_secondary_hrr_gain_kw": 2200.0,
+		"fire_extinction_delay_s": 240.0,
+		"fire_latent_extinction_delay_s": 300.0,
+		"co_base_yield_kg_per_MJ": 0.050,
+		"hcn_base_yield_kg_per_MJ": 0.004,
+		"hcn_max_yield_kg_per_MJ": 0.040,
+		"fuel_c_kg_per_MJ": 0.024,
+		"co_oxidation_enabled": false
+	}
+}

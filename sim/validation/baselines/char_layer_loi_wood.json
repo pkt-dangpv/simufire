@@ -1,0 +1,19 @@
+{
+	"metrics": {
+		"room_0_peak_hrr_kw": {
+			"min": 350.0,
+			"max": 1500.0
+		},
+		"room_0_peak_temp_upper_c": {
+			"min": 350.0,
+			"max": 950.0
+		},
+		"room_0_final_dominant_fuel_object_remaining_MJ": {
+			"min": 300.0,
+			"max": 890.0
+		},
+		"room_0_max_fuel_objects_flaming_count": {
+			"min": 1.0
+		}
+	}
+}
