@@ -766,6 +766,8 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		var ts: Dictionary = targets_state.get(target_id, {})
 		_metrics["target_%s_peak_qnet_kw_m2" % target_id] = float(ts.get("peak_qnet_kw_m2", 0.0))
 		_metrics["target_%s_final_qnet_kw_m2" % target_id] = float(ts.get("qnet_kw_m2", 0.0))
+		_metrics["target_%s_final_temp_c" % target_id] = float(ts.get("temp_c", 20.0))
+		_metrics["target_%s_ignited" % target_id] = 1.0 if bool(ts.get("ignited", false)) else 0.0
 
 
 func _finalize_validation_run(state: Dictionary) -> void:

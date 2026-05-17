@@ -18,12 +18,17 @@ var log_file_path: String = "user://sim_log.txt"
 var csv_enabled: bool = true
 var csv_file_path: String = "user://sim_log.csv"
 
+## Ruta del CSV de targets (se deriva de csv_file_path automáticamente).
+var target_csv_file_path: String = "user://sim_log_targets.csv"
+
 var _next_log_time_s: float = 0.0
 var _resolved_log_file_path: String = ""
 var _log_io_failed: bool = false
 var _resolved_csv_file_path: String = ""
 var _csv_io_failed: bool = false
 var _csv_header_written: bool = false
+var _target_csv_io_failed: bool = false
+var _target_csv_header_written: bool = false
 
 
 func configure(is_enabled: bool, interval_seconds: float, path: String) -> void:
@@ -35,6 +40,11 @@ func configure(is_enabled: bool, interval_seconds: float, path: String) -> void:
 func configure_csv(is_enabled: bool, path: String) -> void:
 	csv_enabled = is_enabled
 	csv_file_path = path
+	# Derivar ruta del CSV de targets automáticamente
+	if path.ends_with(".csv"):
+		target_csv_file_path = path.substr(0, path.length() - 4) + "_targets.csv"
+	else:
+		target_csv_file_path = path + "_targets.csv"
 
 
 func reset_log_file() -> void:
@@ -44,6 +54,8 @@ func reset_log_file() -> void:
 	_resolved_csv_file_path = ""
 	_csv_io_failed = false
 	_csv_header_written = false
+	_target_csv_io_failed = false
+	_target_csv_header_written = false
 
 	if not enabled:
 		return
@@ -397,6 +409,52 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		fields.append("%.4f" % float(rs.get("bud_q_residual_kj", 0.0)))
 		fields.append("%.4f" % float(rs.get("bud_chi_rad", 0.0)))
 		fields.append("%.4f" % float(rs.get("bud_q_fire_rad_kj", 0.0)))
+		file.store_line(",".join(fields))
+
+	file.close()
+
+	# SF-AUD-029: targets CSV separado
+	_append_target_csv_snapshot(sim_time_s, state)
+
+
+func _append_target_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
+	var targets: Dictionary = state.get("targets", {})
+	if targets.is_empty():
+		return
+	if _target_csv_io_failed:
+		return
+
+	var path: String = _normalize_log_path(target_csv_file_path)
+	if not _ensure_log_directory(path):
+		return
+
+	var file: FileAccess
+	if not _target_csv_header_written:
+		file = FileAccess.open(path, FileAccess.WRITE)
+		if file == null:
+			_target_csv_io_failed = true
+			push_error("SimulationLogWriter: no se pudo crear target CSV en %s (err=%d)" % [path, FileAccess.get_open_error()])
+			return
+		file.store_line("time_s,target_id,room_id,qnet_kw_m2,peak_qnet_kw_m2,temp_c,ignited")
+		_target_csv_header_written = true
+	else:
+		file = FileAccess.open(path, FileAccess.READ_WRITE)
+		if file == null:
+			_target_csv_io_failed = true
+			push_error("SimulationLogWriter: no se pudo abrir target CSV en %s (err=%d)" % [path, FileAccess.get_open_error()])
+			return
+		file.seek_end()
+
+	for tid in targets.keys():
+		var ts: Dictionary = targets[tid]
+		var fields: PackedStringArray = PackedStringArray()
+		fields.append("%.1f" % sim_time_s)
+		fields.append(_csv_escape(str(tid)))
+		fields.append(str(ts.get("room_id", -1)))
+		fields.append("%.4f" % float(ts.get("qnet_kw_m2", 0.0)))
+		fields.append("%.4f" % float(ts.get("peak_qnet_kw_m2", 0.0)))
+		fields.append("%.2f" % float(ts.get("temp_c", 20.0)))
+		fields.append("1" if bool(ts.get("ignited", false)) else "0")
 		file.store_line(",".join(fields))
 
 	file.close()

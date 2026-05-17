@@ -48,8 +48,24 @@ var qnet_kw_m2: float = 0.0
 ## Flujo neto máximo alcanzado durante la simulación [kW/m²].
 var peak_qnet_kw_m2: float = 0.0
 
+## Capacidad térmica total del target [kJ/K].
+## = ρ × e × A × c_p  (masa × calor específico)
+## Valores típicos:
+##   Chapa acero 3mm, 25×25cm → 7854×0.003×0.0625×0.47 ≈ 0.69 kJ/K
+##   Tabla madera 1cm,25×25cm → 600×0.01×0.0625×1.7  ≈ 0.64 kJ/K
+##   Target genérico / sonda                          → 2.0 kJ/K (por defecto)
+var thermal_mass_kj_k: float = 2.0
+
+## Temperatura de ignición del target [°C].
+## 250 °C ≈ ignición con llama piloto (madera); 350 °C ≈ autoignición.
+var ignition_temp_c: float = 250.0
+
+## True cuando temp_c alcanzó ignition_temp_c.
+var ignited: bool = false
+
 
 func reset() -> void:
 	temp_c = 20.0
 	qnet_kw_m2 = 0.0
 	peak_qnet_kw_m2 = 0.0
+	ignited = false

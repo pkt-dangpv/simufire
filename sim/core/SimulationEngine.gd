@@ -1580,6 +1580,11 @@ func _step_targets(dt: float) -> void:
 		t.qnet_kw_m2 = maxf(q_incident - q_emit, 0.0)
 		if t.qnet_kw_m2 > t.peak_qnet_kw_m2:
 			t.peak_qnet_kw_m2 = t.qnet_kw_m2
+		# Masa térmica: calentamiento por flujo absorbido (modelo de capacitancia concentrada)
+		var q_abs_kw: float = t.qnet_kw_m2 * t.area_m2
+		t.temp_c = minf(t.temp_c + (q_abs_kw * dt) / t.thermal_mass_kj_k, 1200.0)
+		if not t.ignited and t.temp_c >= t.ignition_temp_c:
+			t.ignited = true
 
 
 func _step_co_oxidation(dt: float) -> void:
@@ -1991,7 +1996,9 @@ func get_state() -> Dictionary:
 		targets_dict[t.id] = {
 			"qnet_kw_m2": t.qnet_kw_m2,
 			"peak_qnet_kw_m2": t.peak_qnet_kw_m2,
-			"temp_c": t.temp_c
+			"temp_c": t.temp_c,
+			"room_id": t.room_id,
+			"ignited": t.ignited
 		}
 	state["targets"] = targets_dict
 	return state

@@ -110,6 +110,20 @@ var _editor_theme: Theme
 var _editor_font: Font
 var _editor_title_font: Font
 
+# Menú contextual (clic derecho)
+const _CTX_EDIT      := 1
+const _CTX_DELETE    := 2
+const _CTX_ADD_DOOR  := 3
+const _CTX_ADD_WIN   := 4
+const _CTX_IGNITE    := 5
+const _CTX_DUPLICATE := 6
+const _CTX_DESELECT  := 7
+var _context_menu: PopupMenu = null
+var _ctx_pos_m: Vector2 = Vector2.ZERO
+var _ctx_room_id: int = -1
+var _ctx_obj_index: int = -1
+var _ctx_opening_index: int = -1
+
 
 func _ready() -> void:
 	_create_empty_scenario()
@@ -145,8 +159,12 @@ func _apply_editor_visual_style() -> void:
 		return
 	_editor_font = _make_system_font(PackedStringArray(["Roboto Condensed", "Bahnschrift", "Segoe UI", "Arial Narrow", "Arial"]), 500, 92)
 	_editor_title_font = _make_system_font(PackedStringArray(["Bahnschrift SemiBold Condensed", "Agency FB", "Roboto Condensed", "Arial Narrow", "Arial"]), 700, 82)
-	_editor_theme = _build_editor_theme()
-	_ui_root.theme = _editor_theme
+	# Respeta el tema definido en la escena (.tres) si existe; si no, genera uno por codigo.
+	if _ui_root.theme == null:
+		_editor_theme = _build_editor_theme()
+		_ui_root.theme = _editor_theme
+	else:
+		_editor_theme = _ui_root.theme
 	_ensure_editor_branding()
 	_style_editor_controls(_ui_root)
 
@@ -854,26 +872,33 @@ func _set_tool(tool_id: int) -> void:
 		button.button_pressed = int(key) == current_tool
 	_clear_drag()
 	_set_status(_tool_hint(current_tool))
+	# Resaltar el control de ancho de pasillo solo cuando la herramienta pasillo esta activa
+	var corridor_section := get_node_or_null("CanvasLayer/UI/LeftPanel/VBox/CorridorSectionLabel") as Label
+	if corridor_section != null:
+		corridor_section.add_theme_color_override(
+			"font_color",
+			Color(1.0, 0.5, 0.0, 1.0) if current_tool == Tool.CORRIDOR_L else Color(0.49, 0.55, 0.60, 0.92)
+		)
 
 
 func _tool_hint(tool_id: int) -> String:
 	match tool_id:
 		Tool.SELECT:
-			return "Select: selecciona habitaciones, objetos o aperturas en %s." % _current_floor_name()
+			return "Seleccionar: clic en habitacion, objeto o apertura. Clic derecho para opciones."
 		Tool.ROOM:
-			return "Room: arrastra para crear una estancia en %s." % _current_floor_name()
+			return "Estancia: arrastra para crear una estancia en %s." % _current_floor_name()
 		Tool.CORRIDOR_L:
-			return "Pasillo: arrastra en %s. Recto para tramo lineal o diagonal para giro en L. Ancho %.2f m." % [_current_floor_name(), corridor_width_m]
+			return "Pasillo: arrastra para crear un pasillo. Diagonal = giro en L. Ajusta ANCHO arriba a la izquierda. (%.2f m actualmente)" % corridor_width_m
 		Tool.DOOR:
-			return "Door: pulsa una pared compartida o exterior en %s para crear puerta." % _current_floor_name()
+			return "Puerta: pulsa una pared compartida o exterior en %s para crear puerta." % _current_floor_name()
 		Tool.WINDOW:
-			return "Window: pulsa cerca de una pared exterior en %s." % _current_floor_name()
+			return "Ventana: pulsa cerca de una pared exterior en %s." % _current_floor_name()
 		Tool.OBJECT:
-			return "Object: pulsa dentro de una estancia de %s para colocar el combustible elegido." % _current_floor_name()
+			return "Objeto: pulsa dentro de una estancia de %s para colocar el combustible elegido." % _current_floor_name()
 		Tool.IGNITION:
-			return "Ignite: pulsa un objeto de %s para marcarlo como foco inicial." % _current_floor_name()
+			return "Ignicion: pulsa un objeto de %s para marcarlo como foco inicial." % _current_floor_name()
 		Tool.DELETE:
-			return "Delete: elimina objeto, apertura o estancia bajo el cursor en %s." % _current_floor_name()
+			return "Borrar: elimina objeto, apertura o estancia bajo el cursor en %s." % _current_floor_name()
 	return ""
 
 
@@ -896,6 +921,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	var mouse_event: InputEventMouseButton = event
+
+	# Clic derecho: menú contextual
+	if mouse_event.button_index == MOUSE_BUTTON_RIGHT:
+		if mouse_event.pressed and not _is_pointer_over_ui():
+			_show_context_menu(mouse_event.position, _screen_to_m(mouse_event.position))
+			get_viewport().set_input_as_handled()
+		return
+
 	if mouse_event.button_index != MOUSE_BUTTON_LEFT:
 		return
 	if _is_pointer_over_ui():
@@ -979,6 +1012,121 @@ func _is_pointer_over_ui() -> bool:
 func _screen_to_m(screen_pos: Vector2) -> Vector2:
 	var local_px: Vector2 = get_global_transform_with_canvas().affine_inverse() * screen_pos
 	return _snap_m(local_px / PIXELS_PER_METER)
+
+
+# ---------------------------------------------------------------------------
+# Menú contextual (clic derecho)
+# ---------------------------------------------------------------------------
+func _get_context_menu() -> PopupMenu:
+	if _context_menu != null:
+		return _context_menu
+	_context_menu = PopupMenu.new()
+	_context_menu.name = "ContextMenu"
+	var canvas := get_node_or_null("CanvasLayer") as CanvasLayer
+	if canvas != null:
+		canvas.add_child(_context_menu)
+	else:
+		add_child(_context_menu)
+	_context_menu.id_pressed.connect(_on_context_id_pressed)
+	return _context_menu
+
+
+func _show_context_menu(screen_pos: Vector2, pos_m: Vector2) -> void:
+	_ctx_pos_m = pos_m
+	_ctx_room_id = -1
+	_ctx_obj_index = -1
+	_ctx_opening_index = -1
+
+	var menu := _get_context_menu()
+	menu.clear()
+
+	var hit_obj: Dictionary = _find_object_at(pos_m)
+	var hit_opening: int = _find_opening_at(pos_m)
+	var hit_room: int = _find_room_at(pos_m)
+
+	if not hit_obj.is_empty():
+		_ctx_room_id     = int(hit_obj.get("room_id", -1))
+		_ctx_obj_index   = int(hit_obj.get("object_index", -1))
+		var obj: Dictionary = _get_object(_ctx_room_id, _ctx_obj_index)
+		menu.add_item("Editar: %s" % str(obj.get("name", "objeto")), _CTX_EDIT)
+		menu.add_item("Duplicar objeto", _CTX_DUPLICATE)
+		menu.add_separator()
+		menu.add_item("Borrar objeto", _CTX_DELETE)
+	elif hit_opening >= 0:
+		_ctx_opening_index = hit_opening
+		menu.add_item("Editar apertura", _CTX_EDIT)
+		menu.add_separator()
+		menu.add_item("Borrar apertura", _CTX_DELETE)
+	elif hit_room >= 0:
+		_ctx_room_id = hit_room
+		var room: Dictionary = _get_room(hit_room)
+		var rname: String = str(room.get("name", "Habitacion %d" % hit_room))
+		menu.add_item("Editar: %s" % rname, _CTX_EDIT)
+		menu.add_separator()
+		menu.add_item("Anadir puerta aqui", _CTX_ADD_DOOR)
+		menu.add_item("Anadir ventana aqui", _CTX_ADD_WIN)
+		menu.add_item("Marcar ignicion aqui", _CTX_IGNITE)
+		menu.add_separator()
+		menu.add_item("Borrar habitacion", _CTX_DELETE)
+	else:
+		menu.add_item("Deseleccionar todo", _CTX_DESELECT)
+
+	if menu.get_item_count() == 0:
+		return
+	menu.popup(Rect2i(int(screen_pos.x), int(screen_pos.y), 0, 0))
+
+
+func _on_context_id_pressed(id: int) -> void:
+	match id:
+		_CTX_EDIT:
+			if _ctx_obj_index >= 0:
+				_select_object(_ctx_room_id, _ctx_obj_index)
+			elif _ctx_opening_index >= 0:
+				_select_opening(_ctx_opening_index)
+			elif _ctx_room_id >= 0:
+				_select_room(_ctx_room_id)
+		_CTX_DELETE:
+			if _ctx_obj_index >= 0:
+				_select_object(_ctx_room_id, _ctx_obj_index)
+				_delete_selected()
+			elif _ctx_opening_index >= 0:
+				_select_opening(_ctx_opening_index)
+				_delete_selected()
+			elif _ctx_room_id >= 0:
+				_select_room(_ctx_room_id)
+				_delete_selected()
+		_CTX_ADD_DOOR:
+			_set_tool(Tool.DOOR)
+			_create_door_at(_ctx_pos_m)
+		_CTX_ADD_WIN:
+			_set_tool(Tool.WINDOW)
+			_create_window_at(_ctx_pos_m)
+		_CTX_IGNITE:
+			_set_tool(Tool.IGNITION)
+			_mark_ignition_at(_ctx_pos_m)
+		_CTX_DUPLICATE:
+			_duplicate_object_at_context()
+		_CTX_DESELECT:
+			_clear_selection()
+			queue_redraw()
+
+
+func _duplicate_object_at_context() -> void:
+	if _ctx_room_id < 0 or _ctx_obj_index < 0:
+		return
+	var obj: Dictionary = _get_object(_ctx_room_id, _ctx_obj_index)
+	if obj.is_empty():
+		return
+	var dup: Dictionary = obj.duplicate(true)
+	var pos: Vector2 = Serializer.vector2_from_data(dup.get("position_m", Vector2.ZERO))
+	dup["position_m"] = {"x": pos.x + 0.5, "y": pos.y + 0.5}
+	var room: Dictionary = _get_room(_ctx_room_id)
+	var objects: Array = room.get("fuel_objects", [])
+	objects.append(dup)
+	room["fuel_objects"] = objects
+	_select_object(_ctx_room_id, objects.size() - 1)
+	_set_status("Objeto duplicado.")
+	queue_redraw()
 
 
 func _m_to_px(pos_m: Vector2) -> Vector2:
@@ -1909,6 +2057,13 @@ func _export_runtime_pressed() -> void:
 		_set_status("No se pudo exportar el template runtime.")
 
 
+func _delete_selected_room() -> void:
+	if selected_room_id >= 0:
+		_delete_room(selected_room_id)
+	else:
+		_set_status("Selecciona primero una habitacion.")
+
+
 func _delete_selected() -> void:
 	if selected_object_room_id >= 0 and selected_object_index >= 0:
 		_delete_object(selected_object_room_id, selected_object_index)
@@ -2305,7 +2460,9 @@ func _bind_existing_ui() -> bool:
 	_object_kind_option = _ui_root.get_node_or_null("LeftPanel/VBox/ObjectTypeOption") as OptionButton
 	_path_edit = _ui_root.get_node_or_null("LeftPanel/VBox/PathEdit") as LineEdit
 	_scenario_option = _ui_root.get_node_or_null("LeftPanel/VBox/ScenarioOption") as OptionButton
-	_hvac_option = _ui_root.get_node_or_null("LeftPanel/VBox/HVACOption") as OptionButton
+	_hvac_option = _ui_root.get_node_or_null("LeftPanel/VBox/HVACRow/HVACOption") as OptionButton
+	if _hvac_option == null:
+		_hvac_option = _ui_root.get_node_or_null("LeftPanel/VBox/HVACOption") as OptionButton
 	_stop_time_spin = _ui_root.get_node_or_null("LeftPanel/VBox/StopTimeSpin") as SpinBox
 	_corridor_width_spin = _ui_root.get_node_or_null("LeftPanel/VBox/CorridorWidthSpin") as SpinBox
 	_status_label = _ui_root.get_node_or_null("LeftPanel/VBox/StatusLabel") as Label
@@ -2352,6 +2509,7 @@ func _bind_existing_ui() -> bool:
 	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnExportRuntime") as Button, _export_runtime_pressed)
 	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnLoadScenario") as Button, _load_scenario_pressed)
 	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/BtnApplyRoom") as Button, _apply_room_properties)
+	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/BtnDeleteRoom") as Button, _delete_selected_room)
 	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/ObjProps/BtnApplyObject") as Button, _apply_object_properties)
 	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/ObjProps/BtnDeleteObject") as Button, _delete_selected)
 	_connect_button(_ui_root.get_node_or_null("BottomBar/HBox/BtnStartSimulation") as Button, _run_simulation_pressed)
