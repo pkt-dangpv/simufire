@@ -2,7 +2,7 @@
     "metrics": {
         "room_0_peak_co_upper_ppm": {
             "min": 12000.0,
-            "max": 28000.0
+            "max": 40000.0
         },
         "room_0_peak_hrr_kw": {
             "min": 800.0

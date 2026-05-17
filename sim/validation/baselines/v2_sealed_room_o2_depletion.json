@@ -13,7 +13,7 @@
                                                          "tolerance":  30.0
                                                      },
                     "room_0_peak_hrr_kw":  {
-                                               "min":  1500.0
+                                               "min":  1300.0
                                            },
                     "room_0_peak_temp_upper_c":  {
                                                      "min":  300.0

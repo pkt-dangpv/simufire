@@ -1,6 +1,0 @@
-Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
-
-F:/OneDrive/Documentos/GitHub/simufire/sim_log.txt
-[Validation] Ejecutando caso 'postfire_decay' hasta 1900.0 s
-[Validation] Reporte guardado en res://sim/validation/reports/postfire_decay.json
-[Validation] Baseline FAIL

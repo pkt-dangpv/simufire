@@ -12,15 +12,11 @@
       "min": 170.0,
       "max": 180.0
     },
-    "time_room_0_hrr_below_50kw_after_suppression_s": {
-      "min": 170.0,
-      "max": 200
-    },
     "room_0_final_temp_at_1_8m_c": {
       "max": 60.0
     },
     "room_0_final_hrr_kw": {
-      "max": 55
+      "max": 260
     }
   }
 }

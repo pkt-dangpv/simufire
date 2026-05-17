@@ -31,6 +31,7 @@ static func update(item_dict: Dictionary, op: OpeningModel, room_items: Dictiona
 	var meters_to_units: float = float(settings.get("meters_to_units", 1.0))
 	var smoke_color: Color = settings.get("smoke_color", Color(0.38, 0.40, 0.42, 0.20))
 	var origin_offset_m: Vector2 = settings.get("origin_offset_m", Vector2.ZERO)
+	var floor_level_m: float = float(pose.get("floor_level_m", 0.0))
 
 	var height_a: float = float(item_a.get("height_m", 2.4)) if not item_a.is_empty() else 2.4
 	var height_b: float = float(item_b.get("height_m", 2.4)) if not item_b.is_empty() else height_a
@@ -115,7 +116,7 @@ static func update(item_dict: Dictionary, op: OpeningModel, room_items: Dictiona
 				smoke_color.b,
 				clampf(curtain_alpha * 0.52, 0.035, 0.38)
 			)
-	curtain.position = _to_world(Vector3(pos3.x, curtain_center_y, pos3.z), meters_to_units, origin_offset_m)
+	curtain.position = _to_world(Vector3(pos3.x, floor_level_m + curtain_center_y, pos3.z), meters_to_units, origin_offset_m)
 
 
 static func _to_world(meters: Vector3, meters_to_units: float, origin_offset_m: Vector2) -> Vector3:

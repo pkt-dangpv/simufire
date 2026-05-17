@@ -1,3 +1,0 @@
-[Reference Checks] PASS: 28/28 required checks passed
-[Reference Checks] Known gaps: 2 non-gating checks did not pass
-[Reference Checks] Report: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\reference_checks.json

@@ -219,14 +219,14 @@ func _populate_template_option() -> void:
 
 	var presets: Array[Dictionary] = _template_builder.get_preset_definitions()
 	_preset_ids.clear()
+	_template_option.clear()
 	for preset in presets:
 		var preset_id: String = String(preset.get("id", "simple_house"))
 		_preset_ids.append(preset_id)
-	if _template_option.get_item_count() == 0:
-		for i in range(presets.size()):
-			var preset: Dictionary = presets[i]
-			var preset_id: String = _preset_ids[i]
-			_template_option.add_item(String(preset.get("name", preset_id)), i)
+	for i in range(presets.size()):
+		var preset: Dictionary = presets[i]
+		var preset_id: String = _preset_ids[i]
+		_template_option.add_item(String(preset.get("name", preset_id)), i)
 
 	var saved: Dictionary = _load_startup_options()
 	var selected_id: String = String(saved.get("template_name", "simple_house"))

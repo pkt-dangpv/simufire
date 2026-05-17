@@ -37,6 +37,8 @@ var temp_lower_c: float = 20.0
 
 # Gases / oxigeno
 var o2: float = 0.209
+# Fraccion O2 en capa superior (zona caliente). Se inicializa igual a o2 (2026-05-17).
+var o2_upper: float = 0.209
 
 # Humo
 var smoke_kg: float = 0.0
@@ -60,9 +62,11 @@ var co_upper_kg: float = 0.0
 
 # Dioxido de carbono - masa en la sala (kg)
 var co2_kg: float = 0.0
+var co2_upper_kg: float = 0.0  # CO2 en capa superior (kg)
 
 # Cianuro de hidrógeno - masa en la sala (kg)
 var hcn_kg: float = 0.0
+var hcn_upper_kg: float = 0.0  # HCN en capa superior (kg)
 
 # Fracción de carbono producida vs disponible (diagnóstico SF-AUD-032).
 # Calculada en CombustionSystem cada paso; 1.0 = balance exacto; <1.0 = bien ventilado.

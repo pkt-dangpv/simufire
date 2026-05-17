@@ -15,6 +15,7 @@ static func create_room_shell(
 	var origin_offset_m: Vector2 = settings.get("origin_offset_m", Vector2.ZERO)
 	var floor_thickness_m: float = float(settings.get("floor_thickness_m", 0.04))
 	var wall_thickness_m: float = float(settings.get("wall_thickness_m", 0.07))
+	var floor_level_m: float = float(settings.get("floor_level_m", 0.0))
 	var show_walls: bool = bool(settings.get("show_walls", true))
 	var show_room_labels: bool = bool(settings.get("show_room_labels", true))
 	var floor_color: Color = settings.get("floor_color", Color(0.18, 0.18, 0.17, 1.0))
@@ -32,15 +33,16 @@ static func create_room_shell(
 		_make_material(floor_color, false)
 	)
 	floor.position = _room_center(rect_m, -floor_thickness_m * 0.5, origin_offset_m, meters_to_units)
+	floor.position.y += floor_level_m * meters_to_units
 	room_node.add_child(floor)
 
 	var walls: Array[MeshInstance3D] = []
 	if show_walls:
 		var w := wall_thickness_m
-		walls.append(_add_wall(room_node, "WallTop", rect_m, Vector3(rect_m.size.x + w, height_m, w), Vector2(rect_m.position.x + rect_m.size.x * 0.5, rect_m.position.y), wall_color, origin_offset_m, meters_to_units))
-		walls.append(_add_wall(room_node, "WallBottom", rect_m, Vector3(rect_m.size.x + w, height_m, w), Vector2(rect_m.position.x + rect_m.size.x * 0.5, rect_m.position.y + rect_m.size.y), wall_color, origin_offset_m, meters_to_units))
-		walls.append(_add_wall(room_node, "WallLeft", rect_m, Vector3(w, height_m, rect_m.size.y + w), Vector2(rect_m.position.x, rect_m.position.y + rect_m.size.y * 0.5), wall_color, origin_offset_m, meters_to_units))
-		walls.append(_add_wall(room_node, "WallRight", rect_m, Vector3(w, height_m, rect_m.size.y + w), Vector2(rect_m.position.x + rect_m.size.x, rect_m.position.y + rect_m.size.y * 0.5), wall_color, origin_offset_m, meters_to_units))
+		walls.append(_add_wall(room_node, "WallTop", rect_m, Vector3(rect_m.size.x + w, height_m, w), Vector2(rect_m.position.x + rect_m.size.x * 0.5, rect_m.position.y), wall_color, origin_offset_m, meters_to_units, floor_level_m))
+		walls.append(_add_wall(room_node, "WallBottom", rect_m, Vector3(rect_m.size.x + w, height_m, w), Vector2(rect_m.position.x + rect_m.size.x * 0.5, rect_m.position.y + rect_m.size.y), wall_color, origin_offset_m, meters_to_units, floor_level_m))
+		walls.append(_add_wall(room_node, "WallLeft", rect_m, Vector3(w, height_m, rect_m.size.y + w), Vector2(rect_m.position.x, rect_m.position.y + rect_m.size.y * 0.5), wall_color, origin_offset_m, meters_to_units, floor_level_m))
+		walls.append(_add_wall(room_node, "WallRight", rect_m, Vector3(w, height_m, rect_m.size.y + w), Vector2(rect_m.position.x + rect_m.size.x, rect_m.position.y + rect_m.size.y * 0.5), wall_color, origin_offset_m, meters_to_units, floor_level_m))
 
 	var label := Label3D.new()
 	label.name = "Label_%02d" % room_id
@@ -55,6 +57,7 @@ static func create_room_shell(
 	label.width = (minf(rect_m.size.x, rect_m.size.y) * 0.82) / 0.014
 	label.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
 	label.position = _room_center(rect_m, floor_thickness_m + 0.012, origin_offset_m, meters_to_units)
+	label.position.y += floor_level_m * meters_to_units
 	label.visible = show_room_labels
 	if labels_root != null:
 		labels_root.add_child(label)
@@ -75,11 +78,12 @@ static func _add_wall(
 	pos_m: Vector2,
 	wall_color: Color,
 	origin_offset_m: Vector2,
-	meters_to_units: float
+	meters_to_units: float,
+	floor_level_m: float
 ) -> MeshInstance3D:
 	var room_height_m: float = size_m.y
 	var wall := _create_box(wall_name, size_m * meters_to_units, _make_material(wall_color, true))
-	wall.position = _to_world(Vector3(pos_m.x, room_height_m * 0.5, pos_m.y), origin_offset_m, meters_to_units)
+	wall.position = _to_world(Vector3(pos_m.x, floor_level_m + room_height_m * 0.5, pos_m.y), origin_offset_m, meters_to_units)
 	parent.add_child(wall)
 	return wall
 

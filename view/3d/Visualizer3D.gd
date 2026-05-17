@@ -330,6 +330,8 @@ func _rebuild_scene() -> void:
 	for room_id in room_ids:
 		_create_room(room_id, Rect2(rects[room_id]))
 
+	_create_stair_visuals()
+
 	for index in range(building.get_opening_count()):
 		_create_opening(index)
 
@@ -358,6 +360,7 @@ func _compute_bounds(rects: Dictionary) -> Rect2:
 
 func _create_room(room_id: int, rect_m: Rect2) -> void:
 	var height_m: float = _get_room_height(room_id)
+	var floor_level_m: float = _get_room_floor_level(room_id)
 	var shell: Dictionary = RoomShellFactory.create_room_shell(
 		_rooms_root,
 		_labels_root,
@@ -370,6 +373,7 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 			"meters_to_units": meters_to_units,
 			"origin_offset_m": _origin_offset_m,
 			"floor_thickness_m": floor_thickness_m,
+			"floor_level_m": floor_level_m,
 			"wall_thickness_m": wall_thickness_m,
 			"show_walls": show_walls,
 			"show_room_labels": show_room_labels,
@@ -380,6 +384,11 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	)
 	var floor := shell.get("floor") as MeshInstance3D
 	var walls: Array = shell.get("walls", [])
+	var room_node := shell.get("room_node") as Node3D
+	var room: RoomModel = building.get_room(room_id) if building != null else null
+	if floor != null and _is_stair_room(room) and floor_level_m > 0.20:
+		floor.visible = false
+		_create_stairwell_upper_floor_visual(room_id, rect_m, floor_level_m, room_node)
 
 	var smoke := _create_box("SmokeVolume", Vector3.ONE, _make_smoke_volume_material())
 	smoke.visible = false
@@ -452,6 +461,7 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	_room_items[room_id] = {
 		"rect": rect_m,
 		"height_m": height_m,
+		"floor_level_m": floor_level_m,
 		"floor": floor,
 		"walls": walls,
 		"smoke": smoke,
@@ -482,6 +492,92 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	}
 
 
+func _create_stair_visuals() -> void:
+	if building == null or _rooms_root == null:
+		return
+	var rects: Dictionary = building.get_room_rects_m()
+	for room_id in rects.keys():
+		var lower_room: RoomModel = building.get_room(int(room_id))
+		if lower_room == null or not _is_stair_room(lower_room):
+			continue
+		var lower_level_m: float = lower_room.floor_level_z_m
+		var upper_level_m: float = _find_next_floor_level_above(lower_level_m)
+		if upper_level_m <= lower_level_m + 0.20:
+			continue
+		var rect := Rect2(rects[room_id])
+		var stair_root := Node3D.new()
+		stair_root.name = "Stairs_%02d" % int(room_id)
+		_rooms_root.add_child(stair_root)
+		var steps: int = 14
+		var start_margin_m: float = 0.22
+		var run_m: float = maxf(0.8, rect.size.y - start_margin_m - _stair_top_landing_depth_m(rect))
+		var step_depth_m: float = run_m / float(steps)
+		var step_width_m: float = _stair_ramp_width_m(rect)
+		var rise_m: float = (upper_level_m - lower_level_m) / float(steps)
+		var x: float = rect.position.x + rect.size.x * 0.5
+		for i in range(steps):
+			var step_h: float = rise_m * float(i + 1)
+			var z: float = rect.position.y + start_margin_m + step_depth_m * (float(i) + 0.5)
+			var step := _create_box(
+				"Step_%02d" % i,
+				Vector3(step_width_m, maxf(0.04, step_h), step_depth_m * 0.92) * meters_to_units,
+				_make_material(Color(0.38, 0.32, 0.25, 1.0), false)
+			)
+			step.position = _to_world(Vector3(x, lower_level_m + step_h * 0.5, z))
+			stair_root.add_child(step)
+		var rail := _create_box(
+			"Handrail",
+			Vector3(0.06, 0.08, run_m) * meters_to_units,
+			_make_material(Color(0.18, 0.14, 0.10, 1.0), false)
+		)
+		rail.position = _to_world(Vector3(rect.position.x + rect.size.x - 0.18, lower_level_m + 1.05, rect.position.y + rect.size.y * 0.5))
+		stair_root.add_child(rail)
+
+
+func _create_stairwell_upper_floor_visual(room_id: int, rect: Rect2, floor_level_m: float, parent: Node3D) -> void:
+	if parent == null:
+		parent = _rooms_root
+	var ramp_width_m: float = _stair_ramp_width_m(rect)
+	var ramp_left_m: float = rect.position.x + rect.size.x * 0.5 - ramp_width_m * 0.5
+	var ramp_right_m: float = ramp_left_m + ramp_width_m
+	var landing_depth_m: float = _stair_top_landing_depth_m(rect)
+	var landing_start_z_m: float = rect.position.y + rect.size.y - landing_depth_m
+	var mat := _make_material(floor_color, false)
+
+	var left_width_m: float = maxf(0.0, ramp_left_m - rect.position.x)
+	if left_width_m >= 0.28:
+		_add_stairwell_floor_visual(parent, "StairSideFloorLeft_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, left_width_m, rect.size.y), floor_level_m, mat)
+
+	var right_width_m: float = maxf(0.0, rect.position.x + rect.size.x - ramp_right_m)
+	if right_width_m >= 0.28:
+		_add_stairwell_floor_visual(parent, "StairSideFloorRight_%s" % str(room_id), Rect2(ramp_right_m, rect.position.y, right_width_m, rect.size.y), floor_level_m, mat)
+
+	if landing_depth_m >= 0.28:
+		_add_stairwell_floor_visual(parent, "StairTopLanding_%s" % str(room_id), Rect2(rect.position.x, landing_start_z_m, rect.size.x, landing_depth_m), floor_level_m, mat)
+
+
+func _add_stairwell_floor_visual(parent: Node3D, node_name: String, rect: Rect2, floor_level_m: float, mat: StandardMaterial3D) -> void:
+	var slab := _create_box(
+		node_name,
+		Vector3(rect.size.x, floor_thickness_m, rect.size.y) * meters_to_units,
+		mat
+	)
+	slab.position = _to_world(Vector3(
+		rect.position.x + rect.size.x * 0.5,
+		floor_level_m - floor_thickness_m * 0.5,
+		rect.position.y + rect.size.y * 0.5
+	))
+	parent.add_child(slab)
+
+
+func _stair_ramp_width_m(rect: Rect2) -> float:
+	return minf(maxf(0.82, rect.size.x * 0.50), maxf(0.82, rect.size.x - 0.96))
+
+
+func _stair_top_landing_depth_m(rect: Rect2) -> float:
+	return clampf(rect.size.y * 0.22, 0.72, 1.05)
+
+
 func _create_opening(index: int) -> void:
 	if not show_openings or building == null:
 		return
@@ -503,7 +599,8 @@ func _create_opening(index: int) -> void:
 		Vector3(pose["size"]) * meters_to_units,
 		_make_material(material_color, true)
 	)
-	marker.position = _to_world(Vector3(pose["position"].x, pose["position"].y, pose["position"].z))
+	var opening_floor_m: float = float(pose.get("floor_level_m", 0.0))
+	marker.position = _to_world(Vector3(pose["position"].x, opening_floor_m + pose["position"].y, pose["position"].z))
 	_openings_root.add_child(marker)
 	_opening_items[index] = {"marker": marker}
 
@@ -526,7 +623,14 @@ func _create_opening(index: int) -> void:
 func _opening_pose(op: OpeningModel) -> Dictionary:
 	if building == null:
 		return {}
-	return OpeningPose3D.compute(op, building.get_room_rects_m(), BuildingModel.OUTSIDE_ID, opening_marker_depth_m)
+	var room_id: int = op.a if op.a != BuildingModel.OUTSIDE_ID else op.b
+	var other_id: int = op.b if op.a == room_id else op.a
+	if other_id != BuildingModel.OUTSIDE_ID and absf(_get_room_floor_level(room_id) - _get_room_floor_level(other_id)) > 0.20:
+		return {}
+	var pose: Dictionary = OpeningPose3D.compute(op, building.get_room_rects_m(), BuildingModel.OUTSIDE_ID, opening_marker_depth_m)
+	if not pose.is_empty():
+		pose["floor_level_m"] = _get_room_floor_level(room_id)
+	return pose
 
 
 func _update_dynamic_state() -> void:
@@ -550,6 +654,7 @@ func _update_room(room_id: int) -> void:
 	var hot := item["hot"] as MeshInstance3D
 	var l150 := item["l150"] as MeshInstance3D
 	var label := item["label"] as Label3D
+	var floor_level_m: float = float(item.get("floor_level_m", 0.0))
 
 	var temp_upper_c: float = float(rs.get("temp_upper_c", 20.0))
 	var smoke_kg: float = float(rs.get("smoke_kg", 0.0))
@@ -578,7 +683,9 @@ func _update_room(room_id: int) -> void:
 		hot_layer_color,
 		show_hot_layer and temp_upper_c > temp_heat_floor_start_c and hot_layer_m < height_m - hot_layer_visible_drop_m,
 		room_inset_m,
-		meters_to_units
+		meters_to_units,
+		_origin_offset_m,
+		floor_level_m
 	)
 	SmokeLayerVisuals.update_layer_box(
 		l150,
@@ -588,7 +695,9 @@ func _update_room(room_id: int) -> void:
 		layer_150c_color,
 		show_layer_150c and temp_upper_c >= 150.0 and layer_150c_m < height_m - layer_150c_visible_drop_m,
 		room_inset_m,
-		meters_to_units
+		meters_to_units,
+		_origin_offset_m,
+		floor_level_m
 	)
 	_update_fire_visual(item, rect, height_m, hrr_kw, rs)
 
@@ -629,6 +738,7 @@ func _update_smoke_volume(
 	if node == null:
 		return
 	var target_depth_m: float = maxf(0.0, height_m - smoke_layer_m)
+	var floor_level_m: float = float(item.get("floor_level_m", 0.0))
 	if smoke_kg <= smoke_visible_threshold_kg:
 		target_depth_m = 0.0
 	var hrr_smoke_t: float = clampf(sqrt(maxf(0.0, hrr_kw) / maxf(1.0, smoke_hrr_reference_kw)), 0.0, 1.0)
@@ -659,7 +769,9 @@ func _update_smoke_volume(
 		height_m,
 		show_smoke_volume and show_smoke_ceiling_masks and not _first_person_overlay and current_depth_m > smoke_min_visible_depth_m,
 		room_inset_m,
-		meters_to_units
+		meters_to_units,
+		_origin_offset_m,
+		floor_level_m
 	)
 
 	var visibility_t: float = clampf((18.0 - visibility_m) / 18.0, 0.0, 1.0)
@@ -708,7 +820,7 @@ func _update_smoke_volume(
 				render_depth_m,
 				maxf(0.05, rect.size.y - room_inset_m * 2.0)
 			) * meters_to_units
-		node.position = _room_center(rect, visual_bottom_m + render_depth_m * 0.5)
+		node.position = _room_center(rect, visual_bottom_m + render_depth_m * 0.5, floor_level_m)
 
 		if edge_node != null:
 			var edge_mesh := edge_node.mesh as BoxMesh
@@ -719,7 +831,7 @@ func _update_smoke_volume(
 					edge_height_m,
 					maxf(0.05, rect.size.y - room_inset_m * 2.0)
 				) * meters_to_units
-			edge_node.position = _room_center(rect, visual_bottom_m + edge_height_m * 0.5)
+			edge_node.position = _room_center(rect, visual_bottom_m + edge_height_m * 0.5, floor_level_m)
 			var edge_shader := edge_node.material_override as ShaderMaterial
 			if edge_shader != null:
 				var edge_alpha: float = clampf(alpha * (0.74 if _first_person_overlay else 0.30), 0.06, 0.38)
@@ -814,7 +926,8 @@ func _update_fire_visual(item: Dictionary, rect: Rect2, room_height_m: float, hr
 
 
 func _find_fire_anchor(item: Dictionary, rect: Rect2, rs: Dictionary) -> Dictionary:
-	var anchor_pos: Vector3 = _room_center(rect, 0.0)
+	var floor_level_m: float = float(item.get("floor_level_m", 0.0))
+	var anchor_pos: Vector3 = _room_center(rect, 0.0, floor_level_m)
 	var anchor_y_m: float = 0.0
 	var anchor_radius_m: float = fire_base_radius_m
 	var fuel_objects: Array = rs.get("fuel_objects", [])
@@ -878,7 +991,7 @@ func _find_fire_anchor(item: Dictionary, rect: Rect2, rs: Dictionary) -> Diction
 	anchor_radius_m = clampf(maxf(minf(size_m.x, size_m.y) * 0.34, sqrt(maxf(0.01, size_m.x * size_m.y)) * 0.20), fire_base_radius_m, fire_max_radius_m)
 	anchor_pos = _to_world(Vector3(
 		rect.position.x + pos_m.x + size_m.x * 0.5,
-		anchor_y_m,
+		floor_level_m + anchor_y_m,
 		rect.position.y + pos_m.y + size_m.y * 0.5
 	))
 	return {"position": anchor_pos, "base_y_m": anchor_y_m, "radius_m": anchor_radius_m}
@@ -993,9 +1106,9 @@ func _disable_shadow_casting(root: Node) -> void:
 		_disable_shadow_casting(child)
 
 
-func _room_center(rect_m: Rect2, y_m: float) -> Vector3:
+func _room_center(rect_m: Rect2, y_m: float, floor_level_m: float = 0.0) -> Vector3:
 	var center: Vector2 = rect_m.position + rect_m.size * 0.5
-	return _to_world(Vector3(center.x, y_m, center.y))
+	return _to_world(Vector3(center.x, floor_level_m + y_m, center.y))
 
 
 func _to_world(pos_m: Vector3) -> Vector3:
@@ -1011,6 +1124,30 @@ func _get_room_height(room_id: int) -> float:
 	if room != null:
 		return maxf(0.1, room.height_m)
 	return default_room_height_m
+
+
+func _get_room_floor_level(room_id: int) -> float:
+	var room: RoomModel = building.get_room(room_id) if building != null else null
+	return room.floor_level_z_m if room != null else 0.0
+
+
+func _is_stair_room(room: RoomModel) -> bool:
+	if room == null:
+		return false
+	var kind: String = room.kind.to_lower()
+	var name: String = room.name.to_lower()
+	return kind.contains("escalera") or kind.contains("stair") or name.contains("escalera") or name.contains("stair")
+
+
+func _find_next_floor_level_above(level_m: float) -> float:
+	var best: float = INF
+	if building == null:
+		return -1.0
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(int(room_id))
+		if room != null and room.floor_level_z_m > level_m + 0.20:
+			best = minf(best, room.floor_level_z_m)
+	return best if best < INF else -1.0
 
 
 func _get_room_name(room_id: int) -> String:
@@ -1085,7 +1222,7 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 
 		var center_x: float = rect.position.x + visual_center_m.x
 		var center_z: float = rect.position.y + visual_center_m.y
-		node.position = _to_world(Vector3(center_x, 0.0, center_z))
+		node.position = _to_world(Vector3(center_x, float(item.get("floor_level_m", 0.0)), center_z))
 		node.rotation_degrees.y = rotation_deg
 
 		var color: Color = FurnitureStateVisuals.color_for_state(state_name)

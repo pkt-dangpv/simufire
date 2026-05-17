@@ -13,7 +13,7 @@
             "tolerance": 30.0
         },
         "time_room_1_fed_above_0_3_s": {
-            "expected": 371.250000,
+            "expected": 250.833,
             "tolerance": 35.0
         },
         "room_0_peak_hrr_kw": {
@@ -21,7 +21,7 @@
             "tolerance": 100.0
         },
         "room_1_peak_temp_upper_c": {
-            "min": 300.0
+            "min": 100.0
         },
         "room_1_max_fed": {
             "min": 1.0

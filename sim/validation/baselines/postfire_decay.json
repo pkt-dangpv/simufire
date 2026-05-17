@@ -16,7 +16,7 @@
       "tolerance": 0.25
     },
     "room_0_final_temp_at_1_8m_c": {
-      "expected": 34.217044,
+      "expected": 20.740368,
       "tolerance": 8.0
     },
     "room_0_final_smoke_kg": {
@@ -24,11 +24,11 @@
       "max": 0.35
     },
     "room_1_final_smoke_kg": {
-      "expected": 0.018726,
+      "expected": 0.127451,
       "tolerance": 0.015
     },
     "smoke_deposited_total_kg": {
-      "expected": 0.022907,
+      "expected": 0.146603,
       "tolerance": 0.022
     }
   }

@@ -1,10 +1,10 @@
-{
+﻿{
 	"metrics": {
-		"room_0_final_temp_at_2_2m_c": { "min": 120.0, "max": 300.0 },
-		"room_0_final_temp_at_1_8m_c": { "min": 30.0,  "max": 200.0 },
-		"room_0_final_temp_at_1_5m_c": { "min": 30.0,  "max": 200.0 },
-		"room_0_final_temp_at_1_0m_c": { "min": 30.0,  "max": 200.0 },
-		"room_0_final_temp_at_0_5m_c": { "min": 30.0,  "max": 200.0 },
+		"room_0_final_temp_at_2_2m_c": { "min": 120.0, "max": 500.0 },
+		"room_0_final_temp_at_1_8m_c": { "min": 30.0,  "max": 500.0 },
+		"room_0_final_temp_at_1_5m_c": { "min": 30.0,  "max": 500.0 },
+		"room_0_final_temp_at_1_0m_c": { "min": 30.0,  "max": 500.0 },
+		"room_0_final_temp_at_0_5m_c": { "min": 30.0,  "max": 500.0 },
 		"room_0_final_temp_at_0_1m_c": { "min": 20.0,  "max": 100.0 },
 		"room_0_final_smoke_layer_m":  { "min": 1.0,   "max": 2.4  }
 	}

@@ -6,6 +6,9 @@ signal opening_changed
 
 const FPVisibilityOverlay := preload("res://view/fp/FPVisibilityOverlay.gd")
 const FPOpeningVisuals := preload("res://view/fp/FPOpeningVisuals.gd")
+const FPOpeningInteraction := preload("res://view/fp/FPOpeningInteraction.gd")
+const FPPlayerMotion := preload("res://view/fp/FPPlayerMotion.gd")
+const FPFurnitureStateVisuals := preload("res://view/fp/FPFurnitureStateVisuals.gd")
 const OUTSIDE_ID: int = -1
 const STANCE_STAND: int = 0
 const STANCE_CROUCH: int = 1
@@ -402,6 +405,7 @@ func _rebuild_world() -> void:
 	_create_floors(rects)
 	_create_ceilings(rects)
 	_create_walls(rects)
+	_create_stairs(rects)
 	_create_world_lighting(rects)
 	_create_opening_panels()
 	_create_exterior_context()
@@ -412,6 +416,11 @@ func _rebuild_world() -> void:
 func _create_floors(rects: Dictionary) -> void:
 	for room_id in rects.keys():
 		var rect: Rect2 = Rect2(rects[room_id])
+		var room: RoomModel = building.get_room(int(room_id)) if building != null else null
+		if room != null and _room_is_stairwell(room) and room.floor_level_z_m > 0.20:
+			_create_stairwell_upper_floor(int(room_id), rect, room.floor_level_z_m)
+			continue
+		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
 		var body := StaticBody3D.new()
 		body.name = "Floor_%s" % str(room_id)
 		_world_root.add_child(body)
@@ -419,15 +428,65 @@ func _create_floors(rects: Dictionary) -> void:
 			rect.position.x + rect.size.x * 0.5,
 			-floor_thickness_m * 0.5,
 			rect.position.y + rect.size.y * 0.5
-		))
+		), floor_level_m)
 		_add_box(body, "FloorMesh", Vector3(rect.size.x, floor_thickness_m, rect.size.y), center, _floor_material_for_room(int(room_id)), true)
+
+
+func _create_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: float) -> void:
+	var ramp_width_m: float = _stair_ramp_width_m(rect)
+	var ramp_left_m: float = rect.position.x + rect.size.x * 0.5 - ramp_width_m * 0.5
+	var ramp_right_m: float = ramp_left_m + ramp_width_m
+	var landing_depth_m: float = _stair_top_landing_depth_m(rect)
+	var landing_start_z_m: float = rect.position.y + rect.size.y - landing_depth_m
+	var material := _floor_material_for_room(room_id)
+
+	var left_width_m: float = maxf(0.0, ramp_left_m - rect.position.x)
+	if left_width_m >= 0.28:
+		_add_floor_slab(
+			"StairSideFloorLeft_%s" % str(room_id),
+			Rect2(rect.position.x, rect.position.y, left_width_m, rect.size.y),
+			floor_level_m,
+			material
+		)
+
+	var right_width_m: float = maxf(0.0, rect.position.x + rect.size.x - ramp_right_m)
+	if right_width_m >= 0.28:
+		_add_floor_slab(
+			"StairSideFloorRight_%s" % str(room_id),
+			Rect2(ramp_right_m, rect.position.y, right_width_m, rect.size.y),
+			floor_level_m,
+			material
+		)
+
+	if landing_depth_m >= 0.28:
+		_add_floor_slab(
+			"StairTopLanding_%s" % str(room_id),
+			Rect2(rect.position.x, landing_start_z_m, rect.size.x, landing_depth_m),
+			floor_level_m,
+			material
+		)
+
+
+func _add_floor_slab(node_name: String, rect: Rect2, floor_level_m: float, material: StandardMaterial3D) -> void:
+	var body := StaticBody3D.new()
+	body.name = node_name
+	_world_root.add_child(body)
+	var center: Vector3 = _to_world(Vector3(
+		rect.position.x + rect.size.x * 0.5,
+		-floor_thickness_m * 0.5,
+		rect.position.y + rect.size.y * 0.5
+	), floor_level_m)
+	_add_box(body, "FloorMesh", Vector3(rect.size.x, floor_thickness_m, rect.size.y), center, material, true)
 
 
 func _create_ceilings(rects: Dictionary) -> void:
 	for room_id in rects.keys():
 		var rect: Rect2 = Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id))
+		if room != null and _room_is_stairwell(room):
+			continue
 		var height_m: float = room.height_m if room != null else 2.4
+		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
 		var body := StaticBody3D.new()
 		body.name = "Ceiling_%s" % str(room_id)
 		_world_root.add_child(body)
@@ -435,7 +494,7 @@ func _create_ceilings(rects: Dictionary) -> void:
 			rect.position.x + rect.size.x * 0.5,
 			height_m + ceiling_thickness_m * 0.5,
 			rect.position.y + rect.size.y * 0.5
-		))
+		), floor_level_m)
 		_add_box(body, "CeilingMesh", Vector3(rect.size.x, ceiling_thickness_m, rect.size.y), center, _ceiling_material_for_room(int(room_id)), true)
 
 
@@ -444,13 +503,14 @@ func _create_walls(rects: Dictionary) -> void:
 		var rect: Rect2 = Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id))
 		var height_m: float = room.height_m if room != null else 2.4
-		_add_wall_side(rect, int(room_id), "top", height_m)
-		_add_wall_side(rect, int(room_id), "bottom", height_m)
-		_add_wall_side(rect, int(room_id), "left", height_m)
-		_add_wall_side(rect, int(room_id), "right", height_m)
+		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
+		_add_wall_side(rect, int(room_id), "top", height_m, floor_level_m)
+		_add_wall_side(rect, int(room_id), "bottom", height_m, floor_level_m)
+		_add_wall_side(rect, int(room_id), "left", height_m, floor_level_m)
+		_add_wall_side(rect, int(room_id), "right", height_m, floor_level_m)
 
 
-func _add_wall_side(rect: Rect2, room_id: int, side: String, height_m: float) -> void:
+func _add_wall_side(rect: Rect2, room_id: int, side: String, height_m: float, floor_level_m: float) -> void:
 	var length: float = rect.size.x if side == "top" or side == "bottom" else rect.size.y
 	var openings: Array = _opening_specs_for_side(rect, room_id, side, height_m)
 	openings.sort_custom(func(a, b): return float(a.get("start", 0.0)) < float(b.get("start", 0.0)))
@@ -460,24 +520,24 @@ func _add_wall_side(rect: Rect2, room_id: int, side: String, height_m: float) ->
 		var start: float = clampf(float(opening.get("start", 0.0)), 0.0, length)
 		var end: float = clampf(float(opening.get("end", 0.0)), 0.0, length)
 		if start > cursor + 0.03:
-			_create_wall_segment(rect, room_id, side, cursor, start, height_m)
+			_create_wall_segment(rect, room_id, side, cursor, start, height_m, floor_level_m)
 		if end > start + 0.03:
 			var bottom_m: float = clampf(float(opening.get("bottom_m", 0.0)), 0.0, height_m)
 			var top_m: float = clampf(float(opening.get("top_m", height_m)), 0.0, height_m)
 			if bottom_m > 0.03:
-				_create_wall_segment_height(rect, room_id, side, start, end, 0.0, bottom_m)
+				_create_wall_segment_height(rect, room_id, side, start, end, 0.0, bottom_m, floor_level_m)
 			if top_m < height_m - 0.03:
-				_create_wall_segment_height(rect, room_id, side, start, end, top_m, height_m)
+				_create_wall_segment_height(rect, room_id, side, start, end, top_m, height_m, floor_level_m)
 		cursor = maxf(cursor, end)
 	if cursor < length - 0.03:
-		_create_wall_segment(rect, room_id, side, cursor, length, height_m)
+		_create_wall_segment(rect, room_id, side, cursor, length, height_m, floor_level_m)
 
 
-func _create_wall_segment(rect: Rect2, room_id: int, side: String, start: float, end: float, height_m: float) -> void:
-	_create_wall_segment_height(rect, room_id, side, start, end, 0.0, height_m)
+func _create_wall_segment(rect: Rect2, room_id: int, side: String, start: float, end: float, height_m: float, floor_level_m: float) -> void:
+	_create_wall_segment_height(rect, room_id, side, start, end, 0.0, height_m, floor_level_m)
 
 
-func _create_wall_segment_height(rect: Rect2, room_id: int, side: String, start: float, end: float, y_min_m: float, y_max_m: float) -> void:
+func _create_wall_segment_height(rect: Rect2, room_id: int, side: String, start: float, end: float, y_min_m: float, y_max_m: float, floor_level_m: float) -> void:
 	var span: float = maxf(0.0, end - start)
 	var height_m: float = maxf(0.0, y_max_m - y_min_m)
 	if span <= 0.03 or height_m <= 0.03:
@@ -492,16 +552,16 @@ func _create_wall_segment_height(rect: Rect2, room_id: int, side: String, start:
 	if side == "top" or side == "bottom":
 		size = Vector3(span, height_m, wall_thickness_m)
 		var z: float = rect.position.y if side == "top" else rect.position.y + rect.size.y
-		center = _to_world(Vector3(rect.position.x + start + span * 0.5, center_y, z))
+		center = _to_world(Vector3(rect.position.x + start + span * 0.5, center_y, z), floor_level_m)
 	else:
 		size = Vector3(wall_thickness_m, height_m, span)
 		var x: float = rect.position.x if side == "left" else rect.position.x + rect.size.x
-		center = _to_world(Vector3(x, center_y, rect.position.y + start + span * 0.5))
+		center = _to_world(Vector3(x, center_y, rect.position.y + start + span * 0.5), floor_level_m)
 	_add_box(body, "WallMesh", size, center, _wall_material_for_room(room_id), true)
-	_create_skirting_segment(rect, side, start, end)
+	_create_skirting_segment(rect, side, start, end, floor_level_m)
 
 
-func _create_skirting_segment(rect: Rect2, side: String, start: float, end: float) -> void:
+func _create_skirting_segment(rect: Rect2, side: String, start: float, end: float, floor_level_m: float) -> void:
 	var span: float = maxf(0.0, end - start)
 	if span <= 0.05 or wall_skirting_height_m <= 0.0:
 		return
@@ -510,13 +570,88 @@ func _create_skirting_segment(rect: Rect2, side: String, start: float, end: floa
 	var normal: Vector3 = _inside_normal_for_side(side)
 	if side == "top" or side == "bottom":
 		var z: float = rect.position.y if side == "top" else rect.position.y + rect.size.y
-		center = _to_world(Vector3(rect.position.x + start + span * 0.5, wall_skirting_height_m * 0.5, z)) + normal * (wall_thickness_m * 0.5 + 0.012)
+		center = _to_world(Vector3(rect.position.x + start + span * 0.5, wall_skirting_height_m * 0.5, z), floor_level_m) + normal * (wall_thickness_m * 0.5 + 0.012)
 		size = Vector3(span, wall_skirting_height_m, 0.028)
 	else:
 		var x: float = rect.position.x if side == "left" else rect.position.x + rect.size.x
-		center = _to_world(Vector3(x, wall_skirting_height_m * 0.5, rect.position.y + start + span * 0.5)) + normal * (wall_thickness_m * 0.5 + 0.012)
+		center = _to_world(Vector3(x, wall_skirting_height_m * 0.5, rect.position.y + start + span * 0.5), floor_level_m) + normal * (wall_thickness_m * 0.5 + 0.012)
 		size = Vector3(0.028, wall_skirting_height_m, span)
 	_add_box(_world_root, "Skirting_%s" % side, size, center, _mat(Color(0.34, 0.27, 0.20, 1.0), false), false)
+
+
+func _create_stairs(rects: Dictionary) -> void:
+	if building == null:
+		return
+	for room_id in rects.keys():
+		var room: RoomModel = building.get_room(int(room_id))
+		if room == null or not _room_is_stairwell(room):
+			continue
+		var lower_level_m: float = room.floor_level_z_m
+		var upper_level_m: float = _find_next_floor_level_above(lower_level_m)
+		if upper_level_m <= lower_level_m + 0.20:
+			continue
+		var rect: Rect2 = Rect2(rects[room_id])
+		_create_stair_ramp(rect, lower_level_m, upper_level_m)
+
+
+func _create_stair_ramp(rect: Rect2, lower_level_m: float, upper_level_m: float) -> void:
+	var start_margin_m: float = 0.22
+	var run_m: float = maxf(0.8, rect.size.y - start_margin_m - _stair_top_landing_depth_m(rect))
+	var rise_m: float = upper_level_m - lower_level_m
+	var angle: float = atan2(rise_m, run_m)
+	var center_x: float = rect.position.x + rect.size.x * 0.5
+	var center_z: float = rect.position.y + start_margin_m + run_m * 0.5
+	var center_y: float = lower_level_m + rise_m * 0.5
+	var center_world: Vector3 = _to_world(Vector3(center_x, center_y, center_z))
+	var ramp_size := Vector3(_stair_ramp_width_m(rect), 0.16, sqrt(run_m * run_m + rise_m * rise_m))
+
+	var body := StaticBody3D.new()
+	body.name = "StairRamp"
+	_world_root.add_child(body)
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = ramp_size
+	shape.shape = box
+	shape.position = center_world
+	shape.rotation.x = -angle
+	body.add_child(shape)
+
+	var mesh := MeshInstance3D.new()
+	mesh.name = "StairRampMesh"
+	var box_mesh := BoxMesh.new()
+	box_mesh.size = ramp_size
+	mesh.mesh = box_mesh
+	mesh.position = center_world
+	mesh.rotation.x = -angle
+	mesh.material_override = _mat(Color(0.35, 0.29, 0.22, 1.0), false)
+	_world_root.add_child(mesh)
+
+	var steps: int = 12
+	var step_depth: float = run_m / float(steps)
+	var step_width: float = ramp_size.x
+	for i in range(steps):
+		var step_h: float = rise_m * float(i + 1) / float(steps)
+		var step_center := _to_world(Vector3(
+			center_x,
+			lower_level_m + step_h - 0.025,
+			rect.position.y + start_margin_m + step_depth * (float(i) + 0.5)
+		))
+		_add_box(
+			_world_root,
+			"StairStep_%02d" % i,
+			Vector3(step_width, 0.05, step_depth * 0.92),
+			step_center,
+			_mat(Color(0.42, 0.35, 0.27, 1.0), false),
+			false
+		)
+
+
+func _stair_ramp_width_m(rect: Rect2) -> float:
+	return minf(maxf(0.82, rect.size.x * 0.50), maxf(0.82, rect.size.x - 0.96))
+
+
+func _stair_top_landing_depth_m(rect: Rect2) -> float:
+	return clampf(rect.size.y * 0.22, 0.72, 1.05)
 
 
 func _create_world_lighting(rects: Dictionary) -> void:
@@ -540,6 +675,7 @@ func _create_world_lighting(rects: Dictionary) -> void:
 		var rect := Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id))
 		var height_m: float = room.height_m if room != null else 2.4
+		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
 		var area_m2: float = maxf(1.0, rect.size.x * rect.size.y)
 		var light := OmniLight3D.new()
 		light.name = "CeilingLight_%s" % str(room_id)
@@ -551,7 +687,7 @@ func _create_world_lighting(rects: Dictionary) -> void:
 			rect.position.x + rect.size.x * 0.5,
 			maxf(1.8, height_m - 0.22),
 			rect.position.y + rect.size.y * 0.5
-		))
+		), floor_level_m)
 		_world_root.add_child(light)
 		_add_box(
 			_world_root,
@@ -641,8 +777,9 @@ func _create_opening_light(op: OpeningModel, info: Dictionary) -> OmniLight3D:
 	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
 	var inward: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
 	var outside_offset: float = landing_recess_depth_m * 0.58 if op.type == OpeningModel.Type.DOOR else 0.55
+	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
 	light.position = center - inward * outside_offset
-	light.position.y = 2.05 if op.type == OpeningModel.Type.DOOR else maxf(1.35, center.y)
+	light.position.y = floor_level_m + 2.05 if op.type == OpeningModel.Type.DOOR else maxf(floor_level_m + 1.35, center.y)
 	_world_root.add_child(light)
 	return light
 
@@ -698,6 +835,7 @@ func _create_opening_frame(index: int, op: OpeningModel, info: Dictionary) -> No
 	var width_m: float = float(info.get("width_m", 0.8))
 	var height_m: float = float(info.get("height_m", 2.0))
 	var sill_m: float = float(info.get("sill_m", 0.0))
+	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
 	var horizontal: bool = String(info.get("orientation", "horizontal")) == "horizontal"
 	var depth_m: float = 0.075
 	var bar_m: float = 0.075
@@ -705,8 +843,9 @@ func _create_opening_frame(index: int, op: OpeningModel, info: Dictionary) -> No
 	var frame_width: float = width_m + bar_m * 2.0
 	var frame_height: float = height_m + bar_m * 2.0
 	var mid_y: float = sill_m + height_m * 0.5
-	var top_y: float = sill_m + height_m + bar_m * 0.5
-	var bottom_y: float = maxf(bar_m * 0.5, sill_m - bar_m * 0.5)
+	var top_y: float = floor_level_m + sill_m + height_m + bar_m * 0.5
+	var bottom_y: float = floor_level_m + maxf(bar_m * 0.5, sill_m - bar_m * 0.5)
+	mid_y += floor_level_m
 
 	if horizontal:
 		_add_box(frame_root, "FrameTop", Vector3(frame_width, bar_m, depth_m), Vector3(center.x, top_y, center.z), mat, false)
@@ -732,12 +871,13 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
 	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
 	var horizontal: bool = String(info.get("orientation", "horizontal")) == "horizontal"
+	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
 	var width_m: float = maxf(1.45, float(info.get("width_m", 0.85)) + 0.95)
 	var depth_m: float = maxf(1.85, landing_recess_depth_m)
 	var corridor_height_m: float = 2.45
 
 	var floor_center: Vector3 = center - normal * (depth_m * 0.5 + 0.08)
-	floor_center.y = -floor_thickness_m * 0.5
+	floor_center.y = floor_level_m - floor_thickness_m * 0.5
 	var floor_size := Vector3(width_m, floor_thickness_m, depth_m) if horizontal else Vector3(depth_m, floor_thickness_m, width_m)
 	_add_box(
 		_world_root,
@@ -749,7 +889,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	)
 
 	var wall_center: Vector3 = center - normal * (depth_m + 0.11)
-	wall_center.y = corridor_height_m * 0.5
+	wall_center.y = floor_level_m + corridor_height_m * 0.5
 	var wall_size := Vector3(width_m, corridor_height_m, wall_thickness_m) if horizontal else Vector3(wall_thickness_m, corridor_height_m, width_m)
 	_add_box(
 		_world_root,
@@ -763,7 +903,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	var side_wall_size := Vector3(wall_thickness_m, corridor_height_m, depth_m) if horizontal else Vector3(depth_m, corridor_height_m, wall_thickness_m)
 	for side_sign in [-1.0, 1.0]:
 		var side_center: Vector3 = floor_center + tangent * side_sign * (width_m * 0.5 + wall_thickness_m * 0.5)
-		side_center.y = corridor_height_m * 0.5
+		side_center.y = floor_level_m + corridor_height_m * 0.5
 		_add_box(
 			_world_root,
 			"LandingSideWall_%02d" % index,
@@ -774,7 +914,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		)
 
 	var ceiling_center: Vector3 = floor_center
-	ceiling_center.y = corridor_height_m + ceiling_thickness_m * 0.5
+	ceiling_center.y = floor_level_m + corridor_height_m + ceiling_thickness_m * 0.5
 	_add_box(
 		_world_root,
 		"LandingCeiling_%02d" % index,
@@ -785,7 +925,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	)
 
 	var fixture_center: Vector3 = center - normal * (depth_m * 0.62)
-	fixture_center.y = 2.18
+	fixture_center.y = floor_level_m + 2.18
 	_add_box(
 		_world_root,
 		"LandingFixture_%02d" % index,
@@ -1292,9 +1432,10 @@ func _create_furniture_piece(parent: Node3D, _room: RoomModel, room_rect: Rect2,
 	var shape_size: Vector2 = Vector2(layout.get("shape_size", local_rect.size))
 	var yaw: float = float(layout.get("yaw", 0.0))
 	var center_2d: Vector2 = room_rect.position + local_rect.position + local_rect.size * 0.5
+	var floor_level_m: float = _room.floor_level_z_m if _room != null else 0.0
 	var root: Node3D = StaticBody3D.new() if furniture_collision_enabled else Node3D.new()
 	root.name = "Furniture_" + _safe_node_name(obj_id)
-	root.position = _to_world(Vector3(center_2d.x, 0.0, center_2d.y))
+	root.position = _to_world(Vector3(center_2d.x, 0.0, center_2d.y), floor_level_m)
 	root.rotation.y = yaw
 	root.set_meta("furniture_kind", kind)
 	root.set_meta("fuel_object_id", obj_id)
@@ -1907,66 +2048,11 @@ func _update_furniture_state_visuals() -> void:
 				continue
 			var fuel_mj: float = maxf(0.01, float(obj.get("fuel_energy_MJ", 1.0)))
 			var remaining_ratio: float = clampf(float(obj.get("remaining_fuel_MJ", fuel_mj)) / fuel_mj, 0.0, 1.0)
-			_apply_furniture_state_to_node(
+			FPFurnitureStateVisuals.apply_to_node(
 				_furniture_nodes[obj_id] as Node,
 				String(obj.get("state", "cold")),
 				remaining_ratio
 			)
-
-
-func _apply_furniture_state_to_node(root: Node, state_name: String, remaining_ratio: float) -> void:
-	if root == null:
-		return
-	var heat_t: float = 0.0
-	match state_name:
-		"flaming":
-			heat_t = 1.0
-		"pyrolyzing":
-			heat_t = 0.65
-		"heating":
-			heat_t = 0.32
-		"decaying":
-			heat_t = 0.18
-		_:
-			heat_t = 0.0
-	var char_t: float = clampf(1.0 - remaining_ratio, 0.0, 1.0)
-	_apply_furniture_material_recursive(root, heat_t, char_t, _state_heat_color(state_name))
-
-
-func _apply_furniture_material_recursive(root: Node, heat_t: float, char_t: float, heat_color: Color) -> void:
-	for child in root.get_children():
-		if child is MeshInstance3D:
-			var mesh_node := child as MeshInstance3D
-			var mat := mesh_node.material_override as StandardMaterial3D
-			if mat != null:
-				var base_color: Color = Color(mesh_node.get_meta("base_color", Color(0.55, 0.52, 0.48, 1.0)))
-				var final_color: Color = base_color.lerp(Color(0.10, 0.09, 0.08, base_color.a), clampf(char_t * 0.75, 0.0, 0.85))
-				final_color = final_color.lerp(heat_color, heat_t * 0.38)
-				if heat_t <= 0.001 and char_t <= 0.001:
-					final_color = base_color
-				mat.albedo_color = Color(final_color.r, final_color.g, final_color.b, base_color.a)
-				mat.emission_enabled = heat_t > 0.05
-				if mat.emission_enabled:
-					mat.emission = Color(heat_color.r, heat_color.g * 0.65, heat_color.b * 0.20, 1.0)
-					mat.emission_energy_multiplier = heat_t * 1.25
-				else:
-					mat.emission_energy_multiplier = 0.0
-		if child.get_child_count() > 0:
-			_apply_furniture_material_recursive(child, heat_t, char_t, heat_color)
-
-
-func _state_heat_color(state_name: String) -> Color:
-	match state_name:
-		"flaming":
-			return Color(1.0, 0.24, 0.08, 1.0)
-		"pyrolyzing":
-			return Color(1.0, 0.52, 0.10, 1.0)
-		"heating":
-			return Color(1.0, 0.78, 0.22, 1.0)
-		"decaying":
-			return Color(0.72, 0.36, 0.16, 1.0)
-		_:
-			return Color(0.55, 0.52, 0.48, 1.0)
 
 
 func _safe_node_name(value: String) -> String:
@@ -1983,10 +2069,15 @@ func _safe_node_name(value: String) -> String:
 func _create_outer_boundary() -> void:
 	var grow: float = 0.22
 	var rect: Rect2 = _bounds_m.grow(grow)
-	_create_boundary_segment(Vector3(rect.position.x + rect.size.x * 0.5, boundary_height_m * 0.5, rect.position.y - grow), Vector3(rect.size.x + grow * 2.0, boundary_height_m, wall_thickness_m))
-	_create_boundary_segment(Vector3(rect.position.x + rect.size.x * 0.5, boundary_height_m * 0.5, rect.position.y + rect.size.y + grow), Vector3(rect.size.x + grow * 2.0, boundary_height_m, wall_thickness_m))
-	_create_boundary_segment(Vector3(rect.position.x - grow, boundary_height_m * 0.5, rect.position.y + rect.size.y * 0.5), Vector3(wall_thickness_m, boundary_height_m, rect.size.y + grow * 2.0))
-	_create_boundary_segment(Vector3(rect.position.x + rect.size.x + grow, boundary_height_m * 0.5, rect.position.y + rect.size.y * 0.5), Vector3(wall_thickness_m, boundary_height_m, rect.size.y + grow * 2.0))
+	var vertical_span: Dictionary = _building_vertical_span()
+	var min_y: float = float(vertical_span.get("min_y", 0.0))
+	var max_y: float = float(vertical_span.get("max_y", boundary_height_m))
+	var height_m: float = maxf(boundary_height_m, max_y - min_y + 0.35)
+	var center_y: float = min_y + height_m * 0.5
+	_create_boundary_segment(Vector3(rect.position.x + rect.size.x * 0.5, center_y, rect.position.y - grow), Vector3(rect.size.x + grow * 2.0, height_m, wall_thickness_m))
+	_create_boundary_segment(Vector3(rect.position.x + rect.size.x * 0.5, center_y, rect.position.y + rect.size.y + grow), Vector3(rect.size.x + grow * 2.0, height_m, wall_thickness_m))
+	_create_boundary_segment(Vector3(rect.position.x - grow, center_y, rect.position.y + rect.size.y * 0.5), Vector3(wall_thickness_m, height_m, rect.size.y + grow * 2.0))
+	_create_boundary_segment(Vector3(rect.position.x + rect.size.x + grow, center_y, rect.position.y + rect.size.y * 0.5), Vector3(wall_thickness_m, height_m, rect.size.y + grow * 2.0))
 
 
 func _create_boundary_segment(center_m: Vector3, size_m: Vector3) -> void:
@@ -2040,25 +2131,8 @@ func _add_oriented_box(
 
 
 func _apply_movement(delta: float) -> void:
-	var input_vec := Vector2.ZERO
-	if Input.is_key_pressed(KEY_W):
-		input_vec.y -= 1.0
-	if Input.is_key_pressed(KEY_S):
-		input_vec.y += 1.0
-	if Input.is_key_pressed(KEY_A):
-		input_vec.x -= 1.0
-	if Input.is_key_pressed(KEY_D):
-		input_vec.x += 1.0
-	input_vec = input_vec.normalized()
-
-	var basis := global_transform.basis
-	var forward := -basis.z
-	var right := basis.x
-	forward.y = 0.0
-	right.y = 0.0
-	forward = forward.normalized()
-	right = right.normalized()
-	var direction := (right * input_vec.x + forward * -input_vec.y).normalized()
+	var input_vec: Vector2 = FPPlayerMotion.read_input_vector()
+	var direction: Vector3 = FPPlayerMotion.horizontal_direction(global_transform.basis, input_vec)
 	var speed: float = _current_speed()
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
@@ -2082,17 +2156,8 @@ func _update_prompt() -> void:
 		if _prompt_panel != null:
 			_prompt_panel.visible = false
 		return
-	var kind: String = "puerta" if op.type == OpeningModel.Type.DOOR else "ventana"
 	var next_frac: float = _next_opening_fraction(op.open_fraction)
-	var curr_pct: int = int(round(op.open_fraction * 100.0))
-	var next_pct: int = int(round(next_frac * 100.0))
-	var action: String = "cerrar" if next_frac < op.open_fraction else "abrir"
-	_prompt_label.text = "F: %s %s (%d%% → %d%%)" % [
-		action,
-		kind,
-		curr_pct,
-		next_pct
-	]
+	_prompt_label.text = FPOpeningInteraction.prompt_text(op.type == OpeningModel.Type.DOOR, op.open_fraction, next_frac)
 	if _prompt_panel != null:
 		_prompt_panel.visible = true
 
@@ -2127,7 +2192,8 @@ func _compute_fp_smoke_view(room_state: Dictionary) -> Dictionary:
 	if building != null and _current_room_id >= 0:
 		var rects: Dictionary = building.get_room_rects_m()
 		room_rect = Rect2(rects.get(_current_room_id, Rect2()))
-	var eye_height_m: float = _camera.global_position.y if _camera != null else _current_height()
+	var eye_world_y_m: float = _camera.global_position.y if _camera != null else global_position.y + _current_height()
+	var eye_height_m: float = maxf(0.0, eye_world_y_m - _get_room_floor_level(_current_room_id))
 	return FPVisibilityOverlay.compute(room_state, room_rect, eye_height_m, {
 		"clear_visibility_m": fp_visibility_clear_m,
 		"visibility_reference_m": smoke_overlay_visibility_reference_m,
@@ -2168,36 +2234,48 @@ func _format_fp_visibility(visibility_m: float) -> String:
 
 
 func _stance_label() -> String:
-	match _stance:
-		STANCE_CROUCH:
-			return "AGACHADO"
-		STANCE_PRONE:
-			return "RASTRO"
-		_:
-			return "DE PIE"
+	return FPPlayerMotion.stance_label(_stance, STANCE_CROUCH, STANCE_PRONE)
 
 
 func _find_current_room_id() -> int:
 	if building == null:
 		return -1
 	var pos_m := Vector2(global_position.x - _origin_offset_m.x, global_position.z - _origin_offset_m.y)
+	var y_m: float = global_position.y
 	var rects: Dictionary = building.get_room_rects_m()
+	var best_room_id: int = -1
+	var best_floor_m: float = -INF
 	for key in rects.keys():
 		var rect: Rect2 = Rect2(rects[key])
-		if rect.has_point(pos_m):
-			return int(key)
-	return -1
+		if not rect.has_point(pos_m):
+			continue
+		var room_id: int = int(key)
+		var room: RoomModel = building.get_room(room_id)
+		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
+		var height_m: float = room.height_m if room != null else 2.5
+		if y_m >= floor_level_m - 0.25 and y_m <= floor_level_m + height_m + 0.35 and floor_level_m > best_floor_m:
+			best_floor_m = floor_level_m
+			best_room_id = room_id
+	if best_room_id != -1:
+		return best_room_id
+
+	var nearest_room_id: int = -1
+	var nearest_vertical_delta: float = INF
+	for key in rects.keys():
+		var rect: Rect2 = Rect2(rects[key])
+		if not rect.has_point(pos_m):
+			continue
+		var room_id: int = int(key)
+		var floor_level_m: float = _get_room_floor_level(room_id)
+		var delta_m: float = absf(y_m - floor_level_m)
+		if delta_m < nearest_vertical_delta:
+			nearest_vertical_delta = delta_m
+			nearest_room_id = room_id
+	return nearest_room_id
 
 
 func _next_opening_fraction(current: float) -> float:
-	var closest_idx: int = 0
-	var min_dist: float = INF
-	for i in range(OPENING_FRACTION_STEPS.size()):
-		var d: float = absf(current - OPENING_FRACTION_STEPS[i])
-		if d < min_dist:
-			min_dist = d
-			closest_idx = i
-	return OPENING_FRACTION_STEPS[(closest_idx + 1) % OPENING_FRACTION_STEPS.size()]
+	return FPOpeningInteraction.next_fraction(current, OPENING_FRACTION_STEPS)
 
 
 func _interact_with_nearest_opening() -> void:
@@ -2258,7 +2336,7 @@ func _update_window_leaf_pair(
 
 
 func _cycle_stance() -> void:
-	_stance = (_stance + 1) % 3
+	_stance = FPPlayerMotion.next_stance(_stance)
 	_apply_stance(false)
 	_update_status_hud()
 
@@ -2279,23 +2357,27 @@ func _apply_stance(immediate: bool) -> void:
 
 
 func _current_height() -> float:
-	match _stance:
-		STANCE_CROUCH:
-			return crouch_height_m
-		STANCE_PRONE:
-			return prone_height_m
-		_:
-			return person_height_m
+	return FPPlayerMotion.stance_height(
+		_stance,
+		STANCE_STAND,
+		STANCE_CROUCH,
+		STANCE_PRONE,
+		person_height_m,
+		crouch_height_m,
+		prone_height_m
+	)
 
 
 func _current_speed() -> float:
-	match _stance:
-		STANCE_CROUCH:
-			return crouch_speed_m_s
-		STANCE_PRONE:
-			return prone_speed_m_s
-		_:
-			return stand_speed_m_s
+	return FPPlayerMotion.stance_speed(
+		_stance,
+		STANCE_STAND,
+		STANCE_CROUCH,
+		STANCE_PRONE,
+		stand_speed_m_s,
+		crouch_speed_m_s,
+		prone_speed_m_s
+	)
 
 
 func _find_nearest_opening() -> int:
@@ -2349,11 +2431,12 @@ func _update_opening_panel(index: int) -> void:
 	var width_m: float = float(info.get("width_m", 0.8))
 	var height_m: float = float(info.get("height_m", 2.0))
 	var sill_m: float = float(info.get("sill_m", 0.0))
+	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
 	var panel_thickness: float = closed_door_thickness_m if is_door else 0.045
 	var size := Vector3(width_m, height_m, panel_thickness)
 
 	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
-	center.y = sill_m + height_m * 0.5
+	center.y = floor_level_m + sill_m + height_m * 0.5
 	var visual_center: Vector3 = center
 	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
 	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
@@ -2490,6 +2573,8 @@ func _opening_info(index: int) -> Dictionary:
 	var other_id: int = op.b if op.a == room_id else op.a
 	if not rects.has(other_id):
 		return {}
+	if absf(_get_room_floor_level(room_id) - _get_room_floor_level(other_id)) > 0.20:
+		return {}
 	var other: Rect2 = Rect2(rects[other_id])
 	var shared: Dictionary = _shared_side_data(rect, other)
 	var side_for_room: String = String(shared.get("side", ""))
@@ -2548,7 +2633,8 @@ func _opening_info_on_side(
 
 	var x: float = center_axis if horizontal else (rect.position.x if side == "left" else rect.position.x + rect.size.x)
 	var z: float = (rect.position.y if side == "top" else rect.position.y + rect.size.y) if horizontal else center_axis
-	var center: Vector3 = _to_world(Vector3(x, sill_m + height_m * 0.5, z))
+	var floor_level_m: float = _get_room_floor_level(room_id)
+	var center: Vector3 = _to_world(Vector3(x, sill_m + height_m * 0.5, z), floor_level_m)
 	var tangent: Vector3 = Vector3.RIGHT if horizontal else Vector3.FORWARD
 	var normal: Vector3 = _inside_normal_for_side(side)
 	return {
@@ -2561,7 +2647,8 @@ func _opening_info_on_side(
 		"side_for_%d" % room_id: side,
 		"tangent": tangent,
 		"normal": normal,
-		"exterior": exterior
+		"exterior": exterior,
+		"floor_level_m": floor_level_m
 	}
 
 
@@ -2629,8 +2716,9 @@ func _place_at_entry() -> void:
 				break
 		var inward: Vector3 = _inside_normal_for_side(side)
 		var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
+		var floor_level_m: float = float(info.get("floor_level_m", 0.0))
 		global_position = center + inward * 0.75
-		global_position.y = 0.05
+		global_position.y = floor_level_m + 0.05
 		_yaw = atan2(-inward.x, -inward.z)
 		_pitch = 0.0
 		rotation.y = _yaw
@@ -2642,7 +2730,7 @@ func _place_at_entry() -> void:
 	if not rects.is_empty():
 		var first_id: int = int(rects.keys()[0])
 		var rect: Rect2 = Rect2(rects[first_id])
-		global_position = _to_world(Vector3(rect.position.x + rect.size.x * 0.5, 0.05, rect.position.y + rect.size.y * 0.5))
+		global_position = _to_world(Vector3(rect.position.x + rect.size.x * 0.5, 0.05, rect.position.y + rect.size.y * 0.5), _get_room_floor_level(first_id))
 		_pitch = 0.0
 		if _camera != null:
 			_camera.rotation.x = _pitch
@@ -2675,8 +2763,47 @@ func _compute_bounds(rects: Dictionary) -> Rect2:
 	return bounds
 
 
-func _to_world(pos_m: Vector3) -> Vector3:
-	return Vector3(pos_m.x + _origin_offset_m.x, pos_m.y, pos_m.z + _origin_offset_m.y)
+func _building_vertical_span() -> Dictionary:
+	var min_y: float = 0.0
+	var max_y: float = boundary_height_m
+	if building == null:
+		return {"min_y": min_y, "max_y": max_y}
+	for key in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(int(key))
+		if room == null:
+			continue
+		min_y = minf(min_y, room.floor_level_z_m)
+		max_y = maxf(max_y, room.floor_level_z_m + room.height_m)
+	return {"min_y": min_y, "max_y": max_y}
+
+
+func _get_room_floor_level(room_id: int) -> float:
+	if building == null:
+		return 0.0
+	var room: RoomModel = building.get_room(room_id)
+	return room.floor_level_z_m if room != null else 0.0
+
+
+func _room_is_stairwell(room: RoomModel) -> bool:
+	if room == null:
+		return false
+	var label: String = ("%s %s" % [room.kind, room.name]).to_lower()
+	return label.contains("escalera") or label.contains("stair")
+
+
+func _find_next_floor_level_above(level_m: float) -> float:
+	if building == null:
+		return level_m
+	var best: float = INF
+	for key in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(int(key))
+		if room != null and room.floor_level_z_m > level_m + 0.20:
+			best = minf(best, room.floor_level_z_m)
+	return level_m if is_inf(best) else best
+
+
+func _to_world(pos_m: Vector3, floor_level_m: float = 0.0) -> Vector3:
+	return Vector3(pos_m.x + _origin_offset_m.x, pos_m.y + floor_level_m, pos_m.z + _origin_offset_m.y)
 
 
 func _floor_material_for_room(room_id: int) -> StandardMaterial3D:

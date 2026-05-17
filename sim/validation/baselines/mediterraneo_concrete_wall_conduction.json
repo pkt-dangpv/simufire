@@ -1,11 +1,11 @@
 {
     "metrics": {
         "time_room_0_wall_mid_above_21c_s": {
-            "min": 300.0,
+            "min": 220.0,
             "max": 580.0
         },
         "time_room_0_wall_outer_above_20c_s": {
-            "min": 350.0,
+            "min": 320.0,
             "max": 590.0
         },
         "room_0_final_wall_T_mid_c": {

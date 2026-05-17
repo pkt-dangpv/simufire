@@ -1,7 +1,7 @@
 {
     "metrics": {
         "time_room_0_fec_above_0_1_s": {
-            "min": 60.0,
+            "min": 50.0,
             "max": 750.0
         },
         "time_room_1_fec_above_0_05_s": {

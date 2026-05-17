@@ -43,7 +43,7 @@ layout_mode = 2
 toggle_mode = true
 text = "Room"
 
-[node name="BtnCorridorL" type="Button" parent="CanvasLayer/UI/TopBar/HBox"]
+[node name="BtnCorridorL" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=312847561]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true

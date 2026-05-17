@@ -27,6 +27,10 @@ var _wall_surface_temp_c: Dictionary = {}
 # _wall_pde_nodes_c[room_id] = Array[float] — T[0..4] (T[0]=cara interior, T[4]=cara exterior)
 var wall_pde_enabled: bool = true
 var _wall_pde_nodes_c: Dictionary = {}
+# Coeficiente convectivo interior gas→cara pared [kW/(m²·K)]
+# BC Robin en T[0] del PDE. ISO 6946 Rsi≈0.13 m²K/W → h≈0.077; aquí 0.025 como valor por defecto
+# (mismo orden que h_ext=0.025 exterior). Configurable via override "h_conv_int_kw_m2_k".
+var h_conv_int_kw_m2_k: float = 0.025
 
 const STEFAN_BOLTZMANN_KW_M2_K4: float = 5.670374419e-11
 
@@ -174,8 +178,8 @@ var doorway_o2_pressure_weight: float = 0.65
 # SF-AUD-010: cuando true, el flujo inter-sala usa la fórmula Bernoulli dos zonas
 # con plano neutro calculado (SFPE Handbook §3.2; CFAST TN 1889v1 §2.2).
 # Q = Cd·W·f·(2/3)·h_zona^(3/2)·sqrt(2g·ΔT/T_ref) [m³/s].
-# Default false → comportamiento heredado → retrocompatible.
-var vent_bernoulli_enabled: bool = false
+# Default true → paridad CFAST (2026-05-17).
+var vent_bernoulli_enabled: bool = true
 var pressure_spill_ref_delta_pa: float = 8.0
 var interior_spill_start_layer_m: float = 2.0
 
@@ -235,6 +239,7 @@ func configure(settings: Dictionary) -> void:
 	wall_heat_capacity_kj_m2_k = float(settings.get("wall_heat_capacity_kj_m2_k", wall_heat_capacity_kj_m2_k))
 	wall_core_decay_per_s = float(settings.get("wall_core_decay_per_s", wall_core_decay_per_s))
 	wall_pde_enabled = bool(settings.get("wall_pde_enabled", wall_pde_enabled))
+	h_conv_int_kw_m2_k = float(settings.get("h_conv_int_kw_m2_k", h_conv_int_kw_m2_k))
 	max_upper_temp_c = float(settings.get("max_upper_temp_c", max_upper_temp_c))
 	upper_radiative_loss_enabled = bool(settings.get("upper_radiative_loss_enabled", upper_radiative_loss_enabled))
 	upper_radiative_loss_start_c = float(settings.get("upper_radiative_loss_start_c", upper_radiative_loss_start_c))
@@ -545,11 +550,17 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		var t_wall_c: float = _wall_surface_temp_c.get(room.id, ambient_c)
 		# SF-AUD-014: 1D lumped conduction per-material cuando k/d/rho/cp están definidos.
 		# Si algún sentinel (-1.0) → fallback a parámetros globales legacy.
+		# SF-AUD-030: cuando el PDE está activo, _wall_surface_temp_c viene de T[0] del PDE
+		# (actualizado por _step_wall_pde en el paso anterior). En ese caso se usa h_conv_int
+		# para el intercambio gas↔pared y se omite la actualización lumped de _wall_surface_temp_c.
 		var wall_h_k_eff: float  # kW/m²·K → conductancia efectiva superficial
 		var wall_capacity_kj_k: float
 		var _use_material_wall: bool = room.wall_k_kw_m_k > 0.0 and room.wall_thickness_m > 0.0
+		var _pde_drives_wall: bool = _use_material_wall and wall_pde_enabled
 		if _use_material_wall:
-			wall_h_k_eff = room.wall_k_kw_m_k / maxf(0.001, room.wall_thickness_m)
+			# Cuando el PDE está activo usa h_conv_int (BC Robin del PDE) para consistencia.
+			# Cuando no está activo usa k/d (lumped through-wall conductance).
+			wall_h_k_eff = h_conv_int_kw_m2_k if _pde_drives_wall else room.wall_k_kw_m_k / maxf(0.001, room.wall_thickness_m)
 			var _rho: float = room.wall_rho_kg_m3 if room.wall_rho_kg_m3 > 0.0 else 800.0
 			var _cp: float = room.wall_cp_kj_kg_k if room.wall_cp_kj_kg_k > 0.0 else 1.0
 			wall_capacity_kj_k = _rho * _cp * room.wall_thickness_m * wall_area_m2
@@ -590,12 +601,13 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			)
 		# Radiación directa del fuego → paredes (χ_rad · HRR · dt, bypasses upper gas)
 		var q_rad_fire_kj: float = room.hrr_kw * chi_rad * dt
-		# Actualizar temperatura de pared
-		t_wall_c += (wall_absorption_kj + q_rad_fire_kj * hrr_rad_wall_fraction) / maxf(0.1, wall_capacity_kj_k)
-		t_wall_c -= wall_emission_kj / maxf(0.1, wall_capacity_kj_k)
-		# Enfriamiento lento de la superficie hacia el núcleo/ambiente
-		t_wall_c = lerpf(t_wall_c, ambient_c, minf(wall_core_decay_per_s * dt, 0.99))
-		_wall_surface_temp_c[room.id] = t_wall_c
+		# Actualizar temperatura de pared (solo modelo lumped — cuando PDE activo, lo hace _step_wall_pde)
+		if not _pde_drives_wall:
+			t_wall_c += (wall_absorption_kj + q_rad_fire_kj * hrr_rad_wall_fraction) / maxf(0.1, wall_capacity_kj_k)
+			t_wall_c -= wall_emission_kj / maxf(0.1, wall_capacity_kj_k)
+			# Enfriamiento lento de la superficie hacia el núcleo/ambiente
+			t_wall_c = lerpf(t_wall_c, ambient_c, minf(wall_core_decay_per_s * dt, 0.99))
+			_wall_surface_temp_c[room.id] = t_wall_c
 
 		var requested_upper_loss_kj: float = energy_to_lower_kj + energy_to_ambient_kj + wall_absorption_kj
 		if requested_upper_loss_kj > 0.0 and room.upper_energy_kj > 0.0:
@@ -1136,12 +1148,41 @@ func _solve_tdma_4(
 	return x
 
 
+func _solve_tdma_5(
+		al: Array, bm: Array, cu: Array, d: Array
+) -> Array:
+	# Thomas (TDMA) para sistema 5×5 tridiagonal.
+	# al = subdiagonal (al[0] no se usa), bm = diagonal,
+	# cu = superdiagonal (cu[4] no se usa), d = RHS.
+	var n: int = 5
+	var c_star: Array = [0.0, 0.0, 0.0, 0.0, 0.0]
+	var d_star: Array = [0.0, 0.0, 0.0, 0.0, 0.0]
+	c_star[0] = cu[0] / bm[0]
+	d_star[0] = d[0] / bm[0]
+	for i: int in range(1, n):
+		var denom: float = bm[i] - al[i] * c_star[i - 1]
+		if absf(denom) < 1e-30:
+			denom = 1e-30
+		if i < n - 1:
+			c_star[i] = cu[i] / denom
+		d_star[i] = (d[i] - al[i] * d_star[i - 1]) / denom
+	var x: Array = [0.0, 0.0, 0.0, 0.0, 0.0]
+	x[n - 1] = d_star[n - 1]
+	for i: int in range(n - 2, -1, -1):
+		x[i] = d_star[i] - c_star[i] * x[i + 1]
+	return x
+
+
 func _step_wall_pde(building: BuildingModel, dt: float, ambient_c: float) -> void:
 	if not wall_pde_enabled:
 		return
 	# h_ext = coef. convectivo exterior [kW/(m²·K)]
 	# ~0.025 kW/(m²·K) para aire quiescente exterior (ISO 6946 Rse≈0.13 m²K/W)
 	var h_ext: float = 0.025
+	# h_ci = coef. convectivo interior gas→cara pared [kW/(m²·K)]
+	# SF-AUD-030 Robin BC en T[0]: reemplaza Dirichlet previo para modelar
+	# correctamente la inercia térmica de la cara interior.
+	var h_ci: float = h_conv_int_kw_m2_k
 
 	for room_id: int in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -1165,53 +1206,75 @@ func _step_wall_pde(building: BuildingModel, dt: float, ambient_c: float) -> voi
 			_wall_pde_nodes_c[room_id] = [ambient_c, ambient_c, ambient_c, ambient_c, ambient_c]
 		var T: Array = _wall_pde_nodes_c[room_id]
 
-		# BC interior: cara caliente = temperatura de superficie actual
-		var T0_bc: float = _wall_surface_temp_c.get(room_id, ambient_c)
-		T[0] = T0_bc
+		# Temperatura del gas en la sala (BC Robin interior)
+		var T_gas: float = room.temp_upper_c
 
 		# Parámetro de Crank-Nicolson: r = k·dt / (2·ρ·cp·dx²)
 		var dxdx: float = dx * dx
 		var r: float = k * dt / (2.0 * rho * cp_v * dxdx)
 
-		# Coeficiente de masa del semi-nodo exterior: B4 = ρ·cp·(dx/2)/dt
-		var B4: float = rho * cp_v * (dx * 0.5) / dt
+		# k/dx — difusividad nodal
+		var k_dx: float = k / dx
 
-		# Temperaturas antiguas de los nodos interiores y exterior
+		# Coeficiente de masa de semi-nodos: B = ρ·cp·(dx/2)/dt [kW/(m²·K)]
+		var B_half: float = rho * cp_v * (dx * 0.5) / dt
+
+		# Temperaturas antiguas de los 5 nodos
+		var t0: float = T[0]
 		var t1: float = T[1]
 		var t2: float = T[2]
 		var t3: float = T[3]
 		var t4: float = T[4]
 
-		# Sistema 4×4 tridiagonal para T[1..4]^{n+1}
-		# Nodo 1 (C-N):  (1+2r)·T1 - r·T2 = (1-2r)·T1 + 2r·T0_bc + r·T2
-		# Nodo 2 (C-N): -r·T1 + (1+2r)·T2 - r·T3 = r·T1 + (1-2r)·T2 + r·T3
-		# Nodo 3 (C-N): -r·T2 + (1+2r)·T3 - r·T4 = r·T2 + (1-2r)·T3 + r·T4
-		# Nodo 4 (Robin, impl.): -k/dx·T3 + (B4+k/dx+h_ext)·T4 = B4·t4 + h_ext·T_amb
+		# -------------------------------------------------------
+		# Sistema 5×5 tridiagonal Crank-Nicolson para T[0..4]^{n+1}
+		#
+		# Nodo 0 (semi-nodo, Robin interior):
+		#   (B_half + 0.5*(k_dx+h_ci))·T0 - 0.5*k_dx·T1 =
+		#       (B_half - 0.5*(k_dx+h_ci))·t0 + 0.5*k_dx·t1 + h_ci·T_gas
+		#
+		# Nodos 1..3 (nodos interiores completos, C-N estándar):
+		#   -r·T{i-1} + (1+2r)·Ti - r·T{i+1} =
+		#        r·t{i-1} + (1-2r)·ti + r·t{i+1}
+		#
+		# Nodo 4 (semi-nodo, Robin exterior):
+		#   -k_dx·T3 + (B_half+k_dx+h_ext)·T4 = B_half·t4 + h_ext·T_amb
+		# -------------------------------------------------------
 
-		var k_dx: float = k / dx
-
-		var al: Array = [0.0,   -r,     -r,            -k_dx]
-		var bm: Array = [1.0 + 2.0 * r, 1.0 + 2.0 * r, 1.0 + 2.0 * r,  B4 + k_dx + h_ext]
-		var cu: Array = [-r,    -r,     -r,              0.0]
-		var dv: Array = [
-			(1.0 - 2.0 * r) * t1 + 2.0 * r * T0_bc + r * t2,
+		var al5: Array = [0.0,   -r,              -r,              -r,              -k_dx         ]
+		var bm5: Array = [
+			B_half + 0.5 * (k_dx + h_ci),
+			1.0 + 2.0 * r,
+			1.0 + 2.0 * r,
+			1.0 + 2.0 * r,
+			B_half + k_dx + h_ext
+		]
+		var cu5: Array = [-0.5 * k_dx, -r,   -r,   -r,   0.0]
+		var dv5: Array = [
+			(B_half - 0.5 * (k_dx + h_ci)) * t0 + 0.5 * k_dx * t1 + h_ci * T_gas,
+			r * t0 + (1.0 - 2.0 * r) * t1 + r * t2,
 			r * t1 + (1.0 - 2.0 * r) * t2 + r * t3,
 			r * t2 + (1.0 - 2.0 * r) * t3 + r * t4,
-			B4 * t4 + h_ext * ambient_c
+			B_half * t4 + h_ext * ambient_c
 		]
 
-		var sol: Array = _solve_tdma_4(al, bm, cu, dv)
+		var sol: Array = _solve_tdma_5(al5, bm5, cu5, dv5)
 
-		T[1] = sol[0]
-		T[2] = sol[1]
-		T[3] = sol[2]
-		T[4] = sol[3]
+		T[0] = sol[0]
+		T[1] = sol[1]
+		T[2] = sol[2]
+		T[3] = sol[3]
+		T[4] = sol[4]
 
 		# Acotar: temperatura de pared entre casi-ambiente y 2000°C (evitar runaway numérico)
-		for i: int in range(1, 5):
+		for i: int in range(0, 5):
 			T[i] = clampf(T[i], ambient_c - 2.0, 2000.0)
 
 		_wall_pde_nodes_c[room_id] = T
+
+		# La cara interior T[0] pasa a ser la temperatura de superficie de pared
+		# para el intercambio gas↔pared del siguiente paso (sustituye al modelo lumped).
+		_wall_surface_temp_c[room_id] = T[0]
 
 		# Exportar a RoomModel para métricas de validación
 		room.wall_T_mid_c   = T[2]
@@ -2048,6 +2111,54 @@ func compute_co_lower_ppm(room: RoomModel) -> float:
 	return co_lower_kg * 29.0e6 / maxf(0.1, lower_zone_mass_kg * 28.0)
 
 
+## CO₂ estratificado – capa superior e inferior (2026-05-17).
+func compute_co2_upper_ppm(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+	var hot_h: float = effective_hot_layer_height_m(room)
+	var upper_height_m: float = maxf(0.05, room.height_m - hot_h)
+	var upper_zone_mass_kg: float = maxf(0.1,
+		room.floor_area_m2() * upper_height_m * gas_density_kg_m3(room.temp_upper_c))
+	var co2_upper_kg: float = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
+	return co2_upper_kg * 29.0e6 / maxf(0.1, upper_zone_mass_kg * 44.0)
+
+
+func compute_co2_lower_ppm(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+	var hot_h: float = effective_hot_layer_height_m(room)
+	var lower_height_m: float = maxf(0.05, hot_h)
+	var lower_zone_mass_kg: float = maxf(0.1,
+		room.floor_area_m2() * lower_height_m * gas_density_kg_m3(room.temp_lower_c))
+	var co2_upper_kg: float = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
+	var co2_lower_kg: float = maxf(0.0, room.co2_kg - co2_upper_kg)
+	return co2_lower_kg * 29.0e6 / maxf(0.1, lower_zone_mass_kg * 44.0)
+
+
+## HCN estratificado – capa superior e inferior (2026-05-17).
+func compute_hcn_upper_ppm(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+	var hot_h: float = effective_hot_layer_height_m(room)
+	var upper_height_m: float = maxf(0.05, room.height_m - hot_h)
+	var upper_zone_mass_kg: float = maxf(0.1,
+		room.floor_area_m2() * upper_height_m * gas_density_kg_m3(room.temp_upper_c))
+	var hcn_upper_kg: float = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)
+	return hcn_upper_kg * 29.0e6 / maxf(0.1, upper_zone_mass_kg * 27.0)
+
+
+func compute_hcn_lower_ppm(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+	var hot_h: float = effective_hot_layer_height_m(room)
+	var lower_height_m: float = maxf(0.05, hot_h)
+	var lower_zone_mass_kg: float = maxf(0.1,
+		room.floor_area_m2() * lower_height_m * gas_density_kg_m3(room.temp_lower_c))
+	var hcn_upper_kg: float = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)
+	var hcn_lower_kg: float = maxf(0.0, room.hcn_kg - hcn_upper_kg)
+	return hcn_lower_kg * 29.0e6 / maxf(0.1, lower_zone_mass_kg * 27.0)
+
+
 func compute_co2_ppm(room: RoomModel) -> float:
 	if room == null:
 		return 0.0
@@ -2071,7 +2182,7 @@ func step_fed(room: RoomModel, dt: float) -> void:
 	# una persona de pie está inmersa en la capa superior — usar CO de capa alta.
 	var in_upper_layer: bool = (room.h_layer_m < 1.8 and room.upper_gas_kg > 0.1)
 	var co_ppm: float = compute_co_upper_ppm(room) if in_upper_layer else compute_co_ppm(room)
-	var co2_ppm: float = compute_co2_ppm(room)
+	var co2_ppm: float = compute_co2_upper_ppm(room) if in_upper_layer else compute_co2_lower_ppm(room)
 
 	var dt_min: float = dt / 60.0
 	var delta_fed: float = 0.0
@@ -2088,13 +2199,13 @@ func step_fed(room: RoomModel, dt: float) -> void:
 
 	# ISO 13571 §A.2.2: dosis incremental por HCN (cianuro de hidrógeno).
 	# Modelo lineal de Purser: LC50 ≈ 4400 ppm·min (humano equivalente, 30 min).
-	var hcn_ppm: float = compute_hcn_ppm(room)
+	var hcn_ppm: float = compute_hcn_upper_ppm(room) if in_upper_layer else compute_hcn_lower_ppm(room)
 	if hcn_ppm > 0.0:
 		delta_fed += hcn_ppm / 4400.0 * v_co2 * dt_min
 
 	# ISO 13571 (modelo asfixiante): componente de hipoxia por O2.
 	if fed_hypoxia_enabled:
-		var o2_pct: float = clampf(room.o2 * 100.0, 0.0, 20.9)
+		var o2_pct: float = clampf((room.o2_upper if in_upper_layer else room.o2) * 100.0, 0.0, 20.9)
 		var o2_deficit_pct: float = maxf(0.0, 20.9 - o2_pct)
 		if o2_deficit_pct > 0.0:
 			var t_crit_min: float = exp(fed_hypoxia_a - fed_hypoxia_b * o2_deficit_pct)
@@ -2255,6 +2366,8 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 		room.upper_gas_kg = 0.0
 		room.upper_energy_kj = 0.0
 		room.co_upper_kg = 0.0
+		room.co2_upper_kg = 0.0
+		room.hcn_upper_kg = 0.0
 		room.temp_upper_c = room.temp_lower_c
 		room.temp_upper_raw_c = room.temp_upper_c
 		room.temp_upper_clamped = false
@@ -2264,9 +2377,27 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 		return
 
 	if room.upper_gas_kg <= 0.0001 or room.upper_energy_kj <= 0.0001:
+		# SF-AUD-XXX: Si la energía se agota (p.ej. absorción PDE drena toda la energía
+		# del paso) pero la masa es finita, conservar la masa — el gas existe a temperatura
+		# ambiente. Resetear solo la masa destruiría el acumulador del penacho y mantendría
+		# la temperatura permanentemente en el ambiente aunque el fuego siga activo.
+		if room.upper_gas_kg > 0.0001 and room.upper_energy_kj <= 0.0001:
+			room.upper_energy_kj = 0.0
+			room.temp_upper_c = maxf(room.temp_lower_c, ambient_c)
+			room.temp_upper_raw_c = room.temp_upper_c
+			room.temp_upper_clamped = false
+			room.upper_radiative_loss_kw = 0.0
+			var _tgt_h: float = estimate_thermal_layer_height_m(room)
+			if _tgt_h < room.thermal_layer_m:
+				room.thermal_layer_m = _tgt_h
+			_smoke_model.recompute_layer_from_mass(room, dt, ambient_c)
+			return
+		# Sin masa (o ambas nulas): colapso completo de la capa.
 		room.upper_gas_kg = 0.0
 		room.upper_energy_kj = 0.0
 		room.co_upper_kg = 0.0
+		room.co2_upper_kg = 0.0
+		room.hcn_upper_kg = 0.0
 		room.temp_upper_c = maxf(room.temp_lower_c, ambient_c)
 		room.temp_upper_raw_c = room.temp_upper_c
 		room.temp_upper_clamped = false
@@ -2276,6 +2407,8 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 		return
 
 	room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg)
+	room.co2_upper_kg = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
+	room.hcn_upper_kg = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)
 	room.temp_upper_raw_c = _estimate_raw_upper_temp_c(room, ambient_c)
 	room.temp_upper_clamped = room.temp_upper_raw_c > max_upper_temp_c
 	room.temp_upper_c = maxf(room.temp_lower_c, minf(room.temp_upper_raw_c, max_upper_temp_c))

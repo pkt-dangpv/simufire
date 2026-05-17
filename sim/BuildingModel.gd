@@ -40,6 +40,7 @@ var building_template = preload("res://sim/templates/BuildingTemplate.gd").new()
 	"compact_apartment",
 	"two_bed_apartment",
 	"three_bed_apartment",
+	"two_storey_house",
 	"row_house_ground_floor",
 	"ranch_family_house",
 	"ghanekar_bedroom_hallway"

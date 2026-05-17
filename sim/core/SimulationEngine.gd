@@ -487,8 +487,8 @@ var _active_suppression_by_room: Dictionary = {}
 @export var energy_budget_warn_fraction: float = 0.10
 # SF-AUD-010: Bernoulli dos zonas para flujos por aperturas interiores y exteriores.
 # Cuando true: flujo calculado con Q = Cd·W·f·(2/3)·h^(3/2)·sqrt(2g·ΔT/T_ref) y plano
-# neutro calculado desde densidades. Default false → comportamiento heredado.
-@export var vent_bernoulli_enabled: bool = false
+# neutro calculado desde densidades. Default true → paridad CFAST (2026-05-17).
+@export var vent_bernoulli_enabled: bool = true
 
 
 # Absorción de calor por paredes — término proporcional simple sobre (T_upper - T_ambient).
@@ -860,7 +860,11 @@ func _build_state_context() -> Dictionary:
 		"compute_co_upper_ppm_callable": Callable(thermal_system, "compute_co_upper_ppm"),
 		"compute_co_lower_ppm_callable": Callable(thermal_system, "compute_co_lower_ppm"),
 		"compute_co2_ppm_callable": Callable(thermal_system, "compute_co2_ppm"),
+		"compute_co2_upper_ppm_callable": Callable(thermal_system, "compute_co2_upper_ppm"),
+		"compute_co2_lower_ppm_callable": Callable(thermal_system, "compute_co2_lower_ppm"),
 		"compute_hcn_ppm_callable": Callable(thermal_system, "compute_hcn_ppm"),
+		"compute_hcn_upper_ppm_callable": Callable(thermal_system, "compute_hcn_upper_ppm"),
+		"compute_hcn_lower_ppm_callable": Callable(thermal_system, "compute_hcn_lower_ppm"),
 		"compute_hcl_ppm_callable": Callable(thermal_system, "compute_hcl_ppm"),
 		"compute_acrolein_ppm_callable": Callable(thermal_system, "compute_acrolein_ppm"),
 		"compute_formaldehyde_ppm_callable": Callable(thermal_system, "compute_formaldehyde_ppm"),

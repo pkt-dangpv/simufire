@@ -20,7 +20,9 @@ static func update_ceiling_mask(
 	height_m: float,
 	should_show: bool,
 	room_inset_m: float,
-	meters_to_units: float
+	meters_to_units: float,
+	origin_offset_m: Vector2 = Vector2.ZERO,
+	floor_level_m: float = 0.0
 ) -> void:
 	if node == null:
 		return
@@ -34,7 +36,7 @@ static func update_ceiling_mask(
 			0.018,
 			maxf(0.05, rect.size.y - room_inset_m * 2.0)
 		) * meters_to_units
-	node.position = _room_center(rect, height_m + 0.004, meters_to_units)
+	node.position = _room_center(rect, floor_level_m + height_m + 0.004, meters_to_units, origin_offset_m)
 
 
 static func update_layer_box(
@@ -45,7 +47,9 @@ static func update_layer_box(
 	color: Color,
 	should_show: bool,
 	room_inset_m: float,
-	meters_to_units: float
+	meters_to_units: float,
+	origin_offset_m: Vector2 = Vector2.ZERO,
+	floor_level_m: float = 0.0
 ) -> void:
 	if node == null:
 		return
@@ -63,12 +67,12 @@ static func update_layer_box(
 	var mat := node.material_override as StandardMaterial3D
 	if mat != null:
 		mat.albedo_color = color
-	node.position = _room_center(rect, layer_m, meters_to_units)
+	node.position = _room_center(rect, floor_level_m + layer_m, meters_to_units, origin_offset_m)
 
 
-static func _room_center(rect_m: Rect2, y_m: float, meters_to_units: float) -> Vector3:
+static func _room_center(rect_m: Rect2, y_m: float, meters_to_units: float, origin_offset_m: Vector2 = Vector2.ZERO) -> Vector3:
 	var center: Vector2 = rect_m.position + rect_m.size * 0.5
-	return Vector3(center.x, y_m, center.y) * meters_to_units
+	return Vector3(center.x + origin_offset_m.x, y_m, center.y + origin_offset_m.y) * meters_to_units
 
 
 static func _disable_shadow_casting(root: Node) -> void:

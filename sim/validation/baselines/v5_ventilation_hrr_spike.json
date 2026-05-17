@@ -1,7 +1,7 @@
 {
   "metrics": {
     "time_room_0_hrr_above_1000_post_vent_s": {
-      "expected": 194.083333,
+      "expected": 205.5,
       "tolerance": 10.0
     },
     "time_room_0_l150_below_1_8m_s": {

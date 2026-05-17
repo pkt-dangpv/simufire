@@ -703,7 +703,9 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	room.co_kg += generated_co_kg
 	room.co_upper_kg += generated_co_kg
 	room.co2_kg += generated_co2_kg
+	room.co2_upper_kg += generated_co2_kg  # generado en capa superior (2026-05-17)
 	room.hcn_kg += generated_hcn_kg
+	room.hcn_upper_kg += generated_hcn_kg  # generado en capa superior (2026-05-17)
 
 	fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ - solid_fuel_demand_MJ)
 	_sync_explicit_objects_from_active_fire(

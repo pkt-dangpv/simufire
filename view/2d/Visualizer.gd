@@ -1,6 +1,9 @@
 extends Node2D
 class_name Visualizer
 
+const OpeningGeometry2D := preload("res://view/2d/openings/OpeningGeometry2D.gd")
+const RoomStateVisuals2D := preload("res://view/2d/rooms/RoomStateVisuals2D.gd")
+
 ## ============================================================
 ## VISUALIZER
 ## ------------------------------------------------------------
@@ -55,6 +58,13 @@ class_name Visualizer
 @export var show_opening_labels: bool = false
 @export var show_fuel_objects: bool = true
 @export var show_fuel_object_names: bool = true
+@export var show_floor_selector: bool = true
+@export var floor_selector_position_px: Vector2 = Vector2(18.0, 18.0)
+@export var floor_selector_button_size_px: Vector2 = Vector2(88.0, 26.0)
+@export var floor_selector_gap_px: float = 6.0
+@export var floor_selector_active_color: Color = Color(1.0, 0.56, 0.18, 0.92)
+@export var floor_selector_inactive_color: Color = Color(0.08, 0.12, 0.14, 0.84)
+@export var floor_selector_text_color: Color = Color(1.0, 0.96, 0.86, 0.98)
 
 # ============================================================
 # HUMO / CALOR / FUEGO
@@ -176,6 +186,8 @@ var state: Dictionary = {}
 var rects_m: Dictionary[int, Rect2] = {}
 var selected_room_id: int = -1
 var selected_opening_index: int = -1
+var floor_levels_m: Array[float] = []
+var selected_floor_index: int = 0
 
 @export var building_path: NodePath
 var building: BuildingModel = null
@@ -186,13 +198,7 @@ var building: BuildingModel = null
 # ============================================================
 
 func _ready() -> void:
-	if building_path and not building_path.is_empty():
-		building = get_node(building_path) as BuildingModel
-	if building == null:
-		building = get_node_or_null("../BuildingModel") as BuildingModel
-	if building != null:
-		rects_m = building.get_room_rects_m()
-
+	_sync_building_geometry()
 	queue_redraw()
 
 
@@ -202,6 +208,7 @@ func _ready() -> void:
 
 func set_state(s: Dictionary) -> void:
 	state = s
+	_sync_building_geometry()
 	queue_redraw()
 
 
@@ -210,10 +217,13 @@ func set_state(s: Dictionary) -> void:
 # ============================================================
 
 func _draw() -> void:
+	_sync_building_geometry()
 	_draw_background()
 
 	var room_ids: Array[int] = _get_sorted_room_ids()
 	for id in room_ids:
+		if not _is_room_visible_on_selected_floor(id):
+			continue
 		var rm: Rect2 = rects_m[id]
 		var rpx: Rect2 = _to_px(rm)
 
@@ -288,10 +298,23 @@ func _draw() -> void:
 	if show_openings:
 		_draw_openings()
 
+	_draw_floor_selector()
+
 
 # ============================================================
 # FONDO
 # ============================================================
+
+func _sync_building_geometry() -> void:
+	if building_path and not building_path.is_empty() and building == null:
+		building = get_node_or_null(building_path) as BuildingModel
+	if building == null:
+		building = get_node_or_null("../BuildingModel") as BuildingModel
+	if building == null:
+		return
+	rects_m = building.get_room_rects_m()
+	_refresh_floor_levels()
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
@@ -301,14 +324,18 @@ func _unhandled_input(event: InputEvent) -> void:
 	var mb := event as InputEventMouseButton
 	if not (mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT):
 		return
-	var clicked_opening_index: int = _get_opening_index_at_local_pos(mb.position)
+	var local_pos: Vector2 = get_global_transform_with_canvas().affine_inverse() * mb.position
+	if _handle_floor_selector_click(local_pos):
+		get_viewport().set_input_as_handled()
+		return
+	var clicked_opening_index: int = _get_opening_index_at_local_pos(local_pos)
 	if clicked_opening_index >= 0:
 		selected_opening_index = clicked_opening_index
 		queue_redraw()
 		opening_clicked.emit(clicked_opening_index, mb.position)
 		get_viewport().set_input_as_handled()
 		return
-	var clicked_id: int = _get_room_id_at_local_pos(mb.position)
+	var clicked_id: int = _get_room_id_at_local_pos(local_pos)
 	if clicked_id >= 0:
 		selected_room_id = clicked_id
 		selected_opening_index = -1
@@ -335,6 +362,8 @@ func _get_room_id_at_local_pos(local_pos: Vector2) -> int:
 	var offset: Vector2 = tf["offset"]
 	var pos_m: Vector2 = (local_pos - offset) / scale_px
 	for id in _get_sorted_room_ids():
+		if not _is_room_visible_on_selected_floor(id):
+			continue
 		if rects_m[id].has_point(pos_m):
 			return id
 	return -1
@@ -346,10 +375,12 @@ func _get_opening_index_at_local_pos(local_pos: Vector2) -> int:
 	var best_index: int = -1
 	var best_distance: float = 999999.0
 	for index in range(building.get_opening_count()):
+		if not _is_opening_visible_on_selected_floor(index):
+			continue
 		var segment: PackedVector2Array = _get_opening_segment_px(index)
 		if segment.size() != 2:
 			continue
-		var distance: float = _distance_point_to_segment(local_pos, segment[0], segment[1])
+		var distance: float = OpeningGeometry2D.distance_point_to_segment(local_pos, segment[0], segment[1])
 		if distance < best_distance:
 			best_distance = distance
 			best_index = index
@@ -364,6 +395,8 @@ func _get_opening_segment_px(index: int) -> PackedVector2Array:
 	var op: OpeningModel = building.get_opening_at(index)
 	if op == null or not rects_m.has(op.a):
 		return empty
+	if not _is_opening_visible_on_selected_floor(index):
+		return empty
 
 	var a_id: int = op.a
 	var b_id: int = op.b
@@ -373,7 +406,7 @@ func _get_opening_segment_px(index: int) -> PackedVector2Array:
 	if b_exists:
 		rb = rects_m[b_id]
 
-	var seg_m: PackedVector2Array = _shared_edge_segment_m(ra, rb) if b_exists else _default_exterior_segment_m(ra, op.width_m, op.wall_side)
+	var seg_m: PackedVector2Array = OpeningGeometry2D.shared_edge_segment_m(ra, rb) if b_exists else OpeningGeometry2D.default_exterior_segment_m(ra, op.width_m, op.wall_side)
 	if seg_m.size() != 2:
 		return empty
 
@@ -391,17 +424,110 @@ func _get_opening_segment_px(index: int) -> PackedVector2Array:
 	return PackedVector2Array([p1, p2])
 
 
-func _distance_point_to_segment(point: Vector2, a: Vector2, b: Vector2) -> float:
-	var ab: Vector2 = b - a
-	var len_sq: float = ab.length_squared()
-	if len_sq <= 0.0001:
-		return point.distance_to(a)
-	var t: float = clampf((point - a).dot(ab) / len_sq, 0.0, 1.0)
-	return point.distance_to(a + ab * t)
-
-
 func _draw_background() -> void:
 	draw_rect(Rect2(-50, -50, 4000, 2500), background_color, true)
+
+
+func _refresh_floor_levels() -> void:
+	floor_levels_m.clear()
+	if building == null:
+		return
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(int(room_id))
+		if room == null:
+			continue
+		_add_floor_level(room.floor_level_z_m)
+	floor_levels_m.sort()
+	selected_floor_index = clampi(selected_floor_index, 0, maxi(0, floor_levels_m.size() - 1))
+
+
+func _add_floor_level(level_m: float) -> void:
+	for existing in floor_levels_m:
+		if absf(float(existing) - level_m) < 0.05:
+			return
+	floor_levels_m.append(level_m)
+
+
+func _selected_floor_level_m() -> float:
+	if floor_levels_m.is_empty():
+		return 0.0
+	return float(floor_levels_m[clampi(selected_floor_index, 0, floor_levels_m.size() - 1)])
+
+
+func _get_room_floor_level_m(room_id: int) -> float:
+	if building == null:
+		return 0.0
+	var room: RoomModel = building.get_room(room_id)
+	return room.floor_level_z_m if room != null else 0.0
+
+
+func _is_room_visible_on_selected_floor(room_id: int) -> bool:
+	if floor_levels_m.size() <= 1:
+		return true
+	return absf(_get_room_floor_level_m(room_id) - _selected_floor_level_m()) < 0.05
+
+
+func _is_opening_visible_on_selected_floor(opening_index: int) -> bool:
+	if building == null:
+		return false
+	var op: OpeningModel = building.get_opening_at(opening_index)
+	if op == null:
+		return false
+	var a_visible: bool = op.a != BuildingModel.OUTSIDE_ID and rects_m.has(op.a) and _is_room_visible_on_selected_floor(op.a)
+	var b_visible: bool = op.b != BuildingModel.OUTSIDE_ID and rects_m.has(op.b) and _is_room_visible_on_selected_floor(op.b)
+	if op.a == BuildingModel.OUTSIDE_ID:
+		return b_visible
+	if op.b == BuildingModel.OUTSIDE_ID:
+		return a_visible
+	return a_visible and b_visible
+
+
+func _draw_floor_selector() -> void:
+	var font := ThemeDB.fallback_font
+	if not show_floor_selector or floor_levels_m.size() <= 1 or font == null:
+		return
+	for i in range(floor_levels_m.size()):
+		var rect: Rect2 = _floor_selector_button_rect(i)
+		var active: bool = i == selected_floor_index
+		draw_rect(rect, floor_selector_active_color if active else floor_selector_inactive_color, true)
+		draw_rect(rect, room_outline_color, false, 1.0)
+		var label: String = _floor_label(i)
+		draw_string(
+			font,
+			rect.position + Vector2(10.0, 17.0),
+			label,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			rect.size.x - 12.0,
+			11,
+			floor_selector_text_color
+		)
+
+
+func _handle_floor_selector_click(local_pos: Vector2) -> bool:
+	if not show_floor_selector or floor_levels_m.size() <= 1:
+		return false
+	for i in range(floor_levels_m.size()):
+		if _floor_selector_button_rect(i).has_point(local_pos):
+			selected_floor_index = i
+			selected_room_id = -1
+			selected_opening_index = -1
+			queue_redraw()
+			room_clicked.emit(-1)
+			return true
+	return false
+
+
+func _floor_selector_button_rect(index: int) -> Rect2:
+	return Rect2(
+		floor_selector_position_px + Vector2((floor_selector_button_size_px.x + floor_selector_gap_px) * float(index), 0.0),
+		floor_selector_button_size_px
+	)
+
+
+func _floor_label(index: int) -> String:
+	if index <= 0:
+		return "PB"
+	return "P%d" % index
 
 
 # ============================================================
@@ -519,8 +645,8 @@ func _draw_room_fire_overlay(rpx: Rect2, rs: Dictionary, room_id: int = -1) -> v
 				best_obj = raw
 		if not best_obj.is_empty():
 			var rm: Rect2 = rects_m[room_id]
-			var pos_m: Vector2 = _vector2_from_variant(best_obj.get("position_m", Vector2.ZERO))
-			var sz_m: Vector2 = _vector2_from_variant(best_obj.get("size_m", Vector2.ONE))
+			var pos_m: Vector2 = RoomStateVisuals2D.vector2_from_variant(best_obj.get("position_m", Vector2.ZERO))
+			var sz_m: Vector2 = RoomStateVisuals2D.vector2_from_variant(best_obj.get("size_m", Vector2.ONE))
 			var tf: Dictionary = _get_draw_transform()
 			var sc: float = float(tf["scale"])
 			var off: Vector2 = Vector2(tf["offset"])
@@ -739,8 +865,8 @@ func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
 		var obj: Dictionary = raw_obj
 		if String(obj.get("id", "")).begins_with("room_proxy_"):
 			continue
-		var pos_m: Vector2 = _vector2_from_variant(obj.get("position_m", Vector2.ZERO))
-		var size_m: Vector2 = _vector2_from_variant(obj.get("size_m", Vector2.ONE))
+		var pos_m: Vector2 = RoomStateVisuals2D.vector2_from_variant(obj.get("position_m", Vector2.ZERO))
+		var size_m: Vector2 = RoomStateVisuals2D.vector2_from_variant(obj.get("size_m", Vector2.ONE))
 		if size_m.x <= 0.01 or size_m.y <= 0.01:
 			continue
 
@@ -749,7 +875,7 @@ func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
 			continue
 
 		var state_name: String = String(obj.get("state", "cold"))
-		var fill: Color = _fuel_object_color_for_state(state_name)
+		var fill: Color = RoomStateVisuals2D.fuel_object_color_for_state(state_name, fuel_object_fill_color)
 		draw_rect(obj_rect_px, fill, true)
 		draw_rect(obj_rect_px, fuel_object_outline_color, false, 1.0)
 
@@ -831,83 +957,9 @@ func _draw_room_name_watermark(id: int, rs: Dictionary, content_rect: Rect2) -> 
 	)
 
 
-func _fuel_object_color_for_state(state_name: String) -> Color:
-	match state_name:
-		"flaming":
-			return Color(1.0, 0.24, 0.10, 0.82)
-		"pyrolyzing":
-			return Color(1.0, 0.55, 0.12, 0.78)
-		"heating":
-			return Color(1.0, 0.78, 0.22, 0.72)
-		"decaying":
-			return Color(0.75, 0.38, 0.18, 0.62)
-		"burned_out":
-			return Color(0.24, 0.24, 0.24, 0.55)
-		_:
-			return fuel_object_fill_color
-
-
 # ============================================================
 # ETIQUETA DE SALA
 # ============================================================
-
-## Calcula probabilidad de supervivencia (%) combinando criterio térmico (isoterma 150°C)
-## y criterio FED (narcosis CO). Toma el peor caso de ambos.
-## Referencia: diagrama SVV — Fundamentos pág. 47
-func _compute_svv_pct(rs: Dictionary) -> float:
-	if rs.has("svv_worst_pct"):
-		return clampf(float(rs.get("svv_worst_pct", 100.0)), 0.0, 100.0)
-
-	var height_m: float = float(rs.get("height_m", 2.4))
-	var layer_150c: float = clampf(float(rs.get("layer_150c_m", height_m)), 0.0, height_m)
-	var fed_val: float = float(rs.get("fed", 0.0))
-	var hot_layer_m: float = float(rs.get("hot_layer_m", height_m))
-	var temp_upper_c: float = float(rs.get("temp_upper_c", 20.0))
-
-	# Criterio térmico: altura isoterma 150°C desde el suelo
-	var thermal_svv: float
-	if layer_150c >= 1.8:
-		# Isoterma segura, pero verificar capa caliente bajo altura de respiración.
-		if hot_layer_m < 1.8 and temp_upper_c > 60.0:
-			var penetration: float = clampf((1.8 - hot_layer_m) / 0.3, 0.0, 1.0)
-			var temp_factor: float = clampf((temp_upper_c - 60.0) / 90.0, 0.0, 1.0)
-			thermal_svv = 1.0 - penetration * temp_factor
-		else:
-			thermal_svv = 1.0                                                  # ALTA >99%
-	elif layer_150c >= 0.5:
-		thermal_svv = 0.90 + 0.09 * (layer_150c - 0.5) / 1.3            # MEDIA 90-99%
-	elif layer_150c > 0.10:
-		thermal_svv = 0.05 + 0.85 * ((layer_150c - 0.10) / 0.40)       # BAJA 5-90%
-	else:
-		thermal_svv = 0.0                                                 # MÍNIMA 0%
-
-	# Criterio FED por zonas (más consistente con tenabilidad por umbrales)
-	var fed_svv: float
-	if fed_val <= 0.1:
-		fed_svv = 1.0 - 0.01 * (fed_val / 0.1)
-	elif fed_val <= 0.3:
-		fed_svv = 0.99 - 0.09 * ((fed_val - 0.1) / 0.2)
-	elif fed_val < 1.0:
-		var t_fed: float = (fed_val - 0.3) / 0.7
-		fed_svv = 0.90 * pow(1.0 - t_fed, 1.5)
-	else:
-		fed_svv = 0.0
-
-	# Peor caso de ambos criterios
-	return minf(thermal_svv, fed_svv) * 100.0
-
-
-func _get_svv_color(svv_pct: float) -> Color:
-	# Colores según zonas SVV del diagrama
-	if svv_pct > 99.0:
-		return Color(0.88, 0.88, 0.88, 1.0)  # ALTA >99%: blanco
-	elif svv_pct >= 90.0:
-		return Color(1.00, 0.55, 0.10, 1.0)  # MEDIA 90-99%: naranja
-	elif svv_pct >= 5.0:
-		return Color(0.95, 0.20, 0.20, 1.0)  # BAJA 5-90%: rojo
-	else:
-		return Color(0.35, 0.35, 0.35, 1.0)  # MÍNIMA <5%: gris oscuro
-
 
 func _draw_room_label(id: int, rpx: Rect2, rs: Dictionary) -> void:
 	var content_rect: Rect2 = _get_room_content_rect(rpx)
@@ -935,8 +987,8 @@ func _draw_room_label(id: int, rpx: Rect2, rs: Dictionary) -> void:
 		)
 		draw_rect(bg_rect, room_label_bg_color, true)
 
-	var svv_pct: float = _compute_svv_pct(rs)
-	var svv_col: Color = _get_svv_color(svv_pct)
+	var svv_pct: float = RoomStateVisuals2D.compute_svv_pct(rs)
+	var svv_col: Color = RoomStateVisuals2D.svv_color(svv_pct)
 
 	for i in range(lines.size()):
 		var pos: Vector2 = base_pos + Vector2(0.0, room_label_line_h * float(i))
@@ -965,7 +1017,7 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 	var flashover_triggered: bool = _is_flashover_indicator_visible(rs)
 	var detail: String = _pick_room_label_detail(content_rect)
 
-	var svv_pct_val: float = _compute_svv_pct(rs)
+	var svv_pct_val: float = RoomStateVisuals2D.compute_svv_pct(rs)
 	var lines: Array[String] = []
 
 	# Cabecera: intencionalmente vacía (no mostrar ID ni nombre aquí)
@@ -1004,7 +1056,7 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 			lines.append("O2 %.1f%%  CO %.0f ppm" % [o2v, co_ppm])
 			lines.append("Comb %.0f / %.0f MJ" % [rem_mj, fuel_mj])
 			lines.append("FED %.3f  SVV %.0f%%" % [fed_val, svv_pct_val])
-			var med_win: String = _build_window_status_label(rs)
+			var med_win: String = RoomStateVisuals2D.window_status_label(rs, window_full_open_threshold)
 			if med_win != "":
 				lines.append(med_win)
 			if bool(rs.get("backdraft_active", false)):
@@ -1023,7 +1075,7 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 			lines.append("O2 %.1f%%  CO %.0f ppm" % [o2v, co_ppm])
 			lines.append("FED %.3f  SVV %.0f%%" % [fed_val, svv_pct_val])
 			lines.append("Comb %.0f / %.0f MJ" % [rem_mj, fuel_mj])
-			var full_win: String = _build_window_status_label(rs)
+			var full_win: String = RoomStateVisuals2D.window_status_label(rs, window_full_open_threshold)
 			if full_win != "":
 				lines.append(full_win)
 			if bool(rs.get("backdraft_active", false)):
@@ -1072,17 +1124,6 @@ func _fit_room_label_lines(content_rect: Rect2, lines: Array[String], flashover_
 			trimmed[kept_count - 1] = "..."
 
 	return trimmed
-
-
-func _build_window_status_label(rs: Dictionary) -> String:
-	var w_open: float = float(rs.get("window_open_max", -1.0))
-	if w_open < 0.0:
-		return ""
-	if w_open <= 0.0:
-		return "Win CLOSED"
-	if w_open < window_full_open_threshold:
-		return "Win BROKEN %.0f%%" % (w_open * 100.0)
-	return "Win OPEN %.0f%%" % (w_open * 100.0)
 
 
 func _get_room_label_bottom_reserved_px() -> float:
@@ -1172,6 +1213,8 @@ func _draw_openings() -> void:
 		return
 
 	for index in range(building.get_opening_count()):
+		if not _is_opening_visible_on_selected_floor(index):
+			continue
 		var op: OpeningModel = building.get_opening_at(index)
 		if op == null:
 			continue
@@ -1189,9 +1232,9 @@ func _draw_openings() -> void:
 
 		var seg_m: PackedVector2Array = PackedVector2Array()
 		if b_exists:
-			seg_m = _shared_edge_segment_m(ra, rb)
+			seg_m = OpeningGeometry2D.shared_edge_segment_m(ra, rb)
 		else:
-			seg_m = _default_exterior_segment_m(ra, op.width_m, op.wall_side)
+			seg_m = OpeningGeometry2D.default_exterior_segment_m(ra, op.width_m, op.wall_side)
 
 		if seg_m.size() != 2:
 			continue
@@ -1297,57 +1340,6 @@ func _draw_selected_opening_marker(opening_index: int) -> void:
 		draw_line(selected_segment[0], selected_segment[1], selected_room_outline_color, opening_line_width + 4.0)
 
 
-func _shared_edge_segment_m(a: Rect2, b: Rect2) -> PackedVector2Array:
-	var eps: float = 0.0001
-
-	if absf((a.position.x + a.size.x) - b.position.x) < eps:
-		var x: float = a.position.x + a.size.x
-		var y1: float = maxf(a.position.y, b.position.y)
-		var y2: float = minf(a.position.y + a.size.y, b.position.y + b.size.y)
-		if y2 > y1:
-			return PackedVector2Array([Vector2(x, y1), Vector2(x, y2)])
-
-	if absf(a.position.x - (b.position.x + b.size.x)) < eps:
-		var x2: float = a.position.x
-		var yy1: float = maxf(a.position.y, b.position.y)
-		var yy2: float = minf(a.position.y + a.size.y, b.position.y + b.size.y)
-		if yy2 > yy1:
-			return PackedVector2Array([Vector2(x2, yy1), Vector2(x2, yy2)])
-
-	if absf((a.position.y + a.size.y) - b.position.y) < eps:
-		var y: float = a.position.y + a.size.y
-		var xx1: float = maxf(a.position.x, b.position.x)
-		var xx2: float = minf(a.position.x + a.size.x, b.position.x + b.size.x)
-		if xx2 > xx1:
-			return PackedVector2Array([Vector2(xx1, y), Vector2(xx2, y)])
-
-	if absf(a.position.y - (b.position.y + b.size.y)) < eps:
-		var y2: float = a.position.y
-		var xxx1: float = maxf(a.position.x, b.position.x)
-		var xxx2: float = minf(a.position.x + a.size.x, b.position.x + b.size.x)
-		if xxx2 > xxx1:
-			return PackedVector2Array([Vector2(xxx1, y2), Vector2(xxx2, y2)])
-
-	return PackedVector2Array()
-
-
-func _default_exterior_segment_m(r: Rect2, width_m: float, wall_side: String = "") -> PackedVector2Array:
-	var side: String = wall_side.to_lower()
-
-	if side == "left" or side == "right":
-		var safe_height: float = clampf(width_m, 0.20, maxf(0.20, r.size.y))
-		var y1: float = r.position.y + (r.size.y - safe_height) * 0.5
-		var y2: float = y1 + safe_height
-		var x_vertical: float = r.position.x if side == "left" else (r.position.x + r.size.x)
-		return PackedVector2Array([Vector2(x_vertical, y1), Vector2(x_vertical, y2)])
-
-	var safe_width: float = clampf(width_m, 0.20, maxf(0.20, r.size.x))
-	var x1: float = r.position.x + (r.size.x - safe_width) * 0.5
-	var x2: float = x1 + safe_width
-	var y: float = r.position.y if side != "bottom" else (r.position.y + r.size.y)
-	return PackedVector2Array([Vector2(x1, y), Vector2(x2, y)])
-
-
 # ============================================================
 # UTILS
 # ============================================================
@@ -1397,19 +1389,6 @@ func _is_flashover_indicator_visible(rs: Dictionary) -> bool:
 		return true
 	var sim_time_s: float = float(state.get("sim_time_s", 0.0))
 	return sim_time_s <= flash_time_s + maxf(1.0, flashover_indicator_duration_s)
-
-
-func _vector2_from_variant(value: Variant) -> Vector2:
-	if typeof(value) == TYPE_VECTOR2:
-		return value
-	if typeof(value) == TYPE_DICTIONARY:
-		var data: Dictionary = value
-		return Vector2(float(data.get("x", 0.0)), float(data.get("y", 0.0)))
-	if typeof(value) == TYPE_ARRAY:
-		var values: Array = value
-		if values.size() >= 2:
-			return Vector2(float(values[0]), float(values[1]))
-	return Vector2.ZERO
 
 
 func _build_section_gauge_rect(rpx: Rect2) -> Rect2:
@@ -1474,12 +1453,23 @@ func _get_building_bounds_m() -> Rect2:
 	var bounds: Rect2 = Rect2()
 
 	for id in _get_sorted_room_ids():
+		if not _is_room_visible_on_selected_floor(id):
+			continue
 		var r: Rect2 = rects_m[id]
 		if first:
 			bounds = r
 			first = false
 		else:
 			bounds = bounds.merge(r)
+
+	if first:
+		for id in _get_sorted_room_ids():
+			var r: Rect2 = rects_m[id]
+			if first:
+				bounds = r
+				first = false
+			else:
+				bounds = bounds.merge(r)
 
 	return bounds
 

@@ -78,6 +78,7 @@ static func to_runtime_template(editor_data: Dictionary) -> Dictionary:
 	return {
 		"outside_temp_c": float(data.get("outside_temp_c", 20.0)),
 		"outside_o2": float(data.get("outside_o2", 0.209)),
+		"floors": Array(data.get("floors", [])).duplicate(true),
 		"room_rect_m": runtime_rects,
 		"rooms_data": rooms_data,
 		"openings_data": openings_data,
@@ -92,6 +93,7 @@ static func to_runtime_json_data(editor_data: Dictionary) -> Dictionary:
 		"outside_temp_c": float(data.get("outside_temp_c", 20.0)),
 		"outside_o2": float(data.get("outside_o2", 0.209)),
 		"stop_time_s": float(data.get("stop_time_s", 0.0)),
+		"floors": Array(data.get("floors", [])).duplicate(true),
 		"room_rect_m": Dictionary(data.get("room_rect_m", {})).duplicate(true),
 		"rooms_data": Array(data.get("rooms_data", [])).duplicate(true),
 		"openings_data": Array(data.get("openings_data", [])).duplicate(true),
@@ -124,6 +126,7 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 		rects[str(key)] = rect_to_data(rect2_from_data(raw_rects[key]))
 	data["room_rect_m"] = rects
 
+	var room_floor_levels: Array = []
 	var rooms: Array = []
 	for raw_room in data.get("rooms_data", []):
 		if typeof(raw_room) != TYPE_DICTIONARY:
@@ -133,6 +136,8 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 		room["name"] = String(room.get("name", "Room %d" % int(room["id"])))
 		room["kind"] = String(room.get("kind", "generic"))
 		room["height_m"] = float(room.get("height_m", 2.7))
+		room["floor_level_z_m"] = float(room.get("floor_level_z_m", 0.0))
+		room_floor_levels.append(room["floor_level_z_m"])
 		room["fuel_energy_MJ"] = float(room.get("fuel_energy_MJ", 0.0))
 		room["max_hrr_kw"] = float(room.get("max_hrr_kw", 0.0))
 		var objects: Array = []
@@ -142,6 +147,7 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 		room["fuel_objects"] = objects
 		rooms.append(room)
 	data["rooms_data"] = rooms
+	data["floors"] = normalize_floors(data.get("floors", []), room_floor_levels)
 
 	var openings: Array = []
 	for raw_opening in data.get("openings_data", []):
@@ -149,6 +155,47 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 			openings.append(normalize_opening(Dictionary(raw_opening)))
 	data["openings_data"] = openings
 	return data
+
+
+static func normalize_floors(raw_floors: Variant, room_levels: Array = []) -> Array:
+	var floors: Array = []
+	if typeof(raw_floors) == TYPE_ARRAY:
+		var raw_array: Array = raw_floors
+		for i in range(raw_array.size()):
+			if typeof(raw_array[i]) != TYPE_DICTIONARY:
+				continue
+			var raw: Dictionary = raw_array[i]
+			var level_m: float = float(raw.get("level_m", 0.0 if floors.is_empty() else floors.size() * 2.9))
+			if _floor_level_exists(floors, level_m):
+				continue
+			var fallback_name: String = "PB" if floors.is_empty() else "P%d" % floors.size()
+			floors.append({
+				"name": String(raw.get("name", fallback_name)),
+				"level_m": level_m
+			})
+	for raw_level in room_levels:
+		var level_m: float = float(raw_level)
+		if not _floor_level_exists(floors, level_m):
+			floors.append({
+				"name": "PB" if floors.is_empty() else "P%d" % floors.size(),
+				"level_m": level_m
+			})
+	if floors.is_empty():
+		floors.append({"name": "PB", "level_m": 0.0})
+	floors.sort_custom(func(a, b): return float(a.get("level_m", 0.0)) < float(b.get("level_m", 0.0)))
+	for i in range(floors.size()):
+		var floor: Dictionary = floors[i]
+		if String(floor.get("name", "")).strip_edges() == "":
+			floor["name"] = "PB" if i == 0 else "P%d" % i
+		floors[i] = floor
+	return floors
+
+
+static func _floor_level_exists(floors: Array, level_m: float) -> bool:
+	for raw_floor in floors:
+		if typeof(raw_floor) == TYPE_DICTIONARY and absf(float(raw_floor.get("level_m", 0.0)) - level_m) < 0.05:
+			return true
+	return false
 
 
 static func normalize_fuel_object(raw_obj: Dictionary, fallback_room_id: int) -> Dictionary:

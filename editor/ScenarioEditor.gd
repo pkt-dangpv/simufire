@@ -20,6 +20,7 @@ const RUNTIME_EXPORT_PATH: String = "user://last_editor_runtime_template.json"
 const SCENARIOS_RES_PATH: String = "res://scenarios"
 const MAIN_SCENE_PATH: String = "res://scenes/SimulationScene.tscn"
 const MAIN_MENU_PATH: String = "res://scenes/MainMenu.tscn"
+const DEFAULT_FLOOR_HEIGHT_M: float = 2.90
 const EditorGridScript = preload("res://editor/EditorGrid.gd")
 const ObjectLibraryScript = preload("res://editor/ObjectLibrary.gd")
 const Serializer = preload("res://editor/ScenarioSerializer.gd")
@@ -51,6 +52,7 @@ var drag_start_m: Vector2 = Vector2.ZERO
 var drag_current_m: Vector2 = Vector2.ZERO
 var pending_door_room_id: int = -1
 var corridor_width_m: float = 1.20
+var current_floor_index: int = 0
 
 var is_dragging_object: bool = false
 var drag_object_cursor_offset_m: Vector2 = Vector2.ZERO
@@ -67,6 +69,9 @@ var _hrr_spin: SpinBox
 var _tool_buttons: Dictionary = {}
 var _scenario_option: OptionButton
 var _hvac_option: OptionButton
+var _floor_option: OptionButton
+var _floor_level_spin: SpinBox
+var _floor_status_label: Label
 var _scenario_paths: Array[String] = []
 var _stop_time_spin: SpinBox
 var _corridor_width_spin: SpinBox
@@ -114,6 +119,8 @@ func _ready() -> void:
 	if not get_viewport().size_changed.is_connected(_layout_editor_shell):
 		get_viewport().size_changed.connect(_layout_editor_shell)
 	_apply_editor_visual_style()
+	_ensure_floor_data()
+	_sync_floor_controls()
 	_set_tool(Tool.SELECT)
 	queue_redraw()
 
@@ -384,10 +391,18 @@ func _create_empty_scenario() -> void:
 		"stop_time_s": 0.0,
 		"hvac_mode": "none",
 		"hvac_data": {"exists": false, "on": false, "mode": "none"},
+		"floors": _default_floors(),
 		"room_rect_m": {},
 		"rooms_data": [],
 		"openings_data": []
 	}
+	current_floor_index = 0
+
+
+func _default_floors() -> Array:
+	return [
+		{"name": "PB", "level_m": 0.0}
+	]
 
 
 func _setup_ui() -> void:
@@ -428,6 +443,9 @@ func _setup_ui() -> void:
 	_add_tool_button(toolbar, "Object", Tool.OBJECT)
 	_add_tool_button(toolbar, "Ignite", Tool.IGNITION)
 	_add_tool_button(toolbar, "Del", Tool.DELETE)
+
+	_create_floor_controls(main)
+	main.add_child(HSeparator.new())
 
 	var object_row := HBoxContainer.new()
 	main.add_child(object_row)
@@ -660,6 +678,221 @@ func _add_spin(parent: Control, label: String, min_value: float, max_value: floa
 	return spin
 
 
+func _create_floor_controls(parent: Control) -> void:
+	var title := Label.new()
+	title.name = "FloorTitle"
+	title.text = "Plantas"
+	parent.add_child(title)
+
+	var row := HBoxContainer.new()
+	row.name = "FloorRow"
+	row.add_theme_constant_override("separation", 4)
+	parent.add_child(row)
+
+	_floor_option = OptionButton.new()
+	_floor_option.name = "FloorOption"
+	_floor_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_floor_option)
+	if not _floor_option.item_selected.is_connected(_on_floor_selected):
+		_floor_option.item_selected.connect(_on_floor_selected)
+
+	var add_button := Button.new()
+	add_button.name = "BtnAddFloor"
+	add_button.text = "+ Planta"
+	add_button.custom_minimum_size = Vector2(86.0, 28.0)
+	add_button.pressed.connect(_add_floor_pressed)
+	row.add_child(add_button)
+
+	_floor_level_spin = _add_spin(parent, "Cota (m)", -2.0, 30.0, 0.05)
+	_floor_level_spin.name = "FloorLevelSpin"
+	if not _floor_level_spin.value_changed.is_connected(_on_floor_level_changed):
+		_floor_level_spin.value_changed.connect(_on_floor_level_changed)
+
+	_floor_status_label = Label.new()
+	_floor_status_label.name = "FloorStatusLabel"
+	_floor_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_floor_status_label.add_theme_font_size_override("font_size", 10)
+	_floor_status_label.modulate = UI_TEXT_MUTED
+	parent.add_child(_floor_status_label)
+	_sync_floor_controls()
+
+
+func _ensure_floor_data() -> void:
+	if typeof(editor_data.get("floors", [])) != TYPE_ARRAY:
+		editor_data["floors"] = _default_floors()
+	var floors: Array = editor_data.get("floors", [])
+	if floors.is_empty():
+		floors = _default_floors()
+	var normalized: Array = []
+	for i in range(floors.size()):
+		if typeof(floors[i]) != TYPE_DICTIONARY:
+			continue
+		var raw: Dictionary = floors[i]
+		var level_m: float = float(raw.get("level_m", 0.0 if normalized.is_empty() else normalized.size() * DEFAULT_FLOOR_HEIGHT_M))
+		normalized.append({
+			"name": String(raw.get("name", _default_floor_name(normalized.size()))),
+			"level_m": level_m
+		})
+	for raw_room in editor_data.get("rooms_data", []):
+		if typeof(raw_room) != TYPE_DICTIONARY:
+			continue
+		var room: Dictionary = raw_room
+		_add_floor_level_if_missing(normalized, float(room.get("floor_level_z_m", 0.0)))
+	if normalized.is_empty():
+		normalized = _default_floors()
+	normalized.sort_custom(func(a, b): return float(a.get("level_m", 0.0)) < float(b.get("level_m", 0.0)))
+	for i in range(normalized.size()):
+		var floor: Dictionary = normalized[i]
+		if String(floor.get("name", "")).strip_edges() == "":
+			floor["name"] = _default_floor_name(i)
+		normalized[i] = floor
+	editor_data["floors"] = normalized
+	current_floor_index = clampi(current_floor_index, 0, normalized.size() - 1)
+
+
+func _add_floor_level_if_missing(floors: Array, level_m: float) -> void:
+	for raw in floors:
+		if typeof(raw) == TYPE_DICTIONARY and absf(float(raw.get("level_m", 0.0)) - level_m) < 0.05:
+			return
+	floors.append({"name": _default_floor_name(floors.size()), "level_m": level_m})
+
+
+func _default_floor_name(index: int) -> String:
+	return "PB" if index <= 0 else "P%d" % index
+
+
+func _get_floors() -> Array:
+	_ensure_floor_data()
+	return editor_data.get("floors", [])
+
+
+func _sync_floor_controls() -> void:
+	var floors: Array = _get_floors()
+	if _floor_option != null:
+		_floor_option.clear()
+		for i in range(floors.size()):
+			var floor: Dictionary = floors[i]
+			_floor_option.add_item("%s  %.2fm" % [String(floor.get("name", _default_floor_name(i))), float(floor.get("level_m", 0.0))], i)
+		if _floor_option.get_item_count() > 0:
+			_floor_option.select(clampi(current_floor_index, 0, _floor_option.get_item_count() - 1))
+	if _floor_level_spin != null and not floors.is_empty():
+		var level_m: float = _current_floor_level_m()
+		if absf(_floor_level_spin.value - level_m) > 0.001:
+			_floor_level_spin.value = level_m
+	_update_floor_status()
+
+
+func _update_floor_status() -> void:
+	if _floor_status_label == null:
+		return
+	var rooms_on_floor: int = 0
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) == TYPE_DICTIONARY and _is_room_on_current_floor(room):
+			rooms_on_floor += 1
+	_floor_status_label.text = "Editando %s. Nuevas habitaciones, puertas, objetos y ventanas se crean en esta planta. Salas: %d." % [
+		_current_floor_name(),
+		rooms_on_floor
+	]
+
+
+func _on_floor_selected(index: int) -> void:
+	current_floor_index = clampi(index, 0, maxi(0, _get_floors().size() - 1))
+	pending_door_room_id = -1
+	_clear_selection()
+	_sync_floor_controls()
+	_set_status("Planta activa: %s." % _current_floor_name())
+	queue_redraw()
+
+
+func _add_floor_pressed() -> void:
+	var floors: Array = _get_floors()
+	var next_level_m: float = 0.0
+	if not floors.is_empty():
+		next_level_m = float(floors[floors.size() - 1].get("level_m", 0.0)) + DEFAULT_FLOOR_HEIGHT_M
+	floors.append({"name": _default_floor_name(floors.size()), "level_m": next_level_m})
+	editor_data["floors"] = floors
+	current_floor_index = floors.size() - 1
+	pending_door_room_id = -1
+	_clear_selection()
+	_sync_floor_controls()
+	_set_status("Nueva planta creada: %s." % _current_floor_name())
+	queue_redraw()
+
+
+func _on_floor_level_changed(value: float) -> void:
+	var floors: Array = _get_floors()
+	if current_floor_index < 0 or current_floor_index >= floors.size():
+		return
+	var floor: Dictionary = floors[current_floor_index]
+	var selected_floor_name: String = String(floor.get("name", _default_floor_name(current_floor_index)))
+	var previous_level_m: float = float(floor.get("level_m", 0.0))
+	if absf(previous_level_m - value) <= 0.001:
+		return
+	floor["level_m"] = value
+	floors[current_floor_index] = floor
+	editor_data["floors"] = floors
+	var rooms: Array = editor_data.get("rooms_data", [])
+	for i in range(rooms.size()):
+		if typeof(rooms[i]) != TYPE_DICTIONARY:
+			continue
+		var room: Dictionary = rooms[i]
+		if absf(float(room.get("floor_level_z_m", 0.0)) - previous_level_m) < 0.05:
+			room["floor_level_z_m"] = value
+			rooms[i] = room
+	editor_data["rooms_data"] = rooms
+	_ensure_floor_data()
+	var normalized_floors: Array = editor_data.get("floors", [])
+	for i in range(normalized_floors.size()):
+		if typeof(normalized_floors[i]) != TYPE_DICTIONARY:
+			continue
+		var normalized_floor: Dictionary = normalized_floors[i]
+		if String(normalized_floor.get("name", "")) == selected_floor_name and absf(float(normalized_floor.get("level_m", 0.0)) - value) < 0.05:
+			current_floor_index = i
+			break
+	_sync_floor_controls()
+	queue_redraw()
+
+
+func _current_floor_level_m() -> float:
+	var floors: Array = _get_floors()
+	if floors.is_empty():
+		return 0.0
+	var floor: Dictionary = floors[clampi(current_floor_index, 0, floors.size() - 1)]
+	return float(floor.get("level_m", 0.0))
+
+
+func _current_floor_name() -> String:
+	var floors: Array = _get_floors()
+	if floors.is_empty():
+		return "PB"
+	var floor: Dictionary = floors[clampi(current_floor_index, 0, floors.size() - 1)]
+	return String(floor.get("name", _default_floor_name(current_floor_index)))
+
+
+func _room_floor_level(room: Dictionary) -> float:
+	return float(room.get("floor_level_z_m", 0.0))
+
+
+func _room_id_floor_level(room_id: int) -> float:
+	var room: Dictionary = _get_room(room_id)
+	return _room_floor_level(room) if not room.is_empty() else 0.0
+
+
+func _is_room_on_current_floor(room: Dictionary) -> bool:
+	return absf(_room_floor_level(room) - _current_floor_level_m()) < 0.05
+
+
+func _opening_on_current_floor(opening: Dictionary) -> bool:
+	var a_id: int = int(opening.get("a", -1))
+	var b_id: int = int(opening.get("b", OUTSIDE_ID))
+	if a_id < 0:
+		return false
+	var a_on_floor: bool = absf(_room_id_floor_level(a_id) - _current_floor_level_m()) < 0.05
+	if b_id == OUTSIDE_ID:
+		return a_on_floor
+	return a_on_floor and absf(_room_id_floor_level(b_id) - _current_floor_level_m()) < 0.05
+
+
 func _set_tool(tool_id: int) -> void:
 	current_tool = tool_id
 	pending_door_room_id = -1
@@ -673,21 +906,21 @@ func _set_tool(tool_id: int) -> void:
 func _tool_hint(tool_id: int) -> String:
 	match tool_id:
 		Tool.SELECT:
-			return "Select: selecciona habitaciones, objetos o aperturas."
+			return "Select: selecciona habitaciones, objetos o aperturas en %s." % _current_floor_name()
 		Tool.ROOM:
-			return "Room: arrastra para crear una estancia."
+			return "Room: arrastra para crear una estancia en %s." % _current_floor_name()
 		Tool.CORRIDOR_L:
-			return "Pasillo: arrastra recto para un tramo lineal o en diagonal para un giro en L. Ancho %.2f m." % corridor_width_m
+			return "Pasillo: arrastra en %s. Recto para tramo lineal o diagonal para giro en L. Ancho %.2f m." % [_current_floor_name(), corridor_width_m]
 		Tool.DOOR:
-			return "Door: pulsa una pared compartida o una pared exterior para crear puerta."
+			return "Door: pulsa una pared compartida o exterior en %s para crear puerta." % _current_floor_name()
 		Tool.WINDOW:
-			return "Window: pulsa cerca de una pared exterior."
+			return "Window: pulsa cerca de una pared exterior en %s." % _current_floor_name()
 		Tool.OBJECT:
-			return "Object: pulsa dentro de una estancia para colocar el combustible elegido."
+			return "Object: pulsa dentro de una estancia de %s para colocar el combustible elegido." % _current_floor_name()
 		Tool.IGNITION:
-			return "Ignite: pulsa un objeto para marcarlo como foco inicial."
+			return "Ignite: pulsa un objeto de %s para marcarlo como foco inicial." % _current_floor_name()
 		Tool.DELETE:
-			return "Delete: elimina objeto, apertura o estancia bajo el cursor."
+			return "Delete: elimina objeto, apertura o estancia bajo el cursor en %s." % _current_floor_name()
 	return ""
 
 
@@ -863,6 +1096,7 @@ func _create_room(rect: Rect2, room_name: String = "", kind_name: String = "gene
 		"name": room_name if room_name != "" else "Room %d" % id,
 		"kind": kind_name,
 		"height_m": 2.7,
+		"floor_level_z_m": _current_floor_level_m(),
 		"fuel_energy_MJ": 0.0,
 		"max_hrr_kw": 0.0,
 		"fuel_objects": []
@@ -871,6 +1105,7 @@ func _create_room(rect: Rect2, room_name: String = "", kind_name: String = "gene
 	rects[str(id)] = Serializer.rect_to_data(rect)
 	editor_data["rooms_data"] = rooms
 	editor_data["room_rect_m"] = rects
+	_update_floor_status()
 	return id
 
 
@@ -1174,6 +1409,8 @@ func _find_room_at(pos_m: Vector2) -> int:
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) != TYPE_DICTIONARY:
 			continue
+		if not _is_room_on_current_floor(room):
+			continue
 		var room_id: int = int(room.get("id", -1))
 		if _get_room_rect(room_id).has_point(pos_m):
 			return room_id
@@ -1183,6 +1420,8 @@ func _find_room_at(pos_m: Vector2) -> int:
 func _find_object_at(pos_m: Vector2) -> Dictionary:
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		if not _is_room_on_current_floor(room):
 			continue
 		var room_id: int = int(room.get("id", -1))
 		var room_rect: Rect2 = _get_room_rect(room_id)
@@ -1203,6 +1442,8 @@ func _find_opening_at(pos_m: Vector2) -> int:
 	var openings: Array = editor_data.get("openings_data", [])
 	for i in range(openings.size()):
 		if typeof(openings[i]) != TYPE_DICTIONARY:
+			continue
+		if not _opening_on_current_floor(openings[i]):
 			continue
 		var segment: PackedVector2Array = _opening_segment_m(openings[i])
 		if segment.size() != 2:
@@ -1446,6 +1687,7 @@ func _delete_room(room_id: int) -> void:
 
 	_clear_selection()
 	_set_status("Habitacion %d eliminada." % room_id)
+	_update_floor_status()
 	queue_redraw()
 
 
@@ -1454,6 +1696,8 @@ func _find_wall_at(pos_m: Vector2) -> Dictionary:
 	var best_distance: float = 0.22
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		if not _is_room_on_current_floor(room):
 			continue
 		var room_id: int = int(room.get("id", -1))
 		var rect: Rect2 = _get_room_rect(room_id)
@@ -1472,9 +1716,13 @@ func _find_shared_wall_at(pos_m: Vector2) -> Dictionary:
 	for i in range(rooms.size()):
 		if typeof(rooms[i]) != TYPE_DICTIONARY:
 			continue
+		if not _is_room_on_current_floor(rooms[i]):
+			continue
 		var a_id: int = int(rooms[i].get("id", -1))
 		for j in range(i + 1, rooms.size()):
 			if typeof(rooms[j]) != TYPE_DICTIONARY:
+				continue
+			if not _is_room_on_current_floor(rooms[j]):
 				continue
 			var b_id: int = int(rooms[j].get("id", -1))
 			var shared: Dictionary = _shared_wall_between(a_id, b_id, pos_m)
@@ -1491,6 +1739,8 @@ func _is_wall_exterior(room_id: int, wall: String, offset_m: float, width_m: flo
 
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		if not _is_room_on_current_floor(room):
 			continue
 		var other_id: int = int(room.get("id", -1))
 		if other_id == room_id:
@@ -1547,6 +1797,8 @@ func _segments_overlap_m(a1: Vector2, a2: Vector2, b1: Vector2, b2: Vector2) -> 
 
 
 func _shared_wall_between(a_id: int, b_id: int, click_m: Vector2 = Vector2(1.0e20, 1.0e20)) -> Dictionary:
+	if absf(_room_id_floor_level(a_id) - _room_id_floor_level(b_id)) > 0.05:
+		return {}
 	var a_rect: Rect2 = _get_room_rect(a_id)
 	var b_rect: Rect2 = _get_room_rect(b_id)
 	var tol: float = 0.05
@@ -1663,7 +1915,9 @@ func _distance_to_segment(point: Vector2, a: Vector2, b: Vector2) -> float:
 
 
 func _save_pressed() -> void:
+	_ensure_floor_data()
 	editor_data = Serializer.normalize_editor_data(editor_data)
+	_sync_floor_controls()
 	if Serializer.save_scenario(_path_edit.text.strip_edges(), editor_data):
 		_set_status("Escenario guardado en %s." % _path_edit.text.strip_edges())
 	else:
@@ -1676,8 +1930,11 @@ func _load_pressed() -> void:
 		_set_status("No se pudo cargar el escenario.")
 		return
 	editor_data = loaded
+	_ensure_floor_data()
+	current_floor_index = clampi(current_floor_index, 0, _get_floors().size() - 1)
 	if _stop_time_spin != null:
 		_stop_time_spin.value = float(editor_data.get("stop_time_s", 0.0))
+	_sync_floor_controls()
 	_sync_hvac_option_from_data()
 	_clear_selection()
 	_set_status("Escenario cargado desde %s." % _path_edit.text.strip_edges())
@@ -1685,7 +1942,9 @@ func _load_pressed() -> void:
 
 
 func _export_runtime_pressed() -> void:
+	_ensure_floor_data()
 	editor_data = Serializer.normalize_editor_data(editor_data)
+	_sync_floor_controls()
 	var runtime_template: Dictionary = Serializer.to_runtime_template(editor_data)
 	var runtime_rooms: Array = runtime_template.get("rooms_data", [])
 	if runtime_rooms.is_empty():
@@ -1845,6 +2104,8 @@ func _draw_rooms() -> void:
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) != TYPE_DICTIONARY:
 			continue
+		if not _is_room_on_current_floor(room):
+			continue
 		var room_id: int = int(room.get("id", -1))
 		var rect: Rect2 = _get_room_rect(room_id)
 		var rect_px: Rect2 = _rect_to_px(rect)
@@ -1919,6 +2180,8 @@ func _draw_openings() -> void:
 		if typeof(openings[i]) != TYPE_DICTIONARY:
 			continue
 		var opening: Dictionary = openings[i]
+		if not _opening_on_current_floor(opening):
+			continue
 		var segment_m: PackedVector2Array = _opening_segment_m(opening)
 		if segment_m.size() != 2:
 			continue
@@ -1935,6 +2198,8 @@ func _draw_openings() -> void:
 func _draw_objects() -> void:
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		if not _is_room_on_current_floor(room):
 			continue
 		var room_id: int = int(room.get("id", -1))
 		var room_rect: Rect2 = _get_room_rect(room_id)
@@ -2003,8 +2268,11 @@ func _load_scenario_pressed() -> void:
 		_set_status("No se pudo cargar: %s" % path)
 		return
 	editor_data = loaded
+	_ensure_floor_data()
+	current_floor_index = clampi(current_floor_index, 0, _get_floors().size() - 1)
 	if _stop_time_spin != null:
 		_stop_time_spin.value = float(editor_data.get("stop_time_s", 0.0))
+	_sync_floor_controls()
 	_sync_hvac_option_from_data()
 	_clear_selection()
 	_set_status("Escenario cargado: %s" % path.get_file())
@@ -2012,7 +2280,9 @@ func _load_scenario_pressed() -> void:
 
 
 func _run_simulation_pressed() -> void:
+	_ensure_floor_data()
 	editor_data = Serializer.normalize_editor_data(editor_data)
+	_sync_floor_controls()
 	var runtime_rooms: Array = editor_data.get("rooms_data", [])
 	if runtime_rooms.is_empty():
 		_set_status("El escenario no tiene habitaciones. No se puede ejecutar.")
@@ -2114,6 +2384,7 @@ func _bind_existing_ui() -> bool:
 		return false
 
 	_populate_object_type_option()
+	_ensure_floor_controls_in_existing_ui()
 	_ensure_corridor_width_control_in_existing_ui()
 	_ensure_hvac_option_in_existing_ui()
 	_path_edit.text = DEFAULT_SAVE_PATH
@@ -2157,6 +2428,90 @@ func _connect_button(button: Button, callback: Callable) -> void:
 		return
 	if not button.pressed.is_connected(callback):
 		button.pressed.connect(callback)
+
+
+func _ensure_floor_controls_in_existing_ui() -> void:
+	var left_vbox := _find_left_vbox()
+	if left_vbox == null:
+		return
+
+	var section := left_vbox.get_node_or_null("FloorSection") as VBoxContainer
+	if section == null:
+		section = VBoxContainer.new()
+		section.name = "FloorSection"
+		section.add_theme_constant_override("separation", 5)
+		left_vbox.add_child(section)
+		var object_label := left_vbox.get_node_or_null("ObjectLabel") as Label
+		if object_label != null:
+			left_vbox.move_child(section, object_label.get_index())
+
+	var title := section.get_node_or_null("FloorTitle") as Label
+	if title == null:
+		title = Label.new()
+		title.name = "FloorTitle"
+		title.text = "Plantas"
+		section.add_child(title)
+
+	var row := section.get_node_or_null("FloorRow") as HBoxContainer
+	if row == null:
+		row = HBoxContainer.new()
+		row.name = "FloorRow"
+		row.add_theme_constant_override("separation", 4)
+		section.add_child(row)
+
+	_floor_option = row.get_node_or_null("FloorOption") as OptionButton
+	if _floor_option == null:
+		_floor_option = OptionButton.new()
+		_floor_option.name = "FloorOption"
+		_floor_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(_floor_option)
+	if not _floor_option.item_selected.is_connected(_on_floor_selected):
+		_floor_option.item_selected.connect(_on_floor_selected)
+
+	var add_button := row.get_node_or_null("BtnAddFloor") as Button
+	if add_button == null:
+		add_button = Button.new()
+		add_button.name = "BtnAddFloor"
+		add_button.text = "+ Planta"
+		add_button.custom_minimum_size = Vector2(86.0, 28.0)
+		row.add_child(add_button)
+	_connect_button(add_button, _add_floor_pressed)
+
+	var level_row := section.get_node_or_null("FloorLevelRow") as HBoxContainer
+	if level_row == null:
+		level_row = HBoxContainer.new()
+		level_row.name = "FloorLevelRow"
+		level_row.add_theme_constant_override("separation", 4)
+		section.add_child(level_row)
+	var level_label := level_row.get_node_or_null("FloorLevelLabel") as Label
+	if level_label == null:
+		level_label = Label.new()
+		level_label.name = "FloorLevelLabel"
+		level_label.text = "Cota (m)"
+		level_label.custom_minimum_size.x = 96.0
+		level_row.add_child(level_label)
+	_floor_level_spin = level_row.get_node_or_null("FloorLevelSpin") as SpinBox
+	if _floor_level_spin == null:
+		_floor_level_spin = SpinBox.new()
+		_floor_level_spin.name = "FloorLevelSpin"
+		_floor_level_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		level_row.add_child(_floor_level_spin)
+	_floor_level_spin.min_value = -2.0
+	_floor_level_spin.max_value = 30.0
+	_floor_level_spin.step = 0.05
+	if not _floor_level_spin.value_changed.is_connected(_on_floor_level_changed):
+		_floor_level_spin.value_changed.connect(_on_floor_level_changed)
+
+	_floor_status_label = section.get_node_or_null("FloorStatusLabel") as Label
+	if _floor_status_label == null:
+		_floor_status_label = Label.new()
+		_floor_status_label.name = "FloorStatusLabel"
+		_floor_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_floor_status_label.add_theme_font_size_override("font_size", 10)
+		_floor_status_label.modulate = UI_TEXT_MUTED
+		section.add_child(_floor_status_label)
+
+	_sync_floor_controls()
 
 
 func _populate_object_type_option() -> void:

@@ -41,7 +41,9 @@ func build_state(context: Dictionary) -> Dictionary:
 	var compute_co_upper_ppm_callable: Callable = context.get("compute_co_upper_ppm_callable", Callable())
 	var compute_co_lower_ppm_callable: Callable = context.get("compute_co_lower_ppm_callable", Callable())
 	var compute_co2_ppm_callable: Callable = context.get("compute_co2_ppm_callable", Callable())
+	var compute_co2_upper_ppm_callable: Callable = context.get("compute_co2_upper_ppm_callable", Callable())
 	var compute_hcn_ppm_callable: Callable = context.get("compute_hcn_ppm_callable", Callable())
+	var compute_hcn_upper_ppm_callable: Callable = context.get("compute_hcn_upper_ppm_callable", Callable())
 	var compute_hcl_ppm_callable: Callable = context.get("compute_hcl_ppm_callable", Callable())
 	var compute_acrolein_ppm_callable: Callable = context.get("compute_acrolein_ppm_callable", Callable())
 	var compute_formaldehyde_ppm_callable: Callable = context.get("compute_formaldehyde_ppm_callable", Callable())
@@ -181,7 +183,9 @@ func build_state(context: Dictionary) -> Dictionary:
 			"co_upper_ppm": _call_room_float(compute_co_upper_ppm_callable, room, 0.0),
 			"co_lower_ppm": _call_room_float(compute_co_lower_ppm_callable, room, 0.0),
 			"co2_ppm": _call_room_float(compute_co2_ppm_callable, room, 0.0),
+			"co2_upper_ppm": _call_room_float(compute_co2_upper_ppm_callable, room, 0.0),
 			"hcn_ppm": _call_room_float(compute_hcn_ppm_callable, room, 0.0),
+			"hcn_upper_ppm": _call_room_float(compute_hcn_upper_ppm_callable, room, 0.0),
 			"hcl_ppm": _call_room_float(compute_hcl_ppm_callable, room, 0.0),
 			"acrolein_ppm": _call_room_float(compute_acrolein_ppm_callable, room, 0.0),
 			"formaldehyde_ppm": _call_room_float(compute_formaldehyde_ppm_callable, room, 0.0),

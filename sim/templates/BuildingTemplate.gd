@@ -35,6 +35,11 @@ func get_preset_definitions() -> Array[Dictionary]:
 			"description": "Piso familiar de tres dormitorios y dos banos. ~105-115 m2."
 		},
 		{
+			"id": "two_storey_house",
+			"name": "Vivienda 2 plantas",
+			"description": "Casa familiar de dos plantas con escalera transitable, zona de dia abajo y dormitorios arriba. ~125 m2."
+		},
+		{
 			"id": "row_house_ground_floor",
 			"name": "Adosado planta baja",
 			"description": "Adosado espanol tipico planta baja: vestibulo-escalera, salon delantera, cocina-comedor trasera con salida a jardin, despacho, aseo y trastero. ~68 m2."
@@ -70,6 +75,8 @@ func create_by_name(preset_name: String) -> Dictionary:
 			return create_two_bed_apartment()
 		"three_bed_apartment":
 			return create_three_bed_apartment()
+		"two_storey_house":
+			return create_two_storey_house()
 		"row_house_ground_floor":
 			return create_row_house_ground_floor()
 		"ranch_family_house":
@@ -1238,6 +1245,184 @@ func create_three_bed_apartment() -> Dictionary:
 	}
 
 
+func create_two_storey_house() -> Dictionary:
+	var room_rect_m: Dictionary = {}
+	var rooms_data: Array[Dictionary] = []
+	var openings_data: Array[Dictionary] = []
+
+	var floor_0_m: float = 0.0
+	var floor_1_m: float = 2.9
+
+	var r_living := Rect2(0.0, 0.0, 5.8, 5.2)
+	var r_hall_gf := Rect2(5.8, 0.0, 2.2, 10.0)
+	var r_stairs_gf := Rect2(8.0, 2.0, 2.4, 5.4)
+	var r_kitchen := Rect2(0.0, 5.2, 5.8, 4.8)
+	var r_wc := Rect2(8.0, 0.0, 2.0, 2.0)
+	var r_utility := Rect2(8.0, 7.4, 4.0, 2.6)
+
+	var r_stairs_p1 := Rect2(8.0, 2.0, 2.4, 5.4)
+	var r_landing := Rect2(5.8, 0.0, 2.2, 10.0)
+	var r_primary := Rect2(0.0, 0.0, 5.8, 4.5)
+	var r_bed2 := Rect2(0.0, 4.5, 5.8, 2.8)
+	var r_bed3 := Rect2(0.0, 7.3, 5.8, 2.7)
+	var r_bath := Rect2(8.0, 0.0, 2.0, 2.0)
+	var r_study := Rect2(8.0, 7.4, 4.0, 2.6)
+
+	room_rect_m[0] = r_living
+	room_rect_m[1] = r_hall_gf
+	room_rect_m[2] = r_stairs_gf
+	room_rect_m[3] = r_kitchen
+	room_rect_m[4] = r_wc
+	room_rect_m[5] = r_utility
+	room_rect_m[6] = r_stairs_p1
+	room_rect_m[7] = r_landing
+	room_rect_m[8] = r_primary
+	room_rect_m[9] = r_bed2
+	room_rect_m[10] = r_bed3
+	room_rect_m[11] = r_bath
+	room_rect_m[12] = r_study
+
+	rooms_data.append(_make_room(0, "Salon-comedor PB", "salon", r_living, 2.65, 8500.0, 4300.0))
+	rooms_data.append(_make_room(1, "Recibidor distribuidor PB", "pasillo", r_hall_gf, 2.65, 1200.0, 800.0))
+	rooms_data.append(_make_room(2, "Escalera PB", "escalera", r_stairs_gf, 2.9, 650.0, 420.0))
+	rooms_data.append(_make_room(3, "Cocina PB", "cocina", r_kitchen, 2.65, 4800.0, 3000.0))
+	rooms_data.append(_make_room(4, "Aseo PB", "bano", r_wc, 2.65, 350.0, 300.0))
+	rooms_data.append(_make_room(5, "Lavadero PB", "trastero", r_utility, 2.65, 1800.0, 1000.0))
+	rooms_data.append(_make_room(6, "Escalera P1", "escalera", r_stairs_p1, 2.55, 650.0, 420.0))
+	rooms_data.append(_make_room(7, "Distribuidor P1", "pasillo", r_landing, 2.55, 1200.0, 800.0))
+	rooms_data.append(_make_room(8, "Dormitorio principal P1", "dormitorio", r_primary, 2.55, 5400.0, 2800.0))
+	rooms_data.append(_make_room(9, "Dormitorio 2 P1", "dormitorio", r_bed2, 2.55, 3800.0, 2200.0))
+	rooms_data.append(_make_room(10, "Dormitorio 3 P1", "dormitorio", r_bed3, 2.55, 3400.0, 2000.0))
+	rooms_data.append(_make_room(11, "Bano P1", "bano", r_bath, 2.55, 550.0, 450.0))
+	rooms_data.append(_make_room(12, "Estudio P1", "dormitorio", r_study, 2.55, 2400.0, 1400.0))
+
+	for room_data in rooms_data:
+		var room_id: int = int(room_data.get("id", -1))
+		room_data["floor_level_z_m"] = floor_1_m if room_id >= 6 else floor_0_m
+
+	rooms_data[0]["fuel_objects"] = [
+		{"id": "2p_salon_sofa", "name": "Sofa salon", "kind": "mobiliario_tapizado", "room_id": 0,
+			"position_m": {"x": 0.55, "y": 1.20}, "size_m": {"x": 1.05, "y": 2.70}, "rotation_deg": 90.0,
+			"footprint_m2": 2.2, "exposed_area_m2": 3.6, "elevation_m": 0.38,
+			"fuel_energy_MJ": 1200.0, "max_hrr_kw": 760.0,
+			"ignition_temp_c": 305.0, "ignition_flux_kw_m2": 15.0,
+			"smoke_yield_kg_per_MJ": 0.012, "co_yield_kg_per_MJ": 0.00045},
+		{"id": "2p_salon_mueble", "name": "Mueble salon", "kind": "mobiliario_madera", "room_id": 0,
+			"position_m": {"x": 3.90, "y": 0.35}, "size_m": {"x": 1.35, "y": 0.42},
+			"footprint_m2": 0.55, "exposed_area_m2": 1.5, "elevation_m": 0.35,
+			"fuel_energy_MJ": 1500.0, "max_hrr_kw": 700.0,
+			"ignition_temp_c": 305.0, "ignition_flux_kw_m2": 16.0,
+			"smoke_yield_kg_per_MJ": 0.009, "co_yield_kg_per_MJ": 0.00025},
+		{"id": "2p_salon_alfombra", "name": "Alfombra salon", "kind": "textiles", "room_id": 0,
+			"position_m": {"x": 1.65, "y": 1.80}, "size_m": {"x": 2.60, "y": 1.55},
+			"footprint_m2": 3.0, "exposed_area_m2": 3.0, "elevation_m": 0.03,
+			"fuel_energy_MJ": 520.0, "max_hrr_kw": 330.0,
+			"ignition_temp_c": 275.0, "ignition_flux_kw_m2": 13.0,
+			"smoke_yield_kg_per_MJ": 0.015, "co_yield_kg_per_MJ": 0.0005}
+	]
+	rooms_data[3]["fuel_objects"] = [
+		{"id": "2p_cocina_encimera", "name": "Encimera cocina", "kind": "mobiliario_madera", "room_id": 3,
+			"position_m": {"x": 0.35, "y": 0.28}, "size_m": {"x": 4.20, "y": 0.65},
+			"footprint_m2": 2.0, "exposed_area_m2": 3.0, "elevation_m": 0.80,
+			"fuel_energy_MJ": 1200.0, "max_hrr_kw": 600.0,
+			"ignition_temp_c": 285.0, "ignition_flux_kw_m2": 14.0,
+			"smoke_yield_kg_per_MJ": 0.010, "co_yield_kg_per_MJ": 0.0003},
+		{"id": "2p_cocina_grasa", "name": "Grasa y aceites", "kind": "liquido_combustible", "room_id": 3,
+			"position_m": {"x": 2.80, "y": 0.42}, "size_m": {"x": 0.45, "y": 0.45},
+			"footprint_m2": 0.2, "exposed_area_m2": 0.3, "elevation_m": 0.90,
+			"fuel_energy_MJ": 650.0, "max_hrr_kw": 850.0,
+			"ignition_temp_c": 260.0, "ignition_flux_kw_m2": 11.0,
+			"smoke_yield_kg_per_MJ": 0.022, "co_yield_kg_per_MJ": 0.0007}
+	]
+	rooms_data[8]["fuel_objects"] = [
+		{"id": "2p_principal_cama", "name": "Cama principal", "kind": "mobiliario_tapizado", "room_id": 8,
+			"position_m": {"x": 0.55, "y": 1.25}, "size_m": {"x": 1.60, "y": 1.95},
+			"footprint_m2": 2.9, "exposed_area_m2": 3.8, "elevation_m": 0.45,
+			"fuel_energy_MJ": 1200.0, "max_hrr_kw": 680.0,
+			"ignition_temp_c": 295.0, "ignition_flux_kw_m2": 15.0,
+			"smoke_yield_kg_per_MJ": 0.013, "co_yield_kg_per_MJ": 0.0004},
+		{"id": "2p_principal_armario", "name": "Armario principal", "kind": "mobiliario_madera", "room_id": 8,
+			"position_m": {"x": 3.50, "y": 0.28}, "size_m": {"x": 1.55, "y": 0.42},
+			"footprint_m2": 0.8, "exposed_area_m2": 2.4, "elevation_m": 0.0,
+			"fuel_energy_MJ": 900.0, "max_hrr_kw": 380.0,
+			"ignition_temp_c": 300.0, "ignition_flux_kw_m2": 16.0,
+			"smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025}
+	]
+	rooms_data[9]["fuel_objects"] = [
+		{"id": "2p_dorm2_cama", "name": "Cama dormitorio 2", "kind": "mobiliario_tapizado", "room_id": 9,
+			"position_m": {"x": 0.45, "y": 0.55}, "size_m": {"x": 1.05, "y": 1.70},
+			"footprint_m2": 1.7, "exposed_area_m2": 2.6, "elevation_m": 0.45,
+			"fuel_energy_MJ": 850.0, "max_hrr_kw": 480.0,
+			"ignition_temp_c": 295.0, "ignition_flux_kw_m2": 15.0,
+			"smoke_yield_kg_per_MJ": 0.013, "co_yield_kg_per_MJ": 0.0004}
+	]
+	rooms_data[10]["fuel_objects"] = [
+		{"id": "2p_dorm3_cama", "name": "Cama dormitorio 3", "kind": "mobiliario_tapizado", "room_id": 10,
+			"position_m": {"x": 0.45, "y": 0.45}, "size_m": {"x": 1.05, "y": 1.65},
+			"footprint_m2": 1.6, "exposed_area_m2": 2.5, "elevation_m": 0.45,
+			"fuel_energy_MJ": 760.0, "max_hrr_kw": 430.0,
+			"ignition_temp_c": 295.0, "ignition_flux_kw_m2": 15.0,
+			"smoke_yield_kg_per_MJ": 0.013, "co_yield_kg_per_MJ": 0.0004}
+	]
+	rooms_data[12]["fuel_objects"] = [
+		{"id": "2p_estudio_mesa", "name": "Mesa estudio", "kind": "mobiliario_madera", "room_id": 12,
+			"position_m": {"x": 0.45, "y": 0.40}, "size_m": {"x": 1.50, "y": 0.70},
+			"footprint_m2": 1.1, "exposed_area_m2": 2.2, "elevation_m": 0.75,
+			"fuel_energy_MJ": 520.0, "max_hrr_kw": 260.0,
+			"ignition_temp_c": 300.0, "ignition_flux_kw_m2": 16.0,
+			"smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025}
+	]
+
+	openings_data.append(_make_opening(1, 0, "door", 1.05, 2.1, 1.0, 0.42))
+	openings_data.append(_make_opening(1, 3, "door", 0.95, 2.1, 1.0, 0.48))
+	openings_data.append(_make_opening(1, 4, "door", 0.75, 2.0, 0.0, 0.55))
+	openings_data.append(_make_opening(1, 2, "door", 1.10, 2.1, 1.0, 0.12))
+	openings_data.append(_make_opening(1, 5, "door", 0.85, 2.0, 1.0, 0.50))
+	openings_data.append(_make_opening(2, 6, "door", 1.20, 2.1, 1.0, 0.90))
+	openings_data.append(_make_opening(6, 7, "door", 1.20, 2.1, 1.0, 0.90))
+	openings_data.append(_make_opening(7, 8, "door", 0.90, 2.05, 1.0, 0.55))
+	openings_data.append(_make_opening(7, 9, "door", 0.85, 2.05, 1.0, 0.45))
+	openings_data.append(_make_opening(7, 10, "door", 0.85, 2.05, 1.0, 0.45))
+	openings_data.append(_make_opening(7, 11, "door", 0.75, 2.0, 0.0, 0.50))
+	openings_data.append(_make_opening(7, 12, "door", 0.85, 2.05, 1.0, 0.50))
+
+	openings_data.append(_make_exterior_opening(1, "door", 1.00, 2.1, 0.0, 0.0, "top", 0.50))
+	openings_data.append(_make_exterior_opening(0, "window", 2.60, 1.2, 0.0, 0.85, "top", 0.35))
+	openings_data.append(_make_exterior_opening(0, "window", 2.10, 1.2, 0.0, 0.85, "left", 0.55))
+	openings_data.append(_make_exterior_opening(3, "window", 2.00, 1.05, 0.0, 0.95, "bottom", 0.48))
+	openings_data.append(_make_exterior_opening(4, "window", 0.70, 0.60, 0.0, 1.45, "top", 0.55))
+	openings_data.append(_make_exterior_opening(5, "window", 1.10, 0.85, 0.0, 1.15, "right", 0.55))
+	openings_data.append(_make_exterior_opening(8, "window", 2.20, 1.1, 0.0, 0.90, "top", 0.40))
+	openings_data.append(_make_exterior_opening(9, "window", 1.60, 1.1, 0.0, 0.90, "left", 0.50))
+	openings_data.append(_make_exterior_opening(10, "window", 1.50, 1.1, 0.0, 0.90, "left", 0.55))
+	openings_data.append(_make_exterior_opening(11, "window", 0.75, 0.65, 0.0, 1.45, "top", 0.50))
+	openings_data.append(_make_exterior_opening(12, "window", 1.30, 1.0, 0.0, 0.95, "right", 0.55))
+
+	return {
+		"room_rect_m": room_rect_m,
+		"rooms_data": rooms_data,
+		"openings_data": openings_data,
+		"ignition_room_id": 0,
+		"hvac_data": _make_residential_hvac_data(
+			[
+				{"room_id": 1, "flow_fraction": 0.8, "height_fraction": 0.90},
+				{"room_id": 7, "flow_fraction": 1.0, "height_fraction": 0.90}
+			],
+			[
+				{"room_id": 0, "flow_fraction": 1.2, "height_fraction": 0.92},
+				{"room_id": 3, "flow_fraction": 0.8, "height_fraction": 0.92},
+				{"room_id": 8, "flow_fraction": 0.8, "height_fraction": 0.92},
+				{"room_id": 9, "flow_fraction": 0.7, "height_fraction": 0.92},
+				{"room_id": 10, "flow_fraction": 0.7, "height_fraction": 0.92},
+				{"room_id": 11, "flow_fraction": 0.25, "height_fraction": 0.92},
+				{"room_id": 12, "flow_fraction": 0.45, "height_fraction": 0.92}
+			],
+			0.34,
+			0.020
+		)
+	}
+
+
 func create_row_house_ground_floor() -> Dictionary:
 	# -------------------------------------------------------------------
 	# Adosado español típico – planta baja
@@ -1714,14 +1899,15 @@ func _make_room(
 	}
 
 
-func _make_opening(a: int, b: int, type_name: String, width_m: float, height_m: float, open_fraction: float) -> Dictionary:
+func _make_opening(a: int, b: int, type_name: String, width_m: float, height_m: float, open_fraction: float, offset_m: float = 0.5) -> Dictionary:
 	return {
 		"a": a,
 		"b": b,
 		"type": type_name,
 		"width_m": width_m,
 		"height_m": height_m,
-		"open_fraction": open_fraction
+		"open_fraction": open_fraction,
+		"offset_m": offset_m
 	}
 
 
@@ -1732,9 +1918,10 @@ func _make_exterior_opening(
 	height_m: float,
 	open_fraction: float,
 	sill_m: float,
-	wall: String
+	wall: String,
+	offset_m: float = 0.5
 ) -> Dictionary:
-	var opening: Dictionary = _make_opening(room_id, -1, type_name, width_m, height_m, open_fraction)
+	var opening: Dictionary = _make_opening(room_id, -1, type_name, width_m, height_m, open_fraction, offset_m)
 	opening["sill_m"] = sill_m
 	opening["wall"] = wall
 	return opening

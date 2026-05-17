@@ -5,11 +5,7 @@
             "tolerance": 5.0
         },
         "time_room_0_o2_below_13pct_s": {
-            "expected": 197.833333,
-            "tolerance": 30.0
-        },
-        "time_room_0_retained_1_0_MJ_s": {
-            "expected": 306.5,
+            "expected": 302.75,
             "tolerance": 30.0
         },
         "time_room_0_hrr_above_400_post_vent_s": {

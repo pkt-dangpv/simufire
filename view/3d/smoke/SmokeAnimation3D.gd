@@ -17,6 +17,7 @@ static func animate(item: Dictionary, global_phase: float, settings: Dictionary)
 	var smoke_min_visible_depth_m: float = float(settings.get("smoke_min_visible_depth_m", 0.02))
 	var smoke_puff_color: Color = settings.get("smoke_puff_color", Color(0.66, 0.68, 0.70, 0.18))
 	var origin_offset_m: Vector2 = settings.get("origin_offset_m", Vector2.ZERO)
+	var floor_level_m: float = float(item.get("floor_level_m", 0.0))
 
 	var rect := Rect2(item.get("rect", Rect2()))
 	var depth_m: float = float(item.get("smoke_visual_depth_m", 0.0))
@@ -44,7 +45,7 @@ static func animate(item: Dictionary, global_phase: float, settings: Dictionary)
 		var z_m: float = rect.position.y + room_inset_m + z_frac * usable_d
 		var y_m: float = bottom_m + depth_m * y_frac + sin(phase * 1.7) * minf(depth_m * 0.055, 0.055)
 		y_m = clampf(y_m, bottom_m + 0.06, height_m - 0.18)
-		puff.position = _to_world(Vector3(x_m, y_m, z_m), meters_to_units, origin_offset_m)
+		puff.position = _to_world(Vector3(x_m, floor_level_m + y_m, z_m), meters_to_units, origin_offset_m)
 		var wobble: float = 1.0 + sin(phase * 1.3) * 0.10
 		var sprite_scale: float = puff_base * lerpf(0.58, 1.05, fposmod(seed * 0.13, 1.0)) * wobble
 		puff.scale = Vector3.ONE * sprite_scale * meters_to_units

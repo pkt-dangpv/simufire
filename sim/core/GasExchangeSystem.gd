@@ -72,7 +72,7 @@ var door_deform_max_gap: float = 0.04        # fracción máxima de apertura adi
 var natural_vent_inlet_fraction: float = 0.5
 # SF-AUD-010: cuando true, la ventilación natural exterior usa plano neutro
 # calculado por densidad (SFPE §3.2) en lugar de natural_vent_inlet_fraction fijo.
-var vent_bernoulli_enabled: bool = false
+var vent_bernoulli_enabled: bool = true
 # Carry de O2 con el parcel caliente en transporte de humo inter-sala.
 # 0.0 = deshabilitado (default; baselines sin cambio).
 var o2_smoke_carry_coeff: float = 0.0
@@ -259,7 +259,9 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 		room.co_kg = maxf(0.0, room.co_kg * (1.0 - air_frac_out))
 		room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - air_frac_out))
 		room.co2_kg = maxf(0.0, room.co2_kg * (1.0 - air_frac_out))
+		room.co2_upper_kg = maxf(0.0, room.co2_upper_kg * (1.0 - air_frac_out))
 		room.hcn_kg = maxf(0.0, room.hcn_kg * (1.0 - air_frac_out))
+		room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg * (1.0 - air_frac_out))
 		room.hcl_kg = maxf(0.0, room.hcl_kg * (1.0 - air_frac_out))
 		room.acrolein_kg = maxf(0.0, room.acrolein_kg * (1.0 - air_frac_out))
 		room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg * (1.0 - air_frac_out))
@@ -301,7 +303,9 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 	var co_delta_kg: Dictionary = {}
 	var co_upper_delta_kg: Dictionary = {}
 	var co2_delta_kg: Dictionary = {}
+	var co2_upper_delta_kg: Dictionary = {}
 	var hcn_delta_kg: Dictionary = {}
+	var hcn_upper_delta_kg: Dictionary = {}
 	var hcl_delta_kg: Dictionary = {}
 	var acrolein_delta_kg: Dictionary = {}
 	var formaldehyde_delta_kg: Dictionary = {}
@@ -312,7 +316,9 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		co_delta_kg[int(room_id)] = 0.0
 		co_upper_delta_kg[int(room_id)] = 0.0
 		co2_delta_kg[int(room_id)] = 0.0
+		co2_upper_delta_kg[int(room_id)] = 0.0
 		hcn_delta_kg[int(room_id)] = 0.0
+		hcn_upper_delta_kg[int(room_id)] = 0.0
 		hcl_delta_kg[int(room_id)] = 0.0
 		acrolein_delta_kg[int(room_id)] = 0.0
 		formaldehyde_delta_kg[int(room_id)] = 0.0
@@ -353,7 +359,9 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					co_delta_kg[room_out.id] -= vent_frac * room_out.co_kg
 					co_upper_delta_kg[room_out.id] -= vent_frac * room_out.co_upper_kg
 					co2_delta_kg[room_out.id] -= vent_frac * room_out.co2_kg
+					co2_upper_delta_kg[room_out.id] -= vent_frac * room_out.co2_upper_kg
 					hcn_delta_kg[room_out.id] -= vent_frac * room_out.hcn_kg
+					hcn_upper_delta_kg[room_out.id] -= vent_frac * room_out.hcn_upper_kg
 					hcl_delta_kg[room_out.id] -= vent_frac * room_out.hcl_kg
 					acrolein_delta_kg[room_out.id] -= vent_frac * room_out.acrolein_kg
 					formaldehyde_delta_kg[room_out.id] -= vent_frac * room_out.formaldehyde_kg
@@ -421,6 +429,9 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					co_delta_kg[room_out.id] -= room_out.co_kg * purge_frac
 					co_upper_delta_kg[room_out.id] -= room_out.co_upper_kg * purge_frac
 					co2_delta_kg[room_out.id] -= room_out.co2_kg * purge_frac
+					co2_upper_delta_kg[room_out.id] -= room_out.co2_upper_kg * purge_frac
+					hcn_delta_kg[room_out.id] -= room_out.hcn_kg * purge_frac
+					hcn_upper_delta_kg[room_out.id] -= room_out.hcn_upper_kg * purge_frac
 
 			continue
 
@@ -538,7 +549,9 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 		var co_moved_kg: float = 0.0
 		var co2_moved_kg: float = 0.0
+		var co2_upper_moved_kg: float = 0.0
 		var hcn_moved_kg: float = 0.0
+		var hcn_upper_moved_kg: float = 0.0
 		var hcl_moved_kg: float = 0.0
 		var acrolein_moved_kg: float = 0.0
 		var formaldehyde_moved_kg: float = 0.0
@@ -550,8 +563,12 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			co_delta_kg[from_id] -= co_moved_kg
 			co2_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.co2_kg
 			co2_delta_kg[from_id] -= co2_moved_kg
+			co2_upper_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.co2_upper_kg
+			co2_upper_delta_kg[from_id] -= co2_upper_moved_kg
 			hcn_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.hcn_kg
 			hcn_delta_kg[from_id] -= hcn_moved_kg
+			hcn_upper_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.hcn_upper_kg
+			hcn_upper_delta_kg[from_id] -= hcn_upper_moved_kg
 			hcl_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.hcl_kg
 			hcl_delta_kg[from_id] -= hcl_moved_kg
 			acrolein_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.acrolein_kg
@@ -583,7 +600,9 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 				"co_kg": co_moved_kg,
 				"co_upper_kg": co_moved_kg,
 				"co2_kg": co2_moved_kg,
+				"co2_upper_kg": co2_upper_moved_kg,
 				"hcn_kg": hcn_moved_kg,
+				"hcn_upper_kg": hcn_upper_moved_kg,
 				"hcl_kg": hcl_moved_kg,
 				"acrolein_kg": acrolein_moved_kg,
 				"formaldehyde_kg": formaldehyde_moved_kg,
@@ -596,7 +615,9 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			co_delta_kg[to_id] += co_moved_kg
 			co_upper_delta_kg[to_id] += co_moved_kg
 			co2_delta_kg[to_id] += co2_moved_kg
+			co2_upper_delta_kg[to_id] += co2_upper_moved_kg
 			hcn_delta_kg[to_id] += hcn_moved_kg
+			hcn_upper_delta_kg[to_id] += hcn_upper_moved_kg
 			target.upper_gas_kg += moved_upper_gas_kg
 			target.upper_energy_kj += moved_upper_energy_kj
 			o2_delta_kg[to_id] += o2_carry_kg
@@ -649,12 +670,38 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					co2_delta_kg[from_id] += target_co2_out_kg - source_co2_out_kg
 					co2_delta_kg[to_id] += source_co2_out_kg - target_co2_out_kg
 
+					var source_co2_upper_total_kg: float = maxf(0.0, source.co2_upper_kg + float(co2_upper_delta_kg[from_id]))
+					var target_co2_upper_total_kg: float = maxf(0.0, target.co2_upper_kg + float(co2_upper_delta_kg[to_id]))
+					var source_co2_upper_share: float = 0.0
+					if source_co2_total_kg > 0.000001:
+						source_co2_upper_share = source_co2_upper_total_kg / source_co2_total_kg
+					var target_co2_upper_share: float = 0.0
+					if target_co2_total_kg > 0.000001:
+						target_co2_upper_share = target_co2_upper_total_kg / target_co2_total_kg
+					var source_co2_upper_out_kg: float = source_co2_out_kg * clampf(source_co2_upper_share, 0.0, 1.0)
+					var target_co2_upper_out_kg: float = target_co2_out_kg * clampf(target_co2_upper_share, 0.0, 1.0)
+					co2_upper_delta_kg[from_id] += target_co2_upper_out_kg - source_co2_upper_out_kg
+					co2_upper_delta_kg[to_id] += source_co2_upper_out_kg - target_co2_upper_out_kg
+
 					var source_hcn_total_kg: float = maxf(0.0, source.hcn_kg + float(hcn_delta_kg[from_id]))
 					var target_hcn_total_kg: float = maxf(0.0, target.hcn_kg + float(hcn_delta_kg[to_id]))
 					var source_hcn_out_kg: float = source_hcn_total_kg / source_air_mass_kg * exchange_air_mass_kg
 					var target_hcn_out_kg: float = target_hcn_total_kg / target_air_mass_kg * exchange_air_mass_kg
 					hcn_delta_kg[from_id] += target_hcn_out_kg - source_hcn_out_kg
 					hcn_delta_kg[to_id] += source_hcn_out_kg - target_hcn_out_kg
+
+					var source_hcn_upper_total_kg: float = maxf(0.0, source.hcn_upper_kg + float(hcn_upper_delta_kg[from_id]))
+					var target_hcn_upper_total_kg: float = maxf(0.0, target.hcn_upper_kg + float(hcn_upper_delta_kg[to_id]))
+					var source_hcn_upper_share: float = 0.0
+					if source_hcn_total_kg > 0.000001:
+						source_hcn_upper_share = source_hcn_upper_total_kg / source_hcn_total_kg
+					var target_hcn_upper_share: float = 0.0
+					if target_hcn_total_kg > 0.000001:
+						target_hcn_upper_share = target_hcn_upper_total_kg / target_hcn_total_kg
+					var source_hcn_upper_out_kg: float = source_hcn_out_kg * clampf(source_hcn_upper_share, 0.0, 1.0)
+					var target_hcn_upper_out_kg: float = target_hcn_out_kg * clampf(target_hcn_upper_share, 0.0, 1.0)
+					hcn_upper_delta_kg[from_id] += target_hcn_upper_out_kg - source_hcn_upper_out_kg
+					hcn_upper_delta_kg[to_id] += source_hcn_upper_out_kg - target_hcn_upper_out_kg
 
 					var source_hcl_total_kg: float = maxf(0.0, source.hcl_kg + float(hcl_delta_kg[from_id]))
 					var target_hcl_total_kg: float = maxf(0.0, target.hcl_kg + float(hcl_delta_kg[to_id]))
@@ -691,7 +738,9 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		room.co_kg = maxf(0.0, room.co_kg + float(co_delta_kg[int(room_id)]))
 		room.co_upper_kg = maxf(0.0, room.co_upper_kg + float(co_upper_delta_kg[int(room_id)]))
 		room.co2_kg = maxf(0.0, room.co2_kg + float(co2_delta_kg[int(room_id)]))
+		room.co2_upper_kg = maxf(0.0, room.co2_upper_kg + float(co2_upper_delta_kg[int(room_id)]))
 		room.hcn_kg = maxf(0.0, room.hcn_kg + float(hcn_delta_kg[int(room_id)]))
+		room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg + float(hcn_upper_delta_kg[int(room_id)]))
 		room.hcl_kg = maxf(0.0, room.hcl_kg + float(hcl_delta_kg[int(room_id)]))
 		room.acrolein_kg = maxf(0.0, room.acrolein_kg + float(acrolein_delta_kg[int(room_id)]))
 		room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg + float(formaldehyde_delta_kg[int(room_id)]))
@@ -704,9 +753,17 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		room.co_kg = maxf(0.0, room.co_kg - co_removed)
 		room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - clampf(co_remove_fraction, 0.0, 1.0)))
 		var co2_removed: float = room.co2_kg * ach_rate * dt
+		var co2_remove_fraction: float = 0.0
+		if room.co2_kg > 0.000001:
+			co2_remove_fraction = co2_removed / room.co2_kg
 		room.co2_kg = maxf(0.0, room.co2_kg - co2_removed)
+		room.co2_upper_kg = maxf(0.0, room.co2_upper_kg * (1.0 - clampf(co2_remove_fraction, 0.0, 1.0)))
 		var hcn_removed: float = room.hcn_kg * ach_rate * dt
+		var hcn_remove_fraction: float = 0.0
+		if room.hcn_kg > 0.000001:
+			hcn_remove_fraction = hcn_removed / room.hcn_kg
 		room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_removed)
+		room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg * (1.0 - clampf(hcn_remove_fraction, 0.0, 1.0)))
 		var hcl_removed: float = room.hcl_kg * ach_rate * dt
 		room.hcl_kg = maxf(0.0, room.hcl_kg - hcl_removed)
 		var acrolein_removed: float = room.acrolein_kg * ach_rate * dt
@@ -745,10 +802,14 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					* open_species_purge_fraction \
 					* lerpf(0.40, 0.75, upper_bias)
 			room.co2_kg = maxf(0.0, room.co2_kg - co2_removed_kg)
+			room.co2_upper_kg = maxf(0.0, room.co2_upper_kg - room.co2_upper_kg \
+					* open_species_purge_fraction * lerpf(0.40, 0.75, upper_bias))
 			var hcn_removed_kg: float = room.hcn_kg \
 					* open_species_purge_fraction \
 					* lerpf(0.40, 0.75, upper_bias)
 			room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_removed_kg)
+			room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg - room.hcn_upper_kg \
+					* open_species_purge_fraction * lerpf(0.40, 0.75, upper_bias))
 			var hcl_removed_kg: float = room.hcl_kg \
 					* open_species_purge_fraction \
 					* lerpf(0.40, 0.75, upper_bias)
@@ -789,8 +850,10 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 			var purged_co2_kg: float = minf(room.co2_kg, room.co2_kg * co_purge_rate * dt)
 			room.co2_kg = maxf(0.0, room.co2_kg - purged_co2_kg)
+			room.co2_upper_kg = maxf(0.0, room.co2_upper_kg * (1.0 - clampf(purge_co_fraction, 0.0, 1.0)))
 			var purged_hcn_kg: float = minf(room.hcn_kg, room.hcn_kg * co_purge_rate * dt)
 			room.hcn_kg = maxf(0.0, room.hcn_kg - purged_hcn_kg)
+			room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg * (1.0 - clampf(purge_co_fraction, 0.0, 1.0)))
 			var purged_hcl_kg: float = minf(room.hcl_kg, room.hcl_kg * co_purge_rate * dt)
 			room.hcl_kg = maxf(0.0, room.hcl_kg - purged_hcl_kg)
 			var purged_acrolein_kg: float = minf(room.acrolein_kg, room.acrolein_kg * co_purge_rate * dt)
@@ -799,6 +862,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg - purged_formaldehyde_kg)
 
 		room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg)
+		room.co2_upper_kg = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
+		room.hcn_upper_kg = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)
 
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -862,7 +927,9 @@ func _release_pending_interior_deliveries(
 		target.co_kg = maxf(0.0, target.co_kg + float(entry.get("co_kg", 0.0)))
 		target.co_upper_kg = maxf(0.0, target.co_upper_kg + float(entry.get("co_upper_kg", 0.0)))
 		target.co2_kg = maxf(0.0, target.co2_kg + float(entry.get("co2_kg", 0.0)))
+		target.co2_upper_kg = maxf(0.0, target.co2_upper_kg + float(entry.get("co2_upper_kg", 0.0)))
 		target.hcn_kg = maxf(0.0, target.hcn_kg + float(entry.get("hcn_kg", 0.0)))
+		target.hcn_upper_kg = maxf(0.0, target.hcn_upper_kg + float(entry.get("hcn_upper_kg", 0.0)))
 		target.hcl_kg = maxf(0.0, target.hcl_kg + float(entry.get("hcl_kg", 0.0)))
 		target.acrolein_kg = maxf(0.0, target.acrolein_kg + float(entry.get("acrolein_kg", 0.0)))
 		target.formaldehyde_kg = maxf(0.0, target.formaldehyde_kg + float(entry.get("formaldehyde_kg", 0.0)))
@@ -877,6 +944,8 @@ func _release_pending_interior_deliveries(
 				o2_nominal
 			)
 		target.co_upper_kg = clampf(target.co_upper_kg, 0.0, target.co_kg)
+		target.co2_upper_kg = clampf(target.co2_upper_kg, 0.0, target.co2_kg)
+		target.hcn_upper_kg = clampf(target.hcn_upper_kg, 0.0, target.hcn_kg)
 		touched_rooms[target_id] = true
 
 	_pending_interior_deliveries = remaining

@@ -5,11 +5,11 @@
             "tolerance": 20.0
         },
         "time_room_1_o2_below_18pct_s": {
-            "expected": 264.416667,
+            "expected": 287.75,
             "tolerance": 10.0
         },
         "time_room_2_co_upper_above_200_s": {
-            "expected": 212.416667,
+            "expected": 152.25,
             "tolerance": 30.0
         },
         "room_0_peak_hrr_kw": {

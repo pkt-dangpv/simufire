@@ -124,6 +124,22 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		o2_mass_kg += ach_o2_delta_kg
 		room.o2 = clampf(o2_mass_kg / air_mass_kg, 0.0, o2_nominal)
 
+		# O2 estratificado en capa superior — el fuego consume O2 preferentemente allí (2026-05-17).
+		var hot_h_upper: float = _call_room_float(effective_hot_layer_callable, room, room.thermal_layer_m)
+		hot_h_upper = clampf(hot_h_upper, 0.0, room.height_m)
+		var upper_frac: float = maxf(0.01, (room.height_m - hot_h_upper) / maxf(0.01, room.height_m))
+		var upper_air_mass: float = air_mass_kg * upper_frac
+		if room.hrr_kw > 0.0:
+			var cr_upper: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
+			var upper_consumed: float = (room.hrr_kw / 1000.0) * cr_upper * dt
+			upper_consumed = minf(upper_consumed, upper_air_mass * room.o2_upper * 0.20)
+			room.o2_upper = clampf(
+				(upper_air_mass * room.o2_upper - upper_consumed) / maxf(0.001, upper_air_mass),
+				0.0, o2_nominal)
+		else:
+			room.o2_upper = lerpf(room.o2_upper, room.o2, clampf(0.03 * dt, 0.0, 0.10))
+		room.o2_upper = clampf(room.o2_upper, 0.0, o2_nominal)
+
 	var g_gravity: float = 9.8
 	for op in building.get_openings():
 		if op.open_fraction <= 0.0:
