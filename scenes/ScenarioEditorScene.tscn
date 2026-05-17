@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dsqdpf2tdhpcj" path="res://editor/ScenarioEditor.gd" id="1_scenario_editor"]
 [ext_resource type="Script" uid="uid://cvnba1cw8jujl" path="res://editor/EditorGrid.gd" id="2_editor_grid"]
+[ext_resource type="Theme" path="res://ui/SimuFireTheme.tres" id="3_sftheme"]
 
 [node name="ScenarioEditor" type="Node2D" unique_id=1966896303]
 script = ExtResource("1_scenario_editor")
@@ -23,6 +24,7 @@ offset_bottom = 169.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
+theme = ExtResource("3_sftheme")
 
 [node name="TopBar" type="PanelContainer" parent="CanvasLayer/UI" unique_id=1228911550]
 layout_mode = 1
