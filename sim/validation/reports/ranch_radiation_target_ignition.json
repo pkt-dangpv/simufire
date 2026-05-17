@@ -17,7 +17,7 @@
 				}
 			},
 			"target_target_0_peak_qnet_kw_m2": {
-				"actual": 15.6185517831721,
+				"actual": 15.5711095335791,
 				"pass": true,
 				"rule": {
 					"min": 3.0
@@ -183,8 +183,10 @@
 		"smoke_vented_total_kg": 9.04832237953007,
 		"suppression_cooling_total_kj": 0.0,
 		"suppression_water_applied_l": 0.0,
-		"target_target_0_final_qnet_kw_m2": 0.574449669282876,
-		"target_target_0_peak_qnet_kw_m2": 15.6185517831721,
+		"target_target_0_final_qnet_kw_m2": 0.0,
+		"target_target_0_final_temp_c": 223.364228871781,
+		"target_target_0_ignited": 0.0,
+		"target_target_0_peak_qnet_kw_m2": 15.5711095335791,
 		"time_room_0_fuel_flaming_s": 1.41666666666667,
 		"time_room_0_l150_below_0_5m_s": 182.41666666667,
 		"time_room_0_l150_below_1_8m_s": 109.583333333331,

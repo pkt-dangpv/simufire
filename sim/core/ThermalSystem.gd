@@ -218,10 +218,31 @@ var energy_budget_warn_fraction: float = 0.10
 ## Último budget por sala: {room_id -> {e_fire_kj, q_rad_kj, q_to_lower_kj, q_to_ambient_kj,
 ## q_wall_abs_kj, q_wall_emit_kj, de_upper_kj, q_residual_kj, chi_rad}}
 var _energy_budget: Dictionary = {}
+## Acumulados por sala (toda la simulación): {room_id -> float}
+## Solo activo cuando energy_budget_enabled=true.
+var _bud_cum_e_fire_kj: Dictionary = {}
+var _bud_cum_q_residual_kj: Dictionary = {}
 
 
 func get_energy_budget() -> Dictionary:
-	return _energy_budget
+	# Fusiona el snapshot del paso actual con los acumulados de toda la simulación.
+	var result: Dictionary = {}
+	for room_id in _energy_budget.keys():
+		result[room_id] = _energy_budget[room_id].duplicate()
+		result[room_id]["cum_e_fire_kj"] = _bud_cum_e_fire_kj.get(room_id, 0.0)
+		result[room_id]["cum_q_residual_kj"] = _bud_cum_q_residual_kj.get(room_id, 0.0)
+	# Salas que tuvieron fuego antes pero no en el último paso (e.g. fuego extinto).
+	for room_id in _bud_cum_e_fire_kj.keys():
+		if room_id not in result:
+			result[room_id] = {
+				"e_fire_kj": 0.0, "q_fire_rad_kj": 0.0, "q_rad_kj": 0.0,
+				"q_to_lower_kj": 0.0, "q_to_ambient_kj": 0.0,
+				"q_wall_abs_kj": 0.0, "q_wall_emit_kj": 0.0,
+				"de_upper_kj": 0.0, "q_residual_kj": 0.0, "chi_rad": 0.0,
+				"cum_e_fire_kj": _bud_cum_e_fire_kj.get(room_id, 0.0),
+				"cum_q_residual_kj": _bud_cum_q_residual_kj.get(room_id, 0.0),
+			}
+	return result
 
 
 func set_references(building: BuildingModel, smoke_model: SmokeModel) -> void:
@@ -672,6 +693,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			if _bud_e_fire_kj > 0.01:
 				_bud_total_fire_kj += _bud_e_fire_kj
 				_bud_total_residual_kj += _bud_q_residual_kj
+				_bud_cum_e_fire_kj[room.id] = _bud_cum_e_fire_kj.get(room.id, 0.0) + _bud_e_fire_kj
+				_bud_cum_q_residual_kj[room.id] = _bud_cum_q_residual_kj.get(room.id, 0.0) + _bud_q_residual_kj
 
 	# ── Radiación inter-sala a través de aperturas ────────────────────────────
 	_step_radiation_openings(building, dt, ambient_c)

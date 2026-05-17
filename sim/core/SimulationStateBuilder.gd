@@ -211,7 +211,10 @@ func build_state(context: Dictionary) -> Dictionary:
 			"bud_de_upper_kj": float(energy_budget.get(room_id, {}).get("de_upper_kj", 0.0)),
 			"bud_q_residual_kj": float(energy_budget.get(room_id, {}).get("q_residual_kj", 0.0)),
 			"bud_chi_rad": float(energy_budget.get(room_id, {}).get("chi_rad", 0.0)),
-			"bud_q_fire_rad_kj": float(energy_budget.get(room_id, {}).get("q_fire_rad_kj", 0.0))
+			"bud_q_fire_rad_kj": float(energy_budget.get(room_id, {}).get("q_fire_rad_kj", 0.0)),
+			# SF-AUD-028: acumulados temporales (Σ a lo largo de toda la simulación)
+			"bud_cum_e_fire_kj": float(energy_budget.get(room_id, {}).get("cum_e_fire_kj", 0.0)),
+			"bud_cum_q_residual_kj": float(energy_budget.get(room_id, {}).get("cum_q_residual_kj", 0.0)),
 		}
 
 	# Detectores: estado triggered de cada detector definido en el template.

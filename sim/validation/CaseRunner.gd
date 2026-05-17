@@ -749,6 +749,12 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "bud_e_fire_kj"] = bud_e_fire
 		_metrics[prefix + "bud_q_residual_kj"] = bud_q_residual
 		_metrics[prefix + "bud_residual_frac"] = absf(bud_q_residual) / maxf(bud_e_fire, 1e-9)
+		# SF-AUD-028: residual acumulado (Σ a lo largo de toda la simulación, tolerancia ≤ 10 %)
+		var bud_cum_e_fire: float = float(room_state.get("bud_cum_e_fire_kj", 0.0))
+		var bud_cum_q_residual: float = float(room_state.get("bud_cum_q_residual_kj", 0.0))
+		_metrics[prefix + "bud_cum_e_fire_kj"] = bud_cum_e_fire
+		_metrics[prefix + "bud_cum_q_residual_kj"] = bud_cum_q_residual
+		_metrics[prefix + "bud_cum_residual_frac"] = absf(bud_cum_q_residual) / maxf(bud_cum_e_fire, 1e-9)
 		# SF-AUD-030: perfil 1D pared Crank-Nicolson
 		_metrics[prefix + "wall_T_mid_c"] = float(room_state.get("wall_T_mid_c", 20.0))
 		_metrics[prefix + "wall_T_outer_c"] = float(room_state.get("wall_T_outer_c", 20.0))

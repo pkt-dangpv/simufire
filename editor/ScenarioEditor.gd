@@ -27,6 +27,8 @@ const Serializer = preload("res://editor/ScenarioSerializer.gd")
 const EDITOR_LOGO_PATH: String = "res://assets/ui/simufire_logo_editor.png"
 const EDITOR_FONT_PATH: String = "res://assets/fonts/bahnschrift.ttf"
 
+
+
 const UI_BG: Color = Color(0.00, 0.01, 0.01, 1.0)
 const UI_PANEL: Color = Color(0.02, 0.05, 0.07, 0.94)
 const UI_PANEL_DARK: Color = Color(0.00, 0.02, 0.03, 0.98)
@@ -38,6 +40,19 @@ const UI_GREEN: Color = Color(0.55, 1.00, 0.36, 0.96)
 const UI_YELLOW: Color = Color(1.00, 0.78, 0.00, 0.96)
 const UI_TEXT: Color = Color(0.90, 0.94, 0.96, 0.98)
 const UI_TEXT_MUTED: Color = Color(0.49, 0.55, 0.60, 0.92)
+
+#Zoom raton
+const ZOOM_IN_FACTOR := 1.10
+const ZOOM_OUT_FACTOR := 0.90
+const MIN_ZOOM := 0.35
+const MAX_ZOOM := 4.0
+const PAN_SPEED := 650.0
+
+var is_middle_panning := false
+var last_mouse_pos := Vector2.ZERO
+@onready var camera: Camera2D = $World/Camera2D
+
+###################
 
 var editor_data: Dictionary = {}
 var current_tool: int = Tool.SELECT
@@ -124,7 +139,6 @@ var _ctx_room_id: int = -1
 var _ctx_obj_index: int = -1
 var _ctx_opening_index: int = -1
 
-
 func _ready() -> void:
 	_create_empty_scenario()
 	_setup_grid()
@@ -138,12 +152,19 @@ func _ready() -> void:
 
 
 func _setup_grid() -> void:
-	var grid: Node2D = get_node_or_null("EditorGrid") as Node2D
+	var world: Node2D = get_node_or_null("World") as Node2D
+	if world == null:
+		world = Node2D.new()
+		world.name = "World"
+		add_child(world)
+		move_child(world, 0)
+
+	var grid: Node2D = world.get_node_or_null("EditorGrid") as Node2D
 	if grid == null:
 		grid = EditorGridScript.new()
 		grid.name = "EditorGrid"
-		add_child(grid)
-		move_child(grid, 0)
+		world.add_child(grid)
+
 	grid.set("pixels_per_meter", PIXELS_PER_METER)
 	grid.set("grid_m", GRID_M)
 	grid.z_index = -100
@@ -151,7 +172,6 @@ func _setup_grid() -> void:
 	grid.set("minor_color", Color(0.05, 0.08, 0.10, 0.62))
 	grid.set("major_color", Color(0.13, 0.17, 0.20, 0.80))
 	grid.set("axis_color", Color(1.00, 0.25, 0.00, 0.50))
-
 
 func _apply_editor_visual_style() -> void:
 	RenderingServer.set_default_clear_color(UI_BG)
@@ -903,6 +923,31 @@ func _tool_hint(tool_id: int) -> String:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Zoom con rueda y desplazamiento con botón central
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+			_zoom_at_mouse(ZOOM_IN_FACTOR)
+			get_viewport().set_input_as_handled()
+			return
+
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+			_zoom_at_mouse(ZOOM_OUT_FACTOR)
+			get_viewport().set_input_as_handled()
+			return
+
+		if event.button_index == MOUSE_BUTTON_MIDDLE:
+			is_middle_panning = event.pressed
+			last_mouse_pos = event.position
+			get_viewport().set_input_as_handled()
+			return
+
+	if event is InputEventMouseMotion and is_middle_panning:
+		var mouse_delta: Vector2 = event.position - last_mouse_pos
+		camera.global_position -= mouse_delta / camera.zoom.x
+		last_mouse_pos = event.position
+		get_viewport().set_input_as_handled()
+		return
+
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_DELETE or event.keycode == KEY_BACKSPACE:
 			_delete_selected()
@@ -2740,3 +2785,29 @@ func _on_hvac_option_selected(index: int) -> void:
 		"on": mode == "on",
 		"mode": mode
 	}
+
+#zoom del mouse, centrado en la posición del cursor
+func _zoom_at_mouse(factor: float) -> void:
+	var mouse_world_before := camera.get_global_mouse_position()
+
+	var new_zoom_value: float = clamp(camera.zoom.x * factor, MIN_ZOOM, MAX_ZOOM)
+	camera.zoom = Vector2(new_zoom_value, new_zoom_value)
+
+	var mouse_world_after := camera.get_global_mouse_position()
+	camera.global_position += mouse_world_before - mouse_world_after
+
+#moviemiento con las flechas
+func _physics_process(delta: float) -> void:
+	var direction := Vector2.ZERO
+
+	if Input.is_key_pressed(KEY_LEFT):
+		direction.x -= 1.0
+	if Input.is_key_pressed(KEY_RIGHT):
+		direction.x += 1.0
+	if Input.is_key_pressed(KEY_UP):
+		direction.y -= 1.0
+	if Input.is_key_pressed(KEY_DOWN):
+		direction.y += 1.0
+
+	if direction != Vector2.ZERO:
+		camera.global_position += direction.normalized() * PAN_SPEED * delta / camera.zoom.x

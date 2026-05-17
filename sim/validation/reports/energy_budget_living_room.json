@@ -13,7 +13,7 @@
 				"actual": 0.0593953691495591,
 				"pass": true,
 				"rule": {
-					"max": 20.0
+					"max": 0.1
 				}
 			},
 			"room_0_peak_hrr_kw": {
@@ -48,6 +48,9 @@
 		"peak_hrr_kw_global": 1242.56953128769,
 		"peak_temp_upper_c_global": 697.204809578133,
 		"peak_temp_upper_raw_c_global": 697.204809578133,
+		"room_0_final_bud_cum_e_fire_kj": 115292.794915695,
+		"room_0_final_bud_cum_q_residual_kj": -43930.7628074429,
+		"room_0_final_bud_cum_residual_frac": 0.381036497897083,
 		"room_0_final_bud_e_fire_kj": 28.2542519049319,
 		"room_0_final_bud_q_residual_kj": -1.67817172193806,
 		"room_0_final_bud_residual_frac": 0.0593953691495591,
@@ -120,6 +123,9 @@
 		"room_0_peak_pyrolysis_kw": 1268.66213344331,
 		"room_0_peak_temp_upper_c": 697.204809578133,
 		"room_0_peak_temp_upper_raw_c": 697.204809578133,
+		"room_1_final_bud_cum_e_fire_kj": 0.0,
+		"room_1_final_bud_cum_q_residual_kj": 0.0,
+		"room_1_final_bud_cum_residual_frac": 0.0,
 		"room_1_final_bud_e_fire_kj": 0.0,
 		"room_1_final_bud_q_residual_kj": -0.0000000000000657252030578093,
 		"room_1_final_bud_residual_frac": 0.0000657252030578093,

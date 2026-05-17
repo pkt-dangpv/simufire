@@ -10,7 +10,7 @@
             "min": 0.1
         },
         "room_0_final_bud_residual_frac": {
-            "max": 20.0
+            "max": 0.10
         },
         "smoke_generated_total_kg": {
             "min": 0.5
