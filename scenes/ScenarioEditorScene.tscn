@@ -21,11 +21,18 @@ grow_vertical = 2
 mouse_filter = 1
 
 [node name="TopBar" type="PanelContainer" parent="CanvasLayer/UI" unique_id=1228911550]
-layout_mode = 0
-offset_left = 12.0
-offset_top = 12.0
-offset_right = 738.0
-offset_bottom = 58.0
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = 364.0
+offset_top = 14.0
+offset_right = -410.0
+offset_bottom = 64.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="HBox" type="HBoxContainer" parent="CanvasLayer/UI/TopBar" unique_id=452000251]
 layout_mode = 2
@@ -80,11 +87,18 @@ toggle_mode = true
 text = "Delete"
 
 [node name="LeftPanel" type="PanelContainer" parent="CanvasLayer/UI" unique_id=260976689]
-layout_mode = 0
-offset_left = 12.0
-offset_top = 72.0
-offset_right = 362.0
-offset_bottom = 706.0
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = 14.0
+offset_right = 350.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel" unique_id=1144839810]
 layout_mode = 2
@@ -143,12 +157,18 @@ text = "Editor listo"
 autowrap_mode = 3
 
 [node name="RightPanel" type="PanelContainer" parent="CanvasLayer/UI" unique_id=711849844]
-layout_mode = 0
-offset_left = 898.0
-offset_top = 6.0
-offset_right = 1282.0
-offset_bottom = 794.0
-scale = Vector2(1.0132809, 0.91129804)
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -396.0
+offset_top = 14.0
+offset_right = -14.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel" unique_id=216967571]
 layout_mode = 2
@@ -277,11 +297,18 @@ layout_mode = 2
 text = "Aplicar apertura"
 
 [node name="BottomBar" type="PanelContainer" parent="CanvasLayer/UI" unique_id=475357514]
-layout_mode = 0
-offset_left = 380.0
-offset_top = 648.0
-offset_right = 866.0
-offset_bottom = 706.0
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 364.0
+offset_top = -76.0
+offset_right = -410.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="HBox" type="HBoxContainer" parent="CanvasLayer/UI/BottomBar" unique_id=1218321673]
 layout_mode = 2

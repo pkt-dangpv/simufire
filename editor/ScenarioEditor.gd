@@ -116,8 +116,6 @@ func _ready() -> void:
 	_setup_grid()
 	if not _bind_existing_ui():
 		_setup_ui()
-	if not get_viewport().size_changed.is_connected(_layout_editor_shell):
-		get_viewport().size_changed.connect(_layout_editor_shell)
 	_apply_editor_visual_style()
 	_ensure_floor_data()
 	_sync_floor_controls()
@@ -150,7 +148,6 @@ func _apply_editor_visual_style() -> void:
 	_editor_theme = _build_editor_theme()
 	_ui_root.theme = _editor_theme
 	_ensure_editor_branding()
-	_layout_editor_shell()
 	_style_editor_controls(_ui_root)
 
 
@@ -238,51 +235,7 @@ func _stylebox(bg: Color, border: Color, border_width: int, radius: int, margin:
 
 
 func _layout_editor_shell() -> void:
-	if _ui_root == null:
-		return
-	var viewport_size: Vector2 = get_viewport_rect().size
-	if viewport_size.x <= 1.0 or viewport_size.y <= 1.0:
-		return
-	var pad: float = 14.0
-	var left_w: float = 336.0
-	var right_w: float = 382.0
-	if viewport_size.x < 1180.0:
-		left_w = 304.0
-		right_w = 336.0
-	var left_panel := _ui_root.get_node_or_null("LeftPanel") as Control
-	if left_panel == null:
-		left_panel = _ui_root.get_node_or_null("ToolsPanel") as Control
-	var right_panel := _ui_root.get_node_or_null("RightPanel") as Control
-	var top_bar := _ui_root.get_node_or_null("TopBar") as Control
-	var bottom_bar := _ui_root.get_node_or_null("BottomBar") as Control
-
-	if left_panel != null:
-		left_panel.scale = Vector2.ONE
-		left_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		left_panel.position = Vector2(pad, pad)
-		left_panel.size = Vector2(left_w, maxf(540.0, viewport_size.y - pad * 2.0))
-
-	var right_left: float = viewport_size.x - right_w - pad
-	if right_panel != null:
-		right_panel.scale = Vector2.ONE
-		right_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		right_panel.position = Vector2(maxf(pad, right_left), pad)
-		right_panel.size = Vector2(right_w, maxf(540.0, viewport_size.y - pad * 2.0))
-
-	var center_left: float = pad * 2.0 + left_w
-	var center_right: float = right_left - pad
-	if center_right < center_left + 420.0:
-		center_right = viewport_size.x - pad
-	if top_bar != null:
-		top_bar.scale = Vector2.ONE
-		top_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		top_bar.position = Vector2(center_left, pad)
-		top_bar.size = Vector2(maxf(420.0, center_right - center_left), 50.0)
-	if bottom_bar != null:
-		bottom_bar.scale = Vector2.ONE
-		bottom_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		bottom_bar.position = Vector2(center_left, maxf(78.0, viewport_size.y - 78.0))
-		bottom_bar.size = Vector2(maxf(420.0, center_right - center_left), 62.0)
+	pass  # Layout controlled by scene anchors
 
 
 func _ensure_editor_branding() -> void:
