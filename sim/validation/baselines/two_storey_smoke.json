@@ -1,0 +1,33 @@
+{
+    "metrics": {
+        "time_room_7_smoke_start_s": {
+            "min": 30.0,
+            "max": 270.0
+        },
+        "time_room_8_smoke_start_s": {
+            "min": 60.0,
+            "max": 300.0
+        },
+        "time_room_7_temp_above_40_s": {
+            "min": 30.0,
+            "max": 280.0
+        },
+        "room_6_final_smoke_kg": {
+            "min": 0.01
+        },
+        "room_6_final_temp_upper_raw_c": {
+            "min": 30.0,
+            "max": 500.0
+        },
+        "room_7_final_smoke_kg": {
+            "min": 0.05
+        },
+        "room_7_final_temp_upper_raw_c": {
+            "min": 25.0,
+            "max": 250.0
+        },
+        "room_0_peak_hrr_kw": {
+            "min": 400.0
+        }
+    }
+}

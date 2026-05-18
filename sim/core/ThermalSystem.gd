@@ -34,6 +34,11 @@ var h_conv_int_kw_m2_k: float = 0.025
 
 const STEFAN_BOLTZMANN_KW_M2_K4: float = 5.670374419e-11
 
+# SF-R6: ZoneFireSolver — carry convectivo HCN/irritantes (deshabilitado por defecto).
+# Activar en fase 2 tras rebaseline de suite. Ver ZoneFireSolver.gd.
+var hot_gas_hcn_carry_fraction: float = 0.0
+var hot_gas_irritant_carry_fraction: float = 0.0
+
 # Parámetros térmicos
 var upper_to_lower_loss_rate: float = 0.025
 var upper_to_ambient_loss_rate: float = 0.008
@@ -841,6 +846,12 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			hot_upper_gas_before_kg,
 			thermal_engagement
 		)
+
+		# SF-R6: ZoneFireSolver — escribe la masa resuelta en el cache para downstream.
+		# GasExchangeSystem y OxygenExchangeSystem pueden leer estos valores en fases 2-3.
+		flow_state["zone_resolved_upper_mass_kg"] = gas_moved_kg
+		flow_state["zone_resolved_hot_room_id"] = hot_room.id
+		flow_state["zone_resolved_cold_room_id"] = cold_room.id
 
 		sync_room_upper_layer(hot_room, dt)
 		sync_room_upper_layer(cold_room, dt)
@@ -1806,6 +1817,7 @@ func _transfer_hot_gas_contaminants(
 
 	var co_upper_available_kg: float = clampf(source.co_upper_kg, 0.0, source.co_kg)
 	var co_moved_kg: float = minf(source.co_kg, co_upper_available_kg * upper_fraction_moved * carry)
+	# CO₂ transport: bulk only. co2_upper_kg tracking deferred to ZoneFireSolver Phase 2+.
 	var co2_moved_kg: float = minf(source.co2_kg, source.co2_kg * upper_fraction_moved * carry)
 	var smoke_moved_kg: float = minf(source.smoke_kg, source.smoke_kg * upper_fraction_moved * smoke_carry)
 
@@ -1823,8 +1835,40 @@ func _transfer_hot_gas_contaminants(
 		source.smoke_kg = maxf(0.0, source.smoke_kg - smoke_moved_kg)
 		target.smoke_kg = maxf(0.0, target.smoke_kg + smoke_moved_kg)
 
+	# SF-R6: carry convectivo HCN (gated — hot_gas_hcn_carry_fraction > 0 para activar).
+	if hot_gas_hcn_carry_fraction > 0.0:
+		var hcn_upper_available_kg: float = clampf(source.hcn_upper_kg, 0.0, source.hcn_kg)
+		var hcn_moved_kg: float = minf(
+			source.hcn_kg,
+			hcn_upper_available_kg * upper_fraction_moved * carry * clampf(hot_gas_hcn_carry_fraction, 0.0, 1.0)
+		)
+		if hcn_moved_kg > 0.0:
+			source.hcn_kg = maxf(0.0, source.hcn_kg - hcn_moved_kg)
+			source.hcn_upper_kg = maxf(0.0, source.hcn_upper_kg - hcn_moved_kg)
+			target.hcn_kg = maxf(0.0, target.hcn_kg + hcn_moved_kg)
+			target.hcn_upper_kg = maxf(0.0, target.hcn_upper_kg + hcn_moved_kg)
+
+	# SF-R6: carry convectivo irritantes HCl/acroleína/formaldehído (gated).
+	if hot_gas_irritant_carry_fraction > 0.0:
+		var _irr_frac: float = clampf(hot_gas_irritant_carry_fraction, 0.0, 1.0)
+		var hcl_moved_kg: float = minf(source.hcl_kg, source.hcl_kg * upper_fraction_moved * carry * _irr_frac)
+		if hcl_moved_kg > 0.0:
+			source.hcl_kg = maxf(0.0, source.hcl_kg - hcl_moved_kg)
+			target.hcl_kg = maxf(0.0, target.hcl_kg + hcl_moved_kg)
+		var acrolein_moved_kg: float = minf(source.acrolein_kg, source.acrolein_kg * upper_fraction_moved * carry * _irr_frac)
+		if acrolein_moved_kg > 0.0:
+			source.acrolein_kg = maxf(0.0, source.acrolein_kg - acrolein_moved_kg)
+			target.acrolein_kg = maxf(0.0, target.acrolein_kg + acrolein_moved_kg)
+		var formaldehyde_moved_kg: float = minf(source.formaldehyde_kg, source.formaldehyde_kg * upper_fraction_moved * carry * _irr_frac)
+		if formaldehyde_moved_kg > 0.0:
+			source.formaldehyde_kg = maxf(0.0, source.formaldehyde_kg - formaldehyde_moved_kg)
+			target.formaldehyde_kg = maxf(0.0, target.formaldehyde_kg + formaldehyde_moved_kg)
+
 	source.co_upper_kg = clampf(source.co_upper_kg, 0.0, source.co_kg)
 	target.co_upper_kg = clampf(target.co_upper_kg, 0.0, target.co_kg)
+	if hot_gas_hcn_carry_fraction > 0.0:
+		source.hcn_upper_kg = clampf(source.hcn_upper_kg, 0.0, source.hcn_kg)
+		target.hcn_upper_kg = clampf(target.hcn_upper_kg, 0.0, target.hcn_kg)
 
 
 func reset_thermal_layer(room: RoomModel) -> void:
@@ -2530,6 +2574,52 @@ func build_interior_opening_flow_state(room_a: RoomModel, room_b: RoomModel, op:
 	else:
 		hot_room = room_b
 		cold_room = room_a
+
+	# SF-R7: Apertura vertical (hueco de suelo/techo entre plantas).
+	# El flujo es impulsado por efecto chimenea: gas caliente sube, aire frío baja.
+	# Formula: Q = Cd · A · sqrt(2 · g · H_z · ΔT / T_cold)  [SFPE §3.2 chimney effect]
+	if op.is_vertical:
+		var _g_v: float = 9.81
+		var _cd_v: float = 0.61
+		# Area del hueco en plano horizontal (width × height ≡ dos dimensiones del suelo)
+		var _area_v: float = op.width_m * op.height_m * op.open_fraction
+		if _area_v <= 0.001:
+			return state
+		# Altura de accionamiento = diferencia de cota entre plantas
+		# Si las salas no tienen floor_level_z_m asignado, usar la altura de sala como proxy.
+		var _floor_low: float = minf(room_a.floor_level_z_m, room_b.floor_level_z_m)
+		var _floor_high: float = maxf(room_a.floor_level_z_m, room_b.floor_level_z_m)
+		var _H_z: float = maxf(0.5, _floor_high - _floor_low)
+		if _floor_high <= _floor_low + 0.01:
+			# floor_level_z_m no diferenciado; usar altura de sala caliente como proxy
+			_H_z = maxf(0.5, hot_room.height_m)
+		var _T_hot_v_k: float = hot_room.temp_upper_c + 273.15
+		var _T_cold_v_k: float = cold_room.temp_upper_c + 273.15
+		var _dT_v: float = maxf(0.0, _T_hot_v_k - _T_cold_v_k)
+		if _dT_v < 2.0:
+			return state
+		var _q_vert_m3s: float = _cd_v * _area_v * sqrt(2.0 * _g_v * _H_z * _dT_v / _T_cold_v_k)
+		var _rho_hot_v: float = 353.0 / maxf(50.0, _T_hot_v_k)
+		var _rho_cold_v: float = 353.0 / maxf(50.0, _T_cold_v_k)
+		# Punto de mezcla: temperatura de referencia para la entalpía transferida
+		var _source_temp_v: float = hot_room.temp_upper_c
+		var _sink_temp_v: float = cold_room.temp_upper_c
+		var _temp_delta_v: float = maxf(0.0, _source_temp_v - _sink_temp_v)
+		state["active"] = true
+		state["hot_room"] = hot_room
+		state["cold_room"] = cold_room
+		state["hot_band_m"] = hot_room.height_m  # toda la capa caliente disponible
+		state["smoke_band_m"] = hot_room.height_m
+		state["h_drive_m"] = _H_z
+		state["area_eff_m2"] = _area_v
+		state["engagement"] = clampf(_dT_v / maxf(1.0, _dT_v + 50.0), 0.0, 1.0)
+		state["source_temp_c"] = _source_temp_v
+		state["temp_delta_k"] = _temp_delta_v
+		state["neutral_plane_f"] = 0.5
+		# Caudal másico: gas caliente asciende; aire frío desciende (conservación de masa)
+		state["bernoulli_upper_kg_s"] = _q_vert_m3s * _rho_hot_v
+		state["bernoulli_lower_kg_s"] = _q_vert_m3s * _rho_cold_v
+		return state
 
 	var lintel_m: float = op.lintel_height_m()
 	var spill_trigger_layer_m: float = _interior_spill_trigger_layer_m(hot_room, lintel_m)

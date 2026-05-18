@@ -11,7 +11,7 @@ class_name OpeningModel
 # - lintel_height_m(): altura total = sill_m + height_m
 # ============================================================
 
-enum Type { DOOR, WINDOW }
+enum Type { DOOR, WINDOW, HOLE }
 
 const EPSILON: float = 0.001
 const WINDOW_FULL_OPEN_THRESHOLD: float = 0.5
@@ -27,11 +27,18 @@ var open_fraction: float = 1.0    # 0..1
 var opening_index: int = -1
 var wall_side: String = ""
 var offset_m: float = 0.5
+var offset_is_fraction: bool = true
 
 # Fracción de apertura efectiva adicional por deformación térmica del marco.
 # Calculada cada paso por GasExchangeSystem según la temp. de la sala adyacente.
 # NO se persiste en JSON; solo aplica a puertas interiores (type == DOOR).
 var thermal_gap_fraction: float = 0.0
+
+# SF-R7: Apertura vertical (hueco de suelo/techo entre plantas).
+# Cuando is_vertical=true, el flujo está impulsado por flotabilidad térmica
+# (efecto chimenea) en lugar de por Bernoulli horizontal con plano neutro.
+# Ejemplo: hueco de escalera que conecta PB con P1.
+var is_vertical: bool = false
 
 # Coeficiente de "derrame" (tunable)
 var spill_coeff: float = 0.65
@@ -56,6 +63,9 @@ func _init(_a: int, _b: int, _type: int, _w: float, _h: float, _open: float = 1.
 
 
 func set_open_fraction(value: float) -> void:
+	if type == Type.HOLE:
+		open_fraction = 1.0
+		return
 	open_fraction = clampf(value, 0.0, 1.0)
 
 
@@ -68,22 +78,30 @@ func is_exterior_opening() -> bool:
 
 
 func is_closed() -> bool:
+	if type == Type.HOLE:
+		return false
 	return open_fraction <= EPSILON
 
 
 func effective_open_fraction() -> float:
+	if type == Type.HOLE:
+		return 1.0
 	# Suma la fracción base (decisión del usuario/script) y el gap térmico
 	# (deformación del marco por calor). El resultado se acota a [0, 1].
 	return clampf(open_fraction + thermal_gap_fraction, 0.0, 1.0)
 
 
 func is_fully_open() -> bool:
+	if type == Type.HOLE:
+		return true
 	if type == Type.WINDOW:
 		return open_fraction >= WINDOW_FULL_OPEN_THRESHOLD
 	return open_fraction >= 1.0 - EPSILON
 
 
 func state_label() -> String:
+	if type == Type.HOLE:
+		return "ABIERTO"
 	if type == Type.WINDOW:
 		if is_closed():
 			return "CERRADA"

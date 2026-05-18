@@ -1,0 +1,41 @@
+{
+	"template": "two_storey_house",
+	"duration_s": 300.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 0,
+	"enable_logging": false,
+	"watch_room_ids": [0, 1, 2, 6, 7, 8],
+	"smoke_trigger_room_id": 0,
+	"spread_target_room_id": 7,
+	"threshold_metrics": [
+		{
+			"metric_name": "time_room_7_smoke_start_s",
+			"field": "smoke_kg",
+			"room_id": 7,
+			"op": ">=",
+			"value": 0.01
+		},
+		{
+			"metric_name": "time_room_8_smoke_start_s",
+			"field": "smoke_kg",
+			"room_id": 8,
+			"op": ">=",
+			"value": 0.01
+		},
+		{
+			"metric_name": "time_room_7_temp_above_40_s",
+			"field": "temp_upper_c",
+			"room_id": 7,
+			"op": ">=",
+			"value": 40.0
+		}
+	],
+	"engine_overrides": {
+		"time_scale": 5.0,
+		"fire_spread_enabled": false,
+		"glass_auto_break_enabled": false,
+		"glass_break_mode": 0,
+		"fire_alpha_kw_s2": 0.047,
+		"stack_effect_enabled": true
+	}
+}

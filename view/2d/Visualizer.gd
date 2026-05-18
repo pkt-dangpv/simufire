@@ -2,6 +2,8 @@ extends Node2D
 class_name Visualizer
 
 const OpeningGeometry2D := preload("res://view/2d/openings/OpeningGeometry2D.gd")
+const FloorPlan2D := preload("res://view/2d/floors/FloorPlan2D.gd")
+const RoomLabelLayout2D := preload("res://view/2d/rooms/RoomLabelLayout2D.gd")
 const RoomStateVisuals2D := preload("res://view/2d/rooms/RoomStateVisuals2D.gd")
 
 ## ============================================================
@@ -156,6 +158,7 @@ const RoomStateVisuals2D := preload("res://view/2d/rooms/RoomStateVisuals2D.gd")
 
 @export var door_color: Color = Color(0.55, 1.00, 0.36, 1.0)
 @export var window_color: Color = Color(0.00, 0.70, 0.88, 1.0)
+@export var hole_color: Color = Color(1.00, 0.78, 0.00, 1.0)
 @export var window_broken_color: Color = Color(1.00, 0.78, 0.00, 1.0)
 @export var window_open_color: Color = Color(1.00, 0.25, 0.00, 1.0)
 @export var opening_line_width: float = 4.0
@@ -429,57 +432,16 @@ func _draw_background() -> void:
 
 
 func _refresh_floor_levels() -> void:
-	floor_levels_m.clear()
-	if building == null:
-		return
-	for room_id in building.get_rooms().keys():
-		var room: RoomModel = building.get_room(int(room_id))
-		if room == null:
-			continue
-		_add_floor_level(room.floor_level_z_m)
-	floor_levels_m.sort()
-	selected_floor_index = clampi(selected_floor_index, 0, maxi(0, floor_levels_m.size() - 1))
-
-
-func _add_floor_level(level_m: float) -> void:
-	for existing in floor_levels_m:
-		if absf(float(existing) - level_m) < 0.05:
-			return
-	floor_levels_m.append(level_m)
-
-
-func _selected_floor_level_m() -> float:
-	if floor_levels_m.is_empty():
-		return 0.0
-	return float(floor_levels_m[clampi(selected_floor_index, 0, floor_levels_m.size() - 1)])
-
-
-func _get_room_floor_level_m(room_id: int) -> float:
-	if building == null:
-		return 0.0
-	var room: RoomModel = building.get_room(room_id)
-	return room.floor_level_z_m if room != null else 0.0
+	floor_levels_m = FloorPlan2D.collect_floor_levels(building)
+	selected_floor_index = FloorPlan2D.clamp_floor_index(selected_floor_index, floor_levels_m)
 
 
 func _is_room_visible_on_selected_floor(room_id: int) -> bool:
-	if floor_levels_m.size() <= 1:
-		return true
-	return absf(_get_room_floor_level_m(room_id) - _selected_floor_level_m()) < 0.05
+	return FloorPlan2D.is_room_visible(building, floor_levels_m, selected_floor_index, room_id)
 
 
 func _is_opening_visible_on_selected_floor(opening_index: int) -> bool:
-	if building == null:
-		return false
-	var op: OpeningModel = building.get_opening_at(opening_index)
-	if op == null:
-		return false
-	var a_visible: bool = op.a != BuildingModel.OUTSIDE_ID and rects_m.has(op.a) and _is_room_visible_on_selected_floor(op.a)
-	var b_visible: bool = op.b != BuildingModel.OUTSIDE_ID and rects_m.has(op.b) and _is_room_visible_on_selected_floor(op.b)
-	if op.a == BuildingModel.OUTSIDE_ID:
-		return b_visible
-	if op.b == BuildingModel.OUTSIDE_ID:
-		return a_visible
-	return a_visible and b_visible
+	return FloorPlan2D.is_opening_visible(building, rects_m, floor_levels_m, selected_floor_index, opening_index)
 
 
 func _draw_floor_selector() -> void:
@@ -487,11 +449,16 @@ func _draw_floor_selector() -> void:
 	if not show_floor_selector or floor_levels_m.size() <= 1 or font == null:
 		return
 	for i in range(floor_levels_m.size()):
-		var rect: Rect2 = _floor_selector_button_rect(i)
+		var rect: Rect2 = FloorPlan2D.selector_button_rect(
+			i,
+			floor_selector_position_px,
+			floor_selector_button_size_px,
+			floor_selector_gap_px
+		)
 		var active: bool = i == selected_floor_index
 		draw_rect(rect, floor_selector_active_color if active else floor_selector_inactive_color, true)
 		draw_rect(rect, room_outline_color, false, 1.0)
-		var label: String = _floor_label(i)
+		var label: String = FloorPlan2D.floor_label(i)
 		draw_string(
 			font,
 			rect.position + Vector2(10.0, 17.0),
@@ -506,28 +473,21 @@ func _draw_floor_selector() -> void:
 func _handle_floor_selector_click(local_pos: Vector2) -> bool:
 	if not show_floor_selector or floor_levels_m.size() <= 1:
 		return false
-	for i in range(floor_levels_m.size()):
-		if _floor_selector_button_rect(i).has_point(local_pos):
-			selected_floor_index = i
-			selected_room_id = -1
-			selected_opening_index = -1
-			queue_redraw()
-			room_clicked.emit(-1)
-			return true
-	return false
-
-
-func _floor_selector_button_rect(index: int) -> Rect2:
-	return Rect2(
-		floor_selector_position_px + Vector2((floor_selector_button_size_px.x + floor_selector_gap_px) * float(index), 0.0),
-		floor_selector_button_size_px
+	var hit_index: int = FloorPlan2D.selector_hit_index(
+		local_pos,
+		floor_levels_m,
+		floor_selector_position_px,
+		floor_selector_button_size_px,
+		floor_selector_gap_px
 	)
-
-
-func _floor_label(index: int) -> String:
-	if index <= 0:
-		return "PB"
-	return "P%d" % index
+	if hit_index < 0:
+		return false
+	selected_floor_index = hit_index
+	selected_room_id = -1
+	selected_opening_index = -1
+	queue_redraw()
+	room_clicked.emit(-1)
+	return true
 
 
 # ============================================================
@@ -996,8 +956,8 @@ func _draw_room_label(id: int, rpx: Rect2, rs: Dictionary) -> void:
 		_draw_text_line(lines[i], pos, col)
 
 
-func _build_room_label_lines(_id: int, _content_rect: Rect2, _rs: Dictionary) -> Array[String]:
-	return []
+func _build_room_label_lines(id: int, content_rect: Rect2, rs: Dictionary) -> Array[String]:
+	return _build_room_label_lines_full(id, content_rect, rs)
 
 
 func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) -> Array[String]:
@@ -1015,7 +975,12 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 	var co_ppm: float = float(rs.get("co_ppm", 0.0))
 	var fed_val: float = float(rs.get("fed", 0.0))
 	var flashover_triggered: bool = _is_flashover_indicator_visible(rs)
-	var detail: String = _pick_room_label_detail(content_rect)
+	var detail: String = RoomLabelLayout2D.pick_detail(
+		content_rect,
+		Vector2(room_label_tiny_threshold_w_px, room_label_tiny_threshold_h_px),
+		Vector2(room_label_compact_threshold_w_px, room_label_compact_threshold_h_px),
+		Vector2(room_label_medium_threshold_w_px, room_label_medium_threshold_h_px)
+	)
 
 	var svv_pct_val: float = RoomStateVisuals2D.compute_svv_pct(rs)
 	var lines: Array[String] = []
@@ -1085,51 +1050,19 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 			elif bool(rs.get("fire_smoldering", false)):
 				lines.append("SMOLDERING")
 
-	return _fit_room_label_lines(content_rect, lines, flashover_triggered)
-
-
-func _pick_room_label_detail(content_rect: Rect2) -> String:
-	if content_rect.size.x < room_label_tiny_threshold_w_px or content_rect.size.y < room_label_tiny_threshold_h_px:
-		return "tiny"
-	if content_rect.size.x < room_label_compact_threshold_w_px or content_rect.size.y < room_label_compact_threshold_h_px:
-		return "compact"
-	if content_rect.size.x < room_label_medium_threshold_w_px or content_rect.size.y < room_label_medium_threshold_h_px:
-		return "medium"
-	return "full"
-
-
-func _fit_room_label_lines(content_rect: Rect2, lines: Array[String], flashover_triggered: bool) -> Array[String]:
-	var usable_height_px: float = (
-		content_rect.size.y
-		- room_label_offset.y
-		- _get_room_label_bottom_reserved_px()
-		+ room_label_padding
-		+ 2.0
+	return RoomLabelLayout2D.fit_lines(
+		content_rect,
+		lines,
+		flashover_triggered,
+		room_label_offset,
+		room_label_line_h,
+		room_label_padding,
+		_get_room_label_bottom_reserved_px()
 	)
-	var max_lines: int = int(floor(usable_height_px / maxf(1.0, room_label_line_h)))
-	if max_lines <= 0:
-		return []
-	if lines.size() <= max_lines:
-		return lines
-
-	var trimmed: Array[String] = []
-	var kept_count: int = mini(max_lines, lines.size())
-	for i in range(kept_count):
-		trimmed.append(lines[i])
-
-	if kept_count >= 2:
-		if flashover_triggered:
-			trimmed[kept_count - 1] = "FLASHOVER"
-		elif lines.size() > kept_count:
-			trimmed[kept_count - 1] = "..."
-
-	return trimmed
 
 
 func _get_room_label_bottom_reserved_px() -> float:
-	if not show_hrr_bar:
-		return 2.0
-	return hrr_bar_height_px + hrr_bar_margin_px + 4.0
+	return RoomLabelLayout2D.bottom_reserved_px(show_hrr_bar, hrr_bar_height_px, hrr_bar_margin_px)
 
 
 func _draw_text_line(text: String, pos: Vector2, color: Color) -> void:
@@ -1248,8 +1181,9 @@ func _draw_openings() -> void:
 
 		var alpha: float = 0.25 + 0.75 * clampf(op.open_fraction, 0.0, 1.0)
 		var col: Color
-		if op.type == OpeningModel.Type.DOOR:
-			col = Color(door_color.r, door_color.g, door_color.b, alpha)
+		if op.type == OpeningModel.Type.DOOR or op.type == OpeningModel.Type.HOLE:
+			var base_color: Color = door_color if op.type == OpeningModel.Type.DOOR else hole_color
+			col = Color(base_color.r, base_color.g, base_color.b, alpha)
 			if b_exists:
 				var tf2: Dictionary = _get_draw_transform()
 				var scale_px2: float = float(tf2["scale"])
@@ -1257,16 +1191,19 @@ func _draw_openings() -> void:
 				var seg_dir: Vector2 = (p2 - p1).normalized() if p1.distance_to(p2) > 0.01 else Vector2(1, 0)
 				var seg_mid: Vector2 = (p1 + p2) * 0.5
 				var hinge_px: Vector2 = seg_mid - seg_dir * door_px * 0.5
-				# Borrar solo el vano de la puerta
+				# Borrar solo el vano de la apertura
 				draw_line(hinge_px, hinge_px + seg_dir * door_px, background_color, wall_thickness + 2.0)
-				# Door swings away from corridor → always into the destination room
-				var _room_a_ref: RoomModel = building.get_room(a_id)
-				var _room_b_ref: RoomModel = building.get_room(b_id)
-				var _corridor_kinds: Array = ["pasillo", "distribuidor", "corridor", "hallway", "entrada", "recibidor"]
-				var _a_is_corridor: bool = _room_a_ref != null and _corridor_kinds.has(_room_a_ref.kind.to_lower())
-				var _b_is_corridor: bool = _room_b_ref != null and _corridor_kinds.has(_room_b_ref.kind.to_lower())
-				var swing_ref_px: Vector2 = _to_px(ra).get_center() if (_a_is_corridor and not _b_is_corridor) else _to_px(rb).get_center()
-				_draw_door_top_view(hinge_px, door_px, seg_dir, swing_ref_px, col, op.open_fraction)
+				if op.type == OpeningModel.Type.HOLE:
+					draw_line(hinge_px, hinge_px + seg_dir * door_px, col, opening_line_width)
+				else:
+					# Door swings away from corridor → always into the destination room
+					var _room_a_ref: RoomModel = building.get_room(a_id)
+					var _room_b_ref: RoomModel = building.get_room(b_id)
+					var _corridor_kinds: Array = ["pasillo", "distribuidor", "corridor", "hallway", "entrada", "recibidor"]
+					var _a_is_corridor: bool = _room_a_ref != null and _corridor_kinds.has(_room_a_ref.kind.to_lower())
+					var _b_is_corridor: bool = _room_b_ref != null and _corridor_kinds.has(_room_b_ref.kind.to_lower())
+					var swing_ref_px: Vector2 = _to_px(ra).get_center() if (_a_is_corridor and not _b_is_corridor) else _to_px(rb).get_center()
+					_draw_door_top_view(hinge_px, door_px, seg_dir, swing_ref_px, col, op.open_fraction)
 			else:
 				draw_line(p1, p2, background_color, wall_thickness + 2.0)
 				draw_line(p1, p2, col, opening_line_width)

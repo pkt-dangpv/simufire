@@ -467,7 +467,11 @@ func _resolve_opening_event_index(event_data: Dictionary) -> int:
 			continue
 
 		if match_type != "":
-			var type_name: String = "door" if op.type == OpeningModel.Type.DOOR else "window"
+			var type_name: String = "door"
+			if op.type == OpeningModel.Type.WINDOW:
+				type_name = "window"
+			elif op.type == OpeningModel.Type.HOLE:
+				type_name = "hole"
 			if type_name != match_type:
 				continue
 

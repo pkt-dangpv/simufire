@@ -226,13 +226,22 @@ static func normalize_opening(raw_opening: Dictionary) -> Dictionary:
 	var opening: Dictionary = raw_opening.duplicate(true)
 	opening["a"] = int(opening.get("a", 0))
 	opening["b"] = int(opening.get("b", -1))
-	opening["type"] = String(opening.get("type", "door"))
+	var type_name: String = String(opening.get("type", "door")).strip_edges().to_lower()
+	if type_name != "door" and type_name != "window" and type_name != "hole":
+		type_name = "door"
+	opening["type"] = type_name
 	opening["wall"] = String(opening.get("wall", "")).to_lower()
 	opening["offset_m"] = float(opening.get("offset_m", 0.5))
+	opening["offset_is_fraction"] = bool(opening.get("offset_is_fraction", true))
 	opening["width_m"] = float(opening.get("width_m", 0.9))
 	opening["height_m"] = float(opening.get("height_m", 2.0))
 	opening["sill_m"] = float(opening.get("sill_m", 0.0))
 	opening["open_fraction"] = clampf(float(opening.get("open_fraction", 1.0)), 0.0, 1.0)
+	if type_name == "hole":
+		opening["sill_m"] = 0.0
+		opening["open_fraction"] = 1.0
+	if opening.has("is_vertical"):
+		opening["is_vertical"] = bool(opening["is_vertical"])
 	return opening
 
 

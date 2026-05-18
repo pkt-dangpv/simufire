@@ -73,6 +73,7 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var fire_ceiling_cap_color: Color = Color(1.0, 0.34, 0.05, 0.42)
 @export var door_color: Color = Color(0.26, 0.86, 0.32, 0.92)
 @export var window_color: Color = Color(0.24, 0.56, 1.00, 0.92)
+@export var hole_color: Color = Color(1.00, 0.78, 0.00, 0.86)
 @export var closed_opening_color: Color = Color(0.54, 0.56, 0.58, 0.70)
 @export var label_color: Color = Color(1.0, 0.96, 0.84, 1.0)
 
@@ -590,7 +591,7 @@ func _create_opening(index: int) -> void:
 	if pose.is_empty():
 		return
 
-	var material_color: Color = door_color if op.type == OpeningModel.Type.DOOR else window_color
+	var material_color: Color = _opening_color(op)
 	if op.is_closed():
 		material_color = closed_opening_color
 
@@ -606,7 +607,7 @@ func _create_opening(index: int) -> void:
 
 	# Cortina de humo: rellena el vano abierto y suaviza el salto visual de capa
 	# entre estancias o hacia el exterior.
-	if op.type == OpeningModel.Type.DOOR or op.type == OpeningModel.Type.WINDOW:
+	if op.type == OpeningModel.Type.DOOR or op.type == OpeningModel.Type.WINDOW or op.type == OpeningModel.Type.HOLE:
 		var curtain := _create_box(
 			"SmokeCurtain_%02d" % index,
 			Vector3(pose["size"]) * meters_to_units,
@@ -618,6 +619,16 @@ func _create_opening(index: int) -> void:
 		_atmosphere_root.add_child(curtain)
 		_opening_items[index]["smoke_curtain"] = curtain
 		_opening_items[index]["curtain_pose"] = pose
+
+
+func _opening_color(op: OpeningModel) -> Color:
+	if op == null:
+		return door_color
+	if op.type == OpeningModel.Type.WINDOW:
+		return window_color
+	if op.type == OpeningModel.Type.HOLE:
+		return hole_color
+	return door_color
 
 
 func _opening_pose(op: OpeningModel) -> Dictionary:
@@ -1057,7 +1068,7 @@ func _update_openings() -> void:
 			continue
 		var mat := marker.material_override as StandardMaterial3D
 		if mat != null:
-			var open_color: Color = door_color if op.type == OpeningModel.Type.DOOR else window_color
+			var open_color: Color = _opening_color(op)
 			var marker_color: Color = closed_opening_color.lerp(open_color, clampf(op.open_fraction, 0.0, 1.0))
 			if int(index) == _selected_opening_index:
 				marker_color = marker_color.lerp(Color(1.0, 0.88, 0.18, 1.0), 0.55)

@@ -993,6 +993,57 @@ func _apply_background_species_exchange(
 		return
 
 	var air_density_kg_m3: float = 1.2
+
+	# SF-R7: Para aperturas verticales (hueco de suelo/techo), el intercambio está
+	# impulsado por flotabilidad (efecto chimenea), no por difusión de fondo.
+	# Q = Cd · A · sqrt(2 · g · H_z · ΔT / T_cold)  [SFPE §3.2, chimney effect]
+	if op.is_vertical:
+		var _g_ve: float = 9.81
+		var _cd_ve: float = 0.61
+		# Determinar sala inferior (lower) y superior (upper)
+		var _lower_r: RoomModel = room_a if room_a.floor_level_z_m <= room_b.floor_level_z_m else room_b
+		var _upper_r: RoomModel = room_b if _lower_r == room_a else room_a
+		var _H_z_ve: float = maxf(0.5, _upper_r.floor_level_z_m - _lower_r.floor_level_z_m)
+		if _H_z_ve < 0.1:
+			_H_z_ve = maxf(0.5, _lower_r.height_m)
+		var _T_low_k: float = maxf(293.0, _lower_r.temp_upper_c + 273.15)
+		var _T_high_k: float = maxf(293.0, _upper_r.temp_upper_c + 273.15)
+		var _dT_ve: float = maxf(0.0, _T_low_k - _T_high_k)
+		if _dT_ve < 1.0:
+			# Temperaturas casi iguales: usar difusión mínima de fondo
+			var _mass_ve: float = minf(
+				maxf(0.1, _lower_r.volume_m3()),
+				maxf(0.1, _upper_r.volume_m3())
+			) * air_density_kg_m3 * 0.02 * dt
+			_apply_species_net_exchange(room_a, room_b, _mass_ve,
+				smoke_delta_kg, co_delta_kg, co_upper_delta_kg,
+				co2_delta_kg, hcn_delta_kg, hcl_delta_kg,
+				acrolein_delta_kg, formaldehyde_delta_kg, o2_delta_kg)
+			return
+		# Caudal volumétrico de gas caliente ascendente
+		var _q_up_m3s: float = _cd_ve * area_eff_m2 * sqrt(2.0 * _g_ve * _H_z_ve * _dT_ve / _T_high_k)
+		var _rho_low: float = 353.0 / maxf(50.0, _T_low_k)
+		var _rho_high: float = 353.0 / maxf(50.0, _T_high_k)
+		# Masa intercambiada: gas caliente sube (lower→upper), aire frío baja (upper→lower)
+		# Neto: humo/gases calientes se transfieren de lower a upper
+		var _mass_up_kg: float = minf(_q_up_m3s * _rho_low * dt, maxf(0.1, _lower_r.volume_m3()) * _rho_low * 0.30)
+		var _mass_down_kg: float = minf(_q_up_m3s * _rho_high * dt, maxf(0.1, _upper_r.volume_m3()) * _rho_high * 0.30)
+		# Intercambio neto de especies: lower→upper (humo, CO, CO2, etc.) y upper→lower (O2 fresco)
+		var _mass_lower_ke: float = maxf(0.1, _lower_r.volume_m3()) * air_density_kg_m3
+		var _mass_upper_ke: float = maxf(0.1, _upper_r.volume_m3()) * air_density_kg_m3
+		# Transferencia ascendente (species from lower to upper)
+		_apply_directed_species_exchange(_lower_r, _upper_r, _mass_up_kg, _mass_lower_ke,
+			smoke_delta_kg, co_delta_kg, co_upper_delta_kg,
+			co2_delta_kg, hcn_delta_kg, hcl_delta_kg,
+			acrolein_delta_kg, formaldehyde_delta_kg, o2_delta_kg)
+		# Transferencia descendente (fresh air from upper to lower — primarily O2)
+		if _mass_down_kg > 0.0:
+			var _o2_net: float = (_upper_r.o2 - _lower_r.o2) * _mass_down_kg / maxf(_mass_upper_ke, 0.001)
+			if o2_delta_kg.has(int(_lower_r.id)):
+				o2_delta_kg[int(_lower_r.id)] += _o2_net * _mass_down_kg
+				o2_delta_kg[int(_upper_r.id)] -= _o2_net * _mass_down_kg
+		return
+
 	var mass_a_kg: float = maxf(0.1, room_a.volume_m3()) * air_density_kg_m3
 	var mass_b_kg: float = maxf(0.1, room_b.volume_m3()) * air_density_kg_m3
 	var outside_open_factor: float = maxf(
@@ -1579,3 +1630,94 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 		result["ppv_fresh_air_injected_kg"] = float(result.get("ppv_fresh_air_injected_kg", 0.0)) + injected_kg
 
 	return result
+
+
+# SF-R7: Intercambio bidireccional neto de especies entre dos salas
+# (para aperturas verticales con ΔT pequeño — difusión mínima).
+func _apply_species_net_exchange(
+	room_a: RoomModel,
+	room_b: RoomModel,
+	exchange_kg: float,
+	smoke_delta_kg: Dictionary,
+	co_delta_kg: Dictionary,
+	co_upper_delta_kg: Dictionary,
+	co2_delta_kg: Dictionary,
+	hcn_delta_kg: Dictionary,
+	hcl_delta_kg: Dictionary,
+	acrolein_delta_kg: Dictionary,
+	formaldehyde_delta_kg: Dictionary,
+	o2_delta_kg: Dictionary
+) -> void:
+	if exchange_kg <= 0.0 or room_a == null or room_b == null:
+		return
+	var m_a: float = maxf(0.1, room_a.volume_m3()) * 1.2
+	var m_b: float = maxf(0.1, room_b.volume_m3()) * 1.2
+	_apply_net_pair(room_a.id, room_b.id, room_a.smoke_kg, room_b.smoke_kg, m_a, m_b, exchange_kg, smoke_delta_kg)
+	_apply_net_pair(room_a.id, room_b.id, room_a.co_kg, room_b.co_kg, m_a, m_b, exchange_kg, co_delta_kg)
+	_apply_net_pair(room_a.id, room_b.id, room_a.co_upper_kg, room_b.co_upper_kg, m_a, m_b, exchange_kg, co_upper_delta_kg)
+	_apply_net_pair(room_a.id, room_b.id, room_a.co2_kg, room_b.co2_kg, m_a, m_b, exchange_kg, co2_delta_kg)
+	if not hcn_delta_kg.is_empty():
+		_apply_net_pair(room_a.id, room_b.id, room_a.hcn_kg, room_b.hcn_kg, m_a, m_b, exchange_kg, hcn_delta_kg)
+
+
+# SF-R7: Transferencia unidireccional (ascendente) de especies de from_r a to_r,
+# proporcional a la fracción de masa intercambiada.
+func _apply_directed_species_exchange(
+	from_r: RoomModel,
+	to_r: RoomModel,
+	mass_kg: float,
+	from_mass_kg: float,
+	smoke_delta_kg: Dictionary,
+	co_delta_kg: Dictionary,
+	co_upper_delta_kg: Dictionary,
+	co2_delta_kg: Dictionary,
+	hcn_delta_kg: Dictionary,
+	hcl_delta_kg: Dictionary,
+	acrolein_delta_kg: Dictionary,
+	formaldehyde_delta_kg: Dictionary,
+	o2_delta_kg: Dictionary
+) -> void:
+	if mass_kg <= 0.0 or from_r == null or to_r == null:
+		return
+	var frac: float = clampf(mass_kg / maxf(0.001, from_mass_kg), 0.0, 0.30)
+	# Humo y gases tóxicos ascienden con el gas caliente (upper layer driven)
+	var d_smoke: float = from_r.smoke_kg * frac
+	var d_co: float = from_r.co_kg * frac
+	var d_co_up: float = from_r.co_upper_kg * frac
+	var d_co2: float = from_r.co2_kg * frac
+	var d_hcn: float = from_r.hcn_kg * frac
+	var d_hcl: float = from_r.hcl_kg * frac
+	var d_acro: float = from_r.acrolein_kg * frac
+	var d_form: float = from_r.formaldehyde_kg * frac
+	smoke_delta_kg[from_r.id] = float(smoke_delta_kg.get(from_r.id, 0.0)) - d_smoke
+	smoke_delta_kg[to_r.id] = float(smoke_delta_kg.get(to_r.id, 0.0)) + d_smoke
+	co_delta_kg[from_r.id] = float(co_delta_kg.get(from_r.id, 0.0)) - d_co
+	co_delta_kg[to_r.id] = float(co_delta_kg.get(to_r.id, 0.0)) + d_co
+	co_upper_delta_kg[from_r.id] = float(co_upper_delta_kg.get(from_r.id, 0.0)) - d_co_up
+	co_upper_delta_kg[to_r.id] = float(co_upper_delta_kg.get(to_r.id, 0.0)) + d_co_up
+	co2_delta_kg[from_r.id] = float(co2_delta_kg.get(from_r.id, 0.0)) - d_co2
+	co2_delta_kg[to_r.id] = float(co2_delta_kg.get(to_r.id, 0.0)) + d_co2
+	if not hcn_delta_kg.is_empty():
+		hcn_delta_kg[from_r.id] = float(hcn_delta_kg.get(from_r.id, 0.0)) - d_hcn
+		hcn_delta_kg[to_r.id] = float(hcn_delta_kg.get(to_r.id, 0.0)) + d_hcn
+	if not hcl_delta_kg.is_empty():
+		hcl_delta_kg[from_r.id] = float(hcl_delta_kg.get(from_r.id, 0.0)) - d_hcl
+		hcl_delta_kg[to_r.id] = float(hcl_delta_kg.get(to_r.id, 0.0)) + d_hcl
+	if not acrolein_delta_kg.is_empty():
+		acrolein_delta_kg[from_r.id] = float(acrolein_delta_kg.get(from_r.id, 0.0)) - d_acro
+		acrolein_delta_kg[to_r.id] = float(acrolein_delta_kg.get(to_r.id, 0.0)) + d_acro
+	if not formaldehyde_delta_kg.is_empty():
+		formaldehyde_delta_kg[from_r.id] = float(formaldehyde_delta_kg.get(from_r.id, 0.0)) - d_form
+		formaldehyde_delta_kg[to_r.id] = float(formaldehyde_delta_kg.get(to_r.id, 0.0)) + d_form
+
+
+func _apply_net_pair(
+	id_a: int, id_b: int,
+	mass_a: float, mass_b: float,
+	total_a: float, total_b: float,
+	exchange_kg: float,
+	delta: Dictionary
+) -> void:
+	var net: float = (mass_a / maxf(0.001, total_a) - mass_b / maxf(0.001, total_b)) * exchange_kg
+	delta[id_a] = float(delta.get(id_a, 0.0)) - net
+	delta[id_b] = float(delta.get(id_b, 0.0)) + net

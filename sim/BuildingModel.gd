@@ -252,11 +252,14 @@ func _load_from_template(data: Dictionary) -> void:
 		var width_m: float = float(op_data["width_m"])
 		var height_m: float = float(op_data["height_m"])
 		var open_fraction: float = float(op_data.get("open_fraction", 1.0))
-		var type_str: String = String(op_data.get("type", "door"))
+		var type_str: String = String(op_data.get("type", "door")).strip_edges().to_lower()
 
 		var op_type: int = OpeningModel.Type.DOOR
-		if type_str == "window":
-			op_type = OpeningModel.Type.WINDOW
+		match type_str:
+			"window":
+				op_type = OpeningModel.Type.WINDOW
+			"hole":
+				op_type = OpeningModel.Type.HOLE
 
 		var op: OpeningModel = OpeningModel.new(a, b, op_type, width_m, height_m, 1.0)
 		op.set_open_fraction(open_fraction)
@@ -268,10 +271,15 @@ func _load_from_template(data: Dictionary) -> void:
 			op.wall_side = String(op_data["wall"]).to_lower()
 		if op_data.has("offset_m"):
 			op.offset_m = float(op_data["offset_m"])
+		if op_data.has("offset_is_fraction"):
+			op.offset_is_fraction = bool(op_data["offset_is_fraction"])
 		if op_data.has("ppv_flow_m3_s"):
 			op.ppv_flow_m3_s = float(op_data["ppv_flow_m3_s"])
 		if op_data.has("ppv_delta_p_pa"):
 			op.ppv_delta_p_pa = float(op_data["ppv_delta_p_pa"])
+		# SF-R7: apertura vertical (hueco suelo/techo entre plantas)
+		if op_data.has("is_vertical"):
+			op.is_vertical = bool(op_data["is_vertical"])
 
 		openings.append(op)
 
@@ -641,7 +649,11 @@ func get_opening_label(index: int) -> String:
 	if op == null:
 		return "Apertura"
 
-	var prefix: String = "P" if op.type == OpeningModel.Type.DOOR else "V"
+	var prefix: String = "P"
+	if op.type == OpeningModel.Type.WINDOW:
+		prefix = "V"
+	elif op.type == OpeningModel.Type.HOLE:
+		prefix = "H"
 	return "%s%02d %s-%s" % [
 		prefix,
 		index,
@@ -674,13 +686,23 @@ func build_opening_summaries() -> Array[Dictionary]:
 			"index": index,
 			"label": get_opening_label(index),
 			"status": get_opening_status_text(index),
-			"type": "door" if op.type == OpeningModel.Type.DOOR else "window",
+			"type": _opening_type_name(op),
 			"state_label": op.state_label(),
 			"open_fraction": op.open_fraction,
 			"is_exterior": op.is_exterior_opening()
 		})
 
 	return summaries
+
+
+func _opening_type_name(op: OpeningModel) -> String:
+	if op == null:
+		return "door"
+	if op.type == OpeningModel.Type.WINDOW:
+		return "window"
+	if op.type == OpeningModel.Type.HOLE:
+		return "hole"
+	return "door"
 
 
 func _get_room_display_name(room_id: int) -> String:

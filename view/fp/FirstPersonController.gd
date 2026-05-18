@@ -706,6 +706,8 @@ func _create_opening_panels() -> void:
 		var op: OpeningModel = building.get_opening_at(index)
 		if op == null:
 			continue
+		if op.type == OpeningModel.Type.HOLE:
+			continue
 		var info: Dictionary = _opening_info(index)
 		if info.is_empty():
 			continue
@@ -2568,7 +2570,7 @@ func _opening_info(index: int) -> Dictionary:
 		var side: String = op.wall_side.to_lower()
 		if side == "":
 			side = "top"
-		return _opening_info_on_side(rect, room_id, side, width_m, height_m, sill_m, op.offset_m, true)
+		return _opening_info_on_side(rect, room_id, side, width_m, height_m, sill_m, op.offset_m, op.offset_is_fraction, true)
 
 	var other_id: int = op.b if op.a == room_id else op.a
 	if not rects.has(other_id):
@@ -2588,6 +2590,7 @@ func _opening_info(index: int) -> Dictionary:
 		height_m,
 		sill_m,
 		op.offset_m,
+		op.offset_is_fraction,
 		false,
 		float(shared.get("overlap_start", 0.0)),
 		float(shared.get("overlap_end", 0.0))
@@ -2606,6 +2609,7 @@ func _opening_info_on_side(
 	height_m: float,
 	sill_m: float,
 	offset: float,
+	offset_is_fraction: bool,
 	exterior: bool,
 	segment_start: float = -1.0,
 	segment_end: float = -1.0
@@ -2624,7 +2628,7 @@ func _opening_info_on_side(
 		return {}
 
 	var center_axis: float
-	if offset <= 1.0:
+	if offset_is_fraction:
 		center_axis = allowed_start + allowed_length * offset
 	else:
 		center_axis = side_axis_start + offset

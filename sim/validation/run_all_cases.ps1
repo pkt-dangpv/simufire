@@ -73,7 +73,8 @@ $cases = @(
 	# SF-AUD-039: TC array sondas alturas ISO 9705
 	"tc_array_iso9705",
 	# SF-AUD-032: balance elemental de carbono C/H/O/N (clamp conservación)
-	"c_balance_high_phi"
+	"c_balance_high_phi",
+	"two_storey_smoke"
 )
 
 $results = New-Object System.Collections.Generic.List[object]

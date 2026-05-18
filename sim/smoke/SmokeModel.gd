@@ -347,7 +347,13 @@ func compute_room_transfers(
 	if op.effective_open_fraction() <= 0.0:
 		return transfers
 
-	var lintel_m: float = op.lintel_height_m()
+	# SF-R7: Para aperturas verticales (hueco de suelo/techo), toda la capa caliente
+	# puede pasar — el dintel efectivo es el techo de la sala, no la altura de la puerta.
+	var lintel_m: float
+	if op.is_vertical:
+		lintel_m = maxf(room_a.height_m, room_b.height_m)
+	else:
+		lintel_m = op.lintel_height_m()
 
 	# --------------------------------------------------------
 	# Exceso de humo por encima del dintel

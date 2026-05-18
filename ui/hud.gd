@@ -16,6 +16,10 @@ signal opening_fraction_requested(opening_index: int, open_fraction: float)
 #signal rescue_requested()
 
 const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
+const HUDOpeningActionView = preload("res://ui/HUDOpeningActionView.gd")
+const HUDOpeningSummary = preload("res://ui/HUDOpeningSummary.gd")
+const HUDPlaybackLabels = preload("res://ui/HUDPlaybackLabels.gd")
+const HUDRoomSummary = preload("res://ui/HUDRoomSummary.gd")
 const OPENING_FRACTION_STEPS: Array[float] = [0.0, 0.25, 0.5, 0.75, 1.0]
 
 @export var show_status_panel: bool = false
@@ -50,8 +54,8 @@ const OPENING_FRACTION_STEPS: Array[float] = [0.0, 0.25, 0.5, 0.75, 1.0]
 ## Si es true, el aviso de flashover permanece visible mientras flashover_triggered sea true.
 @export var flashover_indicator_permanent: bool = true
 
-@onready var status_panel: PanelContainer = $StatusPanel
-@onready var status_label: Label = $StatusPanel/MarginContainer/StatusLabel
+@onready var status_panel: PanelContainer = get_node_or_null("StatusPanel") as PanelContainer
+@onready var status_label: Label = get_node_or_null("StatusPanel/MarginContainer/StatusLabel") as Label
 @onready var time_label: Label = $MarginContainer/TimeLabel
 @onready var openings_panel: PanelContainer = $OpeningsPanel
 @onready var openings_title: Label = $OpeningsPanel/MarginContainer/VBoxContainer/OpeningsTitle
@@ -89,7 +93,6 @@ const OPENING_FRACTION_STEPS: Array[float] = [0.0, 0.25, 0.5, 0.75, 1.0]
 var building: BuildingModel = null
 var selected_opening_index: int = 0
 var _selector_sync_in_progress: bool = false
-var _known_opening_count: int = -1
 var _room_cards: Dictionary = {}  # room_id -> {header, data, card}
 var _playback_paused: bool = true
 var _simulation_finished: bool = false
@@ -271,7 +274,6 @@ func scroll_rooms_panel(direction: int) -> void:
 
 func bind_building(next_building: BuildingModel) -> void:
 	building = next_building
-	_known_opening_count = -1
 	_refresh_opening_controls()
 	_rebuild_rooms_panel()
 	if building != null:
@@ -283,11 +285,8 @@ func update_state(state: Dictionary) -> void:
 		return
 
 	var sim_time_s: float = float(state.get("sim_time_s", 0.0))
-	var total_seconds: int = int(sim_time_s)
-	var minutes: int = int(float(total_seconds) / 60.0)
-	var seconds: int = int(total_seconds % 60)
-	time_label.text = "TIME %02d:%02d" % [minutes, seconds]
-	_view_mode_label = _build_view_mode_label(
+	time_label.text = HUDPlaybackLabels.time_text(sim_time_s)
+	_view_mode_label = HUDPlaybackLabels.view_mode_label(
 		bool(state.get("view_3d_enabled", false)),
 		bool(state.get("first_person_enabled", false))
 	)
@@ -312,7 +311,7 @@ func update_state(state: Dictionary) -> void:
 	_update_rooms_panel(state)
 	_refresh_opening_action_panel()
 
-	if status_panel == null or not show_status_panel:
+	if status_panel == null or status_label == null or not show_status_panel:
 		return
 
 	var room_state: Dictionary = state.get(str(status_panel_room_id), {})
@@ -332,42 +331,7 @@ func show_room_detail(room_id: int) -> void:
 
 
 func build_room_status_text(room_state: Dictionary) -> String:
-	if room_state.is_empty():
-		return "Sin datos"
-
-	var room_name: String = String(room_state.get("name", ""))
-	var fed: float = float(room_state.get("fed", 0.0))
-	var svv_pct: float = float(room_state.get("svv_worst_pct", -1.0))
-	if svv_pct < 0.0:
-		var h_m: float = float(room_state.get("height_m", 2.4))
-		var l150: float = float(room_state.get("layer_150c_m", h_m))
-		if l150 >= 1.8:
-			svv_pct = 100.0
-		elif l150 >= 0.5:
-			svv_pct = 90.0 + 9.0 * (l150 - 0.5) / 1.3
-		else:
-			svv_pct = clampf(l150 / 0.5 * 90.0, 0.0, 90.0)
-
-	var header_line: String = ""
-	if room_name != "":
-		header_line = "%s\nFED %.3f  SVV %.0f%%" % [room_name, fed, svv_pct]
-	else:
-		header_line = "FED %.3f  SVV %.0f%%" % [fed, svv_pct]
-
-	var data_lines: Array[String] = [
-		"HRR: %.0f kW" % float(room_state.get("hrr_kw", 0.0)),
-		"T↑ %.0f  T↓ %.0f C" % [float(room_state.get("temp_upper_c", 0.0)), float(room_state.get("temp_lower_c", 0.0))],
-		"T@0.9m: %.0f C  T@1.8m: %.0f C" % [float(room_state.get("temp_at_0_9m_c", room_state.get("temp_lower_c", 0.0))), float(room_state.get("temp_at_1_8m_c", 0.0))],
-		"O2: %.1f%%  CO2: %.2f%%" % [float(room_state.get("o2", 0.0)) * 100.0, float(room_state.get("co2", 0.0)) * 100.0],
-		"SmL: %.2f m  L150: %.2f m" % [float(room_state.get("smoke_layer_m", room_state.get("h_layer_m", 0.0))), float(room_state.get("layer_150c_m", 0.0))],
-		"CO: %.0f ppm  HCN: %.1f ppm" % [float(room_state.get("co_ppm", 0.0)), float(room_state.get("hcn_ppm", 0.0))],
-		"P: %.1f Pa  Smoke: %.3f kg" % [float(room_state.get("overpressure_pa", 0.0)), float(room_state.get("smoke_kg", 0.0))],
-	]
-
-	if bool(room_state.get("flashover_triggered", false)):
-		data_lines.append("!!! FLASHOVER !!!")
-
-	return header_line + "\n" + "\n".join(PackedStringArray(data_lines))
+	return HUDRoomSummary.detail_text(room_state)
 
 
 func _rebuild_rooms_panel() -> void:
@@ -436,56 +400,11 @@ func _update_rooms_panel(state: Dictionary) -> void:
 			_style_room_card(card, "normal", show_status_panel and room_id == status_panel_room_id)
 			continue
 
-		var room_name: String = String(rs.get("name", ""))
-		if room_name != "":
-			header_lbl.text = "R%d %s" % [room_id, room_name]
-		else:
-			header_lbl.text = "R%d" % room_id
-
-		var hrr: float = float(rs.get("hrr_kw", 0.0))
-		var t_upper: float = float(rs.get("temp_upper_c", 20.0))
-		var t_lower: float = float(rs.get("temp_lower_c", 20.0))
-		var t09: float = float(rs.get("temp_at_0_9m_c", t_lower))
-		var o2_pct: float = float(rs.get("o2", 0.209)) * 100.0
-		var smoke_l: float = float(rs.get("smoke_layer_m", rs.get("h_layer_m", float(rs.get("height_m", 2.4)))))
-		var co_ppm: float = float(rs.get("co_ppm", 0.0))
-		var fed: float = float(rs.get("fed", 0.0))
-		var flashover: bool = _is_flashover_indicator_visible(rs, sim_time_s)
-		var fuel_capacity_mj: float = float(rs.get("fuel_capacity_MJ", rs.get("fuel_energy_MJ", 0.0)))
-		var remaining_fuel_mj: float = float(rs.get("fuel_objects_remaining_MJ", rs.get("remaining_fuel_MJ", 0.0)))
-
-		var svv_pct: float = float(rs.get("svv_worst_pct", -1.0))
-		if svv_pct < 0.0:
-			var h_m: float = float(rs.get("height_m", 2.4))
-			var l150: float = float(rs.get("layer_150c_m", h_m))
-			if l150 >= 1.8:
-				svv_pct = 100.0
-			elif l150 >= 0.5:
-				svv_pct = 90.0 + 9.0 * (l150 - 0.5) / 1.3
-			else:
-				svv_pct = clampf(l150 / 0.5 * 90.0, 0.0, 90.0)
-
-		var lines: PackedStringArray = PackedStringArray()
-		var fire_line: String = "HRR %.0fkW" % hrr if hrr > 0.5 else "Sin fuego"
-		lines.append("%s | T+ %.0f T- %.0fC" % [fire_line, t_upper, t_lower])
-		lines.append("O2 %.1f%% | Sm %.2fm | FED %.2f" % [o2_pct, smoke_l, fed])
-		if hrr > 0.5:
-			lines.append("T@0.9 %.0fC | Comb %.0f/%.0fMJ" % [t09, remaining_fuel_mj, fuel_capacity_mj])
-		elif co_ppm > 1.0:
-			lines.append("CO %.0fppm | SVV %.0f%%" % [co_ppm, svv_pct])
-		else:
-			lines.append("SVV %.0f%% | Comb %.0fMJ" % [svv_pct, remaining_fuel_mj])
-		if flashover:
-			lines.append("FLASHOVER")
-		data_lbl.text = "\n".join(lines)
+		var summary: Dictionary = HUDRoomSummary.card_summary(int(room_id), rs, sim_time_s, flashover_indicator_permanent)
+		header_lbl.text = String(summary.get("header", "R%d" % int(room_id)))
+		data_lbl.text = String(summary.get("text", "Sin datos"))
 		data_lbl.add_theme_color_override("font_color", card_data_color)
-
-		var severity: String = "normal"
-		if flashover or hrr > 500.0:
-			severity = "flash"
-		elif o2_pct < 18.0 or fed > 0.3:
-			severity = "alert"
-		_style_room_card(card, severity, show_status_panel and room_id == status_panel_room_id)
+		_style_room_card(card, String(summary.get("severity", "normal")), show_status_panel and room_id == status_panel_room_id)
 
 
 func _style_room_card(card: PanelContainer, severity: String, selected: bool) -> void:
@@ -508,14 +427,7 @@ func _style_room_card(card: PanelContainer, severity: String, selected: bool) ->
 
 
 func _is_flashover_indicator_visible(room_state: Dictionary, sim_time_s: float) -> bool:
-	if not bool(room_state.get("flashover_triggered", false)):
-		return false
-	if flashover_indicator_permanent:
-		return true
-	var flash_time_s: float = float(room_state.get("flashover_time_s", -1.0))
-	if flash_time_s < 0.0:
-		return true
-	return sim_time_s <= flash_time_s + 22.0
+	return HUDRoomSummary.is_flashover_visible(room_state, sim_time_s, flashover_indicator_permanent)
 
 
 func _update_view_toggle(is_3d_enabled: bool) -> void:
@@ -589,46 +501,16 @@ func _ensure_openings_compact_list() -> void:
 func _ensure_opening_action_panel() -> void:
 	if _opening_action_panel != null:
 		return
-	_opening_action_panel = PanelContainer.new()
-	_opening_action_panel.name = "OpeningActionPanel"
-	_opening_action_panel.visible = false
-	_opening_action_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_opening_action_panel.custom_minimum_size = Vector2(310.0, 92.0)
-	_opening_action_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	add_child(_opening_action_panel)
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_top", 8)
-	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_bottom", 8)
-	_opening_action_panel.add_child(margin)
-
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 7)
-	margin.add_child(box)
-
-	_opening_action_title = Label.new()
-	_opening_action_title.text = "Apertura"
-	_opening_action_title.clip_text = true
-	_opening_action_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	box.add_child(_opening_action_title)
-
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 5)
-	box.add_child(row)
-	for step in OPENING_FRACTION_STEPS:
-		var button := Button.new()
-		button.custom_minimum_size = Vector2(52.0, 30.0)
-		button.toggle_mode = true
-		button.text = "%d%%" % int(round(step * 100.0))
-		button.focus_mode = Control.FOCUS_NONE
-		button.pressed.connect(_on_opening_fraction_button_pressed.bind(step))
-		row.add_child(button)
-		_opening_action_buttons.append(button)
+	var view: Dictionary = HUDOpeningActionView.create(self, OPENING_FRACTION_STEPS, _on_opening_fraction_button_pressed)
+	_opening_action_panel = view.get("panel") as PanelContainer
+	_opening_action_title = view.get("title") as Label
+	_opening_action_buttons.clear()
+	for raw_button in Array(view.get("buttons", [])):
+		if raw_button is Button:
+			_opening_action_buttons.append(raw_button)
 
 
-func _set_openings_panel_compact(compact: bool) -> void:
+func _set_openings_panel_compact() -> void:
 	_ensure_openings_compact_list()
 	if opening_selector != null:
 		opening_selector.visible = false
@@ -665,7 +547,7 @@ func _update_openings_compact_list() -> void:
 func _rebuild_openings_compact_grid(items: Array, columns: int) -> void:
 	if _opening_compact_grid == null:
 		return
-	var signature: String = "%d|%s" % [columns, _build_openings_compact_signature(items)]
+	var signature: String = "%d|%s" % [columns, HUDOpeningSummary.compact_signature(items)]
 	if signature == _openings_compact_signature:
 		return
 	_openings_compact_signature = signature
@@ -675,51 +557,14 @@ func _rebuild_openings_compact_grid(items: Array, columns: int) -> void:
 	for text_value in items:
 		var label := Label.new()
 		var summary: Dictionary = Dictionary(text_value) if text_value is Dictionary else {}
-		label.text = _format_compact_opening_summary(summary) if not summary.is_empty() else String(text_value)
+		label.text = HUDOpeningSummary.compact_label(summary) if not summary.is_empty() else String(text_value)
 		label.clip_text = true
 		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		label.custom_minimum_size = Vector2(88.0 if columns >= 3 else 132.0, 0.0)
 		label.add_theme_font_override("font", SimuFireThemeScript.body_font())
 		label.add_theme_font_size_override("font_size", 11)
-		label.add_theme_color_override("font_color", _opening_summary_color(summary))
+		label.add_theme_color_override("font_color", HUDOpeningSummary.compact_color(summary))
 		_opening_compact_grid.add_child(label)
-
-
-func _format_compact_opening_summary(summary: Dictionary) -> String:
-	if summary.is_empty():
-		return "Apertura"
-	var label: String = String(summary.get("label", "Apertura"))
-	var open_pct: int = int(round(float(summary.get("open_fraction", 0.0)) * 100.0))
-	var state_short: String = "AB" if open_pct >= 95 else ("CE" if open_pct <= 5 else "%d%%" % open_pct)
-	var prefix: String = label.substr(0, min(label.length(), 3))
-	var exterior: String = " E" if bool(summary.get("is_exterior", false)) else ""
-	return "%s %s%s" % [prefix, state_short, exterior]
-
-
-func _build_openings_compact_signature(items: Array) -> String:
-	var parts: PackedStringArray = PackedStringArray()
-	for item in items:
-		if item is Dictionary:
-			var summary := Dictionary(item)
-			parts.append("%s:%.2f:%s" % [
-				String(summary.get("label", "")),
-				float(summary.get("open_fraction", 0.0)),
-				str(bool(summary.get("is_exterior", false)))
-			])
-		else:
-			parts.append(String(item))
-	return "|".join(parts)
-
-
-func _opening_summary_color(summary: Dictionary) -> Color:
-	if summary.is_empty():
-		return SimuFireThemeScript.MUTED
-	var open_fraction: float = clampf(float(summary.get("open_fraction", 0.0)), 0.0, 1.0)
-	if open_fraction <= 0.05:
-		return Color(0.58, 0.64, 0.68, 0.92)
-	if open_fraction >= 0.95:
-		return SimuFireThemeScript.GREEN
-	return SimuFireThemeScript.YELLOW.lerp(SimuFireThemeScript.ORANGE, open_fraction)
 
 
 func _refresh_opening_controls() -> void:
@@ -730,7 +575,7 @@ func _refresh_opening_controls() -> void:
 	if not show_openings_panel:
 		return
 
-	_set_openings_panel_compact(true)
+	_set_openings_panel_compact()
 	_update_openings_compact_list()
 
 
@@ -801,35 +646,20 @@ func _refresh_opening_action_panel() -> void:
 		hide_opening_action()
 		return
 	var open_fraction: float = clampf(op.open_fraction, 0.0, 1.0)
-	if _opening_action_title != null:
-		_opening_action_title.text = "%s | %s" % [
+	HUDOpeningActionView.update(
+		_opening_action_title,
+		_opening_action_buttons,
+		OPENING_FRACTION_STEPS,
+		"%s | %s" % [
 			building.get_opening_label(_opening_action_index),
 			building.get_opening_status_text(_opening_action_index)
-		]
-	for i in range(_opening_action_buttons.size()):
-		var button: Button = _opening_action_buttons[i]
-		if button == null:
-			continue
-		var step: float = OPENING_FRACTION_STEPS[i]
-		button.set_pressed_no_signal(absf(open_fraction - step) < 0.01)
+		],
+		open_fraction
+	)
 
 
 func _position_opening_action_panel(screen_pos: Vector2) -> void:
-	if _opening_action_panel == null:
-		return
-	var viewport_size: Vector2 = get_viewport_rect().size
-	var desired_size: Vector2 = _opening_action_panel.get_combined_minimum_size()
-	if desired_size.x <= 0.0 or desired_size.y <= 0.0:
-		desired_size = Vector2(310.0, 92.0)
-	var pos: Vector2 = screen_pos + Vector2(14.0, 14.0)
-	if pos.x + desired_size.x > viewport_size.x - 8.0:
-		pos.x = screen_pos.x - desired_size.x - 14.0
-	if pos.y + desired_size.y > viewport_size.y - 118.0:
-		pos.y = screen_pos.y - desired_size.y - 14.0
-	pos.x = clampf(pos.x, 8.0, maxf(8.0, viewport_size.x - desired_size.x - 8.0))
-	pos.y = clampf(pos.y, 8.0, maxf(8.0, viewport_size.y - desired_size.y - 118.0))
-	_opening_action_panel.position = pos
-	_opening_action_panel.size = desired_size
+	HUDOpeningActionView.position_panel(_opening_action_panel, screen_pos, get_viewport_rect().size)
 
 
 func _update_time_controls(
@@ -845,17 +675,10 @@ func _update_time_controls(
 	_graphs_launched = graphs_launched
 
 	if time_scale_label != null:
-		time_scale_label.text = _format_time_scale_label(time_scale)
+		time_scale_label.text = HUDPlaybackLabels.time_scale_text(time_scale)
 
 	if playback_status_label != null:
-		var playback_label: String = "PLAY"
-		if simulation_finished:
-			playback_label = "DETENIDA"
-		elif playback_paused:
-			playback_label = "PAUSA"
-		else:
-			playback_label = "PLAY"
-		playback_status_label.text = "%s %s" % [_view_mode_label, playback_label]
+		playback_status_label.text = HUDPlaybackLabels.playback_status_text(_view_mode_label, playback_paused, simulation_finished)
 
 	if btn_play != null:
 		btn_play.disabled = simulation_finished
@@ -875,18 +698,18 @@ func _update_time_controls(
 func _sync_shortcut_labels() -> void:
 	if btn_time_back != null:
 		btn_time_back.text = "-T"
-		btn_time_back.tooltip_text = "%s: retroceder escala de tiempo" % _format_key_label(key_time_back)
+		btn_time_back.tooltip_text = "%s: retroceder escala de tiempo" % HUDPlaybackLabels.key_label(key_time_back)
 	if btn_time_forward != null:
 		btn_time_forward.text = "+T"
-		btn_time_forward.tooltip_text = "%s: avanzar escala de tiempo" % _format_key_label(key_time_forward)
+		btn_time_forward.tooltip_text = "%s: avanzar escala de tiempo" % HUDPlaybackLabels.key_label(key_time_forward)
 	if btn_play != null:
 		btn_play.text = "PLAY" if _playback_paused else "PAUSA"
-		btn_play.tooltip_text = "%s: play/pausa" % _format_key_label(key_play_pause)
+		btn_play.tooltip_text = "%s: play/pausa" % HUDPlaybackLabels.key_label(key_play_pause)
 	if btn_pause != null:
 		btn_pause.visible = false
 	if btn_stop_graphs != null and not _graphs_launched:
 		btn_stop_graphs.text = "FIN/GRAF"
-		btn_stop_graphs.tooltip_text = "%s: parar simulacion y generar graficas" % _format_key_label(key_stop_and_generate)
+		btn_stop_graphs.tooltip_text = "%s: parar simulacion y generar graficas" % HUDPlaybackLabels.key_label(key_stop_and_generate)
 	if btn_view_3d != null:
 		btn_view_3d.tooltip_text = "Alternar vista 3D"
 	if btn_first_person != null:
@@ -894,67 +717,22 @@ func _sync_shortcut_labels() -> void:
 	if btn_hvac != null:
 		btn_hvac.tooltip_text = "Activar o desactivar HVAC"
 	if shortcut_help_label != null:
-		shortcut_help_label.text = "%s/%s tiempo | %s/%s salas | %s play/pausa | %s graficas" % [
-			_format_key_label(key_time_back),
-			_format_key_label(key_time_forward),
-			_format_key_label(key_rooms_scroll_up),
-			_format_key_label(key_rooms_scroll_down),
-			_format_key_label(key_play_pause),
-			_format_key_label(key_stop_and_generate)
-		]
+		shortcut_help_label.text = HUDPlaybackLabels.shortcut_help_text(
+			key_time_back,
+			key_time_forward,
+			key_rooms_scroll_up,
+			key_rooms_scroll_down,
+			key_play_pause,
+			key_stop_and_generate
+		)
 
 
 func _matches_shortcut(event: InputEventKey, keycode: Key) -> bool:
-	return event.keycode == keycode or event.physical_keycode == keycode
-
-
-func _format_key_label(keycode: Key) -> String:
-	match keycode:
-		KEY_LEFT:
-			return "Izq"
-		KEY_RIGHT:
-			return "Der"
-		KEY_UP:
-			return "Arriba"
-		KEY_DOWN:
-			return "Abajo"
-		KEY_SPACE:
-			return "Espacio"
-		KEY_END:
-			return "Fin"
-		_:
-			return str(int(keycode))
+	return HUDPlaybackLabels.matches_shortcut(event, keycode)
 
 
 func _can_stop_and_generate_graphs() -> bool:
 	return _sim_time_s > 0.0 and not _graphs_launched
-
-
-func _format_time_scale_label(time_scale: float) -> String:
-	var snapped_scale: float = snappedf(maxf(0.0, time_scale), 0.01)
-	if absf(snapped_scale - round(snapped_scale)) < 0.001:
-		return "x%d" % int(round(snapped_scale))
-	if absf(snapped_scale * 10.0 - round(snapped_scale * 10.0)) < 0.001:
-		return "x%.1f" % snapped_scale
-	return "x%.2f" % snapped_scale
-
-
-func _build_view_mode_label(is_3d_enabled: bool, is_first_person_enabled: bool) -> String:
-	if is_first_person_enabled:
-		return "FP"
-	if is_3d_enabled:
-		return "3D"
-	return "2D"
-
-
-func _find_selector_item_by_opening_index(opening_index: int) -> int:
-	if opening_selector == null:
-		return -1
-
-	for item_idx in range(opening_selector.get_item_count()):
-		if opening_selector.get_item_id(item_idx) == opening_index:
-			return item_idx
-	return -1
 
 
 func _on_opening_selected(item_index: int) -> void:

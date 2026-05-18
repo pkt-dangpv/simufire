@@ -1376,10 +1376,12 @@ func create_two_storey_house() -> Dictionary:
 	openings_data.append(_make_opening(1, 0, "door", 1.05, 2.1, 1.0, 0.42))
 	openings_data.append(_make_opening(1, 3, "door", 0.95, 2.1, 1.0, 0.48))
 	openings_data.append(_make_opening(1, 4, "door", 0.75, 2.0, 0.0, 0.55))
-	openings_data.append(_make_opening(1, 2, "door", 1.10, 2.1, 1.0, 0.12))
+	openings_data.append(_make_opening(1, 2, "hole", 1.35, 2.2, 1.0, 0.12))
 	openings_data.append(_make_opening(1, 5, "door", 0.85, 2.0, 1.0, 0.50))
-	openings_data.append(_make_opening(2, 6, "door", 1.20, 2.1, 1.0, 0.90))
-	openings_data.append(_make_opening(6, 7, "door", 1.20, 2.1, 1.0, 0.90))
+	# SF-R7: hueco de escalera — apertura vertical entre Escalera PB (2) y Escalera P1 (6).
+	# Dimensiones del hueco: 1.2 m ancho × 2.4 m largo (planta del hueco de escalera).
+	openings_data.append(_make_vertical_opening(2, 6, 1.2, 2.4, 1.0))
+	openings_data.append(_make_opening(6, 7, "hole", 1.35, 2.2, 1.0, 0.90))
 	openings_data.append(_make_opening(7, 8, "door", 0.90, 2.05, 1.0, 0.55))
 	openings_data.append(_make_opening(7, 9, "door", 0.85, 2.05, 1.0, 0.45))
 	openings_data.append(_make_opening(7, 10, "door", 0.85, 2.05, 1.0, 0.45))
@@ -1907,8 +1909,18 @@ func _make_opening(a: int, b: int, type_name: String, width_m: float, height_m: 
 		"width_m": width_m,
 		"height_m": height_m,
 		"open_fraction": open_fraction,
-		"offset_m": offset_m
+		"offset_m": offset_m,
+		"offset_is_fraction": true
 	}
+
+
+# SF-R7: Apertura vertical (hueco de suelo/techo entre plantas).
+# width_m y height_m describen las dimensiones del hueco en el plano horizontal.
+# El flujo está impulsado por flotabilidad/efecto chimenea, no por Bernoulli lateral.
+func _make_vertical_opening(a: int, b: int, width_m: float, depth_m: float, open_fraction: float = 1.0) -> Dictionary:
+	var opening: Dictionary = _make_opening(a, b, "hole", width_m, depth_m, open_fraction, 0.0)
+	opening["is_vertical"] = true
+	return opening
 
 
 func _make_exterior_opening(

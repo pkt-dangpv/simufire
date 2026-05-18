@@ -10,6 +10,16 @@ script = ExtResource("1_scenario_editor")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=347429840]
 
+[node name="SaveTemplateDialog" type="FileDialog" parent="CanvasLayer" unique_id=1235552641]
+title = "Guardar plantilla"
+access = 2
+filters = PackedStringArray("*.json ; Plantillas SimuFire")
+
+[node name="LoadTemplateDialog" type="FileDialog" parent="CanvasLayer" unique_id=1757135158]
+title = "Cargar plantilla"
+access = 2
+filters = PackedStringArray("*.json ; Plantillas SimuFire")
+
 [node name="UI" type="Control" parent="CanvasLayer" unique_id=630610743]
 layout_mode = 3
 anchors_preset = 15
@@ -25,14 +35,15 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -361.0
-offset_right = 361.0
-offset_bottom = 58.0
+offset_left = -215.0
+offset_top = 1.0
+offset_right = 235.0
+offset_bottom = 97.0
 grow_horizontal = 2
 
-[node name="HBox" type="HBoxContainer" parent="CanvasLayer/UI/TopBar" unique_id=452000251]
+[node name="HBox" type="GridContainer" parent="CanvasLayer/UI/TopBar" unique_id=779570010]
 layout_mode = 2
-theme_override_constants/separation = 6
+columns = 5
 
 [node name="BtnSelect" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=627942734]
 custom_minimum_size = Vector2(82, 34)
@@ -52,11 +63,23 @@ layout_mode = 2
 toggle_mode = true
 text = "Pasillo"
 
+[node name="BtnStairs" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=199594283]
+custom_minimum_size = Vector2(82, 34)
+layout_mode = 2
+toggle_mode = true
+text = "Escalera"
+
 [node name="BtnDoor" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=405410531]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
 text = "Door"
+
+[node name="BtnHole" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=2066551732]
+custom_minimum_size = Vector2(82, 34)
+layout_mode = 2
+toggle_mode = true
+text = "Hueco"
 
 [node name="BtnWindow" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1269220202]
 custom_minimum_size = Vector2(82, 34)
@@ -193,6 +216,31 @@ max_value = 3.0
 step = 0.05
 value = 1.2
 
+[node name="OpeningToolSection" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=111482937]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningToolTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/OpeningToolSection" unique_id=1843974518]
+layout_mode = 2
+text = "APERTURA"
+
+[node name="OpeningToolWidthRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox/OpeningToolSection" unique_id=1167022486]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningToolWidthLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/OpeningToolSection/OpeningToolWidthRow" unique_id=1493617539]
+custom_minimum_size = Vector2(112, 0)
+layout_mode = 2
+text = "Ancho hueco"
+
+[node name="OpeningToolWidthSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/VBox/OpeningToolSection/OpeningToolWidthRow" unique_id=840411980]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.3
+max_value = 6.0
+step = 0.05
+value = 1.2
+
 [node name="SeparatorB" type="HSeparator" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1852410168]
 layout_mode = 2
 
@@ -207,7 +255,7 @@ step = 30.0
 
 [node name="ScenarioLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1893888048]
 layout_mode = 2
-text = "Escenarios predefinidos"
+text = "Plantillas"
 
 [node name="HVACRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=982996122]
 layout_mode = 2
@@ -227,7 +275,7 @@ layout_mode = 2
 
 [node name="BtnLoadScenario" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=445792796]
 layout_mode = 2
-text = "Cargar escenario"
+text = "Editar plantilla"
 
 [node name="StatusLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1852960015]
 custom_minimum_size = Vector2(320, 120)

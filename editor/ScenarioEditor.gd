@@ -5,7 +5,9 @@ enum Tool {
 	SELECT,
 	ROOM,
 	CORRIDOR_L,
+	STAIRS,
 	DOOR,
+	HOLE,
 	WINDOW,
 	OBJECT,
 	IGNITION,
@@ -24,6 +26,7 @@ const DEFAULT_FLOOR_HEIGHT_M: float = 2.90
 const EditorGridScript = preload("res://editor/EditorGrid.gd")
 const ObjectLibraryScript = preload("res://editor/ObjectLibrary.gd")
 const Serializer = preload("res://editor/ScenarioSerializer.gd")
+const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
 const EDITOR_LOGO_PATH: String = "res://assets/ui/simufire_logo_editor.png"
 const EDITOR_FONT_PATH: String = "res://assets/fonts/bahnschrift.ttf"
 
@@ -67,6 +70,7 @@ var drag_start_m: Vector2 = Vector2.ZERO
 var drag_current_m: Vector2 = Vector2.ZERO
 var pending_door_room_id: int = -1
 var corridor_width_m: float = 1.20
+var opening_tool_width_m: float = 1.20
 var current_floor_index: int = 0
 
 var is_dragging_object: bool = false
@@ -90,6 +94,13 @@ var _floor_status_label: Label
 var _scenario_paths: Array[String] = []
 var _stop_time_spin: SpinBox
 var _corridor_width_spin: SpinBox
+var _opening_tool_section: Control
+var _opening_tool_width_spin: SpinBox
+var _save_dialog: FileDialog
+var _load_dialog: FileDialog
+var _room_apply_button: Button
+var _room_delete_button: Button
+var _template_builder = BuildingTemplateScript.new()
 # Propiedades de objeto seleccionado
 var _obj_name_edit: LineEdit
 var _obj_width_spin: SpinBox
@@ -133,6 +144,7 @@ const _CTX_ADD_WIN   := 4
 const _CTX_IGNITE    := 5
 const _CTX_DUPLICATE := 6
 const _CTX_DESELECT  := 7
+const _CTX_ADD_HOLE  := 8
 var _context_menu: PopupMenu = null
 var _ctx_pos_m: Vector2 = Vector2.ZERO
 var _ctx_room_id: int = -1
@@ -144,6 +156,7 @@ func _ready() -> void:
 	_setup_grid()
 	if not _bind_existing_ui():
 		_setup_ui()
+	_ensure_file_dialogs()
 	_apply_editor_visual_style()
 	_ensure_floor_data()
 	_sync_floor_controls()
@@ -429,7 +442,9 @@ func _setup_ui() -> void:
 	_add_tool_button(toolbar, "Sel", Tool.SELECT)
 	_add_tool_button(toolbar, "Room", Tool.ROOM)
 	_add_tool_button(toolbar, "Pasillo", Tool.CORRIDOR_L)
+	_add_tool_button(toolbar, "Escalera", Tool.STAIRS)
 	_add_tool_button(toolbar, "Door", Tool.DOOR)
+	_add_tool_button(toolbar, "Hueco", Tool.HOLE)
 	_add_tool_button(toolbar, "Window", Tool.WINDOW)
 	_add_tool_button(toolbar, "Object", Tool.OBJECT)
 	_add_tool_button(toolbar, "Ignite", Tool.IGNITION)
@@ -439,20 +454,40 @@ func _setup_ui() -> void:
 	main.add_child(HSeparator.new())
 
 	var object_row := HBoxContainer.new()
+	object_row.name = "ObjectToolSection"
 	main.add_child(object_row)
 	var object_label := Label.new()
+	object_label.name = "ObjectToolLabel"
 	object_label.text = "Object"
 	object_label.custom_minimum_size.x = 72.0
 	object_row.add_child(object_label)
 	_object_kind_option = OptionButton.new()
+	_object_kind_option.name = "ObjectTypeOption"
 	_object_kind_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	for kind in ObjectLibraryScript.get_object_kinds():
 		_object_kind_option.add_item(kind)
 	object_row.add_child(_object_kind_option)
 
 	_corridor_width_spin = _add_spin(main, "Pasillo (m)", 0.6, 3.0, 0.05)
+	_corridor_width_spin.name = "CorridorWidthSpin"
 	_corridor_width_spin.value = corridor_width_m
 	_corridor_width_spin.value_changed.connect(_on_corridor_width_changed)
+	var corridor_row := _corridor_width_spin.get_parent() as Control
+	if corridor_row != null:
+		corridor_row.name = "CorridorWidthRow"
+
+	_opening_tool_section = VBoxContainer.new()
+	_opening_tool_section.name = "OpeningToolSection"
+	_opening_tool_section.add_theme_constant_override("separation", 4)
+	main.add_child(_opening_tool_section)
+	var opening_tool_title := Label.new()
+	opening_tool_title.name = "OpeningToolTitle"
+	opening_tool_title.text = "Apertura"
+	_opening_tool_section.add_child(opening_tool_title)
+	_opening_tool_width_spin = _add_spin(_opening_tool_section, "Ancho (m)", 0.30, 6.0, 0.05)
+	_opening_tool_width_spin.name = "OpeningToolWidthSpin"
+	_opening_tool_width_spin.value = opening_tool_width_m
+	_opening_tool_width_spin.value_changed.connect(_on_opening_tool_width_changed)
 
 	main.add_child(HSeparator.new())
 
@@ -879,6 +914,9 @@ func _opening_on_current_floor(opening: Dictionary) -> bool:
 	if a_id < 0:
 		return false
 	var a_on_floor: bool = absf(_room_id_floor_level(a_id) - _current_floor_level_m()) < 0.05
+	if bool(opening.get("is_vertical", false)):
+		var b_on_floor: bool = b_id != OUTSIDE_ID and absf(_room_id_floor_level(b_id) - _current_floor_level_m()) < 0.05
+		return a_on_floor or b_on_floor
 	if b_id == OUTSIDE_ID:
 		return a_on_floor
 	return a_on_floor and absf(_room_id_floor_level(b_id) - _current_floor_level_m()) < 0.05
@@ -892,6 +930,7 @@ func _set_tool(tool_id: int) -> void:
 		button.button_pressed = int(key) == current_tool
 	_clear_drag()
 	_set_status(_tool_hint(current_tool))
+	_sync_tool_option_visibility()
 	# Resaltar el control de ancho de pasillo solo cuando la herramienta pasillo esta activa
 	var corridor_section := get_node_or_null("CanvasLayer/UI/LeftPanel/VBox/CorridorSectionLabel") as Label
 	if corridor_section != null:
@@ -909,8 +948,12 @@ func _tool_hint(tool_id: int) -> String:
 			return "Estancia: arrastra para crear una estancia en %s." % _current_floor_name()
 		Tool.CORRIDOR_L:
 			return "Pasillo: arrastra para crear un pasillo. Diagonal = giro en L. Ajusta ANCHO arriba a la izquierda. (%.2f m actualmente)" % corridor_width_m
+		Tool.STAIRS:
+			return "Escalera: arrastra el hueco de escalera en %s. Si falta la planta superior se crea automaticamente." % _current_floor_name()
 		Tool.DOOR:
 			return "Puerta: pulsa una pared compartida o exterior en %s para crear puerta." % _current_floor_name()
+		Tool.HOLE:
+			return "Hueco: pulsa una pared compartida en %s. Se crea un paso sin puerta con ancho maximo limitado por el paramento." % _current_floor_name()
 		Tool.WINDOW:
 			return "Ventana: pulsa cerca de una pared exterior en %s." % _current_floor_name()
 		Tool.OBJECT:
@@ -988,7 +1031,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _handle_press(pos_m: Vector2) -> void:
 	match current_tool:
-		Tool.ROOM, Tool.CORRIDOR_L:
+		Tool.ROOM, Tool.CORRIDOR_L, Tool.STAIRS:
 			is_dragging_room = true
 			drag_start_m = pos_m
 			drag_current_m = pos_m
@@ -1006,6 +1049,8 @@ func _handle_press(pos_m: Vector2) -> void:
 			_select_at(pos_m)
 		Tool.DOOR:
 			_create_door_at(pos_m)
+		Tool.HOLE:
+			_create_hole_at(pos_m)
 		Tool.WINDOW:
 			_create_window_at(pos_m)
 		Tool.OBJECT:
@@ -1024,7 +1069,7 @@ func _handle_release(pos_m: Vector2) -> void:
 		queue_redraw()
 		return
 
-	if (current_tool != Tool.ROOM and current_tool != Tool.CORRIDOR_L) or not is_dragging_room:
+	if (current_tool != Tool.ROOM and current_tool != Tool.CORRIDOR_L and current_tool != Tool.STAIRS) or not is_dragging_room:
 		return
 
 	drag_current_m = pos_m
@@ -1035,6 +1080,15 @@ func _handle_release(pos_m: Vector2) -> void:
 
 	if current_tool == Tool.CORRIDOR_L:
 		_create_corridor_from_drag(start_m, end_m)
+		queue_redraw()
+		return
+
+	if current_tool == Tool.STAIRS:
+		if rect.size.x < GRID_M * 3.0 or rect.size.y < GRID_M * 5.0:
+			_set_status("La escalera es demasiado pequena.")
+			queue_redraw()
+			return
+		_create_stairs_from_rect(rect)
 		queue_redraw()
 		return
 
@@ -1109,6 +1163,7 @@ func _show_context_menu(screen_pos: Vector2, pos_m: Vector2) -> void:
 		menu.add_item("Editar: %s" % rname, _CTX_EDIT)
 		menu.add_separator()
 		menu.add_item("Anadir puerta aqui", _CTX_ADD_DOOR)
+		menu.add_item("Anadir hueco aqui", _CTX_ADD_HOLE)
 		menu.add_item("Anadir ventana aqui", _CTX_ADD_WIN)
 		menu.add_item("Marcar ignicion aqui", _CTX_IGNITE)
 		menu.add_separator()
@@ -1143,6 +1198,9 @@ func _on_context_id_pressed(id: int) -> void:
 		_CTX_ADD_DOOR:
 			_set_tool(Tool.DOOR)
 			_create_door_at(_ctx_pos_m)
+		_CTX_ADD_HOLE:
+			_set_tool(Tool.HOLE)
+			_create_hole_at(_ctx_pos_m)
 		_CTX_ADD_WIN:
 			_set_tool(Tool.WINDOW)
 			_create_window_at(_ctx_pos_m)
@@ -1234,6 +1292,10 @@ func _set_object_position(room_id: int, obj_index: int, local_pos: Vector2) -> v
 
 
 func _create_room(rect: Rect2, room_name: String = "", kind_name: String = "generic") -> int:
+	return _create_room_at_level(rect, room_name, kind_name, _current_floor_level_m())
+
+
+func _create_room_at_level(rect: Rect2, room_name: String = "", kind_name: String = "generic", floor_level_m: float = 0.0, height_m: float = 2.7) -> int:
 	var id: int = _next_room_id()
 	var rooms: Array = editor_data.get("rooms_data", [])
 	var rects: Dictionary = editor_data.get("room_rect_m", {})
@@ -1241,8 +1303,8 @@ func _create_room(rect: Rect2, room_name: String = "", kind_name: String = "gene
 		"id": id,
 		"name": room_name if room_name != "" else "Room %d" % id,
 		"kind": kind_name,
-		"height_m": 2.7,
-		"floor_level_z_m": _current_floor_level_m(),
+		"height_m": height_m,
+		"floor_level_z_m": floor_level_m,
 		"fuel_energy_MJ": 0.0,
 		"max_hrr_kw": 0.0,
 		"fuel_objects": []
@@ -1253,6 +1315,65 @@ func _create_room(rect: Rect2, room_name: String = "", kind_name: String = "gene
 	editor_data["room_rect_m"] = rects
 	_update_floor_status()
 	return id
+
+
+func _create_stairs_from_rect(rect: Rect2) -> void:
+	var lower_level_m: float = _current_floor_level_m()
+	var upper_floor_index: int = _next_floor_index_above(lower_level_m)
+	if upper_floor_index < 0:
+		upper_floor_index = _add_floor_at_level(lower_level_m + DEFAULT_FLOOR_HEIGHT_M)
+	var floors: Array = _get_floors()
+	var upper_level_m: float = float(Dictionary(floors[upper_floor_index]).get("level_m", lower_level_m + DEFAULT_FLOOR_HEIGHT_M))
+	var lower_name: String = "Escalera %s" % _current_floor_name()
+	var upper_name: String = "Escalera %s" % String(Dictionary(floors[upper_floor_index]).get("name", _default_floor_name(upper_floor_index)))
+	var lower_id: int = _create_room_at_level(rect, lower_name, "escalera", lower_level_m, minf(upper_level_m - lower_level_m, 3.2))
+	var upper_id: int = _create_room_at_level(rect, upper_name, "escalera", upper_level_m, 2.55)
+	_add_vertical_stair_opening(lower_id, upper_id, rect)
+	_select_room(lower_id)
+	_sync_floor_controls()
+	_set_status("Escalera creada entre %s y %s. Usa Hueco para abrir el paso al distribuidor." % [_current_floor_name(), upper_name.replace("Escalera ", "")])
+
+
+func _next_floor_index_above(level_m: float) -> int:
+	var floors: Array = _get_floors()
+	var best_index: int = -1
+	var best_level: float = INF
+	for i in range(floors.size()):
+		if typeof(floors[i]) != TYPE_DICTIONARY:
+			continue
+		var floor_level_m: float = float(Dictionary(floors[i]).get("level_m", 0.0))
+		if floor_level_m > level_m + 0.20 and floor_level_m < best_level:
+			best_level = floor_level_m
+			best_index = i
+	return best_index
+
+
+func _add_floor_at_level(level_m: float) -> int:
+	var floors: Array = _get_floors()
+	floors.append({"name": _default_floor_name(floors.size()), "level_m": level_m})
+	floors.sort_custom(func(a, b): return float(Dictionary(a).get("level_m", 0.0)) < float(Dictionary(b).get("level_m", 0.0)))
+	editor_data["floors"] = floors
+	for i in range(floors.size()):
+		if absf(float(Dictionary(floors[i]).get("level_m", 0.0)) - level_m) < 0.05:
+			return i
+	return floors.size() - 1
+
+
+func _add_vertical_stair_opening(lower_id: int, upper_id: int, rect: Rect2) -> void:
+	var openings: Array = editor_data.get("openings_data", [])
+	var ramp_width_m: float = minf(maxf(0.82, rect.size.x * 0.50), maxf(0.82, rect.size.x - 0.96))
+	var ramp_depth_m: float = maxf(0.80, rect.size.y - clampf(rect.size.y * 0.22, 0.72, 1.05) - 0.22)
+	openings.append({
+		"a": lower_id,
+		"b": upper_id,
+		"type": "hole",
+		"width_m": ramp_width_m,
+		"height_m": ramp_depth_m,
+		"open_fraction": 1.0,
+		"offset_is_fraction": false,
+		"is_vertical": true
+	})
+	editor_data["openings_data"] = openings
 
 
 func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
@@ -1279,13 +1400,14 @@ func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
 	var second_id: int = _create_room(Rect2(rects[1]), "%s tramo B" % base_name, "corridor")
 	var shared: Dictionary = _shared_wall_between(first_id, second_id)
 	if not shared.is_empty():
+		var max_width_m: float = _max_opening_width_for_shared(first_id, second_id, String(shared["wall"]))
 		_add_opening(
 			first_id,
 			second_id,
-			"door",
+			"hole",
 			String(shared["wall"]),
 			float(shared["offset_m"]),
-			minf(corridor_width_m, 1.20),
+			minf(corridor_width_m, max_width_m),
 			2.05,
 			0.0,
 			1.0
@@ -1481,6 +1603,7 @@ func _refresh_property_panel() -> void:
 	# Panel apertura
 	var openings_arr: Array = editor_data.get("openings_data", [])
 	var has_opening_sel: bool = selected_opening_index >= 0 and selected_opening_index < openings_arr.size()
+	_set_property_panel_visibility(has_room, has_obj, has_opening_sel)
 	if _opening_props_container != null:
 		_opening_props_container.visible = has_opening_sel
 	if has_opening_sel and _opening_width_spin != null:
@@ -1488,7 +1611,15 @@ func _refresh_property_panel() -> void:
 		var op_type: String = String(opening.get("type", "door"))
 		if _opening_type_label != null:
 			var exterior_suffix: String = " exterior" if int(opening.get("b", OUTSIDE_ID)) == OUTSIDE_ID else ""
-			_opening_type_label.text = ("Puerta" if op_type == "door" else "Ventana") + exterior_suffix
+			var type_label: String = "Puerta"
+			if op_type == "window":
+				type_label = "Ventana"
+			elif op_type == "hole":
+				type_label = "Hueco"
+			if bool(opening.get("is_vertical", false)):
+				type_label = "Hueco vertical"
+			_opening_type_label.text = type_label + exterior_suffix
+		_opening_width_spin.max_value = _max_width_for_opening(opening)
 		_opening_width_spin.value = float(opening.get("width_m", 0.9))
 		_opening_height_spin.value = float(opening.get("height_m", 2.0))
 		if _opening_sill_spin != null:
@@ -1496,7 +1627,66 @@ func _refresh_property_panel() -> void:
 			_opening_sill_spin.value = float(opening.get("sill_m", 0.0))
 		if _opening_open_option != null:
 			var frac: float = float(opening.get("open_fraction", 1.0))
+			_opening_open_option.disabled = op_type == "hole"
 			_opening_open_option.select(0 if frac <= 0.01 else 1)
+
+
+func _set_property_panel_visibility(has_room: bool, has_obj: bool, has_opening: bool) -> void:
+	if _ui_root == null:
+		return
+	var right_panel := _ui_root.get_node_or_null("RightPanel") as Control
+	if right_panel != null:
+		right_panel.visible = has_room or has_obj or has_opening
+	var room_paths: Array[String] = [
+		"RightPanel/VBox/RoomTitle",
+		"RightPanel/VBox/RoomNameEdit",
+		"RightPanel/VBox/RoomKindEdit",
+		"RightPanel/VBox/RoomHeightLabel",
+		"RightPanel/VBox/RoomHeightSpin",
+		"RightPanel/VBox/FuelEnergyLabel",
+		"RightPanel/VBox/FuelEnergySpin",
+		"RightPanel/VBox/MaxHrrLabel",
+		"RightPanel/VBox/MaxHrrSpin",
+		"RightPanel/VBox/BtnApplyRoom",
+		"RightPanel/VBox/BtnDeleteRoom",
+		"RightPanel/VBox/SeparatorB"
+	]
+	for path in room_paths:
+		_set_node_visible(path, has_room)
+	_set_control_row_visible(_name_edit, has_room)
+	_set_control_row_visible(_kind_edit, has_room)
+	_set_control_row_visible(_height_spin, has_room)
+	_set_control_row_visible(_fuel_spin, has_room)
+	_set_control_row_visible(_hrr_spin, has_room)
+	if _room_apply_button != null:
+		_room_apply_button.visible = has_room
+	if _room_delete_button != null:
+		_room_delete_button.visible = has_room
+	_set_node_visible("RightPanel/VBox/ObjectTitle", has_obj)
+	_set_node_visible("RightPanel/VBox/SeparatorC", has_obj or has_opening)
+	_set_node_visible("RightPanel/VBox/OpeningTitle", has_opening)
+	if _obj_props_container != null:
+		_obj_props_container.visible = has_obj
+	if _opening_props_container != null:
+		_opening_props_container.visible = has_opening
+
+
+func _set_node_visible(path: String, visible: bool) -> void:
+	if _ui_root == null:
+		return
+	var node := _ui_root.get_node_or_null(path) as Control
+	if node != null:
+		node.visible = visible
+
+
+func _set_control_row_visible(control: Control, visible: bool) -> void:
+	if control == null:
+		return
+	var parent := control.get_parent() as Control
+	if parent != null and parent is HBoxContainer:
+		parent.visible = visible
+	else:
+		control.visible = visible
 
 
 func _apply_room_properties() -> void:
@@ -1534,6 +1724,12 @@ func _is_corridor_room(room: Dictionary) -> bool:
 	var kind_name: String = String(room.get("kind", "")).strip_edges().to_lower()
 	var name_text: String = String(room.get("name", "")).strip_edges().to_lower()
 	return kind_name in ["corridor", "pasillo", "hallway", "distribuidor"] or name_text.begins_with("pasillo")
+
+
+func _is_stair_room(room: Dictionary) -> bool:
+	var kind_name: String = String(room.get("kind", "")).strip_edges().to_lower()
+	var name_text: String = String(room.get("name", "")).strip_edges().to_lower()
+	return kind_name in ["escalera", "stair", "stairs", "stairwell"] or name_text.contains("escalera") or name_text.contains("stair")
 
 
 func _get_room_rect(room_id: int) -> Rect2:
@@ -1590,6 +1786,11 @@ func _find_opening_at(pos_m: Vector2) -> int:
 		if typeof(openings[i]) != TYPE_DICTIONARY:
 			continue
 		if not _opening_on_current_floor(openings[i]):
+			continue
+		if bool(Dictionary(openings[i]).get("is_vertical", false)):
+			var vertical_rect: Rect2 = _vertical_opening_rect(Dictionary(openings[i]))
+			if vertical_rect.has_point(pos_m):
+				return i
 			continue
 		var segment: PackedVector2Array = _opening_segment_m(openings[i])
 		if segment.size() != 2:
@@ -1667,7 +1868,8 @@ func _mark_ignition_at(pos_m: Vector2) -> void:
 func _create_door_at(pos_m: Vector2) -> void:
 	var shared: Dictionary = _find_shared_wall_at(pos_m)
 	if not shared.is_empty():
-		_add_opening(int(shared["a"]), int(shared["b"]), "door", String(shared["wall"]), float(shared["offset_m"]), 0.9, 2.05, 0.0, 1.0)
+		var door_width_m: float = minf(0.9, _max_opening_width_for_shared(int(shared["a"]), int(shared["b"]), String(shared["wall"])))
+		_add_opening(int(shared["a"]), int(shared["b"]), "door", String(shared["wall"]), float(shared["offset_m"]), door_width_m, 2.05, 0.0, 1.0)
 		_set_status("Puerta creada entre habitaciones %d y %d." % [int(shared["a"]), int(shared["b"])])
 		queue_redraw()
 		return
@@ -1731,6 +1933,28 @@ func _create_door_at(pos_m: Vector2) -> void:
 	queue_redraw()
 
 
+func _create_hole_at(pos_m: Vector2) -> void:
+	var shared: Dictionary = _find_shared_wall_at(pos_m)
+	if shared.is_empty():
+		_set_status("El hueco debe colocarse en un paramento compartido entre dos habitaciones.")
+		return
+	var max_width_m: float = _max_opening_width_for_shared(int(shared["a"]), int(shared["b"]), String(shared["wall"]))
+	var width_m: float = clampf(opening_tool_width_m, 0.30, max_width_m)
+	_add_opening(
+		int(shared["a"]),
+		int(shared["b"]),
+		"hole",
+		String(shared["wall"]),
+		float(shared["offset_m"]),
+		width_m,
+		2.20,
+		0.0,
+		1.0
+	)
+	_set_status("Hueco de %.2f m creado entre habitaciones %d y %d." % [width_m, int(shared["a"]), int(shared["b"])])
+	queue_redraw()
+
+
 func _create_window_at(pos_m: Vector2) -> void:
 	var wall: Dictionary = _find_wall_at(pos_m)
 	if wall.is_empty():
@@ -1749,12 +1973,16 @@ func _create_window_at(pos_m: Vector2) -> void:
 
 func _add_opening(a: int, b: int, type_str: String, wall: String, offset_m: float, width_m: float, height_m: float, sill_m: float, open_fraction: float) -> void:
 	var openings: Array = editor_data.get("openings_data", [])
+	if type_str == "hole":
+		sill_m = 0.0
+		open_fraction = 1.0
 	openings.append({
 		"a": a,
 		"b": b,
 		"type": type_str,
 		"wall": wall,
 		"offset_m": offset_m,
+		"offset_is_fraction": false,
 		"width_m": width_m,
 		"height_m": height_m,
 		"sill_m": sill_m,
@@ -1921,6 +2149,30 @@ func _shared_wall_segment(room_id: int, other_id: int, wall: String) -> PackedVe
 	return PackedVector2Array()
 
 
+func _max_opening_width_for_shared(room_id: int, other_id: int, wall: String) -> float:
+	var segment: PackedVector2Array = _shared_wall_segment(room_id, other_id, wall)
+	if segment.size() != 2:
+		return 0.30
+	return maxf(0.30, segment[0].distance_to(segment[1]) - 0.10)
+
+
+func _max_width_for_opening(opening: Dictionary) -> float:
+	if bool(opening.get("is_vertical", false)):
+		var room_rect: Rect2 = _get_room_rect(int(opening.get("a", -1)))
+		return maxf(0.30, room_rect.size.x - 0.10)
+	var a_id: int = int(opening.get("a", -1))
+	var b_id: int = int(opening.get("b", OUTSIDE_ID))
+	var wall: String = String(opening.get("wall", ""))
+	if a_id >= 0 and b_id != OUTSIDE_ID and wall != "":
+		return _max_opening_width_for_shared(a_id, b_id, wall)
+	if a_id >= 0:
+		var rect: Rect2 = _get_room_rect(a_id)
+		if wall == "":
+			wall = "top"
+		return maxf(0.30, _wall_length(rect, wall) - 0.10)
+	return 0.30
+
+
 func _segments_overlap_m(a1: Vector2, a2: Vector2, b1: Vector2, b2: Vector2) -> bool:
 	if a1.distance_to(a2) <= 0.0001 or b1.distance_to(b2) <= 0.0001:
 		return false
@@ -2042,13 +2294,31 @@ func _opening_segment_m(opening: Dictionary) -> PackedVector2Array:
 		return PackedVector2Array()
 	var rect: Rect2 = _get_room_rect(a_id)
 	var wall: String = String(opening.get("wall", ""))
+	var b_id: int = int(opening.get("b", OUTSIDE_ID))
 	if wall == "":
-		var b_id: int = int(opening.get("b", OUTSIDE_ID))
 		var shared: Dictionary = _shared_wall_between(a_id, b_id)
 		wall = String(shared.get("wall", "top"))
 	var width: float = float(opening.get("width_m", 0.9))
 	var offset: float = float(opening.get("offset_m", _wall_length(rect, wall) * 0.5))
+	if bool(opening.get("offset_is_fraction", true)):
+		if b_id != OUTSIDE_ID:
+			var shared_segment: PackedVector2Array = _shared_wall_segment(a_id, b_id, wall)
+			if shared_segment.size() == 2:
+				return _line_segment_from_fraction(shared_segment[0], shared_segment[1], offset, width)
+		offset = _wall_length(rect, wall) * clampf(offset, 0.0, 1.0)
 	return _wall_segment(rect, wall, offset, width)
+
+
+func _line_segment_from_fraction(a: Vector2, b: Vector2, offset_fraction: float, width_m: float) -> PackedVector2Array:
+	var axis: Vector2 = b - a
+	var length: float = axis.length()
+	if length <= 0.0001:
+		return PackedVector2Array()
+	var dir: Vector2 = axis / length
+	var safe_width: float = minf(width_m, length)
+	var center_offset: float = clampf(length * clampf(offset_fraction, 0.0, 1.0), safe_width * 0.5, maxf(safe_width * 0.5, length - safe_width * 0.5))
+	var center: Vector2 = a + dir * center_offset
+	return PackedVector2Array([center - dir * safe_width * 0.5, center + dir * safe_width * 0.5])
 
 
 func _distance_to_segment(point: Vector2, a: Vector2, b: Vector2) -> float:
@@ -2064,16 +2334,62 @@ func _save_pressed() -> void:
 	_ensure_floor_data()
 	editor_data = Serializer.normalize_editor_data(editor_data)
 	_sync_floor_controls()
-	if Serializer.save_scenario(_path_edit.text.strip_edges(), editor_data):
-		_set_status("Escenario guardado en %s." % _path_edit.text.strip_edges())
-	else:
-		_set_status("No se pudo guardar el escenario.")
+	_ensure_file_dialogs()
+	if _save_dialog == null:
+		_save_to_path(_path_edit.text.strip_edges())
+		return
+	var current_path: String = _path_edit.text.strip_edges()
+	if current_path == "":
+		current_path = DEFAULT_SAVE_PATH
+	_save_dialog.current_path = current_path
+	_save_dialog.popup_centered_ratio(0.72)
 
 
 func _load_pressed() -> void:
-	var loaded: Dictionary = Serializer.load_scenario(_path_edit.text.strip_edges())
+	_ensure_file_dialogs()
+	if _load_dialog == null:
+		_load_from_path(_path_edit.text.strip_edges())
+		return
+	var current_path: String = _path_edit.text.strip_edges()
+	if current_path != "":
+		_load_dialog.current_path = current_path
+	_load_dialog.popup_centered_ratio(0.72)
+
+
+func _on_save_dialog_file_selected(path: String) -> void:
+	_save_to_path(path)
+
+
+func _on_load_dialog_file_selected(path: String) -> void:
+	_load_from_path(path)
+
+
+func _save_to_path(path: String) -> void:
+	var clean_path: String = path.strip_edges()
+	if clean_path == "":
+		_set_status("Elige un archivo para guardar la plantilla.")
+		return
+	if not clean_path.get_file().contains("."):
+		clean_path += ".json"
+	_ensure_floor_data()
+	editor_data = Serializer.normalize_editor_data(editor_data)
+	_sync_floor_controls()
+	if _path_edit != null:
+		_path_edit.text = clean_path
+	if Serializer.save_scenario(clean_path, editor_data):
+		_set_status("Plantilla guardada en %s." % clean_path)
+	else:
+		_set_status("No se pudo guardar la plantilla.")
+
+
+func _load_from_path(path: String) -> void:
+	var clean_path: String = path.strip_edges()
+	if clean_path == "":
+		_set_status("Elige un archivo .json para cargar.")
+		return
+	var loaded: Dictionary = Serializer.load_scenario(clean_path)
 	if loaded.is_empty():
-		_set_status("No se pudo cargar el escenario.")
+		_set_status("No se pudo cargar la plantilla.")
 		return
 	editor_data = loaded
 	_ensure_floor_data()
@@ -2083,8 +2399,38 @@ func _load_pressed() -> void:
 	_sync_floor_controls()
 	_sync_hvac_option_from_data()
 	_clear_selection()
-	_set_status("Escenario cargado desde %s." % _path_edit.text.strip_edges())
+	if _path_edit != null:
+		_path_edit.text = clean_path
+	_set_status("Plantilla cargada desde %s." % clean_path)
 	queue_redraw()
+
+
+func _ensure_file_dialogs() -> void:
+	var canvas: CanvasLayer = get_node_or_null("CanvasLayer") as CanvasLayer
+	var parent: Node = canvas if canvas != null else self
+	_save_dialog = parent.get_node_or_null("SaveTemplateDialog") as FileDialog
+	if _save_dialog == null:
+		_save_dialog = FileDialog.new()
+		_save_dialog.name = "SaveTemplateDialog"
+		parent.add_child(_save_dialog)
+	_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_save_dialog.title = "Guardar plantilla"
+	_save_dialog.filters = PackedStringArray(["*.json ; Plantillas SimuFire"])
+	if not _save_dialog.file_selected.is_connected(_on_save_dialog_file_selected):
+		_save_dialog.file_selected.connect(_on_save_dialog_file_selected)
+
+	_load_dialog = parent.get_node_or_null("LoadTemplateDialog") as FileDialog
+	if _load_dialog == null:
+		_load_dialog = FileDialog.new()
+		_load_dialog.name = "LoadTemplateDialog"
+		parent.add_child(_load_dialog)
+	_load_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	_load_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	_load_dialog.title = "Cargar plantilla"
+	_load_dialog.filters = PackedStringArray(["*.json ; Plantillas SimuFire"])
+	if not _load_dialog.file_selected.is_connected(_on_load_dialog_file_selected):
+		_load_dialog.file_selected.connect(_on_load_dialog_file_selected)
 
 
 func _export_runtime_pressed() -> void:
@@ -2163,14 +2509,15 @@ func _apply_opening_properties() -> void:
 	if selected_opening_index >= openings.size():
 		return
 	var op: Dictionary = openings[selected_opening_index]
+	var op_type: String = String(op.get("type", "door"))
 	if _opening_width_spin != null:
-		op["width_m"] = _opening_width_spin.value
+		op["width_m"] = minf(_opening_width_spin.value, _max_width_for_opening(op))
 	if _opening_height_spin != null:
 		op["height_m"] = _opening_height_spin.value
 	if _opening_sill_spin != null:
-		op["sill_m"] = _opening_sill_spin.value
+		op["sill_m"] = 0.0 if op_type == "hole" else _opening_sill_spin.value
 	if _opening_open_option != null:
-		op["open_fraction"] = 0.0 if _opening_open_option.selected == 0 else 1.0
+		op["open_fraction"] = 1.0 if op_type == "hole" else (0.0 if _opening_open_option.selected == 0 else 1.0)
 	openings[selected_opening_index] = op
 	editor_data["openings_data"] = openings
 	_set_status("Apertura actualizada.")
@@ -2187,11 +2534,18 @@ func _draw() -> void:
 			return
 		var rect: Rect2 = _normalized_rect(drag_start_m, drag_current_m)
 		var rect_px: Rect2 = _rect_to_px(rect)
-		draw_rect(rect_px, Color(0.25, 0.68, 0.95, 0.18), true)
-		draw_rect(rect_px, Color(0.55, 0.90, 1.0, 0.85), false, 2.0)
+		var fill_color: Color = Color(0.25, 0.68, 0.95, 0.18)
+		var outline_color: Color = Color(0.55, 0.90, 1.0, 0.85)
+		if current_tool == Tool.STAIRS:
+			fill_color = Color(1.0, 0.72, 0.18, 0.20)
+			outline_color = Color(1.0, 0.80, 0.28, 0.95)
+		draw_rect(rect_px, fill_color, true)
+		draw_rect(rect_px, outline_color, false, 2.0)
 		if ThemeDB.fallback_font != null and rect.size.x > 0.01 and rect.size.y > 0.01:
 			var area: float = rect.size.x * rect.size.y
 			var preview_text: String = "%.2f × %.2f m  (%.2f m²)" % [rect.size.x, rect.size.y, area]
+			if current_tool == Tool.STAIRS:
+				preview_text = "Escalera  " + preview_text
 			draw_string(
 				ThemeDB.fallback_font,
 				rect_px.position + Vector2(6.0, 18.0),
@@ -2263,15 +2617,21 @@ func _draw_rooms() -> void:
 		var rect: Rect2 = _get_room_rect(room_id)
 		var rect_px: Rect2 = _rect_to_px(rect)
 		var is_corridor: bool = _is_corridor_room(room)
+		var is_stairs: bool = _is_stair_room(room)
 		var fill: Color = _room_selected_fill if room_id == selected_room_id else _room_fill
 		var outline: Color = _room_outline
 		if is_corridor:
 			fill = _corridor_selected_fill if room_id == selected_room_id else _corridor_fill
 			outline = _corridor_outline
+		if is_stairs:
+			fill = Color(0.24, 0.18, 0.08, 0.86) if room_id == selected_room_id else Color(0.16, 0.12, 0.06, 0.74)
+			outline = UI_YELLOW
 		draw_rect(rect_px, fill, true)
 		draw_rect(rect_px, outline, false, 2.0)
 		if is_corridor:
 			_draw_corridor_room_guides(rect_px)
+		if is_stairs:
+			_draw_stair_room_guides(rect_px)
 		if ThemeDB.fallback_font != null:
 			var h: float = float(room.get("height_m", 2.7))
 			var area_m2: float = rect.size.x * rect.size.y
@@ -2327,6 +2687,18 @@ func _draw_corridor_room_guides(rect_px: Rect2) -> void:
 	draw_circle(b, 2.5, Color(0.80, 1.0, 0.92, 0.50))
 
 
+func _draw_stair_room_guides(rect_px: Rect2) -> void:
+	var left: float = rect_px.position.x + rect_px.size.x * 0.30
+	var right: float = rect_px.position.x + rect_px.size.x * 0.70
+	var steps: int = clampi(int(rect_px.size.y / 22.0), 4, 14)
+	for i in range(steps + 1):
+		var t: float = float(i) / float(maxi(1, steps))
+		var y: float = lerpf(rect_px.position.y + 8.0, rect_px.position.y + rect_px.size.y - 8.0, t)
+		draw_line(Vector2(left, y), Vector2(right, y), Color(1.0, 0.78, 0.20, 0.62), 1.4)
+	draw_line(Vector2(left, rect_px.position.y + 8.0), Vector2(left, rect_px.position.y + rect_px.size.y - 8.0), Color(1.0, 0.78, 0.20, 0.34), 1.0)
+	draw_line(Vector2(right, rect_px.position.y + 8.0), Vector2(right, rect_px.position.y + rect_px.size.y - 8.0), Color(1.0, 0.78, 0.20, 0.34), 1.0)
+
+
 func _draw_openings() -> void:
 	var openings: Array = editor_data.get("openings_data", [])
 	for i in range(openings.size()):
@@ -2335,17 +2707,42 @@ func _draw_openings() -> void:
 		var opening: Dictionary = openings[i]
 		if not _opening_on_current_floor(opening):
 			continue
+		if bool(opening.get("is_vertical", false)):
+			_draw_vertical_opening(opening, i)
+			continue
 		var segment_m: PackedVector2Array = _opening_segment_m(opening)
 		if segment_m.size() != 2:
 			continue
 		var p1: Vector2 = _m_to_px(segment_m[0])
 		var p2: Vector2 = _m_to_px(segment_m[1])
 		var type_str: String = String(opening.get("type", "door"))
-		var color: Color = _window_color if type_str == "window" else _door_color
+		var color: Color = _window_color if type_str == "window" else (_door_color if type_str == "door" else UI_YELLOW)
 		if i == selected_opening_index:
 			color = Color(1.0, 1.0, 0.45, 1.0)
 		draw_line(p1, p2, Color(0.04, 0.06, 0.07, 0.95), 8.0)
 		draw_line(p1, p2, color, 4.0)
+
+
+func _draw_vertical_opening(opening: Dictionary, index: int) -> void:
+	var hole_rect: Rect2 = _vertical_opening_rect(opening)
+	if hole_rect.size.x <= 0.0 or hole_rect.size.y <= 0.0:
+		return
+	var rect_px := _rect_to_px(hole_rect)
+	var color: Color = Color(1.0, 0.78, 0.20, 0.92)
+	if index == selected_opening_index:
+		color = Color(1.0, 1.0, 0.45, 1.0)
+	draw_rect(rect_px, Color(0.0, 0.0, 0.0, 0.48), true)
+	draw_rect(rect_px, color, false, 2.0)
+
+
+func _vertical_opening_rect(opening: Dictionary) -> Rect2:
+	var a_id: int = int(opening.get("a", -1))
+	var room_rect: Rect2 = _get_room_rect(a_id)
+	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
+		return Rect2()
+	var width_m: float = minf(float(opening.get("width_m", room_rect.size.x * 0.5)), maxf(0.2, room_rect.size.x - 0.2))
+	var depth_m: float = minf(float(opening.get("height_m", room_rect.size.y * 0.55)), maxf(0.2, room_rect.size.y - 0.2))
+	return Rect2(room_rect.get_center() - Vector2(width_m, depth_m) * 0.5, Vector2(width_m, depth_m))
 
 
 func _draw_objects() -> void:
@@ -2394,6 +2791,16 @@ func _scan_scenario_files() -> void:
 	_scenario_option.clear()
 	_scenario_paths.clear()
 
+	for preset in _template_builder.get_preset_definitions():
+		if typeof(preset) != TYPE_DICTIONARY:
+			continue
+		var preset_data: Dictionary = preset
+		var preset_id: String = String(preset_data.get("id", ""))
+		if preset_id == "":
+			continue
+		_scenario_paths.append("preset://" + preset_id)
+		_scenario_option.add_item(String(preset_data.get("name", preset_id)))
+
 	var dir := DirAccess.open(SCENARIOS_RES_PATH)
 	if dir == null:
 		return
@@ -2403,7 +2810,7 @@ func _scan_scenario_files() -> void:
 	while file_name != "":
 		if not dir.current_is_dir() and file_name.ends_with(".json"):
 			_scenario_paths.append(SCENARIOS_RES_PATH + "/" + file_name)
-			_scenario_option.add_item(file_name)
+			_scenario_option.add_item(file_name.get_basename())
 		file_name = dir.get_next()
 	dir.list_dir_end()
 
@@ -2416,11 +2823,15 @@ func _load_scenario_pressed() -> void:
 		_set_status("Selecciona un escenario de la lista.")
 		return
 	var path: String = _scenario_paths[idx]
-	var loaded: Dictionary = Serializer.load_scenario(path)
+	var loaded: Dictionary = {}
+	if path.begins_with("preset://"):
+		loaded = _template_builder.create_by_name(path.replace("preset://", ""))
+	else:
+		loaded = Serializer.load_scenario(path)
 	if loaded.is_empty():
 		_set_status("No se pudo cargar: %s" % path)
 		return
-	editor_data = loaded
+	editor_data = Serializer.normalize_editor_data(loaded)
 	_ensure_floor_data()
 	current_floor_index = clampi(current_floor_index, 0, _get_floors().size() - 1)
 	if _stop_time_spin != null:
@@ -2469,7 +2880,9 @@ func _bind_existing_ui() -> bool:
 	var btn_select := _ui_root.get_node_or_null("TopBar/HBox/BtnSelect") as Button
 	var btn_room := _ui_root.get_node_or_null("TopBar/HBox/BtnRoom") as Button
 	var btn_corridor := _ui_root.get_node_or_null("TopBar/HBox/BtnCorridorL") as Button
+	var btn_stairs := _ui_root.get_node_or_null("TopBar/HBox/BtnStairs") as Button
 	var btn_door := _ui_root.get_node_or_null("TopBar/HBox/BtnDoor") as Button
+	var btn_hole := _ui_root.get_node_or_null("TopBar/HBox/BtnHole") as Button
 	var btn_window := _ui_root.get_node_or_null("TopBar/HBox/BtnWindow") as Button
 	var btn_object := _ui_root.get_node_or_null("TopBar/HBox/BtnObject") as Button
 	var btn_ignite := _ui_root.get_node_or_null("TopBar/HBox/BtnIgnite") as Button
@@ -2486,8 +2899,25 @@ func _bind_existing_ui() -> bool:
 				topbar.move_child(btn_corridor, btn_room.get_index() + 1)
 	if btn_corridor != null:
 		btn_corridor.text = "Pasillo"
+	var topbar_existing := _ui_root.get_node_or_null("TopBar/HBox") as HBoxContainer
+	if btn_stairs == null and topbar_existing != null:
+		btn_stairs = Button.new()
+		btn_stairs.name = "BtnStairs"
+		btn_stairs.text = "Escalera"
+		btn_stairs.custom_minimum_size = Vector2(82.0, 34.0)
+		topbar_existing.add_child(btn_stairs)
+		if btn_corridor != null:
+			topbar_existing.move_child(btn_stairs, btn_corridor.get_index() + 1)
+	if btn_hole == null and topbar_existing != null:
+		btn_hole = Button.new()
+		btn_hole.name = "BtnHole"
+		btn_hole.text = "Hueco"
+		btn_hole.custom_minimum_size = Vector2(82.0, 34.0)
+		topbar_existing.add_child(btn_hole)
+		if btn_door != null:
+			topbar_existing.move_child(btn_hole, btn_door.get_index() + 1)
 
-	var required_buttons: Array[Button] = [btn_select, btn_room, btn_corridor, btn_door, btn_window, btn_object, btn_ignite, btn_delete]
+	var required_buttons: Array[Button] = [btn_select, btn_room, btn_corridor, btn_stairs, btn_door, btn_hole, btn_window, btn_object, btn_ignite, btn_delete]
 	for b in required_buttons:
 		if b == null:
 			return false
@@ -2496,7 +2926,9 @@ func _bind_existing_ui() -> bool:
 	_register_tool_button(btn_select, Tool.SELECT)
 	_register_tool_button(btn_room, Tool.ROOM)
 	_register_tool_button(btn_corridor, Tool.CORRIDOR_L)
+	_register_tool_button(btn_stairs, Tool.STAIRS)
 	_register_tool_button(btn_door, Tool.DOOR)
+	_register_tool_button(btn_hole, Tool.HOLE)
 	_register_tool_button(btn_window, Tool.WINDOW)
 	_register_tool_button(btn_object, Tool.OBJECT)
 	_register_tool_button(btn_ignite, Tool.IGNITION)
@@ -2510,6 +2942,10 @@ func _bind_existing_ui() -> bool:
 		_hvac_option = _ui_root.get_node_or_null("LeftPanel/VBox/HVACOption") as OptionButton
 	_stop_time_spin = _ui_root.get_node_or_null("LeftPanel/VBox/StopTimeSpin") as SpinBox
 	_corridor_width_spin = _ui_root.get_node_or_null("LeftPanel/VBox/CorridorWidthSpin") as SpinBox
+	_opening_tool_section = _ui_root.get_node_or_null("LeftPanel/VBox/OpeningToolSection") as Control
+	_opening_tool_width_spin = _ui_root.get_node_or_null("LeftPanel/VBox/OpeningToolSection/OpeningToolWidthRow/OpeningToolWidthSpin") as SpinBox
+	if _opening_tool_width_spin == null:
+		_opening_tool_width_spin = _ui_root.get_node_or_null("LeftPanel/VBox/OpeningToolSection/OpeningToolWidthSpin") as SpinBox
 	_status_label = _ui_root.get_node_or_null("LeftPanel/VBox/StatusLabel") as Label
 
 	_name_edit = _ui_root.get_node_or_null("RightPanel/VBox/RoomNameEdit") as LineEdit
@@ -2541,6 +2977,7 @@ func _bind_existing_ui() -> bool:
 	_populate_object_type_option()
 	_ensure_floor_controls_in_existing_ui()
 	_ensure_corridor_width_control_in_existing_ui()
+	_ensure_opening_tool_controls_in_existing_ui()
 	_ensure_hvac_option_in_existing_ui()
 	_path_edit.text = DEFAULT_SAVE_PATH
 
@@ -2553,8 +2990,10 @@ func _bind_existing_ui() -> bool:
 	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnLoad") as Button, _load_pressed)
 	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnExportRuntime") as Button, _export_runtime_pressed)
 	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnLoadScenario") as Button, _load_scenario_pressed)
-	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/BtnApplyRoom") as Button, _apply_room_properties)
-	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/BtnDeleteRoom") as Button, _delete_selected_room)
+	_room_apply_button = _ui_root.get_node_or_null("RightPanel/VBox/BtnApplyRoom") as Button
+	_room_delete_button = _ui_root.get_node_or_null("RightPanel/VBox/BtnDeleteRoom") as Button
+	_connect_button(_room_apply_button, _apply_room_properties)
+	_connect_button(_room_delete_button, _delete_selected_room)
 	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/ObjProps/BtnApplyObject") as Button, _apply_object_properties)
 	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/ObjProps/BtnDeleteObject") as Button, _delete_selected)
 	_connect_button(_ui_root.get_node_or_null("BottomBar/HBox/BtnStartSimulation") as Button, _run_simulation_pressed)
@@ -2689,6 +3128,40 @@ func _on_corridor_width_changed(v: float) -> void:
 	queue_redraw()
 
 
+func _on_opening_tool_width_changed(v: float) -> void:
+	opening_tool_width_m = clampf(v, 0.30, 6.0)
+	if current_tool == Tool.HOLE:
+		_set_status(_tool_hint(current_tool))
+
+
+func _sync_tool_option_visibility() -> void:
+	if _ui_root == null:
+		return
+	var object_visible: bool = current_tool == Tool.OBJECT
+	var corridor_visible: bool = current_tool == Tool.CORRIDOR_L
+	var opening_visible: bool = current_tool == Tool.HOLE
+	_set_node_visible("LeftPanel/VBox/ObjectLabel", object_visible)
+	_set_node_visible("LeftPanel/VBox/ObjectToolLabel", object_visible)
+	_set_node_visible("LeftPanel/VBox/ObjectTypeOption", object_visible)
+	if _object_kind_option != null:
+		_set_control_row_visible(_object_kind_option, object_visible)
+	var object_section := _ui_root.get_node_or_null("LeftPanel/VBox/ObjectToolSection") as Control
+	if object_section != null:
+		object_section.visible = object_visible
+	_set_node_visible("LeftPanel/VBox/CorridorSectionLabel", corridor_visible)
+	_set_node_visible("LeftPanel/VBox/CorridorWidthSpin", corridor_visible)
+	if _corridor_width_spin != null:
+		_set_control_row_visible(_corridor_width_spin, corridor_visible)
+	var corridor_row := _ui_root.get_node_or_null("LeftPanel/VBox/CorridorWidthRow") as Control
+	if corridor_row != null:
+		corridor_row.visible = corridor_visible
+	if _opening_tool_section != null:
+		_opening_tool_section.visible = opening_visible
+	if _opening_tool_width_spin != null:
+		_opening_tool_width_spin.visible = current_tool == Tool.HOLE
+		_set_control_row_visible(_opening_tool_width_spin, current_tool == Tool.HOLE)
+
+
 func _ensure_corridor_width_control_in_existing_ui() -> void:
 	var left_vbox := _ui_root.get_node_or_null("LeftPanel/VBox") as VBoxContainer
 	if left_vbox == null:
@@ -2717,6 +3190,56 @@ func _ensure_corridor_width_control_in_existing_ui() -> void:
 	_corridor_width_spin.value = corridor_width_m
 	if not _corridor_width_spin.value_changed.is_connected(_on_corridor_width_changed):
 		_corridor_width_spin.value_changed.connect(_on_corridor_width_changed)
+
+
+func _ensure_opening_tool_controls_in_existing_ui() -> void:
+	var left_vbox := _ui_root.get_node_or_null("LeftPanel/VBox") as VBoxContainer
+	if left_vbox == null:
+		return
+	_opening_tool_section = left_vbox.get_node_or_null("OpeningToolSection") as Control
+	if _opening_tool_section == null:
+		var section := VBoxContainer.new()
+		section.name = "OpeningToolSection"
+		section.add_theme_constant_override("separation", 4)
+		left_vbox.add_child(section)
+		var corridor_row := left_vbox.get_node_or_null("CorridorWidthRow") as Control
+		var corridor_spin := left_vbox.get_node_or_null("CorridorWidthSpin") as Control
+		if corridor_row != null:
+			left_vbox.move_child(section, corridor_row.get_index() + 1)
+		elif corridor_spin != null:
+			left_vbox.move_child(section, corridor_spin.get_index() + 1)
+		_opening_tool_section = section
+	var title := _opening_tool_section.get_node_or_null("OpeningToolTitle") as Label
+	if title == null:
+		title = Label.new()
+		title.name = "OpeningToolTitle"
+		title.text = "Apertura"
+		_opening_tool_section.add_child(title)
+	var row := _opening_tool_section.get_node_or_null("OpeningToolWidthRow") as HBoxContainer
+	if row == null:
+		row = HBoxContainer.new()
+		row.name = "OpeningToolWidthRow"
+		row.add_theme_constant_override("separation", 4)
+		_opening_tool_section.add_child(row)
+	var label := row.get_node_or_null("OpeningToolWidthLabel") as Label
+	if label == null:
+		label = Label.new()
+		label.name = "OpeningToolWidthLabel"
+		label.text = "Ancho hueco"
+		label.custom_minimum_size.x = 112.0
+		row.add_child(label)
+	_opening_tool_width_spin = row.get_node_or_null("OpeningToolWidthSpin") as SpinBox
+	if _opening_tool_width_spin == null:
+		_opening_tool_width_spin = SpinBox.new()
+		_opening_tool_width_spin.name = "OpeningToolWidthSpin"
+		_opening_tool_width_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(_opening_tool_width_spin)
+	_opening_tool_width_spin.min_value = 0.30
+	_opening_tool_width_spin.max_value = 6.0
+	_opening_tool_width_spin.step = 0.05
+	_opening_tool_width_spin.value = opening_tool_width_m
+	if not _opening_tool_width_spin.value_changed.is_connected(_on_opening_tool_width_changed):
+		_opening_tool_width_spin.value_changed.connect(_on_opening_tool_width_changed)
 
 
 func _ensure_hvac_option_in_existing_ui() -> void:

@@ -10,6 +10,7 @@ const ThermalSystemScript = preload("res://sim/core/ThermalSystem.gd")
 const FireSpreadSystemScript = preload("res://sim/core/FireSpreadSystem.gd")
 const GlassFailureSystemScript = preload("res://sim/core/GlassFailureSystem.gd")
 const HVACSystemScript = preload("res://sim/core/HVACSystem.gd")
+const ZoneFireSolverScript = preload("res://sim/core/ZoneFireSolver.gd")
 
 # ============================================================
 # SIMULATION ENGINE
@@ -36,6 +37,8 @@ var thermal_system = ThermalSystemScript.new()
 var fire_spread_system = FireSpreadSystemScript.new()
 var glass_failure_system = GlassFailureSystemScript.new()
 var hvac_system = HVACSystemScript.new()
+# SF-R6: ZoneFireSolver — coordinador de flujos masa/energía/especies entre zonas.
+var zone_fire_solver = ZoneFireSolverScript.new()
 
 # Cache de estados de flujo pre-computados para todas las aberturas interiores.
 # Se recalcula una vez al comienzo de cada paso de tiempo y se comparte entre
@@ -839,6 +842,8 @@ func _sync_auxiliary_services() -> void:
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
+	# SF-R6: ZoneFireSolver — inyectar referencia al building.
+	zone_fire_solver.set_building(building)
 
 
 func _build_state_context() -> Dictionary:
