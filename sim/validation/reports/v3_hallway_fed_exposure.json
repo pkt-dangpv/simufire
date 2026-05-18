@@ -11,7 +11,7 @@
 				}
 			},
 			"room_1_max_fed": {
-				"actual": 4.49029517953193,
+				"actual": 2.77180299901023,
 				"pass": true,
 				"rule": {
 					"min": 1.0
@@ -40,18 +40,18 @@
 				}
 			},
 			"time_room_1_fed_above_0_1_s": {
-				"actual": 195.333333333338,
+				"actual": 252.166666666678,
 				"pass": true,
 				"rule": {
-					"expected": 221.583333,
+					"expected": 252.166666,
 					"tolerance": 30.0
 				}
 			},
 			"time_room_1_fed_above_0_3_s": {
-				"actual": 237.333333333343,
+				"actual": 315.916666666665,
 				"pass": true,
 				"rule": {
-					"expected": 250.833,
+					"expected": 315.916666,
 					"tolerance": 35.0
 				}
 			},
@@ -89,7 +89,7 @@
 		"room_0_final_dominant_fuel_object_id": "salon_sofa",
 		"room_0_final_dominant_fuel_object_remaining_MJ": 1017.02114424006,
 		"room_0_final_dominant_fuel_object_state": "pyrolyzing",
-		"room_0_final_fed": 2.62785712339428,
+		"room_0_final_fed": 2.63848309527765,
 		"room_0_final_fire_time_s": 308.863135878944,
 		"room_0_final_flame_hrr_target_kw": 0.0,
 		"room_0_final_fuel_objects_flaming_count": 0,
@@ -130,7 +130,7 @@
 		"room_0_final_wall_T_outer_c": 20.0,
 		"room_0_final_wall_k_kw_m_k": -1.0,
 		"room_0_final_wall_thickness_m": -1.0,
-		"room_0_max_fed": 2.62785712339428,
+		"room_0_max_fed": 2.63848309527765,
 		"room_0_max_fuel_objects_flaming_count": 7,
 		"room_0_max_fuel_objects_heating_count": 6,
 		"room_0_max_fuel_objects_pyrolyzing_count": 6,
@@ -164,7 +164,7 @@
 		"room_1_final_dominant_fuel_object_id": "pasillo_alfombra",
 		"room_1_final_dominant_fuel_object_remaining_MJ": 260.0,
 		"room_1_final_dominant_fuel_object_state": "heating",
-		"room_1_final_fed": 4.49029517953193,
+		"room_1_final_fed": 2.77180299901023,
 		"room_1_final_fire_time_s": 0.0,
 		"room_1_final_flame_hrr_target_kw": 0.0,
 		"room_1_final_fuel_objects_flaming_count": 0,
@@ -205,7 +205,7 @@
 		"room_1_final_wall_T_outer_c": 20.0,
 		"room_1_final_wall_k_kw_m_k": -1.0,
 		"room_1_final_wall_thickness_m": -1.0,
-		"room_1_max_fed": 4.49029517953193,
+		"room_1_max_fed": 2.77180299901023,
 		"room_1_max_fuel_objects_flaming_count": 0,
 		"room_1_max_fuel_objects_heating_count": 4,
 		"room_1_max_fuel_objects_pyrolyzing_count": 0,
@@ -235,8 +235,8 @@
 		"time_room_0_smoke_layer_2m_s": 29.9166666666665,
 		"time_room_0_temp_1_8m_above_150c_s": 101.916666666665,
 		"time_room_1_co_upper_above_1200_s": 131.833333333331,
-		"time_room_1_fed_above_0_1_s": 195.333333333338,
-		"time_room_1_fed_above_0_3_s": 237.333333333343,
+		"time_room_1_fed_above_0_1_s": 252.166666666678,
+		"time_room_1_fed_above_0_3_s": 315.916666666665,
 		"time_room_1_smoke_start_s": 45.8333333333335,
 		"watched_temp_upper_clamp_count": 0,
 		"watched_temp_upper_clamp_time_s": 0.0

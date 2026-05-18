@@ -228,6 +228,16 @@ var _energy_budget: Dictionary = {}
 var _bud_cum_e_fire_kj: Dictionary = {}
 var _bud_cum_q_residual_kj: Dictionary = {}
 
+# SF-R6 Phase 3: residuales de conservación del transporte de contaminantes.
+# Se resetean al inicio de cada step(). Cada llamada a _transfer_hot_gas_contaminants()
+# acumula el residuo absoluto (Σ|post - pre| por especie). En un transporte conservativo
+# estos valores deben ser ~0 (solo errores de punto flotante < 1e-12 kg por paso).
+var _transport_co2_residual_kg: float = 0.0
+var _transport_hcn_residual_kg: float = 0.0
+var _transport_co_residual_kg: float = 0.0
+var _transport_smoke_residual_kg: float = 0.0
+var _transport_call_count: int = 0
+
 
 func get_energy_budget() -> Dictionary:
 	# Fusiona el snapshot del paso actual con los acumulados de toda la simulación.
@@ -248,6 +258,19 @@ func get_energy_budget() -> Dictionary:
 				"cum_q_residual_kj": _bud_cum_q_residual_kj.get(room_id, 0.0),
 			}
 	return result
+
+
+## Devuelve el residual acumulado de conservación de transporte para el último step().
+## Cada especie debería ser ~0.0 en un transporte exactamente conservativo.
+## Residuales > 1e-9 kg indican posibles bugs de contabilidad en _transfer_hot_gas_contaminants.
+func get_transport_residuals() -> Dictionary:
+	return {
+		"co2_residual_kg": _transport_co2_residual_kg,
+		"hcn_residual_kg": _transport_hcn_residual_kg,
+		"co_residual_kg": _transport_co_residual_kg,
+		"smoke_residual_kg": _transport_smoke_residual_kg,
+		"call_count": _transport_call_count,
+	}
 
 
 func set_references(building: BuildingModel, smoke_model: SmokeModel) -> void:
@@ -367,6 +390,13 @@ func configure(settings: Dictionary) -> void:
 	hot_gas_species_max_fraction_per_step = float(
 		settings.get("hot_gas_species_max_fraction_per_step", hot_gas_species_max_fraction_per_step)
 	)
+	# SF-R6 Phase 2: carry convectivo HCN / irritantes.
+	hot_gas_hcn_carry_fraction = float(
+		settings.get("hot_gas_hcn_carry_fraction", hot_gas_hcn_carry_fraction)
+	)
+	hot_gas_irritant_carry_fraction = float(
+		settings.get("hot_gas_irritant_carry_fraction", hot_gas_irritant_carry_fraction)
+	)
 	thermal_gradient_min_band_m = float(settings.get("thermal_gradient_min_band_m", thermal_gradient_min_band_m))
 	thermal_gradient_max_band_m = float(settings.get("thermal_gradient_max_band_m", thermal_gradient_max_band_m))
 	thermal_gradient_band_fraction = float(settings.get("thermal_gradient_band_fraction", thermal_gradient_band_fraction))
@@ -459,6 +489,13 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		if room_check != null and room_check.fire != null:
 			any_fire_active = true
 			break
+
+	# SF-R6 Phase 3: reset acumuladores de residual de transporte para este paso.
+	_transport_co2_residual_kg = 0.0
+	_transport_hcn_residual_kg = 0.0
+	_transport_co_residual_kg = 0.0
+	_transport_smoke_residual_kg = 0.0
+	_transport_call_count = 0
 
 	var _bud_total_fire_kj: float = 0.0
 	var _bud_total_residual_kj: float = 0.0
@@ -1802,6 +1839,12 @@ func _transfer_hot_gas_contaminants(
 	if gas_moved_kg <= 0.0 or source_upper_gas_before_kg <= 0.0001:
 		return
 
+	# SF-R6 Phase 3: snapshot pre-transporte para validación de conservación.
+	var _pre_co2_kg: float = source.co2_kg + target.co2_kg
+	var _pre_hcn_kg: float = source.hcn_kg + target.hcn_kg
+	var _pre_co_kg: float = source.co_kg + target.co_kg
+	var _pre_smoke_kg: float = source.smoke_kg + target.smoke_kg
+
 	var upper_fraction_moved: float = clampf(
 		gas_moved_kg / maxf(0.0001, source_upper_gas_before_kg),
 		0.0,
@@ -1817,7 +1860,8 @@ func _transfer_hot_gas_contaminants(
 
 	var co_upper_available_kg: float = clampf(source.co_upper_kg, 0.0, source.co_kg)
 	var co_moved_kg: float = minf(source.co_kg, co_upper_available_kg * upper_fraction_moved * carry)
-	# CO₂ transport: bulk only. co2_upper_kg tracking deferred to ZoneFireSolver Phase 2+.
+	# SF-R6 Phase 2: CO₂ transport con upper zone tracking.
+	# El gas caliente transportado va a la zona superior del destino (flotabilidad).
 	var co2_moved_kg: float = minf(source.co2_kg, source.co2_kg * upper_fraction_moved * carry)
 	var smoke_moved_kg: float = minf(source.smoke_kg, source.smoke_kg * upper_fraction_moved * smoke_carry)
 
@@ -1828,8 +1872,15 @@ func _transfer_hot_gas_contaminants(
 		target.co_upper_kg = maxf(0.0, target.co_upper_kg + co_moved_kg)
 
 	if co2_moved_kg > 0.0:
+		var src_co2_before: float = source.co2_kg
 		source.co2_kg = maxf(0.0, source.co2_kg - co2_moved_kg)
+		# Reducir zona superior del origen proporcionalmente.
+		if src_co2_before > 0.0001:
+			var src_upper_frac: float = clampf(source.co2_upper_kg / src_co2_before, 0.0, 1.0)
+			source.co2_upper_kg = maxf(0.0, source.co2_upper_kg - co2_moved_kg * src_upper_frac)
 		target.co2_kg = maxf(0.0, target.co2_kg + co2_moved_kg)
+		# CO₂ llega a la zona superior del destino (gas caliente → boyante).
+		target.co2_upper_kg = maxf(0.0, target.co2_upper_kg + co2_moved_kg)
 
 	if smoke_moved_kg > 0.0:
 		source.smoke_kg = maxf(0.0, source.smoke_kg - smoke_moved_kg)
@@ -1869,6 +1920,13 @@ func _transfer_hot_gas_contaminants(
 	if hot_gas_hcn_carry_fraction > 0.0:
 		source.hcn_upper_kg = clampf(source.hcn_upper_kg, 0.0, source.hcn_kg)
 		target.hcn_upper_kg = clampf(target.hcn_upper_kg, 0.0, target.hcn_kg)
+
+	# SF-R6 Phase 3: acumular residuales de conservación (debe ser ~0 en transporte puro).
+	_transport_co2_residual_kg += absf((source.co2_kg + target.co2_kg) - _pre_co2_kg)
+	_transport_hcn_residual_kg += absf((source.hcn_kg + target.hcn_kg) - _pre_hcn_kg)
+	_transport_co_residual_kg += absf((source.co_kg + target.co_kg) - _pre_co_kg)
+	_transport_smoke_residual_kg += absf((source.smoke_kg + target.smoke_kg) - _pre_smoke_kg)
+	_transport_call_count += 1
 
 
 func reset_thermal_layer(room: RoomModel) -> void:

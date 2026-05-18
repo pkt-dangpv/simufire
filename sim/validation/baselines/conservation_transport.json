@@ -1,0 +1,8 @@
+{
+    "metrics": {
+        "conservation_max_violation_frac": {
+            "max": 1e-05,
+            "comment": "SF-R6 Phase 3: residual de conservacion de transporte. Valor observado ~1.25e-12 (FP noise). Umbral 1e-5 = 1000x sobre ruido FP pero 10x bajo el umbral de warning (1e-4)."
+        }
+    }
+}

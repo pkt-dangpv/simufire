@@ -18,7 +18,9 @@ func build_state(context: Dictionary) -> Dictionary:
 		"smoke_vented_total_kg": float(context.get("smoke_vented_total_kg", 0.0)),
 		"smoke_deposited_total_kg": float(context.get("smoke_deposited_total_kg", 0.0)),
 		"suppression_water_applied_l": float(context.get("suppression_water_applied_l", 0.0)),
-		"suppression_cooling_total_kj": float(context.get("suppression_cooling_total_kj", 0.0))
+		"suppression_cooling_total_kj": float(context.get("suppression_cooling_total_kj", 0.0)),
+		# SF-R6 Phase 3: residual de conservación de transporte (-1.0 = check desactivado).
+		"conservation_max_violation_frac": float(context.get("conservation_max_violation_frac", -1.0)),
 	}
 	var hvac: Dictionary = context.get("hvac", {})
 	state["hvac_exists"] = bool(hvac.get("exists", false))

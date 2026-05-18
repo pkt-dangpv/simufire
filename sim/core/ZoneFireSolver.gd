@@ -19,6 +19,12 @@ class_name ZoneFireSolver
 #     - Carry convectivo HCN/HCL/irritantes (gated, off por defecto).
 #     - Campo "zone_resolved_upper_mass_kg" escrito en flow_cache
 #       por ThermalSystem para uso futuro de GasExchange/OxygenExchange.
+#   Fase 2 (SF-R6 sesión 2):
+#     - CO₂ upper zone tracking activo en _transfer_hot_gas_contaminants.
+#     - hot_gas_hcn_carry_fraction = 0.40 (HCN viaja con gas caliente).
+#     - hot_gas_irritant_carry_fraction = 0.30 (HCl/acroleína/HCHO).
+#     - @export vars en SimulationEngine; configure() en ThermalSystem.
+#     - Re-baseline suite (CO₂ estratificado → FED más lento en destino).
 #   Fases futuras:
 #     - Fase 2: GasExchangeSystem lee zone_resolved_upper_mass_kg
 #       para reemplazar la fórmula de background con el flujo canónico.
@@ -27,19 +33,29 @@ class_name ZoneFireSolver
 #       secuencial (eliminación de efectos de ordering).
 # ============================================================
 
-## Habilita la coordinación de flujos ZoneFireSolver (fase 2+).
-## En fase 1 esta flag se ignora; el solver solo registra datos.
-var zone_solver_phase: int = 1   # 1 = skeleton, 2+ = activo
+## Habilita la coordinación de flujos ZoneFireSolver (fase 3+).
+## 1 = skeleton, 2 = CO₂/HCN upper transport activo, 3 = validate_conservation() activo.
+var zone_solver_phase: int = 3
 
 ## Fracción de carry convectivo para HCN (respecto al carry general).
-## 0.0 = deshabilitado (defecto). Habilitar en fase 2 tras rebaseline.
-## Física: HCN se produce en la capa caliente y debería viajar con el
-## gas caliente convectivo (igual que CO). Valores razonables: 0.2-0.6.
-var hot_gas_hcn_carry_fraction: float = 0.0
+## 0.40 calibrado para parity CFAST TN-1889 (HCN viaja con gas caliente).
+var hot_gas_hcn_carry_fraction: float = 0.40
 
 ## Fracción de carry convectivo para irritantes (HCl, acroleína, HCHO).
-## 0.0 = deshabilitado (defecto). Idéntica justificación física a HCN.
-var hot_gas_irritant_carry_fraction: float = 0.0
+## 0.30 = ~75% del carry HCN (irritantes más pesados, menor movilidad).
+var hot_gas_irritant_carry_fraction: float = 0.30
+
+## Umbral de violación relativa de conservación de transporte que emite push_warning.
+## 0.0001 = 0.01% — errores de punto flotante genuinos son < 1e-12, cualquier cosa
+## mayor a 0.0001 indica un posible bug de contabilidad en la transferencia de especies.
+var conservation_violation_threshold: float = 0.0001
+
+## Peor violación de conservación de transporte registrada desde inicio de simulación.
+## Acumulado a lo largo de todos los pasos. Se expone en el estado para CI.
+var conservation_max_violation_frac: float = 0.0
+
+## Número de pasos en que se detectó una violación > conservation_violation_threshold.
+var conservation_violation_count: int = 0
 
 # ------------------------------------------------------------------
 # Referencia al building (inyectada desde SimulationEngine)
@@ -68,32 +84,80 @@ static func get_resolved_hot_room_id(flow_state: Dictionary) -> int:
 
 
 # ------------------------------------------------------------------
-# Fase 1: validación opcional de conservación (debug/CI).
-# Computa el residuo de masa y energía tras un paso de simulación.
-# En producción se deja en no-op; activar con zone_solver_phase >= 2.
+# Fase 3: validación activa de conservación de transporte.
+# Comprueba que _transfer_hot_gas_contaminants() no creó ni destruyó
+# masa de CO₂/HCN/CO/smoke — los residuales deben ser ~0 (FP-only).
+# Llamar desde SimulationEngine después de thermal_system.step().
 # ------------------------------------------------------------------
+
+## Verifica conservación de masa en el transporte de contaminantes por gas caliente.
+## `transport_residuals` es el dict devuelto por ThermalSystem.get_transport_residuals().
+## Retorna {} si phase < 3. Acumula conservation_max_violation_frac y
+## conservation_violation_count a lo largo de toda la simulación.
 func validate_conservation(
 	building: BuildingModel,
-	prev_total_upper_gas_kg: float,
-	prev_total_upper_energy_kj: float,
+	transport_residuals: Dictionary,
 	dt: float
 ) -> Dictionary:
-	if zone_solver_phase < 2 or building == null:
+	if zone_solver_phase < 3 or building == null:
 		return {}
 
-	var total_upper_gas_kg: float = 0.0
-	var total_upper_energy_kj: float = 0.0
+	# Masa de referencia: total de cada especie en el edificio al final del paso.
+	var total_co2_kg: float = 0.0
+	var total_hcn_kg: float = 0.0
+	var total_co_kg: float = 0.0
+	var total_smoke_kg: float = 0.0
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
 			continue
-		total_upper_gas_kg += maxf(0.0, room.upper_gas_kg)
-		total_upper_energy_kj += maxf(0.0, room.upper_energy_kj)
+		total_co2_kg += maxf(0.0, room.co2_kg)
+		total_hcn_kg += maxf(0.0, room.hcn_kg)
+		total_co_kg  += maxf(0.0, room.co_kg)
+		total_smoke_kg += maxf(0.0, room.smoke_kg)
+
+	var co2_res_kg: float   = float(transport_residuals.get("co2_residual_kg",   0.0))
+	var hcn_res_kg: float   = float(transport_residuals.get("hcn_residual_kg",   0.0))
+	var co_res_kg: float    = float(transport_residuals.get("co_residual_kg",    0.0))
+	var smoke_res_kg: float = float(transport_residuals.get("smoke_residual_kg", 0.0))
+	var calls: int          = int(transport_residuals.get("call_count", 0))
+
+	# Violación relativa: residual / masa total de esa especie en el edificio.
+	var co2_viol: float   = co2_res_kg   / maxf(total_co2_kg,   1e-9)
+	var hcn_viol: float   = hcn_res_kg   / maxf(total_hcn_kg,   1e-9)
+	var co_viol: float    = co_res_kg    / maxf(total_co_kg,    1e-9)
+	var smoke_viol: float = smoke_res_kg / maxf(total_smoke_kg, 1e-9)
+	var max_viol: float   = maxf(co2_viol, maxf(hcn_viol, maxf(co_viol, smoke_viol)))
+
+	# Actualizar acumulador de peor violación.
+	if max_viol > conservation_max_violation_frac:
+		conservation_max_violation_frac = max_viol
+
+	var has_violation: bool = max_viol > conservation_violation_threshold
+	if has_violation:
+		conservation_violation_count += 1
+		push_warning(
+			"ZoneFireSolver [Phase 3] conservación violada dt=%.2f calls=%d: "
+			+ "co2=%.2e hcn=%.2e co=%.2e smoke=%.2e (max_frac=%.2e > thresh=%.2e)" % [
+				dt, calls,
+				co2_res_kg, hcn_res_kg, co_res_kg, smoke_res_kg,
+				max_viol, conservation_violation_threshold
+			]
+		)
 
 	return {
 		"dt": dt,
-		"upper_gas_delta_kg": total_upper_gas_kg - prev_total_upper_gas_kg,
-		"upper_energy_delta_kj": total_upper_energy_kj - prev_total_upper_energy_kj,
-		"total_upper_gas_kg": total_upper_gas_kg,
-		"total_upper_energy_kj": total_upper_energy_kj,
+		"call_count": calls,
+		"co2_residual_kg":   co2_res_kg,
+		"hcn_residual_kg":   hcn_res_kg,
+		"co_residual_kg":    co_res_kg,
+		"smoke_residual_kg": smoke_res_kg,
+		"co2_violation_frac":   co2_viol,
+		"hcn_violation_frac":   hcn_viol,
+		"co_violation_frac":    co_viol,
+		"smoke_violation_frac": smoke_viol,
+		"max_violation_frac":               max_viol,
+		"has_violation":                    has_violation,
+		"conservation_max_violation_frac":  conservation_max_violation_frac,
+		"conservation_violation_count":     conservation_violation_count,
 	}

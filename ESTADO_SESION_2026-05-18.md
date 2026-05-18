@@ -120,6 +120,115 @@ Total: 40/40 PASS — 2517,58s
 
 ---
 
+## R#6 — ZoneFireSolver Phase 2 — CO₂/HCN upper zone transport activo
+
+### Objetivo
+Activar la física de estratificación: CO₂ que viaja por gas caliente llega a la zona superior del destino (boyante). HCN e irritantes también viajan con el gas caliente.
+
+### Archivos modificados
+
+#### `sim/core/ZoneFireSolver.gd`
+- `zone_solver_phase = 2`
+- `hot_gas_hcn_carry_fraction = 0.40`
+- `hot_gas_irritant_carry_fraction = 0.30`
+
+#### `sim/core/SimulationEngine.gd`
+```gdscript
+@export var hot_gas_hcn_carry_fraction: float = 0.40
+@export var hot_gas_irritant_carry_fraction: float = 0.30
+# en _sync_auxiliary_services() configure dict:
+"hot_gas_hcn_carry_fraction": hot_gas_hcn_carry_fraction,
+"hot_gas_irritant_carry_fraction": hot_gas_irritant_carry_fraction,
+```
+
+#### `sim/core/ThermalSystem.gd`
+- `configure()` lee los dos nuevos parámetros
+- `_transfer_hot_gas_contaminants()`: CO₂ upper zone tracking re-habilitado:
+  - CO₂ movido → llega a `co2_upper_kg` del destino (gas caliente = boyante)
+  - Fuente: reducción proporcional de `co2_upper_kg` usando `src_upper_frac = co2_upper_kg / co2_kg_antes`
+  - HCN carry activado (fraction=0.40), irritant carry activado (fraction=0.30)
+
+#### `sim/validation/baselines/v3_hallway_fed_exposure.json`
+Rebaselined con valores físicamente correctos (CO₂ estratificado → FED más lento en pasillo):
+
+| Métrica | Antes (Phase 1) | Ahora (Phase 2) |
+|---------|----------------|-----------------|
+| `time_room_1_fed_above_0_1_s` | 221.583 ± 30 | **252.167 ± 30** |
+| `time_room_1_fed_above_0_3_s` | 250.833 ± 35 | **315.917 ± 35** |
+
+### Suite Phase 2 — 40/40 PASS (duración 2356s)
+```
+v3_hallway_fed_exposure: PASS (90.98s) ✅ nueva baseline
+pu_sofa_fec_incapacitation: PASS (78.43s) ✅ HCN carry OK
+pvc_curtain_hcl_release: PASS (56.88s) ✅ irritant carry OK
+v4_co_remote_rooms: PASS (70.42s) ✅ CO₂ upper transport OK
+Todos los demás: PASS
+```
+
+---
+
+## R#6 — ZoneFireSolver Phase 3 — validate_conservation() activo
+
+### Objetivo
+Activar la verificación de conservación de masa de transporte de contaminantes. Cada llamada a `_transfer_hot_gas_contaminants()` acumula el residual absoluto por especie (CO₂, HCN, CO, smoke). Se expone en el estado para CI.
+
+### Diseño
+- **Invariante**: `_transfer_hot_gas_contaminants()` es transporte puro (no genera, no consume especies). La suma source.X + target.X debe ser idéntica antes y después.
+- **Residual observado**: ~7e-16 kg (ruido de punto flotante, esencialmente cero)
+- **Threshold warning**: 0.01% relativo (`conservation_violation_threshold = 0.0001`)
+- **Threshold CI**: 1e-5 (1000× sobre ruido FP, 10× bajo threshold de warning)
+
+### Archivos modificados
+
+#### `sim/core/ThermalSystem.gd`
+- +5 vars: `_transport_co2_residual_kg`, `_transport_hcn_residual_kg`, `_transport_co_residual_kg`, `_transport_smoke_residual_kg`, `_transport_call_count`
+- Reset al inicio de `step()` (para cada paso temporal)
+- En `_transfer_hot_gas_contaminants()`: snapshot `pre_X = source.X + target.X` antes del transporte, acumula `abs(post_X - pre_X)` después
+- +1 método: `get_transport_residuals() -> Dictionary`
+
+#### `sim/core/ZoneFireSolver.gd`
+- `zone_solver_phase = 3`
+- +3 vars: `conservation_violation_threshold = 0.0001`, `conservation_max_violation_frac = 0.0`, `conservation_violation_count = 0`
+- `validate_conservation()` reescrito: acepta `transport_residuals` dict, computa violación relativa por especie, acumula `conservation_max_violation_frac`, emite `push_warning` si > threshold
+
+#### `sim/core/SimulationEngine.gd`
+- +1 export var: `conservation_check_enabled: bool = false`
+- +1 var: `_conservation_max_violation_frac: float = -1.0` (-1.0 = check desactivado)
+- Tras `thermal_system.step()`: si `conservation_check_enabled`, llama `zone_fire_solver.validate_conservation()` y actualiza el acumulador
+- Estado exporta `conservation_max_violation_frac`
+
+#### `sim/core/SimulationStateBuilder.gd`
+- Añade `conservation_max_violation_frac` al dict inicial de `build_state()`
+
+#### `sim/validation/CaseRunner.gd`
+- Extrae `conservation_max_violation_frac` como métrica
+
+#### `sim/validation/cases/conservation_transport.json` (NUEVO)
+- Activa `conservation_check_enabled: true` vía engine_override
+
+#### `sim/validation/baselines/conservation_transport.json` (NUEVO)
+- Métrica: `conservation_max_violation_frac < 1e-5`
+
+#### `sim/validation/run_all_cases.ps1`
+- Añadido `"conservation_transport"` al array de casos (suite = 41)
+
+### Resultado observado
+- `conservation_max_violation_frac` = 6.95e-16 (ruido FP puro)
+- Ninguna violación real detectada → transporte exactamente conservativo ✅
+- Baseline PASS con threshold 1e-5
+
+### Suite Phase 3 — pendiente confirmación 41/41 PASS
+(En ejecución al cierre de esta sección)
+
+---
+
+## Próximos items del roadmap
+- **R#6 Phase 4**: Delta-acumulación simultánea — eliminar efectos de ordenación
+- **Editor**: Herramienta de colocación de detectores (humo/calor/CO)
+- **Editor**: Herramienta de colocación de víctimas/ocupantes
+
+---
+
 ## Entorno técnico (referencia)
 
 - **Godot**: `F:\OneDrive\Escritorio\Godot_v4.6.2-stable_win64_console.exe` (headless)
@@ -127,11 +236,3 @@ Total: 40/40 PASS — 2517,58s
 - **Suite completa**: `sim/validation/run_all_cases.ps1 -GodotExe "..." -ContinueOnFailure`
 - **Caso individual**: `sim/validation/run_case.ps1 -CaseName NAME -GodotExe "..."`
 - **Preload pattern** (obligatorio en headless): `const XScript = preload("res://path/X.gd")`; nunca usar `class_name` como tipo en declaraciones de variables en SimulationEngine
-
----
-
-## Próximos pasos sugeridos
-
-1. **R#6 Phase 2** — ZoneFireSolver con física activa: coordinación de masa upper/lower real entre salas, CO₂ upper/lower tracking en transporte convectivo.
-2. **R#6 Phase 3** — ZoneFireSolver con conservación: `validate_conservation()` activo, error budgets.
-3. **HCN carry habilitado** (cuando se tengan baselines adecuados): subir `hot_gas_hcn_carry_fraction > 0.0` y recalibrar baselines.

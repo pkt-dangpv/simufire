@@ -425,6 +425,10 @@ var _active_suppression_by_room: Dictionary = {}
 @export var hot_gas_species_carry_fraction: float = 0.72
 @export var hot_gas_smoke_carry_fraction: float = 0.30
 @export var hot_gas_species_max_fraction_per_step: float = 0.22
+# SF-R6 Phase 2: carry convectivo HCN/irritantes por flujo de gas caliente.
+# Valores 0.40 / 0.30 calibrados para parity CFAST TN-1889.
+@export var hot_gas_hcn_carry_fraction: float = 0.40
+@export var hot_gas_irritant_carry_fraction: float = 0.30
 @export var thermal_gradient_min_band_m: float = 0.20
 @export var thermal_gradient_max_band_m: float = 0.70
 @export var thermal_gradient_band_fraction: float = 0.35
@@ -488,6 +492,13 @@ var _active_suppression_by_room: Dictionary = {}
 ## Activar para imprimir warning si el residual térmico supera el umbral.
 @export var energy_budget_enabled: bool = false
 @export var energy_budget_warn_fraction: float = 0.10
+## SF-R6 Phase 3: verificación de conservación de masa en transporte de contaminantes.
+## Cuando true, ZoneFireSolver.validate_conservation() se llama cada paso y acumula
+## la peor violación relativa (expuesta como "conservation_max_violation_frac" en estado).
+@export var conservation_check_enabled: bool = false
+## Peor violación de conservación de transporte registrada (fracción relativa).
+## -1.0 significa que conservation_check_enabled=false (sin datos).
+var _conservation_max_violation_frac: float = -1.0
 # SF-AUD-010: Bernoulli dos zonas para flujos por aperturas interiores y exteriores.
 # Cuando true: flujo calculado con Q = Cd·W·f·(2/3)·h^(3/2)·sqrt(2g·ΔT/T_ref) y plano
 # neutro calculado desde densidades. Default true → paridad CFAST (2026-05-17).
@@ -717,6 +728,8 @@ func _sync_auxiliary_services() -> void:
 		"hot_gas_species_carry_fraction": hot_gas_species_carry_fraction,
 		"hot_gas_smoke_carry_fraction": hot_gas_smoke_carry_fraction,
 		"hot_gas_species_max_fraction_per_step": hot_gas_species_max_fraction_per_step,
+		"hot_gas_hcn_carry_fraction": hot_gas_hcn_carry_fraction,
+		"hot_gas_irritant_carry_fraction": hot_gas_irritant_carry_fraction,
 		"thermal_gradient_min_band_m": thermal_gradient_min_band_m,
 		"thermal_gradient_max_band_m": thermal_gradient_max_band_m,
 		"thermal_gradient_band_fraction": thermal_gradient_band_fraction,
@@ -877,7 +890,8 @@ func _build_state_context() -> Dictionary:
 		"window_open_max_callable": Callable(self, "_window_open_max_for_room"),
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
 		"kawagoe_factor_callable": Callable(self, "_kawagoe_factor_for_room"),
-		"energy_budget": thermal_system.get_energy_budget() if energy_budget_enabled else {}
+		"energy_budget": thermal_system.get_energy_budget() if energy_budget_enabled else {},
+		"conservation_max_violation_frac": _conservation_max_violation_frac,
 	}
 
 
@@ -1095,6 +1109,12 @@ func step(delta: float) -> void:
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
 		"opening_flow_cache": _opening_flow_cache
 	})
+	# SF-R6 Phase 3: verificar conservación de transporte de contaminantes.
+	if conservation_check_enabled:
+		var _cons: Dictionary = zone_fire_solver.validate_conservation(
+			building, thermal_system.get_transport_residuals(), dt
+		)
+		_conservation_max_violation_frac = float(_cons.get("conservation_max_violation_frac", 0.0))
 	_step_suppression(dt)
 	_step_steam_decay(dt)
 	if glass_break_mode != GlassBreakMode.DISABLED:

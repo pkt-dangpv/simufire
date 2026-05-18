@@ -17,7 +17,7 @@
 				}
 			},
 			"time_room_0_fec_above_0_2_s": {
-				"actual": 52.2500000000004,
+				"actual": 52.4166666666671,
 				"pass": true,
 				"rule": {
 					"max": 590.0,
@@ -25,7 +25,7 @@
 				}
 			},
 			"time_room_0_hcl_ppm_above_200_s": {
-				"actual": 54.1666666666671,
+				"actual": 54.4166666666671,
 				"pass": true,
 				"rule": {
 					"max": 580.0,
@@ -58,7 +58,7 @@
 		"room_0_final_dominant_fuel_object_id": "pvc_suelo_vinilico",
 		"room_0_final_dominant_fuel_object_remaining_MJ": 2249.19442232209,
 		"room_0_final_dominant_fuel_object_state": "pyrolyzing",
-		"room_0_final_fed": 6.59005198841099,
+		"room_0_final_fed": 6.77400606614145,
 		"room_0_final_fire_time_s": 256.288685360423,
 		"room_0_final_flame_hrr_target_kw": 0.0,
 		"room_0_final_fuel_objects_flaming_count": 0,
@@ -99,7 +99,7 @@
 		"room_0_final_wall_T_outer_c": 20.0,
 		"room_0_final_wall_k_kw_m_k": -1.0,
 		"room_0_final_wall_thickness_m": -1.0,
-		"room_0_max_fed": 6.59005198841099,
+		"room_0_max_fed": 6.77400606614145,
 		"room_0_max_fuel_objects_flaming_count": 2,
 		"room_0_max_fuel_objects_heating_count": 1,
 		"room_0_max_fuel_objects_pyrolyzing_count": 1,
@@ -133,7 +133,7 @@
 		"room_1_final_dominant_fuel_object_id": "pasillo_alfombra",
 		"room_1_final_dominant_fuel_object_remaining_MJ": 260.0,
 		"room_1_final_dominant_fuel_object_state": "heating",
-		"room_1_final_fed": 2.73888922489661,
+		"room_1_final_fed": 5.51920739117975,
 		"room_1_final_fire_time_s": 0.0,
 		"room_1_final_flame_hrr_target_kw": 0.0,
 		"room_1_final_fuel_objects_flaming_count": 0,
@@ -174,7 +174,7 @@
 		"room_1_final_wall_T_outer_c": 20.0,
 		"room_1_final_wall_k_kw_m_k": -1.0,
 		"room_1_final_wall_thickness_m": -1.0,
-		"room_1_max_fed": 2.73888922489661,
+		"room_1_max_fed": 5.51920739117975,
 		"room_1_max_fuel_objects_flaming_count": 0,
 		"room_1_max_fuel_objects_heating_count": 4,
 		"room_1_max_fuel_objects_pyrolyzing_count": 0,
@@ -198,10 +198,10 @@
 		"smoke_vented_total_kg": 2.75343854223141,
 		"suppression_cooling_total_kj": 0.0,
 		"suppression_water_applied_l": 0.0,
-		"time_room_0_fec_above_0_2_s": 52.2500000000004,
+		"time_room_0_fec_above_0_2_s": 52.4166666666671,
 		"time_room_0_fuel_flaming_s": 0.583333333333333,
 		"time_room_0_fuel_pyrolysis_s": 71.2500000000003,
-		"time_room_0_hcl_ppm_above_200_s": 54.1666666666671,
+		"time_room_0_hcl_ppm_above_200_s": 54.4166666666671,
 		"time_room_0_l150_below_1_8m_s": 108.583333333332,
 		"time_room_0_smoke_layer_2m_s": 29.9166666666665,
 		"time_room_0_temp_1_8m_above_150c_s": 101.666666666665,

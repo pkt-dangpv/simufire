@@ -571,6 +571,9 @@ func _update_metrics(state: Dictionary) -> void:
 	_metrics["smoke_deposited_total_kg"] = float(state.get("smoke_deposited_total_kg", 0.0))
 	_metrics["suppression_water_applied_l"] = float(state.get("suppression_water_applied_l", 0.0))
 	_metrics["suppression_cooling_total_kj"] = float(state.get("suppression_cooling_total_kj", 0.0))
+	# SF-R6 Phase 3: violación de conservación de transporte acumulada.
+	# -1.0 = conservation_check_enabled=false (dato no disponible).
+	_metrics["conservation_max_violation_frac"] = float(state.get("conservation_max_violation_frac", -1.0))
 
 	var trigger_room_id: int = int(_case_config.get("smoke_trigger_room_id", 0))
 	var target_room_id: int = int(_case_config.get("spread_target_room_id", 1))
