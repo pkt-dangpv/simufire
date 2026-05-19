@@ -233,6 +233,21 @@ func build_state(context: Dictionary) -> Dictionary:
 			})
 		state["detectors"] = det_list
 
+	# Víctimas: FED acumulado, incapacitación y hora por cada ocupante.
+	if building.victims.size() > 0:
+		var vic_list: Array = []
+		for vic in building.victims:
+			vic_list.append({
+				"id": String(vic.get("id", "")),
+				"room_id": int(vic.get("room_id", -1)),
+				"name": String(vic.get("name", "")),
+				"height_m": float(vic.get("height_m", 0.9)),
+				"fed": float(vic.get("fed", 0.0)),
+				"incapacitated": bool(vic.get("incapacitated", false)),
+				"incapacitated_at_s": float(vic.get("incapacitated_at_s", -1.0))
+			})
+		state["victims"] = vic_list
+
 	return state
 
 

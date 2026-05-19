@@ -78,7 +78,9 @@ $cases = @(
 	"secondary_ignition_demo",
 	"two_storey_smoke",
 	# SF-R6 Phase 3: conservación de transporte de contaminantes (residual ~0)
-	"conservation_transport"
+	"conservation_transport",
+	# SF-VIC-001: acumulación FED individual de víctima (compute_fed_delta_for_height)
+	"victim_fed_incapacitation"
 )
 
 $results = New-Object System.Collections.Generic.List[object]

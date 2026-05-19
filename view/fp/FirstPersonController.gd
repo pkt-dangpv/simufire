@@ -96,13 +96,24 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_group("Muebles FP")
 @export var show_furniture: bool = true
 @export var furniture_collision_enabled: bool = false
-@export var furniture_wall_margin_m: float = 0.08
+@export var furniture_wall_margin_m: float = 0.0
+@export var show_auto_room_furniture: bool = false
+@export var auto_layout_default_fuel_objects: bool = false
 @export var furniture_state_tint_enabled: bool = false
 @export var furniture_upholstery_color: Color = Color(0.43, 0.34, 0.29, 1.0)
 @export var furniture_wood_color: Color = Color(0.46, 0.31, 0.19, 1.0)
 @export var furniture_light_fabric_color: Color = Color(0.76, 0.71, 0.62, 1.0)
 @export var furniture_rug_color: Color = Color(0.47, 0.28, 0.22, 1.0)
 @export var furniture_counter_color: Color = Color(0.22, 0.22, 0.20, 1.0)
+@export var show_fp_detectors: bool = true
+@export var show_fp_victims: bool = true
+@export var show_fp_fires: bool = true
+@export var fp_detector_color: Color = Color(0.35, 0.76, 1.0, 1.0)
+@export var fp_detector_triggered_color: Color = Color(1.0, 0.38, 0.16, 1.0)
+@export var fp_victim_color: Color = Color(0.95, 0.86, 0.48, 1.0)
+@export var fp_victim_incapacitated_color: Color = Color(0.58, 0.58, 0.62, 1.0)
+@export var fp_fire_color: Color = Color(1.0, 0.34, 0.05, 0.78)
+@export var fp_fire_core_color: Color = Color(1.0, 0.82, 0.24, 0.92)
 
 @export_group("Humo FP")
 @export var smoke_overlay_visibility_reference_m: float = 14.0
@@ -132,6 +143,8 @@ var _pitch: float = 0.0
 var _stance: int = STANCE_STAND
 var _opening_nodes: Dictionary = {}
 var _furniture_nodes: Dictionary = {}
+var _detector_nodes: Dictionary = {}
+var _victim_nodes: Dictionary = {}
 var _nearest_opening_index: int = -1
 var _state: Dictionary = {}
 var _visibility_overlay: ColorRect = null
@@ -187,6 +200,7 @@ func set_state(next_state: Dictionary) -> void:
 	_state = next_state
 	_sync_opening_panels()
 	_update_furniture_state_visuals()
+	_update_safety_marker_states()
 	_update_visibility_overlay()
 	_update_status_hud()
 
@@ -391,6 +405,8 @@ func _rebuild_world() -> void:
 	_world_root.visible = _active
 	_opening_nodes.clear()
 	_furniture_nodes.clear()
+	_detector_nodes.clear()
+	_victim_nodes.clear()
 
 	if building == null:
 		return
@@ -410,6 +426,7 @@ func _rebuild_world() -> void:
 	_create_opening_panels()
 	_create_exterior_context()
 	_create_furniture(rects)
+	_create_safety_markers(rects)
 	_create_outer_boundary()
 
 
@@ -868,15 +885,18 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		return
 	if not op.is_exterior_opening() or op.type != OpeningModel.Type.DOOR:
 		return
+	if not _is_apartment_building():
+		_create_single_family_entry_recess(index, op, info)
+		return
 
 	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
 	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
 	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
 	var horizontal: bool = String(info.get("orientation", "horizontal")) == "horizontal"
 	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
-	var width_m: float = maxf(1.45, float(info.get("width_m", 0.85)) + 0.95)
-	var depth_m: float = maxf(1.85, landing_recess_depth_m)
-	var corridor_height_m: float = 2.45
+	var width_m: float = maxf(5.40, float(info.get("width_m", 0.85)) + 4.10)
+	var depth_m: float = maxf(3.30, landing_recess_depth_m * 2.35)
+	var corridor_height_m: float = 2.62
 
 	var floor_center: Vector3 = center - normal * (depth_m * 0.5 + 0.08)
 	floor_center.y = floor_level_m - floor_thickness_m * 0.5
@@ -938,35 +958,38 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	)
 
 	var surface_center: Vector3 = wall_center + normal * (wall_thickness_m * 0.5 + 0.026)
-	var neighbor_center: Vector3 = surface_center - tangent * (width_m * 0.22)
-	neighbor_center.y = 0.98
-	_add_oriented_box(
-		_world_root,
-		"LandingNeighborDoor_%02d" % index,
-		neighbor_center,
-		tangent,
-		0.72,
-		1.86,
-		0.045,
-		_mat(Color(0.38, 0.25, 0.15, 1.0), false),
-		false
-	)
-	var handle_center: Vector3 = neighbor_center + tangent * 0.24 + normal * 0.035
-	handle_center.y = 0.98
-	_add_oriented_box(
-		_world_root,
-		"LandingNeighborHandle_%02d" % index,
-		handle_center,
-		tangent,
-		0.055,
-		0.055,
-		0.055,
-		_mat(Color(0.72, 0.58, 0.30, 1.0), false),
-		false
-	)
+	var neighbor_offsets: Array[float] = [-width_m * 0.36, -width_m * 0.12, width_m * 0.12]
+	for door_i in range(neighbor_offsets.size()):
+		var offset_t: float = float(neighbor_offsets[door_i])
+		var neighbor_center: Vector3 = surface_center + tangent * offset_t
+		neighbor_center.y = floor_level_m + 1.02
+		_add_oriented_box(
+			_world_root,
+			"LandingNeighborDoor_%02d_%02d" % [index, door_i],
+			neighbor_center,
+			tangent,
+			0.78,
+			1.94,
+			0.050,
+			_mat(Color(0.34, 0.22, 0.13, 1.0), false),
+			false
+		)
+		var handle_center: Vector3 = neighbor_center + tangent * 0.25 + normal * 0.038
+		handle_center.y = floor_level_m + 1.02
+		_add_oriented_box(
+			_world_root,
+			"LandingNeighborHandle_%02d_%02d" % [index, door_i],
+			handle_center,
+			tangent,
+			0.055,
+			0.055,
+			0.055,
+			_mat(Color(0.72, 0.58, 0.30, 1.0), false),
+			false
+		)
 
-	var lift_center: Vector3 = surface_center + tangent * (width_m * 0.27)
-	lift_center.y = 1.02
+	var lift_center: Vector3 = surface_center + tangent * (width_m * 0.38)
+	lift_center.y = floor_level_m + 1.04
 	_add_oriented_box(
 		_world_root,
 		"LandingLiftDoors_%02d" % index,
@@ -991,7 +1014,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		false
 	)
 	var panel_center: Vector3 = surface_center + tangent * (width_m * 0.47)
-	panel_center.y = 1.18
+	panel_center.y = floor_level_m + 1.18
 	_add_oriented_box(
 		_world_root,
 		"LandingLiftPanel_%02d" % index,
@@ -1003,6 +1026,100 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		_mat(Color(0.11, 0.12, 0.12, 1.0), false, Color(0.8, 0.62, 0.28, 1.0), 0.18),
 		false
 	)
+	_create_landing_stair_run(index, floor_level_m, center - normal * 0.74 - tangent * (width_m * 0.43), -normal, tangent, true)
+	_create_landing_stair_run(index + 1000, floor_level_m, center - normal * 1.05 + tangent * (width_m * 0.43), -normal, tangent, false)
+
+
+func _create_single_family_entry_recess(index: int, _op: OpeningModel, info: Dictionary) -> void:
+	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
+	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
+	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
+	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
+	var porch_center: Vector3 = center - normal * 0.62
+	porch_center.y = floor_level_m - floor_thickness_m * 0.5
+	_add_oriented_box(
+		_world_root,
+		"HousePorch_%02d" % index,
+		porch_center,
+		tangent,
+		1.65,
+		floor_thickness_m,
+		1.20,
+		_mat(Color(0.47, 0.45, 0.39, 1.0), false),
+		false
+	)
+	var path_center: Vector3 = center - normal * 2.35
+	path_center.y = floor_level_m - floor_thickness_m * 0.52
+	_add_oriented_box(
+		_world_root,
+		"HouseEntryPath_%02d" % index,
+		path_center,
+		tangent,
+		1.10,
+		floor_thickness_m,
+		3.05,
+		_mat(Color(0.42, 0.42, 0.37, 1.0), false),
+		false
+	)
+	var street_center: Vector3 = center - normal * 4.35
+	street_center.y = floor_level_m - floor_thickness_m * 0.55
+	_add_oriented_box(
+		_world_root,
+		"HouseStreet_%02d" % index,
+		street_center,
+		tangent,
+		7.20,
+		floor_thickness_m,
+		0.80,
+		_mat(Color(0.12, 0.13, 0.13, 1.0), false),
+		false
+	)
+	for side_sign in [-1.0, 1.0]:
+		var garden_center: Vector3 = center - normal * 1.75 + tangent * side_sign * 1.65
+		garden_center.y = floor_level_m - floor_thickness_m * 0.57
+		_add_oriented_box(
+			_world_root,
+			"HouseGarden_%02d_%s" % [index, str(side_sign)],
+			garden_center,
+			tangent,
+			1.65,
+			floor_thickness_m,
+			2.45,
+			_mat(Color(0.17, 0.33, 0.19, 1.0), false),
+			false
+		)
+		var house_center: Vector3 = center - normal * 5.05 + tangent * side_sign * 2.45
+		house_center.y = floor_level_m + 0.70
+		_add_oriented_box(
+			_world_root,
+			"NeighbourHouse_%02d_%s" % [index, str(side_sign)],
+			house_center,
+			tangent,
+			1.55,
+			1.40,
+			0.70,
+			_mat(Color(0.55, 0.50, 0.43, 1.0), false),
+			false
+		)
+
+
+func _create_landing_stair_run(index: int, floor_level_m: float, base_center: Vector3, run_dir: Vector3, tangent: Vector3, ascending: bool) -> void:
+	var step_mat := _mat(Color(0.42, 0.37, 0.30, 1.0), false)
+	for step_i in range(6):
+		var step_center: Vector3 = base_center + run_dir.normalized() * (float(step_i) * 0.22)
+		var rise: float = 0.055 * float(step_i + 1)
+		step_center.y = floor_level_m + (rise if ascending else -rise * 0.62) + 0.035
+		_add_oriented_box(
+			_world_root,
+			"LandingStairStep_%02d_%02d" % [index, step_i],
+			step_center,
+			tangent,
+			0.92,
+			0.07,
+			0.18,
+			step_mat,
+			false
+		)
 
 
 func _create_exterior_context() -> void:
@@ -1020,7 +1137,14 @@ func _create_exterior_context() -> void:
 		var info: Dictionary = _opening_info(index)
 		if info.is_empty():
 			continue
-		_create_window_city_view(root, index, info)
+		if _is_apartment_building():
+			_create_window_city_view(root, index, info)
+		else:
+			_create_window_residential_view(root, index, info)
+
+
+func _is_apartment_building() -> bool:
+	return building != null and String(building.building_type).strip_edges().to_lower() == "apartment"
 
 
 func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> void:
@@ -1090,6 +1214,89 @@ func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> v
 		_create_city_windows(parent, index, slot, building_center, normal, tangent, building_width, building_height, building_depth, seed)
 
 
+func _create_window_residential_view(parent: Node3D, index: int, info: Dictionary) -> void:
+	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
+	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
+	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
+	var width_m: float = float(info.get("width_m", 1.0))
+	var height_m: float = float(info.get("height_m", 1.0))
+	var sill_m: float = float(info.get("sill_m", 0.9))
+	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
+
+	_create_exterior_window_reveal(parent, index, center, normal, tangent, width_m, height_m, sill_m)
+	_create_exterior_window_sill(parent, index, center, normal, tangent, width_m, sill_m)
+
+	var sky_center: Vector3 = center - normal * city_backdrop_distance_m
+	sky_center.y = floor_level_m + 4.2
+	var sky_color: Color = Color(0.70, 0.84, 0.94, 1.0) if not _exterior_is_night() else Color(0.08, 0.12, 0.18, 1.0)
+	_add_oriented_box(
+		parent,
+		"ResidentialSky_%02d" % index,
+		sky_center,
+		tangent,
+		city_view_width_m * 1.35,
+		10.0,
+		0.08,
+		_mat(sky_color, false, sky_color, 0.42 if not _exterior_is_night() else 0.10),
+		false
+	)
+
+	var lawn_center: Vector3 = center - normal * 2.65
+	lawn_center.y = floor_level_m - floor_thickness_m * 0.55
+	_add_oriented_box(
+		parent,
+		"ResidentialLawn_%02d" % index,
+		lawn_center,
+		tangent,
+		city_view_width_m * 0.62,
+		floor_thickness_m,
+		3.45,
+		_mat(Color(0.17, 0.34, 0.20, 1.0), false, Color(0.08, 0.18, 0.08, 1.0), 0.03 if not _exterior_is_night() else 0.0),
+		false
+	)
+	var street_center: Vector3 = center - normal * 5.55
+	street_center.y = floor_level_m - floor_thickness_m * 0.58
+	_add_oriented_box(
+		parent,
+		"ResidentialStreet_%02d" % index,
+		street_center,
+		tangent,
+		city_view_width_m * 0.74,
+		floor_thickness_m,
+		0.90,
+		_mat(Color(0.13, 0.14, 0.14, 1.0), false),
+		false
+	)
+	for slot in range(3):
+		var slot_t: float = float(slot - 1) * 2.85
+		var house_center: Vector3 = center - normal * (7.2 + float(slot % 2) * 0.45) + tangent * slot_t
+		house_center.y = floor_level_m + 0.78
+		_add_oriented_box(
+			parent,
+			"ResidentialHouse_%02d_%02d" % [index, slot],
+			house_center,
+			tangent,
+			1.75,
+			1.55,
+			0.82,
+			_mat(Color(0.55, 0.50, 0.43, 1.0), false),
+			false
+		)
+		var roof_center: Vector3 = house_center
+		roof_center.y = floor_level_m + 1.62
+		_add_oriented_box(
+			parent,
+			"ResidentialRoof_%02d_%02d" % [index, slot],
+			roof_center,
+			tangent,
+			1.95,
+			0.16,
+			0.98,
+			_mat(Color(0.31, 0.15, 0.10, 1.0), false),
+			false
+		)
+
+
 func _create_exterior_window_reveal(
 	parent: Node3D,
 	index: int,
@@ -1103,16 +1310,17 @@ func _create_exterior_window_reveal(
 	var reveal_center: Vector3 = center - normal * 0.105
 	var band_depth: float = 0.055
 	var band_m: float = 0.16
+	var floor_level_m: float = center.y - (sill_m + height_m * 0.5)
 	var facade_mat := _mat(exterior_facade_color, false)
 	var top_center: Vector3 = reveal_center
-	top_center.y = sill_m + height_m + band_m * 0.5
+	top_center.y = floor_level_m + sill_m + height_m + band_m * 0.5
 	_add_oriented_box(parent, "ExteriorWindowTop_%02d" % index, top_center, tangent, width_m + band_m * 2.0, band_m, band_depth, facade_mat, false)
 	var bottom_center: Vector3 = reveal_center
-	bottom_center.y = maxf(0.05, sill_m - band_m * 0.5)
+	bottom_center.y = floor_level_m + maxf(0.05, sill_m - band_m * 0.5)
 	_add_oriented_box(parent, "ExteriorWindowBottom_%02d" % index, bottom_center, tangent, width_m + band_m * 2.0, band_m, band_depth, facade_mat, false)
 	for side_sign in [-1.0, 1.0]:
 		var side_center: Vector3 = reveal_center + tangent * side_sign * (width_m * 0.5 + band_m * 0.5)
-		side_center.y = sill_m + height_m * 0.5
+		side_center.y = floor_level_m + sill_m + height_m * 0.5
 		_add_oriented_box(parent, "ExteriorWindowSide_%02d" % index, side_center, tangent, band_m, height_m + band_m * 2.0, band_depth, facade_mat, false)
 
 
@@ -1141,7 +1349,7 @@ func _create_exterior_lighting(parent: Node3D) -> void:
 
 func _create_exterior_window_sill(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, width_m: float, sill_m: float) -> void:
 	var slab_center: Vector3 = center - normal * 0.40
-	slab_center.y = maxf(0.22, sill_m - 0.10)
+	slab_center.y = maxf(0.22, center.y - 0.50)
 	_add_oriented_box(parent, "ExteriorSill_%02d" % index, slab_center, tangent, width_m + 0.52, 0.08, 0.42, _mat(Color(0.55, 0.54, 0.49, 1.0), false), false)
 
 
@@ -1203,7 +1411,7 @@ func _create_furniture(rects: Dictionary) -> void:
 		furniture_root.add_child(room_root)
 
 		var specs: Array = _fuel_object_furniture_specs(room, rect)
-		if specs.is_empty():
+		if specs.is_empty() and show_auto_room_furniture:
 			specs = _fallback_furniture_specs(room, rect)
 		for raw_spec in specs:
 			if typeof(raw_spec) != TYPE_DICTIONARY:
@@ -1213,11 +1421,177 @@ func _create_furniture(rects: Dictionary) -> void:
 	_update_furniture_state_visuals()
 
 
+func _create_safety_markers(rects: Dictionary) -> void:
+	if building == null or _world_root == null:
+		return
+	var root := Node3D.new()
+	root.name = "SafetyMarkers"
+	_world_root.add_child(root)
+
+	if show_fp_detectors:
+		for raw_det in building.detectors:
+			if typeof(raw_det) != TYPE_DICTIONARY:
+				continue
+			var det: Dictionary = raw_det
+			var room_id: int = int(det.get("room_id", -1))
+			if not rects.has(room_id):
+				continue
+			var room: RoomModel = building.get_room(room_id)
+			var rect := Rect2(rects[room_id])
+			var det_id: String = String(det.get("id", "det_%d" % _detector_nodes.size()))
+			var node := _create_fp_detector_marker(det_id)
+			node.position = _safety_world_position(det, rect, room, _room_height(room) - 0.08)
+			root.add_child(node)
+			_detector_nodes[det_id] = node
+
+	if show_fp_victims:
+		for raw_vic in building.victims:
+			if typeof(raw_vic) != TYPE_DICTIONARY:
+				continue
+			var vic: Dictionary = raw_vic
+			var room_id: int = int(vic.get("room_id", -1))
+			if not rects.has(room_id):
+				continue
+			var room: RoomModel = building.get_room(room_id)
+			var rect := Rect2(rects[room_id])
+			var vic_id: String = String(vic.get("id", "vic_%d" % _victim_nodes.size()))
+			var node := _create_fp_victim_marker(vic_id)
+			node.position = _safety_world_position(vic, rect, room, 0.0)
+			root.add_child(node)
+			_victim_nodes[vic_id] = node
+
+	_update_safety_marker_states()
+
+
+func _create_fp_detector_marker(detector_id: String) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Detector_" + _safe_node_name(detector_id)
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = "MarkerMesh"
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.11
+	mesh.bottom_radius = 0.11
+	mesh.height = 0.035
+	mesh.radial_segments = 24
+	mesh_instance.mesh = mesh
+	mesh_instance.material_override = _mat(fp_detector_color, false)
+	root.add_child(mesh_instance)
+	return root
+
+
+func _create_fp_victim_marker(victim_id: String) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Victim_" + _safe_node_name(victim_id)
+	var mat := _mat(fp_victim_color, false)
+	var body := _create_fp_human_limb_mesh("MarkerMesh", 0.16, 0.70, mat)
+	body.rotation_degrees.x = 90.0
+	body.position = Vector3(0.0, 0.14, 0.0)
+	root.add_child(body)
+	var head := MeshInstance3D.new()
+	head.name = "Head"
+	var head_mesh := SphereMesh.new()
+	head_mesh.radius = 0.13
+	head_mesh.height = 0.26
+	head_mesh.radial_segments = 14
+	head_mesh.rings = 7
+	head.mesh = head_mesh
+	head.position = Vector3(0.0, 0.14, -0.48)
+	head.material_override = mat
+	root.add_child(head)
+	for side in [-1.0, 1.0]:
+		var arm := _create_fp_human_limb_mesh("Arm_%s" % str(side), 0.055, 0.48, mat)
+		arm.rotation_degrees.z = 90.0
+		arm.rotation_degrees.y = 12.0 * side
+		arm.position = Vector3(side * 0.31, 0.10, -0.05)
+		root.add_child(arm)
+		var leg := _create_fp_human_limb_mesh("Leg_%s" % str(side), 0.07, 0.56, mat)
+		leg.rotation_degrees.x = 90.0
+		leg.rotation_degrees.z = 7.0 * side
+		leg.position = Vector3(side * 0.12, 0.11, 0.50)
+		root.add_child(leg)
+	return root
+
+
+func _create_fp_human_limb_mesh(node_name: String, radius_m: float, length_m: float, mat: StandardMaterial3D) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	var mesh := CapsuleMesh.new()
+	mesh.radius = radius_m
+	mesh.height = length_m
+	mesh.radial_segments = 12
+	mesh.rings = 4
+	mesh_instance.mesh = mesh
+	mesh_instance.material_override = mat
+	return mesh_instance
+
+
+func _safety_world_position(data: Dictionary, rect: Rect2, room: RoomModel, y_m: float) -> Vector3:
+	var local_pos: Vector2 = _safety_local_position(data, rect)
+	var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
+	return _to_world(Vector3(rect.position.x + local_pos.x, y_m, rect.position.y + local_pos.y), floor_level_m)
+
+
+func _safety_local_position(data: Dictionary, rect: Rect2) -> Vector2:
+	if data.has("x_m") and data.has("y_m"):
+		return Vector2(
+			clampf(float(data.get("x_m", rect.size.x * 0.5)), 0.0, rect.size.x),
+			clampf(float(data.get("y_m", rect.size.y * 0.5)), 0.0, rect.size.y)
+		)
+	return rect.size * 0.5
+
+
+func _room_height(room: RoomModel) -> float:
+	return room.height_m if room != null else boundary_height_m
+
+
+func _update_safety_marker_states() -> void:
+	var detector_states: Dictionary = _state_records_by_id(Array(_state.get("detectors", [])))
+	for det_id in _detector_nodes.keys():
+		var node := _detector_nodes[det_id] as Node3D
+		if node == null:
+			continue
+		node.visible = show_fp_detectors
+		var record: Dictionary = detector_states.get(det_id, {})
+		_set_marker_material(node, fp_detector_triggered_color if bool(record.get("triggered", false)) else fp_detector_color)
+
+	var victim_states: Dictionary = _state_records_by_id(Array(_state.get("victims", [])))
+	for vic_id in _victim_nodes.keys():
+		var node := _victim_nodes[vic_id] as Node3D
+		if node == null:
+			continue
+		node.visible = show_fp_victims
+		var record: Dictionary = victim_states.get(vic_id, {})
+		_set_marker_material(node, fp_victim_incapacitated_color if bool(record.get("incapacitated", false)) else fp_victim_color)
+
+
+func _state_records_by_id(records: Array) -> Dictionary:
+	var result: Dictionary = {}
+	for raw_record in records:
+		if typeof(raw_record) != TYPE_DICTIONARY:
+			continue
+		var record: Dictionary = raw_record
+		var id_text: String = String(record.get("id", ""))
+		if id_text != "":
+			result[id_text] = record
+	return result
+
+
+func _set_marker_material(root: Node3D, color: Color) -> void:
+	_set_marker_material_recursive(root, _mat(color, false))
+
+
+func _set_marker_material_recursive(node: Node, material: StandardMaterial3D) -> void:
+	if node is MeshInstance3D:
+		(node as MeshInstance3D).material_override = material
+	for child in node.get_children():
+		_set_marker_material_recursive(child, material)
+
+
 func _fuel_object_furniture_specs(room: RoomModel, rect: Rect2) -> Array:
 	var specs: Array = []
 	if room == null:
 		return specs
-	var auto_layout: bool = _fuel_objects_need_auto_layout(room)
+	var auto_layout: bool = auto_layout_default_fuel_objects and _fuel_objects_need_auto_layout(room)
 	var index: int = 0
 	for raw_obj in room.fuel_objects:
 		var obj := raw_obj as FuelObjectModel
@@ -1225,10 +1599,7 @@ func _fuel_object_furniture_specs(room: RoomModel, rect: Rect2) -> Array:
 			continue
 		if String(obj.id).begins_with("room_proxy_"):
 			continue
-		var room_kind: String = room.kind.to_lower()
 		var visual_kind: String = _classify_furniture_kind(obj.kind, obj.name, obj.id)
-		if (room_kind.contains("pasillo") or room_kind.contains("hall") or room_kind.contains("corridor")) and visual_kind != "rug":
-			continue
 		var spec: Dictionary
 		if auto_layout:
 			spec = _auto_furniture_spec_for_object(room, rect, obj, index)
@@ -1427,8 +1798,6 @@ func _create_furniture_piece(parent: Node3D, _room: RoomModel, room_rect: Rect2,
 	if local_rect.size.x <= 0.05 or local_rect.size.y <= 0.05:
 		return
 	var room_id: int = _room.id if _room != null else -999
-	if _is_solid_furniture_kind(kind) and _furniture_blocks_opening(room_id, room_rect, local_rect):
-		return
 
 	var layout: Dictionary = _furniture_layout(kind, room_rect, local_rect, float(spec.get("rotation_deg", 0.0)))
 	var shape_size: Vector2 = Vector2(layout.get("shape_size", local_rect.size))
@@ -2034,8 +2403,9 @@ func _add_local_cylinder(parent: Node3D, node_name: String, center_m: Vector3, r
 
 
 func _update_furniture_state_visuals() -> void:
-	if not furniture_state_tint_enabled or _furniture_nodes.is_empty() or _state.is_empty():
+	if _furniture_nodes.is_empty() or _state.is_empty():
 		return
+	var seen_objects: Dictionary = {}
 	for state_value in _state.values():
 		if typeof(state_value) != TYPE_DICTIONARY:
 			continue
@@ -2048,13 +2418,78 @@ func _update_furniture_state_visuals() -> void:
 			var obj_id: String = String(obj.get("id", ""))
 			if obj_id == "" or not _furniture_nodes.has(obj_id):
 				continue
+			seen_objects[obj_id] = true
 			var fuel_mj: float = maxf(0.01, float(obj.get("fuel_energy_MJ", 1.0)))
 			var remaining_ratio: float = clampf(float(obj.get("remaining_fuel_MJ", fuel_mj)) / fuel_mj, 0.0, 1.0)
-			FPFurnitureStateVisuals.apply_to_node(
-				_furniture_nodes[obj_id] as Node,
-				String(obj.get("state", "cold")),
-				remaining_ratio
-			)
+			var state_name: String = String(obj.get("state", "cold"))
+			var furniture_node := _furniture_nodes[obj_id] as Node3D
+			if furniture_state_tint_enabled:
+				FPFurnitureStateVisuals.apply_to_node(
+					furniture_node as Node,
+					state_name,
+					remaining_ratio
+				)
+			_update_fp_fire_for_furniture(furniture_node, obj, state_name)
+	for obj_id in _furniture_nodes.keys():
+		if seen_objects.has(obj_id):
+			continue
+		var node := _furniture_nodes[obj_id] as Node3D
+		var flame: Node3D = null
+		if node != null:
+			flame = node.get_node_or_null("FPObjFlame") as Node3D
+		if flame != null:
+			flame.visible = false
+
+
+func _update_fp_fire_for_furniture(furniture_node: Node3D, obj: Dictionary, state_name: String) -> void:
+	if furniture_node == null:
+		return
+	var flame := furniture_node.get_node_or_null("FPObjFlame") as Node3D
+	var obj_hrr_kw: float = maxf(0.0, float(obj.get("hrr_kw", 0.0)))
+	var visible_flame: bool = show_fp_fires and state_name == "flaming" and obj_hrr_kw > 0.5
+	if not visible_flame:
+		if flame != null:
+			flame.visible = false
+		return
+	if flame == null:
+		flame = _create_fp_fire_marker()
+		furniture_node.add_child(flame)
+	flame.visible = true
+	var size_v = obj.get("size_m", Vector2.ONE)
+	var size_m := Vector2(float(size_v.x) if typeof(size_v) == TYPE_VECTOR2 else float(size_v.get("x", 1.0)),
+			float(size_v.y) if typeof(size_v) == TYPE_VECTOR2 else float(size_v.get("y", 1.0)))
+	var size_scale: float = maxf(0.16, minf(size_m.x, size_m.y) * 0.42)
+	var hrr_scale: float = clampf(sqrt(obj_hrr_kw / maxf(1.0, float(obj.get("max_hrr_kw", 100.0)))), 0.35, 1.25)
+	flame.scale = Vector3.ONE * size_scale * hrr_scale
+	flame.position = Vector3(0.0, maxf(0.18, float(obj.get("elevation_m", 0.0)) + 0.22), 0.0)
+
+
+func _create_fp_fire_marker() -> Node3D:
+	var root := Node3D.new()
+	root.name = "FPObjFlame"
+	var outer := MeshInstance3D.new()
+	outer.name = "OuterFlame"
+	var outer_mesh := CylinderMesh.new()
+	outer_mesh.bottom_radius = 0.28
+	outer_mesh.top_radius = 0.04
+	outer_mesh.height = 0.90
+	outer_mesh.radial_segments = 9
+	outer.mesh = outer_mesh
+	outer.position.y = 0.45
+	outer.material_override = _mat(fp_fire_color, true, fp_fire_color, 0.9)
+	root.add_child(outer)
+	var core := MeshInstance3D.new()
+	core.name = "CoreFlame"
+	var core_mesh := CylinderMesh.new()
+	core_mesh.bottom_radius = 0.14
+	core_mesh.top_radius = 0.02
+	core_mesh.height = 0.58
+	core_mesh.radial_segments = 9
+	core.mesh = core_mesh
+	core.position.y = 0.30
+	core.material_override = _mat(fp_fire_core_color, true, fp_fire_core_color, 1.1)
+	root.add_child(core)
+	return root
 
 
 func _safe_node_name(value: String) -> String:
@@ -2445,16 +2880,21 @@ func _update_opening_panel(index: int) -> void:
 	var base_yaw: float = atan2(-tangent.z, tangent.x)
 	var visual_yaw: float = base_yaw
 	if is_door:
-		visual_center += normal * opening_panel_clearance_m
+		var closed_side: Vector3 = normal if _door_swing_direction(op) == "in" else -normal
+		visual_center += closed_side * opening_panel_clearance_m
 	elif is_window:
 		visual_center -= normal * opening_panel_clearance_m
 
 	if is_door and open_amount > 0.01:
-		var swing_sign: float = -1.0 if tangent.cross(normal).y < 0.0 else 1.0
+		var base_swing_sign: float = -1.0 if tangent.cross(normal).y < 0.0 else 1.0
+		var hinge_sign: float = -1.0 if _door_hinge_side(op) == "left" else 1.0
+		var direction_sign: float = 1.0 if _door_swing_direction(op) == "in" else -1.0
+		var swing_sign: float = base_swing_sign * -hinge_sign * direction_sign
 		visual_yaw = base_yaw + deg_to_rad(82.0) * open_amount * swing_sign
-		var hinge: Vector3 = center - tangent * width_m * 0.5
+		var hinge: Vector3 = center + tangent * hinge_sign * width_m * 0.5
 		var rotated_tangent: Vector3 = Basis(Vector3.UP, visual_yaw).x.normalized()
-		visual_center = hinge + rotated_tangent * width_m * 0.5 + normal * opening_panel_clearance_m
+		var clearance_side: Vector3 = normal if _door_swing_direction(op) == "in" else -normal
+		visual_center = hinge - rotated_tangent * hinge_sign * width_m * 0.5 + clearance_side * opening_panel_clearance_m
 	elif is_window and window_leaf_left != null and window_leaf_right != null:
 		_update_window_leaf_pair(
 			window_leaf_left,
@@ -2512,6 +2952,16 @@ func _update_opening_panel(index: int) -> void:
 			light.light_color = _effective_landing_light_color()
 			light.light_energy = _effective_landing_light_energy() * area_factor * lerpf(landing_light_closed_ratio, 1.0, open_amount)
 			light.omni_range = landing_light_range_m * lerpf(0.78, 1.12, open_amount)
+
+
+func _door_swing_direction(op: OpeningModel) -> String:
+	var direction: String = String(op.swing_direction if op != null else "in").strip_edges().to_lower()
+	return "out" if direction == "out" else "in"
+
+
+func _door_hinge_side(op: OpeningModel) -> String:
+	var hinge: String = String(op.hinge_side if op != null else "left").strip_edges().to_lower()
+	return "right" if hinge == "right" else "left"
 
 
 func _opening_material(op: OpeningModel) -> StandardMaterial3D:

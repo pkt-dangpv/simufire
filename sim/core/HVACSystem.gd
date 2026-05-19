@@ -55,7 +55,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictionary:
 		return result
 
 	var max_room_fraction: float = max_fraction_forced_per_step if is_on else max_fraction_passive_per_step
-	var outside_air_fraction: float = clampf(float(hvac.get("outside_air_fraction", 0.0)) if is_on else 0.0, 0.0, 0.65)
+	var outside_air_fraction: float = clampf(float(hvac.get("outside_air_fraction", 0.0)) if is_on else 0.0, 0.0, 1.0)
 	var exhaust_fraction: float = outside_air_fraction
 	var effective_return_flow_m3_s: float = flow_m3_s
 

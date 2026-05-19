@@ -60,6 +60,8 @@ const RoomStateVisuals2D := preload("res://view/2d/rooms/RoomStateVisuals2D.gd")
 @export var show_opening_labels: bool = false
 @export var show_fuel_objects: bool = true
 @export var show_fuel_object_names: bool = true
+@export var show_detector_markers: bool = true
+@export var show_victim_markers: bool = true
 @export var show_floor_selector: bool = true
 @export var floor_selector_position_px: Vector2 = Vector2(18.0, 18.0)
 @export var floor_selector_button_size_px: Vector2 = Vector2(88.0, 26.0)
@@ -86,6 +88,10 @@ const RoomStateVisuals2D := preload("res://view/2d/rooms/RoomStateVisuals2D.gd")
 @export var heat_room_tint_color: Color = Color(1.0, 0.42, 0.10, 1.0)
 @export var fire_glow_color: Color = Color(1.0, 0.40, 0.10, 1.0)
 @export var fire_core_color: Color = Color(1.0, 0.82, 0.35, 1.0)
+@export var detector_marker_color: Color = Color(0.35, 0.76, 1.0, 1.0)
+@export var detector_triggered_color: Color = Color(1.0, 0.38, 0.16, 1.0)
+@export var victim_marker_color: Color = Color(0.95, 0.86, 0.48, 1.0)
+@export var victim_incapacitated_color: Color = Color(0.58, 0.58, 0.62, 1.0)
 @export var flashover_fill_color: Color = Color(1.0, 0.20, 0.05, 0.24)
 @export var flashover_outline_color: Color = Color(1.0, 0.45, 0.05, 1.0)
 @export var flashover_indicator_duration_s: float = 22.0
@@ -278,6 +284,8 @@ func _draw() -> void:
 
 		if show_fuel_objects:
 			_draw_room_fuel_objects(id, rs)
+
+		_draw_room_safety_markers(id, rm)
 
 		if show_room_name_watermark:
 			_draw_room_name_watermark(id, rs, content_rect)
@@ -836,11 +844,20 @@ func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
 
 		var state_name: String = String(obj.get("state", "cold"))
 		var fill: Color = RoomStateVisuals2D.fuel_object_color_for_state(state_name, fuel_object_fill_color)
-		draw_rect(obj_rect_px, fill, true)
-		draw_rect(obj_rect_px, fuel_object_outline_color, false, 1.0)
+		var center_m: Vector2 = room_rect_m.position + pos_m + size_m * 0.5
+		var rot := Transform2D(deg_to_rad(float(obj.get("rotation_deg", 0.0))), Vector2.ZERO)
+		var half: Vector2 = size_m * 0.5
+		var corners_px := PackedVector2Array([
+			_point_to_px(center_m + rot * Vector2(-half.x, -half.y)),
+			_point_to_px(center_m + rot * Vector2(half.x, -half.y)),
+			_point_to_px(center_m + rot * Vector2(half.x, half.y)),
+			_point_to_px(center_m + rot * Vector2(-half.x, half.y))
+		])
+		draw_colored_polygon(corners_px, fill)
+		draw_polyline(PackedVector2Array([corners_px[0], corners_px[1], corners_px[2], corners_px[3], corners_px[0]]), fuel_object_outline_color, 1.0)
 
 		if bool(obj.get("is_primary_ignition_source", false)):
-			draw_circle(obj_rect_px.get_center(), minf(obj_rect_px.size.x, obj_rect_px.size.y) * 0.18, fire_core_color)
+			draw_circle(_point_to_px(center_m), minf(obj_rect_px.size.x, obj_rect_px.size.y) * 0.18, fire_core_color)
 
 		# SF-AUD-004: llama por objeto — se dibuja cuando el objeto está en FLAMING o PYROLYZING.
 		# Tamaño proporcional a hrr_kw del objeto (mínimo visible aunque sea 0).
@@ -852,7 +869,7 @@ func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
 				3.0,
 				minf(obj_rect_px.size.x, obj_rect_px.size.y) * 0.46
 			)
-			var center: Vector2 = obj_rect_px.get_center()
+			var center: Vector2 = _point_to_px(center_m)
 			var flame_alpha: float = 0.90 if state_name == "flaming" else 0.55
 			draw_circle(center, flame_r, Color(1.0, 0.55, 0.08, flame_alpha * 0.50))
 			draw_circle(center, flame_r * 0.55, Color(1.0, 0.90, 0.22, flame_alpha))
@@ -882,12 +899,71 @@ func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
 			)
 
 
+func _draw_room_safety_markers(room_id: int, room_rect_m: Rect2) -> void:
+	if building == null:
+		return
+	if show_detector_markers:
+		var detector_states: Dictionary = _state_records_by_id(Array(state.get("detectors", [])))
+		for raw_det in building.detectors:
+			if typeof(raw_det) != TYPE_DICTIONARY:
+				continue
+			var det: Dictionary = raw_det
+			if int(det.get("room_id", -1)) != room_id:
+				continue
+			var det_id: String = String(det.get("id", ""))
+			var triggered: bool = bool(Dictionary(detector_states.get(det_id, {})).get("triggered", det.get("triggered", false)))
+			var px: Vector2 = _point_to_px(room_rect_m.position + _safety_local_position(det, room_rect_m))
+			draw_circle(px, 9.0, Color(0.0, 0.0, 0.0, 0.72))
+			draw_circle(px, 6.5, detector_triggered_color if triggered else detector_marker_color)
+	if show_victim_markers:
+		var victim_states: Dictionary = _state_records_by_id(Array(state.get("victims", [])))
+		for raw_vic in building.victims:
+			if typeof(raw_vic) != TYPE_DICTIONARY:
+				continue
+			var vic: Dictionary = raw_vic
+			if int(vic.get("room_id", -1)) != room_id:
+				continue
+			var vic_id: String = String(vic.get("id", ""))
+			var incapacitated: bool = bool(Dictionary(victim_states.get(vic_id, {})).get("incapacitated", vic.get("incapacitated", false)))
+			var px: Vector2 = _point_to_px(room_rect_m.position + _safety_local_position(vic, room_rect_m))
+			var r: float = 7.0
+			var pts := PackedVector2Array([
+				px + Vector2(0.0, -r),
+				px + Vector2(r, 0.0),
+				px + Vector2(0.0, r),
+				px + Vector2(-r, 0.0)
+			])
+			draw_colored_polygon(pts, victim_incapacitated_color if incapacitated else victim_marker_color)
+			draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), Color(0.0, 0.0, 0.0, 0.75), 1.3)
+
+
+func _state_records_by_id(records: Array) -> Dictionary:
+	var result: Dictionary = {}
+	for raw_record in records:
+		if typeof(raw_record) != TYPE_DICTIONARY:
+			continue
+		var record: Dictionary = raw_record
+		var id_text: String = String(record.get("id", ""))
+		if id_text != "":
+			result[id_text] = record
+	return result
+
+
+func _safety_local_position(data: Dictionary, room_rect_m: Rect2) -> Vector2:
+	if data.has("x_m") and data.has("y_m"):
+		return Vector2(
+			clampf(float(data.get("x_m", room_rect_m.size.x * 0.5)), 0.0, room_rect_m.size.x),
+			clampf(float(data.get("y_m", room_rect_m.size.y * 0.5)), 0.0, room_rect_m.size.y)
+		)
+	return room_rect_m.size * 0.5
+
+
 func _draw_room_name_watermark(id: int, rs: Dictionary, content_rect: Rect2) -> void:
 	if ThemeDB.fallback_font == null:
 		return
 	if content_rect.size.x < room_watermark_min_room_px or content_rect.size.y < room_watermark_min_room_px:
 		return
-	var label_text: String = "R%d" % id
+	var label_text: String = _room_state_display_name(id, rs)
 	var min_dim: float = minf(content_rect.size.x, content_rect.size.y)
 	var font_size: int = room_watermark_font_size if room_watermark_font_size > 0 \
 			else clampi(int(min_dim * 0.30), 14, 52)
@@ -969,7 +1045,7 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 	var layer_150c: float = float(rs.get("layer_150c_m", 0.0))
 	var hrr: float = float(rs.get("hrr_kw", 0.0))
 	var o2v: float = float(rs.get("o2", 0.0) * 100.0)
-	var room_name: String = String(rs.get("name", ""))
+	var room_name: String = _room_state_display_name(id, rs)
 	var fuel_mj: float = float(rs.get("fuel_capacity_MJ", rs.get("fuel_energy_MJ", 0.0)))
 	var rem_mj: float = float(rs.get("fuel_objects_remaining_MJ", rs.get("remaining_fuel_MJ", 0.0)))
 	var co_ppm: float = float(rs.get("co_ppm", 0.0))
@@ -984,6 +1060,8 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 
 	var svv_pct_val: float = RoomStateVisuals2D.compute_svv_pct(rs)
 	var lines: Array[String] = []
+	if show_room_name and room_name != "":
+		lines.append(room_name)
 
 	# Cabecera: intencionalmente vacía (no mostrar ID ni nombre aquí)
 
@@ -1059,6 +1137,17 @@ func _build_room_label_lines_full(id: int, content_rect: Rect2, rs: Dictionary) 
 		room_label_padding,
 		_get_room_label_bottom_reserved_px()
 	)
+
+
+func _room_state_display_name(id: int, rs: Dictionary) -> String:
+	var name_text: String = String(rs.get("name", "")).strip_edges()
+	if name_text != "":
+		return name_text
+	if building != null:
+		var room: RoomModel = building.get_room(id)
+		if room != null and room.name.strip_edges() != "":
+			return room.name.strip_edges()
+	return "R%d" % id
 
 
 func _get_room_label_bottom_reserved_px() -> float:
@@ -1375,6 +1464,12 @@ func _to_px(rm: Rect2) -> Rect2:
 	var pos: Vector2 = rm.position * scale_px + offset
 	var size: Vector2 = rm.size * scale_px
 	return Rect2(pos, size)
+
+
+func _point_to_px(pos_m: Vector2) -> Vector2:
+	var tf: Dictionary = _get_draw_transform()
+	var offset: Vector2 = tf["offset"]
+	return pos_m * float(tf["scale"]) + offset
 
 
 func _get_sorted_room_ids() -> Array[int]:

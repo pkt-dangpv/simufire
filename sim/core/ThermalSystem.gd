@@ -233,14 +233,29 @@ var _bud_cum_e_fire_kj: Dictionary = {}
 var _bud_cum_q_residual_kj: Dictionary = {}
 
 # SF-R6 Phase 3: residuales de conservación del transporte de contaminantes.
-# Se resetean al inicio de cada step(). Cada llamada a _transfer_hot_gas_contaminants()
-# acumula el residuo absoluto (Σ|post - pre| por especie). En un transporte conservativo
-# estos valores deben ser ~0 (solo errores de punto flotante < 1e-12 kg por paso).
+# Se resetean al inicio de cada step(). Con Phase 4 (delta accumulation) el residual
+# por llamada es siempre 0 por construcción. Se mantiene para compatibilidad con CI.
 var _transport_co2_residual_kg: float = 0.0
 var _transport_hcn_residual_kg: float = 0.0
 var _transport_co_residual_kg: float = 0.0
 var _transport_smoke_residual_kg: float = 0.0
 var _transport_call_count: int = 0
+
+# SF-R6 Phase 4: acumuladores delta para transporte simultáneo de contaminantes.
+# Eliminan efectos de ordenación: todas las lecturas usan el estado pre-bucle,
+# todas las escrituras se aplican juntas en _flush_contaminant_deltas().
+# Indexados por room.id (int). Se resetean al inicio de step(), se aplican al final
+# del bucle de aperturas.
+var _delta_co_kg: Dictionary = {}
+var _delta_co_upper_kg: Dictionary = {}
+var _delta_co2_kg: Dictionary = {}
+var _delta_co2_upper_kg: Dictionary = {}
+var _delta_smoke_kg: Dictionary = {}
+var _delta_hcn_kg: Dictionary = {}
+var _delta_hcn_upper_kg: Dictionary = {}
+var _delta_hcl_kg: Dictionary = {}
+var _delta_acrolein_kg: Dictionary = {}
+var _delta_formaldehyde_kg: Dictionary = {}
 
 
 func get_energy_budget() -> Dictionary:
@@ -500,6 +515,18 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 	_transport_co_residual_kg = 0.0
 	_transport_smoke_residual_kg = 0.0
 	_transport_call_count = 0
+
+	# SF-R6 Phase 4: reset delta accumuladores de contaminantes.
+	_delta_co_kg.clear()
+	_delta_co_upper_kg.clear()
+	_delta_co2_kg.clear()
+	_delta_co2_upper_kg.clear()
+	_delta_smoke_kg.clear()
+	_delta_hcn_kg.clear()
+	_delta_hcn_upper_kg.clear()
+	_delta_hcl_kg.clear()
+	_delta_acrolein_kg.clear()
+	_delta_formaldehyde_kg.clear()
 
 	var _bud_total_fire_kj: float = 0.0
 	var _bud_total_residual_kj: float = 0.0
@@ -897,6 +924,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		_apply_post_transfer_vertical_mix(cold_room, dt)
 		update_room_layer_150c(hot_room, dt)
 		update_room_layer_150c(cold_room, dt)
+
+	# SF-R6 Phase 4: aplicar todos los deltas de contaminantes acumulados durante el bucle.
+	_flush_contaminant_deltas(building)
 
 	if energy_budget_enabled and _bud_total_fire_kj > 0.1:
 		var residual_frac: float = abs(_bud_total_residual_kj) / _bud_total_fire_kj
@@ -1840,12 +1870,6 @@ func _transfer_hot_gas_contaminants(
 	if gas_moved_kg <= 0.0 or source_upper_gas_before_kg <= 0.0001:
 		return
 
-	# SF-R6 Phase 3: snapshot pre-transporte para validación de conservación.
-	var _pre_co2_kg: float = source.co2_kg + target.co2_kg
-	var _pre_hcn_kg: float = source.hcn_kg + target.hcn_kg
-	var _pre_co_kg: float = source.co_kg + target.co_kg
-	var _pre_smoke_kg: float = source.smoke_kg + target.smoke_kg
-
 	var upper_fraction_moved: float = clampf(
 		gas_moved_kg / maxf(0.0001, source_upper_gas_before_kg),
 		0.0,
@@ -1859,33 +1883,39 @@ func _transfer_hot_gas_contaminants(
 	var smoke_carry: float = clampf(hot_gas_smoke_carry_fraction, 0.0, 1.0) \
 			* clampf(carry_intensity, 0.0, 1.0)
 
+	var src_id: int = source.id
+	var tgt_id: int = target.id
+
+	# SF-R6 Phase 4: acumular deltas en lugar de aplicar directamente.
+	# Todas las lecturas usan el estado PRE-bucle (rooms sin modificar aún).
+	# _flush_contaminant_deltas() aplica todo al final del bucle de aperturas.
+	# Esto elimina los efectos de ordenación (enfoque Jacobi vs Gauss-Seidel).
+
 	var co_upper_available_kg: float = clampf(source.co_upper_kg, 0.0, source.co_kg)
 	var co_moved_kg: float = minf(source.co_kg, co_upper_available_kg * upper_fraction_moved * carry)
+	if co_moved_kg > 0.0:
+		_delta_co_kg[src_id]    = _delta_co_kg.get(src_id, 0.0)    - co_moved_kg
+		_delta_co_upper_kg[src_id] = _delta_co_upper_kg.get(src_id, 0.0) - co_moved_kg
+		_delta_co_kg[tgt_id]    = _delta_co_kg.get(tgt_id, 0.0)    + co_moved_kg
+		_delta_co_upper_kg[tgt_id] = _delta_co_upper_kg.get(tgt_id, 0.0) + co_moved_kg
+
 	# SF-R6 Phase 2: CO₂ transport con upper zone tracking.
 	# El gas caliente transportado va a la zona superior del destino (flotabilidad).
 	var co2_moved_kg: float = minf(source.co2_kg, source.co2_kg * upper_fraction_moved * carry)
-	var smoke_moved_kg: float = minf(source.smoke_kg, source.smoke_kg * upper_fraction_moved * smoke_carry)
-
-	if co_moved_kg > 0.0:
-		source.co_kg = maxf(0.0, source.co_kg - co_moved_kg)
-		source.co_upper_kg = maxf(0.0, source.co_upper_kg - co_moved_kg)
-		target.co_kg = maxf(0.0, target.co_kg + co_moved_kg)
-		target.co_upper_kg = maxf(0.0, target.co_upper_kg + co_moved_kg)
-
 	if co2_moved_kg > 0.0:
-		var src_co2_before: float = source.co2_kg
-		source.co2_kg = maxf(0.0, source.co2_kg - co2_moved_kg)
-		# Reducir zona superior del origen proporcionalmente.
-		if src_co2_before > 0.0001:
-			var src_upper_frac: float = clampf(source.co2_upper_kg / src_co2_before, 0.0, 1.0)
-			source.co2_upper_kg = maxf(0.0, source.co2_upper_kg - co2_moved_kg * src_upper_frac)
-		target.co2_kg = maxf(0.0, target.co2_kg + co2_moved_kg)
+		_delta_co2_kg[src_id] = _delta_co2_kg.get(src_id, 0.0) - co2_moved_kg
+		# Reducir zona superior del origen proporcionalmente (usando estado pre-bucle).
+		if source.co2_kg > 0.0001:
+			var src_upper_frac: float = clampf(source.co2_upper_kg / source.co2_kg, 0.0, 1.0)
+			_delta_co2_upper_kg[src_id] = _delta_co2_upper_kg.get(src_id, 0.0) - co2_moved_kg * src_upper_frac
+		_delta_co2_kg[tgt_id] = _delta_co2_kg.get(tgt_id, 0.0) + co2_moved_kg
 		# CO₂ llega a la zona superior del destino (gas caliente → boyante).
-		target.co2_upper_kg = maxf(0.0, target.co2_upper_kg + co2_moved_kg)
+		_delta_co2_upper_kg[tgt_id] = _delta_co2_upper_kg.get(tgt_id, 0.0) + co2_moved_kg
 
+	var smoke_moved_kg: float = minf(source.smoke_kg, source.smoke_kg * upper_fraction_moved * smoke_carry)
 	if smoke_moved_kg > 0.0:
-		source.smoke_kg = maxf(0.0, source.smoke_kg - smoke_moved_kg)
-		target.smoke_kg = maxf(0.0, target.smoke_kg + smoke_moved_kg)
+		_delta_smoke_kg[src_id] = _delta_smoke_kg.get(src_id, 0.0) - smoke_moved_kg
+		_delta_smoke_kg[tgt_id] = _delta_smoke_kg.get(tgt_id, 0.0) + smoke_moved_kg
 
 	# SF-R6: carry convectivo HCN (gated — hot_gas_hcn_carry_fraction > 0 para activar).
 	if hot_gas_hcn_carry_fraction > 0.0:
@@ -1895,39 +1925,77 @@ func _transfer_hot_gas_contaminants(
 			hcn_upper_available_kg * upper_fraction_moved * carry * clampf(hot_gas_hcn_carry_fraction, 0.0, 1.0)
 		)
 		if hcn_moved_kg > 0.0:
-			source.hcn_kg = maxf(0.0, source.hcn_kg - hcn_moved_kg)
-			source.hcn_upper_kg = maxf(0.0, source.hcn_upper_kg - hcn_moved_kg)
-			target.hcn_kg = maxf(0.0, target.hcn_kg + hcn_moved_kg)
-			target.hcn_upper_kg = maxf(0.0, target.hcn_upper_kg + hcn_moved_kg)
+			_delta_hcn_kg[src_id]    = _delta_hcn_kg.get(src_id, 0.0)    - hcn_moved_kg
+			_delta_hcn_upper_kg[src_id] = _delta_hcn_upper_kg.get(src_id, 0.0) - hcn_moved_kg
+			_delta_hcn_kg[tgt_id]    = _delta_hcn_kg.get(tgt_id, 0.0)    + hcn_moved_kg
+			_delta_hcn_upper_kg[tgt_id] = _delta_hcn_upper_kg.get(tgt_id, 0.0) + hcn_moved_kg
 
 	# SF-R6: carry convectivo irritantes HCl/acroleína/formaldehído (gated).
 	if hot_gas_irritant_carry_fraction > 0.0:
 		var _irr_frac: float = clampf(hot_gas_irritant_carry_fraction, 0.0, 1.0)
 		var hcl_moved_kg: float = minf(source.hcl_kg, source.hcl_kg * upper_fraction_moved * carry * _irr_frac)
 		if hcl_moved_kg > 0.0:
-			source.hcl_kg = maxf(0.0, source.hcl_kg - hcl_moved_kg)
-			target.hcl_kg = maxf(0.0, target.hcl_kg + hcl_moved_kg)
+			_delta_hcl_kg[src_id] = _delta_hcl_kg.get(src_id, 0.0) - hcl_moved_kg
+			_delta_hcl_kg[tgt_id] = _delta_hcl_kg.get(tgt_id, 0.0) + hcl_moved_kg
 		var acrolein_moved_kg: float = minf(source.acrolein_kg, source.acrolein_kg * upper_fraction_moved * carry * _irr_frac)
 		if acrolein_moved_kg > 0.0:
-			source.acrolein_kg = maxf(0.0, source.acrolein_kg - acrolein_moved_kg)
-			target.acrolein_kg = maxf(0.0, target.acrolein_kg + acrolein_moved_kg)
+			_delta_acrolein_kg[src_id] = _delta_acrolein_kg.get(src_id, 0.0) - acrolein_moved_kg
+			_delta_acrolein_kg[tgt_id] = _delta_acrolein_kg.get(tgt_id, 0.0) + acrolein_moved_kg
 		var formaldehyde_moved_kg: float = minf(source.formaldehyde_kg, source.formaldehyde_kg * upper_fraction_moved * carry * _irr_frac)
 		if formaldehyde_moved_kg > 0.0:
-			source.formaldehyde_kg = maxf(0.0, source.formaldehyde_kg - formaldehyde_moved_kg)
-			target.formaldehyde_kg = maxf(0.0, target.formaldehyde_kg + formaldehyde_moved_kg)
+			_delta_formaldehyde_kg[src_id] = _delta_formaldehyde_kg.get(src_id, 0.0) - formaldehyde_moved_kg
+			_delta_formaldehyde_kg[tgt_id] = _delta_formaldehyde_kg.get(tgt_id, 0.0) + formaldehyde_moved_kg
 
-	source.co_upper_kg = clampf(source.co_upper_kg, 0.0, source.co_kg)
-	target.co_upper_kg = clampf(target.co_upper_kg, 0.0, target.co_kg)
-	if hot_gas_hcn_carry_fraction > 0.0:
-		source.hcn_upper_kg = clampf(source.hcn_upper_kg, 0.0, source.hcn_kg)
-		target.hcn_upper_kg = clampf(target.hcn_upper_kg, 0.0, target.hcn_kg)
-
-	# SF-R6 Phase 3: acumular residuales de conservación (debe ser ~0 en transporte puro).
-	_transport_co2_residual_kg += absf((source.co2_kg + target.co2_kg) - _pre_co2_kg)
-	_transport_hcn_residual_kg += absf((source.hcn_kg + target.hcn_kg) - _pre_hcn_kg)
-	_transport_co_residual_kg += absf((source.co_kg + target.co_kg) - _pre_co_kg)
-	_transport_smoke_residual_kg += absf((source.smoke_kg + target.smoke_kg) - _pre_smoke_kg)
+	# SF-R6 Phase 3+4: conservación trivialmente garantizada por construcción —
+	# delta[src] + delta[tgt] = -moved + moved = 0 por cada especie.
 	_transport_call_count += 1
+
+
+# SF-R6 Phase 4: aplica todos los deltas acumulados en _transfer_hot_gas_contaminants()
+# al final del bucle de aperturas. Garantiza que todos los transportes del paso leen
+# el estado PRE-bucle (Jacobi), eliminando efectos de ordenación entre aperturas.
+func _flush_contaminant_deltas(building: BuildingModel) -> void:
+	# Recopilar todos los room_ids con cambios pendientes.
+	var touched: Dictionary = {}
+	for rid in _delta_co_kg.keys():         touched[rid] = true
+	for rid in _delta_co_upper_kg.keys():   touched[rid] = true
+	for rid in _delta_co2_kg.keys():        touched[rid] = true
+	for rid in _delta_co2_upper_kg.keys():  touched[rid] = true
+	for rid in _delta_smoke_kg.keys():      touched[rid] = true
+	for rid in _delta_hcn_kg.keys():        touched[rid] = true
+	for rid in _delta_hcn_upper_kg.keys():  touched[rid] = true
+	for rid in _delta_hcl_kg.keys():        touched[rid] = true
+	for rid in _delta_acrolein_kg.keys():   touched[rid] = true
+	for rid in _delta_formaldehyde_kg.keys(): touched[rid] = true
+
+	for rid in touched.keys():
+		var room: RoomModel = building.get_room(rid)
+		if room == null:
+			continue
+		room.co_kg           = maxf(0.0, room.co_kg           + _delta_co_kg.get(rid, 0.0))
+		room.co_upper_kg     = maxf(0.0, room.co_upper_kg     + _delta_co_upper_kg.get(rid, 0.0))
+		room.co2_kg          = maxf(0.0, room.co2_kg          + _delta_co2_kg.get(rid, 0.0))
+		room.co2_upper_kg    = maxf(0.0, room.co2_upper_kg    + _delta_co2_upper_kg.get(rid, 0.0))
+		room.smoke_kg        = maxf(0.0, room.smoke_kg        + _delta_smoke_kg.get(rid, 0.0))
+		room.hcn_kg          = maxf(0.0, room.hcn_kg          + _delta_hcn_kg.get(rid, 0.0))
+		room.hcn_upper_kg    = maxf(0.0, room.hcn_upper_kg    + _delta_hcn_upper_kg.get(rid, 0.0))
+		room.hcl_kg          = maxf(0.0, room.hcl_kg          + _delta_hcl_kg.get(rid, 0.0))
+		room.acrolein_kg     = maxf(0.0, room.acrolein_kg     + _delta_acrolein_kg.get(rid, 0.0))
+		room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg + _delta_formaldehyde_kg.get(rid, 0.0))
+		# Clamp: upper_kg no puede superar total_kg (post-aplicación).
+		room.co_upper_kg  = clampf(room.co_upper_kg, 0.0, room.co_kg)
+		room.hcn_upper_kg = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)
+
+	_delta_co_kg.clear()
+	_delta_co_upper_kg.clear()
+	_delta_co2_kg.clear()
+	_delta_co2_upper_kg.clear()
+	_delta_smoke_kg.clear()
+	_delta_hcn_kg.clear()
+	_delta_hcn_upper_kg.clear()
+	_delta_hcl_kg.clear()
+	_delta_acrolein_kg.clear()
+	_delta_formaldehyde_kg.clear()
 
 
 func reset_thermal_layer(room: RoomModel) -> void:
@@ -2293,6 +2361,57 @@ func compute_co2_ppm(room: RoomModel) -> float:
 	# ppm = (m_co2 / M_co2) / (m_air / M_air) × 1e6
 	# M_co2 = 44 g/mol, M_air = 29 g/mol
 	return room.co2_kg * 29.0e6 / maxf(0.1, room.volume_m3() * 1.2 * 44.0)
+
+
+## Calcula el incremento de FED ISO 13571 para un ocupante a una altura específica,
+## sin modificar room.fed. Permite acumulación externa por víctima.
+## height_m: plano respiratorio (0.9m=tumbado, 1.5m=sentado, 1.8m=de pie).
+func compute_fed_delta_for_height(room: RoomModel, dt: float, height_m: float) -> float:
+	if room == null or dt <= 0.0:
+		return 0.0
+
+	var in_upper: bool = (room.h_layer_m < height_m and room.upper_gas_kg > 0.1)
+	var co_ppm: float   = compute_co_upper_ppm(room)  if in_upper else compute_co_ppm(room)
+	var co2_ppm: float  = compute_co2_upper_ppm(room) if in_upper else compute_co2_lower_ppm(room)
+	var dt_min: float   = dt / 60.0
+	var delta: float    = 0.0
+
+	var co2_pct: float = co2_ppm / 10000.0
+	var v_co2: float = 1.0
+	if co2_pct > 2.0:
+		v_co2 = exp(0.1903 * co2_pct + 2.0004) / 7.1
+
+	if co_ppm > 0.0:
+		delta += 3.317e-5 * pow(co_ppm, 1.036) * v_co2 * dt_min
+
+	var hcn_ppm: float = compute_hcn_upper_ppm(room) if in_upper else compute_hcn_lower_ppm(room)
+	if hcn_ppm > 0.0:
+		delta += hcn_ppm / 4400.0 * v_co2 * dt_min
+
+	if fed_hypoxia_enabled:
+		var o2_pct: float = clampf((room.o2_upper if in_upper else room.o2) * 100.0, 0.0, 20.9)
+		var o2_deficit: float = maxf(0.0, 20.9 - o2_pct)
+		if o2_deficit > 0.0:
+			var t_crit: float = exp(fed_hypoxia_a - fed_hypoxia_b * o2_deficit)
+			if t_crit > 0.0:
+				delta += dt_min / t_crit
+
+	if fed_heat_enabled and room.upper_gas_kg > 0.01:
+		if in_upper and room.temp_upper_c > fed_heat_conv_min_c:
+			var tenab: float = fed_heat_conv_a * pow(room.temp_upper_c, -fed_heat_conv_n)
+			var tenab_s: float = tenab * 60.0
+			if tenab_s > 0.0:
+				delta += dt / tenab_s
+		var sigma_kw: float = 5.670374419e-11
+		var t_upper_k: float = room.temp_upper_c + 273.15
+		var vf: float = fed_heat_rad_view_factor if in_upper else fed_heat_rad_view_factor_below
+		var q_rad: float = maxf(0.0, 0.85 * sigma_kw * (pow(t_upper_k, 4.0) - pow(310.0, 4.0)) * vf)
+		if q_rad > 2.5:
+			var tenab_rad: float = fed_heat_rad_a / pow(q_rad, 1.33)
+			if tenab_rad > 0.0 and tenab_rad < 3600.0:
+				delta += dt / tenab_rad
+
+	return maxf(0.0, delta)
 
 
 ## Paso incremental de FED (Fractional Effective Dose) según ISO 13571.

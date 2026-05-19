@@ -3,6 +3,7 @@ class_name ScenarioEditor
 
 enum Tool {
 	SELECT,
+	EXTERIOR_WALL,
 	ROOM,
 	CORRIDOR_L,
 	STAIRS,
@@ -14,6 +15,14 @@ enum Tool {
 	DELETE,
 	DETECTOR,
 	VICTIM
+}
+
+enum ObjectMouseMode {
+	NONE,
+	MOVE,
+	RESIZE_WIDTH,
+	RESIZE_LENGTH,
+	ROTATE
 }
 
 const PIXELS_PER_METER: float = 64.0
@@ -52,6 +61,11 @@ const ZOOM_OUT_FACTOR := 0.90
 const MIN_ZOOM := 0.35
 const MAX_ZOOM := 4.0
 const PAN_SPEED := 650.0
+const OBJECT_HANDLE_RADIUS_PX: float = 6.5
+const OBJECT_HANDLE_HIT_RADIUS_M: float = 0.22
+const OBJECT_ROTATE_HANDLE_OFFSET_M: float = 0.38
+const OBJECT_WALL_SNAP_M: float = GRID_M * 0.75
+const MAX_UNDO_STEPS: int = 48
 
 var is_middle_panning := false
 var last_mouse_pos := Vector2.ZERO
@@ -68,8 +82,10 @@ var selected_object_room_id: int = -1
 var selected_object_index: int = -1
 var selected_detector_index: int = -1
 var selected_victim_index: int = -1
+var selected_exterior_wall_index: int = -1
 
 var is_dragging_room: bool = false
+var is_dragging_exterior_wall: bool = false
 var drag_start_m: Vector2 = Vector2.ZERO
 var drag_current_m: Vector2 = Vector2.ZERO
 var pending_door_room_id: int = -1
@@ -79,6 +95,11 @@ var current_floor_index: int = 0
 
 var is_dragging_object: bool = false
 var drag_object_cursor_offset_m: Vector2 = Vector2.ZERO
+var object_mouse_mode: int = ObjectMouseMode.NONE
+var object_drag_start_center_m: Vector2 = Vector2.ZERO
+var object_drag_start_size_m: Vector2 = Vector2.ONE
+var object_drag_start_rotation_deg: float = 0.0
+var _undo_stack: Array[Dictionary] = []
 
 var _ui_root: Control
 var _status_label: Label
@@ -95,6 +116,8 @@ var _hvac_option: OptionButton
 var _floor_option: OptionButton
 var _floor_level_spin: SpinBox
 var _floor_status_label: Label
+var _floor_delete_button: Button
+var _building_type_option: OptionButton
 var _scenario_paths: Array[String] = []
 var _stop_time_spin: SpinBox
 var _corridor_width_spin: SpinBox
@@ -104,11 +127,21 @@ var _save_dialog: FileDialog
 var _load_dialog: FileDialog
 var _room_apply_button: Button
 var _room_delete_button: Button
+var _room_x_spin: SpinBox
+var _room_y_spin: SpinBox
+var _room_width_spin: SpinBox
+var _room_depth_spin: SpinBox
+var _room_rotation_spin: SpinBox
+var _room_mark_exterior_button: Button
 var _template_builder = BuildingTemplateScript.new()
 # Propiedades de objeto seleccionado
 var _obj_name_edit: LineEdit
+var _obj_x_spin: SpinBox
+var _obj_y_spin: SpinBox
 var _obj_width_spin: SpinBox
 var _obj_height_spin: SpinBox
+var _obj_rotation_spin: SpinBox
+var _obj_elevation_spin: SpinBox
 var _obj_fuel_spin: SpinBox
 var _obj_hrr_spin: SpinBox
 var _obj_props_container: Control
@@ -119,19 +152,37 @@ var _opening_type_label: Label
 var _opening_width_spin: SpinBox
 var _opening_height_spin: SpinBox
 var _opening_sill_spin: SpinBox
+var _opening_offset_spin: SpinBox
 var _opening_open_option: OptionButton
+var _opening_swing_option: OptionButton
+var _opening_hinge_option: OptionButton
 # Propiedades de detector seleccionado
 var _detector_props_container: Control
 var _detector_type_option: OptionButton
 var _detector_threshold_spin: SpinBox
 var _detector_id_edit: LineEdit
+var _detector_x_spin: SpinBox
+var _detector_y_spin: SpinBox
 # Propiedades de victima seleccionada
 var _victim_props_container: Control
 var _victim_name_edit: LineEdit
+var _victim_x_spin: SpinBox
+var _victim_y_spin: SpinBox
+var _victim_height_spin: SpinBox
+var _wall_props_container: Control
+var _wall_start_x_spin: SpinBox
+var _wall_start_y_spin: SpinBox
+var _wall_end_x_spin: SpinBox
+var _wall_end_y_spin: SpinBox
+var _wall_thickness_spin: SpinBox
 
 var _room_fill: Color = Color(0.05, 0.07, 0.09, 0.72)
 var _room_selected_fill: Color = Color(0.08, 0.14, 0.16, 0.84)
 var _room_outline: Color = Color(0.28, 0.32, 0.35, 0.95)
+var _lower_floor_ghost_fill: Color = Color(0.55, 0.64, 0.68, 0.14)
+var _lower_floor_ghost_outline: Color = Color(0.70, 0.82, 0.88, 0.28)
+var _exterior_wall_color: Color = Color(1.00, 0.84, 0.28, 0.98)
+var _exterior_wall_selected_color: Color = Color(1.00, 1.00, 0.70, 1.0)
 var _corridor_fill: Color = Color(0.03, 0.10, 0.11, 0.76)
 var _corridor_selected_fill: Color = Color(0.04, 0.18, 0.19, 0.88)
 var _corridor_outline: Color = UI_BLUE
@@ -161,6 +212,7 @@ const _CTX_IGNITE    := 5
 const _CTX_DUPLICATE := 6
 const _CTX_DESELECT  := 7
 const _CTX_ADD_HOLE  := 8
+const _CTX_MARK_EXTERIOR := 9
 # ── Tolerancias para detección de paredes adyacentes / solapadas ──────────
 const _CONN_GAP_TOL: float = 0.30       # brecha máxima entre paredes (m)
 const _CONN_OVERLAP_FRAC: float = 0.85  # solapamiento máximo (fracción de dim menor)
@@ -172,6 +224,7 @@ var _ctx_pos_m: Vector2 = Vector2.ZERO
 var _ctx_room_id: int = -1
 var _ctx_obj_index: int = -1
 var _ctx_opening_index: int = -1
+var _ctx_exterior_wall_index: int = -1
 
 func _ready() -> void:
 	_create_empty_scenario()
@@ -375,7 +428,14 @@ func _style_editor_controls(node: Node) -> void:
 			label.add_theme_font_size_override("font_size", 13)
 			label.add_theme_color_override("font_color", UI_BORDER_HOT)
 		elif label.name == "StatusLabel":
-			label.add_theme_font_size_override("font_size", 11)
+			label.add_theme_font_size_override("font_size", 15)
+			label.custom_minimum_size.y = maxf(label.custom_minimum_size.y, 58.0)
+			label.add_theme_color_override("font_color", UI_TEXT_MUTED)
+		elif label.name == "ControlsHelp":
+			label.add_theme_font_size_override("font_size", 13)
+			label.add_theme_color_override("font_color", UI_TEXT_MUTED)
+		elif label.name == "FloorStatusLabel":
+			label.add_theme_font_size_override("font_size", 12)
 			label.add_theme_color_override("font_color", UI_TEXT_MUTED)
 		elif label.name == "EditorModeLabel":
 			label.add_theme_font_override("font", _editor_title_font)
@@ -414,10 +474,12 @@ func _create_empty_scenario() -> void:
 		"version": 1,
 		"outside_temp_c": 20.0,
 		"outside_o2": 0.209,
+		"building_type": "single_family",
 		"stop_time_s": 0.0,
 		"hvac_mode": "none",
 		"hvac_data": {"exists": false, "on": false, "mode": "none"},
 		"floors": _default_floors(),
+		"exterior_walls": [],
 		"room_rect_m": {},
 		"rooms_data": [],
 		"openings_data": [],
@@ -425,6 +487,36 @@ func _create_empty_scenario() -> void:
 		"victims": []
 	}
 	current_floor_index = 0
+	_undo_stack.clear()
+
+
+func _push_undo_snapshot(_label: String = "") -> void:
+	if editor_data.is_empty():
+		return
+	_undo_stack.append(editor_data.duplicate(true))
+	while _undo_stack.size() > MAX_UNDO_STEPS:
+		_undo_stack.remove_at(0)
+
+
+func _undo_last_action() -> void:
+	if _undo_stack.is_empty():
+		_set_status("No hay acciones para deshacer.")
+		return
+	var snapshot: Dictionary = _undo_stack.pop_back()
+	editor_data = Serializer.normalize_editor_data(snapshot.duplicate(true))
+	_ensure_floor_data()
+	current_floor_index = clampi(current_floor_index, 0, _get_floors().size() - 1)
+	pending_door_room_id = -1
+	is_dragging_room = false
+	is_dragging_exterior_wall = false
+	is_dragging_object = false
+	object_mouse_mode = ObjectMouseMode.NONE
+	_sync_floor_controls()
+	_sync_hvac_option_from_data()
+	_sync_building_type_option_from_data()
+	_clear_selection()
+	_set_status("Ultima accion deshecha.")
+	queue_redraw()
 
 
 func _default_floors() -> Array:
@@ -464,6 +556,7 @@ func _setup_ui() -> void:
 	toolbar.add_theme_constant_override("separation", 4)
 	main.add_child(toolbar)
 	_add_tool_button(toolbar, "Sel", Tool.SELECT)
+	_add_tool_button(toolbar, "Exterior", Tool.EXTERIOR_WALL)
 	_add_tool_button(toolbar, "Room", Tool.ROOM)
 	_add_tool_button(toolbar, "Pasillo", Tool.CORRIDOR_L)
 	_add_tool_button(toolbar, "Escalera", Tool.STAIRS)
@@ -477,6 +570,7 @@ func _setup_ui() -> void:
 	_add_tool_button(toolbar, "Vict.", Tool.VICTIM)
 
 	_create_floor_controls(main)
+	_create_building_type_controls(main)
 	main.add_child(HSeparator.new())
 
 	var object_row := HBoxContainer.new()
@@ -523,6 +617,11 @@ func _setup_ui() -> void:
 
 	_name_edit = _add_line_edit(main, "Nombre")
 	_kind_edit = _add_line_edit(main, "Tipo")
+	_room_x_spin = _add_spin(main, "X (m)", -200.0, 200.0, 0.05)
+	_room_y_spin = _add_spin(main, "Y (m)", -200.0, 200.0, 0.05)
+	_room_width_spin = _add_spin(main, "Ancho (m)", 0.25, 200.0, 0.05)
+	_room_depth_spin = _add_spin(main, "Fondo (m)", 0.25, 200.0, 0.05)
+	_room_rotation_spin = _add_spin(main, "Angulo (deg)", -180.0, 180.0, 1.0)
 	_height_spin = _add_spin(main, "Alto (m)", 1.8, 6.0, 0.1)
 	_fuel_spin = _add_spin(main, "Combust. MJ", 0.0, 10000.0, 10.0)
 	_hrr_spin = _add_spin(main, "HRR máx kW", 0.0, 5000.0, 10.0)
@@ -531,21 +630,31 @@ func _setup_ui() -> void:
 	apply_button.text = "Aplicar habitación"
 	apply_button.pressed.connect(_apply_room_properties)
 	main.add_child(apply_button)
+	_room_mark_exterior_button = Button.new()
+	_room_mark_exterior_button.text = "Marcar contorno exterior"
+	_room_mark_exterior_button.pressed.connect(_mark_selected_room_exterior)
+	main.add_child(_room_mark_exterior_button)
 
 	main.add_child(HSeparator.new())
 
 	# --- Propiedades del objeto seleccionado ---
 	var obj_title := Label.new()
+	obj_title.name = "ObjectTitle"
 	obj_title.text = "Propiedades del objeto"
 	main.add_child(obj_title)
 
 	_obj_props_container = VBoxContainer.new()
+	_obj_props_container.name = "ObjProps"
 	_obj_props_container.add_theme_constant_override("separation", 4)
 	main.add_child(_obj_props_container)
 
 	_obj_name_edit = _add_line_edit(_obj_props_container, "Nombre")
+	_obj_x_spin = _add_spin(_obj_props_container, "X local (m)", -200.0, 200.0, 0.05)
+	_obj_y_spin = _add_spin(_obj_props_container, "Y local (m)", -200.0, 200.0, 0.05)
 	_obj_width_spin = _add_spin(_obj_props_container, "Ancho (m)", 0.1, 20.0, 0.05)
 	_obj_height_spin = _add_spin(_obj_props_container, "Fondo (m)", 0.1, 20.0, 0.05)
+	_obj_rotation_spin = _add_spin(_obj_props_container, "Rotacion (deg)", -180.0, 180.0, 1.0)
+	_obj_elevation_spin = _add_spin(_obj_props_container, "Altura (m)", 0.0, 6.0, 0.05)
 	_obj_fuel_spin = _add_spin(_obj_props_container, "Combust. MJ", 0.0, 5000.0, 10.0)
 	_obj_hrr_spin = _add_spin(_obj_props_container, "HRR máx kW", 0.0, 5000.0, 10.0)
 
@@ -563,10 +672,12 @@ func _setup_ui() -> void:
 
 	# --- Propiedades de apertura seleccionada ---
 	var opening_title_label := Label.new()
+	opening_title_label.name = "OpeningTitle"
 	opening_title_label.text = "Propiedades de apertura"
 	main.add_child(opening_title_label)
 
 	_opening_props_container = VBoxContainer.new()
+	_opening_props_container.name = "OpeningProps"
 	_opening_props_container.add_theme_constant_override("separation", 4)
 	main.add_child(_opening_props_container)
 
@@ -577,6 +688,7 @@ func _setup_ui() -> void:
 
 	_opening_width_spin = _add_spin(_opening_props_container, "Ancho (m)", 0.3, 6.0, 0.05)
 	_opening_height_spin = _add_spin(_opening_props_container, "Alto (m)", 0.5, 3.5, 0.05)
+	_opening_offset_spin = _add_spin(_opening_props_container, "Posicion (m)", 0.0, 200.0, 0.05)
 	_opening_sill_spin = _add_spin(_opening_props_container, "Alféizar (m)", 0.0, 2.0, 0.05)
 
 	var op_open_row := HBoxContainer.new()
@@ -591,6 +703,32 @@ func _setup_ui() -> void:
 	_opening_open_option.add_item("Abierta", 1)
 	op_open_row.add_child(_opening_open_option)
 
+	var op_swing_row := HBoxContainer.new()
+	op_swing_row.name = "OpeningSwingRow"
+	_opening_props_container.add_child(op_swing_row)
+	var op_swing_label := Label.new()
+	op_swing_label.text = "Abre hacia"
+	op_swing_label.custom_minimum_size.x = 96.0
+	op_swing_row.add_child(op_swing_label)
+	_opening_swing_option = OptionButton.new()
+	_opening_swing_option.name = "OpeningSwingOption"
+	_opening_swing_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	op_swing_row.add_child(_opening_swing_option)
+	_populate_opening_direction_options()
+
+	var op_hinge_row := HBoxContainer.new()
+	op_hinge_row.name = "OpeningHingeRow"
+	_opening_props_container.add_child(op_hinge_row)
+	var op_hinge_label := Label.new()
+	op_hinge_label.text = "Bisagra"
+	op_hinge_label.custom_minimum_size.x = 96.0
+	op_hinge_row.add_child(op_hinge_label)
+	_opening_hinge_option = OptionButton.new()
+	_opening_hinge_option.name = "OpeningHingeOption"
+	_opening_hinge_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	op_hinge_row.add_child(_opening_hinge_option)
+	_populate_opening_direction_options()
+
 	var apply_opening_button := Button.new()
 	apply_opening_button.text = "Aplicar apertura"
 	apply_opening_button.pressed.connect(_apply_opening_properties)
@@ -600,14 +738,18 @@ func _setup_ui() -> void:
 
 	# --- Propiedades del detector seleccionado ---
 	var det_title := Label.new()
+	det_title.name = "DetectorTitle"
 	det_title.text = "Propiedades del detector"
 	main.add_child(det_title)
 
 	_detector_props_container = VBoxContainer.new()
+	_detector_props_container.name = "DetectorProps"
 	_detector_props_container.add_theme_constant_override("separation", 4)
 	main.add_child(_detector_props_container)
 
 	_detector_id_edit = _add_line_edit(_detector_props_container, "ID")
+	_detector_x_spin = _add_spin(_detector_props_container, "X local (m)", 0.0, 200.0, 0.05)
+	_detector_y_spin = _add_spin(_detector_props_container, "Y local (m)", 0.0, 200.0, 0.05)
 
 	var det_type_row := HBoxContainer.new()
 	_detector_props_container.add_child(det_type_row)
@@ -638,14 +780,19 @@ func _setup_ui() -> void:
 
 	# --- Propiedades de la victima seleccionada ---
 	var vic_title := Label.new()
+	vic_title.name = "VictimTitle"
 	vic_title.text = "Propiedades de la victima"
 	main.add_child(vic_title)
 
 	_victim_props_container = VBoxContainer.new()
+	_victim_props_container.name = "VictimProps"
 	_victim_props_container.add_theme_constant_override("separation", 4)
 	main.add_child(_victim_props_container)
 
 	_victim_name_edit = _add_line_edit(_victim_props_container, "Nombre")
+	_victim_x_spin = _add_spin(_victim_props_container, "X local (m)", 0.0, 200.0, 0.05)
+	_victim_y_spin = _add_spin(_victim_props_container, "Y local (m)", 0.0, 200.0, 0.05)
+	_victim_height_spin = _add_spin(_victim_props_container, "Plano resp. (m)", 0.2, 2.2, 0.05)
 
 	var apply_vic_button := Button.new()
 	apply_vic_button.text = "Aplicar victima"
@@ -656,6 +803,30 @@ func _setup_ui() -> void:
 	delete_vic_button.text = "Borrar victima (Del)"
 	delete_vic_button.pressed.connect(_delete_selected)
 	_victim_props_container.add_child(delete_vic_button)
+
+	main.add_child(HSeparator.new())
+
+	var wall_title := Label.new()
+	wall_title.name = "ExteriorWallTitle"
+	wall_title.text = "Muro exterior"
+	main.add_child(wall_title)
+	_wall_props_container = VBoxContainer.new()
+	_wall_props_container.name = "ExteriorWallProps"
+	_wall_props_container.add_theme_constant_override("separation", 4)
+	main.add_child(_wall_props_container)
+	_wall_start_x_spin = _add_spin(_wall_props_container, "Inicio X", -200.0, 200.0, 0.05)
+	_wall_start_y_spin = _add_spin(_wall_props_container, "Inicio Y", -200.0, 200.0, 0.05)
+	_wall_end_x_spin = _add_spin(_wall_props_container, "Fin X", -200.0, 200.0, 0.05)
+	_wall_end_y_spin = _add_spin(_wall_props_container, "Fin Y", -200.0, 200.0, 0.05)
+	_wall_thickness_spin = _add_spin(_wall_props_container, "Grosor", 0.05, 1.0, 0.01)
+	var apply_wall_button := Button.new()
+	apply_wall_button.text = "Aplicar muro"
+	apply_wall_button.pressed.connect(_apply_exterior_wall_properties)
+	_wall_props_container.add_child(apply_wall_button)
+	var delete_wall_button := Button.new()
+	delete_wall_button.text = "Borrar muro"
+	delete_wall_button.pressed.connect(_delete_selected)
+	_wall_props_container.add_child(delete_wall_button)
 
 	main.add_child(HSeparator.new())
 
@@ -671,9 +842,11 @@ func _setup_ui() -> void:
 	main.add_child(file_row)
 	_add_action_button(file_row, "Guardar", _save_pressed)
 	_add_action_button(file_row, "Cargar", _load_pressed)
-	_add_action_button(file_row, "Export runtime", _export_runtime_pressed)
+	_add_action_button(file_row, "Exportar simulacion", _export_runtime_pressed)
 
 	main.add_child(HSeparator.new())
+
+	_add_controls_help(main)
 
 	# --- Tiempo de parada ---
 	_stop_time_spin = _add_spin(main, "Parar a (s)", 0.0, 86400.0, 30.0)
@@ -748,17 +921,15 @@ func _setup_ui() -> void:
 func _add_tool_button(parent: Control, label: String, tool_id: int) -> void:
 	var button := Button.new()
 	button.text = label
-	button.toggle_mode = true
 	button.custom_minimum_size = Vector2(50.0, 28.0)
-	button.pressed.connect(Callable(self, "_set_tool").bind(tool_id))
 	parent.add_child(button)
-	_tool_buttons[tool_id] = button
+	_register_tool_button(button, tool_id)
 
 
 func _add_action_button(parent: Control, label: String, callback: Callable) -> void:
 	var button := Button.new()
 	button.text = label
-	button.pressed.connect(callback)
+	_connect_button(button, callback)
 	parent.add_child(button)
 
 
@@ -791,6 +962,64 @@ func _add_spin(parent: Control, label: String, min_value: float, max_value: floa
 	return spin
 
 
+func _create_building_type_controls(parent: Control) -> void:
+	var row := HBoxContainer.new()
+	row.name = "BuildingTypeRow"
+	row.add_theme_constant_override("separation", 4)
+	parent.add_child(row)
+	var label := Label.new()
+	label.name = "BuildingTypeLabel"
+	label.text = "Tipo edificio"
+	label.custom_minimum_size.x = 96.0
+	row.add_child(label)
+	_building_type_option = OptionButton.new()
+	_building_type_option.name = "BuildingTypeOption"
+	_building_type_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_building_type_option)
+	_populate_building_type_option()
+	if not _building_type_option.item_selected.is_connected(_on_building_type_selected):
+		_building_type_option.item_selected.connect(_on_building_type_selected)
+
+
+func _populate_building_type_option() -> void:
+	if _building_type_option == null:
+		return
+	if _building_type_option.get_item_count() == 0:
+		_building_type_option.add_item("Casa unifamiliar", 0)
+		_building_type_option.add_item("Piso", 1)
+	_sync_building_type_option_from_data()
+
+
+func _sync_building_type_option_from_data() -> void:
+	if _building_type_option == null:
+		return
+	var building_type: String = String(editor_data.get("building_type", "single_family")).to_lower()
+	_building_type_option.select(1 if building_type == "apartment" else 0)
+
+
+func _on_building_type_selected(index: int) -> void:
+	var new_type: String = "apartment" if index == 1 else "single_family"
+	if String(editor_data.get("building_type", "single_family")).to_lower() == new_type:
+		return
+	_push_undo_snapshot("building_type")
+	editor_data["building_type"] = new_type
+	_set_status("Exterior configurado como %s." % ("piso" if index == 1 else "casa unifamiliar"))
+
+
+func _add_controls_help(parent: Control) -> void:
+	var title := Label.new()
+	title.name = "ControlsHelpTitle"
+	title.text = "Controles"
+	parent.add_child(title)
+	var help := Label.new()
+	help.name = "ControlsHelp"
+	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	help.add_theme_font_size_override("font_size", 13)
+	help.modulate = UI_TEXT_MUTED
+	help.text = "Zoom: rueda del raton. Mover plano: flechas o boton central. Boton derecho sobre objetos, habitaciones, huecos o muros: propiedades. Exterior: dibuja muros de fachada con el raton."
+	parent.add_child(help)
+
+
 func _create_floor_controls(parent: Control) -> void:
 	var title := Label.new()
 	title.name = "FloorTitle"
@@ -816,6 +1045,13 @@ func _create_floor_controls(parent: Control) -> void:
 	add_button.pressed.connect(_add_floor_pressed)
 	row.add_child(add_button)
 
+	_floor_delete_button = Button.new()
+	_floor_delete_button.name = "BtnDeleteFloor"
+	_floor_delete_button.text = "Borrar"
+	_floor_delete_button.custom_minimum_size = Vector2(72.0, 28.0)
+	_floor_delete_button.pressed.connect(_delete_floor_pressed)
+	row.add_child(_floor_delete_button)
+
 	_floor_level_spin = _add_spin(parent, "Cota (m)", -2.0, 30.0, 0.05)
 	_floor_level_spin.name = "FloorLevelSpin"
 	if not _floor_level_spin.value_changed.is_connected(_on_floor_level_changed):
@@ -824,7 +1060,7 @@ func _create_floor_controls(parent: Control) -> void:
 	_floor_status_label = Label.new()
 	_floor_status_label.name = "FloorStatusLabel"
 	_floor_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_floor_status_label.add_theme_font_size_override("font_size", 10)
+	_floor_status_label.add_theme_font_size_override("font_size", 12)
 	_floor_status_label.modulate = UI_TEXT_MUTED
 	parent.add_child(_floor_status_label)
 	_sync_floor_controls()
@@ -892,6 +1128,8 @@ func _sync_floor_controls() -> void:
 		var level_m: float = _current_floor_level_m()
 		if absf(_floor_level_spin.value - level_m) > 0.001:
 			_floor_level_spin.value = level_m
+	if _floor_delete_button != null:
+		_floor_delete_button.disabled = floors.size() <= 1
 	_update_floor_status()
 
 
@@ -918,17 +1156,78 @@ func _on_floor_selected(index: int) -> void:
 
 
 func _add_floor_pressed() -> void:
+	_push_undo_snapshot("add_floor")
 	var floors: Array = _get_floors()
+	var lower_level_m: float = _current_floor_level_m()
 	var next_level_m: float = 0.0
 	if not floors.is_empty():
-		next_level_m = float(floors[floors.size() - 1].get("level_m", 0.0)) + DEFAULT_FLOOR_HEIGHT_M
+		lower_level_m = float(floors[floors.size() - 1].get("level_m", 0.0))
+		next_level_m = lower_level_m + DEFAULT_FLOOR_HEIGHT_M
 	floors.append({"name": _default_floor_name(floors.size()), "level_m": next_level_m})
 	editor_data["floors"] = floors
+	_copy_stairs_from_level_to_level(lower_level_m, next_level_m)
 	current_floor_index = floors.size() - 1
 	pending_door_room_id = -1
 	_clear_selection()
 	_sync_floor_controls()
 	_set_status("Nueva planta creada: %s." % _current_floor_name())
+	queue_redraw()
+
+
+func _delete_floor_pressed() -> void:
+	var floors: Array = _get_floors()
+	if floors.size() <= 1:
+		_set_status("No se puede borrar la unica planta.")
+		return
+	if current_floor_index < 0 or current_floor_index >= floors.size():
+		return
+	_push_undo_snapshot("delete_floor")
+	var floor: Dictionary = floors[current_floor_index]
+	var level_m: float = float(floor.get("level_m", 0.0))
+	var room_ids_to_delete: Array[int] = []
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) == TYPE_DICTIONARY and absf(float(Dictionary(room).get("floor_level_z_m", 0.0)) - level_m) < 0.05:
+			room_ids_to_delete.append(int(Dictionary(room).get("id", -1)))
+
+	var rooms: Array = editor_data.get("rooms_data", [])
+	for i in range(rooms.size() - 1, -1, -1):
+		if typeof(rooms[i]) == TYPE_DICTIONARY and room_ids_to_delete.has(int(Dictionary(rooms[i]).get("id", -1))):
+			rooms.remove_at(i)
+	editor_data["rooms_data"] = rooms
+
+	var rects: Dictionary = editor_data.get("room_rect_m", {})
+	for room_id in room_ids_to_delete:
+		rects.erase(str(room_id))
+	editor_data["room_rect_m"] = rects
+
+	var openings: Array = editor_data.get("openings_data", [])
+	for i in range(openings.size() - 1, -1, -1):
+		if typeof(openings[i]) != TYPE_DICTIONARY:
+			continue
+		var op: Dictionary = openings[i]
+		if room_ids_to_delete.has(int(op.get("a", -999))) or room_ids_to_delete.has(int(op.get("b", -999))):
+			openings.remove_at(i)
+	editor_data["openings_data"] = openings
+
+	var dets: Array = editor_data.get("detectors", [])
+	for i in range(dets.size() - 1, -1, -1):
+		if typeof(dets[i]) == TYPE_DICTIONARY and room_ids_to_delete.has(int(Dictionary(dets[i]).get("room_id", -1))):
+			dets.remove_at(i)
+	editor_data["detectors"] = dets
+
+	var vics: Array = editor_data.get("victims", [])
+	for i in range(vics.size() - 1, -1, -1):
+		if typeof(vics[i]) == TYPE_DICTIONARY and room_ids_to_delete.has(int(Dictionary(vics[i]).get("room_id", -1))):
+			vics.remove_at(i)
+	editor_data["victims"] = vics
+
+	floors.remove_at(current_floor_index)
+	editor_data["floors"] = floors
+	current_floor_index = clampi(current_floor_index - 1, 0, floors.size() - 1)
+	_clear_selection()
+	_ensure_floor_data()
+	_sync_floor_controls()
+	_set_status("Planta %s eliminada." % String(floor.get("name", "")))
 	queue_redraw()
 
 
@@ -941,6 +1240,7 @@ func _on_floor_level_changed(value: float) -> void:
 	var previous_level_m: float = float(floor.get("level_m", 0.0))
 	if absf(previous_level_m - value) <= 0.001:
 		return
+	_push_undo_snapshot("floor_level")
 	floor["level_m"] = value
 	floors[current_floor_index] = floor
 	editor_data["floors"] = floors
@@ -1031,6 +1331,8 @@ func _tool_hint(tool_id: int) -> String:
 	match tool_id:
 		Tool.SELECT:
 			return "Seleccionar: clic en habitacion, objeto o apertura. Clic derecho para opciones."
+		Tool.EXTERIOR_WALL:
+			return "Exterior: arrastra para dibujar muros exteriores rectos. Tambien puedes marcar el contorno de una habitacion."
 		Tool.ROOM:
 			return "Estancia: arrastra para crear una estancia en %s." % _current_floor_name()
 		Tool.CORRIDOR_L:
@@ -1083,13 +1385,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_Z and event.ctrl_pressed:
+			_undo_last_action()
+			get_viewport().set_input_as_handled()
+			return
 		if event.keycode == KEY_DELETE or event.keycode == KEY_BACKSPACE:
 			_delete_selected()
 			get_viewport().set_input_as_handled()
 			return
 
 	if event is InputEventMouseMotion:
-		if is_dragging_room:
+		if is_dragging_exterior_wall:
+			drag_current_m = _screen_to_m(event.position)
+			queue_redraw()
+		elif is_dragging_room:
 			drag_current_m = _screen_to_m(event.position)
 			queue_redraw()
 		elif is_dragging_object:
@@ -1122,6 +1431,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _handle_press(pos_m: Vector2) -> void:
 	match current_tool:
+		Tool.EXTERIOR_WALL:
+			is_dragging_exterior_wall = true
+			drag_start_m = pos_m
+			drag_current_m = pos_m
 		Tool.ROOM, Tool.CORRIDOR_L, Tool.STAIRS:
 			is_dragging_room = true
 			drag_start_m = pos_m
@@ -1129,13 +1442,13 @@ func _handle_press(pos_m: Vector2) -> void:
 		Tool.SELECT:
 			# Si el objeto ya está seleccionado, iniciar arrastre
 			if selected_object_room_id >= 0 and selected_object_index >= 0:
+				var handle_mode: int = _find_selected_object_handle_at(pos_m)
+				if handle_mode != ObjectMouseMode.NONE:
+					_begin_object_mouse_edit(handle_mode, pos_m)
+					return
 				var hit: Dictionary = _find_object_at(pos_m)
 				if not hit.is_empty() and int(hit["room_id"]) == selected_object_room_id and int(hit["object_index"]) == selected_object_index:
-					var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
-					var rr: Rect2 = _get_room_rect(selected_object_room_id)
-					var obj_pos: Vector2 = Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO))
-					drag_object_cursor_offset_m = (rr.position + obj_pos) - pos_m
-					is_dragging_object = true
+					_begin_object_mouse_edit(ObjectMouseMode.MOVE, pos_m)
 					return
 			_select_at(pos_m)
 		Tool.DOOR:
@@ -1158,9 +1471,33 @@ func _handle_press(pos_m: Vector2) -> void:
 
 func _handle_release(pos_m: Vector2) -> void:
 	if is_dragging_object:
+		var completed_mode: int = object_mouse_mode
 		is_dragging_object = false
+		object_mouse_mode = ObjectMouseMode.NONE
 		drag_object_cursor_offset_m = Vector2.ZERO
-		_set_status("Objeto movido.")
+		if completed_mode == ObjectMouseMode.ROTATE:
+			_set_status("Rotacion del objeto actualizada.")
+		elif completed_mode == ObjectMouseMode.RESIZE_WIDTH or completed_mode == ObjectMouseMode.RESIZE_LENGTH:
+			_set_status("Tamano del objeto actualizado.")
+		else:
+			_set_status("Objeto movido.")
+		queue_redraw()
+		return
+
+	if is_dragging_exterior_wall:
+		drag_current_m = pos_m
+		var start_wall_m: Vector2 = _snap_m(drag_start_m)
+		var end_wall_m: Vector2 = _snap_m(drag_current_m)
+		_clear_drag()
+		if start_wall_m.distance_to(end_wall_m) < GRID_M:
+			var wall_index: int = _find_exterior_wall_at(pos_m)
+			if wall_index >= 0:
+				_select_exterior_wall(wall_index)
+			else:
+				_set_status("Arrastra para dibujar un muro exterior.")
+			queue_redraw()
+			return
+		_add_exterior_wall(start_wall_m, end_wall_m)
 		queue_redraw()
 		return
 
@@ -1174,6 +1511,7 @@ func _handle_release(pos_m: Vector2) -> void:
 	_clear_drag()
 
 	if current_tool == Tool.CORRIDOR_L:
+		_push_undo_snapshot("create_corridor")
 		_create_corridor_from_drag(start_m, end_m)
 		queue_redraw()
 		return
@@ -1183,6 +1521,7 @@ func _handle_release(pos_m: Vector2) -> void:
 			_set_status("La escalera es demasiado pequena.")
 			queue_redraw()
 			return
+		_push_undo_snapshot("create_stairs")
 		_create_stairs_from_rect(rect)
 		queue_redraw()
 		return
@@ -1192,6 +1531,7 @@ func _handle_release(pos_m: Vector2) -> void:
 		queue_redraw()
 		return
 
+	_push_undo_snapshot("create_room")
 	var room_id: int = _create_room(_snap_rect_to_adjacent_rooms(rect))
 	_select_room(room_id)
 	_set_status("Habitacion %d creada." % room_id)
@@ -1230,12 +1570,14 @@ func _show_context_menu(screen_pos: Vector2, pos_m: Vector2) -> void:
 	_ctx_room_id = -1
 	_ctx_obj_index = -1
 	_ctx_opening_index = -1
+	_ctx_exterior_wall_index = -1
 
 	var menu := _get_context_menu()
 	menu.clear()
 
 	var hit_obj: Dictionary = _find_object_at(pos_m)
 	var hit_opening: int = _find_opening_at(pos_m)
+	var hit_wall: int = _find_exterior_wall_at(pos_m)
 	var hit_room: int = _find_room_at(pos_m)
 
 	if not hit_obj.is_empty():
@@ -1251,15 +1593,21 @@ func _show_context_menu(screen_pos: Vector2, pos_m: Vector2) -> void:
 		menu.add_item("Editar apertura", _CTX_EDIT)
 		menu.add_separator()
 		menu.add_item("Borrar apertura", _CTX_DELETE)
+	elif hit_wall >= 0:
+		_ctx_exterior_wall_index = hit_wall
+		menu.add_item("Editar muro exterior", _CTX_EDIT)
+		menu.add_separator()
+		menu.add_item("Borrar muro exterior", _CTX_DELETE)
 	elif hit_room >= 0:
 		_ctx_room_id = hit_room
 		var room: Dictionary = _get_room(hit_room)
-		var rname: String = str(room.get("name", "Habitacion %d" % hit_room))
+		var rname: String = _room_display_name(room, hit_room)
 		menu.add_item("Editar: %s" % rname, _CTX_EDIT)
 		menu.add_separator()
 		menu.add_item("Anadir puerta aqui", _CTX_ADD_DOOR)
 		menu.add_item("Anadir hueco aqui", _CTX_ADD_HOLE)
 		menu.add_item("Anadir ventana aqui", _CTX_ADD_WIN)
+		menu.add_item("Marcar contorno exterior", _CTX_MARK_EXTERIOR)
 		menu.add_item("Marcar ignicion aqui", _CTX_IGNITE)
 		menu.add_separator()
 		menu.add_item("Borrar habitacion", _CTX_DELETE)
@@ -1278,6 +1626,8 @@ func _on_context_id_pressed(id: int) -> void:
 				_select_object(_ctx_room_id, _ctx_obj_index)
 			elif _ctx_opening_index >= 0:
 				_select_opening(_ctx_opening_index)
+			elif _ctx_exterior_wall_index >= 0:
+				_select_exterior_wall(_ctx_exterior_wall_index)
 			elif _ctx_room_id >= 0:
 				_select_room(_ctx_room_id)
 		_CTX_DELETE:
@@ -1286,6 +1636,9 @@ func _on_context_id_pressed(id: int) -> void:
 				_delete_selected()
 			elif _ctx_opening_index >= 0:
 				_select_opening(_ctx_opening_index)
+				_delete_selected()
+			elif _ctx_exterior_wall_index >= 0:
+				_select_exterior_wall(_ctx_exterior_wall_index)
 				_delete_selected()
 			elif _ctx_room_id >= 0:
 				_select_room(_ctx_room_id)
@@ -1302,6 +1655,9 @@ func _on_context_id_pressed(id: int) -> void:
 		_CTX_IGNITE:
 			_set_tool(Tool.IGNITION)
 			_mark_ignition_at(_ctx_pos_m)
+		_CTX_MARK_EXTERIOR:
+			if _ctx_room_id >= 0:
+				_mark_room_as_exterior(_ctx_room_id)
 		_CTX_DUPLICATE:
 			_duplicate_object_at_context()
 		_CTX_DESELECT:
@@ -1347,8 +1703,27 @@ func _normalized_rect(a: Vector2, b: Vector2) -> Rect2:
 
 func _clear_drag() -> void:
 	is_dragging_room = false
+	is_dragging_exterior_wall = false
 	drag_start_m = Vector2.ZERO
 	drag_current_m = Vector2.ZERO
+
+
+func _begin_object_mouse_edit(mode: int, pos_m: Vector2) -> void:
+	if selected_object_room_id < 0 or selected_object_index < 0:
+		return
+	var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+	if obj.is_empty():
+		return
+	var rr: Rect2 = _get_room_rect(selected_object_room_id)
+	var obj_pos: Vector2 = Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO))
+	var size: Vector2 = _object_size_m(obj)
+	_push_undo_snapshot("edit_object_mouse")
+	object_mouse_mode = mode
+	is_dragging_object = true
+	drag_object_cursor_offset_m = (rr.position + obj_pos) - pos_m
+	object_drag_start_center_m = _object_world_center(rr, obj)
+	object_drag_start_size_m = size
+	object_drag_start_rotation_deg = float(obj.get("rotation_deg", 0.0))
 
 
 func _update_dragged_object(pos_m: Vector2) -> void:
@@ -1360,13 +1735,54 @@ func _update_dragged_object(pos_m: Vector2) -> void:
 		is_dragging_object = false
 		return
 	var rr: Rect2 = _get_room_rect(selected_object_room_id)
-	var size: Vector2 = Serializer.vector2_from_data(obj.get("size_m", Vector2.ONE))
-	var new_world_m: Vector2 = _snap_m(pos_m + drag_object_cursor_offset_m)
-	var new_local_m: Vector2 = new_world_m - rr.position
-	new_local_m.x = clampf(new_local_m.x, 0.0, maxf(0.0, rr.size.x - size.x))
-	new_local_m.y = clampf(new_local_m.y, 0.0, maxf(0.0, rr.size.y - size.y))
-	_set_object_position(selected_object_room_id, selected_object_index, new_local_m)
+	match object_mouse_mode:
+		ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH:
+			_resize_selected_object_with_mouse(pos_m, rr)
+		ObjectMouseMode.ROTATE:
+			_rotate_selected_object_with_mouse(pos_m)
+		_:
+			var size: Vector2 = _object_size_m(obj)
+			var new_world_m: Vector2 = _snap_m(pos_m + drag_object_cursor_offset_m)
+			var new_local_m: Vector2 = new_world_m - rr.position
+			new_local_m = _clamp_object_local_pos(rr, size, new_local_m)
+			_set_object_position(selected_object_room_id, selected_object_index, new_local_m)
+	_sync_object_property_fields(_get_object(selected_object_room_id, selected_object_index))
 	queue_redraw()
+
+
+func _resize_selected_object_with_mouse(pos_m: Vector2, rr: Rect2) -> void:
+	var current_obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+	if current_obj.is_empty():
+		return
+	var local_mouse: Vector2 = _world_to_object_local(pos_m, object_drag_start_center_m, object_drag_start_rotation_deg)
+	var new_size: Vector2 = object_drag_start_size_m
+	if object_mouse_mode == ObjectMouseMode.RESIZE_WIDTH:
+		new_size.x = maxf(0.10, absf(local_mouse.x) * 2.0)
+	else:
+		new_size.y = maxf(0.10, absf(local_mouse.y) * 2.0)
+	new_size.x = clampf(snappedf(new_size.x, 0.05), 0.10, maxf(0.10, rr.size.x))
+	new_size.y = clampf(snappedf(new_size.y, 0.05), 0.10, maxf(0.10, rr.size.y))
+	var local_center: Vector2 = object_drag_start_center_m - rr.position
+	var new_local_pos: Vector2 = _clamp_object_local_pos(rr, new_size, local_center - new_size * 0.5)
+	_set_object_geometry(
+		selected_object_room_id,
+		selected_object_index,
+		new_local_pos,
+		new_size,
+		float(current_obj.get("rotation_deg", object_drag_start_rotation_deg)),
+		float(current_obj.get("elevation_m", 0.0))
+	)
+
+
+func _rotate_selected_object_with_mouse(pos_m: Vector2) -> void:
+	var dir: Vector2 = pos_m - object_drag_start_center_m
+	if dir.length_squared() < 0.0001:
+		return
+	var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+	if obj.is_empty():
+		return
+	var rotation_deg: float = snappedf(rad_to_deg(atan2(dir.y, dir.x)) + 90.0, 1.0)
+	_set_object_rotation(selected_object_room_id, selected_object_index, _normalize_degrees_signed(rotation_deg))
 
 
 func _set_object_position(room_id: int, obj_index: int, local_pos: Vector2) -> void:
@@ -1386,6 +1802,59 @@ func _set_object_position(room_id: int, obj_index: int, local_pos: Vector2) -> v
 		return
 
 
+func _set_object_rotation(room_id: int, obj_index: int, rotation_deg: float) -> void:
+	var obj: Dictionary = _get_object(room_id, obj_index)
+	if obj.is_empty():
+		return
+	_set_object_geometry(
+		room_id,
+		obj_index,
+		Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO)),
+		_object_size_m(obj),
+		rotation_deg,
+		float(obj.get("elevation_m", 0.0))
+	)
+
+
+func _set_object_geometry(room_id: int, obj_index: int, local_pos: Vector2, size_m: Vector2, rotation_deg: float, elevation_m: float) -> void:
+	var rooms: Array = editor_data.get("rooms_data", [])
+	for i in range(rooms.size()):
+		if typeof(rooms[i]) != TYPE_DICTIONARY or int(rooms[i].get("id", -1)) != room_id:
+			continue
+		var room: Dictionary = rooms[i]
+		var objects: Array = room.get("fuel_objects", [])
+		if obj_index < 0 or obj_index >= objects.size() or typeof(objects[obj_index]) != TYPE_DICTIONARY:
+			return
+		var obj: Dictionary = objects[obj_index]
+		obj["position_m"] = Serializer.vector_to_data(local_pos)
+		obj["size_m"] = Serializer.vector_to_data(size_m)
+		obj["rotation_deg"] = rotation_deg
+		obj["elevation_m"] = maxf(0.0, elevation_m)
+		obj["footprint_m2"] = maxf(0.0, size_m.x * size_m.y)
+		objects[obj_index] = obj
+		room["fuel_objects"] = objects
+		rooms[i] = room
+		editor_data["rooms_data"] = rooms
+		return
+
+
+func _clamp_object_local_pos(room_rect: Rect2, size_m: Vector2, local_pos: Vector2) -> Vector2:
+	var clamped := local_pos
+	var max_x: float = maxf(0.0, room_rect.size.x - size_m.x)
+	var max_y: float = maxf(0.0, room_rect.size.y - size_m.y)
+	clamped.x = clampf(clamped.x, 0.0, max_x)
+	clamped.y = clampf(clamped.y, 0.0, max_y)
+	if clamped.x <= OBJECT_WALL_SNAP_M:
+		clamped.x = 0.0
+	elif max_x - clamped.x <= OBJECT_WALL_SNAP_M:
+		clamped.x = max_x
+	if clamped.y <= OBJECT_WALL_SNAP_M:
+		clamped.y = 0.0
+	elif max_y - clamped.y <= OBJECT_WALL_SNAP_M:
+		clamped.y = max_y
+	return clamped
+
+
 func _create_room(rect: Rect2, room_name: String = "", kind_name: String = "generic") -> int:
 	return _create_room_at_level(rect, room_name, kind_name, _current_floor_level_m())
 
@@ -1398,6 +1867,7 @@ func _create_room_at_level(rect: Rect2, room_name: String = "", kind_name: Strin
 		"id": id,
 		"name": room_name if room_name != "" else "Room %d" % id,
 		"kind": kind_name,
+		"rotation_deg": 0.0,
 		"height_m": height_m,
 		"floor_level_z_m": floor_level_m,
 		"fuel_energy_MJ": 0.0,
@@ -1456,6 +1926,12 @@ func _add_floor_at_level(level_m: float) -> int:
 
 func _add_vertical_stair_opening(lower_id: int, upper_id: int, rect: Rect2) -> void:
 	var openings: Array = editor_data.get("openings_data", [])
+	for raw_op in openings:
+		if typeof(raw_op) != TYPE_DICTIONARY:
+			continue
+		var op: Dictionary = raw_op
+		if bool(op.get("is_vertical", false)) and int(op.get("a", -1)) == lower_id and int(op.get("b", -1)) == upper_id:
+			return
 	var ramp_width_m: float = minf(maxf(0.82, rect.size.x * 0.50), maxf(0.82, rect.size.x - 0.96))
 	var ramp_depth_m: float = maxf(0.80, rect.size.y - clampf(rect.size.y * 0.22, 0.72, 1.05) - 0.22)
 	openings.append({
@@ -1469,6 +1945,52 @@ func _add_vertical_stair_opening(lower_id: int, upper_id: int, rect: Rect2) -> v
 		"is_vertical": true
 	})
 	editor_data["openings_data"] = openings
+
+
+func _copy_stairs_from_level_to_level(lower_level_m: float, upper_level_m: float) -> void:
+	var lower_stairs: Array[Dictionary] = []
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var room_dict: Dictionary = room
+		if absf(float(room_dict.get("floor_level_z_m", 0.0)) - lower_level_m) < 0.05 and _is_stair_room(room_dict):
+			lower_stairs.append(room_dict)
+	if lower_stairs.is_empty():
+		return
+
+	for lower_room in lower_stairs:
+		var lower_id: int = int(lower_room.get("id", -1))
+		var rect: Rect2 = _get_room_rect(lower_id)
+		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+			continue
+		var upper_id: int = _find_matching_stair_room_at_level(rect, upper_level_m)
+		if upper_id < 0:
+			var floor_name: String = _floor_name_for_level(upper_level_m)
+			upper_id = _create_room_at_level(rect, "Escalera %s" % floor_name, "escalera", upper_level_m, 2.55)
+		_add_vertical_stair_opening(lower_id, upper_id, rect)
+
+
+func _find_matching_stair_room_at_level(rect: Rect2, level_m: float) -> int:
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var room_dict: Dictionary = room
+		if not _is_stair_room(room_dict):
+			continue
+		if absf(float(room_dict.get("floor_level_z_m", 0.0)) - level_m) >= 0.05:
+			continue
+		var other_rect: Rect2 = _get_room_rect(int(room_dict.get("id", -1)))
+		if rect.position.distance_to(other_rect.position) <= 0.05 and rect.size.distance_to(other_rect.size) <= 0.05:
+			return int(room_dict.get("id", -1))
+	return -1
+
+
+func _floor_name_for_level(level_m: float) -> String:
+	var floors: Array = _get_floors()
+	for i in range(floors.size()):
+		if typeof(floors[i]) == TYPE_DICTIONARY and absf(float(Dictionary(floors[i]).get("level_m", 0.0)) - level_m) < 0.05:
+			return String(Dictionary(floors[i]).get("name", _default_floor_name(i)))
+	return _default_floor_name(floors.size())
 
 
 func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
@@ -1505,7 +2027,8 @@ func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
 			minf(corridor_width_m, max_width_m),
 			2.05,
 			0.0,
-			1.0
+			1.0,
+			false
 		)
 	_select_room(first_id)
 	_set_status("%s creado en L como tramos %d y %d." % [base_name, first_id, second_id])
@@ -1655,6 +2178,11 @@ func _select_at(pos_m: Vector2) -> void:
 		_select_opening(opening_index)
 		return
 
+	var exterior_wall_index: int = _find_exterior_wall_at(pos_m)
+	if exterior_wall_index >= 0:
+		_select_exterior_wall(exterior_wall_index)
+		return
+
 	var room_id: int = _find_room_at(pos_m)
 	if room_id >= 0:
 		_select_room(room_id)
@@ -1671,6 +2199,7 @@ func _select_room(room_id: int) -> void:
 	selected_object_index = -1
 	selected_detector_index = -1
 	selected_victim_index = -1
+	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 	_set_status("Seleccionada habitacion %d." % room_id)
 	queue_redraw()
@@ -1683,6 +2212,7 @@ func _select_opening(index: int) -> void:
 	selected_object_index = -1
 	selected_detector_index = -1
 	selected_victim_index = -1
+	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 	var opening: Dictionary = Array(editor_data.get("openings_data", []))[index]
 	_set_status("Seleccionada apertura %d (%s)." % [index, String(opening.get("type", "door"))])
@@ -1696,6 +2226,7 @@ func _select_object(room_id: int, object_index: int) -> void:
 	selected_object_index = object_index
 	selected_detector_index = -1
 	selected_victim_index = -1
+	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 	var obj: Dictionary = _get_object(room_id, object_index)
 	_set_status("Seleccionado objeto %s." % String(obj.get("name", obj.get("id", ""))))
@@ -1709,6 +2240,7 @@ func _clear_selection() -> void:
 	selected_object_index = -1
 	selected_detector_index = -1
 	selected_victim_index = -1
+	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 
 
@@ -1721,10 +2253,22 @@ func _refresh_property_panel() -> void:
 	var has_room: bool = not room.is_empty()
 	var has_detector: bool = selected_detector_index >= 0
 	var has_victim: bool = selected_victim_index >= 0
+	var walls_arr: Array = editor_data.get("exterior_walls", [])
+	var has_wall: bool = selected_exterior_wall_index >= 0 and selected_exterior_wall_index < walls_arr.size()
 
 	# Panel habitación
 	_name_edit.editable = has_room
 	_kind_edit.editable = has_room
+	if _room_x_spin != null:
+		_room_x_spin.editable = has_room
+	if _room_y_spin != null:
+		_room_y_spin.editable = has_room
+	if _room_width_spin != null:
+		_room_width_spin.editable = has_room
+	if _room_depth_spin != null:
+		_room_depth_spin.editable = has_room
+	if _room_rotation_spin != null:
+		_room_rotation_spin.editable = has_room
 	_height_spin.editable = has_room
 	_fuel_spin.editable = has_room
 	_hrr_spin.editable = has_room
@@ -1732,12 +2276,33 @@ func _refresh_property_panel() -> void:
 	if has_room:
 		_name_edit.text = String(room.get("name", ""))
 		_kind_edit.text = String(room.get("kind", "generic"))
+		var rect: Rect2 = _get_room_rect(selected_room_id)
+		if _room_x_spin != null:
+			_room_x_spin.value = rect.position.x
+		if _room_y_spin != null:
+			_room_y_spin.value = rect.position.y
+		if _room_width_spin != null:
+			_room_width_spin.value = maxf(0.25, rect.size.x)
+		if _room_depth_spin != null:
+			_room_depth_spin.value = maxf(0.25, rect.size.y)
+		if _room_rotation_spin != null:
+			_room_rotation_spin.value = _normalize_degrees_signed(float(room.get("rotation_deg", 0.0)))
 		_height_spin.value = float(room.get("height_m", 2.7))
 		_fuel_spin.value = float(room.get("fuel_energy_MJ", 0.0))
 		_hrr_spin.value = float(room.get("max_hrr_kw", 0.0))
 	else:
 		_name_edit.text = ""
 		_kind_edit.text = ""
+		if _room_x_spin != null:
+			_room_x_spin.value = 0.0
+		if _room_y_spin != null:
+			_room_y_spin.value = 0.0
+		if _room_width_spin != null:
+			_room_width_spin.value = 1.0
+		if _room_depth_spin != null:
+			_room_depth_spin.value = 1.0
+		if _room_rotation_spin != null:
+			_room_rotation_spin.value = 0.0
 		_height_spin.value = 2.7
 		_fuel_spin.value = 0.0
 		_hrr_spin.value = 0.0
@@ -1749,17 +2314,12 @@ func _refresh_property_panel() -> void:
 	if has_obj:
 		var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
 		if not obj.is_empty():
-			_obj_name_edit.text = String(obj.get("name", obj.get("kind", "")))
-			var sz: Vector2 = Serializer.vector2_from_data(obj.get("size_m", Vector2.ONE))
-			_obj_width_spin.value = sz.x
-			_obj_height_spin.value = sz.y
-			_obj_fuel_spin.value = float(obj.get("fuel_energy_MJ", 0.0))
-			_obj_hrr_spin.value = float(obj.get("max_hrr_kw", 0.0))
+			_sync_object_property_fields(obj)
 
 	# Panel apertura
 	var openings_arr: Array = editor_data.get("openings_data", [])
 	var has_opening_sel: bool = selected_opening_index >= 0 and selected_opening_index < openings_arr.size()
-	_set_property_panel_visibility(has_room, has_obj, has_opening_sel)
+	_set_property_panel_visibility(has_room, has_obj, has_opening_sel, has_detector, has_victim, has_wall)
 	if _opening_props_container != null:
 		_opening_props_container.visible = has_opening_sel
 	if has_opening_sel and _opening_width_spin != null:
@@ -1778,6 +2338,10 @@ func _refresh_property_panel() -> void:
 		_opening_width_spin.max_value = _max_width_for_opening(opening)
 		_opening_width_spin.value = float(opening.get("width_m", 0.9))
 		_opening_height_spin.value = float(opening.get("height_m", 2.0))
+		if _opening_offset_spin != null:
+			_opening_offset_spin.editable = not bool(opening.get("is_vertical", false))
+			_opening_offset_spin.max_value = _wall_length(_get_room_rect(int(opening.get("a", -1))), String(opening.get("wall", "top"))) if not bool(opening.get("is_vertical", false)) else 200.0
+			_opening_offset_spin.value = float(opening.get("offset_m", 0.0))
 		if _opening_sill_spin != null:
 			_opening_sill_spin.editable = op_type == "window"
 			_opening_sill_spin.value = float(opening.get("sill_m", 0.0))
@@ -1785,6 +2349,13 @@ func _refresh_property_panel() -> void:
 			var frac: float = float(opening.get("open_fraction", 1.0))
 			_opening_open_option.disabled = op_type == "hole"
 			_opening_open_option.select(0 if frac <= 0.01 else 1)
+		var is_door: bool = op_type == "door" and not bool(opening.get("is_vertical", false))
+		if _opening_swing_option != null:
+			_set_control_row_visible(_opening_swing_option, is_door)
+			_opening_swing_option.select(1 if String(opening.get("swing_direction", "in")).to_lower() == "out" else 0)
+		if _opening_hinge_option != null:
+			_set_control_row_visible(_opening_hinge_option, is_door)
+			_opening_hinge_option.select(1 if String(opening.get("hinge_side", "left")).to_lower() == "right" else 0)
 
 	if _detector_props_container != null:
 		_detector_props_container.visible = has_detector
@@ -1799,6 +2370,10 @@ func _refresh_property_panel() -> void:
 				_detector_type_option.selected = 0 if det_type == "smoke" else (1 if det_type == "heat" else 2)
 			if _detector_threshold_spin != null:
 				_detector_threshold_spin.value = float(det.get("threshold", 0.025))
+			if _detector_x_spin != null:
+				_detector_x_spin.value = float(det.get("x_m", 0.0))
+			if _detector_y_spin != null:
+				_detector_y_spin.value = float(det.get("y_m", 0.0))
 
 	if _victim_props_container != null:
 		_victim_props_container.visible = has_victim
@@ -1808,18 +2383,77 @@ func _refresh_property_panel() -> void:
 			var vic: Dictionary = vics[selected_victim_index]
 			if _victim_name_edit != null:
 				_victim_name_edit.text = String(vic.get("name", ""))
+			if _victim_x_spin != null:
+				_victim_x_spin.value = float(vic.get("x_m", 0.0))
+			if _victim_y_spin != null:
+				_victim_y_spin.value = float(vic.get("y_m", 0.0))
+			if _victim_height_spin != null:
+				_victim_height_spin.value = float(vic.get("height_m", 0.9))
+
+	if _wall_props_container != null:
+		_wall_props_container.visible = has_wall
+	if has_wall and selected_exterior_wall_index < walls_arr.size():
+		var wall: Dictionary = walls_arr[selected_exterior_wall_index]
+		var a: Vector2 = Serializer.vector2_from_data(wall.get("a", Vector2.ZERO))
+		var b: Vector2 = Serializer.vector2_from_data(wall.get("b", Vector2.ZERO))
+		if _wall_start_x_spin != null:
+			_wall_start_x_spin.value = a.x
+		if _wall_start_y_spin != null:
+			_wall_start_y_spin.value = a.y
+		if _wall_end_x_spin != null:
+			_wall_end_x_spin.value = b.x
+		if _wall_end_y_spin != null:
+			_wall_end_y_spin.value = b.y
+		if _wall_thickness_spin != null:
+			_wall_thickness_spin.value = float(wall.get("thickness_m", 0.16))
 
 
-func _set_property_panel_visibility(has_room: bool, has_obj: bool, has_opening: bool) -> void:
+func _sync_object_property_fields(obj: Dictionary) -> void:
+	if obj.is_empty():
+		return
+	if _obj_name_edit != null:
+		_obj_name_edit.text = String(obj.get("name", obj.get("kind", "")))
+	var pos: Vector2 = Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO))
+	if _obj_x_spin != null:
+		_obj_x_spin.value = pos.x
+	if _obj_y_spin != null:
+		_obj_y_spin.value = pos.y
+	var sz: Vector2 = _object_size_m(obj)
+	if _obj_width_spin != null:
+		_obj_width_spin.value = sz.x
+	if _obj_height_spin != null:
+		_obj_height_spin.value = sz.y
+	if _obj_rotation_spin != null:
+		_obj_rotation_spin.value = _normalize_degrees_signed(float(obj.get("rotation_deg", 0.0)))
+	if _obj_elevation_spin != null:
+		_obj_elevation_spin.value = float(obj.get("elevation_m", 0.0))
+	if _obj_fuel_spin != null:
+		_obj_fuel_spin.value = float(obj.get("fuel_energy_MJ", 0.0))
+	if _obj_hrr_spin != null:
+		_obj_hrr_spin.value = float(obj.get("max_hrr_kw", 0.0))
+
+
+func _set_property_panel_visibility(has_room: bool, has_obj: bool, has_opening: bool, has_detector: bool = false, has_victim: bool = false, has_wall: bool = false) -> void:
 	if _ui_root == null:
 		return
+	var has_any: bool = has_room or has_obj or has_opening or has_detector or has_victim or has_wall
 	var right_panel := _ui_root.get_node_or_null("RightPanel") as Control
 	if right_panel != null:
-		right_panel.visible = has_room or has_obj or has_opening
+		right_panel.visible = has_any
 	var room_paths: Array[String] = [
 		"RightPanel/VBox/RoomTitle",
 		"RightPanel/VBox/RoomNameEdit",
 		"RightPanel/VBox/RoomKindEdit",
+		"RightPanel/VBox/RoomXLabel",
+		"RightPanel/VBox/RoomXSpin",
+		"RightPanel/VBox/RoomYLabel",
+		"RightPanel/VBox/RoomYSpin",
+		"RightPanel/VBox/RoomWidthLabel",
+		"RightPanel/VBox/RoomWidthSpin",
+		"RightPanel/VBox/RoomDepthLabel",
+		"RightPanel/VBox/RoomDepthSpin",
+		"RightPanel/VBox/RoomRotationLabel",
+		"RightPanel/VBox/RoomRotationSpin",
 		"RightPanel/VBox/RoomHeightLabel",
 		"RightPanel/VBox/RoomHeightSpin",
 		"RightPanel/VBox/FuelEnergyLabel",
@@ -1834,6 +2468,11 @@ func _set_property_panel_visibility(has_room: bool, has_obj: bool, has_opening: 
 		_set_node_visible(path, has_room)
 	_set_control_row_visible(_name_edit, has_room)
 	_set_control_row_visible(_kind_edit, has_room)
+	_set_control_row_visible(_room_x_spin, has_room)
+	_set_control_row_visible(_room_y_spin, has_room)
+	_set_control_row_visible(_room_width_spin, has_room)
+	_set_control_row_visible(_room_depth_spin, has_room)
+	_set_control_row_visible(_room_rotation_spin, has_room)
 	_set_control_row_visible(_height_spin, has_room)
 	_set_control_row_visible(_fuel_spin, has_room)
 	_set_control_row_visible(_hrr_spin, has_room)
@@ -1841,13 +2480,34 @@ func _set_property_panel_visibility(has_room: bool, has_obj: bool, has_opening: 
 		_room_apply_button.visible = has_room
 	if _room_delete_button != null:
 		_room_delete_button.visible = has_room
+	if _room_mark_exterior_button != null:
+		_room_mark_exterior_button.visible = has_room
+	var before_detector: bool = has_room or has_obj or has_opening
+	var before_victim: bool = before_detector or has_detector
+	var before_wall: bool = before_victim or has_victim
 	_set_node_visible("RightPanel/VBox/ObjectTitle", has_obj)
-	_set_node_visible("RightPanel/VBox/SeparatorC", has_obj or has_opening)
+	_set_node_visible("RightPanel/VBox/SeparatorC", has_opening and (has_room or has_obj))
 	_set_node_visible("RightPanel/VBox/OpeningTitle", has_opening)
+	_set_node_visible("RightPanel/VBox/SeparatorD", has_detector and before_detector)
+	_set_node_visible("RightPanel/VBox/DetectorTitle", has_detector)
+	_set_node_visible("RightPanel/VBox/SeparatorE", has_victim and before_victim)
+	_set_node_visible("RightPanel/VBox/VictimTitle", has_victim)
+	_set_node_visible("RightPanel/VBox/SeparatorExteriorWall", has_wall and before_wall)
+	_set_node_visible("RightPanel/VBox/ExteriorWallTitle", has_wall)
 	if _obj_props_container != null:
 		_obj_props_container.visible = has_obj
+	_set_node_visible("RightPanel/VBox/ObjProps/ObjWidthLabel", has_obj)
+	_set_node_visible("RightPanel/VBox/ObjProps/ObjWidthSpin", has_obj)
+	_set_node_visible("RightPanel/VBox/ObjProps/ObjHeightLabel", has_obj)
+	_set_node_visible("RightPanel/VBox/ObjProps/ObjHeightSpin", has_obj)
 	if _opening_props_container != null:
 		_opening_props_container.visible = has_opening
+	if _detector_props_container != null:
+		_detector_props_container.visible = has_detector
+	if _victim_props_container != null:
+		_victim_props_container.visible = has_victim
+	if _wall_props_container != null:
+		_wall_props_container.visible = has_wall
 
 
 func _set_node_visible(path: String, visible: bool) -> void:
@@ -1879,14 +2539,30 @@ func _apply_room_properties() -> void:
 			continue
 		if int(rooms[i].get("id", -1)) != selected_room_id:
 			continue
+		_push_undo_snapshot("edit_room")
 		var room: Dictionary = rooms[i]
 		room["name"] = _name_edit.text.strip_edges()
 		room["kind"] = _kind_edit.text.strip_edges()
+		room["rotation_deg"] = _normalize_degrees_signed(_room_rotation_spin.value) if _room_rotation_spin != null else float(room.get("rotation_deg", 0.0))
 		room["height_m"] = _height_spin.value
 		room["fuel_energy_MJ"] = _fuel_spin.value
 		room["max_hrr_kw"] = _hrr_spin.value
 		rooms[i] = room
 		editor_data["rooms_data"] = rooms
+		var rects: Dictionary = editor_data.get("room_rect_m", {})
+		var current_rect: Rect2 = _get_room_rect(selected_room_id)
+		var next_rect := Rect2(
+			Vector2(
+				_room_x_spin.value if _room_x_spin != null else current_rect.position.x,
+				_room_y_spin.value if _room_y_spin != null else current_rect.position.y
+			),
+			Vector2(
+				maxf(0.25, _room_width_spin.value) if _room_width_spin != null else current_rect.size.x,
+				maxf(0.25, _room_depth_spin.value) if _room_depth_spin != null else current_rect.size.y
+			)
+		)
+		rects[str(selected_room_id)] = Serializer.rect_to_data(next_rect)
+		editor_data["room_rect_m"] = rects
 		_set_status("Propiedades de habitacion %d actualizadas." % selected_room_id)
 		queue_redraw()
 		return
@@ -1911,9 +2587,40 @@ func _is_stair_room(room: Dictionary) -> bool:
 	return kind_name in ["escalera", "stair", "stairs", "stairwell"] or name_text.contains("escalera") or name_text.contains("stair")
 
 
+func _room_display_name(room: Dictionary, room_id: int) -> String:
+	var name_text: String = String(room.get("name", "")).strip_edges()
+	if name_text != "":
+		return name_text
+	return "Room %d" % room_id
+
+
 func _get_room_rect(room_id: int) -> Rect2:
 	var rects: Dictionary = editor_data.get("room_rect_m", {})
 	return Serializer.rect2_from_data(rects.get(str(room_id), Rect2()))
+
+
+func _room_rotation_deg(room_id: int) -> float:
+	var room: Dictionary = _get_room(room_id)
+	return float(room.get("rotation_deg", 0.0)) if not room.is_empty() else 0.0
+
+
+func _rotated_rect_points_m(rect: Rect2, rotation_deg: float) -> PackedVector2Array:
+	var center: Vector2 = rect.get_center()
+	var half: Vector2 = rect.size * 0.5
+	var rot := Transform2D(deg_to_rad(rotation_deg), Vector2.ZERO)
+	return PackedVector2Array([
+		center + rot * Vector2(-half.x, -half.y),
+		center + rot * Vector2(half.x, -half.y),
+		center + rot * Vector2(half.x, half.y),
+		center + rot * Vector2(-half.x, half.y)
+	])
+
+
+func _rotated_rect_has_point(rect: Rect2, rotation_deg: float, pos_m: Vector2) -> bool:
+	if absf(rotation_deg) <= 0.001:
+		return rect.has_point(pos_m)
+	var local: Vector2 = Transform2D(deg_to_rad(-rotation_deg), Vector2.ZERO) * (pos_m - rect.get_center())
+	return absf(local.x) <= rect.size.x * 0.5 and absf(local.y) <= rect.size.y * 0.5
 
 
 func _get_object(room_id: int, object_index: int) -> Dictionary:
@@ -1933,9 +2640,80 @@ func _find_room_at(pos_m: Vector2) -> int:
 		if not _is_room_on_current_floor(room):
 			continue
 		var room_id: int = int(room.get("id", -1))
-		if _get_room_rect(room_id).has_point(pos_m):
+		if _rotated_rect_has_point(_get_room_rect(room_id), _room_rotation_deg(room_id), pos_m):
 			return room_id
 	return -1
+
+
+func _object_size_m(obj: Dictionary) -> Vector2:
+	var size: Vector2 = Serializer.vector2_from_data(obj.get("size_m", Vector2.ONE))
+	return Vector2(maxf(0.05, size.x), maxf(0.05, size.y))
+
+
+func _object_world_center(room_rect: Rect2, obj: Dictionary) -> Vector2:
+	var pos: Vector2 = Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO))
+	return room_rect.position + pos + _object_size_m(obj) * 0.5
+
+
+func _object_transform(rotation_deg: float) -> Transform2D:
+	return Transform2D(deg_to_rad(rotation_deg), Vector2.ZERO)
+
+
+func _world_to_object_local(pos_m: Vector2, center_m: Vector2, rotation_deg: float) -> Vector2:
+	return Transform2D(deg_to_rad(-rotation_deg), Vector2.ZERO) * (pos_m - center_m)
+
+
+func _object_contains_point(room_rect: Rect2, obj: Dictionary, pos_m: Vector2) -> bool:
+	var size: Vector2 = _object_size_m(obj)
+	var local: Vector2 = _world_to_object_local(pos_m, _object_world_center(room_rect, obj), float(obj.get("rotation_deg", 0.0)))
+	return absf(local.x) <= size.x * 0.5 and absf(local.y) <= size.y * 0.5
+
+
+func _object_corner_points_m(room_rect: Rect2, obj: Dictionary) -> PackedVector2Array:
+	var size: Vector2 = _object_size_m(obj)
+	var half: Vector2 = size * 0.5
+	var center: Vector2 = _object_world_center(room_rect, obj)
+	var rot := _object_transform(float(obj.get("rotation_deg", 0.0)))
+	return PackedVector2Array([
+		center + rot * Vector2(-half.x, -half.y),
+		center + rot * Vector2(half.x, -half.y),
+		center + rot * Vector2(half.x, half.y),
+		center + rot * Vector2(-half.x, half.y)
+	])
+
+
+func _object_handle_points_m(room_rect: Rect2, obj: Dictionary) -> Dictionary:
+	var size: Vector2 = _object_size_m(obj)
+	var center: Vector2 = _object_world_center(room_rect, obj)
+	var rot := _object_transform(float(obj.get("rotation_deg", 0.0)))
+	return {
+		ObjectMouseMode.RESIZE_WIDTH: center + rot * Vector2(size.x * 0.5, 0.0),
+		ObjectMouseMode.RESIZE_LENGTH: center + rot * Vector2(0.0, size.y * 0.5),
+		ObjectMouseMode.ROTATE: center + rot * Vector2(0.0, -size.y * 0.5 - OBJECT_ROTATE_HANDLE_OFFSET_M)
+	}
+
+
+func _find_selected_object_handle_at(pos_m: Vector2) -> int:
+	if selected_object_room_id < 0 or selected_object_index < 0:
+		return ObjectMouseMode.NONE
+	var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+	if obj.is_empty():
+		return ObjectMouseMode.NONE
+	var handles: Dictionary = _object_handle_points_m(_get_room_rect(selected_object_room_id), obj)
+	for mode in [ObjectMouseMode.ROTATE, ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
+		if not handles.has(mode):
+			continue
+		var hp: Vector2 = Vector2(handles[mode])
+		if pos_m.distance_to(hp) <= OBJECT_HANDLE_HIT_RADIUS_M:
+			return mode
+	return ObjectMouseMode.NONE
+
+
+func _normalize_degrees_signed(value: float) -> float:
+	var wrapped: float = fposmod(value + 180.0, 360.0) - 180.0
+	if wrapped <= -180.0:
+		return 180.0
+	return wrapped
 
 
 func _find_object_at(pos_m: Vector2) -> Dictionary:
@@ -1951,10 +2729,7 @@ func _find_object_at(pos_m: Vector2) -> Dictionary:
 			if typeof(objects[object_index]) != TYPE_DICTIONARY:
 				continue
 			var obj: Dictionary = objects[object_index]
-			var pos: Vector2 = Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO))
-			var size: Vector2 = Serializer.vector2_from_data(obj.get("size_m", Vector2.ONE))
-			var obj_rect := Rect2(room_rect.position + pos, size)
-			if obj_rect.has_point(pos_m):
+			if _object_contains_point(room_rect, obj, pos_m):
 				return {"room_id": room_id, "object_index": object_index}
 	return {}
 
@@ -1991,8 +2766,8 @@ func _create_object_at(pos_m: Vector2) -> void:
 	var obj: Dictionary = ObjectLibraryScript.create_object(kind, _next_object_id(), room_id, Vector2.ZERO)
 	var size: Vector2 = Serializer.vector2_from_data(obj.get("size_m", Vector2.ONE))
 	var local_pos: Vector2 = pos_m - room_rect.position - size * 0.5
-	local_pos.x = clampf(local_pos.x, 0.0, maxf(0.0, room_rect.size.x - size.x))
-	local_pos.y = clampf(local_pos.y, 0.0, maxf(0.0, room_rect.size.y - size.y))
+	local_pos = _clamp_object_local_pos(room_rect, size, local_pos)
+	_push_undo_snapshot("create_object")
 	obj["position_m"] = Serializer.vector_to_data(local_pos)
 	_add_object_to_room(room_id, obj)
 	_select_object(room_id, Array(_get_room(room_id).get("fuel_objects", [])).size() - 1)
@@ -2024,6 +2799,7 @@ func _mark_ignition_at(pos_m: Vector2) -> void:
 
 	var target_room_id: int = int(hit["room_id"])
 	var target_index: int = int(hit["object_index"])
+	_push_undo_snapshot("mark_ignition")
 	var rooms: Array = editor_data.get("rooms_data", [])
 	for i in range(rooms.size()):
 		if typeof(rooms[i]) != TYPE_DICTIONARY:
@@ -2063,6 +2839,7 @@ func _create_detector_at(pos_m: Vector2) -> void:
 	local_pos.y = clampf(snappedf(local_pos.y, GRID_M), 0.0, maxf(0.0, room_rect.size.y))
 	var dets: Array = editor_data.get("detectors", [])
 	var new_id: String = _next_detector_id()
+	_push_undo_snapshot("create_detector")
 	dets.append({
 		"id": new_id,
 		"room_id": room_id,
@@ -2089,12 +2866,14 @@ func _create_victim_at(pos_m: Vector2) -> void:
 	var vics: Array = editor_data.get("victims", [])
 	var new_id: String = _next_victim_id()
 	var vic_num: int = vics.size() + 1
+	_push_undo_snapshot("create_victim")
 	vics.append({
 		"id": new_id,
 		"room_id": room_id,
 		"name": "Victima %d" % vic_num,
 		"x_m": local_pos.x,
-		"y_m": local_pos.y
+		"y_m": local_pos.y,
+		"height_m": 0.9
 	})
 	editor_data["victims"] = vics
 	_select_victim(vics.size() - 1)
@@ -2147,6 +2926,7 @@ func _select_detector(index: int) -> void:
 	selected_object_index = -1
 	selected_detector_index = index
 	selected_victim_index = -1
+	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 	var dets: Array = editor_data.get("detectors", [])
 	if index >= 0 and index < dets.size():
@@ -2162,11 +2942,25 @@ func _select_victim(index: int) -> void:
 	selected_object_index = -1
 	selected_detector_index = -1
 	selected_victim_index = index
+	selected_exterior_wall_index = -1
 	_refresh_property_panel()
 	var vics: Array = editor_data.get("victims", [])
 	if index >= 0 and index < vics.size():
 		var vic: Dictionary = vics[index]
 		_set_status("Victima %s seleccionada." % String(vic.get("name", vic.get("id", str(index)))))
+	queue_redraw()
+
+
+func _select_exterior_wall(index: int) -> void:
+	selected_room_id = -1
+	selected_opening_index = -1
+	selected_object_room_id = -1
+	selected_object_index = -1
+	selected_detector_index = -1
+	selected_victim_index = -1
+	selected_exterior_wall_index = index
+	_refresh_property_panel()
+	_set_status("Muro exterior %d seleccionado." % index)
 	queue_redraw()
 
 
@@ -2177,6 +2971,7 @@ func _apply_detector_properties() -> void:
 	var dets: Array = editor_data.get("detectors", [])
 	if selected_detector_index >= dets.size():
 		return
+	_push_undo_snapshot("edit_detector")
 	var det: Dictionary = dets[selected_detector_index]
 	if _detector_id_edit != null:
 		det["id"] = _detector_id_edit.text.strip_edges()
@@ -2185,6 +2980,11 @@ func _apply_detector_properties() -> void:
 		det["type"] = "smoke" if idx == 0 else ("heat" if idx == 1 else "co")
 	if _detector_threshold_spin != null:
 		det["threshold"] = _detector_threshold_spin.value
+	var det_room_rect: Rect2 = _get_room_rect(int(det.get("room_id", -1)))
+	if _detector_x_spin != null:
+		det["x_m"] = clampf(_detector_x_spin.value, 0.0, maxf(0.0, det_room_rect.size.x))
+	if _detector_y_spin != null:
+		det["y_m"] = clampf(_detector_y_spin.value, 0.0, maxf(0.0, det_room_rect.size.y))
 	dets[selected_detector_index] = det
 	editor_data["detectors"] = dets
 	_set_status("Propiedades del detector actualizadas.")
@@ -2198,9 +2998,17 @@ func _apply_victim_properties() -> void:
 	var vics: Array = editor_data.get("victims", [])
 	if selected_victim_index >= vics.size():
 		return
+	_push_undo_snapshot("edit_victim")
 	var vic: Dictionary = vics[selected_victim_index]
 	if _victim_name_edit != null:
 		vic["name"] = _victim_name_edit.text.strip_edges()
+	var vic_room_rect: Rect2 = _get_room_rect(int(vic.get("room_id", -1)))
+	if _victim_x_spin != null:
+		vic["x_m"] = clampf(_victim_x_spin.value, 0.0, maxf(0.0, vic_room_rect.size.x))
+	if _victim_y_spin != null:
+		vic["y_m"] = clampf(_victim_y_spin.value, 0.0, maxf(0.0, vic_room_rect.size.y))
+	if _victim_height_spin != null:
+		vic["height_m"] = _victim_height_spin.value
 	vics[selected_victim_index] = vic
 	editor_data["victims"] = vics
 	_set_status("Propiedades de la victima actualizadas.")
@@ -2313,11 +3121,13 @@ func _create_window_at(pos_m: Vector2) -> void:
 	queue_redraw()
 
 
-func _add_opening(a: int, b: int, type_str: String, wall: String, offset_m: float, width_m: float, height_m: float, sill_m: float, open_fraction: float) -> void:
+func _add_opening(a: int, b: int, type_str: String, wall: String, offset_m: float, width_m: float, height_m: float, sill_m: float, open_fraction: float, record_undo: bool = true) -> void:
 	var openings: Array = editor_data.get("openings_data", [])
 	if type_str == "hole":
 		sill_m = 0.0
 		open_fraction = 1.0
+	if record_undo:
+		_push_undo_snapshot("add_opening")
 	openings.append({
 		"a": a,
 		"b": b,
@@ -2328,7 +3138,9 @@ func _add_opening(a: int, b: int, type_str: String, wall: String, offset_m: floa
 		"width_m": width_m,
 		"height_m": height_m,
 		"sill_m": sill_m,
-		"open_fraction": open_fraction
+		"open_fraction": open_fraction,
+		"swing_direction": "in",
+		"hinge_side": "left"
 	})
 	editor_data["openings_data"] = openings
 	selected_opening_index = openings.size() - 1
@@ -2338,6 +3150,18 @@ func _add_opening(a: int, b: int, type_str: String, wall: String, offset_m: floa
 
 
 func _delete_at(pos_m: Vector2) -> void:
+	var det_index: int = _find_detector_at(pos_m)
+	if det_index >= 0:
+		_select_detector(det_index)
+		_delete_selected()
+		return
+
+	var vic_index: int = _find_victim_at(pos_m)
+	if vic_index >= 0:
+		_select_victim(vic_index)
+		_delete_selected()
+		return
+
 	var hit_obj: Dictionary = _find_object_at(pos_m)
 	if not hit_obj.is_empty():
 		_delete_object(int(hit_obj["room_id"]), int(hit_obj["object_index"]))
@@ -2346,11 +3170,18 @@ func _delete_at(pos_m: Vector2) -> void:
 	var opening_index: int = _find_opening_at(pos_m)
 	if opening_index >= 0:
 		var openings: Array = editor_data.get("openings_data", [])
+		_push_undo_snapshot("delete_opening")
 		openings.remove_at(opening_index)
 		editor_data["openings_data"] = openings
 		_clear_selection()
 		_set_status("Apertura eliminada.")
 		queue_redraw()
+		return
+
+	var exterior_wall_index: int = _find_exterior_wall_at(pos_m)
+	if exterior_wall_index >= 0:
+		_select_exterior_wall(exterior_wall_index)
+		_delete_selected()
 		return
 
 	var room_id: int = _find_room_at(pos_m)
@@ -2371,6 +3202,7 @@ func _delete_object(room_id: int, object_index: int) -> void:
 		var room: Dictionary = rooms[i]
 		var objects: Array = room.get("fuel_objects", [])
 		if object_index >= 0 and object_index < objects.size():
+			_push_undo_snapshot("delete_object")
 			objects.remove_at(object_index)
 			room["fuel_objects"] = objects
 			rooms[i] = room
@@ -2382,6 +3214,7 @@ func _delete_object(room_id: int, object_index: int) -> void:
 
 
 func _delete_room(room_id: int) -> void:
+	_push_undo_snapshot("delete_room")
 	var rooms: Array = editor_data.get("rooms_data", [])
 	for i in range(rooms.size() - 1, -1, -1):
 		if typeof(rooms[i]) == TYPE_DICTIONARY and int(rooms[i].get("id", -1)) == room_id:
@@ -2404,6 +3237,120 @@ func _delete_room(room_id: int) -> void:
 	_clear_selection()
 	_set_status("Habitacion %d eliminada." % room_id)
 	_update_floor_status()
+	queue_redraw()
+
+
+func _get_exterior_walls() -> Array:
+	if typeof(editor_data.get("exterior_walls", [])) != TYPE_ARRAY:
+		editor_data["exterior_walls"] = []
+	return editor_data.get("exterior_walls", [])
+
+
+func _add_exterior_wall(a_m: Vector2, b_m: Vector2, thickness_m: float = 0.16, record_undo: bool = true) -> int:
+	var walls: Array = _get_exterior_walls()
+	var a: Vector2 = _snap_m(a_m)
+	var b: Vector2 = _snap_m(b_m)
+	if a.distance_to(b) < GRID_M:
+		_set_status("El muro exterior es demasiado corto.")
+		return -1
+	var new_wall := {
+		"a": Serializer.vector_to_data(a),
+		"b": Serializer.vector_to_data(b),
+		"thickness_m": maxf(0.05, thickness_m)
+	}
+	var existing_index: int = _find_equivalent_exterior_wall(a, b)
+	if existing_index >= 0:
+		if record_undo:
+			_push_undo_snapshot("edit_exterior_wall")
+		walls[existing_index] = new_wall
+		editor_data["exterior_walls"] = walls
+		_select_exterior_wall(existing_index)
+		_set_status("Muro exterior actualizado.")
+		return existing_index
+	if record_undo:
+		_push_undo_snapshot("add_exterior_wall")
+	walls.append(new_wall)
+	editor_data["exterior_walls"] = walls
+	_select_exterior_wall(walls.size() - 1)
+	_set_status("Muro exterior dibujado.")
+	return walls.size() - 1
+
+
+func _find_equivalent_exterior_wall(a_m: Vector2, b_m: Vector2) -> int:
+	var walls: Array = _get_exterior_walls()
+	for i in range(walls.size()):
+		if typeof(walls[i]) != TYPE_DICTIONARY:
+			continue
+		var wall: Dictionary = walls[i]
+		var a: Vector2 = Serializer.vector2_from_data(wall.get("a", Vector2.ZERO))
+		var b: Vector2 = Serializer.vector2_from_data(wall.get("b", Vector2.ZERO))
+		if (a.distance_to(a_m) <= 0.05 and b.distance_to(b_m) <= 0.05) or (a.distance_to(b_m) <= 0.05 and b.distance_to(a_m) <= 0.05):
+			return i
+	return -1
+
+
+func _find_exterior_wall_at(pos_m: Vector2) -> int:
+	var walls: Array = _get_exterior_walls()
+	var best_index: int = -1
+	var best_distance: float = 0.24
+	for i in range(walls.size()):
+		if typeof(walls[i]) != TYPE_DICTIONARY:
+			continue
+		var wall: Dictionary = walls[i]
+		var a: Vector2 = Serializer.vector2_from_data(wall.get("a", Vector2.ZERO))
+		var b: Vector2 = Serializer.vector2_from_data(wall.get("b", Vector2.ZERO))
+		var distance: float = _distance_to_segment(pos_m, a, b)
+		if distance <= best_distance:
+			best_distance = distance
+			best_index = i
+	return best_index
+
+
+func _apply_exterior_wall_properties() -> void:
+	var walls: Array = _get_exterior_walls()
+	if selected_exterior_wall_index < 0 or selected_exterior_wall_index >= walls.size():
+		_set_status("Selecciona un muro exterior antes de aplicar propiedades.")
+		return
+	var a := Vector2(
+		_wall_start_x_spin.value if _wall_start_x_spin != null else 0.0,
+		_wall_start_y_spin.value if _wall_start_y_spin != null else 0.0
+	)
+	var b := Vector2(
+		_wall_end_x_spin.value if _wall_end_x_spin != null else 0.0,
+		_wall_end_y_spin.value if _wall_end_y_spin != null else 0.0
+	)
+	if a.distance_to(b) < GRID_M:
+		_set_status("El muro exterior es demasiado corto.")
+		return
+	_push_undo_snapshot("edit_exterior_wall")
+	var wall: Dictionary = walls[selected_exterior_wall_index]
+	wall["a"] = Serializer.vector_to_data(_snap_m(a))
+	wall["b"] = Serializer.vector_to_data(_snap_m(b))
+	wall["thickness_m"] = maxf(0.05, _wall_thickness_spin.value if _wall_thickness_spin != null else float(wall.get("thickness_m", 0.16)))
+	walls[selected_exterior_wall_index] = wall
+	editor_data["exterior_walls"] = walls
+	_set_status("Muro exterior actualizado.")
+	queue_redraw()
+
+
+func _mark_selected_room_exterior() -> void:
+	if selected_room_id < 0:
+		_set_status("Selecciona una habitacion para marcar su contorno exterior.")
+		return
+	_mark_room_as_exterior(selected_room_id)
+
+
+func _mark_room_as_exterior(room_id: int) -> void:
+	var rect: Rect2 = _get_room_rect(room_id)
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return
+	_push_undo_snapshot("mark_room_exterior")
+	_add_exterior_wall(rect.position, rect.position + Vector2(rect.size.x, 0.0), 0.16, false)
+	_add_exterior_wall(rect.position + Vector2(rect.size.x, 0.0), rect.position + rect.size, 0.16, false)
+	_add_exterior_wall(rect.position + rect.size, rect.position + Vector2(0.0, rect.size.y), 0.16, false)
+	_add_exterior_wall(rect.position + Vector2(0.0, rect.size.y), rect.position, 0.16, false)
+	_select_room(room_id)
+	_set_status("Contorno exterior marcado para habitacion %d." % room_id)
 	queue_redraw()
 
 
@@ -2453,6 +3400,10 @@ func _is_wall_exterior(room_id: int, wall: String, offset_m: float, width_m: flo
 	if wall_seg.size() != 2:
 		return false
 
+	var exterior_walls: Array = _get_exterior_walls()
+	if not exterior_walls.is_empty() and not _wall_segment_matches_exterior(wall_seg[0], wall_seg[1]):
+		return false
+
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) != TYPE_DICTIONARY:
 			continue
@@ -2468,6 +3419,18 @@ func _is_wall_exterior(room_id: int, wall: String, offset_m: float, width_m: flo
 		if other_seg.size() == 2 and _segments_overlap_m(wall_seg[0], wall_seg[1], other_seg[0], other_seg[1]):
 			return false
 	return true
+
+
+func _wall_segment_matches_exterior(a: Vector2, b: Vector2) -> bool:
+	for raw_wall in _get_exterior_walls():
+		if typeof(raw_wall) != TYPE_DICTIONARY:
+			continue
+		var wall: Dictionary = raw_wall
+		var wa: Vector2 = Serializer.vector2_from_data(wall.get("a", Vector2.ZERO))
+		var wb: Vector2 = Serializer.vector2_from_data(wall.get("b", Vector2.ZERO))
+		if _segments_overlap_m(a, b, wa, wb):
+			return true
+	return false
 
 
 func _shared_wall_segment(room_id: int, other_id: int, wall: String) -> PackedVector2Array:
@@ -2757,12 +3720,14 @@ func _load_from_path(path: String) -> void:
 		_set_status("No se pudo cargar la plantilla.")
 		return
 	editor_data = loaded
+	_undo_stack.clear()
 	_ensure_floor_data()
 	current_floor_index = clampi(current_floor_index, 0, _get_floors().size() - 1)
 	if _stop_time_spin != null:
 		_stop_time_spin.value = float(editor_data.get("stop_time_s", 0.0))
 	_sync_floor_controls()
 	_sync_hvac_option_from_data()
+	_sync_building_type_option_from_data()
 	_clear_selection()
 	if _path_edit != null:
 		_path_edit.text = clean_path
@@ -2821,9 +3786,20 @@ func _delete_selected_room() -> void:
 
 
 func _delete_selected() -> void:
-	if selected_detector_index >= 0:
+	if selected_exterior_wall_index >= 0:
+		var walls: Array = _get_exterior_walls()
+		if selected_exterior_wall_index < walls.size():
+			_push_undo_snapshot("delete_exterior_wall")
+			walls.remove_at(selected_exterior_wall_index)
+			editor_data["exterior_walls"] = walls
+		_clear_selection()
+		_set_status("Muro exterior eliminado.")
+		queue_redraw()
+		return
+	elif selected_detector_index >= 0:
 		var dets: Array = editor_data.get("detectors", [])
 		if selected_detector_index < dets.size():
+			_push_undo_snapshot("delete_detector")
 			dets.remove_at(selected_detector_index)
 			editor_data["detectors"] = dets
 		_clear_selection()
@@ -2833,6 +3809,7 @@ func _delete_selected() -> void:
 	elif selected_victim_index >= 0:
 		var vics: Array = editor_data.get("victims", [])
 		if selected_victim_index < vics.size():
+			_push_undo_snapshot("delete_victim")
 			vics.remove_at(selected_victim_index)
 			editor_data["victims"] = vics
 		_clear_selection()
@@ -2843,6 +3820,7 @@ func _delete_selected() -> void:
 		_delete_object(selected_object_room_id, selected_object_index)
 	elif selected_opening_index >= 0:
 		var openings: Array = editor_data.get("openings_data", [])
+		_push_undo_snapshot("delete_opening")
 		openings.remove_at(selected_opening_index)
 		editor_data["openings_data"] = openings
 		_clear_selection()
@@ -2866,15 +3844,30 @@ func _apply_object_properties() -> void:
 		var objects: Array = room.get("fuel_objects", [])
 		if selected_object_index < 0 or selected_object_index >= objects.size():
 			return
+		_push_undo_snapshot("edit_object")
 		var obj: Dictionary = objects[selected_object_index]
-		obj["name"] = _obj_name_edit.text.strip_edges()
-		var new_w: float = _obj_width_spin.value
-		var new_h: float = _obj_height_spin.value
+		if _obj_name_edit != null:
+			obj["name"] = _obj_name_edit.text.strip_edges()
+		var current_size: Vector2 = _object_size_m(obj)
+		var new_w: float = _obj_width_spin.value if _obj_width_spin != null else current_size.x
+		var new_h: float = _obj_height_spin.value if _obj_height_spin != null else current_size.y
+		var current_pos: Vector2 = Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO))
+		var room_rect: Rect2 = _get_room_rect(selected_object_room_id)
+		var new_pos := Vector2(
+			_obj_x_spin.value if _obj_x_spin != null else current_pos.x,
+			_obj_y_spin.value if _obj_y_spin != null else current_pos.y
+		)
+		new_pos = _clamp_object_local_pos(room_rect, Vector2(new_w, new_h), new_pos)
+		obj["position_m"] = Serializer.vector_to_data(new_pos)
 		obj["size_m"] = {"x": new_w, "y": new_h}
+		obj["rotation_deg"] = _normalize_degrees_signed(_obj_rotation_spin.value) if _obj_rotation_spin != null else float(obj.get("rotation_deg", 0.0))
+		obj["elevation_m"] = maxf(0.0, _obj_elevation_spin.value) if _obj_elevation_spin != null else float(obj.get("elevation_m", 0.0))
 		obj["footprint_m2"] = new_w * new_h
-		obj["fuel_energy_MJ"] = _obj_fuel_spin.value
-		obj["remaining_fuel_MJ"] = _obj_fuel_spin.value
-		obj["max_hrr_kw"] = _obj_hrr_spin.value
+		if _obj_fuel_spin != null:
+			obj["fuel_energy_MJ"] = _obj_fuel_spin.value
+			obj["remaining_fuel_MJ"] = _obj_fuel_spin.value
+		if _obj_hrr_spin != null:
+			obj["max_hrr_kw"] = _obj_hrr_spin.value
 		objects[selected_object_index] = obj
 		room["fuel_objects"] = objects
 		rooms[i] = room
@@ -2891,16 +3884,25 @@ func _apply_opening_properties() -> void:
 	var openings: Array = editor_data.get("openings_data", [])
 	if selected_opening_index >= openings.size():
 		return
+	_push_undo_snapshot("edit_opening")
 	var op: Dictionary = openings[selected_opening_index]
 	var op_type: String = String(op.get("type", "door"))
 	if _opening_width_spin != null:
 		op["width_m"] = minf(_opening_width_spin.value, _max_width_for_opening(op))
 	if _opening_height_spin != null:
 		op["height_m"] = _opening_height_spin.value
+	if _opening_offset_spin != null and not bool(op.get("is_vertical", false)):
+		op["offset_m"] = clampf(_opening_offset_spin.value, 0.0, _wall_length(_get_room_rect(int(op.get("a", -1))), String(op.get("wall", "top"))))
+		op["offset_is_fraction"] = false
 	if _opening_sill_spin != null:
 		op["sill_m"] = 0.0 if op_type == "hole" else _opening_sill_spin.value
 	if _opening_open_option != null:
 		op["open_fraction"] = 1.0 if op_type == "hole" else (0.0 if _opening_open_option.selected == 0 else 1.0)
+	if op_type == "door":
+		if _opening_swing_option != null:
+			op["swing_direction"] = "out" if _opening_swing_option.selected == 1 else "in"
+		if _opening_hinge_option != null:
+			op["hinge_side"] = "right" if _opening_hinge_option.selected == 1 else "left"
 	openings[selected_opening_index] = op
 	editor_data["openings_data"] = openings
 	_set_status("Apertura actualizada.")
@@ -2908,11 +3910,18 @@ func _apply_opening_properties() -> void:
 
 
 func _draw() -> void:
+	_draw_lower_floor_ghost()
 	_draw_rooms()
+	_draw_exterior_walls()
 	_draw_openings()
 	_draw_objects()
 	_draw_detectors()
 	_draw_victims()
+	if is_dragging_exterior_wall:
+		draw_line(_m_to_px(drag_start_m), _m_to_px(drag_current_m), _exterior_wall_selected_color, 4.0)
+		if ThemeDB.fallback_font != null:
+			var wall_length_m: float = _snap_m(drag_start_m).distance_to(_snap_m(drag_current_m))
+			draw_string(ThemeDB.fallback_font, _m_to_px(drag_current_m) + Vector2(8.0, -8.0), "Muro exterior %.2f m" % wall_length_m, HORIZONTAL_ALIGNMENT_LEFT, 220.0, 13, _exterior_wall_selected_color)
 	if is_dragging_room:
 		if current_tool == Tool.CORRIDOR_L:
 			_draw_corridor_drag_preview()
@@ -2992,6 +4001,90 @@ func _draw_corridor_drag_preview() -> void:
 		)
 
 
+func _draw_lower_floor_ghost() -> void:
+	var lower_level: float = _immediate_lower_floor_level()
+	if is_inf(lower_level):
+		return
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var room_dict: Dictionary = room
+		if absf(float(room_dict.get("floor_level_z_m", 0.0)) - lower_level) >= 0.05:
+			continue
+		var rect: Rect2 = _get_room_rect(int(room_dict.get("id", -1)))
+		var rect_px: Rect2 = _rect_to_px(rect)
+		draw_rect(rect_px, _lower_floor_ghost_fill, true)
+		draw_rect(rect_px, _lower_floor_ghost_outline, false, 1.2)
+		if _is_stair_room(room_dict):
+			_draw_stair_room_guides(rect_px)
+		if ThemeDB.fallback_font != null and rect_px.size.x > 28.0 and rect_px.size.y > 24.0:
+			draw_string(
+				ThemeDB.fallback_font,
+				rect_px.position + Vector2(6.0, 16.0),
+				_room_display_name(room_dict, int(room_dict.get("id", -1))),
+				HORIZONTAL_ALIGNMENT_LEFT,
+				maxf(30.0, rect_px.size.x - 8.0),
+				10,
+				Color(0.74, 0.82, 0.88, 0.34)
+			)
+	var openings: Array = editor_data.get("openings_data", [])
+	for i in range(openings.size()):
+		if typeof(openings[i]) != TYPE_DICTIONARY:
+			continue
+		var opening: Dictionary = openings[i]
+		if bool(opening.get("is_vertical", false)):
+			continue
+		if not _opening_on_level(opening, lower_level):
+			continue
+		var segment_m: PackedVector2Array = _opening_segment_m(opening)
+		if segment_m.size() == 2:
+			draw_line(_m_to_px(segment_m[0]), _m_to_px(segment_m[1]), Color(0.70, 0.84, 0.92, 0.25), 3.0)
+
+
+func _immediate_lower_floor_level() -> float:
+	var current_level: float = _current_floor_level_m()
+	var best: float = -INF
+	for floor in _get_floors():
+		if typeof(floor) != TYPE_DICTIONARY:
+			continue
+		var level_m: float = float(Dictionary(floor).get("level_m", 0.0))
+		if level_m < current_level - 0.05 and level_m > best:
+			best = level_m
+	if best == -INF:
+		return INF
+	return best
+
+
+func _opening_on_level(opening: Dictionary, level_m: float) -> bool:
+	var a_id: int = int(opening.get("a", -1))
+	var b_id: int = int(opening.get("b", OUTSIDE_ID))
+	if a_id < 0:
+		return false
+	if absf(_room_id_floor_level(a_id) - level_m) < 0.05:
+		return true
+	return b_id != OUTSIDE_ID and absf(_room_id_floor_level(b_id) - level_m) < 0.05
+
+
+func _draw_exterior_walls() -> void:
+	var walls: Array = _get_exterior_walls()
+	for i in range(walls.size()):
+		if typeof(walls[i]) != TYPE_DICTIONARY:
+			continue
+		var wall: Dictionary = walls[i]
+		var a: Vector2 = Serializer.vector2_from_data(wall.get("a", Vector2.ZERO))
+		var b: Vector2 = Serializer.vector2_from_data(wall.get("b", Vector2.ZERO))
+		if a.distance_to(b) <= 0.001:
+			continue
+		var selected: bool = i == selected_exterior_wall_index
+		var color: Color = _exterior_wall_selected_color if selected else _exterior_wall_color
+		var thickness_px: float = maxf(3.0, float(wall.get("thickness_m", 0.16)) * PIXELS_PER_METER)
+		draw_line(_m_to_px(a), _m_to_px(b), Color(0.0, 0.0, 0.0, 0.76), thickness_px + 2.0)
+		draw_line(_m_to_px(a), _m_to_px(b), color, thickness_px)
+		if selected:
+			draw_circle(_m_to_px(a), 5.0, color)
+			draw_circle(_m_to_px(b), 5.0, color)
+
+
 func _draw_rooms() -> void:
 	for room in editor_data.get("rooms_data", []):
 		if typeof(room) != TYPE_DICTIONARY:
@@ -3011,12 +4104,23 @@ func _draw_rooms() -> void:
 		if is_stairs:
 			fill = Color(0.24, 0.18, 0.08, 0.86) if room_id == selected_room_id else Color(0.16, 0.12, 0.06, 0.74)
 			outline = UI_YELLOW
-		draw_rect(rect_px, fill, true)
-		draw_rect(rect_px, outline, false, 2.0)
+		var rotation_deg: float = float(room.get("rotation_deg", 0.0))
+		if absf(rotation_deg) > 0.001:
+			var points_m: PackedVector2Array = _rotated_rect_points_m(rect, rotation_deg)
+			var points_px := PackedVector2Array()
+			for point_m in points_m:
+				points_px.append(_m_to_px(point_m))
+			draw_colored_polygon(points_px, fill)
+			draw_polyline(PackedVector2Array([points_px[0], points_px[1], points_px[2], points_px[3], points_px[0]]), outline, 2.0)
+		else:
+			draw_rect(rect_px, fill, true)
+			draw_rect(rect_px, outline, false, 2.0)
 		if is_corridor:
 			_draw_corridor_room_guides(rect_px)
 		if is_stairs:
 			_draw_stair_room_guides(rect_px)
+		if is_corridor or is_stairs:
+			_draw_narrow_room_dimension_labels(rect, rect_px, is_stairs)
 		if ThemeDB.fallback_font != null:
 			var h: float = float(room.get("height_m", 2.7))
 			var area_m2: float = rect.size.x * rect.size.y
@@ -3026,7 +4130,7 @@ func _draw_rooms() -> void:
 			draw_string(
 				ThemeDB.fallback_font,
 				rect_px.position + Vector2(8.0, 18.0),
-				String(room.get("name", "Room %d" % room_id)),
+				_room_display_name(room, room_id),
 				HORIZONTAL_ALIGNMENT_LEFT,
 				maxf(40.0, rect_px.size.x - 12.0),
 				13,
@@ -3084,6 +4188,36 @@ func _draw_stair_room_guides(rect_px: Rect2) -> void:
 	draw_line(Vector2(right, rect_px.position.y + 8.0), Vector2(right, rect_px.position.y + rect_px.size.y - 8.0), Color(1.0, 0.78, 0.20, 0.34), 1.0)
 
 
+func _draw_narrow_room_dimension_labels(rect_m: Rect2, rect_px: Rect2, is_stairs: bool) -> void:
+	if ThemeDB.fallback_font == null:
+		return
+	var label_color: Color = Color(0.72, 1.0, 0.94, 0.96) if not is_stairs else Color(1.0, 0.84, 0.34, 0.96)
+	var long_m: float = maxf(rect_m.size.x, rect_m.size.y)
+	var wide_m: float = minf(rect_m.size.x, rect_m.size.y)
+	var long_label: String = "Largo %.2f m" % long_m
+	var wide_label: String = "Ancho %.2f m" % wide_m
+	var top_pos: Vector2 = rect_px.position + Vector2(4.0, -6.0)
+	draw_string(
+		ThemeDB.fallback_font,
+		top_pos,
+		long_label,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		180.0,
+		11,
+		label_color
+	)
+	var side_pos: Vector2 = Vector2(rect_px.position.x + rect_px.size.x + 8.0, rect_px.position.y + minf(18.0, rect_px.size.y * 0.5))
+	draw_string(
+		ThemeDB.fallback_font,
+		side_pos,
+		wide_label,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		160.0,
+		11,
+		label_color
+	)
+
+
 func _draw_openings() -> void:
 	var openings: Array = editor_data.get("openings_data", [])
 	for i in range(openings.size()):
@@ -3106,6 +4240,38 @@ func _draw_openings() -> void:
 			color = Color(1.0, 1.0, 0.45, 1.0)
 		draw_line(p1, p2, Color(0.04, 0.06, 0.07, 0.95), 8.0)
 		draw_line(p1, p2, color, 4.0)
+		if type_str == "door":
+			_draw_door_swing_preview(opening, segment_m, color)
+
+
+func _draw_door_swing_preview(opening: Dictionary, segment_m: PackedVector2Array, color: Color) -> void:
+	if segment_m.size() != 2:
+		return
+	var hinge_left: bool = String(opening.get("hinge_side", "left")).to_lower() != "right"
+	var hinge_m: Vector2 = segment_m[0] if hinge_left else segment_m[1]
+	var wall: String = String(opening.get("wall", "top"))
+	var normal_m: Vector2 = _inside_normal_for_wall_2d(wall)
+	if String(opening.get("swing_direction", "in")).to_lower() == "out":
+		normal_m = -normal_m
+	var width_m: float = minf(float(opening.get("width_m", 0.9)), hinge_m.distance_to(segment_m[1] if hinge_left else segment_m[0]))
+	if width_m <= 0.05:
+		return
+	var open_end_m: Vector2 = hinge_m + normal_m * width_m
+	draw_line(_m_to_px(hinge_m), _m_to_px(open_end_m), color.lightened(0.20), 2.0)
+	draw_circle(_m_to_px(hinge_m), 3.5, color.lightened(0.30))
+
+
+func _inside_normal_for_wall_2d(wall: String) -> Vector2:
+	match wall:
+		"top":
+			return Vector2.DOWN
+		"bottom":
+			return Vector2.UP
+		"left":
+			return Vector2.RIGHT
+		"right":
+			return Vector2.LEFT
+	return Vector2.DOWN
 
 
 func _draw_vertical_opening(opening: Dictionary, index: int) -> void:
@@ -3143,26 +4309,48 @@ func _draw_objects() -> void:
 			if typeof(objects[object_index]) != TYPE_DICTIONARY:
 				continue
 			var obj: Dictionary = objects[object_index]
-			var pos: Vector2 = Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO))
-			var size: Vector2 = Serializer.vector2_from_data(obj.get("size_m", Vector2.ONE))
-			var obj_rect_px: Rect2 = _rect_to_px(Rect2(room_rect.position + pos, size))
+			var size: Vector2 = _object_size_m(obj)
+			var corners_m: PackedVector2Array = _object_corner_points_m(room_rect, obj)
+			var corners_px := PackedVector2Array()
+			for point_m in corners_m:
+				corners_px.append(_m_to_px(point_m))
+			var center_px: Vector2 = _m_to_px(_object_world_center(room_rect, obj))
 			var selected: bool = room_id == selected_object_room_id and object_index == selected_object_index
 			var fill: Color = _object_selected_color if selected else _object_color
-			draw_rect(obj_rect_px, fill, true)
-			draw_rect(obj_rect_px, Color(0.18, 0.09, 0.04, 0.92), false, 1.5)
+			draw_colored_polygon(corners_px, fill)
+			draw_polyline(PackedVector2Array([corners_px[0], corners_px[1], corners_px[2], corners_px[3], corners_px[0]]), Color(0.18, 0.09, 0.04, 0.92), 1.5)
 			if bool(obj.get("is_primary_ignition_source", false)):
-				draw_circle(obj_rect_px.get_center(), 7.0, _ignition_color)
-				draw_circle(obj_rect_px.get_center(), 3.5, Color(1.0, 0.94, 0.25, 0.98))
-			if ThemeDB.fallback_font != null and obj_rect_px.size.x >= 48.0:
+				draw_circle(center_px, 7.0, _ignition_color)
+				draw_circle(center_px, 3.5, Color(1.0, 0.94, 0.25, 0.98))
+			if selected:
+				_draw_selected_object_handles(room_rect, obj)
+			if ThemeDB.fallback_font != null and size.x * PIXELS_PER_METER >= 48.0:
 				draw_string(
 					ThemeDB.fallback_font,
-					obj_rect_px.position + Vector2(4.0, 13.0),
+					center_px + Vector2(-size.x * PIXELS_PER_METER * 0.5 + 4.0, 4.0),
 					String(obj.get("name", obj.get("kind", ""))),
 					HORIZONTAL_ALIGNMENT_LEFT,
-					obj_rect_px.size.x - 8.0,
+					maxf(16.0, size.x * PIXELS_PER_METER - 8.0),
 					10,
 					Color(0.08, 0.05, 0.03, 0.9)
 				)
+
+
+func _draw_selected_object_handles(room_rect: Rect2, obj: Dictionary) -> void:
+	var handles: Dictionary = _object_handle_points_m(room_rect, obj)
+	var center_px: Vector2 = _m_to_px(_object_world_center(room_rect, obj))
+	var rotate_px: Vector2 = _m_to_px(Vector2(handles.get(ObjectMouseMode.ROTATE, _object_world_center(room_rect, obj))))
+	draw_line(center_px, rotate_px, Color(1.0, 1.0, 1.0, 0.45), 1.2)
+	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH, ObjectMouseMode.ROTATE]:
+		if not handles.has(mode):
+			continue
+		var px: Vector2 = _m_to_px(Vector2(handles[mode]))
+		var color: Color = Color(0.95, 1.0, 0.80, 1.0)
+		if mode == ObjectMouseMode.ROTATE:
+			color = Color(0.46, 0.88, 1.0, 1.0)
+		draw_circle(px, OBJECT_HANDLE_RADIUS_PX + 2.0, Color(0.0, 0.0, 0.0, 0.72))
+		draw_circle(px, OBJECT_HANDLE_RADIUS_PX, color)
+		draw_circle(px, OBJECT_HANDLE_RADIUS_PX, Color(1.0, 1.0, 1.0, 0.92), false, 1.4)
 
 
 func _draw_detectors() -> void:
@@ -3278,6 +4466,7 @@ func _load_scenario_pressed() -> void:
 		_stop_time_spin.value = float(editor_data.get("stop_time_s", 0.0))
 	_sync_floor_controls()
 	_sync_hvac_option_from_data()
+	_sync_building_type_option_from_data()
 	_clear_selection()
 	_set_status("Escenario cargado: %s" % path.get_file())
 	queue_redraw()
@@ -3318,6 +4507,7 @@ func _bind_existing_ui() -> bool:
 		return false
 
 	var btn_select := _ui_root.get_node_or_null("TopBar/HBox/BtnSelect") as Button
+	var btn_exterior := _ui_root.get_node_or_null("TopBar/HBox/BtnExteriorWall") as Button
 	var btn_room := _ui_root.get_node_or_null("TopBar/HBox/BtnRoom") as Button
 	var btn_corridor := _ui_root.get_node_or_null("TopBar/HBox/BtnCorridorL") as Button
 	var btn_stairs := _ui_root.get_node_or_null("TopBar/HBox/BtnStairs") as Button
@@ -3327,8 +4517,17 @@ func _bind_existing_ui() -> bool:
 	var btn_object := _ui_root.get_node_or_null("TopBar/HBox/BtnObject") as Button
 	var btn_ignite := _ui_root.get_node_or_null("TopBar/HBox/BtnIgnite") as Button
 	var btn_delete := _ui_root.get_node_or_null("TopBar/HBox/BtnDelete") as Button
+	var topbar_existing := _ui_root.get_node_or_null("TopBar/HBox") as Container
+	if btn_exterior == null and topbar_existing != null:
+		btn_exterior = Button.new()
+		btn_exterior.name = "BtnExteriorWall"
+		btn_exterior.text = "Exterior"
+		btn_exterior.custom_minimum_size = Vector2(82.0, 34.0)
+		topbar_existing.add_child(btn_exterior)
+		if btn_select != null:
+			topbar_existing.move_child(btn_exterior, btn_select.get_index() + 1)
 	if btn_corridor == null:
-		var topbar := _ui_root.get_node_or_null("TopBar/HBox") as HBoxContainer
+		var topbar := _ui_root.get_node_or_null("TopBar/HBox") as Container
 		if topbar != null:
 			btn_corridor = Button.new()
 			btn_corridor.name = "BtnCorridorL"
@@ -3339,7 +4538,6 @@ func _bind_existing_ui() -> bool:
 				topbar.move_child(btn_corridor, btn_room.get_index() + 1)
 	if btn_corridor != null:
 		btn_corridor.text = "Pasillo"
-	var topbar_existing := _ui_root.get_node_or_null("TopBar/HBox") as HBoxContainer
 	if btn_stairs == null and topbar_existing != null:
 		btn_stairs = Button.new()
 		btn_stairs.name = "BtnStairs"
@@ -3376,13 +4574,14 @@ func _bind_existing_ui() -> bool:
 		if btn_detector != null:
 			topbar_existing.move_child(btn_victim, btn_detector.get_index() + 1)
 
-	var required_buttons: Array[Button] = [btn_select, btn_room, btn_corridor, btn_stairs, btn_door, btn_hole, btn_window, btn_object, btn_ignite, btn_delete]
+	var required_buttons: Array[Button] = [btn_select, btn_exterior, btn_room, btn_corridor, btn_stairs, btn_door, btn_hole, btn_window, btn_object, btn_ignite, btn_delete]
 	for b in required_buttons:
 		if b == null:
 			return false
 
 	_tool_buttons.clear()
 	_register_tool_button(btn_select, Tool.SELECT)
+	_register_tool_button(btn_exterior, Tool.EXTERIOR_WALL)
 	_register_tool_button(btn_room, Tool.ROOM)
 	_register_tool_button(btn_corridor, Tool.CORRIDOR_L)
 	_register_tool_button(btn_stairs, Tool.STAIRS)
@@ -3410,17 +4609,27 @@ func _bind_existing_ui() -> bool:
 	if _opening_tool_width_spin == null:
 		_opening_tool_width_spin = _ui_root.get_node_or_null("LeftPanel/VBox/OpeningToolSection/OpeningToolWidthSpin") as SpinBox
 	_status_label = _ui_root.get_node_or_null("LeftPanel/VBox/StatusLabel") as Label
+	_building_type_option = _ui_root.get_node_or_null("LeftPanel/VBox/BuildingTypeRow/BuildingTypeOption") as OptionButton
 
 	_name_edit = _ui_root.get_node_or_null("RightPanel/VBox/RoomNameEdit") as LineEdit
 	_kind_edit = _ui_root.get_node_or_null("RightPanel/VBox/RoomKindEdit") as LineEdit
+	_room_x_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/RoomXSpin") as SpinBox
+	_room_y_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/RoomYSpin") as SpinBox
+	_room_width_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/RoomWidthSpin") as SpinBox
+	_room_depth_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/RoomDepthSpin") as SpinBox
+	_room_rotation_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/RoomRotationSpin") as SpinBox
 	_height_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomHeightSpin") as SpinBox
 	_fuel_spin = _ui_root.get_node_or_null("RightPanel/VBox/FuelEnergySpin") as SpinBox
 	_hrr_spin = _ui_root.get_node_or_null("RightPanel/VBox/MaxHrrSpin") as SpinBox
 
 	_obj_props_container = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps") as Control
 	_obj_name_edit = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjNameEdit") as LineEdit
+	_obj_x_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjXSpin") as SpinBox
+	_obj_y_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjYSpin") as SpinBox
 	_obj_width_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjWidthSpin") as SpinBox
 	_obj_height_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjHeightSpin") as SpinBox
+	_obj_rotation_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjRotationSpin") as SpinBox
+	_obj_elevation_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjElevationSpin") as SpinBox
 	_obj_fuel_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjFuelSpin") as SpinBox
 	_obj_hrr_spin = _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/ObjHrrSpin") as SpinBox
 
@@ -3429,11 +4638,16 @@ func _bind_existing_ui() -> bool:
 	_opening_width_spin = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningWidthSpin") as SpinBox
 	_opening_height_spin = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningHeightSpin") as SpinBox
 	_opening_sill_spin = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningSillSpin") as SpinBox
+	_opening_offset_spin = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningOffsetSpin") as SpinBox
 	_opening_open_option = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningOpenOption") as OptionButton
+	_opening_swing_option = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningSwingRow/OpeningSwingOption") as OptionButton
+	_opening_hinge_option = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningHingeRow/OpeningHingeOption") as OptionButton
 	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/BtnApplyOpening") as Button, _apply_opening_properties)
 
 	_detector_props_container = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps") as Control
 	_detector_id_edit = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/DetectorIdEdit") as LineEdit
+	_detector_x_spin = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/DetectorXSpin") as SpinBox
+	_detector_y_spin = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/DetectorYSpin") as SpinBox
 	_detector_type_option = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/DetectorTypeOption") as OptionButton
 	if _detector_type_option != null and _detector_type_option.get_item_count() == 0:
 		_detector_type_option.add_item("Humo", 0)
@@ -3445,8 +4659,18 @@ func _bind_existing_ui() -> bool:
 
 	_victim_props_container = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps") as Control
 	_victim_name_edit = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/VictimNameEdit") as LineEdit
+	_victim_x_spin = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/VictimXSpin") as SpinBox
+	_victim_y_spin = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/VictimYSpin") as SpinBox
+	_victim_height_spin = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/VictimHeightSpin") as SpinBox
 	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/VictimProps/BtnApplyVictim") as Button, _apply_victim_properties)
 	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/VictimProps/BtnDeleteVictim") as Button, _delete_selected)
+
+	_wall_props_container = _ui_root.get_node_or_null("RightPanel/VBox/ExteriorWallProps") as Control
+	_wall_start_x_spin = _ui_root.get_node_or_null("RightPanel/VBox/ExteriorWallProps/WallStartXSpin") as SpinBox
+	_wall_start_y_spin = _ui_root.get_node_or_null("RightPanel/VBox/ExteriorWallProps/WallStartYSpin") as SpinBox
+	_wall_end_x_spin = _ui_root.get_node_or_null("RightPanel/VBox/ExteriorWallProps/WallEndXSpin") as SpinBox
+	_wall_end_y_spin = _ui_root.get_node_or_null("RightPanel/VBox/ExteriorWallProps/WallEndYSpin") as SpinBox
+	_wall_thickness_spin = _ui_root.get_node_or_null("RightPanel/VBox/ExteriorWallProps/WallThicknessSpin") as SpinBox
 
 	if _object_kind_option == null or _path_edit == null or _scenario_option == null or _status_label == null:
 		return false
@@ -3458,21 +4682,36 @@ func _bind_existing_ui() -> bool:
 	_ensure_corridor_width_control_in_existing_ui()
 	_ensure_opening_tool_controls_in_existing_ui()
 	_ensure_hvac_option_in_existing_ui()
+	_ensure_building_type_controls_in_existing_ui()
+	_ensure_room_geometry_controls_in_existing_ui()
+	_ensure_object_position_controls_in_existing_ui()
+	_ensure_opening_position_controls_in_existing_ui()
+	_ensure_opening_direction_controls_in_existing_ui()
+	_ensure_detector_position_controls_in_existing_ui()
+	_ensure_victim_position_controls_in_existing_ui()
+	_ensure_exterior_wall_controls_in_existing_ui()
+	_ensure_controls_help_in_existing_ui()
 	_path_edit.text = DEFAULT_SAVE_PATH
 
 	# Poblamos el OptionButton de estado inicial de apertura
 	if _opening_open_option != null and _opening_open_option.get_item_count() == 0:
 		_opening_open_option.add_item("Cerrada", 0)
 		_opening_open_option.add_item("Abierta", 1)
+	_populate_opening_direction_options()
 
 	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnSave") as Button, _save_pressed)
 	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnLoad") as Button, _load_pressed)
-	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnExportRuntime") as Button, _export_runtime_pressed)
+	var export_button := _ui_root.get_node_or_null("LeftPanel/VBox/BtnExportRuntime") as Button
+	if export_button != null:
+		export_button.text = "Exportar simulacion"
+		export_button.tooltip_text = "Guarda una copia interna para probar la simulacion; Iniciar simulacion lo hace automaticamente."
+	_connect_button(export_button, _export_runtime_pressed)
 	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnLoadScenario") as Button, _load_scenario_pressed)
 	_room_apply_button = _ui_root.get_node_or_null("RightPanel/VBox/BtnApplyRoom") as Button
 	_room_delete_button = _ui_root.get_node_or_null("RightPanel/VBox/BtnDeleteRoom") as Button
 	_connect_button(_room_apply_button, _apply_room_properties)
 	_connect_button(_room_delete_button, _delete_selected_room)
+	_connect_button(_room_mark_exterior_button, _mark_selected_room_exterior)
 	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/ObjProps/BtnApplyObject") as Button, _apply_object_properties)
 	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/ObjProps/BtnDeleteObject") as Button, _delete_selected)
 	_connect_button(_ui_root.get_node_or_null("BottomBar/HBox/BtnStartSimulation") as Button, _run_simulation_pressed)
@@ -3502,6 +4741,237 @@ func _connect_button(button: Button, callback: Callable) -> void:
 		return
 	if not button.pressed.is_connected(callback):
 		button.pressed.connect(callback)
+
+
+func _ensure_spin_row(parent: Control, row_name: String, label_text: String, spin_name: String, min_value: float, max_value: float, step: float) -> SpinBox:
+	var row := parent.get_node_or_null(row_name) as HBoxContainer
+	if row == null:
+		row = HBoxContainer.new()
+		row.name = row_name
+		row.add_theme_constant_override("separation", 4)
+		parent.add_child(row)
+	var label := row.get_node_or_null(row_name + "Label") as Label
+	if label == null:
+		label = Label.new()
+		label.name = row_name + "Label"
+		label.custom_minimum_size.x = 96.0
+		row.add_child(label)
+	label.text = label_text
+	var spin := row.get_node_or_null(spin_name) as SpinBox
+	if spin == null:
+		spin = SpinBox.new()
+		spin.name = spin_name
+		spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(spin)
+	spin.min_value = min_value
+	spin.max_value = max_value
+	spin.step = step
+	return spin
+
+
+func _ensure_option_row(parent: Control, row_name: String, label_text: String, option_name: String) -> OptionButton:
+	var row := parent.get_node_or_null(row_name) as HBoxContainer
+	if row == null:
+		row = HBoxContainer.new()
+		row.name = row_name
+		row.add_theme_constant_override("separation", 4)
+		parent.add_child(row)
+	var label := row.get_node_or_null(row_name + "Label") as Label
+	if label == null:
+		label = Label.new()
+		label.name = row_name + "Label"
+		label.custom_minimum_size.x = 96.0
+		row.add_child(label)
+	label.text = label_text
+	var option := row.get_node_or_null(option_name) as OptionButton
+	if option == null:
+		option = OptionButton.new()
+		option.name = option_name
+		option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(option)
+	return option
+
+
+func _populate_opening_direction_options() -> void:
+	if _opening_swing_option != null and _opening_swing_option.get_item_count() == 0:
+		_opening_swing_option.add_item("Interior", 0)
+		_opening_swing_option.add_item("Exterior", 1)
+	if _opening_hinge_option != null and _opening_hinge_option.get_item_count() == 0:
+		_opening_hinge_option.add_item("Izquierda", 0)
+		_opening_hinge_option.add_item("Derecha", 1)
+
+
+func _ensure_building_type_controls_in_existing_ui() -> void:
+	var left_vbox := _find_left_vbox()
+	if left_vbox == null:
+		return
+	var row := left_vbox.get_node_or_null("BuildingTypeRow") as HBoxContainer
+	if row == null:
+		row = HBoxContainer.new()
+		row.name = "BuildingTypeRow"
+		row.add_theme_constant_override("separation", 4)
+		left_vbox.add_child(row)
+		var floor_section := left_vbox.get_node_or_null("FloorSection") as Control
+		if floor_section != null:
+			left_vbox.move_child(row, floor_section.get_index() + 1)
+	var label := row.get_node_or_null("BuildingTypeLabel") as Label
+	if label == null:
+		label = Label.new()
+		label.name = "BuildingTypeLabel"
+		label.custom_minimum_size.x = 96.0
+		row.add_child(label)
+	label.text = "Tipo edificio"
+	_building_type_option = row.get_node_or_null("BuildingTypeOption") as OptionButton
+	if _building_type_option == null:
+		_building_type_option = OptionButton.new()
+		_building_type_option.name = "BuildingTypeOption"
+		_building_type_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(_building_type_option)
+	_populate_building_type_option()
+	if not _building_type_option.item_selected.is_connected(_on_building_type_selected):
+		_building_type_option.item_selected.connect(_on_building_type_selected)
+
+
+func _ensure_room_geometry_controls_in_existing_ui() -> void:
+	var vbox := _ui_root.get_node_or_null("RightPanel/VBox") as VBoxContainer
+	if vbox == null:
+		return
+	var geometry := vbox.get_node_or_null("RoomGeometry") as VBoxContainer
+	if geometry == null:
+		geometry = VBoxContainer.new()
+		geometry.name = "RoomGeometry"
+		geometry.add_theme_constant_override("separation", 4)
+		vbox.add_child(geometry)
+		if _kind_edit != null:
+			vbox.move_child(geometry, _kind_edit.get_index() + 1)
+	_room_x_spin = _ensure_spin_row(geometry, "RoomXRow", "X (m)", "RoomXSpin", -200.0, 200.0, 0.05)
+	_room_y_spin = _ensure_spin_row(geometry, "RoomYRow", "Y (m)", "RoomYSpin", -200.0, 200.0, 0.05)
+	_room_width_spin = _ensure_spin_row(geometry, "RoomWidthRow", "Ancho (m)", "RoomWidthSpin", 0.25, 200.0, 0.05)
+	_room_depth_spin = _ensure_spin_row(geometry, "RoomDepthRow", "Fondo (m)", "RoomDepthSpin", 0.25, 200.0, 0.05)
+	_room_rotation_spin = _ensure_spin_row(geometry, "RoomRotationRow", "Angulo (deg)", "RoomRotationSpin", -180.0, 180.0, 1.0)
+	_room_mark_exterior_button = vbox.get_node_or_null("BtnMarkRoomExterior") as Button
+	if _room_mark_exterior_button == null:
+		_room_mark_exterior_button = Button.new()
+		_room_mark_exterior_button.name = "BtnMarkRoomExterior"
+		_room_mark_exterior_button.text = "Marcar contorno exterior"
+		vbox.add_child(_room_mark_exterior_button)
+		if _room_delete_button != null:
+			vbox.move_child(_room_mark_exterior_button, _room_delete_button.get_index() + 1)
+	_connect_button(_room_mark_exterior_button, _mark_selected_room_exterior)
+
+
+func _ensure_object_position_controls_in_existing_ui() -> void:
+	if _obj_props_container == null:
+		return
+	_obj_x_spin = _ensure_spin_row(_obj_props_container, "ObjXRow", "X local (m)", "ObjXSpin", -200.0, 200.0, 0.05)
+	_obj_y_spin = _ensure_spin_row(_obj_props_container, "ObjYRow", "Y local (m)", "ObjYSpin", -200.0, 200.0, 0.05)
+	if _obj_name_edit != null:
+		_obj_props_container.move_child(_obj_x_spin.get_parent(), _obj_name_edit.get_index() + 1)
+		_obj_props_container.move_child(_obj_y_spin.get_parent(), _obj_name_edit.get_index() + 2)
+
+
+func _ensure_opening_position_controls_in_existing_ui() -> void:
+	if _opening_props_container == null:
+		return
+	_opening_offset_spin = _ensure_spin_row(_opening_props_container, "OpeningOffsetRow", "Posicion (m)", "OpeningOffsetSpin", 0.0, 200.0, 0.05)
+	if _opening_height_spin != null:
+		var anchor: Node = _opening_height_spin.get_parent()
+		if anchor == _opening_props_container:
+			anchor = _opening_height_spin
+		if anchor != null and anchor.get_parent() == _opening_props_container:
+			_opening_props_container.move_child(_opening_offset_spin.get_parent(), mini(anchor.get_index() + 1, _opening_props_container.get_child_count() - 1))
+
+
+func _ensure_opening_direction_controls_in_existing_ui() -> void:
+	if _opening_props_container == null:
+		return
+	_opening_swing_option = _ensure_option_row(_opening_props_container, "OpeningSwingRow", "Abre hacia", "OpeningSwingOption")
+	_opening_hinge_option = _ensure_option_row(_opening_props_container, "OpeningHingeRow", "Bisagra", "OpeningHingeOption")
+	_populate_opening_direction_options()
+	var apply_button := _opening_props_container.get_node_or_null("BtnApplyOpening") as Button
+	if apply_button != null:
+		_opening_props_container.move_child(_opening_swing_option.get_parent(), max(0, apply_button.get_index()))
+		_opening_props_container.move_child(_opening_hinge_option.get_parent(), max(0, apply_button.get_index()))
+
+
+func _ensure_detector_position_controls_in_existing_ui() -> void:
+	if _detector_props_container == null:
+		return
+	_detector_x_spin = _ensure_spin_row(_detector_props_container, "DetectorXRow", "X local (m)", "DetectorXSpin", 0.0, 200.0, 0.05)
+	_detector_y_spin = _ensure_spin_row(_detector_props_container, "DetectorYRow", "Y local (m)", "DetectorYSpin", 0.0, 200.0, 0.05)
+	if _detector_id_edit != null:
+		_detector_props_container.move_child(_detector_x_spin.get_parent(), _detector_id_edit.get_index() + 1)
+		_detector_props_container.move_child(_detector_y_spin.get_parent(), _detector_id_edit.get_index() + 2)
+
+
+func _ensure_victim_position_controls_in_existing_ui() -> void:
+	if _victim_props_container == null:
+		return
+	_victim_x_spin = _ensure_spin_row(_victim_props_container, "VictimXRow", "X local (m)", "VictimXSpin", 0.0, 200.0, 0.05)
+	_victim_y_spin = _ensure_spin_row(_victim_props_container, "VictimYRow", "Y local (m)", "VictimYSpin", 0.0, 200.0, 0.05)
+	_victim_height_spin = _ensure_spin_row(_victim_props_container, "VictimHeightRow", "Plano resp. (m)", "VictimHeightSpin", 0.2, 2.2, 0.05)
+	if _victim_name_edit != null:
+		_victim_props_container.move_child(_victim_x_spin.get_parent(), _victim_name_edit.get_index() + 1)
+		_victim_props_container.move_child(_victim_y_spin.get_parent(), _victim_name_edit.get_index() + 2)
+		_victim_props_container.move_child(_victim_height_spin.get_parent(), _victim_name_edit.get_index() + 3)
+
+
+func _ensure_exterior_wall_controls_in_existing_ui() -> void:
+	var vbox := _ui_root.get_node_or_null("RightPanel/VBox") as VBoxContainer
+	if vbox == null:
+		return
+	var title := vbox.get_node_or_null("ExteriorWallTitle") as Label
+	if title == null:
+		title = Label.new()
+		title.name = "ExteriorWallTitle"
+		title.text = "Muro exterior"
+		vbox.add_child(title)
+	_wall_props_container = vbox.get_node_or_null("ExteriorWallProps") as VBoxContainer
+	if _wall_props_container == null:
+		_wall_props_container = VBoxContainer.new()
+		_wall_props_container.name = "ExteriorWallProps"
+		_wall_props_container.add_theme_constant_override("separation", 4)
+		vbox.add_child(_wall_props_container)
+	_wall_start_x_spin = _ensure_spin_row(_wall_props_container, "WallStartXRow", "Inicio X", "WallStartXSpin", -200.0, 200.0, 0.05)
+	_wall_start_y_spin = _ensure_spin_row(_wall_props_container, "WallStartYRow", "Inicio Y", "WallStartYSpin", -200.0, 200.0, 0.05)
+	_wall_end_x_spin = _ensure_spin_row(_wall_props_container, "WallEndXRow", "Fin X", "WallEndXSpin", -200.0, 200.0, 0.05)
+	_wall_end_y_spin = _ensure_spin_row(_wall_props_container, "WallEndYRow", "Fin Y", "WallEndYSpin", -200.0, 200.0, 0.05)
+	_wall_thickness_spin = _ensure_spin_row(_wall_props_container, "WallThicknessRow", "Grosor", "WallThicknessSpin", 0.05, 1.0, 0.01)
+	var apply_button := _wall_props_container.get_node_or_null("BtnApplyExteriorWall") as Button
+	if apply_button == null:
+		apply_button = Button.new()
+		apply_button.name = "BtnApplyExteriorWall"
+		apply_button.text = "Aplicar muro"
+		_wall_props_container.add_child(apply_button)
+	_connect_button(apply_button, _apply_exterior_wall_properties)
+	var delete_button := _wall_props_container.get_node_or_null("BtnDeleteExteriorWall") as Button
+	if delete_button == null:
+		delete_button = Button.new()
+		delete_button.name = "BtnDeleteExteriorWall"
+		delete_button.text = "Borrar muro"
+		_wall_props_container.add_child(delete_button)
+	_connect_button(delete_button, _delete_selected)
+
+
+func _ensure_controls_help_in_existing_ui() -> void:
+	var left_vbox := _find_left_vbox()
+	if left_vbox == null:
+		return
+	var help := left_vbox.get_node_or_null("ControlsHelp") as Label
+	if help == null:
+		var title := Label.new()
+		title.name = "ControlsHelpTitle"
+		title.text = "Controles"
+		left_vbox.add_child(title)
+		help = Label.new()
+		help.name = "ControlsHelp"
+		help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		help.add_theme_font_size_override("font_size", 13)
+		help.modulate = UI_TEXT_MUTED
+		left_vbox.add_child(help)
+	else:
+		help.add_theme_font_size_override("font_size", 13)
+	help.text = "Zoom: rueda del raton. Mover plano: flechas o boton central. Boton derecho sobre objetos, habitaciones, huecos o muros: propiedades. Exterior: dibuja fachadas con el raton."
 
 
 func _ensure_floor_controls_in_existing_ui() -> void:
@@ -3551,6 +5021,15 @@ func _ensure_floor_controls_in_existing_ui() -> void:
 		row.add_child(add_button)
 	_connect_button(add_button, _add_floor_pressed)
 
+	_floor_delete_button = row.get_node_or_null("BtnDeleteFloor") as Button
+	if _floor_delete_button == null:
+		_floor_delete_button = Button.new()
+		_floor_delete_button.name = "BtnDeleteFloor"
+		_floor_delete_button.text = "Borrar"
+		_floor_delete_button.custom_minimum_size = Vector2(72.0, 28.0)
+		row.add_child(_floor_delete_button)
+	_connect_button(_floor_delete_button, _delete_floor_pressed)
+
 	var level_row := section.get_node_or_null("FloorLevelRow") as HBoxContainer
 	if level_row == null:
 		level_row = HBoxContainer.new()
@@ -3581,9 +5060,11 @@ func _ensure_floor_controls_in_existing_ui() -> void:
 		_floor_status_label = Label.new()
 		_floor_status_label.name = "FloorStatusLabel"
 		_floor_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_floor_status_label.add_theme_font_size_override("font_size", 10)
+		_floor_status_label.add_theme_font_size_override("font_size", 12)
 		_floor_status_label.modulate = UI_TEXT_MUTED
 		section.add_child(_floor_status_label)
+	else:
+		_floor_status_label.add_theme_font_size_override("font_size", 12)
 
 	_sync_floor_controls()
 
@@ -3781,6 +5262,9 @@ func _on_hvac_option_selected(index: int) -> void:
 		mode = "off"
 	elif index == 2:
 		mode = "on"
+	if String(editor_data.get("hvac_mode", "none")).to_lower() == mode:
+		return
+	_push_undo_snapshot("hvac_mode")
 	editor_data["hvac_mode"] = mode
 	editor_data["hvac_data"] = {
 		"exists": mode != "none",

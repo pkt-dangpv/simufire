@@ -70,7 +70,17 @@ def _nearest(items: list[dict[str, float]], target_time_s: float) -> dict[str, f
     return min(items, key=lambda item: abs(item["time_s"] - target_time_s))
 
 
-def _load_cfast_compartments(path: Path) -> list[dict[str, float]]:
+def _load_cfast_compartments(path: Path, room_suffix: str = "_1") -> list[dict[str, float]]:
+    """Load CFAST compartment CSV for room with the given suffix (default '_1').
+
+    Required columns (for suffix '_1'): Time, HRR_1, ULO2_1, ULT_1, LLT_1, HGT_1, ULCO_1.
+    Optional columns loaded when present:
+        ULCO2_{s}    -> co2_upper_pct  (mol %)
+        LLO2_{s}     -> o2_lower       (mol fraction)
+        LLCO_{s}     -> co_lower_ppm
+        HRR_E{n}     -> hrr_expected_kw  (W -> kW)
+    """
+    s = room_suffix
     with path.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.reader(handle))
     if len(rows) < 5:
@@ -78,10 +88,22 @@ def _load_cfast_compartments(path: Path) -> list[dict[str, float]]:
 
     header = rows[0]
     index = {name: i for i, name in enumerate(header)}
-    required_columns = ["Time", "HRR_1", "ULO2_1", "ULT_1", "LLT_1", "HGT_1", "ULCO_1"]
+    required_columns = ["Time", f"HRR{s.replace('_', '_', 1)}", f"ULO2{s}", f"ULT{s}", f"LLT{s}", f"HGT{s}", f"ULCO{s}"]
+    # HRR column may be HRR_1 (single-room) – fall back gracefully
+    if f"HRR{s}" not in index and "HRR_1" not in index:
+        raise ValueError(f"CFAST CSV missing HRR column: {path}")
+    hrr_col = f"HRR{s}" if f"HRR{s}" in index else "HRR_1"
+    required_columns = ["Time", f"ULO2{s}", f"ULT{s}", f"LLT{s}", f"HGT{s}", f"ULCO{s}"]
     missing = [name for name in required_columns if name not in index]
     if missing:
         raise ValueError(f"CFAST CSV missing columns {missing}: {path}")
+
+    def _opt(col: str, values: list[float]) -> float:
+        return values[index[col]] if col in index else math.nan
+
+    # Determine the fire number suffix (e.g., E1 for room 1)
+    fire_num = s.lstrip("_")  # "1" from "_1"
+    hrr_e_col = f"HRR_E{fire_num}"
 
     samples: list[dict[str, float]] = []
     for row in rows[4:]:
@@ -94,12 +116,54 @@ def _load_cfast_compartments(path: Path) -> list[dict[str, float]]:
         samples.append(
             {
                 "time_s": values[index["Time"]],
-                "hrr_kw": values[index["HRR_1"]] / 1000.0,
-                "o2": values[index["ULO2_1"]] / 100.0,
-                "temp_upper_c": values[index["ULT_1"]],
-                "temp_lower_c": values[index["LLT_1"]],
-                "hot_layer_m": values[index["HGT_1"]],
-                "co_upper_ppm": values[index["ULCO_1"]] * 10000.0,
+                "hrr_kw": values[index[hrr_col]] / 1000.0,
+                "o2": values[index[f"ULO2{s}"]] / 100.0,
+                "temp_upper_c": values[index[f"ULT{s}"]],
+                "temp_lower_c": values[index[f"LLT{s}"]],
+                "hot_layer_m": values[index[f"HGT{s}"]],
+                "co_upper_ppm": values[index[f"ULCO{s}"]] * 10000.0,
+                # Optional enriched columns
+                "co2_upper_pct": _opt(f"ULCO2{s}", values),
+                "o2_lower": _opt(f"LLO2{s}", values) / 100.0 if f"LLO2{s}" in index else math.nan,
+                "co_lower_ppm": _opt(f"LLCO{s}", values) * 10000.0 if f"LLCO{s}" in index else math.nan,
+                "hrr_expected_kw": _opt(hrr_e_col, values) / 1000.0 if hrr_e_col in index else math.nan,
+            }
+        )
+    return samples
+
+
+def _load_cfast_walls(path: Path, room_suffix: str = "_1") -> list[dict[str, float]]:
+    """Load CFAST wall-temperature CSV (e.g. *_walls.csv)."""
+    s = room_suffix
+    if not path.exists():
+        return []
+    with path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.reader(handle))
+    if len(rows) < 5:
+        return []
+    header = rows[0]
+    index = {name: i for i, name in enumerate(header)}
+    if "Time" not in index:
+        return []
+
+    def _opt(col: str, values: list[float]) -> float:
+        return values[index[col]] if col in index else math.nan
+
+    samples: list[dict[str, float]] = []
+    for row in rows[4:]:
+        if not row or not row[0].strip():
+            continue
+        values: list[float] = []
+        for raw in row[: len(header)]:
+            raw = raw.strip()
+            values.append(float(raw) if raw else math.nan)
+        samples.append(
+            {
+                "time_s": values[index["Time"]],
+                "ceilt_c": _opt(f"CEILT{s}", values),
+                "uwallt_c": _opt(f"UWALLT{s}", values),
+                "lwallt_c": _opt(f"LWALLT{s}", values),
+                "floort_c": _opt(f"FLOORT{s}", values),
             }
         )
     return samples
@@ -141,6 +205,7 @@ def _parse_simufire_log(path: Path, room_id: int) -> list[dict[str, float]]:
                 "temp_lower_c": sample.get("Low", math.nan),
                 "hot_layer_m": sample.get("HotLayer", math.nan),
                 "co_upper_ppm": sample.get("COu", math.nan),
+                "co2_upper_ppm": sample.get("CO2u"),  # None when key absent (old logs)
                 "fed": sample.get("FED", math.nan),
             }
         )
@@ -185,7 +250,34 @@ def build_cfast_checks() -> list[Check]:
     metrics = report.get("metrics", {})
     checks: list[Check] = []
 
-    # Pre-opening: CFAST remains ventilation-limited rather than numerically extinct.
+    # ── Growth phase (non-gating): verifies fire-growth calibration ────────────
+    # CFAST data: t=60 → ULT=44.7°C, ULO2=20.05%; t=120 → ULT=121.9°C, ULO2=18.5%
+    for target_s, exp_t, tol_t, exp_o2, tol_o2 in [
+        (60.0,  44.66,  35.0, 0.20047, 0.015),
+        (120.0, 121.88, 55.0, 0.18455, 0.022),
+    ]:
+        c = _nearest(cfast, target_s)
+        s = _nearest(sim, target_s)
+        prefix = f"cfast_t{int(target_s)}"
+        checks.append(Check(f"{prefix}_temp_upper_c", s["temp_upper_c"],
+                            expected=exp_t, tolerance=tol_t, required=False,
+                            note="Non-gating growth-phase calibration check."))
+        checks.append(Check(f"{prefix}_o2", s["o2"],
+                            expected=exp_o2, tolerance=tol_o2, required=False,
+                            note="Non-gating growth-phase calibration check."))
+
+    # ── Ventilation-limited phase: O2 depletion and HRR suppression ────────────
+    # CFAST at t=240: ULO2=8.51%, HRR_actual=276kW vs HRR_expected=1180kW (23%).
+    c240 = _nearest(cfast, 240.0)
+    s240 = _nearest(sim, 240.0)
+    checks.append(Check("cfast_t240_o2_depleted", s240["o2"],
+                        expected=c240["o2"], tolerance=0.022,
+                        note="Deep O2 depletion by t=240s (CFAST: 8.51%)."))
+    checks.append(Check("cfast_t240_hrr_ventilation_limited", s240["hrr_kw"],
+                        maximum=420.0,
+                        note="Fire must be ventilation-limited by t=240s (CFAST: 276kW vs 1180kW expected)."))
+
+    # ── Pre-opening: CFAST remains ventilation-limited rather than numerically extinct.
     for target_s in [350.0, 360.0]:
         c = _nearest(cfast, target_s)
         s = _nearest(sim, target_s)
@@ -195,8 +287,27 @@ def build_cfast_checks() -> list[Check]:
         _add_abs_check(checks, prefix, "temp_upper_c", c, s, 80.0)
         _add_abs_check(checks, prefix, "temp_lower_c", c, s, 45.0)
         _add_abs_check(checks, prefix, "hot_layer_m", c, s, 0.50)
+        _add_abs_check(checks, prefix, "co_upper_ppm", c, s, 320.0,
+                       note="CO upper layer pre-opening (CFAST: ~690 ppm).")
 
-    # The first 20 s after opening are intentionally smoothed in Simufire; require
+    # ── CO2 upper layer (non-gating until CO2u= key confirmed in log) ──────────
+    # CFAST: t=350→11.06 mol%, t=420→6.08 mol%, t=510→5.23 mol% (×10000 = ppm)
+    for target_s, exp_co2_pct, tol_ppm in [
+        (350.0, 11.06, 28000.0),
+        (420.0,  6.08, 22000.0),
+        (510.0,  5.23, 20000.0),
+    ]:
+        s_co2 = _nearest(sim, target_s)
+        checks.append(Check(
+            f"cfast_t{int(target_s)}_co2_upper_ppm",
+            actual=s_co2.get("co2_upper_ppm"),
+            expected=exp_co2_pct * 10000.0,
+            tolerance=tol_ppm,
+            required=False,
+            note="Non-gating: requires CO2u= key in log (updated SimulationLogWriter).",
+        ))
+
+    # ── The first 20 s after opening are intentionally smoothed in Simufire; require
     # physical recovery, not exact replication of CFAST's prescribed HRR jump.
     s380 = _nearest(sim, 380.0)
     checks.extend(
@@ -207,7 +318,7 @@ def build_cfast_checks() -> list[Check]:
         ]
     )
 
-    # Post-opening quasi-steady state.
+    # ── Post-opening quasi-steady state ────────────────────────────────────────
     for target_s in [420.0, 510.0]:
         c = _nearest(cfast, target_s)
         s = _nearest(sim, target_s)
@@ -228,6 +339,175 @@ def build_cfast_checks() -> list[Check]:
             tolerance=0.0,
         )
     )
+    return checks
+
+
+def _pending_check(name: str, note: str) -> Check:
+    """Placeholder for a check whose CFAST reference data does not yet exist."""
+    return Check(name, actual=None, required=False, note=note)
+
+
+def _load_cfast_or_none(path: Path) -> list[dict[str, float]] | None:
+    """Return compartment samples list if path exists, else None."""
+    if not path.exists():
+        return None
+    try:
+        return _load_cfast_compartments(path)
+    except Exception:
+        return None
+
+
+def build_cfast_single_room_closed_checks() -> list[Check]:
+    """Checks for cfast_single_room_closed: sealed room, O2 depletion & CO buildup.
+
+    CFAST scenario: R0 (4x5x2.4m), no vents, same wood fire.
+    Run cfast_single_room_closed.in and place output CSV here before checks become active.
+    """
+    csv_path = CFAST_DIR / "cfast_single_room_closed_compartments.csv"
+    cfast = _load_cfast_or_none(csv_path)
+    log_path = REPORTS_DIR / "cfast_single_room_closed.log"
+
+    if cfast is None or not log_path.exists():
+        return [
+            _pending_check(
+                "cfast_closed_pending",
+                "Pending: run CFAST with cfast_single_room_closed.in and re-run suite.",
+            )
+        ]
+
+    sim = _parse_simufire_log(log_path, room_id=0)
+    report_path = REPORTS_DIR / "cfast_single_room_closed.json"
+    metrics = _load_json(report_path).get("metrics", {}) if report_path.exists() else {}
+    checks: list[Check] = []
+
+    # O2 depletes below LOL (10%) by t=~210s in sealed room.
+    for target_s in [210.0, 300.0, 450.0]:
+        c = _nearest(cfast, target_s)
+        s = _nearest(sim, target_s)
+        prefix = f"cfast_closed_t{int(target_s)}"
+        _add_abs_check(checks, prefix, "o2", c, s, 0.018)
+        _add_abs_check(checks, prefix, "temp_upper_c", c, s, 80.0)
+        _add_abs_check(checks, prefix, "co_upper_ppm", c, s, 600.0)
+
+    checks.append(Check(
+        "cfast_closed_no_temperature_cap",
+        _metric(metrics, "watched_temp_upper_clamp_count"),
+        expected=0.0, tolerance=0.0,
+    ))
+    return checks
+
+
+def build_cfast_two_room_door_open_checks() -> list[Check]:
+    """Checks for cfast_two_room_door_open: R0 fire + Hall, door open from t=0.
+
+    Tests inter-room smoke and O2 transport timing.
+    Run cfast_two_room_door_open.in before these checks become active.
+    """
+    csv_path = CFAST_DIR / "cfast_two_room_door_open_compartments.csv"
+    cfast_r0 = _load_cfast_or_none(csv_path)
+    log_path = REPORTS_DIR / "cfast_two_room_door_open.log"
+
+    if cfast_r0 is None or not log_path.exists():
+        return [
+            _pending_check(
+                "cfast_two_room_door_pending",
+                "Pending: run CFAST with cfast_two_room_door_open.in and re-run suite.",
+            )
+        ]
+
+    # Load second compartment (Hall) data.
+    cfast_r1: list[dict[str, float]] = []
+    try:
+        cfast_r1 = _load_cfast_compartments(csv_path, room_suffix="_2")
+    except Exception:
+        pass
+
+    sim_r0 = _parse_simufire_log(log_path, room_id=0)
+    sim_r1 = _parse_simufire_log(log_path, room_id=1)
+    checks: list[Check] = []
+
+    # Fire room (R0) ventilation-limited phase.
+    for target_s in [180.0, 300.0, 450.0]:
+        c = _nearest(cfast_r0, target_s)
+        s = _nearest(sim_r0, target_s)
+        prefix = f"cfast_2r_r0_t{int(target_s)}"
+        _add_abs_check(checks, prefix, "o2", c, s, 0.025)
+        _add_abs_check(checks, prefix, "temp_upper_c", c, s, 80.0)
+
+    # Adjacent room (Hall/R1) receives smoke via open door.
+    if cfast_r1:
+        for target_s in [120.0, 240.0, 360.0]:
+            c = _nearest(cfast_r1, target_s)
+            s = _nearest(sim_r1, target_s)
+            prefix = f"cfast_2r_hall_t{int(target_s)}"
+            _add_abs_check(checks, prefix, "o2", c, s, 0.030)
+            _add_abs_check(checks, prefix, "temp_upper_c", c, s, 60.0)
+
+    return checks
+
+
+def build_cfast_post_flashover_vented_checks() -> list[Check]:
+    """Checks for cfast_post_flashover_vented: large fire, window open from t=0.
+
+    Tests well-ventilated high-HRR steady state.
+    Run cfast_post_flashover_vented.in before these checks become active.
+    """
+    csv_path = CFAST_DIR / "cfast_post_flashover_vented_compartments.csv"
+    cfast = _load_cfast_or_none(csv_path)
+    log_path = REPORTS_DIR / "cfast_post_flashover_vented.log"
+
+    if cfast is None or not log_path.exists():
+        return [
+            _pending_check(
+                "cfast_flashover_pending",
+                "Pending: run CFAST with cfast_post_flashover_vented.in and re-run suite.",
+            )
+        ]
+
+    sim = _parse_simufire_log(log_path, room_id=0)
+    checks: list[Check] = []
+
+    for target_s in [150.0, 240.0, 350.0]:
+        c = _nearest(cfast, target_s)
+        s = _nearest(sim, target_s)
+        prefix = f"cfast_fo_t{int(target_s)}"
+        _add_abs_check(checks, prefix, "hrr_kw", c, s, 300.0)
+        _add_abs_check(checks, prefix, "temp_upper_c", c, s, 100.0)
+        _add_abs_check(checks, prefix, "o2", c, s, 0.040)
+
+    return checks
+
+
+def build_cfast_hvac_residential_checks() -> list[Check]:
+    """Checks for cfast_hvac_residential: R0 with mechanical ventilation (supply+return).
+
+    Tests HVACSystem species transport and O2 dilution with fresh-air HVAC.
+    Run cfast_hvac_residential.in before these checks become active.
+    """
+    csv_path = CFAST_DIR / "cfast_hvac_residential_compartments.csv"
+    cfast = _load_cfast_or_none(csv_path)
+    log_path = REPORTS_DIR / "cfast_hvac_residential.log"
+
+    if cfast is None or not log_path.exists():
+        return [
+            _pending_check(
+                "cfast_hvac_pending",
+                "Pending: run CFAST with cfast_hvac_residential.in and re-run suite.",
+            )
+        ]
+
+    sim = _parse_simufire_log(log_path, room_id=0)
+    checks: list[Check] = []
+
+    # HVAC fresh-air supply keeps O2 higher than sealed-room scenario.
+    for target_s in [180.0, 300.0, 450.0]:
+        c = _nearest(cfast, target_s)
+        s = _nearest(sim, target_s)
+        prefix = f"cfast_hvac_t{int(target_s)}"
+        _add_abs_check(checks, prefix, "o2", c, s, 0.025)
+        _add_abs_check(checks, prefix, "temp_upper_c", c, s, 80.0)
+        _add_abs_check(checks, prefix, "co_upper_ppm", c, s, 500.0)
+
     return checks
 
 
@@ -275,7 +555,14 @@ def build_ghanekar_checks() -> list[Check]:
 
 
 def main() -> int:
-    all_checks = build_cfast_checks() + build_ghanekar_checks()
+    all_checks = (
+        build_cfast_checks()
+        + build_cfast_single_room_closed_checks()
+        + build_cfast_two_room_door_open_checks()
+        + build_cfast_post_flashover_vented_checks()
+        + build_cfast_hvac_residential_checks()
+        + build_ghanekar_checks()
+    )
     required = [check for check in all_checks if check.required]
     failed = [check for check in required if not check.passed()]
     known_gaps = [check for check in all_checks if not check.required and not check.passed()]
@@ -290,6 +577,12 @@ def main() -> int:
             "nist_cfast_csv": str(CFAST_DIR / "r0_hall_window_360_compartments.csv"),
             "cfast_case": str(REPORTS_DIR / "cfast_r0_window_360.json"),
             "ghanekar_case": str(REPORTS_DIR / "ghanekar_bedroom_hallway.json"),
+            "cfast_new_scenarios": [
+                str(CFAST_DIR / "cfast_single_room_closed.in"),
+                str(CFAST_DIR / "cfast_two_room_door_open.in"),
+                str(CFAST_DIR / "cfast_post_flashover_vented.in"),
+                str(CFAST_DIR / "cfast_hvac_residential.in"),
+            ],
         },
     }
 

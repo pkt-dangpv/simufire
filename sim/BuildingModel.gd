@@ -50,6 +50,8 @@ var building_template = preload("res://sim/templates/BuildingTemplate.gd").new()
 var room_rect_m: Dictionary[int, Rect2] = {}
 var rooms: Dictionary = {}
 var openings: Array = []
+var building_type: String = "single_family"
+var exterior_walls: Array = []
 var hvac_data: Dictionary = {}
 var hvac_exists: bool = false
 var hvac_on: bool = false
@@ -63,6 +65,12 @@ var sim_stop_time_s: float = 0.0
 ##   id, room_id, type ("smoke"|"heat"|"co"), threshold,
 ##   triggered (bool), triggered_at_s (float).
 var detectors: Array = []
+
+## Lista de víctimas/ocupantes cargados desde la plantilla JSON.
+## Cada víctima es un Dictionary:
+##   id, room_id, name, x_m, y_m, height_m (plano respiratorio, default 0.9m),
+##   fed (FED ISO 13571 acumulado), incapacitated (bool), incapacitated_at_s (float).
+var victims: Array = []
 
 ## Ruta del archivo de template runtime exportado por el editor.
 const EDITOR_RUNTIME_PATH: String = "user://last_editor_runtime_template.json"
@@ -181,7 +189,9 @@ func _load_from_template(data: Dictionary) -> void:
 	rooms.clear()
 	openings.clear()
 	room_rect_m.clear()
+	exterior_walls.clear()
 	detectors.clear()
+	victims.clear()
 	hvac_data = {}
 	hvac_exists = false
 	hvac_on = false
@@ -191,6 +201,18 @@ func _load_from_template(data: Dictionary) -> void:
 		outside_temp_c = float(data["outside_temp_c"])
 	if data.has("outside_o2"):
 		outside_o2 = float(data["outside_o2"])
+	building_type = String(data.get("building_type", "single_family")).to_lower()
+	if building_type != "apartment":
+		building_type = "single_family"
+	for raw_wall in data.get("exterior_walls", []):
+		if typeof(raw_wall) != TYPE_DICTIONARY:
+			continue
+		var wall_data: Dictionary = raw_wall
+		exterior_walls.append({
+			"a": _vector2_from_variant(wall_data.get("a", Vector2.ZERO)),
+			"b": _vector2_from_variant(wall_data.get("b", Vector2.ZERO)),
+			"thickness_m": maxf(0.05, float(wall_data.get("thickness_m", 0.16)))
+		})
 	if data.has("wind_speed_m_s"):
 		wind_speed_m_s = float(data["wind_speed_m_s"])
 	if data.has("wind_direction_deg"):
@@ -204,8 +226,25 @@ func _load_from_template(data: Dictionary) -> void:
 			"room_id": int(det_data.get("room_id", -1)),
 			"type": String(det_data.get("type", "smoke")),
 			"threshold": float(det_data.get("threshold", 0.025)),
+			"x_m": float(det_data.get("x_m", 0.0)),
+			"y_m": float(det_data.get("y_m", 0.0)),
 			"triggered": false,
 			"triggered_at_s": -1.0
+		})
+	# Víctimas/ocupantes opcionales.
+	for vic_data in data.get("victims", []):
+		if typeof(vic_data) != TYPE_DICTIONARY:
+			continue
+		victims.append({
+			"id": String(vic_data.get("id", "")),
+			"room_id": int(vic_data.get("room_id", -1)),
+			"name": String(vic_data.get("name", "Víctima")),
+			"x_m": float(vic_data.get("x_m", 0.0)),
+			"y_m": float(vic_data.get("y_m", 0.0)),
+			"height_m": float(vic_data.get("height_m", 0.9)),
+			"fed": 0.0,
+			"incapacitated": false,
+			"incapacitated_at_s": -1.0
 		})
 	if data.has("ignition_room_id"):
 		default_ignition_room_id = int(data["ignition_room_id"])
@@ -273,6 +312,14 @@ func _load_from_template(data: Dictionary) -> void:
 			op.offset_m = float(op_data["offset_m"])
 		if op_data.has("offset_is_fraction"):
 			op.offset_is_fraction = bool(op_data["offset_is_fraction"])
+		if op_data.has("swing_direction"):
+			op.swing_direction = String(op_data["swing_direction"]).strip_edges().to_lower()
+			if op.swing_direction != "out":
+				op.swing_direction = "in"
+		if op_data.has("hinge_side"):
+			op.hinge_side = String(op_data["hinge_side"]).strip_edges().to_lower()
+			if op.hinge_side != "right":
+				op.hinge_side = "left"
 		if op_data.has("ppv_flow_m3_s"):
 			op.ppv_flow_m3_s = float(op_data["ppv_flow_m3_s"])
 		if op_data.has("ppv_delta_p_pa"):
@@ -289,6 +336,12 @@ func reset_detectors() -> void:
 	for det in detectors:
 		det["triggered"] = false
 		det["triggered_at_s"] = -1.0
+
+func reset_victims() -> void:
+	for vic in victims:
+		vic["fed"] = 0.0
+		vic["incapacitated"] = false
+		vic["incapacitated_at_s"] = -1.0
 
 # ============================================================
 # CREACIÓN DE HABITACIONES

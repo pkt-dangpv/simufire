@@ -50,6 +50,8 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var show_layer_150c: bool = false
 @export var show_hrr_columns: bool = true
 @export var show_fuel_objects_3d: bool = true
+@export var show_detector_markers_3d: bool = true
+@export var show_victim_markers_3d: bool = true
 @export var fuel_object_3d_height_m: float = 0.34
 @export var smoke_puff_count: int = 42
 @export var show_smoke_geometry_in_first_person: bool = true
@@ -76,6 +78,10 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var hole_color: Color = Color(1.00, 0.78, 0.00, 0.86)
 @export var closed_opening_color: Color = Color(0.54, 0.56, 0.58, 0.70)
 @export var label_color: Color = Color(1.0, 0.96, 0.84, 1.0)
+@export var detector_marker_color: Color = Color(0.35, 0.76, 1.0, 1.0)
+@export var detector_triggered_color: Color = Color(1.0, 0.40, 0.18, 1.0)
+@export var victim_marker_color: Color = Color(0.95, 0.86, 0.48, 1.0)
+@export var victim_incapacitated_color: Color = Color(0.58, 0.58, 0.62, 1.0)
 
 @export_group("Dynamics")
 @export var smoke_visible_threshold_kg: float = 0.01
@@ -277,6 +283,8 @@ func _apply_overlay_visibility() -> void:
 		for child in _atmosphere_root.get_children():
 			if String(child.name).begins_with("FuelObjects_"):
 				child.visible = show_fuel_objects_3d and not _first_person_overlay
+			elif String(child.name).begins_with("SafetyMarkers_"):
+				child.visible = not _first_person_overlay
 	var sun := get_node_or_null("Sun") as Light3D
 	if sun != null:
 		sun.visible = not _first_person_overlay
@@ -331,10 +339,13 @@ func _rebuild_scene() -> void:
 	for room_id in room_ids:
 		_create_room(room_id, Rect2(rects[room_id]))
 
+	_create_exterior_wall_visuals()
 	_create_stair_visuals()
 
 	for index in range(building.get_opening_count()):
 		_create_opening(index)
+
+	_create_exterior_context_visuals()
 
 	_built = true
 
@@ -459,6 +470,10 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	fuel_objects_root.name = "FuelObjects_%02d" % room_id
 	_atmosphere_root.add_child(fuel_objects_root)
 
+	var safety_markers_root := Node3D.new()
+	safety_markers_root.name = "SafetyMarkers_%02d" % room_id
+	_atmosphere_root.add_child(safety_markers_root)
+
 	_room_items[room_id] = {
 		"rect": rect_m,
 		"height_m": height_m,
@@ -489,7 +504,10 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 		"smoke_bottom_m": height_m,
 		"smoke_alpha": 0.0,
 		"fuel_objects_root": fuel_objects_root,
-		"fuel_obj_nodes": {}
+		"fuel_obj_nodes": {},
+		"safety_markers_root": safety_markers_root,
+		"detector_nodes": {},
+		"victim_nodes": {}
 	}
 
 
@@ -533,6 +551,33 @@ func _create_stair_visuals() -> void:
 		)
 		rail.position = _to_world(Vector3(rect.position.x + rect.size.x - 0.18, lower_level_m + 1.05, rect.position.y + rect.size.y * 0.5))
 		stair_root.add_child(rail)
+
+
+func _create_exterior_wall_visuals() -> void:
+	if building == null or _rooms_root == null:
+		return
+	for i in range(building.exterior_walls.size()):
+		if typeof(building.exterior_walls[i]) != TYPE_DICTIONARY:
+			continue
+		var wall: Dictionary = building.exterior_walls[i]
+		var a: Vector2 = wall.get("a", Vector2.ZERO)
+		var b: Vector2 = wall.get("b", Vector2.ZERO)
+		var axis: Vector2 = b - a
+		var length_m: float = axis.length()
+		if length_m <= 0.05:
+			continue
+		var thickness_m: float = maxf(0.05, float(wall.get("thickness_m", wall_thickness_m * 2.0)))
+		var root := Node3D.new()
+		root.name = "ExteriorWall_%02d" % i
+		_rooms_root.add_child(root)
+		var mesh := _create_box(
+			"WallMesh",
+			Vector3(length_m, default_room_height_m, thickness_m) * meters_to_units,
+			_make_material(Color(0.72, 0.70, 0.64, 0.72), true)
+		)
+		mesh.position = _to_world(Vector3((a.x + b.x) * 0.5, default_room_height_m * 0.5, (a.y + b.y) * 0.5))
+		mesh.rotation.y = -atan2(axis.y, axis.x)
+		root.add_child(mesh)
 
 
 func _create_stairwell_upper_floor_visual(room_id: int, rect: Rect2, floor_level_m: float, parent: Node3D) -> void:
@@ -619,6 +664,123 @@ func _create_opening(index: int) -> void:
 		_atmosphere_root.add_child(curtain)
 		_opening_items[index]["smoke_curtain"] = curtain
 		_opening_items[index]["curtain_pose"] = pose
+
+
+func _create_exterior_context_visuals() -> void:
+	if building == null or _rooms_root == null:
+		return
+	for index in range(building.get_opening_count()):
+		var op: OpeningModel = building.get_opening_at(index)
+		if op == null or not op.is_exterior_opening():
+			continue
+		var pose: Dictionary = _opening_pose(op)
+		if pose.is_empty():
+			continue
+		if String(building.building_type).to_lower() == "apartment":
+			if op.type == OpeningModel.Type.DOOR:
+				_create_apartment_landing_context(index, op, pose)
+			elif op.type == OpeningModel.Type.WINDOW:
+				_create_apartment_window_context(index, op, pose)
+		else:
+			if op.type == OpeningModel.Type.DOOR:
+				_create_single_family_entry_context(index, op, pose)
+			elif op.type == OpeningModel.Type.WINDOW:
+				_create_residential_window_context(index, op, pose)
+
+
+func _create_apartment_landing_context(index: int, op: OpeningModel, pose: Dictionary) -> void:
+	var normal: Vector2 = _outside_normal_for_wall(op.wall_side)
+	var center: Vector3 = Vector3(pose["position"].x, float(pose.get("floor_level_m", 0.0)), pose["position"].z)
+	var size_x: float = 5.4 if absf(normal.y) > 0.5 else 2.9
+	var size_z: float = 2.9 if absf(normal.y) > 0.5 else 5.4
+	var floor_center := Vector3(center.x + normal.x * size_x * 0.5, center.y - floor_thickness_m * 0.6, center.z + normal.y * size_z * 0.5)
+	var root := Node3D.new()
+	root.name = "ApartmentLanding_%02d" % index
+	_rooms_root.add_child(root)
+	var slab := _create_box("LandingFloor", Vector3(size_x, floor_thickness_m, size_z) * meters_to_units, _make_material(Color(0.34, 0.34, 0.32, 1.0), false))
+	slab.position = _to_world(floor_center)
+	root.add_child(slab)
+	var back_wall_center := Vector3(center.x + normal.x * size_x, center.y + 1.15, center.z + normal.y * size_z)
+	var wall_size := Vector3(size_x, 2.3, 0.08) if absf(normal.y) > 0.5 else Vector3(0.08, 2.3, size_z)
+	var wall := _create_box("LandingBackWall", wall_size * meters_to_units, _make_material(Color(0.68, 0.66, 0.60, 0.82), true))
+	wall.position = _to_world(back_wall_center)
+	root.add_child(wall)
+	_add_landing_panels(root, center, normal, size_x, size_z)
+
+
+func _add_landing_panels(root: Node3D, door_center: Vector3, normal: Vector2, size_x: float, size_z: float) -> void:
+	var tangent := Vector2(-normal.y, normal.x)
+	var base := Vector3(door_center.x + normal.x * (size_x if absf(normal.y) > 0.5 else size_x * 0.92), door_center.y + 1.05, door_center.z + normal.y * (size_z if absf(normal.x) > 0.5 else size_z * 0.92))
+	for i in range(3):
+		var offset: float = (float(i) - 1.0) * 1.35
+		var pos := Vector3(base.x + tangent.x * offset, base.y, base.z + tangent.y * offset)
+		var panel_size := Vector3(0.82, 1.95, 0.06) if absf(normal.y) > 0.5 else Vector3(0.06, 1.95, 0.82)
+		var panel := _create_box("FlatDoor_%d" % i, panel_size * meters_to_units, _make_material(Color(0.22, 0.19, 0.15, 1.0), false))
+		panel.position = _to_world(pos)
+		root.add_child(panel)
+	var lift_pos := Vector3(base.x + tangent.x * 2.25, base.y, base.z + tangent.y * 2.25)
+	var lift_size := Vector3(1.0, 2.0, 0.07) if absf(normal.y) > 0.5 else Vector3(0.07, 2.0, 1.0)
+	var lift := _create_box("ElevatorDoor", lift_size * meters_to_units, _make_material(Color(0.42, 0.45, 0.46, 1.0), false))
+	lift.position = _to_world(lift_pos)
+	root.add_child(lift)
+	for j in range(5):
+		var step_pos := Vector3(door_center.x - tangent.x * 2.25 + normal.x * (0.55 + float(j) * 0.16), door_center.y + 0.04 + float(j) * 0.035, door_center.z - tangent.y * 2.25 + normal.y * (0.55 + float(j) * 0.16))
+		var step_size := Vector3(0.9, 0.07, 0.18) if absf(normal.y) > 0.5 else Vector3(0.18, 0.07, 0.9)
+		var step := _create_box("LandingStair_%d" % j, step_size * meters_to_units, _make_material(Color(0.40, 0.36, 0.30, 1.0), false))
+		step.position = _to_world(step_pos)
+		root.add_child(step)
+
+
+func _create_single_family_entry_context(index: int, op: OpeningModel, pose: Dictionary) -> void:
+	var normal: Vector2 = _outside_normal_for_wall(op.wall_side)
+	var center: Vector3 = Vector3(pose["position"].x, float(pose.get("floor_level_m", 0.0)), pose["position"].z)
+	var root := Node3D.new()
+	root.name = "SingleFamilyExterior_%02d" % index
+	_rooms_root.add_child(root)
+	var path_size := Vector3(1.25, floor_thickness_m, 3.4) if absf(normal.y) > 0.5 else Vector3(3.4, floor_thickness_m, 1.25)
+	var path := _create_box("EntryPath", path_size * meters_to_units, _make_material(Color(0.46, 0.45, 0.40, 1.0), false))
+	path.position = _to_world(Vector3(center.x + normal.x * 1.7, center.y - floor_thickness_m * 0.5, center.z + normal.y * 1.7))
+	root.add_child(path)
+	var street_size := Vector3(5.8, floor_thickness_m, 0.55) if absf(normal.y) > 0.5 else Vector3(0.55, floor_thickness_m, 5.8)
+	var street := _create_box("StreetEdge", street_size * meters_to_units, _make_material(Color(0.12, 0.13, 0.13, 1.0), false))
+	street.position = _to_world(Vector3(center.x + normal.x * 3.6, center.y - floor_thickness_m * 0.52, center.z + normal.y * 3.6))
+	root.add_child(street)
+	var garden_size := Vector3(2.2, floor_thickness_m, 1.25) if absf(normal.y) > 0.5 else Vector3(1.25, floor_thickness_m, 2.2)
+	for side in [-1.0, 1.0]:
+		var tangent := Vector2(-normal.y, normal.x)
+		var garden := _create_box("ResidentialStrip_%s" % str(side), garden_size * meters_to_units, _make_material(Color(0.18, 0.32, 0.20, 1.0), false))
+		garden.position = _to_world(Vector3(center.x + normal.x * 1.4 + tangent.x * side * 1.7, center.y - floor_thickness_m * 0.55, center.z + normal.y * 1.4 + tangent.y * side * 1.7))
+		root.add_child(garden)
+
+
+func _create_apartment_window_context(index: int, op: OpeningModel, pose: Dictionary) -> void:
+	_create_window_backdrop(index, op, pose, Color(0.48, 0.50, 0.52, 0.55), "ApartmentFacade")
+
+
+func _create_residential_window_context(index: int, op: OpeningModel, pose: Dictionary) -> void:
+	_create_window_backdrop(index, op, pose, Color(0.22, 0.34, 0.20, 0.52), "ResidentialView")
+
+
+func _create_window_backdrop(index: int, op: OpeningModel, pose: Dictionary, color: Color, name_prefix: String) -> void:
+	var normal: Vector2 = _outside_normal_for_wall(op.wall_side)
+	var center: Vector3 = Vector3(pose["position"].x, float(pose.get("floor_level_m", 0.0)) + float(pose["position"].y), pose["position"].z)
+	var backdrop_size := Vector3(2.8, 1.7, 0.05) if absf(normal.y) > 0.5 else Vector3(0.05, 1.7, 2.8)
+	var panel := _create_box("%s_%02d" % [name_prefix, index], backdrop_size * meters_to_units, _make_material(color, true))
+	panel.position = _to_world(Vector3(center.x + normal.x * 0.75, center.y, center.z + normal.y * 0.75))
+	_rooms_root.add_child(panel)
+
+
+func _outside_normal_for_wall(wall_side: String) -> Vector2:
+	match wall_side.strip_edges().to_lower():
+		"top", "north":
+			return Vector2(0.0, -1.0)
+		"bottom", "south":
+			return Vector2(0.0, 1.0)
+		"left", "west":
+			return Vector2(-1.0, 0.0)
+		"right", "east":
+			return Vector2(1.0, 0.0)
+	return Vector2(0.0, -1.0)
 
 
 func _opening_color(op: OpeningModel) -> Color:
@@ -717,6 +879,7 @@ func _update_room(room_id: int) -> void:
 		label.text = _get_room_label(room_id, rs)
 
 	_update_room_fuel_objects_3d(item, rs, rect)
+	_update_room_safety_markers_3d(room_id, item, rect)
 
 
 func _update_wall_temperature(walls: Array, temp_upper_c: float) -> void:
@@ -1169,7 +1332,186 @@ func _get_room_name(room_id: int) -> String:
 
 
 func _get_room_label(room_id: int, _room_state: Dictionary = {}) -> String:
+	var room_name: String = _get_room_name(room_id).strip_edges()
+	if room_name != "":
+		return room_name
 	return "R%d" % room_id
+
+
+func _update_room_safety_markers_3d(room_id: int, item: Dictionary, rect: Rect2) -> void:
+	var root := item.get("safety_markers_root") as Node3D
+	if root == null:
+		return
+	root.visible = not _first_person_overlay and (show_detector_markers_3d or show_victim_markers_3d)
+	if building == null:
+		root.visible = false
+		return
+
+	var detector_nodes: Dictionary = item.get("detector_nodes", {})
+	var victim_nodes: Dictionary = item.get("victim_nodes", {})
+	var seen_detectors: Dictionary = {}
+	var seen_victims: Dictionary = {}
+	var floor_level_m: float = float(item.get("floor_level_m", 0.0))
+	var room_height_m: float = float(item.get("height_m", default_room_height_m))
+
+	if show_detector_markers_3d:
+		var detector_states: Dictionary = _state_records_by_id(Array(state.get("detectors", [])))
+		for raw_det in building.detectors:
+			if typeof(raw_det) != TYPE_DICTIONARY:
+				continue
+			var det: Dictionary = raw_det
+			if int(det.get("room_id", -1)) != room_id:
+				continue
+			var det_id: String = String(det.get("id", "det_%d" % detector_nodes.size()))
+			seen_detectors[det_id] = true
+			var node := detector_nodes.get(det_id) as Node3D
+			if node == null:
+				node = _create_detector_marker_node(det_id)
+				root.add_child(node)
+				detector_nodes[det_id] = node
+			var local_pos: Vector2 = _safety_local_position(det, rect)
+			node.position = _to_world(Vector3(rect.position.x + local_pos.x, floor_level_m + room_height_m - 0.08, rect.position.y + local_pos.y))
+			var det_state: Dictionary = detector_states.get(det_id, {})
+			var triggered: bool = bool(det_state.get("triggered", det.get("triggered", false)))
+			_set_marker_color(node, detector_triggered_color if triggered else detector_marker_color)
+
+	if show_victim_markers_3d:
+		var victim_states: Dictionary = _state_records_by_id(Array(state.get("victims", [])))
+		for raw_vic in building.victims:
+			if typeof(raw_vic) != TYPE_DICTIONARY:
+				continue
+			var vic: Dictionary = raw_vic
+			if int(vic.get("room_id", -1)) != room_id:
+				continue
+			var vic_id: String = String(vic.get("id", "vic_%d" % victim_nodes.size()))
+			seen_victims[vic_id] = true
+			var node := victim_nodes.get(vic_id) as Node3D
+			if node == null:
+				node = _create_victim_marker_node(vic_id)
+				root.add_child(node)
+				victim_nodes[vic_id] = node
+			var local_pos: Vector2 = _safety_local_position(vic, rect)
+			node.position = _to_world(Vector3(rect.position.x + local_pos.x, floor_level_m, rect.position.y + local_pos.y))
+			var vic_state: Dictionary = victim_states.get(vic_id, {})
+			var incapacitated: bool = bool(vic_state.get("incapacitated", vic.get("incapacitated", false)))
+			_set_marker_color(node, victim_incapacitated_color if incapacitated else victim_marker_color)
+
+	_prune_marker_nodes(detector_nodes, seen_detectors)
+	_prune_marker_nodes(victim_nodes, seen_victims)
+	item["detector_nodes"] = detector_nodes
+	item["victim_nodes"] = victim_nodes
+
+
+func _state_records_by_id(records: Array) -> Dictionary:
+	var result: Dictionary = {}
+	for raw_record in records:
+		if typeof(raw_record) != TYPE_DICTIONARY:
+			continue
+		var record: Dictionary = raw_record
+		var id_text: String = String(record.get("id", ""))
+		if id_text != "":
+			result[id_text] = record
+	return result
+
+
+func _safety_local_position(data: Dictionary, rect: Rect2) -> Vector2:
+	if data.has("x_m") and data.has("y_m"):
+		return Vector2(
+			clampf(float(data.get("x_m", rect.size.x * 0.5)), 0.0, rect.size.x),
+			clampf(float(data.get("y_m", rect.size.y * 0.5)), 0.0, rect.size.y)
+		)
+	return rect.size * 0.5
+
+
+func _create_detector_marker_node(detector_id: String) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Detector_" + _safe_node_name(detector_id)
+	var disk := MeshInstance3D.new()
+	disk.name = "MarkerMesh"
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.11 * meters_to_units
+	mesh.bottom_radius = 0.11 * meters_to_units
+	mesh.height = 0.035 * meters_to_units
+	mesh.radial_segments = 24
+	disk.mesh = mesh
+	disk.material_override = _make_material(detector_marker_color, false)
+	root.add_child(disk)
+	return root
+
+
+func _create_victim_marker_node(victim_id: String) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Victim_" + _safe_node_name(victim_id)
+	var mat := _make_material(victim_marker_color, false)
+	var body := _create_human_limb_mesh("MarkerMesh", 0.16, 0.70, mat)
+	body.rotation_degrees.x = 90.0
+	body.position = Vector3(0.0, 0.14 * meters_to_units, 0.0)
+	root.add_child(body)
+	var head := MeshInstance3D.new()
+	head.name = "Head"
+	var head_mesh := SphereMesh.new()
+	head_mesh.radius = 0.13 * meters_to_units
+	head_mesh.height = 0.26 * meters_to_units
+	head_mesh.radial_segments = 14
+	head_mesh.rings = 7
+	head.mesh = head_mesh
+	head.position = Vector3(0.0, 0.14 * meters_to_units, -0.48 * meters_to_units)
+	head.material_override = mat
+	root.add_child(head)
+	for side in [-1.0, 1.0]:
+		var arm := _create_human_limb_mesh("Arm_%s" % str(side), 0.055, 0.48, mat)
+		arm.rotation_degrees.z = 90.0
+		arm.rotation_degrees.y = 12.0 * side
+		arm.position = Vector3(side * 0.31 * meters_to_units, 0.10 * meters_to_units, -0.05 * meters_to_units)
+		root.add_child(arm)
+		var leg := _create_human_limb_mesh("Leg_%s" % str(side), 0.07, 0.56, mat)
+		leg.rotation_degrees.x = 90.0
+		leg.rotation_degrees.z = 7.0 * side
+		leg.position = Vector3(side * 0.12 * meters_to_units, 0.11 * meters_to_units, 0.50 * meters_to_units)
+		root.add_child(leg)
+	return root
+
+
+func _create_human_limb_mesh(node_name: String, radius_m: float, length_m: float, mat: StandardMaterial3D) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	var mesh := CapsuleMesh.new()
+	mesh.radius = radius_m * meters_to_units
+	mesh.height = length_m * meters_to_units
+	mesh.radial_segments = 12
+	mesh.rings = 4
+	mesh_instance.mesh = mesh
+	mesh_instance.material_override = mat
+	return mesh_instance
+
+
+func _set_marker_color(root: Node3D, color: Color) -> void:
+	var mat := _make_material(color, false)
+	_set_marker_color_recursive(root, mat)
+
+
+func _set_marker_color_recursive(node: Node, mat: StandardMaterial3D) -> void:
+	if node is MeshInstance3D:
+		(node as MeshInstance3D).material_override = mat
+	for child in node.get_children():
+		_set_marker_color_recursive(child, mat)
+
+
+func _prune_marker_nodes(nodes: Dictionary, seen_ids: Dictionary) -> void:
+	for stale_id in nodes.keys():
+		if seen_ids.has(stale_id):
+			continue
+		var stale_node := nodes[stale_id] as Node
+		if stale_node != null:
+			stale_node.free()
+		nodes.erase(stale_id)
+
+
+func _safe_node_name(value: String) -> String:
+	var cleaned: String = value.strip_edges()
+	for ch in [" ", "/", "\\", ":", ".", "#"]:
+		cleaned = cleaned.replace(ch, "_")
+	return cleaned if cleaned != "" else "marker"
 
 
 func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2) -> void:

@@ -47,14 +47,16 @@ func _bind_existing_ui() -> bool:
 	var btn_quit := get_node_or_null("Center/VBox/BtnQuit") as Button
 	if btn_new == null or btn_editor == null or btn_quit == null:
 		return false
-	if not btn_new.pressed.is_connected(_on_new_sim_pressed):
-		btn_new.pressed.connect(_on_new_sim_pressed)
-	if not btn_editor.pressed.is_connected(_on_editor_pressed):
-		btn_editor.pressed.connect(_on_editor_pressed)
-	if not btn_quit.pressed.is_connected(_on_quit_pressed):
-		btn_quit.pressed.connect(_on_quit_pressed)
+	_connect_once(btn_new.pressed, _on_new_sim_pressed)
+	_connect_once(btn_editor.pressed, _on_editor_pressed)
+	_connect_once(btn_quit.pressed, _on_quit_pressed)
 	_ensure_start_options_ui()
 	return true
+
+
+func _connect_once(target_signal: Signal, target_callable: Callable) -> void:
+	if not target_signal.is_connected(target_callable):
+		target_signal.connect(target_callable)
 
 
 func _setup_ui() -> void:

@@ -1,6 +1,7 @@
 extends Node
 
 const FirstPersonControllerScript = preload("res://view/fp/FirstPersonController.gd")
+const MAIN_MENU_PATH: String = "res://scenes/MainMenu.tscn"
 
 @onready var building: BuildingModel = $World/BuildingModel
 @onready var engine: SimulationEngine = $World/SimulationEngine
@@ -22,59 +23,52 @@ var _graph_zoom: float = 1.0
 var view_3d_enabled: bool = false
 var first_person_enabled: bool = false
 var first_person_controller = null
-#var _game_result: String = ""   # TODO(gameplay): victoria/derrota
-#var _fire_out_timer_s: float = 0.0  # TODO(gameplay)
 
 
 func _ready() -> void:
 	_setup_graph_dialogs()
 	if hud != null:
 		hud.bind_building(building)
-		if not hud.play_requested.is_connected(_on_play_requested):
-			hud.play_requested.connect(_on_play_requested)
-		if not hud.pause_requested.is_connected(_on_pause_requested):
-			hud.pause_requested.connect(_on_pause_requested)
-		if not hud.slower_requested.is_connected(_on_slower_requested):
-			hud.slower_requested.connect(_on_slower_requested)
-		if not hud.faster_requested.is_connected(_on_faster_requested):
-			hud.faster_requested.connect(_on_faster_requested)
-		if not hud.stop_and_generate_requested.is_connected(_on_stop_and_generate_requested):
-			hud.stop_and_generate_requested.connect(_on_stop_and_generate_requested)
-		if not hud.view_3d_toggled.is_connected(_on_view_3d_toggled):
-			hud.view_3d_toggled.connect(_on_view_3d_toggled)
-		if not hud.first_person_toggled.is_connected(_on_first_person_toggled):
-			hud.first_person_toggled.connect(_on_first_person_toggled)
-		if not hud.hvac_toggled.is_connected(_on_hvac_toggled):
-			hud.hvac_toggled.connect(_on_hvac_toggled)
-		if not hud.opening_fraction_requested.is_connected(_on_opening_fraction_requested):
-			hud.opening_fraction_requested.connect(_on_opening_fraction_requested)
-		# TODO(gameplay): conexiones de señales de acción táctica — descomentar cuando se implemente la UI de juego
-		#if not hud.water_mode_changed.is_connected(_on_water_mode_changed):
-		#	hud.water_mode_changed.connect(_on_water_mode_changed)
-		#if not hud.vent_action_toggled.is_connected(_on_vent_action_toggled):
-		#	hud.vent_action_toggled.connect(_on_vent_action_toggled)
-		#if not hud.rescue_requested.is_connected(_on_rescue_requested):
-		#	hud.rescue_requested.connect(_on_rescue_requested)
+		_connect_hud_signals()
 	_setup_first_person_controller()
 	_set_3d_view_enabled(view_3d_enabled)
 	if engine != null:
 		engine.time_scale = 1.0
-	if visualizer != null and not visualizer.room_clicked.is_connected(_on_room_clicked):
-		visualizer.room_clicked.connect(_on_room_clicked)
-	if visualizer != null and not visualizer.opening_clicked.is_connected(_on_opening_clicked):
-		visualizer.opening_clicked.connect(_on_opening_clicked)
-	if visualizer_3d != null and not visualizer_3d.room_clicked.is_connected(_on_room_clicked):
-		visualizer_3d.room_clicked.connect(_on_room_clicked)
-	if visualizer_3d != null and not visualizer_3d.opening_clicked.is_connected(_on_opening_clicked):
-		visualizer_3d.opening_clicked.connect(_on_opening_clicked)
+	_connect_visualizer_signals()
 	_update_views()
+
+
+func _connect_hud_signals() -> void:
+	_connect_once(hud.play_requested, _on_play_requested)
+	_connect_once(hud.pause_requested, _on_pause_requested)
+	_connect_once(hud.slower_requested, _on_slower_requested)
+	_connect_once(hud.faster_requested, _on_faster_requested)
+	_connect_once(hud.stop_and_generate_requested, _on_stop_and_generate_requested)
+	_connect_once(hud.exit_without_graphs_requested, _on_exit_without_graphs_requested)
+	_connect_once(hud.view_3d_toggled, _on_view_3d_toggled)
+	_connect_once(hud.first_person_toggled, _on_first_person_toggled)
+	_connect_once(hud.hvac_toggled, _on_hvac_toggled)
+	_connect_once(hud.opening_fraction_requested, _on_opening_fraction_requested)
+
+
+func _connect_visualizer_signals() -> void:
+	if visualizer != null:
+		_connect_once(visualizer.room_clicked, _on_room_clicked)
+		_connect_once(visualizer.opening_clicked, _on_opening_clicked)
+	if visualizer_3d != null:
+		_connect_once(visualizer_3d.room_clicked, _on_room_clicked)
+		_connect_once(visualizer_3d.opening_clicked, _on_opening_clicked)
+
+
+func _connect_once(target_signal: Signal, target_callable: Callable) -> void:
+	if not target_signal.is_connected(target_callable):
+		target_signal.connect(target_callable)
 
 
 func _physics_process(delta: float) -> void:
 	if playback_paused or engine == null:
 		return
 	engine.step(delta)
-	#_check_win_loss(delta)  # TODO(gameplay)
 	_update_views()
 
 
@@ -147,59 +141,6 @@ func _on_hvac_toggled(enabled: bool) -> void:
 	_update_views()
 
 
-# TODO(gameplay): handlers de acción táctica + victoria/derrota — descomentar cuando se implemente la UI de juego
-#func _on_water_mode_changed(mode: String) -> void:
-#	if engine == null: return
-#	engine.cancel_all_suppression()
-#	if mode == "": return
-#	if mode == "aoe":
-#		var fire_rooms: Array = engine.get_active_fire_room_ids()
-#		if fire_rooms.is_empty(): fire_rooms = [engine.get_highest_hrr_room_id()]
-#		var split_flow: float = 380.0 / max(1, fire_rooms.size())
-#		for rid in fire_rooms: engine.apply_suppression(int(rid), 99999.0, split_flow, 0.35)
-#		return
-#	var target_id: int = _get_suppression_target_room()
-#	match mode:
-#		"def_ext": engine.apply_suppression(target_id, 99999.0, 570.0, 0.50)
-#		"off_int": engine.apply_suppression(target_id, 99999.0, 570.0, 1.00)
-#		"def_in":  engine.apply_suppression(target_id, 99999.0, 570.0, 0.75)
-#
-#func _get_suppression_target_room() -> int:
-#	if hud != null and hud.status_panel_room_id >= 0: return hud.status_panel_room_id
-#	if engine != null: return engine.get_highest_hrr_room_id()
-#	return 0
-#
-#func _on_vent_action_toggled(action: String, on: bool) -> void:
-#	if building == null: return
-#	for i in range(building.get_opening_count()):
-#		var op: OpeningModel = building.get_opening_at(i)
-#		if op != null and (op.a == BuildingModel.OUTSIDE_ID or op.b == BuildingModel.OUTSIDE_ID):
-#			if on: building.open_opening(i)
-#			else: building.close_opening(i)
-#			if action == "exutorio": break
-#	_update_views()
-#
-#func _on_rescue_requested() -> void:
-#	pass
-#
-#func _check_win_loss(delta: float) -> void:
-#	if _game_result != "" or engine == null or building == null: return
-#	var state: Dictionary = engine.get_state()
-#	for room_id in building.get_rooms().keys():
-#		var rs: Dictionary = state.get(str(int(room_id)), {})
-#		if bool(rs.get("flashover_triggered", false)):
-#			_game_result = "loss"; playback_paused = true
-#			if hud != null: hud.show_game_result("DERROTA", "Flashover en %s" % String(rs.get("name", "R%d" % int(room_id))))
-#			return
-#	if engine.is_fire_extinguished():
-#		_fire_out_timer_s += delta
-#		if _fire_out_timer_s >= 10.0:
-#			_game_result = "win"; playback_paused = true
-#			if hud != null: hud.show_game_result("VICTORIA", "Fuego extinguido en %.0f s" % engine.sim_time_s)
-#	else:
-#		_fire_out_timer_s = 0.0
-
-
 func _on_room_clicked(room_id: int) -> void:
 	if hud != null:
 		hud.hide_opening_action()
@@ -239,14 +180,7 @@ func _set_3d_view_enabled(enabled: bool) -> void:
 	view_3d_enabled = enabled
 	if enabled:
 		first_person_enabled = false
-	if visualizer != null:
-		visualizer.visible = not view_3d_enabled and not first_person_enabled
-	if world_3d != null:
-		world_3d.visible = view_3d_enabled or first_person_enabled
-	if visualizer_3d != null:
-		visualizer_3d.set_active(view_3d_enabled and not first_person_enabled, true, true, false)
-	if first_person_controller != null:
-		first_person_controller.set_active(first_person_enabled)
+	_sync_view_mode()
 	_update_views()
 
 
@@ -254,15 +188,23 @@ func _set_first_person_enabled(enabled: bool) -> void:
 	first_person_enabled = enabled
 	if enabled:
 		view_3d_enabled = false
+	_sync_view_mode()
+	_update_views()
+
+
+func _sync_view_mode() -> void:
+	var visualizer_2d_active: bool = not view_3d_enabled and not first_person_enabled
+	var visualizer_3d_active: bool = view_3d_enabled or first_person_enabled
+	var orbit_controls_active: bool = view_3d_enabled and not first_person_enabled
+
 	if visualizer != null:
-		visualizer.visible = not view_3d_enabled and not first_person_enabled
+		visualizer.visible = visualizer_2d_active
 	if world_3d != null:
-		world_3d.visible = view_3d_enabled or first_person_enabled
+		world_3d.visible = visualizer_3d_active
 	if visualizer_3d != null:
-		visualizer_3d.set_active(view_3d_enabled or first_person_enabled, view_3d_enabled and not first_person_enabled, view_3d_enabled and not first_person_enabled, first_person_enabled)
+		visualizer_3d.set_active(visualizer_3d_active, orbit_controls_active, orbit_controls_active, first_person_enabled)
 	if first_person_controller != null:
 		first_person_controller.set_active(first_person_enabled)
-	_update_views()
 
 
 func _setup_first_person_controller() -> void:
@@ -274,10 +216,8 @@ func _setup_first_person_controller() -> void:
 		first_person_controller.name = "FirstPersonController"
 		world_3d.add_child(first_person_controller)
 	first_person_controller.setup(building)
-	if not first_person_controller.exit_requested.is_connected(_on_first_person_exit_requested):
-		first_person_controller.exit_requested.connect(_on_first_person_exit_requested)
-	if not first_person_controller.opening_changed.is_connected(_on_first_person_opening_changed):
-		first_person_controller.opening_changed.connect(_on_first_person_opening_changed)
+	_connect_once(first_person_controller.exit_requested, _on_first_person_exit_requested)
+	_connect_once(first_person_controller.opening_changed, _on_first_person_opening_changed)
 
 
 func _on_first_person_exit_requested() -> void:
@@ -293,6 +233,13 @@ func _on_stop_and_generate_requested() -> void:
 	_update_views()
 	if _graphs_dir_dialog != null:
 		_graphs_dir_dialog.popup_centered_ratio(0.72)
+
+
+func _on_exit_without_graphs_requested() -> void:
+	playback_paused = true
+	if first_person_enabled:
+		_set_first_person_enabled(false)
+	get_tree().change_scene_to_file(MAIN_MENU_PATH)
 
 
 func _pick_time_speed(current_speed: float, direction: int) -> float:

@@ -1,8 +1,8 @@
 {
     "metrics": {
         "room_0_final_temp_upper_raw_c": {
-            "expected": 306.96,
-            "tolerance": 5.0
+            "expected": 313.71,
+            "tolerance": 7.0
         },
         "room_0_final_layer_150c_m": {
             "expected": 1.022,

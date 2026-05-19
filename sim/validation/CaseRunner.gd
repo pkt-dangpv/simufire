@@ -273,6 +273,9 @@ func _build_case_template(case_config: Dictionary) -> Dictionary:
 		var bparams: Dictionary = Dictionary(case_config.get("building_params", {}))
 		for bkey: String in bparams.keys():
 			template_data[bkey] = bparams[bkey]
+	# SF-VIC-001: víctimas definidas en el caso
+	if case_config.has("victims"):
+		template_data["victims"] = Array(case_config.get("victims", [])).duplicate(true)
 	return template_data
 
 
@@ -611,6 +614,17 @@ func _update_metrics(state: Dictionary) -> void:
 	if _incident_started and all_rooms_quiescent and not _metrics.has("time_to_quiescent_s"):
 		_metrics["time_to_quiescent_s"] = sim_time_s
 
+	# SF-VIC-001: registrar primer instante de incapacitación de cada víctima
+	for vic_state in state.get("victims", []):
+		if typeof(vic_state) != TYPE_DICTIONARY:
+			continue
+		var vic_id: String = String(vic_state.get("id", ""))
+		if vic_id.is_empty():
+			continue
+		var metric_key: String = "time_victim_%s_incapacitated_s" % vic_id
+		if not _metrics.has(metric_key) and bool(vic_state.get("incapacitated", false)):
+			_metrics[metric_key] = float(vic_state.get("incapacitated_at_s", sim_time_s))
+
 
 func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 	var prefix: String = "room_%d_" % room_id
@@ -781,6 +795,16 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics["target_%s_final_qnet_kw_m2" % target_id] = float(ts.get("qnet_kw_m2", 0.0))
 		_metrics["target_%s_final_temp_c" % target_id] = float(ts.get("temp_c", 20.0))
 		_metrics["target_%s_ignited" % target_id] = 1.0 if bool(ts.get("ignited", false)) else 0.0
+
+	# SF-VIC-001: FED final e incapacitación de cada víctima
+	for vic_state in state.get("victims", []):
+		if typeof(vic_state) != TYPE_DICTIONARY:
+			continue
+		var vic_id: String = String(vic_state.get("id", ""))
+		if vic_id.is_empty():
+			continue
+		_metrics["victim_%s_final_fed" % vic_id] = float(vic_state.get("fed", 0.0))
+		_metrics["victim_%s_incapacitated" % vic_id] = 1.0 if bool(vic_state.get("incapacitated", false)) else 0.0
 
 
 func _finalize_validation_run(state: Dictionary) -> void:

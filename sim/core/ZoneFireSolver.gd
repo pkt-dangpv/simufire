@@ -29,13 +29,16 @@ class_name ZoneFireSolver
 #     - Fase 2: GasExchangeSystem lee zone_resolved_upper_mass_kg
 #       para reemplazar la fórmula de background con el flujo canónico.
 #     - Fase 3: OxygenExchangeSystem usa mismo flujo canónico.
-#     - Fase 4: Delta-accumulation simultáneo en lugar de aplicación
-#       secuencial (eliminación de efectos de ordering).
+#   Fase 4 (SF-R6 sesión 3):
+#     - Delta-acumulación simultánea en _transfer_hot_gas_contaminants().
+#       Todas las lecturas usan el estado pre-bucle; todas las escrituras se
+#       aplican juntas en _flush_contaminant_deltas() (enfoque Jacobi).
+#       Elimina efectos de ordenación entre aperturas.
 # ============================================================
 
-## Habilita la coordinación de flujos ZoneFireSolver (fase 3+).
-## 1 = skeleton, 2 = CO₂/HCN upper transport activo, 3 = validate_conservation() activo.
-var zone_solver_phase: int = 3
+## Habilita la coordinación de flujos ZoneFireSolver.
+## 1=skeleton, 2=CO₂/HCN upper transport, 3=validate_conservation(), 4=delta-acumulación.
+var zone_solver_phase: int = 4
 
 ## Fracción de carry convectivo para HCN (respecto al carry general).
 ## 0.40 calibrado para parity CFAST TN-1889 (HCN viaja con gas caliente).

@@ -78,7 +78,9 @@ static func to_runtime_template(editor_data: Dictionary) -> Dictionary:
 	return {
 		"outside_temp_c": float(data.get("outside_temp_c", 20.0)),
 		"outside_o2": float(data.get("outside_o2", 0.209)),
+		"building_type": String(data.get("building_type", "single_family")),
 		"floors": Array(data.get("floors", [])).duplicate(true),
+		"exterior_walls": Array(data.get("exterior_walls", [])).duplicate(true),
 		"room_rect_m": runtime_rects,
 		"rooms_data": rooms_data,
 		"openings_data": openings_data,
@@ -94,8 +96,10 @@ static func to_runtime_json_data(editor_data: Dictionary) -> Dictionary:
 	return {
 		"outside_temp_c": float(data.get("outside_temp_c", 20.0)),
 		"outside_o2": float(data.get("outside_o2", 0.209)),
+		"building_type": String(data.get("building_type", "single_family")),
 		"stop_time_s": float(data.get("stop_time_s", 0.0)),
 		"floors": Array(data.get("floors", [])).duplicate(true),
+		"exterior_walls": Array(data.get("exterior_walls", [])).duplicate(true),
 		"room_rect_m": Dictionary(data.get("room_rect_m", {})).duplicate(true),
 		"rooms_data": Array(data.get("rooms_data", [])).duplicate(true),
 		"openings_data": Array(data.get("openings_data", [])).duplicate(true),
@@ -111,6 +115,10 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 	data["version"] = int(data.get("version", DEFAULT_VERSION))
 	data["outside_temp_c"] = float(data.get("outside_temp_c", 20.0))
 	data["outside_o2"] = float(data.get("outside_o2", 0.209))
+	var building_type: String = String(data.get("building_type", "single_family")).to_lower()
+	if building_type != "apartment":
+		building_type = "single_family"
+	data["building_type"] = building_type
 	data["stop_time_s"] = float(data.get("stop_time_s", 0.0))
 	var hvac_mode: String = String(data.get("hvac_mode", "none")).to_lower()
 	if hvac_mode != "off" and hvac_mode != "on":
@@ -139,6 +147,7 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 		room["id"] = int(room.get("id", rooms.size()))
 		room["name"] = String(room.get("name", "Room %d" % int(room["id"])))
 		room["kind"] = String(room.get("kind", "generic"))
+		room["rotation_deg"] = float(room.get("rotation_deg", 0.0))
 		room["height_m"] = float(room.get("height_m", 2.7))
 		room["floor_level_z_m"] = float(room.get("floor_level_z_m", 0.0))
 		room_floor_levels.append(room["floor_level_z_m"])
@@ -158,6 +167,17 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 		if typeof(raw_opening) == TYPE_DICTIONARY:
 			openings.append(normalize_opening(Dictionary(raw_opening)))
 	data["openings_data"] = openings
+
+	var exterior_walls: Array = []
+	for raw_wall in data.get("exterior_walls", []):
+		if typeof(raw_wall) != TYPE_DICTIONARY:
+			continue
+		var wall: Dictionary = Dictionary(raw_wall).duplicate(true)
+		wall["a"] = vector_to_data(vector2_from_data(wall.get("a", Vector2.ZERO)))
+		wall["b"] = vector_to_data(vector2_from_data(wall.get("b", Vector2.ZERO)))
+		wall["thickness_m"] = maxf(0.05, float(wall.get("thickness_m", 0.16)))
+		exterior_walls.append(wall)
+	data["exterior_walls"] = exterior_walls
 
 	var detectors: Array = []
 	for raw_det in data.get("detectors", []):
@@ -181,6 +201,7 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 			vic["name"] = String(vic.get("name", ""))
 			vic["x_m"] = float(vic.get("x_m", 0.0))
 			vic["y_m"] = float(vic.get("y_m", 0.0))
+			vic["height_m"] = float(vic.get("height_m", 0.9))
 			victims.append(vic)
 	data["victims"] = victims
 
@@ -267,6 +288,10 @@ static func normalize_opening(raw_opening: Dictionary) -> Dictionary:
 	opening["height_m"] = float(opening.get("height_m", 2.0))
 	opening["sill_m"] = float(opening.get("sill_m", 0.0))
 	opening["open_fraction"] = clampf(float(opening.get("open_fraction", 1.0)), 0.0, 1.0)
+	var swing_direction: String = String(opening.get("swing_direction", "in")).strip_edges().to_lower()
+	opening["swing_direction"] = "out" if swing_direction == "out" else "in"
+	var hinge_side: String = String(opening.get("hinge_side", "left")).strip_edges().to_lower()
+	opening["hinge_side"] = "right" if hinge_side == "right" else "left"
 	if type_name == "hole":
 		opening["sill_m"] = 0.0
 		opening["open_fraction"] = 1.0

@@ -6,14 +6,11 @@ signal pause_requested
 signal slower_requested
 signal faster_requested
 signal stop_and_generate_requested
+signal exit_without_graphs_requested
 signal view_3d_toggled(enabled: bool)
 signal first_person_toggled(enabled: bool)
 signal hvac_toggled(enabled: bool)
 signal opening_fraction_requested(opening_index: int, open_fraction: float)
-# TODO(gameplay): señales de acción táctica — descomentar cuando se implemente la UI de juego
-#signal water_mode_changed(mode: String)
-#signal vent_action_toggled(action: String, on: bool)
-#signal rescue_requested()
 
 const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
 const HUDOpeningActionView = preload("res://ui/HUDOpeningActionView.gd")
@@ -21,6 +18,16 @@ const HUDOpeningSummary = preload("res://ui/HUDOpeningSummary.gd")
 const HUDPlaybackLabels = preload("res://ui/HUDPlaybackLabels.gd")
 const HUDRoomSummary = preload("res://ui/HUDRoomSummary.gd")
 const OPENING_FRACTION_STEPS: Array[float] = [0.0, 0.25, 0.5, 0.75, 1.0]
+const HUD_PANEL_PATHS: Array[String] = [
+	"OpeningsPanel",
+	"OpeningActionPanel",
+	"TimeControlsPanel",
+	"RoomsDataPanel",
+	"StatusPanel",
+	"VictimsPanel"
+]
+const EXIT_MENU_EXIT_ONLY: int = 1
+const EXIT_MENU_SAVE_GRAPHS: int = 2
 
 @export var show_status_panel: bool = false
 @export var status_panel_room_id: int = 0
@@ -72,23 +79,14 @@ const OPENING_FRACTION_STEPS: Array[float] = [0.0, 0.25, 0.5, 0.75, 1.0]
 @onready var btn_view_3d: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnView3D") as Button
 @onready var btn_first_person: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnFirstPerson") as Button
 @onready var btn_hvac: Button = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow/BtnHVAC") as Button
+@onready var exit_options_menu: PopupMenu = get_node_or_null("ExitOptionsMenu") as PopupMenu
 @onready var time_scale_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow/TimeScaleLabel") as Label
 @onready var playback_status_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow/PlaybackStatusLabel") as Label
 @onready var shortcut_help_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ShortcutHelpLabel") as Label
 @onready var rooms_scroll_container: ScrollContainer = get_node_or_null("RoomsDataPanel/MarginContainer/ScrollContainer") as ScrollContainer
 @onready var rooms_data_vbox: GridContainer = get_node_or_null("RoomsDataPanel/MarginContainer/ScrollContainer/RoomsGrid") as GridContainer
-
-# TODO(gameplay): @onready de paneles de acción táctica — descomentar cuando se implemente la UI de juego
-#@onready var water_panel: PanelContainer = get_node_or_null("WaterPanel") as PanelContainer
-#@onready var btn_aoe: Button = get_node_or_null("WaterPanel/MarginContainer/VBoxContainer/BtnAOE") as Button
-#@onready var btn_def_ext: Button = get_node_or_null("WaterPanel/MarginContainer/VBoxContainer/BtnDefExt") as Button
-#@onready var btn_off_int: Button = get_node_or_null("WaterPanel/MarginContainer/VBoxContainer/BtnOffInt") as Button
-#@onready var btn_def_in: Button = get_node_or_null("WaterPanel/MarginContainer/VBoxContainer/BtnDefIn") as Button
-#@onready var vent_panel: PanelContainer = get_node_or_null("VentPanel") as PanelContainer
-#@onready var btn_exutorio: Button = get_node_or_null("VentPanel/MarginContainer/VBoxContainer/BtnExutorio") as Button
-#@onready var btn_vpp: Button = get_node_or_null("VentPanel/MarginContainer/VBoxContainer/BtnVPP") as Button
-#@onready var rescue_panel: PanelContainer = get_node_or_null("RescuePanel") as PanelContainer
-#@onready var btn_ladder_rescue: Button = get_node_or_null("RescuePanel/MarginContainer/VBoxContainer/BtnLadderRescue") as Button
+@onready var _victims_panel: PanelContainer = get_node_or_null("VictimsPanel") as PanelContainer
+@onready var _victims_vbox: VBoxContainer = get_node_or_null("VictimsPanel/MarginContainer/VBoxContainer/VictimsRows") as VBoxContainer
 
 var building: BuildingModel = null
 var selected_opening_index: int = 0
@@ -106,65 +104,26 @@ var _opening_action_panel: PanelContainer = null
 var _opening_action_title: Label = null
 var _opening_action_buttons: Array[Button] = []
 var _opening_action_index: int = -1
-#var _active_water_mode: String = ""  # TODO(gameplay)
+var _victim_rows: Dictionary = {}  # victim_id -> {header: Label, data: Label, card: PanelContainer}
 
 
 func _ready() -> void:
 	_configure_mouse_filters()
 	_ensure_openings_compact_list()
 	_ensure_opening_action_panel()
+	_ensure_exit_options_menu()
+	_ensure_victims_panel()
 	_apply_hud_visual_style()
 	if status_panel != null:
 		status_panel.visible = show_status_panel
 	if openings_panel != null:
 		openings_panel.visible = show_openings_panel
 
-	if opening_selector != null and not opening_selector.item_selected.is_connected(_on_opening_selected):
-		opening_selector.item_selected.connect(_on_opening_selected)
-	if btn_opening_open != null and not btn_opening_open.pressed.is_connected(_on_open_button_pressed):
-		btn_opening_open.pressed.connect(_on_open_button_pressed)
-	if btn_opening_close != null and not btn_opening_close.pressed.is_connected(_on_close_button_pressed):
-		btn_opening_close.pressed.connect(_on_close_button_pressed)
-	if btn_stop_graphs != null and not btn_stop_graphs.pressed.is_connected(_on_stop_graphs_pressed):
-		btn_stop_graphs.pressed.connect(_on_stop_graphs_pressed)
-	if btn_time_back != null and not btn_time_back.pressed.is_connected(_on_time_back_pressed):
-		btn_time_back.pressed.connect(_on_time_back_pressed)
-	if btn_play != null and not btn_play.pressed.is_connected(_on_play_pressed):
-		btn_play.pressed.connect(_on_play_pressed)
-	if btn_pause != null and not btn_pause.pressed.is_connected(_on_pause_pressed):
-		btn_pause.pressed.connect(_on_pause_pressed)
-	if btn_time_forward != null and not btn_time_forward.pressed.is_connected(_on_time_forward_pressed):
-		btn_time_forward.pressed.connect(_on_time_forward_pressed)
-	if btn_view_3d != null and not btn_view_3d.pressed.is_connected(_on_view_3d_pressed):
-		btn_view_3d.pressed.connect(_on_view_3d_pressed)
+	_ensure_first_person_button()
+	_ensure_hvac_button()
+	_connect_ui_signals()
 	if btn_view_3d != null:
 		btn_view_3d.visible = show_view_toggle
-	_ensure_first_person_button()
-	if btn_first_person != null and not btn_first_person.pressed.is_connected(_on_first_person_pressed):
-		btn_first_person.pressed.connect(_on_first_person_pressed)
-	_ensure_hvac_button()
-	if btn_hvac != null and not btn_hvac.pressed.is_connected(_on_hvac_pressed):
-		btn_hvac.pressed.connect(_on_hvac_pressed)
-
-	# TODO(gameplay): conexiones de paneles de acción táctica — descomentar cuando se implemente la UI de juego
-	#if water_panel != null:
-	#	water_panel.visible = true
-	#if vent_panel != null:
-	#	vent_panel.visible = true
-	#if rescue_panel != null:
-	#	rescue_panel.visible = true
-	#var _water_btn_list: Array[Button] = [btn_aoe, btn_def_ext, btn_off_int, btn_def_in]
-	#var _water_mode_list: Array[String] = ["aoe", "def_ext", "off_int", "def_in"]
-	#for _wi in range(_water_btn_list.size()):
-	#	var _wb: Button = _water_btn_list[_wi]
-	#	if _wb != null and not _wb.pressed.is_connected(_on_water_btn_pressed):
-	#		_wb.pressed.connect(_on_water_btn_pressed.bind(_water_mode_list[_wi]))
-	#if btn_exutorio != null and not btn_exutorio.pressed.is_connected(_on_vent_btn_pressed):
-	#	btn_exutorio.pressed.connect(_on_vent_btn_pressed.bind("exutorio"))
-	#if btn_vpp != null and not btn_vpp.pressed.is_connected(_on_vent_btn_pressed):
-	#	btn_vpp.pressed.connect(_on_vent_btn_pressed.bind("vpp"))
-	#if btn_ladder_rescue != null and not btn_ladder_rescue.pressed.is_connected(_on_rescue_btn_pressed):
-	#	btn_ladder_rescue.pressed.connect(_on_rescue_btn_pressed)
 
 	_refresh_opening_controls()
 	_update_time_controls(0.0, false, false, false, 1.0)
@@ -173,6 +132,38 @@ func _ready() -> void:
 	_update_hvac_button(false, false)
 	_apply_hud_visual_style()
 	_sync_shortcut_labels()
+
+
+func _connect_ui_signals() -> void:
+	if opening_selector != null:
+		_connect_once(opening_selector.item_selected, _on_opening_selected)
+	if btn_opening_open != null:
+		_connect_once(btn_opening_open.pressed, _on_open_button_pressed)
+	if btn_opening_close != null:
+		_connect_once(btn_opening_close.pressed, _on_close_button_pressed)
+	if btn_stop_graphs != null:
+		_connect_once(btn_stop_graphs.pressed, _on_stop_graphs_pressed)
+	if btn_time_back != null:
+		_connect_once(btn_time_back.pressed, _on_time_back_pressed)
+	if btn_play != null:
+		_connect_once(btn_play.pressed, _on_play_pressed)
+	if btn_pause != null:
+		_connect_once(btn_pause.pressed, _on_pause_pressed)
+	if btn_time_forward != null:
+		_connect_once(btn_time_forward.pressed, _on_time_forward_pressed)
+	if btn_view_3d != null:
+		_connect_once(btn_view_3d.pressed, _on_view_3d_pressed)
+	if btn_first_person != null:
+		_connect_once(btn_first_person.pressed, _on_first_person_pressed)
+	if btn_hvac != null:
+		_connect_once(btn_hvac.pressed, _on_hvac_pressed)
+	if exit_options_menu != null:
+		_connect_once(exit_options_menu.id_pressed, _on_exit_option_pressed)
+
+
+func _connect_once(target_signal: Signal, target_callable: Callable) -> void:
+	if not target_signal.is_connected(target_callable):
+		target_signal.connect(target_callable)
 
 
 func _apply_hud_visual_style() -> void:
@@ -200,7 +191,7 @@ func _apply_hud_visual_style() -> void:
 		_opening_compact_grid.add_theme_constant_override("h_separation", 10)
 		_opening_compact_grid.add_theme_constant_override("v_separation", 3)
 
-	for panel_path in ["OpeningsPanel", "OpeningActionPanel", "TimeControlsPanel", "RoomsDataPanel", "StatusPanel", "WaterPanel", "VentPanel", "RescuePanel"]:
+	for panel_path in HUD_PANEL_PATHS:
 		var panel := get_node_or_null(panel_path) as PanelContainer
 		if panel != null:
 			panel.add_theme_stylebox_override("panel", SimuFireThemeScript.stylebox(SimuFireThemeScript.PANEL, SimuFireThemeScript.BORDER, 1, 0, Vector2(12.0, 10.0)))
@@ -208,7 +199,6 @@ func _apply_hud_visual_style() -> void:
 	var action_buttons: Array[Button] = [
 		btn_play, btn_pause, btn_time_forward, btn_time_back, btn_view_3d,
 		btn_first_person, btn_hvac, btn_opening_close, btn_opening_open, btn_stop_graphs
-		# TODO(gameplay): btn_aoe, btn_def_ext, btn_off_int, btn_def_in, btn_exutorio, btn_vpp, btn_ladder_rescue
 	]
 	for button in action_buttons:
 		if button == null:
@@ -221,7 +211,7 @@ func _apply_hud_visual_style() -> void:
 
 func _configure_mouse_filters() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for panel_path in ["OpeningsPanel", "OpeningActionPanel", "TimeControlsPanel", "RoomsDataPanel", "StatusPanel", "WaterPanel", "VentPanel", "RescuePanel"]:
+	for panel_path in HUD_PANEL_PATHS:
 		var panel := get_node_or_null(panel_path) as Control
 		if panel != null:
 			panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -254,8 +244,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_on_play_pause_shortcut_pressed()
 		get_viewport().set_input_as_handled()
 	elif _matches_shortcut(key_event, key_stop_and_generate):
-		if _can_stop_and_generate_graphs():
-			_on_stop_graphs_pressed()
+		_on_stop_graphs_pressed()
 		get_viewport().set_input_as_handled()
 
 
@@ -276,6 +265,7 @@ func bind_building(next_building: BuildingModel) -> void:
 	building = next_building
 	_refresh_opening_controls()
 	_rebuild_rooms_panel()
+	_rebuild_victims_panel()
 	if building != null:
 		_update_hvac_button(building.is_hvac_available(), building.is_hvac_on())
 
@@ -309,6 +299,7 @@ func update_state(state: Dictionary) -> void:
 
 	_refresh_opening_controls()
 	_update_rooms_panel(state)
+	_update_victims_panel(state)
 	_refresh_opening_action_panel()
 
 	if status_panel == null or status_label == null or not show_status_panel:
@@ -471,6 +462,115 @@ func _ensure_hvac_button() -> void:
 	btn_hvac.toggle_mode = true
 	btn_hvac.text = "HVAC OFF"
 	row.add_child(btn_hvac)
+
+
+func _ensure_exit_options_menu() -> void:
+	if exit_options_menu == null:
+		exit_options_menu = PopupMenu.new()
+		exit_options_menu.name = "ExitOptionsMenu"
+		add_child(exit_options_menu)
+	exit_options_menu.clear()
+	exit_options_menu.add_item("Salir sin guardar", EXIT_MENU_EXIT_ONLY)
+	exit_options_menu.add_item("Salir y guardar + graficas", EXIT_MENU_SAVE_GRAPHS)
+
+
+func _ensure_victims_panel() -> void:
+	var title_lbl := get_node_or_null("VictimsPanel/MarginContainer/VBoxContainer/VictimsPanelTitle") as Label
+	if title_lbl == null:
+		return
+	title_lbl.add_theme_font_override("font", SimuFireThemeScript.title_font())
+	title_lbl.add_theme_font_size_override("font_size", font_size_header)
+	title_lbl.add_theme_color_override("font_color", SimuFireThemeScript.TEXT)
+
+
+func _rebuild_victims_panel() -> void:
+	if _victims_vbox == null:
+		return
+	for child in _victims_vbox.get_children():
+		child.queue_free()
+	_victim_rows.clear()
+
+	var victims_list: Array = []
+	if building != null:
+		victims_list = Array(building.victims)
+
+	if victims_list.is_empty():
+		if _victims_panel != null:
+			_victims_panel.visible = false
+		return
+
+	for vic in victims_list:
+		if typeof(vic) != TYPE_DICTIONARY:
+			continue
+		var vic_id: String = String(vic.get("id", ""))
+		if vic_id.is_empty():
+			continue
+		var vic_name: String = String(vic.get("name", vic_id))
+		var room_id: int = int(vic.get("room_id", 0))
+
+		var card := PanelContainer.new()
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.custom_minimum_size = Vector2(0.0, 46.0)
+		_style_room_card(card, "normal", false)
+
+		var inner_margin := MarginContainer.new()
+		inner_margin.add_theme_constant_override("margin_left", card_margin_px)
+		inner_margin.add_theme_constant_override("margin_top", 3)
+		inner_margin.add_theme_constant_override("margin_right", card_margin_px)
+		inner_margin.add_theme_constant_override("margin_bottom", 3)
+		card.add_child(inner_margin)
+
+		var row_vbox := VBoxContainer.new()
+		row_vbox.add_theme_constant_override("separation", 2)
+		inner_margin.add_child(row_vbox)
+
+		var header := Label.new()
+		header.add_theme_font_override("font", SimuFireThemeScript.title_font())
+		header.add_theme_font_size_override("font_size", font_size_header)
+		header.add_theme_color_override("font_color", SimuFireThemeScript.TEXT)
+		header.text = "%s (R%d)" % [vic_name, room_id]
+		row_vbox.add_child(header)
+
+		var data_lbl := Label.new()
+		data_lbl.add_theme_font_override("font", SimuFireThemeScript.body_font())
+		data_lbl.add_theme_font_size_override("font_size", font_size_data)
+		data_lbl.add_theme_color_override("font_color", card_data_color)
+		data_lbl.text = "FED: 0.00"
+		row_vbox.add_child(data_lbl)
+
+		_victims_vbox.add_child(card)
+		_victim_rows[vic_id] = {"header": header, "data": data_lbl, "card": card}
+
+	if _victims_panel != null:
+		_victims_panel.visible = not _victim_rows.is_empty()
+
+
+func _update_victims_panel(state: Dictionary) -> void:
+	if _victims_panel == null or not _victims_panel.visible:
+		return
+	var victims_state: Array = Array(state.get("victims", []))
+	for vic_state in victims_state:
+		if typeof(vic_state) != TYPE_DICTIONARY:
+			continue
+		var vic_id: String = String(vic_state.get("id", ""))
+		if vic_id.is_empty() or not _victim_rows.has(vic_id):
+			continue
+		var row: Dictionary = _victim_rows[vic_id]
+		var fed: float = float(vic_state.get("fed", 0.0))
+		var incapacitated: bool = bool(vic_state.get("incapacitated", false))
+
+		var data_lbl: Label = row["data"] as Label
+		var card: PanelContainer = row["card"] as PanelContainer
+
+		var status_suffix: String = ""
+		var severity: String = "normal"
+		if incapacitated:
+			status_suffix = "  INCAPACITADO"
+			severity = "flash"
+		elif fed >= 0.5:
+			severity = "alert"
+		data_lbl.text = "FED: %.2f%s" % [fed, status_suffix]
+		_style_room_card(card, severity, false)
 
 
 func _update_hvac_button(hvac_exists: bool, hvac_on: bool) -> void:
@@ -690,8 +790,8 @@ func _update_time_controls(
 	if btn_time_forward != null:
 		btn_time_forward.disabled = simulation_finished
 	if btn_stop_graphs != null:
-		btn_stop_graphs.disabled = sim_time_s <= 0.0 or graphs_launched
-		btn_stop_graphs.text = "GRAF OK" if graphs_launched else "FIN/GRAF"
+		btn_stop_graphs.disabled = false
+		btn_stop_graphs.text = "SALIR"
 	_sync_shortcut_labels()
 
 
@@ -707,9 +807,9 @@ func _sync_shortcut_labels() -> void:
 		btn_play.tooltip_text = "%s: play/pausa" % HUDPlaybackLabels.key_label(key_play_pause)
 	if btn_pause != null:
 		btn_pause.visible = false
-	if btn_stop_graphs != null and not _graphs_launched:
-		btn_stop_graphs.text = "FIN/GRAF"
-		btn_stop_graphs.tooltip_text = "%s: parar simulacion y generar graficas" % HUDPlaybackLabels.key_label(key_stop_and_generate)
+	if btn_stop_graphs != null:
+		btn_stop_graphs.text = "SALIR"
+		btn_stop_graphs.tooltip_text = "%s: opciones de salida" % HUDPlaybackLabels.key_label(key_stop_and_generate)
 	if btn_view_3d != null:
 		btn_view_3d.tooltip_text = "Alternar vista 3D"
 	if btn_first_person != null:
@@ -758,7 +858,30 @@ func _on_opening_fraction_button_pressed(open_fraction: float) -> void:
 
 
 func _on_stop_graphs_pressed() -> void:
-	stop_and_generate_requested.emit()
+	_popup_exit_options()
+
+
+func _popup_exit_options() -> void:
+	_ensure_exit_options_menu()
+	if exit_options_menu == null:
+		return
+	var graphs_index: int = exit_options_menu.get_item_index(EXIT_MENU_SAVE_GRAPHS)
+	if graphs_index >= 0:
+		exit_options_menu.set_item_disabled(graphs_index, not _can_stop_and_generate_graphs())
+	var popup_pos := Vector2i(32, 32)
+	if btn_stop_graphs != null:
+		var rect: Rect2 = btn_stop_graphs.get_global_rect()
+		popup_pos = Vector2i(int(rect.position.x), int(rect.position.y + rect.size.y + 4.0))
+	exit_options_menu.popup(Rect2i(popup_pos, Vector2i(0, 0)))
+
+
+func _on_exit_option_pressed(id: int) -> void:
+	match id:
+		EXIT_MENU_EXIT_ONLY:
+			exit_without_graphs_requested.emit()
+		EXIT_MENU_SAVE_GRAPHS:
+			if _can_stop_and_generate_graphs():
+				stop_and_generate_requested.emit()
 
 
 func _on_time_back_pressed() -> void:
@@ -807,37 +930,3 @@ func _on_hvac_pressed() -> void:
 	if btn_hvac == null:
 		return
 	hvac_toggled.emit(btn_hvac.button_pressed)
-
-
-# TODO(gameplay): handlers de paneles de acción táctica + victoria/derrota — descomentar cuando se implemente la UI de juego
-#func _on_water_btn_pressed(mode: String) -> void:
-#	var btn_map: Dictionary = {
-#		"aoe": btn_aoe, "def_ext": btn_def_ext,
-#		"off_int": btn_off_int, "def_in": btn_def_in
-#	}
-#	var active: bool = false
-#	if btn_map.has(mode) and btn_map[mode] != null:
-#		active = (btn_map[mode] as Button).button_pressed
-#	for m in btn_map.keys():
-#		if m != mode and btn_map[m] != null:
-#			(btn_map[m] as Button).set_pressed_no_signal(false)
-#	_active_water_mode = mode if active else ""
-#	water_mode_changed.emit(_active_water_mode)
-#
-#func _on_vent_btn_pressed(action: String) -> void:
-#	var btn: Button = null
-#	if action == "exutorio":
-#		btn = btn_exutorio
-#	elif action == "vpp":
-#		btn = btn_vpp
-#	if btn != null:
-#		vent_action_toggled.emit(action, btn.button_pressed)
-#
-#func _on_rescue_btn_pressed() -> void:
-#	rescue_requested.emit()
-#
-#func show_game_result(title: String, _message: String) -> void:
-#	if time_label != null:
-#		time_label.text = title
-#	if playback_status_label != null:
-#		playback_status_label.text = _message

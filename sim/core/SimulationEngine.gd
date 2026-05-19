@@ -403,6 +403,8 @@ var _active_suppression_by_room: Dictionary = {}
 # 0.35 = valor típico para combustibles sólidos (SFPE Handbook 3rd Ed. §3.4).
 @export var hrr_chi_rad_normal: float = 0.35
 @export var hrr_chi_rad_low_o2: float = 0.50
+## Fracción de χ_rad·HRR que se deposita directamente en paredes/techo (0 = todo a capa superior).
+@export var hrr_rad_wall_fraction: float = 0.0
 @export var retained_hot_layer_temp_start_c: float = 100.0
 @export var retained_hot_layer_temp_full_c: float = 350.0
 @export var retained_hot_layer_o2_start: float = 0.18
@@ -467,6 +469,8 @@ var _active_suppression_by_room: Dictionary = {}
 @export var fed_heat_rad_a: float = 1.33e4
 ## Factor de vista radiante: fracción del flujo radiante total que incide sobre la persona.
 @export var fed_heat_rad_view_factor: float = 0.20
+## Factor de vista para FED radiante cuando el ocupante está BAJO la capa caliente (ISO 13571 §5.4.3).
+@export var fed_heat_rad_view_factor_below: float = 0.35
 
 @export var layer_150c_relax_up_per_s: float = 0.01
 
@@ -522,6 +526,10 @@ var _conservation_max_violation_frac: float = -1.0
 # (upper/lower) en lugar de la temperatura superficial promedio de la pared.
 @export var wall_layer_aware_conduction: bool = false
 @export var wall_conduction_u_kw_m2_k: float = 0.0015
+## Fracción máxima de energía transferida por conducción por paso de tiempo (estabilidad numérica).
+@export var wall_conduction_max_fraction_per_step: float = 0.08
+## Tolerancia (m) para detectar paredes adyacentes entre salas vecinas.
+@export var wall_adjacency_tolerance_m: float = 0.10
 
 # ============================================================
 # VENTILACIÓN PULSANTE POR FUGAS EN VENTANAS
@@ -553,6 +561,10 @@ var _conservation_max_violation_frac: float = -1.0
 # Cuando un detector se activa, se registra un evento "detector_triggered" en
 # el log y se marca como triggered en building.detectors[].
 @export var detectors_enabled: bool = true
+# Víctimas/ocupantes definidos en la plantilla JSON.
+# Acumulan FED ISO 13571 a su altura respiratoria (height_m).
+# Al alcanzar FED ≥ 1.0 se marcan incapacitated y se registra el evento.
+@export var victims_enabled: bool = true
 # Modelo de jet de techo de Alpert (1972) para detectores de calor.
 # Calcula la temperatura del jet en la posición del detector a partir de la
 # potencia calorífica (HRR) y la distancia horizontal al penacho.
@@ -593,6 +605,10 @@ var _conservation_max_violation_frac: float = -1.0
 # Cuando > 0: bidireccional, neto = (source.o2 - target.o2) × gas_parcel_kg × coeff.
 # Rango útil: 0.10-0.50. No usar con moved_upper_gas_kg (tiene floor de 0.03 kg).
 @export var o2_smoke_carry_coeff: float = 0.0
+# Multiplicador del intercambio O2 por gradiente de concentración en _apply_background_species_exchange.
+# 0.0 = deshabilitado (default) — O2 room-to-room gestionado exclusivamente por OxygenExchangeSystem.
+# Evita el doble transporte de O2 entre sistemas. ghanekar_bedroom_hallway usa 3.0 (caso especial).
+@export var background_o2_exchange_multiplier: float = 0.0
 
 # ============================================================
 # AJUSTES DE HUMO (se copian al SmokeModel)
@@ -620,6 +636,10 @@ var _conservation_max_violation_frac: float = -1.0
 @export var plume_fill_max_fraction: float = 0.85
 @export var plume_mccaffrey_enabled: bool = true
 @export var plume_mccaffrey_qc_fraction: float = 0.70
+## Si true, el modelo de penacho aplica z_eff = plume_confined_z_eff_fraction * room.height_m.
+@export var plume_confined_flame_enabled: bool = true
+## Factor de escala de z_eff para penacho confinado (1.0 = altura física de la sala).
+@export var plume_confined_z_eff_fraction: float = 1.0
 @export var plume_fire_diameter_m: float = 1.0
 @export var plume_flame_region_entrainment_enabled: bool = false
 @export var plume_flame_region_coeff: float = 0.071
@@ -693,6 +713,8 @@ func _sync_auxiliary_services() -> void:
 		"wall_pde_enabled": wall_pde_enabled,
 		"wall_conduction_enabled": wall_conduction_enabled,
 		"wall_conduction_u_kw_m2_k": wall_conduction_u_kw_m2_k,
+		"wall_conduction_max_fraction_per_step": wall_conduction_max_fraction_per_step,
+		"wall_adjacency_tolerance_m": wall_adjacency_tolerance_m,
 		"max_upper_temp_c": max_upper_temp_c,
 		"upper_radiative_loss_enabled": upper_radiative_loss_enabled,
 		"upper_radiative_loss_start_c": upper_radiative_loss_start_c,
@@ -707,6 +729,7 @@ func _sync_auxiliary_services() -> void:
 		"upper_heat_capture_outside_open_bonus": upper_heat_capture_outside_open_bonus,
 		"hrr_chi_rad_normal": hrr_chi_rad_normal,
 		"hrr_chi_rad_low_o2": hrr_chi_rad_low_o2,
+		"hrr_rad_wall_fraction": hrr_rad_wall_fraction,
 		"retained_hot_layer_temp_start_c": retained_hot_layer_temp_start_c,
 		"retained_hot_layer_temp_full_c": retained_hot_layer_temp_full_c,
 		"retained_hot_layer_o2_start": retained_hot_layer_o2_start,
@@ -750,6 +773,8 @@ func _sync_auxiliary_services() -> void:
 		"interior_spill_start_layer_m": interior_spill_start_layer_m,
 		"plume_mccaffrey_enabled": plume_mccaffrey_enabled,
 		"plume_mccaffrey_qc_fraction": plume_mccaffrey_qc_fraction,
+		"plume_confined_flame_enabled": plume_confined_flame_enabled,
+		"plume_confined_z_eff_fraction": plume_confined_z_eff_fraction,
 		"plume_fire_diameter_m": plume_fire_diameter_m,
 		"plume_flame_region_entrainment_enabled": plume_flame_region_entrainment_enabled,
 		"plume_flame_region_coeff": plume_flame_region_coeff,
@@ -764,6 +789,7 @@ func _sync_auxiliary_services() -> void:
 		"fed_heat_conv_min_c": fed_heat_conv_min_c,
 		"fed_heat_rad_a": fed_heat_rad_a,
 		"fed_heat_rad_view_factor": fed_heat_rad_view_factor,
+		"fed_heat_rad_view_factor_below": fed_heat_rad_view_factor_below,
 		"radiation_opening_enabled": radiation_opening_enabled,
 		"radiation_flame_emissivity": radiation_flame_emissivity,
 		"radiation_opening_view_factor": radiation_opening_view_factor,
@@ -837,7 +863,8 @@ func _sync_auxiliary_services() -> void:
 		"door_deform_max_gap": door_deform_max_gap,
 		"natural_vent_inlet_fraction": natural_vent_inlet_fraction,
 		"vent_bernoulli_enabled": vent_bernoulli_enabled,
-		"o2_smoke_carry_coeff": o2_smoke_carry_coeff
+		"o2_smoke_carry_coeff": o2_smoke_carry_coeff,
+		"background_o2_exchange_multiplier": background_o2_exchange_multiplier
 	})
 	oxygen_exchange_system.configure({
 		"o2_nominal": o2_nominal,
@@ -1047,6 +1074,7 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	_targets.clear()
 	if building != null:
 		building.reset_detectors()
+		building.reset_victims()
 
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -1065,7 +1093,7 @@ func _reset_room_state(room: RoomModel) -> void:
 		return
 
 	var ambient_c: float = thermal_system.ambient_temp_c()
-	room.reset_dynamic_state(ambient_c, fire_o2_nominal)
+	room.reset_dynamic_state(ambient_c, o2_nominal)
 
 	for obj in room.fuel_objects:
 		if obj == null:
@@ -1127,6 +1155,7 @@ func step(delta: float) -> void:
 	fire_spread_system.step(dt, Callable(self, "ignite_room"))
 	_clamp_rooms(dt)
 	_step_detectors(dt)
+	_step_victims(dt)
 	_detect_and_log_opening_events()
 	_maybe_log_state()
 
@@ -1957,7 +1986,7 @@ func _clamp_rooms(dt: float) -> void:
 		if room == null:
 			continue
 
-		room.o2 = clampf(room.o2, 0.0, fire_o2_nominal)
+		room.o2 = clampf(room.o2, 0.0, o2_nominal)
 		room.h_layer_m = clampf(room.h_layer_m, 0.0, room.height_m)
 		room.thermal_layer_m = clampf(room.thermal_layer_m, 0.0, room.height_m)
 		room.layer_150c_m = clampf(room.layer_150c_m, 0.0, room.height_m)
@@ -2155,6 +2184,30 @@ func _step_detectors(_dt: float) -> void:
 					String(det.get("id", "?")), det_type, room_id, threshold
 				]
 			)
+
+
+func _step_victims(dt: float) -> void:
+	if not victims_enabled or building == null:
+		return
+	for vic in building.victims:
+		if bool(vic.get("incapacitated", false)):
+			continue
+		var room_id: int = int(vic.get("room_id", -1))
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+		var height_m: float = float(vic.get("height_m", 0.9))
+		var delta_fed: float = thermal_system.compute_fed_delta_for_height(room, dt, height_m)
+		if delta_fed > 0.0:
+			vic["fed"] = maxf(0.0, float(vic.get("fed", 0.0)) + delta_fed)
+			if float(vic.get("fed", 0.0)) >= 1.0:
+				vic["incapacitated"] = true
+				vic["incapacitated_at_s"] = sim_time_s
+				log_writer.append_event(
+					sim_time_s,
+					"victim_incapacitated",
+					"id=%s room=%d fed=%.4g" % [String(vic.get("id", "?")), room_id, float(vic.get("fed", 0.0))]
+				)
 
 
 ## Temperatura del jet de techo en la posición del detector según Alpert (1972).

@@ -1,0 +1,19 @@
+{
+    "metrics": {
+        "victim_v0_final_fed": {
+            "min": 0.7,
+            "_note": "Victima 0.9m sala fuego PU: FED ~0.98 a los 800s; confirma acumulacion FED via compute_fed_delta_for_height"
+        },
+        "room_0_peak_hrr_kw": {
+            "expected": 682.185520419288,
+            "tolerance": 200.0
+        },
+        "peak_co_ppm_global": {
+            "min": 1500.0,
+            "_note": "CO en sala de fuego por encima del umbral LC50/30min (~2300ppm) confirmado"
+        },
+        "smoke_generated_total_kg": {
+            "min": 5.0
+        }
+    }
+}

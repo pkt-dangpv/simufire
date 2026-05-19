@@ -28,6 +28,8 @@ var opening_index: int = -1
 var wall_side: String = ""
 var offset_m: float = 0.5
 var offset_is_fraction: bool = true
+var swing_direction: String = "in"
+var hinge_side: String = "left"
 
 # Fracción de apertura efectiva adicional por deformación térmica del marco.
 # Calculada cada paso por GasExchangeSystem según la temp. de la sala adyacente.
