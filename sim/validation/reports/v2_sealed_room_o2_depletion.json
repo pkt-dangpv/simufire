@@ -59,6 +59,7 @@
 	"case": "v2_sealed_room_o2_depletion",
 	"duration_s": 600.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 578.769294373741,
 		"opening_event_0_time_s": 300.000000000002,
 		"peak_co_ppm_global": 2933.96542025475,

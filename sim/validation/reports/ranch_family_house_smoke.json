@@ -44,6 +44,7 @@
 	"case": "ranch_family_house_smoke",
 	"duration_s": 700.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 882.790091387307,
 		"peak_co_ppm_global": 13456.2286716669,
 		"peak_co_upper_ppm_global": 111476.644415104,

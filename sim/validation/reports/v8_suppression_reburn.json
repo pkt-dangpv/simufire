@@ -35,6 +35,7 @@
 	"case": "v8_suppression_reburn",
 	"duration_s": 600.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 545.869805625799,
 		"opening_event_0_time_s": 300.000000000002,
 		"peak_co_ppm_global": 1679.17479953601,

@@ -36,6 +36,7 @@
 	"case": "co_oxidation_post_flashover",
 	"duration_s": 500.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 698.398112295087,
 		"peak_co_ppm_global": 6547.57873503888,
 		"peak_co_upper_ppm_global": 62145.9373278311,

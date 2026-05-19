@@ -37,6 +37,7 @@
 	"case": "hrr_tabulated_curve_sofa",
 	"duration_s": 600.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 675.66567642426,
 		"peak_co_ppm_global": 5898.48791667894,
 		"peak_co_upper_ppm_global": 37017.2400892241,

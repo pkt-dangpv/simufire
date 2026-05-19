@@ -38,6 +38,7 @@
 	"case": "char_layer_loi_wood",
 	"duration_s": 600.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 435.462411267656,
 		"peak_co_ppm_global": 4720.69409115607,
 		"peak_co_upper_ppm_global": 35664.0257059974,

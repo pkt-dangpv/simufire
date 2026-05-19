@@ -36,6 +36,7 @@
 	"case": "g3_gie_ppv_post_knockdown",
 	"duration_s": 600.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 587.63970202535,
 		"opening_event_0_time_s": 250.000000000011,
 		"opening_event_1_time_s": 250.000000000011,

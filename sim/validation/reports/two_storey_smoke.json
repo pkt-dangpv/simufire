@@ -68,6 +68,7 @@
 	"case": "two_storey_smoke",
 	"duration_s": 300.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 612.259003678044,
 		"peak_co_ppm_global": 5199.90520327563,
 		"peak_co_upper_ppm_global": 60413.8176360693,

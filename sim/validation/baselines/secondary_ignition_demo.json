@@ -1,0 +1,35 @@
+{
+	"_comment": "Baseline para secondary_ignition_demo. SF-R-2026-05-18.",
+	"_comment2": "Objetivo: verificar que pirolisis Tewarson y auto-ignicion secundaria funcionan en pasillo.",
+	"_comment3": "Restricciones tipo 'min' para robustez ante variaciones numericas menores.",
+	"metrics": {
+		"room_1_peak_hrr_kw": {
+			"comment": "El incendio secundario en pasillo debe desarrollarse. Observado 310 kW.",
+			"min": 50.0
+		},
+		"room_1_max_fuel_objects_pyrolyzing_count": {
+			"comment": "Al menos 1 objeto en estado PYROLYZING en pasillo (pirolisis Tewarson activa).",
+			"min": 1
+		},
+		"room_1_max_fuel_objects_flaming_count": {
+			"comment": "Al menos 1 objeto en estado FLAMING en pasillo (auto-ignicion confirmada). Observado 2.",
+			"min": 1
+		},
+		"time_room_1_hrr_above_20_s": {
+			"comment": "El pasillo debe ignitar antes de t=600s. Observado 222s.",
+			"max": 600.0
+		},
+		"room_0_peak_temp_upper_c": {
+			"comment": "El salon debe superar flashover (>600C). Observado 697C.",
+			"min": 500.0
+		},
+		"room_0_min_l150_m": {
+			"comment": "La capa 150C en salon debe descender a menos de 0.5m (realismo de capa). Observado 0.16m.",
+			"max": 0.5
+		},
+		"room_1_peak_temp_upper_c": {
+			"comment": "La capa superior del pasillo debe superar 200C para activar pirolisis. Observado 332C.",
+			"min": 150.0
+		}
+	}
+}

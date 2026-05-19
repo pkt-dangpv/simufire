@@ -36,6 +36,7 @@
 	"case": "g1_gie_confinement_attack",
 	"duration_s": 500.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 512.425883145599,
 		"opening_event_0_time_s": 300.000000000002,
 		"peak_co_ppm_global": 3311.6115438113,

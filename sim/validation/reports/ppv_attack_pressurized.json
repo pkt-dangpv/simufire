@@ -55,6 +55,7 @@
 	"case": "ppv_attack_pressurized",
 	"duration_s": 700.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 476.994833055622,
 		"opening_event_0_time_s": 215.000000000007,
 		"opening_event_1_time_s": 215.000000000007,

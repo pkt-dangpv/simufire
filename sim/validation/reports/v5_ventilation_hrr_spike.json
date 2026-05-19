@@ -37,6 +37,7 @@
 	"case": "v5_ventilation_hrr_spike",
 	"duration_s": 600.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 422.397860447624,
 		"opening_event_0_time_s": 120.083333333331,
 		"peak_co_ppm_global": 3133.73832946119,

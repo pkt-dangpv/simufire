@@ -63,6 +63,7 @@
 	"case": "tc_array_iso9705",
 	"duration_s": 300.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 422.682343060005,
 		"peak_co_ppm_global": 4964.18013354134,
 		"peak_co_upper_ppm_global": 39751.4426447913,

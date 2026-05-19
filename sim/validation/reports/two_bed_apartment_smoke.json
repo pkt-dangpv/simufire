@@ -52,6 +52,7 @@
 	"case": "two_bed_apartment_smoke",
 	"duration_s": 700.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 523.702923856184,
 		"peak_co_ppm_global": 10194.9980082795,
 		"peak_co_upper_ppm_global": 89911.5431324065,

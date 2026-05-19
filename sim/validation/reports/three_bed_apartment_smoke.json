@@ -44,6 +44,7 @@
 	"case": "three_bed_apartment_smoke",
 	"duration_s": 700.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 663.222654677739,
 		"peak_co_ppm_global": 10436.5162424699,
 		"peak_co_upper_ppm_global": 90510.6553306117,

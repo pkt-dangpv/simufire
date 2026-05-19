@@ -52,6 +52,7 @@
 	"case": "pu_sofa_fec_incapacitation",
 	"duration_s": 800.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 487.197932689904,
 		"peak_co_ppm_global": 5858.55934380466,
 		"peak_co_upper_ppm_global": 35197.3833500889,

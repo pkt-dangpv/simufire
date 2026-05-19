@@ -1,0 +1,129 @@
+{
+	"_comment": "Demo de pirolisis fisica (Tewarson) e igniciones secundarias por propagacion termica. SF-R-2026-05-18.",
+	"_comment2": "Incendio en salon (room 0) → calenta la capa superior del pasillo (room 1) → objetos del pasillo pirolicen y se auto-ignitan.",
+	"template": "simple_house",
+	"duration_s": 900.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 0,
+	"enable_logging": false,
+	"watch_room_ids": [0, 1],
+	"smoke_trigger_room_id": 0,
+	"spread_target_room_id": 1,
+	"l150_room_id": 0,
+	"threshold_metrics": [
+		{
+			"metric_name": "time_room_1_hrr_above_20_s",
+			"field": "hrr_kw",
+			"room_id": 1,
+			"op": ">=",
+			"value": 20.0
+		},
+		{
+			"metric_name": "time_room_1_hrr_above_200_s",
+			"field": "hrr_kw",
+			"room_id": 1,
+			"op": ">=",
+			"value": 200.0
+		},
+		{
+			"metric_name": "time_room_0_l150_below_1_8m_s",
+			"field": "layer_150c_m",
+			"room_id": 0,
+			"op": "<=",
+			"value": 1.8
+		},
+		{
+			"metric_name": "time_room_1_temp_above_200c_s",
+			"field": "temp_upper_c",
+			"room_id": 1,
+			"op": ">=",
+			"value": 200.0
+		}
+	],
+	"room_overrides": [
+		{
+			"id": 1,
+			"fuel_objects": [
+				{
+					"_comment": "Alfombra de pasillo — base PU. Baja temperatura de ignicion, alta energia por kg. SFPE PU flexible.",
+					"id": "pasillo_alfombra_pu",
+					"name": "Alfombra PU pasillo",
+					"kind": "textiles",
+					"position_m": {"x": 0.1, "y": 2.0},
+					"size_m": {"x": 1.3, "y": 3.0},
+					"footprint_m2": 3.9,
+					"exposed_area_m2": 3.9,
+					"elevation_m": 0.02,
+					"fuel_energy_MJ": 400.0,
+					"max_hrr_kw": 250.0,
+					"ignition_temp_c": 290.0,
+					"ignition_flux_kw_m2": 10.0,
+					"critical_heat_flux_kw_m2": 10.0,
+					"heat_of_gasification_kj_kg": 1300.0,
+					"heat_of_combustion_kj_kg": 26200.0,
+					"smoke_yield_kg_per_MJ": 0.022,
+					"co_yield_kg_per_MJ": 0.0010,
+					"hcn_yield_kg_per_MJ": 0.00020
+				},
+				{
+					"_comment": "Mueble recibidor — madera seca. Valores ASTM E1354 madera.",
+					"id": "pasillo_mueble_madera",
+					"name": "Mueble recibidor madera",
+					"kind": "mobiliario_madera",
+					"position_m": {"x": 0.1, "y": 0.3},
+					"size_m": {"x": 0.7, "y": 0.7},
+					"footprint_m2": 0.5,
+					"exposed_area_m2": 1.2,
+					"elevation_m": 0.8,
+					"fuel_energy_MJ": 300.0,
+					"max_hrr_kw": 150.0,
+					"ignition_temp_c": 300.0,
+					"ignition_flux_kw_m2": 12.5,
+					"critical_heat_flux_kw_m2": 12.5,
+					"heat_of_gasification_kj_kg": 640.0,
+					"heat_of_combustion_kj_kg": 17500.0,
+					"smoke_yield_kg_per_MJ": 0.008,
+					"co_yield_kg_per_MJ": 0.00025,
+					"char_growth_rate_m_per_kg": 0.0025,
+					"k_char_kw_m_k": 0.0001,
+					"loi_fraction": 0.18
+				},
+				{
+					"_comment": "Otros contenidos del pasillo — madera mixta.",
+					"id": "pasillo_resto_madera",
+					"name": "Contenido pasillo mixto",
+					"kind": "mobiliario_madera",
+					"position_m": {"x": 0.1, "y": 4.5},
+					"size_m": {"x": 1.2, "y": 2.2},
+					"footprint_m2": 2.6,
+					"exposed_area_m2": 3.0,
+					"elevation_m": 0.5,
+					"fuel_energy_MJ": 500.0,
+					"max_hrr_kw": 300.0,
+					"ignition_temp_c": 295.0,
+					"ignition_flux_kw_m2": 12.0,
+					"critical_heat_flux_kw_m2": 12.0,
+					"heat_of_gasification_kj_kg": 640.0,
+					"heat_of_combustion_kj_kg": 17500.0,
+					"smoke_yield_kg_per_MJ": 0.009,
+					"co_yield_kg_per_MJ": 0.00025,
+					"char_growth_rate_m_per_kg": 0.0020,
+					"k_char_kw_m_k": 0.0001,
+					"loi_fraction": 0.18
+				}
+			]
+		}
+	],
+	"engine_overrides": {
+		"time_scale": 5.0,
+		"fire_spread_enabled": true,
+		"passive_room_autoignite_enabled": true,
+		"glass_auto_break_enabled": false,
+		"fire_alpha_kw_s2": 0.12,
+		"fire_o2_min_for_flame": 0.10,
+		"fire_secondary_hrr_gain_kw": 2500.0,
+		"fire_latent_o2_viable_margin": 0.008,
+		"fire_extinction_delay_s": 240.0,
+		"fire_latent_extinction_delay_s": 300.0
+	}
+}

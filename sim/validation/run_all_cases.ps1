@@ -74,6 +74,8 @@ $cases = @(
 	"tc_array_iso9705",
 	# SF-AUD-032: balance elemental de carbono C/H/O/N (clamp conservación)
 	"c_balance_high_phi",
+	# SF-R-2026-05-18: pirolisis Tewarson + ignicion secundaria por propagacion termica
+	"secondary_ignition_demo",
 	"two_storey_smoke",
 	# SF-R6 Phase 3: conservación de transporte de contaminantes (residual ~0)
 	"conservation_transport"

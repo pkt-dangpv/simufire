@@ -45,6 +45,7 @@
 	"case": "v7_underventilated_co_peak",
 	"duration_s": 600.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 425.838512260245,
 		"peak_co_ppm_global": 3867.49479804203,
 		"peak_co_upper_ppm_global": 33910.0296482481,

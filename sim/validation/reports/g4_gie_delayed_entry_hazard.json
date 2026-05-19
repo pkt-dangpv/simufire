@@ -45,6 +45,7 @@
 	"case": "g4_gie_delayed_entry_hazard",
 	"duration_s": 500.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 647.411325123467,
 		"peak_co_ppm_global": 12550.5499124275,
 		"peak_co_upper_ppm_global": 83183.8977132265,

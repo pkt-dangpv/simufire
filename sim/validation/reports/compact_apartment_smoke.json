@@ -44,6 +44,7 @@
 	"case": "compact_apartment_smoke",
 	"duration_s": 600.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 591.837902745445,
 		"peak_co_ppm_global": 10403.9070480927,
 		"peak_co_upper_ppm_global": 78609.4919823939,

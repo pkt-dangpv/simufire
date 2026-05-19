@@ -40,8 +40,12 @@ var hot_gas_hcn_carry_fraction: float = 0.0
 var hot_gas_irritant_carry_fraction: float = 0.0
 
 # Parámetros térmicos
-var upper_to_lower_loss_rate: float = 0.025
-var upper_to_ambient_loss_rate: float = 0.008
+# SF-R-2026-05-18: reducidos de 0.025→0.013 y 0.008→0.004 para mejorar
+# realismo de la capa caliente. Las tasas empíricas anteriores enfriaban
+# artificialmente la zona superior (CFAST no tiene estos términos explícitos),
+# manteniendo la densidad del gas alta y la capa de interfaz demasiado alta.
+var upper_to_lower_loss_rate: float = 0.013
+var upper_to_ambient_loss_rate: float = 0.004
 var lower_layer_warming_rate: float = 0.012
 # Altura umbral de la zona inferior por debajo de la cual la transferencia upper→lower
 # se atenúa linealmente hasta cero. Cuando la capa caliente desciende a nivel de
@@ -869,13 +873,12 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		var _src_upper_w: float = clampf(0.18 + (_src_w_max - 0.18) * _src_intensity, 0.18, _src_w_max)
 		var source_mix_temp_c: float = lerpf(hot_room.temp_lower_c, hot_room.temp_upper_c, _src_upper_w)
 		var energy_moved_kj: float = gas_moved_kg * maxf(0.0, source_mix_temp_c - ambient_c)
-		energy_moved_kj = minf(energy_moved_kj, hot_room.upper_energy_kj)
+		energy_moved_kj = minf(energy_moved_kj, maxf(0.0, hot_room.upper_energy_kj))
 
-		hot_room.upper_gas_kg -= gas_moved_kg
+		hot_room.upper_gas_kg = maxf(0.0, hot_room.upper_gas_kg - gas_moved_kg)
+		cold_room.upper_gas_kg = maxf(0.0, cold_room.upper_gas_kg + gas_moved_kg)
 		hot_room.upper_energy_kj = maxf(0.0, hot_room.upper_energy_kj - energy_moved_kj)
-
-		cold_room.upper_gas_kg += gas_moved_kg
-		cold_room.upper_energy_kj += energy_moved_kj
+		cold_room.upper_energy_kj = maxf(0.0, cold_room.upper_energy_kj + energy_moved_kj)
 		_transfer_hot_gas_contaminants(
 			hot_room,
 			cold_room,
@@ -885,11 +888,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		)
 
 		# SF-R6: ZoneFireSolver — escribe la masa resuelta en el cache para downstream.
-		# GasExchangeSystem y OxygenExchangeSystem pueden leer estos valores en fases 2-3.
 		flow_state["zone_resolved_upper_mass_kg"] = gas_moved_kg
 		flow_state["zone_resolved_hot_room_id"] = hot_room.id
 		flow_state["zone_resolved_cold_room_id"] = cold_room.id
-
 		sync_room_upper_layer(hot_room, dt)
 		sync_room_upper_layer(cold_room, dt)
 		_apply_post_transfer_vertical_mix(hot_room, dt)

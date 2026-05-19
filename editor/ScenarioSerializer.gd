@@ -83,7 +83,9 @@ static func to_runtime_template(editor_data: Dictionary) -> Dictionary:
 		"rooms_data": rooms_data,
 		"openings_data": openings_data,
 		"hvac_mode": String(data.get("hvac_mode", "none")),
-		"hvac_data": Dictionary(data.get("hvac_data", {})).duplicate(true)
+		"hvac_data": Dictionary(data.get("hvac_data", {})).duplicate(true),
+		"detectors": Array(data.get("detectors", [])).duplicate(true),
+		"victims": Array(data.get("victims", [])).duplicate(true)
 	}
 
 
@@ -98,7 +100,9 @@ static func to_runtime_json_data(editor_data: Dictionary) -> Dictionary:
 		"rooms_data": Array(data.get("rooms_data", [])).duplicate(true),
 		"openings_data": Array(data.get("openings_data", [])).duplicate(true),
 		"hvac_mode": String(data.get("hvac_mode", "none")),
-		"hvac_data": Dictionary(data.get("hvac_data", {})).duplicate(true)
+		"hvac_data": Dictionary(data.get("hvac_data", {})).duplicate(true),
+		"detectors": Array(data.get("detectors", [])).duplicate(true),
+		"victims": Array(data.get("victims", [])).duplicate(true)
 	}
 
 
@@ -154,6 +158,32 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 		if typeof(raw_opening) == TYPE_DICTIONARY:
 			openings.append(normalize_opening(Dictionary(raw_opening)))
 	data["openings_data"] = openings
+
+	var detectors: Array = []
+	for raw_det in data.get("detectors", []):
+		if typeof(raw_det) == TYPE_DICTIONARY:
+			var det: Dictionary = Dictionary(raw_det).duplicate(true)
+			det["id"] = String(det.get("id", ""))
+			det["room_id"] = int(det.get("room_id", -1))
+			det["type"] = String(det.get("type", "smoke"))
+			det["threshold"] = float(det.get("threshold", 0.025))
+			det["x_m"] = float(det.get("x_m", 0.0))
+			det["y_m"] = float(det.get("y_m", 0.0))
+			detectors.append(det)
+	data["detectors"] = detectors
+
+	var victims: Array = []
+	for raw_vic in data.get("victims", []):
+		if typeof(raw_vic) == TYPE_DICTIONARY:
+			var vic: Dictionary = Dictionary(raw_vic).duplicate(true)
+			vic["id"] = String(vic.get("id", ""))
+			vic["room_id"] = int(vic.get("room_id", -1))
+			vic["name"] = String(vic.get("name", ""))
+			vic["x_m"] = float(vic.get("x_m", 0.0))
+			vic["y_m"] = float(vic.get("y_m", 0.0))
+			victims.append(vic)
+	data["victims"] = victims
+
 	return data
 
 

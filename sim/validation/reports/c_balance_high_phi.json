@@ -40,6 +40,7 @@
 	"case": "c_balance_high_phi",
 	"duration_s": 400.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 675.665676425182,
 		"peak_co_ppm_global": 7571.99492072241,
 		"peak_co_upper_ppm_global": 76266.1512340336,

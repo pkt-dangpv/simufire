@@ -11,7 +11,9 @@ enum Tool {
 	WINDOW,
 	OBJECT,
 	IGNITION,
-	DELETE
+	DELETE,
+	DETECTOR,
+	VICTIM
 }
 
 const PIXELS_PER_METER: float = 64.0
@@ -64,6 +66,8 @@ var selected_room_id: int = -1
 var selected_opening_index: int = -1
 var selected_object_room_id: int = -1
 var selected_object_index: int = -1
+var selected_detector_index: int = -1
+var selected_victim_index: int = -1
 
 var is_dragging_room: bool = false
 var drag_start_m: Vector2 = Vector2.ZERO
@@ -116,6 +120,14 @@ var _opening_width_spin: SpinBox
 var _opening_height_spin: SpinBox
 var _opening_sill_spin: SpinBox
 var _opening_open_option: OptionButton
+# Propiedades de detector seleccionado
+var _detector_props_container: Control
+var _detector_type_option: OptionButton
+var _detector_threshold_spin: SpinBox
+var _detector_id_edit: LineEdit
+# Propiedades de victima seleccionada
+var _victim_props_container: Control
+var _victim_name_edit: LineEdit
 
 var _room_fill: Color = Color(0.05, 0.07, 0.09, 0.72)
 var _room_selected_fill: Color = Color(0.08, 0.14, 0.16, 0.84)
@@ -131,6 +143,10 @@ var _window_color: Color = UI_BLUE
 var _object_color: Color = Color(1.00, 0.25, 0.00, 0.86)
 var _object_selected_color: Color = UI_YELLOW
 var _ignition_color: Color = Color(1.00, 0.08, 0.02, 0.98)
+var _detector_smoke_color: Color = Color(0.20, 0.65, 1.00, 0.95)
+var _detector_heat_color: Color = Color(1.00, 0.45, 0.10, 0.95)
+var _detector_co_color: Color = Color(0.95, 0.92, 0.20, 0.95)
+var _victim_color: Color = Color(0.25, 0.95, 0.45, 0.95)
 
 var _editor_theme: Theme
 var _editor_font: Font
@@ -145,6 +161,12 @@ const _CTX_IGNITE    := 5
 const _CTX_DUPLICATE := 6
 const _CTX_DESELECT  := 7
 const _CTX_ADD_HOLE  := 8
+# ── Tolerancias para detección de paredes adyacentes / solapadas ──────────
+const _CONN_GAP_TOL: float = 0.30       # brecha máxima entre paredes (m)
+const _CONN_OVERLAP_FRAC: float = 0.85  # solapamiento máximo (fracción de dim menor)
+const _CONN_MIN_SHARED: float = 0.20    # longitud mínima de pared compartida (m)
+const _CONN_CLICK_TOL: float = 0.40     # radio de clic para detectar pared (m)
+
 var _context_menu: PopupMenu = null
 var _ctx_pos_m: Vector2 = Vector2.ZERO
 var _ctx_room_id: int = -1
@@ -398,7 +420,9 @@ func _create_empty_scenario() -> void:
 		"floors": _default_floors(),
 		"room_rect_m": {},
 		"rooms_data": [],
-		"openings_data": []
+		"openings_data": [],
+		"detectors": [],
+		"victims": []
 	}
 	current_floor_index = 0
 
@@ -449,6 +473,8 @@ func _setup_ui() -> void:
 	_add_tool_button(toolbar, "Object", Tool.OBJECT)
 	_add_tool_button(toolbar, "Ignite", Tool.IGNITION)
 	_add_tool_button(toolbar, "Del", Tool.DELETE)
+	_add_tool_button(toolbar, "Detect.", Tool.DETECTOR)
+	_add_tool_button(toolbar, "Vict.", Tool.VICTIM)
 
 	_create_floor_controls(main)
 	main.add_child(HSeparator.new())
@@ -569,6 +595,67 @@ func _setup_ui() -> void:
 	apply_opening_button.text = "Aplicar apertura"
 	apply_opening_button.pressed.connect(_apply_opening_properties)
 	_opening_props_container.add_child(apply_opening_button)
+
+	main.add_child(HSeparator.new())
+
+	# --- Propiedades del detector seleccionado ---
+	var det_title := Label.new()
+	det_title.text = "Propiedades del detector"
+	main.add_child(det_title)
+
+	_detector_props_container = VBoxContainer.new()
+	_detector_props_container.add_theme_constant_override("separation", 4)
+	main.add_child(_detector_props_container)
+
+	_detector_id_edit = _add_line_edit(_detector_props_container, "ID")
+
+	var det_type_row := HBoxContainer.new()
+	_detector_props_container.add_child(det_type_row)
+	var det_type_label := Label.new()
+	det_type_label.text = "Tipo"
+	det_type_label.custom_minimum_size.x = 96.0
+	det_type_row.add_child(det_type_label)
+	_detector_type_option = OptionButton.new()
+	_detector_type_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_detector_type_option.add_item("Humo", 0)
+	_detector_type_option.add_item("Calor", 1)
+	_detector_type_option.add_item("CO", 2)
+	det_type_row.add_child(_detector_type_option)
+
+	_detector_threshold_spin = _add_spin(_detector_props_container, "Umbral", 0.0, 10000.0, 0.001)
+
+	var apply_det_button := Button.new()
+	apply_det_button.text = "Aplicar detector"
+	apply_det_button.pressed.connect(_apply_detector_properties)
+	_detector_props_container.add_child(apply_det_button)
+
+	var delete_det_button := Button.new()
+	delete_det_button.text = "Borrar detector (Del)"
+	delete_det_button.pressed.connect(_delete_selected)
+	_detector_props_container.add_child(delete_det_button)
+
+	main.add_child(HSeparator.new())
+
+	# --- Propiedades de la victima seleccionada ---
+	var vic_title := Label.new()
+	vic_title.text = "Propiedades de la victima"
+	main.add_child(vic_title)
+
+	_victim_props_container = VBoxContainer.new()
+	_victim_props_container.add_theme_constant_override("separation", 4)
+	main.add_child(_victim_props_container)
+
+	_victim_name_edit = _add_line_edit(_victim_props_container, "Nombre")
+
+	var apply_vic_button := Button.new()
+	apply_vic_button.text = "Aplicar victima"
+	apply_vic_button.pressed.connect(_apply_victim_properties)
+	_victim_props_container.add_child(apply_vic_button)
+
+	var delete_vic_button := Button.new()
+	delete_vic_button.text = "Borrar victima (Del)"
+	delete_vic_button.pressed.connect(_delete_selected)
+	_victim_props_container.add_child(delete_vic_button)
 
 	main.add_child(HSeparator.new())
 
@@ -962,6 +1049,10 @@ func _tool_hint(tool_id: int) -> String:
 			return "Ignicion: pulsa un objeto de %s para marcarlo como foco inicial." % _current_floor_name()
 		Tool.DELETE:
 			return "Borrar: elimina objeto, apertura o estancia bajo el cursor en %s." % _current_floor_name()
+		Tool.DETECTOR:
+			return "Detector: pulsa dentro de una habitacion de %s para colocar un detector de humo, calor o CO." % _current_floor_name()
+		Tool.VICTIM:
+			return "Victima: pulsa dentro de una habitacion de %s para marcar la posicion de una victima." % _current_floor_name()
 	return ""
 
 
@@ -1059,6 +1150,10 @@ func _handle_press(pos_m: Vector2) -> void:
 			_mark_ignition_at(pos_m)
 		Tool.DELETE:
 			_delete_at(pos_m)
+		Tool.DETECTOR:
+			_create_detector_at(pos_m)
+		Tool.VICTIM:
+			_create_victim_at(pos_m)
 
 
 func _handle_release(pos_m: Vector2) -> void:
@@ -1097,7 +1192,7 @@ func _handle_release(pos_m: Vector2) -> void:
 		queue_redraw()
 		return
 
-	var room_id: int = _create_room(rect)
+	var room_id: int = _create_room(_snap_rect_to_adjacent_rooms(rect))
 	_select_room(room_id)
 	_set_status("Habitacion %d creada." % room_id)
 	queue_redraw()
@@ -1391,13 +1486,13 @@ func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
 	var base_name: String = "Pasillo %d" % base_id
 	var mode: String = String(layout.get("mode", "straight"))
 	if mode == "straight":
-		var corridor_id: int = _create_room(Rect2(rects[0]), base_name, "corridor")
+		var corridor_id: int = _create_room(_snap_rect_to_adjacent_rooms(Rect2(rects[0])), base_name, "corridor")
 		_select_room(corridor_id)
 		_set_status("%s creado como tramo recto de %.2f m." % [base_name, float(layout.get("length_m", 0.0))])
 		return
 
-	var first_id: int = _create_room(Rect2(rects[0]), "%s tramo A" % base_name, "corridor")
-	var second_id: int = _create_room(Rect2(rects[1]), "%s tramo B" % base_name, "corridor")
+	var first_id: int = _create_room(_snap_rect_to_adjacent_rooms(Rect2(rects[0])), "%s tramo A" % base_name, "corridor")
+	var second_id: int = _create_room(_snap_rect_to_adjacent_rooms(Rect2(rects[1])), "%s tramo B" % base_name, "corridor")
 	var shared: Dictionary = _shared_wall_between(first_id, second_id)
 	if not shared.is_empty():
 		var max_width_m: float = _max_opening_width_for_shared(first_id, second_id, String(shared["wall"]))
@@ -1418,6 +1513,47 @@ func _create_corridor_from_drag(start_m: Vector2, end_m: Vector2) -> void:
 
 func _create_l_corridor(start_m: Vector2, end_m: Vector2) -> void:
 	_create_corridor_from_drag(start_m, end_m)
+
+
+# Ajusta cada arista del rect para que se pegue a las paredes de habitaciones
+# vecinas dentro de _CONN_GAP_TOL.  Preserva el tamaño mínimo (GRID_M × 2).
+func _snap_rect_to_adjacent_rooms(rect: Rect2) -> Rect2:
+	var min_size: float = GRID_M * 2.0
+	var left: float   = rect.position.x
+	var right: float  = rect.position.x + rect.size.x
+	var top: float    = rect.position.y
+	var bottom: float = rect.position.y + rect.size.y
+
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		if not _is_room_on_current_floor(room):
+			continue
+		var r: Rect2 = _get_room_rect(int(room.get("id", -1)))
+		var r_right:  float = r.position.x + r.size.x
+		var r_bottom: float = r.position.y + r.size.y
+
+		# ── Eje X: requiere solape vertical suficiente ──
+		var y_overlap: float = minf(bottom, r_bottom) - maxf(top, r.position.y)
+		if y_overlap >= _CONN_MIN_SHARED:
+			# Arista izquierda del nuevo rect → arista derecha de sala existente
+			if absf(left - r_right) < _CONN_GAP_TOL and right - r_right >= min_size:
+				left = r_right
+			# Arista derecha del nuevo rect → arista izquierda de sala existente
+			if absf(right - r.position.x) < _CONN_GAP_TOL and r.position.x - left >= min_size:
+				right = r.position.x
+
+		# ── Eje Y: requiere solape horizontal suficiente ──
+		var x_overlap: float = minf(right, r_right) - maxf(left, r.position.x)
+		if x_overlap >= _CONN_MIN_SHARED:
+			# Arista superior del nuevo rect → arista inferior de sala existente
+			if absf(top - r_bottom) < _CONN_GAP_TOL and bottom - r_bottom >= min_size:
+				top = r_bottom
+			# Arista inferior del nuevo rect → arista superior de sala existente
+			if absf(bottom - r.position.y) < _CONN_GAP_TOL and r.position.y - top >= min_size:
+				bottom = r.position.y
+
+	return Rect2(Vector2(left, top), Vector2(maxf(min_size, right - left), maxf(min_size, bottom - top)))
 
 
 func _build_corridor_layout(start_m: Vector2, end_m: Vector2) -> Dictionary:
@@ -1499,6 +1635,16 @@ func _next_object_id() -> String:
 
 
 func _select_at(pos_m: Vector2) -> void:
+	var det_index: int = _find_detector_at(pos_m)
+	if det_index >= 0:
+		_select_detector(det_index)
+		return
+
+	var vic_index: int = _find_victim_at(pos_m)
+	if vic_index >= 0:
+		_select_victim(vic_index)
+		return
+
 	var hit_obj: Dictionary = _find_object_at(pos_m)
 	if not hit_obj.is_empty():
 		_select_object(int(hit_obj["room_id"]), int(hit_obj["object_index"]))
@@ -1523,6 +1669,8 @@ func _select_room(room_id: int) -> void:
 	selected_opening_index = -1
 	selected_object_room_id = -1
 	selected_object_index = -1
+	selected_detector_index = -1
+	selected_victim_index = -1
 	_refresh_property_panel()
 	_set_status("Seleccionada habitacion %d." % room_id)
 	queue_redraw()
@@ -1533,6 +1681,8 @@ func _select_opening(index: int) -> void:
 	selected_opening_index = index
 	selected_object_room_id = -1
 	selected_object_index = -1
+	selected_detector_index = -1
+	selected_victim_index = -1
 	_refresh_property_panel()
 	var opening: Dictionary = Array(editor_data.get("openings_data", []))[index]
 	_set_status("Seleccionada apertura %d (%s)." % [index, String(opening.get("type", "door"))])
@@ -1544,6 +1694,8 @@ func _select_object(room_id: int, object_index: int) -> void:
 	selected_opening_index = -1
 	selected_object_room_id = room_id
 	selected_object_index = object_index
+	selected_detector_index = -1
+	selected_victim_index = -1
 	_refresh_property_panel()
 	var obj: Dictionary = _get_object(room_id, object_index)
 	_set_status("Seleccionado objeto %s." % String(obj.get("name", obj.get("id", ""))))
@@ -1555,6 +1707,8 @@ func _clear_selection() -> void:
 	selected_opening_index = -1
 	selected_object_room_id = -1
 	selected_object_index = -1
+	selected_detector_index = -1
+	selected_victim_index = -1
 	_refresh_property_panel()
 
 
@@ -1565,6 +1719,8 @@ func _refresh_property_panel() -> void:
 	var has_obj: bool = selected_object_room_id >= 0 and selected_object_index >= 0
 	var room: Dictionary = _get_room(selected_room_id)
 	var has_room: bool = not room.is_empty()
+	var has_detector: bool = selected_detector_index >= 0
+	var has_victim: bool = selected_victim_index >= 0
 
 	# Panel habitación
 	_name_edit.editable = has_room
@@ -1629,6 +1785,29 @@ func _refresh_property_panel() -> void:
 			var frac: float = float(opening.get("open_fraction", 1.0))
 			_opening_open_option.disabled = op_type == "hole"
 			_opening_open_option.select(0 if frac <= 0.01 else 1)
+
+	if _detector_props_container != null:
+		_detector_props_container.visible = has_detector
+	if has_detector:
+		var dets: Array = editor_data.get("detectors", [])
+		if selected_detector_index < dets.size():
+			var det: Dictionary = dets[selected_detector_index]
+			if _detector_id_edit != null:
+				_detector_id_edit.text = String(det.get("id", ""))
+			if _detector_type_option != null:
+				var det_type: String = String(det.get("type", "smoke"))
+				_detector_type_option.selected = 0 if det_type == "smoke" else (1 if det_type == "heat" else 2)
+			if _detector_threshold_spin != null:
+				_detector_threshold_spin.value = float(det.get("threshold", 0.025))
+
+	if _victim_props_container != null:
+		_victim_props_container.visible = has_victim
+	if has_victim:
+		var vics: Array = editor_data.get("victims", [])
+		if selected_victim_index < vics.size():
+			var vic: Dictionary = vics[selected_victim_index]
+			if _victim_name_edit != null:
+				_victim_name_edit.text = String(vic.get("name", ""))
 
 
 func _set_property_panel_visibility(has_room: bool, has_obj: bool, has_opening: bool) -> void:
@@ -1862,6 +2041,169 @@ func _mark_ignition_at(pos_m: Vector2) -> void:
 	editor_data["rooms_data"] = rooms
 	_select_object(target_room_id, target_index)
 	_set_status("Foco inicial marcado.")
+	queue_redraw()
+
+
+func _next_detector_id() -> String:
+	return "det_%03d" % (Array(editor_data.get("detectors", [])).size() + 1)
+
+
+func _next_victim_id() -> String:
+	return "vic_%03d" % (Array(editor_data.get("victims", [])).size() + 1)
+
+
+func _create_detector_at(pos_m: Vector2) -> void:
+	var room_id: int = _find_room_at(pos_m)
+	if room_id < 0:
+		_set_status("Pulsa dentro de una habitacion para colocar un detector.")
+		return
+	var room_rect: Rect2 = _get_room_rect(room_id)
+	var local_pos: Vector2 = pos_m - room_rect.position
+	local_pos.x = clampf(snappedf(local_pos.x, GRID_M), 0.0, maxf(0.0, room_rect.size.x))
+	local_pos.y = clampf(snappedf(local_pos.y, GRID_M), 0.0, maxf(0.0, room_rect.size.y))
+	var dets: Array = editor_data.get("detectors", [])
+	var new_id: String = _next_detector_id()
+	dets.append({
+		"id": new_id,
+		"room_id": room_id,
+		"type": "smoke",
+		"threshold": 0.025,
+		"x_m": local_pos.x,
+		"y_m": local_pos.y
+	})
+	editor_data["detectors"] = dets
+	_select_detector(dets.size() - 1)
+	_set_status("Detector %s colocado en habitacion %d." % [new_id, room_id])
+	queue_redraw()
+
+
+func _create_victim_at(pos_m: Vector2) -> void:
+	var room_id: int = _find_room_at(pos_m)
+	if room_id < 0:
+		_set_status("Pulsa dentro de una habitacion para colocar una victima.")
+		return
+	var room_rect: Rect2 = _get_room_rect(room_id)
+	var local_pos: Vector2 = pos_m - room_rect.position
+	local_pos.x = clampf(snappedf(local_pos.x, GRID_M), 0.0, maxf(0.0, room_rect.size.x))
+	local_pos.y = clampf(snappedf(local_pos.y, GRID_M), 0.0, maxf(0.0, room_rect.size.y))
+	var vics: Array = editor_data.get("victims", [])
+	var new_id: String = _next_victim_id()
+	var vic_num: int = vics.size() + 1
+	vics.append({
+		"id": new_id,
+		"room_id": room_id,
+		"name": "Victima %d" % vic_num,
+		"x_m": local_pos.x,
+		"y_m": local_pos.y
+	})
+	editor_data["victims"] = vics
+	_select_victim(vics.size() - 1)
+	_set_status("Victima %s colocada en habitacion %d." % [new_id, room_id])
+	queue_redraw()
+
+
+func _find_detector_at(pos_m: Vector2) -> int:
+	var dets: Array = editor_data.get("detectors", [])
+	var hit_radius_m: float = 12.0 / PIXELS_PER_METER
+	for i in range(dets.size()):
+		if typeof(dets[i]) != TYPE_DICTIONARY:
+			continue
+		var det: Dictionary = dets[i]
+		var room_id: int = int(det.get("room_id", -1))
+		var room_rect: Rect2 = _get_room_rect(room_id)
+		if room_rect.size == Vector2.ZERO:
+			continue
+		if not _is_room_on_current_floor(_get_room(room_id)):
+			continue
+		var world_pos: Vector2 = room_rect.position + Vector2(float(det.get("x_m", 0.0)), float(det.get("y_m", 0.0)))
+		if pos_m.distance_to(world_pos) <= hit_radius_m:
+			return i
+	return -1
+
+
+func _find_victim_at(pos_m: Vector2) -> int:
+	var vics: Array = editor_data.get("victims", [])
+	var hit_radius_m: float = 12.0 / PIXELS_PER_METER
+	for i in range(vics.size()):
+		if typeof(vics[i]) != TYPE_DICTIONARY:
+			continue
+		var vic: Dictionary = vics[i]
+		var room_id: int = int(vic.get("room_id", -1))
+		var room_rect: Rect2 = _get_room_rect(room_id)
+		if room_rect.size == Vector2.ZERO:
+			continue
+		if not _is_room_on_current_floor(_get_room(room_id)):
+			continue
+		var world_pos: Vector2 = room_rect.position + Vector2(float(vic.get("x_m", 0.0)), float(vic.get("y_m", 0.0)))
+		if pos_m.distance_to(world_pos) <= hit_radius_m:
+			return i
+	return -1
+
+
+func _select_detector(index: int) -> void:
+	selected_room_id = -1
+	selected_opening_index = -1
+	selected_object_room_id = -1
+	selected_object_index = -1
+	selected_detector_index = index
+	selected_victim_index = -1
+	_refresh_property_panel()
+	var dets: Array = editor_data.get("detectors", [])
+	if index >= 0 and index < dets.size():
+		var det: Dictionary = dets[index]
+		_set_status("Detector %s seleccionado." % String(det.get("id", str(index))))
+	queue_redraw()
+
+
+func _select_victim(index: int) -> void:
+	selected_room_id = -1
+	selected_opening_index = -1
+	selected_object_room_id = -1
+	selected_object_index = -1
+	selected_detector_index = -1
+	selected_victim_index = index
+	_refresh_property_panel()
+	var vics: Array = editor_data.get("victims", [])
+	if index >= 0 and index < vics.size():
+		var vic: Dictionary = vics[index]
+		_set_status("Victima %s seleccionada." % String(vic.get("name", vic.get("id", str(index)))))
+	queue_redraw()
+
+
+func _apply_detector_properties() -> void:
+	if selected_detector_index < 0:
+		_set_status("Selecciona un detector antes de aplicar propiedades.")
+		return
+	var dets: Array = editor_data.get("detectors", [])
+	if selected_detector_index >= dets.size():
+		return
+	var det: Dictionary = dets[selected_detector_index]
+	if _detector_id_edit != null:
+		det["id"] = _detector_id_edit.text.strip_edges()
+	if _detector_type_option != null:
+		var idx: int = _detector_type_option.selected
+		det["type"] = "smoke" if idx == 0 else ("heat" if idx == 1 else "co")
+	if _detector_threshold_spin != null:
+		det["threshold"] = _detector_threshold_spin.value
+	dets[selected_detector_index] = det
+	editor_data["detectors"] = dets
+	_set_status("Propiedades del detector actualizadas.")
+	queue_redraw()
+
+
+func _apply_victim_properties() -> void:
+	if selected_victim_index < 0:
+		_set_status("Selecciona una victima antes de aplicar propiedades.")
+		return
+	var vics: Array = editor_data.get("victims", [])
+	if selected_victim_index >= vics.size():
+		return
+	var vic: Dictionary = vics[selected_victim_index]
+	if _victim_name_edit != null:
+		vic["name"] = _victim_name_edit.text.strip_edges()
+	vics[selected_victim_index] = vic
+	editor_data["victims"] = vics
+	_set_status("Propiedades de la victima actualizadas.")
 	queue_redraw()
 
 
@@ -2135,14 +2477,14 @@ func _shared_wall_segment(room_id: int, other_id: int, wall: String) -> PackedVe
 		"left", "right":
 			var start_y: float = maxf(rect.position.y, other_rect.position.y)
 			var end_y: float = minf(rect.position.y + rect.size.y, other_rect.position.y + other_rect.size.y)
-			if end_y - start_y <= 0.05:
+			if end_y - start_y < _CONN_MIN_SHARED:
 				return PackedVector2Array()
 			var edge_x: float = rect.position.x if wall == "left" else rect.position.x + rect.size.x
 			return PackedVector2Array([Vector2(edge_x, start_y), Vector2(edge_x, end_y)])
 		"top", "bottom":
 			var start_x: float = maxf(rect.position.x, other_rect.position.x)
 			var end_x: float = minf(rect.position.x + rect.size.x, other_rect.position.x + other_rect.size.x)
-			if end_x - start_x <= 0.05:
+			if end_x - start_x < _CONN_MIN_SHARED:
 				return PackedVector2Array()
 			var edge_y: float = rect.position.y if wall == "top" else rect.position.y + rect.size.y
 			return PackedVector2Array([Vector2(start_x, edge_y), Vector2(end_x, edge_y)])
@@ -2194,59 +2536,82 @@ func _segments_overlap_m(a1: Vector2, a2: Vector2, b1: Vector2, b2: Vector2) -> 
 	return minf(ay_max, by_max) - maxf(ay_min, by_min) > 0.05
 
 
+# ── _shared_wall_between ────────────────────────────────────────────────────
+# Detecta si las habitaciones a_id y b_id comparten (o son adyacentes a) una
+# pared.  Acepta:
+#   • Contacto exacto entre paredes (tolerancia grid)
+#   • Brecha entre paredes de hasta _CONN_GAP_TOL (0.30 m)
+#   • Solapamiento parcial de hasta _CONN_OVERLAP_FRAC × dim_menor
+# Si se pasa click_m, filtra además por proximidad al punto de clic.
+# Devuelve el par de paredes con menor separación; {} si no hay conexión.
 func _shared_wall_between(a_id: int, b_id: int, click_m: Vector2 = Vector2(1.0e20, 1.0e20)) -> Dictionary:
 	if absf(_room_id_floor_level(a_id) - _room_id_floor_level(b_id)) > 0.05:
 		return {}
-	var a_rect: Rect2 = _get_room_rect(a_id)
-	var b_rect: Rect2 = _get_room_rect(b_id)
-	var tol: float = 0.05
-	var click_filter: bool = click_m.x < 1.0e19 and click_m.y < 1.0e19
+	var a: Rect2 = _get_room_rect(a_id)
+	var b: Rect2 = _get_room_rect(b_id)
+	var click_filter: bool = click_m.x < 1.0e19
+	var best: Dictionary = {}
+	var best_gap: float = 1.0e20
+	var min_x: float = minf(a.size.x, b.size.x)
+	var min_y: float = minf(a.size.y, b.size.y)
 
-	if absf(a_rect.position.x + a_rect.size.x - b_rect.position.x) <= tol:
-		return _vertical_shared_wall(a_id, b_id, a_rect, b_rect, "right", click_m, click_filter)
-	if absf(b_rect.position.x + b_rect.size.x - a_rect.position.x) <= tol:
-		return _vertical_shared_wall(a_id, b_id, a_rect, b_rect, "left", click_m, click_filter)
-	if absf(a_rect.position.y + a_rect.size.y - b_rect.position.y) <= tol:
-		return _horizontal_shared_wall(a_id, b_id, a_rect, b_rect, "bottom", click_m, click_filter)
-	if absf(b_rect.position.y + b_rect.size.y - a_rect.position.y) <= tol:
-		return _horizontal_shared_wall(a_id, b_id, a_rect, b_rect, "top", click_m, click_filter)
-	return {}
+	# ── A.right ↔ B.left  (A a la izquierda, con brecha o solape) ──
+	var gap_r: float = b.position.x - (a.position.x + a.size.x)
+	if gap_r >= -min_x * _CONN_OVERLAP_FRAC and gap_r <= _CONN_GAP_TOL:
+		var sy: float = maxf(a.position.y, b.position.y)
+		var ey: float = minf(a.position.y + a.size.y, b.position.y + b.size.y)
+		if ey - sy >= _CONN_MIN_SHARED:
+			var mid_x: float = (a.position.x + a.size.x + b.position.x) * 0.5
+			if not click_filter or (absf(click_m.x - mid_x) <= _CONN_CLICK_TOL and click_m.y >= sy - 0.10 and click_m.y <= ey + 0.10):
+				var ag: float = absf(gap_r)
+				if ag < best_gap:
+					best_gap = ag
+					var cy: float = clampf(click_m.y if click_filter else (sy + ey) * 0.5, sy, ey)
+					best = {"a": a_id, "b": b_id, "wall": "right", "offset_m": cy - a.position.y}
 
+	# ── A.left ↔ B.right  (A a la derecha, con brecha o solape) ──
+	var gap_l: float = a.position.x - (b.position.x + b.size.x)
+	if gap_l >= -min_x * _CONN_OVERLAP_FRAC and gap_l <= _CONN_GAP_TOL:
+		var sy: float = maxf(a.position.y, b.position.y)
+		var ey: float = minf(a.position.y + a.size.y, b.position.y + b.size.y)
+		if ey - sy >= _CONN_MIN_SHARED:
+			var mid_x: float = (a.position.x + b.position.x + b.size.x) * 0.5
+			if not click_filter or (absf(click_m.x - mid_x) <= _CONN_CLICK_TOL and click_m.y >= sy - 0.10 and click_m.y <= ey + 0.10):
+				var ag: float = absf(gap_l)
+				if ag < best_gap:
+					best_gap = ag
+					var cy: float = clampf(click_m.y if click_filter else (sy + ey) * 0.5, sy, ey)
+					best = {"a": a_id, "b": b_id, "wall": "left", "offset_m": cy - a.position.y}
 
-func _vertical_shared_wall(a_id: int, b_id: int, a_rect: Rect2, b_rect: Rect2, wall: String, click_m: Vector2, click_filter: bool) -> Dictionary:
-	var start_y: float = maxf(a_rect.position.y, b_rect.position.y)
-	var end_y: float = minf(a_rect.position.y + a_rect.size.y, b_rect.position.y + b_rect.size.y)
-	if end_y - start_y <= 0.2:
-		return {}
-	var edge_x: float = a_rect.position.x + a_rect.size.x if wall == "right" else a_rect.position.x
-	if click_filter:
-		if absf(click_m.x - edge_x) > 0.22 or click_m.y < start_y or click_m.y > end_y:
-			return {}
-	var center_y: float = clampf(click_m.y if click_filter else (start_y + end_y) * 0.5, start_y, end_y)
-	return {
-		"a": a_id,
-		"b": b_id,
-		"wall": wall,
-		"offset_m": center_y - a_rect.position.y
-	}
+	# ── A.bottom ↔ B.top  (A encima, con brecha o solape) ──
+	var gap_b: float = b.position.y - (a.position.y + a.size.y)
+	if gap_b >= -min_y * _CONN_OVERLAP_FRAC and gap_b <= _CONN_GAP_TOL:
+		var sx: float = maxf(a.position.x, b.position.x)
+		var ex: float = minf(a.position.x + a.size.x, b.position.x + b.size.x)
+		if ex - sx >= _CONN_MIN_SHARED:
+			var mid_y: float = (a.position.y + a.size.y + b.position.y) * 0.5
+			if not click_filter or (absf(click_m.y - mid_y) <= _CONN_CLICK_TOL and click_m.x >= sx - 0.10 and click_m.x <= ex + 0.10):
+				var ag: float = absf(gap_b)
+				if ag < best_gap:
+					best_gap = ag
+					var cx: float = clampf(click_m.x if click_filter else (sx + ex) * 0.5, sx, ex)
+					best = {"a": a_id, "b": b_id, "wall": "bottom", "offset_m": cx - a.position.x}
 
+	# ── A.top ↔ B.bottom  (A debajo, con brecha o solape) ──
+	var gap_t: float = a.position.y - (b.position.y + b.size.y)
+	if gap_t >= -min_y * _CONN_OVERLAP_FRAC and gap_t <= _CONN_GAP_TOL:
+		var sx: float = maxf(a.position.x, b.position.x)
+		var ex: float = minf(a.position.x + a.size.x, b.position.x + b.size.x)
+		if ex - sx >= _CONN_MIN_SHARED:
+			var mid_y: float = (a.position.y + b.position.y + b.size.y) * 0.5
+			if not click_filter or (absf(click_m.y - mid_y) <= _CONN_CLICK_TOL and click_m.x >= sx - 0.10 and click_m.x <= ex + 0.10):
+				var ag: float = absf(gap_t)
+				if ag < best_gap:
+					best_gap = ag
+					var cx: float = clampf(click_m.x if click_filter else (sx + ex) * 0.5, sx, ex)
+					best = {"a": a_id, "b": b_id, "wall": "top", "offset_m": cx - a.position.x}
 
-func _horizontal_shared_wall(a_id: int, b_id: int, a_rect: Rect2, b_rect: Rect2, wall: String, click_m: Vector2, click_filter: bool) -> Dictionary:
-	var start_x: float = maxf(a_rect.position.x, b_rect.position.x)
-	var end_x: float = minf(a_rect.position.x + a_rect.size.x, b_rect.position.x + b_rect.size.x)
-	if end_x - start_x <= 0.2:
-		return {}
-	var edge_y: float = a_rect.position.y + a_rect.size.y if wall == "bottom" else a_rect.position.y
-	if click_filter:
-		if absf(click_m.y - edge_y) > 0.22 or click_m.x < start_x or click_m.x > end_x:
-			return {}
-	var center_x: float = clampf(click_m.x if click_filter else (start_x + end_x) * 0.5, start_x, end_x)
-	return {
-		"a": a_id,
-		"b": b_id,
-		"wall": wall,
-		"offset_m": center_x - a_rect.position.x
-	}
+	return best
 
 
 func _offset_on_wall(rect: Rect2, wall: String, pos_m: Vector2) -> float:
@@ -2456,7 +2821,25 @@ func _delete_selected_room() -> void:
 
 
 func _delete_selected() -> void:
-	if selected_object_room_id >= 0 and selected_object_index >= 0:
+	if selected_detector_index >= 0:
+		var dets: Array = editor_data.get("detectors", [])
+		if selected_detector_index < dets.size():
+			dets.remove_at(selected_detector_index)
+			editor_data["detectors"] = dets
+		_clear_selection()
+		_set_status("Detector eliminado.")
+		queue_redraw()
+		return
+	elif selected_victim_index >= 0:
+		var vics: Array = editor_data.get("victims", [])
+		if selected_victim_index < vics.size():
+			vics.remove_at(selected_victim_index)
+			editor_data["victims"] = vics
+		_clear_selection()
+		_set_status("Victima eliminada.")
+		queue_redraw()
+		return
+	elif selected_object_room_id >= 0 and selected_object_index >= 0:
 		_delete_object(selected_object_room_id, selected_object_index)
 	elif selected_opening_index >= 0:
 		var openings: Array = editor_data.get("openings_data", [])
@@ -2528,6 +2911,8 @@ func _draw() -> void:
 	_draw_rooms()
 	_draw_openings()
 	_draw_objects()
+	_draw_detectors()
+	_draw_victims()
 	if is_dragging_room:
 		if current_tool == Tool.CORRIDOR_L:
 			_draw_corridor_drag_preview()
@@ -2780,6 +3165,61 @@ func _draw_objects() -> void:
 				)
 
 
+func _draw_detectors() -> void:
+	var dets: Array = editor_data.get("detectors", [])
+	for i in range(dets.size()):
+		if typeof(dets[i]) != TYPE_DICTIONARY:
+			continue
+		var det: Dictionary = dets[i]
+		var room_id: int = int(det.get("room_id", -1))
+		var room: Dictionary = _get_room(room_id)
+		if not _is_room_on_current_floor(room):
+			continue
+		var room_rect: Rect2 = _get_room_rect(room_id)
+		var world_pos: Vector2 = room_rect.position + Vector2(float(det.get("x_m", 0.0)), float(det.get("y_m", 0.0)))
+		var px: Vector2 = _m_to_px(world_pos)
+		var det_type: String = String(det.get("type", "smoke"))
+		var det_color: Color = _detector_smoke_color if det_type == "smoke" else (_detector_heat_color if det_type == "heat" else _detector_co_color)
+		var selected: bool = i == selected_detector_index
+		var radius: float = 10.0 if selected else 8.0
+		draw_circle(px, radius + 2.0, Color(0.0, 0.0, 0.0, 0.7))
+		draw_circle(px, radius, det_color)
+		if selected:
+			draw_circle(px, radius + 2.0, Color(1.0, 1.0, 1.0, 0.85), false, 2.0)
+		var label: String = "S" if det_type == "smoke" else ("H" if det_type == "heat" else "C")
+		if ThemeDB.fallback_font != null:
+			draw_string(ThemeDB.fallback_font, px + Vector2(-4.0, 5.0), label, HORIZONTAL_ALIGNMENT_LEFT, 20.0, 11, Color(0.0, 0.0, 0.0, 0.92))
+
+
+func _draw_victims() -> void:
+	var vics: Array = editor_data.get("victims", [])
+	for i in range(vics.size()):
+		if typeof(vics[i]) != TYPE_DICTIONARY:
+			continue
+		var vic: Dictionary = vics[i]
+		var room_id: int = int(vic.get("room_id", -1))
+		var room: Dictionary = _get_room(room_id)
+		if not _is_room_on_current_floor(room):
+			continue
+		var room_rect: Rect2 = _get_room_rect(room_id)
+		var world_pos: Vector2 = room_rect.position + Vector2(float(vic.get("x_m", 0.0)), float(vic.get("y_m", 0.0)))
+		var px: Vector2 = _m_to_px(world_pos)
+		var selected: bool = i == selected_victim_index
+		var r: float = 9.0 if selected else 7.0
+		var pts := PackedVector2Array([
+			px + Vector2(0.0, -r),
+			px + Vector2(r, 0.0),
+			px + Vector2(0.0, r),
+			px + Vector2(-r, 0.0)
+		])
+		draw_colored_polygon(pts, _victim_color)
+		draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), Color(0.0, 0.0, 0.0, 0.7), 1.5)
+		if selected:
+			draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), Color(1.0, 1.0, 1.0, 0.85), 2.0)
+		if ThemeDB.fallback_font != null:
+			draw_string(ThemeDB.fallback_font, px + Vector2(-4.0, 5.0), "V", HORIZONTAL_ALIGNMENT_LEFT, 16.0, 10, Color(0.0, 0.0, 0.0, 0.92))
+
+
 func _set_status(text: String) -> void:
 	if _status_label != null:
 		_status_label.text = text
@@ -2917,6 +3357,25 @@ func _bind_existing_ui() -> bool:
 		if btn_door != null:
 			topbar_existing.move_child(btn_hole, btn_door.get_index() + 1)
 
+	var btn_detector := _ui_root.get_node_or_null("TopBar/HBox/BtnDetector") as Button
+	if btn_detector == null and topbar_existing != null:
+		btn_detector = Button.new()
+		btn_detector.name = "BtnDetector"
+		btn_detector.text = "Detect."
+		btn_detector.custom_minimum_size = Vector2(82.0, 34.0)
+		topbar_existing.add_child(btn_detector)
+		if btn_delete != null:
+			topbar_existing.move_child(btn_detector, btn_delete.get_index() + 1)
+	var btn_victim := _ui_root.get_node_or_null("TopBar/HBox/BtnVictim") as Button
+	if btn_victim == null and topbar_existing != null:
+		btn_victim = Button.new()
+		btn_victim.name = "BtnVictim"
+		btn_victim.text = "Vict."
+		btn_victim.custom_minimum_size = Vector2(82.0, 34.0)
+		topbar_existing.add_child(btn_victim)
+		if btn_detector != null:
+			topbar_existing.move_child(btn_victim, btn_detector.get_index() + 1)
+
 	var required_buttons: Array[Button] = [btn_select, btn_room, btn_corridor, btn_stairs, btn_door, btn_hole, btn_window, btn_object, btn_ignite, btn_delete]
 	for b in required_buttons:
 		if b == null:
@@ -2933,6 +3392,10 @@ func _bind_existing_ui() -> bool:
 	_register_tool_button(btn_object, Tool.OBJECT)
 	_register_tool_button(btn_ignite, Tool.IGNITION)
 	_register_tool_button(btn_delete, Tool.DELETE)
+	if btn_detector != null:
+		_register_tool_button(btn_detector, Tool.DETECTOR)
+	if btn_victim != null:
+		_register_tool_button(btn_victim, Tool.VICTIM)
 
 	_object_kind_option = _ui_root.get_node_or_null("LeftPanel/VBox/ObjectTypeOption") as OptionButton
 	_path_edit = _ui_root.get_node_or_null("LeftPanel/VBox/PathEdit") as LineEdit
@@ -2968,6 +3431,22 @@ func _bind_existing_ui() -> bool:
 	_opening_sill_spin = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningSillSpin") as SpinBox
 	_opening_open_option = _ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/OpeningOpenOption") as OptionButton
 	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/OpeningProps/BtnApplyOpening") as Button, _apply_opening_properties)
+
+	_detector_props_container = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps") as Control
+	_detector_id_edit = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/DetectorIdEdit") as LineEdit
+	_detector_type_option = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/DetectorTypeOption") as OptionButton
+	if _detector_type_option != null and _detector_type_option.get_item_count() == 0:
+		_detector_type_option.add_item("Humo", 0)
+		_detector_type_option.add_item("Calor", 1)
+		_detector_type_option.add_item("CO", 2)
+	_detector_threshold_spin = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/DetectorThresholdSpin") as SpinBox
+	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/BtnApplyDetector") as Button, _apply_detector_properties)
+	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/BtnDeleteDetector") as Button, _delete_selected)
+
+	_victim_props_container = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps") as Control
+	_victim_name_edit = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/VictimNameEdit") as LineEdit
+	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/VictimProps/BtnApplyVictim") as Button, _apply_victim_properties)
+	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/VictimProps/BtnDeleteVictim") as Button, _delete_selected)
 
 	if _object_kind_option == null or _path_edit == null or _scenario_option == null or _status_label == null:
 		return false

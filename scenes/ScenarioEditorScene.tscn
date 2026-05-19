@@ -105,6 +105,18 @@ layout_mode = 2
 toggle_mode = true
 text = "Delete"
 
+[node name="BtnDetector" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=811200001]
+custom_minimum_size = Vector2(82, 34)
+layout_mode = 2
+toggle_mode = true
+text = "Detect."
+
+[node name="BtnVictim" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=811200002]
+custom_minimum_size = Vector2(82, 34)
+layout_mode = 2
+toggle_mode = true
+text = "Vict."
+
 [node name="LeftPanel" type="PanelContainer" parent="CanvasLayer/UI" unique_id=260976689]
 layout_mode = 1
 anchors_preset = 9
@@ -290,9 +302,9 @@ anchor_left = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -170.0
-offset_top = 28.0
+offset_top = -145.5
 offset_right = 51.0
-offset_bottom = 198.0
+offset_bottom = 371.5
 grow_horizontal = 0
 grow_vertical = 2
 scale = Vector2(0.75, 0.75)
@@ -466,6 +478,68 @@ layout_mode = 2
 [node name="BtnApplyOpening" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=1200648205]
 layout_mode = 2
 text = "Aplicar apertura"
+
+[node name="SeparatorD" type="HSeparator" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200003]
+layout_mode = 2
+
+[node name="DetectorTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200004]
+layout_mode = 2
+text = "Propiedades del detector"
+
+[node name="DetectorProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200005]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="DetectorIdEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200006]
+layout_mode = 2
+placeholder_text = "ID"
+
+[node name="DetectorTypeLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200007]
+layout_mode = 2
+text = "Tipo"
+
+[node name="DetectorTypeOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200008]
+layout_mode = 2
+
+[node name="DetectorThresholdLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200009]
+layout_mode = 2
+text = "Umbral"
+
+[node name="DetectorThresholdSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200010]
+layout_mode = 2
+max_value = 10000.0
+step = 0.001
+
+[node name="BtnApplyDetector" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200011]
+layout_mode = 2
+text = "Aplicar detector"
+
+[node name="BtnDeleteDetector" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200012]
+layout_mode = 2
+text = "Borrar detector"
+
+[node name="SeparatorE" type="HSeparator" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200013]
+layout_mode = 2
+
+[node name="VictimTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200014]
+layout_mode = 2
+text = "Propiedades de la victima"
+
+[node name="VictimProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200015]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="VictimNameEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=811200016]
+layout_mode = 2
+placeholder_text = "Nombre"
+
+[node name="BtnApplyVictim" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=811200017]
+layout_mode = 2
+text = "Aplicar victima"
+
+[node name="BtnDeleteVictim" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=811200018]
+layout_mode = 2
+text = "Borrar victima"
 
 [node name="BottomBar" type="PanelContainer" parent="CanvasLayer/UI" unique_id=475357514]
 layout_mode = 1

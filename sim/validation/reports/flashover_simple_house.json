@@ -37,6 +37,7 @@
 	"case": "flashover_simple_house",
 	"duration_s": 280.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 647.411325123467,
 		"peak_co_ppm_global": 7206.16928464719,
 		"peak_co_upper_ppm_global": 44714.1406559566,

@@ -36,6 +36,7 @@
 	"case": "kitchen_grease_pool_fire",
 	"duration_s": 500.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 661.09038333115,
 		"peak_co_ppm_global": 3897.25680989691,
 		"peak_co_upper_ppm_global": 39951.4894960001,

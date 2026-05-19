@@ -43,6 +43,7 @@
 	"case": "g2_gie_transitional_attack",
 	"duration_s": 450.0,
 	"metrics": {
+		"conservation_max_violation_frac": -1.0,
 		"max_upper_radiative_loss_kw_global": 568.338621628233,
 		"opening_event_0_time_s": 200.000000000005,
 		"opening_event_1_time_s": 230.000000000009,
