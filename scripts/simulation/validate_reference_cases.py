@@ -326,6 +326,254 @@ def _add_rmse_check(
     )
 
 
+def _build_checks_from_baseline_json(
+    case_name: str,
+    prefix: str | None = None,
+    force_optional: set[str] | None = None,
+) -> list[Check]:
+    """Build Check objects from a case's baseline JSON file.
+
+    Reads reports/{case_name}.json and creates one Check per entry in
+    baseline.checks.  Each check is required=True when the stored pass flag is
+    True, and required=False (known gap) when it was already failing.
+
+    force_optional: set of check_key strings that must be required=False even if
+    they currently pass (use for known structural gaps).
+    """
+    json_path = REPORTS_DIR / f"{case_name}.json"
+    pfx = prefix or case_name
+    if not json_path.exists():
+        return [_pending_check(
+            f"{pfx}_pending",
+            f"Pending: run SimuFire case '{case_name}' to generate baseline JSON.",
+        )]
+
+    data = _load_json(json_path)
+    baseline = data.get("baseline", {})
+    case_checks = baseline.get("checks", {})
+
+    if not case_checks:
+        return [_pending_check(
+            f"{pfx}_pending",
+            f"No baseline checks found for case '{case_name}'.",
+        )]
+
+    results: list[Check] = []
+    fo = force_optional or set()
+    for check_key, check_data in case_checks.items():
+        actual = check_data.get("actual")
+        rule = check_data.get("rule", {})
+        is_required = check_data.get("pass", False) and check_key not in fo
+        note = rule.get("_note") or rule.get("comment") or f"Regression baseline: {case_name}"
+        results.append(Check(
+            name=f"{pfx}_{check_key}",
+            actual=actual,
+            expected=rule.get("expected"),
+            tolerance=rule.get("tolerance"),
+            minimum=rule.get("min"),
+            maximum=rule.get("max"),
+            required=is_required,
+            note=note,
+        ))
+    return results
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Baseline regression suites — read from reports/*.json
+# Each builder wraps _build_checks_from_baseline_json for a group of cases.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_physics_fundamentals_checks() -> list[Check]:
+    """Fire-physics invariants: carbon balance, energy, stoichiometry, HRR curves."""
+    checks: list[Check] = []
+    for case in [
+        "c_balance_high_phi",
+        "char_layer_loi_wood",
+        "co_oxidation_post_flashover",
+        "conservation_transport",
+        "energy_budget_living_room",
+        "hrr_tabulated_curve_sofa",
+        "pvc_curtain_hcl_release",
+        "mediterraneo_concrete_wall_conduction",
+        "ranch_radiation_target_ignition",
+    ]:
+        checks.extend(_build_checks_from_baseline_json(case))
+    return checks
+
+
+def build_single_room_fire_checks() -> list[Check]:
+    """Single-room fire scenarios: flashover, pool fire, glass break, sealed/vented."""
+    checks: list[Check] = []
+    for case in [
+        "flashover_simple_house",
+        "glass_break_window_spike",
+        "kitchen_grease_pool_fire",
+        "v2_sealed_room_o2_depletion",
+        "v5_ventilation_hrr_spike",
+        "tmp_r2_window_open_start",
+    ]:
+        checks.extend(_build_checks_from_baseline_json(case))
+    # secondary_ignition: hallway spread currently broken → failing checks optional
+    checks.extend(_build_checks_from_baseline_json(
+        "secondary_ignition_demo",
+        force_optional={"room_1_max_fuel_objects_flaming_count", "room_1_peak_hrr_kw"},
+    ))
+    return checks
+
+
+def build_smoke_transport_checks() -> list[Check]:
+    """Multi-room smoke and gas transport: apartments, houses, corridors."""
+    checks: list[Check] = []
+    for case in [
+        "compact_apartment_smoke",
+        "piso_mediterraneo_smoke",
+        "two_bed_apartment_smoke",
+        "three_bed_apartment_smoke",
+        "uk_bungalow_smoke",
+        "ranch_family_house_smoke",
+        "row_house_ground_floor_smoke",
+        "two_storey_smoke",
+        "v4_co_remote_rooms",
+        "v6_spread_to_hallway",
+        "wind_assisted_exterior_spread",
+    ]:
+        checks.extend(_build_checks_from_baseline_json(case))
+    return checks
+
+
+def build_tenability_fed_checks() -> list[Check]:
+    """Tenability, FED and FEC checks: incapacitation, CO exposure, layer height."""
+    checks: list[Check] = []
+    # layer150: one check on layer height fails (structural one-zone gap)
+    checks.extend(_build_checks_from_baseline_json(
+        "layer150_tenability",
+        force_optional={"room_0_final_layer_150c_m"},
+    ))
+    for case in [
+        "v3_hallway_fed_exposure",
+        "v7_underventilated_co_peak",
+        "pu_sofa_fec_incapacitation",
+        "victim_fed_incapacitation",
+    ]:
+        checks.extend(_build_checks_from_baseline_json(case))
+    return checks
+
+
+def build_fire_dynamics_checks() -> list[Check]:
+    """Long / complex fire dynamics: backdraft, suppression, decay, ventilation."""
+    checks: list[Check] = []
+    for case in [
+        "postfire_decay",
+        "v1_backdraft_accumulation",
+        "v8_suppression_reburn",
+        "ul_exterior_water_knockdown",
+        "ppv_attack_pressurized",
+    ]:
+        checks.extend(_build_checks_from_baseline_json(case))
+    # living_room_hallway: hallway peak-temp check fails (calibration gap)
+    checks.extend(_build_checks_from_baseline_json(
+        "living_room_hallway",
+        force_optional={"room_1_peak_temp_upper_c"},
+    ))
+    # confinement_open_close: final HRR tolerance too tight after entrainment fix
+    checks.extend(_build_checks_from_baseline_json(
+        "confinement_open_close",
+        force_optional={"room_0_final_hrr_kw"},
+    ))
+    return checks
+
+
+def build_gie_tactical_checks() -> list[Check]:
+    """GIE (Groupes d'Intervention & Extinction) tactical scenario checks."""
+    checks: list[Check] = []
+    for case in [
+        "g1_gie_confinement_attack",
+        "g2_gie_transitional_attack",
+        "g4_gie_delayed_entry_hazard",
+    ]:
+        checks.extend(_build_checks_from_baseline_json(case))
+    # g3 PPV post-knockdown: read what's actually in the JSON
+    checks.extend(_build_checks_from_baseline_json("g3_gie_ppv_post_knockdown"))
+    return checks
+
+
+def build_reference_benchmark_checks() -> list[Check]:
+    """ISO, NIST and empirical reference benchmark checks (tc_array, Ghanekar extended)."""
+    checks: list[Check] = []
+    for case in ["tc_array_iso9705"]:
+        checks.extend(_build_checks_from_baseline_json(case))
+    return checks
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage-B stubs: new CFAST scenarios for physics not yet covered in comparison.
+# Add _pending_check() entries; they activate once CFAST CSV + SimuFire log exist.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def build_stage_b_pending_checks() -> list[Check]:
+    """Pending CFAST comparison checks for phenomena not yet fully modelled.
+
+    These document the roadmap toward 100% coverage.  They become active when:
+      1. A CFAST .in file is run to produce a _compartments.csv reference.
+      2. A matching SimuFire case is run to produce a .log.
+      3. A dedicated build_cfast_*_checks() function is written and registered.
+    """
+    stubs = [
+        # ── Slow t² fire (α = 0.00293 kW/s² — "slow" per NFPA 92) ───────────
+        # Physics: O2 depletion profile very different from fast fires.
+        # Needed: cfast_slow_growth_sealed.in + matching SimuFire case.
+        ("cfast_slow_growth_sealed_pending",
+         "Stage-B: slow t² fire (α=0.003 kW/s²) — O2 depletion profile, CO build-up over 30 min."),
+        # ── Pool fire in open room ─────────────────────────────────────────────
+        # Physics: steady HRR, soot yield, CO2/CO from liquid fuel.
+        # Needed: cfast_pool_fire_open.in (heptane, 0.09 m² pan, ~80 kW steady).
+        ("cfast_pool_fire_open_pending",
+         "Stage-B: liquid pool fire (heptane 80 kW) — steady HRR, CO yield validation."),
+        # ── Three-room corridor chain ──────────────────────────────────────────
+        # Physics: smoke migration through multiple door openings; CFAST 2-zone
+        # transport vs SimuFire one-zone door flow.
+        # Needed: cfast_corridor_chain.in (3 rooms, 2 doors, fire in R0).
+        ("cfast_corridor_chain_pending",
+         "Stage-B: 3-room corridor smoke transport — timing, O2 dilution in R2."),
+        # ── Nighttime bedroom with closed door ────────────────────────────────
+        # Physics: sealed room, very slow O2 depletion, FED accumulation at 0.9 m.
+        # Needed: cfast_bedroom_closed_door.in.
+        ("cfast_bedroom_closed_door_pending",
+         "Stage-B: sealed bedroom — FED at 0.9 m vs time, CO/O2 lethal-dose timing."),
+        # ── Suppression via water application ────────────────────────────────
+        # Physics: HRR knockdown, steam production, re-ignition.
+        # Needed: cfast_suppression_water.in (sprinkler or hose at t=120s).
+        ("cfast_suppression_water_pending",
+         "Stage-B: water suppression — HRR knockdown curve, peak-temp post-suppression."),
+        # ── Pressure model (thermodynamic overpressure) ───────────────────────
+        # Physics: airtight room → significant pressure rise (100–1000 Pa).
+        # Blocked until SimuFire Fase 2 implements thermodynamic pressure.
+        ("cfast_overpressure_sealed_pending",
+         "Stage-B (Fase 2): thermodynamic pressure in sealed room — 100-1000 Pa range."),
+        # ── CO2 stratification ────────────────────────────────────────────────
+        # Physics: two-zone CO2 concentration in upper vs lower layer.
+        # All current cfast_*_co2_upper_pct checks fail (one-zone over-mixes).
+        ("cfast_co2_stratification_pending",
+         "Stage-B (Fase 2): CO2 upper-layer mol% — requires two-zone architecture."),
+        # ── Hall upper-zone O2 depletion via doorway flow ─────────────────────
+        # Physics: hot gases enter adjacent room at top of door, depleting ULO2 there.
+        # Needed for cfast_2r_hall_t240_o2 and cfast_2r_hall_t360_o2 (current FAIL).
+        ("cfast_hall_upper_o2_doorway_pending",
+         "Stage-B (Fase 2): upper-zone O2 depletion in adjacent room via doorway hot-gas flow."),
+        # ── HRR ventilation-limited (Fase 2) ─────────────────────────────────
+        # Physics: fire controlled by ULO2 (upper-layer O2), not room average.
+        # Needed: separate o2_upper_min_for_flame threshold (~0.07-0.08).
+        ("cfast_hrr_ventilation_limited_f2_pending",
+         "Stage-B (Fase 2): HRR limited by upper-layer O2 — separate o2_upper threshold."),
+        # ── HVAC two-zone O2 feed ─────────────────────────────────────────────
+        # Physics: HVAC delivers fresh air to lower zone → fire survives via
+        # lower-zone O2 entrainment (CFAST behaviour). One-zone SimuFire mixes
+        # all O2 uniformly → fire extinguishes (cfast_hvac_t450_temp FAIL).
+        ("cfast_hvac_two_zone_feed_pending",
+         "Stage-B (Fase 2): HVAC lower-zone O2 feed — fire survives in CFAST, extinguishes in SF."),
+    ]
+    return [_pending_check(name, note) for name, note in stubs]
+
 
 def build_cfast_checks() -> list[Check]:
     cfast = _load_cfast_compartments(CFAST_DIR / "r0_hall_window_360_compartments.csv")
@@ -1288,6 +1536,7 @@ def build_ghanekar_checks() -> list[Check]:
 
 def main() -> int:
     all_checks = (
+        # ── CFAST comparison suites (SimuFire log vs CFAST CSV) ───────────────
         build_cfast_checks()
         + build_cfast_single_room_closed_checks()
         + build_cfast_two_room_door_open_checks()
@@ -1299,7 +1548,18 @@ def main() -> int:
         + build_cfast_fast_growth_closed_checks()
         + build_cfast_two_floor_stairwell_checks()
         + build_cfast_multi_fuel_couch_tv_checks()
+        # ── Empirical reference (Ghanekar paper) ─────────────────────────────
         + build_ghanekar_checks()
+        # ── Baseline regression suites (baseline JSON checks) ─────────────────
+        + build_physics_fundamentals_checks()
+        + build_single_room_fire_checks()
+        + build_smoke_transport_checks()
+        + build_tenability_fed_checks()
+        + build_fire_dynamics_checks()
+        + build_gie_tactical_checks()
+        + build_reference_benchmark_checks()
+        # ── Stage-B roadmap stubs ─────────────────────────────────────────────
+        + build_stage_b_pending_checks()
     )
     required = [check for check in all_checks if check.required]
     failed = [check for check in required if not check.passed()]
