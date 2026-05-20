@@ -1,7 +1,7 @@
 {
   "all_required_pass": false,
   "required_count": 72,
-  "failed_required_count": 16,
+  "failed_required_count": 11,
   "known_gap_count": 5,
   "checks": [
     {
@@ -127,13 +127,13 @@
     },
     {
       "name": "cfast_t350_co_upper_ppm",
-      "actual": 1107.0,
+      "actual": 952.0,
       "expected": 688.912,
       "tolerance": 320.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "CO upper layer pre-opening (CFAST: ~690 ppm)."
     },
     {
@@ -193,13 +193,13 @@
     },
     {
       "name": "cfast_t360_co_upper_ppm",
-      "actual": 1171.0,
+      "actual": 1007.0,
       "expected": 693.9639999999999,
       "tolerance": 320.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "CO upper layer pre-opening (CFAST: ~690 ppm)."
     },
     {
@@ -314,7 +314,7 @@
     },
     {
       "name": "cfast_t420_co_upper_ppm",
-      "actual": 154.0,
+      "actual": 133.0,
       "expected": 378.838,
       "tolerance": 350.0,
       "minimum": null,
@@ -369,7 +369,7 @@
     },
     {
       "name": "cfast_t510_co_upper_ppm",
-      "actual": 156.0,
+      "actual": 134.0,
       "expected": 325.76300000000003,
       "tolerance": 350.0,
       "minimum": null,
@@ -380,7 +380,7 @@
     },
     {
       "name": "cfast_fed_heat_not_explosive",
-      "actual": 52.496,
+      "actual": 52.081,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -754,18 +754,18 @@
     },
     {
       "name": "cfast_hvac_t180_temp_upper_c",
-      "actual": 171.99,
+      "actual": 179.88,
       "expected": 259.591,
       "tolerance": 80.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": ""
     },
     {
       "name": "cfast_hvac_t180_co_upper_ppm",
-      "actual": 789.0,
+      "actual": 804.0,
       "expected": 380.376,
       "tolerance": 500.0,
       "minimum": null,
@@ -776,7 +776,7 @@
     },
     {
       "name": "cfast_hvac_t300_o2",
-      "actual": 0.0547,
+      "actual": 0.058,
       "expected": 0.07371660000000001,
       "tolerance": 0.025,
       "minimum": null,
@@ -787,7 +787,7 @@
     },
     {
       "name": "cfast_hvac_t300_temp_upper_c",
-      "actual": 209.03,
+      "actual": 210.11,
       "expected": 173.386,
       "tolerance": 80.0,
       "minimum": null,
@@ -798,7 +798,7 @@
     },
     {
       "name": "cfast_hvac_t300_co_upper_ppm",
-      "actual": 1071.0,
+      "actual": 1049.0,
       "expected": 661.289,
       "tolerance": 500.0,
       "minimum": null,
@@ -809,18 +809,18 @@
     },
     {
       "name": "cfast_hvac_t450_o2",
-      "actual": 0.0242,
+      "actual": 0.0336,
       "expected": 0.052955300000000004,
       "tolerance": 0.025,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": ""
     },
     {
       "name": "cfast_hvac_t450_temp_upper_c",
-      "actual": 59.05,
+      "actual": 52.55,
       "expected": 174.843,
       "tolerance": 80.0,
       "minimum": null,
@@ -831,7 +831,7 @@
     },
     {
       "name": "cfast_hvac_t450_co_upper_ppm",
-      "actual": 1564.0,
+      "actual": 1494.0,
       "expected": 731.456,
       "tolerance": 500.0,
       "minimum": null,
@@ -842,13 +842,13 @@
     },
     {
       "name": "ghanekar_far_hall_o2_response_time_s",
-      "actual": 152.333333333333,
+      "actual": 168.083333333335,
       "expected": 198.0,
       "tolerance": 30.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "Ghanekar bedroom tests report initial hallway O2 response near 3.3 min."
     },
     {
@@ -864,7 +864,7 @@
     },
     {
       "name": "ghanekar_origin_peak_upper_temp_reasonable_c",
-      "actual": 518.430640318738,
+      "actual": 539.812745252402,
       "expected": null,
       "tolerance": null,
       "minimum": 450.0,
@@ -886,7 +886,7 @@
     },
     {
       "name": "ghanekar_far_hall_co_known_gap",
-      "actual": 135.833333333331,
+      "actual": 149.583333333333,
       "expected": 204.0,
       "tolerance": 45.0,
       "minimum": null,

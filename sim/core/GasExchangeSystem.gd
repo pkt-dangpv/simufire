@@ -76,6 +76,10 @@ var vent_bernoulli_enabled: bool = true
 # Carry de O2 con el parcel caliente en transporte de humo inter-sala.
 # 0.0 = deshabilitado (default; baselines sin cambio).
 var o2_smoke_carry_coeff: float = 0.0
+# Coeficiente de contraflujo de O2 en transporte de humo inter-sala (doorway).
+# Controla cuánto O2 se intercambia entre salas cuando pasa humo por la apertura.
+# 0.18 = valor histórico. Reducir para ralentizar la dilución de O2 en salas remotas.
+var doorway_o2_counterflow_coeff: float = 0.18
 var _pending_interior_deliveries: Array[Dictionary] = []
 
 
@@ -155,6 +159,7 @@ func configure(settings: Dictionary) -> void:
 	natural_vent_inlet_fraction = float(settings.get("natural_vent_inlet_fraction", natural_vent_inlet_fraction))
 	vent_bernoulli_enabled = bool(settings.get("vent_bernoulli_enabled", vent_bernoulli_enabled))
 	o2_smoke_carry_coeff = float(settings.get("o2_smoke_carry_coeff", o2_smoke_carry_coeff))
+	doorway_o2_counterflow_coeff = float(settings.get("doorway_o2_counterflow_coeff", doorway_o2_counterflow_coeff))
 
 
 func reset() -> void:
@@ -625,7 +630,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			# O2 counterflow: cuando el humo pasa de sala A a B sin delay,
 			# la corriente de retorno transporta O2 bidireccional en el dintel.
 			# (Con delay activo, OxygenExchangeSystem maneja el intercambio de O2.)
-			var o2_mix_factor: float = 0.18 * flow_ratio
+			var o2_mix_factor: float = doorway_o2_counterflow_coeff * flow_ratio
 			if o2_mix_factor > 0.0:
 				var source_air_mass_kg: float = maxf(0.1, source.volume_m3()) * air_density_kg_m3_s
 				var target_air_mass_kg: float = maxf(0.1, target.volume_m3()) * air_density_kg_m3_s

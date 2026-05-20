@@ -605,6 +605,9 @@ var _conservation_max_violation_frac: float = -1.0
 # Cuando > 0: bidireccional, neto = (source.o2 - target.o2) × gas_parcel_kg × coeff.
 # Rango útil: 0.10-0.50. No usar con moved_upper_gas_kg (tiene floor de 0.03 kg).
 @export var o2_smoke_carry_coeff: float = 0.0
+# Coeficiente de contraflujo de O2 en transporte de humo inter-sala (doorway).
+# Controla cuánto O2 se intercambia cuando pasa humo. Default=0.18 (valor histórico).
+@export var doorway_o2_counterflow_coeff: float = 0.18
 # Multiplicador del intercambio O2 por gradiente de concentración en _apply_background_species_exchange.
 # 0.0 = deshabilitado (default) — O2 room-to-room gestionado exclusivamente por OxygenExchangeSystem.
 # Evita el doble transporte de O2 entre sistemas. ghanekar_bedroom_hallway usa 3.0 (caso especial).
@@ -864,6 +867,7 @@ func _sync_auxiliary_services() -> void:
 		"natural_vent_inlet_fraction": natural_vent_inlet_fraction,
 		"vent_bernoulli_enabled": vent_bernoulli_enabled,
 		"o2_smoke_carry_coeff": o2_smoke_carry_coeff,
+		"doorway_o2_counterflow_coeff": doorway_o2_counterflow_coeff,
 		"background_o2_exchange_multiplier": background_o2_exchange_multiplier
 	})
 	oxygen_exchange_system.configure({
