@@ -79,7 +79,9 @@ static func to_runtime_template(editor_data: Dictionary) -> Dictionary:
 		"outside_temp_c": float(data.get("outside_temp_c", 20.0)),
 		"outside_o2": float(data.get("outside_o2", 0.209)),
 		"building_type": String(data.get("building_type", "single_family")),
+		"apartment_floor_number": int(data.get("apartment_floor_number", 1)),
 		"floors": Array(data.get("floors", [])).duplicate(true),
+		"player_start": Dictionary(data.get("player_start", {})).duplicate(true),
 		"exterior_walls": Array(data.get("exterior_walls", [])).duplicate(true),
 		"room_rect_m": runtime_rects,
 		"rooms_data": rooms_data,
@@ -97,8 +99,10 @@ static func to_runtime_json_data(editor_data: Dictionary) -> Dictionary:
 		"outside_temp_c": float(data.get("outside_temp_c", 20.0)),
 		"outside_o2": float(data.get("outside_o2", 0.209)),
 		"building_type": String(data.get("building_type", "single_family")),
+		"apartment_floor_number": int(data.get("apartment_floor_number", 1)),
 		"stop_time_s": float(data.get("stop_time_s", 0.0)),
 		"floors": Array(data.get("floors", [])).duplicate(true),
+		"player_start": Dictionary(data.get("player_start", {})).duplicate(true),
 		"exterior_walls": Array(data.get("exterior_walls", [])).duplicate(true),
 		"room_rect_m": Dictionary(data.get("room_rect_m", {})).duplicate(true),
 		"rooms_data": Array(data.get("rooms_data", [])).duplicate(true),
@@ -119,6 +123,7 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 	if building_type != "apartment":
 		building_type = "single_family"
 	data["building_type"] = building_type
+	data["apartment_floor_number"] = int(data.get("apartment_floor_number", 1))
 	data["stop_time_s"] = float(data.get("stop_time_s", 0.0))
 	var hvac_mode: String = String(data.get("hvac_mode", "none")).to_lower()
 	if hvac_mode != "off" and hvac_mode != "on":
@@ -148,6 +153,11 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 		room["name"] = String(room.get("name", "Room %d" % int(room["id"])))
 		room["kind"] = String(room.get("kind", "generic"))
 		room["rotation_deg"] = float(room.get("rotation_deg", 0.0))
+		room["stair_run_direction_m"] = vector_to_data(vector2_from_data(room.get("stair_run_direction_m", Vector2(0.0, 1.0))))
+		room["stair_has_walls"] = bool(room.get("stair_has_walls", false))
+		room["stair_has_railings"] = bool(room.get("stair_has_railings", true))
+		room["stair_turn_degrees"] = float(room.get("stair_turn_degrees", 0.0))
+		room["stair_flight_count"] = maxi(1, int(room.get("stair_flight_count", 1)))
 		room["height_m"] = float(room.get("height_m", 2.7))
 		room["floor_level_z_m"] = float(room.get("floor_level_z_m", 0.0))
 		room_floor_levels.append(room["floor_level_z_m"])
@@ -204,6 +214,16 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 			vic["height_m"] = float(vic.get("height_m", 0.9))
 			victims.append(vic)
 	data["victims"] = victims
+
+	var player_start: Dictionary = {}
+	if typeof(data.get("player_start", {})) == TYPE_DICTIONARY:
+		var raw_start: Dictionary = Dictionary(data.get("player_start", {})).duplicate(true)
+		if raw_start.has("room_id"):
+			player_start["room_id"] = int(raw_start.get("room_id", -1))
+			player_start["position_m"] = vector_to_data(vector2_from_data(raw_start.get("position_m", Vector2.ZERO)))
+			player_start["floor_level_z_m"] = float(raw_start.get("floor_level_z_m", 0.0))
+			player_start["yaw_deg"] = float(raw_start.get("yaw_deg", 0.0))
+	data["player_start"] = player_start
 
 	return data
 

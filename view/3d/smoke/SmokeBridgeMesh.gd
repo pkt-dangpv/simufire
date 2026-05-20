@@ -1,5 +1,7 @@
 extends RefCounted
 
+const VERTICAL_SEGMENT_COUNT: int = 18
+const VERTICAL_RING_COUNT: int = 9
 
 static func create(
 	thin_axis_is_x: bool,
@@ -48,13 +50,68 @@ static func create(
 		tp0 = Vector3(-half_w, y_top, half_d)
 		tp1 = Vector3(half_w, y_top, half_d)
 
-	_append_bridge_quad(vertices, normals, uvs, indices, n0, p0, p1, n1)
-	_append_bridge_quad(vertices, normals, uvs, indices, tn0, tn1, tp1, tp0)
 	_append_bridge_quad(vertices, normals, uvs, indices, n0, n1, tn1, tn0)
 	_append_bridge_quad(vertices, normals, uvs, indices, p0, tp0, tp1, p1)
 	_append_bridge_quad(vertices, normals, uvs, indices, n0, tn0, tp0, p0)
 	_append_bridge_quad(vertices, normals, uvs, indices, n1, p1, tp1, tn1)
 
+	return _build_mesh(vertices, normals, uvs, indices, meters_to_units)
+
+
+static func create_vertical(
+	opening_width_m: float,
+	opening_depth_m: float,
+	height_m: float,
+	meters_to_units: float
+) -> ArrayMesh:
+	var half_w: float = maxf(0.08, opening_width_m * 0.5)
+	var half_d: float = maxf(0.08, opening_depth_m * 0.5)
+	var safe_height_m: float = maxf(0.12, height_m)
+
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+
+	for ring_i in range(VERTICAL_RING_COUNT):
+		var v: float = float(ring_i) / float(VERTICAL_RING_COUNT - 1)
+		var y_m: float = -safe_height_m * 0.5 + safe_height_m * v
+		var rise_t: float = v * v * (3.0 - 2.0 * v)
+		var taper: float = lerpf(0.58, 1.16, rise_t)
+		var wobble: float = 1.0 + sin(v * PI * 4.0) * 0.045
+		var radius_x_m: float = half_w * taper * wobble
+		var radius_z_m: float = half_d * taper * (1.0 + cos(v * PI * 3.0) * 0.035)
+		for segment_i in range(VERTICAL_SEGMENT_COUNT + 1):
+			var u: float = float(segment_i) / float(VERTICAL_SEGMENT_COUNT)
+			var angle: float = u * PI * 2.0
+			var radial := Vector3(cos(angle), 0.0, sin(angle))
+			vertices.append(Vector3(radial.x * radius_x_m, y_m, radial.z * radius_z_m))
+			normals.append(radial.normalized())
+			uvs.append(Vector2(u, v))
+
+	for ring_i in range(VERTICAL_RING_COUNT - 1):
+		for segment_i in range(VERTICAL_SEGMENT_COUNT):
+			var start: int = ring_i * (VERTICAL_SEGMENT_COUNT + 1) + segment_i
+			var next_ring: int = start + VERTICAL_SEGMENT_COUNT + 1
+			indices.append_array(PackedInt32Array([
+				start,
+				next_ring,
+				next_ring + 1,
+				start,
+				next_ring + 1,
+				start + 1
+			]))
+
+	return _build_mesh(vertices, normals, uvs, indices, meters_to_units)
+
+
+static func _build_mesh(
+	vertices: PackedVector3Array,
+	normals: PackedVector3Array,
+	uvs: PackedVector2Array,
+	indices: PackedInt32Array,
+	meters_to_units: float
+) -> ArrayMesh:
 	for i in range(vertices.size()):
 		vertices[i] = vertices[i] * meters_to_units
 

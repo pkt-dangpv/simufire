@@ -4,6 +4,8 @@ extends RefCounted
 static func compute(op: OpeningModel, room_rects_m: Dictionary, outside_id: int, marker_depth_m: float) -> Dictionary:
 	if op == null:
 		return {}
+	if op.is_vertical:
+		return _vertical_pose(op, room_rects_m, marker_depth_m)
 	var room_id: int = op.a if op.a != outside_id else op.b
 	if not room_rects_m.has(room_id):
 		return {}
@@ -94,3 +96,31 @@ static func _center_axis(allowed_start: float, allowed_end: float, side_start: f
 	var safe_width: float = minf(width_m, maxf(0.20, allowed_length))
 	var center: float = allowed_start + allowed_length * offset if offset_is_fraction else side_start + offset
 	return clampf(center, allowed_start + safe_width * 0.5, allowed_end - safe_width * 0.5)
+
+
+static func _vertical_pose(op: OpeningModel, room_rects_m: Dictionary, marker_depth_m: float) -> Dictionary:
+	if not room_rects_m.has(op.a) or not room_rects_m.has(op.b):
+		return {}
+	var rect_a := Rect2(room_rects_m[op.a])
+	var rect_b := Rect2(room_rects_m[op.b])
+	var overlap := _rect_overlap(rect_a, rect_b)
+	var allowed := overlap if overlap.size.x > 0.05 and overlap.size.y > 0.05 else rect_a
+	var opening_w_m: float = minf(maxf(0.20, op.width_m), maxf(0.20, allowed.size.x))
+	var opening_d_m: float = minf(maxf(0.20, op.height_m), maxf(0.20, allowed.size.y))
+	var x_center: float = _center_axis(allowed.position.x, allowed.position.x + allowed.size.x, allowed.position.x, op.offset_m, op.offset_is_fraction, opening_w_m)
+	var z_center: float = allowed.position.y + allowed.size.y * 0.5
+	return {
+		"position": Vector3(x_center, 0.0, z_center),
+		"size": Vector3(opening_w_m, maxf(0.05, marker_depth_m), opening_d_m),
+		"is_vertical": true
+	}
+
+
+static func _rect_overlap(a: Rect2, b: Rect2) -> Rect2:
+	var x1: float = maxf(a.position.x, b.position.x)
+	var y1: float = maxf(a.position.y, b.position.y)
+	var x2: float = minf(a.position.x + a.size.x, b.position.x + b.size.x)
+	var y2: float = minf(a.position.y + a.size.y, b.position.y + b.size.y)
+	if x2 <= x1 or y2 <= y1:
+		return Rect2()
+	return Rect2(x1, y1, x2 - x1, y2 - y1)

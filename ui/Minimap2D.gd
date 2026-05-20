@@ -1,0 +1,258 @@
+extends Control
+class_name Minimap2D
+
+const OpeningGeometry2D := preload("res://view/2d/openings/OpeningGeometry2D.gd")
+
+@export var panel_color: Color = Color(0.01, 0.025, 0.03, 0.78)
+@export var border_color: Color = Color(0.95, 0.58, 0.22, 0.70)
+@export var room_fill: Color = Color(0.045, 0.095, 0.105, 0.86)
+@export var room_outline: Color = Color(0.82, 0.91, 0.91, 0.94)
+@export var smoke_color: Color = Color(0.36, 0.40, 0.40, 0.38)
+@export var fire_color: Color = Color(1.0, 0.28, 0.04, 0.82)
+@export var door_color: Color = Color(0.55, 1.0, 0.36, 0.95)
+@export var window_color: Color = Color(0.00, 0.70, 0.88, 0.95)
+@export var hole_color: Color = Color(1.0, 0.78, 0.0, 0.95)
+@export var player_color: Color = Color(0.58, 0.88, 1.0, 0.98)
+@export var live_player_color: Color = Color(0.30, 1.0, 0.64, 1.0)
+
+var building: BuildingModel = null
+var state: Dictionary = {}
+var selected_floor_level_m: float = 0.0
+
+
+func _ready() -> void:
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	queue_redraw()
+
+
+func bind_building(next_building: BuildingModel) -> void:
+	building = next_building
+	selected_floor_level_m = _initial_floor_level()
+	queue_redraw()
+
+
+func set_state(next_state: Dictionary) -> void:
+	state = next_state
+	_update_floor_from_player_start()
+	queue_redraw()
+
+
+func _draw() -> void:
+	var bounds := Rect2(Vector2.ZERO, size)
+	draw_rect(bounds, panel_color, true)
+	draw_rect(bounds, border_color, false, 1.0)
+	if building == null:
+		return
+
+	var rects: Dictionary = building.get_room_rects_m()
+	if rects.is_empty():
+		return
+	var floor_ids: Array[int] = _room_ids_on_selected_floor(rects)
+	if floor_ids.is_empty():
+		return
+
+	var plan_bounds: Rect2 = _bounds_for_room_ids(rects, floor_ids)
+	var tf: Dictionary = _draw_transform(plan_bounds)
+	for room_id in floor_ids:
+		var room_rect: Rect2 = Rect2(rects[room_id])
+		var rpx: Rect2 = _rect_to_px(room_rect, tf)
+		draw_rect(rpx, room_fill, true)
+		var room_state: Dictionary = state.get(str(room_id), {})
+		var smoke_kg: float = float(room_state.get("smoke_kg", 0.0))
+		if smoke_kg > 0.01:
+			var alpha: float = clampf(0.16 + log(smoke_kg + 1.0) * 0.12, 0.16, 0.62)
+			draw_rect(rpx.grow(-2.0), Color(smoke_color.r, smoke_color.g, smoke_color.b, alpha), true)
+		if float(room_state.get("hrr_kw", 0.0)) > 1.0:
+			draw_circle(rpx.get_center(), clampf(minf(rpx.size.x, rpx.size.y) * 0.18, 4.0, 14.0), fire_color)
+		_draw_fuel_objects(room_id, room_rect, tf)
+		draw_rect(rpx, room_outline, false, 1.1)
+
+	_draw_openings(rects, tf)
+	_draw_safety_markers(rects, tf)
+	_draw_player_start(rects, tf)
+	_draw_live_player(rects, tf)
+	_draw_floor_badge()
+
+
+func _draw_openings(rects: Dictionary, tf: Dictionary) -> void:
+	for index in range(building.get_opening_count()):
+		var op: OpeningModel = building.get_opening_at(index)
+		if op == null or op.is_vertical:
+			continue
+		if not rects.has(op.a) or not _room_is_on_selected_floor(op.a):
+			continue
+		var ra: Rect2 = Rect2(rects[op.a])
+		var rb: Rect2 = Rect2(rects[op.b]) if rects.has(op.b) else Rect2()
+		var seg_m: PackedVector2Array = OpeningGeometry2D.shared_edge_segment_m(ra, rb) if rects.has(op.b) else OpeningGeometry2D.default_exterior_segment_m(ra, op.width_m, op.wall_side)
+		if seg_m.size() != 2:
+			continue
+		var color: Color = door_color
+		if op.type == OpeningModel.Type.WINDOW:
+			color = window_color
+		elif op.type == OpeningModel.Type.HOLE:
+			color = hole_color
+		draw_line(_point_to_px(seg_m[0], tf), _point_to_px(seg_m[1], tf), color, 2.2)
+
+
+func _draw_player_start(rects: Dictionary, tf: Dictionary) -> void:
+	if building.player_start.is_empty():
+		return
+	var room_id: int = int(building.player_start.get("room_id", -1))
+	if not rects.has(room_id) or not _room_is_on_selected_floor(room_id):
+		return
+	var rect: Rect2 = Rect2(rects[room_id])
+	var local_pos: Vector2 = Vector2(building.player_start.get("position_m", rect.size * 0.5))
+	var pos: Vector2 = rect.position + local_pos
+	var px: Vector2 = _point_to_px(pos, tf)
+	draw_circle(px, 4.5, player_color)
+	draw_circle(px, 6.5, player_color, false, 1.4)
+
+
+func _draw_live_player(rects: Dictionary, tf: Dictionary) -> void:
+	var marker: Dictionary = Dictionary(state.get("fp_player", {})) if typeof(state.get("fp_player", {})) == TYPE_DICTIONARY else {}
+	if marker.is_empty() or not bool(marker.get("active", false)):
+		return
+	var floor_level_m: float = float(marker.get("floor_level_z_m", selected_floor_level_m))
+	if absf(floor_level_m - selected_floor_level_m) >= 0.05:
+		return
+	var pos: Vector2 = Vector2(marker.get("position_m", Vector2.ZERO))
+	var room_id: int = int(marker.get("room_id", -1))
+	if room_id >= 0 and (not rects.has(room_id) or not _room_is_on_selected_floor(room_id)):
+		return
+	var px: Vector2 = _point_to_px(pos, tf)
+	var dir := Vector2(0.0, -1.0).rotated(deg_to_rad(float(marker.get("yaw_deg", 0.0))))
+	var radius: float = 7.0
+	var pts := PackedVector2Array([
+		px + dir * (radius + 3.0),
+		px + dir.rotated(2.35) * radius,
+		px + dir.rotated(-2.35) * radius
+	])
+	draw_circle(px, radius + 4.0, Color(live_player_color.r, live_player_color.g, live_player_color.b, 0.18), true)
+	draw_colored_polygon(pts, live_player_color)
+	draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(0.0, 0.0, 0.0, 0.84), 1.4)
+
+
+func _draw_fuel_objects(room_id: int, room_rect: Rect2, tf: Dictionary) -> void:
+	var room: RoomModel = building.get_room(room_id) if building != null else null
+	if room == null:
+		return
+	for obj in room.fuel_objects:
+		if obj == null:
+			continue
+		var size_m: Vector2 = obj.size_m
+		var center_m: Vector2 = room_rect.position + obj.position_m + size_m * 0.5
+		var rot := Transform2D(deg_to_rad(float(obj.rotation_deg)), Vector2.ZERO)
+		var half: Vector2 = size_m * 0.5
+		var points := PackedVector2Array([
+			_point_to_px(center_m + rot * Vector2(-half.x, -half.y), tf),
+			_point_to_px(center_m + rot * Vector2(half.x, -half.y), tf),
+			_point_to_px(center_m + rot * Vector2(half.x, half.y), tf),
+			_point_to_px(center_m + rot * Vector2(-half.x, half.y), tf)
+		])
+		draw_colored_polygon(points, Color(0.92, 0.34, 0.08, 0.34))
+		draw_polyline(PackedVector2Array([points[0], points[1], points[2], points[3], points[0]]), Color(1.0, 0.62, 0.22, 0.58), 0.8)
+
+
+func _draw_safety_markers(rects: Dictionary, tf: Dictionary) -> void:
+	for det in building.detectors:
+		if typeof(det) != TYPE_DICTIONARY:
+			continue
+		var room_id: int = int(Dictionary(det).get("room_id", -1))
+		if not rects.has(room_id) or not _room_is_on_selected_floor(room_id):
+			continue
+		var rect: Rect2 = Rect2(rects[room_id])
+		var pos: Vector2 = rect.position + Vector2(float(Dictionary(det).get("x_m", 0.0)), float(Dictionary(det).get("y_m", 0.0)))
+		draw_circle(_point_to_px(pos, tf), 3.2, Color(0.35, 0.76, 1.0, 0.95))
+	for vic in building.victims:
+		if typeof(vic) != TYPE_DICTIONARY:
+			continue
+		var room_id: int = int(Dictionary(vic).get("room_id", -1))
+		if not rects.has(room_id) or not _room_is_on_selected_floor(room_id):
+			continue
+		var rect: Rect2 = Rect2(rects[room_id])
+		var pos: Vector2 = rect.position + Vector2(float(Dictionary(vic).get("x_m", 0.0)), float(Dictionary(vic).get("y_m", 0.0)))
+		draw_circle(_point_to_px(pos, tf), 3.4, Color(0.95, 0.86, 0.48, 0.95))
+
+
+func _draw_floor_badge() -> void:
+	var text: String = _floor_label_for_level(selected_floor_level_m)
+	if building != null and String(building.building_type).to_lower() == "apartment":
+		text += "  P%d" % building.apartment_floor_number
+	if ThemeDB.fallback_font != null:
+		draw_string(ThemeDB.fallback_font, Vector2(8.0, 16.0), text, HORIZONTAL_ALIGNMENT_LEFT, maxf(40.0, size.x - 16.0), 11, Color(0.92, 0.96, 0.94, 0.92))
+
+
+func _draw_transform(plan_bounds: Rect2) -> Dictionary:
+	var pad := Vector2(10.0, 22.0)
+	var usable := Vector2(maxf(10.0, size.x - pad.x * 2.0), maxf(10.0, size.y - pad.y - 10.0))
+	var scale: float = minf(usable.x / maxf(0.01, plan_bounds.size.x), usable.y / maxf(0.01, plan_bounds.size.y))
+	var offset: Vector2 = Vector2(
+		pad.x + (usable.x - plan_bounds.size.x * scale) * 0.5,
+		pad.y + (usable.y - plan_bounds.size.y * scale) * 0.5
+	) - plan_bounds.position * scale
+	return {"scale": scale, "offset": offset}
+
+
+func _rect_to_px(rect: Rect2, tf: Dictionary) -> Rect2:
+	var scale: float = float(tf.get("scale", 1.0))
+	var offset: Vector2 = Vector2(tf.get("offset", Vector2.ZERO))
+	return Rect2(rect.position * scale + offset, rect.size * scale)
+
+
+func _point_to_px(point: Vector2, tf: Dictionary) -> Vector2:
+	return point * float(tf.get("scale", 1.0)) + Vector2(tf.get("offset", Vector2.ZERO))
+
+
+func _room_ids_on_selected_floor(rects: Dictionary) -> Array[int]:
+	var ids: Array[int] = []
+	for key in rects.keys():
+		var room_id: int = int(key)
+		if _room_is_on_selected_floor(room_id):
+			ids.append(room_id)
+	ids.sort()
+	return ids
+
+
+func _bounds_for_room_ids(rects: Dictionary, ids: Array[int]) -> Rect2:
+	var first: bool = true
+	var result := Rect2()
+	for room_id in ids:
+		var rect: Rect2 = Rect2(rects[room_id])
+		if first:
+			result = rect
+			first = false
+		else:
+			result = result.merge(rect)
+	return result
+
+
+func _room_is_on_selected_floor(room_id: int) -> bool:
+	var room: RoomModel = building.get_room(room_id) if building != null else null
+	return room != null and absf(room.floor_level_z_m - selected_floor_level_m) < 0.05
+
+
+func _initial_floor_level() -> float:
+	if building == null:
+		return 0.0
+	var best: float = INF
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(int(room_id))
+		if room != null:
+			best = minf(best, room.floor_level_z_m)
+	return 0.0 if is_inf(best) else best
+
+
+func _update_floor_from_player_start() -> void:
+	var marker: Dictionary = Dictionary(state.get("fp_player", {})) if typeof(state.get("fp_player", {})) == TYPE_DICTIONARY else {}
+	if not marker.is_empty() and bool(marker.get("active", false)):
+		selected_floor_level_m = float(marker.get("floor_level_z_m", selected_floor_level_m))
+		return
+	if building == null or building.player_start.is_empty():
+		return
+	selected_floor_level_m = float(building.player_start.get("floor_level_z_m", selected_floor_level_m))
+
+
+func _floor_label_for_level(level_m: float) -> String:
+	if absf(level_m) < 0.05:
+		return "PB"
+	return "P%d" % int(round(level_m / 2.9))

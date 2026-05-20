@@ -35,8 +35,26 @@ material_override = SubResource("Mat_door_light")
 position = Vector3(0, -0.24, -0.53)
 scale = Vector3(0.62, 0.32, 0.055)
 
+[node name="InsetTopBack" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_door_light")
+position = Vector3(0, 0.22, 0.53)
+scale = Vector3(0.62, 0.26, 0.055)
+
+[node name="InsetBottomBack" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_door_light")
+position = Vector3(0, -0.24, 0.53)
+scale = Vector3(0.62, 0.32, 0.055)
+
 [node name="Handle" type="MeshInstance3D" parent="."]
 mesh = SubResource("BoxMesh_unit")
 material_override = SubResource("Mat_handle")
 position = Vector3(0.34, 0.03, -0.59)
+scale = Vector3(0.08, 0.04, 0.08)
+
+[node name="HandleBack" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_handle")
+position = Vector3(-0.34, 0.03, 0.59)
 scale = Vector3(0.08, 0.04, 0.08)

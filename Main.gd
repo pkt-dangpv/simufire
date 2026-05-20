@@ -1,6 +1,7 @@
 extends Node
 
 const FirstPersonControllerScript = preload("res://view/fp/FirstPersonController.gd")
+const Minimap2DScript = preload("res://ui/Minimap2D.gd")
 const MAIN_MENU_PATH: String = "res://scenes/MainMenu.tscn"
 
 @onready var building: BuildingModel = $World/BuildingModel
@@ -23,6 +24,7 @@ var _graph_zoom: float = 1.0
 var view_3d_enabled: bool = false
 var first_person_enabled: bool = false
 var first_person_controller = null
+var minimap_2d = null
 
 
 func _ready() -> void:
@@ -30,6 +32,7 @@ func _ready() -> void:
 	if hud != null:
 		hud.bind_building(building)
 		_connect_hud_signals()
+	_setup_minimap()
 	_setup_first_person_controller()
 	_set_3d_view_enabled(view_3d_enabled)
 	if engine != null:
@@ -95,12 +98,16 @@ func _update_views() -> void:
 	state["graphs_launched"] = engine.are_graphs_launched()
 	state["view_3d_enabled"] = view_3d_enabled
 	state["first_person_enabled"] = first_person_enabled
+	if first_person_controller != null:
+		state["fp_player"] = first_person_controller.get_player_marker_state()
 	if visualizer != null:
 		visualizer.set_state(state)
 	if visualizer_3d != null:
 		visualizer_3d.set_state(state)
 	if hud != null:
 		hud.update_state(state)
+	if minimap_2d != null:
+		minimap_2d.set_state(state)
 	if first_person_controller != null:
 		first_person_controller.set_state(state)
 
@@ -205,6 +212,24 @@ func _sync_view_mode() -> void:
 		visualizer_3d.set_active(visualizer_3d_active, orbit_controls_active, orbit_controls_active, first_person_enabled)
 	if first_person_controller != null:
 		first_person_controller.set_active(first_person_enabled)
+	if minimap_2d != null:
+		minimap_2d.visible = visualizer_3d_active
+
+
+func _setup_minimap() -> void:
+	if hud == null or minimap_2d != null:
+		return
+	minimap_2d = Minimap2DScript.new()
+	minimap_2d.name = "Minimap2D"
+	minimap_2d.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	minimap_2d.offset_left = 14.0
+	minimap_2d.offset_top = 14.0
+	minimap_2d.offset_right = 242.0
+	minimap_2d.offset_bottom = 174.0
+	minimap_2d.visible = false
+	minimap_2d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud.add_child(minimap_2d)
+	minimap_2d.bind_building(building)
 
 
 func _setup_first_person_controller() -> void:

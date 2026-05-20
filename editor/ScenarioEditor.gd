@@ -12,6 +12,7 @@ enum Tool {
 	WINDOW,
 	OBJECT,
 	IGNITION,
+	PLAYER_START,
 	DELETE,
 	DETECTOR,
 	VICTIM
@@ -31,6 +32,7 @@ const OUTSIDE_ID: int = -1
 const DEFAULT_SAVE_PATH: String = "user://editor_scenario.json"
 const RUNTIME_EXPORT_PATH: String = "user://last_editor_runtime_template.json"
 const SCENARIOS_RES_PATH: String = "res://scenarios"
+const VALIDATION_CASES_PATH: String = "res://sim/validation/cases"
 const MAIN_SCENE_PATH: String = "res://scenes/SimulationScene.tscn"
 const MAIN_MENU_PATH: String = "res://scenes/MainMenu.tscn"
 const DEFAULT_FLOOR_HEIGHT_M: float = 2.90
@@ -40,6 +42,13 @@ const Serializer = preload("res://editor/ScenarioSerializer.gd")
 const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
 const EDITOR_LOGO_PATH: String = "res://assets/ui/simufire_logo_editor.png"
 const EDITOR_FONT_PATH: String = "res://assets/fonts/bahnschrift.ttf"
+const EDITOR_FONT_SIZE_BODY: int = 13
+const EDITOR_FONT_SIZE_COMPACT: int = 12
+const EDITOR_FONT_SIZE_HEADING: int = 15
+const EDITOR_FONT_SIZE_BUTTON: int = 12
+const EDITOR_FONT_SIZE_STATUS: int = 13
+const EDITOR_HOVER_HELP_DELAY_S: float = 1.0
+const EDITOR_HOVER_HELP_MOVE_TOL_PX: float = 4.0
 
 
 
@@ -99,6 +108,12 @@ var object_mouse_mode: int = ObjectMouseMode.NONE
 var object_drag_start_center_m: Vector2 = Vector2.ZERO
 var object_drag_start_size_m: Vector2 = Vector2.ONE
 var object_drag_start_rotation_deg: float = 0.0
+var is_dragging_room_geometry: bool = false
+var room_mouse_mode: int = ObjectMouseMode.NONE
+var room_drag_cursor_offset_m: Vector2 = Vector2.ZERO
+var room_drag_start_center_m: Vector2 = Vector2.ZERO
+var room_drag_start_rect_m: Rect2 = Rect2()
+var room_drag_start_rotation_deg: float = 0.0
 var _undo_stack: Array[Dictionary] = []
 
 var _ui_root: Control
@@ -118,6 +133,19 @@ var _floor_level_spin: SpinBox
 var _floor_status_label: Label
 var _floor_delete_button: Button
 var _building_type_option: OptionButton
+var _apartment_floor_spin: SpinBox
+var _element_list: ItemList
+var _element_list_sync_in_progress: bool = false
+var _help_toggle_button: Button
+var _help_panel: PanelContainer
+var _help_label: Label
+var _hover_help_check: CheckBox
+var _hover_help_enabled: bool = true
+var _hover_help_idle_s: float = 0.0
+var _hover_help_last_screen_pos: Vector2 = Vector2.ZERO
+var _hover_help_world_pos_m: Vector2 = Vector2.ZERO
+var _hover_help_text: String = ""
+var _hover_help_has_mouse: bool = false
 var _scenario_paths: Array[String] = []
 var _stop_time_spin: SpinBox
 var _corridor_width_spin: SpinBox
@@ -132,6 +160,9 @@ var _room_y_spin: SpinBox
 var _room_width_spin: SpinBox
 var _room_depth_spin: SpinBox
 var _room_rotation_spin: SpinBox
+var _stair_walls_check: CheckBox
+var _stair_railings_check: CheckBox
+var _stair_angle_label: Label
 var _room_mark_exterior_button: Button
 var _template_builder = BuildingTemplateScript.new()
 # Propiedades de objeto seleccionado
@@ -198,6 +229,7 @@ var _detector_smoke_color: Color = Color(0.20, 0.65, 1.00, 0.95)
 var _detector_heat_color: Color = Color(1.00, 0.45, 0.10, 0.95)
 var _detector_co_color: Color = Color(0.95, 0.92, 0.20, 0.95)
 var _victim_color: Color = Color(0.25, 0.95, 0.45, 0.95)
+var _player_start_color: Color = Color(0.58, 0.88, 1.0, 0.96)
 
 var _editor_theme: Theme
 var _editor_font: Font
@@ -213,6 +245,7 @@ const _CTX_DUPLICATE := 6
 const _CTX_DESELECT  := 7
 const _CTX_ADD_HOLE  := 8
 const _CTX_MARK_EXTERIOR := 9
+const _CTX_SET_PLAYER_START := 10
 # ── Tolerancias para detección de paredes adyacentes / solapadas ──────────
 const _CONN_GAP_TOL: float = 0.30       # brecha máxima entre paredes (m)
 const _CONN_OVERLAP_FRAC: float = 0.85  # solapamiento máximo (fracción de dim menor)
@@ -273,6 +306,8 @@ func _apply_editor_visual_style() -> void:
 		_ui_root.theme = _editor_theme
 	else:
 		_editor_theme = _ui_root.theme
+	_apply_editor_theme_font_sizes(_editor_theme)
+	_normalize_editor_panel_readability()
 	_ensure_editor_branding()
 	_style_editor_controls(_ui_root)
 
@@ -297,11 +332,7 @@ func _build_editor_theme() -> Theme:
 	for type_name in control_types:
 		theme.set_font("font", type_name, _editor_font)
 
-	theme.set_font_size("font_size", "Label", 12)
-	theme.set_font_size("font_size", "Button", 11)
-	theme.set_font_size("font_size", "LineEdit", 12)
-	theme.set_font_size("font_size", "OptionButton", 11)
-	theme.set_font_size("font_size", "SpinBox", 12)
+	_apply_editor_theme_font_sizes(theme)
 
 	theme.set_color("font_color", "Label", UI_TEXT)
 	theme.set_color("font_color", "Button", UI_TEXT)
@@ -341,6 +372,39 @@ func _build_editor_theme() -> Theme:
 	return theme
 
 
+func _apply_editor_theme_font_sizes(theme: Theme) -> void:
+	if theme == null:
+		return
+	theme.set_font_size("font_size", "Label", EDITOR_FONT_SIZE_BODY)
+	theme.set_font_size("font_size", "Button", EDITOR_FONT_SIZE_BUTTON)
+	theme.set_font_size("font_size", "LineEdit", EDITOR_FONT_SIZE_BODY)
+	theme.set_font_size("font_size", "OptionButton", EDITOR_FONT_SIZE_BUTTON)
+	theme.set_font_size("font_size", "SpinBox", EDITOR_FONT_SIZE_BODY)
+	theme.set_font_size("font_size", "CheckBox", EDITOR_FONT_SIZE_BODY)
+	theme.set_font_size("font_size", "ItemList", EDITOR_FONT_SIZE_COMPACT)
+	theme.set_font_size("font_size", "PopupMenu", EDITOR_FONT_SIZE_BODY)
+
+
+func _normalize_editor_panel_readability() -> void:
+	var left_panel := _ui_root.get_node_or_null("LeftPanel") as Control
+	if left_panel != null:
+		left_panel.scale = Vector2.ONE
+		left_panel.offset_top = 20.0
+		left_panel.offset_right = maxf(left_panel.offset_right, 360.0)
+		left_panel.offset_bottom = 0.0
+	var right_panel := _ui_root.get_node_or_null("RightPanel") as Control
+	if right_panel != null:
+		right_panel.scale = Vector2.ONE
+		right_panel.offset_left = minf(right_panel.offset_left, -316.0)
+		right_panel.offset_right = -12.0
+		right_panel.offset_top = 20.0
+		right_panel.offset_bottom = -86.0
+	var top_bar := _ui_root.get_node_or_null("TopBar") as Control
+	if top_bar != null:
+		top_bar.offset_top = 8.0
+		top_bar.offset_bottom = maxf(top_bar.offset_bottom, 116.0)
+
+
 func _stylebox(bg: Color, border: Color, border_width: int, radius: int, margin: Vector2) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
 	box.bg_color = bg
@@ -372,20 +436,20 @@ func _ensure_editor_branding() -> void:
 	if brand == null:
 		brand = VBoxContainer.new()
 		brand.name = "BrandHeader"
-		brand.custom_minimum_size = Vector2(0.0, 220.0)
 		brand.add_theme_constant_override("separation", 6)
 		left_vbox.add_child(brand)
 		left_vbox.move_child(brand, 0)
+	brand.custom_minimum_size = Vector2(0.0, 136.0)
 
 	var logo := brand.get_node_or_null("Logo") as TextureRect
 	if logo == null:
 		logo = TextureRect.new()
 		logo.name = "Logo"
-		logo.custom_minimum_size = Vector2(292.0, 205.0)
 		logo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		brand.add_child(logo)
+	logo.custom_minimum_size = Vector2(292.0, 106.0)
 	logo.texture = load(EDITOR_LOGO_PATH) as Texture2D
 
 	var mode_label := brand.get_node_or_null("EditorModeLabel") as Label
@@ -396,7 +460,7 @@ func _ensure_editor_branding() -> void:
 		brand.add_child(mode_label)
 	mode_label.text = "TACTICAL SCENARIO EDITOR"
 	mode_label.add_theme_font_override("font", _editor_title_font)
-	mode_label.add_theme_font_size_override("font_size", 14)
+	mode_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
 	mode_label.add_theme_color_override("font_color", UI_TEXT_MUTED)
 
 
@@ -425,39 +489,50 @@ func _style_editor_controls(node: Node) -> void:
 		if _is_heading_label(label):
 			label.text = label.text.to_upper()
 			label.add_theme_font_override("font", _editor_title_font)
-			label.add_theme_font_size_override("font_size", 13)
+			label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_HEADING)
 			label.add_theme_color_override("font_color", UI_BORDER_HOT)
 		elif label.name == "StatusLabel":
-			label.add_theme_font_size_override("font_size", 15)
-			label.custom_minimum_size.y = maxf(label.custom_minimum_size.y, 58.0)
+			label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_STATUS)
+			label.custom_minimum_size.y = maxf(label.custom_minimum_size.y, 72.0)
 			label.add_theme_color_override("font_color", UI_TEXT_MUTED)
 		elif label.name == "ControlsHelp":
-			label.add_theme_font_size_override("font_size", 13)
+			label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
 			label.add_theme_color_override("font_color", UI_TEXT_MUTED)
 		elif label.name == "FloorStatusLabel":
-			label.add_theme_font_size_override("font_size", 12)
+			label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
 			label.add_theme_color_override("font_color", UI_TEXT_MUTED)
 		elif label.name == "EditorModeLabel":
 			label.add_theme_font_override("font", _editor_title_font)
-			label.add_theme_font_size_override("font_size", 14)
+			label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
 			label.add_theme_color_override("font_color", UI_TEXT_MUTED)
 		else:
-			label.add_theme_font_size_override("font_size", 11)
+			label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
 			if not label.text.contains(":") and label.text.length() <= 36:
 				label.text = label.text.to_upper()
 	if node is Button:
 		var button := node as Button
 		button.text = button.text.to_upper()
+		button.focus_mode = Control.FOCUS_NONE
 		button.add_theme_font_override("font", _editor_title_font)
-		button.add_theme_font_size_override("font_size", 11)
+		button.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BUTTON)
 	if node is LineEdit:
 		var edit := node as LineEdit
 		edit.add_theme_font_override("font", _editor_font)
-		edit.add_theme_font_size_override("font_size", 12)
+		edit.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
+	if node is SpinBox:
+		var spin := node as SpinBox
+		spin.add_theme_font_override("font", _editor_font)
+		spin.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
 	if node is OptionButton:
 		var option := node as OptionButton
+		option.focus_mode = Control.FOCUS_NONE
 		option.add_theme_font_override("font", _editor_title_font)
-		option.add_theme_font_size_override("font_size", 11)
+		option.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BUTTON)
+	if node is ItemList:
+		var item_list := node as ItemList
+		item_list.focus_mode = Control.FOCUS_NONE
+		item_list.add_theme_font_override("font", _editor_font)
+		item_list.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
 	for child in node.get_children():
 		_style_editor_controls(child)
 
@@ -475,6 +550,7 @@ func _create_empty_scenario() -> void:
 		"outside_temp_c": 20.0,
 		"outside_o2": 0.209,
 		"building_type": "single_family",
+		"apartment_floor_number": 1,
 		"stop_time_s": 0.0,
 		"hvac_mode": "none",
 		"hvac_data": {"exists": false, "on": false, "mode": "none"},
@@ -484,7 +560,8 @@ func _create_empty_scenario() -> void:
 		"rooms_data": [],
 		"openings_data": [],
 		"detectors": [],
-		"victims": []
+		"victims": [],
+		"player_start": {}
 	}
 	current_floor_index = 0
 	_undo_stack.clear()
@@ -565,12 +642,14 @@ func _setup_ui() -> void:
 	_add_tool_button(toolbar, "Window", Tool.WINDOW)
 	_add_tool_button(toolbar, "Object", Tool.OBJECT)
 	_add_tool_button(toolbar, "Ignite", Tool.IGNITION)
+	_add_tool_button(toolbar, "Inicio FP", Tool.PLAYER_START)
 	_add_tool_button(toolbar, "Del", Tool.DELETE)
 	_add_tool_button(toolbar, "Detect.", Tool.DETECTOR)
 	_add_tool_button(toolbar, "Vict.", Tool.VICTIM)
 
 	_create_floor_controls(main)
 	_create_building_type_controls(main)
+	_create_element_list_controls(main)
 	main.add_child(HSeparator.new())
 
 	var object_row := HBoxContainer.new()
@@ -622,6 +701,14 @@ func _setup_ui() -> void:
 	_room_width_spin = _add_spin(main, "Ancho (m)", 0.25, 200.0, 0.05)
 	_room_depth_spin = _add_spin(main, "Fondo (m)", 0.25, 200.0, 0.05)
 	_room_rotation_spin = _add_spin(main, "Angulo (deg)", -180.0, 180.0, 1.0)
+	_stair_walls_check = _add_checkbox(main, "Escalera con paredes")
+	_stair_railings_check = _add_checkbox(main, "Escalera con barandillas")
+	_stair_angle_label = Label.new()
+	_stair_angle_label.name = "StairAngleLabel"
+	_stair_angle_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_stair_angle_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
+	_stair_angle_label.modulate = UI_TEXT_MUTED
+	main.add_child(_stair_angle_label)
 	_height_spin = _add_spin(main, "Alto (m)", 1.8, 6.0, 0.1)
 	_fuel_spin = _add_spin(main, "Combust. MJ", 0.0, 10000.0, 10.0)
 	_hrr_spin = _add_spin(main, "HRR máx kW", 0.0, 5000.0, 10.0)
@@ -682,7 +769,7 @@ func _setup_ui() -> void:
 	main.add_child(_opening_props_container)
 
 	_opening_type_label = Label.new()
-	_opening_type_label.add_theme_font_size_override("font_size", 11)
+	_opening_type_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
 	_opening_type_label.modulate = Color(0.75, 0.88, 1.0, 1.0)
 	_opening_props_container.add_child(_opening_type_label)
 
@@ -853,7 +940,7 @@ func _setup_ui() -> void:
 	_stop_time_spin.value = 0.0
 	var stop_hint := Label.new()
 	stop_hint.text = "(0 = no parar nunca)"
-	stop_hint.add_theme_font_size_override("font_size", 10)
+	stop_hint.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
 	stop_hint.modulate = Color(0.7, 0.7, 0.7)
 	main.add_child(stop_hint)
 	_stop_time_spin.value_changed.connect(func(v: float):
@@ -962,6 +1049,19 @@ func _add_spin(parent: Control, label: String, min_value: float, max_value: floa
 	return spin
 
 
+func _add_checkbox(parent: Control, label: String) -> CheckBox:
+	var row := HBoxContainer.new()
+	parent.add_child(row)
+	var spacer := Control.new()
+	spacer.custom_minimum_size.x = 96.0
+	row.add_child(spacer)
+	var checkbox := CheckBox.new()
+	checkbox.text = label
+	checkbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(checkbox)
+	return checkbox
+
+
 func _create_building_type_controls(parent: Control) -> void:
 	var row := HBoxContainer.new()
 	row.name = "BuildingTypeRow"
@@ -979,6 +1079,28 @@ func _create_building_type_controls(parent: Control) -> void:
 	_populate_building_type_option()
 	if not _building_type_option.item_selected.is_connected(_on_building_type_selected):
 		_building_type_option.item_selected.connect(_on_building_type_selected)
+	_apartment_floor_spin = _add_spin(parent, "Planta piso", -5.0, 80.0, 1.0)
+	_apartment_floor_spin.rounded = true
+	if not _apartment_floor_spin.value_changed.is_connected(_on_apartment_floor_changed):
+		_apartment_floor_spin.value_changed.connect(_on_apartment_floor_changed)
+	_sync_apartment_floor_control()
+
+
+func _create_element_list_controls(parent: Control) -> void:
+	var title := Label.new()
+	title.name = "ElementListTitle"
+	title.text = "Elementos de planta"
+	parent.add_child(title)
+	_element_list = ItemList.new()
+	_element_list.name = "ElementList"
+	_element_list.custom_minimum_size = Vector2(0.0, 132.0)
+	_element_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_element_list.select_mode = ItemList.SELECT_SINGLE
+	_element_list.allow_reselect = true
+	_element_list.auto_height = false
+	_element_list.item_selected.connect(_on_element_list_item_selected)
+	parent.add_child(_element_list)
+	_refresh_element_list()
 
 
 func _populate_building_type_option() -> void:
@@ -995,6 +1117,7 @@ func _sync_building_type_option_from_data() -> void:
 		return
 	var building_type: String = String(editor_data.get("building_type", "single_family")).to_lower()
 	_building_type_option.select(1 if building_type == "apartment" else 0)
+	_sync_apartment_floor_control()
 
 
 func _on_building_type_selected(index: int) -> void:
@@ -1003,21 +1126,141 @@ func _on_building_type_selected(index: int) -> void:
 		return
 	_push_undo_snapshot("building_type")
 	editor_data["building_type"] = new_type
+	_sync_apartment_floor_control()
 	_set_status("Exterior configurado como %s." % ("piso" if index == 1 else "casa unifamiliar"))
 
 
+func _sync_apartment_floor_control() -> void:
+	if _apartment_floor_spin == null:
+		return
+	_apartment_floor_spin.value = int(editor_data.get("apartment_floor_number", 1))
+	var is_apartment: bool = String(editor_data.get("building_type", "single_family")).to_lower() == "apartment"
+	_set_control_row_visible(_apartment_floor_spin, is_apartment)
+
+
+func _on_apartment_floor_changed(value: float) -> void:
+	var next_floor: int = int(round(value))
+	if int(editor_data.get("apartment_floor_number", 1)) == next_floor:
+		return
+	_push_undo_snapshot("apartment_floor")
+	editor_data["apartment_floor_number"] = next_floor
+	_set_status("Planta exterior del piso: %d." % next_floor)
+
+
 func _add_controls_help(parent: Control) -> void:
-	var title := Label.new()
-	title.name = "ControlsHelpTitle"
-	title.text = "Controles"
-	parent.add_child(title)
-	var help := Label.new()
-	help.name = "ControlsHelp"
-	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	help.add_theme_font_size_override("font_size", 13)
-	help.modulate = UI_TEXT_MUTED
-	help.text = "Zoom: rueda del raton. Mover plano: flechas o boton central. Boton derecho sobre objetos, habitaciones, huecos o muros: propiedades. Exterior: dibuja muros de fachada con el raton."
-	parent.add_child(help)
+	_ensure_controls_help_block(parent)
+
+
+func _ensure_controls_help_block(parent: Control) -> void:
+	var old_title := parent.get_node_or_null("ControlsHelpTitle") as Label
+	if old_title != null:
+		old_title.visible = false
+
+	var hover_row := parent.get_node_or_null("HoverHelpRow") as HBoxContainer
+	if hover_row == null:
+		hover_row = HBoxContainer.new()
+		hover_row.name = "HoverHelpRow"
+		hover_row.add_theme_constant_override("separation", 6)
+		parent.add_child(hover_row)
+	_hover_help_check = hover_row.get_node_or_null("HoverHelpCheck") as CheckBox
+	if _hover_help_check == null:
+		_hover_help_check = CheckBox.new()
+		_hover_help_check.name = "HoverHelpCheck"
+		_hover_help_check.text = "Activar ayuda"
+		_hover_help_check.button_pressed = _hover_help_enabled
+		_hover_help_check.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hover_row.add_child(_hover_help_check)
+	var hover_callable := Callable(self, "_on_hover_help_toggled")
+	if not _hover_help_check.toggled.is_connected(hover_callable):
+		_hover_help_check.toggled.connect(hover_callable)
+
+	_help_toggle_button = parent.get_node_or_null("ControlsHelpToggle") as Button
+	if _help_toggle_button == null:
+		_help_toggle_button = Button.new()
+		_help_toggle_button.name = "ControlsHelpToggle"
+		_help_toggle_button.toggle_mode = true
+		_help_toggle_button.custom_minimum_size = Vector2(0.0, 34.0)
+		parent.add_child(_help_toggle_button)
+	_help_toggle_button.tooltip_text = "Muestra una guia rapida del editor."
+	var toggle_callable := Callable(self, "_set_controls_help_expanded")
+	if not _help_toggle_button.toggled.is_connected(toggle_callable):
+		_help_toggle_button.toggled.connect(toggle_callable)
+
+	_help_panel = parent.get_node_or_null("ControlsHelpPanel") as PanelContainer
+	if _help_panel == null:
+		_help_panel = PanelContainer.new()
+		_help_panel.name = "ControlsHelpPanel"
+		_help_panel.visible = false
+		parent.add_child(_help_panel)
+	var margin := _help_panel.get_node_or_null("Margin") as MarginContainer
+	if margin == null:
+		margin = MarginContainer.new()
+		margin.name = "Margin"
+		margin.add_theme_constant_override("margin_left", 10)
+		margin.add_theme_constant_override("margin_top", 8)
+		margin.add_theme_constant_override("margin_right", 10)
+		margin.add_theme_constant_override("margin_bottom", 8)
+		_help_panel.add_child(margin)
+
+	_help_label = margin.get_node_or_null("ControlsHelp") as Label
+	if _help_label == null:
+		var legacy_help := parent.get_node_or_null("ControlsHelp") as Label
+		if legacy_help != null and legacy_help.get_parent() == parent:
+			parent.remove_child(legacy_help)
+			margin.add_child(legacy_help)
+			_help_label = legacy_help
+		else:
+			_help_label = Label.new()
+			_help_label.name = "ControlsHelp"
+			margin.add_child(_help_label)
+	_help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_help_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
+	_help_label.add_theme_color_override("font_color", UI_TEXT_MUTED)
+	_help_label.text = _editor_help_text()
+
+	_move_controls_help_after_element_list(parent)
+	_set_controls_help_expanded(_help_toggle_button.button_pressed)
+
+
+func _set_controls_help_expanded(expanded: bool) -> void:
+	if _help_panel != null:
+		_help_panel.visible = expanded
+	if _help_toggle_button != null:
+		_help_toggle_button.text = "AYUDA DEL EDITOR v" if expanded else "AYUDA DEL EDITOR >"
+
+
+func _move_controls_help_after_element_list(parent: Control) -> void:
+	if _help_toggle_button == null or _help_panel == null:
+		return
+	var anchor := parent.get_node_or_null("ElementList") as Control
+	if anchor == null:
+		anchor = parent.get_node_or_null("FloorSection") as Control
+	if anchor == null or anchor.get_parent() != parent:
+		return
+	var hover_row := parent.get_node_or_null("HoverHelpRow") as Control
+	if hover_row != null:
+		parent.move_child(hover_row, mini(anchor.get_index() + 1, parent.get_child_count() - 1))
+		parent.move_child(_help_toggle_button, mini(hover_row.get_index() + 1, parent.get_child_count() - 1))
+	else:
+		parent.move_child(_help_toggle_button, mini(anchor.get_index() + 1, parent.get_child_count() - 1))
+	parent.move_child(_help_panel, mini(_help_toggle_button.get_index() + 1, parent.get_child_count() - 1))
+
+
+func _on_hover_help_toggled(enabled: bool) -> void:
+	_hover_help_enabled = enabled
+	_reset_hover_help()
+
+
+func _editor_help_text() -> String:
+	return "\n".join(PackedStringArray([
+		"1. Elige la planta arriba a la izquierda. La lista Elementos de planta solo muestra lo que pertenece a esa planta, asi puedes seleccionar cosas aunque se superpongan en el plano.",
+		"2. Usa las herramientas superiores para dibujar habitaciones, pasillos, escaleras, puertas, ventanas, huecos, objetos, detectores, victimas e Inicio FP.",
+		"3. Con Sel puedes clicar un elemento o elegirlo en la lista. Las habitaciones, pasillos, escaleras y objetos tienen tiradores para mover, redimensionar y rotar con el raton.",
+		"4. Para puertas, ventanas y huecos, selecciona la herramienta y clica sobre la pared de la estancia. Sus medidas y apertura inicial se ajustan en el panel derecho.",
+		"5. La herramienta Inicio FP coloca la posicion inicial del jugador en la planta activa.",
+		"6. Boton derecho sobre estancias, objetos, aberturas o muros abre acciones rapidas. Supr borra la seleccion y Ctrl+Z deshace.",
+		"7. Rueda del raton hace zoom. Boton central o flechas desplazan el plano. Guardar conserva el escenario; Iniciar simulacion exporta y abre la simulacion."
+	]))
 
 
 func _create_floor_controls(parent: Control) -> void:
@@ -1060,7 +1303,7 @@ func _create_floor_controls(parent: Control) -> void:
 	_floor_status_label = Label.new()
 	_floor_status_label.name = "FloorStatusLabel"
 	_floor_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_floor_status_label.add_theme_font_size_override("font_size", 12)
+	_floor_status_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
 	_floor_status_label.modulate = UI_TEXT_MUTED
 	parent.add_child(_floor_status_label)
 	_sync_floor_controls()
@@ -1131,6 +1374,7 @@ func _sync_floor_controls() -> void:
 	if _floor_delete_button != null:
 		_floor_delete_button.disabled = floors.size() <= 1
 	_update_floor_status()
+	_refresh_element_list()
 
 
 func _update_floor_status() -> void:
@@ -1144,6 +1388,140 @@ func _update_floor_status() -> void:
 		_current_floor_name(),
 		rooms_on_floor
 	]
+
+
+func _refresh_element_list() -> void:
+	if _element_list == null:
+		return
+	_element_list_sync_in_progress = true
+	_element_list.clear()
+	var selected_item_index: int = -1
+	var row_index: int = 0
+	for room in editor_data.get("rooms_data", []):
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		var room_dict: Dictionary = room
+		if not _is_room_on_current_floor(room_dict):
+			continue
+		var room_id: int = int(room_dict.get("id", -1))
+		var room_label: String = "%s  R%d  %s" % [_element_type_label_for_room(room_dict), room_id, _room_display_name(room_dict, room_id)]
+		_element_list.add_item(room_label)
+		_element_list.set_item_metadata(row_index, {"type": "room", "room_id": room_id})
+		if selected_room_id == room_id:
+			selected_item_index = row_index
+		row_index += 1
+
+		var objects: Array = room_dict.get("fuel_objects", [])
+		for obj_index in range(objects.size()):
+			if typeof(objects[obj_index]) != TYPE_DICTIONARY:
+				continue
+			var obj: Dictionary = objects[obj_index]
+			_element_list.add_item("  Objeto  %s" % String(obj.get("name", obj.get("kind", "obj"))))
+			_element_list.set_item_metadata(row_index, {"type": "object", "room_id": room_id, "object_index": obj_index})
+			if selected_object_room_id == room_id and selected_object_index == obj_index:
+				selected_item_index = row_index
+			row_index += 1
+
+	for i in range(Array(editor_data.get("openings_data", [])).size()):
+		var openings: Array = editor_data.get("openings_data", [])
+		if typeof(openings[i]) != TYPE_DICTIONARY:
+			continue
+		var opening: Dictionary = openings[i]
+		if not _opening_on_current_floor(opening):
+			continue
+		_element_list.add_item(_element_label_for_opening(opening, i))
+		_element_list.set_item_metadata(row_index, {"type": "opening", "opening_index": i})
+		if selected_opening_index == i:
+			selected_item_index = row_index
+		row_index += 1
+
+	for i in range(Array(editor_data.get("detectors", [])).size()):
+		var dets: Array = editor_data.get("detectors", [])
+		if typeof(dets[i]) != TYPE_DICTIONARY:
+			continue
+		var det: Dictionary = dets[i]
+		var room_id: int = int(det.get("room_id", -1))
+		if not _is_room_on_current_floor(_get_room(room_id)):
+			continue
+		_element_list.add_item("Detector  %s  R%d" % [String(det.get("id", str(i))), room_id])
+		_element_list.set_item_metadata(row_index, {"type": "detector", "detector_index": i})
+		if selected_detector_index == i:
+			selected_item_index = row_index
+		row_index += 1
+
+	for i in range(Array(editor_data.get("victims", [])).size()):
+		var vics: Array = editor_data.get("victims", [])
+		if typeof(vics[i]) != TYPE_DICTIONARY:
+			continue
+		var vic: Dictionary = vics[i]
+		var room_id: int = int(vic.get("room_id", -1))
+		if not _is_room_on_current_floor(_get_room(room_id)):
+			continue
+		_element_list.add_item("Victima  %s  R%d" % [String(vic.get("name", vic.get("id", str(i)))), room_id])
+		_element_list.set_item_metadata(row_index, {"type": "victim", "victim_index": i})
+		if selected_victim_index == i:
+			selected_item_index = row_index
+		row_index += 1
+
+	var start: Dictionary = Dictionary(editor_data.get("player_start", {})) if typeof(editor_data.get("player_start", {})) == TYPE_DICTIONARY else {}
+	if not start.is_empty():
+		var start_room_id: int = int(start.get("room_id", -1))
+		if _is_room_on_current_floor(_get_room(start_room_id)):
+			_element_list.add_item("Inicio FP  R%d" % start_room_id)
+			_element_list.set_item_metadata(row_index, {"type": "player_start", "room_id": start_room_id})
+			row_index += 1
+
+	if row_index == 0:
+		_element_list.add_item("Sin elementos en %s" % _current_floor_name())
+		_element_list.set_item_disabled(0, true)
+	elif selected_item_index >= 0:
+		_element_list.select(selected_item_index)
+	_element_list_sync_in_progress = false
+
+
+func _element_type_label_for_room(room: Dictionary) -> String:
+	if _is_stair_room(room):
+		return "Escalera"
+	if _is_corridor_room(room):
+		return "Pasillo"
+	return "Estancia"
+
+
+func _element_label_for_opening(opening: Dictionary, index: int) -> String:
+	var type_text: String = String(opening.get("type", "door"))
+	var label: String = "Puerta"
+	if type_text == "window":
+		label = "Ventana"
+	elif type_text == "hole":
+		label = "Hueco"
+	if bool(opening.get("is_vertical", false)):
+		label = "Hueco vertical"
+	var a_id: int = int(opening.get("a", -1))
+	var b_id: int = int(opening.get("b", OUTSIDE_ID))
+	var target: String = "exterior" if b_id == OUTSIDE_ID else "R%d-R%d" % [a_id, b_id]
+	return "%s  %02d  %s" % [label, index, target]
+
+
+func _on_element_list_item_selected(index: int) -> void:
+	if _element_list_sync_in_progress or _element_list == null:
+		return
+	var meta: Variant = _element_list.get_item_metadata(index)
+	if typeof(meta) != TYPE_DICTIONARY:
+		return
+	var data: Dictionary = meta
+	match String(data.get("type", "")):
+		"room":
+			_select_room(int(data.get("room_id", -1)))
+		"object":
+			_select_object(int(data.get("room_id", -1)), int(data.get("object_index", -1)))
+		"opening":
+			_select_opening(int(data.get("opening_index", -1)))
+		"detector":
+			_select_detector(int(data.get("detector_index", -1)))
+		"victim":
+			_select_victim(int(data.get("victim_index", -1)))
+		"player_start":
+			_select_room(int(data.get("room_id", -1)))
 
 
 func _on_floor_selected(index: int) -> void:
@@ -1349,6 +1727,8 @@ func _tool_hint(tool_id: int) -> String:
 			return "Objeto: pulsa dentro de una estancia de %s para colocar el combustible elegido." % _current_floor_name()
 		Tool.IGNITION:
 			return "Ignicion: pulsa un objeto de %s para marcarlo como foco inicial." % _current_floor_name()
+		Tool.PLAYER_START:
+			return "Inicio FP: pulsa dentro de una estancia de %s para colocar donde aparece el jugador." % _current_floor_name()
 		Tool.DELETE:
 			return "Borrar: elimina objeto, apertura o estancia bajo el cursor en %s." % _current_floor_name()
 		Tool.DETECTOR:
@@ -1395,12 +1775,15 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 
 	if event is InputEventMouseMotion:
+		_track_hover_help_mouse(event.position)
 		if is_dragging_exterior_wall:
 			drag_current_m = _screen_to_m(event.position)
 			queue_redraw()
 		elif is_dragging_room:
 			drag_current_m = _screen_to_m(event.position)
 			queue_redraw()
+		elif is_dragging_room_geometry:
+			_update_dragged_room_geometry(_screen_to_m(event.position))
 		elif is_dragging_object:
 			_update_dragged_object(_screen_to_m(event.position))
 		return
@@ -1429,6 +1812,21 @@ func _unhandled_input(event: InputEvent) -> void:
 		_handle_release(pos_m)
 
 
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventKey):
+		return
+	var key_event := event as InputEventKey
+	if not key_event.pressed or key_event.echo or not _is_arrow_key(key_event.keycode):
+		return
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	if focus_owner is OptionButton or focus_owner is ItemList or focus_owner is Button:
+		get_viewport().set_input_as_handled()
+
+
+func _is_arrow_key(keycode: int) -> bool:
+	return keycode == KEY_LEFT or keycode == KEY_RIGHT or keycode == KEY_UP or keycode == KEY_DOWN
+
+
 func _handle_press(pos_m: Vector2) -> void:
 	match current_tool:
 		Tool.EXTERIOR_WALL:
@@ -1450,6 +1848,15 @@ func _handle_press(pos_m: Vector2) -> void:
 				if not hit.is_empty() and int(hit["room_id"]) == selected_object_room_id and int(hit["object_index"]) == selected_object_index:
 					_begin_object_mouse_edit(ObjectMouseMode.MOVE, pos_m)
 					return
+			if selected_room_id >= 0:
+				var room_handle_mode: int = _find_selected_room_handle_at(pos_m)
+				if room_handle_mode != ObjectMouseMode.NONE:
+					_begin_room_mouse_edit(room_handle_mode, pos_m)
+					return
+				var selected_room: Dictionary = _get_room(selected_room_id)
+				if not selected_room.is_empty() and _rotated_rect_has_point(_get_room_rect(selected_room_id), _room_rotation_deg(selected_room_id), pos_m):
+					_begin_room_mouse_edit(ObjectMouseMode.MOVE, pos_m)
+					return
 			_select_at(pos_m)
 		Tool.DOOR:
 			_create_door_at(pos_m)
@@ -1461,6 +1868,8 @@ func _handle_press(pos_m: Vector2) -> void:
 			_create_object_at(pos_m)
 		Tool.IGNITION:
 			_mark_ignition_at(pos_m)
+		Tool.PLAYER_START:
+			_create_player_start_at(pos_m)
 		Tool.DELETE:
 			_delete_at(pos_m)
 		Tool.DETECTOR:
@@ -1470,6 +1879,21 @@ func _handle_press(pos_m: Vector2) -> void:
 
 
 func _handle_release(pos_m: Vector2) -> void:
+	if is_dragging_room_geometry:
+		var completed_mode: int = room_mouse_mode
+		is_dragging_room_geometry = false
+		room_mouse_mode = ObjectMouseMode.NONE
+		room_drag_cursor_offset_m = Vector2.ZERO
+		if completed_mode == ObjectMouseMode.ROTATE:
+			_set_status("Angulo de la habitacion actualizado.")
+		elif completed_mode == ObjectMouseMode.RESIZE_WIDTH or completed_mode == ObjectMouseMode.RESIZE_LENGTH:
+			_set_status("Tamano de la habitacion actualizado.")
+		else:
+			_set_status("Habitacion movida.")
+		_refresh_element_list()
+		queue_redraw()
+		return
+
 	if is_dragging_object:
 		var completed_mode: int = object_mouse_mode
 		is_dragging_object = false
@@ -1522,7 +1946,7 @@ func _handle_release(pos_m: Vector2) -> void:
 			queue_redraw()
 			return
 		_push_undo_snapshot("create_stairs")
-		_create_stairs_from_rect(rect)
+		_create_stairs_from_rect(rect, start_m, end_m)
 		queue_redraw()
 		return
 
@@ -1584,29 +2008,30 @@ func _show_context_menu(screen_pos: Vector2, pos_m: Vector2) -> void:
 		_ctx_room_id     = int(hit_obj.get("room_id", -1))
 		_ctx_obj_index   = int(hit_obj.get("object_index", -1))
 		var obj: Dictionary = _get_object(_ctx_room_id, _ctx_obj_index)
-		menu.add_item("Editar: %s" % str(obj.get("name", "objeto")), _CTX_EDIT)
+		menu.add_item("Mostrar propiedades: %s" % str(obj.get("name", "objeto")), _CTX_EDIT)
 		menu.add_item("Duplicar objeto", _CTX_DUPLICATE)
 		menu.add_separator()
 		menu.add_item("Borrar objeto", _CTX_DELETE)
 	elif hit_opening >= 0:
 		_ctx_opening_index = hit_opening
-		menu.add_item("Editar apertura", _CTX_EDIT)
+		menu.add_item("Mostrar propiedades apertura", _CTX_EDIT)
 		menu.add_separator()
 		menu.add_item("Borrar apertura", _CTX_DELETE)
 	elif hit_wall >= 0:
 		_ctx_exterior_wall_index = hit_wall
-		menu.add_item("Editar muro exterior", _CTX_EDIT)
+		menu.add_item("Mostrar propiedades muro exterior", _CTX_EDIT)
 		menu.add_separator()
 		menu.add_item("Borrar muro exterior", _CTX_DELETE)
 	elif hit_room >= 0:
 		_ctx_room_id = hit_room
 		var room: Dictionary = _get_room(hit_room)
 		var rname: String = _room_display_name(room, hit_room)
-		menu.add_item("Editar: %s" % rname, _CTX_EDIT)
+		menu.add_item("Mostrar propiedades: %s" % rname, _CTX_EDIT)
 		menu.add_separator()
 		menu.add_item("Anadir puerta aqui", _CTX_ADD_DOOR)
 		menu.add_item("Anadir hueco aqui", _CTX_ADD_HOLE)
 		menu.add_item("Anadir ventana aqui", _CTX_ADD_WIN)
+		menu.add_item("Punto inicio jugador aqui", _CTX_SET_PLAYER_START)
 		menu.add_item("Marcar contorno exterior", _CTX_MARK_EXTERIOR)
 		menu.add_item("Marcar ignicion aqui", _CTX_IGNITE)
 		menu.add_separator()
@@ -1658,6 +2083,9 @@ func _on_context_id_pressed(id: int) -> void:
 		_CTX_MARK_EXTERIOR:
 			if _ctx_room_id >= 0:
 				_mark_room_as_exterior(_ctx_room_id)
+		_CTX_SET_PLAYER_START:
+			if _ctx_room_id >= 0:
+				_set_player_start_at(_ctx_room_id, _ctx_pos_m)
 		_CTX_DUPLICATE:
 			_duplicate_object_at_context()
 		_CTX_DESELECT:
@@ -1683,6 +2111,35 @@ func _duplicate_object_at_context() -> void:
 	queue_redraw()
 
 
+func _set_player_start_at(room_id: int, world_pos_m: Vector2) -> void:
+	var room: Dictionary = _get_room(room_id)
+	var rect: Rect2 = _get_room_rect(room_id)
+	if room.is_empty() or rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return
+	_push_undo_snapshot("set_player_start")
+	var local_pos: Vector2 = world_pos_m - rect.position
+	local_pos.x = clampf(local_pos.x, 0.0, rect.size.x)
+	local_pos.y = clampf(local_pos.y, 0.0, rect.size.y)
+	editor_data["player_start"] = {
+		"room_id": room_id,
+		"position_m": Serializer.vector_to_data(local_pos),
+		"floor_level_z_m": float(room.get("floor_level_z_m", 0.0)),
+		"yaw_deg": 0.0
+	}
+	_select_room(room_id)
+	_set_status("Punto de inicio del jugador definido en %s." % _room_display_name(room, room_id))
+	_refresh_element_list()
+	queue_redraw()
+
+
+func _create_player_start_at(pos_m: Vector2) -> void:
+	var room_id: int = _find_room_at(pos_m)
+	if room_id < 0:
+		_set_status("Pulsa dentro de una estancia de la planta activa para colocar el inicio FP.")
+		return
+	_set_player_start_at(room_id, pos_m)
+
+
 func _m_to_px(pos_m: Vector2) -> Vector2:
 	return pos_m * PIXELS_PER_METER
 
@@ -1704,8 +2161,127 @@ func _normalized_rect(a: Vector2, b: Vector2) -> Rect2:
 func _clear_drag() -> void:
 	is_dragging_room = false
 	is_dragging_exterior_wall = false
+	is_dragging_room_geometry = false
+	room_mouse_mode = ObjectMouseMode.NONE
 	drag_start_m = Vector2.ZERO
 	drag_current_m = Vector2.ZERO
+
+
+func _begin_room_mouse_edit(mode: int, pos_m: Vector2) -> void:
+	if selected_room_id < 0:
+		return
+	var room: Dictionary = _get_room(selected_room_id)
+	if room.is_empty():
+		return
+	var rect: Rect2 = _get_room_rect(selected_room_id)
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return
+	_push_undo_snapshot("edit_room_mouse")
+	room_mouse_mode = mode
+	is_dragging_room_geometry = true
+	room_drag_start_rect_m = rect
+	room_drag_start_center_m = rect.get_center()
+	room_drag_start_rotation_deg = float(room.get("rotation_deg", 0.0))
+	room_drag_cursor_offset_m = rect.position - pos_m
+
+
+func _update_dragged_room_geometry(pos_m: Vector2) -> void:
+	if selected_room_id < 0:
+		is_dragging_room_geometry = false
+		return
+	match room_mouse_mode:
+		ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH:
+			_resize_selected_room_with_mouse(pos_m)
+		ObjectMouseMode.ROTATE:
+			_rotate_selected_room_with_mouse(pos_m)
+		_:
+			var new_pos: Vector2 = _snap_m(pos_m + room_drag_cursor_offset_m)
+			var next_rect := Rect2(new_pos, room_drag_start_rect_m.size)
+			_set_room_rect(selected_room_id, next_rect)
+	_sync_room_geometry_fields(selected_room_id)
+	queue_redraw()
+
+
+func _resize_selected_room_with_mouse(pos_m: Vector2) -> void:
+	var local_mouse: Vector2 = _world_to_room_local(pos_m, room_drag_start_center_m, room_drag_start_rotation_deg)
+	var new_size: Vector2 = room_drag_start_rect_m.size
+	if room_mouse_mode == ObjectMouseMode.RESIZE_WIDTH:
+		new_size.x = maxf(0.25, absf(local_mouse.x) * 2.0)
+	else:
+		new_size.y = maxf(0.25, absf(local_mouse.y) * 2.0)
+	new_size.x = snappedf(new_size.x, GRID_M)
+	new_size.y = snappedf(new_size.y, GRID_M)
+	var next_rect := Rect2(_snap_m(room_drag_start_center_m - new_size * 0.5), new_size)
+	_set_room_rect(selected_room_id, next_rect)
+
+
+func _rotate_selected_room_with_mouse(pos_m: Vector2) -> void:
+	var dir: Vector2 = pos_m - room_drag_start_center_m
+	if dir.length_squared() < 0.0001:
+		return
+	var rotation_deg: float = snappedf(rad_to_deg(atan2(dir.y, dir.x)) + 90.0, 1.0)
+	var room: Dictionary = _get_room(selected_room_id)
+	if _is_stair_room(room):
+		rotation_deg = snappedf(rotation_deg / 90.0, 1.0) * 90.0
+	_set_room_rotation(selected_room_id, _normalize_degrees_signed(rotation_deg))
+
+
+func _world_to_room_local(pos_m: Vector2, center_m: Vector2, rotation_deg: float) -> Vector2:
+	return Transform2D(deg_to_rad(-rotation_deg), Vector2.ZERO) * (pos_m - center_m)
+
+
+func _set_room_rect(room_id: int, rect: Rect2) -> void:
+	var rects: Dictionary = editor_data.get("room_rect_m", {})
+	var snapped_rect := Rect2(_snap_m(rect.position), Vector2(maxf(0.25, snappedf(rect.size.x, GRID_M)), maxf(0.25, snappedf(rect.size.y, GRID_M))))
+	rects[str(room_id)] = Serializer.rect_to_data(snapped_rect)
+	editor_data["room_rect_m"] = rects
+	var room: Dictionary = _get_room(room_id)
+	if _is_stair_room(room):
+		_sync_linked_stair_rects(room_id, snapped_rect)
+		_sync_vertical_stair_openings(room_id)
+
+
+func _set_room_rotation(room_id: int, rotation_deg: float) -> void:
+	var rooms: Array = editor_data.get("rooms_data", [])
+	var stair_dir: Vector2 = _stair_direction_from_rotation(rotation_deg)
+	for i in range(rooms.size()):
+		if typeof(rooms[i]) != TYPE_DICTIONARY or int(rooms[i].get("id", -1)) != room_id:
+			continue
+		var room: Dictionary = rooms[i]
+		room["rotation_deg"] = rotation_deg
+		if _is_stair_room(room):
+			room["stair_run_direction_m"] = Serializer.vector_to_data(stair_dir)
+		rooms[i] = room
+		editor_data["rooms_data"] = rooms
+		if _is_stair_room(room):
+			_apply_stair_rotation_to_linked_rooms(room_id, rotation_deg, stair_dir)
+			_sync_vertical_stair_openings(room_id)
+		return
+
+
+func _stair_direction_from_rotation(rotation_deg: float) -> Vector2:
+	var angle: float = deg_to_rad(rotation_deg + 90.0)
+	return _axis_aligned_direction(Vector2(cos(angle), sin(angle)))
+
+
+func _sync_room_geometry_fields(room_id: int) -> void:
+	if selected_room_id != room_id:
+		return
+	var room: Dictionary = _get_room(room_id)
+	if room.is_empty():
+		return
+	var rect: Rect2 = _get_room_rect(room_id)
+	if _room_x_spin != null:
+		_room_x_spin.value = rect.position.x
+	if _room_y_spin != null:
+		_room_y_spin.value = rect.position.y
+	if _room_width_spin != null:
+		_room_width_spin.value = rect.size.x
+	if _room_depth_spin != null:
+		_room_depth_spin.value = rect.size.y
+	if _room_rotation_spin != null:
+		_room_rotation_spin.value = _normalize_degrees_signed(float(room.get("rotation_deg", 0.0)))
+	_update_stair_angle_label(room_id, room)
 
 
 func _begin_object_mouse_edit(mode: int, pos_m: Vector2) -> void:
@@ -1744,7 +2320,7 @@ func _update_dragged_object(pos_m: Vector2) -> void:
 			var size: Vector2 = _object_size_m(obj)
 			var new_world_m: Vector2 = _snap_m(pos_m + drag_object_cursor_offset_m)
 			var new_local_m: Vector2 = new_world_m - rr.position
-			new_local_m = _clamp_object_local_pos(rr, size, new_local_m)
+			new_local_m = _clamp_object_local_pos_for_rotation(rr, size, new_local_m, float(obj.get("rotation_deg", 0.0)))
 			_set_object_position(selected_object_room_id, selected_object_index, new_local_m)
 	_sync_object_property_fields(_get_object(selected_object_room_id, selected_object_index))
 	queue_redraw()
@@ -1763,13 +2339,14 @@ func _resize_selected_object_with_mouse(pos_m: Vector2, rr: Rect2) -> void:
 	new_size.x = clampf(snappedf(new_size.x, 0.05), 0.10, maxf(0.10, rr.size.x))
 	new_size.y = clampf(snappedf(new_size.y, 0.05), 0.10, maxf(0.10, rr.size.y))
 	var local_center: Vector2 = object_drag_start_center_m - rr.position
-	var new_local_pos: Vector2 = _clamp_object_local_pos(rr, new_size, local_center - new_size * 0.5)
+	var rotation_deg: float = float(current_obj.get("rotation_deg", object_drag_start_rotation_deg))
+	var new_local_pos: Vector2 = _clamp_object_local_pos_for_rotation(rr, new_size, local_center - new_size * 0.5, rotation_deg)
 	_set_object_geometry(
 		selected_object_room_id,
 		selected_object_index,
 		new_local_pos,
 		new_size,
-		float(current_obj.get("rotation_deg", object_drag_start_rotation_deg)),
+		rotation_deg,
 		float(current_obj.get("elevation_m", 0.0))
 	)
 
@@ -1826,7 +2403,8 @@ func _set_object_geometry(room_id: int, obj_index: int, local_pos: Vector2, size
 		if obj_index < 0 or obj_index >= objects.size() or typeof(objects[obj_index]) != TYPE_DICTIONARY:
 			return
 		var obj: Dictionary = objects[obj_index]
-		obj["position_m"] = Serializer.vector_to_data(local_pos)
+		var clamped_pos: Vector2 = _clamp_object_local_pos_for_rotation(_get_room_rect(room_id), size_m, local_pos, rotation_deg)
+		obj["position_m"] = Serializer.vector_to_data(clamped_pos)
 		obj["size_m"] = Serializer.vector_to_data(size_m)
 		obj["rotation_deg"] = rotation_deg
 		obj["elevation_m"] = maxf(0.0, elevation_m)
@@ -1839,20 +2417,47 @@ func _set_object_geometry(room_id: int, obj_index: int, local_pos: Vector2, size
 
 
 func _clamp_object_local_pos(room_rect: Rect2, size_m: Vector2, local_pos: Vector2) -> Vector2:
-	var clamped := local_pos
-	var max_x: float = maxf(0.0, room_rect.size.x - size_m.x)
-	var max_y: float = maxf(0.0, room_rect.size.y - size_m.y)
-	clamped.x = clampf(clamped.x, 0.0, max_x)
-	clamped.y = clampf(clamped.y, 0.0, max_y)
-	if clamped.x <= OBJECT_WALL_SNAP_M:
-		clamped.x = 0.0
-	elif max_x - clamped.x <= OBJECT_WALL_SNAP_M:
-		clamped.x = max_x
-	if clamped.y <= OBJECT_WALL_SNAP_M:
-		clamped.y = 0.0
-	elif max_y - clamped.y <= OBJECT_WALL_SNAP_M:
-		clamped.y = max_y
-	return clamped
+	return _clamp_object_local_pos_for_rotation(room_rect, size_m, local_pos, 0.0)
+
+
+func _clamp_object_local_pos_for_rotation(room_rect: Rect2, size_m: Vector2, local_pos: Vector2, rotation_deg: float) -> Vector2:
+	var clamped_size := Vector2(maxf(0.05, size_m.x), maxf(0.05, size_m.y))
+	var center: Vector2 = local_pos + clamped_size * 0.5
+	var extents: Vector2 = _rotated_object_aabb_size(clamped_size, rotation_deg)
+	var min_center: Vector2 = extents * 0.5
+	var max_center: Vector2 = room_rect.size - extents * 0.5
+	if max_center.x < min_center.x:
+		center.x = room_rect.size.x * 0.5
+	else:
+		center.x = clampf(center.x, min_center.x, max_center.x)
+		if center.x - min_center.x <= OBJECT_WALL_SNAP_M:
+			center.x = min_center.x
+		elif max_center.x - center.x <= OBJECT_WALL_SNAP_M:
+			center.x = max_center.x
+	if max_center.y < min_center.y:
+		center.y = room_rect.size.y * 0.5
+	else:
+		center.y = clampf(center.y, min_center.y, max_center.y)
+		if center.y - min_center.y <= OBJECT_WALL_SNAP_M:
+			center.y = min_center.y
+		elif max_center.y - center.y <= OBJECT_WALL_SNAP_M:
+			center.y = max_center.y
+	return center - clamped_size * 0.5
+
+
+func _rotated_object_aabb_size(size_m: Vector2, rotation_deg: float) -> Vector2:
+	var angle: float = deg_to_rad(rotation_deg)
+	var c: float = absf(cos(angle))
+	var s: float = absf(sin(angle))
+	return Vector2(size_m.x * c + size_m.y * s, size_m.x * s + size_m.y * c)
+
+
+func _object_visual_min_from_local_pos(size_m: Vector2, local_pos: Vector2, rotation_deg: float) -> Vector2:
+	return local_pos + size_m * 0.5 - _rotated_object_aabb_size(size_m, rotation_deg) * 0.5
+
+
+func _object_local_pos_from_visual_min(size_m: Vector2, visual_min: Vector2, rotation_deg: float) -> Vector2:
+	return visual_min + _rotated_object_aabb_size(size_m, rotation_deg) * 0.5 - size_m * 0.5
 
 
 func _create_room(rect: Rect2, room_name: String = "", kind_name: String = "generic") -> int:
@@ -1882,7 +2487,7 @@ func _create_room_at_level(rect: Rect2, room_name: String = "", kind_name: Strin
 	return id
 
 
-func _create_stairs_from_rect(rect: Rect2) -> void:
+func _create_stairs_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> void:
 	var lower_level_m: float = _current_floor_level_m()
 	var upper_floor_index: int = _next_floor_index_above(lower_level_m)
 	if upper_floor_index < 0:
@@ -1893,10 +2498,44 @@ func _create_stairs_from_rect(rect: Rect2) -> void:
 	var upper_name: String = "Escalera %s" % String(Dictionary(floors[upper_floor_index]).get("name", _default_floor_name(upper_floor_index)))
 	var lower_id: int = _create_room_at_level(rect, lower_name, "escalera", lower_level_m, minf(upper_level_m - lower_level_m, 3.2))
 	var upper_id: int = _create_room_at_level(rect, upper_name, "escalera", upper_level_m, 2.55)
+	var stair_dir: Vector2 = _stair_run_direction_from_drag(start_m, end_m, rect)
+	var turn_degrees: float = 180.0 if _stair_can_use_180_landing(rect, stair_dir) else 0.0
+	_apply_stair_defaults_to_room(lower_id, stair_dir, turn_degrees)
+	_apply_stair_defaults_to_room(upper_id, stair_dir, turn_degrees)
 	_add_vertical_stair_opening(lower_id, upper_id, rect)
 	_select_room(lower_id)
 	_sync_floor_controls()
-	_set_status("Escalera creada entre %s y %s. Usa Hueco para abrir el paso al distribuidor." % [_current_floor_name(), upper_name.replace("Escalera ", "")])
+	_set_status("Escalera creada: %s. El hueco vertical queda abierto para humo y gases." % ("dos tramos con descansillo 180" if turn_degrees >= 179.0 else "tramo recto"))
+
+
+func _apply_stair_defaults_to_room(room_id: int, stair_dir: Vector2, turn_degrees: float = 0.0) -> void:
+	var rooms: Array = editor_data.get("rooms_data", [])
+	for i in range(rooms.size()):
+		if typeof(rooms[i]) != TYPE_DICTIONARY or int(rooms[i].get("id", -1)) != room_id:
+			continue
+		var room: Dictionary = rooms[i]
+		room["stair_run_direction_m"] = Serializer.vector_to_data(stair_dir)
+		room["stair_has_walls"] = false
+		room["stair_has_railings"] = true
+		room["stair_turn_degrees"] = turn_degrees
+		room["stair_flight_count"] = 2 if turn_degrees >= 179.0 else 1
+		room["rotation_deg"] = _normalize_degrees_signed(rad_to_deg(atan2(stair_dir.y, stair_dir.x)) - 90.0)
+		rooms[i] = room
+		editor_data["rooms_data"] = rooms
+		return
+
+
+func _stair_run_direction_from_drag(start_m: Vector2, end_m: Vector2, rect: Rect2) -> Vector2:
+	var delta: Vector2 = end_m - start_m
+	if absf(delta.x) > absf(delta.y):
+		return Vector2.RIGHT if delta.x >= 0.0 else Vector2.LEFT
+	if absf(delta.y) > 0.001:
+		return Vector2.DOWN if delta.y >= 0.0 else Vector2.UP
+	return Vector2.DOWN if rect.size.y >= rect.size.x else Vector2.RIGHT
+
+
+func _stair_can_use_180_landing(rect: Rect2, stair_dir: Vector2) -> bool:
+	return _stair_cross_span_m(rect, stair_dir) >= 1.75 and _stair_long_span_m(rect, stair_dir) >= 2.40
 
 
 func _next_floor_index_above(level_m: float) -> int:
@@ -1932,8 +2571,9 @@ func _add_vertical_stair_opening(lower_id: int, upper_id: int, rect: Rect2) -> v
 		var op: Dictionary = raw_op
 		if bool(op.get("is_vertical", false)) and int(op.get("a", -1)) == lower_id and int(op.get("b", -1)) == upper_id:
 			return
-	var ramp_width_m: float = minf(maxf(0.82, rect.size.x * 0.50), maxf(0.82, rect.size.x - 0.96))
-	var ramp_depth_m: float = maxf(0.80, rect.size.y - clampf(rect.size.y * 0.22, 0.72, 1.05) - 0.22)
+	var stair_dir: Vector2 = _room_stair_run_direction(_get_room(lower_id))
+	var ramp_width_m: float = _stair_ramp_width_m(rect, stair_dir)
+	var ramp_depth_m: float = maxf(0.80, _stair_long_span_m(rect, stair_dir) - _stair_landing_depth_m(rect, stair_dir) - 0.22)
 	openings.append({
 		"a": lower_id,
 		"b": upper_id,
@@ -1945,6 +2585,36 @@ func _add_vertical_stair_opening(lower_id: int, upper_id: int, rect: Rect2) -> v
 		"is_vertical": true
 	})
 	editor_data["openings_data"] = openings
+
+
+func _room_stair_run_direction(room: Dictionary) -> Vector2:
+	if room.has("stair_run_direction_m"):
+		var dir: Vector2 = Serializer.vector2_from_data(room.get("stair_run_direction_m", Vector2.DOWN))
+		return _axis_aligned_direction(dir)
+	return _axis_aligned_direction(Vector2.DOWN)
+
+
+func _axis_aligned_direction(dir: Vector2) -> Vector2:
+	if absf(dir.x) > absf(dir.y):
+		return Vector2.RIGHT if dir.x >= 0.0 else Vector2.LEFT
+	return Vector2.DOWN if dir.y >= 0.0 else Vector2.UP
+
+
+func _stair_long_span_m(rect: Rect2, stair_dir: Vector2) -> float:
+	return rect.size.x if absf(stair_dir.x) > absf(stair_dir.y) else rect.size.y
+
+
+func _stair_cross_span_m(rect: Rect2, stair_dir: Vector2) -> float:
+	return rect.size.y if absf(stair_dir.x) > absf(stair_dir.y) else rect.size.x
+
+
+func _stair_ramp_width_m(rect: Rect2, stair_dir: Vector2) -> float:
+	var cross_span: float = _stair_cross_span_m(rect, stair_dir)
+	return minf(maxf(0.82, cross_span * 0.50), maxf(0.82, cross_span - 0.96))
+
+
+func _stair_landing_depth_m(rect: Rect2, stair_dir: Vector2) -> float:
+	return clampf(_stair_long_span_m(rect, stair_dir) * 0.22, 0.72, 1.05)
 
 
 func _copy_stairs_from_level_to_level(lower_level_m: float, upper_level_m: float) -> void:
@@ -1967,6 +2637,10 @@ func _copy_stairs_from_level_to_level(lower_level_m: float, upper_level_m: float
 		if upper_id < 0:
 			var floor_name: String = _floor_name_for_level(upper_level_m)
 			upper_id = _create_room_at_level(rect, "Escalera %s" % floor_name, "escalera", upper_level_m, 2.55)
+		var stair_dir: Vector2 = _room_stair_run_direction(lower_room)
+		var turn_degrees: float = float(lower_room.get("stair_turn_degrees", 180.0 if _stair_can_use_180_landing(rect, stair_dir) else 0.0))
+		_apply_stair_defaults_to_room(lower_id, stair_dir, turn_degrees)
+		_apply_stair_defaults_to_room(upper_id, stair_dir, turn_degrees)
 		_add_vertical_stair_opening(lower_id, upper_id, rect)
 
 
@@ -1983,6 +2657,78 @@ func _find_matching_stair_room_at_level(rect: Rect2, level_m: float) -> int:
 		if rect.position.distance_to(other_rect.position) <= 0.05 and rect.size.distance_to(other_rect.size) <= 0.05:
 			return int(room_dict.get("id", -1))
 	return -1
+
+
+func _linked_vertical_stair_room_ids(room_id: int) -> Array[int]:
+	var ids: Array[int] = []
+	for raw_op in editor_data.get("openings_data", []):
+		if typeof(raw_op) != TYPE_DICTIONARY:
+			continue
+		var op: Dictionary = raw_op
+		if not bool(op.get("is_vertical", false)):
+			continue
+		var a_id: int = int(op.get("a", -1))
+		var b_id: int = int(op.get("b", -1))
+		if a_id == room_id and b_id >= 0:
+			ids.append(b_id)
+		elif b_id == room_id and a_id >= 0:
+			ids.append(a_id)
+	return ids
+
+
+func _sync_linked_stair_rects(room_id: int, rect: Rect2) -> void:
+	var rects: Dictionary = editor_data.get("room_rect_m", {})
+	for linked_id in _linked_vertical_stair_room_ids(room_id):
+		var linked_room: Dictionary = _get_room(linked_id)
+		if _is_stair_room(linked_room):
+			rects[str(linked_id)] = Serializer.rect_to_data(rect)
+	editor_data["room_rect_m"] = rects
+
+
+func _apply_stair_rotation_to_linked_rooms(room_id: int, rotation_deg: float, stair_dir: Vector2) -> void:
+	var linked_ids: Array[int] = _linked_vertical_stair_room_ids(room_id)
+	if linked_ids.is_empty():
+		return
+	var rooms: Array = editor_data.get("rooms_data", [])
+	for i in range(rooms.size()):
+		if typeof(rooms[i]) != TYPE_DICTIONARY:
+			continue
+		var linked_id: int = int(Dictionary(rooms[i]).get("id", -1))
+		if linked_ids.find(linked_id) < 0:
+			continue
+		var room: Dictionary = rooms[i]
+		if not _is_stair_room(room):
+			continue
+		room["rotation_deg"] = rotation_deg
+		room["stair_run_direction_m"] = Serializer.vector_to_data(stair_dir)
+		rooms[i] = room
+	editor_data["rooms_data"] = rooms
+
+
+func _sync_vertical_stair_openings(room_id: int) -> void:
+	var openings: Array = editor_data.get("openings_data", [])
+	var changed: bool = false
+	for i in range(openings.size()):
+		if typeof(openings[i]) != TYPE_DICTIONARY:
+			continue
+		var op: Dictionary = openings[i]
+		if not bool(op.get("is_vertical", false)):
+			continue
+		var a_id: int = int(op.get("a", -1))
+		var b_id: int = int(op.get("b", -1))
+		if a_id != room_id and b_id != room_id:
+			continue
+		var lower_id: int = a_id
+		if _room_id_floor_level(b_id) < _room_id_floor_level(a_id):
+			lower_id = b_id
+		var rect: Rect2 = _get_room_rect(lower_id)
+		var stair_dir: Vector2 = _room_stair_run_direction(_get_room(lower_id))
+		op["width_m"] = _stair_ramp_width_m(rect, stair_dir)
+		op["height_m"] = maxf(0.80, _stair_long_span_m(rect, stair_dir) - _stair_landing_depth_m(rect, stair_dir) - 0.22)
+		openings[i] = op
+		changed = true
+	if changed:
+		editor_data["openings_data"] = openings
 
 
 func _floor_name_for_level(level_m: float) -> String:
@@ -2201,7 +2947,7 @@ func _select_room(room_id: int) -> void:
 	selected_victim_index = -1
 	selected_exterior_wall_index = -1
 	_refresh_property_panel()
-	_set_status("Seleccionada habitacion %d." % room_id)
+	_set_status("Habitacion %d seleccionada. Ajusta X/Y, ancho, fondo y angulo en Propiedades." % room_id)
 	queue_redraw()
 
 
@@ -2251,6 +2997,7 @@ func _refresh_property_panel() -> void:
 	var has_obj: bool = selected_object_room_id >= 0 and selected_object_index >= 0
 	var room: Dictionary = _get_room(selected_room_id)
 	var has_room: bool = not room.is_empty()
+	var has_stair_room: bool = has_room and _is_stair_room(room)
 	var has_detector: bool = selected_detector_index >= 0
 	var has_victim: bool = selected_victim_index >= 0
 	var walls_arr: Array = editor_data.get("exterior_walls", [])
@@ -2269,6 +3016,10 @@ func _refresh_property_panel() -> void:
 		_room_depth_spin.editable = has_room
 	if _room_rotation_spin != null:
 		_room_rotation_spin.editable = has_room
+	if _stair_walls_check != null:
+		_stair_walls_check.disabled = not has_stair_room
+	if _stair_railings_check != null:
+		_stair_railings_check.disabled = not has_stair_room
 	_height_spin.editable = has_room
 	_fuel_spin.editable = has_room
 	_hrr_spin.editable = has_room
@@ -2287,6 +3038,10 @@ func _refresh_property_panel() -> void:
 			_room_depth_spin.value = maxf(0.25, rect.size.y)
 		if _room_rotation_spin != null:
 			_room_rotation_spin.value = _normalize_degrees_signed(float(room.get("rotation_deg", 0.0)))
+		if _stair_walls_check != null:
+			_stair_walls_check.button_pressed = bool(room.get("stair_has_walls", false))
+		if _stair_railings_check != null:
+			_stair_railings_check.button_pressed = bool(room.get("stair_has_railings", true))
 		_height_spin.value = float(room.get("height_m", 2.7))
 		_fuel_spin.value = float(room.get("fuel_energy_MJ", 0.0))
 		_hrr_spin.value = float(room.get("max_hrr_kw", 0.0))
@@ -2303,6 +3058,10 @@ func _refresh_property_panel() -> void:
 			_room_depth_spin.value = 1.0
 		if _room_rotation_spin != null:
 			_room_rotation_spin.value = 0.0
+		if _stair_walls_check != null:
+			_stair_walls_check.button_pressed = false
+		if _stair_railings_check != null:
+			_stair_railings_check.button_pressed = true
 		_height_spin.value = 2.7
 		_fuel_spin.value = 0.0
 		_hrr_spin.value = 0.0
@@ -2320,6 +3079,9 @@ func _refresh_property_panel() -> void:
 	var openings_arr: Array = editor_data.get("openings_data", [])
 	var has_opening_sel: bool = selected_opening_index >= 0 and selected_opening_index < openings_arr.size()
 	_set_property_panel_visibility(has_room, has_obj, has_opening_sel, has_detector, has_victim, has_wall)
+	_set_control_row_visible(_stair_walls_check, has_stair_room)
+	_set_control_row_visible(_stair_railings_check, has_stair_room)
+	_update_stair_angle_label(selected_room_id, room if has_room else {})
 	if _opening_props_container != null:
 		_opening_props_container.visible = has_opening_sel
 	if has_opening_sel and _opening_width_spin != null:
@@ -2406,6 +3168,7 @@ func _refresh_property_panel() -> void:
 			_wall_end_y_spin.value = b.y
 		if _wall_thickness_spin != null:
 			_wall_thickness_spin.value = float(wall.get("thickness_m", 0.16))
+	_refresh_element_list()
 
 
 func _sync_object_property_fields(obj: Dictionary) -> void:
@@ -2414,11 +3177,13 @@ func _sync_object_property_fields(obj: Dictionary) -> void:
 	if _obj_name_edit != null:
 		_obj_name_edit.text = String(obj.get("name", obj.get("kind", "")))
 	var pos: Vector2 = Serializer.vector2_from_data(obj.get("position_m", Vector2.ZERO))
+	var sz: Vector2 = _object_size_m(obj)
+	if selected_object_room_id >= 0:
+		pos = _object_visual_min_from_local_pos(sz, pos, float(obj.get("rotation_deg", 0.0)))
 	if _obj_x_spin != null:
 		_obj_x_spin.value = pos.x
 	if _obj_y_spin != null:
 		_obj_y_spin.value = pos.y
-	var sz: Vector2 = _object_size_m(obj)
 	if _obj_width_spin != null:
 		_obj_width_spin.value = sz.x
 	if _obj_height_spin != null:
@@ -2431,6 +3196,69 @@ func _sync_object_property_fields(obj: Dictionary) -> void:
 		_obj_fuel_spin.value = float(obj.get("fuel_energy_MJ", 0.0))
 	if _obj_hrr_spin != null:
 		_obj_hrr_spin.value = float(obj.get("max_hrr_kw", 0.0))
+
+
+func _update_stair_angle_label(room_id: int, room: Dictionary) -> void:
+	if _stair_angle_label == null:
+		return
+	var show_label: bool = room_id >= 0 and not room.is_empty() and _is_stair_room(room)
+	_stair_angle_label.visible = show_label
+	if not show_label:
+		_stair_angle_label.text = ""
+		return
+	var rect: Rect2 = _get_room_rect(room_id)
+	var stair_dir: Vector2 = _room_stair_run_direction(room)
+	var slope_deg: float = _stair_slope_angle_deg(room_id, room, rect)
+	var turn_degrees: float = float(room.get("stair_turn_degrees", 0.0))
+	var mode_text: String = "2 tramos + descansillo 180" if turn_degrees >= 179.0 else "tramo recto"
+	_stair_angle_label.text = "Subida %.0f° | %s | orientacion %s" % [
+		slope_deg,
+		mode_text,
+		_stair_direction_label(stair_dir)
+	]
+
+
+func _stair_slope_angle_deg(room_id: int, room: Dictionary, rect: Rect2) -> float:
+	var rise_m: float = _stair_rise_for_room(room_id, room)
+	var stair_dir: Vector2 = _room_stair_run_direction(room)
+	var run_m: float = maxf(0.30, _stair_effective_run_m(rect, stair_dir, float(room.get("stair_turn_degrees", 0.0))))
+	if float(room.get("stair_turn_degrees", 0.0)) >= 179.0:
+		return rad_to_deg(atan2(rise_m * 0.5, run_m))
+	return rad_to_deg(atan2(rise_m, run_m))
+
+
+func _stair_rise_for_room(room_id: int, room: Dictionary) -> float:
+	var current_level: float = float(room.get("floor_level_z_m", 0.0))
+	for raw_op in editor_data.get("openings_data", []):
+		if typeof(raw_op) != TYPE_DICTIONARY:
+			continue
+		var op: Dictionary = raw_op
+		if not bool(op.get("is_vertical", false)):
+			continue
+		var a_id: int = int(op.get("a", -1))
+		var b_id: int = int(op.get("b", -1))
+		if a_id != room_id and b_id != room_id:
+			continue
+		return absf(_room_id_floor_level(a_id) - _room_id_floor_level(b_id))
+	var upper_index: int = _next_floor_index_above(current_level)
+	if upper_index >= 0:
+		var floors: Array = _get_floors()
+		if upper_index < floors.size() and typeof(floors[upper_index]) == TYPE_DICTIONARY:
+			return maxf(0.0, float(Dictionary(floors[upper_index]).get("level_m", current_level + DEFAULT_FLOOR_HEIGHT_M)) - current_level)
+	return DEFAULT_FLOOR_HEIGHT_M
+
+
+func _stair_effective_run_m(rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> float:
+	var long_span: float = _stair_long_span_m(rect, stair_dir)
+	if turn_degrees >= 179.0:
+		return maxf(0.60, long_span - _stair_landing_depth_m(rect, stair_dir) - 0.30)
+	return maxf(0.60, long_span - _stair_landing_depth_m(rect, stair_dir) - 0.22)
+
+
+func _stair_direction_label(dir: Vector2) -> String:
+	if absf(dir.x) > absf(dir.y):
+		return "este" if dir.x > 0.0 else "oeste"
+	return "sur" if dir.y > 0.0 else "norte"
 
 
 func _set_property_panel_visibility(has_room: bool, has_obj: bool, has_opening: bool, has_detector: bool = false, has_victim: bool = false, has_wall: bool = false) -> void:
@@ -2476,6 +3304,8 @@ func _set_property_panel_visibility(has_room: bool, has_obj: bool, has_opening: 
 	_set_control_row_visible(_height_spin, has_room)
 	_set_control_row_visible(_fuel_spin, has_room)
 	_set_control_row_visible(_hrr_spin, has_room)
+	if _stair_angle_label != null:
+		_stair_angle_label.visible = has_room and selected_room_id >= 0 and _is_stair_room(_get_room(selected_room_id))
 	if _room_apply_button != null:
 		_room_apply_button.visible = has_room
 	if _room_delete_button != null:
@@ -2544,12 +3374,20 @@ func _apply_room_properties() -> void:
 		room["name"] = _name_edit.text.strip_edges()
 		room["kind"] = _kind_edit.text.strip_edges()
 		room["rotation_deg"] = _normalize_degrees_signed(_room_rotation_spin.value) if _room_rotation_spin != null else float(room.get("rotation_deg", 0.0))
+		if _is_stair_room(room):
+			room["stair_run_direction_m"] = Serializer.vector_to_data(_stair_direction_from_rotation(float(room.get("rotation_deg", 0.0))))
+			room["stair_has_walls"] = bool(_stair_walls_check.button_pressed) if _stair_walls_check != null else bool(room.get("stair_has_walls", false))
+			room["stair_has_railings"] = bool(_stair_railings_check.button_pressed) if _stair_railings_check != null else bool(room.get("stair_has_railings", true))
+			if not room.has("stair_turn_degrees"):
+				var stair_rect: Rect2 = _get_room_rect(selected_room_id)
+				var stair_dir: Vector2 = Serializer.vector2_from_data(room.get("stair_run_direction_m", Vector2.DOWN))
+				room["stair_turn_degrees"] = 180.0 if _stair_can_use_180_landing(stair_rect, stair_dir) else 0.0
+			room["stair_flight_count"] = 2 if float(room.get("stair_turn_degrees", 0.0)) >= 179.0 else 1
 		room["height_m"] = _height_spin.value
 		room["fuel_energy_MJ"] = _fuel_spin.value
 		room["max_hrr_kw"] = _hrr_spin.value
 		rooms[i] = room
 		editor_data["rooms_data"] = rooms
-		var rects: Dictionary = editor_data.get("room_rect_m", {})
 		var current_rect: Rect2 = _get_room_rect(selected_room_id)
 		var next_rect := Rect2(
 			Vector2(
@@ -2561,9 +3399,12 @@ func _apply_room_properties() -> void:
 				maxf(0.25, _room_depth_spin.value) if _room_depth_spin != null else current_rect.size.y
 			)
 		)
-		rects[str(selected_room_id)] = Serializer.rect_to_data(next_rect)
-		editor_data["room_rect_m"] = rects
+		_set_room_rect(selected_room_id, next_rect)
+		if _is_stair_room(room):
+			_apply_stair_rotation_to_linked_rooms(selected_room_id, float(room.get("rotation_deg", 0.0)), Serializer.vector2_from_data(room.get("stair_run_direction_m", Vector2.DOWN)))
+			_sync_vertical_stair_openings(selected_room_id)
 		_set_status("Propiedades de habitacion %d actualizadas." % selected_room_id)
+		_refresh_element_list()
 		queue_redraw()
 		return
 
@@ -2691,6 +3532,32 @@ func _object_handle_points_m(room_rect: Rect2, obj: Dictionary) -> Dictionary:
 		ObjectMouseMode.RESIZE_LENGTH: center + rot * Vector2(0.0, size.y * 0.5),
 		ObjectMouseMode.ROTATE: center + rot * Vector2(0.0, -size.y * 0.5 - OBJECT_ROTATE_HANDLE_OFFSET_M)
 	}
+
+
+func _room_handle_points_m(room_id: int) -> Dictionary:
+	var rect: Rect2 = _get_room_rect(room_id)
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return {}
+	var center: Vector2 = rect.get_center()
+	var rot := Transform2D(deg_to_rad(_room_rotation_deg(room_id)), Vector2.ZERO)
+	return {
+		ObjectMouseMode.RESIZE_WIDTH: center + rot * Vector2(rect.size.x * 0.5, 0.0),
+		ObjectMouseMode.RESIZE_LENGTH: center + rot * Vector2(0.0, rect.size.y * 0.5),
+		ObjectMouseMode.ROTATE: center + rot * Vector2(0.0, -rect.size.y * 0.5 - OBJECT_ROTATE_HANDLE_OFFSET_M)
+	}
+
+
+func _find_selected_room_handle_at(pos_m: Vector2) -> int:
+	if selected_room_id < 0:
+		return ObjectMouseMode.NONE
+	var handles: Dictionary = _room_handle_points_m(selected_room_id)
+	for mode in [ObjectMouseMode.ROTATE, ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
+		if not handles.has(mode):
+			continue
+		var hp: Vector2 = Vector2(handles[mode])
+		if pos_m.distance_to(hp) <= OBJECT_HANDLE_HIT_RADIUS_M:
+			return mode
+	return ObjectMouseMode.NONE
 
 
 func _find_selected_object_handle_at(pos_m: Vector2) -> int:
@@ -3233,6 +4100,8 @@ func _delete_room(room_id: int) -> void:
 		if int(opening.get("a", -999)) == room_id or int(opening.get("b", -999)) == room_id:
 			openings.remove_at(i)
 	editor_data["openings_data"] = openings
+	if typeof(editor_data.get("player_start", {})) == TYPE_DICTIONARY and int(Dictionary(editor_data.get("player_start", {})).get("room_id", -1)) == room_id:
+		editor_data["player_start"] = {}
 
 	_clear_selection()
 	_set_status("Habitacion %d eliminada." % room_id)
@@ -3857,10 +4726,12 @@ func _apply_object_properties() -> void:
 			_obj_x_spin.value if _obj_x_spin != null else current_pos.x,
 			_obj_y_spin.value if _obj_y_spin != null else current_pos.y
 		)
-		new_pos = _clamp_object_local_pos(room_rect, Vector2(new_w, new_h), new_pos)
+		var new_rotation: float = _normalize_degrees_signed(_obj_rotation_spin.value) if _obj_rotation_spin != null else float(obj.get("rotation_deg", 0.0))
+		new_pos = _object_local_pos_from_visual_min(Vector2(new_w, new_h), new_pos, new_rotation)
+		new_pos = _clamp_object_local_pos_for_rotation(room_rect, Vector2(new_w, new_h), new_pos, new_rotation)
 		obj["position_m"] = Serializer.vector_to_data(new_pos)
 		obj["size_m"] = {"x": new_w, "y": new_h}
-		obj["rotation_deg"] = _normalize_degrees_signed(_obj_rotation_spin.value) if _obj_rotation_spin != null else float(obj.get("rotation_deg", 0.0))
+		obj["rotation_deg"] = new_rotation
 		obj["elevation_m"] = maxf(0.0, _obj_elevation_spin.value) if _obj_elevation_spin != null else float(obj.get("elevation_m", 0.0))
 		obj["footprint_m2"] = new_w * new_h
 		if _obj_fuel_spin != null:
@@ -3915,6 +4786,7 @@ func _draw() -> void:
 	_draw_exterior_walls()
 	_draw_openings()
 	_draw_objects()
+	_draw_player_start()
 	_draw_detectors()
 	_draw_victims()
 	if is_dragging_exterior_wall:
@@ -3949,6 +4821,132 @@ func _draw() -> void:
 				12,
 				Color(0.55, 0.90, 1.0, 0.95)
 			)
+	_draw_hover_help()
+
+
+func _track_hover_help_mouse(screen_pos: Vector2) -> void:
+	if not _hover_help_enabled or _is_pointer_over_ui() or _is_editor_dragging_anything():
+		_reset_hover_help()
+		return
+	if not _hover_help_has_mouse or screen_pos.distance_to(_hover_help_last_screen_pos) > EDITOR_HOVER_HELP_MOVE_TOL_PX:
+		_hover_help_has_mouse = true
+		_hover_help_last_screen_pos = screen_pos
+		_hover_help_world_pos_m = _screen_to_m(screen_pos)
+		_hover_help_idle_s = 0.0
+		if _hover_help_text != "":
+			_hover_help_text = ""
+			queue_redraw()
+
+
+func _update_hover_help(delta: float) -> void:
+	if not _hover_help_enabled or not _hover_help_has_mouse or _is_pointer_over_ui() or _is_editor_dragging_anything():
+		if _hover_help_text != "":
+			_reset_hover_help()
+		return
+	_hover_help_idle_s += delta
+	if _hover_help_idle_s < EDITOR_HOVER_HELP_DELAY_S:
+		return
+	var next_text: String = _hover_help_text_at(_hover_help_world_pos_m)
+	if next_text != _hover_help_text:
+		_hover_help_text = next_text
+		queue_redraw()
+
+
+func _reset_hover_help() -> void:
+	_hover_help_idle_s = 0.0
+	_hover_help_has_mouse = false
+	if _hover_help_text != "":
+		_hover_help_text = ""
+		queue_redraw()
+
+
+func _is_editor_dragging_anything() -> bool:
+	return is_middle_panning or is_dragging_room or is_dragging_exterior_wall or is_dragging_room_geometry or is_dragging_object
+
+
+func _hover_help_text_at(pos_m: Vector2) -> String:
+	var det_index: int = _find_detector_at(pos_m)
+	if det_index >= 0:
+		var dets: Array = editor_data.get("detectors", [])
+		var det: Dictionary = dets[det_index] if det_index < dets.size() and typeof(dets[det_index]) == TYPE_DICTIONARY else {}
+		return "Detector: %s (%s)" % [String(det.get("id", str(det_index))), _detector_type_label(String(det.get("type", "smoke")))]
+
+	var vic_index: int = _find_victim_at(pos_m)
+	if vic_index >= 0:
+		var vics: Array = editor_data.get("victims", [])
+		var vic: Dictionary = vics[vic_index] if vic_index < vics.size() and typeof(vics[vic_index]) == TYPE_DICTIONARY else {}
+		return "Victima: %s" % String(vic.get("name", vic.get("id", str(vic_index))))
+
+	var hit_obj: Dictionary = _find_object_at(pos_m)
+	if not hit_obj.is_empty():
+		var obj: Dictionary = _get_object(int(hit_obj.get("room_id", -1)), int(hit_obj.get("object_index", -1)))
+		return "Objeto: %s" % String(obj.get("name", obj.get("id", "combustible")))
+
+	var opening_index: int = _find_opening_at(pos_m)
+	if opening_index >= 0:
+		var openings: Array = editor_data.get("openings_data", [])
+		if opening_index < openings.size() and typeof(openings[opening_index]) == TYPE_DICTIONARY:
+			return _element_label_for_opening(Dictionary(openings[opening_index]), opening_index)
+
+	if _player_start_hit_test(pos_m):
+		return "Inicio FP: aparicion del jugador"
+
+	var exterior_wall_index: int = _find_exterior_wall_at(pos_m)
+	if exterior_wall_index >= 0:
+		return "Muro exterior %d" % exterior_wall_index
+
+	var room_id: int = _find_room_at(pos_m)
+	if room_id >= 0:
+		var room: Dictionary = _get_room(room_id)
+		return "%s: %s (R%d)" % [_element_type_label_for_room(room), _room_display_name(room, room_id), room_id]
+	return ""
+
+
+func _detector_type_label(type_name: String) -> String:
+	match type_name:
+		"heat":
+			return "calor"
+		"co":
+			return "CO"
+		_:
+			return "humo"
+
+
+func _player_start_hit_test(pos_m: Vector2) -> bool:
+	if typeof(editor_data.get("player_start", {})) != TYPE_DICTIONARY:
+		return false
+	var start: Dictionary = editor_data.get("player_start", {})
+	var room_id: int = int(start.get("room_id", -1))
+	if not _is_room_on_current_floor(_get_room(room_id)):
+		return false
+	var start_pos: Vector2 = Serializer.vector2_from_data(start.get("position_m", _get_room_rect(room_id).get_center()))
+	return pos_m.distance_to(start_pos) <= 0.25
+
+
+func _draw_hover_help() -> void:
+	if _hover_help_text == "" or ThemeDB.fallback_font == null:
+		return
+	var zoom: float = maxf(0.05, camera.zoom.x)
+	var inv_zoom: float = 1.0 / zoom
+	var font_size: int = maxi(9, int(round(13.0 * inv_zoom)))
+	var padding: float = 7.0 * inv_zoom
+	var offset: Vector2 = Vector2(14.0, -40.0) * inv_zoom
+	var text_size: Vector2 = ThemeDB.fallback_font.get_string_size(_hover_help_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size)
+	var rect := Rect2(
+		_m_to_px(_hover_help_world_pos_m) + offset,
+		Vector2(text_size.x + padding * 2.0, text_size.y + padding * 2.0)
+	)
+	draw_rect(rect, Color(0.01, 0.025, 0.03, 0.92), true)
+	draw_rect(rect, UI_BORDER_HOT, false, maxf(1.0, inv_zoom))
+	draw_string(
+		ThemeDB.fallback_font,
+		rect.position + Vector2(padding, padding + ThemeDB.fallback_font.get_ascent(font_size)),
+		_hover_help_text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		rect.size.x - padding * 2.0,
+		font_size,
+		Color(0.96, 0.98, 0.92, 1.0)
+	)
 
 
 func _draw_corridor_drag_preview() -> void:
@@ -4016,7 +5014,7 @@ func _draw_lower_floor_ghost() -> void:
 		draw_rect(rect_px, _lower_floor_ghost_fill, true)
 		draw_rect(rect_px, _lower_floor_ghost_outline, false, 1.2)
 		if _is_stair_room(room_dict):
-			_draw_stair_room_guides(rect_px)
+			_draw_stair_room_guides(rect_px, room_dict)
 		if ThemeDB.fallback_font != null and rect_px.size.x > 28.0 and rect_px.size.y > 24.0:
 			draw_string(
 				ThemeDB.fallback_font,
@@ -4118,7 +5116,7 @@ func _draw_rooms() -> void:
 		if is_corridor:
 			_draw_corridor_room_guides(rect_px)
 		if is_stairs:
-			_draw_stair_room_guides(rect_px)
+			_draw_stair_room_guides(rect_px, room)
 		if is_corridor or is_stairs:
 			_draw_narrow_room_dimension_labels(rect, rect_px, is_stairs)
 		if ThemeDB.fallback_font != null:
@@ -4156,6 +5154,8 @@ func _draw_rooms() -> void:
 					11,
 					Color(0.65, 0.82, 0.65, 0.85)
 				)
+		if room_id == selected_room_id:
+			_draw_selected_room_handles(room_id)
 
 
 func _draw_corridor_room_guides(rect_px: Rect2) -> void:
@@ -4176,16 +5176,78 @@ func _draw_corridor_room_guides(rect_px: Rect2) -> void:
 	draw_circle(b, 2.5, Color(0.80, 1.0, 0.92, 0.50))
 
 
-func _draw_stair_room_guides(rect_px: Rect2) -> void:
-	var left: float = rect_px.position.x + rect_px.size.x * 0.30
-	var right: float = rect_px.position.x + rect_px.size.x * 0.70
-	var steps: int = clampi(int(rect_px.size.y / 22.0), 4, 14)
+func _draw_stair_room_guides(rect_px: Rect2, room: Dictionary) -> void:
+	var dir: Vector2 = _room_stair_run_direction(room)
+	var normal := Vector2(-dir.y, dir.x)
+	var center: Vector2 = rect_px.get_center()
+	var long_px: float = rect_px.size.x if absf(dir.x) > absf(dir.y) else rect_px.size.y
+	var cross_px: float = rect_px.size.y if absf(dir.x) > absf(dir.y) else rect_px.size.x
+	if float(room.get("stair_turn_degrees", 0.0)) >= 179.0:
+		_draw_switchback_stair_room_guides(rect_px, dir, normal, center, long_px, cross_px)
+		return
+	var start: Vector2 = center - dir * (long_px * 0.5 - 8.0)
+	var end: Vector2 = center + dir * (long_px * 0.5 - 8.0)
+	var half_width: float = maxf(10.0, cross_px * 0.22)
+	var steps: int = clampi(int(long_px / 22.0), 4, 14)
 	for i in range(steps + 1):
 		var t: float = float(i) / float(maxi(1, steps))
-		var y: float = lerpf(rect_px.position.y + 8.0, rect_px.position.y + rect_px.size.y - 8.0, t)
-		draw_line(Vector2(left, y), Vector2(right, y), Color(1.0, 0.78, 0.20, 0.62), 1.4)
-	draw_line(Vector2(left, rect_px.position.y + 8.0), Vector2(left, rect_px.position.y + rect_px.size.y - 8.0), Color(1.0, 0.78, 0.20, 0.34), 1.0)
-	draw_line(Vector2(right, rect_px.position.y + 8.0), Vector2(right, rect_px.position.y + rect_px.size.y - 8.0), Color(1.0, 0.78, 0.20, 0.34), 1.0)
+		var p: Vector2 = start.lerp(end, t)
+		draw_line(p - normal * half_width, p + normal * half_width, Color(1.0, 0.78, 0.20, 0.62), 1.4)
+	draw_line(start - normal * half_width, end - normal * half_width, Color(1.0, 0.78, 0.20, 0.34), 1.0)
+	draw_line(start + normal * half_width, end + normal * half_width, Color(1.0, 0.78, 0.20, 0.34), 1.0)
+	draw_circle(start, 4.0, Color(0.95, 1.0, 0.82, 0.95))
+	draw_line(start, end, Color(1.0, 0.90, 0.35, 0.72), 2.0)
+	var arrow_left: Vector2 = end - dir * 12.0 + normal * 6.0
+	var arrow_right: Vector2 = end - dir * 12.0 - normal * 6.0
+	draw_colored_polygon(PackedVector2Array([end, arrow_left, arrow_right]), Color(1.0, 0.90, 0.35, 0.86))
+	if ThemeDB.fallback_font != null and long_px > 60.0:
+		draw_string(ThemeDB.fallback_font, start + Vector2(5.0, -5.0), "ENTRA", HORIZONTAL_ALIGNMENT_LEFT, 70.0, 9, Color(0.95, 1.0, 0.82, 0.82))
+		draw_string(ThemeDB.fallback_font, end + Vector2(5.0, -5.0), "SUBE", HORIZONTAL_ALIGNMENT_LEFT, 60.0, 9, Color(1.0, 0.90, 0.35, 0.86))
+
+
+func _draw_switchback_stair_room_guides(rect_px: Rect2, dir: Vector2, normal: Vector2, center: Vector2, long_px: float, cross_px: float) -> void:
+	var start_center: Vector2 = center - dir * (long_px * 0.5 - 10.0)
+	var end_center: Vector2 = center + dir * (long_px * 0.5 - 20.0)
+	var lane_offset: float = maxf(8.0, cross_px * 0.20)
+	var lane_half_width: float = maxf(5.0, cross_px * 0.13)
+	var a0: Vector2 = start_center - normal * lane_offset
+	var a1: Vector2 = end_center - normal * lane_offset
+	var b0: Vector2 = end_center + normal * lane_offset
+	var b1: Vector2 = start_center + normal * lane_offset
+	var color := Color(1.0, 0.78, 0.20, 0.62)
+	for i in range(7):
+		var t: float = float(i) / 6.0
+		var pa: Vector2 = a0.lerp(a1, t)
+		var pb: Vector2 = b0.lerp(b1, t)
+		draw_line(pa - normal * lane_half_width, pa + normal * lane_half_width, color, 1.2)
+		draw_line(pb - normal * lane_half_width, pb + normal * lane_half_width, color, 1.2)
+	draw_line(a0, a1, Color(1.0, 0.90, 0.35, 0.72), 2.0)
+	draw_line(b0, b1, Color(1.0, 0.90, 0.35, 0.72), 2.0)
+	draw_line(a1 - normal * lane_half_width, b0 + normal * lane_half_width, Color(1.0, 0.90, 0.35, 0.68), 2.0)
+	draw_circle(a0, 4.0, Color(0.95, 1.0, 0.82, 0.95))
+	draw_colored_polygon(PackedVector2Array([b1, b1 + dir * 10.0 + normal * 5.0, b1 + dir * 10.0 - normal * 5.0]), Color(1.0, 0.90, 0.35, 0.86))
+	if ThemeDB.fallback_font != null and long_px > 60.0:
+		draw_string(ThemeDB.fallback_font, a0 + Vector2(5.0, -5.0), "ENTRA", HORIZONTAL_ALIGNMENT_LEFT, 70.0, 9, Color(0.95, 1.0, 0.82, 0.82))
+		draw_string(ThemeDB.fallback_font, end_center + Vector2(5.0, -5.0), "180", HORIZONTAL_ALIGNMENT_LEFT, 42.0, 9, Color(1.0, 0.90, 0.35, 0.86))
+
+
+func _draw_selected_room_handles(room_id: int) -> void:
+	var handles: Dictionary = _room_handle_points_m(room_id)
+	if handles.is_empty():
+		return
+	var center_px: Vector2 = _m_to_px(_get_room_rect(room_id).get_center())
+	var rotate_px: Vector2 = _m_to_px(Vector2(handles.get(ObjectMouseMode.ROTATE, _get_room_rect(room_id).get_center())))
+	draw_line(center_px, rotate_px, Color(1.0, 1.0, 1.0, 0.45), 1.2)
+	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH, ObjectMouseMode.ROTATE]:
+		if not handles.has(mode):
+			continue
+		var px: Vector2 = _m_to_px(Vector2(handles[mode]))
+		var color: Color = Color(0.95, 1.0, 0.80, 1.0)
+		if mode == ObjectMouseMode.ROTATE:
+			color = Color(0.46, 0.88, 1.0, 1.0)
+		draw_circle(px, OBJECT_HANDLE_RADIUS_PX + 2.0, Color(0.0, 0.0, 0.0, 0.72))
+		draw_circle(px, OBJECT_HANDLE_RADIUS_PX, color)
+		draw_circle(px, OBJECT_HANDLE_RADIUS_PX, Color(1.0, 1.0, 1.0, 0.92), false, 1.4)
 
 
 func _draw_narrow_room_dimension_labels(rect_m: Rect2, rect_px: Rect2, is_stairs: bool) -> void:
@@ -4353,6 +5415,33 @@ func _draw_selected_object_handles(room_rect: Rect2, obj: Dictionary) -> void:
 		draw_circle(px, OBJECT_HANDLE_RADIUS_PX, Color(1.0, 1.0, 1.0, 0.92), false, 1.4)
 
 
+func _draw_player_start() -> void:
+	if typeof(editor_data.get("player_start", {})) != TYPE_DICTIONARY:
+		return
+	var start: Dictionary = editor_data.get("player_start", {})
+	if start.is_empty():
+		return
+	var room_id: int = int(start.get("room_id", -1))
+	var room: Dictionary = _get_room(room_id)
+	if room.is_empty() or not _is_room_on_current_floor(room):
+		return
+	var rect: Rect2 = _get_room_rect(room_id)
+	var local_pos: Vector2 = Serializer.vector2_from_data(start.get("position_m", Vector2.ZERO))
+	var world_pos: Vector2 = rect.position + local_pos
+	var px: Vector2 = _m_to_px(world_pos)
+	var radius: float = 9.0
+	var dir := Vector2(0.0, -1.0).rotated(deg_to_rad(float(start.get("yaw_deg", 0.0))))
+	var pts := PackedVector2Array([
+		px + dir * (radius + 4.0),
+		px + dir.rotated(2.35) * radius,
+		px + dir.rotated(-2.35) * radius
+	])
+	draw_colored_polygon(pts, _player_start_color)
+	draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(0.0, 0.0, 0.0, 0.78), 1.6)
+	if ThemeDB.fallback_font != null:
+		draw_string(ThemeDB.fallback_font, px + Vector2(11.0, 4.0), "FP", HORIZONTAL_ALIGNMENT_LEFT, 32.0, 10, _player_start_color)
+
+
 func _draw_detectors() -> void:
 	var dets: Array = editor_data.get("detectors", [])
 	for i in range(dets.size()):
@@ -4430,17 +5519,29 @@ func _scan_scenario_files() -> void:
 		_scenario_option.add_item(String(preset_data.get("name", preset_id)))
 
 	var dir := DirAccess.open(SCENARIOS_RES_PATH)
-	if dir == null:
-		return
+	if dir != null:
+		dir.list_dir_begin()
+		var file_name: String = dir.get_next()
+		while file_name != "":
+			if not dir.current_is_dir() and file_name.ends_with(".json"):
+				_scenario_paths.append(SCENARIOS_RES_PATH + "/" + file_name)
+				_scenario_option.add_item(file_name.get_basename())
+			file_name = dir.get_next()
+		dir.list_dir_end()
 
-	dir.list_dir_begin()
-	var file_name: String = dir.get_next()
-	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".json"):
-			_scenario_paths.append(SCENARIOS_RES_PATH + "/" + file_name)
-			_scenario_option.add_item(file_name.get_basename())
-		file_name = dir.get_next()
-	dir.list_dir_end()
+	# Escenarios de validación CFAST — aparecen como "CFAST: <nombre>"
+	var vdir := DirAccess.open(VALIDATION_CASES_PATH)
+	if vdir != null:
+		vdir.list_dir_begin()
+		var vfile: String = vdir.get_next()
+		while vfile != "":
+			if not vdir.current_is_dir() and vfile.begins_with("cfast_") and vfile.ends_with(".json"):
+				var basename: String = vfile.get_basename()
+				var display: String = "CFAST: " + basename.substr(6).replace("_", " ").capitalize()
+				_scenario_paths.append(VALIDATION_CASES_PATH + "/" + vfile)
+				_scenario_option.add_item(display)
+			vfile = vdir.get_next()
+		vdir.list_dir_end()
 
 
 func _load_scenario_pressed() -> void:
@@ -4516,6 +5617,7 @@ func _bind_existing_ui() -> bool:
 	var btn_window := _ui_root.get_node_or_null("TopBar/HBox/BtnWindow") as Button
 	var btn_object := _ui_root.get_node_or_null("TopBar/HBox/BtnObject") as Button
 	var btn_ignite := _ui_root.get_node_or_null("TopBar/HBox/BtnIgnite") as Button
+	var btn_player_start := _ui_root.get_node_or_null("TopBar/HBox/BtnPlayerStart") as Button
 	var btn_delete := _ui_root.get_node_or_null("TopBar/HBox/BtnDelete") as Button
 	var topbar_existing := _ui_root.get_node_or_null("TopBar/HBox") as Container
 	if btn_exterior == null and topbar_existing != null:
@@ -4554,6 +5656,14 @@ func _bind_existing_ui() -> bool:
 		topbar_existing.add_child(btn_hole)
 		if btn_door != null:
 			topbar_existing.move_child(btn_hole, btn_door.get_index() + 1)
+	if btn_player_start == null and topbar_existing != null:
+		btn_player_start = Button.new()
+		btn_player_start.name = "BtnPlayerStart"
+		btn_player_start.text = "Inicio FP"
+		btn_player_start.custom_minimum_size = Vector2(92.0, 34.0)
+		topbar_existing.add_child(btn_player_start)
+		if btn_ignite != null:
+			topbar_existing.move_child(btn_player_start, btn_ignite.get_index() + 1)
 
 	var btn_detector := _ui_root.get_node_or_null("TopBar/HBox/BtnDetector") as Button
 	if btn_detector == null and topbar_existing != null:
@@ -4574,7 +5684,7 @@ func _bind_existing_ui() -> bool:
 		if btn_detector != null:
 			topbar_existing.move_child(btn_victim, btn_detector.get_index() + 1)
 
-	var required_buttons: Array[Button] = [btn_select, btn_exterior, btn_room, btn_corridor, btn_stairs, btn_door, btn_hole, btn_window, btn_object, btn_ignite, btn_delete]
+	var required_buttons: Array[Button] = [btn_select, btn_exterior, btn_room, btn_corridor, btn_stairs, btn_door, btn_hole, btn_window, btn_object, btn_ignite, btn_player_start, btn_delete]
 	for b in required_buttons:
 		if b == null:
 			return false
@@ -4590,6 +5700,7 @@ func _bind_existing_ui() -> bool:
 	_register_tool_button(btn_window, Tool.WINDOW)
 	_register_tool_button(btn_object, Tool.OBJECT)
 	_register_tool_button(btn_ignite, Tool.IGNITION)
+	_register_tool_button(btn_player_start, Tool.PLAYER_START)
 	_register_tool_button(btn_delete, Tool.DELETE)
 	if btn_detector != null:
 		_register_tool_button(btn_detector, Tool.DETECTOR)
@@ -4683,6 +5794,7 @@ func _bind_existing_ui() -> bool:
 	_ensure_opening_tool_controls_in_existing_ui()
 	_ensure_hvac_option_in_existing_ui()
 	_ensure_building_type_controls_in_existing_ui()
+	_ensure_element_list_in_existing_ui()
 	_ensure_room_geometry_controls_in_existing_ui()
 	_ensure_object_position_controls_in_existing_ui()
 	_ensure_opening_position_controls_in_existing_ui()
@@ -4769,6 +5881,29 @@ func _ensure_spin_row(parent: Control, row_name: String, label_text: String, spi
 	return spin
 
 
+func _ensure_check_row(parent: Control, row_name: String, label_text: String, check_name: String) -> CheckBox:
+	var row := parent.get_node_or_null(row_name) as HBoxContainer
+	if row == null:
+		row = HBoxContainer.new()
+		row.name = row_name
+		row.add_theme_constant_override("separation", 4)
+		parent.add_child(row)
+	var spacer := row.get_node_or_null(row_name + "Spacer") as Control
+	if spacer == null:
+		spacer = Control.new()
+		spacer.name = row_name + "Spacer"
+		spacer.custom_minimum_size.x = 96.0
+		row.add_child(spacer)
+	var checkbox := row.get_node_or_null(check_name) as CheckBox
+	if checkbox == null:
+		checkbox = CheckBox.new()
+		checkbox.name = check_name
+		checkbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(checkbox)
+	checkbox.text = label_text
+	return checkbox
+
+
 func _ensure_option_row(parent: Control, row_name: String, label_text: String, option_name: String) -> OptionButton:
 	var row := parent.get_node_or_null(row_name) as HBoxContainer
 	if row == null:
@@ -4830,6 +5965,48 @@ func _ensure_building_type_controls_in_existing_ui() -> void:
 	_populate_building_type_option()
 	if not _building_type_option.item_selected.is_connected(_on_building_type_selected):
 		_building_type_option.item_selected.connect(_on_building_type_selected)
+	_apartment_floor_spin = _ensure_spin_row(left_vbox, "ApartmentFloorRow", "Planta piso", "ApartmentFloorSpin", -5.0, 80.0, 1.0)
+	_apartment_floor_spin.rounded = true
+	if not _apartment_floor_spin.value_changed.is_connected(_on_apartment_floor_changed):
+		_apartment_floor_spin.value_changed.connect(_on_apartment_floor_changed)
+	var apartment_row := _apartment_floor_spin.get_parent() as Control
+	if apartment_row != null:
+		left_vbox.move_child(apartment_row, row.get_index() + 1)
+	_sync_apartment_floor_control()
+
+
+func _ensure_element_list_in_existing_ui() -> void:
+	var left_vbox := _find_left_vbox()
+	if left_vbox == null:
+		return
+	var title := left_vbox.get_node_or_null("ElementListTitle") as Label
+	if title == null:
+		title = Label.new()
+		title.name = "ElementListTitle"
+		title.text = "Elementos de planta"
+		left_vbox.add_child(title)
+	else:
+		title.text = "Elementos de planta"
+	_element_list = left_vbox.get_node_or_null("ElementList") as ItemList
+	if _element_list == null:
+		_element_list = ItemList.new()
+		_element_list.name = "ElementList"
+		_element_list.custom_minimum_size = Vector2(0.0, 132.0)
+		_element_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_element_list.select_mode = ItemList.SELECT_SINGLE
+		_element_list.allow_reselect = true
+		left_vbox.add_child(_element_list)
+	if not _element_list.item_selected.is_connected(_on_element_list_item_selected):
+		_element_list.item_selected.connect(_on_element_list_item_selected)
+	var anchor: Control = null
+	if _apartment_floor_spin != null:
+		anchor = _apartment_floor_spin.get_parent() as Control
+	else:
+		anchor = left_vbox.get_node_or_null("BuildingTypeRow") as Control
+	if anchor != null and anchor.get_parent() == left_vbox:
+		left_vbox.move_child(title, mini(anchor.get_index() + 1, left_vbox.get_child_count() - 1))
+		left_vbox.move_child(_element_list, mini(title.get_index() + 1, left_vbox.get_child_count() - 1))
+	_refresh_element_list()
 
 
 func _ensure_room_geometry_controls_in_existing_ui() -> void:
@@ -4849,6 +6026,18 @@ func _ensure_room_geometry_controls_in_existing_ui() -> void:
 	_room_width_spin = _ensure_spin_row(geometry, "RoomWidthRow", "Ancho (m)", "RoomWidthSpin", 0.25, 200.0, 0.05)
 	_room_depth_spin = _ensure_spin_row(geometry, "RoomDepthRow", "Fondo (m)", "RoomDepthSpin", 0.25, 200.0, 0.05)
 	_room_rotation_spin = _ensure_spin_row(geometry, "RoomRotationRow", "Angulo (deg)", "RoomRotationSpin", -180.0, 180.0, 1.0)
+	_stair_walls_check = _ensure_check_row(geometry, "StairWallsRow", "Escalera con paredes", "StairWallsCheck")
+	_stair_railings_check = _ensure_check_row(geometry, "StairRailingsRow", "Escalera con barandillas", "StairRailingsCheck")
+	_stair_angle_label = geometry.get_node_or_null("StairAngleLabel") as Label
+	if _stair_angle_label == null:
+		_stair_angle_label = Label.new()
+		_stair_angle_label.name = "StairAngleLabel"
+		_stair_angle_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_stair_angle_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
+		_stair_angle_label.modulate = UI_TEXT_MUTED
+		geometry.add_child(_stair_angle_label)
+		if _stair_railings_check != null and _stair_railings_check.get_parent() != null and _stair_railings_check.get_parent().get_parent() == geometry:
+			geometry.move_child(_stair_angle_label, _stair_railings_check.get_parent().get_index() + 1)
 	_room_mark_exterior_button = vbox.get_node_or_null("BtnMarkRoomExterior") as Button
 	if _room_mark_exterior_button == null:
 		_room_mark_exterior_button = Button.new()
@@ -4957,21 +6146,7 @@ func _ensure_controls_help_in_existing_ui() -> void:
 	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
-	var help := left_vbox.get_node_or_null("ControlsHelp") as Label
-	if help == null:
-		var title := Label.new()
-		title.name = "ControlsHelpTitle"
-		title.text = "Controles"
-		left_vbox.add_child(title)
-		help = Label.new()
-		help.name = "ControlsHelp"
-		help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		help.add_theme_font_size_override("font_size", 13)
-		help.modulate = UI_TEXT_MUTED
-		left_vbox.add_child(help)
-	else:
-		help.add_theme_font_size_override("font_size", 13)
-	help.text = "Zoom: rueda del raton. Mover plano: flechas o boton central. Boton derecho sobre objetos, habitaciones, huecos o muros: propiedades. Exterior: dibuja fachadas con el raton."
+	_ensure_controls_help_block(left_vbox)
 
 
 func _ensure_floor_controls_in_existing_ui() -> void:
@@ -5060,11 +6235,11 @@ func _ensure_floor_controls_in_existing_ui() -> void:
 		_floor_status_label = Label.new()
 		_floor_status_label.name = "FloorStatusLabel"
 		_floor_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_floor_status_label.add_theme_font_size_override("font_size", 12)
+		_floor_status_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
 		_floor_status_label.modulate = UI_TEXT_MUTED
 		section.add_child(_floor_status_label)
 	else:
-		_floor_status_label.add_theme_font_size_override("font_size", 12)
+		_floor_status_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
 
 	_sync_floor_controls()
 
@@ -5284,16 +6459,25 @@ func _zoom_at_mouse(factor: float) -> void:
 
 #moviemiento con las flechas
 func _physics_process(delta: float) -> void:
+	_update_hover_help(delta)
 	var direction := Vector2.ZERO
 
-	if Input.is_key_pressed(KEY_LEFT):
-		direction.x -= 1.0
-	if Input.is_key_pressed(KEY_RIGHT):
-		direction.x += 1.0
-	if Input.is_key_pressed(KEY_UP):
-		direction.y -= 1.0
-	if Input.is_key_pressed(KEY_DOWN):
-		direction.y += 1.0
+	if _editor_can_pan_with_arrows():
+		if Input.is_key_pressed(KEY_LEFT):
+			direction.x -= 1.0
+		if Input.is_key_pressed(KEY_RIGHT):
+			direction.x += 1.0
+		if Input.is_key_pressed(KEY_UP):
+			direction.y -= 1.0
+		if Input.is_key_pressed(KEY_DOWN):
+			direction.y += 1.0
 
 	if direction != Vector2.ZERO:
 		camera.global_position += direction.normalized() * PAN_SPEED * delta / camera.zoom.x
+
+
+func _editor_can_pan_with_arrows() -> bool:
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	if focus_owner == null:
+		return true
+	return focus_owner is Button or focus_owner is OptionButton or focus_owner is ItemList or focus_owner is CheckBox

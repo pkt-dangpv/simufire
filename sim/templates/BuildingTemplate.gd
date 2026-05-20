@@ -68,27 +68,37 @@ func get_preset_definitions() -> Array[Dictionary]:
 
 
 func create_by_name(preset_name: String) -> Dictionary:
+	var data: Dictionary
 	match preset_name:
 		"compact_apartment":
-			return create_compact_apartment()
+			data = create_compact_apartment()
 		"two_bed_apartment":
-			return create_two_bed_apartment()
+			data = create_two_bed_apartment()
 		"three_bed_apartment":
-			return create_three_bed_apartment()
+			data = create_three_bed_apartment()
 		"two_storey_house":
-			return create_two_storey_house()
+			data = create_two_storey_house()
 		"row_house_ground_floor":
-			return create_row_house_ground_floor()
+			data = create_row_house_ground_floor()
 		"ranch_family_house":
-			return create_ranch_family_house()
+			data = create_ranch_family_house()
 		"ghanekar_bedroom_hallway":
-			return create_ghanekar_ranch_hvac()
+			data = create_ghanekar_ranch_hvac()
 		"uk_bungalow":
-			return create_uk_bungalow()
+			data = create_uk_bungalow()
 		"piso_mediterraneo":
-			return create_piso_mediterraneo()
+			data = create_piso_mediterraneo()
 		_:
-			return create_simple_house()
+			data = create_simple_house()
+	data["building_type"] = _building_type_for_preset(preset_name)
+	return data
+
+
+func _building_type_for_preset(preset_name: String) -> String:
+	var id: String = preset_name.strip_edges().to_lower()
+	if id.contains("apartment") or id.begins_with("piso"):
+		return "apartment"
+	return "single_family"
 
 
 func create_simple_house() -> Dictionary:

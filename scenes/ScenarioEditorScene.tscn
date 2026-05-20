@@ -36,9 +36,9 @@ anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
 offset_left = -215.0
-offset_top = 1.0
+offset_top = 8.0
 offset_right = 235.0
-offset_bottom = 97.0
+offset_bottom = 140.0
 grow_horizontal = 2
 
 [node name="HBox" type="GridContainer" parent="CanvasLayer/UI/TopBar" unique_id=779570010]
@@ -122,22 +122,22 @@ layout_mode = 1
 anchors_preset = 9
 anchor_bottom = 1.0
 offset_top = 25.0
-offset_right = 344.0
-offset_bottom = 203.0
+offset_right = 360.0
+offset_bottom = 0.0
 grow_vertical = 2
-scale = Vector2(0.75, 0.75)
+scale = Vector2(1, 1)
 
 [node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel" unique_id=1144839810]
 layout_mode = 2
 theme_override_constants/separation = 7
 
 [node name="BrandHeader" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=481810983]
-custom_minimum_size = Vector2(0, 200)
+custom_minimum_size = Vector2(0, 136)
 layout_mode = 2
 theme_override_constants/separation = 6
 
 [node name="Logo" type="TextureRect" parent="CanvasLayer/UI/LeftPanel/VBox/BrandHeader" unique_id=1606370815]
-custom_minimum_size = Vector2(292, 175)
+custom_minimum_size = Vector2(292, 106)
 layout_mode = 2
 size_flags_horizontal = 3
 texture = ExtResource("4_logo")
@@ -188,7 +188,7 @@ step = 0.05
 
 [node name="FloorStatusLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection" unique_id=1102403001]
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 12
 autowrap_mode = 3
 
 [node name="ObjectLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1026911107]
@@ -301,13 +301,13 @@ anchors_preset = 11
 anchor_left = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -170.0
-offset_top = 3.0
-offset_right = 51.0
-offset_bottom = 520.0
+offset_left = -316.0
+offset_top = 20.0
+offset_right = -12.0
+offset_bottom = -86.0
 grow_horizontal = 0
 grow_vertical = 2
-scale = Vector2(0.75, 0.75)
+scale = Vector2(1, 1)
 
 [node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel" unique_id=216967571]
 layout_mode = 2

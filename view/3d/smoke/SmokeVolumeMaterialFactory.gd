@@ -16,6 +16,10 @@ uniform float edge_band_strength = 0.30;
 uniform float side_visibility = 0.28;
 uniform float bottom_surface_strength = 0.70;
 uniform float top_visibility = 0.0;
+uniform float vertical_gradient_strength = 0.68;
+uniform float lower_density_floor = 0.30;
+uniform float flow_strength = 0.0;
+uniform float flow_speed = 0.30;
 
 varying float smoke_local_y;
 varying float smoke_horizontal_face;
@@ -61,11 +65,16 @@ void fragment() {
 	float horizontal_face = max(bottom_face, top_face);
 	float side_face = 1.0 - horizontal_face;
 	float face_visibility = side_face * side_visibility + bottom_face + top_face * top_visibility;
-	float bottom_sheet = bottom_face * smoke_color.a * density * bottom_surface_strength * mix(0.38, 1.0, filament);
-	float base_alpha = smoke_color.a * density * mix(0.14, 0.76, filament) * max(0.34, vertical_edge) * max(0.68, side_edge) * face_visibility;
+	float height_gradient = mix(lower_density_floor, 1.0, smoothstep(0.02, 1.0, smoke_local_y));
+	height_gradient = mix(1.0, height_gradient, vertical_gradient_strength);
+	float bottom_sheet = bottom_face * smoke_color.a * density * bottom_surface_strength * mix(0.18, 0.64, filament) * height_gradient;
+	float base_alpha = smoke_color.a * density * mix(0.11, 0.78, filament) * max(0.30, vertical_edge) * max(0.68, side_edge) * face_visibility * height_gradient;
+	float moving_band = 0.5 + 0.5 * sin((uv.y - TIME * flow_speed + n * 0.18) * 18.0);
+	float flow_filament = smoothstep(0.58, 0.98, moving_band) * side_face * flow_strength * (0.38 + filament * 0.62);
 	float alpha = base_alpha * mix(0.26, 1.0, bottom_fade) + smoke_color.a * density * edge_band_strength * edge_band * side_face * side_visibility + bottom_sheet;
+	alpha += smoke_color.a * density * flow_filament;
 	ALBEDO = smoke_color.rgb * mix(0.62, 1.10, n);
-	ALPHA = clamp(alpha, 0.0, smoke_color.a * 0.86);
+	ALPHA = clamp(alpha, 0.0, smoke_color.a * (0.88 + flow_strength * 0.18));
 }
 """
 
@@ -96,6 +105,10 @@ static func create_volume(smoke_color: Color) -> ShaderMaterial:
 	material.set_shader_parameter("side_visibility", 0.22)
 	material.set_shader_parameter("bottom_surface_strength", 0.72)
 	material.set_shader_parameter("top_visibility", 0.0)
+	material.set_shader_parameter("vertical_gradient_strength", 0.68)
+	material.set_shader_parameter("lower_density_floor", 0.30)
+	material.set_shader_parameter("flow_strength", 0.0)
+	material.set_shader_parameter("flow_speed", 0.30)
 	return material
 
 

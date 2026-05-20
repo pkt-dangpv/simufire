@@ -257,7 +257,7 @@ func _append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		var room_label: String = str(room_state.get("id", room_id))
 		if room_name_val != "":
 			room_label = "%s(%s)" % [str(room_state.get("id", room_id)), room_name_val]
-		var line := "ROOM %s | HRR=%.2f | Up=%.2f | Low=%.2f | Smoke=%.4f | Vis=%.1fm | SmokeLayer=%.2f | HotLayer=%.2f | L150=%.2f | P=%.2fPa | O2=%.4f | CO=%.0fppm | COu=%.0fppm | CO2=%.0fppm | CO2u=%.0fppm | FED=%.3f | SVV=%.0f%% [%s]" % [
+		var line := "ROOM %s | HRR=%.2f | Up=%.2f | Low=%.2f | Smoke=%.4f | Vis=%.1fm | SmokeLayer=%.2f | HotLayer=%.2f | L150=%.2f | P=%.2fPa | O2=%.4f | O2u=%.4f | CO=%.0fppm | COu=%.0fppm | CO2=%.0fppm | CO2u=%.0fppm | FED=%.3f | SVV=%.0f%% [%s]" % [
 			room_label,
 			float(room_state.get("hrr_kw", 0.0)),
 			float(room_state.get("temp_upper_c", 0.0)),
@@ -269,6 +269,7 @@ func _append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 			float(room_state.get("layer_150c_m", 0.0)),
 			float(room_state.get("overpressure_pa", 0.0)),
 			float(room_state.get("o2", 0.0)),
+			float(room_state.get("o2_upper", room_state.get("o2", 0.0))),
 			float(room_state.get("co_ppm", 0.0)),
 			float(room_state.get("co_upper_ppm", 0.0)),
 			float(room_state.get("co2_ppm", 0.0)),

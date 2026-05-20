@@ -1,0 +1,58 @@
+&HEAD VERSION = 7600, TITLE = 'Simufire CMV-3: Multi-fuel sofa+TV composite fire, vented room' /
+
+!! Geometry: simple_house R0  5.0m x 4.0m x 2.4m (48 m^3)
+!! Venting:  door from R0 to hall, 0.90m x 2.0m, open from t=0 (OUTSIDE represents hall)
+!! Fire:     single composite HRR = sofa (alpha=0.047, peak 700kW)
+!!           + TV cabinet (ignites at ~t=120s, peak 260kW added)
+!!           Combined peak ~960 kW at t~229s
+&TIME SIMULATION = 600 PRINT = 10 SMOKEVIEW = 10 SPREADSHEET = 10 /
+&INIT PRESSURE = 101325 RELATIVE_HUMIDITY = 50 INTERIOR_TEMPERATURE = 20 EXTERIOR_TEMPERATURE = 20 /
+&MISC LOWER_OXYGEN_LIMIT = 0.10 /
+
+&MATL ID = 'CONCRETE' MATERIAL = 'Concrete Normal Weight (6 in)',
+      CONDUCTIVITY = 1.75 DENSITY = 2200 SPECIFIC_HEAT = 1, THICKNESS = 0.15 EMISSIVITY = 0.94 /
+
+&COMP ID = 'R0'
+      DEPTH = 4.0 HEIGHT = 2.4 WIDTH = 5.0
+      CEILING_MATL_ID = 'CONCRETE' WALL_MATL_ID = 'CONCRETE' FLOOR_MATL_ID = 'CONCRETE'
+      ORIGIN = 0.0, 0.0, 0.0 GRID = 40, 32, 20
+      LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
+
+!! Door to hall (represented as exterior opening, 0.90m wide x 2.0m tall, always open)
+!! Matches _make_opening(1, 0, "door", 1.05, 2.1, 1.0, 0.42) in two_storey_house
+!! Using 0.90m x 2.0m (standard interior door in simple_house)
+&VENT TYPE = 'WALL' ID = 'DoorHall'
+      COMP_IDS = 'R0' 'OUTSIDE'
+      TOP = 2.0 BOTTOM = 0.0 WIDTH = 0.9
+      CRITERION = 'TIME' T = 0, 600 F = 1, 1
+      FACE = 'RIGHT' OFFSET = 0.55 /
+
+!! Composite fire: sofa (alpha=0.047, peak 700kW) + TV cabinet (starts at t=120s, peak 260kW)
+!! Combined HRR:
+!!   t=0    :   0 kW  (nothing burning)
+!!   t=30   :  42 kW  (sofa: 0.047*900=42)
+!!   t=60   : 169 kW  (sofa: 0.047*3600=169)
+!!   t=90   : 381 kW  (sofa: 0.047*8100=381)
+!!   t=122  : 700 kW  (sofa peaks: 0.047*122^2=699->700)
+!!   t=150  : 720 kW  (sofa=700 + TV: 0.022*(30)^2=20)
+!!   t=180  : 779 kW  (sofa=700 + TV: 0.022*(60)^2=79)
+!!   t=210  : 878 kW  (sofa=700 + TV: 0.022*(90)^2=178)
+!!   t=229  : 960 kW  (sofa=700 + TV: 0.022*(109)^2=261->260, TV peaks)
+!!   t=600  : 960 kW  (steady, both fuels sustained)
+&FIRE ID = 'CompositeFire' COMP_ID = 'R0', FIRE_ID = 'CompositeFuel' LOCATION = 1.8, 1.6 /
+&CHEM ID = 'CompositeFuel' CARBON = 6 CHLORINE = 0 HYDROGEN = 10 NITROGEN = 0 OXYGEN = 5
+      HEAT_OF_COMBUSTION = 18100 RADIATIVE_FRACTION = 0.35 /
+&TABL ID = 'CompositeFuel' LABELS = 'TIME', 'HRR', 'HEIGHT', 'AREA', 'CO_YIELD', 'SOOT_YIELD', 'HCN_YIELD', 'HCL_YIELD', 'TRACE_YIELD' /
+&TABL ID = 'CompositeFuel', DATA =   0,   0, 0, 0.001, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'CompositeFuel', DATA =  30,  42, 0, 0.044, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'CompositeFuel', DATA =  60, 169, 0, 0.177, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'CompositeFuel', DATA =  90, 381, 0, 0.399, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'CompositeFuel', DATA = 122, 700, 0, 0.656, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'CompositeFuel', DATA = 150, 720, 0, 0.675, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'CompositeFuel', DATA = 180, 779, 0, 0.730, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'CompositeFuel', DATA = 210, 878, 0, 0.823, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'CompositeFuel', DATA = 229, 960, 0, 0.900, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'CompositeFuel', DATA = 600, 960, 0, 0.900, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'CompositeFuel', DATA = 610,   0, 0, 0.001, 0.0062, 0.015, 0, 0, 0 /
+
+&DEVC ID = 'R0_Temp' COMP_ID = 'R0' LOCATION = 2.5, 2.0, 1.8 TYPE = 'THERMOCOUPLE' /

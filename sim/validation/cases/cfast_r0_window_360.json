@@ -84,6 +84,6 @@
 		"fed_heat_enabled": false,
 		"fire_spread_enabled": false,
 		"glass_auto_break_enabled": false,
-		"fire_co_yield_force_kg_per_MJ": 0.000295
+		"fire_co_yield_force_kg_per_MJ": 0.000220
 	}
 }

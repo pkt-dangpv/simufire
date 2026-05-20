@@ -1,0 +1,41 @@
+&HEAD VERSION = 7600, TITLE = 'Simufire CMV-3: Fast-growth sealed room (alpha=0.047)' /
+
+&TIME SIMULATION = 300 PRINT = 10 SMOKEVIEW = 10 SPREADSHEET = 10 /
+
+&INIT PRESSURE = 101325 RELATIVE_HUMIDITY = 50
+      INTERIOR_TEMPERATURE = 20 EXTERIOR_TEMPERATURE = 20 /
+
+&MISC LOWER_OXYGEN_LIMIT = 0.10 /
+
+!! Concrete walls / ceiling / floor  (same as all other simufire CFAST cases)
+&MATL ID = 'CONCRETE'
+      MATERIAL = 'Concrete Normal Weight (6 in)',
+      CONDUCTIVITY = 1.75 DENSITY = 2200 SPECIFIC_HEAT = 1,
+      THICKNESS = 0.15 EMISSIVITY = 0.94 /
+
+!! Room R0: Salon 5.0m x 4.0m x 2.4m (simple_house R0)
+&COMP ID = 'R0'
+      DEPTH = 4.0 HEIGHT = 2.4 WIDTH = 5.0
+      CEILING_MATL_ID = 'CONCRETE' WALL_MATL_ID = 'CONCRETE' FLOOR_MATL_ID = 'CONCRETE'
+      ORIGIN = 0.0, 0.0, 0.0 GRID = 40, 32, 20
+      LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
+
+!! No vents: sealed room
+
+!! Fire: alpha=0.047 kW/s^2, HRR(t)=0.047*t^2, capped at 1280 kW at t=165 s
+&FIRE ID = 'SofaFire' COMP_ID = 'R0', FIRE_ID = 'FastWood' LOCATION = 2.5, 2.0 /
+&CHEM ID = 'FastWood'
+      CARBON = 6 CHLORINE = 0 HYDROGEN = 10 NITROGEN = 0 OXYGEN = 5
+      HEAT_OF_COMBUSTION = 18100 RADIATIVE_FRACTION = 0.35 /
+&TABL ID = 'FastWood' LABELS = 'TIME', 'HRR', 'HEIGHT', 'AREA', 'CO_YIELD', 'SOOT_YIELD', 'HCN_YIELD', 'HCL_YIELD', 'TRACE_YIELD' /
+&TABL ID = 'FastWood', DATA =   0,    0, 0, 0.001, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'FastWood', DATA =  30,   42, 0, 0.030, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'FastWood', DATA =  60,  169, 0, 0.119, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'FastWood', DATA =  90,  381, 0, 0.268, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'FastWood', DATA = 120,  677, 0, 0.477, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'FastWood', DATA = 150, 1058, 0, 0.745, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'FastWood', DATA = 165, 1280, 0, 0.900, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'FastWood', DATA = 300, 1280, 0, 0.900, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'FastWood', DATA = 310,    0, 0, 0.001, 0.0062, 0.015, 0, 0, 0 /
+
+&DEVC ID = 'R0_Temp' COMP_ID = 'R0' LOCATION = 2.5, 2.0, 1.8 TYPE = 'THERMOCOUPLE' /

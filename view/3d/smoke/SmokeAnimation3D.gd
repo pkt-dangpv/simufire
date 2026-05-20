@@ -53,7 +53,8 @@ static func animate(item: Dictionary, global_phase: float, settings: Dictionary)
 		puff.texture = smoke_texture
 		var frame_count: int = maxi(1, puff.hframes * puff.vframes)
 		puff.frame = int(fposmod(floor(global_phase * 5.0 + seed), float(frame_count)))
-		var puff_alpha: float = clampf(alpha * lerpf(0.30, 0.72, fposmod(seed * 0.47, 1.0)), 0.04, 0.38)
+		var y_density_t: float = y_frac * y_frac * (3.0 - 2.0 * y_frac)
+		var puff_alpha: float = clampf(alpha * lerpf(0.16, 0.82, y_density_t) * lerpf(0.62, 1.0, fposmod(seed * 0.47, 1.0)), 0.025, 0.40)
 		puff.modulate = Color(0.66, 0.68, 0.70, puff_alpha)
 
 

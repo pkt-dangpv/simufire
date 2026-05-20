@@ -1,0 +1,11 @@
+[Reference Checks] FAIL: 64/72 required checks passed
+[Reference Checks] Known gaps: 27 non-gating checks did not pass
+[Reference Checks] Report: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\reference_checks.json
+  FAIL cfast_t240_o2_depleted: actual=0.1321 expected=0.085108 tol=0.022 min=None max=None
+  FAIL cfast_t240_hrr_ventilation_limited: actual=528.9 expected=None tol=None min=None max=420.0
+  FAIL cfast_closed_t210_o2: actual=0.1335 expected=0.0911866 tol=0.018 min=None max=None
+  FAIL cfast_2r_r0_t300_o2: actual=0.0954 expected=0.0397333 tol=0.025 min=None max=None
+  FAIL cfast_2r_r0_t450_temp_upper_c: actual=146.82 expected=58.8687 tol=80.0 min=None max=None
+  FAIL cfast_2r_hall_t240_o2: actual=0.2001 expected=0.11126200000000001 tol=0.03 min=None max=None
+  FAIL cfast_2r_hall_t360_o2: actual=0.1706 expected=0.056457 tol=0.03 min=None max=None
+  FAIL cfast_hvac_t450_temp_upper_c: actual=52.55 expected=174.843 tol=80.0 min=None max=None

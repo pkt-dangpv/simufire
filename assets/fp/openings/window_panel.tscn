@@ -42,9 +42,3 @@ mesh = SubResource("BoxMesh_unit")
 material_override = SubResource("Mat_frame")
 position = Vector3(0.47, 0, -0.02)
 scale = Vector3(0.08, 1, 0.55)
-
-[node name="Mullion" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_frame")
-position = Vector3(0, 0, -0.03)
-scale = Vector3(0.055, 0.88, 0.58)

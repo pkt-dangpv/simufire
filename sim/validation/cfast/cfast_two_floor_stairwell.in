@@ -1,0 +1,57 @@
+&HEAD VERSION = 7600, TITLE = 'Simufire CMV-3: Two-floor stairwell stack effect' /
+
+!! Ground floor living room (two_storey_house R0): 5.8m x 5.2m x 2.65m = 79.9 m^3
+!! Upper floor master bedroom (two_storey_house R8): 5.8m x 4.5m x 2.55m = 66.4 m^3
+!! Stairwell ceiling/floor vent: 1.2m x 2.4m = 2.88 m^2
+!! Fire: slow wood alpha=0.0222 kW/s^2, sealed exterior (all windows closed)
+&TIME SIMULATION = 600 PRINT = 10 SMOKEVIEW = 10 SPREADSHEET = 10 /
+&INIT PRESSURE = 101325 RELATIVE_HUMIDITY = 50 INTERIOR_TEMPERATURE = 20 EXTERIOR_TEMPERATURE = 20 /
+&MISC LOWER_OXYGEN_LIMIT = 0.10 /
+
+&MATL ID = 'CONCRETE' MATERIAL = 'Concrete Normal Weight (6 in)',
+      CONDUCTIVITY = 1.75 DENSITY = 2200 SPECIFIC_HEAT = 1, THICKNESS = 0.15 EMISSIVITY = 0.94 /
+
+!! Lower compartment: living room (R0), floor at z=0, ceiling at z=2.65m
+&COMP ID = 'R0_Living'
+      DEPTH = 5.2 HEIGHT = 2.65 WIDTH = 5.8
+      CEILING_MATL_ID = 'CONCRETE' WALL_MATL_ID = 'CONCRETE' FLOOR_MATL_ID = 'CONCRETE'
+      ORIGIN = 0.0, 0.0, 0.0 GRID = 58, 52, 27
+      LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
+
+!! Upper compartment: master bedroom (R8), floor at z=2.65m (flush with ceiling of R0)
+!! (physical floor slab thickness absorbed into approximation)
+&COMP ID = 'R8_Upper'
+      DEPTH = 4.5 HEIGHT = 2.55 WIDTH = 5.8
+      CEILING_MATL_ID = 'CONCRETE' WALL_MATL_ID = 'CONCRETE' FLOOR_MATL_ID = 'CONCRETE'
+      ORIGIN = 0.0, 0.0, 2.65 GRID = 58, 45, 26
+      LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
+
+!! Stairwell modelled as a WALL opening between the two compartments
+!! (approximation: the stairwell path R0->R1->R2->R6->R7->R8 is collapsed
+!!  into a single direct opening of equivalent cross-section 2.88 m^2)
+!! Width=1.2m x sill-to-soffit spans full height of lower room
+&VENT TYPE = 'WALL' ID = 'StairVent'
+      COMP_IDS = 'R0_Living' 'R8_Upper'
+      TOP = 2.65 BOTTOM = 0.0 WIDTH = 1.2
+      CRITERION = 'TIME' T = 0, 600 F = 1, 1
+      FACE = 'RIGHT' OFFSET = 2.0 /
+
+!! Fire: slow wood alpha=0.0222 kW/s^2, peak 1280 kW
+&FIRE ID = 'LivingFire' COMP_ID = 'R0_Living', FIRE_ID = 'SlowWood' LOCATION = 2.9, 2.6 /
+&CHEM ID = 'SlowWood' CARBON = 6 CHLORINE = 0 HYDROGEN = 10 NITROGEN = 0 OXYGEN = 5
+      HEAT_OF_COMBUSTION = 18100 RADIATIVE_FRACTION = 0.35 /
+&TABL ID = 'SlowWood' LABELS = 'TIME', 'HRR', 'HEIGHT', 'AREA', 'CO_YIELD', 'SOOT_YIELD', 'HCN_YIELD', 'HCL_YIELD', 'TRACE_YIELD' /
+&TABL ID = 'SlowWood', DATA =   0,    0, 0, 0.001, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'SlowWood', DATA =  30,   20, 0, 0.014, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'SlowWood', DATA =  60,   80, 0, 0.056, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'SlowWood', DATA =  90,  180, 0, 0.127, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'SlowWood', DATA = 120,  320, 0, 0.225, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'SlowWood', DATA = 150,  500, 0, 0.352, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'SlowWood', DATA = 180,  720, 0, 0.506, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'SlowWood', DATA = 210,  980, 0, 0.690, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'SlowWood', DATA = 240, 1280, 0, 0.900, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'SlowWood', DATA = 600, 1280, 0, 0.900, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'SlowWood', DATA = 610,    0, 0, 0.001, 0.0062, 0.015, 0, 0, 0 /
+
+&DEVC ID = 'R0_Temp' COMP_ID = 'R0_Living' LOCATION = 2.9, 2.6, 1.8 TYPE = 'THERMOCOUPLE' /
+&DEVC ID = 'R8_Temp' COMP_ID = 'R8_Upper'  LOCATION = 2.9, 2.3, 1.8 TYPE = 'THERMOCOUPLE' /

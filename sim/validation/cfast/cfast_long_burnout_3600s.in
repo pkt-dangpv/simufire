@@ -1,0 +1,47 @@
+&HEAD VERSION = 7600, TITLE = 'Simufire CMV-3: Long burnout 3600s - sealed room, fire extinguishes via O2 depletion, post-fire cooling' /
+
+!! Scenario Configuration
+!! Same geometry as cfast_single_room_closed but 3600s to capture post-fire cooling phase.
+!! Fire grows to peak 1280 kW (same profile), LOWER_OXYGEN_LIMIT extinguishes it naturally.
+!! Validates SimuFire: long-duration decay, O2 recovery through leaks, thermal mass cool-down.
+&TIME SIMULATION = 3600 PRINT = 30 SMOKEVIEW = 30 SPREADSHEET = 30 /
+&INIT PRESSURE = 101325 RELATIVE_HUMIDITY = 50 INTERIOR_TEMPERATURE = 20 EXTERIOR_TEMPERATURE = 20 /
+&MISC LOWER_OXYGEN_LIMIT = 0.10 /
+
+!! Material Properties
+&MATL ID = 'CONCRETE' MATERIAL = 'Concrete Normal Weight (6 in)',
+      CONDUCTIVITY = 1.75 DENSITY = 2200 SPECIFIC_HEAT = 1, THICKNESS = 0.15 EMISSIVITY = 0.94 /
+
+!! Compartments
+!! R0 = salon: 4 m deep x 5 m wide x 2.4 m high = 48 m^3 (sealed, no vents)
+&COMP ID = 'R0'
+      DEPTH = 4.0 HEIGHT = 2.4 WIDTH = 5.0
+      CEILING_MATL_ID = 'CONCRETE' WALL_MATL_ID = 'CONCRETE' FLOOR_MATL_ID = 'CONCRETE'
+      ORIGIN = 0.0, 0.0, 0.0 GRID = 40, 32, 24 LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
+
+!! No vents: room remains sealed throughout (leak area ratio provides minimal infiltration)
+
+!! Fire: same wood fire growth as cfast_single_room_closed
+!! CFAST will suppress HRR when O2 falls below LOWER_OXYGEN_LIMIT (10%)
+!! HRR table extends to 3600s but fire will effectively die from O2 depletion
+&FIRE ID = 'Room Fire' COMP_ID = 'R0', FIRE_ID = 'Wood Fire' LOCATION = 2.5, 2.0 /
+&CHEM ID = 'Wood Fire' CARBON = 6 CHLORINE = 0 HYDROGEN = 10 NITROGEN = 0 OXYGEN = 5
+      HEAT_OF_COMBUSTION = 18100 RADIATIVE_FRACTION = 0.35 /
+&TABL ID = 'Wood Fire' LABELS = 'TIME', 'HRR', 'HEIGHT', 'AREA', 'CO_YIELD', 'SOOT_YIELD', 'HCN_YIELD', 'HCL_YIELD', 'TRACE_YIELD' /
+&TABL ID = 'Wood Fire', DATA = 0,    0,    0, 0.001,  0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA = 30,   20,   0, 0.0314, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA = 60,   80,   0, 0.0952, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA = 90,   180,  0, 0.1821, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA = 120,  320,  0, 0.2886, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA = 150,  500,  0, 0.4124, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA = 180,  720,  0, 0.5521, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA = 210,  980,  0, 0.7065, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA = 240, 1180,  0, 0.8400, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA = 270, 1280,  0, 0.9000, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA = 3600, 1280, 0, 0.9000, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA = 3610,    0, 0, 0.001,  0.0062, 0.015, 0, 0, 0 /
+
+!! Devices
+&DEVC ID = 'R0 Head Temp' COMP_ID = 'R0' LOCATION = 2.5, 2.0, 1.8 TYPE = 'THERMOCOUPLE' /
+
+&TAIL /

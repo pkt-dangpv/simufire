@@ -99,7 +99,7 @@
     "fed_heat_enabled": false,
     "fire_spread_enabled": false,
     "glass_auto_break_enabled": false,
-    "fire_co_yield_force_kg_per_MJ": 0.000300,
+    "fire_co_yield_force_kg_per_MJ": 0.000225,
     "fire_o2_nominal": 0.17,
     "fire_o2_hrr_fall_tau_s": 4.0
   }

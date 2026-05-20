@@ -373,6 +373,8 @@ func _compute_bounds(rects: Dictionary) -> Rect2:
 func _create_room(room_id: int, rect_m: Rect2) -> void:
 	var height_m: float = _get_room_height(room_id)
 	var floor_level_m: float = _get_room_floor_level(room_id)
+	var room: RoomModel = building.get_room(room_id) if building != null else null
+	var is_stair: bool = _is_stair_room(room)
 	var shell: Dictionary = RoomShellFactory.create_room_shell(
 		_rooms_root,
 		_labels_root,
@@ -387,7 +389,7 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 			"floor_thickness_m": floor_thickness_m,
 			"floor_level_m": floor_level_m,
 			"wall_thickness_m": wall_thickness_m,
-			"show_walls": show_walls,
+			"show_walls": show_walls and (not is_stair or room.stair_has_walls),
 			"show_room_labels": show_room_labels,
 			"floor_color": floor_color,
 			"wall_color": wall_color,
@@ -397,10 +399,9 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	var floor := shell.get("floor") as MeshInstance3D
 	var walls: Array = shell.get("walls", [])
 	var room_node := shell.get("room_node") as Node3D
-	var room: RoomModel = building.get_room(room_id) if building != null else null
-	if floor != null and _is_stair_room(room) and floor_level_m > 0.20:
+	if floor != null and is_stair and floor_level_m > 0.20:
 		floor.visible = false
-		_create_stairwell_upper_floor_visual(room_id, rect_m, floor_level_m, room_node)
+		_create_stairwell_upper_floor_visual(room_id, rect_m, floor_level_m, room_node, _room_stair_run_direction(room))
 
 	var smoke := _create_box("SmokeVolume", Vector3.ONE, _make_smoke_volume_material())
 	smoke.visible = false
@@ -527,30 +528,39 @@ func _create_stair_visuals() -> void:
 		var stair_root := Node3D.new()
 		stair_root.name = "Stairs_%02d" % int(room_id)
 		_rooms_root.add_child(stair_root)
+		var stair_dir: Vector2 = _room_stair_run_direction(lower_room)
 		var steps: int = 14
 		var start_margin_m: float = 0.22
-		var run_m: float = maxf(0.8, rect.size.y - start_margin_m - _stair_top_landing_depth_m(rect))
+		var run_m: float = maxf(0.8, _stair_long_span_m(rect, stair_dir) - start_margin_m - _stair_top_landing_depth_m(rect, stair_dir))
 		var step_depth_m: float = run_m / float(steps)
-		var step_width_m: float = _stair_ramp_width_m(rect)
+		var step_width_m: float = _stair_ramp_width_m(rect, stair_dir)
 		var rise_m: float = (upper_level_m - lower_level_m) / float(steps)
-		var x: float = rect.position.x + rect.size.x * 0.5
+		var yaw: float = atan2(stair_dir.x, stair_dir.y)
 		for i in range(steps):
 			var step_h: float = rise_m * float(i + 1)
-			var z: float = rect.position.y + start_margin_m + step_depth_m * (float(i) + 0.5)
+			var step_2d: Vector2 = _stair_point_along_run(rect, stair_dir, start_margin_m + step_depth_m * (float(i) + 0.5))
 			var step := _create_box(
 				"Step_%02d" % i,
 				Vector3(step_width_m, maxf(0.04, step_h), step_depth_m * 0.92) * meters_to_units,
 				_make_material(Color(0.38, 0.32, 0.25, 1.0), false)
 			)
-			step.position = _to_world(Vector3(x, lower_level_m + step_h * 0.5, z))
+			step.position = _to_world(Vector3(step_2d.x, lower_level_m + step_h * 0.5, step_2d.y))
+			step.rotation.y = yaw
 			stair_root.add_child(step)
-		var rail := _create_box(
-			"Handrail",
-			Vector3(0.06, 0.08, run_m) * meters_to_units,
-			_make_material(Color(0.18, 0.14, 0.10, 1.0), false)
-		)
-		rail.position = _to_world(Vector3(rect.position.x + rect.size.x - 0.18, lower_level_m + 1.05, rect.position.y + rect.size.y * 0.5))
-		stair_root.add_child(rail)
+		if lower_room.stair_has_railings:
+			var center_2d: Vector2 = _stair_point_along_run(rect, stair_dir, start_margin_m + run_m * 0.5)
+			var normal := Vector2(-stair_dir.y, stair_dir.x)
+			var half_width: float = step_width_m * 0.5 + 0.08
+			for side in [-1.0, 1.0]:
+				var rail_2d: Vector2 = center_2d + normal * half_width * side
+				var rail := _create_box(
+					"Handrail",
+					Vector3(0.055, 0.08, run_m) * meters_to_units,
+					_make_material(Color(0.18, 0.14, 0.10, 1.0), false)
+				)
+				rail.position = _to_world(Vector3(rail_2d.x, lower_level_m + 1.05, rail_2d.y))
+				rail.rotation.y = yaw
+				stair_root.add_child(rail)
 
 
 func _create_exterior_wall_visuals() -> void:
@@ -580,16 +590,29 @@ func _create_exterior_wall_visuals() -> void:
 		root.add_child(mesh)
 
 
-func _create_stairwell_upper_floor_visual(room_id: int, rect: Rect2, floor_level_m: float, parent: Node3D) -> void:
+func _create_stairwell_upper_floor_visual(room_id: int, rect: Rect2, floor_level_m: float, parent: Node3D, stair_dir: Vector2) -> void:
 	if parent == null:
 		parent = _rooms_root
-	var ramp_width_m: float = _stair_ramp_width_m(rect)
-	var ramp_left_m: float = rect.position.x + rect.size.x * 0.5 - ramp_width_m * 0.5
-	var ramp_right_m: float = ramp_left_m + ramp_width_m
-	var landing_depth_m: float = _stair_top_landing_depth_m(rect)
-	var landing_start_z_m: float = rect.position.y + rect.size.y - landing_depth_m
+	var ramp_width_m: float = _stair_ramp_width_m(rect, stair_dir)
+	var landing_depth_m: float = _stair_top_landing_depth_m(rect, stair_dir)
 	var mat := _make_material(floor_color, false)
 
+	if absf(stair_dir.x) > absf(stair_dir.y):
+		var ramp_top_m: float = rect.position.y + rect.size.y * 0.5 - ramp_width_m * 0.5
+		var ramp_bottom_m: float = ramp_top_m + ramp_width_m
+		var top_height_m: float = maxf(0.0, ramp_top_m - rect.position.y)
+		if top_height_m >= 0.28:
+			_add_stairwell_floor_visual(parent, "StairSideFloorTop_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, rect.size.x, top_height_m), floor_level_m, mat)
+		var bottom_height_m: float = maxf(0.0, rect.position.y + rect.size.y - ramp_bottom_m)
+		if bottom_height_m >= 0.28:
+			_add_stairwell_floor_visual(parent, "StairSideFloorBottom_%s" % str(room_id), Rect2(rect.position.x, ramp_bottom_m, rect.size.x, bottom_height_m), floor_level_m, mat)
+		if landing_depth_m >= 0.28:
+			var landing_x_m: float = rect.position.x + rect.size.x - landing_depth_m if stair_dir.x > 0.0 else rect.position.x
+			_add_stairwell_floor_visual(parent, "StairTopLanding_%s" % str(room_id), Rect2(landing_x_m, rect.position.y, landing_depth_m, rect.size.y), floor_level_m, mat)
+		return
+
+	var ramp_left_m: float = rect.position.x + rect.size.x * 0.5 - ramp_width_m * 0.5
+	var ramp_right_m: float = ramp_left_m + ramp_width_m
 	var left_width_m: float = maxf(0.0, ramp_left_m - rect.position.x)
 	if left_width_m >= 0.28:
 		_add_stairwell_floor_visual(parent, "StairSideFloorLeft_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, left_width_m, rect.size.y), floor_level_m, mat)
@@ -599,7 +622,8 @@ func _create_stairwell_upper_floor_visual(room_id: int, rect: Rect2, floor_level
 		_add_stairwell_floor_visual(parent, "StairSideFloorRight_%s" % str(room_id), Rect2(ramp_right_m, rect.position.y, right_width_m, rect.size.y), floor_level_m, mat)
 
 	if landing_depth_m >= 0.28:
-		_add_stairwell_floor_visual(parent, "StairTopLanding_%s" % str(room_id), Rect2(rect.position.x, landing_start_z_m, rect.size.x, landing_depth_m), floor_level_m, mat)
+		var landing_y_m: float = rect.position.y + rect.size.y - landing_depth_m if stair_dir.y > 0.0 else rect.position.y
+		_add_stairwell_floor_visual(parent, "StairTopLanding_%s" % str(room_id), Rect2(rect.position.x, landing_y_m, rect.size.x, landing_depth_m), floor_level_m, mat)
 
 
 func _add_stairwell_floor_visual(parent: Node3D, node_name: String, rect: Rect2, floor_level_m: float, mat: StandardMaterial3D) -> void:
@@ -616,12 +640,30 @@ func _add_stairwell_floor_visual(parent: Node3D, node_name: String, rect: Rect2,
 	parent.add_child(slab)
 
 
-func _stair_ramp_width_m(rect: Rect2) -> float:
-	return minf(maxf(0.82, rect.size.x * 0.50), maxf(0.82, rect.size.x - 0.96))
+func _stair_long_span_m(rect: Rect2, stair_dir: Vector2) -> float:
+	return rect.size.x if absf(stair_dir.x) > absf(stair_dir.y) else rect.size.y
 
 
-func _stair_top_landing_depth_m(rect: Rect2) -> float:
-	return clampf(rect.size.y * 0.22, 0.72, 1.05)
+func _stair_cross_span_m(rect: Rect2, stair_dir: Vector2) -> float:
+	return rect.size.y if absf(stair_dir.x) > absf(stair_dir.y) else rect.size.x
+
+
+func _stair_ramp_width_m(rect: Rect2, stair_dir: Vector2 = Vector2.DOWN) -> float:
+	var cross_span: float = _stair_cross_span_m(rect, stair_dir)
+	return minf(maxf(0.82, cross_span * 0.50), maxf(0.82, cross_span - 0.96))
+
+
+func _stair_top_landing_depth_m(rect: Rect2, stair_dir: Vector2 = Vector2.DOWN) -> float:
+	return clampf(_stair_long_span_m(rect, stair_dir) * 0.22, 0.72, 1.05)
+
+
+func _stair_point_along_run(rect: Rect2, stair_dir: Vector2, distance_from_entry_m: float) -> Vector2:
+	var center: Vector2 = rect.get_center()
+	if absf(stair_dir.x) > absf(stair_dir.y):
+		var entry_x: float = rect.position.x if stair_dir.x > 0.0 else rect.position.x + rect.size.x
+		return Vector2(entry_x + stair_dir.x * distance_from_entry_m, center.y)
+	var entry_y: float = rect.position.y if stair_dir.y > 0.0 else rect.position.y + rect.size.y
+	return Vector2(center.x, entry_y + stair_dir.y * distance_from_entry_m)
 
 
 func _create_opening(index: int) -> void:
@@ -798,11 +840,30 @@ func _opening_pose(op: OpeningModel) -> Dictionary:
 		return {}
 	var room_id: int = op.a if op.a != BuildingModel.OUTSIDE_ID else op.b
 	var other_id: int = op.b if op.a == room_id else op.a
-	if other_id != BuildingModel.OUTSIDE_ID and absf(_get_room_floor_level(room_id) - _get_room_floor_level(other_id)) > 0.20:
-		return {}
 	var pose: Dictionary = OpeningPose3D.compute(op, building.get_room_rects_m(), BuildingModel.OUTSIDE_ID, opening_marker_depth_m)
 	if not pose.is_empty():
-		pose["floor_level_m"] = _get_room_floor_level(room_id)
+		if op.is_vertical and other_id != BuildingModel.OUTSIDE_ID:
+			var floor_a_m: float = _get_room_floor_level(op.a)
+			var floor_b_m: float = _get_room_floor_level(op.b)
+			var lower_room_id: int = op.a if floor_a_m <= floor_b_m else op.b
+			var upper_room_id: int = op.b if lower_room_id == op.a else op.a
+			var lower_floor_m: float = minf(floor_a_m, floor_b_m)
+			var upper_floor_m: float = maxf(floor_a_m, floor_b_m)
+			var marker_y_m: float = upper_floor_m - lower_floor_m
+			if marker_y_m <= 0.20:
+				marker_y_m = _get_room_height(lower_room_id)
+			var position := Vector3(pose["position"])
+			position.y = marker_y_m
+			pose["position"] = position
+			pose["floor_level_m"] = lower_floor_m
+			pose["lower_room_id"] = lower_room_id
+			pose["upper_room_id"] = upper_room_id
+			pose["upper_floor_level_m"] = upper_floor_m
+			pose["vertical_span_m"] = maxf(0.30, upper_floor_m - lower_floor_m)
+		else:
+			if other_id != BuildingModel.OUTSIDE_ID and absf(_get_room_floor_level(room_id) - _get_room_floor_level(other_id)) > 0.20:
+				return {}
+			pose["floor_level_m"] = _get_room_floor_level(room_id)
 	return pose
 
 
@@ -964,19 +1025,7 @@ func _update_smoke_volume(
 	)
 	var smoke_mat := node.material_override as ShaderMaterial
 	if smoke_mat != null:
-		var volume_alpha_scale: float = 1.52 if _first_person_overlay else 0.76
-		smoke_mat.set_shader_parameter("smoke_color", Color(smoke_color.r, smoke_color.g, smoke_color.b, alpha * volume_alpha_scale))
-		var volume_density: float = clampf(0.66 + alpha * 1.50 + visibility_t * 0.22, 0.56, 1.46) if _first_person_overlay else clampf(0.44 + alpha * 1.12 + visibility_t * 0.12, 0.38, 1.04)
-		smoke_mat.set_shader_parameter("density", volume_density)
-		smoke_mat.set_shader_parameter("turbulence", clampf(0.58 + hrr_smoke_t * 0.34, 0.50, 0.95))
-		smoke_mat.set_shader_parameter("drift_speed", 0.070 + hrr_smoke_t * 0.18)
-		smoke_mat.set_shader_parameter("volume_depth_m", maxf(render_depth_m, 0.05))
-		smoke_mat.set_shader_parameter("edge_softness", lerpf(0.16, 0.30, hrr_smoke_t) if _first_person_overlay else lerpf(0.12, 0.24, hrr_smoke_t))
-		smoke_mat.set_shader_parameter("bottom_waviness", lerpf(0.18, 0.34, hrr_smoke_t) if _first_person_overlay else lerpf(0.12, 0.26, hrr_smoke_t))
-		smoke_mat.set_shader_parameter("edge_band_strength", 0.76 if _first_person_overlay else 0.30)
-		smoke_mat.set_shader_parameter("side_visibility", 0.0 if _first_person_overlay else 0.22)
-		smoke_mat.set_shader_parameter("bottom_surface_strength", 1.10 if _first_person_overlay else 0.72)
-		smoke_mat.set_shader_parameter("top_visibility", 0.0)
+		_apply_smoke_volume_shader(smoke_mat, alpha, visibility_t, hrr_smoke_t, render_depth_m)
 	else:
 		var mat := node.material_override as StandardMaterial3D
 		if mat != null:
@@ -998,7 +1047,7 @@ func _update_smoke_volume(
 
 		if edge_node != null:
 			var edge_mesh := edge_node.mesh as BoxMesh
-			var edge_height_m: float = 0.16 if _first_person_overlay else 0.030
+			var edge_height_m: float = 0.22 if _first_person_overlay else 0.090
 			if edge_mesh != null:
 				edge_mesh.size = Vector3(
 					maxf(0.05, rect.size.x - room_inset_m * 2.0),
@@ -1008,22 +1057,78 @@ func _update_smoke_volume(
 			edge_node.position = _room_center(rect, visual_bottom_m + edge_height_m * 0.5, floor_level_m)
 			var edge_shader := edge_node.material_override as ShaderMaterial
 			if edge_shader != null:
-				var edge_alpha: float = clampf(alpha * (0.74 if _first_person_overlay else 0.30), 0.06, 0.38)
-				edge_shader.set_shader_parameter("smoke_color", Color(smoke_layer_edge_color.r, smoke_layer_edge_color.g, smoke_layer_edge_color.b, edge_alpha))
-				edge_shader.set_shader_parameter("density", 1.05 if _first_person_overlay else 0.48)
-				edge_shader.set_shader_parameter("turbulence", 0.86)
-				edge_shader.set_shader_parameter("drift_speed", 0.13)
-				edge_shader.set_shader_parameter("volume_depth_m", maxf(edge_height_m, 0.05))
-				edge_shader.set_shader_parameter("edge_softness", 0.24)
-				edge_shader.set_shader_parameter("bottom_waviness", 0.42)
-				edge_shader.set_shader_parameter("edge_band_strength", 1.05 if _first_person_overlay else 0.78)
-				edge_shader.set_shader_parameter("side_visibility", 0.00 if _first_person_overlay else 0.10)
-				edge_shader.set_shader_parameter("bottom_surface_strength", 1.22 if _first_person_overlay else 0.88)
-				edge_shader.set_shader_parameter("top_visibility", 0.0)
+				var edge_alpha: float = clampf(alpha * (0.48 if _first_person_overlay else 0.18), 0.025, 0.24)
+				_apply_smoke_edge_shader(edge_shader, edge_alpha, edge_height_m, hrr_smoke_t)
 
 	var puffs_root := item.get("smoke_puffs_root") as Node3D
 	if puffs_root != null:
 		puffs_root.visible = smoke_puffs_visible
+
+
+func _apply_smoke_volume_shader(
+	smoke_mat: ShaderMaterial,
+	alpha: float,
+	visibility_t: float,
+	hrr_smoke_t: float,
+	render_depth_m: float
+) -> void:
+	var volume_alpha_scale: float = 1.52 if _first_person_overlay else 0.76
+	var volume_density: float = clampf(
+		0.66 + alpha * 1.50 + visibility_t * 0.22,
+		0.56,
+		1.46
+	) if _first_person_overlay else clampf(
+		0.44 + alpha * 1.12 + visibility_t * 0.12,
+		0.38,
+		1.04
+	)
+	_set_smoke_shader_params(smoke_mat, {
+		"smoke_color": Color(smoke_color.r, smoke_color.g, smoke_color.b, alpha * volume_alpha_scale),
+		"density": volume_density,
+		"turbulence": clampf(0.58 + hrr_smoke_t * 0.34, 0.50, 0.95),
+		"drift_speed": 0.070 + hrr_smoke_t * 0.18,
+		"volume_depth_m": maxf(render_depth_m, 0.05),
+		"edge_softness": lerpf(0.16, 0.30, hrr_smoke_t) if _first_person_overlay else lerpf(0.12, 0.24, hrr_smoke_t),
+		"bottom_waviness": lerpf(0.18, 0.34, hrr_smoke_t) if _first_person_overlay else lerpf(0.12, 0.26, hrr_smoke_t),
+		"edge_band_strength": 0.76 if _first_person_overlay else 0.30,
+		"side_visibility": 0.0 if _first_person_overlay else 0.26,
+		"bottom_surface_strength": 0.68 if _first_person_overlay else 0.34,
+		"top_visibility": 0.0,
+		"vertical_gradient_strength": 0.72 if _first_person_overlay else 0.82,
+		"lower_density_floor": 0.22 if _first_person_overlay else 0.18,
+		"flow_strength": hrr_smoke_t * (0.18 if _first_person_overlay else 0.10),
+		"flow_speed": 0.22 + hrr_smoke_t * 0.18,
+	})
+
+
+func _apply_smoke_edge_shader(
+	edge_shader: ShaderMaterial,
+	edge_alpha: float,
+	edge_height_m: float,
+	hrr_smoke_t: float
+) -> void:
+	_set_smoke_shader_params(edge_shader, {
+		"smoke_color": Color(smoke_layer_edge_color.r, smoke_layer_edge_color.g, smoke_layer_edge_color.b, edge_alpha),
+		"density": 0.82 if _first_person_overlay else 0.34,
+		"turbulence": 0.86,
+		"drift_speed": 0.13,
+		"volume_depth_m": maxf(edge_height_m, 0.05),
+		"edge_softness": 0.24,
+		"bottom_waviness": 0.42,
+		"edge_band_strength": 0.70 if _first_person_overlay else 0.35,
+		"side_visibility": 0.00 if _first_person_overlay else 0.10,
+		"bottom_surface_strength": 0.42 if _first_person_overlay else 0.18,
+		"top_visibility": 0.0,
+		"vertical_gradient_strength": 0.86,
+		"lower_density_floor": 0.16,
+		"flow_strength": 0.18 + hrr_smoke_t * 0.26,
+		"flow_speed": 0.32,
+	})
+
+
+func _set_smoke_shader_params(material: ShaderMaterial, params: Dictionary) -> void:
+	for key in params.keys():
+		material.set_shader_parameter(String(key), params[key])
 
 
 func _update_fire_visual(item: Dictionary, rect: Rect2, room_height_m: float, hrr_kw: float, rs: Dictionary = {}) -> void:
@@ -1311,6 +1416,15 @@ func _is_stair_room(room: RoomModel) -> bool:
 	var kind: String = room.kind.to_lower()
 	var name: String = room.name.to_lower()
 	return kind.contains("escalera") or kind.contains("stair") or name.contains("escalera") or name.contains("stair")
+
+
+func _room_stair_run_direction(room: RoomModel) -> Vector2:
+	if room == null:
+		return Vector2.DOWN
+	var value: Vector2 = room.stair_run_direction_m
+	if absf(value.x) > absf(value.y):
+		return Vector2.RIGHT if value.x >= 0.0 else Vector2.LEFT
+	return Vector2.DOWN if value.y >= 0.0 else Vector2.UP
 
 
 func _find_next_floor_level_above(level_m: float) -> float:

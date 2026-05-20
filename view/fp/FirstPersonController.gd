@@ -14,6 +14,7 @@ const STANCE_STAND: int = 0
 const STANCE_CROUCH: int = 1
 const STANCE_PRONE: int = 2
 const OPENING_FRACTION_STEPS: Array[float] = [0.0, 0.25, 0.5, 0.75, 1.0]
+const OPENING_HOLD_THRESHOLD_S: float = 0.35
 const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 
 @export var wall_thickness_m: float = 0.10
@@ -149,6 +150,11 @@ var _nearest_opening_index: int = -1
 var _state: Dictionary = {}
 var _visibility_overlay: ColorRect = null
 var _current_room_id: int = -1
+var _f_key_down: bool = false
+var _f_hold_mode: bool = false
+var _f_hold_elapsed_s: float = 0.0
+var _f_hold_opening_index: int = -1
+var _f_hold_fraction: float = 0.0
 
 
 func _ready() -> void:
@@ -184,6 +190,7 @@ func set_active(enabled: bool) -> void:
 		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		_nearest_opening_index = -1
+		_cancel_opening_hold()
 		if _prompt_panel != null:
 			_prompt_panel.visible = false
 		if _visibility_overlay != null:
@@ -209,6 +216,7 @@ func _physics_process(delta: float) -> void:
 	if not _active:
 		return
 	_apply_movement(delta)
+	_update_opening_hold(delta)
 	_update_prompt()
 	_update_visibility_overlay()
 	_update_status_hud()
@@ -230,15 +238,28 @@ func _input(event: InputEvent) -> void:
 		if _camera != null:
 			_camera.rotation.x = _pitch
 		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if _f_key_down and (mouse_event.button_index == MOUSE_BUTTON_WHEEL_UP or mouse_event.button_index == MOUSE_BUTTON_WHEEL_DOWN) and mouse_event.pressed:
+			_adjust_held_opening_fraction(1 if mouse_event.button_index == MOUSE_BUTTON_WHEEL_UP else -1)
+			get_viewport().set_input_as_handled()
 	elif event is InputEventKey:
 		var key_event := event as InputEventKey
+		if key_event.keycode == KEY_F:
+			if key_event.pressed and not key_event.echo:
+				_begin_opening_hold()
+			elif not key_event.pressed:
+				_finish_opening_hold()
+			get_viewport().set_input_as_handled()
+			return
+		if _f_key_down and key_event.pressed and not key_event.echo and key_event.keycode >= KEY_1 and key_event.keycode <= KEY_5:
+			_set_held_opening_fraction_by_step(int(key_event.keycode - KEY_1))
+			get_viewport().set_input_as_handled()
+			return
 		if not key_event.pressed or key_event.echo:
 			return
 		if key_event.keycode == KEY_ESCAPE:
 			exit_requested.emit()
-			get_viewport().set_input_as_handled()
-		elif key_event.keycode == KEY_F:
-			_interact_with_nearest_opening()
 			get_viewport().set_input_as_handled()
 		elif key_event.keycode == KEY_CTRL:
 			_cycle_stance()
@@ -277,10 +298,10 @@ func _create_player_nodes() -> void:
 	_fp_status_panel = PanelContainer.new()
 	_fp_status_panel.name = "FirstPersonStatusPanel"
 	_fp_status_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_fp_status_panel.offset_left = 12.0
-	_fp_status_panel.offset_top = 12.0
-	_fp_status_panel.offset_right = 372.0
-	_fp_status_panel.offset_bottom = 78.0
+	_fp_status_panel.offset_left = 430.0
+	_fp_status_panel.offset_top = 18.0
+	_fp_status_panel.offset_right = 790.0
+	_fp_status_panel.offset_bottom = 84.0
 	_fp_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_fp_status_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
 	_prompt_layer.add_child(_fp_status_panel)
@@ -321,10 +342,10 @@ func _create_player_nodes() -> void:
 	_prompt_panel = PanelContainer.new()
 	_prompt_panel.name = "PromptPanel"
 	_prompt_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_prompt_panel.offset_left = -118.0
-	_prompt_panel.offset_right = 118.0
+	_prompt_panel.offset_left = -180.0
+	_prompt_panel.offset_right = 180.0
 	_prompt_panel.offset_top = 22.0
-	_prompt_panel.offset_bottom = 54.0
+	_prompt_panel.offset_bottom = 82.0
 	_prompt_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_prompt_panel.visible = false
 	_prompt_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
@@ -339,6 +360,7 @@ func _create_player_nodes() -> void:
 	_prompt_label.name = "PromptLabel"
 	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_prompt_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_prompt_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_prompt_label.add_theme_font_size_override("font_size", 13)
 	_prompt_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.72, 1.0))
 	prompt_margin.add_child(_prompt_label)
@@ -435,7 +457,7 @@ func _create_floors(rects: Dictionary) -> void:
 		var rect: Rect2 = Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id)) if building != null else null
 		if room != null and _room_is_stairwell(room) and room.floor_level_z_m > 0.20:
-			_create_stairwell_upper_floor(int(room_id), rect, room.floor_level_z_m)
+			_create_stairwell_upper_floor(int(room_id), rect, room.floor_level_z_m, _room_stair_run_direction(room))
 			continue
 		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
 		var body := StaticBody3D.new()
@@ -449,39 +471,36 @@ func _create_floors(rects: Dictionary) -> void:
 		_add_box(body, "FloorMesh", Vector3(rect.size.x, floor_thickness_m, rect.size.y), center, _floor_material_for_room(int(room_id)), true)
 
 
-func _create_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: float) -> void:
-	var ramp_width_m: float = _stair_ramp_width_m(rect)
-	var ramp_left_m: float = rect.position.x + rect.size.x * 0.5 - ramp_width_m * 0.5
-	var ramp_right_m: float = ramp_left_m + ramp_width_m
-	var landing_depth_m: float = _stair_top_landing_depth_m(rect)
-	var landing_start_z_m: float = rect.position.y + rect.size.y - landing_depth_m
+func _create_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: float, stair_dir: Vector2) -> void:
+	var ramp_width_m: float = _stair_ramp_width_m(rect, stair_dir)
+	var landing_depth_m: float = _stair_top_landing_depth_m(rect, stair_dir)
 	var material := _floor_material_for_room(room_id)
 
+	if absf(stair_dir.x) > absf(stair_dir.y):
+		var ramp_top_m: float = rect.position.y + rect.size.y * 0.5 - ramp_width_m * 0.5
+		var ramp_bottom_m: float = ramp_top_m + ramp_width_m
+		var top_height_m: float = maxf(0.0, ramp_top_m - rect.position.y)
+		if top_height_m >= 0.28:
+			_add_floor_slab("StairSideFloorTop_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, rect.size.x, top_height_m), floor_level_m, material)
+		var bottom_height_m: float = maxf(0.0, rect.position.y + rect.size.y - ramp_bottom_m)
+		if bottom_height_m >= 0.28:
+			_add_floor_slab("StairSideFloorBottom_%s" % str(room_id), Rect2(rect.position.x, ramp_bottom_m, rect.size.x, bottom_height_m), floor_level_m, material)
+		if landing_depth_m >= 0.28:
+			var landing_x_m: float = rect.position.x + rect.size.x - landing_depth_m if stair_dir.x > 0.0 else rect.position.x
+			_add_floor_slab("StairTopLanding_%s" % str(room_id), Rect2(landing_x_m, rect.position.y, landing_depth_m, rect.size.y), floor_level_m, material)
+		return
+
+	var ramp_left_m: float = rect.position.x + rect.size.x * 0.5 - ramp_width_m * 0.5
+	var ramp_right_m: float = ramp_left_m + ramp_width_m
 	var left_width_m: float = maxf(0.0, ramp_left_m - rect.position.x)
 	if left_width_m >= 0.28:
-		_add_floor_slab(
-			"StairSideFloorLeft_%s" % str(room_id),
-			Rect2(rect.position.x, rect.position.y, left_width_m, rect.size.y),
-			floor_level_m,
-			material
-		)
-
+		_add_floor_slab("StairSideFloorLeft_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, left_width_m, rect.size.y), floor_level_m, material)
 	var right_width_m: float = maxf(0.0, rect.position.x + rect.size.x - ramp_right_m)
 	if right_width_m >= 0.28:
-		_add_floor_slab(
-			"StairSideFloorRight_%s" % str(room_id),
-			Rect2(ramp_right_m, rect.position.y, right_width_m, rect.size.y),
-			floor_level_m,
-			material
-		)
-
+		_add_floor_slab("StairSideFloorRight_%s" % str(room_id), Rect2(ramp_right_m, rect.position.y, right_width_m, rect.size.y), floor_level_m, material)
 	if landing_depth_m >= 0.28:
-		_add_floor_slab(
-			"StairTopLanding_%s" % str(room_id),
-			Rect2(rect.position.x, landing_start_z_m, rect.size.x, landing_depth_m),
-			floor_level_m,
-			material
-		)
+		var landing_y_m: float = rect.position.y + rect.size.y - landing_depth_m if stair_dir.y > 0.0 else rect.position.y
+		_add_floor_slab("StairTopLanding_%s" % str(room_id), Rect2(rect.position.x, landing_y_m, rect.size.x, landing_depth_m), floor_level_m, material)
 
 
 func _add_floor_slab(node_name: String, rect: Rect2, floor_level_m: float, material: StandardMaterial3D) -> void:
@@ -519,6 +538,8 @@ func _create_walls(rects: Dictionary) -> void:
 	for room_id in rects.keys():
 		var rect: Rect2 = Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id))
+		if room != null and _room_is_stairwell(room) and not room.stair_has_walls:
+			continue
 		var height_m: float = room.height_m if room != null else 2.4
 		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
 		_add_wall_side(rect, int(room_id), "top", height_m, floor_level_m)
@@ -608,19 +629,22 @@ func _create_stairs(rects: Dictionary) -> void:
 		if upper_level_m <= lower_level_m + 0.20:
 			continue
 		var rect: Rect2 = Rect2(rects[room_id])
-		_create_stair_ramp(rect, lower_level_m, upper_level_m)
+		_create_stair_ramp(rect, lower_level_m, upper_level_m, _room_stair_run_direction(room), room.stair_has_railings, room.stair_turn_degrees)
 
 
-func _create_stair_ramp(rect: Rect2, lower_level_m: float, upper_level_m: float) -> void:
+func _create_stair_ramp(rect: Rect2, lower_level_m: float, upper_level_m: float, stair_dir: Vector2, has_railings: bool, turn_degrees: float = 0.0) -> void:
+	if turn_degrees >= 179.0 and _stair_cross_span_m(rect, stair_dir) >= 1.65:
+		_create_switchback_stair_ramp(rect, lower_level_m, upper_level_m, stair_dir, has_railings)
+		return
 	var start_margin_m: float = 0.22
-	var run_m: float = maxf(0.8, rect.size.y - start_margin_m - _stair_top_landing_depth_m(rect))
+	var run_m: float = maxf(0.8, _stair_long_span_m(rect, stair_dir) - start_margin_m - _stair_top_landing_depth_m(rect, stair_dir))
 	var rise_m: float = upper_level_m - lower_level_m
 	var angle: float = atan2(rise_m, run_m)
-	var center_x: float = rect.position.x + rect.size.x * 0.5
-	var center_z: float = rect.position.y + start_margin_m + run_m * 0.5
+	var center_2d: Vector2 = _stair_point_along_run(rect, stair_dir, start_margin_m + run_m * 0.5)
 	var center_y: float = lower_level_m + rise_m * 0.5
-	var center_world: Vector3 = _to_world(Vector3(center_x, center_y, center_z))
-	var ramp_size := Vector3(_stair_ramp_width_m(rect), 0.16, sqrt(run_m * run_m + rise_m * rise_m))
+	var center_world: Vector3 = _to_world(Vector3(center_2d.x, center_y, center_2d.y))
+	var ramp_size := Vector3(_stair_ramp_width_m(rect, stair_dir), 0.16, sqrt(run_m * run_m + rise_m * rise_m))
+	var yaw: float = atan2(stair_dir.x, stair_dir.y)
 
 	var body := StaticBody3D.new()
 	body.name = "StairRamp"
@@ -631,6 +655,7 @@ func _create_stair_ramp(rect: Rect2, lower_level_m: float, upper_level_m: float)
 	shape.shape = box
 	shape.position = center_world
 	shape.rotation.x = -angle
+	shape.rotation.y = yaw
 	body.add_child(shape)
 
 	var mesh := MeshInstance3D.new()
@@ -640,6 +665,7 @@ func _create_stair_ramp(rect: Rect2, lower_level_m: float, upper_level_m: float)
 	mesh.mesh = box_mesh
 	mesh.position = center_world
 	mesh.rotation.x = -angle
+	mesh.rotation.y = yaw
 	mesh.material_override = _mat(Color(0.35, 0.29, 0.22, 1.0), false)
 	_world_root.add_child(mesh)
 
@@ -648,12 +674,13 @@ func _create_stair_ramp(rect: Rect2, lower_level_m: float, upper_level_m: float)
 	var step_width: float = ramp_size.x
 	for i in range(steps):
 		var step_h: float = rise_m * float(i + 1) / float(steps)
+		var step_2d: Vector2 = _stair_point_along_run(rect, stair_dir, start_margin_m + step_depth * (float(i) + 0.5))
 		var step_center := _to_world(Vector3(
-			center_x,
+			step_2d.x,
 			lower_level_m + step_h - 0.025,
-			rect.position.y + start_margin_m + step_depth * (float(i) + 0.5)
+			step_2d.y
 		))
-		_add_box(
+		var step := _add_box(
 			_world_root,
 			"StairStep_%02d" % i,
 			Vector3(step_width, 0.05, step_depth * 0.92),
@@ -661,14 +688,138 @@ func _create_stair_ramp(rect: Rect2, lower_level_m: float, upper_level_m: float)
 			_mat(Color(0.42, 0.35, 0.27, 1.0), false),
 			false
 		)
+		step.rotation.y = yaw
+	if has_railings:
+		_create_stair_railings(rect, lower_level_m, run_m, stair_dir, yaw)
 
 
-func _stair_ramp_width_m(rect: Rect2) -> float:
-	return minf(maxf(0.82, rect.size.x * 0.50), maxf(0.82, rect.size.x - 0.96))
+func _create_switchback_stair_ramp(rect: Rect2, lower_level_m: float, upper_level_m: float, stair_dir: Vector2, has_railings: bool) -> void:
+	var normal := Vector2(-stair_dir.y, stair_dir.x)
+	var start_margin_m: float = 0.22
+	var landing_depth_m: float = clampf(_stair_long_span_m(rect, stair_dir) * 0.18, 0.70, 0.95)
+	var run_m: float = maxf(0.72, _stair_long_span_m(rect, stair_dir) - start_margin_m - landing_depth_m - 0.20)
+	var gap_m: float = 0.18
+	var flight_width_m: float = clampf((_stair_cross_span_m(rect, stair_dir) - gap_m) * 0.5, 0.72, 1.05)
+	var rise_half_m: float = (upper_level_m - lower_level_m) * 0.5
+	var lane_offset_m: float = flight_width_m * 0.5 + gap_m * 0.5
+	var entry_distance_m: float = start_margin_m
+	var landing_distance_m: float = start_margin_m + run_m
+	var flight_a_start: Vector2 = _stair_point_along_run(rect, stair_dir, entry_distance_m) - normal * lane_offset_m
+	var flight_b_start: Vector2 = _stair_point_along_run(rect, stair_dir, landing_distance_m) + normal * lane_offset_m
+	_create_stair_flight_segment("StairFlightA", flight_a_start, stair_dir, flight_width_m, run_m, lower_level_m, rise_half_m, has_railings)
+	_create_stair_flight_segment("StairFlightB", flight_b_start, -stair_dir, flight_width_m, run_m, lower_level_m + rise_half_m, rise_half_m, has_railings)
+	var landing_center_2d: Vector2 = _stair_point_along_run(rect, stair_dir, landing_distance_m + landing_depth_m * 0.5)
+	var landing_size: Vector3
+	if absf(stair_dir.x) > absf(stair_dir.y):
+		landing_size = Vector3(landing_depth_m, 0.14, flight_width_m * 2.0 + gap_m)
+	else:
+		landing_size = Vector3(flight_width_m * 2.0 + gap_m, 0.14, landing_depth_m)
+	_add_box(
+		_world_root,
+		"StairSwitchbackLanding",
+		landing_size,
+		_to_world(Vector3(landing_center_2d.x, lower_level_m + rise_half_m, landing_center_2d.y)),
+		_mat(Color(0.40, 0.33, 0.25, 1.0), false),
+		true
+	)
 
 
-func _stair_top_landing_depth_m(rect: Rect2) -> float:
-	return clampf(rect.size.y * 0.22, 0.72, 1.05)
+func _create_stair_flight_segment(node_name: String, start_2d: Vector2, flight_dir: Vector2, width_m: float, run_m: float, lower_y_m: float, rise_m: float, has_railings: bool) -> void:
+	var angle: float = atan2(rise_m, run_m)
+	var yaw: float = atan2(flight_dir.x, flight_dir.y)
+	var center_2d: Vector2 = start_2d + flight_dir * (run_m * 0.5)
+	var center_world: Vector3 = _to_world(Vector3(center_2d.x, lower_y_m + rise_m * 0.5, center_2d.y))
+	var ramp_size := Vector3(width_m, 0.15, sqrt(run_m * run_m + rise_m * rise_m))
+	var body := StaticBody3D.new()
+	body.name = node_name
+	_world_root.add_child(body)
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = ramp_size
+	shape.shape = box
+	shape.position = center_world
+	shape.rotation.x = -angle
+	shape.rotation.y = yaw
+	body.add_child(shape)
+	var mesh := MeshInstance3D.new()
+	mesh.name = "%sMesh" % node_name
+	var box_mesh := BoxMesh.new()
+	box_mesh.size = ramp_size
+	mesh.mesh = box_mesh
+	mesh.position = center_world
+	mesh.rotation.x = -angle
+	mesh.rotation.y = yaw
+	mesh.material_override = _mat(Color(0.35, 0.29, 0.22, 1.0), false)
+	_world_root.add_child(mesh)
+	var steps: int = 8
+	var step_depth: float = run_m / float(steps)
+	for i in range(steps):
+		var step_center_2d: Vector2 = start_2d + flight_dir * (step_depth * (float(i) + 0.5))
+		var step := _add_box(
+			_world_root,
+			"%sStep_%02d" % [node_name, i],
+			Vector3(width_m, 0.05, step_depth * 0.90),
+			_to_world(Vector3(step_center_2d.x, lower_y_m + rise_m * float(i + 1) / float(steps) - 0.025, step_center_2d.y)),
+			_mat(Color(0.42, 0.35, 0.27, 1.0), false),
+			false
+		)
+		step.rotation.y = yaw
+	if has_railings:
+		var normal := Vector2(-flight_dir.y, flight_dir.x)
+		for side in [-1.0, 1.0]:
+			var rail_center_2d: Vector2 = center_2d + normal * (width_m * 0.5 + 0.08) * side
+			var rail := _add_box(
+				_world_root,
+				"%sRailing" % node_name,
+				Vector3(0.045, 0.08, run_m),
+				_to_world(Vector3(rail_center_2d.x, lower_y_m + rise_m * 0.5 + 0.72, rail_center_2d.y)),
+				_mat(Color(0.18, 0.14, 0.10, 1.0), false),
+				false
+			)
+			rail.rotation.y = yaw
+
+
+func _create_stair_railings(rect: Rect2, lower_level_m: float, run_m: float, stair_dir: Vector2, yaw: float) -> void:
+	var center_2d: Vector2 = _stair_point_along_run(rect, stair_dir, 0.22 + run_m * 0.5)
+	var normal := Vector2(-stair_dir.y, stair_dir.x)
+	var half_width: float = _stair_ramp_width_m(rect, stair_dir) * 0.5 + 0.08
+	for side in [-1.0, 1.0]:
+		var rail_2d: Vector2 = center_2d + normal * half_width * side
+		var rail := _add_box(
+			_world_root,
+			"StairRailing",
+			Vector3(0.045, 0.08, run_m),
+			_to_world(Vector3(rail_2d.x, lower_level_m + 1.02, rail_2d.y)),
+			_mat(Color(0.18, 0.14, 0.10, 1.0), false),
+			false
+		)
+		rail.rotation.y = yaw
+
+
+func _stair_long_span_m(rect: Rect2, stair_dir: Vector2) -> float:
+	return rect.size.x if absf(stair_dir.x) > absf(stair_dir.y) else rect.size.y
+
+
+func _stair_cross_span_m(rect: Rect2, stair_dir: Vector2) -> float:
+	return rect.size.y if absf(stair_dir.x) > absf(stair_dir.y) else rect.size.x
+
+
+func _stair_ramp_width_m(rect: Rect2, stair_dir: Vector2 = Vector2.DOWN) -> float:
+	var cross_span: float = _stair_cross_span_m(rect, stair_dir)
+	return minf(maxf(0.82, cross_span * 0.50), maxf(0.82, cross_span - 0.96))
+
+
+func _stair_top_landing_depth_m(rect: Rect2, stair_dir: Vector2 = Vector2.DOWN) -> float:
+	return clampf(_stair_long_span_m(rect, stair_dir) * 0.22, 0.72, 1.05)
+
+
+func _stair_point_along_run(rect: Rect2, stair_dir: Vector2, distance_from_entry_m: float) -> Vector2:
+	var center: Vector2 = rect.get_center()
+	if absf(stair_dir.x) > absf(stair_dir.y):
+		var entry_x: float = rect.position.x if stair_dir.x > 0.0 else rect.position.x + rect.size.x
+		return Vector2(entry_x + stair_dir.x * distance_from_entry_m, center.y)
+	var entry_y: float = rect.position.y if stair_dir.y > 0.0 else rect.position.y + rect.size.y
+	return Vector2(center.x, entry_y + stair_dir.y * distance_from_entry_m)
 
 
 func _create_world_lighting(rects: Dictionary) -> void:
@@ -691,6 +842,8 @@ func _create_world_lighting(rects: Dictionary) -> void:
 	for room_id in rects.keys():
 		var rect := Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id))
+		if room != null and _room_is_stairwell(room):
+			continue
 		var height_m: float = room.height_m if room != null else 2.4
 		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
 		var area_m2: float = maxf(1.0, rect.size.x * rect.size.y)
@@ -2593,8 +2746,17 @@ func _update_prompt() -> void:
 		if _prompt_panel != null:
 			_prompt_panel.visible = false
 		return
-	var next_frac: float = _next_opening_fraction(op.open_fraction)
-	_prompt_label.text = FPOpeningInteraction.prompt_text(op.type == OpeningModel.Type.DOOR, op.open_fraction, next_frac)
+	if _f_key_down and _f_hold_opening_index == _nearest_opening_index:
+		var kind: String = "puerta" if op.type == OpeningModel.Type.DOOR else "ventana"
+		var selected_pct: int = int(round(_f_hold_fraction * 100.0))
+		if _f_hold_mode:
+			_prompt_label.text = "F pulsado: rueda o 1-5 para %s (%d%%). Suelta para aplicar." % [kind, selected_pct]
+		else:
+			var toggle_pct: int = 0 if op.open_fraction > 0.01 else 100
+			_prompt_label.text = "Suelta F: %s %d%% | manten F para elegir grado" % [kind, toggle_pct]
+	else:
+		var toggle_frac: float = 0.0 if op.open_fraction > 0.01 else 1.0
+		_prompt_label.text = FPOpeningInteraction.prompt_text(op.type == OpeningModel.Type.DOOR, op.open_fraction, toggle_frac)
 	if _prompt_panel != null:
 		_prompt_panel.visible = true
 
@@ -2711,8 +2873,115 @@ func _find_current_room_id() -> int:
 	return nearest_room_id
 
 
+func get_player_marker_state() -> Dictionary:
+	if building == null:
+		return {}
+	var room_id: int = _find_current_room_id()
+	var floor_level_m: float = _get_room_floor_level(room_id) if room_id >= 0 else global_position.y
+	return {
+		"active": _active,
+		"room_id": room_id,
+		"position_m": Vector2(global_position.x - _origin_offset_m.x, global_position.z - _origin_offset_m.y),
+		"floor_level_z_m": floor_level_m,
+		"yaw_deg": rad_to_deg(_yaw)
+	}
+
+
 func _next_opening_fraction(current: float) -> float:
 	return FPOpeningInteraction.next_fraction(current, OPENING_FRACTION_STEPS)
+
+
+func _begin_opening_hold() -> void:
+	if building == null:
+		return
+	_nearest_opening_index = _find_nearest_opening()
+	if _nearest_opening_index < 0:
+		return
+	var op: OpeningModel = building.get_opening_at(_nearest_opening_index)
+	if op == null:
+		return
+	_f_key_down = true
+	_f_hold_mode = false
+	_f_hold_elapsed_s = 0.0
+	_f_hold_opening_index = _nearest_opening_index
+	_f_hold_fraction = _closest_opening_step(op.open_fraction)
+	_update_prompt()
+
+
+func _update_opening_hold(delta: float) -> void:
+	if not _f_key_down:
+		return
+	_f_hold_elapsed_s += delta
+	if not _f_hold_mode and _f_hold_elapsed_s >= OPENING_HOLD_THRESHOLD_S:
+		_f_hold_mode = true
+		_update_prompt()
+
+
+func _finish_opening_hold() -> void:
+	if not _f_key_down:
+		return
+	var opening_index: int = _f_hold_opening_index
+	var use_hold_fraction: bool = _f_hold_mode
+	var selected_fraction: float = _f_hold_fraction
+	_cancel_opening_hold()
+	if building == null or opening_index < 0:
+		return
+	var op: OpeningModel = building.get_opening_at(opening_index)
+	if op == null:
+		return
+	var next_frac: float = selected_fraction if use_hold_fraction else (0.0 if op.open_fraction > 0.01 else 1.0)
+	_apply_opening_fraction(opening_index, next_frac)
+
+
+func _cancel_opening_hold() -> void:
+	_f_key_down = false
+	_f_hold_mode = false
+	_f_hold_elapsed_s = 0.0
+	_f_hold_opening_index = -1
+	_f_hold_fraction = 0.0
+
+
+func _adjust_held_opening_fraction(direction: int) -> void:
+	if building == null or _f_hold_opening_index < 0:
+		return
+	_f_hold_mode = true
+	var idx: int = _opening_step_index(_f_hold_fraction)
+	idx = clampi(idx + (1 if direction > 0 else -1), 0, OPENING_FRACTION_STEPS.size() - 1)
+	_f_hold_fraction = float(OPENING_FRACTION_STEPS[idx])
+	_update_prompt()
+
+
+func _set_held_opening_fraction_by_step(step_index: int) -> void:
+	if building == null or _f_hold_opening_index < 0:
+		return
+	_f_hold_mode = true
+	var idx: int = clampi(step_index, 0, OPENING_FRACTION_STEPS.size() - 1)
+	_f_hold_fraction = float(OPENING_FRACTION_STEPS[idx])
+	_update_prompt()
+
+
+func _closest_opening_step(value: float) -> float:
+	return float(OPENING_FRACTION_STEPS[_opening_step_index(value)])
+
+
+func _opening_step_index(value: float) -> int:
+	var closest_idx: int = 0
+	var best_delta: float = INF
+	for i in range(OPENING_FRACTION_STEPS.size()):
+		var delta: float = absf(value - float(OPENING_FRACTION_STEPS[i]))
+		if delta < best_delta:
+			best_delta = delta
+			closest_idx = i
+	return closest_idx
+
+
+func _apply_opening_fraction(opening_index: int, next_frac: float) -> void:
+	if building == null:
+		return
+	if building.set_opening_fraction(opening_index, clampf(next_frac, 0.0, 1.0)):
+		_update_opening_panel(opening_index)
+		opening_changed.emit()
+	_update_prompt()
 
 
 func _interact_with_nearest_opening() -> void:
@@ -2725,11 +2994,8 @@ func _interact_with_nearest_opening() -> void:
 	var op: OpeningModel = building.get_opening_at(_nearest_opening_index)
 	if op == null:
 		return
-	var next_frac: float = _next_opening_fraction(op.open_fraction)
-	building.set_opening_fraction(_nearest_opening_index, next_frac)
-	_update_opening_panel(_nearest_opening_index)
-	opening_changed.emit()
-	_update_prompt()
+	var next_frac: float = 0.0 if op.open_fraction > 0.01 else 1.0
+	_apply_opening_fraction(_nearest_opening_index, next_frac)
 
 
 func _sync_opening_panels() -> void:
@@ -3155,6 +3421,23 @@ func _opposite_side(side: String) -> String:
 func _place_at_entry() -> void:
 	if building == null:
 		return
+	if not building.player_start.is_empty():
+		var start: Dictionary = building.player_start
+		var room_id: int = int(start.get("room_id", -1))
+		var rects: Dictionary = building.get_room_rects_m()
+		if rects.has(room_id):
+			var rect: Rect2 = Rect2(rects[room_id])
+			var local_pos: Vector2 = Vector2(start.get("position_m", Vector2(rect.size.x * 0.5, rect.size.y * 0.5)))
+			local_pos.x = clampf(local_pos.x, 0.0, rect.size.x)
+			local_pos.y = clampf(local_pos.y, 0.0, rect.size.y)
+			var floor_level_m: float = float(start.get("floor_level_z_m", _get_room_floor_level(room_id)))
+			global_position = _to_world(Vector3(rect.position.x + local_pos.x, 0.05, rect.position.y + local_pos.y), floor_level_m)
+			_yaw = deg_to_rad(float(start.get("yaw_deg", 0.0)))
+			_pitch = 0.0
+			rotation.y = _yaw
+			if _camera != null:
+				_camera.rotation.x = _pitch
+			return
 	for index in range(building.get_opening_count()):
 		var op: OpeningModel = building.get_opening_at(index)
 		if op == null or not op.is_exterior_opening() or op.type != OpeningModel.Type.DOOR:
@@ -3243,6 +3526,15 @@ func _room_is_stairwell(room: RoomModel) -> bool:
 		return false
 	var label: String = ("%s %s" % [room.kind, room.name]).to_lower()
 	return label.contains("escalera") or label.contains("stair")
+
+
+func _room_stair_run_direction(room: RoomModel) -> Vector2:
+	if room == null:
+		return Vector2.DOWN
+	var value: Vector2 = room.stair_run_direction_m
+	if absf(value.x) > absf(value.y):
+		return Vector2.RIGHT if value.x >= 0.0 else Vector2.LEFT
+	return Vector2.DOWN if value.y >= 0.0 else Vector2.UP
 
 
 func _find_next_floor_level_above(level_m: float) -> float:

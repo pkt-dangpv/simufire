@@ -20,7 +20,7 @@ static func prompt_text(is_door: bool, current_fraction: float, next_fraction_va
 	var curr_pct: int = int(round(current_fraction * 100.0))
 	var next_pct: int = int(round(next_fraction_value * 100.0))
 	var action: String = "cerrar" if next_fraction_value < current_fraction else "abrir"
-	return "F: %s %s (%d%% → %d%%)" % [
+	return "F: %s %s (%d%% -> %d%%)\nDejar pulsado F: elegir apertura" % [
 		action,
 		kind,
 		curr_pct,

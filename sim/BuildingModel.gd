@@ -51,6 +51,8 @@ var room_rect_m: Dictionary[int, Rect2] = {}
 var rooms: Dictionary = {}
 var openings: Array = []
 var building_type: String = "single_family"
+var apartment_floor_number: int = 1
+var player_start: Dictionary = {}
 var exterior_walls: Array = []
 var hvac_data: Dictionary = {}
 var hvac_exists: bool = false
@@ -99,6 +101,10 @@ func _ready() -> void:
 	var template_data: Dictionary = building_template.create_by_name(selected_template_name)
 	if startup_options.has("hvac_mode"):
 		template_data["hvac_mode"] = String(startup_options.get("hvac_mode", HVAC_MODE_NONE))
+	if startup_options.has("building_type"):
+		template_data["building_type"] = String(startup_options.get("building_type", "single_family"))
+	if startup_options.has("apartment_floor_number"):
+		template_data["apartment_floor_number"] = int(startup_options.get("apartment_floor_number", 1))
 	template_name = selected_template_name
 	_load_from_template(template_data)
 
@@ -190,6 +196,7 @@ func _load_from_template(data: Dictionary) -> void:
 	openings.clear()
 	room_rect_m.clear()
 	exterior_walls.clear()
+	player_start = {}
 	detectors.clear()
 	victims.clear()
 	hvac_data = {}
@@ -204,6 +211,7 @@ func _load_from_template(data: Dictionary) -> void:
 	building_type = String(data.get("building_type", "single_family")).to_lower()
 	if building_type != "apartment":
 		building_type = "single_family"
+	apartment_floor_number = int(data.get("apartment_floor_number", 1))
 	for raw_wall in data.get("exterior_walls", []):
 		if typeof(raw_wall) != TYPE_DICTIONARY:
 			continue
@@ -250,6 +258,15 @@ func _load_from_template(data: Dictionary) -> void:
 		default_ignition_room_id = int(data["ignition_room_id"])
 	if data.has("stop_time_s"):
 		sim_stop_time_s = float(data["stop_time_s"])
+	if typeof(data.get("player_start", {})) == TYPE_DICTIONARY:
+		var raw_start: Dictionary = Dictionary(data.get("player_start", {})).duplicate(true)
+		if raw_start.has("room_id"):
+			player_start = {
+				"room_id": int(raw_start.get("room_id", -1)),
+				"position_m": _vector2_from_variant(raw_start.get("position_m", Vector2.ZERO), Vector2.ZERO),
+				"floor_level_z_m": float(raw_start.get("floor_level_z_m", 0.0)),
+				"yaw_deg": float(raw_start.get("yaw_deg", 0.0))
+			}
 
 	var rects_data: Dictionary = data.get("room_rect_m", {})
 
@@ -276,6 +293,12 @@ func _load_from_template(data: Dictionary) -> void:
 			rooms[room_id].max_hrr_kw = float(room_data["max_hrr_kw"])
 		if room_data.has("floor_level_z_m"):
 			rooms[room_id].floor_level_z_m = float(room_data["floor_level_z_m"])
+		rooms[room_id].rotation_deg = float(room_data.get("rotation_deg", 0.0))
+		rooms[room_id].stair_run_direction_m = _axis_aligned_direction(_vector2_from_variant(room_data.get("stair_run_direction_m", Vector2(0.0, 1.0)), Vector2(0.0, 1.0)))
+		rooms[room_id].stair_has_walls = bool(room_data.get("stair_has_walls", false))
+		rooms[room_id].stair_has_railings = bool(room_data.get("stair_has_railings", true))
+		rooms[room_id].stair_turn_degrees = float(room_data.get("stair_turn_degrees", 0.0))
+		rooms[room_id].stair_flight_count = maxi(1, int(room_data.get("stair_flight_count", 1)))
 		if room_data.has("fuel_objects"):
 			rooms[room_id].fuel_objects = _build_fuel_objects(room_data["fuel_objects"])
 		# SF-AUD-014: propiedades de material de pared (1D lumped conduction). Sentinel -1.0 = global.
@@ -600,6 +623,12 @@ func _vector2_from_variant(value: Variant, fallback: Vector2 = Vector2.ZERO) -> 
 		if values.size() >= 2:
 			return Vector2(float(values[0]), float(values[1]))
 	return fallback
+
+
+func _axis_aligned_direction(value: Vector2) -> Vector2:
+	if absf(value.x) > absf(value.y):
+		return Vector2.RIGHT if value.x >= 0.0 else Vector2.LEFT
+	return Vector2.DOWN if value.y >= 0.0 else Vector2.UP
 
 # ============================================================
 # HELPERS GEOMÉTRICOS

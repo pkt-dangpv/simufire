@@ -237,10 +237,10 @@ grow_vertical = 2
 [node name="VBox" type="VBoxContainer" parent="Center" unique_id=395143774]
 custom_minimum_size = Vector2(430, 0)
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 8
 
 [node name="Logo" type="TextureRect" parent="Center/VBox" unique_id=1341850606]
-custom_minimum_size = Vector2(430, 320)
+custom_minimum_size = Vector2(430, 220)
 layout_mode = 2
 size_flags_horizontal = 3
 texture = ExtResource("3_ow34m")
@@ -334,7 +334,7 @@ popup/item_2/text = "HVAC instalado ON"
 popup/item_2/id = 2
 
 [node name="BtnNewSim" type="Button" parent="Center/VBox" unique_id=277234585]
-custom_minimum_size = Vector2(420, 48)
+custom_minimum_size = Vector2(420, 44)
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_tdapf")
 theme_override_styles/hover = SubResource("StyleBoxFlat_v41fp")
@@ -343,14 +343,14 @@ theme_override_font_sizes/font_size = 12
 text = "INICIAR SIMULACION"
 
 [node name="BtnEditor" type="Button" parent="Center/VBox" unique_id=736215872]
-custom_minimum_size = Vector2(420, 48)
+custom_minimum_size = Vector2(420, 44)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("1_2wh52")
 theme_override_font_sizes/font_size = 12
 text = "EDITOR DE VIVIENDA"
 
 [node name="BtnQuit" type="Button" parent="Center/VBox" unique_id=1009353491]
-custom_minimum_size = Vector2(420, 48)
+custom_minimum_size = Vector2(420, 44)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("1_2wh52")
 theme_override_font_sizes/font_size = 12

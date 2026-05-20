@@ -20,9 +20,12 @@ var _template_builder = BuildingTemplateScript.new()
 var _template_option: OptionButton = null
 var _hvac_option: OptionButton = null
 var _lighting_option: OptionButton = null
+var _building_type_option: OptionButton = null
+var _apartment_floor_spin: SpinBox = null
 var _preset_ids: Array[String] = []
 var _hvac_modes: Array[String] = ["none", "off", "on"]
 var _lighting_modes: Array[String] = ["Dia", "Noche"]
+var _building_type_modes: Array[String] = ["single_family", "apartment"]
 
 
 func _ready() -> void:
@@ -31,9 +34,14 @@ func _ready() -> void:
 		return
 	if not _bind_existing_ui():
 		_setup_ui()
-		_apply_main_menu_visual_style()
 	else:
 		RenderingServer.set_default_clear_color(SimuFireThemeScript.BG)
+	_apply_main_menu_visual_style()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED:
+		_fit_main_menu_layout()
 
 
 func _open_validation_scene_next_frame() -> void:
@@ -111,7 +119,7 @@ func _apply_main_menu_visual_style() -> void:
 	if vbox == null:
 		return
 	vbox.custom_minimum_size = Vector2(430.0, 0.0)
-	vbox.add_theme_constant_override("separation", 10)
+	vbox.add_theme_constant_override("separation", 8)
 
 	var title := vbox.get_node_or_null("Title") as Label
 	if title != null:
@@ -121,7 +129,6 @@ func _apply_main_menu_visual_style() -> void:
 	if logo == null:
 		logo = TextureRect.new()
 		logo.name = "Logo"
-		logo.custom_minimum_size = Vector2(430.0, 320.0)
 		logo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -142,21 +149,22 @@ func _apply_main_menu_visual_style() -> void:
 	var btn_quit := get_node_or_null("Center/VBox/BtnQuit") as Button
 	if btn_new != null:
 		btn_new.text = "INICIAR SIMULACION"
-		btn_new.custom_minimum_size = Vector2(420.0, 48.0)
+		btn_new.custom_minimum_size = Vector2(420.0, 44.0)
 		btn_new.add_theme_stylebox_override("normal", SimuFireThemeScript.stylebox(Color(0.16, 0.05, 0.01, 0.98), SimuFireThemeScript.ORANGE, 1, 0, Vector2(14.0, 9.0)))
 		btn_new.add_theme_stylebox_override("hover", SimuFireThemeScript.stylebox(Color(0.24, 0.07, 0.01, 0.98), SimuFireThemeScript.ORANGE, 1, 0, Vector2(14.0, 9.0)))
 	if btn_editor != null:
 		btn_editor.text = "EDITOR DE VIVIENDA"
-		btn_editor.custom_minimum_size = Vector2(420.0, 48.0)
+		btn_editor.custom_minimum_size = Vector2(420.0, 44.0)
 	if btn_quit != null:
 		btn_quit.text = "SALIR"
-		btn_quit.custom_minimum_size = Vector2(420.0, 48.0)
+		btn_quit.custom_minimum_size = Vector2(420.0, 44.0)
 
 	SimuFireThemeScript.apply_control_tree(vbox)
 	if subtitle != null:
 		subtitle.add_theme_font_override("font", SimuFireThemeScript.title_font())
 		subtitle.add_theme_font_size_override("font_size", 16)
 		subtitle.add_theme_color_override("font_color", SimuFireThemeScript.MUTED)
+	_fit_main_menu_layout()
 
 
 func _ensure_start_options_ui(parent_override: Control = null) -> void:
@@ -174,6 +182,25 @@ func _ensure_start_options_ui(parent_override: Control = null) -> void:
 	_template_option = preset_row.get_node_or_null("Option") as OptionButton
 	_populate_template_option()
 
+	var building_row := vbox.get_node_or_null("BuildingTypeRow") as HBoxContainer
+	if building_row == null:
+		building_row = _make_option_row("BuildingTypeRow", "Exterior")
+		vbox.add_child(building_row)
+		_move_before_first_button(vbox, building_row)
+	_building_type_option = building_row.get_node_or_null("Option") as OptionButton
+	_populate_building_type_option()
+	if _building_type_option != null:
+		_connect_once(_building_type_option.item_selected, _on_building_type_selected)
+
+	var apartment_floor_row := vbox.get_node_or_null("ApartmentFloorRow") as HBoxContainer
+	if apartment_floor_row == null:
+		apartment_floor_row = _make_spin_row("ApartmentFloorRow", "Planta piso", -5.0, 80.0, 1.0)
+		vbox.add_child(apartment_floor_row)
+		_move_before_first_button(vbox, apartment_floor_row)
+	_apartment_floor_spin = apartment_floor_row.get_node_or_null("Spin") as SpinBox
+	_populate_apartment_floor_spin()
+	_sync_apartment_floor_visibility()
+
 	var hvac_row := vbox.get_node_or_null("HvacRow") as HBoxContainer
 	if hvac_row == null:
 		hvac_row = _make_option_row("HvacRow", "HVAC")
@@ -189,6 +216,32 @@ func _ensure_start_options_ui(parent_override: Control = null) -> void:
 		_move_before_first_button(vbox, lighting_row)
 	_lighting_option = lighting_row.get_node_or_null("Option") as OptionButton
 	_populate_lighting_option()
+	_fit_main_menu_layout()
+
+
+func _fit_main_menu_layout() -> void:
+	var vbox := get_node_or_null("Center/VBox") as VBoxContainer
+	if vbox == null:
+		return
+	var viewport_h: float = get_viewport_rect().size.y
+	var compact: bool = viewport_h < 820.0
+	var tight: bool = viewport_h < 700.0
+	vbox.add_theme_constant_override("separation", 6 if tight else (8 if compact else 10))
+	var logo := vbox.get_node_or_null("Logo") as TextureRect
+	if logo != null:
+		var logo_h: float = 285.0
+		if compact:
+			logo_h = 220.0
+		if tight:
+			logo_h = 160.0
+		logo.custom_minimum_size = Vector2(430.0, logo_h)
+	for child in vbox.get_children():
+		if child is Button:
+			(child as Button).custom_minimum_size = Vector2(420.0, 40.0 if tight else 44.0)
+		elif child is HBoxContainer:
+			for row_child in child.get_children():
+				if row_child is OptionButton or row_child is SpinBox:
+					(row_child as Control).custom_minimum_size = Vector2(250.0, 30.0 if tight else 32.0)
 
 
 func _make_option_row(row_name: String, label_text: String) -> HBoxContainer:
@@ -205,6 +258,27 @@ func _make_option_row(row_name: String, label_text: String) -> HBoxContainer:
 	option.custom_minimum_size = Vector2(250.0, 34.0)
 	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(option)
+	return row
+
+
+func _make_spin_row(row_name: String, label_text: String, min_value: float, max_value: float, step: float) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.name = row_name
+	row.add_theme_constant_override("separation", 8)
+	var label := Label.new()
+	label.name = row_name.replace("Row", "Label")
+	label.custom_minimum_size = Vector2(92.0, 0.0)
+	label.text = label_text
+	row.add_child(label)
+	var spin := SpinBox.new()
+	spin.name = "Spin"
+	spin.custom_minimum_size = Vector2(250.0, 34.0)
+	spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spin.min_value = min_value
+	spin.max_value = max_value
+	spin.step = step
+	spin.rounded = true
+	row.add_child(spin)
 	return row
 
 
@@ -250,6 +324,38 @@ func _populate_hvac_option() -> void:
 	var selected_index: int = maxi(0, _hvac_modes.find(selected_mode))
 	if _hvac_option.get_item_count() > 0:
 		_hvac_option.select(clampi(selected_index, 0, _hvac_option.get_item_count() - 1))
+
+
+func _populate_building_type_option() -> void:
+	if _building_type_option == null:
+		return
+	if _building_type_option.get_item_count() == 0:
+		_building_type_option.add_item("Casa unifamiliar", 0)
+		_building_type_option.add_item("Piso", 1)
+	var saved: Dictionary = _load_startup_options()
+	var selected_mode: String = String(saved.get("building_type", "single_family")).to_lower()
+	var selected_index: int = maxi(0, _building_type_modes.find(selected_mode))
+	if _building_type_option.get_item_count() > 0:
+		_building_type_option.select(clampi(selected_index, 0, _building_type_option.get_item_count() - 1))
+
+
+func _populate_apartment_floor_spin() -> void:
+	if _apartment_floor_spin == null:
+		return
+	var saved: Dictionary = _load_startup_options()
+	_apartment_floor_spin.value = int(saved.get("apartment_floor_number", 1))
+
+
+func _on_building_type_selected(_index: int) -> void:
+	_sync_apartment_floor_visibility()
+
+
+func _sync_apartment_floor_visibility() -> void:
+	if _apartment_floor_spin == null:
+		return
+	var row := _apartment_floor_spin.get_parent() as Control
+	if row != null:
+		row.visible = _building_type_option != null and _building_type_option.selected == 1
 
 
 func _populate_lighting_option() -> void:
@@ -306,12 +412,23 @@ func _save_startup_options() -> void:
 		var lighting_idx: int = clampi(_lighting_option.selected, 0, _lighting_modes.size() - 1)
 		selected_lighting_mode = _lighting_modes[lighting_idx]
 
+	var selected_building_type: String = "single_family"
+	if _building_type_option != null:
+		var building_idx: int = clampi(_building_type_option.selected, 0, _building_type_modes.size() - 1)
+		selected_building_type = _building_type_modes[building_idx]
+
+	var selected_apartment_floor: int = 1
+	if _apartment_floor_spin != null:
+		selected_apartment_floor = int(round(_apartment_floor_spin.value))
+
 	var file := FileAccess.open(STARTUP_OPTIONS_PATH, FileAccess.WRITE)
 	if file == null:
 		push_error("MainMenu: no se pudieron guardar opciones de inicio")
 		return
 	file.store_string(JSON.stringify({
 		"template_name": selected_template_id,
+		"building_type": selected_building_type,
+		"apartment_floor_number": selected_apartment_floor,
 		"hvac_mode": selected_hvac_mode,
 		"exterior_lighting_mode": selected_lighting_mode
 	}, "\t"))

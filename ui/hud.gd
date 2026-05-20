@@ -118,6 +118,7 @@ func _ready() -> void:
 		status_panel.visible = show_status_panel
 	if openings_panel != null:
 		openings_panel.visible = show_openings_panel
+		openings_panel.scale = Vector2.ONE
 
 	_ensure_first_person_button()
 	_ensure_hvac_button()
@@ -190,6 +191,8 @@ func _apply_hud_visual_style() -> void:
 	if _opening_compact_grid != null:
 		_opening_compact_grid.add_theme_constant_override("h_separation", 10)
 		_opening_compact_grid.add_theme_constant_override("v_separation", 3)
+	if openings_panel != null:
+		openings_panel.scale = Vector2.ONE
 
 	for panel_path in HUD_PANEL_PATHS:
 		var panel := get_node_or_null(panel_path) as PanelContainer
@@ -593,6 +596,7 @@ func _ensure_openings_compact_list() -> void:
 	_opening_compact_grid.visible = false
 	_opening_compact_grid.columns = 2
 	_opening_compact_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_opening_compact_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_opening_compact_grid.add_theme_constant_override("h_separation", 10)
 	_opening_compact_grid.add_theme_constant_override("v_separation", 3)
 	box.add_child(_opening_compact_grid)
@@ -635,12 +639,9 @@ func _update_openings_compact_list() -> void:
 		_rebuild_openings_compact_grid(["Sin aperturas"], 1)
 		return
 	var items: Array = []
-	var columns: int = 3 if summaries.size() > 10 else 2
-	var max_lines: int = columns * 7
-	for i in range(mini(summaries.size(), max_lines)):
-		items.append(summaries[i])
-	if summaries.size() > max_lines:
-		items.append("+%d mas" % (summaries.size() - max_lines))
+	var columns: int = 4 if summaries.size() > 18 else (3 if summaries.size() > 8 else 2)
+	for summary in summaries:
+		items.append(summary)
 	_rebuild_openings_compact_grid(items, columns)
 
 
@@ -654,6 +655,7 @@ func _rebuild_openings_compact_grid(items: Array, columns: int) -> void:
 	for child in _opening_compact_grid.get_children():
 		child.queue_free()
 	_opening_compact_grid.columns = maxi(1, columns)
+	_resize_openings_panel_for_count(items.size(), columns)
 	for text_value in items:
 		var label := Label.new()
 		var summary: Dictionary = Dictionary(text_value) if text_value is Dictionary else {}
@@ -665,6 +667,15 @@ func _rebuild_openings_compact_grid(items: Array, columns: int) -> void:
 		label.add_theme_font_size_override("font_size", 11)
 		label.add_theme_color_override("font_color", HUDOpeningSummary.compact_color(summary))
 		_opening_compact_grid.add_child(label)
+
+
+func _resize_openings_panel_for_count(item_count: int, columns: int) -> void:
+	if openings_panel == null:
+		return
+	openings_panel.scale = Vector2.ONE
+	var rows: int = ceili(float(maxi(1, item_count)) / float(maxi(1, columns)))
+	var target_height: float = clampf(44.0 + float(rows) * 18.0, 110.0, 320.0)
+	openings_panel.offset_top = openings_panel.offset_bottom - target_height
 
 
 func _refresh_opening_controls() -> void:

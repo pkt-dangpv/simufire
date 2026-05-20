@@ -28,6 +28,9 @@ var doorway_o2_background_exchange_kg_s_m2: float = 0.06
 var doorway_o2_background_max_fraction_per_step: float = 0.015
 var doorway_o2_background_pressure_ref_pa: float = 1.5
 var doorway_o2_background_min_factor: float = 0.30
+# Tasa de entrainment de pluma (fracción/s): aire de zona baja → zona superior cuando hay fuego.
+# Sin este término o2_upper colapsa a ≈0; con ~0.015 se estabiliza en 8-12 % (como CFAST ULO2).
+var o2_upper_plume_entr_rate: float = 0.015
 var _pending_o2_deliveries: Array[Dictionary] = []
 var _reserved_transport_o2_delta_kg: Dictionary = {}
 
@@ -75,6 +78,7 @@ func configure(settings: Dictionary) -> void:
 		)
 	)
 	vent_bernoulli_enabled = bool(settings.get("vent_bernoulli_enabled", vent_bernoulli_enabled))
+	o2_upper_plume_entr_rate = float(settings.get("o2_upper_plume_entr_rate", o2_upper_plume_entr_rate))
 
 
 func reset() -> void:
@@ -136,6 +140,17 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			room.o2_upper = clampf(
 				(upper_air_mass * room.o2_upper - upper_consumed) / maxf(0.001, upper_air_mass),
 				0.0, o2_nominal)
+			# Entrainment de pluma: aire de zona baja repone O2 en zona superior (McCaffrey/Heskestad).
+			# La zona baja tiene más O2 que la zona alta; el arrastre de pluma las mezcla parcialmente.
+			# Sin este término o2_upper colapsa a ≈0; este bucle crea la auto-regulación de CFAST.
+			var lower_frac: float = 1.0 - upper_frac
+			var o2_lower: float = room.o2
+			if lower_frac > 0.05:
+				o2_lower = clampf(
+					(air_mass_kg * room.o2 - upper_air_mass * room.o2_upper) / (air_mass_kg * lower_frac),
+					0.0, o2_nominal)
+			var entr_frac: float = clampf(o2_upper_plume_entr_rate * dt, 0.0, 0.15)
+			room.o2_upper = lerpf(room.o2_upper, o2_lower, entr_frac)
 		else:
 			room.o2_upper = lerpf(room.o2_upper, room.o2, clampf(0.03 * dt, 0.0, 0.10))
 		room.o2_upper = clampf(room.o2_upper, 0.0, o2_nominal)
