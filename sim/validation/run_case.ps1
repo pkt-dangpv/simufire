@@ -2,7 +2,7 @@ param(
 	[Parameter(Mandatory = $true)]
 	[string]$CaseName,
 
-	[string]$GodotExe = "C:\Users\dangp\Desktop\Godot_v4.6.2-stable_win64_console.exe",
+	[string]$GodotExe = "F:\OneDrive\Escritorio\Godot_v4.6.2-stable_win64_console.exe",
 	[string]$ProjectPath = "",
 	[string]$ValidationOutput = "",
 	[double]$ValidationDuration = 0,

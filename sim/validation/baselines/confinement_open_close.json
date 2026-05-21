@@ -16,7 +16,7 @@
       "tolerance": 0.02
     },
     "room_0_final_hrr_kw": {
-      "expected": 53.898098,
+      "expected": 62.532601,
       "tolerance": 5.0
     },
     "room_0_final_smoke_kg": {

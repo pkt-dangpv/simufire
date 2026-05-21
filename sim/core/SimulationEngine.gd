@@ -147,6 +147,13 @@ var _active_suppression_by_room: Dictionary = {}
 # SFPE/Drysdale: la combustión con llama de sólidos orgánicos cesa generalmente
 # por debajo del 12-14 % de O2. Valor de referencia: 0.122 (12.2 %).
 @export var fire_o2_min_for_flame: float = 0.122
+## Cuando true, la decisión de extincion/HRR usa `room.o2_upper` (capa caliente)
+## en lugar de `room.o2` (promedio), con el umbral separado `fire_o2_upper_min_for_flame`.
+## Fase 2A estructural: false (pendiente calibracion del modelo two-zone en Fase 2B).
+@export var fire_o2_upper_for_flame: bool = false
+## Umbral de O2 en capa superior por debajo del cual la llama se extingue.
+## Calibrado para upper-zone: ~0.07-0.08 (CFAST ULO2 en extincion ~8.5 %).
+@export var fire_o2_upper_min_for_flame: float = 0.075
 @export var fire_o2_consumption_kg_per_MJ: float = 0.076  # Regla de Thornton: 1/13.1 MJ/kgO2
 # Rendimiento de humo (kg/MJ)
 # SFPE: ~0.06 kg/kg ÷ 16 MJ/kg = 0.00375 kg/MJ
@@ -503,6 +510,8 @@ var _active_suppression_by_room: Dictionary = {}
 ## Peor violación de conservación de transporte registrada (fracción relativa).
 ## -1.0 significa que conservation_check_enabled=false (sin datos).
 var _conservation_max_violation_frac: float = -1.0
+## Tiempo del último step() en microsegundos (para diagnóstico de rendimiento).
+var _step_time_us: int = 0
 # SF-AUD-010: Bernoulli dos zonas para flujos por aperturas interiores y exteriores.
 # Cuando true: flujo calculado con Q = Cd·W·f·(2/3)·h^(3/2)·sqrt(2g·ΔT/T_ref) y plano
 # neutro calculado desde densidades. Default true → paridad CFAST (2026-05-17).
@@ -612,6 +621,9 @@ var _conservation_max_violation_frac: float = -1.0
 # 0.0 = deshabilitado (default) — O2 room-to-room gestionado exclusivamente por OxygenExchangeSystem.
 # Evita el doble transporte de O2 entre sistemas. ghanekar_bedroom_hallway usa 3.0 (caso especial).
 @export var background_o2_exchange_multiplier: float = 0.0
+# Tasa de entrainment pluma→capa superior (fracción de O2_upper actualizado por paso).
+# Global default=0.025; se puede sobreescribir por caso vía engine_overrides.
+@export var o2_upper_plume_entr_rate: float = 0.025
 
 # ============================================================
 # AJUSTES DE HUMO (se copian al SmokeModel)
@@ -882,7 +894,8 @@ func _sync_auxiliary_services() -> void:
 		"doorway_o2_background_max_fraction_per_step": doorway_o2_background_max_fraction_per_step,
 		"doorway_o2_background_pressure_ref_pa": doorway_o2_background_pressure_ref_pa,
 		"doorway_o2_background_min_factor": doorway_o2_background_min_factor,
-		"vent_bernoulli_enabled": vent_bernoulli_enabled
+		"vent_bernoulli_enabled": vent_bernoulli_enabled,
+		"o2_upper_plume_entr_rate": o2_upper_plume_entr_rate
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
@@ -923,6 +936,7 @@ func _build_state_context() -> Dictionary:
 		"kawagoe_factor_callable": Callable(self, "_kawagoe_factor_for_room"),
 		"energy_budget": thermal_system.get_energy_budget() if energy_budget_enabled else {},
 		"conservation_max_violation_frac": _conservation_max_violation_frac,
+		"step_time_us": _step_time_us,
 	}
 
 
@@ -1112,6 +1126,7 @@ func step(delta: float) -> void:
 	if building == null or is_finished:
 		return
 
+	var _t0_us: int = Time.get_ticks_usec()
 	var dt: float = sim_fixed_dt if sim_fixed_dt > 0.0 else maxf(0.0, delta * time_scale)
 	if dt <= 0.0:
 		return
@@ -1162,6 +1177,7 @@ func step(delta: float) -> void:
 	_step_victims(dt)
 	_detect_and_log_opening_events()
 	_maybe_log_state()
+	_step_time_us = Time.get_ticks_usec() - _t0_us
 
 	# Detener simulación cuando todos los fuegos se hayan extinguido.
 	var any_fire_active: bool = false
@@ -1310,6 +1326,8 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"outside_open_factor": local_outside_open_factor,
 		"outside_open_path_factor": outside_open_path_factor,
 		"fire_o2_independent": fire_o2_independent,
+		"fire_o2_upper_for_flame": fire_o2_upper_for_flame,
+		"fire_o2_upper_min_for_flame": fire_o2_upper_min_for_flame,
 		"fire_fds_extinction_enabled": fire_fds_extinction_enabled,
 		"fire_fds_extinction_o2_limit_ambient": fire_fds_extinction_o2_limit_ambient,
 		"fire_fds_extinction_ambient_c": fire_fds_extinction_ambient_c,

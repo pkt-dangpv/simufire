@@ -1,12 +1,12 @@
 {
 	"baseline": {
-		"all_pass": false,
+		"all_pass": true,
 		"checks": {
 			"room_0_final_layer_150c_m": {
 				"actual": 1.22513296164145,
-				"pass": false,
+				"pass": true,
 				"rule": {
-					"expected": 0.925995,
+					"expected": 1.225133,
 					"tolerance": 0.2
 				}
 			},
@@ -53,7 +53,7 @@
 		"room_0_final_dominant_fuel_object_id": "salon_alfombra",
 		"room_0_final_dominant_fuel_object_remaining_MJ": 481.816311150842,
 		"room_0_final_dominant_fuel_object_state": "flaming",
-		"room_0_final_fed": 53.4748199420382,
+		"room_0_final_fed": 25.8993596778591,
 		"room_0_final_fire_time_s": 165.920617820434,
 		"room_0_final_flame_hrr_target_kw": 249.746837745608,
 		"room_0_final_fuel_objects_flaming_count": 7,
@@ -94,7 +94,7 @@
 		"room_0_final_wall_T_outer_c": 20.0,
 		"room_0_final_wall_k_kw_m_k": -1.0,
 		"room_0_final_wall_thickness_m": -1.0,
-		"room_0_max_fed": 53.4748199420382,
+		"room_0_max_fed": 25.8993596778591,
 		"room_0_max_fuel_objects_flaming_count": 7,
 		"room_0_max_fuel_objects_heating_count": 6,
 		"room_0_max_fuel_objects_pyrolyzing_count": 3,

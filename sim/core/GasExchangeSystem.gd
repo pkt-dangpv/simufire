@@ -186,23 +186,29 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 			continue
 
 		var t_upper_k: float = room.temp_upper_c + 273.15
-		var effective_hot_layer_m: float = _call_room_float(
-			effective_hot_layer_callable,
-			room,
-			clampf(room.thermal_layer_m, 0.0, room.height_m)
-		)
-		var h_smoke_m: float = maxf(0.0, room.height_m - effective_hot_layer_m)
-		var dp_buoyancy: float = rho_ext * g * h_smoke_m * maxf(0.0, 1.0 - t_ext_k / t_upper_k)
 
-		# Efecto chimenea: salas en plantas superiores generan presión adicional
-		# por la columna caliente que asciende desde la planta baja.
-		var dp_stack: float = 0.0
+		# Presión termodinámica CFAST-compatible (solo para logging en P=).
+		# Se escribe en room.thermo_pressure_pa, NO en room.overpressure_pa.
+		# Esto evita que la presión termodinámica active el bucle de ventilación
+		# física (threshold=2 Pa), que enfriaría incorrectamente las salas selladas.
+		var chi_conv: float = 0.65  # fracción convectiva (1 - χ_rad ≈ 0.35)
+		var v_room: float = maxf(1.0, room.volume_m3())
+		var dp_dt_source: float = 0.4 * chi_conv * room.hrr_kw * 1000.0 / v_room
+		# Área efectiva de fuga: fugas de marco + aperturas exteriores abiertas
+		var a_leak_eff: float = window_leakage_area_m2
+		for op_p in building.get_openings():
+			var ext_a: bool = (op_p.a == room.id and op_p.b == BuildingModel.OUTSIDE_ID)
+			var ext_b: bool = (op_p.b == room.id and op_p.a == BuildingModel.OUTSIDE_ID)
+			if (ext_a or ext_b) and op_p.open_fraction > 0.001:
+				a_leak_eff += op_p.width_m * op_p.height_m * op_p.open_fraction
+		var c_leak: float = 380.4 * a_leak_eff * t_upper_k / v_room
+		var dp_dt_leak: float = c_leak * sqrt(maxf(0.0, room.thermo_pressure_pa))
+		room.thermo_pressure_pa += (dp_dt_source - dp_dt_leak) * dt
+		room.thermo_pressure_pa = maxf(0.0, room.thermo_pressure_pa)
+		# Efecto chimenea: presión física de boyanza (sí usa overpressure_pa).
 		if stack_effect_enabled and room.floor_level_z_m > 0.01:
-			dp_stack = rho_ext * g * room.floor_level_z_m * maxf(0.0, 1.0 - t_ext_k / t_upper_k)
-
-		var tau_s: float = 5.0
-		room.overpressure_pa += (dp_buoyancy + dp_stack - room.overpressure_pa) * minf(1.0, dt / tau_s)
-		room.overpressure_pa = maxf(0.0, room.overpressure_pa)
+			var dp_stack: float = rho_ext * g * room.floor_level_z_m * maxf(0.0, 1.0 - t_ext_k / t_upper_k)
+			room.overpressure_pa += dp_stack * dt / 5.0
 
 		if room.overpressure_pa < pressure_vent_threshold_pa:
 			continue

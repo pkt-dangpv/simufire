@@ -45,6 +45,8 @@ var temp_lower_c: float = 20.0
 var o2: float = 0.209
 # Fraccion O2 en capa superior (zona caliente). Se inicializa igual a o2 (2026-05-17).
 var o2_upper: float = 0.209
+# Fraccion O2 en capa inferior (zona fría). Variable persistente; NO derivada de o2. Fase 2A (2026-05-20).
+var o2_lower: float = 0.209
 
 # Humo
 var smoke_kg: float = 0.0
@@ -125,6 +127,10 @@ var ventilation_response_factor: float = 0.0
 
 # Presion de la capa superior respecto al exterior
 var overpressure_pa: float = 0.0
+# Presión termodinámica CFAST-compatible (expansión por HRR en sala sellada).
+# Solo se usa para logging (P= en el log); NO controla el flujo físico de ventilación.
+# Separada de overpressure_pa para evitar retroalimentación espuria (Fase 2A).
+var thermo_pressure_pa: float = 0.0
 
 # Flujo radiante al suelo — SF-AUD-012.
 # Calculado en cada paso como ε·σ·T_upper⁴ [kW/m²].
@@ -180,6 +186,27 @@ func volume_m3() -> float:
 	return width_m * length_m * height_m
 
 
+## Volumen de la zona superior (capa caliente), m³. Fase 2A.
+func upper_volume_m3() -> float:
+	var h_upper: float = maxf(0.0, height_m - clampf(thermal_layer_m, 0.0, height_m))
+	return floor_area_m2() * h_upper
+
+
+## Volumen de la zona inferior (capa fría), m³. Fase 2A.
+func lower_volume_m3() -> float:
+	return maxf(0.0, volume_m3() - upper_volume_m3())
+
+
+## Masa de O₂ en la zona superior, kg. Fase 2A.
+func upper_o2_mass_kg(air_density: float = 1.2) -> float:
+	return upper_volume_m3() * air_density * o2_upper
+
+
+## Masa de O₂ en la zona inferior, kg. Fase 2A.
+func lower_o2_mass_kg(air_density: float = 1.2) -> float:
+	return lower_volume_m3() * air_density * o2_lower
+
+
 func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	temp_upper_c = ambient_temp_c
 	temp_upper_raw_c = ambient_temp_c
@@ -188,6 +215,8 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	temp_upper_clamp_count = 0
 	temp_lower_c = ambient_temp_c
 	o2 = ambient_o2
+	o2_upper = ambient_o2
+	o2_lower = ambient_o2
 	smoke_kg = 0.0
 	smoke_prod_kg_s = 0.0
 	soot_fraction = 1.0

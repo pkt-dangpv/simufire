@@ -30,7 +30,13 @@ $cases = @(
 	"cfast_single_room_closed",
 	"cfast_two_room_door_open",
 	"cfast_post_flashover_vented",
-	"cfast_hvac_residential"
+	"cfast_hvac_residential",
+	"cfast_long_burnout_3600s",
+	"cfast_door_close_midfire",
+	"cfast_fast_growth_closed",
+	"cfast_two_floor_stairwell",
+	"cfast_multi_fuel_couch_tv",
+	"cfast_window_break_t180"
 )
 
 Write-Host "[Reference Suite] Inicio de validacion contra referencias externas"

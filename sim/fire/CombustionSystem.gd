@@ -103,19 +103,24 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		float(context.get("fire_o2_full_hrr_open", fire.o2_nominal)),
 		early_opening_signal
 	)
-	full_hrr_o2 = maxf(fire.o2_min_for_flame + 0.001, full_hrr_o2)
-	var raw_o2_factor: float = _compute_o2_factor(room.o2, full_hrr_o2, fire.o2_min_for_flame)
+	# SF-1B: si fire_o2_upper_for_flame=true, usar o2_upper y umbral separado.
+	var use_o2_upper: bool = bool(context.get("fire_o2_upper_for_flame", false))
+	var o2_min_ref: float = float(context.get("fire_o2_upper_min_for_flame", fire.o2_min_for_flame)) \
+			if use_o2_upper else fire.o2_min_for_flame
+	var o2_ref: float = room.o2_upper if use_o2_upper else room.o2
+	full_hrr_o2 = maxf(o2_min_ref + 0.001, full_hrr_o2)
+	var raw_o2_factor: float = _compute_o2_factor(o2_ref, full_hrr_o2, o2_min_ref)
 	var use_fds_extinction: bool = bool(context.get("fire_fds_extinction_enabled", false))
 	var extinction_o2_limit: float = _compute_extinction_o2_limit(
 		room,
 		context,
 		ambient_c,
-		fire.o2_min_for_flame
+		o2_min_ref
 	)
 	var extinction_factor: float = raw_o2_factor
 	if use_fds_extinction:
 		extinction_factor = _compute_extinction_factor(
-			room.o2,
+			o2_ref,
 			extinction_o2_limit,
 			float(context.get("fire_fds_extinction_transition_width", 0.030))
 		)
@@ -168,9 +173,9 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	if not use_fds_extinction:
 		flame_possible_factor = clampf(
 			inverse_lerp(
-				fire.o2_min_for_flame - 0.015,
-				fire.o2_min_for_flame + 0.025,
-				room.o2
+				o2_min_ref - 0.015,
+				o2_min_ref + 0.025,
+				o2_ref
 			),
 			0.0,
 			1.0
@@ -221,9 +226,9 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	rad_feedback = minf(rad_feedback, thermal_feedback_max)
 	var feedback_o2_engagement: float = room.o2_hrr_factor if use_fds_extinction else clampf(
 		inverse_lerp(
-			fire.o2_min_for_flame - 0.005,
-			fire.o2_min_for_flame + 0.035,
-			room.o2
+			o2_min_ref - 0.005,
+			o2_min_ref + 0.035,
+			o2_ref
 		),
 		0.0,
 		1.0
@@ -1054,7 +1059,7 @@ func _update_passive_fuel_object(
 		0.35,
 		2.0
 	)
-	var heating_rate: float = clampf(dt / lerpf(210.0, 35.0, flux_ratio) * sqrt(exposed_area_factor), 0.0, 1.0)
+	var heating_rate: float = clampf(dt / maxf(5.0, lerpf(210.0, 35.0, flux_ratio)) * sqrt(exposed_area_factor), 0.0, 1.0)
 	var cooling_rate: float = clampf(dt / 240.0, 0.0, 1.0)
 	if target_surface_temp_c >= obj.surface_temp_c:
 		obj.surface_temp_c = lerpf(obj.surface_temp_c, target_surface_temp_c, heating_rate)
@@ -1090,7 +1095,7 @@ func _update_passive_fuel_object(
 	var autoignite_ready: bool = obj.exposure_s >= 75.0 and (
 		obj.surface_temp_c >= obj.ignition_temp_c
 		or (
-			obj.surface_temp_c >= pyrolysis_threshold_c
+			pyrolysis_ready
 			and obj.incident_heat_flux_kw_m2 >= obj.ignition_flux_kw_m2
 		)
 	)

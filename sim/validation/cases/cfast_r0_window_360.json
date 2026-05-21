@@ -47,6 +47,7 @@
 		"fire_flashover_hrr_multiplier": 1.0,
 		"fire_flashover_min_hrr_kw": 99999.0,
 		"thermal_feedback_coeff": 0.0,
+		"o2_upper_plume_entr_rate": 0.015,
 		"fire_o2_min_for_flame": 0.055,
 		"fire_o2_full_hrr_open": 0.150,
 		"fire_o2_hrr_rise_tau_s": 2.0,

@@ -278,7 +278,8 @@ func update_state(state: Dictionary) -> void:
 		return
 
 	var sim_time_s: float = float(state.get("sim_time_s", 0.0))
-	time_label.text = HUDPlaybackLabels.time_text(sim_time_s)
+	var step_us: int = int(state.get("step_time_us", 0))
+	time_label.text = HUDPlaybackLabels.time_text(sim_time_s) + ("  [%d µs]" % step_us if step_us > 0 else "")
 	_view_mode_label = HUDPlaybackLabels.view_mode_label(
 		bool(state.get("view_3d_enabled", false)),
 		bool(state.get("first_person_enabled", false))

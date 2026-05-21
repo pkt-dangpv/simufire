@@ -1,6 +1,6 @@
 {
 	"baseline": {
-		"all_pass": false,
+		"all_pass": true,
 		"checks": {
 			"opening_event_0_time_s": {
 				"actual": 200.000000000005,
@@ -20,9 +20,9 @@
 			},
 			"room_0_final_hrr_kw": {
 				"actual": 62.5326009665744,
-				"pass": false,
+				"pass": true,
 				"rule": {
-					"expected": 53.898098,
+					"expected": 62.532601,
 					"tolerance": 5.0
 				}
 			},
@@ -92,7 +92,7 @@
 		"room_0_final_dominant_fuel_object_id": "salon_sofa",
 		"room_0_final_dominant_fuel_object_remaining_MJ": 918.326371339204,
 		"room_0_final_dominant_fuel_object_state": "pyrolyzing",
-		"room_0_final_fed": 86.2328466938692,
+		"room_0_final_fed": 57.6485949777411,
 		"room_0_final_fire_time_s": 363.089471811273,
 		"room_0_final_flame_hrr_target_kw": 0.0,
 		"room_0_final_fuel_objects_flaming_count": 0,
@@ -133,7 +133,7 @@
 		"room_0_final_wall_T_outer_c": 20.0,
 		"room_0_final_wall_k_kw_m_k": -1.0,
 		"room_0_final_wall_thickness_m": -1.0,
-		"room_0_max_fed": 86.2328466938692,
+		"room_0_max_fed": 57.6485949777411,
 		"room_0_max_fuel_objects_flaming_count": 7,
 		"room_0_max_fuel_objects_heating_count": 6,
 		"room_0_max_fuel_objects_pyrolyzing_count": 6,

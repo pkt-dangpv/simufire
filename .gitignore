@@ -11,6 +11,13 @@ export_presets.cfg
 # Temporales
 *.tmp
 *.log
+tmp_*
+last_run.txt
+editor_scenario.json
+execution_output.log
+
+# Cache
+.matplotlib-cache/
 
 # Sistema
 .DS_Store
@@ -19,3 +26,9 @@ Thumbs.db
 # VSCode
 .vscode/
 graphs/
+old/
+
+# Python / tools
+__pycache__/
+*.pyc
+*.pyo
