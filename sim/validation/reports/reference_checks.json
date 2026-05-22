@@ -1,8 +1,8 @@
 {
   "all_required_pass": false,
-  "required_count": 289,
+  "required_count": 292,
   "failed_required_count": 1,
-  "known_gap_count": 94,
+  "known_gap_count": 88,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -3702,35 +3702,35 @@
     },
     {
       "name": "layer150_tenability_room_0_final_layer_150c_m",
-      "actual": 0.154199180627128,
+      "actual": 1.22513296164145,
       "expected": 1.225133,
       "tolerance": 0.2,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "Regression baseline: layer150_tenability"
     },
     {
       "name": "layer150_tenability_room_1_final_temp_at_1_8m_c",
-      "actual": 390.495081586671,
+      "actual": 99.6472505736606,
       "expected": 104.932563,
       "tolerance": 15.0,
       "minimum": null,
       "maximum": null,
-      "required": false,
-      "pass": false,
+      "required": true,
+      "pass": true,
       "note": "Regression baseline: layer150_tenability"
     },
     {
       "name": "layer150_tenability_room_1_min_l150_m",
-      "actual": 0.131099398932233,
+      "actual": 1.71400359560052,
       "expected": 1.672793,
       "tolerance": 0.15,
       "minimum": null,
       "maximum": null,
-      "required": false,
-      "pass": false,
+      "required": true,
+      "pass": true,
       "note": "Regression baseline: layer150_tenability"
     },
     {
@@ -4307,7 +4307,7 @@
     },
     {
       "name": "living_room_hallway_room_0_final_layer_150c_m",
-      "actual": 0.23193599994466,
+      "actual": 0.207686924418205,
       "expected": 0.213764,
       "tolerance": 0.15,
       "minimum": null,
@@ -4318,7 +4318,7 @@
     },
     {
       "name": "living_room_hallway_room_1_final_temp_at_1_8m_c",
-      "actual": 111.260438939324,
+      "actual": 122.622635970667,
       "expected": 122.534751,
       "tolerance": 15.0,
       "minimum": null,
@@ -4329,7 +4329,7 @@
     },
     {
       "name": "living_room_hallway_room_1_min_l150_m",
-      "actual": 1.71400359560052,
+      "actual": 1.67224945925734,
       "expected": 1.672793,
       "tolerance": 0.2,
       "minimum": null,
@@ -4340,13 +4340,13 @@
     },
     {
       "name": "living_room_hallway_room_1_peak_temp_upper_c",
-      "actual": 405.027567620451,
+      "actual": 351.879667230134,
       "expected": 349.191257,
       "tolerance": 25.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "Regression baseline: living_room_hallway"
     },
     {
@@ -4395,18 +4395,18 @@
     },
     {
       "name": "confinement_open_close_room_0_final_hrr_kw",
-      "actual": 42.235816217806,
+      "actual": 62.5326009665744,
       "expected": 62.532601,
       "tolerance": 5.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "Regression baseline: confinement_open_close"
     },
     {
       "name": "confinement_open_close_room_0_final_o2",
-      "actual": 0.109628279952636,
+      "actual": 0.111620290252618,
       "expected": 0.113254,
       "tolerance": 0.02,
       "minimum": null,
@@ -4417,18 +4417,18 @@
     },
     {
       "name": "confinement_open_close_room_0_final_smoke_kg",
-      "actual": 3.992225869944,
+      "actual": 1.11520072886402,
       "expected": 1.154722,
       "tolerance": 0.3,
       "minimum": null,
       "maximum": null,
-      "required": false,
-      "pass": false,
+      "required": true,
+      "pass": true,
       "note": "Regression baseline: confinement_open_close"
     },
     {
       "name": "confinement_open_close_room_0_peak_hrr_kw",
-      "actual": 1644.84918943847,
+      "actual": 1724.41539345286,
       "expected": null,
       "tolerance": null,
       "minimum": 1500.0,
@@ -4439,7 +4439,7 @@
     },
     {
       "name": "confinement_open_close_smoke_deposited_total_kg",
-      "actual": 0.00343710527042904,
+      "actual": 5.96456177029991e-05,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -4450,7 +4450,7 @@
     },
     {
       "name": "confinement_open_close_smoke_vented_total_kg",
-      "actual": 20.6685874230623,
+      "actual": 28.0869236857924,
       "expected": null,
       "tolerance": null,
       "minimum": 0.5,
