@@ -16,6 +16,11 @@ last_run.txt
 editor_scenario.json
 execution_output.log
 
+# Godot import artifacts from validation CSVs
+sim/validation/cfast/*.translation
+sim/validation/cfast/*.translation.import
+sim/validation/cfast/*.csv.import
+
 # Cache
 .matplotlib-cache/
 

@@ -142,11 +142,10 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		var upper_air_mass: float = air_mass_kg * upper_frac
 		var lower_air_mass: float = maxf(0.001, air_mass_kg * lower_frac)
 
-		if (lower_frac < 0.15 and room.o2 < 0.10) or (lower_frac < 0.40 and room.o2 < 0.070):
-			# Modelo bi-zona inválido: la capa caliente ocupa >85 % del volumen Y
-			# el O₂ está muy depleto (< 10%), indicando que ambas zonas se han mezclado
-			# termodinámicamente. Sin la condición de O₂, se homogenizaría en la sala
-			# sellada a t=210s donde el fuego aún estratifica activamente (room.o2=0.13).
+		if lower_frac < 0.15 or (lower_frac < 0.40 and room.o2 < 0.070):
+			# Modelo bi-zona inválido: la capa caliente ocupa >85 % del volumen,
+			# o la habitación está tan depleta de O₂ (sala sellada, < 7%) que
+			# la mezcla por convección homogeniza ambas zonas a room.o2.
 			room.o2_upper = room.o2
 			room.o2_lower = room.o2
 		elif room.hrr_kw > 0.0:

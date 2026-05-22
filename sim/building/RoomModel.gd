@@ -127,11 +127,6 @@ var ventilation_response_factor: float = 0.0
 
 # Presion de la capa superior respecto al exterior
 var overpressure_pa: float = 0.0
-# Presión termodinámica CFAST-compatible (expansión por HRR en sala sellada).
-# Solo se usa para logging (P= en el log); NO controla el flujo físico de ventilación.
-# Separada de overpressure_pa para evitar retroalimentación espuria (Fase 2A).
-var thermo_pressure_pa: float = 0.0
-
 # Flujo radiante al suelo — SF-AUD-012.
 # Calculado en cada paso como ε·σ·T_upper⁴ [kW/m²].
 # ~20 kW/m² es el umbral ISO 9705 para flashover por ignicion generalizada de superficies.

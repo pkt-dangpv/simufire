@@ -1,19 +1,19 @@
 {
     "metrics": {
         "room_0_final_temp_upper_raw_c": {
-            "expected": 313.71,
+            "expected": 299.94,
             "tolerance": 7.0
         },
         "room_0_final_layer_150c_m": {
-            "expected": 1.022,
+            "expected": 0.00144,
             "tolerance": 0.05
         },
         "room_0_final_hot_layer_m": {
-            "expected": 1.022,
+            "expected": 0.0,
             "tolerance": 0.05
         },
         "room_0_final_hrr_kw": {
-            "expected": 1248.33,
+            "expected": 1017.34,
             "tolerance": 50.0
         },
         "opening_event_0_time_s": {
@@ -21,8 +21,8 @@
             "tolerance": 1.0
         },
         "room_0_min_l150_m": {
-            "expected": 0.342,
-            "tolerance": 0.10
+            "expected": 0.00098,
+            "tolerance": 0.05
         }
     }
 }

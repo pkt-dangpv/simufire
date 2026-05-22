@@ -1,0 +1,27 @@
+{
+    "metrics": {
+        "room_0_peak_hrr_kw": {
+            "min": 650.0
+        },
+        "peak_temp_upper_c_global": {
+            "min": 550.0
+        },
+        "room_0_final_temp_upper_raw_c": {
+            "min": 300.0,
+            "max": 480.0
+        },
+        "smoke_generated_total_kg": {
+            "min": 6.0
+        },
+        "time_room_0_smoke_layer_2m_s": {
+            "min": 20.0,
+            "max": 45.0
+        },
+        "time_room_0_l150_below_1_8m_s": {
+            "min": 60.0
+        },
+        "room_0_final_smoke_kg": {
+            "min": 0.3
+        }
+    }
+}

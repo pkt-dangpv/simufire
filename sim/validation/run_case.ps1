@@ -2,7 +2,7 @@ param(
 	[Parameter(Mandatory = $true)]
 	[string]$CaseName,
 
-	[string]$GodotExe = "F:\OneDrive\Escritorio\Godot_v4.6.2-stable_win64_console.exe",
+	[string]$GodotExe = "",
 	[string]$ProjectPath = "",
 	[string]$ValidationOutput = "",
 	[double]$ValidationDuration = 0,
@@ -18,9 +18,33 @@ if (-not $ProjectPath) {
 	$ProjectPath = (Resolve-Path $ProjectPath).Path
 }
 
-if (-not (Test-Path $GodotExe)) {
-	throw "No se encontro el ejecutable de Godot: $GodotExe"
+function Resolve-GodotExecutable([string]$RequestedPath) {
+	if ($RequestedPath -and (Test-Path $RequestedPath)) {
+		return (Resolve-Path $RequestedPath).Path
+	}
+
+	if ($env:GODOT_EXE -and (Test-Path $env:GODOT_EXE)) {
+		return (Resolve-Path $env:GODOT_EXE).Path
+	}
+
+	$candidates = @(
+		"F:\OneDrive\Escritorio\Godot_v4.6.2-stable_win64_console.exe",
+		"C:\Users\dangp\Desktop\Godot_v4.6.2-stable_win64_console.exe"
+	)
+
+	foreach ($candidate in $candidates) {
+		if (Test-Path $candidate) {
+			return (Resolve-Path $candidate).Path
+		}
+	}
+
+	if ($RequestedPath) {
+		throw "No se encontro el ejecutable de Godot: $RequestedPath"
+	}
+	throw "No se encontro el ejecutable de Godot. Define -GodotExe o la variable GODOT_EXE."
 }
+
+$GodotExe = Resolve-GodotExecutable $GodotExe
 
 $logDir = Join-Path $env:TEMP "simufire-godot-logs"
 New-Item -ItemType Directory -Path $logDir -Force | Out-Null
