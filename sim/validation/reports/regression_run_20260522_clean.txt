@@ -1,0 +1,223 @@
+[Validation Suite] Inicio de bateria completa
+[Validation Suite] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Suite] Casos: living_room_hallway, layer150_tenability, postfire_decay, ul_exterior_water_knockdown, confinement_open_close, v1_backdraft_accumulation, v2_sealed_room_o2_depletion, v3_hallway_fed_exposure, v4_co_remote_rooms, v5_ventilation_hrr_spike, v6_spread_to_hallway, v7_underventilated_co_peak, v8_suppression_reburn, g1_gie_confinement_attack, g2_gie_transitional_attack, g3_gie_ppv_post_knockdown, g4_gie_delayed_entry_hazard, flashover_simple_house, glass_break_window_spike, pu_sofa_fec_incapacitation, pvc_curtain_hcl_release, compact_apartment_smoke, uk_bungalow_smoke, piso_mediterraneo_smoke, two_bed_apartment_smoke, three_bed_apartment_smoke, row_house_ground_floor_smoke, ranch_family_house_smoke, energy_budget_living_room, kitchen_grease_pool_fire, ranch_radiation_target_ignition, co_oxidation_post_flashover, hrr_tabulated_curve_sofa, char_layer_loi_wood, ppv_attack_pressurized, mediterraneo_concrete_wall_conduction, wind_assisted_exterior_spread, tc_array_iso9705, c_balance_high_phi, secondary_ignition_demo, two_storey_smoke, conservation_transport, victim_fed_incapacitation
+[Validation Suite] Timeout por caso: 300s
+[Validation Runner] Caso: living_room_hallway
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\living_room_hallway-20260522-083321-684-2532933e1cfb4a18888520ef11eff51f.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: layer150_tenability
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\layer150_tenability-20260522-083349-584-9793a843d5fa45d3b29e02c7dc6ce32f.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: postfire_decay
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\postfire_decay-20260522-083423-292-f519b83d40eb46a486f44aeb8ada64c7.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: ul_exterior_water_knockdown
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\ul_exterior_water_knockdown-20260522-083735-093-5518ed5f7ec44a4397c0d4778ea3601f.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: confinement_open_close
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\confinement_open_close-20260522-083802-602-14b537a3a6fd48cdb41da2895f197ad5.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: v1_backdraft_accumulation
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\v1_backdraft_accumulation-20260522-083931-090-666bb3813b684a31a0e913cd70f8e16d.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: v2_sealed_room_o2_depletion
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\v2_sealed_room_o2_depletion-20260522-084035-069-03ed06b910454363b95ee51188d3869e.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: v3_hallway_fed_exposure
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\v3_hallway_fed_exposure-20260522-084121-168-b301987bbd5f4ea5ac491e4a264aa9a9.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: v4_co_remote_rooms
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\v4_co_remote_rooms-20260522-084254-356-09186e3678d7487088bb4972645dfc51.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: v5_ventilation_hrr_spike
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\v5_ventilation_hrr_spike-20260522-084405-002-b7f158ac77e643af9fc5b31dfb554281.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: v6_spread_to_hallway
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\v6_spread_to_hallway-20260522-084503-210-1c0013d6d3484f29aff6adb12ae0de5a.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: v7_underventilated_co_peak
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\v7_underventilated_co_peak-20260522-084641-770-10d4a15f3f0148ccab3687682672726e.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: v8_suppression_reburn
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\v8_suppression_reburn-20260522-084727-104-5b33a12457634d61bd85d0c9540ee3e1.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: g1_gie_confinement_attack
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\g1_gie_confinement_attack-20260522-084829-396-46f3d2dc8a3e4f26accc082137afd782.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: g2_gie_transitional_attack
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\g2_gie_transitional_attack-20260522-084911-505-5c5e7290f7994c84858e62f6c115efe8.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: g3_gie_ppv_post_knockdown
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\g3_gie_ppv_post_knockdown-20260522-084959-182-75200204cc204c32bdca53f0c4d8bc37.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: g4_gie_delayed_entry_hazard
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\g4_gie_delayed_entry_hazard-20260522-085059-782-1f0c0f23927f486cbd445a1149158106.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: flashover_simple_house
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\flashover_simple_house-20260522-085151-428-aa23971042ff4fc798358c3574b8fc4c.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: glass_break_window_spike
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\glass_break_window_spike-20260522-085219-736-4a77c01147f147acb87bb17d5039103f.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: pu_sofa_fec_incapacitation
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\pu_sofa_fec_incapacitation-20260522-085242-114-c6bc175bc5534339a14d2458fed9f689.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: pvc_curtain_hcl_release
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\pvc_curtain_hcl_release-20260522-085400-100-ca4c8e4d5f4143eb8c9e19b1dcb5d564.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: compact_apartment_smoke
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\compact_apartment_smoke-20260522-085457-707-5f9e7841557a4831b4e3d6d4bbe69aa4.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: uk_bungalow_smoke
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\uk_bungalow_smoke-20260522-085527-250-a521413e4e784acf9f3883c8724fb9a4.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: piso_mediterraneo_smoke
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\piso_mediterraneo_smoke-20260522-085622-164-4a428f652885469fa18954e4778aee72.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: two_bed_apartment_smoke
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\two_bed_apartment_smoke-20260522-085754-009-fca1b4d75fec47118736f7d387e87230.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: three_bed_apartment_smoke
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\three_bed_apartment_smoke-20260522-085852-445-33879d52fec54438a2274face63a5bb5.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: row_house_ground_floor_smoke
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\row_house_ground_floor_smoke-20260522-090006-696-6dbb1f37c8244f93a3757b92ef48a78c.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: ranch_family_house_smoke
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\ranch_family_house_smoke-20260522-090054-747-557406bfa187445f8010bd7ef2ede41b.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: energy_budget_living_room
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\energy_budget_living_room-20260522-090208-273-3f08d3a8d6444e12a26c6e52fe149188.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: kitchen_grease_pool_fire
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\kitchen_grease_pool_fire-20260522-090236-394-4dc8387bb97344a98c45a6f585d7a759.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: ranch_radiation_target_ignition
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\ranch_radiation_target_ignition-20260522-090316-793-a513304c2b3542a0b829c88899c142be.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: co_oxidation_post_flashover
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\co_oxidation_post_flashover-20260522-090421-215-579d7a5185d547dbbc48efa9b787c073.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: hrr_tabulated_curve_sofa
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\hrr_tabulated_curve_sofa-20260522-090509-500-fcc74429254a40d1859b0af311d4d49b.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: char_layer_loi_wood
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\char_layer_loi_wood-20260522-090606-173-fde03bf9d6814832aae55284b75054ff.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: ppv_attack_pressurized
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\ppv_attack_pressurized-20260522-090702-636-16fc781a08984b908fdfe90b2b6bde9a.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: mediterraneo_concrete_wall_conduction
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\mediterraneo_concrete_wall_conduction-20260522-090813-085-d2a41109890a410caae83e6504ccccac.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: wind_assisted_exterior_spread
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\wind_assisted_exterior_spread-20260522-090926-466-6425521ca68e4bdf9b2f1bf6e83ac567.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: tc_array_iso9705
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\tc_array_iso9705-20260522-091007-190-4f84fce4a0594eac9688e94a6fd33ef4.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: c_balance_high_phi
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\c_balance_high_phi-20260522-091036-347-5e6c8cda081947cea3efb13f55b11881.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: secondary_ignition_demo
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\secondary_ignition_demo-20260522-091114-589-67bd34db3de3411284bf3b414f3b8b42.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: two_storey_smoke
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\two_storey_smoke-20260522-091250-942-70d29ba205764ac9a50c3f5b6c8c69eb.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: conservation_transport
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\conservation_transport-20260522-091329-487-ca443138380049c5b96179eb296952b4.log
+[Validation Runner] Timeout: 300s
+[Validation Runner] Caso: victim_fed_incapacitation
+[Validation Runner] Proyecto: F:\OneDrive\Documentos\GitHub\simufire
+[Validation Runner] Log Godot: C:\Users\dangp\AppData\Local\Temp\simufire-godot-logs\victim_fed_incapacitation-20260522-091348-452-cd27c2a96e4c4a4a8fb1667cf1a15942.log
+[Validation Runner] Timeout: 300s
+
+[Validation Suite] Resumen
+ - living_room_hallway: FAIL (27,98s) | La validacion 'living_room_hallway' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\living_room_hallway.json
+ - layer150_tenability: FAIL (33,72s) | La validacion 'layer150_tenability' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\layer150_tenability.json
+ - postfire_decay: FAIL (191,79s) | La validacion 'postfire_decay' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\postfire_decay.json
+ - ul_exterior_water_knockdown: FAIL (27,52s) | La validacion 'ul_exterior_water_knockdown' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\ul_exterior_water_knockdown.json
+ - confinement_open_close: FAIL (88,48s) | La validacion 'confinement_open_close' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\confinement_open_close.json
+ - v1_backdraft_accumulation: FAIL (63,99s) | La validacion 'v1_backdraft_accumulation' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\v1_backdraft_accumulation.json
+ - v2_sealed_room_o2_depletion: FAIL (46,09s) | La validacion 'v2_sealed_room_o2_depletion' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\v2_sealed_room_o2_depletion.json
+ - v3_hallway_fed_exposure: FAIL (93,19s) | La validacion 'v3_hallway_fed_exposure' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\v3_hallway_fed_exposure.json
+ - v4_co_remote_rooms: FAIL (70,66s) | La validacion 'v4_co_remote_rooms' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\v4_co_remote_rooms.json
+ - v5_ventilation_hrr_spike: PASS (58,2s)
+ - v6_spread_to_hallway: PASS (98,55s)
+ - v7_underventilated_co_peak: FAIL (45,33s) | La validacion 'v7_underventilated_co_peak' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\v7_underventilated_co_peak.json
+ - v8_suppression_reburn: PASS (62,3s)
+ - g1_gie_confinement_attack: FAIL (42,12s) | La validacion 'g1_gie_confinement_attack' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\g1_gie_confinement_attack.json
+ - g2_gie_transitional_attack: FAIL (47,67s) | La validacion 'g2_gie_transitional_attack' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\g2_gie_transitional_attack.json
+ - g3_gie_ppv_post_knockdown: FAIL (60,59s) | La validacion 'g3_gie_ppv_post_knockdown' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\g3_gie_ppv_post_knockdown.json
+ - g4_gie_delayed_entry_hazard: FAIL (51,66s) | La validacion 'g4_gie_delayed_entry_hazard' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\g4_gie_delayed_entry_hazard.json
+ - flashover_simple_house: PASS (28,31s)
+ - glass_break_window_spike: PASS (22,37s)
+ - pu_sofa_fec_incapacitation: PASS (77,99s)
+ - pvc_curtain_hcl_release: PASS (57,61s)
+ - compact_apartment_smoke: PASS (29,54s)
+ - uk_bungalow_smoke: PASS (54,9s)
+ - piso_mediterraneo_smoke: PASS (91,85s)
+ - two_bed_apartment_smoke: PASS (58,45s)
+ - three_bed_apartment_smoke: PASS (74,25s)
+ - row_house_ground_floor_smoke: PASS (48,05s)
+ - ranch_family_house_smoke: PASS (73,51s)
+ - energy_budget_living_room: PASS (28,11s)
+ - kitchen_grease_pool_fire: PASS (40,41s)
+ - ranch_radiation_target_ignition: PASS (64,41s)
+ - co_oxidation_post_flashover: PASS (48,3s)
+ - hrr_tabulated_curve_sofa: PASS (56,67s)
+ - char_layer_loi_wood: PASS (56,47s)
+ - ppv_attack_pressurized: FAIL (70,44s) | La validacion 'ppv_attack_pressurized' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\ppv_attack_pressurized.json
+ - mediterraneo_concrete_wall_conduction: PASS (73,4s)
+ - wind_assisted_exterior_spread: FAIL (40,72s) | La validacion 'wind_assisted_exterior_spread' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\wind_assisted_exterior_spread.json
+ - tc_array_iso9705: PASS (29,16s)
+ - c_balance_high_phi: PASS (38,24s)
+ - secondary_ignition_demo: PASS (96,35s)
+ - two_storey_smoke: FAIL (38,55s) | La validacion 'two_storey_smoke' no supera la baseline. Revisar reporte: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\reports\two_storey_smoke.json
+ - conservation_transport: PASS (18,96s)
+ - victim_fed_incapacitation: PASS (76,72s)
+[Validation Suite] Duracion total: 2503,59s
+[Validation Suite] Resultado final: FAIL

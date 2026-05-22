@@ -187,10 +187,20 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 
 		var t_upper_k: float = room.temp_upper_c + 273.15
 
-		# Efecto chimenea: presión física de boyanza (sí usa overpressure_pa).
+		# Presión de boyanza por gas caliente en la zona superior (restaurado de b844be6).
+		var effective_hot_layer_m: float = _call_room_float(
+			effective_hot_layer_callable,
+			room,
+			clampf(room.thermal_layer_m, 0.0, room.height_m)
+		)
+		var h_smoke_m: float = maxf(0.0, room.height_m - effective_hot_layer_m)
+		var dp_buoyancy: float = rho_ext * g * h_smoke_m * maxf(0.0, 1.0 - t_ext_k / t_upper_k)
+		var dp_stack: float = 0.0
 		if stack_effect_enabled and room.floor_level_z_m > 0.01:
-			var dp_stack: float = rho_ext * g * room.floor_level_z_m * maxf(0.0, 1.0 - t_ext_k / t_upper_k)
-			room.overpressure_pa += dp_stack * dt / 5.0
+			dp_stack = rho_ext * g * room.floor_level_z_m * maxf(0.0, 1.0 - t_ext_k / t_upper_k)
+		var tau_s: float = 5.0
+		room.overpressure_pa += (dp_buoyancy + dp_stack - room.overpressure_pa) * minf(1.0, dt / tau_s)
+		room.overpressure_pa = maxf(0.0, room.overpressure_pa)
 
 		if room.overpressure_pa < pressure_vent_threshold_pa:
 			continue

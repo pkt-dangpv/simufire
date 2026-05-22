@@ -44,8 +44,8 @@ var hot_gas_irritant_carry_fraction: float = 0.0
 # realismo de la capa caliente. Las tasas empíricas anteriores enfriaban
 # artificialmente la zona superior (CFAST no tiene estos términos explícitos),
 # manteniendo la densidad del gas alta y la capa de interfaz demasiado alta.
-var upper_to_lower_loss_rate: float = 0.013
-var upper_to_ambient_loss_rate: float = 0.004
+var upper_to_lower_loss_rate: float = 0.025
+var upper_to_ambient_loss_rate: float = 0.008
 var lower_layer_warming_rate: float = 0.012
 # Altura umbral de la zona inferior por debajo de la cual la transferencia upper→lower
 # se atenúa linealmente hasta cero. Cuando la capa caliente desciende a nivel de
