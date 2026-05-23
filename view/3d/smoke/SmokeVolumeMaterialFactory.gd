@@ -20,6 +20,7 @@ uniform float vertical_gradient_strength = 0.68;
 uniform float lower_density_floor = 0.30;
 uniform float flow_strength = 0.0;
 uniform float flow_speed = 0.30;
+uniform float flow_direction = 0.0;
 
 varying float smoke_local_y;
 varying float smoke_horizontal_face;
@@ -69,7 +70,10 @@ void fragment() {
 	height_gradient = mix(1.0, height_gradient, vertical_gradient_strength);
 	float bottom_sheet = bottom_face * smoke_color.a * density * bottom_surface_strength * mix(0.18, 0.64, filament) * height_gradient;
 	float base_alpha = smoke_color.a * density * mix(0.11, 0.78, filament) * max(0.30, vertical_edge) * max(0.68, side_edge) * face_visibility * height_gradient;
-	float moving_band = 0.5 + 0.5 * sin((uv.y - TIME * flow_speed + n * 0.18) * 18.0);
+	float flow_axis_mix = clamp(abs(flow_direction), 0.0, 1.0);
+	float flow_axis = mix(uv.y, uv.x, flow_axis_mix);
+	float flow_sign = flow_direction < 0.0 ? -1.0 : 1.0;
+	float moving_band = 0.5 + 0.5 * sin((flow_axis * flow_sign - TIME * flow_speed + n * 0.18) * 18.0);
 	float flow_filament = smoothstep(0.58, 0.98, moving_band) * side_face * flow_strength * (0.38 + filament * 0.62);
 	float alpha = base_alpha * mix(0.26, 1.0, bottom_fade) + smoke_color.a * density * edge_band_strength * edge_band * side_face * side_visibility + bottom_sheet;
 	alpha += smoke_color.a * density * flow_filament;
@@ -109,6 +113,7 @@ static func create_volume(smoke_color: Color) -> ShaderMaterial:
 	material.set_shader_parameter("lower_density_floor", 0.30)
 	material.set_shader_parameter("flow_strength", 0.0)
 	material.set_shader_parameter("flow_speed", 0.30)
+	material.set_shader_parameter("flow_direction", 0.0)
 	return material
 
 

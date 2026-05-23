@@ -1348,6 +1348,11 @@ func _step_gas_exchange(dt: float) -> void:
 	if building == null:
 		return
 
+	# 1.5A: resetear mdot_vent_kg_s antes de que los sistemas lo acumulen
+	for room in building.get_rooms().values():
+		if room != null:
+			room.mdot_vent_kg_s = 0.0
+
 	var hooks: Dictionary = _build_gas_exchange_hooks()
 	var pressure_result: Dictionary = gas_exchange_system.step_pressure_venting(building, dt, hooks)
 	smoke_vented_total_kg += float(pressure_result.get("smoke_vented_kg", 0.0))

@@ -43,7 +43,7 @@ CASES_DIR   = ROOT / "sim" / "validation" / "cases"
 BASELINES_DIR = ROOT / "sim" / "validation" / "baselines"
 REPORTS_DIR = ROOT / "sim" / "validation" / "reports"
 REF_CHECKS  = REPORTS_DIR / "reference_checks.json"
-ESTADO_FILE = ROOT / "ESTADO_SESION_2026-05-21.md"
+ESTADO_FILE = ROOT / "ESTADO_SESION_2026-05-23.md"
 
 # Cases that intentionally have no baseline file.
 # They are validated by reference_checks.json (CFAST point checks) or

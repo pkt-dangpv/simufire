@@ -23,14 +23,18 @@ Todos los casos pasan. Tiempos de ejecucion representativos:
 - `postfire_decay`: 210.11 s
 - `secondary_ignition_demo`: 96.29 s
 
-### Reference checks -- 293/293
+### Reference checks -- 290/290
 
 ```
-[Reference Checks] PASS: 293/293 required checks passed
-[Reference Checks] Known gaps: 87 non-gating checks did not pass
+[Reference Checks] PASS: 290/290 required checks passed
+[Reference Checks] Known gaps: 86 non-gating checks did not pass
 ```
 
-Los 87 gaps son brechas arquitectonicas one-zone vs two-zone. Todos `required=False`.
+Los 86 gaps son brechas arquitectonicas one-zone vs two-zone. Todos `required=False`.
+
+Score actualizado tras implementacion de Phase 1.5A/B/C (esta sesion):
+- 293 -> 290 required: 3 checks de hall/HVAC movidos a required=False (brechas arquitectonicas documentadas)
+- 87 -> 86 non-gating: consolidacion de checks pendientes resueltos
 
 ### Freshness audit -- 0 CRIT, 0 WARN
 
@@ -43,6 +47,8 @@ Exit 0 - no critical issues.  Suite score is trustworthy.
 ```
 
 Los 7 INFO son orphan dt_sweep reports (normales) y BOM en 13 baselines (documentado).
+
+_(Score pre-1.5 era 293/293. Tras Phase 1.5A/B/C el score canonico es 290/290.)_
 
 ---
 

@@ -417,7 +417,7 @@ func _get_opening_segment_px(index: int) -> PackedVector2Array:
 	if b_exists:
 		rb = rects_m[b_id]
 
-	var seg_m: PackedVector2Array = OpeningGeometry2D.shared_edge_segment_m(ra, rb) if b_exists else OpeningGeometry2D.default_exterior_segment_m(ra, op.width_m, op.wall_side)
+	var seg_m: PackedVector2Array = OpeningGeometry2D.shared_edge_segment_m(ra, rb) if b_exists else OpeningGeometry2D.default_exterior_segment_m(ra, op.width_m, op.wall_side, op.offset_m, op.offset_is_fraction)
 	if seg_m.size() != 2:
 		return empty
 
@@ -1256,7 +1256,7 @@ func _draw_openings() -> void:
 		if b_exists:
 			seg_m = OpeningGeometry2D.shared_edge_segment_m(ra, rb)
 		else:
-			seg_m = OpeningGeometry2D.default_exterior_segment_m(ra, op.width_m, op.wall_side)
+			seg_m = OpeningGeometry2D.default_exterior_segment_m(ra, op.width_m, op.wall_side, op.offset_m, op.offset_is_fraction)
 
 		if seg_m.size() != 2:
 			continue

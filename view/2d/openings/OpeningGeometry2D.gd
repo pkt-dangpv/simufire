@@ -35,18 +35,28 @@ static func shared_edge_segment_m(a: Rect2, b: Rect2) -> PackedVector2Array:
 	return PackedVector2Array()
 
 
-static func default_exterior_segment_m(r: Rect2, width_m: float, wall_side: String = "") -> PackedVector2Array:
+static func default_exterior_segment_m(
+	r: Rect2,
+	width_m: float,
+	wall_side: String = "",
+	offset_m: float = 0.5,
+	offset_is_fraction: bool = true
+) -> PackedVector2Array:
 	var side: String = wall_side.to_lower()
 
 	if side == "left" or side == "right":
 		var safe_height: float = clampf(width_m, 0.20, maxf(0.20, r.size.y))
-		var y1: float = r.position.y + (r.size.y - safe_height) * 0.5
+		var y_center: float = r.position.y + r.size.y * offset_m if offset_is_fraction else r.position.y + offset_m
+		y_center = clampf(y_center, r.position.y + safe_height * 0.5, r.position.y + r.size.y - safe_height * 0.5)
+		var y1: float = y_center - safe_height * 0.5
 		var y2: float = y1 + safe_height
 		var x_vertical: float = r.position.x if side == "left" else (r.position.x + r.size.x)
 		return PackedVector2Array([Vector2(x_vertical, y1), Vector2(x_vertical, y2)])
 
 	var safe_width: float = clampf(width_m, 0.20, maxf(0.20, r.size.x))
-	var x1: float = r.position.x + (r.size.x - safe_width) * 0.5
+	var x_center: float = r.position.x + r.size.x * offset_m if offset_is_fraction else r.position.x + offset_m
+	x_center = clampf(x_center, r.position.x + safe_width * 0.5, r.position.x + r.size.x - safe_width * 0.5)
+	var x1: float = x_center - safe_width * 0.5
 	var x2: float = x1 + safe_width
 	var y: float = r.position.y if side != "bottom" else (r.position.y + r.size.y)
 	return PackedVector2Array([Vector2(x1, y), Vector2(x2, y)])

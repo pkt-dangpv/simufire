@@ -114,6 +114,8 @@ func build_state(context: Dictionary) -> Dictionary:
 			# Fórmula salas frías: x_O2_eff = room.o2 / (1 + co2_kg/air_kg * Mair/Mco2)
 			"o2": room.o2 if room.hrr_kw > 0.0 else room.o2 / (1.0 + room.co2_kg / maxf(0.1, room.volume_m3() * 1.2) * (29.0 / 44.0)),
 			"o2_upper": room.o2_upper,
+			"o2_lower": room.o2_lower,
+			"mdot_vent_kg_s": room.mdot_vent_kg_s,
 
 			"h_layer_m": room.h_layer_m,
 			"thermal_layer_m": thermal_layer_m,

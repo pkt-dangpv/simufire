@@ -50,6 +50,7 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var show_layer_150c: bool = false
 @export var show_hrr_columns: bool = true
 @export var show_fuel_objects_3d: bool = true
+@export var show_auto_room_furniture_3d: bool = true
 @export var show_detector_markers_3d: bool = true
 @export var show_victim_markers_3d: bool = true
 @export var fuel_object_3d_height_m: float = 0.34
@@ -476,6 +477,7 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	_atmosphere_root.add_child(safety_markers_root)
 
 	_room_items[room_id] = {
+		"room_id": room_id,
 		"rect": rect_m,
 		"height_m": height_m,
 		"floor_level_m": floor_level_m,
@@ -897,6 +899,10 @@ func _update_room(room_id: int) -> void:
 	var layer_150c_m: float = clampf(float(rs.get("layer_150c_m", height_m)), 0.0, height_m)
 	var hrr_kw: float = maxf(0.0, float(rs.get("hrr_kw", 0.0)))
 	var visibility_m: float = float(rs.get("visibility_m", 30.0))
+	item["kind"] = String(rs.get("kind", ""))
+	item["temp_upper_c"] = temp_upper_c
+	item["overpressure_pa"] = float(rs.get("overpressure_pa", 0.0))
+	item["visibility_m"] = visibility_m
 
 	var floor_mat := floor.material_override as StandardMaterial3D
 	if floor_mat != null:
@@ -1634,6 +1640,8 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 		return
 	var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
 	var objects: Array = rs.get("fuel_objects", [])
+	if show_auto_room_furniture_3d and not _has_visible_fuel_object_snapshots(objects):
+		objects = _fallback_furniture_snapshots(int(item.get("room_id", -1)), rs, rect)
 
 	if _first_person_overlay:
 		fuel_objects_root.visible = false
@@ -1725,6 +1733,73 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 
 	item["fuel_obj_nodes"] = fuel_obj_nodes
 	fuel_objects_root.visible = fuel_obj_nodes.size() > 0
+
+
+func _has_visible_fuel_object_snapshots(objects: Array) -> bool:
+	for raw_obj in objects:
+		if typeof(raw_obj) != TYPE_DICTIONARY:
+			continue
+		var obj: Dictionary = raw_obj
+		var obj_id: String = String(obj.get("id", ""))
+		if obj_id != "" and not obj_id.begins_with("room_proxy_"):
+			return true
+	return false
+
+
+func _fallback_furniture_snapshots(room_id: int, rs: Dictionary, rect: Rect2) -> Array:
+	var kind: String = String(rs.get("kind", "")).to_lower()
+	var w: float = maxf(0.8, rect.size.x)
+	var d: float = maxf(0.8, rect.size.y)
+	var specs: Array = []
+	if kind.contains("escalera") or kind.contains("stair"):
+		return specs
+	if kind.contains("salon") or kind.contains("living"):
+		var sofa_w: float = minf(2.25, maxf(1.20, w - 0.90))
+		specs.append(_fallback_furniture_obj(room_id, "sofa", "Sofa", "sofa", Vector2(0.35, 0.35), Vector2(sofa_w, 0.82)))
+		var rug_size := Vector2(minf(2.35, maxf(1.10, w - 1.25)), minf(1.30, maxf(0.70, d - 1.55)))
+		specs.append(_fallback_furniture_obj(room_id, "rug", "Alfombra", "rug", Vector2((w - rug_size.x) * 0.45, (d - rug_size.y) * 0.55), rug_size))
+		specs.append(_fallback_furniture_obj(room_id, "table", "Mesa centro", "coffee_table", Vector2(w * 0.42, d * 0.46), Vector2(minf(1.15, w * 0.28), 0.62)))
+		specs.append(_fallback_furniture_obj(room_id, "tv", "Mueble TV", "tv_stand", Vector2(maxf(0.35, w - minf(1.55, w - 0.95) - 0.35), 0.30), Vector2(minf(1.55, w - 0.95), 0.36)))
+	elif kind.contains("dorm") or kind.contains("bed"):
+		var bed_size := Vector2(minf(1.90, maxf(1.25, w - 1.20)), minf(1.55, maxf(0.95, d - 1.05)))
+		var bed_x: float = maxf(0.30, w - bed_size.x - 0.35) if w < 3.9 else 0.35
+		specs.append(_fallback_furniture_obj(room_id, "bed", "Cama", "bed", Vector2(bed_x, 0.35), bed_size))
+		specs.append(_fallback_furniture_obj(room_id, "wardrobe", "Armario", "wardrobe", Vector2(0.35 if bed_x > w * 0.45 else maxf(0.35, w - 1.55), 0.22), Vector2(minf(1.25, maxf(0.85, w - 1.10)), 0.38)))
+		specs.append(_fallback_furniture_obj(room_id, "nightstand", "Mesilla", "dresser", Vector2(clampf(bed_x + bed_size.x + 0.20, 0.35, maxf(0.35, w - 0.72)), 0.45), Vector2(0.42, 0.42)))
+	elif kind.contains("cocina") or kind.contains("kitchen"):
+		specs.append(_fallback_furniture_obj(room_id, "counter", "Encimera", "kitchen_unit", Vector2(0.28, 0.22), Vector2(minf(maxf(1.35, w - 1.20), 3.25), 0.62)))
+		specs.append(_fallback_furniture_obj(room_id, "hob", "Grasa y aceites", "pool", Vector2(minf(w - 0.75, 1.70), 0.34), Vector2(0.42, 0.42)))
+		if w > 2.45 and d > 1.75:
+			specs.append(_fallback_furniture_obj(room_id, "table", "Mesa cocina", "table", Vector2(maxf(0.42, w - 1.65), maxf(0.55, d - 1.15)), Vector2(1.05, 0.68)))
+	elif kind.contains("pasillo") or kind.contains("hall") or kind.contains("corridor"):
+		var runner_w: float = minf(0.82, maxf(0.36, w - 0.42))
+		specs.append(_fallback_furniture_obj(room_id, "runner", "Alfombra pasillo", "rug", Vector2((w - runner_w) * 0.5, 0.42), Vector2(runner_w, minf(4.90, maxf(0.75, d - 0.85)))))
+		if w >= 1.15:
+			specs.append(_fallback_furniture_obj(room_id, "console", "Consola", "console", Vector2(0.14, 0.35), Vector2(minf(0.36, w - 0.65), 0.82)))
+	elif kind.contains("bano") or kind.contains("bath"):
+		specs.append(_fallback_furniture_obj(room_id, "vanity", "Mueble lavabo", "bath_vanity", Vector2((w - minf(0.85, w - 0.70)) * 0.5, maxf(0.28, d - 0.72)), Vector2(minf(0.85, maxf(0.55, w - 0.70)), 0.42)))
+		specs.append(_fallback_furniture_obj(room_id, "towels", "Toallas", "textile_pile", Vector2(maxf(0.35, w - 0.85), 0.28), Vector2(0.50, 0.68)))
+	else:
+		specs.append(_fallback_furniture_obj(room_id, "shelf", "Estanteria", "bookcase", Vector2(0.22, 0.28), Vector2(0.42, minf(1.35, d - 0.55))))
+		specs.append(_fallback_furniture_obj(room_id, "boxes", "Cajas", "clutter", Vector2(maxf(0.40, w - 1.05), maxf(0.40, d - 1.00)), Vector2(0.72, 0.58)))
+	return specs
+
+
+func _fallback_furniture_obj(room_id: int, suffix: String, name: String, kind: String, pos_m: Vector2, size_m: Vector2) -> Dictionary:
+	return {
+		"id": "visual_%d_%s" % [room_id, suffix],
+		"name": name,
+		"kind": kind,
+		"room_id": room_id,
+		"position_m": pos_m,
+		"size_m": size_m,
+		"rotation_deg": 0.0,
+		"elevation_m": 0.0,
+		"fuel_energy_MJ": 1.0,
+		"remaining_fuel_MJ": 1.0,
+		"max_hrr_kw": 1.0,
+		"state": "cold"
+	}
 
 
 func _create_fuel_object_node(obj_id: String, kind_name: String, size_m: Vector2) -> Node3D:

@@ -153,6 +153,11 @@ var wall_thickness_m: float = -1.0
 var wall_T_mid_c: float = 20.0    # T[2] — nodo central  [°C]
 var wall_T_outer_c: float = 20.0  # T[4] — cara exterior [°C]
 
+# 1.5A: flujo másico total que pasa por aperturas exteriores [kg/s].
+# Acumulado por GasExchangeSystem (venteo por presión + ventilación natural).
+# Reseteado al inicio de cada _step_gas_exchange en SimulationEngine.
+var mdot_vent_kg_s: float = 0.0
+
 # Eventos
 var flashover_triggered: bool = false
 var flashover_time_s: float = -1.0
@@ -268,3 +273,4 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	# SF-AUD-030: resetear perfil 1D de pared
 	wall_T_mid_c = ambient_temp_c
 	wall_T_outer_c = ambient_temp_c
+	mdot_vent_kg_s = 0.0

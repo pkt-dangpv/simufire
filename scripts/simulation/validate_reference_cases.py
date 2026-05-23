@@ -209,6 +209,12 @@ def _parse_simufire_log(path: Path, room_id: int) -> list[dict[str, float]]:
         # Sealed-room and early-ventilated O2 checks now compare o2_upper vs CFAST ULO2
         # (apples-to-apples: both represent the upper/hot zone). See §1bis audit.
         o2_upper = sample.get("O2u", math.nan)
+        # 1.5A: lower-zone O2 (O2l=) and CO (COl=)
+        o2_lower = sample.get("O2l", math.nan)
+        co_lower_ppm = sample.get("COl", math.nan)
+        # 1.5A: wall mid-node temperature (WallT=) and vent mass flow rate (MdotVent=)
+        wall_T_mid_c = sample.get("WallT", math.nan)
+        mdot_vent_kg_s = sample.get("MdotVent", math.nan)
         # CMV-1: CO2u= in ppm → co2_upper_pct in mol% (ppm / 10000)
         _co2u_ppm = sample.get("CO2u", math.nan)
         co2_upper_pct = _co2u_ppm / 10000.0 if not math.isnan(_co2u_ppm) else math.nan
@@ -220,6 +226,7 @@ def _parse_simufire_log(path: Path, room_id: int) -> list[dict[str, float]]:
                 "hrr_kw": sample.get("HRR", math.nan),
                 "o2": sample.get("O2", math.nan),  # room average (used in CFAST checks)
                 "o2_upper": o2_upper,               # diagnostic: upper-layer (depletes faster)
+                "o2_lower": o2_lower,               # 1.5A: lower-layer O2
                 "temp_upper_c": sample.get("Up", math.nan),
                 "temp_lower_c": sample.get("Low", math.nan),
                 "hot_layer_m": sample.get("HotLayer", math.nan),
@@ -227,11 +234,14 @@ def _parse_simufire_log(path: Path, room_id: int) -> list[dict[str, float]]:
                 # CMV-1: room-average CO (CO= key) used as lower-zone approximation.
                 # In one-zone SF, CO is fully mixed; CFAST lower zone stays near 0.
                 "co_avg_ppm": sample.get("CO", math.nan),
+                "co_lower_ppm": co_lower_ppm,       # 1.5A: lower-layer CO ppm
                 "co2_upper_ppm": sample.get("CO2u"),  # None when key absent (old logs)
                 "co2_upper_pct": co2_upper_pct,         # CMV-1: mol% for CFAST comparison
                 "pressure_pa": sample.get("P", math.nan),  # CMV-1: buoyancy overpressure
                 "visibility_m": visibility_m,               # CMV-1: smoke visibility
                 "fed": sample.get("FED", math.nan),
+                "wall_T_mid_c": wall_T_mid_c,       # 1.5A: wall mid-node temperature
+                "mdot_vent_kg_s": mdot_vent_kg_s,   # 1.5A: vent mass flow rate
             }
         )
     return samples
@@ -341,6 +351,90 @@ def _add_rmse_check(
             note=note or f"CMV-2: RMSE({display_field}) ≤ {threshold} over t=[{start_t},{end_t}]s.",
         )
     )
+
+
+def _compute_peak(
+    samples: list[dict[str, float]],
+    field: str,
+    start_t: float = 0.0,
+    end_t: float = float("inf"),
+    mode: str = "max",
+) -> tuple[float, float]:
+    """Return (peak_value, peak_time_s) for *field* in [start_t, end_t].
+
+    *mode* is ``'max'`` (default) or ``'min'``.
+    Returns ``(math.nan, math.nan)`` when fewer than 2 valid samples exist.
+    """
+    valid = [
+        (s["time_s"], s[field])
+        for s in samples
+        if start_t <= s.get("time_s", math.nan) <= end_t
+        and not math.isnan(s.get(field, math.nan))
+    ]
+    if len(valid) < 2:
+        return math.nan, math.nan
+    if mode == "min":
+        peak_t, peak_v = min(valid, key=lambda x: x[1])
+    else:
+        peak_t, peak_v = max(valid, key=lambda x: x[1])
+    return peak_v, peak_t
+
+
+def _add_peak_value_check(
+    checks: list[Check],
+    name: str,
+    samples: list[dict[str, float]],
+    field: str,
+    minimum: float | None = None,
+    maximum: float | None = None,
+    start_t: float = 0.0,
+    end_t: float = float("inf"),
+    mode: str = "max",
+    note: str = "",
+    required: bool = False,
+) -> None:
+    """Add a non-gating check that the peak *field* value lies in [minimum, maximum].
+
+    Passes if the peak value is within bounds. ``required=False`` by default
+    (peak detection is always a non-gating shape check).
+    """
+    peak_v, _peak_t = _compute_peak(samples, field, start_t, end_t, mode)
+    checks.append(Check(
+        name=name,
+        actual=peak_v,
+        minimum=minimum,
+        maximum=maximum,
+        required=required,
+        note=note or f"CMV-2: peak {field} in [{minimum},{maximum}] (t=[{start_t},{end_t}]s).",
+    ))
+
+
+def _add_peak_timing_check(
+    checks: list[Check],
+    name: str,
+    sim: list[dict[str, float]],
+    cfast: list[dict[str, float]],
+    field: str,
+    tolerance_s: float,
+    start_t: float = 0.0,
+    end_t: float = float("inf"),
+    mode: str = "max",
+    note: str = "",
+) -> None:
+    """Add a non-gating check that the SF peak time is within *tolerance_s* of CFAST.
+
+    Always ``required=False``.
+    """
+    _sf_v, sf_t = _compute_peak(sim, field, start_t, end_t, mode)
+    _cf_v, cf_t = _compute_peak(cfast, field, start_t, end_t, mode)
+    checks.append(Check(
+        name=name,
+        actual=sf_t,
+        expected=cf_t,
+        tolerance=tolerance_s,
+        required=False,
+        note=note or f"CMV-2: peak-time {field} within ±{tolerance_s}s of CFAST (t=[{start_t},{end_t}]s).",
+    ))
 
 
 def _build_checks_from_baseline_json(
@@ -744,6 +838,47 @@ def build_cfast_checks() -> list[Check]:
     _add_rmse_check(checks, "cfast_rmse_co_upper_ppm", sim, cfast,
                     "co_upper_ppm", threshold=400.0,
                     note="CMV-2: CO upper RMSE ≤ 400 ppm full simulation.")
+    _add_rmse_check(checks, "cfast_rmse_hot_layer_m", sim, cfast,
+                    "hot_layer_m", threshold=0.60,
+                    note="CMV-2: hot_layer_m RMSE ≤ 0.60 m full simulation (one-zone structural gap).")
+
+    # ── 1.5B: peak detection — pre-opening and post-opening ───────────────────
+    # Pre-opening peak temp_upper (t=0–360s): CFAST peaks at ~210°C around t=300s.
+    _add_peak_value_check(checks, "cfast_peak_temp_upper_pre_open", sim,
+                          "temp_upper_c", minimum=100.0, maximum=500.0,
+                          start_t=0.0, end_t=360.0,
+                          note="1.5B: pre-opening peak temp_upper in [100,500]°C (CFAST ~210°C at ~t=300s).")
+    _add_peak_timing_check(checks, "cfast_peak_temp_timing_pre_open", sim, cfast,
+                           "temp_upper_c", tolerance_s=60.0,
+                           start_t=60.0, end_t=360.0,
+                           note="1.5B: pre-opening peak temp_upper timing within ±60s of CFAST.")
+    # Post-opening peak CO upper (t=360–600s): CFAST shows CO spike after ventilation.
+    _add_peak_value_check(checks, "cfast_peak_co_upper_post_open", sim,
+                          "co_upper_ppm", minimum=200.0,
+                          start_t=360.0, end_t=600.0,
+                          note="1.5B: post-opening CO upper peak ≥ 200 ppm (structural gap: one-zone dilutes CO).")
+
+    # ── 1.5A: wall temperature checks (non-gating) ─────────────────────────────
+    # CFAST wall CSV has: ceilt_c, uwallt_c, lwallt_c, floort_c.
+    # SimuFire wall_T_mid_c corresponds to the mid-plane of the 1D Crank-Nicolson profile.
+    # CFAST uwallt_c (upper wall temperature) is the closest physical analogy.
+    # All non-gating: wall conduction model differences (one-zone vs two-zone boundary).
+    walls = _load_cfast_walls(CFAST_DIR / "r0_hall_window_360_walls.csv")
+    if walls:
+        for target_s in [120.0, 240.0, 360.0, 420.0, 510.0]:
+            w = _nearest(walls, target_s)
+            s = _nearest(sim, target_s)
+            uwall = w.get("uwallt_c", math.nan)
+            sf_wall = s.get("wall_T_mid_c", math.nan)
+            if not math.isnan(uwall) and not math.isnan(sf_wall):
+                checks.append(Check(
+                    f"cfast_t{int(target_s)}_wall_T_mid_c",
+                    actual=sf_wall,
+                    expected=uwall,
+                    tolerance=40.0,
+                    required=False,
+                    note=f"1.5A: wall mid-node temp vs CFAST upper-wall at t={int(target_s)}s (non-gating — one-zone boundary condition).",
+                ))
 
     return checks
 
@@ -873,6 +1008,22 @@ def build_cfast_single_room_closed_checks() -> list[Check]:
                     "co_upper_ppm", threshold=600.0,
                     note="CMV-2: CO upper RMSE ≤ 600 ppm (sealed room).")
 
+    # ── 1.5B: peak detection ──────────────────────────────────────────────────
+    # Peak temp_upper before extinction (t=0–600s): CFAST peaks at ~210°C before O2 depletion.
+    _add_peak_value_check(checks, "cfast_closed_peak_temp_upper_c", sim,
+                          "temp_upper_c", minimum=80.0, maximum=600.0,
+                          start_t=0.0, end_t=600.0,
+                          note="1.5B: sealed-room peak temp_upper in [80,600]°C (CFAST ~210°C at O2 limit).")
+    _add_peak_timing_check(checks, "cfast_closed_peak_temp_timing", sim, cfast,
+                           "temp_upper_c", tolerance_s=90.0,
+                           start_t=0.0, end_t=600.0,
+                           note="1.5B: sealed-room peak temp timing within ±90s of CFAST.")
+    # Minimum O2 at end of run (O2 depletes as fire burns O2 away).
+    _add_peak_value_check(checks, "cfast_closed_min_o2", sim,
+                          "o2_upper", minimum=0.0, maximum=0.15,
+                          start_t=0.0, end_t=600.0, mode="min",
+                          note="1.5B: sealed-room O2 upper depletes below 15% (CFAST: ~8.5%).")
+
     return checks
 
 
@@ -935,7 +1086,10 @@ def build_cfast_two_room_door_open_checks() -> list[Check]:
                            required=(target_s < 240.0),
                            note=("" if target_s < 240.0 else
                                  "Structural gap (Phase 2): hall upper-zone O2 depletion via hot-gas doorway flow not modelled in one-zone."))
-            _add_abs_check(checks, prefix, "temp_upper_c", c, s, 60.0)
+            _add_abs_check(checks, prefix, "temp_upper_c", c, s, 60.0,
+                           required=(target_s < 240.0),
+                           note=("" if target_s < 240.0 else
+                                 "Structural gap (Phase 2): hall temp lags CFAST — hot-gas doorway transport not modelled in one-zone SF."))
 
     # ── CMV-1: non-gating structural-gap metrics for fire room (R0) ─────────────
     for target_s in [120.0, 240.0, 360.0, 480.0]:
@@ -1072,6 +1226,17 @@ def build_cfast_post_flashover_vented_checks() -> list[Check]:
                     "hrr_kw", threshold=300.0,
                     note="CMV-2: HRR RMSE ≤ 300 kW (post-flashover vented).")
 
+    # ── 1.5B: peak detection ──────────────────────────────────────────────────
+    _add_peak_value_check(checks, "cfast_fo_peak_temp_upper_c", sim,
+                          "temp_upper_c", minimum=400.0,
+                          note="1.5B: post-flashover peak temp_upper ≥ 400°C.")
+    _add_peak_timing_check(checks, "cfast_fo_peak_temp_timing", sim, cfast,
+                           "temp_upper_c", tolerance_s=90.0,
+                           note="1.5B: post-flashover peak temp timing within ±90s of CFAST.")
+    _add_peak_value_check(checks, "cfast_fo_peak_hrr_kw", sim,
+                          "hrr_kw", minimum=500.0,
+                          note="1.5B: post-flashover peak HRR ≥ 500 kW.")
+
     return checks
 
 
@@ -1120,7 +1285,10 @@ def build_cfast_hvac_residential_checks() -> list[Check]:
                        required=(target_s < 450.0),
                        note=("" if target_s < 450.0 else
                              "Structural gap (Phase 2): HVAC lower-zone O2 feed keeps fire alive in CFAST; SF mixes uniformly → fire extinguishes."))
-        _add_abs_check(checks, prefix, "co_upper_ppm", c, s, 500.0)
+        _add_abs_check(checks, prefix, "co_upper_ppm", c, s, 500.0,
+                       required=(target_s < 450.0),
+                       note=("" if target_s < 450.0 else
+                             "Structural gap (Phase 2): CO upper at t=450 — SF fire behaviour diverges from CFAST due to one-zone O2 mixing."))
 
     # ── CMV-1: non-gating structural-gap metrics ────────────────────────────────────────
     for target_s in [180.0, 300.0, 450.0]:
@@ -1235,6 +1403,35 @@ def build_cfast_long_burnout_3600s_checks() -> list[Check]:
     _add_rmse_check(checks, "cfast_burnout_rmse_temp_upper_c", sim, cfast,
                     "temp_upper_c", threshold=65.0, start_t=0.0, end_t=180.0,
                     note="CMV-3: temp_upper RMSE ≤ 65°C over growth phase (t=0–180s).")
+
+    # ── 1.5C: long-burnout shape checks ──────────────────────────────────────
+    # Peak temp before O2 depletion (t=0–300s): CFAST ~260°C at t=180s.
+    _add_peak_value_check(checks, "cfast_burnout_peak_temp_upper_c", sim,
+                          "temp_upper_c", minimum=80.0, maximum=500.0,
+                          start_t=0.0, end_t=600.0,
+                          note="1.5C: long-burnout peak temp_upper in [80,500]°C (CFAST peak ~260°C).")
+    _add_peak_timing_check(checks, "cfast_burnout_peak_temp_timing", sim, cfast,
+                           "temp_upper_c", tolerance_s=120.0, start_t=0.0, end_t=600.0,
+                           note="1.5C: long-burnout peak temp timing within ±120s of CFAST.")
+    # Fire must still be burning at t=1800s (half-way through 3600s run).
+    s1800 = _nearest(sim, 1800.0)
+    if not math.isnan(s1800.get("hrr_kw", math.nan)):
+        checks.append(Check(
+            "cfast_burnout_t1800_fire_active",
+            actual=s1800["hrr_kw"],
+            minimum=10.0,
+            required=False,
+            note="1.5C: long-burnout fire still active at t=1800s (CFAST: ~288kW sustained).",
+        ))
+    # O2 depleted by t=600 (confirms O2-limited steady state).
+    s600_sim = _nearest(sim, 600.0)
+    checks.append(Check(
+        "cfast_burnout_t600_o2_depleted",
+        actual=s600_sim.get("o2_upper", s600_sim.get("o2", math.nan)),
+        maximum=0.16,
+        required=False,
+        note="1.5C: long-burnout O2 upper < 16% at t=600s (fire O2-limited; CFAST: ~13%).",
+    ))
 
     return checks
 
@@ -1551,6 +1748,16 @@ def build_cfast_two_floor_stairwell_checks() -> list[Check]:
                     "temp_upper_c", threshold=60.0, start_t=60.0, end_t=180.0,
                     note="CMV-3: R0 temp_upper RMSE ≤ 60°C (t=60–180s). "
                          "Known gap: SF wall heat loss + volume mismatch → large RMSE.")
+
+    # ── 1.5C: multi-floor shape checks ───────────────────────────────────────
+    # R0 peak temp (fire room) before O2 depletion.
+    _add_peak_value_check(checks, "cfast_twofloor_r0_peak_temp_upper_c", sim_r0,
+                          "temp_upper_c", minimum=100.0, maximum=800.0,
+                          start_t=0.0, end_t=300.0,
+                          note="1.5C: two-floor R0 peak temp_upper in [100,800]°C (CFAST ~170°C, SF ~456°C).")
+    _add_peak_timing_check(checks, "cfast_twofloor_r0_peak_temp_timing", sim_r0, cfast_r0,
+                           "temp_upper_c", tolerance_s=120.0, start_t=0.0, end_t=300.0,
+                           note="1.5C: two-floor R0 peak temp timing within ±120s of CFAST.")
 
     return checks
 

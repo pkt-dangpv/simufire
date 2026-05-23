@@ -242,6 +242,8 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 			continue
 		var q_out_m3s: float = total_q_out_m3s
 		var smoke_out_kg: float = q_out_m3s * rho_hot * dt
+		# 1.5A: acumular flujo másico de salida por venteo de presión [kg/s]
+		room.mdot_vent_kg_s += q_out_m3s * rho_hot
 
 		smoke_out_kg = minf(smoke_out_kg, room.smoke_kg * 0.15)
 		if smoke_out_kg <= 0.0:
@@ -422,6 +424,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 				var room_mass_kg: float = maxf(1.0, room_out.volume_m3()) * air_density_kg_m3_s
 				fresh_air_kg = minf(fresh_air_kg, room_mass_kg * 0.30)
 				if fresh_air_kg > 0.0:
+					# 1.5A: acumular flujo másico de ventilación natural [kg/s]
+					room_out.mdot_vent_kg_s += fresh_air_kg / maxf(0.001, dt)
 					# O2: el aire fresco eleva el O2 de la sala hacia el nivel exterior
 					o2_delta_kg[room_out.id] += (building.outside_o2 - room_out.o2) * fresh_air_kg
 					# Purga de especies: el aire caliente sale por la mitad superior,

@@ -70,6 +70,7 @@ static func _update_horizontal(
 	var opening_bottom_m: float = pos3.y - door_height_m * 0.5
 	var opening_top_m: float = pos3.y + door_height_m * 0.5
 	var bottom_pair: Vector2 = _oriented_bottoms(item_a, item_b, bottom_a, bottom_b, opening_bottom_m, opening_top_m, thin_axis_is_x)
+	var flow_direction: float = _horizontal_flow_direction(item_a, item_b, thin_axis_is_x)
 	var curtain_bottom_m: float = minf(bottom_pair.x, bottom_pair.y)
 	var curtain_depth_m: float = maxf(0.0, opening_top_m - curtain_bottom_m)
 	var smoke_min_visible_depth_m: float = float(context.get("smoke_min_visible_depth_m", 0.05))
@@ -110,6 +111,7 @@ static func _update_horizontal(
 			"lower_density_floor": 0.24,
 			"flow_strength": clampf(0.26 + absf(alpha_a - alpha_b) * 1.20, 0.24, 0.72),
 			"flow_speed": 0.34,
+			"flow_direction": flow_direction,
 		},
 		clampf(curtain_alpha * 0.52, 0.035, 0.38)
 	)
@@ -193,6 +195,7 @@ static func _update_vertical(
 			"lower_density_floor": 0.18,
 			"flow_strength": 0.86,
 			"flow_speed": 0.62,
+			"flow_direction": 0.0,
 		},
 		clampf(curtain_alpha * 0.52, 0.035, 0.40)
 	)
@@ -231,6 +234,31 @@ static func _horizontal_source_alpha(alpha_a: float, alpha_b: float, has_missing
 	if has_missing_side:
 		return maxf(alpha_a, alpha_b) * 0.88
 	return maxf(alpha_a, alpha_b) * 0.72 + minf(alpha_a, alpha_b) * 0.28
+
+
+static func _horizontal_flow_direction(item_a: Dictionary, item_b: Dictionary, thin_axis_is_x: bool) -> float:
+	var score_a: float = _flow_score(item_a)
+	var score_b: float = _flow_score(item_b)
+	if absf(score_a - score_b) < 0.035:
+		return 0.0
+	if item_a.is_empty() or item_b.is_empty():
+		return 1.0 if score_a >= score_b else -1.0
+	var rect_a := Rect2(item_a.get("rect", Rect2()))
+	var rect_b := Rect2(item_b.get("rect", Rect2()))
+	var axis_a: float = rect_a.position.x + rect_a.size.x * 0.5 if thin_axis_is_x else rect_a.position.y + rect_a.size.y * 0.5
+	var axis_b: float = rect_b.position.x + rect_b.size.x * 0.5 if thin_axis_is_x else rect_b.position.y + rect_b.size.y * 0.5
+	var a_on_negative_side: bool = axis_a <= axis_b
+	var source_is_a: bool = score_a >= score_b
+	return 1.0 if source_is_a == a_on_negative_side else -1.0
+
+
+static func _flow_score(item: Dictionary) -> float:
+	if item.is_empty():
+		return 0.0
+	var alpha: float = float(item.get("smoke_alpha", 0.0))
+	var temp_c: float = maxf(0.0, float(item.get("temp_upper_c", 20.0)) - 20.0)
+	var pressure_pa: float = float(item.get("overpressure_pa", 0.0))
+	return alpha * 2.0 + clampf(temp_c / 500.0, 0.0, 1.2) + clampf(pressure_pa / 35.0, -0.35, 0.65)
 
 
 static func _oriented_bottoms(

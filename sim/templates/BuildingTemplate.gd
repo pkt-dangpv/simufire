@@ -508,7 +508,7 @@ func _apply_simple_house_furniture_layout(rooms_data: Array) -> void:
 			"ignition_temp_c": 330.0, "ignition_flux_kw_m2": 18.0,
 			"smoke_yield_kg_per_MJ": 0.018, "co_yield_kg_per_MJ": 0.0006},
 		{"id": "salon_mueble_tv", "name": "Mueble TV", "kind": "mobiliario_madera", "room_id": 0,
-			"position_m": {"x": 4.45, "y": 0.95}, "size_m": {"x": 0.35, "y": 1.45}, "rotation_deg": -90.0,
+			"position_m": {"x": 3.10, "y": 0.25}, "size_m": {"x": 1.25, "y": 0.35}, "rotation_deg": 0.0,
 			"footprint_m2": 0.6, "exposed_area_m2": 1.4, "elevation_m": 0.35,
 			"fuel_energy_MJ": 520.0, "max_hrr_kw": 260.0,
 			"ignition_temp_c": 290.0, "ignition_flux_kw_m2": 14.0,
@@ -532,7 +532,7 @@ func _apply_simple_house_furniture_layout(rooms_data: Array) -> void:
 			"ignition_temp_c": 310.0, "ignition_flux_kw_m2": 16.0,
 			"smoke_yield_kg_per_MJ": 0.012, "co_yield_kg_per_MJ": 0.0004},
 		{"id": "salon_aparador", "name": "Aparador bajo", "kind": "mobiliario_madera", "room_id": 0,
-			"position_m": {"x": 3.75, "y": 0.30}, "size_m": {"x": 0.90, "y": 0.35},
+			"position_m": {"x": 3.85, "y": 2.85}, "size_m": {"x": 0.55, "y": 0.90}, "rotation_deg": 90.0,
 			"footprint_m2": 0.55, "exposed_area_m2": 1.5, "elevation_m": 0.35,
 			"fuel_energy_MJ": 1700.0, "max_hrr_kw": 780.0,
 			"ignition_temp_c": 310.0, "ignition_flux_kw_m2": 16.0,
@@ -607,13 +607,13 @@ func _apply_simple_house_furniture_layout(rooms_data: Array) -> void:
 
 	rooms_data[3]["fuel_objects"] = [
 		{"id": "dorm2_cama", "name": "Cama individual", "kind": "mobiliario_tapizado", "room_id": 3,
-			"position_m": {"x": 0.25, "y": 0.55}, "size_m": {"x": 0.90, "y": 1.35},
+			"position_m": {"x": 1.85, "y": 0.28}, "size_m": {"x": 0.95, "y": 1.45},
 			"footprint_m2": 1.7, "exposed_area_m2": 2.7, "elevation_m": 0.45,
 			"fuel_energy_MJ": 850.0, "max_hrr_kw": 480.0,
 			"ignition_temp_c": 295.0, "ignition_flux_kw_m2": 15.0,
 			"smoke_yield_kg_per_MJ": 0.013, "co_yield_kg_per_MJ": 0.0004},
 		{"id": "dorm2_armario", "name": "Armario", "kind": "mobiliario_madera", "room_id": 3,
-			"position_m": {"x": 2.15, "y": 0.18}, "size_m": {"x": 1.05, "y": 0.38},
+			"position_m": {"x": 0.35, "y": 0.16}, "size_m": {"x": 1.05, "y": 0.38},
 			"footprint_m2": 0.52, "exposed_area_m2": 1.7, "elevation_m": 0.0,
 			"fuel_energy_MJ": 600.0, "max_hrr_kw": 250.0,
 			"ignition_temp_c": 300.0, "ignition_flux_kw_m2": 16.0,
@@ -658,7 +658,7 @@ func _apply_simple_house_furniture_layout(rooms_data: Array) -> void:
 			"ignition_temp_c": 260.0, "ignition_flux_kw_m2": 11.0,
 			"smoke_yield_kg_per_MJ": 0.022, "co_yield_kg_per_MJ": 0.0007},
 		{"id": "cocina_mesa", "name": "Mesa cocina", "kind": "mobiliario_madera", "room_id": 4,
-			"position_m": {"x": 3.20, "y": 1.65}, "size_m": {"x": 1.15, "y": 0.75},
+			"position_m": {"x": 2.65, "y": 1.82}, "size_m": {"x": 1.05, "y": 0.70},
 			"footprint_m2": 0.86, "exposed_area_m2": 1.4, "elevation_m": 0.70,
 			"fuel_energy_MJ": 450.0, "max_hrr_kw": 300.0,
 			"ignition_temp_c": 305.0, "ignition_flux_kw_m2": 16.0,
@@ -1164,7 +1164,7 @@ func create_two_bed_apartment() -> Dictionary:
 	openings_data.append(_make_exterior_opening(0, "window", 2.4, 1.2, 0.0, 0.85, "left"))
 	openings_data.append(_make_exterior_opening(3, "window", 1.2, 1.0, 0.0, 1.0, "bottom"))
 	openings_data.append(_make_exterior_opening(4, "window", 1.6, 1.1, 0.0, 0.9, "right"))
-	openings_data.append(_make_exterior_opening(5, "window", 1.4, 1.1, 0.0, 0.9, "right"))
+	openings_data.append(_make_exterior_opening(5, "window", 1.4, 1.1, 0.0, 0.9, "bottom"))
 
 	return {
 		"room_rect_m": room_rect_m,

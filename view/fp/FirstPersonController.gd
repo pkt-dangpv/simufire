@@ -98,7 +98,7 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var show_furniture: bool = true
 @export var furniture_collision_enabled: bool = false
 @export var furniture_wall_margin_m: float = 0.0
-@export var show_auto_room_furniture: bool = false
+@export var show_auto_room_furniture: bool = true
 @export var auto_layout_default_fuel_objects: bool = false
 @export var furniture_state_tint_enabled: bool = false
 @export var furniture_upholstery_color: Color = Color(0.43, 0.34, 0.29, 1.0)
@@ -399,22 +399,23 @@ func _ensure_world_root() -> void:
 
 
 func _apply_startup_lighting_options() -> void:
-	if not FileAccess.file_exists(STARTUP_OPTIONS_PATH):
-		return
-	var file := FileAccess.open(STARTUP_OPTIONS_PATH, FileAccess.READ)
-	if file == null:
-		return
-	var text: String = file.get_as_text()
-	file.close()
-	var parsed: Variant = JSON.parse_string(text)
-	if typeof(parsed) != TYPE_DICTIONARY:
-		return
-	var mode: String = String(Dictionary(parsed).get("exterior_lighting_mode", exterior_lighting_mode))
-	match mode.strip_edges().to_lower():
-		"noche":
-			exterior_lighting_mode = "Noche"
-		_:
-			exterior_lighting_mode = "Dia"
+	var next_mode: String = exterior_lighting_mode
+	var next_interior_lights_on: bool = room_ceiling_lights_enabled
+	if FileAccess.file_exists(STARTUP_OPTIONS_PATH):
+		var file := FileAccess.open(STARTUP_OPTIONS_PATH, FileAccess.READ)
+		if file != null:
+			var text: String = file.get_as_text()
+			file.close()
+			var parsed: Variant = JSON.parse_string(text)
+			if typeof(parsed) == TYPE_DICTIONARY:
+				var startup: Dictionary = Dictionary(parsed)
+				next_mode = String(startup.get("exterior_lighting_mode", next_mode))
+				next_interior_lights_on = bool(startup.get("interior_lights_on", next_interior_lights_on))
+	if building != null:
+		next_mode = building.exterior_lighting_mode
+		next_interior_lights_on = building.interior_lights_on
+	exterior_lighting_mode = "Noche" if next_mode.strip_edges().to_lower() == "noche" else "Dia"
+	room_ceiling_lights_enabled = next_interior_lights_on
 
 
 func _rebuild_world() -> void:
@@ -827,7 +828,10 @@ func _create_world_lighting(rects: Dictionary) -> void:
 		var fill := OmniLight3D.new()
 		fill.name = "FP_AmbientFill"
 		fill.light_color = ambient_fill_color
-		fill.light_energy = ambient_fill_energy
+		var fill_energy: float = ambient_fill_energy
+		if not room_ceiling_lights_enabled:
+			fill_energy *= 0.38 if not _exterior_is_night() else 0.12
+		fill.light_energy = fill_energy
 		fill.omni_range = maxf(8.0, maxf(_bounds_m.size.x, _bounds_m.size.y) * 1.35)
 		fill.shadow_enabled = false
 		fill.position = _to_world(Vector3(
@@ -1951,6 +1955,10 @@ func _create_furniture_piece(parent: Node3D, _room: RoomModel, room_rect: Rect2,
 	if local_rect.size.x <= 0.05 or local_rect.size.y <= 0.05:
 		return
 	var room_id: int = _room.id if _room != null else -999
+	if _is_solid_furniture_kind(kind) and _furniture_blocks_opening(room_id, room_rect, local_rect):
+		local_rect = _move_furniture_away_from_openings(room_id, room_rect, local_rect, kind)
+		if _furniture_blocks_opening(room_id, room_rect, local_rect):
+			return
 
 	var layout: Dictionary = _furniture_layout(kind, room_rect, local_rect, float(spec.get("rotation_deg", 0.0)))
 	var shape_size: Vector2 = Vector2(layout.get("shape_size", local_rect.size))
@@ -1981,6 +1989,25 @@ func _furniture_blocks_opening(room_id: int, room_rect: Rect2, local_rect: Rect2
 		if local_rect.intersects(clearance, true):
 			return true
 	return false
+
+
+func _move_furniture_away_from_openings(room_id: int, room_rect: Rect2, local_rect: Rect2, kind: String) -> Rect2:
+	var margin: float = maxf(0.0, furniture_wall_margin_m)
+	var candidates: Array[Vector2] = [
+		local_rect.position + Vector2(0.0, 0.82),
+		local_rect.position + Vector2(0.0, -0.82),
+		local_rect.position + Vector2(0.82, 0.0),
+		local_rect.position + Vector2(-0.82, 0.0),
+		Vector2(margin, margin),
+		Vector2(maxf(margin, room_rect.size.x - margin - local_rect.size.x), margin),
+		Vector2(margin, maxf(margin, room_rect.size.y - margin - local_rect.size.y)),
+		Vector2(maxf(margin, room_rect.size.x - margin - local_rect.size.x), maxf(margin, room_rect.size.y - margin - local_rect.size.y))
+	]
+	for candidate in candidates:
+		var moved := _clamp_furniture_rect(Rect2(candidate, local_rect.size), room_rect, kind)
+		if not _furniture_blocks_opening(room_id, room_rect, moved):
+			return moved
+	return local_rect
 
 
 func _opening_clearance_rects_for_room(room_id: int, room_rect: Rect2) -> Array[Rect2]:
@@ -2615,6 +2642,10 @@ func _update_fp_fire_for_furniture(furniture_node: Node3D, obj: Dictionary, stat
 	var hrr_scale: float = clampf(sqrt(obj_hrr_kw / maxf(1.0, float(obj.get("max_hrr_kw", 100.0)))), 0.35, 1.25)
 	flame.scale = Vector3.ONE * size_scale * hrr_scale
 	flame.position = Vector3(0.0, maxf(0.18, float(obj.get("elevation_m", 0.0)) + 0.22), 0.0)
+	var fire_light := flame.get_node_or_null("FireLight") as OmniLight3D
+	if fire_light != null:
+		fire_light.light_energy = clampf(0.32 + obj_hrr_kw / 900.0, 0.35, 2.2)
+		fire_light.omni_range = clampf(1.7 + sqrt(obj_hrr_kw / 500.0), 1.8, 5.6)
 
 
 func _create_fp_fire_marker() -> Node3D:
@@ -2642,6 +2673,14 @@ func _create_fp_fire_marker() -> Node3D:
 	core.position.y = 0.30
 	core.material_override = _mat(fp_fire_core_color, true, fp_fire_core_color, 1.1)
 	root.add_child(core)
+	var light := OmniLight3D.new()
+	light.name = "FireLight"
+	light.light_color = Color(1.0, 0.42, 0.12, 1.0)
+	light.light_energy = 0.0
+	light.omni_range = 2.2
+	light.shadow_enabled = false
+	light.position = Vector3(0.0, 0.45, 0.0)
+	root.add_child(light)
 	return root
 
 
@@ -3143,6 +3182,7 @@ func _update_opening_panel(index: int) -> void:
 	var visual_center: Vector3 = center
 	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
 	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
+	var smoke_transmission: float = _light_smoke_transmission_for_opening(op)
 	var base_yaw: float = atan2(-tangent.z, tangent.x)
 	var visual_yaw: float = base_yaw
 	if is_door:
@@ -3187,8 +3227,8 @@ func _update_opening_panel(index: int) -> void:
 		if light != null:
 			var window_area_factor: float = clampf(width_m * height_m / 2.2, 0.35, 1.55)
 			light.light_color = _effective_window_light_color()
-			light.light_energy = _effective_window_light_energy() * window_area_factor * lerpf(0.45, 1.0, open_amount)
-			light.omni_range = window_light_range_m * lerpf(0.72, 1.08, open_amount)
+			light.light_energy = _effective_window_light_energy() * window_area_factor * lerpf(0.45, 1.0, open_amount) * smoke_transmission
+			light.omni_range = window_light_range_m * lerpf(0.72, 1.08, open_amount) * lerpf(0.72, 1.0, smoke_transmission)
 		return
 
 	body.position = visual_center
@@ -3212,12 +3252,33 @@ func _update_opening_panel(index: int) -> void:
 		var area_factor: float = clampf(width_m * height_m / 2.2, 0.35, 1.55)
 		if op.type == OpeningModel.Type.WINDOW:
 			light.light_color = _effective_window_light_color()
-			light.light_energy = _effective_window_light_energy() * area_factor * lerpf(0.45, 1.0, open_amount)
-			light.omni_range = window_light_range_m * lerpf(0.72, 1.08, open_amount)
+			light.light_energy = _effective_window_light_energy() * area_factor * lerpf(0.45, 1.0, open_amount) * smoke_transmission
+			light.omni_range = window_light_range_m * lerpf(0.72, 1.08, open_amount) * lerpf(0.72, 1.0, smoke_transmission)
 		else:
 			light.light_color = _effective_landing_light_color()
-			light.light_energy = _effective_landing_light_energy() * area_factor * lerpf(landing_light_closed_ratio, 1.0, open_amount)
-			light.omni_range = landing_light_range_m * lerpf(0.78, 1.12, open_amount)
+			light.light_energy = _effective_landing_light_energy() * area_factor * lerpf(landing_light_closed_ratio, 1.0, open_amount) * smoke_transmission
+			light.omni_range = landing_light_range_m * lerpf(0.78, 1.12, open_amount) * lerpf(0.70, 1.0, smoke_transmission)
+
+
+func _light_smoke_transmission_for_opening(op: OpeningModel) -> float:
+	if op == null or not op.is_exterior_opening():
+		return 1.0
+	var room_id: int = op.a if op.a != OUTSIDE_ID else op.b
+	var room_state: Dictionary = Dictionary(_state.get(str(room_id), {}))
+	if room_state.is_empty():
+		return 1.0
+	var room: RoomModel = building.get_room(room_id) if building != null else null
+	var height_m: float = _room_height(room)
+	var visibility_m: float = float(room_state.get("visibility_m", 30.0))
+	var layer_m: float = clampf(
+		float(room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_state.get("h_layer_m", height_m)))),
+		0.0,
+		height_m
+	)
+	var visibility_block: float = clampf((12.0 - visibility_m) / 12.0, 0.0, 1.0)
+	var layer_block: float = clampf((height_m - layer_m) / maxf(0.1, height_m), 0.0, 1.0)
+	var blocked: float = maxf(visibility_block * 0.72, layer_block * 0.48)
+	return clampf(1.0 - blocked, 0.14, 1.0)
 
 
 func _door_swing_direction(op: OpeningModel) -> String:

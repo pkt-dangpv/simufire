@@ -57,6 +57,8 @@ var exterior_walls: Array = []
 var hvac_data: Dictionary = {}
 var hvac_exists: bool = false
 var hvac_on: bool = false
+var interior_lights_on: bool = true
+var exterior_lighting_mode: String = "Dia"
 
 ## Habitación donde se iniciará el incendio (puede venir del escenario JSON).
 var default_ignition_room_id: int = 0
@@ -105,6 +107,10 @@ func _ready() -> void:
 		template_data["building_type"] = String(startup_options.get("building_type", "single_family"))
 	if startup_options.has("apartment_floor_number"):
 		template_data["apartment_floor_number"] = int(startup_options.get("apartment_floor_number", 1))
+	if startup_options.has("interior_lights_on"):
+		template_data["interior_lights_on"] = bool(startup_options.get("interior_lights_on", true))
+	if startup_options.has("exterior_lighting_mode"):
+		template_data["exterior_lighting_mode"] = String(startup_options.get("exterior_lighting_mode", "Dia"))
 	template_name = selected_template_name
 	_load_from_template(template_data)
 
@@ -202,6 +208,8 @@ func _load_from_template(data: Dictionary) -> void:
 	hvac_data = {}
 	hvac_exists = false
 	hvac_on = false
+	interior_lights_on = bool(data.get("interior_lights_on", true))
+	exterior_lighting_mode = _normalize_exterior_lighting_mode(String(data.get("exterior_lighting_mode", "Dia")))
 	if typeof(data.get("hvac_data", {})) == TYPE_DICTIONARY:
 		hvac_data = Dictionary(data.get("hvac_data", {})).duplicate(true)
 	if data.has("outside_temp_c"):
@@ -470,6 +478,10 @@ func _load_startup_options() -> Dictionary:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return {}
 	return parsed
+
+
+func _normalize_exterior_lighting_mode(value: String) -> String:
+	return "Noche" if value.strip_edges().to_lower() == "noche" else "Dia"
 
 
 func _normalize_hvac_data(requested_mode: String) -> void:

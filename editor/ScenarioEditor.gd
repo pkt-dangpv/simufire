@@ -128,6 +128,7 @@ var _hrr_spin: SpinBox
 var _tool_buttons: Dictionary = {}
 var _scenario_option: OptionButton
 var _hvac_option: OptionButton
+var _interior_lights_check: CheckBox
 var _floor_option: OptionButton
 var _floor_level_spin: SpinBox
 var _floor_status_label: Label
@@ -554,6 +555,8 @@ func _create_empty_scenario() -> void:
 		"stop_time_s": 0.0,
 		"hvac_mode": "none",
 		"hvac_data": {"exists": false, "on": false, "mode": "none"},
+		"interior_lights_on": true,
+		"exterior_lighting_mode": "Dia",
 		"floors": _default_floors(),
 		"exterior_walls": [],
 		"room_rect_m": {},
@@ -590,6 +593,7 @@ func _undo_last_action() -> void:
 	object_mouse_mode = ObjectMouseMode.NONE
 	_sync_floor_controls()
 	_sync_hvac_option_from_data()
+	_sync_lighting_controls_from_data()
 	_sync_building_type_option_from_data()
 	_clear_selection()
 	_set_status("Ultima accion deshecha.")
@@ -961,6 +965,24 @@ func _setup_ui() -> void:
 	_populate_hvac_option()
 	if not _hvac_option.item_selected.is_connected(_on_hvac_option_selected):
 		_hvac_option.item_selected.connect(_on_hvac_option_selected)
+
+	var lighting_row := HBoxContainer.new()
+	lighting_row.name = "LightingRow"
+	lighting_row.add_theme_constant_override("separation", 4)
+	main.add_child(lighting_row)
+	var lighting_label := Label.new()
+	lighting_label.text = "Luces"
+	lighting_label.custom_minimum_size.x = 86.0
+	lighting_row.add_child(lighting_label)
+	_interior_lights_check = CheckBox.new()
+	_interior_lights_check.name = "InteriorLightsCheck"
+	_interior_lights_check.text = "Interiores encendidas"
+	_interior_lights_check.button_pressed = true
+	_interior_lights_check.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lighting_row.add_child(_interior_lights_check)
+	if not _interior_lights_check.toggled.is_connected(_on_interior_lights_toggled):
+		_interior_lights_check.toggled.connect(_on_interior_lights_toggled)
+	_sync_lighting_controls_from_data()
 
 	main.add_child(HSeparator.new())
 
@@ -4596,6 +4618,7 @@ func _load_from_path(path: String) -> void:
 		_stop_time_spin.value = float(editor_data.get("stop_time_s", 0.0))
 	_sync_floor_controls()
 	_sync_hvac_option_from_data()
+	_sync_lighting_controls_from_data()
 	_sync_building_type_option_from_data()
 	_clear_selection()
 	if _path_edit != null:
@@ -5713,6 +5736,7 @@ func _bind_existing_ui() -> bool:
 	_hvac_option = _ui_root.get_node_or_null("LeftPanel/VBox/HVACRow/HVACOption") as OptionButton
 	if _hvac_option == null:
 		_hvac_option = _ui_root.get_node_or_null("LeftPanel/VBox/HVACOption") as OptionButton
+	_interior_lights_check = _ui_root.get_node_or_null("LeftPanel/VBox/LightingRow/InteriorLightsCheck") as CheckBox
 	_stop_time_spin = _ui_root.get_node_or_null("LeftPanel/VBox/StopTimeSpin") as SpinBox
 	_corridor_width_spin = _ui_root.get_node_or_null("LeftPanel/VBox/CorridorWidthSpin") as SpinBox
 	_opening_tool_section = _ui_root.get_node_or_null("LeftPanel/VBox/OpeningToolSection") as Control
@@ -5793,6 +5817,7 @@ func _bind_existing_ui() -> bool:
 	_ensure_corridor_width_control_in_existing_ui()
 	_ensure_opening_tool_controls_in_existing_ui()
 	_ensure_hvac_option_in_existing_ui()
+	_ensure_lighting_controls_in_existing_ui()
 	_ensure_building_type_controls_in_existing_ui()
 	_ensure_element_list_in_existing_ui()
 	_ensure_room_geometry_controls_in_existing_ui()
@@ -5834,6 +5859,7 @@ func _bind_existing_ui() -> bool:
 		if not _stop_time_spin.value_changed.is_connected(_on_stop_time_changed):
 			_stop_time_spin.value_changed.connect(_on_stop_time_changed)
 	_sync_hvac_option_from_data()
+	_sync_lighting_controls_from_data()
 
 	_scan_scenario_files()
 	_refresh_property_panel()
@@ -6447,7 +6473,50 @@ func _on_hvac_option_selected(index: int) -> void:
 		"mode": mode
 	}
 
-#zoom del mouse, centrado en la posición del cursor
+func _ensure_lighting_controls_in_existing_ui() -> void:
+	if _interior_lights_check != null:
+		if not _interior_lights_check.toggled.is_connected(_on_interior_lights_toggled):
+			_interior_lights_check.toggled.connect(_on_interior_lights_toggled)
+		_sync_lighting_controls_from_data()
+		return
+
+	var left_vbox := _ui_root.get_node_or_null("LeftPanel/VBox") as VBoxContainer
+	if left_vbox == null:
+		return
+
+	var row := HBoxContainer.new()
+	row.name = "LightingRow"
+	row.add_theme_constant_override("separation", 4)
+	var label := Label.new()
+	label.text = "Luces"
+	label.custom_minimum_size.x = 82.0
+	row.add_child(label)
+	_interior_lights_check = CheckBox.new()
+	_interior_lights_check.name = "InteriorLightsCheck"
+	_interior_lights_check.text = "Interiores"
+	_interior_lights_check.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_interior_lights_check)
+	left_vbox.add_child(row)
+	var scenario_option := left_vbox.get_node_or_null("ScenarioOption") as OptionButton
+	if scenario_option != null:
+		left_vbox.move_child(row, scenario_option.get_index())
+	if not _interior_lights_check.toggled.is_connected(_on_interior_lights_toggled):
+		_interior_lights_check.toggled.connect(_on_interior_lights_toggled)
+	_sync_lighting_controls_from_data()
+
+
+func _sync_lighting_controls_from_data() -> void:
+	if _interior_lights_check != null:
+		_interior_lights_check.set_pressed_no_signal(bool(editor_data.get("interior_lights_on", true)))
+
+
+func _on_interior_lights_toggled(enabled: bool) -> void:
+	if bool(editor_data.get("interior_lights_on", true)) == enabled:
+		return
+	_push_undo_snapshot("interior_lights")
+	editor_data["interior_lights_on"] = enabled
+
+
 func _zoom_at_mouse(factor: float) -> void:
 	var mouse_world_before := camera.get_global_mouse_position()
 

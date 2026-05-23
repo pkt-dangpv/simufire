@@ -20,6 +20,7 @@ var _template_builder = BuildingTemplateScript.new()
 var _template_option: OptionButton = null
 var _hvac_option: OptionButton = null
 var _lighting_option: OptionButton = null
+var _interior_lights_option: OptionButton = null
 var _building_type_option: OptionButton = null
 var _apartment_floor_spin: SpinBox = null
 var _preset_ids: Array[String] = []
@@ -216,6 +217,14 @@ func _ensure_start_options_ui(parent_override: Control = null) -> void:
 		_move_before_first_button(vbox, lighting_row)
 	_lighting_option = lighting_row.get_node_or_null("Option") as OptionButton
 	_populate_lighting_option()
+
+	var interior_lights_row := vbox.get_node_or_null("InteriorLightsRow") as HBoxContainer
+	if interior_lights_row == null:
+		interior_lights_row = _make_option_row("InteriorLightsRow", "Luces int.")
+		vbox.add_child(interior_lights_row)
+		_move_before_first_button(vbox, interior_lights_row)
+	_interior_lights_option = interior_lights_row.get_node_or_null("Option") as OptionButton
+	_populate_interior_lights_option()
 	_fit_main_menu_layout()
 
 
@@ -372,6 +381,18 @@ func _populate_lighting_option() -> void:
 		_lighting_option.select(clampi(selected_index, 0, _lighting_option.get_item_count() - 1))
 
 
+func _populate_interior_lights_option() -> void:
+	if _interior_lights_option == null:
+		return
+
+	if _interior_lights_option.get_item_count() == 0:
+		_interior_lights_option.add_item("Interiores ON", 0)
+		_interior_lights_option.add_item("Interiores OFF", 1)
+	var saved: Dictionary = _load_startup_options()
+	var enabled: bool = bool(saved.get("interior_lights_on", true))
+	_interior_lights_option.select(0 if enabled else 1)
+
+
 func _add_menu_button(parent: Control, text: String, callback: Callable, node_name: String = "") -> void:
 	var btn := Button.new()
 	if not node_name.is_empty():
@@ -412,6 +433,10 @@ func _save_startup_options() -> void:
 		var lighting_idx: int = clampi(_lighting_option.selected, 0, _lighting_modes.size() - 1)
 		selected_lighting_mode = _lighting_modes[lighting_idx]
 
+	var selected_interior_lights_on: bool = true
+	if _interior_lights_option != null:
+		selected_interior_lights_on = _interior_lights_option.selected != 1
+
 	var selected_building_type: String = "single_family"
 	if _building_type_option != null:
 		var building_idx: int = clampi(_building_type_option.selected, 0, _building_type_modes.size() - 1)
@@ -430,7 +455,8 @@ func _save_startup_options() -> void:
 		"building_type": selected_building_type,
 		"apartment_floor_number": selected_apartment_floor,
 		"hvac_mode": selected_hvac_mode,
-		"exterior_lighting_mode": selected_lighting_mode
+		"exterior_lighting_mode": selected_lighting_mode,
+		"interior_lights_on": selected_interior_lights_on
 	}, "\t"))
 	file.close()
 
