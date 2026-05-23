@@ -1,8 +1,8 @@
 {
-  "all_required_pass": false,
-  "required_count": 292,
-  "failed_required_count": 1,
-  "known_gap_count": 88,
+  "all_required_pass": true,
+  "required_count": 293,
+  "failed_required_count": 0,
+  "known_gap_count": 87,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -2096,7 +2096,7 @@
     },
     {
       "name": "cfast_multifuel_t60_temp_upper_c",
-      "actual": 122.39,
+      "actual": 122.85,
       "expected": null,
       "tolerance": null,
       "minimum": 50.0,
@@ -2107,7 +2107,7 @@
     },
     {
       "name": "cfast_multifuel_t120_temp_upper_c",
-      "actual": 489.78,
+      "actual": 465.4,
       "expected": null,
       "tolerance": null,
       "minimum": 100.0,
@@ -2118,18 +2118,18 @@
     },
     {
       "name": "cfast_multifuel_t180_temp_upper_c",
-      "actual": 57.12,
+      "actual": 193.69,
       "expected": null,
       "tolerance": null,
       "minimum": 100.0,
       "maximum": 500.0,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "CMV-3: multi-fuel temp_upper in [100.0,500.0]\u00b0C at t=180.0s."
     },
     {
       "name": "cfast_multifuel_t120_hrr_above_350kw",
-      "actual": 564.57,
+      "actual": 562.22,
       "expected": null,
       "tolerance": null,
       "minimum": 350.0,
@@ -2140,7 +2140,7 @@
     },
     {
       "name": "cfast_multifuel_t60_pressure_pa",
-      "actual": 0.0,
+      "actual": 0.98,
       "expected": -0.139439,
       "tolerance": 10.0,
       "minimum": null,
@@ -2151,7 +2151,7 @@
     },
     {
       "name": "cfast_multifuel_t120_pressure_pa",
-      "actual": 0.0,
+      "actual": 3.78,
       "expected": -1.12982,
       "tolerance": 10.0,
       "minimum": null,
@@ -2162,7 +2162,7 @@
     },
     {
       "name": "cfast_multifuel_rmse_temp_upper_c",
-      "actual": 211.50597995041872,
+      "actual": 188.97788129714058,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -4615,7 +4615,7 @@
     },
     {
       "name": "g3_gie_ppv_post_knockdown_room_0_peak_hrr_kw",
-      "actual": 1778.54728357666,
+      "actual": 1789.86962457496,
       "expected": null,
       "tolerance": null,
       "minimum": 1000.0,
@@ -4626,7 +4626,7 @@
     },
     {
       "name": "g3_gie_ppv_post_knockdown_room_1_peak_co_upper_ppm",
-      "actual": 8947.41063490838,
+      "actual": 8486.20687931532,
       "expected": null,
       "tolerance": null,
       "minimum": 2000.0,
@@ -4648,13 +4648,13 @@
     },
     {
       "name": "g3_gie_ppv_post_knockdown_time_room_1_smoke_below_0_1kg_post_vent_s",
-      "actual": 338.999999999993,
+      "actual": 358.333333333322,
       "expected": 361.0,
       "tolerance": 3.0,
       "minimum": null,
       "maximum": null,
-      "required": false,
-      "pass": false,
+      "required": true,
+      "pass": true,
       "note": "Regression baseline: g3_gie_ppv_post_knockdown"
     },
     {

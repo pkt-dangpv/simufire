@@ -238,7 +238,8 @@ def _parse_simufire_log(path: Path, room_id: int) -> list[dict[str, float]]:
 
 
 def _load_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    # Use utf-8-sig so files with or without a UTF-8 BOM both parse cleanly.
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
 def _metric(metrics: dict[str, Any], name: str) -> float | None:

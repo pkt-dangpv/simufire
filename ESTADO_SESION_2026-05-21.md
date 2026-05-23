@@ -73,8 +73,8 @@ Resultado: RMSE cae de 0.02773 → 0.0213 (dentro del umbral ≤ 0.025). Check c
 ## Estado actual de la suite ← ESTADO FINAL REAL
 
 ```
-[Reference Checks] PASS: 292/292 required checks passed
-[Reference Checks] Known gaps: 88 non-gating checks did not pass
+[Reference Checks] PASS: 293/293 required checks passed
+[Reference Checks] Known gaps: 87 non-gating checks did not pass
 ```
 
 El descenso de 300 → 292 en el contador de *required* no es regresión: refleja la documentación
@@ -92,7 +92,7 @@ pasando**.
 | Parte 3 (rebaseline 2 casos) | 300/300 + 82 non-gating | — |
 | Parte 4 (cfast_rmse_o2 apples-to-apples) | 300/300 + 81 non-gating | — |
 | Sesión tarde (Fix C + o2_upper_plume_entr_rate) | 299/299 + 87 non-gating | Logs frescos |
-| **Sesión noche (cierre)** | **292/292 + 88 non-gating** | **Estado final real** |
+| **Sesión noche (cierre)** | **293/293 + 87 non-gating** | **Estado final real** |
 
 ### Benchmark estructural conocido: `cfast_r0_window_360`
 
