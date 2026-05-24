@@ -2303,6 +2303,17 @@ func compute_co_lower_ppm(room: RoomModel) -> float:
 	if room == null:
 		return 0.0
 
+	# Fase 2E (tracking seguro): si no hay capa caliente establecida
+	# (upper_gas_kg < 0.1 kg), el CO está distribuido de forma uniforme en toda
+	# la sala — no hay estratificación. Devolver concentración promedio de la sala.
+	# Evita falsos bajos cuando sync_room_upper_layer resetea co_upper_kg = 0
+	# (capa colapsada sin fuego activo) pero thermal_layer_m aún no ha subido
+	# hasta el techo, lo que daría upper_frac > 0 → strat ≈ 0 pese a haber CO.
+	# El FED de zona inferior ya usa compute_co_ppm (no esta función), así que
+	# el cambio es puramente de tracking/exportación — sin impacto en required.
+	if room.upper_gas_kg < 0.1:
+		return compute_co_ppm(room)
+
 	# Lower zone: from floor up to the hot-layer interface.
 	var hot_h: float = effective_hot_layer_height_m(room)
 	var lower_height_m: float = maxf(0.05, hot_h)

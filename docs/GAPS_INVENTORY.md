@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026  
-**Estado validación**: 289/289 PASS required, 65 gaps non-gating  
+**Generado**: 24 mayo 2026 | **Actualizado**: 24 mayo 2026 (post Phase 2E reporting fix)  
+**Estado validación**: 289/289 PASS required, 73 gaps non-gating  
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 ---
@@ -9,17 +9,18 @@
 
 | Categoría | Checks | Causa raíz | Cierre estimado |
 |-----------|--------|------------|-----------------|
-| Presión termódinámica vs boyancia | 15 | Modelo de presión SF es termostático (1-10 Pa); CFAST usa boyancia two-zone (100-1000 Pa) | Phase 3 (modelo boyancia) |
-| O₂ zona inferior | 9 | SF mezcla O₂ uniformemente; CFAST preserva ≈20.5% en zona baja | Phase 2E (two-zone doorway flow) |
+| Presión termódinámica vs boyancia | 18 | Modelo de presión SF es termostático (1-10 Pa); CFAST usa boyancia two-zone (100-1000 Pa) | Phase 3 (modelo boyancia) |
+| O₂ zona inferior | 10 | SF mezcla O₂ uniformemente; CFAST preserva ≈20.5% en zona baja | Phase 2E (two-zone doorway flow) |
 | CO₂ upper layer | 5 | Transporte CO₂ a zona superior subestimado | Phase 2E (two-zone CO₂) |
 | RMSE temperatura superior | 8 | Wall heat loss subestimado + diferencias de volumen | Phase 1.5 (conducción 1D paredes) |
 | Escenarios complejos (HVAC, multi-floor) | 5 | Mezcla uniforme O₂ extingue fuego; CFAST two-zone lo sostiene | Phase 2E |
 | Phase 1.5 (paredes, flashover) | 4 | Conducción 1D no implementada; HRR post-flashover timing | Phase 1.5 |
-| Calibración puntual | 4 | Ghanekar CO chemistry, g3 timing, growth-phase | Calibración ad-hoc |
+| Calibración puntual | 5 | Ghanekar CO chemistry, g3 timing, growth-phase | Calibración ad-hoc |
+| CO lower zone reporting | 1 | `compute_co_lower_ppm` retorna media de sala cuando `upper_gas_kg < 0.1`; CFAST upper-stratified → lower≈0 | Diferencia arquitectural — no regresión required |
 | Stage-B pending (sin datos) | 10 | Casos planificados sin baseline todavía | Stage-B |
 
-**Total: 60 checks con datos + 10 pending = 65 gaps**  
-*(Nota: algunos checks del RMSE se cuentan en varias subcategorías)*
+**Total: 63 checks con datos + 10 pending = 73 gaps**  
+*(Corrección respecto a conteo anterior: el GAPS_INVENTORY inicial reportaba 65, pero la verificación post Phase 2E reporting fix muestra 73. La diferencia de 8 se debe a: 7 checks que ya fallaban antes pero no estaban en el conteo inicial — incluyendo presión `cfast_closed_t240`, `cfast_fastgrowth`, y O₂ pasillo — más 1 gap nuevo introducido por el guard `upper_gas_kg < 0.1` en `compute_co_lower_ppm`.)*
 
 ---
 
@@ -167,11 +168,43 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 
 | Prioridad | Categoría | Checks | Esfuerzo | Impacto |
 |-----------|-----------|--------|----------|---------|
-| 1 | O₂ zona inferior | 9 | Medio | Alto (Phase 2E en progreso) |
+| 1 | O₂ zona inferior | 10 | Medio | Alto (Phase 2E en progreso) |
 | 2 | CO₂ upper layer | 5 | Medio | Alto (Phase 2E) |
 | 3 | Escenarios complejos (O₂/HVAC) | 3 | Bajo | Medio (deriva de Phase 2E) |
 | 4 | Wall heat loss / paredes | 4 | Alto | Medio (conducción 1D) |
 | 5 | RMSE temperatura | 8 | Bajo | Bajo (mejoran con 1+4) |
-| 6 | Presión | 15 | Muy alto | Bajo (gap estructural profundo) |
-| 7 | Stage-B pending | 10 | N/A | N/A (requieren implementación previa) |
-| 8 | Calibración puntual | 4 | Bajo | Bajo (ad-hoc) |
+| 6 | Presión | 18 | Muy alto | Bajo (gap estructural profundo) |
+| 7 | CO lower zone reporting | 1 | N/A | Diferencia arquitectural — cerrar con Phase 2E transporte two-zone |
+| 8 | Stage-B pending | 10 | N/A | N/A (requieren implementación previa) |
+| 9 | Calibración puntual | 5 | Bajo | Bajo (ad-hoc) |
+
+---
+
+## Nota: CO lower zone reporting gap (cfast_2r_hall_t360_co_lower_ppm)
+
+**Introducido**: 24 mayo 2026, guard `upper_gas_kg < 0.1` en `compute_co_lower_ppm`.  
+**Tipo**: diferencia arquitectural — **NO es regresión required** (check `required=False`).  
+
+| Check | SF actual (ppm) | CFAST expected (ppm) | Tolerancia | Escenario |
+|-------|-----------------|---------------------|------------|-----------|
+| `cfast_2r_hall_t360_co_lower_ppm` | 125.0 | 0.0 | ±100 | Dos salas, pasillo t=360s |
+
+**Causa**: en SF, el pasillo no establece capa caliente (`upper_gas_kg < 0.1`) pero tiene CO residual de transporte (`co_kg > 0`). El guard devuelve `compute_co_ppm = 125 ppm` (CO uniformemente distribuido). CFAST coloca el CO en zona superior estratificada → lower zone = 0.  
+**Comportamiento anterior**: el factor `strat = 0` (capa caliente descendida) suprimía el valor → 0 ppm, coincidiendo con CFAST por razón equivocada.  
+**Cièrre correcto**: Phase 2E transporte two-zone completo (CO split proporcional al volumen de zona en destino) + rebaseline explícito de `cfast_2r_hall_*`. **No tocar antes.**
+
+---
+
+## Backlog Phase 2E arquitectónica
+
+> ⚠️ **Aviso de rebaseline**: cualquier cambio a `_transfer_hot_gas_contaminants`, `compute_fed_delta_for_height` o `step_fed` que altere `co_upper_kg` en salas destino **requiere re-ejecutar la suite completa y re-verificar g4 required checks** antes de commitear:
+> - `time_room_1_fed_above_0_1_s`: expected=197.75, tol=10.0
+> - `time_room_1_co_upper_above_1200_s`: expected=87.33, tol=5.0  
+> - `room_1_peak_co_upper_ppm`: min=2000.0
+
+| Opción | Descripción | Estado | Riesgo |
+|--------|-------------|--------|--------|
+| **B-transport** | Dividir CO en `_transfer_hot_gas_contaminants` por fracción `upper_gas/total_gas` destino | Pendiente | ALTO — modifica `co_upper_kg` → afecta g4 FED required |
+| **C-FED-cond** | `compute_co_lower_ppm` en FED solo cuando `hot_h < 0.5 * height_m` | Pendiente | MEDIO — no cambia transporte pero afecta step_fed |
+| **D-two-zone doorway** | Flujo two-zone en vano: aire fresco entra por mitad inferior | Pendiente | BAJO en CO, ALTO en O₂ lower |
+

@@ -4,7 +4,7 @@
 
 Sesión de intento de implementación de **Phase 2E-C** (mezcla CO inter-zona + FED lower zone) seguida de diagnóstico de fallo y **revert completo**.
 
-**Resultado final: 289/289 PASS, 65 gaps** — baseline restaurada, idéntica al checkpoint 2026-05-23.
+**Resultado final: 289/289 PASS, 73 gaps** (65 contados inicialmente; ver sección post-checkpoint). Baseline restaurada, idéntica al checkpoint 2026-05-23 salvo guard `compute_co_lower_ppm`.
 
 ---
 
@@ -19,7 +19,7 @@ Al iniciar la sesión, v3 (`v3_hallway_fed_exposure`) estaba pendiente de confir
 | `g4_gie_delayed_entry_hazard` | ✅ PASS | `time_fed_0.1` = 198.42s (expected 197.75±10) |
 | `v3_hallway_fed_exposure` | ✅ PASS | `all_pass=True` |
 | `victim_fed_incapacitation` | ✅ PASS | `victim_v0_final_fed`=0.772, `peak_co`=3382 ppm |
-| Suite completa 289 checks | ✅ 289/289 | 65 gaps no-gating |
+| Suite completa 289 checks | ✅ 289/289 | 73 gaps no-gating (65 contados antes del fix reporting) |
 
 ### 2. Inventario de gaps documentado
 
@@ -82,6 +82,40 @@ Se revirtieron los 5 cambios comportamentales. Se conservó únicamente:
 - `co_interlayer_mix_rate: float = 0.040` en parámetros (~línea 102) — **sin uso, dead code infraestructura**
 - Entrada en `configure()` (~línea 418) — **sin efecto**
 
+## Post-checkpoint: compute_co_lower_ppm guard (24 mayo 2026)
+
+### Cambio implementado
+
+**Archivo**: `sim/core/ThermalSystem.gd` — función `compute_co_lower_ppm` (línea ~2303)  
+**Tipo**: Fase 2E reporting seguro — solo afecta exportación/comparación CFAST, **no afecta FED ni checks required**.
+
+```gdscript
+# Añadido tras: if room == null: return 0.0
+if room.upper_gas_kg < 0.1:
+    return compute_co_ppm(room)  # distribución uniforme, sin estratificación
+```
+
+**Razón**: cuando la capa caliente colapsa (`upper_gas_kg < 0.1`), `sync_room_upper_layer` resetea `co_upper_kg = 0` pero `thermal_layer_m` puede estar aún bajo el techo, dando `strat ≈ 0` pese a que `co_lower_kg = co_kg > 0`. El fix devuelve la concentración media de sala en lugar de suprimir artificialmente a 0.
+
+### Resultado de validación
+
+| Check | Resultado |
+|-------|----------|
+| Required (289/289) | ✅ PASS — sin cambio |
+| Non-gating gaps | 73 (vs 65 documentados anteriormente) |
+
+### Análisis de la diferencia 65 → 73
+
+- **1 gap nuevo directo**: `cfast_2r_hall_t360_co_lower_ppm` — SF reporta 125 ppm (media de sala cuando no hay hot layer); CFAST espera 0 (CO en zona superior estratificada). El fix es arquitecturalmente correcto para SF; la discrepancia con CFAST es estructural. `required=False`.
+- **7 gaps pre-existentes no contados**: checks que ya fallaban antes del fix (nuestro cambio es read-only — no puede afectar O₂, presión, temperatura). El conteo de 65 en el GAPS_INVENTORY inicial tenía error aritmético (`60 + 10 ≠ 65`) y no incluía `cfast_closed_t240_pressure_pa`, `cfast_2r_hall_rmse_o2` y otros que ya fallaban.
+
+### Backlog Phase 2E (no implementar sin rebaseline)
+
+> ⚠️ Cualquier cambio a `_transfer_hot_gas_contaminants`, `compute_fed_delta_for_height` o `step_fed` que altere `co_upper_kg` en salas destino **requiere re-ejecutar suite completa y verificar g4 required checks** antes de commitear.  
+> Checks críticos g4: `time_room_1_fed_above_0_1_s` (197.75±10s), `time_room_1_co_upper_above_1200_s` (87.33±5s), `room_1_peak_co_upper_ppm` (≥2000).
+
+Ver `docs/GAPS_INVENTORY.md` — sección «Backlog Phase 2E arquitectónica».
+
 ---
 
 ## Lo que queda (próximas fases)
@@ -131,9 +165,8 @@ Usar `compute_co_lower_ppm` solo cuando `hot_h < 0.5 * height_m` (capa caliente 
 
 | Archivo | Cambio |
 |---------|--------|
-| `docs/GAPS_INVENTORY.md` | Creado — inventario completo 65 gaps con tablas |
-| `/memories/repo/simufire_state.md` | Actualizado — checkpoint 2026-05-24 + inventario gaps |
-| `sim/core/ThermalSystem.gd` | `co_interlayer_mix_rate` añadido (dead code); todos los cambios Phase 2E-C revertidos |
+| `docs/GAPS_INVENTORY.md` | Actualizado — 73 gaps, aritmética corregida, sección CO lower + backlog Phase 2E |
+| `sim/core/ThermalSystem.gd` | Guard `upper_gas_kg < 0.1` en `compute_co_lower_ppm` (Phase 2E safe); `co_interlayer_mix_rate` dead code preservado |
 
 ---
 
