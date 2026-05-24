@@ -1004,6 +1004,8 @@ func _create_opening_frame(index: int, op: OpeningModel, info: Dictionary) -> No
 	var frame_root := Node3D.new()
 	frame_root.name = "OpeningFrame_%02d" % index
 	_world_root.add_child(frame_root)
+	if op != null and op.type == OpeningModel.Type.WINDOW:
+		return frame_root
 
 	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
 	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
@@ -1570,10 +1572,11 @@ func _create_furniture(rects: Dictionary) -> void:
 		var specs: Array = _fuel_object_furniture_specs(room, rect)
 		if specs.is_empty() and show_auto_room_furniture:
 			specs = _fallback_furniture_specs(room, rect)
+		var placed_solid_rects: Array[Rect2] = []
 		for raw_spec in specs:
 			if typeof(raw_spec) != TYPE_DICTIONARY:
 				continue
-			_create_furniture_piece(room_root, room, rect, Dictionary(raw_spec))
+			_create_furniture_piece(room_root, room, rect, Dictionary(raw_spec), placed_solid_rects)
 
 	_update_furniture_state_visuals()
 
@@ -1946,7 +1949,7 @@ func _make_furniture_spec(
 	}
 
 
-func _create_furniture_piece(parent: Node3D, _room: RoomModel, room_rect: Rect2, spec: Dictionary) -> void:
+func _create_furniture_piece(parent: Node3D, _room: RoomModel, room_rect: Rect2, spec: Dictionary, placed_solid_rects: Array[Rect2] = []) -> void:
 	var obj_id: String = String(spec.get("id", "furniture"))
 	var kind: String = String(spec.get("kind", "clutter"))
 	var pos_m: Vector2 = Vector2(spec.get("position_m", Vector2.ZERO))
@@ -1955,9 +1958,10 @@ func _create_furniture_piece(parent: Node3D, _room: RoomModel, room_rect: Rect2,
 	if local_rect.size.x <= 0.05 or local_rect.size.y <= 0.05:
 		return
 	var room_id: int = _room.id if _room != null else -999
-	if _is_solid_furniture_kind(kind) and _furniture_blocks_opening(room_id, room_rect, local_rect):
-		local_rect = _move_furniture_away_from_openings(room_id, room_rect, local_rect, kind)
-		if _furniture_blocks_opening(room_id, room_rect, local_rect):
+	var is_solid: bool = _is_solid_furniture_kind(kind)
+	if is_solid:
+		local_rect = _resolve_furniture_rect(room_id, room_rect, local_rect, kind, placed_solid_rects)
+		if _furniture_layout_conflicts(room_id, room_rect, local_rect, placed_solid_rects):
 			return
 
 	var layout: Dictionary = _furniture_layout(kind, room_rect, local_rect, float(spec.get("rotation_deg", 0.0)))
@@ -1976,6 +1980,8 @@ func _create_furniture_piece(parent: Node3D, _room: RoomModel, room_rect: Rect2,
 	_build_furniture_shape(root, kind, shape_size, float(spec.get("elevation_m", 0.0)))
 	if bool(spec.get("source_fuel", false)):
 		_furniture_nodes[obj_id] = root
+	if is_solid:
+		placed_solid_rects.append(local_rect)
 
 
 func _is_solid_furniture_kind(kind: String) -> bool:
@@ -1991,23 +1997,53 @@ func _furniture_blocks_opening(room_id: int, room_rect: Rect2, local_rect: Rect2
 	return false
 
 
-func _move_furniture_away_from_openings(room_id: int, room_rect: Rect2, local_rect: Rect2, kind: String) -> Rect2:
+func _resolve_furniture_rect(room_id: int, room_rect: Rect2, local_rect: Rect2, kind: String, placed_solid_rects: Array[Rect2]) -> Rect2:
+	if not _furniture_layout_conflicts(room_id, room_rect, local_rect, placed_solid_rects):
+		return local_rect
 	var margin: float = maxf(0.0, furniture_wall_margin_m)
+	var max_x: float = maxf(margin, room_rect.size.x - margin - local_rect.size.x)
+	var max_y: float = maxf(margin, room_rect.size.y - margin - local_rect.size.y)
 	var candidates: Array[Vector2] = [
 		local_rect.position + Vector2(0.0, 0.82),
 		local_rect.position + Vector2(0.0, -0.82),
 		local_rect.position + Vector2(0.82, 0.0),
 		local_rect.position + Vector2(-0.82, 0.0),
 		Vector2(margin, margin),
-		Vector2(maxf(margin, room_rect.size.x - margin - local_rect.size.x), margin),
-		Vector2(margin, maxf(margin, room_rect.size.y - margin - local_rect.size.y)),
-		Vector2(maxf(margin, room_rect.size.x - margin - local_rect.size.x), maxf(margin, room_rect.size.y - margin - local_rect.size.y))
+		Vector2(max_x, margin),
+		Vector2(margin, max_y),
+		Vector2(max_x, max_y)
 	]
+	var step_m: float = 0.24
+	var cols: int = maxi(1, int(ceil(maxf(0.0, max_x - margin) / step_m)) + 1)
+	var rows: int = maxi(1, int(ceil(maxf(0.0, max_y - margin) / step_m)) + 1)
+	for iy in range(rows):
+		for ix in range(cols):
+			candidates.append(Vector2(
+				lerpf(margin, max_x, 0.0 if cols <= 1 else float(ix) / float(cols - 1)),
+				lerpf(margin, max_y, 0.0 if rows <= 1 else float(iy) / float(rows - 1))
+			))
+
+	var best_rect := local_rect
+	var best_score: float = INF
 	for candidate in candidates:
 		var moved := _clamp_furniture_rect(Rect2(candidate, local_rect.size), room_rect, kind)
-		if not _furniture_blocks_opening(room_id, room_rect, moved):
-			return moved
-	return local_rect
+		if _furniture_layout_conflicts(room_id, room_rect, moved, placed_solid_rects):
+			continue
+		var score: float = local_rect.position.distance_squared_to(moved.position)
+		if score < best_score:
+			best_score = score
+			best_rect = moved
+	return best_rect
+
+
+func _furniture_layout_conflicts(room_id: int, room_rect: Rect2, local_rect: Rect2, placed_solid_rects: Array[Rect2]) -> bool:
+	if _furniture_blocks_opening(room_id, room_rect, local_rect):
+		return true
+	var padded := Rect2(local_rect.position - Vector2(0.045, 0.045), local_rect.size + Vector2(0.09, 0.09))
+	for placed in placed_solid_rects:
+		if padded.intersects(placed, true):
+			return true
+	return false
 
 
 func _opening_clearance_rects_for_room(room_id: int, room_rect: Rect2) -> Array[Rect2]:
@@ -2270,7 +2306,7 @@ func _try_build_furniture_asset(parent: Node3D, kind: String, size_m: Vector2, e
 	instance.name = "Asset_%s" % asset_kind
 	instance.scale = Vector3(maxf(0.05, size_m.x), 1.0, maxf(0.05, size_m.y))
 	if kind == "pool":
-		instance.position.y = maxf(0.0, elevation_m)
+		instance.position.y = minf(maxf(0.0, elevation_m), 0.06)
 	_prepare_asset_materials(instance)
 	parent.add_child(instance)
 	_add_asset_collision_box(parent, kind, size_m, elevation_m)
@@ -2308,19 +2344,13 @@ func _create_window_leaf_visual(
 	leaf.name = node_name
 	parent.add_child(leaf)
 
-	var bar_m: float = clampf(leaf_width_m * 0.12, 0.050, 0.080)
-	var glass_w: float = maxf(0.08, leaf_width_m - bar_m * 2.1)
-	var glass_h: float = maxf(0.12, height_m - bar_m * 2.1)
-	var frame_color: Color = opening_frame_color.lightened(0.04)
-	_add_local_box(leaf, "Glass", Vector3.ZERO, Vector3(glass_w, glass_h, thickness_m * 0.36), window_glass_closed_color, false)
-	_add_local_box(leaf, "LeafFrameTop", Vector3(0.0, height_m * 0.5 - bar_m * 0.5, 0.0), Vector3(leaf_width_m, bar_m, thickness_m), frame_color, false)
-	_add_local_box(leaf, "LeafFrameBottom", Vector3(0.0, -height_m * 0.5 + bar_m * 0.5, 0.0), Vector3(leaf_width_m, bar_m, thickness_m), frame_color, false)
-	_add_local_box(leaf, "LeafFrameLeft", Vector3(-leaf_width_m * 0.5 + bar_m * 0.5, 0.0, 0.0), Vector3(bar_m, height_m, thickness_m), frame_color, false)
-	_add_local_box(leaf, "LeafFrameRight", Vector3(leaf_width_m * 0.5 - bar_m * 0.5, 0.0, 0.0), Vector3(bar_m, height_m, thickness_m), frame_color, false)
+	var glass_w: float = maxf(0.08, leaf_width_m * 0.94)
+	var glass_h: float = maxf(0.12, height_m * 0.94)
+	_add_local_box(leaf, "Glass", Vector3.ZERO, Vector3(glass_w, glass_h, thickness_m * 0.30), window_glass_closed_color, false)
 	_add_local_box(
 		leaf,
 		"Handle",
-		Vector3(handle_sign * (leaf_width_m * 0.5 - bar_m * 1.35), -height_m * 0.08, -thickness_m * 0.64),
+		Vector3(handle_sign * leaf_width_m * 0.38, -height_m * 0.08, -thickness_m * 0.64),
 		Vector3(0.035, 0.24, 0.035),
 		Color(0.72, 0.58, 0.32, 1.0),
 		false
@@ -2393,14 +2423,14 @@ func _build_fp_sofa(parent: Node3D, size_m: Vector2, armchair: bool) -> void:
 	var z: float = maxf(0.58, size_m.y)
 	var arm_w: float = minf(0.16, x * 0.16)
 	var cushion_count: int = 1 if armchair or x < 1.20 else 3
-	_add_local_box(parent, "SofaBase", Vector3(0.0, 0.17, 0.05), Vector3(x * 0.92, 0.18, z * 0.74), furniture_upholstery_color.darkened(0.12), true)
-	_add_local_box(parent, "SofaBack", Vector3(0.0, 0.52, -z * 0.5 + 0.07), Vector3(x, 0.66, 0.14), furniture_upholstery_color.darkened(0.20), true)
-	_add_local_box(parent, "SofaArmLeft", Vector3(-x * 0.5 + arm_w * 0.5, 0.38, 0.04), Vector3(arm_w, 0.44, z * 0.78), furniture_upholstery_color.darkened(0.16), true)
-	_add_local_box(parent, "SofaArmRight", Vector3(x * 0.5 - arm_w * 0.5, 0.38, 0.04), Vector3(arm_w, 0.44, z * 0.78), furniture_upholstery_color.darkened(0.16), true)
+	_add_local_ellipsoid(parent, "SofaBaseSoft", Vector3(0.0, 0.22, 0.05), Vector3(x * 0.92, 0.26, z * 0.74), furniture_upholstery_color.darkened(0.12), true)
+	_add_local_ellipsoid(parent, "SofaBackSoft", Vector3(0.0, 0.56, -z * 0.5 + 0.08), Vector3(x, 0.70, 0.20), furniture_upholstery_color.darkened(0.20), true)
+	_add_local_ellipsoid(parent, "SofaArmLeft", Vector3(-x * 0.5 + arm_w * 0.55, 0.40, 0.04), Vector3(arm_w * 1.25, 0.48, z * 0.78), furniture_upholstery_color.darkened(0.16), true)
+	_add_local_ellipsoid(parent, "SofaArmRight", Vector3(x * 0.5 - arm_w * 0.55, 0.40, 0.04), Vector3(arm_w * 1.25, 0.48, z * 0.78), furniture_upholstery_color.darkened(0.16), true)
 	for i in range(cushion_count):
 		var t: float = 0.5 if cushion_count == 1 else float(i) / float(cushion_count - 1)
 		var cx: float = lerpf(-x * 0.27, x * 0.27, t)
-		_add_local_box(parent, "SofaCushion_%d" % i, Vector3(cx, 0.34, 0.08), Vector3(x * 0.72 / float(cushion_count), 0.11, z * 0.55), furniture_upholstery_color.lightened(0.08), false)
+		_add_local_ellipsoid(parent, "SofaCushion_%d" % i, Vector3(cx, 0.39, 0.08), Vector3(x * 0.72 / float(cushion_count), 0.13, z * 0.55), furniture_upholstery_color.lightened(0.08), false)
 	for sx in [-1.0, 1.0]:
 		for sz in [-1.0, 1.0]:
 			_add_local_box(parent, "SofaLeg", Vector3(sx * x * 0.34, 0.055, sz * z * 0.25), Vector3(0.055, 0.11, 0.055), furniture_wood_color.darkened(0.35), false)
@@ -2410,12 +2440,12 @@ func _build_fp_bed(parent: Node3D, size_m: Vector2) -> void:
 	var x: float = maxf(0.78, size_m.x)
 	var z: float = maxf(1.15, size_m.y)
 	_add_local_box(parent, "BedFrame", Vector3(0.0, 0.17, 0.0), Vector3(x, 0.20, z), furniture_wood_color.darkened(0.10), true)
-	_add_local_box(parent, "Mattress", Vector3(0.0, 0.38, 0.02), Vector3(x * 0.94, 0.25, z * 0.90), furniture_light_fabric_color, true)
-	_add_local_box(parent, "Blanket", Vector3(0.0, 0.535, z * 0.12), Vector3(x * 0.90, 0.075, z * 0.52), furniture_upholstery_color.lightened(0.16), false)
+	_add_local_ellipsoid(parent, "MattressSoft", Vector3(0.0, 0.39, 0.02), Vector3(x * 0.94, 0.28, z * 0.90), furniture_light_fabric_color, true)
+	_add_local_ellipsoid(parent, "BlanketSoft", Vector3(0.0, 0.54, z * 0.12), Vector3(x * 0.90, 0.10, z * 0.52), furniture_upholstery_color.lightened(0.16), false)
 	var pillow_count: int = 2 if x > 1.18 else 1
 	for i in range(pillow_count):
 		var cx: float = 0.0 if pillow_count == 1 else lerpf(-x * 0.23, x * 0.23, float(i))
-		_add_local_box(parent, "Pillow_%d" % i, Vector3(cx, 0.61, -z * 0.34), Vector3(x * (0.36 if pillow_count == 2 else 0.48), 0.12, z * 0.16), Color(0.88, 0.84, 0.74, 1.0), false)
+		_add_local_ellipsoid(parent, "Pillow_%d" % i, Vector3(cx, 0.62, -z * 0.34), Vector3(x * (0.36 if pillow_count == 2 else 0.48), 0.14, z * 0.18), Color(0.88, 0.84, 0.74, 1.0), false)
 	_add_local_box(parent, "Headboard", Vector3(0.0, 0.56, -z * 0.5 - 0.035), Vector3(x, 0.78, 0.07), furniture_wood_color, true)
 
 
@@ -2486,8 +2516,8 @@ func _build_fp_kitchen_unit(parent: Node3D, size_m: Vector2) -> void:
 func _build_fp_rug(parent: Node3D, size_m: Vector2) -> void:
 	var x: float = maxf(0.36, size_m.x)
 	var z: float = maxf(0.30, size_m.y)
-	_add_local_box(parent, "RugOuter", Vector3(0.0, 0.018, 0.0), Vector3(x, 0.025, z), furniture_rug_color, false)
-	_add_local_box(parent, "RugInner", Vector3(0.0, 0.034, 0.0), Vector3(x * 0.78, 0.016, z * 0.70), furniture_rug_color.lightened(0.22), false)
+	_add_local_ellipsoid(parent, "RugOuter", Vector3(0.0, 0.018, 0.0), Vector3(x, 0.035, z), furniture_rug_color, false)
+	_add_local_ellipsoid(parent, "RugInner", Vector3(0.0, 0.038, 0.0), Vector3(x * 0.78, 0.020, z * 0.70), furniture_rug_color.lightened(0.22), false)
 	_add_local_box(parent, "RugFringeA", Vector3(0.0, 0.034, -z * 0.5 - 0.025), Vector3(x * 0.86, 0.014, 0.035), Color(0.78, 0.68, 0.54, 1.0), false)
 	_add_local_box(parent, "RugFringeB", Vector3(0.0, 0.034, z * 0.5 + 0.025), Vector3(x * 0.86, 0.014, 0.035), Color(0.78, 0.68, 0.54, 1.0), false)
 
@@ -2510,12 +2540,12 @@ func _build_fp_textiles(parent: Node3D, size_m: Vector2, elevation_m: float) -> 
 	for i in range(5):
 		var seed: float = float(i) * 1.61
 		var offset := Vector3(sin(seed) * x * 0.20, base_y + 0.055 * float(i), cos(seed) * z * 0.18)
-		_add_local_box(parent, "TextileFold_%d" % i, offset, Vector3(x * (0.42 - 0.03 * float(i % 2)), 0.09, z * (0.34 + 0.04 * float(i % 2))), furniture_light_fabric_color.darkened(0.06 + 0.04 * float(i % 2)), false)
+		_add_local_ellipsoid(parent, "TextileFold_%d" % i, offset, Vector3(x * (0.42 - 0.03 * float(i % 2)), 0.11, z * (0.34 + 0.04 * float(i % 2))), furniture_light_fabric_color.darkened(0.06 + 0.04 * float(i % 2)), false)
 
 
 func _build_fp_pool(parent: Node3D, size_m: Vector2, elevation_m: float) -> void:
 	var radius: float = maxf(0.13, minf(size_m.x, size_m.y) * 0.45)
-	var y: float = maxf(0.035, elevation_m + 0.025)
+	var y: float = maxf(0.035, minf(elevation_m, 0.06) + 0.025)
 	_add_local_cylinder(parent, "OilPan", Vector3(0.0, y, 0.0), radius, 0.035, Color(0.18, 0.15, 0.10, 1.0), false)
 	_add_local_cylinder(parent, "OilSurface", Vector3(0.0, y + 0.026, 0.0), radius * 0.86, 0.012, Color(0.10, 0.075, 0.045, 0.86), false)
 
@@ -2556,6 +2586,30 @@ func _add_local_box(parent: Node3D, node_name: String, center_m: Vector3, size_m
 		shape.position = center_m
 		parent.add_child(shape)
 	return mesh
+
+
+func _add_local_ellipsoid(parent: Node3D, node_name: String, center_m: Vector3, size_m: Vector3, color: Color, with_collision: bool) -> MeshInstance3D:
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.5
+	sphere.height = 1.0
+	sphere.radial_segments = 24
+	sphere.rings = 12
+	var node := MeshInstance3D.new()
+	node.name = node_name
+	node.mesh = sphere
+	node.material_override = _mat(color, color.a < 1.0)
+	node.position = center_m
+	node.scale = size_m
+	node.set_meta("base_color", color)
+	parent.add_child(node)
+	if with_collision and furniture_collision_enabled and parent is StaticBody3D:
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = size_m
+		shape.shape = box
+		shape.position = center_m
+		parent.add_child(shape)
+	return node
 
 
 func _add_local_cylinder(parent: Node3D, node_name: String, center_m: Vector3, radius_m: float, height_m: float, color: Color, with_collision: bool) -> MeshInstance3D:

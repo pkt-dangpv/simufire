@@ -47,6 +47,9 @@ var o2: float = 0.209
 var o2_upper: float = 0.209
 # Fraccion O2 en capa inferior (zona fría). Variable persistente; NO derivada de o2. Fase 2A (2026-05-20).
 var o2_lower: float = 0.209
+# Fraccion CO2 en capa superior (mol fraction 0-1). Tracked directo para evitar error de densidad.
+# 0.0004 = 400 ppm CO2 ambiente. Fase 2B (2026-05-23).
+var co2_upper: float = 0.0004
 
 # Humo
 var smoke_kg: float = 0.0

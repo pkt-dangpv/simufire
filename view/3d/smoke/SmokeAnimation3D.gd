@@ -24,38 +24,52 @@ static func animate(item: Dictionary, global_phase: float, settings: Dictionary)
 	var bottom_m: float = float(item.get("smoke_bottom_m", float(item.get("height_m", default_room_height_m))))
 	var height_m: float = float(item.get("height_m", default_room_height_m))
 	var alpha: float = float(item.get("smoke_alpha", smoke_puff_color.a))
-	if depth_m <= smoke_min_visible_depth_m:
+	var heat_t: float = clampf(float(item.get("smoke_heat_t", 0.0)), 0.0, 1.0)
+	var visibility_t: float = clampf(float(item.get("smoke_visibility_t", 0.0)), 0.0, 1.0)
+	if depth_m <= maxf(0.14, smoke_min_visible_depth_m * 2.2) or alpha <= 0.08:
 		puffs_root.visible = false
 		return
 
 	var usable_w: float = maxf(0.08, rect.size.x - room_inset_m * 2.0)
 	var usable_d: float = maxf(0.08, rect.size.y - room_inset_m * 2.0)
-	var puff_base: float = clampf(minf(rect.size.x, rect.size.y) * 0.18, 0.26, 0.72)
+	var puff_base: float = clampf(minf(rect.size.x, rect.size.y) * 0.12, 0.18, 0.48)
 	var smoke_texture: Texture2D = SmokePuffSpriteFactory.texture_for_alpha(alpha)
 	for i in range(puffs.size()):
 		var puff := puffs[i] as Sprite3D
 		if puff == null:
 			continue
 		var seed: float = float(puff.get_meta("seed", i))
-		var phase: float = global_phase * (0.34 + fposmod(seed, 5.0) * 0.035) + seed
-		var x_frac: float = fposmod(seed * 0.618 + sin(phase) * 0.070, 1.0)
-		var z_frac: float = fposmod(seed * 0.382 + cos(phase * 0.83) * 0.070, 1.0)
-		var y_frac: float = 0.12 + fposmod(seed * 0.271, 0.78)
+		var phase: float = global_phase * (0.20 + heat_t * 0.18 + fposmod(seed, 5.0) * 0.018) + seed
+		var x_frac: float = fposmod(seed * 0.618 + sin(phase) * 0.040, 1.0)
+		var z_frac: float = fposmod(seed * 0.382 + cos(phase * 0.83) * 0.040, 1.0)
+		var interface_puff: bool = fposmod(seed * 0.37, 1.0) < 0.58
+		var y_frac: float
+		if interface_puff:
+			y_frac = 0.06 + fposmod(seed * 0.271, 0.22)
+		else:
+			y_frac = 0.42 + fposmod(seed * 0.193, 0.48)
 		var x_m: float = rect.position.x + room_inset_m + x_frac * usable_w
 		var z_m: float = rect.position.y + room_inset_m + z_frac * usable_d
-		var y_m: float = bottom_m + depth_m * y_frac + sin(phase * 1.7) * minf(depth_m * 0.055, 0.055)
+		var y_m: float = bottom_m + depth_m * y_frac + sin(phase * 1.4) * minf(depth_m * 0.035, 0.042)
 		y_m = clampf(y_m, bottom_m + 0.06, height_m - 0.18)
 		puff.position = _to_world(Vector3(x_m, floor_level_m + y_m, z_m), meters_to_units, origin_offset_m)
-		var wobble: float = 1.0 + sin(phase * 1.3) * 0.10
+		var wobble: float = 1.0 + sin(phase * 1.1) * 0.07
 		var sprite_scale: float = puff_base * lerpf(0.58, 1.05, fposmod(seed * 0.13, 1.0)) * wobble
 		puff.scale = Vector3.ONE * sprite_scale * meters_to_units
-		puff.rotation_degrees.z = sin(phase * 0.42) * 9.0 + seed * 3.0
+		puff.rotation_degrees.z = sin(phase * 0.32) * 6.0 + seed * 3.0
 		puff.texture = smoke_texture
 		var frame_count: int = maxi(1, puff.hframes * puff.vframes)
-		puff.frame = int(fposmod(floor(global_phase * 5.0 + seed), float(frame_count)))
+		puff.frame = int(fposmod(floor(global_phase * (3.0 + heat_t * 2.0) + seed), float(frame_count)))
 		var y_density_t: float = y_frac * y_frac * (3.0 - 2.0 * y_frac)
-		var puff_alpha: float = clampf(alpha * lerpf(0.16, 0.82, y_density_t) * lerpf(0.62, 1.0, fposmod(seed * 0.47, 1.0)), 0.025, 0.40)
-		puff.modulate = Color(0.66, 0.68, 0.70, puff_alpha)
+		var band_alpha: float = lerpf(0.72, 0.22, y_density_t) if interface_puff else lerpf(0.18, 0.48, y_density_t)
+		var puff_alpha: float = clampf(
+			alpha * band_alpha * lerpf(0.48, 0.86, fposmod(seed * 0.47, 1.0)) * lerpf(0.72, 1.0, visibility_t),
+			0.0,
+			0.18
+		)
+		var soot_t: float = clampf(alpha * 1.3 + heat_t * 0.35, 0.0, 1.0)
+		var tint := Color(0.38, 0.39, 0.40, puff_alpha).lerp(Color(0.12, 0.12, 0.115, puff_alpha), soot_t)
+		puff.modulate = tint
 
 
 static func _to_world(meters: Vector3, meters_to_units: float, origin_offset_m: Vector2) -> Vector3:

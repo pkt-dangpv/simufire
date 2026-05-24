@@ -26,7 +26,7 @@
 				}
 			},
 			"victim_v0_final_fed": {
-				"actual": 0.940243678370743,
+				"actual": 0.771535065823282,
 				"pass": true,
 				"rule": {
 					"_note": "Victima 0.9m sala fuego PU: FED ~0.98 a los 800s; confirma acumulacion FED via compute_fed_delta_for_height",
@@ -60,7 +60,7 @@
 		"room_0_final_dominant_fuel_object_id": "pu_moqueta",
 		"room_0_final_dominant_fuel_object_remaining_MJ": 1743.94572133322,
 		"room_0_final_dominant_fuel_object_state": "decaying",
-		"room_0_final_fed": 0.95271886121149,
+		"room_0_final_fed": 0.784008343808892,
 		"room_0_final_fire_time_s": 223.880528837599,
 		"room_0_final_flame_hrr_target_kw": 0.0,
 		"room_0_final_fuel_objects_flaming_count": 0,
@@ -101,7 +101,7 @@
 		"room_0_final_wall_T_outer_c": 20.0,
 		"room_0_final_wall_k_kw_m_k": -1.0,
 		"room_0_final_wall_thickness_m": -1.0,
-		"room_0_max_fed": 0.95271886121149,
+		"room_0_max_fed": 0.784008343808892,
 		"room_0_max_fuel_objects_flaming_count": 2,
 		"room_0_max_fuel_objects_heating_count": 1,
 		"room_0_max_fuel_objects_pyrolyzing_count": 1,
@@ -131,7 +131,7 @@
 		"time_room_0_smoke_layer_2m_s": 28.9999999999999,
 		"time_room_0_temp_1_8m_above_150c_s": 95.0833333333323,
 		"time_room_1_smoke_start_s": 42.2500000000001,
-		"victim_v0_final_fed": 0.940243678370743,
+		"victim_v0_final_fed": 0.771535065823282,
 		"victim_v0_incapacitated": 0.0,
 		"watched_temp_upper_clamp_count": 0,
 		"watched_temp_upper_clamp_time_s": 0.0

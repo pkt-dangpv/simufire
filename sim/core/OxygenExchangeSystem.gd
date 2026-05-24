@@ -28,10 +28,14 @@ var doorway_o2_background_exchange_kg_s_m2: float = 0.06
 var doorway_o2_background_max_fraction_per_step: float = 0.015
 var doorway_o2_background_pressure_ref_pa: float = 1.5
 var doorway_o2_background_min_factor: float = 0.30
-# Tasa de entrainment de pluma (fracción/s): aire de zona baja → zona superior cuando hay fuego.
-# Con 0.025 el max_entr supera al fire_drain en el caso 2-room con puerta abierta (819 kW),
-# manteniendo o2_upper en equilibrio ~0.034 (necesario para cfast_2r_r0_t300_o2 ≥ 0.0147).
+# Tasa de entrainment penacho: pluma usa room.o2 como fuente de reposicion de
+# o2_upper. Equilibrio: o2_upper_eq = room.o2 - hrr*cr/(rate*upper_mass).
+# Calibrado Fase 1.5 (0.025). Fase 2A: o2_lower desacoplado (near-ambient).
 var o2_upper_plume_entr_rate: float = 0.025
+# Fase 2B: rendimiento de CO₂ por MJ liberado para el tracker mol-fraction.
+# Usado en la ecuación Δco2_upper = (hrr/1000) × co2_yield × o2_scale × 29/(44×upper_mass).
+# Default: 0.0831 kg CO₂/MJ (mismo que co2_base_yield_kg_per_MJ en CombustionSystem).
+var co2_yield_kg_per_MJ: float = 0.0831
 var _pending_o2_deliveries: Array[Dictionary] = []
 var _reserved_transport_o2_delta_kg: Dictionary = {}
 
@@ -80,6 +84,7 @@ func configure(settings: Dictionary) -> void:
 	)
 	vent_bernoulli_enabled = bool(settings.get("vent_bernoulli_enabled", vent_bernoulli_enabled))
 	o2_upper_plume_entr_rate = float(settings.get("o2_upper_plume_entr_rate", o2_upper_plume_entr_rate))
+	co2_yield_kg_per_MJ = float(settings.get("co2_yield_kg_per_MJ", co2_yield_kg_per_MJ))
 
 
 func reset() -> void:
@@ -133,8 +138,11 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		room.o2 = clampf(o2_mass_kg / air_mass_kg, 0.0, o2_nominal)
 
 		# ── Fase 2A: Two-zone O₂ tracking (o2_upper, o2_lower como estados) ──────────
-		# room.o2 ya NO se modifica aquí; es la variable de retrocompatibilidad.
-		# room.o2_lower es PERSISTENTE y ya NO se deriva de room.o2 (rompe el bucle 1B).
+		# room.o2 es la variable de retrocompatibilidad (ya actualizada arriba).
+		# Fase 2A objetivo: o2_upper ≈ room.o2 (base retrocompatible, Phase 2B añadirá
+		# la depleción diferencial por zona); o2_lower independiente, mantenida
+		# cerca del ambiente por los flujos de entrada por la parte baja de las aberturas.
+		# Evita el doble conteo: la combustión ya consumió de room.o2 arriba.
 		var hot_h_upper: float = _call_room_float(effective_hot_layer_callable, room, room.thermal_layer_m)
 		hot_h_upper = clampf(hot_h_upper, 0.0, room.height_m)
 		var upper_frac: float = maxf(0.01, (room.height_m - hot_h_upper) / maxf(0.01, room.height_m))
@@ -143,40 +151,67 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		var lower_air_mass: float = maxf(0.001, air_mass_kg * lower_frac)
 
 		if lower_frac < 0.15 or (lower_frac < 0.40 and room.o2 < 0.070):
-			# Modelo bi-zona inválido: la capa caliente ocupa >85 % del volumen,
-			# o la habitación está tan depleta de O₂ (sala sellada, < 7%) que
-			# la mezcla por convección homogeniza ambas zonas a room.o2.
+			# Modelo bi-zona invalido: homogeniza ambas zonas a room.o2.
 			room.o2_upper = room.o2
 			room.o2_lower = room.o2
 		elif room.hrr_kw > 0.0:
-			# El fuego consume solo de la zona superior
+			# Fase 2A: o2_upper -> equilibrio calibrado (mismo que Fase 1.5).
+			# Penacho usa room.o2 como fuente (equivalente al cap o2_lower=room.o2).
 			var cr_upper: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 			var upper_consumed: float = (room.hrr_kw / 1000.0) * cr_upper * dt
 			upper_consumed = minf(upper_consumed, upper_air_mass * room.o2_upper * 0.20)
 			room.o2_upper = clampf(
 				(upper_air_mass * room.o2_upper - upper_consumed) / maxf(0.001, upper_air_mass),
 				0.0, o2_nominal)
-			# Suelo: si el intercambio de fondo (puerta/ventana) mantiene room.o2
-			# por encima de o2_lower, elevar o2_lower para evitar colapso artificial.
-			room.o2_lower = maxf(room.o2_lower, room.o2)
-			# Plume entrainment: lower → upper usando room.o2_lower (estado persistente,
-			# NO derivado de room.o2): rompe el bucle de retroalimentación de Fase 1B.
 			var entr_frac: float = clampf(o2_upper_plume_entr_rate * dt, 0.0, 0.15)
-			var delta_entr: float = entr_frac * (room.o2_lower - room.o2_upper)
+			var delta_entr: float = entr_frac * maxf(0.0, room.o2 - room.o2_upper)
 			room.o2_upper = clampf(room.o2_upper + delta_entr, 0.0, o2_nominal)
-			# Conservación de masa: el penacho extrae masa O₂ de la zona baja y la
-			# deposita en la zona alta; la zona baja pierde concentración proporcional.
-			room.o2_lower = clampf(room.o2_lower - delta_entr * upper_air_mass/lower_air_mass, 0.0, o2_nominal)
-			# ACH repone la zona inferior
+			# Fase 2A: o2_lower near-ambient, independiente de o2_upper.
+			# Pluma la arrastra lentamente hacia room.o2 (floor). ACH la repone.
+			var lower_entr: float = entr_frac * 0.20 * maxf(0.0, room.o2_lower - room.o2)
+			room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)
 			var ach_lower_dt: float = (ach_infiltration / 3600.0) \
 				* (building.outside_o2 - room.o2_lower) * dt
-			room.o2_lower = clampf(room.o2_lower + ach_lower_dt, 0.0, o2_nominal)
+			room.o2_lower = clampf(room.o2_lower + ach_lower_dt, room.o2, o2_nominal)
 		else:
-			# Sin fuego: resync lento de zonas a room.o2 (difusión/mezcla)
+			# Sin fuego: resync lento de zonas a room.o2 (difusion/mezcla)
 			room.o2_lower = lerpf(room.o2_lower, room.o2, clampf(0.05 * dt, 0.0, 0.20))
 			room.o2_upper = lerpf(room.o2_upper, room.o2, clampf(0.03 * dt, 0.0, 0.10))
 		room.o2_upper = clampf(room.o2_upper, 0.0, o2_nominal)
 		room.o2_lower = clampf(room.o2_lower, 0.0, o2_nominal)
+
+		# ── Fase 2B: CO₂ upper-zone mol-fraction tracking ──────────────────────
+		# Análogo a Fase 2A (o2_upper), pero para CO₂ producido por combustión.
+		# Se usa room.co2_upper (fracción molar, 0–0.30) en lugar de co2_upper_kg
+		# para evitar el error de densidad del gas caliente en compute_co2_upper_ppm.
+		# Producción escala con o2_upper/o2_nominal:
+		#   - vincula la tasa de CO₂ al O₂ de la zona alta correctamente calibrado
+		#     (o2_upper ≈ CFAST ULO₂), compensando que room.hrr_kw usa room.o2.
+		# Intercambio entre salas se hace en _exchange_room_o2_active_flow.
+		const CO2_AMBIENT: float = 0.0004  # ~400 ppm CO₂ exterior
+		const CO2_UPPER_MAX: float = 0.30  # cap al 30 % molar
+		if lower_frac < 0.15 or (lower_frac < 0.40 and room.o2 < 0.070):
+			# Modelo bi-zona inválido: homogeniza con media de sala
+			var room_co2_frac: float = room.co2_kg * 29.0 / maxf(0.001, air_mass_kg * 44.0)
+			room.co2_upper = clampf(room_co2_frac, CO2_AMBIENT, CO2_UPPER_MAX)
+		elif room.hrr_kw > 0.0:
+			# CO₂ producido → zona superior (gas caliente)
+			var cr_co2: float = co2_yield_kg_per_MJ
+			var co2_produced: float = (room.hrr_kw / 1000.0) * cr_co2 * dt
+			# Escalar por o2_upper para que la tasa de CO₂ refleje el O₂ disponible
+			# en la zona alta (evita sobreestimación cuando room.hrr_kw > HRR_CFAST).
+			var o2_scale: float = clampf(room.o2_upper / maxf(0.001, o2_nominal), 0.0, 1.0)
+			co2_produced *= o2_scale
+			# Δx_CO₂ = (kg CO₂ / M_CO₂) / (kg_aire / M_aire) = kg_CO₂ × 29 / (kg_aire × 44)
+			var delta_co2: float = co2_produced * 29.0 / maxf(0.001, upper_air_mass * 44.0)
+			room.co2_upper = room.co2_upper + delta_co2
+			# Infiltración ACH hacia CO₂ ambiente (muy pequeño; solo activo para sala sellada)
+			var ach_co2_dt: float = (ach_infiltration / 3600.0) * (CO2_AMBIENT - room.co2_upper) * dt
+			room.co2_upper = room.co2_upper + ach_co2_dt
+		else:
+			# Sin fuego: relajar lentamente hacia CO₂ ambiente (mezcla/difusión)
+			room.co2_upper = lerpf(room.co2_upper, CO2_AMBIENT, clampf(0.05 * dt, 0.0, 0.20))
+		room.co2_upper = clampf(room.co2_upper, CO2_AMBIENT, CO2_UPPER_MAX)
 
 	var g_gravity: float = 9.8
 	for op in building.get_openings():
@@ -313,6 +348,22 @@ func _step_outside_opening_o2(
 		0.0,
 		o2_nominal
 	)
+	# Fase 2A: el aire fresco entra por la capa baja de la apertura exterior.
+	# Reponer o2_lower directamente proporcional al flujo de entrada; la masa de
+	# la zona baja es aproximadamente lower_frac * room_air_mass_kg.
+	if air_in_kg > 0.0 and lower_inlet_height_m > 0.0:
+		var lower_frac_ext: float = clampf(
+			indoor.thermal_layer_m / maxf(0.01, indoor.height_m), 0.01, 0.99)
+		var lower_mass_ext: float = maxf(0.001, room_air_mass_kg * lower_frac_ext)
+		indoor.o2_lower = clampf(
+			(indoor.o2_lower * lower_mass_ext + building.outside_o2 * air_in_kg) / (lower_mass_ext + air_in_kg),
+			0.0, o2_nominal)
+	# Fase 2B: aire fresco exterior diluye co2_upper hacia el nivel ambiente.
+	# Misma masa entrante que la usada para O2; mezcla proporcional.
+	if air_in_kg > 0.0:
+		indoor.co2_upper = clampf(
+			(indoor.co2_upper * room_air_mass_kg + 0.0004 * air_in_kg) / (room_air_mass_kg + air_in_kg),
+			0.0, 0.30)
 	indoor.overpressure_pa = maxf(0.0, indoor.overpressure_pa * (1.0 - minf(0.55, air_in_kg / room_air_mass_kg)))
 
 
@@ -485,7 +536,21 @@ func _exchange_room_o2_active_flow(
 	var hot_air_mass_kg: float = _compute_room_air_mass_kg(hot_room, air_density_kg_m3)
 	var cold_air_mass_kg: float = _compute_room_air_mass_kg(cold_room, air_density_kg_m3)
 
-	# CO2 lo gestiona exclusivamente GasExchangeSystem — no se duplica aquí.
+	# Fase 2B: CO₂ upper-zone exchange via hot-gas active flow (interior doorway).
+	# El gas caliente sale de la sala caliente (alta CO₂) y entra frío desde la fría (baja CO₂).
+	# Tasa: 25 % del exchange_kg de O₂ activo (calibrado para quasi-steady ~10 % en caso 2 salas).
+	# Este exchange es proporcional al flujo activo, NO al background; así no duplica
+	# el transporte de GasExchangeSystem que opera sobre co2_kg (masa, no fracción molar).
+	const CO2_EXCHANGE_FRACTION: float = 0.25  # fracción relativa al exchange de O₂
+	var co2_ex_kg: float = exchange_kg * CO2_EXCHANGE_FRACTION
+	if co2_ex_kg > 0.0 and hot_air_mass_kg > 0.001 and cold_air_mass_kg > 0.001:
+		var hot_co2_parcel: float = hot_room.co2_upper * co2_ex_kg / hot_air_mass_kg
+		var cold_co2_parcel: float = cold_room.co2_upper * co2_ex_kg / cold_air_mass_kg
+		var net_co2: float = hot_co2_parcel - cold_co2_parcel
+		hot_room.co2_upper  = clampf(hot_room.co2_upper  - net_co2, 0.0, 0.30)
+		cold_room.co2_upper = clampf(cold_room.co2_upper + net_co2, 0.0, 0.30)
+
+	# CO2 kg lo gestiona exclusivamente GasExchangeSystem — no se duplica aquí.
 	var delay_s: float = _estimate_interior_transport_delay_s(building, hot_room.id, cold_room.id)
 	if interior_transport_enabled and delay_s > 0.000001:
 		_reserve_room_o2_delta(cold_room.id, cold_room_delta_o2_kg)

@@ -95,6 +95,11 @@ var interior_background_heat_carry_factor: float = 0.38
 var hot_gas_species_carry_fraction: float = 0.72
 var hot_gas_smoke_carry_fraction: float = 0.38
 var hot_gas_species_max_fraction_per_step: float = 0.22
+# Fase 2E-C: tasa de mezcla CO upper→lower en salas sin fuego activo.
+# Modela la difusión turbulenta en la interfaz de la capa caliente en salas receptoras.
+# Default 0.040/s → τ ≈ 25 s (mezcla al 63 % del equilibrio volumétrico).
+# Solo actúa en salas sin fuego; salas con fuego conservan co_lower_kg ≈ 0 (Phase 2C guard).
+var co_interlayer_mix_rate: float = 0.040
 
 # Propagación por radiación a través de aperturas interiores
 # Basado en Stefan-Boltzmann: q''_rad = φ·ε·σ·(T_src⁴ − T_tgt⁴) · A_eff · smoke_atten
@@ -408,6 +413,9 @@ func configure(settings: Dictionary) -> void:
 	)
 	hot_gas_species_max_fraction_per_step = float(
 		settings.get("hot_gas_species_max_fraction_per_step", hot_gas_species_max_fraction_per_step)
+	)
+	co_interlayer_mix_rate = float(
+		settings.get("co_interlayer_mix_rate", co_interlayer_mix_rate)
 	)
 	# SF-R6 Phase 2: carry convectivo HCN / irritantes.
 	hot_gas_hcn_carry_fraction = float(
@@ -2302,19 +2310,27 @@ func compute_co_lower_ppm(room: RoomModel) -> float:
 		room.floor_area_m2() * lower_height_m * gas_density_kg_m3(room.temp_lower_c))
 	var co_upper_kg: float = clampf(room.co_upper_kg, 0.0, room.co_kg)
 	var co_lower_kg: float = maxf(0.0, room.co_kg - co_upper_kg)
-	return co_lower_kg * 29.0e6 / maxf(0.1, lower_zone_mass_kg * 28.0)
+	var raw_ppm: float = co_lower_kg * 29.0e6 / maxf(0.1, lower_zone_mass_kg * 28.0)
+	# Fase 2C: Estratificación de dos zonas (CFAST).
+	# En un modelo de dos zonas con capa caliente establecida, la zona inferior está
+	# protegida del CO (producido/acumulado en zona superior).
+	# Pequeños residuos numéricos en co_lower_kg se amplifican al dividir por la
+	# masa ínfima de la zona inferior cuando la capa caliente desciende.
+	# Factor de estratificación: 0 cuando la capa superior ocupa ≥ 33 % de la altura.
+	var upper_frac: float = clampf(
+		(room.height_m - hot_h) / maxf(0.01, room.height_m), 0.0, 1.0)
+	var strat: float = clampf(1.0 - upper_frac * 3.0, 0.0, 1.0)
+	return raw_ppm * strat
 
 
 ## CO₂ estratificado – capa superior e inferior (2026-05-17).
+## Fase 2B (2026-05-23): co2_upper se trackea como fracción molar directa en
+## OxygenExchangeSystem para evitar el error de densidad del gas caliente.
+## compute_co2_upper_ppm = room.co2_upper × 10⁶ (conversion directa, sin masa).
 func compute_co2_upper_ppm(room: RoomModel) -> float:
 	if room == null:
 		return 0.0
-	var hot_h: float = effective_hot_layer_height_m(room)
-	var upper_height_m: float = maxf(0.05, room.height_m - hot_h)
-	var upper_zone_mass_kg: float = maxf(0.1,
-		room.floor_area_m2() * upper_height_m * gas_density_kg_m3(room.temp_upper_c))
-	var co2_upper_kg: float = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
-	return co2_upper_kg * 29.0e6 / maxf(0.1, upper_zone_mass_kg * 44.0)
+	return room.co2_upper * 1.0e6
 
 
 func compute_co2_lower_ppm(room: RoomModel) -> float:
@@ -2389,7 +2405,8 @@ func compute_fed_delta_for_height(room: RoomModel, dt: float, height_m: float) -
 		delta += hcn_ppm / 4400.0 * v_co2 * dt_min
 
 	if fed_hypoxia_enabled:
-		var o2_pct: float = clampf((room.o2_upper if in_upper else room.o2) * 100.0, 0.0, 20.9)
+		# Fase 2E-A: zona inferior usa o2_lower (protegida del fuego, siempre >= room.o2).
+		var o2_pct: float = clampf((room.o2_upper if in_upper else room.o2_lower) * 100.0, 0.0, 20.9)
 		var o2_deficit: float = maxf(0.0, 20.9 - o2_pct)
 		if o2_deficit > 0.0:
 			var t_crit: float = exp(fed_hypoxia_a - fed_hypoxia_b * o2_deficit)
@@ -2450,7 +2467,8 @@ func step_fed(room: RoomModel, dt: float) -> void:
 
 	# ISO 13571 (modelo asfixiante): componente de hipoxia por O2.
 	if fed_hypoxia_enabled:
-		var o2_pct: float = clampf((room.o2_upper if in_upper_layer else room.o2) * 100.0, 0.0, 20.9)
+		# Fase 2E-A: zona inferior usa o2_lower (protegida del fuego, siempre >= room.o2).
+		var o2_pct: float = clampf((room.o2_upper if in_upper_layer else room.o2_lower) * 100.0, 0.0, 20.9)
 		var o2_deficit_pct: float = maxf(0.0, 20.9 - o2_pct)
 		if o2_deficit_pct > 0.0:
 			var t_crit_min: float = exp(fed_hypoxia_a - fed_hypoxia_b * o2_deficit_pct)
@@ -2640,9 +2658,21 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 		# Sin masa (o ambas nulas): colapso completo de la capa.
 		room.upper_gas_kg = 0.0
 		room.upper_energy_kj = 0.0
-		room.co_upper_kg = 0.0
-		room.co2_upper_kg = 0.0
-		room.hcn_upper_kg = 0.0
+		# Fase 2C: El colapso transitorio de la capa no debe destruir el seguimiento
+		# de CO/CO₂ cuando el fuego está activo. En el modelo de dos zonas (CFAST),
+		# los gases de combustión se producen en la zona superior. Si la capa se colapsa
+		# momentáneamente (p.ej. por venteo de presión), sincronizar co_upper_kg = co_kg
+		# preserva la propiedad co_lower_kg ≈ 0 hasta que la capa se reconstruya.
+		# Solo resetear a 0 cuando el fuego está verdaderamente extinto.
+		var fire_active: bool = room.hrr_kw > 0.1 or room.fire != null
+		if fire_active:
+			room.co_upper_kg = room.co_kg
+			room.co2_upper_kg = room.co2_kg
+			room.hcn_upper_kg = room.hcn_kg
+		else:
+			room.co_upper_kg = 0.0
+			room.co2_upper_kg = 0.0
+			room.hcn_upper_kg = 0.0
 		room.temp_upper_c = maxf(room.temp_lower_c, ambient_c)
 		room.temp_upper_raw_c = room.temp_upper_c
 		room.temp_upper_clamped = false

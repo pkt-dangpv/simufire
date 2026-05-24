@@ -2,12 +2,8 @@
 
 [sub_resource type="BoxMesh" id="BoxMesh_unit"]
 
-[sub_resource type="StandardMaterial3D" id="Mat_frame"]
-albedo_color = Color(0.46, 0.34, 0.22, 1)
-roughness = 0.92
-
 [sub_resource type="StandardMaterial3D" id="Mat_glass"]
-albedo_color = Color(0.52, 0.70, 0.88, 0.38)
+albedo_color = Color(0.58, 0.76, 0.94, 0.30)
 roughness = 0.22
 transparency = 1
 
@@ -17,28 +13,4 @@ transparency = 1
 mesh = SubResource("BoxMesh_unit")
 material_override = SubResource("Mat_glass")
 position = Vector3(0, 0, 0)
-scale = Vector3(0.86, 0.82, 0.42)
-
-[node name="FrameTop" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_frame")
-position = Vector3(0, 0.47, -0.02)
-scale = Vector3(1, 0.08, 0.55)
-
-[node name="FrameBottom" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_frame")
-position = Vector3(0, -0.47, -0.02)
-scale = Vector3(1, 0.08, 0.55)
-
-[node name="FrameLeft" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_frame")
-position = Vector3(-0.47, 0, -0.02)
-scale = Vector3(0.08, 1, 0.55)
-
-[node name="FrameRight" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_frame")
-position = Vector3(0.47, 0, -0.02)
-scale = Vector3(0.08, 1, 0.55)
+scale = Vector3(0.94, 0.90, 0.18)

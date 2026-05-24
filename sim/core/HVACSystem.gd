@@ -78,6 +78,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictionary:
 
 	var supply_mix: Dictionary = {
 		"o2": lerpf(float(return_sample.get("o2", building.outside_o2)), building.outside_o2, outside_air_fraction),
+		# Fase 2B: co2_upper del supply = mezcla entre retorno y exterior (0.0004 mol fraction).
+		"co2_upper": lerpf(float(return_sample.get("co2_upper", 0.0004)), 0.0004, outside_air_fraction),
 		"temp_c": _compute_supply_temp_c(building, hvac, return_sample, outside_air_fraction, is_on),
 		"smoke_kg_per_kg_air": (
 			smoke_from_returns_kg
@@ -138,6 +140,7 @@ func _extract_return_air(
 		"co_upper_kg": 0.0,
 		"co2_kg": 0.0,
 		"hcn_kg": 0.0,
+		"co2_upper_weighted_kg": 0.0,  # Fase 2B: fracción molar CO₂ zona alta × kg aire
 		"touched_room_ids": []
 	}
 	var total_weight: float = _sum_vent_weights(return_vents)
@@ -173,6 +176,7 @@ func _extract_return_air(
 		sample["air_kg"] = float(sample["air_kg"]) + air_kg
 		sample["temp_weighted_c_kg"] = float(sample["temp_weighted_c_kg"]) + sample_temp_c * air_kg
 		sample["o2_weighted_kg"] = float(sample["o2_weighted_kg"]) + room.o2 * air_kg
+		sample["co2_upper_weighted_kg"] = float(sample.get("co2_upper_weighted_kg", 0.0)) + room.co2_upper * air_kg
 		sample["smoke_kg"] = float(sample["smoke_kg"]) + smoke_removed_kg
 		sample["co_kg"] = float(sample["co_kg"]) + float(species_removed.get("co_kg", 0.0))
 		sample["co_upper_kg"] = float(sample["co_upper_kg"]) + float(species_removed.get("co_upper_kg", 0.0))
@@ -184,9 +188,11 @@ func _extract_return_air(
 	if total_air_kg > 0.000001:
 		sample["temp_c"] = float(sample.get("temp_weighted_c_kg", 0.0)) / total_air_kg
 		sample["o2"] = float(sample.get("o2_weighted_kg", 0.0)) / total_air_kg
+		sample["co2_upper"] = float(sample.get("co2_upper_weighted_kg", 0.0)) / total_air_kg
 	else:
 		sample["temp_c"] = building.outside_temp_c
 		sample["o2"] = building.outside_o2
+		sample["co2_upper"] = 0.0004
 
 	return sample
 
@@ -231,6 +237,9 @@ func _supply_air(
 		room.co2_kg += co2_added_kg
 		room.hcn_kg += hcn_added_kg
 		room.o2 = lerpf(room.o2, clampf(float(supply_mix.get("o2", building.outside_o2)), 0.0, building.outside_o2), air_fraction)
+		# Fase 2B: diluir co2_upper con el CO₂ del aire suministrado (0.0004 si es 100% exterior).
+		var supply_co2_upper: float = float(supply_mix.get("co2_upper", 0.0004))
+		room.co2_upper = clampf(lerpf(room.co2_upper, supply_co2_upper, air_fraction), 0.0, 0.30)
 		_apply_supply_heat(room, vent, air_kg, float(supply_mix.get("temp_c", building.outside_temp_c)), hooks)
 		recirculated_smoke_kg += smoke_added_kg
 

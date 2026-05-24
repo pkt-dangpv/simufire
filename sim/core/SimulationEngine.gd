@@ -621,8 +621,9 @@ var _step_time_us: int = 0
 # 0.0 = deshabilitado (default) — O2 room-to-room gestionado exclusivamente por OxygenExchangeSystem.
 # Evita el doble transporte de O2 entre sistemas. ghanekar_bedroom_hallway usa 3.0 (caso especial).
 @export var background_o2_exchange_multiplier: float = 0.0
-# Tasa de entrainment pluma→capa superior (fracción de O2_upper actualizado por paso).
-# Global default=0.025; se puede sobreescribir por caso vía engine_overrides.
+# Tasa de entrainment penacho→zona superior. Calibrado en Fase 1.5 (0.025 default).
+# Fase 2A: penacho usa room.o2 como fuente → equilibrio o2_upper ≈ CFAST_ULO2.
+# o2_lower se gestiona independientemente (near-ambient) sin afectar este equilibrio.
 @export var o2_upper_plume_entr_rate: float = 0.025
 
 # ============================================================

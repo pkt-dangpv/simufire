@@ -1,8 +1,9 @@
 ﻿{
   "metrics": {
     "time_room_1_fed_above_0_1_s": {
-      "expected": 169.0,
-      "tolerance": 10.0
+      "expected": 197.75,
+      "tolerance": 10.0,
+      "comment": "Phase 2C: CO is now correctly placed in the upper zone (co_upper_kg = co_kg during fire-active collapse). Lower-zone CO at breathing height is near 0, so FED accumulation is slower and the threshold is reached later than the old well-mixed-style expectation (169 s → 197.75 s)."
     },
     "time_room_1_temp_upper_above_100c_s": {
       "expected": 70.833333,
