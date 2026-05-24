@@ -95,12 +95,6 @@ var interior_background_heat_carry_factor: float = 0.38
 var hot_gas_species_carry_fraction: float = 0.72
 var hot_gas_smoke_carry_fraction: float = 0.38
 var hot_gas_species_max_fraction_per_step: float = 0.22
-# Fase 2E-C: tasa de mezcla CO upper→lower en salas sin fuego activo.
-# Modela la difusión turbulenta en la interfaz de la capa caliente en salas receptoras.
-# Default 0.040/s → τ ≈ 25 s (mezcla al 63 % del equilibrio volumétrico).
-# Solo actúa en salas sin fuego; salas con fuego conservan co_lower_kg ≈ 0 (Phase 2C guard).
-var co_interlayer_mix_rate: float = 0.040
-
 # Propagación por radiación a través de aperturas interiores
 # Basado en Stefan-Boltzmann: q''_rad = φ·ε·σ·(T_src⁴ − T_tgt⁴) · A_eff · smoke_atten
 # φ=0.25 es el factor de vista efectivo para una apertura de puerta a sala adyacente.
@@ -413,9 +407,6 @@ func configure(settings: Dictionary) -> void:
 	)
 	hot_gas_species_max_fraction_per_step = float(
 		settings.get("hot_gas_species_max_fraction_per_step", hot_gas_species_max_fraction_per_step)
-	)
-	co_interlayer_mix_rate = float(
-		settings.get("co_interlayer_mix_rate", co_interlayer_mix_rate)
 	)
 	# SF-R6 Phase 2: carry convectivo HCN / irritantes.
 	hot_gas_hcn_carry_fraction = float(
