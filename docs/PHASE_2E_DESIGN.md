@@ -64,14 +64,14 @@ sobre FED, O₂ upper, CO₂ upper — todo acoplado.
 
 Escenario: `g4_gie_delayed_entry_hazard` — sala con fuego intenso, entry delayed.
 
-| Check | Actual | Expected | Tol | Margen |
+| Check | Actual | Expected | Tol | Margen al límite |
 |-------|--------|----------|-----|--------|
-| `g4_gie_delayed_entry_hazard_time_room_1_fed_above_0_1_s` | 198.4 s | 197.75 s | ±10 s | 0.65 s (6.5 % del tol) |
-| `g4_gie_delayed_entry_hazard_room_1_peak_co_upper_ppm` | 62716.9 ppm | ≥2000 ppm | — | holgado |
-| `g4_gie_delayed_entry_hazard_time_room_1_co_upper_above_1200_s` | (verificar en json) | 87.33 s | ±5 s | — |
+| `g4_gie_delayed_entry_hazard_time_room_1_fed_above_0_1_s` | 198.4 s | 197.75 s | ±10 s | **9.33 s** (desviación actual: 0.67 s) |
+| `g4_gie_delayed_entry_hazard_room_1_peak_co_upper_ppm` | 62716.9 ppm | ≥2000 ppm | — | holgado (+60716 ppm) |
+| `g4_gie_delayed_entry_hazard_time_room_1_co_upper_above_1200_s` | 85.58 s | 87.33 s | ±5 s | **3.25 s** (desviación actual: 1.75 s) |
 
-El primer check tiene **margen de 0.65 s sobre una tolerancia de ±10 s**. Cualquier cambio
-que retrase el FED en room_1 entre 10.65 s y más lo rompe.
+El check de CO>1200 timing tiene el margen más ajustado: **3.25 s restantes** sobre una
+tolerancia de ±5 s. Phase 2E-A (CO transport split) afecta directamente este timing.
 
 ### 2.2 Checks v3 — importantes
 
@@ -305,6 +305,44 @@ Merge PR: requiere 289/289 PASS + revisión manual de criterios de aceptación
 | `compute_co_lower_ppm` | ThermalSystem.gd | ~2295–2340 | NO (solo export/reporting) |
 | `compute_co_ppm` | ThermalSystem.gd | — | Indirectamente (usado por step_fed lower path) |
 | `step_oxygen` | OxygenExchangeSystem.gd | — | SÍ (o2_lower, o2_upper) |
+
+---
+
+## 7. Preflight antes de tocar Phase 2E
+
+Antes de crear la rama `feature/phase-2e-two-zone` (y después de cada commit en ella),
+ejecutar el script de preflight para confirmar que los checks sentinel siguen en verde:
+
+```bash
+python scripts/simulation/phase2e_preflight.py
+```
+
+El script lee `sim/validation/reports/reference_checks.json` (generado por la suite de
+validación) y reporta para cada check sentinel:
+
+- `actual` — valor simulado actual
+- `bound` — límite del check (`exp ±tol` / `min` / `max`)
+- `margin` — distancia al borde de fallo (positivo = PASS; negativo = FAIL)
+- `riesgo` — qué componente de Phase 2E puede afectarlo
+- símbolo `⚠` cuando el margen es menor al 5 % del valor actual (check ajustado)
+
+**Salida esperada en baseline limpio** (289/289 PASS):
+
+```
+  ✓ PREFLIGHT OK — todos los sentinels PASS.
+    Puedes iniciar la rama Phase 2E.
+    Vuelve a ejecutar este script después de cada commit en la rama.
+```
+
+**Código de salida**: `0` si todos los sentinels PASS, `1` si alguno FAIL o no encontrado.
+Integrar en CI o en el pre-merge checklist de la rama Phase 2E.
+
+Si el preflight falla antes de empezar Phase 2E, regenerar el reporte:
+
+```bash
+python scripts/simulation/validate_reference_cases.py
+python scripts/simulation/phase2e_preflight.py
+```
 
 ---
 
