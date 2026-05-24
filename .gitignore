@@ -12,9 +12,20 @@ export_presets.cfg
 *.tmp
 *.log
 tmp_*
+.tmp_guardrail_tests/
+tests/tmp_*
 last_run.txt
 editor_scenario.json
 execution_output.log
+
+# Validation experiment artifacts (not baselines)
+sim/validation/cases/*_p2e*.json
+sim/validation/cases/*_p2f*.json
+sim/validation/cases/*_p2g*.json
+sim/validation/reports/*_p2e*.json
+sim/validation/reports/*_p2f*.json
+sim/validation/reports/*_p2g*.json
+sim/validation/reports/*_phase2e_exp*.json
 
 # Godot import artifacts from validation CSVs
 sim/validation/cfast/*.translation

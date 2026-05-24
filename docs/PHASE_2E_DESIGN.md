@@ -346,5 +346,855 @@ python scripts/simulation/phase2e_preflight.py
 
 ---
 
+## 8. Phase 2E Experimento 1 — CO Two-Zone Transport Split
+
+**Fecha**: 24 mayo 2026  
+**Flag**: `phase2e_two_zone_transport_enabled` (default `false`)  
+**Cambio implementado**: bloque CO en `_transfer_hot_gas_contaminants()` — cuando flag=ON,
+el CO que llega al destino se reparte entre upper/lower según la profundidad de la capa
+caliente actual del destino (`h_upper_tgt / height_m`). Con flag=OFF el comportamiento es
+bit-a-bit idéntico al baseline.
+
+### Resultado: 289/289 PASS con flag OFF
+
+```
+Required checks   289/289 PASS  [OK]
+Gap inventory sync              PASS
+Phase 2E sentinels (7)          PASS
+```
+
+Baseline intacto tras la adición de la variable, el cableado en `load_settings()` y la
+instrucción condicional en el bloque CO.
+
+### Tabla de comparación — flag OFF vs flag ON
+
+Cuatro casos ejecutados con Godot headless. Columna `*` = check sentinel requerido.
+
+```
+--- g4_gie_delayed_entry_hazard ---
+Metrica                            Baseline       Exp (ON)             Delta  *
+-----------------------------------------------------------------------------------
+g4  FED timing [s]                  198.417        195.000       -3.417 (-1.7%)  *
+g4  CO>1200 timing [s]               85.583        119.500      +33.917 (+39.6%) *
+g4  peak CO upper [ppm]          62 716.895     58 930.409    -3786.485  (-6.0%) *
+g4  final CO upper [ppm]         19 996.268     20 053.354       +57.086  (+0.3%)
+g4  peak CO (mixed) [ppm]          6 808.651      6 847.002      +38.351  (+0.6%)
+
+--- v3_hallway_fed_exposure ---
+Metrica                            Baseline       Exp (ON)             Delta  *
+-----------------------------------------------------------------------------------
+v3  FED timing [s]                  249.833        235.000      -14.833  (-5.9%) *
+v3  max FED                           2.212          2.453       +0.241 (+10.9%) *
+v3  peak CO upper [ppm]          47 367.599     51 398.630    +4031.030   (+8.5%)
+v3  final CO upper [ppm]         16 915.164     16 962.668      +47.505   (+0.3%)
+v3  peak CO (mixed) [ppm]          6 119.535      9 502.095   +3382.560  (+55.3%)
+
+--- victim_fed_incapacitation ---
+Metrica                            Baseline       Exp (ON)             Delta  *
+-----------------------------------------------------------------------------------
+vic  final FED                        0.772          0.772        0.000   (0.0%) *
+vic  peak CO global [ppm]           3381.925       3387.655       +5.730  (+0.2%) *
+vic  room0 final FED                  0.784          0.784        0.000   (0.0%)
+vic  room0 peak CO [ppm]            2080.295       2078.448       -1.847  (-0.1%)
+
+--- cfast_two_room_door_open ---
+Metrica                            Baseline       Exp (ON)             Delta  *
+-----------------------------------------------------------------------------------
+cfast room1 CO upper final          595.381        597.092       +1.712   (+0.3%)
+cfast room1 CO mixed final          104.657        104.958       +0.301   (+0.3%)
+cfast peak CO upper global         2142.643       2027.727     -114.916   (-5.4%)
+cfast peak CO mixed global          293.486        308.506      +15.021   (+5.1%)
+```
+
+### Análisis de resultados
+
+**g4 — CO>1200 timing: +39.6 % (85.6 s → 119.5 s)**  
+El efecto más grande. Con flag ON, el CO que llega a room 1 se divide entre upper y lower
+según la profundidad de la capa caliente del destino. La capa upper de room 1 acumula CO
+más lentamente → el umbral de 1 200 ppm se alcanza 34 s más tarde. Esto es físicamente
+plausible: parte del CO transportado llega a la zona inferior donde no es detectado por la
+métrica `co_upper_ppm`. El FED timing baja levemente (-1.7 %) — sin efecto práctico dado el
+margen de 10 s.
+
+**v3 — Hallway: FED más rápido (-5.9 %) y más alto (+10.9 %)**  
+Paradójico a primera vista. El CO llega más distribuido en el pasillo receptor, pero el
+pasillo tiene una capa caliente alta → `upper_split` elevado → más CO en upper → FED se
+acumula más rápido a altura de respiración (0.9 m en zona upper). El `peak CO mixed`
+aumenta +55 % porque `co_ppm` = `co_kg / air_mass` incluye tanto upper como lower.
+La geometría del pasillo amplifica el efecto.
+
+**victim — Sin efecto (~0 %)**  
+La víctima está en room 0 (sala del fuego). El transporte split afecta el destino de la
+transferencia, no el origen. En un escenario de una sola habitación, el CO generado por el
+fuego va directamente a `co_upper_kg` de la sala (via `sync_room_upper_layer`) sin pasar
+por la lógica de transporte entre habitaciones. El split no se activa.
+
+**cfast_two_room — Efectos moderados (<6 %)**  
+Caso de referencia CFAST de baja HRR. Los deltas son pequeños pero el `peak CO upper`
+global baja 5.4 % (menos CO en upper del destino), coherente con la hipótesis.
+
+### Conclusiones del experimento
+
+| Evaluación | Resultado |
+|-----------|-----------|
+| Flag OFF preserva baseline 289/289 | **CONFIRMADO** |
+| Flag ON produce datos comparativos claros | **CONFIRMADO** |
+| Efecto sobre sentinels requeridos | CO>1200 timing g4: +39.6 % (sale de banda si se rebaseline), FED v3 timing: -5.9 % (dentro de banda ±30s) |
+| Conservación CO total | Conservado por diseño (solo se redirige `co_upper_kg`, `co_kg` total invariante) |
+| Candidato a activar permanentemente | **NO todavía** — el desplazamiento en g4 CO>1200 timing es demasiado grande y requiere recalibración del check sentinel antes de promover |
+| Próximo paso recomendado | Analizar si `effective_hot_layer_height_m(target)` es la función correcta para el split, o si conviene usar `target.hot_layer_thickness_m` directamente |
+
+### Archivos generados (no rebaseline)
+
+```
+sim/validation/reports/g4_gie_delayed_entry_hazard_phase2e_exp1.json
+sim/validation/reports/v3_hallway_fed_exposure_phase2e_exp1.json
+sim/validation/reports/victim_fed_incapacitation_phase2e_exp1.json
+sim/validation/reports/cfast_two_room_door_open_phase2e_exp1.json
+```
+
+Los case JSON temporales (`*_phase2e_exp1.json` en `sim/validation/cases/`) son borrados
+automáticamente por el runner al terminar.
+
+---
+
 *Documento generado: 24 mayo 2026. Actualizar antes de iniciar implementación — el estado del
 código puede haber cambiado. Siempre re-verificar líneas exactas antes de hacer edits.*
+
+---
+
+## 9. Phase 2E Experimento 2 — CO Deposition Strategy Sweep
+
+**Fecha**: 24 mayo 2026  
+**Flag**: `phase2e_two_zone_transport_enabled` (default `false`)  
+**Variable nueva**: `phase2e_co_deposition_mode: String` (default `"all_upper"`)  
+**Pregunta**: ¿Debe el parcel de hot-gas depositar CO 100 % en upper, o puede emplearse un
+split con floor para alimentar la zona lower desde el mismo mecanismo?
+
+### Modos evaluados
+
+| Modo | Descripción |
+|------|-------------|
+| `all_upper` | 100 % CO al upper (= baseline, cancela split geométrico) |
+| `geometric_split` | `co_upper = co_moved × (h_upper_tgt / height_m)` |
+| `upper_floor_90` | `geometric_split` con mínimo 90 % a upper |
+| `upper_floor_95` | `geometric_split` con mínimo 95 % a upper |
+
+### Tabla comparativa — deltas vs baseline (flag OFF)
+
+```
+Sentinel / Métrica               Baseline   all_upper   geometric_split  upper_floor_90  upper_floor_95
+─────────────────────────────────────────────────────────────────────────────────────────────────────────
+[g4_gie_delayed_entry_hazard]
+  CO>1200 [s]            *         85.583  +0.00 (+0.0%)  +33.92 (+39.6%) +0.50 (+0.6%)   +0.25 (+0.3%)
+  FED>0.1 [s]            *        198.417  +0.00 (+0.0%)   -3.42  (-1.7%) -0.50 (-0.3%)   -0.25 (-0.1%)
+  peak CO upper [ppm]    *      62716.895  +0.00 (+0.0%) -3786.49 (-6.0%) +341.47 (+0.5%)  +126.73 (+0.2%)
+  final CO upper [ppm]            19996.3  +0.00 (+0.0%)   +57.09 (+0.3%)  +7.28 (+0.0%)   +3.64 (+0.0%)
+
+[v3_hallway_fed_exposure]
+  FED>0.1 [s]            *        249.833  +0.00 (+0.0%)  -14.83  (-5.9%) -0.58 (-0.2%)   -0.25 (-0.1%)
+  max FED                *          2.212  +0.00 (+0.0%)   +0.24 (+10.9%) +0.00 (+0.1%)   +0.00 (+0.0%)
+  peak CO upper [ppm]             47367.6  +0.00 (+0.0%) +4031.03 (+8.5%)  +4.11 (+0.0%)   +2.07 (+0.0%)
+  peak CO mixed [ppm]              6119.5  +0.00 (+0.0%) +3382.56 (+55.3%) +0.27 (+0.0%)   +0.14 (+0.0%)
+
+[victim_fed_incapacitation]
+  final FED              *          0.772  +0.00 (+0.0%)   +0.00  (+0.0%)  -0.00 (-0.0%)  -0.00 (-0.0%)
+  peak CO [ppm]          *        3381.93  +0.00 (+0.0%)   +5.73  (+0.2%)  +1.37 (+0.0%)   +0.68 (+0.0%)
+
+[cfast_two_room_door_open]
+  CO upper r1 final                595.38  +0.00 (+0.0%)   +1.71  (+0.3%)  +0.21 (+0.0%)   +0.11 (+0.0%)
+  CO mixed r1 final                104.66  +0.00 (+0.0%)   +0.30  (+0.3%)  +0.04 (+0.0%)   +0.02 (+0.0%)
+  peak CO upper global            2142.64  +0.00 (+0.0%)  -114.92  (-5.4%) -17.14 (-0.8%)   -5.78 (-0.3%)
+```
+
+### Evaluación de sentinels por modo
+
+Ventanas de aceptación (definidas en `validation_guardrails.py`):
+
+| Sentinel | Ventana |
+|----------|---------|
+| g4 CO>1200 [s] | [82.33, 92.33] (exp 87.333 ±5 s) |
+| g4 FED>0.1 [s] | [187.75, 207.75] (exp 197.75 ±10 s) |
+| g4 peak CO upper | min implícito (check de referencia) |
+| v3 FED>0.1 [s] | [222.17, 282.17] (exp 252.167 ±30 s) |
+| v3 max FED | ≥ 1.0 |
+| vic final FED | ≥ 0.7 |
+| vic peak CO | ≥ 1500 ppm |
+
+| Modo | g4 CO>1200 | g4 FED | v3 FED | v3 maxFED | vic FED | vic CO | Sentinels |
+|------|-----------|--------|--------|-----------|---------|--------|-----------|
+| `all_upper` | ✓ 85.6 | ✓ 198.4 | ✓ 249.8 | ✓ 2.21 | ✓ 0.772 | ✓ 3382 | **7/7 PASS** |
+| `geometric_split` | **✗ 119.5** | ✓ 195.0 | ✓ 235.0 | ✓ 2.45 | ✓ 0.772 | ✓ 3388 | **6/7 FAIL** |
+| `upper_floor_90` | ✓ 86.1 | ✓ 197.9 | ✓ 249.3 | ✓ 2.21 | ✓ 0.772 | ✓ 3383 | **7/7 PASS** |
+| `upper_floor_95` | ✓ 85.8 | ✓ 198.2 | ✓ 249.6 | ✓ 2.21 | ✓ 0.772 | ✓ 3382 | **7/7 PASS** |
+
+### Análisis
+
+**`geometric_split` — descartado**  
+El split puramente geométrico (`h_upper / height`) falla el sentinel de CO>1200 con un
+desplazamiento de +39.6 % (85.6 s → 119.5 s), replicando exactamente los resultados del
+Experimento 1. Físicamente, el split extrae CO del parcel de hot-gas y lo deposita en la
+zona lower, retrasando la acumulación de CO en upper. Sin mecanismo que restaure
+la energía del parcel ni el CO, el modelo subestima el peligro en la zona upper.
+
+**`upper_floor_90` y `upper_floor_95` — técnicamente conformes**  
+Ambos pasan los 7 sentinels con desviaciones sub-1 %. `upper_floor_90` admite hasta 10 %
+de CO al lower (cuando `geo_split < 0.90`); `upper_floor_95` hasta 5 %. Los efectos son
+numéricamente insignificantes respecto al baseline. No existe ganancia práctica ni base
+física documentada para activar estos modos: el CO lower que aportan (~0.04 ppm en cfast,
+~1 ppm en vic) queda por debajo de la resolución del modelo.
+
+**`all_upper` — correcto y canónico**  
+El valor por defecto preserva el baseline exactamente. Es físicamente consistente con
+la naturaleza de `_transfer_hot_gas_contaminants()`: ese método modela el transporte de
+una parcela de gas caliente boyante, que deposita su contenido en la zona upper del
+compartimento receptor. El CO de la zona lower debe provenir de un mecanismo separado
+(ver §9.4).
+
+### Recomendación arquitectónica
+
+> **`_transfer_hot_gas_contaminants()` representa flujo de capa caliente (hot-gas-layer
+> parcel). El CO transportado debe depositarse 100 % en la zona upper del destino (`all_upper`).
+> Esta función NO es el lugar adecuado para alimentar la zona lower.**
+
+Consecuencias:
+
+1. `phase2e_co_deposition_mode = "all_upper"` es el modo correcto y se mantiene como
+   default permanente. Los modos `geometric_split`, `upper_floor_90` y `upper_floor_95`
+   quedan disponibles detrás del flag para fines de auditoría, pero **no deben promoverse**.
+
+2. Si el modelo requiere CO en la zona lower (p.ej. mezcla por convección forzada, doorway
+   mixing, productos de combustión incompleta en lower), debe implementarse como un paso
+   independiente — por ejemplo `_mix_interlayer_co()` — con su propio coeficiente
+   calibrado y su propio sentinel. Esto evita que la lógica de transporte de hot-gas
+   incorpore efectos de difusión que no le corresponden.
+
+3. No rebaselinear: los cambios actuales son experimentales detrás del flag. El baseline
+   289/289 permanece intacto.
+
+4. No intentar arreglar el FED timing en este mismo paso: la leve mejora de FED v3 con
+   `geometric_split` (-5.9 %) no compensa la rotura del CO>1200 sentinel. Son efectos
+   acoplados; cualquier recalibración debe hacerse en Fase 2F con benchmarks alineados.
+
+### Archivos generados (no rebaseline)
+
+```
+sim/validation/reports/g4_gie_delayed_entry_hazard_p2e2_all_upper.json
+sim/validation/reports/g4_gie_delayed_entry_hazard_p2e2_geometric_split.json
+sim/validation/reports/g4_gie_delayed_entry_hazard_p2e2_upper_floor_90.json
+sim/validation/reports/g4_gie_delayed_entry_hazard_p2e2_upper_floor_95.json
+sim/validation/reports/v3_hallway_fed_exposure_p2e2_*.json         (4 archivos)
+sim/validation/reports/victim_fed_incapacitation_p2e2_*.json       (4 archivos)
+sim/validation/reports/cfast_two_room_door_open_p2e2_*.json        (4 archivos)
+```
+
+Los case JSON temporales son borrados automáticamente por el runner al terminar.
+
+---
+
+*Documento actualizado: 24 mayo 2026.*
+
+---
+
+## 11. Phase 2G Experimento 1 — CO Lower Source Term
+
+**Fecha**: 24 mayo 2026  
+**Flags nuevos**: `phase2g_co_lower_source_enabled` (bool, default `false`),
+`phase2g_co_lower_source_fraction` (float, default `0.0`),
+`phase2g_co_lower_source_guard` (String, default `"fire_room_only"`)  
+**Pregunta**: ¿Puede una fracción pequeña del CO generado por combustión nacer
+directamente en la zona lower implícita sin romper los sentinels de CO upper/FED?
+
+### Diseño del mecanismo
+
+Phase 2G actúa en `CombustionSystem.step_room_fire()` en el momento de generación de CO,
+antes del transporte entre salas. A diferencia de Phase 2F, no mueve CO ya acumulado:
+asigna una fracción de `generated_co_kg` a lower implícito desde el nacimiento.
+
+```
+room.co_kg += generated_co_kg
+room.co_upper_kg += generated_co_kg * (1.0 - lower_source_fraction)
+# co_lower_kg queda implícito como room.co_kg - room.co_upper_kg
+```
+
+El total `co_kg` se conserva respecto al baseline; solo cambia la distribución
+upper/lower en la sala donde hay combustión. El transporte hot-gas permanece en `all_upper`,
+Phase 2F permanece desactivada y FED no se modifica.
+
+### Barrido ejecutado
+
+| Parámetro | Valores |
+|-----------|---------|
+| `fraction` | `0.000`, `0.005`, `0.010`, `0.020`, `0.050` |
+| `guard` | `fire_room_only`, `only_when_hot_layer_above_1_8m`, `all_rooms_with_fire` |
+| Casos | `g4_gie_delayed_entry_hazard`, `v3_hallway_fed_exposure`, `victim_fed_incapacitation`, `cfast_single_room_closed`, `cfast_two_room_door_open` |
+
+**Resultado de ejecución**: `75/75 runs OK` — 15 combos × 5 casos.
+
+### Resultados sentinel
+
+Todos los combos pasan los 6 sentinels. El caso más agresivo (`fraction=0.050`,
+`fire_room_only`/`all_rooms_with_fire`) queda todavía muy cerca del baseline:
+
+| Métrica | Baseline | f=0.050 fr/all | Delta |
+|---------|----------|----------------|-------|
+| g4 `CO>1200` | 85.583 s | 85.750 s | +0.17 s (+0.2%) |
+| g4 `FED>0.1` | 198.417 s | 198.667 s | +0.25 s (+0.1%) |
+| v3 `FED>0.1` | 249.833 s | 252.167 s | +2.33 s (+0.9%) |
+| v3 max FED | 2.212 | 2.203 | -0.01 (-0.4%) |
+| victim final FED | 0.772 | 0.773 | +0.001 (+0.2%) |
+| victim peak CO | 3381.925 ppm | 3381.864 ppm | -0.06 ppm |
+
+El guard `only_when_hot_layer_above_1_8m` es casi inerte en los sentinels:
+`f=0.050 g18m` mantiene g4 idéntico al baseline y desplaza v3 `FED>0.1` solo +0.17 s.
+
+### Señal en CO lower
+
+El mecanismo sí reduce `co_upper_ppm` en la sala fuente, pero la señal no aparece de forma
+material en salas remotas:
+
+| Caso | Métrica | Baseline | f=0.050 all | Delta |
+|------|---------|----------|-------------|-------|
+| CFAST single room | peak CO upper global | 1357.3 ppm | 1289.5 ppm | -67.9 ppm (-5.0%) |
+| CFAST single room | final CO upper R0 | 1200.4 ppm | 1140.3 ppm | -60.0 ppm (-5.0%) |
+| CFAST two-room hall | final CO upper R1 | 595.4 ppm | 595.4 ppm | ~0.0 ppm |
+| CFAST two-room hall | final CO mixed R1 | 104.7 ppm | 104.7 ppm | ~0.0 ppm |
+| CFAST two-room | peak CO upper global | 2142.6 ppm | 2142.6 ppm | ~0.0 ppm |
+
+Interpretación: el source term lower afecta principalmente la **sala con fuego**. En el
+pasillo/sala destino de `cfast_two_room_door_open`, el transporte hot-gas sigue llevando CO
+desde la capa upper de la sala fuente hacia la zona upper del destino; por tanto el lower
+remoto apenas cambia. El gap `cfast_2r_hall_t360_co_lower_ppm` no se cierra con este
+mecanismo.
+
+### Conclusión
+
+| Evaluación | Resultado |
+|-----------|-----------|
+| Flag OFF preserva baseline | **CONFIRMADO por guardrails: 289/289 required PASS** |
+| 75/75 runs experimentales OK | **CONFIRMADO** |
+| Sentinels g4/v3/victim | **15/15 combos pasan 6/6** |
+| Mejora CO lower en sala fuente | **Débil pero real: reduce CO upper ~5% a f=0.050** |
+| Mejora CO lower en salas remotas | **NO material** |
+| Candidato a promover | **NINGUNO todavía** |
+
+**Recomendación**: Phase 2G demuestra que un source term lower es compatible con los
+sentinels cuando está detrás de flag, pero no resuelve el problema que motivó el gap en salas
+remotas. No promover a default. Si se continúa, el siguiente experimento debe atacar el
+acoplamiento lower-zone durante transporte/doorway flow, no solo la generación en la sala
+fuente.
+
+**Directivas**:
+- Mantener `phase2g_co_lower_source_enabled = false` por defecto.
+- No rebaselinear.
+- No tocar FED.
+- Mantener `_transfer_hot_gas_contaminants()` en modo `all_upper`.
+- Usar los reports `*_p2g1_*.json` solo como artefactos experimentales, no como baseline.
+
+### Archivos generados (no rebaseline)
+
+```
+sim/validation/reports/*_p2g1_f000_*.json  (15 archivos)
+sim/validation/reports/*_p2g1_f005_*.json  (15 archivos)
+sim/validation/reports/*_p2g1_f010_*.json  (15 archivos)
+sim/validation/reports/*_p2g1_f020_*.json  (15 archivos)
+sim/validation/reports/*_p2g1_f050_*.json  (15 archivos)
+```
+
+Total: 75 reports experimentales. Los case JSON temporales son artefactos de runner y no
+deben versionarse.
+
+---
+
+*Documento actualizado: 24 mayo 2026.*
+
+---
+
+## 10. Phase 2F Experimento 1 — CO Interlayer Mixing Sweep
+
+**Fecha**: 24 mayo 2026  
+**Flags nuevos**: `phase2f_co_interlayer_mixing_enabled` (bool, default `false`),
+`phase2f_co_interlayer_mixing_rate` (float, default `0.0`),
+`phase2f_co_interlayer_mixing_guard` (String, default `"no_guard"`)  
+**Pregunta**: ¿Puede un mecanismo separado de difusión CO upper→lower, implementado
+como `_apply_phase2f_co_interlayer_mixing()`, enriquecer la zona lower sin romper sentinels
+de la zona upper?
+
+### Diseño del mecanismo
+
+Llamado **después** de `_flush_contaminant_deltas()` en cada paso. Opera sobre `co_upper_kg`
+directamente (no sobre el buffer Jacobi). **Invariante de masa total**: `co_kg` no se modifica,
+sólo `co_upper_kg` decrece → `co_lower = co_kg - co_upper_kg` aumenta implícitamente.
+
+```
+transfer_kg = co_upper_kg × rate × dt
+co_upper_kg -= transfer_kg      # co_kg total invariante
+```
+
+### Guards evaluados
+
+| Guard | Código | Condición de activación |
+|-------|--------|------------------------|
+| `no_guard` | `ng` | Siempre aplica |
+| `only_when_upper_gas_kg_lt_0_1` | `g01` | Solo si `upper_gas_kg < 0.1` kg |
+| `only_when_hot_layer_interface_above_1_8m` | `g18m` | Solo si interfaz > 1.8 m |
+| `only_when_no_occupant_in_upper_probe` | `gup` | Solo si ninguna víctima respira en upper |
+
+### Resultados: SENTINELS tabla compacta (80 runs, 20 combos × 4 casos)
+
+```
+Combo           g4 CO>1200   g4 FED      v3 FED      v3 maxFED   vic FED   vic CO      Total
+─────────────────────────────────────────────────────────────────────────────────────────────
+BASELINE          85.583      198.417     249.833      2.212       0.772    3381.925    6/6
+r=0.000  ng       85.583 [OK] 198.417 [OK] 249.833 [OK] 2.212 [OK] 0.772 [OK] 3381.925 [OK] 6/6
+r=0.000  g01/g18m/gup  (idéntico baseline) ...                                            6/6
+─────────────────────────────────────────────────────────────────────────────────────────────
+r=0.002  ng       85.750 [OK] 198.333 [OK] 250.083 [OK] 2.210 [OK] 0.772 [OK] 3382.395 [OK] 6/6
+r=0.002  g01      85.583 [OK] 198.417 [OK] 250.000 [OK] 2.211 [OK] 0.772 [OK] 3381.924 [OK] 6/6
+r=0.002  g18m     85.667 [OK] 198.250 [OK] 249.750 [OK] 2.212 [OK] 0.772 [OK] 3381.901 [OK] 6/6
+r=0.002  gup      85.750 [OK] 198.333 [OK] 250.083 [OK] 2.210 [OK] 0.772 [OK] 3382.395 [OK] 6/6
+─────────────────────────────────────────────────────────────────────────────────────────────
+r=0.005  ng       86.083 [OK] 198.250 [OK] 250.417 [OK] 2.207 [OK] 0.773 [OK] 3383.097 [OK] 6/6
+r=0.005  g01      85.583 [OK] 198.417 [OK] 250.167 [OK] 2.211 [OK] 0.772 [OK] 3381.922 [OK] 6/6
+r=0.005  g18m     85.833 [OK] 198.000 [OK] 249.500 [OK] 2.212 [OK] 0.772 [OK] 3381.862 [OK] 6/6
+r=0.005  gup      86.083 [OK] 198.250 [OK] 250.417 [OK] 2.207 [OK] 0.773 [OK] 3383.097 [OK] 6/6
+─────────────────────────────────────────────────────────────────────────────────────────────
+r=0.010  ng       86.417 [OK] 198.167 [OK] 250.667 [OK] 2.201 [OK] 0.774 [OK] 3384.265 [OK] 6/6
+r=0.010  g01      85.583 [OK] 198.417 [OK] 250.417 [OK] 2.210 [OK] 0.772 [OK] 3381.919 [OK] 6/6
+r=0.010  g18m     86.083 [OK] 197.667 [OK] 248.917 [OK] 2.213 [OK] 0.773 [OK] 3381.795 [OK] 6/6
+r=0.010  gup      86.417 [OK] 198.167 [OK] 250.667 [OK] 2.201 [OK] 0.774 [OK] 3384.265 [OK] 6/6
+─────────────────────────────────────────────────────────────────────────────────────────────
+r=0.020  ng       86.833 [OK] 198.083 [OK] 249.583 [OK] 2.104 [OK] 0.777 [OK] 3386.526 [OK] 6/6
+r=0.020  g01      85.583 [OK] 198.500 [OK] 251.000 [OK] 2.208 [OK] 0.772 [OK] 3381.914 [OK] 6/6
+r=0.020  g18m     86.417 [OK] 197.167 [OK] 246.333 [OK] 2.168 [OK] 0.774 [OK] 3381.583 [OK] 6/6
+r=0.020  gup      86.833 [OK] 198.083 [OK] 249.583 [OK] 2.104 [OK] 0.777 [OK] 3386.526 [OK] 6/6
+```
+
+**Resultado global: 20/20 combos pasan 6/6 sentinels en todos los rates hasta 0.020.**
+
+### Análisis por guard
+
+**`g01` (upper_gas_kg < 0.1) — guard inerte**  
+La condición `upper_gas_kg < 0.1` nunca se activa en escenarios con fuego activo. En g4,
+v3 y victim, la capa upper acumula varios kg de gas caliente. Los deltas con `g01` son
+idénticos al baseline en prácticamente todos los pasos. **Este guard no sirve para escenarios
+de incendio; solo activaría en habitaciones sin fuego y con upper layer casi vacío.**
+
+**`gup` (no occupant in upper probe) — equivalente a `no_guard`**  
+Los resultados de `gup` son bit-a-bit idénticos a `ng`. En los cuatro casos de validación,
+las víctimas respiran a 0.9 m y la interfaz de capa caliente está siempre por encima de 0.9 m
+durante la simulación. Nunca hay víctima en el "upper probe". El guard **no bloquea el
+mixing en ningún timestep** de estos escenarios.
+
+**`g18m` (interfaz > 1.8 m) — atenuación moderada**  
+Este guard sí cambia el comportamiento: bloquea el mixing cuando la capa caliente ha
+descendido por debajo de 1.8 m. En g4, la interfaz desciende durante el incendio, por lo que
+el guard activa solo en la fase inicial (interfaz alta). El efecto resulta en deltas ligeramente
+menores que `ng` en algunas métricas, pero sigue siendo < 2 % incluso a r=0.020.
+
+**`ng` (sin guard) — efecto máximo del mecanismo**  
+A r=0.020, el mayor desplazamiento observado es g4 CO>1200: +1.5 % (86.8 s vs 85.6 s).
+Todos los sentinels pasan holgadamente. **El techo de impacto a r=0.020 es ~1.5 % en timing
+y ~5 % en max FED (v3 baja de 2.21 a 2.10).**
+
+### Señal en CO lower (zona inferior)
+
+Dado que el mecanismo conserva `co_kg` total, la concentración mixta (`co_ppm`) **no cambia**
+entre flag ON y OFF para el mismo amount de CO generado. El enrichment en lower es únicamente
+observable como reducción de `co_upper_ppm`:
+
+| Caso | Métrica | Baseline | r=0.020 ng | Delta |
+|------|---------|----------|------------|-------|
+| cfast | CO upper final r1 | 595.4 ppm | 596.0 ppm | +0.63 (+0.1%) |
+| cfast | CO mixed r1 | 104.7 ppm | 104.8 ppm | +0.11 (+0.1%) |
+| cfast | peak CO upper global | 2142.6 ppm | 2023.9 ppm | -118.8 (-5.5%) |
+
+La señal de enrichment lower es **sub-0.1 % en ppm mixto** a todos los rates.
+La reducción de peak CO upper a r=0.020 (-5.5 %) es observable pero no deseada:
+representa depleción del hazard signal en la zona que los sensores monitorizan.
+
+### Conclusiones y cierre de gap
+
+| Evaluación | Resultado |
+|-----------|-----------|
+| Flag OFF preserva baseline 289/289 | **CONFIRMADO** |
+| 80/80 runs completados sin error | **CONFIRMADO** |
+| Todos los sentinels pasan a r≤0.020 | **CONFIRMADO — 20/20 combos 6/6** |
+| Enriquecimiento CO lower detectable | **NO — sub-0.1 % en ppm mixto** |
+| Candidato a promover | **NINGUNO** |
+
+**Diagnóstico de fondo**: `_apply_phase2f_co_interlayer_mixing()` conserva `co_kg` total.
+La concentración mixta `co_ppm = co_kg / vol_total` es invariante ante la redistribución
+upper→lower. El único observable es la disminución de `co_upper_ppm`, que va en sentido
+contrario al objetivo (señal hazard upper se debilita). No hay ganancia neta en lower.
+
+### Recomendación arquitectónica final — CO lower gap
+
+> **El CO de la zona lower no puede generarse de forma incrementalmente válida ni desde el
+> transporte de hot-gas (`_transfer_hot_gas_contaminants`) ni desde un mixing upper→lower
+> (`_apply_phase2f_co_interlayer_mixing`). Ambos mecanismos redistribuyen masa existente sin
+> crear señal nueva.**
+>
+> Para cerrar el gap de CO lower se requiere un **término fuente explícito en la zona inferior**
+> — por ejemplo `co_lower_source_rate_kg_per_MJ` calibrado contra mediciones de CO a nivel
+> de suelo en ensayos UL/FSRI — implementado en Fase 2G como un paso de generación separado,
+> no como redistribución.
+
+**Directivas**:
+- No rebaselinear.
+- No activar `phase2f_co_interlayer_mixing_enabled` por defecto.
+- El gap "CO lower subestimado" permanece documentado en `docs/GAPS_INVENTORY.md`.
+- No commit/push hasta decisión de Fase 2G.
+
+### Archivos generados (no rebaseline)
+
+```
+sim/validation/reports/*_p2f1_r000_ng.json   (4 archivos — validez rate=0)
+sim/validation/reports/*_p2f1_r002_*.json    (16 archivos)
+sim/validation/reports/*_p2f1_r005_*.json    (16 archivos)
+sim/validation/reports/*_p2f1_r010_*.json    (16 archivos)
+sim/validation/reports/*_p2f1_r020_*.json    (16 archivos)
+```
+Total: 80 reports experimentales. Los case JSON temporales son borrados automáticamente.
+
+---
+
+*Documento actualizado: 24 mayo 2026.*
+
+---
+
+## 11. Phase 2G Experiment 1 — CO Lower Source Term at Generation
+
+### 11.1 Motivación y distinción respecto a Phase 2F
+
+Phase 2F (§10) redistribuía CO existente de upper → lower *después* de generación: la masa total de CO era invariante, por lo que la concentración ppm en zona lower no recibía señal nueva. El efecto medido fue sub-0.1%.
+
+Phase 2G actúa **en el momento de generación** dentro de `CombustionSystem.gd`. Una fracción `f` de `generated_co_kg` se dirige implícitamente al lower:
+
+```gdscript
+room.co_kg      += generated_co_kg                        # total invariante
+room.co_upper_kg += generated_co_kg * (1.0 - f)          # upper recibe (1 - f)
+# lower implícito = co_kg - co_upper_kg acumula +generated_co_kg * f por paso
+```
+
+Esto genera señal lower **genuina y acumulativa** paso a paso.
+
+### 11.2 Parámetros del barrido
+
+| Dimensión              | Valores                                                        |
+|------------------------|----------------------------------------------------------------|
+| `fraction` (f)         | 0.000, 0.005, 0.010, 0.020, 0.050                             |
+| `guard`                | `fire_room_only` (fr), `only_when_hot_layer_above_1_8m` (g18m), `all_rooms_with_fire` (all) |
+| Casos                  | g4_gie_delayed_entry_hazard, v3_hallway_fed_exposure, victim_fed_incapacitation, cfast_single_room_closed, cfast_two_room_door_open |
+| **Total runs**         | 5 × 3 × 5 = **75**                                            |
+
+### 11.3 Guards
+
+- **`fire_room_only` / `all_rooms_with_fire`**: aplican siempre en cualquier sala con combustión activa (ruta `_:` en `match`; idénticos en todos los casos de test).
+- **`only_when_hot_layer_above_1_8m`**: aplica solo cuando `thermal_system.effective_hot_layer_height_m(room) > 1.8 m`. En los casos de test la interfaz se mantiene alta durante la mayor parte de la simulación, por lo que este guard solo filtra una fracción pequeña de pasos → deltas casi nulos.
+
+### 11.4 Resultados — tabla sentinel (15 combos × 6 sentinels)
+
+Ventanas: g4 CO>1200 ∈ [82.333, 92.333] s · g4 FED>0.1 ∈ [187.75, 207.75] s · v3 FED>0.1 ∈ [222.17, 282.17] s · v3 maxFED ≥ 1.0 · vic final FED ≥ 0.7 · vic peak CO ≥ 1500 ppm
+
+| Combo          | g4 CO>1200 | g4 FED  | v3 FED  | v3 maxFED | vic FED | vic CO   | Total |
+|----------------|------------|---------|---------|-----------|---------|----------|-------|
+| BASELINE       | 85.583     | 198.417 | 249.833 | 2.212     | 0.772   | 3381.925 | 6/6   |
+| f=0.000 fr     | 85.583 ✓   | 198.417 ✓ | 249.833 ✓ | 2.212 ✓ | 0.772 ✓ | 3381.925 ✓ | 6/6 |
+| f=0.000 g18m   | 85.583 ✓   | 198.417 ✓ | 249.833 ✓ | 2.212 ✓ | 0.772 ✓ | 3381.925 ✓ | 6/6 |
+| f=0.000 all    | 85.583 ✓   | 198.417 ✓ | 249.833 ✓ | 2.212 ✓ | 0.772 ✓ | 3381.925 ✓ | 6/6 |
+| f=0.005 fr     | 85.583 ✓   | 198.417 ✓ | 250.083 ✓ | 2.211 ✓ | 0.772 ✓ | 3381.920 ✓ | 6/6 |
+| f=0.005 g18m   | 85.583 ✓   | 198.417 ✓ | 249.917 ✓ | 2.212 ✓ | 0.772 ✓ | 3381.924 ✓ | 6/6 |
+| f=0.005 all    | 85.583 ✓   | 198.417 ✓ | 250.083 ✓ | 2.211 ✓ | 0.772 ✓ | 3381.920 ✓ | 6/6 |
+| f=0.010 fr     | 85.583 ✓   | 198.417 ✓ | 250.333 ✓ | 2.210 ✓ | 0.772 ✓ | 3381.914 ✓ | 6/6 |
+| f=0.010 g18m   | 85.583 ✓   | 198.417 ✓ | 249.917 ✓ | 2.212 ✓ | 0.772 ✓ | 3381.922 ✓ | 6/6 |
+| f=0.010 all    | 85.583 ✓   | 198.417 ✓ | 250.333 ✓ | 2.210 ✓ | 0.772 ✓ | 3381.914 ✓ | 6/6 |
+| f=0.020 fr     | 85.667 ✓   | 198.500 ✓ | 250.750 ✓ | 2.208 ✓ | 0.772 ✓ | 3381.902 ✓ | 6/6 |
+| f=0.020 g18m   | 85.583 ✓   | 198.417 ✓ | 249.917 ✓ | 2.211 ✓ | 0.772 ✓ | 3381.919 ✓ | 6/6 |
+| f=0.020 all    | 85.667 ✓   | 198.500 ✓ | 250.750 ✓ | 2.208 ✓ | 0.772 ✓ | 3381.902 ✓ | 6/6 |
+| f=0.050 fr     | 85.750 ✓   | 198.667 ✓ | 252.167 ✓ | 2.203 ✓ | 0.773 ✓ | 3381.864 ✓ | 6/6 |
+| f=0.050 g18m   | 85.583 ✓   | 198.417 ✓ | 250.000 ✓ | 2.211 ✓ | 0.772 ✓ | 3381.910 ✓ | 6/6 |
+| f=0.050 all    | 85.750 ✓   | 198.667 ✓ | 252.167 ✓ | 2.203 ✓ | 0.773 ✓ | 3381.864 ✓ | 6/6 |
+
+**Resultado: 15/15 combos 6/6 sentinels PASS.**
+
+### 11.5 Deltas clave (vs baseline flag OFF)
+
+#### Timing y FED (sentinels)
+
+| Métrica        | base     | f=0.005 fr | f=0.010 fr | f=0.020 fr | f=0.050 fr | f=0.050 g18m |
+|----------------|----------|------------|------------|------------|------------|--------------|
+| g4 CO>1200 [s] | 85.583   | +0.00 (0.0%) | +0.00 (0.0%) | +0.08 (+0.1%) | +0.17 (+0.2%) | +0.00 (0.0%) |
+| g4 FED>0.1 [s] | 198.417  | +0.00 (0.0%) | +0.00 (0.0%) | +0.08 (0.0%) | +0.25 (+0.1%) | +0.00 (0.0%) |
+| v3 FED>0.1 [s] | 249.833  | +0.25 (+0.1%) | +0.50 (+0.2%) | +0.92 (+0.4%) | +2.33 (+0.9%) | +0.17 (+0.1%) |
+| v3 max FED     | 2.212    | −0.001 (0.0%) | −0.002 (−0.1%) | −0.004 (−0.2%) | −0.009 (−0.4%) | −0.001 (0.0%) |
+| vic final FED  | 0.772    | +0.000 (0.0%) | +0.000 (0.0%) | +0.001 (+0.1%) | +0.002 (+0.2%) | +0.000 (0.0%) |
+| vic peak CO    | 3381.925 | −0.01 (0.0%) | −0.01 (0.0%) | −0.02 (0.0%) | −0.06 (0.0%) | −0.02 (0.0%) |
+
+#### CO upper (señal del mecanismo)
+
+| Métrica              | base      | f=0.005 fr   | f=0.010 fr   | f=0.020 fr    | f=0.050 fr    | f=0.050 g18m |
+|----------------------|-----------|--------------|--------------|---------------|---------------|--------------|
+| g4 peak CO upper ppm | 62716.895 | −31.2 (0.0%) | −62.4 (−0.1%) | −124.8 (−0.2%) | −254.8 (−0.4%) | −0.01 (0.0%) |
+| sc peak CO upper ppm | 1357.316  | −6.8 (−0.5%) | −13.6 (−1.0%) | −27.2 (−2.0%) | −67.9 (−5.0%) | −0.16 (0.0%) |
+| 2r peak CO upper ppm | 2142.643  | −0.00 (0.0%) | −0.01 (0.0%) | −0.02 (0.0%) | −0.04 (0.0%) | −0.00 (0.0%) |
+
+### 11.6 Análisis
+
+**`fire_room_only` ≡ `all_rooms_with_fire`**: Confirmado. Ambos guards convergen al bloque `_:` del `match` en `CombustionSystem.gd` y producen resultados idénticos en todos los casos (los casos de test tienen fuego en una sola sala).
+
+**Guard `g18m` casi inerte**: Los deltas de CO upper con g18m son < 0.02% incluso a f=0.050, porque la interfaz de capa caliente se mantiene por encima de 1.8 m durante la mayor parte de la simulación en todos los casos de test. El guard filtra la casi totalidad de los pasos de combustión.
+
+**Señal lower genuina — sí existe, escala con f**: A diferencia de Phase 2F (redistribución post-generación invariante en masa), Phase 2G crea señal lower acumulativa. En `cfast_single_room_closed` (sala cerrada, sin dilución): `sc peak CO upper` cae −5.0% a f=0.050, lo que implica que ~5% de todo el CO generado acumuló en la zona lower. La escala es exactamente proporcional a la fracción, validando el mecanismo.
+
+**Impacto en sentinels FED/CO es sub-1%**: El CO upper decrece ligeramente, lo que atrasa marginalmente el onset FED. A f=0.050, el retraso máximo es +2.33 s en v3 FED>0.1 (+0.9%) y +0.17 s en g4 (+0.2%), ambos dentro de ventana sentinel. Los 6 sentinels pasan en todos los combos.
+
+**Baseline preservado a f=0.000**: Los 3 combos f=0.000 reproducen exactamente el baseline (0.0% delta en todos los sentinels), confirmando que el flag OFF no altera el comportamiento base.
+
+### 11.7 Conclusión
+
+El término fuente CO lower en generación es técnicamente viable y bien condicionado: señal lower genuina confirmada, sentinel impact sub-1% incluso a f=0.050, baseline preservado con flag OFF.
+
+**No se promueve ningún candidato a configuración por defecto en esta fase.** Razones:
+- El impacto en métricas FED/CO upper es demasiado pequeño para resolver los gaps de CO lower identificados en el inventario.
+- La magnitud calibratable requeriría f >> 0.05, territorio no barrido y sin validación empírica.
+- El mecanismo queda disponible para calibración futura (Phase 2H) si se dispone de datos de referencia para CO lower.
+
+**Directivas:** No rebaseline, no cambios FED, no commit/push. Los flags permanecen en default OFF (`phase2g_co_lower_source_enabled = false`).
+
+### 11.8 Archivos generados
+
+```
+sim/validation/reports/*_p2g1_f000_fr.json     (5 archivos)
+sim/validation/reports/*_p2g1_f000_g18m.json   (5 archivos)
+sim/validation/reports/*_p2g1_f000_all.json    (5 archivos)
+sim/validation/reports/*_p2g1_f005_*.json      (15 archivos)
+sim/validation/reports/*_p2g1_f010_*.json      (15 archivos)
+sim/validation/reports/*_p2g1_f020_*.json      (15 archivos)
+sim/validation/reports/*_p2g1_f050_*.json      (15 archivos)
+```
+Total: 75 reports experimentales. Los case JSON temporales son borrados automáticamente.
+
+---
+
+*Documento actualizado: 24 mayo 2026.*
+
+---
+
+## 12. Phase 2H Plan — O₂ Doorway Two-Zone Flow
+
+### 12.1 Motivación
+
+Los checks de `o2_lower` (zona inferior de O₂) presentan el mayor volumen de gaps no-cerrados del inventario. En todos los escenarios, SF produce una zona inferior **demasiado depletada** respecto a CFAST:
+
+| Check | SF actual | CFAST esperado | Escenario |
+|---|---|---|---|
+| `cfast_t350_o2_lower` | 0.0693 | 0.2049 ±0.015 | Sala con ventana |
+| `cfast_t420_o2_lower` | 0.1658 | 0.1878 ±0.015 | Sala con ventana |
+| `cfast_closed_t300_o2_lower` | 0.0684 | 0.2049 ±0.015 | Sala sellada |
+| `cfast_closed_t450_o2_lower` | 0.0429 | 0.2049 ±0.015 | Sala sellada |
+| `cfast_hvac_t180_o2_lower` | 0.1560 | 0.2049 ±0.015 | HVAC |
+| `cfast_hvac_t300_o2_lower` | 0.0580 | 0.2049 ±0.015 | HVAC |
+| `cfast_hvac_t450_o2_lower` | 0.0336 | 0.2049 ±0.015 | HVAC |
+| `cfast_2r_r0_t180_o2_lower` | 0.2032 | 0.1826 ±0.015 | Dos salas (sala fuego) |
+| `cfast_2r_r0_t300_o2_lower` | 0.2090 | 0.0952 ±0.015 | Dos salas (sala fuego) |
+| `cfast_2r_r0_t450_o2_lower` | 0.0675 | 0.0909 ±0.015 | Dos salas (sala fuego) |
+
+El patrón unificado: **CFAST preserva `o2_lower ≈ 0.205` (casi ambiente)** en los escenarios con ventana, HVAC y sala sellada, porque en un modelo two-zone la combustión depleta exclusivamente la zona superior. La zona inferior se mantiene por el flujo fresco que entra por la mitad baja de las aperturas.
+
+---
+
+### 12.2 Diagnóstico Arquitectónico
+
+#### 12.2.1 La raíz del problema — el `floor` en `room.o2`
+
+El código actual de Phase 2A en `OxygenExchangeSystem.gd` (líneas ~172-175):
+
+```gdscript
+# Pluma arrastra o2_lower hacia room.o2 (floor):
+var lower_entr: float = entr_frac * 0.20 * maxf(0.0, room.o2_lower - room.o2)
+room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)  # ← floor en room.o2
+
+var ach_lower_dt: float = (ach_infiltration / 3600.0) * (building.outside_o2 - room.o2_lower) * dt
+room.o2_lower = clampf(room.o2_lower + ach_lower_dt, room.o2, o2_nominal)  # ← floor en room.o2
+```
+
+`room.o2` es la variable de retrocompatibilidad que la combustión depleta. Al usarla como **piso** de `o2_lower`, cualquier caída en `room.o2` arrastra automáticamente `o2_lower` hacia abajo, incluso cuando hay flujo fresco entrando por las aperturas exteriores (cuya reposición directa de `o2_lower` ya fue implementada en `_step_outside_opening_o2`).
+
+Existe además un guard de colapso (líneas ~153-156):
+```gdscript
+if lower_frac < 0.15 or (lower_frac < 0.40 and room.o2 < 0.070):
+    room.o2_upper = room.o2
+    room.o2_lower = room.o2  # ← colapsa ambas zonas a room.o2
+```
+
+Este guard introduce un salto discreto: cuando `room.o2` cae por debajo de `0.070` con `lower_frac < 0.40`, `o2_lower` se iguala instantáneamente a `room.o2`.
+
+#### 12.2.2 Por qué CFAST no tiene este problema
+
+En CFAST (modelo de dos zonas Kawagoe):
+- La **combustión depleta exclusivamente la zona superior** (`o2_upper`)
+- La **zona inferior recibe aire fresco** que entra por la mitad baja de ventanas y puertas
+- No existe un concepto de "bulk room.o2" que arrastre la zona inferior
+
+En SF, `room.o2` mezcla ambas zonas y sirve como variable principal de combustión. El flag Phase 2H mantiene `room.o2` exactamente igual (retrocompatibilidad total) y solo modifica el comportamiento de `o2_lower`.
+
+#### 12.2.3 Lo que ya funciona bien
+
+- `_step_outside_opening_o2()` (líneas ~350-360): ya repone `indoor.o2_lower` directamente con el flujo de entrada exterior — **correcto**.
+- `_exchange_room_o2_active_flow()` (líneas ~519-533): ya actualiza `hot_room.o2_lower` cuando entra aire fresco por la mitad baja del vano interior — **correcto**.
+- El problema está en que el `floor room.o2` de Phase 2A deshace esa reposición en el siguiente paso.
+
+---
+
+### 12.3 Mecanismo Propuesto
+
+**Hipótesis central**: al desacoplar `o2_lower` de `room.o2` como piso, usando `room.o2_upper` como referencia, `o2_lower` podrá mantenerse por encima del bulk cuando el flujo fresco lo repone, reproduciendo el comportamiento two-zone de CFAST.
+
+**Invariante físico**: `o2_lower ≥ o2_upper` siempre es correcto — la zona baja tiene más O₂ que la zona alta donde ocurre la combustión.
+
+Cambio mínimo en `OxygenExchangeSystem.gd` — **solo la ruta Phase 2A** (líneas ~171-175), gateado por flag:
+
+```gdscript
+# Zona inferior
+if phase2h_o2_doorway_two_zone_enabled:
+    # Phase 2H: floor en o2_upper (zona alta siempre más depletada que zona baja)
+    var lower_entr: float = entr_frac * 0.20 * maxf(0.0, room.o2_lower - room.o2_upper)
+    room.o2_lower = maxf(room.o2_upper, room.o2_lower - lower_entr)
+    var ach_lower_dt: float = (ach_infiltration / 3600.0) * (building.outside_o2 - room.o2_lower) * dt
+    room.o2_lower = clampf(room.o2_lower + ach_lower_dt, room.o2_upper, o2_nominal)
+else:
+    # Original (retrocompat)
+    var lower_entr: float = entr_frac * 0.20 * maxf(0.0, room.o2_lower - room.o2)
+    room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)
+    var ach_lower_dt: float = (ach_infiltration / 3600.0) * (building.outside_o2 - room.o2_lower) * dt
+    room.o2_lower = clampf(room.o2_lower + ach_lower_dt, room.o2, o2_nominal)
+```
+
+Cambio secundario **opcional** en `_exchange_room_o2_active_flow()` — cold_room O₂ lower routing (gateado por segundo flag):
+
+```gdscript
+# Phase 2H ext: la sala fría pierde aire fresco de su zona baja cuando alimenta la sala caliente
+if phase2h_cold_room_lower_routing_enabled and cold_room_delta_o2_kg < 0.0:
+    var lower_frac_cr: float = clampf(
+        cold_room.thermal_layer_m / maxf(0.01, cold_room.height_m), 0.01, 0.99)
+    var lower_mass_cr: float = maxf(
+        0.001, _compute_room_air_mass_kg(cold_room, air_density_kg_m3) * lower_frac_cr)
+    cold_room.o2_lower = clampf(
+        cold_room.o2_lower + cold_room_delta_o2_kg / lower_mass_cr,
+        0.0, o2_nominal)
+```
+
+Este segundo cambio se activa en Exp 2H.2 si Exp 2H.1 muestra mejora parcial.
+
+---
+
+### 12.4 Flags Propuestos
+
+En `SimulationEngine.gd`, bloque después de phase2g (línea ~682):
+
+```gdscript
+# ── Phase 2H: O₂ doorway two-zone flow (default OFF) ─────────────────────────
+@export var phase2h_o2_doorway_two_zone_enabled: bool = false
+@export var phase2h_cold_room_lower_routing_enabled: bool = false
+```
+
+Pasan a `oxygen_exchange_system.configure()` (línea ~908):
+```gdscript
+"phase2h_o2_doorway_two_zone_enabled": phase2h_o2_doorway_two_zone_enabled,
+"phase2h_cold_room_lower_routing_enabled": phase2h_cold_room_lower_routing_enabled,
+```
+
+Variables internas en `OxygenExchangeSystem.gd`, bloque `configure()`:
+```gdscript
+var phase2h_o2_doorway_two_zone_enabled: bool = false
+var phase2h_cold_room_lower_routing_enabled: bool = false
+```
+
+---
+
+### 12.5 Invariantes Garantizados por el Diseño
+
+| Invariante | ¿Afectado por Phase 2H? |
+|---|---|
+| `room.o2` — bulk O₂ (combustión, HRR limiting) | No — sin cambio |
+| `room.o2_upper` — zona alta (CO₂ production scale) | No — sin cambio |
+| CO generation, smoke transport, FED | No — sin cambio |
+| Los 289 checks de guardrails | No — flag default OFF |
+| Timing de extinción de fuego | No — usa `room.o2` |
+| HRR retained-flame modulation | No — usa `room.o2` + `retained_hot_layer_o2_*` |
+
+La variable `room.o2_lower` solo es consumida por:
+- Readouts de HUD (`compute_co_lower_ppm` y similares — solo display)
+- Checks de `o2_lower` en validación (todos non-required/gaps)
+- Ningún guardrail requerido
+
+---
+
+### 12.6 Casos del Experimento 2H.1
+
+| Caso | Justificación |
+|---|---|
+| `cfast_two_room_door_open` | Cubre `cfast_2r_r0_t*_o2_lower` (sala fuego, 3 timepoints) |
+| `cfast_single_room_closed` | Cubre `cfast_closed_t*_o2_lower` (sala sellada) |
+| `g4_gie_delayed_entry_hazard` | Sentinel FED y CO |
+| `v3_hallway_fed_exposure` | Sentinel FED en pasillo |
+| `victim_fed_incapacitation` | Sentinel FED incapacitation |
+
+Los casos de HVAC (`cfast_hvac_*`) y ventana (`cfast_t*`) se incluyen en la suite de validación completa post-experimento, no en el runner 2H.1 para mantener el runtime corto.
+
+---
+
+### 12.7 Métricas y Sentinels
+
+**Métricas objetivo** (comparar con baselines CFAST):
+
+| Check | Baseline expected | SF pre-2H | Objetivo post-2H |
+|---|---|---|---|
+| `cfast_closed_t300_o2_lower` | 0.2049 ±0.015 | 0.0684 | ≥ 0.19 |
+| `cfast_closed_t450_o2_lower` | 0.2049 ±0.015 | 0.0429 | ≥ 0.10 |
+| `cfast_2r_r0_t300_o2_lower` | 0.0952 ±0.015 | 0.2090 | [0.08, 0.11] |
+| `cfast_2r_r0_t450_o2_lower` | 0.0909 ±0.015 | 0.0675 | [0.076, 0.106] |
+
+**Sentinels obligatorios** (ventanas ya establecidas):
+
+| Sentinel | Ventana permitida |
+|---|---|
+| g4 FED incapacitation | [187.75, 207.75] s |
+| g4 CO > 1200 ppm | [82.33, 92.33] s |
+| v3 FED > 0.1 | [222.17, 282.17] s |
+| victim final FED | ≥ 0.70 |
+| victim peak CO | ≥ 1500 ppm |
+
+---
+
+### 12.8 Riesgos y Mitigaciones
+
+| Riesgo | Severidad | Mitigación |
+|---|---|---|
+| `o2_lower > room.o2` introduce inconsistencia si algún sistema usa `o2_lower` como proxy de O₂ disponible | MEDIO | Verificado: ningún guardrail ni ruta de combustión consume `o2_lower`. Solo readouts de HUD. |
+| Sala sellada: `o2_lower` se mantiene alto con Phase 2H, pero sin ventilación no hay flujo que lo reponga. El ACH `0.05` sigue activo pero debería ser el único mecanismo. | BAJO-MEDIO | Aceptable: CFAST también mantiene ~0.205 en sala sellada. La física del modelo two-zone lo justifica. |
+| Dos salas t=300: SF tiene `o2_lower=0.209` (demasiado fresco) y CFAST tiene `0.095`. Phase 2H mantiene el floor en `o2_upper` — si `o2_upper` sigue alto a t=300, este check podría no mejorar. | MEDIO | Aceptar gap residual; prioridad es cerrar los checks de sala cerrada y ventana (dirección correcta). |
+| `cold_room.o2_lower` routing (segunda parte) depleta pasillo si no hay replenishment externo hacia el pasillo. | MEDIO | Solo activar en Exp 2H.2 con `phase2h_cold_room_lower_routing_enabled=true`; Exp 2H.1 lo deja OFF. |
+| Guardrails de timing de FED (sentinels g4/v3/victim) | BAJO | Phase 2H no toca `room.o2` ni `o2_upper` en ruta de combustión → timing de HRR/CO/FED inalterado. |
+
+---
+
+### 12.9 Resumen del Primer Experimento Seguro (Exp 2H.1)
+
+**Objetivo**: verificar que el cambio de floor `room.o2 → room.o2_upper` mejora los checks `o2_lower` sin romper los 289 guardrails.
+
+**Implementación total**: ~20 líneas en `OxygenExchangeSystem.gd`, ~6 líneas en `SimulationEngine.gd`.
+
+**Runner**: `scripts/simulation/phase2h_experiment_1_runner.py`  
+- 5 casos × 1 combinación flag (ON/OFF) = 10 runs totales (muy bajo costo)  
+- Sentinels: mismos 5 que Phase 2G  
+- Overrides: `phase2h_o2_doorway_two_zone_enabled=true`, `phase2h_cold_room_lower_routing_enabled=false`
+
+**Invariante verificable antes de merge**: guardrails 289/289 PASS con ambos flags OFF. Flag ON solo para los 5 casos del runner.
+
+**Artefactos de salida**: `{case}_p2h1_on.json` y `{case}_p2h1_off.json` para comparación directa.
+
+---
+
+*Documento actualizado: 24 mayo 2026.*

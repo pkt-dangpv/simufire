@@ -136,10 +136,11 @@ def main() -> int:
     baseline_ok = "✓" if all_req_pass else "✗"
 
     W = 72
+    _src = json_path.relative_to(repo_root) if json_path.is_relative_to(repo_root) else json_path
     print()
     print("=" * W)
     print("  Phase 2E Preflight — Sentinel Required Checks")
-    print(f"  Fuente : {json_path.relative_to(repo_root)}")
+    print(f"  Fuente : {_src}")
     print(f"  Suite  : {req_count} required {baseline_ok}  |  {gap_count} non-gating gaps")
     print("=" * W)
 

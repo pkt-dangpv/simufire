@@ -663,6 +663,31 @@ var _step_time_us: int = 0
 @export var plume_flame_region_max_depth_fraction: float = 0.97
 @export var thermal_plume_depth_scale: float = 0.40
 @export var target_smoke_resistance_coeff: float = 0.20
+## Phase 2E — experimento transporte dos zonas (default OFF — no altera baseline)
+@export var phase2e_two_zone_transport_enabled: bool = false
+## Phase 2E — modo deposición CO cuando flag ON ("all_upper" | "geometric_split" | "upper_floor_90" | "upper_floor_95")
+@export var phase2e_co_deposition_mode: String = "all_upper"
+## Phase 2F — mixing CO inter-capa (default OFF — no altera baseline)
+@export var phase2f_co_interlayer_mixing_enabled: bool = false
+@export var phase2f_co_interlayer_mixing_rate: float = 0.0
+@export var phase2f_co_interlayer_mixing_guard: String = "no_guard"
+## Phase 2G — término fuente CO zona lower en generación (default OFF — no altera baseline)
+## Fracción de generated_co_kg que se asigna directamente a lower (implícito = co_kg - co_upper_kg).
+## co_kg total se mantiene invariante; sólo co_upper_kg recibe (1 - fraction) * generated_co_kg.
+@export var phase2g_co_lower_source_enabled: bool = false
+@export var phase2g_co_lower_source_fraction: float = 0.0
+## "fire_room_only"               : aplica en cualquier sala con fuego activo (= all_rooms_with_fire en test cases)
+## "only_when_hot_layer_above_1_8m": aplica sólo cuando interfaz capa caliente > 1.8 m
+## "all_rooms_with_fire"           : equivalente a fire_room_only (todas las salas con combustión)
+@export var phase2g_co_lower_source_guard: String = "fire_room_only"
+## Phase 2H — O₂ doorway two-zone flow (default OFF — no altera baseline)
+## Cuando ON: el floor de o2_lower cambia de room.o2 → room.o2_upper, permitiendo que
+## la zona baja se mantenga por encima del bulk cuando el flujo fresco la repone.
+## room.o2, o2_upper, CO, HRR y FED son invariantes (no se modifican).
+@export var phase2h_o2_doorway_two_zone_enabled: bool = false
+## Exp 2H.2: el delta de O₂ de cold_room en active_flow se enruta a o2_lower en vez de room.o2.
+## Desactivado en Exp 2H.1 (cold_room_lower_routing_enabled = false).
+@export var phase2h_cold_room_lower_routing_enabled: bool = false
 @export var target_layer_block_start_m: float = 0.65
 @export var target_layer_block_full_m: float = 0.10
 @export var interior_spill_start_layer_m: float = 2.0
@@ -815,7 +840,12 @@ func _sync_auxiliary_services() -> void:
 		"energy_budget_enabled": energy_budget_enabled,
 		"energy_budget_warn_fraction": energy_budget_warn_fraction,
 		"vent_bernoulli_enabled": vent_bernoulli_enabled,
-		"wall_layer_aware_conduction": wall_layer_aware_conduction
+		"wall_layer_aware_conduction": wall_layer_aware_conduction,
+		"phase2e_two_zone_transport_enabled": phase2e_two_zone_transport_enabled,
+		"phase2e_co_deposition_mode": phase2e_co_deposition_mode,
+		"phase2f_co_interlayer_mixing_enabled": phase2f_co_interlayer_mixing_enabled,
+		"phase2f_co_interlayer_mixing_rate": phase2f_co_interlayer_mixing_rate,
+		"phase2f_co_interlayer_mixing_guard": phase2f_co_interlayer_mixing_guard
 	})
 	fire_spread_system.set_references(building, smoke_model, combustion_system)
 	fire_spread_system.configure({
@@ -896,7 +926,9 @@ func _sync_auxiliary_services() -> void:
 		"doorway_o2_background_pressure_ref_pa": doorway_o2_background_pressure_ref_pa,
 		"doorway_o2_background_min_factor": doorway_o2_background_min_factor,
 		"vent_bernoulli_enabled": vent_bernoulli_enabled,
-		"o2_upper_plume_entr_rate": o2_upper_plume_entr_rate
+		"o2_upper_plume_entr_rate": o2_upper_plume_entr_rate,
+		"phase2h_o2_doorway_two_zone_enabled": phase2h_o2_doorway_two_zone_enabled,
+		"phase2h_cold_room_lower_routing_enabled": phase2h_cold_room_lower_routing_enabled
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
@@ -1338,7 +1370,14 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_fds_extinction_pyrolysis_floor": fire_fds_extinction_pyrolysis_floor,
 		"fire_intraroom_spread_enabled": fire_intraroom_spread_enabled,
 		"fire_intraroom_view_factor": fire_intraroom_view_factor,
-		"fire_intraroom_falloff_m": fire_intraroom_falloff_m
+		"fire_intraroom_falloff_m": fire_intraroom_falloff_m,
+		# Phase 2G — término fuente CO zona lower
+		"phase2g_co_lower_source_enabled":  phase2g_co_lower_source_enabled,
+		"phase2g_co_lower_source_fraction": phase2g_co_lower_source_fraction,
+		"phase2g_co_lower_source_guard":    phase2g_co_lower_source_guard,
+		"hot_layer_interface_m": thermal_system.effective_hot_layer_height_m(
+			building.get_room(room_id)
+		) if building != null and building.get_room(room_id) != null else 2.5
 	}
 
 # ============================================================

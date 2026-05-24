@@ -1,0 +1,39 @@
+name: Validation Guardrails
+
+on:
+  push:
+    paths:
+      - 'scripts/simulation/phase2e_preflight.py'
+      - 'scripts/simulation/gap_inventory_check.py'
+      - 'scripts/simulation/validation_guardrails.py'
+      - 'docs/GAPS_INVENTORY.md'
+      - 'docs/PHASE_2E_DESIGN.md'
+      - 'sim/validation/reports/reference_checks.json'
+  pull_request:
+    paths:
+      - 'scripts/simulation/phase2e_preflight.py'
+      - 'scripts/simulation/gap_inventory_check.py'
+      - 'scripts/simulation/validation_guardrails.py'
+      - 'docs/GAPS_INVENTORY.md'
+      - 'docs/PHASE_2E_DESIGN.md'
+      - 'sim/validation/reports/reference_checks.json'
+
+jobs:
+  guardrails:
+    name: Guardrails documentales Phase 2E
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run validation guardrails
+        run: python scripts/simulation/validation_guardrails.py
+
+      - name: Run guardrail unit tests
+        run: python -m unittest tests.test_guardrails -v

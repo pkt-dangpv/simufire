@@ -1,6 +1,6 @@
 param(
 	[string]$RepoRoot = "F:\OneDrive\Documentos\GitHub\simufire",
-	[string]$GodotExe = "F:\OneDrive\Escritorio\Godot_v4.6.2-stable_win64_console.exe",
+	[string]$GodotExe = "F:\OneDrive\Escritorio\Godot_v4.6.3-stable_win64_console.exe",
 	[double]$DurationS = 300.0
 )
 

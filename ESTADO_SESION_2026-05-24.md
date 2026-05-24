@@ -172,14 +172,14 @@ Usar `compute_co_lower_ppm` solo cuando `hot_h < 0.5 * height_m` (capa caliente 
 
 ## Parámetros de referencia
 
-- **Godot exe**: `C:\Users\dangp\Desktop\Godot_v4.6.2-stable_win64_console.exe`
-- **Workspace**: `C:\Users\dangp\Documents\GitHub\simufire`
+- **Godot exe**: `F:\OneDrive\Escritorio\Godot_v4.6.3-stable_win64_console.exe`
+- **Workspace**: `F:\OneDrive\Documentos\GitHub\simufire`
 - **run_case.ps1** (desde `sim\validation\` con `$env:GODOT_EXE` seteado):
   ```powershell
   powershell -ExecutionPolicy Bypass -Command "& { . .\run_case.ps1 -CaseName 'NAME' -TimeoutSeconds 300 }"
   ```
 - **Suite completa**:
   ```powershell
-  cd C:\Users\dangp\Documents\GitHub\simufire
+  cd F:\OneDrive\Documentos\GitHub\simufire
   python scripts/simulation/validate_reference_cases.py
   ```

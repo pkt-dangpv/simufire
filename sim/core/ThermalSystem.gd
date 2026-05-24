@@ -95,6 +95,27 @@ var interior_background_heat_carry_factor: float = 0.38
 var hot_gas_species_carry_fraction: float = 0.72
 var hot_gas_smoke_carry_fraction: float = 0.38
 var hot_gas_species_max_fraction_per_step: float = 0.22
+# Phase 2E — experimento transporte dos zonas (default OFF — no altera baseline)
+# Cuando true: CO transportado al destino se reparte upper/lower según geometría de capa.
+var phase2e_two_zone_transport_enabled: bool = false
+## Phase 2E — modo de deposición CO cuando flag ON (ignorado si flag OFF)
+## "all_upper"       : 100% CO al upper (igual que baseline; cancela el split geométrico)
+## "geometric_split" : split según h_upper_tgt / height_m  (Experimento 1)
+## "upper_floor_90"  : geometric_split con mínimo 90% a upper
+## "upper_floor_95"  : geometric_split con mínimo 95% a upper
+var phase2e_co_deposition_mode: String = "all_upper"
+# Phase 2F — mixing CO inter-capa (mecanismo separado; default OFF — no altera baseline)
+# co_kg total conservado: sólo reduce co_upper_kg (lower = co_kg - co_upper_kg aumenta implícitamente).
+# Llamado DESPUÉS de _flush_contaminant_deltas(), sin interferir con el transporte principal.
+var phase2f_co_interlayer_mixing_enabled: bool = false
+## fracción de co_upper_kg por segundo transferida de upper a lower implícito (default 0.0)
+var phase2f_co_interlayer_mixing_rate: float = 0.0
+## guard que condiciona el mixing por sala:
+## "no_guard"                                   : aplica siempre
+## "only_when_upper_gas_kg_lt_0_1"              : sólo si room.upper_gas_kg < 0.1
+## "only_when_hot_layer_interface_above_1_8m"   : sólo si interfaz > 1.8 m
+## "only_when_no_occupant_in_upper_probe"       : sólo si ninguna víctima respira en upper
+var phase2f_co_interlayer_mixing_guard: String = "no_guard"
 # Propagación por radiación a través de aperturas interiores
 # Basado en Stefan-Boltzmann: q''_rad = φ·ε·σ·(T_src⁴ − T_tgt⁴) · A_eff · smoke_atten
 # φ=0.25 es el factor de vista efectivo para una apertura de puerta a sala adyacente.
@@ -485,6 +506,11 @@ func configure(settings: Dictionary) -> void:
 	energy_budget_enabled = bool(settings.get("energy_budget_enabled", energy_budget_enabled))
 	energy_budget_warn_fraction = float(settings.get("energy_budget_warn_fraction", energy_budget_warn_fraction))
 	vent_bernoulli_enabled = bool(settings.get("vent_bernoulli_enabled", vent_bernoulli_enabled))
+	phase2e_two_zone_transport_enabled = bool(settings.get("phase2e_two_zone_transport_enabled", phase2e_two_zone_transport_enabled))
+	phase2e_co_deposition_mode = String(settings.get("phase2e_co_deposition_mode", phase2e_co_deposition_mode))
+	phase2f_co_interlayer_mixing_enabled = bool(settings.get("phase2f_co_interlayer_mixing_enabled", phase2f_co_interlayer_mixing_enabled))
+	phase2f_co_interlayer_mixing_rate = float(settings.get("phase2f_co_interlayer_mixing_rate", phase2f_co_interlayer_mixing_rate))
+	phase2f_co_interlayer_mixing_guard = String(settings.get("phase2f_co_interlayer_mixing_guard", phase2f_co_interlayer_mixing_guard))
 
 
 # ============================================================
@@ -926,6 +952,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 
 	# SF-R6 Phase 4: aplicar todos los deltas de contaminantes acumulados durante el bucle.
 	_flush_contaminant_deltas(building)
+
+	# Phase 2F: mixing experimental CO inter-capa (mecanismo separado; default OFF).
+	_apply_phase2f_co_interlayer_mixing(building, dt)
 
 	if energy_budget_enabled and _bud_total_fire_kj > 0.1:
 		var residual_frac: float = abs(_bud_total_residual_kj) / _bud_total_fire_kj
@@ -1893,10 +1922,30 @@ func _transfer_hot_gas_contaminants(
 	var co_upper_available_kg: float = clampf(source.co_upper_kg, 0.0, source.co_kg)
 	var co_moved_kg: float = minf(source.co_kg, co_upper_available_kg * upper_fraction_moved * carry)
 	if co_moved_kg > 0.0:
-		_delta_co_kg[src_id]    = _delta_co_kg.get(src_id, 0.0)    - co_moved_kg
+		_delta_co_kg[src_id]       = _delta_co_kg.get(src_id, 0.0)       - co_moved_kg
 		_delta_co_upper_kg[src_id] = _delta_co_upper_kg.get(src_id, 0.0) - co_moved_kg
-		_delta_co_kg[tgt_id]    = _delta_co_kg.get(tgt_id, 0.0)    + co_moved_kg
-		_delta_co_upper_kg[tgt_id] = _delta_co_upper_kg.get(tgt_id, 0.0) + co_moved_kg
+		_delta_co_kg[tgt_id]       = _delta_co_kg.get(tgt_id, 0.0)       + co_moved_kg
+		# Phase 2E Experimento 2 — barrido de estrategia de deposición CO:
+		# Cuando flag OFF: comportamiento original (co_tgt_upper = co_moved_kg).
+		# Cuando flag ON:  se selecciona modo mediante phase2e_co_deposition_mode.
+		#   "all_upper"       — 100% a upper (igual que baseline; cancela split).
+		#   "geometric_split" — split h_upper_tgt / height_m  (Exp 1).
+		#   "upper_floor_90"  — geometric_split con mínimo 90% a upper.
+		#   "upper_floor_95"  — geometric_split con mínimo 95% a upper.
+		var co_tgt_upper: float = co_moved_kg
+		if phase2e_two_zone_transport_enabled:
+			var h_upper_tgt: float = maxf(0.0, target.height_m - effective_hot_layer_height_m(target))
+			var geo_split: float = clampf(h_upper_tgt / maxf(0.01, target.height_m), 0.0, 1.0)
+			match phase2e_co_deposition_mode:
+				"geometric_split":
+					co_tgt_upper = co_moved_kg * geo_split
+				"upper_floor_90":
+					co_tgt_upper = co_moved_kg * maxf(0.90, geo_split)
+				"upper_floor_95":
+					co_tgt_upper = co_moved_kg * maxf(0.95, geo_split)
+				_: # "all_upper" o desconocido — 100% upper (= baseline)
+					pass
+		_delta_co_upper_kg[tgt_id] = _delta_co_upper_kg.get(tgt_id, 0.0) + co_tgt_upper
 
 	# SF-R6 Phase 2: CO₂ transport con upper zone tracking.
 	# El gas caliente transportado va a la zona superior del destino (flotabilidad).
@@ -1995,6 +2044,43 @@ func _flush_contaminant_deltas(building: BuildingModel) -> void:
 	_delta_hcl_kg.clear()
 	_delta_acrolein_kg.clear()
 	_delta_formaldehyde_kg.clear()
+
+
+# ============================================================
+# PHASE 2F — CO INTERLAYER MIXING (experimental, default OFF)
+# ============================================================
+# Transfiere una fracción de co_upper_kg a la zona lower implícita (co_kg total invariante).
+# Llamado DESPUÉS de _flush_contaminant_deltas() para no interferir con el flush Jacobi.
+# ============================================================
+func _apply_phase2f_co_interlayer_mixing(building: BuildingModel, dt: float) -> void:
+	if not phase2f_co_interlayer_mixing_enabled or phase2f_co_interlayer_mixing_rate <= 0.0:
+		return
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null or room.co_upper_kg <= 0.0:
+			continue
+		# Evaluar guard
+		match phase2f_co_interlayer_mixing_guard:
+			"only_when_upper_gas_kg_lt_0_1":
+				if room.upper_gas_kg >= 0.1:
+					continue
+			"only_when_hot_layer_interface_above_1_8m":
+				if effective_hot_layer_height_m(room) <= 1.8:
+					continue
+			"only_when_no_occupant_in_upper_probe":
+				var interface_m: float = effective_hot_layer_height_m(room)
+				var blocked: bool = false
+				for vic in building.victims:
+					if int(vic.get("room_id", -1)) == room.id and float(vic.get("height_m", 0.9)) >= interface_m:
+						blocked = true
+						break
+				if blocked:
+					continue
+			_: # "no_guard" — aplica siempre
+				pass
+		# Transferir: co_upper_kg decrece, co_kg total invariante (lower = co_kg - co_upper_kg aumenta)
+		var transfer_kg: float = minf(room.co_upper_kg * phase2f_co_interlayer_mixing_rate * dt, room.co_upper_kg)
+		room.co_upper_kg = maxf(0.0, room.co_upper_kg - transfer_kg)
 
 
 func reset_thermal_layer(room: RoomModel) -> void:

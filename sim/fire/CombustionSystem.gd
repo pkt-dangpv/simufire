@@ -705,8 +705,23 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	else:
 		room.c_balance_frac = 0.0
 
+	# Phase 2G — término fuente CO zona lower en generación (experimental, default OFF).
+	# Cuando flag ON: una fracción de generated_co_kg se asigna al lower implícito;
+	# co_kg total no cambia — sólo co_upper_kg recibe (1 - fracción) * generated_co_kg.
+	var _p2g_upper_frac: float = 1.0
+	if bool(context.get("phase2g_co_lower_source_enabled", false)):
+		var _p2g_frac: float = float(context.get("phase2g_co_lower_source_fraction", 0.0))
+		var _p2g_guard: String = String(context.get("phase2g_co_lower_source_guard", "fire_room_only"))
+		var _p2g_apply: bool = false
+		match _p2g_guard:
+			"only_when_hot_layer_above_1_8m":
+				_p2g_apply = float(context.get("hot_layer_interface_m", 2.5)) > 1.8
+			_: # "fire_room_only" y "all_rooms_with_fire" — siempre aplica en sala con fuego
+				_p2g_apply = true
+		if _p2g_apply:
+			_p2g_upper_frac = 1.0 - clampf(_p2g_frac, 0.0, 1.0)
 	room.co_kg += generated_co_kg
-	room.co_upper_kg += generated_co_kg
+	room.co_upper_kg += generated_co_kg * _p2g_upper_frac
 	room.co2_kg += generated_co2_kg
 	room.co2_upper_kg += generated_co2_kg  # generado en capa superior (2026-05-17)
 	room.hcn_kg += generated_hcn_kg

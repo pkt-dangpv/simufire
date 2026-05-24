@@ -1,5 +1,5 @@
 ﻿param(
-	[string]$GodotExe = "C:\Users\dangp\Desktop\Godot_v4.6.2-stable_win64_console.exe",
+	[string]$GodotExe = "C:\Users\dangp\Desktop\Godot_v4.6.3-stable_win64_console.exe",
 	[string]$ProjectPath = "",
 	[int]$TimeoutSeconds = 300,
 	[string[]]$Cases = @()

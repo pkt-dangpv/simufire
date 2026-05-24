@@ -9,7 +9,7 @@ Caso ejecutado:
 Comando ejecutado:
 
 ```powershell
-& 'F:\OneDrive\Escritorio\Godot_v4.6.2-stable_win64_console.exe' --headless --path 'F:\OneDrive\Documentos\GitHub\simufire' -- --validation-case long_smoke_o2_debug
+& 'F:\OneDrive\Escritorio\Godot_v4.6.3-stable_win64_console.exe' --headless --path 'F:\OneDrive\Documentos\GitHub\simufire' -- --validation-case long_smoke_o2_debug
 ```
 
 Salida generada:
@@ -110,4 +110,3 @@ El siguiente paso correcto sigue siendo:
 ## Nota de ejecucion
 
 - Tambien se intento lanzar `postfire_decay`, pero la herramienta agotó el timeout antes de completar la corrida y no se ha usado para este contraste empirico.
-

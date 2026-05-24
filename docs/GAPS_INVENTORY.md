@@ -3,6 +3,22 @@
 **Estado validación**: 289/289 PASS required, 73 gaps non-gating  
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
+> **Verificación de sincronización** — entrypoint único (recomendado):
+> ```bash
+> python scripts/simulation/validation_guardrails.py
+> ```
+> Ejecuta los dos guardrails en modo compacto y devuelve exit 0 si todo está OK:
+> - Required checks 289/289 PASS
+> - Conteo de gaps documentado == conteo real en JSON
+> - 7 checks sentinel Phase 2E todos PASS
+>
+> Para diagnóstico detallado añadir `--verbose`. Para solo verificar el conteo de gaps:
+> ```bash
+> python scripts/simulation/gap_inventory_check.py
+> ```
+> Devuelve exit 0 si el conteo total de gaps coincide y all_required_pass=True.
+> Regenerar el reporte si hay discrepancias: `python scripts/simulation/validate_reference_cases.py`
+
 ---
 
 ## Resumen por categoría

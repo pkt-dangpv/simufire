@@ -36,6 +36,11 @@ var o2_upper_plume_entr_rate: float = 0.025
 # Usado en la ecuación Δco2_upper = (hrr/1000) × co2_yield × o2_scale × 29/(44×upper_mass).
 # Default: 0.0831 kg CO₂/MJ (mismo que co2_base_yield_kg_per_MJ en CombustionSystem).
 var co2_yield_kg_per_MJ: float = 0.0831
+# Phase 2H: O₂ doorway two-zone flow (default OFF).
+# Cuando ON: floor de o2_lower cambia room.o2 → room.o2_upper en ruta Phase 2A.
+var phase2h_o2_doorway_two_zone_enabled: bool = false
+# Exp 2H.2: delta negativo de cold_room en active_flow se enruta a cold_room.o2_lower.
+var phase2h_cold_room_lower_routing_enabled: bool = false
 var _pending_o2_deliveries: Array[Dictionary] = []
 var _reserved_transport_o2_delta_kg: Dictionary = {}
 
@@ -85,6 +90,12 @@ func configure(settings: Dictionary) -> void:
 	vent_bernoulli_enabled = bool(settings.get("vent_bernoulli_enabled", vent_bernoulli_enabled))
 	o2_upper_plume_entr_rate = float(settings.get("o2_upper_plume_entr_rate", o2_upper_plume_entr_rate))
 	co2_yield_kg_per_MJ = float(settings.get("co2_yield_kg_per_MJ", co2_yield_kg_per_MJ))
+	phase2h_o2_doorway_two_zone_enabled = bool(
+		settings.get("phase2h_o2_doorway_two_zone_enabled", phase2h_o2_doorway_two_zone_enabled)
+	)
+	phase2h_cold_room_lower_routing_enabled = bool(
+		settings.get("phase2h_cold_room_lower_routing_enabled", phase2h_cold_room_lower_routing_enabled)
+	)
 
 
 func reset() -> void:
@@ -167,12 +178,20 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			var delta_entr: float = entr_frac * maxf(0.0, room.o2 - room.o2_upper)
 			room.o2_upper = clampf(room.o2_upper + delta_entr, 0.0, o2_nominal)
 			# Fase 2A: o2_lower near-ambient, independiente de o2_upper.
-			# Pluma la arrastra lentamente hacia room.o2 (floor). ACH la repone.
-			var lower_entr: float = entr_frac * 0.20 * maxf(0.0, room.o2_lower - room.o2)
-			room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)
-			var ach_lower_dt: float = (ach_infiltration / 3600.0) \
-				* (building.outside_o2 - room.o2_lower) * dt
-			room.o2_lower = clampf(room.o2_lower + ach_lower_dt, room.o2, o2_nominal)
+			# Pluma la arrastra lentamente hacia el floor. ACH la repone.
+			# Phase 2H: floor cambia room.o2 → room.o2_upper (zona baja ≥ zona alta).
+			if phase2h_o2_doorway_two_zone_enabled:
+				var lower_entr: float = entr_frac * 0.20 * maxf(0.0, room.o2_lower - room.o2_upper)
+				room.o2_lower = maxf(room.o2_upper, room.o2_lower - lower_entr)
+				var ach_lower_dt: float = (ach_infiltration / 3600.0) \
+					* (building.outside_o2 - room.o2_lower) * dt
+				room.o2_lower = clampf(room.o2_lower + ach_lower_dt, room.o2_upper, o2_nominal)
+			else:
+				var lower_entr: float = entr_frac * 0.20 * maxf(0.0, room.o2_lower - room.o2)
+				room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)
+				var ach_lower_dt: float = (ach_infiltration / 3600.0) \
+					* (building.outside_o2 - room.o2_lower) * dt
+				room.o2_lower = clampf(room.o2_lower + ach_lower_dt, room.o2, o2_nominal)
 		else:
 			# Sin fuego: resync lento de zonas a room.o2 (difusion/mezcla)
 			room.o2_lower = lerpf(room.o2_lower, room.o2, clampf(0.05 * dt, 0.0, 0.20))
