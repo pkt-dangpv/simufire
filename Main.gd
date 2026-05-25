@@ -23,6 +23,8 @@ var _graph_grids: Array[GridContainer] = []
 var _graph_drag_scroll: ScrollContainer = null
 var _graph_zoom: float = 1.0
 var _view_update_accum_s: float = 0.0
+var _view_3d_update_accum_s: float = 0.0
+const VIEW_RUNNING_UPDATE_INTERVAL_S: float = 0.05
 const VIEW_3D_RUNNING_UPDATE_INTERVAL_S: float = 0.12
 var view_3d_enabled: bool = false
 var first_person_enabled: bool = false
@@ -94,14 +96,18 @@ func _input(event: InputEvent) -> void:
 func _update_views() -> void:
 	if engine == null:
 		return
+	_view_update_accum_s = 0.0
+	_view_3d_update_accum_s = 0.0
 	var state := _build_view_state()
-	if visualizer != null:
+	var visualizer_2d_active: bool = not view_3d_enabled and not first_person_enabled
+	var visualizer_3d_active: bool = view_3d_enabled or first_person_enabled
+	if visualizer != null and visualizer_2d_active:
 		visualizer.set_state(state)
-	if visualizer_3d != null:
+	if visualizer_3d != null and visualizer_3d_active:
 		visualizer_3d.set_state(state)
-	if minimap_2d != null:
+	if minimap_2d != null and visualizer_3d_active:
 		minimap_2d.set_state(state)
-	if first_person_controller != null:
+	if first_person_controller != null and first_person_enabled:
 		first_person_controller.set_state(state)
 	if hud != null:
 		hud.update_state(state)
@@ -123,24 +129,37 @@ func _build_view_state() -> Dictionary:
 func _update_views_for_frame(delta: float) -> void:
 	if engine == null:
 		return
-	if visualizer_3d != null and view_3d_enabled and not first_person_enabled:
-		_view_update_accum_s += delta
-		var should_update_3d: bool = _view_update_accum_s >= VIEW_3D_RUNNING_UPDATE_INTERVAL_S
-		var state: Dictionary = _build_view_state()
+	if first_person_enabled:
+		_update_views()
+		return
+
+	_view_update_accum_s += delta
+	_view_3d_update_accum_s += delta
+	var should_update_view: bool = _view_update_accum_s >= VIEW_RUNNING_UPDATE_INTERVAL_S
+	var should_update_3d: bool = view_3d_enabled and _view_3d_update_accum_s >= VIEW_3D_RUNNING_UPDATE_INTERVAL_S
+	if not should_update_view and not should_update_3d:
+		return
+
+	var state: Dictionary = _build_view_state()
+	if view_3d_enabled:
+		if should_update_view:
+			_view_update_accum_s = 0.0
+			if minimap_2d != null:
+				minimap_2d.set_state(state)
+			if hud != null:
+				hud.update_state(state)
+		if should_update_3d:
+			_view_3d_update_accum_s = 0.0
+			if visualizer_3d != null:
+				visualizer_3d.set_state(state)
+		return
+
+	if should_update_view:
+		_view_update_accum_s = 0.0
 		if visualizer != null:
 			visualizer.set_state(state)
-		if minimap_2d != null:
-			minimap_2d.set_state(state)
-		if should_update_3d:
-			_view_update_accum_s = 0.0
-			visualizer_3d.set_state(state)
-		if first_person_controller != null:
-			first_person_controller.set_state(state)
 		if hud != null:
 			hud.update_state(state)
-		return
-	_view_update_accum_s = 0.0
-	_update_views()
 
 
 func _on_play_requested() -> void:

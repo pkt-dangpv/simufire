@@ -130,6 +130,10 @@ var ventilation_response_factor: float = 0.0
 
 # Presion de la capa superior respecto al exterior
 var overpressure_pa: float = 0.0
+## Temperatura del jet de techo en el eje del penacho según Alpert (1972) — BV-028.
+## Actualizada por SimulationEngine._update_room_ceiling_jet_temps() en cada paso.
+## Igual a temp_upper_c cuando no hay fuego activo en la sala.
+var ceiling_jet_temp_c: float = 20.0
 # Flujo radiante al suelo — SF-AUD-012.
 # Calculado en cada paso como ε·σ·T_upper⁴ [kW/m²].
 # ~20 kW/m² es el umbral ISO 9705 para flashover por ignicion generalizada de superficies.
@@ -260,6 +264,7 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	retained_unburned_MJ = 0.0
 	ventilation_response_factor = 0.0
 	overpressure_pa = 0.0
+	ceiling_jet_temp_c = ambient_temp_c
 	floor_heat_flux_kw_m2 = 0.0
 	flashover_q_thomas_kw = 0.0
 	flashover_q_mqh_kw = 0.0

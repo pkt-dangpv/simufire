@@ -116,6 +116,12 @@ var phase2f_co_interlayer_mixing_rate: float = 0.0
 ## "only_when_hot_layer_interface_above_1_8m"   : sólo si interfaz > 1.8 m
 ## "only_when_no_occupant_in_upper_probe"       : sólo si ninguna víctima respira en upper
 var phase2f_co_interlayer_mixing_guard: String = "no_guard"
+# Phase 2I — CO₂ upper fraction floor en sala fuego (default OFF = 0.0)
+# Cuando > 0.0: co2_upper_kg se eleva a mín. co2_kg × fraction en salas con fuego activo.
+# co2_kg invariante (sin creación/destrucción). Afecta co2_lower_kg implícito = co2_kg - co2_upper_kg.
+# NOTA: room.co2_upper (fracción molar, log CO2u=, FED V_CO2 en upper) NO se modifica.
+# Objetivo del experimento: medir si elevar co2_upper_kg afecta sentinels FED/CO.
+var phase2i_co2_upper_fraction: float = 0.0
 # Propagación por radiación a través de aperturas interiores
 # Basado en Stefan-Boltzmann: q''_rad = φ·ε·σ·(T_src⁴ − T_tgt⁴) · A_eff · smoke_atten
 # φ=0.25 es el factor de vista efectivo para una apertura de puerta a sala adyacente.
@@ -511,6 +517,7 @@ func configure(settings: Dictionary) -> void:
 	phase2f_co_interlayer_mixing_enabled = bool(settings.get("phase2f_co_interlayer_mixing_enabled", phase2f_co_interlayer_mixing_enabled))
 	phase2f_co_interlayer_mixing_rate = float(settings.get("phase2f_co_interlayer_mixing_rate", phase2f_co_interlayer_mixing_rate))
 	phase2f_co_interlayer_mixing_guard = String(settings.get("phase2f_co_interlayer_mixing_guard", phase2f_co_interlayer_mixing_guard))
+	phase2i_co2_upper_fraction = float(settings.get("phase2i_co2_upper_fraction", phase2i_co2_upper_fraction))
 
 
 # ============================================================
@@ -2772,6 +2779,13 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 	room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg)
 	room.co2_upper_kg = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
 	room.hcn_upper_kg = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)
+	# Phase 2I — CO₂ upper fraction floor en sala fuego (default OFF = 0.0)
+	# Eleva co2_upper_kg a mín. co2_kg × fraction cuando hay fuego activo.
+	# co2_kg permanece invariante. Afecta co2_lower_kg implícito (= co2_kg - co2_upper_kg).
+	# NOTA: room.co2_upper (fracción molar, log CO2u=, FED V_CO2 en upper) NO se modifica aquí.
+	if phase2i_co2_upper_fraction > 0.0 and (room.hrr_kw > 0.1 or room.fire != null):
+		var _p2i_target: float = room.co2_kg * phase2i_co2_upper_fraction
+		room.co2_upper_kg = clampf(maxf(room.co2_upper_kg, _p2i_target), 0.0, room.co2_kg)
 	room.temp_upper_raw_c = _estimate_raw_upper_temp_c(room, ambient_c)
 	room.temp_upper_clamped = room.temp_upper_raw_c > max_upper_temp_c
 	room.temp_upper_c = maxf(room.temp_lower_c, minf(room.temp_upper_raw_c, max_upper_temp_c))
@@ -2789,6 +2803,12 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 			clampf(layer_relax_up * dt, 0.0, 1.0)
 		)
 	_smoke_model.recompute_layer_from_mass(room, dt, ambient_c)
+	# BV-030: en un modelo de zona, la capa superior nunca puede ser más fría que la inferior.
+	# Esta aserción defensiva detecta regresiones futuras; no debe activarse en operación normal.
+	if room.temp_upper_c < room.temp_lower_c - 1.0:
+		push_warning("BV-030: inversión de capa sala %d — T_upper=%.1f°C < T_lower=%.1f°C" % [
+			room.id, room.temp_upper_c, room.temp_lower_c
+		])
 
 
 func update_temperature_cap_telemetry(room: RoomModel, dt: float) -> void:

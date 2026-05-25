@@ -608,6 +608,7 @@ func _update_metrics(state: Dictionary) -> void:
 				_metrics["time_room_%d_temp_1_8m_above_150c_s" % l150_room_id] = sim_time_s
 
 	_update_threshold_metrics(state, sim_time_s)
+	_update_delta_max_metrics(state, sim_time_s)  # BV-013 / BV-028
 
 	if _incident_started and all_rooms_extinguished and not _metrics.has("time_to_extinction_s"):
 		_metrics["time_to_extinction_s"] = sim_time_s
@@ -704,6 +705,14 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 	_metrics[prefix + "min_l150_m"] = minf(
 		float(_metrics.get(prefix + "min_l150_m", float(room_state.get("height_m", 0.0)))),
 		float(room_state.get("layer_150c_m", float(room_state.get("height_m", 0.0))))
+	)
+	_metrics[prefix + "max_overpressure_pa"] = maxf(
+		float(_metrics.get(prefix + "max_overpressure_pa", 0.0)),
+		float(room_state.get("overpressure_pa", 0.0))
+	)
+	_metrics[prefix + "max_ceiling_jet_temp_c"] = maxf(
+		float(_metrics.get(prefix + "max_ceiling_jet_temp_c", 0.0)),
+		float(room_state.get("ceiling_jet_temp_c", 0.0))
 	)
 
 
@@ -959,6 +968,39 @@ func _threshold_passes(actual_value: float, op: String, threshold_value: float) 
 		_:
 			push_warning("CaseRunner: operador de umbral no soportado '%s'" % op)
 			return false
+
+
+## Procesa la lista `room_delta_max_metrics` del caso: para cada entrada, calcula
+## (room_a.field_a − room_b.field_b) en cada paso y almacena el máximo histórico.
+## Soporta distintas salas y/o distintos campos — BV-013 (presión entre plantas)
+## y BV-028 (ceiling-jet vs. capa superior).
+## Config: {metric_name, room_a_id, room_b_id, field_a|field, field_b|field, after_time_s?}
+func _update_delta_max_metrics(state: Dictionary, sim_time_s: float) -> void:
+	var raw_deltas: Variant = _case_config.get("room_delta_max_metrics", [])
+	if typeof(raw_deltas) != TYPE_ARRAY:
+		return
+	for raw_delta in raw_deltas:
+		if typeof(raw_delta) != TYPE_DICTIONARY:
+			continue
+		if sim_time_s < float(raw_delta.get("after_time_s", 0.0)):
+			continue
+		var metric_name: String = String(raw_delta.get("metric_name", ""))
+		if metric_name.is_empty():
+			continue
+		var room_a_id: int = int(raw_delta.get("room_a_id", -1))
+		var room_b_id: int = int(raw_delta.get("room_b_id", -1))
+		var field_a: String = String(raw_delta.get("field_a", raw_delta.get("field", "")))
+		var field_b: String = String(raw_delta.get("field_b", raw_delta.get("field", "")))
+		if field_a.is_empty() or field_b.is_empty():
+			continue
+		var ra: Dictionary = state.get(str(room_a_id), {})
+		var rb: Dictionary = state.get(str(room_b_id), {})
+		if ra.is_empty() or rb.is_empty():
+			continue
+		var val_a: float = float(ra.get(field_a, 0.0))
+		var val_b: float = float(rb.get(field_b, 0.0))
+		var delta: float = val_a - val_b
+		_metrics[metric_name] = maxf(float(_metrics.get(metric_name, delta)), delta)
 
 
 func _read_text_file(path: String) -> String:

@@ -16,6 +16,13 @@
 					"min": 200.0
 				}
 			},
+			"max_ceiling_jet_minus_upper_temp_c": {
+				"actual": 60.0221335648131,
+				"pass": true,
+				"rule": {
+					"min": 15.0
+				}
+			},
 			"target_target_0_peak_qnet_kw_m2": {
 				"actual": 14.6781851103402,
 				"pass": true,
@@ -29,6 +36,7 @@
 	"duration_s": 600.0,
 	"metrics": {
 		"conservation_max_violation_frac": -1.0,
+		"max_ceiling_jet_minus_upper_temp_c": 60.0221335648131,
 		"max_upper_radiative_loss_kw_global": 710.155328506911,
 		"peak_co_ppm_global": 12880.9007172982,
 		"peak_co_upper_ppm_global": 104870.049098139,
@@ -50,7 +58,7 @@
 		"room_0_final_dominant_fuel_object_id": "room_proxy_0",
 		"room_0_final_dominant_fuel_object_remaining_MJ": 7135.04179444153,
 		"room_0_final_dominant_fuel_object_state": "decaying",
-		"room_0_final_fed": 2.56290352363681,
+		"room_0_final_fed": 2.23569673451997,
 		"room_0_final_fire_time_s": 230.487838526529,
 		"room_0_final_flame_hrr_target_kw": 0.0,
 		"room_0_final_fuel_objects_flaming_count": 0,
@@ -91,10 +99,12 @@
 		"room_0_final_wall_T_outer_c": 20.0,
 		"room_0_final_wall_k_kw_m_k": -1.0,
 		"room_0_final_wall_thickness_m": -1.0,
-		"room_0_max_fed": 2.56290352363681,
+		"room_0_max_ceiling_jet_temp_c": 142.407121140488,
+		"room_0_max_fed": 2.23569673451997,
 		"room_0_max_fuel_objects_flaming_count": 1,
 		"room_0_max_fuel_objects_heating_count": 0,
 		"room_0_max_fuel_objects_pyrolyzing_count": 0,
+		"room_0_max_overpressure_pa": 4.88498832675599,
 		"room_0_max_passive_fuel_flux_kw_m2": 0.0,
 		"room_0_max_passive_fuel_surface_temp_c": 20.0,
 		"room_0_max_unburned_generation_kw": 112.27580567535,
@@ -125,7 +135,7 @@
 		"room_1_final_dominant_fuel_object_id": "room_proxy_1",
 		"room_1_final_dominant_fuel_object_remaining_MJ": 650.0,
 		"room_1_final_dominant_fuel_object_state": "heating",
-		"room_1_final_fed": 1.1897344044018,
+		"room_1_final_fed": 1.14377602942508,
 		"room_1_final_fire_time_s": 0.0,
 		"room_1_final_flame_hrr_target_kw": 0.0,
 		"room_1_final_fuel_objects_flaming_count": 0,
@@ -166,10 +176,12 @@
 		"room_1_final_wall_T_outer_c": 20.0,
 		"room_1_final_wall_k_kw_m_k": -1.0,
 		"room_1_final_wall_thickness_m": -1.0,
-		"room_1_max_fed": 1.1897344044018,
+		"room_1_max_ceiling_jet_temp_c": 241.881278145675,
+		"room_1_max_fed": 1.14377602942508,
 		"room_1_max_fuel_objects_flaming_count": 0,
 		"room_1_max_fuel_objects_heating_count": 1,
 		"room_1_max_fuel_objects_pyrolyzing_count": 0,
+		"room_1_max_overpressure_pa": 2.99703418529559,
 		"room_1_max_passive_fuel_flux_kw_m2": 7.20684648049288,
 		"room_1_max_passive_fuel_surface_temp_c": 120.068691944399,
 		"room_1_max_unburned_generation_kw": 0.0,

@@ -507,6 +507,7 @@ def build_physics_fundamentals_checks() -> list[Check]:
         "pvc_curtain_hcl_release",
         "mediterraneo_concrete_wall_conduction",
         "ranch_radiation_target_ignition",
+        "bv031_t2_growth_pure",
     ]:
         checks.extend(_build_checks_from_baseline_json(case))
     return checks

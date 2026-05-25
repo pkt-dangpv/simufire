@@ -30,6 +30,15 @@
 			"value": 40.0
 		}
 	],
+	"room_delta_max_metrics": [
+		{
+			"metric_name": "room_upper_floor_vs_lower_floor_pressure_delta_pa",
+			"room_a_id": 7,
+			"room_b_id": 0,
+			"field": "overpressure_pa",
+			"after_time_s": 60.0
+		}
+	],
 	"engine_overrides": {
 		"time_scale": 5.0,
 		"fire_spread_enabled": false,

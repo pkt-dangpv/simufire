@@ -43,6 +43,17 @@ var phase2h_o2_doorway_two_zone_enabled: bool = false
 var phase2h_cold_room_lower_routing_enabled: bool = false
 # Exp 2H.2: gain del boost de reabastecimiento de zona baja desde apertura exterior (0.0 = no-op).
 var phase2h_lower_replenish_gain: float = 0.0
+# Phase 2E Sub-C: CO₂ upper tracer boost en sala con fuego activo (default OFF = no-op).
+# room.co2_upper es tracer calibrado (fracción molar), NO derivado de balance de masa co2_kg.
+# Boost: delta_co2_boost = delta_co2_baseline × gain. gain=0.0 → comportamiento idéntico al baseline.
+var phase2e_co2_subc_enabled: bool = false
+var phase2e_co2_fire_upper_boost_gain: float = 0.0
+# Phase 2E Sub-A: corrección de dilución/outflow de co2_upper por apertura exterior (default OFF = no-op).
+# OFF: comportamiento original — mezcla proporcional con masa de sala completa.
+# ON: reemplaza la dilución masiva por pérdida selectiva de capa alta proporcional a upper_outlet_height_m.
+# gain=0.0 con flag ON → outflow nulo (removal_frac=0) → co2_upper sin cambio por la apertura.
+var phase2e_co2_suba_enabled: bool = false
+var phase2e_co2_upper_outflow_gain: float = 0.0
 var _pending_o2_deliveries: Array[Dictionary] = []
 var _reserved_transport_o2_delta_kg: Dictionary = {}
 
@@ -100,6 +111,18 @@ func configure(settings: Dictionary) -> void:
 	)
 	phase2h_lower_replenish_gain = float(
 		settings.get("phase2h_lower_replenish_gain", phase2h_lower_replenish_gain)
+	)
+	phase2e_co2_subc_enabled = bool(
+		settings.get("phase2e_co2_subc_enabled", phase2e_co2_subc_enabled)
+	)
+	phase2e_co2_fire_upper_boost_gain = float(
+		settings.get("phase2e_co2_fire_upper_boost_gain", phase2e_co2_fire_upper_boost_gain)
+	)
+	phase2e_co2_suba_enabled = bool(
+		settings.get("phase2e_co2_suba_enabled", phase2e_co2_suba_enabled)
+	)
+	phase2e_co2_upper_outflow_gain = float(
+		settings.get("phase2e_co2_upper_outflow_gain", phase2e_co2_upper_outflow_gain)
 	)
 
 
@@ -230,6 +253,17 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# Δx_CO₂ = (kg CO₂ / M_CO₂) / (kg_aire / M_aire) = kg_CO₂ × 29 / (kg_aire × 44)
 			var delta_co2: float = co2_produced * 29.0 / maxf(0.001, upper_air_mass * 44.0)
 			room.co2_upper = room.co2_upper + delta_co2
+			# Phase 2E Sub-C: boost adicional de producción CO₂ en zona alta.
+			# room.co2_upper es tracer calibrado (fracción molar); el boost amplifica delta_co2.
+			# gain=0.0 → rama inactiva, comportamiento idéntico al baseline (flag OFF = no-op).
+			if phase2e_co2_subc_enabled and phase2e_co2_fire_upper_boost_gain > 0.0:
+				var boost_increment: float = delta_co2 * phase2e_co2_fire_upper_boost_gain
+				room.co2_upper = room.co2_upper + boost_increment
+				# Diagnóstico no bloqueante: coherencia tracer vs masa CO₂ real.
+				var co2_upper_equiv_kg: float = room.co2_upper * upper_air_mass * (44.0 / 29.0)
+				if co2_upper_equiv_kg > room.co2_kg * 5.0 + 0.001:
+					push_warning("Phase2E Sub-C: co2_upper_equiv_kg (%.4f) > co2_kg*5 (%.4f) room_%d" \
+						% [co2_upper_equiv_kg, room.co2_kg * 5.0, room_id])
 			# Infiltración ACH hacia CO₂ ambiente (muy pequeño; solo activo para sala sellada)
 			var ach_co2_dt: float = (ach_infiltration / 3600.0) * (CO2_AMBIENT - room.co2_upper) * dt
 			room.co2_upper = room.co2_upper + ach_co2_dt
@@ -392,12 +426,31 @@ func _step_outside_opening_o2(
 			indoor.o2_lower = clampf(
 				indoor.o2_lower + boost_frac * (building.outside_o2 - indoor.o2_lower),
 				indoor.o2, o2_nominal)
-	# Fase 2B: aire fresco exterior diluye co2_upper hacia el nivel ambiente.
-	# Misma masa entrante que la usada para O2; mezcla proporcional.
+	# Fase 2B / Phase 2E Sub-A: actualización de co2_upper por apertura exterior.
+	# Flag OFF (default): dilución proporcional con masa de sala completa (comportamiento original).
+	# Flag ON: outflow selectivo de capa alta proporcional a upper_outlet_height_m; sin inflow-dilución masiva.
 	if air_in_kg > 0.0:
-		indoor.co2_upper = clampf(
-			(indoor.co2_upper * room_air_mass_kg + 0.0004 * air_in_kg) / (room_air_mass_kg + air_in_kg),
-			0.0, 0.30)
+		if phase2e_co2_suba_enabled:
+			# Sub-A: solo outflow de capa alta. Si no hay salida de capa alta → co2_upper no cambia.
+			if upper_outlet_height_m > 0.0:
+				var outflow_ratio: float = clampf(
+					upper_outlet_height_m / maxf(lower_inlet_height_m, 0.05), 0.0, 2.0)
+				var upper_zone_frac: float = clampf(
+					1.0 - indoor.thermal_layer_m / maxf(0.01, indoor.height_m), 0.05, 0.95)
+				var upper_air_mass: float = maxf(
+					indoor.upper_gas_kg, room_air_mass_kg * upper_zone_frac)
+				var upper_out_kg: float = minf(
+					upper_air_mass * 0.25,
+					air_in_kg * outflow_ratio * phase2e_co2_upper_outflow_gain)
+				var removal_frac: float = clampf(
+					upper_out_kg / maxf(upper_air_mass, 0.1), 0.0, 0.25)
+				indoor.co2_upper = clampf(
+					lerpf(indoor.co2_upper, 0.0004, removal_frac), 0.0004, 0.30)
+			# else: upper_outlet_height_m <= 0 → no outflow removal ni inflow dilution (co2_upper sin cambio)
+		else:
+			indoor.co2_upper = clampf(
+				(indoor.co2_upper * room_air_mass_kg + 0.0004 * air_in_kg) / (room_air_mass_kg + air_in_kg),
+				0.0, 0.30)
 	indoor.overpressure_pa = maxf(0.0, indoor.overpressure_pa * (1.0 - minf(0.55, air_in_kg / room_air_mass_kg)))
 
 

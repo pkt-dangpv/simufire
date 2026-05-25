@@ -18,6 +18,16 @@
 			"angle_factor": 0.5
 		}
 	],
+	"room_delta_max_metrics": [
+		{
+			"metric_name": "max_ceiling_jet_minus_upper_temp_c",
+			"room_a_id": 0,
+			"field_a": "ceiling_jet_temp_c",
+			"room_b_id": 0,
+			"field_b": "temp_upper_c",
+			"after_time_s": 30.0
+		}
+	],
 	"engine_overrides": {
 		"time_scale": 5.0,
 		"fire_spread_enabled": false,

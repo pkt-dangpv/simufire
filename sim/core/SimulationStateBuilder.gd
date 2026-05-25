@@ -124,6 +124,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"smoke_display_layer_m": smoke_display_layer_m,
 			"layer_150c_m": layer_150c_m,
 			"overpressure_pa": room.overpressure_pa,
+			"ceiling_jet_temp_c": room.ceiling_jet_temp_c,
 			"smoke_kg": room.smoke_kg,
 			"visibility_m": visibility_m,
 			"smoke_prod_kg_s": room.smoke_prod_kg_s,

@@ -1317,7 +1317,6 @@ func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> v
 	var sill_m: float = float(info.get("sill_m", 0.9))
 
 	_create_exterior_window_reveal(parent, index, center, normal, tangent, width_m, height_m, sill_m)
-	_create_exterior_window_sill(parent, index, center, normal, tangent, width_m, sill_m)
 
 	var sky_center: Vector3 = center - normal * city_backdrop_distance_m
 	sky_center.y = 4.0
@@ -1386,7 +1385,6 @@ func _create_window_residential_view(parent: Node3D, index: int, info: Dictionar
 	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
 
 	_create_exterior_window_reveal(parent, index, center, normal, tangent, width_m, height_m, sill_m)
-	_create_exterior_window_sill(parent, index, center, normal, tangent, width_m, sill_m)
 
 	var sky_center: Vector3 = center - normal * city_backdrop_distance_m
 	sky_center.y = floor_level_m + 4.2
@@ -2428,7 +2426,7 @@ func _create_window_leaf_visual(
 	leaf_width_m: float,
 	height_m: float,
 	thickness_m: float,
-	handle_sign: float
+	_handle_sign: float
 ) -> Node3D:
 	var leaf := Node3D.new()
 	leaf.name = node_name
@@ -2437,14 +2435,6 @@ func _create_window_leaf_visual(
 	var glass_w: float = maxf(0.08, leaf_width_m * 0.94)
 	var glass_h: float = maxf(0.12, height_m * 0.94)
 	_add_local_box(leaf, "Glass", Vector3.ZERO, Vector3(glass_w, glass_h, thickness_m * 0.30), window_glass_closed_color, false)
-	_add_local_box(
-		leaf,
-		"Handle",
-		Vector3(handle_sign * leaf_width_m * 0.38, -height_m * 0.08, -thickness_m * 0.64),
-		Vector3(0.035, 0.24, 0.035),
-		Color(0.72, 0.58, 0.32, 1.0),
-		false
-	)
 	return leaf
 
 

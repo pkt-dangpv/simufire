@@ -1624,4 +1624,133 @@ Equivalente explícito:
 
 ---
 
-*Documento actualizado: 24 mayo 2026.*
+### §12.14 Phase 2I Experiment 1 — CO₂ upper fraction sweep
+
+> Fecha: 25 mayo 2026 · Runner: `scripts/simulation/phase2i_experiment_1_runner.py`
+
+#### 12.14.1 Motivación
+
+Los 5 gaps CO₂ upper del inventario (categoría `CO₂ upper layer`) no se cierran con ningún mecanismo de Phase 2A–2H. La hipótesis explorada: elevar `room.co2_upper_kg` (masa CO₂ en zona alta) mediante un floor proporcional a `room.co2_kg` en salas con fuego activo podría aumentar las concentraciones CO₂ en zona alta y acercarlas al benchmark CFAST.
+
+#### 12.14.2 Flag implementado
+
+```gdscript
+## Phase 2I — CO₂ upper fraction floor en sala fuego (default OFF = 0.0)
+## Cuando > 0.0: co2_upper_kg se eleva a mín. co2_kg × fraction en salas con fuego activo.
+## co2_kg invariante. Experimento 1 (2026-05-25): sin rebaseline, diagnóstico estructural.
+## NOTA: room.co2_upper (ppm/FED) NO se modifica. Sólo afecta co2_lower_ppm en zona baja.
+@export var phase2i_co2_upper_fraction: float = 0.0
+```
+
+**Archivos modificados**:
+| Archivo | Cambio |
+|---------|--------|
+| `sim/core/SimulationEngine.gd` | `phase2i_co2_upper_fraction` flag + wired to `thermal_system.configure()` |
+| `sim/core/ThermalSystem.gd` | Variable + `configure()` setter + boost logic en `sync_room_upper_layer()` |
+
+**Boost logic** (en `sync_room_upper_layer()`, después del clamp existente):
+```gdscript
+# Phase 2I — CO₂ upper fraction floor en sala fuego (default OFF = 0.0)
+if phase2i_co2_upper_fraction > 0.0 and (room.hrr_kw > 0.1 or room.fire != null):
+    var _p2i_target: float = room.co2_kg * phase2i_co2_upper_fraction
+    room.co2_upper_kg = clampf(maxf(room.co2_upper_kg, _p2i_target), 0.0, room.co2_kg)
+```
+
+**Guardia de fuego**: boost solo cuando `hrr_kw > 0.1 OR room.fire != null` — evita aplicarlo en salas frías (riesgo de reducir `co2_lower_kg` implícito y desacelerar FED de víctimas en zona baja).
+
+#### 12.14.3 Arquitectura crítica: dos sistemas de CO₂ desacoplados
+
+SimuFire mantiene **dos variables CO₂ completamente independientes**:
+
+| Variable | Gestionado por | Usado en | Log field |
+|----------|---------------|----------|-----------|
+| `room.co2_upper` (fracción molar, 0–0.30) | `OxygenExchangeSystem.gd` | `compute_co2_upper_ppm()` = `room.co2_upper × 1e6`; FED V_CO2 upper | `CO2u=` |
+| `room.co2_upper_kg` (masa en kg) | `ThermalSystem.gd` + `CombustionSystem.gd` | `compute_co2_lower_ppm()` via `co2_lower_kg = co2_kg − co2_upper_kg`; FED V_CO2 lower | — |
+
+**Consecuencia directa**: Phase 2I actúa sobre `co2_upper_kg` → NO modifica `room.co2_upper` → NO afecta el campo `CO2u=` del log → los checks de gap CO₂ upper (que usan `compute_co2_upper_ppm() = room.co2_upper × 1e6`) **no pueden cerrarse** con este mecanismo.
+
+Esta es la hipótesis nula del experimento: los gaps CO₂ upper son estructurales (origen en `OxygenExchangeSystem`, no en `ThermalSystem`).
+
+#### 12.14.4 Guardrails pre-experimento
+
+- Godot parse: EXIT 0 ✅
+- `validation_guardrails.py`: 292/292 PASS, 65 gaps ✅
+- `python -m unittest tests.test_guardrails -v`: 13/13 OK ✅
+
+#### 12.14.5 Configuración del sweep
+
+| Parámetro | Valor |
+|-----------|-------|
+| Fracciones | 0.25, 0.50, 0.75, 1.00 |
+| Casos sentinel | `g4_gie_delayed_entry_hazard`, `v3_hallway_fed_exposure`, `victim_fed_incapacitation` |
+| Casos CO₂ | `cfast_r0_window_360`, `cfast_two_room_door_open`, `cfast_post_flashover_vented` |
+| Total runs | 4 × 6 = 24 |
+
+#### 12.14.6 Resultados — 24/24 runs OK
+
+**Tabla 1: Sentinels por fracción**
+
+| Fracción | g4 CO>1200 | g4 FED | v3 FED | v3 maxFED | vic FED | Total |
+|----------|-----------|--------|--------|-----------|---------|-------|
+| BASELINE | 85.583 ✅ | 198.417 ✅ | 249.833 ✅ | 2.212 ✅ | 0.772 ✅ | 5/5 |
+| f=0.25 | 85.583 ✅ | 198.417 ✅ | 249.833 ✅ | 2.212 ✅ | 0.772 ✅ | 5/5 |
+| f=0.50 | 85.583 ✅ | 198.417 ✅ | 249.833 ✅ | 2.212 ✅ | 0.772 ✅ | 5/5 |
+| f=0.75 | 85.583 ✅ | 198.417 ✅ | 249.833 ✅ | 2.212 ✅ | 0.772 ✅ | 5/5 |
+| f=1.00 | 85.583 ✅ | 198.417 ✅ | 249.833 ✅ | 2.212 ✅ | 0.772 ✅ | 5/5 |
+
+**Tabla 2: Sentinel deltas (todos Δ = 0.000)**
+
+Todas las 5 métricas sentinel muestran Δ = +0.000 en las 4 fracciones. La guardia de fuego correcta previene cualquier regresión (confirma que el mecanismo es safe).
+
+**Tabla 3: CO₂ upper por fracción (desde log `CO2u=`)**
+
+| Check | Baseline | CFAST ref | Tol | f=0.25 | f=0.50 | f=0.75 | f=1.00 | Baseline pass |
+|-------|----------|-----------|-----|--------|--------|--------|--------|---------------|
+| cfast_t510_co2_upper_ppm | 16 182 ppm | 52 300 ppm | ±20 000 | +0 | +0 | +0 | +0 | FAIL |
+| cfast_t420_co2_upper_ppm | 41 438 ppm | 60 800 ppm | ±22 000 | +0 | +0 | +0 | +0 | PASS |
+| cfast_2r_r0_t120_co2_upper_pct | 4.750% | 1.58% | ±3.0% | +0.000 | +0.000 | +0.000 | +0.000 | FAIL |
+| cfast_2r_r0_t480_co2_upper_pct | 0.999% | 9.91% | ±3.0% | +0.000 | +0.000 | +0.000 | +0.000 | FAIL |
+| cfast_fo_t240_co2_upper_pct | 3.774% | 7.77% | ±3.0% | +0.551 | +0.551 | +0.551 | +0.551 | FAIL |
+| cfast_fo_t350_co2_upper_pct | 3.711% | 7.89% | ±3.0% | −2.937 | −2.937 | −2.937 | −2.937 | FAIL |
+
+**Observaciones**:
+- **4 checks**: Δ CO₂ = 0 exacto en todas las fracciones — confirma desacoplamiento arquitectónico total.
+- **`cfast_fo_t240/t350`**: muestran Δ ≠ 0 (ligera interacción en post-flashover), pero no cierran el gap. Δ insuficiente y no monótono respecto a fracción.
+- **Gaps cerrados: 0/5 en todas las fracciones.**
+
+**Resumen por fracción**:
+- f=0.25: 0/5 gaps cerrados (de los 5 que fallaban en baseline)
+- f=0.50: 0/5 gaps cerrados
+- f=0.75: 0/5 gaps cerrados
+- f=1.00: 0/5 gaps cerrados
+
+#### 12.14.7 Diagnóstico final
+
+**RESULTADO: Phase 2I (co2_upper_kg floor) no cierra ningún gap CO₂ upper.**
+
+Los gaps CO₂ upper son de naturaleza **estructural**: las variables `room.co2_upper` (fracción molar, `OxygenExchangeSystem`) y `room.co2_upper_kg` (masa, `ThermalSystem`) son completamente independientes. Incrementar `co2_upper_kg` no modifica `room.co2_upper` → Δ CO₂ ppm upper ≈ 0 (salvo interacciones marginales de post-flashover).
+
+El mecanismo de Phase 2I es **safe** (Δ sentinels = 0.000, guardia de fuego funciona), pero es **insuficiente** para cerrar los gaps objetivo.
+
+#### 12.14.8 Decisión
+
+**Phase 2I: DESCARTADA como mecanismo para gaps CO₂ upper.**
+
+- Flag `phase2i_co2_upper_fraction` permanece en **default OFF = 0.0**.
+- No se requiere rebaseline (baseline 292/292 PASS intacto).
+- No se hace commit/push.
+
+**Camino correcto para gaps CO₂ upper**:
+
+Los gaps CO₂ upper requieren **Phase 2E plena**: modificar directamente `room.co2_upper` en `OxygenExchangeSystem.gd`, actuando sobre alguna de estas causas raíz:
+1. Aumentar `co2_yield` en la reacción de combustión que alimenta `room.co2_upper`
+2. Reducir la dilución inter-room del CO₂ en fase ventilada (la apertura de ventana o puerta diluye `room.co2_upper` excesivamente)
+3. Añadir un término de acumulación de CO₂ en zona alta proporcional al HRR (análogo al mecanismo Phase 2H para O₂)
+
+La estrategia recomendada es la opción 2 ó 3, que tiene menor riesgo de regresión en los sentinels de FED/CO (ya validados para Phase 2H).
+
+**Ver plan técnico completo**: [docs/PHASE_2E_CO2_DESIGN.md](PHASE_2E_CO2_DESIGN.md) — diseño de Sub-A/B/C con flags, 4 experimentos secuenciales, 6 correcciones de diseño aplicadas post-revisión. Recomendación: iniciar por Exp 2E-CO2-1A (Sub-C).
+
+---
+
+*Documento actualizado: 25 mayo 2026.*

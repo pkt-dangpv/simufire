@@ -697,6 +697,23 @@ var _step_time_us: int = 0
 ## Nombre del preset: phase2h_o2_lower_replenish_candidate
 ## Uso en engine_overrides JSON: { "phase2h_candidate_preset": true }
 @export var phase2h_candidate_preset: bool = false
+## Phase 2I — CO₂ upper fraction floor en sala fuego (default OFF = 0.0)
+## Cuando > 0.0: co2_upper_kg se eleva a mín. co2_kg × fraction en salas con fuego activo.
+## co2_kg invariante (sin creación/destrucción). Rango experimental: [0.25, 0.50, 0.75, 1.0].
+## Experimento 1 (2026-05-25): medir impacto en gaps CO₂ upper y sentinels FED/CO.
+## Nota: afecta co2_upper_kg (kg-tracking). Las métricas ppm del log usan room.co2_upper
+## (fracción molar de OxygenExchangeSystem) — ver diagnóstico en PHASE_2E_DESIGN.md §12.14.
+@export var phase2i_co2_upper_fraction: float = 0.0
+## Phase 2E Sub-C — CO\u2082 upper tracer boost en sala con fuego activo (default OFF).
+## Amplifica la producci\u00f3n de room.co2_upper por un factor (1 + gain). gain=0.0 = no-op exacto.
+## Sweep experimental: [0.0, 0.25, 0.50, 0.75, 1.0].
+@export var phase2e_co2_subc_enabled: bool = false
+@export var phase2e_co2_fire_upper_boost_gain: float = 0.0
+## Phase 2E Sub-A — corrección de dilución/outflow de co2_upper por apertura exterior (default OFF).
+## OFF: comportamiento original (mezcla proporcional con masa de sala completa).
+## ON: outflow selectivo de capa alta; gain sweep [0.0, 0.25, 0.50, 0.75, 1.0].
+@export var phase2e_co2_suba_enabled: bool = false
+@export var phase2e_co2_upper_outflow_gain: float = 0.0
 @export var target_layer_block_start_m: float = 0.65
 @export var target_layer_block_full_m: float = 0.10
 @export var interior_spill_start_layer_m: float = 2.0
@@ -854,7 +871,8 @@ func _sync_auxiliary_services() -> void:
 		"phase2e_co_deposition_mode": phase2e_co_deposition_mode,
 		"phase2f_co_interlayer_mixing_enabled": phase2f_co_interlayer_mixing_enabled,
 		"phase2f_co_interlayer_mixing_rate": phase2f_co_interlayer_mixing_rate,
-		"phase2f_co_interlayer_mixing_guard": phase2f_co_interlayer_mixing_guard
+		"phase2f_co_interlayer_mixing_guard": phase2f_co_interlayer_mixing_guard,
+		"phase2i_co2_upper_fraction": phase2i_co2_upper_fraction
 	})
 	fire_spread_system.set_references(building, smoke_model, combustion_system)
 	fire_spread_system.configure({
@@ -944,7 +962,11 @@ func _sync_auxiliary_services() -> void:
 		"o2_upper_plume_entr_rate": o2_upper_plume_entr_rate,
 		"phase2h_o2_doorway_two_zone_enabled": phase2h_o2_doorway_two_zone_enabled,
 		"phase2h_cold_room_lower_routing_enabled": phase2h_cold_room_lower_routing_enabled,
-		"phase2h_lower_replenish_gain": phase2h_lower_replenish_gain
+		"phase2h_lower_replenish_gain": phase2h_lower_replenish_gain,
+		"phase2e_co2_subc_enabled": phase2e_co2_subc_enabled,
+		"phase2e_co2_fire_upper_boost_gain": phase2e_co2_fire_upper_boost_gain,
+		"phase2e_co2_suba_enabled": phase2e_co2_suba_enabled,
+		"phase2e_co2_upper_outflow_gain": phase2e_co2_upper_outflow_gain
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
@@ -1226,6 +1248,7 @@ func step(delta: float) -> void:
 	fire_spread_system.step(dt, Callable(self, "ignite_room"))
 	_clamp_rooms(dt)
 	_step_detectors(dt)
+	_update_room_ceiling_jet_temps()  # BV-028: exportar ceiling_jet_temp_c a RoomModel
 	_step_victims(dt)
 	_detect_and_log_opening_events()
 	_maybe_log_state()
@@ -2325,8 +2348,22 @@ func _ceiling_jet_temp_c(room: RoomModel, det: Dictionary) -> float:
 	return thermal_system.ambient_temp_c() + delta_t
 
 
-## Llamado cuando la simulación termina naturalmente O cuando el usuario para el
-## juego (a través de _exit_tree). Escribe sim_end y lanza Python.
+## Actualiza room.ceiling_jet_temp_c para todas las salas con fuego activo — BV-028.
+## Usa la fórmula de Alpert (1972) en el eje del penacho (r → 0+) sin duplicar física:
+## el valor ya se computa en _ceiling_jet_temp_c(); aquí sólo se persiste en RoomModel
+## para que SimulationStateBuilder lo exporte como campo de diagnóstico.
+func _update_room_ceiling_jet_temps() -> void:
+	if building == null:
+		return
+	for room in building.get_rooms().values():
+		if room == null:
+			continue
+		if ceiling_jet_enabled and (room as RoomModel).hrr_kw > 0.0:
+			(room as RoomModel).ceiling_jet_temp_c = _ceiling_jet_temp_c(room as RoomModel, {})
+		else:
+			(room as RoomModel).ceiling_jet_temp_c = (room as RoomModel).temp_upper_c
+
+
 func _on_sim_finished() -> void:
 	_finish_and_launch_graphs("")
 

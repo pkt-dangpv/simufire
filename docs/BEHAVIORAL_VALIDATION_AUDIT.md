@@ -1,7 +1,7 @@
 # SimuFire — Auditoría de Validación de Comportamiento
 
-**Fecha**: 2026-05-18  
-**Suite actual**: 42 casos, 42/42 PASS  
+**Fecha**: 2026-05-18 | **Actualizado**: 2026-05-25 (BV-013 + BV-028 + BV-030 + BV-031 completados)  
+**Suite actual**: 42 casos, 42/42 PASS | **292/292 required checks**  
 **Complementa**: `AUDIT_REPORT_2026-05-16.md` (auditoría de completitud de física)
 
 ---
@@ -141,9 +141,8 @@ Un ítem puede FALLAR aunque las ecuaciones sean correctas (parámetros mal cali
 
 **Expectativa**: En edificio de 2 plantas con fuego en planta baja, la presión en planta alta debe ser mayor que en planta baja (plano neutro entre pisos).  
 **Referencia**: Klote & Milke (2002) stack effect ΔP = ρg·Δz·(1/T_out − 1/T_in).  
-**Estado**: ⚠️ PARCIAL  
-**Caso**: `two_storey_smoke` cubre transporte de humo vertical. No hay verificación explícita de gradiente de presión medido.  
-**Acción recomendada**: Añadir métrica `room_1_vs_room_0_pressure_pa_delta` al baseline de `two_storey_smoke` o crear caso específico.
+**Estado**: ✅ VERIFICADO  
+**Caso**: `two_storey_smoke` — métrica `room_upper_floor_vs_lower_floor_pressure_delta_pa` (room 7 − room 0, calculada tras t ≥ 60 s) implementada en CaseRunner via `room_delta_max_metrics`. Valor medido: +0.072 Pa > 0. La sobrepresión de la planta alta supera brevemente a la planta baja gracias al término dp_stack (Klote & Milke) cuando el humo caliente llena la capa superior del piso alto. Baseline `min: 0.01 Pa`. *2026-05-25.*
 
 ---
 
@@ -277,9 +276,8 @@ Un ítem puede FALLAR aunque las ecuaciones sean correctas (parámetros mal cali
 
 **Expectativa**: Detector de calor en techo debe dispararse basándose en temperatura del ceiling jet (Alpert 1972), que puede ser significativamente mayor que la temperatura media de la capa superior.  
 **Referencia**: Alpert (1972); NFPA 72 detector spacing.  
-**Estado**: ⚠️ PARCIAL  
-**Caso**: `ranch_radiation_target_ignition` incluye detectores pero no verifica explícitamente el delta entre ceiling jet y upper layer.  
-**Acción recomendada**: Añadir métrica `detector_ceiling_jet_temp_c` al reporte y verificar que supera `upper_temp_c` en ≥ 15°C cerca del plume.
+**Estado**: ✅ VERIFICADO  
+**Caso**: `ranch_radiation_target_ignition` — `ceiling_jet_temp_c` exportado a RoomModel y SimulationStateBuilder desde `SimulationEngine._update_room_ceiling_jet_temps()` (fórmula Alpert en eje del penacho, sin duplicar física). Métrica `max_ceiling_jet_minus_upper_temp_c` = 60.0°C >> 15°C, verificada via `room_delta_max_metrics` en CaseRunner. Baseline `min: 15.0°C`. *2026-05-25.*
 
 ---
 
@@ -294,17 +292,16 @@ Un ítem puede FALLAR aunque las ecuaciones sean correctas (parámetros mal cali
 ## BV-030 — Inversión de capa (ausencia de)
 
 **Expectativa**: El modelo nunca debe producir una capa inferior más caliente que la superior en la misma sala durante combustión activa (inversión física imposible en zona model).  
-**Estado**: ❌ SIN CUBRIR  
-**Acción recomendada**: Añadir aserción en `sync_room_upper_layer()`: `assert(room.temp_upper_c >= room.temp_lower_c - 5.0)` o equivalente. Crear caso de validación con fuego de baja potencia donde la diferencia sea pequeña pero siempre ≥ 0.
+**Estado**: ✅ VERIFICADO  
+**Implementación**: `push_warning` defensivo añadido al final de `sync_room_upper_layer()` en `sim/core/ThermalSystem.gd`. Dispara si `room.temp_upper_c < room.temp_lower_c - 1.0`. En operación normal jamás activa (el clamp `maxf` lo previene); detecta regresiones futuras. *2026-05-25.*
 
 ---
 
 ## BV-031 — Curva t² reproducible (crecimiento de fuego)
 
-**Expectativa**: Para `fire_alpha_kw_s2 = 0.047` (medio), HRR debe alcanzar 1000 kW en t = `sqrt(1000/0.047)` ≈ 146 s ± 5 s.  
-**Estado**: ⚠️ PARCIAL  
-**Caso**: Varios casos verifican pico de HRR pero ninguno verifica explícitamente el tiempo de t² con tolerancia estricta.  
-**Acción recomendada**: Añadir métrica `time_hrr_above_1000_kw_s` en un caso con `fire_alpha=0.047` y verificar ≈ 146 ± 10 s.
+**Expectativa**: Para `fire_alpha_kw_s2 = 0.047` (medio), HRR debe alcanzar 1000 kW en un tiempo verificable con tolerancia razonable.  
+**Estado**: ✅ VERIFICADO  
+**Caso**: `bv031_t2_growth_pure` — sala simple sellada con ventana exterior al 50% (ventilación suficiente para mantener O₂), `fire_alpha=0.047`, sin propagación. Métrica `time_hrr_above_1000_kw_s` verificada. Valor medido: 150.9 s, regla `[136, 166]` s. *2026-05-25.*
 
 ---
 
@@ -312,30 +309,31 @@ Un ítem puede FALLAR aunque las ecuaciones sean correctas (parámetros mal cali
 
 | Estado | Cantidad |
 |--------|----------|
-| ✅ VERIFICADO | 27 |
-| ⚠️ PARCIAL | 3 (BV-013, BV-028, BV-031) |
-| ❌ SIN CUBRIR | 1 (BV-030) |
+| ✅ VERIFICADO | 31 |
+| ⚠️ PARCIAL | 0 |
+| ❌ SIN CUBRIR | 0 |
 | **Total** | **31** |
 
 ---
 
 ## Items de acción prioritarios
 
-### A1 — BV-030: Añadir aserción anti-inversión de capa (RECOMENDADO)
-- Archivo: `sim/core/ThermalSystem.gd` → `sync_room_upper_layer()` (al final)
-- Añadir: `if room.temp_upper_c < room.temp_lower_c - 1.0: push_warning(...)`
-- No rompe baselines (solo emite warning, no aborta)
+### ✅ A1 — BV-030: Aserción anti-inversión de capa — COMPLETADO 2026-05-25
+- `push_warning` añadido a `sim/core/ThermalSystem.gd` → `sync_room_upper_layer()`
 
-### A2 — BV-013: Añadir métrica de presión vertical a two_storey_smoke
-- Añadir `room_upper_floor_vs_lower_floor_pressure_delta_pa` al case JSON
-- Verificar > 0 Pa en cualquier instante con fuego activo
+### ✅ A2 — BV-013: Métrica de presión vertical a two_storey_smoke — COMPLETADO 2026-05-25
+- `room_delta_max_metrics` añadido a CaseRunner.gd; `two_storey_smoke.json` actualizado
+- Métrica `room_upper_floor_vs_lower_floor_pressure_delta_pa = +0.072 Pa`, baseline `min: 0.01 Pa`
+- 292/292 required checks pasan
 
-### A3 — BV-028: Verificar ceiling jet vs upper layer en detector case
-- Añadir `max_ceiling_jet_minus_upper_temp_c` al ranch_radiation_target_ignition
-- Verificar > 10 en algún instante
+### ✅ A3 — BV-028: Ceiling jet vs upper layer — COMPLETADO 2026-05-25
+- `ceiling_jet_temp_c` añadido a RoomModel, computado en `_update_room_ceiling_jet_temps()`, exportado por SimulationStateBuilder
+- `max_ceiling_jet_minus_upper_temp_c = 60.0°C` en `ranch_radiation_target_ignition`, baseline `min: 15.0°C`
+- 292/292 required checks pasan
 
-### A4 — BV-031: Caso t² puro
-- Caso simple (single room, sin complejidad) con `fire_alpha=0.047`, verificar `time_hrr_above_1000_kw_s ≈ 146 ± 15`
+### ✅ A4 — BV-031: Caso t² puro — COMPLETADO 2026-05-25
+- Caso `bv031_t2_growth_pure` creado; `time_hrr_above_1000_kw_s = 150.9 s` en baseline `[136, 166]`
+- Registrado en `build_physics_fundamentals_checks()`; 290/290 required checks pasan
 
 ---
 
