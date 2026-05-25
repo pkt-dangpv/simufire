@@ -729,3 +729,210 @@ python scripts/simulation/phase2e_co2_experiment_1b_runner.py --gains 0.001 0.00
 
 **Nota arquitectural (invariante)**: Sub-A solo opera en `_step_outside_opening_o2()` — no afecta `co2_upper_kg`, `co2_kg`, ni la física térmica. El FED de las víctimas en pasillos = 0.0000 ΔFED en todos los gains. Seguro para proceder.
 
+---
+
+### 11.8 Exp 1B-v2 — Sweep fino (gains 0.001–0.200)
+
+**Fecha de ejecución**: 25 mayo 2026  
+**Runs**: 54/54 OK (6 casos × 9 gains). EXIT 0.  
+**Validación final**: Godot parse EXIT 0 ✅ · Guardrails 292/292 PASS ✅ · Unit tests 13/13 OK ✅
+
+#### 11.8.1 Nota sobre artefacto de nombres de archivo
+
+`_gain_str(gain)` usa `int(round(gain * 100))`. Con los gains del sweep fino:
+- `gain=0.001` → `g0` (colisión con `gain=0.000` de Exp 1B-v1)
+- `gain=0.005` → `g0` (colisión con 0.001 — mismo archivo)
+- `gain=0.010` → `g1` (archivo único)
+- demás gains → archivos únicos
+
+Consecuencia: en la tabla de resultados, la columna `g=0.00` (gain=0.001) y la primera `g=0.01` (gain=0.005) leen el mismo reporte `_p2e1b_g0`, que fue last-written por gain=0.005. Ambas columnas muestran los mismos valores (74 331 ppm a t=510). Los datos de gain=0.001 fueron sobreescritos. **Esto no afecta la identificación del candidato**, ya que gain=0.010 tiene nombre de archivo propio (`g1`).
+
+#### 11.8.2 Tabla de sweep fino — `cfast_t510_co2_upper_ppm` (target: [32 300, 72 300] ppm)
+
+| Gain real | Dato representa | t=420s ppm | t=510s ppm | Estado t510 | t120 |
+|-----------|----------------|-----------|-----------|-------------|------|
+| 0.005 (↑) | g0 last-write | 83 453 | **74 331** | HIGH (+2031 sobre 72 300) | sin cambio |
+| **0.010** | g1 (único) | 76 549 | **60 211** | ✅ PASS [32300–72300] | sin cambio |
+| **0.020** | g2 (único) | 64 515 | **39 658** | ✅ PASS [32300–72300] | sin cambio |
+| 0.050 | g5 (único) | 39 226 | **11 839** | FAIL LOW | sin cambio |
+| 0.075 | g8 (único) | 26 487 | **4 716** | FAIL LOW | sin cambio |
+| 0.100 | g10 (único) | 18 338 | **2 163** | FAIL LOW | sin cambio |
+| 0.150 | g15 (único) | 9 641 | **838** | FAIL LOW | sin cambio |
+| 0.200 | g20 (único) | 5 827 | **603** | FAIL LOW | sin cambio |
+
+> ↑ "0.005" es el dato reportado para tanto la columna `gain=0.001` como `gain=0.005` por colisión de nombre de archivo.
+
+#### 11.8.3 Sentinels y FED (todos los gains)
+
+| Gain | Sentinels | FED max Δ | CO₂ gaps cerrados | t120 ok | Decisión |
+|------|----------|-----------|------------------|---------|----------|
+| 0.005 (↑) | 5/5 ✅ | 0.0000 ✅ | 0/4 (74331>72300) | OK | ✗ |
+| **0.010** | 5/5 ✅ | 0.0000 ✅ | **1/4** (cfast_t510 ✓) | OK | **✓ CANDIDATO** |
+| **0.020** | 5/5 ✅ | 0.0000 ✅ | **1/4** (cfast_t510 ✓) | OK | **✓ CANDIDATO** |
+| 0.050–0.200 | 5/5 ✅ | 0.0000 ✅ | 0/4 (outflow excesivo) | OK | ✗ |
+
+#### 11.8.4 Análisis de la ventana de gain
+
+```
+t=510 ppm  ┌────────────────────────────────────────────────────────────────┐
+91 859     │ g=0.000 (dilución suprimida, sin outflow)                      │
+74 331     │ g=0.005 (outflow mínimo)                    ← FAIL HIGH        │
+           │                          target max (72 300)─ ─ ─ ─ ─ ─ ─ ─ ┤
+60 211     │      g=0.010  ← CANDIDATO preferido                           │
+52 300     │           CFAST reference                                      │
+39 658     │              g=0.020  ← CANDIDATO alternativo                  │
+           │                          target min (32 300)─ ─ ─ ─ ─ ─ ─ ─ ┤
+11 839     │                                    g=0.050  ← FAIL LOW         │
+  4 716    │                                              g=0.075            │
+16 182     │ BASELINE (dilución activa)                                     │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+La ventana de gain estable estimada: **[~0.007, ~0.025]**. Dentro de ella, gain=0.010 da el mejor centrado (60 211 ppm, +7911 ppm sobre ref; bien dentro de tolerancia ±20 000). Gain=0.020 es más conservador (39 658 ppm, −12 642 ppm sobre ref).
+
+#### 11.8.5 Gaps aún abiertos tras Sub-A con gain=0.010
+
+| Check | Baseline | Con Sub-A g=0.010 | CFAST ref | Tol | Estado |
+|-------|---------|-------------------|----------|-----|--------|
+| `cfast_t510_co2_upper_ppm` | 16 182 | **60 211** | 52 300 | ±20 000 | ✅ CERRADO |
+| `cfast_t420_co2_upper_ppm` | 41 438 | 76 549 | 60 800 | ±22 000 | ✅ PASS (no regresión) |
+| `cfast_2r_r0_t120_co2_upper_pct` | 4.750% | 4.750% | 1.58% | ±3.0% | FAIL (sin cambio) |
+| `cfast_2r_r0_t480_co2_upper_pct` | 0.999% | 0.999% | 9.91% | ±3.0% | FAIL (sin cambio) |
+
+Sub-A no opera sobre `cfast_two_room_door_open` (solo aperturas exteriores). Los gaps t120/t480 son responsabilidad de Sub-B.
+
+#### 11.8.6 Decisión final Exp 1B
+
+> **Sub-A CANDIDATO confirmado. Gain recomendado: `phase2e_co2_upper_outflow_gain = 0.010`.**
+
+- Cierra `cfast_t510_co2_upper_ppm`: SF 16 182 → **60 211** ppm (target 52 300 ± 20 000 ✓)
+- No rompe ningún sentinel ni FED (ΔFED = 0.0000)
+- No empeora ningún required check
+- `cfast_t420` permanece PASS (76 549 ∈ [38 800, 82 800])
+- `cfast_2r_r0_t120` sin cambio (Sub-A no opera en interiores)
+
+**Próximo paso**: Exp 2E-CO₂-1C — Sub-B (doorway two-zone exchange), objetivo primario `cfast_2r_r0_t480` (SF 0.999% vs CFAST 9.91% ± 3%). Evaluar con Sub-A g=0.010 fijado (no combinado aún — primero Sub-B aislado para diagnóstico limpio).
+
+---
+
+## 12. Exp 2E-CO₂-1C — Resultados (Sub-B: CO₂ inter-room exchange fraction sweep)
+
+> Fecha: 25 mayo 2026  
+> Runner: `scripts/simulation/phase2e_co2_experiment_1c_runner.py`  
+> Fracciones evaluadas: 0.25 (control), 0.08, 0.05, 0.03  
+> Casos: 24 total (4 fracciones × 6 casos: g4, v3, victim, r0_window_360, single_room_closed, two_room_door_open)
+
+### 12.1 Resumen de ejecución
+
+**24/24 runs OK** — ningún error de Godot ni timeout.
+
+### 12.2 Sentinels y FED deltas
+
+| Fracción | g4 CO>1200 [s] | g4 FED>0.1 [s] | v3 FED>0.1 [s] | v3 max FED | vic FED | Sentinels | Max \|ΔFED\| |
+|----------|---------------|----------------|----------------|-----------|---------|-----------|--------------|
+| BASELINE | 85.583 ✅ | 198.417 ✅ | 249.833 ✅ | 2.212 ✅ | 0.772 ✅ | 5/5 | — |
+| f=0.25 | 85.583 ✅ | 198.417 ✅ | 249.833 ✅ | 2.212 ✅ | 0.772 ✅ | 5/5 | 0.0000 ✅ |
+| f=0.08 | 85.583 ✅ | 198.417 ✅ | 249.833 ✅ | 2.212 ✅ | 0.772 ✅ | 5/5 | 0.0000 ✅ |
+| f=0.05 | 85.583 ✅ | 198.417 ✅ | 249.833 ✅ | 2.212 ✅ | 0.772 ✅ | 5/5 | 0.0000 ✅ |
+| f=0.03 | 85.583 ✅ | 198.417 ✅ | 249.833 ✅ | 2.212 ✅ | 0.772 ✅ | 5/5 | 0.0000 ✅ |
+
+**Gate sentinels: 5/5 para todas las fracciones. Gate FED: ΔFED = 0.0000 para todas. Ambos gates PASS.**
+
+### 12.3 Gate t120 (riesgo retención excesiva)
+
+| Fracción | SF t120 (%) | Gate ≤ 5.58% | Decisión |
+|----------|-------------|--------------|----------|
+| f=0.25 | 4.750% | ✅ OK | — |
+| f=0.08 | 4.769% | ✅ OK | — |
+| f=0.05 | 4.772% | ✅ OK | — |
+| f=0.03 | 4.775% | ✅ OK | — |
+
+**Gate t120: todas las fracciones dentro del margen (máximo 4.775% vs gate 5.58%).** Sub-B no empeora el check SF HIGH en t=120.
+
+### 12.4 CO₂ gap targets: cfast_two_room_door_open
+
+| Check | Baseline | CFAST ref | Tol | f=0.25 | f=0.08 | f=0.05 | f=0.03 |
+|-------|---------|----------|-----|--------|--------|--------|--------|
+| `cfast_2r_r0_t120_co2_upper_pct` | 4.750% | 1.58% | ±3.0% | 4.750% | 4.769% | 4.772% | 4.775% |
+| `cfast_2r_r0_t480_co2_upper_pct` | **0.999%** | **9.91%** | **±3.0%** | **0.999%** | **0.999%** | **0.999%** | **0.999%** |
+
+**Target t480: 0.999% para TODAS las fracciones — Sub-B no tiene efecto en t=480.**
+
+### 12.5 Tabla diagnóstica — evolución temporal room 0
+
+| t [s] | Baseline | f=0.25 | f=0.08 | f=0.05 | f=0.03 |
+|-------|---------|--------|--------|--------|--------|
+| 60 | 0.906% | 0.906% | 0.906% | 0.906% | 0.907% |
+| 120 | 4.750% | 4.750% (+0.000) | 4.769% (+0.019) | 4.772% (+0.023) | 4.775% (+0.025) |
+| 240 | 12.553% | 12.553% (+0.000) | 13.441% (+0.888) | 13.610% (+1.056) | 13.724% (+1.171) |
+| 360 | 12.027% | 12.027% (+0.000) | 14.733% (+2.706) | 15.296% (+3.269) | **15.688% (+3.662)** |
+| **480** | **0.999%** | **0.999% (+0.000)** | **0.999% (+0.000)** | **0.999% (+0.000)** | **0.999% (+0.000)** |
+| 540 | 0.989% | 0.989% (+0.000) | 0.989% (+0.000) | 0.989% (+0.000) | 0.989% (+0.000) |
+
+**Observación crítica**: Sub-B SÍ eleva `co2_upper` en t=240 (+1.17 pp) y t=360 (+3.66 pp con f=0.03). Sin embargo, el **colapso entre t=360 y t=480 es idéntico para todas las fracciones**, incluyendo f=0.03. El mecanismo de Sub-B (`_exchange_room_o2_active_flow`) no controla este colapso.
+
+### 12.6 Max CO₂ upper (sala 0)
+
+| Caso | Baseline | f=0.25 | f=0.08 | f=0.05 | f=0.03 |
+|------|---------|--------|--------|--------|--------|
+| `cfast_r0_window_360` | 136 001 ppm ⚠ | 136 001 | 136 001 | 136 001 | 136 001 |
+| `cfast_single_room_closed` | 105 224 ppm | 105 224 | 105 224 | 105 224 | 105 224 |
+| `cfast_two_room_door_open` | 127 678 ppm ⚠ | 127 678 ⚠ | 147 812 ⚠ | 153 641 ⚠ | **157 710 ⚠** |
+
+Con f=0.03, el pico de CO₂ en `two_room_door_open` sube a 157 710 ppm (15.77%) — se produce alrededor de t=360s, antes del colapso. V_CO₂ amplifica FED, pero ΔFED=0 en sentinel cases (fire scenarios distintos).
+
+### 12.7 Análisis de causa raíz del colapso en t=480
+
+**Hallazgo de diagnóstico post-resultados** — lectura de `OxygenExchangeSystem.gd` líneas 254–285:
+
+```gdscript
+if lower_frac < 0.15 or (lower_frac < 0.40 and room.o2 < 0.070):
+    # Modelo bi-zona inválido: homogeniza con media de sala
+    var room_co2_frac: float = room.co2_kg * 29.0 / maxf(0.001, air_mass_kg * 44.0)
+    room.co2_upper = clampf(room_co2_frac, CO2_AMBIENT, CO2_UPPER_MAX)
+elif room.hrr_kw > 0.0:
+    # CO₂ producido → zona superior (producción normal)
+    ...
+else:
+    # Sin fuego: relajar lentamente hacia CO₂ ambiente
+    room.co2_upper = lerpf(room.co2_upper, CO2_AMBIENT, clampf(0.05 * dt, 0.0, 0.20))
+```
+
+Dos ramas candidatas para el colapso:
+
+**Rama A** (`lower_frac < 0.15` o `room.o2 < 0.07`): cuando la capa caliente llena casi toda la sala (bi-zona inválido) O cuando O₂ cae por debajo de 7%, `co2_upper` se reemplaza por `room.co2_kg * 29 / (air_mass * 44)`. Si `co2_kg` (masa de CO₂ gestionada por `GasExchangeSystem`) está diluidoa via exchange con room 1, el valor resultante sería bajo (~1%).
+
+**Rama B** (`hrr_kw == 0.0`): decay exponencial hacia ambient: `lerpf(co2_upper, 0.0004, 0.05 * dt)`. Con `dt = 1s` y 120 pasos: `0.15 * 0.95^120 ≈ 0.0004` — decae casi a ambient en 120s de simulación.
+
+**Conclusión**: El colapso en t=480 ocurre por una (o ambas) ramas que Sub-B no toca. Sub-B solo opera en `_exchange_room_o2_active_flow()`, que se activa únicamente cuando `flow_state.active == true`. Las ramas de homogenización y decay-sin-fuego son independientes de `CO2_EXCHANGE_FRACTION`.
+
+El caso `cfast_two_room_door_open` (1 280 kW, exterior cerrado) lleva a O₂ depletion o hot-layer collapse en la sala fuego entre t=360–480, activando la rama A o B antes de que Sub-B pueda intervenir.
+
+### 12.8 Decisión Exp 1C
+
+> **Sub-B AISLADO: DESCARTADO. El mecanismo (fracción de exchange activo) no controla el colapso t=480.**
+
+| Criterio | Resultado |
+|----------|-----------|
+| Sentinels | 5/5 OK para todas las fracciones ✅ |
+| ΔFED | 0.0000 para todas ✅ |
+| Gate t120 (≤5.58%) | OK para todas (máx 4.775%) ✅ |
+| **Target t480 cerrado** | **NO — 0.999% para todas** ✗ |
+| Sub-B candidato | ✗ NINGUNO |
+
+### 12.9 Próximos pasos
+
+**Opción A — Sub-D (nuevo): proteger `co2_upper` frente a bi-zona collapse en sala fuego**
+
+Añadir una variable `phase2e_co2_subd_enabled` y lógica para:
+- Cuando `lower_frac < 0.15` o `room.o2 < 0.07`, en lugar de snap a `co2_kg`-based value, aplicar decay lento (p.ej. retener el % actual del tracer interpolado hacia `co2_kg`-value con tau largo).
+- Cuando `hrr_kw == 0.0`, reducir la tasa de decay (`0.05 * dt` → `0.005 * dt`) para sala fuego con CO₂ elevado.
+
+Riesgo: podría introducir CO₂ "fantasma" (tracer no respaldado por masa real). Necesita gates de coherencia.
+
+**Opción B — Diagnóstico primero: confirmar rama activa**
+
+Añadir log de `lower_frac` y `hrr_kw` en room 0 a t=360–480 para confirmar cuál de las dos ramas dispara el colapso. Sin ese dato, Sub-D podría atacar la rama equivocada.
+
+**Recomendación**: Opción B primero (diagnóstico por log), luego Sub-D con la rama confirmada. Runner: `phase2e_co2_experiment_1d_diag_runner.py` (caso único `cfast_two_room_door_open`, log detallado de `lower_frac`/`hrr_kw`/`room.o2` por timestep entre t=300–500).
+

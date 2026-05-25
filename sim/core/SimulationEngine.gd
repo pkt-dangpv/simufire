@@ -714,6 +714,14 @@ var _step_time_us: int = 0
 ## ON: outflow selectivo de capa alta; gain sweep [0.0, 0.25, 0.50, 0.75, 1.0].
 @export var phase2e_co2_suba_enabled: bool = false
 @export var phase2e_co2_upper_outflow_gain: float = 0.0
+## Phase 2E Sub-B — fracción de intercambio CO₂ inter-room por flujo activo (default OFF).
+## OFF: CO2_EXCHANGE_FRACTION constante = 0.25 (Fase 2B original, no-op exacto).
+## ON: usa phase2e_co2_exchange_fraction; sweep [0.03, 0.05, 0.08].
+@export var phase2e_co2_subb_enabled: bool = false
+@export var phase2e_co2_exchange_fraction: float = 0.25
+## Phase 2E Sub-D — omite snap bi-zona cuando sala tiene fuego activo (default OFF).
+## OFF: snap original a valor-masa (no-op exacto). ON: rama producción continúa cuando lower_frac baja.
+@export var phase2e_co2_subd_enabled: bool = false
 @export var target_layer_block_start_m: float = 0.65
 @export var target_layer_block_full_m: float = 0.10
 @export var interior_spill_start_layer_m: float = 2.0
@@ -966,7 +974,10 @@ func _sync_auxiliary_services() -> void:
 		"phase2e_co2_subc_enabled": phase2e_co2_subc_enabled,
 		"phase2e_co2_fire_upper_boost_gain": phase2e_co2_fire_upper_boost_gain,
 		"phase2e_co2_suba_enabled": phase2e_co2_suba_enabled,
-		"phase2e_co2_upper_outflow_gain": phase2e_co2_upper_outflow_gain
+		"phase2e_co2_upper_outflow_gain": phase2e_co2_upper_outflow_gain,
+		"phase2e_co2_subb_enabled": phase2e_co2_subb_enabled,
+		"phase2e_co2_exchange_fraction": phase2e_co2_exchange_fraction,
+		"phase2e_co2_subd_enabled": phase2e_co2_subd_enabled
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
@@ -1085,6 +1096,24 @@ func _ready() -> void:
 	_force_log_initial_snapshot()
 
 	print(log_writer.resolve_log_file_path())
+
+
+func apply_runtime_options(options: Dictionary) -> void:
+	if typeof(options) != TYPE_DICTIONARY:
+		return
+
+	var needs_sync: bool = false
+	if options.has("glass_break_mode"):
+		glass_break_mode = clampi(
+				int(options.get("glass_break_mode", int(glass_break_mode))),
+				GlassBreakMode.DISABLED,
+				GlassBreakMode.PROBABILISTIC)
+		needs_sync = true
+
+	if needs_sync and is_ready_for_validation():
+		_sync_auxiliary_services()
+		glass_failure_system.reset()
+
 
 # ============================================================
 # REINICIAR LOG
@@ -2230,6 +2259,9 @@ func _detect_and_log_opening_events() -> void:
 		if abs(curr - prev) > 0.05:
 			# Los rotura de cristal ya están registradas; solo registrar el resto.
 			var is_new_glass_break: bool = glass_failure_system.newly_broken_indices.has(i)
+			if op.type == OpeningModel.Type.WINDOW and op.glass_broken:
+				_prev_open_fracs[i] = curr
+				continue
 			if not is_new_glass_break:
 				var opened: bool = curr > prev
 				var etype: String

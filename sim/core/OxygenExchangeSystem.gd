@@ -54,6 +54,15 @@ var phase2e_co2_fire_upper_boost_gain: float = 0.0
 # gain=0.0 con flag ON → outflow nulo (removal_frac=0) → co2_upper sin cambio por la apertura.
 var phase2e_co2_suba_enabled: bool = false
 var phase2e_co2_upper_outflow_gain: float = 0.0
+# Phase 2E Sub-B: fracción de intercambio CO₂ inter-room por flujo activo (default OFF = no-op).
+# OFF: CO2_EXCHANGE_FRACTION constante = 0.25 (Fase 2B original).
+# ON: usa phase2e_co2_exchange_fraction en lugar de la constante; sweep [0.03, 0.05, 0.08, 0.25].
+# Mecanismo: reducir la fracción retiene más CO₂ en la sala fuego → cierra gap cfast_2r_r0_t480.
+var phase2e_co2_subb_enabled: bool = false
+var phase2e_co2_exchange_fraction: float = 0.25
+# Phase 2E Sub-D: omite snap de co2_upper a valor-masa cuando bi-zona inválida y fuego activo.
+# OFF: snap original (no-op exacto). ON: en sala con hrr_kw>0, capa delgada → rama producción.
+var phase2e_co2_subd_enabled: bool = false
 var _pending_o2_deliveries: Array[Dictionary] = []
 var _reserved_transport_o2_delta_kg: Dictionary = {}
 
@@ -123,6 +132,15 @@ func configure(settings: Dictionary) -> void:
 	)
 	phase2e_co2_upper_outflow_gain = float(
 		settings.get("phase2e_co2_upper_outflow_gain", phase2e_co2_upper_outflow_gain)
+	)
+	phase2e_co2_subb_enabled = bool(
+		settings.get("phase2e_co2_subb_enabled", phase2e_co2_subb_enabled)
+	)
+	phase2e_co2_exchange_fraction = float(
+		settings.get("phase2e_co2_exchange_fraction", phase2e_co2_exchange_fraction)
+	)
+	phase2e_co2_subd_enabled = bool(
+		settings.get("phase2e_co2_subd_enabled", phase2e_co2_subd_enabled)
 	)
 
 
@@ -238,7 +256,11 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		# Intercambio entre salas se hace en _exchange_room_o2_active_flow.
 		const CO2_AMBIENT: float = 0.0004  # ~400 ppm CO₂ exterior
 		const CO2_UPPER_MAX: float = 0.30  # cap al 30 % molar
-		if lower_frac < 0.15 or (lower_frac < 0.40 and room.o2 < 0.070):
+		var _bi_zone_invalid: bool = lower_frac < 0.15 or (lower_frac < 0.40 and room.o2 < 0.070)
+		# Phase 2E Sub-D: cuando bi-zona inválida y fuego activo, omite el snap → usa rama
+		# producción. OFF (subd=false) → _snap = true siempre que _bi_zone_invalid → no-op exacto.
+		var _subd_skip_snap: bool = phase2e_co2_subd_enabled and room.hrr_kw > 0.0 and _bi_zone_invalid
+		if _bi_zone_invalid and not _subd_skip_snap:
 			# Modelo bi-zona inválido: homogeniza con media de sala
 			var room_co2_frac: float = room.co2_kg * 29.0 / maxf(0.001, air_mass_kg * 44.0)
 			room.co2_upper = clampf(room_co2_frac, CO2_AMBIENT, CO2_UPPER_MAX)
@@ -628,8 +650,11 @@ func _exchange_room_o2_active_flow(
 	# Tasa: 25 % del exchange_kg de O₂ activo (calibrado para quasi-steady ~10 % en caso 2 salas).
 	# Este exchange es proporcional al flujo activo, NO al background; así no duplica
 	# el transporte de GasExchangeSystem que opera sobre co2_kg (masa, no fracción molar).
-	const CO2_EXCHANGE_FRACTION: float = 0.25  # fracción relativa al exchange de O₂
-	var co2_ex_kg: float = exchange_kg * CO2_EXCHANGE_FRACTION
+	# Phase 2E Sub-B: fracción configurable. Flag OFF → 0.25 (Fase 2B original, no-op exacto).
+	const CO2_EXCHANGE_FRACTION: float = 0.25
+	var effective_co2_frac: float = phase2e_co2_exchange_fraction if phase2e_co2_subb_enabled \
+									 else CO2_EXCHANGE_FRACTION
+	var co2_ex_kg: float = exchange_kg * effective_co2_frac
 	if co2_ex_kg > 0.0 and hot_air_mass_kg > 0.001 and cold_air_mass_kg > 0.001:
 		var hot_co2_parcel: float = hot_room.co2_upper * co2_ex_kg / hot_air_mass_kg
 		var cold_co2_parcel: float = cold_room.co2_upper * co2_ex_kg / cold_air_mass_kg
