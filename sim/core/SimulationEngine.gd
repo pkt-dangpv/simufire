@@ -709,19 +709,22 @@ var _step_time_us: int = 0
 ## Sweep experimental: [0.0, 0.25, 0.50, 0.75, 1.0].
 @export var phase2e_co2_subc_enabled: bool = false
 @export var phase2e_co2_fire_upper_boost_gain: float = 0.0
-## Phase 2E Sub-A — corrección de dilución/outflow de co2_upper por apertura exterior (default OFF).
-## OFF: comportamiento original (mezcla proporcional con masa de sala completa).
-## ON: outflow selectivo de capa alta; gain sweep [0.0, 0.25, 0.50, 0.75, 1.0].
-@export var phase2e_co2_suba_enabled: bool = false
-@export var phase2e_co2_upper_outflow_gain: float = 0.0
+## Phase 2E Sub-A — supresión de dilución de co2_upper por inflow exterior (PRODUCCIÓN: ON, gain=0.20).
+## OFF: dilución proporcional con masa de sala completa (comportamiento original).
+## ON: fracción efectiva de air_in que mezcla con zona alta = air_in × (1 − gain).
+##   gain=0.0 → igual que OFF; gain=1.0 → sin dilución; candidato verificado: gain=0.20.
+##   Verificado Exp 1E: t510=38356ppm ∈ [32300,72300]; t420=80512ppm ∈ [38800,82800].
+@export var phase2e_co2_suba_enabled: bool = true
+@export var phase2e_co2_upper_outflow_gain: float = 0.20
 ## Phase 2E Sub-B — fracción de intercambio CO₂ inter-room por flujo activo (default OFF).
 ## OFF: CO2_EXCHANGE_FRACTION constante = 0.25 (Fase 2B original, no-op exacto).
 ## ON: usa phase2e_co2_exchange_fraction; sweep [0.03, 0.05, 0.08].
 @export var phase2e_co2_subb_enabled: bool = false
 @export var phase2e_co2_exchange_fraction: float = 0.25
-## Phase 2E Sub-D — omite snap bi-zona cuando sala tiene fuego activo (default OFF).
+## Phase 2E Sub-D — omite snap bi-zona cuando sala tiene fuego activo (PRODUCCIÓN: ON).
 ## OFF: snap original a valor-masa (no-op exacto). ON: rama producción continúa cuando lower_frac baja.
-@export var phase2e_co2_subd_enabled: bool = false
+## Verificado Exp 1D: t480=12.1% ∈ [6.91%,12.91%]; FED delta=0.000.
+@export var phase2e_co2_subd_enabled: bool = true
 @export var target_layer_block_start_m: float = 0.65
 @export var target_layer_block_full_m: float = 0.10
 @export var interior_spill_start_layer_m: float = 2.0

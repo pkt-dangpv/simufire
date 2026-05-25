@@ -450,25 +450,25 @@ func _step_outside_opening_o2(
 				indoor.o2, o2_nominal)
 	# Fase 2B / Phase 2E Sub-A: actualización de co2_upper por apertura exterior.
 	# Flag OFF (default): dilución proporcional con masa de sala completa (comportamiento original).
-	# Flag ON: outflow selectivo de capa alta proporcional a upper_outlet_height_m; sin inflow-dilución masiva.
+	# Flag ON: supresión de dilución por inflow exterior sobre co2_upper.
+	# phase2e_co2_upper_outflow_gain = fracción de supresión:
+	#   gain=0.0 → mismo que baseline (sin supresión, dilución completa)
+	#   gain=0.5 → mitad del air_in efectivo mezcla con zona alta (dilución parcial)
+	#   gain=1.0 → sin dilución de co2_upper (aire fresco va solo a zona baja)
+	#   gain>1.0 → clampeado a 1.0 (sin dilución)
+	# Física: en el modelo bi-zona, el aire fresco entra por la parte baja del hueco
+	# y se dirige a la zona baja. La zona alta pierde gas por el hueco superior pero
+	# su concentración de CO₂ no se diluye directamente por el inflow de aire fresco.
 	if air_in_kg > 0.0:
 		if phase2e_co2_suba_enabled:
-			# Sub-A: solo outflow de capa alta. Si no hay salida de capa alta → co2_upper no cambia.
-			if upper_outlet_height_m > 0.0:
-				var outflow_ratio: float = clampf(
-					upper_outlet_height_m / maxf(lower_inlet_height_m, 0.05), 0.0, 2.0)
-				var upper_zone_frac: float = clampf(
-					1.0 - indoor.thermal_layer_m / maxf(0.01, indoor.height_m), 0.05, 0.95)
-				var upper_air_mass: float = maxf(
-					indoor.upper_gas_kg, room_air_mass_kg * upper_zone_frac)
-				var upper_out_kg: float = minf(
-					upper_air_mass * 0.25,
-					air_in_kg * outflow_ratio * phase2e_co2_upper_outflow_gain)
-				var removal_frac: float = clampf(
-					upper_out_kg / maxf(upper_air_mass, 0.1), 0.0, 0.25)
+			# Sub-A: fracción de air_in que efectivamente mezcla con zona alta = air_in × (1 − gain).
+			var suppression: float = clampf(phase2e_co2_upper_outflow_gain, 0.0, 1.0)
+			var effective_air_in: float = air_in_kg * (1.0 - suppression)
+			if effective_air_in > 0.0:
 				indoor.co2_upper = clampf(
-					lerpf(indoor.co2_upper, 0.0004, removal_frac), 0.0004, 0.30)
-			# else: upper_outlet_height_m <= 0 → no outflow removal ni inflow dilution (co2_upper sin cambio)
+					(indoor.co2_upper * room_air_mass_kg + 0.0004 * effective_air_in) / (room_air_mass_kg + effective_air_in),
+					0.0, 0.30)
+			# else: suppression=1.0 → co2_upper no cambia por el inflow exterior
 		else:
 			indoor.co2_upper = clampf(
 				(indoor.co2_upper * room_air_mass_kg + 0.0004 * air_in_kg) / (room_air_mass_kg + air_in_kg),
