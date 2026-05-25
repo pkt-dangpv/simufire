@@ -2,6 +2,7 @@ extends Control
 class_name Minimap2D
 
 const OpeningGeometry2D := preload("res://view/2d/openings/OpeningGeometry2D.gd")
+const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayout.gd")
 
 @export var panel_color: Color = Color(0.01, 0.025, 0.03, 0.78)
 @export var border_color: Color = Color(0.95, 0.58, 0.22, 0.70)
@@ -83,7 +84,7 @@ func _draw_openings(rects: Dictionary, tf: Dictionary) -> void:
 			continue
 		var ra: Rect2 = Rect2(rects[op.a])
 		var rb: Rect2 = Rect2(rects[op.b]) if rects.has(op.b) else Rect2()
-		var seg_m: PackedVector2Array = OpeningGeometry2D.shared_edge_segment_m(ra, rb) if rects.has(op.b) else OpeningGeometry2D.default_exterior_segment_m(ra, op.width_m, op.wall_side)
+		var seg_m: PackedVector2Array = OpeningGeometry2D.shared_edge_segment_m(ra, rb) if rects.has(op.b) else OpeningGeometry2D.default_exterior_segment_m(ra, op.width_m, op.wall_side, op.offset_m, op.offset_is_fraction)
 		if seg_m.size() != 2:
 			continue
 		var color: Color = door_color
@@ -91,7 +92,15 @@ func _draw_openings(rects: Dictionary, tf: Dictionary) -> void:
 			color = window_color
 		elif op.type == OpeningModel.Type.HOLE:
 			color = hole_color
-		draw_line(_point_to_px(seg_m[0], tf), _point_to_px(seg_m[1], tf), color, 2.2)
+		var p1: Vector2 = _point_to_px(seg_m[0], tf)
+		var p2: Vector2 = _point_to_px(seg_m[1], tf)
+		var width: float = 3.0 if op.type == OpeningModel.Type.WINDOW else 2.2
+		draw_line(p1, p2, color, width)
+		if op.type == OpeningModel.Type.WINDOW:
+			var dir: Vector2 = (p2 - p1).normalized() if p1.distance_to(p2) > 0.01 else Vector2(1.0, 0.0)
+			var normal := Vector2(-dir.y, dir.x)
+			draw_line(p1 + normal * 2.0, p2 + normal * 2.0, Color(color.r, color.g, color.b, 0.56), 0.9)
+			draw_line(p1 - normal * 2.0, p2 - normal * 2.0, Color(color.r, color.g, color.b, 0.56), 0.9)
 
 
 func _draw_player_start(rects: Dictionary, tf: Dictionary) -> void:
@@ -120,7 +129,7 @@ func _draw_live_player(rects: Dictionary, tf: Dictionary) -> void:
 	if room_id >= 0 and (not rects.has(room_id) or not _room_is_on_selected_floor(room_id)):
 		return
 	var px: Vector2 = _point_to_px(pos, tf)
-	var dir := Vector2(0.0, -1.0).rotated(deg_to_rad(float(marker.get("yaw_deg", 0.0))))
+	var dir := Vector2(0.0, -1.0).rotated(-deg_to_rad(float(marker.get("yaw_deg", 0.0))))
 	var radius: float = 7.0
 	var pts := PackedVector2Array([
 		px + dir * (radius + 3.0),
@@ -136,13 +145,34 @@ func _draw_fuel_objects(room_id: int, room_rect: Rect2, tf: Dictionary) -> void:
 	var room: RoomModel = building.get_room(room_id) if building != null else null
 	if room == null:
 		return
+	var is_bathroom: bool = _is_bathroom_room(room)
 	for obj in room.fuel_objects:
 		if obj == null:
 			continue
-		var size_m: Vector2 = obj.size_m
-		var center_m: Vector2 = room_rect.position + obj.position_m + size_m * 0.5
-		var rot := Transform2D(deg_to_rad(float(obj.rotation_deg)), Vector2.ZERO)
-		var half: Vector2 = size_m * 0.5
+		var visual_obj: Dictionary = FurnitureVisualLayout.normalize_spec(
+			room_id,
+			room.name,
+			room.kind,
+			room_rect.size,
+			{
+				"id": obj.id,
+				"name": obj.name,
+				"kind": obj.kind,
+				"position_m": obj.position_m,
+				"size_m": obj.size_m,
+				"rotation_deg": obj.rotation_deg,
+			}
+		)
+		if bool(visual_obj.get("visual_hidden", false)):
+			continue
+		var pos_m: Vector2 = Vector2(visual_obj.get("position_m", obj.position_m))
+		var size_m: Vector2 = Vector2(visual_obj.get("size_m", obj.size_m))
+		var rotation_deg: float = float(visual_obj.get("rotation_deg", obj.rotation_deg))
+		var pose: Dictionary = _furniture_pose_mini(room_rect, pos_m, size_m, rotation_deg)
+		var center_m: Vector2 = Vector2(pose.get("center_m", room_rect.position + pos_m + size_m * 0.5))
+		var visual_size_m: Vector2 = Vector2(pose.get("size_m", size_m))
+		var rot := Transform2D(deg_to_rad(rotation_deg), Vector2.ZERO)
+		var half: Vector2 = visual_size_m * 0.5
 		var points := PackedVector2Array([
 			_point_to_px(center_m + rot * Vector2(-half.x, -half.y), tf),
 			_point_to_px(center_m + rot * Vector2(half.x, -half.y), tf),
@@ -151,6 +181,51 @@ func _draw_fuel_objects(room_id: int, room_rect: Rect2, tf: Dictionary) -> void:
 		])
 		draw_colored_polygon(points, Color(0.92, 0.34, 0.08, 0.34))
 		draw_polyline(PackedVector2Array([points[0], points[1], points[2], points[3], points[0]]), Color(1.0, 0.62, 0.22, 0.58), 0.8)
+	if is_bathroom:
+		_draw_bathroom_fixtures(room_rect, tf)
+
+
+func _furniture_pose_mini(room_rect: Rect2, local_pos: Vector2, size_m: Vector2, rotation_deg: float) -> Dictionary:
+	var margin: float = 0.025
+	var available := Vector2(maxf(0.08, room_rect.size.x - margin * 2.0), maxf(0.08, room_rect.size.y - margin * 2.0))
+	var visual_size := Vector2(clampf(absf(size_m.x), 0.05, available.x), clampf(absf(size_m.y), 0.05, available.y))
+	var angle: float = deg_to_rad(rotation_deg)
+	var c: float = absf(cos(angle))
+	var s: float = absf(sin(angle))
+	var bbox_size := Vector2(c * visual_size.x + s * visual_size.y, s * visual_size.x + c * visual_size.y)
+	if bbox_size.x > available.x or bbox_size.y > available.y:
+		var scale_down: float = minf(available.x / maxf(0.001, bbox_size.x), available.y / maxf(0.001, bbox_size.y))
+		visual_size *= clampf(scale_down, 0.10, 1.0)
+		bbox_size = Vector2(c * visual_size.x + s * visual_size.y, s * visual_size.x + c * visual_size.y)
+	var desired_center: Vector2 = room_rect.position + local_pos + visual_size * 0.5
+	var min_center: Vector2 = room_rect.position + Vector2(margin, margin) + bbox_size * 0.5
+	var max_center: Vector2 = room_rect.position + room_rect.size - Vector2(margin, margin) - bbox_size * 0.5
+	return {
+		"center_m": Vector2(clampf(desired_center.x, min_center.x, max_center.x), clampf(desired_center.y, min_center.y, max_center.y)),
+		"size_m": visual_size,
+	}
+
+
+func _is_bathroom_room(room: RoomModel) -> bool:
+	if room == null:
+		return false
+	var tokens: String = ("%s %s" % [room.kind, room.name]).to_lower()
+	return tokens.contains("bano") or tokens.contains("baño") or tokens.contains("bath")
+
+
+func _draw_bathroom_fixtures(room_rect: Rect2, tf: Dictionary) -> void:
+	var w: float = room_rect.size.x
+	var d: float = room_rect.size.y
+	var fixture_color := Color(0.78, 0.88, 0.90, 0.46)
+	var outline := Color(0.92, 0.98, 1.0, 0.64)
+	for r in [
+		Rect2(room_rect.position + Vector2(0.18, 0.18), Vector2(minf(1.00, maxf(0.55, w * 0.30)), minf(0.85, maxf(0.55, d * 0.40)))),
+		Rect2(room_rect.position + Vector2(0.24, maxf(0.18, d - 0.92)), Vector2(0.56, 0.68)),
+		Rect2(room_rect.position + Vector2(maxf(0.18, w - 1.05), maxf(0.18, d - 0.78)), Vector2(0.74, 0.46)),
+	]:
+		var px := _rect_to_px(r, tf)
+		draw_rect(px, fixture_color, true)
+		draw_rect(px, outline, false, 0.7)
 
 
 func _draw_safety_markers(rects: Dictionary, tf: Dictionary) -> void:

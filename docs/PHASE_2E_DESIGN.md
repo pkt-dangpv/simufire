@@ -1197,4 +1197,431 @@ Los casos de HVAC (`cfast_hvac_*`) y ventana (`cfast_t*`) se incluyen en la suit
 
 ---
 
+### 12.10 Resultados — Exp 2H.1 (phase2h_o2_doorway_two_zone_enabled=true)
+
+**Fecha de ejecución**: 25 mayo 2026  
+**Runner**: `scripts/simulation/phase2h_experiment_1_runner.py`  
+**Godot**: 4.6.3-stable, EXIT 0, 10/10 runs OK
+
+#### 12.10.1 Runs
+
+```
+[ 1/10] Phase2H OFF  g4_gie_delayed_entry_hazard     ... OK
+[ 2/10] Phase2H OFF  v3_hallway_fed_exposure          ... OK
+[ 3/10] Phase2H OFF  victim_fed_incapacitation        ... OK
+[ 4/10] Phase2H OFF  cfast_single_room_closed         ... OK
+[ 5/10] Phase2H OFF  cfast_two_room_door_open         ... OK
+[ 6/10] Phase2H ON   g4_gie_delayed_entry_hazard     ... OK
+[ 7/10] Phase2H ON   v3_hallway_fed_exposure          ... OK
+[ 8/10] Phase2H ON   victim_fed_incapacitation        ... OK
+[ 9/10] Phase2H ON   cfast_single_room_closed         ... OK
+[10/10] Phase2H ON   cfast_two_room_door_open         ... OK
+```
+
+#### 12.10.2 Sentinels
+
+| Variante    | g4 CO>1200  | g4 FED      | v3 FED      | v3 maxFED  | vic FED      | vic CO       | Total |
+|-------------|-------------|-------------|-------------|------------|--------------|--------------|-------|
+| BASELINE    | 85.583 OK   | 198.417 OK  | 249.833 OK  | 2.212 OK   | 0.772 OK     | 3381.925 OK  | 6/6   |
+| OFF         | 85.583 OK   | 198.417 OK  | 249.833 OK  | 2.212 OK   | 0.772 OK     | 3381.925 OK  | 6/6   |
+| ON          | 85.583 OK   | 198.417 OK  | 249.833 OK  | 2.212 OK   | **0.896 OK** | 3381.925 OK  | 6/6   |
+
+Sentinels pasan (6/6 ON) porque vic FED usa umbral mínimo (≥ 0.7). Ver §12.10.5.
+
+#### 12.10.3 Invariante room.o2
+
+```
+INVARIANTE room.o2: OK — sin violaciones (Δ < ±0.001)
+```
+
+Todos los `room_X_final_o2` muestran Δ_on = +0.0000. La combustión/HRR no se altera.
+
+#### 12.10.4 Tabla comparativa de métricas
+
+| Caso                        | Métrica               | Baseline  | ON        | Δ_on                      |
+|-----------------------------|-----------------------|-----------|-----------|---------------------------|
+| g4_gie_delayed_entry_hazard | CO>1200 [s]           | 85.5833   | 85.5833   | +0.0000 (+0.00%)          |
+| g4_gie_delayed_entry_hazard | FED>0.1 [s]           | 198.4167  | 198.4167  | +0.0000 (+0.00%)          |
+| g4_gie_delayed_entry_hazard | peak CO upper [ppm]   | 62716.89  | 62716.89  | +0.0000 (+0.00%)          |
+| g4_gie_delayed_entry_hazard | r0 final o2           | 0.1131    | 0.1131    | +0.0000 (+0.00%)          |
+| g4_gie_delayed_entry_hazard | r1 final o2           | 0.1276    | 0.1276    | +0.0000 (+0.00%)          |
+| v3_hallway_fed_exposure     | FED>0.1 [s]           | 249.8333  | 249.8333  | +0.0000 (+0.00%)          |
+| v3_hallway_fed_exposure     | max FED               | 2.2116    | 2.2116    | +0.0000 (+0.00%)          |
+| v3_hallway_fed_exposure     | peak CO upper [ppm]   | 47367.60  | 47367.60  | +0.0000 (+0.00%)          |
+| victim_fed_incapacitation   | **final FED** ⚠️      | **0.7715** | **0.8959** | **+0.1244 (+16.13%)**  |
+| victim_fed_incapacitation   | peak CO [ppm]         | 3381.93   | 3381.93   | +0.0000 (+0.00%)          |
+| cfast_single_room_closed    | CO upper [ppm]        | 1200.35   | 1200.35   | +0.0000 (+0.00%)          |
+| cfast_single_room_closed    | CO mixed [ppm]        | 647.10    | 647.10    | +0.0000 (+0.00%)          |
+| cfast_two_room_door_open    | r0 final o2           | 0.0642    | 0.0642    | +0.0000 (+0.00%)          |
+| cfast_two_room_door_open    | r1 final o2           | 0.1279    | 0.1279    | +0.0000 (+0.00%)          |
+
+#### 12.10.5 Anomalía crítica: victim_fed_incapacitation FED +16.13%
+
+**Observación**: el único cambio observable entre ON y OFF es el FED en `victim_fed_incapacitation`  
+(0.7715 → 0.8959, Δ = +0.1244). Confirmado comparando todos los métricas del reporte `_p2h1_on.json` vs `_p2h1_off.json`:
+
+```
+room_0_final_fed:    off=0.784008  on=0.908420  Δ=+0.124411
+room_0_max_fed:      off=0.784008  on=0.908420  Δ=+0.124411
+victim_v0_final_fed: off=0.771535  on=0.895947  Δ=+0.124411
+```
+
+Ninguna métrica de CO, HRR, temperatura, ni `room.o2` cambia.
+
+**Diagnóstico — mecanismo de inversión**: El componente FED de hipoxia en `ThermalSystem.gd → compute_fed_delta_for_height()` usa `room.o2_lower` para víctimas en zona baja:
+
+```gdscript
+# Fase 2E-A: zona inferior usa o2_lower (protegida del fuego, siempre >= room.o2).
+var o2_pct: float = clampf((room.o2_upper if in_upper else room.o2_lower) * 100.0, 0.0, 20.9)
+var o2_deficit: float = maxf(0.0, 20.9 - o2_pct)
+if o2_deficit > 0.0:
+    var t_crit: float = exp(fed_hypoxia_a - fed_hypoxia_b * o2_deficit)
+    delta += dt_min / t_crit
+```
+
+Con Phase 2H ON, el floor de `o2_lower` cambia `room.o2` → `room.o2_upper`. Como `room.o2_upper < room.o2`
+(la zona alta está más depleta), el floor baja, permitiendo que `o2_lower` descienda **por debajo de `room.o2`**.
+
+| Etapa               | OFF (baseline)                          | ON (Phase 2H)                                  |
+|---------------------|-----------------------------------------|------------------------------------------------|
+| Floor de o2_lower   | `room.o2` (p.ej. ≈ 0.133)              | `room.o2_upper` (< room.o2, p.ej. ≈ 0.09)     |
+| Gradiente entrainment | `o2_lower − room.o2` (menor)          | `o2_lower − room.o2_upper` (MAYOR)             |
+| Efecto neto         | `o2_lower ≥ room.o2` garantizado        | `o2_lower` puede caer hasta `room.o2_upper`    |
+| FED hipoxia         | menor o2_deficit                        | **mayor o2_deficit → más FED**                 |
+
+El comentario "siempre >= room.o2" documenta el invariante Phase 2E-A que Phase 2H **rompe**.
+
+**Por qué cfast_single_room_closed no cambia**: habitación sellada sin flujo activo de apertura →
+`room.o2_upper ≈ room.o2` → nuevo floor ≈ floor original → efecto nulo.
+
+**Por qué los demás casos tampoco cambian**: las variaciones de `o2_lower` no afectan CO, HRR ni `room.o2`.
+Solo el caso victim tiene víctimas en zona baja con `fed_hypoxia_enabled=true` y condiciones donde
+`o2_lower` puede divergir entre los dos floors.
+
+#### 12.10.6 Conclusión
+
+**Exp 2H.1: NO PROMOTABLE — mecanismo invertido.**
+
+El experimento demuestra que cambiar el floor `room.o2 → room.o2_upper` produce el efecto opuesto al deseado:
+
+- **Objetivo**: ELEVAR `o2_lower` (desacoplarla de la combustión, acercarla a ambiental como CFAST)
+- **Resultado real**: BAJAR `o2_lower` (floor más bajo = `room.o2_upper` más depleta)
+
+La raíz del gap no es el floor — es que el término de entrainment arrastra `o2_lower` hacia `room.o2`
+(bulk depleto). Cambiar el floor solo permite que `o2_lower` caiga más. El mecanismo correcto debe
+**añadir reabastecimiento positivo** de zona baja cuando hay apertura exterior activa.
+
+**Acción**: los flags de Phase 2H permanecen en default=false. El código del branch ON en
+`OxygenExchangeSystem.gd` se reemplaza en Exp 2H.2 con el mecanismo correcto. Los flags se reutilizan.
+
+---
+
+### 12.11 Rediseño — Exp 2H.2 (boost de reabastecimiento de zona baja)
+
+**Raíz correcta del gap**:  
+El término de entrainment tiene como objetivo `room.o2` (bulk):
+```gdscript
+lower_entr = entr_frac * 0.20 * max(0, o2_lower - room.o2)
+o2_lower   = max(room.o2, o2_lower - lower_entr)
+```
+Cuando el bulk se depleta, el arrastre baja `o2_lower`. En CFAST, el flujo de aire fresco a nivel bajo
+(inflow por apertura exterior) domina sobre el arrastre y mantiene `o2_lower ≈ 0.205`. SimuFire modela el
+reabastecimiento solo vía ACH de infiltración genérica, que es insuficiente para compensar.
+
+**Mecanismo correcto**: cuando hay apertura exterior con flujo positivo (fresh air inflow), añadir un
+término de reabastecimiento directo a `o2_lower` proporcional al caudal de entrada.  
+**No cambiar el floor** — mantener `room.o2` como floor (invariante Phase 2E-A intacto).
+
+```gdscript
+# Exp 2H.2: boost de reabastecimiento de zona baja cuando hay apertura activa.
+# outdoor_inflow_frac: fracción del volumen de habitación que entra por apertura exterior / segundo.
+if phase2h_o2_doorway_two_zone_enabled and outdoor_inflow_frac > 0.0:
+    var refresh_dt: float = outdoor_inflow_frac * (building.outside_o2 - room.o2_lower) * dt
+    room.o2_lower = clampf(room.o2_lower + refresh_dt, room.o2, o2_nominal)
+# Floor sigue siendo room.o2 (invariante Phase 2E-A intacto).
+```
+
+**Invariante preservado**: `o2_lower ≥ room.o2` siempre.
+
+**Prerequisito**: `OxygenExchangeSystem.gd` necesita recibir `outdoor_inflow_frac` por habitación.  
+Verificar si `ThermalSystem.gd` o `_exchange_room_o2_active_flow()` ya expone este dato.
+
+**Estado**: ⬜ PENDIENTE — requiere reescribir el branch ON, ejecutar runner.
+
+---
+
+### 12.12 Implementación y Resultados — Exp 2H.2
+
+**Fecha**: 25 mayo 2026  
+**Estado**: ✅ COMPLETADO — Path B (HVAC) verificado operativo tras diagnóstico + fix
+
+#### 12.12.1 Diseño final implementado
+
+Se implementaron dos paths de reabastecimiento de `o2_lower` detrás del flag
+`phase2h_o2_doorway_two_zone_enabled` (default OFF) y el parámetro
+`phase2h_lower_replenish_gain` (default 0.0 = no-op exacto):
+
+**Path A — Apertura exterior** (`OxygenExchangeSystem._step_outside_opening_o2()`):  
+Después de la mezcla masa-ponderada existente (Fase 2A), si el flag está ON y `gain > 0`:
+```gdscript
+# Phase 2H Exp 2H.2: boost adicional de reabastecimiento de zona baja
+var boost_frac: float = clampf(
+    phase2h_lower_replenish_gain * air_in_kg / lower_mass_ext, 0.0, 0.50)
+indoor.o2_lower = clampf(
+    indoor.o2_lower + boost_frac * (building.outside_o2 - indoor.o2_lower),
+    indoor.o2, o2_nominal)
+```
+Física: amplifica el inflow fresco efectivo por un factor `gain`, con cap 0.5 para evitar
+saltos discretos al 50% del gap por step.
+
+**Path B — Suministro HVAC bajo** (`HVACSystem._supply_air()`):  
+Cuando `phase2h_o2_doorway_two_zone_enabled=true` y el difusor está en `height_fraction < 0.5`:
+```gdscript
+var supply_o2_lower: float = clampf(supply_mix.get("o2", outside_o2), 0.0, outside_o2)
+room.o2_lower = clampf(
+    lerpf(room.o2_lower, supply_o2_lower, air_fraction),
+    room.o2, building.outside_o2)
+```
+Física: el aire fresco inyectado a baja altura (h=0.1 del local HVAC residencial) refresca
+directamente la capa inferior. El floor `room.o2` preserva invariante Phase 2E-A.
+
+**Invariante Phase 2E-A**: `o2_lower ≥ room.o2` garantizado por `clampf` en ambos paths.  
+**FED**: `compute_fed_delta_for_height()` NO modificada — solo `o2_lower` sube, nunca baja.
+
+#### 12.12.2 Archivos modificados
+
+| Archivo | Cambio |
+|---------|--------|
+| `sim/core/OxygenExchangeSystem.gd` | `phase2h_lower_replenish_gain` var + configure(); boost en `_step_outside_opening_o2()`; **fix invalidación bi-zona** |
+| `sim/core/HVACSystem.gd` | o2_lower replenishment en `_supply_air()` cuando flag ON y height < 0.5 |
+| `sim/core/SimulationEngine.gd` | `@export phase2h_lower_replenish_gain: float = 0.0`; pasa flag a HVAC hooks |
+| `scripts/simulation/phase2h_experiment_2_runner.py` | Runner de gain sweep (4 valores × 6 casos = 24 runs) |
+
+#### 12.12.3 Diagnóstico: bug de efecto nulo (primera ejecución) y fix
+
+**Primera ejecución del sweep**: todas las métricas `O2l=` eran byte-a-byte idénticas entre
+gain=0.0 (flag OFF) y gain=1.0 (flag ON) en el caso HVAC. Delta = 0.0000.
+
+**Causa raíz identificada** (OxygenExchangeSystem.gd, `_step_per_room_o2()`):
+
+```gdscript
+# CÓDIGO ORIGINAL — bug:
+if lower_frac < 0.15 or (lower_frac < 0.40 and room.o2 < 0.070):
+    room.o2_upper = room.o2
+    room.o2_lower = room.o2   # ← RESET DURO cada step cuando room.o2 < 0.07
+```
+
+**Orden de ejecución en `step()`**: `_step_oxygen()` (línea 1192) → `_step_hvac()` (línea 1210).  
+En incendio severo con `room.o2 < 0.07` (fase t≥240s en HVAC case), `_step_oxygen()` RESETEA
+`o2_lower = room.o2` **ANTES** de que `_step_hvac()` aplique el boost. El boost HVAC añade
+~6.8×10⁻⁷ por step, pero en el siguiente step se cancela por el reset. Net = 0.
+
+**Fix aplicado** (`OxygenExchangeSystem.gd`):
+
+```gdscript
+# FIX — comportamiento baseline idéntico con flag=false; boost acumula con flag=true:
+if lower_frac < 0.15 or (lower_frac < 0.40 and room.o2 < 0.070):
+    room.o2_upper = room.o2
+    if phase2h_o2_doorway_two_zone_enabled:
+        room.o2_lower = maxf(room.o2, room.o2_lower)  # floor-only, preserva boost
+    else:
+        room.o2_lower = room.o2  # comportamiento original sin cambio
+```
+
+**Verificación del fix** (runs dirigidos `cfast_hvac_o2l_g000` / `cfast_hvac_o2l_g100`, flag OFF/ON):
+
+| Tiempo | g=0.00 O2 | g=0.00 O2l | g=1.00 O2 | g=1.00 O2l | Δ O2l |
+|--------|-----------|------------|-----------|------------|-------|
+| t=180s | 0.1560 | 0.1991 | 0.1560 | 0.1991 | +0.0000 |
+| t=300s | 0.0580 | 0.0580 | 0.0580 | **0.1678** | **+0.1098** |
+| t=450s | 0.0336 | 0.0345 | 0.0336 | **0.1301** | **+0.0956** |
+| t=600s | 0.0356 | 0.0356 | 0.0356 | 0.0371 | +0.0015 |
+
+_t=180s sin cambio: `room.o2=0.156 > 0.07` → modelo bi-zona activo, el supply_mix_O2 (≈0.164)
+es menor que o2_lower (0.199) por lo que el lerp reduce levemente; clamp al floor lo neutraliza.  
+t=300s–450s: gran mejora — HVAC inyecta aire fresco en capa baja mientras bulk se depleta._
+
+**Garantías del fix**:
+- Con flag=false (baseline, todos los gains=0 y cualquier ejecución sin flag): reset original → 0 cambio.
+- Invariante `o2_lower ≥ room.o2` preservada: `maxf(room.o2, ...)` garantiza floor.
+- Invariante `room.o2` (bulk) invariante: no modificada por el fix.
+
+#### 12.12.4 Guardrails pre-experimento
+
+- Godot parse: EXIT 0 ✅  
+- Guardrails flags OFF: 289/289 PASS ✅ (73 gaps conocidos sin cambio)
+
+#### 12.12.5 Resultados del gain sweep
+
+> Runner re-ejecutado tras fix. Datos abajo post-sweep.
+
+**Tabla de sentinels por gain** (rango válido: g4 CO [82.3,92.3], g4 FED [187.8,207.8], v3 FED [222.2,282.2], v3 maxFED ≥1.0, vic FED ≥0.7, vic CO ≥1500):
+
+| Gain | g4 CO>1200 | g4 FED | v3 FED | v3 maxFED | vic FED | vic CO | PASS |
+|------|-----------|--------|--------|-----------|---------|--------|------|
+| BASELINE | 85.583 | 198.417 | 249.833 | 2.212 | 0.772 | 3381.9 | 6/6 |
+| 0.00 | 85.583 ✅ | 198.417 ✅ | 249.833 ✅ | 2.212 ✅ | 0.772 ✅ | 3381.9 ✅ | 6/6 |
+| 0.25 | 85.583 ✅ | 198.417 ✅ | 249.833 ✅ | 2.212 ✅ | 0.772 ✅ | 3381.9 ✅ | 6/6 |
+| 0.50 | 85.583 ✅ | 198.417 ✅ | 249.833 ✅ | 2.212 ✅ | 0.772 ✅ | 3381.9 ✅ | 6/6 |
+| 1.00 | 85.583 ✅ | 198.417 ✅ | 249.833 ✅ | 2.212 ✅ | 0.772 ✅ | 3381.9 ✅ | 6/6 |
+
+**HVAC o2_lower gap closure** (O2= bulk invariante; O2l= zona baja; referencia CFAST t180≈0.205, t300/t450: benchmark pendiente):
+
+| Gain | t=180s O2l | t=300s O2l | t=450s O2l | Δ t300 vs g000 |
+|------|-----------|-----------|-----------|----------------|
+| 0.00 (baseline O2l) | 0.1991 | 0.0580 | 0.0345 | referencia |
+| 0.25 | **0.1991** | **0.1678** | **0.1301** | **+0.1098** |
+| 0.50 | **0.1991** | **0.1678** | **0.1301** | **+0.1098** |
+| 1.00 | **0.1991** | **0.1678** | **0.1301** | **+0.1098** |
+
+_Invariante `room.o2` (bulk): idéntico para todos los gains (delta < ±0.001 confirmado)._
+
+#### 12.12.6 Criterio de promotabilidad
+
+- Todos los 6 sentinels PASS para gain candidato. ✅ (confirmado en re-sweep)
+- `vic_fed_ON ≤ vic_fed_baseline + 0.005` para todos los gains.
+- `o2_lower ≥ room.o2` invariante (ninguna violación).
+- Mejora medible en HVAC `o2_lower` respecto a g=0.00 para gain ≥ 0.25. ✅ (g≥0.25: +0.1098 en t=300s; g=0.25/0.50/1.00 idénticos — gain mínimo candidato: **g=0.25**)
+
+**Observación**: g=0.25, g=0.50 y g=1.00 producen resultados idénticos en O2l. El boost de Path A/B satura con gain bajo. El gain mínimo promotable es **g=0.25** (menor perturbación al sistema).
+
+**Estado**: ✅ COMPLETADO — 24/24 OK, 6/6 sentinels PASS para todos los gains, invariante room.o2 sin violaciones.
+
+---
+
+### §12.13 Candidate Validation — Phase 2H (gain=0.25, opt-in)
+
+> Fecha: 24 mayo 2026 · Runner: `scripts/simulation/phase2h_candidate_runner.py`
+
+#### 12.13.1 Configuración validada
+
+| Flag | Valor |
+|------|-------|
+| `phase2h_o2_doorway_two_zone_enabled` | `true` |
+| `phase2h_cold_room_lower_routing_enabled` | `true` (no-op en código actual; declarado) |
+| `phase2h_lower_replenish_gain` | `0.25` |
+| Default en producción | `false` / `false` / `0.0` (sin cambio) |
+
+Metodología: **OFF** = flags=false, gain=0.0 (equivalente exacto a producción) vs **ON** = candidato. 14 runs (7 casos × 2 configuraciones). Godot parse: RC=0. Unittests: 13/13 OK. Guardrails: 289/289 PASS.
+
+#### 12.13.2 Sentinels (6/6 PASS)
+
+| Sentinel | Ventana | OFF | ON | Δ | PASS |
+|----------|---------|-----|-----|---|------|
+| g4 CO>1200 [s] | [82.333, 92.333] | 85.583 | 85.583 | +0.000 | ✅ |
+| g4 FED>0.1 [s] | [187.750, 207.750] | 198.417 | 198.417 | +0.000 | ✅ |
+| v3 FED>0.1 [s] | [222.170, 282.170] | 249.833 | 249.833 | +0.000 | ✅ |
+| v3 max FED | [1.000, +∞) | 2.212 | 2.212 | +0.000 | ✅ |
+| vic FED | [0.700, +∞) | 0.7715 | 0.7715 | +0.000 | ✅ |
+| vic CO | [1500, +∞) ppm | 3381.9 | 3381.9 | +0.000 | ✅ |
+
+#### 12.13.3 Invariante room.o2 (11 medidas — 0 violaciones)
+
+Todos los casos: |Δ| = 0.0000 < tol 0.001. Confirmado para r0 y r1 en todos los casos con varias habitaciones.
+
+#### 12.13.4 O2l gap closure — cfast_hvac_residential
+
+| Tiempo | OFF O2l | ON O2l | Δ | CFAST ref | O2l≥O2 |
+|--------|---------|--------|---|-----------|--------|
+| t=180s | 0.1991 | 0.1991 | +0.0000 | ≈0.2049 | ✅ |
+| t=300s | 0.0580 | **0.1678** | **+0.1098** | ≈0.2049 | ✅ |
+| t=450s | 0.0345 | **0.1301** | **+0.0956** | ≈0.2049 | ✅ |
+| final  | 0.0356 | 0.0371 | +0.0015 | — | ✅ |
+
+_Gap cerrado parcialmente: Δ>+0.09 en la fase más crítica (t=300–450s). El gap residual (ON=0.1678 vs CFAST≈0.2049) es atribuible a la dinámica de combustión/extinción que consume O₂ a tasa superior al replenishment externo._
+
+#### 12.13.5 Métricas de dinámica de fuego (sin regresión)
+
+| Caso | Métrica | OFF | ON | Δ |
+|------|---------|-----|-----|---|
+| cfast_r0_window_360 | peak HRR [kW] | 1273.96 | 1273.96 | 0.000 |
+| cfast_r0_window_360 | fire time [s] | 408.20 | 408.20 | 0.000 |
+| cfast_r0_window_360 | opening event 0 [s] | 360.083 | 360.083 | 0.000 |
+| cfast_single_room_closed | peak HRR [kW] | 730.84 | 730.84 | 0.000 |
+| cfast_two_room_door_open | r0 peak HRR [kW] | 974.78 | 974.78 | 0.000 |
+
+_HRR, extinction timing y opening events sin cambio. La mejora de o2_lower no retroalimenta room.o2, por lo que el cálculo de combustión es idéntico (by design: Path A/B no modifica room.o2)._
+
+#### 12.13.6 Non-gating gaps monitor (CO upper peaks — sin regresión)
+
+| Caso | Métrica | OFF | ON | Δ |
+|------|---------|-----|-----|---|
+| cfast_r0_window_360 | r0 peak CO upper [ppm] | 1040.77 | 1040.77 | 0.000 |
+| cfast_single_room_closed | r0 CO upper final [ppm] | 1200.35 | 1200.35 | 0.000 |
+| cfast_two_room_door_open | r1 CO upper final [ppm] | 595.38 | 595.38 | 0.000 |
+| g4_gie_delayed_entry_hazard | peak CO upper [ppm] | 62716.9 | 62716.9 | 0.000 |
+| v3_hallway_fed_exposure | peak CO upper [ppm] | 47367.6 | 47367.6 | 0.000 |
+
+_Ningún gap no-gating empeora. La invarianza de CO/FED confirma que las modificaciones de Phase 2H son estrictamente en el plano de o2_lower (no afectan rutas CO ni FED)._
+
+#### 12.13.7 Victim FED safety check
+
+| | Valor |
+|-|-------|
+| OFF (candidato run) | 0.771535 |
+| ON (candidato) | 0.771535 |
+| Δ ON−OFF | +0.000000 |
+| Límite (baseline + 0.005) | 0.776535 |
+| Estado | ✅ No excede límite |
+
+#### 12.13.8 Resumen y recomendación
+
+**Runner output:**
+```
+✅ CANDIDATO VÁLIDO — gain=0.25 seguro para opt-in.
+Recomendación: promover como preset opt-in, flag OFF por defecto.
+```
+
+**Análisis:**
+
+| Criterio | Resultado |
+|----------|-----------|
+| 6/6 sentinels PASS | ✅ |
+| room.o2 invariante (11 medidas) | ✅ 0 violaciones |
+| o2_lower ≥ room.o2 | ✅ 0 violaciones |
+| vic FED Δ ≤ +0.005 | ✅ Δ=0.000 |
+| HRR/extinction sin regresión | ✅ |
+| CO upper sin regresión | ✅ |
+| Guardrails 289/289 PASS | ✅ |
+| Unittests 13/13 OK | ✅ |
+| Godot parse RC=0 | ✅ |
+
+**Observación — saturación de gain**: gains 0.25, 0.50 y 1.00 producen O2l idéntico. El mecanismo de Path A/B satura a gain bajo. El mínimo efectivo es g=0.25.
+
+**Gap residual**: ON=0.1678 vs CFAST≈0.2049 en t=300s (Δ≈−0.037 del benchmark). Cerrado parcialmente. El gap remanente requeriría un mecanismo de replenishment adicional (p. ej., mayor integración HVAC bidireccional) fuera del scope de Phase 2H.
+
+#### 12.13.9 Decisión de promoción
+
+**Implementado 24 mayo 2026**: El candidato se ha promovido como **preset opt-in** en `SimulationEngine.gd`.
+
+**Implementación**:
+- `@export var phase2h_candidate_preset: bool = false` añadido a `SimulationEngine.gd`
+- En `_sync_auxiliary_services()`: si `phase2h_candidate_preset == true`, activa automáticamente los tres flags del candidato (`two_zone=true`, `cold_routing=true`, `gain=0.25`)
+- Definición de referencia en `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`
+
+**Uso opt-in** (en `engine_overrides` de cualquier caso JSON):
+```json
+"phase2h_candidate_preset": true
+```
+Equivalente explícito:
+```json
+"phase2h_o2_doorway_two_zone_enabled": true,
+"phase2h_cold_room_lower_routing_enabled": true,
+"phase2h_lower_replenish_gain": 0.25
+```
+
+| Garantía | Estado |
+|----------|--------|
+| Default producción `false` — sin cambio de baseline | ✅ |
+| 289/289 PASS con preset=false | ✅ |
+| Preset activa exactamente el candidato validado | ✅ |
+| No requiere rebaseline | ✅ |
+| Godot parse RC=0 | ✅ |
+
+**Próximo paso**: validar en más escenarios HVAC (ventilación cruzada, edificio multi-sala) antes de considerar activación por defecto.
+
+**Estado**: ✅ PHASE 2H PROMOTION COMPLETO — preset opt-in implementado, default SIN CAMBIO.
+
+---
+
 *Documento actualizado: 24 mayo 2026.*

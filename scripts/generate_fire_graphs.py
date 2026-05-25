@@ -20,6 +20,7 @@ import re
 import sys
 import argparse
 import shutil
+import csv
 
 _MPL_CACHE_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", ".matplotlib-cache")
@@ -232,6 +233,91 @@ def _parse_event_line(line, events):
                 except ValueError:
                     ev["details"][key] = val
     events.append(ev)
+
+
+def _float(row, key, default=0.0):
+    value = row.get(key, "")
+    if value is None or value == "":
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default
+
+
+def parse_csv_log(path):
+    """
+    Lee sim_log.csv. Es la fuente preferente para graficas porque contiene una
+    fila por habitacion y tiempo, sin depender del formato humano del TXT.
+    """
+    if not os.path.exists(path):
+        raise FileNotFoundError("No se encontro el archivo CSV: " + path)
+
+    mtime = os.path.getmtime(path)
+    sim_time_label = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d_%H-%M-%S")
+    rooms = {}
+
+    with open(path, "r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            room_token = row.get("room_id", "")
+            if room_token == "":
+                continue
+            try:
+                room_id = int(room_token)
+            except ValueError:
+                room_id = room_token
+            if room_id not in rooms:
+                rooms[room_id] = {
+                    "name": str(row.get("room_name", room_id)),
+                    "times": [], "hrr": [], "temp_up": [], "temp_low": [],
+                    "smoke": [], "vis": [], "smoke_lyr": [], "hot_lyr": [], "l150": [],
+                    "press": [], "o2": [], "co": [], "co_u": [], "co2": [],
+                    "fed": [], "svv": [],
+                }
+            r = rooms[room_id]
+            r["times"].append(_float(row, "time_s"))
+            r["hrr"].append(_float(row, "hrr_kw"))
+            r["temp_up"].append(_float(row, "temp_upper_c"))
+            r["temp_low"].append(_float(row, "temp_lower_c"))
+            r["smoke"].append(_float(row, "smoke_kg"))
+            r["vis"].append(_float(row, "visibility_m", 30.0))
+            r["smoke_lyr"].append(_float(row, "smoke_layer_m"))
+            r["hot_lyr"].append(_float(row, "hot_layer_m"))
+            r["l150"].append(_float(row, "layer_150c_m"))
+            r["press"].append(_float(row, "overpressure_pa"))
+            r["o2"].append(_float(row, "o2"))
+            r["co"].append(_float(row, "co_ppm"))
+            r["co_u"].append(_float(row, "co_upper_ppm"))
+            r["co2"].append(_float(row, "co2_ppm"))
+            r["fed"].append(_float(row, "fed"))
+            r["svv"].append(_float(row, "svv_worst_pct", 100.0))
+
+    for room in rooms.values():
+        _normalize_room_series(room)
+    return sim_time_label, rooms
+
+
+def _normalize_room_series(room):
+    times = room.get("times", [])
+    if not times:
+        return
+    keys = [k for k in room.keys() if isinstance(room.get(k), list) and k != "times"]
+    order = sorted(range(len(times)), key=lambda i: times[i])
+    dedup = {}
+    for i in order:
+        dedup[float(times[i])] = i
+    sorted_times = sorted(dedup.keys())
+    new_values = {"times": sorted_times}
+    for key in keys:
+        values = room.get(key, [])
+        new_values[key] = [values[dedup[t]] if dedup[t] < len(values) else 0.0 for t in sorted_times]
+    if sorted_times and sorted_times[0] > 0.001:
+        new_values["times"].insert(0, 0.0)
+        for key in keys:
+            first = new_values[key][0] if new_values[key] else 0.0
+            new_values[key].insert(0, first)
+    room.update(new_values)
 
 
 # -----------------------------------------------------------------------
@@ -497,10 +583,22 @@ def _parse_args():
 def main():
     args = _parse_args()
     log_path = os.path.abspath(args.log)
+    csv_path = os.path.abspath(args.csv)
     graphs_root = os.path.abspath(args.out_root)
 
-    print("Leyendo log: " + log_path)
-    sim_label, rooms, events = parse_log(log_path)
+    events = []
+    if os.path.exists(log_path) and os.path.getsize(log_path) > 0:
+        try:
+            _, _, events = parse_log(log_path)
+        except Exception as exc:
+            print("Aviso: no se pudieron leer eventos del log TXT: %s" % exc)
+
+    if os.path.exists(csv_path) and os.path.getsize(csv_path) > 0:
+        print("Leyendo CSV: " + csv_path)
+        sim_label, rooms = parse_csv_log(csv_path)
+    else:
+        print("Leyendo log: " + log_path)
+        sim_label, rooms, events = parse_log(log_path)
 
     if not rooms:
         print("El log no contiene datos de habitaciones. Corre la simulacion primero.")
@@ -526,7 +624,6 @@ def main():
             print("Aviso: no se pudo copiar el log: %s" % exc)
 
     if args.copy_csv:
-        csv_path = os.path.abspath(args.csv)
         if os.path.exists(csv_path) and os.path.getsize(csv_path) > 0:
             try:
                 shutil.copy2(csv_path, os.path.join(out_root, "sim_log.csv"))

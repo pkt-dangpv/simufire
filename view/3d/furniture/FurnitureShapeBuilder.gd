@@ -31,6 +31,12 @@ static func rebuild(
 			_build_storage_shape(parent, size_m, meters_to_units)
 		"kitchen_unit":
 			_build_kitchen_unit_shape(parent, size_m, meters_to_units)
+		"toilet":
+			_build_toilet_shape(parent, size_m, meters_to_units)
+		"sink":
+			_build_sink_shape(parent, size_m, meters_to_units)
+		"shower":
+			_build_shower_shape(parent, size_m, meters_to_units)
 		"rug":
 			_build_rug_shape(parent, size_m, meters_to_units)
 		"textile_pile":
@@ -145,6 +151,36 @@ static func _build_kitchen_unit_shape(parent: Node3D, size_m: Vector2, meters_to
 		var cx: float = lerpf(-x * 0.32, x * 0.32, float(i) / 2.0)
 		_add_box(parent, "Door_%d" % i, Vector3(cx, 0.44, z * 0.5 + 0.012), Vector3(x * 0.25, 0.58, 0.035), Color(0.58, 0.42, 0.28, 1.0), meters_to_units)
 		_add_box(parent, "Handle_%d" % i, Vector3(cx, 0.58, z * 0.5 + 0.04), Vector3(x * 0.12, 0.025, 0.025), Color(0.76, 0.62, 0.36, 1.0), meters_to_units)
+
+
+static func _build_toilet_shape(parent: Node3D, size_m: Vector2, meters_to_units: float) -> void:
+	var x: float = maxf(0.42, size_m.x)
+	var z: float = maxf(0.52, size_m.y)
+	_add_box(parent, "Tank", Vector3(0.0, 0.46, -z * 0.36), Vector3(x * 0.88, 0.46, z * 0.20), Color(0.86, 0.89, 0.86, 1.0), meters_to_units)
+	_add_ellipsoid(parent, "Bowl", Vector3(0.0, 0.28, z * 0.04), Vector3(x * 0.82, 0.34, z * 0.58), Color(0.88, 0.91, 0.90, 1.0), meters_to_units)
+	_add_ellipsoid(parent, "Opening", Vector3(0.0, 0.37, z * 0.08), Vector3(x * 0.48, 0.045, z * 0.34), Color(0.16, 0.20, 0.21, 1.0), meters_to_units)
+	_add_box(parent, "Base", Vector3(0.0, 0.12, z * 0.02), Vector3(x * 0.38, 0.22, z * 0.38), Color(0.78, 0.82, 0.81, 1.0), meters_to_units)
+
+
+static func _build_sink_shape(parent: Node3D, size_m: Vector2, meters_to_units: float) -> void:
+	var x: float = maxf(0.48, size_m.x)
+	var z: float = maxf(0.32, size_m.y)
+	_add_box(parent, "Cabinet", Vector3(0.0, 0.34, 0.02), Vector3(x * 0.92, 0.68, z * 0.86), Color(0.56, 0.40, 0.26, 1.0), meters_to_units)
+	_add_box(parent, "Counter", Vector3(0.0, 0.72, 0.0), Vector3(x, 0.08, z), Color(0.34, 0.35, 0.33, 1.0), meters_to_units)
+	_add_ellipsoid(parent, "Basin", Vector3(0.0, 0.79, 0.02), Vector3(x * 0.62, 0.09, z * 0.58), Color(0.82, 0.88, 0.88, 1.0), meters_to_units)
+	_add_cylinder(parent, "FaucetStem", Vector3(0.0, 0.89, -z * 0.18), Vector3(0.025, 0.18, 0.025), Color(0.65, 0.68, 0.66, 1.0), meters_to_units)
+	_add_box(parent, "FaucetSpout", Vector3(0.0, 0.98, -z * 0.08), Vector3(0.06, 0.025, z * 0.24), Color(0.65, 0.68, 0.66, 1.0), meters_to_units)
+
+
+static func _build_shower_shape(parent: Node3D, size_m: Vector2, meters_to_units: float) -> void:
+	var x: float = maxf(0.62, size_m.x)
+	var z: float = maxf(0.62, size_m.y)
+	_add_box(parent, "Tray", Vector3(0.0, 0.045, 0.0), Vector3(x, 0.09, z), Color(0.72, 0.75, 0.73, 1.0), meters_to_units)
+	_add_box(parent, "BackWall", Vector3(0.0, 0.98, -z * 0.50), Vector3(x, 1.95, 0.055), Color(0.70, 0.76, 0.76, 1.0), meters_to_units)
+	_add_box(parent, "SideGlass", Vector3(-x * 0.50, 0.92, 0.0), Vector3(0.045, 1.72, z), Color(0.68, 0.86, 0.95, 0.26), meters_to_units)
+	_add_box(parent, "FrontGlass", Vector3(0.0, 0.92, z * 0.50), Vector3(x, 1.72, 0.045), Color(0.68, 0.86, 0.95, 0.26), meters_to_units)
+	_add_cylinder(parent, "ShowerHead", Vector3(x * 0.26, 1.68, -z * 0.44), Vector3(0.07, 0.045, 0.07), Color(0.58, 0.61, 0.60, 1.0), meters_to_units)
+	_add_box(parent, "Pipe", Vector3(x * 0.26, 1.34, -z * 0.47), Vector3(0.028, 0.62, 0.028), Color(0.58, 0.61, 0.60, 1.0), meters_to_units)
 
 
 static func _build_textile_pile_shape(parent: Node3D, size_m: Vector2, meters_to_units: float) -> void:

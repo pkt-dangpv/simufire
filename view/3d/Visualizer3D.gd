@@ -20,6 +20,7 @@ const FurniturePlacement3D := preload("res://view/3d/furniture/FurniturePlacemen
 const FurnitureShapeBuilder := preload("res://view/3d/furniture/FurnitureShapeBuilder.gd")
 const FurnitureStateVisuals := preload("res://view/3d/furniture/FurnitureStateVisuals.gd")
 const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVisualClassifier.gd")
+const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayout.gd")
 const OpeningPose3D := preload("res://view/3d/openings/OpeningPose3D.gd")
 const RoomShellFactory := preload("res://view/3d/geometry/RoomShellFactory.gd")
 const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
@@ -53,12 +54,16 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var show_auto_room_furniture_3d: bool = true
 @export var show_detector_markers_3d: bool = true
 @export var show_victim_markers_3d: bool = true
+@export var show_exterior_context_3d: bool = false
 @export var fuel_object_3d_height_m: float = 0.34
-@export var smoke_puff_count: int = 42
+@export var smoke_puff_count: int = 12
 @export var show_smoke_geometry_in_first_person: bool = true
-@export var show_smoke_puffs_in_first_person: bool = true
+@export var show_smoke_puffs_in_first_person: bool = false
+@export var show_smoke_opening_curtains: bool = false
+@export var show_smoke_opening_curtains_in_first_person: bool = false
 @export var show_smoke_ceiling_masks: bool = true
 @export var show_cold_air_inflow_curtains: bool = false
+@export var show_fire_smoke_plume: bool = false
 
 @export_group("Colors")
 @export var floor_color: Color = Color(0.18, 0.18, 0.17, 1.0)
@@ -66,9 +71,9 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var wall_color: Color = Color(0.84, 0.86, 0.82, 0.42)
 @export var hot_wall_color: Color = Color(1.00, 0.42, 0.12, 0.68)
 @export var wall_outline_color: Color = Color(0.95, 0.95, 0.90, 0.72)
-@export var smoke_color: Color = Color(0.22, 0.23, 0.25, 0.22)
-@export var smoke_puff_color: Color = Color(0.42, 0.43, 0.45, 0.24)
-@export var smoke_layer_edge_color: Color = Color(0.50, 0.53, 0.56, 0.38)
+@export var smoke_color: Color = Color(0.028, 0.027, 0.025, 0.54)
+@export var smoke_puff_color: Color = Color(0.055, 0.052, 0.048, 0.42)
+@export var smoke_layer_edge_color: Color = Color(0.030, 0.029, 0.027, 0.82)
 @export var smoke_hot_outflow_color: Color = Color(1.00, 0.46, 0.16, 0.24)
 @export var cold_air_inflow_color: Color = Color(0.18, 0.52, 1.00, 0.09)
 @export var hot_layer_color: Color = Color(1.00, 0.58, 0.18, 0.18)
@@ -349,7 +354,8 @@ func _rebuild_scene() -> void:
 	for index in range(building.get_opening_count()):
 		_create_opening(index)
 
-	_create_exterior_context_visuals()
+	if show_exterior_context_3d:
+		_create_exterior_context_visuals()
 
 	_built = true
 
@@ -1008,14 +1014,14 @@ func _update_smoke_volume(
 		target_depth_m = maxf(target_depth_m, smoke_hrr_depth_boost_m * hrr_smoke_t)
 	target_depth_m = clampf(target_depth_m, 0.0, height_m)
 
-	var visibility_t: float = clampf((18.0 - visibility_m) / 18.0, 0.0, 1.0)
-	var alpha_cap: float = 0.62 if _first_person_overlay else 0.50
+	var visibility_t: float = clampf((28.0 - visibility_m) / 28.0, 0.0, 1.0)
+	var alpha_cap: float = 0.96 if _first_person_overlay else 0.76
 	var alpha: float = clampf(
 		smoke_color.a
-			+ smoke_kg / maxf(0.01, smoke_reference_kg) * 0.20
-			+ visibility_t * (0.24 if _first_person_overlay else 0.14)
-			+ hrr_smoke_t * smoke_hrr_alpha_boost * 0.72,
-		0.07,
+			+ smoke_kg / maxf(0.01, smoke_reference_kg) * 0.34
+			+ visibility_t * (0.42 if _first_person_overlay else 0.24)
+			+ hrr_smoke_t * smoke_hrr_alpha_boost * 0.96,
+		0.16,
 		alpha_cap
 	)
 	item["smoke_physics_depth_m"] = target_depth_m
@@ -1090,7 +1096,7 @@ func _update_smoke_volume(
 			edge_node.position = _room_center(rect, visual_bottom_m + edge_height_m * 0.5, floor_level_m)
 			var edge_shader := edge_node.material_override as ShaderMaterial
 			if edge_shader != null:
-				var edge_alpha: float = clampf(alpha * (0.48 if _first_person_overlay else 0.18), 0.025, 0.24)
+				var edge_alpha: float = clampf(alpha * (0.82 if _first_person_overlay else 0.42), 0.06, 0.58)
 				_apply_smoke_edge_shader(edge_shader, edge_alpha, edge_height_m, hrr_smoke_t)
 
 	var puffs_root := item.get("smoke_puffs_root") as Node3D
@@ -1186,30 +1192,30 @@ func _apply_smoke_volume_shader(
 	hrr_smoke_t: float,
 	render_depth_m: float
 ) -> void:
-	var volume_alpha_scale: float = 1.52 if _first_person_overlay else 0.76
+	var volume_alpha_scale: float = 2.80 if _first_person_overlay else 1.42
 	var volume_density: float = clampf(
-		0.66 + alpha * 1.50 + visibility_t * 0.22,
-		0.56,
-		1.46
+		1.05 + alpha * 2.30 + visibility_t * 0.46,
+		0.92,
+		2.40
 	) if _first_person_overlay else clampf(
-		0.44 + alpha * 1.12 + visibility_t * 0.12,
-		0.38,
-		1.04
+		0.72 + alpha * 1.78 + visibility_t * 0.26,
+		0.58,
+		1.62
 	)
 	_set_smoke_shader_params(smoke_mat, {
-		"smoke_color": Color(smoke_color.r, smoke_color.g, smoke_color.b, alpha * volume_alpha_scale),
+		"smoke_color": Color(smoke_color.r, smoke_color.g, smoke_color.b, clampf(alpha * volume_alpha_scale, 0.0, 0.98)),
 		"density": volume_density,
 		"turbulence": clampf(0.58 + hrr_smoke_t * 0.34, 0.50, 0.95),
 		"drift_speed": 0.045 + hrr_smoke_t * 0.13,
 		"volume_depth_m": maxf(render_depth_m, 0.05),
 		"edge_softness": lerpf(0.16, 0.30, hrr_smoke_t) if _first_person_overlay else lerpf(0.12, 0.24, hrr_smoke_t),
 		"bottom_waviness": lerpf(0.08, 0.22, hrr_smoke_t) if _first_person_overlay else lerpf(0.05, 0.18, hrr_smoke_t),
-		"edge_band_strength": 0.60 if _first_person_overlay else 0.42,
+		"edge_band_strength": 1.05 if _first_person_overlay else 0.70,
 		"side_visibility": 0.0 if _first_person_overlay else 0.34,
-		"bottom_surface_strength": 0.50 if _first_person_overlay else 0.46,
+		"bottom_surface_strength": 0.92 if _first_person_overlay else 0.66,
 		"top_visibility": 0.08 if _first_person_overlay else 0.03,
 		"vertical_gradient_strength": 0.82 if _first_person_overlay else 0.90,
-		"lower_density_floor": 0.08 if _first_person_overlay else 0.06,
+		"lower_density_floor": 0.18 if _first_person_overlay else 0.10,
 		"flow_strength": hrr_smoke_t * (0.16 if _first_person_overlay else 0.11),
 		"flow_speed": 0.18 + hrr_smoke_t * 0.15,
 	})
@@ -1223,13 +1229,13 @@ func _apply_smoke_edge_shader(
 ) -> void:
 	_set_smoke_shader_params(edge_shader, {
 		"smoke_color": Color(smoke_layer_edge_color.r, smoke_layer_edge_color.g, smoke_layer_edge_color.b, edge_alpha),
-		"density": 0.72 if _first_person_overlay else 0.42,
+		"density": 1.34 if _first_person_overlay else 0.76,
 		"turbulence": 0.86,
 		"drift_speed": 0.10,
 		"volume_depth_m": maxf(edge_height_m, 0.05),
 		"edge_softness": 0.36,
 		"bottom_waviness": 0.22,
-		"edge_band_strength": 0.72 if _first_person_overlay else 0.48,
+		"edge_band_strength": 1.18 if _first_person_overlay else 0.78,
 		"side_visibility": 0.00 if _first_person_overlay else 0.16,
 		"bottom_surface_strength": 0.62 if _first_person_overlay else 0.34,
 		"top_visibility": 0.0,
@@ -1329,6 +1335,9 @@ func _update_fire_smoke_plume(
 ) -> void:
 	var plume := item.get("smoke_plume") as MeshInstance3D
 	if plume == null:
+		return
+	if not show_fire_smoke_plume:
+		plume.visible = false
 		return
 	var hrr_t: float = clampf(sqrt(maxf(0.0, hrr_kw) / maxf(1.0, smoke_hrr_reference_kw)), 0.0, 1.0)
 	var smoke_alpha_room: float = float(item.get("smoke_alpha", 0.0))
@@ -1520,6 +1529,8 @@ func _update_openings() -> void:
 
 		SmokeOpeningCurtain3D.update(item_dict, op, _room_items, {
 			"show_smoke_volume": show_smoke_volume,
+			"show_smoke_opening_curtains": show_smoke_opening_curtains \
+				and (not _first_person_overlay or show_smoke_opening_curtains_in_first_person),
 			"first_person_overlay": _first_person_overlay,
 			"show_smoke_geometry_in_first_person": show_smoke_geometry_in_first_person,
 			"smoke_opening_blend_depth_m": smoke_opening_blend_depth_m,
@@ -1812,9 +1823,22 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 	if fuel_objects_root == null:
 		return
 	var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
-	var objects: Array = rs.get("fuel_objects", [])
+	var room_id: int = int(item.get("room_id", -1))
+	var objects: Array = Array(rs.get("fuel_objects", [])).duplicate()
 	if show_auto_room_furniture_3d and not _has_visible_fuel_object_snapshots(objects):
-		objects = _fallback_furniture_snapshots(int(item.get("room_id", -1)), rs, rect)
+		objects = _fallback_furniture_snapshots(room_id, rs, rect)
+	var room: RoomModel = building.get_room(room_id) if building != null else null
+	var room_name: String = room.name if room != null else String(rs.get("name", ""))
+	var room_kind: String = room.kind if room != null else String(rs.get("kind", ""))
+	var normalized_objects: Array = []
+	for raw_snapshot in objects:
+		if typeof(raw_snapshot) != TYPE_DICTIONARY:
+			continue
+		var normalized: Dictionary = FurnitureVisualLayout.normalize_spec(room_id, room_name, room_kind, rect.size, Dictionary(raw_snapshot))
+		if not bool(normalized.get("visual_hidden", false)):
+			normalized_objects.append(normalized)
+	objects = normalized_objects
+	objects.append_array(_room_visual_fixture_snapshots(room_id, rs, rect))
 
 	if _first_person_overlay:
 		fuel_objects_root.visible = false
@@ -1851,14 +1875,19 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 		var state_name: String = String(obj.get("state", "cold"))
 		var kind_name: String = _fuel_visual_archetype(obj)
 		var rotation_deg: float = float(obj.get("rotation_deg", 0.0))
-		var visual_pose: Dictionary = FurniturePlacement3D.clamp_visual_pose(rect, pos_m, size_m, rotation_deg)
-		var visual_center_m: Vector2 = visual_pose.get("center_m", pos_m + size_m * 0.5)
-		var visual_size_m: Vector2 = visual_pose.get("size_m", size_m)
+		var visual_pose_locked: bool = bool(obj.get("visual_pose_locked", false))
+		var visual_center_m: Vector2 = pos_m + size_m * 0.5
+		var visual_size_m: Vector2 = size_m
+		if not visual_pose_locked:
+			var visual_pose: Dictionary = FurniturePlacement3D.clamp_visual_pose(rect, pos_m, size_m, rotation_deg)
+			visual_center_m = visual_pose.get("center_m", visual_center_m)
+			visual_size_m = visual_pose.get("size_m", visual_size_m)
 		if _is_solid_fuel_visual_kind(kind_name):
 			var visual_rect := Rect2(visual_center_m - visual_size_m * 0.5, visual_size_m)
-			visual_rect = _resolve_fuel_visual_rect(int(item.get("room_id", -1)), rect, visual_rect, placed_solid_rects)
-			if _fuel_visual_rect_conflicts(int(item.get("room_id", -1)), rect, visual_rect, placed_solid_rects):
-				continue
+			if not visual_pose_locked:
+				visual_rect = _resolve_fuel_visual_rect(room_id, rect, visual_rect, placed_solid_rects)
+				if _fuel_visual_rect_conflicts(room_id, rect, visual_rect, placed_solid_rects):
+					continue
 			visual_center_m = visual_rect.position + visual_rect.size * 0.5
 			visual_size_m = visual_rect.size
 			placed_solid_rects.append(visual_rect)
@@ -2087,6 +2116,25 @@ func _fallback_furniture_snapshots(room_id: int, rs: Dictionary, rect: Rect2) ->
 	else:
 		specs.append(_fallback_furniture_obj(room_id, "shelf", "Estanteria", "bookcase", Vector2(0.22, 0.28), Vector2(0.42, minf(1.35, d - 0.55))))
 		specs.append(_fallback_furniture_obj(room_id, "boxes", "Cajas", "clutter", Vector2(maxf(0.40, w - 1.05), maxf(0.40, d - 1.00)), Vector2(0.72, 0.58)))
+	return specs
+
+
+func _room_visual_fixture_snapshots(room_id: int, rs: Dictionary, rect: Rect2) -> Array:
+	var specs: Array = []
+	var room: RoomModel = building.get_room(room_id) if building != null else null
+	var tokens: String = ""
+	if room != null:
+		tokens = ("%s %s" % [room.kind, room.name]).to_lower()
+	else:
+		tokens = ("%s %s" % [rs.get("kind", ""), rs.get("name", "")]).to_lower()
+	if not (tokens.contains("bano") or tokens.contains("baño") or tokens.contains("bath")):
+		return specs
+	var w: float = maxf(0.8, rect.size.x)
+	var d: float = maxf(0.8, rect.size.y)
+	var shower_size := Vector2(minf(1.00, maxf(0.62, w * 0.30)), minf(0.88, maxf(0.62, d * 0.42)))
+	specs.append(_fallback_furniture_obj(room_id, "fixture_shower", "Ducha", "shower", Vector2(0.18, 0.18), shower_size))
+	specs.append(_fallback_furniture_obj(room_id, "fixture_toilet", "Aseo", "toilet", Vector2(0.24, maxf(0.18, d - 0.92)), Vector2(0.56, 0.68)))
+	specs.append(_fallback_furniture_obj(room_id, "fixture_sink", "Lavabo", "sink", Vector2(maxf(0.18, w - 1.05), maxf(0.18, d - 0.78)), Vector2(0.74, 0.46)))
 	return specs
 
 

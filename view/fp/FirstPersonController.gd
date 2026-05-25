@@ -9,6 +9,7 @@ const FPOpeningVisuals := preload("res://view/fp/FPOpeningVisuals.gd")
 const FPOpeningInteraction := preload("res://view/fp/FPOpeningInteraction.gd")
 const FPPlayerMotion := preload("res://view/fp/FPPlayerMotion.gd")
 const FPFurnitureStateVisuals := preload("res://view/fp/FPFurnitureStateVisuals.gd")
+const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayout.gd")
 const OUTSIDE_ID: int = -1
 const STANCE_STAND: int = 0
 const STANCE_CROUCH: int = 1
@@ -71,9 +72,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_enum("Dia", "Noche") var exterior_lighting_mode: String = "Dia"
 @export var exterior_floor_drop_m: float = 5.8
 @export var city_view_width_m: float = 22.0
-@export var city_building_distance_m: float = 11.0
-@export var city_backdrop_distance_m: float = 24.0
-@export var city_building_count_per_window: int = 6
+@export var city_building_distance_m: float = 15.0
+@export var city_backdrop_distance_m: float = 32.0
+@export var exterior_window_obstacles_enabled: bool = true
+@export var city_building_count_per_window: int = 3
 @export var exterior_day_window_light_energy: float = 1.05
 @export var exterior_night_window_light_energy: float = 0.14
 @export var exterior_day_window_light_color: Color = Color(0.86, 0.92, 1.0, 1.0)
@@ -117,10 +119,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var fp_fire_core_color: Color = Color(1.0, 0.82, 0.24, 0.92)
 
 @export_group("Humo FP")
-@export var smoke_overlay_visibility_reference_m: float = 14.0
+@export var smoke_overlay_visibility_reference_m: float = 26.0
 @export var smoke_overlay_layer_clearance_m: float = 0.10
-@export var smoke_overlay_layer_transition_m: float = 0.42
-@export var smoke_overlay_max_alpha: float = 0.92
+@export var smoke_overlay_layer_transition_m: float = 0.48
+@export var smoke_overlay_max_alpha: float = 0.97
 @export var fp_visibility_clear_m: float = 30.0
 
 var building: BuildingModel = null
@@ -1346,31 +1348,32 @@ func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> v
 		false
 	)
 
-	var count: int = maxi(1, city_building_count_per_window)
-	var span_step: float = city_view_width_m / float(count)
-	for slot in range(count):
-		var slot_t: float = (float(slot) + 0.5) / float(count) - 0.5
-		var seed: float = float(index * 31 + slot * 17)
-		var building_width: float = clampf(span_step * (0.72 + fposmod(seed * 0.37, 0.32)), 1.6, 4.6)
-		var building_depth: float = 0.72 + fposmod(seed * 0.19, 0.34)
-		var building_height: float = 7.5 + fposmod(seed * 1.13, 7.2)
-		var distance: float = city_building_distance_m + fposmod(seed * 0.23, 2.4)
-		var building_center: Vector3 = center - normal * distance + tangent * (slot_t * city_view_width_m)
-		building_center.y = -exterior_floor_drop_m + building_height * 0.5
-		var tone: float = fposmod(seed * 0.11, 0.24)
-		var building_color := Color(0.34 + tone, 0.36 + tone * 0.72, 0.37 + tone * 0.55, 1.0)
-		_add_oriented_box(
-			parent,
-			"CityBuilding_%02d_%02d" % [index, slot],
-			building_center,
-			tangent,
-			building_width,
-			building_height,
-			building_depth,
-			_mat(building_color, false, building_color, 0.035 if not _exterior_is_night() else 0.0),
-			false
-		)
-		_create_city_windows(parent, index, slot, building_center, normal, tangent, building_width, building_height, building_depth, seed)
+	if exterior_window_obstacles_enabled and city_building_count_per_window > 0:
+		var count: int = maxi(1, city_building_count_per_window)
+		var span_step: float = city_view_width_m / float(count)
+		for slot in range(count):
+			var slot_t: float = (float(slot) + 0.5) / float(count) - 0.5
+			var seed: float = float(index * 31 + slot * 17)
+			var building_width: float = clampf(span_step * (0.72 + fposmod(seed * 0.37, 0.32)), 1.6, 4.6)
+			var building_depth: float = 0.72 + fposmod(seed * 0.19, 0.34)
+			var building_height: float = 7.5 + fposmod(seed * 1.13, 7.2)
+			var distance: float = city_building_distance_m + 2.8 + fposmod(seed * 0.23, 3.6)
+			var building_center: Vector3 = center - normal * distance + tangent * (slot_t * city_view_width_m)
+			building_center.y = -exterior_floor_drop_m + building_height * 0.5
+			var tone: float = fposmod(seed * 0.11, 0.24)
+			var building_color := Color(0.34 + tone, 0.36 + tone * 0.72, 0.37 + tone * 0.55, 1.0)
+			_add_oriented_box(
+				parent,
+				"CityBuilding_%02d_%02d" % [index, slot],
+				building_center,
+				tangent,
+				building_width,
+				building_height,
+				building_depth,
+				_mat(building_color, false, building_color, 0.035 if not _exterior_is_night() else 0.0),
+				false
+			)
+			_create_city_windows(parent, index, slot, building_center, normal, tangent, building_width, building_height, building_depth, seed)
 
 
 func _create_window_residential_view(parent: Node3D, index: int, info: Dictionary) -> void:
@@ -1426,34 +1429,35 @@ func _create_window_residential_view(parent: Node3D, index: int, info: Dictionar
 		_mat(Color(0.13, 0.14, 0.14, 1.0), false),
 		false
 	)
-	for slot in range(3):
-		var slot_t: float = float(slot - 1) * 2.85
-		var house_center: Vector3 = center - normal * (7.2 + float(slot % 2) * 0.45) + tangent * slot_t
-		house_center.y = floor_level_m + 0.78
-		_add_oriented_box(
-			parent,
-			"ResidentialHouse_%02d_%02d" % [index, slot],
-			house_center,
-			tangent,
-			1.75,
-			1.55,
-			0.82,
-			_mat(Color(0.55, 0.50, 0.43, 1.0), false),
-			false
-		)
-		var roof_center: Vector3 = house_center
-		roof_center.y = floor_level_m + 1.62
-		_add_oriented_box(
-			parent,
-			"ResidentialRoof_%02d_%02d" % [index, slot],
-			roof_center,
-			tangent,
-			1.95,
-			0.16,
-			0.98,
-			_mat(Color(0.31, 0.15, 0.10, 1.0), false),
-			false
-		)
+	if exterior_window_obstacles_enabled:
+		for slot in range(3):
+			var slot_t: float = float(slot - 1) * 2.85
+			var house_center: Vector3 = center - normal * (7.2 + float(slot % 2) * 0.45) + tangent * slot_t
+			house_center.y = floor_level_m + 0.78
+			_add_oriented_box(
+				parent,
+				"ResidentialHouse_%02d_%02d" % [index, slot],
+				house_center,
+				tangent,
+				1.75,
+				1.55,
+				0.82,
+				_mat(Color(0.55, 0.50, 0.43, 1.0), false),
+				false
+			)
+			var roof_center: Vector3 = house_center
+			roof_center.y = floor_level_m + 1.62
+			_add_oriented_box(
+				parent,
+				"ResidentialRoof_%02d_%02d" % [index, slot],
+				roof_center,
+				tangent,
+				1.95,
+				0.16,
+				0.98,
+				_mat(Color(0.31, 0.15, 0.10, 1.0), false),
+				false
+			)
 
 
 func _create_exterior_window_reveal(
@@ -1466,9 +1470,9 @@ func _create_exterior_window_reveal(
 	height_m: float,
 	sill_m: float
 ) -> void:
-	var reveal_center: Vector3 = center - normal * 0.105
-	var band_depth: float = 0.055
-	var band_m: float = 0.16
+	var reveal_center: Vector3 = center - normal * 0.205
+	var band_depth: float = 0.035
+	var band_m: float = 0.12
 	var floor_level_m: float = center.y - (sill_m + height_m * 0.5)
 	var facade_mat := _mat(exterior_facade_color, false)
 	var top_center: Vector3 = reveal_center
@@ -1507,9 +1511,9 @@ func _create_exterior_lighting(parent: Node3D) -> void:
 
 
 func _create_exterior_window_sill(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, width_m: float, sill_m: float) -> void:
-	var slab_center: Vector3 = center - normal * 0.40
+	var slab_center: Vector3 = center - normal * 0.62
 	slab_center.y = maxf(0.22, center.y - 0.50)
-	_add_oriented_box(parent, "ExteriorSill_%02d" % index, slab_center, tangent, width_m + 0.52, 0.08, 0.42, _mat(Color(0.55, 0.54, 0.49, 1.0), false), false)
+	_add_oriented_box(parent, "ExteriorSill_%02d" % index, slab_center, tangent, width_m + 0.36, 0.06, 0.30, _mat(Color(0.55, 0.54, 0.49, 1.0), false), false)
 
 
 func _create_city_windows(
@@ -1524,11 +1528,11 @@ func _create_city_windows(
 	building_depth: float,
 	seed: float
 ) -> void:
-	var columns: int = maxi(1, int(floor(building_width / 0.78)))
-	var rows: int = maxi(2, int(floor((building_height - 1.0) / 1.18)))
+	var columns: int = clampi(int(floor(building_width / 0.95)), 1, 3)
+	var rows: int = clampi(int(floor((building_height - 1.0) / 1.55)), 2, 6)
 	var face_center: Vector3 = building_center + normal * (building_depth * 0.5 + 0.014)
 	for row in range(rows):
-		var y: float = -exterior_floor_drop_m + 0.85 + float(row) * 1.18
+		var y: float = -exterior_floor_drop_m + 0.95 + float(row) * 1.55
 		if y > building_center.y + building_height * 0.5 - 0.45:
 			continue
 		for column in range(columns):
@@ -1572,6 +1576,7 @@ func _create_furniture(rects: Dictionary) -> void:
 		var specs: Array = _fuel_object_furniture_specs(room, rect)
 		if specs.is_empty() and show_auto_room_furniture:
 			specs = _fallback_furniture_specs(room, rect)
+		specs.append_array(_room_fixture_specs(room, rect))
 		var placed_solid_rects: Array[Rect2] = []
 		for raw_spec in specs:
 			if typeof(raw_spec) != TYPE_DICTIONARY:
@@ -1765,7 +1770,10 @@ func _fuel_object_furniture_specs(room: RoomModel, rect: Rect2) -> Array:
 			spec = _auto_furniture_spec_for_object(room, rect, obj, index)
 		else:
 			spec = _spec_from_fuel_object(obj)
+		spec = FurnitureVisualLayout.normalize_spec(room.id, room.name, room.kind, rect.size, spec)
 		if not spec.is_empty():
+			if bool(spec.get("visual_hidden", false)):
+				continue
 			specs.append(spec)
 			index += 1
 	return specs
@@ -1927,6 +1935,40 @@ func _fallback_furniture_specs(room: RoomModel, rect: Rect2) -> Array:
 	return specs
 
 
+func _room_fixture_specs(room: RoomModel, rect: Rect2) -> Array:
+	var specs: Array = []
+	if room == null:
+		return specs
+	var tokens: String = ("%s %s" % [room.kind, room.name]).to_lower()
+	if not (tokens.contains("bano") or tokens.contains("baño") or tokens.contains("bath")):
+		return specs
+	var w: float = maxf(0.8, rect.size.x)
+	var d: float = maxf(0.8, rect.size.y)
+	var shower_size := Vector2(minf(1.00, maxf(0.62, w * 0.30)), minf(0.88, maxf(0.62, d * 0.42)))
+	specs.append(_make_furniture_spec(
+		"fixture_%d_shower" % room.id,
+		"Ducha",
+		"shower",
+		Vector2(0.18, 0.18),
+		shower_size
+	))
+	specs.append(_make_furniture_spec(
+		"fixture_%d_toilet" % room.id,
+		"Aseo",
+		"toilet",
+		Vector2(0.24, maxf(0.18, d - 0.92)),
+		Vector2(0.56, 0.68)
+	))
+	specs.append(_make_furniture_spec(
+		"fixture_%d_sink" % room.id,
+		"Lavabo",
+		"sink",
+		Vector2(maxf(0.18, w - 1.05), maxf(0.18, d - 0.78)),
+		Vector2(0.74, 0.46)
+	))
+	return specs
+
+
 func _make_furniture_spec(
 	obj_id: String,
 	obj_name: String,
@@ -1959,15 +2001,16 @@ func _create_furniture_piece(parent: Node3D, _room: RoomModel, room_rect: Rect2,
 		return
 	var room_id: int = _room.id if _room != null else -999
 	var is_solid: bool = _is_solid_furniture_kind(kind)
-	if is_solid:
+	var visual_pose_locked: bool = bool(spec.get("visual_pose_locked", false))
+	if is_solid and not visual_pose_locked:
 		local_rect = _resolve_furniture_rect(room_id, room_rect, local_rect, kind, placed_solid_rects)
 		if _furniture_layout_conflicts(room_id, room_rect, local_rect, placed_solid_rects):
 			return
 
-	var layout: Dictionary = _furniture_layout(kind, room_rect, local_rect, float(spec.get("rotation_deg", 0.0)))
+	var layout: Dictionary = _furniture_layout(kind, room_rect, local_rect, float(spec.get("rotation_deg", 0.0)), visual_pose_locked)
 	var shape_size: Vector2 = Vector2(layout.get("shape_size", local_rect.size))
 	var yaw: float = float(layout.get("yaw", 0.0))
-	var center_2d: Vector2 = room_rect.position + local_rect.position + local_rect.size * 0.5
+	var center_2d: Vector2 = room_rect.position + _clamp_rotated_furniture_center(room_rect, local_rect, shape_size, yaw)
 	var floor_level_m: float = _room.floor_level_z_m if _room != null else 0.0
 	var root: Node3D = StaticBody3D.new() if furniture_collision_enabled else Node3D.new()
 	root.name = "Furniture_" + _safe_node_name(obj_id)
@@ -1986,6 +2029,28 @@ func _create_furniture_piece(parent: Node3D, _room: RoomModel, room_rect: Rect2,
 
 func _is_solid_furniture_kind(kind: String) -> bool:
 	return not (kind == "rug" or kind == "curtain" or kind == "pool" or kind == "textile_pile")
+
+
+func _clamp_rotated_furniture_center(room_rect: Rect2, local_rect: Rect2, shape_size: Vector2, yaw: float) -> Vector2:
+	var margin: float = maxf(0.0, furniture_wall_margin_m)
+	var c: float = absf(cos(yaw))
+	var s: float = absf(sin(yaw))
+	var bbox_size := Vector2(
+		c * shape_size.x + s * shape_size.y,
+		s * shape_size.x + c * shape_size.y
+	)
+	var local_center: Vector2 = local_rect.position + local_rect.size * 0.5
+	var min_center := Vector2(margin, margin) + bbox_size * 0.5
+	var max_center := room_rect.size - Vector2(margin, margin) - bbox_size * 0.5
+	if max_center.x < min_center.x:
+		local_center.x = room_rect.size.x * 0.5
+	else:
+		local_center.x = clampf(local_center.x, min_center.x, max_center.x)
+	if max_center.y < min_center.y:
+		local_center.y = room_rect.size.y * 0.5
+	else:
+		local_center.y = clampf(local_center.y, min_center.y, max_center.y)
+	return local_center
 
 
 func _furniture_blocks_opening(room_id: int, room_rect: Rect2, local_rect: Rect2) -> bool:
@@ -2086,6 +2151,12 @@ func _classify_furniture_kind(kind_text: String, name_text: String, id_text: Str
 		return "sofa"
 	if tokens.contains("cama") or tokens.contains("bed") or tokens.contains("colchon") or tokens.contains("colchón") or tokens.contains("mattress"):
 		return "bed"
+	if tokens.contains("ducha") or tokens.contains("shower"):
+		return "shower"
+	if tokens.contains("lavabo") or tokens.contains("sink"):
+		return "sink"
+	if tokens.contains("inodoro") or tokens.contains("wc") or tokens.contains("aseo") or tokens.contains("toilet"):
+		return "toilet"
 	if tokens.contains("mesa centro") or tokens.contains("coffee"):
 		return "coffee_table"
 	if tokens.contains("escritorio") or tokens.contains("desk"):
@@ -2144,6 +2215,15 @@ func _sane_furniture_size(kind: String, raw_size: Vector2) -> Vector2:
 		"wardrobe", "bookcase":
 			size.x = clampf(size.x, 0.32, 2.00)
 			size.y = clampf(size.y, 0.32, 2.20)
+		"toilet":
+			size.x = clampf(size.x, 0.42, 0.72)
+			size.y = clampf(size.y, 0.52, 0.86)
+		"sink":
+			size.x = clampf(size.x, 0.48, 0.92)
+			size.y = clampf(size.y, 0.32, 0.62)
+		"shower":
+			size.x = clampf(size.x, 0.62, 1.20)
+			size.y = clampf(size.y, 0.62, 1.10)
 		_:
 			size.x = clampf(size.x, 0.22, 3.50)
 			size.y = clampf(size.y, 0.22, 2.60)
@@ -2165,11 +2245,13 @@ func _clamp_furniture_rect(local_rect: Rect2, room_rect: Rect2, kind: String) ->
 	return Rect2(pos, size)
 
 
-func _furniture_layout(kind: String, room_rect: Rect2, local_rect: Rect2, rotation_deg: float) -> Dictionary:
+func _furniture_layout(kind: String, room_rect: Rect2, local_rect: Rect2, rotation_deg: float, visual_pose_locked: bool = false) -> Dictionary:
 	var footprint: Vector2 = local_rect.size
 	var shape_size: Vector2 = footprint
 	var side: String = _nearest_side_for_furniture(room_rect, local_rect)
 	var yaw: float = 0.0
+	if visual_pose_locked:
+		return {"yaw": deg_to_rad(rotation_deg), "shape_size": shape_size}
 
 	match kind:
 		"bed":
@@ -2182,7 +2264,7 @@ func _furniture_layout(kind: String, room_rect: Rect2, local_rect: Rect2, rotati
 			side = _nearest_side_perpendicular_to_depth(room_rect, local_rect, sofa_long_is_x)
 			yaw = _yaw_for_wall_side(side)
 			shape_size = Vector2(maxf(footprint.x, footprint.y), minf(footprint.x, footprint.y))
-		"wardrobe", "bookcase", "dresser", "tv_stand", "console", "storage", "kitchen_unit", "bath_vanity":
+		"wardrobe", "bookcase", "dresser", "tv_stand", "console", "storage", "kitchen_unit", "bath_vanity", "sink", "toilet", "shower":
 			yaw = _yaw_for_wall_side(side)
 			shape_size = Vector2(maxf(footprint.x, footprint.y), minf(footprint.x, footprint.y))
 		"curtain":
@@ -2262,6 +2344,12 @@ func _build_furniture_shape(root: Node3D, kind: String, size_m: Vector2, elevati
 			_build_fp_bookcase(root, size_m)
 		"kitchen_unit":
 			_build_fp_kitchen_unit(root, size_m)
+		"toilet":
+			_build_fp_toilet(root, size_m)
+		"shower":
+			_build_fp_shower(root, size_m)
+		"sink":
+			_build_fp_sink(root, size_m)
 		"tv_stand", "console", "dresser", "storage", "bath_vanity":
 			var h: float = 0.50 if kind == "tv_stand" or kind == "console" else 0.82
 			if kind == "bath_vanity":
@@ -2282,6 +2370,8 @@ func _build_furniture_shape(root: Node3D, kind: String, size_m: Vector2, elevati
 
 
 func _try_build_furniture_asset(parent: Node3D, kind: String, size_m: Vector2, elevation_m: float) -> bool:
+	if kind == "kitchen_unit" or kind == "toilet" or kind == "shower" or kind == "sink":
+		return false
 	var asset_kind: String = kind
 	match kind:
 		"storage", "console", "bath_vanity":
@@ -2414,6 +2504,12 @@ func _asset_collision_height(kind: String) -> float:
 			return 0.48
 		"plastic_bin":
 			return 0.55
+		"toilet":
+			return 0.78
+		"sink":
+			return 0.86
+		"shower":
+			return 1.95
 		_:
 			return 0.86
 
@@ -2509,8 +2605,37 @@ func _build_fp_kitchen_unit(parent: Node3D, size_m: Vector2) -> void:
 		var t: float = (float(i) + 0.5) / float(doors) - 0.5
 		_add_local_box(parent, "CabinetDoor_%d" % i, Vector3(t * x * 0.86, 0.43, z * 0.5 + 0.014), Vector3(x * 0.72 / float(doors), 0.54, 0.032), furniture_wood_color.lightened(0.14), false)
 		_add_local_box(parent, "CabinetHandle_%d" % i, Vector3(t * x * 0.86, 0.56, z * 0.5 + 0.035), Vector3(x * 0.16 / float(doors), 0.022, 0.022), Color(0.72, 0.62, 0.42, 1.0), false)
-	if x > 1.4:
-		_add_local_box(parent, "UpperCabinet", Vector3(-x * 0.18, 1.55, -z * 0.20), Vector3(x * 0.48, 0.48, z * 0.42), furniture_wood_color.lightened(0.10), false)
+
+
+func _build_fp_toilet(parent: Node3D, size_m: Vector2) -> void:
+	var x: float = maxf(0.42, size_m.x)
+	var z: float = maxf(0.52, size_m.y)
+	_add_local_box(parent, "ToiletTank", Vector3(0.0, 0.46, -z * 0.36), Vector3(x * 0.88, 0.46, z * 0.20), Color(0.86, 0.89, 0.86, 1.0), true)
+	_add_local_ellipsoid(parent, "ToiletBowl", Vector3(0.0, 0.28, z * 0.04), Vector3(x * 0.82, 0.34, z * 0.58), Color(0.88, 0.91, 0.90, 1.0), true)
+	_add_local_ellipsoid(parent, "ToiletOpening", Vector3(0.0, 0.37, z * 0.08), Vector3(x * 0.48, 0.045, z * 0.34), Color(0.16, 0.20, 0.21, 1.0), false)
+	_add_local_box(parent, "ToiletBase", Vector3(0.0, 0.12, z * 0.02), Vector3(x * 0.38, 0.22, z * 0.38), Color(0.78, 0.82, 0.81, 1.0), true)
+
+
+func _build_fp_sink(parent: Node3D, size_m: Vector2) -> void:
+	var x: float = maxf(0.48, size_m.x)
+	var z: float = maxf(0.32, size_m.y)
+	_add_local_box(parent, "SinkCabinet", Vector3(0.0, 0.34, 0.02), Vector3(x * 0.92, 0.68, z * 0.86), furniture_wood_color.lightened(0.12), true)
+	_add_local_box(parent, "SinkCounter", Vector3(0.0, 0.72, 0.0), Vector3(x, 0.08, z), furniture_counter_color.lightened(0.16), true)
+	_add_local_ellipsoid(parent, "Basin", Vector3(0.0, 0.79, 0.02), Vector3(x * 0.62, 0.09, z * 0.58), Color(0.82, 0.88, 0.88, 1.0), false)
+	_add_local_cylinder(parent, "FaucetStem", Vector3(0.0, 0.89, -z * 0.18), 0.025, 0.18, Color(0.65, 0.68, 0.66, 1.0), false)
+	_add_local_box(parent, "FaucetSpout", Vector3(0.0, 0.98, -z * 0.08), Vector3(0.06, 0.025, z * 0.24), Color(0.65, 0.68, 0.66, 1.0), false)
+
+
+func _build_fp_shower(parent: Node3D, size_m: Vector2) -> void:
+	var x: float = maxf(0.62, size_m.x)
+	var z: float = maxf(0.62, size_m.y)
+	var glass := Color(0.68, 0.86, 0.95, 0.26)
+	_add_local_box(parent, "ShowerTray", Vector3(0.0, 0.045, 0.0), Vector3(x, 0.09, z), Color(0.72, 0.75, 0.73, 1.0), true)
+	_add_local_box(parent, "ShowerBackWall", Vector3(0.0, 0.98, -z * 0.50), Vector3(x, 1.95, 0.055), Color(0.70, 0.76, 0.76, 1.0), false)
+	_add_local_box(parent, "ShowerSideGlass", Vector3(-x * 0.50, 0.92, 0.0), Vector3(0.045, 1.72, z), glass, false)
+	_add_local_box(parent, "ShowerFrontGlass", Vector3(0.0, 0.92, z * 0.50), Vector3(x, 1.72, 0.045), glass, false)
+	_add_local_cylinder(parent, "ShowerHead", Vector3(x * 0.26, 1.68, -z * 0.44), 0.07, 0.045, Color(0.58, 0.61, 0.60, 1.0), false)
+	_add_local_box(parent, "ShowerPipe", Vector3(x * 0.26, 1.34, -z * 0.47), Vector3(0.028, 0.62, 0.028), Color(0.58, 0.61, 0.60, 1.0), false)
 
 
 func _build_fp_rug(parent: Node3D, size_m: Vector2) -> void:

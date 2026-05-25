@@ -359,9 +359,60 @@ func _load_from_template(data: Dictionary) -> void:
 		if op_data.has("is_vertical"):
 			op.is_vertical = bool(op_data["is_vertical"])
 
+		_normalize_opening_visual_metadata(op)
 		openings.append(op)
 
 	_normalize_hvac_data(String(data.get("hvac_mode", hvac_data.get("mode", HVAC_MODE_NONE))))
+
+
+func _normalize_opening_visual_metadata(op: OpeningModel) -> void:
+	if op == null or op.type != OpeningModel.Type.WINDOW or not op.is_exterior_opening():
+		return
+	var room_id: int = op.a if op.a != OUTSIDE_ID else op.b
+	if not rooms.has(room_id) or not room_rect_m.has(room_id):
+		return
+	var room: RoomModel = rooms[room_id]
+	var tokens: String = ("%s %s" % [room.kind, room.name]).to_lower()
+	if not (tokens.contains("bano") or tokens.contains("baño") or tokens.contains("bath")):
+		return
+	var side: String = op.wall_side.strip_edges().to_lower()
+	if side != "bottom" and side != "south" and side != "":
+		return
+	if _room_wall_has_neighbor(room_id, "right"):
+		return
+	op.wall_side = "right"
+	op.offset_m = 0.50
+	op.offset_is_fraction = true
+
+
+func _room_wall_has_neighbor(room_id: int, side: String) -> bool:
+	if not room_rect_m.has(room_id):
+		return false
+	var rect: Rect2 = room_rect_m[room_id]
+	var eps: float = 0.01
+	for other_id in room_rect_m.keys():
+		if int(other_id) == room_id:
+			continue
+		var other: Rect2 = room_rect_m[other_id]
+		match side:
+			"left":
+				if absf(other.position.x + other.size.x - rect.position.x) < eps and _ranges_overlap(rect.position.y, rect.position.y + rect.size.y, other.position.y, other.position.y + other.size.y):
+					return true
+			"right":
+				if absf(rect.position.x + rect.size.x - other.position.x) < eps and _ranges_overlap(rect.position.y, rect.position.y + rect.size.y, other.position.y, other.position.y + other.size.y):
+					return true
+			"top":
+				if absf(other.position.y + other.size.y - rect.position.y) < eps and _ranges_overlap(rect.position.x, rect.position.x + rect.size.x, other.position.x, other.position.x + other.size.x):
+					return true
+			"bottom":
+				if absf(rect.position.y + rect.size.y - other.position.y) < eps and _ranges_overlap(rect.position.x, rect.position.x + rect.size.x, other.position.x, other.position.x + other.size.x):
+					return true
+	return false
+
+
+func _ranges_overlap(a0: float, a1: float, b0: float, b1: float) -> bool:
+	return minf(a1, b1) - maxf(a0, b0) > 0.05
+
 
 func reset_detectors() -> void:
 	for det in detectors:

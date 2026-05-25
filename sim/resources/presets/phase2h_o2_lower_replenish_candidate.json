@@ -1,0 +1,51 @@
+{
+	"preset_id": "phase2h_o2_lower_replenish_candidate",
+	"version": "2H.candidate.g025",
+	"validated": "2026-05-24",
+	"status": "opt-in",
+	"description": "Phase 2H: O2 two-zone doorway flow + HVAC lower-zone replenishment (gain=0.25). Closes O2_lower gap in HVAC/doorway scenarios. Safe as opt-in: 14/14 OK, 6/6 sentinels PASS, room.o2 invariant, O2l gap +0.1098 at t=300s. Default OFF.",
+	"usage": {
+		"single_flag": {
+			"engine_overrides": {
+				"phase2h_candidate_preset": true
+			},
+			"note": "Activates all three Phase 2H flags via the preset shortcut in SimulationEngine._sync_auxiliary_services()."
+		},
+		"explicit_flags": {
+			"engine_overrides": {
+				"phase2h_o2_doorway_two_zone_enabled": true,
+				"phase2h_cold_room_lower_routing_enabled": true,
+				"phase2h_lower_replenish_gain": 0.25
+			},
+			"note": "Equivalent to phase2h_candidate_preset=true. Use when individual flag control is needed."
+		}
+	},
+	"effect": {
+		"o2_lower": "Boosted in rooms with exterior openings or low-sill HVAC vents. At t=300s in cfast_hvac_residential: 0.0580 -> 0.1678 (+0.1098).",
+		"room_o2": "INVARIANT — bulk O2 unchanged. All baselines remain valid.",
+		"co_hrr_fed": "INVARIANT — no regression on CO, HRR, extinction timing, or FED."
+	},
+	"validation_results": {
+		"runs": "14/14 OK",
+		"sentinels": "6/6 PASS (g4 CO/FED, v3 FED, vic FED/CO)",
+		"room_o2_invariant": "11 measurements, |delta| = 0.0000 < tol 0.001",
+		"o2l_gap_closure_t300s": "+0.1098 (OFF: 0.0580, ON: 0.1678)",
+		"vic_fed_delta": "+0.000000 (< limit +0.005)",
+		"guardrails": "289/289 PASS (baseline OFF)",
+		"unittests": "13/13 OK",
+		"godot_parse": "RC=0"
+	},
+	"safety_notes": [
+		"Do NOT activate by default before multi-scenario HVAC validation (cross-ventilation, multi-room buildings).",
+		"Residual gap: ON=0.1678 vs CFAST=0.2049 at t=300s (delta=-0.037). Partial closure only.",
+		"phase2h_cold_room_lower_routing_enabled is declared but has no branch in current code (no-op).",
+		"No rebaseline required when using this preset — all required checks remain PASS."
+	],
+	"default_production": {
+		"phase2h_candidate_preset": false,
+		"phase2h_o2_doorway_two_zone_enabled": false,
+		"phase2h_cold_room_lower_routing_enabled": false,
+		"phase2h_lower_replenish_gain": 0.0,
+		"note": "Production default unchanged. Preset must be explicitly opted-in per case."
+	}
+}

@@ -24,6 +24,7 @@ static func update(item_dict: Dictionary, op: OpeningModel, room_items: Dictiona
 	var open_frac: float = op.effective_open_fraction()
 	if open_frac <= 0.0 \
 			or not bool(settings.get("show_smoke_volume", true)) \
+			or not bool(settings.get("show_smoke_opening_curtains", true)) \
 			or (first_person_overlay and not bool(settings.get("show_smoke_geometry_in_first_person", false))):
 		_hide_opening_layers(curtain, inflow)
 		return

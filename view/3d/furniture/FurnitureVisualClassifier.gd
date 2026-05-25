@@ -7,10 +7,22 @@ static func visual_archetype(obj: Dictionary) -> String:
 	var id_text: String = String(obj.get("id", "")).strip_edges().to_lower()
 	var tokens: String = "%s %s %s" % [kind_text, name_text, id_text]
 
+	if kind_text == "coffee_table" or kind_text == "desk":
+		return "table"
+	if kind_text == "console" or kind_text == "dresser" or kind_text == "tv_stand" or kind_text == "storage":
+		return "storage"
+	if kind_text == "plastic_bin":
+		return "containers"
 	if tokens.contains("sofa") or tokens.contains("sillon") or tokens.contains("sillón") or tokens.contains("armchair") or tokens.contains("couch"):
 		return "sofa"
 	if tokens.contains("cama") or tokens.contains("bed") or tokens.contains("colchon"):
 		return "bed"
+	if tokens.contains("ducha") or tokens.contains("shower"):
+		return "shower"
+	if tokens.contains("lavabo") or tokens.contains("sink"):
+		return "sink"
+	if tokens.contains("inodoro") or tokens.contains("wc") or tokens.contains("aseo") or tokens.contains("toilet"):
+		return "toilet"
 	if tokens.contains("mesa") or tokens.contains("table") or tokens.contains("desk"):
 		return "table"
 	if tokens.contains("cortina") or tokens.contains("curtain"):

@@ -5,6 +5,7 @@ const OpeningGeometry2D := preload("res://view/2d/openings/OpeningGeometry2D.gd"
 const FloorPlan2D := preload("res://view/2d/floors/FloorPlan2D.gd")
 const RoomLabelLayout2D := preload("res://view/2d/rooms/RoomLabelLayout2D.gd")
 const RoomStateVisuals2D := preload("res://view/2d/rooms/RoomStateVisuals2D.gd")
+const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayout.gd")
 
 ## ============================================================
 ## VISUALIZER
@@ -103,6 +104,8 @@ const RoomStateVisuals2D := preload("res://view/2d/rooms/RoomStateVisuals2D.gd")
 @export var fuel_object_fill_color: Color = Color(1.00, 0.30, 0.00, 0.76)
 @export var fuel_object_outline_color: Color = Color(0.00, 0.01, 0.01, 0.95)
 @export var fuel_object_label_color: Color = Color(1.0, 0.96, 0.86, 0.96)
+@export var fixture_fill_color: Color = Color(0.78, 0.88, 0.90, 0.55)
+@export var fixture_outline_color: Color = Color(0.92, 0.98, 1.0, 0.88)
 
 # ============================================================
 # MINI-SECCION
@@ -823,30 +826,41 @@ func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
 		return
 
 	var objects: Array = rs.get("fuel_objects", [])
+	var room_rect_m: Rect2 = rects_m[room_id]
+	var room: RoomModel = building.get_room(room_id) if building != null else null
+	var room_name: String = room.name if room != null else String(rs.get("name", ""))
+	var room_kind: String = room.kind if room != null else String(rs.get("kind", ""))
+	var draw_bathroom_fixtures: bool = _is_bathroom_room(room_id)
 	if objects.is_empty():
+		if draw_bathroom_fixtures:
+			_draw_bathroom_fixtures_2d(room_rect_m)
 		return
 
-	var room_rect_m: Rect2 = rects_m[room_id]
 	for raw_obj in objects:
 		if typeof(raw_obj) != TYPE_DICTIONARY:
 			continue
 		var obj: Dictionary = raw_obj
 		if String(obj.get("id", "")).begins_with("room_proxy_"):
 			continue
+		obj = FurnitureVisualLayout.normalize_spec(room_id, room_name, room_kind, room_rect_m.size, obj)
+		if bool(obj.get("visual_hidden", false)):
+			continue
 		var pos_m: Vector2 = RoomStateVisuals2D.vector2_from_variant(obj.get("position_m", Vector2.ZERO))
 		var size_m: Vector2 = RoomStateVisuals2D.vector2_from_variant(obj.get("size_m", Vector2.ONE))
 		if size_m.x <= 0.01 or size_m.y <= 0.01:
 			continue
 
-		var obj_rect_px: Rect2 = _to_px(Rect2(room_rect_m.position + pos_m, size_m))
+		var pose: Dictionary = _furniture_pose_2d(room_rect_m, pos_m, size_m, float(obj.get("rotation_deg", 0.0)))
+		var center_m: Vector2 = Vector2(pose.get("center_m", room_rect_m.position + pos_m + size_m * 0.5))
+		var visual_size_m: Vector2 = Vector2(pose.get("size_m", size_m))
+		var obj_rect_px: Rect2 = _to_px(Rect2(Vector2(pose.get("bbox_pos_m", center_m - visual_size_m * 0.5)), Vector2(pose.get("bbox_size_m", visual_size_m))))
 		if obj_rect_px.size.x < 3.0 or obj_rect_px.size.y < 3.0:
 			continue
 
 		var state_name: String = String(obj.get("state", "cold"))
 		var fill: Color = RoomStateVisuals2D.fuel_object_color_for_state(state_name, fuel_object_fill_color)
-		var center_m: Vector2 = room_rect_m.position + pos_m + size_m * 0.5
 		var rot := Transform2D(deg_to_rad(float(obj.get("rotation_deg", 0.0))), Vector2.ZERO)
-		var half: Vector2 = size_m * 0.5
+		var half: Vector2 = visual_size_m * 0.5
 		var corners_px := PackedVector2Array([
 			_point_to_px(center_m + rot * Vector2(-half.x, -half.y)),
 			_point_to_px(center_m + rot * Vector2(half.x, -half.y)),
@@ -898,6 +912,97 @@ func _draw_room_fuel_objects(room_id: int, rs: Dictionary) -> void:
 				fuel_object_label_color
 			)
 
+	if draw_bathroom_fixtures:
+		_draw_bathroom_fixtures_2d(room_rect_m)
+
+
+func _furniture_pose_2d(room_rect_m: Rect2, local_pos_m: Vector2, size_m: Vector2, rotation_deg: float) -> Dictionary:
+	var margin: float = 0.035
+	var available := Vector2(
+		maxf(0.08, room_rect_m.size.x - margin * 2.0),
+		maxf(0.08, room_rect_m.size.y - margin * 2.0)
+	)
+	var visual_size := Vector2(
+		clampf(absf(size_m.x), 0.05, available.x),
+		clampf(absf(size_m.y), 0.05, available.y)
+	)
+	var angle: float = deg_to_rad(rotation_deg)
+	var c: float = absf(cos(angle))
+	var s: float = absf(sin(angle))
+	var bbox_size := Vector2(
+		c * visual_size.x + s * visual_size.y,
+		s * visual_size.x + c * visual_size.y
+	)
+	if bbox_size.x > available.x or bbox_size.y > available.y:
+		var scale_down: float = minf(available.x / maxf(0.001, bbox_size.x), available.y / maxf(0.001, bbox_size.y))
+		visual_size *= clampf(scale_down, 0.10, 1.0)
+		bbox_size = Vector2(
+			c * visual_size.x + s * visual_size.y,
+			s * visual_size.x + c * visual_size.y
+		)
+	var desired_center: Vector2 = room_rect_m.position + local_pos_m + visual_size * 0.5
+	var min_center: Vector2 = room_rect_m.position + Vector2(margin, margin) + bbox_size * 0.5
+	var max_center: Vector2 = room_rect_m.position + room_rect_m.size - Vector2(margin, margin) - bbox_size * 0.5
+	var center := Vector2(
+		clampf(desired_center.x, min_center.x, max_center.x),
+		clampf(desired_center.y, min_center.y, max_center.y)
+	)
+	return {
+		"center_m": center,
+		"size_m": visual_size,
+		"bbox_pos_m": center - bbox_size * 0.5,
+		"bbox_size_m": bbox_size,
+	}
+
+
+func _is_bathroom_room(room_id: int) -> bool:
+	var room: RoomModel = building.get_room(room_id) if building != null else null
+	if room == null:
+		return false
+	var tokens: String = ("%s %s" % [room.kind, room.name]).to_lower()
+	return tokens.contains("bano") or tokens.contains("baño") or tokens.contains("bath")
+
+
+func _draw_bathroom_fixtures_2d(room_rect_m: Rect2) -> void:
+	var w: float = room_rect_m.size.x
+	var d: float = room_rect_m.size.y
+	var shower := Rect2(room_rect_m.position + Vector2(0.18, 0.18), Vector2(minf(1.00, maxf(0.55, w * 0.30)), minf(0.85, maxf(0.55, d * 0.40))))
+	var toilet := Rect2(room_rect_m.position + Vector2(0.24, maxf(0.18, d - 0.92)), Vector2(0.56, 0.68))
+	var sink := Rect2(room_rect_m.position + Vector2(maxf(0.18, w - 1.05), maxf(0.18, d - 0.78)), Vector2(0.74, 0.46))
+	_draw_fixture_rect(shower, "Ducha", true)
+	_draw_fixture_toilet(toilet)
+	_draw_fixture_rect(sink, "Lavabo", false)
+
+
+func _draw_fixture_rect(rect_m: Rect2, label: String, tiled: bool) -> void:
+	var rpx: Rect2 = _to_px(rect_m)
+	if rpx.size.x < 4.0 or rpx.size.y < 4.0:
+		return
+	draw_rect(rpx, fixture_fill_color, true)
+	draw_rect(rpx, fixture_outline_color, false, 1.1)
+	if tiled:
+		var step: float = maxf(5.0, minf(rpx.size.x, rpx.size.y) * 0.32)
+		var x: float = rpx.position.x + step
+		while x < rpx.position.x + rpx.size.x:
+			draw_line(Vector2(x, rpx.position.y), Vector2(x, rpx.position.y + rpx.size.y), Color(fixture_outline_color.r, fixture_outline_color.g, fixture_outline_color.b, 0.32), 0.7)
+			x += step
+		var y: float = rpx.position.y + step
+		while y < rpx.position.y + rpx.size.y:
+			draw_line(Vector2(rpx.position.x, y), Vector2(rpx.position.x + rpx.size.x, y), Color(fixture_outline_color.r, fixture_outline_color.g, fixture_outline_color.b, 0.32), 0.7)
+			y += step
+	if ThemeDB.fallback_font != null and rpx.size.x >= 34.0 and rpx.size.y >= 18.0:
+		draw_string(ThemeDB.fallback_font, rpx.position + Vector2(3.0, 12.0), label, HORIZONTAL_ALIGNMENT_LEFT, rpx.size.x - 6.0, 8, fixture_outline_color)
+
+
+func _draw_fixture_toilet(rect_m: Rect2) -> void:
+	var rpx: Rect2 = _to_px(rect_m)
+	if rpx.size.x < 4.0 or rpx.size.y < 4.0:
+		return
+	var tank := Rect2(rpx.position + Vector2(rpx.size.x * 0.10, 0.0), Vector2(rpx.size.x * 0.80, rpx.size.y * 0.28))
+	draw_rect(tank, fixture_fill_color, true)
+	draw_rect(tank, fixture_outline_color, false, 1.0)
+	draw_circle(rpx.position + Vector2(rpx.size.x * 0.50, rpx.size.y * 0.60), minf(rpx.size.x, rpx.size.y) * 0.33, fixture_fill_color)
+	draw_circle(rpx.position + Vector2(rpx.size.x * 0.50, rpx.size.y * 0.60), minf(rpx.size.x, rpx.size.y) * 0.33, fixture_outline_color, false, 1.0)
 
 func _draw_room_safety_markers(room_id: int, room_rect_m: Rect2) -> void:
 	if building == null:
@@ -1300,9 +1405,15 @@ func _draw_openings() -> void:
 				_draw_selected_opening_marker(index)
 			continue
 		else:
+			alpha = maxf(alpha, 0.86)
 			col = Color(window_color.r, window_color.g, window_color.b, alpha)
 
-		draw_line(p1, p2, col, opening_line_width)
+		draw_line(p1, p2, background_color, wall_thickness + 2.0)
+		draw_line(p1, p2, col, opening_line_width + 1.2)
+		var window_dir: Vector2 = (p2 - p1).normalized() if p1.distance_to(p2) > 0.01 else Vector2(1.0, 0.0)
+		var window_normal := Vector2(-window_dir.y, window_dir.x)
+		draw_line(p1 + window_normal * 3.0, p2 + window_normal * 3.0, Color(col.r, col.g, col.b, 0.55), 1.3)
+		draw_line(p1 - window_normal * 3.0, p2 - window_normal * 3.0, Color(col.r, col.g, col.b, 0.55), 1.3)
 
 		if show_opening_labels and ThemeDB.fallback_font != null:
 			var mid: Vector2 = (p1 + p2) * 0.5

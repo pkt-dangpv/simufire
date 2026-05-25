@@ -237,6 +237,13 @@ func _supply_air(
 		room.co2_kg += co2_added_kg
 		room.hcn_kg += hcn_added_kg
 		room.o2 = lerpf(room.o2, clampf(float(supply_mix.get("o2", building.outside_o2)), 0.0, building.outside_o2), air_fraction)
+		# Phase 2H Exp 2H.2: suministro HVAC en zona baja (height_fraction < 0.5) repone o2_lower.
+		# Físicamente: el aire fresco inyectado a baja altura refresca directamente la capa inferior.
+		# Invariante o2_lower ≥ room.o2 preservada por clampf con room.o2 como floor.
+		if bool(hooks.get("phase2h_o2_doorway_two_zone_enabled", false)):
+			if float(vent.get("height_fraction", 1.0)) < 0.5:
+				var supply_o2_lower: float = clampf(float(supply_mix.get("o2", building.outside_o2)), 0.0, building.outside_o2)
+				room.o2_lower = clampf(lerpf(room.o2_lower, supply_o2_lower, air_fraction), room.o2, building.outside_o2)
 		# Fase 2B: diluir co2_upper con el CO₂ del aire suministrado (0.0004 si es 100% exterior).
 		var supply_co2_upper: float = float(supply_mix.get("co2_upper", 0.0004))
 		room.co2_upper = clampf(lerpf(room.co2_upper, supply_co2_upper, air_fraction), 0.0, 0.30)

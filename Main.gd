@@ -19,8 +19,11 @@ var _graphs_view_window: Window = null
 var _graph_textures: Array[Texture2D] = []
 var _graph_image_cells: Array[Control] = []
 var _graph_scrolls: Array[ScrollContainer] = []
+var _graph_grids: Array[GridContainer] = []
 var _graph_drag_scroll: ScrollContainer = null
 var _graph_zoom: float = 1.0
+var _view_update_accum_s: float = 0.0
+const VIEW_3D_RUNNING_UPDATE_INTERVAL_S: float = 0.12
 var view_3d_enabled: bool = false
 var first_person_enabled: bool = false
 var first_person_controller = null
@@ -72,7 +75,7 @@ func _physics_process(delta: float) -> void:
 	if playback_paused or engine == null:
 		return
 	engine.step(delta)
-	_update_views()
+	_update_views_for_frame(delta)
 
 
 func _input(event: InputEvent) -> void:
@@ -91,6 +94,20 @@ func _input(event: InputEvent) -> void:
 func _update_views() -> void:
 	if engine == null:
 		return
+	var state := _build_view_state()
+	if visualizer != null:
+		visualizer.set_state(state)
+	if visualizer_3d != null:
+		visualizer_3d.set_state(state)
+	if minimap_2d != null:
+		minimap_2d.set_state(state)
+	if first_person_controller != null:
+		first_person_controller.set_state(state)
+	if hud != null:
+		hud.update_state(state)
+
+
+func _build_view_state() -> Dictionary:
 	var state := engine.get_state()
 	state["playback_paused"] = playback_paused
 	state["time_scale"] = engine.time_scale
@@ -100,16 +117,30 @@ func _update_views() -> void:
 	state["first_person_enabled"] = first_person_enabled
 	if first_person_controller != null:
 		state["fp_player"] = first_person_controller.get_player_marker_state()
-	if visualizer != null:
-		visualizer.set_state(state)
-	if visualizer_3d != null:
-		visualizer_3d.set_state(state)
-	if hud != null:
-		hud.update_state(state)
-	if minimap_2d != null:
-		minimap_2d.set_state(state)
-	if first_person_controller != null:
-		first_person_controller.set_state(state)
+	return state
+
+
+func _update_views_for_frame(delta: float) -> void:
+	if engine == null:
+		return
+	if visualizer_3d != null and view_3d_enabled and not first_person_enabled:
+		_view_update_accum_s += delta
+		var should_update_3d: bool = _view_update_accum_s >= VIEW_3D_RUNNING_UPDATE_INTERVAL_S
+		var state: Dictionary = _build_view_state()
+		if visualizer != null:
+			visualizer.set_state(state)
+		if minimap_2d != null:
+			minimap_2d.set_state(state)
+		if should_update_3d:
+			_view_update_accum_s = 0.0
+			visualizer_3d.set_state(state)
+		if first_person_controller != null:
+			first_person_controller.set_state(state)
+		if hud != null:
+			hud.update_state(state)
+		return
+	_view_update_accum_s = 0.0
+	_update_views()
 
 
 func _on_play_requested() -> void:
@@ -297,11 +328,12 @@ func _setup_graph_dialogs() -> void:
 	_graphs_view_window = Window.new()
 	_graphs_view_window.name = "GraphsViewer"
 	_graphs_view_window.title = "Graficas de simulacion"
-	_graphs_view_window.size = Vector2i(1060, 660)
-	_graphs_view_window.min_size = Vector2i(800, 500)
+	_graphs_view_window.size = Vector2i(1500, 820)
+	_graphs_view_window.min_size = Vector2i(1280, 680)
 	_graphs_view_window.wrap_controls = false
 	_graphs_view_window.visible = false
 	_graphs_view_window.close_requested.connect(_on_graphs_window_close_requested)
+	_graphs_view_window.size_changed.connect(_on_graphs_window_size_changed)
 	add_child(_graphs_view_window)
 
 
@@ -330,7 +362,9 @@ func _show_graphs_window(graphs_dir: String) -> void:
 	var main_win: Window = get_window()
 	if main_win != null:
 		var ws: Vector2i = main_win.size
-		_graphs_view_window.size = Vector2i(maxi(ws.x - 40, 1060), maxi(ws.y - 60, 660))
+		_graphs_view_window.size = Vector2i(maxi(ws.x - 40, 1280), maxi(ws.y - 60, 720))
+	else:
+		_graphs_view_window.size = Vector2i(1500, 820)
 
 	_clear_graphs_view_window()
 	_graph_zoom = 1.0
@@ -368,6 +402,9 @@ func _show_graphs_window(graphs_dir: String) -> void:
 	var tabs := TabContainer.new()
 	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tabs.add_theme_font_size_override("font_size", 18)
+	tabs.add_theme_color_override("font_selected_color", Color(0.94, 0.94, 0.90, 1.0))
+	tabs.add_theme_color_override("font_unselected_color", Color(0.70, 0.72, 0.72, 1.0))
 	root.add_child(tabs)
 
 	var dir := DirAccess.open(graphs_dir)
@@ -400,16 +437,20 @@ func _show_graphs_window(graphs_dir: String) -> void:
 		_graph_scrolls.append(room_scroll)
 
 		var grid := GridContainer.new()
-		grid.columns = 2
-		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.columns = _graph_column_count()
+		grid.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		grid.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		grid.add_theme_constant_override("h_separation", 10)
-		grid.add_theme_constant_override("v_separation", 10)
+		grid.add_theme_constant_override("h_separation", 14)
+		grid.add_theme_constant_override("v_separation", 18)
 		room_scroll.add_child(grid)
+		_graph_grids.append(grid)
 
 		for image_name in _collect_graph_images(room_path):
 			var cell := VBoxContainer.new()
-			cell.custom_minimum_size = Vector2(480.0 * _graph_zoom, 300.0 * _graph_zoom)
+			cell.custom_minimum_size = Vector2(500.0 * _graph_zoom, 330.0 * _graph_zoom)
+			cell.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+			cell.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 			cell.add_theme_constant_override("separation", 4)
 			cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			grid.add_child(cell)
@@ -423,9 +464,9 @@ func _show_graphs_window(graphs_dir: String) -> void:
 			var tex_rect := TextureRect.new()
 			tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 			tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			tex_rect.custom_minimum_size = Vector2(470.0 * _graph_zoom, 260.0 * _graph_zoom)
-			tex_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			tex_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			tex_rect.custom_minimum_size = Vector2(480.0 * _graph_zoom, 280.0 * _graph_zoom)
+			tex_rect.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+			tex_rect.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 			tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			cell.add_child(tex_rect)
 
@@ -434,13 +475,21 @@ func _show_graphs_window(graphs_dir: String) -> void:
 				var texture := ImageTexture.create_from_image(img)
 				_graph_textures.append(texture)
 				tex_rect.texture = texture
+				var image_size: Vector2i = img.get_size()
+				var tex_base: Vector2 = _graph_texture_base_size(image_size)
+				tex_rect.set_meta("image_size", image_size)
+				tex_rect.set_meta("base_size", tex_base)
+				cell.set_meta("base_size", tex_base + Vector2(24.0, 42.0))
+				tex_rect.custom_minimum_size = tex_base * _graph_zoom
+				cell.custom_minimum_size = Vector2(cell.get_meta("base_size")) * _graph_zoom
 
 	if room_dirs.is_empty():
 		var empty := Label.new()
 		empty.text = "No se encontraron graficas de habitaciones en la carpeta elegida."
 		tabs.add_child(empty)
 
-	_graphs_view_window.popup_centered()
+	_refresh_graph_grid_columns()
+	_graphs_view_window.popup_centered(_graphs_view_window.size)
 
 
 func _show_graphs_message(message: String) -> void:
@@ -474,6 +523,7 @@ func _clear_graphs_view_window() -> void:
 	_graph_textures.clear()
 	_graph_image_cells.clear()
 	_graph_scrolls.clear()
+	_graph_grids.clear()
 
 
 func _on_graph_zoom_in() -> void:
@@ -497,10 +547,51 @@ func _apply_graph_zoom() -> void:
 	for cell in _graph_image_cells:
 		if not is_instance_valid(cell):
 			continue
-		cell.custom_minimum_size = Vector2(480.0 * _graph_zoom, 300.0 * _graph_zoom)
+		var cell_base: Vector2 = Vector2(cell.get_meta("base_size", Vector2(960.0, 560.0)))
+		cell.custom_minimum_size = cell_base * _graph_zoom
 		for child in cell.get_children():
 			if child is TextureRect:
-				child.custom_minimum_size = Vector2(470.0 * _graph_zoom, 260.0 * _graph_zoom)
+				if child.has_meta("image_size"):
+					var image_size: Vector2i = Vector2i(child.get_meta("image_size"))
+					var recalculated_base: Vector2 = _graph_texture_base_size(image_size)
+					child.set_meta("base_size", recalculated_base)
+					cell.set_meta("base_size", recalculated_base + Vector2(24.0, 42.0))
+					cell_base = Vector2(cell.get_meta("base_size", Vector2(960.0, 560.0)))
+					cell.custom_minimum_size = cell_base * _graph_zoom
+				var tex_base: Vector2 = Vector2(child.get_meta("base_size", Vector2(940.0, 520.0)))
+				child.custom_minimum_size = tex_base * _graph_zoom
+
+
+func _graph_column_count() -> int:
+	var width: int = 1500
+	if _graphs_view_window != null:
+		width = max(_graphs_view_window.size.x, _graphs_view_window.min_size.x)
+	return 2 if width >= 1180 else 1
+
+
+func _refresh_graph_grid_columns() -> void:
+	var columns: int = _graph_column_count()
+	for grid in _graph_grids:
+		if is_instance_valid(grid):
+			grid.columns = columns
+	_apply_graph_zoom()
+
+
+func _on_graphs_window_size_changed() -> void:
+	_refresh_graph_grid_columns()
+
+
+func _graph_texture_base_size(image_size: Vector2i) -> Vector2:
+	var width: float = maxf(1.0, float(image_size.x))
+	var height: float = maxf(1.0, float(image_size.y))
+	var max_width: float = 620.0
+	if _graphs_view_window != null:
+		var columns: float = float(_graph_column_count())
+		var fit_width: float = (float(_graphs_view_window.size.x) - 120.0) / columns - 36.0
+		max_width = clampf(fit_width, 420.0, 700.0)
+	var base_w: float = clampf(width, 420.0, max_width)
+	var base_h: float = base_w * height / width
+	return Vector2(base_w, clampf(base_h, 240.0, 620.0))
 
 
 func _on_graph_scroll_gui_input(event: InputEvent, scroll: ScrollContainer) -> void:
@@ -518,11 +609,13 @@ func _on_graph_scroll_gui_input(event: InputEvent, scroll: ScrollContainer) -> v
 				_graph_drag_scroll = scroll
 				scroll.accept_event()
 			MOUSE_BUTTON_WHEEL_UP:
-				_set_graph_zoom(_graph_zoom * 1.12)
-				scroll.accept_event()
+				if mouse_event.ctrl_pressed:
+					_set_graph_zoom(_graph_zoom * 1.12)
+					scroll.accept_event()
 			MOUSE_BUTTON_WHEEL_DOWN:
-				_set_graph_zoom(_graph_zoom / 1.12)
-				scroll.accept_event()
+				if mouse_event.ctrl_pressed:
+					_set_graph_zoom(_graph_zoom / 1.12)
+					scroll.accept_event()
 	elif event is InputEventMouseMotion and _graph_drag_scroll == scroll:
 		_pan_graph_scroll(scroll, (event as InputEventMouseMotion).relative)
 		scroll.accept_event()

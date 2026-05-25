@@ -29,6 +29,7 @@ var _csv_io_failed: bool = false
 var _csv_header_written: bool = false
 var _target_csv_io_failed: bool = false
 var _target_csv_header_written: bool = false
+var _runtime_log_stamp: String = ""
 
 
 func configure(is_enabled: bool, interval_seconds: float, path: String) -> void:
@@ -56,6 +57,7 @@ func reset_log_file() -> void:
 	_csv_header_written = false
 	_target_csv_io_failed = false
 	_target_csv_header_written = false
+	_runtime_log_stamp = ""
 
 	if not enabled:
 		return
@@ -88,7 +90,8 @@ func resolve_csv_file_path() -> String:
 	if not _resolved_csv_file_path.is_empty():
 		return _resolved_csv_file_path
 
-	return _normalize_log_path(csv_file_path)
+	var candidates: Array[String] = _get_csv_file_candidates()
+	return candidates[0] if not candidates.is_empty() else _normalize_log_path(csv_file_path)
 
 
 func should_log(sim_time_s: float) -> bool:
@@ -112,6 +115,12 @@ func append_snapshot_now(sim_time_s: float, state: Dictionary) -> void:
 	_append_snapshot(sim_time_s, state)
 	if csv_enabled:
 		_append_csv_snapshot(sim_time_s, state)
+
+
+func append_initial_snapshot(sim_time_s: float, state: Dictionary) -> void:
+	append_snapshot_now(sim_time_s, state)
+	if enabled and interval_s > 0.0:
+		_next_log_time_s = maxf(_next_log_time_s, sim_time_s + interval_s)
 
 
 ## Escribe una línea de evento al log de forma inmediata (fuera del intervalo normal).
@@ -140,12 +149,28 @@ func _get_log_file_candidates() -> Array[String]:
 	var candidates: Array[String] = []
 	var primary_path: String = _normalize_log_path(log_file_path)
 	candidates.append(primary_path)
-
-	var project_fallback_path: String = ProjectSettings.globalize_path("res://sim_log.txt")
-	if not candidates.has(project_fallback_path):
-		candidates.append(project_fallback_path)
+	var fallback_path: String = _runtime_log_path("sim_log", "txt")
+	if not candidates.has(fallback_path):
+		candidates.append(fallback_path)
 
 	return candidates
+
+
+func _get_csv_file_candidates() -> Array[String]:
+	var candidates: Array[String] = []
+	var primary_path: String = _normalize_log_path(csv_file_path)
+	candidates.append(primary_path)
+	var fallback_path: String = _runtime_log_path("sim_log", "csv")
+	if not candidates.has(fallback_path):
+		candidates.append(fallback_path)
+
+	return candidates
+
+
+func _runtime_log_path(base_name: String, extension: String) -> String:
+	if _runtime_log_stamp.is_empty():
+		_runtime_log_stamp = str(int(Time.get_unix_time_from_system()))
+	return ProjectSettings.globalize_path("res://.godot/runtime_logs/%s_%s.%s" % [base_name, _runtime_log_stamp, extension])
 
 
 func _ensure_log_directory(resolved_path: String) -> bool:
@@ -338,16 +363,20 @@ func _open_csv_file(mode: FileAccess.ModeFlags) -> FileAccess:
 	if _csv_io_failed:
 		return null
 
-	var path: String = _normalize_log_path(csv_file_path)
-	if not _ensure_log_directory(path):
-		return null
-	var file := FileAccess.open(path, mode)
-	if file != null:
-		_resolved_csv_file_path = path
-		return file
-
+	var attempted_paths: Array[String] = []
+	for path in _get_csv_file_candidates():
+		attempted_paths.append(path)
+		if not _ensure_log_directory(path):
+			continue
+		var file := FileAccess.open(path, mode)
+		if file != null:
+			_resolved_csv_file_path = path
+			return file
 	_csv_io_failed = true
-	push_error("SimulationLogWriter: no se pudo abrir CSV en %s (err=%d)" % [path, FileAccess.get_open_error()])
+	push_error("SimulationLogWriter: no se pudo abrir CSV en ninguna ruta candidata: %s (err=%d)" % [
+		", ".join(PackedStringArray(attempted_paths)),
+		FileAccess.get_open_error()
+	])
 	return null
 
 

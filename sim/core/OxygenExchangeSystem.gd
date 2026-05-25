@@ -41,6 +41,8 @@ var co2_yield_kg_per_MJ: float = 0.0831
 var phase2h_o2_doorway_two_zone_enabled: bool = false
 # Exp 2H.2: delta negativo de cold_room en active_flow se enruta a cold_room.o2_lower.
 var phase2h_cold_room_lower_routing_enabled: bool = false
+# Exp 2H.2: gain del boost de reabastecimiento de zona baja desde apertura exterior (0.0 = no-op).
+var phase2h_lower_replenish_gain: float = 0.0
 var _pending_o2_deliveries: Array[Dictionary] = []
 var _reserved_transport_o2_delta_kg: Dictionary = {}
 
@@ -95,6 +97,9 @@ func configure(settings: Dictionary) -> void:
 	)
 	phase2h_cold_room_lower_routing_enabled = bool(
 		settings.get("phase2h_cold_room_lower_routing_enabled", phase2h_cold_room_lower_routing_enabled)
+	)
+	phase2h_lower_replenish_gain = float(
+		settings.get("phase2h_lower_replenish_gain", phase2h_lower_replenish_gain)
 	)
 
 
@@ -164,7 +169,13 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		if lower_frac < 0.15 or (lower_frac < 0.40 and room.o2 < 0.070):
 			# Modelo bi-zona invalido: homogeniza ambas zonas a room.o2.
 			room.o2_upper = room.o2
-			room.o2_lower = room.o2
+			# Phase 2H: cuando el flag ON está activo, no resetear o2_lower a room.o2
+			# (permite que los boosts de HVAC/exterior-apertura acumulen). El floor
+			# room.o2 se mantiene invariante. Con flag OFF: comportamiento idéntico al baseline.
+			if phase2h_o2_doorway_two_zone_enabled:
+				room.o2_lower = maxf(room.o2, room.o2_lower)
+			else:
+				room.o2_lower = room.o2
 		elif room.hrr_kw > 0.0:
 			# Fase 2A: o2_upper -> equilibrio calibrado (mismo que Fase 1.5).
 			# Penacho usa room.o2 como fuente (equivalente al cap o2_lower=room.o2).
@@ -179,19 +190,14 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			room.o2_upper = clampf(room.o2_upper + delta_entr, 0.0, o2_nominal)
 			# Fase 2A: o2_lower near-ambient, independiente de o2_upper.
 			# Pluma la arrastra lentamente hacia el floor. ACH la repone.
-			# Phase 2H: floor cambia room.o2 → room.o2_upper (zona baja ≥ zona alta).
-			if phase2h_o2_doorway_two_zone_enabled:
-				var lower_entr: float = entr_frac * 0.20 * maxf(0.0, room.o2_lower - room.o2_upper)
-				room.o2_lower = maxf(room.o2_upper, room.o2_lower - lower_entr)
-				var ach_lower_dt: float = (ach_infiltration / 3600.0) \
-					* (building.outside_o2 - room.o2_lower) * dt
-				room.o2_lower = clampf(room.o2_lower + ach_lower_dt, room.o2_upper, o2_nominal)
-			else:
-				var lower_entr: float = entr_frac * 0.20 * maxf(0.0, room.o2_lower - room.o2)
-				room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)
-				var ach_lower_dt: float = (ach_infiltration / 3600.0) \
-					* (building.outside_o2 - room.o2_lower) * dt
-				room.o2_lower = clampf(room.o2_lower + ach_lower_dt, room.o2, o2_nominal)
+			# Phase 2H Exp2H.1: floor room.o2 → room.o2_upper resultó en inversión
+			# (o2_lower baja más, FED hipoxia sube +16%). Branch ON reverted a no-op.
+			# Exp 2H.2 implementará boost de reabastecimiento de zona baja.
+			var lower_entr: float = entr_frac * 0.20 * maxf(0.0, room.o2_lower - room.o2)
+			room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)
+			var ach_lower_dt: float = (ach_infiltration / 3600.0) \
+				* (building.outside_o2 - room.o2_lower) * dt
+			room.o2_lower = clampf(room.o2_lower + ach_lower_dt, room.o2, o2_nominal)
 		else:
 			# Sin fuego: resync lento de zonas a room.o2 (difusion/mezcla)
 			room.o2_lower = lerpf(room.o2_lower, room.o2, clampf(0.05 * dt, 0.0, 0.20))
@@ -377,6 +383,15 @@ func _step_outside_opening_o2(
 		indoor.o2_lower = clampf(
 			(indoor.o2_lower * lower_mass_ext + building.outside_o2 * air_in_kg) / (lower_mass_ext + air_in_kg),
 			0.0, o2_nominal)
+		# Phase 2H Exp 2H.2: boost adicional de reabastecimiento de zona baja desde apertura exterior.
+		# Amplifica la fracción de inflow efectivo × (ambient − o2_lower) × gain.
+		# Floor = indoor.o2 preserva invariante Phase 2E-A (o2_lower ≥ room.o2).
+		if phase2h_o2_doorway_two_zone_enabled and phase2h_lower_replenish_gain > 0.0:
+			var boost_frac: float = clampf(
+				phase2h_lower_replenish_gain * air_in_kg / lower_mass_ext, 0.0, 0.50)
+			indoor.o2_lower = clampf(
+				indoor.o2_lower + boost_frac * (building.outside_o2 - indoor.o2_lower),
+				indoor.o2, o2_nominal)
 	# Fase 2B: aire fresco exterior diluye co2_upper hacia el nivel ambiente.
 	# Misma masa entrante que la usada para O2; mezcla proporcional.
 	if air_in_kg > 0.0:

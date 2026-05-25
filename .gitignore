@@ -17,14 +17,19 @@ tests/tmp_*
 last_run.txt
 editor_scenario.json
 execution_output.log
+sim_log*
 
 # Validation experiment artifacts (not baselines)
 sim/validation/cases/*_p2e*.json
 sim/validation/cases/*_p2f*.json
 sim/validation/cases/*_p2g*.json
+sim/validation/cases/*_p2h*.json
+sim/validation/cases/cfast_hvac_o2l_*.json
 sim/validation/reports/*_p2e*.json
 sim/validation/reports/*_p2f*.json
 sim/validation/reports/*_p2g*.json
+sim/validation/reports/*_p2h*.json
+sim/validation/reports/cfast_hvac_o2l_*.json
 sim/validation/reports/*_phase2e_exp*.json
 
 # Godot import artifacts from validation CSVs
@@ -48,3 +53,7 @@ old/
 __pycache__/
 *.pyc
 *.pyo
+.aider*
+
+# Scratch analysis scripts (hardcoded paths, depend on gitignored artifacts)
+scripts/simulation/parse_o2l_logs.py

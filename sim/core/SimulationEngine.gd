@@ -688,6 +688,15 @@ var _step_time_us: int = 0
 ## Exp 2H.2: el delta de O₂ de cold_room en active_flow se enruta a o2_lower en vez de room.o2.
 ## Desactivado en Exp 2H.1 (cold_room_lower_routing_enabled = false).
 @export var phase2h_cold_room_lower_routing_enabled: bool = false
+## Exp 2H.2: gain del boost de reabastecimiento de zona baja desde apertura exterior/HVAC bajo.
+## 0.0 = no-op (default OFF); valores experimentales: 0.25 / 0.5 / 1.0.
+@export var phase2h_lower_replenish_gain: float = 0.0
+## Phase 2H — Preset opt-in: activa two_zone + cold_routing + gain=0.25 con un solo flag.
+## Validado 2026-05-24: 14/14 OK, 6/6 sentinels PASS, room.o2 invariante, O2l +0.1098 @ t=300s.
+## Safe: no altera room.o2, CO, HRR, FED ni ninguna baseline required. No requiere rebaseline.
+## Nombre del preset: phase2h_o2_lower_replenish_candidate
+## Uso en engine_overrides JSON: { "phase2h_candidate_preset": true }
+@export var phase2h_candidate_preset: bool = false
 @export var target_layer_block_start_m: float = 0.65
 @export var target_layer_block_full_m: float = 0.10
 @export var interior_spill_start_layer_m: float = 2.0
@@ -913,6 +922,12 @@ func _sync_auxiliary_services() -> void:
 		"doorway_o2_counterflow_coeff": doorway_o2_counterflow_coeff,
 		"background_o2_exchange_multiplier": background_o2_exchange_multiplier
 	})
+	# Phase 2H candidate preset — opt-in: expande phase2h_candidate_preset al trío de flags.
+	# Solo activo si phase2h_candidate_preset = true (default = false → sin efecto en baseline).
+	if phase2h_candidate_preset:
+		phase2h_o2_doorway_two_zone_enabled = true
+		phase2h_cold_room_lower_routing_enabled = true
+		phase2h_lower_replenish_gain = 0.25
 	oxygen_exchange_system.configure({
 		"o2_nominal": o2_nominal,
 		"ach_infiltration": ach_infiltration,
@@ -928,7 +943,8 @@ func _sync_auxiliary_services() -> void:
 		"vent_bernoulli_enabled": vent_bernoulli_enabled,
 		"o2_upper_plume_entr_rate": o2_upper_plume_entr_rate,
 		"phase2h_o2_doorway_two_zone_enabled": phase2h_o2_doorway_two_zone_enabled,
-		"phase2h_cold_room_lower_routing_enabled": phase2h_cold_room_lower_routing_enabled
+		"phase2h_cold_room_lower_routing_enabled": phase2h_cold_room_lower_routing_enabled,
+		"phase2h_lower_replenish_gain": phase2h_lower_replenish_gain
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
@@ -1020,7 +1036,8 @@ func _build_hvac_hooks() -> Dictionary:
 		"estimate_temperature_callable": Callable(thermal_system, "estimate_temperature_at_height_m"),
 		"remove_upper_layer_fraction_callable": Callable(thermal_system, "remove_upper_layer_fraction"),
 		"sync_room_upper_layer_callable": Callable(thermal_system, "sync_room_upper_layer"),
-		"ambient_temp_callable": Callable(thermal_system, "ambient_temp_c")
+		"ambient_temp_callable": Callable(thermal_system, "ambient_temp_c"),
+		"phase2h_o2_doorway_two_zone_enabled": phase2h_o2_doorway_two_zone_enabled
 	}
 
 # ============================================================
@@ -1043,6 +1060,7 @@ func _ready() -> void:
 
 	if auto_ignite_on_ready:
 		ignite_room(ignition_room_id)
+	_force_log_initial_snapshot()
 
 	print(log_writer.resolve_log_file_path())
 
@@ -1138,6 +1156,7 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 
 	if ignite_initial_fire:
 		ignite_room(start_ignition_room_id)
+	_force_log_initial_snapshot()
 
 func _reset_room_state(room: RoomModel) -> void:
 	if room == null:
@@ -2333,6 +2352,11 @@ func _finish_and_launch_graphs(details: String, graphs_root: String = "", wait_f
 func _force_log_final_snapshot() -> void:
 	_sync_auxiliary_services()
 	log_writer.append_snapshot_now(sim_time_s, get_state())
+
+
+func _force_log_initial_snapshot() -> void:
+	_sync_auxiliary_services()
+	log_writer.append_initial_snapshot(sim_time_s, get_state())
 
 
 func _launch_graph_generator(graphs_root: String = "", wait_for_finish: bool = false) -> void:

@@ -78,7 +78,7 @@ void fragment() {
 	float alpha = base_alpha * mix(0.26, 1.0, bottom_fade) + smoke_color.a * density * edge_band_strength * edge_band * side_face * side_visibility + bottom_sheet;
 	alpha += smoke_color.a * density * flow_filament;
 	ALBEDO = smoke_color.rgb * mix(0.62, 1.10, n);
-	ALPHA = clamp(alpha, 0.0, smoke_color.a * (0.88 + flow_strength * 0.18));
+	ALPHA = clamp(alpha, 0.0, min(0.99, smoke_color.a * (1.05 + flow_strength * 0.22)));
 }
 """
 
@@ -87,8 +87,8 @@ shader_type spatial;
 render_mode unshaded, cull_disabled, blend_mix, depth_draw_never;
 
 void fragment() {
-	ALBEDO = vec3(0.55, 0.57, 0.58);
-	ALPHA = 0.040;
+	ALBEDO = vec3(0.07, 0.065, 0.058);
+	ALPHA = 0.115;
 }
 """
 

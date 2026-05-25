@@ -89,6 +89,12 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 | `cfast_2r_r0_t300_o2_lower` | 300 | 0.209 | 0.0952 ±0.015 | Dos salas (sala fuego) |
 | `cfast_2r_r0_t450_o2_lower` | 450 | 0.0675 | 0.0909 ±0.015 | Dos salas (sala fuego) |
 
+> **Candidato opt-in validado (2026-05-24)**: `phase2h_o2_lower_replenish_candidate` (preset)  
+> Uso: `"phase2h_candidate_preset": true` en `engine_overrides`.  
+> Cierre parcial en escenario HVAC: `cfast_hvac_t300_o2_lower` 0.058 → **0.168** (+0.110, gap residual 0.037).  
+> Checks en baseline OFF siguen como non-gating (73 gaps). No rebaseline. Default permanece OFF.  
+> Definición completa: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`
+
 ---
 
 ### 3. CO₂ upper layer (5 checks)
