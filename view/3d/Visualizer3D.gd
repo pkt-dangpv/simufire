@@ -84,6 +84,7 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var fire_ceiling_cap_color: Color = Color(1.0, 0.34, 0.05, 0.42)
 @export var door_color: Color = Color(0.26, 0.86, 0.32, 0.92)
 @export var window_color: Color = Color(0.24, 0.56, 1.00, 0.92)
+@export var window_broken_color: Color = Color(1.00, 0.72, 0.12, 0.92)
 @export var hole_color: Color = Color(1.00, 0.78, 0.00, 0.86)
 @export var closed_opening_color: Color = Color(0.54, 0.56, 0.58, 0.70)
 @export var label_color: Color = Color(1.0, 0.96, 0.84, 1.0)
@@ -708,6 +709,19 @@ func _create_opening(index: int) -> void:
 	marker.position = _to_world(Vector3(pose["position"].x, opening_floor_m + pose["position"].y, pose["position"].z))
 	_openings_root.add_child(marker)
 	_opening_items[index] = {"marker": marker}
+	if op.type == OpeningModel.Type.WINDOW:
+		var pose_size: Vector3 = Vector3(pose["size"]) * meters_to_units
+		var crack_mat := _make_material(Color(1.0, 0.95, 0.72, 0.95), true)
+		var crack_h_size := Vector3(maxf(pose_size.x, 0.02) * 0.68, 0.025, 0.018) if pose_size.x >= pose_size.z else Vector3(0.018, 0.025, maxf(pose_size.z, 0.02) * 0.68)
+		var crack_v_size := Vector3(0.025, maxf(pose_size.y, 0.02) * 0.58, 0.018) if pose_size.x >= pose_size.z else Vector3(0.018, maxf(pose_size.y, 0.02) * 0.58, 0.025)
+		var crack_h := _create_box("BrokenGlassCrackH_%02d" % index, crack_h_size, crack_mat)
+		var crack_v := _create_box("BrokenGlassCrackV_%02d" % index, crack_v_size, crack_mat)
+		crack_h.visible = false
+		crack_v.visible = false
+		marker.add_child(crack_h)
+		marker.add_child(crack_v)
+		_opening_items[index]["broken_crack_h"] = crack_h
+		_opening_items[index]["broken_crack_v"] = crack_v
 
 	# Cortina de humo: rellena el vano abierto y suaviza el salto visual de capa
 	# entre estancias o hacia el exterior.
@@ -857,6 +871,8 @@ func _opening_color(op: OpeningModel) -> Color:
 	if op == null:
 		return door_color
 	if op.type == OpeningModel.Type.WINDOW:
+		if op.glass_broken:
+			return window_broken_color
 		return window_color
 	if op.type == OpeningModel.Type.HOLE:
 		return hole_color
@@ -1521,11 +1537,17 @@ func _update_openings() -> void:
 			continue
 		var mat := marker.material_override as StandardMaterial3D
 		if mat != null:
-			var open_color: Color = _opening_color(op)
+			var open_color: Color = window_broken_color if op.type == OpeningModel.Type.WINDOW and op.glass_broken else _opening_color(op)
 			var marker_color: Color = closed_opening_color.lerp(open_color, clampf(op.open_fraction, 0.0, 1.0))
 			if int(index) == _selected_opening_index:
 				marker_color = marker_color.lerp(Color(1.0, 0.88, 0.18, 1.0), 0.55)
 			mat.albedo_color = marker_color
+		var broken_crack_h := item_dict.get("broken_crack_h") as MeshInstance3D
+		if broken_crack_h != null:
+			broken_crack_h.visible = op.type == OpeningModel.Type.WINDOW and op.glass_broken
+		var broken_crack_v := item_dict.get("broken_crack_v") as MeshInstance3D
+		if broken_crack_v != null:
+			broken_crack_v.visible = op.type == OpeningModel.Type.WINDOW and op.glass_broken
 
 		SmokeOpeningCurtain3D.update(item_dict, op, _room_items, {
 			"show_smoke_volume": show_smoke_volume,

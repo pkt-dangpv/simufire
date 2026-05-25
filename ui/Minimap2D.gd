@@ -90,6 +90,8 @@ func _draw_openings(rects: Dictionary, tf: Dictionary) -> void:
 		var color: Color = door_color
 		if op.type == OpeningModel.Type.WINDOW:
 			color = window_color
+			if op.glass_broken:
+				color = Color(1.0, 0.72, 0.12, 1.0)
 		elif op.type == OpeningModel.Type.HOLE:
 			color = hole_color
 		var p1: Vector2 = _point_to_px(seg_m[0], tf)
@@ -101,6 +103,11 @@ func _draw_openings(rects: Dictionary, tf: Dictionary) -> void:
 			var normal := Vector2(-dir.y, dir.x)
 			draw_line(p1 + normal * 2.0, p2 + normal * 2.0, Color(color.r, color.g, color.b, 0.56), 0.9)
 			draw_line(p1 - normal * 2.0, p2 - normal * 2.0, Color(color.r, color.g, color.b, 0.56), 0.9)
+			if op.glass_broken:
+				var mid: Vector2 = (p1 + p2) * 0.5
+				var crack_half: float = minf(6.0, maxf(3.0, p1.distance_to(p2) * 0.18))
+				draw_line(mid - dir * crack_half - normal * 2.5, mid + dir * crack_half + normal * 2.5, Color(1.0, 0.95, 0.70, 0.90), 0.9)
+				draw_line(mid - dir * crack_half + normal * 2.5, mid + dir * crack_half - normal * 2.5, Color(1.0, 0.95, 0.70, 0.90), 0.9)
 
 
 func _draw_player_start(rects: Dictionary, tf: Dictionary) -> void:

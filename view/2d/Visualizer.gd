@@ -1406,7 +1406,8 @@ func _draw_openings() -> void:
 			continue
 		else:
 			alpha = maxf(alpha, 0.86)
-			col = Color(window_color.r, window_color.g, window_color.b, alpha)
+			var base_window_color: Color = window_broken_color if op.glass_broken else window_color
+			col = Color(base_window_color.r, base_window_color.g, base_window_color.b, alpha)
 
 		draw_line(p1, p2, background_color, wall_thickness + 2.0)
 		draw_line(p1, p2, col, opening_line_width + 1.2)
@@ -1414,6 +1415,12 @@ func _draw_openings() -> void:
 		var window_normal := Vector2(-window_dir.y, window_dir.x)
 		draw_line(p1 + window_normal * 3.0, p2 + window_normal * 3.0, Color(col.r, col.g, col.b, 0.55), 1.3)
 		draw_line(p1 - window_normal * 3.0, p2 - window_normal * 3.0, Color(col.r, col.g, col.b, 0.55), 1.3)
+		if op.glass_broken:
+			var seg_len: float = p1.distance_to(p2)
+			var crack_half: float = minf(9.0, maxf(4.0, seg_len * 0.16))
+			var mid: Vector2 = (p1 + p2) * 0.5
+			draw_line(mid - window_dir * crack_half - window_normal * 4.0, mid + window_dir * crack_half + window_normal * 4.0, Color(1.0, 0.96, 0.76, 0.92), 1.2)
+			draw_line(mid - window_dir * crack_half + window_normal * 4.0, mid + window_dir * crack_half - window_normal * 4.0, Color(1.0, 0.96, 0.76, 0.92), 1.2)
 
 		if show_opening_labels and ThemeDB.fallback_font != null:
 			var mid: Vector2 = (p1 + p2) * 0.5

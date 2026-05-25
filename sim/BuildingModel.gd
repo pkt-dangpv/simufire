@@ -834,6 +834,7 @@ func build_opening_summaries() -> Array[Dictionary]:
 			"type": _opening_type_name(op),
 			"state_label": op.state_label(),
 			"open_fraction": op.open_fraction,
+			"glass_broken": op.glass_broken,
 			"is_exterior": op.is_exterior_opening()
 		})
 

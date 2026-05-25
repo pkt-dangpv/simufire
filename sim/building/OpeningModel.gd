@@ -30,6 +30,7 @@ var offset_m: float = 0.5
 var offset_is_fraction: bool = true
 var swing_direction: String = "in"
 var hinge_side: String = "left"
+var glass_broken: bool = false
 
 # Fracción de apertura efectiva adicional por deformación térmica del marco.
 # Calculada cada paso por GasExchangeSystem según la temp. de la sala adyacente.
@@ -71,6 +72,11 @@ func set_open_fraction(value: float) -> void:
 	open_fraction = clampf(value, 0.0, 1.0)
 
 
+func mark_glass_broken() -> void:
+	if type == Type.WINDOW:
+		glass_broken = true
+
+
 func lintel_height_m() -> float:
 	return sill_m + height_m
 
@@ -105,11 +111,13 @@ func state_label() -> String:
 	if type == Type.HOLE:
 		return "ABIERTO"
 	if type == Type.WINDOW:
+		if glass_broken:
+			return "ROTA"
 		if is_closed():
 			return "CERRADA"
 		if is_fully_open():
 			return "ABIERTA"
-		return "ROTA"
+		return "ENTREABIERTA"
 
 	if is_closed():
 		return "CERRADA"

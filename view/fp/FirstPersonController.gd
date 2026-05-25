@@ -66,6 +66,8 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var opening_frame_color: Color = Color(0.46, 0.34, 0.22, 1.0)
 @export var window_glass_closed_color: Color = Color(0.52, 0.70, 0.88, 0.42)
 @export var window_glass_open_color: Color = Color(0.62, 0.82, 1.0, 0.22)
+@export var window_glass_shard_color: Color = Color(0.74, 0.92, 1.0, 0.34)
+@export var window_glass_crack_color: Color = Color(0.88, 0.98, 1.0, 0.78)
 
 @export_group("Exterior FP")
 @export var exterior_context_enabled: bool = true
@@ -2426,7 +2428,7 @@ func _create_window_leaf_visual(
 	leaf_width_m: float,
 	height_m: float,
 	thickness_m: float,
-	_handle_sign: float
+	handle_sign: float
 ) -> Node3D:
 	var leaf := Node3D.new()
 	leaf.name = node_name
@@ -2434,8 +2436,90 @@ func _create_window_leaf_visual(
 
 	var glass_w: float = maxf(0.08, leaf_width_m * 0.94)
 	var glass_h: float = maxf(0.12, height_m * 0.94)
+	var frame_m: float = minf(0.055, maxf(0.028, leaf_width_m * 0.055))
+	var frame_color: Color = opening_frame_color.lightened(0.08)
 	_add_local_box(leaf, "Glass", Vector3.ZERO, Vector3(glass_w, glass_h, thickness_m * 0.30), window_glass_closed_color, false)
+	_add_local_box(leaf, "LeafFrameTop", Vector3(0.0, glass_h * 0.5 - frame_m * 0.5, 0.0), Vector3(glass_w, frame_m, thickness_m), frame_color, false)
+	_add_local_box(leaf, "LeafFrameBottom", Vector3(0.0, -glass_h * 0.5 + frame_m * 0.5, 0.0), Vector3(glass_w, frame_m, thickness_m), frame_color, false)
+	_add_local_box(leaf, "LeafFrameLeft", Vector3(-glass_w * 0.5 + frame_m * 0.5, 0.0, 0.0), Vector3(frame_m, glass_h, thickness_m), frame_color, false)
+	_add_local_box(leaf, "LeafFrameRight", Vector3(glass_w * 0.5 - frame_m * 0.5, 0.0, 0.0), Vector3(frame_m, glass_h, thickness_m), frame_color, false)
+	_add_local_box(leaf, "LeafHandle", Vector3(handle_sign * glass_w * 0.34, -glass_h * 0.03, -thickness_m * 0.72), Vector3(0.035, glass_h * 0.18, 0.035), Color(0.76, 0.58, 0.27, 1.0), false)
+	_create_window_broken_detail(leaf, glass_w, glass_h, thickness_m)
+	_set_window_leaf_broken(leaf, false)
 	return leaf
+
+
+func _create_window_broken_detail(leaf: Node3D, glass_w: float, glass_h: float, thickness_m: float) -> void:
+	var hw: float = glass_w * 0.5
+	var hh: float = glass_h * 0.5
+	var z: float = -thickness_m * 0.48
+	_add_local_glass_shard(leaf, "BrokenShardTop", [
+		Vector2(-hw * 0.92, hh * 0.88),
+		Vector2(-hw * 0.10, hh * 0.92),
+		Vector2(-hw * 0.24, hh * 0.16),
+		Vector2(-hw * 0.78, hh * 0.28)
+	], z)
+	_add_local_glass_shard(leaf, "BrokenShardSide", [
+		Vector2(hw * 0.22, hh * 0.76),
+		Vector2(hw * 0.88, hh * 0.86),
+		Vector2(hw * 0.78, -hh * 0.20),
+		Vector2(hw * 0.34, -hh * 0.02)
+	], z)
+	_add_local_glass_shard(leaf, "BrokenShardBottom", [
+		Vector2(-hw * 0.76, -hh * 0.32),
+		Vector2(-hw * 0.22, -hh * 0.10),
+		Vector2(hw * 0.02, -hh * 0.82),
+		Vector2(-hw * 0.84, -hh * 0.88)
+	], z)
+	_add_local_rotated_box(leaf, "CrackA", Vector3(-hw * 0.16, hh * 0.32, z - 0.002), Vector3(glass_w * 0.72, 0.010, 0.012), window_glass_crack_color, deg_to_rad(-28.0))
+	_add_local_rotated_box(leaf, "CrackB", Vector3(hw * 0.10, -hh * 0.10, z - 0.003), Vector3(glass_w * 0.56, 0.010, 0.012), window_glass_crack_color, deg_to_rad(34.0))
+	_add_local_rotated_box(leaf, "CrackC", Vector3(hw * 0.26, hh * 0.22, z - 0.004), Vector3(glass_h * 0.44, 0.010, 0.012), window_glass_crack_color, deg_to_rad(76.0))
+
+
+func _add_local_glass_shard(leaf: Node3D, node_name: String, points: Array, z: float) -> MeshInstance3D:
+	var vertices := PackedVector3Array()
+	for raw_point in points:
+		var point: Vector2 = raw_point
+		vertices.append(Vector3(point.x, point.y, z))
+	var indices := PackedInt32Array([0, 1, 2])
+	if vertices.size() == 3:
+		indices = PackedInt32Array([0, 1, 2])
+	elif vertices.size() >= 4:
+		indices = PackedInt32Array([0, 1, 2, 0, 2, 3])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var node := MeshInstance3D.new()
+	node.name = node_name
+	node.mesh = mesh
+	var mat := _mat(window_glass_shard_color, true)
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	node.material_override = mat
+	leaf.add_child(node)
+	return node
+
+
+func _add_local_rotated_box(parent: Node3D, node_name: String, center_m: Vector3, size_m: Vector3, color: Color, rotation_z: float) -> MeshInstance3D:
+	var node := _add_local_box(parent, node_name, center_m, size_m, color, false)
+	node.rotation.z = rotation_z
+	return node
+
+
+func _set_window_leaf_broken(leaf: Node3D, broken: bool) -> void:
+	if leaf == null:
+		return
+	var glass := leaf.get_node_or_null("Glass") as MeshInstance3D
+	if glass != null:
+		glass.visible = not broken
+	for child in leaf.get_children():
+		if not (child is Node3D):
+			continue
+		var child_name: String = String(child.name)
+		if child_name.begins_with("BrokenShard") or child_name.begins_with("Crack"):
+			(child as Node3D).visible = broken
 
 
 func _set_window_leaf_glass_color(leaf: Node3D, color: Color) -> void:
@@ -2954,6 +3038,11 @@ func _update_prompt() -> void:
 		if _prompt_panel != null:
 			_prompt_panel.visible = false
 		return
+	if op.type == OpeningModel.Type.WINDOW and op.glass_broken:
+		_prompt_label.text = "Ventana rota | ventilacion %.0f%%" % (op.open_fraction * 100.0)
+		if _prompt_panel != null:
+			_prompt_panel.visible = true
+		return
 	if _f_key_down and _f_hold_opening_index == _nearest_opening_index:
 		var kind: String = "puerta" if op.type == OpeningModel.Type.DOOR else "ventana"
 		var selected_pct: int = int(round(_f_hold_fraction * 100.0))
@@ -3108,6 +3197,8 @@ func _begin_opening_hold() -> void:
 	var op: OpeningModel = building.get_opening_at(_nearest_opening_index)
 	if op == null:
 		return
+	if op.type == OpeningModel.Type.WINDOW and op.glass_broken:
+		return
 	_f_key_down = true
 	_f_hold_mode = false
 	_f_hold_elapsed_s = 0.0
@@ -3136,6 +3227,8 @@ func _finish_opening_hold() -> void:
 		return
 	var op: OpeningModel = building.get_opening_at(opening_index)
 	if op == null:
+		return
+	if op.type == OpeningModel.Type.WINDOW and op.glass_broken:
 		return
 	var next_frac: float = selected_fraction if use_hold_fraction else (0.0 if op.open_fraction > 0.01 else 1.0)
 	_apply_opening_fraction(opening_index, next_frac)
@@ -3202,6 +3295,8 @@ func _interact_with_nearest_opening() -> void:
 	var op: OpeningModel = building.get_opening_at(_nearest_opening_index)
 	if op == null:
 		return
+	if op.type == OpeningModel.Type.WINDOW and op.glass_broken:
+		return
 	var next_frac: float = 0.0 if op.open_fraction > 0.01 else 1.0
 	_apply_opening_fraction(_nearest_opening_index, next_frac)
 
@@ -3222,15 +3317,17 @@ func _update_window_leaf_pair(
 	base_yaw: float,
 	width_m: float,
 	_height_m: float,
-	open_amount: float
+	open_amount: float,
+	broken: bool = false
 ) -> void:
+	var visual_open_amount: float = 0.0 if broken else open_amount
 	var pose: Dictionary = FPOpeningVisuals.compute_window_leaf_pair(
 		center,
 		tangent,
 		normal,
 		base_yaw,
 		width_m,
-		open_amount,
+		visual_open_amount,
 		deg_to_rad(window_open_angle_deg),
 		opening_panel_clearance_m
 	)
@@ -3241,9 +3338,11 @@ func _update_window_leaf_pair(
 	right_leaf.position = Vector3(pose.get("right_center", center))
 	left_leaf.rotation = Vector3(0.0, float(pose.get("left_yaw", base_yaw)), 0.0)
 	right_leaf.rotation = Vector3(0.0, float(pose.get("right_yaw", base_yaw)), 0.0)
-	var glass_color: Color = window_glass_closed_color.lerp(window_glass_open_color, clampf(open_amount, 0.0, 1.0))
+	var glass_color: Color = window_glass_closed_color.lerp(window_glass_open_color, clampf(visual_open_amount, 0.0, 1.0))
 	_set_window_leaf_glass_color(left_leaf, glass_color)
 	_set_window_leaf_glass_color(right_leaf, glass_color)
+	_set_window_leaf_broken(left_leaf, broken)
+	_set_window_leaf_broken(right_leaf, broken)
 
 
 func _cycle_stance() -> void:
@@ -3338,6 +3437,7 @@ func _update_opening_panel(index: int) -> void:
 
 	var is_door: bool = op.type == OpeningModel.Type.DOOR
 	var is_window: bool = op.type == OpeningModel.Type.WINDOW
+	var is_broken_window: bool = is_window and op.glass_broken
 	var open_amount: float = clampf(op.open_fraction, 0.0, 1.0)
 	var width_m: float = float(info.get("width_m", 0.8))
 	var height_m: float = float(info.get("height_m", 2.0))
@@ -3380,7 +3480,8 @@ func _update_opening_panel(index: int) -> void:
 			base_yaw,
 			width_m,
 			height_m,
-			open_amount
+			open_amount,
+			is_broken_window
 		)
 		body.position = center - normal * opening_panel_clearance_m
 		body.rotation = Vector3(0.0, base_yaw, 0.0)
@@ -3392,7 +3493,7 @@ func _update_opening_panel(index: int) -> void:
 		if window_box_shape != null:
 			window_box_shape.size = size
 		shape.position = Vector3.ZERO
-		shape.disabled = (not window_collision_when_closed) or open_amount > 0.05
+		shape.disabled = is_broken_window or (not window_collision_when_closed) or open_amount > 0.05
 		if light != null:
 			var window_area_factor: float = clampf(width_m * height_m / 2.2, 0.35, 1.55)
 			light.light_color = _effective_window_light_color()

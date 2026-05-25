@@ -3,6 +3,7 @@ extends Node
 const FirstPersonControllerScript = preload("res://view/fp/FirstPersonController.gd")
 const Minimap2DScript = preload("res://ui/Minimap2D.gd")
 const MAIN_MENU_PATH: String = "res://scenes/MainMenu.tscn"
+const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 
 @onready var building: BuildingModel = $World/BuildingModel
 @onready var engine: SimulationEngine = $World/SimulationEngine
@@ -42,8 +43,41 @@ func _ready() -> void:
 	_set_3d_view_enabled(view_3d_enabled)
 	if engine != null:
 		engine.time_scale = 1.0
+		_apply_startup_engine_options()
 	_connect_visualizer_signals()
 	_update_views()
+
+
+func _apply_startup_engine_options() -> void:
+	if engine == null or _is_validation_mode():
+		return
+	var options: Dictionary = _load_startup_options()
+	if options.is_empty():
+		return
+	if engine.has_method("apply_runtime_options"):
+		engine.apply_runtime_options(options)
+
+
+func _load_startup_options() -> Dictionary:
+	if not FileAccess.file_exists(STARTUP_OPTIONS_PATH):
+		return {}
+	var file := FileAccess.open(STARTUP_OPTIONS_PATH, FileAccess.READ)
+	if file == null:
+		return {}
+	var text: String = file.get_as_text()
+	file.close()
+	var parsed: Variant = JSON.parse_string(text)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {}
+	return parsed
+
+
+func _is_validation_mode() -> bool:
+	for arg in OS.get_cmdline_user_args():
+		var arg_text: String = String(arg)
+		if arg_text == "--validation-case" or arg_text.begins_with("--validation-case="):
+			return true
+	return false
 
 
 func _connect_hud_signals() -> void:

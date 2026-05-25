@@ -21,11 +21,13 @@ var _template_option: OptionButton = null
 var _hvac_option: OptionButton = null
 var _lighting_option: OptionButton = null
 var _interior_lights_option: OptionButton = null
+var _glass_break_option: OptionButton = null
 var _building_type_option: OptionButton = null
 var _apartment_floor_spin: SpinBox = null
 var _preset_ids: Array[String] = []
 var _hvac_modes: Array[String] = ["none", "off", "on"]
 var _lighting_modes: Array[String] = ["Dia", "Noche"]
+var _glass_break_modes: Array[int] = [0, 1, 2]
 var _building_type_modes: Array[String] = ["single_family", "apartment"]
 
 
@@ -225,6 +227,14 @@ func _ensure_start_options_ui(parent_override: Control = null) -> void:
 		_move_before_first_button(vbox, interior_lights_row)
 	_interior_lights_option = interior_lights_row.get_node_or_null("Option") as OptionButton
 	_populate_interior_lights_option()
+
+	var glass_break_row := vbox.get_node_or_null("GlassBreakRow") as HBoxContainer
+	if glass_break_row == null:
+		glass_break_row = _make_option_row("GlassBreakRow", "Cristales")
+		vbox.add_child(glass_break_row)
+		_move_before_first_button(vbox, glass_break_row)
+	_glass_break_option = glass_break_row.get_node_or_null("Option") as OptionButton
+	_populate_glass_break_option()
 	_fit_main_menu_layout()
 
 
@@ -393,6 +403,21 @@ func _populate_interior_lights_option() -> void:
 	_interior_lights_option.select(0 if enabled else 1)
 
 
+func _populate_glass_break_option() -> void:
+	if _glass_break_option == null:
+		return
+
+	if _glass_break_option.get_item_count() == 0:
+		_glass_break_option.add_item("Sin rotura", 0)
+		_glass_break_option.add_item("Umbral temp.", 1)
+		_glass_break_option.add_item("Probabilistica", 2)
+	var saved: Dictionary = _load_startup_options()
+	var selected_mode: int = int(saved.get("glass_break_mode", 0))
+	var selected_index: int = maxi(0, _glass_break_modes.find(selected_mode))
+	if _glass_break_option.get_item_count() > 0:
+		_glass_break_option.select(clampi(selected_index, 0, _glass_break_option.get_item_count() - 1))
+
+
 func _add_menu_button(parent: Control, text: String, callback: Callable, node_name: String = "") -> void:
 	var btn := Button.new()
 	if not node_name.is_empty():
@@ -446,6 +471,11 @@ func _save_startup_options() -> void:
 	if _apartment_floor_spin != null:
 		selected_apartment_floor = int(round(_apartment_floor_spin.value))
 
+	var selected_glass_break_mode: int = 0
+	if _glass_break_option != null:
+		var glass_idx: int = clampi(_glass_break_option.selected, 0, _glass_break_modes.size() - 1)
+		selected_glass_break_mode = _glass_break_modes[glass_idx]
+
 	var file := FileAccess.open(STARTUP_OPTIONS_PATH, FileAccess.WRITE)
 	if file == null:
 		push_error("MainMenu: no se pudieron guardar opciones de inicio")
@@ -456,7 +486,8 @@ func _save_startup_options() -> void:
 		"apartment_floor_number": selected_apartment_floor,
 		"hvac_mode": selected_hvac_mode,
 		"exterior_lighting_mode": selected_lighting_mode,
-		"interior_lights_on": selected_interior_lights_on
+		"interior_lights_on": selected_interior_lights_on,
+		"glass_break_mode": selected_glass_break_mode
 	}, "\t"))
 	file.close()
 

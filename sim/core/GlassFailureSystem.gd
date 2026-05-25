@@ -113,7 +113,7 @@ func step(dt: float) -> void:
 # MODO DETERMINISTIC
 # ============================================================
 # Igual al modelo original: umbral fijo por ventana con spread aleatorio.
-# El cristal se abre progresivamente al superar el umbral.
+# El cristal queda marcado como roto y aumenta su area efectiva de ventilacion.
 
 func _step_deterministic(idx: int, op: OpeningModel, room: RoomModel, dt: float) -> void:
 	if not _glass_break_temps.has(idx):
@@ -122,7 +122,8 @@ func _step_deterministic(idx: int, op: OpeningModel, room: RoomModel, dt: float)
 				glass_break_temp_spread_c)
 	var break_temp: float = _glass_break_temps[idx]
 	if room.temp_upper_c >= break_temp:
-		var was_intact: bool = op.open_fraction < 0.001
+		var was_intact: bool = not op.glass_broken
+		op.mark_glass_broken()
 		op.open_fraction = minf(glass_max_open_fraction,
 				op.open_fraction + glass_open_rate_per_s * dt)
 		if was_intact:
@@ -135,11 +136,11 @@ func _step_deterministic(idx: int, op: OpeningModel, room: RoomModel, dt: float)
 # Hazard rate:  λ = λ_base × f_temp^exp × (1 + t_exp / τ_exp)
 # donde f_temp = clamp((T - T_start) / (T_ref - T_start), 0, 10)
 # P(rotura en dt) = 1 - exp(-λ · dt)
-# Una vez roto, se abre progresivamente igual que el modo deterministico.
+# Una vez roto, aumenta progresivamente su area efectiva igual que el modo deterministico.
 
 func _step_probabilistic(idx: int, op: OpeningModel, room: RoomModel, dt: float) -> void:
-	# Si ya esta abierto (roto), seguir abriendo
-	if op.open_fraction >= 0.001:
+	# Si ya esta roto, seguir aumentando el area efectiva de ventilacion.
+	if op.glass_broken:
 		op.open_fraction = minf(glass_max_open_fraction,
 				op.open_fraction + glass_open_rate_per_s * dt)
 		return
@@ -169,6 +170,7 @@ func _step_probabilistic(idx: int, op: OpeningModel, room: RoomModel, dt: float)
 	# Evento de Poisson en dt
 	var p_break: float = 1.0 - exp(-lam * dt)
 	if randf() < p_break:
+		op.mark_glass_broken()
 		op.open_fraction = minf(glass_max_open_fraction,
 				op.open_fraction + glass_open_rate_per_s * dt)
 		newly_broken_indices.append(idx)
