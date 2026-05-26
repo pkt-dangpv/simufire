@@ -142,12 +142,12 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ### 6. Phase 1.5: Paredes y flashover (4 checks)
 
-**Gap**: conducción 1D en paredes no implementada (solo `wall_absorption_rate` lineal). HRR post-flashover timing desfasado.
+**Gap**: conducción 1D en paredes no calibrada para temperatura de superficie vs CFAST. El campo `wall_T_mid_c` ahora refleja la temperatura real del modelo lumped (SF-AUD-031b fix), pero el modelo simple da ~23°C vs CFAST 73–91°C a t>400s. HRR post-flashover timing desfasado.
 
 | Check | SF actual | CFAST expected | Nota |
 |-------|-----------|----------------|------|
-| `cfast_t420_wall_T_mid_c` | 20.0°C | 73.2°C ±40°C | Nodo medio pared vs t=420s |
-| `cfast_t510_wall_T_mid_c` | 20.0°C | 90.7°C ±40°C | Nodo medio pared vs t=510s |
+| `cfast_t420_wall_T_mid_c` | 23.2°C | 73.2°C ±40°C | Stage 1.5A: modelo lumped calibrado para T_zona, no T_pared |
+| `cfast_t510_wall_T_mid_c` | 23.5°C | 90.7°C ±40°C | Stage 1.5A: ídem — brecha 67°C, requiere PDE + material properties |
 | `cfast_fo_peak_temp_upper_c` | 355.3°C | ≥400°C | Pico post-flashover |
 | `cfast_fo_peak_temp_timing` | 200s | 390s ±90s | Timing del pico post-flashover |
 
