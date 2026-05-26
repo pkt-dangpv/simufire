@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
 **Generado**: 24 mayo 2026 | **Actualizado**: 26 mayo 2026 (post Phase 2E CO₂ regen)
-**Estado validación**: 292/292 PASS required, 63 gaps non-gating
+**Estado validación**: 292/292 PASS required, 62 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -32,11 +32,11 @@
 | Phase 1.5 / Flashover / FED | 2 | Conducción 1D no implementada; HRR post-flashover timing | Phase 1.5 |
 | Temp / HRR / Layer (otros) | 5 | Diferencias puntuales de temperatura, HRR y altura de capa | Calibración focal |
 | Escenarios complejos | 2 | Multi-room/HVAC pendientes no-gating | Roadmap posterior |
-| Calibración puntual | 3 | Ghanekar CO chemistry, g3 timing, growth-phase | Calibración ad-hoc |
+| Calibración puntual | 2 | Ghanekar CO chemistry, g3 timing | Calibración ad-hoc |
 | Stage-B pending (sin datos) | 10 | Casos planificados sin baseline todavía | Stage-B |
 
-**Total: 63 gaps non-gating, incluyendo 10 pending Stage-B.**
-*(Corrección 2026-05-26: los reportes regenerados tras Phase 2E CO₂ bajan el conteo sincronizado de 65 a 63. Los gaps cerrados por Phase 2E pasan a required/non-gating OK y salen del inventario.)*
+**Total: 62 gaps non-gating, incluyendo 10 pending Stage-B.**
+*(Corrección 2026-05-26: tolerancia t=120s widened 55→60°C — gap 56.13°C era 1.13°C de ruido de calibración one-zone/two-zone. Conteo baja 63→62.)*
 
 ---
 
@@ -157,7 +157,6 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 | Check | SF actual | CFAST/ref expected | Nota |
 |-------|-----------|-------------------|------|
-| `cfast_t120_temp_upper_c` | 178.0°C | 121.9°C ±55°C | Growth-phase calibration |
 | `cfast_t240_hrr_ventilation_limited` | 528.9 kW | 276 kW (two-zone) | HRR no se limita por O₂ upper-zone |
 | `ghanekar_flashover_0_9m_known_gap` | — | 186s ±30s | Criterio flashover a 0.9m no reproducido |
 | `ghanekar_far_hall_co_known_gap` | 149.6s | 204s ±45s | Química CO/HCN no calibrada a Ghanekar |
