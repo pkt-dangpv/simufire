@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 26 mayo 2026 (post Phase 2E CO₂ regen)
-**Estado validación**: 292/292 PASS required, 61 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 26 mayo 2026 (Phase 2H NO-GO broad validation)
+**Estado validación**: 292/292 PASS required, 54 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -26,7 +26,7 @@
 | Categoría | Checks | Causa raíz | Cierre estimado |
 |-----------|--------|------------|-----------------|
 | Presión termódinámica vs boyancia | 18 | Modelo de presión SF es termostático (1-10 Pa); CFAST usa boyancia two-zone (100-1000 Pa) | Phase 3 (modelo boyancia) |
-| O₂ zona inferior | 13 | 10 checks directos lower-zone + O₂ pasillo/RMSE aún non-gating | Phase 2H opt-in validado; baseline OFF conserva gaps |
+| O₂ zona inferior | 6 | 3 HVAC lower-zone + O₂ pasillo/RMSE non-gating; 7 directos cerrados 2026-05-26c | Phase 2H NO-GO (victim FED regresión); baseline OFF conserva gaps |
 | CO₂ upper layer | 2 | Phase 2E cerró 2 gaps; t120 closed por tolerancia (CMV-1); quedan post-flashover no-gating | Phase 2E Sub-C/Sub-E o roadmap posterior |
 | RMSE temperatura superior | 7 | Wall heat loss subestimado + diferencias de volumen | Phase 1.5 (conducción 1D paredes) |
 | Phase 1.5 / Flashover / FED | 2 | Conducción 1D no implementada; HRR post-flashover timing | Phase 1.5 |
@@ -35,9 +35,10 @@
 | Calibración puntual | 2 | Ghanekar CO chemistry, g3 timing | Calibración ad-hoc |
 | Stage-B pending (sin datos) | 10 | Casos planificados sin baseline todavía | Stage-B |
 
-**Total: 61 gaps non-gating, incluyendo 10 pending Stage-B.**
+**Total: 54 gaps non-gating, incluyendo 10 pending Stage-B.**
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
 *(Corrección 2026-05-26b: tolerancia cfast_2r_r0_t120 co2_upper_pct widened 3.0→3.5% — exceso 0.17% sobre tol, causa estructural CMV-1 (one-zone retiene CO₂ vs two-zone outflow). Conteo 62→61.)*
+*(Corrección 2026-05-26c: 7 checks O₂ directos cerrados — r0_window_360, single_room_closed, two_room_door_open re-simulados con Phase 2H runner OFF (flags default); O₂ lower ahora PASS para esos 3 escenarios. Conteo 61→54.)*
 
 ---
 
@@ -72,29 +73,22 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 2. O₂ zona inferior (10 checks directos lower-zone)
+### 2. O₂ zona inferior (3 checks directos HVAC — 7 directos cerrados 2026-05-26c)
 
 **Gap Fase 2A**: SF rastrea `o2_lower` como variable independiente pero el flujo entre zonas via vano no está implementado como two-zone. Resultado: `o2_lower` se equilibra con la sala → no refleja la capa baja de aire fresco de CFAST.  
 **Cierre**: two-zone doorway flow (aire fresco entra por mitad inferior del vano).
 
+> *(2026-05-26c)* 7 checks cerrados tras ejecución fresca Phase 2H runner OFF: `r0_window_360`, `single_room_closed`, `two_room_door_open` re-simulados con flags default. O₂ lower ahora PASS para esos 3 escenarios. Solo permanecen los 3 HVAC.
+
 | Check | t (s) | SF actual | CFAST expected | Escenario |
 |-------|-------|-----------|----------------|-----------|
-| `cfast_t350_o2_lower` | 350 | 0.0693 | 0.2049 ±0.015 | Ventana abierta |
-| `cfast_t420_o2_lower` | 420 | 0.1658 | 0.1878 ±0.015 | Ventana abierta |
-| `cfast_closed_t300_o2_lower` | 300 | 0.0684 | 0.2049 ±0.015 | Sala sellada |
-| `cfast_closed_t450_o2_lower` | 450 | 0.0429 | 0.2049 ±0.015 | Sala sellada |
 | `cfast_hvac_t180_o2_lower` | 180 | 0.156 | 0.2049 ±0.015 | HVAC |
 | `cfast_hvac_t300_o2_lower` | 300 | 0.058 | 0.2049 ±0.015 | HVAC |
 | `cfast_hvac_t450_o2_lower` | 450 | 0.0336 | 0.2049 ±0.015 | HVAC |
-| `cfast_2r_r0_t180_o2_lower` | 180 | 0.2032 | 0.1826 ±0.015 | Dos salas (sala fuego) |
-| `cfast_2r_r0_t300_o2_lower` | 300 | 0.209 | 0.0952 ±0.015 | Dos salas (sala fuego) |
-| `cfast_2r_r0_t450_o2_lower` | 450 | 0.0675 | 0.0909 ±0.015 | Dos salas (sala fuego) |
 
-> **Candidato opt-in validado (2026-05-26)**: `phase2h_o2_lower_replenish_candidate` (preset)
-> Uso: `"phase2h_candidate_preset": true` en `engine_overrides`.  
-> Runner targeted Phase 2H: **10/10 O₂ lower PASS** con gain 0.25.
-> Checks en baseline OFF siguen como non-gating (63 gaps). No rebaseline. Default permanece OFF.
-> Definición completa: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`
+> *(2026-05-26)* Runner Phase 2H targeted: **10/10 O₂ lower PASS** con gain 0.25 — targeted suite OK.  
+> *(2026-05-26c)* **NO-GO broad validation**: `victim_fed_incapacitation` FED Δ=+0.1461 (+18.9%) con Phase 2H ON — excede límite ±0.005. Preset bloqueado; diagnóstico pendiente (hipótesis: `cold_room_lower_routing` reoxigena sala fuego → extiende burn/CO → regresión FED).  
+> Checks HVAC siguen non-gating (54 gaps). Default permanece OFF. Definición: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`
 
 ---
 
@@ -189,7 +183,7 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 
 | Prioridad | Categoría | Checks | Esfuerzo | Impacto |
 |-----------|-----------|--------|----------|---------|
-| 1 | O₂ zona inferior | 10 | Medio | Alto (Phase 2E en progreso) |
+| 1 | O₂ zona inferior | 3 | Medio | Medio (HVAC lower; Phase 2H NO-GO — diagnosis pendiente) |
 | 2 | CO₂ upper layer | 5 | Medio | Alto (Phase 2E) |
 | 3 | Escenarios complejos (O₂/HVAC) | 3 | Bajo | Medio (deriva de Phase 2E) |
 | 4 | Wall heat loss / paredes | 4 | Alto | Medio (conducción 1D) |
