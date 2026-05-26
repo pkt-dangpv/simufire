@@ -36,10 +36,11 @@ var o2_upper_plume_entr_rate: float = 0.025
 # Usado en la ecuación Δco2_upper = (hrr/1000) × co2_yield × o2_scale × 29/(44×upper_mass).
 # Default: 0.0831 kg CO₂/MJ (mismo que co2_base_yield_kg_per_MJ en CombustionSystem).
 var co2_yield_kg_per_MJ: float = 0.0831
-# Phase 2H: O₂ doorway two-zone flow (default OFF).
-# Cuando ON: floor de o2_lower cambia room.o2 → room.o2_upper en ruta Phase 2A.
+# Phase 2H: O₂ lower-zone flow candidate (default OFF).
+# Cuando ON: protege o2_lower en salas sin doorway interior, mezcla la zona baja
+# cuando hay doorway interior abierto, y permite mezcla moderada tras apertura exterior.
 var phase2h_o2_doorway_two_zone_enabled: bool = false
-# Exp 2H.2: delta negativo de cold_room en active_flow se enruta a cold_room.o2_lower.
+# Exp 2H.2: ajusta la reposición directa de o2_lower desde flujos interiores activos.
 var phase2h_cold_room_lower_routing_enabled: bool = false
 # Exp 2H.2: gain del boost de reabastecimiento de zona baja desde apertura exterior (0.0 = no-op).
 var phase2h_lower_replenish_gain: float = 0.0
@@ -234,7 +235,15 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# Phase 2H Exp2H.1: floor room.o2 → room.o2_upper resultó en inversión
 			# (o2_lower baja más, FED hipoxia sube +16%). Branch ON reverted a no-op.
 			# Exp 2H.2 implementará boost de reabastecimiento de zona baja.
-			var lower_entr: float = entr_frac * 0.20 * maxf(0.0, room.o2_lower - room.o2)
+			var lower_entr_scale: float = 0.20
+			if phase2h_o2_doorway_two_zone_enabled:
+				var interior_open_factor: float = _estimate_room_interior_open_factor(building, room)
+				if interior_open_factor <= 0.01:
+					var outside_open_factor: float = _estimate_room_outside_open_factor(building, room)
+					lower_entr_scale = 0.40 * outside_open_factor
+				else:
+					lower_entr_scale = lerpf(0.60, 1.40, interior_open_factor)
+			var lower_entr: float = entr_frac * lower_entr_scale * maxf(0.0, room.o2_lower - room.o2)
 			room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)
 			var ach_lower_dt: float = (ach_infiltration / 3600.0) \
 				* (building.outside_o2 - room.o2_lower) * dt
@@ -638,9 +647,15 @@ func _exchange_room_o2_active_flow(
 			hot_room.thermal_layer_m / maxf(0.01, hot_room.height_m), 0.01, 0.99)
 		var lower_mass_hr: float = maxf(
 			0.001, _compute_room_air_mass_kg(hot_room, air_density_kg_m3) * lower_frac_hr)
-		hot_room.o2_lower = clampf(
-			hot_room.o2_lower + hot_room_delta_o2_kg / lower_mass_hr,
-			0.0, o2_nominal)
+		var lower_replenish_scale: float = 1.0
+		if phase2h_o2_doorway_two_zone_enabled and phase2h_cold_room_lower_routing_enabled:
+			var outside_support: float = _estimate_room_outside_open_factor(building, hot_room)
+			if outside_support <= 0.01:
+				lower_replenish_scale = 0.0
+		if lower_replenish_scale > 0.0:
+			hot_room.o2_lower = clampf(
+				hot_room.o2_lower + hot_room_delta_o2_kg * lower_replenish_scale / lower_mass_hr,
+				0.0, o2_nominal)
 
 	var hot_air_mass_kg: float = _compute_room_air_mass_kg(hot_room, air_density_kg_m3)
 	var cold_air_mass_kg: float = _compute_room_air_mass_kg(cold_room, air_density_kg_m3)
@@ -764,6 +779,27 @@ func _estimate_room_outside_open_factor(building: BuildingModel, room: RoomModel
 			or (op.b == room.id and op.a == BuildingModel.OUTSIDE_ID)
 		)
 		if not connects_outside:
+			continue
+
+		total_open_area_m2 += op.width_m * op.height_m * op.open_fraction
+
+	if total_open_area_m2 <= 0.0:
+		return 0.0
+
+	var reference_area_m2: float = maxf(0.20, room.floor_area_m2() * 0.12)
+	return clampf(total_open_area_m2 / reference_area_m2, 0.0, 1.0)
+
+
+func _estimate_room_interior_open_factor(building: BuildingModel, room: RoomModel) -> float:
+	if building == null or room == null:
+		return 0.0
+
+	var total_open_area_m2: float = 0.0
+	for op in building.get_openings():
+		if op == null or op.open_fraction <= 0.0 or op.is_exterior_opening():
+			continue
+
+		if op.a != room.id and op.b != room.id:
 			continue
 
 		total_open_area_m2 += op.width_m * op.height_m * op.open_fraction

@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 24 mayo 2026 (post Phase 2E reporting fix)  
-**Estado validación**: 292/292 PASS required, 65 gaps non-gating  
+**Generado**: 24 mayo 2026 | **Actualizado**: 26 mayo 2026 (post Phase 2E CO₂ regen)
+**Estado validación**: 292/292 PASS required, 63 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -26,17 +26,17 @@
 | Categoría | Checks | Causa raíz | Cierre estimado |
 |-----------|--------|------------|-----------------|
 | Presión termódinámica vs boyancia | 18 | Modelo de presión SF es termostático (1-10 Pa); CFAST usa boyancia two-zone (100-1000 Pa) | Phase 3 (modelo boyancia) |
-| O₂ zona inferior | 10 | SF mezcla O₂ uniformemente; CFAST preserva ≈20.5% en zona baja | Phase 2E (two-zone doorway flow) |
-| CO₂ upper layer | 5 | Transporte CO₂ a zona superior subestimado | Phase 2E (two-zone CO₂) |
-| RMSE temperatura superior | 8 | Wall heat loss subestimado + diferencias de volumen | Phase 1.5 (conducción 1D paredes) |
-| Escenarios complejos (HVAC, multi-floor) | 5 | Mezcla uniforme O₂ extingue fuego; CFAST two-zone lo sostiene | Phase 2E |
-| Phase 1.5 (paredes, flashover) | 4 | Conducción 1D no implementada; HRR post-flashover timing | Phase 1.5 |
-| Calibración puntual | 5 | Ghanekar CO chemistry, g3 timing, growth-phase | Calibración ad-hoc |
-| CO lower zone reporting | 1 | `compute_co_lower_ppm` retorna media de sala cuando `upper_gas_kg < 0.1`; CFAST upper-stratified → lower≈0 | Diferencia arquitectural — no regresión required |
+| O₂ zona inferior | 13 | 10 checks directos lower-zone + O₂ pasillo/RMSE aún non-gating | Phase 2H opt-in validado; baseline OFF conserva gaps |
+| CO₂ upper layer | 3 | Phase 2E cerró 2 gaps; quedan post-flashover/t120 no-gating | Phase 2E Sub-C/Sub-E o roadmap posterior |
+| RMSE temperatura superior | 7 | Wall heat loss subestimado + diferencias de volumen | Phase 1.5 (conducción 1D paredes) |
+| Phase 1.5 / Flashover / FED | 2 | Conducción 1D no implementada; HRR post-flashover timing | Phase 1.5 |
+| Temp / HRR / Layer (otros) | 5 | Diferencias puntuales de temperatura, HRR y altura de capa | Calibración focal |
+| Escenarios complejos | 2 | Multi-room/HVAC pendientes no-gating | Roadmap posterior |
+| Calibración puntual | 3 | Ghanekar CO chemistry, g3 timing, growth-phase | Calibración ad-hoc |
 | Stage-B pending (sin datos) | 10 | Casos planificados sin baseline todavía | Stage-B |
 
-**Total: 63 checks con datos + 10 pending = 73 gaps**  
-*(Corrección respecto a conteo anterior: el GAPS_INVENTORY inicial reportaba 65, pero la verificación post Phase 2E reporting fix muestra 73. La diferencia de 8 se debe a: 7 checks que ya fallaban antes pero no estaban en el conteo inicial — incluyendo presión `cfast_closed_t240`, `cfast_fastgrowth`, y O₂ pasillo — más 1 gap nuevo introducido por el guard `upper_gas_kg < 0.1` en `compute_co_lower_ppm`.)*
+**Total: 63 gaps non-gating, incluyendo 10 pending Stage-B.**
+*(Corrección 2026-05-26: los reportes regenerados tras Phase 2E CO₂ bajan el conteo sincronizado de 65 a 63. Los gaps cerrados por Phase 2E pasan a required/non-gating OK y salen del inventario.)*
 
 ---
 
@@ -71,7 +71,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 2. O₂ zona inferior (9 checks)
+### 2. O₂ zona inferior (10 checks directos lower-zone)
 
 **Gap Fase 2A**: SF rastrea `o2_lower` como variable independiente pero el flujo entre zonas via vano no está implementado como two-zone. Resultado: `o2_lower` se equilibra con la sala → no refleja la capa baja de aire fresco de CFAST.  
 **Cierre**: two-zone doorway flow (aire fresco entra por mitad inferior del vano).
@@ -89,23 +89,21 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 | `cfast_2r_r0_t300_o2_lower` | 300 | 0.209 | 0.0952 ±0.015 | Dos salas (sala fuego) |
 | `cfast_2r_r0_t450_o2_lower` | 450 | 0.0675 | 0.0909 ±0.015 | Dos salas (sala fuego) |
 
-> **Candidato opt-in validado (2026-05-24)**: `phase2h_o2_lower_replenish_candidate` (preset)  
+> **Candidato opt-in validado (2026-05-26)**: `phase2h_o2_lower_replenish_candidate` (preset)
 > Uso: `"phase2h_candidate_preset": true` en `engine_overrides`.  
-> Cierre parcial en escenario HVAC: `cfast_hvac_t300_o2_lower` 0.058 → **0.168** (+0.110, gap residual 0.037).  
-> Checks en baseline OFF siguen como non-gating (73 gaps). No rebaseline. Default permanece OFF.  
+> Runner targeted Phase 2H: **10/10 O₂ lower PASS** con gain 0.25.
+> Checks en baseline OFF siguen como non-gating (63 gaps). No rebaseline. Default permanece OFF.
 > Definición completa: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`
 
 ---
 
-### 3. CO₂ upper layer (5 checks)
+### 3. CO₂ upper layer (3 checks)
 
 **Gap**: Transporte de CO₂ a la zona superior es insuficiente. Requiere two-zone CO₂ tracking completo con fracción upper/lower en el transporte de gas caliente.
 
 | Check | t (s) | SF actual | CFAST expected | Escenario |
 |-------|-------|-----------|----------------|-----------|
-| `cfast_t510_co2_upper_ppm` | 510 | 16182 ppm | 52300 ±20000 ppm | Sala única |
 | `cfast_2r_r0_t120_co2_upper_pct` | 120 | 4.75% | 1.58% ±3.0% | Dos salas (sala fuego) |
-| `cfast_2r_r0_t480_co2_upper_pct` | 480 | 0.999% | 9.91% ±3.0% | Dos salas (sala fuego) |
 | `cfast_fo_t240_co2_upper_pct` | 240 | 4.32% | 7.77% ±3.0% | Post-flashover |
 | `cfast_fo_t350_co2_upper_pct` | 350 | 0.77% | 7.89% ±3.0% | Post-flashover |
 
@@ -229,4 +227,3 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 | **B-transport** | Dividir CO en `_transfer_hot_gas_contaminants` por fracción `upper_gas/total_gas` destino | Pendiente | ALTO — modifica `co_upper_kg` → afecta g4 FED required |
 | **C-FED-cond** | `compute_co_lower_ppm` en FED solo cuando `hot_h < 0.5 * height_m` | Pendiente | MEDIO — no cambia transporte pero afecta step_fed |
 | **D-two-zone doorway** | Flujo two-zone en vano: aire fresco entra por mitad inferior | Pendiente | BAJO en CO, ALTO en O₂ lower |
-

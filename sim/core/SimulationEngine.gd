@@ -680,20 +680,19 @@ var _step_time_us: int = 0
 ## "only_when_hot_layer_above_1_8m": aplica sólo cuando interfaz capa caliente > 1.8 m
 ## "all_rooms_with_fire"           : equivalente a fire_room_only (todas las salas con combustión)
 @export var phase2g_co_lower_source_guard: String = "fire_room_only"
-## Phase 2H — O₂ doorway two-zone flow (default OFF — no altera baseline)
-## Cuando ON: el floor de o2_lower cambia de room.o2 → room.o2_upper, permitiendo que
-## la zona baja se mantenga por encima del bulk cuando el flujo fresco la repone.
-## room.o2, o2_upper, CO, HRR y FED son invariantes (no se modifican).
+## Phase 2H — O₂ lower-zone flow candidate (default OFF — no altera baseline)
+## Cuando ON: protege o2_lower en salas sin doorway interior, mezcla la zona baja con
+## mayor fuerza si hay doorway interior abierto, y permite mezcla moderada tras apertura exterior.
+## room.o2, CO, HRR y FED siguen gobernados por los modelos base.
 @export var phase2h_o2_doorway_two_zone_enabled: bool = false
-## Exp 2H.2: el delta de O₂ de cold_room en active_flow se enruta a o2_lower en vez de room.o2.
-## Desactivado en Exp 2H.1 (cold_room_lower_routing_enabled = false).
+## Exp 2H.2: ajusta la reposición directa de o2_lower desde flujos interiores activos.
 @export var phase2h_cold_room_lower_routing_enabled: bool = false
 ## Exp 2H.2: gain del boost de reabastecimiento de zona baja desde apertura exterior/HVAC bajo.
 ## 0.0 = no-op (default OFF); valores experimentales: 0.25 / 0.5 / 1.0.
 @export var phase2h_lower_replenish_gain: float = 0.0
 ## Phase 2H — Preset opt-in: activa two_zone + cold_routing + gain=0.25 con un solo flag.
-## Validado 2026-05-24: 14/14 OK, 6/6 sentinels PASS, room.o2 invariante, O2l +0.1098 @ t=300s.
-## Safe: no altera room.o2, CO, HRR, FED ni ninguna baseline required. No requiere rebaseline.
+## Validado 2026-05-26: 10/10 checks O2 lower PASS en runner targeted; default OFF.
+## Safe como opt-in: no altera ninguna baseline required con default OFF. No requiere rebaseline.
 ## Nombre del preset: phase2h_o2_lower_replenish_candidate
 ## Uso en engine_overrides JSON: { "phase2h_candidate_preset": true }
 @export var phase2h_candidate_preset: bool = false

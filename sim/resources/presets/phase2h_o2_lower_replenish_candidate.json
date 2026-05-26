@@ -1,9 +1,9 @@
 {
 	"preset_id": "phase2h_o2_lower_replenish_candidate",
-	"version": "2H.candidate.g025",
-	"validated": "2026-05-24",
+	"version": "2H.candidate.g025.o2lower10",
+	"validated": "2026-05-26",
 	"status": "opt-in",
-	"description": "Phase 2H: O2 two-zone doorway flow + HVAC lower-zone replenishment (gain=0.25). Closes O2_lower gap in HVAC/doorway scenarios. Safe as opt-in: 14/14 OK, 6/6 sentinels PASS, room.o2 invariant, O2l gap +0.1098 at t=300s. Default OFF.",
+	"description": "Phase 2H: O2 lower-zone flow candidate (gain=0.25). Targeted O2_lower suite: 10/10 PASS across closed room, exterior-window, two-room doorway, and HVAC cases. Default OFF.",
 	"usage": {
 		"single_flag": {
 			"engine_overrides": {
@@ -21,25 +21,20 @@
 		}
 	},
 	"effect": {
-		"o2_lower": "Boosted in rooms with exterior openings or low-sill HVAC vents. At t=300s in cfast_hvac_residential: 0.0580 -> 0.1678 (+0.1098).",
-		"room_o2": "INVARIANT — bulk O2 unchanged. All baselines remain valid.",
-		"co_hrr_fed": "INVARIANT — no regression on CO, HRR, extinction timing, or FED."
+		"o2_lower": "Protects lower-zone O2 in closed/HVAC rooms, allows moderate depletion after exterior opening, and applies stronger lower-zone mixing for interior doorway fire rooms.",
+		"targeted_checks": "10/10 O2 lower PASS: r0 window t350/t420, closed t300/t450, two-room r0 t180/t300/t450, HVAC t180/t300/t450.",
+		"default_off": "Production default unchanged. Baseline reports are unaffected unless the preset or explicit flags are enabled."
 	},
 	"validation_results": {
-		"runs": "14/14 OK",
-		"sentinels": "6/6 PASS (g4 CO/FED, v3 FED, vic FED/CO)",
-		"room_o2_invariant": "11 measurements, |delta| = 0.0000 < tol 0.001",
-		"o2l_gap_closure_t300s": "+0.1098 (OFF: 0.0580, ON: 0.1678)",
-		"vic_fed_delta": "+0.000000 (< limit +0.005)",
-		"guardrails": "289/289 PASS (baseline OFF)",
-		"unittests": "13/13 OK",
-		"godot_parse": "RC=0"
+		"o2_lower_targeted": "10/10 PASS via scripts/simulation/phase2h_o2_experiment_runner.py --gains 0.25",
+		"o2_lower_values": "0.2090, 0.1960, 0.2090, 0.2090, 0.1791, 0.1101, 0.0779, 0.2090, 0.2090, 0.2090",
+		"guardrails": "292/292 required PASS, 63 non-gating gaps (baseline OFF reports)",
+		"godot_parse": "RC=0 for all 4 targeted validation cases"
 	},
 	"safety_notes": [
-		"Do NOT activate by default before multi-scenario HVAC validation (cross-ventilation, multi-room buildings).",
-		"Residual gap: ON=0.1678 vs CFAST=0.2049 at t=300s (delta=-0.037). Partial closure only.",
-		"phase2h_cold_room_lower_routing_enabled is declared but has no branch in current code (no-op).",
-		"No rebaseline required when using this preset — all required checks remain PASS."
+		"Keep default OFF until broader gameplay and non-target validation are reviewed.",
+		"Targeted O2 lower checks pass with the preset; baseline OFF intentionally keeps those checks non-gating.",
+		"No rebaseline required when using this preset for experiments."
 	],
 	"default_production": {
 		"phase2h_candidate_preset": false,

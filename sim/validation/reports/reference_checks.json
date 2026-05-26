@@ -2,7 +2,7 @@
   "all_required_pass": true,
   "required_count": 292,
   "failed_required_count": 0,
-  "known_gap_count": 65,
+  "known_gap_count": 63,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -204,7 +204,7 @@
     },
     {
       "name": "cfast_t350_co2_upper_ppm",
-      "actual": 89212.0,
+      "actual": 136615.0,
       "expected": 110600.0,
       "tolerance": 28000.0,
       "minimum": null,
@@ -215,7 +215,7 @@
     },
     {
       "name": "cfast_t420_co2_upper_ppm",
-      "actual": 41438.0,
+      "actual": 77868.0,
       "expected": 60800.0,
       "tolerance": 22000.0,
       "minimum": null,
@@ -226,13 +226,13 @@
     },
     {
       "name": "cfast_t510_co2_upper_ppm",
-      "actual": 16182.0,
+      "actual": 35706.0,
       "expected": 52300.00000000001,
       "tolerance": 20000.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "Non-gating: requires CO2u= key in log (updated SimulationLogWriter)."
     },
     {
@@ -380,7 +380,7 @@
     },
     {
       "name": "cfast_fed_heat_not_explosive",
-      "actual": 7.419,
+      "actual": 7.76,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -435,7 +435,7 @@
     },
     {
       "name": "cfast_t350_o2_lower",
-      "actual": 0.1685,
+      "actual": 0.0693,
       "expected": 0.204932,
       "tolerance": 0.015,
       "minimum": null,
@@ -457,13 +457,13 @@
     },
     {
       "name": "cfast_t420_o2_lower",
-      "actual": 0.1932,
+      "actual": 0.1658,
       "expected": 0.187821,
       "tolerance": 0.015,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "Fase 2A: lower-zone O2 (CFAST LLO2 near ambient; SF o2_lower now tracked independently \u2014 gap closes with two-zone doorway flow)."
     },
     {
@@ -479,7 +479,7 @@
     },
     {
       "name": "cfast_t510_o2_lower",
-      "actual": 0.1981,
+      "actual": 0.1893,
       "expected": 0.192407,
       "tolerance": 0.015,
       "minimum": null,
@@ -820,7 +820,7 @@
     },
     {
       "name": "cfast_closed_t360_co2_upper_pct",
-      "actual": 10.0048,
+      "actual": 10.432,
       "expected": 11.1406,
       "tolerance": 3.0,
       "minimum": null,
@@ -842,7 +842,7 @@
     },
     {
       "name": "cfast_closed_t480_co2_upper_pct",
-      "actual": 9.8969,
+      "actual": 9.5158,
       "expected": 11.886,
       "tolerance": 3.0,
       "minimum": null,
@@ -897,7 +897,7 @@
     },
     {
       "name": "cfast_closed_t300_o2_lower",
-      "actual": 0.1673,
+      "actual": 0.0684,
       "expected": 0.204932,
       "tolerance": 0.015,
       "minimum": null,
@@ -908,7 +908,7 @@
     },
     {
       "name": "cfast_closed_t450_o2_lower",
-      "actual": 0.1673,
+      "actual": 0.0429,
       "expected": 0.204932,
       "tolerance": 0.015,
       "minimum": null,
@@ -1227,13 +1227,13 @@
     },
     {
       "name": "cfast_2r_r0_t480_co2_upper_pct",
-      "actual": 0.999,
+      "actual": 12.138,
       "expected": 9.9052,
       "tolerance": 3.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "CMV-1: CO2 transport to fire room \u2014 structural gap."
     },
     {
@@ -1260,7 +1260,7 @@
     },
     {
       "name": "cfast_2r_r0_t450_o2_lower",
-      "actual": 0.209,
+      "actual": 0.0675,
       "expected": 0.09087329999999999,
       "tolerance": 0.015,
       "minimum": null,
@@ -1458,7 +1458,7 @@
     },
     {
       "name": "cfast_fo_t150_co2_upper_pct",
-      "actual": 2.3858,
+      "actual": 6.428,
       "expected": 3.75437,
       "tolerance": 3.0,
       "minimum": null,
@@ -1480,7 +1480,7 @@
     },
     {
       "name": "cfast_fo_t240_co2_upper_pct",
-      "actual": 3.7742,
+      "actual": 4.3247,
       "expected": 7.77377,
       "tolerance": 3.0,
       "minimum": null,
@@ -1502,7 +1502,7 @@
     },
     {
       "name": "cfast_fo_t350_co2_upper_pct",
-      "actual": 3.7112,
+      "actual": 0.7739,
       "expected": 7.89231,
       "tolerance": 3.0,
       "minimum": null,
@@ -1513,7 +1513,7 @@
     },
     {
       "name": "cfast_fo_t150_o2_lower",
-      "actual": NaN,
+      "actual": 0.2039,
       "expected": 0.200287,
       "tolerance": 0.02,
       "minimum": null,
@@ -1524,7 +1524,7 @@
     },
     {
       "name": "cfast_fo_t240_o2_lower",
-      "actual": NaN,
+      "actual": 0.1975,
       "expected": 0.186248,
       "tolerance": 0.02,
       "minimum": null,
@@ -1535,7 +1535,7 @@
     },
     {
       "name": "cfast_fo_t350_o2_lower",
-      "actual": NaN,
+      "actual": 0.1971,
       "expected": 0.18570699999999998,
       "tolerance": 0.02,
       "minimum": null,
@@ -1810,7 +1810,7 @@
     },
     {
       "name": "cfast_hvac_t300_co2_upper_pct",
-      "actual": 9.9485,
+      "actual": 12.1577,
       "expected": 10.6161,
       "tolerance": 3.0,
       "minimum": null,
@@ -1832,7 +1832,7 @@
     },
     {
       "name": "cfast_hvac_t450_co2_upper_pct",
-      "actual": 10.9335,
+      "actual": 12.4114,
       "expected": 11.7426,
       "tolerance": 3.0,
       "minimum": null,
@@ -1997,7 +1997,7 @@
     },
     {
       "name": "cfast_burnout_t1800_fire_active",
-      "actual": 182.6,
+      "actual": 182.46,
       "expected": null,
       "tolerance": null,
       "minimum": 10.0,
@@ -2008,7 +2008,7 @@
     },
     {
       "name": "cfast_burnout_t600_o2_depleted",
-      "actual": 0.0,
+      "actual": 0.0427,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2019,7 +2019,7 @@
     },
     {
       "name": "cfast_winbreak_t120_temp_upper_c",
-      "actual": 79.3,
+      "actual": 85.26,
       "expected": null,
       "tolerance": null,
       "minimum": 40.0,
@@ -2030,18 +2030,18 @@
     },
     {
       "name": "cfast_winbreak_t300_temp_upper_c",
-      "actual": 36.53,
+      "actual": 313.47,
       "expected": null,
       "tolerance": null,
       "minimum": 200.0,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "CMV-3: post-break temp_upper > 200\u00b0C at t=300s (CFAST=347\u00b0C, SimuFire=314\u00b0C)."
     },
     {
       "name": "cfast_winbreak_t300_hrr_sustained",
-      "actual": 951.17,
+      "actual": 1280.0,
       "expected": null,
       "tolerance": null,
       "minimum": 600.0,
@@ -2052,7 +2052,7 @@
     },
     {
       "name": "cfast_winbreak_hrr_grows_after_break",
-      "actual": 516.9700000000001,
+      "actual": 629.3599999999999,
       "expected": null,
       "tolerance": null,
       "minimum": 0.0,
@@ -2063,7 +2063,7 @@
     },
     {
       "name": "cfast_winbreak_t300_pressure_pa",
-      "actual": 0.0,
+      "actual": 1.99,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2074,7 +2074,7 @@
     },
     {
       "name": "cfast_winbreak_rmse_temp_upper_pre_break",
-      "actual": 40.60032451388508,
+      "actual": 35.43316228509201,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2096,18 +2096,18 @@
     },
     {
       "name": "cfast_doorclose_r0_t120_temp_upper_c",
-      "actual": 240.02,
+      "actual": 159.54,
       "expected": null,
       "tolerance": null,
       "minimum": 50.0,
       "maximum": 220.0,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "CMV-3: pre-close R0 temp_upper in [50.0,220.0]\u00b0C at t=120.0s."
     },
     {
       "name": "cfast_doorclose_r0_t240_temp_active",
-      "actual": 259.91,
+      "actual": 239.68,
       "expected": null,
       "tolerance": null,
       "minimum": 100.0,
@@ -2118,7 +2118,7 @@
     },
     {
       "name": "cfast_doorclose_r0_t300_o2_depleted",
-      "actual": 0.0388,
+      "actual": 0.0395,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2129,7 +2129,7 @@
     },
     {
       "name": "cfast_doorclose_r1_t300_cooling",
-      "actual": 20.61,
+      "actual": 20.5,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2140,7 +2140,7 @@
     },
     {
       "name": "cfast_doorclose_r0_t120_pressure_pa",
-      "actual": 0.0,
+      "actual": 1.98,
       "expected": 303.746,
       "tolerance": 50.0,
       "minimum": null,
@@ -2151,7 +2151,7 @@
     },
     {
       "name": "cfast_doorclose_r0_t300_pressure_pa",
-      "actual": 0.0,
+      "actual": 10.6,
       "expected": 154.307,
       "tolerance": 50.0,
       "minimum": null,
@@ -2162,7 +2162,7 @@
     },
     {
       "name": "cfast_doorclose_r0_rmse_temp_upper_pre_close",
-      "actual": 59.79809633566298,
+      "actual": 39.87795170054211,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2184,7 +2184,7 @@
     },
     {
       "name": "cfast_fastgrowth_t90_temp_upper_c",
-      "actual": 141.99,
+      "actual": 216.98,
       "expected": null,
       "tolerance": null,
       "minimum": 70.0,
@@ -2195,7 +2195,7 @@
     },
     {
       "name": "cfast_fastgrowth_t120_temp_upper_c",
-      "actual": 301.2,
+      "actual": 476.02,
       "expected": null,
       "tolerance": null,
       "minimum": 150.0,
@@ -2206,7 +2206,7 @@
     },
     {
       "name": "cfast_fastgrowth_extinction_hrr_t280",
-      "actual": 23.59,
+      "actual": 22.45,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2217,7 +2217,7 @@
     },
     {
       "name": "cfast_fastgrowth_t60_pressure_pa",
-      "actual": 0.0,
+      "actual": 1.16,
       "expected": 489.593,
       "tolerance": 50.0,
       "minimum": null,
@@ -2228,7 +2228,7 @@
     },
     {
       "name": "cfast_fastgrowth_t120_pressure_pa",
-      "actual": 0.0,
+      "actual": 3.95,
       "expected": 2087.67,
       "tolerance": 50.0,
       "minimum": null,
@@ -2239,18 +2239,18 @@
     },
     {
       "name": "cfast_fastgrowth_rmse_temp_upper_c",
-      "actual": 39.14183033661047,
+      "actual": 162.11402201391638,
       "expected": null,
       "tolerance": null,
       "minimum": null,
       "maximum": 60.0,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "CMV-3: temp_upper RMSE \u2264 60\u00b0C over fast-growth phase (t=60\u2013120s). Known gap: SF wall heat loss underestimated \u2192 ~160\u00b0C RMSE."
     },
     {
       "name": "cfast_twofloor_r0_t120_temp_upper_c",
-      "actual": 175.25,
+      "actual": 157.81,
       "expected": null,
       "tolerance": null,
       "minimum": 60.0,
@@ -2261,7 +2261,7 @@
     },
     {
       "name": "cfast_twofloor_r0_t180_temp_upper_c",
-      "actual": 418.2,
+      "actual": 455.54,
       "expected": null,
       "tolerance": null,
       "minimum": 100.0,
@@ -2272,7 +2272,7 @@
     },
     {
       "name": "cfast_twofloor_r0_t120_fire_active",
-      "actual": 268.25,
+      "actual": 268.93,
       "expected": null,
       "tolerance": null,
       "minimum": 100.0,
@@ -2294,7 +2294,7 @@
     },
     {
       "name": "cfast_twofloor_r0_rmse_temp_upper_c",
-      "actual": 146.3099220185147,
+      "actual": 157.21642407151066,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2305,7 +2305,7 @@
     },
     {
       "name": "cfast_twofloor_r0_peak_temp_upper_c",
-      "actual": 518.88,
+      "actual": 472.38,
       "expected": null,
       "tolerance": null,
       "minimum": 100.0,
@@ -2316,7 +2316,7 @@
     },
     {
       "name": "cfast_twofloor_r0_peak_temp_timing",
-      "actual": 300.0,
+      "actual": 200.0,
       "expected": 300.0,
       "tolerance": 120.0,
       "minimum": null,
@@ -2327,7 +2327,7 @@
     },
     {
       "name": "cfast_multifuel_t60_temp_upper_c",
-      "actual": 122.85,
+      "actual": 122.87,
       "expected": null,
       "tolerance": null,
       "minimum": 50.0,
@@ -2338,7 +2338,7 @@
     },
     {
       "name": "cfast_multifuel_t120_temp_upper_c",
-      "actual": 465.4,
+      "actual": 462.27,
       "expected": null,
       "tolerance": null,
       "minimum": 100.0,
@@ -2349,7 +2349,7 @@
     },
     {
       "name": "cfast_multifuel_t180_temp_upper_c",
-      "actual": 193.69,
+      "actual": 159.43,
       "expected": null,
       "tolerance": null,
       "minimum": 100.0,
@@ -2360,7 +2360,7 @@
     },
     {
       "name": "cfast_multifuel_t120_hrr_above_350kw",
-      "actual": 562.22,
+      "actual": 562.23,
       "expected": null,
       "tolerance": null,
       "minimum": 350.0,
@@ -2382,7 +2382,7 @@
     },
     {
       "name": "cfast_multifuel_t120_pressure_pa",
-      "actual": 3.78,
+      "actual": 3.75,
       "expected": -1.12982,
       "tolerance": 10.0,
       "minimum": null,
@@ -2393,7 +2393,7 @@
     },
     {
       "name": "cfast_multifuel_rmse_temp_upper_c",
-      "actual": 188.97788129714058,
+      "actual": 184.20992491181815,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -5110,14 +5110,14 @@
     }
   ],
   "references": {
-    "nist_cfast_csv": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\r0_hall_window_360_compartments.csv",
-    "cfast_case": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\cfast_r0_window_360.json",
-    "ghanekar_case": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\ghanekar_bedroom_hallway.json",
+    "nist_cfast_csv": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\r0_hall_window_360_compartments.csv",
+    "cfast_case": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\reports\\cfast_r0_window_360.json",
+    "ghanekar_case": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\reports\\ghanekar_bedroom_hallway.json",
     "cfast_new_scenarios": [
-      "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_single_room_closed.in",
-      "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_two_room_door_open.in",
-      "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_post_flashover_vented.in",
-      "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_hvac_residential.in"
+      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_single_room_closed.in",
+      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_two_room_door_open.in",
+      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_post_flashover_vented.in",
+      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_hvac_residential.in"
     ]
   }
 }
