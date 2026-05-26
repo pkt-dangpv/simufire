@@ -734,6 +734,10 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			# Enfriamiento lento de la superficie hacia el núcleo/ambiente
 			t_wall_c = lerpf(t_wall_c, ambient_c, minf(wall_core_decay_per_s * dt, 0.99))
 			_wall_surface_temp_c[room.id] = t_wall_c
+			# SF-AUD-031b: exportar temperatura de pared del modelo lumped a wall_T_mid_c
+			# para que el log y el validador reflejen la temperatura real (no 20°C constante).
+			# No afecta física — wall_T_mid_c es sólo campo de estado/telemetría.
+			room.wall_T_mid_c = t_wall_c
 
 		var requested_upper_loss_kj: float = energy_to_lower_kj + energy_to_ambient_kj + wall_absorption_kj
 		if requested_upper_loss_kj > 0.0 and room.upper_energy_kj > 0.0:
@@ -1328,7 +1332,8 @@ func _step_wall_pde(building: BuildingModel, dt: float, ambient_c: float) -> voi
 
 		# Solo si los 4 parámetros de material están definidos
 		if room.wall_k_kw_m_k <= 0.0 or room.wall_thickness_m <= 0.0:
-			room.wall_T_mid_c = ambient_c
+			# SF-AUD-031b: el modelo lumped ya escribió wall_T_mid_c en step_rooms.
+			# No sobreescribir — sólo garantizar wall_T_outer_c en ambient.
 			room.wall_T_outer_c = ambient_c
 			continue
 

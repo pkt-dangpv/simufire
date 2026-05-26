@@ -979,7 +979,7 @@ func _sync_auxiliary_services() -> void:
 		"phase2e_co2_upper_outflow_gain": phase2e_co2_upper_outflow_gain,
 		"phase2e_co2_subb_enabled": phase2e_co2_subb_enabled,
 		"phase2e_co2_exchange_fraction": phase2e_co2_exchange_fraction,
-		"phase2e_co2_subd_enabled": phase2e_co2_subd_enabled
+		"phase2e_co2_subd_enabled": phase2e_co2_subd_enabled,
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)

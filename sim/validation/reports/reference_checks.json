@@ -589,7 +589,7 @@
     },
     {
       "name": "cfast_t120_wall_T_mid_c",
-      "actual": 20.0,
+      "actual": 20.2,
       "expected": 25.7533,
       "tolerance": 40.0,
       "minimum": null,
@@ -600,7 +600,7 @@
     },
     {
       "name": "cfast_t240_wall_T_mid_c",
-      "actual": 20.0,
+      "actual": 21.0,
       "expected": 49.0758,
       "tolerance": 40.0,
       "minimum": null,
@@ -611,7 +611,7 @@
     },
     {
       "name": "cfast_t360_wall_T_mid_c",
-      "actual": 20.0,
+      "actual": 23.0,
       "expected": 50.0592,
       "tolerance": 40.0,
       "minimum": null,
@@ -622,7 +622,7 @@
     },
     {
       "name": "cfast_t420_wall_T_mid_c",
-      "actual": 20.0,
+      "actual": 23.2,
       "expected": 73.1612,
       "tolerance": 40.0,
       "minimum": null,
@@ -633,7 +633,7 @@
     },
     {
       "name": "cfast_t510_wall_T_mid_c",
-      "actual": 20.0,
+      "actual": 23.5,
       "expected": 90.6679,
       "tolerance": 40.0,
       "minimum": null,
