@@ -150,6 +150,9 @@ var _opening_nodes: Dictionary = {}
 var _furniture_nodes: Dictionary = {}
 var _detector_nodes: Dictionary = {}
 var _victim_nodes: Dictionary = {}
+var _ceiling_lights_by_room: Dictionary = {}
+var _ceiling_light_base_energy_by_room: Dictionary = {}
+var _ceiling_light_base_range_by_room: Dictionary = {}
 var _nearest_opening_index: int = -1
 var _state: Dictionary = {}
 var _visibility_overlay: ColorRect = null
@@ -210,6 +213,7 @@ func rebuild_from_building() -> void:
 func set_state(next_state: Dictionary) -> void:
 	_state = next_state
 	_sync_opening_panels()
+	_update_smoke_light_attenuation()
 	_update_furniture_state_visuals()
 	_update_safety_marker_states()
 	_update_visibility_overlay()
@@ -434,6 +438,9 @@ func _rebuild_world() -> void:
 	_furniture_nodes.clear()
 	_detector_nodes.clear()
 	_victim_nodes.clear()
+	_ceiling_lights_by_room.clear()
+	_ceiling_light_base_energy_by_room.clear()
+	_ceiling_light_base_range_by_room.clear()
 
 	if building == null:
 		return
@@ -858,8 +865,10 @@ func _create_world_lighting(rects: Dictionary) -> void:
 		var light := OmniLight3D.new()
 		light.name = "CeilingLight_%s" % str(room_id)
 		light.light_color = room_ceiling_light_color
-		light.light_energy = room_ceiling_light_energy * clampf(sqrt(area_m2 / 14.0), 0.72, 1.35)
-		light.omni_range = maxf(rect.size.x, rect.size.y) * 0.68 + room_ceiling_light_range_extra_m
+		var base_energy: float = room_ceiling_light_energy * clampf(sqrt(area_m2 / 14.0), 0.72, 1.35)
+		var base_range: float = maxf(rect.size.x, rect.size.y) * 0.68 + room_ceiling_light_range_extra_m
+		light.light_energy = base_energy
+		light.omni_range = base_range
 		light.shadow_enabled = false
 		light.position = _to_world(Vector3(
 			rect.position.x + rect.size.x * 0.5,
@@ -867,6 +876,9 @@ func _create_world_lighting(rects: Dictionary) -> void:
 			rect.position.y + rect.size.y * 0.5
 		), floor_level_m)
 		_world_root.add_child(light)
+		_ceiling_lights_by_room[int(room_id)] = light
+		_ceiling_light_base_energy_by_room[int(room_id)] = base_energy
+		_ceiling_light_base_range_by_room[int(room_id)] = base_range
 		_add_box(
 			_world_root,
 			"CeilingFixture_%s" % str(room_id),
@@ -3528,6 +3540,49 @@ func _update_opening_panel(index: int) -> void:
 			light.light_color = _effective_landing_light_color()
 			light.light_energy = _effective_landing_light_energy() * area_factor * lerpf(landing_light_closed_ratio, 1.0, open_amount) * smoke_transmission
 			light.omni_range = landing_light_range_m * lerpf(0.78, 1.12, open_amount) * lerpf(0.70, 1.0, smoke_transmission)
+
+
+func _update_smoke_light_attenuation() -> void:
+	if _ceiling_lights_by_room.is_empty() or _state.is_empty():
+		return
+	for key in _ceiling_lights_by_room.keys():
+		var room_id: int = int(key)
+		var light := _ceiling_lights_by_room[key] as OmniLight3D
+		if light == null:
+			continue
+		var room: RoomModel = building.get_room(room_id) if building != null else null
+		var transmission: float = _light_smoke_transmission_for_room(room_id, _room_height(room))
+		var base_energy: float = float(_ceiling_light_base_energy_by_room.get(room_id, room_ceiling_light_energy))
+		var base_range: float = float(_ceiling_light_base_range_by_room.get(room_id, room_ceiling_light_range_extra_m))
+		light.light_energy = base_energy * transmission
+		light.omni_range = base_range * lerpf(0.50, 1.0, transmission)
+
+
+func _light_smoke_transmission_for_room(room_id: int, height_m: float) -> float:
+	var room_state: Dictionary = Dictionary(_state.get(str(room_id), {}))
+	if room_state.is_empty():
+		return 1.0
+	var visibility_m: float = float(room_state.get("visibility_m", 30.0))
+	var smoke_kg: float = float(room_state.get("smoke_kg", 0.0))
+	var layer_m: float = clampf(
+		float(room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_state.get("h_layer_m", height_m)))),
+		0.0,
+		height_m
+	)
+	var depth_m: float = maxf(0.0, height_m - layer_m)
+	var layer_block: float = clampf(depth_m / maxf(0.1, height_m), 0.0, 1.0)
+	var visibility_block: float = clampf((16.0 - visibility_m) / 16.0, 0.0, 1.0)
+	var rects: Dictionary = building.get_room_rects_m() if building != null else {}
+	var rect := Rect2(rects.get(room_id, Rect2(Vector2.ZERO, Vector2.ONE)))
+	var upper_volume_m3: float = maxf(0.05, rect.size.x * rect.size.y * maxf(depth_m, 0.05))
+	var density_block: float = clampf((smoke_kg / upper_volume_m3) / 0.018, 0.0, 1.0) if smoke_kg > 0.0 and depth_m > 0.0 else 0.0
+	var blocked: float = clampf(
+		maxf(visibility_block * 0.82, density_block * 0.72) * lerpf(0.42, 1.0, layer_block)
+			+ layer_block * 0.24,
+		0.0,
+		1.0
+	)
+	return clampf(1.0 - blocked, 0.08, 1.0)
 
 
 func _light_smoke_transmission_for_opening(op: OpeningModel) -> float:

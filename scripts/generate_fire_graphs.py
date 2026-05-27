@@ -420,8 +420,8 @@ def _annotate_inflections(ax, inflections, fmt_fn=None):
 # -----------------------------------------------------------------------
 
 def _save(fig, path):
-    fig.tight_layout()
-    fig.savefig(path, dpi=120, bbox_inches="tight")
+    fig.tight_layout(pad=1.35)
+    fig.savefig(path, dpi=120, bbox_inches="tight", pad_inches=0.24)
     plt.close(fig)
 
 

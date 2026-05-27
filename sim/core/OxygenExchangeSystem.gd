@@ -53,6 +53,13 @@ var phase2h_interior_no_exterior_drain_max_scale: float = 1.40
 # para salas sin soporte exterior (outside_open_factor ≤ 0.01). Evita colapso de o2_lower en salas
 # con interior doorway pero sin ventana exterior (e.g. victim_fed_incapacitation). Default 0.10.
 var phase2h_lower_replenish_o2_threshold: float = 0.20
+# Phase 2H: equilibrio CFAST-like de zona baja via doorway mixing (experimental, opt-in, default 0.0 = no-op).
+# coeff = fracción objetivo de cold_room.o2 (ej. 0.56 → floor ≈ 0.17×0.56 = 0.095).
+# Floor = max(room.o2, cold_room.o2×coeff): evita subdrenaje cuando room.o2 cae bajo target a t=450s.
+# Tasa = 4.0×exchange_kg/lower_mass (calibrado empíricamente para equilibrio a t=300s). Suprime reposición.
+# Calibrado 2026-05-27: coeff=0.56 → 3/3 two_room checks PASS, victim FED delta=+0.0000.
+# Requiere phase2h_o2_doorway_two_zone_enabled=true. Default 0.0 = no-op garantizado.
+var phase2h_lower_cf_drain_coeff: float = 0.0
 # Phase 2E Sub-C: CO₂ upper tracer boost en sala con fuego activo (default OFF = no-op).
 # room.co2_upper es tracer calibrado (fracción molar), NO derivado de balance de masa co2_kg.
 # Boost: delta_co2_boost = delta_co2_baseline × gain. gain=0.0 → comportamiento idéntico al baseline.
@@ -145,6 +152,9 @@ func configure(settings: Dictionary) -> void:
 	)
 	phase2h_lower_replenish_o2_threshold = float(
 		settings.get("phase2h_lower_replenish_o2_threshold", phase2h_lower_replenish_o2_threshold)
+	)
+	phase2h_lower_cf_drain_coeff = float(
+		settings.get("phase2h_lower_cf_drain_coeff", phase2h_lower_cf_drain_coeff)
 	)
 	phase2e_co2_subc_enabled = bool(
 		settings.get("phase2e_co2_subc_enabled", phase2e_co2_subc_enabled)
@@ -708,6 +718,20 @@ func _exchange_room_o2_active_flow(
 			# para evitar colapso de o2_lower en víctimas con respiración en zona baja.
 			if outside_support > 0.01:
 				lower_replenish_scale = 0.0
+		# Phase 2H: target-based counterflow drain — opt-in via engine_overrides (default 0.0 = no-op).
+		# coeff = fracción objetivo de cold_room.o2 (ej. 0.56 → target ≈ 0.17×0.56 = 0.095).
+		# Floor = max(room.o2, cold_room.o2 × coeff): evita subdrenaje cuando room.o2 cae bajo target.
+		# Tasa = 4.0 × exchange_kg / lower_mass (calibrado para alcanzar equilibrio a t=300s).
+		# Suprime reposición para evitar fuerzas opuestas. Víctima usa coeff=0.0 → FED delta = 0.
+		if phase2h_o2_doorway_two_zone_enabled and phase2h_lower_cf_drain_coeff > 0.0:
+			var cf_target: float = maxf(
+				hot_room.o2, cold_room.o2 * phase2h_lower_cf_drain_coeff)
+			if hot_room.o2_lower > cf_target:
+				var mix_rate: float = clampf(4.0 * exchange_kg / lower_mass_hr, 0.0, 0.50)
+				hot_room.o2_lower = maxf(
+					cf_target,
+					hot_room.o2_lower - mix_rate * (hot_room.o2_lower - cf_target))
+			lower_replenish_scale = 0.0
 		if lower_replenish_scale > 0.0:
 			hot_room.o2_lower = clampf(
 				hot_room.o2_lower + hot_room_delta_o2_kg * lower_replenish_scale / lower_mass_hr,

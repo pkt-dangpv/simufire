@@ -1,5 +1,5 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 27 mayo 2026b (Phase 2H ceiling fix — 7/10 o2_lower PASS con Phase 2H ON, zero victim FED delta)
+**Generado**: 24 mayo 2026 | **Actualizado**: 27 mayo 2026d (Phase 2H cf_drain calibrado — 10/10 o2_lower PASS con coeff=0.56 vía runner, victim FED delta=+0.0000)
 **Estado validación**: 292/292 PASS required, 60 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
@@ -26,7 +26,7 @@
 | Categoría | Checks | Causa raíz | Cierre estimado |
 |-----------|--------|------------|-----------------|
 | Presión termódinámica vs boyancia | 18 | Modelo de presión SF es termostático (1-10 Pa); CFAST usa boyancia two-zone (100-1000 Pa) | Phase 3 (modelo boyancia) |
-| O₂ zona inferior | 13 | 3 HVAC lower-zone + O₂ pasillo/RMSE non-gating; 7 directos re-abiertos 2026-05-27 (código HEAD default) | Phase 2H candidato opt-in válido, default OFF — gap estructural Phase 2A |
+| O₂ zona inferior | 13 | 3 HVAC lower-zone + O₂ pasillo/RMSE non-gating; 7 directos re-abiertos 2026-05-27 (código HEAD default) | **Candidato 10/10 PASS**: Phase 2H ON + `phase2h_lower_cf_drain_coeff=0.56` (runner), victim FED delta=0. Default OFF — gap estructural Phase 2A en producción |
 | CO₂ upper layer | 2 | Phase 2E cerró 2 gaps; t120 closed por tolerancia (CMV-1); quedan post-flashover no-gating | Phase 2E Sub-C/Sub-E o roadmap posterior |
 | RMSE temperatura superior | 6 | Wall heat loss subestimado + diferencias de volumen | Phase 1.5 (conducción 1D paredes) |
 | Phase 1.5 / Flashover / FED | 2 | Conducción 1D no implementada; HRR post-flashover timing | Phase 1.5 |
@@ -118,6 +118,19 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 > - Diagnóstico víctima: `victim_v0_final_fed` OFF=0.7715 → ON=0.7715, **Δ=+0.0000** ✅. Sin regresión.  
 > - Guardrails: 292/292 PASS, 60 gaps, sentinels PASS.  
 > **Estado**: candidato opt-in válido, 7/10 PASS con zero victim FED delta. Default permanece OFF.
+
+> *(2026-05-27d)* **Mecanismo `phase2h_lower_cf_drain_coeff=0.56` calibrado — 10/10 o2_lower PASS**:  
+> Nuevo knob opt-in en `OxygenExchangeSystem.gd` / `SimulationEngine.gd`. Modela el equilibrio two-zone del doorway interior: el gas caliente saliente arrastra O₂ de la zona baja hacia un target `= max(room.o2, cold_room.o2 × coeff)` (floor dinámico). `coeff=0.56` → target ≈ 0.17×0.56 = 0.095; tasa = 4.0×`exchange_kg`/`lower_mass` (calibrado empíricamente para equilibrar a t=300s). Suprime `lower_replenish` cuando activo. Solo activa si `phase2h_o2_doorway_two_zone_enabled=true` AND `coeff>0`.  
+> **Motivación del floor dinámico** (vs floor=room.o2): a t=450s `room.o2≈0.07` (fuego lo depleta), por lo que `floor=room.o2` permitía drenar `o2_lower` por debajo del target CFAST 0.091. `cold_room.o2` permanece ≈0.17 (sin fuego) → `cold_room.o2×0.56≈0.095` resuelve el conflicto t300/t450 simultáneamente.  
+> **Resultado con Phase 2H ON + coeff=0.56 (runner targeted)**:  
+> - `cfast_2r_r0_t180_o2_lower`: 0.1895 vs 0.1826 ±0.015 ✅  
+> - `cfast_2r_r0_t300_o2_lower`: 0.1101 vs 0.0952 ±0.015 ✅ (margen 0.0001 sobre tol superior)  
+> - `cfast_2r_r0_t450_o2_lower`: 0.0906 vs 0.0909 ±0.015 ✅  
+> - **10/10 checks completos PASS** (sealed/HVAC via guard v4 + ACH fix; two_room via cf_drain).  
+> - **Victim FED delta = +0.0000** ✅ (`victim_fed_incapacitation.json` no tiene override → coeff=0.0 default).  
+> - Guardrails: 292/292 PASS, 60 gaps, sentinels PASS.  
+> **Riesgo**: t300 margen mínimo (0.0001 sobre tol). Cambios en `exchange_kg` o geometría de doorway pueden invalidar la calibración. Constante 4.0 hardcodeada en `OxygenExchangeSystem.gd`. Mecanismo solo validado en escenario two-room.  
+> **Default 0.0 = no-op garantizado** en producción. Gap estructural Phase 2A (10 checks) sigue vigente con code default. Siguiente paso: ampliar contra datos experimentales reales o iniciar modelo two-zone explícito (Phase 2A arquitectónica).
 
 ---
 

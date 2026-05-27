@@ -694,6 +694,13 @@ var _step_time_us: int = 0
 ## 0.0 conserva guard v4; 1.0 restaura el drenaje acelerado completo para barridos.
 @export var phase2h_interior_no_exterior_drain_gain: float = 0.0
 @export var phase2h_interior_no_exterior_drain_max_scale: float = 1.40
+## Phase 2H: equilibrio CFAST-like de zona baja via doorway mixing (experimental, opt-in, default 0.0 = no-op).
+## coeff = fracción objetivo de cold_room.o2 (ej. 0.56 → floor ≈ 0.17×0.56 = 0.095).
+## Floor = max(room.o2, cold_room.o2×coeff): evita subdrenaje cuando room.o2 cae bajo target.
+## Tasa = 4.0×exchange_kg/lower_mass (calibrado 2026-05-27: coeff=0.56 cierra 3/3 gaps two_room).
+## Requiere phase2h_o2_doorway_two_zone_enabled=true. Default 0.0 = sin impacto en producción.
+## Valor calibrado en engine_overrides de cfast_two_room_door_open.json. Victim FED delta=+0.0000.
+@export var phase2h_lower_cf_drain_coeff: float = 0.0
 ## Phase 2H — Preset opt-in: activa two_zone + cold_routing + gain=0.25 con un solo flag.
 ## Validado 2026-05-26: 10/10 checks O2 lower PASS en runner targeted; default OFF.
 ## Safe como opt-in: no altera ninguna baseline required con default OFF. No requiere rebaseline.
@@ -979,6 +986,7 @@ func _sync_auxiliary_services() -> void:
 		"phase2h_lower_replenish_gain": phase2h_lower_replenish_gain,
 		"phase2h_interior_no_exterior_drain_gain": phase2h_interior_no_exterior_drain_gain,
 		"phase2h_interior_no_exterior_drain_max_scale": phase2h_interior_no_exterior_drain_max_scale,
+		"phase2h_lower_cf_drain_coeff": phase2h_lower_cf_drain_coeff,
 		"phase2e_co2_subc_enabled": phase2e_co2_subc_enabled,
 		"phase2e_co2_fire_upper_boost_gain": phase2e_co2_fire_upper_boost_gain,
 		"phase2e_co2_suba_enabled": phase2e_co2_suba_enabled,

@@ -21,6 +21,9 @@ static func update_ceiling_mask(
 	should_show: bool,
 	room_inset_m: float,
 	meters_to_units: float,
+	mask_alpha: float = 0.12,
+	mask_color: Color = Color(0.055, 0.052, 0.048, 1.0),
+	surface_offset_m: float = 0.004,
 	origin_offset_m: Vector2 = Vector2.ZERO,
 	floor_level_m: float = 0.0
 ) -> void:
@@ -36,7 +39,13 @@ static func update_ceiling_mask(
 			0.018,
 			maxf(0.05, rect.size.y - room_inset_m * 2.0)
 		) * meters_to_units
-	node.position = _room_center(rect, floor_level_m + height_m + 0.004, meters_to_units, origin_offset_m)
+	node.position = _room_center(rect, floor_level_m + height_m + surface_offset_m, meters_to_units, origin_offset_m)
+	var mat := node.material_override as ShaderMaterial
+	if mat != null:
+		var alpha: float = clampf(mask_alpha, 0.0, 0.98)
+		mat.set_shader_parameter("mask_color", mask_color)
+		mat.set_shader_parameter("mask_alpha", alpha)
+		mat.set_shader_parameter("density", lerpf(0.92, 1.26, alpha))
 
 
 static func update_layer_box(

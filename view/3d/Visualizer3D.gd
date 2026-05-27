@@ -96,6 +96,10 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export_group("Dynamics")
 @export var smoke_visible_threshold_kg: float = 0.01
 @export var smoke_reference_kg: float = 1.2
+@export var smoke_density_reference_kg_m3: float = 0.018
+@export var smoke_dense_visibility_m: float = 12.0
+@export var smoke_ceiling_mask_max_alpha: float = 0.92
+@export var smoke_light_min_transmission: float = 0.10
 @export var smoke_min_visible_depth_m: float = 0.05
 @export var smoke_hrr_reference_kw: float = 900.0
 @export var smoke_hrr_depth_boost_m: float = 0.55
@@ -1030,14 +1034,23 @@ func _update_smoke_volume(
 		target_depth_m = maxf(target_depth_m, smoke_hrr_depth_boost_m * hrr_smoke_t)
 	target_depth_m = clampf(target_depth_m, 0.0, height_m)
 
-	var visibility_t: float = clampf((28.0 - visibility_m) / 28.0, 0.0, 1.0)
+	var target_optics: Dictionary = _smoke_optical_terms(rect, height_m, target_depth_m, smoke_kg, visibility_m, hrr_smoke_t)
+	var visibility_t: float = maxf(
+		clampf((28.0 - visibility_m) / 28.0, 0.0, 1.0),
+		float(target_optics.get("visibility_t", 0.0))
+	)
+	var density_t: float = float(target_optics.get("density_t", 0.0))
+	var layer_depth_t: float = float(target_optics.get("layer_depth_t", 0.0))
+	var mass_t: float = float(target_optics.get("mass_t", 0.0))
 	var alpha_cap: float = 0.96 if _first_person_overlay else 0.76
 	var alpha: float = clampf(
-		smoke_color.a
-			+ smoke_kg / maxf(0.01, smoke_reference_kg) * 0.34
-			+ visibility_t * (0.42 if _first_person_overlay else 0.24)
+		smoke_color.a * 0.38
+			+ mass_t * (0.30 if _first_person_overlay else 0.22)
+			+ density_t * (0.34 if _first_person_overlay else 0.28)
+			+ visibility_t * (0.42 if _first_person_overlay else 0.30)
+			+ layer_depth_t * (0.20 if _first_person_overlay else 0.14)
 			+ hrr_smoke_t * smoke_hrr_alpha_boost * 0.96,
-		0.16,
+		0.12,
 		alpha_cap
 	)
 	item["smoke_physics_depth_m"] = target_depth_m
@@ -1068,14 +1081,28 @@ func _update_smoke_volume(
 	node.visible = smoke_geometry_visible
 	if edge_node != null:
 		edge_node.visible = smoke_geometry_visible
+	var current_optics: Dictionary = _smoke_optical_terms(rect, height_m, current_depth_m, smoke_kg, visibility_m, hrr_smoke_t)
+	var smoke_light_transmission: float = _smoke_light_transmission_from_terms(current_optics)
+	item["smoke_light_transmission"] = smoke_light_transmission
+	var mask_alpha: float = clampf(
+		0.05 + float(current_optics.get("optical_t", 0.0)) * smoke_ceiling_mask_max_alpha,
+		0.0,
+		smoke_ceiling_mask_max_alpha
+	)
 	var ceiling_mask := item.get("smoke_ceiling_mask") as MeshInstance3D
 	SmokeLayerVisuals.update_ceiling_mask(
 		ceiling_mask,
 		rect,
 		height_m,
-		show_smoke_volume and show_smoke_ceiling_masks and not _first_person_overlay and current_depth_m > smoke_min_visible_depth_m,
+		show_smoke_volume \
+			and show_smoke_ceiling_masks \
+			and current_depth_m > smoke_min_visible_depth_m \
+			and (not _first_person_overlay or show_smoke_geometry_in_first_person),
 		room_inset_m,
 		meters_to_units,
+		mask_alpha,
+		Color(smoke_color.r, smoke_color.g, smoke_color.b, 1.0),
+		-0.026 if _first_person_overlay else 0.004,
 		_origin_offset_m,
 		floor_level_m
 	)
@@ -1118,6 +1145,56 @@ func _update_smoke_volume(
 	var puffs_root := item.get("smoke_puffs_root") as Node3D
 	if puffs_root != null:
 		puffs_root.visible = smoke_puffs_visible
+
+
+func _smoke_optical_terms(
+	rect: Rect2,
+	height_m: float,
+	smoke_depth_m: float,
+	smoke_kg: float,
+	visibility_m: float,
+	hrr_smoke_t: float
+) -> Dictionary:
+	var depth_m: float = clampf(smoke_depth_m, 0.0, maxf(0.0, height_m))
+	var layer_depth_t: float = clampf(depth_m / maxf(0.10, height_m), 0.0, 1.0)
+	var area_m2: float = maxf(0.05, rect.size.x * rect.size.y)
+	var upper_volume_m3: float = maxf(0.05, area_m2 * maxf(depth_m, 0.05))
+	var smoke_concentration_kg_m3: float = smoke_kg / upper_volume_m3 if smoke_kg > 0.0 and depth_m > 0.0 else 0.0
+	var density_t: float = clampf(
+		smoke_concentration_kg_m3 / maxf(0.001, smoke_density_reference_kg_m3),
+		0.0,
+		1.0
+	)
+	var dense_visibility_m: float = maxf(0.10, smoke_dense_visibility_m)
+	var visibility_t: float = clampf((dense_visibility_m - visibility_m) / dense_visibility_m, 0.0, 1.0)
+	var mass_t: float = clampf(smoke_kg / maxf(0.01, smoke_reference_kg), 0.0, 1.0)
+	var optical_t: float = clampf(
+		maxf(visibility_t, density_t * 0.90) * lerpf(0.34, 1.0, layer_depth_t)
+			+ layer_depth_t * 0.20
+			+ mass_t * 0.12
+			+ hrr_smoke_t * 0.08,
+		0.0,
+		1.0
+	)
+	return {
+		"layer_depth_t": layer_depth_t,
+		"density_t": density_t,
+		"visibility_t": visibility_t,
+		"mass_t": mass_t,
+		"optical_t": optical_t,
+		"smoke_concentration_kg_m3": smoke_concentration_kg_m3,
+	}
+
+
+func _smoke_light_transmission_from_terms(optics: Dictionary) -> float:
+	var blocked: float = clampf(
+		float(optics.get("optical_t", 0.0)) * 0.86
+			+ float(optics.get("density_t", 0.0)) * 0.16
+			+ float(optics.get("layer_depth_t", 0.0)) * 0.20,
+		0.0,
+		1.0
+	)
+	return clampf(1.0 - blocked, smoke_light_min_transmission, 1.0)
 
 
 func _same_floor_opening_smoke_spill_for_room(room_id: int, height_m: float) -> Dictionary:
@@ -1332,10 +1409,11 @@ func _update_fire_visual(item: Dictionary, rect: Rect2, room_height_m: float, hr
 	var fire_light := item.get("fire_light") as OmniLight3D
 	if fire_light != null:
 		var hrr_t: float = clampf(hrr_kw / 1000.0, 0.0, 4.0)
-		var target_energy: float = fire_light_energy_per_1000kw * hrr_t if fire_root.visible else 0.0
+		var smoke_transmission: float = float(item.get("smoke_light_transmission", 1.0))
+		var target_energy: float = fire_light_energy_per_1000kw * hrr_t * smoke_transmission if fire_root.visible else 0.0
 		item["fire_light_energy_target"] = target_energy
 		fire_light.light_energy = target_energy
-		fire_light.omni_range = lerpf(fire_light_range_min_m, fire_light_range_max_m, clampf(hrr_kw / 1800.0, 0.0, 1.0))
+		fire_light.omni_range = lerpf(fire_light_range_min_m, fire_light_range_max_m, clampf(hrr_kw / 1800.0, 0.0, 1.0)) * lerpf(0.58, 1.0, smoke_transmission)
 		fire_light.position.y = maxf(0.35, minf(available_height_m - 0.10, current_height * 0.45 + 0.45)) * meters_to_units
 	if fire_root.visible:
 		_animate_fire_item(item)

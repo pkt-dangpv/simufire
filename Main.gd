@@ -21,6 +21,10 @@ var _graph_textures: Array[Texture2D] = []
 var _graph_image_cells: Array[Control] = []
 var _graph_scrolls: Array[ScrollContainer] = []
 var _graph_grids: Array[GridContainer] = []
+var _graphs_room_tabs: TabContainer = null
+var _graphs_room_selector: OptionButton = null
+var _graphs_room_prev_button: Button = null
+var _graphs_room_next_button: Button = null
 var _graph_drag_scroll: ScrollContainer = null
 var _graph_zoom: float = 1.0
 var _view_update_accum_s: float = 0.0
@@ -452,12 +456,32 @@ func _show_graphs_window(graphs_dir: String) -> void:
 	btn_zoom_reset.pressed.connect(_on_graph_zoom_reset)
 	zoom_bar.add_child(btn_zoom_reset)
 
+	var room_nav := HBoxContainer.new()
+	room_nav.add_theme_constant_override("separation", 8)
+	root.add_child(room_nav)
+	_graphs_room_prev_button = Button.new()
+	_graphs_room_prev_button.text = "<"
+	_graphs_room_prev_button.tooltip_text = "Sala anterior"
+	_graphs_room_prev_button.pressed.connect(_on_graph_room_prev)
+	room_nav.add_child(_graphs_room_prev_button)
+	_graphs_room_selector = OptionButton.new()
+	_graphs_room_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_graphs_room_selector.item_selected.connect(_on_graph_room_selected)
+	room_nav.add_child(_graphs_room_selector)
+	_graphs_room_next_button = Button.new()
+	_graphs_room_next_button.text = ">"
+	_graphs_room_next_button.tooltip_text = "Sala siguiente"
+	_graphs_room_next_button.pressed.connect(_on_graph_room_next)
+	room_nav.add_child(_graphs_room_next_button)
+
 	var tabs := TabContainer.new()
+	_graphs_room_tabs = tabs
 	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tabs.add_theme_font_size_override("font_size", 18)
 	tabs.add_theme_color_override("font_selected_color", Color(0.94, 0.94, 0.90, 1.0))
 	tabs.add_theme_color_override("font_unselected_color", Color(0.70, 0.72, 0.72, 1.0))
+	tabs.tab_changed.connect(_on_graph_room_tab_changed)
 	root.add_child(tabs)
 
 	var dir := DirAccess.open(graphs_dir)
@@ -477,6 +501,11 @@ func _show_graphs_window(graphs_dir: String) -> void:
 		name = dir.get_next()
 	dir.list_dir_end()
 	room_dirs.sort()
+	if _graphs_room_selector != null:
+		_graphs_room_selector.clear()
+		for room_dir_name in room_dirs:
+			_graphs_room_selector.add_item(_format_room_tab_name(room_dir_name))
+	room_nav.visible = not room_dirs.is_empty()
 
 	for room_dir_name in room_dirs:
 		var room_path: String = graphs_dir.path_join(room_dir_name)
@@ -489,6 +518,16 @@ func _show_graphs_window(graphs_dir: String) -> void:
 		tabs.add_child(room_scroll)
 		_graph_scrolls.append(room_scroll)
 
+		var margin := MarginContainer.new()
+		margin.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		margin.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		margin.add_theme_constant_override("margin_left", 18)
+		margin.add_theme_constant_override("margin_top", 18)
+		margin.add_theme_constant_override("margin_right", 28)
+		margin.add_theme_constant_override("margin_bottom", 28)
+		room_scroll.add_child(margin)
+
 		var grid := GridContainer.new()
 		grid.columns = _graph_column_count()
 		grid.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -496,7 +535,7 @@ func _show_graphs_window(graphs_dir: String) -> void:
 		grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		grid.add_theme_constant_override("h_separation", 14)
 		grid.add_theme_constant_override("v_separation", 18)
-		room_scroll.add_child(grid)
+		margin.add_child(grid)
 		_graph_grids.append(grid)
 
 		for image_name in _collect_graph_images(room_path):
@@ -542,6 +581,7 @@ func _show_graphs_window(graphs_dir: String) -> void:
 		tabs.add_child(empty)
 
 	_refresh_graph_grid_columns()
+	_sync_graph_room_nav()
 	_graphs_view_window.popup_centered(_graphs_view_window.size)
 
 
@@ -577,6 +617,10 @@ func _clear_graphs_view_window() -> void:
 	_graph_image_cells.clear()
 	_graph_scrolls.clear()
 	_graph_grids.clear()
+	_graphs_room_tabs = null
+	_graphs_room_selector = null
+	_graphs_room_prev_button = null
+	_graphs_room_next_button = null
 
 
 func _on_graph_zoom_in() -> void:
@@ -589,6 +633,52 @@ func _on_graph_zoom_out() -> void:
 
 func _on_graph_zoom_reset() -> void:
 	_set_graph_zoom(1.0)
+
+
+func _on_graph_room_selected(index: int) -> void:
+	if _graphs_room_tabs == null or not is_instance_valid(_graphs_room_tabs):
+		return
+	if index < 0 or index >= _graphs_room_tabs.get_tab_count():
+		return
+	_graphs_room_tabs.current_tab = index
+	_sync_graph_room_nav()
+
+
+func _on_graph_room_prev() -> void:
+	_shift_graph_room(-1)
+
+
+func _on_graph_room_next() -> void:
+	_shift_graph_room(1)
+
+
+func _on_graph_room_tab_changed(_tab: int) -> void:
+	_sync_graph_room_nav()
+
+
+func _shift_graph_room(delta: int) -> void:
+	if _graphs_room_tabs == null or not is_instance_valid(_graphs_room_tabs):
+		return
+	var count: int = _graphs_room_tabs.get_tab_count()
+	if count <= 0:
+		return
+	_graphs_room_tabs.current_tab = posmod(_graphs_room_tabs.current_tab + delta, count)
+	_sync_graph_room_nav()
+
+
+func _sync_graph_room_nav() -> void:
+	if _graphs_room_tabs == null or not is_instance_valid(_graphs_room_tabs):
+		return
+	var count: int = _graphs_room_tabs.get_tab_count()
+	var current: int = clampi(_graphs_room_tabs.current_tab, 0, maxi(0, count - 1))
+	if _graphs_room_selector != null and is_instance_valid(_graphs_room_selector):
+		_graphs_room_selector.disabled = count <= 1
+		if count > 0 and _graphs_room_selector.selected != current:
+			_graphs_room_selector.select(current)
+	if _graphs_room_prev_button != null and is_instance_valid(_graphs_room_prev_button):
+		_graphs_room_prev_button.disabled = count <= 1
+	if _graphs_room_next_button != null and is_instance_valid(_graphs_room_next_button):
+		_graphs_room_next_button.disabled = count <= 1
 
 
 func _set_graph_zoom(next_zoom: float) -> void:
@@ -644,7 +734,7 @@ func _graph_texture_base_size(image_size: Vector2i) -> Vector2:
 		max_width = clampf(fit_width, 420.0, 700.0)
 	var base_w: float = clampf(width, 420.0, max_width)
 	var base_h: float = base_w * height / width
-	return Vector2(base_w, clampf(base_h, 240.0, 620.0))
+	return Vector2(base_w, maxf(base_h, 240.0))
 
 
 func _on_graph_scroll_gui_input(event: InputEvent, scroll: ScrollContainer) -> void:
