@@ -44,6 +44,11 @@ var phase2h_o2_doorway_two_zone_enabled: bool = false
 var phase2h_cold_room_lower_routing_enabled: bool = false
 # Exp 2H.2: gain del boost de reabastecimiento de zona baja desde apertura exterior (0.0 = no-op).
 var phase2h_lower_replenish_gain: float = 0.0
+# Phase 2A/2H experiment: restaura de forma gradual el drenaje de o2_lower por
+# doorway interior aun sin soporte exterior. 0.0 conserva guard v4; 1.0 equivale
+# al drenaje acelerado completo para estudiar el tradeoff two-room vs FED víctima.
+var phase2h_interior_no_exterior_drain_gain: float = 0.0
+var phase2h_interior_no_exterior_drain_max_scale: float = 1.40
 # Phase 2H guard: umbral de o2 promedio de sala por debajo del cual se restaura lower_replenish_scale=1.0
 # para salas sin soporte exterior (outside_open_factor ≤ 0.01). Evita colapso de o2_lower en salas
 # con interior doorway pero sin ventana exterior (e.g. victim_fed_incapacitation). Default 0.10.
@@ -125,6 +130,18 @@ func configure(settings: Dictionary) -> void:
 	)
 	phase2h_lower_replenish_gain = float(
 		settings.get("phase2h_lower_replenish_gain", phase2h_lower_replenish_gain)
+	)
+	phase2h_interior_no_exterior_drain_gain = float(
+		settings.get(
+			"phase2h_interior_no_exterior_drain_gain",
+			phase2h_interior_no_exterior_drain_gain
+		)
+	)
+	phase2h_interior_no_exterior_drain_max_scale = float(
+		settings.get(
+			"phase2h_interior_no_exterior_drain_max_scale",
+			phase2h_interior_no_exterior_drain_max_scale
+		)
 	)
 	phase2h_lower_replenish_o2_threshold = float(
 		settings.get("phase2h_lower_replenish_o2_threshold", phase2h_lower_replenish_o2_threshold)
@@ -254,6 +271,17 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 					# en salas cerradas con solo doorway interior → víctima en zona baja).
 					if outside_open_factor > 0.01:
 						lower_entr_scale = lerpf(0.60, 1.40, interior_open_factor)
+					elif phase2h_interior_no_exterior_drain_gain > 0.0:
+						var no_ext_drain_factor: float = clampf(
+							interior_open_factor * phase2h_interior_no_exterior_drain_gain,
+							0.0,
+							1.0
+						)
+						var no_ext_max_scale: float = maxf(
+							0.20,
+							phase2h_interior_no_exterior_drain_max_scale
+						)
+						lower_entr_scale = lerpf(0.20, no_ext_max_scale, no_ext_drain_factor)
 			var lower_entr: float = entr_frac * lower_entr_scale * maxf(0.0, room.o2_lower - room.o2)
 			room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)
 			var ach_lower_dt: float = (ach_infiltration / 3600.0) \

@@ -99,6 +99,16 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 > *(2026-05-27)* **Guard v4 aplicado** en `OxygenExchangeSystem.gd`: con `phase2h_o2_doorway_two_zone_enabled`, el drenaje acelerado de `o2_lower` via doorway interior solo se activa si `outside_open_factor > 0.01`; sin ventana/puerta exterior abierta, `lower_entr_scale = 0.20` (baseline). **Resultado**: victim FED delta +0.000000, sentinels PASS, room.o2 invariants PASS. **Candidato opt-in válido, default OFF.**  
 > Checks HVAC siguen non-gating (54 gaps). Default permanece OFF. Definición: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`
 
+> *(2026-05-27b)* **Experimento Phase 2A — knobs `interior_no_exterior_drain`** (instrumentación experimental, default OFF):  
+> Añadidos dos knobs experimentales en `OxygenExchangeSystem.gd` / `SimulationEngine.gd`:  
+> - `phase2h_interior_no_exterior_drain_gain = 0.0` (default OFF)  
+> - `phase2h_interior_no_exterior_drain_max_scale = 1.40` (inerte cuando gain=0.0)  
+>  
+> Candidato evaluado: `gain=1.0`, `max_scale=5.0` (junto con `phase2h_o2_doorway_two_zone_enabled=true`, `phase2h_cold_room_lower_routing_enabled=true`, `phase2h_lower_replenish_gain=0.25`).  
+> **10/10 checks directos o2_lower PASS** (3 HVAC + 7 estructurales Phase 2A).  
+> **NO-GO**: diagnóstico víctima `phase2h_diag_victim.py` → `victim_v0_final_fed`: 0.7715 → 0.9139 (Δ=+0.1424, +18.5%). La hipoxia por `o2_lower` en sala con doorway interior abierto y sin exterior explica ~101% del delta FED. Conflicto no resuelto: cerrar los 10 gaps y mantener tenabilidad de víctima requieren modelo más fino (p.ej. drenaje condicional por ausencia de exterior, FED que use `o2_lower` solo cuando conectado al plano respiratorio de CFAST).  
+> **Decisión**: commitear solo como infraestructura de investigación. Sin promoción a producción. Sin rebaseline. Default OFF. Ver scripts: `phase2h_o2_experiment_runner.py`, `phase2h_diag_victim.py`.
+
 ---
 
 ### 3. CO₂ upper layer (2 checks)

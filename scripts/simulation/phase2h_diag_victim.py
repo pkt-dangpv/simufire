@@ -155,6 +155,8 @@ def main():
     parser.add_argument("--skip-run", action="store_true",
                         help="Usar CSVs y reports ya existentes.")
     parser.add_argument("--timeout",  type=int, default=600)
+    parser.add_argument("--interior-drain-gain", type=float, default=0.0)
+    parser.add_argument("--interior-drain-max-scale", type=float, default=1.40)
     args = parser.parse_args()
 
     base_path  = CASES_DIR / f"{BASE_CASE}.json"
@@ -179,8 +181,11 @@ def main():
         print(f"\n  Godot: {godot}\n")
 
         # Construir casos temporales
+        flags_on = dict(FLAGS_ON)
+        flags_on["phase2h_interior_no_exterior_drain_gain"] = args.interior_drain_gain
+        flags_on["phase2h_interior_no_exterior_drain_max_scale"] = args.interior_drain_max_scale
         _build_diag_case(base_path, off_case_path, FLAGS_OFF, "off")
-        _build_diag_case(base_path, on_case_path,  FLAGS_ON,  "on")
+        _build_diag_case(base_path, on_case_path,  flags_on,  "on")
         created_temp.extend([off_case_path, on_case_path])
 
         for tag, case_name in [("OFF", f"{BASE_CASE}_p2h_diag_off"),

@@ -13,7 +13,15 @@ import math
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -53,7 +61,13 @@ def find_godot(requested: str | None) -> Path | None:
     return None
 
 
-def build_case(base_case: str, exp_case: str, gain: float) -> Path:
+def build_case(
+    base_case: str,
+    exp_case: str,
+    gain: float,
+    interior_drain_gain: float,
+    interior_drain_max_scale: float,
+) -> Path:
     base_path = CASES_DIR / f"{base_case}.json"
     out_path = CASES_DIR / f"{exp_case}.json"
     data = json.loads(base_path.read_text(encoding="utf-8-sig"))
@@ -61,19 +75,22 @@ def build_case(base_case: str, exp_case: str, gain: float) -> Path:
     overrides["phase2h_o2_doorway_two_zone_enabled"] = True
     overrides["phase2h_cold_room_lower_routing_enabled"] = True
     overrides["phase2h_lower_replenish_gain"] = gain
+    overrides["phase2h_interior_no_exterior_drain_gain"] = interior_drain_gain
+    overrides["phase2h_interior_no_exterior_drain_max_scale"] = interior_drain_max_scale
     overrides["log_file_path"] = f"res://sim/validation/reports/{exp_case}.log"
     data["engine_overrides"] = overrides
     out_path.write_text(json.dumps(data, indent="\t", ensure_ascii=False), encoding="utf-8")
     return out_path
 
 
-def run_case(godot: Path, case_name: str, timeout_s: int) -> bool:
+def run_case(godot: Path, case_name: str, timeout_s: int) -> tuple[bool, str]:
     cmd = [str(godot), "--headless", "--path", str(ROOT), "--", f"--validation-case={case_name}"]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
     except subprocess.TimeoutExpired:
-        return False
-    return result.returncode == 0
+        return False, "timeout"
+    output = (result.stdout or "") + (result.stderr or "")
+    return result.returncode == 0, output[-3000:]
 
 
 def parse_o2l(log_path: Path, room_id: int, target_s: float) -> float:
@@ -109,6 +126,8 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--godot", default=None)
     parser.add_argument("--gains", type=float, nargs="+", default=[0.25])
+    parser.add_argument("--interior-drain-gains", type=float, nargs="+", default=[0.0])
+    parser.add_argument("--interior-drain-max-scales", type=float, nargs="+", default=[1.40])
     parser.add_argument("--timeout", type=int, default=300)
     parser.add_argument("--cases", nargs="+", default=None)
     parser.add_argument("--skip-run", action="store_true")
@@ -128,23 +147,48 @@ def main() -> int:
     temp_cases: list[Path] = []
     try:
         for gain in args.gains:
-            tag = f"p2h_g{int(round(gain * 100)):03d}"
-            if not args.skip_run:
-                for case in cases:
-                    exp_case = f"{case}_{tag}"
-                    temp_cases.append(build_case(case, exp_case, gain))
-                    print(f"RUN gain={gain:.2f} {case}", flush=True)
-                    if not run_case(godot, exp_case, args.timeout):
-                        print(f"FAIL {exp_case}")
-                        return 1
+            for interior_drain_gain in args.interior_drain_gains:
+                for interior_drain_max_scale in args.interior_drain_max_scales:
+                    tag = (
+                        f"p2h_g{int(round(gain * 100)):03d}"
+                        f"_d{int(round(interior_drain_gain * 100)):03d}"
+                        f"_s{int(round(interior_drain_max_scale * 100)):03d}"
+                    )
+                    if not args.skip_run:
+                        for case in cases:
+                            exp_case = f"{case}_{tag}"
+                            temp_cases.append(
+                                build_case(
+                                    case,
+                                    exp_case,
+                                    gain,
+                                    interior_drain_gain,
+                                    interior_drain_max_scale,
+                                )
+                            )
+                            print(
+                                f"RUN gain={gain:.2f} interior_drain={interior_drain_gain:.2f} "
+                                f"max_scale={interior_drain_max_scale:.2f} {case}",
+                                flush=True,
+                            )
+                            ok_run, run_output = run_case(godot, exp_case, args.timeout)
+                            if not ok_run:
+                                print(f"FAIL {exp_case}")
+                                if run_output:
+                                    print(run_output)
+                                return 1
 
-            print(f"\nO2 lower results for gain={gain:.2f}")
-            print("check,actual,expected,tolerance,pass")
-            for case, room_id, target_s, check, expected, tol in selected_targets:
-                exp_case = f"{case}_{tag}"
-                actual = parse_o2l(REPORTS_DIR / f"{exp_case}.log", room_id, target_s)
-                ok = not math.isnan(actual) and abs(actual - expected) <= tol
-                print(f"{check},{actual:.4f},{expected:.4f},{tol:.4f},{ok}")
+                    print(
+                        f"\nO2 lower results for gain={gain:.2f}, "
+                        f"interior_drain={interior_drain_gain:.2f}, "
+                        f"max_scale={interior_drain_max_scale:.2f}"
+                    )
+                    print("check,actual,expected,tolerance,pass")
+                    for case, room_id, target_s, check, expected, tol in selected_targets:
+                        exp_case = f"{case}_{tag}"
+                        actual = parse_o2l(REPORTS_DIR / f"{exp_case}.log", room_id, target_s)
+                        ok = not math.isnan(actual) and abs(actual - expected) <= tol
+                        print(f"{check},{actual:.4f},{expected:.4f},{tol:.4f},{ok}")
     finally:
         for path in temp_cases:
             try:

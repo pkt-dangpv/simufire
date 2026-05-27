@@ -690,6 +690,10 @@ var _step_time_us: int = 0
 ## Exp 2H.2: gain del boost de reabastecimiento de zona baja desde apertura exterior/HVAC bajo.
 ## 0.0 = no-op (default OFF); valores experimentales: 0.25 / 0.5 / 1.0.
 @export var phase2h_lower_replenish_gain: float = 0.0
+## Phase 2A/2H experimento: drenaje de o2_lower por doorway interior sin soporte exterior.
+## 0.0 conserva guard v4; 1.0 restaura el drenaje acelerado completo para barridos.
+@export var phase2h_interior_no_exterior_drain_gain: float = 0.0
+@export var phase2h_interior_no_exterior_drain_max_scale: float = 1.40
 ## Phase 2H — Preset opt-in: activa two_zone + cold_routing + gain=0.25 con un solo flag.
 ## Validado 2026-05-26: 10/10 checks O2 lower PASS en runner targeted; default OFF.
 ## Safe como opt-in: no altera ninguna baseline required con default OFF. No requiere rebaseline.
@@ -973,6 +977,8 @@ func _sync_auxiliary_services() -> void:
 		"phase2h_o2_doorway_two_zone_enabled": phase2h_o2_doorway_two_zone_enabled,
 		"phase2h_cold_room_lower_routing_enabled": phase2h_cold_room_lower_routing_enabled,
 		"phase2h_lower_replenish_gain": phase2h_lower_replenish_gain,
+		"phase2h_interior_no_exterior_drain_gain": phase2h_interior_no_exterior_drain_gain,
+		"phase2h_interior_no_exterior_drain_max_scale": phase2h_interior_no_exterior_drain_max_scale,
 		"phase2e_co2_subc_enabled": phase2e_co2_subc_enabled,
 		"phase2e_co2_fire_upper_boost_gain": phase2e_co2_fire_upper_boost_gain,
 		"phase2e_co2_suba_enabled": phase2e_co2_suba_enabled,
