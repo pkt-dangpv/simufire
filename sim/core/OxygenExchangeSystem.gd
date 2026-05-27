@@ -44,6 +44,10 @@ var phase2h_o2_doorway_two_zone_enabled: bool = false
 var phase2h_cold_room_lower_routing_enabled: bool = false
 # Exp 2H.2: gain del boost de reabastecimiento de zona baja desde apertura exterior (0.0 = no-op).
 var phase2h_lower_replenish_gain: float = 0.0
+# Phase 2H guard: umbral de o2 promedio de sala por debajo del cual se restaura lower_replenish_scale=1.0
+# para salas sin soporte exterior (outside_open_factor ≤ 0.01). Evita colapso de o2_lower en salas
+# con interior doorway pero sin ventana exterior (e.g. victim_fed_incapacitation). Default 0.10.
+var phase2h_lower_replenish_o2_threshold: float = 0.20
 # Phase 2E Sub-C: CO₂ upper tracer boost en sala con fuego activo (default OFF = no-op).
 # room.co2_upper es tracer calibrado (fracción molar), NO derivado de balance de masa co2_kg.
 # Boost: delta_co2_boost = delta_co2_baseline × gain. gain=0.0 → comportamiento idéntico al baseline.
@@ -121,6 +125,9 @@ func configure(settings: Dictionary) -> void:
 	)
 	phase2h_lower_replenish_gain = float(
 		settings.get("phase2h_lower_replenish_gain", phase2h_lower_replenish_gain)
+	)
+	phase2h_lower_replenish_o2_threshold = float(
+		settings.get("phase2h_lower_replenish_o2_threshold", phase2h_lower_replenish_o2_threshold)
 	)
 	phase2e_co2_subc_enabled = bool(
 		settings.get("phase2e_co2_subc_enabled", phase2e_co2_subc_enabled)
@@ -650,7 +657,11 @@ func _exchange_room_o2_active_flow(
 		var lower_replenish_scale: float = 1.0
 		if phase2h_o2_doorway_two_zone_enabled and phase2h_cold_room_lower_routing_enabled:
 			var outside_support: float = _estimate_room_outside_open_factor(building, hot_room)
-			if outside_support <= 0.01:
+			# Suprimir reposición solo cuando hay soporte exterior activo (ventana/puerta exterior
+			# abierta): en ese caso el flujo exterior ya repone o2_lower directamente. Sin soporte
+			# exterior (sala cerrada con solo doorway interior), mantener lower_replenish_scale=1.0
+			# para evitar colapso de o2_lower en víctimas con respiración en zona baja.
+			if outside_support > 0.01:
 				lower_replenish_scale = 0.0
 		if lower_replenish_scale > 0.0:
 			hot_room.o2_lower = clampf(
