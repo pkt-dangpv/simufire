@@ -249,7 +249,11 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 					var outside_open_factor: float = _estimate_room_outside_open_factor(building, room)
 					lower_entr_scale = 0.40 * outside_open_factor
 				else:
-					lower_entr_scale = lerpf(0.60, 1.40, interior_open_factor)
+					var outside_open_factor: float = _estimate_room_outside_open_factor(building, room)
+					# Guard: sin soporte exterior, no acelerar drenaje de o2_lower (evita colapso
+					# en salas cerradas con solo doorway interior → víctima en zona baja).
+					if outside_open_factor > 0.01:
+						lower_entr_scale = lerpf(0.60, 1.40, interior_open_factor)
 			var lower_entr: float = entr_frac * lower_entr_scale * maxf(0.0, room.o2_lower - room.o2)
 			room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)
 			var ach_lower_dt: float = (ach_infiltration / 3600.0) \
