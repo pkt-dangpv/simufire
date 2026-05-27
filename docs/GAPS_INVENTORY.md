@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 27 mayo 2026 (Phase 2H guard v4, candidato opt-in válido)
-**Estado validación**: 292/292 PASS required, 54 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 27 mayo 2026 (fresh canonical logs — 5 casos re-ejecutados con código HEAD)
+**Estado validación**: 292/292 PASS required, 60 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -26,9 +26,9 @@
 | Categoría | Checks | Causa raíz | Cierre estimado |
 |-----------|--------|------------|-----------------|
 | Presión termódinámica vs boyancia | 18 | Modelo de presión SF es termostático (1-10 Pa); CFAST usa boyancia two-zone (100-1000 Pa) | Phase 3 (modelo boyancia) |
-| O₂ zona inferior | 6 | 3 HVAC lower-zone + O₂ pasillo/RMSE non-gating; 7 directos cerrados 2026-05-26c | Phase 2H guard v4 aplicado; candidato opt-in válido, default OFF |
+| O₂ zona inferior | 13 | 3 HVAC lower-zone + O₂ pasillo/RMSE non-gating; 7 directos re-abiertos 2026-05-27 (código HEAD default) | Phase 2H candidato opt-in válido, default OFF — gap estructural Phase 2A |
 | CO₂ upper layer | 2 | Phase 2E cerró 2 gaps; t120 closed por tolerancia (CMV-1); quedan post-flashover no-gating | Phase 2E Sub-C/Sub-E o roadmap posterior |
-| RMSE temperatura superior | 7 | Wall heat loss subestimado + diferencias de volumen | Phase 1.5 (conducción 1D paredes) |
+| RMSE temperatura superior | 6 | Wall heat loss subestimado + diferencias de volumen | Phase 1.5 (conducción 1D paredes) |
 | Phase 1.5 / Flashover / FED | 2 | Conducción 1D no implementada; HRR post-flashover timing | Phase 1.5 |
 | Temp / HRR / Layer (otros) | 5 | Diferencias puntuales de temperatura, HRR y altura de capa | Calibración focal |
 | Escenarios complejos | 2 | Multi-room/HVAC pendientes no-gating | Roadmap posterior |
@@ -73,18 +73,26 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 2. O₂ zona inferior (3 checks directos HVAC — 7 directos cerrados 2026-05-26c)
+### 2. O₂ zona inferior (10 checks directos: 3 HVAC + 7 re-abiertos 2026-05-27)
 
 **Gap Fase 2A**: SF rastrea `o2_lower` como variable independiente pero el flujo entre zonas via vano no está implementado como two-zone. Resultado: `o2_lower` se equilibra con la sala → no refleja la capa baja de aire fresco de CFAST.  
 **Cierre**: two-zone doorway flow (aire fresco entra por mitad inferior del vano).
 
-> *(2026-05-26c)* 7 checks cerrados tras ejecución fresca Phase 2H runner OFF: `r0_window_360`, `single_room_closed`, `two_room_door_open` re-simulados con flags default. O₂ lower ahora PASS para esos 3 escenarios. Solo permanecen los 3 HVAC.
+> *(2026-05-26c)* 7 checks cerrados temporalmente tras ejecución fresca Phase 2H runner OFF: `r0_window_360`, `single_room_closed`, `two_room_door_open` re-simulados con flags default. O₂ lower era PASS para esos 3 escenarios con ese runner experimental.
+> *(2026-05-27)* **Re-abiertos**: fresh run de los 5 casos canónicos con código HEAD (default) revela que el código de producción produce valores `o2_lower` distintos a los del runner Phase 2H OFF. Gap estructural Phase 2A confirmado: SF one-zone vs CFAST two-zone lower-zone O₂. Rooms selladas: SF depleta `o2_lower` (~0.069) vs CFAST near-ambient (0.205). Two-room door open: SF mantiene `o2_lower` near-ambient (0.209) vs CFAST depleta (~0.095). Todos non-gating.
 
 | Check | t (s) | SF actual | CFAST expected | Escenario |
 |-------|-------|-----------|----------------|-----------|
 | `cfast_hvac_t180_o2_lower` | 180 | 0.156 | 0.2049 ±0.015 | HVAC |
 | `cfast_hvac_t300_o2_lower` | 300 | 0.058 | 0.2049 ±0.015 | HVAC |
 | `cfast_hvac_t450_o2_lower` | 450 | 0.0336 | 0.2049 ±0.015 | HVAC |
+| `cfast_closed_t300_o2_lower` | 300 | 0.0684 | 0.2049 ±0.015 | Sealed room |
+| `cfast_closed_t450_o2_lower` | 450 | 0.0429 | 0.2049 ±0.015 | Sealed room |
+| `cfast_t350_o2_lower` | 350 | 0.0693 | 0.2049 ±0.015 | R0 window (pre-open) |
+| `cfast_t420_o2_lower` | 420 | 0.1658 | 0.1878 ±0.015 | R0 window (post-open) |
+| `cfast_2r_r0_t180_o2_lower` | 180 | 0.2032 | 0.1826 ±0.015 | Two-room (fire room) |
+| `cfast_2r_r0_t300_o2_lower` | 300 | 0.209 | 0.0952 ±0.015 | Two-room (fire room) |
+| `cfast_2r_r0_t450_o2_lower` | 450 | 0.0675 | 0.0909 ±0.015 | Two-room (fire room) |
 
 > *(2026-05-26)* Runner Phase 2H targeted: **10/10 O₂ lower PASS** con gain 0.25 — targeted suite OK.  
 > *(2026-05-26c)* **NO-GO broad validation**: `victim_fed_incapacitation` FED Δ=+0.1461 (+18.9%) con Phase 2H ON — excede límite ±0.005. Preset bloqueado; diagnóstico pendiente (hipótesis: `cold_room_lower_routing` reoxigena sala fuego → extiende burn/CO → regresión FED).  
@@ -117,7 +125,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 | `cfast_2r_hall_rmse_temp_upper_c` | 39.8°C | ≤30°C | Dos salas, pasillo |
 | `cfast_2r_hall_rmse_o2` | 0.0781 | ≤0.030 | Dos salas, O₂ pasillo |
 | `cfast_hvac_rmse_temp_upper_c` | 81.2°C | ≤60°C | HVAC |
-| `cfast_fastgrowth_rmse_temp_upper_c` | 162°C | ≤60°C | Fast growth |
+| ~~`cfast_fastgrowth_rmse_temp_upper_c`~~ | ~~162°C~~ | ~~≤60°C~~ | ~~Fast growth~~ — **CLOSED 2026-05-27** (RMSE=39°C, now PASS) |
 | `cfast_twofloor_r0_rmse_temp_upper_c` | 157°C | ≤60°C | Dos plantas, sala fuego |
 | `cfast_multifuel_rmse_temp_upper_c` | 184°C | ≤80°C | Multi-combustible |
 
