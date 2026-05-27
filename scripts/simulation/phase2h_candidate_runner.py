@@ -57,6 +57,18 @@ import subprocess
 import sys
 from pathlib import Path
 
+# En Windows, piped stdout puede usar cp1252; reconfigure para UTF-8 si disponible
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------

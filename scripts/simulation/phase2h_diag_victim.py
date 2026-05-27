@@ -214,8 +214,10 @@ def main():
     print()
     print("=" * W)
     print("  Phase 2H — Diagnóstico victim_fed_incapacitation  (Room 0, víctima h=0.9m)")
-    print(f"  Hipótesis: con Phase 2H ON, lower_replenish_scale=0 para sala sin ventana")
-    print(f"             → o2_lower cae hacia room.o2 → hipoxia FED sube")
+    print(f"  Hipótesis original (2026-05-26): cold_room_lower_routing reoxigenaba sala fuego")
+    print(f"                     → o2_lower sube → fuego prolonga burn/CO → regresión FED")
+    print(f"  Guard v4 (2026-05-27): drenaje acelerado o2_lower solo si outside_open_factor>0.01")
+    print(f"                     → sin ventana exterior, lower_entr_scale=0.20 (baseline)")
     print("=" * W)
 
     # --- Tabla resumen final ---
@@ -402,9 +404,11 @@ def main():
         print(f"    vic FED delta = {vic_fed_delta:+.4f}  {sign}")
     if o2l_at_peak_off is not None and o2l_at_peak_on is not None:
         d_o2l_peak = o2l_at_peak_on - o2l_at_peak_off
-        cause = ("↑ o2_lower_ON > o2_lower_OFF → INESPERADO (buscar otra causa)"
+        cause = ("↑ o2_lower_ON > o2_lower_OFF → replenishment activo (exterior abierto, esperado)"
                  if d_o2l_peak > 0.001 else
-                 "↓ o2_lower_ON < o2_lower_OFF → CONFIRMA hipótesis doorway suppression")
+                 ("≈ o2_lower igual → guard v4 efectivo, sin regresión"
+                  if abs(d_o2l_peak) <= 0.001 else
+                  "↓ o2_lower_ON < o2_lower_OFF → guard v4 no efectivo, investigar"))
         print(f"    o2_lower@peak_HRR  OFF={o2l_at_peak_off:.4f}  ON={o2l_at_peak_on:.4f}"
               f"  Δ={d_o2l_peak:+.4f}  {cause}")
     hyp_delta_total = cum_hyp_on - cum_hyp_off

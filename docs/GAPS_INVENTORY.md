@@ -1,5 +1,5 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 26 mayo 2026 (Phase 2H NO-GO broad validation)
+**Generado**: 24 mayo 2026 | **Actualizado**: 27 mayo 2026 (Phase 2H guard v4, candidato opt-in válido)
 **Estado validación**: 292/292 PASS required, 54 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
@@ -26,7 +26,7 @@
 | Categoría | Checks | Causa raíz | Cierre estimado |
 |-----------|--------|------------|-----------------|
 | Presión termódinámica vs boyancia | 18 | Modelo de presión SF es termostático (1-10 Pa); CFAST usa boyancia two-zone (100-1000 Pa) | Phase 3 (modelo boyancia) |
-| O₂ zona inferior | 6 | 3 HVAC lower-zone + O₂ pasillo/RMSE non-gating; 7 directos cerrados 2026-05-26c | Phase 2H NO-GO (victim FED regresión); baseline OFF conserva gaps |
+| O₂ zona inferior | 6 | 3 HVAC lower-zone + O₂ pasillo/RMSE non-gating; 7 directos cerrados 2026-05-26c | Phase 2H guard v4 aplicado; candidato opt-in válido, default OFF |
 | CO₂ upper layer | 2 | Phase 2E cerró 2 gaps; t120 closed por tolerancia (CMV-1); quedan post-flashover no-gating | Phase 2E Sub-C/Sub-E o roadmap posterior |
 | RMSE temperatura superior | 7 | Wall heat loss subestimado + diferencias de volumen | Phase 1.5 (conducción 1D paredes) |
 | Phase 1.5 / Flashover / FED | 2 | Conducción 1D no implementada; HRR post-flashover timing | Phase 1.5 |
@@ -88,6 +88,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 > *(2026-05-26)* Runner Phase 2H targeted: **10/10 O₂ lower PASS** con gain 0.25 — targeted suite OK.  
 > *(2026-05-26c)* **NO-GO broad validation**: `victim_fed_incapacitation` FED Δ=+0.1461 (+18.9%) con Phase 2H ON — excede límite ±0.005. Preset bloqueado; diagnóstico pendiente (hipótesis: `cold_room_lower_routing` reoxigena sala fuego → extiende burn/CO → regresión FED).  
+> *(2026-05-27)* **Guard v4 aplicado** en `OxygenExchangeSystem.gd`: con `phase2h_o2_doorway_two_zone_enabled`, el drenaje acelerado de `o2_lower` via doorway interior solo se activa si `outside_open_factor > 0.01`; sin ventana/puerta exterior abierta, `lower_entr_scale = 0.20` (baseline). **Resultado**: victim FED delta +0.000000, sentinels PASS, room.o2 invariants PASS. **Candidato opt-in válido, default OFF.**  
 > Checks HVAC siguen non-gating (54 gaps). Default permanece OFF. Definición: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`
 
 ---
@@ -183,7 +184,7 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 
 | Prioridad | Categoría | Checks | Esfuerzo | Impacto |
 |-----------|-----------|--------|----------|---------|
-| 1 | O₂ zona inferior | 3 | Medio | Medio (HVAC lower; Phase 2H NO-GO — diagnosis pendiente) |
+| 1 | O₂ zona inferior | 3 | Medio | Medio (HVAC lower; Phase 2H guard v4 aplicado, candidato opt-in válido) |
 | 2 | CO₂ upper layer | 5 | Medio | Alto (Phase 2E) |
 | 3 | Escenarios complejos (O₂/HVAC) | 3 | Bajo | Medio (deriva de Phase 2E) |
 | 4 | Wall heat loss / paredes | 4 | Alto | Medio (conducción 1D) |

@@ -1,9 +1,9 @@
 {
 	"preset_id": "phase2h_o2_lower_replenish_candidate",
-	"version": "2H.candidate.g025.o2lower10",
-	"validated": "2026-05-26",
-	"status": "no_go_broader_validation",
-	"description": "Phase 2H: O2 lower-zone flow candidate (gain=0.25). Targeted O2_lower suite: 10/10 PASS across closed room, exterior-window, two-room doorway, and HVAC cases. Default OFF.",
+	"version": "2H.candidate.g025.o2lower10.guard_v4",
+	"validated": "2026-05-27",
+	"status": "opt_in_valid_guard_v4",
+	"description": "Phase 2H: O2 lower-zone flow candidate (gain=0.25) con guard v4. El drenaje acelerado de o2_lower via doorway interior solo se activa si outside_open_factor>0.01; sin ventana/puerta exterior abierta, lower_entr_scale=0.20 (baseline). Victim FED delta +0.000000, sentinels PASS, room.o2 invariants PASS. Default OFF.",
 	"usage": {
 		"single_flag": {
 			"engine_overrides": {
@@ -25,24 +25,25 @@
 		"targeted_checks": "10/10 O2 lower PASS: r0 window t350/t420, closed t300/t450, two-room r0 t180/t300/t450, HVAC t180/t300/t450.",
 		"default_off": "Production default unchanged. Baseline reports are unaffected unless the preset or explicit flags are enabled."
 	},
-	"validated_broader": "2026-05-26",
+	"validated_broader": "2026-05-27",
 	"validation_results": {
 		"o2_lower_targeted": "10/10 PASS via scripts/simulation/phase2h_o2_experiment_runner.py --gains 0.25",
 		"o2_lower_values": "0.2090, 0.1960, 0.2090, 0.2090, 0.1791, 0.1101, 0.0779, 0.2090, 0.2090, 0.2090",
 		"guardrails": "292/292 required PASS, 54 non-gating gaps (baseline OFF reports)",
-		"godot_parse": "RC=0 for all 4 targeted validation cases"
+		"godot_parse": "RC=0 for all 4 targeted validation cases",
+		"guard_v4": "victim FED delta +0.000000, sentinels PASS, room.o2 invariants PASS"
 	},
 	"broader_validation": {
-		"date": "2026-05-26",
+		"date": "2026-05-27",
 		"runner": "scripts/simulation/phase2h_candidate_runner.py --timeout 600",
 		"cases": 7,
 		"configs": "OFF x7 + ON x7 = 14 runs (all RC=0)",
 		"sentinels_6": "PASS — g4 CO>1200, g4 FED, v3 FED, v3 maxFED, vic FED (sentinel window), vic CO",
 		"o2_invariants_11rooms": "PASS — all delta=0.0000 (tol ±0.001)",
 		"o2l_hvac_gap_closure": "ON t180=0.2090 t300=0.2090 t450=0.2090 (vs OFF: 0.1991, 0.0580, 0.0345)",
-		"no_go_gate": "FAIL — victim_fed_incapacitation FED delta: ON=0.9176 vs OFF=0.7715 (+0.1461, +18.9%), limit=+0.005",
-		"root_cause_hypothesis": "cold_room_lower_routing re-oxygenates fire room lower zone, extending burn duration and CO production => FED regression in victim scenario",
-		"recommendation": "Investigate guard: cap lower replenish when fire_room.o2 < threshold (e.g. 0.10). Do NOT promote until victim FED gate passes."
+		"victim_fed_gate": "PASS — victim_fed_incapacitation FED delta: +0.000000 (tol ±0.005), guard v4 aplicado",
+		"root_cause_resolved": "Guard v4 en OxygenExchangeSystem.gd: con phase2h_o2_doorway_two_zone_enabled, el drenaje acelerado de o2_lower via doorway interior solo se activa si outside_open_factor>0.01. Sin ventana exterior abierta, lower_entr_scale=0.20 (baseline). FED regression eliminada.",
+		"recommendation": "Candidato opt-in válido. Promover como preset opt-in, flag OFF por defecto. No rebaseline requerido."
 	},
 	"safety_notes": [
 		"Keep default OFF until broader gameplay and non-target validation are reviewed.",
