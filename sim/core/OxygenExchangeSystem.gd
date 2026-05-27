@@ -286,13 +286,26 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)
 			var ach_lower_dt: float = (ach_infiltration / 3600.0) \
 				* (building.outside_o2 - room.o2_lower) * dt
-			room.o2_lower = clampf(room.o2_lower + ach_lower_dt, room.o2, o2_nominal)
+			# Phase 2H fix: en modo two-zone, la zona baja puede reponerse hasta el O₂
+			# ambiente real (building.outside_o2), no hasta o2_nominal (parámetro del fuego).
+			# Cuando fire_o2_nominal < 0.209 y room.o2 > o2_nominal al inicio, el clamp
+			# con o2_nominal como techo forzaba o2_lower a o2_nominal inmediatamente,
+			# impidiendo que salas selladas conservaran el O₂ ambiental de la zona baja
+			# (comportamiento CFAST: zona baja cerca de 0.205 aunque room.o2 se depleta).
+			var _o2_lower_ach_ceil: float = building.outside_o2 \
+				if phase2h_o2_doorway_two_zone_enabled else o2_nominal
+			room.o2_lower = clampf(room.o2_lower + ach_lower_dt, room.o2, _o2_lower_ach_ceil)
 		else:
 			# Sin fuego: resync lento de zonas a room.o2 (difusion/mezcla)
 			room.o2_lower = lerpf(room.o2_lower, room.o2, clampf(0.05 * dt, 0.0, 0.20))
 			room.o2_upper = lerpf(room.o2_upper, room.o2, clampf(0.03 * dt, 0.0, 0.10))
 		room.o2_upper = clampf(room.o2_upper, 0.0, o2_nominal)
-		room.o2_lower = clampf(room.o2_lower, 0.0, o2_nominal)
+		# Phase 2H fix: en modo two-zone, o2_lower puede superar o2_nominal (= fire_o2_nominal).
+		# La zona baja puede contener aire fresco a concentración ambiente aunque el fuego
+		# haya reducido o2_nominal a 0.17. Usar building.outside_o2 (≈0.209) como techo.
+		var _o2_lower_final_ceil: float = building.outside_o2 \
+			if phase2h_o2_doorway_two_zone_enabled else o2_nominal
+		room.o2_lower = clampf(room.o2_lower, 0.0, _o2_lower_final_ceil)
 
 		# ── Fase 2B: CO₂ upper-zone mol-fraction tracking ──────────────────────
 		# Análogo a Fase 2A (o2_upper), pero para CO₂ producido por combustión.

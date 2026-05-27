@@ -1,5 +1,5 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 27 mayo 2026 (fresh canonical logs — 5 casos re-ejecutados con código HEAD)
+**Generado**: 24 mayo 2026 | **Actualizado**: 27 mayo 2026b (Phase 2H ceiling fix — 7/10 o2_lower PASS con Phase 2H ON, zero victim FED delta)
 **Estado validación**: 292/292 PASS required, 60 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
@@ -108,6 +108,16 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 > **10/10 checks directos o2_lower PASS** (3 HVAC + 7 estructurales Phase 2A).  
 > **NO-GO**: diagnóstico víctima `phase2h_diag_victim.py` → `victim_v0_final_fed`: 0.7715 → 0.9139 (Δ=+0.1424, +18.5%). La hipoxia por `o2_lower` en sala con doorway interior abierto y sin exterior explica ~101% del delta FED. Conflicto no resuelto: cerrar los 10 gaps y mantener tenabilidad de víctima requieren modelo más fino (p.ej. drenaje condicional por ausencia de exterior, FED que use `o2_lower` solo cuando conectado al plano respiratorio de CFAST).  
 > **Decisión**: commitear solo como infraestructura de investigación. Sin promoción a producción. Sin rebaseline. Default OFF. Ver scripts: `phase2h_o2_experiment_runner.py`, `phase2h_diag_victim.py`.
+
+> *(2026-05-27c)* **Fix: bug ACH ceiling — `o2_nominal` reemplazado por `building.outside_o2` en Phase 2H** (`OxygenExchangeSystem.gd`, commit 8782058):  
+> Root cause identificado: el clamp ACH de zona baja usaba `o2_nominal` (= `fire_o2_nominal`, parámetro del fuego) como techo superior. Para casos con `fire_o2_nominal=0.17` (cfast_single_room_closed, cfast_two_room_door_open) y `room.o2 > 0.17` al inicio, `clampf(0.209, 0.209, 0.17)` → GDScript devuelve 0.17, forzando `o2_lower` a 0.17 inmediatamente aunque la sala está sellada y la zona baja debería conservar el O₂ ambiental (≈0.209).  
+> Fix: cuando `phase2h_o2_doorway_two_zone_enabled=true`, usar `building.outside_o2` (≈0.209) como techo tanto en el clamp ACH como en el clamp final de `o2_lower`. Gating en Phase 2H → producción invariante.  
+> **Resultado con guard v4 (gain=0.25, interior_drain=0.0)**:  
+> - **7/10 checks directos o2_lower PASS** (3 HVAC + 4 salas selladas: `cfast_closed_t300/t450`, `cfast_t350/t420`) — eran 3/10 antes del fix.  
+> - 3 gaps two_room pendientes: gap estructural (requiere `o2_lower < room.o2`, distinto mecanismo).  
+> - Diagnóstico víctima: `victim_v0_final_fed` OFF=0.7715 → ON=0.7715, **Δ=+0.0000** ✅. Sin regresión.  
+> - Guardrails: 292/292 PASS, 60 gaps, sentinels PASS.  
+> **Estado**: candidato opt-in válido, 7/10 PASS con zero victim FED delta. Default permanece OFF.
 
 ---
 
