@@ -60,6 +60,10 @@ var phase2h_lower_replenish_o2_threshold: float = 0.20
 # Calibrado 2026-05-27: coeff=0.56 → 3/3 two_room checks PASS, victim FED delta=+0.0000.
 # Requiere phase2h_o2_doorway_two_zone_enabled=true. Default 0.0 = no-op garantizado.
 var phase2h_lower_cf_drain_coeff: float = 0.0
+## Tasa de mezcla cf_drain: ratio exchange_kg/lower_mass por step. Calibrado empíricamente en 4.0
+## para alcanzar equilibrio a t=300s con coeff=0.56. Default 4.0 = invariante de producción
+## (Phase 2H default OFF). Solo activo cuando phase2h_lower_cf_drain_coeff > 0.
+var phase2h_lower_cf_drain_rate: float = 4.0
 # Phase 2E Sub-C: CO₂ upper tracer boost en sala con fuego activo (default OFF = no-op).
 # room.co2_upper es tracer calibrado (fracción molar), NO derivado de balance de masa co2_kg.
 # Boost: delta_co2_boost = delta_co2_baseline × gain. gain=0.0 → comportamiento idéntico al baseline.
@@ -155,6 +159,9 @@ func configure(settings: Dictionary) -> void:
 	)
 	phase2h_lower_cf_drain_coeff = float(
 		settings.get("phase2h_lower_cf_drain_coeff", phase2h_lower_cf_drain_coeff)
+	)
+	phase2h_lower_cf_drain_rate = float(
+		settings.get("phase2h_lower_cf_drain_rate", phase2h_lower_cf_drain_rate)
 	)
 	phase2e_co2_subc_enabled = bool(
 		settings.get("phase2e_co2_subc_enabled", phase2e_co2_subc_enabled)
@@ -727,7 +734,7 @@ func _exchange_room_o2_active_flow(
 			var cf_target: float = maxf(
 				hot_room.o2, cold_room.o2 * phase2h_lower_cf_drain_coeff)
 			if hot_room.o2_lower > cf_target:
-				var mix_rate: float = clampf(4.0 * exchange_kg / lower_mass_hr, 0.0, 0.50)
+				var mix_rate: float = clampf(phase2h_lower_cf_drain_rate * exchange_kg / lower_mass_hr, 0.0, 0.50)
 				hot_room.o2_lower = maxf(
 					cf_target,
 					hot_room.o2_lower - mix_rate * (hot_room.o2_lower - cf_target))

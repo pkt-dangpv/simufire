@@ -701,6 +701,9 @@ var _step_time_us: int = 0
 ## Requiere phase2h_o2_doorway_two_zone_enabled=true. Default 0.0 = sin impacto en producción.
 ## Valor calibrado en engine_overrides de cfast_two_room_door_open.json. Victim FED delta=+0.0000.
 @export var phase2h_lower_cf_drain_coeff: float = 0.0
+## Tasa de mezcla cf_drain: ratio exchange_kg/lower_mass. Calibrado 4.0 → equilibrio a t=300s.
+## Default 4.0 = invariante de producción (misma calibración). Solo activo con cf_drain_coeff > 0.
+@export var phase2h_lower_cf_drain_rate: float = 4.0
 ## Phase 2H — Preset opt-in: activa two_zone + cold_routing + gain=0.25 con un solo flag.
 ## Validado 2026-05-26: 10/10 checks O2 lower PASS en runner targeted; default OFF.
 ## Safe como opt-in: no altera ninguna baseline required con default OFF. No requiere rebaseline.
@@ -987,6 +990,7 @@ func _sync_auxiliary_services() -> void:
 		"phase2h_interior_no_exterior_drain_gain": phase2h_interior_no_exterior_drain_gain,
 		"phase2h_interior_no_exterior_drain_max_scale": phase2h_interior_no_exterior_drain_max_scale,
 		"phase2h_lower_cf_drain_coeff": phase2h_lower_cf_drain_coeff,
+		"phase2h_lower_cf_drain_rate": phase2h_lower_cf_drain_rate,
 		"phase2e_co2_subc_enabled": phase2e_co2_subc_enabled,
 		"phase2e_co2_fire_upper_boost_gain": phase2e_co2_fire_upper_boost_gain,
 		"phase2e_co2_suba_enabled": phase2e_co2_suba_enabled,

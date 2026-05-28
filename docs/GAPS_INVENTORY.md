@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 27 mayo 2026d (Phase 2H cf_drain calibrado — 10/10 o2_lower PASS con coeff=0.56 vía runner, victim FED delta=+0.0000)
-**Estado validación**: 292/292 PASS required, 60 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 28 mayo 2026f (Phase 2H promovido a aceptado opt-in)
+**Estado validación**: 293/293 PASS required, 63 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -26,19 +26,22 @@
 | Categoría | Checks | Causa raíz | Cierre estimado |
 |-----------|--------|------------|-----------------|
 | Presión termódinámica vs boyancia | 18 | Modelo de presión SF es termostático (1-10 Pa); CFAST usa boyancia two-zone (100-1000 Pa) | Phase 3 (modelo boyancia) |
-| O₂ zona inferior | 13 | 3 HVAC lower-zone + O₂ pasillo/RMSE non-gating; 7 directos re-abiertos 2026-05-27 (código HEAD default) | **Candidato 10/10 PASS**: Phase 2H ON + `phase2h_lower_cf_drain_coeff=0.56` (runner), victim FED delta=0. Default OFF — gap estructural Phase 2A en producción |
+| O₂ zona inferior | 13 | 3 HVAC lower-zone + O₂ pasillo/RMSE non-gating; 7 directos re-abiertos 2026-05-27 (código HEAD default) | **Aceptado opt-in 10/10 PASS** (2026-05-28): Phase 2H ON + `phase2h_lower_cf_drain_coeff=0.56` (runner), victim FED delta=0. Default OFF — gap estructural Phase 2A en producción. Ver: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json` |
 | CO₂ upper layer | 2 | Phase 2E cerró 2 gaps; t120 closed por tolerancia (CMV-1); quedan post-flashover no-gating | Phase 2E Sub-C/Sub-E o roadmap posterior |
 | RMSE temperatura superior | 6 | Wall heat loss subestimado + diferencias de volumen | Phase 1.5 (conducción 1D paredes) |
 | Phase 1.5 / Flashover / FED | 2 | Conducción 1D no implementada; HRR post-flashover timing | Phase 1.5 |
 | Temp / HRR / Layer (otros) | 5 | Diferencias puntuales de temperatura, HRR y altura de capa | Calibración focal |
 | Escenarios complejos | 2 | Multi-room/HVAC pendientes no-gating | Roadmap posterior |
-| Calibración puntual | 2 | Ghanekar CO chemistry, g3 timing | Calibración ad-hoc |
+| Calibración puntual | 8 | Ghanekar CO chemistry (dormitorio + cocina/salon), g3 timing, FED/CO/flashover kitchen | Calibración ad-hoc |
 | Stage-B pending (sin datos) | 10 | Casos planificados sin baseline todavía | Stage-B |
 
 **Total: 54 gaps non-gating, incluyendo 10 pending Stage-B.**
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
 *(Corrección 2026-05-26b: tolerancia cfast_2r_r0_t120 co2_upper_pct widened 3.0→3.5% — exceso 0.17% sobre tol, causa estructural CMV-1 (one-zone retiene CO₂ vs two-zone outflow). Conteo 62→61.)*
 *(Corrección 2026-05-26c: 7 checks O₂ directos cerrados — r0_window_360, single_room_closed, two_room_door_open re-simulados con Phase 2H runner OFF (flags default); O₂ lower ahora PASS para esos 3 escenarios. Conteo 61→54.)*
+*(Corrección 2026-05-27e: caso `ghanekar_kitchen_living_room` añadido — 4 checks non-gating FAIL (FED×2, CO IDLH, flashover R3). O₂ response PASS (388s vs 402±84s). Conteo 60→64.)*
+*(Corrección 2026-05-28e: v2 exploratorio (`ghanekar_kitchen_v2`, R4 fire + kitchen window open) ejecutado — confirma límite motor no paramétrico: CO pico R2 148→538 ppm (vs >48000 ppm ref, brecha ≈90×), flashover R4 max 441°C. 4 gaps kitchen reclasificados como pendiente rediseño motor. Sin cambio de conteo.)*
+*(2026-05-28f: Phase 2H promovido de "candidato" a **aceptado opt-in** — evidencia: 292/292 PASS, 10/10 o2_lower PASS (gain=0.25 + guard_v4 + cf_drain_coeff=0.56), victim FED Δ=+0.000000, 7 sentinels PASS, 11 room.o2 invariants PASS. Default OFF garantizado — no rebaseline. Riesgo documentado: margen t300=0.0001, constante 4.0 hardcodeada, solo validado two-room. Preset oficial: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`. Sin cambio de conteo.)*
 
 ---
 
@@ -132,6 +135,19 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 > **Riesgo**: t300 margen mínimo (0.0001 sobre tol). Cambios en `exchange_kg` o geometría de doorway pueden invalidar la calibración. Constante 4.0 hardcodeada en `OxygenExchangeSystem.gd`. Mecanismo solo validado en escenario two-room.  
 > **Default 0.0 = no-op garantizado** en producción. Gap estructural Phase 2A (10 checks) sigue vigente con code default. Siguiente paso: ampliar contra datos experimentales reales o iniciar modelo two-zone explícito (Phase 2A arquitectónica).
 
+> *(2026-05-27e)* **Caso empírico `ghanekar_kitchen_living_room` añadido y ejecutado — 1/5 PASS, 4 gaps documentados**:  
+> Caso nuevo: fuego en R3 `LivingRoom` (56 m²), sensor R2 `Hallway_Far`, duración 1100 s, `fire_alpha_kw_s2=0.0025`, template `ghanekar_bedroom_hallway`. Benchmarks Ghanekar 2026 §5.3 cocina/salon.  
+> **Resultados run inicial (α=0.0025)**:  
+> - `ghanekar_kitchen_far_hall_o2_response_s`: **PASS** — 388 s vs 402 ± 84 s (Δ −14 s, −3.5%). Transporte O₂ correcto.  
+> - `ghanekar_kitchen_far_hall_fed_0_3_s`: FAIL — 1057 s vs 546 ± 120 s (Δ +511 s, +93.6%).  
+> - `ghanekar_kitchen_far_hall_fed_1_0_s`: FAIL — None (FED=1.0 no alcanzado en 1100 s).  
+> - `ghanekar_kitchen_far_hall_idlh_co_s`: FAIL — None (CO>1200 ppm no alcanzado en R2).  
+> - `ghanekar_kitchen_fire_room_flashover_s`: FAIL — None (T_upper R3 pico=426°C < 600°C en 1100 s).  
+> **Diagnóstico**: CO jamás supera 200 ppm en R2 (pasillo lejano) → FED acumula **sólo vía depleción O₂**, no vía CO. Causa CO: gap de producción/transporte CO existente (mismo que dormitorio, más severo en espacio abierto). Causa flashover: puerta exterior R3↔exterior (0.9×2.0 m, open=1.0) disipa el calor de modo que el upper layer no supera 426°C a pesar de HRR≈3000 kW al final.  
+> **Sweep α descartado**: la condición de activación del sweep ("si el único problema es α") no se cumple — la topología de ventilación y el gap de CO son los conductores reales. Aumentar α deterioraría el O₂ check (actualmente PASS) sin resolver CO ni flashover.  
+> **Todos los checks son `required=False`**: guardrails 293/293 PASS, 63 gaps (era 64 pre-2026-05-28h).  
+> **Próximo paso sugerido**: (a) evaluar cerrar puerta exterior en `engine_overrides` vía `door_overrides` para replicar ventilación Ghanekar; (b) calibrar yield CO para fuegos de salón grande; (c) ambos son Phase 3.
+
 ---
 
 ### 3. CO₂ upper layer (2 checks)
@@ -191,14 +207,17 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 7. Calibración puntual (4 checks)
+### 7. Calibración puntual (3 checks)
 
 | Check | SF actual | CFAST/ref expected | Nota |
 |-------|-----------|-------------------|------|
 | `cfast_t240_hrr_ventilation_limited` | 528.9 kW | 276 kW (two-zone) | HRR no se limita por O₂ upper-zone |
 | `ghanekar_flashover_0_9m_known_gap` | — | 186s ±30s | Criterio flashover a 0.9m no reproducido |
 | `ghanekar_far_hall_co_known_gap` | 149.6s | 204s ±45s | Química CO/HCN no calibrada a Ghanekar |
-| `g3_gie_ppv_post_knockdown_time_room_1_smoke_below_0_1kg_post_vent_s` | 369.9s | 361s ±3s | Timing smoke decay post-PPV |
+| `ghanekar_kitchen_far_hall_fed_0_3_s` | 1057s | 546s ±120s | FED=0.3 en pasillo — CO pico R2: 148 ppm (prod) / 538 ppm (v2 R4 fire); brecha CO ≈90× vs ref (>48000 ppm); pendiente: rediseño motor (CO yield ventilación-limitada) |
+| `ghanekar_kitchen_far_hall_fed_1_0_s` | None (>1100s) | 624s ±126s | FED=1.0 no alcanzado; max FED R2: 0.41 (prod) / 0.11 (v2); CO transport gap confirmado; pendiente: rediseño motor |
+| `ghanekar_kitchen_far_hall_idlh_co_s` | None (>1100s) | 642s ±102s | CO>1200 ppm no alcanzado en R2; pico 148 ppm (prod) / 538 ppm (v2); brecha ≈90× vs ref (>48000 ppm); pendiente: rediseño motor |
+| `ghanekar_kitchen_fire_room_flashover_s` | None (>1100s) | 894s ±30s | R3 max 426°C (prod), R4 max 441°C (v2); puerta interior R4↔R3 5.06 m² disipa calor; brecha CO ≈90×; no paramétrico; pendiente: rediseño motor |
 
 ---
 
@@ -233,7 +252,7 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 | 6 | Presión | 18 | Muy alto | Bajo (gap estructural profundo) |
 | 7 | CO lower zone reporting | 1 | N/A | Diferencia arquitectural — cerrar con Phase 2E transporte two-zone |
 | 8 | Stage-B pending | 10 | N/A | N/A (requieren implementación previa) |
-| 9 | Calibración puntual | 5 | Bajo | Bajo (ad-hoc) |
+| 9 | Calibración puntual | 9 | Bajo | Bajo (ad-hoc) |
 
 ---
 

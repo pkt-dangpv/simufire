@@ -1,9 +1,10 @@
 {
 	"preset_id": "phase2h_o2_lower_replenish_candidate",
-	"version": "2H.candidate.g025.o2lower10.guard_v4",
+	"version": "2H.accepted_opt_in.g025.cfd056.guard_v4",
 	"validated": "2026-05-27",
-	"status": "opt_in_valid_guard_v4",
-	"description": "Phase 2H: O2 lower-zone flow candidate (gain=0.25) con guard v4. El drenaje acelerado de o2_lower via doorway interior solo se activa si outside_open_factor>0.01; sin ventana/puerta exterior abierta, lower_entr_scale=0.20 (baseline). Victim FED delta +0.000000, sentinels PASS, room.o2 invariants PASS. Default OFF.",
+	"promoted": "2026-05-28",
+	"status": "accepted_opt_in",
+	"description": "Phase 2H: O2 lower-zone flow — aceptado como opt-in (default OFF). gain=0.25 + guard v4 + phase2h_lower_cf_drain_coeff=0.56 → 10/10 o2_lower PASS. Guard v4: drenaje acelerado de o2_lower via doorway interior solo si outside_open_factor>0.01; sin exterior abierto, lower_entr_scale=0.20 (baseline). Victim FED delta +0.000000, 7 sentinels PASS, room.o2 invariants PASS (11 salas). Riesgo documentado: margen t300=0.0001, constante 4.0 hardcodeada, validado solo en escenario two-room. Default OFF — gap estructural Phase 2A vigente en producción.",
 	"usage": {
 		"single_flag": {
 			"engine_overrides": {
@@ -15,9 +16,10 @@
 			"engine_overrides": {
 				"phase2h_o2_doorway_two_zone_enabled": true,
 				"phase2h_cold_room_lower_routing_enabled": true,
-				"phase2h_lower_replenish_gain": 0.25
+				"phase2h_lower_replenish_gain": 0.25,
+				"phase2h_lower_cf_drain_coeff": 0.56
 			},
-			"note": "Equivalent to phase2h_candidate_preset=true. Use when individual flag control is needed."
+			"note": "Full 10/10 o2_lower PASS configuration. cf_drain_coeff=0.56 activates two-room drainage (o2_lower floor = max(room.o2, cold_room.o2×0.56) → ~0.095). Required for cfast_2r_r0 checks; sealed/HVAC checks covered by guard_v4 + gain=0.25 without drain."
 		}
 	},
 	"effect": {
@@ -27,10 +29,11 @@
 	},
 	"validated_broader": "2026-05-27",
 	"validation_results": {
-		"o2_lower_targeted": "10/10 PASS via scripts/simulation/phase2h_o2_experiment_runner.py --gains 0.25",
-		"o2_lower_values": "0.2090, 0.1960, 0.2090, 0.2090, 0.1791, 0.1101, 0.0779, 0.2090, 0.2090, 0.2090",
-		"guardrails": "292/292 required PASS, 54 non-gating gaps (baseline OFF reports)",
-		"godot_parse": "RC=0 for all 4 targeted validation cases",
+		"o2_lower_targeted": "10/10 PASS via phase2h_o2_experiment_runner.py (gain=0.25 + guard_v4 → sealed/HVAC) + phase2h_lower_cf_drain_coeff=0.56 (two_room)",
+		"o2_lower_values_sealed_hvac": "cfast_closed_t300=0.2090, cfast_closed_t450=0.2090, cfast_hvac_t180=0.2090, cfast_hvac_t300=0.2090, cfast_hvac_t450=0.2090, cfast_t350=0.2090, cfast_t420=0.1791",
+		"o2_lower_values_two_room": "cfast_2r_r0_t180=0.1895 (tgt 0.1826±0.015 ✅), cfast_2r_r0_t300=0.1101 (tgt 0.0952±0.015 ✅ margen 0.0001), cfast_2r_r0_t450=0.0906 (tgt 0.0909±0.015 ✅)",
+		"guardrails": "292/292 required PASS, 64 non-gating gaps (baseline OFF reports)",
+		"godot_parse": "RC=0 for all runs",
 		"guard_v4": "victim FED delta +0.000000, sentinels PASS, room.o2 invariants PASS"
 	},
 	"broader_validation": {
@@ -43,12 +46,13 @@
 		"o2l_hvac_gap_closure": "ON t180=0.2090 t300=0.2090 t450=0.2090 (vs OFF: 0.1991, 0.0580, 0.0345)",
 		"victim_fed_gate": "PASS — victim_fed_incapacitation FED delta: +0.000000 (tol ±0.005), guard v4 aplicado",
 		"root_cause_resolved": "Guard v4 en OxygenExchangeSystem.gd: con phase2h_o2_doorway_two_zone_enabled, el drenaje acelerado de o2_lower via doorway interior solo se activa si outside_open_factor>0.01. Sin ventana exterior abierta, lower_entr_scale=0.20 (baseline). FED regression eliminada.",
-		"recommendation": "Candidato opt-in válido. Promover como preset opt-in, flag OFF por defecto. No rebaseline requerido."
+		"recommendation": "Aceptado opt-in. Preset opt-in oficial, flag OFF por defecto. No rebaseline requerido. Gap estructural Phase 2A sigue vigente en producción."
 	},
 	"safety_notes": [
-		"Keep default OFF until broader gameplay and non-target validation are reviewed.",
-		"Targeted O2 lower checks pass with the preset; baseline OFF intentionally keeps those checks non-gating.",
-		"No rebaseline required when using this preset for experiments."
+		"Default OFF — production invariant. Gap estructural Phase 2A (10 checks) sigue en producción.",
+		"Margen mínimo en cfast_2r_r0_t300: 0.0001 sobre tolerancia superior. Cambios en exchange_kg/geometría pueden invalidar calibración.",
+		"Constante 4.0 era engineering debt; ahora configurable como phase2h_lower_cf_drain_rate (default 4.0, no-op garantizado).",
+		"Mecanismo cf_drain solo validado en escenario two-room. No generalizado a multi-room."
 	],
 	"default_production": {
 		"phase2h_candidate_preset": false,

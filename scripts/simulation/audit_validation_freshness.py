@@ -43,7 +43,13 @@ CASES_DIR   = ROOT / "sim" / "validation" / "cases"
 BASELINES_DIR = ROOT / "sim" / "validation" / "baselines"
 REPORTS_DIR = ROOT / "sim" / "validation" / "reports"
 REF_CHECKS  = REPORTS_DIR / "reference_checks.json"
-ESTADO_FILE = ROOT / "ESTADO_SESION_2026-05-23.md"
+
+def _find_latest_estado(root: Path) -> Path:
+    """Return the most recent ESTADO_SESION_*.md file, or a sentinel path if none found."""
+    candidates = sorted(root.glob("ESTADO_SESION_*.md"), reverse=True)
+    return candidates[0] if candidates else root / "ESTADO_SESION.md"
+
+ESTADO_FILE: Path = _find_latest_estado(ROOT)
 
 # Cases that intentionally have no baseline file.
 # They are validated by reference_checks.json (CFAST point checks) or
@@ -65,6 +71,11 @@ KNOWN_NO_BASELINE: set[str] = {
     "fds_simple_house_default",
     # ── Qualitative / exploratory ──
     "ghanekar_bedroom_hallway",
+    "ghanekar_kitchen_living_room",
+    "ghanekar_kitchen_sweep_v1",
+    "ghanekar_kitchen_sweep_v2",
+    "ghanekar_kitchen_sweep_v3",
+    "ghanekar_kitchen_v2",
     "long_smoke_o2_1800",
     "long_smoke_o2_debug",
     "tmp_r0_window_open_start",
@@ -276,6 +287,11 @@ def check_staleness(
 ) -> None:
     """Reports that are older than their case or baseline file (mtime-based)."""
     for name, rpt_path in sorted(reports.items()):
+        # Skip exploratory / no-baseline cases — mtime is unreliable for these
+        # (OneDrive sync can touch the case JSON without changing its content).
+        if name in KNOWN_NO_BASELINE:
+            continue
+
         rt = _mtime(rpt_path)
         older_than: list[str] = []
 
