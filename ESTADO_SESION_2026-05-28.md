@@ -290,3 +290,44 @@ python scripts/simulation/audit_validation_freshness.py
   → Score match: OK  |  Exit 0 — no critical issues
 ```
 
+---
+
+## Diagnóstico Sub-D: `phase2e_co2_upper_outflow_gain` — imposibilidad estructural (sesión 2026-05-28i)
+
+### Objetivo
+Determinar si ajustar `phase2e_co2_upper_outflow_gain` (Sub-A, dilución exterior) puede cerrar los 2 checks `cfast_fo_t240_co2_upper_pct` y `cfast_fo_t350_co2_upper_pct` sin regresar los 293/293 required ni abrir nuevos gaps.
+
+### Mecanismo del parámetro
+Sub-A (`phase2e_co2_suba_enabled=true`) suprime la dilución de CO₂ por el aire exterior entrante:
+`effective_air_in = air_in_kg × (1 − gain)`. Mayor gain → menos dilución → CO₂ upper más alto.
+Solo activa en `_step_exterior_opening_o2` cuando `air_in_kg > 0.0`. No aplica a doorways interiores.
+
+### Sweep empírico (caso `cfast_post_flashover_vented`, override case-specific)
+
+| gain | t=150s (bounds [0.75%, 6.75%]) | t=240s (bounds [4.77%, 10.77%]) | t=350s (bounds [4.89%, 10.89%]) | fo pass |
+|------|-------------------------------|--------------------------------|--------------------------------|---------|
+| 0.20 (actual) | 2.39% ✅ | 3.77% ❌ | 3.71% ❌ | 0/3 |
+| 0.40 | 7.02% ❌ | 6.82% ✅ | 2.18% ❌ | 1/3 |
+| 0.50 | 7.18% ❌ | 7.69% ✅ | 2.95% ❌ | 1/3 |
+| 0.60 | 7.35% ❌ | 8.68% ✅ | 4.03% ❌ | 1/3 |
+| 0.70 | 7.52% ❌ | 9.82% ✅ | 5.56% ✅ | 2/3 |
+
+### Imposibilidad estructural
+- El límite superior de t=150 (6.75%) se supera para gain ≥ ~0.35.
+- Cerrar t=350 (lower bound 4.89%) requiere gain ≥ ~0.67.
+- Las dos restricciones son incompatibles: **no existe gain escalar único que cierre t=240/t=350 sin abrir t=150**.
+- El mejor caso (gain=0.70) cambia 63 → 62 gaps pero crea un nuevo gap en `cfast_fo_t150_co2_upper_pct` (7.52% > 6.75%).
+
+### Riesgos de los tight checks — confirmados CERO
+- `cfast_t350_co2_upper_ppm` (headroom 1985 ppm): ventana en `cfast_r0_window_360` cerrada a t=350s → Sub-A no aplica.
+- `cfast_2r_r0_t120_co2_upper_pct` (headroom 0.33%): doorway interior → Sub-A nunca activa.
+
+### Decisión: Option B — mantener como gap estructural
+Los checks `cfast_fo_t240` y `cfast_fo_t350` permanecen en GAPS_INVENTORY Section 3 como CMV-1.
+No se aplica override. No se modifica código ni configs. 293/293 PASS intacto. 63 gaps sin cambio.
+
+**Fix real requerido** (Phase 3): tracking two-zone de CO₂ (capa superior no diluida directamente por aire entrante en zona baja) o estrategia temporal/estado-dependiente (gain dinámico por fase de incendio).
+
+### Archivos del sweep (eliminados — eran temporales)
+`sim/validation/reports/_tmp_subf_og_g040.json` … `_tmp_subf_og_g070.json` — borrados del working tree.
+
