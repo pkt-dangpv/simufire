@@ -331,3 +331,41 @@ No se aplica override. No se modifica código ni configs. 293/293 PASS intacto. 
 ### Archivos del sweep (eliminados — eran temporales)
 `sim/validation/reports/_tmp_subf_og_g040.json` … `_tmp_subf_og_g070.json` — borrados del working tree.
 
+---
+
+## Handoff próxima sesión — `ghanekar_far_hall_co_known_gap` (sesión 2026-05-28j)
+
+### Estado base
+- `main` sincronizado con `origin/main` en `9e95271` antes del análisis de roadmap.
+- Guardrails base: **293/293 required PASS**, **63 gaps non-gating**, audit freshness Exit 0.
+- Cierres recientes que NO se deben reabrir: `ghanekar_kitchen`, Phase 2H default ON, Sub-D/CMV-1, Stage-B sin datos CFAST externos.
+
+### Candidato recomendado
+`ghanekar_far_hall_co_known_gap` en el caso `ghanekar_bedroom_hallway`.
+
+Valores actuales en `reference_checks.json`:
+- actual ≈ 149.58s
+- expected = 204s
+- tolerance = 45s
+- bounds = [159s, 249s]
+- miss = 9.42s bajo el lower bound
+
+### Hipótesis
+El reporte del caso parece stale/pre-Phase 2A (fecha 2026-05-20; Phase 2A entró el 2026-05-24). Con el motor actual, `o2_lower` near-ambient debería favorecer combustión más completa, producir menos CO por kg y retrasar la llegada de CO al pasillo. Si el timing nuevo sube a >=159s, el gap se cierra sin cambio de código, tolerancia ni baseline.
+
+### Próxima micro-sesión sugerida
+1. Confirmar working tree limpio.
+2. Verificar el valor actual de `ghanekar_far_hall_co_known_gap` en `sim/validation/reports/reference_checks.json`.
+3. Re-ejecutar solo:
+   `Godot_v4.6.3-stable_win64_console.exe --headless --path F:\OneDrive\Documentos\GitHub\simufire -- --validation-case ghanekar_bedroom_hallway`
+4. Regenerar:
+   `python scripts/simulation/validate_reference_cases.py`
+5. Si el nuevo actual cae en [159s, 249s], ejecutar guardrails/audit, actualizar inventario y commitear el refresh del caso.
+6. Si no cierra, documentar el resultado y no forzar rebaseline/tolerancia.
+
+### Reglas de seguridad
+- No cambiar código.
+- No cambiar `expected` ni tolerancia.
+- No tocar `ghanekar_kitchen`.
+- Si la re-ejecución empeora el check, revertir solo los outputs generados por esta micro-sesión.
+
