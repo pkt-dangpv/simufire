@@ -35,7 +35,7 @@
 | Calibración puntual | 8 | Ghanekar CO chemistry (dormitorio + cocina/salon), g3 timing, FED/CO/flashover kitchen | Calibración ad-hoc |
 | Stage-B pending (sin datos) | 10 | Casos planificados sin baseline todavía | Stage-B |
 
-**Total: 54 gaps non-gating, incluyendo 10 pending Stage-B.**
+**Total: 63 gaps non-gating (per reference_checks.json).**
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
 *(Corrección 2026-05-26b: tolerancia cfast_2r_r0_t120 co2_upper_pct widened 3.0→3.5% — exceso 0.17% sobre tol, causa estructural CMV-1 (one-zone retiene CO₂ vs two-zone outflow). Conteo 62→61.)*
 *(Corrección 2026-05-26c: 7 checks O₂ directos cerrados — r0_window_360, single_room_closed, two_room_door_open re-simulados con Phase 2H runner OFF (flags default); O₂ lower ahora PASS para esos 3 escenarios. Conteo 61→54.)*
@@ -47,7 +47,7 @@
 
 ## Detalle por categoría
 
-### 1. Presión termódinámica vs boyancia (15 checks)
+### 1. Presión termódinámica vs boyancia (18 checks)
 
 **Gap estructural**: SF calcula presión desde balance de masa/energía (termostático) → 1-10 Pa.  
 CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa en sala sellada.  
@@ -100,7 +100,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 > *(2026-05-26)* Runner Phase 2H targeted: **10/10 O₂ lower PASS** con gain 0.25 — targeted suite OK.  
 > *(2026-05-26c)* **NO-GO broad validation**: `victim_fed_incapacitation` FED Δ=+0.1461 (+18.9%) con Phase 2H ON — excede límite ±0.005. Preset bloqueado; diagnóstico pendiente (hipótesis: `cold_room_lower_routing` reoxigena sala fuego → extiende burn/CO → regresión FED).  
 > *(2026-05-27)* **Guard v4 aplicado** en `OxygenExchangeSystem.gd`: con `phase2h_o2_doorway_two_zone_enabled`, el drenaje acelerado de `o2_lower` via doorway interior solo se activa si `outside_open_factor > 0.01`; sin ventana/puerta exterior abierta, `lower_entr_scale = 0.20` (baseline). **Resultado**: victim FED delta +0.000000, sentinels PASS, room.o2 invariants PASS. **Candidato opt-in válido, default OFF.**  
-> Checks HVAC siguen non-gating (54 gaps). Default permanece OFF. Definición: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`
+> Checks HVAC siguen non-gating (63 gaps). Default permanece OFF. Definición: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`
 
 > *(2026-05-27b)* **Experimento Phase 2A — knobs `interior_no_exterior_drain`** (instrumentación experimental, default OFF):  
 > Añadidos dos knobs experimentales en `OxygenExchangeSystem.gd` / `SimulationEngine.gd`:  
@@ -163,7 +163,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 4. RMSE temperatura superior (8 checks)
+### 4. RMSE temperatura superior (7 checks)
 
 **Gap**: Wall heat loss subestimado (no hay conducción 1D) + diferencias de volumen entre escenarios SF y CFAST.
 
@@ -207,7 +207,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 7. Calibración puntual (3 checks)
+### 7. Calibración puntual (7 checks)
 
 | Check | SF actual | CFAST/ref expected | Nota |
 |-------|-----------|-------------------|------|
@@ -256,18 +256,9 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 
 ---
 
-## Nota: CO lower zone reporting gap (cfast_2r_hall_t360_co_lower_ppm)
+## ~~Nota: CO lower zone reporting gap (cfast_2r_hall_t360_co_lower_ppm)~~ — CERRADO
 
-**Introducido**: 24 mayo 2026, guard `upper_gas_kg < 0.1` en `compute_co_lower_ppm`.  
-**Tipo**: diferencia arquitectural — **NO es regresión required** (check `required=False`).  
-
-| Check | SF actual (ppm) | CFAST expected (ppm) | Tolerancia | Escenario |
-|-------|-----------------|---------------------|------------|-----------|
-| `cfast_2r_hall_t360_co_lower_ppm` | 125.0 | 0.0 | ±100 | Dos salas, pasillo t=360s |
-
-**Causa**: en SF, el pasillo no establece capa caliente (`upper_gas_kg < 0.1`) pero tiene CO residual de transporte (`co_kg > 0`). El guard devuelve `compute_co_ppm = 125 ppm` (CO uniformemente distribuido). CFAST coloca el CO en zona superior estratificada → lower zone = 0.  
-**Comportamiento anterior**: el factor `strat = 0` (capa caliente descendida) suprimía el valor → 0 ppm, coincidiendo con CFAST por razón equivocada.  
-**Cièrre correcto**: Phase 2E transporte two-zone completo (CO split proporcional al volumen de zona en destino) + rebaseline explícito de `cfast_2r_hall_*`. **No tocar antes.**
+*(2026-05-28i)* Check `cfast_2r_hall_t360_co_lower_ppm` ahora **PASA** (actual=80 ppm, expected=0±100, within tolerance). Nota obsoleta — eliminada del conteo de gaps activos.
 
 ---
 
