@@ -103,3 +103,51 @@ Status:        1 ahead of origin/main (NOT pushed)
 - Los 7 nuevos gaps o2_lower son no-gating (required=False). No requieren acción adicional.
 - Phase 2H sigue como opt-in candidate (default OFF). Si se promueve, rebaseline necesario.
 - El backup `reference_checks.BACKUP.json` (54 gaps) fue eliminado — ya no existe en disco.
+
+---
+
+## Sesión 2026-05-27 (continuación) — Route A: caso ghanekar_kitchen_living_room
+
+### Resumen
+Implementación completa del nuevo caso empírico de cocina/salon. Resultado: **1/5 checks PASS** (O₂ timing correcto), 4 gaps documentados (non-gating). Sin regresión. 292/292 required PASS.
+
+### Archivos modificados/creados
+
+| Archivo | Cambio |
+|---------|--------|
+| `sim/validation/cases/ghanekar_kitchen_living_room.json` | CREADO — caso nuevo R3=LivingRoom 56m², duración 1100s, α=0.0025 |
+| `scripts/simulation/validate_reference_cases.py` | `build_ghanekar_kitchen_checks()` añadida (5 checks required=False) + main() actualizado |
+| `sim/validation/run_reference_checks.ps1` | `"ghanekar_kitchen_living_room"` añadido al array `$cases` |
+| `scripts/simulation/audit_validation_freshness.py` | `"ghanekar_kitchen_living_room"` en exploratory set (verificado, ya estaba presente) |
+| `sim/validation/reports/ghanekar_kitchen_living_room.json` | GENERADO — run de 1100s con Godot GUI (timeout 480s) |
+| `docs/GAPS_INVENTORY.md` | Nota 2026-05-27e + 4 nuevas filas Section 7 + header actualizado (64 gaps) |
+
+### Resultados de los 5 checks
+
+| Check | Actual | Expected | Tolerancia | Estado |
+|-------|--------|----------|------------|--------|
+| `ghanekar_kitchen_far_hall_o2_response_s` | 387.8 s | 402 s | ±84 s | **PASS** |
+| `ghanekar_kitchen_far_hall_fed_0_3_s` | 1057 s | 546 s | ±120 s | FAIL (+511 s) |
+| `ghanekar_kitchen_far_hall_fed_1_0_s` | None | 624 s | ±126 s | FAIL |
+| `ghanekar_kitchen_far_hall_idlh_co_s` | None | 642 s | ±102 s | FAIL |
+| `ghanekar_kitchen_fire_room_flashover_s` | None | 894 s | ±30 s | FAIL |
+
+### Diagnóstico root cause
+- **CO gap**: CO no alcanza ni 200 ppm en R2 (pasillo lejano). FED acumula sólo vía O₂ depleción → llega 2× tarde.
+- **Ventilación**: puerta exterior R3↔exterior open=1.0 disipa calor → T_upper_R3 pico = 426°C, flashover (600°C) no alcanzado.
+- **Sweep α descartado**: O₂ check PASA con α=0.0025; subir α sacaría O₂ fuera de tolerancia sin resolver CO/flashover.
+
+### Estado del sistema tras la sesión
+
+| Componente | Estado |
+|---|---|
+| `reference_checks.json` | ✅ Fresco — **64 gaps**, 292/292 PASS |
+| `GAPS_INVENTORY.md` | ✅ Actualizado — nota 2026-05-27e, Section 7 expandida (8 rows) |
+| Guardrails | ✅ 292/292 PASS required, sentinels PASS |
+| `audit_validation_freshness.py` | ✅ `ghanekar_kitchen_living_room` en exploratory set |
+| Godot GUI binary | `F:\OneDrive\Escritorio\Godot_v4.6.3-stable_win64.exe` — usar con `-GodotExe` explícito |
+
+### Próximo paso sugerido
+- (a) Evaluar cerrar puerta exterior en `engine_overrides` del caso kitchen para aislar efecto ventilación vs Ghanekar
+- (b) Calibrar CO yield para fuegos tipo salón grande (Phase 3)
+- (c) Hasta entonces, 4 gaps permanecen non-gating; datos insuficientes para upgrade a required

@@ -55,6 +55,7 @@ if (-not (Test-Path $referenceCheckScript)) {
 $cases = @(
 	"cfast_r0_window_360",
 	"ghanekar_bedroom_hallway",
+	"ghanekar_kitchen_living_room",
 	"cfast_single_room_closed",
 	"cfast_two_room_door_open",
 	"cfast_post_flashover_vented",

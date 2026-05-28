@@ -1886,6 +1886,60 @@ def build_ghanekar_checks() -> list[Check]:
     return checks
 
 
+def build_ghanekar_kitchen_checks() -> list[Check]:
+    """Ghanekar 2026 kitchen/living-room fire — far hallway empirical benchmarks.
+
+    Fire in LivingRoom (R3, 56 m²). Sensor zone: Hallway_Far (R2).
+    All checks are non-gating (required=False) until alpha calibration is complete.
+    Reference: Ghanekar 2026, FSJ §5.3 — kitchen/salon scenario.
+    """
+    report = _load_json(REPORTS_DIR / "ghanekar_kitchen_living_room.json")
+    metrics = report.get("metrics", {})
+    checks: list[Check] = [
+        Check(
+            "ghanekar_kitchen_far_hall_o2_response_s",
+            _metric(metrics, "time_room_2_o2_below_20_4pct_s"),
+            expected=402.0,
+            tolerance=84.0,
+            required=False,
+            note="Ghanekar kitchen/salon: first O2 drop in far hallway at 6.7 ± 1.4 min (Ghanekar 2026 §5.3). Non-gating until alpha calibration.",
+        ),
+        Check(
+            "ghanekar_kitchen_far_hall_fed_0_3_s",
+            _metric(metrics, "time_room_2_fed_above_0_3_s"),
+            expected=546.0,
+            tolerance=120.0,
+            required=False,
+            note="Ghanekar kitchen/salon: FED=0.3 in far hallway at 9.1 ± 2.0 min. Known gap: CO/FED calibration pending.",
+        ),
+        Check(
+            "ghanekar_kitchen_far_hall_fed_1_0_s",
+            _metric(metrics, "time_room_2_fed_above_1_0_s"),
+            expected=624.0,
+            tolerance=126.0,
+            required=False,
+            note="Ghanekar kitchen/salon: FED=1.0 in far hallway at 10.4 ± 2.1 min. Known gap: CO/FED calibration pending.",
+        ),
+        Check(
+            "ghanekar_kitchen_far_hall_idlh_co_s",
+            _metric(metrics, "time_room_2_co_above_1200ppm_s"),
+            expected=642.0,
+            tolerance=102.0,
+            required=False,
+            note="Ghanekar kitchen/salon: CO IDLH (1200 ppm) in far hallway at 10.7 ± 1.7 min. Known gap: CO calibration pending.",
+        ),
+        Check(
+            "ghanekar_kitchen_fire_room_flashover_s",
+            _metric(metrics, "time_room_3_flashover_s"),
+            expected=894.0,
+            tolerance=30.0,
+            required=False,
+            note="Ghanekar kitchen/salon: flashover at 14.9 ± 0.5 min in LivingRoom. Known gap: alpha calibration pending.",
+        ),
+    ]
+    return checks
+
+
 def main() -> int:
     all_checks = (
         # ── CFAST comparison suites (SimuFire log vs CFAST CSV) ───────────────
@@ -1902,6 +1956,7 @@ def main() -> int:
         + build_cfast_multi_fuel_couch_tv_checks()
         # ── Empirical reference (Ghanekar paper) ─────────────────────────────
         + build_ghanekar_checks()
+        + build_ghanekar_kitchen_checks()
         # ── Baseline regression suites (baseline JSON checks) ─────────────────
         + build_physics_fundamentals_checks()
         + build_single_room_fire_checks()
