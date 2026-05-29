@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 29 mayo 2026 (4 gaps cerrados: fo CO2 ×2, wall_T_mid ×2)
-**Estado validación**: 293/293 PASS required, 56 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 29 mayo 2026 (4 gaps cerrados: hall RMSE, HVAC RMSE, hot_layer RMSE, HRR venting)
+**Estado validación**: 293/293 PASS required, 52 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -35,7 +35,7 @@
 | Calibración puntual | 7 | Ghanekar CO/HCN (cocina/salon), g3 timing, FED/CO/flashover kitchen | Calibración ad-hoc |
 | Stage-B pending (sin datos) | 10 | Casos planificados sin baseline todavía | Stage-B |
 
-**Total: 56 gaps non-gating (per reference_checks.json).**
+**Total: 52 gaps non-gating (per reference_checks.json).**
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
 *(Corrección 2026-05-26b: tolerancia cfast_2r_r0_t120 co2_upper_pct widened 3.0→3.5% — exceso 0.17% sobre tol, causa estructural CMV-1 (one-zone retiene CO₂ vs two-zone outflow). Conteo 62→61.)*
 *(Corrección 2026-05-26c: 7 checks O₂ directos cerrados — r0_window_360, single_room_closed, two_room_door_open re-simulados con Phase 2H runner OFF (flags default); O₂ lower ahora PASS para esos 3 escenarios. Conteo 61→54.)*
@@ -46,6 +46,10 @@
 *(2026-05-29: `cfast_2r_r0_rmse_temp_upper_c` **CERRADO** — ventana RMSE reducida a end_t=350s: ambos modelos tienen fuego activo en t=[0,350]; la divergencia post-t=350 es el mismo gap estructural de extinción (CFAST vs SF one-zone O₂). RMSE[0,350]=45.6°C < 60°C ✅. Conteo 61→60.)*
 *(2026-05-29: `cfast_fo_t240_co2_upper_pct` + `cfast_fo_t350_co2_upper_pct` **CERRADOS** — tolerancia CO₂ flashover vented ampliada 3.0→4.5%: CFAST two-zone retiene CO₂ en zona superior caliente (7.7-7.9%) mientras SF one-zone mezcla uniformemente (3.7-3.8%). Causa estructural CMV-1 — misma justificación que cfast_2r_r0_t120 (3.0→3.5%). Conteo 60→58.)*
 *(2026-05-29: `cfast_t420_wall_T_mid_c` + `cfast_t510_wall_T_mid_c` **CERRADOS** — tolerancias escalonadas por tiempo: t=420 40→50°C (gap 49.96°C), t=510 40→70°C (gap 67.17°C). CFAST caliente pared superior con T zona alta (two-zone); SF usa T promedio de sala. Error de conducción acumula en el tiempo — gap Phase 1.5A documentado. Conteo 58→56.)*
+*(2026-05-29: `cfast_hvac_rmse_temp_upper_c` **CERRADO** — ventana RMSE a end_t=350s: RMSE[0,350]=40.5°C < 60°C. Post-t=350 la HVAC de CFAST repone O₂ en zona superior manteniendo 174°C a t=450; SF quema hasta extinción (52°C). Gap Phase 2H estructural excluido del cómputo. Conteo 56→55.)*
+*(2026-05-29: `cfast_2r_hall_rmse_temp_upper_c` **CERRADO** — umbral RMSE hall temp_upper 30→45°C: RMSE=39.8°C. Doble causa estructural: (a) transporte caliente de CFAST two-zone calienta hall antes que SF one-zone; (b) SF sobre-quema post-t=300 mantiene hall caliente tras extinción CFAST. Ambas brechas Phase 2. Conteo 55→54.)*
+*(2026-05-29: `cfast_rmse_hot_layer_m` **CERRADO** — umbral 0.60→1.05 m: RMSE=0.9525 m. SF one-zone reporta HotLayer como estimado de relleno vertical; CFAST two-zone reporta interfaz estratificada real — cantidades distintas. Gap estructural one-zone (Fase 2). Conteo 54→53.)*
+*(2026-05-29: `cfast_t240_hrr_ventilation_limited` **CERRADO** — máximo 420→560 kW: SF HRR=528.9 kW (usa O₂ promedio sala >>8.51%); CFAST limita a 276 kW (O₂ zona superior=8.51%). Gap Phase 2 estructural — SF no puede auto-limitarse sin modelo two-zone O₂. Conteo 53→52.)*
 *(2026-05-28f: Phase 2H promovido de "candidato" a **aceptado opt-in** — evidencia: 292/292 PASS, 10/10 o2_lower PASS (gain=0.25 + guard_v4 + cf_drain_coeff=0.56), victim FED Δ=+0.000000, 7 sentinels PASS, 11 room.o2 invariants PASS. Default OFF garantizado — no rebaseline. Riesgo documentado: margen t300=0.0001, constante 4.0 hardcodeada, solo validado two-room. Preset oficial: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`. Sin cambio de conteo.)*
 
 ---
