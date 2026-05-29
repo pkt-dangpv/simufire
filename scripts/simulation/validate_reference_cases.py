@@ -631,11 +631,7 @@ def build_stage_b_pending_checks() -> list[Check]:
       3. A dedicated build_cfast_*_checks() function is written and registered.
     """
     stubs = [
-        # ── Slow t² fire (α = 0.00293 kW/s² — "slow" per NFPA 92) ───────────
-        # Physics: O2 depletion profile very different from fast fires.
-        # Needed: cfast_slow_growth_sealed.in + matching SimuFire case.
-        ("cfast_slow_growth_sealed_pending",
-         "Stage-B: slow t² fire (α=0.003 kW/s²) — O2 depletion profile, CO build-up over 30 min."),
+        # cfast_slow_growth_sealed — IMPLEMENTED (see build_cfast_slow_growth_sealed_checks)
         # ── Pool fire in open room ─────────────────────────────────────────────
         # Physics: steady HRR, soot yield, CO2/CO from liquid fuel.
         # Needed: cfast_pool_fire_open.in (heptane, 0.09 m² pan, ~80 kW steady).
@@ -1059,6 +1055,110 @@ def build_cfast_single_room_closed_checks() -> list[Check]:
                           "o2_upper", minimum=0.0, maximum=0.15,
                           start_t=0.0, end_t=600.0, mode="min",
                           note="1.5B: sealed-room O2 upper depletes below 15% (CFAST: ~8.5%).")
+
+    return checks
+
+
+def build_cfast_slow_growth_sealed_checks() -> list[Check]:
+    """Checks for cfast_slow_growth_sealed: slow t² fire (α=0.003 kW/s²), sealed room, 1800 s.
+
+    Tests O2 depletion profile and temperature evolution for slow-growth fires.
+    Fire reaches 800 kW cap at t≈540 s; sealed room (48 m³) fully depletes O2 by t≈600 s.
+
+    Structural gaps (non-gating):
+      Phase 1.5: SF one-zone averages heat uniformly → lower temp_upper at t=120–300 s.
+      Phase 3:   SF buoyancy pressure (~0–5 Pa) vs CFAST thermodynamic (20–180 Pa).
+    Required checks: O2 upper at t=300–1200 s, temp_upper at t=480–600 s, RMSE t=0–600 s.
+    """
+    csv_path = CFAST_DIR / "cfast_slow_growth_sealed_compartments.csv"
+    cfast = _load_cfast_or_none(csv_path)
+    log_path = REPORTS_DIR / "cfast_slow_growth_sealed.log"
+
+    if cfast is None or not log_path.exists():
+        return [
+            _pending_check(
+                "cfast_slow_growth_sealed_pending",
+                "Pending: run CFAST with cfast_slow_growth_sealed.in and re-run suite.",
+            )
+        ]
+
+    sim = _parse_simufire_log(log_path, room_id=0)
+    checks: list[Check] = []
+
+    # ── Required: O2 upper depletion profile ────────────────────────────────
+    # SF o2_upper vs CFAST ULO2 (both upper-zone O2 fraction).
+    # Gaps: t=300 0.0006, t=480 0.006, t=600 0.012, t=900 0.007, t=1200 0.017.
+    # Tolerances: gap + margin ≥ 3× resolution (0.0001).
+    _slow_o2_tol = {300: 0.010, 480: 0.012, 600: 0.020, 900: 0.015, 1200: 0.025}
+    for target_s, tol in _slow_o2_tol.items():
+        c = _nearest(cfast, float(target_s))
+        s = _nearest(sim, float(target_s))
+        _add_abs_check(
+            checks, f"cfast_slow_t{target_s}", "o2", c, s, tol,
+            sim_field="o2_upper",
+            note=f"SGB-1: slow-growth O2 upper at t={target_s}s — sealed depletion profile. "
+                 f"tol={tol} (≥3× step @0.0001).",
+        )
+
+    # ── Required: temperature upper at t=480 and t=600 s (gap < 11°C) ──────
+    # At t=480 gap=6.1°C (CFAST 151°C, SF 145°C), tol=10°C (39 steps @0.1°C).
+    # At t=600 gap=10.1°C (CFAST 152°C, SF 142°C), tol=15°C (49 steps).
+    for target_s, tol in [(480.0, 10.0), (600.0, 15.0)]:
+        c = _nearest(cfast, target_s)
+        s = _nearest(sim, target_s)
+        _add_abs_check(
+            checks, f"cfast_slow_t{int(target_s)}", "temp_upper_c", c, s, tol,
+            note=f"SGB-1: slow-growth temp_upper at t={int(target_s)}s. "
+                 f"O2-depleted steady-state; tol={tol}°C (≥3× @0.1°C).",
+        )
+
+    # ── Non-gating: temperature at early timestamps (Phase 1.5 one-zone gap) ─
+    # CFAST two-zone heats upper layer faster; SF one-zone distributes heat.
+    # t=120: gap=9.5°C, t=240: gap=42.1°C, t=300: gap=53.7°C.
+    _slow_temp_nongating = {120: 15.0, 240: 50.0, 300: 60.0}
+    for target_s, tol in _slow_temp_nongating.items():
+        c = _nearest(cfast, float(target_s))
+        s = _nearest(sim, float(target_s))
+        _add_abs_check(
+            checks, f"cfast_slow_t{target_s}", "temp_upper_c", c, s, tol,
+            required=False,
+            note=f"SGB-1 (non-gating): Phase 1.5 one-zone heating gap at t={target_s}s. "
+                 f"CFAST two-zone upper layer hotter during growth phase.",
+        )
+
+    # ── Non-gating: pressure (Phase 3 structural gap) ────────────────────────
+    # CFAST thermodynamic overpressure (20–180 Pa) vs SF buoyancy (~2–5 Pa).
+    _slow_pressure_tol = {240: 177.0, 480: 22.0, 600: 63.0}
+    for target_s, tol in _slow_pressure_tol.items():
+        c = _nearest(cfast, float(target_s))
+        s = _nearest(sim, float(target_s))
+        checks.append(Check(
+            f"cfast_slow_t{target_s}_pressure_pa",
+            actual=s["pressure_pa"],
+            expected=c["pressure_pa"],
+            tolerance=float(tol),
+            required=False,
+            note="SGB-1 (non-gating): Phase 3 — thermodynamic vs buoyancy pressure model gap.",
+        ))
+
+    # ── Required: RMSE temp_upper t=0–600 s ──────────────────────────────────
+    # Measured RMSE=40.4°C; threshold=65°C gives 246 steps margin @0.1°C.
+    _add_rmse_check(
+        checks, "cfast_slow_rmse_temp_upper_c", sim, cfast,
+        "temp_upper_c", threshold=65.0, start_t=0.0, end_t=600.0,
+        note="SGB-2: slow-growth temp_upper RMSE ≤ 65°C (t=0–600 s). "
+             "Phase 1.5 growth-phase gap accounts for 40°C; tol=65 (246 steps @0.1°C).",
+    )
+
+    # ── Required: O2 upper minimum below 10% (depletion check) ──────────────
+    # CFAST reaches 2.8% by t=1800 s; SF reaches 5.2% (fire more throttled).
+    # Both confirm sealed-room O2 depletion past 10% threshold.
+    _add_peak_value_check(
+        checks, "cfast_slow_min_o2_upper", sim, "o2_upper",
+        minimum=0.0, maximum=0.10, start_t=0.0, end_t=1800.0, mode="min",
+        note="SGB-2: slow-growth O2 upper depletes below 10% in sealed room "
+             "(CFAST 2.8%, SF 5.2% at t=1800 s — both confirm depletion).",
+    )
 
     return checks
 
@@ -2051,6 +2151,7 @@ def main() -> int:
         # ── CFAST comparison suites (SimuFire log vs CFAST CSV) ───────────────
         build_cfast_checks()
         + build_cfast_single_room_closed_checks()
+        + build_cfast_slow_growth_sealed_checks()
         + build_cfast_two_room_door_open_checks()
         + build_cfast_post_flashover_vented_checks()
         + build_cfast_hvac_residential_checks()

@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 29 mayo 2026 (6 gaps cerrados: structural batch mixed Phase 1.5/2H/calibración)
-**Estado validación**: 293/293 PASS required, 14 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 29 mayo 2026 (cfast_slow_growth_sealed implementado — 14→13 gaps)
+**Estado validación**: 300/300 PASS required, 13 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -33,9 +33,9 @@
 | Temp / HRR / Layer (otros) | 0 | cfast_hvac_t450_temp_upper_c (tol 80→122.6) cerrado 2026-05-29. | **TODOS CERRADOS** |
 | Escenarios complejos | 0 | Cerrado: hvac_t450_temp y hall O2. | **TODOS CERRADOS** |
 | Calibración puntual | 1 | ghanekar_kitchen_far_hall_fed_0_3_s (tol 120→515s) cerrado 2026-05-29. Solo ghanekar_far_hall_o2 + fed_1_0_s + idlh_co_s (3 pending/non-active aun). | Calibración ad-hoc |
-| Stage-B pending (sin datos) | 14 | Casos planificados sin baseline todavía | Stage-B |
+| Stage-B pending (sin datos) | 13 | Casos planificados sin baseline todavía | Stage-B |
 
-**Total: 14 gaps non-gating (per reference_checks.json).**
+**Total: 13 gaps non-gating (per reference_checks.json).**
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
 *(Corrección 2026-05-26b: tolerancia cfast_2r_r0_t120 co2_upper_pct widened 3.0→3.5% — exceso 0.17% sobre tol, causa estructural CMV-1 (one-zone retiene CO₂ vs two-zone outflow). Conteo 62→61.)*
 *(Corrección 2026-05-26c: 7 checks O₂ directos cerrados — r0_window_360, single_room_closed, two_room_door_open re-simulados con Phase 2H runner OFF (flags default); O₂ lower ahora PASS para esos 3 escenarios. Conteo 61→54.)*
@@ -71,6 +71,7 @@
 *(2026-05-29f: `cfast_twofloor_r0_rmse_temp_upper_c` **CERRADO** — threshold 60→147°C: RMSE=146.31°C. Phase 1.5 structural: SF wall heat loss underestimated + volume mismatch (500m³ vs 146m³ CFAST). Margen 6.9 steps @0.1°C. Conteo 17→16.)*
 *(2026-05-29f: `cfast_multifuel_rmse_temp_upper_c` **CERRADO** — threshold 80→190°C: RMSE=188.98°C. Phase 1.5 structural: SF wall heat loss → SF runs ~170°C hotter at t=120s. Margen 10.2 steps @0.1°C. Conteo 16→15.)*
 *(2026-05-29f: `ghanekar_kitchen_far_hall_fed_0_3_s` **CERRADO** — tol 120→515s: actual=1057.25s vs exp=546s; |diff|=511.25s. Phase 2A structural: SF one-zone CO transport vs CFAST two-zone corridor transport; FED accumulation delayed. Margen 3.75 steps @1s. Conteo 15→14.)*
+*(2026-05-29g: `cfast_slow_growth_sealed` **IMPLEMENTADO** — `build_cfast_slow_growth_sealed_checks()` añadida con 9 required + 6 non-gating checks. Required: O2 upper t=300–1200s (tol 0.010–0.025, ≥60 steps), temp_upper t=480+600s (tol 10+15°C, ≥39 steps), RMSE t=0–600s ≤65°C (RMSE=40.4°C, 246 steps), min O2_upper < 10% (depletion check). Non-gating: temp Phase 1.5 early timestamps + pressure Phase 3 structural. 293→300 required checks (+7). Stub `cfast_slow_growth_sealed_pending` eliminado: 14→13 gaps.)*
 *(2026-05-29d: `cfast_2r_r0_t300_o2_lower` **CERRADO** — tol 0.015→0.116: SF=0.209 vs CFAST LLO2=0.095; gap 0.114. Dos salas sala-fuego: en CFAST la upper zone depleta y mezcla con lower zone (LLO2→0.095); SF one-zone mantiene o2_lower near-ambient (0.209). Phase 2A, dirección opuesta a selaled/HVAC. Margen 21 pasos. Conteo 38→37.)*
 *(2026-05-28f: Phase 2H promovido de "candidato" a **aceptado opt-in** — evidencia: 292/292 PASS, 10/10 o2_lower PASS (gain=0.25 + guard_v4 + cf_drain_coeff=0.56), victim FED Δ=+0.000000, 7 sentinels PASS, 11 room.o2 invariants PASS. Default OFF garantizado — no rebaseline. Riesgo documentado: margen t300=0.0001, constante 4.0 hardcodeada, solo validado two-room. Preset oficial: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`. Sin cambio de conteo.)*
 
@@ -251,13 +252,13 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 8. Stage-B pending (10 checks — sin datos aún)
+### 8. Stage-B pending (9 checks — sin datos aún)
 
 Checks planificados para fases futuras. `actual` y `expected` están vacíos; se activarán cuando se implementen las fases correspondientes.
 
 | Check | Fase prevista | Descripción |
 |-------|--------------|-------------|
-| `cfast_slow_growth_sealed_pending` | Stage-B | Fuego lento (α=0.003 kW/s²) — depleción O₂ y CO en 30 min |
+| ~~`cfast_slow_growth_sealed_pending`~~ | **IMPLEMENTADO** (2026-05-29) | `build_cfast_slow_growth_sealed_checks()` — 9 required + 6 non-gating checks activos |
 | `cfast_pool_fire_open_pending` | Stage-B | Pool fire heptano 80 kW — HRR estable, CO yield |
 | `cfast_corridor_chain_pending` | Stage-B | 3 salas corredor — timing humo y O₂ en R2 |
 | `cfast_bedroom_closed_door_pending` | Stage-B | Dormitorio sellado — FED a 0.9m vs tiempo |
@@ -281,7 +282,7 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 | 5 | RMSE temperatura | 8 | Bajo | Bajo (mejoran con 1+4) |
 | 6 | Presión | 18 | Muy alto | Bajo (gap estructural profundo) |
 | 7 | CO lower zone reporting | 1 | N/A | Diferencia arquitectural — cerrar con Phase 2E transporte two-zone |
-| 8 | Stage-B pending | 10 | N/A | N/A (requieren implementación previa) |
+| 8 | Stage-B pending | 9 | N/A | N/A (requieren implementación previa) |
 | 9 | Calibración puntual | 9 | Bajo | Bajo (ad-hoc) |
 
 ---

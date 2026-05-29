@@ -1,0 +1,44 @@
+&HEAD VERSION = 7600, TITLE = 'Simufire comparison: slow t-squared fire (alpha=0.003 kW/s^2), sealed room' /
+
+!! Scenario Configuration
+!! 1800s (30 min) to observe slow O2 depletion and CO build-up profile.
+&TIME SIMULATION = 1800 PRINT = 10 SMOKEVIEW = 10 SPREADSHEET = 10 /
+&INIT PRESSURE = 101325 RELATIVE_HUMIDITY = 50 INTERIOR_TEMPERATURE = 20 EXTERIOR_TEMPERATURE = 20 /
+&MISC LOWER_OXYGEN_LIMIT = 0.10 /
+
+!! Material Properties (same as cfast_single_room_closed)
+&MATL ID = 'CONCRETE' MATERIAL = 'Concrete Normal Weight (6 in)',
+      CONDUCTIVITY = 1.75 DENSITY = 2200 SPECIFIC_HEAT = 1, THICKNESS = 0.15 EMISSIVITY = 0.94 /
+
+!! Compartments (same room geometry as cfast_single_room_closed: 5x4x2.4 m = 48 m3)
+&COMP ID = 'R0'
+      DEPTH = 4.0 HEIGHT = 2.4 WIDTH = 5.0
+      CEILING_MATL_ID = 'CONCRETE' WALL_MATL_ID = 'CONCRETE' FLOOR_MATL_ID = 'CONCRETE'
+      ORIGIN = 0.0, 0.0, 0.0 GRID = 40, 32, 24 LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
+
+!! No vents: room is sealed (door and window both remain closed for entire simulation)
+
+!! Slow t-squared fire: HRR = 0.003 * t^2 kW, capped at 800 kW (~O2 limited)
+!! alpha = 0.003 kW/s^2 per NFPA 92 "slow" growth classification
+!! HRR capped at 800 kW: sealed room (48 m3) reaches O2 limit ~t=500-600s at this HRR
+&FIRE ID = 'Room Fire' COMP_ID = 'R0', FIRE_ID = 'Slow Fire' LOCATION = 2.5, 2.0 /
+&CHEM ID = 'Slow Fire' CARBON = 6 CHLORINE = 0 HYDROGEN = 10 NITROGEN = 0 OXYGEN = 5
+      HEAT_OF_COMBUSTION = 18100 RADIATIVE_FRACTION = 0.35 /
+&TABL ID = 'Slow Fire' LABELS = 'TIME', 'HRR', 'HEIGHT', 'AREA', 'CO_YIELD', 'SOOT_YIELD', 'HCN_YIELD', 'HCL_YIELD', 'TRACE_YIELD' /
+&TABL ID = 'Slow Fire', DATA =    0,    0.0, 0, 0.0010, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Slow Fire', DATA =   60,   10.8, 0, 0.0076, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Slow Fire', DATA =  120,   43.2, 0, 0.0304, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Slow Fire', DATA =  180,   97.2, 0, 0.0683, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Slow Fire', DATA =  240,  172.8, 0, 0.1215, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Slow Fire', DATA =  300,  270.0, 0, 0.1898, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Slow Fire', DATA =  360,  388.8, 0, 0.2733, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Slow Fire', DATA =  420,  529.2, 0, 0.3720, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Slow Fire', DATA =  480,  691.2, 0, 0.4859, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Slow Fire', DATA =  540,  800.0, 0, 0.5624, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Slow Fire', DATA = 1800,  800.0, 0, 0.5624, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Slow Fire', DATA = 1810,    0.0, 0, 0.0010, 0.0062, 0.015, 0, 0, 0 /
+
+!! Devices
+&DEVC ID = 'R0 Head Temp' COMP_ID = 'R0' LOCATION = 2.5, 2.0, 1.8 TYPE = 'THERMOCOUPLE' /
+
+&TAIL /

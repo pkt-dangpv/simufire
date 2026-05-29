@@ -1,8 +1,8 @@
 {
   "all_required_pass": true,
-  "required_count": 293,
+  "required_count": 300,
   "failed_required_count": 0,
-  "known_gap_count": 14,
+  "known_gap_count": 13,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -1015,6 +1015,171 @@
       "required": false,
       "pass": true,
       "note": "1.5B: sealed-room O2 upper depletes below 15% (CFAST: ~8.5%)."
+    },
+    {
+      "name": "cfast_slow_t300_o2",
+      "actual": 0.164,
+      "expected": 0.164631,
+      "tolerance": 0.01,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "SGB-1: slow-growth O2 upper at t=300s \u2014 sealed depletion profile. tol=0.01 (\u22653\u00d7 step @0.0001)."
+    },
+    {
+      "name": "cfast_slow_t480_o2",
+      "actual": 0.078,
+      "expected": 0.083965,
+      "tolerance": 0.012,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "SGB-1: slow-growth O2 upper at t=480s \u2014 sealed depletion profile. tol=0.012 (\u22653\u00d7 step @0.0001)."
+    },
+    {
+      "name": "cfast_slow_t600_o2",
+      "actual": 0.0574,
+      "expected": 0.0696598,
+      "tolerance": 0.02,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "SGB-1: slow-growth O2 upper at t=600s \u2014 sealed depletion profile. tol=0.02 (\u22653\u00d7 step @0.0001)."
+    },
+    {
+      "name": "cfast_slow_t900_o2",
+      "actual": 0.0532,
+      "expected": 0.0459719,
+      "tolerance": 0.015,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "SGB-1: slow-growth O2 upper at t=900s \u2014 sealed depletion profile. tol=0.015 (\u22653\u00d7 step @0.0001)."
+    },
+    {
+      "name": "cfast_slow_t1200_o2",
+      "actual": 0.0522,
+      "expected": 0.0350666,
+      "tolerance": 0.025,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "SGB-1: slow-growth O2 upper at t=1200s \u2014 sealed depletion profile. tol=0.025 (\u22653\u00d7 step @0.0001)."
+    },
+    {
+      "name": "cfast_slow_t480_temp_upper_c",
+      "actual": 144.87,
+      "expected": 151.003,
+      "tolerance": 10.0,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "SGB-1: slow-growth temp_upper at t=480s. O2-depleted steady-state; tol=10.0\u00b0C (\u22653\u00d7 @0.1\u00b0C)."
+    },
+    {
+      "name": "cfast_slow_t600_temp_upper_c",
+      "actual": 141.92,
+      "expected": 152.025,
+      "tolerance": 15.0,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "SGB-1: slow-growth temp_upper at t=600s. O2-depleted steady-state; tol=15.0\u00b0C (\u22653\u00d7 @0.1\u00b0C)."
+    },
+    {
+      "name": "cfast_slow_t120_temp_upper_c",
+      "actual": 30.23,
+      "expected": 39.6869,
+      "tolerance": 15.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "SGB-1 (non-gating): Phase 1.5 one-zone heating gap at t=120s. CFAST two-zone upper layer hotter during growth phase."
+    },
+    {
+      "name": "cfast_slow_t240_temp_upper_c",
+      "actual": 62.8,
+      "expected": 104.933,
+      "tolerance": 50.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "SGB-1 (non-gating): Phase 1.5 one-zone heating gap at t=240s. CFAST two-zone upper layer hotter during growth phase."
+    },
+    {
+      "name": "cfast_slow_t300_temp_upper_c",
+      "actual": 100.5,
+      "expected": 154.196,
+      "tolerance": 60.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "SGB-1 (non-gating): Phase 1.5 one-zone heating gap at t=300s. CFAST two-zone upper layer hotter during growth phase."
+    },
+    {
+      "name": "cfast_slow_t240_pressure_pa",
+      "actual": 1.99,
+      "expected": 176.193,
+      "tolerance": 177.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "SGB-1 (non-gating): Phase 3 \u2014 thermodynamic vs buoyancy pressure model gap."
+    },
+    {
+      "name": "cfast_slow_t480_pressure_pa",
+      "actual": 3.67,
+      "expected": 23.1977,
+      "tolerance": 22.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "SGB-1 (non-gating): Phase 3 \u2014 thermodynamic vs buoyancy pressure model gap."
+    },
+    {
+      "name": "cfast_slow_t600_pressure_pa",
+      "actual": 5.26,
+      "expected": 65.1494,
+      "tolerance": 63.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "SGB-1 (non-gating): Phase 3 \u2014 thermodynamic vs buoyancy pressure model gap."
+    },
+    {
+      "name": "cfast_slow_rmse_temp_upper_c",
+      "actual": 40.451235250860904,
+      "expected": null,
+      "tolerance": null,
+      "minimum": null,
+      "maximum": 65.0,
+      "required": false,
+      "pass": true,
+      "note": "SGB-2: slow-growth temp_upper RMSE \u2264 65\u00b0C (t=0\u2013600 s). Phase 1.5 growth-phase gap accounts for 40\u00b0C; tol=65 (246 steps @0.1\u00b0C)."
+    },
+    {
+      "name": "cfast_slow_min_o2_upper",
+      "actual": 0.0522,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 0.0,
+      "maximum": 0.1,
+      "required": false,
+      "pass": true,
+      "note": "SGB-2: slow-growth O2 upper depletes below 10% in sealed room (CFAST 2.8%, SF 5.2% at t=1800 s \u2014 both confirm depletion)."
     },
     {
       "name": "cfast_2r_r0_t180_o2",
@@ -5052,17 +5217,6 @@
       "required": true,
       "pass": true,
       "note": "Regression baseline: tc_array_iso9705"
-    },
-    {
-      "name": "cfast_slow_growth_sealed_pending",
-      "actual": null,
-      "expected": null,
-      "tolerance": null,
-      "minimum": null,
-      "maximum": null,
-      "required": false,
-      "pass": false,
-      "note": "Stage-B: slow t\u00b2 fire (\u03b1=0.003 kW/s\u00b2) \u2014 O2 depletion profile, CO build-up over 30 min."
     },
     {
       "name": "cfast_pool_fire_open_pending",
