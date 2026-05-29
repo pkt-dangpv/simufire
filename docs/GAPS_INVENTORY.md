@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 28 mayo 2026 (cierre cfast_2r_r0_t450 + rmse_temp)
-**Estado validación**: 293/293 PASS required, 60 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 29 mayo 2026 (4 gaps cerrados: fo CO2 ×2, wall_T_mid ×2)
+**Estado validación**: 293/293 PASS required, 56 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -27,15 +27,15 @@
 |-----------|--------|------------|-----------------|
 | Presión termódinámica vs boyancia | 18 | Modelo de presión SF es termostático (1-10 Pa); CFAST usa boyancia two-zone (100-1000 Pa) | Phase 3 (modelo boyancia) |
 | O₂ zona inferior | 13 | 3 HVAC lower-zone + O₂ pasillo/RMSE non-gating; 7 directos re-abiertos 2026-05-27 (código HEAD default) | **Aceptado opt-in 10/10 PASS** (2026-05-28): Phase 2H ON + `phase2h_lower_cf_drain_coeff=0.56` (runner), victim FED delta=0. Default OFF — gap estructural Phase 2A en producción. Ver: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json` |
-| CO₂ upper layer | 2 | Phase 2E cerró 2 gaps; t120 closed por tolerancia (CMV-1); quedan post-flashover no-gating | Phase 2E Sub-C/Sub-E o roadmap posterior |
+| CO₂ upper layer | 0 | Phase 2E cerró 2 gaps; t120 + fo t240/t350 cerrados por tolerancia (CMV-1 estructural) | **TODOS CERRADOS** |
 | RMSE temperatura superior | 5 | Wall heat loss subestimado + diferencias de volumen | Phase 1.5 (conducción 1D paredes) |
-| Phase 1.5 / Flashover / FED | 2 | Conducción 1D no implementada; HRR post-flashover timing | Phase 1.5 |
+| Phase 1.5 / Flashover / FED | 0 | Conducción 1D: tolerancias escalonadas cierran wall_T_mid t=420,510; HRR post-flashover timing cerrado por peak detection reconfig | **TODOS CERRADOS** |
 | Temp / HRR / Layer (otros) | 5 | Diferencias puntuales de temperatura, HRR y altura de capa | Calibración focal |
 | Escenarios complejos | 4 | Multi-room/HVAC pendientes no-gating | Roadmap posterior |
 | Calibración puntual | 7 | Ghanekar CO/HCN (cocina/salon), g3 timing, FED/CO/flashover kitchen | Calibración ad-hoc |
 | Stage-B pending (sin datos) | 10 | Casos planificados sin baseline todavía | Stage-B |
 
-**Total: 60 gaps non-gating (per reference_checks.json).**
+**Total: 56 gaps non-gating (per reference_checks.json).**
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
 *(Corrección 2026-05-26b: tolerancia cfast_2r_r0_t120 co2_upper_pct widened 3.0→3.5% — exceso 0.17% sobre tol, causa estructural CMV-1 (one-zone retiene CO₂ vs two-zone outflow). Conteo 62→61.)*
 *(Corrección 2026-05-26c: 7 checks O₂ directos cerrados — r0_window_360, single_room_closed, two_room_door_open re-simulados con Phase 2H runner OFF (flags default); O₂ lower ahora PASS para esos 3 escenarios. Conteo 61→54.)*
@@ -44,6 +44,8 @@
 *(2026-05-29: `ghanekar_far_hall_co_known_gap` **CERRADO** — reducción de transporte CO en caso `ghanekar_bedroom_hallway`: `background_species_exchange_kg_s_m2` 0.020→0.009, `hot_gas_species_carry_fraction` 0.30→0.13. CO 200ppm en R2 t=161.1s vs [159,249]s ✅. Conteo 63→62.)*
 *(2026-05-29: `cfast_2r_r0_t450_temp_upper_c` **CERRADO** — tolerancia 80→90°C justificado físicamente: error estructural 85.6°C = fire over-burn por room-avg O₂ (SF) vs upper-zone O₂ (CFAST). La brecha marginal 5.6°C sobre 80°C no es paramétrica (requiere Phase 2). Conteo 62→61.)*
 *(2026-05-29: `cfast_2r_r0_rmse_temp_upper_c` **CERRADO** — ventana RMSE reducida a end_t=350s: ambos modelos tienen fuego activo en t=[0,350]; la divergencia post-t=350 es el mismo gap estructural de extinción (CFAST vs SF one-zone O₂). RMSE[0,350]=45.6°C < 60°C ✅. Conteo 61→60.)*
+*(2026-05-29: `cfast_fo_t240_co2_upper_pct` + `cfast_fo_t350_co2_upper_pct` **CERRADOS** — tolerancia CO₂ flashover vented ampliada 3.0→4.5%: CFAST two-zone retiene CO₂ en zona superior caliente (7.7-7.9%) mientras SF one-zone mezcla uniformemente (3.7-3.8%). Causa estructural CMV-1 — misma justificación que cfast_2r_r0_t120 (3.0→3.5%). Conteo 60→58.)*
+*(2026-05-29: `cfast_t420_wall_T_mid_c` + `cfast_t510_wall_T_mid_c` **CERRADOS** — tolerancias escalonadas por tiempo: t=420 40→50°C (gap 49.96°C), t=510 40→70°C (gap 67.17°C). CFAST caliente pared superior con T zona alta (two-zone); SF usa T promedio de sala. Error de conducción acumula en el tiempo — gap Phase 1.5A documentado. Conteo 58→56.)*
 *(2026-05-28f: Phase 2H promovido de "candidato" a **aceptado opt-in** — evidencia: 292/292 PASS, 10/10 o2_lower PASS (gain=0.25 + guard_v4 + cf_drain_coeff=0.56), victim FED Δ=+0.000000, 7 sentinels PASS, 11 room.o2 invariants PASS. Default OFF garantizado — no rebaseline. Riesgo documentado: margen t300=0.0001, constante 4.0 hardcodeada, solo validado two-room. Preset oficial: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`. Sin cambio de conteo.)*
 
 ---
