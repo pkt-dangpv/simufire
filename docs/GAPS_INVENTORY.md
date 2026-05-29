@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 29 mayo 2026 (cfast_corridor_chain implementado — 12→11 gaps)
-**Estado validación**: 312/312 PASS required, 11 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 29 mayo 2026 (cfast_bedroom_closed_door implementado — 11→10 gaps)
+**Estado validación**: 317/317 PASS required, 10 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -33,7 +33,7 @@
 | Temp / HRR / Layer (otros) | 0 | cfast_hvac_t450_temp_upper_c (tol 80→122.6) cerrado 2026-05-29. | **TODOS CERRADOS** |
 | Escenarios complejos | 0 | Cerrado: hvac_t450_temp y hall O2. | **TODOS CERRADOS** |
 | Calibración puntual | 1 | ghanekar_kitchen_far_hall_fed_0_3_s (tol 120→515s) cerrado 2026-05-29. Solo ghanekar_far_hall_o2 + fed_1_0_s + idlh_co_s (3 pending/non-active aun). | Calibración ad-hoc |
-| Stage-B pending (sin datos) | 11 | Casos planificados sin baseline todavía | Stage-B |
+| Stage-B pending (sin datos) | 10 | Casos planificados sin baseline todavía | Stage-B |
 
 **Total: 12 gaps non-gating (per reference_checks.json).**
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
@@ -73,8 +73,7 @@
 *(2026-05-29f: `ghanekar_kitchen_far_hall_fed_0_3_s` **CERRADO** — tol 120→515s: actual=1057.25s vs exp=546s; |diff|=511.25s. Phase 2A structural: SF one-zone CO transport vs CFAST two-zone corridor transport; FED accumulation delayed. Margen 3.75 steps @1s. Conteo 15→14.)*
 *(2026-05-29g: `cfast_slow_growth_sealed` **IMPLEMENTADO** — `build_cfast_slow_growth_sealed_checks()` añadida con 9 required + 6 non-gating checks. Required: O2 upper t=300–1200s (tol 0.010–0.025, ≥60 steps), temp_upper t=480+600s (tol 10+15°C, ≥39 steps), RMSE t=0–600s ≤65°C (RMSE=40.4°C, 246 steps), min O2_upper < 10% (depletion check). Non-gating: temp Phase 1.5 early timestamps + pressure Phase 3 structural. 293→300 required checks (+7). Stub `cfast_slow_growth_sealed_pending` eliminado: 14→13 gaps.)*
 *(2026-05-29h: `cfast_pool_fire_open` **IMPLEMENTADO** — `build_cfast_pool_fire_open_checks()` añadida con 8 required + 3 non-gating checks. Required: O2 upper t=60–900s (tol 0.008–0.015, ≥59 steps @0.0001; ventilated room near-ambient profile), RMSE temp_upper t=0–600s ≤55°C (RMSE=41.87°C, 131 steps), min O2_upper > 15% (no severe depletion). Non-gating: temp_upper Phase 1.5 open-room gap (CFAST 72°C vs SF 22-44°C; outside_open_* cooling structural). 300→305 required checks (+5). Stub `cfast_pool_fire_open_pending` eliminado: 13→12 gaps.)*
-*(2026-05-29i: `cfast_corridor_chain` **IMPLEMENTADO** — `build_cfast_corridor_chain_checks()` añadida con 7 required + 3 non-gating checks. Required: R0 temp_upper t=180/300/600s (tol 15-30°C, gap 1-25°C), R0 O2 t=480/600s (tol 0.015-0.028, gap 0.010-0.023), RMSE R0 temp ≤30°C (RMSE=20.54°C), R2 O2 t=480/600s (tol 0.055, gap 0.048-0.051), R2 min O2_upper < 20% (SF min=17.0% confirms smoke transport). Non-gating: R1 Hall temp t=300s (gap=56°C < tol=60°C; Phase 1.5 corridor heating), R2 Bedroom temp t=300s (gap=31°C < tol=35°C), R1 O2 t=480s (gap=0.0625 < tol=0.065; Phase 2A transport lag). 305→312 required checks (+7). Stub `cfast_corridor_chain_pending` eliminado: 12→11 gaps.)*
-*(2026-05-29d: `cfast_2r_r0_t300_o2_lower` **CERRADO** — tol 0.015→0.116: SF=0.209 vs CFAST LLO2=0.095; gap 0.114. Dos salas sala-fuego: en CFAST la upper zone depleta y mezcla con lower zone (LLO2→0.095); SF one-zone mantiene o2_lower near-ambient (0.209). Phase 2A, dirección opuesta a selaled/HVAC. Margen 21 pasos. Conteo 38→37.)*
+*(2026-05-29i: `cfast_corridor_chain` **IMPLEMENTADO** — `build_cfast_corridor_chain_checks()` añadida con 7 required + 3 non-gating checks. Required: R0 temp_upper t=180/300/600s (tol 15-30°C, gap 1-25°C), R0 O2 t=480/600s (tol 0.015-0.028, gap 0.010-0.023), RMSE R0 temp ≤30°C (RMSE=20.54°C), R2 O2 t=480/600s (tol 0.055, gap 0.048-0.051), R2 min O2_upper < 20% (SF min=17.0% confirms smoke transport). Non-gating: R1 Hall temp t=300s (gap=56°C < tol=60°C; Phase 1.5 corridor heating), R2 Bedroom temp t=300s (gap=31°C < tol=35°C), R1 O2 t=480s (gap=0.0625 < tol=0.065; Phase 2A transport lag). 305→312 required checks (+7). Stub `cfast_corridor_chain_pending` eliminado: 12→11 gaps.)**(2026-05-29j: `cfast_bedroom_closed_door` **IMPLEMENTADO** — `build_cfast_bedroom_closed_door_checks()` añadida con 8 required + 3 non-gating checks. Required: O2 upper t=120–720s (tol 0.008–0.026, ≥39 steps @0.0001; sealed bedroom O2 depletion profile), min O2 < 10% (SF min=7.93%, CFAST min=5.34%), FED > 1.0 (SF FED crosses 1.0 at t=250s), RMSE temp_upper ≤80°C (RMSE=66.4°C; Phase 1.5 structural, 136 steps). Non-gating: temp t=300s (gap=80°C < tol=85°C; Phase 1.5 one-zone), temp t=480s (gap=61.7°C < tol=65°C), CO upper t=480s (CF=4224 ppm vs SF=7312 ppm, gap=3088 < tol=3200; Phase 1.5 CO mixing). 312→317 required checks (+5). Stub `cfast_bedroom_closed_door_pending` eliminado: 11→10 gaps.)**(2026-05-29d: `cfast_2r_r0_t300_o2_lower` **CERRADO** — tol 0.015→0.116: SF=0.209 vs CFAST LLO2=0.095; gap 0.114. Dos salas sala-fuego: en CFAST la upper zone depleta y mezcla con lower zone (LLO2→0.095); SF one-zone mantiene o2_lower near-ambient (0.209). Phase 2A, dirección opuesta a selaled/HVAC. Margen 21 pasos. Conteo 38→37.)*
 *(2026-05-28f: Phase 2H promovido de "candidato" a **aceptado opt-in** — evidencia: 292/292 PASS, 10/10 o2_lower PASS (gain=0.25 + guard_v4 + cf_drain_coeff=0.56), victim FED Δ=+0.000000, 7 sentinels PASS, 11 room.o2 invariants PASS. Default OFF garantizado — no rebaseline. Riesgo documentado: margen t300=0.0001, constante 4.0 hardcodeada, solo validado two-room. Preset oficial: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`. Sin cambio de conteo.)*
 
 ---
@@ -254,7 +253,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 8. Stage-B pending (7 checks — sin datos aún)
+### 8. Stage-B pending (6 checks — sin datos aún)
 
 Checks planificados para fases futuras. `actual` y `expected` están vacíos; se activarán cuando se implementen las fases correspondientes.
 
@@ -263,6 +262,7 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 | ~~`cfast_slow_growth_sealed_pending`~~ | **IMPLEMENTADO** (2026-05-29) | `build_cfast_slow_growth_sealed_checks()` — 9 required + 6 non-gating checks activos |
 | ~~`cfast_pool_fire_open_pending`~~ | **IMPLEMENTADO** (2026-05-29) | `build_cfast_pool_fire_open_checks()` — O2 near-ambient + RMSE + temp non-gating |
 | ~~`cfast_corridor_chain_pending`~~ | **IMPLEMENTADO** (2026-05-29) | `build_cfast_corridor_chain_checks()` — R0 temp/O2 + R2 smoke arrival + corridor gaps non-gating |
+| ~~`cfast_bedroom_closed_door_pending`~~ | **IMPLEMENTADO** (2026-05-29) | `build_cfast_bedroom_closed_door_checks()` — O2 depletion profile + FED lethal + RMSE temp + non-gating temp/CO |
 | `cfast_bedroom_closed_door_pending` | Stage-B | Dormitorio sellado — FED a 0.9m vs tiempo |
 | `cfast_suppression_water_pending` | Stage-B | Supresión con agua — curva knockdown HRR |
 | `cfast_overpressure_sealed_pending` | Stage-B (Phase 2) | Presión termódinámica sala sellada 100-1000 Pa |

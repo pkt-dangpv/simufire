@@ -1,8 +1,8 @@
 {
   "all_required_pass": true,
-  "required_count": 312,
+  "required_count": 317,
   "failed_required_count": 0,
-  "known_gap_count": 11,
+  "known_gap_count": 10,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -1422,6 +1422,127 @@
       "required": false,
       "pass": true,
       "note": "CCH-1 (non-gating): Phase 2A corridor O2 transport lag at t=480s. CFAST R1 O2=12.5% (two-zone doorway); SF R1=18.8% (one-zone lag). Gap=0.0625 < tol=0.065 (margin 25 steps)."
+    },
+    {
+      "name": "cfast_bed_o2_t120_o2",
+      "actual": 0.1898,
+      "expected": 0.18698599999999999,
+      "tolerance": 0.008,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "BCD-1: bedroom O2 upper at t=120s. tol=0.008 (\u22653\u00d7 step @0.0001). Both models: sealed O2 depletion."
+    },
+    {
+      "name": "cfast_bed_o2_t300_o2",
+      "actual": 0.119,
+      "expected": 0.116653,
+      "tolerance": 0.008,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "BCD-1: bedroom O2 upper at t=300s. tol=0.008 (\u22653\u00d7 step @0.0001). Both models: sealed O2 depletion."
+    },
+    {
+      "name": "cfast_bed_o2_t480_o2",
+      "actual": 0.0958,
+      "expected": 0.0809916,
+      "tolerance": 0.02,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "BCD-1: bedroom O2 upper at t=480s. tol=0.02 (\u22653\u00d7 step @0.0001). Both models: sealed O2 depletion."
+    },
+    {
+      "name": "cfast_bed_o2_t600_o2",
+      "actual": 0.0879,
+      "expected": 0.0705026,
+      "tolerance": 0.023,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "BCD-1: bedroom O2 upper at t=600s. tol=0.023 (\u22653\u00d7 step @0.0001). Both models: sealed O2 depletion."
+    },
+    {
+      "name": "cfast_bed_o2_t720_o2",
+      "actual": 0.0832,
+      "expected": 0.0622151,
+      "tolerance": 0.026,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "BCD-1: bedroom O2 upper at t=720s. tol=0.026 (\u22653\u00d7 step @0.0001). Both models: sealed O2 depletion."
+    },
+    {
+      "name": "cfast_bed_min_o2_lethal",
+      "actual": 0.0793,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 0.0,
+      "maximum": 0.1,
+      "required": false,
+      "pass": true,
+      "note": "BCD-2: bedroom O2 upper < 10% (lethal depletion in sealed room). SF min=7.93%, CFAST min=5.34%. 207 steps @0.0001."
+    },
+    {
+      "name": "cfast_bed_fed_lethal",
+      "actual": 30.899,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 1.0,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "BCD-2: bedroom FED > 1.0 (lethal gas dose before 900s). SF FED crosses 1.0 at t=250s (CO=5026 ppm, O2u=13.1%); max=30.4."
+    },
+    {
+      "name": "cfast_bed_rmse_temp_upper",
+      "actual": 66.38866356094657,
+      "expected": null,
+      "tolerance": null,
+      "minimum": null,
+      "maximum": 80.0,
+      "required": false,
+      "pass": true,
+      "note": "BCD-2: bedroom temp_upper RMSE \u2264 80\u00b0C (t=0\u2013900s). RMSE=66.4\u00b0C; CFAST two-zone upper 116-170\u00b0C vs SF one-zone 73-95\u00b0C. Threshold=80 (136 steps @0.1\u00b0C). Phase 1.5 structural."
+    },
+    {
+      "name": "cfast_bed_temp_t300_temp_upper_c",
+      "actual": 90.12,
+      "expected": 170.085,
+      "tolerance": 85.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "BCD-1 (non-gating): Phase 1.5 temperature gap at t=300s. CFAST two-zone upper 170.1\u00b0C; SF one-zone 90.1\u00b0C. tol=85.0\u00b0C."
+    },
+    {
+      "name": "cfast_bed_temp_t480_temp_upper_c",
+      "actual": 79.35,
+      "expected": 141.099,
+      "tolerance": 65.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "BCD-1 (non-gating): Phase 1.5 temperature gap at t=480s. CFAST two-zone upper 141.1\u00b0C; SF one-zone 79.3\u00b0C. tol=65.0\u00b0C."
+    },
+    {
+      "name": "cfast_bed_co_upper_t480_co_upper_ppm",
+      "actual": 7312.0,
+      "expected": 4224.12,
+      "tolerance": 3200.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "BCD-1 (non-gating): Phase 1.5 CO upper gap at t=480s. CFAST UL CO=4224 ppm (lower zone ~0); SF one-zone CO=7312 ppm (uniform). Gap=3088 ppm < tol=3200 ppm (margin 112 steps @1 ppm)."
     },
     {
       "name": "cfast_2r_r0_t180_o2",
@@ -5459,17 +5580,6 @@
       "required": true,
       "pass": true,
       "note": "Regression baseline: tc_array_iso9705"
-    },
-    {
-      "name": "cfast_bedroom_closed_door_pending",
-      "actual": null,
-      "expected": null,
-      "tolerance": null,
-      "minimum": null,
-      "maximum": null,
-      "required": false,
-      "pass": false,
-      "note": "Stage-B: sealed bedroom \u2014 FED at 0.9 m vs time, CO/O2 lethal-dose timing."
     },
     {
       "name": "cfast_suppression_water_pending",

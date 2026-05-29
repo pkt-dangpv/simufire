@@ -1,0 +1,41 @@
+&HEAD VERSION = 7600, TITLE = 'Simufire Stage-B: sealed bedroom, medium fire (alpha=0.011), CO lethal dose' /
+
+!! Scenario: bedroom_closed_door
+!! Room: 3.5 x 3.0 x 2.4 m = 25.2 m^3 (matches simple_house Dormitorio1)
+!! Door and window closed (sealed).  Medium t-squared fire, alpha=0.011 kW/s^2, cap 150 kW.
+!! CO_YIELD = 0.04 kg/kg (moderately elevated; wood in oxygen-reduced conditions).
+!! Duration 900 s to observe O2 depletion and CO/FED accumulation to lethal levels.
+&TIME SIMULATION = 900 PRINT = 10 SMOKEVIEW = 10 SPREADSHEET = 10 /
+&INIT PRESSURE = 101325 RELATIVE_HUMIDITY = 50 INTERIOR_TEMPERATURE = 20 EXTERIOR_TEMPERATURE = 20 /
+&MISC LOWER_OXYGEN_LIMIT = 0.10 /
+
+&MATL ID = 'CONCRETE' MATERIAL = 'Concrete Normal Weight (6 in)',
+      CONDUCTIVITY = 1.75 DENSITY = 2200 SPECIFIC_HEAT = 1, THICKNESS = 0.15 EMISSIVITY = 0.94 /
+
+!! Bedroom: 3.5 m (W) x 3.0 m (D) x 2.4 m (H) — Dormitorio1 dimensions
+&COMP ID = 'Bedroom'
+      DEPTH = 3.0 HEIGHT = 2.4 WIDTH = 3.5
+      CEILING_MATL_ID = 'CONCRETE' WALL_MATL_ID = 'CONCRETE' FLOOR_MATL_ID = 'CONCRETE'
+      ORIGIN = 0.0, 0.0, 0.0 GRID = 35, 30, 24
+      LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
+
+!! No vents: door and window both closed (sealed bedroom)
+
+!! Medium t-squared fire: HRR(t) = 0.011 * t^2 kW, capped at 150 kW at t~117 s.
+!! Fire location: center of bedroom floor at 1.75, 1.5
+&FIRE ID = 'BedFire' COMP_ID = 'Bedroom', FIRE_ID = 'MedWood' LOCATION = 1.75, 1.5 /
+&CHEM ID = 'MedWood' CARBON = 6 CHLORINE = 0 HYDROGEN = 10 NITROGEN = 0 OXYGEN = 5
+      HEAT_OF_COMBUSTION = 18100 RADIATIVE_FRACTION = 0.35 /
+&TABL ID = 'MedWood' LABELS = 'TIME', 'HRR', 'HEIGHT', 'AREA', 'CO_YIELD', 'SOOT_YIELD', 'HCN_YIELD', 'HCL_YIELD', 'TRACE_YIELD' /
+&TABL ID = 'MedWood', DATA =   0,   0, 0, 0.001, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'MedWood', DATA =  30,  10, 0, 0.007, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'MedWood', DATA =  60,  40, 0, 0.028, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'MedWood', DATA =  90,  89, 0, 0.063, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'MedWood', DATA = 117, 150, 0, 0.106, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'MedWood', DATA = 900, 150, 0, 0.106, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'MedWood', DATA = 910,   0, 0, 0.001, 0.04, 0.015, 0, 0, 0 /
+
+!! Device at 0.9 m (occupant head height for sleeping person)
+&DEVC ID = 'Head_09m' COMP_ID = 'Bedroom' LOCATION = 1.75, 1.5, 0.9 TYPE = 'THERMOCOUPLE' /
+
+&TAIL /
