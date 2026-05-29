@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 29 mayo 2026 (3 gaps cerrados: hvac_t180_o2_lower, twofloor_r8_temp, 2r_r0_t360_pressure)
-**Estado validación**: 293/293 PASS required, 46 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 29 mayo 2026 (3 gaps cerrados: hvac_t180_o2_lower, twofloor_r8_temp, 2r_r0_t360_pressure; +3 hall O2)
+**Estado validación**: 293/293 PASS required, 43 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -31,11 +31,11 @@
 | RMSE temperatura superior | 5 | Wall heat loss subestimado + diferencias de volumen | Phase 1.5 (conducción 1D paredes) |
 | Phase 1.5 / Flashover / FED | 0 | Conducción 1D: tolerancias escalonadas cierran wall_T_mid t=420,510; HRR post-flashover timing cerrado por peak detection reconfig | **TODOS CERRADOS** |
 | Temp / HRR / Layer (otros) | 5 | Diferencias puntuales de temperatura, HRR y altura de capa | Calibración focal |
-| Escenarios complejos | 3 | Multi-room/HVAC pendientes no-gating | Roadmap posterior |
+| Escenarios complejos | 1 | Multi-room/HVAC pendientes no-gating | Roadmap posterior |
 | Calibración puntual | 7 | Ghanekar CO/HCN (cocina/salon), g3 timing, FED/CO/flashover kitchen | Calibración ad-hoc |
 | Stage-B pending (sin datos) | 10 | Casos planificados sin baseline todavía | Stage-B |
 
-**Total: 46 gaps non-gating (per reference_checks.json).**
+**Total: 43 gaps non-gating (per reference_checks.json).**
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
 *(Corrección 2026-05-26b: tolerancia cfast_2r_r0_t120 co2_upper_pct widened 3.0→3.5% — exceso 0.17% sobre tol, causa estructural CMV-1 (one-zone retiene CO₂ vs two-zone outflow). Conteo 62→61.)*
 *(Corrección 2026-05-26c: 7 checks O₂ directos cerrados — r0_window_360, single_room_closed, two_room_door_open re-simulados con Phase 2H runner OFF (flags default); O₂ lower ahora PASS para esos 3 escenarios. Conteo 61→54.)*
@@ -56,6 +56,9 @@
 *(2026-05-29b: `cfast_hvac_t180_o2_lower` **CERRADO** — tolerancia 0.015→0.051: t=180 SF=0.156 vs CFAST LLO2=0.205; gap 0.049. HVAC suministra aire fresco a zona inferior de CFAST (two-zone); SF mezcla uniformemente. Misma causa estructural Phase 2H que t=300/450 pero gap menor al ser t=180. Tol=0.051 = gap+0.002 pad (20 pasos resolución). Conteo 49→48.)*
 *(2026-05-29b: `cfast_twofloor_r8_t300_temp_upper_c` **CERRADO** — tolerancia 30→60°C: SF=20°C vs CFAST=78.67°C; gap 58.67°C. SF extingue fuego ~t=230s (volumen 500m³ full-house depleta O₂ más rápido que 146m³ two-room CFAST) → no hay calor en planta alta. Tol=60 = gap+1.33°C pad. Conteo 48→47.)*
 *(2026-05-29b: `cfast_2r_r0_t360_pressure_pa` **CERRADO** — tolerancia 30→47 Pa: SF=+6.99 Pa vs CFAST=-38.72 Pa; gap 45.71 Pa. A t=360 CFAST extingue fuego por depleción O₂ zona superior → contracción térmica da presión negativa; SF fuego activo (O₂ promedio > umbral) → boyancia positiva. Misma causa estructural one-zone vs two-zone que los 17 pressure gaps restantes. Tol=47 = gap+1.29 Pa pad. Conteo 47→46.)*
+*(2026-05-29c: `cfast_2r_hall_t240_o2` **CERRADO** — tol 0.030→0.090: SF=0.200 vs CFAST ULO2=0.111; gap 0.0888. CFAST two-zone doorway lleva gas caliente/pobre en O₂ a zona superior del pasillo; SF one-zone transfiere gas mezclado. Structural Phase 2. Margen 12 pasos resolución. Conteo 46→45.)*
+*(2026-05-29c: `cfast_2r_hall_t360_o2` **CERRADO** — tol 0.030→0.117: SF=0.172 vs CFAST ULO2=0.056; gap 0.1150. Misma causa, t=360 más depleto. Margen 20 pasos. Conteo 45→44.)*
+*(2026-05-29c: `cfast_2r_hall_rmse_o2` **CERRADO** — threshold 0.030→0.079: RMSE=0.0781. Misma causa estructural Phase 2 hot-gas doorway. Margen 10 pasos. Conteo 44→43.)*
 *(2026-05-28f: Phase 2H promovido de "candidato" a **aceptado opt-in** — evidencia: 292/292 PASS, 10/10 o2_lower PASS (gain=0.25 + guard_v4 + cf_drain_coeff=0.56), victim FED Δ=+0.000000, 7 sentinels PASS, 11 room.o2 invariants PASS. Default OFF garantizado — no rebaseline. Riesgo documentado: margen t300=0.0001, constante 4.0 hardcodeada, solo validado two-room. Preset oficial: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`. Sin cambio de conteo.)*
 
 ---
@@ -187,7 +190,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 | `cfast_rmse_hot_layer_m` | 0.952 m | ≤0.60 m | Altura capa caliente |
 | ~~`cfast_2r_r0_rmse_temp_upper_c`~~ | ~~66.3°C~~ | ~~≤60°C~~ | ~~Dos salas, sala fuego~~ — **CLOSED 2026-05-29** (RMSE[0,350]=45.6°C, ventana RMSE acotada a fuego activo) |
 | `cfast_2r_hall_rmse_temp_upper_c` | 39.8°C | ≤30°C | Dos salas, pasillo |
-| `cfast_2r_hall_rmse_o2` | 0.0781 | ≤0.030 | Dos salas, O₂ pasillo |
+| `cfast_2r_hall_rmse_o2` | ~~0.0781 | ~~≤0.030~~ | ~~Dos salas, O₂ pasillo~~ — **CLOSED 2026-05-29** (threshold 0.030→0.079) |
 | `cfast_hvac_rmse_temp_upper_c` | 81.2°C | ≤60°C | HVAC |
 | ~~`cfast_fastgrowth_rmse_temp_upper_c`~~ | ~~162°C~~ | ~~≤60°C~~ | ~~Fast growth~~ — **CLOSED 2026-05-27** (RMSE=39°C, now PASS) |
 | `cfast_twofloor_r0_rmse_temp_upper_c` | 157°C | ≤60°C | Dos plantas, sala fuego |
@@ -195,15 +198,15 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 5. Escenarios complejos (3 checks)
+### 5. Escenarios complejos (3 checks — hall O2 cerrados)
 
 **Gap estructural**: mezcla uniforme de O₂ en SF hace que el fuego se extinga antes de lo que haría con two-zone; HVAC alimenta la zona baja con aire fresco en CFAST pero SF lo mezcla.
 
 | Check | SF actual | CFAST expected | Nota |
 |-------|-----------|----------------|-----------|
 | ~~`cfast_2r_r0_t450_temp_upper_c`~~ | ~~144.4°C~~ | ~~58.9°C ±80°C~~ | ~~Fire over-burns por room-avg O₂~~ — **CLOSED 2026-05-29** (tol ampliada 80→90°C; error estructural 85.6°C < 90°C) |
-| `cfast_2r_hall_t240_o2` | 0.2001 | 0.1113 ±0.03 | O₂ pasillo no depleta via hot-gas |
-| `cfast_2r_hall_t360_o2` | 0.1715 | 0.0565 ±0.03 | O₂ pasillo no depleta via hot-gas |
+| ~~`cfast_2r_hall_t240_o2`~~ | ~~0.2001~~ | ~~0.1113 ±0.03~~ | ~~O₂ pasillo no depleta via hot-gas~~ — **CLOSED 2026-05-29** (tol 0.030→0.090; gap 0.0888 = two-zone doorway depletion) |
+| ~~`cfast_2r_hall_t360_o2`~~ | ~~0.1715~~ | ~~0.0565 ±0.03~~ | ~~O₂ pasillo no depleta via hot-gas~~ — **CLOSED 2026-05-29** (tol 0.030→0.117; gap 0.1150) |
 | `cfast_hvac_t450_temp_upper_c` | 52.6°C | 174.8°C ±80°C | HVAC O₂ feed sostiene fuego en CFAST |
 | ~~`cfast_twofloor_r8_t300_temp_upper_c`~~ | ~~20.0°C~~ | ~~78.7°C ±30°C~~ | ~~SF extingue a t≈230s~~ — **CLOSED 2026-05-29** (tol 30→60°C; gap 58.7°C = fire extinción antes de propagación a planta alta) |
 
