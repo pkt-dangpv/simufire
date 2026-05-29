@@ -1,0 +1,40 @@
+&HEAD VERSION = 7600, TITLE = 'Simufire comparison: heptane pool fire 80 kW, room with open window' /
+
+!! Scenario Configuration
+!! 900s (15 min): steady 80 kW heptane pool fire in ventilated room.
+!! Objective: validate steady HRR, upper-zone temperature, O2 in open-room scenario.
+!! Key: window open to outside from t=0, door to adjacent room closed.
+&TIME SIMULATION = 900 PRINT = 10 SMOKEVIEW = 10 SPREADSHEET = 10 /
+&INIT PRESSURE = 101325 RELATIVE_HUMIDITY = 50 INTERIOR_TEMPERATURE = 20 EXTERIOR_TEMPERATURE = 20 /
+&MISC LOWER_OXYGEN_LIMIT = 0.10 /
+
+!! Material Properties
+&MATL ID = 'CONCRETE' MATERIAL = 'Concrete Normal Weight (6 in)',
+      CONDUCTIVITY = 1.75 DENSITY = 2200 SPECIFIC_HEAT = 1, THICKNESS = 0.15 EMISSIVITY = 0.94 /
+
+!! Compartment R0: same 5x4x2.4m (48 m3) room as other CFAST comparison cases
+&COMP ID = 'R0'
+      DEPTH = 4.0 HEIGHT = 2.4 WIDTH = 5.0
+      CEILING_MATL_ID = 'CONCRETE' WALL_MATL_ID = 'CONCRETE' FLOOR_MATL_ID = 'CONCRETE'
+      ORIGIN = 0.0, 0.0, 0.0 GRID = 40, 32, 24 LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
+
+!! Vents: window open to OUTSIDE from t=0 (FRONT face); door to right CLOSED
+&VENT TYPE = 'WALL' ID = 'R0 Window' COMP_IDS = 'R0' 'OUTSIDE' TOP = 2.0 BOTTOM = 0.8 WIDTH = 2.0
+      CRITERION = 'TIME' T = 0, 900 F = 1, 1 FACE = 'FRONT' OFFSET = 1.5 /
+
+!! Heptane pool fire: 80 kW steady (C7H16, pan area ~0.09 m^2, d~0.34 m)
+!! Properties from SFPE Handbook: CO_YIELD=0.010 kg/kg, SOOT_YIELD=0.037 kg/kg,
+!! HEAT_OF_COMBUSTION=44560 kJ/kg, RADIATIVE_FRACTION=0.30
+&FIRE ID = 'Pool Fire' COMP_ID = 'R0', FIRE_ID = 'Heptane' LOCATION = 2.5, 2.0 /
+&CHEM ID = 'Heptane' CARBON = 7 CHLORINE = 0 HYDROGEN = 16 NITROGEN = 0 OXYGEN = 0
+      HEAT_OF_COMBUSTION = 44560 RADIATIVE_FRACTION = 0.30 /
+&TABL ID = 'Heptane' LABELS = 'TIME', 'HRR', 'HEIGHT', 'AREA', 'CO_YIELD', 'SOOT_YIELD', 'HCN_YIELD', 'HCL_YIELD', 'TRACE_YIELD' /
+&TABL ID = 'Heptane', DATA =   0,  0.0, 0, 0.001, 0.010, 0.037, 0, 0, 0 /
+&TABL ID = 'Heptane', DATA =   5, 80.0, 0, 0.090, 0.010, 0.037, 0, 0, 0 /
+&TABL ID = 'Heptane', DATA = 900, 80.0, 0, 0.090, 0.010, 0.037, 0, 0, 0 /
+&TABL ID = 'Heptane', DATA = 910,  0.0, 0, 0.001, 0.010, 0.037, 0, 0, 0 /
+
+!! Devices
+&DEVC ID = 'R0 Head Temp' COMP_ID = 'R0' LOCATION = 2.5, 2.0, 1.8 TYPE = 'THERMOCOUPLE' /
+
+&TAIL /

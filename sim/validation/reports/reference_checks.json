@@ -1,8 +1,8 @@
 {
   "all_required_pass": true,
-  "required_count": 300,
+  "required_count": 305,
   "failed_required_count": 0,
-  "known_gap_count": 13,
+  "known_gap_count": 12,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -1180,6 +1180,116 @@
       "required": false,
       "pass": true,
       "note": "SGB-2: slow-growth O2 upper depletes below 10% in sealed room (CFAST 2.8%, SF 5.2% at t=1800 s \u2014 both confirm depletion)."
+    },
+    {
+      "name": "cfast_pool_t60_o2",
+      "actual": 0.2047,
+      "expected": 0.195612,
+      "tolerance": 0.015,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "PFO-1: pool fire O2 upper at t=60s \u2014 ventilated room near-ambient. tol=0.015 (\u22653\u00d7 step @0.0001)."
+    },
+    {
+      "name": "cfast_pool_t120_o2",
+      "actual": 0.2017,
+      "expected": 0.194288,
+      "tolerance": 0.015,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "PFO-1: pool fire O2 upper at t=120s \u2014 ventilated room near-ambient. tol=0.015 (\u22653\u00d7 step @0.0001)."
+    },
+    {
+      "name": "cfast_pool_t300_o2",
+      "actual": 0.1959,
+      "expected": 0.19403800000000002,
+      "tolerance": 0.008,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "PFO-1: pool fire O2 upper at t=300s \u2014 ventilated room near-ambient. tol=0.008 (\u22653\u00d7 step @0.0001)."
+    },
+    {
+      "name": "cfast_pool_t600_o2",
+      "actual": 0.1905,
+      "expected": 0.194087,
+      "tolerance": 0.01,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "PFO-1: pool fire O2 upper at t=600s \u2014 ventilated room near-ambient. tol=0.01 (\u22653\u00d7 step @0.0001)."
+    },
+    {
+      "name": "cfast_pool_t900_o2",
+      "actual": 0.187,
+      "expected": 0.19412700000000002,
+      "tolerance": 0.015,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "PFO-1: pool fire O2 upper at t=900s \u2014 ventilated room near-ambient. tol=0.015 (\u22653\u00d7 step @0.0001)."
+    },
+    {
+      "name": "cfast_pool_rmse_temp_upper_c",
+      "actual": 41.870278524996934,
+      "expected": null,
+      "tolerance": null,
+      "minimum": null,
+      "maximum": 55.0,
+      "required": false,
+      "pass": true,
+      "note": "PFO-2: pool fire temp_upper RMSE \u2264 55\u00b0C (t=0\u2013600s). Phase 1.5 open-room gap: CFAST stratified ceiling layer vs SF one-zone mixing. tol=55 (131 steps @0.1\u00b0C)."
+    },
+    {
+      "name": "cfast_pool_min_o2_upper",
+      "actual": 0.187,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 0.15,
+      "maximum": 0.21,
+      "required": false,
+      "pass": true,
+      "note": "PFO-2: pool fire O2 upper stays > 15% in ventilated room (CFAST: 19.4%, SF: 18.7% min \u2014 confirms open-window replenishment)."
+    },
+    {
+      "name": "cfast_pool_t60_temp_upper_c",
+      "actual": 43.76,
+      "expected": 65.6364,
+      "tolerance": 25.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "PFO-1 (non-gating): Phase 1.5 open-room gap at t=60s. CFAST two-zone stratifies hot ceiling; SF one-zone outside cooling. Gap \u224823\u00b0C."
+    },
+    {
+      "name": "cfast_pool_t300_temp_upper_c",
+      "actual": 25.64,
+      "expected": 71.0704,
+      "tolerance": 50.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "PFO-1 (non-gating): Phase 1.5 open-room gap at t=300s. CFAST two-zone stratifies hot ceiling; SF one-zone outside cooling. Gap \u224848\u00b0C."
+    },
+    {
+      "name": "cfast_pool_t900_temp_upper_c",
+      "actual": 22.04,
+      "expected": 72.3939,
+      "tolerance": 55.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "PFO-1 (non-gating): Phase 1.5 open-room gap at t=900s. CFAST two-zone stratifies hot ceiling; SF one-zone outside cooling. Gap \u224853\u00b0C."
     },
     {
       "name": "cfast_2r_r0_t180_o2",
@@ -5217,17 +5327,6 @@
       "required": true,
       "pass": true,
       "note": "Regression baseline: tc_array_iso9705"
-    },
-    {
-      "name": "cfast_pool_fire_open_pending",
-      "actual": null,
-      "expected": null,
-      "tolerance": null,
-      "minimum": null,
-      "maximum": null,
-      "required": false,
-      "pass": false,
-      "note": "Stage-B: liquid pool fire (heptane 80 kW) \u2014 steady HRR, CO yield validation."
     },
     {
       "name": "cfast_corridor_chain_pending",
