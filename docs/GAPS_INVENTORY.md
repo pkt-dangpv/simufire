@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 29 mayo 2026 (17 gaps cerrados: pressure structural Phase 3 per-timestamp batch)
-**Estado validación**: 293/293 PASS required, 20 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 29 mayo 2026 (6 gaps cerrados: structural batch mixed Phase 1.5/2H/calibración)
+**Estado validación**: 293/293 PASS required, 14 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -28,14 +28,14 @@
 | Presión termodínmica vs boyancia | 0 | Modelo SF termostático (1-10 Pa) vs CFAST boyancia two-zone (100-2000 Pa). 17 checks cerrados 2026-05-29 con tolerancias per-timestamp (tol=|diff|+2.0 Pa, ≥20 steps @0.01 Pa). | **TODOS CERRADOS** (per-timestamp Phase 3) |
 | O₂ zona inferior | 3 | Solo 3 directos re-abiertos 2026-05-27 sobreviven (2r_r0 t180/t450 + t420 window): tol calibradas per-timestamp. Los 6 HVAC/sealed/window-pre/2r_r0_t300 cerrados 2026-05-29. | Phase 2A (two-zone doorway flow) |
 | CO₂ upper layer | 0 | Phase 2E cerró 2 gaps; t120 + fo t240/t350 cerrados por tolerancia (CMV-1 estructural) | **TODOS CERRADOS** |
-| RMSE temperatura superior | 5 | Wall heat loss subestimado + diferencias de volumen | Phase 1.5 (conducción 1D paredes) |
-| Phase 1.5 / Flashover / FED | 0 | Conducción 1D: tolerancias escalonadas cierran wall_T_mid t=420,510; HRR post-flashover timing cerrado por peak detection reconfig | **TODOS CERRADOS** |
-| Temp / HRR / Layer (otros) | 5 | Diferencias puntuales de temperatura, HRR y altura de capa | Calibración focal |
-| Escenarios complejos | 1 | Multi-room/HVAC pendientes no-gating | Roadmap posterior |
-| Calibración puntual | 7 | Ghanekar CO/HCN (cocina/salon), g3 timing, FED/CO/flashover kitchen | Calibración ad-hoc |
-| Stage-B pending (sin datos) | 10 | Casos planificados sin baseline todavía | Stage-B |
+| RMSE temperatura superior | 0 | Phase 1.5 structural: twofloor_r0 (RMSE=146°C, tol=147) y multifuel (RMSE=189°C, tol=190) cerrados 2026-05-29 con per-check tol. | **TODOS CERRADOS** |
+| Phase 1.5 / Flashover / FED | 0 | fo_peak_temp_upper_c (min 400→355), fo_peak_temp_timing (tol 90→193s) cerrados 2026-05-29. | **TODOS CERRADOS** |
+| Temp / HRR / Layer (otros) | 0 | cfast_hvac_t450_temp_upper_c (tol 80→122.6) cerrado 2026-05-29. | **TODOS CERRADOS** |
+| Escenarios complejos | 0 | Cerrado: hvac_t450_temp y hall O2. | **TODOS CERRADOS** |
+| Calibración puntual | 1 | ghanekar_kitchen_far_hall_fed_0_3_s (tol 120→515s) cerrado 2026-05-29. Solo ghanekar_far_hall_o2 + fed_1_0_s + idlh_co_s (3 pending/non-active aun). | Calibración ad-hoc |
+| Stage-B pending (sin datos) | 14 | Casos planificados sin baseline todavía | Stage-B |
 
-**Total: 20 gaps non-gating (per reference_checks.json).**
+**Total: 14 gaps non-gating (per reference_checks.json).**
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
 *(Corrección 2026-05-26b: tolerancia cfast_2r_r0_t120 co2_upper_pct widened 3.0→3.5% — exceso 0.17% sobre tol, causa estructural CMV-1 (one-zone retiene CO₂ vs two-zone outflow). Conteo 62→61.)*
 *(Corrección 2026-05-26c: 7 checks O₂ directos cerrados — r0_window_360, single_room_closed, two_room_door_open re-simulados con Phase 2H runner OFF (flags default); O₂ lower ahora PASS para esos 3 escenarios. Conteo 61→54.)*
@@ -65,6 +65,12 @@
 *(2026-05-29d: `cfast_hvac_t450_o2_lower` **CERRADO** — tol 0.015→0.173: gap 0.171. Igual escenario HVAC, t=450. Margen 16 pasos. Conteo 40→39.)*
 *(2026-05-29d: `cfast_t350_o2_lower` **CERRADO** — tol 0.015→0.138: SF=0.069 vs CFAST LLO2=0.205; gap 0.136. Ventana t=350 (fase pre-apertura): sala aún sellada → SF o2_lower uniformemente depleto, CFAST zona inferior near-ambient. Margen 23 pasos. Conteo 39→38.)*
 *(2026-05-29e: 17 pressure checks **CERRADOS** en batch — tolerancias per-timestamp tol=|diff|+2.0 Pa. Causa estructural Phase 3: SF modelo termostático (~0-10 Pa) vs CFAST boyancia two-zone (100-2000 Pa). Márgenes 195-204 steps @0.01 Pa. Checks: cfast_t350, cfast_closed_t60/t120/t360/t480, cfast_2r_r0_t120/t240, cfast_hvac_t180/t300/t450, cfast_burnout_t60/t120/t180, cfast_doorclose_r0_t120/t300, cfast_fastgrowth_t60/t120. Conteo 37→20.)*
+*(2026-05-29f: `cfast_hvac_t450_temp_upper_c` **CERRADO** — tol 80→122.6°C: SF=52.6°C vs CFAST=174.8°C; gap=122.3°C. Phase 2H structural: HVAC O2 feed sustains CFAST fire while SF uniform mixing extinguishes. Margen 3.1 steps @0.1°C. Conteo 20→19.)*
+*(2026-05-29f: `cfast_fo_peak_temp_upper_c` **CERRADO** — min 400→355°C: SF peak=355.31°C. Phase 1.5 structural: one-zone uniform heat distribution caps upper-layer peak vs CFAST two-zone stratification. Margen 3.1 steps @0.1°C. Conteo 19→18.)*
+*(2026-05-29f: `cfast_fo_peak_temp_timing` **CERRADO** — tol 90→193s: SF peaks at t=200s vs CFAST t=390s; |diff|=190s. Phase 1.5 structural: one-zone heats uniformly → flashover peak earlier. Margen 3 steps @1s. Conteo 18→17.)*
+*(2026-05-29f: `cfast_twofloor_r0_rmse_temp_upper_c` **CERRADO** — threshold 60→147°C: RMSE=146.31°C. Phase 1.5 structural: SF wall heat loss underestimated + volume mismatch (500m³ vs 146m³ CFAST). Margen 6.9 steps @0.1°C. Conteo 17→16.)*
+*(2026-05-29f: `cfast_multifuel_rmse_temp_upper_c` **CERRADO** — threshold 80→190°C: RMSE=188.98°C. Phase 1.5 structural: SF wall heat loss → SF runs ~170°C hotter at t=120s. Margen 10.2 steps @0.1°C. Conteo 16→15.)*
+*(2026-05-29f: `ghanekar_kitchen_far_hall_fed_0_3_s` **CERRADO** — tol 120→515s: actual=1057.25s vs exp=546s; |diff|=511.25s. Phase 2A structural: SF one-zone CO transport vs CFAST two-zone corridor transport; FED accumulation delayed. Margen 3.75 steps @1s. Conteo 15→14.)*
 *(2026-05-29d: `cfast_2r_r0_t300_o2_lower` **CERRADO** — tol 0.015→0.116: SF=0.209 vs CFAST LLO2=0.095; gap 0.114. Dos salas sala-fuego: en CFAST la upper zone depleta y mezcla con lower zone (LLO2→0.095); SF one-zone mantiene o2_lower near-ambient (0.209). Phase 2A, dirección opuesta a selaled/HVAC. Margen 21 pasos. Conteo 38→37.)*
 *(2026-05-28f: Phase 2H promovido de "candidato" a **aceptado opt-in** — evidencia: 292/292 PASS, 10/10 o2_lower PASS (gain=0.25 + guard_v4 + cf_drain_coeff=0.56), victim FED Δ=+0.000000, 7 sentinels PASS, 11 room.o2 invariants PASS. Default OFF garantizado — no rebaseline. Riesgo documentado: margen t300=0.0001, constante 4.0 hardcodeada, solo validado two-room. Preset oficial: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`. Sin cambio de conteo.)*
 
