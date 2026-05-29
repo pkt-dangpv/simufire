@@ -1,0 +1,56 @@
+&HEAD VERSION = 7600, TITLE = 'Simufire comparison: 3-room corridor chain, fire in R0, smoke transport to R2' /
+
+!! Scenario: fire in R0, two doors open → Hall (R1) → R2 (Bedroom).
+!! Objective: validate smoke/O2 transport timing through corridor chain.
+!! 600s total — enough to see clear O2 depletion signature in R2.
+&TIME SIMULATION = 600 PRINT = 10 SMOKEVIEW = 10 SPREADSHEET = 10 /
+&INIT PRESSURE = 101325 RELATIVE_HUMIDITY = 50 INTERIOR_TEMPERATURE = 20 EXTERIOR_TEMPERATURE = 20 /
+&MISC LOWER_OXYGEN_LIMIT = 0.10 /
+
+!! Material Properties
+&MATL ID = 'CONCRETE' MATERIAL = 'Concrete Normal Weight (6 in)',
+      CONDUCTIVITY = 1.75 DENSITY = 2200 SPECIFIC_HEAT = 1, THICKNESS = 0.15 EMISSIVITY = 0.94 /
+
+!! Compartments
+!! R0: fire room (living room), 5x4x2.4m = 48 m3
+&COMP ID = 'R0'
+      DEPTH = 4.0 HEIGHT = 2.4 WIDTH = 5.0
+      CEILING_MATL_ID = 'CONCRETE' WALL_MATL_ID = 'CONCRETE' FLOOR_MATL_ID = 'CONCRETE'
+      ORIGIN = 0.0, 0.0, 0.0 GRID = 40, 32, 24 LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
+!! R1: Hall/Corridor, 1.5x7x2.4m = 25.2 m3
+&COMP ID = 'Hall'
+      DEPTH = 7.0 HEIGHT = 2.4 WIDTH = 1.5
+      CEILING_MATL_ID = 'CONCRETE' WALL_MATL_ID = 'CONCRETE' FLOOR_MATL_ID = 'CONCRETE'
+      ORIGIN = 5.0, 0.0, 0.0 GRID = 12, 56, 24 LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
+!! R2: Bedroom, 3.5x4x2.4m = 33.6 m3
+&COMP ID = 'R2'
+      DEPTH = 4.0 HEIGHT = 2.4 WIDTH = 3.5
+      CEILING_MATL_ID = 'CONCRETE' WALL_MATL_ID = 'CONCRETE' FLOOR_MATL_ID = 'CONCRETE'
+      ORIGIN = 6.5, 0.0, 0.0 GRID = 28, 32, 24 LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
+
+!! Vents: R0-Hall door open, Hall-R2 door open; all other vents closed
+&VENT TYPE = 'WALL' ID = 'R0 Hall Door' COMP_IDS = 'R0' 'Hall' TOP = 2.0 BOTTOM = 0.0 WIDTH = 0.9
+      CRITERION = 'TIME' T = 0, 600 F = 1, 1 FACE = 'RIGHT' OFFSET = 1.55 /
+&VENT TYPE = 'WALL' ID = 'Hall R2 Door' COMP_IDS = 'Hall' 'R2' TOP = 2.0 BOTTOM = 0.0 WIDTH = 0.9
+      CRITERION = 'TIME' T = 0, 600 F = 1, 1 FACE = 'RIGHT' OFFSET = 5.55 /
+
+!! Fire: medium fast growth (capped at 300 kW) in R0
+!! alpha = 0.047 kW/s^2 (NFPA 92 "medium" ~ t_squared), cap at 300 kW at t~80s
+&FIRE ID = 'Room Fire' COMP_ID = 'R0', FIRE_ID = 'Wood Fire' LOCATION = 2.5, 2.0 /
+&CHEM ID = 'Wood Fire' CARBON = 6 CHLORINE = 0 HYDROGEN = 10 NITROGEN = 0 OXYGEN = 5
+      HEAT_OF_COMBUSTION = 18100 RADIATIVE_FRACTION = 0.35 /
+&TABL ID = 'Wood Fire' LABELS = 'TIME', 'HRR', 'HEIGHT', 'AREA', 'CO_YIELD', 'SOOT_YIELD', 'HCN_YIELD', 'HCL_YIELD', 'TRACE_YIELD' /
+&TABL ID = 'Wood Fire', DATA =   0,   0.0, 0, 0.0010, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA =  20,  18.8, 0, 0.0188, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA =  40,  75.2, 0, 0.0756, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA =  60, 169.2, 0, 0.1701, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA =  80, 300.0, 0, 0.3015, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA = 600, 300.0, 0, 0.3015, 0.0062, 0.015, 0, 0, 0 /
+&TABL ID = 'Wood Fire', DATA = 610,   0.0, 0, 0.0010, 0.0062, 0.015, 0, 0, 0 /
+
+!! Devices
+&DEVC ID = 'R0 Head Temp' COMP_ID = 'R0' LOCATION = 2.5, 2.0, 1.8 TYPE = 'THERMOCOUPLE' /
+&DEVC ID = 'Hall Head Temp' COMP_ID = 'Hall' LOCATION = 0.75, 2.0, 1.8 TYPE = 'THERMOCOUPLE' /
+&DEVC ID = 'R2 Head Temp' COMP_ID = 'R2' LOCATION = 1.75, 2.0, 1.8 TYPE = 'THERMOCOUPLE' /
+
+&TAIL /

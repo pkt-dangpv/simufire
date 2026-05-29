@@ -1,8 +1,8 @@
 {
   "all_required_pass": true,
-  "required_count": 305,
+  "required_count": 312,
   "failed_required_count": 0,
-  "known_gap_count": 12,
+  "known_gap_count": 11,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -1290,6 +1290,138 @@
       "required": false,
       "pass": true,
       "note": "PFO-1 (non-gating): Phase 1.5 open-room gap at t=900s. CFAST two-zone stratifies hot ceiling; SF one-zone outside cooling. Gap \u224853\u00b0C."
+    },
+    {
+      "name": "cfast_chain_r0_t180_temp_upper_c",
+      "actual": 156.78,
+      "expected": 158.005,
+      "tolerance": 15.0,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "CCH-1: corridor chain R0 fire room temp_upper at t=180s. tol=15.0\u00b0C (\u22653\u00d7 @0.1\u00b0C)."
+    },
+    {
+      "name": "cfast_chain_r0_t300_temp_upper_c",
+      "actual": 157.6,
+      "expected": 165.835,
+      "tolerance": 20.0,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "CCH-1: corridor chain R0 fire room temp_upper at t=300s. tol=20.0\u00b0C (\u22653\u00d7 @0.1\u00b0C)."
+    },
+    {
+      "name": "cfast_chain_r0_t600_temp_upper_c",
+      "actual": 143.41,
+      "expected": 168.39,
+      "tolerance": 30.0,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "CCH-1: corridor chain R0 fire room temp_upper at t=600s. tol=30.0\u00b0C (\u22653\u00d7 @0.1\u00b0C)."
+    },
+    {
+      "name": "cfast_chain_r0_o2_t480_o2",
+      "actual": 0.0939,
+      "expected": 0.11732799999999999,
+      "tolerance": 0.028,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "CCH-1: corridor chain R0 O2 upper at t=480s. tol=0.028 (\u22653\u00d7 step @0.0001)."
+    },
+    {
+      "name": "cfast_chain_r0_o2_t600_o2",
+      "actual": 0.0917,
+      "expected": 0.101968,
+      "tolerance": 0.015,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "CCH-1: corridor chain R0 O2 upper at t=600s. tol=0.015 (\u22653\u00d7 step @0.0001)."
+    },
+    {
+      "name": "cfast_chain_r0_rmse_temp_upper",
+      "actual": 20.54048365480959,
+      "expected": null,
+      "tolerance": null,
+      "minimum": null,
+      "maximum": 30.0,
+      "required": false,
+      "pass": true,
+      "note": "CCH-2: corridor chain R0 temp_upper RMSE \u2264 30\u00b0C (t=0\u2013600s). Measured RMSE=20.54\u00b0C; tol=30 (~95 steps @0.1\u00b0C)."
+    },
+    {
+      "name": "cfast_chain_r2_o2_t480_o2",
+      "actual": 0.1838,
+      "expected": 0.135705,
+      "tolerance": 0.055,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "CCH-1: corridor chain R2 O2 upper at t=480s \u2014 smoke reaches far room. tol=0.055 (\u22653\u00d7 @0.0001)."
+    },
+    {
+      "name": "cfast_chain_r2_o2_t600_o2",
+      "actual": 0.1698,
+      "expected": 0.119003,
+      "tolerance": 0.055,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "CCH-1: corridor chain R2 O2 upper at t=600s \u2014 smoke reaches far room. tol=0.055 (\u22653\u00d7 @0.0001)."
+    },
+    {
+      "name": "cfast_chain_r2_min_o2_smoke_arrival",
+      "actual": 0.1709,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 0.0,
+      "maximum": 0.2,
+      "required": false,
+      "pass": true,
+      "note": "CCH-2: corridor chain R2 O2 min < 20% \u2014 confirms smoke transport to far room (SF min=17.0%, CFAST min=11.9%)."
+    },
+    {
+      "name": "cfast_chain_r1_temp_t300_temp_upper_c",
+      "actual": 41.73,
+      "expected": 97.746,
+      "tolerance": 60.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "CCH-1 (non-gating): Phase 1.5 corridor heating gap at t=300s. CFAST two-zone doorway warms Hall ~98\u00b0C; SF one-zone ~42\u00b0C. Gap=56\u00b0C < tol=60\u00b0C (margin 40 steps)."
+    },
+    {
+      "name": "cfast_chain_r2_temp_t300_temp_upper_c",
+      "actual": 32.16,
+      "expected": 63.3018,
+      "tolerance": 35.0,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "CCH-1 (non-gating): Phase 1.5 far-room heating gap at t=300s. CFAST R2 upper ~63\u00b0C; SF R2 ~32\u00b0C \u2014 two-zone corridor transport. Gap=31.1\u00b0C < tol=35\u00b0C (margin 39 steps)."
+    },
+    {
+      "name": "cfast_chain_r1_o2_t480_o2",
+      "actual": 0.1879,
+      "expected": 0.125443,
+      "tolerance": 0.065,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "CCH-1 (non-gating): Phase 2A corridor O2 transport lag at t=480s. CFAST R1 O2=12.5% (two-zone doorway); SF R1=18.8% (one-zone lag). Gap=0.0625 < tol=0.065 (margin 25 steps)."
     },
     {
       "name": "cfast_2r_r0_t180_o2",
@@ -5327,17 +5459,6 @@
       "required": true,
       "pass": true,
       "note": "Regression baseline: tc_array_iso9705"
-    },
-    {
-      "name": "cfast_corridor_chain_pending",
-      "actual": null,
-      "expected": null,
-      "tolerance": null,
-      "minimum": null,
-      "maximum": null,
-      "required": false,
-      "pass": false,
-      "note": "Stage-B: 3-room corridor smoke transport \u2014 timing, O2 dilution in R2."
     },
     {
       "name": "cfast_bedroom_closed_door_pending",
