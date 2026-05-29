@@ -1,0 +1,2006 @@
+
+CFAST
+
+Release Version  : CFAST 7.7.5
+Revision         : CFAST-7.7.5-0-g6feca9299-release
+Revision Date    : Sun May 4 19:27:47 2025 -0400
+Compilation Date : Sun 05/04/2025  09:07 PM
+
+Data file: F:\OneDrive\Documentos\GitHub\simufire\sim\validation\cfast\cfast_suppression_water.in
+Title: Simufire Stage-B: water suppression, prescribed HRR knockdown at t=120s
+
+
+OVERVIEW
+
+
+Compartments    Doors, ...    Ceil. Vents, ...    MV Connects
+-------------------------------------------------------------
+   1               1             0                    0
+
+Simulation     Output         Smokeview      Spreadsheet
+Time           Interval       Interval       Interval
+   (s)            (s)            (s)            (s)
+--------------------------------------------------------
+    300.00          10.00          10.00           5.00
+
+
+AMBIENT CONDITIONS
+
+Interior       Interior       Exterior       Exterior
+Temperature    Pressure       Temperature    Pressure
+  (C)            (Pa)           (C)            (Pa)
+-----------------------------------------------------
+    20.          101325.          20.          101325.
+
+
+THERMAL PROPERTIES
+
+Name    Conductivity      Specific Heat     Density        Thickness     Emissivity
+        (kW/(m �C))       (kJ/(m �C))       (kg/m^3)       (m)
+-----------------------------------------------------------------------------------
+CONCRETE     1.75           1.000E+03       2.200E+03       0.150           0.940    
+DEFAULT     0.120            900.            800.           1.200E-02       0.900    
+ 
+
+
+COMPARTMENTS
+
+Compartment  Name                Width        Depth        Height       Floor        Ceiling    Shaft    Hall   Wall         Floor
+                                                                        Height       Height                     Leakage      Leakage
+                                 (m)          (m)          (m)          (m)          (m)                        (m^2)        (m^2)
+-------------------------------------------------------------------------------------------------------------------------------------
+    1        R0                   5.00         4.00         2.40         0.00         2.40                      7.34E-03     1.04E-03
+
+
+COMPARTMENT MATERIALS
+
+Compartment  Name              Surface      Layer      Conductivity    Specific Heat    Density        Thickness     Emissivity      Material
+                                                       (kW/(m C))     (kJ/(m C))      (kg/m^3)       (m)
+--------------------------------------------------------------------------------------------------------------------------------------------------
+    1        R0                Ceiling      1           1.75           1.000E+03       2.200E+03       0.150           0.940         CONCRETE
+                               Floor        1           1.75           1.000E+03       2.200E+03       0.150           0.940         CONCRETE
+                               Walls        1           1.75           1.000E+03       2.200E+03       0.150           0.940         CONCRETE
+
+
+VENT CONNECTIONS
+
+Wall Vents (Doors, Windows, ...)
+
+From           To              Vent      Width       Sill        Soffit      Open/Close  Trigger                 Initial     Initial     Final       Final
+Compartment    Compartment     Number                Height      Height      Type        Value       Target      Time        Fraction    Time        Fraction
+                                         (m)         (m)         (m)         (m)         (C/W/m^2)               (s)                     (s)
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+R0             Outside         1         2.00        0.80        2.00        Time                                0.00        1.00      300.00        1.00
+
+
+There are no vertical natural flow connections
+
+
+There are no mechanical flow connections
+
+
+VENT RAMPS
+
+There are no vent opening ramp specifications
+
+FIRES
+
+
+Name: WoodFire   Referenced as object #  1 Normal fire
+
+Compartment    Fire Type       Time to Flaming      Position (x,y,z)     Relative    Lower O2    Radiative
+                                                                         Humidity    Limit       Fraction
+--------------------------------------------------------------------------------------------------------------
+R0             Constrained           0.0           2.50   2.00   0.00     50.0        10.00        0.35
+
+
+Chemical formula of the fuel
+Carbon     Hydrogen  Oxygen    Nitrogen  Chlorine
+--------------------------------------------------
+  6.000    10.000     5.000     0.000     0.000
+
+
+  Time      Mdot      Hcomb     Qdot      Zoffset   Soot      CO        HCN       HCl       TS
+  (s)       (kg/s)    (J/kg)    (W)       (m)       (kg/kg)   (kg/kg)   (kg/kg)   (kg/kg)   (kg/kg)
+------------------------------------------------------------------------------------------------------
+     0.      0.0      1.81E+07   0.0       0.0      1.50E-02  4.00E-02   0.0       0.0       0.0
+    30.     5.47E-04  1.81E+07  9.90E+03   0.0      1.50E-02  4.00E-02   0.0       0.0       0.0
+    60.     2.19E-03  1.81E+07  3.96E+04   0.0      1.50E-02  4.00E-02   0.0       0.0       0.0
+    90.     4.92E-03  1.81E+07  8.91E+04   0.0      1.50E-02  4.00E-02   0.0       0.0       0.0
+   117.     8.29E-03  1.81E+07  1.50E+05   0.0      1.50E-02  4.00E-02   0.0       0.0       0.0
+   120.     8.29E-03  1.81E+07  1.50E+05   0.0      1.50E-02  4.00E-02   0.0       0.0       0.0
+   125.     6.08E-03  1.81E+07  1.10E+05   0.0      1.50E-02  4.00E-02   0.0       0.0       0.0
+   135.     2.49E-03  1.81E+07  4.50E+04   0.0      1.50E-02  4.00E-02   0.0       0.0       0.0
+   150.     6.63E-04  1.81E+07  1.20E+04   0.0      1.50E-02  4.00E-02   0.0       0.0       0.0
+   165.     2.21E-04  1.81E+07  4.00E+03   0.0      1.50E-02  4.00E-02   0.0       0.0       0.0
+   300.     2.21E-04  1.81E+07  4.00E+03   0.0      1.50E-02  4.00E-02   0.0       0.0       0.0
+   310.      0.0      1.81E+07   0.0       0.0      1.50E-02  4.00E-02   0.0       0.0       0.0
+
+
+****************************
+* Time =      0.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             20.00      20.00      2.400      4.80E-03(  0%)   75.0      7.698E-02     0.00    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y     0.00      0.00      0.00      0.00                                    0.00      0.00      0.00        0.00    
+ 
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.4       20.5       0.00       0.00       0.00       0.00       0.00       1.15       0.00       0.00       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.4       20.5       0.00       0.00       0.00       0.00       0.00       1.15       0.00       0.00       0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                                                                                                                                         
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                                                                                                                                        
+
+
+****************************
+* Time =     10.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             22.05      20.01      2.273       2.5    (  5%)  0.297      7.825E-02   -3.654E-04
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.383     1.823E-04 3.300E+03 0.175                                   2.145E+03 1.155E+03 9.432E-04    0.00    
+ 
+R0                                 0.383     1.823E-04 3.300E+03            0.00     3.300E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      2.893E-02  1.204E-03   0.00       0.00       0.00       1.18      1.974E-02  1.974E-02   0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.4       20.5       0.00       0.00       0.00       0.00       0.00       1.15       0.00       0.00       0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000         3.044E-04                 6.790E-03    1.187E-02    6.065E-03                 5.801E-03    7.094E-03                            
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                                  7.709E-05    2.922E-05    1.552E-05                 1.429E-05    8.054E-05                            
+
+
+****************************
+* Time =     20.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             23.47      20.03      2.101       6.0    ( 12%)  0.194      8.020E-02   -1.623E-03
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.415     3.646E-04 6.600E+03 0.296                                   4.290E+03 2.310E+03 3.726E-03    0.00    
+ 
+R0                                 0.415     3.646E-04 6.600E+03            0.00     6.600E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.4      4.988E-02  2.075E-03   0.00       0.00       0.00       1.20      3.388E-02  3.388E-02   0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.4       20.5       0.00       0.00       0.00       0.00       0.00       1.15       0.00       0.00       0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000         3.453E-04                 1.861E-02    2.812E-02    1.537E-02                 1.276E-02    1.895E-02                            
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     7.194E-05    1.558E-04    5.894E-05    1.041E-04                 2.673E-05    1.587E-04                            
+
+
+****************************
+* Time =     30.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             24.89      20.07      1.925       9.5    ( 20%)  0.155      8.251E-02   -3.976E-03
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.405     5.470E-04 9.900E+03 0.384                                   6.435E+03 3.465E+03 8.346E-03    0.00    
+ 
+R0                                 0.405     5.470E-04 9.900E+03            0.00     9.900E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.4      7.111E-02  2.958E-03   0.00       0.00       0.00       1.22      4.806E-02  4.806E-02   0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.4       20.5       0.00       0.00       0.00       0.00       0.00       1.15       0.00       0.00       0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000         3.368E-04    1.452E-02    3.308E-02    3.222E-02    3.411E-02                 1.264E-02    3.341E-02                            
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     2.326E-04    2.530E-04    5.477E-05    2.659E-04                 2.148E-05    2.556E-04                            
+
+
+****************************
+* Time =     40.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             27.13      20.15      1.762       13.    ( 27%)  0.136      8.500E-02   -9.457E-03
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.425     1.094E-03 1.980E+04 0.572                                   1.287E+04 6.930E+03 1.675E-02    0.00    
+ 
+R0                                 0.425     1.094E-03 1.980E+04            0.00     1.980E+04  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.4      0.104      4.308E-03   0.00       0.00       0.00       1.25      6.948E-02  6.948E-02   0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.4       20.5       0.00       0.00       0.00       0.00       0.00       1.15       0.00       0.00       0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000         3.855E-04    8.931E-02    7.407E-02    1.023E-02    9.661E-02                 2.924E-03    7.445E-02                            
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     4.820E-04    4.373E-04    1.738E-05    4.944E-04                              4.396E-04                            
+
+
+****************************
+* Time =     50.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             30.41      20.29      1.634       15.    ( 32%)  0.130      9.203E-02   -2.226E-02
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.418     1.641E-03 2.970E+04 0.708                                   1.930E+04 1.040E+04 3.059E-02    0.00    
+ 
+R0                                 0.418     1.641E-03 2.970E+04            0.00     2.970E+04  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.2       20.3      0.152      6.329E-03   0.00       0.00       0.00       1.29      0.101      0.101       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.4       20.5      3.956E-05  1.646E-06   0.00       0.00       0.00       1.15      2.715E-05  2.715E-05   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000         3.954E-04    0.193        0.159                     0.193                                  0.159                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     7.792E-04    7.604E-04                 7.792E-04                              7.623E-04                            
+
+
+****************************
+* Time =     60.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             34.40      20.51      1.551       17.    ( 35%)  0.130      9.354E-02   -4.657E-02
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.414     2.188E-03 3.960E+04 0.820                                   2.574E+04 1.386E+04 4.998E-02    0.00    
+ 
+R0                                 0.414     2.188E-03 3.960E+04            0.00     3.960E+04  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.2       20.2      0.212      8.822E-03   0.00       0.00       0.00       1.34      0.139      0.139       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.4       20.5      3.899E-04  1.622E-05   0.00       0.00       0.00       1.15      2.675E-04  2.675E-04   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000         2.668E-04    0.286        0.247                     0.286                                  0.247                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     1.044E-03    1.143E-03                 1.044E-03                              1.144E-03                            
+
+
+****************************
+* Time =     70.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             39.45      20.84      1.499       18.    ( 38%)  0.132      9.452E-02   -8.045E-02
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.444     3.099E-03 5.610E+04 0.941                                   3.647E+04 1.964E+04 7.676E-02    0.00    
+ 
+R0                                 0.444     3.099E-03 5.610E+04            0.00     5.610E+04  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.1       20.1      0.289      1.201E-02   0.00       0.00       0.00       1.41      0.186      0.186       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.4       20.5      1.311E-03  5.455E-05   0.00       0.00       0.00       1.16      8.985E-04  8.985E-04   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000         7.491E-05    0.371        0.320                     0.371                                  0.320                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     1.289E-03    1.501E-03                 1.289E-03                              1.501E-03                            
+
+
+****************************
+* Time =     80.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             45.70      21.28      1.469       19.    ( 39%)  0.137      9.508E-02   -0.124    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.475     4.011E-03 7.260E+04  1.04                                   4.719E+04 2.541E+04 0.113        0.00    
+ 
+R0                                 0.475     4.011E-03 7.260E+04            0.00     7.260E+04  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.1       20.0      0.385      1.600E-02   0.00       0.00       0.00       1.50      0.243      0.243       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.4       20.5      3.065E-03  1.275E-04   0.00       0.00       0.00       1.16      2.097E-03  2.097E-03   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.446        0.389                     0.446                                  0.389                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     1.512E-03    1.849E-03                 1.512E-03                              1.849E-03                            
+
+
+****************************
+* Time =     90.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             52.76      21.83      1.455       19.    ( 39%)  0.143      9.530E-02   -0.173    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.508     4.923E-03 8.910E+04  1.13                                   5.792E+04 3.118E+04 0.158        0.00    
+ 
+R0                                 0.508     4.923E-03 8.910E+04            0.00     8.910E+04  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.0       19.9      0.495      2.061E-02   0.00       0.00       0.00       1.59      0.306      0.306       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      5.813E-03  2.418E-04   0.00       0.00       0.00       1.16      3.970E-03  3.970E-03   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.507        0.447                     0.507                                  0.447                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     1.700E-03    2.159E-03                 1.700E-03                              2.159E-03                            
+
+
+****************************
+* Time =    100.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             60.68      22.49      1.449       19.    ( 40%)  0.149      9.538E-02   -0.225    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.556     6.169E-03 1.117E+05  1.23                                   7.258E+04 3.908E+04 0.214        0.00    
+ 
+R0                                 0.556     6.169E-03 1.117E+05            0.00     1.117E+05  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             77.9       19.7      0.621      2.584E-02   0.00       0.00       0.00       1.71      0.375      0.375       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      9.537E-03  3.967E-04   0.00       0.00       0.00       1.16      6.499E-03  6.499E-03   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.562        0.495                     0.562                                  0.495                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     1.872E-03    2.432E-03                 1.872E-03                              2.432E-03                            
+
+
+****************************
+* Time =    110.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             69.38      23.26      1.445       19.    ( 40%)  0.156      9.541E-02   -0.283    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.602     7.415E-03 1.342E+05  1.31                                   8.724E+04 4.697E+04 0.282        0.00    
+ 
+R0                                 0.602     7.415E-03 1.342E+05            0.00     1.342E+05  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             77.8       19.6      0.761      3.165E-02   0.00       0.00       0.00       1.83      0.447      0.447       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      1.424E-02  5.924E-04   0.00       0.00       0.00       1.17      9.677E-03  9.677E-03   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.611        0.541                     0.611                                  0.541                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     2.026E-03    2.699E-03                 2.026E-03                              2.699E-03                            
+
+
+****************************
+* Time =    120.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             78.16      24.11      1.443       19.    ( 40%)  0.163      9.540E-02   -0.345    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.634     8.287E-03 1.500E+05  1.37                                   9.750E+04 5.250E+04 0.363        0.00    
+ 
+R0                                 0.634     8.287E-03 1.500E+05            0.00     1.500E+05  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             77.7       19.4      0.905      3.766E-02   0.00       0.00       0.00       1.96      0.519      0.519       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      1.988E-02  8.270E-04   0.00       0.00       0.00       1.17      1.347E-02  1.347E-02   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.648        0.588                     0.648                                  0.588                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     2.148E-03    2.960E-03                 2.148E-03                              2.960E-03                            
+
+
+****************************
+* Time =    130.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             79.62      24.62      1.489       18.    ( 38%)  0.169      9.453E-02   -0.370    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.496     4.282E-03 7.750E+04  1.07                                   5.038E+04 2.712E+04 0.423        0.00    
+ 
+R0                                 0.496     4.282E-03 7.750E+04            0.00     7.750E+04  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             77.6       19.3      0.958      3.987E-02   0.00       0.00       0.00       2.00      0.547      0.547       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      2.542E-02  1.057E-03   0.00       0.00       0.00       1.18      1.719E-02  1.719E-02   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.580        0.618                     0.580                                  0.618                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     2.010E-03    3.070E-03                 2.010E-03                              3.070E-03                            
+
+
+****************************
+* Time =    140.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             72.74      24.53      1.564       17.    ( 35%)  0.172      9.316E-02   -0.317    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.404     1.878E-03 3.400E+04 0.758                                   2.210E+04 1.190E+04 0.450        0.00    
+ 
+R0                                 0.404     1.878E-03 3.400E+04           3.925E-12 3.400E+04  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             77.7       19.4      0.892      3.710E-02   0.00       0.00       0.00       1.95      0.519      0.519       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      2.739E-02  1.140E-03   0.00       0.00       0.00       1.18      1.854E-02  1.854E-02   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.474        0.536                     0.474                                  0.536                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     1.748E-03    2.756E-03                 1.748E-03                              2.756E-03                            
+
+
+****************************
+* Time =    150.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             65.15      24.18      1.637       15.    ( 32%)  0.173      9.185E-02   -0.267    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.189     6.630E-04 1.200E+04 0.431                                   7.800E+03 4.200E+03 0.463        0.00    
+ 
+R0                                 0.189     6.630E-04 1.200E+04            0.00     1.200E+04  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             77.7       19.5      0.806      3.352E-02   0.00       0.00       0.00       1.87      0.480      0.480       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      2.606E-02  1.084E-03   0.00       0.00       0.00       1.18      1.765E-02  1.765E-02   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.370        0.434        1.539E-03    0.371                                  0.434                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     1.478E-03    2.409E-03                 1.481E-03                              2.409E-03                            
+
+
+****************************
+* Time =    160.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             59.29      23.81      1.723       14.    ( 28%)  0.179      9.021E-02   -0.230    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.121     3.683E-04 6.667E+03 0.298                                   4.333E+03 2.333E+03 0.468        0.00    
+ 
+R0                                 0.121     3.683E-04 6.667E+03            0.00     6.667E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             77.8       19.6      0.760      3.160E-02   0.00       0.00       0.00       1.83      0.460      0.460       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      2.360E-02  9.816E-04   0.00       0.00       0.00       1.18      1.601E-02  1.601E-02   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.254        0.348        4.791E-02    0.302                                  0.348                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     1.183E-03    2.130E-03    8.144E-05    1.264E-03                              2.130E-03                            
+
+
+****************************
+* Time =    170.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             54.20      23.52      1.790       12.    ( 25%)  0.186      8.903E-02   -0.205    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    8.396E-02 2.210E-04 4.000E+03 0.205                                   2.600E+03 1.400E+03 0.470        0.00    
+ 
+R0                                 8.396E-02 2.210E-04 4.000E+03            0.00     4.000E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             77.8       19.6      0.730      3.036E-02   0.00       0.00       0.00       1.80      0.449      0.449       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      2.180E-02  9.068E-04   0.00       0.00       0.00       1.17      1.480E-02  1.480E-02   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.173        0.300        9.357E-02    0.267                                  0.300                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     9.609E-04    1.956E-03    1.591E-04    1.120E-03                              1.956E-03                            
+
+
+****************************
+* Time =    180.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             49.84      23.27      1.826       11.    ( 24%)  0.189      8.844E-02   -0.188    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    9.692E-02 2.210E-04 4.000E+03 0.205                                   2.600E+03 1.400E+03 0.472        0.00    
+ 
+R0                                 9.692E-02 2.210E-04 4.000E+03            0.00     4.000E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             77.8       19.6      0.698      2.903E-02   0.00       0.00       0.00       1.77      0.435      0.435       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      2.037E-02  8.473E-04   0.00       0.00       0.00       1.17      1.384E-02  1.384E-02   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.132        0.273        0.119        0.251                                  0.273                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     8.328E-04    1.845E-03    2.015E-04    1.034E-03                              1.845E-03                            
+
+
+****************************
+* Time =    190.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             46.18      23.07      1.841       11.    ( 23%)  0.190      8.820E-02   -0.175    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.111     2.210E-04 4.000E+03 0.205                                   2.600E+03 1.400E+03 0.475        0.00    
+ 
+R0                                 0.111     2.210E-04 4.000E+03            0.00     4.000E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             77.9       19.7      0.660      2.746E-02   0.00       0.00       0.00       1.74      0.416      0.416       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      1.914E-02  7.962E-04   0.00       0.00       0.00       1.17      1.302E-02  1.302E-02   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.114        0.257        0.127        0.241                                  0.257                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     7.623E-04    1.767E-03    2.163E-04    9.786E-04                              1.767E-03                            
+
+
+****************************
+* Time =    200.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             43.14      22.88      1.843       11.    ( 23%)  0.188      8.819E-02   -0.164    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.127     2.210E-04 4.000E+03 0.205                                   2.600E+03 1.400E+03 0.477        0.00    
+ 
+R0                                 0.127     2.210E-04 4.000E+03            0.00     4.000E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             77.9       19.7      0.618      2.570E-02   0.00       0.00       0.00       1.70      0.393      0.393       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      1.805E-02  7.507E-04   0.00       0.00       0.00       1.17      1.228E-02  1.228E-02   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.108        0.247        0.126        0.235                                  0.247                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     7.249E-04    1.706E-03    2.150E-04    9.399E-04                              1.706E-03                            
+
+
+****************************
+* Time =    210.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             40.60      22.72      1.836       11.    ( 23%)  0.184      8.832E-02   -0.154    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.144     2.210E-04 4.000E+03 0.205                                   2.600E+03 1.400E+03 0.479        0.00    
+ 
+R0                                 0.144     2.210E-04 4.000E+03            0.00     4.000E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             77.9       19.8      0.573      2.382E-02   0.00       0.00       0.00       1.66      0.368      0.368       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      1.705E-02  7.093E-04   0.00       0.00       0.00       1.17      1.161E-02  1.161E-02   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.110        0.239        0.120        0.230                                  0.239                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     7.079E-04    1.655E-03    2.040E-04    9.120E-04                              1.655E-03                            
+
+
+****************************
+* Time =    220.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             38.48      22.57      1.823       12.    ( 24%)  0.180      8.856E-02   -0.146    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.162     2.210E-04 4.000E+03 0.205                                   2.600E+03 1.400E+03 0.481        0.00    
+ 
+R0                                 0.162     2.210E-04 4.000E+03            0.00     4.000E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.0       19.9      0.526      2.189E-02   0.00       0.00       0.00       1.62      0.340      0.340       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      1.613E-02  6.710E-04   0.00       0.00       0.00       1.17      1.099E-02  1.099E-02   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.116        0.234        0.110        0.226                                  0.234                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     7.043E-04    1.612E-03    1.870E-04    8.913E-04                              1.612E-03                            
+
+
+****************************
+* Time =    230.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             36.66      22.43      1.804       12.    ( 25%)  0.174      8.889E-02   -0.139    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.181     2.210E-04 4.000E+03 0.205                                   2.600E+03 1.400E+03 0.483        0.00    
+ 
+R0                                 0.181     2.210E-04 4.000E+03            0.00     4.000E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.0       19.9      0.480      1.996E-02   0.00       0.00       0.00       1.58      0.312      0.312       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      1.527E-02  6.352E-04   0.00       0.00       0.00       1.17      1.041E-02  1.041E-02   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.126        0.230        9.756E-02    0.223                                  0.230                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     7.091E-04    1.575E-03    1.658E-04    8.749E-04                              1.575E-03                            
+
+
+****************************
+* Time =    240.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             35.02      22.30      1.781       12.    ( 26%)  0.168      8.929E-02   -0.132    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.202     2.210E-04 4.000E+03 0.205                                   2.600E+03 1.400E+03 0.486        0.00    
+ 
+R0                                 0.202     2.210E-04 4.000E+03            0.00     4.000E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.0       20.0      0.434      1.807E-02   0.00       0.00       0.00       1.54      0.284      0.284       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      1.446E-02  6.014E-04   0.00       0.00       0.00       1.17      9.857E-03  9.857E-03   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.138        0.227        8.372E-02    0.221                                  0.227                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     7.194E-04    1.542E-03    1.423E-04    8.617E-04                              1.542E-03                            
+
+
+****************************
+* Time =    250.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             33.55      22.18      1.754       13.    ( 27%)  0.162      8.978E-02   -0.126    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.226     2.210E-04 4.000E+03 0.205                                   2.600E+03 1.400E+03 0.488        0.00    
+ 
+R0                                 0.226     2.210E-04 4.000E+03            0.00     4.000E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.1       20.0      0.391      1.625E-02   0.00       0.00       0.00       1.50      0.256      0.256       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      1.369E-02  5.693E-04   0.00       0.00       0.00       1.17      9.335E-03  9.335E-03   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.152        0.225        6.881E-02    0.221                                  0.225                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     7.344E-04    1.513E-03    1.170E-04    8.513E-04                              1.513E-03                            
+
+
+****************************
+* Time =    260.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             32.23      22.06      1.723       14.    ( 28%)  0.156      9.037E-02   -0.120    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.253     2.210E-04 4.000E+03 0.205                                   2.600E+03 1.400E+03 0.490        0.00    
+ 
+R0                                 0.253     2.210E-04 4.000E+03            0.00     4.000E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.1       20.1      0.349      1.451E-02   0.00       0.00       0.00       1.46      0.230      0.230       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      1.295E-02  5.386E-04   0.00       0.00       0.00       1.17      8.834E-03  8.834E-03   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.168        0.225        5.312E-02    0.221                                  0.225                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     7.535E-04    1.489E-03    9.031E-05    8.438E-04                              1.489E-03                            
+
+
+****************************
+* Time =    270.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             31.11      21.96      1.691       14.    ( 30%)  0.150      9.099E-02   -0.115    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.253     2.210E-04 4.000E+03 0.205                                   2.600E+03 1.400E+03 0.492        0.00    
+ 
+R0                                 0.253     2.210E-04 4.000E+03            0.00     4.000E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.1       20.1      0.311      1.296E-02   0.00       0.00       0.00       1.43      0.206      0.206       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      1.223E-02  5.089E-04   0.00       0.00       0.00       1.17      8.351E-03  8.351E-03   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.183        0.226        3.883E-02    0.222                                  0.226                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     7.714E-04    1.467E-03    6.601E-05    8.374E-04                              1.467E-03                            
+
+
+****************************
+* Time =    280.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             30.25      21.86      1.666       15.    ( 31%)  0.146      9.147E-02   -0.110    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.248     2.210E-04 4.000E+03 0.205                                   2.600E+03 1.400E+03 0.495        0.00    
+ 
+R0                                 0.248     2.210E-04 4.000E+03            0.00     4.000E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.1       20.2      0.282      1.171E-02   0.00       0.00       0.00       1.40      0.187      0.187       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      1.155E-02  4.805E-04   0.00       0.00       0.00       1.16      7.887E-03  7.887E-03   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.193        0.225        2.880E-02    0.222                                  0.225                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     7.799E-04    1.443E-03    4.896E-05    8.289E-04                              1.443E-03                            
+
+
+****************************
+* Time =    290.0 seconds. *
+****************************
+ 
+Compartment    Upper     Lower      Inter.      Upper           Upper      Lower       Pressure
+               Temp.     Temp       Height      Vol             Absor      Absorb
+               (C)       (C)        (m)         (m^3)           (1/m)      (1/m)       (Pa)
+----------------------------------------------------------------------------------------------------
+R0             29.57      21.76      1.647       15.    ( 31%)  0.142      9.182E-02   -0.105    
+
+
+FIRES
+
+Compartment    Fire          Ign   Plume     Pyrol     Fire      Flame     Fire in   Fire in   Vent      Convec.   Radiat.    Pyrolysate  Trace
+                                   Flow      Rate      Size      Height    Upper     Lower     Fire
+                                   (kg/s)    (kg/s)    (W)       (m)       (W)       (W)       (W)       (W)       (W)        (kg)        (kg)
+ --------------------------------------------------------------------------------------------------------------------------------------------------
+                  WoodFire    Y    0.243     2.210E-04 4.000E+03 0.205                                   2.600E+03 1.400E+03 0.497        0.00    
+ 
+R0                                 0.243     2.210E-04 4.000E+03            0.00     4.000E+03  0.00    
+
+
+UPPER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.2       20.2      0.257      1.070E-02   0.00       0.00       0.00       1.38      0.171      0.171       0.00       0.00
+
+
+LOWER LAYER SPECIES
+
+Compartment    N2         O2         CO2        CO         HCN        HCL        TUHC       H2O        OD         OD_F       OD_S        TS
+               (%)        (%)        (%)        (%)        (%)        (%)        (%)        (%)        (1/m)      (1/m)      (1/m)       kg
+----------------------------------------------------------------------------------------------------------------------------------------------------
+R0             78.3       20.5      1.090E-02  4.534E-04   0.00       0.00       0.00       1.16      7.445E-03  7.445E-03   0.00       0.00
+
+
+FLOW THROUGH VENTS (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to 'To'
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+H  1   R0             Outside          1.000                      0.199        0.224        2.157E-02    0.221                                  0.224                                
+
+
+TOTAL MASS FLOW THROUGH MECHANICAL VENTS (kg)
+
+To             Through              Upper Layer               Lower Layer              Trace Species
+Compartment    Vent             Inflow       Outflow      Inflow       Outflow       Vented    Filtered
+--------------------------------------------------------------------------------------------------------
+
+
+LEAKAGE (kg/s)
+
+                                                    Flow relative to 'From'                             Flow Relative to Outside
+                                       Opening      Upper Layer               Lower Layer               Upper Layer               Lower Layer
+Vent   From/Bottom    To/Top           Fraction     Inflow       Outflow      Inflow       Outflow      Inflow       Outflow      Inflow       Outflow
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+Leak   R0             Outside                                     7.829E-04    1.418E-03    3.667E-05    8.196E-04                              1.418E-03                            

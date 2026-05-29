@@ -1,0 +1,8 @@
+Status at T =    2.95E+02 DT =   0.295     STEPS = 611
+ 
+ Compartment   Upper   Lower   Inter.  Pyrol     Fire      Pressure
+               Temp.   Temp.   Height  Rate      Size
+               (C)     (C)     (m)     (kg/s)    (W)       (Pa)
+ --------------------------------------------------------------------
+    1           29.3    21.7    1.6     2.210E-04 4.000E+03-0.103    
+  Outside                                         0.00    
