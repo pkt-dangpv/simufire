@@ -1,0 +1,55 @@
+&HEAD VERSION = 7600, TITLE = 'Simufire Stage-B: water suppression, prescribed HRR knockdown at t=120s' /
+
+!! Scenario: suppression_water
+!! Room: R0 5.0 x 4.0 x 2.4 m = 48 m^3 (same geometry as pool_fire_open).
+!! Window OPEN to OUTSIDE (fresh air supply; prevents O2 starvation before suppression).
+!! Door to adjacent room CLOSED (fire confined to R0).
+!! t-squared fire alpha=0.011 kW/s^2, HRR cap 150 kW at t=117s.
+!! Prescribed knockdown at t=120s: HRR drops from 150 -> ~4 kW over ~45s.
+!! Models manual water application (hose or sprinkler activation) at t=120s.
+!! Duration 300s. SPREADSHEET=5s for 60 rows of reference data.
+&TIME SIMULATION = 300 PRINT = 10 SMOKEVIEW = 10 SPREADSHEET = 5 /
+&INIT PRESSURE = 101325 RELATIVE_HUMIDITY = 50 INTERIOR_TEMPERATURE = 20 EXTERIOR_TEMPERATURE = 20 /
+&MISC LOWER_OXYGEN_LIMIT = 0.10 /
+
+&MATL ID = 'CONCRETE' MATERIAL = 'Concrete Normal Weight (6 in)',
+      CONDUCTIVITY = 1.75 DENSITY = 2200 SPECIFIC_HEAT = 1, THICKNESS = 0.15 EMISSIVITY = 0.94 /
+
+!! Compartment R0: 5.0 m (W) x 4.0 m (D) x 2.4 m (H) — same as pool_fire_open
+&COMP ID = 'R0'
+      DEPTH = 4.0 HEIGHT = 2.4 WIDTH = 5.0
+      CEILING_MATL_ID = 'CONCRETE' WALL_MATL_ID = 'CONCRETE' FLOOR_MATL_ID = 'CONCRETE'
+      ORIGIN = 0.0, 0.0, 0.0 GRID = 40, 32, 24
+      LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
+
+!! Window to OUTSIDE: open from t=0, 2.0 m wide x 1.2 m tall (same as pool_fire_open)
+&VENT TYPE = 'WALL' ID = 'R0 Window' COMP_IDS = 'R0' 'OUTSIDE' TOP = 2.0 BOTTOM = 0.8 WIDTH = 2.0
+      CRITERION = 'TIME' T = 0, 300 F = 1, 1 FACE = 'FRONT' OFFSET = 1.5 /
+
+!! t-squared fire alpha=0.011 kW/s^2, peaks at 150 kW at t=117s.
+!! Prescribed knockdown starting t=120s (models water application).
+!! HRR decays: 150 -> 110 -> 45 -> 12 -> 4 kW (decay curve over ~45s).
+!! Area column proportional to HRR at ~1420 kW/m^2 (matches bedroom_closed_door).
+&FIRE ID = 'WoodFire' COMP_ID = 'R0', FIRE_ID = 'SuppressWood' LOCATION = 2.5, 2.0 /
+&CHEM ID = 'SuppressWood' CARBON = 6 CHLORINE = 0 HYDROGEN = 10 NITROGEN = 0 OXYGEN = 5
+      HEAT_OF_COMBUSTION = 18100 RADIATIVE_FRACTION = 0.35 /
+&TABL ID = 'SuppressWood' LABELS = 'TIME', 'HRR', 'HEIGHT', 'AREA', 'CO_YIELD', 'SOOT_YIELD', 'HCN_YIELD', 'HCL_YIELD', 'TRACE_YIELD' /
+&TABL ID = 'SuppressWood', DATA =   0,   0.0, 0, 0.001, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'SuppressWood', DATA =  30,   9.9, 0, 0.007, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'SuppressWood', DATA =  60,  39.6, 0, 0.028, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'SuppressWood', DATA =  90,  89.1, 0, 0.063, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'SuppressWood', DATA = 117, 150.0, 0, 0.106, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'SuppressWood', DATA = 120, 150.0, 0, 0.106, 0.04, 0.015, 0, 0, 0 /
+!! Water knockdown: 150 -> 0 kW over ~45s
+&TABL ID = 'SuppressWood', DATA = 125, 110.0, 0, 0.077, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'SuppressWood', DATA = 135,  45.0, 0, 0.032, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'SuppressWood', DATA = 150,  12.0, 0, 0.008, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'SuppressWood', DATA = 165,   4.0, 0, 0.003, 0.04, 0.015, 0, 0, 0 /
+!! Residual smoldering 4 kW (below extinction threshold) for remainder
+&TABL ID = 'SuppressWood', DATA = 300,   4.0, 0, 0.003, 0.04, 0.015, 0, 0, 0 /
+&TABL ID = 'SuppressWood', DATA = 310,   0.0, 0, 0.001, 0.04, 0.015, 0, 0, 0 /
+
+!! Device at 1.8m (standing occupant head height)
+&DEVC ID = 'Head_18m' COMP_ID = 'R0' LOCATION = 2.5, 2.0, 1.8 TYPE = 'THERMOCOUPLE' /
+
+&TAIL /
