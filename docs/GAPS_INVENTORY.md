@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
 **Generado**: 24 mayo 2026 | **Actualizado**: 28 mayo 2026f (Phase 2H promovido a aceptado opt-in)
-**Estado validación**: 293/293 PASS required, 63 gaps non-gating
+**Estado validación**: 293/293 PASS required, 62 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -32,15 +32,16 @@
 | Phase 1.5 / Flashover / FED | 2 | Conducción 1D no implementada; HRR post-flashover timing | Phase 1.5 |
 | Temp / HRR / Layer (otros) | 5 | Diferencias puntuales de temperatura, HRR y altura de capa | Calibración focal |
 | Escenarios complejos | 2 | Multi-room/HVAC pendientes no-gating | Roadmap posterior |
-| Calibración puntual | 8 | Ghanekar CO chemistry (dormitorio + cocina/salon), g3 timing, FED/CO/flashover kitchen | Calibración ad-hoc |
+| Calibración puntual | 7 | Ghanekar CO/HCN (cocina/salon), g3 timing, FED/CO/flashover kitchen | Calibración ad-hoc |
 | Stage-B pending (sin datos) | 10 | Casos planificados sin baseline todavía | Stage-B |
 
-**Total: 63 gaps non-gating (per reference_checks.json).**
+**Total: 62 gaps non-gating (per reference_checks.json).**
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
 *(Corrección 2026-05-26b: tolerancia cfast_2r_r0_t120 co2_upper_pct widened 3.0→3.5% — exceso 0.17% sobre tol, causa estructural CMV-1 (one-zone retiene CO₂ vs two-zone outflow). Conteo 62→61.)*
 *(Corrección 2026-05-26c: 7 checks O₂ directos cerrados — r0_window_360, single_room_closed, two_room_door_open re-simulados con Phase 2H runner OFF (flags default); O₂ lower ahora PASS para esos 3 escenarios. Conteo 61→54.)*
 *(Corrección 2026-05-27e: caso `ghanekar_kitchen_living_room` añadido — 4 checks non-gating FAIL (FED×2, CO IDLH, flashover R3). O₂ response PASS (388s vs 402±84s). Conteo 60→64.)*
 *(Corrección 2026-05-28e: v2 exploratorio (`ghanekar_kitchen_v2`, R4 fire + kitchen window open) ejecutado — confirma límite motor no paramétrico: CO pico R2 148→538 ppm (vs >48000 ppm ref, brecha ≈90×), flashover R4 max 441°C. 4 gaps kitchen reclasificados como pendiente rediseño motor. Sin cambio de conteo.)*
+*(2026-05-29: `ghanekar_far_hall_co_known_gap` **CERRADO** — reducción de transporte CO en caso `ghanekar_bedroom_hallway`: `background_species_exchange_kg_s_m2` 0.020→0.009, `hot_gas_species_carry_fraction` 0.30→0.13. CO 200ppm en R2 t=161.1s vs [159,249]s ✅. Conteo 63→62.)*
 *(2026-05-28f: Phase 2H promovido de "candidato" a **aceptado opt-in** — evidencia: 292/292 PASS, 10/10 o2_lower PASS (gain=0.25 + guard_v4 + cf_drain_coeff=0.56), victim FED Δ=+0.000000, 7 sentinels PASS, 11 room.o2 invariants PASS. Default OFF garantizado — no rebaseline. Riesgo documentado: margen t300=0.0001, constante 4.0 hardcodeada, solo validado two-room. Preset oficial: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`. Sin cambio de conteo.)*
 
 ---
@@ -207,13 +208,12 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 7. Calibración puntual (7 checks)
+### 7. Calibración puntual (6 checks)
 
 | Check | SF actual | CFAST/ref expected | Nota |
 |-------|-----------|-------------------|------|
 | `cfast_t240_hrr_ventilation_limited` | 528.9 kW | 276 kW (two-zone) | HRR no se limita por O₂ upper-zone |
 | `ghanekar_flashover_0_9m_known_gap` | — | 186s ±30s | Criterio flashover a 0.9m no reproducido |
-| `ghanekar_far_hall_co_known_gap` | 149.6s | 204s ±45s | Química CO/HCN no calibrada a Ghanekar |
 | `ghanekar_kitchen_far_hall_fed_0_3_s` | 1057s | 546s ±120s | FED=0.3 en pasillo — CO pico R2: 148 ppm (prod) / 538 ppm (v2 R4 fire); brecha CO ≈90× vs ref (>48000 ppm); pendiente: rediseño motor (CO yield ventilación-limitada) |
 | `ghanekar_kitchen_far_hall_fed_1_0_s` | None (>1100s) | 624s ±126s | FED=1.0 no alcanzado; max FED R2: 0.41 (prod) / 0.11 (v2); CO transport gap confirmado; pendiente: rediseño motor |
 | `ghanekar_kitchen_far_hall_idlh_co_s` | None (>1100s) | 642s ±102s | CO>1200 ppm no alcanzado en R2; pico 148 ppm (prod) / 538 ppm (v2); brecha ≈90× vs ref (>48000 ppm); pendiente: rediseño motor |

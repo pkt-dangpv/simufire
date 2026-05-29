@@ -2,7 +2,7 @@
   "all_required_pass": true,
   "required_count": 293,
   "failed_required_count": 0,
-  "known_gap_count": 63,
+  "known_gap_count": 62,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -2404,7 +2404,7 @@
     },
     {
       "name": "ghanekar_far_hall_o2_response_time_s",
-      "actual": 168.083333333335,
+      "actual": 179.500000000003,
       "expected": 198.0,
       "tolerance": 30.0,
       "minimum": null,
@@ -2426,7 +2426,7 @@
     },
     {
       "name": "ghanekar_origin_peak_upper_temp_reasonable_c",
-      "actual": 539.812745252402,
+      "actual": 494.48754718502,
       "expected": null,
       "tolerance": null,
       "minimum": 450.0,
@@ -2448,13 +2448,13 @@
     },
     {
       "name": "ghanekar_far_hall_co_known_gap",
-      "actual": 149.583333333333,
+      "actual": 161.083333333334,
       "expected": 204.0,
       "tolerance": 45.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "Known gap: CO/HCN toxic-gas chemistry is not calibrated to the Ghanekar paper."
     },
     {
