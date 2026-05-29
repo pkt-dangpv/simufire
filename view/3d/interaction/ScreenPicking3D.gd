@@ -62,6 +62,15 @@ static func is_screen_point_over_model(
 	return expanded_bounds.has_point(hit_m)
 
 
+static func floor_hit_m(
+	camera: Camera3D,
+	screen_pos: Vector2,
+	meters_to_units: float,
+	origin_offset_m: Vector2
+) -> Variant:
+	return _floor_hit_m(camera, screen_pos, meters_to_units, origin_offset_m)
+
+
 static func _floor_hit_m(
 	camera: Camera3D,
 	screen_pos: Vector2,

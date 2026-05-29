@@ -3,6 +3,17 @@ class_name Visualizer3D
 
 signal room_clicked(room_id: int)
 signal opening_clicked(opening_index: int, screen_pos: Vector2)
+signal object_clicked(room_id: int, object_id: String)
+signal detector_clicked(detector_id: String)
+signal victim_clicked(victim_id: String)
+signal player_start_clicked(room_id: int)
+signal floor_clicked(room_id: int, floor_pos_m: Vector2)
+signal element_drag_started(kind: String)
+signal object_dragged(room_id: int, object_id: String, floor_pos_m: Vector2)
+signal detector_dragged(detector_id: String, floor_pos_m: Vector2)
+signal victim_dragged(victim_id: String, floor_pos_m: Vector2)
+signal player_start_dragged(floor_pos_m: Vector2)
+signal element_drag_ended(kind: String)
 
 ## Basic editable 3D view for the same BuildingModel / SimulationEngine state.
 ## The scene owns the camera, lights, and container nodes; this script only
@@ -51,7 +62,6 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var show_layer_150c: bool = false
 @export var show_hrr_columns: bool = true
 @export var show_fuel_objects_3d: bool = true
-@export var show_auto_room_furniture_3d: bool = true
 @export var show_detector_markers_3d: bool = true
 @export var show_victim_markers_3d: bool = true
 @export var show_exterior_context_3d: bool = false
@@ -92,6 +102,8 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var detector_triggered_color: Color = Color(1.0, 0.40, 0.18, 1.0)
 @export var victim_marker_color: Color = Color(0.95, 0.86, 0.48, 1.0)
 @export var victim_incapacitated_color: Color = Color(0.58, 0.58, 0.62, 1.0)
+@export var player_start_marker_color: Color = Color(0.58, 0.88, 1.0, 1.0)
+@export var selection_highlight_color: Color = Color(1.0, 0.88, 0.18, 1.0)
 
 @export_group("Dynamics")
 @export var smoke_visible_threshold_kg: float = 0.01
@@ -131,6 +143,7 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export_group("Camera")
 @export var enable_mouse_camera: bool = true
 @export var orbit_with_left_drag_on_model: bool = true
+@export var allow_element_drag: bool = true
 @export var camera_distance_m: float = 13.0
 @export var min_camera_distance_m: float = 4.0
 @export var max_camera_distance_m: float = 35.0
@@ -151,6 +164,7 @@ var _camera: Camera3D = null
 
 var _room_items: Dictionary = {}
 var _opening_items: Dictionary = {}
+var _player_start_node: Node3D = null
 var _built: bool = false
 var _bounds_m: Rect2 = Rect2()
 var _origin_offset_m: Vector2 = Vector2.ZERO
@@ -160,6 +174,17 @@ var _orbit_y: float = 0.0
 var _orbit_dragging: bool = false
 var _selected_room_id: int = -1
 var _selected_opening_index: int = -1
+var _selected_object_room_id: int = -1
+var _selected_object_id: String = ""
+var _selected_detector_id: String = ""
+var _selected_victim_id: String = ""
+var _selected_player_start: bool = false
+var _dragging_element_kind: String = ""
+var _dragging_element_id: String = ""
+var _dragging_element_room_id: int = -1
+var _drag_floor_offset_m: Vector2 = Vector2.ZERO
+var _drag_start_floor_pos_m: Vector2 = Vector2.ZERO
+var _drag_started_emitted: bool = false
 var _fire_phase: float = 0.0
 var _input_active: bool = true
 var _first_person_overlay: bool = false
@@ -195,6 +220,13 @@ func set_active(active: bool, camera_active: bool = true, input_active: bool = t
 	_apply_overlay_visibility()
 	if not active:
 		_orbit_dragging = false
+		_clear_element_drag()
+
+
+func set_element_drag_enabled(enabled: bool) -> void:
+	allow_element_drag = enabled
+	if not allow_element_drag:
+		_clear_element_drag()
 
 
 func set_state(next_state: Dictionary) -> void:
@@ -210,15 +242,94 @@ func rebuild_from_building() -> void:
 	_rebuild_scene()
 	_fit_camera_to_building()
 	_update_dynamic_state()
+	_update_room_selection_visuals()
+
+
+func select_room(room_id: int) -> void:
+	_selected_room_id = room_id
+	_selected_opening_index = -1
+	_selected_object_room_id = -1
+	_selected_object_id = ""
+	_selected_detector_id = ""
+	_selected_victim_id = ""
+	_selected_player_start = false
+	_apply_selection_visuals()
 
 
 func select_opening(opening_index: int) -> void:
+	_selected_room_id = -1
 	_selected_opening_index = opening_index
-	_update_openings()
+	_selected_object_room_id = -1
+	_selected_object_id = ""
+	_selected_detector_id = ""
+	_selected_victim_id = ""
+	_selected_player_start = false
+	_apply_selection_visuals()
+
+
+func select_object(room_id: int, object_id: String) -> void:
+	_selected_room_id = -1
+	_selected_opening_index = -1
+	_selected_object_room_id = room_id
+	_selected_object_id = object_id
+	_selected_detector_id = ""
+	_selected_victim_id = ""
+	_selected_player_start = false
+	_apply_selection_visuals()
+
+
+func select_detector(detector_id: String) -> void:
+	_selected_room_id = -1
+	_selected_opening_index = -1
+	_selected_object_room_id = -1
+	_selected_object_id = ""
+	_selected_detector_id = detector_id
+	_selected_victim_id = ""
+	_selected_player_start = false
+	_apply_selection_visuals()
+
+
+func select_victim(victim_id: String) -> void:
+	_selected_room_id = -1
+	_selected_opening_index = -1
+	_selected_object_room_id = -1
+	_selected_object_id = ""
+	_selected_detector_id = ""
+	_selected_victim_id = victim_id
+	_selected_player_start = false
+	_apply_selection_visuals()
+
+
+func select_player_start() -> void:
+	_selected_room_id = -1
+	_selected_opening_index = -1
+	_selected_object_room_id = -1
+	_selected_object_id = ""
+	_selected_detector_id = ""
+	_selected_victim_id = ""
+	_selected_player_start = true
+	_apply_selection_visuals()
+
+
+func clear_selection() -> void:
+	_selected_room_id = -1
+	_selected_opening_index = -1
+	_selected_object_room_id = -1
+	_selected_object_id = ""
+	_selected_detector_id = ""
+	_selected_victim_id = ""
+	_selected_player_start = false
+	_apply_selection_visuals()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not _input_active or not enable_mouse_camera or not is_visible_in_tree():
+		return
+
+	if event is InputEventMouseMotion and _is_element_dragging():
+		var drag_motion := event as InputEventMouseMotion
+		_update_element_drag(drag_motion.position)
+		get_viewport().set_input_as_handled()
 		return
 
 	if event is InputEventMouseMotion and _orbit_dragging:
@@ -233,33 +344,63 @@ func _unhandled_input(event: InputEvent) -> void:
 		if mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
 				if ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m):
+					var player_start_hit: Dictionary = _player_start_at_screen_pos(mb.position)
+					if not player_start_hit.is_empty():
+						var start_room_id: int = int(player_start_hit.get("room_id", -1))
+						select_player_start()
+						player_start_clicked.emit(start_room_id)
+						_begin_element_drag("player_start", "player_start", start_room_id, mb.position)
+						get_viewport().set_input_as_handled()
+						return
+					var safety_hit: Dictionary = _safety_marker_at_screen_pos(mb.position)
+					if not safety_hit.is_empty():
+						var hit_type: String = String(safety_hit.get("type", ""))
+						var hit_id: String = String(safety_hit.get("id", ""))
+						if hit_type == "detector":
+							select_detector(hit_id)
+							detector_clicked.emit(hit_id)
+							_begin_element_drag(hit_type, hit_id, -1, mb.position)
+						elif hit_type == "victim":
+							select_victim(hit_id)
+							victim_clicked.emit(hit_id)
+							_begin_element_drag(hit_type, hit_id, -1, mb.position)
+						get_viewport().set_input_as_handled()
+						return
+					var object_hit: Dictionary = _fuel_object_at_screen_pos(mb.position)
+					if not object_hit.is_empty():
+						var object_room_id: int = int(object_hit.get("room_id", -1))
+						var object_id: String = String(object_hit.get("object_id", ""))
+						select_object(object_room_id, object_id)
+						object_clicked.emit(object_room_id, object_id)
+						_begin_element_drag("object", object_id, object_room_id, mb.position)
+						get_viewport().set_input_as_handled()
+						return
 					var opening_index: int = ScreenPicking3D.opening_index_at_screen_pos(_camera, _opening_items, mb.position)
 					if opening_index >= 0:
-						_selected_opening_index = opening_index
-						_update_openings()
+						select_opening(opening_index)
 						opening_clicked.emit(opening_index, mb.position)
 						get_viewport().set_input_as_handled()
 						return
 					var rid: int = ScreenPicking3D.room_id_at_screen_pos(_camera, building, mb.position, meters_to_units, _origin_offset_m)
 					if rid >= 0:
-						_selected_room_id = rid
-						_selected_opening_index = -1
-						_update_openings()
+						select_room(rid)
 						room_clicked.emit(rid)
+						var floor_hit: Variant = screen_to_floor_m(mb.position)
+						if typeof(floor_hit) == TYPE_VECTOR2:
+							floor_clicked.emit(rid, Vector2(floor_hit))
 						get_viewport().set_input_as_handled()
-					elif _selected_room_id >= 0:
-						_selected_room_id = -1
-						_selected_opening_index = -1
-						_update_openings()
+					elif _has_selection():
+						clear_selection()
 						room_clicked.emit(-1)
 						get_viewport().set_input_as_handled()
 				else:
-					if _selected_room_id >= 0 or _selected_opening_index >= 0:
-						_selected_room_id = -1
-						_selected_opening_index = -1
-						_update_openings()
+					if _has_selection():
+						clear_selection()
 						room_clicked.emit(-1)
 						get_viewport().set_input_as_handled()
+			elif _is_element_dragging():
+				_finish_element_drag()
+				get_viewport().set_input_as_handled()
 		elif mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m):
 			_orbit_dragging = true
 			get_viewport().set_input_as_handled()
@@ -337,6 +478,7 @@ func _rebuild_scene() -> void:
 	_clear_container(_labels_root)
 	_room_items.clear()
 	_opening_items.clear()
+	_player_start_node = null
 
 	var rects: Dictionary = building.get_room_rects_m()
 	if rects.is_empty():
@@ -363,6 +505,7 @@ func _rebuild_scene() -> void:
 		_create_exterior_context_visuals()
 
 	_built = true
+	_update_room_selection_visuals()
 
 
 func _clear_container(container: Node) -> void:
@@ -919,6 +1062,8 @@ func _update_dynamic_state() -> void:
 	for room_id in _room_items.keys():
 		_update_room(int(room_id))
 	_update_openings()
+	_update_player_start_marker_3d()
+	_apply_selection_visuals()
 
 
 func _update_room(room_id: int) -> void:
@@ -958,7 +1103,7 @@ func _update_room(room_id: int) -> void:
 			0.0,
 			1.0
 		)
-		floor_mat.albedo_color = floor_color.lerp(hot_floor_color, heat_t)
+		floor_mat.albedo_color = _selection_tinted_room_color(room_id, floor_color.lerp(hot_floor_color, heat_t))
 	_update_wall_temperature(walls, temp_upper_c)
 
 	_update_smoke_volume(item, smoke, smoke_edge, rect, height_m, smoke_layer_m, smoke_kg, hrr_kw, visibility_m)
@@ -994,6 +1139,237 @@ func _update_room(room_id: int) -> void:
 
 	_update_room_fuel_objects_3d(item, rs, rect)
 	_update_room_safety_markers_3d(room_id, item, rect)
+
+
+func _update_room_selection_visuals() -> void:
+	for room_id in _room_items.keys():
+		var item: Dictionary = _room_items[room_id]
+		var floor := item.get("floor") as MeshInstance3D
+		if floor == null:
+			continue
+		var mat := floor.material_override as StandardMaterial3D
+		if mat == null:
+			continue
+		mat.albedo_color = _selection_tinted_room_color(int(room_id), _room_base_floor_color(int(room_id)))
+		var label := item.get("label") as Label3D
+		if label != null:
+			label.modulate = selection_highlight_color if int(room_id) == _selected_room_id else label_color
+
+
+func _apply_selection_visuals() -> void:
+	_update_room_selection_visuals()
+	_update_openings()
+	_update_fuel_object_selection_visuals()
+	_update_safety_marker_selection_visuals()
+	_update_player_start_marker_3d()
+
+
+func _has_selection() -> bool:
+	return _selected_room_id >= 0 \
+		or _selected_opening_index >= 0 \
+		or _selected_object_id != "" \
+		or _selected_detector_id != "" \
+		or _selected_victim_id != "" \
+		or _selected_player_start
+
+
+func screen_to_floor_m(screen_pos: Vector2) -> Variant:
+	return ScreenPicking3D.floor_hit_m(_camera, screen_pos, meters_to_units, _origin_offset_m)
+
+
+func _begin_element_drag(kind: String, element_id: String, room_id: int, screen_pos: Vector2) -> void:
+	if not allow_element_drag:
+		return
+	var floor_hit: Variant = screen_to_floor_m(screen_pos)
+	if typeof(floor_hit) != TYPE_VECTOR2:
+		return
+	var element_pos: Variant = _element_floor_position_m(kind, element_id, room_id)
+	if typeof(element_pos) != TYPE_VECTOR2:
+		return
+	_dragging_element_kind = kind
+	_dragging_element_id = element_id
+	_dragging_element_room_id = room_id
+	_drag_floor_offset_m = Vector2(element_pos) - Vector2(floor_hit)
+	_drag_start_floor_pos_m = Vector2(element_pos)
+	_drag_started_emitted = false
+
+
+func _update_element_drag(screen_pos: Vector2) -> void:
+	if not _is_element_dragging():
+		return
+	var floor_hit: Variant = screen_to_floor_m(screen_pos)
+	if typeof(floor_hit) != TYPE_VECTOR2:
+		return
+	var next_floor_pos_m: Vector2 = Vector2(floor_hit) + _drag_floor_offset_m
+	if not _drag_started_emitted:
+		if next_floor_pos_m.distance_to(_drag_start_floor_pos_m) < 0.03:
+			return
+		_drag_started_emitted = true
+		element_drag_started.emit(_dragging_element_kind)
+	_move_dragged_element_preview(next_floor_pos_m)
+	match _dragging_element_kind:
+		"object":
+			object_dragged.emit(_dragging_element_room_id, _dragging_element_id, next_floor_pos_m)
+		"detector":
+			detector_dragged.emit(_dragging_element_id, next_floor_pos_m)
+		"victim":
+			victim_dragged.emit(_dragging_element_id, next_floor_pos_m)
+		"player_start":
+			player_start_dragged.emit(next_floor_pos_m)
+
+
+func _finish_element_drag() -> void:
+	if _drag_started_emitted:
+		element_drag_ended.emit(_dragging_element_kind)
+	_clear_element_drag()
+
+
+func _clear_element_drag() -> void:
+	_dragging_element_kind = ""
+	_dragging_element_id = ""
+	_dragging_element_room_id = -1
+	_drag_floor_offset_m = Vector2.ZERO
+	_drag_start_floor_pos_m = Vector2.ZERO
+	_drag_started_emitted = false
+
+
+func _is_element_dragging() -> bool:
+	return _dragging_element_kind != "" and _dragging_element_id != ""
+
+
+func _element_floor_position_m(kind: String, element_id: String, room_id: int) -> Variant:
+	var node: Node3D = null
+	match kind:
+		"object":
+			node = _fuel_object_node(room_id, element_id)
+		"detector", "victim":
+			node = _safety_marker_node(kind, element_id)
+		"player_start":
+			node = _player_start_node
+	if node == null:
+		return null
+	return _node_floor_position_m(node)
+
+
+func _move_dragged_element_preview(floor_pos_m: Vector2) -> void:
+	var node: Node3D = null
+	match _dragging_element_kind:
+		"object":
+			node = _fuel_object_node(_dragging_element_room_id, _dragging_element_id)
+		"detector", "victim":
+			node = _safety_marker_node(_dragging_element_kind, _dragging_element_id)
+		"player_start":
+			node = _player_start_node
+	if node == null:
+		return
+	var next_pos: Vector3 = _to_world(Vector3(floor_pos_m.x, 0.0, floor_pos_m.y))
+	var current_global: Vector3 = node.global_position
+	current_global.x = next_pos.x
+	current_global.z = next_pos.z
+	node.global_position = current_global
+
+
+func _fuel_object_node(room_id: int, object_id: String) -> Node3D:
+	if not _room_items.has(room_id):
+		return null
+	var item: Dictionary = _room_items[room_id]
+	var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
+	return fuel_obj_nodes.get(object_id) as Node3D
+
+
+func _safety_marker_node(kind: String, marker_id: String) -> Node3D:
+	var nodes_key: String = "detector_nodes" if kind == "detector" else "victim_nodes"
+	for room_id in _room_items.keys():
+		var item: Dictionary = _room_items[room_id]
+		var marker_nodes: Dictionary = item.get(nodes_key, {})
+		if marker_nodes.has(marker_id):
+			return marker_nodes.get(marker_id) as Node3D
+	return null
+
+
+func _node_floor_position_m(node: Node3D) -> Vector2:
+	return Vector2(
+		node.global_position.x / maxf(0.0001, meters_to_units) - _origin_offset_m.x,
+		node.global_position.z / maxf(0.0001, meters_to_units) - _origin_offset_m.y
+	)
+
+
+func _fuel_object_at_screen_pos(screen_pos: Vector2) -> Dictionary:
+	var best: Dictionary = {}
+	var best_distance: float = 999999.0
+	for room_id in _room_items.keys():
+		var item: Dictionary = _room_items[room_id]
+		var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
+		for object_id in fuel_obj_nodes.keys():
+			var node := fuel_obj_nodes[object_id] as Node3D
+			var distance: float = _node_screen_distance(node, screen_pos)
+			if distance < best_distance:
+				best_distance = distance
+				best = {
+					"room_id": int(room_id),
+					"object_id": String(object_id)
+				}
+	return best if best_distance <= 34.0 else {}
+
+
+func _safety_marker_at_screen_pos(screen_pos: Vector2) -> Dictionary:
+	var best: Dictionary = {}
+	var best_distance: float = 999999.0
+	for _room_id in _room_items.keys():
+		var item: Dictionary = _room_items[_room_id]
+		var detector_nodes: Dictionary = item.get("detector_nodes", {})
+		for detector_id in detector_nodes.keys():
+			var detector_node := detector_nodes[detector_id] as Node3D
+			var det_distance: float = _node_screen_distance(detector_node, screen_pos)
+			if det_distance < best_distance:
+				best_distance = det_distance
+				best = {"type": "detector", "id": String(detector_id)}
+		var victim_nodes: Dictionary = item.get("victim_nodes", {})
+		for victim_id in victim_nodes.keys():
+			var victim_node := victim_nodes[victim_id] as Node3D
+			var vic_distance: float = _node_screen_distance(victim_node, screen_pos)
+			if vic_distance < best_distance:
+				best_distance = vic_distance
+				best = {"type": "victim", "id": String(victim_id)}
+	return best if best_distance <= 32.0 else {}
+
+
+func _player_start_at_screen_pos(screen_pos: Vector2) -> Dictionary:
+	if _player_start_node == null or not _player_start_node.is_visible_in_tree() or building == null:
+		return {}
+	var distance: float = _node_screen_distance(_player_start_node, screen_pos)
+	if distance > 34.0:
+		return {}
+	return {
+		"room_id": int(building.player_start.get("room_id", -1))
+	}
+
+
+func _node_screen_distance(node: Node3D, screen_pos: Vector2) -> float:
+	if _camera == null or node == null or not node.is_visible_in_tree():
+		return 999999.0
+	if _camera.is_position_behind(node.global_position):
+		return 999999.0
+	return _camera.unproject_position(node.global_position).distance_to(screen_pos)
+
+
+func _room_base_floor_color(room_id: int) -> Color:
+	var rs: Dictionary = state.get(str(room_id), {})
+	if rs.is_empty():
+		return floor_color
+	var temp_upper_c: float = float(rs.get("temp_upper_c", 20.0))
+	var heat_t: float = clampf(
+		inverse_lerp(temp_heat_floor_start_c, temp_heat_floor_full_c, temp_upper_c),
+		0.0,
+		1.0
+	)
+	return floor_color.lerp(hot_floor_color, heat_t)
+
+
+func _selection_tinted_room_color(room_id: int, base_color: Color) -> Color:
+	if room_id != _selected_room_id:
+		return base_color
+	return base_color.lerp(Color(1.0, 0.88, 0.18, 1.0), 0.52)
 
 
 func _update_wall_temperature(walls: Array, temp_upper_c: float) -> void:
@@ -1777,7 +2153,10 @@ func _update_room_safety_markers_3d(room_id: int, item: Dictionary, rect: Rect2)
 			node.position = _to_world(Vector3(rect.position.x + local_pos.x, floor_level_m + room_height_m - 0.08, rect.position.y + local_pos.y))
 			var det_state: Dictionary = detector_states.get(det_id, {})
 			var triggered: bool = bool(det_state.get("triggered", det.get("triggered", false)))
-			_set_marker_color(node, detector_triggered_color if triggered else detector_marker_color)
+			var detector_color: Color = detector_triggered_color if triggered else detector_marker_color
+			if det_id == _selected_detector_id:
+				detector_color = detector_color.lerp(selection_highlight_color, 0.60)
+			_set_marker_color(node, detector_color)
 
 	if show_victim_markers_3d:
 		var victim_states: Dictionary = _state_records_by_id(Array(state.get("victims", [])))
@@ -1798,12 +2177,48 @@ func _update_room_safety_markers_3d(room_id: int, item: Dictionary, rect: Rect2)
 			node.position = _to_world(Vector3(rect.position.x + local_pos.x, floor_level_m, rect.position.y + local_pos.y))
 			var vic_state: Dictionary = victim_states.get(vic_id, {})
 			var incapacitated: bool = bool(vic_state.get("incapacitated", vic.get("incapacitated", false)))
-			_set_marker_color(node, victim_incapacitated_color if incapacitated else victim_marker_color)
+			var victim_color: Color = victim_incapacitated_color if incapacitated else victim_marker_color
+			if vic_id == _selected_victim_id:
+				victim_color = victim_color.lerp(selection_highlight_color, 0.60)
+			_set_marker_color(node, victim_color)
 
 	_prune_marker_nodes(detector_nodes, seen_detectors)
 	_prune_marker_nodes(victim_nodes, seen_victims)
 	item["detector_nodes"] = detector_nodes
 	item["victim_nodes"] = victim_nodes
+
+
+func _update_safety_marker_selection_visuals() -> void:
+	for room_id in _room_items.keys():
+		var item: Dictionary = _room_items[room_id]
+		_update_room_safety_markers_3d(int(room_id), item, Rect2(item.get("rect", Rect2())))
+
+
+func _update_player_start_marker_3d() -> void:
+	if building == null or _atmosphere_root == null or _first_person_overlay or building.player_start.is_empty():
+		if _player_start_node != null:
+			_player_start_node.visible = false
+		return
+	var start: Dictionary = building.player_start
+	var room_id: int = int(start.get("room_id", -1))
+	var rects: Dictionary = building.get_room_rects_m()
+	if not rects.has(room_id):
+		if _player_start_node != null:
+			_player_start_node.visible = false
+		return
+	var rect := Rect2(rects[room_id])
+	var local_pos: Vector2 = _vector2_from_variant(start.get("position_m", rect.size * 0.5), rect.size * 0.5)
+	local_pos.x = clampf(local_pos.x, 0.0, rect.size.x)
+	local_pos.y = clampf(local_pos.y, 0.0, rect.size.y)
+	if _player_start_node == null:
+		_player_start_node = _create_player_start_marker_node()
+		_atmosphere_root.add_child(_player_start_node)
+	var floor_level_m: float = float(start.get("floor_level_z_m", _get_room_floor_level(room_id)))
+	_player_start_node.position = _to_world(Vector3(rect.position.x + local_pos.x, floor_level_m + 0.05, rect.position.y + local_pos.y))
+	_player_start_node.rotation_degrees.y = float(start.get("yaw_deg", 0.0))
+	_player_start_node.visible = true
+	var marker_color: Color = player_start_marker_color.lerp(selection_highlight_color, 0.58) if _selected_player_start else player_start_marker_color
+	_set_marker_color(_player_start_node, marker_color)
 
 
 func _state_records_by_id(records: Array) -> Dictionary:
@@ -1825,6 +2240,31 @@ func _safety_local_position(data: Dictionary, rect: Rect2) -> Vector2:
 			clampf(float(data.get("y_m", rect.size.y * 0.5)), 0.0, rect.size.y)
 		)
 	return rect.size * 0.5
+
+
+func _create_player_start_marker_node() -> Node3D:
+	var root := Node3D.new()
+	root.name = "PlayerStart"
+	var mat := _make_material(player_start_marker_color, false)
+	var disk := MeshInstance3D.new()
+	disk.name = "MarkerDisk"
+	var disk_mesh := CylinderMesh.new()
+	disk_mesh.top_radius = 0.17 * meters_to_units
+	disk_mesh.bottom_radius = 0.17 * meters_to_units
+	disk_mesh.height = 0.035 * meters_to_units
+	disk_mesh.radial_segments = 28
+	disk.mesh = disk_mesh
+	disk.material_override = mat
+	root.add_child(disk)
+	var arrow := MeshInstance3D.new()
+	arrow.name = "DirectionArrow"
+	var arrow_mesh := BoxMesh.new()
+	arrow_mesh.size = Vector3(0.08, 0.04, 0.34) * meters_to_units
+	arrow.mesh = arrow_mesh
+	arrow.position = Vector3(0.0, 0.025 * meters_to_units, -0.20 * meters_to_units)
+	arrow.material_override = mat
+	root.add_child(arrow)
+	return root
 
 
 func _create_detector_marker_node(detector_id: String) -> Node3D:
@@ -1925,8 +2365,6 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 	var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
 	var room_id: int = int(item.get("room_id", -1))
 	var objects: Array = Array(rs.get("fuel_objects", [])).duplicate()
-	if show_auto_room_furniture_3d and not _has_visible_fuel_object_snapshots(objects):
-		objects = _fallback_furniture_snapshots(room_id, rs, rect)
 	var room: RoomModel = building.get_room(room_id) if building != null else null
 	var room_name: String = room.name if room != null else String(rs.get("name", ""))
 	var room_kind: String = room.kind if room != null else String(rs.get("kind", ""))
@@ -1938,7 +2376,6 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 		if not bool(normalized.get("visual_hidden", false)):
 			normalized_objects.append(normalized)
 	objects = normalized_objects
-	objects.append_array(_room_visual_fixture_snapshots(room_id, rs, rect))
 
 	if _first_person_overlay:
 		fuel_objects_root.visible = false
@@ -2010,6 +2447,10 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 		var center_z: float = rect.position.y + visual_center_m.y
 		node.position = _to_world(Vector3(center_x, float(item.get("floor_level_m", 0.0)), center_z))
 		node.rotation_degrees.y = rotation_deg
+		node.set_meta("room_id", room_id)
+		node.set_meta("object_id", obj_id)
+		node.set_meta("size_x_m", visual_size_m.x)
+		node.set_meta("size_y_m", visual_size_m.y)
 
 		var color: Color = FurnitureStateVisuals.color_for_state(state_name)
 		var fuel_mj: float = maxf(0.01, float(obj.get("fuel_energy_MJ", 1.0)))
@@ -2044,6 +2485,51 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 
 	item["fuel_obj_nodes"] = fuel_obj_nodes
 	fuel_objects_root.visible = fuel_obj_nodes.size() > 0
+	_update_fuel_object_selection_visuals()
+
+
+func _update_fuel_object_selection_visuals() -> void:
+	for room_id in _room_items.keys():
+		var item: Dictionary = _room_items[room_id]
+		var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
+		for object_id in fuel_obj_nodes.keys():
+			var node := fuel_obj_nodes[object_id] as Node3D
+			if node == null:
+				continue
+			var selected: bool = int(room_id) == _selected_object_room_id and String(object_id) == _selected_object_id
+			_set_fuel_object_selection_halo(node, selected)
+
+
+func _set_fuel_object_selection_halo(node: Node3D, selected: bool) -> void:
+	var halo := node.get_node_or_null("SelectionHalo") as MeshInstance3D
+	if not selected:
+		if halo != null:
+			halo.visible = false
+		return
+	if halo == null:
+		halo = MeshInstance3D.new()
+		halo.name = "SelectionHalo"
+		node.add_child(halo)
+	halo.material_override = _selection_halo_material()
+	var mesh := halo.mesh as CylinderMesh
+	if mesh == null:
+		mesh = CylinderMesh.new()
+		mesh.radial_segments = 48
+		mesh.height = 0.025 * meters_to_units
+		halo.mesh = mesh
+	var size_x: float = float(node.get_meta("size_x_m", 0.5))
+	var size_y: float = float(node.get_meta("size_y_m", 0.5))
+	var radius: float = maxf(0.22, maxf(size_x, size_y) * 0.66) * meters_to_units
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	halo.position = Vector3(0.0, 0.018 * meters_to_units, 0.0)
+	halo.visible = true
+
+
+func _selection_halo_material() -> StandardMaterial3D:
+	var mat := _make_material(Color(selection_highlight_color.r, selection_highlight_color.g, selection_highlight_color.b, 0.36), true)
+	mat.no_depth_test = true
+	return mat
 
 
 func _is_solid_fuel_visual_kind(kind_name: String) -> bool:
@@ -2167,92 +2653,6 @@ func _opening_side_for_room_rect(room_rect: Rect2, pos3: Vector3) -> String:
 	if absf(pos3.x - (room_rect.position.x + room_rect.size.x)) <= eps:
 		return "right"
 	return ""
-
-
-func _has_visible_fuel_object_snapshots(objects: Array) -> bool:
-	for raw_obj in objects:
-		if typeof(raw_obj) != TYPE_DICTIONARY:
-			continue
-		var obj: Dictionary = raw_obj
-		var obj_id: String = String(obj.get("id", ""))
-		if obj_id != "" and not obj_id.begins_with("room_proxy_"):
-			return true
-	return false
-
-
-func _fallback_furniture_snapshots(room_id: int, rs: Dictionary, rect: Rect2) -> Array:
-	var kind: String = String(rs.get("kind", "")).to_lower()
-	var w: float = maxf(0.8, rect.size.x)
-	var d: float = maxf(0.8, rect.size.y)
-	var specs: Array = []
-	if kind.contains("escalera") or kind.contains("stair"):
-		return specs
-	if kind.contains("salon") or kind.contains("living"):
-		var sofa_w: float = minf(2.25, maxf(1.20, w - 0.90))
-		specs.append(_fallback_furniture_obj(room_id, "sofa", "Sofa", "sofa", Vector2(0.35, 0.35), Vector2(sofa_w, 0.82)))
-		var rug_size := Vector2(minf(2.35, maxf(1.10, w - 1.25)), minf(1.30, maxf(0.70, d - 1.55)))
-		specs.append(_fallback_furniture_obj(room_id, "rug", "Alfombra", "rug", Vector2((w - rug_size.x) * 0.45, (d - rug_size.y) * 0.55), rug_size))
-		specs.append(_fallback_furniture_obj(room_id, "table", "Mesa centro", "coffee_table", Vector2(w * 0.42, d * 0.46), Vector2(minf(1.15, w * 0.28), 0.62)))
-		specs.append(_fallback_furniture_obj(room_id, "tv", "Mueble TV", "tv_stand", Vector2(maxf(0.35, w - minf(1.55, w - 0.95) - 0.35), 0.30), Vector2(minf(1.55, w - 0.95), 0.36)))
-	elif kind.contains("dorm") or kind.contains("bed"):
-		var bed_size := Vector2(minf(1.90, maxf(1.25, w - 1.20)), minf(1.55, maxf(0.95, d - 1.05)))
-		var bed_x: float = maxf(0.30, w - bed_size.x - 0.35) if w < 3.9 else 0.35
-		specs.append(_fallback_furniture_obj(room_id, "bed", "Cama", "bed", Vector2(bed_x, 0.35), bed_size))
-		specs.append(_fallback_furniture_obj(room_id, "wardrobe", "Armario", "wardrobe", Vector2(0.35 if bed_x > w * 0.45 else maxf(0.35, w - 1.55), 0.22), Vector2(minf(1.25, maxf(0.85, w - 1.10)), 0.38)))
-		specs.append(_fallback_furniture_obj(room_id, "nightstand", "Mesilla", "dresser", Vector2(clampf(bed_x + bed_size.x + 0.20, 0.35, maxf(0.35, w - 0.72)), 0.45), Vector2(0.42, 0.42)))
-	elif kind.contains("cocina") or kind.contains("kitchen"):
-		specs.append(_fallback_furniture_obj(room_id, "counter", "Encimera", "kitchen_unit", Vector2(0.28, 0.22), Vector2(minf(maxf(1.35, w - 1.20), 3.25), 0.62)))
-		specs.append(_fallback_furniture_obj(room_id, "hob", "Grasa y aceites", "pool", Vector2(minf(w - 0.75, 1.70), 0.34), Vector2(0.42, 0.42)))
-		if w > 2.45 and d > 1.75:
-			specs.append(_fallback_furniture_obj(room_id, "table", "Mesa cocina", "table", Vector2(maxf(0.42, w - 1.65), maxf(0.55, d - 1.15)), Vector2(1.05, 0.68)))
-	elif kind.contains("pasillo") or kind.contains("hall") or kind.contains("corridor"):
-		var runner_w: float = minf(0.82, maxf(0.36, w - 0.42))
-		specs.append(_fallback_furniture_obj(room_id, "runner", "Alfombra pasillo", "rug", Vector2((w - runner_w) * 0.5, 0.42), Vector2(runner_w, minf(4.90, maxf(0.75, d - 0.85)))))
-		if w >= 1.15:
-			specs.append(_fallback_furniture_obj(room_id, "console", "Consola", "console", Vector2(0.14, 0.35), Vector2(minf(0.36, w - 0.65), 0.82)))
-	elif kind.contains("bano") or kind.contains("bath"):
-		specs.append(_fallback_furniture_obj(room_id, "vanity", "Mueble lavabo", "bath_vanity", Vector2((w - minf(0.85, w - 0.70)) * 0.5, maxf(0.28, d - 0.72)), Vector2(minf(0.85, maxf(0.55, w - 0.70)), 0.42)))
-		specs.append(_fallback_furniture_obj(room_id, "towels", "Toallas", "textile_pile", Vector2(maxf(0.35, w - 0.85), 0.28), Vector2(0.50, 0.68)))
-	else:
-		specs.append(_fallback_furniture_obj(room_id, "shelf", "Estanteria", "bookcase", Vector2(0.22, 0.28), Vector2(0.42, minf(1.35, d - 0.55))))
-		specs.append(_fallback_furniture_obj(room_id, "boxes", "Cajas", "clutter", Vector2(maxf(0.40, w - 1.05), maxf(0.40, d - 1.00)), Vector2(0.72, 0.58)))
-	return specs
-
-
-func _room_visual_fixture_snapshots(room_id: int, rs: Dictionary, rect: Rect2) -> Array:
-	var specs: Array = []
-	var room: RoomModel = building.get_room(room_id) if building != null else null
-	var tokens: String = ""
-	if room != null:
-		tokens = ("%s %s" % [room.kind, room.name]).to_lower()
-	else:
-		tokens = ("%s %s" % [rs.get("kind", ""), rs.get("name", "")]).to_lower()
-	if not (tokens.contains("bano") or tokens.contains("baño") or tokens.contains("bath")):
-		return specs
-	var w: float = maxf(0.8, rect.size.x)
-	var d: float = maxf(0.8, rect.size.y)
-	var shower_size := Vector2(minf(1.00, maxf(0.62, w * 0.30)), minf(0.88, maxf(0.62, d * 0.42)))
-	specs.append(_fallback_furniture_obj(room_id, "fixture_shower", "Ducha", "shower", Vector2(0.18, 0.18), shower_size))
-	specs.append(_fallback_furniture_obj(room_id, "fixture_toilet", "Aseo", "toilet", Vector2(0.24, maxf(0.18, d - 0.92)), Vector2(0.56, 0.68)))
-	specs.append(_fallback_furniture_obj(room_id, "fixture_sink", "Lavabo", "sink", Vector2(maxf(0.18, w - 1.05), maxf(0.18, d - 0.78)), Vector2(0.74, 0.46)))
-	return specs
-
-
-func _fallback_furniture_obj(room_id: int, suffix: String, name: String, kind: String, pos_m: Vector2, size_m: Vector2) -> Dictionary:
-	return {
-		"id": "visual_%d_%s" % [room_id, suffix],
-		"name": name,
-		"kind": kind,
-		"room_id": room_id,
-		"position_m": pos_m,
-		"size_m": size_m,
-		"rotation_deg": 0.0,
-		"elevation_m": 0.0,
-		"fuel_energy_MJ": 1.0,
-		"remaining_fuel_MJ": 1.0,
-		"max_hrr_kw": 1.0,
-		"state": "cold"
-	}
 
 
 func _create_fuel_object_node(obj_id: String, kind_name: String, size_m: Vector2) -> Node3D:

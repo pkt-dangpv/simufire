@@ -26,6 +26,12 @@ enum ObjectMouseMode {
 	ROTATE
 }
 
+enum EditorViewMode {
+	MODE_2D,
+	MODE_3D,
+	MODE_FP
+}
+
 const PIXELS_PER_METER: float = 64.0
 const GRID_M: float = 0.25
 const OUTSIDE_ID: int = -1
@@ -40,6 +46,9 @@ const EditorGridScript = preload("res://editor/EditorGrid.gd")
 const ObjectLibraryScript = preload("res://editor/ObjectLibrary.gd")
 const Serializer = preload("res://editor/ScenarioSerializer.gd")
 const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
+const BuildingModelScript = preload("res://sim/BuildingModel.gd")
+const Visualizer3DScript = preload("res://view/3d/Visualizer3D.gd")
+const FirstPersonControllerScript = preload("res://view/fp/FirstPersonController.gd")
 const EDITOR_LOGO_PATH: String = "res://assets/ui/simufire_logo_editor.png"
 const EDITOR_FONT_PATH: String = "res://assets/fonts/bahnschrift.ttf"
 const EDITOR_FONT_SIZE_BODY: int = 13
@@ -91,6 +100,7 @@ var selected_object_room_id: int = -1
 var selected_object_index: int = -1
 var selected_detector_index: int = -1
 var selected_victim_index: int = -1
+var selected_player_start_room_id: int = -1
 var selected_exterior_wall_index: int = -1
 
 var is_dragging_room: bool = false
@@ -137,6 +147,14 @@ var _building_type_option: OptionButton
 var _apartment_floor_spin: SpinBox
 var _element_list: ItemList
 var _element_list_sync_in_progress: bool = false
+var _editor_view_mode: int = EditorViewMode.MODE_2D
+var _editor_mode_buttons: Dictionary = {}
+var _editor_world_3d: Node3D
+var _editor_building_model: BuildingModel
+var _editor_visualizer_3d: Visualizer3D
+var _editor_fp_controller: FirstPersonController
+var _editor_runtime_dirty: bool = false
+var _editor_3d_drag_active: bool = false
 var _help_toggle_button: Button
 var _help_panel: PanelContainer
 var _help_label: Label
@@ -265,11 +283,14 @@ func _ready() -> void:
 	_setup_grid()
 	if not _bind_existing_ui():
 		_setup_ui()
+	_ensure_editor_mode_controls_in_existing_ui()
 	_ensure_file_dialogs()
 	_apply_editor_visual_style()
 	_ensure_floor_data()
 	_sync_floor_controls()
+	_ensure_editor_3d_nodes()
 	_set_tool(Tool.SELECT)
+	_set_editor_view_mode(EditorViewMode.MODE_2D, true)
 	queue_redraw()
 
 
@@ -393,6 +414,7 @@ func _normalize_editor_panel_readability() -> void:
 		left_panel.offset_top = 20.0
 		left_panel.offset_right = maxf(left_panel.offset_right, 360.0)
 		left_panel.offset_bottom = 0.0
+		_ensure_panel_scroll_container(left_panel)
 	var right_panel := _ui_root.get_node_or_null("RightPanel") as Control
 	if right_panel != null:
 		right_panel.scale = Vector2.ONE
@@ -404,6 +426,29 @@ func _normalize_editor_panel_readability() -> void:
 	if top_bar != null:
 		top_bar.offset_top = 8.0
 		top_bar.offset_bottom = maxf(top_bar.offset_bottom, 116.0)
+
+
+func _ensure_panel_scroll_container(panel: Control) -> void:
+	if panel == null:
+		return
+	var existing_vbox := panel.get_node_or_null("VBox") as VBoxContainer
+	var scroll := panel.get_node_or_null("Scroll") as ScrollContainer
+	if scroll == null:
+		scroll = ScrollContainer.new()
+		scroll.name = "Scroll"
+		scroll.follow_focus = true
+		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		panel.add_child(scroll)
+	else:
+		scroll.follow_focus = true
+		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	if existing_vbox != null and existing_vbox.get_parent() != scroll:
+		panel.remove_child(existing_vbox)
+		scroll.add_child(existing_vbox)
+		existing_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		existing_vbox.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 
 
 func _stylebox(bg: Color, border: Color, border_width: int, radius: int, margin: Vector2) -> StyleBoxFlat:
@@ -465,8 +510,656 @@ func _ensure_editor_branding() -> void:
 	mode_label.add_theme_color_override("font_color", UI_TEXT_MUTED)
 
 
+func _ensure_editor_mode_controls_in_existing_ui() -> void:
+	var left_vbox := _find_left_vbox()
+	if left_vbox == null:
+		return
+	var row := left_vbox.get_node_or_null("ViewModeRow") as HBoxContainer
+	if row == null:
+		row = HBoxContainer.new()
+		row.name = "ViewModeRow"
+		row.add_theme_constant_override("separation", 4)
+		left_vbox.add_child(row)
+	var brand := left_vbox.get_node_or_null("BrandHeader") as Control
+	if brand != null and row.get_parent() == left_vbox:
+		left_vbox.move_child(row, mini(brand.get_index() + 1, left_vbox.get_child_count() - 1))
+	_ensure_editor_mode_button(row, "BtnViewMode2D", "2D", EditorViewMode.MODE_2D)
+	_ensure_editor_mode_button(row, "BtnViewMode3D", "3D", EditorViewMode.MODE_3D)
+	_ensure_editor_mode_button(row, "BtnViewModeFP", "FP", EditorViewMode.MODE_FP)
+	_update_editor_mode_buttons()
+
+
+func _ensure_editor_mode_button(parent: Control, button_name: String, text: String, mode: int) -> Button:
+	var button := parent.get_node_or_null(button_name) as Button
+	if button == null:
+		button = Button.new()
+		button.name = button_name
+		button.toggle_mode = true
+		button.custom_minimum_size = Vector2(64.0, 30.0)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		parent.add_child(button)
+	button.text = text
+	button.toggle_mode = true
+	button.focus_mode = Control.FOCUS_NONE
+	var callback := Callable(self, "_set_editor_view_mode").bind(mode)
+	if not button.pressed.is_connected(callback):
+		button.pressed.connect(callback)
+	_editor_mode_buttons[mode] = button
+	return button
+
+
+func _update_editor_mode_buttons() -> void:
+	for key in _editor_mode_buttons.keys():
+		var button := _editor_mode_buttons[key] as Button
+		if button != null:
+			button.button_pressed = int(key) == _editor_view_mode
+
+
+func _ensure_editor_3d_nodes() -> void:
+	_editor_world_3d = get_node_or_null("EditorWorld3D") as Node3D
+	if _editor_world_3d == null:
+		_editor_world_3d = Node3D.new()
+		_editor_world_3d.name = "EditorWorld3D"
+		_editor_world_3d.visible = false
+		add_child(_editor_world_3d)
+	else:
+		_editor_world_3d.visible = false
+
+	_editor_building_model = _editor_world_3d.get_node_or_null("EditorBuildingModel") as BuildingModel
+	if _editor_building_model == null:
+		_editor_building_model = BuildingModelScript.new() as BuildingModel
+		_editor_building_model.name = "EditorBuildingModel"
+		_editor_world_3d.add_child(_editor_building_model)
+
+	_editor_visualizer_3d = _editor_world_3d.get_node_or_null("Visualizer3D") as Visualizer3D
+	if _editor_visualizer_3d == null:
+		_editor_visualizer_3d = Visualizer3DScript.new() as Visualizer3D
+		_editor_visualizer_3d.name = "Visualizer3D"
+		_editor_visualizer_3d.building_path = NodePath("../EditorBuildingModel")
+		_add_editor_visualizer_children(_editor_visualizer_3d)
+		_editor_world_3d.add_child(_editor_visualizer_3d)
+	else:
+		_editor_visualizer_3d.building_path = NodePath("../EditorBuildingModel")
+	if _editor_visualizer_3d != null:
+		if not _editor_visualizer_3d.room_clicked.is_connected(_on_editor_3d_room_clicked):
+			_editor_visualizer_3d.room_clicked.connect(_on_editor_3d_room_clicked)
+		if not _editor_visualizer_3d.opening_clicked.is_connected(_on_editor_3d_opening_clicked):
+			_editor_visualizer_3d.opening_clicked.connect(_on_editor_3d_opening_clicked)
+		if not _editor_visualizer_3d.object_clicked.is_connected(_on_editor_3d_object_clicked):
+			_editor_visualizer_3d.object_clicked.connect(_on_editor_3d_object_clicked)
+		if not _editor_visualizer_3d.detector_clicked.is_connected(_on_editor_3d_detector_clicked):
+			_editor_visualizer_3d.detector_clicked.connect(_on_editor_3d_detector_clicked)
+		if not _editor_visualizer_3d.victim_clicked.is_connected(_on_editor_3d_victim_clicked):
+			_editor_visualizer_3d.victim_clicked.connect(_on_editor_3d_victim_clicked)
+		if not _editor_visualizer_3d.player_start_clicked.is_connected(_on_editor_3d_player_start_clicked):
+			_editor_visualizer_3d.player_start_clicked.connect(_on_editor_3d_player_start_clicked)
+		if not _editor_visualizer_3d.floor_clicked.is_connected(_on_editor_3d_floor_clicked):
+			_editor_visualizer_3d.floor_clicked.connect(_on_editor_3d_floor_clicked)
+		if not _editor_visualizer_3d.element_drag_started.is_connected(_on_editor_3d_element_drag_started):
+			_editor_visualizer_3d.element_drag_started.connect(_on_editor_3d_element_drag_started)
+		if not _editor_visualizer_3d.object_dragged.is_connected(_on_editor_3d_object_dragged):
+			_editor_visualizer_3d.object_dragged.connect(_on_editor_3d_object_dragged)
+		if not _editor_visualizer_3d.detector_dragged.is_connected(_on_editor_3d_detector_dragged):
+			_editor_visualizer_3d.detector_dragged.connect(_on_editor_3d_detector_dragged)
+		if not _editor_visualizer_3d.victim_dragged.is_connected(_on_editor_3d_victim_dragged):
+			_editor_visualizer_3d.victim_dragged.connect(_on_editor_3d_victim_dragged)
+		if not _editor_visualizer_3d.player_start_dragged.is_connected(_on_editor_3d_player_start_dragged):
+			_editor_visualizer_3d.player_start_dragged.connect(_on_editor_3d_player_start_dragged)
+		if not _editor_visualizer_3d.element_drag_ended.is_connected(_on_editor_3d_element_drag_ended):
+			_editor_visualizer_3d.element_drag_ended.connect(_on_editor_3d_element_drag_ended)
+
+	_editor_fp_controller = _editor_world_3d.get_node_or_null("FirstPersonController") as FirstPersonController
+	if _editor_fp_controller == null:
+		_editor_fp_controller = FirstPersonControllerScript.new() as FirstPersonController
+		_editor_fp_controller.name = "FirstPersonController"
+		_editor_world_3d.add_child(_editor_fp_controller)
+	if _editor_fp_controller != null and not _editor_fp_controller.exit_requested.is_connected(_on_editor_fp_exit_requested):
+		_editor_fp_controller.exit_requested.connect(_on_editor_fp_exit_requested)
+
+	_sync_editor_runtime_views()
+	if _editor_visualizer_3d != null:
+		_editor_visualizer_3d.set_active(false)
+	if _editor_fp_controller != null:
+		_editor_fp_controller.set_active(false)
+	_editor_world_3d.visible = false
+
+
+func _add_editor_visualizer_children(visualizer: Node3D) -> void:
+	for node_name in ["Rooms", "Openings", "Atmosphere", "Labels"]:
+		if visualizer.get_node_or_null(node_name) == null:
+			var container := Node3D.new()
+			container.name = node_name
+			visualizer.add_child(container)
+	var camera_rig := visualizer.get_node_or_null("CameraRig") as Node3D
+	if camera_rig == null:
+		camera_rig = Node3D.new()
+		camera_rig.name = "CameraRig"
+		visualizer.add_child(camera_rig)
+	var camera_3d := camera_rig.get_node_or_null("Camera3D") as Camera3D
+	if camera_3d == null:
+		camera_3d = Camera3D.new()
+		camera_3d.name = "Camera3D"
+		camera_3d.fov = 45.0
+		camera_3d.position = Vector3(0.0, 0.0, 13.0)
+		camera_rig.add_child(camera_3d)
+	if visualizer.get_node_or_null("Sun") == null:
+		var sun := DirectionalLight3D.new()
+		sun.name = "Sun"
+		sun.rotation_degrees = Vector3(-50.0, 30.0, 0.0)
+		sun.light_energy = 1.8
+		visualizer.add_child(sun)
+	if visualizer.get_node_or_null("FillLight") == null:
+		var fill := OmniLight3D.new()
+		fill.name = "FillLight"
+		fill.position = Vector3(0.0, 5.0, 0.0)
+		fill.light_energy = 0.35
+		fill.omni_range = 18.0
+		visualizer.add_child(fill)
+
+
+func _sync_editor_runtime_views() -> void:
+	if _editor_building_model == null:
+		return
+	var runtime_template: Dictionary = Serializer.to_runtime_template(editor_data)
+	_editor_building_model.load_template_data(runtime_template)
+	if _editor_visualizer_3d != null:
+		_editor_visualizer_3d.building = _editor_building_model
+		_editor_visualizer_3d.rebuild_from_building()
+		_editor_visualizer_3d.set_state({})
+	if _editor_fp_controller != null:
+		_editor_fp_controller.setup(_editor_building_model)
+		_editor_fp_controller.set_state({})
+	_editor_runtime_dirty = false
+	_sync_editor_visualizer_selection()
+
+
+func _mark_editor_runtime_dirty() -> void:
+	_editor_runtime_dirty = true
+
+
+func _refresh_editor_runtime_if_needed() -> void:
+	if not _editor_runtime_dirty:
+		return
+	if _editor_3d_drag_active:
+		return
+	if _editor_view_mode != EditorViewMode.MODE_3D and _editor_view_mode != EditorViewMode.MODE_FP:
+		return
+	_sync_editor_runtime_views()
+
+
+func _sync_editor_visualizer_selection() -> void:
+	if _editor_visualizer_3d == null:
+		return
+	if selected_room_id >= 0:
+		_editor_visualizer_3d.select_room(selected_room_id)
+	elif selected_opening_index >= 0:
+		_editor_visualizer_3d.select_opening(selected_opening_index)
+	elif selected_object_room_id >= 0 and selected_object_index >= 0:
+		var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
+		_editor_visualizer_3d.select_object(selected_object_room_id, String(obj.get("id", "")))
+	elif selected_detector_index >= 0:
+		var detector_id: String = _detector_id_for_index(selected_detector_index)
+		_editor_visualizer_3d.select_detector(detector_id)
+	elif selected_victim_index >= 0:
+		var victim_id: String = _victim_id_for_index(selected_victim_index)
+		_editor_visualizer_3d.select_victim(victim_id)
+	elif selected_player_start_room_id >= 0 and _editor_visualizer_3d.has_method("select_player_start"):
+		_editor_visualizer_3d.select_player_start()
+	else:
+		_editor_visualizer_3d.clear_selection()
+
+
+func _set_editor_view_mode(mode: int, force: bool = false) -> void:
+	if not force and _editor_view_mode == mode:
+		return
+	if mode == EditorViewMode.MODE_3D or mode == EditorViewMode.MODE_FP:
+		_ensure_editor_3d_nodes()
+		_sync_editor_runtime_views()
+	_clear_drag()
+	_editor_3d_drag_active = false
+	is_middle_panning = false
+	_editor_view_mode = mode
+	if not _tool_available_in_current_mode(current_tool):
+		current_tool = Tool.SELECT
+	var use_2d: bool = _editor_view_mode == EditorViewMode.MODE_2D
+	var use_3d: bool = _editor_view_mode == EditorViewMode.MODE_3D
+	var use_fp: bool = _editor_view_mode == EditorViewMode.MODE_FP
+	var world_2d := get_node_or_null("World") as CanvasItem
+	if world_2d != null:
+		world_2d.visible = use_2d
+	if camera != null:
+		camera.enabled = use_2d
+	if _editor_world_3d != null:
+		_editor_world_3d.visible = use_3d or use_fp
+	if _editor_visualizer_3d != null:
+		_editor_visualizer_3d.set_active(use_3d, use_3d, use_3d)
+		_update_editor_visualizer_drag_mode()
+	if _editor_fp_controller != null:
+		_editor_fp_controller.set_active(use_fp)
+	_update_editor_mode_buttons()
+	_update_tool_buttons_enabled()
+	_sync_tool_option_visibility()
+	if use_2d:
+		_set_status("Modo 2D: editor clasico activo.")
+	elif use_3d:
+		_set_status("Modo 3D: edita aberturas y elementos simples. La geometria de salas sigue en 2D.")
+	else:
+		_set_status("Modo FP: inspeccion activa. Pulsa Esc para volver a 2D.")
+	queue_redraw()
+
+
+func _update_tool_buttons_enabled() -> void:
+	for tool_id in _tool_buttons.keys():
+		var button := _tool_buttons[tool_id] as Button
+		if button is Button:
+			button.disabled = not _tool_available_in_current_mode(int(tool_id))
+	_sync_tool_button_states()
+
+
+func _sync_tool_button_states() -> void:
+	for key in _tool_buttons.keys():
+		var button := _tool_buttons[key] as Button
+		if button != null:
+			button.button_pressed = int(key) == current_tool
+
+
+func _tool_available_in_current_mode(tool_id: int) -> bool:
+	if _editor_view_mode == EditorViewMode.MODE_2D:
+		return true
+	if _editor_view_mode == EditorViewMode.MODE_3D:
+		return _is_3d_simple_tool(tool_id)
+	return false
+
+
+func _is_3d_simple_tool(tool_id: int) -> bool:
+	return tool_id in [
+		Tool.SELECT,
+		Tool.DOOR,
+		Tool.HOLE,
+		Tool.WINDOW,
+		Tool.OBJECT,
+		Tool.IGNITION,
+		Tool.PLAYER_START,
+		Tool.DELETE,
+		Tool.DETECTOR,
+		Tool.VICTIM
+	]
+
+
+func _update_editor_visualizer_drag_mode() -> void:
+	if _editor_visualizer_3d != null and _editor_visualizer_3d.has_method("set_element_drag_enabled"):
+		_editor_visualizer_3d.set_element_drag_enabled(_editor_view_mode == EditorViewMode.MODE_3D and current_tool == Tool.SELECT)
+
+
+func _on_editor_fp_exit_requested() -> void:
+	_set_editor_view_mode(EditorViewMode.MODE_2D)
+
+
+func _on_editor_3d_room_clicked(room_id: int) -> void:
+	if _editor_view_mode != EditorViewMode.MODE_3D:
+		return
+	if current_tool == Tool.DELETE:
+		_set_status("El borrado de geometria de salas se mantiene en 2D.")
+		return
+	if current_tool != Tool.SELECT:
+		return
+	if room_id >= 0:
+		_select_room(room_id)
+	else:
+		_clear_selection()
+		_set_status("Sin seleccion.")
+
+
+func _on_editor_3d_opening_clicked(opening_index: int, _screen_pos: Vector2) -> void:
+	if _editor_view_mode != EditorViewMode.MODE_3D:
+		return
+	if current_tool == Tool.DELETE:
+		if _delete_opening(opening_index):
+			_sync_editor_3d_after_direct_edit()
+		return
+	if current_tool != Tool.SELECT:
+		return
+	var openings: Array = editor_data.get("openings_data", [])
+	if opening_index < 0 or opening_index >= openings.size():
+		return
+	_select_opening(opening_index)
+
+
+func _on_editor_3d_object_clicked(room_id: int, object_id: String) -> void:
+	if _editor_view_mode != EditorViewMode.MODE_3D:
+		return
+	var object_index: int = _object_index_for_id(room_id, object_id)
+	if object_index < 0:
+		return
+	match current_tool:
+		Tool.DELETE:
+			_delete_object(room_id, object_index)
+			_sync_editor_3d_after_direct_edit()
+		Tool.IGNITION:
+			_mark_object_as_ignition(room_id, object_index)
+			_sync_editor_3d_after_direct_edit()
+		Tool.SELECT:
+			_select_object(room_id, object_index)
+
+
+func _on_editor_3d_detector_clicked(detector_id: String) -> void:
+	if _editor_view_mode != EditorViewMode.MODE_3D:
+		return
+	var detector_index: int = _detector_index_for_id(detector_id)
+	if detector_index < 0:
+		return
+	if current_tool == Tool.DELETE:
+		_select_detector(detector_index)
+		_delete_selected()
+		_sync_editor_3d_after_direct_edit()
+	elif current_tool == Tool.SELECT:
+		_select_detector(detector_index)
+
+
+func _on_editor_3d_victim_clicked(victim_id: String) -> void:
+	if _editor_view_mode != EditorViewMode.MODE_3D:
+		return
+	var victim_index: int = _victim_index_for_id(victim_id)
+	if victim_index < 0:
+		return
+	if current_tool == Tool.DELETE:
+		_select_victim(victim_index)
+		_delete_selected()
+		_sync_editor_3d_after_direct_edit()
+	elif current_tool == Tool.SELECT:
+		_select_victim(victim_index)
+
+
+func _on_editor_3d_player_start_clicked(room_id: int) -> void:
+	if _editor_view_mode != EditorViewMode.MODE_3D:
+		return
+	if current_tool == Tool.DELETE:
+		_select_player_start(room_id)
+		_delete_selected()
+		_sync_editor_3d_after_direct_edit()
+	elif current_tool == Tool.SELECT:
+		_select_player_start(room_id)
+
+
+func _on_editor_3d_floor_clicked(room_id: int, floor_pos_m: Vector2) -> void:
+	if _editor_view_mode != EditorViewMode.MODE_3D:
+		return
+	if room_id < 0:
+		return
+	match current_tool:
+		Tool.DOOR:
+			_create_door_at(floor_pos_m)
+			_sync_editor_3d_after_direct_edit()
+		Tool.HOLE:
+			_create_hole_at(floor_pos_m)
+			_sync_editor_3d_after_direct_edit()
+		Tool.WINDOW:
+			_create_window_at(floor_pos_m)
+			_sync_editor_3d_after_direct_edit()
+		Tool.OBJECT:
+			_create_object_at(floor_pos_m)
+			_sync_editor_3d_after_direct_edit()
+		Tool.DETECTOR:
+			_create_detector_at(floor_pos_m)
+			_sync_editor_3d_after_direct_edit()
+		Tool.VICTIM:
+			_create_victim_at(floor_pos_m)
+			_sync_editor_3d_after_direct_edit()
+		Tool.PLAYER_START:
+			_create_player_start_at(floor_pos_m)
+			_sync_editor_3d_after_direct_edit()
+		Tool.IGNITION:
+			_set_status("Ignicion 3D: pulsa directamente sobre un objeto combustible.")
+		Tool.DELETE:
+			_set_status("Borrado 3D: pulsa una apertura, objeto, detector, victima o inicio FP.")
+
+
+func _on_editor_3d_element_drag_started(kind: String) -> void:
+	if _editor_view_mode != EditorViewMode.MODE_3D:
+		return
+	if current_tool != Tool.SELECT:
+		return
+	_editor_3d_drag_active = true
+	_push_undo_snapshot("move_3d_" + kind)
+
+
+func _on_editor_3d_object_dragged(room_id: int, object_id: String, floor_pos_m: Vector2) -> void:
+	if _editor_view_mode != EditorViewMode.MODE_3D:
+		return
+	if current_tool != Tool.SELECT:
+		return
+	var object_index: int = _object_index_for_id(room_id, object_id)
+	if object_index < 0:
+		return
+	_move_object_center_to(room_id, object_index, floor_pos_m, true)
+	selected_object_room_id = room_id
+	selected_object_index = object_index
+	var obj: Dictionary = _get_object(room_id, object_index)
+	_sync_object_property_fields(obj)
+	queue_redraw()
+
+
+func _on_editor_3d_detector_dragged(detector_id: String, floor_pos_m: Vector2) -> void:
+	if _editor_view_mode != EditorViewMode.MODE_3D:
+		return
+	if current_tool != Tool.SELECT:
+		return
+	var detector_index: int = _detector_index_for_id(detector_id)
+	if detector_index < 0:
+		return
+	_move_detector_to(detector_index, floor_pos_m)
+	selected_detector_index = detector_index
+	_sync_detector_property_fields(Dictionary(Array(editor_data.get("detectors", []))[detector_index]))
+	queue_redraw()
+
+
+func _on_editor_3d_victim_dragged(victim_id: String, floor_pos_m: Vector2) -> void:
+	if _editor_view_mode != EditorViewMode.MODE_3D:
+		return
+	if current_tool != Tool.SELECT:
+		return
+	var victim_index: int = _victim_index_for_id(victim_id)
+	if victim_index < 0:
+		return
+	_move_victim_to(victim_index, floor_pos_m)
+	selected_victim_index = victim_index
+	_sync_victim_property_fields(Dictionary(Array(editor_data.get("victims", []))[victim_index]))
+	queue_redraw()
+
+
+func _on_editor_3d_player_start_dragged(floor_pos_m: Vector2) -> void:
+	if _editor_view_mode != EditorViewMode.MODE_3D:
+		return
+	if current_tool != Tool.SELECT:
+		return
+	_move_player_start_to(floor_pos_m)
+	var start: Dictionary = Dictionary(editor_data.get("player_start", {})) if typeof(editor_data.get("player_start", {})) == TYPE_DICTIONARY else {}
+	selected_player_start_room_id = int(start.get("room_id", -1))
+	queue_redraw()
+
+
+func _on_editor_3d_element_drag_ended(kind: String) -> void:
+	if _editor_view_mode != EditorViewMode.MODE_3D:
+		_editor_3d_drag_active = false
+		return
+	_editor_3d_drag_active = false
+	_mark_editor_runtime_dirty()
+	_sync_editor_runtime_views()
+	_refresh_property_panel()
+	match kind:
+		"object":
+			_set_status("Objeto movido en 3D.")
+		"detector":
+			_set_status("Detector movido en 3D.")
+		"victim":
+			_set_status("Victima movida en 3D.")
+		"player_start":
+			_set_status("Inicio FP movido en 3D.")
+		_:
+			_set_status("Elemento movido en 3D.")
+	queue_redraw()
+
+
+func _sync_editor_3d_after_direct_edit() -> void:
+	_mark_editor_runtime_dirty()
+	if _editor_view_mode == EditorViewMode.MODE_3D:
+		_sync_editor_runtime_views()
+	_refresh_property_panel()
+	queue_redraw()
+
+
+func _move_object_center_to(room_id: int, object_index: int, world_center_m: Vector2, visual_pose_locked: bool = false) -> void:
+	var obj: Dictionary = _get_object(room_id, object_index)
+	if obj.is_empty():
+		return
+	var room_rect: Rect2 = _get_room_rect(room_id)
+	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
+		return
+	var size: Vector2 = _object_size_m(obj)
+	var local_pos: Vector2 = _snap_m(world_center_m - room_rect.position - size * 0.5)
+	local_pos = _clamp_object_local_pos_for_rotation(room_rect, size, local_pos, float(obj.get("rotation_deg", 0.0)))
+	_set_object_position(room_id, object_index, local_pos, visual_pose_locked)
+
+
+func _move_detector_to(detector_index: int, world_pos_m: Vector2) -> void:
+	var dets: Array = editor_data.get("detectors", [])
+	if detector_index < 0 or detector_index >= dets.size() or typeof(dets[detector_index]) != TYPE_DICTIONARY:
+		return
+	var det: Dictionary = dets[detector_index]
+	var room_id: int = _find_room_at(world_pos_m)
+	if room_id < 0:
+		room_id = int(det.get("room_id", -1))
+	var room_rect: Rect2 = _get_room_rect(room_id)
+	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
+		return
+	var local_pos: Vector2 = _snap_m(world_pos_m - room_rect.position)
+	local_pos.x = clampf(local_pos.x, 0.0, maxf(0.0, room_rect.size.x))
+	local_pos.y = clampf(local_pos.y, 0.0, maxf(0.0, room_rect.size.y))
+	det["room_id"] = room_id
+	det["x_m"] = local_pos.x
+	det["y_m"] = local_pos.y
+	dets[detector_index] = det
+	editor_data["detectors"] = dets
+
+
+func _move_victim_to(victim_index: int, world_pos_m: Vector2) -> void:
+	var vics: Array = editor_data.get("victims", [])
+	if victim_index < 0 or victim_index >= vics.size() or typeof(vics[victim_index]) != TYPE_DICTIONARY:
+		return
+	var vic: Dictionary = vics[victim_index]
+	var room_id: int = _find_room_at(world_pos_m)
+	if room_id < 0:
+		room_id = int(vic.get("room_id", -1))
+	var room_rect: Rect2 = _get_room_rect(room_id)
+	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
+		return
+	var local_pos: Vector2 = _snap_m(world_pos_m - room_rect.position)
+	local_pos.x = clampf(local_pos.x, 0.0, maxf(0.0, room_rect.size.x))
+	local_pos.y = clampf(local_pos.y, 0.0, maxf(0.0, room_rect.size.y))
+	vic["room_id"] = room_id
+	vic["x_m"] = local_pos.x
+	vic["y_m"] = local_pos.y
+	vics[victim_index] = vic
+	editor_data["victims"] = vics
+
+
+func _move_player_start_to(world_pos_m: Vector2) -> void:
+	var start: Dictionary = Dictionary(editor_data.get("player_start", {})) if typeof(editor_data.get("player_start", {})) == TYPE_DICTIONARY else {}
+	var room_id: int = _find_room_at(world_pos_m)
+	if room_id < 0:
+		room_id = int(start.get("room_id", -1))
+	var room: Dictionary = _get_room(room_id)
+	var room_rect: Rect2 = _get_room_rect(room_id)
+	if room.is_empty() or room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
+		return
+	var local_pos: Vector2 = _snap_m(world_pos_m - room_rect.position)
+	local_pos.x = clampf(local_pos.x, 0.0, maxf(0.0, room_rect.size.x))
+	local_pos.y = clampf(local_pos.y, 0.0, maxf(0.0, room_rect.size.y))
+	start["room_id"] = room_id
+	start["position_m"] = Serializer.vector_to_data(local_pos)
+	start["floor_level_z_m"] = float(room.get("floor_level_z_m", 0.0))
+	start["yaw_deg"] = float(start.get("yaw_deg", 0.0))
+	editor_data["player_start"] = start
+
+
+func _sync_detector_property_fields(det: Dictionary) -> void:
+	if det.is_empty():
+		return
+	if _detector_id_edit != null:
+		_detector_id_edit.text = String(det.get("id", ""))
+	if _detector_type_option != null:
+		var det_type: String = String(det.get("type", "smoke"))
+		_detector_type_option.selected = 0 if det_type == "smoke" else (1 if det_type == "heat" else 2)
+	if _detector_threshold_spin != null:
+		_detector_threshold_spin.value = float(det.get("threshold", 0.025))
+	if _detector_x_spin != null:
+		_detector_x_spin.value = float(det.get("x_m", 0.0))
+	if _detector_y_spin != null:
+		_detector_y_spin.value = float(det.get("y_m", 0.0))
+
+
+func _sync_victim_property_fields(vic: Dictionary) -> void:
+	if vic.is_empty():
+		return
+	if _victim_name_edit != null:
+		_victim_name_edit.text = String(vic.get("name", ""))
+	if _victim_x_spin != null:
+		_victim_x_spin.value = float(vic.get("x_m", 0.0))
+	if _victim_y_spin != null:
+		_victim_y_spin.value = float(vic.get("y_m", 0.0))
+	if _victim_height_spin != null:
+		_victim_height_spin.value = float(vic.get("height_m", 0.9))
+
+
+func _object_index_for_id(room_id: int, object_id: String) -> int:
+	var room: Dictionary = _get_room(room_id)
+	if room.is_empty():
+		return -1
+	var objects: Array = room.get("fuel_objects", [])
+	for i in range(objects.size()):
+		if typeof(objects[i]) == TYPE_DICTIONARY and String(Dictionary(objects[i]).get("id", "")) == object_id:
+			return i
+	return -1
+
+
+func _detector_index_for_id(detector_id: String) -> int:
+	var detectors: Array = editor_data.get("detectors", [])
+	for i in range(detectors.size()):
+		if typeof(detectors[i]) == TYPE_DICTIONARY and String(Dictionary(detectors[i]).get("id", "")) == detector_id:
+			return i
+	return -1
+
+
+func _victim_index_for_id(victim_id: String) -> int:
+	var victims: Array = editor_data.get("victims", [])
+	for i in range(victims.size()):
+		if typeof(victims[i]) == TYPE_DICTIONARY and String(Dictionary(victims[i]).get("id", "")) == victim_id:
+			return i
+	return -1
+
+
+func _detector_id_for_index(index: int) -> String:
+	var detectors: Array = editor_data.get("detectors", [])
+	if index < 0 or index >= detectors.size() or typeof(detectors[index]) != TYPE_DICTIONARY:
+		return ""
+	return String(Dictionary(detectors[index]).get("id", ""))
+
+
+func _victim_id_for_index(index: int) -> String:
+	var victims: Array = editor_data.get("victims", [])
+	if index < 0 or index >= victims.size() or typeof(victims[index]) != TYPE_DICTIONARY:
+		return ""
+	return String(Dictionary(victims[index]).get("id", ""))
+
+
 func _find_left_vbox() -> VBoxContainer:
-	var left_vbox := _ui_root.get_node_or_null("LeftPanel/VBox") as VBoxContainer
+	var left_vbox := _ui_root.get_node_or_null("LeftPanel/Scroll/VBox") as VBoxContainer
+	if left_vbox != null:
+		return left_vbox
+	left_vbox = _ui_root.get_node_or_null("LeftPanel/VBox") as VBoxContainer
+	if left_vbox != null:
+		return left_vbox
+	left_vbox = _ui_root.get_node_or_null("ToolsPanel/Scroll/VBox") as VBoxContainer
 	if left_vbox != null:
 		return left_vbox
 	left_vbox = _ui_root.get_node_or_null("ToolsPanel/VBox") as VBoxContainer
@@ -477,6 +1170,27 @@ func _find_left_vbox() -> VBoxContainer:
 		for child in panel.get_children():
 			if child is VBoxContainer:
 				return child as VBoxContainer
+	return null
+
+
+func _get_left_node(path: String) -> Node:
+	var left_vbox := _find_left_vbox()
+	if left_vbox == null:
+		return null
+	return left_vbox.get_node_or_null(path)
+
+
+func _get_ui_node(path: String) -> Node:
+	if _ui_root == null:
+		return null
+	var node := _ui_root.get_node_or_null(path)
+	if node != null:
+		return node
+	var left_prefix := "LeftPanel/VBox/"
+	if path == "LeftPanel/VBox":
+		return _find_left_vbox()
+	if path.begins_with(left_prefix):
+		return _get_left_node(path.substr(left_prefix.length()))
 	return null
 
 
@@ -576,6 +1290,7 @@ func _push_undo_snapshot(_label: String = "") -> void:
 	_undo_stack.append(editor_data.duplicate(true))
 	while _undo_stack.size() > MAX_UNDO_STEPS:
 		_undo_stack.remove_at(0)
+	_mark_editor_runtime_dirty()
 
 
 func _undo_last_action() -> void:
@@ -596,6 +1311,7 @@ func _undo_last_action() -> void:
 	_sync_lighting_controls_from_data()
 	_sync_building_type_option_from_data()
 	_clear_selection()
+	_mark_editor_runtime_dirty()
 	_set_status("Ultima accion deshecha.")
 	queue_redraw()
 
@@ -1491,6 +2207,8 @@ func _refresh_element_list() -> void:
 		if _is_room_on_current_floor(_get_room(start_room_id)):
 			_element_list.add_item("Inicio FP  R%d" % start_room_id)
 			_element_list.set_item_metadata(row_index, {"type": "player_start", "room_id": start_room_id})
+			if selected_player_start_room_id == start_room_id:
+				selected_item_index = row_index
 			row_index += 1
 
 	if row_index == 0:
@@ -1543,7 +2261,7 @@ func _on_element_list_item_selected(index: int) -> void:
 		"victim":
 			_select_victim(int(data.get("victim_index", -1)))
 		"player_start":
-			_select_room(int(data.get("room_id", -1)))
+			_select_player_start(int(data.get("room_id", -1)))
 
 
 func _on_floor_selected(index: int) -> void:
@@ -1710,16 +2428,19 @@ func _opening_on_current_floor(opening: Dictionary) -> bool:
 
 
 func _set_tool(tool_id: int) -> void:
+	if not _tool_available_in_current_mode(tool_id):
+		_set_status("Esa herramienta esta reservada al modo 2D.")
+		_sync_tool_button_states()
+		return
 	current_tool = tool_id
 	pending_door_room_id = -1
-	for key in _tool_buttons.keys():
-		var button: Button = _tool_buttons[key]
-		button.button_pressed = int(key) == current_tool
+	_sync_tool_button_states()
 	_clear_drag()
 	_set_status(_tool_hint(current_tool))
 	_sync_tool_option_visibility()
+	_update_editor_visualizer_drag_mode()
 	# Resaltar el control de ancho de pasillo solo cuando la herramienta pasillo esta activa
-	var corridor_section := get_node_or_null("CanvasLayer/UI/LeftPanel/VBox/CorridorSectionLabel") as Label
+	var corridor_section := _get_left_node("CorridorSectionLabel") as Label
 	if corridor_section != null:
 		corridor_section.add_theme_color_override(
 			"font_color",
@@ -1728,6 +2449,28 @@ func _set_tool(tool_id: int) -> void:
 
 
 func _tool_hint(tool_id: int) -> String:
+	if _editor_view_mode == EditorViewMode.MODE_3D:
+		match tool_id:
+			Tool.SELECT:
+				return "3D Select: selecciona y arrastra objetos, detectores, victimas o inicio FP. Boton derecho orbita."
+			Tool.DOOR:
+				return "3D Puerta: pulsa el suelo muy cerca de una pared compartida o exterior."
+			Tool.HOLE:
+				return "3D Hueco: pulsa el suelo muy cerca de una pared compartida."
+			Tool.WINDOW:
+				return "3D Ventana: pulsa el suelo muy cerca de una pared exterior."
+			Tool.OBJECT:
+				return "3D Object: pulsa el suelo de una habitacion para colocar el combustible elegido."
+			Tool.IGNITION:
+				return "3D Ignicion: pulsa directamente sobre un objeto combustible."
+			Tool.PLAYER_START:
+				return "3D Inicio FP: pulsa el suelo de una habitacion para colocar la aparicion."
+			Tool.DELETE:
+				return "3D Borrar: pulsa apertura, objeto, detector, victima o inicio FP. Salas y muros siguen en 2D."
+			Tool.DETECTOR:
+				return "3D Detector: pulsa el suelo de una habitacion para colocar un detector."
+			Tool.VICTIM:
+				return "3D Victima: pulsa el suelo de una habitacion para marcar una victima."
 	match tool_id:
 		Tool.SELECT:
 			return "Seleccionar: clic en habitacion, objeto o apertura. Clic derecho para opciones."
@@ -1761,6 +2504,11 @@ func _tool_hint(tool_id: int) -> String:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _editor_view_mode == EditorViewMode.MODE_3D:
+		_handle_3d_editor_input(event)
+		return
+	if _editor_view_mode != EditorViewMode.MODE_2D:
+		return
 	# Zoom con rueda y desplazamiento con botón central
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
@@ -1834,7 +2582,43 @@ func _unhandled_input(event: InputEvent) -> void:
 		_handle_release(pos_m)
 
 
+func _handle_3d_editor_input(event: InputEvent) -> void:
+	if not (event is InputEventKey):
+		return
+	var key_event := event as InputEventKey
+	if not key_event.pressed or key_event.echo:
+		return
+	if key_event.keycode == KEY_Z and key_event.ctrl_pressed:
+		_undo_last_action()
+		_sync_editor_runtime_views()
+		get_viewport().set_input_as_handled()
+		return
+	if key_event.keycode == KEY_DELETE or key_event.keycode == KEY_BACKSPACE:
+		_delete_selected_3d_simple()
+		get_viewport().set_input_as_handled()
+
+
+func _delete_selected_3d_simple() -> void:
+	if selected_opening_index >= 0:
+		if _delete_opening(selected_opening_index):
+			_sync_editor_3d_after_direct_edit()
+		return
+	if selected_detector_index >= 0 \
+			or selected_victim_index >= 0 \
+			or selected_player_start_room_id >= 0 \
+			or (selected_object_room_id >= 0 and selected_object_index >= 0):
+		_delete_selected()
+		_sync_editor_3d_after_direct_edit()
+		return
+	if selected_room_id >= 0 or selected_exterior_wall_index >= 0:
+		_set_status("El borrado de geometria sigue reservado al modo 2D.")
+		return
+	_set_status("No hay ninguna apertura ni elemento simple seleccionado para borrar.")
+
+
 func _input(event: InputEvent) -> void:
+	if _editor_view_mode != EditorViewMode.MODE_2D:
+		return
 	if not (event is InputEventKey):
 		return
 	var key_event := event as InputEventKey
@@ -2184,7 +2968,10 @@ func _clear_drag() -> void:
 	is_dragging_room = false
 	is_dragging_exterior_wall = false
 	is_dragging_room_geometry = false
+	is_dragging_object = false
 	room_mouse_mode = ObjectMouseMode.NONE
+	object_mouse_mode = ObjectMouseMode.NONE
+	drag_object_cursor_offset_m = Vector2.ZERO
 	drag_start_m = Vector2.ZERO
 	drag_current_m = Vector2.ZERO
 
@@ -2384,7 +3171,7 @@ func _rotate_selected_object_with_mouse(pos_m: Vector2) -> void:
 	_set_object_rotation(selected_object_room_id, selected_object_index, _normalize_degrees_signed(rotation_deg))
 
 
-func _set_object_position(room_id: int, obj_index: int, local_pos: Vector2) -> void:
+func _set_object_position(room_id: int, obj_index: int, local_pos: Vector2, visual_pose_locked: bool = false) -> void:
 	var rooms: Array = editor_data.get("rooms_data", [])
 	for i in range(rooms.size()):
 		if typeof(rooms[i]) != TYPE_DICTIONARY or int(rooms[i].get("id", -1)) != room_id:
@@ -2394,6 +3181,8 @@ func _set_object_position(room_id: int, obj_index: int, local_pos: Vector2) -> v
 		if obj_index >= 0 and obj_index < objects.size() and typeof(objects[obj_index]) == TYPE_DICTIONARY:
 			var obj: Dictionary = objects[obj_index]
 			obj["position_m"] = Serializer.vector_to_data(local_pos)
+			if visual_pose_locked:
+				obj["visual_pose_locked"] = true
 			objects[obj_index] = obj
 			room["fuel_objects"] = objects
 			rooms[i] = room
@@ -2951,6 +3740,11 @@ func _select_at(pos_m: Vector2) -> void:
 		_select_exterior_wall(exterior_wall_index)
 		return
 
+	if _player_start_hit_test(pos_m):
+		var start: Dictionary = Dictionary(editor_data.get("player_start", {})) if typeof(editor_data.get("player_start", {})) == TYPE_DICTIONARY else {}
+		_select_player_start(int(start.get("room_id", -1)))
+		return
+
 	var room_id: int = _find_room_at(pos_m)
 	if room_id >= 0:
 		_select_room(room_id)
@@ -2967,8 +3761,10 @@ func _select_room(room_id: int) -> void:
 	selected_object_index = -1
 	selected_detector_index = -1
 	selected_victim_index = -1
+	selected_player_start_room_id = -1
 	selected_exterior_wall_index = -1
 	_refresh_property_panel()
+	_sync_editor_visualizer_selection()
 	_set_status("Habitacion %d seleccionada. Ajusta X/Y, ancho, fondo y angulo en Propiedades." % room_id)
 	queue_redraw()
 
@@ -2980,8 +3776,10 @@ func _select_opening(index: int) -> void:
 	selected_object_index = -1
 	selected_detector_index = -1
 	selected_victim_index = -1
+	selected_player_start_room_id = -1
 	selected_exterior_wall_index = -1
 	_refresh_property_panel()
+	_sync_editor_visualizer_selection()
 	var opening: Dictionary = Array(editor_data.get("openings_data", []))[index]
 	_set_status("Seleccionada apertura %d (%s)." % [index, String(opening.get("type", "door"))])
 	queue_redraw()
@@ -2994,8 +3792,10 @@ func _select_object(room_id: int, object_index: int) -> void:
 	selected_object_index = object_index
 	selected_detector_index = -1
 	selected_victim_index = -1
+	selected_player_start_room_id = -1
 	selected_exterior_wall_index = -1
 	_refresh_property_panel()
+	_sync_editor_visualizer_selection()
 	var obj: Dictionary = _get_object(room_id, object_index)
 	_set_status("Seleccionado objeto %s." % String(obj.get("name", obj.get("id", ""))))
 	queue_redraw()
@@ -3008,8 +3808,25 @@ func _clear_selection() -> void:
 	selected_object_index = -1
 	selected_detector_index = -1
 	selected_victim_index = -1
+	selected_player_start_room_id = -1
 	selected_exterior_wall_index = -1
 	_refresh_property_panel()
+	_sync_editor_visualizer_selection()
+
+
+func _select_player_start(room_id: int) -> void:
+	selected_room_id = -1
+	selected_opening_index = -1
+	selected_object_room_id = -1
+	selected_object_index = -1
+	selected_detector_index = -1
+	selected_victim_index = -1
+	selected_player_start_room_id = room_id
+	selected_exterior_wall_index = -1
+	_refresh_property_panel()
+	_sync_editor_visualizer_selection()
+	_set_status("Inicio FP seleccionado. Arrastralo en 3D para cambiar el punto de aparicion.")
+	queue_redraw()
 
 
 func _refresh_property_panel() -> void:
@@ -3365,7 +4182,7 @@ func _set_property_panel_visibility(has_room: bool, has_obj: bool, has_opening: 
 func _set_node_visible(path: String, visible: bool) -> void:
 	if _ui_root == null:
 		return
-	var node := _ui_root.get_node_or_null(path) as Control
+	var node := _get_ui_node(path) as Control
 	if node != null:
 		node.visible = visible
 
@@ -3649,8 +4466,8 @@ func _create_object_at(pos_m: Vector2) -> void:
 		_set_status("Pulsa dentro de una habitacion para colocar un objeto.")
 		return
 
-	var selected: int = _object_kind_option.selected
-	var kind: String = _object_kind_option.get_item_text(selected) if selected >= 0 else "sofa"
+	var selected: int = _object_kind_option.selected if _object_kind_option != null else -1
+	var kind: String = _object_kind_option.get_item_text(selected) if _object_kind_option != null and selected >= 0 else "sofa"
 	var room_rect: Rect2 = _get_room_rect(room_id)
 	var obj: Dictionary = ObjectLibraryScript.create_object(kind, _next_object_id(), room_id, Vector2.ZERO)
 	var size: Vector2 = Serializer.vector2_from_data(obj.get("size_m", Vector2.ONE))
@@ -3685,9 +4502,13 @@ func _mark_ignition_at(pos_m: Vector2) -> void:
 	if hit.is_empty():
 		_set_status("Pulsa sobre un objeto combustible para marcar el foco inicial.")
 		return
+	_mark_object_as_ignition(int(hit["room_id"]), int(hit["object_index"]))
 
-	var target_room_id: int = int(hit["room_id"])
-	var target_index: int = int(hit["object_index"])
+
+func _mark_object_as_ignition(target_room_id: int, target_index: int) -> void:
+	if _get_object(target_room_id, target_index).is_empty():
+		_set_status("Selecciona un objeto combustible para marcar el foco inicial.")
+		return
 	_push_undo_snapshot("mark_ignition")
 	var rooms: Array = editor_data.get("rooms_data", [])
 	for i in range(rooms.size()):
@@ -3815,8 +4636,10 @@ func _select_detector(index: int) -> void:
 	selected_object_index = -1
 	selected_detector_index = index
 	selected_victim_index = -1
+	selected_player_start_room_id = -1
 	selected_exterior_wall_index = -1
 	_refresh_property_panel()
+	_sync_editor_visualizer_selection()
 	var dets: Array = editor_data.get("detectors", [])
 	if index >= 0 and index < dets.size():
 		var det: Dictionary = dets[index]
@@ -3831,8 +4654,10 @@ func _select_victim(index: int) -> void:
 	selected_object_index = -1
 	selected_detector_index = -1
 	selected_victim_index = index
+	selected_player_start_room_id = -1
 	selected_exterior_wall_index = -1
 	_refresh_property_panel()
+	_sync_editor_visualizer_selection()
 	var vics: Array = editor_data.get("victims", [])
 	if index >= 0 and index < vics.size():
 		var vic: Dictionary = vics[index]
@@ -3847,8 +4672,10 @@ func _select_exterior_wall(index: int) -> void:
 	selected_object_index = -1
 	selected_detector_index = -1
 	selected_victim_index = -1
+	selected_player_start_room_id = -1
 	selected_exterior_wall_index = index
 	_refresh_property_panel()
+	_sync_editor_visualizer_selection()
 	_set_status("Muro exterior %d seleccionado." % index)
 	queue_redraw()
 
@@ -4036,6 +4863,24 @@ func _add_opening(a: int, b: int, type_str: String, wall: String, offset_m: floa
 	selected_room_id = -1
 	selected_object_room_id = -1
 	selected_object_index = -1
+	selected_detector_index = -1
+	selected_victim_index = -1
+	selected_player_start_room_id = -1
+	selected_exterior_wall_index = -1
+
+
+func _delete_opening(opening_index: int) -> bool:
+	var openings: Array = editor_data.get("openings_data", [])
+	if opening_index < 0 or opening_index >= openings.size():
+		_set_status("No se encontro la apertura para borrar.")
+		return false
+	_push_undo_snapshot("delete_opening")
+	openings.remove_at(opening_index)
+	editor_data["openings_data"] = openings
+	_clear_selection()
+	_set_status("Apertura eliminada.")
+	queue_redraw()
+	return true
 
 
 func _delete_at(pos_m: Vector2) -> void:
@@ -4058,13 +4903,7 @@ func _delete_at(pos_m: Vector2) -> void:
 
 	var opening_index: int = _find_opening_at(pos_m)
 	if opening_index >= 0:
-		var openings: Array = editor_data.get("openings_data", [])
-		_push_undo_snapshot("delete_opening")
-		openings.remove_at(opening_index)
-		editor_data["openings_data"] = openings
-		_clear_selection()
-		_set_status("Apertura eliminada.")
-		queue_redraw()
+		_delete_opening(opening_index)
 		return
 
 	var exterior_wall_index: int = _find_exterior_wall_at(pos_m)
@@ -4621,6 +5460,7 @@ func _load_from_path(path: String) -> void:
 	_sync_lighting_controls_from_data()
 	_sync_building_type_option_from_data()
 	_clear_selection()
+	_mark_editor_runtime_dirty()
 	if _path_edit != null:
 		_path_edit.text = clean_path
 	_set_status("Plantilla cargada desde %s." % clean_path)
@@ -4708,16 +5548,17 @@ func _delete_selected() -> void:
 		_set_status("Victima eliminada.")
 		queue_redraw()
 		return
+	elif selected_player_start_room_id >= 0:
+		_push_undo_snapshot("delete_player_start")
+		editor_data["player_start"] = {}
+		_clear_selection()
+		_set_status("Inicio FP eliminado.")
+		queue_redraw()
+		return
 	elif selected_object_room_id >= 0 and selected_object_index >= 0:
 		_delete_object(selected_object_room_id, selected_object_index)
 	elif selected_opening_index >= 0:
-		var openings: Array = editor_data.get("openings_data", [])
-		_push_undo_snapshot("delete_opening")
-		openings.remove_at(selected_opening_index)
-		editor_data["openings_data"] = openings
-		_clear_selection()
-		_set_status("Apertura eliminada.")
-		queue_redraw()
+		_delete_opening(selected_opening_index)
 	elif selected_room_id >= 0:
 		_delete_room(selected_room_id)
 
@@ -4804,6 +5645,8 @@ func _apply_opening_properties() -> void:
 
 
 func _draw() -> void:
+	if _editor_view_mode != EditorViewMode.MODE_2D:
+		return
 	_draw_lower_floor_ghost()
 	_draw_rooms()
 	_draw_exterior_walls()
@@ -5592,6 +6435,7 @@ func _load_scenario_pressed() -> void:
 	_sync_hvac_option_from_data()
 	_sync_building_type_option_from_data()
 	_clear_selection()
+	_mark_editor_runtime_dirty()
 	_set_status("Escenario cargado: %s" % path.get_file())
 	queue_redraw()
 
@@ -5730,21 +6574,21 @@ func _bind_existing_ui() -> bool:
 	if btn_victim != null:
 		_register_tool_button(btn_victim, Tool.VICTIM)
 
-	_object_kind_option = _ui_root.get_node_or_null("LeftPanel/VBox/ObjectTypeOption") as OptionButton
-	_path_edit = _ui_root.get_node_or_null("LeftPanel/VBox/PathEdit") as LineEdit
-	_scenario_option = _ui_root.get_node_or_null("LeftPanel/VBox/ScenarioOption") as OptionButton
-	_hvac_option = _ui_root.get_node_or_null("LeftPanel/VBox/HVACRow/HVACOption") as OptionButton
+	_object_kind_option = _get_left_node("ObjectTypeOption") as OptionButton
+	_path_edit = _get_left_node("PathEdit") as LineEdit
+	_scenario_option = _get_left_node("ScenarioOption") as OptionButton
+	_hvac_option = _get_left_node("HVACRow/HVACOption") as OptionButton
 	if _hvac_option == null:
-		_hvac_option = _ui_root.get_node_or_null("LeftPanel/VBox/HVACOption") as OptionButton
-	_interior_lights_check = _ui_root.get_node_or_null("LeftPanel/VBox/LightingRow/InteriorLightsCheck") as CheckBox
-	_stop_time_spin = _ui_root.get_node_or_null("LeftPanel/VBox/StopTimeSpin") as SpinBox
-	_corridor_width_spin = _ui_root.get_node_or_null("LeftPanel/VBox/CorridorWidthSpin") as SpinBox
-	_opening_tool_section = _ui_root.get_node_or_null("LeftPanel/VBox/OpeningToolSection") as Control
-	_opening_tool_width_spin = _ui_root.get_node_or_null("LeftPanel/VBox/OpeningToolSection/OpeningToolWidthRow/OpeningToolWidthSpin") as SpinBox
+		_hvac_option = _get_left_node("HVACOption") as OptionButton
+	_interior_lights_check = _get_left_node("LightingRow/InteriorLightsCheck") as CheckBox
+	_stop_time_spin = _get_left_node("StopTimeSpin") as SpinBox
+	_corridor_width_spin = _get_left_node("CorridorWidthSpin") as SpinBox
+	_opening_tool_section = _get_left_node("OpeningToolSection") as Control
+	_opening_tool_width_spin = _get_left_node("OpeningToolSection/OpeningToolWidthRow/OpeningToolWidthSpin") as SpinBox
 	if _opening_tool_width_spin == null:
-		_opening_tool_width_spin = _ui_root.get_node_or_null("LeftPanel/VBox/OpeningToolSection/OpeningToolWidthSpin") as SpinBox
-	_status_label = _ui_root.get_node_or_null("LeftPanel/VBox/StatusLabel") as Label
-	_building_type_option = _ui_root.get_node_or_null("LeftPanel/VBox/BuildingTypeRow/BuildingTypeOption") as OptionButton
+		_opening_tool_width_spin = _get_left_node("OpeningToolSection/OpeningToolWidthSpin") as SpinBox
+	_status_label = _get_left_node("StatusLabel") as Label
+	_building_type_option = _get_left_node("BuildingTypeRow/BuildingTypeOption") as OptionButton
 
 	_name_edit = _ui_root.get_node_or_null("RightPanel/VBox/RoomNameEdit") as LineEdit
 	_kind_edit = _ui_root.get_node_or_null("RightPanel/VBox/RoomKindEdit") as LineEdit
@@ -5836,14 +6680,14 @@ func _bind_existing_ui() -> bool:
 		_opening_open_option.add_item("Abierta", 1)
 	_populate_opening_direction_options()
 
-	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnSave") as Button, _save_pressed)
-	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnLoad") as Button, _load_pressed)
-	var export_button := _ui_root.get_node_or_null("LeftPanel/VBox/BtnExportRuntime") as Button
+	_connect_button(_get_left_node("BtnSave") as Button, _save_pressed)
+	_connect_button(_get_left_node("BtnLoad") as Button, _load_pressed)
+	var export_button := _get_left_node("BtnExportRuntime") as Button
 	if export_button != null:
 		export_button.text = "Exportar simulacion"
 		export_button.tooltip_text = "Guarda una copia interna para probar la simulacion; Iniciar simulacion lo hace automaticamente."
 	_connect_button(export_button, _export_runtime_pressed)
-	_connect_button(_ui_root.get_node_or_null("LeftPanel/VBox/BtnLoadScenario") as Button, _load_scenario_pressed)
+	_connect_button(_get_left_node("BtnLoadScenario") as Button, _load_scenario_pressed)
 	_room_apply_button = _ui_root.get_node_or_null("RightPanel/VBox/BtnApplyRoom") as Button
 	_room_delete_button = _ui_root.get_node_or_null("RightPanel/VBox/BtnDeleteRoom") as Button
 	_connect_button(_room_apply_button, _apply_room_properties)
@@ -6306,14 +7150,14 @@ func _sync_tool_option_visibility() -> void:
 	_set_node_visible("LeftPanel/VBox/ObjectTypeOption", object_visible)
 	if _object_kind_option != null:
 		_set_control_row_visible(_object_kind_option, object_visible)
-	var object_section := _ui_root.get_node_or_null("LeftPanel/VBox/ObjectToolSection") as Control
+	var object_section := _get_left_node("ObjectToolSection") as Control
 	if object_section != null:
 		object_section.visible = object_visible
 	_set_node_visible("LeftPanel/VBox/CorridorSectionLabel", corridor_visible)
 	_set_node_visible("LeftPanel/VBox/CorridorWidthSpin", corridor_visible)
 	if _corridor_width_spin != null:
 		_set_control_row_visible(_corridor_width_spin, corridor_visible)
-	var corridor_row := _ui_root.get_node_or_null("LeftPanel/VBox/CorridorWidthRow") as Control
+	var corridor_row := _get_left_node("CorridorWidthRow") as Control
 	if corridor_row != null:
 		corridor_row.visible = corridor_visible
 	if _opening_tool_section != null:
@@ -6324,7 +7168,7 @@ func _sync_tool_option_visibility() -> void:
 
 
 func _ensure_corridor_width_control_in_existing_ui() -> void:
-	var left_vbox := _ui_root.get_node_or_null("LeftPanel/VBox") as VBoxContainer
+	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
 
@@ -6354,7 +7198,7 @@ func _ensure_corridor_width_control_in_existing_ui() -> void:
 
 
 func _ensure_opening_tool_controls_in_existing_ui() -> void:
-	var left_vbox := _ui_root.get_node_or_null("LeftPanel/VBox") as VBoxContainer
+	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
 	_opening_tool_section = left_vbox.get_node_or_null("OpeningToolSection") as Control
@@ -6410,7 +7254,7 @@ func _ensure_hvac_option_in_existing_ui() -> void:
 			_hvac_option.item_selected.connect(_on_hvac_option_selected)
 		return
 
-	var left_vbox := _ui_root.get_node_or_null("LeftPanel/VBox") as VBoxContainer
+	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
 
@@ -6480,7 +7324,7 @@ func _ensure_lighting_controls_in_existing_ui() -> void:
 		_sync_lighting_controls_from_data()
 		return
 
-	var left_vbox := _ui_root.get_node_or_null("LeftPanel/VBox") as VBoxContainer
+	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
 
@@ -6528,6 +7372,9 @@ func _zoom_at_mouse(factor: float) -> void:
 
 #moviemiento con las flechas
 func _physics_process(delta: float) -> void:
+	_refresh_editor_runtime_if_needed()
+	if _editor_view_mode != EditorViewMode.MODE_2D:
+		return
 	_update_hover_help(delta)
 	var direction := Vector2.ZERO
 
