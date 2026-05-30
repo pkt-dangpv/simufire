@@ -333,8 +333,9 @@ def _add_rmse_check(
     end_t: float = float("inf"),
     note: str = "",
     sim_field: str | None = None,
+    required: bool = False,
 ) -> None:
-    """Append a non-gating RMSE check: passes when RMSE ≤ threshold.
+    """Append an RMSE check: passes when RMSE ≤ threshold.
 
     *sim_field* allows the SimuFire field to differ from the CFAST field.
     For example, compare SF ``o2_upper`` against CFAST ``o2`` (ULO2):
@@ -347,7 +348,7 @@ def _add_rmse_check(
             name=name,
             actual=rmse,
             maximum=threshold,
-            required=False,
+            required=required,
             note=note or f"CMV-2: RMSE({display_field}) ≤ {threshold} over t=[{start_t},{end_t}]s.",
         )
     )
@@ -824,18 +825,19 @@ def build_cfast_checks() -> list[Check]:
                        note="Fase 2C: lower-zone CO now tracked via co_upper_kg; COl= ≈ 0 vs CFAST LLCO ≈ 0.")
 
     # ── CMV-2: RMSE curve-shape checks ────────────────────────────────────────
+    # Stage-E: temp_upper, HRR and CO RMSE promoted to required (margins: 25, 133, 179 units).
     _add_rmse_check(checks, "cfast_rmse_temp_upper_c", sim, cfast,
-                    "temp_upper_c", threshold=60.0,
-                    note="CMV-2: temp_upper RMSE ≤ 60°C full simulation (r0_window_360).")
+                    "temp_upper_c", threshold=60.0, required=True,
+                    note="CMV-2 Stage-E: temp_upper RMSE ≤ 60°C full simulation (SF=34.3°C, margin 25°C).")
     _add_rmse_check(checks, "cfast_rmse_o2", sim, cfast,
                     "o2", threshold=0.025, end_t=360.0, sim_field="o2_upper",
                     note="CMV-2: O2 RMSE(o2_upper vs ULO2) ≤ 0.025 pre-opening t=0–360s. Apples-to-apples after Fase 1A.")
     _add_rmse_check(checks, "cfast_rmse_hrr_kw", sim, cfast,
-                    "hrr_kw", threshold=300.0,
-                    note="CMV-2: HRR RMSE ≤ 300 kW full simulation (r0_window_360).")
+                    "hrr_kw", threshold=300.0, required=True,
+                    note="CMV-2 Stage-E: HRR RMSE ≤ 300 kW full simulation (SF=166.5kW, margin 133kW).")
     _add_rmse_check(checks, "cfast_rmse_co_upper_ppm", sim, cfast,
-                    "co_upper_ppm", threshold=400.0,
-                    note="CMV-2: CO upper RMSE ≤ 400 ppm full simulation.")
+                    "co_upper_ppm", threshold=400.0, required=True,
+                    note="CMV-2 Stage-E: CO upper RMSE ≤ 400 ppm full simulation (SF=220.7ppm, margin 179ppm).")
     # hot_layer_m RMSE = 0.95 m: SF one-zone HotLayer (vertical fill from top) diverges
     # from CFAST two-zone interface height as stratification intensifies. SF does not
     # separate upper/lower gas masses so the reported interface is a bulk estimate.
@@ -1021,9 +1023,10 @@ def build_cfast_single_room_closed_checks() -> list[Check]:
     _add_rmse_check(checks, "cfast_closed_rmse_o2", sim, cfast,
                     "o2", threshold=0.025,
                     note="CMV-2: O2 RMSE ≤ 0.025 (sealed room). Structural gap expected.")
+    # Stage-E: CO RMSE promoted to required (SF=400.1ppm, margin 199ppm).
     _add_rmse_check(checks, "cfast_closed_rmse_co_upper_ppm", sim, cfast,
-                    "co_upper_ppm", threshold=600.0,
-                    note="CMV-2: CO upper RMSE ≤ 600 ppm (sealed room).")
+                    "co_upper_ppm", threshold=600.0, required=True,
+                    note="CMV-2 Stage-E: CO upper RMSE ≤ 600 ppm sealed room (SF=400.1ppm, margin 199ppm).")
 
     # ── 1.5B: peak detection ──────────────────────────────────────────────────
     # Peak temp_upper before extinction (t=0–600s): CFAST peaks at ~210°C before O2 depletion.
@@ -1129,10 +1132,11 @@ def build_cfast_slow_growth_sealed_checks() -> list[Check]:
 
     # ── Required: RMSE temp_upper t=0–600 s ──────────────────────────────────
     # Measured RMSE=40.4°C; threshold=65°C gives 246 steps margin @0.1°C.
+    # Stage-E: promoted to required (SF=40.5°C, margin 24.5°C).
     _add_rmse_check(
         checks, "cfast_slow_rmse_temp_upper_c", sim, cfast,
-        "temp_upper_c", threshold=65.0, start_t=0.0, end_t=600.0,
-        note="SGB-2: slow-growth temp_upper RMSE ≤ 65°C (t=0–600 s). "
+        "temp_upper_c", threshold=65.0, start_t=0.0, end_t=600.0, required=True,
+        note="SGB-2 Stage-E: slow-growth temp_upper RMSE ≤ 65°C (t=0–600s; SF=40.4°C, margin 24.5°C). "
              "Phase 1.5 growth-phase gap accounts for 40°C; tol=65 (246 steps @0.1°C).",
     )
 
@@ -1817,15 +1821,16 @@ def build_cfast_post_flashover_vented_checks() -> list[Check]:
                        note="Fase 2A: lower-zone O2 in vented scenario (CFAST LLO2 near ambient via inflow; SF o2_lower tracked independently — gap closes with two-zone doorway flow).")
 
     # ── CMV-2: RMSE curve-shape checks ────────────────────────────────────────
+    # Stage-E: both RMSE checks promoted to required (margins: 24°C, 225kW).
     _add_rmse_check(checks, "cfast_fo_rmse_temp_upper_c", sim, cfast,
-                    "temp_upper_c", threshold=60.0,
-                    note="CMV-2: temp_upper RMSE ≤ 60°C (post-flashover vented).")
+                    "temp_upper_c", threshold=60.0, required=True,
+                    note="CMV-2 Stage-E: temp_upper RMSE ≤ 60°C post-flashover (SF=35.7°C, margin 24°C).")
     _add_rmse_check(checks, "cfast_fo_rmse_o2", sim, cfast,
                     "o2", threshold=0.028,
                     note="CMV-2: O2 RMSE ≤ 0.028 (post-flashover vented). Structural gap expected. Threshold 0.025→0.028: hardened from 0.0012 margin (actual=0.02379) to ≥3× headroom.")
     _add_rmse_check(checks, "cfast_fo_rmse_hrr_kw", sim, cfast,
-                    "hrr_kw", threshold=300.0,
-                    note="CMV-2: HRR RMSE ≤ 300 kW (post-flashover vented).")
+                    "hrr_kw", threshold=300.0, required=True,
+                    note="CMV-2 Stage-E: HRR RMSE ≤ 300 kW post-flashover (SF=74.1kW, margin 225kW).")
 
     # ── 1.5B: peak detection ──────────────────────────────────────────────────
     # cfast_fo_peak_temp_upper_c: SF peak=355.31°C vs minimum=400°C. Gap=44.69°C.
@@ -1937,15 +1942,17 @@ def build_cfast_hvac_residential_checks() -> list[Check]:
     # After t=350, CFAST HVAC fan replenishes O2 in upper zone → sustains fire at
     # 174°C at t=450; SF burns out at 52°C (no HVAC O2 replenishment in SF).
     # Structural Phase 2H gap. RMSE[0,350]=40.5°C < 60°C.
+    # Stage-E: temp_upper RMSE promoted to required (SF=40.5°C, margin 19.5°C).
+    # CO RMSE promoted to required (SF=253.7ppm, margin 246ppm).
     _add_rmse_check(checks, "cfast_hvac_rmse_temp_upper_c", sim, cfast,
-                    "temp_upper_c", threshold=60.0, end_t=350.0,
-                    note="CMV-2: temp_upper RMSE ≤ 60°C over t=[0,350]s. Post-350 HVAC replenishes O2 sustaining CFAST fire (174°C) while SF burns out (52°C) — Phase 2H structural gap.")
+                    "temp_upper_c", threshold=60.0, end_t=350.0, required=True,
+                    note="CMV-2 Stage-E: temp_upper RMSE ≤ 60°C over t=[0,350]s (SF=40.5°C, margin 19.5°C). Phase 2H gap post-350s documented.")
     _add_rmse_check(checks, "cfast_hvac_rmse_o2", sim, cfast,
                     "o2", threshold=0.025,
                     note="CMV-2: O2 RMSE ≤ 0.025 (HVAC residential). Structural gap expected.")
     _add_rmse_check(checks, "cfast_hvac_rmse_co_upper_ppm", sim, cfast,
-                    "co_upper_ppm", threshold=500.0,
-                    note="CMV-2: CO upper RMSE ≤ 500 ppm (HVAC residential).")
+                    "co_upper_ppm", threshold=500.0, required=True,
+                    note="CMV-2 Stage-E: CO upper RMSE ≤ 500 ppm HVAC residential (SF=253.7ppm, margin 246ppm).")
 
     return checks
 
@@ -1972,6 +1979,7 @@ def build_cfast_long_burnout_3600s_checks() -> list[Check]:
     # Growth phase point checks (0→180s) — sealed, same physics as single_room_closed.
     # CFAST: t=60→44.7°C, t=120→121.9°C, t=180→259.6°C
     # SimuFire: t=60→35.3°C, t=120→85.3°C, t=180→172.1°C
+    # Stage-E: burnout growth-phase point checks promoted to required (margins: 20, 45, 72°C).
     for target_s, lo, hi in [
         (60.0,  15.0, 100.0),
         (120.0, 40.0, 180.0),
@@ -1983,8 +1991,7 @@ def build_cfast_long_burnout_3600s_checks() -> list[Check]:
             actual=s["temp_upper_c"],
             minimum=lo,
             maximum=hi,
-            required=False,
-            note=f"CMV-3: growth-phase temp_upper in [{lo},{hi}]°C at t={target_s}s.",
+            note=f"CMV-3 Stage-E: growth-phase temp_upper in [{lo},{hi}]°C at t={target_s}s. Growth-sequence guard.",
         ))
 
     # Behavioral: fire becomes O2-limited by t=300 (HRR well below unconstrained 1280kW).
@@ -2028,9 +2035,10 @@ def build_cfast_long_burnout_3600s_checks() -> list[Check]:
 
     # CMV-2: RMSE temp_upper over growth phase only (0→180s).
     # Estimated RMSE ~49°C based on SimuFire running ~10–87°C cooler than CFAST.
+    # Stage-E: burnout RMSE promoted to required (SF=42.9°C, margin 22°C).
     _add_rmse_check(checks, "cfast_burnout_rmse_temp_upper_c", sim, cfast,
-                    "temp_upper_c", threshold=65.0, start_t=0.0, end_t=180.0,
-                    note="CMV-3: temp_upper RMSE ≤ 65°C over growth phase (t=0–180s).")
+                    "temp_upper_c", threshold=65.0, start_t=0.0, end_t=180.0, required=True,
+                    note="CMV-3 Stage-E: temp_upper RMSE ≤ 65°C growth phase (SF=42.9°C, margin 22°C).")
 
     # ── 1.5C: long-burnout shape checks ──────────────────────────────────────
     # Peak temp before O2 depletion (t=0–300s): CFAST ~260°C at t=180s.
@@ -2086,13 +2094,13 @@ def build_cfast_window_break_t180_checks() -> list[Check]:
     # Pre-break point check at t=120s (identical to sealed scenario).
     # CFAST=121.9°C, SimuFire=85.3°C.
     s120 = _nearest(sim, 120.0)
+    # Stage-E: promoted to required (SF=85.3°C, margin 45°C lower, 89°C upper).
     checks.append(Check(
         "cfast_winbreak_t120_temp_upper_c",
         actual=s120["temp_upper_c"],
         minimum=40.0,
         maximum=175.0,
-        required=False,
-        note="CMV-3: pre-break temp_upper at t=120s — growth-phase sealed behavior.",
+        note="CMV-3 Stage-E: pre-break temp_upper at t=120s in [40,175]°C (SF=85.3°C). Growth-phase sealed guard.",
     ))
 
     # Post-break behavioral: temp_upper > 200°C at t=300.
@@ -2138,9 +2146,10 @@ def build_cfast_window_break_t180_checks() -> list[Check]:
     ))
 
     # CMV-2: RMSE temp_upper pre-break only (0→170s).
+    # Stage-E: pre-break RMSE promoted to required (SF=35.4°C, margin 29°C).
     _add_rmse_check(checks, "cfast_winbreak_rmse_temp_upper_pre_break", sim, cfast,
-                    "temp_upper_c", threshold=65.0, start_t=0.0, end_t=170.0,
-                    note="CMV-3: temp_upper RMSE ≤ 65°C pre-break phase (t=0–170s).")
+                    "temp_upper_c", threshold=65.0, start_t=0.0, end_t=170.0, required=True,
+                    note="CMV-3 Stage-E: temp_upper RMSE ≤ 65°C pre-break (SF=35.4°C, margin 29°C).")
 
     return checks
 
@@ -2237,9 +2246,10 @@ def build_cfast_door_close_midfire_checks() -> list[Check]:
         ))
 
     # CMV-2: RMSE R0 temp_upper over pre-close phase (0→120s).
+    # Stage-E: pre-close RMSE promoted to required (SF=39.9°C, margin 30°C).
     _add_rmse_check(checks, "cfast_doorclose_r0_rmse_temp_upper_pre_close", sim_r0, cfast_r0,
-                    "temp_upper_c", threshold=70.0, start_t=0.0, end_t=120.0,
-                    note="CMV-3: R0 temp_upper RMSE ≤ 70°C pre-close phase (t=0–120s).")
+                    "temp_upper_c", threshold=70.0, start_t=0.0, end_t=120.0, required=True,
+                    note="CMV-3 Stage-E: R0 temp_upper RMSE ≤ 70°C pre-close (SF=39.9°C, margin 30°C).")
 
     return checks
 
@@ -2306,10 +2316,12 @@ def build_cfast_fast_growth_closed_checks() -> list[Check]:
 
     # CMV-2: RMSE temp_upper over growth phase (t=60–120s).
     # Known structural gap: SF runs ~160°C hotter → RMSE ≈ 160°C >> 60°C threshold.
+    # Stage-E: fast-growth RMSE note corrected (actual margin 20°C vs 60°C threshold).
+    # Despite the comment saying ~160°C RMSE, the actual SF RMSE is ~39.1°C (margin 20.9°C).
+    # Promoted to required.
     _add_rmse_check(checks, "cfast_fastgrowth_rmse_temp_upper_c", sim, cfast,
-                    "temp_upper_c", threshold=60.0, start_t=60.0, end_t=120.0,
-                    note="CMV-3: temp_upper RMSE ≤ 60°C over fast-growth phase (t=60–120s). "
-                         "Known gap: SF wall heat loss underestimated → ~160°C RMSE.")
+                    "temp_upper_c", threshold=60.0, start_t=60.0, end_t=120.0, required=True,
+                    note="CMV-3 Stage-E: temp_upper RMSE ≤ 60°C fast-growth phase t=60–120s (SF=39.1°C, margin 20°C).")
 
     return checks
 
@@ -2389,10 +2401,11 @@ def build_cfast_two_floor_stairwell_checks() -> list[Check]:
 
     # ── 1.5C: multi-floor shape checks ───────────────────────────────────────
     # R0 peak temp (fire room) before O2 depletion.
+    # Stage-E: promoted to required (SF=518.9°C, margin 281°C lower, 281°C upper).
     _add_peak_value_check(checks, "cfast_twofloor_r0_peak_temp_upper_c", sim_r0,
                           "temp_upper_c", minimum=100.0, maximum=800.0,
-                          start_t=0.0, end_t=300.0,
-                          note="1.5C: two-floor R0 peak temp_upper in [100,800]°C (CFAST ~170°C, SF ~456°C).")
+                          start_t=0.0, end_t=300.0, required=True,
+                          note="1.5C Stage-E: two-floor R0 peak temp_upper in [100,800]°C (CFAST ~170°C, SF ~456°C; margin 281°C). Fire-development guard.")
     _add_peak_timing_check(checks, "cfast_twofloor_r0_peak_temp_timing", sim_r0, cfast_r0,
                            "temp_upper_c", tolerance_s=120.0, start_t=0.0, end_t=300.0,
                            note="1.5C: two-floor R0 peak temp timing within ±120s of CFAST.")
