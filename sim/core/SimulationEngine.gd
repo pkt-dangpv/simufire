@@ -386,6 +386,7 @@ var _active_suppression_by_room: Dictionary = {}
 # Coeficiente de transferencia de calor efectivo de las paredes [kW/m²·K].
 # 0.012 kW/m²·K ≈ placa de yeso 12 mm (k=0.17 W/m·K / d=0.014 m).
 @export var flashover_mqh_hk_kw_m2k: float = 0.012
+@export var flashover_min_time_s: float = 0.0
 
 # ============================================================
 # AJUSTES TÉRMICOS
@@ -1988,6 +1989,9 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 		return
 
 	if room.flashover_triggered:
+		return
+
+	if sim_time_s < flashover_min_time_s:
 		return
 
 	var hot_enough: bool = room.temp_upper_c >= flashover_temp_c
