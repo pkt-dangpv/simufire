@@ -599,6 +599,20 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		co_base_yield,
 		co_max_yield
 	)
+	# Phase 2: CO vent-limited via o2_upper (Beyler 1986, NIST TN 1603).
+	# Cuando el O2 de la zona superior cae bajo el umbral, la combustión en la
+	# interfaz upper/lower genera CO masivamente (fuego subventilado real).
+	# El engagement es suave: 0 % a o2_upper=threshold, 100 % a o2_upper=threshold/2.
+	var co_vent_threshold: float = float(context.get("fire_co_vent_limited_o2_threshold", 0.12))
+	var co_vent_multiplier: float = float(context.get("fire_co_vent_limited_multiplier", 1.0))
+	if can_flame and co_vent_multiplier > 1.0 and room.o2_upper < co_vent_threshold:
+		var vent_engagement: float = clampf(
+			inverse_lerp(co_vent_threshold, co_vent_threshold * 0.5, room.o2_upper),
+			0.0,
+			1.0
+		)
+		co_yield = lerpf(co_yield, co_yield * co_vent_multiplier, vent_engagement)
+		co_yield = minf(co_yield, co_max_yield * co_vent_multiplier)
 	if not can_flame and latent_viable:
 		co_yield *= float(context.get("fire_latent_co_yield_multiplier", 1.0))
 	# Permite fijar un yield constante desde el caso (ej. para comparación CFAST que

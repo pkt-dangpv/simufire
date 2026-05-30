@@ -1,0 +1,5 @@
+Godot Engine v4.6.3.stable.official.7d41c59c4 - https://godotengine.org
+
+C:/Users/dangp/AppData/Roaming/Godot/app_userdata/SimuFire/sim_log.txt
+[Validation] Ejecutando caso 'ghanekar_bedroom_hallway' hasta 420.0 s
+[Validation] Reporte guardado en res://sim/validation/reports/ghanekar_bedroom_hallway.json
