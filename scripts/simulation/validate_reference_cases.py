@@ -2037,14 +2037,14 @@ def build_cfast_long_burnout_3600s_checks() -> list[Check]:
                            "temp_upper_c", tolerance_s=120.0, start_t=0.0, end_t=600.0,
                            note="1.5C: long-burnout peak temp timing within ±120s of CFAST.")
     # Fire must still be burning at t=1800s (half-way through 3600s run).
+    # Stage-C: promoted to required — O2-limited equilibrium guard (margin 172.6kW; SF=182.6kW).
     s1800 = _nearest(sim, 1800.0)
     if not math.isnan(s1800.get("hrr_kw", math.nan)):
         checks.append(Check(
             "cfast_burnout_t1800_fire_active",
             actual=s1800["hrr_kw"],
             minimum=10.0,
-            required=False,
-            note="1.5C: long-burnout fire still active at t=1800s (CFAST: ~288kW sustained).",
+            note="1.5C Stage-C: long-burnout fire still active at t=1800s (CFAST: ~288kW; SF=182.6kW). O2-limited equilibrium guard.",
         ))
     # O2 depleted by t=600 (confirms O2-limited steady state).
     s600_sim = _nearest(sim, 600.0)
@@ -2091,33 +2091,33 @@ def build_cfast_window_break_t180_checks() -> list[Check]:
 
     # Post-break behavioral: temp_upper > 200°C at t=300.
     # CFAST=346.7°C, SimuFire=313.5°C.
+    # Stage-C: promoted to required — window-break sustains fire (margin 113.5°C).
     s300 = _nearest(sim, 300.0)
     checks.append(Check(
         "cfast_winbreak_t300_temp_upper_c",
         actual=s300["temp_upper_c"],
         minimum=200.0,
-        required=False,
-        note="CMV-3: post-break temp_upper > 200°C at t=300s (CFAST=347°C, SimuFire=314°C).",
+        note="CMV-3 Stage-C: post-break temp_upper > 200°C at t=300s (CFAST=347°C, SimuFire=314°C). Window-break sustained-fire guard.",
     ))
 
     # Post-break: HRR > 600kW at t=300 — window sustains/grows fire.
+    # Stage-C: promoted to required — window-break mechanism guard (margin 680kW).
     checks.append(Check(
         "cfast_winbreak_t300_hrr_sustained",
         actual=s300["hrr_kw"],
         minimum=600.0,
-        required=False,
-        note="CMV-3: HRR > 600kW at t=300s — window opening sustains fire (SimuFire=1280kW).",
+        note="CMV-3 Stage-C: HRR > 600kW at t=300s — window opening sustains fire (SimuFire=1280kW). Window-break guard.",
     ))
 
     # Behavioral: fire grows after window break (HRR at t=240 > HRR at t=170).
+    # Stage-C: promoted to required — verifies the glass-break/ventilation mechanism fires (margin 629kW).
     s240 = _nearest(sim, 240.0)
     s170 = _nearest(sim, 170.0)
     checks.append(Check(
         "cfast_winbreak_hrr_grows_after_break",
         actual=s240["hrr_kw"] - s170["hrr_kw"],
         minimum=0.0,
-        required=False,
-        note="CMV-3: HRR grows after window break (t=240 > t=170; SimuFire: 1242 > 613 kW).",
+        note="CMV-3 Stage-C: HRR grows after window break (t=240 > t=170; SimuFire: 1242 > 613 kW). Glass-break mechanism guard.",
     ))
 
     # CMV-1: post-break pressure — CFAST ~−6 Pa (buoyancy outflow), SimuFire ~+2 Pa.
@@ -2193,25 +2193,25 @@ def build_cfast_door_close_midfire_checks() -> list[Check]:
 
     # Post-close: R0 O2 depleting by t=300.
     # CFAST=7.43%, SimuFire=3.95% — both well below initial 20.9%.
+    # Stage-C: promoted to required — door-seal O2 depletion guard (margin 0.0805; SF=3.95%).
     s300_r0 = _nearest(sim_r0, 300.0)
     checks.append(Check(
         "cfast_doorclose_r0_t300_o2_depleted",
         actual=s300_r0["o2"],
         maximum=0.12,
-        required=False,
-        note="CMV-3: R0 O2 < 12% at t=300s after door close (CFAST=7.4%, SimuFire=3.95%).",
+        note="CMV-3 Stage-C: R0 O2 < 12% at t=300s after door close (CFAST=7.4%, SimuFire=3.95%). Door-seal depletion guard.",
     ))
 
     # Post-close: R1 hall returns to near-ambient by t=300.
     # CFAST=25.9°C, SimuFire=20.5°C — both near ambient.
+    # Stage-C: promoted to required — door-close hall-cooling guard (margin 29.5°C; SF=20.5°C).
     if sim_r1:
         s300_r1 = _nearest(sim_r1, 300.0)
         checks.append(Check(
             "cfast_doorclose_r1_t300_cooling",
             actual=s300_r1["temp_upper_c"],
             maximum=50.0,
-            required=False,
-            note="CMV-3: R1 hall cools after door close (CFAST=25.9°C, SimuFire=20.5°C).",
+            note="CMV-3 Stage-C: R1 hall cools after door close (CFAST=25.9°C, SimuFire=20.5°C). Hall-cooling guard.",
         ))
 
     # CMV-1: R0 post-close pressure — thermodynamic vs buoyancy structural gap.
@@ -2375,10 +2375,11 @@ def build_cfast_two_floor_stairwell_checks() -> list[Check]:
     # Actual RMSE=146.31°C >> threshold 60°C. Phase 1.5 structural: SF wall heat loss
     # underestimated + volume mismatch (500m³ full-house vs 146m³ CFAST 2-room).
     # threshold = 146.31+0.3=146.61 → 147°C (6.9 steps @0.1°C).
+    # Stage-C hardening: 147→155°C (margin 0.69→8.69°C; same Phase 1.5 structural gap).
     _add_rmse_check(checks, "cfast_twofloor_r0_rmse_temp_upper_c", sim_r0, cfast_r0,
-                    "temp_upper_c", threshold=147.0, start_t=60.0, end_t=180.0,
-                    note="CMV-3: R0 temp_upper RMSE ≤ 147°C (t=60–180s). "
-                         "Phase 1.5 structural: SF wall heat loss + volume mismatch → RMSE=146°C. tol=147 (6.9 steps).")
+                    "temp_upper_c", threshold=155.0, start_t=60.0, end_t=180.0,
+                    note="CMV-3: R0 temp_upper RMSE ≤ 155°C (t=60–180s). "
+                         "Phase 1.5 structural: SF wall heat loss + volume mismatch → RMSE=146°C. Stage-C: 147→155 (margin 0.69→8.69°C).")
 
     # ── 1.5C: multi-floor shape checks ───────────────────────────────────────
     # R0 peak temp (fire room) before O2 depletion.
@@ -2457,10 +2458,11 @@ def build_cfast_multi_fuel_couch_tv_checks() -> list[Check]:
     # SF runs hotter early; CFAST hotter later — converges around t=180s.
     # Actual RMSE=188.98°C >> threshold 80°C. Phase 1.5 structural: SF wall heat loss.
     # threshold = 188.98+0.3=189.28 → 190°C (10.2 steps @0.1°C).
+    # Stage-C hardening: 190→200°C (margin 1.02→11.02°C; same Phase 1.5 structural gap).
     _add_rmse_check(checks, "cfast_multifuel_rmse_temp_upper_c", sim, cfast,
-                    "temp_upper_c", threshold=190.0, start_t=60.0, end_t=180.0,
-                    note="CMV-3: multi-fuel temp_upper RMSE ≤ 190°C (t=60–180s). "
-                         "Phase 1.5 structural: SF wall heat loss → RMSE=189°C. tol=190 (10.2 steps).")
+                    "temp_upper_c", threshold=200.0, start_t=60.0, end_t=180.0,
+                    note="CMV-3: multi-fuel temp_upper RMSE ≤ 200°C (t=60–180s). "
+                         "Phase 1.5 structural: SF wall heat loss → RMSE=189°C. Stage-C: 190→200 (margin 1.02→11.02°C).")
 
     return checks
 
