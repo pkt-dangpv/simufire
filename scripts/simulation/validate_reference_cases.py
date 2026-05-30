@@ -846,19 +846,21 @@ def build_cfast_checks() -> list[Check]:
 
     # ── 1.5B: peak detection — pre-opening and post-opening ───────────────────
     # Pre-opening peak temp_upper (t=0–360s): CFAST peaks at ~210°C around t=300s.
+    # Stage-D: promoted to required — pre-opening fire development guard (margin 144°C).
     _add_peak_value_check(checks, "cfast_peak_temp_upper_pre_open", sim,
                           "temp_upper_c", minimum=100.0, maximum=500.0,
-                          start_t=0.0, end_t=360.0,
-                          note="1.5B: pre-opening peak temp_upper in [100,500]°C (CFAST ~210°C at ~t=300s).")
+                          start_t=0.0, end_t=360.0, required=True,
+                          note="1.5B Stage-D: pre-opening peak temp_upper in [100,500]°C (CFAST ~210°C at t=300s; SF=244°C). Fire development guard.")
     _add_peak_timing_check(checks, "cfast_peak_temp_timing_pre_open", sim, cfast,
                            "temp_upper_c", tolerance_s=60.0,
                            start_t=60.0, end_t=360.0,
                            note="1.5B: pre-opening peak temp_upper timing within ±60s of CFAST.")
     # Post-opening peak CO upper (t=360–600s): CFAST shows CO spike after ventilation.
+    # Stage-D: promoted to required — CO spike after ventilation (margin 609 ppm; SF=809 ppm).
     _add_peak_value_check(checks, "cfast_peak_co_upper_post_open", sim,
                           "co_upper_ppm", minimum=200.0,
-                          start_t=360.0, end_t=600.0,
-                          note="1.5B: post-opening CO upper peak ≥ 200 ppm (structural gap: one-zone dilutes CO).")
+                          start_t=360.0, end_t=600.0, required=True,
+                          note="1.5B Stage-D: post-opening CO upper peak >= 200 ppm (SF=809 ppm; one-zone dilutes CO structurally but still far above threshold). CO-spike guard.")
 
     # ── 1.5A: wall temperature checks (non-gating) ─────────────────────────────
     # CFAST wall CSV has: ceilt_c, uwallt_c, lwallt_c, floort_c.
@@ -1025,10 +1027,11 @@ def build_cfast_single_room_closed_checks() -> list[Check]:
 
     # ── 1.5B: peak detection ──────────────────────────────────────────────────
     # Peak temp_upper before extinction (t=0–600s): CFAST peaks at ~210°C before O2 depletion.
+    # Stage-D: promoted to required — sealed-room thermal guard (margin 147°C lower, 372°C upper).
     _add_peak_value_check(checks, "cfast_closed_peak_temp_upper_c", sim,
                           "temp_upper_c", minimum=80.0, maximum=600.0,
-                          start_t=0.0, end_t=600.0,
-                          note="1.5B: sealed-room peak temp_upper in [80,600]°C (CFAST ~210°C at O2 limit).")
+                          start_t=0.0, end_t=600.0, required=True,
+                          note="1.5B Stage-D: sealed-room peak temp_upper in [80,600]°C (CFAST ~210°C; SF=228°C). Thermal development guard.")
     _add_peak_timing_check(checks, "cfast_closed_peak_temp_timing", sim, cfast,
                            "temp_upper_c", tolerance_s=90.0,
                            start_t=0.0, end_t=600.0,
@@ -1428,11 +1431,12 @@ def build_cfast_bedroom_closed_door_checks() -> list[Check]:
     # ── Required: FED > 1.0 (lethal dose confirmed) ───────────────────────────
     # SF FED crosses 1.0 at t=250s with CO=5026 ppm, O2u=13.1%.
     # Validates that smoke gas conditions in sealed bedroom become lethal within 15 min.
+    # Stage-D: promoted to required — lethal dose confirmed guard (margin 29.9; SF max=30.9).
     _add_peak_value_check(
         checks, "cfast_bed_fed_lethal", sim, "fed",
-        minimum=1.0, maximum=None, start_t=0.0, end_t=900.0, mode="max",
-        note="BCD-2: bedroom FED > 1.0 (lethal gas dose before 900s). "
-             "SF FED crosses 1.0 at t=250s (CO=5026 ppm, O2u=13.1%); max=30.4.",
+        minimum=1.0, maximum=None, start_t=0.0, end_t=900.0, mode="max", required=True,
+        note="BCD-2 Stage-D: bedroom FED > 1.0 (lethal gas dose before 900s; SF max=30.9). "
+             "SF FED crosses 1.0 at t=250s (CO=5026 ppm, O2u=13.1%). Lethal-dose guard.",
     )
 
     # ── Required: RMSE temp_upper ≤ 80°C (structural gap documented) ─────────
@@ -1836,9 +1840,10 @@ def build_cfast_post_flashover_vented_checks() -> list[Check]:
     _add_peak_timing_check(checks, "cfast_fo_peak_temp_timing", sim, cfast,
                            "temp_upper_c", tolerance_s=193.0,
                            note="1.5B: post-flashover peak temp timing. SF one-zone uniform heating → peak at t=200s vs CFAST two-zone t=390s (190s earlier). Phase 1.5 structural. tol=193s (3 steps).")
+    # Stage-D: promoted to required — post-flashover HRR guard (margin 1469 kW; SF=1970 kW).
     _add_peak_value_check(checks, "cfast_fo_peak_hrr_kw", sim,
-                          "hrr_kw", minimum=500.0,
-                          note="1.5B: post-flashover peak HRR ≥ 500 kW.")
+                          "hrr_kw", minimum=500.0, required=True,
+                          note="1.5B Stage-D: post-flashover peak HRR >= 500 kW (SF=1970 kW). Flashover energy-release guard.")
 
     return checks
 
@@ -1985,23 +1990,23 @@ def build_cfast_long_burnout_3600s_checks() -> list[Check]:
     # Behavioral: fire becomes O2-limited by t=300 (HRR well below unconstrained 1280kW).
     # CFAST=288kW, SimuFire=523kW — both far below 1280kW cap.
     s300 = _nearest(sim, 300.0)
+    # Stage-D: promoted to required — O2-limited HRR cap guard (margin 376 kW; SF=523 kW).
     checks.append(Check(
         "cfast_burnout_t300_hrr_o2_limited",
         actual=s300["hrr_kw"],
         maximum=900.0,
-        required=False,
-        note="CMV-3: fire O2-limited by t=300s (CFAST: 288kW, SimuFire: ~524kW, cap: 1280kW).",
+        note="CMV-3 Stage-D: fire O2-limited by t=300s (CFAST: 288kW, SimuFire: ~524kW, cap: 900kW). O2-limited HRR guard.",
     ))
 
     # Behavioral: fire still burning at t=600 (long slow burn, not extinguished).
     # SimuFire=182kW, CFAST=288kW.
     s600 = _nearest(sim, 600.0)
+    # Stage-D: promoted to required — long-burnout sustained-fire guard (margin 152 kW; SF=182 kW).
     checks.append(Check(
         "cfast_burnout_t600_fire_active",
         actual=s600["hrr_kw"],
         minimum=30.0,
-        required=False,
-        note="CMV-3: fire still burning at t=600s (long burnout; SimuFire=182kW).",
+        note="CMV-3 Stage-D: fire still burning at t=600s (long burnout; SimuFire=182kW). Sustained-fire guard.",
     ))
 
     # CMV-1: pressure — thermodynamic vs buoyancy model structural gap (non-gating).
@@ -2029,10 +2034,11 @@ def build_cfast_long_burnout_3600s_checks() -> list[Check]:
 
     # ── 1.5C: long-burnout shape checks ──────────────────────────────────────
     # Peak temp before O2 depletion (t=0–300s): CFAST ~260°C at t=180s.
+    # Stage-D: promoted to required — long-burnout thermal guard (margin 146°C lower, 273°C upper).
     _add_peak_value_check(checks, "cfast_burnout_peak_temp_upper_c", sim,
                           "temp_upper_c", minimum=80.0, maximum=500.0,
-                          start_t=0.0, end_t=600.0,
-                          note="1.5C: long-burnout peak temp_upper in [80,500]°C (CFAST peak ~260°C).")
+                          start_t=0.0, end_t=600.0, required=True,
+                          note="1.5C Stage-D: long-burnout peak temp_upper in [80,500]°C (CFAST ~260°C; SF=226.7°C). Thermal guard.")
     _add_peak_timing_check(checks, "cfast_burnout_peak_temp_timing", sim, cfast,
                            "temp_upper_c", tolerance_s=120.0, start_t=0.0, end_t=600.0,
                            note="1.5C: long-burnout peak temp timing within ±120s of CFAST.")
@@ -2169,6 +2175,7 @@ def build_cfast_door_close_midfire_checks() -> list[Check]:
     # Pre-close point checks (0→120s, door open).
     # CFAST: t=60→44.98°C, t=120→115.5°C
     # SimuFire: t=60→54.6°C, t=120→159.5°C (warmer — no ach_infiltration in this case)
+    # Stage-D: promoted to required — pre-close fire sequence guards (t60 margin 60°C, t120 margin 60°C).
     for target_s, lo, hi in [(60.0, 20.0, 120.0), (120.0, 50.0, 220.0)]:
         s = _nearest(sim_r0, target_s)
         checks.append(Check(
@@ -2176,19 +2183,18 @@ def build_cfast_door_close_midfire_checks() -> list[Check]:
             actual=s["temp_upper_c"],
             minimum=lo,
             maximum=hi,
-            required=False,
-            note=f"CMV-3: pre-close R0 temp_upper in [{lo},{hi}]°C at t={target_s}s.",
+            note=f"CMV-3 Stage-D: pre-close R0 temp_upper in [{lo},{hi}]°C at t={{target_s}}s. Pre-close fire sequence guard.",
         ))
 
     # Post-close: R0 fire room still hot at t=240 (peak before full O2 depletion).
     # SimuFire=239.7°C at t=240.
     s240 = _nearest(sim_r0, 240.0)
+    # Stage-D: promoted to required — post-close fire-active guard (margin 139°C; SF=239.7°C).
     checks.append(Check(
         "cfast_doorclose_r0_t240_temp_active",
         actual=s240["temp_upper_c"],
         minimum=100.0,
-        required=False,
-        note="CMV-3: R0 fire still hot at t=240s post-close (SimuFire=239.7°C).",
+        note="CMV-3 Stage-D: R0 fire still hot at t=240s post-close (SimuFire=239.7°C). Post-close fire-active guard.",
     ))
 
     # Post-close: R0 O2 depleting by t=300.
