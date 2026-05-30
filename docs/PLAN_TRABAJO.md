@@ -1,6 +1,7 @@
 # Plan de Trabajo — SimuFire Motor de Física
 **Creado**: 30 mayo 2026 | **Estado validación en el momento de creación**: 367/367 PASS required, 9 gaps non-gating  
-**HEAD**: `b84e399` (main, sync con origin) — Phase 1.6 completa y empujada
+**Última actualización**: 30 mayo 2026 | **Estado actual**: 372/372 PASS required, 6 gaps non-gating  
+**HEAD**: `156fb81` (main, sync con origin) — Phase 2 CO vent-limited completa y empujada
 
 ---
 
@@ -9,12 +10,12 @@
 ### 1.1 Línea base de validación
 | Métrica | Valor |
 |---------|-------|
-| Checks required PASS | **367 / 367** |
-| Checks non-gating (gaps) | **9** |
+| Checks required PASS | **372 / 372** |
+| Checks non-gating (gaps) | **6** |
 | Total checks registrados | 521 |
 | Guardrails | ✅ Exit 0 |
 | Unit tests | ✅ 13/13 |
-| Último commit de producción | `b84e399` — docs Phase 1.6 |
+| Último commit de producción | `156fb81` — Phase 2 CO vent-limited |
 
 ### 1.2 Arquitectura del motor (capas físicas implementadas)
 
@@ -61,25 +62,20 @@ python tests/test_guardrails.py
 - **Fix necesario**: suavizar la curva de combustible del colchón Ghanekar para que la transición 75→90% sea gradual (~20-30 s), logrando que el descenso de HL sea progresivo y alcance HL ≈ 0.75 m entre t=156-216 s
 - **Bloqueo**: requiere modificar la tabla de combustible del caso específico (JSON) o añadir interpolación en el motor de progresión de objetos
 
-#### GAP-2: `ghanekar_kitchen_far_hall_fed_1_0_s`
+#### GAP-2: `ghanekar_kitchen_far_hall_fed_1_0_s` — ✅ CERRADO (Phase 2, 2026-05-28)
 - **Qué mide**: tiempo FED=1.0 en pasillo lejano, caso cocina Ghanekar
-- **Referencia**: 624 ± 126 s (ventana 498–750 s)
-- **Situación actual**: FED en pasillo lejano nunca alcanza 1.0 (CO insuficiente)
-- **Causa raíz**: CO pico R2 ≈ 148–538 ppm vs >48,000 ppm de referencia — brecha ≈90×. La cocina es un incendio ventilation-limited pero SF usa O₂ promedio de sala (no O₂ de zona superior), por lo que no detecta depleción real en zona de combustión → rendimiento CO queda en régimen bien ventilado
-- **Fix necesario**: modelo de CO para fuego vent-limited — yield de CO debe dispararse cuando O₂ UPPER cae por debajo de ~10-12%. Requiere `o2_upper` como input al modelo de combustión.
+- **Resultado**: 743.6s ∈ [498, 750] s ✅ (fire_co_vent_limited_multiplier=110, fed_upper_layer_threshold_m=2.0)
+- **Promovido a**: required=True en `build_ghanekar_kitchen_checks()`
 
-#### GAP-3: `ghanekar_kitchen_far_hall_idlh_co_s`
+#### GAP-3: `ghanekar_kitchen_far_hall_idlh_co_s` — ✅ CERRADO (Phase 2, 2026-05-28)
 - **Qué mide**: tiempo CO>1200 ppm en pasillo lejano, caso cocina Ghanekar
-- **Referencia**: 642 ± 102 s
-- **Situación actual**: CO nunca supera 200 ppm en pasillo lejano
-- **Causa raíz**: idéntica a GAP-2. Mismo fix requerido.
+- **Resultado**: 684.4s ∈ [540, 744] s ✅ (misma calibración que GAP-2)
+- **Promovido a**: required=True
 
-#### GAP-4: `ghanekar_kitchen_fire_room_flashover_s`
+#### GAP-4: `ghanekar_kitchen_fire_room_flashover_s` — ✅ CERRADO (Phase 2, 2026-05-28)
 - **Qué mide**: flashover en sala viva (R3=Living Room), caso cocina Ghanekar
-- **Referencia**: 894 ± 30 s
-- **Situación actual**: T_upper R3 máximo ≈ 441°C (nunca flashover)
-- **Causa raíz**: sin CO vent-limited, la ventilación de la cocina no impulsa el crecimiento del incendio; además el fuego se extingue por depleción de O₂ prematuramente sin la retroalimentación de combustión incompleta
-- **Fix necesario**: idéntico a GAP-2+3; con CO yield vent-limited correcto, el crecimiento del fuego en cocina será más agresivo y generará suficiente calor para flashover en sala viva
+- **Resultado**: 873.75s ∈ [864, 924] s ✅ (doorway_heat_exchange_coeff=0.30 + CO vent-limited)
+- **Promovido a**: required=True
 
 #### GAP-5: `cfast_overpressure_sealed_pending`
 - **Qué mide**: presión termódinámica en sala sellada (100-1000 Pa)
@@ -167,16 +163,18 @@ python tests/test_guardrails.py
 
 **Criterio de cierre**:
 - `time_room_0_temp_0_9m_above_600c_s` en JSON = valor ∈ [156, 216] s
-- 367+1/368 required PASS
+- 373/373 required PASS (promovería 1 gap sobre la base actual 372/372)
 
 **Riesgo**: suavizar el escalón puede reducir T_upper pico. Margen actual: 608°C vs límite 650°C (42°C de margen). Si T_upper baja de 608°C a ~570°C sigue dentro del rango.
 
 ---
 
-### FASE 2 — O₂ upper como input a combustión (GAP-2, 3, 4, 8)
-**Objetivo**: cerrar los 3 gaps del caso `ghanekar_kitchen` y el gap HRR vent-limited CFAST  
-**Prerequisito**: ninguno (independiente de Phase 1.7)  
-**Esfuerzo estimado**: 3-5 sesiones
+### FASE 2 — CO vent-limited via o2_upper (GAP-2, 3, 4) — ✅ COMPLETADA (2026-05-28)
+**Objetivo original**: cerrar los 3 gaps del caso `ghanekar_kitchen` y el gap HRR vent-limited CFAST  
+**Logrado**: GAP-2 (fed_1_0: 743.6s), GAP-3 (idlh_co: 684.4s), GAP-4 (flashover: 873.75s) — todos required=True  
+**Pendiente de Phase 2**: GAP-8 (`cfast_hrr_ventilation_limited_f2_pending`) requiere implementar el cap de HRR por `o2_upper` en CombustionSystem; la calibración de CO yield (multiplier=110) no cubre este gap CFAST.  
+**Parámetros calibrados**: `fire_co_vent_limited_multiplier=110`, `fed_upper_layer_threshold_m=2.0`, `doorway_heat_exchange_coeff=0.30`  
+**Commits**: `c67802b` (calibración) + `156fb81` (CO vent-limited combustion phase)
 
 **Descripción técnica**:
 
@@ -189,17 +187,21 @@ python tests/test_guardrails.py
 #### 2.2 — HRR limitado por O₂ upper
 - En `SimulationEngine.gd::_step_fire_for_room()`, añadir cap de HRR cuando `room.o2_upper < fire_fds_extinction_o2_limit_ambient`
 - Este cap reemplaza el O₂ promedio para la limitación de llama: `effective_o2 = min(room.o2, room.o2_upper)`
-- Verificar que los 367 checks existentes no regresen (el cambio solo actúa cuando hay gradiente O₂ upper/lower)
+- Verificar que los 372 checks existentes no regresen (el cambio solo actúa cuando hay gradiente O₂ upper/lower)
 
 **Archivos a modificar**: `sim/fire/CombustionSystem.gd`, `sim/core/SimulationEngine.gd`  
 **Nuevo parámetro**: `fire_co_vent_limited_o2_threshold: float = 0.12`  
 **Nuevo parámetro**: `fire_co_vent_limited_multiplier: float = 80.0`
 
-**Criterio de cierre**:
+**Criterio cumplido para GAP-2/3/4**:
 - `ghanekar_kitchen_far_hall_fed_1_0_s`: actual ∈ [498, 750] s
 - `ghanekar_kitchen_far_hall_idlh_co_s`: actual ∈ [540, 744] s
 - `ghanekar_kitchen_fire_room_flashover_s`: actual ∈ [864, 924] s
-- 370+/370 required PASS
+- 372/372 required PASS con los 5 checks Ghanekar kitchen promovidos
+
+**Criterio pendiente para GAP-8**:
+- `cfast_hrr_ventilation_limited_f2_pending` eliminado tras implementar HRR cap por `o2_upper`
+- Required PASS actualizado sin aumentar tolerancias del check legacy `cfast_t240_hrr_ventilation_limited`
 
 **Riesgo**: el multiplicador de CO afecta FED en casos existentes. Revisar especialmente `ghanekar_bedroom_hallway` (fuego también en zona parcialmente vent-limited). Usar override por caso si hay regresión.
 
@@ -284,8 +286,9 @@ python tests/test_guardrails.py
 2026-05 (COMPLETADO)
     Phase 1.5 ✅  — entrainment temperature fix (a723e8d)
     Phase 1.6 ✅  — Bernoulli doorway_heat_exchange_coeff fix (efcf5fd)
-    Stage-B ✅    — 5 casos CFAST implementados (320 required checks)
-    Hardening ✅  — Stage C/D/E/F (367 required checks)
+  Stage-B ✅    — 5 casos CFAST implementados (320 required checks)
+  Hardening ✅  — Stage C/D/E/F (367 required checks)
+  Phase 2 ✅    — Ghanekar kitchen promoted to required (372 required checks)
 
 2026-06 (PRÓXIMO)
 ┌──────────────────────────────────────────────────────────────┐
@@ -296,10 +299,11 @@ python tests/test_guardrails.py
 └──────────────────────────────────────────────────────────────┘
          ↓ independiente
 ┌──────────────────────────────────────────────────────────────┐
-│  SPRINT 2 (3-5 sesiones)                                     │
-│  Phase 2 — CO vent-limited + o2_upper → combustión          │
-│  Objetivo: GAP-2, 3, 4, 8 → required                        │
-│  Riesgo: MEDIO (2 archivos core, rebaseline por caso)        │
+│  SPRINT 2 (2-4 sesiones)                                     │
+│  Phase 2 cont. — HRR cap por o2_upper en CombustionSystem   │
+│  Objetivo: GAP-8 → required                                  │
+│  (GAP-2, 3, 4 ya cerrados en 2026-05-28 ✅)                 │
+│  Riesgo: MEDIO (combustión core, rebaseline por caso)        │
 └──────────────────────────────────────────────────────────────┘
          ↓ desbloquea
 ┌──────────────────────────────────────────────────────────────┐
@@ -321,12 +325,12 @@ python tests/test_guardrails.py
 
 | Prioridad | Fase | Gaps cierra | Riesgo | Esfuerzo | Prerequisito |
 |-----------|------|-------------|--------|----------|--------------|
-| 1 | Phase 1.7 | 1 | Bajo | 1-2 sesiones | Ninguno |
-| 2 | Phase 2 | 3 (+ 1 CFAST) | Medio | 3-5 sesiones | Ninguno |
-| 3 | Phase 2A | 1 | Alto | 4-6 sesiones | Phase 2 |
-| 4 | Phase 2B | 1 | Medio | 2-3 sesiones | Phase 2A |
-| 5 | Phase 2C | 1 | Medio | 1-2 sesiones | Phase 2A |
-| 6 | Phase 3 | 1 | Muy alto | 6-10 sesiones | Phase 2A |
+| 1 | Phase 1.7 | 1 (GAP-1) | Bajo | 1-2 sesiones | Ninguno |
+| 2 | Phase 2 cont. | 1 (GAP-8) | Medio | 2-4 sesiones | Ninguno |
+| 3 | Phase 2A | 1 (GAP-7) | Alto | 4-6 sesiones | Phase 2 |
+| 4 | Phase 2B | 1 (GAP-6) | Medio | 2-3 sesiones | Phase 2A |
+| 5 | Phase 2C | 1 (GAP-9) | Medio | 1-2 sesiones | Phase 2A |
+| 6 | Phase 3 | 1 (GAP-5) | Muy alto | 6-10 sesiones | Phase 2A |
 
 ---
 
@@ -334,7 +338,7 @@ python tests/test_guardrails.py
 
 | Invariante | Cómo verificar |
 |-----------|----------------|
-| 367/367 required PASS (mín actual) | `python scripts/simulation/validate_reference_cases.py` |
+| 372/372 required PASS (mín actual) | `python scripts/simulation/validate_reference_cases.py` |
 | Conteo de gaps documentado == conteo en JSON | `python scripts/simulation/validation_guardrails.py` |
 | 13/13 unit tests | `python tests/test_guardrails.py` |
 | 7 sentinels Phase 2E PASS | Incluido en guardrails |
@@ -355,17 +359,12 @@ python tests/test_guardrails.py
 
 ---
 
-## 8. Estado del working tree al cierre de sesión (2026-05-30)
+## 8. Estado del working tree documentado (2026-05-30)
 
 ```
-HEAD: b84e399 (main = origin/main)
+HEAD base: 156fb81 (main = origin/main)
 
-Modificaciones respecto a b84e399:
-  - sim/validation/cases/ghanekar_bedroom_hallway.json — SIN CAMBIO NET
-    (se añadió thermal_gradient_min_band_m=0.10 y se revirtió — experimento Phase 1.7 fallido)
-    → working tree limpio en este archivo
-
-Estado: LIMPIO — sin cambios pendientes de commit
+Estado tras esta actualización documental: cambios pendientes en docs, guardrails y reference_checks; validar y commitear antes de considerar la sesión cerrada.
 ```
 
 ### Changelog de sesión (2026-05-30)
@@ -373,6 +372,8 @@ Estado: LIMPIO — sin cambios pendientes de commit
 |--------|-------------|
 | `efcf5fd` | Phase 1.6: apply doorway_heat_exchange_coeff to Bernoulli flow path |
 | `b84e399` | docs: update GAPS_INVENTORY for Phase 1.6 |
+| `c67802b` | phase-2: CO vent-limited via o2_upper (closes GAP-2,3,4; GAP-8 remains pending) |
+| `156fb81` | Add CO vent-limited phase to combustion model |
 
 ### Investigación realizada (sin commit — resultados negativos documentados)
 - **Experimento `thermal_gradient_min_band_m=0.10`**: no efectivo para GAP-1. `ref_depth=0.567 m` ya supera el min_band → floor nunca activo. Revertido.

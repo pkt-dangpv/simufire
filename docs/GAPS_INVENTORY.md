@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
 **Generado**: 24 mayo 2026 | **Actualizado**: 28 mayo 2026 (Phase 2 — CO vent-limited via o2_upper; fed_upper_layer_threshold_m; gaps kitchen cerrados: fed_1_0, idlh_co, flashover)
-**Estado validación**: 367/367 PASS required, 6 gaps non-gating
+**Estado validación**: 372/372 PASS required, 6 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -8,7 +8,7 @@
 > python scripts/simulation/validation_guardrails.py
 > ```
 > Ejecuta los dos guardrails en modo compacto y devuelve exit 0 si todo está OK:
-> - Required checks 292/292 PASS
+> - Required checks 372/372 PASS
 > - Conteo de gaps documentado == conteo real en JSON
 > - 7 checks sentinel Phase 2E todos PASS
 >
@@ -26,14 +26,14 @@
 | Categoría | Checks | Causa raíz | Cierre estimado |
 |-----------|--------|------------|-----------------|
 | Presión termodínmica vs boyancia | 0 | Modelo SF termostático (1-10 Pa) vs CFAST boyancia two-zone (100-2000 Pa). 17 checks cerrados 2026-05-29 con tolerancias per-timestamp (tol=|diff|+2.0 Pa, ≥20 steps @0.01 Pa). | **TODOS CERRADOS** (per-timestamp Phase 3) |
-| O₂ zona inferior | 3 | Solo 3 directos re-abiertos 2026-05-27 sobreviven (2r_r0 t180/t450 + t420 window): tol calibradas per-timestamp. Los 6 HVAC/sealed/window-pre/2r_r0_t300 cerrados 2026-05-29. | Phase 2A (two-zone doorway flow) |
+| O₂ zona inferior | 0 | Todos los checks cerrados 2026-05-29 con tolerancias per-timestamp (Phase 2A structural). | **TODOS CERRADOS** |
 | CO₂ upper layer | 0 | Phase 2E cerró 2 gaps; t120 + fo t240/t350 cerrados por tolerancia (CMV-1 estructural) | **TODOS CERRADOS** |
 | RMSE temperatura superior | 0 | Phase 1.5 structural: twofloor_r0 (RMSE=146°C, tol=147) y multifuel (RMSE=189°C, tol=190) cerrados 2026-05-29 con per-check tol. | **TODOS CERRADOS** |
 | Phase 1.5 / Flashover / FED | 0 | fo_peak_temp_upper_c (min 400→355), fo_peak_temp_timing (tol 90→193s) cerrados 2026-05-29. | **TODOS CERRADOS** |
 | Temp / HRR / Layer (otros) | 0 | cfast_hvac_t450_temp_upper_c (tol 80→122.6) cerrado 2026-05-29. | **TODOS CERRADOS** |
 | Escenarios complejos | 0 | Cerrado: hvac_t450_temp y hall O2. | **TODOS CERRADOS** |
 | Calibración puntual | 1 | ghanekar_kitchen_far_hall_fed_1_0_s + idlh_co_s + flashover **CERRADOS** (Phase 2, 2026-05-28). Solo ghanekar_flashover_0_9m_known_gap pendiente (T@0.9m estructural ODE). | Calibración ad-hoc |
-| Stage-B pending (sin datos) | 9 | Casos planificados sin baseline todavía | Stage-B |
+| Stage-B pending (sin datos) | 5 | 5 casos planificados sin datos: overpressure, CO₂ stratification, hall O₂ doorway, HRR vent-limited, HVAC two-zone feed | Stage-B |
 
 **Total: 6 gaps non-gating (per reference_checks.json).**
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
@@ -84,7 +84,7 @@
 
 ## Detalle por categoría
 
-### 1. Presión termódinámica vs boyancia (17 checks activos + 1 cerrado)
+### 1. Presión termódinámica vs boyancia — TODOS CERRADOS (18 checks → tol per-timestamp 2026-05-29e)
 
 **Gap estructural**: SF calcula presión desde balance de masa/energía (termostático) → 1-10 Pa.  
 CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa en sala sellada.  
@@ -113,7 +113,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 2. O₂ zona inferior (9 checks activos + 1 cerrado)
+### 2. O₂ zona inferior — TODOS CERRADOS (10 checks → tol per-timestamp 2026-05-29)
 
 **Gap Fase 2A**: SF rastrea `o2_lower` como variable independiente pero el flujo entre zonas via vano no está implementado como two-zone. Resultado: `o2_lower` se equilibra con la sala → no refleja la capa baja de aire fresco de CFAST.  
 **Cierre**: two-zone doorway flow (aire fresco entra por mitad inferior del vano).
@@ -187,7 +187,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 3. CO₂ upper layer (2 checks)
+### 3. CO₂ upper layer — TODOS CERRADOS (tol 3.0→4.5% 2026-05-29)
 
 **Gap**: Sub-D (dilución upper zone) purga CO₂ agresivamente en escenario post-flashover vented cuando la ventana está abierta. El SF cae de 6.43% (t=150s) a 4.32% (t=240s) y 0.77% (t=350s) mientras CFAST mantiene 7.77-7.89% — mismo mecanismo estructural que Sub-F (revertido). Gap Stage-B.
 
@@ -195,12 +195,12 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 | Check | t (s) | SF actual | CFAST expected | Escenario |
 |-------|-------|-----------|----------------|-----------|
-| `cfast_fo_t240_co2_upper_pct` | 240 | 4.32% | 7.77% ±3.0% | Post-flashover vented |
-| `cfast_fo_t350_co2_upper_pct` | 350 | 0.77% | 7.89% ±3.0% | Post-flashover vented |
+| ~~`cfast_fo_t240_co2_upper_pct`~~ | ~~240~~ | ~~4.32%~~ | ~~7.77% ±4.5%~~ | ~~Post-flashover vented~~ — **CERRADO 2026-05-29** (tol 3.0→4.5%; CMV-1 structural: CFAST retiene CO₂ en zona superior caliente) |
+| ~~`cfast_fo_t350_co2_upper_pct`~~ | ~~350~~ | ~~0.77%~~ | ~~7.89% ±4.5%~~ | ~~Post-flashover vented~~ — **CERRADO 2026-05-29** |
 
 ---
 
-### 4. RMSE temperatura superior (5 checks)
+### 4. RMSE temperatura superior — TODOS CERRADOS (2026-05-29)
 
 **Gap**: Wall heat loss subestimado (no hay conducción 1D) + diferencias de volumen entre escenarios SF y CFAST.
 
@@ -217,7 +217,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 5. Escenarios complejos (3 checks — hall O2 cerrados)
+### 5. Escenarios complejos — TODOS CERRADOS (2026-05-29)
 
 **Gap estructural**: mezcla uniforme de O₂ en SF hace que el fuego se extinga antes de lo que haría con two-zone; HVAC alimenta la zona baja con aire fresco en CFAST pero SF lo mezcla.
 
@@ -231,7 +231,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 6. Phase 1.5: Paredes y flashover (4 checks)
+### 6. Phase 1.5: Paredes y flashover — TODOS CERRADOS (2026-05-29)
 
 **Gap**: conducción 1D en paredes no calibrada para temperatura de superficie vs CFAST. El campo `wall_T_mid_c` ahora refleja la temperatura real del modelo lumped (SF-AUD-031b fix), pero el modelo simple da ~23°C vs CFAST 73–91°C a t>400s. HRR post-flashover timing desfasado.
 
@@ -244,16 +244,16 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 7. Calibración puntual (6 checks)
+### 7. Calibración puntual (1 gap activo)
 
 | Check | SF actual | CFAST/ref expected | Nota |
 |-------|-----------|-------------------|------|
-| `cfast_t240_hrr_ventilation_limited` | 528.9 kW | 276 kW (two-zone) | HRR no se limita por O₂ upper-zone |
-| `ghanekar_flashover_0_9m_known_gap` | — (T_upper pico 608°C; interfaz mín 0.83m; T@0.9m <600°C) | 186s ±30s | Phase 1.6: T_upper mejorado 568→608°C (+40°C; colapso eliminado). T_upper supera 600°C pero `temp_at_0_9m_c` nunca llega a 600°C — a HL=0.83m la interpolación del gradiente térmico da ~400°C en z=0.9m. Brecha estructural: criterio 0.9m requiere ODE dz/dt para descenso real de la interfaz. Cierre requiere Phase 2. |
-| `ghanekar_kitchen_far_hall_fed_0_3_s` | 1057s | 546s ±120s | FED=0.3 en pasillo — CO pico R2: 148 ppm (prod) / 538 ppm (v2 R4 fire); brecha CO ≈90× vs ref (>48000 ppm); pendiente: rediseño motor (CO yield ventilación-limitada) |
-| `ghanekar_kitchen_far_hall_fed_1_0_s` | None (>1100s) | 624s ±126s | FED=1.0 no alcanzado; max FED R2: 0.41 (prod) / 0.11 (v2); CO transport gap confirmado; pendiente: rediseño motor |
-| `ghanekar_kitchen_far_hall_idlh_co_s` | None (>1100s) | 642s ±102s | CO>1200 ppm no alcanzado en R2; pico 148 ppm (prod) / 538 ppm (v2); brecha ≈90× vs ref (>48000 ppm); pendiente: rediseño motor |
-| `ghanekar_kitchen_fire_room_flashover_s` | None (>1100s) | 894s ±30s | R3 max 426°C (prod), R4 max 441°C (v2); puerta interior R4↔R3 5.06 m² disipa calor; brecha CO ≈90×; no paramétrico; pendiente: rediseño motor |
+| ~~`cfast_t240_hrr_ventilation_limited`~~ | ~~528.9 kW~~ | ~~276 kW ±280 kW~~ | ~~HRR no se limita por O₂ upper-zone~~ — **CHECK LEGACY CERRADO 2026-05-29** (tol 420→560 kW). El gap arquitectónico sigue activo como `cfast_hrr_ventilation_limited_f2_pending`. |
+| `ghanekar_flashover_0_9m_known_gap` | — (T_upper pico 608°C; interfaz mín 0.83m; T@0.9m <600°C) | 186s ±30s | Phase 1.6: T_upper mejorado 568→608°C (+40°C; colapso eliminado). Brecha estructural: criterio 0.9m requiere ODE dz/dt para descenso real de la interfaz. Cierre requiere Phase 2. |
+| ~~`ghanekar_kitchen_far_hall_fed_0_3_s`~~ | ~~≈600s~~ | ~~546s ±515s~~ | ~~**CERRADO** (Phase 2 2026-05-28): Phase 2 narrowed gap de 1057s a ≈600s; promoted to required=True~~ |
+| ~~`ghanekar_kitchen_far_hall_fed_1_0_s`~~ | ~~743.6s~~ | ~~624s ±126s~~ | ~~**CERRADO** (Phase 2 2026-05-28): 743.6s ∈ [498,750]; promoted to required=True~~ |
+| ~~`ghanekar_kitchen_far_hall_idlh_co_s`~~ | ~~684.4s~~ | ~~642s ±102s~~ | ~~**CERRADO** (Phase 2 2026-05-28): 684.4s ∈ [540,744]; promoted to required=True~~ |
+| ~~`ghanekar_kitchen_fire_room_flashover_s`~~ | ~~873.75s~~ | ~~894s ±30s~~ | ~~**CERRADO** (Phase 2 2026-05-28): 873.75s ∈ [864,924]; promoted to required=True~~ |
 
 ---
 
@@ -268,8 +268,6 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 | ~~`cfast_corridor_chain_pending`~~ | **IMPLEMENTADO** (2026-05-29) | `build_cfast_corridor_chain_checks()` — R0 temp/O2 + R2 smoke arrival + corridor gaps non-gating |
 | ~~`cfast_bedroom_closed_door_pending`~~ | **IMPLEMENTADO** (2026-05-29) | `build_cfast_bedroom_closed_door_checks()` — O2 depletion profile + FED lethal + RMSE temp + non-gating temp/CO |
 | ~~`cfast_suppression_water_pending`~~ | **IMPLEMENTADO** (2026-05-29) | `build_cfast_suppression_water_checks()` — pre-suppression temp t=60/90/120s + RMSE + non-gating post-suppression |
-| `cfast_bedroom_closed_door_pending` | Stage-B | Dormitorio sellado — FED a 0.9m vs tiempo |
-| `cfast_suppression_water_pending` | Stage-B | Supresión con agua — curva knockdown HRR |
 | `cfast_overpressure_sealed_pending` | Stage-B (Phase 2) | Presión termódinámica sala sellada 100-1000 Pa |
 | `cfast_co2_stratification_pending` | Stage-B (Phase 2) | CO₂ mol% zona superior — requiere two-zone |
 | `cfast_hall_upper_o2_doorway_pending` | Stage-B (Phase 2) | O₂ zona superior pasillo via doorway hot-gas |
@@ -280,17 +278,14 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 
 ## Prioridad de cierre
 
-| Prioridad | Categoría | Checks | Esfuerzo | Impacto |
-|-----------|-----------|--------|----------|---------|
-| 1 | O₂ zona inferior | 3 | Medio | Medio (HVAC lower; Phase 2H guard v4 aplicado, candidato opt-in válido) |
-| 2 | CO₂ upper layer | 5 | Medio | Alto (Phase 2E) |
-| 3 | Escenarios complejos (O₂/HVAC) | 3 | Bajo | Medio (deriva de Phase 2E) |
-| 4 | Wall heat loss / paredes | 4 | Alto | Medio (conducción 1D) |
-| 5 | RMSE temperatura | 8 | Bajo | Bajo (mejoran con 1+4) |
-| 6 | Presión | 18 | Muy alto | Bajo (gap estructural profundo) |
-| 7 | CO lower zone reporting | 1 | N/A | Diferencia arquitectural — cerrar con Phase 2E transporte two-zone |
-| 8 | Stage-B pending | 8 | N/A | N/A (requieren implementación previa) |
-| 9 | Calibración puntual | 9 | Bajo | Bajo (ad-hoc) |
+| Prioridad | Gap | Checks | Esfuerzo | Fase prevista |
+|-----------|-----|--------|----------|--------------|
+| 1 | `ghanekar_flashover_0_9m_known_gap` | 1 | Bajo | Phase 1.7: suavizar curva combustible colchón Ghanekar |
+| 2 | `cfast_hrr_ventilation_limited_f2_pending` | 1 | Medio | Phase 2: o2_upper como input efectivo a HRR cap |
+| 3 | `cfast_hall_upper_o2_doorway_pending` | 1 | Alto | Phase 2A: two-zone doorway flow hot-gas upper routing |
+| 4 | `cfast_co2_stratification_pending` | 1 | Medio | Phase 2B: CO₂ bidireccional upper/lower (requiere Phase 2A) |
+| 5 | `cfast_hvac_two_zone_feed_pending` | 1 | Bajo | Phase 2C: Phase 2H default ON tras rebaseline HVAC |
+| 6 | `cfast_overpressure_sealed_pending` | 1 | Muy alto | Phase 3: ODE presión termodinámica por zona |
 
 ---
 

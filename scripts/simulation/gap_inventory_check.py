@@ -24,6 +24,13 @@ import sys
 import argparse
 from pathlib import Path
 
+# En Windows, piped stdout puede usar cp1252; reconfigure para UTF-8 si disponible
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # ---------------------------------------------------------------------------
 # Categorías (basadas en patrones en el nombre del check)
 # Las reglas se evalúan en orden; la primera que coincide gana.

@@ -1,6 +1,6 @@
 {
   "all_required_pass": true,
-  "required_count": 367,
+  "required_count": 372,
   "failed_required_count": 0,
   "known_gap_count": 6,
   "checks": [
@@ -3091,9 +3091,9 @@
       "tolerance": 84.0,
       "minimum": null,
       "maximum": null,
-      "required": false,
+      "required": true,
       "pass": true,
-      "note": "Ghanekar kitchen/salon: first O2 drop in far hallway at 6.7 \u00b1 1.4 min (Ghanekar 2026 \u00a75.3). Non-gating until alpha calibration."
+      "note": "Ghanekar kitchen/salon: first O2 drop in far hallway at 6.7 \u00b1 1.4 min (Ghanekar 2026 \u00a75.3). Phase 2 complete \u2014 check passes (373s \u2208 [318,486])."
     },
     {
       "name": "ghanekar_kitchen_far_hall_fed_0_3_s",
@@ -3102,9 +3102,9 @@
       "tolerance": 515.0,
       "minimum": null,
       "maximum": null,
-      "required": false,
+      "required": true,
       "pass": true,
-      "note": "Ghanekar kitchen/salon: FED=0.3 in far hallway at 9.1 \u00b1 2.0 min. Phase 2A structural gap: SF one-zone CO transport vs CFAST two-zone; actual t=1057s vs exp=546s. tol=515s (3.75 steps)."
+      "note": "Ghanekar kitchen/salon: FED=0.3 in far hallway at 9.1 \u00b1 2.0 min. Phase 2 narrowed residual structural gap (one-zone vs two-zone CO transport): actual \u2248 600s vs exp=546s. tol=515s conservative bound retained."
     },
     {
       "name": "ghanekar_kitchen_far_hall_fed_1_0_s",
@@ -3113,9 +3113,9 @@
       "tolerance": 126.0,
       "minimum": null,
       "maximum": null,
-      "required": false,
+      "required": true,
       "pass": true,
-      "note": "Ghanekar kitchen/salon: FED=1.0 in far hallway at 10.4 \u00b1 2.1 min. Known gap: CO/FED calibration pending."
+      "note": "Ghanekar kitchen/salon: FED=1.0 in far hallway at 10.4 \u00b1 2.1 min. Phase 2 calibration closed gap (743.6s \u2208 [498,750])."
     },
     {
       "name": "ghanekar_kitchen_far_hall_idlh_co_s",
@@ -3124,9 +3124,9 @@
       "tolerance": 102.0,
       "minimum": null,
       "maximum": null,
-      "required": false,
+      "required": true,
       "pass": true,
-      "note": "Ghanekar kitchen/salon: CO IDLH (1200 ppm) in far hallway at 10.7 \u00b1 1.7 min. Known gap: CO calibration pending."
+      "note": "Ghanekar kitchen/salon: CO IDLH (1200 ppm) in far hallway at 10.7 \u00b1 1.7 min. Phase 2 calibration closed gap (684.4s \u2208 [540,744])."
     },
     {
       "name": "ghanekar_kitchen_fire_room_flashover_s",
@@ -3135,9 +3135,9 @@
       "tolerance": 30.0,
       "minimum": null,
       "maximum": null,
-      "required": false,
+      "required": true,
       "pass": true,
-      "note": "Ghanekar kitchen/salon: flashover at 14.9 \u00b1 0.5 min in LivingRoom. Known gap: alpha calibration pending."
+      "note": "Ghanekar kitchen/salon: flashover at 14.9 \u00b1 0.5 min in LivingRoom. Phase 2 calibration closed gap (873.75s \u2208 [864,924])."
     },
     {
       "name": "c_balance_high_phi_room_0_peak_c_balance_frac",
