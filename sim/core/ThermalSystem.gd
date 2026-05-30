@@ -909,7 +909,10 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		var mass_exch: float
 		if vent_bernoulli_enabled:
 			# SF-AUD-010: flujo de masa Bernoulli dos zonas — capa alta saliente [kg/s · dt]
-			mass_exch = float(flow_state.get("bernoulli_upper_kg_s", 0.0)) * dt
+			# Phase 1.6: aplicar doorway_heat_exchange_coeff también al path Bernoulli
+			# (antes solo se aplicaba al path clásico q_vol). Coeff=1.0 por defecto → sin cambio
+			# para casos que no sobreescriben el parámetro.
+			mass_exch = float(flow_state.get("bernoulli_upper_kg_s", 0.0)) * dt * doorway_heat_exchange_coeff
 		else:
 			var q_vol: float = 0.65 * neutral_pf * area_eff * sqrt(g_grav * hot_band_m * delta_t_k / ((t_hot_k + t_amb_k) * 0.5))
 			mass_exch = q_vol * rho_air * dt * doorway_heat_exchange_coeff * thermal_engagement
