@@ -1017,9 +1017,10 @@ def build_cfast_single_room_closed_checks() -> list[Check]:
                        note="Fase 2C: lower-zone CO now tracked via co_upper_kg; COl= ≈ 0 vs CFAST LLCO ≈ 0.")
 
     # ── CMV-2: RMSE curve-shape checks ────────────────────────────────────────
+    # Stage-F: temp_upper RMSE promoted to required (SF=49.8°C, margin 10°C).
     _add_rmse_check(checks, "cfast_closed_rmse_temp_upper_c", sim, cfast,
-                    "temp_upper_c", threshold=60.0,
-                    note="CMV-2: temp_upper RMSE ≤ 60°C (sealed room, t=0–600s).")
+                    "temp_upper_c", threshold=60.0, required=True,
+                    note="CMV-2 Stage-F: temp_upper RMSE ≤ 60°C sealed room (SF=49.8°C, margin 10°C).")
     _add_rmse_check(checks, "cfast_closed_rmse_o2", sim, cfast,
                     "o2", threshold=0.025,
                     note="CMV-2: O2 RMSE ≤ 0.025 (sealed room). Structural gap expected.")
@@ -1200,12 +1201,11 @@ def build_cfast_pool_fire_open_checks() -> list[Check]:
     # ── Required: RMSE temp_upper t=0–600s ──────────────────────────────────
     # RMSE=41.87°C; threshold=55°C gives 131 steps margin @0.1°C.
     # Structural gap: CFAST upper layer 72°C (stratified) vs SF 22-44°C (mixed+cooled).
+    # Stage-F: pool RMSE promoted to required (SF=41.9°C, margin 13°C).
     _add_rmse_check(
         checks, "cfast_pool_rmse_temp_upper_c", sim, cfast,
-        "temp_upper_c", threshold=55.0, start_t=0.0, end_t=600.0,
-        note="PFO-2: pool fire temp_upper RMSE ≤ 55°C (t=0–600s). "
-             "Phase 1.5 open-room gap: CFAST stratified ceiling layer vs SF one-zone mixing. "
-             "tol=55 (131 steps @0.1°C).",
+        "temp_upper_c", threshold=55.0, start_t=0.0, end_t=600.0, required=True,
+        note="PFO-2 Stage-F: pool fire temp_upper RMSE ≤ 55°C (SF=41.9°C, margin 13°C). Phase 1.5 open-room gap documented.",
     )
 
     # ── Required: O2 minimum > 15% (no severe depletion in ventilated room) ─
@@ -1299,11 +1299,11 @@ def build_cfast_corridor_chain_checks() -> list[Check]:
 
     # ── Required: RMSE R0 temp_upper t=0–600s ─────────────────────────────────
     # Measured RMSE=20.54°C; threshold=30°C gives ~95 steps margin @0.1°C.
+    # Stage-F: corridor chain RMSE promoted to required (SF=20.5°C, margin 9°C).
     _add_rmse_check(
         checks, "cfast_chain_r0_rmse_temp_upper", sim0, cfast_r0,
-        "temp_upper_c", threshold=30.0, start_t=0.0, end_t=600.0,
-        note="CCH-2: corridor chain R0 temp_upper RMSE ≤ 30°C (t=0–600s). "
-             "Measured RMSE=20.54°C; tol=30 (~95 steps @0.1°C).",
+        "temp_upper_c", threshold=30.0, start_t=0.0, end_t=600.0, required=True,
+        note="CCH-2 Stage-F: corridor chain R0 temp_upper RMSE ≤ 30°C (SF=20.5°C, margin 9°C).",
     )
 
     # ── Required: R2 O2 — smoke reaches far room (Dormitorio1) ────────────────
@@ -1446,12 +1446,11 @@ def build_cfast_bedroom_closed_door_checks() -> list[Check]:
     # ── Required: RMSE temp_upper ≤ 80°C (structural gap documented) ─────────
     # RMSE=66.4°C measured (SF ~70-95°C vs CFAST 116-170°C upper layer).
     # Threshold=80°C provides 136 steps margin @0.1°C. Phase 1.5 structural.
+    # Stage-F: bedroom RMSE promoted to required (SF=66.4°C, margin 13°C).
     _add_rmse_check(
         checks, "cfast_bed_rmse_temp_upper", sim, cfast,
-        "temp_upper_c", threshold=80.0, start_t=0.0, end_t=900.0,
-        note="BCD-2: bedroom temp_upper RMSE ≤ 80°C (t=0–900s). "
-             "RMSE=66.4°C; CFAST two-zone upper 116-170°C vs SF one-zone 73-95°C. "
-             "Threshold=80 (136 steps @0.1°C). Phase 1.5 structural.",
+        "temp_upper_c", threshold=80.0, start_t=0.0, end_t=900.0, required=True,
+        note="BCD-2 Stage-F: bedroom temp_upper RMSE ≤ 80°C (SF=66.4°C, margin 13°C). Phase 1.5 structural documented.",
     )
 
     # ── Non-gating: temperature at peak fire phase ─────────────────────────────
@@ -1540,12 +1539,11 @@ def build_cfast_suppression_water_checks() -> list[Check]:
     # ── Required: RMSE temp_upper t=0–120s ────────────────────────────────────
     # RMSE=12.4°C; threshold=18°C → margin=56 steps @0.1°C.
     # Pre-suppression window: fire growth phase where both models should track closely.
+    # Stage-F: pre-suppression RMSE promoted to required (SF=12.4°C, margin 5.6°C).
     _add_rmse_check(
         checks, "cfast_supr_rmse_temp_pre", sim, cfast,
-        "temp_upper_c", threshold=18.0, start_t=0.0, end_t=120.0,
-        note="SW-1: ventilated room temp_upper RMSE ≤ 18°C (t=0–120s pre-suppression). "
-             "Measured RMSE=12.4°C; Phase 1.5 structural (two-zone vs one-zone). "
-             "tol=18 (56 steps @0.1°C).",
+        "temp_upper_c", threshold=18.0, start_t=0.0, end_t=120.0, required=True,
+        note="SW-1 Stage-F: pre-suppression temp_upper RMSE ≤ 18°C (SF=12.4°C, margin 5.6°C). Pre-suppression curve-shape guard.",
     )
 
     # ── Required: SF peak HRR > 100 kW before suppression ────────────────────
@@ -1553,9 +1551,8 @@ def build_cfast_suppression_water_checks() -> list[Check]:
     # SF HRR=146.5 kW at t=120s → confirmed. Margin huge (46.5 kW above minimum=100 kW).
     _add_peak_value_check(
         checks, "cfast_supr_hrr_peak", sim, "hrr_kw",
-        minimum=100.0, maximum=None, start_t=0.0, end_t=130.0, mode="max",
-        note="SW-2: SF HRR exceeds 100 kW before suppression at t=120s. "
-             "Confirms fire grows to near 150 kW cap. SF HRR=146.5 kW at t=120s.",
+        minimum=100.0, maximum=None, start_t=0.0, end_t=130.0, mode="max", required=True,
+        note="SW-2 Stage-E: SF HRR exceeds 100 kW before suppression (SF=146.5kW, margin 46kW). Fire-growth guard.",
     )
 
     # ── Required: SF HRR knockdown < 35 kW after water application ───────────
@@ -1563,10 +1560,8 @@ def build_cfast_suppression_water_checks() -> list[Check]:
     # SF HRR min=10.3 kW at t=180s; SF=28.1 kW at t=150s. Both confirm knockdown.
     _add_peak_value_check(
         checks, "cfast_supr_hrr_knockdown", sim, "hrr_kw",
-        minimum=None, maximum=35.0, start_t=140.0, end_t=185.0, mode="min",
-        note="SW-2: SF HRR < 35 kW at t=140–185s after water application. "
-             "Confirms knockdown effect. SF min HRR=10.3 kW at t=180s; "
-             "28.1 kW at t=150s. Margin huge (~25 kW below max=35 kW).",
+        minimum=None, maximum=35.0, start_t=140.0, end_t=185.0, mode="min", required=True,
+        note="SW-2 Stage-E: SF HRR < 35 kW at t=140–185s after water (SF min=10.3kW, margin 24kW). Suppression-knockdown guard.",
     )
 
     # ── Non-gating: post-suppression temperature (Phase 1.5 structural gap) ──
@@ -1730,9 +1725,10 @@ def build_cfast_two_room_door_open_checks() -> list[Check]:
     # t=350 (structural gap: one-zone room-avg O2 stays above threshold). Computing RMSE
     # beyond t=350 mixes the structural divergence into a curve-shape metric, making the
     # RMSE an unfair comparison of two physically different states.
+    # Stage-F: fire-room RMSE promoted to required (SF=45.6°C, margin 14°C).
     _add_rmse_check(checks, "cfast_2r_r0_rmse_temp_upper_c", sim_r0, cfast_r0,
-                    "temp_upper_c", threshold=60.0, end_t=350.0,
-                    note="CMV-2: fire-room temp_upper RMSE ≤ 60°C over t=[0,350]s (while both models have active fire; post-extinction divergence is a structural gap).")
+                    "temp_upper_c", threshold=60.0, end_t=350.0, required=True,
+                    note="CMV-2 Stage-F: fire-room temp_upper RMSE ≤ 60°C t=[0,350]s (SF=45.6°C, margin 14°C).")
     _add_rmse_check(checks, "cfast_2r_r0_rmse_o2", sim_r0, cfast_r0,
                     "o2", threshold=0.028,
                     note="CMV-2: fire-room O2 RMSE ≤ 0.028 (two-room). Structural gap expected. Threshold 0.025→0.028: hardened from 0.0009 margin (actual=0.02406) to ≥3× headroom. Phase 2 gap.")
@@ -1741,9 +1737,10 @@ def build_cfast_two_room_door_open_checks() -> list[Check]:
         # carries hot gas to hall earlier than SF one-zone (early undershoot); (b) SF
         # fire over-burn post-t=300 (room-avg O2) keeps hall hotter than CFAST post-
         # extinction (late overshoot). Same root cause as r0 temp divergence. Phase 2.
+        # Stage-F: hall RMSE promoted to required (SF=39.8°C, margin 5.2°C).
         _add_rmse_check(checks, "cfast_2r_hall_rmse_temp_upper_c", sim_r1, cfast_r1,
-                        "temp_upper_c", threshold=45.0,
-                        note="CMV-2: hall temp_upper RMSE ≤ 45°C (two-room, adjacent room). Structural: two-zone doorway early heating + SF over-burn late phase. Phase 2 gap.")
+                        "temp_upper_c", threshold=45.0, required=True,
+                        note="CMV-2 Stage-F: hall temp_upper RMSE ≤ 45°C (SF=39.8°C, margin 5.2°C). Structural two-zone doorway gap documented.")
         _add_rmse_check(checks, "cfast_2r_hall_rmse_o2", sim_r1, cfast_r1,
                         "o2", threshold=0.085,
                         note="CMV-2: hall O2 RMSE. RMSE=0.0781; threshold 0.030→0.079→0.085: hot-gas doorway O2 depletion in CFAST (two-zone) not replicated in SF one-zone. Structural Phase 2 gap. 0.079→0.085 hardening: was 0.0009 margin from 0.07805 actual (1.2% headroom → 9% headroom).")
@@ -1836,9 +1833,10 @@ def build_cfast_post_flashover_vented_checks() -> list[Check]:
     # cfast_fo_peak_temp_upper_c: SF peak=355.31°C vs minimum=400°C. Gap=44.69°C.
     # Phase 1.5 structural: SF one-zone mixes heat uniformly → lower upper-layer peak
     # vs CFAST two-zone upper zone concentration. min=355.31-0.3=355.01 → 355 (3.1 steps @0.1°C).
+    # Stage-F: post-flashover peak temp promoted to required (SF=355.3°C, margin 5.3°C).
     _add_peak_value_check(checks, "cfast_fo_peak_temp_upper_c", sim,
-                          "temp_upper_c", minimum=350.0,
-                          note="1.5B: post-flashover peak temp_upper ≥ 350°C. SF one-zone uniform mixing caps upper-layer peak (355°C) vs CFAST two-zone (400+°C). Phase 1.5 structural. Threshold 355→350: hardened from 0.31°C margin (actual=355.31) to 5°C headroom.")
+                          "temp_upper_c", minimum=350.0, required=True,
+                          note="1.5B Stage-F: post-flashover peak temp_upper ≥ 350°C (SF=355.3°C, margin 5.3°C). Phase 1.5 structural: one-zone uniform mixing.")
     # cfast_fo_peak_temp_timing: SF peaks at t=200s vs CFAST at t=390s; |diff|=190s.
     # Phase 1.5: SF one-zone heats uniformly → peak earlier; CFAST two-zone delays upper peak.
     # tol=190+3=193s (3 steps @1s).
@@ -2394,10 +2392,10 @@ def build_cfast_two_floor_stairwell_checks() -> list[Check]:
     # underestimated + volume mismatch (500m³ full-house vs 146m³ CFAST 2-room).
     # threshold = 146.31+0.3=146.61 → 147°C (6.9 steps @0.1°C).
     # Stage-C hardening: 147→155°C (margin 0.69→8.69°C; same Phase 1.5 structural gap).
+    # Stage-F: two-floor RMSE promoted to required (SF=146.3°C, margin 8.7°C).
     _add_rmse_check(checks, "cfast_twofloor_r0_rmse_temp_upper_c", sim_r0, cfast_r0,
-                    "temp_upper_c", threshold=155.0, start_t=60.0, end_t=180.0,
-                    note="CMV-3: R0 temp_upper RMSE ≤ 155°C (t=60–180s). "
-                         "Phase 1.5 structural: SF wall heat loss + volume mismatch → RMSE=146°C. Stage-C: 147→155 (margin 0.69→8.69°C).")
+                    "temp_upper_c", threshold=155.0, start_t=60.0, end_t=180.0, required=True,
+                    note="CMV-3 Stage-F: two-floor R0 temp_upper RMSE ≤ 155°C (SF=146.3°C, margin 8.7°C). Phase 1.5 structural documented.")
 
     # ── 1.5C: multi-floor shape checks ───────────────────────────────────────
     # R0 peak temp (fire room) before O2 depletion.
@@ -2478,10 +2476,10 @@ def build_cfast_multi_fuel_couch_tv_checks() -> list[Check]:
     # Actual RMSE=188.98°C >> threshold 80°C. Phase 1.5 structural: SF wall heat loss.
     # threshold = 188.98+0.3=189.28 → 190°C (10.2 steps @0.1°C).
     # Stage-C hardening: 190→200°C (margin 1.02→11.02°C; same Phase 1.5 structural gap).
+    # Stage-F: multi-fuel RMSE promoted to required (SF=189°C, margin 11°C).
     _add_rmse_check(checks, "cfast_multifuel_rmse_temp_upper_c", sim, cfast,
-                    "temp_upper_c", threshold=200.0, start_t=60.0, end_t=180.0,
-                    note="CMV-3: multi-fuel temp_upper RMSE ≤ 200°C (t=60–180s). "
-                         "Phase 1.5 structural: SF wall heat loss → RMSE=189°C. Stage-C: 190→200 (margin 1.02→11.02°C).")
+                    "temp_upper_c", threshold=200.0, start_t=60.0, end_t=180.0, required=True,
+                    note="CMV-3 Stage-F: multi-fuel temp_upper RMSE ≤ 200°C (SF=189°C, margin 11°C). Phase 1.5 structural documented.")
 
     return checks
 
