@@ -222,6 +222,10 @@ var interior_spill_start_layer_m: float = 2.0
 var fed_hypoxia_enabled: bool = true
 var fed_hypoxia_a: float = 8.13
 var fed_hypoxia_b: float = 0.54
+# Altura de capa superior usada para determinar si el ocupante está inmerso (m).
+# Valor por defecto 1.8 m (adulto de pie, ISO 13571). Puede sobreescribirse por caso
+# cuando el escenario implica ocupantes agachados, niños, o análisis conservador.
+var fed_upper_layer_threshold_m: float = 1.8
 
 # Conducción a través de paredes compartidas entre salas geométricamente adyacentes
 # ──────────────────────────────────────────────────────────────────────────────────
@@ -480,6 +484,7 @@ func configure(settings: Dictionary) -> void:
 	fed_hypoxia_enabled = bool(settings.get("fed_hypoxia_enabled", fed_hypoxia_enabled))
 	fed_hypoxia_a = float(settings.get("fed_hypoxia_a", fed_hypoxia_a))
 	fed_hypoxia_b = float(settings.get("fed_hypoxia_b", fed_hypoxia_b))
+	fed_upper_layer_threshold_m = float(settings.get("fed_upper_layer_threshold_m", fed_upper_layer_threshold_m))
 	wall_conduction_enabled = bool(settings.get("wall_conduction_enabled", wall_conduction_enabled))
 	wall_conduction_u_kw_m2_k = float(settings.get("wall_conduction_u_kw_m2_k", wall_conduction_u_kw_m2_k))
 	wall_conduction_max_fraction_per_step = float(
@@ -2550,9 +2555,9 @@ func step_fed(room: RoomModel, dt: float) -> void:
 	if room == null or dt <= 0.0:
 		return
 
-	# Cuando la capa caliente desciende bajo la altura de respiración (1.8 m),
-	# una persona de pie está inmersa en la capa superior — usar CO de capa alta.
-	var in_upper_layer: bool = (room.h_layer_m < 1.8 and room.upper_gas_kg > 0.1)
+	# Cuando la capa caliente desciende bajo la altura de respiración (configurable,
+	# por defecto 1.8 m adulto de pie ISO 13571), el ocupante está inmerso.
+	var in_upper_layer: bool = (room.h_layer_m < fed_upper_layer_threshold_m and room.upper_gas_kg > 0.1)
 	var co_ppm: float = compute_co_upper_ppm(room) if in_upper_layer else compute_co_ppm(room)
 	var co2_ppm: float = compute_co2_upper_ppm(room) if in_upper_layer else compute_co2_lower_ppm(room)
 

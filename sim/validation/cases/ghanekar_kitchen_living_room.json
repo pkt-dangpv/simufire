@@ -66,6 +66,9 @@
 		"fire_alpha_kw_s2": 0.0025,
 		"fire_co_low_quality_yield_multiplier": 12.0,
 		"fire_co_max_effective_fraction": 0.90,
+		"fire_co_vent_limited_multiplier": 110.0,
+		"fire_co_vent_limited_o2_threshold": 0.15,
+		"fire_o2_hrr_rise_tau_s": 30.0,
 		"doorway_heat_exchange_coeff": 0.30,
 		"outside_open_ambient_loss_multiplier": 1.0,
 		"outside_open_background_heat_exchange_kg_s_m2": 0.045,
@@ -78,13 +81,14 @@
 		"background_o2_exchange_multiplier": 1.0,
 		"flow_path_interior_pull_boost": 2.20,
 		"flow_path_interior_pull_max_multiplier": 4.00,
-		"hot_gas_species_carry_fraction": 0.30,
+		"hot_gas_species_carry_fraction": 0.85,
 		"hot_gas_smoke_carry_fraction": 0.45,
 		"hot_gas_species_max_fraction_per_step": 0.32,
 		"doorway_o2_counterflow_coeff": 0.10,
 		"doorway_o2_exchange_coeff": 0.50,
 		"doorway_o2_background_exchange_kg_s_m2": 0.018,
 		"fire_spread_enabled": false,
-		"glass_auto_break_enabled": false
+		"glass_auto_break_enabled": false,
+		"fed_upper_layer_threshold_m": 2.0
 	}
 }

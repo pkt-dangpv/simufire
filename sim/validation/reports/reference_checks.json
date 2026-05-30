@@ -2,7 +2,7 @@
   "all_required_pass": true,
   "required_count": 367,
   "failed_required_count": 0,
-  "known_gap_count": 9,
+  "known_gap_count": 6,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -3086,7 +3086,7 @@
     },
     {
       "name": "ghanekar_kitchen_far_hall_o2_response_s",
-      "actual": 387.749999999982,
+      "actual": 373.333333333318,
       "expected": 402.0,
       "tolerance": 84.0,
       "minimum": null,
@@ -3097,7 +3097,7 @@
     },
     {
       "name": "ghanekar_kitchen_far_hall_fed_0_3_s",
-      "actual": 1057.25000000016,
+      "actual": 599.41666666666,
       "expected": 546.0,
       "tolerance": 515.0,
       "minimum": null,
@@ -3108,35 +3108,35 @@
     },
     {
       "name": "ghanekar_kitchen_far_hall_fed_1_0_s",
-      "actual": null,
+      "actual": 743.583333333392,
       "expected": 624.0,
       "tolerance": 126.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "Ghanekar kitchen/salon: FED=1.0 in far hallway at 10.4 \u00b1 2.1 min. Known gap: CO/FED calibration pending."
     },
     {
       "name": "ghanekar_kitchen_far_hall_idlh_co_s",
-      "actual": null,
+      "actual": 684.416666666698,
       "expected": 642.0,
       "tolerance": 102.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "Ghanekar kitchen/salon: CO IDLH (1200 ppm) in far hallway at 10.7 \u00b1 1.7 min. Known gap: CO calibration pending."
     },
     {
       "name": "ghanekar_kitchen_fire_room_flashover_s",
-      "actual": null,
+      "actual": 873.750000000118,
       "expected": 894.0,
       "tolerance": 30.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "Ghanekar kitchen/salon: flashover at 14.9 \u00b1 0.5 min in LivingRoom. Known gap: alpha calibration pending."
     },
     {

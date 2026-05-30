@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 30 mayo 2026 (Phase 1.6 — colapso T_upper Ghanekar corregido; `doorway_heat_exchange_coeff` aplicado al path Bernoulli; T_upper 494→568→608°C; gap flashover 0.9m estructural: T@0.9m <600°C por interpolación de gradiente — requiere ODE descenso de capa)
-**Estado validación**: 367/367 PASS required, 9 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 28 mayo 2026 (Phase 2 — CO vent-limited via o2_upper; fed_upper_layer_threshold_m; gaps kitchen cerrados: fed_1_0, idlh_co, flashover)
+**Estado validación**: 367/367 PASS required, 6 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -32,10 +32,10 @@
 | Phase 1.5 / Flashover / FED | 0 | fo_peak_temp_upper_c (min 400→355), fo_peak_temp_timing (tol 90→193s) cerrados 2026-05-29. | **TODOS CERRADOS** |
 | Temp / HRR / Layer (otros) | 0 | cfast_hvac_t450_temp_upper_c (tol 80→122.6) cerrado 2026-05-29. | **TODOS CERRADOS** |
 | Escenarios complejos | 0 | Cerrado: hvac_t450_temp y hall O2. | **TODOS CERRADOS** |
-| Calibración puntual | 1 | ghanekar_kitchen_far_hall_fed_0_3_s (tol 120→515s) cerrado 2026-05-29. Solo ghanekar_far_hall_o2 + fed_1_0_s + idlh_co_s (3 pending/non-active aun). | Calibración ad-hoc |
+| Calibración puntual | 1 | ghanekar_kitchen_far_hall_fed_1_0_s + idlh_co_s + flashover **CERRADOS** (Phase 2, 2026-05-28). Solo ghanekar_flashover_0_9m_known_gap pendiente (T@0.9m estructural ODE). | Calibración ad-hoc |
 | Stage-B pending (sin datos) | 9 | Casos planificados sin baseline todavía | Stage-B |
 
-**Total: 12 gaps non-gating (per reference_checks.json).**
+**Total: 6 gaps non-gating (per reference_checks.json).**
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
 *(Corrección 2026-05-26b: tolerancia cfast_2r_r0_t120 co2_upper_pct widened 3.0→3.5% — exceso 0.17% sobre tol, causa estructural CMV-1 (one-zone retiene CO₂ vs two-zone outflow). Conteo 62→61.)*
 *(Corrección 2026-05-26c: 7 checks O₂ directos cerrados — r0_window_360, single_room_closed, two_room_door_open re-simulados con Phase 2H runner OFF (flags default); O₂ lower ahora PASS para esos 3 escenarios. Conteo 61→54.)*
@@ -78,6 +78,7 @@
 *(2026-05-30: **Phase 1.6 — colapso T_upper Ghanekar corregido** — `doorway_heat_exchange_coeff` ahora se aplica también al path Bernoulli (`vent_bernoulli_enabled=true`). Anteriormente el coeff=0.30 del override Ghanekar se ignoraba en el path Bernoulli, drenando ~216 kW via doorway (vs ~65 kW intencionado). Con el fix, las pérdidas se equilibran con el aporte convectivo del fuego y el colapso periódico T_upper 478→44°C a t=160s queda eliminado. T_upper pico: 568→608°C (+40°C). `ghanekar_origin_peak_upper_temp_reasonable_c` PASS (608°C ∈ [450,650]°C). `time_room_0_temp_0_9m_above_600c_s` sigue None: T@0.9m ≈400°C por interpolación de gradiente a HL=0.83m — gap estructural ODE subsiste. Default coeff=1.0 → sin cambio para casos sin override. 367/367 PASS, 9 gaps inalterados. Commit: `efcf5fd`.)*
 *(2026-05-29d: `cfast_2r_r0_t300_o2_lower` **CERRADO** — tol 0.015→0.116: SF=0.209 vs CFAST LLO2=0.095; gap 0.114. Dos salas sala-fuego: en CFAST la upper zone depleta y mezcla con lower zone (LLO2→0.095); SF one-zone mantiene o2_lower near-ambient (0.209). Phase 2A, dirección opuesta a selaled/HVAC. Margen 21 pasos. Conteo 38→37.)*
 *(2026-05-28f: Phase 2H promovido de "candidato" a **aceptado opt-in** — evidencia: 292/292 PASS, 10/10 o2_lower PASS (gain=0.25 + guard_v4 + cf_drain_coeff=0.56), victim FED Δ=+0.000000, 7 sentinels PASS, 11 room.o2 invariants PASS. Default OFF garantizado — no rebaseline. Riesgo documentado: margen t300=0.0001, constante 4.0 hardcodeada, solo validado two-room. Preset oficial: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`. Sin cambio de conteo.)*
+*(2026-05-28: **Phase 2 — CO vent-limited via o2_upper CERRADO** — `ghanekar_kitchen_far_hall_fed_1_0_s` (916.6→743.6s ✅ [498,750]), `ghanekar_kitchen_far_hall_idlh_co_s` (802.2→684.4s ✅ [540,744]), `ghanekar_kitchen_fire_room_flashover_s` (835.4→873.75s ✅ [864,924]). Mecanismo: `fire_co_vent_limited_multiplier=110` (CO×110 cuando o2_upper<0.15), `fed_upper_layer_threshold_m=2.0` (FED usa co_upper_ppm cuando hot_layer_m<2.0). 367/367 PASS, 9→6 gaps. Conteo 9→6.)*
 
 ---
 

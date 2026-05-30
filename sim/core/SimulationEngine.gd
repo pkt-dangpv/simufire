@@ -176,6 +176,11 @@ var _active_suppression_by_room: Dictionary = {}
 @export var fire_pool_co_fraction: float = 0.40
 @export var fire_co_low_quality_yield_multiplier: float = 8.0
 @export var fire_co_max_effective_fraction: float = 0.22
+# Phase 2: CO vent-limited cuando o2_upper < threshold (Beyler 1986, NIST TN 1603).
+# Fuegos subventilados con deplección de O2 en zona superior generan CO masivamente.
+# Activo únicamente cuando o2_upper baja del umbral; no afecta casos bien ventilados.
+@export var fire_co_vent_limited_o2_threshold: float = 0.12
+@export var fire_co_vent_limited_multiplier: float = 1.0
 @export var fire_subvent_o2_floor: float = 0.085
 @export var fire_subvent_temp_start_c: float = 140.0
 @export var fire_subvent_temp_full_c: float = 420.0
@@ -461,6 +466,10 @@ var _active_suppression_by_room: Dictionary = {}
 ## Constante b del modelo exponencial de hipoxia.
 ## Valor de referencia ISO 13571: b = 0.54
 @export var fed_hypoxia_b: float = 0.54
+## Altura máxima de capa superior para considerar al ocupante inmerso (m).
+## Por defecto 1.8 m (adulto de pie, ISO 13571). Sobreescribir por caso para
+## análisis con niños, ocupantes agachados o criterio conservador de exposición.
+@export var fed_upper_layer_threshold_m: float = 1.8
 
 # ============================================================
 # FED — CALOR (ISO 13571 §5.5)
@@ -875,6 +884,7 @@ func _sync_auxiliary_services() -> void:
 		"fed_hypoxia_enabled": fed_hypoxia_enabled,
 		"fed_hypoxia_a": fed_hypoxia_a,
 		"fed_hypoxia_b": fed_hypoxia_b,
+		"fed_upper_layer_threshold_m": fed_upper_layer_threshold_m,
 		"fed_heat_enabled": fed_heat_enabled,
 		"fed_heat_conv_a": fed_heat_conv_a,
 		"fed_heat_conv_n": fed_heat_conv_n,
@@ -1392,6 +1402,8 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_pool_co_fraction": fire_pool_co_fraction,
 		"fire_co_low_quality_yield_multiplier": fire_co_low_quality_yield_multiplier,
 		"fire_co_max_effective_fraction": fire_co_max_effective_fraction,
+		"fire_co_vent_limited_o2_threshold": fire_co_vent_limited_o2_threshold,
+		"fire_co_vent_limited_multiplier": fire_co_vent_limited_multiplier,
 		"fire_subvent_o2_floor": fire_subvent_o2_floor,
 		"fire_subvent_temp_start_c": fire_subvent_temp_start_c,
 		"fire_subvent_temp_full_c": fire_subvent_temp_full_c,
