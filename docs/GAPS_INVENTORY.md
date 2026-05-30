@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 29 mayo 2026 (cfast_suppression_water implementado — 9→9 gaps, Stage-B COMPLETO)
-**Estado validación**: 320/320 PASS required, 9 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 30 mayo 2026 (Phase 1.5 — mejora física entrainment+densidad; T_upper Ghanekar 494→568°C; gap flashover 0.9m estructural: requiere ODE descenso de capa)
+**Estado validación**: 367/367 PASS required, 9 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -246,7 +246,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 | Check | SF actual | CFAST/ref expected | Nota |
 |-------|-----------|-------------------|------|
 | `cfast_t240_hrr_ventilation_limited` | 528.9 kW | 276 kW (two-zone) | HRR no se limita por O₂ upper-zone |
-| `ghanekar_flashover_0_9m_known_gap` | — | 186s ±30s | Criterio flashover a 0.9m no reproducido |
+| `ghanekar_flashover_0_9m_known_gap` | — (T_upper pico 568°C; interfaz mín 1.30m) | 186s ±30s | Phase 1.5: T_upper mejorado 494→568°C (+74°C). Brecha estructural: interfaz no desciende bajo 1.30m (necesita ODE dz/dt). Cierre requiere Phase 2 (ODE descenso de capa). |
 | `ghanekar_kitchen_far_hall_fed_0_3_s` | 1057s | 546s ±120s | FED=0.3 en pasillo — CO pico R2: 148 ppm (prod) / 538 ppm (v2 R4 fire); brecha CO ≈90× vs ref (>48000 ppm); pendiente: rediseño motor (CO yield ventilación-limitada) |
 | `ghanekar_kitchen_far_hall_fed_1_0_s` | None (>1100s) | 624s ±126s | FED=1.0 no alcanzado; max FED R2: 0.41 (prod) / 0.11 (v2); CO transport gap confirmado; pendiente: rediseño motor |
 | `ghanekar_kitchen_far_hall_idlh_co_s` | None (>1100s) | 642s ±102s | CO>1200 ppm no alcanzado en R2; pico 148 ppm (prod) / 538 ppm (v2); brecha ≈90× vs ref (>48000 ppm); pendiente: rediseño motor |
