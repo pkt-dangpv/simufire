@@ -107,7 +107,14 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var use_o2_upper: bool = bool(context.get("fire_o2_upper_for_flame", false))
 	var o2_min_ref: float = float(context.get("fire_o2_upper_min_for_flame", fire.o2_min_for_flame)) \
 			if use_o2_upper else fire.o2_min_for_flame
-	var o2_ref: float = room.o2_upper if use_o2_upper else room.o2
+	# SF-2B: blend opt-in para capear HRR por O2 de capa superior.
+	# 0.0 = sin cambio; 1.0 = effective_o2 = min(room.o2, room.o2_upper).
+	var o2_upper_hrr_blend: float = clampf(float(context.get("fire_o2_upper_hrr_blend", 0.0)), 0.0, 1.0)
+	var o2_ref: float
+	if use_o2_upper:
+		o2_ref = room.o2_upper
+	else:
+		o2_ref = lerpf(room.o2, minf(room.o2, room.o2_upper), o2_upper_hrr_blend)
 	full_hrr_o2 = maxf(o2_min_ref + 0.001, full_hrr_o2)
 	var raw_o2_factor: float = _compute_o2_factor(o2_ref, full_hrr_o2, o2_min_ref)
 	var use_fds_extinction: bool = bool(context.get("fire_fds_extinction_enabled", false))

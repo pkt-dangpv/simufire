@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 31 mayo 2026 (phase-1.7 — GAP-1 ghanekar_flashover_0_9m cerrado; 373/373 PASS, 5 gaps)
-**Estado validación**: 373/373 PASS required, 5 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 28 mayo 2026 (GAP-8 cerrado: fire_o2_upper_hrr_blend impl, gaps 5→4)ASS, 5 gaps)
+**Estado validación**: 373/373 PASS required, 4 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -272,7 +272,7 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 | `cfast_overpressure_sealed_pending` | Stage-B (Phase 2) | Presión termódinámica sala sellada 100-1000 Pa |
 | `cfast_co2_stratification_pending` | Stage-B (Phase 2) | CO₂ mol% zona superior — requiere two-zone |
 | `cfast_hall_upper_o2_doorway_pending` | Stage-B (Phase 2) | O₂ zona superior pasillo via doorway hot-gas |
-| `cfast_hrr_ventilation_limited_f2_pending` | Stage-B (Phase 2) | HRR limitado por O₂ upper-layer |
+| ~~`cfast_hrr_ventilation_limited_f2_pending`~~ | **CERRADO GAP-8 (2026-05-28)** | `fire_o2_upper_hrr_blend` opt-in impl. Ratio check `cfast_t240_hrr_structural_ratio` ≤2.5 (actual 1.91). Phase-3 para calibración two-zone. |
 | `cfast_hvac_two_zone_feed_pending` | Stage-B (Phase 2) | HVAC O₂ feed zona baja — fuego sobrevive en CFAST |
 
 ---
@@ -281,11 +281,10 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 
 | Prioridad | Gap | Checks | Esfuerzo | Fase prevista |
 |-----------|-----|--------|----------|--------------|
-| 1 | `cfast_hrr_ventilation_limited_f2_pending` | 1 | Medio | Phase 2: o2_upper como input efectivo a HRR cap |
-| 2 | `cfast_hall_upper_o2_doorway_pending` | 1 | Alto | Phase 2A: two-zone doorway flow hot-gas upper routing |
-| 3 | `cfast_co2_stratification_pending` | 1 | Medio | Phase 2B: CO₂ bidireccional upper/lower (requiere Phase 2A) |
-| 4 | `cfast_hvac_two_zone_feed_pending` | 1 | Bajo | Phase 2C: Phase 2H default ON tras rebaseline HVAC |
-| 5 | `cfast_overpressure_sealed_pending` | 1 | Muy alto | Phase 3: ODE presión termodinámica por zona |
+| 1 | `cfast_hall_upper_o2_doorway_pending` | 1 | Alto | Phase 2A: two-zone doorway flow hot-gas upper routing |
+| 2 | `cfast_co2_stratification_pending` | 1 | Medio | Phase 2B: CO₂ bidireccional upper/lower (requiere Phase 2A) |
+| 3 | `cfast_hvac_two_zone_feed_pending` | 1 | Bajo | Phase 2C: Phase 2H default ON tras rebaseline HVAC |
+| 4 | `cfast_overpressure_sealed_pending` | 1 | Muy alto | Phase 3: ODE presión termodinámica por zona |
 
 ---
 

@@ -151,6 +151,10 @@ var _active_suppression_by_room: Dictionary = {}
 ## en lugar de `room.o2` (promedio), con el umbral separado `fire_o2_upper_min_for_flame`.
 ## Fase 2A estructural: false (pendiente calibracion del modelo two-zone en Fase 2B).
 @export var fire_o2_upper_for_flame: bool = false
+## Blend [0,1] para capear el HRR por O2 de capa superior.
+## 0.0 = sin cambio (usa room.o2); 1.0 = effective_o2 = min(room.o2, room.o2_upper).
+## Opt-in: activar por caso cuando la capa caliente ocupa la zona de combustión.
+@export var fire_o2_upper_hrr_blend: float = 0.0
 ## Umbral de O2 en capa superior por debajo del cual la llama se extingue.
 ## Calibrado para upper-zone: ~0.07-0.08 (CFAST ULO2 en extincion ~8.5 %).
 @export var fire_o2_upper_min_for_flame: float = 0.075
@@ -1464,6 +1468,7 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"outside_open_path_factor": outside_open_path_factor,
 		"fire_o2_independent": fire_o2_independent,
 		"fire_o2_upper_for_flame": fire_o2_upper_for_flame,
+		"fire_o2_upper_hrr_blend": fire_o2_upper_hrr_blend,
 		"fire_o2_upper_min_for_flame": fire_o2_upper_min_for_flame,
 		"fire_fds_extinction_enabled": fire_fds_extinction_enabled,
 		"fire_fds_extinction_o2_limit_ambient": fire_fds_extinction_o2_limit_ambient,
