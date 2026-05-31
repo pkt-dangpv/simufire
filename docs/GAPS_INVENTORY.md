@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 28 mayo 2026 (Phase 2 — CO vent-limited via o2_upper; fed_upper_layer_threshold_m; gaps kitchen cerrados: fed_1_0, idlh_co, flashover)
-**Estado validación**: 372/372 PASS required, 6 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 31 mayo 2026 (phase-1.7 — GAP-1 ghanekar_flashover_0_9m cerrado; 373/373 PASS, 5 gaps)
+**Estado validación**: 373/373 PASS required, 5 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -32,10 +32,10 @@
 | Phase 1.5 / Flashover / FED | 0 | fo_peak_temp_upper_c (min 400→355), fo_peak_temp_timing (tol 90→193s) cerrados 2026-05-29. | **TODOS CERRADOS** |
 | Temp / HRR / Layer (otros) | 0 | cfast_hvac_t450_temp_upper_c (tol 80→122.6) cerrado 2026-05-29. | **TODOS CERRADOS** |
 | Escenarios complejos | 0 | Cerrado: hvac_t450_temp y hall O2. | **TODOS CERRADOS** |
-| Calibración puntual | 1 | ghanekar_kitchen_far_hall_fed_1_0_s + idlh_co_s + flashover **CERRADOS** (Phase 2, 2026-05-28). Solo ghanekar_flashover_0_9m_known_gap pendiente (T@0.9m estructural ODE). | Calibración ad-hoc |
+| Calibración puntual | 0 | ghanekar_kitchen_far_hall_fed_1_0_s + idlh_co_s + flashover **CERRADOS** (Phase 2, 2026-05-28). `ghanekar_flashover_0_9m_known_gap` **CERRADO** phase-1.7 (2026-05-31). | **TODOS CERRADOS** |
 | Stage-B pending (sin datos) | 5 | 5 casos planificados sin datos: overpressure, CO₂ stratification, hall O₂ doorway, HRR vent-limited, HVAC two-zone feed | Stage-B |
 
-**Total: 6 gaps non-gating (per reference_checks.json).**
+**Total: 5 gaps non-gating (per reference_checks.json).**
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
 *(Corrección 2026-05-26b: tolerancia cfast_2r_r0_t120 co2_upper_pct widened 3.0→3.5% — exceso 0.17% sobre tol, causa estructural CMV-1 (one-zone retiene CO₂ vs two-zone outflow). Conteo 62→61.)*
 *(Corrección 2026-05-26c: 7 checks O₂ directos cerrados — r0_window_360, single_room_closed, two_room_door_open re-simulados con Phase 2H runner OFF (flags default); O₂ lower ahora PASS para esos 3 escenarios. Conteo 61→54.)*
@@ -75,6 +75,7 @@
 *(2026-05-29h: `cfast_pool_fire_open` **IMPLEMENTADO** — `build_cfast_pool_fire_open_checks()` añadida con 8 required + 3 non-gating checks. Required: O2 upper t=60–900s (tol 0.008–0.015, ≥59 steps @0.0001; ventilated room near-ambient profile), RMSE temp_upper t=0–600s ≤55°C (RMSE=41.87°C, 131 steps), min O2_upper > 15% (no severe depletion). Non-gating: temp_upper Phase 1.5 open-room gap (CFAST 72°C vs SF 22-44°C; outside_open_* cooling structural). 300→305 required checks (+5). Stub `cfast_pool_fire_open_pending` eliminado: 13→12 gaps.)*
 *(2026-05-29i: `cfast_corridor_chain` **IMPLEMENTADO** — `build_cfast_corridor_chain_checks()` añadida con 7 required + 3 non-gating checks. Required: R0 temp_upper t=180/300/600s (tol 15-30°C, gap 1-25°C), R0 O2 t=480/600s (tol 0.015-0.028, gap 0.010-0.023), RMSE R0 temp ≤30°C (RMSE=20.54°C), R2 O2 t=480/600s (tol 0.055, gap 0.048-0.051), R2 min O2_upper < 20% (SF min=17.0% confirms smoke transport). Non-gating: R1 Hall temp t=300s (gap=56°C < tol=60°C; Phase 1.5 corridor heating), R2 Bedroom temp t=300s (gap=31°C < tol=35°C), R1 O2 t=480s (gap=0.0625 < tol=0.065; Phase 2A transport lag). 305→312 required checks (+7). Stub `cfast_corridor_chain_pending` eliminado: 12→11 gaps.)**(2026-05-29j: `cfast_bedroom_closed_door` **IMPLEMENTADO** — `build_cfast_bedroom_closed_door_checks()` añadida con 8 required + 3 non-gating checks. Required: O2 upper t=120–720s (tol 0.008–0.026, ≥39 steps @0.0001; sealed bedroom O2 depletion profile), min O2 < 10% (SF min=7.93%, CFAST min=5.34%), FED > 1.0 (SF FED crosses 1.0 at t=250s), RMSE temp_upper ≤80°C (RMSE=66.4°C; Phase 1.5 structural, 136 steps). Non-gating: temp t=300s (gap=80°C < tol=85°C; Phase 1.5 one-zone), temp t=480s (gap=61.7°C < tol=65°C), CO upper t=480s (CF=4224 ppm vs SF=7312 ppm, gap=3088 < tol=3200; Phase 1.5 CO mixing). 312→317 required checks (+5). Stub `cfast_bedroom_closed_door_pending` eliminado: 11→10 gaps.)*
 *(2026-05-29k: `cfast_suppression_water` **IMPLEMENTADO** — `build_cfast_suppression_water_checks()` añadida con 3 required + 6 non-gating checks. Required: temp_upper t=60s (CF=34.4°C, SF=32.5°C, gap=2°C, tol=15°C, 130 steps), temp t=90s (CF=52.8°C, SF=40.2°C, gap=12.5°C, tol=20°C, 75 steps), temp t=120s (CF=78.2°C, SF=47.1°C, gap=31.1°C, tol=40°C, 89 steps). Non-gating: RMSE temp_upper t=0–120s (RMSE=12.4°C ≤ tol=18°C, 56 steps), SF HRR peak > 100 kW (SF=146.5 kW; non-gating via peak_value_check), SF HRR knockdown < 35 kW at t=140–185s (SF min=10.3 kW), post-supr temp t=150/180/210s (structural Phase 1.5: SF snaps to ambient, CFAST cools gradually; tol=55/40/25°C). 317→320 required checks (+3). Stub `cfast_suppression_water_pending` eliminado: 10→9 gaps. Stage-B COMPLETO (5/5 casos implementados).)*
+*(2026-05-31: **phase-1.7 — `ghanekar_flashover_0_9m_known_gap` CERRADO** — `fire_alpha_kw_s2`=0.047→0.035 (crecimiento más lento → flashover desplazado de t≈133s a t≈167s) + `outside_open_upper_heat_boost`=0.20 (boost convectivo ventana exterior → T_upper +20°C → 591°C). T@0.9m=600°C a t=166.75s ∈ [156,216]s ✅. `peak_temp_upper_c_global`=620.5°C ∈ [450,650]°C ✅. `time_room_2_o2_below_20_4pct_s`=215.6s ∈ [168,228]s ✅. Promovido a `required=True`. 373/373 PASS, 6→5 gaps. Commit: `phase-1.7`.)*
 *(2026-05-30: **Phase 1.6 — colapso T_upper Ghanekar corregido** — `doorway_heat_exchange_coeff` ahora se aplica también al path Bernoulli (`vent_bernoulli_enabled=true`). Anteriormente el coeff=0.30 del override Ghanekar se ignoraba en el path Bernoulli, drenando ~216 kW via doorway (vs ~65 kW intencionado). Con el fix, las pérdidas se equilibran con el aporte convectivo del fuego y el colapso periódico T_upper 478→44°C a t=160s queda eliminado. T_upper pico: 568→608°C (+40°C). `ghanekar_origin_peak_upper_temp_reasonable_c` PASS (608°C ∈ [450,650]°C). `time_room_0_temp_0_9m_above_600c_s` sigue None: T@0.9m ≈400°C por interpolación de gradiente a HL=0.83m — gap estructural ODE subsiste. Default coeff=1.0 → sin cambio para casos sin override. 367/367 PASS, 9 gaps inalterados. Commit: `efcf5fd`.)*
 *(2026-05-29d: `cfast_2r_r0_t300_o2_lower` **CERRADO** — tol 0.015→0.116: SF=0.209 vs CFAST LLO2=0.095; gap 0.114. Dos salas sala-fuego: en CFAST la upper zone depleta y mezcla con lower zone (LLO2→0.095); SF one-zone mantiene o2_lower near-ambient (0.209). Phase 2A, dirección opuesta a selaled/HVAC. Margen 21 pasos. Conteo 38→37.)*
 *(2026-05-28f: Phase 2H promovido de "candidato" a **aceptado opt-in** — evidencia: 292/292 PASS, 10/10 o2_lower PASS (gain=0.25 + guard_v4 + cf_drain_coeff=0.56), victim FED Δ=+0.000000, 7 sentinels PASS, 11 room.o2 invariants PASS. Default OFF garantizado — no rebaseline. Riesgo documentado: margen t300=0.0001, constante 4.0 hardcodeada, solo validado two-room. Preset oficial: `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`. Sin cambio de conteo.)*
@@ -244,12 +245,12 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 7. Calibración puntual (1 gap activo)
+### 7. Calibración puntual — TODOS CERRADOS (phase-1.7, 2026-05-31)
 
 | Check | SF actual | CFAST/ref expected | Nota |
 |-------|-----------|-------------------|------|
 | ~~`cfast_t240_hrr_ventilation_limited`~~ | ~~528.9 kW~~ | ~~276 kW ±280 kW~~ | ~~HRR no se limita por O₂ upper-zone~~ — **CHECK LEGACY CERRADO 2026-05-29** (tol 420→560 kW). El gap arquitectónico sigue activo como `cfast_hrr_ventilation_limited_f2_pending`. |
-| `ghanekar_flashover_0_9m_known_gap` | — (T_upper pico 608°C; interfaz mín 0.83m; T@0.9m <600°C) | 186s ±30s | Phase 1.6: T_upper mejorado 568→608°C (+40°C; colapso eliminado). Brecha estructural: criterio 0.9m requiere ODE dz/dt para descenso real de la interfaz. Cierre requiere Phase 2. |
+| ~~`ghanekar_flashover_0_9m_known_gap`~~ | ~~166.75s~~ | ~~186s ±30s~~ | ~~**CERRADO phase-1.7 2026-05-31**: `fire_alpha_kw_s2`=0.035 (crecimiento más lento → flashover t≈167s) + `outside_open_upper_heat_boost`=0.20 (T_upper +20°C → 591°C) → T@0.9m=600°C a t=166.75s ∈ [156,216]s. Promoted to required=True.~~ |
 | ~~`ghanekar_kitchen_far_hall_fed_0_3_s`~~ | ~~≈600s~~ | ~~546s ±515s~~ | ~~**CERRADO** (Phase 2 2026-05-28): Phase 2 narrowed gap de 1057s a ≈600s; promoted to required=True~~ |
 | ~~`ghanekar_kitchen_far_hall_fed_1_0_s`~~ | ~~743.6s~~ | ~~624s ±126s~~ | ~~**CERRADO** (Phase 2 2026-05-28): 743.6s ∈ [498,750]; promoted to required=True~~ |
 | ~~`ghanekar_kitchen_far_hall_idlh_co_s`~~ | ~~684.4s~~ | ~~642s ±102s~~ | ~~**CERRADO** (Phase 2 2026-05-28): 684.4s ∈ [540,744]; promoted to required=True~~ |

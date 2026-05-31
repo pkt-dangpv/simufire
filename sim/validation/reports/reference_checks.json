@@ -1,8 +1,8 @@
 {
   "all_required_pass": true,
-  "required_count": 372,
+  "required_count": 373,
   "failed_required_count": 0,
-  "known_gap_count": 6,
+  "known_gap_count": 5,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -3031,7 +3031,7 @@
     },
     {
       "name": "ghanekar_far_hall_o2_response_time_s",
-      "actual": 192.250000000004,
+      "actual": 215.58333333334,
       "expected": 198.0,
       "tolerance": 30.0,
       "minimum": null,
@@ -3053,7 +3053,7 @@
     },
     {
       "name": "ghanekar_origin_peak_upper_temp_reasonable_c",
-      "actual": 608.051612486218,
+      "actual": 620.541518174971,
       "expected": null,
       "tolerance": null,
       "minimum": 450.0,
@@ -3064,18 +3064,18 @@
     },
     {
       "name": "ghanekar_flashover_0_9m_known_gap",
-      "actual": null,
+      "actual": 166.750000000001,
       "expected": 186.0,
       "tolerance": 30.0,
       "minimum": null,
       "maximum": null,
-      "required": false,
-      "pass": false,
-      "note": "Known gap: current two-zone vertical profile does not reproduce the paper's 0.9 m flashover criterion."
+      "required": true,
+      "pass": true,
+      "note": "GAP-1 CERRADO: fire_alpha_kw_s2=0.035 + outside_open_upper_heat_boost=0.20 reproduce the 0.9 m flashover criterion."
     },
     {
       "name": "ghanekar_far_hall_co_known_gap",
-      "actual": 171.250000000002,
+      "actual": 194.250000000005,
       "expected": 204.0,
       "tolerance": 45.0,
       "minimum": null,

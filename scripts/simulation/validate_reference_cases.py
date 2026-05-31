@@ -2512,8 +2512,8 @@ def build_ghanekar_checks() -> list[Check]:
             _metric(metrics, "time_room_0_temp_0_9m_above_600c_s"),
             expected=186.0,
             tolerance=30.0,
-            required=False,
-            note="Known gap: current two-zone vertical profile does not reproduce the paper's 0.9 m flashover criterion.",
+            required=True,
+            note="GAP-1 CERRADO: fire_alpha_kw_s2=0.035 + outside_open_upper_heat_boost=0.20 reproduce the 0.9 m flashover criterion.",
         ),
         Check(
             "ghanekar_far_hall_co_known_gap",

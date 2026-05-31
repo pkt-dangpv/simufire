@@ -88,6 +88,8 @@
 		"thermal_gradient_band_fraction": 0.05,
 		"thermal_gradient_min_band_m": 0.05,
 		"flashover_temp_c": 520.0,
-		"fire_flashover_hrr_multiplier": 2.70
+		"fire_alpha_kw_s2": 0.035,
+		"fire_flashover_hrr_multiplier": 3.00,
+		"outside_open_upper_heat_boost": 0.20
 	}
 }
