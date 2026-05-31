@@ -200,6 +200,11 @@ func build_state(context: Dictionary) -> Dictionary:
 			"formaldehyde_ppm": _call_room_float(compute_formaldehyde_ppm_callable, room, 0.0),
 			"fec_irritant": room.fec_irritant,
 			"fed": room.fed,
+			# Phase 4B: per-component FED for calibration observability.
+			"fed_co": room.fed_co,
+			"fed_hcn": room.fed_hcn,
+			"fed_hypoxia": room.fed_hypoxia,
+			"fed_heat": room.fed_heat,
 			"c_balance_frac": room.c_balance_frac,
 			"svv_pct": room.svv_pct,
 			"svv_worst_pct": room.svv_worst_pct,

@@ -96,6 +96,11 @@ var fec_irritant: float = 0.0
 
 # FED acumulado (Fractional Effective Dose) - ISO 13571
 var fed: float = 0.0
+# Phase 4B: FED por componente (observabilidad — no se usan en checks requeridos)
+var fed_co: float = 0.0       # FED acumulado — componente CO (narcosis)
+var fed_hcn: float = 0.0      # FED acumulado — componente HCN (toxicidad)
+var fed_hypoxia: float = 0.0  # FED acumulado — componente hipoxia (O2)
+var fed_heat: float = 0.0     # FED acumulado — componente térmico (conv+rad)
 
 # Supervivencia de Victimas (%)
 var svv_pct: float = 100.0
@@ -247,6 +252,10 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	formaldehyde_kg = 0.0
 	fec_irritant = 0.0
 	fed = 0.0
+	fed_co = 0.0
+	fed_hcn = 0.0
+	fed_hypoxia = 0.0
+	fed_heat = 0.0
 	svv_pct = 100.0
 	svv_worst_pct = 100.0
 	visibility_m = 30.0

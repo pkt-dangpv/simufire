@@ -2554,7 +2554,11 @@ func step_fed(room: RoomModel, dt: float) -> void:
 	var co2_ppm: float = compute_co2_upper_ppm(room) if in_upper_layer else compute_co2_lower_ppm(room)
 
 	var dt_min: float = dt / 60.0
-	var delta_fed: float = 0.0
+	# Phase 4B: per-component delta accumulators for observability.
+	var delta_co: float = 0.0
+	var delta_hcn: float = 0.0
+	var delta_hypoxia: float = 0.0
+	var delta_heat: float = 0.0
 
 	# Factor de hiperventilación por CO2 (ISO 13571): se aplica a CO y a HCN.
 	var co2_pct: float = co2_ppm / 10000.0
@@ -2564,13 +2568,13 @@ func step_fed(room: RoomModel, dt: float) -> void:
 
 	# ISO 13571 Eq. 2-3: dosis incremental por CO, con ajuste por CO2 solo > 2% vol.
 	if co_ppm > 0.0:
-		delta_fed += 3.317e-5 * pow(co_ppm, 1.036) * v_co2 * dt_min
+		delta_co = 3.317e-5 * pow(co_ppm, 1.036) * v_co2 * dt_min
 
 	# ISO 13571 §A.2.2: dosis incremental por HCN (cianuro de hidrógeno).
 	# Modelo lineal de Purser: LC50 ≈ 4400 ppm·min (humano equivalente, 30 min).
 	var hcn_ppm: float = compute_hcn_upper_ppm(room) if in_upper_layer else compute_hcn_lower_ppm(room)
 	if hcn_ppm > 0.0:
-		delta_fed += hcn_ppm / 4400.0 * v_co2 * dt_min
+		delta_hcn = hcn_ppm / 4400.0 * v_co2 * dt_min
 
 	# ISO 13571 (modelo asfixiante): componente de hipoxia por O2.
 	if fed_hypoxia_enabled:
@@ -2580,7 +2584,7 @@ func step_fed(room: RoomModel, dt: float) -> void:
 		if o2_deficit_pct > 0.0:
 			var t_crit_min: float = exp(fed_hypoxia_a - fed_hypoxia_b * o2_deficit_pct)
 			if t_crit_min > 0.0:
-				delta_fed += dt_min / t_crit_min
+				delta_hypoxia = dt_min / t_crit_min
 
 	# ISO 13571 §5.5 + §5.4.3: FED térmico (calor convectivo + radiante).
 	if fed_heat_enabled and room.upper_gas_kg > 0.01:
@@ -2590,7 +2594,7 @@ func step_fed(room: RoomModel, dt: float) -> void:
 			var tenab_min: float = fed_heat_conv_a * pow(room.temp_upper_c, -fed_heat_conv_n)
 			var tenab_s: float = tenab_min * 60.0
 			if tenab_s > 0.0:
-				delta_fed += dt / tenab_s
+				delta_heat += dt / tenab_s
 		# --- Componente radiante (ISO 13571 §5.4.3) ---
 		# Se aplica SIEMPRE que la capa superior esté caliente, incluso cuando el
 		# ocupante está por debajo: la radiación viaja sin contacto con el gas.
@@ -2607,9 +2611,15 @@ func step_fed(room: RoomModel, dt: float) -> void:
 		if q_rad_kw_m2 > 2.5:
 			var tenab_rad_s: float = fed_heat_rad_a / pow(q_rad_kw_m2, 1.33)
 			if tenab_rad_s > 0.0 and tenab_rad_s < 3600.0:
-				delta_fed += dt / tenab_rad_s
+				delta_heat += dt / tenab_rad_s
 
+	var delta_fed: float = delta_co + delta_hcn + delta_hypoxia + delta_heat
 	room.fed += maxf(0.0, delta_fed)
+	# Phase 4B: accumulate per-component for observability in logs/CSV.
+	room.fed_co += maxf(0.0, delta_co)
+	room.fed_hcn += maxf(0.0, delta_hcn)
+	room.fed_hypoxia += maxf(0.0, delta_hypoxia)
+	room.fed_heat += maxf(0.0, delta_heat)
 
 	# FEC irritantes — SF-AUD-018 (ISO 13571 §A.3, sensory irritants).
 	# FEC = [HCl]/IC50_HCl + [acrolein]/IC50_acrolein + [HCHO]/IC50_HCHO

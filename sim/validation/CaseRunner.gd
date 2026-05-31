@@ -685,6 +685,15 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 		float(_metrics.get(prefix + "peak_co_upper_ppm", 0.0)),
 		float(room_state.get("co_upper_ppm", 0.0))
 	)
+	# Phase 4B: HCN observability — track peak HCN ppm for sanity checks
+	_metrics[prefix + "peak_hcn_ppm"] = maxf(
+		float(_metrics.get(prefix + "peak_hcn_ppm", 0.0)),
+		float(room_state.get("hcn_ppm", 0.0))
+	)
+	_metrics[prefix + "peak_hcn_upper_ppm"] = maxf(
+		float(_metrics.get(prefix + "peak_hcn_upper_ppm", 0.0)),
+		float(room_state.get("hcn_upper_ppm", 0.0))
+	)
 	_metrics[prefix + "peak_co2_ppm"] = maxf(
 		float(_metrics.get(prefix + "peak_co2_ppm", 0.0)),
 		float(room_state.get("co2_ppm", 0.0))
@@ -745,6 +754,11 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "co_upper_ppm"] = float(room_state.get("co_upper_ppm", 0.0))
 		_metrics[prefix + "co2_ppm"] = float(room_state.get("co2_ppm", 0.0))
 		_metrics[prefix + "fed"] = float(room_state.get("fed", 0.0))
+		# Phase 4B: per-component FED for calibration observability (informational, non-gating).
+		_metrics[prefix + "fed_co"] = float(room_state.get("fed_co", 0.0))
+		_metrics[prefix + "fed_hcn"] = float(room_state.get("fed_hcn", 0.0))
+		_metrics[prefix + "fed_hypoxia"] = float(room_state.get("fed_hypoxia", 0.0))
+		_metrics[prefix + "fed_heat"] = float(room_state.get("fed_heat", 0.0))
 		# SF-AUD-032: balance elemental de carbono (fracción de C producido vs disponible)
 		_metrics[prefix + "c_balance_frac"] = float(room_state.get("c_balance_frac", 0.0))
 		_metrics[prefix + "hot_layer_m"] = float(room_state.get("hot_layer_m", 0.0))

@@ -282,7 +282,7 @@ func _append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		var room_label: String = str(room_state.get("id", room_id))
 		if room_name_val != "":
 			room_label = "%s(%s)" % [str(room_state.get("id", room_id)), room_name_val]
-		var line := "ROOM %s | HRR=%.2f | Up=%.2f | Low=%.2f | Smoke=%.4f | Vis=%.1fm | SmokeLayer=%.2f | HotLayer=%.2f | L150=%.2f | P=%.2fPa | O2=%.4f | O2u=%.4f | O2l=%.4f | CO=%.0fppm | COu=%.0fppm | COl=%.0fppm | CO2=%.0fppm | CO2u=%.0fppm | FED=%.3f | SVV=%.0f%% [%s] | WallT=%.1f | MdotVent=%.4f" % [
+		var line := "ROOM %s | HRR=%.2f | Up=%.2f | Low=%.2f | Smoke=%.4f | Vis=%.1fm | SmokeLayer=%.2f | HotLayer=%.2f | L150=%.2f | P=%.2fPa | O2=%.4f | O2u=%.4f | O2l=%.4f | CO=%.0fppm | COu=%.0fppm | COl=%.0fppm | CO2=%.0fppm | CO2u=%.0fppm | HCN=%.1fppm | HCNu=%.1fppm | FED=%.3f(CO:%.4f HCN:%.4f O2:%.4f Q:%.4f) | SVV=%.0f%% [%s] | WallT=%.1f | MdotVent=%.4f" % [
 			room_label,
 			float(room_state.get("hrr_kw", 0.0)),
 			float(room_state.get("temp_upper_c", 0.0)),
@@ -301,7 +301,13 @@ func _append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 			float(room_state.get("co_lower_ppm", 0.0)),
 			float(room_state.get("co2_ppm", 0.0)),
 			float(room_state.get("co2_upper_ppm", 0.0)),
+			float(room_state.get("hcn_ppm", 0.0)),
+			float(room_state.get("hcn_upper_ppm", 0.0)),
 			fed_val,
+			float(room_state.get("fed_co", 0.0)),
+			float(room_state.get("fed_hcn", 0.0)),
+			float(room_state.get("fed_hypoxia", 0.0)),
+			float(room_state.get("fed_heat", 0.0)),
 			svv_pct,
 			svv_zone,
 			float(room_state.get("wall_T_mid_c", 20.0)),
@@ -356,7 +362,7 @@ func _collect_room_ids(state: Dictionary) -> Array[int]:
 # ============================================================
 
 func _build_csv_header() -> String:
-	return "time_s,room_id,room_name,hrr_kw,temp_upper_c,temp_lower_c,temp_at_0_9m_c,smoke_kg,visibility_m,smoke_layer_m,hot_layer_m,layer_150c_m,overpressure_pa,o2,o2_upper,o2_lower,co_ppm,co_upper_ppm,co_lower_ppm,co2_ppm,hcn_ppm,hcl_ppm,acrolein_ppm,formaldehyde_ppm,fec_irritant,fed,svv_worst_pct,flashover_triggered,flashover_time_s,floor_heat_flux_kw_m2,flashover_q_thomas_kw,flashover_q_mqh_kw,fuel_remaining_MJ,ventilation_response_factor,pyrolysis_kw,burned_hrr_kw,unburned_generation_kw,retained_unburned_MJ,unburned_gas_vol_frac,steam_kg,flame_hrr_target_kw,smolder_hrr_target_kw,pool_release_hrr_target_kw,o2_hrr_factor,fire_smoldering,backdraft_triggered,bud_e_fire_kj,bud_q_rad_kj,bud_q_to_lower_kj,bud_q_to_ambient_kj,bud_q_wall_abs_kj,bud_q_wall_emit_kj,bud_de_upper_kj,bud_q_residual_kj,bud_chi_rad,bud_q_fire_rad_kj,wall_T_mid_c,mdot_vent_kg_s"
+	return "time_s,room_id,room_name,hrr_kw,temp_upper_c,temp_lower_c,temp_at_0_9m_c,smoke_kg,visibility_m,smoke_layer_m,hot_layer_m,layer_150c_m,overpressure_pa,o2,o2_upper,o2_lower,co_ppm,co_upper_ppm,co_lower_ppm,co2_ppm,hcn_ppm,hcn_upper_ppm,hcl_ppm,acrolein_ppm,formaldehyde_ppm,fec_irritant,fed,fed_co,fed_hcn,fed_hypoxia,fed_heat,svv_worst_pct,flashover_triggered,flashover_time_s,floor_heat_flux_kw_m2,flashover_q_thomas_kw,flashover_q_mqh_kw,fuel_remaining_MJ,ventilation_response_factor,pyrolysis_kw,burned_hrr_kw,unburned_generation_kw,retained_unburned_MJ,unburned_gas_vol_frac,steam_kg,flame_hrr_target_kw,smolder_hrr_target_kw,pool_release_hrr_target_kw,o2_hrr_factor,fire_smoldering,backdraft_triggered,bud_e_fire_kj,bud_q_rad_kj,bud_q_to_lower_kj,bud_q_to_ambient_kj,bud_q_wall_abs_kj,bud_q_wall_emit_kj,bud_de_upper_kj,bud_q_residual_kj,bud_chi_rad,bud_q_fire_rad_kj,wall_T_mid_c,mdot_vent_kg_s"
 
 
 func _open_csv_file(mode: FileAccess.ModeFlags) -> FileAccess:
@@ -412,11 +418,16 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		fields.append("%.0f" % float(rs.get("co_lower_ppm", 0.0)))
 		fields.append("%.0f" % float(rs.get("co2_ppm", 0.0)))
 		fields.append("%.2f" % float(rs.get("hcn_ppm", 0.0)))
+		fields.append("%.2f" % float(rs.get("hcn_upper_ppm", 0.0)))
 		fields.append("%.2f" % float(rs.get("hcl_ppm", 0.0)))
 		fields.append("%.4f" % float(rs.get("acrolein_ppm", 0.0)))
 		fields.append("%.4f" % float(rs.get("formaldehyde_ppm", 0.0)))
 		fields.append("%.4f" % float(rs.get("fec_irritant", 0.0)))
 		fields.append("%.4f" % float(rs.get("fed", 0.0)))
+		fields.append("%.5f" % float(rs.get("fed_co", 0.0)))
+		fields.append("%.5f" % float(rs.get("fed_hcn", 0.0)))
+		fields.append("%.5f" % float(rs.get("fed_hypoxia", 0.0)))
+		fields.append("%.5f" % float(rs.get("fed_heat", 0.0)))
 		fields.append("%.1f" % float(rs.get("svv_worst_pct", 100.0)))
 		fields.append("1" if bool(rs.get("flashover_triggered", false)) else "0")
 		fields.append("%.1f" % float(rs.get("flashover_time_s", -1.0)))
