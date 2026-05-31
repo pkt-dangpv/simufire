@@ -2701,6 +2701,8 @@ def main() -> int:
     print(f"[Reference Checks] {status}: {len(required) - len(failed)}/{len(required)} required checks passed")
     if known_gaps:
         print(f"[Reference Checks] Known gaps: {len(known_gaps)} non-gating checks did not pass")
+        for gap in known_gaps:
+            print(f"  gap  {gap.name}: actual={gap.actual} expected={gap.expected} tol={gap.tolerance}")
     print(f"[Reference Checks] Report: {out_path}")
 
     if failed:
