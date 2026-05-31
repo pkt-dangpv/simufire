@@ -1,29 +1,29 @@
 # Estado de sesión — 2026-05-31
 
-## Resumen ejecutivo
+## Resumen ejecutivo actual
 
-Sesión de auditoría y sincronización tras Phase 2 CO vent-limited.
+Sesión cerrada en Phase 2A — doorway hot-gas O2 upper routing.
 
-- Estado validación actual: **372/372 required PASS**
-- Gaps reales activos: **6 non-gating**
-- Total checks registrados: **521**
+- Estado validación actual: **373/373 required PASS**
+- Gaps reales activos: **3 non-gating**
+- Total checks registrados: **520**
 - Guardrails: **ALL PASS**
 - Unit tests: **13/13 OK**
-- HEAD base: `156fb81` (`main = origin/main`) — `Add CO vent-limited phase to combustion model`
-- Working tree: cambios pendientes en docs, guardrails/checks y `reference_checks.json`; no commiteado en esta sesión.
+- Base física: `e4564e3` — `phase-2a: route doorway hot-gas oxygen by upper layer`
+- Último sync docs/reports: `d50a969` — `docs: sync Phase 2A validation state`
+- Working tree al guardar este estado: limpio antes de añadir esta nota de sesión.
 
 ## Gaps reales activos
 
 | Prioridad | Gap | Fase prevista | Nota |
 |-----------|-----|---------------|------|
-| 1 | `ghanekar_flashover_0_9m_known_gap` | Phase 1.7 | T_upper llega a ~608°C, pero T@0.9m no cruza 600°C por gradiente/interfaz; requiere suavizar progresión del colchón o mejorar criterio vertical. |
-| 2 | `cfast_hrr_ventilation_limited_f2_pending` | Phase 2 cont. | Falta HRR cap real por `o2_upper`; el check legacy `cfast_t240_hrr_ventilation_limited` pasa por tolerancia, pero el gap arquitectónico sigue vivo. |
-| 3 | `cfast_hall_upper_o2_doorway_pending` | Phase 2A | Falta doorway two-zone: gas caliente pobre en O2 entra por la parte alta del vano. |
-| 4 | `cfast_co2_stratification_pending` | Phase 2B | Falta tracking CO2 upper/lower bidireccional. |
-| 5 | `cfast_hvac_two_zone_feed_pending` | Phase 2C | Gap específico del benchmark CFAST low-supply/high-return, no de todo HVAC residencial. |
-| 6 | `cfast_overpressure_sealed_pending` | Phase 3 | Falta ODE de presión termodinámica por zona. |
+| 1 | `cfast_co2_stratification_pending` | Phase 2B | Siguiente objetivo. Falta tracking CO2 upper/lower bidireccional. |
+| 2 | `cfast_hvac_two_zone_feed_pending` | Phase 2C | Gap específico del benchmark CFAST low-supply/high-return, no de todo HVAC residencial. |
+| 3 | `cfast_overpressure_sealed_pending` | Phase 3 | Falta ODE de presión termodinámica por zona. |
 
-## Cambios hechos en esta sesión
+## Historial previo de la sesión
+
+Los apartados siguientes conservan el estado intermedio anterior a los cierres de GAP-8 y GAP-7. El estado actual definitivo está en el resumen superior y en la actualización final de este documento.
 
 ### Checks y guardrails
 
@@ -131,3 +131,110 @@ Overrides usados en `sim/validation/cases/ghanekar_bedroom_hallway.json`:
 ```
 
 Siguiente prioridad real: `cfast_hrr_ventilation_limited_f2_pending` (Phase 2 cont., HRR cap por `o2_upper`).
+
+---
+
+## Actualización posterior — Phase 2A cerrada y estado listo para retomar
+
+Se cerraron también GAP-8 y GAP-7 después del estado anterior.
+
+### Commits relevantes posteriores
+
+| Commit | Descripción |
+|--------|-------------|
+| `a21326e` | `phase-2: close GAP-8 — fire_o2_upper_hrr_blend opt-in (gaps 5->4)` |
+| `c435afb` | `docs: sync GAP-8 validation report` |
+| `e4564e3` | `phase-2a: route doorway hot-gas oxygen by upper layer` |
+| `d50a969` | `docs: sync Phase 2A validation state` |
+
+### Estado actual validado
+
+- Base física actual: `e4564e3`
+- Último commit de sincronización docs/reports: `d50a969`
+- Checks required: **373/373 PASS**
+- Gaps reales activos: **3 non-gating**
+- Total checks registrados: **520**
+- Guardrails: **ALL PASS**
+- Unit tests: **13/13 OK**
+- Working tree tras `d50a969`: limpio
+
+### Qué quedó cerrado
+
+#### GAP-8 — `cfast_hrr_ventilation_limited_f2_pending`
+
+- Implementado `fire_o2_upper_hrr_blend` opt-in en `CombustionSystem.gd` y `SimulationEngine.gd`.
+- Default `0.0` = no-op.
+- Stub eliminado.
+- Check real: `cfast_t240_hrr_structural_ratio`, actual `1.91`, máximo `2.5`, PASS.
+- Gaps: 5 -> 4.
+
+#### GAP-7 — `cfast_hall_upper_o2_doorway_pending`
+
+- Implementado `doorway_o2_upper_routing_gain` opt-in en `OxygenExchangeSystem.gd` y exportado en `SimulationEngine.gd`.
+- En `cfast_two_room_door_open.json`: `doorway_o2_upper_routing_gain=1.0`.
+- Los checks hall O2 comparan ahora `sim_field="o2_upper"` contra CFAST ULO2.
+- Tolerancias tight:
+  - t=120: `0.020`
+  - t=240: `0.025`
+  - t=360: `0.060`
+  - RMSE: `<=0.060`
+- Residual estructural t=360: SF mantiene fuego activo mientras CFAST extingue por depleción de O2 upper.
+- Gaps: 4 -> 3.
+
+### Gaps activos restantes
+
+| Prioridad | Gap | Fase | Nota |
+|-----------|-----|------|------|
+| 1 | `cfast_co2_stratification_pending` | Phase 2B | Siguiente objetivo. Extender el patrón two-zone a CO2 upper/lower. |
+| 2 | `cfast_hvac_two_zone_feed_pending` | Phase 2C | Preset HVAC low-supply/high-return; no representa todos los HVAC residenciales. |
+| 3 | `cfast_overpressure_sealed_pending` | Phase 3 | ODE de presión termodinámica por zona; muy disruptivo. |
+
+### Verificación ejecutada
+
+```powershell
+python scripts\simulation\validate_reference_cases.py
+# PASS: 373/373 required checks passed
+# Known gaps: 3 non-gating checks did not pass
+
+python scripts\simulation\validation_guardrails.py
+# ALL GUARDRAILS PASS
+
+python tests\test_guardrails.py
+# Ran 13 tests — OK
+```
+
+## Prompt listo para la próxima sesión
+
+```text
+Estamos en SimuFire, commit base físico e4564e3 y sync docs/reports d50a969.
+Estado actual: 373/373 required PASS, 3 gaps non-gating.
+
+Objetivo: cerrar el siguiente gap prioritario:
+cfast_co2_stratification_pending
+
+Contexto:
+- Phase 2A ya cerró cfast_hall_upper_o2_doorway_pending con doorway_o2_upper_routing_gain opt-in.
+- Ese patrón enruta O2 upper por hot-gas doorway en OxygenExchangeSystem.gd.
+- Ahora hay que extender la lógica a CO2 stratification: SF aún mezcla CO2 demasiado uniforme, mientras CFAST retiene CO2 en upper layer.
+- No tocar presión Phase 3 ni HVAC Phase 2C en este turno.
+
+Tareas:
+1. Leer GAPS_INVENTORY.md, PLAN_TRABAJO.md y validate_reference_cases.py para confirmar el estado exacto del gap.
+2. Inspeccionar cómo se calcula/transporta CO2 actualmente en RoomModel.gd, GasExchangeSystem.gd, OxygenExchangeSystem.gd, ThermalSystem.gd y SimulationEngine.gd.
+3. Diseñar un cambio opt-in default no-op para CO2 upper/lower stratification, siguiendo el estilo de doorway_o2_upper_routing_gain.
+4. Implementar el mínimo necesario para cerrar cfast_co2_stratification_pending sin romper required checks.
+5. Convertir el stub en check real passing o eliminarlo si queda cubierto por checks reales existentes.
+6. Regenerar reports, correr:
+   - python scripts/simulation/validate_reference_cases.py
+   - python scripts/simulation/validation_guardrails.py
+   - python tests/test_guardrails.py
+7. Actualizar GAPS_INVENTORY.md y PLAN_TRABAJO.md: gaps 3->2 si procede.
+8. Commit final con mensaje claro.
+
+Criterios de aceptación:
+- 373/373 required PASS o más si se añaden checks required.
+- known_gap_count pasa de 3 a 2.
+- Guardrails PASS.
+- Unit tests 13/13 OK.
+- Default global no-op salvo caso calibrado/opt-in.
+```
