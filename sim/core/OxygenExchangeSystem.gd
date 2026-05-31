@@ -28,6 +28,10 @@ var doorway_o2_background_exchange_kg_s_m2: float = 0.06
 var doorway_o2_background_max_fraction_per_step: float = 0.015
 var doorway_o2_background_pressure_ref_pa: float = 1.5
 var doorway_o2_background_min_factor: float = 0.30
+# Phase 2 opt-in: ruta gas caliente (o2_upper del cuarto de fuego) hacia la zona
+# alta del cuarto adyacente vía la mitad superior del vano (como CFAST two-zone).
+# Default 0.0 = no-op garantizado. Activar por caso con engine_overrides.
+var doorway_o2_upper_routing_gain: float = 0.0
 # Tasa de entrainment penacho: pluma usa room.o2 como fuente de reposicion de
 # o2_upper. Equilibrio: o2_upper_eq = room.o2 - hrr*cr/(rate*upper_mass).
 # Calibrado Fase 1.5 (0.025). Fase 2A: o2_lower desacoplado (near-ambient).
@@ -129,6 +133,9 @@ func configure(settings: Dictionary) -> void:
 			"doorway_o2_background_min_factor",
 			doorway_o2_background_min_factor
 		)
+	)
+	doorway_o2_upper_routing_gain = float(
+		settings.get("doorway_o2_upper_routing_gain", doorway_o2_upper_routing_gain)
 	)
 	vent_bernoulli_enabled = bool(settings.get("vent_bernoulli_enabled", vent_bernoulli_enabled))
 	o2_upper_plume_entr_rate = float(settings.get("o2_upper_plume_entr_rate", o2_upper_plume_entr_rate))
@@ -315,7 +322,12 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		else:
 			# Sin fuego: resync lento de zonas a room.o2 (difusion/mezcla)
 			room.o2_lower = lerpf(room.o2_lower, room.o2, clampf(0.05 * dt, 0.0, 0.20))
-			room.o2_upper = lerpf(room.o2_upper, room.o2, clampf(0.03 * dt, 0.0, 0.10))
+			# Phase 2 opt-in: cuando routing activo, relajar o2_upper hacia outside_o2
+			# (aire fresco zona baja del vano) en lugar de room.o2 mezclado.
+			# Evita que room.o2 depletado luche contra el routing de la zona alta.
+			var _upper_relax_target: float = building.outside_o2 \
+				if doorway_o2_upper_routing_gain > 0.0 else room.o2
+			room.o2_upper = lerpf(room.o2_upper, _upper_relax_target, clampf(0.03 * dt, 0.0, 0.10))
 		room.o2_upper = clampf(room.o2_upper, 0.0, o2_nominal)
 		# Phase 2H fix: en modo two-zone, o2_lower puede superar o2_nominal (= fire_o2_nominal).
 		# La zona baja puede contener aire fresco a concentración ambiente aunque el fuego
@@ -763,7 +775,21 @@ func _exchange_room_o2_active_flow(
 		var net_co2: float = hot_co2_parcel - cold_co2_parcel
 		hot_room.co2_upper  = clampf(hot_room.co2_upper  - net_co2, 0.0, 0.30)
 		cold_room.co2_upper = clampf(cold_room.co2_upper + net_co2, 0.0, 0.30)
-
+	# Phase 2 opt-in: routing de O₂ zona alta por vano interior.
+	# Gas caliente sale por la mitad SUPERIOR del vano (composición hot_room.o2_upper)
+	# y entra en la zona alta del cuarto frío. CFAST two-zone modela esto; SF one-zone
+	# usa O₂ promedio mezclado. gain=0.0 → no-op garantizado.
+	if doorway_o2_upper_routing_gain > 0.0:
+		var cold_upper_frac: float = clampf(
+			1.0 - cold_room.thermal_layer_m / maxf(0.01, cold_room.height_m),
+			0.05, 0.95)
+		var cold_upper_mass_kg: float = maxf(0.001, cold_air_mass_kg * cold_upper_frac)
+		var mix_frac: float = clampf(
+			doorway_o2_upper_routing_gain * exchange_kg / cold_upper_mass_kg,
+			0.0, 0.50)
+		cold_room.o2_upper = clampf(
+			lerpf(cold_room.o2_upper, hot_room.o2_upper, mix_frac),
+			0.0, o2_nominal)
 	# CO2 kg lo gestiona exclusivamente GasExchangeSystem — no se duplica aquí.
 	var delay_s: float = _estimate_interior_transport_delay_s(building, hot_room.id, cold_room.id)
 	if interior_transport_enabled and delay_s > 0.000001:

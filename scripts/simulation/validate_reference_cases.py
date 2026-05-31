@@ -650,8 +650,6 @@ def build_stage_b_pending_checks() -> list[Check]:
         # ── Hall upper-zone O2 depletion via doorway flow ─────────────────────
         # Physics: hot gases enter adjacent room at top of door, depleting ULO2 there.
         # Needed for cfast_2r_hall_t240_o2 and cfast_2r_hall_t360_o2 (current FAIL).
-        ("cfast_hall_upper_o2_doorway_pending",
-         "Stage-B (Fase 2): upper-zone O2 depletion in adjacent room via doorway hot-gas flow."),
         # ── HVAC two-zone O2 feed ─────────────────────────────────────────────
         # Physics: HVAC delivers fresh air to lower zone → fire survives via
         # lower-zone O2 entrainment (CFAST behaviour). One-zone SimuFire mixes
@@ -1655,18 +1653,19 @@ def build_cfast_two_room_door_open_checks() -> list[Check]:
             c = _nearest(cfast_r1, target_s)
             s = _nearest(sim_r1, target_s)
             prefix = f"cfast_2r_hall_t{int(target_s)}"
-            # t>=240: hall O2 depletion requires two-zone doorway flow (hot gas enters at top
-            # of door, depleting upper zone); one-zone model transports mixed gas only.
-            # Structural gap — becomes gating after Fase 2.
-            # Per-timestamp tolerances:
-            # t=120: required (gating), tol=0.030 — margin OK at PASS.
-            # t=240: SF=0.200, CFAST ULO2=0.111; |diff|=0.0888; tol=0.090 = gap+0.002 pad (20 steps).
-            # t=360: SF=0.172, CFAST ULO2=0.056; |diff|=0.1150; tol=0.117 = gap+0.002 pad (20 steps).
-            _hall_o2_tol = {120: 0.030, 240: 0.090, 360: 0.117}
+            # t>=240: hall O2 depletion — SF routes hot-gas (o2_upper) from fire room
+            # through top of doorway into cold room upper zone (phase-2a doorway routing).
+            # Compare SF o2_upper vs CFAST ULO2 (both upper-zone O2 fractions).
+            # t=120: required (gating), tol=0.020 — SF=0.200, CFAST=0.195, diff=0.005.
+            # t=240: SF=0.097, CFAST ULO2=0.111; |diff|=0.015; tol=0.025.
+            # t=360: SF=0.107, CFAST ULO2=0.057; |diff|=0.051; tol=0.060 (structural:
+            #   SF fire still active at t=360 while CFAST extinguishes via upper-zone O2).
+            _hall_o2_tol = {120: 0.020, 240: 0.025, 360: 0.060}
             _add_abs_check(checks, prefix, "o2", c, s, _hall_o2_tol[int(target_s)],
+                           sim_field="o2_upper",
                            required=(target_s < 240.0),
                            note=("" if target_s < 240.0 else
-                                 "Structural gap (Phase 2): hall upper-zone O2 depletion via hot-gas doorway flow not modelled in one-zone."))
+                                 "Structural gap (Phase 2a): at t=360 SF fire still active while CFAST extinguishes via upper-zone O2 depletion."))
             _add_abs_check(checks, prefix, "temp_upper_c", c, s, 60.0,
                            required=(target_s < 240.0),
                            note=("" if target_s < 240.0 else
@@ -1755,8 +1754,8 @@ def build_cfast_two_room_door_open_checks() -> list[Check]:
                         "temp_upper_c", threshold=45.0, required=True,
                         note="CMV-2 Stage-F: hall temp_upper RMSE ≤ 45°C (SF=39.8°C, margin 5.2°C). Structural two-zone doorway gap documented.")
         _add_rmse_check(checks, "cfast_2r_hall_rmse_o2", sim_r1, cfast_r1,
-                        "o2", threshold=0.085,
-                        note="CMV-2: hall O2 RMSE. RMSE=0.0781; threshold 0.030→0.079→0.085: hot-gas doorway O2 depletion in CFAST (two-zone) not replicated in SF one-zone. Structural Phase 2 gap. 0.079→0.085 hardening: was 0.0009 margin from 0.07805 actual (1.2% headroom → 9% headroom).")
+                        "o2", sim_field="o2_upper", threshold=0.060,
+                        note="CMV-2: hall O2 RMSE (SF o2_upper vs CFAST ULO2). Phase-2a doorway routing active. Residual structural gap at t=360 (SF fire active, CFAST extinguished). threshold=0.060.")
 
     return checks
 

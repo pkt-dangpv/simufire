@@ -84,6 +84,7 @@
     "glass_auto_break_enabled": false,
     "fire_co_yield_force_kg_per_MJ": 0.000343,
     "fire_o2_nominal": 0.17,
-    "phase2h_lower_cf_drain_coeff": 0.56
+    "phase2h_lower_cf_drain_coeff": 0.56,
+    "doorway_o2_upper_routing_gain": 1.0
   }
 }
