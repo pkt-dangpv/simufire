@@ -85,6 +85,9 @@ const OBJECT_ROTATE_HANDLE_OFFSET_M: float = 0.38
 const OBJECT_WALL_SNAP_M: float = GRID_M * 0.75
 const MAX_UNDO_STEPS: int = 48
 
+@export_group("Editor UI")
+@export var load_error_dialog_title: String = "Error al cargar escenario"
+
 var is_middle_panning := false
 var last_mouse_pos := Vector2.ZERO
 @onready var camera: Camera2D = $World/Camera2D
@@ -172,6 +175,7 @@ var _opening_tool_section: Control
 var _opening_tool_width_spin: SpinBox
 var _save_dialog: FileDialog
 var _load_dialog: FileDialog
+var _load_error_dialog: AcceptDialog
 var _room_apply_button: Button
 var _room_delete_button: Button
 var _room_x_spin: SpinBox
@@ -5440,14 +5444,42 @@ func _save_to_path(path: String) -> void:
 		_set_status("No se pudo guardar la plantilla.")
 
 
+func _ensure_load_error_dialog() -> void:
+	var canvas: CanvasLayer = get_node_or_null("CanvasLayer") as CanvasLayer
+	var parent: Node = canvas if canvas != null else self
+	_load_error_dialog = parent.get_node_or_null("LoadErrorDialog") as AcceptDialog
+	if _load_error_dialog == null:
+		_load_error_dialog = AcceptDialog.new()
+		_load_error_dialog.name = "LoadErrorDialog"
+		parent.add_child(_load_error_dialog)
+	_load_error_dialog.title = load_error_dialog_title
+	_load_error_dialog.ok_button_text = "Aceptar"
+
+
+func _show_load_error(message: String, path: String = "") -> void:
+	_ensure_load_error_dialog()
+	if _load_error_dialog == null:
+		_set_status(message)
+		return
+	var full_msg: String = message
+	if path != "":
+		full_msg += "\n\n" + path
+	_load_error_dialog.dialog_text = full_msg
+	_load_error_dialog.popup_centered()
+	_set_status(message.get_slice("\n", 0))
+
+
 func _load_from_path(path: String) -> void:
 	var clean_path: String = path.strip_edges()
 	if clean_path == "":
 		_set_status("Elige un archivo .json para cargar.")
 		return
+	if not FileAccess.file_exists(clean_path):
+		_show_load_error("Archivo no encontrado.", clean_path)
+		return
 	var loaded: Dictionary = Serializer.load_scenario(clean_path)
 	if loaded.is_empty():
-		_set_status("No se pudo cargar la plantilla.")
+		_show_load_error("El archivo no contiene un escenario válido.\nVerifica que sea un JSON de SimuFire sin errores de formato.", clean_path)
 		return
 	editor_data = loaded
 	_undo_stack.clear()
@@ -6422,9 +6454,12 @@ func _load_scenario_pressed() -> void:
 	if path.begins_with("preset://"):
 		loaded = _template_builder.create_by_name(path.replace("preset://", ""))
 	else:
+		if not FileAccess.file_exists(path):
+			_show_load_error("Archivo de escenario no encontrado.", path)
+			return
 		loaded = Serializer.load_scenario(path)
 	if loaded.is_empty():
-		_set_status("No se pudo cargar: %s" % path)
+		_show_load_error("No se pudo cargar el escenario.\nVerifica que sea un JSON de SimuFire sin errores de formato.", path)
 		return
 	editor_data = Serializer.normalize_editor_data(loaded)
 	_ensure_floor_data()
