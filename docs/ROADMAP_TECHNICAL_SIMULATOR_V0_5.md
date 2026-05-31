@@ -56,7 +56,7 @@ Las víctimas son **sensores de exposición** (acumulan FED, CO, temperatura) y 
 | ID | Tarea | Descripción | Prioridad | Estado |
 |----|-------|-------------|-----------|--------|
 | E-01 | Error popup en carga fallida | `ScenarioSerializer.load_scenario()` hace `push_error` silencioso; añadir `AcceptDialog` visible al usuario cuando la carga falla o el JSON está vacío | **Alta** | ✅ commit `f64bcc1` |
-| E-02 | Validación básica de runtime template | En `_run_simulation_pressed()`, verificar que el template exportado tiene al menos 1 sala con geometría válida; mostrar status claro si falla | **Alta** | ⏳ pendiente |
+| E-02 | Validación básica de runtime template | En `_run_simulation_pressed()`, verificar que el template exportado tiene al menos 1 sala con geometría válida; mostrar status claro si falla. Extendido: `ScenarioSerializer.validate_scenario()` valida height_m, room_rect_m, IDs de apertura — se invoca en carga y en run. | **Alta** | ✅ commit actual |
 | E-03 | Checklist de flujo manual documentada | Crear `docs/EDITOR_FLOW_CHECKLIST.md`: pasos mínimos para verificar crear/editar/guardar/cargar/ejecutar sin regresar. Incluye 16 tests automatizados de contrato JSON (`tests/test_editor_scenarios.py`) | **Alta** | ✅ commit `11a413e` |
 | E-03b | Product guardrails — integración test suite | Crear `scripts/check_product.py`: runner unificado para editor tests + guardrail unit tests. Documentar separación `product checks` vs `scientific validation` en README | **Alta** | ✅ commit actual |
 | E-04 | `@export var max_undo_steps: int = 48` | Exponer `MAX_UNDO_STEPS` como @export en `ScenarioEditor.gd` | **Media** | ⏳ pendiente |
@@ -66,7 +66,7 @@ Las víctimas son **sensores de exposición** (acumulan FED, CO, temperatura) y 
 **Criterio de cierre**:
 - Un usuario técnico puede crear un escenario desde cero, guardarlo, cargarlo y lanzar la simulación sin mensajes de error silenciosos.
 - El flujo completo está documentado en `EDITOR_FLOW_CHECKLIST.md`.
-- Los tests de editor (16) y guardrail scripts (13) se ejecutan con un único comando: `python scripts/check_product.py`.
+- Los tests de editor (21) y guardrail scripts (13) se ejecutan con un único comando: `python scripts/check_product.py`.
 - `379/379 PASS` sigue intacto.
 
 ---

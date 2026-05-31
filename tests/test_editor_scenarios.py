@@ -158,7 +158,6 @@ def _validate_scenario_structure(data: dict) -> list:
     if not isinstance(room_rect_m, dict):
         errors.append("'room_rect_m' must be a dict")
     else:
-        rooms_ids = {str(r.get("id")) for r in rooms if isinstance(r, dict)}
         for key in room_rect_m:
             rect = room_rect_m[key]
             if not isinstance(rect, dict):
@@ -167,6 +166,48 @@ def _validate_scenario_structure(data: dict) -> list:
             for dim in ("x", "y", "w", "h"):
                 if dim not in rect:
                     errors.append(f"room_rect_m['{key}'] missing key: '{dim}'")
+
+    # --- Cross-references: rooms ↔ room_rect_m, openings ↔ rooms ---------------
+    # Mirrors ScenarioSerializer.validate_scenario() in GDScript.
+    if isinstance(rooms, list) and isinstance(room_rect_m, dict):
+        valid_room_ids = {
+            str(r.get("id")) for r in rooms if isinstance(r, dict) and "id" in r
+        }
+        for i, room in enumerate(rooms):
+            if not isinstance(room, dict):
+                continue
+            rid_str = str(room.get("id", ""))
+            if not rid_str:
+                continue
+            if rid_str not in room_rect_m:
+                errors.append(
+                    f"room_rect_m: missing entry for room id='{rid_str}'"
+                )
+            elif isinstance(room_rect_m[rid_str], dict):
+                w = room_rect_m[rid_str].get("w", 0)
+                h_val = room_rect_m[rid_str].get("h", 0)
+                if not (isinstance(w, (int, float)) and w > 0):
+                    errors.append(
+                        f"room_rect_m['{rid_str}'] must have w > 0 (got {w!r})"
+                    )
+                if not (isinstance(h_val, (int, float)) and h_val > 0):
+                    errors.append(
+                        f"room_rect_m['{rid_str}'] must have h > 0 (got {h_val!r})"
+                    )
+        if isinstance(openings, list):
+            for i, op in enumerate(openings):
+                if not isinstance(op, dict):
+                    continue
+                a = op.get("a")
+                b = op.get("b")
+                if a is not None and str(a) not in valid_room_ids:
+                    errors.append(
+                        f"openings_data[{i}]: room a={a} does not exist in rooms_data"
+                    )
+                if b is not None and b != -1 and str(b) not in valid_room_ids:
+                    errors.append(
+                        f"openings_data[{i}]: room b={b} does not exist in rooms_data"
+                    )
 
     return errors
 
@@ -329,6 +370,51 @@ class TestStructuralContract(unittest.TestCase):
         self.assertTrue(
             any("room_rect_m" in e for e in errors),
             "room_rect_m with missing dims must be flagged",
+        )
+
+    def test_room_without_rect_entry_flagged(self):
+        data = self._make_minimal_scenario()
+        data["room_rect_m"] = {}  # room id=0 has no entry
+        errors = _validate_scenario_structure(data)
+        self.assertTrue(
+            any("room_rect_m" in e for e in errors),
+            "Room without room_rect_m entry must be flagged",
+        )
+
+    def test_room_rect_zero_dims_flagged(self):
+        data = self._make_minimal_scenario()
+        data["room_rect_m"]["0"] = {"x": 0.0, "y": 0.0, "w": 0.0, "h": 4.0}
+        errors = _validate_scenario_structure(data)
+        self.assertTrue(
+            any("room_rect_m" in e for e in errors),
+            "room_rect_m with w=0 must be flagged",
+        )
+
+    def test_opening_invalid_room_a_flagged(self):
+        data = self._make_minimal_scenario()
+        data["openings_data"] = [{"a": 99, "b": -1, "type": "door"}]
+        errors = _validate_scenario_structure(data)
+        self.assertTrue(
+            any("a=99" in e for e in errors),
+            "Opening referencing non-existent room a must be flagged",
+        )
+
+    def test_opening_invalid_room_b_flagged(self):
+        data = self._make_minimal_scenario()
+        data["openings_data"] = [{"a": 0, "b": 99, "type": "door"}]
+        errors = _validate_scenario_structure(data)
+        self.assertTrue(
+            any("b=99" in e for e in errors),
+            "Opening referencing non-existent room b (not -1) must be flagged",
+        )
+
+    def test_opening_exterior_b_not_flagged(self):
+        data = self._make_minimal_scenario()
+        data["openings_data"] = [{"a": 0, "b": -1, "type": "door"}]
+        errors = _validate_scenario_structure(data)
+        self.assertFalse(
+            any("b=" in e for e in errors),
+            "Opening with b=-1 (exterior) must not produce a room-b error",
         )
 
 

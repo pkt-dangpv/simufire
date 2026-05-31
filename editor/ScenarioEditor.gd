@@ -5481,6 +5481,13 @@ func _load_from_path(path: String) -> void:
 	if loaded.is_empty():
 		_show_load_error("El archivo no contiene un escenario válido.\nVerifica que sea un JSON de SimuFire sin errores de formato.", clean_path)
 		return
+	var load_errors: Array = Serializer.validate_scenario(loaded)
+	if not load_errors.is_empty():
+		var error_msg: String = "El escenario tiene problemas estructurales:"
+		for e in load_errors:
+			error_msg += "\n\u2022 " + str(e)
+		_show_load_error(error_msg, clean_path)
+		return
 	editor_data = loaded
 	_undo_stack.clear()
 	_ensure_floor_data()
@@ -6461,7 +6468,15 @@ func _load_scenario_pressed() -> void:
 	if loaded.is_empty():
 		_show_load_error("No se pudo cargar el escenario.\nVerifica que sea un JSON de SimuFire sin errores de formato.", path)
 		return
-	editor_data = Serializer.normalize_editor_data(loaded)
+	var normalized: Dictionary = Serializer.normalize_editor_data(loaded)
+	var load_errors: Array = Serializer.validate_scenario(normalized)
+	if not load_errors.is_empty():
+		var error_msg: String = "El escenario tiene problemas estructurales:"
+		for e in load_errors:
+			error_msg += "\n\u2022 " + str(e)
+		_show_load_error(error_msg, path)
+		return
+	editor_data = normalized
 	_ensure_floor_data()
 	current_floor_index = clampi(current_floor_index, 0, _get_floors().size() - 1)
 	if _stop_time_spin != null:
@@ -6479,9 +6494,16 @@ func _run_simulation_pressed() -> void:
 	_ensure_floor_data()
 	editor_data = Serializer.normalize_editor_data(editor_data)
 	_sync_floor_controls()
+	var run_errors: Array = Serializer.validate_scenario(editor_data)
+	if not run_errors.is_empty():
+		var error_msg: String = "El escenario no es v\u00e1lido para ejecutar:"
+		for e in run_errors:
+			error_msg += "\n\u2022 " + str(e)
+		_show_load_error(error_msg)
+		return
 	var runtime_rooms: Array = editor_data.get("rooms_data", [])
 	if runtime_rooms.is_empty():
-		_set_status("El escenario no tiene habitaciones. No se puede ejecutar.")
+		_show_load_error("El escenario no tiene habitaciones. No se puede ejecutar.")
 		return
 	if not Serializer.save_runtime_template(RUNTIME_EXPORT_PATH, editor_data):
 		_set_status("Error al exportar el template runtime.")

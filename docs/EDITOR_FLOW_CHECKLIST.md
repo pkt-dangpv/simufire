@@ -1,6 +1,6 @@
 # Checklist de flujo del editor — SimuFire v0.5.0
 **Versión**: v0.5.0 | **Fecha última revisión**: 2026-05-31
-**Cubre**: E-01 (popup de carga), E-02 (flujo completo editor → simulación)
+**Cubre**: E-01 (popup de carga), E-02 (validación estructural en carga y en ejecución)
 
 ---
 
@@ -61,6 +61,8 @@
 | D3 | Crear `test_corrupto.json` con contenido `{not valid json` → cargarlo | **AcceptDialog** visible con mensaje "El archivo no contiene un escenario válido." | ☐ |
 | D4 | Pulsar **Aceptar** en el popup | Dialog se cierra. Editor permanece funcional. | ☐ |
 | D5 | Modificar el campo Inspector **Load Error Dialog Title** a `"Fallo de carga"` → repetir D1 | El popup ahora muestra el nuevo título | ☐ |
+| D6 | Crear `test_altura_invalida.json` con `{"version":1,"rooms_data":[{"id":0,"name":"R","kind":"generic","height_m":-1.0,"fuel_objects":[]}],"openings_data":[],"room_rect_m":{"0":{"x":0,"y":0,"w":5,"h":4}}}` → intentar cargarlo | **AcceptDialog** visible con mensaje sobre `height_m`. El escenario inválido **no** se aplica al editor. | ☐ |
+| D7 | Desde un editor con 0 habitaciones, pulsar **Iniciar simulación** | **AcceptDialog** visible con mensaje "El escenario no tiene habitaciones." La escena **no** cambia. | ☐ |
 
 ---
 
@@ -68,7 +70,7 @@
 
 | # | Paso | Resultado esperado | PASS / FAIL |
 |---|------|--------------------|-------------|
-| E1 | Con un escenario con al menos 1 habitación cargado, pulsar **Iniciar simulación** (botón inferior) | El editor exporta `user://last_editor_runtime_template.json` y carga `SimulationScene.tscn`. Status bar: "Iniciando simulación…" | ☐ |
+| E1 | Con un escenario con al menos 1 habitación cargado, pulsar **Iniciar simulación** (botón inferior) | El editor valida el escenario (no debe haber errores estructurales), exporta `user://last_editor_runtime_template.json` y carga `SimulationScene.tscn`. Status bar: "Iniciando simulación…" | ☐ |
 | E2 | La simulación arranca sin errores en la consola de Godot | Ningún `ERROR:` en el log de Godot durante el inicio de la simulación | ☐ |
 | E3 | El HUD 2D muestra el plano de planta con la habitación creada | Planta visible, sala correctamente dimensionada | ☐ |
 | E4 | Pulsar **Play** en el HUD de simulación | La simulación avanza en tiempo real (HRR sube, humo aparece si hay objetos) | ☐ |
@@ -109,24 +111,18 @@ Estas propiedades deben ser visibles/editables desde el Inspector de Godot sin t
 Ejecutar antes de commit:
 
 ```powershell
-python tests/test_editor_scenarios.py
+python tests/test_editor_scenarios.py    # 21 tests
+python scripts/check_product.py          # 34 tests (editor + guardrail scripts)
 ```
 
 Resultado esperado:
 
 ```
-test_all_scenarios_have_at_least_one_room ... ok
-test_all_scenarios_load_successfully ... ok
-test_all_scenarios_pass_structural_check ... ok
-test_at_least_one_scenario_exists ... ok
-test_invalid_json_returns_empty ... ok
-test_json_array_toplevel_returns_empty ... ok
-test_json_null_toplevel_returns_empty ... ok
-test_minimal_scenario_passes ... ok
-test_missing_file_returns_empty ... ok
 ...
-Ran N tests in X.XXXs
+Ran 21 tests in X.XXXs
 OK
+
+ALL PRODUCT CHECKS PASS  (34 tests)
 ```
 
 ---

@@ -364,3 +364,54 @@ static func rect_to_data(rect: Rect2) -> Dictionary:
 
 static func vector_to_data(vector: Vector2) -> Dictionary:
 	return {"x": vector.x, "y": vector.y}
+
+
+## Validates a normalised scenario dict (as returned by load_scenario() or
+## normalize_editor_data()).  Returns [] if valid; otherwise returns an Array
+## of human-readable error strings describing what is wrong.
+##
+## Does NOT require rooms_data to be non-empty — a zero-room scenario is
+## structurally valid (just not runnable).  The caller decides whether an
+## empty scenario is acceptable for its context.
+static func validate_scenario(data: Dictionary) -> Array:
+	var errors: Array = []
+	var rooms: Array = data.get("rooms_data", [])
+	var rects: Dictionary = data.get("room_rect_m", {})
+	var room_ids: Array = []
+
+	for i: int in range(rooms.size()):
+		if typeof(rooms[i]) != TYPE_DICTIONARY:
+			errors.append("rooms_data[%d] no es un diccionario" % i)
+			continue
+		var room: Dictionary = rooms[i]
+		var rid: int = int(room.get("id", -1))
+		room_ids.append(rid)
+
+		var h: float = float(room.get("height_m", 0.0))
+		if h <= 0.0:
+			errors.append("Sala id=%d: height_m debe ser > 0 (actual: %s)" % [rid, h])
+
+		var rect_key: String = str(rid)
+		if not rects.has(rect_key):
+			errors.append("Sala id=%d: sin entrada en room_rect_m" % rid)
+		elif typeof(rects[rect_key]) == TYPE_DICTIONARY:
+			var rect: Dictionary = rects[rect_key]
+			var w: float = float(rect.get("w", 0.0))
+			var h_rect: float = float(rect.get("h", 0.0))
+			if w <= 0.0 or h_rect <= 0.0:
+				errors.append("Sala id=%d: geometría inválida en room_rect_m (w=%s, h=%s)" % [rid, w, h_rect])
+
+	var openings: Array = data.get("openings_data", [])
+	for i: int in range(openings.size()):
+		if typeof(openings[i]) != TYPE_DICTIONARY:
+			errors.append("openings_data[%d] no es un diccionario" % i)
+			continue
+		var op: Dictionary = openings[i]
+		var a: int = int(op.get("a", -99))
+		var b: int = int(op.get("b", -99))
+		if not room_ids.has(a):
+			errors.append("Apertura [%d]: sala a=%d no existe en rooms_data" % [i, a])
+		if b != -1 and not room_ids.has(b):
+			errors.append("Apertura [%d]: sala b=%d no existe en rooms_data (usa -1 para exterior)" % [i, b])
+
+	return errors
