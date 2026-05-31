@@ -53,18 +53,20 @@ Las víctimas son **sensores de exposición** (acumulan FED, CO, temperatura) y 
 
 ### Tareas
 
-| ID | Tarea | Descripción | Prioridad |
-|----|-------|-------------|-----------|
-| E-01 | Error popup en carga fallida | `ScenarioSerializer.load_scenario()` hace `push_error` silencioso; añadir `AcceptDialog` visible al usuario cuando la carga falla o el JSON está vacío | **Alta** |
-| E-02 | Validación básica de runtime template | En `_run_simulation_pressed()`, verificar que el template exportado tiene al menos 1 sala con geometría válida; mostrar status claro si falla | **Alta** |
-| E-03 | Checklist de flujo manual documentada | Crear `docs/EDITOR_TEST_CHECKLIST.md`: pasos mínimos para verificar crear/editar/guardar/cargar/ejecutar sin regresar | **Alta** |
-| E-04 | `@export var max_undo_steps: int = 48` | Exponer `MAX_UNDO_STEPS` como @export en `ScenarioEditor.gd` | **Media** |
-| E-05 | Unificar idioma UI al castellano | Botones en inglés residuales (`Select`, `Room`, `Door`, `Window`, `Delete`, `Object`) → castellano consistente | **Media** |
-| E-06 | Primer módulo extraído: `EditorDraw2D` | Mover las ~50 funciones `_draw_*` de `ScenarioEditor.gd` a `editor/EditorDraw2D.gd` | **Baja** |
+| ID | Tarea | Descripción | Prioridad | Estado |
+|----|-------|-------------|-----------|--------|
+| E-01 | Error popup en carga fallida | `ScenarioSerializer.load_scenario()` hace `push_error` silencioso; añadir `AcceptDialog` visible al usuario cuando la carga falla o el JSON está vacío | **Alta** | ✅ commit `f64bcc1` |
+| E-02 | Validación básica de runtime template | En `_run_simulation_pressed()`, verificar que el template exportado tiene al menos 1 sala con geometría válida; mostrar status claro si falla | **Alta** | ⏳ pendiente |
+| E-03 | Checklist de flujo manual documentada | Crear `docs/EDITOR_FLOW_CHECKLIST.md`: pasos mínimos para verificar crear/editar/guardar/cargar/ejecutar sin regresar. Incluye 16 tests automatizados de contrato JSON (`tests/test_editor_scenarios.py`) | **Alta** | ✅ commit `11a413e` |
+| E-03b | Product guardrails — integración test suite | Crear `scripts/check_product.py`: runner unificado para editor tests + guardrail unit tests. Documentar separación `product checks` vs `scientific validation` en README | **Alta** | ✅ commit actual |
+| E-04 | `@export var max_undo_steps: int = 48` | Exponer `MAX_UNDO_STEPS` como @export en `ScenarioEditor.gd` | **Media** | ⏳ pendiente |
+| E-05 | Unificar idioma UI al castellano | Botones en inglés residuales (`Select`, `Room`, `Door`, `Window`, `Delete`, `Object`) → castellano consistente | **Media** | ⏳ pendiente |
+| E-06 | Primer módulo extraído: `EditorDraw2D` | Mover las ~50 funciones `_draw_*` de `ScenarioEditor.gd` a `editor/EditorDraw2D.gd` | **Baja** | ⏳ pendiente |
 
 **Criterio de cierre**:
 - Un usuario técnico puede crear un escenario desde cero, guardarlo, cargarlo y lanzar la simulación sin mensajes de error silenciosos.
-- El flujo completo está documentado en `EDITOR_TEST_CHECKLIST.md`.
+- El flujo completo está documentado en `EDITOR_FLOW_CHECKLIST.md`.
+- Los tests de editor (16) y guardrail scripts (13) se ejecutan con un único comando: `python scripts/check_product.py`.
 - `379/379 PASS` sigue intacto.
 
 ---

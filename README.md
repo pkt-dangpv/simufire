@@ -9,14 +9,14 @@ Simulador de dinámica de incendios en compartimentos para entrenamiento y toma 
 ## Quickstart
 
 ```powershell
-# 1. Validar suite completa (379 checks)
-python scripts/simulation/validate_reference_cases.py
+# 1. Checks rápidos de producto/editor (sin Godot, <5 s)
+python scripts/check_product.py         # 29 tests: editor JSON + guardrail scripts
 
-# 2. Guardrails automáticos
+# 2. Guardrails científicos (sin Godot, lee reference_checks.json)
 python scripts/simulation/validation_guardrails.py
 
-# 3. Tests unitarios
-python tests/test_guardrails.py
+# 3. Suite completa de validación científica (requiere Godot, ~15 min)
+python scripts/simulation/validate_reference_cases.py
 
 # 4. Ejecutar un caso individual (headless)
 & "C:\Users\dangp\Desktop\Godot_v4.6.3-stable_win64_console.exe" `
@@ -42,9 +42,10 @@ python tests/test_guardrails.py
 |---|---|
 | Checks requeridos | **379/379 PASS** |
 | Gaps no-gating | 4 (estructurales HVAC, aceptados) |
-| Guardrails | ALL PASS |
-| Tests unitarios | 13/13 OK |
-| Commit | `80f3c09` |
+| Guardrails científicos | ALL PASS |
+| Tests unitarios guardrails | 13/13 OK |
+| Tests editor/producto | 16/16 OK |
+| Commit base | `80f3c09` |
 
 ---
 
