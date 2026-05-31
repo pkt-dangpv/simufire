@@ -28,7 +28,7 @@
 | Presión | ⚠️ Parcial | Boyancia termostática 1-10 Pa; CFAST two-zone = 100-1000 Pa |
 | Paredes | ✅ Crank-Nicolson | PDE 5 nodos, conducción entre salas |
 | Ventilación | ✅ Bernoulli | `vent_bernoulli_enabled=true` por defecto |
-| HVAC | ✅ opt-in (`phase2h`) | Alimentación de zona baja, default OFF |
+| HVAC | ✅ opt-in (`phase2h`) | Red retorno/suministro por alturas; benchmark CFAST usa impulsión baja + retorno alto, default SimuFire usa rejillas altas |
 | Gradiente vertical | ✅ Estable | `estimate_temperature_at_height_m`, `thermal_gradient_band_fraction=0.35` |
 
 ### 1.3 Comandos de trabajo estándar
@@ -98,9 +98,9 @@ python tests/test_guardrails.py
 - **Fix necesario**: alimentar `o2_upper` al modelo de combustión como O₂ efectivo en zona de reacción. Phase 2.
 
 #### GAP-9: `cfast_hvac_two_zone_feed_pending`
-- **Qué mide**: alimentación de O₂ de zona inferior por HVAC — mantiene fuego vivo en CFAST mientras SF extingue
-- **Situación actual**: Phase 2H opt-in existe pero default OFF; con default ON el fuego en SF también sobrevive
-- **Fix necesario**: habilitar Phase 2H como default, validar que el test set completo sigue PASS, y remover el gap. Requiere rebaseline selectivo.
+- **Qué mide**: el benchmark CFAST `cfast_hvac_residential` usa impulsión de aire exterior baja (0.25 m) y retorno alto (2.30 m); esa configuración mantiene O₂ en zona inferior y puede sostener el fuego.
+- **Situación actual**: Phase 2H opt-in existe pero default OFF; el modelo general de HVAC ya admite alturas de rejillas, pero el cierre del gap requiere promover/validar el caso low-supply/high-return.
+- **Fix necesario**: habilitar Phase 2H como default solo para la configuración física correcta, validar que el test set completo sigue PASS, y remover el gap. Requiere rebaseline selectivo.
 
 ---
 
@@ -255,6 +255,15 @@ python tests/test_guardrails.py
 - Cambiar `phase2h_o2_doorway_two_zone_enabled = false` a `true` en `SimulationEngine.gd` (o en preset de producción)
 - Ejecutar suite completa; identificar y rebasar los checks que cambian por HVAC feed
 - Actualizar `sim/resources/presets/phase2h_o2_lower_replenish_candidate.json`: status `accepted_opt_in` → `production`
+- No generalizar el gap a todos los HVAC: el caso CFAST actual representa impulsión baja + retorno alto + aire exterior.
+
+**Presets HVAC a implementar antes de llamar al modelo "residencial general"**:
+| Preset | Configuración | Uso esperado |
+|--------|---------------|--------------|
+| `hvac_cfast_low_supply_high_return` | Supply 0.25 m, return 2.30 m, `outside_air_fraction=1.0` o caudal exterior explícito | Reproducir benchmark CFAST actual y cerrar GAP-9 |
+| `hvac_us_forced_air_floor_supply` | Impulsiones bajas/suelo, retorno alto o central, recirculación dominante con posible aire exterior bajo | Vivienda norteamericana con forced-air clásico |
+| `hvac_es_ceiling_ducts_recirc` | Impulsión alta + retorno alto, `outside_air_fraction=0.0` por defecto | Conductos de falso techo típicos en España: redistribuye humo/calor, no repone O₂ |
+| `hvac_balanced_hrv_erv` | Aire exterior bajo/medio, extracción baños/cocina, caudal menor | Ventilación mecánica balanceada con recuperación |
 
 **Criterio de cierre**:
 - `cfast_hvac_two_zone_feed_pending`: fuego activo en HVAC case, T_upper HVAC ≥ umbral relevante
@@ -354,7 +363,7 @@ python tests/test_guardrails.py
 | Cambio de CO yield rompe FED timing en casos existentes | Alto | Override por caso; no cambiar defaults globales sin rebaseline |
 | Two-zone doorway cambia masa transportada → T_upper regresar | Alto | Rama Git separada; validar invariantes antes de merge |
 | Suavizar curva combustible Ghanekar baja T_upper pico | Bajo | Margen 42°C disponible (608°C actual, límite 650°C) |
-| Phase 2H default ON altera O₂ lower en casos sin HVAC | Medio | Guard `outside_open_factor > 0.01` ya implementado |
+| Phase 2H default ON altera O₂ lower o sobregeneraliza el HVAC low-supply | Medio | Aplicar por preset/altura de rejilla; no usar el benchmark CFAST como modelo universal de HVAC residencial |
 | Phase 3 presión invalida tolerancias actuales | Muy alto | Hacer Phase 3 en rama separada; rebaseline completo antes de merge |
 
 ---

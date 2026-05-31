@@ -84,6 +84,10 @@
 		"doorway_o2_exchange_coeff": 0.50,
 		"doorway_o2_background_exchange_kg_s_m2": 0.018,
 		"fire_spread_enabled": false,
-		"glass_auto_break_enabled": false
+		"glass_auto_break_enabled": false,
+		"thermal_gradient_band_fraction": 0.05,
+		"thermal_gradient_min_band_m": 0.05,
+		"flashover_temp_c": 520.0,
+		"fire_flashover_hrr_multiplier": 2.70
 	}
 }
