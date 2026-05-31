@@ -1,7 +1,7 @@
 # Plan de Trabajo — SimuFire Motor de Física
 **Creado**: 30 mayo 2026 | **Estado validación en el momento de creación**: 367/367 PASS required, 9 gaps non-gating  
-**Última actualización**: 1 junio 2026 | **Estado actual**: 373/373 PASS required, 3 gaps non-gating
-**Base física**: `e4564e3` (main) — Phase 2A doorway hot-gas O₂ routing cerrada
+**Última actualización**: junio 2026 | **Estado actual**: 376/376 PASS required, 6 gaps non-gating
+**Base física**: `8c83ced` (main) — Phase 2C HVAC two-zone O₂ feed cerrada; Phase 3 diseño documentado
 
 ---
 
@@ -258,18 +258,222 @@ python tests/test_guardrails.py
 ### FASE 3 — Modelo de presión termodinámica (GAP-5)
 **Objetivo**: cerrar `cfast_overpressure_sealed_pending`  
 **Prerequisito**: INDEPENDIENTE (no necesita Phase 2A), pero altamente disruptivo  
-**Esfuerzo estimado**: 6-10 sesiones
+**Esfuerzo estimado**: 6-10 sesiones  
+**Estado diseño**: DISEÑO TÉCNICO COMPLETO — pendiente de implementación (2026-06-XX)
 
-**Descripción técnica**:
-- Implementar ODE de presión por zona basado en ley de gases ideales: `dP/dt = (γ-1)/V × (Q_fire - Q_loss - P × dV/dt)`
-- Requiere volúmenes separados por zona upper/lower
-- Pérdidas de presión por aberturas (flow resistances Bernoulli inverso)
-- **ADVERTENCIA**: este cambio invalida los 17 checks de presión actualmente PASS (cerrados con tolerancias `|diff|+2 Pa`). Necesitarán rebaseline con nuevos valores.
-- Usar rama Git separada y rebaseline completo antes de merge
+---
 
-**Criterio de cierre**:
-- `cfast_overpressure_sealed_pending`: presión sala sellada t=120 s ∈ [900, 1100] Pa
-- Los 17 checks de presión (actualmente PASS con tol amplia) deben seguir PASS con nueva física
+#### 3.1 Motivación
+
+El modelo actual de presión en SF (`step_pressure_venting`) calcula **boyancia únicamente** y produce 1–10 Pa.  
+CFAST usa un modelo termodinámico two-zone (ley de gases ideales + ODE de masa/energía) y produce 100–2000 Pa en sala sellada.
+
+| Caso | t (s) | SF actual (Pa) | CFAST esperado (Pa) |
+|------|--------|----------------|---------------------|
+| cfast_single_room_closed | 60 | 0.4 | 124 |
+| cfast_single_room_closed | 120 | 2.0 | **1 022** ← criterio cierre |
+| cfast_single_room_closed | 180 | 3.0 | 768 |
+| cfast_fast_growth_closed | 60 | 1.2 | 490 |
+| cfast_fast_growth_closed | 120 | 4.0 | **2 088** |
+
+Hay **31 checks `pressure_pa`** en el suite (todos `required=False`, 30 PASS / 1 FAIL al 2026-06-XX).  
+Los 31 tolerances actuales son `|diff|+2 Pa` (SF≈1–10 Pa, CFAST=0–2088 Pa) — pasan porque el gap es ≤ tol.
+
+---
+
+#### 3.2 Ecuación gobernante
+
+La ODE de presión termodinámica para sala de volumen fijo con una zona de gases mezclados:
+
+$$\frac{dP_{therm}}{dt} = \frac{(\gamma-1) \cdot \dot{Q}_{conv}}{V} - \frac{C_d \cdot A_{eff}}{V} \cdot P_{atm} \cdot \sqrt{\frac{2 \, P_{therm}}{\rho_{amb}}}$$
+
+| Símbolo | Valor / Fuente |
+|---------|---------------|
+| $\gamma$ | 1.4 (gas diatómico ideal) |
+| $\dot{Q}_{conv}$ | `hrr_kw × (1 - chi_rad) × 1000` [W] |
+| $V$ | `room.volume_m3()` [m³] |
+| $C_d$ | 0.61 (coeficiente de descarga estándar) |
+| $A_{eff}$ | área efectiva de infiltración → ver §3.3 |
+| $P_{atm}$ | 101 325 Pa (presión atmosférica) |
+| $\rho_{amb}$ | 1.2 kg/m³ (densidad aire ambiente) |
+| $P_{therm}$ | `room.pressure_pa_therm` [Pa] (nuevo campo) |
+
+**Interpretación del término de fuga**: el gasto másico de infiltración es  
+$\dot{m}_{fuga} = C_d A_{eff} \sqrt{2 \rho_{amb} P_{therm}}$ [kg/s]  
+y el relieve de presión que produce es $P_{atm} \dot{m}_{fuga} / (\rho_{amb} V)$ [Pa/s].
+
+Nota: para salas con aperturas grandes (`open_factor > 0`), la presión se ventea rápido y $P_{therm}$ converge a ~0 Pa — el comportamiento es correcto sin necesidad de lógica adicional.
+
+---
+
+#### 3.3 Derivación del área de infiltración desde ACH
+
+El parámetro de entrada es `ach_infiltration` (default 0.5, sellada usa 5.0).  
+La referencia estándar es ACH a 50 Pa (blower door). Se asume:
+
+$$A_{eff} = \frac{ACH_{50} \cdot V / 3600}{C_d \cdot \sqrt{2 \cdot P_{ref50} / \rho_{amb}}}$$
+
+con $P_{ref50} = 50$ Pa y $ACH_{50} \approx ach\_infiltration$ (conservador — CFAST usa el mismo parámetro como ACH natural).
+
+Para `ach_infiltration=5.0`, $V=62$ m³: $A_{eff} \approx 0.0155$ m².  
+Alternativamente, exponer `phase3_leak_area_m2` como override explícito en `engine_overrides` para ajuste fino por caso.
+
+---
+
+#### 3.4 Estrategia de implementación (campo paralelo)
+
+**Invariante clave**: NO modificar `room.overpressure_pa` ni ningún sistema que lo consuma.  
+Todo el downstream (smoke venting, doorway exchange, ThermalSystem, etc.) sigue usando `overpressure_pa` sin cambios.
+
+**Campo nuevo en `RoomModel.gd`**:
+```gdscript
+var pressure_pa_therm: float = 0.0  # Phase 3: termodynamic pressure ODE
+```
+Reseteado a 0.0 en `reset_dynamic_state()`.
+
+**Flag opt-in en `GasExchangeSystem.gd`**:
+```gdscript
+var phase3_thermodynamic_pressure_enabled: bool = false
+var phase3_leak_area_m2: float = 0.0  # 0.0 = derivar de ach_infiltration
+```
+Registrado en `configure()` con los mismos patrones existentes.
+
+**Nuevo método `step_thermodynamic_pressure(building, dt)`** en `GasExchangeSystem.gd`:
+```gdscript
+func step_thermodynamic_pressure(building: BuildingModel, dt: float) -> void:
+    if not phase3_thermodynamic_pressure_enabled:
+        return  # default no-op: NO CAMBIA NADA
+    const GAMMA: float = 1.4
+    const P_ATM: float = 101325.0
+    const RHO_AMB: float = 1.2
+    const CD: float = 0.61
+    for room in building.get_rooms().values():
+        if room == null:
+            continue
+        var V: float = room.volume_m3()
+        if V <= 0.0:
+            continue
+        # Área efectiva de infiltración
+        var A_eff: float = phase3_leak_area_m2
+        if A_eff <= 0.0:
+            var ach_vol_per_s: float = ach_infiltration * V / 3600.0
+            A_eff = ach_vol_per_s / (CD * sqrt(2.0 * 50.0 / RHO_AMB))
+        # ODE: dP/dt = source - sink
+        var q_conv_w: float = room.hrr_kw * (1.0 - chi_rad) * 1000.0
+        var dP_source: float = (GAMMA - 1.0) * q_conv_w / V
+        var P: float = room.pressure_pa_therm
+        var dP_leak: float = 0.0
+        if P > 0.0:
+            dP_leak = CD * A_eff * P_ATM * sqrt(2.0 * P / RHO_AMB) / V
+        room.pressure_pa_therm = maxf(0.0, P + (dP_source - dP_leak) * dt)
+```
+
+**Invocación en `SimulationEngine.gd`** (después de `step_pressure_venting`):
+```gdscript
+gas_exchange_system.step_thermodynamic_pressure(building, dt)
+```
+
+**Salida de log** (en el método de logging de habitación): cuando `phase3_thermodynamic_pressure_enabled`, sustituir el campo `P=` con `room.pressure_pa_therm` en lugar de `room.overpressure_pa`.  
+El parser `validate_reference_cases.py` lee `P=...Pa` sin cambios → cero modificaciones en validation stack.
+
+---
+
+#### 3.5 Checks afectados y estrategia de rebaseline
+
+Con Phase 3 activado **solo en los casos sellados** (vía `engine_overrides`):
+
+**Grupo A — casos sellados (Phase 3 ON): rebaseline necesario (7–10 checks)**
+
+| Check | SF nuevo est. | CFAST | Tol nueva candidata |
+|-------|--------------|-------|---------------------|
+| `cfast_closed_t60_pressure_pa` | ~110 | 124 | ±30 Pa |
+| `cfast_closed_t120_pressure_pa` | ~950–1050 | 1022 | **±80 Pa** (criterio cierre ±100 Pa) |
+| `cfast_closed_t240_pressure_pa` | ~50 | 12.75 | ±20 Pa |
+| `cfast_closed_t360_pressure_pa` | ~150 | 167.9 | ±40 Pa |
+| `cfast_closed_t480_pressure_pa` | ~150 | 168.2 | ±40 Pa |
+| `cfast_fastgrowth_t60_pressure_pa` | ~400 | 489.6 | ±120 Pa |
+| `cfast_fastgrowth_t120_pressure_pa` | ~1800 | 2087.7 | ±350 Pa |
+| `cfast_burnout_t60_pressure_pa` | ~110 | 124.0 | ±30 Pa |
+| `cfast_burnout_t120_pressure_pa` | ~950–1050 | 1022.1 | ±80 Pa |
+| `cfast_burnout_t180_pressure_pa` | ~650 | 768.4 | ±130 Pa |
+
+Estimaciones de SF basadas en la ODE con `ach_infiltration=5.0`, `V≈62 m³`. **Requieren run de calibración antes de fijar tolerancias.**
+
+**Grupo B — casos con aperturas (Phase 3 OFF por defecto): sin cambio**
+
+Los otros 21 checks (`cfast_t350`, `cfast_t420`, `cfast_t510`, `cfast_2r_*`, `cfast_fo_*`, `cfast_hvac_*`, `cfast_doorclose_*`, `cfast_slow_*`, `cfast_multifuel_*`) permanecen con `phase3_thermodynamic_pressure_enabled=false` → `pressure_pa_therm=0.0` → log emite `overpressure_pa` (boyancia, 1–10 Pa) → tolerancias actuales invariantes.
+
+**Nuevo check requerido** (criterio de cierre formal):
+```python
+# En build_cfast_single_room_closed_checks():
+add_check("cfast_closed_t120_pressure_pa", t=120.0, field="pressure_pa",
+          expected=1022.0, tol=100.0, required=True)
+# Sustituye la versión actual required=False con tol=1022.1
+```
+
+**Stub a eliminar**:
+```
+cfast_overpressure_sealed_pending  →  REMOVED de build_stage_b_pending_checks()
+```
+
+---
+
+#### 3.6 Invariantes que NO deben romperse
+
+| Invariante | Verificación | Riesgo de ruptura |
+|-----------|-------------|-------------------|
+| 376/376 required PASS | `py scripts/simulation/validate_reference_cases.py` | Bajo: Phase 3 OFF por defecto |
+| `room.overpressure_pa` sin cambio | Ningún sistema downstream toca `pressure_pa_therm` por defecto | Bajo: campo completamente paralelo |
+| Smoke venting logic inalterada | Sigue usando `overpressure_pa` | Ninguno |
+| Doorway exchange inalterado | ThermalSystem/GasExchangeSystem usan `overpressure_pa` | Ninguno |
+| Víctima FED sin regresión | `victim_fed_incapacitation` case no activa Phase 3 | Ninguno |
+| Guardrails PASS | `py scripts/simulation/validation_guardrails.py` | Bajo |
+| 13/13 unit tests | `py tests/test_guardrails.py` | Bajo |
+
+---
+
+#### 3.7 Riesgos específicos de Phase 3
+
+| Riesgo | Probabilidad | Impacto | Mitigación |
+|--------|-------------|---------|-----------|
+| ODE numéricamente inestable (dt grande) | Media | Medio | Clamp `P ≥ 0`, semiplícito o Euler con dt≤0.1 s |
+| ACH→A_eff mal calibrado → SF diverge de CFAST ×2 | Alta | Medio | Override explícito `phase3_leak_area_m2` en cases JSON |
+| Presión alta activa el threshold de venting existente (2 Pa) → humo extra | Alta | **Alto** | Desactivar lógica de venting basada en `overpressure_pa` cuando Phase 3 ON, o usar umbral independiente `phase3_vent_threshold_pa` |
+| t>180s SF>CFAST porque SF no modela extinción O2 en sellada | Media | Medio | Phase 2C flags ya disponibles; activar si necesario |
+| Rebaseline de los 10 checks sellados rompe 376 required | Baja | Alto | Los 10 son `required=False`; promover solo `cfast_closed_t120_pressure_pa` |
+
+**Riesgo crítico (item 3)**: cuando `pressure_pa_therm` alcanza 100–1000 Pa, el código existente en `step_pressure_venting` aplicará Bernoulli venting sobre `overpressure_pa` (que sigue siendo 1–10 Pa) — no hay conflicto. Pero si en el futuro se conectan los dos campos, habría interacción.
+
+---
+
+#### 3.8 Plan de activación por caso
+
+```
+engine_overrides en:
+  cfast_single_room_closed.json:
+    "phase3_thermodynamic_pressure_enabled": true
+    "phase3_leak_area_m2": <calibrar>
+
+  cfast_fast_growth_closed.json:
+    "phase3_thermodynamic_pressure_enabled": true
+    "phase3_leak_area_m2": <calibrar>
+
+  cfast_long_burnout_3600s.json:
+    "phase3_thermodynamic_pressure_enabled": true
+    "phase3_leak_area_m2": <calibrar>
+
+  (todos los demás: sin override → Phase 3 OFF)
+```
+
+---
+
+#### 3.9 Criterio de cierre
+
+- `cfast_closed_t120_pressure_pa` promocionado a `required=True` con `tol=100 Pa`: SF ∈ [922, 1122] Pa  
+- 376+1 = **377/377 required PASS**  
+- 6 gaps non-gating → 5 gaps (se elimina el 1 gap activo de overpressure)  
+- `cfast_overpressure_sealed_pending` eliminado de `build_stage_b_pending_checks()`  
+- Todos los checks Grupo B invariantes (mismas tolerancias que ahora)
 
 ---
 
@@ -284,35 +488,26 @@ python tests/test_guardrails.py
   Phase 2 ✅    — Ghanekar kitchen required + HRR structural ratio gap closed
   Phase 1.7 ✅  — Ghanekar 0.9m flashover promoted to required (373 required checks)
   Phase 2A ✅   — Doorway hot-gas O₂ upper routing (gaps 4→3)
+  Phase 2B ✅   — CO₂ upper/lower stratification (commits 231b400 + b9ad841)
+  Phase 2C ✅   — HVAC two-zone O₂ feed (commit 29c3515; 376/376 required, 6 gaps)
 
 2026-06 (PRÓXIMO)
 ┌──────────────────────────────────────────────────────────────┐
-│  SPRINT 1 (2-3 sesiones)                                     │
-│  Phase 2B — CO₂ upper/lower stratification                   │
-│  Objetivo: GAP-6                                             │
-│  Riesgo: MEDIO (species routing + rebaseline puntual)        │
-└──────────────────────────────────────────────────────────────┘
-         ↓ desbloquea
-┌──────────────────────────────────────────────────────────────┐
-│  SPRINT 2 (1-2 sesiones) — HVAC two-zone feed                │
-│  Phase 2C — GAP-9 (Phase 2H default ON)                     │
-│  Riesgo: MEDIO (preset/altura de rejilla + rebaseline HVAC)  │
-└──────────────────────────────────────────────────────────────┘
-         ↓ desbloquea (opcional, largo plazo)
-┌──────────────────────────────────────────────────────────────┐
-│  SPRINT 3 (6-10 sesiones) — Presión termodinámica           │
-│  Phase 3 — GAP-5                                             │
-│  Riesgo: MUY ALTO (invalida 17 checks de presión)            │
+│  SPRINT SIGUIENTE (6-10 sesiones)                            │
+│  Phase 3 — Presión termodinámica                             │
+│  Objetivo: GAP-5 (cfast_overpressure_sealed_pending)         │
+│  Riesgo: MEDIO-ALTO (ver §3.7; campo paralelo aisla riesgo)  │
+│  Diseño técnico: completo (ver §3.1–3.9 arriba)              │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 ### Tabla de prioridades
 
-| Prioridad | Fase | Gaps cierra | Riesgo | Esfuerzo | Prerequisito |
-|-----------|------|-------------|--------|----------|--------------|
-| 1 | Phase 2B | 1 (GAP-6) | Medio | 2-3 sesiones | Phase 2A cerrada |
-| 2 | Phase 2C | 1 (GAP-9) | Medio | 1-2 sesiones | Phase 2A cerrada |
-| 3 | Phase 3 | 1 (GAP-5) | Muy alto | 6-10 sesiones | Phase 2A cerrada |
+| Prioridad | Fase | Gaps cierra | Riesgo | Esfuerzo | Estado |
+|-----------|------|-------------|--------|----------|--------|
+| ✅ | Phase 2B | 1 (GAP-6) | Medio | Completado | Cerrado |
+| ✅ | Phase 2C | 1 (GAP-9) | Medio | Completado | Cerrado |
+| 1 | Phase 3 | 1 (GAP-5) | Medio-Alto | 6-10 sesiones | Diseño listo |
 
 ---
 
@@ -320,12 +515,13 @@ python tests/test_guardrails.py
 
 | Invariante | Cómo verificar |
 |-----------|----------------|
-| 373/373 required PASS (mín actual) | `python scripts/simulation/validate_reference_cases.py` |
+| 376/376 required PASS (actual) | `py scripts/simulation/validate_reference_cases.py` |
 | Conteo de gaps documentado == conteo en JSON | `python scripts/simulation/validation_guardrails.py` |
-| 13/13 unit tests | `python tests/test_guardrails.py` |
+| 13/13 unit tests | `py tests/test_guardrails.py` |
 | 7 sentinels Phase 2E PASS | Incluido en guardrails |
 | `doorway_heat_exchange_coeff` aplicado a Bernoulli | `efcf5fd` — regresión detectada por `ghanekar_origin_peak_upper_temp_reasonable_c` |
 | `o2_upper` tracking activo | Regresión detectada por checks `o2_upper` en casos CFAST |
+| `fire_o2_lower_for_flame` default=false | Phase 2C: solo activa en cfast_hvac_residential.json |
 
 ---
 
@@ -337,30 +533,17 @@ python tests/test_guardrails.py
 | Two-zone doorway cambia masa transportada → T_upper regresar | Alto | Rama Git separada; validar invariantes antes de merge |
 | Suavizar curva combustible Ghanekar baja T_upper pico | Bajo | Margen 42°C disponible (608°C actual, límite 650°C) |
 | Phase 2H default ON altera O₂ lower o sobregeneraliza el HVAC low-supply | Medio | Aplicar por preset/altura de rejilla; no usar el benchmark CFAST como modelo universal de HVAC residencial |
-| Phase 3 presión invalida tolerancias actuales | Muy alto | Hacer Phase 3 en rama separada; rebaseline completo antes de merge |
+| Phase 3 presión – calibración ACH→A_eff incorrecta | Medio | Override `phase3_leak_area_m2` por caso; campo paralelo aisla riesgo de regresión |
 
 ---
 
-## 8. Estado del working tree documentado (2026-06-01)
+## 8. Estado del working tree documentado (2026-06-XX)
 
 ```
-HEAD base: e4564e3 (main)
-
-Estado tras Phase 2A: código cerrado en `e4564e3`; reports regenerados y docs sincronizados en commit documental posterior.
+HEAD: 8c83ced (main)
+  "sync post-phase-2c: rebaseline cfast_hvac_residential.json (fire survives, HRR=1280kW); untrack stale .pyc"
+  
+main está 4 commits adelante de origin/main
+Working tree: CLEAN
+Validation: 376/376 PASS, 6 non-gating gaps, ALL GUARDRAILS PASS, 13/13 unit tests
 ```
-
-### Changelog de sesión (2026-05-30/2026-06-01)
-| Commit | Descripción |
-|--------|-------------|
-| `efcf5fd` | Phase 1.6: apply doorway_heat_exchange_coeff to Bernoulli flow path |
-| `b84e399` | docs: update GAPS_INVENTORY for Phase 1.6 |
-| `c67802b` | phase-2: CO vent-limited via o2_upper (closes GAP-2,3,4; GAP-8 remains pending) |
-| `156fb81` | Add CO vent-limited phase to combustion model |
-| `cc48382` | phase-1.7: close Ghanekar 0.9m flashover GAP-1 |
-| `a21326e` | phase-2: close GAP-8 with `fire_o2_upper_hrr_blend` opt-in |
-| `c435afb` | docs: sync GAP-8 validation report |
-| `e4564e3` | phase-2a: route doorway hot-gas oxygen by upper layer |
-
-### Investigación realizada (sin commit — resultados negativos documentados)
-- **Experimento `thermal_gradient_min_band_m=0.10`**: no efectivo para GAP-1. `ref_depth=0.567 m` ya supera el min_band → floor nunca activo. Revertido.
-- **Análisis timing GAP-1**: el salto ObjExp 75→90% genera escalón HRR a t≈135 s (fuera de ventana 156-216 s). La causa dual (gradiente + timing) confirma que Phase 1.7 necesita suavizar la tabla de combustible, no el modelo de gradiente.
