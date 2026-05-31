@@ -597,10 +597,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 				m_dot_p_kg_s = minf(m_dot_p_kg_s, lower_mass_kg / maxf(dt, 0.1))
 				var mass_gain_kg: float = m_dot_p_kg_s * dt
 				room.upper_gas_kg += mass_gain_kg
-				# Phase 1.5: la pluma calienta el aire entrainado hasta la temperatura de la capa superior
-				# antes de que entre en la zona superior (modelo de dos zonas correcto).
-				# Usar temp_upper_c evita la dilución espuria de temperatura por masa fría entrante.
-				room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_upper_c - ambient_c)
+				room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_lower_c - ambient_c)
 			elif plume_flame_region_entrainment_enabled:
 				_add_flame_region_entrainment(room, qc_kw, z_m, dt, ambient_c)
 			else:
@@ -612,8 +609,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 						1.0
 					)
 					room.upper_gas_kg += mass_gain_kg
-					# Phase 1.5: masa entrainada llega a temp_upper (temperatura neutra).
-					room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_upper_c - ambient_c)
+					room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_lower_c - ambient_c)
 		else:
 			# Sin fuego activo o McCaffrey deshabilitado → heurístico
 			var target_upper_mass_kg: float = estimate_target_upper_gas_mass_kg(room)
@@ -624,8 +620,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 					1.0
 				)
 				room.upper_gas_kg += mass_gain_kg
-				# Phase 1.5: masa entrainada sin fuego llega a temp_upper (temperatura neutra).
-				room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_upper_c - ambient_c)
+				room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_lower_c - ambient_c)
 
 		var outside_open_factor: float = estimate_room_outside_open_factor(room)
 		# Fracción convectiva = (1 − χ_rad) — física de zonas CFAST/SFPE §3.4.
@@ -1462,11 +1457,9 @@ func estimate_target_upper_gas_mass_kg(room: RoomModel) -> float:
 		return 0.0
 
 	var target_volume_m3: float = room.floor_area_m2() * target_depth_m
-	# Phase 1.5: usar temp_upper_c real para la densidad del gas caliente.
-	# La cap anterior (temp_lower + 180) sobreestimaba la densidad → sobreestimaba la masa
-	# → dilución espuria de temperatura. Con temp_upper, el volumen objetivo se llena con
-	# la masa físicamente correcta (gas caliente es menos denso que gas tibio).
-	var entrained_temp_c: float = maxf(room.temp_lower_c + 60.0, room.temp_upper_c)
+	var entrained_temp_c: float = maxf(
+			room.temp_lower_c + 60.0,
+			minf(room.temp_upper_c, room.temp_lower_c + 180.0))
 	return target_volume_m3 * gas_density_kg_m3(entrained_temp_c)
 
 
@@ -1505,8 +1498,7 @@ func _add_flame_region_entrainment(
 		return
 
 	room.upper_gas_kg += mass_gain_kg
-	# Phase 1.5: masa de llama entrainada llega a temp_upper (temperatura neutra).
-	room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_upper_c - ambient_c)
+	room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_lower_c - ambient_c)
 
 
 func estimate_retained_hot_layer_depth_m(room: RoomModel) -> float:
