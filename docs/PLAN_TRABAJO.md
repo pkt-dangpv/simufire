@@ -1,7 +1,7 @@
 # Plan de Trabajo — SimuFire Motor de Física
 **Creado**: 30 mayo 2026 | **Estado validación en el momento de creación**: 367/367 PASS required, 9 gaps non-gating  
-**Última actualización**: 30 mayo 2026 | **Estado actual**: 372/372 PASS required, 6 gaps non-gating  
-**HEAD**: `156fb81` (main, sync con origin) — Phase 2 CO vent-limited completa y empujada
+**Última actualización**: 31 mayo 2026 | **Estado actual**: 373/373 PASS required, 5 gaps non-gating  
+**HEAD**: `cc48382` (main) — Phase 1.7 Ghanekar 0.9m cerrada
 
 ---
 
@@ -10,12 +10,12 @@
 ### 1.1 Línea base de validación
 | Métrica | Valor |
 |---------|-------|
-| Checks required PASS | **372 / 372** |
-| Checks non-gating (gaps) | **6** |
+| Checks required PASS | **373 / 373** |
+| Checks non-gating (gaps) | **5** |
 | Total checks registrados | 521 |
 | Guardrails | ✅ Exit 0 |
 | Unit tests | ✅ 13/13 |
-| Último commit de producción | `156fb81` — Phase 2 CO vent-limited |
+| Último commit de producción | `cc48382` — Phase 1.7 Ghanekar 0.9m |
 
 ### 1.2 Arquitectura del motor (capas físicas implementadas)
 
@@ -52,15 +52,14 @@ python tests/test_guardrails.py
 
 ### 2.1 Descripción técnica de cada gap
 
-#### GAP-1: `ghanekar_flashover_0_9m_known_gap`
+#### GAP-1: `ghanekar_flashover_0_9m_known_gap` — ✅ CERRADO (Phase 1.7, 2026-05-31)
 - **Qué mide**: tiempo en que T(z=0.9 m) ≥ 600°C en sala de origen (dormitorio Ghanekar)
 - **Referencia**: 186 ± 30 s (ventana 156–216 s)
-- **Situación actual**: T_upper alcanza 608°C (PASS en required check) pero T@0.9m nunca supera ~420°C
-- **Causa raíz 1 — Gradiente**: `gradient_depth = hot_depth × 0.35 = 1.62 × 0.35 = 0.567 m`; con interfaz a HL=0.83 m, `grad_top = 1.11 m` → z=0.9 m queda DENTRO de la zona de transición → T@0.9m ≈ 400°C aunque T_upper=608°C
-- **Causa raíz 2 — Timing**: el salto ObjExp 75→90% en la tabla de combustible genera un escalón HRR 582→1288 kW a t≈135 s (muy brusco); la interfaz baja a HL=0.83 m en un solo step, mientras el paper muestra descenso gradual hasta t≈186 s
-- **Por qué `thermal_gradient_min_band_m` no ayuda**: con `hot_depth=1.62 m × band_fraction=0.35`, el `ref_depth=0.567 m` ya supera cualquier `min_band` razonable — el floor nunca se activa
-- **Fix necesario**: suavizar la curva de combustible del colchón Ghanekar para que la transición 75→90% sea gradual (~20-30 s), logrando que el descenso de HL sea progresivo y alcance HL ≈ 0.75 m entre t=156-216 s
-- **Bloqueo**: requiere modificar la tabla de combustible del caso específico (JSON) o añadir interpolación en el motor de progresión de objetos
+- **Resultado**: `time_room_0_temp_0_9m_above_600c_s` = 166.75s ∈ [156,216]s ✅
+- **Guardas**: `peak_temp_upper_c_global` = 620.5°C ∈ [450,650]°C; `time_room_2_o2_below_20_4pct_s` = 215.6s ∈ [168,228]s
+- **Fix aplicado**: `fire_alpha_kw_s2=0.035` + `outside_open_upper_heat_boost=0.20` en `ghanekar_bedroom_hallway.json`
+- **Promovido a**: required=True en `build_ghanekar_checks()`
+- **Commit**: `cc48382`
 
 #### GAP-2: `ghanekar_kitchen_far_hall_fed_1_0_s` — ✅ CERRADO (Phase 2, 2026-05-28)
 - **Qué mide**: tiempo FED=1.0 en pasillo lejano, caso cocina Ghanekar
@@ -108,9 +107,8 @@ python tests/test_guardrails.py
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  NIVEL 1 — Calibración de datos de caso (esfuerzo BAJO)             │
-│  GAP-1: suavizar curva combustible colchón Ghanekar                 │
-│         → modificar JSON del caso o tabla de combustible             │
+│  NIVEL 1 — Calibración de datos de caso (COMPLETADO)                │
+│  GAP-1: Ghanekar 0.9m flashover cerrado en Phase 1.7 (`cc48382`)    │
 └─────────────────────────────────────────────────────────────────────┘
          ↓ no resuelve → depende del motor de progresión de objetos
 
@@ -147,25 +145,12 @@ python tests/test_guardrails.py
 
 ## 4. Fases planificadas
 
-### FASE 1.7 — Suavizado curva combustible Ghanekar (GAP-1)
+### FASE 1.7 — Ghanekar 0.9m flashover (GAP-1) — ✅ COMPLETADA (2026-05-31)
 **Objetivo**: cerrar `ghanekar_flashover_0_9m_known_gap`  
-**Prerequisito**: ninguno  
-**Esfuerzo estimado**: 1-2 sesiones
-
-**Descripción técnica**:
-1. Localizar la tabla de progresión del objeto `ghanekar_bed_mattress` en los assets del caso
-2. Identificar el marcador de transición ObjExp 75% → 90% que genera el salto HRR 582→1288 kW a t≈135 s
-3. Añadir marcador intermedio ObjExp=82% a t≈155 s para distribuir el escalón en ≥20 s
-4. Verificar que la interfaz HL desciende gradualmente de HL=1.36 m a HL≤0.75 m entre t=140-210 s
-5. Verificar que T@0.9m cruza 600°C entre t=156-216 s (ventana aceptación)
-6. Confirmar que `ghanekar_origin_peak_upper_temp_reasonable_c` (T_upper ∈ [450,650]°C) sigue PASS
-7. Si PASS: promover el check a `required=true` y eliminar el `note: Known gap`
-
-**Criterio de cierre**:
-- `time_room_0_temp_0_9m_above_600c_s` en JSON = valor ∈ [156, 216] s
-- 373/373 required PASS (promovería 1 gap sobre la base actual 372/372)
-
-**Riesgo**: suavizar el escalón puede reducir T_upper pico. Margen actual: 608°C vs límite 650°C (42°C de margen). Si T_upper baja de 608°C a ~570°C sigue dentro del rango.
+**Resultado**: T@0.9m cruza 600°C a 166.75s, dentro de [156,216]s.  
+**Cambios**: `fire_alpha_kw_s2=0.035` y `outside_open_upper_heat_boost=0.20` en `ghanekar_bedroom_hallway.json`.  
+**Guardas PASS**: pico global 620.5°C ∈ [450,650]°C; respuesta O2 far hall 215.6s ∈ [168,228]s.  
+**Estado**: promovido a required=True; base actual `373/373 PASS`, 5 gaps.
 
 ---
 
@@ -298,17 +283,11 @@ python tests/test_guardrails.py
   Stage-B ✅    — 5 casos CFAST implementados (320 required checks)
   Hardening ✅  — Stage C/D/E/F (367 required checks)
   Phase 2 ✅    — Ghanekar kitchen promoted to required (372 required checks)
+  Phase 1.7 ✅  — Ghanekar 0.9m flashover promoted to required (373 required checks)
 
 2026-06 (PRÓXIMO)
 ┌──────────────────────────────────────────────────────────────┐
-│  SPRINT 1 (1-2 sesiones)                                     │
-│  Phase 1.7 — Suavizar curva combustible Ghanekar             │
-│  Objetivo: GAP-1 → required                                  │
-│  Riesgo: BAJO (solo JSON del caso + tabla combustible)       │
-└──────────────────────────────────────────────────────────────┘
-         ↓ independiente
-┌──────────────────────────────────────────────────────────────┐
-│  SPRINT 2 (2-4 sesiones)                                     │
+│  SPRINT 1 (2-4 sesiones)                                     │
 │  Phase 2 cont. — HRR cap por o2_upper en CombustionSystem   │
 │  Objetivo: GAP-8 → required                                  │
 │  (GAP-2, 3, 4 ya cerrados en 2026-05-28 ✅)                 │
@@ -334,12 +313,11 @@ python tests/test_guardrails.py
 
 | Prioridad | Fase | Gaps cierra | Riesgo | Esfuerzo | Prerequisito |
 |-----------|------|-------------|--------|----------|--------------|
-| 1 | Phase 1.7 | 1 (GAP-1) | Bajo | 1-2 sesiones | Ninguno |
-| 2 | Phase 2 cont. | 1 (GAP-8) | Medio | 2-4 sesiones | Ninguno |
-| 3 | Phase 2A | 1 (GAP-7) | Alto | 4-6 sesiones | Phase 2 |
-| 4 | Phase 2B | 1 (GAP-6) | Medio | 2-3 sesiones | Phase 2A |
-| 5 | Phase 2C | 1 (GAP-9) | Medio | 1-2 sesiones | Phase 2A |
-| 6 | Phase 3 | 1 (GAP-5) | Muy alto | 6-10 sesiones | Phase 2A |
+| 1 | Phase 2 cont. | 1 (GAP-8) | Medio | 2-4 sesiones | Ninguno |
+| 2 | Phase 2A | 1 (GAP-7) | Alto | 4-6 sesiones | Phase 2 |
+| 3 | Phase 2B | 1 (GAP-6) | Medio | 2-3 sesiones | Phase 2A |
+| 4 | Phase 2C | 1 (GAP-9) | Medio | 1-2 sesiones | Phase 2A |
+| 5 | Phase 3 | 1 (GAP-5) | Muy alto | 6-10 sesiones | Phase 2A |
 
 ---
 
@@ -347,7 +325,7 @@ python tests/test_guardrails.py
 
 | Invariante | Cómo verificar |
 |-----------|----------------|
-| 372/372 required PASS (mín actual) | `python scripts/simulation/validate_reference_cases.py` |
+| 373/373 required PASS (mín actual) | `python scripts/simulation/validate_reference_cases.py` |
 | Conteo de gaps documentado == conteo en JSON | `python scripts/simulation/validation_guardrails.py` |
 | 13/13 unit tests | `python tests/test_guardrails.py` |
 | 7 sentinels Phase 2E PASS | Incluido en guardrails |
@@ -371,7 +349,7 @@ python tests/test_guardrails.py
 ## 8. Estado del working tree documentado (2026-05-30)
 
 ```
-HEAD base: 156fb81 (main = origin/main)
+HEAD base: cc48382 (main)
 
 Estado tras esta actualización documental: cambios pendientes en docs, guardrails y reference_checks; validar y commitear antes de considerar la sesión cerrada.
 ```
@@ -383,6 +361,7 @@ Estado tras esta actualización documental: cambios pendientes en docs, guardrai
 | `b84e399` | docs: update GAPS_INVENTORY for Phase 1.6 |
 | `c67802b` | phase-2: CO vent-limited via o2_upper (closes GAP-2,3,4; GAP-8 remains pending) |
 | `156fb81` | Add CO vent-limited phase to combustion model |
+| `cc48382` | phase-1.7: close Ghanekar 0.9m flashover GAP-1 |
 
 ### Investigación realizada (sin commit — resultados negativos documentados)
 - **Experimento `thermal_gradient_min_band_m=0.10`**: no efectivo para GAP-1. `ref_depth=0.567 m` ya supera el min_band → floor nunca activo. Revertido.

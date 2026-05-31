@@ -104,3 +104,30 @@ docs: sync gap roadmap after Phase 2 validation hardening
 
 3. Empezar Phase 1.7 (`ghanekar_flashover_0_9m_known_gap`) o Phase 2 cont. (`cfast_hrr_ventilation_limited_f2_pending`) según prioridad.
 
+---
+
+## Actualización posterior — commit `cc48382`
+
+Phase 1.7 quedó cerrada después de este estado inicial.
+
+- Commit: `cc48382` — `phase-1.7: reduce thermal gradient band for bedroom case, close flashover GAP-1`
+- Estado validación: **373/373 required PASS**
+- Gaps reales activos: **5 non-gating**
+- `ghanekar_flashover_0_9m_known_gap`: cerrado y promovido a required=True.
+
+Resultados clave:
+
+| Check | Resultado | Rango |
+|-------|-----------|-------|
+| `time_room_0_temp_0_9m_above_600c_s` | 166.75s | [156,216]s |
+| `peak_temp_upper_c_global` | 620.5°C | [450,650]°C |
+| `time_room_2_o2_below_20_4pct_s` | 215.6s | [168,228]s |
+
+Overrides usados en `sim/validation/cases/ghanekar_bedroom_hallway.json`:
+
+```json
+"fire_alpha_kw_s2": 0.035,
+"outside_open_upper_heat_boost": 0.20
+```
+
+Siguiente prioridad real: `cfast_hrr_ventilation_limited_f2_pending` (Phase 2 cont., HRR cap por `o2_upper`).
