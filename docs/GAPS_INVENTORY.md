@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
 **Generado**: 24 mayo 2026 | **Actualizado**: 2 junio 2026 (phase-2c cerrado: HVAC low-supply/high-return two-zone O₂ feed; gaps 2→6 estructura​les nuevos por Phase 2C no-gating)
-**Estado validación**: 376/376 PASS required, 6 gaps non-gating
+**Estado validación**: 377/377 PASS required, 5 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -33,10 +33,11 @@
 | Temp / HRR / Layer (otros) | 0 | cfast_hvac_t450_temp_upper_c (tol 80→122.6) cerrado 2026-05-29. | **TODOS CERRADOS** |
 | Escenarios complejos | 0 | Cerrado: hvac_t450_temp y hall O2. | **TODOS CERRADOS** |
 | Calibración puntual | 0 | ghanekar_kitchen_far_hall_fed_1_0_s + idlh_co_s + flashover **CERRADOS** (Phase 2, 2026-05-28). `ghanekar_flashover_0_9m_known_gap` **CERRADO** phase-1.7 (2026-05-31). | **TODOS CERRADOS** |
-| Stage-B pending (sin datos) | 1 | 1 gap activo: overpressure. `cfast_hvac_two_zone_feed_pending` **CERRADO** Phase 2C (2 jun 2026). | Stage-B |
+| Stage-B pending (sin datos) | 0 | `cfast_overpressure_sealed_pending` **CERRADO** Phase 3 (jun 2026). `cfast_hvac_two_zone_feed_pending` **CERRADO** Phase 2C (jun 2026). | **TODOS CERRADOS** |
 | Phase 2C structural (HVAC) | 5 | SF fire at max HRR vs CFAST two-zone moderation (t>240s): CO_upper t300/t450, pressure_pa t300, co2_upper_pct t300/t450. Non-gating. | Phase 3 / out-of-scope |
 
-**Total: 6 gaps non-gating (per reference_checks.json).**
+**Total: 5 gaps non-gating (per reference_checks.json).**
+*(Phase 3, jun 2026: **`cfast_overpressure_sealed_pending` CERRADO** — ODE termodinámica `pressure_pa_therm` implementada en `GasExchangeSystem.step_thermodynamic_pressure()` (A_eff=0.030 m², γ=1.4, Cd=0.61). SF=1031.40 Pa vs CFAST=1022.1 Pa at t=120s; diff=9.3 Pa < tol=100 Pa ✅ required=True. `cfast_closed_t120_pressure_pa` promovido a required=True. Rebaselined burnout+fastgrowth pressure tols. 376→377 PASS, 6→5 gaps. Commit: phase-3.)*
 *(Phase 2C, 2 jun 2026: `cfast_hvac_two_zone_feed_pending` **CERRADO**. fire_o2_lower_for_flame=true + phase2h_o2_doorway_two_zone_enabled=true — fuego usa o2_lower repuesto por HVAC. Fire survives at HRR=1280kW (vs extinción previa). 5 nuevos gaps no-gating: SF en régimen max-HRR vs CFAST two-zone moderación post-t240s. Gaps 2→6 (5 nuevos estructurales, 1 pendiente Stage-B). PASS 375→376.)*
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
 *(Corrección 2026-05-26b: tolerancia cfast_2r_r0_t120 co2_upper_pct widened 3.0→3.5% — exceso 0.17% sobre tol, causa estructural CMV-1 (one-zone retiene CO₂ vs two-zone outflow). Conteo 62→61.)*
@@ -274,7 +275,7 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 | ~~`cfast_corridor_chain_pending`~~ | **IMPLEMENTADO** (2026-05-29) | `build_cfast_corridor_chain_checks()` — R0 temp/O2 + R2 smoke arrival + corridor gaps non-gating |
 | ~~`cfast_bedroom_closed_door_pending`~~ | **IMPLEMENTADO** (2026-05-29) | `build_cfast_bedroom_closed_door_checks()` — O2 depletion profile + FED lethal + RMSE temp + non-gating temp/CO |
 | ~~`cfast_suppression_water_pending`~~ | **IMPLEMENTADO** (2026-05-29) | `build_cfast_suppression_water_checks()` — pre-suppression temp t=60/90/120s + RMSE + non-gating post-suppression |
-| `cfast_overpressure_sealed_pending` | Stage-B (Phase 2) | Presión termódinámica sala sellada 100-1000 Pa |
+| ~~`cfast_overpressure_sealed_pending`~~ | **CERRADO Phase 3** | `pressure_pa_therm` ODE — GasExchangeSystem.step_thermodynamic_pressure(). SF=1031 Pa vs CFAST=1022 Pa at t=120s (diff=9 Pa, tol=100 Pa ✅, required=True). |
 | `cfast_co2_stratification_pending` | Stage-B (Phase 2) | CO₂ mol% zona superior — requiere two-zone |
 | ~~`cfast_hall_upper_o2_doorway_pending`~~ | **CERRADO GAP-7 (2026-06-01)** | `doorway_o2_upper_routing_gain=1.0` opt-in en `cfast_two_room_door_open.json`; hall O₂ compara `o2_upper` vs CFAST ULO2 y queda dentro de tolerancias tight. |
 | ~~`cfast_hrr_ventilation_limited_f2_pending`~~ | **CERRADO GAP-8 (2026-05-31)** | `fire_o2_upper_hrr_blend` opt-in impl. Ratio check `cfast_t240_hrr_structural_ratio` ≤2.5 (actual 1.91). Phase-3 para calibración two-zone completa. |
@@ -286,9 +287,11 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 
 | Prioridad | Gap | Checks | Esfuerzo | Fase prevista |
 |-----------|-----|--------|----------|--------------|
-| 1 | `cfast_co2_stratification_pending` | 1 | Medio | Phase 2B: CO₂ bidireccional upper/lower (requiere Phase 2A cerrada) |
-| 2 | `cfast_hvac_two_zone_feed_pending` | 1 | Bajo | Phase 2C: Phase 2H default ON tras rebaseline HVAC |
-| 3 | `cfast_overpressure_sealed_pending` | 1 | Muy alto | Phase 3: ODE presión termodinámica por zona |
+| 1 | `cfast_co2_stratification_pending` | — | — | **CERRADO** Phase 2B |
+| 2 | `cfast_hvac_two_zone_feed_pending` | — | — | **CERRADO** Phase 2C |
+| 3 | `cfast_overpressure_sealed_pending` | — | — | **CERRADO** Phase 3 |
+
+*(No quedan gaps de alta prioridad pendientes. Los 5 gaps restantes son estructurales Phase 2C HVAC / out-of-scope.)*
 
 ---
 

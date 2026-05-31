@@ -80,6 +80,17 @@ var o2_smoke_carry_coeff: float = 0.0
 # Controla cuánto O2 se intercambia entre salas cuando pasa humo por la apertura.
 # 0.18 = valor histórico. Reducir para ralentizar la dilución de O2 en salas remotas.
 var doorway_o2_counterflow_coeff: float = 0.18
+# Phase 3: modelo de presión termodinámica — ODE campo paralelo.
+# Cuando false (default): no-op, no toca room.pressure_pa_therm ni room.overpressure_pa.
+# Cuando true: integra dP/dt = (gamma-1)/V * Q_conv - Cd*A_eff/V * P_atm * sqrt(2P/rho)
+# usando room.hrr_kw como fuente de calor convectiva.
+var phase3_thermodynamic_pressure_enabled: bool = false
+# Área efectiva de infiltración [m²]. 0.0 = derivar de ach_infiltration (ver fórmula).
+var phase3_leak_area_m2: float = 0.0
+# Fracción convectiva del HRR para la ODE de presión.
+# CFAST default: ~0.65 convectivo (chi_rad=0.35 radiativo).
+# Este parámetro es independiente de hrr_chi_rad_normal (que calibra T_upper en SF).
+var phase3_chi_conv: float = 0.65
 var _pending_interior_deliveries: Array[Dictionary] = []
 
 
@@ -160,6 +171,47 @@ func configure(settings: Dictionary) -> void:
 	vent_bernoulli_enabled = bool(settings.get("vent_bernoulli_enabled", vent_bernoulli_enabled))
 	o2_smoke_carry_coeff = float(settings.get("o2_smoke_carry_coeff", o2_smoke_carry_coeff))
 	doorway_o2_counterflow_coeff = float(settings.get("doorway_o2_counterflow_coeff", doorway_o2_counterflow_coeff))
+	phase3_thermodynamic_pressure_enabled = bool(
+		settings.get("phase3_thermodynamic_pressure_enabled", phase3_thermodynamic_pressure_enabled)
+	)
+	phase3_leak_area_m2 = float(settings.get("phase3_leak_area_m2", phase3_leak_area_m2))
+	phase3_chi_conv = float(settings.get("phase3_chi_conv", phase3_chi_conv))
+
+
+func step_thermodynamic_pressure(building: BuildingModel, dt: float) -> void:
+	## Phase 3 — ODE de presión termodinámica (campo paralelo room.pressure_pa_therm).
+	## Default no-op cuando phase3_thermodynamic_pressure_enabled = false.
+	## No modifica room.overpressure_pa ni ninguna lógica downstream.
+	if not phase3_thermodynamic_pressure_enabled:
+		return
+	if building == null:
+		return
+	const GAMMA: float = 1.4
+	const P_ATM: float = 101325.0
+	const RHO_AMB: float = 1.2
+	const CD: float = 0.61
+	const P_REF_ACH: float = 50.0  # Pa de referencia para derivar A_eff de ACH (blower door)
+	for room in building.get_rooms().values():
+		if room == null:
+			continue
+		var V: float = room.volume_m3()
+		if V <= 0.0:
+			continue
+		# Área efectiva de infiltración
+		var a_eff: float = phase3_leak_area_m2
+		if a_eff <= 0.0:
+			# Derivar de ach_infiltration: Q(P_ref) = ACH*V/3600 = Cd*A*sqrt(2*P_ref/rho)
+			var q_ref_m3s: float = ach_infiltration * V / 3600.0
+			a_eff = q_ref_m3s / (CD * sqrt(2.0 * P_REF_ACH / RHO_AMB))
+		# ODE fuente: Q_conv = HRR * phase3_chi_conv * 1000 W
+		var q_conv_w: float = room.hrr_kw * phase3_chi_conv * 1000.0
+		var dp_source: float = (GAMMA - 1.0) * q_conv_w / V
+		# ODE sumidero: flujo de infiltración Bernoulli
+		var p: float = room.pressure_pa_therm
+		var dp_leak: float = 0.0
+		if p > 0.0:
+			dp_leak = CD * a_eff / V * P_ATM * sqrt(2.0 * p / RHO_AMB)
+		room.pressure_pa_therm = maxf(0.0, p + (dp_source - dp_leak) * dt)
 
 
 func reset() -> void:

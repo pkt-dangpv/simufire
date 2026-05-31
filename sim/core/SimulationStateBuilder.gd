@@ -123,7 +123,10 @@ func build_state(context: Dictionary) -> Dictionary:
 			"smoke_layer_m": smoke_layer_m,
 			"smoke_display_layer_m": smoke_display_layer_m,
 			"layer_150c_m": layer_150c_m,
-			"overpressure_pa": room.overpressure_pa,
+			# Phase 3: cuando pressure_pa_therm > 0 (Phase 3 opt-in activo), usar ese
+			# valor como campo overpressure_pa en el estado/log (campo P=).
+			# Cuando Phase 3 OFF (default): pressure_pa_therm = 0.0 → sin cambio.
+			"overpressure_pa": room.pressure_pa_therm if room.pressure_pa_therm > 0.0 else room.overpressure_pa,
 			"ceiling_jet_temp_c": room.ceiling_jet_temp_c,
 			"smoke_kg": room.smoke_kg,
 			"visibility_m": visibility_m,

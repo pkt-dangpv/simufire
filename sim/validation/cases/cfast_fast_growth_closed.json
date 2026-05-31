@@ -42,6 +42,8 @@
         "glass_break_mode": 0,
         "fire_spread_enabled": false,
         "fire_co_yield_force_kg_per_MJ": 0.0062,
-        "fire_smoke_yield_force_kg_per_MJ": 0.015
+        "fire_smoke_yield_force_kg_per_MJ": 0.015,
+        "phase3_thermodynamic_pressure_enabled": true,
+        "phase3_leak_area_m2": 0.030
     }
 }

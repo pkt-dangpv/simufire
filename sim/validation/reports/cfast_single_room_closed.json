@@ -73,7 +73,7 @@
 		"room_0_max_fuel_objects_flaming_count": 7,
 		"room_0_max_fuel_objects_heating_count": 6,
 		"room_0_max_fuel_objects_pyrolyzing_count": 3,
-		"room_0_max_overpressure_pa": 10.1241021750222,
+		"room_0_max_overpressure_pa": 6295.66963877893,
 		"room_0_max_passive_fuel_flux_kw_m2": 0.0,
 		"room_0_max_passive_fuel_surface_temp_c": 354.997973972391,
 		"room_0_max_unburned_generation_kw": 0.0,

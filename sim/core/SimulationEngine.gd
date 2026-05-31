@@ -645,6 +645,13 @@ var _step_time_us: int = 0
 # o2_lower se gestiona independientemente (near-ambient) sin afectar este equilibrio.
 @export var o2_upper_plume_entr_rate: float = 0.025
 
+# ── Phase 3: modelo de presión termodinámica (campo paralelo) ──────────────
+# Default false = no-op. Solo activo via engine_overrides en casos sellados.
+# No modifica overpressure_pa; el campo paralelo pressure_pa_therm se expone en log (P=).
+@export var phase3_thermodynamic_pressure_enabled: bool = false
+@export var phase3_leak_area_m2: float = 0.0
+@export var phase3_chi_conv: float = 0.65
+
 # ============================================================
 # AJUSTES DE HUMO (se copian al SmokeModel)
 # ============================================================
@@ -985,7 +992,10 @@ func _sync_auxiliary_services() -> void:
 		"vent_bernoulli_enabled": vent_bernoulli_enabled,
 		"o2_smoke_carry_coeff": o2_smoke_carry_coeff,
 		"doorway_o2_counterflow_coeff": doorway_o2_counterflow_coeff,
-		"background_o2_exchange_multiplier": background_o2_exchange_multiplier
+		"background_o2_exchange_multiplier": background_o2_exchange_multiplier,
+		"phase3_thermodynamic_pressure_enabled": phase3_thermodynamic_pressure_enabled,
+		"phase3_leak_area_m2": phase3_leak_area_m2,
+		"phase3_chi_conv": phase3_chi_conv,
 	})
 	# Phase 2H candidate preset — opt-in: expande phase2h_candidate_preset al trío de flags.
 	# Solo activo si phase2h_candidate_preset = true (default = false → sin efecto en baseline).
@@ -1516,6 +1526,8 @@ func _step_gas_exchange(dt: float) -> void:
 	var hooks: Dictionary = _build_gas_exchange_hooks()
 	var pressure_result: Dictionary = gas_exchange_system.step_pressure_venting(building, dt, hooks)
 	smoke_vented_total_kg += float(pressure_result.get("smoke_vented_kg", 0.0))
+	# Phase 3: campo paralelo de presión termodinámica (no-op cuando flag=false).
+	gas_exchange_system.step_thermodynamic_pressure(building, dt)
 
 	# SF-AUD-036: PPV mechanical ventilation
 	var ppv_result: Dictionary = gas_exchange_system.step_ppv(building, dt, hooks)

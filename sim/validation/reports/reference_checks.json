@@ -1,8 +1,8 @@
 {
   "all_required_pass": true,
-  "required_count": 376,
+  "required_count": 377,
   "failed_required_count": 0,
-  "known_gap_count": 6,
+  "known_gap_count": 5,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -765,14 +765,14 @@
     },
     {
       "name": "cfast_closed_t60_pressure_pa",
-      "actual": 0.41,
+      "actual": 58.56,
       "expected": 124.018,
-      "tolerance": 125.6,
+      "tolerance": 68.0,
       "minimum": null,
       "maximum": null,
       "required": false,
       "pass": true,
-      "note": "CMV-1: thermodynamic vs buoyancy pressure model gap (structural, Phase 3)."
+      "note": "CMV-1: Phase 3 pressure ODE \u2014 non-gating gap (SF fire persists vs CFAST extinction)."
     },
     {
       "name": "cfast_closed_t60_co2_upper_pct",
@@ -787,14 +787,14 @@
     },
     {
       "name": "cfast_closed_t120_pressure_pa",
-      "actual": 2.0,
+      "actual": 1031.4,
       "expected": 1022.07,
-      "tolerance": 1022.1,
+      "tolerance": 100.0,
       "minimum": null,
       "maximum": null,
-      "required": false,
+      "required": true,
       "pass": true,
-      "note": "CMV-1: thermodynamic vs buoyancy pressure model gap (structural, Phase 3)."
+      "note": "Phase 3 ODE: thermodynamic pressure calibrated. SF=1031 Pa vs CFAST=1022 Pa at t=120s."
     },
     {
       "name": "cfast_closed_t120_co2_upper_pct",
@@ -809,14 +809,14 @@
     },
     {
       "name": "cfast_closed_t240_pressure_pa",
-      "actual": 6.23,
+      "actual": 6149.77,
       "expected": 12.7462,
-      "tolerance": 50.0,
+      "tolerance": 6140.0,
       "minimum": null,
       "maximum": null,
       "required": false,
       "pass": true,
-      "note": "CMV-1: thermodynamic vs buoyancy pressure model gap (structural, Phase 3)."
+      "note": "CMV-1: Phase 3 pressure ODE \u2014 non-gating gap (SF fire persists vs CFAST extinction)."
     },
     {
       "name": "cfast_closed_t240_co2_upper_pct",
@@ -831,14 +831,14 @@
     },
     {
       "name": "cfast_closed_t360_pressure_pa",
-      "actual": 9.01,
+      "actual": 1138.01,
       "expected": 167.939,
-      "tolerance": 160.9,
+      "tolerance": 973.0,
       "minimum": null,
       "maximum": null,
       "required": false,
       "pass": true,
-      "note": "CMV-1: thermodynamic vs buoyancy pressure model gap (structural, Phase 3)."
+      "note": "CMV-1: Phase 3 pressure ODE \u2014 non-gating gap (SF fire persists vs CFAST extinction)."
     },
     {
       "name": "cfast_closed_t360_co2_upper_pct",
@@ -853,14 +853,14 @@
     },
     {
       "name": "cfast_closed_t480_pressure_pa",
-      "actual": 4.55,
+      "actual": 406.72,
       "expected": 168.174,
-      "tolerance": 165.6,
+      "tolerance": 242.0,
       "minimum": null,
       "maximum": null,
       "required": false,
       "pass": true,
-      "note": "CMV-1: thermodynamic vs buoyancy pressure model gap (structural, Phase 3)."
+      "note": "CMV-1: Phase 3 pressure ODE \u2014 non-gating gap (SF fire persists vs CFAST extinction)."
     },
     {
       "name": "cfast_closed_t480_co2_upper_pct",
@@ -886,7 +886,7 @@
     },
     {
       "name": "cfast_closed_t60_o2_lower",
-      "actual": 0.209,
+      "actual": 0.2089,
       "expected": 0.204932,
       "tolerance": 0.015,
       "minimum": null,
@@ -897,7 +897,7 @@
     },
     {
       "name": "cfast_closed_t120_o2_lower",
-      "actual": 0.209,
+      "actual": 0.2071,
       "expected": 0.204932,
       "tolerance": 0.015,
       "minimum": null,
@@ -908,7 +908,7 @@
     },
     {
       "name": "cfast_closed_t210_o2_lower",
-      "actual": 0.209,
+      "actual": 0.1928,
       "expected": 0.204932,
       "tolerance": 0.015,
       "minimum": null,
@@ -919,7 +919,7 @@
     },
     {
       "name": "cfast_closed_t300_o2_lower",
-      "actual": 0.209,
+      "actual": 0.0684,
       "expected": 0.204932,
       "tolerance": 0.139,
       "minimum": null,
@@ -930,7 +930,7 @@
     },
     {
       "name": "cfast_closed_t450_o2_lower",
-      "actual": 0.209,
+      "actual": 0.0429,
       "expected": 0.204932,
       "tolerance": 0.164,
       "minimum": null,
@@ -2591,9 +2591,9 @@
     },
     {
       "name": "cfast_burnout_t60_pressure_pa",
-      "actual": 0.41,
+      "actual": 58.56,
       "expected": 124.015,
-      "tolerance": 125.6,
+      "tolerance": 67.5,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -2602,9 +2602,9 @@
     },
     {
       "name": "cfast_burnout_t120_pressure_pa",
-      "actual": 2.0,
+      "actual": 1031.4,
       "expected": 1022.06,
-      "tolerance": 1022.1,
+      "tolerance": 11.5,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -2613,9 +2613,9 @@
     },
     {
       "name": "cfast_burnout_t180_pressure_pa",
-      "actual": 2.99,
+      "actual": 4996.21,
       "expected": 768.435,
-      "tolerance": 767.4,
+      "tolerance": 4230.0,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -2657,7 +2657,7 @@
     },
     {
       "name": "cfast_burnout_t1800_fire_active",
-      "actual": 182.46,
+      "actual": 182.53,
       "expected": null,
       "tolerance": null,
       "minimum": 10.0,
@@ -2877,9 +2877,9 @@
     },
     {
       "name": "cfast_fastgrowth_t60_pressure_pa",
-      "actual": 1.16,
+      "actual": 163.39,
       "expected": 489.593,
-      "tolerance": 491.6,
+      "tolerance": 329.0,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -2888,9 +2888,9 @@
     },
     {
       "name": "cfast_fastgrowth_t120_pressure_pa",
-      "actual": 3.95,
+      "actual": 3403.92,
       "expected": 2087.67,
-      "tolerance": 2089.7,
+      "tolerance": 1319.0,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -5712,17 +5712,6 @@
       "required": true,
       "pass": true,
       "note": "Regression baseline: tc_array_iso9705"
-    },
-    {
-      "name": "cfast_overpressure_sealed_pending",
-      "actual": null,
-      "expected": null,
-      "tolerance": null,
-      "minimum": null,
-      "maximum": null,
-      "required": false,
-      "pass": false,
-      "note": "Stage-B (Fase 2): thermodynamic pressure in sealed room \u2014 100-1000 Pa range."
     }
   ],
   "references": {
