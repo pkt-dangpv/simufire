@@ -1,6 +1,6 @@
 {
   "all_required_pass": true,
-  "required_count": 377,
+  "required_count": 379,
   "failed_required_count": 0,
   "known_gap_count": 4,
   "checks": [
@@ -4856,6 +4856,17 @@
       "note": "Regression baseline: v7_underventilated_co_peak"
     },
     {
+      "name": "pu_sofa_fec_incapacitation_room_0_peak_hcn_upper_ppm",
+      "actual": 1889.37251197457,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 10.0,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "Phase 4B non-gating sanity: HCN must be produced in fire room (PU sofa, yield ~0.000154 kg/MJ). Not calibrated; observability only."
+    },
+    {
       "name": "pu_sofa_fec_incapacitation_room_0_peak_hrr_kw",
       "actual": 721.870528346605,
       "expected": null,
@@ -4931,6 +4942,17 @@
       "required": true,
       "pass": true,
       "note": "CO en sala de fuego por encima del umbral LC50/30min (~2300ppm) confirmado"
+    },
+    {
+      "name": "victim_fed_incapacitation_room_0_peak_hcn_upper_ppm",
+      "actual": 2008.29829436015,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 10.0,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "Phase 4B non-gating sanity: HCN must be produced in fire room (PU sofa, yield ~0.000154 kg/MJ). Not calibrated; observability only."
     },
     {
       "name": "victim_fed_incapacitation_room_0_peak_hrr_kw",

@@ -14,6 +14,10 @@
         },
         "smoke_generated_total_kg": {
             "min": 5.0
+        },
+        "room_0_peak_hcn_upper_ppm": {
+            "min": 10.0,
+            "_note": "Phase 4B non-gating sanity: HCN must be produced in fire room (PU sofa, yield ~0.000154 kg/MJ). Not calibrated; observability only."
         }
     }
 }

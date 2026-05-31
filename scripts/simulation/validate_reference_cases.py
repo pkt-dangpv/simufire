@@ -5,9 +5,11 @@ The checks are deliberately narrow:
 - CFAST checks compare the local NIST CFAST CSV exported for the same room/window
   scenario against the current Simufire log.
 - Ghanekar checks cover the measurable hallway O2 response currently represented by
-  the engine. CO/HCN/FED-full-paper checks are emitted as known gaps, not as pass/fail
-  gates, because the model does not yet include HCN and its far-hall CO/CO2 response is
-  not calibrated to that paper.
+  the engine. Some CO/FED far-hall checks are emitted as known gaps because the
+  far-hall CO/CO2 response is not yet calibrated to that paper.
+- HCN IS implemented in the engine (CombustionSystem, ThermalSystem, FED step);
+  the default global yield (hcn_base_yield=0.000040 kg/MJ) is conservative.
+  Phase 4B work focuses on adding publication-grade HCN/FED observability checks.
 """
 
 from __future__ import annotations

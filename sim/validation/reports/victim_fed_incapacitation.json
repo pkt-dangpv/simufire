@@ -10,6 +10,14 @@
 					"min": 1500.0
 				}
 			},
+			"room_0_peak_hcn_upper_ppm": {
+				"actual": 2008.29829436015,
+				"pass": true,
+				"rule": {
+					"_note": "Phase 4B non-gating sanity: HCN must be produced in fire room (PU sofa, yield ~0.000154 kg/MJ). Not calibrated; observability only.",
+					"min": 10.0
+				}
+			},
 			"room_0_peak_hrr_kw": {
 				"actual": 674.9566274896,
 				"pass": true,
@@ -61,6 +69,10 @@
 		"room_0_final_dominant_fuel_object_remaining_MJ": 1743.94572133322,
 		"room_0_final_dominant_fuel_object_state": "decaying",
 		"room_0_final_fed": 0.784008343808892,
+		"room_0_final_fed_co": 0.65779885086736,
+		"room_0_final_fed_hcn": 0.00714612579078755,
+		"room_0_final_fed_heat": 0.110455856158519,
+		"room_0_final_fed_hypoxia": 0.00860751099222675,
 		"room_0_final_fire_time_s": 223.880528837599,
 		"room_0_final_flame_hrr_target_kw": 0.0,
 		"room_0_final_fuel_objects_flaming_count": 0,
@@ -97,14 +109,16 @@
 		"room_0_final_upper_radiative_loss_kw": 0.769321718385494,
 		"room_0_final_ventilation_response_factor": 0.0,
 		"room_0_final_visibility_m": 0.00250409588081595,
-		"room_0_final_wall_T_mid_c": 20.0,
+		"room_0_final_wall_T_mid_c": 22.5100076576417,
 		"room_0_final_wall_T_outer_c": 20.0,
 		"room_0_final_wall_k_kw_m_k": -1.0,
 		"room_0_final_wall_thickness_m": -1.0,
+		"room_0_max_ceiling_jet_temp_c": 99.404842663418,
 		"room_0_max_fed": 0.784008343808892,
 		"room_0_max_fuel_objects_flaming_count": 2,
 		"room_0_max_fuel_objects_heating_count": 1,
 		"room_0_max_fuel_objects_pyrolyzing_count": 1,
+		"room_0_max_overpressure_pa": 5.05461261541491,
 		"room_0_max_passive_fuel_flux_kw_m2": 27.2670755136511,
 		"room_0_max_passive_fuel_surface_temp_c": 431.315623527647,
 		"room_0_max_unburned_generation_kw": 57.6823636481705,
@@ -116,6 +130,8 @@
 		"room_0_peak_co2_ppm": 10577.6732133459,
 		"room_0_peak_co_ppm": 2080.29481579898,
 		"room_0_peak_co_upper_ppm": 19089.5305388811,
+		"room_0_peak_hcn_ppm": 226.50515581455,
+		"room_0_peak_hcn_upper_ppm": 2008.29829436015,
 		"room_0_peak_hrr_kw": 674.9566274896,
 		"room_0_peak_pyrolysis_kw": 740.049139888583,
 		"room_0_peak_temp_upper_c": 655.823993676263,
