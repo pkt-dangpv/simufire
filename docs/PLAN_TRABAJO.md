@@ -490,24 +490,22 @@ engine_overrides en:
   Phase 2A ✅   — Doorway hot-gas O₂ upper routing (gaps 4→3)
   Phase 2B ✅   — CO₂ upper/lower stratification (commits 231b400 + b9ad841)
   Phase 2C ✅   — HVAC two-zone O₂ feed (commit 29c3515; 376/376 required, 6 gaps)
+  Phase 3 ✅    — Presión termodinámica (379/379 required, 4 gaps)
+  Phase 4A ❌   — HVAC blend rechazado y revertido
+  Phase 4B ✅   — HCN/FED descompuesto + calibración aceptable (379/379 required, 4 gaps)
 
-2026-06 (PRÓXIMO)
-┌──────────────────────────────────────────────────────────────┐
-│  SPRINT SIGUIENTE (6-10 sesiones)                            │
-│  Phase 3 — Presión termodinámica                             │
-│  Objetivo: GAP-5 (cfast_overpressure_sealed_pending)         │
-│  Riesgo: MEDIO-ALTO (ver §3.7; campo paralelo aisla riesgo)  │
-│  Diseño técnico: completo (ver §3.1–3.9 arriba)              │
-└──────────────────────────────────────────────────────────────┘
+2026-06+ (PRÓXIMO) → ver docs/ROADMAP_POST_V0_4_0.md
 ```
 
 ### Tabla de prioridades
 
 | Prioridad | Fase | Gaps cierra | Riesgo | Esfuerzo | Estado |
-|-----------|------|-------------|--------|----------|--------|
+|-----------|------|-------------|--------|----------|---------|
 | ✅ | Phase 2B | 1 (GAP-6) | Medio | Completado | Cerrado |
 | ✅ | Phase 2C | 1 (GAP-9) | Medio | Completado | Cerrado |
-| 1 | Phase 3 | 1 (GAP-5) | Medio-Alto | 6-10 sesiones | Diseño listo |
+| ✅ | Phase 3 | 1 (GAP-5) | Medio-Alto | Completado | Cerrado |
+| ✅ | Phase 4B | — (observ.) | Bajo | Completado | Cerrado |
+| — | v0.5.0 | 4 HVAC | Alto | Rediseño formal | Futuro |
 
 ---
 
@@ -515,7 +513,7 @@ engine_overrides en:
 
 | Invariante | Cómo verificar |
 |-----------|----------------|
-| 376/376 required PASS (actual) | `py scripts/simulation/validate_reference_cases.py` |
+| 379/379 required PASS | `py scripts/simulation/validate_reference_cases.py` |
 | Conteo de gaps documentado == conteo en JSON | `python scripts/simulation/validation_guardrails.py` |
 | 13/13 unit tests | `py tests/test_guardrails.py` |
 | 7 sentinels Phase 2E PASS | Incluido en guardrails |
@@ -537,16 +535,17 @@ engine_overrides en:
 
 ---
 
-## 8. Estado del working tree documentado (2026-06-XX)
+## 8. Estado del working tree documentado (2026-05-31 — v0.4.0)
 
 ```
-HEAD: 8c83ced (main)
-  "sync post-phase-2c: rebaseline cfast_hvac_residential.json (fire survives, HRR=1280kW); untrack stale .pyc"
-  
-main está 4 commits adelante de origin/main
+HEAD: 80f3c09 (tag: v0.4.0-validation-rc1)
+  "phase-4a: add rejected HVAC blend diagnostic sweep"
+
 Working tree: CLEAN
-Validation: 376/376 PASS, 6 non-gating gaps, ALL GUARDRAILS PASS, 13/13 unit tests
+Validation: 379/379 PASS, 4 non-gating gaps, ALL GUARDRAILS PASS, 13/13 unit tests
 ```
+
+**v0.4.0 cerrado.** Trabajo nuevo en v0.4.1+. Ver `docs/ROADMAP_POST_V0_4_0.md`.
 
 ---
 
@@ -559,7 +558,7 @@ El registro canonico de cierre queda en:
 Estado base para este plan:
 
 - Phase 2B, Phase 2C y Phase 3 cerradas.
-- Validacion requerida actual: 377/377 PASS.
+- Validacion requerida actual: 379/379 PASS.
 - Gaps CFAST restantes: 4 non-gating Phase 2C HVAC (`CO_upper` y `CO2_upper` en t=300/t=450). Phase 4A blend queda rechazado: no cierra CO/CO2 y rompe checks required de `o2_upper`/temperatura.
 - Bloqueo de publicacion adicional: HCN/FED. HCN esta implementado y entra en FED, pero falta validacion publicable, desglose de componentes FED, limpieza documental y checks dedicados.
 
