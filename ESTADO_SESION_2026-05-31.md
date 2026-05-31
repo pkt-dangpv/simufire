@@ -1,8 +1,110 @@
-# Estado de sesión — 2026-05-31
+# ESTADO SESIÓN — 2026-05-31
 
-## Resumen ejecutivo actual
+## Resumen de la sesión
 
-Sesión cerrada en Phase 2A — doorway hot-gas O2 upper routing.
+Implementación completa de v0.5.0 E-02 (validación estructural en runtime del editor): nueva función `validate_scenario()` en `ScenarioSerializer.gd`, integración en 3 call sites de `ScenarioEditor.gd`, 5 nuevos tests Python (21 total), actualización de docs y commit.
+
+---
+
+## Estado Git
+
+```
+HEAD → main = origin/main = 2dc1e33  (working tree limpio)
+```
+
+Últimos commits (v0.5.0):
+```
+2dc1e33 feat(editor): v0.5.0 E-02 — runtime structural validation on load and run
+63dec28 feat(product): v0.5.0 E-03 — product guardrails runner + docs two-tier check system
+11a413e feat(editor): v0.5.0 E-02 — structural contract tests (16 tests) + editor flow checklist
+f64bcc1 feat(editor): v0.5.0 E-01 — error popup on load failure (_show_load_error)
+```
+
+---
+
+## Estado de validación
+
+- **Product checks**: `python scripts/check_product.py` → **34/34** (21 editor + 13 guardrail scripts)
+- **Guardrails**: `python scripts/simulation/validation_guardrails.py` → **379/379 PASS**
+- **Gaps no-gating**: 4 (invariante intacto)
+- **Tag frozen**: `v0.4.0-validation-rc1` @ `80f3c09` — no mover
+
+---
+
+## E-02 — Validación estructural en runtime
+
+### Qué se implementó
+
+Nueva función `static func validate_scenario(data: Dictionary) -> Array` en `editor/ScenarioSerializer.gd`.
+Opera sobre el dict **post-normalización**. Devuelve lista de errores (vacía = válido).
+
+**Contratos que verifica:**
+
+| Check | Error generado |
+|-------|---------------|
+| `height_m <= 0` en sala | "Sala id=X: height_m debe ser > 0 (actual: Y)" |
+| Sala sin entrada en `room_rect_m` | "Sala id=X: sin entrada en room_rect_m" |
+| Rect con `w=0` o `h=0` | "Sala id=X: geometría inválida en room_rect_m (w=W, h=H)" |
+| Apertura `a` apuntando a sala inexistente | "Apertura [i]: sala a=X no existe en rooms_data" |
+| Apertura `b != -1` apuntando a sala inexistente | "Apertura [i]: sala b=X no existe en rooms_data (usa -1 para exterior)" |
+
+`b == -1` = exterior, siempre válido. 0 habitaciones = estructuralmente válido (bloqueado aparte en run).
+
+### Call sites en `editor/ScenarioEditor.gd`
+
+1. **`_load_from_path()`** — después del check `is_empty()`, antes de `editor_data = loaded`
+2. **`_load_scenario_pressed()`** — normaliza primero, luego valida; antes de `editor_data = normalized`
+3. **`_run_simulation_pressed()`** — valida antes de exportar runtime template; 0 habitaciones → popup dedicado
+
+Escenario inválido **no se aplica parcialmente** — la validación ocurre antes de modificar `editor_data`.
+
+### Tests Python — 5 nuevos en `TestStructuralContract`
+
+| Test | Qué verifica |
+|------|-------------|
+| `test_room_without_rect_entry_flagged` | Sala sin entrada en room_rect_m → error |
+| `test_room_rect_zero_dims_flagged` | Rect con w=0 → error |
+| `test_opening_invalid_room_a_flagged` | Apertura a=99 inexistente → error con "a=99" |
+| `test_opening_invalid_room_b_flagged` | Apertura b=99 inexistente → error con "b=99" |
+| `test_opening_exterior_b_not_flagged` | Apertura b=-1 → sin error |
+
+---
+
+## Archivos modificados en commit `2dc1e33`
+
+| Archivo | Cambio |
+|---------|--------|
+| `editor/ScenarioSerializer.gd` | Nueva `static func validate_scenario()` al final del archivo |
+| `editor/ScenarioEditor.gd` | 3 call sites integrados |
+| `tests/test_editor_scenarios.py` | 5 nuevos tests (21 total); sección cross-reference en `_validate_scenario_structure()` |
+| `docs/EDITOR_FLOW_CHECKLIST.md` | Header actualizado, pasos D6/D7 añadidos, E1 actualizado, comando test a 21 tests |
+| `docs/ROADMAP_TECHNICAL_SIMULATOR_V0_5.md` | E-02 marcado ✅; count actualizado a 21 tests |
+
+---
+
+## Two-tier check system
+
+```
+Tier 1 — sin Godot:
+  python scripts/check_product.py                          → 34/34
+  python scripts/simulation/validation_guardrails.py       → 379/379
+
+Tier 2 — Godot headless:
+  python scripts/simulation/validate_reference_cases.py    → 379/379
+```
+
+---
+
+## Próximos ítems v0.5.0
+
+| ID | Descripción | Prioridad |
+|----|-------------|-----------|
+| E-04 | Undo/redo en el editor | Alta |
+| E-05 | Preview visual apertura bidireccional en canvas 2D | Media |
+| FP-01 | `show_fire_fp` en FirstPersonController | Baja (v0.5.1) |
+| FP-02 | `show_technical_overlay` en FirstPersonController | Baja (v0.5.1) |
+| GOD-01 | `MAX_UNDO_STEPS` como `@export` | Deuda técnica |
+| GOD-02 | `PIXELS_PER_METER` como `@export` | Deuda técnica |
 
 - Estado validación actual: **373/373 required PASS**
 - Gaps reales activos: **3 non-gating**
