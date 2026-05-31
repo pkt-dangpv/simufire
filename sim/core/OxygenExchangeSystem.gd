@@ -88,6 +88,12 @@ var phase2e_co2_exchange_fraction: float = 0.25
 # Phase 2E Sub-D: omite snap de co2_upper a valor-masa cuando bi-zona inválida y fuego activo.
 # OFF: snap original (no-op exacto). ON: en sala con hrr_kw>0, capa delgada → rama producción.
 var phase2e_co2_subd_enabled: bool = false
+# Phase 2C: opt-in para que el fuego use la zona baja como fuente de O₂ (HVAC low-supply).
+# Cuando true: CombustionSystem usa room.o2_lower como referencia; la depleción de O₂ por
+# combustión se descuenta de o2_lower (zona baja), no de room.o2 (promedio mezclado).
+# Requiere phase2h_o2_doorway_two_zone_enabled=true para que el HVAC reponga o2_lower.
+# Default false = no-op garantizado. Activar solo en benchmark HVAC low-supply/high-return.
+var fire_o2_lower_for_flame: bool = false
 var _pending_o2_deliveries: Array[Dictionary] = []
 var _reserved_transport_o2_delta_kg: Dictionary = {}
 
@@ -191,6 +197,9 @@ func configure(settings: Dictionary) -> void:
 	phase2e_co2_subd_enabled = bool(
 		settings.get("phase2e_co2_subd_enabled", phase2e_co2_subd_enabled)
 	)
+	fire_o2_lower_for_flame = bool(
+		settings.get("fire_o2_lower_for_flame", fire_o2_lower_for_flame)
+	)
 
 
 func reset() -> void:
@@ -230,8 +239,10 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 
 		# ── room.o2: variable independiente (retrocompatibilidad con checks existentes) ─
 		# La ruta de room.o2 es idéntica a la pre-Fase-2A para no romper los 299 checks.
+		# Phase 2C: cuando fire_o2_lower_for_flame=true, el fuego consume de o2_lower;
+		# room.o2 no se depleta por combustión (solo ACH + HVAC lo modifican).
 		var o2_mass_kg: float = air_mass_kg * room.o2
-		if room.hrr_kw > 0.0:
+		if room.hrr_kw > 0.0 and not fire_o2_lower_for_flame:
 			var cr: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 			var consumed: float = (room.hrr_kw / 1000.0) * cr * dt
 			consumed = minf(consumed, o2_mass_kg * 0.05)
@@ -308,6 +319,13 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 						lower_entr_scale = lerpf(0.20, no_ext_max_scale, no_ext_drain_factor)
 			var lower_entr: float = entr_frac * lower_entr_scale * maxf(0.0, room.o2_lower - room.o2)
 			room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)
+			# Phase 2C: fuego consume O₂ de la zona baja cuando fire_o2_lower_for_flame=true.
+			# Usa air_mass_kg (masa total) para consistencia con la reposición del HVAC.
+			if fire_o2_lower_for_flame and room.hrr_kw > 0.0:
+				var cr_lower: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
+				var consumed_lower: float = (room.hrr_kw / 1000.0) * cr_lower * dt
+				consumed_lower = minf(consumed_lower, air_mass_kg * room.o2_lower * 0.05)
+				room.o2_lower = maxf(room.o2, room.o2_lower - consumed_lower / air_mass_kg)
 			var ach_lower_dt: float = (ach_infiltration / 3600.0) \
 				* (building.outside_o2 - room.o2_lower) * dt
 			# Phase 2H fix: en modo two-zone, la zona baja puede reponerse hasta el O₂

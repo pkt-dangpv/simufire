@@ -158,6 +158,11 @@ var _active_suppression_by_room: Dictionary = {}
 ## Umbral de O2 en capa superior por debajo del cual la llama se extingue.
 ## Calibrado para upper-zone: ~0.07-0.08 (CFAST ULO2 en extincion ~8.5 %).
 @export var fire_o2_upper_min_for_flame: float = 0.075
+## Phase 2C: cuando true, el fuego usa room.o2_lower como referencia de O2.
+## Activa el feed de zona baja via HVAC low-supply/high-return (benchmark CFAST GAP-9).
+## Requiere phase2h_o2_doorway_two_zone_enabled=true para que HVAC reponga o2_lower.
+## Default false = no-op. Activar solo via engine_overrides en cfast_hvac_residential.
+@export var fire_o2_lower_for_flame: bool = false
 @export var fire_o2_consumption_kg_per_MJ: float = 0.076  # Regla de Thornton: 1/13.1 MJ/kgO2
 # Rendimiento de humo (kg/MJ)
 # SFPE: ~0.06 kg/kg ÷ 16 MJ/kg = 0.00375 kg/MJ
@@ -1017,6 +1022,7 @@ func _sync_auxiliary_services() -> void:
 		"phase2e_co2_subb_enabled": phase2e_co2_subb_enabled,
 		"phase2e_co2_exchange_fraction": phase2e_co2_exchange_fraction,
 		"phase2e_co2_subd_enabled": phase2e_co2_subd_enabled,
+		"fire_o2_lower_for_flame": fire_o2_lower_for_flame,
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
@@ -1473,6 +1479,7 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_o2_independent": fire_o2_independent,
 		"fire_o2_upper_for_flame": fire_o2_upper_for_flame,
 		"fire_o2_upper_hrr_blend": fire_o2_upper_hrr_blend,
+		"fire_o2_lower_for_flame": fire_o2_lower_for_flame,
 		"fire_o2_upper_min_for_flame": fire_o2_upper_min_for_flame,
 		"fire_fds_extinction_enabled": fire_fds_extinction_enabled,
 		"fire_fds_extinction_o2_limit_ambient": fire_fds_extinction_o2_limit_ambient,

@@ -110,9 +110,14 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	# SF-2B: blend opt-in para capear HRR por O2 de capa superior.
 	# 0.0 = sin cambio; 1.0 = effective_o2 = min(room.o2, room.o2_upper).
 	var o2_upper_hrr_blend: float = clampf(float(context.get("fire_o2_upper_hrr_blend", 0.0)), 0.0, 1.0)
+	# Phase 2C: opt-in para que el fuego use o2_lower (zona baja reabastecida por HVAC low-supply).
+	# Default false = no-op. Activar solo en benchmark HVAC low-supply/high-return.
+	var use_o2_lower: bool = bool(context.get("fire_o2_lower_for_flame", false))
 	var o2_ref: float
 	if use_o2_upper:
 		o2_ref = room.o2_upper
+	elif use_o2_lower:
+		o2_ref = room.o2_lower
 	else:
 		o2_ref = lerpf(room.o2, minf(room.o2, room.o2_upper), o2_upper_hrr_blend)
 	full_hrr_o2 = maxf(o2_min_ref + 0.001, full_hrr_o2)

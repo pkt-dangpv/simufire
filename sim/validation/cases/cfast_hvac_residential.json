@@ -101,6 +101,8 @@
     "glass_auto_break_enabled": false,
     "fire_co_yield_force_kg_per_MJ": 0.000225,
     "fire_o2_nominal": 0.17,
-    "fire_o2_hrr_fall_tau_s": 4.0
+    "fire_o2_hrr_fall_tau_s": 4.0,
+    "phase2h_o2_doorway_two_zone_enabled": true,
+    "fire_o2_lower_for_flame": true
   }
 }

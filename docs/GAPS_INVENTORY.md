@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 2 junio 2026 (phase-2b cerrado: CO₂ upper-zone stratification gate; gaps 3→2)
-**Estado validación**: 375/375 PASS required, 2 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 2 junio 2026 (phase-2c cerrado: HVAC low-supply/high-return two-zone O₂ feed; gaps 2→6 estructura​les nuevos por Phase 2C no-gating)
+**Estado validación**: 376/376 PASS required, 6 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -33,9 +33,11 @@
 | Temp / HRR / Layer (otros) | 0 | cfast_hvac_t450_temp_upper_c (tol 80→122.6) cerrado 2026-05-29. | **TODOS CERRADOS** |
 | Escenarios complejos | 0 | Cerrado: hvac_t450_temp y hall O2. | **TODOS CERRADOS** |
 | Calibración puntual | 0 | ghanekar_kitchen_far_hall_fed_1_0_s + idlh_co_s + flashover **CERRADOS** (Phase 2, 2026-05-28). `ghanekar_flashover_0_9m_known_gap` **CERRADO** phase-1.7 (2026-05-31). | **TODOS CERRADOS** |
-| Stage-B pending (sin datos) | 2 | 2 gaps activos: overpressure, HVAC two-zone feed | Stage-B |
+| Stage-B pending (sin datos) | 1 | 1 gap activo: overpressure. `cfast_hvac_two_zone_feed_pending` **CERRADO** Phase 2C (2 jun 2026). | Stage-B |
+| Phase 2C structural (HVAC) | 5 | SF fire at max HRR vs CFAST two-zone moderation (t>240s): CO_upper t300/t450, pressure_pa t300, co2_upper_pct t300/t450. Non-gating. | Phase 3 / out-of-scope |
 
-**Total: 2 gaps non-gating (per reference_checks.json).**
+**Total: 6 gaps non-gating (per reference_checks.json).**
+*(Phase 2C, 2 jun 2026: `cfast_hvac_two_zone_feed_pending` **CERRADO**. fire_o2_lower_for_flame=true + phase2h_o2_doorway_two_zone_enabled=true — fuego usa o2_lower repuesto por HVAC. Fire survives at HRR=1280kW (vs extinción previa). 5 nuevos gaps no-gating: SF en régimen max-HRR vs CFAST two-zone moderación post-t240s. Gaps 2→6 (5 nuevos estructurales, 1 pendiente Stage-B). PASS 375→376.)*
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
 *(Corrección 2026-05-26b: tolerancia cfast_2r_r0_t120 co2_upper_pct widened 3.0→3.5% — exceso 0.17% sobre tol, causa estructural CMV-1 (one-zone retiene CO₂ vs two-zone outflow). Conteo 62→61.)*
 *(Corrección 2026-05-26c: 7 checks O₂ directos cerrados — r0_window_360, single_room_closed, two_room_door_open re-simulados con Phase 2H runner OFF (flags default); O₂ lower ahora PASS para esos 3 escenarios. Conteo 61→54.)*
