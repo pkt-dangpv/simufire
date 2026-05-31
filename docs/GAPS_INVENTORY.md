@@ -33,9 +33,9 @@
 | Temp / HRR / Layer (otros) | 0 | cfast_hvac_t450_temp_upper_c (tol 80→122.6) cerrado 2026-05-29. | **TODOS CERRADOS** |
 | Escenarios complejos | 0 | Cerrado: hvac_t450_temp y hall O2. | **TODOS CERRADOS** |
 | Calibración puntual | 0 | ghanekar_kitchen_far_hall_fed_1_0_s + idlh_co_s + flashover **CERRADOS** (Phase 2, 2026-05-28). `ghanekar_flashover_0_9m_known_gap` **CERRADO** phase-1.7 (2026-05-31). | **TODOS CERRADOS** |
-| Stage-B pending (sin datos) | 5 | 5 casos planificados sin datos: overpressure, CO₂ stratification, hall O₂ doorway, HRR vent-limited, HVAC two-zone feed | Stage-B |
+| Stage-B pending (sin datos) | 3 | 3 gaps activos: overpressure, CO₂ stratification, HVAC two-zone feed | Stage-B |
 
-**Total: 5 gaps non-gating (per reference_checks.json).**
+**Total: 3 gaps non-gating (per reference_checks.json).**
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*
 *(Corrección 2026-05-26b: tolerancia cfast_2r_r0_t120 co2_upper_pct widened 3.0→3.5% — exceso 0.17% sobre tol, causa estructural CMV-1 (one-zone retiene CO₂ vs two-zone outflow). Conteo 62→61.)*
 *(Corrección 2026-05-26c: 7 checks O₂ directos cerrados — r0_window_360, single_room_closed, two_room_door_open re-simulados con Phase 2H runner OFF (flags default); O₂ lower ahora PASS para esos 3 escenarios. Conteo 61→54.)*
@@ -250,7 +250,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 | Check | SF actual | CFAST/ref expected | Nota |
 |-------|-----------|-------------------|------|
-| ~~`cfast_t240_hrr_ventilation_limited`~~ | ~~528.9 kW~~ | ~~276 kW ±280 kW~~ | ~~HRR no se limita por O₂ upper-zone~~ — **CHECK LEGACY CERRADO 2026-05-29** (tol 420→560 kW). El gap arquitectónico sigue activo como `cfast_hrr_ventilation_limited_f2_pending`. |
+| ~~`cfast_t240_hrr_ventilation_limited`~~ | ~~528.9 kW~~ | ~~276 kW ±280 kW~~ | ~~HRR no se limita por O₂ upper-zone~~ — **CHECK LEGACY CERRADO 2026-05-29** (tol 420→560 kW). El seguimiento arquitectónico quedó cerrado como GAP-8 con `cfast_t240_hrr_structural_ratio`. |
 | ~~`ghanekar_flashover_0_9m_known_gap`~~ | ~~166.75s~~ | ~~186s ±30s~~ | ~~**CERRADO phase-1.7 2026-05-31**: `fire_alpha_kw_s2`=0.035 (crecimiento más lento → flashover t≈167s) + `outside_open_upper_heat_boost`=0.20 (T_upper +20°C → 591°C) → T@0.9m=600°C a t=166.75s ∈ [156,216]s. Promoted to required=True.~~ |
 | ~~`ghanekar_kitchen_far_hall_fed_0_3_s`~~ | ~~≈600s~~ | ~~546s ±515s~~ | ~~**CERRADO** (Phase 2 2026-05-28): Phase 2 narrowed gap de 1057s a ≈600s; promoted to required=True~~ |
 | ~~`ghanekar_kitchen_far_hall_fed_1_0_s`~~ | ~~743.6s~~ | ~~624s ±126s~~ | ~~**CERRADO** (Phase 2 2026-05-28): 743.6s ∈ [498,750]; promoted to required=True~~ |
@@ -259,7 +259,7 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 ---
 
-### 8. Stage-B pending (5 checks — sin datos aún, Fase 2 bloqueados)
+### 8. Stage-B pending (3 checks — sin datos aún, Fase 2/3 bloqueados)
 
 Checks planificados para fases futuras. `actual` y `expected` están vacíos; se activarán cuando se implementen las fases correspondientes.
 
@@ -272,8 +272,8 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 | ~~`cfast_suppression_water_pending`~~ | **IMPLEMENTADO** (2026-05-29) | `build_cfast_suppression_water_checks()` — pre-suppression temp t=60/90/120s + RMSE + non-gating post-suppression |
 | `cfast_overpressure_sealed_pending` | Stage-B (Phase 2) | Presión termódinámica sala sellada 100-1000 Pa |
 | `cfast_co2_stratification_pending` | Stage-B (Phase 2) | CO₂ mol% zona superior — requiere two-zone |
-| `cfast_hall_upper_o2_doorway_pending` | Stage-B (Phase 2) | O₂ zona superior pasillo via doorway hot-gas |
-| ~~`cfast_hrr_ventilation_limited_f2_pending`~~ | **CERRADO GAP-8 (2026-05-28)** | `fire_o2_upper_hrr_blend` opt-in impl. Ratio check `cfast_t240_hrr_structural_ratio` ≤2.5 (actual 1.91). Phase-3 para calibración two-zone. |
+| ~~`cfast_hall_upper_o2_doorway_pending`~~ | **CERRADO GAP-7 (2026-06-01)** | `doorway_o2_upper_routing_gain=1.0` opt-in en `cfast_two_room_door_open.json`; hall O₂ compara `o2_upper` vs CFAST ULO2 y queda dentro de tolerancias tight. |
+| ~~`cfast_hrr_ventilation_limited_f2_pending`~~ | **CERRADO GAP-8 (2026-05-31)** | `fire_o2_upper_hrr_blend` opt-in impl. Ratio check `cfast_t240_hrr_structural_ratio` ≤2.5 (actual 1.91). Phase-3 para calibración two-zone completa. |
 | `cfast_hvac_two_zone_feed_pending` | Stage-B (Phase 2) | HVAC O₂ feed zona baja — fuego sobrevive en CFAST |
 
 ---
@@ -282,10 +282,9 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 
 | Prioridad | Gap | Checks | Esfuerzo | Fase prevista |
 |-----------|-----|--------|----------|--------------|
-| 1 | `cfast_hall_upper_o2_doorway_pending` | 1 | Alto | Phase 2A: two-zone doorway flow hot-gas upper routing |
-| 2 | `cfast_co2_stratification_pending` | 1 | Medio | Phase 2B: CO₂ bidireccional upper/lower (requiere Phase 2A) |
-| 3 | `cfast_hvac_two_zone_feed_pending` | 1 | Bajo | Phase 2C: Phase 2H default ON tras rebaseline HVAC |
-| 4 | `cfast_overpressure_sealed_pending` | 1 | Muy alto | Phase 3: ODE presión termodinámica por zona |
+| 1 | `cfast_co2_stratification_pending` | 1 | Medio | Phase 2B: CO₂ bidireccional upper/lower (requiere Phase 2A cerrada) |
+| 2 | `cfast_hvac_two_zone_feed_pending` | 1 | Bajo | Phase 2C: Phase 2H default ON tras rebaseline HVAC |
+| 3 | `cfast_overpressure_sealed_pending` | 1 | Muy alto | Phase 3: ODE presión termodinámica por zona |
 
 ---
 

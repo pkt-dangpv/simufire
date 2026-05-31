@@ -2,7 +2,7 @@
   "all_required_pass": true,
   "required_count": 373,
   "failed_required_count": 0,
-  "known_gap_count": 4,
+  "known_gap_count": 3,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -1722,9 +1722,9 @@
     },
     {
       "name": "cfast_2r_hall_t120_o2",
-      "actual": 0.2071,
+      "actual": 0.1997,
       "expected": 0.194996,
-      "tolerance": 0.03,
+      "tolerance": 0.02,
       "minimum": null,
       "maximum": null,
       "required": true,
@@ -1744,14 +1744,14 @@
     },
     {
       "name": "cfast_2r_hall_t240_o2",
-      "actual": 0.2001,
+      "actual": 0.0968,
       "expected": 0.11126200000000001,
-      "tolerance": 0.09,
+      "tolerance": 0.025,
       "minimum": null,
       "maximum": null,
       "required": false,
       "pass": true,
-      "note": "Structural gap (Phase 2): hall upper-zone O2 depletion via hot-gas doorway flow not modelled in one-zone."
+      "note": "Structural gap (Phase 2a): at t=360 SF fire still active while CFAST extinguishes via upper-zone O2 depletion."
     },
     {
       "name": "cfast_2r_hall_t240_temp_upper_c",
@@ -1766,14 +1766,14 @@
     },
     {
       "name": "cfast_2r_hall_t360_o2",
-      "actual": 0.1715,
+      "actual": 0.107,
       "expected": 0.056457,
-      "tolerance": 0.117,
+      "tolerance": 0.06,
       "minimum": null,
       "maximum": null,
       "required": false,
       "pass": true,
-      "note": "Structural gap (Phase 2): hall upper-zone O2 depletion via hot-gas doorway flow not modelled in one-zone."
+      "note": "Structural gap (Phase 2a): at t=360 SF fire still active while CFAST extinguishes via upper-zone O2 depletion."
     },
     {
       "name": "cfast_2r_hall_t360_temp_upper_c",
@@ -1975,14 +1975,14 @@
     },
     {
       "name": "cfast_2r_hall_rmse_o2",
-      "actual": 0.07805283897277963,
+      "actual": 0.0344155864211358,
       "expected": null,
       "tolerance": null,
       "minimum": null,
-      "maximum": 0.085,
+      "maximum": 0.06,
       "required": false,
       "pass": true,
-      "note": "CMV-2: hall O2 RMSE. RMSE=0.0781; threshold 0.030\u21920.079\u21920.085: hot-gas doorway O2 depletion in CFAST (two-zone) not replicated in SF one-zone. Structural Phase 2 gap. 0.079\u21920.085 hardening: was 0.0009 margin from 0.07805 actual (1.2% headroom \u2192 9% headroom)."
+      "note": "CMV-2: hall O2 RMSE (SF o2_upper vs CFAST ULO2). Phase-2a doorway routing active. Residual structural gap at t=360 (SF fire active, CFAST extinguished). threshold=0.060."
     },
     {
       "name": "cfast_fo_t150_hrr_kw",
@@ -5712,17 +5712,6 @@
       "required": false,
       "pass": false,
       "note": "Stage-B (Fase 2): CO2 upper-layer mol% \u2014 requires two-zone architecture."
-    },
-    {
-      "name": "cfast_hall_upper_o2_doorway_pending",
-      "actual": null,
-      "expected": null,
-      "tolerance": null,
-      "minimum": null,
-      "maximum": null,
-      "required": false,
-      "pass": false,
-      "note": "Stage-B (Fase 2): upper-zone O2 depletion in adjacent room via doorway hot-gas flow."
     },
     {
       "name": "cfast_hvac_two_zone_feed_pending",

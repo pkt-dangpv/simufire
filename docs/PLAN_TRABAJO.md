@@ -1,7 +1,7 @@
 # Plan de Trabajo — SimuFire Motor de Física
 **Creado**: 30 mayo 2026 | **Estado validación en el momento de creación**: 367/367 PASS required, 9 gaps non-gating  
-**Última actualización**: 31 mayo 2026 | **Estado actual**: 373/373 PASS required, 5 gaps non-gating  
-**HEAD**: `cc48382` (main) — Phase 1.7 Ghanekar 0.9m cerrada
+**Última actualización**: 1 junio 2026 | **Estado actual**: 373/373 PASS required, 3 gaps non-gating
+**Base física**: `e4564e3` (main) — Phase 2A doorway hot-gas O₂ routing cerrada
 
 ---
 
@@ -11,11 +11,11 @@
 | Métrica | Valor |
 |---------|-------|
 | Checks required PASS | **373 / 373** |
-| Checks non-gating (gaps) | **5** |
-| Total checks registrados | 521 |
+| Checks non-gating (gaps) | **3** |
+| Total checks registrados | 520 |
 | Guardrails | ✅ Exit 0 |
 | Unit tests | ✅ 13/13 |
-| Último commit de producción | `cc48382` — Phase 1.7 Ghanekar 0.9m |
+| Último commit de producción | `e4564e3` — Phase 2A doorway hot-gas O₂ routing |
 
 ### 1.2 Arquitectura del motor (capas físicas implementadas)
 
@@ -23,7 +23,7 @@
 |------|--------|-------------|
 | Combustión | ✅ Estable | t², flashover, extinción por O₂/combustible, smoldering, backdraft |
 | Transporte térmico | ✅ Estable | Bernoulli two-zone, `doorway_heat_exchange_coeff`, radiación Stefan-Boltzmann, gradiente vertical |
-| O₂ tracking | ✅ Estable (1-zona) | `o2_upper` + `o2_lower` como vars de sala; `phase2h` opt-in para HVAC |
+| O₂ tracking | ✅ Estable + opt-in two-zone | `o2_upper` + `o2_lower` como vars de sala; `doorway_o2_upper_routing_gain` opt-in para doorway hot-gas; `phase2h` opt-in para HVAC |
 | Humo/gases | ✅ Estable | CO, CO₂, HCN, FED (ISO 13571), SVV, visibilidad |
 | Presión | ⚠️ Parcial | Boyancia termostática 1-10 Pa; CFAST two-zone = 100-1000 Pa |
 | Paredes | ✅ Crank-Nicolson | PDE 5 nodos, conducción entre salas |
@@ -86,15 +86,17 @@ python tests/test_guardrails.py
 - **Situación actual**: SF promedia CO₂ en volumen total; CFAST retiene CO₂ en zona caliente (~7-8% upper vs ~1% lower)
 - **Fix necesario**: CO₂ upper/lower tracking bidireccional (transporte selectivo a zona superior, dilución diferente por zona). Phase 2.
 
-#### GAP-7: `cfast_hall_upper_o2_doorway_pending`
+#### GAP-7: `cfast_hall_upper_o2_doorway_pending` — ✅ CERRADO (Phase 2A, 2026-06-01)
 - **Qué mide**: depleción de O₂ en zona SUPERIOR del pasillo — gas caliente pobre en O₂ entra por mitad alta del vano de puerta
-- **Situación actual**: SF transfiere gas mezclado por doorway → O₂ pasillo ≈ 20% vs CFAST upper-zone ≈ 5-11%
-- **Fix necesario**: two-zone doorway flow separando flujo caliente (mitad alta) de flujo frío (mitad baja). Phase 2A. Parcialmente implementado en Phase 2H pero solo para HVAC.
+- **Resultado**: checks hall O₂ comparan `sim_field="o2_upper"` vs CFAST ULO2 y pasan con tolerancias tight: t=120 diff=0.005, t=240 diff=0.015, t=360 diff=0.051 ≤ 0.060
+- **Fix aplicado**: `doorway_o2_upper_routing_gain=1.0` opt-in en `cfast_two_room_door_open.json`; default 0.0 no-op
+- **Commit**: `e4564e3`
 
-#### GAP-8: `cfast_hrr_ventilation_limited_f2_pending`
+#### GAP-8: `cfast_hrr_ventilation_limited_f2_pending` — ✅ CERRADO (Phase 2, 2026-05-31)
 - **Qué mide**: limitación de HRR por O₂ de zona superior (fuego usa solo zona caliente, no mezcla uniforme)
-- **Situación actual**: SF usa O₂ promedio de sala → fuego continúa con O₂ promedio >umbral aunque O₂_upper < umbral de extinción
-- **Fix necesario**: alimentar `o2_upper` al modelo de combustión como O₂ efectivo en zona de reacción. Phase 2.
+- **Resultado**: stub eliminado; check real `cfast_t240_hrr_structural_ratio` actual=1.91 ≤ 2.5
+- **Fix aplicado**: `fire_o2_upper_hrr_blend` opt-in en `CombustionSystem.gd` / `SimulationEngine.gd`; default 0.0 no-op
+- **Commit**: `a21326e`
 
 #### GAP-9: `cfast_hvac_two_zone_feed_pending`
 - **Qué mide**: el benchmark CFAST `cfast_hvac_residential` usa impulsión de aire exterior baja (0.25 m) y retorno alto (2.30 m); esa configuración mantiene O₂ en zona inferior y puede sostener el fuego.
@@ -113,21 +115,19 @@ python tests/test_guardrails.py
          ↓ no resuelve → depende del motor de progresión de objetos
 
 ┌─────────────────────────────────────────────────────────────────────┐
-│  NIVEL 2 — Extensión del motor de combustión (esfuerzo MEDIO)       │
+│  NIVEL 2 — Extensión del motor de combustión (COMPLETADO)           │
 │  GAP-2,3,4: yield CO vent-limited (usa o2_upper → CombustionSystem) │
-│  GAP-8: o2_upper como input efectivo a HRR cap                      │
-│         → ~2 archivos (CombustionSystem.gd, SimulationEngine.gd)    │
-│         → requiere rebaseline de checks de combustión               │
+│  GAP-8: o2_upper como input efectivo a HRR cap opt-in               │
+│         → `fire_o2_upper_hrr_blend`; stub reemplazado por ratio     │
 └─────────────────────────────────────────────────────────────────────┘
          ↓ desbloquea
 
 ┌─────────────────────────────────────────────────────────────────────┐
-│  NIVEL 3 — Two-zone doorway flow (esfuerzo ALTO)                    │
-│  GAP-7: hot-gas doorway upper/lower routing                          │
-│         → Phase 2A: GasExchangeSystem.gd + OxygenExchangeSystem.gd  │
-│         → requiere rebaseline masivo (transport coupling)            │
+│  NIVEL 3 — Two-zone species routing                                 │
+│  GAP-7: hot-gas doorway upper O₂ routing CERRADO                     │
+│         → `doorway_o2_upper_routing_gain`; default no-op             │
 │  GAP-6: CO₂ stratification                                          │
-│         → extiende GAP-7 a CO₂ tracking bidireccional               │
+│         → extender patrón doorway a CO₂ upper/lower                 │
 │  GAP-9: Phase 2H → default ON                                       │
 │         → habilitar preset + rebaseline HVAC checks                 │
 └─────────────────────────────────────────────────────────────────────┘
@@ -150,16 +150,16 @@ python tests/test_guardrails.py
 **Resultado**: T@0.9m cruza 600°C a 166.75s, dentro de [156,216]s.  
 **Cambios**: `fire_alpha_kw_s2=0.035` y `outside_open_upper_heat_boost=0.20` en `ghanekar_bedroom_hallway.json`.  
 **Guardas PASS**: pico global 620.5°C ∈ [450,650]°C; respuesta O2 far hall 215.6s ∈ [168,228]s.  
-**Estado**: promovido a required=True; base actual `373/373 PASS`, 5 gaps.
+**Estado**: promovido a required=True; base actual `373/373 PASS`, 3 gaps.
 
 ---
 
-### FASE 2 — CO vent-limited via o2_upper (GAP-2, 3, 4) — ✅ COMPLETADA (2026-05-28)
+### FASE 2 — CO/HRR vent-limited via o2_upper (GAP-2, 3, 4, 8) — ✅ COMPLETADA (2026-05-31)
 **Objetivo original**: cerrar los 3 gaps del caso `ghanekar_kitchen` y el gap HRR vent-limited CFAST  
 **Logrado**: GAP-2 (fed_1_0: 743.6s), GAP-3 (idlh_co: 684.4s), GAP-4 (flashover: 873.75s) — todos required=True  
-**Pendiente de Phase 2**: GAP-8 (`cfast_hrr_ventilation_limited_f2_pending`) requiere implementar el cap de HRR por `o2_upper` en CombustionSystem; la calibración de CO yield (multiplier=110) no cubre este gap CFAST.  
+**Logrado GAP-8**: stub `cfast_hrr_ventilation_limited_f2_pending` eliminado; `cfast_t240_hrr_structural_ratio` confirma ratio SF/CFAST=1.91 ≤2.5 con `fire_o2_upper_hrr_blend` opt-in.
 **Parámetros calibrados**: `fire_co_vent_limited_multiplier=110`, `fed_upper_layer_threshold_m=2.0`, `doorway_heat_exchange_coeff=0.30`  
-**Commits**: `c67802b` (calibración) + `156fb81` (CO vent-limited combustion phase)
+**Commits**: `c67802b` (calibración) + `156fb81` (CO vent-limited combustion phase) + `a21326e` (HRR blend opt-in)
 
 **Descripción técnica**:
 
@@ -184,33 +184,32 @@ python tests/test_guardrails.py
 - `ghanekar_kitchen_fire_room_flashover_s`: actual ∈ [864, 924] s
 - 372/372 required PASS con los 5 checks Ghanekar kitchen promovidos
 
-**Criterio pendiente para GAP-8**:
-- `cfast_hrr_ventilation_limited_f2_pending` eliminado tras implementar HRR cap por `o2_upper`
+**Criterio cumplido para GAP-8**:
+- `cfast_hrr_ventilation_limited_f2_pending` eliminado tras implementar HRR blend opt-in por `o2_upper`
 - Required PASS actualizado sin aumentar tolerancias del check legacy `cfast_t240_hrr_ventilation_limited`
 
 **Riesgo**: el multiplicador de CO afecta FED en casos existentes. Revisar especialmente `ghanekar_bedroom_hallway` (fuego también en zona parcialmente vent-limited). Usar override por caso si hay regresión.
 
 ---
 
-### FASE 2A — Two-zone doorway flow (GAP-7)
+### FASE 2A — Doorway hot-gas O₂ upper routing (GAP-7) — ✅ COMPLETADA (2026-06-01)
 **Objetivo**: cerrar `cfast_hall_upper_o2_doorway_pending`  
 **Prerequisito**: Phase 2 (o2_upper estable en combustión)  
-**Esfuerzo estimado**: 4-6 sesiones
+**Resultado**: 373/373 required PASS, gaps 4→3
 
-**Descripción técnica**:
-- En `GasExchangeSystem.gd`, dividir el flujo de masa por doorway en dos zonas:
-  - Flujo caliente (mitad superior del vano, `h > sill + height/2`): lleva gas de zona superior de sala fuente
-  - Flujo frío (mitad inferior del vano): lleva gas de zona inferior
-- En `OxygenExchangeSystem.gd`, enrutar O₂ del flujo frío a `o2_lower` de sala receptora
-- Requiere refactorizar `_transfer_hot_gas_contaminants` (13+ sitios de escritura de `upper_gas_kg`)
+**Cambios aplicados**:
+- `OxygenExchangeSystem.gd`: nuevo `doorway_o2_upper_routing_gain` default 0.0. Cuando `gain>0`, mezcla `hot_room.o2_upper` en `cold_room.o2_upper` con tasa `gain × exchange_kg / cold_upper_mass`.
+- Relax no-fire: con `gain>0`, la zona superior relaja hacia `outside_o2` en vez de hacia `room.o2`, evitando que el upper layer quede artificialmente depleto sin fuego.
+- `SimulationEngine.gd`: parámetro exportado y reenviado en `configure()`.
+- `cfast_two_room_door_open.json`: `doorway_o2_upper_routing_gain=1.0`.
+- `validate_reference_cases.py`: checks hall O₂ usan `sim_field="o2_upper"` vs CFAST ULO2; tolerancias tight t120=0.020, t240=0.025, t360=0.060; RMSE ≤0.060.
 
-**Arquitectura recomendada**: rama separada del flujo Bernoulli actual; el flujo fijo existente permanece activo y el two-zone es aditivo condicionado a flag `vent_doorway_two_zone_enabled`
+**Criterio cumplido**:
+- t=120: SF hall `o2_upper`=0.200 vs CFAST ULO2=0.195, diff=0.005 ≤0.020
+- t=240: SF=0.097 vs CFAST=0.111, diff=0.015 ≤0.025
+- t=360: diff=0.051 ≤0.060; residual estructural porque SF mantiene fuego activo mientras CFAST extingue por depleción O₂ upper
 
-**Criterio de cierre**:
-- `cfast_hall_upper_o2_doorway_pending`: O₂ upper pasillo ∈ [0.05, 0.15] a t=480/600 s
-- Todos los checks required existentes PASS (sin regresión)
-
-**Riesgo**: ALTO. El transporte two-zone afecta directamente FED timing, CO_upper, CO₂_upper — variables con >50 checks required. Requiere rebaseline selectivo. Usar rama Git separada.
+**Commit**: `e4564e3`
 
 ---
 
@@ -282,28 +281,26 @@ python tests/test_guardrails.py
     Phase 1.6 ✅  — Bernoulli doorway_heat_exchange_coeff fix (efcf5fd)
   Stage-B ✅    — 5 casos CFAST implementados (320 required checks)
   Hardening ✅  — Stage C/D/E/F (367 required checks)
-  Phase 2 ✅    — Ghanekar kitchen promoted to required (372 required checks)
+  Phase 2 ✅    — Ghanekar kitchen required + HRR structural ratio gap closed
   Phase 1.7 ✅  — Ghanekar 0.9m flashover promoted to required (373 required checks)
+  Phase 2A ✅   — Doorway hot-gas O₂ upper routing (gaps 4→3)
 
 2026-06 (PRÓXIMO)
 ┌──────────────────────────────────────────────────────────────┐
-│  SPRINT 1 (2-4 sesiones)                                     │
-│  Phase 2 cont. — HRR cap por o2_upper en CombustionSystem   │
-│  Objetivo: GAP-8 → required                                  │
-│  (GAP-2, 3, 4 ya cerrados en 2026-05-28 ✅)                 │
-│  Riesgo: MEDIO (combustión core, rebaseline por caso)        │
+│  SPRINT 1 (2-3 sesiones)                                     │
+│  Phase 2B — CO₂ upper/lower stratification                   │
+│  Objetivo: GAP-6                                             │
+│  Riesgo: MEDIO (species routing + rebaseline puntual)        │
 └──────────────────────────────────────────────────────────────┘
          ↓ desbloquea
 ┌──────────────────────────────────────────────────────────────┐
-│  SPRINT 3 (4-6 sesiones) — Two-zone doorway                 │
-│  Phase 2A — GAP-7                                            │
-│  Phase 2B — GAP-6 (CO₂ stratification)                      │
+│  SPRINT 2 (1-2 sesiones) — HVAC two-zone feed                │
 │  Phase 2C — GAP-9 (Phase 2H default ON)                     │
-│  Riesgo: ALTO (rama Git separada, rebaseline masivo)         │
+│  Riesgo: MEDIO (preset/altura de rejilla + rebaseline HVAC)  │
 └──────────────────────────────────────────────────────────────┘
          ↓ desbloquea (opcional, largo plazo)
 ┌──────────────────────────────────────────────────────────────┐
-│  SPRINT 4 (6-10 sesiones) — Presión termodinámica           │
+│  SPRINT 3 (6-10 sesiones) — Presión termodinámica           │
 │  Phase 3 — GAP-5                                             │
 │  Riesgo: MUY ALTO (invalida 17 checks de presión)            │
 └──────────────────────────────────────────────────────────────┘
@@ -313,11 +310,9 @@ python tests/test_guardrails.py
 
 | Prioridad | Fase | Gaps cierra | Riesgo | Esfuerzo | Prerequisito |
 |-----------|------|-------------|--------|----------|--------------|
-| 1 | Phase 2 cont. | 1 (GAP-8) | Medio | 2-4 sesiones | Ninguno |
-| 2 | Phase 2A | 1 (GAP-7) | Alto | 4-6 sesiones | Phase 2 |
-| 3 | Phase 2B | 1 (GAP-6) | Medio | 2-3 sesiones | Phase 2A |
-| 4 | Phase 2C | 1 (GAP-9) | Medio | 1-2 sesiones | Phase 2A |
-| 5 | Phase 3 | 1 (GAP-5) | Muy alto | 6-10 sesiones | Phase 2A |
+| 1 | Phase 2B | 1 (GAP-6) | Medio | 2-3 sesiones | Phase 2A cerrada |
+| 2 | Phase 2C | 1 (GAP-9) | Medio | 1-2 sesiones | Phase 2A cerrada |
+| 3 | Phase 3 | 1 (GAP-5) | Muy alto | 6-10 sesiones | Phase 2A cerrada |
 
 ---
 
@@ -346,15 +341,15 @@ python tests/test_guardrails.py
 
 ---
 
-## 8. Estado del working tree documentado (2026-05-30)
+## 8. Estado del working tree documentado (2026-06-01)
 
 ```
-HEAD base: cc48382 (main)
+HEAD base: e4564e3 (main)
 
-Estado tras esta actualización documental: cambios pendientes en docs, guardrails y reference_checks; validar y commitear antes de considerar la sesión cerrada.
+Estado tras Phase 2A: código cerrado en `e4564e3`; reports regenerados y docs sincronizados en commit documental posterior.
 ```
 
-### Changelog de sesión (2026-05-30)
+### Changelog de sesión (2026-05-30/2026-06-01)
 | Commit | Descripción |
 |--------|-------------|
 | `efcf5fd` | Phase 1.6: apply doorway_heat_exchange_coeff to Bernoulli flow path |
@@ -362,6 +357,9 @@ Estado tras esta actualización documental: cambios pendientes en docs, guardrai
 | `c67802b` | phase-2: CO vent-limited via o2_upper (closes GAP-2,3,4; GAP-8 remains pending) |
 | `156fb81` | Add CO vent-limited phase to combustion model |
 | `cc48382` | phase-1.7: close Ghanekar 0.9m flashover GAP-1 |
+| `a21326e` | phase-2: close GAP-8 with `fire_o2_upper_hrr_blend` opt-in |
+| `c435afb` | docs: sync GAP-8 validation report |
+| `e4564e3` | phase-2a: route doorway hot-gas oxygen by upper layer |
 
 ### Investigación realizada (sin commit — resultados negativos documentados)
 - **Experimento `thermal_gradient_min_band_m=0.10`**: no efectivo para GAP-1. `ref_depth=0.567 m` ya supera el min_band → floor nunca activo. Revertido.
