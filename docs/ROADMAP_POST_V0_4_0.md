@@ -53,19 +53,29 @@ Tareas candidatas:
 
 ---
 
-## v0.5.0 — Mejora física formal (condicional)
+## v0.5.x — Simulador técnico: robustez editor + visualización técnica
 
-**Objetivo**: si hay diseño formal aprobado, implementar la siguiente capa de física real.
+**Objetivo**: convertir la base validada en herramienta técnica usable para crear escenarios,
+ejectutar simulaciones y visualizar fuego/gases. **No gameplay táctico.**
 
-Candidatos identificados:
-- **HVAC two-zone transport** — resolver los 4 gaps estructurales (`cfast_hvac_t300/t450_co_upper/co2_upper`). Requiere modelo de transporte de contaminantes por capa (no flujo de masa uniforme). **No reabrir Phase 4A blend**: ese camino fue evaluado y rechazado.
-- **Suppression / firefighting tactics** — descomentar helpers de supresión (TODO gameplay en `SimulationEngine.gd:1678`) cuando la UI de juego esté implementada.
-- **HCN yield por combustible** — yields diferenciados por tipo de material (PVC, madera, textil) si se dispone de datos de literatura validados.
+Ver roadmap detallado: `docs/ROADMAP_TECHNICAL_SIMULATOR_V0_5.md`
 
-**Proceso requerido para v0.5.0**:
-1. Documento de diseño formal antes de tocar código (equivalente a los `PHASE_*.md` anteriores).
-2. Rebaseline completa con ≥ 379 checks requeridos PASS.
-3. No activar `fire_o2_upper_hrr_blend` sin proceso de validación independiente.
+| Versión | Foco | Estado |
+|---------|------|--------|
+| v0.5.0 | Editor robustness (popup errores, validación flujo, checklist) | Planificado |
+| v0.5.1 | FP technical visualization (fuego FP, overlay magnitudes, víctimas FED) | Planificado |
+| v0.5.2 | 3D technical visualization (gradiente vertical, leyenda, heatmap) | Planificado |
+| v0.6.0 | Integrated technical workflow (export técnico, resumen post-sim) | Futuro |
+
+**Fuera de alcance (no implementar)**:
+- Supresión de agua, PPV, rescate táctico.
+- HUD táctico de intervención.
+- Criterios de victoria/derrota.
+- Pantallas de resultado tipo gameplay.
+
+**Mejora física pendiente** (condicional, requiere diseño formal):
+- HVAC two-zone transport — resolver 4 gaps estructurales sin reabrir Phase 4A blend.
+- HCN yield por combustible — yields diferenciados (PVC, madera, textil) si hay datos validados.
 
 ---
 
@@ -95,7 +105,7 @@ Tareas para el paper:
 
 | Ítem | Ubicación | Tipo | Versión sugerida |
 |---|---|---|---|
-| `TODO(gameplay)` helpers de supresión | `SimulationEngine.gd:1678` | Gameplay diferido | v0.5.0 |
+| `TODO(gameplay)` helpers de supresión | `SimulationEngine.gd:1678` | **Fuera de alcance** — no implementar sin cambio explícito de scope | — |
 | Conteos históricos stale (`373/373`, `372/372`, etc.) | `GAPS_INVENTORY.md`, `PLAN_TRABAJO.md` — secciones de historial | Cosmético | v0.4.1 |
 | 14 ficheros `ESTADO_SESION_*.md` en raíz | Directorio raíz | Ruido de sesión, no publicables | v0.4.1 o ignorar |
 | `tools/phase4a_blend_sweep.py` | `tools/` | Artefacto diagnóstico inactivo | Conservar para trazabilidad |

@@ -248,7 +248,7 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 | DT-02 | Sin validación de esquema al cargar template en SimulationScene | Medio (robustez) | Bajo |
 | DT-03 | Popup de error en carga fallida de escenario (editor) | Medio (UX) | Bajo |
 | DT-04 | Sin test de flujo editor→simulación | Medio (regresión) | Medio |
-| DT-05 | HUD táctico completamente desconectado | Alto (producto) | Alto |
+| DT-05 | HUD táctico completamente desconectado | **Fuera de alcance** — simulador técnico, no gameplay | Deferred |
 | DT-06 | Fuego no visible en modo FP | Bajo-Medio (inmersión) | Medio |
 | DT-07 | Víctimas estáticas | Medio (entrenamiento) | Alto |
 | DT-08 | Sin pantalla de resultados post-simulación estructurada | Medio (UX) | Medio |
@@ -310,29 +310,30 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 
 ---
 
-### v0.6.0 — Integrated Product Workflow
+### v0.6.0 — Integrated Technical Workflow
 
-**Objetivo**: flujo completo de producto para entrenamiento: escenario → simulación → análisis → informe.
+**Objetivo**: ciclo completo de herramienta técnica: escenario → simulación → FP/3D visualization → export técnico.
 
 | Tarea | Descripción | Prioridad |
 |-------|-------------|-----------|
-| DT-05 | HUD táctico: panel de agua (suppression) | Alta |
-| DT-05 | HUD táctico: panel PPV (ventilación positiva) | Alta |
-| DT-05 | HUD táctico: panel rescate (extraer víctima) | Alta |
-| — | Criterios de victoria/derrota configurables por escenario | Alta |
-| — | Pantalla de resultados post-simulación (tiempo a incapacitación, víctimas rescatadas) | Alta |
-| DT-08 | Informe PDF/HTML de sesión exportable | Media |
-| DT-07 | Movimiento básico de víctimas (pathfinding o animación de estado) | Media |
-| — | Modo instructor vs modo alumno (limitar acceso al HUD de datos) | Media |
-| — | Escenarios predefinidos ampliados (apartamento, hotel, industrial) | Baja |
+| — | Export técnico post-simulación (CSV magnitudes, JSON eventos, capturas picos) | Alta |
+| DT-08 | Pantalla de resumen técnico: tiempo a FED=1.0, tiempo a flashover, pico CO/HCN. Sin gameplay. | Alta |
+| — | Escenarios predefinidos ampliados (piso compacto, pasillo largo, 2 plantas) | Media |
+| — | Reproducibilidad: `run_scenario.py <json>` headless + export | Media |
+| DT-09 | Internacionalización completa (todas las cadenas UI en castellano) | Baja |
 
-**Criterio de cierre**: un instructor puede diseñar un escenario, un alumno puede ejecutarlo en FP tomando decisiones tácticas, y al final hay un informe con las métricas clave.
+**Fuera de alcance (no implementar)**: HUD táctico (agua/PPV/rescate), criterios victoria/derrota, pathfinding de víctimas, modo instructor/alumno.
+Ver `docs/DEFERRED_GAMEPLAY_HOOKS.md`.
+
+**Criterio de cierre**: un investigador puede ejecutar un escenario, obtener los datos técnicos en formato estándar y reproducir el resultado con un único comando.
 
 ---
 
 ## 7. Resumen ejecutivo
 
-El motor de física de SimuFire está validado y publicado (v0.4.0). La capa de producto (editor, FP, 3D) está **sustancialmente construida** pero no finalizada como herramienta de entrenamiento.
+El motor de física de SimuFire está validado y publicado (v0.4.0). SimuFire es un **simulador técnico de dinámica de fuego y gases**; no un videojuego de entrenamiento táctico.
+
+La capa de producto (editor, FP, 3D) está **sustancialmente construida** como herramienta técnica.
 
 **Qué funciona hoy**:
 - Editor visual completo: crear plantas, colocar objetos, configurar fuego, guardar/cargar, lanzar simulación.
@@ -340,13 +341,15 @@ El motor de física de SimuFire está validado y publicado (v0.4.0). La capa de 
 - Vista 3D orbital con geometría procedural, humo animado, fuego, mobiliario y contexto exterior.
 - Modo primera persona con construcción procedural del mundo, posturas, interacción con aperturas, overlay de visibilidad por humo.
 
-**Qué falta para producto completo**:
-1. HUD táctico (agua, PPV, rescate) — el bloque más importante para entrenamiento.
-2. Criterios de victoria/derrota y pantalla de resultados.
-3. Fuego visible en FP.
-4. Estado visual de víctimas derivado de FED.
-5. Robustez del editor (errores de carga, tests de flujo).
+**Qué falta para producto técnico completo**:
+1. Overlay técnico de magnitudes en FP (CO/O²/FED/T/visibilidad).
+2. Fuego visible en FP.
+3. Estado visual de víctimas derivado de FED (sin gameplay).
+4. Export técnico post-simulación (CSV, JSON eventos).
+5. Robustez del editor (popup en carga fallida, tests de flujo).
 6. Descomposición del monolito `ScenarioEditor.gd`.
+
+**Fuera de alcance (no implementar)**: HUD táctico de agua/PPV/rescate, criterios victoria/derrota, pathfinding.
 
 **Riesgo principal**: el monolito de editor (7 400 líneas) acumula deuda técnica que hará costosos los cambios futuros. Es el candidato más urgente de refactor antes de añadir funcionalidad nueva en v0.6.0.
 
