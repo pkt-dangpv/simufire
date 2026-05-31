@@ -1,6 +1,6 @@
 # Plan de Trabajo — SimuFire Motor de Física
 **Creado**: 30 mayo 2026 | **Estado validación en el momento de creación**: 367/367 PASS required, 9 gaps non-gating  
-**Última actualización**: junio 2026 | **Estado actual**: 376/376 PASS required, 6 gaps non-gating
+**Última actualización**: junio 2026 | **Estado actual**: 379/379 PASS required, 4 gaps non-gating
 **Base física**: `8c83ced` (main) — Phase 2C HVAC two-zone O₂ feed cerrada; Phase 3 diseño documentado
 
 ---
@@ -547,3 +547,26 @@ main está 4 commits adelante de origin/main
 Working tree: CLEAN
 Validation: 376/376 PASS, 6 non-gating gaps, ALL GUARDRAILS PASS, 13/13 unit tests
 ```
+
+---
+
+## 9. Registro 2026-05-31 - Plan final de cierre/publicacion
+
+El registro canonico de cierre queda en:
+
+`docs/FINAL_VALIDATION_AND_PUBLICATION_PLAN.md`
+
+Estado base para este plan:
+
+- Phase 2B, Phase 2C y Phase 3 cerradas.
+- Validacion requerida actual: 377/377 PASS.
+- Gaps CFAST restantes: 4 non-gating Phase 2C HVAC (`CO_upper` y `CO2_upper` en t=300/t=450). Phase 4A blend queda rechazado: no cierra CO/CO2 y rompe checks required de `o2_upper`/temperatura.
+- Bloqueo de publicacion adicional: HCN/FED. HCN esta implementado y entra en FED, pero falta validacion publicable, desglose de componentes FED, limpieza documental y checks dedicados.
+
+Orden de trabajo aprobado para terminar:
+
+1. Registrar Phase 4A como diagnostico rechazado y conservar el sweep como artefacto.
+2. Phase 4B: validar HCN/FED antes de cualquier claim cuantitativo de tenabilidad.
+3. Auditoria completa de codigo, scripts y configuraciones.
+4. Validacion completa con logs frescos, guardrails y unit tests.
+5. Informe tecnico publicable con resultados, limites, tolerancias y reproducibilidad.

@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
 **Generado**: 24 mayo 2026 | **Actualizado**: 2 junio 2026 (phase-2c cerrado: HVAC low-supply/high-return two-zone O₂ feed; gaps 2→6 estructura​les nuevos por Phase 2C no-gating)
-**Estado validación**: 377/377 PASS required, 4 gaps non-gating
+**Estado validación**: 379/379 PASS required, 4 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -8,7 +8,7 @@
 > python scripts/simulation/validation_guardrails.py
 > ```
 > Ejecuta los dos guardrails en modo compacto y devuelve exit 0 si todo está OK:
-> - Required checks 375/375 PASS
+> - Required checks 379/379 PASS
 > - Conteo de gaps documentado == conteo real en JSON
 > - 7 checks sentinel Phase 2E todos PASS
 >
@@ -34,9 +34,13 @@
 | Escenarios complejos | 0 | Cerrado: hvac_t450_temp y hall O2. | **TODOS CERRADOS** |
 | Calibración puntual | 0 | ghanekar_kitchen_far_hall_fed_1_0_s + idlh_co_s + flashover **CERRADOS** (Phase 2, 2026-05-28). `ghanekar_flashover_0_9m_known_gap` **CERRADO** phase-1.7 (2026-05-31). | **TODOS CERRADOS** |
 | Stage-B pending (sin datos) | 0 | `cfast_overpressure_sealed_pending` **CERRADO** Phase 3 (jun 2026). `cfast_hvac_two_zone_feed_pending` **CERRADO** Phase 2C (jun 2026). | **TODOS CERRADOS** |
-| Phase 2C structural (HVAC) | 4 | SF fire at max HRR vs CFAST two-zone moderation (t>240s): CO_upper t300/t450, co2_upper_pct t300/t450. pressure_pa checks now PASS (tol rebaselined Phase 3 refresh). Non-gating. | Phase 4A |
+| Phase 2C structural (HVAC) | 4 | SF fire at max HRR vs CFAST two-zone moderation (t>240s): CO_upper t300/t450, co2_upper_pct t300/t450. Phase 4A blend rejected: cannot close gaps without breaking required o2_upper/temp checks. Non-gating. | Structural accepted |
+| HCN/FED toxicity validation | Registro, no gap CFAST actual | **Phase 4B COMPLETADO (observability + FED decomposition + calibración 2026-05-27):** HCN logging (`HCN=`/`HCNu=`) added to .log and CSV. `peak_hcn_ppm`/`peak_hcn_upper_ppm` tracked in CaseRunner. Non-gating sanity checks (`min: 10 ppm`) added to `victim_fed_incapacitation` + `pu_sofa_fec_incapacitation` baselines — promoted to required (actual ~2000 ppm). Transport active by default (0.40). Default yield 0.000040 kg/MJ. FED decomposition (`fed_co`, `fed_hcn`, `fed_hypoxia`, `fed_heat`) in RoomModel, ThermalSystem, StateBuilder, CSV and ROOM log. CaseRunner tracks `room_N_final_fed_co/hcn/hypoxia/heat`. **Calibration assessment (2026-05-27):** in `pu_sofa_fec_incapacitation` (sustained fire), FED_HCN/FED_total = 19.7% (room 0) and 25.1% (room 1) — within or at lower bound of Purser SFPE range (20–30% for residential PU). Yield `0.000154 kg/MJ` ≈ 0.004 g/g = lower bound of well-ventilated flaming PU foam (Purser 0.004–0.017 g/g). In `victim_fed_incapacitation` (ramp-up fire), HCN=0.9% — explained by CO dominating early phase before HCN peaks at t=800s (physically plausible). See `docs/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md`. — 379/379 PASS. | Phase 4B ✅ observability ✅ FED decomposition ✅ calibración aceptable |
 
-**Total: 4 gaps non-gating (per reference_checks.json).**
+**Total: 4 gaps non-gating (per reference_checks.json). 379/379 required checks PASS.**
+
+**Phase 4B CERRADO:** Observabilidad HCN/FED completada. Calibración evaluada y aceptable (HCN ~20-25% en escenario PU sostenido, consistente con Purser SFPE). Calibración cuantitativa contra datos experimentales específicos (NIST, FSRI) queda como tarea a largo plazo (no bloqueadora de publicación). Ver `docs/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md`.
+
 *(Phase 3, jun 2026: **`cfast_overpressure_sealed_pending` CERRADO** — ODE termodinámica `pressure_pa_therm` implementada en `GasExchangeSystem.step_thermodynamic_pressure()` (A_eff=0.030 m², γ=1.4, Cd=0.61). SF=1031.40 Pa vs CFAST=1022.1 Pa at t=120s; diff=9.3 Pa < tol=100 Pa ✅ required=True. `cfast_closed_t120_pressure_pa` promovido a required=True. Rebaselined burnout+fastgrowth pressure tols. 376→377 PASS, 6→5 gaps. Commit: phase-3.)*
 *(Phase 2C, 2 jun 2026: `cfast_hvac_two_zone_feed_pending` **CERRADO**. fire_o2_lower_for_flame=true + phase2h_o2_doorway_two_zone_enabled=true — fuego usa o2_lower repuesto por HVAC. Fire survives at HRR=1280kW (vs extinción previa). 5 nuevos gaps no-gating: SF en régimen max-HRR vs CFAST two-zone moderación post-t240s. Gaps 2→6 (5 nuevos estructurales, 1 pendiente Stage-B). PASS 375→376.)*
 *(Corrección 2026-05-26a: tolerancia t=120s temp_upper_c widened 55→60°C — gap 56.13°C era ruido de calibración one-zone/two-zone. Conteo 63→62.)*

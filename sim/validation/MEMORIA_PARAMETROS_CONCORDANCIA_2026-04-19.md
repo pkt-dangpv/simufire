@@ -502,11 +502,11 @@ Lo constrinen:
 - `Effect of Firefighting Intervention on Occupant Tenability`
 - `Experimental data from gas burner fires in residential structure with HVAC system`
 
-Estado actual:
+Estado actual (**NOTA 2026-05-27: HCN implementado desde Phase R6, 2026-05-14. Ver AUDIT_REPORT.md SF-AUD-006. FED por componente (fed_co, fed_hcn, fed_hypoxia, fed_heat) implementado en Phase 4B 2026-05-27.**):
 
-- `CO2`: no modelado
-- `H2O`: no modelado
-- `HCN`: no modelado
+- `CO2`: no modelado [en 2026-04-19; implementado Phase 2B]
+- `H2O`: no modelado [estado pendiente]
+- `HCN`: no modelado [en 2026-04-19; implementado Phase R6 2026-05-14]
 
 Accion:
 
