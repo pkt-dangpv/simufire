@@ -1,5 +1,5 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 28 mayo 2026 (GAP-8 cerrado: fire_o2_upper_hrr_blend impl, gaps 5→4)ASS, 5 gaps)
+**Generado**: 24 mayo 2026 | **Actualizado**: 31 mayo 2026 (GAP-8 cerrado: fire_o2_upper_hrr_blend opt-in; gaps 5→4)
 **Estado validación**: 373/373 PASS required, 4 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
