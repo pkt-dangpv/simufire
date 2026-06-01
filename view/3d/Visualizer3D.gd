@@ -57,11 +57,15 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var show_walls: bool = true
 @export var show_openings: bool = true
 @export var show_room_labels: bool = true
+## Muestra FED acumulado de la víctima más expuesta en cada sala (V3D-04).
+@export var show_fed_labels: bool = false
 @export var show_smoke_volume: bool = true
 @export var show_hot_layer: bool = false
 @export var show_layer_150c: bool = false
 ## Muestra una banda semitransparente desde la interfaz de capa de humo hasta el techo (V3D-01).
 @export var show_layer_gradient: bool = false
+## Aplica heatmap de temperatura en el color de las paredes (V3D-03).
+@export var show_wall_heatmap: bool = true
 @export var show_hrr_columns: bool = true
 @export var show_fuel_objects_3d: bool = true
 ## Mantiene visible el mobiliario 3D compartido cuando la camara FP esta activa.
@@ -107,6 +111,8 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var hole_color: Color = Color(1.00, 0.78, 0.00, 0.86)
 @export var closed_opening_color: Color = Color(0.54, 0.56, 0.58, 0.70)
 @export var label_color: Color = Color(1.0, 0.96, 0.84, 1.0)
+@export var fed_label_warn_color: Color = Color(1.0, 0.72, 0.12, 1.0)
+@export var fed_label_danger_color: Color = Color(1.0, 0.18, 0.10, 1.0)
 @export var detector_marker_color: Color = Color(0.35, 0.76, 1.0, 1.0)
 @export var detector_triggered_color: Color = Color(1.0, 0.40, 0.18, 1.0)
 @export var victim_marker_color: Color = Color(0.95, 0.86, 0.48, 1.0)
@@ -734,6 +740,22 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 
 	var label := shell.get("label") as Label3D
 
+	var center_2d: Vector2 = rect_m.position + rect_m.size * 0.5
+	var fed_label := Label3D.new()
+	fed_label.name = "FedLabel_%02d" % room_id
+	fed_label.text = ""
+	fed_label.modulate = label_color
+	fed_label.font_size = 40
+	fed_label.pixel_size = 0.014
+	fed_label.outline_size = 5
+	fed_label.no_depth_test = false
+	fed_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	fed_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	fed_label.position = _to_world(Vector3(center_2d.x, floor_level_m + height_m * 0.68, center_2d.y))
+	fed_label.visible = false
+	if _labels_root != null:
+		_labels_root.add_child(fed_label)
+
 	var fuel_objects_root := Node3D.new()
 	fuel_objects_root.name = "FuelObjects_%02d" % room_id
 	_atmosphere_root.add_child(fuel_objects_root)
@@ -765,6 +787,7 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 		"fire_core": fire_core,
 		"fire_light": fire_light,
 		"label": label,
+		"fed_label": fed_label,
 		"fire_height_m": 0.0,
 		"fire_radius_m": fire_base_radius_m,
 		"fire_cap_radius_m": 0.0,
@@ -1201,6 +1224,7 @@ func _update_room(room_id: int, update_fuel_objects: bool = true) -> void:
 	var hot := item["hot"] as MeshInstance3D
 	var l150 := item["l150"] as MeshInstance3D
 	var label := item["label"] as Label3D
+	var fed_label := item.get("fed_label") as Label3D
 	var floor_level_m: float = float(item.get("floor_level_m", 0.0))
 
 	var temp_upper_c: float = float(rs.get("temp_upper_c", 20.0))
@@ -1224,7 +1248,10 @@ func _update_room(room_id: int, update_fuel_objects: bool = true) -> void:
 			1.0
 		)
 		floor_mat.albedo_color = _selection_tinted_room_color(room_id, floor_color.lerp(hot_floor_color, heat_t))
-	_update_wall_temperature(walls, temp_upper_c)
+	if show_wall_heatmap:
+		_update_wall_temperature(walls, temp_upper_c)
+	else:
+		_update_wall_temperature(walls, 20.0)
 
 	_update_smoke_volume(item, smoke, smoke_edge, rect, height_m, smoke_layer_m, smoke_kg, hrr_kw, visibility_m)
 	if gradient_band != null:
@@ -1275,6 +1302,25 @@ func _update_room(room_id: int, update_fuel_objects: bool = true) -> void:
 	if label != null:
 		label.visible = show_room_labels
 		label.text = _get_room_label(room_id, rs)
+
+	if fed_label != null:
+		var max_fed: float = 0.0
+		for raw_vic in Array(state.get("victims", [])):
+			if typeof(raw_vic) == TYPE_DICTIONARY:
+				var vic: Dictionary = raw_vic
+				if int(vic.get("room_id", -1)) == room_id:
+					max_fed = maxf(max_fed, float(vic.get("fed", 0.0)))
+		if show_fed_labels and max_fed > 0.0:
+			fed_label.text = "FED %.2f" % max_fed
+			if max_fed >= 1.0:
+				fed_label.modulate = fed_label_danger_color
+			elif max_fed >= 0.3:
+				fed_label.modulate = fed_label_warn_color
+			else:
+				fed_label.modulate = label_color
+			fed_label.visible = true
+		else:
+			fed_label.visible = false
 
 	if update_fuel_objects:
 		_update_room_fuel_objects_3d(item, rs, rect)
