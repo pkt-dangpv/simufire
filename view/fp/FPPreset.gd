@@ -30,7 +30,7 @@ extends Resource
 @export_group("HUD Tecnico")
 ## Muestra el panel HUD técnico (T, CO, CO₂, O₂, HCN, FED, Vis).
 @export var show_technical_overlay: bool = true
-## Muestra el readout compacto de visibilidad en esquina superior derecha.
+## Muestra el readout compacto de visibilidad si el panel técnico está oculto.
 @export var show_visibility_readout: bool = true
 
 @export_group("FED Victimas")

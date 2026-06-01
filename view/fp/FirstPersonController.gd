@@ -124,7 +124,7 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_group("Technical Overlay")
 ## Muestra panel HUD en FP con T, CO, CO₂, O₂, HCN, FED y visibilidad en tiempo real.
 @export var show_technical_overlay: bool = true
-## Muestra readout compacto de visibilidad en esquina superior derecha, independiente del overlay técnico.
+## Muestra readout compacto de visibilidad en FP cuando el overlay técnico está oculto.
 @export var show_visibility_readout: bool = true
 
 var building: BuildingModel = null
@@ -351,11 +351,11 @@ func _create_player_nodes() -> void:
 
 	_technical_overlay_panel = PanelContainer.new()
 	_technical_overlay_panel.name = "TechnicalOverlayPanel"
-	_technical_overlay_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_technical_overlay_panel.offset_left = 12.0
-	_technical_overlay_panel.offset_top = 18.0
-	_technical_overlay_panel.offset_right = 197.0
-	_technical_overlay_panel.offset_bottom = 163.0
+	_technical_overlay_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_technical_overlay_panel.offset_left = 18.0
+	_technical_overlay_panel.offset_top = -178.0
+	_technical_overlay_panel.offset_right = 230.0
+	_technical_overlay_panel.offset_bottom = -18.0
 	_technical_overlay_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_technical_overlay_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
 	_technical_overlay_panel.visible = false
@@ -374,11 +374,11 @@ func _create_player_nodes() -> void:
 
 	_visibility_readout_panel = PanelContainer.new()
 	_visibility_readout_panel.name = "VisibilityReadoutPanel"
-	_visibility_readout_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_visibility_readout_panel.offset_left = -190.0
-	_visibility_readout_panel.offset_top = 18.0
-	_visibility_readout_panel.offset_right = -12.0
-	_visibility_readout_panel.offset_bottom = 50.0
+	_visibility_readout_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_visibility_readout_panel.offset_left = 18.0
+	_visibility_readout_panel.offset_top = -70.0
+	_visibility_readout_panel.offset_right = 196.0
+	_visibility_readout_panel.offset_bottom = -24.0
 	_visibility_readout_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_visibility_readout_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
 	_visibility_readout_panel.visible = false

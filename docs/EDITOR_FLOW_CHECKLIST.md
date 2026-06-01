@@ -1,6 +1,6 @@
 # Checklist de flujo del editor — SimuFire v0.5.0
 **Versión**: v0.5.0 | **Fecha última revisión**: 2026-06-01
-**Cubre**: E-01 (popup de carga), E-02 (validación estructural en carga y en ejecución), E-03/E-03b (checklist + product guardrails), E-04 (@export `max_undo_steps` / `pixels_per_meter`), E-04b (EditorLoadErrorDialog extraído), E-05 (UI castellano), E-06 (EditorDraw2D — 11 helpers puros extraídos), E-08 (paneles compactos con pestañas)
+**Cubre**: E-01 (popup de carga), E-02 (validación estructural en carga y en ejecución), E-03/E-03b (checklist + product guardrails), E-04 (@export `max_undo_steps` / `pixels_per_meter`), E-04b (EditorLoadErrorDialog extraído), E-05 (UI castellano), E-06 (EditorDraw2D — 11 helpers puros extraídos), E-08 (paneles compactos con pestañas), E-09 (edición precisa de objetos y habitaciones), E-10 (FP editor/HUD no solapado)
 
 ---
 
@@ -23,6 +23,7 @@
 | A1 | Abrir Godot → ejecutar proyecto (`F5` o botón Play) | MainMenu aparece con opciones: Nuevo escenario, Editor, Salir | ☐ |
 | A2 | Pulsar **Editor** | ScenarioEditorScene carga. Panel lateral compacto visible con pestañas **Dibujo / Lista / Archivo**. La pestaña **Archivo** aparece activa por defecto. Canvas 2D en blanco. Status bar en la parte inferior. | ☐ |
 | A3 | Verificar que el Inspector de Godot muestra `ScenarioEditor` con la propiedad **Editor UI → Load Error Dialog Title** | Campo de texto editable con valor `"Error al cargar escenario"` | ☐ |
+| A4 | Verificar grupo Inspector **Object Editing** | Propiedades editables: `object_move_snap_m`, `object_resize_snap_m`, `object_rotation_snap_deg`, `object_axis_snap_threshold_deg` | ☐ |
 
 ---
 
@@ -34,10 +35,14 @@
 | B2 | Clicar y arrastrar en el canvas para crear una habitación de ~5×4 m | Habitación rectangular aparece en el canvas | ☐ |
 | B3 | Seleccionar herramienta **Puerta** o **Ventana** y colocar en la pared de la habitación | Apertura visible en el borde de la habitación | ☐ |
 | B4 | Seleccionar herramienta **Objeto** y colocar un objeto combustible dentro de la habitación | Objeto aparece; el panel derecho muestra propiedades (nombre, combustible MJ, HRR) | ☐ |
-| B5 | Seleccionar herramienta **Ignición** y marcar la sala como punto de ignición | Indicador de ignición visible en la sala | ☐ |
-| B6 | Seleccionar herramienta **Detect.** y colocar un detector en la sala | Marcador de detector visible | ☐ |
-| B7 | Seleccionar herramienta **Vict.** y colocar una víctima en la sala | Marcador de víctima visible. Nota: es un sensor de exposición (FED/CO/T), no un objeto de rescate. | ☐ |
-| B8 | Abrir pestaña **Archivo** y activar HVAC desde la opción de HVAC | Opción HVAC activa (On/Off disponible) | ☐ |
+| B5 | Con **Sel**, clicar sobre el objeto colocado, moverlo y redimensionarlo desde los tiradores | El objeto se selecciona antes que la habitación; el movimiento es fino; al redimensionar, sólo cambia el lado del tirador activo | ☐ |
+| B6 | En propiedades del objeto, escribir `0` en **Ángulo (deg)** y aplicar; repetir con el tirador de rotación cerca de 0/90/180 | La rotación queda exactamente en 0, 90, -90 o 180 cuando corresponde; en 3D/FP la pose editada se respeta | ☐ |
+| B7 | Redimensionar una habitación o pasillo desde el tirador derecho/inferior | El lado opuesto permanece anclado; si el borde queda cerca de otra estancia, se alinea sin gap ni solape suave | ☐ |
+| B8 | Seleccionar herramienta **Ignición** y marcar la sala como punto de ignición | Indicador de ignición visible en la sala | ☐ |
+| B9 | Seleccionar herramienta **Detect.** y colocar un detector en la sala | Marcador de detector visible | ☐ |
+| B10 | Seleccionar herramienta **Vict.** y colocar una víctima en la sala | Marcador de víctima visible. Nota: es un sensor de exposición (FED/CO/T), no un objeto de rescate. | ☐ |
+| B11 | Con **Sel**, clicar sobre la víctima colocada dentro de una habitación | La víctima se selecciona antes que la habitación | ☐ |
+| B12 | Abrir pestaña **Archivo** y activar HVAC desde la opción de HVAC | Opción HVAC activa (On/Off disponible) | ☐ |
 
 ---
 
@@ -81,10 +86,12 @@
 
 | # | Paso | Resultado esperado | PASS / FAIL |
 |---|------|--------------------|-------------|
-| F1 | En SimulationScene, pulsar botón **3D** en el HUD | Vista 3D orbital muestra la geometría del escenario | ☐ |
-| F2 | En SimulationScene, pulsar botón **FP** en el HUD | Primera persona activa en la posición del marcador de inicio. Fuego y mobiliario 3D siguen visibles desde la cámara FP. El minimapa y las tarjetas 2D de salas/víctimas no se solapan con el HUD FP. | ☐ |
-| F3 | Moverse con WASD y verificar que el humo se renderiza correctamente a medida que avanza la simulación | Opacidad del humo aumenta con el tiempo | ☐ |
-| F4 | Regresar a la vista 2D con `Escape` o el botón de salir de FP | Vista 2D restaurada | ☐ |
+| F1 | Cargar un escenario con muebles, abrir vista **3D** y después vista **FP** desde el editor | Los muebles siguen visibles en FP; no queda una vista vacía al cambiar desde 3D a FP | ☐ |
+| F2 | En simulación o editor FP, activar overlay técnico y/o readout de visibilidad | Las métricas FP aparecen en zona inferior izquierda; no pisan minimapa, panel de salas ni esquina superior derecha | ☐ |
+| F3 | En SimulationScene, pulsar botón **3D** en el HUD | Vista 3D orbital muestra la geometría del escenario | ☐ |
+| F4 | En SimulationScene, pulsar botón **FP** en el HUD | Primera persona activa en la posición del marcador de inicio. Fuego y mobiliario 3D siguen visibles desde la cámara FP. El minimapa y las tarjetas 2D de salas/víctimas no se solapan con el HUD FP. | ☐ |
+| F5 | Moverse con WASD y verificar que el humo se renderiza correctamente a medida que avanza la simulación | Opacidad del humo aumenta con el tiempo | ☐ |
+| F6 | Regresar a la vista 2D con `Escape` o el botón de salir de FP | Vista 2D restaurada | ☐ |
 
 ---
 

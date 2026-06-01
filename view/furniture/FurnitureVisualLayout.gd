@@ -3,6 +3,8 @@ extends RefCounted
 
 static func normalize_spec(room_id: int, room_name: String, room_kind: String, room_size: Vector2, spec: Dictionary) -> Dictionary:
 	var result: Dictionary = spec.duplicate(true)
+	if bool(result.get("visual_pose_locked", false)):
+		return result
 	var tokens: String = _tokens(result.get("id", ""), result.get("name", ""), result.get("kind", ""))
 	var room_tokens: String = ("%s %s" % [room_name, room_kind]).to_lower()
 

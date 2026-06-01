@@ -99,6 +99,12 @@ const OBJECT_WALL_SNAP_M: float = GRID_M * 0.75
 @export var max_undo_steps: int = 48
 @export var pixels_per_meter: float = 64.0
 
+@export_group("Object Editing")
+@export var object_move_snap_m: float = 0.05
+@export var object_resize_snap_m: float = 0.05
+@export var object_rotation_snap_deg: float = 15.0
+@export var object_axis_snap_threshold_deg: float = 5.0
+
 var is_middle_panning := false
 var last_mouse_pos := Vector2.ZERO
 @onready var camera: Camera2D = $World/Camera2D
@@ -865,6 +871,7 @@ func _add_editor_visualizer_children(visualizer: Node3D) -> void:
 func _sync_editor_runtime_views() -> void:
 	if _editor_building_model == null:
 		return
+	_lock_all_object_visual_poses()
 	var runtime_template: Dictionary = Serializer.to_runtime_template(editor_data)
 	_editor_building_model.load_template_data(runtime_template)
 	if _editor_visualizer_3d != null:
@@ -880,6 +887,32 @@ func _sync_editor_runtime_views() -> void:
 
 func _mark_editor_runtime_dirty() -> void:
 	_editor_runtime_dirty = true
+
+
+func _lock_all_object_visual_poses() -> void:
+	var rooms: Array = editor_data.get("rooms_data", [])
+	var changed: bool = false
+	for i in range(rooms.size()):
+		if typeof(rooms[i]) != TYPE_DICTIONARY:
+			continue
+		var room: Dictionary = rooms[i]
+		var objects: Array = room.get("fuel_objects", [])
+		var room_changed: bool = false
+		for j in range(objects.size()):
+			if typeof(objects[j]) != TYPE_DICTIONARY:
+				continue
+			var obj: Dictionary = objects[j]
+			if bool(obj.get("visual_pose_locked", false)):
+				continue
+			obj["visual_pose_locked"] = true
+			objects[j] = obj
+			room_changed = true
+		if room_changed:
+			room["fuel_objects"] = objects
+			rooms[i] = room
+			changed = true
+	if changed:
+		editor_data["rooms_data"] = rooms
 
 
 func _refresh_editor_runtime_if_needed() -> void:
@@ -937,7 +970,7 @@ func _set_editor_view_mode(mode: int, force: bool = false) -> void:
 	if _editor_world_3d != null:
 		_editor_world_3d.visible = use_3d or use_fp
 	if _editor_visualizer_3d != null:
-		_editor_visualizer_3d.set_active(use_3d, use_3d, use_3d)
+		_editor_visualizer_3d.set_active(use_3d or use_fp, use_3d, use_3d, use_fp)
 		_update_editor_visualizer_drag_mode()
 	if _editor_fp_controller != null:
 		_editor_fp_controller.set_active(use_fp)
@@ -1213,7 +1246,7 @@ func _sync_editor_3d_after_direct_edit() -> void:
 	queue_redraw()
 
 
-func _move_object_center_to(room_id: int, object_index: int, world_center_m: Vector2, visual_pose_locked: bool = false) -> void:
+func _move_object_center_to(room_id: int, object_index: int, world_center_m: Vector2, visual_pose_locked: bool = true) -> void:
 	var obj: Dictionary = _get_object(room_id, object_index)
 	if obj.is_empty():
 		return
@@ -1221,7 +1254,7 @@ func _move_object_center_to(room_id: int, object_index: int, world_center_m: Vec
 	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
 		return
 	var size: Vector2 = _object_size_m(obj)
-	var local_pos: Vector2 = _snap_m(world_center_m - room_rect.position - size * 0.5)
+	var local_pos: Vector2 = _snap_object_m(world_center_m - room_rect.position - size * 0.5)
 	local_pos = _clamp_object_local_pos_for_rotation(room_rect, size, local_pos, float(obj.get("rotation_deg", 0.0)))
 	_set_object_position(room_id, object_index, local_pos, visual_pose_locked)
 
@@ -2844,7 +2877,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif is_dragging_room_geometry:
 			_update_dragged_room_geometry(_screen_to_m(event.position))
 		elif is_dragging_object:
-			_update_dragged_object(_screen_to_m(event.position))
+			_update_dragged_object(_screen_to_m_raw(event.position))
 		return
 
 	if not (event is InputEventMouseButton):
@@ -2855,7 +2888,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Clic derecho: menú contextual
 	if mouse_event.button_index == MOUSE_BUTTON_RIGHT:
 		if mouse_event.pressed and not _is_pointer_over_ui():
-			_show_context_menu(mouse_event.position, _screen_to_m(mouse_event.position))
+			_show_context_menu(mouse_event.position, _screen_to_m_raw(mouse_event.position))
 			get_viewport().set_input_as_handled()
 		return
 
@@ -2864,7 +2897,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _is_pointer_over_ui():
 		return
 
-	var pos_m: Vector2 = _screen_to_m(mouse_event.position)
+	var pos_m: Vector2 = _screen_to_m_for_tool(mouse_event.position)
 	if mouse_event.pressed:
 		_handle_press(pos_m)
 	else:
@@ -3066,8 +3099,20 @@ func _is_pointer_over_ui() -> bool:
 
 
 func _screen_to_m(screen_pos: Vector2) -> Vector2:
+	return _snap_m(_screen_to_m_raw(screen_pos))
+
+
+func _screen_to_m_raw(screen_pos: Vector2) -> Vector2:
 	var local_px: Vector2 = get_global_transform_with_canvas().affine_inverse() * screen_pos
-	return _snap_m(local_px / pixels_per_meter)
+	return local_px / pixels_per_meter
+
+
+func _screen_to_m_for_tool(screen_pos: Vector2) -> Vector2:
+	match current_tool:
+		Tool.SELECT, Tool.OBJECT, Tool.IGNITION, Tool.DETECTOR, Tool.VICTIM, Tool.PLAYER_START:
+			return _screen_to_m_raw(screen_pos)
+		_:
+			return _screen_to_m(screen_pos)
 
 
 # ---------------------------------------------------------------------------
@@ -3199,7 +3244,15 @@ func _duplicate_object_at_context() -> void:
 		return
 	var dup: Dictionary = obj.duplicate(true)
 	var pos: Vector2 = Serializer.vector2_from_data(dup.get("position_m", Vector2.ZERO))
-	dup["position_m"] = {"x": pos.x + 0.5, "y": pos.y + 0.5}
+	var size: Vector2 = _object_size_m(dup)
+	dup["id"] = _next_object_id()
+	dup["position_m"] = Serializer.vector_to_data(_clamp_object_local_pos_for_rotation(
+		_get_room_rect(_ctx_room_id),
+		size,
+		_snap_object_m(pos + Vector2(0.5, 0.5)),
+		float(dup.get("rotation_deg", 0.0))
+	))
+	dup["visual_pose_locked"] = true
 	var room: Dictionary = _get_room(_ctx_room_id)
 	var objects: Array = room.get("fuel_objects", [])
 	objects.append(dup)
@@ -3250,6 +3303,39 @@ func _snap_m(pos_m: Vector2) -> Vector2:
 	return Vector2(snappedf(pos_m.x, GRID_M), snappedf(pos_m.y, GRID_M))
 
 
+func _snap_object_m(pos_m: Vector2) -> Vector2:
+	var step: float = maxf(0.0, object_move_snap_m)
+	if step <= 0.0:
+		return pos_m
+	return Vector2(snappedf(pos_m.x, step), snappedf(pos_m.y, step))
+
+
+func _snap_object_size_value(value_m: float) -> float:
+	var step: float = maxf(0.0, object_resize_snap_m)
+	if step <= 0.0:
+		return maxf(0.10, value_m)
+	return maxf(0.10, snappedf(value_m, step))
+
+
+func _clean_object_rotation_deg(rotation_deg: float) -> float:
+	var value: float = _normalize_degrees_signed(rotation_deg)
+	var threshold: float = maxf(0.0, object_axis_snap_threshold_deg)
+	for axis in [0.0, 90.0, -90.0, 180.0]:
+		if absf(_normalize_degrees_signed(value - axis)) <= threshold:
+			return _normalize_degrees_signed(axis)
+	if absf(value) <= 0.001:
+		return 0.0
+	return value
+
+
+func _snap_object_rotation_deg(rotation_deg: float) -> float:
+	var value: float = _clean_object_rotation_deg(rotation_deg)
+	var step: float = maxf(0.0, object_rotation_snap_deg)
+	if step <= 0.0:
+		return value
+	return _clean_object_rotation_deg(snappedf(value, step))
+
+
 func _normalized_rect(a: Vector2, b: Vector2) -> Rect2:
 	var pos := Vector2(minf(a.x, b.x), minf(a.y, b.y))
 	var size := Vector2(absf(a.x - b.x), absf(a.y - b.y))
@@ -3298,6 +3384,8 @@ func _update_dragged_room_geometry(pos_m: Vector2) -> void:
 		_:
 			var new_pos: Vector2 = _snap_m(pos_m + room_drag_cursor_offset_m)
 			var next_rect := Rect2(new_pos, room_drag_start_rect_m.size)
+			if absf(_normalize_degrees_signed(room_drag_start_rotation_deg)) <= 0.001:
+				next_rect = _snap_rect_to_adjacent_rooms(next_rect, selected_room_id)
 			_set_room_rect(selected_room_id, next_rect)
 	_sync_room_geometry_fields(selected_room_id)
 	queue_redraw()
@@ -3306,13 +3394,19 @@ func _update_dragged_room_geometry(pos_m: Vector2) -> void:
 func _resize_selected_room_with_mouse(pos_m: Vector2) -> void:
 	var local_mouse: Vector2 = _world_to_room_local(pos_m, room_drag_start_center_m, room_drag_start_rotation_deg)
 	var new_size: Vector2 = room_drag_start_rect_m.size
+	var center_shift_local := Vector2.ZERO
 	if room_mouse_mode == ObjectMouseMode.RESIZE_WIDTH:
-		new_size.x = maxf(0.25, absf(local_mouse.x) * 2.0)
+		new_size.x = maxf(0.25, local_mouse.x + room_drag_start_rect_m.size.x * 0.5)
+		new_size.x = snappedf(new_size.x, GRID_M)
+		center_shift_local.x = (new_size.x - room_drag_start_rect_m.size.x) * 0.5
 	else:
-		new_size.y = maxf(0.25, absf(local_mouse.y) * 2.0)
-	new_size.x = snappedf(new_size.x, GRID_M)
-	new_size.y = snappedf(new_size.y, GRID_M)
-	var next_rect := Rect2(_snap_m(room_drag_start_center_m - new_size * 0.5), new_size)
+		new_size.y = maxf(0.25, local_mouse.y + room_drag_start_rect_m.size.y * 0.5)
+		new_size.y = snappedf(new_size.y, GRID_M)
+		center_shift_local.y = (new_size.y - room_drag_start_rect_m.size.y) * 0.5
+	var new_center_m: Vector2 = room_drag_start_center_m + Transform2D(deg_to_rad(room_drag_start_rotation_deg), Vector2.ZERO) * center_shift_local
+	var next_rect := Rect2(_snap_m(new_center_m - new_size * 0.5), new_size)
+	if absf(_normalize_degrees_signed(room_drag_start_rotation_deg)) <= 0.001:
+		next_rect = _snap_rect_to_adjacent_rooms(next_rect, selected_room_id)
 	_set_room_rect(selected_room_id, next_rect)
 
 
@@ -3419,10 +3513,10 @@ func _update_dragged_object(pos_m: Vector2) -> void:
 			_rotate_selected_object_with_mouse(pos_m)
 		_:
 			var size: Vector2 = _object_size_m(obj)
-			var new_world_m: Vector2 = _snap_m(pos_m + drag_object_cursor_offset_m)
+			var new_world_m: Vector2 = _snap_object_m(pos_m + drag_object_cursor_offset_m)
 			var new_local_m: Vector2 = new_world_m - rr.position
 			new_local_m = _clamp_object_local_pos_for_rotation(rr, size, new_local_m, float(obj.get("rotation_deg", 0.0)))
-			_set_object_position(selected_object_room_id, selected_object_index, new_local_m)
+			_set_object_position(selected_object_room_id, selected_object_index, new_local_m, true)
 	_sync_object_property_fields(_get_object(selected_object_room_id, selected_object_index))
 	queue_redraw()
 
@@ -3433,22 +3527,27 @@ func _resize_selected_object_with_mouse(pos_m: Vector2, rr: Rect2) -> void:
 		return
 	var local_mouse: Vector2 = _world_to_object_local(pos_m, object_drag_start_center_m, object_drag_start_rotation_deg)
 	var new_size: Vector2 = object_drag_start_size_m
+	var center_shift_local := Vector2.ZERO
 	if object_mouse_mode == ObjectMouseMode.RESIZE_WIDTH:
-		new_size.x = maxf(0.10, absf(local_mouse.x) * 2.0)
+		new_size.x = local_mouse.x + object_drag_start_size_m.x * 0.5
+		new_size.x = clampf(_snap_object_size_value(new_size.x), 0.10, maxf(0.10, rr.size.x))
+		center_shift_local.x = (new_size.x - object_drag_start_size_m.x) * 0.5
 	else:
-		new_size.y = maxf(0.10, absf(local_mouse.y) * 2.0)
-	new_size.x = clampf(snappedf(new_size.x, 0.05), 0.10, maxf(0.10, rr.size.x))
-	new_size.y = clampf(snappedf(new_size.y, 0.05), 0.10, maxf(0.10, rr.size.y))
-	var local_center: Vector2 = object_drag_start_center_m - rr.position
-	var rotation_deg: float = float(current_obj.get("rotation_deg", object_drag_start_rotation_deg))
-	var new_local_pos: Vector2 = _clamp_object_local_pos_for_rotation(rr, new_size, local_center - new_size * 0.5, rotation_deg)
+		new_size.y = local_mouse.y + object_drag_start_size_m.y * 0.5
+		new_size.y = clampf(_snap_object_size_value(new_size.y), 0.10, maxf(0.10, rr.size.y))
+		center_shift_local.y = (new_size.y - object_drag_start_size_m.y) * 0.5
+	var rotation_deg: float = _clean_object_rotation_deg(float(current_obj.get("rotation_deg", object_drag_start_rotation_deg)))
+	var new_center_world_m: Vector2 = object_drag_start_center_m + _object_transform(rotation_deg) * center_shift_local
+	var new_local_pos: Vector2 = new_center_world_m - rr.position - new_size * 0.5
+	new_local_pos = _clamp_object_local_pos_for_rotation(rr, new_size, new_local_pos, rotation_deg)
 	_set_object_geometry(
 		selected_object_room_id,
 		selected_object_index,
 		new_local_pos,
 		new_size,
 		rotation_deg,
-		float(current_obj.get("elevation_m", 0.0))
+		float(current_obj.get("elevation_m", 0.0)),
+		true
 	)
 
 
@@ -3459,8 +3558,8 @@ func _rotate_selected_object_with_mouse(pos_m: Vector2) -> void:
 	var obj: Dictionary = _get_object(selected_object_room_id, selected_object_index)
 	if obj.is_empty():
 		return
-	var rotation_deg: float = snappedf(rad_to_deg(atan2(dir.y, dir.x)) + 90.0, 1.0)
-	_set_object_rotation(selected_object_room_id, selected_object_index, _normalize_degrees_signed(rotation_deg))
+	var rotation_deg: float = _snap_object_rotation_deg(rad_to_deg(atan2(dir.y, dir.x)) + 90.0)
+	_set_object_rotation(selected_object_room_id, selected_object_index, rotation_deg)
 
 
 func _set_object_position(room_id: int, obj_index: int, local_pos: Vector2, visual_pose_locked: bool = false) -> void:
@@ -3496,7 +3595,7 @@ func _set_object_rotation(room_id: int, obj_index: int, rotation_deg: float) -> 
 	)
 
 
-func _set_object_geometry(room_id: int, obj_index: int, local_pos: Vector2, size_m: Vector2, rotation_deg: float, elevation_m: float) -> void:
+func _set_object_geometry(room_id: int, obj_index: int, local_pos: Vector2, size_m: Vector2, rotation_deg: float, elevation_m: float, visual_pose_locked: bool = true) -> void:
 	var rooms: Array = editor_data.get("rooms_data", [])
 	for i in range(rooms.size()):
 		if typeof(rooms[i]) != TYPE_DICTIONARY or int(rooms[i].get("id", -1)) != room_id:
@@ -3506,12 +3605,16 @@ func _set_object_geometry(room_id: int, obj_index: int, local_pos: Vector2, size
 		if obj_index < 0 or obj_index >= objects.size() or typeof(objects[obj_index]) != TYPE_DICTIONARY:
 			return
 		var obj: Dictionary = objects[obj_index]
-		var clamped_pos: Vector2 = _clamp_object_local_pos_for_rotation(_get_room_rect(room_id), size_m, local_pos, rotation_deg)
+		var clean_rotation_deg: float = _clean_object_rotation_deg(rotation_deg)
+		var clean_size_m := Vector2(maxf(0.10, size_m.x), maxf(0.10, size_m.y))
+		var clamped_pos: Vector2 = _clamp_object_local_pos_for_rotation(_get_room_rect(room_id), clean_size_m, local_pos, clean_rotation_deg)
 		obj["position_m"] = Serializer.vector_to_data(clamped_pos)
-		obj["size_m"] = Serializer.vector_to_data(size_m)
-		obj["rotation_deg"] = rotation_deg
+		obj["size_m"] = Serializer.vector_to_data(clean_size_m)
+		obj["rotation_deg"] = clean_rotation_deg
 		obj["elevation_m"] = maxf(0.0, elevation_m)
-		obj["footprint_m2"] = maxf(0.0, size_m.x * size_m.y)
+		obj["footprint_m2"] = maxf(0.0, clean_size_m.x * clean_size_m.y)
+		if visual_pose_locked:
+			obj["visual_pose_locked"] = true
 		objects[obj_index] = obj
 		room["fuel_objects"] = objects
 		rooms[i] = room
@@ -3889,7 +3992,7 @@ func _create_l_corridor(start_m: Vector2, end_m: Vector2) -> void:
 
 # Ajusta cada arista del rect para que se pegue a las paredes de habitaciones
 # vecinas dentro de _CONN_GAP_TOL.  Preserva el tamaño mínimo (GRID_M × 2).
-func _snap_rect_to_adjacent_rooms(rect: Rect2) -> Rect2:
+func _snap_rect_to_adjacent_rooms(rect: Rect2, skip_room_id: int = -2147483648) -> Rect2:
 	var min_size: float = GRID_M * 2.0
 	var left: float   = rect.position.x
 	var right: float  = rect.position.x + rect.size.x
@@ -3901,7 +4004,10 @@ func _snap_rect_to_adjacent_rooms(rect: Rect2) -> Rect2:
 			continue
 		if not _is_room_on_current_floor(room):
 			continue
-		var r: Rect2 = _get_room_rect(int(room.get("id", -1)))
+		var room_id: int = int(room.get("id", -1))
+		if room_id == skip_room_id:
+			continue
+		var r: Rect2 = _get_room_rect(room_id)
 		var r_right:  float = r.position.x + r.size.x
 		var r_bottom: float = r.position.y + r.size.y
 
@@ -4773,10 +4879,11 @@ func _create_object_at(pos_m: Vector2) -> void:
 	var room_rect: Rect2 = _get_room_rect(room_id)
 	var obj: Dictionary = ObjectLibraryScript.create_object(kind, _next_object_id(), room_id, Vector2.ZERO)
 	var size: Vector2 = Serializer.vector2_from_data(obj.get("size_m", Vector2.ONE))
-	var local_pos: Vector2 = pos_m - room_rect.position - size * 0.5
+	var local_pos: Vector2 = _snap_object_m(pos_m - room_rect.position - size * 0.5)
 	local_pos = _clamp_object_local_pos(room_rect, size, local_pos)
 	_push_undo_snapshot("create_object")
 	obj["position_m"] = Serializer.vector_to_data(local_pos)
+	obj["visual_pose_locked"] = true
 	_add_object_to_room(room_id, obj)
 	_select_object(room_id, Array(_get_room(room_id).get("fuel_objects", [])).size() - 1)
 	_set_status("Objeto %s colocado en habitacion %d." % [kind, room_id])
@@ -5693,6 +5800,7 @@ func _distance_to_segment(point: Vector2, a: Vector2, b: Vector2) -> float:
 func _save_pressed() -> void:
 	_ensure_floor_data()
 	editor_data = Serializer.normalize_editor_data(editor_data)
+	_lock_all_object_visual_poses()
 	_sync_floor_controls()
 	_ensure_file_dialogs()
 	if _save_dialog == null:
@@ -5733,6 +5841,7 @@ func _save_to_path(path: String) -> void:
 		clean_path += ".json"
 	_ensure_floor_data()
 	editor_data = Serializer.normalize_editor_data(editor_data)
+	_lock_all_object_visual_poses()
 	_sync_floor_controls()
 	if _path_edit != null:
 		_path_edit.text = clean_path
@@ -5770,6 +5879,7 @@ func _load_from_path(path: String) -> void:
 		_show_load_error(error_msg, clean_path)
 		return
 	editor_data = loaded
+	_lock_all_object_visual_poses()
 	_undo_stack.clear()
 	_ensure_floor_data()
 	current_floor_index = clampi(current_floor_index, 0, _get_floors().size() - 1)
@@ -5818,6 +5928,7 @@ func _ensure_file_dialogs() -> void:
 func _export_runtime_pressed() -> void:
 	_ensure_floor_data()
 	editor_data = Serializer.normalize_editor_data(editor_data)
+	_lock_all_object_visual_poses()
 	_sync_floor_controls()
 	var runtime_template: Dictionary = Serializer.to_runtime_template(editor_data)
 	var runtime_rooms: Array = runtime_template.get("rooms_data", [])
@@ -5910,7 +6021,7 @@ func _apply_object_properties() -> void:
 			_obj_x_spin.value if _obj_x_spin != null else current_pos.x,
 			_obj_y_spin.value if _obj_y_spin != null else current_pos.y
 		)
-		var new_rotation: float = _normalize_degrees_signed(_obj_rotation_spin.value) if _obj_rotation_spin != null else float(obj.get("rotation_deg", 0.0))
+		var new_rotation: float = _clean_object_rotation_deg(_obj_rotation_spin.value) if _obj_rotation_spin != null else _clean_object_rotation_deg(float(obj.get("rotation_deg", 0.0)))
 		new_pos = _object_local_pos_from_visual_min(Vector2(new_w, new_h), new_pos, new_rotation)
 		new_pos = _clamp_object_local_pos_for_rotation(room_rect, Vector2(new_w, new_h), new_pos, new_rotation)
 		obj["position_m"] = Serializer.vector_to_data(new_pos)
@@ -5918,6 +6029,7 @@ func _apply_object_properties() -> void:
 		obj["rotation_deg"] = new_rotation
 		obj["elevation_m"] = maxf(0.0, _obj_elevation_spin.value) if _obj_elevation_spin != null else float(obj.get("elevation_m", 0.0))
 		obj["footprint_m2"] = new_w * new_h
+		obj["visual_pose_locked"] = true
 		if _obj_fuel_spin != null:
 			obj["fuel_energy_MJ"] = _obj_fuel_spin.value
 			obj["remaining_fuel_MJ"] = _obj_fuel_spin.value
@@ -6639,6 +6751,7 @@ func _load_scenario_pressed() -> void:
 		_show_load_error(error_msg, path)
 		return
 	editor_data = normalized
+	_lock_all_object_visual_poses()
 	_ensure_floor_data()
 	current_floor_index = clampi(current_floor_index, 0, _get_floors().size() - 1)
 	if _stop_time_spin != null:
@@ -6655,6 +6768,7 @@ func _load_scenario_pressed() -> void:
 func _run_simulation_pressed() -> void:
 	_ensure_floor_data()
 	editor_data = Serializer.normalize_editor_data(editor_data)
+	_lock_all_object_visual_poses()
 	_sync_floor_controls()
 	var run_errors: Array = Serializer.validate_scenario(editor_data)
 	if not run_errors.is_empty():
