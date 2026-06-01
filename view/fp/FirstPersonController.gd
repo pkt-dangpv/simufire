@@ -103,6 +103,12 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var fp_detector_triggered_color: Color = Color(1.0, 0.38, 0.16, 1.0)
 @export var fp_victim_color: Color = Color(0.95, 0.86, 0.48, 1.0)
 @export var fp_victim_incapacitated_color: Color = Color(0.58, 0.58, 0.62, 1.0)
+## Color del marcador de víctima cuando FED ≥ fp_victim_fed_fatal_threshold (por defecto rojo oscuro).
+@export var fp_victim_fatal_color: Color = Color(0.72, 0.12, 0.12, 1.0)
+## Umbral FED para estado incapacitada (FP-04). Default NFPA 1710: 0.3.
+@export var fp_victim_fed_incapacitated_threshold: float = 0.3
+## Umbral FED para estado mortal (FP-04). Default FED = 1.0.
+@export var fp_victim_fed_fatal_threshold: float = 1.0
 
 @export_group("Humo FP")
 @export var smoke_overlay_visibility_reference_m: float = 26.0
@@ -1744,7 +1750,15 @@ func _update_safety_marker_states() -> void:
 			continue
 		node.visible = show_fp_victims
 		var record: Dictionary = victim_states.get(vic_id, {})
-		_set_marker_material(node, fp_victim_incapacitated_color if bool(record.get("incapacitated", false)) else fp_victim_color)
+		var vic_fed: float = float(record.get("fed", 0.0))
+		var vic_color: Color
+		if vic_fed >= fp_victim_fed_fatal_threshold:
+			vic_color = fp_victim_fatal_color
+		elif vic_fed >= fp_victim_fed_incapacitated_threshold:
+			vic_color = fp_victim_incapacitated_color
+		else:
+			vic_color = fp_victim_color
+		_set_marker_material(node, vic_color)
 
 
 func _state_records_by_id(records: Array) -> Dictionary:
@@ -2103,7 +2117,6 @@ func _update_status_hud() -> void:
 		return
 	var room_label: String = "SIN SALA"
 	var visibility_label: String = "Vis --"
-	var o2_label: String = "O2 --"
 	var has_data: bool = false
 	if building != null:
 		_current_room_id = _find_current_room_id()
@@ -2116,19 +2129,17 @@ func _update_status_hud() -> void:
 			if not room_state.is_empty():
 				var smoke_view: Dictionary = _compute_fp_smoke_view(room_state)
 				visibility_label = _format_fp_visibility(float(smoke_view.get("fp_visibility_m", room_state.get("visibility_m", 30.0))))
-				o2_label = "O2 %.1f%%" % (float(room_state.get("o2", 0.209)) * 100.0)
 				_update_technical_overlay(room_state, smoke_view)
 				has_data = true
-	_fp_status_label.text = "FP | %s | %s\n%s | %s | ESC salir | F usar | CTRL" % [
+	_fp_status_label.text = "FP | %s | %s\nESC salir | F usar | CTRL postura" % [
 		room_label,
-		_stance_label(),
-		visibility_label,
-		o2_label
+		_stance_label()
 	]
+	var technical_visible: bool = show_technical_overlay and has_data
 	if _technical_overlay_panel != null:
-		_technical_overlay_panel.visible = show_technical_overlay and has_data
+		_technical_overlay_panel.visible = technical_visible
 	if _visibility_readout_panel != null:
-		_visibility_readout_panel.visible = show_visibility_readout and has_data
+		_visibility_readout_panel.visible = show_visibility_readout and has_data and not technical_visible
 	if _visibility_readout_label != null and has_data:
 		_visibility_readout_label.text = visibility_label
 
