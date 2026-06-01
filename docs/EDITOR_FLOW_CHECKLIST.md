@@ -101,8 +101,8 @@ Estas propiedades deben ser visibles/editables desde el Inspector de Godot sin t
 | `default_room_height_m` | `Visualizer3D` | `Geometry` | ✅ @export existente |
 | `show_technical_overlay` | `FirstPersonController` | — | ❌ Pendiente (v0.5.1 FP-02) |
 | `show_fire_fp` | `FirstPersonController` | — | ❌ Pendiente (v0.5.1 FP-01) |
-| `max_undo_steps` (→ `MAX_UNDO_STEPS`) | `ScenarioEditor` | — | ❌ Deuda GOD-01 (hardcoded const) |
-| `pixels_per_meter` (→ `PIXELS_PER_METER`) | `ScenarioEditor` | — | ❌ Deuda GOD-02 (hardcoded const) |
+| `max_undo_steps` | `ScenarioEditor` | `Editor UI` | ✅ @export (v0.5.0 E-04) |
+| `pixels_per_meter` | `ScenarioEditor` | `Editor UI` | ✅ @export (v0.5.0 E-04) |
 
 ---
 

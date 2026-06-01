@@ -39,8 +39,8 @@ Las víctimas son **sensores de exposición** (acumulan FED, CO, temperatura) y 
 
 | ID | Ítem | Ubicación | Versión sugerida |
 |----|------|-----------|-----------------|
-| GOD-01 | `MAX_UNDO_STEPS = 48` hardcoded | `ScenarioEditor.gd:L82` | v0.5.0 |
-| GOD-02 | `PIXELS_PER_METER = 64.0` hardcoded | `ScenarioEditor.gd:L31` | v0.5.0 |
+| GOD-01 | `MAX_UNDO_STEPS = 48` hardcoded | `ScenarioEditor.gd:L82` | v0.5.0 | ✅ `@export var max_undo_steps` (E-04) |
+| GOD-02 | `PIXELS_PER_METER = 64.0` hardcoded | `ScenarioEditor.gd:L31` | v0.5.0 | ✅ `@export var pixels_per_meter` (E-04) |
 | GOD-03 | Overlay técnico FP (magnitudes CO/FED/T) no existe aún | `FirstPersonController.gd` | v0.5.1 |
 | GOD-04 | Sin flag de debug overlay en Visualizer3D (show_debug_layer_heights, etc.) | `Visualizer3D.gd` | v0.5.2 |
 | GOD-05 | Gradiente vertical no exportado como capa visual en 3D | `Visualizer3D.gd` | v0.5.2 |
@@ -59,7 +59,7 @@ Las víctimas son **sensores de exposición** (acumulan FED, CO, temperatura) y 
 | E-02 | Validación básica de runtime template | En `_run_simulation_pressed()`, verificar que el template exportado tiene al menos 1 sala con geometría válida; mostrar status claro si falla. Extendido: `ScenarioSerializer.validate_scenario()` valida height_m, room_rect_m, IDs de apertura — se invoca en carga y en run. | **Alta** | ✅ commit actual |
 | E-03 | Checklist de flujo manual documentada | Crear `docs/EDITOR_FLOW_CHECKLIST.md`: pasos mínimos para verificar crear/editar/guardar/cargar/ejecutar sin regresar. Incluye 16 tests automatizados de contrato JSON (`tests/test_editor_scenarios.py`) | **Alta** | ✅ commit `11a413e` |
 | E-03b | Product guardrails — integración test suite | Crear `scripts/check_product.py`: runner unificado para editor tests + guardrail unit tests. Documentar separación `product checks` vs `scientific validation` en README | **Alta** | ✅ commit actual |
-| E-04 | `@export var max_undo_steps: int = 48` | Exponer `MAX_UNDO_STEPS` como @export en `ScenarioEditor.gd` | **Media** | ⏳ pendiente |
+| E-04 | `@export var max_undo_steps: int = 48` + `pixels_per_meter: float = 64.0` | Exponer `MAX_UNDO_STEPS` y `PIXELS_PER_METER` como @export en `ScenarioEditor.gd` (grupo `Editor UI`) | **Media** | ✅ commit actual |
 | E-05 | Unificar idioma UI al castellano | Botones en inglés residuales (`Select`, `Room`, `Door`, `Window`, `Delete`, `Object`) → castellano consistente | **Media** | ⏳ pendiente |
 | E-06 | Primer módulo extraído: `EditorDraw2D` | Mover las ~50 funciones `_draw_*` de `ScenarioEditor.gd` a `editor/EditorDraw2D.gd` | **Baja** | ⏳ pendiente |
 

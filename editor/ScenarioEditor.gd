@@ -32,7 +32,6 @@ enum EditorViewMode {
 	MODE_FP
 }
 
-const PIXELS_PER_METER: float = 64.0
 const GRID_M: float = 0.25
 const OUTSIDE_ID: int = -1
 const DEFAULT_SAVE_PATH: String = "user://editor_scenario.json"
@@ -83,10 +82,11 @@ const OBJECT_HANDLE_RADIUS_PX: float = 6.5
 const OBJECT_HANDLE_HIT_RADIUS_M: float = 0.22
 const OBJECT_ROTATE_HANDLE_OFFSET_M: float = 0.38
 const OBJECT_WALL_SNAP_M: float = GRID_M * 0.75
-const MAX_UNDO_STEPS: int = 48
 
 @export_group("Editor UI")
 @export var load_error_dialog_title: String = "Error al cargar escenario"
+@export var max_undo_steps: int = 48
+@export var pixels_per_meter: float = 64.0
 
 var is_middle_panning := false
 var last_mouse_pos := Vector2.ZERO
@@ -312,7 +312,7 @@ func _setup_grid() -> void:
 		grid.name = "EditorGrid"
 		world.add_child(grid)
 
-	grid.set("pixels_per_meter", PIXELS_PER_METER)
+	grid.set("pixels_per_meter", pixels_per_meter)
 	grid.set("grid_m", GRID_M)
 	grid.z_index = -100
 	grid.set("background_color", UI_BG)
@@ -1292,7 +1292,7 @@ func _push_undo_snapshot(_label: String = "") -> void:
 	if editor_data.is_empty():
 		return
 	_undo_stack.append(editor_data.duplicate(true))
-	while _undo_stack.size() > MAX_UNDO_STEPS:
+	while _undo_stack.size() > max_undo_steps:
 		_undo_stack.remove_at(0)
 	_mark_editor_runtime_dirty()
 
@@ -2779,7 +2779,7 @@ func _is_pointer_over_ui() -> bool:
 
 func _screen_to_m(screen_pos: Vector2) -> Vector2:
 	var local_px: Vector2 = get_global_transform_with_canvas().affine_inverse() * screen_pos
-	return _snap_m(local_px / PIXELS_PER_METER)
+	return _snap_m(local_px / pixels_per_meter)
 
 
 # ---------------------------------------------------------------------------
@@ -2951,11 +2951,11 @@ func _create_player_start_at(pos_m: Vector2) -> void:
 
 
 func _m_to_px(pos_m: Vector2) -> Vector2:
-	return pos_m * PIXELS_PER_METER
+	return pos_m * pixels_per_meter
 
 
 func _rect_to_px(rect_m: Rect2) -> Rect2:
-	return Rect2(_m_to_px(rect_m.position), rect_m.size * PIXELS_PER_METER)
+	return Rect2(_m_to_px(rect_m.position), rect_m.size * pixels_per_meter)
 
 
 func _snap_m(pos_m: Vector2) -> Vector2:
@@ -4597,7 +4597,7 @@ func _create_victim_at(pos_m: Vector2) -> void:
 
 func _find_detector_at(pos_m: Vector2) -> int:
 	var dets: Array = editor_data.get("detectors", [])
-	var hit_radius_m: float = 12.0 / PIXELS_PER_METER
+	var hit_radius_m: float = 12.0 / pixels_per_meter
 	for i in range(dets.size()):
 		if typeof(dets[i]) != TYPE_DICTIONARY:
 			continue
@@ -4616,7 +4616,7 @@ func _find_detector_at(pos_m: Vector2) -> int:
 
 func _find_victim_at(pos_m: Vector2) -> int:
 	var vics: Array = editor_data.get("victims", [])
-	var hit_radius_m: float = 12.0 / PIXELS_PER_METER
+	var hit_radius_m: float = 12.0 / pixels_per_meter
 	for i in range(vics.size()):
 		if typeof(vics[i]) != TYPE_DICTIONARY:
 			continue
@@ -5980,7 +5980,7 @@ func _draw_exterior_walls() -> void:
 			continue
 		var selected: bool = i == selected_exterior_wall_index
 		var color: Color = _exterior_wall_selected_color if selected else _exterior_wall_color
-		var thickness_px: float = maxf(3.0, float(wall.get("thickness_m", 0.16)) * PIXELS_PER_METER)
+		var thickness_px: float = maxf(3.0, float(wall.get("thickness_m", 0.16)) * pixels_per_meter)
 		draw_line(_m_to_px(a), _m_to_px(b), Color(0.0, 0.0, 0.0, 0.76), thickness_px + 2.0)
 		draw_line(_m_to_px(a), _m_to_px(b), color, thickness_px)
 		if selected:
@@ -6291,13 +6291,13 @@ func _draw_objects() -> void:
 				draw_circle(center_px, 3.5, Color(1.0, 0.94, 0.25, 0.98))
 			if selected:
 				_draw_selected_object_handles(room_rect, obj)
-			if ThemeDB.fallback_font != null and size.x * PIXELS_PER_METER >= 48.0:
+			if ThemeDB.fallback_font != null and size.x * pixels_per_meter >= 48.0:
 				draw_string(
 					ThemeDB.fallback_font,
-					center_px + Vector2(-size.x * PIXELS_PER_METER * 0.5 + 4.0, 4.0),
+					center_px + Vector2(-size.x * pixels_per_meter * 0.5 + 4.0, 4.0),
 					String(obj.get("name", obj.get("kind", ""))),
 					HORIZONTAL_ALIGNMENT_LEFT,
-					maxf(16.0, size.x * PIXELS_PER_METER - 8.0),
+					maxf(16.0, size.x * pixels_per_meter - 8.0),
 					10,
 					Color(0.08, 0.05, 0.03, 0.9)
 				)
