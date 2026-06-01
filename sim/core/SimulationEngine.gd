@@ -70,6 +70,12 @@ var _prev_open_fracs: Dictionary = {}
 var _graphs_launched: bool = false
 var _last_graphs_dir: String = ""
 var _last_graph_generation_ok: bool = false
+# W-01: picos por sala para el resumen técnico post-simulación.
+var _room_peak_hrr: Dictionary = {}   # room_id (int) → float
+var _room_peak_temp: Dictionary = {}  # room_id (int) → float
+# W-01: emitido cuando la simulación finaliza y los archivos de exportación
+# han sido escritos. Main.gd lo recibe para capturar la pantalla 3D.
+signal export_screenshot_requested(output_dir: String)
 # SF-AUD-029: targets radiantes pasivos
 var _targets: Array = []
 
@@ -1244,6 +1250,8 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	_graphs_launched = false
 	_last_graphs_dir = ""
 	_last_graph_generation_ok = false
+	_room_peak_hrr.clear()
+	_room_peak_temp.clear()
 	glass_failure_system.reset()
 	thermal_system.reset_wall_temps()
 	_targets.clear()
@@ -1335,6 +1343,7 @@ func step(delta: float) -> void:
 	_update_room_ceiling_jet_temps()  # BV-028: exportar ceiling_jet_temp_c a RoomModel
 	_step_victims(dt)
 	_detect_and_log_opening_events()
+	_update_peak_tracking()
 	_maybe_log_state()
 	_step_time_us = Time.get_ticks_usec() - _t0_us
 
@@ -2464,6 +2473,88 @@ func _on_sim_finished() -> void:
 	_finish_and_launch_graphs("")
 
 
+# ============================================================
+# W-01: PICOS Y EXPORTACIÓN JSON POST-SIMULACIÓN
+# ============================================================
+
+## Registra el HRR y temperatura pico por sala. Se llama cada step.
+func _update_peak_tracking() -> void:
+	if building == null:
+		return
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+		if room.hrr_kw > float(_room_peak_hrr.get(room_id, 0.0)):
+			_room_peak_hrr[room_id] = room.hrr_kw
+		if room.temp_upper_c > float(_room_peak_temp.get(room_id, 20.0)):
+			_room_peak_temp[room_id] = room.temp_upper_c
+
+
+## Escribe events.json y summary.json en output_dir.
+## Llamado desde _finish_and_launch_graphs() antes de lanzar Python.
+func _write_export_json(output_dir: String) -> void:
+	if output_dir.strip_edges().is_empty():
+		return
+	if not DirAccess.dir_exists_absolute(output_dir):
+		return
+
+	# --- events.json ---
+	var events_path: String = output_dir.path_join("events.json")
+	var ok: bool = log_writer.write_events_json(events_path)
+	if ok:
+		print("[SimulationEngine] events.json escrito en: %s" % events_path)
+	else:
+		push_warning("[SimulationEngine] No se pudo escribir events.json en: %s" % events_path)
+
+	# --- summary.json ---
+	var rooms_arr: Array = []
+	if building != null:
+		for room_id in building.get_rooms().keys():
+			var room: RoomModel = building.get_room(room_id)
+			if room == null:
+				continue
+			var entry: Dictionary = {
+				"room_id": room_id,
+				"room_name": room.name,
+				"flashover_triggered": room.flashover_triggered,
+				"peak_hrr_kw": snappedf(float(_room_peak_hrr.get(room_id, 0.0)), 0.1),
+				"peak_temp_upper_c": snappedf(float(_room_peak_temp.get(room_id, 20.0)), 0.1),
+			}
+			if room.flashover_triggered:
+				entry["flashover_time_s"] = room.flashover_time_s
+			rooms_arr.append(entry)
+
+	var victims_arr: Array = []
+	if building != null:
+		for vic in building.victims:
+			var vic_entry: Dictionary = {
+				"victim_id": String(vic.get("id", "?")),
+				"room_id": int(vic.get("room_id", -1)),
+				"fed_final": snappedf(float(vic.get("fed", 0.0)), 0.0001),
+				"incapacitated": bool(vic.get("incapacitated", false)),
+			}
+			if bool(vic.get("incapacitated", false)):
+				vic_entry["incapacitated_at_s"] = float(vic.get("incapacitated_at_s", -1.0))
+			victims_arr.append(vic_entry)
+
+	var summary: Dictionary = {
+		"sim_duration_s": snappedf(sim_time_s, 0.1),
+		"scenario": building.template_name if building != null else "",
+		"rooms": rooms_arr,
+		"victims": victims_arr,
+	}
+
+	var summary_path: String = output_dir.path_join("summary.json")
+	var f := FileAccess.open(summary_path, FileAccess.WRITE)
+	if f != null:
+		f.store_string(JSON.stringify(summary, "\t"))
+		f.close()
+		print("[SimulationEngine] summary.json escrito en: %s" % summary_path)
+	else:
+		push_warning("[SimulationEngine] No se pudo escribir summary.json en: %s" % summary_path)
+
+
 func _finish_and_launch_graphs(details: String, graphs_root: String = "", wait_for_finish: bool = false) -> void:
 	if _graphs_launched or sim_time_s <= 0.0:
 		return
@@ -2478,6 +2569,15 @@ func _finish_and_launch_graphs(details: String, graphs_root: String = "", wait_f
 		log_writer.append_event(sim_time_s, "sim_end", "")
 	else:
 		log_writer.append_event(sim_time_s, "sim_end", details)
+
+	# W-01: exportar JSON de eventos y resumen técnico.
+	var export_dir: String = graphs_root.strip_edges()
+	if export_dir.is_empty():
+		# Sin directorio de usuario: escribir junto al log.
+		export_dir = log_writer.resolve_log_file_path().get_base_dir()
+	_write_export_json(export_dir)
+	export_screenshot_requested.emit(export_dir)
+
 	if _should_launch_graphs():
 		_launch_graph_generator(graphs_root, wait_for_finish)
 

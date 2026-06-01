@@ -48,6 +48,8 @@ func _ready() -> void:
 	if engine != null:
 		engine.time_scale = 1.0
 		_apply_startup_engine_options()
+		# W-01: capturar pantalla 3D cuando la simulación genera el export JSON.
+		_connect_once(engine.export_screenshot_requested, _on_export_screenshot_requested)
 	_connect_visualizer_signals()
 	_update_views()
 
@@ -409,6 +411,15 @@ func _on_graphs_dir_selected(dir_path: String) -> void:
 		_show_graphs_window(graphs_dir)
 	else:
 		_show_graphs_message("No se pudieron generar graficas. Revisa que Python y matplotlib esten disponibles.")
+
+
+## W-01: Captura la vista 3D (si está activa) en el directorio de exportación.
+func _on_export_screenshot_requested(output_dir: String) -> void:
+	if visualizer_3d == null:
+		return
+	if not view_3d_enabled and not first_person_enabled:
+		return
+	visualizer_3d.capture_screenshot_to(output_dir)
 
 
 func _show_graphs_window(graphs_dir: String) -> void:

@@ -30,6 +30,9 @@ var _csv_header_written: bool = false
 var _target_csv_io_failed: bool = false
 var _target_csv_header_written: bool = false
 var _runtime_log_stamp: String = ""
+## Lista en memoria de todos los eventos registrados durante la simulación.
+## Cada elemento: {"t": float, "type": String, "details": String}
+var _events: Array = []
 
 
 func configure(is_enabled: bool, interval_seconds: float, path: String) -> void:
@@ -58,6 +61,8 @@ func reset_log_file() -> void:
 	_target_csv_io_failed = false
 	_target_csv_header_written = false
 	_runtime_log_stamp = ""
+
+	_events.clear()
 
 	if not enabled:
 		return
@@ -125,9 +130,11 @@ func append_initial_snapshot(sim_time_s: float, state: Dictionary) -> void:
 
 ## Escribe una línea de evento al log de forma inmediata (fuera del intervalo normal).
 ## Formato: EVENT t=600.0 type=door_open opening=2 room_a=1 room_b=-1 frac=1.00
+## También almacena el evento en _events para exportación posterior a JSON.
 func append_event(sim_time_s: float, event_type: String, details: String) -> void:
 	if not enabled:
 		return
+	_events.append({"t": sim_time_s, "type": event_type, "details": details})
 	var file := _open_log_file(FileAccess.READ_WRITE, true)
 	if file == null:
 		return
@@ -137,6 +144,39 @@ func append_event(sim_time_s: float, event_type: String, details: String) -> voi
 	else:
 		file.store_line("EVENT t=%.1f type=%s %s" % [sim_time_s, event_type, details])
 	file.close()
+
+
+## Escribe el listado de eventos en memoria a un fichero JSON estructurado.
+## Cada entrada: {"t": float, "type": String, "details": {key: value, ...}}
+## Devuelve true si el fichero se escribió correctamente.
+func write_events_json(path: String) -> bool:
+	var arr: Array = []
+	for ev in _events:
+		var entry: Dictionary = {
+			"t": float(ev.get("t", 0.0)),
+			"type": String(ev.get("type", ""))
+		}
+		var raw: String = String(ev.get("details", ""))
+		if not raw.is_empty():
+			entry["details"] = _parse_event_details(raw)
+		arr.append(entry)
+	var text: String = JSON.stringify(arr, "\t")
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		return false
+	f.store_string(text)
+	f.close()
+	return true
+
+
+## Convierte una cadena de pares "key=value key2=value2" a Dictionary.
+func _parse_event_details(details: String) -> Dictionary:
+	var result: Dictionary = {}
+	for part in details.split(" ", false):
+		var idx: int = part.find("=")
+		if idx > 0:
+			result[part.substr(0, idx)] = part.substr(idx + 1)
+	return result
 
 
 func _normalize_log_path(path: String) -> String:
