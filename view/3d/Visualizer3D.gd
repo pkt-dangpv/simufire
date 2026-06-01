@@ -60,6 +60,8 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var show_smoke_volume: bool = true
 @export var show_hot_layer: bool = false
 @export var show_layer_150c: bool = false
+## Muestra una banda semitransparente desde la interfaz de capa de humo hasta el techo (V3D-01).
+@export var show_layer_gradient: bool = false
 @export var show_hrr_columns: bool = true
 @export var show_fuel_objects_3d: bool = true
 ## Mantiene visible el mobiliario 3D compartido cuando la camara FP esta activa.
@@ -67,6 +69,8 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var fp_fuel_object_update_interval_s: float = 0.25
 @export var show_detector_markers_3d: bool = true
 @export var show_victim_markers_3d: bool = true
+## Muestra leyenda de colores activos en esquina superior derecha de la vista 3D (V3D-02).
+@export var show_legend: bool = true
 @export var show_exterior_context_3d: bool = false
 @export var fuel_object_3d_height_m: float = 0.34
 @export var smoke_puff_count: int = 12
@@ -87,6 +91,8 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var smoke_color: Color = Color(0.028, 0.027, 0.025, 0.54)
 @export var smoke_puff_color: Color = Color(0.055, 0.052, 0.048, 0.42)
 @export var smoke_layer_edge_color: Color = Color(0.030, 0.029, 0.027, 0.82)
+@export var layer_gradient_top_color: Color = Color(0.10, 0.09, 0.08, 0.54)
+@export var layer_gradient_bottom_color: Color = Color(0.30, 0.26, 0.20, 0.08)
 @export var smoke_hot_outflow_color: Color = Color(1.00, 0.46, 0.16, 0.24)
 @export var cold_air_inflow_color: Color = Color(0.18, 0.52, 1.00, 0.09)
 @export var hot_layer_color: Color = Color(1.00, 0.58, 0.18, 0.18)
@@ -192,6 +198,9 @@ var _last_fp_fuel_object_update_msec: int = 0
 var _fire_phase: float = 0.0
 var _input_active: bool = true
 var _first_person_overlay: bool = false
+var _legend_canvas: CanvasLayer = null
+var _legend_panel: PanelContainer = null
+var _legend_vbox: VBoxContainer = null
 
 
 func _ready() -> void:
@@ -242,6 +251,7 @@ func set_state(next_state: Dictionary) -> void:
 		_resolve_building()
 		_rebuild_scene()
 	_update_dynamic_state()
+	_update_legend()
 
 
 func rebuild_from_building() -> void:
@@ -430,6 +440,7 @@ func _resolve_nodes() -> void:
 	_labels_root = _get_or_create_node3d(labels_path, "Labels")
 	_camera_rig = get_node_or_null(camera_rig_path) as Node3D
 	_camera = get_node_or_null(camera_path) as Camera3D
+	_build_legend_ui()
 	_apply_overlay_visibility()
 
 
@@ -453,6 +464,87 @@ func _apply_overlay_visibility() -> void:
 	var fill := get_node_or_null("FillLight") as Light3D
 	if fill != null:
 		fill.visible = not _first_person_overlay
+	if _legend_panel != null:
+		_legend_panel.visible = show_legend and not _first_person_overlay
+
+
+func _build_legend_ui() -> void:
+	if _legend_canvas != null:
+		return
+	_legend_canvas = CanvasLayer.new()
+	_legend_canvas.name = "LegendLayer"
+	_legend_canvas.layer = 8
+	add_child(_legend_canvas)
+
+	_legend_panel = PanelContainer.new()
+	_legend_panel.name = "LegendPanel"
+	_legend_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_legend_panel.offset_left = -200.0
+	_legend_panel.offset_top = 12.0
+	_legend_panel.offset_right = -12.0
+	_legend_panel.offset_bottom = 12.0
+	_legend_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_legend_panel.visible = false
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.07, 0.08, 0.72)
+	style.border_width_left = 0
+	style.border_width_top = 0
+	style.border_width_right = 0
+	style.border_width_bottom = 0
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	_legend_panel.add_theme_stylebox_override("panel", style)
+	_legend_canvas.add_child(_legend_panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	_legend_panel.add_child(margin)
+
+	_legend_vbox = VBoxContainer.new()
+	_legend_vbox.add_theme_constant_override("separation", 4)
+	margin.add_child(_legend_vbox)
+
+
+func _update_legend() -> void:
+	if _legend_panel == null or _legend_vbox == null:
+		return
+	# Limpiar filas anteriores
+	for child in _legend_vbox.get_children():
+		child.queue_free()
+
+	var entries: Array = []
+	entries.append({"color": floor_color, "label": "Suelo / frio"})
+	entries.append({"color": hot_floor_color, "label": "Suelo / caliente"})
+	entries.append({"color": smoke_color, "label": "Humo"})
+	if show_hot_layer:
+		entries.append({"color": hot_layer_color, "label": "Capa caliente"})
+	if show_layer_150c:
+		entries.append({"color": layer_150c_color, "label": "Capa 150 °C"})
+	if show_layer_gradient:
+		entries.append({"color": layer_gradient_top_color, "label": "Gradiente capa"})
+
+	for entry in entries:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var swatch := ColorRect.new()
+		swatch.custom_minimum_size = Vector2(14, 14)
+		swatch.color = Color(entry["color"])
+		swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(swatch)
+		var lbl := Label.new()
+		lbl.text = String(entry["label"])
+		lbl.add_theme_font_size_override("font_size", 11)
+		lbl.add_theme_color_override("font_color", Color(0.88, 0.90, 0.88, 1.0))
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(lbl)
+		_legend_vbox.add_child(row)
+
+	_legend_panel.visible = show_legend and not _first_person_overlay
 
 
 func _resolve_building() -> void:
@@ -598,6 +690,11 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	smoke_ceiling_mask.visible = show_smoke_ceiling_masks
 	_atmosphere_root.add_child(smoke_ceiling_mask)
 
+	var gradient_band := _create_box("LayerGradient_%02d" % room_id, Vector3.ONE, _make_material(layer_gradient_top_color, true))
+	gradient_band.visible = false
+	_disable_shadow_casting(gradient_band)
+	_atmosphere_root.add_child(gradient_band)
+
 	var hot := _create_box("HotLayer_%02d" % room_id, Vector3.ONE, _make_material(hot_layer_color, true))
 	hot.visible = false
 	_disable_shadow_casting(hot)
@@ -658,6 +755,7 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 		"smoke_puffs_root": smoke_puffs_root,
 		"smoke_puffs": smoke_puffs,
 		"smoke_ceiling_mask": smoke_ceiling_mask,
+		"gradient_band": gradient_band,
 		"hot": hot,
 		"l150": l150,
 		"fire_root": fire_root,
@@ -1099,6 +1197,7 @@ func _update_room(room_id: int, update_fuel_objects: bool = true) -> void:
 	var walls: Array = item.get("walls", [])
 	var smoke := item["smoke"] as MeshInstance3D
 	var smoke_edge := item["smoke_edge"] as MeshInstance3D
+	var gradient_band := item.get("gradient_band") as MeshInstance3D
 	var hot := item["hot"] as MeshInstance3D
 	var l150 := item["l150"] as MeshInstance3D
 	var label := item["label"] as Label3D
@@ -1128,6 +1227,25 @@ func _update_room(room_id: int, update_fuel_objects: bool = true) -> void:
 	_update_wall_temperature(walls, temp_upper_c)
 
 	_update_smoke_volume(item, smoke, smoke_edge, rect, height_m, smoke_layer_m, smoke_kg, hrr_kw, visibility_m)
+	if gradient_band != null:
+		var grad_depth_m: float = maxf(0.0, height_m - smoke_layer_m)
+		var grad_visible: bool = show_layer_gradient and smoke_kg > smoke_visible_threshold_kg and grad_depth_m > 0.05
+		SmokeLayerVisuals.update_layer_box(
+			gradient_band,
+			rect,
+			height_m,
+			smoke_layer_m,
+			layer_gradient_top_color,
+			grad_visible,
+			room_inset_m,
+			meters_to_units,
+			_origin_offset_m,
+			floor_level_m
+		)
+		if grad_visible and gradient_band.material_override != null:
+			var mat := gradient_band.material_override as StandardMaterial3D
+			if mat != null:
+				mat.albedo_color = layer_gradient_top_color
 	SmokeLayerVisuals.update_layer_box(
 		hot,
 		rect,
