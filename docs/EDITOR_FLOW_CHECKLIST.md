@@ -1,6 +1,6 @@
 # Checklist de flujo del editor — SimuFire v0.5.0
 **Versión**: v0.5.0 | **Fecha última revisión**: 2026-06-01
-**Cubre**: E-01 (popup de carga), E-02 (validación estructural en carga y en ejecución), E-03/E-03b (checklist + product guardrails), E-04 (@export `max_undo_steps` / `pixels_per_meter`), E-04b (EditorLoadErrorDialog extraído), E-05 (UI castellano), E-06 (EditorDraw2D — 11 helpers puros extraídos)
+**Cubre**: E-01 (popup de carga), E-02 (validación estructural en carga y en ejecución), E-03/E-03b (checklist + product guardrails), E-04 (@export `max_undo_steps` / `pixels_per_meter`), E-04b (EditorLoadErrorDialog extraído), E-05 (UI castellano), E-06 (EditorDraw2D — 11 helpers puros extraídos), E-08 (paneles compactos con pestañas)
 
 ---
 
@@ -21,7 +21,7 @@
 | # | Paso | Resultado esperado | PASS / FAIL |
 |---|------|--------------------|-------------|
 | A1 | Abrir Godot → ejecutar proyecto (`F5` o botón Play) | MainMenu aparece con opciones: Nuevo escenario, Editor, Salir | ☐ |
-| A2 | Pulsar **Editor** | ScenarioEditorScene carga. Panel lateral visible. Canvas 2D en blanco. Status bar en la parte inferior. | ☐ |
+| A2 | Pulsar **Editor** | ScenarioEditorScene carga. Panel lateral compacto visible con pestañas **Dibujo / Lista / Archivo**. La pestaña **Archivo** aparece activa por defecto. Canvas 2D en blanco. Status bar en la parte inferior. | ☐ |
 | A3 | Verificar que el Inspector de Godot muestra `ScenarioEditor` con la propiedad **Editor UI → Load Error Dialog Title** | Campo de texto editable con valor `"Error al cargar escenario"` | ☐ |
 
 ---
@@ -37,7 +37,7 @@
 | B5 | Seleccionar herramienta **Ignición** y marcar la sala como punto de ignición | Indicador de ignición visible en la sala | ☐ |
 | B6 | Seleccionar herramienta **Detect.** y colocar un detector en la sala | Marcador de detector visible | ☐ |
 | B7 | Seleccionar herramienta **Vict.** y colocar una víctima en la sala | Marcador de víctima visible. Nota: es un sensor de exposición (FED/CO/T), no un objeto de rescate. | ☐ |
-| B8 | Activar HVAC desde la opción de HVAC en el panel | Opción HVAC activa (On/Off disponible) | ☐ |
+| B8 | Abrir pestaña **Archivo** y activar HVAC desde la opción de HVAC | Opción HVAC activa (On/Off disponible) | ☐ |
 
 ---
 
@@ -45,9 +45,9 @@
 
 | # | Paso | Resultado esperado | PASS / FAIL |
 |---|------|--------------------|-------------|
-| C1 | Pulsar **Guardar** (o escribir ruta en el campo de path y pulsar Guardar) | FileDialog abre. Seleccionar ruta y guardar. Status bar: "Plantilla guardada en …" | ☐ |
+| C1 | Abrir pestaña **Archivo** y pulsar **Guardar** (o escribir ruta en el campo de path y pulsar Guardar) | FileDialog abre. Seleccionar ruta y guardar. Status bar: "Plantilla guardada en …" | ☐ |
 | C2 | Pulsar **Nuevo** o limpiar el canvas (si existe el botón) para descartar el escenario actual | Canvas queda vacío | ☐ |
-| C3 | Pulsar **Cargar** → seleccionar el archivo guardado en C1 | Status bar: "Plantilla cargada desde …". Habitación, aperturas, objetos, detector y víctima reaparecen. | ☐ |
+| C3 | En pestaña **Archivo**, pulsar **Cargar** → seleccionar el archivo guardado en C1 | Status bar: "Plantilla cargada desde …". Habitación, aperturas, objetos, detector y víctima reaparecen. | ☐ |
 | C4 | El número de habitaciones y aperturas tras la carga coincide con lo guardado | Sin habitaciones perdidas ni duplicadas | ☐ |
 
 ---

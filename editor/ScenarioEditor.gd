@@ -32,6 +32,12 @@ enum EditorViewMode {
 	MODE_FP
 }
 
+enum EditorLeftTab {
+	TOOLS,
+	SELECTION,
+	SCENARIO
+}
+
 const GRID_M: float = 0.25
 const OUTSIDE_ID: int = -1
 const DEFAULT_SAVE_PATH: String = "user://editor_scenario.json"
@@ -57,6 +63,11 @@ const EDITOR_FONT_SIZE_BUTTON: int = 12
 const EDITOR_FONT_SIZE_STATUS: int = 13
 const EDITOR_HOVER_HELP_DELAY_S: float = 1.0
 const EDITOR_HOVER_HELP_MOVE_TOL_PX: float = 4.0
+const EDITOR_LEFT_PANEL_WIDTH_PX: float = 288.0
+const EDITOR_RIGHT_PANEL_WIDTH_PX: float = 260.0
+const EDITOR_SIDE_PANEL_TOP_PX: float = 16.0
+const EDITOR_SIDE_PANEL_BOTTOM_PX: float = 76.0
+const EDITOR_TOP_BAR_HEIGHT_PX: float = 96.0
 
 
 
@@ -161,8 +172,16 @@ var _editor_3d_drag_active: bool = false
 var _help_toggle_button: Button
 var _help_panel: PanelContainer
 var _help_label: Label
+var _help_dialog: AcceptDialog
+var _help_dialog_label: Label
+var _help_dialog_page_label: Label
+var _help_page_index: int = 0
 var _hover_help_check: CheckBox
 var _hover_help_enabled: bool = true
+var _active_left_tab: int = EditorLeftTab.SCENARIO
+var _left_tab_buttons: Dictionary = {}
+var _hover_help_popup: PanelContainer
+var _hover_help_popup_label: Label
 var _hover_help_idle_s: float = 0.0
 var _hover_help_last_screen_pos: Vector2 = Vector2.ZERO
 var _hover_help_world_pos_m: Vector2 = Vector2.ZERO
@@ -335,6 +354,9 @@ func _apply_editor_visual_style() -> void:
 	_apply_editor_theme_font_sizes(_editor_theme)
 	_normalize_editor_panel_readability()
 	_ensure_editor_branding()
+	_ensure_left_editor_tabs()
+	_sync_left_editor_tab_visibility()
+	_ensure_hover_help_popup()
 	_style_editor_controls(_ui_root)
 
 
@@ -415,44 +437,65 @@ func _normalize_editor_panel_readability() -> void:
 	var left_panel := _ui_root.get_node_or_null("LeftPanel") as Control
 	if left_panel != null:
 		left_panel.scale = Vector2.ONE
-		left_panel.offset_top = 20.0
-		left_panel.offset_right = maxf(left_panel.offset_right, 360.0)
-		left_panel.offset_bottom = 0.0
-		_ensure_panel_scroll_container(left_panel)
+		left_panel.offset_top = EDITOR_SIDE_PANEL_TOP_PX
+		left_panel.offset_right = EDITOR_LEFT_PANEL_WIDTH_PX
+		left_panel.offset_bottom = -EDITOR_SIDE_PANEL_BOTTOM_PX
+		left_panel.custom_minimum_size.x = EDITOR_LEFT_PANEL_WIDTH_PX
+		_restore_panel_vbox_from_scroll(left_panel)
+		var left_vbox := _find_left_vbox()
+		if left_vbox != null:
+			left_vbox.add_theme_constant_override("separation", 5)
 	var right_panel := _ui_root.get_node_or_null("RightPanel") as Control
 	if right_panel != null:
 		right_panel.scale = Vector2.ONE
-		right_panel.offset_left = minf(right_panel.offset_left, -316.0)
+		right_panel.offset_left = -EDITOR_RIGHT_PANEL_WIDTH_PX
 		right_panel.offset_right = -12.0
-		right_panel.offset_top = 20.0
-		right_panel.offset_bottom = -86.0
+		right_panel.offset_top = EDITOR_SIDE_PANEL_TOP_PX
+		right_panel.offset_bottom = -EDITOR_SIDE_PANEL_BOTTOM_PX
+		right_panel.custom_minimum_size.x = EDITOR_RIGHT_PANEL_WIDTH_PX
+		var right_vbox := right_panel.get_node_or_null("VBox") as VBoxContainer
+		if right_vbox != null:
+			right_vbox.add_theme_constant_override("separation", 4)
 	var top_bar := _ui_root.get_node_or_null("TopBar") as Control
 	if top_bar != null:
+		top_bar.offset_left = -280.0
 		top_bar.offset_top = 8.0
-		top_bar.offset_bottom = maxf(top_bar.offset_bottom, 116.0)
+		top_bar.offset_right = 280.0
+		top_bar.offset_bottom = EDITOR_TOP_BAR_HEIGHT_PX
+		top_bar.custom_minimum_size = Vector2(560.0, EDITOR_TOP_BAR_HEIGHT_PX - 8.0)
+	_compact_top_bar()
 
 
-func _ensure_panel_scroll_container(panel: Control) -> void:
+func _restore_panel_vbox_from_scroll(panel: Control) -> void:
 	if panel == null:
 		return
-	var existing_vbox := panel.get_node_or_null("VBox") as VBoxContainer
 	var scroll := panel.get_node_or_null("Scroll") as ScrollContainer
 	if scroll == null:
-		scroll = ScrollContainer.new()
-		scroll.name = "Scroll"
-		scroll.follow_focus = true
-		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		panel.add_child(scroll)
-	else:
-		scroll.follow_focus = true
-		scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	if existing_vbox != null and existing_vbox.get_parent() != scroll:
-		panel.remove_child(existing_vbox)
-		scroll.add_child(existing_vbox)
+		return
+	var existing_vbox := scroll.get_node_or_null("VBox") as VBoxContainer
+	if existing_vbox != null:
+		scroll.remove_child(existing_vbox)
+		panel.add_child(existing_vbox)
 		existing_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		existing_vbox.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	panel.remove_child(scroll)
+	scroll.queue_free()
+
+
+func _compact_top_bar() -> void:
+	if _ui_root == null:
+		return
+	var grid := _ui_root.get_node_or_null("TopBar/HBox") as GridContainer
+	if grid == null:
+		return
+	grid.columns = 7
+	grid.add_theme_constant_override("h_separation", 4)
+	grid.add_theme_constant_override("v_separation", 4)
+	for child in grid.get_children():
+		var button := child as Button
+		if button == null:
+			continue
+		button.custom_minimum_size = Vector2(72.0, 28.0)
 
 
 func _stylebox(bg: Color, border: Color, border_width: int, radius: int, margin: Vector2) -> StyleBoxFlat:
@@ -489,7 +532,7 @@ func _ensure_editor_branding() -> void:
 		brand.add_theme_constant_override("separation", 6)
 		left_vbox.add_child(brand)
 		left_vbox.move_child(brand, 0)
-	brand.custom_minimum_size = Vector2(0.0, 136.0)
+	brand.custom_minimum_size = Vector2(0.0, 84.0)
 
 	var logo := brand.get_node_or_null("Logo") as TextureRect
 	if logo == null:
@@ -499,7 +542,7 @@ func _ensure_editor_branding() -> void:
 		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		brand.add_child(logo)
-	logo.custom_minimum_size = Vector2(292.0, 106.0)
+	logo.custom_minimum_size = Vector2(236.0, 56.0)
 	logo.texture = load(EDITOR_LOGO_PATH) as Texture2D
 
 	var mode_label := brand.get_node_or_null("EditorModeLabel") as Label
@@ -508,10 +551,167 @@ func _ensure_editor_branding() -> void:
 		mode_label.name = "EditorModeLabel"
 		mode_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		brand.add_child(mode_label)
-	mode_label.text = "EDITOR DE ESCENARIOS TÉCNICO"
+	mode_label.text = "EDITOR DE ESCENARIOS"
 	mode_label.add_theme_font_override("font", _editor_title_font)
 	mode_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
 	mode_label.add_theme_color_override("font_color", UI_TEXT_MUTED)
+
+
+func _ensure_left_editor_tabs() -> void:
+	var left_vbox := _find_left_vbox()
+	if left_vbox == null:
+		return
+	var row := left_vbox.get_node_or_null("EditorTabsRow") as HBoxContainer
+	if row == null:
+		row = HBoxContainer.new()
+		row.name = "EditorTabsRow"
+		row.add_theme_constant_override("separation", 4)
+		left_vbox.add_child(row)
+	var brand := left_vbox.get_node_or_null("BrandHeader") as Control
+	if brand != null and row.get_parent() == left_vbox:
+		left_vbox.move_child(row, mini(brand.get_index() + 1, left_vbox.get_child_count() - 1))
+	_left_tab_buttons.clear()
+	_ensure_left_tab_button(row, "TabTools", "Dibujo", EditorLeftTab.TOOLS)
+	_ensure_left_tab_button(row, "TabSelection", "Lista", EditorLeftTab.SELECTION)
+	_ensure_left_tab_button(row, "TabScenario", "Archivo", EditorLeftTab.SCENARIO)
+	var old_templates_tab := row.get_node_or_null("TabTemplates") as Button
+	if old_templates_tab != null:
+		old_templates_tab.visible = false
+	_sync_left_tab_buttons()
+
+
+func _ensure_left_tab_button(parent: Control, button_name: String, text: String, tab_id: int) -> Button:
+	var button := parent.get_node_or_null(button_name) as Button
+	if button == null:
+		button = Button.new()
+		button.name = button_name
+		button.custom_minimum_size = Vector2(0.0, 28.0)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		parent.add_child(button)
+	button.text = text
+	button.toggle_mode = true
+	button.focus_mode = Control.FOCUS_NONE
+	var callback := Callable(self, "_set_left_editor_tab").bind(tab_id)
+	if not button.pressed.is_connected(callback):
+		button.pressed.connect(callback)
+	_left_tab_buttons[tab_id] = button
+	return button
+
+
+func _set_left_editor_tab(tab_id: int) -> void:
+	_active_left_tab = tab_id
+	_sync_left_tab_buttons()
+	_sync_left_editor_tab_visibility()
+
+
+func _sync_left_tab_buttons() -> void:
+	for key in _left_tab_buttons.keys():
+		var button := _left_tab_buttons[key] as Button
+		if button != null:
+			button.button_pressed = int(key) == _active_left_tab
+
+
+func _sync_left_editor_tab_visibility() -> void:
+	if _ui_root == null:
+		return
+	var tools_visible: bool = _active_left_tab == EditorLeftTab.TOOLS
+	var selection_visible: bool = _active_left_tab == EditorLeftTab.SELECTION
+	var scenario_visible: bool = _active_left_tab == EditorLeftTab.SCENARIO
+
+	_set_left_paths_visible([
+		"ViewModeRow",
+		"FloorSection",
+		"ObjectLabel",
+		"ObjectToolLabel",
+		"ObjectToolSection",
+		"ObjectTypeOption",
+		"CorridorSectionLabel",
+		"CorridorWidthRow",
+		"CorridorWidthSpin",
+		"OpeningToolSection",
+		"HoverHelpRow"
+	], tools_visible)
+	_set_left_paths_visible([
+		"ElementListTitle",
+		"ElementList"
+	], selection_visible)
+	_set_left_paths_visible([
+		"PathEdit",
+		"BtnSave",
+		"BtnLoad",
+		"BtnExportRuntime",
+		"StopTimeLabel",
+		"StopTimeSpin",
+		"LightingRow",
+		"BuildingTypeRow",
+		"ApartmentFloorRow",
+		"ScenarioLabel",
+		"HVACRow",
+		"ScenarioOption",
+		"BtnLoadScenario"
+	], scenario_visible)
+	_set_left_paths_visible(["SeparatorA", "SeparatorB"], false)
+	if _status_label != null:
+		_status_label.visible = true
+		_status_label.custom_minimum_size = Vector2(0.0, 54.0)
+	_sync_tool_option_visibility()
+
+
+func _set_left_paths_visible(paths: Array, visible: bool) -> void:
+	for raw_path in paths:
+		_set_left_path_visible(String(raw_path), visible)
+
+
+func _set_left_path_visible(path: String, visible: bool) -> void:
+	var node := _get_left_node(path) as Control
+	if node != null:
+		node.visible = visible
+
+
+func _ensure_hover_help_popup() -> void:
+	if _ui_root == null or _hover_help_popup != null:
+		return
+	_hover_help_popup = PanelContainer.new()
+	_hover_help_popup.name = "HoverHelpPopup"
+	_hover_help_popup.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hover_help_popup.visible = false
+	_hover_help_popup.custom_minimum_size = Vector2(220.0, 0.0)
+	_hover_help_popup.add_theme_stylebox_override("panel", _stylebox(Color(0.01, 0.025, 0.03, 0.94), UI_BORDER_HOT, 1, 0, Vector2(8.0, 6.0)))
+	_ui_root.add_child(_hover_help_popup)
+
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	_hover_help_popup.add_child(margin)
+
+	_hover_help_popup_label = Label.new()
+	_hover_help_popup_label.name = "HoverHelpLabel"
+	_hover_help_popup_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hover_help_popup_label.custom_minimum_size.x = 220.0
+	_hover_help_popup_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
+	_hover_help_popup_label.add_theme_color_override("font_color", Color(0.96, 0.98, 0.92, 1.0))
+	margin.add_child(_hover_help_popup_label)
+
+
+func _show_hover_help_popup(text: String) -> void:
+	_ensure_hover_help_popup()
+	if _hover_help_popup == null or _hover_help_popup_label == null:
+		return
+	if text == "":
+		_hover_help_popup.visible = false
+		return
+	_hover_help_popup_label.text = text
+	var viewport_size: Vector2 = get_viewport_rect().size
+	var popup_size: Vector2 = Vector2(250.0, 42.0)
+	var pos: Vector2 = _hover_help_last_screen_pos + Vector2(16.0, -46.0)
+	pos.x = clampf(pos.x, 12.0, maxf(12.0, viewport_size.x - popup_size.x - 12.0))
+	pos.y = clampf(pos.y, 12.0, maxf(12.0, viewport_size.y - popup_size.y - 12.0))
+	_hover_help_popup.position = pos
+	_hover_help_popup.visible = true
+	_hover_help_popup.move_to_front()
 
 
 func _ensure_editor_mode_controls_in_existing_ui() -> void:
@@ -585,6 +785,7 @@ func _ensure_editor_3d_nodes() -> void:
 	else:
 		_editor_visualizer_3d.building_path = NodePath("../EditorBuildingModel")
 	if _editor_visualizer_3d != null:
+		_editor_visualizer_3d.show_legend = false
 		if not _editor_visualizer_3d.room_clicked.is_connected(_on_editor_3d_room_clicked):
 			_editor_visualizer_3d.room_clicked.connect(_on_editor_3d_room_clicked)
 		if not _editor_visualizer_3d.opening_clicked.is_connected(_on_editor_3d_opening_clicked):
@@ -1908,7 +2109,7 @@ func _ensure_controls_help_block(parent: Control) -> void:
 	if _hover_help_check == null:
 		_hover_help_check = CheckBox.new()
 		_hover_help_check.name = "HoverHelpCheck"
-		_hover_help_check.text = "Activar ayuda"
+		_hover_help_check.text = "Ayuda contextual"
 		_hover_help_check.button_pressed = _hover_help_enabled
 		_hover_help_check.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		hover_row.add_child(_hover_help_check)
@@ -1920,20 +2121,21 @@ func _ensure_controls_help_block(parent: Control) -> void:
 	if _help_toggle_button == null:
 		_help_toggle_button = Button.new()
 		_help_toggle_button.name = "ControlsHelpToggle"
-		_help_toggle_button.toggle_mode = true
 		_help_toggle_button.custom_minimum_size = Vector2(0.0, 34.0)
 		parent.add_child(_help_toggle_button)
+	_help_toggle_button.toggle_mode = false
+	_help_toggle_button.text = "AYUDA DEL EDITOR"
 	_help_toggle_button.tooltip_text = "Muestra una guia rapida del editor."
-	var toggle_callable := Callable(self, "_set_controls_help_expanded")
-	if not _help_toggle_button.toggled.is_connected(toggle_callable):
-		_help_toggle_button.toggled.connect(toggle_callable)
+	var help_callable := Callable(self, "_show_editor_help_dialog")
+	if not _help_toggle_button.pressed.is_connected(help_callable):
+		_help_toggle_button.pressed.connect(help_callable)
 
 	_help_panel = parent.get_node_or_null("ControlsHelpPanel") as PanelContainer
 	if _help_panel == null:
 		_help_panel = PanelContainer.new()
 		_help_panel.name = "ControlsHelpPanel"
-		_help_panel.visible = false
 		parent.add_child(_help_panel)
+	_help_panel.visible = false
 	var margin := _help_panel.get_node_or_null("Margin") as MarginContainer
 	if margin == null:
 		margin = MarginContainer.new()
@@ -1961,14 +2163,96 @@ func _ensure_controls_help_block(parent: Control) -> void:
 	_help_label.text = _editor_help_text()
 
 	_move_controls_help_after_element_list(parent)
-	_set_controls_help_expanded(_help_toggle_button.button_pressed)
+	_set_controls_help_expanded(false)
+	_ensure_editor_help_dialog()
 
 
 func _set_controls_help_expanded(expanded: bool) -> void:
 	if _help_panel != null:
 		_help_panel.visible = expanded
 	if _help_toggle_button != null:
-		_help_toggle_button.text = "AYUDA DEL EDITOR v" if expanded else "AYUDA DEL EDITOR >"
+		_help_toggle_button.text = "AYUDA DEL EDITOR"
+
+
+func _ensure_editor_help_dialog() -> void:
+	if _help_dialog != null:
+		return
+	_help_dialog = AcceptDialog.new()
+	_help_dialog.name = "EditorHelpDialog"
+	_help_dialog.title = "Ayuda del editor"
+	_help_dialog.exclusive = true
+	_help_dialog.initial_position = Window.WINDOW_INITIAL_POSITION_CENTER_PRIMARY_SCREEN
+	_help_dialog.size = Vector2i(620, 420)
+	add_child(_help_dialog)
+
+	var root_box := VBoxContainer.new()
+	root_box.name = "HelpRoot"
+	root_box.add_theme_constant_override("separation", 10)
+	_help_dialog.add_child(root_box)
+
+	_help_dialog_label = Label.new()
+	_help_dialog_label.name = "HelpPageText"
+	_help_dialog_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_help_dialog_label.custom_minimum_size = Vector2(560.0, 270.0)
+	_help_dialog_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
+	_help_dialog_label.add_theme_color_override("font_color", UI_TEXT)
+	root_box.add_child(_help_dialog_label)
+
+	var nav_row := HBoxContainer.new()
+	nav_row.name = "HelpNav"
+	nav_row.add_theme_constant_override("separation", 8)
+	root_box.add_child(nav_row)
+
+	var prev_button := Button.new()
+	prev_button.text = "< Anterior"
+	prev_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	prev_button.pressed.connect(_show_previous_help_page)
+	nav_row.add_child(prev_button)
+
+	_help_dialog_page_label = Label.new()
+	_help_dialog_page_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_help_dialog_page_label.custom_minimum_size.x = 96.0
+	nav_row.add_child(_help_dialog_page_label)
+
+	var next_button := Button.new()
+	next_button.text = "Siguiente >"
+	next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	next_button.pressed.connect(_show_next_help_page)
+	nav_row.add_child(next_button)
+
+
+func _show_editor_help_dialog() -> void:
+	_ensure_editor_help_dialog()
+	_help_page_index = 0
+	_update_editor_help_dialog_page()
+	_help_dialog.popup_centered()
+
+
+func _show_previous_help_page() -> void:
+	var pages: PackedStringArray = _editor_help_pages()
+	if pages.is_empty():
+		return
+	_help_page_index = posmod(_help_page_index - 1, pages.size())
+	_update_editor_help_dialog_page()
+
+
+func _show_next_help_page() -> void:
+	var pages: PackedStringArray = _editor_help_pages()
+	if pages.is_empty():
+		return
+	_help_page_index = posmod(_help_page_index + 1, pages.size())
+	_update_editor_help_dialog_page()
+
+
+func _update_editor_help_dialog_page() -> void:
+	var pages: PackedStringArray = _editor_help_pages()
+	if pages.is_empty():
+		return
+	_help_page_index = clampi(_help_page_index, 0, pages.size() - 1)
+	if _help_dialog_label != null:
+		_help_dialog_label.text = pages[_help_page_index]
+	if _help_dialog_page_label != null:
+		_help_dialog_page_label.text = "%d / %d" % [_help_page_index + 1, pages.size()]
 
 
 func _move_controls_help_after_element_list(parent: Control) -> void:
@@ -1994,15 +2278,16 @@ func _on_hover_help_toggled(enabled: bool) -> void:
 
 
 func _editor_help_text() -> String:
-	return "\n".join(PackedStringArray([
-		"1. Elige la planta arriba a la izquierda. La lista Elementos de planta solo muestra lo que pertenece a esa planta, asi puedes seleccionar cosas aunque se superpongan en el plano.",
-		"2. Usa las herramientas superiores para dibujar habitaciones, pasillos, escaleras, puertas, ventanas, huecos, objetos, detectores, victimas e Inicio FP.",
-		"3. Con Sel puedes clicar un elemento o elegirlo en la lista. Las habitaciones, pasillos, escaleras y objetos tienen tiradores para mover, redimensionar y rotar con el raton.",
-		"4. Para puertas, ventanas y huecos, selecciona la herramienta y clica sobre la pared de la estancia. Sus medidas y apertura inicial se ajustan en el panel derecho.",
-		"5. La herramienta Inicio FP coloca la posicion inicial del jugador en la planta activa.",
-		"6. Boton derecho sobre estancias, objetos, aberturas o muros abre acciones rapidas. Supr borra la seleccion y Ctrl+Z deshace.",
-		"7. Rueda del raton hace zoom. Boton central o flechas desplazan el plano. Guardar conserva el escenario; Iniciar simulacion exporta y abre la simulacion."
-	]))
+	return "\n\n".join(_editor_help_pages())
+
+
+func _editor_help_pages() -> PackedStringArray:
+	return PackedStringArray([
+		"Dibujo\n\nElige una herramienta en la barra superior. Sala, Pasillo y Escalera se crean arrastrando. Puerta, Ventana y Hueco se colocan clicando sobre una pared. Objeto, Detector, Victima e Inicio FP se colocan clicando dentro de una sala.",
+		"Seleccion\n\nUsa Select para elegir elementos en el plano. Si un objeto, detector o victima esta encima de una sala, el editor prioriza el elemento pequeno antes que la sala. La pestaña Lista permite seleccionar cosas cuando se solapan.",
+		"Edicion\n\nEl panel derecho muestra solo las propiedades del elemento seleccionado. Las salas y objetos tienen tiradores para mover, redimensionar y rotar. Supr borra la seleccion y Ctrl+Z deshace.",
+		"Archivo\n\nLa pestaña Archivo agrupa guardar, cargar, exportar runtime, tiempo de parada, luces, tipo de edificio, HVAC y plantillas. Iniciar simulacion valida y exporta el escenario antes de abrir SimulationScene."
+	])
 
 
 func _create_floor_controls(parent: Control) -> void:
@@ -2662,6 +2947,9 @@ func _handle_press(pos_m: Vector2) -> void:
 				var room_handle_mode: int = _find_selected_room_handle_at(pos_m)
 				if room_handle_mode != ObjectMouseMode.NONE:
 					_begin_room_mouse_edit(room_handle_mode, pos_m)
+					return
+				if _has_non_room_selection_hit_at(pos_m):
+					_select_at(pos_m)
 					return
 				var selected_room: Dictionary = _get_room(selected_room_id)
 				if not selected_room.is_empty() and _rotated_rect_has_point(_get_room_rect(selected_room_id), _room_rotation_deg(selected_room_id), pos_m):
@@ -3758,6 +4046,15 @@ func _select_at(pos_m: Vector2) -> void:
 	queue_redraw()
 
 
+func _has_non_room_selection_hit_at(pos_m: Vector2) -> bool:
+	return _find_detector_at(pos_m) >= 0 \
+		or _find_victim_at(pos_m) >= 0 \
+		or not _find_object_at(pos_m).is_empty() \
+		or _find_opening_at(pos_m) >= 0 \
+		or _find_exterior_wall_at(pos_m) >= 0 \
+		or _player_start_hit_test(pos_m)
+
+
 func _select_room(room_id: int) -> void:
 	selected_room_id = room_id
 	selected_opening_index = -1
@@ -4350,7 +4647,8 @@ func _world_to_object_local(pos_m: Vector2, center_m: Vector2, rotation_deg: flo
 func _object_contains_point(room_rect: Rect2, obj: Dictionary, pos_m: Vector2) -> bool:
 	var size: Vector2 = _object_size_m(obj)
 	var local: Vector2 = _world_to_object_local(pos_m, _object_world_center(room_rect, obj), float(obj.get("rotation_deg", 0.0)))
-	return absf(local.x) <= size.x * 0.5 and absf(local.y) <= size.y * 0.5
+	var hit_padding_m: float = maxf(0.05, 8.0 / pixels_per_meter)
+	return absf(local.x) <= size.x * 0.5 + hit_padding_m and absf(local.y) <= size.y * 0.5 + hit_padding_m
 
 
 func _object_corner_points_m(room_rect: Rect2, obj: Dictionary) -> PackedVector2Array:
@@ -4597,7 +4895,7 @@ func _create_victim_at(pos_m: Vector2) -> void:
 
 func _find_detector_at(pos_m: Vector2) -> int:
 	var dets: Array = editor_data.get("detectors", [])
-	var hit_radius_m: float = 12.0 / pixels_per_meter
+	var hit_radius_m: float = maxf(0.28, 14.0 / pixels_per_meter)
 	for i in range(dets.size()):
 		if typeof(dets[i]) != TYPE_DICTIONARY:
 			continue
@@ -4616,7 +4914,7 @@ func _find_detector_at(pos_m: Vector2) -> int:
 
 func _find_victim_at(pos_m: Vector2) -> int:
 	var vics: Array = editor_data.get("victims", [])
-	var hit_radius_m: float = 12.0 / pixels_per_meter
+	var hit_radius_m: float = maxf(0.30, 16.0 / pixels_per_meter)
 	for i in range(vics.size()):
 		if typeof(vics[i]) != TYPE_DICTIONARY:
 			continue
@@ -5709,7 +6007,18 @@ func _draw() -> void:
 				12,
 				Color(0.55, 0.90, 1.0, 0.95)
 			)
-	_draw_hover_help()
+
+
+func _screen_scale_inv() -> float:
+	return 1.0 / maxf(0.05, camera.zoom.x)
+
+
+func _screen_font_size(base_size: int) -> int:
+	return maxi(4, int(round(float(base_size) * _screen_scale_inv())))
+
+
+func _screen_offset(offset_px: Vector2) -> Vector2:
+	return offset_px * _screen_scale_inv()
 
 
 func _track_hover_help_mouse(screen_pos: Vector2) -> void:
@@ -5723,6 +6032,7 @@ func _track_hover_help_mouse(screen_pos: Vector2) -> void:
 		_hover_help_idle_s = 0.0
 		if _hover_help_text != "":
 			_hover_help_text = ""
+			_show_hover_help_popup("")
 			queue_redraw()
 
 
@@ -5737,6 +6047,7 @@ func _update_hover_help(delta: float) -> void:
 	var next_text: String = _hover_help_text_at(_hover_help_world_pos_m)
 	if next_text != _hover_help_text:
 		_hover_help_text = next_text
+		_show_hover_help_popup(_hover_help_text)
 		queue_redraw()
 
 
@@ -5746,6 +6057,7 @@ func _reset_hover_help() -> void:
 	if _hover_help_text != "":
 		_hover_help_text = ""
 		queue_redraw()
+	_show_hover_help_popup("")
 
 
 func _is_editor_dragging_anything() -> bool:
@@ -5906,11 +6218,11 @@ func _draw_lower_floor_ghost() -> void:
 		if ThemeDB.fallback_font != null and rect_px.size.x > 28.0 and rect_px.size.y > 24.0:
 			draw_string(
 				ThemeDB.fallback_font,
-				rect_px.position + Vector2(6.0, 16.0),
+				rect_px.position + _screen_offset(Vector2(6.0, 16.0)),
 				_room_display_name(room_dict, int(room_dict.get("id", -1))),
 				HORIZONTAL_ALIGNMENT_LEFT,
 				maxf(30.0, rect_px.size.x - 8.0),
-				10,
+				_screen_font_size(10),
 				Color(0.74, 0.82, 0.88, 0.34)
 			)
 	var openings: Array = editor_data.get("openings_data", [])
@@ -6011,31 +6323,31 @@ func _draw_rooms() -> void:
 			var area_text: String = "%.2f m²  ·  %.2f m³" % [area_m2, vol_m3]
 			draw_string(
 				ThemeDB.fallback_font,
-				rect_px.position + Vector2(8.0, 18.0),
+				rect_px.position + _screen_offset(Vector2(8.0, 18.0)),
 				_room_display_name(room, room_id),
 				HORIZONTAL_ALIGNMENT_LEFT,
 				maxf(40.0, rect_px.size.x - 12.0),
-				13,
+				_screen_font_size(13),
 				Color(0.94, 0.97, 1.0, 0.92)
 			)
 			if rect_px.size.y >= 36.0:
 				draw_string(
 					ThemeDB.fallback_font,
-					rect_px.position + Vector2(8.0, 32.0),
+					rect_px.position + _screen_offset(Vector2(8.0, 32.0)),
 					dim_text,
 					HORIZONTAL_ALIGNMENT_LEFT,
 					maxf(40.0, rect_px.size.x - 12.0),
-					11,
+					_screen_font_size(11),
 					Color(0.75, 0.88, 0.95, 0.85)
 				)
 			if rect_px.size.y >= 52.0:
 				draw_string(
 					ThemeDB.fallback_font,
-					rect_px.position + Vector2(8.0, 46.0),
+					rect_px.position + _screen_offset(Vector2(8.0, 46.0)),
 					area_text,
 					HORIZONTAL_ALIGNMENT_LEFT,
 					maxf(40.0, rect_px.size.x - 12.0),
-					11,
+					_screen_font_size(11),
 					Color(0.65, 0.82, 0.65, 0.85)
 				)
 		if room_id == selected_room_id:
@@ -6174,11 +6486,11 @@ func _draw_objects() -> void:
 			if ThemeDB.fallback_font != null and size.x * pixels_per_meter >= 48.0:
 				draw_string(
 					ThemeDB.fallback_font,
-					center_px + Vector2(-size.x * pixels_per_meter * 0.5 + 4.0, 4.0),
+					center_px + Vector2(-size.x * pixels_per_meter * 0.5, 0.0) + _screen_offset(Vector2(4.0, 12.0)),
 					String(obj.get("name", obj.get("kind", ""))),
 					HORIZONTAL_ALIGNMENT_LEFT,
 					maxf(16.0, size.x * pixels_per_meter - 8.0),
-					10,
+					_screen_font_size(10),
 					Color(0.08, 0.05, 0.03, 0.9)
 				)
 
@@ -7049,9 +7361,10 @@ func _on_opening_tool_width_changed(v: float) -> void:
 func _sync_tool_option_visibility() -> void:
 	if _ui_root == null:
 		return
-	var object_visible: bool = current_tool == Tool.OBJECT
-	var corridor_visible: bool = current_tool == Tool.CORRIDOR_L
-	var opening_visible: bool = current_tool == Tool.HOLE
+	var tools_tab_visible: bool = _active_left_tab == EditorLeftTab.TOOLS
+	var object_visible: bool = tools_tab_visible and current_tool == Tool.OBJECT
+	var corridor_visible: bool = tools_tab_visible and current_tool == Tool.CORRIDOR_L
+	var opening_visible: bool = tools_tab_visible and current_tool == Tool.HOLE
 	_set_node_visible("LeftPanel/VBox/ObjectLabel", object_visible)
 	_set_node_visible("LeftPanel/VBox/ObjectToolLabel", object_visible)
 	_set_node_visible("LeftPanel/VBox/ObjectTypeOption", object_visible)

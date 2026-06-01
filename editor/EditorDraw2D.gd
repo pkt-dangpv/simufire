@@ -31,29 +31,31 @@ static func corridor_room_guides(canvas: CanvasItem, rect_px: Rect2) -> void:
 static func narrow_room_dimension_labels(canvas: CanvasItem, rect_m: Rect2, rect_px: Rect2, is_stairs: bool) -> void:
 	if ThemeDB.fallback_font == null:
 		return
+	var inv_zoom: float = float(canvas.call("_screen_scale_inv")) if canvas.has_method("_screen_scale_inv") else 1.0
+	var font_size: int = maxi(4, int(round(11.0 * inv_zoom)))
 	var label_color: Color = Color(0.72, 1.0, 0.94, 0.96) if not is_stairs else Color(1.0, 0.84, 0.34, 0.96)
 	var long_m: float = maxf(rect_m.size.x, rect_m.size.y)
 	var wide_m: float = minf(rect_m.size.x, rect_m.size.y)
 	var long_label: String = "Largo %.2f m" % long_m
 	var wide_label: String = "Ancho %.2f m" % wide_m
-	var top_pos: Vector2 = rect_px.position + Vector2(4.0, -6.0)
+	var top_pos: Vector2 = rect_px.position + Vector2(4.0, -6.0) * inv_zoom
 	canvas.draw_string(
 		ThemeDB.fallback_font,
 		top_pos,
 		long_label,
 		HORIZONTAL_ALIGNMENT_LEFT,
 		180.0,
-		11,
+		font_size,
 		label_color
 	)
-	var side_pos: Vector2 = Vector2(rect_px.position.x + rect_px.size.x + 8.0, rect_px.position.y + minf(18.0, rect_px.size.y * 0.5))
+	var side_pos: Vector2 = Vector2(rect_px.position.x + rect_px.size.x + 8.0 * inv_zoom, rect_px.position.y + minf(18.0 * inv_zoom, rect_px.size.y * 0.5))
 	canvas.draw_string(
 		ThemeDB.fallback_font,
 		side_pos,
 		wide_label,
 		HORIZONTAL_ALIGNMENT_LEFT,
 		160.0,
-		11,
+		font_size,
 		label_color
 	)
 
@@ -120,6 +122,8 @@ static func switchback_stair_room_guides(canvas: CanvasItem, rect_px: Rect2, dir
 ## Draw the player-start arrow icon at pixel position px.
 ## dir = normalized direction vector (world); radius = triangle half-size in pixels.
 static func player_start_icon(canvas: CanvasItem, px: Vector2, dir: Vector2, radius: float, color: Color) -> void:
+	var inv_zoom: float = float(canvas.call("_screen_scale_inv")) if canvas.has_method("_screen_scale_inv") else 1.0
+	var font_size: int = maxi(4, int(round(10.0 * inv_zoom)))
 	var pts := PackedVector2Array([
 		px + dir * (radius + 4.0),
 		px + dir.rotated(2.35) * radius,
@@ -128,22 +132,26 @@ static func player_start_icon(canvas: CanvasItem, px: Vector2, dir: Vector2, rad
 	canvas.draw_colored_polygon(pts, color)
 	canvas.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(0.0, 0.0, 0.0, 0.78), 1.6)
 	if ThemeDB.fallback_font != null:
-		canvas.draw_string(ThemeDB.fallback_font, px + Vector2(11.0, 4.0), "FP", HORIZONTAL_ALIGNMENT_LEFT, 32.0, 10, color)
+		canvas.draw_string(ThemeDB.fallback_font, px + Vector2(11.0, 4.0) * inv_zoom, "FP", HORIZONTAL_ALIGNMENT_LEFT, 32.0, font_size, color)
 
 
 ## Draw a detector circle icon at pixel position px.
 ## label = single character identifier ("S", "H", or "C").
 static func detector_icon(canvas: CanvasItem, px: Vector2, radius: float, color: Color, label: String, selected: bool) -> void:
+	var inv_zoom: float = float(canvas.call("_screen_scale_inv")) if canvas.has_method("_screen_scale_inv") else 1.0
+	var font_size: int = maxi(4, int(round(11.0 * inv_zoom)))
 	canvas.draw_circle(px, radius + 2.0, Color(0.0, 0.0, 0.0, 0.7))
 	canvas.draw_circle(px, radius, color)
 	if selected:
 		canvas.draw_circle(px, radius + 2.0, Color(1.0, 1.0, 1.0, 0.85), false, 2.0)
 	if ThemeDB.fallback_font != null:
-		canvas.draw_string(ThemeDB.fallback_font, px + Vector2(-4.0, 5.0), label, HORIZONTAL_ALIGNMENT_LEFT, 20.0, 11, Color(0.0, 0.0, 0.0, 0.92))
+		canvas.draw_string(ThemeDB.fallback_font, px + Vector2(-4.0, 5.0) * inv_zoom, label, HORIZONTAL_ALIGNMENT_LEFT, 20.0, font_size, Color(0.0, 0.0, 0.0, 0.92))
 
 
 ## Draw a victim diamond icon at pixel position px.
 static func victim_icon(canvas: CanvasItem, px: Vector2, r: float, color: Color, selected: bool) -> void:
+	var inv_zoom: float = float(canvas.call("_screen_scale_inv")) if canvas.has_method("_screen_scale_inv") else 1.0
+	var font_size: int = maxi(4, int(round(10.0 * inv_zoom)))
 	var pts := PackedVector2Array([
 		px + Vector2(0.0, -r),
 		px + Vector2(r, 0.0),
@@ -155,7 +163,7 @@ static func victim_icon(canvas: CanvasItem, px: Vector2, r: float, color: Color,
 	if selected:
 		canvas.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), Color(1.0, 1.0, 1.0, 0.85), 2.0)
 	if ThemeDB.fallback_font != null:
-		canvas.draw_string(ThemeDB.fallback_font, px + Vector2(-4.0, 5.0), "V", HORIZONTAL_ALIGNMENT_LEFT, 16.0, 10, Color(0.0, 0.0, 0.0, 0.92))
+		canvas.draw_string(ThemeDB.fallback_font, px + Vector2(-4.0, 5.0) * inv_zoom, "V", HORIZONTAL_ALIGNMENT_LEFT, 16.0, font_size, Color(0.0, 0.0, 0.0, 0.92))
 
 
 ## Draw selection handles: resize handles (green) and a rotate handle (blue).
