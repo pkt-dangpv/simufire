@@ -85,7 +85,7 @@ Las víctimas son **sensores de exposición** (acumulan FED, CO, temperatura) y 
 
 | ID | Tarea | Descripción | Prioridad |
 |----|-------|-------------|-----------|
-| FP-01 | Fuego visible en FP | Instanciar `FireAnimation3D` en el mundo FP para cada sala con HRR > umbral. Controlado por `@export var show_fire_fp: bool = true` | **Alta** |
+| FP-01 | Fuego visible en FP | `Visualizer3D` y `FirstPersonController` comparten el mismo `World3D` en `SimulationScene.tscn`. Los meshes de fuego generados por Visualizer3D son visibles desde la cámara FP sin código adicional. No se requiere `show_fire_fp` separado: `show_hrr_columns` en Visualizer3D controla ambas vistas. | **Alta** | ✅ por arquitectura compartida |
 | FP-02 | Overlay técnico de magnitudes | Panel HUD en FP con: temperatura en postura actual (°C), CO (ppm), CO₂ (%vol), O₂ (%vol), HCN (ppm), FED acumulado, visibilidad (m). Controlado por `@export var show_technical_overlay: bool = true` | **Alta** |
 | FP-03 | Visibilidad numérica en pantalla | Mostrar los metros de visión efectiva en FP como número junto al overlay de opacidad existente | **Alta** |
 | FP-04 | Estado visual de víctimas por FED | Cambiar color/postura del marcador de víctima en función del umbral FED (consciente / incapacitada ≥ 0.3 / mortal ≥ 1.0). Los valores umbral son `@export`. Sin gameplay. | **Media** |
