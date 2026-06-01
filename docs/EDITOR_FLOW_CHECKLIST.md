@@ -82,7 +82,7 @@
 | # | Paso | Resultado esperado | PASS / FAIL |
 |---|------|--------------------|-------------|
 | F1 | En SimulationScene, pulsar botón **3D** en el HUD | Vista 3D orbital muestra la geometría del escenario | ☐ |
-| F2 | En SimulationScene, pulsar botón **FP** en el HUD | Primera persona activa en la posición del marcador de inicio | ☐ |
+| F2 | En SimulationScene, pulsar botón **FP** en el HUD | Primera persona activa en la posición del marcador de inicio. Fuego y mobiliario 3D siguen visibles desde la cámara FP. El minimapa y las tarjetas 2D de salas/víctimas no se solapan con el HUD FP. | ☐ |
 | F3 | Moverse con WASD y verificar que el humo se renderiza correctamente a medida que avanza la simulación | Opacidad del humo aumenta con el tiempo | ☐ |
 | F4 | Regresar a la vista 2D con `Escape` o el botón de salir de FP | Vista 2D restaurada | ☐ |
 
@@ -99,7 +99,10 @@ Estas propiedades deben ser visibles/editables desde el Inspector de Godot sin t
 | `show_smoke_volume` | `Visualizer3D` | `Visibility` | ✅ @export existente |
 | `smoke_visible_threshold_kg` | `Visualizer3D` | `Dynamics` | ✅ @export existente |
 | `default_room_height_m` | `Visualizer3D` | `Geometry` | ✅ @export existente |
+| `show_fuel_objects_in_first_person` | `Visualizer3D` | `Visibility` | ✅ @export (v0.5.1 FP-01 fix) |
+| `fp_fuel_object_update_interval_s` | `Visualizer3D` | `Visibility` | ✅ @export (v0.5.1 FP performance) |
 | `show_technical_overlay` | `FirstPersonController` | `Technical Overlay` | ✅ @export (v0.5.1 FP-02) |
+| `show_visibility_readout` | `FirstPersonController` | `Technical Overlay` | ✅ @export (v0.5.1 FP-03) |
 | `show_fire_fp` | — | — | ✅ N/A — fuego FP visible vía `World3D` compartido con `Visualizer3D`; controlado por `show_hrr_columns` (v0.5.1 FP-01 ✅) |
 | `max_undo_steps` | `ScenarioEditor` | `Editor UI` | ✅ @export (v0.5.0 E-04) |
 | `pixels_per_meter` | `ScenarioEditor` | `Editor UI` | ✅ @export (v0.5.0 E-04) |

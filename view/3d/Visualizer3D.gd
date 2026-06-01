@@ -62,6 +62,9 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var show_layer_150c: bool = false
 @export var show_hrr_columns: bool = true
 @export var show_fuel_objects_3d: bool = true
+## Mantiene visible el mobiliario 3D compartido cuando la camara FP esta activa.
+@export var show_fuel_objects_in_first_person: bool = true
+@export var fp_fuel_object_update_interval_s: float = 0.25
 @export var show_detector_markers_3d: bool = true
 @export var show_victim_markers_3d: bool = true
 @export var show_exterior_context_3d: bool = false
@@ -185,6 +188,7 @@ var _dragging_element_room_id: int = -1
 var _drag_floor_offset_m: Vector2 = Vector2.ZERO
 var _drag_start_floor_pos_m: Vector2 = Vector2.ZERO
 var _drag_started_emitted: bool = false
+var _last_fp_fuel_object_update_msec: int = 0
 var _fire_phase: float = 0.0
 var _input_active: bool = true
 var _first_person_overlay: bool = false
@@ -212,9 +216,12 @@ func _process(delta: float) -> void:
 
 
 func set_active(active: bool, camera_active: bool = true, input_active: bool = true, first_person_overlay: bool = false) -> void:
+	var was_first_person_overlay: bool = _first_person_overlay
 	visible = active
 	_input_active = active and input_active
 	_first_person_overlay = active and first_person_overlay
+	if _first_person_overlay != was_first_person_overlay:
+		_last_fp_fuel_object_update_msec = 0
 	if _camera != null:
 		_camera.current = active and camera_active
 	_apply_overlay_visibility()
@@ -437,7 +444,7 @@ func _apply_overlay_visibility() -> void:
 		_atmosphere_root.visible = true
 		for child in _atmosphere_root.get_children():
 			if String(child.name).begins_with("FuelObjects_"):
-				child.visible = show_fuel_objects_3d and not _first_person_overlay
+				child.visible = show_fuel_objects_3d and (not _first_person_overlay or show_fuel_objects_in_first_person)
 			elif String(child.name).begins_with("SafetyMarkers_"):
 				child.visible = not _first_person_overlay
 	var sun := get_node_or_null("Sun") as Light3D
@@ -1059,14 +1066,28 @@ func _opening_pose(op: OpeningModel) -> Dictionary:
 
 
 func _update_dynamic_state() -> void:
+	var update_fuel_objects: bool = _should_update_fuel_objects_this_pass()
 	for room_id in _room_items.keys():
-		_update_room(int(room_id))
+		_update_room(int(room_id), update_fuel_objects)
 	_update_openings()
 	_update_player_start_marker_3d()
 	_apply_selection_visuals()
 
 
-func _update_room(room_id: int) -> void:
+func _should_update_fuel_objects_this_pass() -> bool:
+	if not _first_person_overlay:
+		return true
+	var interval_ms: int = int(maxf(0.0, fp_fuel_object_update_interval_s) * 1000.0)
+	if interval_ms <= 0:
+		return true
+	var now_msec: int = Time.get_ticks_msec()
+	if _last_fp_fuel_object_update_msec == 0 or now_msec - _last_fp_fuel_object_update_msec >= interval_ms:
+		_last_fp_fuel_object_update_msec = now_msec
+		return true
+	return false
+
+
+func _update_room(room_id: int, update_fuel_objects: bool = true) -> void:
 	var item: Dictionary = _room_items[room_id]
 	var rect := Rect2(item["rect"])
 	var height_m: float = float(item["height_m"])
@@ -1137,8 +1158,20 @@ func _update_room(room_id: int) -> void:
 		label.visible = show_room_labels
 		label.text = _get_room_label(room_id, rs)
 
-	_update_room_fuel_objects_3d(item, rs, rect)
+	if update_fuel_objects:
+		_update_room_fuel_objects_3d(item, rs, rect)
+	else:
+		_sync_room_fuel_objects_3d_visibility(item)
 	_update_room_safety_markers_3d(room_id, item, rect)
+
+
+func _sync_room_fuel_objects_3d_visibility(item: Dictionary) -> void:
+	var fuel_objects_root := item.get("fuel_objects_root") as Node3D
+	if fuel_objects_root == null:
+		return
+	fuel_objects_root.visible = show_fuel_objects_3d \
+		and (not _first_person_overlay or show_fuel_objects_in_first_person) \
+		and fuel_objects_root.get_child_count() > 0
 
 
 func _update_room_selection_visuals() -> void:
@@ -2377,7 +2410,7 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 			normalized_objects.append(normalized)
 	objects = normalized_objects
 
-	if _first_person_overlay:
+	if _first_person_overlay and not show_fuel_objects_in_first_person:
 		fuel_objects_root.visible = false
 		return
 	if not show_fuel_objects_3d:

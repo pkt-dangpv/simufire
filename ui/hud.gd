@@ -83,6 +83,7 @@ const EXIT_MENU_SAVE_GRAPHS: int = 2
 @onready var time_scale_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow/TimeScaleLabel") as Label
 @onready var playback_status_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/InfoRow/PlaybackStatusLabel") as Label
 @onready var shortcut_help_label: Label = get_node_or_null("TimeControlsPanel/MarginContainer/VBoxContainer/ShortcutHelpLabel") as Label
+@onready var _rooms_data_panel: PanelContainer = get_node_or_null("RoomsDataPanel") as PanelContainer
 @onready var rooms_scroll_container: ScrollContainer = get_node_or_null("RoomsDataPanel/MarginContainer/ScrollContainer") as ScrollContainer
 @onready var rooms_data_vbox: GridContainer = get_node_or_null("RoomsDataPanel/MarginContainer/ScrollContainer/RoomsGrid") as GridContainer
 @onready var _victims_panel: PanelContainer = get_node_or_null("VictimsPanel") as PanelContainer
@@ -119,6 +120,7 @@ func _ready() -> void:
 	if openings_panel != null:
 		openings_panel.visible = show_openings_panel
 		openings_panel.scale = Vector2.ONE
+	_apply_mode_panel_visibility()
 
 	_ensure_first_person_button()
 	_ensure_hvac_button()
@@ -296,15 +298,14 @@ func update_state(state: Dictionary) -> void:
 	_update_first_person_toggle(bool(state.get("first_person_enabled", false)))
 	_update_hvac_button(bool(state.get("hvac_exists", false)), bool(state.get("hvac_on", false)))
 	if _first_person_enabled:
-		show_status_panel = false
-		if status_panel != null:
-			status_panel.visible = false
 		hide_opening_action()
+	_apply_mode_panel_visibility()
 
-	_refresh_opening_controls()
-	_update_rooms_panel(state)
-	_update_victims_panel(state)
-	_refresh_opening_action_panel()
+	if not _first_person_enabled:
+		_refresh_opening_controls()
+		_update_rooms_panel(state)
+		_update_victims_panel(state)
+		_refresh_opening_action_panel()
 
 	if status_panel == null or status_label == null or not show_status_panel:
 		return
@@ -433,6 +434,17 @@ func _update_view_toggle(is_3d_enabled: bool) -> void:
 	btn_view_3d.text = "3D"
 
 
+func _apply_mode_panel_visibility() -> void:
+	if status_panel != null:
+		status_panel.visible = show_status_panel and not _first_person_enabled
+	if openings_panel != null:
+		openings_panel.visible = show_openings_panel and not _first_person_enabled
+	if _rooms_data_panel != null:
+		_rooms_data_panel.visible = not _first_person_enabled
+	if _victims_panel != null:
+		_victims_panel.visible = (not _first_person_enabled) and not _victim_rows.is_empty()
+
+
 func _ensure_first_person_button() -> void:
 	if btn_first_person != null:
 		return
@@ -547,10 +559,11 @@ func _rebuild_victims_panel() -> void:
 
 	if _victims_panel != null:
 		_victims_panel.visible = not _victim_rows.is_empty()
+		_apply_mode_panel_visibility()
 
 
 func _update_victims_panel(state: Dictionary) -> void:
-	if _victims_panel == null or not _victims_panel.visible:
+	if _first_person_enabled or _victims_panel == null or not _victims_panel.visible:
 		return
 	var victims_state: Array = Array(state.get("victims", []))
 	for vic_state in victims_state:
@@ -683,8 +696,8 @@ func _refresh_opening_controls() -> void:
 	if openings_panel == null:
 		return
 
-	openings_panel.visible = show_openings_panel
-	if not show_openings_panel:
+	openings_panel.visible = show_openings_panel and not _first_person_enabled
+	if not show_openings_panel or _first_person_enabled:
 		return
 
 	_set_openings_panel_compact()
