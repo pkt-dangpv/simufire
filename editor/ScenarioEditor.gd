@@ -175,7 +175,7 @@ var _opening_tool_section: Control
 var _opening_tool_width_spin: SpinBox
 var _save_dialog: FileDialog
 var _load_dialog: FileDialog
-var _load_error_dialog: AcceptDialog
+var _load_error_helper: EditorLoadErrorDialog = EditorLoadErrorDialog.new()
 var _room_apply_button: Button
 var _room_delete_button: Button
 var _room_x_spin: SpinBox
@@ -508,7 +508,7 @@ func _ensure_editor_branding() -> void:
 		mode_label.name = "EditorModeLabel"
 		mode_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		brand.add_child(mode_label)
-	mode_label.text = "TACTICAL SCENARIO EDITOR"
+	mode_label.text = "EDITOR DE ESCENARIOS TÉCNICO"
 	mode_label.add_theme_font_override("font", _editor_title_font)
 	mode_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
 	mode_label.add_theme_color_override("font_color", UI_TEXT_MUTED)
@@ -1358,16 +1358,16 @@ func _setup_ui() -> void:
 	main.add_child(toolbar)
 	_add_tool_button(toolbar, "Sel", Tool.SELECT)
 	_add_tool_button(toolbar, "Exterior", Tool.EXTERIOR_WALL)
-	_add_tool_button(toolbar, "Room", Tool.ROOM)
+	_add_tool_button(toolbar, "Sala", Tool.ROOM)
 	_add_tool_button(toolbar, "Pasillo", Tool.CORRIDOR_L)
 	_add_tool_button(toolbar, "Escalera", Tool.STAIRS)
-	_add_tool_button(toolbar, "Door", Tool.DOOR)
+	_add_tool_button(toolbar, "Puerta", Tool.DOOR)
 	_add_tool_button(toolbar, "Hueco", Tool.HOLE)
-	_add_tool_button(toolbar, "Window", Tool.WINDOW)
-	_add_tool_button(toolbar, "Object", Tool.OBJECT)
-	_add_tool_button(toolbar, "Ignite", Tool.IGNITION)
+	_add_tool_button(toolbar, "Ventana", Tool.WINDOW)
+	_add_tool_button(toolbar, "Objeto", Tool.OBJECT)
+	_add_tool_button(toolbar, "Ignición", Tool.IGNITION)
 	_add_tool_button(toolbar, "Inicio FP", Tool.PLAYER_START)
-	_add_tool_button(toolbar, "Del", Tool.DELETE)
+	_add_tool_button(toolbar, "Borrar", Tool.DELETE)
 	_add_tool_button(toolbar, "Detect.", Tool.DETECTOR)
 	_add_tool_button(toolbar, "Vict.", Tool.VICTIM)
 
@@ -1381,7 +1381,7 @@ func _setup_ui() -> void:
 	main.add_child(object_row)
 	var object_label := Label.new()
 	object_label.name = "ObjectToolLabel"
-	object_label.text = "Object"
+	object_label.text = "Objeto"
 	object_label.custom_minimum_size.x = 72.0
 	object_row.add_child(object_label)
 	_object_kind_option = OptionButton.new()
@@ -1415,7 +1415,7 @@ func _setup_ui() -> void:
 	main.add_child(HSeparator.new())
 
 	var properties_title := Label.new()
-	properties_title.text = "Room properties"
+	properties_title.text = "Propiedades de sala"
 	main.add_child(properties_title)
 
 	_name_edit = _add_line_edit(main, "Nombre")
@@ -1708,7 +1708,7 @@ func _setup_ui() -> void:
 
 	# ---- Panel de escenarios predefinidos ----
 	var scenarios_title := Label.new()
-	scenarios_title.text = "Scenarios"
+	scenarios_title.text = "Escenarios"
 	main.add_child(scenarios_title)
 
 	var scenarios_row := HBoxContainer.new()
@@ -1717,7 +1717,7 @@ func _setup_ui() -> void:
 	_scenario_option = OptionButton.new()
 	_scenario_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scenarios_row.add_child(_scenario_option)
-	_add_action_button(scenarios_row, "Load", _load_scenario_pressed)
+	_add_action_button(scenarios_row, "Cargar", _load_scenario_pressed)
 
 	main.add_child(HSeparator.new())
 
@@ -5444,29 +5444,12 @@ func _save_to_path(path: String) -> void:
 		_set_status("No se pudo guardar la plantilla.")
 
 
-func _ensure_load_error_dialog() -> void:
-	var canvas: CanvasLayer = get_node_or_null("CanvasLayer") as CanvasLayer
-	var parent: Node = canvas if canvas != null else self
-	_load_error_dialog = parent.get_node_or_null("LoadErrorDialog") as AcceptDialog
-	if _load_error_dialog == null:
-		_load_error_dialog = AcceptDialog.new()
-		_load_error_dialog.name = "LoadErrorDialog"
-		parent.add_child(_load_error_dialog)
-	_load_error_dialog.title = load_error_dialog_title
-	_load_error_dialog.ok_button_text = "Aceptar"
-
-
 func _show_load_error(message: String, path: String = "") -> void:
-	_ensure_load_error_dialog()
-	if _load_error_dialog == null:
+	var shown: bool = _load_error_helper.show_error(self, load_error_dialog_title, message, path)
+	if not shown:
 		_set_status(message)
-		return
-	var full_msg: String = message
-	if path != "":
-		full_msg += "\n\n" + path
-	_load_error_dialog.dialog_text = full_msg
-	_load_error_dialog.popup_centered()
-	_set_status(message.get_slice("\n", 0))
+	else:
+		_set_status(message.get_slice("\n", 0))
 
 
 func _load_from_path(path: String) -> void:
@@ -5981,11 +5964,7 @@ func _draw_exterior_walls() -> void:
 		var selected: bool = i == selected_exterior_wall_index
 		var color: Color = _exterior_wall_selected_color if selected else _exterior_wall_color
 		var thickness_px: float = maxf(3.0, float(wall.get("thickness_m", 0.16)) * pixels_per_meter)
-		draw_line(_m_to_px(a), _m_to_px(b), Color(0.0, 0.0, 0.0, 0.76), thickness_px + 2.0)
-		draw_line(_m_to_px(a), _m_to_px(b), color, thickness_px)
-		if selected:
-			draw_circle(_m_to_px(a), 5.0, color)
-			draw_circle(_m_to_px(b), 5.0, color)
+		EditorDraw2D.exterior_wall(self, _m_to_px(a), _m_to_px(b), color, thickness_px, selected)
 
 
 func _draw_rooms() -> void:
@@ -6064,76 +6043,11 @@ func _draw_rooms() -> void:
 
 
 func _draw_corridor_room_guides(rect_px: Rect2) -> void:
-	var center: Vector2 = rect_px.get_center()
-	var half_major: float = maxf(rect_px.size.x, rect_px.size.y) * 0.5 - 10.0
-	if half_major <= 4.0:
-		return
-	var a: Vector2
-	var b: Vector2
-	if rect_px.size.x >= rect_px.size.y:
-		a = center - Vector2(half_major, 0.0)
-		b = center + Vector2(half_major, 0.0)
-	else:
-		a = center - Vector2(0.0, half_major)
-		b = center + Vector2(0.0, half_major)
-	draw_line(a, b, Color(0.80, 1.0, 0.92, 0.36), 2.0)
-	draw_circle(a, 2.5, Color(0.80, 1.0, 0.92, 0.50))
-	draw_circle(b, 2.5, Color(0.80, 1.0, 0.92, 0.50))
+	EditorDraw2D.corridor_room_guides(self, rect_px)
 
 
 func _draw_stair_room_guides(rect_px: Rect2, room: Dictionary) -> void:
-	var dir: Vector2 = _room_stair_run_direction(room)
-	var normal := Vector2(-dir.y, dir.x)
-	var center: Vector2 = rect_px.get_center()
-	var long_px: float = rect_px.size.x if absf(dir.x) > absf(dir.y) else rect_px.size.y
-	var cross_px: float = rect_px.size.y if absf(dir.x) > absf(dir.y) else rect_px.size.x
-	if float(room.get("stair_turn_degrees", 0.0)) >= 179.0:
-		_draw_switchback_stair_room_guides(rect_px, dir, normal, center, long_px, cross_px)
-		return
-	var start: Vector2 = center - dir * (long_px * 0.5 - 8.0)
-	var end: Vector2 = center + dir * (long_px * 0.5 - 8.0)
-	var half_width: float = maxf(10.0, cross_px * 0.22)
-	var steps: int = clampi(int(long_px / 22.0), 4, 14)
-	for i in range(steps + 1):
-		var t: float = float(i) / float(maxi(1, steps))
-		var p: Vector2 = start.lerp(end, t)
-		draw_line(p - normal * half_width, p + normal * half_width, Color(1.0, 0.78, 0.20, 0.62), 1.4)
-	draw_line(start - normal * half_width, end - normal * half_width, Color(1.0, 0.78, 0.20, 0.34), 1.0)
-	draw_line(start + normal * half_width, end + normal * half_width, Color(1.0, 0.78, 0.20, 0.34), 1.0)
-	draw_circle(start, 4.0, Color(0.95, 1.0, 0.82, 0.95))
-	draw_line(start, end, Color(1.0, 0.90, 0.35, 0.72), 2.0)
-	var arrow_left: Vector2 = end - dir * 12.0 + normal * 6.0
-	var arrow_right: Vector2 = end - dir * 12.0 - normal * 6.0
-	draw_colored_polygon(PackedVector2Array([end, arrow_left, arrow_right]), Color(1.0, 0.90, 0.35, 0.86))
-	if ThemeDB.fallback_font != null and long_px > 60.0:
-		draw_string(ThemeDB.fallback_font, start + Vector2(5.0, -5.0), "ENTRA", HORIZONTAL_ALIGNMENT_LEFT, 70.0, 9, Color(0.95, 1.0, 0.82, 0.82))
-		draw_string(ThemeDB.fallback_font, end + Vector2(5.0, -5.0), "SUBE", HORIZONTAL_ALIGNMENT_LEFT, 60.0, 9, Color(1.0, 0.90, 0.35, 0.86))
-
-
-func _draw_switchback_stair_room_guides(rect_px: Rect2, dir: Vector2, normal: Vector2, center: Vector2, long_px: float, cross_px: float) -> void:
-	var start_center: Vector2 = center - dir * (long_px * 0.5 - 10.0)
-	var end_center: Vector2 = center + dir * (long_px * 0.5 - 20.0)
-	var lane_offset: float = maxf(8.0, cross_px * 0.20)
-	var lane_half_width: float = maxf(5.0, cross_px * 0.13)
-	var a0: Vector2 = start_center - normal * lane_offset
-	var a1: Vector2 = end_center - normal * lane_offset
-	var b0: Vector2 = end_center + normal * lane_offset
-	var b1: Vector2 = start_center + normal * lane_offset
-	var color := Color(1.0, 0.78, 0.20, 0.62)
-	for i in range(7):
-		var t: float = float(i) / 6.0
-		var pa: Vector2 = a0.lerp(a1, t)
-		var pb: Vector2 = b0.lerp(b1, t)
-		draw_line(pa - normal * lane_half_width, pa + normal * lane_half_width, color, 1.2)
-		draw_line(pb - normal * lane_half_width, pb + normal * lane_half_width, color, 1.2)
-	draw_line(a0, a1, Color(1.0, 0.90, 0.35, 0.72), 2.0)
-	draw_line(b0, b1, Color(1.0, 0.90, 0.35, 0.72), 2.0)
-	draw_line(a1 - normal * lane_half_width, b0 + normal * lane_half_width, Color(1.0, 0.90, 0.35, 0.68), 2.0)
-	draw_circle(a0, 4.0, Color(0.95, 1.0, 0.82, 0.95))
-	draw_colored_polygon(PackedVector2Array([b1, b1 + dir * 10.0 + normal * 5.0, b1 + dir * 10.0 - normal * 5.0]), Color(1.0, 0.90, 0.35, 0.86))
-	if ThemeDB.fallback_font != null and long_px > 60.0:
-		draw_string(ThemeDB.fallback_font, a0 + Vector2(5.0, -5.0), "ENTRA", HORIZONTAL_ALIGNMENT_LEFT, 70.0, 9, Color(0.95, 1.0, 0.82, 0.82))
-		draw_string(ThemeDB.fallback_font, end_center + Vector2(5.0, -5.0), "180", HORIZONTAL_ALIGNMENT_LEFT, 42.0, 9, Color(1.0, 0.90, 0.35, 0.86))
+	EditorDraw2D.stair_room_guides(self, rect_px, _room_stair_run_direction(room), float(room.get("stair_turn_degrees", 0.0)))
 
 
 func _draw_selected_room_handles(room_id: int) -> void:
@@ -6142,47 +6056,15 @@ func _draw_selected_room_handles(room_id: int) -> void:
 		return
 	var center_px: Vector2 = _m_to_px(_get_room_rect(room_id).get_center())
 	var rotate_px: Vector2 = _m_to_px(Vector2(handles.get(ObjectMouseMode.ROTATE, _get_room_rect(room_id).get_center())))
-	draw_line(center_px, rotate_px, Color(1.0, 1.0, 1.0, 0.45), 1.2)
-	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH, ObjectMouseMode.ROTATE]:
-		if not handles.has(mode):
-			continue
-		var px: Vector2 = _m_to_px(Vector2(handles[mode]))
-		var color: Color = Color(0.95, 1.0, 0.80, 1.0)
-		if mode == ObjectMouseMode.ROTATE:
-			color = Color(0.46, 0.88, 1.0, 1.0)
-		draw_circle(px, OBJECT_HANDLE_RADIUS_PX + 2.0, Color(0.0, 0.0, 0.0, 0.72))
-		draw_circle(px, OBJECT_HANDLE_RADIUS_PX, color)
-		draw_circle(px, OBJECT_HANDLE_RADIUS_PX, Color(1.0, 1.0, 1.0, 0.92), false, 1.4)
+	var resize_pxs := PackedVector2Array()
+	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
+		if handles.has(mode):
+			resize_pxs.append(_m_to_px(Vector2(handles[mode])))
+	EditorDraw2D.selection_handles(self, center_px, rotate_px, resize_pxs, OBJECT_HANDLE_RADIUS_PX)
 
 
 func _draw_narrow_room_dimension_labels(rect_m: Rect2, rect_px: Rect2, is_stairs: bool) -> void:
-	if ThemeDB.fallback_font == null:
-		return
-	var label_color: Color = Color(0.72, 1.0, 0.94, 0.96) if not is_stairs else Color(1.0, 0.84, 0.34, 0.96)
-	var long_m: float = maxf(rect_m.size.x, rect_m.size.y)
-	var wide_m: float = minf(rect_m.size.x, rect_m.size.y)
-	var long_label: String = "Largo %.2f m" % long_m
-	var wide_label: String = "Ancho %.2f m" % wide_m
-	var top_pos: Vector2 = rect_px.position + Vector2(4.0, -6.0)
-	draw_string(
-		ThemeDB.fallback_font,
-		top_pos,
-		long_label,
-		HORIZONTAL_ALIGNMENT_LEFT,
-		180.0,
-		11,
-		label_color
-	)
-	var side_pos: Vector2 = Vector2(rect_px.position.x + rect_px.size.x + 8.0, rect_px.position.y + minf(18.0, rect_px.size.y * 0.5))
-	draw_string(
-		ThemeDB.fallback_font,
-		side_pos,
-		wide_label,
-		HORIZONTAL_ALIGNMENT_LEFT,
-		160.0,
-		11,
-		label_color
-	)
+	EditorDraw2D.narrow_room_dimension_labels(self, rect_m, rect_px, is_stairs)
 
 
 func _draw_openings() -> void:
@@ -6224,8 +6106,7 @@ func _draw_door_swing_preview(opening: Dictionary, segment_m: PackedVector2Array
 	if width_m <= 0.05:
 		return
 	var open_end_m: Vector2 = hinge_m + normal_m * width_m
-	draw_line(_m_to_px(hinge_m), _m_to_px(open_end_m), color.lightened(0.20), 2.0)
-	draw_circle(_m_to_px(hinge_m), 3.5, color.lightened(0.30))
+	EditorDraw2D.door_swing_preview(self, _m_to_px(hinge_m), _m_to_px(open_end_m), color)
 
 
 func _inside_normal_for_wall_2d(wall: String) -> Vector2:
@@ -6249,8 +6130,7 @@ func _draw_vertical_opening(opening: Dictionary, index: int) -> void:
 	var color: Color = Color(1.0, 0.78, 0.20, 0.92)
 	if index == selected_opening_index:
 		color = Color(1.0, 1.0, 0.45, 1.0)
-	draw_rect(rect_px, Color(0.0, 0.0, 0.0, 0.48), true)
-	draw_rect(rect_px, color, false, 2.0)
+	EditorDraw2D.vertical_opening(self, rect_px, color)
 
 
 func _vertical_opening_rect(opening: Dictionary) -> Rect2:
@@ -6307,17 +6187,11 @@ func _draw_selected_object_handles(room_rect: Rect2, obj: Dictionary) -> void:
 	var handles: Dictionary = _object_handle_points_m(room_rect, obj)
 	var center_px: Vector2 = _m_to_px(_object_world_center(room_rect, obj))
 	var rotate_px: Vector2 = _m_to_px(Vector2(handles.get(ObjectMouseMode.ROTATE, _object_world_center(room_rect, obj))))
-	draw_line(center_px, rotate_px, Color(1.0, 1.0, 1.0, 0.45), 1.2)
-	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH, ObjectMouseMode.ROTATE]:
-		if not handles.has(mode):
-			continue
-		var px: Vector2 = _m_to_px(Vector2(handles[mode]))
-		var color: Color = Color(0.95, 1.0, 0.80, 1.0)
-		if mode == ObjectMouseMode.ROTATE:
-			color = Color(0.46, 0.88, 1.0, 1.0)
-		draw_circle(px, OBJECT_HANDLE_RADIUS_PX + 2.0, Color(0.0, 0.0, 0.0, 0.72))
-		draw_circle(px, OBJECT_HANDLE_RADIUS_PX, color)
-		draw_circle(px, OBJECT_HANDLE_RADIUS_PX, Color(1.0, 1.0, 1.0, 0.92), false, 1.4)
+	var resize_pxs := PackedVector2Array()
+	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
+		if handles.has(mode):
+			resize_pxs.append(_m_to_px(Vector2(handles[mode])))
+	EditorDraw2D.selection_handles(self, center_px, rotate_px, resize_pxs, OBJECT_HANDLE_RADIUS_PX)
 
 
 func _draw_player_start() -> void:
@@ -6336,15 +6210,7 @@ func _draw_player_start() -> void:
 	var px: Vector2 = _m_to_px(world_pos)
 	var radius: float = 9.0
 	var dir := Vector2(0.0, -1.0).rotated(deg_to_rad(float(start.get("yaw_deg", 0.0))))
-	var pts := PackedVector2Array([
-		px + dir * (radius + 4.0),
-		px + dir.rotated(2.35) * radius,
-		px + dir.rotated(-2.35) * radius
-	])
-	draw_colored_polygon(pts, _player_start_color)
-	draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(0.0, 0.0, 0.0, 0.78), 1.6)
-	if ThemeDB.fallback_font != null:
-		draw_string(ThemeDB.fallback_font, px + Vector2(11.0, 4.0), "FP", HORIZONTAL_ALIGNMENT_LEFT, 32.0, 10, _player_start_color)
+	EditorDraw2D.player_start_icon(self, px, dir, radius, _player_start_color)
 
 
 func _draw_detectors() -> void:
@@ -6364,13 +6230,8 @@ func _draw_detectors() -> void:
 		var det_color: Color = _detector_smoke_color if det_type == "smoke" else (_detector_heat_color if det_type == "heat" else _detector_co_color)
 		var selected: bool = i == selected_detector_index
 		var radius: float = 10.0 if selected else 8.0
-		draw_circle(px, radius + 2.0, Color(0.0, 0.0, 0.0, 0.7))
-		draw_circle(px, radius, det_color)
-		if selected:
-			draw_circle(px, radius + 2.0, Color(1.0, 1.0, 1.0, 0.85), false, 2.0)
 		var label: String = "S" if det_type == "smoke" else ("H" if det_type == "heat" else "C")
-		if ThemeDB.fallback_font != null:
-			draw_string(ThemeDB.fallback_font, px + Vector2(-4.0, 5.0), label, HORIZONTAL_ALIGNMENT_LEFT, 20.0, 11, Color(0.0, 0.0, 0.0, 0.92))
+		EditorDraw2D.detector_icon(self, px, radius, det_color, label, selected)
 
 
 func _draw_victims() -> void:
@@ -6388,18 +6249,7 @@ func _draw_victims() -> void:
 		var px: Vector2 = _m_to_px(world_pos)
 		var selected: bool = i == selected_victim_index
 		var r: float = 9.0 if selected else 7.0
-		var pts := PackedVector2Array([
-			px + Vector2(0.0, -r),
-			px + Vector2(r, 0.0),
-			px + Vector2(0.0, r),
-			px + Vector2(-r, 0.0)
-		])
-		draw_colored_polygon(pts, _victim_color)
-		draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), Color(0.0, 0.0, 0.0, 0.7), 1.5)
-		if selected:
-			draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), Color(1.0, 1.0, 1.0, 0.85), 2.0)
-		if ThemeDB.fallback_font != null:
-			draw_string(ThemeDB.fallback_font, px + Vector2(-4.0, 5.0), "V", HORIZONTAL_ALIGNMENT_LEFT, 16.0, 10, Color(0.0, 0.0, 0.0, 0.92))
+		EditorDraw2D.victim_icon(self, px, r, _victim_color, selected)
 
 
 func _set_status(text: String) -> void:

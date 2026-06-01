@@ -1,6 +1,6 @@
 # Checklist de flujo del editor — SimuFire v0.5.0
-**Versión**: v0.5.0 | **Fecha última revisión**: 2026-05-31
-**Cubre**: E-01 (popup de carga), E-02 (validación estructural en carga y en ejecución)
+**Versión**: v0.5.0 | **Fecha última revisión**: 2026-06-01
+**Cubre**: E-01 (popup de carga), E-02 (validación estructural en carga y en ejecución), E-03/E-03b (checklist + product guardrails), E-04 (@export `max_undo_steps` / `pixels_per_meter`), E-04b (EditorLoadErrorDialog extraído), E-05 (UI castellano), E-06 (EditorDraw2D — 11 helpers puros extraídos)
 
 ---
 
@@ -30,13 +30,13 @@
 
 | # | Paso | Resultado esperado | PASS / FAIL |
 |---|------|--------------------|-------------|
-| B1 | Seleccionar herramienta **Room** en el panel de herramientas | Cursor cambia a modo habitación | ☐ |
+| B1 | Seleccionar herramienta **Sala** en el panel de herramientas | Cursor cambia a modo habitación | ☐ |
 | B2 | Clicar y arrastrar en el canvas para crear una habitación de ~5×4 m | Habitación rectangular aparece en el canvas | ☐ |
-| B3 | Seleccionar herramienta **Door** o **Window** y colocar en la pared de la habitación | Apertura visible en el borde de la habitación | ☐ |
-| B4 | Seleccionar herramienta **Object** y colocar un objeto combustible dentro de la habitación | Objeto aparece; el panel derecho muestra propiedades (nombre, combustible MJ, HRR) | ☐ |
-| B5 | Seleccionar herramienta **Ignition** y marcar la sala como punto de ignición | Indicador de ignición visible en la sala | ☐ |
-| B6 | Seleccionar herramienta **Detector** y colocar un detector en la sala | Marcador de detector visible | ☐ |
-| B7 | Seleccionar herramienta **Victim** y colocar una víctima en la sala | Marcador de víctima visible. Nota: es un sensor de exposición (FED/CO/T), no un objeto de rescate. | ☐ |
+| B3 | Seleccionar herramienta **Puerta** o **Ventana** y colocar en la pared de la habitación | Apertura visible en el borde de la habitación | ☐ |
+| B4 | Seleccionar herramienta **Objeto** y colocar un objeto combustible dentro de la habitación | Objeto aparece; el panel derecho muestra propiedades (nombre, combustible MJ, HRR) | ☐ |
+| B5 | Seleccionar herramienta **Ignición** y marcar la sala como punto de ignición | Indicador de ignición visible en la sala | ☐ |
+| B6 | Seleccionar herramienta **Detect.** y colocar un detector en la sala | Marcador de detector visible | ☐ |
+| B7 | Seleccionar herramienta **Vict.** y colocar una víctima en la sala | Marcador de víctima visible. Nota: es un sensor de exposición (FED/CO/T), no un objeto de rescate. | ☐ |
 | B8 | Activar HVAC desde la opción de HVAC en el panel | Opción HVAC activa (On/Off disponible) | ☐ |
 
 ---
@@ -127,13 +127,16 @@ ALL PRODUCT CHECKS PASS  (34 tests)
 
 ---
 
-## Criterio de cierre de E-02
+## Criterio de cierre v0.5.0 — Editor Robustness (E-01..E-06)
 
 - [ ] Todos los bloques A–E se ejecutan sin FAIL.
 - [ ] Popup E-01 (bloque D) funciona correctamente.
 - [ ] `python tests/test_editor_scenarios.py` → OK (todos los tests).
+- [ ] `python scripts/check_product.py` → ALL PRODUCT CHECKS PASS (34 tests).
 - [ ] `python scripts/simulation/validation_guardrails.py` → ALL GUARDRAILS PASS.
 - [ ] 379/379 required PASS sigue intacto.
+- [ ] UI del editor completamente en castellano (E-05).
+- [ ] `editor/EditorDraw2D.gd` existe con 11 helpers estáticos puros (E-06).
 
 ---
 
