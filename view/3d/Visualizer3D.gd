@@ -14,6 +14,10 @@ signal detector_dragged(detector_id: String, floor_pos_m: Vector2)
 signal victim_dragged(victim_id: String, floor_pos_m: Vector2)
 signal player_start_dragged(floor_pos_m: Vector2)
 signal element_drag_ended(kind: String)
+## Emitido tras capturar y guardar un PNG de la vista 3D (V3D-05). path = ruta absoluta.
+signal screenshot_saved(path: String)
+## Emitido si la captura falla. message = descripcion del error.
+signal screenshot_failed(message: String)
 
 ## Basic editable 3D view for the same BuildingModel / SimulationEngine state.
 ## The scene owns the camera, lights, and container nodes; this script only
@@ -167,6 +171,14 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var camera_orbit_sensitivity: float = 0.006
 @export var camera_zoom_step_m: float = 0.8
 
+@export_group("Debug")
+## Muestra el nombre del cuarto + altura de capa de humo en los labels de sala (V3D-06).
+@export var debug_show_layer_heights: bool = false
+## Muestra la temperatura media de capa superior en etiqueta de sala (V3D-06).
+@export var debug_show_room_temps: bool = false
+## Muestra el HRR (kW) de cada sala en la etiqueta (V3D-06).
+@export var debug_show_hrr_values: bool = false
+
 var building: BuildingModel = null
 var state: Dictionary = {}
 
@@ -266,6 +278,30 @@ func rebuild_from_building() -> void:
 	_fit_camera_to_building()
 	_update_dynamic_state()
 	_update_room_selection_visuals()
+
+
+## Captura la vista actual del viewport y la guarda como PNG (V3D-05).
+## output_dir: carpeta absoluta de destino. Si esta vacio usa la carpeta del proyecto.
+## Emite screenshot_saved(path) o screenshot_failed(message).
+func capture_screenshot_to(output_dir: String = "") -> void:
+	var vp := get_viewport()
+	if vp == null:
+		screenshot_failed.emit("Viewport no disponible")
+		return
+	var img := vp.get_texture().get_image()
+	if img == null:
+		screenshot_failed.emit("get_image() devolvio null")
+		return
+	var dir: String = output_dir.strip_edges()
+	if dir == "" or not DirAccess.dir_exists_absolute(dir):
+		dir = ProjectSettings.globalize_path("res://")
+	var ts: String = Time.get_datetime_string_from_system(false, true).replace(":", "-").replace(" ", "_")
+	var file_path: String = dir.path_join("simufire_3d_%s.png" % ts)
+	var err: Error = img.save_png(file_path)
+	if err == OK:
+		screenshot_saved.emit(file_path)
+	else:
+		screenshot_failed.emit("Error %d al guardar %s" % [err, file_path])
 
 
 func select_room(room_id: int) -> void:
@@ -2310,9 +2346,24 @@ func _get_room_name(room_id: int) -> String:
 
 func _get_room_label(room_id: int, _room_state: Dictionary = {}) -> String:
 	var room_name: String = _get_room_name(room_id).strip_edges()
-	if room_name != "":
-		return room_name
-	return "R%d" % room_id
+	var base: String = room_name if room_name != "" else "R%d" % room_id
+	if not (debug_show_layer_heights or debug_show_room_temps or debug_show_hrr_values):
+		return base
+	var parts: PackedStringArray = PackedStringArray()
+	parts.append(base)
+	if debug_show_layer_heights:
+		var layer_m: float = float(_room_state.get("smoke_display_layer_m", _room_state.get("smoke_layer_m", _room_state.get("h_layer_m", -1.0))))
+		if layer_m >= 0.0:
+			parts.append("L %.1fm" % layer_m)
+	if debug_show_room_temps:
+		var temp_c: float = float(_room_state.get("temp_upper_c", -999.0))
+		if temp_c > -999.0:
+			parts.append("%.0f\u00b0C" % temp_c)
+	if debug_show_hrr_values:
+		var hrr: float = float(_room_state.get("hrr_kw", 0.0))
+		if hrr > 0.0:
+			parts.append("%.0fkW" % hrr)
+	return "\n".join(parts)
 
 
 func _update_room_safety_markers_3d(room_id: int, item: Dictionary, rect: Rect2) -> void:
