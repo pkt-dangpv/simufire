@@ -49,9 +49,6 @@ Thumbs.db
 graphs/
 old/
 
-# Session notes (internal working notes, not publishable)
-ESTADO_SESION_*.md
-
 # Python / tools
 __pycache__/
 *.pyc
