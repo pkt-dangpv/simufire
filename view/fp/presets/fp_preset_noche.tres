@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="FPPreset" format=3 uid="uid://cm4r8n1p5q3k7"]
+
+[ext_resource type="Script" uid="uid://cv8n3k5m7p9r2" path="res://view/fp/FPPreset.gd" id="1_fprst"]
+
+[resource]
+script = ExtResource("1_fprst")
+exterior_lighting_mode = "Noche"

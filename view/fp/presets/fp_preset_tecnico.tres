@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="FPPreset" format=3 uid="uid://dn5k9m3p7r1q8"]
+
+[ext_resource type="Script" uid="uid://cv8n3k5m7p9r2" path="res://view/fp/FPPreset.gd" id="1_fprst"]
+
+[resource]
+script = ExtResource("1_fprst")
+show_technical_overlay = true
+show_visibility_readout = true
+show_fp_detectors = true
+show_fp_victims = true

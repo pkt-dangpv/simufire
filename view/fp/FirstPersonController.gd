@@ -117,6 +117,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var smoke_overlay_max_alpha: float = 0.97
 @export var fp_visibility_clear_m: float = 30.0
 
+@export_group("Preset FP")
+## Perfil de configuración aplicado en _ready(). Asignar un .tres de res://view/fp/presets/ desde el Inspector.
+@export var fp_preset: FPPreset = null
+
 @export_group("Technical Overlay")
 ## Muestra panel HUD en FP con T, CO, CO₂, O₂, HCN, FED y visibilidad en tiempo real.
 @export var show_technical_overlay: bool = true
@@ -164,6 +168,7 @@ var _f_hold_fraction: float = 0.0
 
 
 func _ready() -> void:
+	apply_preset()
 	_create_player_nodes()
 	set_active(false)
 
@@ -173,6 +178,26 @@ func setup(next_building: BuildingModel) -> void:
 	_apply_startup_lighting_options()
 	_rebuild_world()
 	_place_at_entry()
+
+
+## Aplica los valores de [param p] (o de [member fp_preset] si p es null) sobre las propiedades
+## de este controlador. Sin efecto si el preset es null. Seguro llamarlo en cualquier momento.
+func apply_preset(p: FPPreset = null) -> void:
+	var src: FPPreset = p if p != null else fp_preset
+	if src == null:
+		return
+	ambient_fill_enabled = src.ambient_fill_enabled
+	room_ceiling_lights_enabled = src.room_ceiling_lights_enabled
+	exterior_lighting_mode = src.exterior_lighting_mode
+	exterior_context_enabled = src.exterior_context_enabled
+	show_fp_detectors = src.show_fp_detectors
+	show_fp_victims = src.show_fp_victims
+	smoke_overlay_max_alpha = src.smoke_overlay_max_alpha
+	fp_visibility_clear_m = src.fp_visibility_clear_m
+	show_technical_overlay = src.show_technical_overlay
+	show_visibility_readout = src.show_visibility_readout
+	fp_victim_fed_incapacitated_threshold = src.fp_victim_fed_incapacitated_threshold
+	fp_victim_fed_fatal_threshold = src.fp_victim_fed_fatal_threshold
 
 
 func set_active(enabled: bool) -> void:
