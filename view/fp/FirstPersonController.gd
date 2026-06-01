@@ -114,6 +114,8 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_group("Technical Overlay")
 ## Muestra panel HUD en FP con T, CO, CO₂, O₂, HCN, FED y visibilidad en tiempo real.
 @export var show_technical_overlay: bool = true
+## Muestra readout compacto de visibilidad en esquina superior derecha, independiente del overlay técnico.
+@export var show_visibility_readout: bool = true
 
 var building: BuildingModel = null
 
@@ -126,6 +128,8 @@ var _fp_status_panel: PanelContainer = null
 var _fp_status_label: Label = null
 var _technical_overlay_panel: PanelContainer = null
 var _technical_overlay_label: Label = null
+var _visibility_readout_panel: PanelContainer = null
+var _visibility_readout_label: Label = null
 var _prompt_panel: PanelContainer = null
 var _prompt_label: Label = null
 var _crosshair_h: ColorRect = null
@@ -336,6 +340,29 @@ func _create_player_nodes() -> void:
 	_technical_overlay_label.add_theme_font_size_override("font_size", 12)
 	_technical_overlay_label.add_theme_color_override("font_color", Color(0.88, 0.94, 0.92, 1.0))
 	overlay_margin.add_child(_technical_overlay_label)
+
+	_visibility_readout_panel = PanelContainer.new()
+	_visibility_readout_panel.name = "VisibilityReadoutPanel"
+	_visibility_readout_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_visibility_readout_panel.offset_left = -190.0
+	_visibility_readout_panel.offset_top = 18.0
+	_visibility_readout_panel.offset_right = -12.0
+	_visibility_readout_panel.offset_bottom = 50.0
+	_visibility_readout_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_visibility_readout_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
+	_visibility_readout_panel.visible = false
+	_prompt_layer.add_child(_visibility_readout_panel)
+	var vis_margin := MarginContainer.new()
+	vis_margin.add_theme_constant_override("margin_left", 10)
+	vis_margin.add_theme_constant_override("margin_top", 7)
+	vis_margin.add_theme_constant_override("margin_right", 10)
+	vis_margin.add_theme_constant_override("margin_bottom", 7)
+	_visibility_readout_panel.add_child(vis_margin)
+	_visibility_readout_label = Label.new()
+	_visibility_readout_label.name = "VisibilityReadoutLabel"
+	_visibility_readout_label.add_theme_font_size_override("font_size", 14)
+	_visibility_readout_label.add_theme_color_override("font_color", Color(0.88, 0.94, 0.92, 1.0))
+	vis_margin.add_child(_visibility_readout_label)
 
 	_crosshair_h = ColorRect.new()
 	_crosshair_h.name = "CrosshairH"
@@ -2100,6 +2127,10 @@ func _update_status_hud() -> void:
 	]
 	if _technical_overlay_panel != null:
 		_technical_overlay_panel.visible = show_technical_overlay and has_data
+	if _visibility_readout_panel != null:
+		_visibility_readout_panel.visible = show_visibility_readout and has_data
+	if _visibility_readout_label != null and has_data:
+		_visibility_readout_label.text = visibility_label
 
 
 func _update_technical_overlay(room_state: Dictionary, smoke_view: Dictionary) -> void:
