@@ -99,7 +99,7 @@ Estas propiedades deben ser visibles/editables desde el Inspector de Godot sin t
 | `show_smoke_volume` | `Visualizer3D` | `Visibility` | ✅ @export existente |
 | `smoke_visible_threshold_kg` | `Visualizer3D` | `Dynamics` | ✅ @export existente |
 | `default_room_height_m` | `Visualizer3D` | `Geometry` | ✅ @export existente |
-| `show_technical_overlay` | `FirstPersonController` | — | ❌ Pendiente (v0.5.1 FP-02) |
+| `show_technical_overlay` | `FirstPersonController` | `Technical Overlay` | ✅ @export (v0.5.1 FP-02) |
 | `show_fire_fp` | — | — | ✅ N/A — fuego FP visible vía `World3D` compartido con `Visualizer3D`; controlado por `show_hrr_columns` (v0.5.1 FP-01 ✅) |
 | `max_undo_steps` | `ScenarioEditor` | `Editor UI` | ✅ @export (v0.5.0 E-04) |
 | `pixels_per_meter` | `ScenarioEditor` | `Editor UI` | ✅ @export (v0.5.0 E-04) |

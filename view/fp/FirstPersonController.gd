@@ -111,6 +111,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var smoke_overlay_max_alpha: float = 0.97
 @export var fp_visibility_clear_m: float = 30.0
 
+@export_group("Technical Overlay")
+## Muestra panel HUD en FP con T, CO, CO₂, O₂, HCN, FED y visibilidad en tiempo real.
+@export var show_technical_overlay: bool = true
+
 var building: BuildingModel = null
 
 var _camera: Camera3D = null
@@ -120,6 +124,8 @@ var _world_root: Node3D = null
 var _prompt_layer: CanvasLayer = null
 var _fp_status_panel: PanelContainer = null
 var _fp_status_label: Label = null
+var _technical_overlay_panel: PanelContainer = null
+var _technical_overlay_label: Label = null
 var _prompt_panel: PanelContainer = null
 var _prompt_label: Label = null
 var _crosshair_h: ColorRect = null
@@ -307,6 +313,29 @@ func _create_player_nodes() -> void:
 	_fp_status_label.add_theme_color_override("font_color", Color(0.88, 0.94, 0.92, 1.0))
 	_fp_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status_margin.add_child(_fp_status_label)
+
+	_technical_overlay_panel = PanelContainer.new()
+	_technical_overlay_panel.name = "TechnicalOverlayPanel"
+	_technical_overlay_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_technical_overlay_panel.offset_left = 12.0
+	_technical_overlay_panel.offset_top = 18.0
+	_technical_overlay_panel.offset_right = 197.0
+	_technical_overlay_panel.offset_bottom = 163.0
+	_technical_overlay_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_technical_overlay_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
+	_technical_overlay_panel.visible = false
+	_prompt_layer.add_child(_technical_overlay_panel)
+	var overlay_margin := MarginContainer.new()
+	overlay_margin.add_theme_constant_override("margin_left", 10)
+	overlay_margin.add_theme_constant_override("margin_top", 7)
+	overlay_margin.add_theme_constant_override("margin_right", 10)
+	overlay_margin.add_theme_constant_override("margin_bottom", 7)
+	_technical_overlay_panel.add_child(overlay_margin)
+	_technical_overlay_label = Label.new()
+	_technical_overlay_label.name = "TechnicalOverlayLabel"
+	_technical_overlay_label.add_theme_font_size_override("font_size", 12)
+	_technical_overlay_label.add_theme_color_override("font_color", Color(0.88, 0.94, 0.92, 1.0))
+	overlay_margin.add_child(_technical_overlay_label)
 
 	_crosshair_h = ColorRect.new()
 	_crosshair_h.name = "CrosshairH"
@@ -2048,6 +2077,7 @@ func _update_status_hud() -> void:
 	var room_label: String = "SIN SALA"
 	var visibility_label: String = "Vis --"
 	var o2_label: String = "O2 --"
+	var has_data: bool = false
 	if building != null:
 		_current_room_id = _find_current_room_id()
 		if _current_room_id >= 0:
@@ -2060,13 +2090,42 @@ func _update_status_hud() -> void:
 				var smoke_view: Dictionary = _compute_fp_smoke_view(room_state)
 				visibility_label = _format_fp_visibility(float(smoke_view.get("fp_visibility_m", room_state.get("visibility_m", 30.0))))
 				o2_label = "O2 %.1f%%" % (float(room_state.get("o2", 0.209)) * 100.0)
+				_update_technical_overlay(room_state, smoke_view)
+				has_data = true
 	_fp_status_label.text = "FP | %s | %s\n%s | %s | ESC salir | F usar | CTRL" % [
 		room_label,
 		_stance_label(),
 		visibility_label,
 		o2_label
 	]
+	if _technical_overlay_panel != null:
+		_technical_overlay_panel.visible = show_technical_overlay and has_data
 
+
+func _update_technical_overlay(room_state: Dictionary, smoke_view: Dictionary) -> void:
+	if _technical_overlay_label == null:
+		return
+	# Temperatura según postura: usa campos interpolados por altura del motor de simulación.
+	var temp_c: float
+	match _stance:
+		STANCE_STAND:
+			temp_c = float(room_state.get("temp_at_1_8m_c", room_state.get("temp_upper_c", 20.0)))
+		STANCE_CROUCH:
+			temp_c = float(room_state.get("temp_at_1_1m_c", room_state.get("temp_upper_c", 20.0)))
+		_: # STANCE_PRONE
+			temp_c = float(room_state.get("temp_at_0_5m_c", room_state.get("temp_lower_c", 20.0)))
+	# Gases: capa superior conservadora (worst-case). Sin interpolación de altura por capa
+	# para no duplicar lógica de SmokeModel. FED es el acumulado de la sala (peor posición).
+	var co_ppm: float = float(room_state.get("co_upper_ppm", 0.0))
+	var co2_vol_pct: float = float(room_state.get("co2_upper_ppm", 4000.0)) / 10000.0
+	var o2_vol_pct: float = float(room_state.get("o2", 0.209)) * 100.0
+	var hcn_ppm: float = float(room_state.get("hcn_upper_ppm", 0.0))
+	var fed_val: float = float(room_state.get("fed", 0.0))
+	var vis_m: float = float(smoke_view.get("fp_visibility_m", room_state.get("visibility_m", 30.0)))
+	_technical_overlay_label.text = (
+		"T  %5.0f °C\nCO %5.0f ppm\nCO₂ %4.1f %%vol\nO₂  %4.1f %%vol\nHCN %4.0f ppm\nFED  %.2f\nVis  %s"
+		% [temp_c, co_ppm, co2_vol_pct, o2_vol_pct, hcn_ppm, fed_val, _format_fp_visibility(vis_m)]
+	)
 
 func _format_fp_visibility(visibility_m: float) -> String:
 	return FPVisibilityOverlay.format_visibility(visibility_m, fp_visibility_clear_m)
