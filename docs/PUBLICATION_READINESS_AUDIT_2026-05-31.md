@@ -16,7 +16,7 @@ El repositorio SimuFire se encuentra en estado **APTO PARA PUBLICACIÓN** con la
 | Guardrails automatizados | ✅ ALL PASS | `validation_guardrails.py` |
 | Tests unitarios | ✅ 13/13 OK | `tests/test_guardrails.py` |
 | Calibración FED/HCN | ✅ Aceptable | Ratios dentro de margen Purser SFPE |
-| Código trazable | ✅ Sin TODO activos en core | 1 TODO gameplay diferido documentado |
+| Código trazable | ✅ Sin TODO activos en core | Sin deuda gameplay |
 | CSV log coherente | ✅ Header = Append | Orden verificado columna a columna |
 | Documentación | ✅ Counts actualizados | 379/379 en todos los ficheros clave |
 
@@ -168,11 +168,7 @@ Ningún case JSON establece este parámetro. **Phase 4A rechazada correctamente;
 
 ### 5.3 TODOs en código core
 
-| Fichero | Línea | Texto | Clasificación |
-|---|---|---|---|
-| `sim/core/SimulationEngine.gd` | 1678 | `# TODO(gameplay): helpers de supresión...` | Deferred gameplay, no-core, no-gating. Documentado en `docs/DEFERRED_GAMEPLAY_HOOKS.md`. |
-
-Sin otros TODO/FIXME/HACK activos en ficheros `.gd` del directorio `sim/`.
+Sin TODO/FIXME/HACK activos en ficheros `.gd` del directorio `sim/`.
 
 ### 5.4 CSV Log — coherencia header/append
 
@@ -265,7 +261,6 @@ py tests/test_guardrails.py
 | `docs/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md` | Análisis detallado ratios FED, comparación Purser, limitaciones HCN yield |
 | `docs/GAPS_INVENTORY.md` | Inventario de todos los gaps conocidos (4 non-gating, 0 bloqueantes) |
 | `docs/FINAL_VALIDATION_AND_PUBLICATION_PLAN.md` | Plan original con estado actualizado a COMPLETADO |
-| `docs/DEFERRED_GAMEPLAY_HOOKS.md` | Documentación de TODO gameplay diferido |
 | `sim/validation/reports/reference_checks.json` | Resultados de la suite completa (521 checks, 379 required) |
 | `sim/validation/reports/victim_fed_incapacitation.json` | Métricas finales caso víctima con FED descompuesto |
 | `sim/validation/reports/pu_sofa_fec_incapacitation.json` | Métricas finales caso pu_sofa con FED descompuesto |

@@ -124,9 +124,9 @@ Parámetros de experimentos en `sim/validation/reports/`:
 
 Con Phase 2E CO₂ completo (Sub-D + Sub-A en producción), los próximos pasos lógicos son:
 
-1. **Revisar los 65 gaps no-gating** — verificar cuáles son los más relevantes para el gameplay (prioridad por impacto en FED/CO/visibilidad)
+1. **Revisar los 65 gaps no-gating** — verificar cuáles son los más relevantes para el análisis técnico (prioridad por impacto en FED/CO/visibilidad)
 2. **Phase 2E Sub-C / Sub-E** (si existen en el roadmap) — revisar si hay otros mecanismos CO₂ pendientes
-3. **Gameplay / Victoria-Derrota** — UI shell existe para WaterPanel/VentPanel/RescuePanel pero sin lógica conectada
+3. **Mantener alcance técnico** — no conservar backlog de HUD táctico/victoria-derrota en el runtime
 4. **git push** si aún no se ha hecho (verificar con `git status`)
 
 ---

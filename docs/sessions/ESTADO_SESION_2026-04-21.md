@@ -93,7 +93,6 @@ Tras sesión 17-18 los valores cambiaron; revisar si sigue PASS.
 - Backdraft
 - Densidad óptica / visibilidad (OD)
 - Masa térmica de paredes
-- Botones WaterPanel / VentPanel / RescuePanel
 - Click en sala para selector en Visualizer
 
 ## Comando de validación

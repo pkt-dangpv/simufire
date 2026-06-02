@@ -138,7 +138,7 @@ Transporte editor → simulación:
 
 **Limitaciones actuales**:
 - No hay render de llama/fuego propio en FP (se usa la geometría 3D del Visualizer3D cuando está activo)
-- La lógica táctica (agua, PPV, rescate) está desconectada (ver `docs/DEFERRED_GAMEPLAY_HOOKS.md`)
+- No incluye lógica táctica de intervención (agua, PPV, rescate); el alcance actual es simulador técnico.
 - No hay pathfinding para víctimas; son marcadores estáticos
 
 ---
@@ -170,9 +170,6 @@ Transporte editor → simulación:
 
 **Señales HUD disponibles**: `play_requested`, `pause_requested`, `slower_requested`, `faster_requested`, `stop_and_generate_requested`, `exit_without_graphs_requested`, `view_3d_toggled`, `first_person_toggled`, `hvac_toggled`, `opening_fraction_requested`.
 
-**Señales HUD NO implementadas** (documentadas en `DEFERRED_GAMEPLAY_HOOKS.md`):
-- `water_requested`, `vent_requested`, `rescue_requested` (paneles tácticos no construidos)
-
 ---
 
 ### 2.7 Flujo de datos editor → simulación
@@ -202,13 +199,7 @@ ScenarioSerializer.normalize_editor_data()
 ## 3. Búsqueda de incompletos
 
 ### 3.1 TODOs / FIXMEs explícitos
-Solo **1 TODO activo** en todo el codebase:
-
-```
-sim/core/SimulationEngine.gd:1678
-# TODO(gameplay): helpers de supresión y estado de fuego — descomentar cuando se implemente la UI de juego
-```
-Este comentario protege un bloque de helpers para UI táctica. Está correctamente anotado y documentado en `docs/DEFERRED_GAMEPLAY_HOOKS.md`.
+No hay TODO/FIXME/HACK activos en ficheros `.gd` del directorio `sim/`.
 
 ### 3.2 Scripts huérfanos
 Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` o precargados por otro script.
@@ -217,10 +208,10 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 - 1 único escenario de ejemplo en `scenarios/simple_house_objects.json` — no es un bug, es deliberado.
 - `view/furniture/FurnitureVisualLayout.gd` tiene solo `.gd.uid` sin aparecer explícitamente en una escena `.tscn`, pero es precargado por `Visualizer3D.gd`.
 
-### 3.4 Capacidades referenciadas pero no activadas en UI
-- **Supresión de agua / PPV / rescate**: bloqueadas en `SimulationEngine.gd:1678` + `DEFERRED_GAMEPLAY_HOOKS.md`.
+### 3.4 Capacidades fuera de alcance
+- **HUD táctico de intervención**: no forma parte del simulador técnico actual.
 - **Pathfinding de víctimas**: marcadores estáticos; no hay sistema de movimiento.
-- **Criterios de victoria/derrota**: no implementados (requieren HUD táctico y motor de estado de juego).
+- **Criterios de victoria/derrota**: no implementados; la salida prevista es análisis técnico.
 - **Mapa de huida / navegación táctica**: no implementado.
 
 ---
@@ -233,7 +224,6 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 | **Acoplamiento editor↔Visualizer3D** | Media | El editor instancia y controla directamente el Visualizer3D y el FirstPersonController. Cambios en sus interfaces pueden romper el editor sin aviso. |
 | **Transporte via archivos de usuario** | Media-Baja | `user://last_editor_runtime_template.json` es el canal entre editor y simulación. Si se corrompe o no existe, la simulación carga sin datos. No hay validación de esquema en destino. |
 | **Sin test de UI** | Media | Todo el código de editor/UI es código Godot sin cobertura de test automatizado. Regresiones visuales o de flujo solo detectables manualmente. |
-| **HUD táctico desconectado** | Media | Los paneles de agua/PPV/rescate no existen en escena. Reactivarlos requiere construir los nodos en escena + conectar señales + implementar handlers en Main.gd + desbloquear el engine. |
 | **FP sin fuego propio** | Baja-Media | En modo FP puro no hay visualización de llama; el fuego aparece como emisión volumétrica de humo/calor. Requiere integrar `FireAnimation3D` en la geometría FP o una alternativa de billboard. |
 | **Sin gestión de errores de carga de escenario** | Baja | Si el JSON del editor está malformado, `ScenarioSerializer.load_scenario()` hace `push_error` pero el editor continúa con datos vacíos sin informar al usuario con popup. |
 | **Víctimas sin movimiento** | Baja | Las víctimas son marcadores estáticos; no existe motor de pathfinding. Para entrenamiento real se necesitaría movilidad básica o al menos animación de estado (consciente/incapacitado/muerto). |
@@ -248,7 +238,6 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 | DT-02 | Sin validación de esquema al cargar template en SimulationScene | Medio (robustez) | Bajo |
 | DT-03 | Popup de error en carga fallida de escenario (editor) | Medio (UX) | Bajo |
 | DT-04 | Sin test de flujo editor→simulación | Medio (regresión) | Medio |
-| DT-05 | HUD táctico completamente desconectado | **Fuera de alcance** — simulador técnico, no gameplay | Deferred |
 | DT-06 | Fuego no visible en modo FP | Bajo-Medio (inmersión) | Medio |
 | DT-07 | Víctimas estáticas | Medio (entrenamiento) | Alto |
 | DT-08 | Sin pantalla de resultados post-simulación estructurada | Medio (UX) | Medio |
@@ -323,7 +312,6 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 | DT-09 | Internacionalización completa (todas las cadenas UI en castellano) | Baja |
 
 **Fuera de alcance (no implementar)**: HUD táctico (agua/PPV/rescate), criterios victoria/derrota, pathfinding de víctimas, modo instructor/alumno.
-Ver `docs/DEFERRED_GAMEPLAY_HOOKS.md`.
 
 **Criterio de cierre**: un investigador puede ejecutar un escenario, obtener los datos técnicos en formato estándar y reproducir el resultado con un único comando.
 

@@ -1684,37 +1684,6 @@ func _step_steam_decay(dt: float) -> void:
 		room.steam_kg = maxf(0.0, room.steam_kg - room.steam_kg * rate * dt)
 
 
-# TODO(gameplay): helpers de supresión y estado de fuego — descomentar cuando se implemente la UI de juego
-#func cancel_suppression(room_id: int) -> void:
-#	_active_suppression_by_room.erase(room_id)
-#
-#func cancel_all_suppression() -> void:
-#	_active_suppression_by_room.clear()
-#
-#func get_highest_hrr_room_id() -> int:
-#	if building == null: return 0
-#	var best_id: int = 0; var best_hrr: float = -1.0
-#	for room_id in building.get_rooms().keys():
-#		var room: RoomModel = building.get_room(int(room_id))
-#		if room != null and room.hrr_kw > best_hrr: best_hrr = room.hrr_kw; best_id = int(room_id)
-#	return best_id
-#
-#func get_active_fire_room_ids() -> Array:
-#	if building == null: return []
-#	var result: Array = []
-#	for room_id in building.get_rooms().keys():
-#		var room: RoomModel = building.get_room(int(room_id))
-#		if room != null and room.hrr_kw > 10.0: result.append(int(room_id))
-#	return result
-#
-#func is_fire_extinguished() -> bool:
-#	if building == null: return true
-#	for room_id in building.get_rooms().keys():
-#		var room: RoomModel = building.get_room(int(room_id))
-#		if room != null and room.hrr_kw >= fire_extinction_hrr_kw: return false
-#	return true
-
-
 func _step_passive_fuel(dt: float) -> void:
 	# Siempre actualiza el estado térmico de los combustibles pasivos (necesario para
 	# FireSpreadSystem). La auto-ignición solo se dispara si passive_room_autoignite_enabled.

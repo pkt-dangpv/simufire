@@ -105,7 +105,6 @@ Tareas para el paper:
 
 | Ítem | Ubicación | Tipo | Versión sugerida |
 |---|---|---|---|
-| `TODO(gameplay)` helpers de supresión | `SimulationEngine.gd:1678` | **Fuera de alcance** — no implementar sin cambio explícito de scope | — |
 | Conteos históricos stale (`373/373`, `372/372`, etc.) | `GAPS_INVENTORY.md`, `PLAN_TRABAJO.md` — secciones de historial | Cosmético | v0.4.1 |
 | 14 ficheros `ESTADO_SESION_*.md` en raíz | Directorio raíz | Ruido de sesión, no publicables | v0.4.1 o ignorar |
 | `tools/phase4a_blend_sweep.py` | `tools/` | Artefacto diagnóstico inactivo | Conservar para trazabilidad |
