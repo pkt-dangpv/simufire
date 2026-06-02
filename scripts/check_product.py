@@ -206,6 +206,14 @@ def main() -> int:
     if rc != 0 or fails != 0:
         diagnostics.append("Godot furniture runtime: " + (diagnostic or "failed"))
 
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_runtime_template_schema.tscn",
+        "RUNTIME TEMPLATE SCHEMA VALIDATION PASS",
+    )
+    rows.append(("Runtime template schema Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot runtime template schema: " + (diagnostic or "failed"))
+
     rc, count, fails, diagnostic = _run_run_scenario_smoke()
     rows.append(("Run scenario reproducibility", rc, count, fails))
     if rc != 0 or fails != 0:

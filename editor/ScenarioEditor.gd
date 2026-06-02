@@ -912,7 +912,7 @@ func _sync_editor_runtime_views() -> void:
 		return
 	_lock_all_object_visual_poses()
 	var runtime_template: Dictionary = Serializer.to_runtime_template(editor_data)
-	_editor_building_model.load_template_data(runtime_template)
+	_editor_building_model.load_template_data(runtime_template, true)
 	if _editor_visualizer_3d != null:
 		_editor_visualizer_3d.building = _editor_building_model
 		_editor_visualizer_3d.rebuild_from_building()

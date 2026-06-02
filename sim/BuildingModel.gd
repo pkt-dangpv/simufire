@@ -88,15 +88,8 @@ const HVAC_MODE_ON: String = "on"
 # ============================================================
 
 func _ready() -> void:
-	if FileAccess.file_exists(EDITOR_RUNTIME_PATH):
-		var file := FileAccess.open(EDITOR_RUNTIME_PATH, FileAccess.READ)
-		if file != null:
-			var text: String = file.get_as_text()
-			file.close()
-			var parsed: Variant = JSON.parse_string(text)
-			if typeof(parsed) == TYPE_DICTIONARY:
-				_load_from_template(parsed)
-				return
+	if _load_editor_runtime_template():
+		return
 
 	var startup_options: Dictionary = _load_startup_options()
 	var selected_template_name: String = String(startup_options.get("template_name", template_name))
@@ -113,6 +106,22 @@ func _ready() -> void:
 		template_data["exterior_lighting_mode"] = String(startup_options.get("exterior_lighting_mode", "Dia"))
 	template_name = selected_template_name
 	_load_from_template(template_data)
+
+
+func _load_editor_runtime_template() -> bool:
+	if not FileAccess.file_exists(EDITOR_RUNTIME_PATH):
+		return false
+	var file := FileAccess.open(EDITOR_RUNTIME_PATH, FileAccess.READ)
+	if file == null:
+		push_error("BuildingModel: no se pudo leer %s" % EDITOR_RUNTIME_PATH)
+		return false
+	var text: String = file.get_as_text()
+	file.close()
+	var parsed: Variant = JSON.parse_string(text)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		push_error("BuildingModel: JSON invalido en %s" % EDITOR_RUNTIME_PATH)
+		return false
+	return _try_load_template_data(Dictionary(parsed), EDITOR_RUNTIME_PATH)
 
 # ============================================================
 # GETTERS
@@ -142,8 +151,8 @@ func get_rooms() -> Dictionary:
 func get_openings() -> Array:
 	return openings
 
-func load_template_data(data: Dictionary) -> void:
-	_load_from_template(data)
+func load_template_data(data: Dictionary, allow_empty_rooms: bool = false) -> bool:
+	return _try_load_template_data(data, "load_template_data", allow_empty_rooms)
 
 
 func get_hvac_data() -> Dictionary:
@@ -196,6 +205,185 @@ func build_hvac_summary() -> Dictionary:
 # ============================================================
 # CARGA DE PLANTILLA
 # ============================================================
+
+func _try_load_template_data(data: Dictionary, source_label: String, allow_empty_rooms: bool = false) -> bool:
+	var errors: Array[String] = validate_template_data(data, allow_empty_rooms)
+	if not errors.is_empty():
+		push_error("BuildingModel: template runtime invalido (%s): %s" % [
+			source_label,
+			_join_template_errors(errors)
+		])
+		return false
+	_load_from_template(data)
+	return true
+
+
+func validate_template_data(data: Dictionary, allow_empty_rooms: bool = false) -> Array[String]:
+	var errors: Array[String] = []
+	var rects_value: Variant = data.get("room_rect_m", {})
+	var rooms_value: Variant = data.get("rooms_data", [])
+	if typeof(rects_value) != TYPE_DICTIONARY:
+		errors.append("room_rect_m debe ser un diccionario")
+	if typeof(rooms_value) != TYPE_ARRAY:
+		errors.append("rooms_data debe ser un array")
+	if not errors.is_empty():
+		return errors
+
+	var rects: Dictionary = Dictionary(rects_value)
+	var rooms_data: Array = Array(rooms_value)
+	if rooms_data.is_empty() and not allow_empty_rooms:
+		errors.append("rooms_data debe contener al menos una sala")
+
+	var room_ids: Dictionary = {}
+	for i in range(rooms_data.size()):
+		if typeof(rooms_data[i]) != TYPE_DICTIONARY:
+			errors.append("rooms_data[%d] debe ser un diccionario" % i)
+			continue
+		var room: Dictionary = Dictionary(rooms_data[i])
+		if not room.has("id"):
+			errors.append("rooms_data[%d] no define id" % i)
+			continue
+		var room_id: int = int(room.get("id", OUTSIDE_ID))
+		if room_id == OUTSIDE_ID:
+			errors.append("rooms_data[%d] usa id reservado -1" % i)
+			continue
+		if room_ids.has(room_id):
+			errors.append("rooms_data[%d] duplica sala id=%d" % [i, room_id])
+		room_ids[room_id] = true
+
+		if not room.has("name"):
+			errors.append("Sala id=%d no define name" % room_id)
+		if not room.has("kind"):
+			errors.append("Sala id=%d no define kind" % room_id)
+		if not room.has("height_m"):
+			errors.append("Sala id=%d no define height_m" % room_id)
+		elif float(room.get("height_m", 0.0)) <= 0.0:
+			errors.append("Sala id=%d tiene height_m <= 0" % room_id)
+
+		var rect_value: Variant = _template_rect_value(rects, room_id)
+		if typeof(rect_value) == TYPE_NIL:
+			errors.append("Sala id=%d no tiene room_rect_m" % room_id)
+		else:
+			var rect: Rect2 = _rect2_from_variant(rect_value)
+			if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+				errors.append("Sala id=%d tiene room_rect_m invalido" % room_id)
+
+		var raw_objects: Variant = room.get("fuel_objects", [])
+		if typeof(raw_objects) != TYPE_ARRAY:
+			errors.append("Sala id=%d fuel_objects debe ser un array" % room_id)
+		else:
+			_validate_fuel_objects(Array(raw_objects), room_id, room_ids, errors)
+
+	_validate_openings(data.get("openings_data", []), room_ids, errors)
+	_validate_room_reference_array(data.get("detectors", []), "detectors", room_ids, errors)
+	_validate_room_reference_array(data.get("victims", []), "victims", room_ids, errors)
+	_validate_player_start(data.get("player_start", {}), room_ids, errors)
+	if data.has("ignition_room_id") and not room_ids.has(int(data.get("ignition_room_id", OUTSIDE_ID))):
+		errors.append("ignition_room_id no referencia una sala valida")
+
+	return errors
+
+
+func _join_template_errors(errors: Array[String]) -> String:
+	var text: String = ""
+	for i in range(errors.size()):
+		if i > 0:
+			text += "; "
+		text += errors[i]
+	return text
+
+
+func _template_rect_value(rects: Dictionary, room_id: int) -> Variant:
+	if rects.has(room_id):
+		return rects[room_id]
+	var key := str(room_id)
+	if rects.has(key):
+		return rects[key]
+	return null
+
+
+func _validate_openings(raw_openings: Variant, room_ids: Dictionary, errors: Array[String]) -> void:
+	if typeof(raw_openings) != TYPE_ARRAY:
+		errors.append("openings_data debe ser un array")
+		return
+	var openings_data: Array = Array(raw_openings)
+	for i in range(openings_data.size()):
+		if typeof(openings_data[i]) != TYPE_DICTIONARY:
+			errors.append("openings_data[%d] debe ser un diccionario" % i)
+			continue
+		var op: Dictionary = Dictionary(openings_data[i])
+		if not op.has("a") or not op.has("b"):
+			errors.append("openings_data[%d] debe definir a y b" % i)
+			continue
+		var a: int = int(op.get("a", OUTSIDE_ID))
+		var b: int = int(op.get("b", OUTSIDE_ID))
+		if a == OUTSIDE_ID and b == OUTSIDE_ID:
+			errors.append("openings_data[%d] conecta exterior con exterior" % i)
+		if a == b:
+			errors.append("openings_data[%d] conecta la misma sala consigo misma" % i)
+		if a != OUTSIDE_ID and not room_ids.has(a):
+			errors.append("openings_data[%d] referencia sala a=%d inexistente" % [i, a])
+		if b != OUTSIDE_ID and not room_ids.has(b):
+			errors.append("openings_data[%d] referencia sala b=%d inexistente" % [i, b])
+		if not op.has("width_m") or float(op.get("width_m", 0.0)) <= 0.0:
+			errors.append("openings_data[%d] tiene width_m invalido" % i)
+		if not op.has("height_m") or float(op.get("height_m", 0.0)) <= 0.0:
+			errors.append("openings_data[%d] tiene height_m invalido" % i)
+		var type_name: String = String(op.get("type", "door")).strip_edges().to_lower()
+		if type_name != "door" and type_name != "window" and type_name != "hole":
+			errors.append("openings_data[%d] tiene type invalido" % i)
+		if op.has("open_fraction"):
+			var fraction: float = float(op.get("open_fraction", 1.0))
+			if fraction < 0.0 or fraction > 1.0:
+				errors.append("openings_data[%d] tiene open_fraction fuera de rango" % i)
+
+
+func _validate_fuel_objects(raw_objects: Array, fallback_room_id: int, room_ids: Dictionary, errors: Array[String]) -> void:
+	for i in range(raw_objects.size()):
+		if typeof(raw_objects[i]) != TYPE_DICTIONARY:
+			errors.append("Sala id=%d fuel_objects[%d] debe ser un diccionario" % [fallback_room_id, i])
+			continue
+		var obj: Dictionary = Dictionary(raw_objects[i])
+		var room_id: int = int(obj.get("room_id", fallback_room_id))
+		if not room_ids.has(room_id):
+			errors.append("Sala id=%d fuel_objects[%d] referencia room_id=%d inexistente" % [fallback_room_id, i, room_id])
+		var size_m: Vector2 = _vector2_from_variant(obj.get("size_m", Vector2.ONE), Vector2.ONE)
+		if size_m.x <= 0.0 or size_m.y <= 0.0:
+			errors.append("Sala id=%d fuel_objects[%d] tiene size_m invalido" % [fallback_room_id, i])
+
+
+func _validate_room_reference_array(raw_entries: Variant, label: String, room_ids: Dictionary, errors: Array[String]) -> void:
+	if typeof(raw_entries) != TYPE_ARRAY:
+		errors.append("%s debe ser un array" % label)
+		return
+	var entries: Array = Array(raw_entries)
+	for i in range(entries.size()):
+		if typeof(entries[i]) != TYPE_DICTIONARY:
+			errors.append("%s[%d] debe ser un diccionario" % [label, i])
+			continue
+		var entry: Dictionary = Dictionary(entries[i])
+		if not entry.has("room_id"):
+			errors.append("%s[%d] no define room_id" % [label, i])
+			continue
+		var room_id: int = int(entry.get("room_id", OUTSIDE_ID))
+		if not room_ids.has(room_id):
+			errors.append("%s[%d] referencia room_id=%d inexistente" % [label, i, room_id])
+
+
+func _validate_player_start(raw_start: Variant, room_ids: Dictionary, errors: Array[String]) -> void:
+	if typeof(raw_start) != TYPE_DICTIONARY:
+		errors.append("player_start debe ser un diccionario")
+		return
+	var start: Dictionary = Dictionary(raw_start)
+	if start.is_empty():
+		return
+	if not start.has("room_id"):
+		errors.append("player_start no define room_id")
+		return
+	var room_id: int = int(start.get("room_id", OUTSIDE_ID))
+	if not room_ids.has(room_id):
+		errors.append("player_start referencia room_id=%d inexistente" % room_id)
+
 
 func _load_from_template(data: Dictionary) -> void:
 	rooms.clear()

@@ -235,7 +235,7 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 | ID | Deuda | Impacto | Esfuerzo |
 |----|-------|---------|---------|
 | DT-01 | `ScenarioEditor.gd` monolito (7 400 líneas) | Alto (mantenibilidad) | Alto (refactor multi-sesión) |
-| DT-02 | Sin validación de esquema al cargar template en SimulationScene | Medio (robustez) | Bajo |
+| DT-02 | Validación de esquema al cargar template en SimulationScene | ✅ Cerrado: `BuildingModel.validate_template_data()` rechaza runtime templates inválidos y conserva el último modelo válido | Cerrado |
 | DT-03 | Popup de error en carga fallida de escenario (editor) | Medio (UX) | Bajo |
 | DT-04 | Sin test de flujo editor→simulación | Medio (regresión) | Medio |
 | DT-06 | Fuego no visible en modo FP | Bajo-Medio (inmersión) | Medio |
