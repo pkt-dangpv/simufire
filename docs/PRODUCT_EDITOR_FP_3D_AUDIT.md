@@ -237,7 +237,7 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 | DT-01 | `ScenarioEditor.gd` monolito (7 400 líneas) | Alto (mantenibilidad) | Alto (refactor multi-sesión) |
 | DT-02 | Validación de esquema al cargar template en SimulationScene | ✅ Cerrado: `BuildingModel.validate_template_data()` rechaza runtime templates inválidos y conserva el último modelo válido | Cerrado |
 | DT-03 | Popup de error en carga fallida de escenario (editor) | Medio (UX) | Bajo |
-| DT-04 | Sin test de flujo editor→simulación | Medio (regresión) | Medio |
+| DT-04 | Test de flujo editor→simulación | ✅ Cerrado: `tools/validate_editor_to_sim_flow.tscn` cubre editor-data → runtime JSON → `BuildingModel` → `SimulationEngine` → export técnico | Cerrado |
 | DT-06 | Fuego no visible en modo FP | Bajo-Medio (inmersión) | Medio |
 | DT-07 | Víctimas estáticas | Medio (entrenamiento) | Alto |
 | DT-08 | Pantalla de resumen técnico post-simulación | ✅ Implementado en W-02: métricas técnicas, víctimas, detectores y archivos exportados | Cerrado |
