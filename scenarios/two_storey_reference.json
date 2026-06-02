@@ -1,0 +1,172 @@
+{
+	"version": 1,
+	"scenario_name": "Vivienda dos plantas de referencia",
+	"building_type": "single_family",
+	"outside_temp_c": 17.0,
+	"outside_o2": 0.209,
+	"stop_time_s": 900.0,
+	"ignition_room_id": 0,
+	"interior_lights_on": true,
+	"exterior_lighting_mode": "Dia",
+	"hvac_mode": "none",
+	"hvac_data": {
+		"exists": false,
+		"on": false,
+		"mode": "none"
+	},
+	"floors": [
+		{ "name": "PB", "level_m": 0.0 },
+		{ "name": "P1", "level_m": 2.9 }
+	],
+	"room_rect_m": {
+		"0": { "x": 0.0, "y": 0.0, "w": 4.6, "h": 4.2 },
+		"1": { "x": 4.6, "y": 0.0, "w": 2.0, "h": 3.6 },
+		"2": { "x": 0.0, "y": 4.2, "w": 4.6, "h": 3.2 },
+		"3": { "x": 4.6, "y": 3.6, "w": 2.0, "h": 3.8 },
+		"4": { "x": 4.6, "y": 0.0, "w": 2.0, "h": 3.6 },
+		"5": { "x": 0.0, "y": 0.0, "w": 4.6, "h": 3.6 },
+		"6": { "x": 0.0, "y": 3.6, "w": 4.6, "h": 3.8 },
+		"7": { "x": 6.6, "y": 0.0, "w": 3.2, "h": 3.6 }
+	},
+	"rooms_data": [
+		{
+			"id": 0,
+			"name": "Salon PB",
+			"kind": "salon",
+			"height_m": 2.9,
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 5200.0,
+			"max_hrr_kw": 3000.0,
+			"fuel_objects": [
+				{ "id": "two_storey_sofa", "name": "Sofa PB", "kind": "sofa", "room_id": 0, "position_m": { "x": 0.48, "y": 1.05 }, "size_m": { "x": 0.92, "y": 2.35 }, "rotation_deg": 90.0, "footprint_m2": 2.15, "exposed_area_m2": 3.70, "elevation_m": 0.38, "fuel_energy_MJ": 1150.0, "remaining_fuel_MJ": 1150.0, "max_hrr_kw": 720.0, "ignition_temp_c": 310.0, "ignition_flux_kw_m2": 16.0, "smoke_yield_kg_per_MJ": 0.012, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true, "is_primary_ignition_source": true },
+				{ "id": "two_storey_tv", "name": "Mueble TV PB", "kind": "tv_stand", "room_id": 0, "position_m": { "x": 3.25, "y": 0.38 }, "size_m": { "x": 1.00, "y": 0.42 }, "rotation_deg": 0.0, "footprint_m2": 0.45, "exposed_area_m2": 1.10, "elevation_m": 0.35, "fuel_energy_MJ": 360.0, "remaining_fuel_MJ": 360.0, "max_hrr_kw": 200.0, "ignition_temp_c": 300.0, "ignition_flux_kw_m2": 15.0, "smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025, "visual_pose_locked": true },
+				{ "id": "two_storey_books", "name": "Libreria PB", "kind": "bookcase", "room_id": 0, "position_m": { "x": 2.65, "y": 3.72 }, "size_m": { "x": 1.35, "y": 0.35 }, "rotation_deg": 180.0, "footprint_m2": 0.50, "exposed_area_m2": 1.80, "elevation_m": 0.0, "fuel_energy_MJ": 940.0, "remaining_fuel_MJ": 940.0, "max_hrr_kw": 330.0, "ignition_temp_c": 290.0, "ignition_flux_kw_m2": 14.0, "smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025, "visual_pose_locked": true }
+			]
+		},
+		{
+			"id": 1,
+			"name": "Escalera PB",
+			"kind": "escalera",
+			"height_m": 2.9,
+			"floor_level_z_m": 0.0,
+			"rotation_deg": 0.0,
+			"stair_run_direction_m": { "x": 0.0, "y": 1.0 },
+			"stair_has_walls": false,
+			"stair_has_railings": true,
+			"stair_turn_degrees": 0.0,
+			"stair_flight_count": 1,
+			"fuel_energy_MJ": 0.0,
+			"max_hrr_kw": 0.0,
+			"fuel_objects": []
+		},
+		{
+			"id": 2,
+			"name": "Cocina PB",
+			"kind": "cocina",
+			"height_m": 2.9,
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 3000.0,
+			"max_hrr_kw": 2200.0,
+			"fuel_objects": [
+				{ "id": "two_storey_kitchen_unit", "name": "Frente cocina PB", "kind": "kitchen_unit", "room_id": 2, "position_m": { "x": 0.35, "y": 0.25 }, "size_m": { "x": 3.25, "y": 0.65 }, "rotation_deg": 0.0, "footprint_m2": 2.10, "exposed_area_m2": 3.20, "elevation_m": 0.82, "fuel_energy_MJ": 920.0, "remaining_fuel_MJ": 920.0, "max_hrr_kw": 520.0, "ignition_temp_c": 285.0, "ignition_flux_kw_m2": 14.0, "smoke_yield_kg_per_MJ": 0.009, "co_yield_kg_per_MJ": 0.00028, "visual_pose_locked": true },
+				{ "id": "two_storey_kitchen_table", "name": "Mesa cocina PB", "kind": "table", "room_id": 2, "position_m": { "x": 2.80, "y": 2.10 }, "size_m": { "x": 1.10, "y": 0.75 }, "rotation_deg": 0.0, "footprint_m2": 0.82, "exposed_area_m2": 1.30, "elevation_m": 0.72, "fuel_energy_MJ": 360.0, "remaining_fuel_MJ": 360.0, "max_hrr_kw": 250.0, "ignition_temp_c": 305.0, "ignition_flux_kw_m2": 16.0, "smoke_yield_kg_per_MJ": 0.012, "co_yield_kg_per_MJ": 0.00035, "visual_pose_locked": true }
+			]
+		},
+		{
+			"id": 3,
+			"name": "Pasillo PB",
+			"kind": "pasillo",
+			"height_m": 2.9,
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 480.0,
+			"max_hrr_kw": 280.0,
+			"fuel_objects": [
+				{ "id": "two_storey_hall_rug", "name": "Alfombra PB", "kind": "rug", "room_id": 3, "position_m": { "x": 0.55, "y": 0.65 }, "size_m": { "x": 0.80, "y": 2.30 }, "rotation_deg": 0.0, "footprint_m2": 1.80, "exposed_area_m2": 1.80, "elevation_m": 0.02, "fuel_energy_MJ": 160.0, "remaining_fuel_MJ": 160.0, "max_hrr_kw": 90.0, "ignition_temp_c": 270.0, "ignition_flux_kw_m2": 12.0, "smoke_yield_kg_per_MJ": 0.014, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true }
+			]
+		},
+		{
+			"id": 4,
+			"name": "Escalera P1",
+			"kind": "escalera",
+			"height_m": 2.55,
+			"floor_level_z_m": 2.9,
+			"rotation_deg": 0.0,
+			"stair_run_direction_m": { "x": 0.0, "y": 1.0 },
+			"stair_has_walls": false,
+			"stair_has_railings": true,
+			"stair_turn_degrees": 0.0,
+			"stair_flight_count": 1,
+			"fuel_energy_MJ": 0.0,
+			"max_hrr_kw": 0.0,
+			"fuel_objects": []
+		},
+		{
+			"id": 5,
+			"name": "Dormitorio P1",
+			"kind": "dormitorio",
+			"height_m": 2.55,
+			"floor_level_z_m": 2.9,
+			"fuel_energy_MJ": 2700.0,
+			"max_hrr_kw": 1700.0,
+			"fuel_objects": [
+				{ "id": "two_storey_bed_main", "name": "Cama P1", "kind": "bed", "room_id": 5, "position_m": { "x": 0.65, "y": 0.70 }, "size_m": { "x": 1.45, "y": 1.95 }, "rotation_deg": 0.0, "footprint_m2": 2.80, "exposed_area_m2": 3.50, "elevation_m": 0.45, "fuel_energy_MJ": 980.0, "remaining_fuel_MJ": 980.0, "max_hrr_kw": 580.0, "ignition_temp_c": 295.0, "ignition_flux_kw_m2": 15.0, "smoke_yield_kg_per_MJ": 0.013, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true },
+				{ "id": "two_storey_wardrobe_main", "name": "Armario P1", "kind": "wardrobe", "room_id": 5, "position_m": { "x": 2.75, "y": 0.30 }, "size_m": { "x": 0.70, "y": 1.20 }, "rotation_deg": 90.0, "footprint_m2": 0.84, "exposed_area_m2": 2.10, "elevation_m": 0.0, "fuel_energy_MJ": 760.0, "remaining_fuel_MJ": 760.0, "max_hrr_kw": 320.0, "ignition_temp_c": 300.0, "ignition_flux_kw_m2": 16.0, "smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025, "visual_pose_locked": true }
+			]
+		},
+		{
+			"id": 6,
+			"name": "Dormitorio infantil P1",
+			"kind": "dormitorio",
+			"height_m": 2.55,
+			"floor_level_z_m": 2.9,
+			"fuel_energy_MJ": 2400.0,
+			"max_hrr_kw": 1500.0,
+			"fuel_objects": [
+				{ "id": "two_storey_bed_child", "name": "Cama infantil P1", "kind": "bed", "room_id": 6, "position_m": { "x": 0.65, "y": 0.72 }, "size_m": { "x": 0.95, "y": 1.85 }, "rotation_deg": 0.0, "footprint_m2": 1.75, "exposed_area_m2": 2.70, "elevation_m": 0.45, "fuel_energy_MJ": 760.0, "remaining_fuel_MJ": 760.0, "max_hrr_kw": 460.0, "ignition_temp_c": 295.0, "ignition_flux_kw_m2": 15.0, "smoke_yield_kg_per_MJ": 0.013, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true },
+				{ "id": "two_storey_desk_child", "name": "Escritorio P1", "kind": "desk", "room_id": 6, "position_m": { "x": 2.45, "y": 2.95 }, "size_m": { "x": 1.10, "y": 0.42 }, "rotation_deg": 180.0, "footprint_m2": 0.46, "exposed_area_m2": 1.00, "elevation_m": 0.72, "fuel_energy_MJ": 320.0, "remaining_fuel_MJ": 320.0, "max_hrr_kw": 220.0, "ignition_temp_c": 305.0, "ignition_flux_kw_m2": 16.0, "smoke_yield_kg_per_MJ": 0.009, "co_yield_kg_per_MJ": 0.00025, "visual_pose_locked": true }
+			]
+		},
+		{
+			"id": 7,
+			"name": "Bano P1",
+			"kind": "bano",
+			"height_m": 2.55,
+			"floor_level_z_m": 2.9,
+			"fuel_energy_MJ": 320.0,
+			"max_hrr_kw": 240.0,
+			"fuel_objects": [
+				{ "id": "two_storey_bath_textiles", "name": "Toallas P1", "kind": "textile_pile", "room_id": 7, "position_m": { "x": 1.95, "y": 0.45 }, "size_m": { "x": 0.55, "y": 0.55 }, "rotation_deg": 0.0, "footprint_m2": 0.30, "exposed_area_m2": 0.70, "elevation_m": 0.45, "fuel_energy_MJ": 130.0, "remaining_fuel_MJ": 130.0, "max_hrr_kw": 90.0, "ignition_temp_c": 275.0, "ignition_flux_kw_m2": 13.0, "smoke_yield_kg_per_MJ": 0.014, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true }
+			]
+		}
+	],
+	"openings_data": [
+		{ "a": 0, "b": 1, "type": "door", "wall": "right", "offset_m": 0.50, "offset_is_fraction": true, "width_m": 0.90, "height_m": 2.05, "sill_m": 0.0, "open_fraction": 1.0 },
+		{ "a": 2, "b": 3, "type": "door", "wall": "right", "offset_m": 0.50, "offset_is_fraction": true, "width_m": 0.82, "height_m": 2.05, "sill_m": 0.0, "open_fraction": 0.8 },
+		{ "a": 1, "b": 3, "type": "door", "wall": "bottom", "offset_m": 0.55, "offset_is_fraction": true, "width_m": 0.85, "height_m": 2.05, "sill_m": 0.0, "open_fraction": 1.0 },
+		{ "a": 1, "b": 4, "type": "hole", "wall": "vertical", "offset_m": 0.0, "offset_is_fraction": false, "width_m": 1.20, "height_m": 2.60, "sill_m": 0.0, "open_fraction": 1.0, "is_vertical": true },
+		{ "a": 4, "b": 5, "type": "door", "wall": "left", "offset_m": 0.50, "offset_is_fraction": true, "width_m": 0.82, "height_m": 2.00, "sill_m": 0.0, "open_fraction": 0.75 },
+		{ "a": 4, "b": 6, "type": "door", "wall": "bottom", "offset_m": 0.50, "offset_is_fraction": true, "width_m": 0.82, "height_m": 2.00, "sill_m": 0.0, "open_fraction": 0.65 },
+		{ "a": 4, "b": 7, "type": "door", "wall": "right", "offset_m": 0.45, "offset_is_fraction": true, "width_m": 0.70, "height_m": 2.00, "sill_m": 0.0, "open_fraction": 0.45 },
+		{ "a": 0, "b": -1, "type": "window", "wall": "top", "offset_m": 0.55, "offset_is_fraction": true, "width_m": 1.40, "height_m": 1.15, "sill_m": 0.90, "open_fraction": 0.25 },
+		{ "a": 2, "b": -1, "type": "window", "wall": "bottom", "offset_m": 0.55, "offset_is_fraction": true, "width_m": 1.20, "height_m": 1.10, "sill_m": 0.90, "open_fraction": 0.15 },
+		{ "a": 5, "b": -1, "type": "window", "wall": "top", "offset_m": 0.50, "offset_is_fraction": true, "width_m": 1.20, "height_m": 1.10, "sill_m": 0.90, "open_fraction": 0.20 },
+		{ "a": 6, "b": -1, "type": "window", "wall": "bottom", "offset_m": 0.50, "offset_is_fraction": true, "width_m": 1.10, "height_m": 1.10, "sill_m": 0.90, "open_fraction": 0.10 },
+		{ "a": 3, "b": -1, "type": "door", "wall": "bottom", "offset_m": 0.50, "offset_is_fraction": true, "width_m": 0.95, "height_m": 2.10, "sill_m": 0.0, "open_fraction": 0.0 }
+	],
+	"player_start": {
+		"room_id": 3,
+		"position_m": { "x": 1.00, "y": 3.25 },
+		"floor_level_z_m": 0.0,
+		"yaw_deg": -90.0
+	},
+	"detectors": [
+		{ "id": "two_storey_detector_pb", "room_id": 3, "type": "smoke", "threshold": 0.025, "x_m": 1.00, "y_m": 1.80 },
+		{ "id": "two_storey_detector_p1", "room_id": 4, "type": "smoke", "threshold": 0.025, "x_m": 1.00, "y_m": 1.60 },
+		{ "id": "two_storey_detector_bed", "room_id": 5, "type": "smoke", "threshold": 0.025, "x_m": 2.00, "y_m": 1.60 }
+	],
+	"victims": [
+		{ "id": "two_storey_victim_main", "room_id": 5, "name": "Ocupante P1", "x_m": 1.45, "y_m": 1.85, "height_m": 0.85 },
+		{ "id": "two_storey_victim_child", "room_id": 6, "name": "Ocupante infantil", "x_m": 1.30, "y_m": 1.55, "height_m": 0.75 }
+	],
+	"exterior_walls": []
+}

@@ -468,6 +468,7 @@ func _build_fuel_objects(raw_objects: Variant) -> Array:
 		obj.position_m = _vector2_from_variant(data.get("position_m", Vector2.ZERO), Vector2.ZERO)
 		obj.size_m = _vector2_from_variant(data.get("size_m", Vector2.ONE), Vector2.ONE)
 		obj.rotation_deg = float(data.get("rotation_deg", 0.0))
+		obj.visual_pose_locked = bool(data.get("visual_pose_locked", false))
 		obj.footprint_m2 = float(data.get("footprint_m2", 0.0))
 		obj.exposed_area_m2 = float(data.get("exposed_area_m2", obj.footprint_m2))
 		obj.elevation_m = float(data.get("elevation_m", 0.0))

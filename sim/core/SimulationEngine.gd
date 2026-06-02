@@ -2309,6 +2309,28 @@ func stop_and_generate_graphs(details: String = "manual_stop_button", graphs_roo
 	_finish_and_launch_graphs(details, graphs_root, true)
 	return true
 
+
+func export_technical_results(details: String = "headless_export", output_dir: String = "") -> bool:
+	if sim_time_s <= 0.0:
+		return false
+
+	is_finished = true
+	_force_log_final_snapshot()
+	if details.is_empty():
+		log_writer.append_event(sim_time_s, "sim_end", "")
+	else:
+		log_writer.append_event(sim_time_s, "sim_end", details)
+
+	var export_dir: String = output_dir.strip_edges()
+	if export_dir.is_empty():
+		export_dir = log_writer.resolve_log_file_path().get_base_dir()
+	if export_dir.is_empty():
+		return false
+	DirAccess.make_dir_recursive_absolute(export_dir)
+	_write_export_json(export_dir)
+	export_screenshot_requested.emit(export_dir)
+	return true
+
 # ============================================================
 # EVENTOS Y GENERACIÓN DE GRÁFICAS
 # ============================================================
@@ -2858,7 +2880,7 @@ func _read_latest_graphs_dir(latest_path: String) -> String:
 func _should_launch_graphs() -> bool:
 	for arg in OS.get_cmdline_user_args():
 		var arg_str: String = String(arg)
-		if arg_str.begins_with("--validation-case"):
+		if arg_str.begins_with("--validation-case") or arg_str.begins_with("--run-scenario") or arg_str.begins_with("--scenario"):
 			return false
 	return true
 
@@ -2867,6 +2889,10 @@ func _is_validation_mode() -> bool:
 	for arg in OS.get_cmdline_user_args():
 		var arg_str: String = String(arg)
 		if arg_str == "--validation-case" or arg_str.begins_with("--validation-case="):
+			return true
+		if arg_str == "--run-scenario" or arg_str.begins_with("--run-scenario="):
+			return true
+		if arg_str == "--scenario" or arg_str.begins_with("--scenario="):
 			return true
 	return false
 

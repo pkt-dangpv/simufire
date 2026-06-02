@@ -1,0 +1,118 @@
+{
+	"version": 1,
+	"scenario_name": "Piso compacto de referencia",
+	"building_type": "apartment",
+	"apartment_floor_number": 3,
+	"outside_temp_c": 20.0,
+	"outside_o2": 0.209,
+	"stop_time_s": 600.0,
+	"ignition_room_id": 0,
+	"interior_lights_on": true,
+	"exterior_lighting_mode": "Dia",
+	"hvac_mode": "none",
+	"hvac_data": {
+		"exists": false,
+		"on": false,
+		"mode": "none"
+	},
+	"floors": [
+		{ "name": "PB", "level_m": 0.0 }
+	],
+	"room_rect_m": {
+		"0": { "x": 0.0, "y": 0.0, "w": 5.2, "h": 4.1 },
+		"1": { "x": 5.2, "y": 0.0, "w": 1.4, "h": 5.8 },
+		"2": { "x": 6.6, "y": 0.0, "w": 3.2, "h": 3.2 },
+		"3": { "x": 6.6, "y": 3.2, "w": 3.2, "h": 2.6 },
+		"4": { "x": 0.0, "y": 4.1, "w": 5.2, "h": 1.7 }
+	},
+	"rooms_data": [
+		{
+			"id": 0,
+			"name": "Salon cocina",
+			"kind": "salon",
+			"height_m": 2.5,
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 4300.0,
+			"max_hrr_kw": 2500.0,
+			"fuel_objects": [
+				{ "id": "compact_sofa", "name": "Sofa compacto", "kind": "sofa", "room_id": 0, "position_m": { "x": 0.45, "y": 1.25 }, "size_m": { "x": 0.88, "y": 2.05 }, "rotation_deg": 90.0, "footprint_m2": 1.80, "exposed_area_m2": 3.20, "elevation_m": 0.38, "fuel_energy_MJ": 980.0, "remaining_fuel_MJ": 980.0, "max_hrr_kw": 620.0, "ignition_temp_c": 310.0, "ignition_flux_kw_m2": 16.0, "smoke_yield_kg_per_MJ": 0.012, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true, "is_primary_ignition_source": true },
+				{ "id": "compact_kitchen_unit", "name": "Mueble cocina", "kind": "kitchen_unit", "room_id": 0, "position_m": { "x": 1.10, "y": 0.22 }, "size_m": { "x": 2.70, "y": 0.62 }, "rotation_deg": 0.0, "footprint_m2": 1.70, "exposed_area_m2": 2.90, "elevation_m": 0.82, "fuel_energy_MJ": 860.0, "remaining_fuel_MJ": 860.0, "max_hrr_kw": 520.0, "ignition_temp_c": 285.0, "ignition_flux_kw_m2": 14.0, "smoke_yield_kg_per_MJ": 0.009, "co_yield_kg_per_MJ": 0.00028, "visual_pose_locked": true },
+				{ "id": "compact_table", "name": "Mesa comedor", "kind": "table", "room_id": 0, "position_m": { "x": 3.40, "y": 2.70 }, "size_m": { "x": 1.15, "y": 0.80 }, "rotation_deg": -12.0, "footprint_m2": 0.90, "exposed_area_m2": 1.40, "elevation_m": 0.70, "fuel_energy_MJ": 420.0, "remaining_fuel_MJ": 420.0, "max_hrr_kw": 280.0, "ignition_temp_c": 305.0, "ignition_flux_kw_m2": 16.0, "smoke_yield_kg_per_MJ": 0.012, "co_yield_kg_per_MJ": 0.00035, "visual_pose_locked": true },
+				{ "id": "compact_tv", "name": "Mueble TV", "kind": "tv_stand", "room_id": 0, "position_m": { "x": 4.15, "y": 0.55 }, "size_m": { "x": 0.45, "y": 1.05 }, "rotation_deg": 90.0, "footprint_m2": 0.48, "exposed_area_m2": 1.10, "elevation_m": 0.35, "fuel_energy_MJ": 360.0, "remaining_fuel_MJ": 360.0, "max_hrr_kw": 200.0, "ignition_temp_c": 300.0, "ignition_flux_kw_m2": 15.0, "smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025, "visual_pose_locked": true }
+			]
+		},
+		{
+			"id": 1,
+			"name": "Pasillo distribuidor",
+			"kind": "pasillo",
+			"height_m": 2.5,
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 520.0,
+			"max_hrr_kw": 350.0,
+			"fuel_objects": [
+				{ "id": "compact_hall_runner", "name": "Alfombra pasillo", "kind": "rug", "room_id": 1, "position_m": { "x": 0.38, "y": 0.75 }, "size_m": { "x": 0.62, "y": 4.10 }, "rotation_deg": 0.0, "footprint_m2": 2.55, "exposed_area_m2": 2.50, "elevation_m": 0.02, "fuel_energy_MJ": 180.0, "remaining_fuel_MJ": 180.0, "max_hrr_kw": 100.0, "ignition_temp_c": 270.0, "ignition_flux_kw_m2": 12.0, "smoke_yield_kg_per_MJ": 0.014, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true },
+				{ "id": "compact_hall_console", "name": "Consola estrecha", "kind": "dresser", "room_id": 1, "position_m": { "x": 0.92, "y": 3.65 }, "size_m": { "x": 0.32, "y": 0.90 }, "rotation_deg": 90.0, "footprint_m2": 0.30, "exposed_area_m2": 0.75, "elevation_m": 0.72, "fuel_energy_MJ": 170.0, "remaining_fuel_MJ": 170.0, "max_hrr_kw": 110.0, "ignition_temp_c": 310.0, "ignition_flux_kw_m2": 16.0, "smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025, "visual_pose_locked": true }
+			]
+		},
+		{
+			"id": 2,
+			"name": "Dormitorio",
+			"kind": "dormitorio",
+			"height_m": 2.5,
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 2600.0,
+			"max_hrr_kw": 1600.0,
+			"fuel_objects": [
+				{ "id": "compact_bed", "name": "Cama doble", "kind": "bed", "room_id": 2, "position_m": { "x": 0.55, "y": 0.75 }, "size_m": { "x": 1.45, "y": 1.95 }, "rotation_deg": 0.0, "footprint_m2": 2.80, "exposed_area_m2": 3.50, "elevation_m": 0.45, "fuel_energy_MJ": 980.0, "remaining_fuel_MJ": 980.0, "max_hrr_kw": 580.0, "ignition_temp_c": 295.0, "ignition_flux_kw_m2": 15.0, "smoke_yield_kg_per_MJ": 0.013, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true },
+				{ "id": "compact_wardrobe", "name": "Armario", "kind": "wardrobe", "room_id": 2, "position_m": { "x": 2.25, "y": 0.25 }, "size_m": { "x": 0.70, "y": 1.20 }, "rotation_deg": 90.0, "footprint_m2": 0.84, "exposed_area_m2": 2.00, "elevation_m": 0.0, "fuel_energy_MJ": 720.0, "remaining_fuel_MJ": 720.0, "max_hrr_kw": 300.0, "ignition_temp_c": 300.0, "ignition_flux_kw_m2": 16.0, "smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025, "visual_pose_locked": true }
+			]
+		},
+		{
+			"id": 3,
+			"name": "Bano",
+			"kind": "bano",
+			"height_m": 2.5,
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 300.0,
+			"max_hrr_kw": 250.0,
+			"fuel_objects": [
+				{ "id": "compact_bath_textiles", "name": "Toallas", "kind": "textile_pile", "room_id": 3, "position_m": { "x": 1.95, "y": 0.35 }, "size_m": { "x": 0.50, "y": 0.55 }, "rotation_deg": 0.0, "footprint_m2": 0.30, "exposed_area_m2": 0.65, "elevation_m": 0.45, "fuel_energy_MJ": 120.0, "remaining_fuel_MJ": 120.0, "max_hrr_kw": 90.0, "ignition_temp_c": 275.0, "ignition_flux_kw_m2": 13.0, "smoke_yield_kg_per_MJ": 0.014, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true }
+			]
+		},
+		{
+			"id": 4,
+			"name": "Terraza lavadero",
+			"kind": "terraza",
+			"height_m": 2.5,
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 450.0,
+			"max_hrr_kw": 300.0,
+			"fuel_objects": [
+				{ "id": "compact_laundry_bin", "name": "Cesto ropa", "kind": "textile_pile", "room_id": 4, "position_m": { "x": 0.75, "y": 0.45 }, "size_m": { "x": 0.65, "y": 0.55 }, "rotation_deg": 0.0, "footprint_m2": 0.36, "exposed_area_m2": 0.80, "elevation_m": 0.25, "fuel_energy_MJ": 260.0, "remaining_fuel_MJ": 260.0, "max_hrr_kw": 180.0, "ignition_temp_c": 275.0, "ignition_flux_kw_m2": 13.0, "smoke_yield_kg_per_MJ": 0.014, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true }
+			]
+		}
+	],
+	"openings_data": [
+		{ "a": 0, "b": 1, "type": "door", "wall": "right", "offset_m": 0.52, "offset_is_fraction": true, "width_m": 0.82, "height_m": 2.05, "sill_m": 0.0, "open_fraction": 1.0 },
+		{ "a": 2, "b": 1, "type": "door", "wall": "left", "offset_m": 0.42, "offset_is_fraction": true, "width_m": 0.78, "height_m": 2.00, "sill_m": 0.0, "open_fraction": 0.75 },
+		{ "a": 3, "b": 1, "type": "door", "wall": "left", "offset_m": 0.72, "offset_is_fraction": true, "width_m": 0.70, "height_m": 2.00, "sill_m": 0.0, "open_fraction": 0.45 },
+		{ "a": 4, "b": 0, "type": "door", "wall": "top", "offset_m": 0.68, "offset_is_fraction": true, "width_m": 0.78, "height_m": 2.00, "sill_m": 0.0, "open_fraction": 0.6 },
+		{ "a": 0, "b": -1, "type": "window", "wall": "top", "offset_m": 0.55, "offset_is_fraction": true, "width_m": 1.50, "height_m": 1.15, "sill_m": 0.90, "open_fraction": 0.35 },
+		{ "a": 2, "b": -1, "type": "window", "wall": "top", "offset_m": 0.50, "offset_is_fraction": true, "width_m": 1.05, "height_m": 1.10, "sill_m": 0.90, "open_fraction": 0.15 },
+		{ "a": 1, "b": -1, "type": "door", "wall": "bottom", "offset_m": 0.90, "offset_is_fraction": true, "width_m": 0.90, "height_m": 2.10, "sill_m": 0.0, "open_fraction": 0.0 }
+	],
+	"player_start": {
+		"room_id": 1,
+		"position_m": { "x": 0.72, "y": 4.95 },
+		"floor_level_z_m": 0.0,
+		"yaw_deg": -90.0
+	},
+	"detectors": [
+		{ "id": "compact_detector_hall", "room_id": 1, "type": "smoke", "threshold": 0.025, "x_m": 0.70, "y_m": 2.30 },
+		{ "id": "compact_detector_bedroom", "room_id": 2, "type": "smoke", "threshold": 0.025, "x_m": 1.60, "y_m": 1.20 }
+	],
+	"victims": [
+		{ "id": "compact_victim_bed", "room_id": 2, "name": "Ocupante dormitorio", "x_m": 1.35, "y_m": 1.85, "height_m": 0.85 }
+	],
+	"exterior_walls": []
+}

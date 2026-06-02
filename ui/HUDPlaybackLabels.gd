@@ -1,12 +1,14 @@
 extends RefCounted
 class_name HUDPlaybackLabels
 
+const UILocalizationScript = preload("res://ui/UILocalization.gd")
+
 
 static func time_text(sim_time_s: float) -> String:
 	var total_seconds: int = int(sim_time_s)
 	var minutes: int = int(float(total_seconds) / 60.0)
 	var seconds: int = int(total_seconds % 60)
-	return "TIME %02d:%02d" % [minutes, seconds]
+	return UILocalizationScript.fmt("hud.time", "TIEMPO %02d:%02d", [minutes, seconds])
 
 
 static func view_mode_label(is_3d_enabled: bool, is_first_person_enabled: bool) -> String:
@@ -19,10 +21,14 @@ static func view_mode_label(is_3d_enabled: bool, is_first_person_enabled: bool) 
 
 static func playback_label(playback_paused: bool, simulation_finished: bool) -> String:
 	if simulation_finished:
-		return "DETENIDA"
+		return UILocalizationScript.t("hud.stopped", "DETENIDA")
 	if playback_paused:
-		return "PAUSA"
-	return "PLAY"
+		return UILocalizationScript.t("hud.pause", "PAUSA")
+	return UILocalizationScript.t("hud.play", "REANUDAR")
+
+
+static func play_button_text(playback_paused: bool) -> String:
+	return UILocalizationScript.t("hud.play", "REANUDAR") if playback_paused else UILocalizationScript.t("hud.pause", "PAUSA")
 
 
 static func playback_status_text(view_mode: String, playback_paused: bool, simulation_finished: bool) -> String:
@@ -64,14 +70,14 @@ static func shortcut_help_text(
 	key_play_pause: Key,
 	key_stop_and_generate: Key
 ) -> String:
-	return "%s/%s tiempo | %s/%s salas | %s play/pausa | %s graficas" % [
+	return UILocalizationScript.fmt("hud.shortcut_help", "%s/%s tiempo | %s/%s salas | %s reanudar/pausa | %s graficas", [
 		key_label(key_time_back),
 		key_label(key_time_forward),
 		key_label(key_rooms_scroll_up),
 		key_label(key_rooms_scroll_down),
 		key_label(key_play_pause),
 		key_label(key_stop_and_generate)
-	]
+	])
 
 
 static func matches_shortcut(event: InputEventKey, keycode: Key) -> bool:

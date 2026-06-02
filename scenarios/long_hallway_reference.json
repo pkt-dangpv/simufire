@@ -1,0 +1,133 @@
+{
+	"version": 1,
+	"scenario_name": "Pasillo largo de referencia",
+	"building_type": "single_family",
+	"outside_temp_c": 18.0,
+	"outside_o2": 0.209,
+	"stop_time_s": 900.0,
+	"ignition_room_id": 0,
+	"interior_lights_on": true,
+	"exterior_lighting_mode": "Noche",
+	"hvac_mode": "none",
+	"hvac_data": {
+		"exists": false,
+		"on": false,
+		"mode": "none"
+	},
+	"floors": [
+		{ "name": "PB", "level_m": 0.0 }
+	],
+	"room_rect_m": {
+		"0": { "x": 0.0, "y": 3.0, "w": 4.0, "h": 4.0 },
+		"1": { "x": 4.0, "y": 0.0, "w": 2.0, "h": 12.0 },
+		"2": { "x": 6.0, "y": 0.0, "w": 3.6, "h": 3.2 },
+		"3": { "x": 6.0, "y": 4.0, "w": 3.6, "h": 3.2 },
+		"4": { "x": 6.0, "y": 8.0, "w": 3.6, "h": 4.0 },
+		"5": { "x": 0.0, "y": 7.0, "w": 4.0, "h": 3.0 }
+	},
+	"rooms_data": [
+		{
+			"id": 0,
+			"name": "Salon origen",
+			"kind": "salon",
+			"height_m": 2.6,
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 5200.0,
+			"max_hrr_kw": 3000.0,
+			"fuel_objects": [
+				{ "id": "hallway_sofa", "name": "Sofa principal", "kind": "sofa", "room_id": 0, "position_m": { "x": 0.45, "y": 1.10 }, "size_m": { "x": 0.92, "y": 2.30 }, "rotation_deg": 90.0, "footprint_m2": 2.05, "exposed_area_m2": 3.60, "elevation_m": 0.38, "fuel_energy_MJ": 1150.0, "remaining_fuel_MJ": 1150.0, "max_hrr_kw": 720.0, "ignition_temp_c": 310.0, "ignition_flux_kw_m2": 16.0, "smoke_yield_kg_per_MJ": 0.012, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true, "is_primary_ignition_source": true },
+				{ "id": "hallway_bookshelf", "name": "Libreria salon", "kind": "bookcase", "room_id": 0, "position_m": { "x": 2.55, "y": 3.48 }, "size_m": { "x": 1.15, "y": 0.34 }, "rotation_deg": 180.0, "footprint_m2": 0.50, "exposed_area_m2": 1.70, "elevation_m": 0.0, "fuel_energy_MJ": 900.0, "remaining_fuel_MJ": 900.0, "max_hrr_kw": 320.0, "ignition_temp_c": 290.0, "ignition_flux_kw_m2": 14.0, "smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025, "visual_pose_locked": true },
+				{ "id": "hallway_coffee_table", "name": "Mesa centro", "kind": "coffee_table", "room_id": 0, "position_m": { "x": 2.25, "y": 1.85 }, "size_m": { "x": 1.15, "y": 0.62 }, "rotation_deg": 0.0, "footprint_m2": 0.72, "exposed_area_m2": 1.30, "elevation_m": 0.45, "fuel_energy_MJ": 280.0, "remaining_fuel_MJ": 280.0, "max_hrr_kw": 220.0, "ignition_temp_c": 330.0, "ignition_flux_kw_m2": 18.0, "smoke_yield_kg_per_MJ": 0.018, "co_yield_kg_per_MJ": 0.0006, "visual_pose_locked": true }
+			]
+		},
+		{
+			"id": 1,
+			"name": "Pasillo largo",
+			"kind": "pasillo",
+			"height_m": 2.6,
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 1100.0,
+			"max_hrr_kw": 700.0,
+			"fuel_objects": [
+				{ "id": "hallway_runner_long", "name": "Alfombra longitudinal", "kind": "rug", "room_id": 1, "position_m": { "x": 0.62, "y": 0.70 }, "size_m": { "x": 0.76, "y": 9.80 }, "rotation_deg": 0.0, "footprint_m2": 7.45, "exposed_area_m2": 7.20, "elevation_m": 0.02, "fuel_energy_MJ": 520.0, "remaining_fuel_MJ": 520.0, "max_hrr_kw": 240.0, "ignition_temp_c": 270.0, "ignition_flux_kw_m2": 12.0, "smoke_yield_kg_per_MJ": 0.014, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true },
+				{ "id": "hallway_console_mid", "name": "Consola pasillo", "kind": "dresser", "room_id": 1, "position_m": { "x": 1.42, "y": 5.20 }, "size_m": { "x": 0.34, "y": 1.05 }, "rotation_deg": 90.0, "footprint_m2": 0.36, "exposed_area_m2": 0.90, "elevation_m": 0.72, "fuel_energy_MJ": 260.0, "remaining_fuel_MJ": 260.0, "max_hrr_kw": 150.0, "ignition_temp_c": 310.0, "ignition_flux_kw_m2": 16.0, "smoke_yield_kg_per_MJ": 0.008, "co_yield_kg_per_MJ": 0.00025, "visual_pose_locked": true },
+				{ "id": "hallway_storage_box", "name": "Caja almacenaje", "kind": "clutter", "room_id": 1, "position_m": { "x": 0.22, "y": 10.55 }, "size_m": { "x": 0.55, "y": 0.42 }, "rotation_deg": 0.0, "footprint_m2": 0.24, "exposed_area_m2": 0.60, "elevation_m": 0.20, "fuel_energy_MJ": 180.0, "remaining_fuel_MJ": 180.0, "max_hrr_kw": 140.0, "ignition_temp_c": 305.0, "ignition_flux_kw_m2": 16.0, "smoke_yield_kg_per_MJ": 0.009, "co_yield_kg_per_MJ": 0.00025, "visual_pose_locked": true }
+			]
+		},
+		{
+			"id": 2,
+			"name": "Dormitorio norte",
+			"kind": "dormitorio",
+			"height_m": 2.6,
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 2400.0,
+			"max_hrr_kw": 1500.0,
+			"fuel_objects": [
+				{ "id": "hallway_north_bed", "name": "Cama norte", "kind": "bed", "room_id": 2, "position_m": { "x": 0.55, "y": 0.72 }, "size_m": { "x": 1.35, "y": 1.95 }, "rotation_deg": 0.0, "footprint_m2": 2.60, "exposed_area_m2": 3.30, "elevation_m": 0.45, "fuel_energy_MJ": 900.0, "remaining_fuel_MJ": 900.0, "max_hrr_kw": 520.0, "ignition_temp_c": 295.0, "ignition_flux_kw_m2": 15.0, "smoke_yield_kg_per_MJ": 0.013, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true }
+			]
+		},
+		{
+			"id": 3,
+			"name": "Dormitorio central",
+			"kind": "dormitorio",
+			"height_m": 2.6,
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 2500.0,
+			"max_hrr_kw": 1600.0,
+			"fuel_objects": [
+				{ "id": "hallway_center_bed", "name": "Cama central", "kind": "bed", "room_id": 3, "position_m": { "x": 0.70, "y": 0.70 }, "size_m": { "x": 0.95, "y": 1.85 }, "rotation_deg": 0.0, "footprint_m2": 1.75, "exposed_area_m2": 2.70, "elevation_m": 0.45, "fuel_energy_MJ": 760.0, "remaining_fuel_MJ": 760.0, "max_hrr_kw": 460.0, "ignition_temp_c": 295.0, "ignition_flux_kw_m2": 15.0, "smoke_yield_kg_per_MJ": 0.013, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true },
+				{ "id": "hallway_center_desk", "name": "Escritorio", "kind": "desk", "room_id": 3, "position_m": { "x": 2.15, "y": 2.48 }, "size_m": { "x": 1.05, "y": 0.42 }, "rotation_deg": 180.0, "footprint_m2": 0.45, "exposed_area_m2": 1.00, "elevation_m": 0.72, "fuel_energy_MJ": 320.0, "remaining_fuel_MJ": 320.0, "max_hrr_kw": 220.0, "ignition_temp_c": 305.0, "ignition_flux_kw_m2": 16.0, "smoke_yield_kg_per_MJ": 0.009, "co_yield_kg_per_MJ": 0.00025, "visual_pose_locked": true }
+			]
+		},
+		{
+			"id": 4,
+			"name": "Cocina fondo",
+			"kind": "cocina",
+			"height_m": 2.6,
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 3300.0,
+			"max_hrr_kw": 2300.0,
+			"fuel_objects": [
+				{ "id": "hallway_kitchen_unit", "name": "Frente cocina", "kind": "kitchen_unit", "room_id": 4, "position_m": { "x": 0.30, "y": 0.25 }, "size_m": { "x": 2.80, "y": 0.65 }, "rotation_deg": 0.0, "footprint_m2": 1.82, "exposed_area_m2": 3.00, "elevation_m": 0.82, "fuel_energy_MJ": 920.0, "remaining_fuel_MJ": 920.0, "max_hrr_kw": 520.0, "ignition_temp_c": 285.0, "ignition_flux_kw_m2": 14.0, "smoke_yield_kg_per_MJ": 0.009, "co_yield_kg_per_MJ": 0.00028, "visual_pose_locked": true },
+				{ "id": "hallway_kitchen_oil", "name": "Aceite cocina", "kind": "pool", "room_id": 4, "position_m": { "x": 1.55, "y": 0.42 }, "size_m": { "x": 0.45, "y": 0.45 }, "rotation_deg": 0.0, "footprint_m2": 0.20, "exposed_area_m2": 0.30, "elevation_m": 0.90, "fuel_energy_MJ": 520.0, "remaining_fuel_MJ": 520.0, "max_hrr_kw": 700.0, "ignition_temp_c": 260.0, "ignition_flux_kw_m2": 11.0, "smoke_yield_kg_per_MJ": 0.022, "co_yield_kg_per_MJ": 0.0007, "visual_pose_locked": true }
+			]
+		},
+		{
+			"id": 5,
+			"name": "Recibidor",
+			"kind": "recibidor",
+			"height_m": 2.6,
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 650.0,
+			"max_hrr_kw": 380.0,
+			"fuel_objects": [
+				{ "id": "hallway_entry_coats", "name": "Perchero", "kind": "textile_pile", "room_id": 5, "position_m": { "x": 0.45, "y": 0.55 }, "size_m": { "x": 0.65, "y": 0.50 }, "rotation_deg": 0.0, "footprint_m2": 0.32, "exposed_area_m2": 0.90, "elevation_m": 0.95, "fuel_energy_MJ": 240.0, "remaining_fuel_MJ": 240.0, "max_hrr_kw": 160.0, "ignition_temp_c": 275.0, "ignition_flux_kw_m2": 13.0, "smoke_yield_kg_per_MJ": 0.014, "co_yield_kg_per_MJ": 0.0004, "visual_pose_locked": true }
+			]
+		}
+	],
+	"openings_data": [
+		{ "a": 0, "b": 1, "type": "door", "wall": "right", "offset_m": 0.55, "offset_is_fraction": true, "width_m": 0.92, "height_m": 2.05, "sill_m": 0.0, "open_fraction": 1.0 },
+		{ "a": 5, "b": 1, "type": "door", "wall": "right", "offset_m": 0.42, "offset_is_fraction": true, "width_m": 0.90, "height_m": 2.05, "sill_m": 0.0, "open_fraction": 1.0 },
+		{ "a": 2, "b": 1, "type": "door", "wall": "left", "offset_m": 0.48, "offset_is_fraction": true, "width_m": 0.78, "height_m": 2.00, "sill_m": 0.0, "open_fraction": 0.75 },
+		{ "a": 3, "b": 1, "type": "door", "wall": "left", "offset_m": 0.50, "offset_is_fraction": true, "width_m": 0.78, "height_m": 2.00, "sill_m": 0.0, "open_fraction": 0.55 },
+		{ "a": 4, "b": 1, "type": "door", "wall": "left", "offset_m": 0.42, "offset_is_fraction": true, "width_m": 0.82, "height_m": 2.00, "sill_m": 0.0, "open_fraction": 0.65 },
+		{ "a": 1, "b": -1, "type": "door", "wall": "bottom", "offset_m": 0.50, "offset_is_fraction": true, "width_m": 0.95, "height_m": 2.10, "sill_m": 0.0, "open_fraction": 0.0 },
+		{ "a": 0, "b": -1, "type": "window", "wall": "left", "offset_m": 0.50, "offset_is_fraction": true, "width_m": 1.35, "height_m": 1.15, "sill_m": 0.90, "open_fraction": 0.2 },
+		{ "a": 4, "b": -1, "type": "window", "wall": "right", "offset_m": 0.65, "offset_is_fraction": true, "width_m": 1.20, "height_m": 1.10, "sill_m": 0.90, "open_fraction": 0.15 }
+	],
+	"player_start": {
+		"room_id": 5,
+		"position_m": { "x": 2.00, "y": 1.55 },
+		"floor_level_z_m": 0.0,
+		"yaw_deg": 0.0
+	},
+	"detectors": [
+		{ "id": "hallway_detector_entry", "room_id": 1, "type": "smoke", "threshold": 0.025, "x_m": 1.00, "y_m": 2.20 },
+		{ "id": "hallway_detector_remote", "room_id": 1, "type": "smoke", "threshold": 0.025, "x_m": 1.00, "y_m": 8.80 }
+	],
+	"victims": [
+		{ "id": "hallway_victim_north", "room_id": 2, "name": "Ocupante norte", "x_m": 1.35, "y_m": 1.75, "height_m": 0.85 },
+		{ "id": "hallway_victim_center", "room_id": 3, "name": "Ocupante central", "x_m": 1.55, "y_m": 1.55, "height_m": 0.85 }
+	],
+	"exterior_walls": []
+}

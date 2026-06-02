@@ -56,6 +56,36 @@ Required checks: 379/379 PASS
 Known gaps: 4
 ```
 
+---
+
+## Bloque W-05 - Internacionalizacion completa
+
+Implementado:
+- `i18n/es_ui.json` concentra las claves principales de UI en castellano para menu, editor, HUD y ventanas tecnicas.
+- `ui/UILocalization.gd` carga el fichero de localizacion y ofrece helpers `t()` / `fmt()`.
+- `MainMenu.gd`, `Main.gd`, `hud.gd`, `HUDPlaybackLabels.gd`, `HUDOpeningActionView.gd`, `HUDRoomSummary.gd` y `ScenarioEditor.gd` consumen claves localizadas.
+- `ScenarioEditorScene.tscn`, `MainMenu.tscn` y `SimulationScene.tscn` ya no conservan textos visibles legacy como `Select`, `Room`, `Door`, `Window`, `Object`, `Ignite`, `Delete`, `Export runtime`, `TIME` o `2D PLAY`.
+- `tests/test_ui_localization.py` valida el fichero de localizacion, claves requeridas y ausencia de textos UI ingleses residuales.
+- `scripts/check_product.py` incluye el guardrail W-05; la suite de producto sube a 42 checks.
+
+Verificacion ejecutada:
+```text
+python tests/test_ui_localization.py
+Ran 4 tests
+OK
+
+python -m py_compile scripts/check_product.py tests/test_ui_localization.py
+OK
+
+python scripts/check_product.py
+ALL PRODUCT CHECKS PASS (42 tests)
+
+python scripts/simulation/validation_guardrails.py
+ALL GUARDRAILS PASS
+Required checks: 379/379 PASS
+Known gaps: 4
+```
+
 ## Estado Git
 
 ```text
@@ -101,6 +131,95 @@ Verificacion ejecutada:
 ```text
 python scripts/check_product.py
 ALL PRODUCT CHECKS PASS (36 tests)
+
+python scripts/simulation/validation_guardrails.py
+ALL GUARDRAILS PASS
+Required checks: 379/379 PASS
+Known gaps: 4
+```
+
+## Bloque W-04 - Reproducibilidad completa
+
+Implementado:
+- `scripts/run_scenario.py` ejecuta un escenario JSON en Godot headless con un unico comando.
+- `tools/run_scenario_headless.gd` + `.tscn` cargan templates runtime o casos de validacion con `template`, aplican `room_overrides`, `opening_overrides`, `engine_overrides`, `opening_events`, `suppression_events` y `targets`.
+- `SimulationEngine.gd` expone `export_technical_results()` para generar export tecnico sin lanzar graficas ni depender de UI.
+- Cada run escribe `summary.json`, `events.json`, `sim_log.txt`, `sim_log.csv` y `run_manifest.json`.
+- `scripts/check_product.py` incluye un smoke end-to-end de `run_scenario.py`.
+- `runs/` queda ignorado en git para salidas locales reproducibles.
+
+Verificacion ejecutada:
+```text
+python scripts/run_scenario.py sim/validation/cases/victim_fed_incapacitation.json --duration 5 --out-dir runs/w04_smoke --timeout 90
+RUN_SCENARIO PASS
+
+python scripts/check_product.py
+ALL PRODUCT CHECKS PASS (37 tests)
+
+python scripts/simulation/validation_guardrails.py
+ALL GUARDRAILS PASS
+Required checks: 379/379 PASS
+Known gaps: 4
+```
+
+---
+
+## Correccion muebles editor/runtime
+
+Problema detectado:
+- En el editor 3D/FP, `Visualizer3D` recibia `set_state({})`; al no existir estado de simulacion, salia antes de crear `fuel_objects`.
+- Al iniciar simulacion, `SimulationStateBuilder` no transportaba `visual_pose_locked`, asi que el visualizador podia volver a autocolocar muebles movidos en el editor.
+
+Implementado:
+- `FuelObjectModel.gd` conserva `visual_pose_locked`.
+- `BuildingModel.gd` carga `visual_pose_locked` desde el runtime JSON.
+- `SimulationStateBuilder.gd` exporta `visual_pose_locked` y `elevation_m` por objeto.
+- `Visualizer3D.gd` crea un estado visual estatico desde `BuildingModel` cuando no hay estado de simulacion, cubriendo editor 3D y overlay FP.
+- `tools/validate_furniture_runtime.gd` + `.tscn` validan round-trip editor -> runtime JSON -> BuildingModel -> Visualizer3D con `set_state({})`.
+- `scripts/check_product.py` incluye el guardrail de muebles.
+
+Verificacion ejecutada:
+```text
+Godot headless res://tools/validate_furniture_runtime.tscn
+FURNITURE RUNTIME VALIDATION PASS
+
+python scripts/check_product.py
+ALL PRODUCT CHECKS PASS (38 tests)
+
+python scripts/simulation/validation_guardrails.py
+ALL GUARDRAILS PASS
+Required checks: 379/379 PASS
+Known gaps: 4
+```
+
+---
+
+## Bloque W-03 - Escenarios predefinidos ampliados
+
+Implementado:
+- `scenarios/compact_apartment_reference.json`: piso compacto editable con salon-cocina, pasillo, dormitorio, bano y terraza/lavadero.
+- `scenarios/long_hallway_reference.json`: vivienda con pasillo largo, sala origen, dormitorios remotos, cocina y recibidor para observar transporte de humo.
+- `scenarios/two_storey_reference.json`: vivienda de dos plantas con escalera PB/P1, apertura vertical, dormitorios superiores y detectores por planta.
+- Los muebles de los tres escenarios incluyen `visual_pose_locked` para que editor 3D, FP y runtime respeten la pose visual.
+- README y roadmap v0.6 actualizados para reflejar los nuevos presets reproducibles.
+
+Verificacion ejecutada:
+```text
+python tests/test_editor_scenarios.py
+Ran 21 tests
+OK
+
+python scripts/run_scenario.py scenarios/compact_apartment_reference.json --duration 5 --out-dir runs/w03_compact --timeout 90
+RUN_SCENARIO PASS
+
+python scripts/run_scenario.py scenarios/long_hallway_reference.json --duration 5 --out-dir runs/w03_long_hallway --timeout 90
+RUN_SCENARIO PASS
+
+python scripts/run_scenario.py scenarios/two_storey_reference.json --duration 5 --out-dir runs/w03_two_storey --timeout 90
+RUN_SCENARIO PASS
+
+python scripts/check_product.py
+ALL PRODUCT CHECKS PASS (38 tests)
 
 python scripts/simulation/validation_guardrails.py
 ALL GUARDRAILS PASS

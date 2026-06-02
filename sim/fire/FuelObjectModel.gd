@@ -27,6 +27,7 @@ var room_id: int = -1
 var position_m: Vector2 = Vector2.ZERO
 var size_m: Vector2 = Vector2.ONE
 var rotation_deg: float = 0.0
+var visual_pose_locked: bool = false
 
 # Geometría / exposición simplificadas
 var footprint_m2: float = 0.0

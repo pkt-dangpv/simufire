@@ -49,13 +49,13 @@ columns = 5
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
-text = "Select"
+text = "Sel"
 
 [node name="BtnRoom" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=557386662]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
-text = "Room"
+text = "Sala"
 
 [node name="BtnCorridorL" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=312847561]
 custom_minimum_size = Vector2(82, 34)
@@ -73,7 +73,7 @@ text = "Escalera"
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
-text = "Door"
+text = "Puerta"
 
 [node name="BtnHole" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=2066551732]
 custom_minimum_size = Vector2(82, 34)
@@ -85,25 +85,25 @@ text = "Hueco"
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
-text = "Window"
+text = "Ventana"
 
 [node name="BtnObject" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=161774304]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
-text = "Object"
+text = "Objeto"
 
 [node name="BtnIgnite" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1799331828]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
-text = "Ignite"
+text = "Ignicion"
 
 [node name="BtnDelete" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=713133688]
 custom_minimum_size = Vector2(82, 34)
 layout_mode = 2
 toggle_mode = true
-text = "Delete"
+text = "Borrar"
 
 [node name="BtnDetector" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=811200001]
 custom_minimum_size = Vector2(82, 34)
@@ -212,7 +212,7 @@ text = "Cargar"
 
 [node name="BtnExportRuntime" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=2085730832]
 layout_mode = 2
-text = "Export runtime"
+text = "Exportar simulacion"
 
 [node name="SeparatorA" type="HSeparator" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=2108069766]
 layout_mode = 2

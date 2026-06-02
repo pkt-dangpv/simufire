@@ -54,6 +54,7 @@ const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd"
 const BuildingModelScript = preload("res://sim/BuildingModel.gd")
 const Visualizer3DScript = preload("res://view/3d/Visualizer3D.gd")
 const FirstPersonControllerScript = preload("res://view/fp/FirstPersonController.gd")
+const UILocalizationScript = preload("res://ui/UILocalization.gd")
 const EDITOR_LOGO_PATH: String = "res://assets/ui/simufire_logo_editor.png"
 const EDITOR_FONT_PATH: String = "res://assets/fonts/bahnschrift.ttf"
 const EDITOR_FONT_SIZE_BODY: int = 13
@@ -311,6 +312,7 @@ var _ctx_opening_index: int = -1
 var _ctx_exterior_wall_index: int = -1
 
 func _ready() -> void:
+	UILocalizationScript.ensure_loaded()
 	_create_empty_scenario()
 	_setup_grid()
 	if not _bind_existing_ui():
@@ -347,6 +349,10 @@ func _setup_grid() -> void:
 	grid.set("minor_color", Color(0.05, 0.08, 0.10, 0.62))
 	grid.set("major_color", Color(0.13, 0.17, 0.20, 0.80))
 	grid.set("axis_color", Color(1.00, 0.25, 0.00, 0.50))
+
+
+func _ui_text(key: String, fallback: String) -> String:
+	return UILocalizationScript.t(key, fallback)
 
 func _apply_editor_visual_style() -> void:
 	RenderingServer.set_default_clear_color(UI_BG)
@@ -2021,7 +2027,7 @@ func _setup_ui() -> void:
 	main.add_child(_status_label)
 
 	_refresh_property_panel()
-	_set_status("Listo. Dibuja habitaciones arrastrando con Room. Selecciona objetos con Sel y borra con Del.")
+	_set_status(_ui_text("editor.ready_fallback", "Listo. Dibuja salas arrastrando con Sala. Selecciona objetos con Sel y borra con Borrar."))
 
 
 func _add_tool_button(parent: Control, label: String, tool_id: int) -> void:
@@ -2818,7 +2824,7 @@ func _tool_hint(tool_id: int) -> String:
 	if _editor_view_mode == EditorViewMode.MODE_3D:
 		match tool_id:
 			Tool.SELECT:
-				return "3D Select: selecciona y arrastra objetos, detectores, victimas o inicio FP. Boton derecho orbita."
+				return _ui_text("editor.tooltip_3d_select", "3D seleccionar: selecciona y arrastra objetos, detectores, victimas o inicio FP. Boton derecho orbita.")
 			Tool.DOOR:
 				return "3D Puerta: pulsa el suelo muy cerca de una pared compartida o exterior."
 			Tool.HOLE:
@@ -2826,7 +2832,7 @@ func _tool_hint(tool_id: int) -> String:
 			Tool.WINDOW:
 				return "3D Ventana: pulsa el suelo muy cerca de una pared exterior."
 			Tool.OBJECT:
-				return "3D Object: pulsa el suelo de una habitacion para colocar el combustible elegido."
+				return _ui_text("editor.tooltip_3d_object", "3D objeto: pulsa el suelo de una habitacion para colocar el combustible elegido.")
 			Tool.IGNITION:
 				return "3D Ignicion: pulsa directamente sobre un objeto combustible."
 			Tool.PLAYER_START:
@@ -6967,6 +6973,22 @@ func _bind_existing_ui() -> bool:
 	for b in required_buttons:
 		if b == null:
 			return false
+	btn_select.text = _ui_text("editor.tool.select", "Sel")
+	btn_exterior.text = _ui_text("editor.tool.exterior", "Exterior")
+	btn_room.text = _ui_text("editor.tool.room", "Sala")
+	btn_corridor.text = _ui_text("editor.tool.corridor", "Pasillo")
+	btn_stairs.text = _ui_text("editor.tool.stairs", "Escalera")
+	btn_door.text = _ui_text("editor.tool.door", "Puerta")
+	btn_hole.text = _ui_text("editor.tool.hole", "Hueco")
+	btn_window.text = _ui_text("editor.tool.window", "Ventana")
+	btn_object.text = _ui_text("editor.tool.object", "Objeto")
+	btn_ignite.text = _ui_text("editor.tool.ignition", "Ignicion")
+	btn_player_start.text = _ui_text("editor.tool.player_start", "Inicio FP")
+	btn_delete.text = _ui_text("editor.tool.delete", "Borrar")
+	if btn_detector != null:
+		btn_detector.text = _ui_text("editor.tool.detector", "Detect.")
+	if btn_victim != null:
+		btn_victim.text = _ui_text("editor.tool.victim", "Vict.")
 
 	_tool_buttons.clear()
 	_register_tool_button(btn_select, Tool.SELECT)
@@ -7109,7 +7131,7 @@ func _bind_existing_ui() -> bool:
 	_connect_button(load_button, _load_pressed)
 	var export_button := _get_left_node("BtnExportRuntime") as Button
 	if export_button != null:
-		export_button.text = "Exportar simulacion"
+		export_button.text = _ui_text("editor.file.export_runtime", "Exportar simulacion")
 		export_button.tooltip_text = "Guarda una copia interna para probar la simulacion; Iniciar simulacion lo hace automaticamente."
 	_connect_button(export_button, _export_runtime_pressed)
 	var load_scenario_button := _get_left_node("BtnLoadScenario") as Button
@@ -7145,7 +7167,7 @@ func _bind_existing_ui() -> bool:
 
 	_scan_scenario_files()
 	_refresh_property_panel()
-	_set_status("Listo. UI editable desde la escena. Dibuja habitaciones con Room.")
+	_set_status(_ui_text("editor.ready_scene", "Listo. UI editable desde la escena. Dibuja salas."))
 	return true
 
 

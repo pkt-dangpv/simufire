@@ -17,6 +17,7 @@ const HUDOpeningActionView = preload("res://ui/HUDOpeningActionView.gd")
 const HUDOpeningSummary = preload("res://ui/HUDOpeningSummary.gd")
 const HUDPlaybackLabels = preload("res://ui/HUDPlaybackLabels.gd")
 const HUDRoomSummary = preload("res://ui/HUDRoomSummary.gd")
+const UILocalizationScript = preload("res://ui/UILocalization.gd")
 const OPENING_FRACTION_STEPS: Array[float] = [0.0, 0.25, 0.5, 0.75, 1.0]
 const HUD_PANEL_PATHS: Array[String] = [
 	"OpeningsPanel",
@@ -109,6 +110,7 @@ var _victim_rows: Dictionary = {}  # victim_id -> {header: Label, data: Label, c
 
 
 func _ready() -> void:
+	UILocalizationScript.ensure_loaded()
 	_configure_mouse_filters()
 	_ensure_openings_compact_list()
 	_ensure_opening_action_panel()
@@ -392,13 +394,13 @@ func _update_rooms_panel(state: Dictionary) -> void:
 		var card: PanelContainer = d["card"] as PanelContainer
 
 		if rs.is_empty():
-			data_lbl.text = "Sin datos"
+			data_lbl.text = UILocalizationScript.t("hud.no_data", "Sin datos")
 			_style_room_card(card, "normal", show_status_panel and room_id == status_panel_room_id)
 			continue
 
 		var summary: Dictionary = HUDRoomSummary.card_summary(int(room_id), rs, sim_time_s, flashover_indicator_permanent)
 		header_lbl.text = String(summary.get("header", "R%d" % int(room_id)))
-		data_lbl.text = String(summary.get("text", "Sin datos"))
+		data_lbl.text = String(summary.get("text", UILocalizationScript.t("hud.no_data", "Sin datos")))
 		data_lbl.add_theme_color_override("font_color", card_data_color)
 		_style_room_card(card, String(summary.get("severity", "normal")), show_status_panel and room_id == status_panel_room_id)
 
@@ -486,8 +488,8 @@ func _ensure_exit_options_menu() -> void:
 		exit_options_menu.name = "ExitOptionsMenu"
 		add_child(exit_options_menu)
 	exit_options_menu.clear()
-	exit_options_menu.add_item("Salir sin guardar", EXIT_MENU_EXIT_ONLY)
-	exit_options_menu.add_item("Salir y guardar + graficas", EXIT_MENU_SAVE_GRAPHS)
+	exit_options_menu.add_item(UILocalizationScript.t("hud.exit_only", "Salir sin guardar"), EXIT_MENU_EXIT_ONLY)
+	exit_options_menu.add_item(UILocalizationScript.t("hud.exit_save_graphs", "Salir y guardar + graficas"), EXIT_MENU_SAVE_GRAPHS)
 
 
 func _ensure_victims_panel() -> void:
@@ -639,7 +641,7 @@ func _set_openings_panel_compact() -> void:
 	if _opening_compact_grid != null:
 		_opening_compact_grid.visible = true
 	if openings_title != null:
-		openings_title.text = "Estado de aperturas"
+		openings_title.text = UILocalizationScript.t("hud.openings_title", "Estado de aperturas")
 
 
 func _update_openings_compact_list() -> void:
@@ -807,7 +809,7 @@ func _update_time_controls(
 
 	if btn_play != null:
 		btn_play.disabled = simulation_finished
-		btn_play.text = "PLAY" if playback_paused else "PAUSA"
+		btn_play.text = HUDPlaybackLabels.play_button_text(playback_paused)
 	if btn_pause != null:
 		btn_pause.disabled = simulation_finished or playback_paused
 	if btn_time_back != null:
@@ -816,31 +818,31 @@ func _update_time_controls(
 		btn_time_forward.disabled = simulation_finished
 	if btn_stop_graphs != null:
 		btn_stop_graphs.disabled = false
-		btn_stop_graphs.text = "SALIR"
+		btn_stop_graphs.text = UILocalizationScript.t("hud.exit", "SALIR")
 	_sync_shortcut_labels()
 
 
 func _sync_shortcut_labels() -> void:
 	if btn_time_back != null:
 		btn_time_back.text = "-T"
-		btn_time_back.tooltip_text = "%s: retroceder escala de tiempo" % HUDPlaybackLabels.key_label(key_time_back)
+		btn_time_back.tooltip_text = UILocalizationScript.fmt("hud.tooltip_time_back", "%s: retroceder escala de tiempo", [HUDPlaybackLabels.key_label(key_time_back)])
 	if btn_time_forward != null:
 		btn_time_forward.text = "+T"
-		btn_time_forward.tooltip_text = "%s: avanzar escala de tiempo" % HUDPlaybackLabels.key_label(key_time_forward)
+		btn_time_forward.tooltip_text = UILocalizationScript.fmt("hud.tooltip_time_forward", "%s: avanzar escala de tiempo", [HUDPlaybackLabels.key_label(key_time_forward)])
 	if btn_play != null:
-		btn_play.text = "PLAY" if _playback_paused else "PAUSA"
-		btn_play.tooltip_text = "%s: play/pausa" % HUDPlaybackLabels.key_label(key_play_pause)
+		btn_play.text = HUDPlaybackLabels.play_button_text(_playback_paused)
+		btn_play.tooltip_text = UILocalizationScript.fmt("hud.tooltip_play_pause", "%s: reanudar/pausa", [HUDPlaybackLabels.key_label(key_play_pause)])
 	if btn_pause != null:
 		btn_pause.visible = false
 	if btn_stop_graphs != null:
-		btn_stop_graphs.text = "SALIR"
-		btn_stop_graphs.tooltip_text = "%s: opciones de salida" % HUDPlaybackLabels.key_label(key_stop_and_generate)
+		btn_stop_graphs.text = UILocalizationScript.t("hud.exit", "SALIR")
+		btn_stop_graphs.tooltip_text = UILocalizationScript.fmt("hud.tooltip_exit", "%s: opciones de salida", [HUDPlaybackLabels.key_label(key_stop_and_generate)])
 	if btn_view_3d != null:
-		btn_view_3d.tooltip_text = "Alternar vista 3D"
+		btn_view_3d.tooltip_text = UILocalizationScript.t("hud.tooltip_3d", "Alternar vista 3D")
 	if btn_first_person != null:
-		btn_first_person.tooltip_text = "Entrar en primera persona"
+		btn_first_person.tooltip_text = UILocalizationScript.t("hud.tooltip_fp", "Entrar en primera persona")
 	if btn_hvac != null:
-		btn_hvac.tooltip_text = "Activar o desactivar HVAC"
+		btn_hvac.tooltip_text = UILocalizationScript.t("hud.tooltip_hvac", "Activar o desactivar HVAC")
 	if shortcut_help_label != null:
 		shortcut_help_label.text = HUDPlaybackLabels.shortcut_help_text(
 			key_time_back,

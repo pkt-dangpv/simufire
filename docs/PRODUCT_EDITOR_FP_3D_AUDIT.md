@@ -241,7 +241,7 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 | DT-06 | Fuego no visible en modo FP | Bajo-Medio (inmersión) | Medio |
 | DT-07 | Víctimas estáticas | Medio (entrenamiento) | Alto |
 | DT-08 | Pantalla de resumen técnico post-simulación | ✅ Implementado en W-02: métricas técnicas, víctimas, detectores y archivos exportados | Cerrado |
-| DT-09 | Internacionalización parcial (mezcla ES/EN en UI) | Bajo | Bajo-Medio |
+| DT-09 | Internacionalización parcial (mezcla ES/EN en UI) | ✅ Cerrado en W-05: textos principales en `i18n/es_ui.json` + guardrail de regresión | Cerrado |
 
 ---
 
@@ -307,9 +307,9 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 |-------|-------------|-----------|
 | — | Export técnico post-simulación (CSV magnitudes, JSON eventos, capturas picos) | Alta |
 | DT-08 | ✅ Pantalla de resumen técnico: tiempo a FED=1.0, tiempo a flashover, pico CO/HCN/O2, visibilidad mínima y detectores. Sin gameplay. | Alta |
-| — | Escenarios predefinidos ampliados (piso compacto, pasillo largo, 2 plantas) | Media |
-| — | Reproducibilidad: `run_scenario.py <json>` headless + export | Media |
-| DT-09 | Internacionalización completa (todas las cadenas UI en castellano) | Baja |
+| — | ✅ Escenarios predefinidos ampliados: piso compacto, pasillo largo y vivienda de 2 plantas como JSON editables y ejecutables | Media |
+| — | ✅ Reproducibilidad: `run_scenario.py <json>` headless + export tecnico (`summary`, `events`, logs y manifest) | Media |
+| DT-09 | ✅ Internacionalización completa: `i18n/es_ui.json`, helper `UILocalization` y test de regresión de textos UI ingleses | Baja |
 
 **Fuera de alcance (no implementar)**: HUD táctico (agua/PPV/rescate), criterios victoria/derrota, pathfinding de víctimas, modo instructor/alumno.
 

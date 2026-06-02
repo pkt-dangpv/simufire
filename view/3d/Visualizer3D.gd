@@ -1343,11 +1343,87 @@ func _should_update_fuel_objects_this_pass() -> bool:
 	return false
 
 
+func _room_state_for_visuals(room_id: int) -> Dictionary:
+	var raw_state: Variant = state.get(str(room_id), {})
+	if typeof(raw_state) == TYPE_DICTIONARY:
+		var room_state: Dictionary = raw_state
+		if not room_state.is_empty():
+			return room_state
+	return _build_static_room_state(room_id)
+
+
+func _build_static_room_state(room_id: int) -> Dictionary:
+	if building == null:
+		return {}
+	var room: RoomModel = building.get_room(room_id)
+	if room == null:
+		return {}
+	return {
+		"id": room.id,
+		"name": room.name,
+		"kind": room.kind,
+		"height_m": room.height_m,
+		"hrr_kw": room.hrr_kw,
+		"temp_upper_c": room.temp_upper_c,
+		"smoke_kg": room.smoke_kg,
+		"smoke_layer_m": room.h_layer_m,
+		"smoke_display_layer_m": room.h_layer_m,
+		"hot_layer_m": room.thermal_layer_m,
+		"layer_150c_m": room.layer_150c_m,
+		"visibility_m": room.visibility_m,
+		"overpressure_pa": room.overpressure_pa,
+		"fuel_objects": _build_static_fuel_object_snapshots(room)
+	}
+
+
+func _build_static_fuel_object_snapshots(room: RoomModel) -> Array:
+	var snapshots: Array = []
+	if room == null:
+		return snapshots
+	for obj in room.fuel_objects:
+		if obj == null:
+			continue
+		snapshots.append({
+			"id": String(obj.id),
+			"name": String(obj.name),
+			"kind": String(obj.kind),
+			"room_id": int(obj.room_id),
+			"position_m": obj.position_m,
+			"size_m": obj.size_m,
+			"rotation_deg": float(obj.rotation_deg),
+			"visual_pose_locked": bool(obj.visual_pose_locked),
+			"elevation_m": float(obj.elevation_m),
+			"fuel_energy_MJ": maxf(0.0, obj.fuel_energy_MJ),
+			"remaining_fuel_MJ": maxf(0.0, obj.remaining_fuel_MJ),
+			"max_hrr_kw": maxf(0.0, obj.max_hrr_kw),
+			"hrr_kw": maxf(0.0, obj.hrr_kw),
+			"state": _fuel_object_state_name(int(obj.state)),
+			"is_primary_ignition_source": bool(obj.is_primary_ignition_source)
+		})
+	return snapshots
+
+
+func _fuel_object_state_name(state_id: int) -> String:
+	match state_id:
+		FuelObjectModel.State.HEATING:
+			return "heating"
+		FuelObjectModel.State.PYROLYZING:
+			return "pyrolyzing"
+		FuelObjectModel.State.FLAMING:
+			return "flaming"
+		FuelObjectModel.State.DECAYING:
+			return "decaying"
+		FuelObjectModel.State.BURNED_OUT:
+			return "burned_out"
+		_:
+			return "cold"
+
+
 func _update_room(room_id: int, update_fuel_objects: bool = true) -> void:
 	var item: Dictionary = _room_items[room_id]
 	var rect := Rect2(item["rect"])
 	var height_m: float = float(item["height_m"])
-	var rs: Dictionary = state.get(str(room_id), {})
+	var rs: Dictionary = _room_state_for_visuals(room_id)
 	if rs.is_empty():
 		return
 

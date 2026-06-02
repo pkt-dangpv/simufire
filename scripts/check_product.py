@@ -20,6 +20,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -112,6 +113,36 @@ def _run_godot_scene(scene_path: str, success_token: str, timeout_s: int = 60) -
     return result.returncode, 1, 0 if passed else 1, diagnostic
 
 
+def _run_run_scenario_smoke() -> tuple[int, int, int, str]:
+    """
+    Exercise scripts/run_scenario.py end-to-end with a short headless run.
+    Returns (exit_code, checks_run, failures, diagnostic).
+    """
+    scenario_path = _REPO_ROOT / "sim" / "validation" / "cases" / "victim_fed_incapacitation.json"
+    with tempfile.TemporaryDirectory(prefix="simufire_run_scenario_") as tmpdir:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(_REPO_ROOT / "scripts" / "run_scenario.py"),
+                str(scenario_path),
+                "--duration",
+                "5",
+                "--out-dir",
+                tmpdir,
+                "--timeout",
+                "90",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=str(_REPO_ROOT),
+            timeout=120,
+        )
+        combined = (result.stdout or "") + (result.stderr or "")
+        passed = result.returncode == 0 and "[run_scenario] PASS" in combined
+        diagnostic = "" if passed else combined.strip()
+        return result.returncode, 1, 0 if passed else 1, diagnostic
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -135,6 +166,11 @@ def main() -> int:
             "Guardrail script unit tests",
             _REPO_ROOT / "tests" / "test_guardrails.py",
             "python tests/test_guardrails.py",
+        ),
+        (
+            "UI localization tests",
+            _REPO_ROOT / "tests" / "test_ui_localization.py",
+            "python tests/test_ui_localization.py",
         ),
     ]
 
@@ -161,6 +197,19 @@ def main() -> int:
     rows.append(("Technical summary Godot headless", rc, count, fails))
     if rc != 0 or fails != 0:
         diagnostics.append("Godot technical summary: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_furniture_runtime.tscn",
+        "FURNITURE RUNTIME VALIDATION PASS",
+    )
+    rows.append(("Furniture runtime Godot headless", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot furniture runtime: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_run_scenario_smoke()
+    rows.append(("Run scenario reproducibility", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("run_scenario smoke: " + (diagnostic or "failed"))
 
     print(f"  {'Suite':<38}  {'Resultado':>12}")
     print(f"  {'-'*38}  {'-'*12}")

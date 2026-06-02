@@ -313,6 +313,8 @@ func _build_fuel_object_snapshots(room: RoomModel, combustion_system: Combustion
 			"position_m": obj.position_m,
 			"size_m": obj.size_m,
 			"rotation_deg": float(obj.rotation_deg),
+			"visual_pose_locked": bool(obj.visual_pose_locked),
+			"elevation_m": float(obj.elevation_m),
 			"fuel_energy_MJ": maxf(0.0, obj.fuel_energy_MJ),
 			"remaining_fuel_MJ": maxf(0.0, obj.remaining_fuel_MJ),
 			"max_hrr_kw": maxf(0.0, obj.max_hrr_kw),

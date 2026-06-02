@@ -1,6 +1,7 @@
 extends RefCounted
 class_name HUDOpeningActionView
 
+const UILocalizationScript = preload("res://ui/UILocalization.gd")
 const DEFAULT_PANEL_SIZE: Vector2 = Vector2(310.0, 92.0)
 const VIEWPORT_MARGIN_PX: float = 8.0
 const BOTTOM_RESERVED_PX: float = 118.0
@@ -27,7 +28,7 @@ static func create(parent: Control, steps: Array[float], pressed_callback: Calla
 	margin.add_child(box)
 
 	var title := Label.new()
-	title.text = "Apertura"
+	title.text = UILocalizationScript.t("hud.opening", "Apertura")
 	title.clip_text = true
 	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	box.add_child(title)

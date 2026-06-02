@@ -3,52 +3,7 @@
 	"building_type": "single_family",
 	"detectors": [],
 	"exterior_lighting_mode": "Dia",
-	"exterior_walls": [
-		{
-			"a": {
-				"x": 0.0,
-				"y": 0.0
-			},
-			"b": {
-				"x": 10.0,
-				"y": 0.0
-			},
-			"thickness_m": 0.16
-		},
-		{
-			"a": {
-				"x": 0.0,
-				"y": 0.0
-			},
-			"b": {
-				"x": 0.0,
-				"y": 7.0
-			},
-			"thickness_m": 0.16
-		},
-		{
-			"a": {
-				"x": 0.0,
-				"y": 7.0
-			},
-			"b": {
-				"x": 10.0,
-				"y": 7.0
-			},
-			"thickness_m": 0.16
-		},
-		{
-			"a": {
-				"x": 10.0,
-				"y": 7.0
-			},
-			"b": {
-				"x": 10.0,
-				"y": 0.0
-			},
-			"thickness_m": 0.16
-		}
-	],
+	"exterior_walls": [],
 	"floors": [
 		{
 			"level_m": 0.0,
@@ -310,30 +265,31 @@
 			"fuel_objects": [
 				{
 					"co_yield_kg_per_MJ": 0.0004,
-					"elevation_m": 0.4,
+					"elevation_m": 0.38,
 					"exposed_area_m2": 3.6,
-					"footprint_m2": 3.125,
+					"footprint_m2": 2.11499985814095,
 					"fuel_energy_MJ": 1100.0,
 					"id": "salon_sofa",
 					"ignition_flux_kw_m2": 16.0,
 					"ignition_temp_c": 310.0,
-					"is_primary_ignition_source": true,
+					"is_primary_ignition_source": false,
 					"kind": "mobiliario_tapizado",
 					"max_hrr_kw": 700.0,
 					"name": "Sofa 3 plazas",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
 						"x": 0.0,
-						"y": 1.25
+						"y": 1.14999985694885
 					},
 					"remaining_fuel_MJ": 1100.0,
 					"room_id": 0,
 					"rotation_deg": 0.0,
 					"size_m": {
-						"x": 1.25,
-						"y": 2.5
+						"x": 0.899999976158142,
+						"y": 2.34999990463257
 					},
-					"smoke_yield_kg_per_MJ": 0.012
+					"smoke_yield_kg_per_MJ": 0.012,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.0006,
@@ -360,7 +316,8 @@
 						"x": 1.14999997615814,
 						"y": 0.649999976158142
 					},
-					"smoke_yield_kg_per_MJ": 0.018
+					"smoke_yield_kg_per_MJ": 0.018,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00025,
@@ -377,8 +334,8 @@
 					"name": "Mueble TV",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 0.200000002980232,
-						"y": 0.25
+						"x": 2.30000019073486,
+						"y": 3.65000009536743
 					},
 					"remaining_fuel_MJ": 520.0,
 					"room_id": 0,
@@ -387,7 +344,8 @@
 						"x": 1.20000004768372,
 						"y": 0.349999994039536
 					},
-					"smoke_yield_kg_per_MJ": 0.008
+					"smoke_yield_kg_per_MJ": 0.008,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00025,
@@ -404,8 +362,8 @@
 					"name": "Libreria",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 2.84999990463257,
-						"y": 3.54999995231628
+						"x": 0.899999976158142,
+						"y": 3.65000009536743
 					},
 					"remaining_fuel_MJ": 1300.0,
 					"room_id": 0,
@@ -414,7 +372,8 @@
 						"x": 1.20000004768372,
 						"y": 0.349999994039536
 					},
-					"smoke_yield_kg_per_MJ": 0.008
+					"smoke_yield_kg_per_MJ": 0.008,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.0005,
@@ -441,7 +400,8 @@
 						"x": 2.29999995231628,
 						"y": 1.35000002384186
 					},
-					"smoke_yield_kg_per_MJ": 0.015
+					"smoke_yield_kg_per_MJ": 0.015,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.0004,
@@ -458,8 +418,8 @@
 					"name": "Sillon auxiliar",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 2.25,
-						"y": 0.499999970197678
+						"x": 3.75,
+						"y": 0.400000005960464
 					},
 					"remaining_fuel_MJ": 580.0,
 					"room_id": 0,
@@ -468,7 +428,8 @@
 						"x": 0.779999971389771,
 						"y": 0.819999992847443
 					},
-					"smoke_yield_kg_per_MJ": 0.012
+					"smoke_yield_kg_per_MJ": 0.012,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00025,
@@ -485,8 +446,8 @@
 					"name": "Aparador bajo",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 1.75,
-						"y": 3.36999988555908
+						"x": 0.149999991059303,
+						"y": -0.149999991059303
 					},
 					"remaining_fuel_MJ": 1700.0,
 					"room_id": 0,
@@ -495,7 +456,8 @@
 						"x": 0.479999989271164,
 						"y": 0.779999971389771
 					},
-					"smoke_yield_kg_per_MJ": 0.009
+					"smoke_yield_kg_per_MJ": 0.009,
+					"visual_pose_locked": true
 				}
 			],
 			"height_m": 2.4,
@@ -543,13 +505,14 @@
 						"x": 0.600000023841858,
 						"y": 5.30000019073486
 					},
-					"smoke_yield_kg_per_MJ": 0.014
+					"smoke_yield_kg_per_MJ": 0.014,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00025,
 					"elevation_m": 0.75,
 					"exposed_area_m2": 0.8,
-					"footprint_m2": 0.16,
+					"footprint_m2": 0.224000004291534,
 					"fuel_energy_MJ": 220.0,
 					"id": "pasillo_consola",
 					"ignition_flux_kw_m2": 16.0,
@@ -561,22 +524,23 @@
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
 						"x": 0.0,
-						"y": 3.5
+						"y": 3.09999990463257
 					},
 					"remaining_fuel_MJ": 220.0,
 					"room_id": 1,
 					"rotation_deg": 0.0,
 					"size_m": {
-						"x": 0.200000002980232,
+						"x": 0.280000001192093,
 						"y": 0.800000011920929
 					},
-					"smoke_yield_kg_per_MJ": 0.008
+					"smoke_yield_kg_per_MJ": 0.008,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00025,
 					"elevation_m": 0.35,
 					"exposed_area_m2": 0.8,
-					"footprint_m2": 0.24,
+					"footprint_m2": 0.224000004291534,
 					"fuel_energy_MJ": 180.0,
 					"id": "pasillo_zapatero",
 					"ignition_flux_kw_m2": 16.0,
@@ -587,17 +551,18 @@
 					"name": "Zapatero bajo",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 1.20000004768372,
-						"y": 4.75
+						"x": 1.22000002861023,
+						"y": 4.59999990463257
 					},
 					"remaining_fuel_MJ": 180.0,
 					"room_id": 1,
-					"rotation_deg": 0.0,
+					"rotation_deg": 180.0,
 					"size_m": {
-						"x": 0.300000011920929,
+						"x": 0.280000001192093,
 						"y": 0.800000011920929
 					},
-					"smoke_yield_kg_per_MJ": 0.008
+					"smoke_yield_kg_per_MJ": 0.008,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00025,
@@ -615,7 +580,7 @@
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
 						"x": 0.0,
-						"y": 6.25
+						"y": 4.59999990463257
 					},
 					"remaining_fuel_MJ": 140.0,
 					"room_id": 1,
@@ -624,7 +589,8 @@
 						"x": 0.319999992847443,
 						"y": 0.300000011920929
 					},
-					"smoke_yield_kg_per_MJ": 0.009
+					"smoke_yield_kg_per_MJ": 0.009,
+					"visual_pose_locked": true
 				}
 			],
 			"height_m": 2.4,
@@ -662,7 +628,7 @@
 					"name": "Cama matrimonio",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 0.75,
+						"x": 1.15000009536743,
 						"y": 1.25
 					},
 					"remaining_fuel_MJ": 1100.0,
@@ -672,7 +638,8 @@
 						"x": 1.45000004768372,
 						"y": 1.75
 					},
-					"smoke_yield_kg_per_MJ": 0.013
+					"smoke_yield_kg_per_MJ": 0.013,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00025,
@@ -689,8 +656,8 @@
 					"name": "Armario",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 1.95000004768372,
-						"y": 0.25
+						"x": 2.25,
+						"y": 0.0
 					},
 					"remaining_fuel_MJ": 850.0,
 					"room_id": 2,
@@ -699,13 +666,14 @@
 						"x": 1.25,
 						"y": 0.400000005960464
 					},
-					"smoke_yield_kg_per_MJ": 0.008
+					"smoke_yield_kg_per_MJ": 0.008,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.0005,
-					"elevation_m": 0.05,
+					"elevation_m": 0.03,
 					"exposed_area_m2": 0.94,
-					"footprint_m2": 0.72,
+					"footprint_m2": 0.74400003528595,
 					"fuel_energy_MJ": 250.0,
 					"id": "dorm1_alfombra",
 					"ignition_flux_kw_m2": 12.0,
@@ -716,23 +684,24 @@
 					"name": "Alfombra dormitorio",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 1.99999988079071,
-						"y": 1.75
+						"x": 0.150000095367432,
+						"y": 1.65000009536743
 					},
 					"remaining_fuel_MJ": 250.0,
 					"room_id": 2,
-					"rotation_deg": -80.0,
+					"rotation_deg": -90.0,
 					"size_m": {
 						"x": 1.20000004768372,
-						"y": 0.600000023841858
+						"y": 0.620000004768372
 					},
-					"smoke_yield_kg_per_MJ": 0.016
+					"smoke_yield_kg_per_MJ": 0.016,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.0005,
 					"elevation_m": 0.7,
 					"exposed_area_m2": 1.2,
-					"footprint_m2": 0.13,
+					"footprint_m2": 0.179999995976686,
 					"fuel_energy_MJ": 250.0,
 					"id": "dorm1_cortinas",
 					"ignition_flux_kw_m2": 12.0,
@@ -743,23 +712,24 @@
 					"name": "Cortinas",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 1.45000004768372,
-						"y": 0.0199999995529652
+						"x": 2.69000005722046,
+						"y": 1.5
 					},
 					"remaining_fuel_MJ": 250.0,
 					"room_id": 2,
-					"rotation_deg": 0.0,
+					"rotation_deg": 90.0,
 					"size_m": {
-						"x": 1.10000002384186,
+						"x": 1.5,
 						"y": 0.119999997317791
 					},
-					"smoke_yield_kg_per_MJ": 0.016
+					"smoke_yield_kg_per_MJ": 0.016,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00025,
 					"elevation_m": 0.45,
 					"exposed_area_m2": 1.1,
-					"footprint_m2": 0.122499995827675,
+					"footprint_m2": 0.47,
 					"fuel_energy_MJ": 650.0,
 					"id": "dorm1_comoda",
 					"ignition_flux_kw_m2": 16.0,
@@ -770,23 +740,24 @@
 					"name": "Comoda",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 0.250000178813934,
-						"y": 2.65000009536743
+						"x": 2.65000009536743,
+						"y": 2.65999984741211
 					},
 					"remaining_fuel_MJ": 650.0,
 					"room_id": 2,
 					"rotation_deg": 180.0,
 					"size_m": {
-						"x": 0.349999994039536,
-						"y": 0.349999994039536
+						"x": 0.850000023841858,
+						"y": 0.340000003576279
 					},
-					"smoke_yield_kg_per_MJ": 0.009
+					"smoke_yield_kg_per_MJ": 0.009,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00025,
 					"elevation_m": 0.4,
 					"exposed_area_m2": 0.6,
-					"footprint_m2": 0.139999999701977,
+					"footprint_m2": 0.144000007867813,
 					"fuel_energy_MJ": 400.0,
 					"id": "dorm1_mesilla",
 					"ignition_flux_kw_m2": 16.0,
@@ -797,17 +768,18 @@
 					"name": "Mesilla",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 2.44500088691711,
-						"y": 2.59999990463257
+						"x": 0.0,
+						"y": 0.0
 					},
 					"remaining_fuel_MJ": 400.0,
 					"room_id": 2,
 					"rotation_deg": 0.0,
 					"size_m": {
-						"x": 0.349999994039536,
-						"y": 0.400000005960464
+						"x": 0.400000005960464,
+						"y": 0.360000014305115
 					},
-					"smoke_yield_kg_per_MJ": 0.009
+					"smoke_yield_kg_per_MJ": 0.009,
+					"visual_pose_locked": true
 				}
 			],
 			"height_m": 2.4,
@@ -845,7 +817,7 @@
 					"name": "Cama individual",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 1.0,
+						"x": 1.25,
 						"y": 0.700000047683716
 					},
 					"remaining_fuel_MJ": 850.0,
@@ -855,7 +827,8 @@
 						"x": 0.899999976158142,
 						"y": 1.29999995231628
 					},
-					"smoke_yield_kg_per_MJ": 0.013
+					"smoke_yield_kg_per_MJ": 0.013,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00025,
@@ -882,13 +855,14 @@
 						"x": 1.04999995231628,
 						"y": 0.379999995231628
 					},
-					"smoke_yield_kg_per_MJ": 0.008
+					"smoke_yield_kg_per_MJ": 0.008,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00025,
 					"elevation_m": 0.7,
 					"exposed_area_m2": 1.0,
-					"footprint_m2": 0.675,
+					"footprint_m2": 0.47,
 					"fuel_energy_MJ": 350.0,
 					"id": "dorm2_escritorio",
 					"ignition_flux_kw_m2": 16.0,
@@ -899,23 +873,24 @@
 					"name": "Mesa escritorio",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 2.25,
-						"y": 0.0
+						"x": 2.57999992370605,
+						"y": 1.6399998664856
 					},
 					"remaining_fuel_MJ": 350.0,
 					"room_id": 3,
 					"rotation_deg": 180.0,
 					"size_m": {
-						"x": 0.899999976158142,
-						"y": 0.75
+						"x": 0.920000016689301,
+						"y": 0.360000014305115
 					},
-					"smoke_yield_kg_per_MJ": 0.009
+					"smoke_yield_kg_per_MJ": 0.009,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.0005,
-					"elevation_m": 0.05,
+					"elevation_m": 0.03,
 					"exposed_area_m2": 0.4,
-					"footprint_m2": 0.4,
+					"footprint_m2": 0.400000005960464,
 					"fuel_energy_MJ": 180.0,
 					"id": "dorm2_alfombra",
 					"ignition_flux_kw_m2": 12.0,
@@ -926,17 +901,18 @@
 					"name": "Alfombra dormitorio",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 0.25,
-						"y": 0.75
+						"x": 0.150000095367432,
+						"y": 1.05000019073486
 					},
 					"remaining_fuel_MJ": 180.0,
 					"room_id": 3,
-					"rotation_deg": 83.0,
+					"rotation_deg": 90.0,
 					"size_m": {
 						"x": 1.0,
 						"y": 0.400000005960464
 					},
-					"smoke_yield_kg_per_MJ": 0.016
+					"smoke_yield_kg_per_MJ": 0.016,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00025,
@@ -953,7 +929,7 @@
 					"name": "Cajonera",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 0.5,
+						"x": 0.550000190734863,
 						"y": 1.6399998664856
 					},
 					"remaining_fuel_MJ": 520.0,
@@ -963,7 +939,8 @@
 						"x": 0.5,
 						"y": 0.360000014305115
 					},
-					"smoke_yield_kg_per_MJ": 0.009
+					"smoke_yield_kg_per_MJ": 0.009,
+					"visual_pose_locked": true
 				}
 			],
 			"height_m": 2.4,
@@ -1001,8 +978,8 @@
 					"name": "Encimera y bajos",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 0.25,
-						"y": 0.200000002980232
+						"x": 0.0,
+						"y": 0.0
 					},
 					"remaining_fuel_MJ": 1100.0,
 					"room_id": 4,
@@ -1011,7 +988,8 @@
 						"x": 3.15000009536743,
 						"y": 0.649999976158142
 					},
-					"smoke_yield_kg_per_MJ": 0.009
+					"smoke_yield_kg_per_MJ": 0.009,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00028,
@@ -1028,8 +1006,8 @@
 					"name": "Columna despensa",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 3.34999990463257,
-						"y": 0.200000002980232
+						"x": 3.15000009536743,
+						"y": 0.0
 					},
 					"remaining_fuel_MJ": 550.0,
 					"room_id": 4,
@@ -1038,13 +1016,14 @@
 						"x": 0.649999976158142,
 						"y": 0.649999976158142
 					},
-					"smoke_yield_kg_per_MJ": 0.009
+					"smoke_yield_kg_per_MJ": 0.009,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.0007,
 					"elevation_m": 0.9,
 					"exposed_area_m2": 0.3,
-					"footprint_m2": 0.2,
+					"footprint_m2": 0.29249998152256,
 					"fuel_energy_MJ": 600.0,
 					"id": "cocina_grasa",
 					"ignition_flux_kw_m2": 11.0,
@@ -1055,17 +1034,18 @@
 					"name": "Grasa y aceites",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 2.04999995231628,
-						"y": 0.349999994039536
+						"x": 1.64999997615814,
+						"y": 0.0
 					},
 					"remaining_fuel_MJ": 600.0,
 					"room_id": 4,
 					"rotation_deg": 0.0,
 					"size_m": {
 						"x": 0.449999988079071,
-						"y": 0.449999988079071
+						"y": 0.649999976158142
 					},
-					"smoke_yield_kg_per_MJ": 0.022
+					"smoke_yield_kg_per_MJ": 0.022,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00035,
@@ -1082,8 +1062,8 @@
 					"name": "Mesa cocina",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 0.349999994039536,
-						"y": 2.20000004768372
+						"x": 1.39999997615814,
+						"y": 1.5
 					},
 					"remaining_fuel_MJ": 450.0,
 					"room_id": 4,
@@ -1092,7 +1072,8 @@
 						"x": 1.04999995231628,
 						"y": 0.699999988079071
 					},
-					"smoke_yield_kg_per_MJ": 0.012
+					"smoke_yield_kg_per_MJ": 0.012,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.0004,
@@ -1109,8 +1090,8 @@
 					"name": "Panos cocina",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 0.550000011920929,
-						"y": 2.34999990463257
+						"x": 1.59999990463257,
+						"y": 1.65000009536743
 					},
 					"remaining_fuel_MJ": 220.0,
 					"room_id": 4,
@@ -1119,7 +1100,8 @@
 						"x": 0.649999976158142,
 						"y": 0.379999995231628
 					},
-					"smoke_yield_kg_per_MJ": 0.014
+					"smoke_yield_kg_per_MJ": 0.014,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00035,
@@ -1136,8 +1118,8 @@
 					"name": "Carro auxiliar",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 3.5,
-						"y": 0.949999988079071
+						"x": 4.19999980926514,
+						"y": 0.0
 					},
 					"remaining_fuel_MJ": 580.0,
 					"room_id": 4,
@@ -1146,7 +1128,8 @@
 						"x": 0.550000011920929,
 						"y": 0.5
 					},
-					"smoke_yield_kg_per_MJ": 0.012
+					"smoke_yield_kg_per_MJ": 0.012,
+					"visual_pose_locked": true
 				}
 			],
 			"height_m": 2.4,
@@ -1184,8 +1167,8 @@
 					"name": "Cubo y plasticos",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 1.10000002384186,
-						"y": 0.25
+						"x": 0.0,
+						"y": 1.48000001907349
 					},
 					"remaining_fuel_MJ": 120.0,
 					"room_id": 5,
@@ -1194,7 +1177,8 @@
 						"x": 0.419999986886978,
 						"y": 0.519999980926514
 					},
-					"smoke_yield_kg_per_MJ": 0.025
+					"smoke_yield_kg_per_MJ": 0.025,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.0004,
@@ -1211,8 +1195,8 @@
 					"name": "Toallas",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 2.45000004768372,
-						"y": 0.25
+						"x": 2.94999980926514,
+						"y": 0.0
 					},
 					"remaining_fuel_MJ": 130.0,
 					"room_id": 5,
@@ -1221,7 +1205,8 @@
 						"x": 0.550000011920929,
 						"y": 0.899999976158142
 					},
-					"smoke_yield_kg_per_MJ": 0.014
+					"smoke_yield_kg_per_MJ": 0.014,
+					"visual_pose_locked": true
 				},
 				{
 					"co_yield_kg_per_MJ": 0.00025,
@@ -1238,8 +1223,8 @@
 					"name": "Mueble lavabo",
 					"o2_consumption_kg_per_MJ": 0.076,
 					"position_m": {
-						"x": 2.45000004768372,
-						"y": 1.20000004768372
+						"x": 2.80000019073486,
+						"y": 1.57999992370605
 					},
 					"remaining_fuel_MJ": 150.0,
 					"room_id": 5,
@@ -1248,7 +1233,8 @@
 						"x": 0.699999988079071,
 						"y": 0.419999986886978
 					},
-					"smoke_yield_kg_per_MJ": 0.009
+					"smoke_yield_kg_per_MJ": 0.009,
+					"visual_pose_locked": true
 				}
 			],
 			"height_m": 2.4,
@@ -1270,14 +1256,5 @@
 	],
 	"stop_time_s": 0.0,
 	"version": 1,
-	"victims": [
-		{
-			"height_m": 0.9,
-			"id": "vic_001",
-			"name": "Victima 1",
-			"room_id": 0,
-			"x_m": 4.0,
-			"y_m": 1.0
-		}
-	]
+	"victims": []
 }

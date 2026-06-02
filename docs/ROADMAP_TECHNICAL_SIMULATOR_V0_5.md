@@ -137,9 +137,9 @@ Las víctimas son **sensores de exposición** (acumulan FED, CO, temperatura) y 
 |----|-------|-------------|-----------|
 | W-01 | ✅ Export técnico post-simulación | Después de la simulación, generar: CSV de magnitudes por sala/tiempo, JSON de eventos (flashover, detector activado, FED=1.0), capturas de pantalla de picos | **Alta** |
 | W-02 | ✅ Pantalla de resumen técnico | Vista post-simulación (no gameplay): tiempo a FED=1.0 por víctima, tiempo a flashover por sala, pico CO/HCN/O2/temperatura, visibilidad mínima, detectores y `summary.json` ampliado. Sin puntuación ni victoria/derrota. | **Alta** |
-| W-03 | Escenarios predefinidos ampliados | Añadir 2-3 escenarios de referencia calibrados: piso compacto, pasillo largo, edificio 2 plantas | **Media** |
-| W-04 | Reproducibilidad completa | Script único `scripts/run_scenario.py <escenario.json>` que ejecuta la simulación headless y genera el export técnico | **Media** |
-| W-05 | Internacionalización completa | Todas las cadenas UI en castellano en archivos de localización | **Baja** |
+| W-03 | ✅ Escenarios predefinidos ampliados | Añadidos 3 escenarios de referencia editables y reproducibles: `compact_apartment_reference.json`, `long_hallway_reference.json`, `two_storey_reference.json` | **Media** |
+| W-04 | ✅ Reproducibilidad completa | Script único `scripts/run_scenario.py <escenario.json>` que ejecuta la simulación headless y genera `summary.json`, `events.json`, `sim_log.txt`, `sim_log.csv` y `run_manifest.json` | **Media** |
+| W-05 | ✅ Internacionalización completa | `i18n/es_ui.json` concentra textos UI principales; menú, HUD, editor y ventanas técnicas consumen claves localizadas; guardrail `tests/test_ui_localization.py` evita regresiones de textos ingleses visibles | **Baja** |
 
 **Criterio de cierre**:
 - Un investigador puede ejecutar un escenario, obtener los datos técnicos en formato estándar y reproducir el resultado con un único comando.

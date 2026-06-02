@@ -1,6 +1,7 @@
 extends RefCounted
 class_name HUDRoomSummary
 
+const UILocalizationScript = preload("res://ui/UILocalization.gd")
 const FLASHOVER_DISPLAY_DURATION_S: float = 22.0
 
 
@@ -8,7 +9,7 @@ static func card_summary(room_id: int, room_state: Dictionary, sim_time_s: float
 	if room_state.is_empty():
 		return {
 			"header": "R%d" % room_id,
-			"text": "Sin datos",
+			"text": UILocalizationScript.t("hud.no_data", "Sin datos"),
 			"severity": "normal"
 		}
 
@@ -46,7 +47,7 @@ static func card_summary(room_id: int, room_state: Dictionary, sim_time_s: float
 
 static func detail_text(room_state: Dictionary) -> String:
 	if room_state.is_empty():
-		return "Sin datos"
+		return UILocalizationScript.t("hud.no_data", "Sin datos")
 
 	var room_name: String = String(room_state.get("name", ""))
 	var fed: float = float(room_state.get("fed", 0.0))

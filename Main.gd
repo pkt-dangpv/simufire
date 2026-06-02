@@ -2,6 +2,7 @@ extends Node
 
 const FirstPersonControllerScript = preload("res://view/fp/FirstPersonController.gd")
 const Minimap2DScript = preload("res://ui/Minimap2D.gd")
+const UILocalizationScript = preload("res://ui/UILocalization.gd")
 const MAIN_MENU_PATH: String = "res://scenes/MainMenu.tscn"
 const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 
@@ -39,6 +40,7 @@ var minimap_2d = null
 
 
 func _ready() -> void:
+	UILocalizationScript.ensure_loaded()
 	_setup_graph_dialogs()
 	if hud != null:
 		hud.bind_building(building)
@@ -381,14 +383,14 @@ func _setup_graph_dialogs() -> void:
 	_graphs_dir_dialog.name = "GraphsDirectoryDialog"
 	_graphs_dir_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
 	_graphs_dir_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	_graphs_dir_dialog.title = "Guardar graficas y log"
+	_graphs_dir_dialog.title = UILocalizationScript.t("summary.graphs_dir_title", "Guardar graficas y log")
 	_graphs_dir_dialog.set("use_native_dialog", true)
 	_graphs_dir_dialog.dir_selected.connect(_on_graphs_dir_selected)
 	add_child(_graphs_dir_dialog)
 
 	_graphs_view_window = Window.new()
 	_graphs_view_window.name = "GraphsViewer"
-	_graphs_view_window.title = "Graficas de simulacion"
+	_graphs_view_window.title = UILocalizationScript.t("summary.graphs_window_title", "Graficas de simulacion")
 	_graphs_view_window.size = Vector2i(1500, 820)
 	_graphs_view_window.min_size = Vector2i(1280, 680)
 	_graphs_view_window.wrap_controls = false
@@ -399,7 +401,7 @@ func _setup_graph_dialogs() -> void:
 
 	_technical_summary_window = Window.new()
 	_technical_summary_window.name = "TechnicalSummaryWindow"
-	_technical_summary_window.title = "Resumen tecnico post-simulacion"
+	_technical_summary_window.title = UILocalizationScript.t("summary.window_title", "Resumen tecnico post-simulacion")
 	_technical_summary_window.size = Vector2i(1180, 760)
 	_technical_summary_window.min_size = Vector2i(980, 620)
 	_technical_summary_window.wrap_controls = false

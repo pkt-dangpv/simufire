@@ -15,6 +15,7 @@ const RUNTIME_TEMPLATE_PATH: String = "user://last_editor_runtime_template.json"
 const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
 const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
+const UILocalizationScript = preload("res://ui/UILocalization.gd")
 
 var _template_builder = BuildingTemplateScript.new()
 var _template_option: OptionButton = null
@@ -32,6 +33,7 @@ var _building_type_modes: Array[String] = ["single_family", "apartment"]
 
 
 func _ready() -> void:
+	UILocalizationScript.ensure_loaded()
 	if _is_validation_mode():
 		_open_validation_scene_next_frame()
 		return
@@ -70,6 +72,10 @@ func _connect_once(target_signal: Signal, target_callable: Callable) -> void:
 		target_signal.connect(target_callable)
 
 
+func _ui_text(key: String, fallback: String) -> String:
+	return UILocalizationScript.t(key, fallback)
+
+
 func _setup_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
@@ -93,16 +99,16 @@ func _setup_ui() -> void:
 	vbox.add_child(title)
 
 	var subtitle := Label.new()
-	subtitle.text = "Simulador de incendio estructural"
+	subtitle.text = _ui_text("main.subtitle", "SIMULADOR TACTICO DE INCENDIOS")
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(subtitle)
 
 	vbox.add_child(HSeparator.new())
 	_ensure_start_options_ui(vbox)
 
-	_add_menu_button(vbox, "INICIAR SIMULACION", _on_new_sim_pressed, "BtnNewSim")
-	_add_menu_button(vbox, "EDITOR DE VIVIENDA", _on_editor_pressed, "BtnEditor")
-	_add_menu_button(vbox, "SALIR", _on_quit_pressed, "BtnQuit")
+	_add_menu_button(vbox, _ui_text("main.start_simulation", "INICIAR SIMULACION"), _on_new_sim_pressed, "BtnNewSim")
+	_add_menu_button(vbox, _ui_text("main.open_editor", "EDITOR DE VIVIENDA"), _on_editor_pressed, "BtnEditor")
+	_add_menu_button(vbox, _ui_text("main.quit", "SALIR"), _on_quit_pressed, "BtnQuit")
 
 
 func _apply_main_menu_visual_style() -> void:
@@ -141,7 +147,7 @@ func _apply_main_menu_visual_style() -> void:
 
 	var subtitle := vbox.get_node_or_null("Subtitle") as Label
 	if subtitle != null:
-		subtitle.text = "TACTICAL FIRE SIMULATOR"
+		subtitle.text = _ui_text("main.subtitle", "SIMULADOR TACTICO DE INCENDIOS")
 		subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		subtitle.add_theme_font_override("font", SimuFireThemeScript.title_font())
 		subtitle.add_theme_font_size_override("font_size", 16)
@@ -151,15 +157,15 @@ func _apply_main_menu_visual_style() -> void:
 	var btn_editor := get_node_or_null("Center/VBox/BtnEditor") as Button
 	var btn_quit := get_node_or_null("Center/VBox/BtnQuit") as Button
 	if btn_new != null:
-		btn_new.text = "INICIAR SIMULACION"
+		btn_new.text = _ui_text("main.start_simulation", "INICIAR SIMULACION")
 		btn_new.custom_minimum_size = Vector2(420.0, 44.0)
 		btn_new.add_theme_stylebox_override("normal", SimuFireThemeScript.stylebox(Color(0.16, 0.05, 0.01, 0.98), SimuFireThemeScript.ORANGE, 1, 0, Vector2(14.0, 9.0)))
 		btn_new.add_theme_stylebox_override("hover", SimuFireThemeScript.stylebox(Color(0.24, 0.07, 0.01, 0.98), SimuFireThemeScript.ORANGE, 1, 0, Vector2(14.0, 9.0)))
 	if btn_editor != null:
-		btn_editor.text = "EDITOR DE VIVIENDA"
+		btn_editor.text = _ui_text("main.open_editor", "EDITOR DE VIVIENDA")
 		btn_editor.custom_minimum_size = Vector2(420.0, 44.0)
 	if btn_quit != null:
-		btn_quit.text = "SALIR"
+		btn_quit.text = _ui_text("main.quit", "SALIR")
 		btn_quit.custom_minimum_size = Vector2(420.0, 44.0)
 
 	SimuFireThemeScript.apply_control_tree(vbox)
@@ -179,7 +185,7 @@ func _ensure_start_options_ui(parent_override: Control = null) -> void:
 
 	var preset_row := vbox.get_node_or_null("PresetRow") as HBoxContainer
 	if preset_row == null:
-		preset_row = _make_option_row("PresetRow", "Plantilla")
+		preset_row = _make_option_row("PresetRow", _ui_text("main.template", "Plantilla"))
 		vbox.add_child(preset_row)
 		_move_before_first_button(vbox, preset_row)
 	_template_option = preset_row.get_node_or_null("Option") as OptionButton
@@ -187,7 +193,7 @@ func _ensure_start_options_ui(parent_override: Control = null) -> void:
 
 	var building_row := vbox.get_node_or_null("BuildingTypeRow") as HBoxContainer
 	if building_row == null:
-		building_row = _make_option_row("BuildingTypeRow", "Exterior")
+		building_row = _make_option_row("BuildingTypeRow", _ui_text("main.building_type", "Exterior"))
 		vbox.add_child(building_row)
 		_move_before_first_button(vbox, building_row)
 	_building_type_option = building_row.get_node_or_null("Option") as OptionButton
@@ -197,7 +203,7 @@ func _ensure_start_options_ui(parent_override: Control = null) -> void:
 
 	var apartment_floor_row := vbox.get_node_or_null("ApartmentFloorRow") as HBoxContainer
 	if apartment_floor_row == null:
-		apartment_floor_row = _make_spin_row("ApartmentFloorRow", "Planta piso", -5.0, 80.0, 1.0)
+		apartment_floor_row = _make_spin_row("ApartmentFloorRow", _ui_text("main.apartment_floor", "Planta piso"), -5.0, 80.0, 1.0)
 		vbox.add_child(apartment_floor_row)
 		_move_before_first_button(vbox, apartment_floor_row)
 	_apartment_floor_spin = apartment_floor_row.get_node_or_null("Spin") as SpinBox
@@ -214,7 +220,7 @@ func _ensure_start_options_ui(parent_override: Control = null) -> void:
 
 	var lighting_row := vbox.get_node_or_null("LightingRow") as HBoxContainer
 	if lighting_row == null:
-		lighting_row = _make_option_row("LightingRow", "Iluminacion")
+		lighting_row = _make_option_row("LightingRow", _ui_text("main.lighting", "Iluminacion"))
 		vbox.add_child(lighting_row)
 		_move_before_first_button(vbox, lighting_row)
 	_lighting_option = lighting_row.get_node_or_null("Option") as OptionButton
@@ -222,7 +228,7 @@ func _ensure_start_options_ui(parent_override: Control = null) -> void:
 
 	var interior_lights_row := vbox.get_node_or_null("InteriorLightsRow") as HBoxContainer
 	if interior_lights_row == null:
-		interior_lights_row = _make_option_row("InteriorLightsRow", "Luces int.")
+		interior_lights_row = _make_option_row("InteriorLightsRow", _ui_text("main.interior_lights", "Luces int."))
 		vbox.add_child(interior_lights_row)
 		_move_before_first_button(vbox, interior_lights_row)
 	_interior_lights_option = interior_lights_row.get_node_or_null("Option") as OptionButton
@@ -230,7 +236,7 @@ func _ensure_start_options_ui(parent_override: Control = null) -> void:
 
 	var glass_break_row := vbox.get_node_or_null("GlassBreakRow") as HBoxContainer
 	if glass_break_row == null:
-		glass_break_row = _make_option_row("GlassBreakRow", "Cristales")
+		glass_break_row = _make_option_row("GlassBreakRow", _ui_text("main.glass_break", "Cristales"))
 		vbox.add_child(glass_break_row)
 		_move_before_first_button(vbox, glass_break_row)
 	_glass_break_option = glass_break_row.get_node_or_null("Option") as OptionButton
@@ -335,9 +341,9 @@ func _populate_hvac_option() -> void:
 		return
 
 	if _hvac_option.get_item_count() == 0:
-		_hvac_option.add_item("Sin HVAC", 0)
-		_hvac_option.add_item("HVAC instalado OFF", 1)
-		_hvac_option.add_item("HVAC instalado ON", 2)
+		_hvac_option.add_item(_ui_text("main.hvac.none", "Sin HVAC"), 0)
+		_hvac_option.add_item(_ui_text("main.hvac.off", "HVAC instalado OFF"), 1)
+		_hvac_option.add_item(_ui_text("main.hvac.on", "HVAC instalado ON"), 2)
 	var saved: Dictionary = _load_startup_options()
 	var selected_mode: String = String(saved.get("hvac_mode", "none"))
 	var selected_index: int = maxi(0, _hvac_modes.find(selected_mode))
@@ -349,8 +355,8 @@ func _populate_building_type_option() -> void:
 	if _building_type_option == null:
 		return
 	if _building_type_option.get_item_count() == 0:
-		_building_type_option.add_item("Casa unifamiliar", 0)
-		_building_type_option.add_item("Piso", 1)
+		_building_type_option.add_item(_ui_text("main.building.single_family", "Casa unifamiliar"), 0)
+		_building_type_option.add_item(_ui_text("main.building.apartment", "Piso"), 1)
 	var saved: Dictionary = _load_startup_options()
 	var selected_mode: String = String(saved.get("building_type", "single_family")).to_lower()
 	var selected_index: int = maxi(0, _building_type_modes.find(selected_mode))
@@ -382,8 +388,8 @@ func _populate_lighting_option() -> void:
 		return
 
 	if _lighting_option.get_item_count() == 0:
-		_lighting_option.add_item("Dia exterior", 0)
-		_lighting_option.add_item("Noche exterior", 1)
+		_lighting_option.add_item(_ui_text("main.lighting.day", "Dia exterior"), 0)
+		_lighting_option.add_item(_ui_text("main.lighting.night", "Noche exterior"), 1)
 	var saved: Dictionary = _load_startup_options()
 	var selected_mode: String = String(saved.get("exterior_lighting_mode", "Dia"))
 	var selected_index: int = maxi(0, _lighting_modes.find(selected_mode))
@@ -396,8 +402,8 @@ func _populate_interior_lights_option() -> void:
 		return
 
 	if _interior_lights_option.get_item_count() == 0:
-		_interior_lights_option.add_item("Interiores ON", 0)
-		_interior_lights_option.add_item("Interiores OFF", 1)
+		_interior_lights_option.add_item(_ui_text("main.interior.on", "Interiores ON"), 0)
+		_interior_lights_option.add_item(_ui_text("main.interior.off", "Interiores OFF"), 1)
 	var saved: Dictionary = _load_startup_options()
 	var enabled: bool = bool(saved.get("interior_lights_on", true))
 	_interior_lights_option.select(0 if enabled else 1)
@@ -408,9 +414,9 @@ func _populate_glass_break_option() -> void:
 		return
 
 	if _glass_break_option.get_item_count() == 0:
-		_glass_break_option.add_item("Sin rotura", 0)
-		_glass_break_option.add_item("Umbral temp.", 1)
-		_glass_break_option.add_item("Probabilistica", 2)
+		_glass_break_option.add_item(_ui_text("main.glass.none", "Sin rotura"), 0)
+		_glass_break_option.add_item(_ui_text("main.glass.temperature", "Umbral temp."), 1)
+		_glass_break_option.add_item(_ui_text("main.glass.probabilistic", "Probabilistica"), 2)
 	var saved: Dictionary = _load_startup_options()
 	var selected_mode: int = int(saved.get("glass_break_mode", 0))
 	var selected_index: int = maxi(0, _glass_break_modes.find(selected_mode))
