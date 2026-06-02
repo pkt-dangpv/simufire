@@ -78,7 +78,8 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var show_detector_markers_3d: bool = true
 @export var show_victim_markers_3d: bool = true
 ## Muestra leyenda de colores activos en esquina superior derecha de la vista 3D (V3D-02).
-@export var show_legend: bool = true
+## Desactivada por defecto para no solaparse con el HUD de salas; se puede activar desde Inspector.
+@export var show_legend: bool = false
 @export var show_exterior_context_3d: bool = false
 @export var fuel_object_3d_height_m: float = 0.34
 @export var smoke_puff_count: int = 12

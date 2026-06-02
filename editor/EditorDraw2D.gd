@@ -29,15 +29,19 @@ static func corridor_room_guides(canvas: CanvasItem, rect_px: Rect2) -> void:
 ## Draw dimension labels (Largo / Ancho) for narrow rooms such as corridors and stairs.
 ## Labels are drawn above and to the right of rect_px using the fallback font.
 static func narrow_room_dimension_labels(canvas: CanvasItem, rect_m: Rect2, rect_px: Rect2, is_stairs: bool) -> void:
-	if ThemeDB.fallback_font == null:
-		return
-	var inv_zoom: float = float(canvas.call("_screen_scale_inv")) if canvas.has_method("_screen_scale_inv") else 1.0
-	var font_size: int = maxi(4, int(round(11.0 * inv_zoom)))
 	var label_color: Color = Color(0.72, 1.0, 0.94, 0.96) if not is_stairs else Color(1.0, 0.84, 0.34, 0.96)
 	var long_m: float = maxf(rect_m.size.x, rect_m.size.y)
 	var wide_m: float = minf(rect_m.size.x, rect_m.size.y)
 	var long_label: String = "Largo %.2f m" % long_m
 	var wide_label: String = "Ancho %.2f m" % wide_m
+	if canvas.has_method("_draw_screen_string"):
+		canvas.call("_draw_screen_string", rect_px.position, Vector2(4.0, -6.0), long_label, 180.0, 11, label_color)
+		canvas.call("_draw_screen_string", rect_px.position + Vector2(rect_px.size.x, 0.0), Vector2(8.0, 18.0), wide_label, 160.0, 11, label_color)
+		return
+	if ThemeDB.fallback_font == null:
+		return
+	var inv_zoom: float = float(canvas.call("_screen_scale_inv")) if canvas.has_method("_screen_scale_inv") else 1.0
+	var font_size: int = maxi(4, int(round(11.0 * inv_zoom)))
 	var top_pos: Vector2 = rect_px.position + Vector2(4.0, -6.0) * inv_zoom
 	canvas.draw_string(
 		ThemeDB.fallback_font,
@@ -87,8 +91,12 @@ static func stair_room_guides(canvas: CanvasItem, rect_px: Rect2, dir: Vector2, 
 	var arrow_right: Vector2 = end - dir * 12.0 - normal * 6.0
 	canvas.draw_colored_polygon(PackedVector2Array([end, arrow_left, arrow_right]), Color(1.0, 0.90, 0.35, 0.86))
 	if ThemeDB.fallback_font != null and long_px > 60.0:
-		canvas.draw_string(ThemeDB.fallback_font, start + Vector2(5.0, -5.0), "ENTRA", HORIZONTAL_ALIGNMENT_LEFT, 70.0, 9, Color(0.95, 1.0, 0.82, 0.82))
-		canvas.draw_string(ThemeDB.fallback_font, end + Vector2(5.0, -5.0), "SUBE", HORIZONTAL_ALIGNMENT_LEFT, 60.0, 9, Color(1.0, 0.90, 0.35, 0.86))
+		if canvas.has_method("_draw_screen_string"):
+			canvas.call("_draw_screen_string", start, Vector2(5.0, -5.0), "ENTRA", 70.0, 9, Color(0.95, 1.0, 0.82, 0.82))
+			canvas.call("_draw_screen_string", end, Vector2(5.0, -5.0), "SUBE", 60.0, 9, Color(1.0, 0.90, 0.35, 0.86))
+		else:
+			canvas.draw_string(ThemeDB.fallback_font, start + Vector2(5.0, -5.0), "ENTRA", HORIZONTAL_ALIGNMENT_LEFT, 70.0, 9, Color(0.95, 1.0, 0.82, 0.82))
+			canvas.draw_string(ThemeDB.fallback_font, end + Vector2(5.0, -5.0), "SUBE", HORIZONTAL_ALIGNMENT_LEFT, 60.0, 9, Color(1.0, 0.90, 0.35, 0.86))
 
 
 ## Draw switchback (180°) stair guides — two parallel lanes with cross-step lines.
@@ -115,8 +123,12 @@ static func switchback_stair_room_guides(canvas: CanvasItem, rect_px: Rect2, dir
 	canvas.draw_circle(a0, 4.0, Color(0.95, 1.0, 0.82, 0.95))
 	canvas.draw_colored_polygon(PackedVector2Array([b1, b1 + dir * 10.0 + normal * 5.0, b1 + dir * 10.0 - normal * 5.0]), Color(1.0, 0.90, 0.35, 0.86))
 	if ThemeDB.fallback_font != null and long_px > 60.0:
-		canvas.draw_string(ThemeDB.fallback_font, a0 + Vector2(5.0, -5.0), "ENTRA", HORIZONTAL_ALIGNMENT_LEFT, 70.0, 9, Color(0.95, 1.0, 0.82, 0.82))
-		canvas.draw_string(ThemeDB.fallback_font, end_center + Vector2(5.0, -5.0), "180", HORIZONTAL_ALIGNMENT_LEFT, 42.0, 9, Color(1.0, 0.90, 0.35, 0.86))
+		if canvas.has_method("_draw_screen_string"):
+			canvas.call("_draw_screen_string", a0, Vector2(5.0, -5.0), "ENTRA", 70.0, 9, Color(0.95, 1.0, 0.82, 0.82))
+			canvas.call("_draw_screen_string", end_center, Vector2(5.0, -5.0), "180", 42.0, 9, Color(1.0, 0.90, 0.35, 0.86))
+		else:
+			canvas.draw_string(ThemeDB.fallback_font, a0 + Vector2(5.0, -5.0), "ENTRA", HORIZONTAL_ALIGNMENT_LEFT, 70.0, 9, Color(0.95, 1.0, 0.82, 0.82))
+			canvas.draw_string(ThemeDB.fallback_font, end_center + Vector2(5.0, -5.0), "180", HORIZONTAL_ALIGNMENT_LEFT, 42.0, 9, Color(1.0, 0.90, 0.35, 0.86))
 
 
 ## Draw the player-start arrow icon at pixel position px.
@@ -132,7 +144,10 @@ static func player_start_icon(canvas: CanvasItem, px: Vector2, dir: Vector2, rad
 	canvas.draw_colored_polygon(pts, color)
 	canvas.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[0]]), Color(0.0, 0.0, 0.0, 0.78), 1.6)
 	if ThemeDB.fallback_font != null:
-		canvas.draw_string(ThemeDB.fallback_font, px + Vector2(11.0, 4.0) * inv_zoom, "FP", HORIZONTAL_ALIGNMENT_LEFT, 32.0, font_size, color)
+		if canvas.has_method("_draw_screen_string"):
+			canvas.call("_draw_screen_string", px, Vector2(11.0, 4.0), "FP", 32.0, 10, color)
+		else:
+			canvas.draw_string(ThemeDB.fallback_font, px + Vector2(11.0, 4.0) * inv_zoom, "FP", HORIZONTAL_ALIGNMENT_LEFT, 32.0, font_size, color)
 
 
 ## Draw a detector circle icon at pixel position px.
@@ -145,7 +160,10 @@ static func detector_icon(canvas: CanvasItem, px: Vector2, radius: float, color:
 	if selected:
 		canvas.draw_circle(px, radius + 2.0, Color(1.0, 1.0, 1.0, 0.85), false, 2.0)
 	if ThemeDB.fallback_font != null:
-		canvas.draw_string(ThemeDB.fallback_font, px + Vector2(-4.0, 5.0) * inv_zoom, label, HORIZONTAL_ALIGNMENT_LEFT, 20.0, font_size, Color(0.0, 0.0, 0.0, 0.92))
+		if canvas.has_method("_draw_screen_string"):
+			canvas.call("_draw_screen_string", px, Vector2(-4.0, 5.0), label, 20.0, 11, Color(0.0, 0.0, 0.0, 0.92))
+		else:
+			canvas.draw_string(ThemeDB.fallback_font, px + Vector2(-4.0, 5.0) * inv_zoom, label, HORIZONTAL_ALIGNMENT_LEFT, 20.0, font_size, Color(0.0, 0.0, 0.0, 0.92))
 
 
 ## Draw a victim diamond icon at pixel position px.
@@ -163,7 +181,10 @@ static func victim_icon(canvas: CanvasItem, px: Vector2, r: float, color: Color,
 	if selected:
 		canvas.draw_polyline(PackedVector2Array([pts[0], pts[1], pts[2], pts[3], pts[0]]), Color(1.0, 1.0, 1.0, 0.85), 2.0)
 	if ThemeDB.fallback_font != null:
-		canvas.draw_string(ThemeDB.fallback_font, px + Vector2(-4.0, 5.0) * inv_zoom, "V", HORIZONTAL_ALIGNMENT_LEFT, 16.0, font_size, Color(0.0, 0.0, 0.0, 0.92))
+		if canvas.has_method("_draw_screen_string"):
+			canvas.call("_draw_screen_string", px, Vector2(-4.0, 5.0), "V", 16.0, 10, Color(0.0, 0.0, 0.0, 0.92))
+		else:
+			canvas.draw_string(ThemeDB.fallback_font, px + Vector2(-4.0, 5.0) * inv_zoom, "V", HORIZONTAL_ALIGNMENT_LEFT, 16.0, font_size, Color(0.0, 0.0, 0.0, 0.92))
 
 
 ## Draw selection handles: resize handles (green) and a rotate handle (blue).

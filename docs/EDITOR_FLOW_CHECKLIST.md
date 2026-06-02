@@ -1,6 +1,6 @@
 # Checklist de flujo del editor — SimuFire v0.5.0
 **Versión**: v0.5.0 | **Fecha última revisión**: 2026-06-01
-**Cubre**: E-01 (popup de carga), E-02 (validación estructural en carga y en ejecución), E-03/E-03b (checklist + product guardrails), E-04 (@export `max_undo_steps` / `pixels_per_meter`), E-04b (EditorLoadErrorDialog extraído), E-05 (UI castellano), E-06 (EditorDraw2D — 11 helpers puros extraídos), E-08 (paneles compactos con pestañas), E-09 (edición precisa de objetos y habitaciones), E-10 (FP editor/HUD no solapado)
+**Cubre**: E-01 (popup de carga), E-02 (validación estructural en carga y en ejecución), E-03/E-03b (checklist + product guardrails), E-04 (@export `max_undo_steps` / `pixels_per_meter`), E-04b (EditorLoadErrorDialog extraído), E-05 (UI castellano), E-06 (EditorDraw2D — 11 helpers puros extraídos), E-08 (paneles compactos con pestañas), E-09 (edición precisa de objetos y habitaciones), E-10 (FP editor/HUD no solapado), E-11 (HUD FP editable), E-12 (rótulos 2D nítidos con zoom), E-13 (leyenda 3D opt-in), E-14 (ayuda contextual fiable), E-15 (paneles laterales editables)
 
 ---
 
@@ -24,6 +24,8 @@
 | A2 | Pulsar **Editor** | ScenarioEditorScene carga. Panel lateral compacto visible con pestañas **Dibujo / Lista / Archivo**. La pestaña **Archivo** aparece activa por defecto. Canvas 2D en blanco. Status bar en la parte inferior. | ☐ |
 | A3 | Verificar que el Inspector de Godot muestra `ScenarioEditor` con la propiedad **Editor UI → Load Error Dialog Title** | Campo de texto editable con valor `"Error al cargar escenario"` | ☐ |
 | A4 | Verificar grupo Inspector **Object Editing** | Propiedades editables: `object_move_snap_m`, `object_resize_snap_m`, `object_rotation_snap_deg`, `object_axis_snap_threshold_deg` | ☐ |
+| A5 | Dejar el cursor sobre pestañas, herramientas, modos 2D/3D/FP y botones principales | Aparece tooltip breve y específico. Si el cursor queda quieto sobre un elemento del plano, aparece ayuda contextual del elemento. | ☐ |
+| A6 | Revisar el espacio de canvas disponible a 1280×720 | Panel izquierdo y derecho son compactos; el derecho no invade innecesariamente el área de edición y ambos anchos son ajustables desde Inspector. | ☐ |
 
 ---
 
@@ -43,6 +45,7 @@
 | B10 | Seleccionar herramienta **Vict.** y colocar una víctima en la sala | Marcador de víctima visible. Nota: es un sensor de exposición (FED/CO/T), no un objeto de rescate. | ☐ |
 | B11 | Con **Sel**, clicar sobre la víctima colocada dentro de una habitación | La víctima se selecciona antes que la habitación | ☐ |
 | B12 | Abrir pestaña **Archivo** y activar HVAC desde la opción de HVAC | Opción HVAC activa (On/Off disponible) | ☐ |
+| B13 | Hacer zoom in/out sobre salas, pasillos, objetos, detector, víctima e inicio FP | Los rótulos y letras se mantienen nítidos; no aparecen ampliados desde baja resolución | ☐ |
 
 ---
 
@@ -102,7 +105,11 @@ Estas propiedades deben ser visibles/editables desde el Inspector de Godot sin t
 | Propiedad | Nodo | Grupo Inspector | Estado |
 |-----------|------|----------------|--------|
 | `load_error_dialog_title` | `ScenarioEditor` | `Editor UI` | ✅ @export (v0.5.0 E-01) |
+| `hover_help_delay_s` | `ScenarioEditor` | `Editor UI` | ✅ @export (E-14) |
+| `editor_left_panel_width_px` | `ScenarioEditor` | `Editor UI` | ✅ @export (E-15) |
+| `editor_right_panel_width_px` | `ScenarioEditor` | `Editor UI` | ✅ @export (E-15) |
 | `show_walls` | `Visualizer3D` | `Visibility` | ✅ @export existente |
+| `show_legend` | `Visualizer3D` | `Visibility` | ✅ @export, `false` por defecto (E-13) |
 | `show_smoke_volume` | `Visualizer3D` | `Visibility` | ✅ @export existente |
 | `smoke_visible_threshold_kg` | `Visualizer3D` | `Dynamics` | ✅ @export existente |
 | `default_room_height_m` | `Visualizer3D` | `Geometry` | ✅ @export existente |
@@ -110,6 +117,10 @@ Estas propiedades deben ser visibles/editables desde el Inspector de Godot sin t
 | `fp_fuel_object_update_interval_s` | `Visualizer3D` | `Visibility` | ✅ @export (v0.5.1 FP performance) |
 | `show_technical_overlay` | `FirstPersonController` | `Technical Overlay` | ✅ @export (v0.5.1 FP-02) |
 | `show_visibility_readout` | `FirstPersonController` | `Technical Overlay` | ✅ @export (v0.5.1 FP-03) |
+| `fp_status_panel_rect` | `FirstPersonController` | `FP HUD Layout` | ✅ @export (E-11) |
+| `technical_overlay_panel_rect` | `FirstPersonController` | `FP HUD Layout` | ✅ @export (E-11) |
+| `visibility_readout_panel_rect` | `FirstPersonController` | `FP HUD Layout` | ✅ @export (E-11) |
+| `fp_prompt_panel_rect` | `FirstPersonController` | `FP HUD Layout` | ✅ @export (E-11) |
 | `show_fire_fp` | — | — | ✅ N/A — fuego FP visible vía `World3D` compartido con `Visualizer3D`; controlado por `show_hrr_columns` (v0.5.1 FP-01 ✅) |
 | `max_undo_steps` | `ScenarioEditor` | `Editor UI` | ✅ @export (v0.5.0 E-04) |
 | `pixels_per_meter` | `ScenarioEditor` | `Editor UI` | ✅ @export (v0.5.0 E-04) |

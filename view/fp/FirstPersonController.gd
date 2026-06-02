@@ -127,6 +127,16 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Muestra readout compacto de visibilidad en FP cuando el overlay técnico está oculto.
 @export var show_visibility_readout: bool = true
 
+@export_group("FP HUD Layout")
+## Rect del panel superior de estado FP. x/y son offsets desde su ancla; w/h son tamaño.
+@export var fp_status_panel_rect: Rect2 = Rect2(430.0, 18.0, 360.0, 66.0)
+## Rect del panel técnico. Usa ancla inferior izquierda; y suele ser negativo para subirlo desde el borde inferior.
+@export var technical_overlay_panel_rect: Rect2 = Rect2(18.0, -178.0, 212.0, 160.0)
+## Rect del readout compacto de visibilidad. Usa ancla inferior izquierda.
+@export var visibility_readout_panel_rect: Rect2 = Rect2(18.0, -70.0, 178.0, 46.0)
+## Rect del prompt de interacción central.
+@export var fp_prompt_panel_rect: Rect2 = Rect2(-180.0, 22.0, 360.0, 60.0)
+
 var building: BuildingModel = null
 
 var _camera: Camera3D = null
@@ -214,6 +224,7 @@ func set_active(enabled: bool) -> void:
 	if _prompt_layer != null:
 		_prompt_layer.visible = enabled
 	if enabled:
+		apply_hud_layout()
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		_update_status_hud()
 		_update_prompt()
@@ -329,10 +340,7 @@ func _create_player_nodes() -> void:
 	_fp_status_panel = PanelContainer.new()
 	_fp_status_panel.name = "FirstPersonStatusPanel"
 	_fp_status_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_fp_status_panel.offset_left = 430.0
-	_fp_status_panel.offset_top = 18.0
-	_fp_status_panel.offset_right = 790.0
-	_fp_status_panel.offset_bottom = 84.0
+	_apply_panel_rect(_fp_status_panel, fp_status_panel_rect)
 	_fp_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_fp_status_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
 	_prompt_layer.add_child(_fp_status_panel)
@@ -352,10 +360,7 @@ func _create_player_nodes() -> void:
 	_technical_overlay_panel = PanelContainer.new()
 	_technical_overlay_panel.name = "TechnicalOverlayPanel"
 	_technical_overlay_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_technical_overlay_panel.offset_left = 18.0
-	_technical_overlay_panel.offset_top = -178.0
-	_technical_overlay_panel.offset_right = 230.0
-	_technical_overlay_panel.offset_bottom = -18.0
+	_apply_panel_rect(_technical_overlay_panel, technical_overlay_panel_rect)
 	_technical_overlay_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_technical_overlay_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
 	_technical_overlay_panel.visible = false
@@ -375,10 +380,7 @@ func _create_player_nodes() -> void:
 	_visibility_readout_panel = PanelContainer.new()
 	_visibility_readout_panel.name = "VisibilityReadoutPanel"
 	_visibility_readout_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_visibility_readout_panel.offset_left = 18.0
-	_visibility_readout_panel.offset_top = -70.0
-	_visibility_readout_panel.offset_right = 196.0
-	_visibility_readout_panel.offset_bottom = -24.0
+	_apply_panel_rect(_visibility_readout_panel, visibility_readout_panel_rect)
 	_visibility_readout_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_visibility_readout_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
 	_visibility_readout_panel.visible = false
@@ -419,10 +421,7 @@ func _create_player_nodes() -> void:
 	_prompt_panel = PanelContainer.new()
 	_prompt_panel.name = "PromptPanel"
 	_prompt_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_prompt_panel.offset_left = -180.0
-	_prompt_panel.offset_right = 180.0
-	_prompt_panel.offset_top = 22.0
-	_prompt_panel.offset_bottom = 82.0
+	_apply_panel_rect(_prompt_panel, fp_prompt_panel_rect)
 	_prompt_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_prompt_panel.visible = false
 	_prompt_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
@@ -441,6 +440,31 @@ func _create_player_nodes() -> void:
 	_prompt_label.add_theme_font_size_override("font_size", 13)
 	_prompt_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.72, 1.0))
 	prompt_margin.add_child(_prompt_label)
+	apply_hud_layout()
+
+
+func apply_hud_layout() -> void:
+	if _fp_status_panel != null:
+		_fp_status_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		_apply_panel_rect(_fp_status_panel, fp_status_panel_rect)
+	if _technical_overlay_panel != null:
+		_technical_overlay_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+		_apply_panel_rect(_technical_overlay_panel, technical_overlay_panel_rect)
+	if _visibility_readout_panel != null:
+		_visibility_readout_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+		_apply_panel_rect(_visibility_readout_panel, visibility_readout_panel_rect)
+	if _prompt_panel != null:
+		_prompt_panel.set_anchors_preset(Control.PRESET_CENTER)
+		_apply_panel_rect(_prompt_panel, fp_prompt_panel_rect)
+
+
+func _apply_panel_rect(panel: Control, rect: Rect2) -> void:
+	if panel == null:
+		return
+	panel.offset_left = rect.position.x
+	panel.offset_top = rect.position.y
+	panel.offset_right = rect.position.x + rect.size.x
+	panel.offset_bottom = rect.position.y + rect.size.y
 
 
 func _make_fp_hud_style() -> StyleBoxFlat:

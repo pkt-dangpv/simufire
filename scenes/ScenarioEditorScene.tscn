@@ -121,9 +121,9 @@ text = "Vict."
 layout_mode = 1
 anchors_preset = 9
 anchor_bottom = 1.0
-offset_top = 25.0
-offset_right = 360.0
-offset_bottom = 0.0
+offset_top = 16.0
+offset_right = 276.0
+offset_bottom = -76.0
 grow_vertical = 2
 scale = Vector2(1, 1)
 
@@ -132,12 +132,12 @@ layout_mode = 2
 theme_override_constants/separation = 7
 
 [node name="BrandHeader" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=481810983]
-custom_minimum_size = Vector2(0, 136)
+custom_minimum_size = Vector2(0, 84)
 layout_mode = 2
 theme_override_constants/separation = 6
 
 [node name="Logo" type="TextureRect" parent="CanvasLayer/UI/LeftPanel/VBox/BrandHeader" unique_id=1606370815]
-custom_minimum_size = Vector2(292, 106)
+custom_minimum_size = Vector2(236, 56)
 layout_mode = 2
 size_flags_horizontal = 3
 texture = ExtResource("4_logo")
@@ -146,7 +146,7 @@ stretch_mode = 5
 
 [node name="EditorModeLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/BrandHeader" unique_id=1858921621]
 layout_mode = 2
-text = "TACTICAL SCENARIO EDITOR"
+text = "EDITOR DE ESCENARIOS"
 horizontal_alignment = 1
 
 [node name="FloorSection" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1232621465]
@@ -290,7 +290,7 @@ layout_mode = 2
 text = "Editar plantilla"
 
 [node name="StatusLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1852960015]
-custom_minimum_size = Vector2(320, 120)
+custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
 text = "Editor listo"
 autowrap_mode = 3
@@ -301,10 +301,10 @@ anchors_preset = 11
 anchor_left = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -316.0
-offset_top = 20.0
+offset_left = -244.0
+offset_top = 16.0
 offset_right = -12.0
-offset_bottom = -86.0
+offset_bottom = -76.0
 grow_horizontal = 0
 grow_vertical = 2
 scale = Vector2(1, 1)

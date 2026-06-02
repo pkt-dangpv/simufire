@@ -63,8 +63,8 @@ const EDITOR_FONT_SIZE_BUTTON: int = 12
 const EDITOR_FONT_SIZE_STATUS: int = 13
 const EDITOR_HOVER_HELP_DELAY_S: float = 1.0
 const EDITOR_HOVER_HELP_MOVE_TOL_PX: float = 4.0
-const EDITOR_LEFT_PANEL_WIDTH_PX: float = 288.0
-const EDITOR_RIGHT_PANEL_WIDTH_PX: float = 260.0
+const EDITOR_LEFT_PANEL_WIDTH_PX: float = 276.0
+const EDITOR_RIGHT_PANEL_WIDTH_PX: float = 244.0
 const EDITOR_SIDE_PANEL_TOP_PX: float = 16.0
 const EDITOR_SIDE_PANEL_BOTTOM_PX: float = 76.0
 const EDITOR_TOP_BAR_HEIGHT_PX: float = 96.0
@@ -98,6 +98,9 @@ const OBJECT_WALL_SNAP_M: float = GRID_M * 0.75
 @export var load_error_dialog_title: String = "Error al cargar escenario"
 @export var max_undo_steps: int = 48
 @export var pixels_per_meter: float = 64.0
+@export_range(0.05, 2.0, 0.05) var hover_help_delay_s: float = EDITOR_HOVER_HELP_DELAY_S
+@export_range(240.0, 360.0, 1.0) var editor_left_panel_width_px: float = EDITOR_LEFT_PANEL_WIDTH_PX
+@export_range(220.0, 320.0, 1.0) var editor_right_panel_width_px: float = EDITOR_RIGHT_PANEL_WIDTH_PX
 
 @export_group("Object Editing")
 @export var object_move_snap_m: float = 0.05
@@ -440,13 +443,15 @@ func _apply_editor_theme_font_sizes(theme: Theme) -> void:
 
 
 func _normalize_editor_panel_readability() -> void:
+	var left_width_px: float = maxf(240.0, editor_left_panel_width_px)
+	var right_width_px: float = maxf(220.0, editor_right_panel_width_px)
 	var left_panel := _ui_root.get_node_or_null("LeftPanel") as Control
 	if left_panel != null:
 		left_panel.scale = Vector2.ONE
 		left_panel.offset_top = EDITOR_SIDE_PANEL_TOP_PX
-		left_panel.offset_right = EDITOR_LEFT_PANEL_WIDTH_PX
+		left_panel.offset_right = left_width_px
 		left_panel.offset_bottom = -EDITOR_SIDE_PANEL_BOTTOM_PX
-		left_panel.custom_minimum_size.x = EDITOR_LEFT_PANEL_WIDTH_PX
+		left_panel.custom_minimum_size.x = left_width_px
 		_restore_panel_vbox_from_scroll(left_panel)
 		var left_vbox := _find_left_vbox()
 		if left_vbox != null:
@@ -454,11 +459,11 @@ func _normalize_editor_panel_readability() -> void:
 	var right_panel := _ui_root.get_node_or_null("RightPanel") as Control
 	if right_panel != null:
 		right_panel.scale = Vector2.ONE
-		right_panel.offset_left = -EDITOR_RIGHT_PANEL_WIDTH_PX
+		right_panel.offset_left = -right_width_px
 		right_panel.offset_right = -12.0
 		right_panel.offset_top = EDITOR_SIDE_PANEL_TOP_PX
 		right_panel.offset_bottom = -EDITOR_SIDE_PANEL_BOTTOM_PX
-		right_panel.custom_minimum_size.x = EDITOR_RIGHT_PANEL_WIDTH_PX
+		right_panel.custom_minimum_size.x = right_width_px
 		var right_vbox := right_panel.get_node_or_null("VBox") as VBoxContainer
 		if right_vbox != null:
 			right_vbox.add_theme_constant_override("separation", 4)
@@ -595,6 +600,7 @@ func _ensure_left_tab_button(parent: Control, button_name: String, text: String,
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		parent.add_child(button)
 	button.text = text
+	button.tooltip_text = _left_tab_tooltip(tab_id)
 	button.toggle_mode = true
 	button.focus_mode = Control.FOCUS_NONE
 	var callback := Callable(self, "_set_left_editor_tab").bind(tab_id)
@@ -615,6 +621,18 @@ func _sync_left_tab_buttons() -> void:
 		var button := _left_tab_buttons[key] as Button
 		if button != null:
 			button.button_pressed = int(key) == _active_left_tab
+			button.tooltip_text = _left_tab_tooltip(int(key))
+
+
+func _left_tab_tooltip(tab_id: int) -> String:
+	match tab_id:
+		EditorLeftTab.TOOLS:
+			return "Dibujo: herramientas de creación y edición sobre el plano."
+		EditorLeftTab.SELECTION:
+			return "Lista: selecciona salas, objetos, aperturas, detectores, víctimas e inicio FP cuando se solapan."
+		EditorLeftTab.SCENARIO:
+			return "Archivo: guardar, cargar, plantillas, tiempo, luces, tipo de edificio y HVAC."
+	return ""
 
 
 func _sync_left_editor_tab_visibility() -> void:
@@ -687,6 +705,7 @@ func _ensure_hover_help_popup() -> void:
 
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_theme_constant_override("margin_left", 8)
 	margin.add_theme_constant_override("margin_top", 6)
 	margin.add_theme_constant_override("margin_right", 8)
@@ -695,6 +714,7 @@ func _ensure_hover_help_popup() -> void:
 
 	_hover_help_popup_label = Label.new()
 	_hover_help_popup_label.name = "HoverHelpLabel"
+	_hover_help_popup_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hover_help_popup_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hover_help_popup_label.custom_minimum_size.x = 220.0
 	_hover_help_popup_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
@@ -749,6 +769,7 @@ func _ensure_editor_mode_button(parent: Control, button_name: String, text: Stri
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		parent.add_child(button)
 	button.text = text
+	button.tooltip_text = _editor_view_mode_tooltip(mode)
 	button.toggle_mode = true
 	button.focus_mode = Control.FOCUS_NONE
 	var callback := Callable(self, "_set_editor_view_mode").bind(mode)
@@ -763,6 +784,18 @@ func _update_editor_mode_buttons() -> void:
 		var button := _editor_mode_buttons[key] as Button
 		if button != null:
 			button.button_pressed = int(key) == _editor_view_mode
+			button.tooltip_text = _editor_view_mode_tooltip(int(key))
+
+
+func _editor_view_mode_tooltip(mode: int) -> String:
+	match mode:
+		EditorViewMode.MODE_2D:
+			return "Vista 2D: edición precisa de geometría, aperturas, objetos y planta."
+		EditorViewMode.MODE_3D:
+			return "Vista 3D: inspección orbital y edición de elementos simples."
+		EditorViewMode.MODE_FP:
+			return "Vista FP: inspección en primera persona desde el marcador Inicio FP."
+	return ""
 
 
 func _ensure_editor_3d_nodes() -> void:
@@ -999,6 +1032,7 @@ func _sync_tool_button_states() -> void:
 		var button := _tool_buttons[key] as Button
 		if button != null:
 			button.button_pressed = int(key) == current_tool
+			button.tooltip_text = _tool_tooltip(int(key))
 
 
 func _tool_available_in_current_mode(tool_id: int) -> bool:
@@ -1022,6 +1056,15 @@ func _is_3d_simple_tool(tool_id: int) -> bool:
 		Tool.DETECTOR,
 		Tool.VICTIM
 	]
+
+
+func _tool_tooltip(tool_id: int) -> String:
+	var text: String = _tool_hint(tool_id)
+	if text == "":
+		return ""
+	if not _tool_available_in_current_mode(tool_id):
+		return "%s\nNo disponible en el modo actual." % text
+	return text
 
 
 func _update_editor_visualizer_drag_mode() -> void:
@@ -2146,6 +2189,7 @@ func _ensure_controls_help_block(parent: Control) -> void:
 		_hover_help_check.button_pressed = _hover_help_enabled
 		_hover_help_check.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		hover_row.add_child(_hover_help_check)
+	_hover_help_check.tooltip_text = "Activa carteles sobre los elementos dibujados al dejar el cursor quieto en el plano."
 	var hover_callable := Callable(self, "_on_hover_help_toggled")
 	if not _hover_help_check.toggled.is_connected(hover_callable):
 		_hover_help_check.toggled.connect(hover_callable)
@@ -2158,7 +2202,7 @@ func _ensure_controls_help_block(parent: Control) -> void:
 		parent.add_child(_help_toggle_button)
 	_help_toggle_button.toggle_mode = false
 	_help_toggle_button.text = "AYUDA DEL EDITOR"
-	_help_toggle_button.tooltip_text = "Muestra una guia rapida del editor."
+	_help_toggle_button.tooltip_text = "Abre la guía rápida del editor en una ventana modal paginada."
 	var help_callable := Callable(self, "_show_editor_help_dialog")
 	if not _help_toggle_button.pressed.is_connected(help_callable):
 		_help_toggle_button.pressed.connect(help_callable)
@@ -3095,7 +3139,13 @@ func _handle_release(pos_m: Vector2) -> void:
 
 func _is_pointer_over_ui() -> bool:
 	var hovered: Control = get_viewport().gui_get_hovered_control()
-	return hovered != null and _ui_root != null and _ui_root.is_ancestor_of(hovered)
+	if hovered == null or _ui_root == null:
+		return false
+	if hovered == _ui_root:
+		return false
+	if _hover_help_popup != null and (hovered == _hover_help_popup or _hover_help_popup.is_ancestor_of(hovered)):
+		return false
+	return _ui_root.is_ancestor_of(hovered)
 
 
 func _screen_to_m(screen_pos: Vector2) -> Vector2:
@@ -6089,9 +6139,8 @@ func _draw() -> void:
 	_draw_victims()
 	if is_dragging_exterior_wall:
 		draw_line(_m_to_px(drag_start_m), _m_to_px(drag_current_m), _exterior_wall_selected_color, 4.0)
-		if ThemeDB.fallback_font != null:
-			var wall_length_m: float = _snap_m(drag_start_m).distance_to(_snap_m(drag_current_m))
-			draw_string(ThemeDB.fallback_font, _m_to_px(drag_current_m) + Vector2(8.0, -8.0), "Muro exterior %.2f m" % wall_length_m, HORIZONTAL_ALIGNMENT_LEFT, 220.0, 13, _exterior_wall_selected_color)
+		var wall_length_m: float = _snap_m(drag_start_m).distance_to(_snap_m(drag_current_m))
+		_draw_screen_string(_m_to_px(drag_current_m), Vector2(8.0, -8.0), "Muro exterior %.2f m" % wall_length_m, 220.0, 13, _exterior_wall_selected_color)
 	if is_dragging_room:
 		if current_tool == Tool.CORRIDOR_L:
 			_draw_corridor_drag_preview()
@@ -6105,17 +6154,16 @@ func _draw() -> void:
 			outline_color = Color(1.0, 0.80, 0.28, 0.95)
 		draw_rect(rect_px, fill_color, true)
 		draw_rect(rect_px, outline_color, false, 2.0)
-		if ThemeDB.fallback_font != null and rect.size.x > 0.01 and rect.size.y > 0.01:
+		if rect.size.x > 0.01 and rect.size.y > 0.01:
 			var area: float = rect.size.x * rect.size.y
 			var preview_text: String = "%.2f × %.2f m  (%.2f m²)" % [rect.size.x, rect.size.y, area]
 			if current_tool == Tool.STAIRS:
 				preview_text = "Escalera  " + preview_text
-			draw_string(
-				ThemeDB.fallback_font,
-				rect_px.position + Vector2(6.0, 18.0),
+			_draw_screen_string(
+				rect_px.position,
+				Vector2(6.0, 18.0),
 				preview_text,
-				HORIZONTAL_ALIGNMENT_LEFT,
-				maxf(60.0, rect_px.size.x - 8.0),
+				maxf(60.0, _screen_width_px(rect_px.size.x) - 8.0),
 				12,
 				Color(0.55, 0.90, 1.0, 0.95)
 			)
@@ -6131,6 +6179,27 @@ func _screen_font_size(base_size: int) -> int:
 
 func _screen_offset(offset_px: Vector2) -> Vector2:
 	return offset_px * _screen_scale_inv()
+
+
+func _screen_width_px(world_width_px: float) -> float:
+	return world_width_px * maxf(0.05, camera.zoom.x)
+
+
+func _draw_screen_string(anchor_px: Vector2, offset_px: Vector2, text: String, max_width_px: float, font_size: int, color: Color) -> void:
+	var font: Font = _editor_font if _editor_font != null else ThemeDB.fallback_font
+	if font == null or text == "":
+		return
+	draw_set_transform(anchor_px, 0.0, Vector2(_screen_scale_inv(), _screen_scale_inv()))
+	draw_string(
+		font,
+		offset_px,
+		text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		max_width_px,
+		font_size,
+		color
+	)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func _track_hover_help_mouse(screen_pos: Vector2) -> void:
@@ -6154,7 +6223,7 @@ func _update_hover_help(delta: float) -> void:
 			_reset_hover_help()
 		return
 	_hover_help_idle_s += delta
-	if _hover_help_idle_s < EDITOR_HOVER_HELP_DELAY_S:
+	if _hover_help_idle_s < maxf(0.05, hover_help_delay_s):
 		return
 	var next_text: String = _hover_help_text_at(_hover_help_world_pos_m)
 	if next_text != _hover_help_text:
@@ -6265,16 +6334,7 @@ func _draw_corridor_drag_preview() -> void:
 	var layout: Dictionary = _build_corridor_layout(drag_start_m, drag_current_m)
 	if layout.has("error"):
 		draw_line(_m_to_px(drag_start_m), _m_to_px(drag_current_m), Color(1.0, 0.34, 0.24, 0.85), 2.0)
-		if ThemeDB.fallback_font != null:
-			draw_string(
-				ThemeDB.fallback_font,
-				_m_to_px(drag_current_m) + Vector2(8.0, -8.0),
-				String(layout["error"]),
-				HORIZONTAL_ALIGNMENT_LEFT,
-				260.0,
-				12,
-				Color(1.0, 0.70, 0.62, 0.95)
-			)
+		_draw_screen_string(_m_to_px(drag_current_m), Vector2(8.0, -8.0), String(layout["error"]), 260.0, 12, Color(1.0, 0.70, 0.62, 0.95))
 		return
 
 	var rects: Array = layout.get("rects", [])
@@ -6298,17 +6358,8 @@ func _draw_corridor_drag_preview() -> void:
 	draw_circle(start_px, 4.0, Color(0.98, 1.0, 0.80, 0.95))
 	draw_circle(end_px, 4.0, Color(0.98, 1.0, 0.80, 0.95))
 
-	if ThemeDB.fallback_font != null:
-		var label: String = "Pasillo %s  ancho %.2f m" % ["L" if mode == "l" else "recto", corridor_width_m]
-		draw_string(
-			ThemeDB.fallback_font,
-			end_px + Vector2(8.0, -8.0),
-			label,
-			HORIZONTAL_ALIGNMENT_LEFT,
-			220.0,
-			12,
-			Color(0.72, 1.0, 0.94, 0.96)
-		)
+	var label: String = "Pasillo %s  ancho %.2f m" % ["L" if mode == "l" else "recto", corridor_width_m]
+	_draw_screen_string(end_px, Vector2(8.0, -8.0), label, 220.0, 12, Color(0.72, 1.0, 0.94, 0.96))
 
 
 func _draw_lower_floor_ghost() -> void:
@@ -6327,14 +6378,13 @@ func _draw_lower_floor_ghost() -> void:
 		draw_rect(rect_px, _lower_floor_ghost_outline, false, 1.2)
 		if _is_stair_room(room_dict):
 			_draw_stair_room_guides(rect_px, room_dict)
-		if ThemeDB.fallback_font != null and rect_px.size.x > 28.0 and rect_px.size.y > 24.0:
-			draw_string(
-				ThemeDB.fallback_font,
-				rect_px.position + _screen_offset(Vector2(6.0, 16.0)),
+		if rect_px.size.x > 28.0 and rect_px.size.y > 24.0:
+			_draw_screen_string(
+				rect_px.position,
+				Vector2(6.0, 16.0),
 				_room_display_name(room_dict, int(room_dict.get("id", -1))),
-				HORIZONTAL_ALIGNMENT_LEFT,
-				maxf(30.0, rect_px.size.x - 8.0),
-				_screen_font_size(10),
+				maxf(30.0, _screen_width_px(rect_px.size.x) - 8.0),
+				10,
 				Color(0.74, 0.82, 0.88, 0.34)
 			)
 	var openings: Array = editor_data.get("openings_data", [])
@@ -6427,41 +6477,38 @@ func _draw_rooms() -> void:
 			_draw_stair_room_guides(rect_px, room)
 		if is_corridor or is_stairs:
 			_draw_narrow_room_dimension_labels(rect, rect_px, is_stairs)
-		if ThemeDB.fallback_font != null:
-			var h: float = float(room.get("height_m", 2.7))
-			var area_m2: float = rect.size.x * rect.size.y
-			var vol_m3: float = area_m2 * h
-			var dim_text: String = "%.2f × %.2f m" % [rect.size.x, rect.size.y]
-			var area_text: String = "%.2f m²  ·  %.2f m³" % [area_m2, vol_m3]
-			draw_string(
-				ThemeDB.fallback_font,
-				rect_px.position + _screen_offset(Vector2(8.0, 18.0)),
-				_room_display_name(room, room_id),
-				HORIZONTAL_ALIGNMENT_LEFT,
-				maxf(40.0, rect_px.size.x - 12.0),
-				_screen_font_size(13),
-				Color(0.94, 0.97, 1.0, 0.92)
+		var h: float = float(room.get("height_m", 2.7))
+		var area_m2: float = rect.size.x * rect.size.y
+		var vol_m3: float = area_m2 * h
+		var dim_text: String = "%.2f × %.2f m" % [rect.size.x, rect.size.y]
+		var area_text: String = "%.2f m²  ·  %.2f m³" % [area_m2, vol_m3]
+		var label_width_px: float = maxf(40.0, _screen_width_px(rect_px.size.x) - 12.0)
+		_draw_screen_string(
+			rect_px.position,
+			Vector2(8.0, 18.0),
+			_room_display_name(room, room_id),
+			label_width_px,
+			13,
+			Color(0.94, 0.97, 1.0, 0.92)
+		)
+		if rect_px.size.y >= 36.0:
+			_draw_screen_string(
+				rect_px.position,
+				Vector2(8.0, 32.0),
+				dim_text,
+				label_width_px,
+				11,
+				Color(0.75, 0.88, 0.95, 0.85)
 			)
-			if rect_px.size.y >= 36.0:
-				draw_string(
-					ThemeDB.fallback_font,
-					rect_px.position + _screen_offset(Vector2(8.0, 32.0)),
-					dim_text,
-					HORIZONTAL_ALIGNMENT_LEFT,
-					maxf(40.0, rect_px.size.x - 12.0),
-					_screen_font_size(11),
-					Color(0.75, 0.88, 0.95, 0.85)
-				)
-			if rect_px.size.y >= 52.0:
-				draw_string(
-					ThemeDB.fallback_font,
-					rect_px.position + _screen_offset(Vector2(8.0, 46.0)),
-					area_text,
-					HORIZONTAL_ALIGNMENT_LEFT,
-					maxf(40.0, rect_px.size.x - 12.0),
-					_screen_font_size(11),
-					Color(0.65, 0.82, 0.65, 0.85)
-				)
+		if rect_px.size.y >= 52.0:
+			_draw_screen_string(
+				rect_px.position,
+				Vector2(8.0, 46.0),
+				area_text,
+				label_width_px,
+				11,
+				Color(0.65, 0.82, 0.65, 0.85)
+			)
 		if room_id == selected_room_id:
 			_draw_selected_room_handles(room_id)
 
@@ -6595,14 +6642,14 @@ func _draw_objects() -> void:
 				draw_circle(center_px, 3.5, Color(1.0, 0.94, 0.25, 0.98))
 			if selected:
 				_draw_selected_object_handles(room_rect, obj)
-			if ThemeDB.fallback_font != null and size.x * pixels_per_meter >= 48.0:
-				draw_string(
-					ThemeDB.fallback_font,
-					center_px + Vector2(-size.x * pixels_per_meter * 0.5, 0.0) + _screen_offset(Vector2(4.0, 12.0)),
+			if size.x * pixels_per_meter >= 48.0:
+				var label_anchor_px: Vector2 = center_px + Vector2(-size.x * pixels_per_meter * 0.5, 0.0)
+				_draw_screen_string(
+					label_anchor_px,
+					Vector2(4.0, 12.0),
 					String(obj.get("name", obj.get("kind", ""))),
-					HORIZONTAL_ALIGNMENT_LEFT,
-					maxf(16.0, size.x * pixels_per_meter - 8.0),
-					_screen_font_size(10),
+					maxf(16.0, _screen_width_px(size.x * pixels_per_meter) - 8.0),
+					10,
 					Color(0.08, 0.05, 0.03, 0.9)
 				)
 
@@ -6966,16 +7013,24 @@ func _bind_existing_ui() -> bool:
 		_detector_type_option.add_item("Calor", 1)
 		_detector_type_option.add_item("CO", 2)
 	_detector_threshold_spin = _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/DetectorThresholdSpin") as SpinBox
-	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/BtnApplyDetector") as Button, _apply_detector_properties)
-	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/BtnDeleteDetector") as Button, _delete_selected)
+	var apply_detector_button := _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/BtnApplyDetector") as Button
+	var delete_detector_button := _ui_root.get_node_or_null("RightPanel/VBox/DetectorProps/BtnDeleteDetector") as Button
+	_set_control_tooltip(apply_detector_button, "Aplica tipo, umbral y posición del detector seleccionado.")
+	_set_control_tooltip(delete_detector_button, "Borra el detector seleccionado.")
+	_connect_button(apply_detector_button, _apply_detector_properties)
+	_connect_button(delete_detector_button, _delete_selected)
 
 	_victim_props_container = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps") as Control
 	_victim_name_edit = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/VictimNameEdit") as LineEdit
 	_victim_x_spin = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/VictimXSpin") as SpinBox
 	_victim_y_spin = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/VictimYSpin") as SpinBox
 	_victim_height_spin = _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/VictimHeightSpin") as SpinBox
-	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/VictimProps/BtnApplyVictim") as Button, _apply_victim_properties)
-	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/VictimProps/BtnDeleteVictim") as Button, _delete_selected)
+	var apply_victim_button := _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/BtnApplyVictim") as Button
+	var delete_victim_button := _ui_root.get_node_or_null("RightPanel/VBox/VictimProps/BtnDeleteVictim") as Button
+	_set_control_tooltip(apply_victim_button, "Aplica nombre, posición local y plano respiratorio de la víctima seleccionada.")
+	_set_control_tooltip(delete_victim_button, "Borra la víctima seleccionada.")
+	_connect_button(apply_victim_button, _apply_victim_properties)
+	_connect_button(delete_victim_button, _delete_selected)
 
 	_wall_props_container = _ui_root.get_node_or_null("RightPanel/VBox/ExteriorWallProps") as Control
 	_wall_start_x_spin = _ui_root.get_node_or_null("RightPanel/VBox/ExteriorWallProps/WallStartXSpin") as SpinBox
@@ -6988,6 +7043,7 @@ func _bind_existing_ui() -> bool:
 		return false
 	if _name_edit == null or _kind_edit == null or _height_spin == null or _fuel_spin == null or _hrr_spin == null:
 		return false
+	_status_label.custom_minimum_size = Vector2(0.0, 64.0)
 
 	_populate_object_type_option()
 	_ensure_floor_controls_in_existing_ui()
@@ -7013,23 +7069,40 @@ func _bind_existing_ui() -> bool:
 		_opening_open_option.add_item("Abierta", 1)
 	_populate_opening_direction_options()
 
-	_connect_button(_get_left_node("BtnSave") as Button, _save_pressed)
-	_connect_button(_get_left_node("BtnLoad") as Button, _load_pressed)
+	var save_button := _get_left_node("BtnSave") as Button
+	var load_button := _get_left_node("BtnLoad") as Button
+	_set_control_tooltip(save_button, "Guarda el escenario actual en la ruta indicada.")
+	_set_control_tooltip(load_button, "Carga un escenario desde la ruta indicada sin perder el anterior si falla la validación.")
+	_connect_button(save_button, _save_pressed)
+	_connect_button(load_button, _load_pressed)
 	var export_button := _get_left_node("BtnExportRuntime") as Button
 	if export_button != null:
 		export_button.text = "Exportar simulacion"
 		export_button.tooltip_text = "Guarda una copia interna para probar la simulacion; Iniciar simulacion lo hace automaticamente."
 	_connect_button(export_button, _export_runtime_pressed)
-	_connect_button(_get_left_node("BtnLoadScenario") as Button, _load_scenario_pressed)
+	var load_scenario_button := _get_left_node("BtnLoadScenario") as Button
+	_set_control_tooltip(load_scenario_button, "Carga la plantilla seleccionada en el editor.")
+	_connect_button(load_scenario_button, _load_scenario_pressed)
 	_room_apply_button = _ui_root.get_node_or_null("RightPanel/VBox/BtnApplyRoom") as Button
 	_room_delete_button = _ui_root.get_node_or_null("RightPanel/VBox/BtnDeleteRoom") as Button
+	_set_control_tooltip(_room_apply_button, "Aplica los cambios numéricos de la habitación seleccionada.")
+	_set_control_tooltip(_room_delete_button, "Borra la habitación seleccionada.")
 	_connect_button(_room_apply_button, _apply_room_properties)
 	_connect_button(_room_delete_button, _delete_selected_room)
+	_set_control_tooltip(_room_mark_exterior_button, "Marca la habitación seleccionada como parte del contorno exterior.")
 	_connect_button(_room_mark_exterior_button, _mark_selected_room_exterior)
-	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/ObjProps/BtnApplyObject") as Button, _apply_object_properties)
-	_connect_button(_ui_root.get_node_or_null("RightPanel/VBox/ObjProps/BtnDeleteObject") as Button, _delete_selected)
-	_connect_button(_ui_root.get_node_or_null("BottomBar/HBox/BtnStartSimulation") as Button, _run_simulation_pressed)
-	_connect_button(_ui_root.get_node_or_null("BottomBar/HBox/BtnCancel") as Button, _cancel_pressed)
+	var apply_object_button := _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/BtnApplyObject") as Button
+	var delete_object_button := _ui_root.get_node_or_null("RightPanel/VBox/ObjProps/BtnDeleteObject") as Button
+	_set_control_tooltip(apply_object_button, "Aplica posición, tamaño, rotación y combustible del objeto seleccionado.")
+	_set_control_tooltip(delete_object_button, "Borra el objeto seleccionado.")
+	_connect_button(apply_object_button, _apply_object_properties)
+	_connect_button(delete_object_button, _delete_selected)
+	var start_sim_button := _ui_root.get_node_or_null("BottomBar/HBox/BtnStartSimulation") as Button
+	var cancel_button := _ui_root.get_node_or_null("BottomBar/HBox/BtnCancel") as Button
+	_set_control_tooltip(start_sim_button, "Valida, exporta y abre la simulación con el escenario actual.")
+	_set_control_tooltip(cancel_button, "Sale del editor y vuelve al menú principal.")
+	_connect_button(start_sim_button, _run_simulation_pressed)
+	_connect_button(cancel_button, _cancel_pressed)
 
 	if _stop_time_spin != null:
 		_stop_time_spin.value = 0.0
@@ -7046,6 +7119,8 @@ func _bind_existing_ui() -> bool:
 
 func _register_tool_button(button: Button, tool_id: int) -> void:
 	button.toggle_mode = true
+	button.focus_mode = Control.FOCUS_NONE
+	button.tooltip_text = _tool_tooltip(tool_id)
 	if not button.pressed.is_connected(Callable(self, "_set_tool").bind(tool_id)):
 		button.pressed.connect(Callable(self, "_set_tool").bind(tool_id))
 	_tool_buttons[tool_id] = button
@@ -7056,6 +7131,11 @@ func _connect_button(button: Button, callback: Callable) -> void:
 		return
 	if not button.pressed.is_connected(callback):
 		button.pressed.connect(callback)
+
+
+func _set_control_tooltip(control: Control, text: String) -> void:
+	if control != null:
+		control.tooltip_text = text
 
 
 func _ensure_spin_row(parent: Control, row_name: String, label_text: String, spin_name: String, min_value: float, max_value: float, step: float) -> SpinBox:
