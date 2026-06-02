@@ -560,7 +560,7 @@ func _create_floors(rects: Dictionary) -> void:
 		var rect: Rect2 = Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id)) if building != null else null
 		if room != null and _room_is_stairwell(room) and room.floor_level_z_m > 0.20:
-			_create_stairwell_upper_floor(int(room_id), rect, room.floor_level_z_m, _room_stair_run_direction(room))
+			_create_stairwell_upper_floor(int(room_id), rect, room.floor_level_z_m, _room_stair_run_direction(room), room.stair_turn_degrees)
 			continue
 		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
 		var body := StaticBody3D.new()
@@ -574,10 +574,13 @@ func _create_floors(rects: Dictionary) -> void:
 		_add_box(body, "FloorMesh", Vector3(rect.size.x, floor_thickness_m, rect.size.y), center, _floor_material_for_room(int(room_id)), true)
 
 
-func _create_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: float, stair_dir: Vector2) -> void:
+func _create_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: float, stair_dir: Vector2, turn_degrees: float = 0.0) -> void:
 	var ramp_width_m: float = _stair_ramp_width_m(rect, stair_dir)
 	var landing_depth_m: float = _stair_top_landing_depth_m(rect, stair_dir)
 	var material := _floor_material_for_room(room_id)
+	if turn_degrees >= 179.0 and _stair_cross_span_m(rect, stair_dir) >= 1.65:
+		_create_switchback_stairwell_upper_floor(room_id, rect, floor_level_m, stair_dir, material)
+		return
 
 	if absf(stair_dir.x) > absf(stair_dir.y):
 		var ramp_top_m: float = rect.position.y + rect.size.y * 0.5 - ramp_width_m * 0.5
@@ -604,6 +607,32 @@ func _create_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: flo
 	if landing_depth_m >= 0.28:
 		var landing_y_m: float = rect.position.y + rect.size.y - landing_depth_m if stair_dir.y > 0.0 else rect.position.y
 		_add_floor_slab("StairTopLanding_%s" % str(room_id), Rect2(rect.position.x, landing_y_m, rect.size.x, landing_depth_m), floor_level_m, material)
+
+
+func _create_switchback_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: float, stair_dir: Vector2, material: StandardMaterial3D) -> void:
+	var gap_m: float = 0.18
+	var cross_span_m: float = _stair_cross_span_m(rect, stair_dir)
+	var flight_width_m: float = clampf((cross_span_m - gap_m) * 0.5, 0.72, 1.05)
+	var shaft_width_m: float = minf(cross_span_m, flight_width_m * 2.0 + gap_m + 0.18)
+	if absf(stair_dir.x) > absf(stair_dir.y):
+		var shaft_top_m: float = rect.position.y + rect.size.y * 0.5 - shaft_width_m * 0.5
+		var shaft_bottom_m: float = shaft_top_m + shaft_width_m
+		var top_height_m: float = maxf(0.0, shaft_top_m - rect.position.y)
+		if top_height_m >= 0.28:
+			_add_floor_slab("StairSwitchbackSideTop_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, rect.size.x, top_height_m), floor_level_m, material)
+		var bottom_height_m: float = maxf(0.0, rect.position.y + rect.size.y - shaft_bottom_m)
+		if bottom_height_m >= 0.28:
+			_add_floor_slab("StairSwitchbackSideBottom_%s" % str(room_id), Rect2(rect.position.x, shaft_bottom_m, rect.size.x, bottom_height_m), floor_level_m, material)
+		return
+
+	var shaft_left_m: float = rect.position.x + rect.size.x * 0.5 - shaft_width_m * 0.5
+	var shaft_right_m: float = shaft_left_m + shaft_width_m
+	var left_width_m: float = maxf(0.0, shaft_left_m - rect.position.x)
+	if left_width_m >= 0.28:
+		_add_floor_slab("StairSwitchbackSideLeft_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, left_width_m, rect.size.y), floor_level_m, material)
+	var right_width_m: float = maxf(0.0, rect.position.x + rect.size.x - shaft_right_m)
+	if right_width_m >= 0.28:
+		_add_floor_slab("StairSwitchbackSideRight_%s" % str(room_id), Rect2(shaft_right_m, rect.position.y, right_width_m, rect.size.y), floor_level_m, material)
 
 
 func _add_floor_slab(node_name: String, rect: Rect2, floor_level_m: float, material: StandardMaterial3D) -> void:
@@ -793,7 +822,7 @@ func _create_stair_ramp(rect: Rect2, lower_level_m: float, upper_level_m: float,
 		)
 		step.rotation.y = yaw
 	if has_railings:
-		_create_stair_railings(rect, lower_level_m, run_m, stair_dir, yaw)
+		_create_stair_railings(rect, lower_level_m, rise_m, run_m, stair_dir, yaw, angle)
 
 
 func _create_switchback_stair_ramp(rect: Rect2, lower_level_m: float, upper_level_m: float, stair_dir: Vector2, has_railings: bool) -> void:
@@ -869,33 +898,37 @@ func _create_stair_flight_segment(node_name: String, start_2d: Vector2, flight_d
 		step.rotation.y = yaw
 	if has_railings:
 		var normal := Vector2(-flight_dir.y, flight_dir.x)
+		var rail_length_m: float = sqrt(run_m * run_m + rise_m * rise_m)
 		for side in [-1.0, 1.0]:
 			var rail_center_2d: Vector2 = center_2d + normal * (width_m * 0.5 + 0.08) * side
 			var rail := _add_box(
 				_world_root,
 				"%sRailing" % node_name,
-				Vector3(0.045, 0.08, run_m),
-				_to_world(Vector3(rail_center_2d.x, lower_y_m + rise_m * 0.5 + 0.72, rail_center_2d.y)),
+				Vector3(0.045, 0.08, rail_length_m),
+				_to_world(Vector3(rail_center_2d.x, lower_y_m + rise_m * 0.5 + 0.82, rail_center_2d.y)),
 				_mat(Color(0.18, 0.14, 0.10, 1.0), false),
 				false
 			)
+			rail.rotation.x = -angle
 			rail.rotation.y = yaw
 
 
-func _create_stair_railings(rect: Rect2, lower_level_m: float, run_m: float, stair_dir: Vector2, yaw: float) -> void:
+func _create_stair_railings(rect: Rect2, lower_level_m: float, rise_m: float, run_m: float, stair_dir: Vector2, yaw: float, angle: float) -> void:
 	var center_2d: Vector2 = _stair_point_along_run(rect, stair_dir, 0.22 + run_m * 0.5)
 	var normal := Vector2(-stair_dir.y, stair_dir.x)
 	var half_width: float = _stair_ramp_width_m(rect, stair_dir) * 0.5 + 0.08
+	var rail_length_m: float = sqrt(run_m * run_m + rise_m * rise_m)
 	for side in [-1.0, 1.0]:
 		var rail_2d: Vector2 = center_2d + normal * half_width * side
 		var rail := _add_box(
 			_world_root,
 			"StairRailing",
-			Vector3(0.045, 0.08, run_m),
-			_to_world(Vector3(rail_2d.x, lower_level_m + 1.02, rail_2d.y)),
+			Vector3(0.045, 0.08, rail_length_m),
+			_to_world(Vector3(rail_2d.x, lower_level_m + rise_m * 0.5 + 0.82, rail_2d.y)),
 			_mat(Color(0.18, 0.14, 0.10, 1.0), false),
 			false
 		)
+		rail.rotation.x = -angle
 		rail.rotation.y = yaw
 
 

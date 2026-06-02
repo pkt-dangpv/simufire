@@ -6609,6 +6609,38 @@ func _vertical_opening_rect(opening: Dictionary) -> Rect2:
 	var room_rect: Rect2 = _get_room_rect(a_id)
 	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
 		return Rect2()
+	var room: Dictionary = _get_room(a_id)
+	if not room.is_empty() and _is_stair_room(room):
+		var stair_dir: Vector2 = _room_stair_run_direction(room)
+		var turn_degrees: float = float(room.get("stair_turn_degrees", 0.0))
+		if turn_degrees >= 179.0:
+			var gap_m: float = 0.18
+			var cross_span_m: float = _stair_cross_span_m(room_rect, stair_dir)
+			var flight_width_m: float = clampf((cross_span_m - gap_m) * 0.5, 0.72, 1.05)
+			var shaft_width_m: float = minf(cross_span_m, flight_width_m * 2.0 + gap_m + 0.18)
+			if absf(stair_dir.x) > absf(stair_dir.y):
+				return Rect2(
+					Vector2(room_rect.position.x, room_rect.get_center().y - shaft_width_m * 0.5),
+					Vector2(room_rect.size.x, shaft_width_m)
+				)
+			return Rect2(
+				Vector2(room_rect.get_center().x - shaft_width_m * 0.5, room_rect.position.y),
+				Vector2(shaft_width_m, room_rect.size.y)
+			)
+		var width_m: float = minf(float(opening.get("width_m", _stair_ramp_width_m(room_rect, stair_dir))), maxf(0.2, _stair_cross_span_m(room_rect, stair_dir) - 0.2))
+		var run_m: float = minf(float(opening.get("height_m", _stair_long_span_m(room_rect, stair_dir) * 0.7)), maxf(0.2, _stair_long_span_m(room_rect, stair_dir) - 0.2))
+		var start_margin_m: float = 0.22
+		if absf(stair_dir.x) > absf(stair_dir.y):
+			var x_m: float = room_rect.position.x + start_margin_m if stair_dir.x > 0.0 else room_rect.position.x + room_rect.size.x - start_margin_m - run_m
+			return Rect2(
+				Vector2(x_m, room_rect.get_center().y - width_m * 0.5),
+				Vector2(run_m, width_m)
+			)
+		var y_m: float = room_rect.position.y + start_margin_m if stair_dir.y > 0.0 else room_rect.position.y + room_rect.size.y - start_margin_m - run_m
+		return Rect2(
+			Vector2(room_rect.get_center().x - width_m * 0.5, y_m),
+			Vector2(width_m, run_m)
+		)
 	var width_m: float = minf(float(opening.get("width_m", room_rect.size.x * 0.5)), maxf(0.2, room_rect.size.x - 0.2))
 	var depth_m: float = minf(float(opening.get("height_m", room_rect.size.y * 0.55)), maxf(0.2, room_rect.size.y - 0.2))
 	return Rect2(room_rect.get_center() - Vector2(width_m, depth_m) * 0.5, Vector2(width_m, depth_m))
