@@ -1,8 +1,7 @@
 """check_product.py — Product/editor guardrails for SimuFire.
 
-Runs the editor and product test suites without Godot or the scientific
-simulation suite.  This script is intentionally SEPARATE from the scientific
-validation pipeline:
+Runs editor/product tests plus lightweight Godot geometry checks. This script
+is intentionally SEPARATE from the scientific validation pipeline:
 
   Product/editor checks:   python scripts/check_product.py        ← this file
   Scientific guardrails:   python scripts/simulation/validation_guardrails.py
@@ -16,12 +15,18 @@ Exit codes:
     1 — one or more product tests FAIL
 """
 
+import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
+_GODOT_CANDIDATES = [
+    Path("C:/Users/dangp/Desktop/Godot_v4.6.3-stable_win64_console.exe"),
+    Path("F:/OneDrive/Escritorio/Godot_v4.6.3-stable_win64_console.exe"),
+]
 
 # En Windows, piped stdout puede usar cp1252; reconfigure para UTF-8 si disponible
 if hasattr(sys.stdout, "reconfigure"):
@@ -62,6 +67,51 @@ def _run_test(module_path: Path) -> tuple[int, int, int]:
     return result.returncode, tests_run, fails
 
 
+def _find_godot() -> Path | None:
+    env_path = os.environ.get("GODOT_EXE")
+    if env_path:
+        candidate = Path(env_path)
+        if candidate.exists():
+            return candidate
+
+    for candidate in _GODOT_CANDIDATES:
+        if candidate.exists():
+            return candidate
+
+    path_hit = shutil.which("godot")
+    if path_hit:
+        return Path(path_hit)
+    return None
+
+
+def _run_godot_scene(scene_path: str, timeout_s: int = 60) -> tuple[int, int, int, str]:
+    """
+    Run a small Godot headless product check scene.
+    Returns (exit_code, checks_run, failures, diagnostic).
+    """
+    godot = _find_godot()
+    if godot is None:
+        return 1, 1, 1, "Godot not found. Set GODOT_EXE or add godot to PATH."
+
+    result = subprocess.run(
+        [
+            str(godot),
+            "--headless",
+            "--path",
+            str(_REPO_ROOT),
+            scene_path,
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(_REPO_ROOT),
+        timeout=timeout_s,
+    )
+    combined = (result.stdout or "") + (result.stderr or "")
+    passed = result.returncode == 0 and "STAIR GEOMETRY VALIDATION PASS" in combined
+    diagnostic = "" if passed else combined.strip()
+    return result.returncode, 1, 0 if passed else 1, diagnostic
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -79,17 +129,27 @@ def main() -> int:
         (
             "Editor/scenario JSON tests",
             _REPO_ROOT / "tests" / "test_editor_scenarios.py",
+            "python tests/test_editor_scenarios.py",
         ),
         (
             "Guardrail script unit tests",
             _REPO_ROOT / "tests" / "test_guardrails.py",
+            "python tests/test_guardrails.py",
         ),
     ]
 
     rows = []
-    for label, path in suites:
+    diagnostics = []
+    for label, path, command in suites:
         rc, count, fails = _run_test(path)
         rows.append((label, rc, count, fails))
+        if rc != 0:
+            diagnostics.append(command)
+
+    rc, count, fails, diagnostic = _run_godot_scene("res://tools/validate_stairs_geometry.tscn")
+    rows.append(("Stair geometry Godot headless", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot stair geometry: " + (diagnostic or "failed"))
 
     print(f"  {'Suite':<38}  {'Resultado':>12}")
     print(f"  {'-'*38}  {'-'*12}")
@@ -117,8 +177,8 @@ def main() -> int:
                 print(f"    - {label}: {fails} fallo(s)")
         print()
         print("  Para diagnóstico:")
-        print("    python tests/test_editor_scenarios.py")
-        print("    python tests/test_guardrails.py")
+        for diagnostic in diagnostics:
+            print(f"    {diagnostic}")
     print("=" * W)
     print()
 

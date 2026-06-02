@@ -27,14 +27,28 @@ Sesion centrada en corregir el comportamiento de escaleras entre plantas:
 - `editor/ScenarioEditor.gd`
   - `_vertical_opening_rect()` ahora calcula el rectangulo del hueco de escalera segun direccion y giro.
 
+- `tools/validate_stairs_geometry.gd`
+  - Nuevo validador headless para escaleras rectas y 180.
+  - Instancia plantillas minimas PB/P1, reconstruye FP y 3D, comprueba hueco vertical, tramos, barandillas inclinadas, recorte de planta superior y clearance de cabeza por fisica.
+
+- `tools/validate_stairs_geometry.tscn`
+  - Escena minima para ejecutar el validador desde Godot headless.
+
+- `scripts/check_product.py`
+  - Integra el validador headless de escaleras como suite de producto.
+  - Busca Godot por `GODOT_EXE`, rutas locales conocidas o `godot` en PATH.
+
 ## Verificacion ejecutada
 
 ```text
 Godot 4.6.3 headless --quit-after 1
 OK
 
+Godot 4.6.3 headless res://tools/validate_stairs_geometry.tscn
+STAIR GEOMETRY VALIDATION PASS
+
 python scripts/check_product.py
-ALL PRODUCT CHECKS PASS (34 tests)
+ALL PRODUCT CHECKS PASS (35 tests)
 
 python scripts/simulation/validation_guardrails.py
 ALL GUARDRAILS PASS
@@ -45,25 +59,29 @@ Known gaps: 4
 ## Estado Git
 
 ```text
-HEAD: 03714c5 cambios editor
+HEAD: a7ce868 barandilla y escalera
 Branch: main...origin/main
 Working tree: cambios sin commit
 
 Modificados:
-- editor/ScenarioEditor.gd
-- view/3d/Visualizer3D.gd
-- view/fp/FirstPersonController.gd
 - ESTADO_SESION_2026-06-02.md
+- scripts/check_product.py
+
+Nuevos:
+- tools/validate_stairs_geometry.gd
+- tools/validate_stairs_geometry.gd.uid
+- tools/validate_stairs_geometry.tscn
 ```
 
 No se ha creado commit en esta sesion.
 
-## Pendiente recomendado
+## Validacion de cierre ejecutada
 
-Validacion manual en Godot:
-- Crear escalera recta entre PB y P1 y comprobar que se puede subir sin chocar con techo.
-- Crear escalera 180 entre PB y P1 y comprobar paso completo de planta.
-- Revisar que el hueco vertical amarillo coincide con la escalera en 2D.
-- Revisar que barandillas de FP y 3D quedan alineadas con los tramos.
+Validacion headless en Godot:
+- Escalera recta entre PB y P1: rampa, peldaños, descansillo superior y hueco amarillo alineado.
+- Escalera 180 entre PB y P1: dos tramos, descansillo, hueco vertical cubriendo la banda de ambos tramos.
+- Barandillas FP y 3D: `rotation.x` inclinado en recta y 180.
+- Clearance de cabeza: muestreo fisico en la trayectoria de subida sin obstrucciones.
+- `python scripts/check_product.py` ahora ejecuta esta validacion automaticamente.
 
-Si en una escalera recta sigue habiendo choque en el ultimo tramo, el siguiente ajuste probable es reducir/eliminar la colision de la losa de descansillo superior dentro del volumen de escalera y dejar la transicion apoyada en la rampa/forjado de la planta de destino.
+Pendiente opcional: una pasada visual interactiva en el editor de Godot si se quiere confirmar estetica/camara con ojo humano. A nivel estructural y de fisica headless, el caso queda validado.
