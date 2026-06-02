@@ -85,3 +85,25 @@ Validacion headless en Godot:
 - `python scripts/check_product.py` ahora ejecuta esta validacion automaticamente.
 
 Pendiente opcional: una pasada visual interactiva en el editor de Godot si se quiere confirmar estetica/camara con ojo humano. A nivel estructural y de fisica headless, el caso queda validado.
+
+---
+
+## Bloque W-02 - Resumen tecnico post-simulacion
+
+Implementado:
+- `SimulationEngine.gd` mantiene picos tecnicos por sala: HRR, temperatura, CO upper, HCN upper, O2 minimo, visibilidad minima, FED maximo y SVV minimo.
+- `summary.json` pasa a esquema `simufire_technical_summary_v1` con secciones `global`, `rooms`, `victims` y `detectors`.
+- `Main.gd` muestra una ventana "Resumen tecnico post-simulacion" al generarse el export, con pestanas de salas, victimas, detectores y archivos.
+- `tools/validate_technical_summary.gd` + `.tscn` validan el esquema y la escritura de `summary.json` en Godot headless.
+- `scripts/check_product.py` incluye el guardrail W-02.
+
+Verificacion ejecutada:
+```text
+python scripts/check_product.py
+ALL PRODUCT CHECKS PASS (36 tests)
+
+python scripts/simulation/validation_guardrails.py
+ALL GUARDRAILS PASS
+Required checks: 379/379 PASS
+Known gaps: 4
+```

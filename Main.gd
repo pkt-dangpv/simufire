@@ -17,6 +17,7 @@ const TIME_SPEEDS: Array[float] = [0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0]
 var playback_paused: bool = true
 var _graphs_dir_dialog: FileDialog = null
 var _graphs_view_window: Window = null
+var _technical_summary_window: Window = null
 var _graph_textures: Array[Texture2D] = []
 var _graph_image_cells: Array[Control] = []
 var _graph_scrolls: Array[ScrollContainer] = []
@@ -50,6 +51,7 @@ func _ready() -> void:
 		_apply_startup_engine_options()
 		# W-01: capturar pantalla 3D cuando la simulación genera el export JSON.
 		_connect_once(engine.export_screenshot_requested, _on_export_screenshot_requested)
+		_connect_once(engine.technical_summary_ready, _on_technical_summary_ready)
 	_connect_visualizer_signals()
 	_update_views()
 
@@ -395,6 +397,16 @@ func _setup_graph_dialogs() -> void:
 	_graphs_view_window.size_changed.connect(_on_graphs_window_size_changed)
 	add_child(_graphs_view_window)
 
+	_technical_summary_window = Window.new()
+	_technical_summary_window.name = "TechnicalSummaryWindow"
+	_technical_summary_window.title = "Resumen tecnico post-simulacion"
+	_technical_summary_window.size = Vector2i(1180, 760)
+	_technical_summary_window.min_size = Vector2i(980, 620)
+	_technical_summary_window.wrap_controls = false
+	_technical_summary_window.visible = false
+	_technical_summary_window.close_requested.connect(_on_technical_summary_window_close_requested)
+	add_child(_technical_summary_window)
+
 
 func _on_graphs_dir_selected(dir_path: String) -> void:
 	if engine == null:
@@ -420,6 +432,228 @@ func _on_export_screenshot_requested(output_dir: String) -> void:
 	if not view_3d_enabled and not first_person_enabled:
 		return
 	visualizer_3d.capture_screenshot_to(output_dir)
+
+
+func _on_technical_summary_ready(summary: Dictionary, output_dir: String) -> void:
+	_show_technical_summary_window(summary, output_dir)
+
+
+func _on_technical_summary_window_close_requested() -> void:
+	if _technical_summary_window != null:
+		_technical_summary_window.hide()
+
+
+func _clear_technical_summary_window() -> void:
+	if _technical_summary_window == null:
+		return
+	for child in _technical_summary_window.get_children():
+		child.queue_free()
+
+
+func _show_technical_summary_window(summary: Dictionary, output_dir: String = "") -> void:
+	if summary.is_empty() or _technical_summary_window == null:
+		return
+
+	_clear_technical_summary_window()
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	_technical_summary_window.add_child(margin)
+
+	var root := VBoxContainer.new()
+	root.add_theme_constant_override("separation", 8)
+	margin.add_child(root)
+
+	var global_summary: Dictionary = Dictionary(summary.get("global", {}))
+	var scenario_name: String = String(summary.get("scenario", ""))
+	var title := Label.new()
+	title.text = "Resumen tecnico | %s | t=%s" % [
+		scenario_name if not scenario_name.is_empty() else "escenario",
+		_format_summary_time(float(summary.get("sim_duration_s", 0.0)))
+	]
+	title.add_theme_font_size_override("font_size", 22)
+	root.add_child(title)
+
+	var resolved_output_dir: String = output_dir if not output_dir.strip_edges().is_empty() else String(summary.get("output_dir", ""))
+	var export_label := Label.new()
+	export_label.text = "Export: %s" % (resolved_output_dir if not resolved_output_dir.is_empty() else "sin directorio")
+	export_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	root.add_child(export_label)
+
+	var metrics := GridContainer.new()
+	metrics.columns = 4
+	metrics.add_theme_constant_override("h_separation", 8)
+	metrics.add_theme_constant_override("v_separation", 8)
+	root.add_child(metrics)
+	_add_summary_metric(metrics, "HRR pico", "%.0f kW (R%d)" % [float(global_summary.get("peak_hrr_kw", 0.0)), int(global_summary.get("peak_hrr_room_id", -1))])
+	_add_summary_metric(metrics, "Temp. pico", "%.0f C (R%d)" % [float(global_summary.get("peak_temp_upper_c", 0.0)), int(global_summary.get("peak_temp_room_id", -1))])
+	_add_summary_metric(metrics, "CO pico", "%.0f ppm (R%d)" % [float(global_summary.get("peak_co_upper_ppm", 0.0)), int(global_summary.get("peak_co_room_id", -1))])
+	_add_summary_metric(metrics, "HCN pico", "%.1f ppm (R%d)" % [float(global_summary.get("peak_hcn_upper_ppm", 0.0)), int(global_summary.get("peak_hcn_room_id", -1))])
+	_add_summary_metric(metrics, "O2 minimo", "%.1f%% (R%d)" % [float(global_summary.get("min_o2_pct", 0.0)), int(global_summary.get("min_o2_room_id", -1))])
+	_add_summary_metric(metrics, "Vis. minima", "%.1f m (R%d)" % [float(global_summary.get("min_visibility_m", 0.0)), int(global_summary.get("min_visibility_room_id", -1))])
+	_add_summary_metric(metrics, "FED max", "%.2f (R%d)" % [float(global_summary.get("peak_fed", 0.0)), int(global_summary.get("peak_fed_room_id", -1))])
+	_add_summary_metric(metrics, "Detectores", "%d/%d" % [int(global_summary.get("detectors_triggered", 0)), int(global_summary.get("detector_count", 0))])
+
+	var tabs := TabContainer.new()
+	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root.add_child(tabs)
+	tabs.add_child(_build_summary_rooms_tab(Array(summary.get("rooms", []))))
+	tabs.add_child(_build_summary_victims_tab(Array(summary.get("victims", []))))
+	tabs.add_child(_build_summary_detectors_tab(Array(summary.get("detectors", []))))
+	tabs.add_child(_build_summary_files_tab(resolved_output_dir))
+
+	var button_row := HBoxContainer.new()
+	button_row.alignment = BoxContainer.ALIGNMENT_END
+	root.add_child(button_row)
+	var close_button := Button.new()
+	close_button.text = "Cerrar"
+	close_button.custom_minimum_size = Vector2(110.0, 34.0)
+	close_button.pressed.connect(_on_technical_summary_window_close_requested)
+	button_row.add_child(close_button)
+
+	_technical_summary_window.popup_centered(_technical_summary_window.size)
+
+
+func _add_summary_metric(parent: GridContainer, title_text: String, value_text: String) -> void:
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(210.0, 58.0)
+	parent.add_child(panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 6)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 6)
+	panel.add_child(margin)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	margin.add_child(box)
+	var title := Label.new()
+	title.text = title_text
+	title.add_theme_font_size_override("font_size", 12)
+	box.add_child(title)
+	var value := Label.new()
+	value.text = value_text
+	value.add_theme_font_size_override("font_size", 16)
+	value.clip_text = true
+	value.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	box.add_child(value)
+
+
+func _build_summary_rooms_tab(rooms: Array) -> Control:
+	var scroll := ScrollContainer.new()
+	scroll.name = "Salas"
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 6)
+	scroll.add_child(box)
+	if rooms.is_empty():
+		_add_summary_text_row(box, "Sin salas en el resumen.")
+		return scroll
+	for raw_room in rooms:
+		var room: Dictionary = Dictionary(raw_room)
+		var flash_text: String = "Flashover %s" % _format_summary_time(float(room.get("flashover_time_s", -1.0))) if bool(room.get("flashover_triggered", false)) else "Sin flashover"
+		_add_summary_text_row(box, "R%d %s | %s | HRR %.0f kW @ %s | T %.0f C | CO %.0f ppm | HCN %.1f ppm | O2 min %.1f%% | Vis min %.1f m | FED %.2f" % [
+			int(room.get("room_id", -1)),
+			String(room.get("room_name", "")),
+			flash_text,
+			float(room.get("peak_hrr_kw", 0.0)),
+			_format_summary_time(float(room.get("peak_hrr_time_s", -1.0))),
+			float(room.get("peak_temp_upper_c", 0.0)),
+			float(room.get("peak_co_upper_ppm", 0.0)),
+			float(room.get("peak_hcn_upper_ppm", 0.0)),
+			float(room.get("min_o2_pct", 0.0)),
+			float(room.get("min_visibility_m", 0.0)),
+			float(room.get("peak_fed", 0.0)),
+		])
+	return scroll
+
+
+func _build_summary_victims_tab(victims: Array) -> Control:
+	var scroll := ScrollContainer.new()
+	scroll.name = "Victimas"
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 6)
+	scroll.add_child(box)
+	if victims.is_empty():
+		_add_summary_text_row(box, "Sin victimas definidas.")
+		return scroll
+	for raw_victim in victims:
+		var victim: Dictionary = Dictionary(raw_victim)
+		var fed_time: float = float(victim.get("time_to_fed_1_s", -1.0))
+		var fed_text: String = "FED=1 en %s" % _format_summary_time(fed_time) if fed_time >= 0.0 else "FED<1"
+		_add_summary_text_row(box, "%s | R%d | FED final %.2f | %s" % [
+			String(victim.get("victim_name", victim.get("victim_id", "?"))),
+			int(victim.get("room_id", -1)),
+			float(victim.get("fed_final", 0.0)),
+			fed_text,
+		])
+	return scroll
+
+
+func _build_summary_detectors_tab(detectors: Array) -> Control:
+	var scroll := ScrollContainer.new()
+	scroll.name = "Detectores"
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 6)
+	scroll.add_child(box)
+	if detectors.is_empty():
+		_add_summary_text_row(box, "Sin detectores definidos.")
+		return scroll
+	for raw_detector in detectors:
+		var detector: Dictionary = Dictionary(raw_detector)
+		var triggered: bool = bool(detector.get("triggered", false))
+		var status: String = "Activado en %s" % _format_summary_time(float(detector.get("triggered_at_s", -1.0))) if triggered else "No activado"
+		_add_summary_text_row(box, "%s | %s | R%d | %s" % [
+			String(detector.get("detector_id", "?")),
+			String(detector.get("type", "smoke")),
+			int(detector.get("room_id", -1)),
+			status,
+		])
+	return scroll
+
+
+func _build_summary_files_tab(output_dir: String) -> Control:
+	var box := VBoxContainer.new()
+	box.name = "Archivos"
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 6)
+	if output_dir.strip_edges().is_empty():
+		_add_summary_text_row(box, "Sin directorio de export.")
+		return box
+	_add_summary_text_row(box, output_dir.path_join("summary.json"))
+	_add_summary_text_row(box, output_dir.path_join("events.json"))
+	_add_summary_text_row(box, output_dir.path_join("sim_log.csv"))
+	_add_summary_text_row(box, output_dir.path_join("sim_log.txt"))
+	return box
+
+
+func _add_summary_text_row(parent: Control, text_value: String) -> void:
+	var label := Label.new()
+	label.text = text_value
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.add_theme_font_size_override("font_size", 13)
+	parent.add_child(label)
+
+
+func _format_summary_time(seconds: float) -> String:
+	if seconds < 0.0:
+		return "--"
+	return "%.1fs" % seconds
 
 
 func _show_graphs_window(graphs_dir: String) -> void:

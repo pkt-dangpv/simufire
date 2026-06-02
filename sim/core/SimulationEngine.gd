@@ -73,9 +73,25 @@ var _last_graph_generation_ok: bool = false
 # W-01: picos por sala para el resumen técnico post-simulación.
 var _room_peak_hrr: Dictionary = {}   # room_id (int) → float
 var _room_peak_temp: Dictionary = {}  # room_id (int) → float
+var _room_peak_co_upper: Dictionary = {}
+var _room_peak_hcn_upper: Dictionary = {}
+var _room_min_o2: Dictionary = {}
+var _room_min_visibility: Dictionary = {}
+var _room_peak_fed: Dictionary = {}
+var _room_min_svv: Dictionary = {}
+var _room_peak_hrr_time: Dictionary = {}
+var _room_peak_temp_time: Dictionary = {}
+var _room_peak_co_upper_time: Dictionary = {}
+var _room_peak_hcn_upper_time: Dictionary = {}
+var _room_min_o2_time: Dictionary = {}
+var _room_min_visibility_time: Dictionary = {}
+var _room_peak_fed_time: Dictionary = {}
+var _room_min_svv_time: Dictionary = {}
+var _last_technical_summary: Dictionary = {}
 # W-01: emitido cuando la simulación finaliza y los archivos de exportación
 # han sido escritos. Main.gd lo recibe para capturar la pantalla 3D.
 signal export_screenshot_requested(output_dir: String)
+signal technical_summary_ready(summary: Dictionary, output_dir: String)
 # SF-AUD-029: targets radiantes pasivos
 var _targets: Array = []
 
@@ -1252,6 +1268,21 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	_last_graph_generation_ok = false
 	_room_peak_hrr.clear()
 	_room_peak_temp.clear()
+	_room_peak_co_upper.clear()
+	_room_peak_hcn_upper.clear()
+	_room_min_o2.clear()
+	_room_min_visibility.clear()
+	_room_peak_fed.clear()
+	_room_min_svv.clear()
+	_room_peak_hrr_time.clear()
+	_room_peak_temp_time.clear()
+	_room_peak_co_upper_time.clear()
+	_room_peak_hcn_upper_time.clear()
+	_room_min_o2_time.clear()
+	_room_min_visibility_time.clear()
+	_room_peak_fed_time.clear()
+	_room_min_svv_time.clear()
+	_last_technical_summary.clear()
 	glass_failure_system.reset()
 	thermal_system.reset_wall_temps()
 	_targets.clear()
@@ -2454,10 +2485,243 @@ func _update_peak_tracking() -> void:
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
 			continue
-		if room.hrr_kw > float(_room_peak_hrr.get(room_id, 0.0)):
-			_room_peak_hrr[room_id] = room.hrr_kw
-		if room.temp_upper_c > float(_room_peak_temp.get(room_id, 20.0)):
-			_room_peak_temp[room_id] = room.temp_upper_c
+		_record_room_extreme(_room_peak_hrr, _room_peak_hrr_time, room_id, room.hrr_kw, 0.0, true)
+		_record_room_extreme(_room_peak_temp, _room_peak_temp_time, room_id, room.temp_upper_c, 20.0, true)
+		_record_room_extreme(_room_peak_co_upper, _room_peak_co_upper_time, room_id, thermal_system.compute_co_upper_ppm(room), 0.0, true)
+		_record_room_extreme(_room_peak_hcn_upper, _room_peak_hcn_upper_time, room_id, thermal_system.compute_hcn_upper_ppm(room), 0.0, true)
+		_record_room_extreme(_room_min_o2, _room_min_o2_time, room_id, minf(room.o2, room.o2_lower), o2_nominal, false)
+		_record_room_extreme(_room_min_visibility, _room_min_visibility_time, room_id, room.visibility_m, smoke_visibility_max_m, false)
+		_record_room_extreme(_room_peak_fed, _room_peak_fed_time, room_id, room.fed, 0.0, true)
+		_record_room_extreme(_room_min_svv, _room_min_svv_time, room_id, room.svv_worst_pct, 100.0, false)
+
+
+func _record_room_extreme(values: Dictionary, times: Dictionary, room_id: int, value: float, default_value: float, use_max: bool) -> void:
+	if not values.has(room_id):
+		values[room_id] = value
+		times[room_id] = sim_time_s
+		return
+	var current: float = float(values.get(room_id, default_value))
+	var should_update: bool = value > current if use_max else value < current
+	if should_update:
+		values[room_id] = value
+		times[room_id] = sim_time_s
+
+
+func get_last_technical_summary() -> Dictionary:
+	return _last_technical_summary.duplicate(true)
+
+
+func build_technical_summary(output_dir: String = "") -> Dictionary:
+	var rooms_arr: Array = _build_technical_summary_rooms()
+	var victims_arr: Array = _build_technical_summary_victims()
+	var detectors_arr: Array = _build_technical_summary_detectors()
+	var global_summary: Dictionary = _build_technical_summary_global(rooms_arr, victims_arr, detectors_arr)
+	var summary: Dictionary = {
+		"schema_version": "simufire_technical_summary_v1",
+		"sim_duration_s": _snap_time(sim_time_s),
+		"scenario": building.template_name if building != null else "",
+		"global": global_summary,
+		"rooms": rooms_arr,
+		"victims": victims_arr,
+		"detectors": detectors_arr,
+	}
+	if not output_dir.strip_edges().is_empty():
+		summary["output_dir"] = output_dir
+	return summary
+
+
+func _build_technical_summary_rooms() -> Array:
+	var rooms_arr: Array = []
+	if building == null:
+		return rooms_arr
+	var room_ids: Array[int] = _sorted_room_ids()
+	for room_id in room_ids:
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+		var entry: Dictionary = {
+			"room_id": room_id,
+			"room_name": room.name,
+			"flashover_triggered": room.flashover_triggered,
+			"peak_hrr_kw": _snap_metric(float(_room_peak_hrr.get(room_id, room.hrr_kw)), 0.1),
+			"peak_hrr_time_s": _snap_time(float(_room_peak_hrr_time.get(room_id, -1.0))),
+			"peak_temp_upper_c": _snap_metric(float(_room_peak_temp.get(room_id, room.temp_upper_c)), 0.1),
+			"peak_temp_time_s": _snap_time(float(_room_peak_temp_time.get(room_id, -1.0))),
+			"peak_co_upper_ppm": _snap_metric(float(_room_peak_co_upper.get(room_id, thermal_system.compute_co_upper_ppm(room))), 1.0),
+			"peak_co_time_s": _snap_time(float(_room_peak_co_upper_time.get(room_id, -1.0))),
+			"peak_hcn_upper_ppm": _snap_metric(float(_room_peak_hcn_upper.get(room_id, thermal_system.compute_hcn_upper_ppm(room))), 0.1),
+			"peak_hcn_time_s": _snap_time(float(_room_peak_hcn_upper_time.get(room_id, -1.0))),
+			"min_o2_fraction": _snap_metric(float(_room_min_o2.get(room_id, minf(room.o2, room.o2_lower))), 0.0001),
+			"min_o2_pct": _snap_metric(float(_room_min_o2.get(room_id, minf(room.o2, room.o2_lower))) * 100.0, 0.01),
+			"min_o2_time_s": _snap_time(float(_room_min_o2_time.get(room_id, -1.0))),
+			"min_visibility_m": _snap_metric(float(_room_min_visibility.get(room_id, room.visibility_m)), 0.01),
+			"min_visibility_time_s": _snap_time(float(_room_min_visibility_time.get(room_id, -1.0))),
+			"peak_fed": _snap_metric(float(_room_peak_fed.get(room_id, room.fed)), 0.0001),
+			"peak_fed_time_s": _snap_time(float(_room_peak_fed_time.get(room_id, -1.0))),
+			"min_svv_pct": _snap_metric(float(_room_min_svv.get(room_id, room.svv_worst_pct)), 0.1),
+			"min_svv_time_s": _snap_time(float(_room_min_svv_time.get(room_id, -1.0))),
+			"final_fed": _snap_metric(room.fed, 0.0001),
+			"final_visibility_m": _snap_metric(room.visibility_m, 0.01),
+		}
+		if room.flashover_triggered:
+			entry["flashover_time_s"] = _snap_time(room.flashover_time_s)
+		rooms_arr.append(entry)
+	return rooms_arr
+
+
+func _build_technical_summary_victims() -> Array:
+	var victims_arr: Array = []
+	if building == null:
+		return victims_arr
+	for vic in building.victims:
+		var incapacitated: bool = bool(vic.get("incapacitated", false))
+		var fed_time: float = float(vic.get("incapacitated_at_s", -1.0)) if incapacitated else -1.0
+		victims_arr.append({
+			"victim_id": String(vic.get("id", "?")),
+			"victim_name": String(vic.get("name", "")),
+			"room_id": int(vic.get("room_id", -1)),
+			"height_m": _snap_metric(float(vic.get("height_m", 0.9)), 0.01),
+			"fed_final": _snap_metric(float(vic.get("fed", 0.0)), 0.0001),
+			"time_to_fed_1_s": _snap_time(fed_time),
+			"incapacitated": incapacitated,
+		})
+	return victims_arr
+
+
+func _build_technical_summary_detectors() -> Array:
+	var detectors_arr: Array = []
+	if building == null:
+		return detectors_arr
+	for det in building.detectors:
+		detectors_arr.append({
+			"detector_id": String(det.get("id", "?")),
+			"room_id": int(det.get("room_id", -1)),
+			"type": String(det.get("type", "smoke")),
+			"threshold": float(det.get("threshold", 0.0)),
+			"triggered": bool(det.get("triggered", false)),
+			"triggered_at_s": _snap_time(float(det.get("triggered_at_s", -1.0))),
+		})
+	return detectors_arr
+
+
+func _build_technical_summary_global(rooms_arr: Array, victims_arr: Array, detectors_arr: Array) -> Dictionary:
+	var flashover_count: int = 0
+	var peak_hrr_kw: float = 0.0
+	var peak_hrr_room_id: int = -1
+	var peak_hrr_time_s: float = -1.0
+	var peak_temp_c: float = 0.0
+	var peak_temp_room_id: int = -1
+	var peak_co_ppm: float = 0.0
+	var peak_co_room_id: int = -1
+	var peak_hcn_ppm: float = 0.0
+	var peak_hcn_room_id: int = -1
+	var min_o2_pct: float = 100.0
+	var min_o2_room_id: int = -1
+	var min_visibility_m: float = 1.0e20
+	var min_visibility_room_id: int = -1
+	var peak_fed: float = 0.0
+	var peak_fed_room_id: int = -1
+
+	for raw_room in rooms_arr:
+		var room: Dictionary = Dictionary(raw_room)
+		var room_id: int = int(room.get("room_id", -1))
+		if bool(room.get("flashover_triggered", false)):
+			flashover_count += 1
+		var hrr: float = float(room.get("peak_hrr_kw", 0.0))
+		if hrr > peak_hrr_kw:
+			peak_hrr_kw = hrr
+			peak_hrr_room_id = room_id
+			peak_hrr_time_s = float(room.get("peak_hrr_time_s", -1.0))
+		var temp_c: float = float(room.get("peak_temp_upper_c", 0.0))
+		if temp_c > peak_temp_c:
+			peak_temp_c = temp_c
+			peak_temp_room_id = room_id
+		var co_ppm: float = float(room.get("peak_co_upper_ppm", 0.0))
+		if co_ppm > peak_co_ppm:
+			peak_co_ppm = co_ppm
+			peak_co_room_id = room_id
+		var hcn_ppm: float = float(room.get("peak_hcn_upper_ppm", 0.0))
+		if hcn_ppm > peak_hcn_ppm:
+			peak_hcn_ppm = hcn_ppm
+			peak_hcn_room_id = room_id
+		var o2_pct: float = float(room.get("min_o2_pct", 100.0))
+		if o2_pct < min_o2_pct:
+			min_o2_pct = o2_pct
+			min_o2_room_id = room_id
+		var visibility_m: float = float(room.get("min_visibility_m", 1.0e20))
+		if visibility_m < min_visibility_m:
+			min_visibility_m = visibility_m
+			min_visibility_room_id = room_id
+		var fed: float = float(room.get("peak_fed", 0.0))
+		if fed > peak_fed:
+			peak_fed = fed
+			peak_fed_room_id = room_id
+
+	var victims_incapacitated: int = 0
+	for raw_victim in victims_arr:
+		if bool(Dictionary(raw_victim).get("incapacitated", false)):
+			victims_incapacitated += 1
+
+	var detectors_triggered: int = 0
+	var first_detector_time_s: float = -1.0
+	for raw_detector in detectors_arr:
+		var detector: Dictionary = Dictionary(raw_detector)
+		if not bool(detector.get("triggered", false)):
+			continue
+		detectors_triggered += 1
+		var triggered_at: float = float(detector.get("triggered_at_s", -1.0))
+		if triggered_at >= 0.0 and (first_detector_time_s < 0.0 or triggered_at < first_detector_time_s):
+			first_detector_time_s = triggered_at
+
+	if min_visibility_m >= 1.0e19:
+		min_visibility_m = 0.0
+
+	return {
+		"room_count": rooms_arr.size(),
+		"flashover_room_count": flashover_count,
+		"victim_count": victims_arr.size(),
+		"victims_incapacitated": victims_incapacitated,
+		"detector_count": detectors_arr.size(),
+		"detectors_triggered": detectors_triggered,
+		"first_detector_time_s": _snap_time(first_detector_time_s),
+		"peak_hrr_kw": _snap_metric(peak_hrr_kw, 0.1),
+		"peak_hrr_room_id": peak_hrr_room_id,
+		"peak_hrr_time_s": _snap_time(peak_hrr_time_s),
+		"peak_temp_upper_c": _snap_metric(peak_temp_c, 0.1),
+		"peak_temp_room_id": peak_temp_room_id,
+		"peak_co_upper_ppm": _snap_metric(peak_co_ppm, 1.0),
+		"peak_co_room_id": peak_co_room_id,
+		"peak_hcn_upper_ppm": _snap_metric(peak_hcn_ppm, 0.1),
+		"peak_hcn_room_id": peak_hcn_room_id,
+		"min_o2_pct": _snap_metric(min_o2_pct, 0.01),
+		"min_o2_room_id": min_o2_room_id,
+		"min_visibility_m": _snap_metric(min_visibility_m, 0.01),
+		"min_visibility_room_id": min_visibility_room_id,
+		"peak_fed": _snap_metric(peak_fed, 0.0001),
+		"peak_fed_room_id": peak_fed_room_id,
+	}
+
+
+func _sorted_room_ids() -> Array[int]:
+	var room_ids: Array[int] = []
+	if building == null:
+		return room_ids
+	for room_id in building.get_rooms().keys():
+		room_ids.append(int(room_id))
+	room_ids.sort()
+	return room_ids
+
+
+func _snap_metric(value: float, step: float) -> float:
+	if step <= 0.0:
+		return value
+	return snappedf(value, step)
+
+
+func _snap_time(value: float) -> float:
+	if value < 0.0:
+		return -1.0
+	return snappedf(value, 0.1)
 
 
 ## Escribe events.json y summary.json en output_dir.
@@ -2477,42 +2741,8 @@ func _write_export_json(output_dir: String) -> void:
 		push_warning("[SimulationEngine] No se pudo escribir events.json en: %s" % events_path)
 
 	# --- summary.json ---
-	var rooms_arr: Array = []
-	if building != null:
-		for room_id in building.get_rooms().keys():
-			var room: RoomModel = building.get_room(room_id)
-			if room == null:
-				continue
-			var entry: Dictionary = {
-				"room_id": room_id,
-				"room_name": room.name,
-				"flashover_triggered": room.flashover_triggered,
-				"peak_hrr_kw": snappedf(float(_room_peak_hrr.get(room_id, 0.0)), 0.1),
-				"peak_temp_upper_c": snappedf(float(_room_peak_temp.get(room_id, 20.0)), 0.1),
-			}
-			if room.flashover_triggered:
-				entry["flashover_time_s"] = room.flashover_time_s
-			rooms_arr.append(entry)
-
-	var victims_arr: Array = []
-	if building != null:
-		for vic in building.victims:
-			var vic_entry: Dictionary = {
-				"victim_id": String(vic.get("id", "?")),
-				"room_id": int(vic.get("room_id", -1)),
-				"fed_final": snappedf(float(vic.get("fed", 0.0)), 0.0001),
-				"incapacitated": bool(vic.get("incapacitated", false)),
-			}
-			if bool(vic.get("incapacitated", false)):
-				vic_entry["incapacitated_at_s"] = float(vic.get("incapacitated_at_s", -1.0))
-			victims_arr.append(vic_entry)
-
-	var summary: Dictionary = {
-		"sim_duration_s": snappedf(sim_time_s, 0.1),
-		"scenario": building.template_name if building != null else "",
-		"rooms": rooms_arr,
-		"victims": victims_arr,
-	}
+	var summary: Dictionary = build_technical_summary(output_dir)
+	_last_technical_summary = summary.duplicate(true)
 
 	var summary_path: String = output_dir.path_join("summary.json")
 	var f := FileAccess.open(summary_path, FileAccess.WRITE)
@@ -2522,6 +2752,7 @@ func _write_export_json(output_dir: String) -> void:
 		print("[SimulationEngine] summary.json escrito en: %s" % summary_path)
 	else:
 		push_warning("[SimulationEngine] No se pudo escribir summary.json en: %s" % summary_path)
+	technical_summary_ready.emit(_last_technical_summary.duplicate(true), output_dir)
 
 
 func _finish_and_launch_graphs(details: String, graphs_root: String = "", wait_for_finish: bool = false) -> void:

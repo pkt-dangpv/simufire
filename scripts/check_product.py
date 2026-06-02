@@ -84,7 +84,7 @@ def _find_godot() -> Path | None:
     return None
 
 
-def _run_godot_scene(scene_path: str, timeout_s: int = 60) -> tuple[int, int, int, str]:
+def _run_godot_scene(scene_path: str, success_token: str, timeout_s: int = 60) -> tuple[int, int, int, str]:
     """
     Run a small Godot headless product check scene.
     Returns (exit_code, checks_run, failures, diagnostic).
@@ -107,7 +107,7 @@ def _run_godot_scene(scene_path: str, timeout_s: int = 60) -> tuple[int, int, in
         timeout=timeout_s,
     )
     combined = (result.stdout or "") + (result.stderr or "")
-    passed = result.returncode == 0 and "STAIR GEOMETRY VALIDATION PASS" in combined
+    passed = result.returncode == 0 and success_token in combined
     diagnostic = "" if passed else combined.strip()
     return result.returncode, 1, 0 if passed else 1, diagnostic
 
@@ -146,10 +146,21 @@ def main() -> int:
         if rc != 0:
             diagnostics.append(command)
 
-    rc, count, fails, diagnostic = _run_godot_scene("res://tools/validate_stairs_geometry.tscn")
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_stairs_geometry.tscn",
+        "STAIR GEOMETRY VALIDATION PASS",
+    )
     rows.append(("Stair geometry Godot headless", rc, count, fails))
     if rc != 0 or fails != 0:
         diagnostics.append("Godot stair geometry: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_technical_summary.tscn",
+        "TECHNICAL SUMMARY VALIDATION PASS",
+    )
+    rows.append(("Technical summary Godot headless", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot technical summary: " + (diagnostic or "failed"))
 
     print(f"  {'Suite':<38}  {'Resultado':>12}")
     print(f"  {'-'*38}  {'-'*12}")
