@@ -62,10 +62,10 @@ Ver roadmap detallado: `docs/ROADMAP_TECHNICAL_SIMULATOR_V0_5.md`
 
 | Versión | Foco | Estado |
 |---------|------|--------|
-| v0.5.0 | Editor robustness (popup errores, validación flujo, checklist) | Planificado |
-| v0.5.1 | FP technical visualization (fuego FP, overlay magnitudes, víctimas FED) | Planificado |
-| v0.5.2 | 3D technical visualization (gradiente vertical, leyenda, heatmap) | Planificado |
-| v0.6.0 | Integrated technical workflow (export técnico, resumen post-sim) | Futuro |
+| v0.5.0 | Editor robustness (popup errores, validación flujo, checklist, editabilidad Inspector) | Implementado en main; queda refactor profundo de `ScenarioEditor.gd` |
+| v0.5.1 | FP technical visualization (fuego FP, overlay magnitudes, víctimas FED, alarma detector) | Implementado en main |
+| v0.5.2 | 3D technical visualization (gradiente vertical, leyenda, heatmap, FED, captura, puertas) | Implementado en main |
+| v0.6.0 | Integrated technical workflow (export técnico, resumen post-sim) | Parcialmente implementado; pendiente pulido/revisión final |
 
 **Fuera de alcance (no implementar)**:
 - Supresión de agua, PPV, rescate táctico.

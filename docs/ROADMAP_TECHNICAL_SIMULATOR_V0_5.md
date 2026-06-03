@@ -24,26 +24,29 @@ Las víctimas son **sensores de exposición** (acumulan FED, CO, temperatura) y 
 
 > Todo parámetro que controla el comportamiento del simulador o la visualización debe ser inspeccionable y editable desde Godot (Inspector, escena, preset `.tres`/`.res` o nodo `@export`) cuando tenga sentido.
 
-**Estado actual de cumplimiento** (auditado 2026-05-31):
+**Estado actual de cumplimiento** (auditado 2026-06-03):
 
 | Módulo | Parámetros @export | Estado |
 |--------|-------------------|--------|
 | `SimulationEngine.gd` | ✅ Todos los parámetros de motor | ✅ Bueno |
 | `Visualizer3D.gd` | ✅ Geometría, visibilidad, colores, dinámicas, cámara | ✅ Muy bueno |
 | `Visualizer.gd` (2D) | ✅ Colores, overlays, layout | ✅ Muy bueno |
-| `FirstPersonController.gd` | ✅ Movimiento, iluminación, materiales, ventanas, exterior, marcadores, humo | ✅ Muy bueno |
-| `ScenarioEditor.gd` | ✅ Parámetros de editor expuestos | ✅ Bueno |
-| `hud.gd` | ✅ Opciones visuales de HUD | ✅ Bueno |
+| `FirstPersonController.gd` | ✅ Movimiento, iluminación, materiales, ventanas, exterior, marcadores, alarmas, humo y layout HUD FP | ✅ Muy bueno |
+| `ScenarioEditor.gd` | ✅ Undo, escala, hover help, anchos/altos de paneles/topbar, tipografía y snaps de objetos | ✅ Bueno |
+| `hud.gd` | ✅ Visibilidad, atajos, tarjetas, fuentes, márgenes, separaciones y panel compacto de aperturas | ✅ Bueno |
 
 **Deuda "solo código" identificada** (candidatos a @export en versiones futuras):
 
-| ID | Ítem | Ubicación | Versión sugerida |
-|----|------|-----------|-----------------|
+| ID | Ítem | Ubicación | Versión sugerida | Estado |
+|----|------|-----------|-----------------|--------|
 | GOD-01 | `MAX_UNDO_STEPS = 48` hardcoded | `ScenarioEditor.gd:L82` | v0.5.0 | ✅ `@export var max_undo_steps` (E-04) |
 | GOD-02 | `PIXELS_PER_METER = 64.0` hardcoded | `ScenarioEditor.gd:L31` | v0.5.0 | ✅ `@export var pixels_per_meter` (E-04) |
-| GOD-03 | Overlay técnico FP (magnitudes CO/FED/T) no existe aún | `FirstPersonController.gd` | v0.5.1 |
-| GOD-04 | Sin flag de debug overlay en Visualizer3D (show_debug_layer_heights, etc.) | `Visualizer3D.gd` | v0.5.2 |
-| GOD-05 | Gradiente vertical no exportado como capa visual en 3D | `Visualizer3D.gd` | v0.5.2 |
+| GOD-03 | Overlay técnico FP (magnitudes CO/FED/T) no existe aún | `FirstPersonController.gd` | v0.5.1 | ✅ `show_technical_overlay`, `show_visibility_readout` y layout `Rect2` FP |
+| GOD-04 | Sin flag de debug overlay en Visualizer3D (show_debug_layer_heights, etc.) | `Visualizer3D.gd` | v0.5.2 | ✅ `debug_show_layer_heights`, `debug_show_room_temps`, `debug_show_hrr_values` |
+| GOD-05 | Gradiente vertical no exportado como capa visual en 3D | `Visualizer3D.gd` | v0.5.2 | ✅ `show_layer_gradient` + colores exportados |
+| GOD-06 | Tipografía/layout del editor parcialmente hardcoded | `ScenarioEditor.gd` | v0.5.x | ✅ exports `editor_font_size_*`, `editor_side_panel_*`, `editor_top_bar_height_px`, `hover_help_move_tolerance_px` |
+| GOD-07 | Layout visual del HUD principal parcialmente hardcoded | `ui/hud.gd` | v0.5.x | ✅ exports `HUD Layout` + guardrail `tests/test_godot_editability.py` |
+| GOD-08 | Constantes finas de dibujo 2D/handles siguen en código | `ScenarioEditor.gd` | Futuro | Pendiente solo si se necesita tuning visual extremo desde Inspector |
 
 ---
 
@@ -76,11 +79,13 @@ Las víctimas son **sensores de exposición** (acumulan FED, CO, temperatura) y 
 | E-13 | Leyenda 3D no intrusiva | `Visualizer3D.show_legend` queda desactivado por defecto para que la leyenda "Suelo / frío / caliente / humo" no se solape con el panel de habitaciones ni aparezca si no se ha pedido explícitamente. La opción sigue disponible en Inspector (`Visibility`) para sesiones docentes donde interese explicar los colores. | **Media** | ✅ commit actual |
 | E-14 | Ayuda contextual fiable | El root transparente de la UI deja de bloquear la ayuda sobre el canvas: `_is_pointer_over_ui()` ignora `UI` y el propio popup. `hover_help_delay_s` queda exportado en `Editor UI`. Herramientas, pestañas, modos 2D/3D/FP y acciones principales reciben `tooltip_text` explícito para que el cartel aparezca al pasar el cursor por controles. | **Media** | ✅ commit actual |
 | E-15 | Paneles laterales editables y más estrechos | `ScenarioEditor` expone `editor_left_panel_width_px` y `editor_right_panel_width_px` en `Editor UI`. Defaults: izquierda 276 px, derecha 244 px. `_normalize_editor_panel_readability()` usa esos valores y la escena base elimina mínimos antiguos (logo/status/panel derecho) que forzaban columnas más anchas. | **Media** | ✅ commit actual |
+| E-16 | Editabilidad Godot de Editor/HUD | `ScenarioEditor` expone tipografía, alturas de paneles/topbar y tolerancia de hover help. `hud.gd` expone fuentes, márgenes, separaciones, anchuras y alturas del panel compacto de aperturas. Guardrail: `tests/test_godot_editability.py` integrado en `scripts/check_product.py`. | **Media** | ✅ commit actual |
+| E-17 | Escaleras con hueco navegable y colocación clara | La colocación de escaleras valida largo/ancho según dirección de subida, no ejes de pantalla. El panel de herramienta añade `Tipo: Auto / Recta / 180°`, y las propiedades de escalera conservan `stair_turn_mode` al guardar/cargar. El preview 2D muestra ENTRADA -> SUBE, guía de peldaños y rectángulo real de hueco. FP parte suelos/techos solapados y 3D parte suelos superiores solapados alrededor del hueco vertical. Guardrail ampliado: `tools/validate_stairs_geometry.tscn`. | **Alta** | ✅ commit actual |
 
 **Criterio de cierre**:
 - Un usuario técnico puede crear un escenario desde cero, guardarlo, cargarlo y lanzar la simulación sin mensajes de error silenciosos.
 - El flujo completo está documentado en `EDITOR_FLOW_CHECKLIST.md`.
-- Los tests de editor (21) y guardrail scripts (13) se ejecutan con un único comando: `python scripts/check_product.py`.
+- Los tests de editor (21), guardrail scripts (13), UI localization (4), editabilidad Godot (4) y smokes Godot headless se ejecutan con un único comando: `python scripts/check_product.py` (57 checks de producto).
 - `379/379 PASS` sigue intacto.
 
 ---

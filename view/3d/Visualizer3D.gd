@@ -702,9 +702,16 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	var floor := shell.get("floor") as MeshInstance3D
 	var walls: Array = shell.get("walls", [])
 	var room_node := shell.get("room_node") as Node3D
+	var floor_parts: Array[MeshInstance3D] = []
 	if floor != null and is_stair and floor_level_m > 0.20:
 		floor.visible = false
 		_create_stairwell_upper_floor_visual(room_id, rect_m, floor_level_m, room_node, _room_stair_run_direction(room), room.stair_turn_degrees)
+	elif floor != null:
+		var slabs: Array[Rect2] = _split_rect_by_voids(rect_m, _vertical_stair_voids_for_floor(floor_level_m))
+		if not (slabs.size() == 1 and _rect_same(slabs[0], rect_m)):
+			floor.visible = false
+			for i in range(slabs.size()):
+				floor_parts.append(_add_floor_void_part_visual(room_node, "FloorVoidPart_%02d_%02d" % [room_id, i], slabs[i], floor_level_m))
 
 	var smoke := _create_box("SmokeVolume", Vector3.ONE, _make_smoke_volume_material())
 	smoke.visible = false
@@ -810,6 +817,7 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 		"height_m": height_m,
 		"floor_level_m": floor_level_m,
 		"floor": floor,
+		"floor_parts": floor_parts,
 		"walls": walls,
 		"smoke": smoke,
 		"smoke_edge": smoke_edge,
@@ -1069,6 +1077,109 @@ func _add_stairwell_floor_visual(parent: Node3D, node_name: String, rect: Rect2,
 		rect.position.y + rect.size.y * 0.5
 	))
 	parent.add_child(slab)
+
+
+func _add_floor_void_part_visual(parent: Node3D, node_name: String, rect: Rect2, floor_level_m: float) -> MeshInstance3D:
+	var slab := _create_box(
+		node_name,
+		Vector3(rect.size.x, floor_thickness_m, rect.size.y) * meters_to_units,
+		_make_material(floor_color, false)
+	)
+	slab.position = _to_world(Vector3(
+		rect.position.x + rect.size.x * 0.5,
+		floor_level_m - floor_thickness_m * 0.5,
+		rect.position.y + rect.size.y * 0.5
+	))
+	if parent != null:
+		parent.add_child(slab)
+	return slab
+
+
+func _vertical_stair_voids_for_floor(floor_level_m: float) -> Array[Rect2]:
+	var result: Array[Rect2] = []
+	if building == null:
+		return result
+	for raw_op in building.get_openings():
+		var op := raw_op as OpeningModel
+		if op == null or not op.is_vertical:
+			continue
+		var lower_room: RoomModel = building.get_room(op.a)
+		var upper_room: RoomModel = building.get_room(op.b)
+		if lower_room == null or upper_room == null:
+			continue
+		if upper_room.floor_level_z_m < lower_room.floor_level_z_m:
+			var tmp := lower_room
+			lower_room = upper_room
+			upper_room = tmp
+		if absf(upper_room.floor_level_z_m - floor_level_m) > 0.05:
+			continue
+		var rect: Rect2 = Rect2(building.room_rect_m.get(lower_room.id, Rect2()))
+		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+			continue
+		result.append(_stair_vertical_void_rect(rect, _room_stair_run_direction(lower_room), lower_room.stair_turn_degrees))
+	return result
+
+
+func _stair_vertical_void_rect(rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> Rect2:
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return Rect2()
+	if turn_degrees >= 179.0:
+		var gap_m: float = 0.18
+		var cross_span_m: float = _stair_cross_span_m(rect, stair_dir)
+		var flight_width_m: float = clampf((cross_span_m - gap_m) * 0.5, 0.72, 1.05)
+		var shaft_width_m: float = minf(cross_span_m, flight_width_m * 2.0 + gap_m + 0.18)
+		if absf(stair_dir.x) > absf(stair_dir.y):
+			return Rect2(Vector2(rect.position.x, rect.get_center().y - shaft_width_m * 0.5), Vector2(rect.size.x, shaft_width_m))
+		return Rect2(Vector2(rect.get_center().x - shaft_width_m * 0.5, rect.position.y), Vector2(shaft_width_m, rect.size.y))
+	var width_m: float = minf(_stair_ramp_width_m(rect, stair_dir), maxf(0.2, _stair_cross_span_m(rect, stair_dir) - 0.2))
+	var run_m: float = minf(
+		maxf(0.80, _stair_long_span_m(rect, stair_dir) - _stair_top_landing_depth_m(rect, stair_dir) - 0.22),
+		maxf(0.2, _stair_long_span_m(rect, stair_dir) - 0.2)
+	)
+	var start_margin_m: float = 0.22
+	if absf(stair_dir.x) > absf(stair_dir.y):
+		var x_m: float = rect.position.x + start_margin_m if stair_dir.x > 0.0 else rect.position.x + rect.size.x - start_margin_m - run_m
+		return Rect2(Vector2(x_m, rect.get_center().y - width_m * 0.5), Vector2(run_m, width_m))
+	var y_m: float = rect.position.y + start_margin_m if stair_dir.y > 0.0 else rect.position.y + rect.size.y - start_margin_m - run_m
+	return Rect2(Vector2(rect.get_center().x - width_m * 0.5, y_m), Vector2(width_m, run_m))
+
+
+func _split_rect_by_voids(rect: Rect2, voids: Array[Rect2]) -> Array[Rect2]:
+	var slabs: Array[Rect2] = [rect]
+	for void_rect in voids:
+		var next: Array[Rect2] = []
+		for slab in slabs:
+			for piece in _subtract_rect(slab, void_rect):
+				if piece.size.x >= 0.08 and piece.size.y >= 0.08:
+					next.append(piece)
+		slabs = next
+	return slabs
+
+
+func _subtract_rect(rect: Rect2, void_rect: Rect2) -> Array[Rect2]:
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0 or void_rect.size.x <= 0.0 or void_rect.size.y <= 0.0:
+		return [rect]
+	if not rect.intersects(void_rect, true):
+		return [rect]
+	var cut: Rect2 = rect.intersection(void_rect)
+	if cut.size.x <= 0.001 or cut.size.y <= 0.001:
+		return [rect]
+	var pieces: Array[Rect2] = []
+	var rect_end: Vector2 = rect.position + rect.size
+	var cut_end: Vector2 = cut.position + cut.size
+	if cut.position.y > rect.position.y + 0.001:
+		pieces.append(Rect2(rect.position, Vector2(rect.size.x, cut.position.y - rect.position.y)))
+	if cut_end.y < rect_end.y - 0.001:
+		pieces.append(Rect2(Vector2(rect.position.x, cut_end.y), Vector2(rect.size.x, rect_end.y - cut_end.y)))
+	if cut.position.x > rect.position.x + 0.001:
+		pieces.append(Rect2(Vector2(rect.position.x, cut.position.y), Vector2(cut.position.x - rect.position.x, cut.size.y)))
+	if cut_end.x < rect_end.x - 0.001:
+		pieces.append(Rect2(Vector2(cut_end.x, cut.position.y), Vector2(rect_end.x - cut_end.x, cut.size.y)))
+	return pieces
+
+
+func _rect_same(a: Rect2, b: Rect2) -> bool:
+	return a.position.distance_to(b.position) <= 0.001 and a.size.distance_to(b.size) <= 0.001
 
 
 func _stair_long_span_m(rect: Rect2, stair_dir: Vector2) -> float:
@@ -1536,14 +1647,15 @@ func _update_room(room_id: int, update_fuel_objects: bool = true) -> void:
 	item["visibility_m"] = visibility_m
 	item["hrr_kw"] = hrr_kw
 
-	var floor_mat := floor.material_override as StandardMaterial3D
-	if floor_mat != null:
-		var heat_t: float = clampf(
-			inverse_lerp(temp_heat_floor_start_c, temp_heat_floor_full_c, temp_upper_c),
-			0.0,
-			1.0
-		)
-		floor_mat.albedo_color = _selection_tinted_room_color(room_id, floor_color.lerp(hot_floor_color, heat_t))
+	var heat_t: float = clampf(
+		inverse_lerp(temp_heat_floor_start_c, temp_heat_floor_full_c, temp_upper_c),
+		0.0,
+		1.0
+	)
+	var floor_display_color: Color = _selection_tinted_room_color(room_id, floor_color.lerp(hot_floor_color, heat_t))
+	_apply_floor_color(floor, floor_display_color)
+	for raw_part in Array(item.get("floor_parts", [])):
+		_apply_floor_color(raw_part as MeshInstance3D, floor_display_color)
 	if show_wall_heatmap:
 		_update_wall_temperature(walls, temp_upper_c)
 	else:
@@ -1638,15 +1750,21 @@ func _update_room_selection_visuals() -> void:
 	for room_id in _room_items.keys():
 		var item: Dictionary = _room_items[room_id]
 		var floor := item.get("floor") as MeshInstance3D
-		if floor == null:
-			continue
-		var mat := floor.material_override as StandardMaterial3D
-		if mat == null:
-			continue
-		mat.albedo_color = _selection_tinted_room_color(int(room_id), _room_base_floor_color(int(room_id)))
+		var display_color: Color = _selection_tinted_room_color(int(room_id), _room_base_floor_color(int(room_id)))
+		_apply_floor_color(floor, display_color)
+		for raw_part in Array(item.get("floor_parts", [])):
+			_apply_floor_color(raw_part as MeshInstance3D, display_color)
 		var label := item.get("label") as Label3D
 		if label != null:
 			label.modulate = selection_highlight_color if int(room_id) == _selected_room_id else label_color
+
+
+func _apply_floor_color(floor_node: MeshInstance3D, color: Color) -> void:
+	if floor_node == null:
+		return
+	var mat := floor_node.material_override as StandardMaterial3D
+	if mat != null:
+		mat.albedo_color = color
 
 
 func _apply_selection_visuals() -> void:

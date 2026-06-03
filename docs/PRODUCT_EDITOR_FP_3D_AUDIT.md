@@ -1,6 +1,6 @@
 # Auditoría de producto — Editor / Sistema FP / Visualización 3D
 **Fecha**: 2026-05-31 | **Versión base**: v0.4.1 (commit 7b24f68)  
-**Validación**: 379/379 PASS · 4 gaps no-gating · Guardrails ALL PASS · 13/13 tests OK
+**Validación**: 379/379 PASS · 4 gaps no-gating · Guardrails ALL PASS · Product checks 57/57 OK
 
 ---
 
@@ -13,7 +13,7 @@ MainMenu.tscn ──────────────────────
    │  [Salir]                                                        │
    ▼                                                                 │
 ScenarioEditorScene.tscn                                             │
-   └── ScenarioEditor.gd  (7 399 líneas, 340 funciones)             │
+   └── ScenarioEditor.gd  (7 876 líneas, 340+ funciones)            │
        ├── EditorGrid.gd         — cuadrícula 2D y snap              │
        ├── ObjectLibrary.gd      — catálogo de objetos combustibles   │
        ├── ScenarioSerializer.gd — save/load JSON editor ↔ runtime    │
@@ -42,7 +42,7 @@ Transporte editor → simulación:
 
 | Módulo | Archivo | Tamaño | Estado |
 |--------|---------|--------|--------|
-| Editor principal | `ScenarioEditor.gd` | 7 399 líneas / 340 funciones | ✅ Extenso y funcional |
+| Editor principal | `ScenarioEditor.gd` | 7 876 líneas / 340+ funciones | ✅ Extenso y funcional |
 | Cuadrícula | `EditorGrid.gd` | ~150 líneas | ✅ Completo |
 | Biblioteca de objetos | `ObjectLibrary.gd` | ~200 líneas | ✅ Completo |
 | Serialización | `ScenarioSerializer.gd` | 366 líneas | ✅ Completo |
@@ -90,7 +90,7 @@ Transporte editor → simulación:
 
 | Módulo | Archivo | Estado |
 |--------|---------|--------|
-| Visualizador principal | `Visualizer3D.gd` | ✅ Completo (2 688 líneas / 124 funciones) |
+| Visualizador principal | `Visualizer3D.gd` | ✅ Completo (3 215 líneas / 124+ funciones) |
 | Geometría de sala | `geometry/RoomShellFactory.gd` | ✅ Completo |
 | Cámara orbital | `camera/CameraOrbit3D.gd` | ✅ Completo |
 | Picking 3D | `interaction/ScreenPicking3D.gd` | ✅ Completo |
@@ -118,7 +118,7 @@ Transporte editor → simulación:
 
 | Módulo | Archivo | Tamaño | Estado |
 |--------|---------|--------|--------|
-| Controlador FP | `FirstPersonController.gd` | 2 934 líneas / 135 funciones | ✅ Funcional |
+| Controlador FP | `FirstPersonController.gd` | 3 796 líneas / 135+ funciones | ✅ Funcional |
 | Overlay visibilidad | `FPVisibilityOverlay.gd` | ~150 líneas | ✅ Completo |
 | Visuals aperturas FP | `FPOpeningVisuals.gd` | ~200 líneas | ✅ Completo |
 | Interacción aperturas | `FPOpeningInteraction.gd` | ~180 líneas | ✅ Completo |
@@ -126,7 +126,7 @@ Transporte editor → simulación:
 
 **Capacidades**:
 - Construcción procedural completa del mundo 3D desde `BuildingModel`
-- Geometría: suelos, techos, muros (con rodapié), escaleras (tramo recto y switchback), rellano
+- Geometría: suelos, techos, muros (con rodapié), escaleras (tramo recto y switchback), rellano y huecos verticales navegables incluso cuando solapan salas normales
 - Contexto exterior: ciudad de día/noche con edificios, iluminación y vistas de ventana
 - Posturas: de pie / agachado / tumbado con velocidades distintas
 - Interacción con aperturas: ciclo por pasos (0/25/50/75/100%), hold para ajuste fino
@@ -163,7 +163,7 @@ Transporte editor → simulación:
 
 | Módulo | Archivo | Estado |
 |--------|---------|--------|
-| HUD principal | `hud.gd` | ✅ Completo (944 líneas) |
+| HUD principal | `hud.gd` | ✅ Completo (979 líneas) |
 | Vista de acción apertura | `HUDOpeningActionView.gd` | ✅ Completo |
 | Resumen apertura | `HUDOpeningSummary.gd` | ✅ Completo |
 | Labels de reproducción | `HUDPlaybackLabels.gd` | ✅ Completo |
@@ -226,7 +226,7 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 | **Monolito ScenarioEditor.gd** | Alta | 7 400 líneas / 340 funciones en un solo archivo. Dificulta mantenimiento, test unitario y contribuciones externas. Candidato a descomposición en módulos especializados. |
 | **Acoplamiento editor↔Visualizer3D** | Media | El editor instancia y controla directamente el Visualizer3D y el FirstPersonController. Cambios en sus interfaces pueden romper el editor sin aviso. |
 | **Transporte via archivos de usuario** | Media-Baja | `user://last_editor_runtime_template.json` es el canal entre editor y simulación. Si se corrompe o no existe, la simulación carga sin datos. No hay validación de esquema en destino. |
-| **Sin test de UI** | Media | Todo el código de editor/UI es código Godot sin cobertura de test automatizado. Regresiones visuales o de flujo solo detectables manualmente. |
+| **Cobertura UI todavía parcial** | Media-Baja | Ya existen guardrails de flujo Godot, localización y editabilidad (`tests/test_godot_editability.py`), pero las regresiones visuales finas de composición siguen requiriendo pasada manual/interactiva. |
 | **FP sin fuego propio** | ✅ Cerrado | `FirstPersonController` crea nodos `FPFire/Fire_XX`, los ancla al `fuel_object` activo y reutiliza `FireAnimation3D`; guardrail `tools/validate_fp_fire_visuals.tscn`. |
 | **Gestión de errores de carga de escenario** | ✅ Cerrado | `ScenarioEditor` muestra `LoadErrorDialog` ante archivos inexistentes, JSON inválido o errores estructurales, con fallback a status bar. |
 | **Víctimas sin movimiento** | Baja | Las víctimas son marcadores estáticos; no existe motor de pathfinding. Para entrenamiento real se necesitaría movilidad básica o al menos animación de estado (consciente/incapacitado/muerto). |
@@ -245,6 +245,7 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 | DT-07 | Víctimas estáticas | Medio (entrenamiento) | Alto |
 | DT-08 | Pantalla de resumen técnico post-simulación | ✅ Implementado en W-02: métricas técnicas, víctimas, detectores y archivos exportados | Cerrado |
 | DT-09 | Internacionalización parcial (mezcla ES/EN en UI) | ✅ Cerrado en W-05: textos principales en `i18n/es_ui.json` + guardrail de regresión | Cerrado |
+| DT-10 | Parámetros UI/HUD no editables desde Inspector | ✅ Cerrado para knobs principales: editor tipografía/layout/hover, HUD fuentes/márgenes/separaciones/panel compacto, FP HUD `Rect2`, 3D overlays; guardrail `tests/test_godot_editability.py` | Cerrado |
 
 ---
 
@@ -262,6 +263,7 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 | DT-01 parcial | Extraer módulo de serialización de UI (propiedades por tipo de elemento) de `ScenarioEditor.gd` a `editor/UIPropertyPanels.gd` | Media |
 | DT-01 parcial | Extraer módulo de dibujo 2D `editor/EditorDraw2D.gd` (funciones `_draw_*`) | Media |
 | — | Test de smoke del flujo editor→export→simulación | Alta |
+| — | ✅ Editabilidad Godot de Editor/HUD/FP/3D con guardrail `tests/test_godot_editability.py` | Cerrado |
 
 **Criterio de cierre**: editor funciona igual que antes, tiene test de flujo, código distribuido en ≤5 módulos de editor, errores de carga son visibles al usuario.
 
@@ -333,12 +335,10 @@ La capa de producto (editor, FP, 3D) está **sustancialmente construida** como h
 - Modo primera persona con construcción procedural del mundo, posturas, interacción con aperturas, overlay de visibilidad por humo.
 
 **Qué falta para producto técnico completo**:
-1. Overlay técnico de magnitudes en FP (CO/O²/FED/T/visibilidad).
-2. Fuego visible en FP.
-3. Estado visual de víctimas derivado de FED (sin gameplay).
-4. Export técnico post-simulación (CSV, JSON eventos).
-5. Robustez del editor (popup en carga fallida, tests de flujo).
-6. Descomposición del monolito `ScenarioEditor.gd`.
+1. Descomposición incremental del monolito `ScenarioEditor.gd`.
+2. Pasada visual interactiva en Godot para comprobar composición real de editor/HUD/FP/3D en varias resoluciones.
+3. Validación de esquema más visible en destino si `user://last_editor_runtime_template.json` falta o se corrompe.
+4. Decidir si las constantes finas de dibujo 2D/handles deben seguir en código o pasar a Inspector en una fase de tuning visual.
 
 **Fuera de alcance (no implementar)**: HUD táctico de agua/PPV/rescate, criterios victoria/derrota, pathfinding.
 

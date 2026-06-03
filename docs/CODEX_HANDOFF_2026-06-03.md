@@ -5,15 +5,15 @@ Este archivo resume el estado de la conversacion para poder continuar el trabajo
 ## Estado git
 
 - Rama: `main`
-- Ultimo bloque tecnico guardado: `dc59228 Polish FP editor runtime guardrails`
-- Estado antes de crear este handoff: working tree limpio y `main` sincronizada con `origin/main`
+- Ultimo bloque tecnico guardado: `4e7b4bc Add 3D validation tools and FP detector alarm`
+- Estado actual: `main` esta 1 commit por delante de `origin/main` y el working tree contiene el bloque no commiteado de editabilidad Godot (Editor/HUD/tests/docs).
 
 ## Validaciones recientes
 
-Ultima validacion completa ejecutada tras cerrar guardrail de captura 3D:
+Ultima validacion completa ejecutada tras cerrar guardrail de captura 3D, editabilidad Godot y huecos de escalera:
 
 - `python scripts/check_product.py`
-  - `ALL PRODUCT CHECKS PASS (53 tests)`
+  - `ALL PRODUCT CHECKS PASS (57 tests)`
 - `python scripts/simulation/validation_guardrails.py`
   - `Required checks 379/379 PASS`
   - `ALL GUARDRAILS PASS -- working tree listo.`
@@ -42,8 +42,8 @@ Ultima validacion completa ejecutada tras cerrar guardrail de captura 3D:
 - Inicio FP restaurado desde editor:
   - `player_start` restaura posicion, planta y yaw.
   - Guardrail: `tools/validate_fp_player_start.tscn`
-- `scripts/check_product.py` incluye ahora todos los guardrails nuevos y reporta 53 tests.
-- `docs/PRODUCT_EDITOR_FP_3D_AUDIT.md` y `README.md` se actualizaron al estado 53/53.
+- `scripts/check_product.py` incluye ahora todos los guardrails nuevos y reporta 57 tests.
+- `docs/PRODUCT_EDITOR_FP_3D_AUDIT.md` y `README.md` se actualizaron al estado 57/57.
 - Alarma FP de detectores cerrada:
   - `FirstPersonController` crea `DetectorAlarm` (`AudioStreamPlayer3D`) con beep procedural por detector.
   - La alarma se activa con `triggered=true` solo si FP está activo y los detectores son visibles.
@@ -58,6 +58,16 @@ Ultima validacion completa ejecutada tras cerrar guardrail de captura 3D:
 - Captura 3D blindada:
   - Guardrail valida PNG real si el renderer headless expone textura; si no, valida fallo controlado sin archivo corrupto.
   - Guardrail: `tools/validate_3d_screenshot_export.tscn`.
+- Editabilidad Godot blindada:
+  - `ScenarioEditor` expone tipografia, layout de paneles/topbar y tolerancia de hover help en `Editor UI`.
+  - `hud.gd` expone fuentes, margenes, separaciones y altura del panel compacto de aperturas en `HUD Layout`.
+  - Guardrail: `tests/test_godot_editability.py`.
+- Escaleras con hueco navegable:
+  - `ScenarioEditor` añade selector `Tipo: Auto / Recta / 180°` en herramienta y propiedades; guarda `stair_turn_mode`.
+  - El arrastre muestra ENTRADA -> SUBE, guia de peldaños y rectangulo real del hueco vertical.
+  - `FirstPersonController` parte suelos y techos de salas solapadas alrededor del hueco vertical para que no quede una tapa bloqueando la subida.
+  - `Visualizer3D` parte visualmente suelos superiores solapados y mantiene color termico/seleccion en las piezas.
+  - Guardrail ampliado: `tools/validate_stairs_geometry.tscn`.
 
 ## Problema original del usuario
 
@@ -73,6 +83,7 @@ El usuario reporto que al editar una casa simple todo iba bien, pero al entrar e
 
 - `view/fp/FirstPersonController.gd`
 - `tools/validate_furniture_runtime.gd`
+- `tools/validate_stairs_geometry.gd`
 - `tools/validate_3d_door_opening_visuals.gd`
 - `tools/validate_3d_technical_overlays.gd`
 - `tools/validate_3d_screenshot_export.gd`
@@ -82,14 +93,15 @@ El usuario reporto que al editar una casa simple todo iba bien, pero al entrar e
 - `tools/validate_fp_player_start.gd`
 - `tools/validate_fp_detector_alarm.gd`
 - `tools/validate_editor_load_error_dialog.gd`
+- `tests/test_godot_editability.py`
 - `scripts/check_product.py`
 - `docs/PRODUCT_EDITOR_FP_3D_AUDIT.md`
 
 ## Proximo bloque recomendado
 
-El siguiente bloque tecnico logico es pasar a visualizacion 3D/polish o a deuda de editor:
+El siguiente bloque tecnico logico es pasar a visualizacion interactiva/polish o a deuda de editor:
 
-1. Hacer una pasada visual interactiva opcional de v0.5.2 en Godot/editor, o continuar con refactor incremental del monolito de editor.
+1. Hacer una pasada visual interactiva opcional de v0.5.2 en Godot/editor, verificando inspector editability en Editor/HUD/FP/3D, o continuar con refactor incremental del monolito de editor.
 2. Ejecutar antes de cerrar cualquier commit nuevo:
    - `python scripts/check_product.py`
    - `python scripts/simulation/validation_guardrails.py`

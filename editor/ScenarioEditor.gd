@@ -94,14 +94,26 @@ const OBJECT_HANDLE_RADIUS_PX: float = 6.5
 const OBJECT_HANDLE_HIT_RADIUS_M: float = 0.22
 const OBJECT_ROTATE_HANDLE_OFFSET_M: float = 0.38
 const OBJECT_WALL_SNAP_M: float = GRID_M * 0.75
+const STAIR_TURN_MODE_AUTO: String = "auto"
+const STAIR_TURN_MODE_STRAIGHT: String = "straight"
+const STAIR_TURN_MODE_SWITCHBACK: String = "switchback"
 
 @export_group("Editor UI")
 @export var load_error_dialog_title: String = "Error al cargar escenario"
 @export var max_undo_steps: int = 48
 @export var pixels_per_meter: float = 64.0
 @export_range(0.05, 2.0, 0.05) var hover_help_delay_s: float = EDITOR_HOVER_HELP_DELAY_S
+@export_range(0.0, 16.0, 0.5) var hover_help_move_tolerance_px: float = EDITOR_HOVER_HELP_MOVE_TOL_PX
 @export_range(240.0, 360.0, 1.0) var editor_left_panel_width_px: float = EDITOR_LEFT_PANEL_WIDTH_PX
 @export_range(220.0, 320.0, 1.0) var editor_right_panel_width_px: float = EDITOR_RIGHT_PANEL_WIDTH_PX
+@export_range(0.0, 64.0, 1.0) var editor_side_panel_top_px: float = EDITOR_SIDE_PANEL_TOP_PX
+@export_range(48.0, 140.0, 1.0) var editor_side_panel_bottom_px: float = EDITOR_SIDE_PANEL_BOTTOM_PX
+@export_range(72.0, 160.0, 1.0) var editor_top_bar_height_px: float = EDITOR_TOP_BAR_HEIGHT_PX
+@export_range(8, 22, 1) var editor_font_size_body: int = EDITOR_FONT_SIZE_BODY
+@export_range(8, 20, 1) var editor_font_size_compact: int = EDITOR_FONT_SIZE_COMPACT
+@export_range(10, 26, 1) var editor_font_size_heading: int = EDITOR_FONT_SIZE_HEADING
+@export_range(8, 22, 1) var editor_font_size_button: int = EDITOR_FONT_SIZE_BUTTON
+@export_range(8, 22, 1) var editor_font_size_status: int = EDITOR_FONT_SIZE_STATUS
 
 @export_group("Object Editing")
 @export var object_move_snap_m: float = 0.05
@@ -200,6 +212,8 @@ var _hover_help_has_mouse: bool = false
 var _scenario_paths: Array[String] = []
 var _stop_time_spin: SpinBox
 var _corridor_width_spin: SpinBox
+var _stair_tool_section: Control
+var _stair_tool_turn_option: OptionButton
 var _opening_tool_section: Control
 var _opening_tool_width_spin: SpinBox
 var _save_dialog: FileDialog
@@ -212,6 +226,7 @@ var _room_y_spin: SpinBox
 var _room_width_spin: SpinBox
 var _room_depth_spin: SpinBox
 var _room_rotation_spin: SpinBox
+var _stair_turn_option: OptionButton
 var _stair_walls_check: CheckBox
 var _stair_railings_check: CheckBox
 var _stair_angle_label: Label
@@ -438,14 +453,14 @@ func _build_editor_theme() -> Theme:
 func _apply_editor_theme_font_sizes(theme: Theme) -> void:
 	if theme == null:
 		return
-	theme.set_font_size("font_size", "Label", EDITOR_FONT_SIZE_BODY)
-	theme.set_font_size("font_size", "Button", EDITOR_FONT_SIZE_BUTTON)
-	theme.set_font_size("font_size", "LineEdit", EDITOR_FONT_SIZE_BODY)
-	theme.set_font_size("font_size", "OptionButton", EDITOR_FONT_SIZE_BUTTON)
-	theme.set_font_size("font_size", "SpinBox", EDITOR_FONT_SIZE_BODY)
-	theme.set_font_size("font_size", "CheckBox", EDITOR_FONT_SIZE_BODY)
-	theme.set_font_size("font_size", "ItemList", EDITOR_FONT_SIZE_COMPACT)
-	theme.set_font_size("font_size", "PopupMenu", EDITOR_FONT_SIZE_BODY)
+	theme.set_font_size("font_size", "Label", editor_font_size_body)
+	theme.set_font_size("font_size", "Button", editor_font_size_button)
+	theme.set_font_size("font_size", "LineEdit", editor_font_size_body)
+	theme.set_font_size("font_size", "OptionButton", editor_font_size_button)
+	theme.set_font_size("font_size", "SpinBox", editor_font_size_body)
+	theme.set_font_size("font_size", "CheckBox", editor_font_size_body)
+	theme.set_font_size("font_size", "ItemList", editor_font_size_compact)
+	theme.set_font_size("font_size", "PopupMenu", editor_font_size_body)
 
 
 func _normalize_editor_panel_readability() -> void:
@@ -454,9 +469,9 @@ func _normalize_editor_panel_readability() -> void:
 	var left_panel := _ui_root.get_node_or_null("LeftPanel") as Control
 	if left_panel != null:
 		left_panel.scale = Vector2.ONE
-		left_panel.offset_top = EDITOR_SIDE_PANEL_TOP_PX
+		left_panel.offset_top = editor_side_panel_top_px
 		left_panel.offset_right = left_width_px
-		left_panel.offset_bottom = -EDITOR_SIDE_PANEL_BOTTOM_PX
+		left_panel.offset_bottom = -editor_side_panel_bottom_px
 		left_panel.custom_minimum_size.x = left_width_px
 		_restore_panel_vbox_from_scroll(left_panel)
 		var left_vbox := _find_left_vbox()
@@ -467,8 +482,8 @@ func _normalize_editor_panel_readability() -> void:
 		right_panel.scale = Vector2.ONE
 		right_panel.offset_left = -right_width_px
 		right_panel.offset_right = -12.0
-		right_panel.offset_top = EDITOR_SIDE_PANEL_TOP_PX
-		right_panel.offset_bottom = -EDITOR_SIDE_PANEL_BOTTOM_PX
+		right_panel.offset_top = editor_side_panel_top_px
+		right_panel.offset_bottom = -editor_side_panel_bottom_px
 		right_panel.custom_minimum_size.x = right_width_px
 		var right_vbox := right_panel.get_node_or_null("VBox") as VBoxContainer
 		if right_vbox != null:
@@ -478,8 +493,8 @@ func _normalize_editor_panel_readability() -> void:
 		top_bar.offset_left = -280.0
 		top_bar.offset_top = 8.0
 		top_bar.offset_right = 280.0
-		top_bar.offset_bottom = EDITOR_TOP_BAR_HEIGHT_PX
-		top_bar.custom_minimum_size = Vector2(560.0, EDITOR_TOP_BAR_HEIGHT_PX - 8.0)
+		top_bar.offset_bottom = editor_top_bar_height_px
+		top_bar.custom_minimum_size = Vector2(560.0, editor_top_bar_height_px - 8.0)
 	_compact_top_bar()
 
 
@@ -570,7 +585,7 @@ func _ensure_editor_branding() -> void:
 		brand.add_child(mode_label)
 	mode_label.text = "EDITOR DE ESCENARIOS"
 	mode_label.add_theme_font_override("font", _editor_title_font)
-	mode_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
+	mode_label.add_theme_font_size_override("font_size", editor_font_size_body)
 	mode_label.add_theme_color_override("font_color", UI_TEXT_MUTED)
 
 
@@ -723,7 +738,7 @@ func _ensure_hover_help_popup() -> void:
 	_hover_help_popup_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hover_help_popup_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hover_help_popup_label.custom_minimum_size.x = 220.0
-	_hover_help_popup_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
+	_hover_help_popup_label.add_theme_font_size_override("font_size", editor_font_size_body)
 	_hover_help_popup_label.add_theme_color_override("font_color", Color(0.96, 0.98, 0.92, 1.0))
 	margin.add_child(_hover_help_popup_label)
 
@@ -1491,24 +1506,24 @@ func _style_editor_controls(node: Node) -> void:
 		if _is_heading_label(label):
 			label.text = label.text.to_upper()
 			label.add_theme_font_override("font", _editor_title_font)
-			label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_HEADING)
+			label.add_theme_font_size_override("font_size", editor_font_size_heading)
 			label.add_theme_color_override("font_color", UI_BORDER_HOT)
 		elif label.name == "StatusLabel":
-			label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_STATUS)
+			label.add_theme_font_size_override("font_size", editor_font_size_status)
 			label.custom_minimum_size.y = maxf(label.custom_minimum_size.y, 72.0)
 			label.add_theme_color_override("font_color", UI_TEXT_MUTED)
 		elif label.name == "ControlsHelp":
-			label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
+			label.add_theme_font_size_override("font_size", editor_font_size_body)
 			label.add_theme_color_override("font_color", UI_TEXT_MUTED)
 		elif label.name == "FloorStatusLabel":
-			label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
+			label.add_theme_font_size_override("font_size", editor_font_size_compact)
 			label.add_theme_color_override("font_color", UI_TEXT_MUTED)
 		elif label.name == "EditorModeLabel":
 			label.add_theme_font_override("font", _editor_title_font)
-			label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
+			label.add_theme_font_size_override("font_size", editor_font_size_body)
 			label.add_theme_color_override("font_color", UI_TEXT_MUTED)
 		else:
-			label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
+			label.add_theme_font_size_override("font_size", editor_font_size_body)
 			if not label.text.contains(":") and label.text.length() <= 36:
 				label.text = label.text.to_upper()
 	if node is Button:
@@ -1516,25 +1531,25 @@ func _style_editor_controls(node: Node) -> void:
 		button.text = button.text.to_upper()
 		button.focus_mode = Control.FOCUS_NONE
 		button.add_theme_font_override("font", _editor_title_font)
-		button.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BUTTON)
+		button.add_theme_font_size_override("font_size", editor_font_size_button)
 	if node is LineEdit:
 		var edit := node as LineEdit
 		edit.add_theme_font_override("font", _editor_font)
-		edit.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
+		edit.add_theme_font_size_override("font_size", editor_font_size_body)
 	if node is SpinBox:
 		var spin := node as SpinBox
 		spin.add_theme_font_override("font", _editor_font)
-		spin.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
+		spin.add_theme_font_size_override("font_size", editor_font_size_body)
 	if node is OptionButton:
 		var option := node as OptionButton
 		option.focus_mode = Control.FOCUS_NONE
 		option.add_theme_font_override("font", _editor_title_font)
-		option.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BUTTON)
+		option.add_theme_font_size_override("font_size", editor_font_size_button)
 	if node is ItemList:
 		var item_list := node as ItemList
 		item_list.focus_mode = Control.FOCUS_NONE
 		item_list.add_theme_font_override("font", _editor_font)
-		item_list.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
+		item_list.add_theme_font_size_override("font_size", editor_font_size_compact)
 	for child in node.get_children():
 		_style_editor_controls(child)
 
@@ -1682,6 +1697,19 @@ func _setup_ui() -> void:
 	if corridor_row != null:
 		corridor_row.name = "CorridorWidthRow"
 
+	_stair_tool_section = VBoxContainer.new()
+	_stair_tool_section.name = "StairToolSection"
+	_stair_tool_section.add_theme_constant_override("separation", 4)
+	main.add_child(_stair_tool_section)
+	var stair_tool_title := Label.new()
+	stair_tool_title.name = "StairToolTitle"
+	stair_tool_title.text = "Escalera"
+	_stair_tool_section.add_child(stair_tool_title)
+	_stair_tool_turn_option = _add_option_row(_stair_tool_section, "Tipo", "StairToolTurnRow", "StairToolTurnOption")
+	_populate_stair_turn_options(_stair_tool_turn_option)
+	if not _stair_tool_turn_option.item_selected.is_connected(_on_stair_tool_turn_selected):
+		_stair_tool_turn_option.item_selected.connect(_on_stair_tool_turn_selected)
+
 	_opening_tool_section = VBoxContainer.new()
 	_opening_tool_section.name = "OpeningToolSection"
 	_opening_tool_section.add_theme_constant_override("separation", 4)
@@ -1708,12 +1736,14 @@ func _setup_ui() -> void:
 	_room_width_spin = _add_spin(main, "Ancho (m)", 0.25, 200.0, 0.05)
 	_room_depth_spin = _add_spin(main, "Fondo (m)", 0.25, 200.0, 0.05)
 	_room_rotation_spin = _add_spin(main, "Angulo (deg)", -180.0, 180.0, 1.0)
+	_stair_turn_option = _add_option_row(main, "Tipo escalera", "StairTurnRow", "StairTurnOption")
+	_populate_stair_turn_options(_stair_turn_option)
 	_stair_walls_check = _add_checkbox(main, "Escalera con paredes")
 	_stair_railings_check = _add_checkbox(main, "Escalera con barandillas")
 	_stair_angle_label = Label.new()
 	_stair_angle_label.name = "StairAngleLabel"
 	_stair_angle_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_stair_angle_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
+	_stair_angle_label.add_theme_font_size_override("font_size", editor_font_size_compact)
 	_stair_angle_label.modulate = UI_TEXT_MUTED
 	main.add_child(_stair_angle_label)
 	_height_spin = _add_spin(main, "Alto (m)", 1.8, 6.0, 0.1)
@@ -1776,7 +1806,7 @@ func _setup_ui() -> void:
 	main.add_child(_opening_props_container)
 
 	_opening_type_label = Label.new()
-	_opening_type_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
+	_opening_type_label.add_theme_font_size_override("font_size", editor_font_size_compact)
 	_opening_type_label.modulate = Color(0.75, 0.88, 1.0, 1.0)
 	_opening_props_container.add_child(_opening_type_label)
 
@@ -1947,7 +1977,7 @@ func _setup_ui() -> void:
 	_stop_time_spin.value = 0.0
 	var stop_hint := Label.new()
 	stop_hint.text = "(0 = no parar nunca)"
-	stop_hint.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
+	stop_hint.add_theme_font_size_override("font_size", editor_font_size_compact)
 	stop_hint.modulate = Color(0.7, 0.7, 0.7)
 	main.add_child(stop_hint)
 	_stop_time_spin.value_changed.connect(func(v: float):
@@ -2085,6 +2115,22 @@ func _add_checkbox(parent: Control, label: String) -> CheckBox:
 	checkbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(checkbox)
 	return checkbox
+
+
+func _add_option_row(parent: Control, label: String, row_name: String, option_name: String) -> OptionButton:
+	var row := HBoxContainer.new()
+	row.name = row_name
+	row.add_theme_constant_override("separation", 4)
+	parent.add_child(row)
+	var row_label := Label.new()
+	row_label.text = label
+	row_label.custom_minimum_size.x = 96.0
+	row.add_child(row_label)
+	var option := OptionButton.new()
+	option.name = option_name
+	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(option)
+	return option
 
 
 func _create_building_type_controls(parent: Control) -> void:
@@ -2241,7 +2287,7 @@ func _ensure_controls_help_block(parent: Control) -> void:
 			_help_label.name = "ControlsHelp"
 			margin.add_child(_help_label)
 	_help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_help_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
+	_help_label.add_theme_font_size_override("font_size", editor_font_size_body)
 	_help_label.add_theme_color_override("font_color", UI_TEXT_MUTED)
 	_help_label.text = _editor_help_text()
 
@@ -2277,7 +2323,7 @@ func _ensure_editor_help_dialog() -> void:
 	_help_dialog_label.name = "HelpPageText"
 	_help_dialog_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_help_dialog_label.custom_minimum_size = Vector2(560.0, 270.0)
-	_help_dialog_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_BODY)
+	_help_dialog_label.add_theme_font_size_override("font_size", editor_font_size_body)
 	_help_dialog_label.add_theme_color_override("font_color", UI_TEXT)
 	root_box.add_child(_help_dialog_label)
 
@@ -2413,7 +2459,7 @@ func _create_floor_controls(parent: Control) -> void:
 	_floor_status_label = Label.new()
 	_floor_status_label.name = "FloorStatusLabel"
 	_floor_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_floor_status_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
+	_floor_status_label.add_theme_font_size_override("font_size", editor_font_size_compact)
 	_floor_status_label.modulate = UI_TEXT_MUTED
 	parent.add_child(_floor_status_label)
 	_sync_floor_controls()
@@ -2853,7 +2899,7 @@ func _tool_hint(tool_id: int) -> String:
 		Tool.CORRIDOR_L:
 			return "Pasillo: arrastra para crear un pasillo. Diagonal = giro en L. Ajusta ANCHO arriba a la izquierda. (%.2f m actualmente)" % corridor_width_m
 		Tool.STAIRS:
-			return "Escalera: arrastra el hueco de escalera en %s. Si falta la planta superior se crea automaticamente." % _current_floor_name()
+			return "Escalera (%s): arrastra desde la ENTRADA hacia donde SUBE en %s. Crea la planta superior si falta y recorta el hueco en suelos/techos solapados." % [_stair_turn_mode_label(_selected_stair_tool_turn_mode()), _current_floor_name()]
 		Tool.DOOR:
 			return "Puerta: pulsa una pared compartida o exterior en %s para crear puerta." % _current_floor_name()
 		Tool.HOLE:
@@ -3122,8 +3168,11 @@ func _handle_release(pos_m: Vector2) -> void:
 		return
 
 	if current_tool == Tool.STAIRS:
-		if rect.size.x < GRID_M * 3.0 or rect.size.y < GRID_M * 5.0:
-			_set_status("La escalera es demasiado pequena.")
+		var stair_dir: Vector2 = _stair_run_direction_from_drag(start_m, end_m, rect)
+		var stair_long_m: float = _stair_long_span_m(rect, stair_dir)
+		var stair_cross_m: float = _stair_cross_span_m(rect, stair_dir)
+		if stair_long_m < GRID_M * 5.0 or stair_cross_m < GRID_M * 3.0:
+			_set_status("La escalera es demasiado pequena: arrastra al menos %.2f m de largo y %.2f m de ancho." % [GRID_M * 5.0, GRID_M * 3.0])
 			queue_redraw()
 			return
 		_push_undo_snapshot("create_stairs")
@@ -3761,13 +3810,16 @@ func _create_stairs_from_rect(rect: Rect2, start_m: Vector2, end_m: Vector2) -> 
 	var lower_id: int = _create_room_at_level(rect, lower_name, "escalera", lower_level_m, minf(upper_level_m - lower_level_m, 3.2))
 	var upper_id: int = _create_room_at_level(rect, upper_name, "escalera", upper_level_m, 2.55)
 	var stair_dir: Vector2 = _stair_run_direction_from_drag(start_m, end_m, rect)
-	var turn_degrees: float = 180.0 if _stair_can_use_180_landing(rect, stair_dir) else 0.0
+	var turn_mode: String = _selected_stair_tool_turn_mode()
+	var turn_degrees: float = _stair_turn_degrees_for_mode(rect, stair_dir, turn_mode)
 	_apply_stair_defaults_to_room(lower_id, stair_dir, turn_degrees)
 	_apply_stair_defaults_to_room(upper_id, stair_dir, turn_degrees)
+	_set_stair_turn_mode_for_room(lower_id, turn_mode)
+	_set_stair_turn_mode_for_room(upper_id, turn_mode)
 	_add_vertical_stair_opening(lower_id, upper_id, rect)
 	_select_room(lower_id)
 	_sync_floor_controls()
-	_set_status("Escalera creada: %s. El hueco vertical queda abierto para humo y gases." % ("dos tramos con descansillo 180" if turn_degrees >= 179.0 else "tramo recto"))
+	_set_status("Escalera creada: %s. Se recorta hueco vertical de paso en suelos/techos solapados." % ("dos tramos con descansillo 180" if turn_degrees >= 179.0 else "tramo recto"))
 
 
 func _apply_stair_defaults_to_room(room_id: int, stair_dir: Vector2, turn_degrees: float = 0.0) -> void:
@@ -3780,6 +3832,8 @@ func _apply_stair_defaults_to_room(room_id: int, stair_dir: Vector2, turn_degree
 		room["stair_has_walls"] = false
 		room["stair_has_railings"] = true
 		room["stair_turn_degrees"] = turn_degrees
+		if not room.has("stair_turn_mode"):
+			room["stair_turn_mode"] = _stair_turn_mode_from_degrees(turn_degrees)
 		room["stair_flight_count"] = 2 if turn_degrees >= 179.0 else 1
 		room["rotation_deg"] = _normalize_degrees_signed(rad_to_deg(atan2(stair_dir.y, stair_dir.x)) - 90.0)
 		rooms[i] = room
@@ -3798,6 +3852,111 @@ func _stair_run_direction_from_drag(start_m: Vector2, end_m: Vector2, rect: Rect
 
 func _stair_can_use_180_landing(rect: Rect2, stair_dir: Vector2) -> bool:
 	return _stair_cross_span_m(rect, stair_dir) >= 1.75 and _stair_long_span_m(rect, stair_dir) >= 2.40
+
+
+func _stair_turn_degrees_for_mode(rect: Rect2, stair_dir: Vector2, mode: String) -> float:
+	match _normalized_stair_turn_mode(mode):
+		STAIR_TURN_MODE_STRAIGHT:
+			return 0.0
+		STAIR_TURN_MODE_SWITCHBACK:
+			return 180.0 if _stair_can_use_180_landing(rect, stair_dir) else 0.0
+		_:
+			return 180.0 if _stair_can_use_180_landing(rect, stair_dir) else 0.0
+
+
+func _normalized_stair_turn_mode(mode: String) -> String:
+	match mode.strip_edges().to_lower():
+		STAIR_TURN_MODE_STRAIGHT:
+			return STAIR_TURN_MODE_STRAIGHT
+		STAIR_TURN_MODE_SWITCHBACK:
+			return STAIR_TURN_MODE_SWITCHBACK
+		_:
+			return STAIR_TURN_MODE_AUTO
+
+
+func _stair_turn_mode_from_degrees(turn_degrees: float) -> String:
+	return STAIR_TURN_MODE_SWITCHBACK if turn_degrees >= 179.0 else STAIR_TURN_MODE_AUTO
+
+
+func _stair_turn_mode_label(mode: String) -> String:
+	match _normalized_stair_turn_mode(mode):
+		STAIR_TURN_MODE_STRAIGHT:
+			return "recta"
+		STAIR_TURN_MODE_SWITCHBACK:
+			return "180°"
+		_:
+			return "auto"
+
+
+func _stair_turn_mode_for_room(room: Dictionary) -> String:
+	if room.has("stair_turn_mode"):
+		return _normalized_stair_turn_mode(String(room.get("stair_turn_mode", STAIR_TURN_MODE_AUTO)))
+	return _stair_turn_mode_from_degrees(float(room.get("stair_turn_degrees", 0.0)))
+
+
+func _selected_stair_tool_turn_mode() -> String:
+	return _stair_turn_mode_from_option(_stair_tool_turn_option)
+
+
+func _stair_turn_mode_from_option(option: OptionButton) -> String:
+	if option == null:
+		return STAIR_TURN_MODE_AUTO
+	match option.get_selected_id():
+		1:
+			return STAIR_TURN_MODE_STRAIGHT
+		2:
+			return STAIR_TURN_MODE_SWITCHBACK
+		_:
+			return STAIR_TURN_MODE_AUTO
+
+
+func _select_stair_turn_option(option: OptionButton, mode: String) -> void:
+	if option == null:
+		return
+	_populate_stair_turn_options(option)
+	var target_id: int = 0
+	match _normalized_stair_turn_mode(mode):
+		STAIR_TURN_MODE_STRAIGHT:
+			target_id = 1
+		STAIR_TURN_MODE_SWITCHBACK:
+			target_id = 2
+	for i in range(option.get_item_count()):
+		if option.get_item_id(i) == target_id:
+			option.select(i)
+			return
+
+
+func _populate_stair_turn_options(option: OptionButton) -> void:
+	if option == null or option.get_item_count() > 0:
+		return
+	option.add_item("Auto", 0)
+	option.add_item("Recta", 1)
+	option.add_item("180°", 2)
+
+
+func _set_stair_turn_mode_for_room(room_id: int, mode: String) -> void:
+	var rooms: Array = editor_data.get("rooms_data", [])
+	for i in range(rooms.size()):
+		if typeof(rooms[i]) != TYPE_DICTIONARY or int(rooms[i].get("id", -1)) != room_id:
+			continue
+		var room: Dictionary = rooms[i]
+		room["stair_turn_mode"] = _normalized_stair_turn_mode(mode)
+		rooms[i] = room
+		editor_data["rooms_data"] = rooms
+		return
+
+
+func _set_stair_turn_degrees_for_room(room_id: int, turn_degrees: float) -> void:
+	var rooms: Array = editor_data.get("rooms_data", [])
+	for i in range(rooms.size()):
+		if typeof(rooms[i]) != TYPE_DICTIONARY or int(rooms[i].get("id", -1)) != room_id:
+			continue
+		var room: Dictionary = rooms[i]
+		room["stair_turn_degrees"] = turn_degrees
+		room["stair_flight_count"] = 2 if turn_degrees >= 179.0 else 1
+		rooms[i] = room
+		editor_data["rooms_data"] = rooms
+		return
 
 
 func _next_floor_index_above(level_m: float) -> int:
@@ -3834,14 +3993,14 @@ func _add_vertical_stair_opening(lower_id: int, upper_id: int, rect: Rect2) -> v
 		if bool(op.get("is_vertical", false)) and int(op.get("a", -1)) == lower_id and int(op.get("b", -1)) == upper_id:
 			return
 	var stair_dir: Vector2 = _room_stair_run_direction(_get_room(lower_id))
-	var ramp_width_m: float = _stair_ramp_width_m(rect, stair_dir)
-	var ramp_depth_m: float = maxf(0.80, _stair_long_span_m(rect, stair_dir) - _stair_landing_depth_m(rect, stair_dir) - 0.22)
+	var turn_degrees: float = float(_get_room(lower_id).get("stair_turn_degrees", 0.0))
+	var void_rect: Rect2 = _stair_vertical_void_rect(rect, stair_dir, turn_degrees)
 	openings.append({
 		"a": lower_id,
 		"b": upper_id,
 		"type": "hole",
-		"width_m": ramp_width_m,
-		"height_m": ramp_depth_m,
+		"width_m": void_rect.size.x if absf(stair_dir.y) >= absf(stair_dir.x) else void_rect.size.y,
+		"height_m": void_rect.size.y if absf(stair_dir.y) >= absf(stair_dir.x) else void_rect.size.x,
 		"open_fraction": 1.0,
 		"offset_is_fraction": false,
 		"is_vertical": true
@@ -3900,9 +4059,12 @@ func _copy_stairs_from_level_to_level(lower_level_m: float, upper_level_m: float
 			var floor_name: String = _floor_name_for_level(upper_level_m)
 			upper_id = _create_room_at_level(rect, "Escalera %s" % floor_name, "escalera", upper_level_m, 2.55)
 		var stair_dir: Vector2 = _room_stair_run_direction(lower_room)
-		var turn_degrees: float = float(lower_room.get("stair_turn_degrees", 180.0 if _stair_can_use_180_landing(rect, stair_dir) else 0.0))
+		var turn_mode: String = _stair_turn_mode_for_room(lower_room)
+		var turn_degrees: float = _stair_turn_degrees_for_mode(rect, stair_dir, turn_mode)
 		_apply_stair_defaults_to_room(lower_id, stair_dir, turn_degrees)
 		_apply_stair_defaults_to_room(upper_id, stair_dir, turn_degrees)
+		_set_stair_turn_mode_for_room(lower_id, turn_mode)
+		_set_stair_turn_mode_for_room(upper_id, turn_mode)
 		_add_vertical_stair_opening(lower_id, upper_id, rect)
 
 
@@ -3984,9 +4146,18 @@ func _sync_vertical_stair_openings(room_id: int) -> void:
 		if _room_id_floor_level(b_id) < _room_id_floor_level(a_id):
 			lower_id = b_id
 		var rect: Rect2 = _get_room_rect(lower_id)
-		var stair_dir: Vector2 = _room_stair_run_direction(_get_room(lower_id))
-		op["width_m"] = _stair_ramp_width_m(rect, stair_dir)
-		op["height_m"] = maxf(0.80, _stair_long_span_m(rect, stair_dir) - _stair_landing_depth_m(rect, stair_dir) - 0.22)
+		var lower_room: Dictionary = _get_room(lower_id)
+		var stair_dir: Vector2 = _room_stair_run_direction(lower_room)
+		var turn_mode: String = _stair_turn_mode_for_room(lower_room)
+		var turn_degrees: float = _stair_turn_degrees_for_mode(rect, stair_dir, turn_mode)
+		_set_stair_turn_degrees_for_room(lower_id, turn_degrees)
+		var other_id: int = b_id if lower_id == a_id else a_id
+		if other_id >= 0:
+			_set_stair_turn_mode_for_room(other_id, turn_mode)
+			_set_stair_turn_degrees_for_room(other_id, turn_degrees)
+		var void_rect: Rect2 = _stair_vertical_void_rect(rect, stair_dir, turn_degrees)
+		op["width_m"] = void_rect.size.x if absf(stair_dir.y) >= absf(stair_dir.x) else void_rect.size.y
+		op["height_m"] = void_rect.size.y if absf(stair_dir.y) >= absf(stair_dir.x) else void_rect.size.x
 		openings[i] = op
 		changed = true
 	if changed:
@@ -4318,6 +4489,8 @@ func _refresh_property_panel() -> void:
 		_room_depth_spin.editable = has_room
 	if _room_rotation_spin != null:
 		_room_rotation_spin.editable = has_room
+	if _stair_turn_option != null:
+		_stair_turn_option.disabled = not has_stair_room
 	if _stair_walls_check != null:
 		_stair_walls_check.disabled = not has_stair_room
 	if _stair_railings_check != null:
@@ -4340,6 +4513,7 @@ func _refresh_property_panel() -> void:
 			_room_depth_spin.value = maxf(0.25, rect.size.y)
 		if _room_rotation_spin != null:
 			_room_rotation_spin.value = _normalize_degrees_signed(float(room.get("rotation_deg", 0.0)))
+		_select_stair_turn_option(_stair_turn_option, _stair_turn_mode_for_room(room))
 		if _stair_walls_check != null:
 			_stair_walls_check.button_pressed = bool(room.get("stair_has_walls", false))
 		if _stair_railings_check != null:
@@ -4360,6 +4534,7 @@ func _refresh_property_panel() -> void:
 			_room_depth_spin.value = 1.0
 		if _room_rotation_spin != null:
 			_room_rotation_spin.value = 0.0
+		_select_stair_turn_option(_stair_turn_option, STAIR_TURN_MODE_AUTO)
 		if _stair_walls_check != null:
 			_stair_walls_check.button_pressed = false
 		if _stair_railings_check != null:
@@ -4383,6 +4558,7 @@ func _refresh_property_panel() -> void:
 	_set_property_panel_visibility(has_room, has_obj, has_opening_sel, has_detector, has_victim, has_wall)
 	_set_control_row_visible(_stair_walls_check, has_stair_room)
 	_set_control_row_visible(_stair_railings_check, has_stair_room)
+	_set_control_row_visible(_stair_turn_option, has_stair_room)
 	_update_stair_angle_label(selected_room_id, room if has_room else {})
 	if _opening_props_container != null:
 		_opening_props_container.visible = has_opening_sel
@@ -4678,13 +4854,9 @@ func _apply_room_properties() -> void:
 		room["rotation_deg"] = _normalize_degrees_signed(_room_rotation_spin.value) if _room_rotation_spin != null else float(room.get("rotation_deg", 0.0))
 		if _is_stair_room(room):
 			room["stair_run_direction_m"] = Serializer.vector_to_data(_stair_direction_from_rotation(float(room.get("rotation_deg", 0.0))))
+			room["stair_turn_mode"] = _stair_turn_mode_from_option(_stair_turn_option)
 			room["stair_has_walls"] = bool(_stair_walls_check.button_pressed) if _stair_walls_check != null else bool(room.get("stair_has_walls", false))
 			room["stair_has_railings"] = bool(_stair_railings_check.button_pressed) if _stair_railings_check != null else bool(room.get("stair_has_railings", true))
-			if not room.has("stair_turn_degrees"):
-				var stair_rect: Rect2 = _get_room_rect(selected_room_id)
-				var stair_dir: Vector2 = Serializer.vector2_from_data(room.get("stair_run_direction_m", Vector2.DOWN))
-				room["stair_turn_degrees"] = 180.0 if _stair_can_use_180_landing(stair_rect, stair_dir) else 0.0
-			room["stair_flight_count"] = 2 if float(room.get("stair_turn_degrees", 0.0)) >= 179.0 else 1
 		room["height_m"] = _height_spin.value
 		room["fuel_energy_MJ"] = _fuel_spin.value
 		room["max_hrr_kw"] = _hrr_spin.value
@@ -4703,7 +4875,14 @@ func _apply_room_properties() -> void:
 		)
 		_set_room_rect(selected_room_id, next_rect)
 		if _is_stair_room(room):
-			_apply_stair_rotation_to_linked_rooms(selected_room_id, float(room.get("rotation_deg", 0.0)), Serializer.vector2_from_data(room.get("stair_run_direction_m", Vector2.DOWN)))
+			var stair_dir: Vector2 = Serializer.vector2_from_data(room.get("stair_run_direction_m", Vector2.DOWN))
+			var stair_mode: String = _stair_turn_mode_for_room(room)
+			var turn_degrees: float = _stair_turn_degrees_for_mode(next_rect, stair_dir, stair_mode)
+			_set_stair_turn_degrees_for_room(selected_room_id, turn_degrees)
+			for linked_id in _linked_vertical_stair_room_ids(selected_room_id):
+				_set_stair_turn_mode_for_room(linked_id, stair_mode)
+				_set_stair_turn_degrees_for_room(linked_id, turn_degrees)
+			_apply_stair_rotation_to_linked_rooms(selected_room_id, float(room.get("rotation_deg", 0.0)), stair_dir)
 			_sync_vertical_stair_openings(selected_room_id)
 		_set_status("Propiedades de habitacion %d actualizadas." % selected_room_id)
 		_refresh_element_list()
@@ -6160,11 +6339,42 @@ func _draw() -> void:
 			outline_color = Color(1.0, 0.80, 0.28, 0.95)
 		draw_rect(rect_px, fill_color, true)
 		draw_rect(rect_px, outline_color, false, 2.0)
+		if current_tool == Tool.STAIRS and rect.size.x > 0.01 and rect.size.y > 0.01:
+			var stair_dir: Vector2 = _stair_run_direction_from_drag(drag_start_m, drag_current_m, rect)
+			var stair_mode: String = _selected_stair_tool_turn_mode()
+			var turn_degrees: float = _stair_turn_degrees_for_mode(rect, stair_dir, stair_mode)
+			EditorDraw2D.stair_room_guides(self, rect_px, stair_dir, turn_degrees)
+			var void_px: Rect2 = _rect_to_px(_stair_vertical_void_rect(rect, stair_dir, turn_degrees))
+			draw_rect(void_px, Color(1.0, 0.26, 0.08, 0.18), true)
+			draw_rect(void_px, Color(1.0, 0.36, 0.10, 0.92), false, 2.0)
+			_draw_screen_string(
+				_m_to_px(drag_start_m),
+				Vector2(8.0, -18.0),
+				"ENTRADA",
+				90.0,
+				10,
+				Color(0.95, 1.0, 0.82, 0.90)
+			)
+			_draw_screen_string(
+				_m_to_px(drag_current_m),
+				Vector2(8.0, -18.0),
+				"SUBE",
+				80.0,
+				10,
+				Color(1.0, 0.90, 0.35, 0.94)
+			)
 		if rect.size.x > 0.01 and rect.size.y > 0.01:
 			var area: float = rect.size.x * rect.size.y
 			var preview_text: String = "%.2f × %.2f m  (%.2f m²)" % [rect.size.x, rect.size.y, area]
 			if current_tool == Tool.STAIRS:
-				preview_text = "Escalera  " + preview_text
+				var stair_dir: Vector2 = _stair_run_direction_from_drag(drag_start_m, drag_current_m, rect)
+				var long_m: float = _stair_long_span_m(rect, stair_dir)
+				var cross_m: float = _stair_cross_span_m(rect, stair_dir)
+				var stair_mode: String = _selected_stair_tool_turn_mode()
+				var mode_label: String = _stair_turn_mode_label(stair_mode)
+				if _normalized_stair_turn_mode(stair_mode) == STAIR_TURN_MODE_SWITCHBACK and not _stair_can_use_180_landing(rect, stair_dir):
+					mode_label += " no cabe"
+				preview_text = "Escalera %s  %.2f m largo × %.2f m ancho  | ENTRADA -> SUBE" % [mode_label, long_m, cross_m]
 			_draw_screen_string(
 				rect_px.position,
 				Vector2(6.0, 18.0),
@@ -6212,7 +6422,7 @@ func _track_hover_help_mouse(screen_pos: Vector2) -> void:
 	if not _hover_help_enabled or _is_pointer_over_ui() or _is_editor_dragging_anything():
 		_reset_hover_help()
 		return
-	if not _hover_help_has_mouse or screen_pos.distance_to(_hover_help_last_screen_pos) > EDITOR_HOVER_HELP_MOVE_TOL_PX:
+	if not _hover_help_has_mouse or screen_pos.distance_to(_hover_help_last_screen_pos) > hover_help_move_tolerance_px:
 		_hover_help_has_mouse = true
 		_hover_help_last_screen_pos = screen_pos
 		_hover_help_world_pos_m = _screen_to_m(screen_pos)
@@ -6610,6 +6820,42 @@ func _draw_vertical_opening(opening: Dictionary, index: int) -> void:
 	EditorDraw2D.vertical_opening(self, rect_px, color)
 
 
+func _stair_vertical_void_rect(rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> Rect2:
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return Rect2()
+	if turn_degrees >= 179.0:
+		var gap_m: float = 0.18
+		var cross_span_m: float = _stair_cross_span_m(rect, stair_dir)
+		var flight_width_m: float = clampf((cross_span_m - gap_m) * 0.5, 0.72, 1.05)
+		var shaft_width_m: float = minf(cross_span_m, flight_width_m * 2.0 + gap_m + 0.18)
+		if absf(stair_dir.x) > absf(stair_dir.y):
+			return Rect2(
+				Vector2(rect.position.x, rect.get_center().y - shaft_width_m * 0.5),
+				Vector2(rect.size.x, shaft_width_m)
+			)
+		return Rect2(
+			Vector2(rect.get_center().x - shaft_width_m * 0.5, rect.position.y),
+			Vector2(shaft_width_m, rect.size.y)
+		)
+	var width_m: float = minf(_stair_ramp_width_m(rect, stair_dir), maxf(0.2, _stair_cross_span_m(rect, stair_dir) - 0.2))
+	var run_m: float = minf(
+		maxf(0.80, _stair_long_span_m(rect, stair_dir) - _stair_landing_depth_m(rect, stair_dir) - 0.22),
+		maxf(0.2, _stair_long_span_m(rect, stair_dir) - 0.2)
+	)
+	var start_margin_m: float = 0.22
+	if absf(stair_dir.x) > absf(stair_dir.y):
+		var x_m: float = rect.position.x + start_margin_m if stair_dir.x > 0.0 else rect.position.x + rect.size.x - start_margin_m - run_m
+		return Rect2(
+			Vector2(x_m, rect.get_center().y - width_m * 0.5),
+			Vector2(run_m, width_m)
+		)
+	var y_m: float = rect.position.y + start_margin_m if stair_dir.y > 0.0 else rect.position.y + rect.size.y - start_margin_m - run_m
+	return Rect2(
+		Vector2(rect.get_center().x - width_m * 0.5, y_m),
+		Vector2(width_m, run_m)
+	)
+
+
 func _vertical_opening_rect(opening: Dictionary) -> Rect2:
 	var a_id: int = int(opening.get("a", -1))
 	var room_rect: Rect2 = _get_room_rect(a_id)
@@ -6619,34 +6865,7 @@ func _vertical_opening_rect(opening: Dictionary) -> Rect2:
 	if not room.is_empty() and _is_stair_room(room):
 		var stair_dir: Vector2 = _room_stair_run_direction(room)
 		var turn_degrees: float = float(room.get("stair_turn_degrees", 0.0))
-		if turn_degrees >= 179.0:
-			var gap_m: float = 0.18
-			var cross_span_m: float = _stair_cross_span_m(room_rect, stair_dir)
-			var flight_width_m: float = clampf((cross_span_m - gap_m) * 0.5, 0.72, 1.05)
-			var shaft_width_m: float = minf(cross_span_m, flight_width_m * 2.0 + gap_m + 0.18)
-			if absf(stair_dir.x) > absf(stair_dir.y):
-				return Rect2(
-					Vector2(room_rect.position.x, room_rect.get_center().y - shaft_width_m * 0.5),
-					Vector2(room_rect.size.x, shaft_width_m)
-				)
-			return Rect2(
-				Vector2(room_rect.get_center().x - shaft_width_m * 0.5, room_rect.position.y),
-				Vector2(shaft_width_m, room_rect.size.y)
-			)
-		var width_m: float = minf(float(opening.get("width_m", _stair_ramp_width_m(room_rect, stair_dir))), maxf(0.2, _stair_cross_span_m(room_rect, stair_dir) - 0.2))
-		var run_m: float = minf(float(opening.get("height_m", _stair_long_span_m(room_rect, stair_dir) * 0.7)), maxf(0.2, _stair_long_span_m(room_rect, stair_dir) - 0.2))
-		var start_margin_m: float = 0.22
-		if absf(stair_dir.x) > absf(stair_dir.y):
-			var x_m: float = room_rect.position.x + start_margin_m if stair_dir.x > 0.0 else room_rect.position.x + room_rect.size.x - start_margin_m - run_m
-			return Rect2(
-				Vector2(x_m, room_rect.get_center().y - width_m * 0.5),
-				Vector2(run_m, width_m)
-			)
-		var y_m: float = room_rect.position.y + start_margin_m if stair_dir.y > 0.0 else room_rect.position.y + room_rect.size.y - start_margin_m - run_m
-		return Rect2(
-			Vector2(room_rect.get_center().x - width_m * 0.5, y_m),
-			Vector2(width_m, run_m)
-		)
+		return _stair_vertical_void_rect(room_rect, stair_dir, turn_degrees)
 	var width_m: float = minf(float(opening.get("width_m", room_rect.size.x * 0.5)), maxf(0.2, room_rect.size.x - 0.2))
 	var depth_m: float = minf(float(opening.get("height_m", room_rect.size.y * 0.55)), maxf(0.2, room_rect.size.y - 0.2))
 	return Rect2(room_rect.get_center() - Vector2(width_m, depth_m) * 0.5, Vector2(width_m, depth_m))
@@ -7017,6 +7236,8 @@ func _bind_existing_ui() -> bool:
 	_interior_lights_check = _get_left_node("LightingRow/InteriorLightsCheck") as CheckBox
 	_stop_time_spin = _get_left_node("StopTimeSpin") as SpinBox
 	_corridor_width_spin = _get_left_node("CorridorWidthSpin") as SpinBox
+	_stair_tool_section = _get_left_node("StairToolSection") as Control
+	_stair_tool_turn_option = _get_left_node("StairToolSection/StairToolTurnRow/StairToolTurnOption") as OptionButton
 	_opening_tool_section = _get_left_node("OpeningToolSection") as Control
 	_opening_tool_width_spin = _get_left_node("OpeningToolSection/OpeningToolWidthRow/OpeningToolWidthSpin") as SpinBox
 	if _opening_tool_width_spin == null:
@@ -7031,6 +7252,7 @@ func _bind_existing_ui() -> bool:
 	_room_width_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/RoomWidthSpin") as SpinBox
 	_room_depth_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/RoomDepthSpin") as SpinBox
 	_room_rotation_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/RoomRotationSpin") as SpinBox
+	_stair_turn_option = _ui_root.get_node_or_null("RightPanel/VBox/RoomGeometry/StairTurnRow/StairTurnOption") as OptionButton
 	_height_spin = _ui_root.get_node_or_null("RightPanel/VBox/RoomHeightSpin") as SpinBox
 	_fuel_spin = _ui_root.get_node_or_null("RightPanel/VBox/FuelEnergySpin") as SpinBox
 	_hrr_spin = _ui_root.get_node_or_null("RightPanel/VBox/MaxHrrSpin") as SpinBox
@@ -7102,6 +7324,7 @@ func _bind_existing_ui() -> bool:
 	_populate_object_type_option()
 	_ensure_floor_controls_in_existing_ui()
 	_ensure_corridor_width_control_in_existing_ui()
+	_ensure_stair_tool_controls_in_existing_ui()
 	_ensure_opening_tool_controls_in_existing_ui()
 	_ensure_hvac_option_in_existing_ui()
 	_ensure_lighting_controls_in_existing_ui()
@@ -7363,6 +7586,8 @@ func _ensure_room_geometry_controls_in_existing_ui() -> void:
 	_room_width_spin = _ensure_spin_row(geometry, "RoomWidthRow", "Ancho (m)", "RoomWidthSpin", 0.25, 200.0, 0.05)
 	_room_depth_spin = _ensure_spin_row(geometry, "RoomDepthRow", "Fondo (m)", "RoomDepthSpin", 0.25, 200.0, 0.05)
 	_room_rotation_spin = _ensure_spin_row(geometry, "RoomRotationRow", "Angulo (deg)", "RoomRotationSpin", -180.0, 180.0, 1.0)
+	_stair_turn_option = _ensure_option_row(geometry, "StairTurnRow", "Tipo escalera", "StairTurnOption")
+	_populate_stair_turn_options(_stair_turn_option)
 	_stair_walls_check = _ensure_check_row(geometry, "StairWallsRow", "Escalera con paredes", "StairWallsCheck")
 	_stair_railings_check = _ensure_check_row(geometry, "StairRailingsRow", "Escalera con barandillas", "StairRailingsCheck")
 	_stair_angle_label = geometry.get_node_or_null("StairAngleLabel") as Label
@@ -7370,7 +7595,7 @@ func _ensure_room_geometry_controls_in_existing_ui() -> void:
 		_stair_angle_label = Label.new()
 		_stair_angle_label.name = "StairAngleLabel"
 		_stair_angle_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_stair_angle_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
+		_stair_angle_label.add_theme_font_size_override("font_size", editor_font_size_compact)
 		_stair_angle_label.modulate = UI_TEXT_MUTED
 		geometry.add_child(_stair_angle_label)
 		if _stair_railings_check != null and _stair_railings_check.get_parent() != null and _stair_railings_check.get_parent().get_parent() == geometry:
@@ -7572,11 +7797,11 @@ func _ensure_floor_controls_in_existing_ui() -> void:
 		_floor_status_label = Label.new()
 		_floor_status_label.name = "FloorStatusLabel"
 		_floor_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_floor_status_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
+		_floor_status_label.add_theme_font_size_override("font_size", editor_font_size_compact)
 		_floor_status_label.modulate = UI_TEXT_MUTED
 		section.add_child(_floor_status_label)
 	else:
-		_floor_status_label.add_theme_font_size_override("font_size", EDITOR_FONT_SIZE_COMPACT)
+		_floor_status_label.add_theme_font_size_override("font_size", editor_font_size_compact)
 
 	_sync_floor_controls()
 
@@ -7606,12 +7831,19 @@ func _on_opening_tool_width_changed(v: float) -> void:
 		_set_status(_tool_hint(current_tool))
 
 
+func _on_stair_tool_turn_selected(_index: int) -> void:
+	if current_tool == Tool.STAIRS:
+		_set_status(_tool_hint(current_tool))
+	queue_redraw()
+
+
 func _sync_tool_option_visibility() -> void:
 	if _ui_root == null:
 		return
 	var tools_tab_visible: bool = _active_left_tab == EditorLeftTab.TOOLS
 	var object_visible: bool = tools_tab_visible and current_tool == Tool.OBJECT
 	var corridor_visible: bool = tools_tab_visible and current_tool == Tool.CORRIDOR_L
+	var stair_visible: bool = tools_tab_visible and current_tool == Tool.STAIRS
 	var opening_visible: bool = tools_tab_visible and current_tool == Tool.HOLE
 	_set_node_visible("LeftPanel/VBox/ObjectLabel", object_visible)
 	_set_node_visible("LeftPanel/VBox/ObjectToolLabel", object_visible)
@@ -7628,6 +7860,10 @@ func _sync_tool_option_visibility() -> void:
 	var corridor_row := _get_left_node("CorridorWidthRow") as Control
 	if corridor_row != null:
 		corridor_row.visible = corridor_visible
+	if _stair_tool_section != null:
+		_stair_tool_section.visible = stair_visible
+	if _stair_tool_turn_option != null:
+		_set_control_row_visible(_stair_tool_turn_option, stair_visible)
 	if _opening_tool_section != null:
 		_opening_tool_section.visible = opening_visible
 	if _opening_tool_width_spin != null:
@@ -7663,6 +7899,35 @@ func _ensure_corridor_width_control_in_existing_ui() -> void:
 	_corridor_width_spin.value = corridor_width_m
 	if not _corridor_width_spin.value_changed.is_connected(_on_corridor_width_changed):
 		_corridor_width_spin.value_changed.connect(_on_corridor_width_changed)
+
+
+func _ensure_stair_tool_controls_in_existing_ui() -> void:
+	var left_vbox := _find_left_vbox()
+	if left_vbox == null:
+		return
+	_stair_tool_section = left_vbox.get_node_or_null("StairToolSection") as Control
+	if _stair_tool_section == null:
+		var section := VBoxContainer.new()
+		section.name = "StairToolSection"
+		section.add_theme_constant_override("separation", 4)
+		left_vbox.add_child(section)
+		var corridor_row := left_vbox.get_node_or_null("CorridorWidthRow") as Control
+		var corridor_spin := left_vbox.get_node_or_null("CorridorWidthSpin") as Control
+		if corridor_row != null:
+			left_vbox.move_child(section, corridor_row.get_index() + 1)
+		elif corridor_spin != null:
+			left_vbox.move_child(section, corridor_spin.get_index() + 1)
+		_stair_tool_section = section
+	var title := _stair_tool_section.get_node_or_null("StairToolTitle") as Label
+	if title == null:
+		title = Label.new()
+		title.name = "StairToolTitle"
+		_stair_tool_section.add_child(title)
+	title.text = "Escalera"
+	_stair_tool_turn_option = _ensure_option_row(_stair_tool_section, "StairToolTurnRow", "Tipo", "StairToolTurnOption")
+	_populate_stair_turn_options(_stair_tool_turn_option)
+	if not _stair_tool_turn_option.item_selected.is_connected(_on_stair_tool_turn_selected):
+		_stair_tool_turn_option.item_selected.connect(_on_stair_tool_turn_selected)
 
 
 func _ensure_opening_tool_controls_in_existing_ui() -> void:

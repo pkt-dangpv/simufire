@@ -614,19 +614,15 @@ func _create_floors(rects: Dictionary) -> void:
 	for room_id in rects.keys():
 		var rect: Rect2 = Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id)) if building != null else null
+		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
 		if room != null and _room_is_stairwell(room) and room.floor_level_z_m > 0.20:
 			_create_stairwell_upper_floor(int(room_id), rect, room.floor_level_z_m, _room_stair_run_direction(room), room.stair_turn_degrees)
 			continue
-		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
-		var body := StaticBody3D.new()
-		body.name = "Floor_%s" % str(room_id)
-		_world_root.add_child(body)
-		var center: Vector3 = _to_world(Vector3(
-			rect.position.x + rect.size.x * 0.5,
-			-floor_thickness_m * 0.5,
-			rect.position.y + rect.size.y * 0.5
-		), floor_level_m)
-		_add_box(body, "FloorMesh", Vector3(rect.size.x, floor_thickness_m, rect.size.y), center, _floor_material_for_room(int(room_id)), true)
+		var slabs: Array[Rect2] = _split_rect_by_voids(rect, _vertical_stair_voids_for_floor(floor_level_m))
+		for i in range(slabs.size()):
+			var slab: Rect2 = slabs[i]
+			var node_name: String = "Floor_%s" % str(room_id) if slabs.size() == 1 and _rect_same(slab, rect) else "FloorPart_%s_%02d" % [str(room_id), i]
+			_add_floor_slab(node_name, slab, floor_level_m, _floor_material_for_room(int(room_id)))
 
 
 func _create_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: float, stair_dir: Vector2, turn_degrees: float = 0.0) -> void:
@@ -702,6 +698,18 @@ func _add_floor_slab(node_name: String, rect: Rect2, floor_level_m: float, mater
 	_add_box(body, "FloorMesh", Vector3(rect.size.x, floor_thickness_m, rect.size.y), center, material, true)
 
 
+func _add_ceiling_slab(node_name: String, rect: Rect2, floor_level_m: float, height_m: float, material: StandardMaterial3D) -> void:
+	var body := StaticBody3D.new()
+	body.name = node_name
+	_world_root.add_child(body)
+	var center: Vector3 = _to_world(Vector3(
+		rect.position.x + rect.size.x * 0.5,
+		height_m + ceiling_thickness_m * 0.5,
+		rect.position.y + rect.size.y * 0.5
+	), floor_level_m)
+	_add_box(body, "CeilingMesh", Vector3(rect.size.x, ceiling_thickness_m, rect.size.y), center, material, true)
+
+
 func _create_ceilings(rects: Dictionary) -> void:
 	for room_id in rects.keys():
 		var rect: Rect2 = Rect2(rects[room_id])
@@ -710,15 +718,11 @@ func _create_ceilings(rects: Dictionary) -> void:
 			continue
 		var height_m: float = room.height_m if room != null else 2.4
 		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
-		var body := StaticBody3D.new()
-		body.name = "Ceiling_%s" % str(room_id)
-		_world_root.add_child(body)
-		var center: Vector3 = _to_world(Vector3(
-			rect.position.x + rect.size.x * 0.5,
-			height_m + ceiling_thickness_m * 0.5,
-			rect.position.y + rect.size.y * 0.5
-		), floor_level_m)
-		_add_box(body, "CeilingMesh", Vector3(rect.size.x, ceiling_thickness_m, rect.size.y), center, _ceiling_material_for_room(int(room_id)), true)
+		var slabs: Array[Rect2] = _split_rect_by_voids(rect, _vertical_stair_voids_for_ceiling(floor_level_m))
+		for i in range(slabs.size()):
+			var slab: Rect2 = slabs[i]
+			var node_name: String = "Ceiling_%s" % str(room_id) if slabs.size() == 1 and _rect_same(slab, rect) else "CeilingPart_%s_%02d" % [str(room_id), i]
+			_add_ceiling_slab(node_name, slab, floor_level_m, height_m, _ceiling_material_for_room(int(room_id)))
 
 
 func _create_walls(rects: Dictionary) -> void:
@@ -1011,6 +1015,108 @@ func _stair_point_along_run(rect: Rect2, stair_dir: Vector2, distance_from_entry
 		return Vector2(entry_x + stair_dir.x * distance_from_entry_m, center.y)
 	var entry_y: float = rect.position.y if stair_dir.y > 0.0 else rect.position.y + rect.size.y
 	return Vector2(center.x, entry_y + stair_dir.y * distance_from_entry_m)
+
+
+func _vertical_stair_voids_for_floor(floor_level_m: float) -> Array[Rect2]:
+	return _vertical_stair_voids_for_level(floor_level_m, true)
+
+
+func _vertical_stair_voids_for_ceiling(floor_level_m: float) -> Array[Rect2]:
+	return _vertical_stair_voids_for_level(floor_level_m, false)
+
+
+func _vertical_stair_voids_for_level(floor_level_m: float, upper_floor: bool) -> Array[Rect2]:
+	var result: Array[Rect2] = []
+	if building == null:
+		return result
+	for raw_op in building.get_openings():
+		var op := raw_op as OpeningModel
+		if op == null or not op.is_vertical:
+			continue
+		var lower_room: RoomModel = building.get_room(op.a)
+		var upper_room: RoomModel = building.get_room(op.b)
+		if lower_room == null or upper_room == null:
+			continue
+		if upper_room.floor_level_z_m < lower_room.floor_level_z_m:
+			var tmp := lower_room
+			lower_room = upper_room
+			upper_room = tmp
+		var target_level: float = upper_room.floor_level_z_m if upper_floor else lower_room.floor_level_z_m
+		if absf(target_level - floor_level_m) > 0.05:
+			continue
+		var rect: Rect2 = Rect2(building.room_rect_m.get(lower_room.id, Rect2()))
+		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+			continue
+		result.append(_stair_vertical_void_rect(rect, _room_stair_run_direction(lower_room), lower_room.stair_turn_degrees))
+	return result
+
+
+func _stair_vertical_void_rect(rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> Rect2:
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return Rect2()
+	if turn_degrees >= 179.0:
+		var gap_m: float = 0.18
+		var cross_span_m: float = _stair_cross_span_m(rect, stair_dir)
+		var flight_width_m: float = clampf((cross_span_m - gap_m) * 0.5, 0.72, 1.05)
+		var shaft_width_m: float = minf(cross_span_m, flight_width_m * 2.0 + gap_m + 0.18)
+		if absf(stair_dir.x) > absf(stair_dir.y):
+			return Rect2(
+				Vector2(rect.position.x, rect.get_center().y - shaft_width_m * 0.5),
+				Vector2(rect.size.x, shaft_width_m)
+			)
+		return Rect2(
+			Vector2(rect.get_center().x - shaft_width_m * 0.5, rect.position.y),
+			Vector2(shaft_width_m, rect.size.y)
+		)
+	var width_m: float = minf(_stair_ramp_width_m(rect, stair_dir), maxf(0.2, _stair_cross_span_m(rect, stair_dir) - 0.2))
+	var run_m: float = minf(
+		maxf(0.80, _stair_long_span_m(rect, stair_dir) - _stair_top_landing_depth_m(rect, stair_dir) - 0.22),
+		maxf(0.2, _stair_long_span_m(rect, stair_dir) - 0.2)
+	)
+	var start_margin_m: float = 0.22
+	if absf(stair_dir.x) > absf(stair_dir.y):
+		var x_m: float = rect.position.x + start_margin_m if stair_dir.x > 0.0 else rect.position.x + rect.size.x - start_margin_m - run_m
+		return Rect2(Vector2(x_m, rect.get_center().y - width_m * 0.5), Vector2(run_m, width_m))
+	var y_m: float = rect.position.y + start_margin_m if stair_dir.y > 0.0 else rect.position.y + rect.size.y - start_margin_m - run_m
+	return Rect2(Vector2(rect.get_center().x - width_m * 0.5, y_m), Vector2(width_m, run_m))
+
+
+func _split_rect_by_voids(rect: Rect2, voids: Array[Rect2]) -> Array[Rect2]:
+	var slabs: Array[Rect2] = [rect]
+	for void_rect in voids:
+		var next: Array[Rect2] = []
+		for slab in slabs:
+			for piece in _subtract_rect(slab, void_rect):
+				if piece.size.x >= 0.08 and piece.size.y >= 0.08:
+					next.append(piece)
+		slabs = next
+	return slabs
+
+
+func _subtract_rect(rect: Rect2, void_rect: Rect2) -> Array[Rect2]:
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0 or void_rect.size.x <= 0.0 or void_rect.size.y <= 0.0:
+		return [rect]
+	if not rect.intersects(void_rect, true):
+		return [rect]
+	var cut: Rect2 = rect.intersection(void_rect)
+	if cut.size.x <= 0.001 or cut.size.y <= 0.001:
+		return [rect]
+	var pieces: Array[Rect2] = []
+	var rect_end: Vector2 = rect.position + rect.size
+	var cut_end: Vector2 = cut.position + cut.size
+	if cut.position.y > rect.position.y + 0.001:
+		pieces.append(Rect2(rect.position, Vector2(rect.size.x, cut.position.y - rect.position.y)))
+	if cut_end.y < rect_end.y - 0.001:
+		pieces.append(Rect2(Vector2(rect.position.x, cut_end.y), Vector2(rect.size.x, rect_end.y - cut_end.y)))
+	if cut.position.x > rect.position.x + 0.001:
+		pieces.append(Rect2(Vector2(rect.position.x, cut.position.y), Vector2(cut.position.x - rect.position.x, cut.size.y)))
+	if cut_end.x < rect_end.x - 0.001:
+		pieces.append(Rect2(Vector2(cut_end.x, cut.position.y), Vector2(rect_end.x - cut_end.x, cut.size.y)))
+	return pieces
+
+
+func _rect_same(a: Rect2, b: Rect2) -> bool:
+	return a.position.distance_to(b.position) <= 0.001 and a.size.distance_to(b.size) <= 0.001
 
 
 func _create_world_lighting(rects: Dictionary) -> void:

@@ -172,6 +172,11 @@ def main() -> int:
             _REPO_ROOT / "tests" / "test_ui_localization.py",
             "python tests/test_ui_localization.py",
         ),
+        (
+            "Godot editability tests",
+            _REPO_ROOT / "tests" / "test_godot_editability.py",
+            "python tests/test_godot_editability.py",
+        ),
     ]
 
     rows = []

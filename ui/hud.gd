@@ -46,6 +46,22 @@ const EXIT_MENU_SAVE_GRAPHS: int = 2
 @export var key_stop_and_generate: Key = KEY_END
 @export var rooms_scroll_step_px: float = 78.0
 
+@export_group("HUD Layout")
+@export_range(10, 28, 1) var time_label_font_size: int = 18
+@export_range(8, 20, 1) var shortcut_help_font_size: int = 11
+@export_range(8, 22, 1) var opening_status_font_size: int = 12
+@export_range(8, 22, 1) var action_button_font_size: int = 12
+@export var panel_content_margin_px: Vector2 = Vector2(12.0, 10.0)
+@export_range(2, 24, 1) var opening_compact_h_separation_px: int = 10
+@export_range(0, 12, 1) var opening_compact_v_separation_px: int = 3
+@export_range(8, 20, 1) var opening_compact_label_font_size: int = 11
+@export_range(64.0, 180.0, 1.0) var opening_compact_min_label_width_px: float = 88.0
+@export_range(88.0, 220.0, 1.0) var opening_compact_wide_label_width_px: float = 132.0
+@export_range(24.0, 96.0, 1.0) var openings_panel_base_height_px: float = 44.0
+@export_range(12.0, 36.0, 1.0) var openings_panel_row_height_px: float = 18.0
+@export_range(80.0, 220.0, 1.0) var openings_panel_min_height_px: float = 110.0
+@export_range(160.0, 480.0, 1.0) var openings_panel_max_height_px: float = 320.0
+
 @export_group("Tarjetas de salas")
 ## Tamaño de fuente del encabezado de cada tarjeta de sala.
 @export var font_size_header: int = 13
@@ -177,7 +193,7 @@ func _apply_hud_visual_style() -> void:
 
 	if time_label != null:
 		time_label.add_theme_font_override("font", SimuFireThemeScript.title_font())
-		time_label.add_theme_font_size_override("font_size", 18)
+		time_label.add_theme_font_size_override("font_size", time_label_font_size)
 		time_label.add_theme_color_override("font_color", SimuFireThemeScript.TEXT)
 	if time_scale_label != null:
 		time_scale_label.add_theme_color_override("font_color", SimuFireThemeScript.TEXT)
@@ -185,23 +201,23 @@ func _apply_hud_visual_style() -> void:
 		playback_status_label.add_theme_color_override("font_color", SimuFireThemeScript.ORANGE)
 	if shortcut_help_label != null:
 		shortcut_help_label.add_theme_font_override("font", SimuFireThemeScript.body_font())
-		shortcut_help_label.add_theme_font_size_override("font_size", 11)
+		shortcut_help_label.add_theme_font_size_override("font_size", shortcut_help_font_size)
 		shortcut_help_label.add_theme_color_override("font_color", SimuFireThemeScript.MUTED)
 		shortcut_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		shortcut_help_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if opening_status_label != null:
 		opening_status_label.add_theme_font_override("font", SimuFireThemeScript.title_font())
-		opening_status_label.add_theme_font_size_override("font_size", 12)
+		opening_status_label.add_theme_font_size_override("font_size", opening_status_font_size)
 	if _opening_compact_grid != null:
-		_opening_compact_grid.add_theme_constant_override("h_separation", 10)
-		_opening_compact_grid.add_theme_constant_override("v_separation", 3)
+		_opening_compact_grid.add_theme_constant_override("h_separation", opening_compact_h_separation_px)
+		_opening_compact_grid.add_theme_constant_override("v_separation", opening_compact_v_separation_px)
 	if openings_panel != null:
 		openings_panel.scale = Vector2.ONE
 
 	for panel_path in HUD_PANEL_PATHS:
 		var panel := get_node_or_null(panel_path) as PanelContainer
 		if panel != null:
-			panel.add_theme_stylebox_override("panel", SimuFireThemeScript.stylebox(SimuFireThemeScript.PANEL, SimuFireThemeScript.BORDER, 1, 0, Vector2(12.0, 10.0)))
+			panel.add_theme_stylebox_override("panel", SimuFireThemeScript.stylebox(SimuFireThemeScript.PANEL, SimuFireThemeScript.BORDER, 1, 0, panel_content_margin_px))
 
 	var action_buttons: Array[Button] = [
 		btn_play, btn_pause, btn_time_forward, btn_time_back, btn_view_3d,
@@ -212,7 +228,7 @@ func _apply_hud_visual_style() -> void:
 			continue
 		button.text = button.text.to_upper()
 		button.add_theme_font_override("font", SimuFireThemeScript.title_font())
-		button.add_theme_font_size_override("font_size", 12)
+		button.add_theme_font_size_override("font_size", action_button_font_size)
 		button.focus_mode = Control.FOCUS_NONE
 
 
@@ -613,8 +629,8 @@ func _ensure_openings_compact_list() -> void:
 	_opening_compact_grid.columns = 2
 	_opening_compact_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_opening_compact_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_opening_compact_grid.add_theme_constant_override("h_separation", 10)
-	_opening_compact_grid.add_theme_constant_override("v_separation", 3)
+	_opening_compact_grid.add_theme_constant_override("h_separation", opening_compact_h_separation_px)
+	_opening_compact_grid.add_theme_constant_override("v_separation", opening_compact_v_separation_px)
 	box.add_child(_opening_compact_grid)
 
 
@@ -678,9 +694,9 @@ func _rebuild_openings_compact_grid(items: Array, columns: int) -> void:
 		label.text = HUDOpeningSummary.compact_label(summary) if not summary.is_empty() else String(text_value)
 		label.clip_text = true
 		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		label.custom_minimum_size = Vector2(88.0 if columns >= 3 else 132.0, 0.0)
+		label.custom_minimum_size = Vector2(opening_compact_min_label_width_px if columns >= 3 else opening_compact_wide_label_width_px, 0.0)
 		label.add_theme_font_override("font", SimuFireThemeScript.body_font())
-		label.add_theme_font_size_override("font_size", 11)
+		label.add_theme_font_size_override("font_size", opening_compact_label_font_size)
 		label.add_theme_color_override("font_color", HUDOpeningSummary.compact_color(summary))
 		_opening_compact_grid.add_child(label)
 
@@ -690,7 +706,11 @@ func _resize_openings_panel_for_count(item_count: int, columns: int) -> void:
 		return
 	openings_panel.scale = Vector2.ONE
 	var rows: int = ceili(float(maxi(1, item_count)) / float(maxi(1, columns)))
-	var target_height: float = clampf(44.0 + float(rows) * 18.0, 110.0, 320.0)
+	var target_height: float = clampf(
+		openings_panel_base_height_px + float(rows) * openings_panel_row_height_px,
+		openings_panel_min_height_px,
+		openings_panel_max_height_px
+	)
 	openings_panel.offset_top = openings_panel.offset_bottom - target_height
 
 

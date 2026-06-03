@@ -163,6 +163,7 @@ static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:
 		room["stair_run_direction_m"] = vector_to_data(vector2_from_data(room.get("stair_run_direction_m", Vector2(0.0, 1.0))))
 		room["stair_has_walls"] = bool(room.get("stair_has_walls", false))
 		room["stair_has_railings"] = bool(room.get("stair_has_railings", true))
+		room["stair_turn_mode"] = String(room.get("stair_turn_mode", "auto"))
 		room["stair_turn_degrees"] = float(room.get("stair_turn_degrees", 0.0))
 		room["stair_flight_count"] = maxi(1, int(room.get("stair_flight_count", 1)))
 		room["height_m"] = float(room.get("height_m", 2.7))

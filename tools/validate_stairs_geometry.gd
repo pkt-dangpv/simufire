@@ -105,6 +105,7 @@ func _make_template(rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> Dic
 	if turn_degrees >= 179.0:
 		opening_width = _stair_cross_span_m(rect, stair_dir)
 		opening_depth = _stair_long_span_m(rect, stair_dir)
+	var shell_rect := Rect2(rect.position - Vector2(0.70, 0.70), rect.size + Vector2(1.40, 1.40))
 
 	return {
 		"version": 1,
@@ -116,11 +117,15 @@ func _make_template(rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> Dic
 		"hvac_data": {"exists": false, "on": false, "mode": "none"},
 		"room_rect_m": {
 			"0": _rect_to_data(rect),
-			"1": _rect_to_data(rect)
+			"1": _rect_to_data(rect),
+			"2": _rect_to_data(shell_rect),
+			"3": _rect_to_data(shell_rect)
 		},
 		"rooms_data": [
 			_make_stair_room(0, "Escalera PB", rect, 0.0, 3.0, stair_dir, turn_degrees, flight_count),
-			_make_stair_room(1, "Escalera P1", rect, 3.0, 2.55, stair_dir, turn_degrees, flight_count)
+			_make_stair_room(1, "Escalera P1", rect, 3.0, 2.55, stair_dir, turn_degrees, flight_count),
+			_make_plain_room(2, "Sala PB solapada", shell_rect, 0.0, 3.0),
+			_make_plain_room(3, "Sala P1 solapada", shell_rect, 3.0, 2.55)
 		],
 		"openings_data": [
 			{
@@ -161,6 +166,22 @@ func _make_stair_room(id: int, room_name: String, rect: Rect2, floor_level_m: fl
 		"stair_has_railings": true,
 		"stair_turn_degrees": turn_degrees,
 		"stair_flight_count": flight_count,
+		"fuel_energy_MJ": 0.0,
+		"max_hrr_kw": 0.0,
+		"fuel_objects": [],
+		"width_m": rect.size.x,
+		"length_m": rect.size.y
+	}
+
+
+func _make_plain_room(id: int, room_name: String, rect: Rect2, floor_level_m: float, height_m: float) -> Dictionary:
+	return {
+		"id": id,
+		"name": room_name,
+		"kind": "sala",
+		"height_m": height_m,
+		"floor_level_z_m": floor_level_m,
+		"rotation_deg": 0.0,
 		"fuel_energy_MJ": 0.0,
 		"max_hrr_kw": 0.0,
 		"fuel_objects": [],
@@ -221,7 +242,12 @@ func _validate_first_person(case_name: String, ctx: Dictionary) -> void:
 
 	var turn_degrees := float(ctx["turn_degrees"])
 	_expect(_find_nodes(world, "Floor_1").is_empty(), case_name + ": FP upper stair room must not keep a full floor slab")
-	_expect(_find_nodes(world, "Ceiling_").is_empty(), case_name + ": FP stair rooms must not generate ceiling collision")
+	_expect(_find_nodes(world, "Ceiling_0").is_empty(), case_name + ": FP lower stair room must not generate ceiling collision")
+	_expect(_find_nodes(world, "Ceiling_1").is_empty(), case_name + ": FP upper stair room must not generate ceiling collision")
+	_expect(_find_nodes_exact(world, "Ceiling_2").is_empty(), case_name + ": overlapping lower room ceiling must be cut around stair void")
+	_expect(_find_nodes(world, "CeilingPart_2_").size() >= 1, case_name + ": overlapping lower room should keep ceiling pieces around stair void")
+	_expect(_find_nodes_exact(world, "Floor_3").is_empty(), case_name + ": overlapping upper room floor must be cut around stair void")
+	_expect(_find_nodes(world, "FloorPart_3_").size() >= 1, case_name + ": overlapping upper room should keep floor pieces around stair void")
 
 	if turn_degrees >= 179.0:
 		_expect(_find_nodes(world, "StairSwitchbackLanding").size() >= 1, case_name + ": FP switchback landing missing")
@@ -245,6 +271,7 @@ func _validate_visualizer(case_name: String, ctx: Dictionary) -> void:
 		return
 
 	var turn_degrees := float(ctx["turn_degrees"])
+	_expect(_find_nodes(rooms, "FloorVoidPart_03_").size() >= 1, case_name + ": 3D overlapping upper floor should be split around stair void")
 	if turn_degrees >= 179.0:
 		_expect(_find_nodes(rooms, "SwitchbackLanding").size() >= 1, case_name + ": 3D switchback landing missing")
 		_expect(_find_nodes(rooms, "FlightAStep_").size() >= 8, case_name + ": 3D switchback first flight missing")
