@@ -8,6 +8,13 @@ const FPVisibilityOverlay := preload("res://view/fp/FPVisibilityOverlay.gd")
 const FPOpeningVisuals := preload("res://view/fp/FPOpeningVisuals.gd")
 const FPOpeningInteraction := preload("res://view/fp/FPOpeningInteraction.gd")
 const FPPlayerMotion := preload("res://view/fp/FPPlayerMotion.gd")
+const FireAnimation3D := preload("res://view/3d/fire/FireAnimation3D.gd")
+const FireMeshFactory := preload("res://view/3d/fire/FireMeshFactory.gd")
+const FurniturePlacement3D := preload("res://view/3d/furniture/FurniturePlacement3D.gd")
+const FurnitureShapeBuilder := preload("res://view/3d/furniture/FurnitureShapeBuilder.gd")
+const FurnitureStateVisuals := preload("res://view/3d/furniture/FurnitureStateVisuals.gd")
+const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVisualClassifier.gd")
+const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayout.gd")
 const OUTSIDE_ID: int = -1
 const STANCE_STAND: int = 0
 const STANCE_CROUCH: int = 1
@@ -110,12 +117,34 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Umbral FED para estado mortal (FP-04). Default FED = 1.0.
 @export var fp_victim_fed_fatal_threshold: float = 1.0
 
+@export_group("Mobiliario FP")
+@export var show_fp_furniture: bool = true
+@export var fp_furniture_generic_height_m: float = 0.34
+
 @export_group("Humo FP")
 @export var smoke_overlay_visibility_reference_m: float = 26.0
 @export var smoke_overlay_layer_clearance_m: float = 0.10
 @export var smoke_overlay_layer_transition_m: float = 0.48
 @export var smoke_overlay_max_alpha: float = 0.97
 @export var fp_visibility_clear_m: float = 30.0
+
+@export_group("Fuego FP")
+@export var show_fp_fire: bool = true
+@export var fp_fire_min_visible_hrr_kw: float = 0.5
+@export var fp_fire_reference_hrr_kw: float = 1000.0
+@export var fp_fire_base_radius_m: float = 0.14
+@export var fp_fire_max_radius_m: float = 0.48
+@export var fp_fire_max_height_m: float = 1.75
+@export var fp_fire_ceiling_clearance_m: float = 0.10
+@export var fp_fire_ceiling_cap_thickness_m: float = 0.20
+@export var fp_fire_light_energy_per_1000kw: float = 2.2
+@export var fp_fire_light_range_min_m: float = 2.0
+@export var fp_fire_light_range_max_m: float = 8.0
+@export var fp_fire_flicker_strength: float = 0.13
+@export var fp_fire_color: Color = Color(1.0, 0.34, 0.08, 0.90)
+@export var fp_fire_core_color: Color = Color(1.0, 0.86, 0.34, 0.95)
+@export var fp_fire_glow_color: Color = Color(1.0, 0.16, 0.03, 0.28)
+@export var fp_fire_ceiling_cap_color: Color = Color(1.0, 0.24, 0.04, 0.18)
 
 @export_group("Preset FP")
 ## Perfil de configuración aplicado en _ready(). Asignar un .tres de res://view/fp/presets/ desde el Inspector.
@@ -163,6 +192,8 @@ var _stance: int = STANCE_STAND
 var _opening_nodes: Dictionary = {}
 var _detector_nodes: Dictionary = {}
 var _victim_nodes: Dictionary = {}
+var _furniture_nodes_by_room: Dictionary = {}
+var _fire_nodes_by_room: Dictionary = {}
 var _ceiling_lights_by_room: Dictionary = {}
 var _ceiling_light_base_energy_by_room: Dictionary = {}
 var _ceiling_light_base_range_by_room: Dictionary = {}
@@ -170,6 +201,7 @@ var _nearest_opening_index: int = -1
 var _state: Dictionary = {}
 var _visibility_overlay: ColorRect = null
 var _current_room_id: int = -1
+var _fp_fire_phase: float = 0.0
 var _f_key_down: bool = false
 var _f_hold_mode: bool = false
 var _f_hold_elapsed_s: float = 0.0
@@ -249,6 +281,8 @@ func set_state(next_state: Dictionary) -> void:
 	_state = next_state
 	_sync_opening_panels()
 	_update_smoke_light_attenuation()
+	_update_fp_furniture_visuals()
+	_update_fp_fire_visuals()
 	_update_safety_marker_states()
 	_update_visibility_overlay()
 	_update_status_hud()
@@ -257,8 +291,10 @@ func set_state(next_state: Dictionary) -> void:
 func _physics_process(delta: float) -> void:
 	if not _active:
 		return
+	_fp_fire_phase += delta
 	_apply_movement(delta)
 	_update_opening_hold(delta)
+	_animate_fp_fire()
 	_update_prompt()
 	_update_visibility_overlay()
 	_update_status_hud()
@@ -530,6 +566,8 @@ func _rebuild_world() -> void:
 	_opening_nodes.clear()
 	_detector_nodes.clear()
 	_victim_nodes.clear()
+	_furniture_nodes_by_room.clear()
+	_fire_nodes_by_room.clear()
 	_ceiling_lights_by_room.clear()
 	_ceiling_light_base_energy_by_room.clear()
 	_ceiling_light_base_range_by_room.clear()
@@ -549,10 +587,14 @@ func _rebuild_world() -> void:
 	_create_walls(rects)
 	_create_stairs(rects)
 	_create_world_lighting(rects)
+	_create_fp_furniture_nodes(rects)
+	_create_fp_fire_nodes(rects)
 	_create_opening_panels()
 	_create_exterior_context()
 	_create_safety_markers(rects)
 	_create_outer_boundary()
+	_update_fp_furniture_visuals()
+	_update_fp_fire_visuals()
 
 
 func _create_floors(rects: Dictionary) -> void:
@@ -1690,6 +1732,532 @@ func _create_city_windows(
 				_mat(win_color, false, win_color if lit else Color(0.0, 0.0, 0.0, 0.0), emission_energy),
 				false
 			)
+
+
+func _create_fp_furniture_nodes(rects: Dictionary) -> void:
+	if building == null or _world_root == null:
+		return
+	var root := Node3D.new()
+	root.name = "FPFurniture"
+	root.visible = show_fp_furniture
+	_world_root.add_child(root)
+
+	for raw_room_id in rects.keys():
+		var room_id: int = int(raw_room_id)
+		var room_root := Node3D.new()
+		room_root.name = "FuelObjects_%02d" % room_id
+		room_root.visible = false
+		root.add_child(room_root)
+		_furniture_nodes_by_room[room_id] = {
+			"room_id": room_id,
+			"rect": Rect2(rects[raw_room_id]),
+			"root": room_root,
+			"fuel_obj_nodes": {},
+		}
+
+
+func _update_fp_furniture_visuals() -> void:
+	if _furniture_nodes_by_room.is_empty():
+		return
+	var root: Node3D = null
+	if _world_root != null:
+		root = _world_root.get_node_or_null("FPFurniture") as Node3D
+	if root != null:
+		root.visible = show_fp_furniture
+	for raw_room_id in _furniture_nodes_by_room.keys():
+		var room_id: int = int(raw_room_id)
+		var item: Dictionary = _furniture_nodes_by_room[raw_room_id]
+		_update_fp_room_furniture(room_id, item)
+
+
+func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
+	var room_root := item.get("root") as Node3D
+	if room_root == null:
+		return
+	var fuel_obj_nodes: Dictionary = Dictionary(item.get("fuel_obj_nodes", {}))
+	var rect := Rect2(item.get("rect", Rect2(Vector2.ZERO, Vector2.ONE)))
+	var room: RoomModel = building.get_room(room_id) if building != null else null
+	var room_state: Dictionary = _room_state_for_furniture(room_id)
+	var room_name: String = room.name if room != null else String(room_state.get("name", ""))
+	var room_kind: String = room.kind if room != null else String(room_state.get("kind", ""))
+	var objects: Array = _normalized_fp_furniture_objects(
+		room_id,
+		room_name,
+		room_kind,
+		rect,
+		Array(room_state.get("fuel_objects", [])).duplicate()
+	)
+
+	var seen_ids: Dictionary = {}
+	for raw_obj in objects:
+		if typeof(raw_obj) != TYPE_DICTIONARY:
+			continue
+		var obj: Dictionary = raw_obj
+		var obj_id: String = String(obj.get("id", ""))
+		if obj_id == "" or obj_id.begins_with("room_proxy_"):
+			continue
+		var size_m: Vector2 = _vector2_from_variant(obj.get("size_m", Vector2(0.5, 0.5)), Vector2(0.5, 0.5))
+		size_m.x = maxf(0.05, size_m.x)
+		size_m.y = maxf(0.05, size_m.y)
+		var position_m: Vector2 = _vector2_from_variant(obj.get("position_m", Vector2.ZERO), Vector2.ZERO)
+		var rotation_deg: float = float(obj.get("rotation_deg", 0.0))
+		var visual_center_m: Vector2 = position_m + size_m * 0.5
+		var visual_size_m: Vector2 = size_m
+		if not bool(obj.get("visual_pose_locked", false)):
+			var visual_pose: Dictionary = FurniturePlacement3D.clamp_visual_pose(rect, position_m, size_m, rotation_deg)
+			visual_center_m = Vector2(visual_pose.get("center_m", visual_center_m))
+			visual_size_m = Vector2(visual_pose.get("size_m", visual_size_m))
+
+		var kind_name: String = FurnitureVisualClassifier.visual_archetype(obj)
+		var node := fuel_obj_nodes.get(obj_id) as Node3D
+		if node == null:
+			node = _create_fp_fuel_object_node(obj_id, kind_name, visual_size_m)
+			room_root.add_child(node)
+			fuel_obj_nodes[obj_id] = node
+		elif FurnitureVisualClassifier.shape_needs_rebuild(node, kind_name, visual_size_m):
+			_rebuild_fp_fuel_object_shape(node, kind_name, visual_size_m)
+		if node == null:
+			continue
+
+		var floor_level_m: float = room.floor_level_z_m if room != null else float(room_state.get("floor_level_z_m", 0.0))
+		node.position = _to_world(Vector3(
+			rect.position.x + visual_center_m.x,
+			0.0,
+			rect.position.y + visual_center_m.y
+		), floor_level_m)
+		node.rotation_degrees.y = rotation_deg
+		node.visible = show_fp_furniture
+		node.set_meta("room_id", room_id)
+		node.set_meta("object_id", obj_id)
+		node.set_meta("size_x_m", visual_size_m.x)
+		node.set_meta("size_y_m", visual_size_m.y)
+
+		var state_name: String = String(obj.get("state", "cold"))
+		var color: Color = FurnitureStateVisuals.color_for_state(state_name)
+		var fuel_mj: float = maxf(0.01, float(obj.get("fuel_energy_MJ", 1.0)))
+		var remaining_ratio: float = clampf(float(obj.get("remaining_fuel_MJ", fuel_mj)) / fuel_mj, 0.0, 1.0)
+		FurnitureStateVisuals.apply(node, state_name, color, remaining_ratio, bool(obj.get("is_primary_ignition_source", false)))
+		seen_ids[obj_id] = true
+
+	for stale_id in fuel_obj_nodes.keys():
+		if seen_ids.has(stale_id):
+			continue
+		var stale_node := fuel_obj_nodes[stale_id] as Node
+		if stale_node != null:
+			stale_node.free()
+		fuel_obj_nodes.erase(stale_id)
+	item["fuel_obj_nodes"] = fuel_obj_nodes
+	room_root.visible = show_fp_furniture and fuel_obj_nodes.size() > 0
+
+
+func _normalized_fp_furniture_objects(
+	room_id: int,
+	room_name: String,
+	room_kind: String,
+	rect: Rect2,
+	raw_objects: Array
+) -> Array:
+	var normalized_objects: Array = []
+	for raw_snapshot in raw_objects:
+		if typeof(raw_snapshot) != TYPE_DICTIONARY:
+			continue
+		var normalized: Dictionary = FurnitureVisualLayout.normalize_spec(
+			room_id,
+			room_name,
+			room_kind,
+			rect.size,
+			Dictionary(raw_snapshot)
+		)
+		if not bool(normalized.get("visual_hidden", false)):
+			normalized_objects.append(normalized)
+	return normalized_objects
+
+
+func _room_state_for_furniture(room_id: int) -> Dictionary:
+	if _state.has(str(room_id)):
+		var room_state: Dictionary = Dictionary(_state.get(str(room_id), {}))
+		if not room_state.is_empty():
+			return room_state
+	if _state.has(room_id):
+		var int_room_state: Dictionary = Dictionary(_state.get(room_id, {}))
+		if not int_room_state.is_empty():
+			return int_room_state
+	return _build_static_fp_room_state(room_id)
+
+
+func _build_static_fp_room_state(room_id: int) -> Dictionary:
+	if building == null:
+		return {}
+	var room: RoomModel = building.get_room(room_id)
+	if room == null:
+		return {}
+	return {
+		"id": room.id,
+		"name": room.name,
+		"kind": room.kind,
+		"height_m": room.height_m,
+		"floor_level_z_m": room.floor_level_z_m,
+		"fuel_objects": _build_static_fp_fuel_object_snapshots(room),
+	}
+
+
+func _build_static_fp_fuel_object_snapshots(room: RoomModel) -> Array:
+	var snapshots: Array = []
+	if room == null:
+		return snapshots
+	for obj in room.fuel_objects:
+		if obj == null:
+			continue
+		if String(obj.id).begins_with("room_proxy_"):
+			continue
+		snapshots.append({
+			"id": String(obj.id),
+			"name": String(obj.name),
+			"kind": String(obj.kind),
+			"room_id": int(obj.room_id),
+			"position_m": obj.position_m,
+			"size_m": obj.size_m,
+			"rotation_deg": float(obj.rotation_deg),
+			"visual_pose_locked": bool(obj.visual_pose_locked),
+			"elevation_m": float(obj.elevation_m),
+			"fuel_energy_MJ": maxf(0.0, obj.fuel_energy_MJ),
+			"remaining_fuel_MJ": maxf(0.0, obj.remaining_fuel_MJ),
+			"max_hrr_kw": maxf(0.0, obj.max_hrr_kw),
+			"hrr_kw": maxf(0.0, obj.hrr_kw),
+			"state": _fp_fuel_object_state_name(int(obj.state)),
+			"is_primary_ignition_source": bool(obj.is_primary_ignition_source),
+		})
+	return snapshots
+
+
+func _fp_fuel_object_state_name(state_id: int) -> String:
+	match state_id:
+		FuelObjectModel.State.HEATING:
+			return "heating"
+		FuelObjectModel.State.PYROLYZING:
+			return "pyrolyzing"
+		FuelObjectModel.State.FLAMING:
+			return "flaming"
+		FuelObjectModel.State.DECAYING:
+			return "decaying"
+		FuelObjectModel.State.BURNED_OUT:
+			return "burned_out"
+		_:
+			return "cold"
+
+
+func _create_fp_fuel_object_node(obj_id: String, kind_name: String, size_m: Vector2) -> Node3D:
+	var node := Node3D.new()
+	node.name = "FuelObj_" + _safe_node_name(obj_id)
+	_rebuild_fp_fuel_object_shape(node, kind_name, size_m)
+	return node
+
+
+func _rebuild_fp_fuel_object_shape(node: Node3D, kind_name: String, size_m: Vector2) -> void:
+	_clear_node_children(node)
+	node.set_meta("kind_name", kind_name)
+	node.set_meta("size_x", size_m.x)
+	node.set_meta("size_y", size_m.y)
+	FurnitureShapeBuilder.rebuild(node, kind_name, size_m, 1.0, fp_furniture_generic_height_m)
+
+
+func _clear_node_children(node: Node) -> void:
+	if node == null:
+		return
+	for child in node.get_children():
+		child.free()
+
+
+func _create_fp_fire_nodes(rects: Dictionary) -> void:
+	if building == null or _world_root == null:
+		return
+	var root := Node3D.new()
+	root.name = "FPFire"
+	root.visible = show_fp_fire
+	_world_root.add_child(root)
+
+	for raw_room_id in rects.keys():
+		var room_id: int = int(raw_room_id)
+		var room: RoomModel = building.get_room(room_id)
+		var rect := Rect2(rects[raw_room_id])
+		var height_m: float = _room_height(room)
+		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
+
+		var fire_root := Node3D.new()
+		fire_root.name = "Fire_%02d" % room_id
+		fire_root.visible = false
+		root.add_child(fire_root)
+
+		var fire_glow := FireMeshFactory.create_flame_mesh("Glow", fp_fire_glow_color, fp_fire_core_color)
+		fire_root.add_child(fire_glow)
+
+		var fire_tongues: Array[MeshInstance3D] = []
+		for tongue_i in range(6):
+			var tongue_color: Color = fp_fire_color.lerp(fp_fire_core_color, 0.18 + float(tongue_i) * 0.09)
+			var tongue := FireMeshFactory.create_flame_mesh("Tongue_%02d" % tongue_i, tongue_color, fp_fire_core_color)
+			tongue.set_meta("seed", float(room_id * 23 + tongue_i * 13 + 7))
+			fire_root.add_child(tongue)
+			fire_tongues.append(tongue)
+
+		var fire_cap := FireMeshFactory.create_ceiling_cap_mesh("CeilingCap", fp_fire_ceiling_cap_color, fp_fire_core_color)
+		fire_cap.visible = false
+		fire_root.add_child(fire_cap)
+
+		var fire_core := FireMeshFactory.create_flame_mesh("Core", fp_fire_core_color, fp_fire_core_color)
+		fire_root.add_child(fire_core)
+
+		var fire_light := OmniLight3D.new()
+		fire_light.name = "FireLight"
+		fire_light.light_color = Color(1.0, 0.42, 0.12, 1.0)
+		fire_light.light_energy = 0.0
+		fire_light.omni_range = fp_fire_light_range_min_m
+		fire_light.shadow_enabled = false
+		fire_light.position = Vector3(0.0, 0.65, 0.0)
+		fire_root.add_child(fire_light)
+
+		_fire_nodes_by_room[room_id] = {
+			"room_id": room_id,
+			"rect": rect,
+			"height_m": height_m,
+			"floor_level_m": floor_level_m,
+			"fire_root": fire_root,
+			"fire_glow": fire_glow,
+			"fire_tongues": fire_tongues,
+			"fire_cap": fire_cap,
+			"fire_core": fire_core,
+			"fire_light": fire_light,
+			"fire_height_m": 0.0,
+			"fire_radius_m": fp_fire_base_radius_m,
+			"fire_cap_radius_m": 0.0,
+			"fire_cap_weight": 0.0,
+			"fire_available_height_m": height_m,
+			"fire_light_energy_target": 0.0,
+			"fire_phase": float(room_id) * 1.37,
+			"fire_anchor_id": "",
+		}
+
+
+func _update_fp_fire_visuals() -> void:
+	if _fire_nodes_by_room.is_empty():
+		return
+	var root: Node3D = null
+	if _world_root != null:
+		root = _world_root.get_node_or_null("FPFire") as Node3D
+	if root != null:
+		root.visible = show_fp_fire
+	for raw_room_id in _fire_nodes_by_room.keys():
+		var room_id: int = int(raw_room_id)
+		var item: Dictionary = _fire_nodes_by_room[raw_room_id]
+		_update_fp_fire_item(room_id, item)
+
+
+func _update_fp_fire_item(room_id: int, item: Dictionary) -> void:
+	var fire_root := item.get("fire_root") as Node3D
+	if fire_root == null:
+		return
+	var rs: Dictionary = _room_state_for_fire(room_id)
+	var hrr_kw: float = _fp_fire_hrr_kw(rs)
+	var has_visible_fire: bool = show_fp_fire and hrr_kw > fp_fire_min_visible_hrr_kw
+	var rect := Rect2(item.get("rect", Rect2(Vector2.ZERO, Vector2.ONE)))
+	var room_height_m: float = maxf(0.24, float(item.get("height_m", boundary_height_m)))
+	var anchor: Dictionary = _fp_fire_anchor(item, rect, rs)
+	var fire_pos: Vector3 = Vector3(anchor.get("position", _to_world(Vector3(rect.get_center().x, 0.0, rect.get_center().y))))
+	var fire_base_y_m: float = float(anchor.get("base_y_m", 0.0))
+	var source_radius_m: float = float(anchor.get("radius_m", fp_fire_base_radius_m))
+	var available_height_m: float = maxf(0.24, room_height_m - fire_base_y_m - fp_fire_ceiling_clearance_m)
+
+	var target_height: float = 0.0
+	var target_radius: float = fp_fire_base_radius_m
+	var target_cap_radius: float = 0.0
+	var target_cap_weight: float = 0.0
+	if has_visible_fire:
+		var fire_t: float = clampf(hrr_kw / maxf(1.0, fp_fire_reference_hrr_kw), 0.0, 1.8)
+		var fire_strength: float = clampf(sqrt(maxf(0.0, fire_t)), 0.0, 1.35)
+		var free_plume_height_m: float = clampf(
+			0.18 + fire_strength * fp_fire_max_height_m,
+			0.12,
+			available_height_m + fp_fire_max_height_m * 0.30
+		)
+		target_height = minf(free_plume_height_m, available_height_m)
+		target_radius = maxf(
+			source_radius_m,
+			lerpf(fp_fire_base_radius_m, fp_fire_max_radius_m, clampf(fire_strength, 0.0, 1.0))
+		)
+		var near_ceiling_t: float = clampf(
+			inverse_lerp(available_height_m * 0.82, available_height_m, free_plume_height_m),
+			0.0,
+			1.0
+		)
+		var over_ceiling_t: float = clampf(
+			(free_plume_height_m - available_height_m) / maxf(0.10, fp_fire_max_height_m * 0.30),
+			0.0,
+			1.0
+		)
+		target_cap_weight = maxf(near_ceiling_t * 0.35, over_ceiling_t)
+		if target_cap_weight > 0.0:
+			var cap_limit_m: float = maxf(0.30, minf(fp_fire_max_radius_m * 2.8, minf(rect.size.x, rect.size.y) * 0.46))
+			target_cap_radius = lerpf(fp_fire_max_radius_m * 0.70, cap_limit_m, clampf(target_cap_weight, 0.0, 1.0))
+
+	var current_height: float = lerpf(float(item.get("fire_height_m", 0.0)), target_height, 0.28 if has_visible_fire else 0.36)
+	var current_radius: float = lerpf(float(item.get("fire_radius_m", fp_fire_base_radius_m)), target_radius, 0.28)
+	var current_cap_radius: float = lerpf(float(item.get("fire_cap_radius_m", 0.0)), target_cap_radius, 0.24)
+	var current_cap_weight: float = lerpf(float(item.get("fire_cap_weight", 0.0)), target_cap_weight, 0.24)
+	item["fire_height_m"] = current_height
+	item["fire_radius_m"] = current_radius
+	item["fire_cap_radius_m"] = current_cap_radius
+	item["fire_cap_weight"] = current_cap_weight
+	item["fire_available_height_m"] = available_height_m
+
+	fire_root.position = fire_pos
+	fire_root.visible = show_fp_fire and current_height > 0.05
+
+	var fire_light := item.get("fire_light") as OmniLight3D
+	if fire_light != null:
+		var hrr_light_t: float = clampf(hrr_kw / 1000.0, 0.0, 4.0) if has_visible_fire else 0.0
+		var smoke_transmission: float = _light_smoke_transmission_for_room(room_id, room_height_m)
+		var target_energy: float = fp_fire_light_energy_per_1000kw * hrr_light_t * smoke_transmission if fire_root.visible else 0.0
+		item["fire_light_energy_target"] = target_energy
+		fire_light.light_energy = target_energy
+		fire_light.omni_range = lerpf(
+			fp_fire_light_range_min_m,
+			fp_fire_light_range_max_m,
+			clampf(hrr_kw / 1800.0, 0.0, 1.0)
+		) * lerpf(0.58, 1.0, smoke_transmission)
+		var light_top_m: float = maxf(0.25, available_height_m - 0.10)
+		fire_light.position.y = minf(light_top_m, maxf(0.25, current_height * 0.45 + 0.45))
+	if fire_root.visible:
+		_animate_fp_fire_item(item)
+
+
+func _room_state_for_fire(room_id: int) -> Dictionary:
+	if _state.has(str(room_id)):
+		return Dictionary(_state.get(str(room_id), {}))
+	if _state.has(room_id):
+		return Dictionary(_state.get(room_id, {}))
+	return {}
+
+
+func _fp_fire_hrr_kw(room_state: Dictionary) -> float:
+	var hrr_kw: float = maxf(float(room_state.get("hrr_kw", 0.0)), float(room_state.get("burned_hrr_kw", 0.0)))
+	var fuel_objects: Array = Array(room_state.get("fuel_objects", []))
+	for raw in fuel_objects:
+		if typeof(raw) != TYPE_DICTIONARY:
+			continue
+		var obj: Dictionary = raw
+		hrr_kw = maxf(hrr_kw, maxf(float(obj.get("hrr_kw", 0.0)), float(obj.get("hrr", 0.0))))
+	return hrr_kw
+
+
+func _fp_fire_anchor(item: Dictionary, rect: Rect2, rs: Dictionary) -> Dictionary:
+	var floor_level_m: float = float(item.get("floor_level_m", 0.0))
+	var center_2d: Vector2 = rect.get_center()
+	var anchor_pos: Vector3 = _to_world(Vector3(center_2d.x, 0.02, center_2d.y), floor_level_m)
+	var anchor_y_m: float = 0.02
+	var anchor_radius_m: float = fp_fire_base_radius_m
+	var best_obj: Dictionary = _fp_fire_anchor_object(item, rs)
+	if best_obj.is_empty():
+		item["fire_anchor_id"] = ""
+		return {"position": anchor_pos, "base_y_m": anchor_y_m, "radius_m": anchor_radius_m}
+
+	item["fire_anchor_id"] = String(best_obj.get("id", ""))
+	var pos_m: Vector2 = _vector2_from_variant(best_obj.get("position_m", rect.size * 0.5), rect.size * 0.5)
+	var size_m: Vector2 = _vector2_from_variant(best_obj.get("size_m", Vector2(0.5, 0.5)), Vector2(0.5, 0.5))
+	size_m.x = maxf(0.05, size_m.x)
+	size_m.y = maxf(0.05, size_m.y)
+	var local_center: Vector2 = pos_m + size_m * 0.5
+	local_center.x = clampf(local_center.x, 0.10, maxf(0.10, rect.size.x - 0.10))
+	local_center.y = clampf(local_center.y, 0.10, maxf(0.10, rect.size.y - 0.10))
+	anchor_y_m = _fp_fire_base_y_for_object(best_obj)
+	anchor_radius_m = clampf(
+		maxf(minf(size_m.x, size_m.y) * 0.34, sqrt(maxf(0.01, size_m.x * size_m.y)) * 0.20),
+		fp_fire_base_radius_m,
+		fp_fire_max_radius_m
+	)
+	anchor_pos = _to_world(Vector3(rect.position.x + local_center.x, anchor_y_m, rect.position.y + local_center.y), floor_level_m)
+	return {"position": anchor_pos, "base_y_m": anchor_y_m, "radius_m": anchor_radius_m}
+
+
+func _fp_fire_anchor_object(item: Dictionary, rs: Dictionary) -> Dictionary:
+	var fuel_objects: Array = Array(rs.get("fuel_objects", []))
+	if fuel_objects.is_empty():
+		return {}
+	var room_hrr_kw: float = _fp_fire_hrr_kw(rs)
+	var previous_id: String = String(item.get("fire_anchor_id", ""))
+	var previous_obj: Dictionary = {}
+	var previous_score: float = -1.0
+	var best_obj: Dictionary = {}
+	var best_score: float = -1.0
+	for raw in fuel_objects:
+		if typeof(raw) != TYPE_DICTIONARY:
+			continue
+		var obj: Dictionary = raw
+		var obj_id: String = String(obj.get("id", ""))
+		var is_previous_anchor: bool = previous_id != "" and obj_id == previous_id
+		if is_previous_anchor:
+			previous_obj = obj
+		var state_name: String = String(obj.get("state", "cold")).to_lower()
+		var score: float = maxf(float(obj.get("hrr_kw", 0.0)), float(obj.get("hrr", 0.0)))
+		var is_active_state: bool = state_name == "flaming" or state_name == "pyrolyzing" or state_name == "decaying"
+		match state_name:
+			"flaming":
+				score += 1000.0
+			"pyrolyzing":
+				score += 620.0
+			"decaying":
+				score += 220.0
+			"heating":
+				score += 45.0
+		if bool(obj.get("is_primary_ignition_source", false)):
+			score += 240.0
+		if is_previous_anchor:
+			score += 180.0
+		if not is_active_state and score <= 0.01 and not is_previous_anchor and room_hrr_kw <= fp_fire_min_visible_hrr_kw:
+			continue
+		if score > best_score:
+			best_score = score
+			best_obj = obj
+		if is_previous_anchor:
+			previous_score = score
+	if not previous_obj.is_empty() and previous_score > maxf(1.0, best_score * 0.35):
+		return previous_obj
+	return best_obj
+
+
+func _fp_fire_base_y_for_object(obj: Dictionary) -> float:
+	var elevation_m: float = maxf(0.0, float(obj.get("elevation_m", 0.0)))
+	var label: String = ("%s %s" % [String(obj.get("kind", "")), String(obj.get("name", ""))]).to_lower()
+	var object_top_m: float = 0.08
+	if label.contains("sofa") or label.contains("sillon") or label.contains("armchair"):
+		object_top_m = 0.34
+	elif label.contains("cama") or label.contains("bed") or label.contains("mattress"):
+		object_top_m = 0.42
+	elif label.contains("mesa") or label.contains("table") or label.contains("desk"):
+		object_top_m = 0.74
+	elif label.contains("chair") or label.contains("silla"):
+		object_top_m = 0.46
+	elif label.contains("cabinet") or label.contains("armario") or label.contains("shelf"):
+		object_top_m = 0.62
+	elif label.contains("curtain") or label.contains("cortina"):
+		object_top_m = 0.95
+	return clampf(elevation_m + object_top_m, 0.02, 1.25)
+
+
+func _animate_fp_fire() -> void:
+	for raw_room_id in _fire_nodes_by_room.keys():
+		var item: Dictionary = _fire_nodes_by_room[raw_room_id]
+		var fire_root := item.get("fire_root") as Node3D
+		if fire_root != null and fire_root.visible:
+			_animate_fp_fire_item(item)
+
+
+func _animate_fp_fire_item(item: Dictionary) -> void:
+	FireAnimation3D.animate(item, _fp_fire_phase, {
+		"meters_to_units": 1.0,
+		"fire_base_radius_m": fp_fire_base_radius_m,
+		"default_room_height_m": boundary_height_m,
+		"fire_flicker_strength": fp_fire_flicker_strength,
+		"fire_ceiling_cap_thickness_m": fp_fire_ceiling_cap_thickness_m,
+	})
 
 
 func _create_safety_markers(rects: Dictionary) -> void:
@@ -3012,6 +3580,19 @@ func _building_vertical_span() -> Dictionary:
 		min_y = minf(min_y, room.floor_level_z_m)
 		max_y = maxf(max_y, room.floor_level_z_m + room.height_m)
 	return {"min_y": min_y, "max_y": max_y}
+
+
+func _vector2_from_variant(value: Variant, fallback: Vector2 = Vector2.ZERO) -> Vector2:
+	if typeof(value) == TYPE_VECTOR2:
+		return value
+	if typeof(value) == TYPE_DICTIONARY:
+		var data: Dictionary = value
+		return Vector2(float(data.get("x", fallback.x)), float(data.get("y", fallback.y)))
+	if typeof(value) == TYPE_ARRAY:
+		var values: Array = value
+		if values.size() >= 2:
+			return Vector2(float(values[0]), float(values[1]))
+	return fallback
 
 
 func _get_room_floor_level(room_id: int) -> float:

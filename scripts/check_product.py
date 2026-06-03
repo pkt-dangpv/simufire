@@ -215,6 +215,46 @@ def main() -> int:
         diagnostics.append("Godot runtime template schema: " + (diagnostic or "failed"))
 
     rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_editor_load_error_dialog.tscn",
+        "EDITOR LOAD ERROR DIALOG VALIDATION PASS",
+    )
+    rows.append(("Editor load error dialog Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot editor load error dialog: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_fp_fire_visuals.tscn",
+        "FP FIRE VISUALS VALIDATION PASS",
+    )
+    rows.append(("FP fire visuals Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot FP fire visuals: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_fp_technical_hud.tscn",
+        "FP TECHNICAL HUD VALIDATION PASS",
+    )
+    rows.append(("FP technical HUD Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot FP technical HUD: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_fp_victim_states.tscn",
+        "FP VICTIM STATES VALIDATION PASS",
+    )
+    rows.append(("FP victim states Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot FP victim states: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_fp_player_start.tscn",
+        "FP PLAYER START VALIDATION PASS",
+    )
+    rows.append(("FP player start Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot FP player start: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_editor_to_sim_flow.tscn",
         "EDITOR TO SIM FLOW VALIDATION PASS",
     )

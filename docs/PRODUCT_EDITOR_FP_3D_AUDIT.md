@@ -132,12 +132,15 @@ Transporte editor → simulación:
 - Interacción con aperturas: ciclo por pasos (0/25/50/75/100%), hold para ajuste fino
 - Overlay de visibilidad: opacidad según humo + postura (altura de capa)
 - Atenuación de luces por humo en sala
-- Marcadores de detectores y víctimas (cambian color según estado de activación)
+- Mobiliario combustible visible en FP (`FPFurniture/FuelObjects_XX`) con la misma pose/estado que 3D
+- HUD técnico FP con temperatura por postura, CO, CO2, O2, HCN, FED y visibilidad efectiva
+- Marcadores de detectores y víctimas (víctimas cambian color por FED normal/incapacitada/fatal)
+- Inicio FP restaurado desde `player_start` con posición, planta y yaw
 - Vidrio roto: sustitución de panel por fragmentos visuales
 - Input: WASD + ratón, agacharse (C), tumbarse (Z), salir (Escape/Tab)
 
 **Limitaciones actuales**:
-- No hay render de llama/fuego propio en FP (se usa la geometría 3D del Visualizer3D cuando está activo)
+- El fuego propio en FP ya se renderiza con `FireAnimation3D`; no incluye todavía lógica táctica de extinción.
 - No incluye lógica táctica de intervención (agua, PPV, rescate); el alcance actual es simulador técnico.
 - No hay pathfinding para víctimas; son marcadores estáticos
 
@@ -224,8 +227,8 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 | **Acoplamiento editor↔Visualizer3D** | Media | El editor instancia y controla directamente el Visualizer3D y el FirstPersonController. Cambios en sus interfaces pueden romper el editor sin aviso. |
 | **Transporte via archivos de usuario** | Media-Baja | `user://last_editor_runtime_template.json` es el canal entre editor y simulación. Si se corrompe o no existe, la simulación carga sin datos. No hay validación de esquema en destino. |
 | **Sin test de UI** | Media | Todo el código de editor/UI es código Godot sin cobertura de test automatizado. Regresiones visuales o de flujo solo detectables manualmente. |
-| **FP sin fuego propio** | Baja-Media | En modo FP puro no hay visualización de llama; el fuego aparece como emisión volumétrica de humo/calor. Requiere integrar `FireAnimation3D` en la geometría FP o una alternativa de billboard. |
-| **Sin gestión de errores de carga de escenario** | Baja | Si el JSON del editor está malformado, `ScenarioSerializer.load_scenario()` hace `push_error` pero el editor continúa con datos vacíos sin informar al usuario con popup. |
+| **FP sin fuego propio** | ✅ Cerrado | `FirstPersonController` crea nodos `FPFire/Fire_XX`, los ancla al `fuel_object` activo y reutiliza `FireAnimation3D`; guardrail `tools/validate_fp_fire_visuals.tscn`. |
+| **Gestión de errores de carga de escenario** | ✅ Cerrado | `ScenarioEditor` muestra `LoadErrorDialog` ante archivos inexistentes, JSON inválido o errores estructurales, con fallback a status bar. |
 | **Víctimas sin movimiento** | Baja | Las víctimas son marcadores estáticos; no existe motor de pathfinding. Para entrenamiento real se necesitaría movilidad básica o al menos animación de estado (consciente/incapacitado/muerto). |
 
 ---
@@ -236,9 +239,9 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 |----|-------|---------|---------|
 | DT-01 | `ScenarioEditor.gd` monolito (7 400 líneas) | Alto (mantenibilidad) | Alto (refactor multi-sesión) |
 | DT-02 | Validación de esquema al cargar template en SimulationScene | ✅ Cerrado: `BuildingModel.validate_template_data()` rechaza runtime templates inválidos y conserva el último modelo válido | Cerrado |
-| DT-03 | Popup de error en carga fallida de escenario (editor) | Medio (UX) | Bajo |
+| DT-03 | Popup de error en carga fallida de escenario (editor) | ✅ Cerrado: `EditorLoadErrorDialog` + guardrail `tools/validate_editor_load_error_dialog.tscn` | Cerrado |
 | DT-04 | Test de flujo editor→simulación | ✅ Cerrado: `tools/validate_editor_to_sim_flow.tscn` cubre editor-data → runtime JSON → `BuildingModel` → `SimulationEngine` → export técnico | Cerrado |
-| DT-06 | Fuego no visible en modo FP | Bajo-Medio (inmersión) | Medio |
+| DT-06 | Fuego no visible en modo FP | ✅ Cerrado: llama/luz FP anclada al mueble activo + guardrail `tools/validate_fp_fire_visuals.tscn` | Cerrado |
 | DT-07 | Víctimas estáticas | Medio (entrenamiento) | Alto |
 | DT-08 | Pantalla de resumen técnico post-simulación | ✅ Implementado en W-02: métricas técnicas, víctimas, detectores y archivos exportados | Cerrado |
 | DT-09 | Internacionalización parcial (mezcla ES/EN en UI) | ✅ Cerrado en W-05: textos principales en `i18n/es_ui.json` + guardrail de regresión | Cerrado |
@@ -253,7 +256,7 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 
 | Tarea | Descripción | Prioridad |
 |-------|-------------|-----------|
-| DT-03 | Error popup en carga fallida | Alta |
+| DT-03 | ✅ Error popup en carga fallida | Cerrado |
 | DT-02 | Validación básica de esquema runtime template | Alta |
 | DT-09 | Unificar idioma UI (castellano consistente) | Media |
 | DT-01 parcial | Extraer módulo de serialización de UI (propiedades por tipo de elemento) de `ScenarioEditor.gd` a `editor/UIPropertyPanels.gd` | Media |
@@ -270,13 +273,13 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 
 | Tarea | Descripción | Prioridad |
 |-------|-------------|-----------|
-| DT-06 | Integrar `FireAnimation3D` o billboard en mundo FP | Alta |
-| — | HUD FP: temperatura en postura actual, FED acumulado, CO ppm | Alta |
-| — | Indicador de visibilidad numérico en FP (metros de visión efectiva) | Alta |
+| DT-06 | ✅ Integrar `FireAnimation3D` en mundo FP | Cerrado |
+| — | ✅ HUD FP: temperatura en postura actual, FED acumulado, CO ppm | Cerrado |
+| — | ✅ Indicador de visibilidad numérico en FP (metros de visión efectiva) | Cerrado |
 | — | Sonido de advertencia de detector (opcional / asset minimalista) | Media |
-| — | Estado visual de víctima en FP: material según estado incapacitación | Media |
-| DT-07 parcial | Estado de víctima derivado de FED (incapacitada/muerta visualmente) | Media |
-| — | Guardar posición inicial FP desde editor y restaurarla al iniciar | Baja |
+| — | ✅ Estado visual de víctima en FP: material según estado incapacitación | Cerrado |
+| DT-07 parcial | ✅ Estado de víctima derivado de FED (incapacitada/muerta visualmente) | Cerrado |
+| — | ✅ Guardar posición inicial FP desde editor y restaurarla al iniciar | Cerrado |
 
 **Criterio de cierre**: un instructor puede poner a un alumno en FP, reconocer humo/fuego/temperatura, leer CO/FED, y ver el estado de las víctimas sin necesitar el HUD 2D.
 

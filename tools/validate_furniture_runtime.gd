@@ -5,6 +5,7 @@ const BuildingTemplateScript := preload("res://sim/templates/BuildingTemplate.gd
 const Serializer := preload("res://editor/ScenarioSerializer.gd")
 const SimulationStateBuilderScript := preload("res://sim/core/SimulationStateBuilder.gd")
 const Visualizer3DScript := preload("res://view/3d/Visualizer3D.gd")
+const FirstPersonControllerScript := preload("res://view/fp/FirstPersonController.gd")
 
 var _failures: Array[String] = []
 
@@ -77,6 +78,35 @@ func _run() -> void:
 	if fuel_root != null:
 		_expect(fuel_root.visible, "Furniture hidden in first-person overlay")
 
+	var fp: FirstPersonController = FirstPersonControllerScript.new()
+	fp.name = "FurnitureRuntimeFP"
+	fp.exterior_context_enabled = false
+	fp.show_fp_detectors = false
+	fp.show_fp_victims = false
+	add_child(fp)
+	await get_tree().process_frame
+	fp.setup(building)
+	await get_tree().physics_frame
+	fp.set_state(state)
+	await get_tree().process_frame
+
+	var fp_fuel_root := fp.get_node_or_null("FirstPersonWorld/FPFurniture/FuelObjects_00") as Node3D
+	_expect(fp_fuel_root != null, "FirstPersonController did not create FP furniture room root")
+	var fp_node := _find_fuel_node(fp_fuel_root, "salon_sofa")
+	_expect(fp_node != null, "FirstPersonController did not render moved furniture")
+	if fp_node != null:
+		_expect_close(float(fp_node.get_meta("size_x_m", 0.0)), 0.90, 0.01, "FirstPersonController lost sofa width")
+		_expect_close(float(fp_node.rotation_degrees.y), 33.0, 0.01, "FirstPersonController lost sofa rotation")
+		var origin_offset_m: Vector2 = _origin_offset_for_building(building)
+		var expected_x: float = 2.40 + 0.90 * 0.5 + origin_offset_m.x
+		var expected_z: float = 0.40 + 2.35 * 0.5 + origin_offset_m.y
+		_expect_close(fp_node.position.x, expected_x, 0.05, "FirstPersonController did not preserve moved sofa x")
+		_expect_close(fp_node.position.z, expected_z, 0.05, "FirstPersonController did not preserve moved sofa z")
+	if fp_fuel_root != null:
+		_expect(fp_fuel_root.visible, "FP furniture room root was hidden")
+
+	remove_child(fp)
+	fp.free()
 	remove_child(visualizer)
 	visualizer.free()
 	building.free()
