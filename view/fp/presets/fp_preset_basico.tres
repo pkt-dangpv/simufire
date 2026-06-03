@@ -8,3 +8,4 @@ show_technical_overlay = false
 show_visibility_readout = false
 show_fp_detectors = false
 show_fp_victims = false
+fp_detector_alarm_enabled = false

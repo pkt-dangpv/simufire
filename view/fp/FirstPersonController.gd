@@ -117,6 +117,15 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Umbral FED para estado mortal (FP-04). Default FED = 1.0.
 @export var fp_victim_fed_fatal_threshold: float = 1.0
 
+@export_group("Alarmas FP")
+## Reproduce un beep procedural 3D cuando un detector visible pasa a estado activado.
+@export var fp_detector_alarm_enabled: bool = true
+@export_range(-40.0, 6.0, 0.5) var fp_detector_alarm_volume_db: float = -8.0
+@export_range(1.0, 40.0, 0.5) var fp_detector_alarm_max_distance_m: float = 18.0
+@export_range(200.0, 2400.0, 10.0) var fp_detector_alarm_frequency_hz: float = 880.0
+@export_range(0.05, 1.0, 0.01) var fp_detector_alarm_beep_duration_s: float = 0.18
+@export_range(0.15, 3.0, 0.01) var fp_detector_alarm_interval_s: float = 0.75
+
 @export_group("Mobiliario FP")
 @export var show_fp_furniture: bool = true
 @export var fp_furniture_generic_height_m: float = 0.34
@@ -197,6 +206,7 @@ var _fire_nodes_by_room: Dictionary = {}
 var _ceiling_lights_by_room: Dictionary = {}
 var _ceiling_light_base_energy_by_room: Dictionary = {}
 var _ceiling_light_base_range_by_room: Dictionary = {}
+var _detector_alarm_stream: AudioStreamWAV = null
 var _nearest_opening_index: int = -1
 var _state: Dictionary = {}
 var _visibility_overlay: ColorRect = null
@@ -234,6 +244,7 @@ func apply_preset(p: FPPreset = null) -> void:
 	exterior_context_enabled = src.exterior_context_enabled
 	show_fp_detectors = src.show_fp_detectors
 	show_fp_victims = src.show_fp_victims
+	fp_detector_alarm_enabled = src.fp_detector_alarm_enabled
 	smoke_overlay_max_alpha = src.smoke_overlay_max_alpha
 	fp_visibility_clear_m = src.fp_visibility_clear_m
 	show_technical_overlay = src.show_technical_overlay
@@ -260,6 +271,7 @@ func set_active(enabled: bool) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		_update_status_hud()
 		_update_prompt()
+		_update_safety_marker_states()
 	else:
 		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -269,6 +281,7 @@ func set_active(enabled: bool) -> void:
 			_prompt_panel.visible = false
 		if _visibility_overlay != null:
 			_visibility_overlay.color = Color(0.08, 0.09, 0.09, 0.0)
+		_stop_detector_alarms()
 
 
 func rebuild_from_building() -> void:
@@ -2305,6 +2318,9 @@ func _create_safety_markers(rects: Dictionary) -> void:
 func _create_fp_detector_marker(detector_id: String) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Detector_" + _safe_node_name(detector_id)
+	root.set_meta("detector_id", detector_id)
+	root.set_meta("alarm_triggered", false)
+	root.set_meta("alarm_active", false)
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.name = "MarkerMesh"
 	var mesh := CylinderMesh.new()
@@ -2315,7 +2331,58 @@ func _create_fp_detector_marker(detector_id: String) -> Node3D:
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = _mat(fp_detector_color, false)
 	root.add_child(mesh_instance)
+	root.add_child(_create_fp_detector_alarm_player())
 	return root
+
+
+func _create_fp_detector_alarm_player() -> AudioStreamPlayer3D:
+	var player := AudioStreamPlayer3D.new()
+	player.name = "DetectorAlarm"
+	player.stream = _get_detector_alarm_stream()
+	player.volume_db = fp_detector_alarm_volume_db
+	player.max_distance = fp_detector_alarm_max_distance_m
+	player.autoplay = false
+	player.set_meta("simufire_fp_alarm", true)
+	return player
+
+
+func _get_detector_alarm_stream() -> AudioStreamWAV:
+	if _detector_alarm_stream == null:
+		_detector_alarm_stream = _build_detector_alarm_stream()
+	return _detector_alarm_stream
+
+
+func _build_detector_alarm_stream() -> AudioStreamWAV:
+	var sample_rate: int = 22050
+	var interval_s: float = maxf(fp_detector_alarm_interval_s, fp_detector_alarm_beep_duration_s + 0.02)
+	var total_frames: int = maxi(1, int(round(interval_s * float(sample_rate))))
+	var beep_frames: int = clampi(int(round(fp_detector_alarm_beep_duration_s * float(sample_rate))), 1, total_frames)
+	var fade_frames: int = maxi(1, mini(int(beep_frames / 2), int(round(0.012 * float(sample_rate)))))
+	var frequency_hz: float = clampf(fp_detector_alarm_frequency_hz, 80.0, 6000.0)
+	var data := PackedByteArray()
+	data.resize(total_frames * 2)
+	for i in range(total_frames):
+		var sample: float = 0.0
+		if i < beep_frames:
+			var envelope: float = 1.0
+			if i < fade_frames:
+				envelope = float(i) / float(fade_frames)
+			elif i > beep_frames - fade_frames:
+				envelope = float(beep_frames - i) / float(fade_frames)
+			sample = sin(TAU * frequency_hz * float(i) / float(sample_rate)) * 0.38 * clampf(envelope, 0.0, 1.0)
+		var pcm: int = int(clampf(sample, -1.0, 1.0) * 32767.0)
+		var unsigned_pcm: int = pcm & 0xffff
+		data[i * 2] = unsigned_pcm & 0xff
+		data[i * 2 + 1] = (unsigned_pcm >> 8) & 0xff
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = sample_rate
+	stream.stereo = false
+	stream.data = data
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_begin = 0
+	stream.loop_end = total_frames
+	return stream
 
 
 func _create_fp_victim_marker(victim_id: String) -> Node3D:
@@ -2391,7 +2458,9 @@ func _update_safety_marker_states() -> void:
 			continue
 		node.visible = show_fp_detectors
 		var record: Dictionary = detector_states.get(det_id, {})
-		_set_marker_material(node, fp_detector_triggered_color if bool(record.get("triggered", false)) else fp_detector_color)
+		var triggered: bool = bool(record.get("triggered", node.get_meta("alarm_triggered", false)))
+		_set_marker_material(node, fp_detector_triggered_color if triggered else fp_detector_color)
+		_sync_detector_alarm(node, triggered)
 
 	var victim_states: Dictionary = _state_records_by_id(Array(_state.get("victims", [])))
 	for vic_id in _victim_nodes.keys():
@@ -2425,6 +2494,35 @@ func _state_records_by_id(records: Array) -> Dictionary:
 
 func _set_marker_material(root: Node3D, color: Color) -> void:
 	_set_marker_material_recursive(root, _mat(color, false))
+
+
+func _sync_detector_alarm(detector_node: Node3D, triggered: bool) -> void:
+	detector_node.set_meta("alarm_triggered", triggered)
+	var alarm_active: bool = _active and fp_detector_alarm_enabled and show_fp_detectors and detector_node.visible and triggered
+	detector_node.set_meta("alarm_active", alarm_active)
+	var player := detector_node.get_node_or_null("DetectorAlarm") as AudioStreamPlayer3D
+	if player == null:
+		return
+	player.volume_db = fp_detector_alarm_volume_db
+	player.max_distance = fp_detector_alarm_max_distance_m
+	if alarm_active:
+		if player.stream == null:
+			player.stream = _get_detector_alarm_stream()
+		if not player.playing:
+			player.play()
+	elif player.playing:
+		player.stop()
+
+
+func _stop_detector_alarms() -> void:
+	for det_id in _detector_nodes.keys():
+		var node := _detector_nodes[det_id] as Node3D
+		if node == null:
+			continue
+		node.set_meta("alarm_active", false)
+		var player := node.get_node_or_null("DetectorAlarm") as AudioStreamPlayer3D
+		if player != null and player.playing:
+			player.stop()
 
 
 func _set_marker_material_recursive(node: Node, material: StandardMaterial3D) -> void:

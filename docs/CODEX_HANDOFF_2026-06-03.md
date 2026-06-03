@@ -10,10 +10,10 @@ Este archivo resume el estado de la conversacion para poder continuar el trabajo
 
 ## Validaciones recientes
 
-Ultima validacion completa ejecutada antes del commit `dc59228`:
+Ultima validacion completa ejecutada tras cerrar guardrail de captura 3D:
 
 - `python scripts/check_product.py`
-  - `ALL PRODUCT CHECKS PASS (49 tests)`
+  - `ALL PRODUCT CHECKS PASS (53 tests)`
 - `python scripts/simulation/validation_guardrails.py`
   - `Required checks 379/379 PASS`
   - `ALL GUARDRAILS PASS -- working tree listo.`
@@ -42,8 +42,22 @@ Ultima validacion completa ejecutada antes del commit `dc59228`:
 - Inicio FP restaurado desde editor:
   - `player_start` restaura posicion, planta y yaw.
   - Guardrail: `tools/validate_fp_player_start.tscn`
-- `scripts/check_product.py` incluye ahora todos los guardrails nuevos y reporta 49 tests.
-- `docs/PRODUCT_EDITOR_FP_3D_AUDIT.md` y `README.md` se actualizaron al estado 49/49.
+- `scripts/check_product.py` incluye ahora todos los guardrails nuevos y reporta 53 tests.
+- `docs/PRODUCT_EDITOR_FP_3D_AUDIT.md` y `README.md` se actualizaron al estado 53/53.
+- Alarma FP de detectores cerrada:
+  - `FirstPersonController` crea `DetectorAlarm` (`AudioStreamPlayer3D`) con beep procedural por detector.
+  - La alarma se activa con `triggered=true` solo si FP está activo y los detectores son visibles.
+  - Guardrail: `tools/validate_fp_detector_alarm.tscn`.
+- Puertas 3D orbitales cerradas:
+  - `Visualizer3D` crea `DoorLeafPivot_XX` y `DoorLeaf_XX` para puertas no verticales.
+  - La hoja rota segun `open_fraction`, `hinge_side` y `swing_direction`.
+  - Guardrail: `tools/validate_3d_door_opening_visuals.tscn`.
+- Overlays tecnicos 3D blindados:
+  - Guardrail para gradiente de capa, heatmap de paredes, etiqueta FED y flags debug.
+  - Guardrail: `tools/validate_3d_technical_overlays.tscn`.
+- Captura 3D blindada:
+  - Guardrail valida PNG real si el renderer headless expone textura; si no, valida fallo controlado sin archivo corrupto.
+  - Guardrail: `tools/validate_3d_screenshot_export.tscn`.
 
 ## Problema original del usuario
 
@@ -59,28 +73,27 @@ El usuario reporto que al editar una casa simple todo iba bien, pero al entrar e
 
 - `view/fp/FirstPersonController.gd`
 - `tools/validate_furniture_runtime.gd`
+- `tools/validate_3d_door_opening_visuals.gd`
+- `tools/validate_3d_technical_overlays.gd`
+- `tools/validate_3d_screenshot_export.gd`
 - `tools/validate_fp_fire_visuals.gd`
 - `tools/validate_fp_technical_hud.gd`
 - `tools/validate_fp_victim_states.gd`
 - `tools/validate_fp_player_start.gd`
+- `tools/validate_fp_detector_alarm.gd`
 - `tools/validate_editor_load_error_dialog.gd`
 - `scripts/check_product.py`
 - `docs/PRODUCT_EDITOR_FP_3D_AUDIT.md`
 
 ## Proximo bloque recomendado
 
-El siguiente bloque tecnico logico es cerrar el unico punto FP polish que queda abierto en la auditoria:
+El siguiente bloque tecnico logico es pasar a visualizacion 3D/polish o a deuda de editor:
 
-1. Sonido/advertencia de detector en FP, opcional con asset minimalista o beep procedural.
-2. Anadir guardrail Godot headless que confirme que un detector activado genera el nodo/estado de alarma FP esperado.
-3. Registrar el guardrail en `scripts/check_product.py`.
-4. Actualizar `README.md` y `docs/PRODUCT_EDITOR_FP_3D_AUDIT.md`.
-5. Ejecutar:
+1. Hacer una pasada visual interactiva opcional de v0.5.2 en Godot/editor, o continuar con refactor incremental del monolito de editor.
+2. Ejecutar antes de cerrar cualquier commit nuevo:
    - `python scripts/check_product.py`
    - `python scripts/simulation/validation_guardrails.py`
    - `git diff --check`
-
-Si se decide no hacer el sonido FP, saltar a `v0.5.2 - 3D Visualization Polish`.
 
 ## Como continuar en otro ordenador
 
@@ -101,4 +114,3 @@ Si se decide no hacer el sonido FP, saltar a `v0.5.2 - 3D Visualization Polish`.
    ```text
    Lee docs/CODEX_HANDOFF_2026-06-03.md y continua con el proximo bloque tecnico.
    ```
-

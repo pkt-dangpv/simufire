@@ -110,7 +110,7 @@ Transporte editor → simulación:
 | Clasificador visual | `furniture/FurnitureVisualClassifier.gd` | ✅ Completo |
 | Cargador de assets | `furniture/FurnitureAssetLoader.gd` | ✅ Completo |
 
-**Capacidades**: geometría procedural de salas, escaleras, contexto exterior (ciudad/residential), iluminación Sun+FillLight, vidrio roto con grietas, animación de humo volumétrico + sprites + cortinas en aperturas, fuego animado con columna de humo, mobiliario 3D procedural y desde assets, drag-and-drop de elementos en el editor 3D, marcadores de detectores/víctimas/inicio FP, selección visual con halo.
+**Capacidades**: geometría procedural de salas, escaleras, contexto exterior (ciudad/residential), iluminación Sun+FillLight, vidrio roto con grietas, animación de humo volumétrico + sprites + cortinas en aperturas, fuego animado con columna de humo, mobiliario 3D procedural y desde assets, puertas con hoja 3D que rota según apertura, drag-and-drop de elementos en el editor 3D, marcadores de detectores/víctimas/inicio FP, selección visual con halo.
 
 ---
 
@@ -134,7 +134,7 @@ Transporte editor → simulación:
 - Atenuación de luces por humo en sala
 - Mobiliario combustible visible en FP (`FPFurniture/FuelObjects_XX`) con la misma pose/estado que 3D
 - HUD técnico FP con temperatura por postura, CO, CO2, O2, HCN, FED y visibilidad efectiva
-- Marcadores de detectores y víctimas (víctimas cambian color por FED normal/incapacitada/fatal)
+- Marcadores de detectores y víctimas (detectores activados cambian color y emiten alarma procedural; víctimas cambian color por FED normal/incapacitada/fatal)
 - Inicio FP restaurado desde `player_start` con posición, planta y yaw
 - Vidrio roto: sustitución de panel por fragmentos visuales
 - Input: WASD + ratón, agacharse (C), tumbarse (Z), salir (Escape/Tab)
@@ -276,7 +276,7 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 | DT-06 | ✅ Integrar `FireAnimation3D` en mundo FP | Cerrado |
 | — | ✅ HUD FP: temperatura en postura actual, FED acumulado, CO ppm | Cerrado |
 | — | ✅ Indicador de visibilidad numérico en FP (metros de visión efectiva) | Cerrado |
-| — | Sonido de advertencia de detector (opcional / asset minimalista) | Media |
+| — | ✅ Sonido de advertencia de detector: beep procedural 3D, configurable y validado por `tools/validate_fp_detector_alarm.tscn` | Cerrado |
 | — | ✅ Estado visual de víctima en FP: material según estado incapacitación | Cerrado |
 | DT-07 parcial | ✅ Estado de víctima derivado de FED (incapacitada/muerta visualmente) | Cerrado |
 | — | ✅ Guardar posición inicial FP desde editor y restaurarla al iniciar | Cerrado |
@@ -291,12 +291,12 @@ Ninguno. Todos los `.gd` están referenciados desde al menos una escena `.tscn` 
 
 | Tarea | Descripción | Prioridad |
 |-------|-------------|-----------|
-| — | Capa de gradiente vertical en 3D (visualizar upper/lower layer) | Alta |
-| — | Overlay de temperatura en paredes (heatmap de color) | Media |
-| — | Leyenda de colores en HUD 3D | Media |
-| — | Exportar captura de pantalla 3D al directorio de gráficas | Media |
-| — | Etiqueta de FED en sala en vista 3D | Baja |
-| — | Animación de apertura de puertas en vista orbital 3D (actualmente solo en FP) | Baja |
+| — | ✅ Capa de gradiente vertical en 3D (visualizar upper/lower layer), cubierta por `tools/validate_3d_technical_overlays.tscn` | Cerrado |
+| — | ✅ Overlay de temperatura en paredes (heatmap de color), cubierto por `tools/validate_3d_technical_overlays.tscn` | Cerrado |
+| — | ✅ Leyenda de colores en HUD 3D | Cerrado |
+| — | ✅ Exportar captura de pantalla 3D al directorio de gráficas, con guardrail `tools/validate_3d_screenshot_export.tscn` (PNG real si el renderer lo permite; fallo controlado en headless dummy) | Cerrado |
+| — | ✅ Etiqueta de FED en sala en vista 3D, cubierta por `tools/validate_3d_technical_overlays.tscn` | Cerrado |
+| — | ✅ Animación de apertura de puertas en vista orbital 3D (`DoorLeafPivot_XX` + guardrail `tools/validate_3d_door_opening_visuals.tscn`) | Cerrado |
 
 **Criterio de cierre**: la vista 3D orbital es autónomamente legible — un observador sin acceso a la vista 2D puede seguir la dinámica del incendio.
 

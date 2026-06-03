@@ -20,6 +20,8 @@ extends Resource
 @export var show_fp_detectors: bool = true
 ## Muestra los marcadores de víctimas en vista FP.
 @export var show_fp_victims: bool = true
+## Reproduce aviso sonoro procedural cuando un detector visible se activa.
+@export var fp_detector_alarm_enabled: bool = true
 
 @export_group("Humo")
 ## Alpha máximo del overlay de humo (0.0 = sin efecto, 0.97 = casi opaco).

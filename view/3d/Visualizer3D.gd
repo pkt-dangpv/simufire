@@ -56,10 +56,13 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var room_inset_m: float = 0.04
 @export var default_room_height_m: float = 2.4
 @export var opening_marker_depth_m: float = 0.08
+@export_range(30.0, 120.0, 1.0) var door_leaf_max_open_angle_deg: float = 90.0
 
 @export_group("Visibility")
 @export var show_walls: bool = true
 @export var show_openings: bool = true
+## Dibuja hojas de puerta 3D que rotan segun open_fraction en la vista orbital.
+@export var show_door_leaf_animation_3d: bool = true
 @export var show_room_labels: bool = true
 ## Muestra FED acumulado de la víctima más expuesta en cada sala (V3D-04).
 @export var show_fed_labels: bool = false
@@ -1119,6 +1122,8 @@ func _create_opening(index: int) -> void:
 	marker.position = _to_world(Vector3(pose["position"].x, opening_floor_m + pose["position"].y, pose["position"].z))
 	_openings_root.add_child(marker)
 	_opening_items[index] = {"marker": marker}
+	if op.type == OpeningModel.Type.DOOR and not op.is_vertical:
+		_create_door_leaf_visual(index, op, pose, marker)
 	if op.type == OpeningModel.Type.WINDOW:
 		var pose_size: Vector3 = Vector3(pose["size"]) * meters_to_units
 		var crack_mat := _make_material(Color(1.0, 0.95, 0.72, 0.95), true)
@@ -1157,6 +1162,86 @@ func _create_opening(index: int) -> void:
 		_opening_items[index]["smoke_curtain"] = curtain
 		_opening_items[index]["air_inflow_curtain"] = inflow
 		_opening_items[index]["curtain_pose"] = pose
+
+
+func _create_door_leaf_visual(index: int, op: OpeningModel, pose: Dictionary, marker: MeshInstance3D) -> void:
+	if marker == null or op == null:
+		return
+	var pose_size: Vector3 = Vector3(pose["size"])
+	var horizontal_wall: bool = pose_size.x >= pose_size.z
+	var leaf_width_m: float = maxf(0.05, pose_size.x if horizontal_wall else pose_size.z)
+	var leaf_height_m: float = maxf(0.10, pose_size.y)
+	var leaf_thickness_m: float = maxf(0.028, opening_marker_depth_m * 0.46)
+	var hinge_left: bool = op.hinge_side.strip_edges().to_lower() != "right"
+	var axis_sign: float = 1.0 if hinge_left else -1.0
+
+	var hinge_local := Vector3.ZERO
+	var panel_local := Vector3.ZERO
+	var panel_size := Vector3.ZERO
+	var closed_dir := Vector2.ZERO
+	if horizontal_wall:
+		hinge_local.x = (-pose_size.x * 0.5 if hinge_left else pose_size.x * 0.5) * meters_to_units
+		panel_local.x = axis_sign * leaf_width_m * 0.5 * meters_to_units
+		panel_size = Vector3(leaf_width_m, leaf_height_m, leaf_thickness_m) * meters_to_units
+		closed_dir = Vector2(axis_sign, 0.0)
+	else:
+		hinge_local.z = (-pose_size.z * 0.5 if hinge_left else pose_size.z * 0.5) * meters_to_units
+		panel_local.z = axis_sign * leaf_width_m * 0.5 * meters_to_units
+		panel_size = Vector3(leaf_thickness_m, leaf_height_m, leaf_width_m) * meters_to_units
+		closed_dir = Vector2(0.0, axis_sign)
+
+	var pivot := Node3D.new()
+	pivot.name = "DoorLeafPivot_%02d" % index
+	pivot.position = hinge_local
+	pivot.set_meta("simufire_opening_index", index)
+	pivot.set_meta("closed_dir_xz", closed_dir)
+	pivot.set_meta("full_open_angle_rad", _door_leaf_full_open_angle(op, closed_dir, horizontal_wall))
+	marker.add_child(pivot)
+
+	var panel := _create_box("DoorLeaf_%02d" % index, panel_size, _make_material(door_color, true))
+	panel.position = panel_local
+	panel.set_meta("leaf_width_m", leaf_width_m)
+	panel.set_meta("leaf_height_m", leaf_height_m)
+	pivot.add_child(panel)
+
+	_opening_items[index]["door_leaf_pivot"] = pivot
+	_opening_items[index]["door_leaf_panel"] = panel
+	_update_door_leaf_visual(_opening_items[index], op)
+
+
+func _door_leaf_full_open_angle(op: OpeningModel, closed_dir: Vector2, horizontal_wall: bool) -> float:
+	var normal: Vector2 = _door_swing_normal_xz(op, horizontal_wall)
+	var angle: float = _signed_y_rotation_from_xz(closed_dir, normal)
+	if is_zero_approx(angle):
+		angle = -PI * 0.5 if op.hinge_side.strip_edges().to_lower() != "right" else PI * 0.5
+	var max_angle: float = deg_to_rad(clampf(door_leaf_max_open_angle_deg, 30.0, 120.0))
+	return (1.0 if angle >= 0.0 else -1.0) * minf(absf(angle), max_angle)
+
+
+func _door_swing_normal_xz(op: OpeningModel, horizontal_wall: bool) -> Vector2:
+	var normal := Vector2(0.0, 1.0) if horizontal_wall else Vector2(1.0, 0.0)
+	match op.wall_side.strip_edges().to_lower():
+		"top", "north":
+			normal = Vector2(0.0, 1.0)
+		"bottom", "south":
+			normal = Vector2(0.0, -1.0)
+		"left", "west":
+			normal = Vector2(1.0, 0.0)
+		"right", "east":
+			normal = Vector2(-1.0, 0.0)
+	if op.swing_direction.strip_edges().to_lower() == "out":
+		normal = -normal
+	return normal.normalized()
+
+
+func _signed_y_rotation_from_xz(from_dir: Vector2, to_dir: Vector2) -> float:
+	var from_n: Vector2 = from_dir.normalized()
+	var to_n: Vector2 = to_dir.normalized()
+	if from_n == Vector2.ZERO or to_n == Vector2.ZERO:
+		return 0.0
+	var cross: float = from_n.x * to_n.y - from_n.y * to_n.x
+	var dot: float = clampf(from_n.dot(to_n), -1.0, 1.0)
+	return -atan2(cross, dot)
 
 
 func _create_exterior_context_visuals() -> void:
@@ -2404,6 +2489,7 @@ func _update_openings() -> void:
 			if int(index) == _selected_opening_index:
 				marker_color = marker_color.lerp(Color(1.0, 0.88, 0.18, 1.0), 0.55)
 			mat.albedo_color = marker_color
+		_update_door_leaf_visual(item_dict, op)
 		var broken_crack_h := item_dict.get("broken_crack_h") as MeshInstance3D
 		if broken_crack_h != null:
 			broken_crack_h.visible = op.type == OpeningModel.Type.WINDOW and op.glass_broken
@@ -2426,6 +2512,24 @@ func _update_openings() -> void:
 			"cold_air_inflow_color": cold_air_inflow_color,
 			"show_cold_air_inflow_curtains": show_cold_air_inflow_curtains,
 		})
+
+
+func _update_door_leaf_visual(item_dict: Dictionary, op: OpeningModel) -> void:
+	var pivot := item_dict.get("door_leaf_pivot") as Node3D
+	var panel := item_dict.get("door_leaf_panel") as MeshInstance3D
+	if pivot == null or panel == null or op == null:
+		return
+	var visible_leaf: bool = show_door_leaf_animation_3d and op.type == OpeningModel.Type.DOOR and not op.is_vertical
+	pivot.visible = visible_leaf
+	panel.visible = visible_leaf
+	if not visible_leaf:
+		return
+	var full_angle: float = float(pivot.get_meta("full_open_angle_rad", deg_to_rad(90.0)))
+	pivot.rotation.y = full_angle * clampf(op.open_fraction, 0.0, 1.0)
+	var mat := panel.material_override as StandardMaterial3D
+	if mat != null:
+		var leaf_color: Color = closed_opening_color.lerp(door_color, clampf(op.open_fraction, 0.0, 1.0))
+		mat.albedo_color = Color(leaf_color.r, leaf_color.g, leaf_color.b, maxf(leaf_color.a, 0.72))
 
 
 func _create_box(node_name: String, size: Vector3, material: Material) -> MeshInstance3D:

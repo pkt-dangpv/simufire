@@ -207,6 +207,30 @@ def main() -> int:
         diagnostics.append("Godot furniture runtime: " + (diagnostic or "failed"))
 
     rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_3d_door_opening_visuals.tscn",
+        "3D DOOR OPENING VISUALS VALIDATION PASS",
+    )
+    rows.append(("3D door opening visuals Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot 3D door opening visuals: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_3d_technical_overlays.tscn",
+        "3D TECHNICAL OVERLAYS VALIDATION PASS",
+    )
+    rows.append(("3D technical overlays Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot 3D technical overlays: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_3d_screenshot_export.tscn",
+        "3D SCREENSHOT EXPORT VALIDATION PASS",
+    )
+    rows.append(("3D screenshot export Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot 3D screenshot export: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_runtime_template_schema.tscn",
         "RUNTIME TEMPLATE SCHEMA VALIDATION PASS",
     )
@@ -253,6 +277,14 @@ def main() -> int:
     rows.append(("FP player start Godot", rc, count, fails))
     if rc != 0 or fails != 0:
         diagnostics.append("Godot FP player start: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_fp_detector_alarm.tscn",
+        "FP DETECTOR ALARM VALIDATION PASS",
+    )
+    rows.append(("FP detector alarm Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot FP detector alarm: " + (diagnostic or "failed"))
 
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_editor_to_sim_flow.tscn",

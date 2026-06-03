@@ -10,7 +10,7 @@ Simulador de dinámica de incendios en compartimentos para entrenamiento y toma 
 
 ```powershell
 # 1. Checks de producto/editor (incluye smokes Godot headless)
-python scripts/check_product.py         # 49 tests: editor JSON + UI localization + guardrails + export headless
+python scripts/check_product.py         # 53 tests: editor JSON + UI localization + guardrails + export headless
 
 # 2. Guardrails científicos (sin Godot, lee reference_checks.json)
 python scripts/simulation/validation_guardrails.py
@@ -47,7 +47,7 @@ python scripts/run_scenario.py scenarios/compact_apartment_reference.json --dura
 | Gaps no-gating | 4 (estructurales HVAC, aceptados) |
 | Guardrails científicos | ALL PASS |
 | Tests unitarios guardrails | 13/13 OK |
-| Tests editor/producto | 49/49 OK |
+| Tests editor/producto | 53/53 OK |
 | Commit base | `80f3c09` |
 
 ---
