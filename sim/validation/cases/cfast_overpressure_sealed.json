@@ -1,0 +1,82 @@
+{
+    "template": "simple_house",
+    "duration_s": 300.0,
+    "ignite_on_start": true,
+    "ignition_room_id": 0,
+    "enable_logging": true,
+    "watch_room_ids": [0],
+    "smoke_trigger_room_id": 0,
+    "l150_room_id": 0,
+    "room_overrides": [
+        {
+            "id": 0,
+            "max_hrr_kw": 400.0
+        }
+    ],
+    "opening_overrides": [
+        {
+            "a": 0,
+            "b": 1,
+            "type": "door",
+            "open_fraction": 0.0
+        },
+        {
+            "a": 0,
+            "b": -1,
+            "type": "window",
+            "open_fraction": 0.0
+        }
+    ],
+    "opening_events": [],
+    "engine_overrides": {
+        "time_scale": 5.0,
+        "log_interval_s": 5.0,
+        "log_file_path": "res://sim/validation/reports/cfast_overpressure_sealed.log",
+        "fire_alpha_kw_s2": 0.0117,
+        "fire_max_hrr_kw": 400.0,
+        "fire_secondary_hrr_gain_kw": 0.0,
+        "fire_flashover_hrr_multiplier": 1.0,
+        "fire_flashover_min_hrr_kw": 99999.0,
+        "thermal_feedback_coeff": 0.0,
+        "fire_o2_min_for_flame": 0.02,
+        "fire_o2_full_hrr_open": 0.15,
+        "fire_o2_hrr_rise_tau_s": 2.0,
+        "fire_hrr_rise_tau_s": 2.0,
+        "fire_unburned_generation_fraction": 0.0,
+        "fire_pool_release_max_fraction": 0.0,
+        "fire_extinction_delay_s": 600.0,
+        "fire_latent_extinction_delay_s": 600.0,
+        "fire_max_active_s": 9999.0,
+        "upper_to_lower_loss_rate": 0.002,
+        "lower_layer_warming_rate": 0.001,
+        "upper_to_ambient_loss_rate": 0.01,
+        "wall_absorption_rate": 0.008,
+        "wall_heat_capacity_kj_m2_k": 40.0,
+        "retained_hot_layer_temp_start_c": 45.0,
+        "retained_hot_layer_temp_full_c": 170.0,
+        "retained_hot_layer_o2_full": 0.065,
+        "retained_hot_layer_max_fraction": 0.95,
+        "upper_heat_capture_max": 0.205,
+        "plume_fill_depth_coeff": 0.78,
+        "plume_flame_region_entrainment_enabled": true,
+        "plume_flame_region_coeff": 0.025,
+        "plume_fire_diameter_m": 1.0,
+        "plume_mccaffrey_qc_fraction": 0.3,
+        "hrr_chi_rad_normal": 0.7,
+        "hrr_chi_rad_low_o2": 0.7,
+        "natural_vent_inlet_fraction": 0.2,
+        "layer_150c_relax_up_per_s": 0.05,
+        "thermal_gradient_band_fraction": 0.0,
+        "max_upper_temp_c": 480.0,
+        "fed_heat_enabled": false,
+        "fire_spread_enabled": false,
+        "glass_auto_break_enabled": false,
+        "glass_break_mode": 0,
+        "ach_infiltration": 0.0,
+        "stack_effect_enabled": false,
+        "fire_co_yield_force_kg_per_MJ": 0.0062,
+        "fire_smoke_yield_force_kg_per_MJ": 0.015,
+        "phase3_thermodynamic_pressure_enabled": true,
+        "phase3_leak_area_m2": 0.030
+    }
+}

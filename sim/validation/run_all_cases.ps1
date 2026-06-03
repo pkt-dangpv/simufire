@@ -107,6 +107,8 @@ $cases = @(
 	"two_storey_smoke",
 	# SF-R7: stack effect vertical multi-planta (chimenea escalera)
 	"cfast_two_floor_stairwell",
+	# B-01: sobrepresion termodynamica en sala sellada (gap HVAC-1)
+	"cfast_overpressure_sealed",
 	# SF-R6 Phase 3: conservación de transporte de contaminantes (residual ~0)
 	"conservation_transport",
 	# SF-VIC-001: acumulación FED individual de víctima (compute_fed_delta_for_height)

@@ -1,6 +1,6 @@
 {
   "all_required_pass": true,
-  "required_count": 384,
+  "required_count": 387,
   "failed_required_count": 0,
   "known_gap_count": 4,
   "checks": [
@@ -4568,6 +4568,39 @@
       "required": true,
       "pass": true,
       "note": "Regression baseline: cfast_two_floor_stairwell"
+    },
+    {
+      "name": "cfast_overpressure_sealed_room_0_max_overpressure_pa",
+      "actual": 1475.27377015961,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 1032.0,
+      "maximum": 1918.0,
+      "required": true,
+      "pass": true,
+      "note": "B-01 Stage-B gap HVAC-1: sobrepresion termodynamica sala sellada. SimuFire ~15-25% bajo CFAST 6.12."
+    },
+    {
+      "name": "cfast_overpressure_sealed_room_0_peak_hrr_kw",
+      "actual": 353.801960955332,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 300.0,
+      "maximum": 420.0,
+      "required": true,
+      "pass": true,
+      "note": "B-01 fire curve sanity: t2 medium 400 kW cap en sala sellada"
+    },
+    {
+      "name": "cfast_overpressure_sealed_room_0_peak_temp_upper_c",
+      "actual": 244.131871259222,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 180.0,
+      "maximum": 320.0,
+      "required": true,
+      "pass": true,
+      "note": "B-01 temperatura capa superior sala sellada al final de 300s"
     },
     {
       "name": "v4_co_remote_rooms_room_0_peak_hrr_kw",
