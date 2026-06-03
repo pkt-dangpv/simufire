@@ -6,6 +6,7 @@ const FirstPersonControllerScript := preload("res://view/fp/FirstPersonControlle
 const Visualizer3DScript := preload("res://view/3d/Visualizer3D.gd")
 const EditorDraw2DScript := preload("res://editor/EditorDraw2D.gd")
 const EditorLoadErrorDialogScript := preload("res://editor/EditorLoadErrorDialog.gd")
+const ScenarioSerializerScript := preload("res://editor/ScenarioSerializer.gd")
 const ScenarioEditorScript := preload("res://editor/ScenarioEditor.gd")
 
 var _failures: Array[String] = []
@@ -18,17 +19,21 @@ func _ready() -> void:
 func _run() -> void:
 	await get_tree().process_frame
 
-	var straight := await _build_case("straight", Rect2(0.0, 0.0, 1.40, 4.60), Vector2.DOWN, 0.0)
+	var straight := await _build_case("straight", Rect2(0.0, 0.0, 1.40, 4.60), Vector2.DOWN, 0.0, "straight")
 	_validate_model("straight", straight)
+	_validate_serializer_turn_mode("straight", straight)
 	_validate_editor_vertical_opening("straight", straight)
+	_validate_editor_turn_modes("straight", straight)
 	_validate_first_person("straight", straight)
 	_validate_visualizer("straight", straight)
 	await _validate_head_clearance("straight", straight)
 	_cleanup_case(straight)
 
-	var switchback := await _build_case("switchback", Rect2(0.0, 0.0, 2.40, 5.40), Vector2.DOWN, 180.0)
+	var switchback := await _build_case("switchback", Rect2(0.0, 0.0, 2.40, 5.40), Vector2.DOWN, 180.0, "switchback")
 	_validate_model("switchback", switchback)
+	_validate_serializer_turn_mode("switchback", switchback)
 	_validate_editor_vertical_opening("switchback", switchback)
+	_validate_editor_turn_modes("switchback", switchback)
 	_validate_first_person("switchback", switchback)
 	_validate_visualizer("switchback", switchback)
 	await _validate_head_clearance("switchback", switchback)
@@ -45,8 +50,8 @@ func _run() -> void:
 	get_tree().quit(1)
 
 
-func _build_case(case_name: String, rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> Dictionary:
-	var template := _make_template(rect, stair_dir, turn_degrees)
+func _build_case(case_name: String, rect: Rect2, stair_dir: Vector2, turn_degrees: float, turn_mode: String) -> Dictionary:
+	var template := _make_template(rect, stair_dir, turn_degrees, turn_mode)
 	var building: BuildingModel = BuildingModelScript.new()
 	building.load_template_data(template)
 
@@ -85,7 +90,8 @@ func _build_case(case_name: String, rect: Rect2, stair_dir: Vector2, turn_degree
 		"visualizer": visualizer,
 		"rect": rect,
 		"stair_dir": stair_dir,
-		"turn_degrees": turn_degrees
+		"turn_degrees": turn_degrees,
+		"turn_mode": turn_mode
 	}
 
 
@@ -98,7 +104,7 @@ func _cleanup_case(ctx: Dictionary) -> void:
 		building.free()
 
 
-func _make_template(rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> Dictionary:
+func _make_template(rect: Rect2, stair_dir: Vector2, turn_degrees: float, turn_mode: String) -> Dictionary:
 	var flight_count := 2 if turn_degrees >= 179.0 else 1
 	var opening_width := _stair_ramp_width_m(rect, stair_dir)
 	var opening_depth := maxf(0.80, _stair_long_span_m(rect, stair_dir) - _stair_landing_depth_m(rect, stair_dir) - 0.22)
@@ -122,8 +128,8 @@ func _make_template(rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> Dic
 			"3": _rect_to_data(shell_rect)
 		},
 		"rooms_data": [
-			_make_stair_room(0, "Escalera PB", rect, 0.0, 3.0, stair_dir, turn_degrees, flight_count),
-			_make_stair_room(1, "Escalera P1", rect, 3.0, 2.55, stair_dir, turn_degrees, flight_count),
+			_make_stair_room(0, "Escalera PB", rect, 0.0, 3.0, stair_dir, turn_degrees, turn_mode, flight_count),
+			_make_stair_room(1, "Escalera P1", rect, 3.0, 2.55, stair_dir, turn_degrees, turn_mode, flight_count),
 			_make_plain_room(2, "Sala PB solapada", shell_rect, 0.0, 3.0),
 			_make_plain_room(3, "Sala P1 solapada", shell_rect, 3.0, 2.55)
 		],
@@ -153,7 +159,7 @@ func _make_template(rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> Dic
 	}
 
 
-func _make_stair_room(id: int, room_name: String, rect: Rect2, floor_level_m: float, height_m: float, stair_dir: Vector2, turn_degrees: float, flight_count: int) -> Dictionary:
+func _make_stair_room(id: int, room_name: String, rect: Rect2, floor_level_m: float, height_m: float, stair_dir: Vector2, turn_degrees: float, turn_mode: String, flight_count: int) -> Dictionary:
 	return {
 		"id": id,
 		"name": room_name,
@@ -164,6 +170,7 @@ func _make_stair_room(id: int, room_name: String, rect: Rect2, floor_level_m: fl
 		"stair_run_direction_m": {"x": stair_dir.x, "y": stair_dir.y},
 		"stair_has_walls": false,
 		"stair_has_railings": true,
+		"stair_turn_mode": turn_mode,
 		"stair_turn_degrees": turn_degrees,
 		"stair_flight_count": flight_count,
 		"fuel_energy_MJ": 0.0,
@@ -214,6 +221,42 @@ func _validate_model(case_name: String, ctx: Dictionary) -> void:
 		_expect(absf(upper_room.floor_level_z_m - 3.0) < 0.01, case_name + ": upper stair room should be on P1")
 
 
+func _validate_serializer_turn_mode(case_name: String, ctx: Dictionary) -> void:
+	var expected_mode: String = String(ctx["turn_mode"])
+	var expected_legacy_mode: String = "switchback" if float(ctx["turn_degrees"]) >= 179.0 else "auto"
+	var template: Dictionary = Dictionary(ctx["template"]).duplicate(true)
+	var normalized: Dictionary = ScenarioSerializerScript.normalize_editor_data(template)
+	var runtime_json: Dictionary = ScenarioSerializerScript.to_runtime_json_data(template)
+	for room_id in [0, 1]:
+		_expect(
+			_room_string_field(normalized, room_id, "stair_turn_mode") == expected_mode,
+			"%s: normalized stair room %d should preserve mode %s" % [case_name, room_id, expected_mode]
+		)
+		_expect(
+			_room_string_field(runtime_json, room_id, "stair_turn_mode") == expected_mode,
+			"%s: runtime JSON stair room %d should preserve mode %s" % [case_name, room_id, expected_mode]
+		)
+
+	var legacy_template: Dictionary = Dictionary(ctx["template"]).duplicate(true)
+	var legacy_rooms: Array = legacy_template.get("rooms_data", [])
+	for i in range(legacy_rooms.size()):
+		if typeof(legacy_rooms[i]) != TYPE_DICTIONARY:
+			continue
+		var room: Dictionary = legacy_rooms[i]
+		if String(room.get("kind", "")) != "escalera":
+			continue
+		room.erase("stair_turn_mode")
+		room["stair_turn_degrees"] = float(ctx["turn_degrees"])
+		legacy_rooms[i] = room
+	legacy_template["rooms_data"] = legacy_rooms
+	var legacy_normalized: Dictionary = ScenarioSerializerScript.normalize_editor_data(legacy_template)
+	for room_id in [0, 1]:
+		_expect(
+			_room_string_field(legacy_normalized, room_id, "stair_turn_mode") == expected_legacy_mode,
+			"%s: legacy stair room %d should infer mode %s" % [case_name, room_id, expected_legacy_mode]
+		)
+
+
 func _validate_editor_vertical_opening(case_name: String, ctx: Dictionary) -> void:
 	var editor: ScenarioEditor = ScenarioEditorScript.new()
 	editor.editor_data = Dictionary(ctx["template"]).duplicate(true)
@@ -230,6 +273,32 @@ func _validate_editor_vertical_opening(case_name: String, ctx: Dictionary) -> vo
 		_expect(hole.position.y <= rect.position.y + 0.24, case_name + ": straight opening should start near stair entry")
 		_expect(hole.size.x < rect.size.x - 0.20, case_name + ": straight opening should be a centered ramp shaft, not the full room")
 		_expect(hole.size.y < rect.size.y - 0.20, case_name + ": straight opening should leave upper landing depth")
+	editor.free()
+
+
+func _validate_editor_turn_modes(case_name: String, ctx: Dictionary) -> void:
+	var editor: ScenarioEditor = ScenarioEditorScript.new()
+	var rect: Rect2 = ctx["rect"]
+	var stair_dir: Vector2 = ctx["stair_dir"]
+	var can_switchback: bool = bool(editor.call("_stair_can_use_180_landing", rect, stair_dir))
+	var expected_auto: float = 180.0 if can_switchback else 0.0
+	var expected_switchback: float = 180.0 if can_switchback else 0.0
+	_expect(
+		absf(float(editor.call("_stair_turn_degrees_for_mode", rect, stair_dir, "auto")) - expected_auto) < 0.01,
+		case_name + ": editor auto stair mode should match size feasibility"
+	)
+	_expect(
+		absf(float(editor.call("_stair_turn_degrees_for_mode", rect, stair_dir, "straight"))) < 0.01,
+		case_name + ": editor straight stair mode must force 0 degrees"
+	)
+	_expect(
+		absf(float(editor.call("_stair_turn_degrees_for_mode", rect, stair_dir, "switchback")) - expected_switchback) < 0.01,
+		case_name + ": editor switchback stair mode should use 180 only when it fits"
+	)
+	_expect(
+		String(editor.call("_normalized_stair_turn_mode", "invalid")) == "auto",
+		case_name + ": invalid editor stair mode should normalize to auto"
+	)
 	editor.free()
 
 
@@ -350,6 +419,16 @@ func _find_nodes(root_node: Node, token: String) -> Array:
 	var result: Array = []
 	_collect_nodes(root_node, token, result)
 	return result
+
+
+func _room_string_field(data: Dictionary, room_id: int, field_name: String) -> String:
+	for raw_room in data.get("rooms_data", []):
+		if typeof(raw_room) != TYPE_DICTIONARY:
+			continue
+		var room: Dictionary = raw_room
+		if int(room.get("id", -1)) == room_id:
+			return String(room.get(field_name, ""))
+	return ""
 
 
 func _find_nodes_exact(root_node: Node, node_name: String) -> Array:
