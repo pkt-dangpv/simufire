@@ -105,6 +105,8 @@ $cases = @(
 	# SF-R-2026-05-18: pirolisis Tewarson + ignicion secundaria por propagacion termica
 	"secondary_ignition_demo",
 	"two_storey_smoke",
+	# SF-R7: stack effect vertical multi-planta (chimenea escalera)
+	"cfast_two_floor_stairwell",
 	# SF-R6 Phase 3: conservación de transporte de contaminantes (residual ~0)
 	"conservation_transport",
 	# SF-VIC-001: acumulación FED individual de víctima (compute_fed_delta_for_height)

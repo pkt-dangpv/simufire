@@ -4,7 +4,7 @@
     "ignite_on_start": true,
     "ignition_room_id": 0,
     "enable_logging": true,
-    "watch_room_ids": [0, 8],
+    "watch_room_ids": [0, 6, 8],
     "smoke_trigger_room_id": 0,
     "l150_room_id": 0,
     "opening_overrides": [
@@ -19,6 +19,31 @@
         {"a": 12, "b": -1, "type": "window", "open_fraction": 0.0}
     ],
     "opening_events": [],
+    "threshold_metrics": [
+        {
+            "metric_name": "time_room_6_smoke_start_s",
+            "field": "smoke_kg",
+            "room_id": 6,
+            "op": ">=",
+            "value": 0.01
+        },
+        {
+            "metric_name": "time_room_6_temp_above_30_s",
+            "field": "temp_upper_c",
+            "room_id": 6,
+            "op": ">=",
+            "value": 30.0
+        }
+    ],
+    "room_delta_max_metrics": [
+        {
+            "metric_name": "room_upper_floor_vs_lower_floor_pressure_delta_pa",
+            "room_a_id": 6,
+            "room_b_id": 0,
+            "field": "overpressure_pa",
+            "after_time_s": 60.0
+        }
+    ],
     "engine_overrides": {
         "time_scale": 5.0,
         "log_interval_s": 10.0,

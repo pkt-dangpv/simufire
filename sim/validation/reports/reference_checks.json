@@ -1,6 +1,6 @@
 {
   "all_required_pass": true,
-  "required_count": 379,
+  "required_count": 384,
   "failed_required_count": 0,
   "known_gap_count": 4,
   "checks": [
@@ -4513,6 +4513,61 @@
       "required": true,
       "pass": true,
       "note": "Regression baseline: two_storey_smoke"
+    },
+    {
+      "name": "cfast_two_floor_stairwell_room_0_peak_hrr_kw",
+      "actual": 964.130497097546,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 600.0,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "Regression baseline: cfast_two_floor_stairwell"
+    },
+    {
+      "name": "cfast_two_floor_stairwell_time_room_6_smoke_start_s",
+      "actual": 299.250000000002,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 200.0,
+      "maximum": 400.0,
+      "required": true,
+      "pass": true,
+      "note": "Regression baseline: cfast_two_floor_stairwell"
+    },
+    {
+      "name": "cfast_two_floor_stairwell_time_room_6_temp_above_30_s",
+      "actual": 111.083333333331,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 70.0,
+      "maximum": 160.0,
+      "required": true,
+      "pass": true,
+      "note": "Regression baseline: cfast_two_floor_stairwell"
+    },
+    {
+      "name": "cfast_two_floor_stairwell_room_6_final_smoke_kg",
+      "actual": 0.456289517766939,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 0.05,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "Regression baseline: cfast_two_floor_stairwell"
+    },
+    {
+      "name": "cfast_two_floor_stairwell_room_upper_floor_vs_lower_floor_pressure_delta_pa",
+      "actual": -0.339258484509402,
+      "expected": null,
+      "tolerance": null,
+      "minimum": -2.0,
+      "maximum": 0.0,
+      "required": true,
+      "pass": true,
+      "note": "Regression baseline: cfast_two_floor_stairwell"
     },
     {
       "name": "v4_co_remote_rooms_room_0_peak_hrr_kw",

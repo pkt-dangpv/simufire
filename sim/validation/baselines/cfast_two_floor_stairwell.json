@@ -1,0 +1,22 @@
+{
+    "metrics": {
+        "time_room_6_smoke_start_s": {
+            "min": 200.0,
+            "max": 400.0
+        },
+        "time_room_6_temp_above_30_s": {
+            "min": 70.0,
+            "max": 160.0
+        },
+        "room_6_final_smoke_kg": {
+            "min": 0.05
+        },
+        "room_0_peak_hrr_kw": {
+            "min": 600.0
+        },
+        "room_upper_floor_vs_lower_floor_pressure_delta_pa": {
+            "min": -2.0,
+            "max": 0.0
+        }
+    }
+}
