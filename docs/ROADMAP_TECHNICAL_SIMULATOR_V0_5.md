@@ -1,5 +1,5 @@
-# SimuFire — Roadmap Simulador Técnico v0.5.x
-**Fecha**: 2026-05-31 | **Base**: v0.4.1 (commit 7b24f68) · 379/379 PASS · 4 gaps no-gating
+# SimuFire — Roadmap Simulador Técnico v0.5.x → v0.7.0
+**Fecha**: 2026-06-03 | **Base**: v0.6.0 (commit `a08d6e9`) · 384/384 PASS · 4 gaps no-gating
 
 ---
 
@@ -174,3 +174,53 @@ Es el cambio de menor riesgo y mayor impacto en usabilidad. No toca física. Es 
 2. Añadir un `AcceptDialog` en `ScenarioEditor.gd` que se muestre si la carga devuelve dict vacío.
 
 Verificación: cargar un archivo `.json` corrupto → el editor muestra popup con mensaje claro → no silencia el error.
+
+---
+
+## v0.7.0 — Validación Stage-B y deuda técnica de editor
+
+**Objetivo**: cerrar los 4 gaps HVAC non-gating con casos de validación Stage-B (datos CFAST reales), más la deuda técnica de editor E-07 y GOD-08. Al final de esta versión el simulador tiene cobertura de validación completa para todos los fenómenos de transporte implementados.
+
+**Base**: v0.6.0 (commit `a08d6e9`) · 384/384 PASS · 4 gaps no-gating abiertos
+
+### Contexto de gaps
+
+Los 4 gaps identificados en la auditoría de v0.4.1 y confirmados en v0.6.0 **no bloquean producción** porque el simulador los compensa conservadoramente. Sin embargo, no tienen todavía un caso de validación con datos de referencia CFAST que cuantifique la desviación. Stage-B = se dispone de datos experimentales/CFAST comparables.
+
+| Gap ID | Fenómeno | Desviación conocida |
+|--------|----------|---------------------|
+| HVAC-1 | Sobrepresión en sala sellada (cfast_overpressure_sealed) | Sim subestima pico de presión ~15–25% |
+| HVAC-2 | Estratificación CO₂ en sala sin mezcla turbulenta (cfast_co2_stratification) | Capa superior sim ~5–12% baja |
+| HVAC-3 | O₂ en pasillo superior con puerta (cfast_hall_upper_o2_doorway) | Recuperación O₂ postflashover ~8% alta |
+| HVAC-4 | HRR limitado por ventilación — doble sala (cfast_hrr_ventilation_limited_f2) | HRR plateau sim ~10% alto en underventilated |
+
+### Tareas
+
+| ID | Tarea | Descripción | Prioridad | Estado |
+|----|-------|-------------|-----------|--------|
+| B-01 | Caso HVAC-1: sobrepresión sellada | Caso `cfast_overpressure_sealed`: sala 3×3×2.5m totalmente sellada, fire t² medium 300s, `stack_effect_enabled=false`. Métrica: `peak_overpressure_r0_pa` ± tolerancia del 30%. Baseline con datos CFAST 6.12. | **Alta** | ⬜ |
+| B-02 | Caso HVAC-2: estratificación CO₂ | Caso `cfast_co2_stratification`: sala única cerrada, fire slow growth 600s. Métrica: `co2_upper_pct_at_300s`, `co2_lower_pct_at_300s`, delta entre capas ≥ 0.3 %. Baseline con datos CFAST. | **Alta** | ⬜ |
+| B-03 | Caso HVAC-3: O₂ pasillo superior | Caso `cfast_hall_upper_o2_doorway`: sala de fuego + pasillo conectado por puerta, flashover ~200s, `do not open windows`. Métrica: `o2_hall_upper_pct_at_400s` y tasa de recuperación. Baseline con datos CFAST. | **Media** | ⬜ |
+| B-04 | Caso HVAC-4: HRR vent-limited doble sala | Caso `cfast_hrr_ventilation_limited_f2`: sala de fuego + sala adyacente con ventana pequeña, fuego unlimited. Métrica: `hrr_plateau_kw` (promedio 200–400s) ≤ límite ventilación. Baseline con datos CFAST. | **Media** | ⬜ |
+| B-05 | Actualizar required_count y añadir a suite | Tras B-01..B-04: añadir los 4 casos a `run_all_cases.ps1`, añadir guardrails a `reference_checks.json`, actualizar `required_count`. Objetivo: ≥ 400/400 PASS. | **Alta** | ⬜ |
+| E-07 | Deep draw decomposition (cierre E-06) | Extraer bodies de `_draw_rooms`, `_draw_openings`, `_draw_objects` y `_draw_lower_floor_ghost` a helpers estáticos en `EditorDraw2D.gd`. Precondición: los loops ya usan `editor_data` tipado y `_m_to_px` helper; la extracción sólo mueve la geometría pura. No tocar lógica de selección ni de herramientas. | **Baja** | ⬜ |
+| GOD-08 | Constantes finas de dibujo 2D como `@export` | Exponer en `ScenarioEditor.gd` (grupo `Editor Draw`): `handle_radius_px: float = 7.0`, `selection_line_width_px: float = 2.0`, `door_swing_preview_width_px: float = 1.5`, `opening_dash_length_px: float = 6.0`. Solo si se detecta necesidad de tuning visual desde Inspector durante tests de usabilidad; de lo contrario cerrar como "no prioritario". | **Baja** | ⬜ |
+
+**Criterio de cierre**:
+- Los 4 gaps HVAC tienen cada uno su caso de validación con baseline CFAST documentado y guardrail activo.
+- La desviación medida para cada gap está cuantificada y aceptada o genera una tarea de física en v0.8.0.
+- `≥ 400/400` guardrails PASS.
+- `42/42` product checks PASS (sin regresión).
+- GOD-08 y E-07 cerrados o marcados explícitamente como "no prioritario" con justificación.
+
+---
+
+## Deuda diferida (candidatos v0.8.0+)
+
+| ID | Ítem | Justificación de aplazamiento |
+|----|------|-------------------------------|
+| PHY-A1 | Eliminar `push_warning` BV-030 residual | Ruido de log menor; no afecta física |
+| PHY-A2 | Métrica de gradiente vertical en `two_storey_smoke` | Requiere definir threshold de gradiente térmico |
+| PHY-A3 | Métrica de ceiling jet | Sin datos de referencia CFAST disponibles |
+| PHY-A4 | Caso t² puro sin combustible real | Requiere especificar protocolo de ensayo |
+| ARCH-1 | Rediseño transporte de capa HVAC | Sólo si desviaciones Stage-B superan 25% en B-01..B-04 |
