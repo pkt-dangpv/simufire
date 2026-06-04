@@ -40,6 +40,46 @@ import gap_inventory_check
 
 
 # ---------------------------------------------------------------------------
+# PHY-C1 — Carbon/HCN sentinel checks
+# ---------------------------------------------------------------------------
+
+# Checks que deben estar presentes, ser required=True y pass=True en reference_checks.json.
+# Confirman que: (a) el balance elemental de carbono incluye HCN (SF-AUD-032), y
+# (b) HCN se produce en casos PU foam con yield calibrado (PHY-C2, Purser bounds).
+_CARBON_HCN_SENTINELS: list[str] = [
+    "c_balance_high_phi_room_0_peak_c_balance_frac",
+    "pu_sofa_fec_incapacitation_room_0_peak_c_balance_frac",
+    "pu_sofa_fec_incapacitation_room_0_peak_hcn_upper_ppm",
+    "victim_fed_incapacitation_room_0_peak_c_balance_frac",
+    "victim_fed_incapacitation_room_0_peak_hcn_upper_ppm",
+]
+
+
+def _check_carbon_hcn_sentinels(data: dict) -> tuple[int, str]:
+    """
+    Verifica que los checks sentinel de balance C/HCN estén presentes,
+    sean required=True y pasen. Devuelve (exit_code, summary_str).
+    """
+    checks_by_name = {c["name"]: c for c in data.get("checks", [])}
+    lines: list[str] = []
+    failed = False
+    for sentinel in _CARBON_HCN_SENTINELS:
+        c = checks_by_name.get(sentinel)
+        if c is None:
+            lines.append(f"  MISSING  {sentinel}")
+            failed = True
+        elif not c.get("required", False):
+            lines.append(f"  NOT-REQ  {sentinel}  (actual={c.get('actual')})")
+            failed = True
+        elif not c.get("pass", False):
+            lines.append(f"  FAIL     {sentinel}  (actual={c.get('actual')})")
+            failed = True
+        else:
+            lines.append(f"  PASS     {sentinel}  (actual={c.get('actual')})")
+    return (1 if failed else 0, "\n".join(lines))
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -114,6 +154,7 @@ def main() -> int:
     # -- Ejecutar guardrails ----------------------------------------------------
     rc_sentinel, out_sentinel = _run_silent(phase2e_preflight.main, json_argv)
     rc_gaps,     out_gaps     = _run_silent(gap_inventory_check.main, json_argv)
+    rc_carbon,   out_carbon   = (0, "(sin datos)") if data is None else _check_carbon_hcn_sentinels(data)
 
     # -- Resumen compacto -------------------------------------------------------
     def _tag(rc: int) -> str:
@@ -129,6 +170,7 @@ def main() -> int:
     print(f"  {'Known gaps (JSON)':<32}  {str(gap_count):>12}")
     print(f"  {'Gap inventory sync':<32}  {_tag(rc_gaps):>12}")
     print(f"  {'Phase 2E sentinels (7)':<32}  {_tag(rc_sentinel):>12}")
+    print(f"  {'Carbon/HCN sentinels (5)':<32}  {_tag(rc_carbon):>12}")
 
     # -- Salida verbose ---------------------------------------------------------
     if args.verbose:
@@ -141,9 +183,13 @@ def main() -> int:
         print("  [Detalle] Gap Inventory Check")
         print("─" * W)
         print(out_gaps)
+        print("─" * W)
+        print("  [Detalle] Carbon/HCN Sentinels (PHY-C1/C2)")
+        print("─" * W)
+        print(out_carbon)
 
     # -- Resultado global -------------------------------------------------------
-    all_ok = all_req_pass and rc_sentinel == 0 and rc_gaps == 0
+    all_ok = all_req_pass and rc_sentinel == 0 and rc_gaps == 0 and rc_carbon == 0
     print()
     print("-" * W)
     print()
@@ -157,6 +203,8 @@ def main() -> int:
             print("    - Phase 2E sentinels: ejecuta --verbose para detalles")
         if rc_gaps != 0:
             print("    - Gap inventory sync: ejecuta --verbose para detalles")
+        if rc_carbon != 0:
+            print("    - Carbon/HCN sentinels: ejecuta --verbose para detalles")
         print()
         print("  Para diagnóstico completo:")
         print("    python scripts/simulation/validation_guardrails.py --verbose")

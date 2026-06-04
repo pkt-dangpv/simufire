@@ -77,10 +77,10 @@
    - ~~loguear `hcn_upper_ppm`, `hcn_lower_ppm` y no solo `hcn_ppm`~~;
    - ~~separar componentes FED: CO, HCN, hypoxia/O2, heat/thermal~~;
    - ~~exponer FEC/FED por victima y por altura de respiracion~~.
-4. Validacion quimica: ❌ PENDIENTE
-   - agregar checks HCN contra salidas CFAST si estan disponibles (`ULHCN`, `LLHCN` o equivalentes);
-   - agregar checks Ghanekar para HCN/FED cuando haya datos experimentales o derivados trazables;
-   - agregar guardrail de conservacion de masa/carbono que incluya HCN.
+4. ~~Validacion quimica~~ ✅ COMPLETADO 2026-06-04 (v0.9.0)
+   - ~~agregar checks HCN contra salidas CFAST si estan disponibles (`ULHCN`, `LLHCN` o equivalentes)~~; CFAST HCN=0 (no configurado) → PHY-C2: cotas Purser analíticas (min 500 ppm) en 2 baselines.
+   - ~~agregar checks Ghanekar para HCN/FED cuando haya datos experimentales o derivados trazables~~; PHY-C3 N/A — datos Ghanekar no incluyen HCN.
+   - ~~agregar guardrail de conservacion de masa/carbono que incluya HCN~~; PHY-C1: guardrail `peak_c_balance_frac ≤ 1.05` (SF-AUD-032 C incluye HCN) en 2 baselines + sentinel en `validation_guardrails.py`.
 5. ~~Validacion de tenabilidad~~ ✅ COMPLETADO 2026-05-31 — ver `docs/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md`
    - ~~verificar que el multiplicador de hiperventilacion por CO2 afecta correctamente a CO y HCN;~~
    - ~~comparar tiempos de incapacitation/FED=1.0 en casos `pu_sofa`/victim;~~

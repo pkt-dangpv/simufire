@@ -234,3 +234,23 @@ Los 4 gaps identificados en la auditoría de v0.4.1 y confirmados en v0.6.0 **no
 |----|------|-------------|--------|
 | PHY-B1 | Cerrar gap HVAC-1 sobrepresión | `phase3_chi_conv` 0.65 → 0.70 (SFPE/CFAST standard chi_r=0.30). Presión pico: 1475 → 1710 Pa (+16%). Gap CFAST: 22% → 9%. Baseline [1032,1918] → [1454,1968] (±15%). 400/400 PASS. | ✅ COMPLETO 2026-06-05 |
 | PHY-B2 | Cerrar gap HVAC-2 estratificación CO₂ | `co2_yield_kg_per_MJ` per-case override 0.0831→0.0914 (+10%) en `cfast_co2_stratification.json`. SimulationEngine wired. co2_upper: 146593→161196 ppm (+9.97%), gap CFAST ~0%. Baseline [102600,190600]→[137000,185400] (±15%). 400/400 PASS. | ✅ COMPLETO 2026-06-04 |
+
+---
+
+## v0.9.0 — Química Stage-C: HCN/carbono (PHY-C) ✅ COMPLETADO 2026-06-04
+
+**Objetivo**: Cerrar el único ítem PENDIENTE del `FINAL_VALIDATION_AND_PUBLICATION_PLAN.md` §4 — validación química HCN. Los CSV CFAST actuales tienen `ULHCN_1`/`LLHCN_1` a cero porque los escenarios CFAST se generaron sin yield HCN. Se cierran con: (a) reruns CFAST con yield HCN configurado, (b) bounds Purser analíticos como respaldo no-gating, y (c) guardrail de conservación de carbono que incluye HCN.
+
+| ID | Ítem | Descripción | Prioridad | Estado |
+|----|------|-------------|-----------|--------|
+| PHY-C1 | Guardrail conservación de carbono (HCN incluido) | Añadir check en `validation_guardrails.py`: `C_CO + C_CO₂ + C_HCN + C_smoke ≤ C_pyrolysis_total × 1.05` (±5%). Gating: falla si excede ×1.10. Verifica que el yield HCN no viola el balance elemental. Candidato: `cfast_bedroom_closed_door`, `pu_sofa_fec_incapacitation`. | Alta | ✅ |
+| PHY-C2 | CFAST rerun con HCN yield → checks ULHCN | Regenerar los CSV CFAST para los casos con combustible PU (`cfast_bedroom_closed_door`, `cfast_fast_growth_closed`) con `HCN_yield = 0.004 g/g` (misma base que SimuFire). Añadir checks `room_N_peak_hcn_upper_ppm` vs `ULHCN_1` con tolerancia ±50% inicial (no-gating). Si CFAST no está disponible: usar bounds Purser analíticos `[min: yield×0.5, max: yield×2.0]` como non-gating con nota de fuente. | Alta | ✅ |
+| PHY-C3 | Checks HCN Ghanekar (dormitorio/cocina) | Si los datos Ghanekar incluyen HCN medido, añadir 2–3 checks `hcn_upper_ppm` en los casos existentes (`ghanekar_bedroom`, `ghanekar_kitchen_living_room`) como no-gating. Si no hay datos de HCN medidos, marcar `N/A — sin referencia experimental disponible`. | Media | N/A |
+| TECH-C1 | Dead code Phase 4A: `fire_o2_upper_hrr_blend` | Añadir comentario extendido en `SimulationEngine.gd` sobre el rechazo de Phase 4A (evidencia técnica resumida). El `@export var` permanece como no-op documentado. No eliminar — conservar como referencia histórica del experimento rechazado. | Baja | ✅ |
+
+**Criterio de cierre**:
+- `validation_guardrails.py` reporta guardrail de balance de carbono: PASS.
+- Al menos 2 casos tienen checks `hcn_upper_ppm` en `reference_checks.json` (gating o no-gating).
+- `FINAL_VALIDATION_AND_PUBLICATION_PLAN.md` §4 marcado como ✅ COMPLETADO.
+- `known_gap_count` actualizado si se descubren nuevos gaps HCN estructurales.
+- 400/400 guardrails PASS · 57/57 product checks PASS.

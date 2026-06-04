@@ -176,6 +176,9 @@ var _active_suppression_by_room: Dictionary = {}
 ## Blend [0,1] para capear el HRR por O2 de capa superior.
 ## 0.0 = sin cambio (usa room.o2); 1.0 = effective_o2 = min(room.o2, room.o2_upper).
 ## Opt-in: activar por caso cuando la capa caliente ocupa la zona de combustión.
+## Phase 4A RECHAZADO (2026-06): cualquier valor >0.03 rompe cfast_t35x_hot_layer_m checks.
+## La brecha estructural one-zone no se cierra con blending. Permanece 0.0 (no-op).
+## No activar sin arquitectura two-zone completa (Fase 2).
 @export var fire_o2_upper_hrr_blend: float = 0.0
 ## Umbral de O2 en capa superior por debajo del cual la llama se extingue.
 ## Calibrado para upper-zone: ~0.07-0.08 (CFAST ULO2 en extincion ~8.5 %).

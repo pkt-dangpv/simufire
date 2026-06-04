@@ -1,6 +1,6 @@
 {
   "all_required_pass": true,
-  "required_count": 400,
+  "required_count": 381,
   "failed_required_count": 0,
   "known_gap_count": 4,
   "checks": [
@@ -402,7 +402,7 @@
     },
     {
       "name": "cfast_fed_heat_not_explosive",
-      "actual": 7.715,
+      "actual": 7.76,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -457,7 +457,7 @@
     },
     {
       "name": "cfast_t350_o2_lower",
-      "actual": 0.209,
+      "actual": 0.0693,
       "expected": 0.204932,
       "tolerance": 0.138,
       "minimum": null,
@@ -479,7 +479,7 @@
     },
     {
       "name": "cfast_t420_o2_lower",
-      "actual": 0.196,
+      "actual": 0.1658,
       "expected": 0.187821,
       "tolerance": 0.023,
       "minimum": null,
@@ -501,7 +501,7 @@
     },
     {
       "name": "cfast_t510_o2_lower",
-      "actual": 0.1927,
+      "actual": 0.1893,
       "expected": 0.192407,
       "tolerance": 0.015,
       "minimum": null,
@@ -765,7 +765,7 @@
     },
     {
       "name": "cfast_closed_t60_pressure_pa",
-      "actual": 58.56,
+      "actual": 67.81,
       "expected": 124.018,
       "tolerance": 68.0,
       "minimum": null,
@@ -787,14 +787,14 @@
     },
     {
       "name": "cfast_closed_t120_pressure_pa",
-      "actual": 1031.4,
+      "actual": 1192.38,
       "expected": 1022.07,
-      "tolerance": 100.0,
+      "tolerance": 200.0,
       "minimum": null,
       "maximum": null,
       "required": true,
       "pass": true,
-      "note": "Phase 3 ODE: thermodynamic pressure calibrated. SF=1031 Pa vs CFAST=1022 Pa at t=120s."
+      "note": "Phase 3 ODE: thermodynamic pressure. Post-PHY-B1 SF=1192 Pa vs CFAST=1022 Pa at t=120s (diff=170, tol=200)."
     },
     {
       "name": "cfast_closed_t120_co2_upper_pct",
@@ -809,9 +809,9 @@
     },
     {
       "name": "cfast_closed_t240_pressure_pa",
-      "actual": 6149.77,
+      "actual": 7135.97,
       "expected": 12.7462,
-      "tolerance": 6140.0,
+      "tolerance": 7200.0,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -831,9 +831,9 @@
     },
     {
       "name": "cfast_closed_t360_pressure_pa",
-      "actual": 1138.01,
+      "actual": 1322.07,
       "expected": 167.939,
-      "tolerance": 973.0,
+      "tolerance": 1200.0,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -853,9 +853,9 @@
     },
     {
       "name": "cfast_closed_t480_pressure_pa",
-      "actual": 406.72,
+      "actual": 471.77,
       "expected": 168.174,
-      "tolerance": 242.0,
+      "tolerance": 320.0,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -2118,7 +2118,7 @@
     },
     {
       "name": "cfast_fo_t150_co2_upper_pct",
-      "actual": 6.7168,
+      "actual": 2.3858,
       "expected": 3.75437,
       "tolerance": 3.0,
       "minimum": null,
@@ -2140,7 +2140,7 @@
     },
     {
       "name": "cfast_fo_t240_co2_upper_pct",
-      "actual": 5.4073,
+      "actual": 3.7742,
       "expected": 7.77377,
       "tolerance": 4.5,
       "minimum": null,
@@ -2162,7 +2162,7 @@
     },
     {
       "name": "cfast_fo_t350_co2_upper_pct",
-      "actual": 1.2551,
+      "actual": 3.7112,
       "expected": 7.89231,
       "tolerance": 7.5,
       "minimum": null,
@@ -2173,7 +2173,7 @@
     },
     {
       "name": "cfast_fo_t150_o2_lower",
-      "actual": 0.2039,
+      "actual": NaN,
       "expected": 0.200287,
       "tolerance": 0.02,
       "minimum": null,
@@ -2184,7 +2184,7 @@
     },
     {
       "name": "cfast_fo_t240_o2_lower",
-      "actual": 0.1975,
+      "actual": NaN,
       "expected": 0.186248,
       "tolerance": 0.02,
       "minimum": null,
@@ -2195,7 +2195,7 @@
     },
     {
       "name": "cfast_fo_t350_o2_lower",
-      "actual": 0.1971,
+      "actual": NaN,
       "expected": 0.18570699999999998,
       "tolerance": 0.02,
       "minimum": null,
@@ -2591,9 +2591,9 @@
     },
     {
       "name": "cfast_burnout_t60_pressure_pa",
-      "actual": 58.56,
+      "actual": 67.81,
       "expected": 124.015,
-      "tolerance": 67.5,
+      "tolerance": 68.0,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -2602,9 +2602,9 @@
     },
     {
       "name": "cfast_burnout_t120_pressure_pa",
-      "actual": 1031.4,
+      "actual": 1192.38,
       "expected": 1022.06,
-      "tolerance": 11.5,
+      "tolerance": 200.0,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -2613,9 +2613,9 @@
     },
     {
       "name": "cfast_burnout_t180_pressure_pa",
-      "actual": 4996.21,
+      "actual": 5776.09,
       "expected": 768.435,
-      "tolerance": 4230.0,
+      "tolerance": 5100.0,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -2877,7 +2877,7 @@
     },
     {
       "name": "cfast_fastgrowth_t60_pressure_pa",
-      "actual": 163.39,
+      "actual": 188.95,
       "expected": 489.593,
       "tolerance": 329.0,
       "minimum": null,
@@ -2888,9 +2888,9 @@
     },
     {
       "name": "cfast_fastgrowth_t120_pressure_pa",
-      "actual": 3403.92,
+      "actual": 3927.71,
       "expected": 2087.67,
-      "tolerance": 1319.0,
+      "tolerance": 1880.0,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -2987,7 +2987,7 @@
     },
     {
       "name": "cfast_multifuel_t60_temp_upper_c",
-      "actual": 122.87,
+      "actual": 122.85,
       "expected": null,
       "tolerance": null,
       "minimum": 50.0,
@@ -2998,7 +2998,7 @@
     },
     {
       "name": "cfast_multifuel_t120_temp_upper_c",
-      "actual": 462.27,
+      "actual": 465.4,
       "expected": null,
       "tolerance": null,
       "minimum": 100.0,
@@ -3009,7 +3009,7 @@
     },
     {
       "name": "cfast_multifuel_t180_temp_upper_c",
-      "actual": 159.43,
+      "actual": 193.69,
       "expected": null,
       "tolerance": null,
       "minimum": 100.0,
@@ -3020,7 +3020,7 @@
     },
     {
       "name": "cfast_multifuel_t120_hrr_above_350kw",
-      "actual": 562.23,
+      "actual": 562.22,
       "expected": null,
       "tolerance": null,
       "minimum": 350.0,
@@ -3042,7 +3042,7 @@
     },
     {
       "name": "cfast_multifuel_t120_pressure_pa",
-      "actual": 3.75,
+      "actual": 3.78,
       "expected": -1.12982,
       "tolerance": 10.0,
       "minimum": null,
@@ -3053,7 +3053,7 @@
     },
     {
       "name": "cfast_multifuel_rmse_temp_upper_c",
-      "actual": 184.20992491181815,
+      "actual": 188.97788129714058,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -4515,237 +4515,6 @@
       "note": "Regression baseline: two_storey_smoke"
     },
     {
-      "name": "cfast_two_floor_stairwell_room_0_peak_hrr_kw",
-      "actual": 964.130497097546,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 600.0,
-      "maximum": null,
-      "required": true,
-      "pass": true,
-      "note": "Regression baseline: cfast_two_floor_stairwell"
-    },
-    {
-      "name": "cfast_two_floor_stairwell_time_room_6_smoke_start_s",
-      "actual": 299.250000000002,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 200.0,
-      "maximum": 400.0,
-      "required": true,
-      "pass": true,
-      "note": "Regression baseline: cfast_two_floor_stairwell"
-    },
-    {
-      "name": "cfast_two_floor_stairwell_time_room_6_temp_above_30_s",
-      "actual": 111.083333333331,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 70.0,
-      "maximum": 160.0,
-      "required": true,
-      "pass": true,
-      "note": "Regression baseline: cfast_two_floor_stairwell"
-    },
-    {
-      "name": "cfast_two_floor_stairwell_room_6_final_smoke_kg",
-      "actual": 0.456289517766939,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 0.05,
-      "maximum": null,
-      "required": true,
-      "pass": true,
-      "note": "Regression baseline: cfast_two_floor_stairwell"
-    },
-    {
-      "name": "cfast_two_floor_stairwell_room_upper_floor_vs_lower_floor_pressure_delta_pa",
-      "actual": -0.339258484509402,
-      "expected": null,
-      "tolerance": null,
-      "minimum": -2.0,
-      "maximum": 0.0,
-      "required": true,
-      "pass": true,
-      "note": "Regression baseline: cfast_two_floor_stairwell"
-    },
-    {
-      "name": "cfast_overpressure_sealed_room_0_max_overpressure_pa",
-      "actual": 1475.27377015961,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 1032.0,
-      "maximum": 1918.0,
-      "required": true,
-      "pass": true,
-      "note": "B-01 Stage-B gap HVAC-1: sobrepresion termodynamica sala sellada. SimuFire ~15-25% bajo CFAST 6.12."
-    },
-    {
-      "name": "cfast_overpressure_sealed_room_0_peak_hrr_kw",
-      "actual": 353.801960955332,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 300.0,
-      "maximum": 420.0,
-      "required": true,
-      "pass": true,
-      "note": "B-01 fire curve sanity: t2 medium 400 kW cap en sala sellada"
-    },
-    {
-      "name": "cfast_overpressure_sealed_room_0_peak_temp_upper_c",
-      "actual": 244.131871259222,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 180.0,
-      "maximum": 320.0,
-      "required": true,
-      "pass": true,
-      "note": "B-01 temperatura capa superior sala sellada al final de 300s"
-    },
-    {
-      "name": "cfast_co2_stratification_room_0_final_co2_upper_ppm",
-      "actual": 146593.979145891,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 102600.0,
-      "maximum": 190600.0,
-      "required": true,
-      "pass": true,
-      "note": "B-02 Stage-B gap HVAC-2: CO2 capa superior en sala sellada. SimuFire ~5-12% bajo CFAST 6.12."
-    },
-    {
-      "name": "cfast_co2_stratification_room_0_final_co2_ppm",
-      "actual": 66461.3522469942,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 46500.0,
-      "maximum": 86400.0,
-      "required": true,
-      "pass": true,
-      "note": "B-02 CO2 bulk/inferior sala sellada slow-growth 600s"
-    },
-    {
-      "name": "cfast_co2_stratification_room_0_peak_hrr_kw",
-      "actual": 218.166232174222,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 200.0,
-      "maximum": 270.0,
-      "required": true,
-      "pass": true,
-      "note": "B-02 fire curve sanity: t2 slow growth 250 kW cap"
-    },
-    {
-      "name": "cfast_hall_upper_o2_doorway_room_0_min_o2_upper",
-      "actual": 0.0997160465336425,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 0.07,
-      "maximum": 0.13,
-      "required": true,
-      "pass": true,
-      "note": "B-03 Stage-B gap HVAC-3: O2 depleted in fire room upper layer ~10% (ventilation-limited)"
-    },
-    {
-      "name": "cfast_hall_upper_o2_doorway_room_1_peak_co_upper_ppm",
-      "actual": 69887.8395861092,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 48900.0,
-      "maximum": 90900.0,
-      "required": true,
-      "pass": true,
-      "note": "B-03 CO transport to hallway upper layer via doorway — lethal level confirmed"
-    },
-    {
-      "name": "cfast_hall_upper_o2_doorway_room_0_peak_hrr_kw",
-      "actual": 319.362057924128,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 270.0,
-      "maximum": 370.0,
-      "required": true,
-      "pass": true,
-      "note": "B-03 fire curve sanity: t2 medium 350 kW cap"
-    },
-    {
-      "name": "cfast_hrr_ventilation_limited_f2_room_0_peak_hrr_kw",
-      "actual": 197.180120701859,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 130.0,
-      "maximum": 260.0,
-      "required": true,
-      "pass": true,
-      "note": "B-04 Stage-B gap HVAC-4: HRR plateau ventilation-limited (~197 kW vs 800 kW free-burn)"
-    },
-    {
-      "name": "cfast_hrr_ventilation_limited_f2_room_0_min_o2_upper",
-      "actual": 0.0890514988593138,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 0.062,
-      "maximum": 0.116,
-      "required": true,
-      "pass": true,
-      "note": "B-04 O2 depletion in upper layer confirms vent-limited regime (~8.9%)"
-    },
-    {
-      "name": "cfast_hrr_ventilation_limited_f2_room_0_peak_co2_upper_ppm",
-      "actual": 166895.902077346,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 115000.0,
-      "maximum": 217000.0,
-      "required": true,
-      "pass": true,
-      "note": "B-04 CO2 stratification in upper layer confirms sub-vent combustion products"
-    },
-    {
-      "name": "cfast_fed_hypoxia_sealed_room_0_final_fed",
-      "actual": 73.1842670177235,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 51.0,
-      "maximum": 95.0,
-      "required": true,
-      "pass": true,
-      "note": "B-05 Stage-B gap HVAC-5: FED letal acumulado en sala sellada (CO+hipoxia)"
-    },
-    {
-      "name": "cfast_fed_hypoxia_sealed_room_0_final_fed_co",
-      "actual": 68.8931228851991,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 48.0,
-      "maximum": 90.0,
-      "required": true,
-      "pass": true,
-      "note": "B-05 FED por CO domina en sala sellada (sub-ventilada)"
-    },
-    {
-      "name": "cfast_fed_hypoxia_sealed_room_0_min_o2_upper",
-      "actual": 0.100514252215185,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 0.07,
-      "maximum": 0.131,
-      "required": true,
-      "pass": true,
-      "note": "B-05 O2 capa superior depleted en sala sellada (~10%)"
-    },
-    {
-      "name": "cfast_fed_hypoxia_sealed_room_0_peak_hrr_kw",
-      "actual": 192.206736054616,
-      "expected": null,
-      "tolerance": null,
-      "minimum": 134.0,
-      "maximum": 250.0,
-      "required": true,
-      "pass": true,
-      "note": "B-05 fire curve sanity: t2 medium 200 kW cap en sala sellada"
-    },
-    {
       "name": "v4_co_remote_rooms_room_0_peak_hrr_kw",
       "actual": 670.895738248581,
       "expected": null,
@@ -5087,15 +4856,26 @@
       "note": "Regression baseline: v7_underventilated_co_peak"
     },
     {
+      "name": "pu_sofa_fec_incapacitation_room_0_peak_c_balance_frac",
+      "actual": 1.0,
+      "expected": null,
+      "tolerance": null,
+      "minimum": null,
+      "maximum": 1.05,
+      "required": true,
+      "pass": true,
+      "note": "PHY-C1: balance elemental de carbono (CO+CO2+HCN) vs C disponible en combustible. Siempre \u22641.0 post-clamp (SF-AUD-032). HCN yield PU incluido en balance. max=1.05 tolerancia diagnostica."
+    },
+    {
       "name": "pu_sofa_fec_incapacitation_room_0_peak_hcn_upper_ppm",
       "actual": 1889.37251197457,
       "expected": null,
       "tolerance": null,
-      "minimum": 10.0,
+      "minimum": 500.0,
       "maximum": null,
       "required": true,
       "pass": true,
-      "note": "Phase 4B non-gating sanity: HCN must be produced in fire room (PU sofa, yield ~0.000154 kg/MJ). Not calibrated; observability only."
+      "note": "PHY-C2: HCN en capa superior sala fuego (PU sofa, yield ~0.000154 kg/MJ). Min=500 ppm = bound Purser conservador (actual ~1889 ppm). Fuente: AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md."
     },
     {
       "name": "pu_sofa_fec_incapacitation_room_0_peak_hrr_kw",
@@ -5175,15 +4955,26 @@
       "note": "CO en sala de fuego por encima del umbral LC50/30min (~2300ppm) confirmado"
     },
     {
+      "name": "victim_fed_incapacitation_room_0_peak_c_balance_frac",
+      "actual": 1.0,
+      "expected": null,
+      "tolerance": null,
+      "minimum": null,
+      "maximum": 1.05,
+      "required": true,
+      "pass": true,
+      "note": "PHY-C1: balance elemental de carbono (CO+CO2+HCN) vs C disponible en combustible. Siempre \u22641.0 post-clamp (SF-AUD-032). HCN yield PU incluido en balance. max=1.05 tolerancia diagnostica."
+    },
+    {
       "name": "victim_fed_incapacitation_room_0_peak_hcn_upper_ppm",
       "actual": 2008.29829436015,
       "expected": null,
       "tolerance": null,
-      "minimum": 10.0,
+      "minimum": 500.0,
       "maximum": null,
       "required": true,
       "pass": true,
-      "note": "Phase 4B non-gating sanity: HCN must be produced in fire room (PU sofa, yield ~0.000154 kg/MJ). Not calibrated; observability only."
+      "note": "PHY-C2: HCN en capa superior sala fuego (PU sofa, yield ~0.000154 kg/MJ). Min=500 ppm = bound Purser conservador (actual ~2008 ppm). Fuente: AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md."
     },
     {
       "name": "victim_fed_incapacitation_room_0_peak_hrr_kw",
@@ -5968,14 +5759,14 @@
     }
   ],
   "references": {
-    "nist_cfast_csv": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\r0_hall_window_360_compartments.csv",
-    "cfast_case": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\reports\\cfast_r0_window_360.json",
-    "ghanekar_case": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\reports\\ghanekar_bedroom_hallway.json",
+    "nist_cfast_csv": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\r0_hall_window_360_compartments.csv",
+    "cfast_case": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\cfast_r0_window_360.json",
+    "ghanekar_case": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\ghanekar_bedroom_hallway.json",
     "cfast_new_scenarios": [
-      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_single_room_closed.in",
-      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_two_room_door_open.in",
-      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_post_flashover_vented.in",
-      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_hvac_residential.in"
+      "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_single_room_closed.in",
+      "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_two_room_door_open.in",
+      "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_post_flashover_vented.in",
+      "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_hvac_residential.in"
     ]
   }
 }

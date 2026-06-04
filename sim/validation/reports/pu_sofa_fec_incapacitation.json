@@ -2,12 +2,20 @@
 	"baseline": {
 		"all_pass": true,
 		"checks": {
+			"room_0_peak_c_balance_frac": {
+				"actual": 1.0,
+				"pass": true,
+				"rule": {
+					"_note": "PHY-C1: balance elemental de carbono (CO+CO2+HCN) vs C disponible en combustible. Siempre ≤1.0 post-clamp (SF-AUD-032). HCN yield PU incluido en balance. max=1.05 tolerancia diagnostica.",
+					"max": 1.05
+				}
+			},
 			"room_0_peak_hcn_upper_ppm": {
 				"actual": 1889.37251197457,
 				"pass": true,
 				"rule": {
-					"_note": "Phase 4B non-gating sanity: HCN must be produced in fire room (PU sofa, yield ~0.000154 kg/MJ). Not calibrated; observability only.",
-					"min": 10.0
+					"_note": "PHY-C2: HCN en capa superior sala fuego (PU sofa, yield ~0.000154 kg/MJ). Min=500 ppm = bound Purser conservador (actual ~1889 ppm). Fuente: AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md.",
+					"min": 500.0
 				}
 			},
 			"room_0_peak_hrr_kw": {
@@ -76,6 +84,7 @@
 		"room_0_final_burned_hrr_kw": 93.9764534956311,
 		"room_0_final_c_balance_frac": 0.238798223389506,
 		"room_0_final_co2_ppm": 8126.02797909068,
+		"room_0_final_co2_upper_ppm": 85263.8747632433,
 		"room_0_final_co_ppm": 2728.42569104988,
 		"room_0_final_co_upper_ppm": 27479.4706292616,
 		"room_0_final_dominant_fuel_object_exposure_s": 75.0,
@@ -99,6 +108,7 @@
 		"room_0_final_layer_150c_m": 1.94194347843515,
 		"room_0_final_o2": 0.111895363346181,
 		"room_0_final_o2_hrr_factor": 0.11267483928203,
+		"room_0_final_o2_upper": 0.0673307013675123,
 		"room_0_final_outside_open_path_factor": 0.0,
 		"room_0_final_pool_release_hrr_target_kw": 0.0,
 		"room_0_final_pyrolysis_kw": 553.852292535005,
@@ -138,10 +148,12 @@
 		"room_0_max_unburned_generation_kw": 93.2434047426843,
 		"room_0_max_upper_radiative_loss_kw": 470.314415610133,
 		"room_0_min_l150_m": 1.53516328159908,
+		"room_0_min_o2_upper": 0.0241986359070747,
 		"room_0_min_visibility_m": 0.00275280900252464,
 		"room_0_peak_burned_hrr_kw": 721.870528346605,
 		"room_0_peak_c_balance_frac": 1.0,
 		"room_0_peak_co2_ppm": 11097.9804265122,
+		"room_0_peak_co2_upper_ppm": 128549.23906775,
 		"room_0_peak_co_ppm": 2730.34330546931,
 		"room_0_peak_co_upper_ppm": 28724.1444807,
 		"room_0_peak_hcn_ppm": 189.213216864427,
@@ -159,6 +171,7 @@
 		"room_1_final_burned_hrr_kw": 0.0,
 		"room_1_final_c_balance_frac": 0.0,
 		"room_1_final_co2_ppm": 14320.8490557825,
+		"room_1_final_co2_upper_ppm": 4998.30485991628,
 		"room_1_final_co_ppm": 3790.36922834124,
 		"room_1_final_co_upper_ppm": 15758.0090728432,
 		"room_1_final_dominant_fuel_object_exposure_s": 374.357438892938,
@@ -182,6 +195,7 @@
 		"room_1_final_layer_150c_m": 2.39999973186388,
 		"room_1_final_o2": 0.121991528606956,
 		"room_1_final_o2_hrr_factor": 1.0,
+		"room_1_final_o2_upper": 0.126059200277897,
 		"room_1_final_outside_open_path_factor": 0.0,
 		"room_1_final_pool_release_hrr_target_kw": 0.0,
 		"room_1_final_pyrolysis_kw": 0.0,
@@ -221,10 +235,12 @@
 		"room_1_max_unburned_generation_kw": 0.0,
 		"room_1_max_upper_radiative_loss_kw": 7.52763387419398,
 		"room_1_min_l150_m": 2.02485085853528,
+		"room_1_min_o2_upper": 0.126059200277897,
 		"room_1_min_visibility_m": 0.00215328791631625,
 		"room_1_peak_burned_hrr_kw": 0.0,
 		"room_1_peak_c_balance_frac": 0.0,
 		"room_1_peak_co2_ppm": 34401.6557344071,
+		"room_1_peak_co2_upper_ppm": 5871.31563488716,
 		"room_1_peak_co_ppm": 3990.37424185101,
 		"room_1_peak_co_upper_ppm": 30913.7903621424,
 		"room_1_peak_hcn_ppm": 314.105271235791,

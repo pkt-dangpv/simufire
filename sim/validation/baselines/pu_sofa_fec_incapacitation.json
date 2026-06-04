@@ -22,8 +22,12 @@
             "min": 3.0
         },
         "room_0_peak_hcn_upper_ppm": {
-            "min": 10.0,
-            "_note": "Phase 4B non-gating sanity: HCN must be produced in fire room (PU sofa, yield ~0.000154 kg/MJ). Not calibrated; observability only."
+            "min": 500.0,
+            "_note": "PHY-C2: HCN en capa superior sala fuego (PU sofa, yield ~0.000154 kg/MJ). Min=500 ppm = bound Purser conservador (actual ~1889 ppm). Fuente: AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md."
+        },
+        "room_0_peak_c_balance_frac": {
+            "max": 1.05,
+            "_note": "PHY-C1: balance elemental de carbono (CO+CO2+HCN) vs C disponible en combustible. Siempre ≤1.0 post-clamp (SF-AUD-032). HCN yield PU incluido en balance. max=1.05 tolerancia diagnostica."
         }
     }
 }

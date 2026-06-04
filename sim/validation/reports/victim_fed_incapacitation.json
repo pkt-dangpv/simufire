@@ -10,12 +10,20 @@
 					"min": 1500.0
 				}
 			},
+			"room_0_peak_c_balance_frac": {
+				"actual": 1.0,
+				"pass": true,
+				"rule": {
+					"_note": "PHY-C1: balance elemental de carbono (CO+CO2+HCN) vs C disponible en combustible. Siempre ≤1.0 post-clamp (SF-AUD-032). HCN yield PU incluido en balance. max=1.05 tolerancia diagnostica.",
+					"max": 1.05
+				}
+			},
 			"room_0_peak_hcn_upper_ppm": {
 				"actual": 2008.29829436015,
 				"pass": true,
 				"rule": {
-					"_note": "Phase 4B non-gating sanity: HCN must be produced in fire room (PU sofa, yield ~0.000154 kg/MJ). Not calibrated; observability only.",
-					"min": 10.0
+					"_note": "PHY-C2: HCN en capa superior sala fuego (PU sofa, yield ~0.000154 kg/MJ). Min=500 ppm = bound Purser conservador (actual ~2008 ppm). Fuente: AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md.",
+					"min": 500.0
 				}
 			},
 			"room_0_peak_hrr_kw": {
@@ -62,6 +70,7 @@
 		"room_0_final_burned_hrr_kw": 28.0476387996577,
 		"room_0_final_c_balance_frac": 0.126586583076344,
 		"room_0_final_co2_ppm": 9613.84279509365,
+		"room_0_final_co2_upper_ppm": 98537.4461889331,
 		"room_0_final_co_ppm": 2007.09224464033,
 		"room_0_final_co_upper_ppm": 13605.4237921762,
 		"room_0_final_dominant_fuel_object_exposure_s": 75.0,
@@ -85,6 +94,7 @@
 		"room_0_final_layer_150c_m": 1.99070554963886,
 		"room_0_final_o2": 0.132948737562027,
 		"room_0_final_o2_hrr_factor": 0.121114307796087,
+		"room_0_final_o2_upper": 0.107920584925615,
 		"room_0_final_outside_open_path_factor": 0.0,
 		"room_0_final_pool_release_hrr_target_kw": 0.0,
 		"room_0_final_pyrolysis_kw": 187.478721659638,
@@ -124,10 +134,12 @@
 		"room_0_max_unburned_generation_kw": 57.6823636481705,
 		"room_0_max_upper_radiative_loss_kw": 429.602600778466,
 		"room_0_min_l150_m": 1.56009339272608,
+		"room_0_min_o2_upper": 0.0526581486242298,
 		"room_0_min_visibility_m": 0.00250409588081595,
 		"room_0_peak_burned_hrr_kw": 674.9566274896,
 		"room_0_peak_c_balance_frac": 1.0,
 		"room_0_peak_co2_ppm": 10577.6732133459,
+		"room_0_peak_co2_upper_ppm": 151730.614106709,
 		"room_0_peak_co_ppm": 2080.29481579898,
 		"room_0_peak_co_upper_ppm": 19089.5305388811,
 		"room_0_peak_hcn_ppm": 226.50515581455,
