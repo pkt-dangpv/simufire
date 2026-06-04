@@ -1,0 +1,583 @@
+{
+  "all_required_pass": true,
+  "candidate_mode": "two-zone",
+  "cases": {
+    "c_balance_high_phi": {
+      "checks": {
+        "global_carbon_postclamp_excess_kg": {
+          "abs_delta": 0.0,
+          "allowed_delta": 8.0,
+          "candidate": 15.3032199593549,
+          "delta": 0.0,
+          "legacy": 15.3032199593549,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 8.0,
+            "rel_tolerance": 0.5,
+            "required": false
+          }
+        },
+        "global_carbon_preclamp_excess_kg": {
+          "abs_delta": 0.0,
+          "allowed_delta": 8.1592706854235,
+          "candidate": 16.318541370847,
+          "delta": 0.0,
+          "legacy": 16.318541370847,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 8.0,
+            "rel_tolerance": 0.5,
+            "required": false
+          }
+        },
+        "peak_global_carbon_transport_residual_kg_abs": {
+          "abs_delta": 0.0,
+          "allowed_delta": null,
+          "candidate": 0.000136251323823444,
+          "delta": 0.0,
+          "legacy": 0.000136251323823444,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "max_abs_value": 0.02,
+            "required": true
+          }
+        },
+        "room_0_peak_hrr_kw": {
+          "abs_delta": 0.0,
+          "allowed_delta": 370.57435008993303,
+          "candidate": 1235.24783363311,
+          "delta": 0.0,
+          "legacy": 1235.24783363311,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 350.0,
+            "rel_tolerance": 0.3,
+            "required": true
+          }
+        },
+        "room_0_peak_temp_upper_c": {
+          "abs_delta": 0.0,
+          "allowed_delta": 267.222665764643,
+          "candidate": 763.493330756123,
+          "delta": 0.0,
+          "legacy": 763.493330756123,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 260.0,
+            "rel_tolerance": 0.35,
+            "required": true
+          }
+        }
+      },
+      "rationale": "Combustion rica y separacion entre exceso quimico y transporte."
+    },
+    "carbon_balance_transport": {
+      "checks": {
+        "peak_global_carbon_transport_residual_kg_abs": {
+          "abs_delta": 0.0,
+          "allowed_delta": null,
+          "candidate": 0.000116613342375935,
+          "delta": 0.0,
+          "legacy": 0.000116613342375935,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "max_abs_value": 0.02,
+            "required": true
+          }
+        },
+        "room_0_peak_hrr_kw": {
+          "abs_delta": 0.0,
+          "allowed_delta": 189.448922018657,
+          "candidate": 541.28263433902,
+          "delta": 0.0,
+          "legacy": 541.28263433902,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 180.0,
+            "rel_tolerance": 0.35,
+            "required": true
+          }
+        },
+        "room_0_peak_temp_upper_c": {
+          "abs_delta": 0.0,
+          "allowed_delta": 185.32170222895363,
+          "candidate": 463.304255572384,
+          "delta": 0.0,
+          "legacy": 463.304255572384,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 180.0,
+            "rel_tolerance": 0.4,
+            "required": true
+          }
+        },
+        "room_1_peak_temp_upper_c": {
+          "abs_delta": 0.0,
+          "allowed_delta": 80.0,
+          "candidate": 130.029983917611,
+          "delta": 0.0,
+          "legacy": 130.029983917611,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 80.0,
+            "rel_tolerance": 0.6,
+            "required": false
+          }
+        },
+        "time_room_1_smoke_start_s": {
+          "abs_delta": 0.0,
+          "allowed_delta": 35.0,
+          "candidate": 44.8333333333335,
+          "delta": 0.0,
+          "legacy": 44.8333333333335,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 35.0,
+            "rel_tolerance": 0.7,
+            "required": true
+          }
+        }
+      },
+      "rationale": "Invariante global de carbono durante transporte interior."
+    },
+    "cfast_hvac_residential": {
+      "checks": {
+        "room_0_final_fed": {
+          "abs_delta": 0.0,
+          "allowed_delta": 300.187030338738,
+          "candidate": 600.374060677476,
+          "delta": 0.0,
+          "legacy": 600.374060677476,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 300.0,
+            "rel_tolerance": 0.5,
+            "required": false
+          }
+        },
+        "room_0_final_hot_layer_m": {
+          "abs_delta": 0.0,
+          "allowed_delta": 0.55,
+          "candidate": 0.881965847860945,
+          "delta": 0.0,
+          "legacy": 0.881965847860945,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 0.55,
+            "rel_tolerance": 0.5,
+            "required": false
+          }
+        },
+        "room_0_final_o2": {
+          "abs_delta": 0.0,
+          "allowed_delta": 0.08360000000000001,
+          "candidate": 0.209,
+          "delta": 0.0,
+          "legacy": 0.209,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 0.08,
+            "rel_tolerance": 0.4,
+            "required": false
+          }
+        },
+        "room_0_final_o2_upper": {
+          "abs_delta": 0.0,
+          "allowed_delta": 0.08,
+          "candidate": 0.101171664074342,
+          "delta": 0.0,
+          "legacy": 0.101171664074342,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 0.08,
+            "rel_tolerance": 0.6,
+            "required": false
+          }
+        },
+        "room_0_peak_hrr_kw": {
+          "abs_delta": 0.0,
+          "allowed_delta": 512.0,
+          "candidate": 1280.0,
+          "delta": 0.0,
+          "legacy": 1280.0,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 500.0,
+            "rel_tolerance": 0.4,
+            "required": true
+          }
+        },
+        "room_0_peak_temp_upper_c": {
+          "abs_delta": 0.0,
+          "allowed_delta": 180.848019212028,
+          "candidate": 361.696038424056,
+          "delta": 0.0,
+          "legacy": 361.696038424056,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 180.0,
+            "rel_tolerance": 0.5,
+            "required": true
+          }
+        }
+      },
+      "rationale": "Interaccion HVAC low-supply/high-return y estratificacion de O2."
+    },
+    "cfast_single_room_closed": {
+      "checks": {
+        "room_0_final_fed": {
+          "abs_delta": 0.0,
+          "allowed_delta": 8.0,
+          "candidate": 19.3614305616754,
+          "delta": 0.0,
+          "legacy": 19.3614305616754,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 8.0,
+            "rel_tolerance": 0.4,
+            "required": false
+          }
+        },
+        "room_0_final_hot_layer_m": {
+          "abs_delta": 0.0,
+          "allowed_delta": 0.45,
+          "candidate": 0.75153872703188,
+          "delta": 0.0,
+          "legacy": 0.75153872703188,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 0.45,
+            "rel_tolerance": 0.35,
+            "required": false
+          }
+        },
+        "room_0_final_o2": {
+          "abs_delta": 0.0,
+          "allowed_delta": 0.035,
+          "candidate": 0.0426710679029018,
+          "delta": 0.0,
+          "legacy": 0.0426710679029018,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 0.035,
+            "rel_tolerance": 0.4,
+            "required": true
+          }
+        },
+        "room_0_final_o2_upper": {
+          "abs_delta": 0.0,
+          "allowed_delta": 0.05,
+          "candidate": 0.0426702533510196,
+          "delta": 0.0,
+          "legacy": 0.0426702533510196,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 0.05,
+            "rel_tolerance": 0.5,
+            "required": false
+          }
+        },
+        "room_0_peak_hrr_kw": {
+          "abs_delta": 0.0,
+          "allowed_delta": 182.70954578789275,
+          "candidate": 730.838183151571,
+          "delta": 0.0,
+          "legacy": 730.838183151571,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 180.0,
+            "rel_tolerance": 0.25,
+            "required": true
+          }
+        },
+        "room_0_peak_temp_upper_c": {
+          "abs_delta": 0.0,
+          "allowed_delta": 90.0,
+          "candidate": 227.915932313046,
+          "delta": 0.0,
+          "legacy": 227.915932313046,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 90.0,
+            "rel_tolerance": 0.35,
+            "required": true
+          }
+        }
+      },
+      "rationale": "Compartimento sellado: combustion, temperatura, interfaz y agotamiento de O2."
+    },
+    "cfast_two_floor_stairwell": {
+      "checks": {
+        "room_0_peak_hrr_kw": {
+          "abs_delta": 0.0,
+          "allowed_delta": 289.2391491292638,
+          "candidate": 964.130497097546,
+          "delta": 0.0,
+          "legacy": 964.130497097546,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 280.0,
+            "rel_tolerance": 0.3,
+            "required": true
+          }
+        },
+        "room_0_peak_temp_upper_c": {
+          "abs_delta": 0.0,
+          "allowed_delta": 301.77050130500174,
+          "candidate": 862.201432300005,
+          "delta": 0.0,
+          "legacy": 862.201432300005,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 280.0,
+            "rel_tolerance": 0.35,
+            "required": true
+          }
+        },
+        "room_6_final_fed": {
+          "abs_delta": 0.0,
+          "allowed_delta": 0.4,
+          "candidate": 0.521963787093028,
+          "delta": 0.0,
+          "legacy": 0.521963787093028,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 0.4,
+            "rel_tolerance": 0.75,
+            "required": false
+          }
+        },
+        "room_6_final_hot_layer_m": {
+          "abs_delta": 0.0,
+          "allowed_delta": 0.9,
+          "candidate": 2.55,
+          "delta": 0.0,
+          "legacy": 2.55,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 0.9,
+            "rel_tolerance": 0.35,
+            "required": false
+          }
+        },
+        "room_6_final_o2": {
+          "abs_delta": 0.0,
+          "allowed_delta": 0.05,
+          "candidate": 0.198306017894702,
+          "delta": 0.0,
+          "legacy": 0.198306017894702,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 0.05,
+            "rel_tolerance": 0.25,
+            "required": false
+          }
+        },
+        "room_6_peak_temp_upper_c": {
+          "abs_delta": 0.0,
+          "allowed_delta": 35.0,
+          "candidate": 38.3940438708954,
+          "delta": 0.0,
+          "legacy": 38.3940438708954,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 35.0,
+            "rel_tolerance": 0.6,
+            "required": false
+          }
+        },
+        "time_room_6_smoke_start_s": {
+          "abs_delta": 0.0,
+          "allowed_delta": 180.0,
+          "candidate": 299.250000000002,
+          "delta": 0.0,
+          "legacy": 299.250000000002,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 180.0,
+            "rel_tolerance": 0.6,
+            "required": true
+          }
+        }
+      },
+      "rationale": "Transporte vertical, escalera y llegada de humo a planta superior."
+    },
+    "cfast_two_room_door_open": {
+      "checks": {
+        "room_0_peak_hrr_kw": {
+          "abs_delta": 0.0,
+          "allowed_delta": 292.4350355700879,
+          "candidate": 974.783451900293,
+          "delta": 0.0,
+          "legacy": 974.783451900293,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 250.0,
+            "rel_tolerance": 0.3,
+            "required": true
+          }
+        },
+        "room_0_peak_temp_upper_c": {
+          "abs_delta": 0.0,
+          "allowed_delta": 120.0,
+          "candidate": 292.62798442463,
+          "delta": 0.0,
+          "legacy": 292.62798442463,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 120.0,
+            "rel_tolerance": 0.4,
+            "required": true
+          }
+        },
+        "room_1_final_fed": {
+          "abs_delta": 0.0,
+          "allowed_delta": 0.1,
+          "candidate": 0.0856025478539044,
+          "delta": 0.0,
+          "legacy": 0.0856025478539044,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 0.1,
+            "rel_tolerance": 0.75,
+            "required": false
+          }
+        },
+        "room_1_final_hot_layer_m": {
+          "abs_delta": 0.0,
+          "allowed_delta": 0.7,
+          "candidate": 1.89679107342004,
+          "delta": 0.0,
+          "legacy": 1.89679107342004,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 0.7,
+            "rel_tolerance": 0.35,
+            "required": false
+          }
+        },
+        "room_1_final_o2": {
+          "abs_delta": 0.0,
+          "allowed_delta": 0.06,
+          "candidate": 0.127914846864617,
+          "delta": 0.0,
+          "legacy": 0.127914846864617,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 0.06,
+            "rel_tolerance": 0.45,
+            "required": false
+          }
+        },
+        "room_1_peak_temp_upper_c": {
+          "abs_delta": 0.0,
+          "allowed_delta": 90.0,
+          "candidate": 173.179678779936,
+          "delta": 0.0,
+          "legacy": 173.179678779936,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": false,
+          "rule": {
+            "abs_tolerance": 90.0,
+            "rel_tolerance": 0.5,
+            "required": false
+          }
+        },
+        "time_room_1_smoke_start_s": {
+          "abs_delta": 0.0,
+          "allowed_delta": 30.0,
+          "candidate": 53.4166666666671,
+          "delta": 0.0,
+          "legacy": 53.4166666666671,
+          "pass": true,
+          "relative_delta": 0.0,
+          "required": true,
+          "rule": {
+            "abs_tolerance": 30.0,
+            "rel_tolerance": 0.5,
+            "required": true
+          }
+        }
+      },
+      "rationale": "Transporte horizontal por puerta y condiciones de la sala receptora."
+    }
+  },
+  "contract_errors": [],
+  "failed_non_gating_count": 0,
+  "failed_required_count": 0,
+  "format_version": 1,
+  "generated_at_utc": "2026-06-04T17:50:51.953216+00:00",
+  "non_gating_count": 18,
+  "reference_mode": "legacy",
+  "reference_source_commit": "2f1ee08f88d8722a6e748296c0da4cbaca8e4d68",
+  "required_count": 18
+}

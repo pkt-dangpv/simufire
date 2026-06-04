@@ -26,6 +26,7 @@ func build_state(context: Dictionary) -> Dictionary:
 		"global_carbon_preclamp_excess_kg": float(context.get("global_carbon_preclamp_excess_kg", 0.0)),
 		"global_carbon_postclamp_excess_kg": float(context.get("global_carbon_postclamp_excess_kg", 0.0)),
 		"global_carbon_transport_residual_kg": float(context.get("global_carbon_transport_residual_kg", 0.0)),
+		"two_zone_solver_enabled": bool(context.get("two_zone_solver_enabled", false)),
 	}
 	var hvac: Dictionary = context.get("hvac", {})
 	state["hvac_exists"] = bool(hvac.get("exists", false))

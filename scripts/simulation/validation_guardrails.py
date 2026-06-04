@@ -37,6 +37,7 @@ if str(_scripts_dir) not in sys.path:
 
 import phase2e_preflight
 import gap_inventory_check
+import legacy_two_zone_compare
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +156,7 @@ def main() -> int:
     rc_sentinel, out_sentinel = _run_silent(phase2e_preflight.main, json_argv)
     rc_gaps,     out_gaps     = _run_silent(gap_inventory_check.main, json_argv)
     rc_carbon,   out_carbon   = (0, "(sin datos)") if data is None else _check_carbon_hcn_sentinels(data)
+    rc_two_zone, out_two_zone = _run_silent(legacy_two_zone_compare.main, ["check-reference"])
 
     # -- Resumen compacto -------------------------------------------------------
     def _tag(rc: int) -> str:
@@ -171,6 +173,7 @@ def main() -> int:
     print(f"  {'Gap inventory sync':<32}  {_tag(rc_gaps):>12}")
     print(f"  {'Phase 2E sentinels (7)':<32}  {_tag(rc_sentinel):>12}")
     print(f"  {'Carbon/HCN sentinels (5)':<32}  {_tag(rc_carbon):>12}")
+    print(f"  {'Legacy/two-zone contract':<32}  {_tag(rc_two_zone):>12}")
 
     # -- Salida verbose ---------------------------------------------------------
     if args.verbose:
@@ -187,9 +190,13 @@ def main() -> int:
         print("  [Detalle] Carbon/HCN Sentinels (PHY-C1/C2)")
         print("─" * W)
         print(out_carbon)
+        print("─" * W)
+        print("  [Detalle] Legacy/two-zone contract (Pre-M1)")
+        print("─" * W)
+        print(out_two_zone)
 
     # -- Resultado global -------------------------------------------------------
-    all_ok = all_req_pass and rc_sentinel == 0 and rc_gaps == 0 and rc_carbon == 0
+    all_ok = all_req_pass and rc_sentinel == 0 and rc_gaps == 0 and rc_carbon == 0 and rc_two_zone == 0
     print()
     print("-" * W)
     print()
@@ -205,6 +212,8 @@ def main() -> int:
             print("    - Gap inventory sync: ejecuta --verbose para detalles")
         if rc_carbon != 0:
             print("    - Carbon/HCN sentinels: ejecuta --verbose para detalles")
+        if rc_two_zone != 0:
+            print("    - Legacy/two-zone contract: regenera o corrige la referencia Pre-M1")
         print()
         print("  Para diagnóstico completo:")
         print("    python scripts/simulation/validation_guardrails.py --verbose")

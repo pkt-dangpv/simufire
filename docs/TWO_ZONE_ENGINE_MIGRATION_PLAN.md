@@ -16,9 +16,9 @@
 
 1. [COMPLETADO] Corregir el reset de todos los estados upper/lower y cubrirlo con tests.
 2. [COMPLETADO] Sustituir el guardrail de carbono por balance pre-clamp acumulado, incluyendo soot.
-3. [PENDIENTE] Congelar baseline legacy y crear comparacion automatica legacy/two-zone.
+3. [COMPLETADO] Congelar baseline legacy y crear comparacion automatica legacy/two-zone.
 
-### Evidencia de cierre Pre-M1.1/2
+### Evidencia de cierre Pre-M1
 
 - Reset upper/lower cubierto por `tests/test_room_model_reset.py`.
 - Ledger global SF-CBAL cubre combustible, especies, soot, productos no modelados,
@@ -28,10 +28,36 @@
 - Casos runtime: transporte, ventilacion, HVAC, creacion espuria y perdida espuria.
 - `c_balance_high_phi` conserva el exceso legacy visible sin convertir el clamp
   quimico en una falsa perdida de transporte.
+- Referencia congelada en `sim/validation/baselines/contracts/legacy_two_zone_reference.json`:
+  6 casos canonicos y 36 metricas, commit legacy `2f1ee08`.
+- Manifiesto de comparacion en `sim/validation/legacy_two_zone_manifest.json`:
+  18 metricas gating y 18 observacionales no-gating.
+- `two_zone_solver_enabled=false` es el default y permanece no-op hasta M1.
+- El runner fuerza y registra `engine_mode=legacy|two-zone`, evitando comparar
+  accidentalmente dos reportes sin identificar el modo.
+- Comparacion smoke Pre-M1: `18/18` gating PASS, `0/18` observacionales fuera
+  de tolerancia y `0` errores de contrato.
+- `validation_guardrails.py` valida tambien que la referencia congelada siga
+  sincronizada con el manifiesto.
+
+Comandos:
+
+```powershell
+# Regenerar la referencia legacy solo de forma intencional.
+powershell -ExecutionPolicy Bypass -File sim/validation/run_legacy_two_zone_compare.ps1 -Action freeze
+
+# Comparar el candidato two-zone contra la referencia congelada.
+powershell -ExecutionPolicy Bypass -File sim/validation/run_legacy_two_zone_compare.ps1 -Action compare -CandidateMode two-zone
+```
 
 La deuda fisica legacy no se ha ocultado: los yields pueden solicitar y producir
 mas carbono que el combustible disponible al incluir soot. M1 debe decidir la
 formulacion conservativa; Pre-M1 solo la mide sin alterar los resultados legacy.
+
+## Estado Pre-M1
+
+**CERRADO.** M1 puede comenzar sobre el contrato congelado. La referencia legacy
+no debe regenerarse durante M1 salvo decision explicita y documentada.
 
 ## M1 - Canonical two-zone core (v1.0.0-alpha)
 

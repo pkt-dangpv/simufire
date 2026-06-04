@@ -1,0 +1,75 @@
+{
+  "cases": {
+    "c_balance_high_phi": {
+      "metrics": {
+        "global_carbon_postclamp_excess_kg": 15.3032199593549,
+        "global_carbon_preclamp_excess_kg": 16.318541370847,
+        "peak_global_carbon_transport_residual_kg_abs": 0.000136251323823444,
+        "room_0_peak_hrr_kw": 1235.24783363311,
+        "room_0_peak_temp_upper_c": 763.493330756123
+      },
+      "sim_time_s": 400.083333333312
+    },
+    "carbon_balance_transport": {
+      "metrics": {
+        "peak_global_carbon_transport_residual_kg_abs": 0.000116613342375935,
+        "room_0_peak_hrr_kw": 541.28263433902,
+        "room_0_peak_temp_upper_c": 463.304255572384,
+        "room_1_peak_temp_upper_c": 130.029983917611,
+        "time_room_1_smoke_start_s": 44.8333333333335
+      },
+      "sim_time_s": 120.083333333331
+    },
+    "cfast_hvac_residential": {
+      "metrics": {
+        "room_0_final_fed": 600.374060677476,
+        "room_0_final_hot_layer_m": 0.881965847860945,
+        "room_0_final_o2": 0.209,
+        "room_0_final_o2_upper": 0.101171664074342,
+        "room_0_peak_hrr_kw": 1280.0,
+        "room_0_peak_temp_upper_c": 361.696038424056
+      },
+      "sim_time_s": 600.083333333327
+    },
+    "cfast_single_room_closed": {
+      "metrics": {
+        "room_0_final_fed": 19.3614305616754,
+        "room_0_final_hot_layer_m": 0.75153872703188,
+        "room_0_final_o2": 0.0426710679029018,
+        "room_0_final_o2_upper": 0.0426702533510196,
+        "room_0_peak_hrr_kw": 730.838183151571,
+        "room_0_peak_temp_upper_c": 227.915932313046
+      },
+      "sim_time_s": 600.083333333327
+    },
+    "cfast_two_floor_stairwell": {
+      "metrics": {
+        "room_0_peak_hrr_kw": 964.130497097546,
+        "room_0_peak_temp_upper_c": 862.201432300005,
+        "room_6_final_fed": 0.521963787093028,
+        "room_6_final_hot_layer_m": 2.55,
+        "room_6_final_o2": 0.198306017894702,
+        "room_6_peak_temp_upper_c": 38.3940438708954,
+        "time_room_6_smoke_start_s": 299.250000000002
+      },
+      "sim_time_s": 600.083333333327
+    },
+    "cfast_two_room_door_open": {
+      "metrics": {
+        "room_0_peak_hrr_kw": 974.783451900293,
+        "room_0_peak_temp_upper_c": 292.62798442463,
+        "room_1_final_fed": 0.0856025478539044,
+        "room_1_final_hot_layer_m": 1.89679107342004,
+        "room_1_final_o2": 0.127914846864617,
+        "room_1_peak_temp_upper_c": 173.179678779936,
+        "time_room_1_smoke_start_s": 53.4166666666671
+      },
+      "sim_time_s": 600.083333333327
+    }
+  },
+  "engine_mode": "legacy",
+  "format_version": 1,
+  "frozen_at_utc": "2026-06-04T17:50:41.611964+00:00",
+  "manifest": "sim/validation/legacy_two_zone_manifest.json",
+  "source_commit": "2f1ee08f88d8722a6e748296c0da4cbaca8e4d68"
+}

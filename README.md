@@ -2,7 +2,7 @@
 
 Simulador de dinámica de incendios en compartimentos para entrenamiento y toma de decisiones de bomberos.
 
-**Estado**: `v0.4.0-validation-rc1` · 379/379 required PASS · 4 gaps no-gating · Godot 4.6.3
+**Estado**: `v0.4.0-validation-rc1` · 381/381 required PASS · 4 gaps no-gating · Godot 4.6.3
 
 ---
 
@@ -18,10 +18,13 @@ python scripts/simulation/validation_guardrails.py
 # 3. Suite completa de validación científica (requiere Godot, ~15 min)
 python scripts/simulation/validate_reference_cases.py
 
-# 4. Reproducir un escenario predefinido y generar export tecnico
+# 4. Comparar candidato two-zone contra la referencia legacy congelada
+powershell -ExecutionPolicy Bypass -File sim/validation/run_legacy_two_zone_compare.ps1 -Action compare -CandidateMode two-zone
+
+# 5. Reproducir un escenario predefinido y generar export tecnico
 python scripts/run_scenario.py scenarios/compact_apartment_reference.json --duration 60
 
-# 5. Ejecutar un caso individual (headless)
+# 6. Ejecutar un caso individual (headless)
 & "C:\Users\dangp\Desktop\Godot_v4.6.3-stable_win64_console.exe" `
     --headless --path "." -- --validation-case=victim_fed_incapacitation
 ```
@@ -43,7 +46,7 @@ python scripts/run_scenario.py scenarios/compact_apartment_reference.json --dura
 
 | Métrica | Valor |
 |---|---|
-| Checks requeridos | **379/379 PASS** |
+| Checks requeridos | **381/381 PASS** |
 | Gaps no-gating | 4 (estructurales HVAC, aceptados) |
 | Guardrails científicos | ALL PASS |
 | Tests unitarios guardrails | 13/13 OK |

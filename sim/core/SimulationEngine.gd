@@ -96,6 +96,13 @@ signal technical_summary_ready(summary: Dictionary, output_dir: String)
 var _targets: Array = []
 
 # ============================================================
+# CONTRATO DE MIGRACION TWO-ZONE
+# ============================================================
+# Pre-M1: selector observable pero deliberadamente no-op.
+# M1 conectara este flag al solver canonico manteniendo legacy como default.
+@export var two_zone_solver_enabled: bool = false
+
+# ============================================================
 # ROTURA DE CRISTAL (SF-AUD-011)
 # ============================================================
 # Modo de rotura automatica:
@@ -1123,6 +1130,7 @@ func _build_state_context() -> Dictionary:
 		"global_carbon_preclamp_excess_kg": global_carbon_preclamp_excess_kg,
 		"global_carbon_postclamp_excess_kg": global_carbon_postclamp_excess_kg,
 		"global_carbon_transport_residual_kg": global_carbon_transport_residual_kg,
+		"two_zone_solver_enabled": two_zone_solver_enabled,
 		"step_time_us": _step_time_us,
 	}
 

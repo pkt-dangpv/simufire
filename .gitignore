@@ -31,6 +31,7 @@ sim/validation/reports/*_p2g*.json
 sim/validation/reports/*_p2h*.json
 sim/validation/reports/cfast_hvac_o2l_*.json
 sim/validation/reports/*_phase2e_exp*.json
+sim/validation/reports/mode_comparison/
 
 # Godot import artifacts from validation CSVs
 sim/validation/cfast/*.translation

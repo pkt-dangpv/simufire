@@ -1,0 +1,214 @@
+{
+  "format_version": 1,
+  "description": "Contrato Pre-M1 para comparar el motor legacy congelado con el candidato two-zone.",
+  "cases": {
+    "cfast_single_room_closed": {
+      "rationale": "Compartimento sellado: combustion, temperatura, interfaz y agotamiento de O2.",
+      "metrics": {
+        "room_0_peak_hrr_kw": {
+          "required": true,
+          "abs_tolerance": 180.0,
+          "rel_tolerance": 0.25
+        },
+        "room_0_peak_temp_upper_c": {
+          "required": true,
+          "abs_tolerance": 90.0,
+          "rel_tolerance": 0.35
+        },
+        "room_0_final_hot_layer_m": {
+          "required": false,
+          "abs_tolerance": 0.45,
+          "rel_tolerance": 0.35
+        },
+        "room_0_final_o2": {
+          "required": true,
+          "abs_tolerance": 0.035,
+          "rel_tolerance": 0.40
+        },
+        "room_0_final_o2_upper": {
+          "required": false,
+          "abs_tolerance": 0.050,
+          "rel_tolerance": 0.50
+        },
+        "room_0_final_fed": {
+          "required": false,
+          "abs_tolerance": 8.0,
+          "rel_tolerance": 0.40
+        }
+      }
+    },
+    "cfast_two_room_door_open": {
+      "rationale": "Transporte horizontal por puerta y condiciones de la sala receptora.",
+      "metrics": {
+        "room_0_peak_hrr_kw": {
+          "required": true,
+          "abs_tolerance": 250.0,
+          "rel_tolerance": 0.30
+        },
+        "room_0_peak_temp_upper_c": {
+          "required": true,
+          "abs_tolerance": 120.0,
+          "rel_tolerance": 0.40
+        },
+        "room_1_peak_temp_upper_c": {
+          "required": false,
+          "abs_tolerance": 90.0,
+          "rel_tolerance": 0.50
+        },
+        "room_1_final_hot_layer_m": {
+          "required": false,
+          "abs_tolerance": 0.70,
+          "rel_tolerance": 0.35
+        },
+        "room_1_final_o2": {
+          "required": false,
+          "abs_tolerance": 0.060,
+          "rel_tolerance": 0.45
+        },
+        "room_1_final_fed": {
+          "required": false,
+          "abs_tolerance": 0.10,
+          "rel_tolerance": 0.75
+        },
+        "time_room_1_smoke_start_s": {
+          "required": true,
+          "abs_tolerance": 30.0,
+          "rel_tolerance": 0.50
+        }
+      }
+    },
+    "cfast_hvac_residential": {
+      "rationale": "Interaccion HVAC low-supply/high-return y estratificacion de O2.",
+      "metrics": {
+        "room_0_peak_hrr_kw": {
+          "required": true,
+          "abs_tolerance": 500.0,
+          "rel_tolerance": 0.40
+        },
+        "room_0_peak_temp_upper_c": {
+          "required": true,
+          "abs_tolerance": 180.0,
+          "rel_tolerance": 0.50
+        },
+        "room_0_final_hot_layer_m": {
+          "required": false,
+          "abs_tolerance": 0.55,
+          "rel_tolerance": 0.50
+        },
+        "room_0_final_o2": {
+          "required": false,
+          "abs_tolerance": 0.080,
+          "rel_tolerance": 0.40
+        },
+        "room_0_final_o2_upper": {
+          "required": false,
+          "abs_tolerance": 0.080,
+          "rel_tolerance": 0.60
+        },
+        "room_0_final_fed": {
+          "required": false,
+          "abs_tolerance": 300.0,
+          "rel_tolerance": 0.50
+        }
+      }
+    },
+    "cfast_two_floor_stairwell": {
+      "rationale": "Transporte vertical, escalera y llegada de humo a planta superior.",
+      "metrics": {
+        "room_0_peak_hrr_kw": {
+          "required": true,
+          "abs_tolerance": 280.0,
+          "rel_tolerance": 0.30
+        },
+        "room_0_peak_temp_upper_c": {
+          "required": true,
+          "abs_tolerance": 280.0,
+          "rel_tolerance": 0.35
+        },
+        "room_6_peak_temp_upper_c": {
+          "required": false,
+          "abs_tolerance": 35.0,
+          "rel_tolerance": 0.60
+        },
+        "room_6_final_hot_layer_m": {
+          "required": false,
+          "abs_tolerance": 0.90,
+          "rel_tolerance": 0.35
+        },
+        "room_6_final_o2": {
+          "required": false,
+          "abs_tolerance": 0.050,
+          "rel_tolerance": 0.25
+        },
+        "room_6_final_fed": {
+          "required": false,
+          "abs_tolerance": 0.40,
+          "rel_tolerance": 0.75
+        },
+        "time_room_6_smoke_start_s": {
+          "required": true,
+          "abs_tolerance": 180.0,
+          "rel_tolerance": 0.60
+        }
+      }
+    },
+    "c_balance_high_phi": {
+      "rationale": "Combustion rica y separacion entre exceso quimico y transporte.",
+      "metrics": {
+        "room_0_peak_hrr_kw": {
+          "required": true,
+          "abs_tolerance": 350.0,
+          "rel_tolerance": 0.30
+        },
+        "room_0_peak_temp_upper_c": {
+          "required": true,
+          "abs_tolerance": 260.0,
+          "rel_tolerance": 0.35
+        },
+        "global_carbon_preclamp_excess_kg": {
+          "required": false,
+          "abs_tolerance": 8.0,
+          "rel_tolerance": 0.50
+        },
+        "global_carbon_postclamp_excess_kg": {
+          "required": false,
+          "abs_tolerance": 8.0,
+          "rel_tolerance": 0.50
+        },
+        "peak_global_carbon_transport_residual_kg_abs": {
+          "required": true,
+          "max_abs_value": 0.02
+        }
+      }
+    },
+    "carbon_balance_transport": {
+      "rationale": "Invariante global de carbono durante transporte interior.",
+      "metrics": {
+        "room_0_peak_hrr_kw": {
+          "required": true,
+          "abs_tolerance": 180.0,
+          "rel_tolerance": 0.35
+        },
+        "room_0_peak_temp_upper_c": {
+          "required": true,
+          "abs_tolerance": 180.0,
+          "rel_tolerance": 0.40
+        },
+        "room_1_peak_temp_upper_c": {
+          "required": false,
+          "abs_tolerance": 80.0,
+          "rel_tolerance": 0.60
+        },
+        "time_room_1_smoke_start_s": {
+          "required": true,
+          "abs_tolerance": 35.0,
+          "rel_tolerance": 0.70
+        },
+        "peak_global_carbon_transport_residual_kg_abs": {
+          "required": true,
+          "max_abs_value": 0.02
+        }
+      }
+    }
+  }
+}

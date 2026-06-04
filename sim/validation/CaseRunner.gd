@@ -35,6 +35,7 @@ var _baseline_path: String = ""
 var _opening_events: Array = []
 var _suppression_events: Array = []
 var _carbon_events: Array = []
+var _engine_mode: String = "legacy"
 var _incident_started: bool = false
 var _runtime_error_reported: bool = false
 
@@ -98,6 +99,11 @@ func _parse_validation_args(args: Array[String]) -> Dictionary:
 		elif arg == "--validation-duration" and index + 1 < args.size():
 			index += 1
 			parsed["validation_duration"] = float(args[index])
+		elif arg.begins_with("--validation-engine-mode="):
+			parsed["validation_engine_mode"] = arg.get_slice("=", 1)
+		elif arg == "--validation-engine-mode" and index + 1 < args.size():
+			index += 1
+			parsed["validation_engine_mode"] = String(args[index])
 		elif arg == "--validation-no-quit":
 			parsed["validation_no_quit"] = true
 		index += 1
@@ -133,6 +139,8 @@ func _begin_validation_run() -> void:
 
 	building.load_template_data(template_data)
 	_apply_engine_overrides(Dictionary(_case_config.get("engine_overrides", {})))
+	if not _configure_validation_engine_mode():
+		return
 	engine.auto_finish_on_extinction = false
 	engine.enable_logging = bool(_case_config.get("enable_logging", false))
 	engine.ignition_room_id = int(_case_config.get("ignition_room_id", engine.ignition_room_id))
@@ -348,6 +356,19 @@ func _apply_opening_overrides(template_data: Dictionary, overrides: Variant) -> 
 func _apply_engine_overrides(overrides: Dictionary) -> void:
 	for key in overrides.keys():
 		engine.set(String(key), overrides[key])
+
+
+func _configure_validation_engine_mode() -> bool:
+	var requested_mode: String = String(_cli_args.get("validation_engine_mode", "")).strip_edges().to_lower()
+	if requested_mode.is_empty():
+		_engine_mode = "two-zone" if engine.two_zone_solver_enabled else "legacy"
+		return true
+	if requested_mode != "legacy" and requested_mode != "two-zone":
+		_abort_validation_run("CaseRunner: modo de motor no soportado '%s'" % requested_mode)
+		return false
+	engine.two_zone_solver_enabled = requested_mode == "two-zone"
+	_engine_mode = requested_mode
+	return true
 
 
 func _prepare_opening_events(raw_events: Variant) -> Array:
@@ -657,6 +678,7 @@ func _update_metrics(state: Dictionary) -> void:
 		absf(transport_residual_kg)
 	)
 	_metrics["hvac_on"] = 1.0 if bool(state.get("hvac_on", false)) else 0.0
+	_metrics["two_zone_solver_enabled"] = 1.0 if bool(state.get("two_zone_solver_enabled", false)) else 0.0
 
 	var trigger_room_id: int = int(_case_config.get("smoke_trigger_room_id", 0))
 	var target_room_id: int = int(_case_config.get("spread_target_room_id", 1))
@@ -928,6 +950,8 @@ func _finalize_validation_run(state: Dictionary) -> void:
 
 	var report: Dictionary = {
 		"case": _case_name,
+		"engine_mode": _engine_mode,
+		"comparison_contract_version": 1,
 		"duration_s": float(_case_config.get("duration_s", 0.0)),
 		"sim_time_s": float(state.get("sim_time_s", 0.0)),
 		"metrics": _metrics,

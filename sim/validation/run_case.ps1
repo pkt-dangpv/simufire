@@ -5,6 +5,7 @@ param(
 	[string]$GodotExe = "",
 	[string]$ProjectPath = "",
 	[string]$ValidationOutput = "",
+	[string]$EngineMode = "",
 	[double]$ValidationDuration = 0,
 	[int]$TimeoutSeconds = 300,
 	[switch]$NoQuit
@@ -46,6 +47,10 @@ function Resolve-GodotExecutable([string]$RequestedPath) {
 
 $GodotExe = Resolve-GodotExecutable $GodotExe
 
+if ($EngineMode -and $EngineMode -notin @("legacy", "two-zone")) {
+	throw "EngineMode no soportado '$EngineMode'. Usa legacy o two-zone."
+}
+
 $logDir = Join-Path $env:TEMP "simufire-godot-logs"
 New-Item -ItemType Directory -Path $logDir -Force | Out-Null
 
@@ -70,6 +75,10 @@ if ($ValidationOutput) {
 	$godotArgs += "--validation-output=$ValidationOutput"
 }
 
+if ($EngineMode) {
+	$godotArgs += "--validation-engine-mode=$EngineMode"
+}
+
 if ($ValidationDuration -gt 0) {
 	$godotArgs += "--validation-duration=$ValidationDuration"
 }
@@ -81,6 +90,7 @@ if ($NoQuit) {
 Write-Host ("[Validation Runner] Caso: {0}" -f $CaseName)
 Write-Host ("[Validation Runner] Proyecto: {0}" -f $ProjectPath)
 Write-Host ("[Validation Runner] Log Godot: {0}" -f $logFile)
+Write-Host ("[Validation Runner] Modo motor: {0}" -f ($(if ($EngineMode) { $EngineMode } else { "caso/default" })))
 Write-Host ("[Validation Runner] Timeout: {0}s" -f $TimeoutSeconds)
 
 function Quote-ProcessArgument([string]$Value) {

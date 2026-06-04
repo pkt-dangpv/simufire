@@ -1,0 +1,67 @@
+param(
+	[ValidateSet("freeze", "compare", "all")]
+	[string]$Action = "compare",
+	[ValidateSet("legacy", "two-zone")]
+	[string]$CandidateMode = "two-zone",
+	[string]$GodotExe = "",
+	[string]$ProjectPath = "",
+	[int]$TimeoutSeconds = 900
+)
+
+$ErrorActionPreference = "Stop"
+
+if (-not $ProjectPath) {
+	$ProjectPath = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+} else {
+	$ProjectPath = (Resolve-Path $ProjectPath).Path
+}
+
+$manifestPath = Join-Path $PSScriptRoot "legacy_two_zone_manifest.json"
+$manifest = Get-Content -Raw $manifestPath | ConvertFrom-Json
+$caseNames = @($manifest.cases.PSObject.Properties.Name)
+$runCase = Join-Path $PSScriptRoot "run_case.ps1"
+$compareScript = Join-Path $ProjectPath "scripts\simulation\legacy_two_zone_compare.py"
+$modeReportsRoot = Join-Path $PSScriptRoot "reports\mode_comparison"
+$referencePath = Join-Path $PSScriptRoot "baselines\contracts\legacy_two_zone_reference.json"
+$comparisonPath = Join-Path $PSScriptRoot "reports\contracts\legacy_two_zone_comparison.json"
+
+function Invoke-ModeCases([string]$Mode) {
+	$outputDir = Join-Path $modeReportsRoot $Mode
+	New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+	foreach ($caseName in $caseNames) {
+		$outputPath = Join-Path $outputDir ("{0}.json" -f $caseName)
+		& $runCase `
+			-CaseName $caseName `
+			-GodotExe $GodotExe `
+			-ProjectPath $ProjectPath `
+			-ValidationOutput $outputPath `
+			-EngineMode $Mode `
+			-TimeoutSeconds $TimeoutSeconds
+	}
+	return $outputDir
+}
+
+if ($Action -eq "freeze" -or $Action -eq "all") {
+	$legacyDir = Invoke-ModeCases "legacy"
+	python $compareScript --manifest $manifestPath freeze --reports-dir $legacyDir --output $referencePath
+	if ($LASTEXITCODE -ne 0) {
+		throw "No se pudo congelar la referencia legacy"
+	}
+}
+
+if ($Action -eq "compare" -or $Action -eq "all") {
+	if (-not (Test-Path $referencePath)) {
+		throw "Referencia legacy ausente. Ejecuta primero -Action freeze."
+	}
+	$candidateDir = Invoke-ModeCases $CandidateMode
+	python $compareScript `
+		--manifest $manifestPath `
+		--reference $referencePath `
+		compare `
+		--candidate-dir $candidateDir `
+		--expected-mode $CandidateMode `
+		--output $comparisonPath
+	if ($LASTEXITCODE -ne 0) {
+		throw "La comparacion legacy/$CandidateMode no supera el contrato"
+	}
+}
