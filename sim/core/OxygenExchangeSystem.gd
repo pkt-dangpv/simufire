@@ -376,8 +376,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# CO₂ producido → zona superior (gas caliente)
 			var cr_co2: float = co2_yield_kg_per_MJ
 			var co2_produced: float = (room.hrr_kw / 1000.0) * cr_co2 * dt
-			# Escalar por o2_upper para que la tasa de CO₂ refleje el O₂ disponible
-			# en la zona alta (evita sobreestimación cuando room.hrr_kw > HRR_CFAST).
+			# Escalar por O₂ disponible en zona alta (refleja condición de combustión local).
 			var o2_scale: float = clampf(room.o2_upper / maxf(0.001, o2_nominal), 0.0, 1.0)
 			co2_produced *= o2_scale
 			# Δx_CO₂ = (kg CO₂ / M_CO₂) / (kg_aire / M_aire) = kg_CO₂ × 29 / (kg_aire × 44)

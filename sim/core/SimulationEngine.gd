@@ -666,6 +666,10 @@ var _step_time_us: int = 0
 # Fase 2A: penacho usa room.o2 como fuente → equilibrio o2_upper ≈ CFAST_ULO2.
 # o2_lower se gestiona independientemente (near-ambient) sin afectar este equilibrio.
 @export var o2_upper_plume_entr_rate: float = 0.025
+# PHY-B2: rendimiento CO₂ para el tracer mol-fraction de zona superior (room.co2_upper).
+# Solo afecta OxygenExchangeSystem (tracer); CombustionSystem usa su propio yield por combustible.
+# Default 0.0831 kg CO₂/MJ = mismo que co2_base_yield_kg_per_MJ en CombustionSystem.
+@export var co2_yield_kg_per_MJ: float = 0.0831
 
 # ── Phase 3: modelo de presión termodinámica (campo paralelo) ──────────────
 # Default false = no-op. Solo activo via engine_overrides en casos sellados.
@@ -1039,6 +1043,7 @@ func _sync_auxiliary_services() -> void:
 		"doorway_o2_background_min_factor": doorway_o2_background_min_factor,
 		"vent_bernoulli_enabled": vent_bernoulli_enabled,
 		"o2_upper_plume_entr_rate": o2_upper_plume_entr_rate,
+		"co2_yield_kg_per_MJ": co2_yield_kg_per_MJ,
 		"phase2h_o2_doorway_two_zone_enabled": phase2h_o2_doorway_two_zone_enabled,
 		"phase2h_cold_room_lower_routing_enabled": phase2h_cold_room_lower_routing_enabled,
 		"phase2h_lower_replenish_gain": phase2h_lower_replenish_gain,

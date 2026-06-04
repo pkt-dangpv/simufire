@@ -1,6 +1,32 @@
 {
 	"baseline": {
-
+		"all_pass": true,
+		"checks": {
+			"room_0_final_co2_ppm": {
+				"actual": 66461.3522469942,
+				"pass": true,
+				"rule": {
+					"max": 86400.0,
+					"min": 46500.0
+				}
+			},
+			"room_0_final_co2_upper_ppm": {
+				"actual": 161195.784523879,
+				"pass": true,
+				"rule": {
+					"max": 185400.0,
+					"min": 137000.0
+				}
+			},
+			"room_0_peak_hrr_kw": {
+				"actual": 218.166232174222,
+				"pass": true,
+				"rule": {
+					"max": 270.0,
+					"min": 200.0
+				}
+			}
+		}
 	},
 	"case": "cfast_co2_stratification",
 	"duration_s": 600.0,
@@ -21,16 +47,16 @@
 		"room_0_final_burned_hrr_kw": 133.044979585345,
 		"room_0_final_c_balance_frac": 0.882373895154521,
 		"room_0_final_co2_ppm": 66461.3522469942,
-		"room_0_final_co2_upper_ppm": 146593.979145891,
+		"room_0_final_co2_upper_ppm": 161195.784523879,
 		"room_0_final_co_ppm": 8116.76486518457,
 		"room_0_final_co_upper_ppm": 30502.5352260373,
 		"room_0_final_dominant_fuel_object_exposure_s": 75.0,
 		"room_0_final_dominant_fuel_object_id": "salon_alfombra",
 		"room_0_final_dominant_fuel_object_remaining_MJ": 508.592271221048,
 		"room_0_final_dominant_fuel_object_state": "flaming",
-		"room_0_final_fed": 64.1872356197485,
-		"room_0_final_fed_co": 60.4072009795086,
-		"room_0_final_fed_hcn": 3.49129926428677,
+		"room_0_final_fed": 81.5187210435127,
+		"room_0_final_fed_co": 76.7667616714017,
+		"room_0_final_fed_hcn": 4.46322399615802,
 		"room_0_final_fed_heat": 0.0,
 		"room_0_final_fed_hypoxia": 0.28873537595308,
 		"room_0_final_fire_time_s": 495.510064349535,
@@ -45,6 +71,7 @@
 		"room_0_final_layer_150c_m": 2.39998477878343,
 		"room_0_final_o2": 0.111547914056604,
 		"room_0_final_o2_hrr_factor": 0.513343486226698,
+		"room_0_final_o2_upper": 0.09481938325494,
 		"room_0_final_outside_open_path_factor": 0.0,
 		"room_0_final_pool_release_hrr_target_kw": 0.0,
 		"room_0_final_pyrolysis_kw": 128.335871556674,
@@ -74,7 +101,7 @@
 		"room_0_final_wall_k_kw_m_k": -1.0,
 		"room_0_final_wall_thickness_m": -1.0,
 		"room_0_max_ceiling_jet_temp_c": 57.3985501778223,
-		"room_0_max_fed": 64.1872356197485,
+		"room_0_max_fed": 81.5187210435127,
 		"room_0_max_fuel_objects_flaming_count": 7,
 		"room_0_max_fuel_objects_heating_count": 6,
 		"room_0_max_fuel_objects_pyrolyzing_count": 3,
@@ -84,11 +111,12 @@
 		"room_0_max_unburned_generation_kw": 0.0,
 		"room_0_max_upper_radiative_loss_kw": 8.98618915919222,
 		"room_0_min_l150_m": 1.81821640029346,
+		"room_0_min_o2_upper": 0.09481938325494,
 		"room_0_min_visibility_m": 0.0173822686550015,
 		"room_0_peak_burned_hrr_kw": 218.166232174222,
 		"room_0_peak_c_balance_frac": 0.94470157500193,
 		"room_0_peak_co2_ppm": 66461.3522469942,
-		"room_0_peak_co2_upper_ppm": 146593.979145891,
+		"room_0_peak_co2_upper_ppm": 161195.784523879,
 		"room_0_peak_co_ppm": 8116.76486518457,
 		"room_0_peak_co_upper_ppm": 30940.0432772907,
 		"room_0_peak_hcn_ppm": 127.924560458903,

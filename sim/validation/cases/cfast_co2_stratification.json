@@ -76,6 +76,7 @@
         "stack_effect_enabled": false,
         "fire_co_yield_force_kg_per_MJ": 0.0062,
         "fire_smoke_yield_force_kg_per_MJ": 0.015,
+        "co2_yield_kg_per_MJ": 0.0914,
         "phase3_thermodynamic_pressure_enabled": false
     }
 }
