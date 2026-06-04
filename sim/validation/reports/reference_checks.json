@@ -1,6 +1,6 @@
 {
   "all_required_pass": true,
-  "required_count": 387,
+  "required_count": 390,
   "failed_required_count": 0,
   "known_gap_count": 4,
   "checks": [
@@ -4601,6 +4601,39 @@
       "required": true,
       "pass": true,
       "note": "B-01 temperatura capa superior sala sellada al final de 300s"
+    },
+    {
+      "name": "cfast_co2_stratification_room_0_final_co2_upper_ppm",
+      "actual": 146593.979145891,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 102600.0,
+      "maximum": 190600.0,
+      "required": true,
+      "pass": true,
+      "note": "B-02 Stage-B gap HVAC-2: CO2 capa superior en sala sellada. SimuFire ~5-12% bajo CFAST 6.12."
+    },
+    {
+      "name": "cfast_co2_stratification_room_0_final_co2_ppm",
+      "actual": 66461.3522469942,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 46500.0,
+      "maximum": 86400.0,
+      "required": true,
+      "pass": true,
+      "note": "B-02 CO2 bulk/inferior sala sellada slow-growth 600s"
+    },
+    {
+      "name": "cfast_co2_stratification_room_0_peak_hrr_kw",
+      "actual": 218.166232174222,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 200.0,
+      "maximum": 270.0,
+      "required": true,
+      "pass": true,
+      "note": "B-02 fire curve sanity: t2 slow growth 250 kW cap"
     },
     {
       "name": "v4_co_remote_rooms_room_0_peak_hrr_kw",

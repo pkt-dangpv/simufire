@@ -109,6 +109,8 @@ $cases = @(
 	"cfast_two_floor_stairwell",
 	# B-01: sobrepresion termodynamica en sala sellada (gap HVAC-1)
 	"cfast_overpressure_sealed",
+	# B-02: estratificacion CO2 capa superior vs inferior (gap HVAC-2)
+	"cfast_co2_stratification",
 	# SF-R6 Phase 3: conservación de transporte de contaminantes (residual ~0)
 	"conservation_transport",
 	# SF-VIC-001: acumulación FED individual de víctima (compute_fed_delta_for_height)

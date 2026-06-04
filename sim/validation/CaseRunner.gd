@@ -698,6 +698,10 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 		float(_metrics.get(prefix + "peak_co2_ppm", 0.0)),
 		float(room_state.get("co2_ppm", 0.0))
 	)
+	_metrics[prefix + "peak_co2_upper_ppm"] = maxf(
+		float(_metrics.get(prefix + "peak_co2_upper_ppm", 0.0)),
+		float(room_state.get("co2_upper_ppm", 0.0))
+	)
 	_metrics[prefix + "max_fed"] = maxf(
 		float(_metrics.get(prefix + "max_fed", 0.0)),
 		float(room_state.get("fed", 0.0))
@@ -753,6 +757,7 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "co_ppm"] = float(room_state.get("co_ppm", 0.0))
 		_metrics[prefix + "co_upper_ppm"] = float(room_state.get("co_upper_ppm", 0.0))
 		_metrics[prefix + "co2_ppm"] = float(room_state.get("co2_ppm", 0.0))
+		_metrics[prefix + "co2_upper_ppm"] = float(room_state.get("co2_upper_ppm", 0.0))
 		_metrics[prefix + "fed"] = float(room_state.get("fed", 0.0))
 		# Phase 4B: per-component FED for calibration observability (informational, non-gating).
 		_metrics[prefix + "fed_co"] = float(room_state.get("fed_co", 0.0))
