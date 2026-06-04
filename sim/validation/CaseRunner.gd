@@ -723,6 +723,12 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 		float(_metrics.get(prefix + "max_overpressure_pa", 0.0)),
 		float(room_state.get("overpressure_pa", 0.0))
 	)
+	# B-03: O2 depletion en capa superior (min tracking)
+	var _cur_o2_upper: float = float(room_state.get("o2_upper", room_state.get("o2", 0.209)))
+	if not _metrics.has(prefix + "min_o2_upper"):
+		_metrics[prefix + "min_o2_upper"] = _cur_o2_upper
+	else:
+		_metrics[prefix + "min_o2_upper"] = minf(float(_metrics[prefix + "min_o2_upper"]), _cur_o2_upper)
 	_metrics[prefix + "max_ceiling_jet_temp_c"] = maxf(
 		float(_metrics.get(prefix + "max_ceiling_jet_temp_c", 0.0)),
 		float(room_state.get("ceiling_jet_temp_c", 0.0))
@@ -748,6 +754,7 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "pool_release_hrr_target_kw"] = float(room_state.get("pool_release_hrr_target_kw", 0.0))
 		_metrics[prefix + "fire_time_s"] = float(room_state.get("fire_time_s", 0.0))
 		_metrics[prefix + "o2"] = float(room_state.get("o2", 0.0))
+		_metrics[prefix + "o2_upper"] = float(room_state.get("o2_upper", room_state.get("o2", 0.0)))
 		_metrics[prefix + "temp_upper_raw_c"] = float(room_state.get("temp_upper_raw_c", room_state.get("temp_upper_c", 0.0)))
 		_metrics[prefix + "temp_upper_clamped"] = bool(room_state.get("temp_upper_clamped", false))
 		_metrics[prefix + "temp_upper_clamp_time_s"] = float(room_state.get("temp_upper_clamp_time_s", 0.0))

@@ -1,6 +1,6 @@
 {
   "all_required_pass": true,
-  "required_count": 390,
+  "required_count": 393,
   "failed_required_count": 0,
   "known_gap_count": 4,
   "checks": [
@@ -4634,6 +4634,39 @@
       "required": true,
       "pass": true,
       "note": "B-02 fire curve sanity: t2 slow growth 250 kW cap"
+    },
+    {
+      "name": "cfast_hall_upper_o2_doorway_room_0_min_o2_upper",
+      "actual": 0.0997160465336425,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 0.07,
+      "maximum": 0.13,
+      "required": true,
+      "pass": true,
+      "note": "B-03 Stage-B gap HVAC-3: O2 depleted in fire room upper layer ~10% (ventilation-limited)"
+    },
+    {
+      "name": "cfast_hall_upper_o2_doorway_room_1_peak_co_upper_ppm",
+      "actual": 69887.8395861092,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 48900.0,
+      "maximum": 90900.0,
+      "required": true,
+      "pass": true,
+      "note": "B-03 CO transport to hallway upper layer via doorway — lethal level confirmed"
+    },
+    {
+      "name": "cfast_hall_upper_o2_doorway_room_0_peak_hrr_kw",
+      "actual": 319.362057924128,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 270.0,
+      "maximum": 370.0,
+      "required": true,
+      "pass": true,
+      "note": "B-03 fire curve sanity: t2 medium 350 kW cap"
     },
     {
       "name": "v4_co_remote_rooms_room_0_peak_hrr_kw",

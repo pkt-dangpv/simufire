@@ -111,6 +111,8 @@ $cases = @(
 	"cfast_overpressure_sealed",
 	# B-02: estratificacion CO2 capa superior vs inferior (gap HVAC-2)
 	"cfast_co2_stratification",
+	# B-03: agotamiento O2 capa superior pasillo via puerta (gap HVAC-3)
+	"cfast_hall_upper_o2_doorway",
 	# SF-R6 Phase 3: conservación de transporte de contaminantes (residual ~0)
 	"conservation_transport",
 	# SF-VIC-001: acumulación FED individual de víctima (compute_fed_delta_for_height)
