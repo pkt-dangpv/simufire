@@ -228,6 +228,9 @@ Los 4 gaps identificados en la auditoría de v0.4.1 y confirmados en v0.6.0 **no
 
 ## v0.8.0 — Física presión (PHY-B)
 
+**Cierre**: commit `a8390f6` · 400/400 guardrails PASS · 57/57 product checks PASS · 2026-06-04
+
 | ID | Ítem | Descripción | Estado |
 |----|------|-------------|--------|
 | PHY-B1 | Cerrar gap HVAC-1 sobrepresión | `phase3_chi_conv` 0.65 → 0.70 (SFPE/CFAST standard chi_r=0.30). Presión pico: 1475 → 1710 Pa (+16%). Gap CFAST: 22% → 9%. Baseline [1032,1918] → [1454,1968] (±15%). 400/400 PASS. | ✅ COMPLETO 2026-06-05 |
+| PHY-B2 | Cerrar gap HVAC-2 estratificación CO₂ | `co2_yield_kg_per_MJ` per-case override 0.0831→0.0914 (+10%) en `cfast_co2_stratification.json`. SimulationEngine wired. co2_upper: 146593→161196 ppm (+9.97%), gap CFAST ~0%. Baseline [102600,190600]→[137000,185400] (±15%). 400/400 PASS. | ✅ COMPLETO 2026-06-04 |
