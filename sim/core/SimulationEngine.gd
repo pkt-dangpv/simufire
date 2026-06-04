@@ -672,7 +672,7 @@ var _step_time_us: int = 0
 # No modifica overpressure_pa; el campo paralelo pressure_pa_therm se expone en log (P=).
 @export var phase3_thermodynamic_pressure_enabled: bool = false
 @export var phase3_leak_area_m2: float = 0.0
-@export var phase3_chi_conv: float = 0.65
+@export var phase3_chi_conv: float = 0.70
 
 # ============================================================
 # AJUSTES DE HUMO (se copian al SmokeModel)

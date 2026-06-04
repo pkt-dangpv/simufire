@@ -225,3 +225,9 @@ Los 4 gaps identificados en la auditoría de v0.4.1 y confirmados en v0.6.0 **no
 | PHY-A3 | Métrica de ceiling jet | ✅ Completado 2026-05-25 |
 | PHY-A4 | Caso t² puro sin combustible real | ✅ Completado 2026-05-25 |
 | ARCH-1 | Rediseño transporte de capa HVAC | ✅ No aplica — desviaciones Stage-B < 25% en todos los casos B-01..B-04 |
+
+## v0.8.0 — Física presión (PHY-B)
+
+| ID | Ítem | Descripción | Estado |
+|----|------|-------------|--------|
+| PHY-B1 | Cerrar gap HVAC-1 sobrepresión | `phase3_chi_conv` 0.65 → 0.70 (SFPE/CFAST standard chi_r=0.30). Presión pico: 1475 → 1710 Pa (+16%). Gap CFAST: 22% → 9%. Baseline [1032,1918] → [1454,1968] (±15%). 400/400 PASS. | ✅ COMPLETO 2026-06-05 |

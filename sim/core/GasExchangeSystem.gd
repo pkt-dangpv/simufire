@@ -88,9 +88,10 @@ var phase3_thermodynamic_pressure_enabled: bool = false
 # Área efectiva de infiltración [m²]. 0.0 = derivar de ach_infiltration (ver fórmula).
 var phase3_leak_area_m2: float = 0.0
 # Fracción convectiva del HRR para la ODE de presión.
-# CFAST default: ~0.65 convectivo (chi_rad=0.35 radiativo).
+# CFAST/SFPE standard: 0.70 convectivo (chi_rad=0.30 radiativo).
+# Valor 0.70 cierra gap HVAC-1 ~15-25% (era 0.65: subestimaba P_ss ~16%).
 # Este parámetro es independiente de hrr_chi_rad_normal (que calibra T_upper en SF).
-var phase3_chi_conv: float = 0.65
+var phase3_chi_conv: float = 0.70
 var _pending_interior_deliveries: Array[Dictionary] = []
 
 

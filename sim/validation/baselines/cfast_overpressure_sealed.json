@@ -1,6 +1,6 @@
 {
     "metrics": {
-        "room_0_max_overpressure_pa": {"min": 1032.0, "max": 1918.0},
+        "room_0_max_overpressure_pa": {"min": 1454.0, "max": 1968.0},
         "room_0_peak_hrr_kw": {"min": 300.0, "max": 420.0},
         "room_0_peak_temp_upper_c": {"min": 180.0, "max": 320.0}
     }
