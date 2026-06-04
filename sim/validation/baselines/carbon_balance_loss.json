@@ -1,0 +1,9 @@
+{
+	"metrics": {
+		"global_carbon_error_kg": {
+			"expected": -0.0272727272727273,
+			"tolerance": 0.000001,
+			"comment": "Runtime removal loses 0.1 kg initial CO2; SF-CBAL must detect -12/44 kg C."
+		}
+	}
+}

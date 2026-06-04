@@ -219,6 +219,17 @@ func reset() -> void:
 	_pending_interior_deliveries.clear()
 
 
+func get_pending_carbon_kg() -> float:
+	var total_c_kg: float = 0.0
+	for raw_entry in _pending_interior_deliveries:
+		var entry: Dictionary = raw_entry
+		total_c_kg += maxf(0.0, float(entry.get("co_kg", 0.0))) * (12.0 / 28.0) \
+				+ maxf(0.0, float(entry.get("co2_kg", 0.0))) * (12.0 / 44.0) \
+				+ maxf(0.0, float(entry.get("hcn_kg", 0.0))) * (12.0 / 27.0) \
+				+ maxf(0.0, float(entry.get("smoke_kg", 0.0))) * 0.87
+	return total_c_kg
+
+
 func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictionary:
 	var result: Dictionary = {
 		"smoke_vented_kg": 0.0
@@ -314,6 +325,11 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 		result["smoke_vented_kg"] = float(result.get("smoke_vented_kg", 0.0)) + smoke_out_kg
 
 		_call_room_fraction(remove_upper_layer_fraction_callable, room, frac_out)
+		# SF-CBAL: registrar carbono que sale por venteo de presión ANTES de restar.
+		room.c_exited_kg += room.co_kg * air_frac_out * (12.0 / 28.0) \
+				+ room.co2_kg * air_frac_out * (12.0 / 44.0) \
+				+ room.hcn_kg * air_frac_out * (12.0 / 27.0) \
+				+ smoke_out_kg * 0.87
 		room.co_kg = maxf(0.0, room.co_kg * (1.0 - air_frac_out))
 		room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - air_frac_out))
 		room.co2_kg = maxf(0.0, room.co2_kg * (1.0 - air_frac_out))
@@ -411,6 +427,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			if vented_kg > 0.0:
 				smoke_delta_kg[room_out.id] -= vented_kg
 				result["smoke_vented_kg"] = float(result.get("smoke_vented_kg", 0.0)) + vented_kg
+				# El hollín sale aunque la masa restante sea demasiado baja para arrastrar especies.
+				room_out.c_exited_kg += vented_kg * 0.87
 
 				if room_out.smoke_kg > 0.001:
 					var vent_frac: float = minf(1.0, vented_kg / room_out.smoke_kg)
@@ -423,6 +441,10 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					hcl_delta_kg[room_out.id] -= vent_frac * room_out.hcl_kg
 					acrolein_delta_kg[room_out.id] -= vent_frac * room_out.acrolein_kg
 					formaldehyde_delta_kg[room_out.id] -= vent_frac * room_out.formaldehyde_kg
+					# SF-CBAL: carbono que sale por venteo con flujo de humo.
+					room_out.c_exited_kg += vent_frac * room_out.co_kg * (12.0 / 28.0) \
+							+ vent_frac * room_out.co2_kg * (12.0 / 44.0) \
+							+ vent_frac * room_out.hcn_kg * (12.0 / 27.0)
 					# Gas térmico: usa fracción volumétrica real, no la fracción de humo.
 					var rho_upper: float = maxf(0.05, air_density_kg_m3_s * 293.15 / maxf(50.0, room_out.temp_upper_c + 273.15))
 					var vol_frac: float = clampf(vented_kg / (rho_upper * maxf(1.0, room_out.volume_m3())), 0.0, 0.15)
@@ -492,6 +514,11 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					co2_upper_delta_kg[room_out.id] -= room_out.co2_upper_kg * purge_frac
 					hcn_delta_kg[room_out.id] -= room_out.hcn_kg * purge_frac
 					hcn_upper_delta_kg[room_out.id] -= room_out.hcn_upper_kg * purge_frac
+					# SF-CBAL: carbono que sale por purga de ventilación natural.
+					room_out.c_exited_kg += room_out.co_kg * purge_frac * (12.0 / 28.0) \
+							+ room_out.co2_kg * purge_frac * (12.0 / 44.0) \
+							+ room_out.hcn_kg * purge_frac * (12.0 / 27.0) \
+							+ room_out.smoke_kg * purge_frac * 0.87
 
 			continue
 
@@ -806,19 +833,19 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg + float(formaldehyde_delta_kg[int(room_id)]))
 
 		var ach_rate: float = ach_infiltration / 3600.0
-		var co_removed: float = room.co_kg * ach_rate * dt
+		var co_removed: float = minf(room.co_kg, room.co_kg * ach_rate * dt)
 		var co_remove_fraction: float = 0.0
 		if room.co_kg > 0.000001:
 			co_remove_fraction = co_removed / room.co_kg
 		room.co_kg = maxf(0.0, room.co_kg - co_removed)
 		room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - clampf(co_remove_fraction, 0.0, 1.0)))
-		var co2_removed: float = room.co2_kg * ach_rate * dt
+		var co2_removed: float = minf(room.co2_kg, room.co2_kg * ach_rate * dt)
 		var co2_remove_fraction: float = 0.0
 		if room.co2_kg > 0.000001:
 			co2_remove_fraction = co2_removed / room.co2_kg
 		room.co2_kg = maxf(0.0, room.co2_kg - co2_removed)
 		room.co2_upper_kg = maxf(0.0, room.co2_upper_kg * (1.0 - clampf(co2_remove_fraction, 0.0, 1.0)))
-		var hcn_removed: float = room.hcn_kg * ach_rate * dt
+		var hcn_removed: float = minf(room.hcn_kg, room.hcn_kg * ach_rate * dt)
 		var hcn_remove_fraction: float = 0.0
 		if room.hcn_kg > 0.000001:
 			hcn_remove_fraction = hcn_removed / room.hcn_kg
@@ -840,13 +867,18 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			# post-incendio queda menos perfectamente mezclado y se purga algo mas
 			# despacio que CO/CO2 por simple infiltracion.
 			smoke_ach_efficiency = 0.70
-		var smoke_removed: float = room_volume_m3_s \
+		var smoke_removed: float = minf(room.smoke_kg, room_volume_m3_s \
 				* air_density_kg_m3_s \
 				* smoke_concentration \
 				* ach_rate \
 				* dt \
-				* smoke_ach_efficiency
+				* smoke_ach_efficiency)
 		room.smoke_kg = maxf(0.0, room.smoke_kg - smoke_removed)
+		# SF-CBAL: la infiltración ACH sustituye aire interior por aire exterior.
+		room.c_exited_kg += co_removed * (12.0 / 28.0) \
+				+ co2_removed * (12.0 / 44.0) \
+				+ hcn_removed * (12.0 / 27.0) \
+				+ smoke_removed * 0.87
 
 		var open_species_purge_fraction: float = _compute_outside_species_purge_fraction(building, room, dt)
 		if open_species_purge_fraction > 0.0:
@@ -882,6 +914,10 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					* open_species_purge_fraction \
 					* lerpf(0.40, 0.75, upper_bias)
 			room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg - formaldehyde_removed_kg)
+			# SF-CBAL: carbono que sale por purga exterior de especies (outside_open_species_purge).
+			room.c_exited_kg += (co_upper_removed_kg + co_lower_removed_kg) * (12.0 / 28.0) \
+					+ co2_removed_kg * (12.0 / 44.0) \
+					+ hcn_removed_kg * (12.0 / 27.0)
 
 		var cleanup_factor: float = _compute_postfire_cleanup_factor(room)
 		if cleanup_factor > 0.0:
@@ -896,6 +932,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			var deposited_smoke_kg: float = minf(room.smoke_kg, room.smoke_kg * smoke_settling_rate * dt)
 			room.smoke_kg = maxf(0.0, room.smoke_kg - deposited_smoke_kg)
 			result["smoke_deposited_kg"] = float(result.get("smoke_deposited_kg", 0.0)) + deposited_smoke_kg
+			# SF-CBAL: hollín depositado en paredes (carbono que sale de la fase gaseosa).
+			room.c_deposited_kg += deposited_smoke_kg * 0.87
 
 			# Igual para CO/CO2: purga post-incendio solo cuando el fuego está extinto.
 			var co_purge_rate: float = 0.0
@@ -914,6 +952,11 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			var purged_hcn_kg: float = minf(room.hcn_kg, room.hcn_kg * co_purge_rate * dt)
 			room.hcn_kg = maxf(0.0, room.hcn_kg - purged_hcn_kg)
 			room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg * (1.0 - clampf(purge_co_fraction, 0.0, 1.0)))
+			# SF-CBAL: carbono que sale por purga post-incendio (CO/CO₂/HCN → exterior).
+			if co_purge_rate > 0.0:
+				room.c_exited_kg += purged_co_kg * (12.0 / 28.0) \
+						+ purged_co2_kg * (12.0 / 44.0) \
+						+ purged_hcn_kg * (12.0 / 27.0)
 			var purged_hcl_kg: float = minf(room.hcl_kg, room.hcl_kg * co_purge_rate * dt)
 			room.hcl_kg = maxf(0.0, room.hcl_kg - purged_hcl_kg)
 			var purged_acrolein_kg: float = minf(room.acrolein_kg, room.acrolein_kg * co_purge_rate * dt)
@@ -1633,6 +1676,13 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 		)
 		# Purgar humo y especies por dilución
 		var smoke_purged_inlet: float = inlet_room.smoke_kg * mix_frac
+		var co_purged_inlet: float = inlet_room.co_kg * mix_frac
+		var co2_purged_inlet: float = inlet_room.co2_kg * mix_frac
+		var hcn_purged_inlet: float = inlet_room.hcn_kg * mix_frac
+		inlet_room.c_exited_kg += co_purged_inlet * (12.0 / 28.0) \
+				+ co2_purged_inlet * (12.0 / 44.0) \
+				+ hcn_purged_inlet * (12.0 / 27.0) \
+				+ smoke_purged_inlet * 0.87
 		inlet_room.smoke_kg = maxf(0.0, inlet_room.smoke_kg - smoke_purged_inlet)
 		inlet_room.co_kg = maxf(0.0, inlet_room.co_kg * (1.0 - mix_frac))
 		inlet_room.co_upper_kg = maxf(0.0, inlet_room.co_upper_kg * (1.0 - mix_frac))
@@ -1674,6 +1724,13 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 			var ex_vol_total: float = exhaust_q_total_m3s * dt
 			var ex_frac: float = clampf(ex_vol_total / room_vol_m3, 0.0, 0.30)
 			var smoke_purged_ex: float = inlet_room.smoke_kg * ex_frac
+			var co_purged_ex: float = inlet_room.co_kg * ex_frac
+			var co2_purged_ex: float = inlet_room.co2_kg * ex_frac
+			var hcn_purged_ex: float = inlet_room.hcn_kg * ex_frac
+			inlet_room.c_exited_kg += co_purged_ex * (12.0 / 28.0) \
+					+ co2_purged_ex * (12.0 / 44.0) \
+					+ hcn_purged_ex * (12.0 / 27.0) \
+					+ smoke_purged_ex * 0.87
 			inlet_room.smoke_kg = maxf(0.0, inlet_room.smoke_kg - smoke_purged_ex)
 			inlet_room.co_kg = maxf(0.0, inlet_room.co_kg * (1.0 - ex_frac))
 			inlet_room.co_upper_kg = maxf(0.0, inlet_room.co_upper_kg * (1.0 - ex_frac))

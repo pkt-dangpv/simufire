@@ -1,0 +1,9 @@
+{
+    "metrics": {
+        "peak_global_carbon_transport_residual_kg_abs": {
+            "max": 0.010,
+            "comment": "SF-CBAL transport: sistema cerrado (sin salidas exteriores), fuego en sala 0, puerta abierta a sala 1. El carbon solo se mueve entre salas; el balance global debe ser ~0. Umbral 10g C tolerancia numerica."
+        },
+        "room_0_peak_hrr_kw": {"min": 100.0, "max": 700.0}
+    }
+}

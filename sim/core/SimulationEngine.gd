@@ -138,6 +138,22 @@ var suppression_cooling_total_kj: float = 0.0
 var _active_suppression_by_room: Dictionary = {}
 
 # ============================================================
+# SF-CBAL GLOBAL: BALANCE DE CARBONO A NIVEL DE EDIFICIO
+# ============================================================
+## Error global = inventario + pendientes + productos no modelados + sumideros
+##                 − C_inicial − C_quemado.
+## Positivo = creación espuria; negativo = pérdida numérica (clamp u otro).
+## El transporte interno entre salas es invariante (se cancela en la suma).
+var _cbal_initialized: bool = false
+var _cbal_c_initial_kg: float = 0.0
+var global_carbon_error_kg: float = 0.0
+var global_carbon_preclamp_excess_kg: float = 0.0
+var global_carbon_postclamp_excess_kg: float = 0.0
+var global_carbon_transport_residual_kg: float = 0.0
+# SF-CBAL: carbono acumulado que salió por exhaust del HVAC (kg C).
+var _cbal_hvac_c_exhausted_kg: float = 0.0
+
+# ============================================================
 # IGNICIÓN INICIAL
 # ============================================================
 
@@ -1103,6 +1119,10 @@ func _build_state_context() -> Dictionary:
 		"kawagoe_factor_callable": Callable(self, "_kawagoe_factor_for_room"),
 		"energy_budget": thermal_system.get_energy_budget() if energy_budget_enabled else {},
 		"conservation_max_violation_frac": _conservation_max_violation_frac,
+		"global_carbon_error_kg": global_carbon_error_kg,
+		"global_carbon_preclamp_excess_kg": global_carbon_preclamp_excess_kg,
+		"global_carbon_postclamp_excess_kg": global_carbon_postclamp_excess_kg,
+		"global_carbon_transport_residual_kg": global_carbon_transport_residual_kg,
 		"step_time_us": _step_time_us,
 	}
 
@@ -1267,6 +1287,14 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	suppression_water_applied_l = 0.0
 	suppression_cooling_total_kj = 0.0
 	_active_suppression_by_room.clear()
+	# SF-CBAL global: resetear para que el próximo paso recapture el inventario inicial.
+	_cbal_initialized = false
+	_cbal_c_initial_kg = 0.0
+	global_carbon_error_kg = 0.0
+	global_carbon_preclamp_excess_kg = 0.0
+	global_carbon_postclamp_excess_kg = 0.0
+	global_carbon_transport_residual_kg = 0.0
+	_cbal_hvac_c_exhausted_kg = 0.0
 	sim_time_s = 0.0
 	is_finished = false
 	_extinction_countdown = extinction_grace_s
@@ -1352,6 +1380,9 @@ func step(delta: float) -> void:
 	# modificados por el otro.
 	_opening_flow_cache = _build_opening_flow_cache()
 
+	# SF-CBAL: capturar inventario inicial antes de cualquier física.
+	_ensure_carbon_balance_initialized()
+
 	_step_pool_fires(dt)
 	_step_fire(dt)
 	_step_co_oxidation(dt)
@@ -1378,6 +1409,8 @@ func step(delta: float) -> void:
 	_step_passive_fuel(dt)
 	fire_spread_system.step(dt, Callable(self, "ignite_room"))
 	_clamp_rooms(dt)
+	# Evaluar el estado final del paso, incluyendo cualquier pérdida por clamp.
+	_check_carbon_balance()
 	_step_detectors(dt)
 	_update_room_ceiling_jet_temps()  # BV-028: exportar ceiling_jet_temp_c a RoomModel
 	_step_victims(dt)
@@ -1592,6 +1625,8 @@ func _step_hvac(dt: float) -> void:
 		return
 	var result: Dictionary = hvac_system.step(building, dt, _build_hvac_hooks())
 	smoke_vented_total_kg += float(result.get("smoke_exhausted_kg", 0.0))
+	# SF-CBAL: acumular carbono exhaustado permanentemente por HVAC.
+	_cbal_hvac_c_exhausted_kg += float(result.get("c_exhausted_kg", 0.0))
 
 
 func apply_suppression(
@@ -2194,6 +2229,72 @@ func debug_check_smoke_conservation() -> void:
 			" error=",
 			error
 		)
+
+# ============================================================
+# BALANCE DE CARBONO (SF-CBAL)
+# ============================================================
+
+## Captura una sola vez el inventario inicial antes del primer paso de física.
+func _ensure_carbon_balance_initialized() -> void:
+	if _cbal_initialized or building == null:
+		return
+	_cbal_c_initial_kg = 0.0
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+		_cbal_c_initial_kg += room.co_kg * (12.0 / 28.0) \
+				+ room.co2_kg * (12.0 / 44.0) \
+				+ room.hcn_kg * (12.0 / 27.0) \
+				+ room.smoke_kg * 0.87
+	_cbal_initialized = true
+
+
+## Calcula el error de conservación de carbono al final de cada paso.
+## Diagnóstico puro: no modifica ningún campo físico.
+## Error por sala = (CO·12/28 + CO₂·12/44 + HCN·12/27 + smoke·0.87) − c_burned_total_kg.
+## Error global incluye productos no modelados, depósitos, salidas y transporte pendiente.
+## Negativo = pérdida (clamp u otro); positivo = creación espuria.
+func _check_carbon_balance() -> void:
+	_ensure_carbon_balance_initialized()
+	var c_in_system: float = 0.0
+	var c_burned_total: float = 0.0
+	var c_exited_total: float = 0.0
+	var c_deposited_total: float = 0.0
+	var c_untracked_total: float = 0.0
+	var c_preclamp_excess_total: float = 0.0
+	var c_postclamp_excess_total: float = 0.0
+
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+		var c_in_gases: float = room.co_kg * (12.0 / 28.0) \
+				+ room.co2_kg * (12.0 / 44.0) \
+				+ room.hcn_kg * (12.0 / 27.0) \
+				+ room.smoke_kg * 0.87  # hollín ≈ 87% C (SFPE Handbook Table 3.4-3)
+		room.carbon_conservation_error_kg = c_in_gases - room.c_burned_total_kg
+		c_in_system += c_in_gases
+		c_burned_total += room.c_burned_total_kg
+		c_exited_total += room.c_exited_kg
+		c_deposited_total += room.c_deposited_kg
+		c_untracked_total += room.c_untracked_products_kg
+		c_preclamp_excess_total += room.c_preclamp_excess_kg
+		c_postclamp_excess_total += room.c_postclamp_excess_kg
+
+	var c_pending_internal: float = 0.0
+	if gas_exchange_system != null:
+		c_pending_internal = gas_exchange_system.get_pending_carbon_kg()
+
+	# Error global = inventarios + sumideros − inventario inicial − fuente de combustible.
+	# Positivo = creación espuria; negativo = pérdida numérica (clamp u otro).
+	global_carbon_error_kg = c_in_system + c_pending_internal + c_untracked_total \
+			+ c_exited_total + c_deposited_total + _cbal_hvac_c_exhausted_kg \
+			- _cbal_c_initial_kg - c_burned_total
+	global_carbon_preclamp_excess_kg = c_preclamp_excess_total
+	global_carbon_postclamp_excess_kg = c_postclamp_excess_total
+	# Residual de flujos separado solo del exceso que realmente entró al estado físico.
+	global_carbon_transport_residual_kg = global_carbon_error_kg - c_postclamp_excess_total
 
 # ============================================================
 # CLAMP / LIMPIEZA

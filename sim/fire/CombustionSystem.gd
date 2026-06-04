@@ -716,6 +716,9 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var c_in_co2: float = generated_co2_kg * (12.0 / 44.0)
 	var c_in_hcn: float = generated_hcn_kg * (12.0 / 27.0)
 	var c_total: float = c_in_co + c_in_co2 + c_in_hcn
+	var c_in_soot: float = room.smoke_prod_kg_s * dt * 0.87
+	# SF-CBAL: registrar el exceso real solicitado por los yields ANTES del clamp.
+	room.c_preclamp_excess_kg += maxf(0.0, c_total + c_in_soot - c_avail_kg)
 	if c_avail_kg > 0.0 and c_total > c_avail_kg:
 		var c_scale: float = c_avail_kg / c_total
 		generated_co_kg *= c_scale
@@ -730,6 +733,16 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		room.c_balance_frac = c_produced / c_avail_kg
 	else:
 		room.c_balance_frac = 0.0
+
+	# SF-CBAL: la fuente canónica es el carbono consumido del combustible PRE-clamp.
+	# La fracción no representada por especies se mantiene como producto no modelado.
+	var c_products_postclamp: float = generated_co_kg * (12.0 / 28.0) \
+			+ generated_co2_kg * (12.0 / 44.0) \
+			+ generated_hcn_kg * (12.0 / 27.0) \
+			+ c_in_soot
+	room.c_burned_total_kg += c_avail_kg
+	room.c_untracked_products_kg += maxf(0.0, c_avail_kg - c_products_postclamp)
+	room.c_postclamp_excess_kg += maxf(0.0, c_products_postclamp - c_avail_kg)
 
 	# Phase 2G — término fuente CO zona lower en generación (experimental, default OFF).
 	# Cuando flag ON: una fracción de generated_co_kg se asigna al lower implícito;

@@ -1,0 +1,45 @@
+{
+	"baseline": {
+		"all_pass": true,
+		"checks": {
+			"global_carbon_error_kg": {
+				"actual": -0.0272727272727273,
+				"pass": true,
+				"rule": {
+					"comment": "Runtime removal loses 0.1 kg initial CO2; SF-CBAL must detect -12/44 kg C.",
+					"expected": -0.0272727272727273,
+					"tolerance": 0.000001
+				}
+			}
+		}
+	},
+	"case": "carbon_balance_loss",
+	"duration_s": 3.0,
+	"metrics": {
+		"carbon_event_0_time_s": 0.0,
+		"carbon_event_1_time_s": 1.0,
+		"conservation_max_violation_frac": -1.0,
+		"global_carbon_error_kg": -0.0272727272727273,
+		"global_carbon_error_kg_abs": 0.0272727272727273,
+		"global_carbon_postclamp_excess_kg": 0.0,
+		"global_carbon_preclamp_excess_kg": 0.0,
+		"global_carbon_transport_residual_kg": -0.0272727272727273,
+		"hvac_on": 0.0,
+		"max_upper_radiative_loss_kw_global": 0.0,
+		"peak_co_ppm_global": 0.0,
+		"peak_co_upper_ppm_global": 0.0,
+		"peak_global_carbon_error_kg_abs": 0.0272727272727273,
+		"peak_global_carbon_transport_residual_kg_abs": 0.0272727272727273,
+		"peak_hrr_kw_global": 0.0,
+		"peak_temp_upper_c_global": 20.0,
+		"peak_temp_upper_raw_c_global": 20.0,
+		"smoke_deposited_total_kg": 0.0,
+		"smoke_generated_total_kg": 0.0,
+		"smoke_vented_total_kg": 0.0,
+		"suppression_cooling_total_kj": 0.0,
+		"suppression_water_applied_l": 0.0,
+		"watched_temp_upper_clamp_count": 0,
+		"watched_temp_upper_clamp_time_s": 0.0
+	},
+	"sim_time_s": 3.0
+}

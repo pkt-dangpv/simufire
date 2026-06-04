@@ -1,0 +1,10 @@
+{
+    "metrics": {
+        "peak_global_carbon_transport_residual_kg_abs": {
+            "max": 0.020,
+            "comment": "SF-CBAL HVAC: fuego en sala sellada con HVAC activo (outside_air_fraction=1.0). El carbon exhaustado por HVAC es rastreado en _cbal_hvac_c_exhausted_kg. El balance global debe ser ~0. Umbral 20g C tolerancia numerica."
+        },
+        "room_0_peak_hrr_kw": {"min": 50.0, "max": 700.0},
+        "hvac_on": {"min": 1, "max": 1}
+    }
+}

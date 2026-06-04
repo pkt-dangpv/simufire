@@ -120,7 +120,13 @@ $cases = @(
 	# SF-R6 Phase 3: conservación de transporte de contaminantes (residual ~0)
 	"conservation_transport",
 	# SF-VIC-001: acumulación FED individual de víctima (compute_fed_delta_for_height)
-	"victim_fed_incapacitation"
+	"victim_fed_incapacitation",
+	# SF-CBAL runtime Godot: balance global de carbono (transporte, ventilacion, HVAC)
+	"carbon_balance_transport",
+	"carbon_balance_ventilation",
+	"carbon_balance_hvac",
+	"carbon_balance_creation",
+	"carbon_balance_loss"
 )
 
 $results = New-Object System.Collections.Generic.List[object]

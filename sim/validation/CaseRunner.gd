@@ -34,6 +34,7 @@ var _output_path: String = ""
 var _baseline_path: String = ""
 var _opening_events: Array = []
 var _suppression_events: Array = []
+var _carbon_events: Array = []
 var _incident_started: bool = false
 var _runtime_error_reported: bool = false
 
@@ -60,6 +61,8 @@ func _process(_delta: float) -> void:
 	if _apply_due_opening_events(sim_time_s):
 		state = engine.get_state()
 	if _apply_due_suppression_events(sim_time_s):
+		state = engine.get_state()
+	if _apply_due_carbon_events(sim_time_s):
 		state = engine.get_state()
 	_update_metrics(state)
 
@@ -141,6 +144,7 @@ func _begin_validation_run() -> void:
 
 	_opening_events = _prepare_opening_events(_case_config.get("opening_events", []))
 	_suppression_events = _prepare_suppression_events(_case_config.get("suppression_events", []))
+	_carbon_events = _prepare_carbon_events(_case_config.get("carbon_events", []))
 
 	# SF-AUD-029: cargar targets radiantes pasivos del caso
 	var targets_data: Array = _case_config.get("targets", [])
@@ -200,6 +204,11 @@ func _run_validation_loop() -> void:
 			state = engine.get_state()
 			if state.is_empty():
 				_abort_validation_run("CaseRunner: estado vacio tras evento de supresion")
+				return
+		if _apply_due_carbon_events(sim_time_s):
+			state = engine.get_state()
+			if state.is_empty():
+				_abort_validation_run("CaseRunner: estado vacio tras evento de carbono")
 				return
 
 		if sim_time_s >= duration_s:
@@ -385,6 +394,25 @@ func _prepare_suppression_events(raw_events: Variant) -> Array:
 	return result
 
 
+func _prepare_carbon_events(raw_events: Variant) -> Array:
+	var result: Array = []
+	if typeof(raw_events) != TYPE_ARRAY:
+		return result
+
+	for raw_event in raw_events:
+		if typeof(raw_event) != TYPE_DICTIONARY:
+			continue
+		var event_data: Dictionary = Dictionary(raw_event).duplicate(true)
+		event_data["time_s"] = float(event_data.get("time_s", 0.0))
+		event_data["room_id"] = int(event_data.get("room_id", 0))
+		event_data["species"] = String(event_data.get("species", "co2_kg"))
+		event_data["delta_kg"] = float(event_data.get("delta_kg", 0.0))
+		event_data["applied"] = false
+		result.append(event_data)
+
+	return result
+
+
 func _apply_due_opening_events(sim_time_s: float) -> bool:
 	if building == null or _opening_events.is_empty():
 		return false
@@ -447,6 +475,36 @@ func _apply_due_suppression_events(sim_time_s: float) -> bool:
 		event_data["applied"] = true
 		_suppression_events[index] = event_data
 		changed = true
+
+	return changed
+
+
+func _apply_due_carbon_events(sim_time_s: float) -> bool:
+	if building == null or _carbon_events.is_empty():
+		return false
+
+	var allowed_species: Array[String] = ["co_kg", "co2_kg", "hcn_kg", "smoke_kg"]
+	var changed: bool = false
+	for index in range(_carbon_events.size()):
+		var event_data: Dictionary = _carbon_events[index]
+		if bool(event_data.get("applied", false)):
+			continue
+		if sim_time_s < float(event_data.get("time_s", 0.0)):
+			continue
+
+		var room_id: int = int(event_data.get("room_id", 0))
+		var species: String = String(event_data.get("species", "co2_kg"))
+		var room: RoomModel = building.get_room(room_id)
+		if room == null or not allowed_species.has(species):
+			push_warning("CaseRunner: evento de carbono invalido %s" % JSON.stringify(event_data))
+		else:
+			var delta_kg: float = float(event_data.get("delta_kg", 0.0))
+			room.set(species, maxf(0.0, float(room.get(species)) + delta_kg))
+			_metrics["carbon_event_%d_time_s" % index] = sim_time_s
+			changed = true
+
+		event_data["applied"] = true
+		_carbon_events[index] = event_data
 
 	return changed
 
@@ -577,6 +635,28 @@ func _update_metrics(state: Dictionary) -> void:
 	# SF-R6 Phase 3: violación de conservación de transporte acumulada.
 	# -1.0 = conservation_check_enabled=false (dato no disponible).
 	_metrics["conservation_max_violation_frac"] = float(state.get("conservation_max_violation_frac", -1.0))
+	# SF-CBAL: error global de balance de carbono (kg C).
+	var global_carbon_error_kg: float = float(state.get("global_carbon_error_kg", 0.0))
+	var global_carbon_error_abs_kg: float = absf(global_carbon_error_kg)
+	_metrics["global_carbon_error_kg"] = global_carbon_error_kg
+	_metrics["global_carbon_error_kg_abs"] = global_carbon_error_abs_kg
+	_metrics["peak_global_carbon_error_kg_abs"] = maxf(
+		float(_metrics.get("peak_global_carbon_error_kg_abs", 0.0)),
+		global_carbon_error_abs_kg
+	)
+	_metrics["global_carbon_preclamp_excess_kg"] = float(
+		state.get("global_carbon_preclamp_excess_kg", 0.0)
+	)
+	_metrics["global_carbon_postclamp_excess_kg"] = float(
+		state.get("global_carbon_postclamp_excess_kg", 0.0)
+	)
+	var transport_residual_kg: float = float(state.get("global_carbon_transport_residual_kg", 0.0))
+	_metrics["global_carbon_transport_residual_kg"] = transport_residual_kg
+	_metrics["peak_global_carbon_transport_residual_kg_abs"] = maxf(
+		float(_metrics.get("peak_global_carbon_transport_residual_kg_abs", 0.0)),
+		absf(transport_residual_kg)
+	)
+	_metrics["hvac_on"] = 1.0 if bool(state.get("hvac_on", false)) else 0.0
 
 	var trigger_room_id: int = int(_case_config.get("smoke_trigger_room_id", 0))
 	var target_room_id: int = int(_case_config.get("spread_target_room_id", 1))

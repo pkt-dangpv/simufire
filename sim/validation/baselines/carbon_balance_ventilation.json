@@ -1,0 +1,9 @@
+{
+    "metrics": {
+        "peak_global_carbon_transport_residual_kg_abs": {
+            "max": 0.020,
+            "comment": "SF-CBAL ventilacion: fuego en sala 0 con ventana exterior parcialmente abierta (40%). El carbon que sale por ventana es rastreado en c_exited_kg. El balance global debe ser ~0. Umbral 20g C tolerancia numerica + pequenas perdidas de clamp."
+        },
+        "room_0_peak_hrr_kw": {"min": 100.0, "max": 700.0}
+    }
+}

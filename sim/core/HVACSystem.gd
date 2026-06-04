@@ -32,7 +32,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictionary:
 		"active": false,
 		"transported_air_kg": 0.0,
 		"smoke_exhausted_kg": 0.0,
-		"smoke_recirculated_kg": 0.0
+		"smoke_recirculated_kg": 0.0,
+		"c_exhausted_kg": 0.0
 	}
 	if building == null or dt <= 0.0:
 		return result
@@ -75,6 +76,10 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictionary:
 	var smoke_from_returns_kg: float = float(return_sample.get("smoke_kg", 0.0))
 	result["transported_air_kg"] = returned_air_kg
 	result["smoke_exhausted_kg"] = smoke_from_returns_kg * exhaust_fraction
+	var c_from_returns_kg: float = float(return_sample.get("co_kg", 0.0)) * (12.0 / 28.0) \
+			+ float(return_sample.get("co2_kg", 0.0)) * (12.0 / 44.0) \
+			+ float(return_sample.get("hcn_kg", 0.0)) * (12.0 / 27.0) \
+			+ smoke_from_returns_kg * 0.87
 
 	var supply_mix: Dictionary = {
 		"o2": lerpf(float(return_sample.get("o2", building.outside_o2)), building.outside_o2, outside_air_fraction),
@@ -108,7 +113,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictionary:
 		) / returned_air_kg
 	}
 
-	var recirculated_smoke_kg: float = _supply_air(
+	var supply_result: Dictionary = _supply_air(
 		building,
 		supply_vents,
 		flow_m3_s,
@@ -117,7 +122,12 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictionary:
 		supply_mix,
 		hooks
 	)
-	result["smoke_recirculated_kg"] = recirculated_smoke_kg
+	result["smoke_recirculated_kg"] = float(supply_result.get("smoke_recirculated_kg", 0.0))
+	# SF-CBAL: todo carbono retirado que no vuelve por supply sale o queda en filtros.
+	result["c_exhausted_kg"] = maxf(
+		0.0,
+		c_from_returns_kg - float(supply_result.get("c_supplied_kg", 0.0))
+	)
 	_sync_touched_rooms(building, return_sample.get("touched_room_ids", []), hooks, dt)
 	_sync_touched_rooms(building, _collect_vent_room_ids(supply_vents), hooks, dt)
 	return result
@@ -205,12 +215,17 @@ func _supply_air(
 	max_room_fraction: float,
 	supply_mix: Dictionary,
 	hooks: Dictionary
-) -> float:
+) -> Dictionary:
+	var result: Dictionary = {
+		"smoke_recirculated_kg": 0.0,
+		"c_supplied_kg": 0.0
+	}
 	var total_weight: float = _sum_vent_weights(supply_vents)
 	if total_weight <= 0.0:
-		return 0.0
+		return result
 
 	var recirculated_smoke_kg: float = 0.0
+	var c_supplied_kg: float = 0.0
 	for vent in supply_vents:
 		var room_id: int = int(vent.get("room_id", -1))
 		var room: RoomModel = building.get_room(room_id)
@@ -249,8 +264,14 @@ func _supply_air(
 		room.co2_upper = clampf(lerpf(room.co2_upper, supply_co2_upper, air_fraction), 0.0, 0.30)
 		_apply_supply_heat(room, vent, air_kg, float(supply_mix.get("temp_c", building.outside_temp_c)), hooks)
 		recirculated_smoke_kg += smoke_added_kg
+		c_supplied_kg += co_added_kg * (12.0 / 28.0) \
+				+ co2_added_kg * (12.0 / 44.0) \
+				+ hcn_added_kg * (12.0 / 27.0) \
+				+ smoke_added_kg * 0.87
 
-	return recirculated_smoke_kg
+	result["smoke_recirculated_kg"] = recirculated_smoke_kg
+	result["c_supplied_kg"] = c_supplied_kg
+	return result
 
 
 func _compute_supply_temp_c(

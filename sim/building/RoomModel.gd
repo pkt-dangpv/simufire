@@ -82,6 +82,27 @@ var hcn_upper_kg: float = 0.0  # HCN en capa superior (kg)
 # Fracción de carbono producida vs disponible (diagnóstico SF-AUD-032).
 # Calculada en CombustionSystem cada paso; 1.0 = balance exacto; <1.0 = bien ventilado.
 var c_balance_frac: float = 0.0
+# SF-CBAL: integral de carbono consumido del combustible antes del clamp (kg C).
+# Incrementado en CombustionSystem cada paso de combustión activa.
+var c_burned_total_kg: float = 0.0
+# Carbono consumido que no está representado por CO/CO2/HCN/soot (kg C).
+# Se conserva explícitamente para que el ledger no confunda productos no modelados con pérdida.
+var c_untracked_products_kg: float = 0.0
+# Exceso acumulado solicitado por los yields antes del clamp de carbono (kg C).
+var c_preclamp_excess_kg: float = 0.0
+# Exceso acumulado que permanece en productos físicos después del clamp (kg C).
+var c_postclamp_excess_kg: float = 0.0
+# Error de conservación de carbono (kg C): C_en_gases − c_burned_total_kg.
+# Negativo = C transportado a otras salas o exterior (normal en sala de fuego).
+# Positivo en sala de fuego = posible creación espuria (diagnóstico SF-CBAL).
+var carbon_conservation_error_kg: float = 0.0
+# SF-CBAL global: carbono acumulado que salió por aperturas exteriores (kg C).
+# Incrementado en GasExchangeSystem cada vez que CO/CO₂/HCN/humo se ventila
+# al exterior (presión, flujo de humo, purgas, ACH o PPV).
+var c_exited_kg: float = 0.0
+# SF-CBAL: carbono depositado en paredes/suelo (hollín sedimentado, kg C).
+# Incrementado en GasExchangeSystem en la fase de sedimentación de humo.
+var c_deposited_kg: float = 0.0
 
 # Irritantes — SF-AUD-018 (ISO 13571 FEC).
 # Masa de gases irritantes: HCl (PVC), acroleína y formaldehído (madera/plásticos).
@@ -246,7 +267,10 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	co_kg = 0.0
 	co_upper_kg = 0.0
 	co2_kg = 0.0
+	co2_upper = 0.0004
+	co2_upper_kg = 0.0
 	hcn_kg = 0.0
+	hcn_upper_kg = 0.0
 	hcl_kg = 0.0
 	acrolein_kg = 0.0
 	formaldehyde_kg = 0.0
@@ -296,3 +320,10 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	wall_T_mid_c = ambient_temp_c
 	wall_T_outer_c = ambient_temp_c
 	mdot_vent_kg_s = 0.0
+	c_burned_total_kg = 0.0
+	c_untracked_products_kg = 0.0
+	c_preclamp_excess_kg = 0.0
+	c_postclamp_excess_kg = 0.0
+	carbon_conservation_error_kg = 0.0
+	c_exited_kg = 0.0
+	c_deposited_kg = 0.0

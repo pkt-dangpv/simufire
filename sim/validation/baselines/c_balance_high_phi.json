@@ -18,6 +18,14 @@
         "room_0_peak_hrr_kw": {
             "min": 500.0,
             "comment": "HRR alto: condiciones de subventilación alcanzadas"
+        },
+        "global_carbon_preclamp_excess_kg": {
+            "min": 1.0,
+            "comment": "El caso rico debe activar el diagnóstico de exceso solicitado antes del clamp"
+        },
+        "peak_global_carbon_transport_residual_kg_abs": {
+            "max": 0.02,
+            "comment": "El clamp químico no debe aparecer falsamente como pérdida de transporte"
         }
     }
 }

@@ -21,6 +21,11 @@ func build_state(context: Dictionary) -> Dictionary:
 		"suppression_cooling_total_kj": float(context.get("suppression_cooling_total_kj", 0.0)),
 		# SF-R6 Phase 3: residual de conservación de transporte (-1.0 = check desactivado).
 		"conservation_max_violation_frac": float(context.get("conservation_max_violation_frac", -1.0)),
+		# SF-CBAL: error global de balance de carbono (kg C). 0 = balance perfecto.
+		"global_carbon_error_kg": float(context.get("global_carbon_error_kg", 0.0)),
+		"global_carbon_preclamp_excess_kg": float(context.get("global_carbon_preclamp_excess_kg", 0.0)),
+		"global_carbon_postclamp_excess_kg": float(context.get("global_carbon_postclamp_excess_kg", 0.0)),
+		"global_carbon_transport_residual_kg": float(context.get("global_carbon_transport_residual_kg", 0.0)),
 	}
 	var hvac: Dictionary = context.get("hvac", {})
 	state["hvac_exists"] = bool(hvac.get("exists", false))
