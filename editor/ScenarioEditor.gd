@@ -90,7 +90,7 @@ const ZOOM_OUT_FACTOR := 0.90
 const MIN_ZOOM := 0.35
 const MAX_ZOOM := 4.0
 const PAN_SPEED := 650.0
-const OBJECT_HANDLE_RADIUS_PX: float = 6.5
+@export var object_handle_radius_px: float = 6.5
 const OBJECT_HANDLE_HIT_RADIUS_M: float = 0.22
 const OBJECT_ROTATE_HANDLE_OFFSET_M: float = 0.38
 const OBJECT_WALL_SNAP_M: float = GRID_M * 0.75
@@ -274,29 +274,29 @@ var _wall_end_x_spin: SpinBox
 var _wall_end_y_spin: SpinBox
 var _wall_thickness_spin: SpinBox
 
-var _room_fill: Color = Color(0.05, 0.07, 0.09, 0.72)
-var _room_selected_fill: Color = Color(0.08, 0.14, 0.16, 0.84)
-var _room_outline: Color = Color(0.28, 0.32, 0.35, 0.95)
-var _lower_floor_ghost_fill: Color = Color(0.55, 0.64, 0.68, 0.14)
-var _lower_floor_ghost_outline: Color = Color(0.70, 0.82, 0.88, 0.28)
-var _exterior_wall_color: Color = Color(1.00, 0.84, 0.28, 0.98)
-var _exterior_wall_selected_color: Color = Color(1.00, 1.00, 0.70, 1.0)
-var _corridor_fill: Color = Color(0.03, 0.10, 0.11, 0.76)
-var _corridor_selected_fill: Color = Color(0.04, 0.18, 0.19, 0.88)
-var _corridor_outline: Color = UI_BLUE
-var _corridor_preview_fill: Color = Color(0.00, 0.70, 0.88, 0.22)
-var _corridor_preview_outline: Color = Color(0.00, 0.84, 1.00, 0.92)
-var _corridor_path_color: Color = UI_YELLOW
-var _door_color: Color = UI_GREEN
-var _window_color: Color = UI_BLUE
-var _object_color: Color = Color(1.00, 0.25, 0.00, 0.86)
-var _object_selected_color: Color = UI_YELLOW
-var _ignition_color: Color = Color(1.00, 0.08, 0.02, 0.98)
-var _detector_smoke_color: Color = Color(0.20, 0.65, 1.00, 0.95)
-var _detector_heat_color: Color = Color(1.00, 0.45, 0.10, 0.95)
-var _detector_co_color: Color = Color(0.95, 0.92, 0.20, 0.95)
-var _victim_color: Color = Color(0.25, 0.95, 0.45, 0.95)
-var _player_start_color: Color = Color(0.58, 0.88, 1.0, 0.96)
+@export var _room_fill: Color = Color(0.05, 0.07, 0.09, 0.72)
+@export var _room_selected_fill: Color = Color(0.08, 0.14, 0.16, 0.84)
+@export var _room_outline: Color = Color(0.28, 0.32, 0.35, 0.95)
+@export var _lower_floor_ghost_fill: Color = Color(0.55, 0.64, 0.68, 0.14)
+@export var _lower_floor_ghost_outline: Color = Color(0.70, 0.82, 0.88, 0.28)
+@export var _exterior_wall_color: Color = Color(1.00, 0.84, 0.28, 0.98)
+@export var _exterior_wall_selected_color: Color = Color(1.00, 1.00, 0.70, 1.0)
+@export var _corridor_fill: Color = Color(0.03, 0.10, 0.11, 0.76)
+@export var _corridor_selected_fill: Color = Color(0.04, 0.18, 0.19, 0.88)
+@export var _corridor_outline: Color = UI_BLUE
+@export var _corridor_preview_fill: Color = Color(0.00, 0.70, 0.88, 0.22)
+@export var _corridor_preview_outline: Color = Color(0.00, 0.84, 1.00, 0.92)
+@export var _corridor_path_color: Color = UI_YELLOW
+@export var _door_color: Color = UI_GREEN
+@export var _window_color: Color = UI_BLUE
+@export var _object_color: Color = Color(1.00, 0.25, 0.00, 0.86)
+@export var _object_selected_color: Color = UI_YELLOW
+@export var _ignition_color: Color = Color(1.00, 0.08, 0.02, 0.98)
+@export var _detector_smoke_color: Color = Color(0.20, 0.65, 1.00, 0.95)
+@export var _detector_heat_color: Color = Color(1.00, 0.45, 0.10, 0.95)
+@export var _detector_co_color: Color = Color(0.95, 0.92, 0.20, 0.95)
+@export var _victim_color: Color = Color(0.25, 0.95, 0.45, 0.95)
+@export var _player_start_color: Color = Color(0.58, 0.88, 1.0, 0.96)
 
 var _editor_theme: Theme
 var _editor_font: Font
@@ -6520,32 +6520,6 @@ func _player_start_hit_test(pos_m: Vector2) -> bool:
 	return pos_m.distance_to(start_pos) <= 0.25
 
 
-func _draw_hover_help() -> void:
-	if _hover_help_text == "" or ThemeDB.fallback_font == null:
-		return
-	var zoom: float = maxf(0.05, camera.zoom.x)
-	var inv_zoom: float = 1.0 / zoom
-	var font_size: int = maxi(9, int(round(13.0 * inv_zoom)))
-	var padding: float = 7.0 * inv_zoom
-	var offset: Vector2 = Vector2(14.0, -40.0) * inv_zoom
-	var text_size: Vector2 = ThemeDB.fallback_font.get_string_size(_hover_help_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size)
-	var rect := Rect2(
-		_m_to_px(_hover_help_world_pos_m) + offset,
-		Vector2(text_size.x + padding * 2.0, text_size.y + padding * 2.0)
-	)
-	draw_rect(rect, Color(0.01, 0.025, 0.03, 0.92), true)
-	draw_rect(rect, UI_BORDER_HOT, false, maxf(1.0, inv_zoom))
-	draw_string(
-		ThemeDB.fallback_font,
-		rect.position + Vector2(padding, padding + ThemeDB.fallback_font.get_ascent(font_size)),
-		_hover_help_text,
-		HORIZONTAL_ALIGNMENT_LEFT,
-		rect.size.x - padding * 2.0,
-		font_size,
-		Color(0.96, 0.98, 0.92, 1.0)
-	)
-
-
 func _draw_corridor_drag_preview() -> void:
 	var layout: Dictionary = _build_corridor_layout(drag_start_m, drag_current_m)
 	if layout.has("error"):
@@ -6593,7 +6567,7 @@ func _draw_lower_floor_ghost() -> void:
 		draw_rect(rect_px, _lower_floor_ghost_fill, true)
 		draw_rect(rect_px, _lower_floor_ghost_outline, false, 1.2)
 		if _is_stair_room(room_dict):
-			_draw_stair_room_guides(rect_px, room_dict)
+			EditorDraw2D.stair_room_guides(self, rect_px, _room_stair_run_direction(room_dict), float(room_dict.get("stair_turn_degrees", 0.0)))
 		if rect_px.size.x > 28.0 and rect_px.size.y > 24.0:
 			_draw_screen_string(
 				rect_px.position,
@@ -6688,11 +6662,11 @@ func _draw_rooms() -> void:
 			draw_rect(rect_px, fill, true)
 			draw_rect(rect_px, outline, false, 2.0)
 		if is_corridor:
-			_draw_corridor_room_guides(rect_px)
+			EditorDraw2D.corridor_room_guides(self, rect_px)
 		if is_stairs:
-			_draw_stair_room_guides(rect_px, room)
+			EditorDraw2D.stair_room_guides(self, rect_px, _room_stair_run_direction(room), float(room.get("stair_turn_degrees", 0.0)))
 		if is_corridor or is_stairs:
-			_draw_narrow_room_dimension_labels(rect, rect_px, is_stairs)
+			EditorDraw2D.narrow_room_dimension_labels(self, rect, rect_px, is_stairs)
 		var h: float = float(room.get("height_m", 2.7))
 		var area_m2: float = rect.size.x * rect.size.y
 		var vol_m3: float = area_m2 * h
@@ -6729,14 +6703,6 @@ func _draw_rooms() -> void:
 			_draw_selected_room_handles(room_id)
 
 
-func _draw_corridor_room_guides(rect_px: Rect2) -> void:
-	EditorDraw2D.corridor_room_guides(self, rect_px)
-
-
-func _draw_stair_room_guides(rect_px: Rect2, room: Dictionary) -> void:
-	EditorDraw2D.stair_room_guides(self, rect_px, _room_stair_run_direction(room), float(room.get("stair_turn_degrees", 0.0)))
-
-
 func _draw_selected_room_handles(room_id: int) -> void:
 	var handles: Dictionary = _room_handle_points_m(room_id)
 	if handles.is_empty():
@@ -6747,11 +6713,7 @@ func _draw_selected_room_handles(room_id: int) -> void:
 	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
 		if handles.has(mode):
 			resize_pxs.append(_m_to_px(Vector2(handles[mode])))
-	EditorDraw2D.selection_handles(self, center_px, rotate_px, resize_pxs, OBJECT_HANDLE_RADIUS_PX)
-
-
-func _draw_narrow_room_dimension_labels(rect_m: Rect2, rect_px: Rect2, is_stairs: bool) -> void:
-	EditorDraw2D.narrow_room_dimension_labels(self, rect_m, rect_px, is_stairs)
+	EditorDraw2D.selection_handles(self, center_px, rotate_px, resize_pxs, object_handle_radius_px)
 
 
 func _draw_openings() -> void:
@@ -6919,7 +6881,7 @@ func _draw_selected_object_handles(room_rect: Rect2, obj: Dictionary) -> void:
 	for mode in [ObjectMouseMode.RESIZE_WIDTH, ObjectMouseMode.RESIZE_LENGTH]:
 		if handles.has(mode):
 			resize_pxs.append(_m_to_px(Vector2(handles[mode])))
-	EditorDraw2D.selection_handles(self, center_px, rotate_px, resize_pxs, OBJECT_HANDLE_RADIUS_PX)
+	EditorDraw2D.selection_handles(self, center_px, rotate_px, resize_pxs, object_handle_radius_px)
 
 
 func _draw_player_start() -> void:
