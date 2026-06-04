@@ -1,0 +1,7 @@
+{
+    "metrics": {
+        "room_0_peak_hrr_kw": {"min": 130.0, "max": 260.0},
+        "room_0_min_o2_upper": {"min": 0.062, "max": 0.116},
+        "room_0_peak_co2_upper_ppm": {"min": 115000.0, "max": 217000.0}
+    }
+}

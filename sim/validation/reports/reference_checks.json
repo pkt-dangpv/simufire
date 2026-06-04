@@ -1,6 +1,6 @@
 {
   "all_required_pass": true,
-  "required_count": 393,
+  "required_count": 396,
   "failed_required_count": 0,
   "known_gap_count": 4,
   "checks": [
@@ -4667,6 +4667,39 @@
       "required": true,
       "pass": true,
       "note": "B-03 fire curve sanity: t2 medium 350 kW cap"
+    },
+    {
+      "name": "cfast_hrr_ventilation_limited_f2_room_0_peak_hrr_kw",
+      "actual": 197.180120701859,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 130.0,
+      "maximum": 260.0,
+      "required": true,
+      "pass": true,
+      "note": "B-04 Stage-B gap HVAC-4: HRR plateau ventilation-limited (~197 kW vs 800 kW free-burn)"
+    },
+    {
+      "name": "cfast_hrr_ventilation_limited_f2_room_0_min_o2_upper",
+      "actual": 0.0890514988593138,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 0.062,
+      "maximum": 0.116,
+      "required": true,
+      "pass": true,
+      "note": "B-04 O2 depletion in upper layer confirms vent-limited regime (~8.9%)"
+    },
+    {
+      "name": "cfast_hrr_ventilation_limited_f2_room_0_peak_co2_upper_ppm",
+      "actual": 166895.902077346,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 115000.0,
+      "maximum": 217000.0,
+      "required": true,
+      "pass": true,
+      "note": "B-04 CO2 stratification in upper layer confirms sub-vent combustion products"
     },
     {
       "name": "v4_co_remote_rooms_room_0_peak_hrr_kw",
