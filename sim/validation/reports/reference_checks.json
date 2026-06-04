@@ -1,6 +1,6 @@
 {
   "all_required_pass": true,
-  "required_count": 396,
+  "required_count": 400,
   "failed_required_count": 0,
   "known_gap_count": 4,
   "checks": [
@@ -4700,6 +4700,50 @@
       "required": true,
       "pass": true,
       "note": "B-04 CO2 stratification in upper layer confirms sub-vent combustion products"
+    },
+    {
+      "name": "cfast_fed_hypoxia_sealed_room_0_final_fed",
+      "actual": 73.1842670177235,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 51.0,
+      "maximum": 95.0,
+      "required": true,
+      "pass": true,
+      "note": "B-05 Stage-B gap HVAC-5: FED letal acumulado en sala sellada (CO+hipoxia)"
+    },
+    {
+      "name": "cfast_fed_hypoxia_sealed_room_0_final_fed_co",
+      "actual": 68.8931228851991,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 48.0,
+      "maximum": 90.0,
+      "required": true,
+      "pass": true,
+      "note": "B-05 FED por CO domina en sala sellada (sub-ventilada)"
+    },
+    {
+      "name": "cfast_fed_hypoxia_sealed_room_0_min_o2_upper",
+      "actual": 0.100514252215185,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 0.07,
+      "maximum": 0.131,
+      "required": true,
+      "pass": true,
+      "note": "B-05 O2 capa superior depleted en sala sellada (~10%)"
+    },
+    {
+      "name": "cfast_fed_hypoxia_sealed_room_0_peak_hrr_kw",
+      "actual": 192.206736054616,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 134.0,
+      "maximum": 250.0,
+      "required": true,
+      "pass": true,
+      "note": "B-05 fire curve sanity: t2 medium 200 kW cap en sala sellada"
     },
     {
       "name": "v4_co_remote_rooms_room_0_peak_hrr_kw",

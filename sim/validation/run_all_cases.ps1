@@ -115,6 +115,8 @@ $cases = @(
 	"cfast_hall_upper_o2_doorway",
 	# B-04: plateau HRR por ventilacion limitada — fuego t2-fast sin O2 suficiente (gap HVAC-4)
 	"cfast_hrr_ventilation_limited_f2",
+	# B-05: acumulacion FED letal CO+hipoxia en sala sellada (gap HVAC-5)
+	"cfast_fed_hypoxia_sealed",
 	# SF-R6 Phase 3: conservación de transporte de contaminantes (residual ~0)
 	"conservation_transport",
 	# SF-VIC-001: acumulación FED individual de víctima (compute_fed_delta_for_height)

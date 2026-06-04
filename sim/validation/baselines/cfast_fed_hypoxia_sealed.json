@@ -1,0 +1,8 @@
+{
+    "metrics": {
+        "room_0_final_fed": {"min": 51.0, "max": 95.0},
+        "room_0_final_fed_co": {"min": 48.0, "max": 90.0},
+        "room_0_min_o2_upper": {"min": 0.070, "max": 0.131},
+        "room_0_peak_hrr_kw": {"min": 134.0, "max": 250.0}
+    }
+}
