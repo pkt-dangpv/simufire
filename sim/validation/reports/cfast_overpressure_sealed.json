@@ -1,6 +1,32 @@
 {
 	"baseline": {
-
+		"all_pass": true,
+		"checks": {
+			"room_0_max_overpressure_pa": {
+				"actual": 1710.69067013577,
+				"pass": true,
+				"rule": {
+					"max": 1918.0,
+					"min": 1032.0
+				}
+			},
+			"room_0_peak_hrr_kw": {
+				"actual": 353.801960955332,
+				"pass": true,
+				"rule": {
+					"max": 420.0,
+					"min": 300.0
+				}
+			},
+			"room_0_peak_temp_upper_c": {
+				"actual": 244.131871259222,
+				"pass": true,
+				"rule": {
+					"max": 320.0,
+					"min": 180.0
+				}
+			}
+		}
 	},
 	"case": "cfast_overpressure_sealed",
 	"duration_s": 300.0,
@@ -21,6 +47,7 @@
 		"room_0_final_burned_hrr_kw": 279.206158684176,
 		"room_0_final_c_balance_frac": 0.947662674828257,
 		"room_0_final_co2_ppm": 54115.0894754274,
+		"room_0_final_co2_upper_ppm": 117119.810063473,
 		"room_0_final_co_ppm": 6490.65372453603,
 		"room_0_final_co_upper_ppm": 25996.0456742254,
 		"room_0_final_dominant_fuel_object_exposure_s": 75.0,
@@ -44,6 +71,7 @@
 		"room_0_final_layer_150c_m": 1.55554718928289,
 		"room_0_final_o2": 0.131124330976763,
 		"room_0_final_o2_hrr_factor": 0.654995454321444,
+		"room_0_final_o2_upper": 0.0982316989070042,
 		"room_0_final_outside_open_path_factor": 0.0,
 		"room_0_final_pool_release_hrr_target_kw": 0.0,
 		"room_0_final_pyrolysis_kw": 261.998181728578,
@@ -77,16 +105,18 @@
 		"room_0_max_fuel_objects_flaming_count": 7,
 		"room_0_max_fuel_objects_heating_count": 6,
 		"room_0_max_fuel_objects_pyrolyzing_count": 3,
-		"room_0_max_overpressure_pa": 1475.27377015961,
+		"room_0_max_overpressure_pa": 1710.69067013577,
 		"room_0_max_passive_fuel_flux_kw_m2": 0.0,
 		"room_0_max_passive_fuel_surface_temp_c": 354.69784433604,
 		"room_0_max_unburned_generation_kw": 0.0,
 		"room_0_max_upper_radiative_loss_kw": 49.6884044015168,
 		"room_0_min_l150_m": 1.55554718928289,
+		"room_0_min_o2_upper": 0.0982316989070042,
 		"room_0_min_visibility_m": 0.0139673178606026,
 		"room_0_peak_burned_hrr_kw": 353.801960955332,
 		"room_0_peak_c_balance_frac": 0.959218701303747,
 		"room_0_peak_co2_ppm": 54115.0894754274,
+		"room_0_peak_co2_upper_ppm": 117119.810063473,
 		"room_0_peak_co_ppm": 6490.65372453603,
 		"room_0_peak_co_upper_ppm": 31439.4779282329,
 		"room_0_peak_hcn_ppm": 67.5514734595067,
