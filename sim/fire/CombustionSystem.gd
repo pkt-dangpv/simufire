@@ -75,6 +75,10 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		return false
 
 	if room.fire == null:
+		var idle_o2_selection: Dictionary = _resolve_fire_o2_selection(room, null, context)
+		room.fire_o2_mode_used = String(idle_o2_selection.get("mode", "legacy"))
+		room.fire_o2_ref = float(idle_o2_selection.get("o2_ref", room.o2))
+		room.fire_o2_min_ref = 0.0
 		room.hrr_kw = 0.0
 		room.hrr_target_kw = 0.0
 		room.pyrolysis_kw = 0.0
@@ -93,7 +97,10 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	var early_opening_signal: float = clampf(
 		maxf(
 			maxf(float(context.get("outside_open_factor", 0.0)), float(context.get("outside_open_path_factor", 0.0))),
-			maxf(0.0, float(context.get("window_open_max", 0.0)))
+			maxf(
+				maxf(0.0, float(context.get("window_open_max", 0.0))),
+				1.0 if _has_explicit_fire_o2_mode(context) else 0.0
+			)
 		),
 		0.0,
 		1.0
@@ -103,23 +110,12 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		float(context.get("fire_o2_full_hrr_open", fire.o2_nominal)),
 		early_opening_signal
 	)
-	# SF-1B: si fire_o2_upper_for_flame=true, usar o2_upper y umbral separado.
-	var use_o2_upper: bool = bool(context.get("fire_o2_upper_for_flame", false))
-	var o2_min_ref: float = float(context.get("fire_o2_upper_min_for_flame", fire.o2_min_for_flame)) \
-			if use_o2_upper else fire.o2_min_for_flame
-	# SF-2B: blend opt-in para capear HRR por O2 de capa superior.
-	# 0.0 = sin cambio; 1.0 = effective_o2 = min(room.o2, room.o2_upper).
-	var o2_upper_hrr_blend: float = clampf(float(context.get("fire_o2_upper_hrr_blend", 0.0)), 0.0, 1.0)
-	# Phase 2C: opt-in para que el fuego use o2_lower (zona baja reabastecida por HVAC low-supply).
-	# Default false = no-op. Activar solo en benchmark HVAC low-supply/high-return.
-	var use_o2_lower: bool = bool(context.get("fire_o2_lower_for_flame", false))
-	var o2_ref: float
-	if use_o2_upper:
-		o2_ref = room.o2_upper
-	elif use_o2_lower:
-		o2_ref = room.o2_lower
-	else:
-		o2_ref = lerpf(room.o2, minf(room.o2, room.o2_upper), o2_upper_hrr_blend)
+	var o2_selection: Dictionary = _resolve_fire_o2_selection(room, fire, context)
+	var o2_min_ref: float = float(o2_selection.get("o2_min_ref", fire.o2_min_for_flame))
+	var o2_ref: float = float(o2_selection.get("o2_ref", room.o2))
+	room.fire_o2_mode_used = String(o2_selection.get("mode", "legacy"))
+	room.fire_o2_ref = o2_ref
+	room.fire_o2_min_ref = o2_min_ref
 	full_hrr_o2 = maxf(o2_min_ref + 0.001, full_hrr_o2)
 	var raw_o2_factor: float = _compute_o2_factor(o2_ref, full_hrr_o2, o2_min_ref)
 	var use_fds_extinction: bool = bool(context.get("fire_fds_extinction_enabled", false))
@@ -1224,6 +1220,50 @@ func _resolve_room_max_hrr_kw(room: RoomModel, fallback_kw: float) -> float:
 		return total_max_kw
 
 	return fallback_kw
+
+
+func _resolve_fire_o2_selection(room: RoomModel, fire: FireModel, context: Dictionary) -> Dictionary:
+	var mode: String = _resolve_fire_o2_mode(context)
+	var o2_min_ref: float = fire.o2_min_for_flame if fire != null else 0.0
+	var o2_ref: float = room.o2
+	if mode == "upper":
+		o2_ref = room.o2_upper
+		if fire != null and not _has_explicit_fire_o2_mode(context):
+			o2_min_ref = float(context.get("fire_o2_upper_min_for_flame", fire.o2_min_for_flame))
+	elif mode == "lower":
+		o2_ref = room.o2_lower
+	elif mode == "interface":
+		# Primera aproximacion M2: muestra en la banda de mezcla de la interfaz.
+		o2_ref = lerpf(room.o2_lower, room.o2_upper, 0.5)
+	else:
+		var upper_blend: float = clampf(
+			float(context.get("fire_o2_upper_hrr_blend", 0.0)),
+			0.0,
+			1.0
+		)
+		o2_ref = lerpf(room.o2, minf(room.o2, room.o2_upper), upper_blend)
+	return {
+		"mode": mode,
+		"o2_ref": o2_ref,
+		"o2_min_ref": o2_min_ref
+	}
+
+
+func _resolve_fire_o2_mode(context: Dictionary) -> String:
+	var mode: String = String(context.get("fire_o2_mode", "legacy")).strip_edges().to_lower()
+	if mode == "upper" or mode == "lower" or mode == "interface":
+		return mode
+	# Compatibilidad exacta: los flags historicos solo se interpretan bajo legacy.
+	if bool(context.get("fire_o2_upper_for_flame", false)):
+		return "upper"
+	if bool(context.get("fire_o2_lower_for_flame", false)):
+		return "lower"
+	return "legacy"
+
+
+func _has_explicit_fire_o2_mode(context: Dictionary) -> bool:
+	var mode: String = String(context.get("fire_o2_mode", "legacy")).strip_edges().to_lower()
+	return mode == "upper" or mode == "lower" or mode == "interface"
 
 
 func _compute_o2_factor(o2: float, nominal: float, min_o2: float) -> float:

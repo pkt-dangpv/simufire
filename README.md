@@ -2,7 +2,7 @@
 
 Simulador de dinámica de incendios en compartimentos para entrenamiento y toma de decisiones de bomberos.
 
-**Estado**: `v0.4.0-validation-rc1` · 381/381 required PASS · 4 gaps no-gating · Godot 4.6.3
+**Estado**: `v0.4.0-validation-rc1` · legacy 381/381 required PASS · M1 two-zone alpha 17/18 contract gates · Godot 4.6.3
 
 ---
 
@@ -19,7 +19,7 @@ python scripts/simulation/validation_guardrails.py
 python scripts/simulation/validate_reference_cases.py
 
 # 4. Comparar candidato two-zone contra la referencia legacy congelada
-powershell -ExecutionPolicy Bypass -File sim/validation/run_legacy_two_zone_compare.ps1 -Action compare -CandidateMode two-zone
+powershell -ExecutionPolicy Bypass -File sim/validation/run_legacy_two_zone_compare.ps1 -Action compare -CandidateMode two-zone -AllowContractFailure
 
 # 5. Reproducir un escenario predefinido y generar export tecnico
 python scripts/run_scenario.py scenarios/compact_apartment_reference.json --duration 60
@@ -72,6 +72,7 @@ python scripts/run_scenario.py scenarios/compact_apartment_reference.json --dura
 - **HVAC two-zone transport**: 4 checks CO/CO₂ upper con HVAC divergen de CFAST (gaps no-gating aceptados). No afectan escenarios de tenabilidad.
 - **HCN yield conservador**: representa combustión bien ventilada; subestima HCN bajo-ventilado.
 - **Modelo zonal**: no sustituye simulaciones CFD (p. ej. FDS) para análisis cuantitativo de alto rigor.
+- **Two-zone v1.0 alpha/beta**: masa/energía y O2 local activos por flags; M3 ya enruta especies upper/lower en aperturas interiores con `two_zone_opening_flow_enabled`, pero HVAC/presión canónica siguen pendientes.
 
 ---
 

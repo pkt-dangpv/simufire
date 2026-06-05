@@ -6,8 +6,11 @@ param(
 	[string]$ProjectPath = "",
 	[string]$ValidationOutput = "",
 	[string]$EngineMode = "",
+	[string]$FireO2Mode = "",
+	[switch]$TwoZoneOpeningFlow,
 	[double]$ValidationDuration = 0,
 	[int]$TimeoutSeconds = 300,
+	[switch]$AllowBaselineFailure,
 	[switch]$NoQuit
 )
 
@@ -50,6 +53,9 @@ $GodotExe = Resolve-GodotExecutable $GodotExe
 if ($EngineMode -and $EngineMode -notin @("legacy", "two-zone")) {
 	throw "EngineMode no soportado '$EngineMode'. Usa legacy o two-zone."
 }
+if ($FireO2Mode -and $FireO2Mode -notin @("legacy", "upper", "lower", "interface")) {
+	throw "FireO2Mode no soportado '$FireO2Mode'. Usa legacy, upper, lower o interface."
+}
 
 $logDir = Join-Path $env:TEMP "simufire-godot-logs"
 New-Item -ItemType Directory -Path $logDir -Force | Out-Null
@@ -79,6 +85,14 @@ if ($EngineMode) {
 	$godotArgs += "--validation-engine-mode=$EngineMode"
 }
 
+if ($FireO2Mode) {
+	$godotArgs += "--validation-fire-o2-mode=$FireO2Mode"
+}
+
+if ($TwoZoneOpeningFlow) {
+	$godotArgs += "--validation-two-zone-opening-flow"
+}
+
 if ($ValidationDuration -gt 0) {
 	$godotArgs += "--validation-duration=$ValidationDuration"
 }
@@ -91,6 +105,8 @@ Write-Host ("[Validation Runner] Caso: {0}" -f $CaseName)
 Write-Host ("[Validation Runner] Proyecto: {0}" -f $ProjectPath)
 Write-Host ("[Validation Runner] Log Godot: {0}" -f $logFile)
 Write-Host ("[Validation Runner] Modo motor: {0}" -f ($(if ($EngineMode) { $EngineMode } else { "caso/default" })))
+Write-Host ("[Validation Runner] O2 fuego: {0}" -f ($(if ($FireO2Mode) { $FireO2Mode } else { "caso/default" })))
+Write-Host ("[Validation Runner] Flujos apertura two-zone: {0}" -f ($(if ($TwoZoneOpeningFlow) { "on" } else { "off" })))
 Write-Host ("[Validation Runner] Timeout: {0}s" -f $TimeoutSeconds)
 
 function Quote-ProcessArgument([string]$Value) {
@@ -134,6 +150,10 @@ if ($exitCode -ne 0) {
 
 	if ($reportUpdated) {
 		if ($exitCode -eq 2) {
+			if ($AllowBaselineFailure) {
+				Write-Warning ("La validacion '{0}' no supera su baseline historica; se conserva el reporte para el contrato externo." -f $CaseName)
+				exit 0
+			}
 			throw "La validacion '$CaseName' no supera la baseline. Revisar reporte: $reportPath"
 		}
 

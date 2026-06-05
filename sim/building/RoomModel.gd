@@ -47,6 +47,10 @@ var o2: float = 0.209
 var o2_upper: float = 0.209
 # Fraccion O2 en capa inferior (zona fría). Variable persistente; NO derivada de o2. Fase 2A (2026-05-20).
 var o2_lower: float = 0.209
+# M2: muestra local de O2 realmente usada por CombustionSystem.
+var fire_o2_mode_used: String = "legacy"
+var fire_o2_ref: float = 0.209
+var fire_o2_min_ref: float = 0.0
 # Fraccion CO2 en capa superior (mol fraction 0-1). Tracked directo para evitar error de densidad.
 # 0.0004 = 400 ppm CO2 ambiente. Fase 2B (2026-05-23).
 var co2_upper: float = 0.0004
@@ -62,8 +66,22 @@ var chi_rad_normal: float = -1.0
 
 # Capa superior de gases calientes
 var thermal_layer_m: float = 2.5
+# M1 two-zone: upper_gas_kg/upper_energy_kj se reutilizan como estado canonico
+# superior. La zona inferior completa el ledger sin duplicar el estado upper.
 var upper_gas_kg: float = 0.0
 var upper_energy_kj: float = 0.0
+var lower_gas_kg: float = 0.0
+var lower_energy_kj: float = 0.0
+# Masa neta añadida (+) o expulsada (-) por el cierre de volumen a presión de referencia.
+# M3 sustituirá este término agregado por flujos upper/lower resueltos por apertura.
+var two_zone_boundary_mass_kg: float = 0.0
+# Energía sensible neta añadida (+) o retirada (-) por sistemas legacy,
+# cierre de volumen y caps mientras M1 convive con ellos.
+var two_zone_boundary_energy_kj: float = 0.0
+var two_zone_opening_upper_in_kg: float = 0.0
+var two_zone_opening_upper_out_kg: float = 0.0
+var two_zone_opening_lower_in_kg: float = 0.0
+var two_zone_opening_lower_out_kg: float = 0.0
 var upper_radiative_loss_kw: float = 0.0
 var layer_150c_m: float = 2.5
 
@@ -234,6 +252,14 @@ func lower_volume_m3() -> float:
 	return maxf(0.0, volume_m3() - upper_volume_m3())
 
 
+func zone_total_mass_kg() -> float:
+	return maxf(0.0, upper_gas_kg) + maxf(0.0, lower_gas_kg)
+
+
+func zone_total_energy_kj() -> float:
+	return maxf(0.0, upper_energy_kj) + maxf(0.0, lower_energy_kj)
+
+
 ## Masa de O₂ en la zona superior, kg. Fase 2A.
 func upper_o2_mass_kg(air_density: float = 1.2) -> float:
 	return upper_volume_m3() * air_density * o2_upper
@@ -254,6 +280,9 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	o2 = ambient_o2
 	o2_upper = ambient_o2
 	o2_lower = ambient_o2
+	fire_o2_mode_used = "legacy"
+	fire_o2_ref = ambient_o2
+	fire_o2_min_ref = 0.0
 	smoke_kg = 0.0
 	smoke_prod_kg_s = 0.0
 	soot_fraction = 1.0
@@ -262,6 +291,14 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	thermal_layer_m = height_m
 	upper_gas_kg = 0.0
 	upper_energy_kj = 0.0
+	lower_gas_kg = maxf(0.0, volume_m3() * 1.2)
+	lower_energy_kj = 0.0
+	two_zone_boundary_mass_kg = 0.0
+	two_zone_boundary_energy_kj = 0.0
+	two_zone_opening_upper_in_kg = 0.0
+	two_zone_opening_upper_out_kg = 0.0
+	two_zone_opening_lower_in_kg = 0.0
+	two_zone_opening_lower_out_kg = 0.0
 	upper_radiative_loss_kw = 0.0
 	layer_150c_m = height_m
 	co_kg = 0.0

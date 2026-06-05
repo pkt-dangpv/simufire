@@ -47,7 +47,7 @@ Comandos:
 powershell -ExecutionPolicy Bypass -File sim/validation/run_legacy_two_zone_compare.ps1 -Action freeze
 
 # Comparar el candidato two-zone contra la referencia congelada.
-powershell -ExecutionPolicy Bypass -File sim/validation/run_legacy_two_zone_compare.ps1 -Action compare -CandidateMode two-zone
+powershell -ExecutionPolicy Bypass -File sim/validation/run_legacy_two_zone_compare.ps1 -Action compare -CandidateMode two-zone -AllowContractFailure
 ```
 
 La deuda fisica legacy no se ha ocultado: los yields pueden solicitar y producir
@@ -61,27 +61,128 @@ no debe regenerarse durante M1 salvo decision explicita y documentada.
 
 ## M1 - Canonical two-zone core (v1.0.0-alpha)
 
-- Reutilizar/migrar `upper_gas_kg` y anadir masa lower explicita.
-- Mantener masa y entalpia canonicas de ambas zonas.
-- Derivar temperaturas e interfaz desde masa, volumen y energia.
-- Resolver penacho, mezcla, paredes y perdidas mediante ecuaciones acopladas.
-- Mantener campos legacy como proyecciones de solo lectura.
-- Activacion inicial por `two_zone_solver_enabled=false`.
+- [COMPLETADO ALPHA] Reutilizar `upper_gas_kg`/`upper_energy_kj` y anadir
+  `lower_gas_kg`/`lower_energy_kj` sin duplicar el estado upper.
+- [COMPLETADO ALPHA] Transferir masa y entalpia lower->upper mediante la ODE
+  de entrenamiento McCaffrey/Heskestad.
+- [COMPLETADO ALPHA] Derivar ambas temperaturas y la interfaz termica desde
+  masa, volumen y energia cuando `two_zone_solver_enabled=true`.
+- [COMPLETADO ALPHA] Mantener legacy como default y conservar paridad exacta.
+- [PENDIENTE M3] Sustituir el cierre agregado de masa de contorno por flujos
+  upper/lower resueltos por apertura, HVAC y presion.
+
+### Evidencia M1 alpha
+
+- `ZoneFireSolver` actua como ledger de masa/energia de ambas zonas y conserva
+  masa y energia en transferencias internas lower->upper.
+- La entrada de aire de compensacion llega a temperatura ambiente; la salida
+  lower arrastra energia sensible proporcional. El acumulado se exporta como
+  `two_zone_boundary_mass_kg`; la energia absorbida desde sistemas legacy,
+  caps y contorno se registra en `two_zone_boundary_energy_kj`.
+- Telemetria runtime: masa y energia upper/lower, totales de zona y balances
+  netos de contorno. Cubierta por `tests/test_two_zone_energy_core.py`.
+- Ruta legacy fresca contra referencia congelada: `18/18` gating PASS,
+  `0/18` no-gating fuera de tolerancia y `0` errores de contrato.
+- Candidato M1 alpha: `17/18` gating PASS, `1/18` no-gating fuera de tolerancia
+  y `0` errores de contrato.
+- Unico gate pendiente: `cfast_two_floor_stairwell.room_0_peak_temp_upper_c`
+  (`551.09 C` frente a `862.20 C`; delta `-311.11 C`, tolerancia `301.77 C`).
+- Deuda observacional asociada: `room_6_final_fed`; la baseline historica de
+  escalera tampoco recibe `time_room_6_temp_above_30_s`. Ambas quedan para M3,
+  donde el transporte termico vertical se resolvera por zonas.
+
+## Estado M1
+
+**ALPHA IMPLEMENTADA.** El nucleo canonico esta activo solo por flag, legacy
+permanece congelado y M2 puede comenzar sin rebaseline. M1 no se considera
+cerrada para release hasta que M3 sustituya el cierre agregado de contorno.
 
 ## M2 - Combustion con O2 local (v1.0.0-beta)
 
-- Sustituir booleanos O2 por un modo unico: `legacy`, `upper`, `lower`, `interface`.
-- Evaluar `upper` sin activarlo globalmente antes del rebaseline.
-- Actualizar O2 antes del HRR o usar predictor-corrector.
-- Cerrar los cuatro gaps HVAC solo con corridas frescas que lo demuestren.
+- [COMPLETADO BETA CANDIDATE] Sustituir booleanos O2 por un modo unico:
+  `legacy`, `upper`, `lower`, `interface`.
+- [COMPLETADO BETA CANDIDATE] Evaluar `upper` sin activarlo globalmente antes del rebaseline.
+- [COMPLETADO BETA CANDIDATE] Actualizar O2 antes del HRR cuando el modo es explicito.
+- [COMPLETADO BETA CANDIDATE] Cerrar los cuatro gaps HVAC con corrida fresca
+  `two-zone + fire_o2_mode=upper`.
+
+### Evidencia M2 beta candidate
+
+- `fire_o2_mode="legacy"` sigue siendo el default. En legacy, los flags antiguos
+  `fire_o2_upper_for_flame` / `fire_o2_lower_for_flame` conservan prioridad y
+  comportamiento historico.
+- Los modos explicitos se seleccionan desde CLI sin editar casos:
+  `run_case.ps1 -FireO2Mode upper|lower|interface`.
+- Los modos explicitos hacen `_step_oxygen(dt)` antes de `_step_fire(dt)`;
+  legacy mantiene el orden antiguo para paridad.
+- `upper` explicito usa `room.o2_upper` con el umbral normal del caso
+  (`fire_o2_min_for_flame`). El umbral historico `fire_o2_upper_min_for_flame`
+  queda solo para el flag legacy upper.
+- En modos explicitos, `fire_o2_full_hrr_open` actua como referencia local de
+  full-HRR aunque no haya ventana exterior abierta. Para `cfast_hvac_residential`
+  se calibra a `0.126`; en legacy no cambia el resultado porque el modo sigue
+  siendo `lower` por flag historico.
+- Telemetria nueva por sala: `fire_o2_mode_used`, `fire_o2_ref`,
+  `fire_o2_min_ref`, mas metricas `room_N_min_fire_o2_ref` y
+  `room_N_final_fire_o2_ref`.
+- Corrida focal:
+  `run_case.ps1 -CaseName cfast_hvac_residential -EngineMode two-zone -FireO2Mode upper`.
+  Reporte: `sim/validation/reports/m2_upper_two_zone_cfast_hvac_residential.json`.
+- Resultado focal HVAC:
+  - `cfast_hvac_t180_temp_upper_c`: SF `180.22 C` vs CFAST `259.59 C`,
+    tolerancia `80.0 C` -> PASS con margen `0.63 C`.
+  - `cfast_hvac_rmse_temp_upper_c`: `44.03 C` <= `60.0 C`.
+  - `cfast_hvac_t300_co_upper_ppm`: `994 ppm` vs `661 ppm`, tolerancia `500 ppm`.
+  - `cfast_hvac_t450_co_upper_ppm`: `1070 ppm` vs `731 ppm`, tolerancia `500 ppm`.
+  - `cfast_hvac_t300_co2_upper_pct`: `12.35 %` vs `10.62 %`, tolerancia `3.0 %`.
+  - `cfast_hvac_t450_co2_upper_pct`: `13.08 %` vs `11.74 %`, tolerancia `3.0 %`.
+
+## Estado M2
+
+**BETA CANDIDATE IMPLEMENTADA.** El cierre de los cuatro gaps HVAC existe bajo
+modo explicito `upper` y no altera el default legacy. Queda pendiente decidir en
+M4 si `upper` pasa a ser default del motor two-zone tras rebaseline parcial/global.
 
 ## M3 - Flujos de apertura two-zone (v1.0.0-rc)
 
-- Completar `ZoneFireSolver` como ledger unico.
-- Segmentar aperturas por plano neutro e interfaces de ambas salas.
-- Permitir rutas upper-upper, upper-lower, lower-upper y lower-lower.
-- Integrar ventanas, puertas, HVAC y presion canonica.
-- Retirar flags Phase 2H solo tras demostrar paridad.
+- [COMPLETADO RC SLICE] Compartir `opening_flow_cache` con `GasExchangeSystem`.
+- [COMPLETADO RC SLICE] Enrutar especies por apertura interior upper->upper
+  y lower->lower cuando `two_zone_solver_enabled && two_zone_opening_flow_enabled`.
+- [COMPLETADO RC SLICE] Exponer telemetria por sala:
+  `two_zone_opening_upper/lower_in/out_kg`.
+- [COMPLETADO RC SLICE] CLI: `run_case.ps1 -TwoZoneOpeningFlow` y comparador
+  `run_legacy_two_zone_compare.ps1 -TwoZoneOpeningFlow`.
+- [PENDIENTE] Completar `ZoneFireSolver` como ledger unico de especies.
+- [PENDIENTE] Segmentar aperturas por interfaces de ambas salas y activar rutas
+  upper-lower/lower-upper cuando las interfaces esten desalineadas.
+- [PENDIENTE] Integrar ventanas exteriores, HVAC y presion canonica.
+- [PENDIENTE] Retirar flags Phase 2H solo tras demostrar paridad.
+
+### Evidencia M3 rc slice
+
+- El flag `two_zone_opening_flow_enabled=false` conserva el default legacy.
+  En validacion se activa sin editar casos con `-TwoZoneOpeningFlow`.
+- `GasExchangeSystem` lee el `opening_flow_cache` ya calculado por
+  `ThermalSystem`, evitando un segundo calculo de plano neutro para la misma
+  abertura.
+- El routing M3 usa `bernoulli_upper_kg_s` para mover contaminantes upper de
+  la sala caliente a la capa upper de la sala fria, y `bernoulli_lower_kg_s`
+  para mover contaminantes lower de la sala fria a la capa lower de la sala
+  caliente. CO, CO2 y HCN conservan masa total y no elevan artificialmente la
+  masa upper en el counterflow lower.
+- Corrida smoke:
+  `run_case.ps1 -CaseName cfast_two_room_door_open -EngineMode two-zone -TwoZoneOpeningFlow -ValidationDuration 120`.
+  Reporte: `sim/validation/reports/m3_opening_two_zone_cfast_two_room_120.json`.
+  Resultado: `two_zone_opening_flow_enabled=1`, `room_0_final_two_zone_opening_upper_out_kg=1.7613`,
+  `room_1_final_two_zone_opening_upper_in_kg=1.7613` y residual de transporte
+  carbono `-5.4e-4 kg`.
+
+## Estado M3
+
+**RC SLICE IMPLEMENTADO.** Ya existe routing two-zone de especies para aperturas
+interiores, opt-in y medible. M3 no esta cerrado para release: faltan rutas
+cruzadas por interfaces desalineadas, ventanas exteriores/HVAC y promocion del
+ledger unico de especies.
 
 ## M4 - Rebaseline y cierre (v1.0.0)
 

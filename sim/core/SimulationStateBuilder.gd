@@ -27,6 +27,9 @@ func build_state(context: Dictionary) -> Dictionary:
 		"global_carbon_postclamp_excess_kg": float(context.get("global_carbon_postclamp_excess_kg", 0.0)),
 		"global_carbon_transport_residual_kg": float(context.get("global_carbon_transport_residual_kg", 0.0)),
 		"two_zone_solver_enabled": bool(context.get("two_zone_solver_enabled", false)),
+		"two_zone_opening_flow_enabled": bool(context.get("two_zone_opening_flow_enabled", false)),
+		"fire_o2_mode": String(context.get("fire_o2_mode", "legacy")),
+		"fire_o2_effective_mode": String(context.get("fire_o2_effective_mode", "legacy")),
 	}
 	var hvac: Dictionary = context.get("hvac", {})
 	state["hvac_exists"] = bool(hvac.get("exists", false))
@@ -121,6 +124,9 @@ func build_state(context: Dictionary) -> Dictionary:
 			"o2": room.o2 if room.hrr_kw > 0.0 else room.o2 / (1.0 + room.co2_kg / maxf(0.1, room.volume_m3() * 1.2) * (29.0 / 44.0)),
 			"o2_upper": room.o2_upper,
 			"o2_lower": room.o2_lower,
+			"fire_o2_mode_used": room.fire_o2_mode_used,
+			"fire_o2_ref": room.fire_o2_ref,
+			"fire_o2_min_ref": room.fire_o2_min_ref,
 			"mdot_vent_kg_s": room.mdot_vent_kg_s,
 
 			"h_layer_m": room.h_layer_m,
@@ -148,6 +154,19 @@ func build_state(context: Dictionary) -> Dictionary:
 			"wall_T_outer_c": room.wall_T_outer_c,
 			"upper_gas_kg": room.upper_gas_kg,
 			"upper_energy_kj": room.upper_energy_kj,
+			# M1: nombres explicitos de zona; upper reutiliza el estado legacy canonico.
+			"upper_zone_mass_kg": room.upper_gas_kg,
+			"lower_zone_mass_kg": room.lower_gas_kg,
+			"upper_zone_energy_kj": room.upper_energy_kj,
+			"lower_zone_energy_kj": room.lower_energy_kj,
+			"zone_total_mass_kg": room.zone_total_mass_kg(),
+			"zone_total_energy_kj": room.zone_total_energy_kj(),
+			"two_zone_boundary_mass_kg": room.two_zone_boundary_mass_kg,
+			"two_zone_boundary_energy_kj": room.two_zone_boundary_energy_kj,
+			"two_zone_opening_upper_in_kg": room.two_zone_opening_upper_in_kg,
+			"two_zone_opening_upper_out_kg": room.two_zone_opening_upper_out_kg,
+			"two_zone_opening_lower_in_kg": room.two_zone_opening_lower_in_kg,
+			"two_zone_opening_lower_out_kg": room.two_zone_opening_lower_out_kg,
 			"upper_radiative_loss_kw": room.upper_radiative_loss_kw,
 			"temp_at_1_8m_c": _call_room_height_float(estimate_temperature_callable, room, 1.8, room.temp_lower_c),
 			"temp_at_1_5m_c": _call_room_height_float(estimate_temperature_callable, room, 1.5, room.temp_lower_c),

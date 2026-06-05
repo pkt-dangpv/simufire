@@ -36,6 +36,7 @@ var _opening_events: Array = []
 var _suppression_events: Array = []
 var _carbon_events: Array = []
 var _engine_mode: String = "legacy"
+var _fire_o2_mode: String = "legacy"
 var _incident_started: bool = false
 var _runtime_error_reported: bool = false
 
@@ -104,6 +105,15 @@ func _parse_validation_args(args: Array[String]) -> Dictionary:
 		elif arg == "--validation-engine-mode" and index + 1 < args.size():
 			index += 1
 			parsed["validation_engine_mode"] = String(args[index])
+		elif arg.begins_with("--validation-fire-o2-mode="):
+			parsed["validation_fire_o2_mode"] = arg.get_slice("=", 1)
+		elif arg == "--validation-fire-o2-mode" and index + 1 < args.size():
+			index += 1
+			parsed["validation_fire_o2_mode"] = String(args[index])
+		elif arg.begins_with("--validation-two-zone-opening-flow="):
+			parsed["validation_two_zone_opening_flow"] = _parse_bool_arg(arg.get_slice("=", 1))
+		elif arg == "--validation-two-zone-opening-flow":
+			parsed["validation_two_zone_opening_flow"] = true
 		elif arg == "--validation-no-quit":
 			parsed["validation_no_quit"] = true
 		index += 1
@@ -112,6 +122,11 @@ func _parse_validation_args(args: Array[String]) -> Dictionary:
 		return {}
 
 	return parsed
+
+
+func _parse_bool_arg(value: String) -> bool:
+	var normalized: String = value.strip_edges().to_lower()
+	return normalized == "1" or normalized == "true" or normalized == "yes" or normalized == "on"
 
 
 func _begin_validation_run() -> void:
@@ -141,6 +156,9 @@ func _begin_validation_run() -> void:
 	_apply_engine_overrides(Dictionary(_case_config.get("engine_overrides", {})))
 	if not _configure_validation_engine_mode():
 		return
+	if not _configure_validation_fire_o2_mode():
+		return
+	_configure_validation_two_zone_opening_flow()
 	engine.auto_finish_on_extinction = false
 	engine.enable_logging = bool(_case_config.get("enable_logging", false))
 	engine.ignition_room_id = int(_case_config.get("ignition_room_id", engine.ignition_room_id))
@@ -369,6 +387,27 @@ func _configure_validation_engine_mode() -> bool:
 	engine.two_zone_solver_enabled = requested_mode == "two-zone"
 	_engine_mode = requested_mode
 	return true
+
+
+func _configure_validation_fire_o2_mode() -> bool:
+	var requested_mode: String = String(
+		_cli_args.get("validation_fire_o2_mode", engine.fire_o2_mode)
+	).strip_edges().to_lower()
+	if requested_mode != "legacy" \
+			and requested_mode != "upper" \
+			and requested_mode != "lower" \
+			and requested_mode != "interface":
+		_abort_validation_run("CaseRunner: modo de O2 de fuego no soportado '%s'" % requested_mode)
+		return false
+	engine.fire_o2_mode = requested_mode
+	_fire_o2_mode = requested_mode
+	return true
+
+
+func _configure_validation_two_zone_opening_flow() -> void:
+	if not _cli_args.has("validation_two_zone_opening_flow"):
+		return
+	engine.two_zone_opening_flow_enabled = bool(_cli_args.get("validation_two_zone_opening_flow", false))
 
 
 func _prepare_opening_events(raw_events: Variant) -> Array:
@@ -679,6 +718,9 @@ func _update_metrics(state: Dictionary) -> void:
 	)
 	_metrics["hvac_on"] = 1.0 if bool(state.get("hvac_on", false)) else 0.0
 	_metrics["two_zone_solver_enabled"] = 1.0 if bool(state.get("two_zone_solver_enabled", false)) else 0.0
+	_metrics["two_zone_opening_flow_enabled"] = 1.0 if bool(
+		state.get("two_zone_opening_flow_enabled", false)
+	) else 0.0
 
 	var trigger_room_id: int = int(_case_config.get("smoke_trigger_room_id", 0))
 	var target_room_id: int = int(_case_config.get("spread_target_room_id", 1))
@@ -759,6 +801,21 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 		float(_metrics.get(prefix + "max_upper_radiative_loss_kw", 0.0)),
 		float(room_state.get("upper_radiative_loss_kw", 0.0))
 	)
+	_metrics[prefix + "peak_upper_zone_mass_kg"] = maxf(
+		float(_metrics.get(prefix + "peak_upper_zone_mass_kg", 0.0)),
+		float(room_state.get("upper_zone_mass_kg", room_state.get("upper_gas_kg", 0.0)))
+	)
+	if not _metrics.has(prefix + "min_lower_zone_mass_kg"):
+		_metrics[prefix + "min_lower_zone_mass_kg"] = float(room_state.get("lower_zone_mass_kg", 0.0))
+	else:
+		_metrics[prefix + "min_lower_zone_mass_kg"] = minf(
+			float(_metrics[prefix + "min_lower_zone_mass_kg"]),
+			float(room_state.get("lower_zone_mass_kg", 0.0))
+		)
+	_metrics[prefix + "peak_zone_total_energy_kj"] = maxf(
+		float(_metrics.get(prefix + "peak_zone_total_energy_kj", 0.0)),
+		float(room_state.get("zone_total_energy_kj", 0.0))
+	)
 	_metrics[prefix + "max_passive_fuel_surface_temp_c"] = maxf(
 		float(_metrics.get(prefix + "max_passive_fuel_surface_temp_c", 0.0)),
 		float(room_state.get("passive_fuel_surface_temp_c", 0.0))
@@ -831,6 +888,14 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 		_metrics[prefix + "min_o2_upper"] = _cur_o2_upper
 	else:
 		_metrics[prefix + "min_o2_upper"] = minf(float(_metrics[prefix + "min_o2_upper"]), _cur_o2_upper)
+	var current_fire_o2_ref: float = float(room_state.get("fire_o2_ref", room_state.get("o2", 0.209)))
+	if not _metrics.has(prefix + "min_fire_o2_ref"):
+		_metrics[prefix + "min_fire_o2_ref"] = current_fire_o2_ref
+	else:
+		_metrics[prefix + "min_fire_o2_ref"] = minf(
+			float(_metrics[prefix + "min_fire_o2_ref"]),
+			current_fire_o2_ref
+		)
 	_metrics[prefix + "max_ceiling_jet_temp_c"] = maxf(
 		float(_metrics.get(prefix + "max_ceiling_jet_temp_c", 0.0)),
 		float(room_state.get("ceiling_jet_temp_c", 0.0))
@@ -857,6 +922,8 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "fire_time_s"] = float(room_state.get("fire_time_s", 0.0))
 		_metrics[prefix + "o2"] = float(room_state.get("o2", 0.0))
 		_metrics[prefix + "o2_upper"] = float(room_state.get("o2_upper", room_state.get("o2", 0.0)))
+		_metrics[prefix + "fire_o2_ref"] = float(room_state.get("fire_o2_ref", room_state.get("o2", 0.0)))
+		_metrics[prefix + "fire_o2_min_ref"] = float(room_state.get("fire_o2_min_ref", 0.0))
 		_metrics[prefix + "temp_upper_raw_c"] = float(room_state.get("temp_upper_raw_c", room_state.get("temp_upper_c", 0.0)))
 		_metrics[prefix + "temp_upper_clamped"] = bool(room_state.get("temp_upper_clamped", false))
 		_metrics[prefix + "temp_upper_clamp_time_s"] = float(room_state.get("temp_upper_clamp_time_s", 0.0))
@@ -901,6 +968,30 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "ventilation_response_factor"] = float(room_state.get("ventilation_response_factor", 0.0))
 		_metrics[prefix + "outside_open_path_factor"] = float(room_state.get("outside_open_path_factor", 0.0))
 		_metrics[prefix + "upper_radiative_loss_kw"] = float(room_state.get("upper_radiative_loss_kw", 0.0))
+		_metrics[prefix + "upper_zone_mass_kg"] = float(room_state.get("upper_zone_mass_kg", 0.0))
+		_metrics[prefix + "lower_zone_mass_kg"] = float(room_state.get("lower_zone_mass_kg", 0.0))
+		_metrics[prefix + "upper_zone_energy_kj"] = float(room_state.get("upper_zone_energy_kj", 0.0))
+		_metrics[prefix + "lower_zone_energy_kj"] = float(room_state.get("lower_zone_energy_kj", 0.0))
+		_metrics[prefix + "zone_total_mass_kg"] = float(room_state.get("zone_total_mass_kg", 0.0))
+		_metrics[prefix + "zone_total_energy_kj"] = float(room_state.get("zone_total_energy_kj", 0.0))
+		_metrics[prefix + "two_zone_boundary_mass_kg"] = float(
+			room_state.get("two_zone_boundary_mass_kg", 0.0)
+		)
+		_metrics[prefix + "two_zone_boundary_energy_kj"] = float(
+			room_state.get("two_zone_boundary_energy_kj", 0.0)
+		)
+		_metrics[prefix + "two_zone_opening_upper_in_kg"] = float(
+			room_state.get("two_zone_opening_upper_in_kg", 0.0)
+		)
+		_metrics[prefix + "two_zone_opening_upper_out_kg"] = float(
+			room_state.get("two_zone_opening_upper_out_kg", 0.0)
+		)
+		_metrics[prefix + "two_zone_opening_lower_in_kg"] = float(
+			room_state.get("two_zone_opening_lower_in_kg", 0.0)
+		)
+		_metrics[prefix + "two_zone_opening_lower_out_kg"] = float(
+			room_state.get("two_zone_opening_lower_out_kg", 0.0)
+		)
 		# SF-AUD-028: budget energético (disponible cuando energy_budget_enabled=true)
 		var bud_e_fire: float = float(room_state.get("bud_e_fire_kj", 0.0))
 		var bud_q_residual: float = float(room_state.get("bud_q_residual_kj", 0.0))
@@ -951,6 +1042,8 @@ func _finalize_validation_run(state: Dictionary) -> void:
 	var report: Dictionary = {
 		"case": _case_name,
 		"engine_mode": _engine_mode,
+		"fire_o2_mode_requested": _fire_o2_mode,
+		"fire_o2_mode": String(state.get("fire_o2_effective_mode", _fire_o2_mode)),
 		"comparison_contract_version": 1,
 		"duration_s": float(_case_config.get("duration_s", 0.0)),
 		"sim_time_s": float(state.get("sim_time_s", 0.0)),

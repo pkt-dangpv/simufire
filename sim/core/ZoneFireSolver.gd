@@ -40,6 +40,14 @@ class_name ZoneFireSolver
 ## 1=skeleton, 2=CO₂/HCN upper transport, 3=validate_conservation(), 4=delta-acumulación.
 var zone_solver_phase: int = 4
 
+## M1: activa el ledger canonico de masa y energia de las dos zonas.
+## Legacy permanece sin cambios cuando false.
+var two_zone_energy_enabled: bool = false
+
+const AIR_DENSITY_REF_KG_M3: float = 1.2
+const AIR_CP_KJ_KG_K: float = 1.0
+const ZONE_MASS_EPS_KG: float = 0.0001
+
 ## Fracción de carry convectivo para HCN (respecto al carry general).
 ## 0.40 calibrado para parity CFAST TN-1889 (HCN viaja con gas caliente).
 var hot_gas_hcn_carry_fraction: float = 0.40
@@ -67,6 +75,172 @@ var _building: BuildingModel = null
 
 func set_building(b: BuildingModel) -> void:
 	_building = b
+
+
+# ------------------------------------------------------------------
+# M1: ledger canonico de masa y energia two-zone.
+# upper_gas_kg/upper_energy_kj son el estado superior existente;
+# lower_gas_kg/lower_energy_kj completan el par conservativo.
+# ------------------------------------------------------------------
+
+func ensure_room_state(room: RoomModel, ambient_c: float) -> void:
+	if not two_zone_energy_enabled or room == null:
+		return
+
+	room.upper_gas_kg = maxf(0.0, room.upper_gas_kg)
+	room.upper_energy_kj = maxf(0.0, room.upper_energy_kj)
+	room.lower_gas_kg = maxf(0.0, room.lower_gas_kg)
+	room.lower_energy_kj = maxf(0.0, room.lower_energy_kj)
+
+	if room.zone_total_mass_kg() <= ZONE_MASS_EPS_KG:
+		room.lower_gas_kg = maxf(0.0, room.volume_m3() * AIR_DENSITY_REF_KG_M3)
+	if room.lower_energy_kj <= 0.0 and room.temp_lower_c > ambient_c:
+		room.lower_energy_kj = room.lower_gas_kg \
+				* maxf(0.0, room.temp_lower_c - ambient_c) \
+				* AIR_CP_KJ_KG_K
+
+
+func transfer_lower_to_upper(room: RoomModel, requested_mass_kg: float, ambient_c: float) -> float:
+	if not two_zone_energy_enabled or room == null or requested_mass_kg <= 0.0:
+		return 0.0
+
+	ensure_room_state(room, ambient_c)
+	var moved_mass_kg: float = minf(maxf(0.0, requested_mass_kg), room.lower_gas_kg)
+	if moved_mass_kg <= 0.0:
+		return 0.0
+
+	var lower_specific_energy_kj_kg: float = room.lower_energy_kj \
+			/ maxf(ZONE_MASS_EPS_KG, room.lower_gas_kg)
+	var moved_energy_kj: float = minf(
+		room.lower_energy_kj,
+		moved_mass_kg * lower_specific_energy_kj_kg
+	)
+	room.lower_gas_kg = maxf(0.0, room.lower_gas_kg - moved_mass_kg)
+	room.lower_energy_kj = maxf(0.0, room.lower_energy_kj - moved_energy_kj)
+	room.upper_gas_kg += moved_mass_kg
+	room.upper_energy_kj += moved_energy_kj
+	return moved_mass_kg
+
+
+func add_lower_energy(room: RoomModel, energy_kj: float, ambient_c: float) -> void:
+	if not two_zone_energy_enabled or room == null or energy_kj == 0.0:
+		return
+	ensure_room_state(room, ambient_c)
+	room.lower_energy_kj = maxf(0.0, room.lower_energy_kj + energy_kj)
+
+
+func remove_lower_energy_fraction(room: RoomModel, fraction: float, ambient_c: float) -> float:
+	if not two_zone_energy_enabled or room == null:
+		return 0.0
+	ensure_room_state(room, ambient_c)
+	var removed_kj: float = room.lower_energy_kj * clampf(fraction, 0.0, 1.0)
+	room.lower_energy_kj = maxf(0.0, room.lower_energy_kj - removed_kj)
+	return removed_kj
+
+
+func reconcile_projected_temperatures(room: RoomModel, ambient_c: float) -> void:
+	if not two_zone_energy_enabled or room == null:
+		return
+	ensure_room_state(room, ambient_c)
+	var energy_before_kj: float = room.zone_total_energy_kj()
+	room.upper_energy_kj = room.upper_gas_kg \
+			* maxf(0.0, room.temp_upper_c - ambient_c) \
+			* AIR_CP_KJ_KG_K
+	room.lower_energy_kj = room.lower_gas_kg \
+			* maxf(0.0, room.temp_lower_c - ambient_c) \
+			* AIR_CP_KJ_KG_K
+	room.two_zone_boundary_energy_kj += room.zone_total_energy_kj() - energy_before_kj
+
+
+func project_room_state(room: RoomModel, ambient_c: float, max_upper_temp_c: float) -> void:
+	if not two_zone_energy_enabled or room == null:
+		return
+	ensure_room_state(room, ambient_c)
+	var projection_energy_before_kj: float = room.zone_total_energy_kj()
+
+	var lower_temp_c: float = ambient_c
+	if room.lower_gas_kg > ZONE_MASS_EPS_KG:
+		lower_temp_c = ambient_c + room.lower_energy_kj \
+				/ (room.lower_gas_kg * AIR_CP_KJ_KG_K)
+
+	var upper_temp_raw_c: float = lower_temp_c
+	if room.upper_gas_kg > ZONE_MASS_EPS_KG:
+		upper_temp_raw_c = ambient_c + room.upper_energy_kj \
+				/ (room.upper_gas_kg * AIR_CP_KJ_KG_K)
+
+	# Una inversion termica se mezcla instantaneamente conservando energia sensible.
+	if room.upper_gas_kg > ZONE_MASS_EPS_KG and upper_temp_raw_c < lower_temp_c:
+		var total_mass_kg: float = room.zone_total_mass_kg()
+		var mixed_temp_c: float = ambient_c + room.zone_total_energy_kj() \
+				/ maxf(ZONE_MASS_EPS_KG, total_mass_kg * AIR_CP_KJ_KG_K)
+		room.upper_energy_kj = room.upper_gas_kg \
+				* maxf(0.0, mixed_temp_c - ambient_c) \
+				* AIR_CP_KJ_KG_K
+		room.lower_energy_kj = room.lower_gas_kg \
+				* maxf(0.0, mixed_temp_c - ambient_c) \
+				* AIR_CP_KJ_KG_K
+		lower_temp_c = mixed_temp_c
+		upper_temp_raw_c = mixed_temp_c
+
+	room.temp_lower_c = maxf(ambient_c, lower_temp_c)
+	room.temp_upper_raw_c = maxf(room.temp_lower_c, upper_temp_raw_c)
+	room.temp_upper_clamped = room.temp_upper_raw_c > max_upper_temp_c
+	room.temp_upper_c = minf(room.temp_upper_raw_c, max_upper_temp_c)
+	if room.upper_gas_kg <= ZONE_MASS_EPS_KG:
+		room.temp_upper_c = room.temp_lower_c
+		room.temp_upper_raw_c = room.temp_upper_c
+		room.temp_upper_clamped = false
+
+	# El cap termico es un sumidero numerico explicito, igual que en legacy.
+	room.upper_energy_kj = room.upper_gas_kg \
+			* maxf(0.0, room.temp_upper_c - ambient_c) \
+			* AIR_CP_KJ_KG_K
+	room.lower_energy_kj = room.lower_gas_kg \
+			* maxf(0.0, room.temp_lower_c - ambient_c) \
+			* AIR_CP_KJ_KG_K
+
+	var ambient_k: float = ambient_c + 273.15
+	var upper_k: float = maxf(ambient_k, room.temp_upper_c + 273.15)
+	var upper_density_kg_m3: float = AIR_DENSITY_REF_KG_M3 * ambient_k / upper_k
+	var max_upper_mass_kg: float = room.volume_m3() * upper_density_kg_m3
+	if room.upper_gas_kg > max_upper_mass_kg and room.upper_gas_kg > ZONE_MASS_EPS_KG:
+		var upper_mass_before_kg: float = room.upper_gas_kg
+		room.upper_energy_kj *= max_upper_mass_kg / upper_mass_before_kg
+		room.upper_gas_kg = max_upper_mass_kg
+		room.two_zone_boundary_mass_kg += room.upper_gas_kg - upper_mass_before_kg
+	var upper_volume_m3: float = room.upper_gas_kg / maxf(0.05, upper_density_kg_m3)
+	var upper_depth_m: float = upper_volume_m3 / maxf(0.01, room.floor_area_m2())
+	room.thermal_layer_m = clampf(room.height_m - upper_depth_m, 0.0, room.height_m)
+
+	# Cierre de volumen a presión de referencia. Mientras M3 no resuelva cada
+	# apertura por zonas, la diferencia se trata como intercambio con el contorno:
+	# entrada a temperatura ambiente o salida con la entalpía especifica lower.
+	var lower_volume_m3: float = maxf(0.0, room.volume_m3() - minf(room.volume_m3(), upper_volume_m3))
+	var lower_k: float = maxf(ambient_k, room.temp_lower_c + 273.15)
+	var lower_density_kg_m3: float = AIR_DENSITY_REF_KG_M3 * ambient_k / lower_k
+	var target_lower_mass_kg: float = lower_volume_m3 * lower_density_kg_m3
+	var lower_mass_before_kg: float = room.lower_gas_kg
+	if target_lower_mass_kg < lower_mass_before_kg and lower_mass_before_kg > ZONE_MASS_EPS_KG:
+		room.lower_energy_kj *= target_lower_mass_kg / lower_mass_before_kg
+	room.lower_gas_kg = maxf(0.0, target_lower_mass_kg)
+	room.two_zone_boundary_mass_kg += room.lower_gas_kg - lower_mass_before_kg
+	if room.lower_gas_kg > ZONE_MASS_EPS_KG:
+		room.temp_lower_c = ambient_c + room.lower_energy_kj \
+				/ (room.lower_gas_kg * AIR_CP_KJ_KG_K)
+	else:
+		room.lower_energy_kj = 0.0
+		room.temp_lower_c = ambient_c
+	room.two_zone_boundary_energy_kj += room.zone_total_energy_kj() - projection_energy_before_kj
+
+
+func collapse_upper_into_lower(room: RoomModel, ambient_c: float) -> void:
+	if not two_zone_energy_enabled or room == null:
+		return
+	ensure_room_state(room, ambient_c)
+	room.lower_gas_kg += room.upper_gas_kg
+	room.lower_energy_kj += room.upper_energy_kj
+	room.upper_gas_kg = 0.0
+	room.upper_energy_kj = 0.0
 
 
 # ------------------------------------------------------------------

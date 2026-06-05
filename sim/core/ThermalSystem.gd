@@ -16,6 +16,10 @@ class_name ThermalSystem
 # Dependencias externas
 var _building: BuildingModel
 var _smoke_model: SmokeModel
+var _zone_fire_solver: ZoneFireSolver
+
+# M1: rama two-zone canonica. Default false conserva exactamente legacy.
+var two_zone_solver_enabled: bool = false
 
 # Masa térmica de paredes
 var wall_heat_capacity_kj_m2_k: float = 20.0  # kJ/m²K — cap. efectiva superficie (~5cm yeso)
@@ -327,7 +331,12 @@ func set_references(building: BuildingModel, smoke_model: SmokeModel) -> void:
 	_smoke_model = smoke_model
 
 
+func set_zone_fire_solver(solver: ZoneFireSolver) -> void:
+	_zone_fire_solver = solver
+
+
 func configure(settings: Dictionary) -> void:
+	two_zone_solver_enabled = bool(settings.get("two_zone_solver_enabled", two_zone_solver_enabled))
 	upper_to_lower_loss_rate = float(settings.get("upper_to_lower_loss_rate", upper_to_lower_loss_rate))
 	upper_to_ambient_loss_rate = float(settings.get("upper_to_ambient_loss_rate", upper_to_ambient_loss_rate))
 	lower_layer_warming_rate = float(settings.get("lower_layer_warming_rate", lower_layer_warming_rate))
@@ -575,10 +584,15 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		if room == null:
 			continue
 
+		if two_zone_solver_enabled and _zone_fire_solver != null:
+			_zone_fire_solver.ensure_room_state(room, ambient_c)
+
 		room.upper_radiative_loss_kw = 0.0
 		var _bud_e_before_kj: float = room.upper_energy_kj if energy_budget_enabled else 0.0
 		# Entrainamiento de pluma — McCaffrey (NBSIR 79-1910) + Heskestad (1983)
-		if plume_mccaffrey_enabled and room.hrr_kw > 0.0:
+		if two_zone_solver_enabled:
+			_step_two_zone_plume_entrainment(room, dt, ambient_c)
+		elif plume_mccaffrey_enabled and room.hrr_kw > 0.0:
 			var qc_kw: float = room.hrr_kw * plume_mccaffrey_qc_fraction
 			# Altura de llama Heskestad: L_f = 0.235·Q^0.4 - 1.02·D  [Q en kW, L en m]
 			var l_flame_m: float = maxf(0.0, 0.235 * pow(room.hrr_kw, 0.4) - 1.02 * plume_fire_diameter_m)
@@ -767,20 +781,30 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 					* dt
 			room.upper_gas_kg += maxf(0.0, cooling_mix_kg)
 
-		var lower_mass_kg: float = maxf(
-			1.0,
-			gas_density_kg_m3(room.temp_lower_c) * room.floor_area_m2() * maxf(0.2, effective_hot_layer_height_m(room))
-		)
-
-		room.temp_lower_c += energy_to_lower_kj / lower_mass_kg
-		room.temp_lower_c -= maxf(0.0, room.temp_lower_c - ambient_c) * 0.0085 * dt
-		# Enfriamiento por ingreso de aire fresco exterior (ventana/puerta abierta al exterior).
-		# Modela el reemplazamiento gradual de gas caliente en la zona inferior por aire
-		# ambiente entrante (análogo al flujo de entrada por debajo del plano neutro en CFAST).
-		if outside_open_factor > 0.0 and outside_lower_fresh_air_cooling_rate > 0.0:
-			room.temp_lower_c -= maxf(0.0, room.temp_lower_c - ambient_c) \
-					* outside_lower_fresh_air_cooling_rate * outside_open_factor * dt
-		room.temp_lower_c = maxf(ambient_c, room.temp_lower_c)
+		if two_zone_solver_enabled and _zone_fire_solver != null:
+			_zone_fire_solver.add_lower_energy(room, energy_to_lower_kj, ambient_c)
+			_zone_fire_solver.remove_lower_energy_fraction(room, 0.0085 * dt, ambient_c)
+			if outside_open_factor > 0.0 and outside_lower_fresh_air_cooling_rate > 0.0:
+				_zone_fire_solver.remove_lower_energy_fraction(
+					room,
+					outside_lower_fresh_air_cooling_rate * outside_open_factor * dt,
+					ambient_c
+				)
+			_zone_fire_solver.project_room_state(room, ambient_c, max_upper_temp_c)
+		else:
+			var lower_mass_kg: float = maxf(
+				1.0,
+				gas_density_kg_m3(room.temp_lower_c) * room.floor_area_m2() * maxf(0.2, effective_hot_layer_height_m(room))
+			)
+			room.temp_lower_c += energy_to_lower_kj / lower_mass_kg
+			room.temp_lower_c -= maxf(0.0, room.temp_lower_c - ambient_c) * 0.0085 * dt
+			# Enfriamiento por ingreso de aire fresco exterior (ventana/puerta abierta al exterior).
+			# Modela el reemplazamiento gradual de gas caliente en la zona inferior por aire
+			# ambiente entrante (análogo al flujo de entrada por debajo del plano neutro en CFAST).
+			if outside_open_factor > 0.0 and outside_lower_fresh_air_cooling_rate > 0.0:
+				room.temp_lower_c -= maxf(0.0, room.temp_lower_c - ambient_c) \
+						* outside_lower_fresh_air_cooling_rate * outside_open_factor * dt
+			room.temp_lower_c = maxf(ambient_c, room.temp_lower_c)
 		sync_room_upper_layer(room, dt)
 		update_room_layer_150c(room, dt)
 		step_fed(room, dt)
@@ -974,6 +998,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 
 	# Phase 2F: mixing experimental CO inter-capa (mecanismo separado; default OFF).
 	_apply_phase2f_co_interlayer_mixing(building, dt)
+
+	if two_zone_solver_enabled:
+		reconcile_two_zone_building(building, dt)
 
 	if energy_budget_enabled and _bud_total_fire_kj > 0.1:
 		var residual_frac: float = abs(_bud_total_residual_kj) / _bud_total_fire_kj
@@ -1186,7 +1213,11 @@ func _ensure_minimal_upper_gas(room: RoomModel, ambient_c: float) -> void:
 	# Crea una capa superior mínima para poder depositar energía si aún no existe.
 	if room.upper_gas_kg <= 0.0001:
 		var density: float = gas_density_kg_m3(room.temp_lower_c)
-		room.upper_gas_kg = room.floor_area_m2() * 0.08 * density
+		var required_mass_kg: float = room.floor_area_m2() * 0.08 * density
+		if two_zone_solver_enabled and _zone_fire_solver != null:
+			_zone_fire_solver.transfer_lower_to_upper(room, required_mass_kg, ambient_c)
+		else:
+			room.upper_gas_kg = required_mass_kg
 
 
 func _build_wall_adjacency(building: BuildingModel) -> void:
@@ -1463,6 +1494,34 @@ func estimate_target_upper_gas_mass_kg(room: RoomModel) -> float:
 	return target_volume_m3 * gas_density_kg_m3(entrained_temp_c)
 
 
+func _step_two_zone_plume_entrainment(room: RoomModel, dt: float, ambient_c: float) -> void:
+	if room == null or dt <= 0.0 or room.hrr_kw <= 0.0 or _zone_fire_solver == null:
+		return
+
+	var qc_kw: float = maxf(0.0, room.hrr_kw * plume_mccaffrey_qc_fraction)
+	if qc_kw <= 0.0:
+		return
+
+	var flame_length_m: float = maxf(
+		0.0,
+		0.235 * pow(room.hrr_kw, 0.4) - 1.02 * plume_fire_diameter_m
+	)
+	var interface_m: float = clampf(room.thermal_layer_m, 0.0, room.height_m)
+	var z_eff_m: float
+	if plume_confined_flame_enabled and flame_length_m >= room.height_m:
+		z_eff_m = maxf(0.1, room.height_m * plume_confined_z_eff_fraction)
+	else:
+		z_eff_m = maxf(0.1, interface_m - flame_length_m)
+
+	var m_dot_plume_kg_s: float = 0.071 \
+			* pow(qc_kw, 1.0 / 3.0) \
+			* pow(z_eff_m, 5.0 / 3.0)
+	var max_upper_mass_kg: float = room.volume_m3() * gas_density_kg_m3(room.temp_upper_c)
+	var remaining_capacity_kg: float = maxf(0.0, max_upper_mass_kg - room.upper_gas_kg)
+	var requested_mass_kg: float = minf(m_dot_plume_kg_s * dt, remaining_capacity_kg)
+	_zone_fire_solver.transfer_lower_to_upper(room, requested_mass_kg, ambient_c)
+
+
 func _add_flame_region_entrainment(
 	room: RoomModel,
 	qc_kw: float,
@@ -1497,8 +1556,11 @@ func _add_flame_region_entrainment(
 	if mass_gain_kg <= 0.0:
 		return
 
-	room.upper_gas_kg += mass_gain_kg
-	room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_lower_c - ambient_c)
+	if two_zone_solver_enabled and _zone_fire_solver != null:
+		_zone_fire_solver.transfer_lower_to_upper(room, mass_gain_kg, ambient_c)
+	else:
+		room.upper_gas_kg += mass_gain_kg
+		room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_lower_c - ambient_c)
 
 
 func estimate_retained_hot_layer_depth_m(room: RoomModel) -> float:
@@ -2227,11 +2289,14 @@ func _apply_post_transfer_vertical_mix(room: RoomModel, dt: float) -> void:
 		return
 
 	room.upper_energy_kj -= mix_energy_kj
-	var lower_mass_kg: float = maxf(
-		1.0,
-		gas_density_kg_m3(room.temp_lower_c) * room.floor_area_m2() * maxf(0.2, effective_hot_layer_height_m(room))
-	)
-	room.temp_lower_c += mix_energy_kj / lower_mass_kg
+	if two_zone_solver_enabled and _zone_fire_solver != null:
+		_zone_fire_solver.add_lower_energy(room, mix_energy_kj, ambient_temp_c())
+	else:
+		var lower_mass_kg: float = maxf(
+			1.0,
+			gas_density_kg_m3(room.temp_lower_c) * room.floor_area_m2() * maxf(0.2, effective_hot_layer_height_m(room))
+		)
+		room.temp_lower_c += mix_energy_kj / lower_mass_kg
 	sync_room_upper_layer(room, dt)
 
 
@@ -2738,6 +2803,10 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 	if room == null:
 		return
 
+	if two_zone_solver_enabled and _zone_fire_solver != null:
+		_sync_room_two_zone_layer(room, dt)
+		return
+
 	var ambient_c: float = ambient_temp_c()
 	room.upper_gas_kg = maxf(0.0, room.upper_gas_kg)
 	room.upper_energy_kj = maxf(0.0, room.upper_energy_kj)
@@ -2833,6 +2902,39 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 		])
 
 
+func _sync_room_two_zone_layer(room: RoomModel, dt: float) -> void:
+	var ambient_c: float = ambient_temp_c()
+	_zone_fire_solver.ensure_room_state(room, ambient_c)
+	if _should_collapse_thermal_layer(room):
+		_zone_fire_solver.collapse_upper_into_lower(room, ambient_c)
+		room.co_upper_kg = 0.0
+		room.co2_upper_kg = 0.0
+		room.hcn_upper_kg = 0.0
+
+	room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg)
+	room.co2_upper_kg = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
+	room.hcn_upper_kg = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)
+	_zone_fire_solver.project_room_state(room, ambient_c, max_upper_temp_c)
+	_smoke_model.recompute_layer_from_mass(room, dt, ambient_c)
+
+	if room.temp_upper_c < room.temp_lower_c - 1.0:
+		push_warning("M1 two-zone: inversión de capa sala %d — T_upper=%.1f°C < T_lower=%.1f°C" % [
+			room.id, room.temp_upper_c, room.temp_lower_c
+		])
+
+
+func reconcile_two_zone_building(building: BuildingModel, dt: float) -> void:
+	if not two_zone_solver_enabled or _zone_fire_solver == null or building == null:
+		return
+	var ambient_c: float = ambient_temp_c()
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+		_zone_fire_solver.reconcile_projected_temperatures(room, ambient_c)
+		_sync_room_two_zone_layer(room, dt)
+
+
 func update_temperature_cap_telemetry(room: RoomModel, dt: float) -> void:
 	if room == null or dt <= 0.0:
 		return
@@ -2865,6 +2967,9 @@ func estimate_plume_upper_depth_m(room: RoomModel) -> float:
 func effective_hot_layer_height_m(room: RoomModel) -> float:
 	if room == null:
 		return 0.0
+
+	if two_zone_solver_enabled:
+		return clampf(room.thermal_layer_m, 0.0, room.height_m)
 
 	var hot_depth_m: float = maxf(
 		estimate_plume_upper_depth_m(room),

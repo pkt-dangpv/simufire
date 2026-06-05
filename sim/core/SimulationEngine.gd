@@ -101,6 +101,7 @@ var _targets: Array = []
 # Pre-M1: selector observable pero deliberadamente no-op.
 # M1 conectara este flag al solver canonico manteniendo legacy como default.
 @export var two_zone_solver_enabled: bool = false
+@export var two_zone_opening_flow_enabled: bool = false
 
 # ============================================================
 # ROTURA DE CRISTAL (SF-AUD-011)
@@ -192,9 +193,12 @@ var _cbal_hvac_c_exhausted_kg: float = 0.0
 # SFPE/Drysdale: la combustión con llama de sólidos orgánicos cesa generalmente
 # por debajo del 12-14 % de O2. Valor de referencia: 0.122 (12.2 %).
 @export var fire_o2_min_for_flame: float = 0.122
+## M2: selector unico de la muestra de O2 usada por la combustion.
+## `legacy` conserva flags/blend historicos; los otros modos activan O2 pre-HRR.
+@export_enum("legacy", "upper", "lower", "interface") var fire_o2_mode: String = "legacy"
 ## Cuando true, la decisión de extincion/HRR usa `room.o2_upper` (capa caliente)
 ## en lugar de `room.o2` (promedio), con el umbral separado `fire_o2_upper_min_for_flame`.
-## Fase 2A estructural: false (pendiente calibracion del modelo two-zone en Fase 2B).
+## Compatibilidad legacy: ignorado cuando fire_o2_mode es explicito.
 @export var fire_o2_upper_for_flame: bool = false
 ## Blend [0,1] para capear el HRR por O2 de capa superior.
 ## 0.0 = sin cambio (usa room.o2); 1.0 = effective_o2 = min(room.o2, room.o2_upper).
@@ -209,7 +213,7 @@ var _cbal_hvac_c_exhausted_kg: float = 0.0
 ## Phase 2C: cuando true, el fuego usa room.o2_lower como referencia de O2.
 ## Activa el feed de zona baja via HVAC low-supply/high-return (benchmark CFAST GAP-9).
 ## Requiere phase2h_o2_doorway_two_zone_enabled=true para que HVAC reponga o2_lower.
-## Default false = no-op. Activar solo via engine_overrides en cfast_hvac_residential.
+## Compatibilidad legacy: ignorado cuando fire_o2_mode es explicito.
 @export var fire_o2_lower_for_flame: bool = false
 @export var fire_o2_consumption_kg_per_MJ: float = 0.076  # Regla de Thornton: 1/13.1 MJ/kgO2
 # Rendimiento de humo (kg/MJ)
@@ -874,8 +878,12 @@ func _sync_auxiliary_services() -> void:
 		push_error("SimulationEngine: subsistemas no inicializados; no se puede sincronizar")
 		return
 
+	zone_fire_solver.two_zone_energy_enabled = two_zone_solver_enabled
+	zone_fire_solver.set_building(building)
 	thermal_system.set_references(building, smoke_model)
+	thermal_system.set_zone_fire_solver(zone_fire_solver)
 	thermal_system.configure({
+		"two_zone_solver_enabled": two_zone_solver_enabled,
 		"upper_to_lower_loss_rate": upper_to_lower_loss_rate,
 		"upper_to_ambient_loss_rate": upper_to_ambient_loss_rate,
 		"lower_layer_warming_rate": lower_layer_warming_rate,
@@ -1045,6 +1053,7 @@ func _sync_auxiliary_services() -> void:
 		"o2_smoke_carry_coeff": o2_smoke_carry_coeff,
 		"doorway_o2_counterflow_coeff": doorway_o2_counterflow_coeff,
 		"background_o2_exchange_multiplier": background_o2_exchange_multiplier,
+		"two_zone_opening_flow_enabled": two_zone_solver_enabled and two_zone_opening_flow_enabled,
 		"phase3_thermodynamic_pressure_enabled": phase3_thermodynamic_pressure_enabled,
 		"phase3_leak_area_m2": phase3_leak_area_m2,
 		"phase3_chi_conv": phase3_chi_conv,
@@ -1085,6 +1094,7 @@ func _sync_auxiliary_services() -> void:
 		"phase2e_co2_subb_enabled": phase2e_co2_subb_enabled,
 		"phase2e_co2_exchange_fraction": phase2e_co2_exchange_fraction,
 		"phase2e_co2_subd_enabled": phase2e_co2_subd_enabled,
+		"fire_o2_mode": fire_o2_mode,
 		"fire_o2_lower_for_flame": fire_o2_lower_for_flame,
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
@@ -1131,6 +1141,9 @@ func _build_state_context() -> Dictionary:
 		"global_carbon_postclamp_excess_kg": global_carbon_postclamp_excess_kg,
 		"global_carbon_transport_residual_kg": global_carbon_transport_residual_kg,
 		"two_zone_solver_enabled": two_zone_solver_enabled,
+		"two_zone_opening_flow_enabled": two_zone_solver_enabled and two_zone_opening_flow_enabled,
+		"fire_o2_mode": fire_o2_mode,
+		"fire_o2_effective_mode": _resolve_fire_o2_mode(),
 		"step_time_us": _step_time_us,
 	}
 
@@ -1142,7 +1155,8 @@ func _build_gas_exchange_hooks() -> Dictionary:
 		"sync_room_upper_layer_callable": Callable(thermal_system, "sync_room_upper_layer"),
 		"compute_interroom_transfer_temp_callable": Callable(thermal_system, "compute_interroom_transfer_temp_c"),
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
-		"build_interior_opening_flow_state_callable": Callable(thermal_system, "build_interior_opening_flow_state")
+		"build_interior_opening_flow_state_callable": Callable(thermal_system, "build_interior_opening_flow_state"),
+		"opening_flow_cache": _opening_flow_cache
 	}
 
 
@@ -1391,11 +1405,15 @@ func step(delta: float) -> void:
 	# SF-CBAL: capturar inventario inicial antes de cualquier física.
 	_ensure_carbon_balance_initialized()
 
+	var pre_hrr_o2_step: bool = _uses_pre_hrr_oxygen_step()
 	_step_pool_fires(dt)
+	if pre_hrr_o2_step:
+		_step_oxygen(dt)
 	_step_fire(dt)
 	_step_co_oxidation(dt)
 	_step_targets(dt)
-	_step_oxygen(dt)
+	if not pre_hrr_o2_step:
+		_step_oxygen(dt)
 	thermal_system.step(building, dt, {
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
 		"opening_flow_cache": _opening_flow_cache
@@ -1416,6 +1434,10 @@ func step(delta: float) -> void:
 	_step_hvac(dt)
 	_step_passive_fuel(dt)
 	fire_spread_system.step(dt, Callable(self, "ignite_room"))
+	if two_zone_solver_enabled:
+		# M1: absorber los cambios termicos de sistemas legacy (HVAC/supresion/flujos)
+		# como condiciones de contorno antes del clamp final.
+		thermal_system.reconcile_two_zone_building(building, dt)
 	_clamp_rooms(dt)
 	# Evaluar el estado final del paso, incluyendo cualquier pérdida por clamp.
 	_check_carbon_balance()
@@ -1576,6 +1598,7 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"outside_open_factor": local_outside_open_factor,
 		"outside_open_path_factor": outside_open_path_factor,
 		"fire_o2_independent": fire_o2_independent,
+		"fire_o2_mode": fire_o2_mode,
 		"fire_o2_upper_for_flame": fire_o2_upper_for_flame,
 		"fire_o2_upper_hrr_blend": fire_o2_upper_hrr_blend,
 		"fire_o2_lower_for_flame": fire_o2_lower_for_flame,
@@ -2211,6 +2234,23 @@ func _step_oxygen(dt: float) -> void:
 
 	oxygen_exchange_system.step(building, dt, _build_oxygen_exchange_hooks())
 
+
+func _resolve_fire_o2_mode() -> String:
+	var mode: String = fire_o2_mode.strip_edges().to_lower()
+	if mode == "upper" or mode == "lower" or mode == "interface":
+		return mode
+	if fire_o2_upper_for_flame:
+		return "upper"
+	if fire_o2_lower_for_flame:
+		return "lower"
+	return "legacy"
+
+
+func _uses_pre_hrr_oxygen_step() -> bool:
+	var mode: String = fire_o2_mode.strip_edges().to_lower()
+	return mode == "upper" or mode == "lower" or mode == "interface"
+
+
 # ============================================================
 # CONSERVACIÓN DE HUMO (DEBUG)
 # ============================================================
@@ -2320,6 +2360,8 @@ func _clamp_rooms(dt: float) -> void:
 		room.layer_150c_m = clampf(room.layer_150c_m, 0.0, room.height_m)
 		room.upper_gas_kg = maxf(0.0, room.upper_gas_kg)
 		room.upper_energy_kj = maxf(0.0, room.upper_energy_kj)
+		room.lower_gas_kg = maxf(0.0, room.lower_gas_kg)
+		room.lower_energy_kj = maxf(0.0, room.lower_energy_kj)
 
 		room.temp_lower_c = maxf(building.outside_temp_c, room.temp_lower_c)
 
@@ -2330,8 +2372,16 @@ func _clamp_rooms(dt: float) -> void:
 		if room.temp_upper_c < room.temp_lower_c:
 			room.temp_lower_c = room.temp_upper_c
 		if thermal_system.is_room_quiescent(room):
-			room.upper_gas_kg = 0.0
-			room.upper_energy_kj = 0.0
+			if two_zone_solver_enabled:
+				zone_fire_solver.collapse_upper_into_lower(room, thermal_system.ambient_temp_c())
+				zone_fire_solver.project_room_state(
+					room,
+					thermal_system.ambient_temp_c(),
+					max_upper_temp_c
+				)
+			else:
+				room.upper_gas_kg = 0.0
+				room.upper_energy_kj = 0.0
 			room.temp_upper_c = room.temp_lower_c
 			room.temp_upper_raw_c = room.temp_upper_c
 			room.temp_upper_clamped = false
@@ -2341,7 +2391,15 @@ func _clamp_rooms(dt: float) -> void:
 		else:
 			room.temp_upper_raw_c = maxf(room.temp_upper_raw_c, room.temp_upper_c)
 			room.temp_upper_clamped = room.temp_upper_clamped or room.temp_upper_raw_c > max_upper_temp_c
-			room.upper_energy_kj = room.upper_gas_kg * maxf(0.0, room.temp_upper_c - thermal_system.ambient_temp_c())
+			if two_zone_solver_enabled:
+				zone_fire_solver.project_room_state(
+					room,
+					thermal_system.ambient_temp_c(),
+					max_upper_temp_c
+				)
+			else:
+				room.upper_energy_kj = room.upper_gas_kg \
+						* maxf(0.0, room.temp_upper_c - thermal_system.ambient_temp_c())
 			thermal_system.update_temperature_cap_telemetry(room, dt)
 
 		room.hrr_kw = maxf(0.0, room.hrr_kw)

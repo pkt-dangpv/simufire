@@ -94,6 +94,8 @@ var phase2e_co2_subd_enabled: bool = false
 # Requiere phase2h_o2_doorway_two_zone_enabled=true para que el HVAC reponga o2_lower.
 # Default false = no-op garantizado. Activar solo en benchmark HVAC low-supply/high-return.
 var fire_o2_lower_for_flame: bool = false
+# M2: selector unico. `legacy` conserva el comportamiento del flag anterior.
+var fire_o2_mode: String = "legacy"
 var _pending_o2_deliveries: Array[Dictionary] = []
 var _reserved_transport_o2_delta_kg: Dictionary = {}
 
@@ -200,6 +202,7 @@ func configure(settings: Dictionary) -> void:
 	fire_o2_lower_for_flame = bool(
 		settings.get("fire_o2_lower_for_flame", fire_o2_lower_for_flame)
 	)
+	fire_o2_mode = String(settings.get("fire_o2_mode", fire_o2_mode)).strip_edges().to_lower()
 
 
 func reset() -> void:
@@ -227,6 +230,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		Callable()
 	)
 	var air_density_kg_m3: float = 1.2
+	var fire_uses_lower_o2: bool = _uses_lower_o2_for_fire()
 
 	_release_pending_o2_deliveries(building, dt, air_density_kg_m3)
 
@@ -242,7 +246,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		# Phase 2C: cuando fire_o2_lower_for_flame=true, el fuego consume de o2_lower;
 		# room.o2 no se depleta por combustión (solo ACH + HVAC lo modifican).
 		var o2_mass_kg: float = air_mass_kg * room.o2
-		if room.hrr_kw > 0.0 and not fire_o2_lower_for_flame:
+		if room.hrr_kw > 0.0 and not fire_uses_lower_o2:
 			var cr: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 			var consumed: float = (room.hrr_kw / 1000.0) * cr * dt
 			consumed = minf(consumed, o2_mass_kg * 0.05)
@@ -321,7 +325,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)
 			# Phase 2C: fuego consume O₂ de la zona baja cuando fire_o2_lower_for_flame=true.
 			# Usa air_mass_kg (masa total) para consistencia con la reposición del HVAC.
-			if fire_o2_lower_for_flame and room.hrr_kw > 0.0:
+			if fire_uses_lower_o2 and room.hrr_kw > 0.0:
 				var cr_lower: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 				var consumed_lower: float = (room.hrr_kw / 1000.0) * cr_lower * dt
 				consumed_lower = minf(consumed_lower, air_mass_kg * room.o2_lower * 0.05)
@@ -436,6 +440,14 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			outside_open_path_factor_callable,
 			opening_flow_cache
 		)
+
+
+func _uses_lower_o2_for_fire() -> bool:
+	if fire_o2_mode == "lower":
+		return true
+	if fire_o2_mode == "upper" or fire_o2_mode == "interface":
+		return false
+	return fire_o2_lower_for_flame
 
 
 func _step_outside_opening_o2(
