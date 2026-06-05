@@ -252,6 +252,8 @@ global, ledger unico de especies y retirada de flags Phase 2H.
 - Candidato estable de contrato:
   `-TwoZoneV1` (`two-zone + -TwoZoneOpeningFlow + -CanonicalPressure`),
   con O2 por caso/default.
+- El mismo perfil se acepta en Godot directo como `--validation-two-zone-v1`;
+  el reporte registra `two_zone_v1_profile=true`.
 - Reporte:
   `sim/validation/reports/contracts/legacy_two_zone_comparison_m4_default_o2_pass.json`.
 - Reporte del preset `-TwoZoneV1`:

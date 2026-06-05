@@ -37,6 +37,7 @@ var _suppression_events: Array = []
 var _carbon_events: Array = []
 var _engine_mode: String = "legacy"
 var _fire_o2_mode: String = "legacy"
+var _two_zone_v1_profile: bool = false
 var _incident_started: bool = false
 var _runtime_error_reported: bool = false
 
@@ -110,6 +111,10 @@ func _parse_validation_args(args: Array[String]) -> Dictionary:
 		elif arg == "--validation-fire-o2-mode" and index + 1 < args.size():
 			index += 1
 			parsed["validation_fire_o2_mode"] = String(args[index])
+		elif arg.begins_with("--validation-two-zone-v1="):
+			parsed["validation_two_zone_v1"] = _parse_bool_arg(arg.get_slice("=", 1))
+		elif arg == "--validation-two-zone-v1":
+			parsed["validation_two_zone_v1"] = true
 		elif arg.begins_with("--validation-two-zone-opening-flow="):
 			parsed["validation_two_zone_opening_flow"] = _parse_bool_arg(arg.get_slice("=", 1))
 		elif arg == "--validation-two-zone-opening-flow":
@@ -158,6 +163,8 @@ func _begin_validation_run() -> void:
 
 	building.load_template_data(template_data)
 	_apply_engine_overrides(Dictionary(_case_config.get("engine_overrides", {})))
+	if not _configure_validation_two_zone_v1_profile():
+		return
 	if not _configure_validation_engine_mode():
 		return
 	if not _configure_validation_fire_o2_mode():
@@ -379,6 +386,20 @@ func _apply_opening_overrides(template_data: Dictionary, overrides: Variant) -> 
 func _apply_engine_overrides(overrides: Dictionary) -> void:
 	for key in overrides.keys():
 		engine.set(String(key), overrides[key])
+
+
+func _configure_validation_two_zone_v1_profile() -> bool:
+	_two_zone_v1_profile = bool(_cli_args.get("validation_two_zone_v1", false))
+	if not _two_zone_v1_profile:
+		return true
+	var requested_mode: String = String(_cli_args.get("validation_engine_mode", "")).strip_edges().to_lower()
+	if requested_mode != "" and requested_mode != "two-zone":
+		_abort_validation_run("CaseRunner: --validation-two-zone-v1 requiere modo two-zone o modo vacio")
+		return false
+	_cli_args["validation_engine_mode"] = "two-zone"
+	_cli_args["validation_two_zone_opening_flow"] = true
+	_cli_args["validation_canonical_pressure"] = true
+	return true
 
 
 func _configure_validation_engine_mode() -> bool:
@@ -1067,6 +1088,7 @@ func _finalize_validation_run(state: Dictionary) -> void:
 	var report: Dictionary = {
 		"case": _case_name,
 		"engine_mode": _engine_mode,
+		"two_zone_v1_profile": _two_zone_v1_profile,
 		"fire_o2_mode_requested": _fire_o2_mode,
 		"fire_o2_mode": String(state.get("fire_o2_effective_mode", _fire_o2_mode)),
 		"comparison_contract_version": 1,

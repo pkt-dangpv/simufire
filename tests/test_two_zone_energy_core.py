@@ -10,6 +10,7 @@ ZONE = (ROOT / "sim" / "core" / "ZoneFireSolver.gd").read_text(encoding="utf-8")
 THERMAL = (ROOT / "sim" / "core" / "ThermalSystem.gd").read_text(encoding="utf-8")
 ENGINE = (ROOT / "sim" / "core" / "SimulationEngine.gd").read_text(encoding="utf-8")
 STATE = (ROOT / "sim" / "core" / "SimulationStateBuilder.gd").read_text(encoding="utf-8")
+CASE_RUNNER = (ROOT / "sim" / "validation" / "CaseRunner.gd").read_text(encoding="utf-8")
 RUN_CASE = (ROOT / "sim" / "validation" / "run_case.ps1").read_text(encoding="utf-8")
 COMPARE_RUNNER = (
     ROOT / "sim" / "validation" / "run_legacy_two_zone_compare.ps1"
@@ -117,11 +118,18 @@ class TestTwoZoneStructure(unittest.TestCase):
         self.assertIn("[switch]$TwoZoneV1", RUN_CASE)
         self.assertIn("TwoZoneV1 requiere EngineMode two-zone", RUN_CASE)
         self.assertIn('$EngineMode = "two-zone"', RUN_CASE)
+        self.assertIn("--validation-two-zone-v1", RUN_CASE)
         self.assertIn("$TwoZoneOpeningFlow = $true", RUN_CASE)
         self.assertIn("$CanonicalPressure = $true", RUN_CASE)
         self.assertIn("[switch]$TwoZoneV1", COMPARE_RUNNER)
         self.assertIn("TwoZoneV1 requiere CandidateMode two-zone", COMPARE_RUNNER)
         self.assertIn("-TwoZoneV1:$($TwoZoneV1 -and $Mode -eq \"two-zone\")", COMPARE_RUNNER)
+        self.assertIn("--validation-two-zone-v1", CASE_RUNNER)
+        self.assertIn("func _configure_validation_two_zone_v1_profile() -> bool:", CASE_RUNNER)
+        self.assertIn('_cli_args["validation_engine_mode"] = "two-zone"', CASE_RUNNER)
+        self.assertIn('_cli_args["validation_two_zone_opening_flow"] = true', CASE_RUNNER)
+        self.assertIn('_cli_args["validation_canonical_pressure"] = true', CASE_RUNNER)
+        self.assertIn('"two_zone_v1_profile": _two_zone_v1_profile', CASE_RUNNER)
 
 
 class TestStairwellHeatBridgeStructure(unittest.TestCase):

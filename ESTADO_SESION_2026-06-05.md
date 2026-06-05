@@ -155,6 +155,11 @@ exactamente el +16% observado.
 - Resultado de flags en reporte: `engine_mode=two-zone`,
   `two_zone_solver_enabled=1.0`, `two_zone_opening_flow_enabled=1.0`,
   `phase3_pressure_canonical_enabled=1.0`, `fire_o2_mode=legacy`.
+- Ejecución Godot directa:
+  `--validation-case=cfast_two_room_door_open --validation-two-zone-v1 --validation-duration=30`.
+- Reporte directo:
+  `sim/validation/reports/v1_profile_direct_godot_cfast_two_room_30.json`.
+- Resultado directo: `two_zone_v1_profile=true` con los tres flags del contrato activos.
 
 ### Evidencia de contrato con preset
 - Comando:

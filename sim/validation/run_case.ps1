@@ -99,6 +99,10 @@ if ($FireO2Mode) {
 	$godotArgs += "--validation-fire-o2-mode=$FireO2Mode"
 }
 
+if ($TwoZoneV1) {
+	$godotArgs += "--validation-two-zone-v1"
+}
+
 if ($TwoZoneOpeningFlow) {
 	$godotArgs += "--validation-two-zone-opening-flow"
 }

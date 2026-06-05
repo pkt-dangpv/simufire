@@ -21,6 +21,11 @@ python scripts/simulation/validate_reference_cases.py
 # 4. Comparar candidato two-zone v1 contra la referencia legacy congelada
 powershell -ExecutionPolicy Bypass -File sim/validation/run_legacy_two_zone_compare.ps1 -Action compare -CandidateMode two-zone -TwoZoneV1 -AllowContractFailure
 
+# 4b. Ejecutar un caso two-zone v1 directo en Godot/headless
+& "C:\Users\dangp\Desktop\Godot_v4.6.3-stable_win64_console.exe" `
+    --headless --path "." --log-file "$env:TEMP\simufire.log" -- `
+    --validation-case=cfast_two_room_door_open --validation-two-zone-v1
+
 # 5. Reproducir un escenario predefinido y generar export tecnico
 python scripts/run_scenario.py scenarios/compact_apartment_reference.json --duration 60
 
