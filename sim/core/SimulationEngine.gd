@@ -479,6 +479,7 @@ var _cbal_hvac_c_exhausted_kg: float = 0.0
 @export var hrr_chi_rad_low_o2: float = 0.50
 ## Fracción de χ_rad·HRR que se deposita directamente en paredes/techo (0 = todo a capa superior).
 @export var hrr_rad_wall_fraction: float = 0.0
+@export var two_zone_convective_heat_multiplier: float = 1.0
 @export var retained_hot_layer_temp_start_c: float = 100.0
 @export var retained_hot_layer_temp_full_c: float = 350.0
 @export var retained_hot_layer_o2_start: float = 0.18
@@ -922,6 +923,7 @@ func _sync_auxiliary_services() -> void:
 		"hrr_chi_rad_normal": hrr_chi_rad_normal,
 		"hrr_chi_rad_low_o2": hrr_chi_rad_low_o2,
 		"hrr_rad_wall_fraction": hrr_rad_wall_fraction,
+		"two_zone_convective_heat_multiplier": two_zone_convective_heat_multiplier,
 		"retained_hot_layer_temp_start_c": retained_hot_layer_temp_start_c,
 		"retained_hot_layer_temp_full_c": retained_hot_layer_temp_full_c,
 		"retained_hot_layer_o2_start": retained_hot_layer_o2_start,

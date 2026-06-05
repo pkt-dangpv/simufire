@@ -6,6 +6,7 @@ param(
 	[string]$GodotExe = "",
 	[string]$ProjectPath = "",
 	[string]$FireO2Mode = "",
+	[switch]$TwoZoneV1,
 	[switch]$TwoZoneOpeningFlow,
 	[switch]$CanonicalPressure,
 	[int]$TimeoutSeconds = 900,
@@ -32,6 +33,13 @@ $comparisonPath = Join-Path $PSScriptRoot "reports\contracts\legacy_two_zone_com
 if ($FireO2Mode -and $FireO2Mode -notin @("legacy", "upper", "lower", "interface")) {
 	throw "FireO2Mode no soportado '$FireO2Mode'. Usa legacy, upper, lower o interface."
 }
+if ($TwoZoneV1) {
+	if ($CandidateMode -ne "two-zone") {
+		throw "TwoZoneV1 requiere CandidateMode two-zone."
+	}
+	$TwoZoneOpeningFlow = $true
+	$CanonicalPressure = $true
+}
 
 function Invoke-ModeCases([string]$Mode, [bool]$AllowBaselineFailure) {
 	$modeLabel = $Mode
@@ -52,6 +60,7 @@ function Invoke-ModeCases([string]$Mode, [bool]$AllowBaselineFailure) {
 			-ValidationOutput $outputPath `
 			-EngineMode $Mode `
 			-FireO2Mode $FireO2Mode `
+			-TwoZoneV1:$($TwoZoneV1 -and $Mode -eq "two-zone") `
 			-TwoZoneOpeningFlow:$TwoZoneOpeningFlow `
 			-CanonicalPressure:$CanonicalPressure `
 			-AllowBaselineFailure:$AllowBaselineFailure `

@@ -216,6 +216,7 @@ var layer_relax_up: float = 0.015
 var hrr_chi_rad_normal: float = 0.35
 var hrr_chi_rad_low_o2: float = 0.50
 var hrr_rad_wall_fraction: float = 0.0       # fracción de χ_rad·HRR que va directamente a paredes
+var two_zone_convective_heat_multiplier: float = 1.0
 var upper_heat_capture_min: float = 0.10      # obsoleto — usar hrr_chi_rad_normal
 var upper_heat_capture_max: float = 0.25      # obsoleto — usar hrr_chi_rad_normal
 var upper_heat_capture_outside_open_bonus: float = 0.0  # obsoleto
@@ -574,6 +575,9 @@ func configure(settings: Dictionary) -> void:
 	hrr_chi_rad_normal = float(settings.get("hrr_chi_rad_normal", hrr_chi_rad_normal))
 	hrr_chi_rad_low_o2 = float(settings.get("hrr_chi_rad_low_o2", hrr_chi_rad_low_o2))
 	hrr_rad_wall_fraction = float(settings.get("hrr_rad_wall_fraction", hrr_rad_wall_fraction))
+	two_zone_convective_heat_multiplier = float(
+		settings.get("two_zone_convective_heat_multiplier", two_zone_convective_heat_multiplier)
+	)
 	radiation_opening_enabled = bool(settings.get("radiation_opening_enabled", radiation_opening_enabled))
 	radiation_flame_emissivity = float(settings.get("radiation_flame_emissivity", radiation_flame_emissivity))
 	radiation_opening_view_factor = float(settings.get("radiation_opening_view_factor", radiation_opening_view_factor))
@@ -709,6 +713,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			clampf(inverse_lerp(0.06, 0.12, room.o2), 0.0, 1.0)
 		)
 		var conv_fraction: float = clampf(1.0 - chi_rad, 0.0, 0.90)
+		if two_zone_solver_enabled and two_zone_convective_heat_multiplier > 0.0:
+			conv_fraction = minf(0.90, conv_fraction * two_zone_convective_heat_multiplier)
 		# Cuando hay ventana exterior abierta: el aporte de O2 fresco reduce chi_rad
 		# efectivo (combustión más completa). Modelado como boost proporcional a open_factor.
 		if outside_open_factor > 0.0 and outside_open_upper_heat_boost > 0.0:

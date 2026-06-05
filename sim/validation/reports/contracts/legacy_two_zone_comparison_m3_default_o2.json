@@ -1,5 +1,5 @@
 {
-  "all_required_pass": true,
+  "all_required_pass": false,
   "candidate_mode": "two-zone",
   "cases": {
     "c_balance_high_phi": {
@@ -353,13 +353,13 @@
     "cfast_two_floor_stairwell": {
       "checks": {
         "room_0_peak_hrr_kw": {
-          "abs_delta": 113.46492520280106,
+          "abs_delta": 113.36247628308604,
           "allowed_delta": 289.2391491292638,
-          "candidate": 850.665571894745,
-          "delta": -113.46492520280106,
+          "candidate": 850.76802081446,
+          "delta": -113.36247628308604,
           "legacy": 964.130497097546,
           "pass": true,
-          "relative_delta": 0.11768627332542643,
+          "relative_delta": 0.11758001289696428,
           "required": true,
           "rule": {
             "abs_tolerance": 280.0,
@@ -368,13 +368,13 @@
           }
         },
         "room_0_peak_temp_upper_c": {
-          "abs_delta": 301.17843748405096,
+          "abs_delta": 321.380137945976,
           "allowed_delta": 301.77050130500174,
-          "candidate": 561.022994815954,
-          "delta": -301.17843748405096,
+          "candidate": 540.821294354029,
+          "delta": -321.380137945976,
           "legacy": 862.201432300005,
-          "pass": true,
-          "relative_delta": 0.34931331148526235,
+          "pass": false,
+          "relative_delta": 0.3727436836757087,
           "required": true,
           "rule": {
             "abs_tolerance": 280.0,
@@ -383,13 +383,13 @@
           }
         },
         "room_6_final_fed": {
-          "abs_delta": 0.18845022879764695,
+          "abs_delta": 0.08894561674338697,
           "allowed_delta": 0.4,
-          "candidate": 0.710414015890675,
-          "delta": 0.18845022879764695,
+          "candidate": 0.610909403836415,
+          "delta": 0.08894561674338697,
           "legacy": 0.521963787093028,
           "pass": true,
-          "relative_delta": 0.3610408106033226,
+          "relative_delta": 0.17040572342911303,
           "required": false,
           "rule": {
             "abs_tolerance": 0.4,
@@ -398,13 +398,13 @@
           }
         },
         "room_6_final_hot_layer_m": {
-          "abs_delta": 0.5357473605618099,
+          "abs_delta": 0.5655393451803699,
           "allowed_delta": 0.9,
-          "candidate": 2.01425263943819,
-          "delta": -0.5357473605618099,
+          "candidate": 1.98446065481963,
+          "delta": -0.5655393451803699,
           "legacy": 2.55,
           "pass": true,
-          "relative_delta": 0.21009700414188626,
+          "relative_delta": 0.22178013536485094,
           "required": false,
           "rule": {
             "abs_tolerance": 0.9,
@@ -413,13 +413,13 @@
           }
         },
         "room_6_final_o2": {
-          "abs_delta": 0.024988980133692995,
+          "abs_delta": 0.023118737636629,
           "allowed_delta": 0.05,
-          "candidate": 0.173317037761009,
-          "delta": -0.024988980133692995,
+          "candidate": 0.175187280258073,
+          "delta": -0.023118737636629,
           "legacy": 0.198306017894702,
           "pass": true,
-          "relative_delta": 0.12601221283643457,
+          "relative_delta": 0.11658111983724447,
           "required": false,
           "rule": {
             "abs_tolerance": 0.05,
@@ -428,13 +428,13 @@
           }
         },
         "room_6_peak_temp_upper_c": {
-          "abs_delta": 81.6059561291046,
+          "abs_delta": 30.083719685430296,
           "allowed_delta": 35.0,
-          "candidate": 120.0,
-          "delta": 81.6059561291046,
+          "candidate": 68.4777635563257,
+          "delta": 30.083719685430296,
           "legacy": 38.3940438708954,
-          "pass": false,
-          "relative_delta": 2.125484786221385,
+          "pass": true,
+          "relative_delta": 0.7835517349146766,
           "required": false,
           "rule": {
             "abs_tolerance": 35.0,
@@ -443,13 +443,13 @@
           }
         },
         "time_room_6_smoke_start_s": {
-          "abs_delta": 3.6666666666660035,
+          "abs_delta": 5.666666666665037,
           "allowed_delta": 180.0,
-          "candidate": 295.583333333336,
-          "delta": -3.6666666666660035,
+          "candidate": 304.916666666667,
+          "delta": 5.666666666665037,
           "legacy": 299.250000000002,
           "pass": true,
-          "relative_delta": 0.012252854358115219,
+          "relative_delta": 0.018936229462539683,
           "required": true,
           "rule": {
             "abs_tolerance": 180.0,
@@ -572,10 +572,10 @@
     }
   },
   "contract_errors": [],
-  "failed_non_gating_count": 4,
-  "failed_required_count": 0,
+  "failed_non_gating_count": 3,
+  "failed_required_count": 1,
   "format_version": 1,
-  "generated_at_utc": "2026-06-05T19:43:08.912196+00:00",
+  "generated_at_utc": "2026-06-05T18:09:04.111474+00:00",
   "non_gating_count": 18,
   "reference_mode": "legacy",
   "reference_source_commit": "2f1ee08f88d8722a6e748296c0da4cbaca8e4d68",

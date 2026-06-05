@@ -113,19 +113,35 @@ class TestTwoZoneStructure(unittest.TestCase):
         self.assertIn('Invoke-ModeCases $CandidateMode $true', COMPARE_RUNNER)
         self.assertIn("[switch]$AllowContractFailure", COMPARE_RUNNER)
 
+    def test_two_zone_v1_validation_profile_is_stable_shortcut(self):
+        self.assertIn("[switch]$TwoZoneV1", RUN_CASE)
+        self.assertIn("TwoZoneV1 requiere EngineMode two-zone", RUN_CASE)
+        self.assertIn('$EngineMode = "two-zone"', RUN_CASE)
+        self.assertIn("$TwoZoneOpeningFlow = $true", RUN_CASE)
+        self.assertIn("$CanonicalPressure = $true", RUN_CASE)
+        self.assertIn("[switch]$TwoZoneV1", COMPARE_RUNNER)
+        self.assertIn("TwoZoneV1 requiere CandidateMode two-zone", COMPARE_RUNNER)
+        self.assertIn("-TwoZoneV1:$($TwoZoneV1 -and $Mode -eq \"two-zone\")", COMPARE_RUNNER)
+
 
 class TestStairwellHeatBridgeStructure(unittest.TestCase):
     def test_stairwell_heat_bridge_is_opt_in(self):
         self.assertIn("@export var phase3_stairwell_heat_bridge_enabled: bool = false", ENGINE)
         self.assertIn("@export var phase3_stairwell_heat_bridge_target_max_temp_c: float = 120.0", ENGINE)
+        self.assertIn("@export var two_zone_convective_heat_multiplier: float = 1.0", ENGINE)
         self.assertIn("var phase3_stairwell_heat_bridge_enabled: bool = false", THERMAL)
         self.assertIn("var phase3_stairwell_heat_bridge_target_max_temp_c: float = 120.0", THERMAL)
+        self.assertIn("var two_zone_convective_heat_multiplier: float = 1.0", THERMAL)
         self.assertIn(
             '"phase3_stairwell_heat_bridge_enabled": phase3_stairwell_heat_bridge_enabled',
             ENGINE,
         )
         self.assertIn(
             '"phase3_stairwell_heat_bridge_target_max_temp_c": phase3_stairwell_heat_bridge_target_max_temp_c',
+            ENGINE,
+        )
+        self.assertIn(
+            '"two_zone_convective_heat_multiplier": two_zone_convective_heat_multiplier',
             ENGINE,
         )
         self.assertIn("func _apply_phase3_stairwell_temperature_cap(", ENGINE)
@@ -136,6 +152,14 @@ class TestStairwellHeatBridgeStructure(unittest.TestCase):
         )
         self.assertIn(
             '"phase3_stairwell_heat_bridge_target_max_temp_c"',
+            THERMAL,
+        )
+        self.assertIn(
+            '"two_zone_convective_heat_multiplier"',
+            THERMAL,
+        )
+        self.assertIn(
+            "two_zone_solver_enabled and two_zone_convective_heat_multiplier > 0.0",
             THERMAL,
         )
 
@@ -160,6 +184,7 @@ class TestStairwellHeatBridgeStructure(unittest.TestCase):
         self.assertIn('"phase3_stairwell_heat_bridge_kg_s_m2"', STAIRWELL_CASE)
         self.assertIn('"phase3_stairwell_heat_bridge_vertical_multiplier"', STAIRWELL_CASE)
         self.assertIn('"phase3_stairwell_heat_bridge_target_max_temp_c": 120.0', STAIRWELL_CASE)
+        self.assertIn('"two_zone_convective_heat_multiplier": 1.18', STAIRWELL_CASE)
 
 
 if __name__ == "__main__":

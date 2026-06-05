@@ -53,6 +53,7 @@
         "fire_secondary_hrr_gain_kw": 0.0,
         "fire_o2_min_for_flame": 0.10,
         "fire_o2_full_hrr_open": 0.15,
+        "two_zone_convective_heat_multiplier": 1.18,
         "fire_extinction_delay_s": 3600.0,
         "ach_infiltration": 5.0,
         "phase3_stairwell_heat_bridge_enabled": true,

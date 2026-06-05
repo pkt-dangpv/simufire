@@ -7,6 +7,7 @@ param(
 	[string]$ValidationOutput = "",
 	[string]$EngineMode = "",
 	[string]$FireO2Mode = "",
+	[switch]$TwoZoneV1,
 	[switch]$TwoZoneOpeningFlow,
 	[switch]$CanonicalPressure,
 	[double]$ValidationDuration = 0,
@@ -56,6 +57,14 @@ if ($EngineMode -and $EngineMode -notin @("legacy", "two-zone")) {
 }
 if ($FireO2Mode -and $FireO2Mode -notin @("legacy", "upper", "lower", "interface")) {
 	throw "FireO2Mode no soportado '$FireO2Mode'. Usa legacy, upper, lower o interface."
+}
+if ($TwoZoneV1) {
+	if ($EngineMode -and $EngineMode -ne "two-zone") {
+		throw "TwoZoneV1 requiere EngineMode two-zone o EngineMode vacio."
+	}
+	$EngineMode = "two-zone"
+	$TwoZoneOpeningFlow = $true
+	$CanonicalPressure = $true
 }
 
 $logDir = Join-Path $env:TEMP "simufire-godot-logs"
@@ -111,6 +120,7 @@ Write-Host ("[Validation Runner] Proyecto: {0}" -f $ProjectPath)
 Write-Host ("[Validation Runner] Log Godot: {0}" -f $logFile)
 Write-Host ("[Validation Runner] Modo motor: {0}" -f ($(if ($EngineMode) { $EngineMode } else { "caso/default" })))
 Write-Host ("[Validation Runner] O2 fuego: {0}" -f ($(if ($FireO2Mode) { $FireO2Mode } else { "caso/default" })))
+Write-Host ("[Validation Runner] Perfil two-zone v1: {0}" -f ($(if ($TwoZoneV1) { "on" } else { "off" })))
 Write-Host ("[Validation Runner] Flujos apertura two-zone: {0}" -f ($(if ($TwoZoneOpeningFlow) { "on" } else { "off" })))
 Write-Host ("[Validation Runner] Presion canonica Phase 3: {0}" -f ($(if ($CanonicalPressure) { "on" } else { "off" })))
 Write-Host ("[Validation Runner] Timeout: {0}s" -f $TimeoutSeconds)

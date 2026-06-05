@@ -102,3 +102,64 @@ exactamente el +16% observado.
 - `python scripts/simulation/validation_guardrails.py` → **381/381 PASS**
 - Godot 4.6.3 headless `--quit-after 1` → **PASS**
 - `git diff --check` → **PASS** (solo avisos CRLF en working copy)
+
+## Actualización Codex — M4 rebaseline two-zone
+
+### Estado
+- ✅ **M4 contrato legacy/two-zone PASS** con candidato `two-zone + two_zone_opening_flow + canonical_pressure`, manteniendo O2 por caso/default.
+- ✅ `two_zone_convective_heat_multiplier` añadido como parámetro editable/exportado, default `1.0`, activo solo cuando `two_zone_solver_enabled=true`.
+- ✅ Caso stairwell calibrado con override local `two_zone_convective_heat_multiplier=1.18`; legacy no cambia porque el multiplicador es no-op fuera de two-zone.
+- ✅ Decisión M4: `fire_o2_mode=upper` **no** se promueve como default global; queda modo explícito/case-level.
+
+### Evidencia M4
+- Comparativa global:
+  `run_legacy_two_zone_compare.ps1 -Action compare -CandidateMode two-zone -TwoZoneOpeningFlow -CanonicalPressure -AllowContractFailure`.
+- Reporte congelado:
+  `sim/validation/reports/contracts/legacy_two_zone_comparison_m4_default_o2_pass.json`.
+- Resultado: **18/18 required PASS**, `0` errores de contrato, `4/18` observacionales no-gating fuera de tolerancia.
+- Observaciones no-gating restantes:
+  `cfast_hvac_residential.room_0_final_hot_layer_m`,
+  `cfast_hvac_residential.room_0_final_o2_upper`,
+  `cfast_single_room_closed.room_0_final_hot_layer_m`,
+  `cfast_two_floor_stairwell.room_6_peak_temp_upper_c`.
+- Focal stairwell M4:
+  `sim/validation/reports/m4_stairwell_m3_default_o2_heatmult_118_600.json`.
+- Resultado focal: `all_pass=true`, `room_0_peak_temp_upper_c=561.02 C`, `room_0_peak_hrr_kw=850.67`,
+  `room_6_peak_temp_upper_c=120.0`, `room_upper_floor_vs_lower_floor_pressure_delta_pa=0.0`,
+  `peak_global_carbon_transport_residual_kg_abs=0.00355 kg`.
+- Comparativa global forzando `-FireO2Mode upper`:
+  `13/18 required PASS`, `5` fallos de contrato HRR/temperatura. Queda preservada como evidencia negativa en
+  `sim/validation/reports/contracts/legacy_two_zone_comparison_m3_upper_o2.json`.
+
+### Validación final
+- `python -m unittest discover tests -v` → **188/188 PASS**
+- `python scripts/simulation/validation_guardrails.py` → **381/381 PASS**
+- `python scripts/check_product.py` → **57/57 PASS**
+- Godot 4.6.3 headless `--quit-after 1` → **PASS**
+- `git diff --check` → **PASS** (solo avisos CRLF en working copy)
+
+## Actualización Codex — preset two-zone v1
+
+### Estado
+- ✅ Añadido preset CLI `-TwoZoneV1` en `run_case.ps1` y `run_legacy_two_zone_compare.ps1`.
+- ✅ El preset activa exactamente el contrato M4 estable: `EngineMode=two-zone`,
+  `TwoZoneOpeningFlow=on` y `CanonicalPressure=on`.
+- ✅ No fuerza `FireO2Mode=upper`; mantiene O2 por caso/default para evitar las regresiones globales ya detectadas.
+- ✅ `-TwoZoneV1` rechaza combinaciones contradictorias con `EngineMode legacy` o `CandidateMode legacy`.
+
+### Evidencia focal
+- Comando:
+  `run_case.ps1 -CaseName cfast_two_room_door_open -TwoZoneV1 -ValidationDuration 30 -AllowBaselineFailure`.
+- Reporte:
+  `sim/validation/reports/v1_profile_smoke_cfast_two_room_30.json`.
+- Resultado de flags en reporte: `engine_mode=two-zone`,
+  `two_zone_solver_enabled=1.0`, `two_zone_opening_flow_enabled=1.0`,
+  `phase3_pressure_canonical_enabled=1.0`, `fire_o2_mode=legacy`.
+
+### Evidencia de contrato con preset
+- Comando:
+  `run_legacy_two_zone_compare.ps1 -Action compare -CandidateMode two-zone -TwoZoneV1 -AllowContractFailure`.
+- Reporte preservado:
+  `sim/validation/reports/contracts/legacy_two_zone_comparison_two_zone_v1_pass.json`.
+- Resultado: **18/18 required PASS**, `4/18` observacionales fuera de tolerancia,
+  `0` errores de contrato.

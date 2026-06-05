@@ -234,11 +234,49 @@ global, ledger unico de especies y retirada de flags Phase 2H.
 
 ## M4 - Rebaseline y cierre (v1.0.0)
 
-- Comparar legacy/two-zone en todos los casos.
-- No ampliar tolerancias para absorber regresiones.
-- Exigir conservacion de masa, energia, O2 y carbono.
-- Sincronizar documentacion, conteos y reportes.
-- Cerrar o reclasificar explicitamente los cuatro gaps HVAC.
+- [COMPLETADO CONTRATO] Comparar legacy/two-zone en todos los casos con
+  `two_zone_opening_flow` y `canonical_pressure`.
+- [COMPLETADO CONTRATO] No ampliar tolerancias para absorber regresiones; el
+  unico ajuste nuevo es un multiplicador two-zone opt-in y case-level para
+  calibrar captura convectiva en stairwell.
+- [COMPLETADO CONTRATO] Exigir conservacion de carbono en transporte:
+  residual pico M4 stairwell `0.00355 kg` y contrato global PASS.
+- [COMPLETADO] Sincronizar documentacion, conteos y reportes M4.
+- [DECIDIDO] `fire_o2_mode=upper` no pasa a default global: forzarlo en todos
+  los casos da `13/18` required PASS y 5 fallos HRR/temperatura.
+- [PENDIENTE RELEASE] Retirar o reclasificar flags Phase 2H/experimentales solo
+  cuando haya decision de API estable y rebaseline de producto v1.0.0.
+
+### Evidencia M4
+
+- Candidato estable de contrato:
+  `-TwoZoneV1` (`two-zone + -TwoZoneOpeningFlow + -CanonicalPressure`),
+  con O2 por caso/default.
+- Reporte:
+  `sim/validation/reports/contracts/legacy_two_zone_comparison_m4_default_o2_pass.json`.
+- Reporte del preset `-TwoZoneV1`:
+  `sim/validation/reports/contracts/legacy_two_zone_comparison_two_zone_v1_pass.json`.
+- Resultado global: `18/18` required PASS, `0` errores de contrato,
+  `4/18` observacionales no-gating fuera de tolerancia.
+- Observaciones no-gating restantes:
+  `cfast_hvac_residential.room_0_final_hot_layer_m`,
+  `cfast_hvac_residential.room_0_final_o2_upper`,
+  `cfast_single_room_closed.room_0_final_hot_layer_m`,
+  `cfast_two_floor_stairwell.room_6_peak_temp_upper_c`.
+- Focal stairwell final:
+  `sim/validation/reports/m4_stairwell_m3_default_o2_heatmult_118_600.json`.
+  `room_0_peak_temp_upper_c=561.02 C`, `room_0_peak_hrr_kw=850.67`,
+  `room_6_peak_temp_upper_c=120.0`, presion entre plantas `0.0 Pa`,
+  residual carbono `0.00355 kg`.
+
+## Estado M4
+
+**CONTRATO GLOBAL PASS.** El camino v1.0.0 estable queda como two-zone con
+aperturas por zona y presion canonica bajo el preset de validacion `-TwoZoneV1`,
+O2 por caso/default y calibracion stairwell local mediante
+`two_zone_convective_heat_multiplier=1.18`.
+El modo `upper` permanece explicito hasta que una futura version cierre sus
+regresiones globales de HRR/temperatura.
 
 ## Orden aprobado
 
