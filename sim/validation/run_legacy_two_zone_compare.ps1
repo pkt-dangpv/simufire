@@ -7,6 +7,7 @@ param(
 	[string]$ProjectPath = "",
 	[string]$FireO2Mode = "",
 	[switch]$TwoZoneOpeningFlow,
+	[switch]$CanonicalPressure,
 	[int]$TimeoutSeconds = 900,
 	[switch]$AllowContractFailure
 )
@@ -37,6 +38,9 @@ function Invoke-ModeCases([string]$Mode, [bool]$AllowBaselineFailure) {
 	if ($TwoZoneOpeningFlow -and $Mode -eq "two-zone") {
 		$modeLabel = "$Mode-opening-flow"
 	}
+	if ($CanonicalPressure -and $Mode -eq "two-zone") {
+		$modeLabel = "$modeLabel-canonical-pressure"
+	}
 	$outputDir = Join-Path $modeReportsRoot $modeLabel
 	New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 	foreach ($caseName in $caseNames) {
@@ -49,6 +53,7 @@ function Invoke-ModeCases([string]$Mode, [bool]$AllowBaselineFailure) {
 			-EngineMode $Mode `
 			-FireO2Mode $FireO2Mode `
 			-TwoZoneOpeningFlow:$TwoZoneOpeningFlow `
+			-CanonicalPressure:$CanonicalPressure `
 			-AllowBaselineFailure:$AllowBaselineFailure `
 			-TimeoutSeconds $TimeoutSeconds
 	}

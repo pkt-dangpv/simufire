@@ -690,17 +690,17 @@ class TestGlobalCarbonStructure(unittest.TestCase):
 
     def test_c_exited_incremented_at_smoke_vent_path(self):
         """GasExchangeSystem must increment c_exited_kg at the smoke vent_frac path."""
-        # The vent_frac block should have c_exited_kg +=  with CO/CO2/HCN/smoke terms
-        # near the vent_frac variable
         vent_pos = self.gas_src.find("var vent_frac: float = minf(1.0, vented_kg")
         self.assertGreater(vent_pos, -1, "vent_frac block not found in GasExchangeSystem")
-        # Look for c_exited_kg in the nearby code (within 1000 chars)
-        segment = self.gas_src[vent_pos: vent_pos + 1000]
-        self.assertIn(
-            "c_exited_kg",
-            segment,
-            msg="GasExchangeSystem must track c_exited_kg in the smoke vent_frac path",
+        segment = self.gas_src[vent_pos: vent_pos + 1800]
+        self.assertTrue(
+            "room_out.c_exited_kg +=" in segment
+            or "_queue_upper_species_to_exterior(" in segment,
+            msg="Smoke vent path must track c_exited_kg directly or via the M3 exterior helper",
         )
+        if "_queue_upper_species_to_exterior(" in segment:
+            helper_body = self.gas_src.split("func _queue_upper_species_to_exterior(", 1)[1].split("\nfunc ", 1)[0]
+            self.assertIn("room.c_exited_kg += co_removed_kg", helper_body)
 
     def test_smoke_vent_tracks_soot_below_species_threshold(self):
         """Every vented soot mass must be tracked, even below the species carry threshold."""

@@ -67,6 +67,12 @@ class TestFireO2Structure(unittest.TestCase):
         self.assertIn("1.0 if _has_explicit_fire_o2_mode(context) else 0.0", opening_block)
         self.assertIn("if _has_explicit_fire_o2_mode(context) else 0.0", COMBUSTION)
 
+    def test_stairwell_case_pins_local_full_hrr_o2_reference(self):
+        stairwell_case = (
+            ROOT / "sim" / "validation" / "cases" / "cfast_two_floor_stairwell.json"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"fire_o2_full_hrr_open": 0.15', stairwell_case)
+
     def test_legacy_lower_consumption_is_preserved(self):
         self.assertIn("return fire_o2_lower_for_flame", OXYGEN)
         self.assertIn("not fire_uses_lower_o2", OXYGEN)

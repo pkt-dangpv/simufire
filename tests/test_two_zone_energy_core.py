@@ -14,6 +14,9 @@ RUN_CASE = (ROOT / "sim" / "validation" / "run_case.ps1").read_text(encoding="ut
 COMPARE_RUNNER = (
     ROOT / "sim" / "validation" / "run_legacy_two_zone_compare.ps1"
 ).read_text(encoding="utf-8")
+STAIRWELL_CASE = (
+    ROOT / "sim" / "validation" / "cases" / "cfast_two_floor_stairwell.json"
+).read_text(encoding="utf-8")
 
 
 class TestTwoZoneArithmetic(unittest.TestCase):
@@ -109,6 +112,54 @@ class TestTwoZoneStructure(unittest.TestCase):
         self.assertIn("-AllowBaselineFailure:$AllowBaselineFailure", COMPARE_RUNNER)
         self.assertIn('Invoke-ModeCases $CandidateMode $true', COMPARE_RUNNER)
         self.assertIn("[switch]$AllowContractFailure", COMPARE_RUNNER)
+
+
+class TestStairwellHeatBridgeStructure(unittest.TestCase):
+    def test_stairwell_heat_bridge_is_opt_in(self):
+        self.assertIn("@export var phase3_stairwell_heat_bridge_enabled: bool = false", ENGINE)
+        self.assertIn("@export var phase3_stairwell_heat_bridge_target_max_temp_c: float = 120.0", ENGINE)
+        self.assertIn("var phase3_stairwell_heat_bridge_enabled: bool = false", THERMAL)
+        self.assertIn("var phase3_stairwell_heat_bridge_target_max_temp_c: float = 120.0", THERMAL)
+        self.assertIn(
+            '"phase3_stairwell_heat_bridge_enabled": phase3_stairwell_heat_bridge_enabled',
+            ENGINE,
+        )
+        self.assertIn(
+            '"phase3_stairwell_heat_bridge_target_max_temp_c": phase3_stairwell_heat_bridge_target_max_temp_c',
+            ENGINE,
+        )
+        self.assertIn("func _apply_phase3_stairwell_temperature_cap(", ENGINE)
+        self.assertIn('room.kind != "escalera"', ENGINE)
+        self.assertIn(
+            'settings.get("phase3_stairwell_heat_bridge_enabled"',
+            THERMAL,
+        )
+        self.assertIn(
+            '"phase3_stairwell_heat_bridge_target_max_temp_c"',
+            THERMAL,
+        )
+
+    def test_stairwell_heat_bridge_moves_energy_without_species(self):
+        self.assertIn("func _apply_stairwell_heat_bridge(", THERMAL)
+        body = THERMAL.split("func _apply_stairwell_heat_bridge(", 1)[1].split("\nfunc ", 1)[0]
+        self.assertIn("not op.is_vertical and op.type != OpeningModel.Type.HOLE", body)
+        self.assertIn('room_a.kind == "escalera" or room_b.kind == "escalera"', body)
+        self.assertIn("source.temp_upper_c - 0.1", body)
+        self.assertIn("phase3_stairwell_heat_bridge_target_max_temp_c", body)
+        self.assertIn("source.upper_energy_kj = maxf(0.0, source.upper_energy_kj - energy_moved_kj)", body)
+        self.assertIn("target.upper_energy_kj = maxf(0.0, target.upper_energy_kj + energy_moved_kj)", body)
+        self.assertIn("cold_energy_cap_kj", THERMAL)
+        self.assertIn("cold_room.upper_gas_kg + gas_moved_kg", THERMAL)
+        self.assertIn("radiation_energy_cap_kj", THERMAL)
+        self.assertIn("stairwell_wall_cap_c", THERMAL)
+        self.assertNotIn("_transfer_hot_gas_contaminants", body)
+        self.assertNotIn("_delta_co_kg", body)
+
+    def test_stairwell_case_enables_heat_bridge_by_override(self):
+        self.assertIn('"phase3_stairwell_heat_bridge_enabled": true', STAIRWELL_CASE)
+        self.assertIn('"phase3_stairwell_heat_bridge_kg_s_m2"', STAIRWELL_CASE)
+        self.assertIn('"phase3_stairwell_heat_bridge_vertical_multiplier"', STAIRWELL_CASE)
+        self.assertIn('"phase3_stairwell_heat_bridge_target_max_temp_c": 120.0', STAIRWELL_CASE)
 
 
 if __name__ == "__main__":

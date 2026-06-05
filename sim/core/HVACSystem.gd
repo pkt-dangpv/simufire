@@ -106,8 +106,18 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictionary:
 			* recirculated_fraction
 			* clampf(float(hvac.get("species_filter_penetration", species_filter_penetration)), 0.0, 1.0)
 		) / returned_air_kg,
+		"co2_upper_kg_per_kg_air": (
+			float(return_sample.get("co2_upper_kg", 0.0))
+			* recirculated_fraction
+			* clampf(float(hvac.get("species_filter_penetration", species_filter_penetration)), 0.0, 1.0)
+		) / returned_air_kg,
 		"hcn_kg_per_kg_air": (
 			float(return_sample.get("hcn_kg", 0.0))
+			* recirculated_fraction
+			* clampf(float(hvac.get("species_filter_penetration", species_filter_penetration)), 0.0, 1.0)
+		) / returned_air_kg,
+		"hcn_upper_kg_per_kg_air": (
+			float(return_sample.get("hcn_upper_kg", 0.0))
 			* recirculated_fraction
 			* clampf(float(hvac.get("species_filter_penetration", species_filter_penetration)), 0.0, 1.0)
 		) / returned_air_kg
@@ -149,7 +159,9 @@ func _extract_return_air(
 		"co_kg": 0.0,
 		"co_upper_kg": 0.0,
 		"co2_kg": 0.0,
+		"co2_upper_kg": 0.0,
 		"hcn_kg": 0.0,
+		"hcn_upper_kg": 0.0,
 		"co2_upper_weighted_kg": 0.0,  # Fase 2B: fracción molar CO₂ zona alta × kg aire
 		"touched_room_ids": []
 	}
@@ -178,9 +190,17 @@ func _extract_return_air(
 		var sample_temp_c: float = _estimate_temp_at_height(room, vent_height_m, hooks)
 		var hot_layer_m: float = _effective_hot_layer_height(room, hooks)
 		var upper_sample_factor: float = _upper_sampling_factor(room, vent_height_m, hot_layer_m)
+		var use_two_zone_hvac: bool = bool(hooks.get("two_zone_opening_flow_enabled", false))
+		var sample_upper_zone: bool = vent_height_m >= hot_layer_m
 
 		var smoke_removed_kg: float = _remove_smoke_from_room(room, air_fraction, upper_sample_factor)
-		var species_removed: Dictionary = _remove_species_from_room(room, air_fraction, upper_sample_factor)
+		var species_removed: Dictionary = _remove_species_from_room(
+			room,
+			air_fraction,
+			upper_sample_factor,
+			use_two_zone_hvac,
+			sample_upper_zone
+		)
 		_remove_heat_from_return(room, air_fraction, upper_sample_factor, hooks)
 
 		sample["air_kg"] = float(sample["air_kg"]) + air_kg
@@ -191,7 +211,9 @@ func _extract_return_air(
 		sample["co_kg"] = float(sample["co_kg"]) + float(species_removed.get("co_kg", 0.0))
 		sample["co_upper_kg"] = float(sample["co_upper_kg"]) + float(species_removed.get("co_upper_kg", 0.0))
 		sample["co2_kg"] = float(sample["co2_kg"]) + float(species_removed.get("co2_kg", 0.0))
+		sample["co2_upper_kg"] = float(sample["co2_upper_kg"]) + float(species_removed.get("co2_upper_kg", 0.0))
 		sample["hcn_kg"] = float(sample["hcn_kg"]) + float(species_removed.get("hcn_kg", 0.0))
+		sample["hcn_upper_kg"] = float(sample["hcn_upper_kg"]) + float(species_removed.get("hcn_upper_kg", 0.0))
 		_append_unique_int(sample["touched_room_ids"], room_id)
 
 	var total_air_kg: float = float(sample.get("air_kg", 0.0))
@@ -244,21 +266,40 @@ func _supply_air(
 		var co_added_kg: float = maxf(0.0, float(supply_mix.get("co_kg_per_kg_air", 0.0)) * air_kg)
 		var co_upper_added_kg: float = maxf(0.0, float(supply_mix.get("co_upper_kg_per_kg_air", 0.0)) * air_kg)
 		var co2_added_kg: float = maxf(0.0, float(supply_mix.get("co2_kg_per_kg_air", 0.0)) * air_kg)
+		var co2_upper_added_kg: float = maxf(0.0, float(supply_mix.get("co2_upper_kg_per_kg_air", 0.0)) * air_kg)
 		var hcn_added_kg: float = maxf(0.0, float(supply_mix.get("hcn_kg_per_kg_air", 0.0)) * air_kg)
+		var hcn_upper_added_kg: float = maxf(0.0, float(supply_mix.get("hcn_upper_kg_per_kg_air", 0.0)) * air_kg)
+		var use_two_zone_hvac: bool = bool(hooks.get("two_zone_opening_flow_enabled", false))
+		var vent_height_m: float = _vent_height_m(room, vent)
+		var hot_layer_m: float = _effective_hot_layer_height(room, hooks)
+		var high_supply: bool = vent_height_m >= hot_layer_m
 
 		room.smoke_kg += smoke_added_kg
 		room.co_kg += co_added_kg
-		room.co_upper_kg = clampf(room.co_upper_kg + co_upper_added_kg, 0.0, room.co_kg)
 		room.co2_kg += co2_added_kg
 		room.hcn_kg += hcn_added_kg
+		if use_two_zone_hvac:
+			if high_supply:
+				room.co_upper_kg = clampf(room.co_upper_kg + co_added_kg, 0.0, room.co_kg)
+				room.co2_upper_kg = clampf(room.co2_upper_kg + co2_added_kg, 0.0, room.co2_kg)
+				room.hcn_upper_kg = clampf(room.hcn_upper_kg + hcn_added_kg, 0.0, room.hcn_kg)
+		else:
+			room.co_upper_kg = clampf(room.co_upper_kg + co_upper_added_kg, 0.0, room.co_kg)
+			room.co2_upper_kg = clampf(room.co2_upper_kg + co2_upper_added_kg, 0.0, room.co2_kg)
+			room.hcn_upper_kg = clampf(room.hcn_upper_kg + hcn_upper_added_kg, 0.0, room.hcn_kg)
 		room.o2 = lerpf(room.o2, clampf(float(supply_mix.get("o2", building.outside_o2)), 0.0, building.outside_o2), air_fraction)
+		var supply_o2: float = clampf(float(supply_mix.get("o2", building.outside_o2)), 0.0, building.outside_o2)
+		if use_two_zone_hvac:
+			if high_supply:
+				room.o2_upper = clampf(lerpf(room.o2_upper, supply_o2, air_fraction), 0.0, building.outside_o2)
+			else:
+				room.o2_lower = clampf(lerpf(room.o2_lower, supply_o2, air_fraction), room.o2, building.outside_o2)
 		# Phase 2H Exp 2H.2: suministro HVAC en zona baja (height_fraction < 0.5) repone o2_lower.
 		# Físicamente: el aire fresco inyectado a baja altura refresca directamente la capa inferior.
 		# Invariante o2_lower ≥ room.o2 preservada por clampf con room.o2 como floor.
-		if bool(hooks.get("phase2h_o2_doorway_two_zone_enabled", false)):
+		elif bool(hooks.get("phase2h_o2_doorway_two_zone_enabled", false)):
 			if float(vent.get("height_fraction", 1.0)) < 0.5:
-				var supply_o2_lower: float = clampf(float(supply_mix.get("o2", building.outside_o2)), 0.0, building.outside_o2)
-				room.o2_lower = clampf(lerpf(room.o2_lower, supply_o2_lower, air_fraction), room.o2, building.outside_o2)
+				room.o2_lower = clampf(lerpf(room.o2_lower, supply_o2, air_fraction), room.o2, building.outside_o2)
 		# Fase 2B: diluir co2_upper con el CO₂ del aire suministrado (0.0004 si es 100% exterior).
 		var supply_co2_upper: float = float(supply_mix.get("co2_upper", 0.0004))
 		room.co2_upper = clampf(lerpf(room.co2_upper, supply_co2_upper, air_fraction), 0.0, 0.30)
@@ -303,14 +344,72 @@ func _remove_smoke_from_room(room: RoomModel, air_fraction: float, upper_sample_
 	return removed_kg
 
 
-func _remove_species_from_room(room: RoomModel, air_fraction: float, upper_sample_factor: float) -> Dictionary:
+func _remove_species_from_room(
+	room: RoomModel,
+	air_fraction: float,
+	upper_sample_factor: float,
+	two_zone_hvac_enabled: bool = false,
+	sample_upper_zone: bool = false
+) -> Dictionary:
 	var removed: Dictionary = {
 		"co_kg": 0.0,
 		"co_upper_kg": 0.0,
 		"co2_kg": 0.0,
-		"hcn_kg": 0.0
+		"co2_upper_kg": 0.0,
+		"hcn_kg": 0.0,
+		"hcn_upper_kg": 0.0
 	}
 	if room == null:
+		return removed
+
+	if two_zone_hvac_enabled:
+		var zone_fraction: float = clampf(air_fraction, 0.0, 0.30)
+		if sample_upper_zone:
+			zone_fraction = clampf(air_fraction * upper_sample_factor, 0.0, 0.30)
+
+			var co_upper_available_tz: float = clampf(room.co_upper_kg, 0.0, room.co_kg)
+			var co_upper_removed: float = minf(co_upper_available_tz, co_upper_available_tz * zone_fraction)
+			room.co_upper_kg = maxf(0.0, co_upper_available_tz - co_upper_removed)
+			room.co_kg = maxf(0.0, room.co_kg - co_upper_removed)
+
+			var co2_upper_available_tz: float = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
+			var co2_upper_removed: float = minf(co2_upper_available_tz, co2_upper_available_tz * zone_fraction)
+			room.co2_upper_kg = maxf(0.0, co2_upper_available_tz - co2_upper_removed)
+			room.co2_kg = maxf(0.0, room.co2_kg - co2_upper_removed)
+
+			var hcn_upper_available_tz: float = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)
+			var hcn_upper_removed: float = minf(hcn_upper_available_tz, hcn_upper_available_tz * zone_fraction)
+			room.hcn_upper_kg = maxf(0.0, hcn_upper_available_tz - hcn_upper_removed)
+			room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_upper_removed)
+
+			removed["co_kg"] = co_upper_removed
+			removed["co_upper_kg"] = co_upper_removed
+			removed["co2_kg"] = co2_upper_removed
+			removed["co2_upper_kg"] = co2_upper_removed
+			removed["hcn_kg"] = hcn_upper_removed
+			removed["hcn_upper_kg"] = hcn_upper_removed
+		else:
+			zone_fraction = clampf(zone_fraction, 0.0, 0.20)
+
+			var co_upper_available_tz: float = clampf(room.co_upper_kg, 0.0, room.co_kg)
+			var co_lower_removed: float = maxf(0.0, room.co_kg - co_upper_available_tz) * zone_fraction
+			room.co_kg = maxf(0.0, room.co_kg - co_lower_removed)
+
+			var co2_upper_available_tz: float = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
+			var co2_lower_removed: float = maxf(0.0, room.co2_kg - co2_upper_available_tz) * zone_fraction
+			room.co2_kg = maxf(0.0, room.co2_kg - co2_lower_removed)
+
+			var hcn_upper_available_tz: float = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)
+			var hcn_lower_removed: float = maxf(0.0, room.hcn_kg - hcn_upper_available_tz) * zone_fraction
+			room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_lower_removed)
+
+			removed["co_kg"] = co_lower_removed
+			removed["co2_kg"] = co2_lower_removed
+			removed["hcn_kg"] = hcn_lower_removed
+
+		room.hcl_kg = maxf(0.0, room.hcl_kg * (1.0 - zone_fraction))
+		room.acrolein_kg = maxf(0.0, room.acrolein_kg * (1.0 - zone_fraction))
+		room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg * (1.0 - zone_fraction))
 		return removed
 
 	var upper_bias: float = clampf(inverse_lerp(1.0, high_return_smoke_capture_cap, upper_sample_factor), 0.0, 1.0)

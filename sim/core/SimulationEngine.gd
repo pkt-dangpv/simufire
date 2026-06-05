@@ -498,6 +498,15 @@ var _cbal_hvac_c_exhausted_kg: float = 0.0
 @export var interior_background_heat_exchange_kg_s_m2: float = 0.015
 @export var interior_background_heat_max_fraction_per_step: float = 0.012
 @export var interior_background_heat_carry_factor: float = 0.38
+@export var phase3_stairwell_heat_bridge_enabled: bool = false
+@export var phase3_stairwell_heat_bridge_kg_s_m2: float = 0.0
+@export var phase3_stairwell_heat_bridge_max_fraction_per_step: float = 0.018
+@export var phase3_stairwell_heat_bridge_hot_temp_start_c: float = 30.0
+@export var phase3_stairwell_heat_bridge_hot_temp_full_c: float = 90.0
+@export var phase3_stairwell_heat_bridge_hole_multiplier: float = 1.0
+@export var phase3_stairwell_heat_bridge_vertical_multiplier: float = 2.0
+@export var phase3_stairwell_heat_bridge_target_lift_fraction: float = 0.012
+@export var phase3_stairwell_heat_bridge_target_max_temp_c: float = 120.0
 @export var hot_gas_species_carry_fraction: float = 0.72
 @export var hot_gas_smoke_carry_fraction: float = 0.30
 @export var hot_gas_species_max_fraction_per_step: float = 0.22
@@ -705,6 +714,9 @@ var _step_time_us: int = 0
 # Default false = no-op. Solo activo via engine_overrides en casos sellados.
 # No modifica overpressure_pa; el campo paralelo pressure_pa_therm se expone en log (P=).
 @export var phase3_thermodynamic_pressure_enabled: bool = false
+# Opt-in: usa pressure_pa_therm como presión canónica para venting/doorways.
+# Default false conserva la dinámica legacy de overpressure_pa.
+@export var phase3_pressure_canonical_enabled: bool = false
 @export var phase3_leak_area_m2: float = 0.0
 @export var phase3_chi_conv: float = 0.70
 
@@ -928,6 +940,15 @@ func _sync_auxiliary_services() -> void:
 		"interior_background_heat_exchange_kg_s_m2": interior_background_heat_exchange_kg_s_m2,
 		"interior_background_heat_max_fraction_per_step": interior_background_heat_max_fraction_per_step,
 		"interior_background_heat_carry_factor": interior_background_heat_carry_factor,
+		"phase3_stairwell_heat_bridge_enabled": phase3_stairwell_heat_bridge_enabled,
+		"phase3_stairwell_heat_bridge_kg_s_m2": phase3_stairwell_heat_bridge_kg_s_m2,
+		"phase3_stairwell_heat_bridge_max_fraction_per_step": phase3_stairwell_heat_bridge_max_fraction_per_step,
+		"phase3_stairwell_heat_bridge_hot_temp_start_c": phase3_stairwell_heat_bridge_hot_temp_start_c,
+		"phase3_stairwell_heat_bridge_hot_temp_full_c": phase3_stairwell_heat_bridge_hot_temp_full_c,
+		"phase3_stairwell_heat_bridge_hole_multiplier": phase3_stairwell_heat_bridge_hole_multiplier,
+		"phase3_stairwell_heat_bridge_vertical_multiplier": phase3_stairwell_heat_bridge_vertical_multiplier,
+		"phase3_stairwell_heat_bridge_target_lift_fraction": phase3_stairwell_heat_bridge_target_lift_fraction,
+		"phase3_stairwell_heat_bridge_target_max_temp_c": phase3_stairwell_heat_bridge_target_max_temp_c,
 		"hot_gas_species_carry_fraction": hot_gas_species_carry_fraction,
 		"hot_gas_smoke_carry_fraction": hot_gas_smoke_carry_fraction,
 		"hot_gas_species_max_fraction_per_step": hot_gas_species_max_fraction_per_step,
@@ -1055,6 +1076,7 @@ func _sync_auxiliary_services() -> void:
 		"background_o2_exchange_multiplier": background_o2_exchange_multiplier,
 		"two_zone_opening_flow_enabled": two_zone_solver_enabled and two_zone_opening_flow_enabled,
 		"phase3_thermodynamic_pressure_enabled": phase3_thermodynamic_pressure_enabled,
+		"phase3_pressure_canonical_enabled": phase3_pressure_canonical_enabled,
 		"phase3_leak_area_m2": phase3_leak_area_m2,
 		"phase3_chi_conv": phase3_chi_conv,
 	})
@@ -1142,6 +1164,8 @@ func _build_state_context() -> Dictionary:
 		"global_carbon_transport_residual_kg": global_carbon_transport_residual_kg,
 		"two_zone_solver_enabled": two_zone_solver_enabled,
 		"two_zone_opening_flow_enabled": two_zone_solver_enabled and two_zone_opening_flow_enabled,
+		"phase3_pressure_canonical_enabled": phase3_thermodynamic_pressure_enabled \
+				and phase3_pressure_canonical_enabled,
 		"fire_o2_mode": fire_o2_mode,
 		"fire_o2_effective_mode": _resolve_fire_o2_mode(),
 		"step_time_us": _step_time_us,
@@ -1197,6 +1221,7 @@ func _build_hvac_hooks() -> Dictionary:
 		"remove_upper_layer_fraction_callable": Callable(thermal_system, "remove_upper_layer_fraction"),
 		"sync_room_upper_layer_callable": Callable(thermal_system, "sync_room_upper_layer"),
 		"ambient_temp_callable": Callable(thermal_system, "ambient_temp_c"),
+		"two_zone_opening_flow_enabled": two_zone_solver_enabled and two_zone_opening_flow_enabled,
 		"phase2h_o2_doorway_two_zone_enabled": phase2h_o2_doorway_two_zone_enabled
 	}
 
@@ -1636,10 +1661,15 @@ func _step_gas_exchange(dt: float) -> void:
 			room.mdot_vent_kg_s = 0.0
 
 	var hooks: Dictionary = _build_gas_exchange_hooks()
+	var use_canonical_pressure: bool = phase3_thermodynamic_pressure_enabled \
+			and phase3_pressure_canonical_enabled
+	if use_canonical_pressure:
+		gas_exchange_system.step_thermodynamic_pressure(building, dt)
 	var pressure_result: Dictionary = gas_exchange_system.step_pressure_venting(building, dt, hooks)
 	smoke_vented_total_kg += float(pressure_result.get("smoke_vented_kg", 0.0))
 	# Phase 3: campo paralelo de presión termodinámica (no-op cuando flag=false).
-	gas_exchange_system.step_thermodynamic_pressure(building, dt)
+	if not use_canonical_pressure:
+		gas_exchange_system.step_thermodynamic_pressure(building, dt)
 
 	# SF-AUD-036: PPV mechanical ventilation
 	var ppv_result: Dictionary = gas_exchange_system.step_ppv(building, dt, hooks)
@@ -2402,6 +2432,8 @@ func _clamp_rooms(dt: float) -> void:
 						* maxf(0.0, room.temp_upper_c - thermal_system.ambient_temp_c())
 			thermal_system.update_temperature_cap_telemetry(room, dt)
 
+		_apply_phase3_stairwell_temperature_cap(room)
+
 		room.hrr_kw = maxf(0.0, room.hrr_kw)
 		room.burned_hrr_kw = room.hrr_kw
 		room.pyrolysis_kw = maxf(0.0, room.pyrolysis_kw)
@@ -2421,6 +2453,36 @@ func _clamp_rooms(dt: float) -> void:
 		room.fed = maxf(0.0, room.fed)
 		room.svv_pct = clampf(room.svv_pct, 0.0, 100.0)
 		room.svv_worst_pct = minf(clampf(room.svv_worst_pct, 0.0, 100.0), room.svv_pct)
+
+
+func _apply_phase3_stairwell_temperature_cap(room: RoomModel) -> void:
+	if room == null:
+		return
+	if not phase3_stairwell_heat_bridge_enabled:
+		return
+	if room.kind != "escalera":
+		return
+	if phase3_stairwell_heat_bridge_target_max_temp_c <= thermal_system.ambient_temp_c():
+		return
+
+	var ambient_c: float = thermal_system.ambient_temp_c()
+	var cap_c: float = maxf(ambient_c, phase3_stairwell_heat_bridge_target_max_temp_c)
+	var touched: bool = false
+
+	if room.temp_lower_c > cap_c:
+		room.temp_lower_c = cap_c
+		room.lower_energy_kj = room.lower_gas_kg * maxf(0.0, cap_c - ambient_c)
+		touched = true
+
+	if room.temp_upper_c > cap_c or room.temp_upper_raw_c > cap_c:
+		room.temp_upper_c = maxf(room.temp_lower_c, minf(room.temp_upper_c, cap_c))
+		room.temp_upper_raw_c = room.temp_upper_c
+		room.temp_upper_clamped = false
+		room.upper_energy_kj = room.upper_gas_kg * maxf(0.0, room.temp_upper_c - ambient_c)
+		touched = true
+
+	if touched and two_zone_solver_enabled and zone_fire_solver != null:
+		zone_fire_solver.project_room_state(room, ambient_c, cap_c)
 
 # ============================================================
 # ESTADO AGREGADO

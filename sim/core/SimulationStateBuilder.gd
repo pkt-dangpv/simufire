@@ -28,6 +28,7 @@ func build_state(context: Dictionary) -> Dictionary:
 		"global_carbon_transport_residual_kg": float(context.get("global_carbon_transport_residual_kg", 0.0)),
 		"two_zone_solver_enabled": bool(context.get("two_zone_solver_enabled", false)),
 		"two_zone_opening_flow_enabled": bool(context.get("two_zone_opening_flow_enabled", false)),
+		"phase3_pressure_canonical_enabled": bool(context.get("phase3_pressure_canonical_enabled", false)),
 		"fire_o2_mode": String(context.get("fire_o2_mode", "legacy")),
 		"fire_o2_effective_mode": String(context.get("fire_o2_effective_mode", "legacy")),
 	}
@@ -139,6 +140,8 @@ func build_state(context: Dictionary) -> Dictionary:
 			# valor como campo overpressure_pa en el estado/log (campo P=).
 			# Cuando Phase 3 OFF (default): pressure_pa_therm = 0.0 → sin cambio.
 			"overpressure_pa": room.pressure_pa_therm if room.pressure_pa_therm > 0.0 else room.overpressure_pa,
+			"pressure_pa_therm": room.pressure_pa_therm,
+			"overpressure_model_pa": room.overpressure_pa,
 			"ceiling_jet_temp_c": room.ceiling_jet_temp_c,
 			"smoke_kg": room.smoke_kg,
 			"visibility_m": visibility_m,

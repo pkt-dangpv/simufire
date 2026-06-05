@@ -8,6 +8,7 @@ param(
 	[string]$EngineMode = "",
 	[string]$FireO2Mode = "",
 	[switch]$TwoZoneOpeningFlow,
+	[switch]$CanonicalPressure,
 	[double]$ValidationDuration = 0,
 	[int]$TimeoutSeconds = 300,
 	[switch]$AllowBaselineFailure,
@@ -93,6 +94,10 @@ if ($TwoZoneOpeningFlow) {
 	$godotArgs += "--validation-two-zone-opening-flow"
 }
 
+if ($CanonicalPressure) {
+	$godotArgs += "--validation-canonical-pressure"
+}
+
 if ($ValidationDuration -gt 0) {
 	$godotArgs += "--validation-duration=$ValidationDuration"
 }
@@ -107,6 +112,7 @@ Write-Host ("[Validation Runner] Log Godot: {0}" -f $logFile)
 Write-Host ("[Validation Runner] Modo motor: {0}" -f ($(if ($EngineMode) { $EngineMode } else { "caso/default" })))
 Write-Host ("[Validation Runner] O2 fuego: {0}" -f ($(if ($FireO2Mode) { $FireO2Mode } else { "caso/default" })))
 Write-Host ("[Validation Runner] Flujos apertura two-zone: {0}" -f ($(if ($TwoZoneOpeningFlow) { "on" } else { "off" })))
+Write-Host ("[Validation Runner] Presion canonica Phase 3: {0}" -f ($(if ($CanonicalPressure) { "on" } else { "off" })))
 Write-Host ("[Validation Runner] Timeout: {0}s" -f $TimeoutSeconds)
 
 function Quote-ProcessArgument([string]$Value) {

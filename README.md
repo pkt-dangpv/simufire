@@ -2,7 +2,7 @@
 
 Simulador de dinámica de incendios en compartimentos para entrenamiento y toma de decisiones de bomberos.
 
-**Estado**: `v0.4.0-validation-rc1` · legacy 381/381 required PASS · M1 two-zone alpha 17/18 contract gates · Godot 4.6.3
+**Estado**: `v0.4.0-validation-rc1` · legacy 381/381 required PASS · two-zone M1/M2 + M3 RC opt-in · Godot 4.6.3
 
 ---
 
@@ -72,7 +72,7 @@ python scripts/run_scenario.py scenarios/compact_apartment_reference.json --dura
 - **HVAC two-zone transport**: 4 checks CO/CO₂ upper con HVAC divergen de CFAST (gaps no-gating aceptados). No afectan escenarios de tenabilidad.
 - **HCN yield conservador**: representa combustión bien ventilada; subestima HCN bajo-ventilado.
 - **Modelo zonal**: no sustituye simulaciones CFD (p. ej. FDS) para análisis cuantitativo de alto rigor.
-- **Two-zone v1.0 alpha/beta**: masa/energía y O2 local activos por flags; M3 ya enruta especies upper/lower en aperturas interiores con `two_zone_opening_flow_enabled`, pero HVAC/presión canónica siguen pendientes.
+- **Two-zone v1.0 alpha/beta/RC**: masa/energía, O2 local y flujos de apertura por zona activos por flags; M3 enruta interiores, rutas cruzadas, verticales, purgas exteriores upper y HVAC por altura con `two_zone_opening_flow_enabled`. La presión canónica y el transporte térmico vertical de escalera existen como opt-in experimental (`-CanonicalPressure`, `phase3_stairwell_heat_bridge_*`) y ya cierran el stairwell 5/5 bajo flag; rebaseline/promoción global siguen pendientes.
 
 ---
 

@@ -114,6 +114,10 @@ func _parse_validation_args(args: Array[String]) -> Dictionary:
 			parsed["validation_two_zone_opening_flow"] = _parse_bool_arg(arg.get_slice("=", 1))
 		elif arg == "--validation-two-zone-opening-flow":
 			parsed["validation_two_zone_opening_flow"] = true
+		elif arg.begins_with("--validation-canonical-pressure="):
+			parsed["validation_canonical_pressure"] = _parse_bool_arg(arg.get_slice("=", 1))
+		elif arg == "--validation-canonical-pressure":
+			parsed["validation_canonical_pressure"] = true
 		elif arg == "--validation-no-quit":
 			parsed["validation_no_quit"] = true
 		index += 1
@@ -159,6 +163,7 @@ func _begin_validation_run() -> void:
 	if not _configure_validation_fire_o2_mode():
 		return
 	_configure_validation_two_zone_opening_flow()
+	_configure_validation_canonical_pressure()
 	engine.auto_finish_on_extinction = false
 	engine.enable_logging = bool(_case_config.get("enable_logging", false))
 	engine.ignition_room_id = int(_case_config.get("ignition_room_id", engine.ignition_room_id))
@@ -408,6 +413,13 @@ func _configure_validation_two_zone_opening_flow() -> void:
 	if not _cli_args.has("validation_two_zone_opening_flow"):
 		return
 	engine.two_zone_opening_flow_enabled = bool(_cli_args.get("validation_two_zone_opening_flow", false))
+
+
+func _configure_validation_canonical_pressure() -> void:
+	if not _cli_args.has("validation_canonical_pressure"):
+		return
+	engine.phase3_thermodynamic_pressure_enabled = true
+	engine.phase3_pressure_canonical_enabled = bool(_cli_args.get("validation_canonical_pressure", false))
 
 
 func _prepare_opening_events(raw_events: Variant) -> Array:
@@ -721,6 +733,9 @@ func _update_metrics(state: Dictionary) -> void:
 	_metrics["two_zone_opening_flow_enabled"] = 1.0 if bool(
 		state.get("two_zone_opening_flow_enabled", false)
 	) else 0.0
+	_metrics["phase3_pressure_canonical_enabled"] = 1.0 if bool(
+		state.get("phase3_pressure_canonical_enabled", false)
+	) else 0.0
 
 	var trigger_room_id: int = int(_case_config.get("smoke_trigger_room_id", 0))
 	var target_room_id: int = int(_case_config.get("spread_target_room_id", 1))
@@ -882,6 +897,14 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 		float(_metrics.get(prefix + "max_overpressure_pa", 0.0)),
 		float(room_state.get("overpressure_pa", 0.0))
 	)
+	_metrics[prefix + "max_pressure_pa_therm"] = maxf(
+		float(_metrics.get(prefix + "max_pressure_pa_therm", 0.0)),
+		float(room_state.get("pressure_pa_therm", 0.0))
+	)
+	_metrics[prefix + "max_overpressure_model_pa"] = maxf(
+		float(_metrics.get(prefix + "max_overpressure_model_pa", 0.0)),
+		float(room_state.get("overpressure_model_pa", 0.0))
+	)
 	# B-03: O2 depletion en capa superior (min tracking)
 	var _cur_o2_upper: float = float(room_state.get("o2_upper", room_state.get("o2", 0.209)))
 	if not _metrics.has(prefix + "min_o2_upper"):
@@ -967,6 +990,8 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "o2_hrr_factor"] = float(room_state.get("o2_hrr_factor", 0.0))
 		_metrics[prefix + "ventilation_response_factor"] = float(room_state.get("ventilation_response_factor", 0.0))
 		_metrics[prefix + "outside_open_path_factor"] = float(room_state.get("outside_open_path_factor", 0.0))
+		_metrics[prefix + "pressure_pa_therm"] = float(room_state.get("pressure_pa_therm", 0.0))
+		_metrics[prefix + "overpressure_model_pa"] = float(room_state.get("overpressure_model_pa", 0.0))
 		_metrics[prefix + "upper_radiative_loss_kw"] = float(room_state.get("upper_radiative_loss_kw", 0.0))
 		_metrics[prefix + "upper_zone_mass_kg"] = float(room_state.get("upper_zone_mass_kg", 0.0))
 		_metrics[prefix + "lower_zone_mass_kg"] = float(room_state.get("lower_zone_mass_kg", 0.0))

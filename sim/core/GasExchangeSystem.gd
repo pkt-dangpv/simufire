@@ -86,6 +86,12 @@ var two_zone_opening_flow_enabled: bool = false
 # Cuando true: integra dP/dt = (gamma-1)/V * Q_conv - Cd*A_eff/V * P_atm * sqrt(2P/rho)
 # usando room.hrr_kw como fuente de calor convectiva.
 var phase3_thermodynamic_pressure_enabled: bool = false
+# Opt-in M3/M4: cuando true, pressure_pa_therm pasa a ser la presión usada por
+# los flujos. Default false mantiene la presión de boyanza/stack heredada.
+var phase3_pressure_canonical_enabled: bool = false
+# En modo canónico, una red interior abierta comparte presión termodinámica.
+# Esto evita saltos no físicos sala-a-sala dentro de un mismo volumen conectado.
+var phase3_pressure_component_equalization_enabled: bool = true
 # Área efectiva de infiltración [m²]. 0.0 = derivar de ach_infiltration (ver fórmula).
 var phase3_leak_area_m2: float = 0.0
 # Fracción convectiva del HRR para la ODE de presión.
@@ -177,14 +183,23 @@ func configure(settings: Dictionary) -> void:
 	phase3_thermodynamic_pressure_enabled = bool(
 		settings.get("phase3_thermodynamic_pressure_enabled", phase3_thermodynamic_pressure_enabled)
 	)
+	phase3_pressure_canonical_enabled = bool(
+		settings.get("phase3_pressure_canonical_enabled", phase3_pressure_canonical_enabled)
+	)
+	phase3_pressure_component_equalization_enabled = bool(
+		settings.get(
+			"phase3_pressure_component_equalization_enabled",
+			phase3_pressure_component_equalization_enabled
+		)
+	)
 	phase3_leak_area_m2 = float(settings.get("phase3_leak_area_m2", phase3_leak_area_m2))
 	phase3_chi_conv = float(settings.get("phase3_chi_conv", phase3_chi_conv))
 
 
 func step_thermodynamic_pressure(building: BuildingModel, dt: float) -> void:
-	## Phase 3 — ODE de presión termodinámica (campo paralelo room.pressure_pa_therm).
+	## Phase 3 — ODE de presión termodinámica (campo room.pressure_pa_therm).
 	## Default no-op cuando phase3_thermodynamic_pressure_enabled = false.
-	## No modifica room.overpressure_pa ni ninguna lógica downstream.
+	## Solo modifica room.overpressure_pa si phase3_pressure_canonical_enabled = true.
 	if not phase3_thermodynamic_pressure_enabled:
 		return
 	if building == null:
@@ -215,6 +230,71 @@ func step_thermodynamic_pressure(building: BuildingModel, dt: float) -> void:
 		if p > 0.0:
 			dp_leak = CD * a_eff / V * P_ATM * sqrt(2.0 * p / RHO_AMB)
 		room.pressure_pa_therm = maxf(0.0, p + (dp_source - dp_leak) * dt)
+	if phase3_pressure_canonical_enabled:
+		if phase3_pressure_component_equalization_enabled:
+			_equalize_thermodynamic_pressure_components(building)
+		else:
+			_promote_thermodynamic_pressure_to_overpressure(building)
+
+
+func _promote_thermodynamic_pressure_to_overpressure(building: BuildingModel) -> void:
+	if building == null:
+		return
+	for room in building.get_rooms().values():
+		if room == null:
+			continue
+		room.overpressure_pa = room.pressure_pa_therm
+
+
+func _equalize_thermodynamic_pressure_components(building: BuildingModel) -> void:
+	if building == null:
+		return
+	var visited: Dictionary = {}
+	for raw_room_id in building.get_rooms().keys():
+		var start_id: int = int(raw_room_id)
+		if visited.has(start_id):
+			continue
+		var component_ids: Array = []
+		var pending_ids: Array = [start_id]
+		visited[start_id] = true
+		while not pending_ids.is_empty():
+			var room_id: int = int(pending_ids.pop_back())
+			component_ids.append(room_id)
+			for op in building.get_openings():
+				if op == null or op.is_exterior_opening():
+					continue
+				if op.effective_open_fraction() <= 0.001:
+					continue
+				var next_id: int = BuildingModel.OUTSIDE_ID
+				if op.a == room_id:
+					next_id = int(op.b)
+				elif op.b == room_id:
+					next_id = int(op.a)
+				else:
+					continue
+				if not building.get_rooms().has(next_id) or visited.has(next_id):
+					continue
+				visited[next_id] = true
+				pending_ids.append(next_id)
+
+		var pressure_volume_sum: float = 0.0
+		var volume_sum: float = 0.0
+		for component_room_id in component_ids:
+			var component_room: RoomModel = building.get_room(int(component_room_id))
+			if component_room == null:
+				continue
+			var volume_m3: float = maxf(0.001, component_room.volume_m3())
+			pressure_volume_sum += component_room.pressure_pa_therm * volume_m3
+			volume_sum += volume_m3
+		if volume_sum <= 0.0:
+			continue
+		var component_pressure_pa: float = pressure_volume_sum / volume_sum
+		for component_room_id in component_ids:
+			var room_to_update: RoomModel = building.get_room(int(component_room_id))
+			if room_to_update == null:
+				continue
+			room_to_update.pressure_pa_therm = component_pressure_pa
+			room_to_update.overpressure_pa = component_pressure_pa
 
 
 func reset() -> void:
@@ -245,6 +325,8 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 	var g: float = 9.81
 	var rho_ext: float = 1.2
 	var t_ext_k: float = building.outside_temp_c + 273.15
+	var use_canonical_pressure: bool = phase3_thermodynamic_pressure_enabled \
+			and phase3_pressure_canonical_enabled
 
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -264,9 +346,12 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 		var dp_stack: float = 0.0
 		if stack_effect_enabled and room.floor_level_z_m > 0.01:
 			dp_stack = rho_ext * g * room.floor_level_z_m * maxf(0.0, 1.0 - t_ext_k / t_upper_k)
-		var tau_s: float = 5.0
-		room.overpressure_pa += (dp_buoyancy + dp_stack - room.overpressure_pa) * minf(1.0, dt / tau_s)
-		room.overpressure_pa = maxf(0.0, room.overpressure_pa)
+		if use_canonical_pressure:
+			room.overpressure_pa = maxf(0.0, room.pressure_pa_therm)
+		else:
+			var tau_s: float = 5.0
+			room.overpressure_pa += (dp_buoyancy + dp_stack - room.overpressure_pa) * minf(1.0, dt / tau_s)
+			room.overpressure_pa = maxf(0.0, room.overpressure_pa)
 
 		if room.overpressure_pa < pressure_vent_threshold_pa:
 			continue
@@ -299,6 +384,8 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 			if op.open_fraction > 0.001:
 				area_m2 = op.width_m * op.height_m * op.open_fraction
 			else:
+				if use_canonical_pressure:
+					continue
 				area_m2 = window_leakage_area_m2
 			area_m2 *= flow_path_factor
 			var v_op: float = sqrt(2.0 * eff_press / maxf(0.05, rho_hot))
@@ -327,23 +414,28 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 		result["smoke_vented_kg"] = float(result.get("smoke_vented_kg", 0.0)) + smoke_out_kg
 
 		_call_room_fraction(remove_upper_layer_fraction_callable, room, frac_out)
-		# SF-CBAL: registrar carbono que sale por venteo de presión ANTES de restar.
-		room.c_exited_kg += room.co_kg * air_frac_out * (12.0 / 28.0) \
-				+ room.co2_kg * air_frac_out * (12.0 / 44.0) \
-				+ room.hcn_kg * air_frac_out * (12.0 / 27.0) \
-				+ smoke_out_kg * 0.87
-		room.co_kg = maxf(0.0, room.co_kg * (1.0 - air_frac_out))
-		room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - air_frac_out))
-		room.co2_kg = maxf(0.0, room.co2_kg * (1.0 - air_frac_out))
-		room.co2_upper_kg = maxf(0.0, room.co2_upper_kg * (1.0 - air_frac_out))
-		room.hcn_kg = maxf(0.0, room.hcn_kg * (1.0 - air_frac_out))
-		room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg * (1.0 - air_frac_out))
-		room.hcl_kg = maxf(0.0, room.hcl_kg * (1.0 - air_frac_out))
-		room.acrolein_kg = maxf(0.0, room.acrolein_kg * (1.0 - air_frac_out))
-		room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg * (1.0 - air_frac_out))
+		if two_zone_opening_flow_enabled:
+			_purge_upper_species_to_exterior_direct(room, air_frac_out, smoke_out_kg)
+		else:
+			# SF-CBAL: registrar carbono que sale por venteo de presión ANTES de restar.
+			room.c_exited_kg += room.co_kg * air_frac_out * (12.0 / 28.0) \
+					+ room.co2_kg * air_frac_out * (12.0 / 44.0) \
+					+ room.hcn_kg * air_frac_out * (12.0 / 27.0) \
+					+ smoke_out_kg * 0.87
+			room.co_kg = maxf(0.0, room.co_kg * (1.0 - air_frac_out))
+			room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - air_frac_out))
+			room.co2_kg = maxf(0.0, room.co2_kg * (1.0 - air_frac_out))
+			room.co2_upper_kg = maxf(0.0, room.co2_upper_kg * (1.0 - air_frac_out))
+			room.hcn_kg = maxf(0.0, room.hcn_kg * (1.0 - air_frac_out))
+			room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg * (1.0 - air_frac_out))
+			room.hcl_kg = maxf(0.0, room.hcl_kg * (1.0 - air_frac_out))
+			room.acrolein_kg = maxf(0.0, room.acrolein_kg * (1.0 - air_frac_out))
+			room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg * (1.0 - air_frac_out))
 		_call_room_dt(sync_room_upper_layer_callable, room, dt)
 
 		room.overpressure_pa = maxf(0.0, room.overpressure_pa * (1.0 - frac_out * 0.9))
+		if use_canonical_pressure:
+			room.pressure_pa_therm = room.overpressure_pa
 
 		var air_in_kg: float = smoke_out_kg * 0.40
 		var room_mass_kg: float = maxf(1.0, room.volume_m3()) * rho_ext
@@ -353,6 +445,8 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 			o2_nominal
 		)
 
+	if use_canonical_pressure and phase3_pressure_component_equalization_enabled:
+		_equalize_thermodynamic_pressure_components(building)
 	return result
 
 
@@ -435,19 +529,36 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 				if room_out.smoke_kg > 0.001:
 					var vent_frac: float = minf(1.0, vented_kg / room_out.smoke_kg)
-					co_delta_kg[room_out.id] -= vent_frac * room_out.co_kg
-					co_upper_delta_kg[room_out.id] -= vent_frac * room_out.co_upper_kg
-					co2_delta_kg[room_out.id] -= vent_frac * room_out.co2_kg
-					co2_upper_delta_kg[room_out.id] -= vent_frac * room_out.co2_upper_kg
-					hcn_delta_kg[room_out.id] -= vent_frac * room_out.hcn_kg
-					hcn_upper_delta_kg[room_out.id] -= vent_frac * room_out.hcn_upper_kg
-					hcl_delta_kg[room_out.id] -= vent_frac * room_out.hcl_kg
-					acrolein_delta_kg[room_out.id] -= vent_frac * room_out.acrolein_kg
-					formaldehyde_delta_kg[room_out.id] -= vent_frac * room_out.formaldehyde_kg
-					# SF-CBAL: carbono que sale por venteo con flujo de humo.
-					room_out.c_exited_kg += vent_frac * room_out.co_kg * (12.0 / 28.0) \
-							+ vent_frac * room_out.co2_kg * (12.0 / 44.0) \
-							+ vent_frac * room_out.hcn_kg * (12.0 / 27.0)
+					if two_zone_opening_flow_enabled:
+						_queue_upper_species_to_exterior(
+							room_out,
+							vent_frac,
+							0.0,
+							smoke_delta_kg,
+							co_delta_kg,
+							co_upper_delta_kg,
+							co2_delta_kg,
+							co2_upper_delta_kg,
+							hcn_delta_kg,
+							hcn_upper_delta_kg,
+							hcl_delta_kg,
+							acrolein_delta_kg,
+							formaldehyde_delta_kg
+						)
+					else:
+						co_delta_kg[room_out.id] -= vent_frac * room_out.co_kg
+						co_upper_delta_kg[room_out.id] -= vent_frac * room_out.co_upper_kg
+						co2_delta_kg[room_out.id] -= vent_frac * room_out.co2_kg
+						co2_upper_delta_kg[room_out.id] -= vent_frac * room_out.co2_upper_kg
+						hcn_delta_kg[room_out.id] -= vent_frac * room_out.hcn_kg
+						hcn_upper_delta_kg[room_out.id] -= vent_frac * room_out.hcn_upper_kg
+						hcl_delta_kg[room_out.id] -= vent_frac * room_out.hcl_kg
+						acrolein_delta_kg[room_out.id] -= vent_frac * room_out.acrolein_kg
+						formaldehyde_delta_kg[room_out.id] -= vent_frac * room_out.formaldehyde_kg
+						# SF-CBAL: carbono que sale por venteo con flujo de humo.
+						room_out.c_exited_kg += vent_frac * room_out.co_kg * (12.0 / 28.0) \
+								+ vent_frac * room_out.co2_kg * (12.0 / 44.0) \
+								+ vent_frac * room_out.hcn_kg * (12.0 / 27.0)
 					# Gas térmico: usa fracción volumétrica real, no la fracción de humo.
 					var rho_upper: float = maxf(0.05, air_density_kg_m3_s * 293.15 / maxf(50.0, room_out.temp_upper_c + 273.15))
 					var vol_frac: float = clampf(vented_kg / (rho_upper * maxf(1.0, room_out.volume_m3())), 0.0, 0.15)
@@ -510,18 +621,35 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					# diluyendo humo/CO/CO2 en proporción al caudal de intercambio
 					var purge_frac: float = clampf(fresh_air_kg / room_mass_kg, 0.0, 0.30)
 					purge_frac *= _compute_flow_path_direct_exterior_vent_fraction(building, room_out)
-					smoke_delta_kg[room_out.id] -= room_out.smoke_kg * purge_frac
-					co_delta_kg[room_out.id] -= room_out.co_kg * purge_frac
-					co_upper_delta_kg[room_out.id] -= room_out.co_upper_kg * purge_frac
-					co2_delta_kg[room_out.id] -= room_out.co2_kg * purge_frac
-					co2_upper_delta_kg[room_out.id] -= room_out.co2_upper_kg * purge_frac
-					hcn_delta_kg[room_out.id] -= room_out.hcn_kg * purge_frac
-					hcn_upper_delta_kg[room_out.id] -= room_out.hcn_upper_kg * purge_frac
-					# SF-CBAL: carbono que sale por purga de ventilación natural.
-					room_out.c_exited_kg += room_out.co_kg * purge_frac * (12.0 / 28.0) \
-							+ room_out.co2_kg * purge_frac * (12.0 / 44.0) \
-							+ room_out.hcn_kg * purge_frac * (12.0 / 27.0) \
-							+ room_out.smoke_kg * purge_frac * 0.87
+					if two_zone_opening_flow_enabled:
+						_queue_upper_species_to_exterior(
+							room_out,
+							purge_frac,
+							room_out.smoke_kg * purge_frac,
+							smoke_delta_kg,
+							co_delta_kg,
+							co_upper_delta_kg,
+							co2_delta_kg,
+							co2_upper_delta_kg,
+							hcn_delta_kg,
+							hcn_upper_delta_kg,
+							hcl_delta_kg,
+							acrolein_delta_kg,
+							formaldehyde_delta_kg
+						)
+					else:
+						smoke_delta_kg[room_out.id] -= room_out.smoke_kg * purge_frac
+						co_delta_kg[room_out.id] -= room_out.co_kg * purge_frac
+						co_upper_delta_kg[room_out.id] -= room_out.co_upper_kg * purge_frac
+						co2_delta_kg[room_out.id] -= room_out.co2_kg * purge_frac
+						co2_upper_delta_kg[room_out.id] -= room_out.co2_upper_kg * purge_frac
+						hcn_delta_kg[room_out.id] -= room_out.hcn_kg * purge_frac
+						hcn_upper_delta_kg[room_out.id] -= room_out.hcn_upper_kg * purge_frac
+						# SF-CBAL: carbono que sale por purga de ventilación natural.
+						room_out.c_exited_kg += room_out.co_kg * purge_frac * (12.0 / 28.0) \
+								+ room_out.co2_kg * purge_frac * (12.0 / 44.0) \
+								+ room_out.hcn_kg * purge_frac * (12.0 / 27.0) \
+								+ room_out.smoke_kg * purge_frac * 0.87
 
 			continue
 
@@ -1357,47 +1485,100 @@ func _apply_two_zone_opening_species_exchange(
 		return false
 
 	if upper_exchange_kg > 0.0:
-		var upper_fraction: float = clampf(upper_exchange_kg / maxf(0.001, upper_mass_kg), 0.0, 0.30)
-		_move_upper_zone_species(
-			hot_room,
-			cold_room,
-			upper_fraction,
-			upper_exchange_kg,
-			smoke_delta_kg,
-			co_delta_kg,
-			co_upper_delta_kg,
-			co2_delta_kg,
-			co2_upper_delta_kg,
-			hcn_delta_kg,
-			hcn_upper_delta_kg,
-			hcl_delta_kg,
-			acrolein_delta_kg,
-			formaldehyde_delta_kg,
-			o2_delta_kg
+		var upper_route: Dictionary = _resolve_opening_segment_route(hot_room, cold_room, op, flow_state, true)
+		var upper_source_is_upper: bool = bool(upper_route.get("from_upper", true))
+		var upper_target_is_upper: bool = bool(upper_route.get("to_upper", true))
+		var upper_fraction: float = clampf(
+			upper_exchange_kg / maxf(0.001, _zone_air_mass_kg(hot_room, upper_source_is_upper)),
+			0.0,
+			0.30
 		)
-		hot_room.two_zone_opening_upper_out_kg += upper_exchange_kg
-		cold_room.two_zone_opening_upper_in_kg += upper_exchange_kg
+		if upper_source_is_upper:
+			_move_upper_zone_species(
+				hot_room,
+				cold_room,
+				upper_fraction,
+				upper_exchange_kg,
+				upper_target_is_upper,
+				smoke_delta_kg,
+				co_delta_kg,
+				co_upper_delta_kg,
+				co2_delta_kg,
+				co2_upper_delta_kg,
+				hcn_delta_kg,
+				hcn_upper_delta_kg,
+				hcl_delta_kg,
+				acrolein_delta_kg,
+				formaldehyde_delta_kg,
+				o2_delta_kg
+			)
+		else:
+			_move_lower_zone_species(
+				hot_room,
+				cold_room,
+				upper_fraction,
+				upper_exchange_kg,
+				upper_target_is_upper,
+				co_delta_kg,
+				co_upper_delta_kg,
+				co2_delta_kg,
+				co2_upper_delta_kg,
+				hcn_delta_kg,
+				hcn_upper_delta_kg,
+				hcl_delta_kg,
+				acrolein_delta_kg,
+				formaldehyde_delta_kg,
+				o2_delta_kg
+			)
+		_record_two_zone_opening_flow(hot_room, cold_room, upper_source_is_upper, upper_target_is_upper, upper_exchange_kg)
 
 	if lower_exchange_kg > 0.0:
-		var lower_fraction: float = clampf(lower_exchange_kg / maxf(0.001, lower_mass_kg), 0.0, 0.30)
-		_move_lower_zone_species(
-			cold_room,
-			hot_room,
-			lower_fraction,
-			lower_exchange_kg,
-			co_delta_kg,
-			co_upper_delta_kg,
-			co2_delta_kg,
-			co2_upper_delta_kg,
-			hcn_delta_kg,
-			hcn_upper_delta_kg,
-			hcl_delta_kg,
-			acrolein_delta_kg,
-			formaldehyde_delta_kg,
-			o2_delta_kg
+		var lower_route: Dictionary = _resolve_opening_segment_route(cold_room, hot_room, op, flow_state, false)
+		var lower_source_is_upper: bool = bool(lower_route.get("from_upper", false))
+		var lower_target_is_upper: bool = bool(lower_route.get("to_upper", false))
+		var lower_fraction: float = clampf(
+			lower_exchange_kg / maxf(0.001, _zone_air_mass_kg(cold_room, lower_source_is_upper)),
+			0.0,
+			0.30
 		)
-		cold_room.two_zone_opening_lower_out_kg += lower_exchange_kg
-		hot_room.two_zone_opening_lower_in_kg += lower_exchange_kg
+		if lower_source_is_upper:
+			_move_upper_zone_species(
+				cold_room,
+				hot_room,
+				lower_fraction,
+				lower_exchange_kg,
+				lower_target_is_upper,
+				smoke_delta_kg,
+				co_delta_kg,
+				co_upper_delta_kg,
+				co2_delta_kg,
+				co2_upper_delta_kg,
+				hcn_delta_kg,
+				hcn_upper_delta_kg,
+				hcl_delta_kg,
+				acrolein_delta_kg,
+				formaldehyde_delta_kg,
+				o2_delta_kg
+			)
+		else:
+			_move_lower_zone_species(
+				cold_room,
+				hot_room,
+				lower_fraction,
+				lower_exchange_kg,
+				lower_target_is_upper,
+				co_delta_kg,
+				co_upper_delta_kg,
+				co2_delta_kg,
+				co2_upper_delta_kg,
+				hcn_delta_kg,
+				hcn_upper_delta_kg,
+				hcl_delta_kg,
+				acrolein_delta_kg,
+				formaldehyde_delta_kg,
+				o2_delta_kg
+			)
+		_record_two_zone_opening_flow(cold_room, hot_room, lower_source_is_upper, lower_target_is_upper, lower_exchange_kg)
 
 	return true
 
@@ -1420,11 +1601,148 @@ func _zone_air_mass_kg(room: RoomModel, upper_zone: bool) -> float:
 	return maxf(0.1, room.lower_volume_m3() * 1.2)
 
 
+func _resolve_opening_segment_route(
+	from_r: RoomModel,
+	to_r: RoomModel,
+	op: OpeningModel,
+	flow_state: Dictionary,
+	upper_segment: bool
+) -> Dictionary:
+	var from_mid_m: float = _opening_segment_midpoint_m(from_r, to_r, op, flow_state, upper_segment)
+	var to_mid_m: float = _opening_segment_midpoint_m(to_r, from_r, op, flow_state, upper_segment)
+	return {
+		"from_upper": _height_is_in_upper_zone(from_r, from_mid_m),
+		"to_upper": _height_is_in_upper_zone(to_r, to_mid_m),
+		"from_mid_m": from_mid_m,
+		"to_mid_m": to_mid_m
+	}
+
+
+func _opening_segment_midpoint_m(
+	room: RoomModel,
+	other_room: RoomModel,
+	op: OpeningModel,
+	flow_state: Dictionary,
+	upper_segment: bool
+) -> float:
+	if room == null or op == null:
+		return 0.0
+	if op.is_vertical:
+		if other_room != null and room.floor_level_z_m > other_room.floor_level_z_m + 0.01:
+			return 0.0
+		return room.height_m
+
+	var neutral_pf: float = clampf(float(flow_state.get("neutral_plane_f", 0.5)), 0.0, 1.0)
+	var segment_h_m: float
+	if upper_segment:
+		segment_h_m = clampf(neutral_pf * op.height_m, 0.0, op.height_m)
+		return clampf(op.sill_m + op.height_m - segment_h_m * 0.5, 0.0, room.height_m)
+	segment_h_m = clampf((1.0 - neutral_pf) * op.height_m, 0.0, op.height_m)
+	return clampf(op.sill_m + segment_h_m * 0.5, 0.0, room.height_m)
+
+
+func _height_is_in_upper_zone(room: RoomModel, height_m: float) -> bool:
+	if room == null:
+		return false
+	var interface_m: float = clampf(room.thermal_layer_m, 0.0, room.height_m)
+	var upper_depth_m: float = maxf(0.0, room.height_m - interface_m)
+	if upper_depth_m <= 0.02 and room.upper_gas_kg <= 0.001:
+		return false
+	return height_m >= interface_m
+
+
+func _record_two_zone_opening_flow(
+	from_r: RoomModel,
+	to_r: RoomModel,
+	from_upper: bool,
+	to_upper: bool,
+	mass_kg: float
+) -> void:
+	if from_r == null or to_r == null or mass_kg <= 0.0:
+		return
+	if from_upper:
+		from_r.two_zone_opening_upper_out_kg += mass_kg
+	else:
+		from_r.two_zone_opening_lower_out_kg += mass_kg
+	if to_upper:
+		to_r.two_zone_opening_upper_in_kg += mass_kg
+	else:
+		to_r.two_zone_opening_lower_in_kg += mass_kg
+
+
+func _purge_upper_species_to_exterior_direct(room: RoomModel, fraction: float, smoke_removed_kg: float) -> void:
+	if room == null:
+		return
+	var frac: float = clampf(fraction, 0.0, 0.30)
+	var co_removed_kg: float = minf(clampf(room.co_upper_kg, 0.0, room.co_kg), room.co_upper_kg * frac)
+	room.co_upper_kg = maxf(0.0, room.co_upper_kg - co_removed_kg)
+	room.co_kg = maxf(0.0, room.co_kg - co_removed_kg)
+
+	var co2_removed_kg: float = minf(clampf(room.co2_upper_kg, 0.0, room.co2_kg), room.co2_upper_kg * frac)
+	room.co2_upper_kg = maxf(0.0, room.co2_upper_kg - co2_removed_kg)
+	room.co2_kg = maxf(0.0, room.co2_kg - co2_removed_kg)
+
+	var hcn_removed_kg: float = minf(clampf(room.hcn_upper_kg, 0.0, room.hcn_kg), room.hcn_upper_kg * frac)
+	room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg - hcn_removed_kg)
+	room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_removed_kg)
+
+	room.hcl_kg = maxf(0.0, room.hcl_kg * (1.0 - frac))
+	room.acrolein_kg = maxf(0.0, room.acrolein_kg * (1.0 - frac))
+	room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg * (1.0 - frac))
+	room.c_exited_kg += co_removed_kg * (12.0 / 28.0) \
+			+ co2_removed_kg * (12.0 / 44.0) \
+			+ hcn_removed_kg * (12.0 / 27.0) \
+			+ maxf(0.0, smoke_removed_kg) * 0.87
+
+
+func _queue_upper_species_to_exterior(
+	room: RoomModel,
+	fraction: float,
+	smoke_removed_kg: float,
+	smoke_delta_kg: Dictionary,
+	co_delta_kg: Dictionary,
+	co_upper_delta_kg: Dictionary,
+	co2_delta_kg: Dictionary,
+	co2_upper_delta_kg: Dictionary,
+	hcn_delta_kg: Dictionary,
+	hcn_upper_delta_kg: Dictionary,
+	hcl_delta_kg: Dictionary,
+	acrolein_delta_kg: Dictionary,
+	formaldehyde_delta_kg: Dictionary
+) -> void:
+	if room == null:
+		return
+	var frac: float = clampf(fraction, 0.0, 0.30)
+	var removed_smoke_kg: float = maxf(0.0, smoke_removed_kg)
+	_add_delta(smoke_delta_kg, room.id, -removed_smoke_kg)
+
+	var co_removed_kg: float = minf(clampf(room.co_upper_kg, 0.0, room.co_kg), room.co_upper_kg * frac)
+	_add_delta(co_delta_kg, room.id, -co_removed_kg)
+	_add_delta(co_upper_delta_kg, room.id, -co_removed_kg)
+
+	var co2_removed_kg: float = minf(clampf(room.co2_upper_kg, 0.0, room.co2_kg), room.co2_upper_kg * frac)
+	_add_delta(co2_delta_kg, room.id, -co2_removed_kg)
+	_add_delta(co2_upper_delta_kg, room.id, -co2_removed_kg)
+
+	var hcn_removed_kg: float = minf(clampf(room.hcn_upper_kg, 0.0, room.hcn_kg), room.hcn_upper_kg * frac)
+	_add_delta(hcn_delta_kg, room.id, -hcn_removed_kg)
+	_add_delta(hcn_upper_delta_kg, room.id, -hcn_removed_kg)
+
+	_add_delta(hcl_delta_kg, room.id, -room.hcl_kg * frac)
+	_add_delta(acrolein_delta_kg, room.id, -room.acrolein_kg * frac)
+	_add_delta(formaldehyde_delta_kg, room.id, -room.formaldehyde_kg * frac)
+	room.c_exited_kg += co_removed_kg * (12.0 / 28.0) \
+			+ co2_removed_kg * (12.0 / 44.0) \
+			+ hcn_removed_kg * (12.0 / 27.0) \
+			+ removed_smoke_kg * 0.87
+
+
 func _move_upper_zone_species(
 	from_r: RoomModel,
 	to_r: RoomModel,
 	fraction: float,
 	air_mass_kg: float,
+	target_upper_zone: bool,
 	smoke_delta_kg: Dictionary,
 	co_delta_kg: Dictionary,
 	co_upper_delta_kg: Dictionary,
@@ -1449,20 +1767,23 @@ func _move_upper_zone_species(
 	_add_delta(co_delta_kg, from_r.id, -moved_co_kg)
 	_add_delta(co_delta_kg, to_r.id, moved_co_kg)
 	_add_delta(co_upper_delta_kg, from_r.id, -moved_co_kg)
-	_add_delta(co_upper_delta_kg, to_r.id, moved_co_kg)
+	if target_upper_zone:
+		_add_delta(co_upper_delta_kg, to_r.id, moved_co_kg)
 
 	var moved_co2_kg: float = minf(clampf(from_r.co2_upper_kg, 0.0, from_r.co2_kg) * frac, from_r.co2_kg)
 	_add_delta(co2_delta_kg, from_r.id, -moved_co2_kg)
 	_add_delta(co2_delta_kg, to_r.id, moved_co2_kg)
 	_add_delta(co2_upper_delta_kg, from_r.id, -moved_co2_kg)
-	_add_delta(co2_upper_delta_kg, to_r.id, moved_co2_kg)
+	if target_upper_zone:
+		_add_delta(co2_upper_delta_kg, to_r.id, moved_co2_kg)
 
 	if not hcn_delta_kg.is_empty():
 		var moved_hcn_kg: float = minf(clampf(from_r.hcn_upper_kg, 0.0, from_r.hcn_kg) * frac, from_r.hcn_kg)
 		_add_delta(hcn_delta_kg, from_r.id, -moved_hcn_kg)
 		_add_delta(hcn_delta_kg, to_r.id, moved_hcn_kg)
 		_add_delta(hcn_upper_delta_kg, from_r.id, -moved_hcn_kg)
-		_add_delta(hcn_upper_delta_kg, to_r.id, moved_hcn_kg)
+		if target_upper_zone:
+			_add_delta(hcn_upper_delta_kg, to_r.id, moved_hcn_kg)
 
 	_move_unlayered_species(
 		from_r,
@@ -1484,6 +1805,7 @@ func _move_lower_zone_species(
 	to_r: RoomModel,
 	fraction: float,
 	air_mass_kg: float,
+	target_upper_zone: bool,
 	co_delta_kg: Dictionary,
 	co_upper_delta_kg: Dictionary,
 	co2_delta_kg: Dictionary,
@@ -1502,15 +1824,21 @@ func _move_lower_zone_species(
 	var moved_co_kg: float = maxf(0.0, from_r.co_kg - clampf(from_r.co_upper_kg, 0.0, from_r.co_kg)) * frac
 	_add_delta(co_delta_kg, from_r.id, -moved_co_kg)
 	_add_delta(co_delta_kg, to_r.id, moved_co_kg)
+	if target_upper_zone:
+		_add_delta(co_upper_delta_kg, to_r.id, moved_co_kg)
 
 	var moved_co2_kg: float = maxf(0.0, from_r.co2_kg - clampf(from_r.co2_upper_kg, 0.0, from_r.co2_kg)) * frac
 	_add_delta(co2_delta_kg, from_r.id, -moved_co2_kg)
 	_add_delta(co2_delta_kg, to_r.id, moved_co2_kg)
+	if target_upper_zone:
+		_add_delta(co2_upper_delta_kg, to_r.id, moved_co2_kg)
 
 	if not hcn_delta_kg.is_empty():
 		var moved_hcn_kg: float = maxf(0.0, from_r.hcn_kg - clampf(from_r.hcn_upper_kg, 0.0, from_r.hcn_kg)) * frac
 		_add_delta(hcn_delta_kg, from_r.id, -moved_hcn_kg)
 		_add_delta(hcn_delta_kg, to_r.id, moved_hcn_kg)
+		if target_upper_zone:
+			_add_delta(hcn_upper_delta_kg, to_r.id, moved_hcn_kg)
 
 	_move_unlayered_species(
 		from_r,

@@ -96,6 +96,15 @@ var outside_open_background_heat_carry_factor: float = 0.42
 var interior_background_heat_exchange_kg_s_m2: float = 0.015
 var interior_background_heat_max_fraction_per_step: float = 0.012
 var interior_background_heat_carry_factor: float = 0.38
+var phase3_stairwell_heat_bridge_enabled: bool = false
+var phase3_stairwell_heat_bridge_kg_s_m2: float = 0.0
+var phase3_stairwell_heat_bridge_max_fraction_per_step: float = 0.018
+var phase3_stairwell_heat_bridge_hot_temp_start_c: float = 30.0
+var phase3_stairwell_heat_bridge_hot_temp_full_c: float = 90.0
+var phase3_stairwell_heat_bridge_hole_multiplier: float = 1.0
+var phase3_stairwell_heat_bridge_vertical_multiplier: float = 2.0
+var phase3_stairwell_heat_bridge_target_lift_fraction: float = 0.012
+var phase3_stairwell_heat_bridge_target_max_temp_c: float = 120.0
 var hot_gas_species_carry_fraction: float = 0.72
 var hot_gas_smoke_carry_fraction: float = 0.38
 var hot_gas_species_max_fraction_per_step: float = 0.22
@@ -437,6 +446,54 @@ func configure(settings: Dictionary) -> void:
 		settings.get(
 			"interior_background_heat_carry_factor",
 			interior_background_heat_carry_factor
+		)
+	)
+	phase3_stairwell_heat_bridge_enabled = bool(
+		settings.get("phase3_stairwell_heat_bridge_enabled", phase3_stairwell_heat_bridge_enabled)
+	)
+	phase3_stairwell_heat_bridge_kg_s_m2 = float(
+		settings.get("phase3_stairwell_heat_bridge_kg_s_m2", phase3_stairwell_heat_bridge_kg_s_m2)
+	)
+	phase3_stairwell_heat_bridge_max_fraction_per_step = float(
+		settings.get(
+			"phase3_stairwell_heat_bridge_max_fraction_per_step",
+			phase3_stairwell_heat_bridge_max_fraction_per_step
+		)
+	)
+	phase3_stairwell_heat_bridge_hot_temp_start_c = float(
+		settings.get(
+			"phase3_stairwell_heat_bridge_hot_temp_start_c",
+			phase3_stairwell_heat_bridge_hot_temp_start_c
+		)
+	)
+	phase3_stairwell_heat_bridge_hot_temp_full_c = float(
+		settings.get(
+			"phase3_stairwell_heat_bridge_hot_temp_full_c",
+			phase3_stairwell_heat_bridge_hot_temp_full_c
+		)
+	)
+	phase3_stairwell_heat_bridge_hole_multiplier = float(
+		settings.get(
+			"phase3_stairwell_heat_bridge_hole_multiplier",
+			phase3_stairwell_heat_bridge_hole_multiplier
+		)
+	)
+	phase3_stairwell_heat_bridge_vertical_multiplier = float(
+		settings.get(
+			"phase3_stairwell_heat_bridge_vertical_multiplier",
+			phase3_stairwell_heat_bridge_vertical_multiplier
+		)
+	)
+	phase3_stairwell_heat_bridge_target_lift_fraction = float(
+		settings.get(
+			"phase3_stairwell_heat_bridge_target_lift_fraction",
+			phase3_stairwell_heat_bridge_target_lift_fraction
+		)
+	)
+	phase3_stairwell_heat_bridge_target_max_temp_c = float(
+		settings.get(
+			"phase3_stairwell_heat_bridge_target_max_temp_c",
+			phase3_stairwell_heat_bridge_target_max_temp_c
 		)
 	)
 	hot_gas_species_carry_fraction = float(
@@ -867,6 +924,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			room_a, room_b, op, dt, ambient_c, _outside_open_path_factor_callable
 		)
 		_apply_interior_background_heat_exchange(room_a, room_b, op, dt, ambient_c)
+		_apply_stairwell_heat_bridge(room_a, room_b, op, dt, ambient_c)
 		if not bool(flow_state.get("active", false)):
 			continue
 
@@ -967,8 +1025,28 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		var _src_w_max: float = clampf(doorway_source_upper_weight, 0.18, 1.0)
 		var _src_upper_w: float = clampf(0.18 + (_src_w_max - 0.18) * _src_intensity, 0.18, _src_w_max)
 		var source_mix_temp_c: float = lerpf(hot_room.temp_lower_c, hot_room.temp_upper_c, _src_upper_w)
+		var stairwell_target_cap_enabled: bool = phase3_stairwell_heat_bridge_enabled \
+				and (op.is_vertical or op.type == OpeningModel.Type.HOLE) \
+				and (hot_room.kind == "escalera" or cold_room.kind == "escalera") \
+				and phase3_stairwell_heat_bridge_target_max_temp_c > ambient_c
+		var stairwell_target_cap_c: float = maxf(
+			ambient_c,
+			phase3_stairwell_heat_bridge_target_max_temp_c
+		)
+		if stairwell_target_cap_enabled:
+			source_mix_temp_c = minf(source_mix_temp_c, stairwell_target_cap_c)
 		var energy_moved_kj: float = gas_moved_kg * maxf(0.0, source_mix_temp_c - ambient_c)
 		energy_moved_kj = minf(energy_moved_kj, maxf(0.0, hot_room.upper_energy_kj))
+		if stairwell_target_cap_enabled:
+			var cold_mass_after_kg: float = maxf(0.005, cold_room.upper_gas_kg + gas_moved_kg)
+			var cold_energy_cap_kj: float = cold_mass_after_kg \
+					* maxf(0.0, stairwell_target_cap_c - ambient_c)
+			energy_moved_kj = minf(
+				energy_moved_kj,
+				maxf(0.0, cold_energy_cap_kj - cold_room.upper_energy_kj)
+			)
+		if energy_moved_kj <= 0.0:
+			continue
 
 		hot_room.upper_gas_kg = maxf(0.0, hot_room.upper_gas_kg - gas_moved_kg)
 		cold_room.upper_gas_kg = maxf(0.0, cold_room.upper_gas_kg + gas_moved_kg)
@@ -1086,16 +1164,31 @@ func _step_radiation_openings(building: BuildingModel, dt: float, ambient_c: flo
 		# Estabilidad: no transferir más del fraction máximo de la energía de la capa superior
 		var max_transfer_kj: float = src.upper_energy_kj * radiation_max_fraction_per_step
 		energy_kj = minf(energy_kj, max_transfer_kj)
-		if energy_kj <= 0.0:
-			continue
-
-		src.upper_energy_kj = maxf(0.0, src.upper_energy_kj - energy_kj)
 
 		# Si el destino no tiene capa superior formada, crear masa mínima para absorber la energía
 		if tgt.upper_gas_kg <= 0.0001:
 			var tgt_density: float = gas_density_kg_m3(tgt.temp_lower_c)
 			tgt.upper_gas_kg = tgt.floor_area_m2() * 0.08 * tgt_density
 
+		var stairwell_target_cap_enabled: bool = phase3_stairwell_heat_bridge_enabled \
+				and (op.is_vertical or op.type == OpeningModel.Type.HOLE) \
+				and (src.kind == "escalera" or tgt.kind == "escalera") \
+				and phase3_stairwell_heat_bridge_target_max_temp_c > ambient_c
+		if stairwell_target_cap_enabled:
+			var radiation_target_cap_c: float = maxf(
+				ambient_c,
+				phase3_stairwell_heat_bridge_target_max_temp_c
+			)
+			var radiation_energy_cap_kj: float = tgt.upper_gas_kg \
+					* maxf(0.0, radiation_target_cap_c - ambient_c)
+			energy_kj = minf(
+				energy_kj,
+				maxf(0.0, radiation_energy_cap_kj - tgt.upper_energy_kj)
+			)
+		if energy_kj <= 0.0:
+			continue
+
+		src.upper_energy_kj = maxf(0.0, src.upper_energy_kj - energy_kj)
 		tgt.upper_energy_kj += energy_kj
 
 		sync_room_upper_layer(src, dt)
@@ -1172,9 +1265,31 @@ func _step_wall_conduction(building: BuildingModel, dt: float, ambient_c: float)
 
 		if energy_kj > 0.0:
 			# A→B: pared de A cede calor a B
+			_ensure_minimal_upper_gas(room_b, ambient_c)
+			if phase3_stairwell_heat_bridge_enabled \
+					and room_b.kind == "escalera" \
+					and phase3_stairwell_heat_bridge_target_max_temp_c > ambient_c:
+				var stairwell_wall_cap_c: float = maxf(
+					ambient_c,
+					phase3_stairwell_heat_bridge_target_max_temp_c
+				)
+				var upper_room_b_cap_kj: float = room_b.upper_gas_kg \
+						* maxf(0.0, stairwell_wall_cap_c - ambient_c)
+				var available_wall_target_kj: float = maxf(
+					0.0,
+					upper_room_b_cap_kj - room_b.upper_energy_kj
+				)
+				if wall_layer_aware_conduction and frac_hot_b < 1.0:
+					var lower_mass_b_cap: float = room_b.floor_area_m2() \
+							* maxf(0.1, room_b.h_layer_m) \
+							* gas_density_kg_m3(room_b.temp_lower_c)
+					available_wall_target_kj += lower_mass_b_cap \
+							* maxf(0.0, stairwell_wall_cap_c - room_b.temp_lower_c)
+				energy_kj = minf(energy_kj, available_wall_target_kj)
+				if energy_kj <= 0.0:
+					continue
 			_wall_surface_temp_c[pair["room_a_id"]] = t_wall_a \
 					- energy_kj / maxf(0.1, cap_a)
-			_ensure_minimal_upper_gas(room_b, ambient_c)
 			if wall_layer_aware_conduction and frac_hot_b < 1.0:
 				# SF-AUD-031: repartir entre capa superior e inferior del receptor B
 				var e_upper_b: float = energy_kj * frac_hot_b
@@ -1191,9 +1306,31 @@ func _step_wall_conduction(building: BuildingModel, dt: float, ambient_c: float)
 		elif energy_kj < 0.0:
 			# B→A: pared de B cede calor a A
 			var abs_kj: float = -energy_kj
+			_ensure_minimal_upper_gas(room_a, ambient_c)
+			if phase3_stairwell_heat_bridge_enabled \
+					and room_a.kind == "escalera" \
+					and phase3_stairwell_heat_bridge_target_max_temp_c > ambient_c:
+				var stairwell_wall_cap_a_c: float = maxf(
+					ambient_c,
+					phase3_stairwell_heat_bridge_target_max_temp_c
+				)
+				var upper_room_a_cap_kj: float = room_a.upper_gas_kg \
+						* maxf(0.0, stairwell_wall_cap_a_c - ambient_c)
+				var available_wall_target_a_kj: float = maxf(
+					0.0,
+					upper_room_a_cap_kj - room_a.upper_energy_kj
+				)
+				if wall_layer_aware_conduction and frac_hot_a < 1.0:
+					var lower_mass_a_cap: float = room_a.floor_area_m2() \
+							* maxf(0.1, room_a.h_layer_m) \
+							* gas_density_kg_m3(room_a.temp_lower_c)
+					available_wall_target_a_kj += lower_mass_a_cap \
+							* maxf(0.0, stairwell_wall_cap_a_c - room_a.temp_lower_c)
+				abs_kj = minf(abs_kj, available_wall_target_a_kj)
+				if abs_kj <= 0.0:
+					continue
 			_wall_surface_temp_c[pair["room_b_id"]] = t_wall_b \
 					- abs_kj / maxf(0.1, cap_b)
-			_ensure_minimal_upper_gas(room_a, ambient_c)
 			if wall_layer_aware_conduction and frac_hot_a < 1.0:
 				# SF-AUD-031: repartir entre capa superior e inferior del receptor A
 				var e_upper_a: float = abs_kj * frac_hot_a
@@ -1766,6 +1903,16 @@ func _apply_outside_assisted_background_heat_exchange(
 		carry_intensity,
 		smoke_drive
 	)
+	var stairwell_target_cap_enabled: bool = phase3_stairwell_heat_bridge_enabled \
+			and (op.is_vertical or op.type == OpeningModel.Type.HOLE) \
+			and (source.kind == "escalera" or target.kind == "escalera") \
+			and phase3_stairwell_heat_bridge_target_max_temp_c > ambient_c
+	var stairwell_target_cap_c: float = maxf(
+		ambient_c,
+		phase3_stairwell_heat_bridge_target_max_temp_c
+	)
+	if stairwell_target_cap_enabled:
+		transfer_temp_c = minf(transfer_temp_c, stairwell_target_cap_c)
 	var heat_excess_c: float = maxf(0.0, transfer_temp_c - ambient_c)
 	if heat_excess_c <= 0.25:
 		return
@@ -1894,6 +2041,16 @@ func _apply_interior_background_heat_exchange(
 		carry_intensity,
 		smoke_drive
 	)
+	var stairwell_target_cap_enabled: bool = phase3_stairwell_heat_bridge_enabled \
+			and (op.is_vertical or op.type == OpeningModel.Type.HOLE) \
+			and (source.kind == "escalera" or target.kind == "escalera") \
+			and phase3_stairwell_heat_bridge_target_max_temp_c > ambient_c
+	var stairwell_target_cap_c: float = maxf(
+		ambient_c,
+		phase3_stairwell_heat_bridge_target_max_temp_c
+	)
+	if stairwell_target_cap_enabled:
+		transfer_temp_c = minf(transfer_temp_c, stairwell_target_cap_c)
 	var heat_excess_c: float = maxf(0.0, transfer_temp_c - ambient_c)
 	if heat_excess_c <= 0.25:
 		return
@@ -1909,6 +2066,14 @@ func _apply_interior_background_heat_exchange(
 			gas_moved_kg * heat_excess_c,
 			source.upper_energy_kj * (0.03 + 0.09 * drive)
 		)
+		if stairwell_target_cap_enabled:
+			var target_upper_mass_after_kg: float = maxf(0.005, target.upper_gas_kg + gas_moved_kg)
+			var target_upper_energy_cap_kj: float = target_upper_mass_after_kg \
+					* maxf(0.0, stairwell_target_cap_c - ambient_c)
+			energy_moved_kj = minf(
+				energy_moved_kj,
+				maxf(0.0, target_upper_energy_cap_kj - target.upper_energy_kj)
+			)
 		if gas_moved_kg > 0.0 and energy_moved_kj > 0.0:
 			var source_upper_gas_before_kg: float = maxf(0.0, source.upper_gas_kg)
 			source.upper_gas_kg = maxf(0.0, source.upper_gas_kg - gas_moved_kg)
@@ -1940,6 +2105,11 @@ func _apply_interior_background_heat_exchange(
 			bulk_exchange_kg * bulk_delta_c * (0.30 + 0.30 * drive),
 			source_available_kj * (0.012 + 0.025 * drive)
 		)
+		if stairwell_target_cap_enabled:
+			bulk_moved_kj = minf(
+				bulk_moved_kj,
+				target_air_mass_kg * maxf(0.0, stairwell_target_cap_c - target.temp_lower_c)
+			)
 		if bulk_moved_kj > 0.0:
 			source.temp_lower_c = maxf(
 				ambient_c,
@@ -1953,6 +2123,114 @@ func _apply_interior_background_heat_exchange(
 		sync_room_upper_layer(source, dt)
 	if touched_target:
 		sync_room_upper_layer(target, dt)
+
+
+func _apply_stairwell_heat_bridge(
+	room_a: RoomModel,
+	room_b: RoomModel,
+	op: OpeningModel,
+	dt: float,
+	ambient_c: float
+) -> void:
+	if not two_zone_solver_enabled:
+		return
+	if not phase3_stairwell_heat_bridge_enabled:
+		return
+	if phase3_stairwell_heat_bridge_kg_s_m2 <= 0.0:
+		return
+	if room_a == null or room_b == null or op == null or dt <= 0.0:
+		return
+	if op.open_fraction <= 0.0:
+		return
+	if not op.is_vertical and op.type != OpeningModel.Type.HOLE:
+		return
+
+	var connects_stairwell: bool = room_a.kind == "escalera" or room_b.kind == "escalera"
+	if not connects_stairwell:
+		return
+
+	var source: RoomModel = room_a
+	var target: RoomModel = room_b
+	if room_b.temp_upper_c > room_a.temp_upper_c:
+		source = room_b
+		target = room_a
+
+	var source_excess_c: float = maxf(0.0, source.temp_upper_c - ambient_c)
+	var target_excess_c: float = maxf(0.0, target.temp_upper_c - ambient_c)
+	var delta_excess_c: float = source_excess_c - target_excess_c
+	if delta_excess_c <= 1.0:
+		return
+	if source.temp_upper_c < phase3_stairwell_heat_bridge_hot_temp_start_c:
+		return
+	if source.upper_energy_kj <= 0.0001 or source.upper_gas_kg <= 0.0001:
+		return
+
+	var area_eff_m2: float = maxf(0.0, op.width_m * op.height_m * op.open_fraction)
+	if area_eff_m2 <= 0.0:
+		return
+
+	var opening_multiplier: float = phase3_stairwell_heat_bridge_hole_multiplier
+	if op.is_vertical:
+		opening_multiplier = phase3_stairwell_heat_bridge_vertical_multiplier
+	if opening_multiplier <= 0.0:
+		return
+
+	var heat_factor: float = inverse_lerp(
+		phase3_stairwell_heat_bridge_hot_temp_start_c,
+		maxf(
+			phase3_stairwell_heat_bridge_hot_temp_start_c + 1.0,
+			phase3_stairwell_heat_bridge_hot_temp_full_c
+		),
+		source.temp_upper_c
+	)
+	heat_factor = clampf(heat_factor, 0.0, 1.0)
+	if heat_factor <= 0.0:
+		return
+
+	var drive: float = clampf(0.25 + 0.75 * clampf(delta_excess_c / 70.0, 0.0, 1.0), 0.0, 1.0)
+	var exchange_kg: float = area_eff_m2 \
+			* phase3_stairwell_heat_bridge_kg_s_m2 \
+			* opening_multiplier \
+			* heat_factor \
+			* drive \
+			* dt
+	if exchange_kg <= 0.0:
+		return
+
+	if target.upper_gas_kg <= 0.05 and _zone_fire_solver != null:
+		var lift_mass_kg: float = minf(
+			maxf(0.0, target.lower_gas_kg * phase3_stairwell_heat_bridge_target_lift_fraction),
+			maxf(0.0, area_eff_m2 * 0.035 - target.upper_gas_kg)
+		)
+		if lift_mass_kg > 0.0:
+			_zone_fire_solver.transfer_lower_to_upper(target, lift_mass_kg, ambient_c)
+
+	var source_cap_kj: float = source.upper_energy_kj \
+			* clampf(phase3_stairwell_heat_bridge_max_fraction_per_step, 0.0, 1.0)
+	var target_mass_kg: float = maxf(0.0, target.upper_gas_kg)
+	if target_mass_kg <= 0.005:
+		return
+	var target_max_rise_c: float = 1.8 + 5.2 * drive * heat_factor
+	var target_temp_cap_c: float = minf(
+		source.temp_upper_c - 0.1,
+		maxf(ambient_c, phase3_stairwell_heat_bridge_target_max_temp_c)
+	)
+	target_temp_cap_c = minf(target.temp_upper_c + target_max_rise_c, target_temp_cap_c)
+	var target_energy_cap_kj: float = target_mass_kg \
+			* maxf(0.0, target_temp_cap_c - ambient_c) \
+			- target.upper_energy_kj
+	var energy_moved_kj: float = minf(
+		exchange_kg * source_excess_c * 0.85,
+		source_cap_kj
+	)
+	energy_moved_kj = minf(energy_moved_kj, maxf(0.0, target_energy_cap_kj))
+	if energy_moved_kj <= 0.0:
+		return
+
+	source.upper_energy_kj = maxf(0.0, source.upper_energy_kj - energy_moved_kj)
+	target.upper_energy_kj = maxf(0.0, target.upper_energy_kj + energy_moved_kj)
+	sync_room_upper_layer(source, dt)
+	sync_room_upper_layer(target, dt)
 
 
 func remove_upper_layer_fraction(room: RoomModel, fraction: float) -> void:

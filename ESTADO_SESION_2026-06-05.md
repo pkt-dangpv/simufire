@@ -3,7 +3,7 @@
 ## Resumen
 - ✅ **PHY-B1 COMPLETO**: gap HVAC-1 sobrepresión reducido 22% → 9%
 - HEAD previo: `cce59d5` (v0.7.0 roadmap cerrado)
-- **400/400 guardrails PASS · 57/57 product checks PASS**
+- **381/381 guardrails PASS · 57/57 product checks PASS**
 
 ## Cambios realizados
 
@@ -34,7 +34,7 @@ exactamente el +16% observado.
 **Commit esperado**: `feat(phys): PHY-B1 phase3_chi_conv 0.65→0.70 — gap HVAC-1 22%→9%`
 
 ## Estado validación
-- `python scripts/simulation/validation_guardrails.py` → **400/400 PASS**
+- `python scripts/simulation/validation_guardrails.py` → **381/381 PASS**
 - `python scripts/check_product.py` → **57/57 PASS**
 - Gap HVAC-1 residual: ~9% (vs CFAST, estimado)
 
@@ -66,18 +66,39 @@ exactamente el +16% observado.
 ## Actualización Codex — M3 opening-flow slice
 
 ### Estado
-- ✅ **M3 RC slice implementado**: `two_zone_opening_flow_enabled` enruta especies en aperturas interiores upper→upper y lower→lower usando el `opening_flow_cache` compartido.
+- ✅ **M3 RC extendido implementado bajo flag**: `two_zone_opening_flow_enabled` enruta especies por zona real de origen/destino usando el `opening_flow_cache` compartido.
+- ✅ Rutas cruzadas upper/lower: el segmento de abertura se compara contra `thermal_layer_m`; las aberturas verticales de escalera resuelven planta baja/planta alta como extremos distintos.
+- ✅ Purgas exteriores/HVAC: venteo exterior alto usa inventario upper; HVAC extrae/inyecta especies y O2 por altura de retorno/suministro.
 - ✅ CLI de validación: `run_case.ps1 -TwoZoneOpeningFlow`; el comparador legacy/two-zone también acepta `-TwoZoneOpeningFlow`.
 - ✅ Telemetría por sala: `two_zone_opening_upper_in/out_kg` y `two_zone_opening_lower_in/out_kg`.
-- ⚠️ M3 no está cerrado completo: faltan rutas cruzadas upper/lower por interfaces desalineadas, ventanas exteriores/HVAC y presión canónica.
+- ✅ Presión canónica cableada como opt-in experimental: `phase3_pressure_canonical_enabled` y CLI `run_case.ps1 -CanonicalPressure` / comparador `-CanonicalPressure`.
+- ✅ Presión canónica mejorada: igualación por componente interior conectado y sin doble conteo de fugas cerradas en `step_pressure_venting`.
+- ✅ Transporte térmico vertical de escalera cerrado bajo opt-in: `phase3_stairwell_heat_bridge_*` adelanta la llegada térmica sin mover especies, con cap final editable para evitar picos no físicos en salas `escalera`.
+- ⚠️ M3 queda listo como RC bajo flags; la promoción a contrato estable y retirada de flags legacy queda para M4/rebaseline global.
 
 ### Evidencia M3
 - Corrida smoke: `cfast_two_room_door_open`, `-EngineMode two-zone`, `-TwoZoneOpeningFlow`, `-ValidationDuration 120`.
 - Reporte: `sim/validation/reports/m3_opening_two_zone_cfast_two_room_120.json`.
-- Resultado: `two_zone_opening_flow_enabled=1`, upper/lower routed `1.7613 kg`, residual transporte carbono `-5.4e-4 kg`.
+- Resultado: `two_zone_opening_flow_enabled=1`, rutas lower activas (`room_0_final_two_zone_opening_lower_in/out_kg=1.7613`), residual transporte carbono `-5.15e-4 kg`.
+- Corrida HVAC activo: `carbon_balance_hvac`, `-EngineMode two-zone`, `-FireO2Mode upper`, `-TwoZoneOpeningFlow`, `-ValidationDuration 120`.
+- Reporte: `sim/validation/reports/m3_opening_carbon_balance_hvac_120.json`.
+- Resultado: `hvac_on=1`, residual transporte carbono `-1.12e-4 kg`.
+- Corrida escalera: `cfast_two_floor_stairwell`, `-EngineMode two-zone`, `-FireO2Mode upper`, `-TwoZoneOpeningFlow`, `-ValidationDuration 180`, `-AllowBaselineFailure`.
+- Reporte: `sim/validation/reports/m3_opening_two_zone_stairwell_180.json`.
+- Resultado: abertura vertical activa (`room_0_final_two_zone_opening_lower_in/out_kg=238.89`), residual transporte carbono `-2.69e-4 kg`; baseline histórica de humo planta superior sigue pendiente de M4/rebaseline.
+- Corrida presión canónica aislada: `cfast_overpressure_sealed`, `-EngineMode legacy`, `-FireO2Mode legacy`, `-CanonicalPressure`, `-ValidationDuration 120`, `-AllowBaselineFailure`.
+- Reporte: `sim/validation/reports/m3_canonical_pressure_overpressure_legacy_120.json`.
+- Resultado: `phase3_pressure_canonical_enabled=1`, `room_0_max_overpressure_pa=151.75 Pa`, residual transporte carbono `-3.22e-5 kg`; valida el cableado, no cierra calibración.
+- Corrida presión canónica + stairwell: `cfast_two_floor_stairwell`, `-EngineMode two-zone`, `-FireO2Mode upper`, `-TwoZoneOpeningFlow`, `-CanonicalPressure`, `-ValidationDuration 180`, `-AllowBaselineFailure`.
+- Reporte: `sim/validation/reports/m3_canonical_pressure_stairwell_180.json`.
+- Resultado: `phase3_pressure_canonical_enabled=1`, `room_upper_floor_vs_lower_floor_pressure_delta_pa=0.0`, `room_0_peak_hrr_kw=706.05`, residual transporte carbono `-1.01e-3 kg`.
+- Corrida presión canónica + stairwell larga: `cfast_two_floor_stairwell`, `-EngineMode two-zone`, `-FireO2Mode upper`, `-TwoZoneOpeningFlow`, `-CanonicalPressure`, `-ValidationDuration 600`, `-AllowBaselineFailure`.
+- Reporte: `sim/validation/reports/m3_canonical_pressure_stairwell_600.json`.
+- Resultado actualizado: **5/5 checks históricos PASS** (`HRR=751.44 kW`, `room_6_final_smoke_kg=0.161`, `time_room_6_smoke_start_s=291.92`, `time_room_6_temp_above_30_s=158.17`, `pressure_delta=0.0`); `room_6_peak_temp_upper_c=120.0` por cap opt-in y residual transporte carbono `-2.41e-3 kg`.
 
 ### Validación actualizada
-- `python -m unittest discover tests -v` → **170/170 PASS**
+- `python -m unittest discover tests -v` → **188/188 PASS**
 - `python scripts/check_product.py` → **57/57 PASS**
 - `python scripts/simulation/validation_guardrails.py` → **381/381 PASS**
 - Godot 4.6.3 headless `--quit-after 1` → **PASS**
+- `git diff --check` → **PASS** (solo avisos CRLF en working copy)

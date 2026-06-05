@@ -89,7 +89,8 @@ no debe regenerarse durante M1 salvo decision explicita y documentada.
   (`551.09 C` frente a `862.20 C`; delta `-311.11 C`, tolerancia `301.77 C`).
 - Deuda observacional asociada: `room_6_final_fed`; la baseline historica de
   escalera tampoco recibe `time_room_6_temp_above_30_s`. Ambas quedan para M3,
-  donde el transporte termico vertical se resolvera por zonas.
+  donde el transporte termico vertical queda resuelto bajo opt-in en la evidencia
+  M3 actualizada.
 
 ## Estado M1
 
@@ -146,16 +147,27 @@ M4 si `upper` pasa a ser default del motor two-zone tras rebaseline parcial/glob
 ## M3 - Flujos de apertura two-zone (v1.0.0-rc)
 
 - [COMPLETADO RC SLICE] Compartir `opening_flow_cache` con `GasExchangeSystem`.
-- [COMPLETADO RC SLICE] Enrutar especies por apertura interior upper->upper
-  y lower->lower cuando `two_zone_solver_enabled && two_zone_opening_flow_enabled`.
+- [COMPLETADO RC] Enrutar especies por apertura interior segun zona real de
+  origen/destino, incluyendo rutas cruzadas upper->lower y lower->upper cuando
+  las interfaces o aberturas verticales no coinciden.
 - [COMPLETADO RC SLICE] Exponer telemetria por sala:
   `two_zone_opening_upper/lower_in/out_kg`.
 - [COMPLETADO RC SLICE] CLI: `run_case.ps1 -TwoZoneOpeningFlow` y comparador
   `run_legacy_two_zone_compare.ps1 -TwoZoneOpeningFlow`.
+- [COMPLETADO RC] Enrutar purgas exteriores altas por zona upper para venteo
+  de presion, venteo de humo y ventilacion natural cuando el flag M3 esta activo.
+- [COMPLETADO RC] Enrutar HVAC por altura de rejilla: retornos altos/bajos
+  extraen upper/lower y suministros altos/bajos inyectan especies y O2 en la
+  zona correspondiente.
 - [PENDIENTE] Completar `ZoneFireSolver` como ledger unico de especies.
-- [PENDIENTE] Segmentar aperturas por interfaces de ambas salas y activar rutas
-  upper-lower/lower-upper cuando las interfaces esten desalineadas.
-- [PENDIENTE] Integrar ventanas exteriores, HVAC y presion canonica.
+- [COMPLETADO EXPERIMENTAL] Cablear presion canonica/stack exterior como
+  opt-in (`phase3_pressure_canonical_enabled`, `-CanonicalPressure`) sin alterar
+  defaults legacy. La presion se iguala por componente interior conectado y el
+  venteo por fugas cerradas no se duplica cuando la ODE ya modela leakage.
+- [COMPLETADO RC] Calibrar transporte termico vertical de escalera bajo opt-in:
+  `phase3_stairwell_heat_bridge_*` adelanta el acoplamiento termico sin mover
+  especies y aplica cap editable a salas `escalera` para evitar picos no
+  fisicos antes del registro de metricas.
 - [PENDIENTE] Retirar flags Phase 2H solo tras demostrar paridad.
 
 ### Evidencia M3 rc slice
@@ -165,24 +177,60 @@ M4 si `upper` pasa a ser default del motor two-zone tras rebaseline parcial/glob
 - `GasExchangeSystem` lee el `opening_flow_cache` ya calculado por
   `ThermalSystem`, evitando un segundo calculo de plano neutro para la misma
   abertura.
-- El routing M3 usa `bernoulli_upper_kg_s` para mover contaminantes upper de
-  la sala caliente a la capa upper de la sala fria, y `bernoulli_lower_kg_s`
-  para mover contaminantes lower de la sala fria a la capa lower de la sala
-  caliente. CO, CO2 y HCN conservan masa total y no elevan artificialmente la
-  masa upper en el counterflow lower.
+- El routing M3 usa `bernoulli_upper_kg_s` y `bernoulli_lower_kg_s`, pero la
+  zona de origen/destino se resuelve con el punto medio del segmento de abertura
+  frente a `thermal_layer_m`. En aperturas verticales, el extremo de planta baja
+  cae en la zona alta de la sala inferior y el extremo de planta alta cae en la
+  zona baja de la sala superior.
+- CO, CO2 y HCN conservan masa total y solo modifican inventario upper cuando
+  el destino real es la zona upper.
 - Corrida smoke:
   `run_case.ps1 -CaseName cfast_two_room_door_open -EngineMode two-zone -TwoZoneOpeningFlow -ValidationDuration 120`.
   Reporte: `sim/validation/reports/m3_opening_two_zone_cfast_two_room_120.json`.
-  Resultado: `two_zone_opening_flow_enabled=1`, `room_0_final_two_zone_opening_upper_out_kg=1.7613`,
-  `room_1_final_two_zone_opening_upper_in_kg=1.7613` y residual de transporte
-  carbono `-5.4e-4 kg`.
+  Resultado: `two_zone_opening_flow_enabled=1`, rutas lower activas
+  (`room_0_final_two_zone_opening_lower_in/out_kg=1.7613`) y residual de
+  transporte carbono `-5.15e-4 kg`.
+- Corrida HVAC activo:
+  `run_case.ps1 -CaseName carbon_balance_hvac -EngineMode two-zone -FireO2Mode upper -TwoZoneOpeningFlow -ValidationDuration 120`.
+  Reporte: `sim/validation/reports/m3_opening_carbon_balance_hvac_120.json`.
+  Resultado: `hvac_on=1`, `two_zone_opening_flow_enabled=1` y residual de
+  transporte carbono `-1.12e-4 kg`.
+- Corrida vertical/stairwell:
+  `run_case.ps1 -CaseName cfast_two_floor_stairwell -EngineMode two-zone -FireO2Mode upper -TwoZoneOpeningFlow -ValidationDuration 180 -AllowBaselineFailure`.
+  Reporte: `sim/validation/reports/m3_opening_two_zone_stairwell_180.json`.
+  Resultado: abertura vertical activa (`room_0_final_two_zone_opening_lower_in/out_kg=238.89`)
+  y residual de transporte carbono `-2.69e-4 kg`. La baseline historica de
+  humo en planta superior sigue fuera y queda para rebaseline/cierre M4.
+- Corrida presion canonica aislada:
+  `run_case.ps1 -CaseName cfast_overpressure_sealed -EngineMode legacy -FireO2Mode legacy -CanonicalPressure -ValidationDuration 120 -AllowBaselineFailure`.
+  Reporte: `sim/validation/reports/m3_canonical_pressure_overpressure_legacy_120.json`.
+  Resultado: `phase3_pressure_canonical_enabled=1`, `room_0_max_overpressure_pa=151.75 Pa`
+  y residual de transporte carbono `-3.22e-5 kg`. Valida el cableado opt-in
+  sin cerrar calibracion.
+- Corrida presion canonica + stairwell:
+  `run_case.ps1 -CaseName cfast_two_floor_stairwell -EngineMode two-zone -FireO2Mode upper -TwoZoneOpeningFlow -CanonicalPressure -ValidationDuration 180 -AllowBaselineFailure`.
+  Reporte: `sim/validation/reports/m3_canonical_pressure_stairwell_180.json`.
+  Resultado: `phase3_pressure_canonical_enabled=1`,
+  `room_upper_floor_vs_lower_floor_pressure_delta_pa=0.0`,
+  `room_0_peak_hrr_kw=706.05` y residual de transporte carbono `-1.01e-3 kg`.
+- Corrida presion canonica + stairwell larga:
+  `run_case.ps1 -CaseName cfast_two_floor_stairwell -EngineMode two-zone -FireO2Mode upper -TwoZoneOpeningFlow -CanonicalPressure -ValidationDuration 600 -AllowBaselineFailure`.
+  Reporte: `sim/validation/reports/m3_canonical_pressure_stairwell_600.json`.
+  Resultado actualizado: 5/5 checks historicos PASS (`HRR=751.44 kW`,
+  `room_6_final_smoke_kg=0.161`, `time_room_6_smoke_start_s=291.92`,
+  `time_room_6_temp_above_30_s=158.17`, `pressure_delta=0.0`).
+  `room_6_peak_temp_upper_c=120.0` por cap opt-in y residual de transporte
+  carbono `-2.41e-3 kg`.
 
 ## Estado M3
 
-**RC SLICE IMPLEMENTADO.** Ya existe routing two-zone de especies para aperturas
-interiores, opt-in y medible. M3 no esta cerrado para release: faltan rutas
-cruzadas por interfaces desalineadas, ventanas exteriores/HVAC y promocion del
-ledger unico de especies.
+**RC IMPLEMENTADO BAJO FLAG.** Ya existe routing two-zone de especies para
+aperturas interiores, rutas cruzadas, verticales, purgas exteriores upper y HVAC
+por altura de rejilla. La presion canonica tambien existe como opt-in
+experimental y ya corrige el delta de presion stairwell bajo flag. El transporte
+termico vertical de escalera queda calibrado bajo opt-in con 5/5 checks stairwell
+PASS. M3 queda pendiente de promocion a contrato estable durante M4: rebaseline
+global, ledger unico de especies y retirada de flags Phase 2H.
 
 ## M4 - Rebaseline y cierre (v1.0.0)
 
