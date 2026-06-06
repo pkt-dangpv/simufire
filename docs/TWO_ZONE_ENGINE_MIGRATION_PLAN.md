@@ -258,6 +258,11 @@ global, ledger unico de especies y retirada de flags Phase 2H.
   `sim/validation/reports/contracts/legacy_two_zone_comparison_m4_default_o2_pass.json`.
 - Reporte del preset `-TwoZoneV1`:
   `sim/validation/reports/contracts/legacy_two_zone_comparison_two_zone_v1_pass.json`.
+- Runner dedicado:
+  `sim/validation/run_two_zone_v1_checks.ps1 -TimeoutSeconds 900`.
+  Ejecuta unitarios específicos, contrato runtime estricto, auditoría de los
+  seis reportes candidatos (`engine_mode=two-zone`, `two_zone_v1_profile=true`,
+  flags solver/opening/canonical activos) y guardrails globales.
 - Resultado global: `18/18` required PASS, `0` errores de contrato,
   `4/18` observacionales no-gating fuera de tolerancia.
 - Observaciones no-gating restantes:

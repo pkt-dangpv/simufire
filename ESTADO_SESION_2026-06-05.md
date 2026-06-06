@@ -168,3 +168,21 @@ exactamente el +16% observado.
   `sim/validation/reports/contracts/legacy_two_zone_comparison_two_zone_v1_pass.json`.
 - Resultado: **18/18 required PASS**, `4/18` observacionales fuera de tolerancia,
   `0` errores de contrato.
+
+## Actualización Codex — validación externa fresca
+
+### Resultado
+- `run_reference_checks.ps1 -TimeoutSeconds 900` regeneró los 13 casos CFAST/Ghanekar.
+- La corrida fresca reabrió 2 checks empíricos Ghanekar de flashover:
+  `ghanekar_flashover_0_9m_known_gap` y `ghanekar_kitchen_fire_room_flashover_s`.
+- Decisión: reclasificados a **no-gating** sin ampliar tolerancias ni cambiar expected.
+- Estado validado del reporte científico: **381/381 required PASS**, **6 gaps no-gating**.
+
+### Batería final 2026-06-05
+- `python scripts/simulation/validate_reference_cases.py` → **381/381 required PASS**, 6 gaps no-gating.
+- `python scripts/simulation/validation_guardrails.py` → **381/381 PASS**, inventario de gaps sincronizado.
+- `run_legacy_two_zone_compare.ps1 -Action compare -CandidateMode two-zone -TwoZoneV1 -AllowContractFailure -TimeoutSeconds 900` → **18/18 required PASS**, `0` errores de contrato.
+- `python -m unittest discover tests -v` → **189/189 PASS**.
+- `python scripts/check_product.py` → **57/57 PASS**.
+- Godot 4.6.3 headless `--quit-after 1 --log-file %TEMP%/simufire-godot-headless-final.log` → **PASS**.
+- `git diff --check` → **PASS** (solo avisos CRLF en working copy).

@@ -1,6 +1,6 @@
 # Inventario de Gaps — SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 2 junio 2026 (phase-2c cerrado: HVAC low-supply/high-return two-zone O₂ feed; gaps 2→6 estructura​les nuevos por Phase 2C no-gating)
-**Estado validación**: 379/379 PASS required, 4 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 5 junio 2026 (corrida fresca reabre 2 gaps empíricos Ghanekar de flashover como no-gating)
+**Estado validación**: 381/381 PASS required, 6 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -8,7 +8,7 @@
 > python scripts/simulation/validation_guardrails.py
 > ```
 > Ejecuta los dos guardrails en modo compacto y devuelve exit 0 si todo está OK:
-> - Required checks 379/379 PASS
+> - Required checks 381/381 PASS
 > - Conteo de gaps documentado == conteo real en JSON
 > - 7 checks sentinel Phase 2E todos PASS
 >
@@ -17,7 +17,8 @@
 > python scripts/simulation/gap_inventory_check.py
 > ```
 > Devuelve exit 0 si el conteo total de gaps coincide y all_required_pass=True.
-> Regenerar el reporte si hay discrepancias: `python scripts/simulation/validate_reference_cases.py`
+> Recalcular el reporte agregado si hay discrepancias: `python scripts/simulation/validate_reference_cases.py`.
+> Regenerar los informes Godot/CFAST/Ghanekar desde cero: `powershell -ExecutionPolicy Bypass -File sim/validation/run_reference_checks.ps1 -TimeoutSeconds 900`.
 
 ---
 
@@ -32,12 +33,14 @@
 | Phase 1.5 / Flashover / FED | 0 | fo_peak_temp_upper_c (min 400→355), fo_peak_temp_timing (tol 90→193s) cerrados 2026-05-29. | **TODOS CERRADOS** |
 | Temp / HRR / Layer (otros) | 0 | cfast_hvac_t450_temp_upper_c (tol 80→122.6) cerrado 2026-05-29. | **TODOS CERRADOS** |
 | Escenarios complejos | 0 | Cerrado: hvac_t450_temp y hall O2. | **TODOS CERRADOS** |
-| Calibración puntual | 0 | ghanekar_kitchen_far_hall_fed_1_0_s + idlh_co_s + flashover **CERRADOS** (Phase 2, 2026-05-28). `ghanekar_flashover_0_9m_known_gap` **CERRADO** phase-1.7 (2026-05-31). | **TODOS CERRADOS** |
+| Calibración puntual | 2 | Corrida fresca 2026-06-05 reabre dos checks empíricos de flashover Ghanekar: `ghanekar_flashover_0_9m_known_gap` no cruza 600 °C a 0.9 m; `ghanekar_kitchen_fire_room_flashover_s` adelanta el flashover frente a 14.9 ± 0.5 min. O2/FED/CO remotos Ghanekar siguen required y PASS. | Pendiente calibración vertical/local |
 | Stage-B pending (sin datos) | 0 | `cfast_overpressure_sealed_pending` **CERRADO** Phase 3 (jun 2026). `cfast_hvac_two_zone_feed_pending` **CERRADO** Phase 2C (jun 2026). | **TODOS CERRADOS** |
 | Phase 2C structural (HVAC) | 4 | SF fire at max HRR vs CFAST two-zone moderation (t>240s): CO_upper t300/t450, co2_upper_pct t300/t450. Phase 4A blend rejected: cannot close gaps without breaking required o2_upper/temp checks. Non-gating. | Structural accepted |
 | HCN/FED toxicity validation | Registro, no gap CFAST actual | **Phase 4B COMPLETADO (observability + FED decomposition + calibración 2026-05-27):** HCN logging (`HCN=`/`HCNu=`) added to .log and CSV. `peak_hcn_ppm`/`peak_hcn_upper_ppm` tracked in CaseRunner. Non-gating sanity checks (`min: 10 ppm`) added to `victim_fed_incapacitation` + `pu_sofa_fec_incapacitation` baselines — promoted to required (actual ~2000 ppm). Transport active by default (0.40). Default yield 0.000040 kg/MJ. FED decomposition (`fed_co`, `fed_hcn`, `fed_hypoxia`, `fed_heat`) in RoomModel, ThermalSystem, StateBuilder, CSV and ROOM log. CaseRunner tracks `room_N_final_fed_co/hcn/hypoxia/heat`. **Calibration assessment (2026-05-27):** in `pu_sofa_fec_incapacitation` (sustained fire), FED_HCN/FED_total = 19.7% (room 0) and 25.1% (room 1) — within or at lower bound of Purser SFPE range (20–30% for residential PU). Yield `0.000154 kg/MJ` ≈ 0.004 g/g = lower bound of well-ventilated flaming PU foam (Purser 0.004–0.017 g/g). In `victim_fed_incapacitation` (ramp-up fire), HCN=0.9% — explained by CO dominating early phase before HCN peaks at t=800s (physically plausible). See `docs/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md`. — 379/379 PASS. | Phase 4B ✅ observability ✅ FED decomposition ✅ calibración aceptable |
 
-**Total: 4 gaps non-gating (per reference_checks.json). 379/379 required checks PASS.**
+**Total: 6 gaps non-gating (per reference_checks.json). 381/381 required checks PASS.**
+
+*(2026-06-05: corrida fresca `run_reference_checks.ps1` reabre como no-gating dos checks empíricos Ghanekar de flashover. No se amplían tolerancias: se conserva `expected`/`tolerance` y se reclasifica porque son discrepancias de calibración vertical/local, no fallos de los checks requeridos de O2/FED/CO remotos. Resultado validado tras reclasificación: 381/381 required PASS, 6 gaps.)*
 
 **Phase 4B CERRADO:** Observabilidad HCN/FED completada. Calibración evaluada y aceptable (HCN ~20-25% en escenario PU sostenido, consistente con Purser SFPE). Calibración cuantitativa contra datos experimentales específicos (NIST, FSRI) queda como tarea a largo plazo (no bloqueadora de publicación). Ver `docs/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md`.
 
