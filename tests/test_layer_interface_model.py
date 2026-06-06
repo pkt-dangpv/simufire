@@ -31,7 +31,25 @@ FED_SMOKE_ONLY_BASELINE = (
 
 
 def function_body(source: str, name: str) -> str:
-    return source.split(f"func {name}", 1)[1].split("\nfunc ", 1)[0]
+    marker_static = f"static func {name}"
+    marker_func = f"func {name}"
+
+    if marker_static in source:
+        start = source.index(marker_static)
+    elif marker_func in source:
+        start = source.index(marker_func)
+    else:
+        raise AssertionError(f"No se encontró la función {name}")
+
+    tail = source[start:]
+
+    next_static = tail.find("\nstatic func ", 1)
+    next_func = tail.find("\nfunc ", 1)
+
+    candidates = [i for i in (next_static, next_func) if i != -1]
+    end = min(candidates) if candidates else len(tail)
+
+    return tail[:end]
 
 
 class TestLayerInterfaceModelContract(unittest.TestCase):
@@ -47,11 +65,11 @@ class TestLayerInterfaceModelContract(unittest.TestCase):
         for term in ("h_visible_smoke_layer_m", "h_thermal_layer_m", "h_flow_interface_m"):
             self.assertIn(term, LAYER)
 
-    def test_flow_interface_uses_spill_bridge_when_available_and_thermal_fallback(self):
+    def test_flow_interface_uses_thermal_layer_not_smoke_spill_bridge(self):
         body = function_body(LAYER, "get_flow_interface_height_m")
-        self.assertIn('has_method("get_effective_smoke_spill_layer_height_m")', body)
-        self.assertIn("smoke_model.get_effective_smoke_spill_layer_height_m(room)", body)
-        self.assertIn("return get_thermal_layer_height_m(room, ambient_c)", body)
+
+        self.assertIn("get_thermal_layer_height_m(room, ambient_c)", body)
+        self.assertNotIn("get_effective_smoke_spill_layer_height_m", body)
         self.assertNotIn("get_visible_smoke_layer_height_m", body)
 
     def test_exterior_opening_helper_uses_flow_interface(self):
@@ -63,7 +81,9 @@ class TestLayerInterfaceModelContract(unittest.TestCase):
 class TestFlowCallersUseCanonicalInterface(unittest.TestCase):
     def test_smoke_spill_and_transfer_use_flow_interface(self):
         self.assertIn("func get_spill_layer_height_m(room: RoomModel) -> float:", SMOKE)
-        self.assertIn("LayerInterfaceModel.get_flow_interface_height_m(room, self, 20.0)", SMOKE)
+        self.assertIn("LayerInterfaceModel.get_smoke_spill_interface_height_m(room, self, 20.0)", SMOKE)
+
+        # Los transfers físicos entre salas sí deben seguir usando flow_interface_m.
         self.assertIn("LayerInterfaceModel.get_flow_interface_height_m(room_a, self, 20.0)", SMOKE)
         self.assertIn("LayerInterfaceModel.get_flow_interface_height_m(target, self, 20.0)", SMOKE)
 

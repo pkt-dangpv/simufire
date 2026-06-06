@@ -200,7 +200,7 @@ func get_effective_smoke_spill_layer_height_m(room: RoomModel) -> float:
 
 
 func get_spill_layer_height_m(room: RoomModel) -> float:
-	return LayerInterfaceModel.get_flow_interface_height_m(room, self, 20.0)
+	return LayerInterfaceModel.get_smoke_spill_interface_height_m(room, self, 20.0)
 
 
 # ============================================================

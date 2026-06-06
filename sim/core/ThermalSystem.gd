@@ -3049,9 +3049,14 @@ func _compute_svv_pct_from_room(room: RoomModel) -> float:
 	var thermal_svv: float
 	if layer_150c >= 1.8:
 		# La isoterma 150°C aún está por encima de 1.8 m.
-		# Verificar si la capa caliente ha descendido bajo la altura de respiración
-		# con temperatura suficiente para ser peligrosa (ISO 13571: límite 60°C a 1.8 m).
-		var hot_h: float = clampf(room.h_layer_m, 0.0, height_m)
+		# Para el criterio térmico secundario usamos la capa térmica canónica,
+		# no la capa visible legacy, porque pertenece a humo/óptica.
+		var hot_h: float = LayerInterfaceModel.get_thermal_layer_height_m(
+			room,
+			ambient_temp_c()
+		)
+		hot_h = clampf(hot_h, 0.0, height_m)
+
 		if hot_h < 1.8 and room.temp_upper_c > 60.0:
 			var penetration: float = clampf((1.8 - hot_h) / 0.3, 0.0, 1.0)
 			var temp_factor: float = clampf((room.temp_upper_c - 60.0) / 90.0, 0.0, 1.0)

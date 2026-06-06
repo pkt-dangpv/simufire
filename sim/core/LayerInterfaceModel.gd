@@ -48,16 +48,68 @@ static func get_flow_interface_height_m(
 	smoke_model: SmokeModel,
 	ambient_c: float = 20.0
 ) -> float:
-	# Interfaz de flujo: referencia canónica para puertas, ventanas, derrame,
-	# ventilación natural y routing de especies/O2. Cuando SmokeModel está
-	# disponible, conserva su capa efectiva de derrame legacy como semántica de
-	# flujo centralizada. Sin SmokeModel, sigue a la capa térmica: el gas caliente
-	# limpio también fluye, y una capa óptica baja no inventa presión por sí sola.
+	# Interfaz de flujo: referencia canónica para puertas, ventanas,
+	# ventilación natural, routing upper/lower, O2 y especies gaseosas.
+	#
+	# IMPORTANTE:
+	# No debe depender de la capa visible de humo ni del bridge óptico legacy.
+	# El humo visible puede bajar sin que exista una interfaz térmica/gaseosa
+	# equivalente. Para derrame óptico de humo usar get_smoke_spill_interface_height_m().
 	if room == null:
 		return 0.0
+
+	return get_thermal_layer_height_m(room, ambient_c)
+
+
+static func get_smoke_spill_interface_height_m(
+	room: RoomModel,
+	smoke_model: SmokeModel,
+	ambient_c: float = 20.0
+) -> float:
+	# Interfaz específica para derrame/transporte de humo visible.
+	# Puede conservar el bridge legacy de SmokeModel porque aquí SÍ hablamos
+	# de humo/hollín visible, no de routing físico de gases/O2.
+	if room == null:
+		return 0.0
+
 	if smoke_model != null and smoke_model.has_method("get_effective_smoke_spill_layer_height_m"):
 		return clampf(smoke_model.get_effective_smoke_spill_layer_height_m(room), 0.0, room.height_m)
-	return get_thermal_layer_height_m(room, ambient_c)
+
+	return get_visible_smoke_layer_height_m(room, smoke_model, ambient_c)
+
+
+static func get_exterior_opening_hot_outflow_height_m(
+	room: RoomModel,
+	op: OpeningModel,
+	smoke_model: SmokeModel,
+	ambient_c: float = 20.0
+) -> float:
+	# Altura de la franja superior de una abertura exterior usada para
+	# salida de gas caliente, ventilación natural, O2 y especies gaseosas.
+	# Usa flow_interface_m térmica/zonal, NO smoke_spill_interface_m.
+	if room == null or op == null:
+		return 0.0
+
+	var flow_interface_m: float = get_flow_interface_height_m(room, smoke_model, ambient_c)
+	var sill_m: float = op.sill_m
+	var lintel_m: float = op.lintel_height_m()
+	return clampf(lintel_m - maxf(sill_m, flow_interface_m), 0.0, op.height_m)
+
+
+static func get_exterior_opening_smoke_spill_height_m(
+	room: RoomModel,
+	op: OpeningModel,
+	smoke_model: SmokeModel,
+	ambient_c: float = 20.0
+) -> float:
+	# Altura de la franja superior usada solo para derrame/purga de humo visible.
+	if room == null or op == null:
+		return 0.0
+
+	var smoke_interface_m: float = get_smoke_spill_interface_height_m(room, smoke_model, ambient_c)
+	var sill_m: float = op.sill_m
+	var lintel_m: float = op.lintel_height_m()
+	return clampf(lintel_m - maxf(sill_m, smoke_interface_m), 0.0, op.height_m)
 
 
 static func get_breathing_zone_exposure_factor(
@@ -73,23 +125,6 @@ static func get_breathing_zone_exposure_factor(
 	var interface_m: float = get_thermal_layer_height_m(room, ambient_c)
 	var z_m: float = clampf(breathing_height_m, 0.0, room.height_m)
 	return clampf(inverse_lerp(interface_m - 0.10, interface_m + 0.10, z_m), 0.0, 1.0)
-
-
-static func get_exterior_opening_hot_outflow_height_m(
-	room: RoomModel,
-	op: OpeningModel,
-	smoke_model: SmokeModel,
-	ambient_c: float = 20.0
-) -> float:
-	# Altura de la franja superior de una abertura exterior que queda por encima
-	# de h_flow_interface_m. GasExchangeSystem usa esto para no recalcular un
-	# plano neutro local desconectado del modelo de capas.
-	if room == null or op == null:
-		return 0.0
-	var flow_interface_m: float = get_flow_interface_height_m(room, smoke_model, ambient_c)
-	var sill_m: float = op.sill_m
-	var lintel_m: float = op.lintel_height_m()
-	return clampf(lintel_m - maxf(sill_m, flow_interface_m), 0.0, op.height_m)
 
 
 static func _estimate_visible_layer_from_smoke_mass(room: RoomModel, ambient_c: float) -> float:
