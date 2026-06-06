@@ -22,6 +22,12 @@ CASE = (ROOT / "sim" / "validation" / "cases" / "layer_interface_single_room_win
 BASELINE = (
     ROOT / "sim" / "validation" / "baselines" / "layer_interface_single_room_window.json"
 ).read_text(encoding="utf-8")
+FED_SMOKE_ONLY_CASE = (
+    ROOT / "sim" / "validation" / "cases" / "fed_thermal_layer_smoke_only.json"
+).read_text(encoding="utf-8")
+FED_SMOKE_ONLY_BASELINE = (
+    ROOT / "sim" / "validation" / "baselines" / "fed_thermal_layer_smoke_only.json"
+).read_text(encoding="utf-8")
 
 
 def function_body(source: str, name: str) -> str:
@@ -93,6 +99,27 @@ class TestFlowCallersUseCanonicalInterface(unittest.TestCase):
         self.assertIn("LayerInterfaceModel.get_flow_interface_height_m(indoor, null, building.outside_temp_c)", OXYGEN)
         self.assertIn("return LayerInterfaceModel.get_flow_interface_height_m(room, null, 20.0)", HVAC)
 
+    def test_fed_exposure_uses_thermal_interfaces_not_visible_smoke_layer(self):
+        step_body = function_body(THERMAL, "step_fed")
+        height_body = function_body(THERMAL, "compute_fed_delta_for_height")
+        helper_body = function_body(THERMAL, "_fed_breathing_zone_thermal_exposure_factor")
+
+        self.assertNotIn("room.h_layer_m", step_body)
+        self.assertNotIn("room.h_layer_m", height_body)
+        self.assertIn("_fed_breathing_zone_thermal_exposure_factor", step_body)
+        self.assertIn("_fed_breathing_zone_thermal_exposure_factor", height_body)
+        self.assertIn("LayerInterfaceModel.get_breathing_zone_exposure_factor", helper_body)
+        self.assertIn("room.thermal_layer_m", helper_body)
+        self.assertIn("room.layer_150c_m", helper_body)
+
+    def test_visible_smoke_cannot_trigger_fed_heat_when_thermal_layer_is_high(self):
+        helper_body = function_body(THERMAL, "_fed_breathing_zone_thermal_exposure_factor")
+
+        self.assertNotIn("h_layer_m", helper_body)
+        self.assertIn("return 0.0", helper_body)
+        self.assertIn("_warn_invalid_fed_layer_once(room, \"thermal_layer_m\"", helper_body)
+        self.assertIn("_warn_invalid_fed_layer_once(room, \"layer_150c_m\"", helper_body)
+
 
 class TestLayerInterfaceExportsAndGuardrails(unittest.TestCase):
     def test_state_exports_visible_thermal_flow_and_150c_layers(self):
@@ -154,6 +181,19 @@ class TestLayerInterfaceExportsAndGuardrails(unittest.TestCase):
             "room_0_final_visibility_m",
         ):
             self.assertIn(metric, BASELINE)
+
+    def test_fed_smoke_only_validation_case_keeps_visible_and_thermal_layers_separate(self):
+        self.assertIn('"fed_thermal_layer_smoke_only"', RUN_ALL)
+        self.assertIn('"ignite_on_start": false', FED_SMOKE_ONLY_CASE)
+        self.assertIn('"species": "smoke_kg"', FED_SMOKE_ONLY_CASE)
+        self.assertIn('"two_zone_solver_enabled": true', FED_SMOKE_ONLY_CASE)
+        self.assertIn('"two_zone_opening_flow_enabled": true', FED_SMOKE_ONLY_CASE)
+
+        self.assertIn("room_0_min_visible_smoke_layer_m", FED_SMOKE_ONLY_BASELINE)
+        self.assertIn("room_0_min_thermal_layer_m", FED_SMOKE_ONLY_BASELINE)
+        self.assertIn("room_0_min_l150_m", FED_SMOKE_ONLY_BASELINE)
+        self.assertIn("room_0_final_fed_heat", FED_SMOKE_ONLY_BASELINE)
+        self.assertIn("room_0_final_fed", FED_SMOKE_ONLY_BASELINE)
 
 
 if __name__ == "__main__":

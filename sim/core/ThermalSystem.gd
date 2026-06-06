@@ -242,6 +242,7 @@ var fed_hypoxia_b: float = 0.54
 # Valor por defecto 1.8 m (adulto de pie, ISO 13571). Puede sobreescribirse por caso
 # cuando el escenario implica ocupantes agachados, niños, o análisis conservador.
 var fed_upper_layer_threshold_m: float = 1.8
+var _fed_layer_warning_keys: Dictionary = {}
 
 # Conducción a través de paredes compartidas entre salas geométricamente adyacentes
 # ──────────────────────────────────────────────────────────────────────────────────
@@ -2832,6 +2833,49 @@ func compute_co2_ppm(room: RoomModel) -> float:
 	return room.co2_kg * 29.0e6 / maxf(0.1, room.volume_m3() * 1.2 * 44.0)
 
 
+func _fed_breathing_zone_thermal_exposure_factor(room: RoomModel, breathing_height_m: float) -> float:
+	if room == null:
+		return 0.0
+
+	var height_m: float = maxf(0.1, room.height_m)
+	var z_m: float = clampf(breathing_height_m, 0.0, height_m)
+	if room.thermal_layer_m < 0.0 or room.thermal_layer_m > height_m:
+		_warn_invalid_fed_layer_once(room, "thermal_layer_m", room.thermal_layer_m)
+		return 0.0
+
+	# FED térmico usa la interfaz térmica canónica. La capa visible/legacy
+	# de humo es óptica y no debe activar exposición a calor.
+	var exposure_factor: float = LayerInterfaceModel.get_breathing_zone_exposure_factor(
+		room,
+		z_m,
+		ambient_temp_c()
+	)
+	if room.layer_150c_m < 0.0 or room.layer_150c_m > height_m:
+		_warn_invalid_fed_layer_once(room, "layer_150c_m", room.layer_150c_m)
+		return clampf(exposure_factor, 0.0, 1.0)
+
+	var layer_150c_m: float = clampf(room.layer_150c_m, 0.0, height_m)
+	if z_m >= layer_150c_m and room.temp_upper_c > fed_heat_conv_min_c:
+		exposure_factor = 1.0
+	return clampf(exposure_factor, 0.0, 1.0)
+
+
+func _warn_invalid_fed_layer_once(room: RoomModel, field_name: String, value: float) -> void:
+	if room == null:
+		return
+	var key: String = "%d:%s" % [room.id, field_name]
+	if _fed_layer_warning_keys.has(key):
+		return
+	_fed_layer_warning_keys[key] = true
+	push_warning(
+		"FED thermal exposure: %s invalid in room %d (%.3f); using safe thermal fallback." % [
+			field_name,
+			room.id,
+			value
+		]
+	)
+
+
 ## Calcula el incremento de FED ISO 13571 para un ocupante a una altura específica,
 ## sin modificar room.fed. Permite acumulación externa por víctima.
 ## height_m: plano respiratorio (0.9m=tumbado, 1.5m=sentado, 1.8m=de pie).
@@ -2839,7 +2883,8 @@ func compute_fed_delta_for_height(room: RoomModel, dt: float, height_m: float) -
 	if room == null or dt <= 0.0:
 		return 0.0
 
-	var in_upper: bool = (room.h_layer_m < height_m and room.upper_gas_kg > 0.1)
+	var thermal_exposure_factor: float = _fed_breathing_zone_thermal_exposure_factor(room, height_m)
+	var in_upper: bool = (thermal_exposure_factor >= 0.5 and room.upper_gas_kg > 0.1)
 	var co_ppm: float   = compute_co_upper_ppm(room)  if in_upper else compute_co_ppm(room)
 	var co2_ppm: float  = compute_co2_upper_ppm(room) if in_upper else compute_co2_lower_ppm(room)
 	var dt_min: float   = dt / 60.0
@@ -2895,7 +2940,11 @@ func step_fed(room: RoomModel, dt: float) -> void:
 
 	# Cuando la capa caliente desciende bajo la altura de respiración (configurable,
 	# por defecto 1.8 m adulto de pie ISO 13571), el ocupante está inmerso.
-	var in_upper_layer: bool = (room.h_layer_m < fed_upper_layer_threshold_m and room.upper_gas_kg > 0.1)
+	var thermal_exposure_factor: float = _fed_breathing_zone_thermal_exposure_factor(
+		room,
+		fed_upper_layer_threshold_m
+	)
+	var in_upper_layer: bool = (thermal_exposure_factor >= 0.5 and room.upper_gas_kg > 0.1)
 	var co_ppm: float = compute_co_upper_ppm(room) if in_upper_layer else compute_co_ppm(room)
 	var co2_ppm: float = compute_co2_upper_ppm(room) if in_upper_layer else compute_co2_lower_ppm(room)
 

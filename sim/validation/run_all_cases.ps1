@@ -128,7 +128,9 @@ $cases = @(
 	"carbon_balance_creation",
 	"carbon_balance_loss",
 	# LayerInterfaceModel: contrato canonico visible/thermal/flow.
-	"layer_interface_single_room_window"
+	"layer_interface_single_room_window",
+	# FED termico: humo visible bajo no equivale a inmersion termica.
+	"fed_thermal_layer_smoke_only"
 )
 
 $results = New-Object System.Collections.Generic.List[object]

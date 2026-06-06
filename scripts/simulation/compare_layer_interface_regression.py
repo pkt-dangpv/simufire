@@ -451,6 +451,7 @@ def compare_case(case: str, before: dict[str, Any], after: dict[str, Any]) -> di
     return {
         "case": case,
         "artifact_notes": artifact_notes,
+        "after_baseline_failures": baseline_failures(after_report),
         "rooms": rooms,
         "warnings": warnings,
         "has_csv_comparison": bool(csv_before_rooms and csv_after_rooms),
@@ -467,6 +468,27 @@ def artifact_status_notes(before: dict[str, Any], after: dict[str, Any]) -> list
     if before.get("csv") is None or after.get("csv") is None:
         notes.append("csv pair unavailable; JSON report fallback used where possible")
     return notes
+
+
+def baseline_failures(report: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not report:
+        return []
+    baseline = report.get("baseline", {})
+    checks = baseline.get("checks", {}) if isinstance(baseline, dict) else {}
+    failures: list[dict[str, Any]] = []
+    for metric_name, check in checks.items():
+        if not isinstance(check, dict):
+            continue
+        if bool(check.get("pass", False)):
+            continue
+        failures.append(
+            {
+                "metric": metric_name,
+                "actual": check.get("actual"),
+                "rule": check.get("rule", {}),
+            }
+        )
+    return failures
 
 
 def warning_for_metric(case: str, room_id: str, field: str, metric: dict[str, Any]) -> dict[str, Any] | None:
@@ -635,16 +657,21 @@ def run_structural_checks(repo_root: Path) -> list[dict[str, Any]]:
         )
     )
     fed_body = function_body(thermal, "step_fed")
+    fed_height_body = function_body(thermal, "compute_fed_delta_for_height")
+    fed_helper_body = function_body(thermal, "_fed_breathing_zone_thermal_exposure_factor")
     fed_height_ok = (
-        ("room.layer_150c_m" in fed_body or "room.thermal_layer_m" in fed_body or "LayerInterfaceModel" in fed_body)
-        and "room.h_layer_m < fed_upper_layer_threshold_m" not in fed_body
+        "room.h_layer_m" not in fed_body
+        and "room.h_layer_m" not in fed_height_body
+        and "LayerInterfaceModel.get_breathing_zone_exposure_factor" in fed_helper_body
+        and "room.thermal_layer_m" in fed_helper_body
+        and "room.layer_150c_m" in fed_helper_body
     )
     checks.append(
         structural_check(
             "fed_thermal_exposure_uses_thermal_layer_or_150c",
             fed_height_ok,
             "FED thermal exposure should be based on thermal_layer_m/layer_150c_m rather than legacy h_layer_m.",
-            evidence=[] if fed_height_ok else ["ThermalSystem.step_fed still gates in_upper_layer with room.h_layer_m."],
+            evidence=[] if fed_height_ok else ["ThermalSystem FED exposure still reads room.h_layer_m or misses the canonical thermal helper."],
         )
     )
     return checks
@@ -765,15 +792,17 @@ def render_markdown(audit: dict[str, Any]) -> str:
     lines.append("")
     lines.append("## Casos ejecutados / comparados")
     lines.append("")
-    lines.append("| Caso | CSV pair | JSON pair | Notas | Warnings |")
-    lines.append("|---|---:|---:|---|---:|")
+    lines.append("| Caso | CSV pair | JSON pair | Baseline after | Notas | Warnings |")
+    lines.append("|---|---:|---:|---|---|---:|")
     for result in audit.get("case_results", []):
         notes = "; ".join(result.get("artifact_notes", [])) or "-"
+        baseline_status = "FAIL" if result.get("after_baseline_failures") else "PASS/NA"
         lines.append(
-            "| {case} | {csv_pair} | {json_pair} | {notes} | {warnings} |".format(
+            "| {case} | {csv_pair} | {json_pair} | {baseline_status} | {notes} | {warnings} |".format(
                 case=result.get("case"),
                 csv_pair="yes" if result.get("has_csv_comparison") else "no",
                 json_pair="yes" if result.get("has_report_comparison") else "no",
+                baseline_status=baseline_status,
                 notes=notes,
                 warnings=len(result.get("warnings", [])),
             )
@@ -799,6 +828,28 @@ def render_markdown(audit: dict[str, Any]) -> str:
             )
     else:
         lines.append("No se detectaron warnings numéricos con los artefactos disponibles.")
+    lines.append("")
+    lines.append("## Baseline histórica after")
+    lines.append("")
+    baseline_rows = [
+        (result.get("case", ""), failure)
+        for result in audit.get("case_results", [])
+        for failure in result.get("after_baseline_failures", [])
+    ]
+    if baseline_rows:
+        lines.append("| Caso | Métrica | Actual | Regla |")
+        lines.append("|---|---|---:|---|")
+        for case, failure in baseline_rows:
+            lines.append(
+                "| {case} | {metric} | {actual} | `{rule}` |".format(
+                    case=case,
+                    metric=failure.get("metric", ""),
+                    actual=format_number(failure.get("actual")),
+                    rule=json.dumps(failure.get("rule", {}), sort_keys=True),
+                )
+            )
+    else:
+        lines.append("Los reportes after no registran fallos contra su baseline histórica, o no incluyen baseline.")
     lines.append("")
     lines.append("## Diferencias principales")
     lines.append("")

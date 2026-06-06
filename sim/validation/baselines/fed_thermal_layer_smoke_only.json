@@ -1,0 +1,37 @@
+{
+	"metrics": {
+		"two_zone_solver_enabled": {
+			"expected": 1.0,
+			"tolerance": 0.0
+		},
+		"two_zone_opening_flow_enabled": {
+			"expected": 1.0,
+			"tolerance": 0.0
+		},
+		"carbon_event_0_time_s": {
+			"min": 0.9,
+			"max": 1.2
+		},
+		"room_0_min_visible_smoke_layer_m": {
+			"max": 1.8,
+			"comment": "Humo frio inyectado: la capa visible debe bajar por carga optica."
+		},
+		"room_0_min_thermal_layer_m": {
+			"min": 2.35,
+			"comment": "Sin fuego ni energia upper, la capa termica debe quedarse alta."
+		},
+		"room_0_min_l150_m": {
+			"min": 2.35,
+			"comment": "Sin calentamiento, la isoterma de 150 C no debe bajar."
+		},
+		"room_0_final_fed_heat": {
+			"expected": 0.0,
+			"tolerance": 0.000001,
+			"comment": "El FED termico no debe dispararse por una capa visible baja sin exposicion termica."
+		},
+		"room_0_final_fed": {
+			"expected": 0.0,
+			"tolerance": 0.000001
+		}
+	}
+}

@@ -1,0 +1,50 @@
+{
+	"template": "simple_house",
+	"duration_s": 20.0,
+	"ignite_on_start": false,
+	"enable_logging": false,
+	"watch_room_ids": [0],
+	"smoke_trigger_room_id": 0,
+	"l150_room_id": 0,
+	"opening_overrides": [
+		{
+			"a": 0,
+			"b": 1,
+			"type": "door",
+			"open_fraction": 0.0
+		},
+		{
+			"a": 0,
+			"b": -1,
+			"type": "window",
+			"open_fraction": 0.0
+		}
+	],
+	"carbon_events": [
+		{
+			"time_s": 1.0,
+			"room_id": 0,
+			"species": "smoke_kg",
+			"delta_kg": 3.6
+		}
+	],
+	"engine_overrides": {
+		"time_scale": 5.0,
+		"two_zone_solver_enabled": true,
+		"two_zone_opening_flow_enabled": true,
+		"ach_infiltration": 0.0,
+		"background_species_exchange_kg_s_m2": 0.0,
+		"pressure_vent_threshold_pa": 999999.0,
+		"outside_open_species_purge_base_per_s": 0.0,
+		"outside_open_species_purge_bonus_per_s": 0.0,
+		"interior_transport_enabled": false,
+		"stack_effect_enabled": false,
+		"wind_effect_enabled": false,
+		"smoke_settling_base_per_s": 0.0,
+		"smoke_settling_bonus_per_s": 0.0,
+		"fire_spread_enabled": false,
+		"glass_auto_break_enabled": false,
+		"glass_break_mode": 0,
+		"log_file_path": "res://sim/validation/reports/fed_thermal_layer_smoke_only.log"
+	}
+}
