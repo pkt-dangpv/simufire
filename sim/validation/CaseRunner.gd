@@ -914,6 +914,18 @@ func _update_room_peak_metrics(room_id: int, room_state: Dictionary) -> void:
 		float(_metrics.get(prefix + "min_l150_m", float(room_state.get("height_m", 0.0)))),
 		float(room_state.get("layer_150c_m", float(room_state.get("height_m", 0.0))))
 	)
+	_metrics[prefix + "min_visible_smoke_layer_m"] = minf(
+		float(_metrics.get(prefix + "min_visible_smoke_layer_m", float(room_state.get("height_m", 0.0)))),
+		float(room_state.get("visible_smoke_layer_m", room_state.get("smoke_layer_m", float(room_state.get("height_m", 0.0)))))
+	)
+	_metrics[prefix + "min_thermal_layer_m"] = minf(
+		float(_metrics.get(prefix + "min_thermal_layer_m", float(room_state.get("height_m", 0.0)))),
+		float(room_state.get("thermal_layer_m", float(room_state.get("height_m", 0.0))))
+	)
+	_metrics[prefix + "min_flow_interface_m"] = minf(
+		float(_metrics.get(prefix + "min_flow_interface_m", float(room_state.get("height_m", 0.0)))),
+		float(room_state.get("flow_interface_m", room_state.get("thermal_layer_m", float(room_state.get("height_m", 0.0)))))
+	)
 	_metrics[prefix + "max_overpressure_pa"] = maxf(
 		float(_metrics.get(prefix + "max_overpressure_pa", 0.0)),
 		float(room_state.get("overpressure_pa", 0.0))
@@ -986,6 +998,9 @@ func _capture_final_metrics(state: Dictionary) -> void:
 		_metrics[prefix + "fed_heat"] = float(room_state.get("fed_heat", 0.0))
 		# SF-AUD-032: balance elemental de carbono (fracción de C producido vs disponible)
 		_metrics[prefix + "c_balance_frac"] = float(room_state.get("c_balance_frac", 0.0))
+		_metrics[prefix + "visible_smoke_layer_m"] = float(room_state.get("visible_smoke_layer_m", room_state.get("smoke_layer_m", 0.0)))
+		_metrics[prefix + "thermal_layer_m"] = float(room_state.get("thermal_layer_m", 0.0))
+		_metrics[prefix + "flow_interface_m"] = float(room_state.get("flow_interface_m", room_state.get("thermal_layer_m", 0.0)))
 		_metrics[prefix + "hot_layer_m"] = float(room_state.get("hot_layer_m", 0.0))
 		_metrics[prefix + "smoke_layer_m"] = float(room_state.get("smoke_layer_m", 0.0))
 		_metrics[prefix + "layer_150c_m"] = float(room_state.get("layer_150c_m", 0.0))

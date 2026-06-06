@@ -126,7 +126,9 @@ $cases = @(
 	"carbon_balance_ventilation",
 	"carbon_balance_hvac",
 	"carbon_balance_creation",
-	"carbon_balance_loss"
+	"carbon_balance_loss",
+	# LayerInterfaceModel: contrato canonico visible/thermal/flow.
+	"layer_interface_single_room_window"
 )
 
 $results = New-Object System.Collections.Generic.List[object]

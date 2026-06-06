@@ -1,6 +1,8 @@
 extends RefCounted
 class_name ThermalSystem
 
+const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
+
 # ============================================================
 # THERMAL SYSTEM
 # ------------------------------------------------------------
@@ -2461,16 +2463,11 @@ func reset_wall_temps() -> void:
 
 
 func estimate_thermal_layer_height_m(room: RoomModel) -> float:
-	if room == null:
-		return 0.0
+	return LayerInterfaceModel.get_thermal_layer_height_m(room, ambient_temp_c())
 
-	if room.upper_gas_kg <= 0.000001:
-		return room.height_m
 
-	var hot_gas_density_kg_m3: float = gas_density_kg_m3(room.temp_upper_c)
-	var hot_gas_volume_m3: float = room.upper_gas_kg / maxf(0.05, hot_gas_density_kg_m3)
-	var hot_depth_m: float = hot_gas_volume_m3 / maxf(0.01, room.floor_area_m2())
-	return clampf(room.height_m - hot_depth_m, 0.0, room.height_m)
+func flow_interface_height_m(room: RoomModel) -> float:
+	return LayerInterfaceModel.get_flow_interface_height_m(room, _smoke_model, ambient_temp_c())
 
 
 func compute_interroom_transfer_temp_c(
@@ -3306,6 +3303,7 @@ func build_interior_opening_flow_state(room_a: RoomModel, room_b: RoomModel, op:
 	# El flujo es impulsado por efecto chimenea: gas caliente sube, aire frío baja.
 	# Formula: Q = Cd · A · sqrt(2 · g · H_z · ΔT / T_cold)  [SFPE §3.2 chimney effect]
 	if op.is_vertical:
+		var _flow_interface_v_m: float = flow_interface_height_m(hot_room)
 		var _g_v: float = 9.81
 		var _cd_v: float = 0.61
 		# Area del hueco en plano horizontal (width × height ≡ dos dimensiones del suelo)
@@ -3343,6 +3341,7 @@ func build_interior_opening_flow_state(room_a: RoomModel, room_b: RoomModel, op:
 		state["source_temp_c"] = _source_temp_v
 		state["temp_delta_k"] = _temp_delta_v
 		state["neutral_plane_f"] = 0.5
+		state["flow_interface_m"] = _flow_interface_v_m
 		# Caudal másico: gas caliente asciende; aire frío desciende (conservación de masa)
 		state["bernoulli_upper_kg_s"] = _q_vert_m3s * _rho_hot_v
 		state["bernoulli_lower_kg_s"] = _q_vert_m3s * _rho_cold_v
@@ -3350,7 +3349,8 @@ func build_interior_opening_flow_state(room_a: RoomModel, room_b: RoomModel, op:
 
 	var lintel_m: float = op.lintel_height_m()
 	var spill_trigger_layer_m: float = _interior_spill_trigger_layer_m(hot_room, lintel_m)
-	var hot_band_m: float = maxf(0.0, spill_trigger_layer_m - effective_hot_layer_height_m(hot_room))
+	var flow_interface_m: float = flow_interface_height_m(hot_room)
+	var hot_band_m: float = maxf(0.0, spill_trigger_layer_m - flow_interface_m)
 	var smoke_band_m: float = maxf(
 		0.0,
 		spill_trigger_layer_m - _smoke_model.get_visible_smoke_layer_height_m(hot_room)
@@ -3408,7 +3408,7 @@ func build_interior_opening_flow_state(room_a: RoomModel, room_b: RoomModel, op:
 	var t_src_k: float = source_temp_c + 273.15
 	var t_snk_k: float = sink_temp_c + 273.15
 	var t_lower_k: float = hot_room.temp_lower_c + 273.15
-	var h_thermal_np: float = effective_hot_layer_height_m(hot_room)
+	var h_thermal_np: float = flow_interface_m
 	var inv_src_np: float = 1.0 / maxf(1.0, t_src_k)
 	var inv_lower_np: float = 1.0 / maxf(1.0, t_lower_k)
 	var inv_snk_np: float = 1.0 / maxf(1.0, t_snk_k)
@@ -3435,6 +3435,7 @@ func build_interior_opening_flow_state(room_a: RoomModel, room_b: RoomModel, op:
 	state["source_temp_c"] = source_temp_c
 	state["temp_delta_k"] = temp_delta_k
 	state["neutral_plane_f"] = neutral_plane_f
+	state["flow_interface_m"] = flow_interface_m
 
 	# ── SF-AUD-010: Bernoulli dos zonas (SFPE §3.2; CFAST TN 1889v1 §2.2) ──────
 	# Q = Cd · W · f · (2/3) · h_zona^(3/2) · sqrt(2g · ΔT / T_ref)  [m³/s]

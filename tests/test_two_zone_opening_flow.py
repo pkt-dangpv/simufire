@@ -98,7 +98,7 @@ class TestTwoZoneOpeningStructure(unittest.TestCase):
         self.assertIn("if op.is_vertical:", GAS)
         self.assertIn("room.floor_level_z_m > other_room.floor_level_z_m", GAS)
         self.assertIn("return room.height_m", GAS)
-        self.assertIn("room.thermal_layer_m", GAS)
+        self.assertIn("LayerInterfaceModel.get_flow_interface_height_m(room, null, 20.0)", GAS)
 
     def test_opening_flow_telemetry_records_actual_source_and_destination_zones(self):
         body = GAS.split("func _record_two_zone_opening_flow(", 1)[1].split("\nfunc ", 1)[0]

@@ -1,6 +1,8 @@
 extends RefCounted
 class_name SmokeModel
 
+const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
+
 # ============================================================
 # SMOKE MODEL
 # ------------------------------------------------------------
@@ -198,7 +200,7 @@ func get_effective_smoke_spill_layer_height_m(room: RoomModel) -> float:
 
 
 func get_spill_layer_height_m(room: RoomModel) -> float:
-	return get_effective_smoke_spill_layer_height_m(room)
+	return LayerInterfaceModel.get_flow_interface_height_m(room, self, 20.0)
 
 
 # ============================================================
@@ -290,7 +292,7 @@ func compute_outside_vented_kg(
 		return 0.0
 
 	var lintel_m: float = op.lintel_height_m()
-	var layer_m: float = get_effective_smoke_spill_layer_height_m(room)
+	var layer_m: float = LayerInterfaceModel.get_flow_interface_height_m(room, self, 20.0)
 
 	# Para flujo por puertas/ventanas debemos usar la interfaz de la capa
 	# superior (zona caliente), no solo la visibilidad. CFAST segmenta el
@@ -360,8 +362,8 @@ func compute_room_transfers(
 	# --------------------------------------------------------
 	# El derrame de HUMO arranca cuando la interfaz visible desciende
 	# hasta el dintel de la puerta.
-	var smoke_a_layer_m: float = get_effective_smoke_spill_layer_height_m(room_a)
-	var smoke_b_layer_m: float = get_effective_smoke_spill_layer_height_m(room_b)
+	var smoke_a_layer_m: float = LayerInterfaceModel.get_flow_interface_height_m(room_a, self, 20.0)
+	var smoke_b_layer_m: float = LayerInterfaceModel.get_flow_interface_height_m(room_b, self, 20.0)
 	var a_trigger_layer_m: float = _interior_spill_trigger_layer_m(room_a, lintel_m)
 	var b_trigger_layer_m: float = _interior_spill_trigger_layer_m(room_b, lintel_m)
 	var a_excess_m: float = maxf(0.0, a_trigger_layer_m - smoke_a_layer_m)
@@ -508,7 +510,7 @@ func _compute_transfer_mass_kg_continuous(
 	# Si la sala destino ya tiene la capa muy baja, la abertura deja de aceptar humo
 	# con la misma facilidad y el pasillo deja de actuar como sumidero infinito.
 	var target_layer_factor: float = 1.0
-	var target_smoke_layer_m: float = get_effective_smoke_spill_layer_height_m(target)
+	var target_smoke_layer_m: float = LayerInterfaceModel.get_flow_interface_height_m(target, self, 20.0)
 	if target_smoke_layer_m <= target_layer_block_start_m:
 		target_layer_factor = inverse_lerp(
 			target_layer_block_full_m,

@@ -1,0 +1,2098 @@
+{
+  "after_dir": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports",
+  "before_dir": null,
+  "before_git_ref": "HEAD",
+  "case_results": [
+    {
+      "artifact_notes": [
+        "before artifact missing",
+        "after artifact missing",
+        "csv pair unavailable; JSON report fallback used where possible"
+      ],
+      "case": "layer_interface_single_room_window",
+      "has_csv_comparison": false,
+      "has_report_comparison": false,
+      "rooms": {},
+      "warnings": []
+    },
+    {
+      "artifact_notes": [
+        "csv pair unavailable; JSON report fallback used where possible"
+      ],
+      "case": "cfast_r0_window_360",
+      "has_csv_comparison": false,
+      "has_report_comparison": true,
+      "rooms": {
+        "0": {
+          "co2_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 90526.7793527094,
+            "peak_value_before": 90526.7793527094,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 90526.7793527094,
+                "before": 90526.7793527094,
+                "metric_key": "room_0_peak_co2_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 9124.68402136553,
+                "before": 9124.68402136553,
+                "metric_key": "room_0_final_co2_ppm",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "co_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 417.384758410939,
+            "peak_value_before": 417.384758410939,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 417.384758410939,
+                "before": 417.384758410939,
+                "metric_key": "room_0_peak_co_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 29.0602931694996,
+                "before": 29.0602931694996,
+                "metric_key": "room_0_final_co_ppm",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "fed": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 7.76004297659425,
+            "peak_value_before": 7.76004297659425,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 7.76004297659425,
+                "before": 7.76004297659425,
+                "metric_key": "room_0_max_fed",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 7.76004297659425,
+                "before": 7.76004297659425,
+                "metric_key": "room_0_final_fed",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "hcn_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 286.194327004034,
+            "peak_value_before": 286.194327004034,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 286.194327004034,
+                "before": 286.194327004034,
+                "metric_key": "room_0_peak_hcn_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "hrr_kw": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 1273.96322147854,
+            "peak_value_before": 1273.96322147854,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 1273.96322147854,
+                "before": 1273.96322147854,
+                "metric_key": "room_0_peak_hrr_kw",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 1273.7623965304,
+                "before": 1273.7623965304,
+                "metric_key": "room_0_final_hrr_kw",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "layer_150c_m": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.560923608963407,
+            "peak_value_before": 0.560923608963407,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.560923608963407,
+                "before": 0.560923608963407,
+                "metric_key": "room_0_min_l150_m",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 1.00868927838847,
+                "before": 1.00868927838847,
+                "metric_key": "room_0_final_layer_150c_m",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "o2": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.149500249786476,
+            "peak_value_before": 0.149500249786476,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.149500249786476,
+                "before": 0.149500249786476,
+                "metric_key": "room_0_final_o2",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "o2_upper": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.00092886055442014,
+            "peak_value_before": 0.00092886055442014,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.00092886055442014,
+                "before": 0.00092886055442014,
+                "metric_key": "room_0_min_o2_upper",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.00092886055442014,
+                "before": 0.00092886055442014,
+                "metric_key": "room_0_final_o2_upper",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "temp_lower_c": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 25.3889526859573,
+            "peak_value_before": 25.3889526859573,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 25.3889526859573,
+                "before": 25.3889526859573,
+                "metric_key": "room_0_final_temp_at_0_9m_c",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "temp_upper_c": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 318.515148976746,
+            "peak_value_before": 318.515148976746,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 318.515148976746,
+                "before": 318.515148976746,
+                "metric_key": "room_0_peak_temp_upper_c",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 308.958577553429,
+                "before": 308.958577553429,
+                "metric_key": "room_0_final_temp_upper_raw_c",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "visibility_m": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.0086315764718889,
+            "peak_value_before": 0.0086315764718889,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.0086315764718889,
+                "before": 0.0086315764718889,
+                "metric_key": "room_0_min_visibility_m",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.852091464143199,
+                "before": 0.852091464143199,
+                "metric_key": "room_0_final_visibility_m",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          }
+        },
+        "1": {
+          "co2_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 366.180578774365,
+            "peak_value_before": 366.180578774365,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 366.180578774365,
+                "before": 366.180578774365,
+                "metric_key": "room_1_peak_co2_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 366.180578774365,
+                "before": 366.180578774365,
+                "metric_key": "room_1_final_co2_ppm",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "co_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 1.31088835598655,
+            "peak_value_before": 1.31088835598655,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 1.31088835598655,
+                "before": 1.31088835598655,
+                "metric_key": "room_1_peak_co_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 1.31088835598655,
+                "before": 1.31088835598655,
+                "metric_key": "room_1_final_co_ppm",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "fed": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.000507898008639638,
+            "peak_value_before": 0.000507898008639638,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.000507898008639638,
+                "before": 0.000507898008639638,
+                "metric_key": "room_1_max_fed",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.000507898008639638,
+                "before": 0.000507898008639638,
+                "metric_key": "room_1_final_fed",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "hcn_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.475336213651533,
+            "peak_value_before": 0.475336213651533,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.475336213651533,
+                "before": 0.475336213651533,
+                "metric_key": "room_1_peak_hcn_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "hrr_kw": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.0,
+            "peak_value_before": 0.0,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.0,
+                "before": 0.0,
+                "metric_key": "room_1_peak_hrr_kw",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.0,
+                "before": 0.0,
+                "metric_key": "room_1_final_hrr_kw",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "layer_150c_m": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 2.4,
+            "peak_value_before": 2.4,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 2.4,
+                "before": 2.4,
+                "metric_key": "room_1_min_l150_m",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 2.4,
+                "before": 2.4,
+                "metric_key": "room_1_final_layer_150c_m",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "o2": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.208923496273215,
+            "peak_value_before": 0.208923496273215,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.208923496273215,
+                "before": 0.208923496273215,
+                "metric_key": "room_1_final_o2",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "o2_upper": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.209,
+            "peak_value_before": 0.209,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.209,
+                "before": 0.209,
+                "metric_key": "room_1_min_o2_upper",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.209,
+                "before": 0.209,
+                "metric_key": "room_1_final_o2_upper",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "temp_lower_c": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 20.0,
+            "peak_value_before": 20.0,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 20.0,
+                "before": 20.0,
+                "metric_key": "room_1_final_temp_at_0_9m_c",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "temp_upper_c": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 20.0,
+            "peak_value_before": 20.0,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 20.0,
+                "before": 20.0,
+                "metric_key": "room_1_peak_temp_upper_c",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 20.0,
+                "before": 20.0,
+                "metric_key": "room_1_final_temp_upper_raw_c",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "visibility_m": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 30.0,
+            "peak_value_before": 30.0,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 30.0,
+                "before": 30.0,
+                "metric_key": "room_1_min_visibility_m",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 30.0,
+                "before": 30.0,
+                "metric_key": "room_1_final_visibility_m",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          }
+        }
+      },
+      "warnings": []
+    },
+    {
+      "artifact_notes": [
+        "csv pair unavailable; JSON report fallback used where possible"
+      ],
+      "case": "living_room_hallway",
+      "has_csv_comparison": false,
+      "has_report_comparison": true,
+      "rooms": {
+        "0": {
+          "co2_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 8386.64865712475,
+            "peak_value_before": 8386.64865712475,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 8386.64865712475,
+                "before": 8386.64865712475,
+                "metric_key": "room_0_peak_co2_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 2640.73616979575,
+                "before": 2640.73616979575,
+                "metric_key": "room_0_final_co2_ppm",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "co_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 846.122186684092,
+            "peak_value_before": 846.122186684092,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 846.122186684092,
+                "before": 846.122186684092,
+                "metric_key": "room_0_peak_co_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 446.128619059271,
+                "before": 446.128619059271,
+                "metric_key": "room_0_final_co_ppm",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "fed": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 38.8187474223194,
+            "peak_value_before": 38.8187474223194,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 38.8187474223194,
+                "before": 38.8187474223194,
+                "metric_key": "room_0_max_fed",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 38.8187474223194,
+                "before": 38.8187474223194,
+                "metric_key": "room_0_final_fed",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "hrr_kw": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 1242.4762178706,
+            "peak_value_before": 1242.4762178706,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 1242.4762178706,
+                "before": 1242.4762178706,
+                "metric_key": "room_0_peak_hrr_kw",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 531.547413225658,
+                "before": 531.547413225658,
+                "metric_key": "room_0_final_hrr_kw",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "layer_150c_m": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.160457644349434,
+            "peak_value_before": 0.160457644349434,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.160457644349434,
+                "before": 0.160457644349434,
+                "metric_key": "room_0_min_l150_m",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.208805434597705,
+                "before": 0.208805434597705,
+                "metric_key": "room_0_final_layer_150c_m",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "o2": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.117285478053082,
+            "peak_value_before": 0.117285478053082,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.117285478053082,
+                "before": 0.117285478053082,
+                "metric_key": "room_0_final_o2",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "temp_lower_c": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 195.829386005235,
+            "peak_value_before": 195.829386005235,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 195.829386005235,
+                "before": 195.829386005235,
+                "metric_key": "room_0_final_temp_at_0_9m_c",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "temp_upper_c": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 756.081227995444,
+            "peak_value_before": 756.081227995444,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 756.081227995444,
+                "before": 756.081227995444,
+                "metric_key": "room_0_peak_temp_upper_c",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 403.500586573749,
+                "before": 403.500586573749,
+                "metric_key": "room_0_final_temp_upper_raw_c",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "visibility_m": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.00806532174691442,
+            "peak_value_before": 0.00806532174691442,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.00806532174691442,
+                "before": 0.00806532174691442,
+                "metric_key": "room_0_min_visibility_m",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.102314021916087,
+                "before": 0.102314021916087,
+                "metric_key": "room_0_final_visibility_m",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          }
+        },
+        "1": {
+          "co2_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 43833.4572419039,
+            "peak_value_before": 43833.4572419039,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 43833.4572419039,
+                "before": 43833.4572419039,
+                "metric_key": "room_1_peak_co2_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 36215.0168226699,
+                "before": 36215.0168226699,
+                "metric_key": "room_1_final_co2_ppm",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "co_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 5749.37736850959,
+            "peak_value_before": 5749.37736850959,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 5749.37736850959,
+                "before": 5749.37736850959,
+                "metric_key": "room_1_peak_co_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 4856.33769094199,
+                "before": 4856.33769094199,
+                "metric_key": "room_1_final_co_ppm",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "fed": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.310352451292003,
+            "peak_value_before": 0.310352451292003,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.310352451292003,
+                "before": 0.310352451292003,
+                "metric_key": "room_1_max_fed",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.310352451292003,
+                "before": 0.310352451292003,
+                "metric_key": "room_1_final_fed",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "hrr_kw": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.0,
+            "peak_value_before": 0.0,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.0,
+                "before": 0.0,
+                "metric_key": "room_1_peak_hrr_kw",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.0,
+                "before": 0.0,
+                "metric_key": "room_1_final_hrr_kw",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "layer_150c_m": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 1.68409046655082,
+            "peak_value_before": 1.68409046655082,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 1.68409046655082,
+                "before": 1.68409046655082,
+                "metric_key": "room_1_min_l150_m",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 1.9655375781132,
+                "before": 1.9655375781132,
+                "metric_key": "room_1_final_layer_150c_m",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "o2": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.155160789688527,
+            "peak_value_before": 0.155160789688527,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.155160789688527,
+                "before": 0.155160789688527,
+                "metric_key": "room_1_final_o2",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "temp_lower_c": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 120.521491949402,
+            "peak_value_before": 120.521491949402,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 120.521491949402,
+                "before": 120.521491949402,
+                "metric_key": "room_1_final_temp_at_0_9m_c",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "temp_upper_c": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 335.371308551856,
+            "peak_value_before": 335.371308551856,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 335.371308551856,
+                "before": 335.371308551856,
+                "metric_key": "room_1_peak_temp_upper_c",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 284.726521413121,
+                "before": 284.726521413121,
+                "metric_key": "room_1_final_temp_upper_raw_c",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "visibility_m": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.00281113658987843,
+            "peak_value_before": 0.00281113658987843,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.00281113658987843,
+                "before": 0.00281113658987843,
+                "metric_key": "room_1_min_visibility_m",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.00309736354917602,
+                "before": 0.00309736354917602,
+                "metric_key": "room_1_final_visibility_m",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          }
+        }
+      },
+      "warnings": []
+    },
+    {
+      "artifact_notes": [
+        "csv pair unavailable; JSON report fallback used where possible"
+      ],
+      "case": "v4_co_remote_rooms",
+      "has_csv_comparison": false,
+      "has_report_comparison": true,
+      "rooms": {
+        "0": {
+          "co2_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 21383.5707728409,
+            "peak_value_before": 21383.5707728409,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 21383.5707728409,
+                "before": 21383.5707728409,
+                "metric_key": "room_0_peak_co2_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 14874.2136555591,
+                "before": 14874.2136555591,
+                "metric_key": "room_0_final_co2_ppm",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "co_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 4759.61956492934,
+            "peak_value_before": 4759.61956492934,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 4759.61956492934,
+                "before": 4759.61956492934,
+                "metric_key": "room_0_peak_co_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 4217.19037559954,
+                "before": 4217.19037559954,
+                "metric_key": "room_0_final_co_ppm",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "fed": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 1.6655536254021,
+            "peak_value_before": 1.6655536254021,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 1.6655536254021,
+                "before": 1.6655536254021,
+                "metric_key": "room_0_max_fed",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 1.6655536254021,
+                "before": 1.6655536254021,
+                "metric_key": "room_0_final_fed",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "hrr_kw": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 670.895738248581,
+            "peak_value_before": 670.895738248581,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 670.895738248581,
+                "before": 670.895738248581,
+                "metric_key": "room_0_peak_hrr_kw",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 177.495982505285,
+                "before": 177.495982505285,
+                "metric_key": "room_0_final_hrr_kw",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "layer_150c_m": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 1.55247778900359,
+            "peak_value_before": 1.55247778900359,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 1.55247778900359,
+                "before": 1.55247778900359,
+                "metric_key": "room_0_min_l150_m",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 1.91977895551358,
+                "before": 1.91977895551358,
+                "metric_key": "room_0_final_layer_150c_m",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "o2": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.112045901315798,
+            "peak_value_before": 0.112045901315798,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.112045901315798,
+                "before": 0.112045901315798,
+                "metric_key": "room_0_final_o2",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "temp_lower_c": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 103.679445290667,
+            "peak_value_before": 103.679445290667,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 103.679445290667,
+                "before": 103.679445290667,
+                "metric_key": "room_0_final_temp_at_0_9m_c",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "temp_upper_c": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 703.811239033007,
+            "peak_value_before": 703.811239033007,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 703.811239033007,
+                "before": 703.811239033007,
+                "metric_key": "room_0_peak_temp_upper_c",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 278.146970137922,
+                "before": 278.146970137922,
+                "metric_key": "room_0_final_temp_upper_raw_c",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "visibility_m": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.00261235610896167,
+            "peak_value_before": 0.00261235610896167,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.00261235610896167,
+                "before": 0.00261235610896167,
+                "metric_key": "room_0_min_visibility_m",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.00297823367542561,
+                "before": 0.00297823367542561,
+                "metric_key": "room_0_final_visibility_m",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          }
+        },
+        "1": {
+          "co2_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 68264.3906889764,
+            "peak_value_before": 68264.3906889764,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 68264.3906889764,
+                "before": 68264.3906889764,
+                "metric_key": "room_1_peak_co2_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 13879.2612881105,
+                "before": 13879.2612881105,
+                "metric_key": "room_1_final_co2_ppm",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "co_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 6119.53548491167,
+            "peak_value_before": 6119.53548491167,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 6119.53548491167,
+                "before": 6119.53548491167,
+                "metric_key": "room_1_peak_co_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 3051.74163494129,
+                "before": 3051.74163494129,
+                "metric_key": "room_1_final_co_ppm",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "fed": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 1.7119104922584,
+            "peak_value_before": 1.7119104922584,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 1.7119104922584,
+                "before": 1.7119104922584,
+                "metric_key": "room_1_max_fed",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 1.7119104922584,
+                "before": 1.7119104922584,
+                "metric_key": "room_1_final_fed",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "hrr_kw": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.0,
+            "peak_value_before": 0.0,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.0,
+                "before": 0.0,
+                "metric_key": "room_1_peak_hrr_kw",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.0,
+                "before": 0.0,
+                "metric_key": "room_1_final_hrr_kw",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "layer_150c_m": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 2.4,
+            "peak_value_before": 2.4,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 2.4,
+                "before": 2.4,
+                "metric_key": "room_1_min_l150_m",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 2.4,
+                "before": 2.4,
+                "metric_key": "room_1_final_layer_150c_m",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "o2": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.128063847316771,
+            "peak_value_before": 0.128063847316771,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.128063847316771,
+                "before": 0.128063847316771,
+                "metric_key": "room_1_final_o2",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "temp_lower_c": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 74.3737981099288,
+            "peak_value_before": 74.3737981099288,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 74.3737981099288,
+                "before": 74.3737981099288,
+                "metric_key": "room_1_final_temp_at_0_9m_c",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "temp_upper_c": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 124.295605919167,
+            "peak_value_before": 124.295605919167,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 124.295605919167,
+                "before": 124.295605919167,
+                "metric_key": "room_1_peak_temp_upper_c",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 105.712500384149,
+                "before": 105.712500384149,
+                "metric_key": "room_1_final_temp_upper_raw_c",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "visibility_m": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.00208802368924855,
+            "peak_value_before": 0.00208802368924855,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.00208802368924855,
+                "before": 0.00208802368924855,
+                "metric_key": "room_1_min_visibility_m",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.00533206797587576,
+                "before": 0.00533206797587576,
+                "metric_key": "room_1_final_visibility_m",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          }
+        },
+        "2": {
+          "co2_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 23469.4439037657,
+            "peak_value_before": 23469.4439037657,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 23469.4439037657,
+                "before": 23469.4439037657,
+                "metric_key": "room_2_peak_co2_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 14765.2336584241,
+                "before": 14765.2336584241,
+                "metric_key": "room_2_final_co2_ppm",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "co_ppm": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 3203.11571428435,
+            "peak_value_before": 3203.11571428435,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 3203.11571428435,
+                "before": 3203.11571428435,
+                "metric_key": "room_2_peak_co_ppm",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 3191.28627308548,
+                "before": 3191.28627308548,
+                "metric_key": "room_2_final_co_ppm",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "fed": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 2.23080297189479,
+            "peak_value_before": 2.23080297189479,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 2.23080297189479,
+                "before": 2.23080297189479,
+                "metric_key": "room_2_max_fed",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 2.23080297189479,
+                "before": 2.23080297189479,
+                "metric_key": "room_2_final_fed",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "hrr_kw": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.0,
+            "peak_value_before": 0.0,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.0,
+                "before": 0.0,
+                "metric_key": "room_2_peak_hrr_kw",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.0,
+                "before": 0.0,
+                "metric_key": "room_2_final_hrr_kw",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "layer_150c_m": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 2.4,
+            "peak_value_before": 2.4,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 2.4,
+                "before": 2.4,
+                "metric_key": "room_2_min_l150_m",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 2.4,
+                "before": 2.4,
+                "metric_key": "room_2_final_layer_150c_m",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "o2": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.124609785927455,
+            "peak_value_before": 0.124609785927455,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.124609785927455,
+                "before": 0.124609785927455,
+                "metric_key": "room_2_final_o2",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "temp_lower_c": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 59.4934450526011,
+            "peak_value_before": 59.4934450526011,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 59.4934450526011,
+                "before": 59.4934450526011,
+                "metric_key": "room_2_final_temp_at_0_9m_c",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 1,
+            "source": "json_report"
+          },
+          "temp_upper_c": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 83.546176179367,
+            "peak_value_before": 83.546176179367,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 83.546176179367,
+                "before": 83.546176179367,
+                "metric_key": "room_2_peak_temp_upper_c",
+                "rel_delta": 0.0,
+                "role": "peak"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 78.1437529561066,
+                "before": 78.1437529561066,
+                "metric_key": "room_2_final_temp_upper_raw_c",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          },
+          "visibility_m": {
+            "delta_at_120s": null,
+            "delta_at_180s": null,
+            "delta_at_60s": null,
+            "max_abs_delta": 0.0,
+            "max_rel_delta": 0.0,
+            "peak_time_after": null,
+            "peak_time_before": null,
+            "peak_value_after": 0.00478163176506731,
+            "peak_value_before": 0.00478163176506731,
+            "report_samples": [
+              {
+                "abs_delta": 0.0,
+                "after": 0.00478163176506731,
+                "before": 0.00478163176506731,
+                "metric_key": "room_2_min_visibility_m",
+                "rel_delta": 0.0,
+                "role": "min"
+              },
+              {
+                "abs_delta": 0.0,
+                "after": 0.0109398298874643,
+                "before": 0.0109398298874643,
+                "metric_key": "room_2_final_visibility_m",
+                "rel_delta": 0.0,
+                "role": "final"
+              }
+            ],
+            "sample_count": 2,
+            "source": "json_report"
+          }
+        }
+      },
+      "warnings": []
+    }
+  ],
+  "cases_requested": [
+    "layer_interface_single_room_window",
+    "cfast_r0_window_360",
+    "living_room_hallway",
+    "v4_co_remote_rooms"
+  ],
+  "conclusion": "FAIL",
+  "generated_at_utc": "2026-06-06T11:14:25+00:00",
+  "repo_root": "F:\\OneDrive\\Documentos\\GitHub\\simufire",
+  "structural_checks": [
+    {
+      "detail": "LayerInterfaceModel exposes visible, thermal, flow and breathing-zone helpers.",
+      "evidence": [],
+      "name": "canonical_layer_model_exports_four_functions",
+      "pass": true,
+      "severity": "PASS"
+    },
+    {
+      "detail": "SimulationStateBuilder computes visibility from visible_smoke_layer_m, not thermal_layer_m.",
+      "evidence": [],
+      "name": "visibility_uses_visible_smoke_layer",
+      "pass": true,
+      "severity": "PASS"
+    },
+    {
+      "detail": "CSV header and rows export visible, thermal, flow and 150C layer heights.",
+      "evidence": [],
+      "name": "csv_exports_canonical_layer_fields",
+      "pass": true,
+      "severity": "PASS"
+    },
+    {
+      "detail": "Exterior gas exchange obtains hot outflow height through LayerInterfaceModel.",
+      "evidence": [],
+      "name": "gas_exchange_exterior_uses_flow_interface_helper",
+      "pass": true,
+      "severity": "PASS"
+    },
+    {
+      "detail": "Gas exchange upper/lower routing uses canonical flow_interface_m.",
+      "evidence": [],
+      "name": "gas_exchange_zone_routing_uses_flow_interface",
+      "pass": true,
+      "severity": "PASS"
+    },
+    {
+      "detail": "Smoke spill path is bridged through the canonical flow interface.",
+      "evidence": [],
+      "name": "smoke_spill_uses_flow_interface",
+      "pass": true,
+      "severity": "PASS"
+    },
+    {
+      "detail": "O2/HVAC flow routing resolves room interfaces through LayerInterfaceModel.",
+      "evidence": [],
+      "name": "oxygen_and_hvac_use_flow_interface",
+      "pass": true,
+      "severity": "PASS"
+    },
+    {
+      "detail": "Interior opening flow state centralizes neutral-plane derivation from flow_interface_m.",
+      "evidence": [],
+      "name": "interior_opening_flow_state_uses_flow_interface",
+      "pass": true,
+      "severity": "PASS"
+    },
+    {
+      "detail": "No local _neutral_f/_alpha_b-style interface calculation was found outside central flow helpers.",
+      "evidence": [],
+      "name": "no_local_neutral_f_reintroduced",
+      "pass": true,
+      "severity": "PASS"
+    },
+    {
+      "detail": "FED thermal exposure should be based on thermal_layer_m/layer_150c_m rather than legacy h_layer_m.",
+      "evidence": [
+        "ThermalSystem.step_fed still gates in_upper_layer with room.h_layer_m."
+      ],
+      "name": "fed_thermal_exposure_uses_thermal_layer_or_150c",
+      "pass": false,
+      "severity": "FAIL"
+    }
+  ]
+}

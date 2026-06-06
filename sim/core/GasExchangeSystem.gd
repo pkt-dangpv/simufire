@@ -1,6 +1,8 @@
 extends RefCounted
 class_name GasExchangeSystem
 
+const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
+
 # ============================================================
 # GAS EXCHANGE SYSTEM
 # ------------------------------------------------------------
@@ -319,7 +321,6 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 	if building == null:
 		return result
 
-	var effective_hot_layer_callable: Callable = hooks.get("effective_hot_layer_height_callable", Callable())
 	var remove_upper_layer_fraction_callable: Callable = hooks.get("remove_upper_layer_fraction_callable", Callable())
 	var sync_room_upper_layer_callable: Callable = hooks.get("sync_room_upper_layer_callable", Callable())
 	var g: float = 9.81
@@ -335,13 +336,15 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 
 		var t_upper_k: float = room.temp_upper_c + 273.15
 
-		# Presión de boyanza por gas caliente en la zona superior (restaurado de b844be6).
-		var effective_hot_layer_m: float = _call_room_float(
-			effective_hot_layer_callable,
+		# Presión de boyanza por gas caliente en la zona superior. La altura de
+		# referencia para flujos viene del modelo canónico de interfaces, no de
+		# una capa visible ni de una fórmula local del subsistema.
+		var flow_interface_m: float = LayerInterfaceModel.get_flow_interface_height_m(
 			room,
-			clampf(room.thermal_layer_m, 0.0, room.height_m)
+			null,
+			building.outside_temp_c
 		)
-		var h_smoke_m: float = maxf(0.0, room.height_m - effective_hot_layer_m)
+		var h_smoke_m: float = maxf(0.0, room.height_m - flow_interface_m)
 		var dp_buoyancy: float = rho_ext * g * h_smoke_m * maxf(0.0, 1.0 - t_ext_k / t_upper_k)
 		var dp_stack: float = 0.0
 		if stack_effect_enabled and room.floor_level_z_m > 0.01:
@@ -583,11 +586,15 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 				var t_amb_k: float = building.outside_temp_c + 273.15
 				var fresh_air_kg: float
 				if vent_bernoulli_enabled:
-					# SF-AUD-010: plano neutro calculado por conservación de masa (SFPE §3.2).
-					# Para sala caliente uniforme: z_n/H = α/(1+α), α = (T_amb/T_room)^(1/3).
-					var _alpha_b: float = pow(t_amb_k / maxf(50.0, t_room_k), 1.0 / 3.0)
-					var _neutral_f: float = clampf(_alpha_b / (1.0 + _alpha_b), 0.10, 0.90)
-					var _h_upper_e: float = (1.0 - _neutral_f) * op.height_m  # salida: gas caliente
+					# SF-AUD-010: la franja exterior superior usa h_flow_interface_m
+					# canónica. Evita que la ventilación natural invente su propio
+					# plano neutro aislado de la capa térmica/flujo del resto del motor.
+					var _h_upper_e: float = LayerInterfaceModel.get_exterior_opening_hot_outflow_height_m(
+						room_out,
+						op,
+						smoke_model,
+						building.outside_temp_c
+					)
 					var _dT_e: float = maxf(0.0, t_room_k - t_amb_k)
 					var _q_upper_e: float = 0.0
 					if _h_upper_e > 0.001 and _dT_e > 0.5:
@@ -1644,7 +1651,7 @@ func _opening_segment_midpoint_m(
 func _height_is_in_upper_zone(room: RoomModel, height_m: float) -> bool:
 	if room == null:
 		return false
-	var interface_m: float = clampf(room.thermal_layer_m, 0.0, room.height_m)
+	var interface_m: float = LayerInterfaceModel.get_flow_interface_height_m(room, null, 20.0)
 	var upper_depth_m: float = maxf(0.0, room.height_m - interface_m)
 	if upper_depth_m <= 0.02 and room.upper_gas_kg <= 0.001:
 		return false

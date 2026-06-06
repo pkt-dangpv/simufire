@@ -1,6 +1,8 @@
 extends RefCounted
 class_name HVACSystem
 
+const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
+
 # ============================================================
 # HVAC SYSTEM
 # ------------------------------------------------------------
@@ -545,7 +547,7 @@ func _effective_hot_layer_height(room: RoomModel, hooks: Dictionary) -> float:
 	var effective_hot_layer_callable: Callable = hooks.get("effective_hot_layer_height_callable", Callable())
 	if effective_hot_layer_callable.is_valid():
 		return clampf(float(effective_hot_layer_callable.call(room)), 0.0, room.height_m)
-	return clampf(room.thermal_layer_m, 0.0, room.height_m)
+	return LayerInterfaceModel.get_flow_interface_height_m(room, null, 20.0)
 
 
 func _sync_touched_rooms(building: BuildingModel, room_ids: Array, hooks: Dictionary, dt: float) -> void:

@@ -11,6 +11,7 @@ const FireSpreadSystemScript = preload("res://sim/core/FireSpreadSystem.gd")
 const GlassFailureSystemScript = preload("res://sim/core/GlassFailureSystem.gd")
 const HVACSystemScript = preload("res://sim/core/HVACSystem.gd")
 const ZoneFireSolverScript = preload("res://sim/core/ZoneFireSolver.gd")
+const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
 
 # ============================================================
 # SIMULATION ENGINE
@@ -160,6 +161,9 @@ var global_carbon_postclamp_excess_kg: float = 0.0
 var global_carbon_transport_residual_kg: float = 0.0
 # SF-CBAL: carbono acumulado que salió por exhaust del HVAC (kg C).
 var _cbal_hvac_c_exhausted_kg: float = 0.0
+# Guardrail: divergencia persistente entre capa termica e interfaz canonica de flujo.
+var _layer_interface_divergence_s: Dictionary = {}
+var _layer_interface_warning_rooms: Dictionary = {}
 
 # ============================================================
 # IGNICIÓN INICIAL
@@ -1176,7 +1180,7 @@ func _build_state_context() -> Dictionary:
 
 func _build_gas_exchange_hooks() -> Dictionary:
 	return {
-		"effective_hot_layer_height_callable": Callable(thermal_system, "effective_hot_layer_height_m"),
+		"effective_hot_layer_height_callable": Callable(thermal_system, "flow_interface_height_m"),
 		"remove_upper_layer_fraction_callable": Callable(thermal_system, "remove_upper_layer_fraction"),
 		"sync_room_upper_layer_callable": Callable(thermal_system, "sync_room_upper_layer"),
 		"compute_interroom_transfer_temp_callable": Callable(thermal_system, "compute_interroom_transfer_temp_c"),
@@ -1188,7 +1192,7 @@ func _build_gas_exchange_hooks() -> Dictionary:
 
 func _build_oxygen_exchange_hooks() -> Dictionary:
 	return {
-		"effective_hot_layer_height_callable": Callable(thermal_system, "effective_hot_layer_height_m"),
+		"effective_hot_layer_height_callable": Callable(thermal_system, "flow_interface_height_m"),
 		"build_interior_opening_flow_state_callable": Callable(thermal_system, "build_interior_opening_flow_state"),
 		"opening_flow_cache": _opening_flow_cache,
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room")
@@ -1218,7 +1222,7 @@ func _build_opening_flow_cache() -> Dictionary:
 
 func _build_hvac_hooks() -> Dictionary:
 	return {
-		"effective_hot_layer_height_callable": Callable(thermal_system, "effective_hot_layer_height_m"),
+		"effective_hot_layer_height_callable": Callable(thermal_system, "flow_interface_height_m"),
 		"estimate_temperature_callable": Callable(thermal_system, "estimate_temperature_at_height_m"),
 		"remove_upper_layer_fraction_callable": Callable(thermal_system, "remove_upper_layer_fraction"),
 		"sync_room_upper_layer_callable": Callable(thermal_system, "sync_room_upper_layer"),
@@ -1344,6 +1348,8 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	global_carbon_postclamp_excess_kg = 0.0
 	global_carbon_transport_residual_kg = 0.0
 	_cbal_hvac_c_exhausted_kg = 0.0
+	_layer_interface_divergence_s.clear()
+	_layer_interface_warning_rooms.clear()
 	sim_time_s = 0.0
 	is_finished = false
 	_extinction_countdown = extinction_grace_s
@@ -1468,6 +1474,7 @@ func step(delta: float) -> void:
 	_clamp_rooms(dt)
 	# Evaluar el estado final del paso, incluyendo cualquier pérdida por clamp.
 	_check_carbon_balance()
+	_check_layer_interface_guardrails(dt)
 	_step_detectors(dt)
 	_update_room_ceiling_jet_temps()  # BV-028: exportar ceiling_jet_temp_c a RoomModel
 	_step_victims(dt)
@@ -2375,6 +2382,43 @@ func _check_carbon_balance() -> void:
 	global_carbon_postclamp_excess_kg = c_postclamp_excess_total
 	# Residual de flujos separado solo del exceso que realmente entró al estado físico.
 	global_carbon_transport_residual_kg = global_carbon_error_kg - c_postclamp_excess_total
+
+
+func _check_layer_interface_guardrails(dt: float) -> void:
+	if building == null or dt <= 0.0:
+		return
+	var ambient_c: float = thermal_system.ambient_temp_c()
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+		if room.hrr_kw <= 100.0:
+			_layer_interface_divergence_s.erase(room_id)
+			continue
+		var thermal_layer_m: float = LayerInterfaceModel.get_thermal_layer_height_m(room, ambient_c)
+		var flow_interface_m: float = LayerInterfaceModel.get_flow_interface_height_m(
+			room,
+			smoke_model,
+			ambient_c
+		)
+		var divergence_m: float = absf(flow_interface_m - thermal_layer_m)
+		if divergence_m <= 1.0:
+			_layer_interface_divergence_s.erase(room_id)
+			continue
+		var accumulated_s: float = float(_layer_interface_divergence_s.get(room_id, 0.0)) + dt
+		_layer_interface_divergence_s[room_id] = accumulated_s
+		if accumulated_s <= 30.0 or bool(_layer_interface_warning_rooms.get(room_id, false)):
+			continue
+		_layer_interface_warning_rooms[room_id] = true
+		var details: String = "room=%d thermal=%.2f flow=%.2f divergence=%.2f duration=%.1f" % [
+			room.id,
+			thermal_layer_m,
+			flow_interface_m,
+			divergence_m,
+			accumulated_s
+		]
+		push_warning("[LayerInterface] Divergencia persistente: %s" % details)
+		log_writer.append_event(sim_time_s, "layer_interface_divergence", details)
 
 # ============================================================
 # CLAMP / LIMPIEZA

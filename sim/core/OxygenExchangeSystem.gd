@@ -1,6 +1,8 @@
 extends RefCounted
 class_name OxygenExchangeSystem
 
+const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
+
 # ============================================================
 # OXYGEN EXCHANGE SYSTEM
 # ------------------------------------------------------------
@@ -264,7 +266,11 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		# la depleción diferencial por zona); o2_lower independiente, mantenida
 		# cerca del ambiente por los flujos de entrada por la parte baja de las aberturas.
 		# Evita el doble conteo: la combustión ya consumió de room.o2 arriba.
-		var hot_h_upper: float = _call_room_float(effective_hot_layer_callable, room, room.thermal_layer_m)
+		var hot_h_upper: float = _call_room_float(
+			effective_hot_layer_callable,
+			room,
+			LayerInterfaceModel.get_flow_interface_height_m(room, null, building.outside_temp_c)
+		)
 		hot_h_upper = clampf(hot_h_upper, 0.0, room.height_m)
 		var upper_frac: float = maxf(0.01, (room.height_m - hot_h_upper) / maxf(0.01, room.height_m))
 		var lower_frac: float = 1.0 - upper_frac
@@ -467,7 +473,7 @@ func _step_outside_opening_o2(
 	var effective_layer_m: float = _call_room_float(
 		effective_hot_layer_callable,
 		indoor,
-		clampf(indoor.thermal_layer_m, 0.0, indoor.height_m)
+		LayerInterfaceModel.get_flow_interface_height_m(indoor, null, building.outside_temp_c)
 	)
 	var opening_bottom_m: float = op.sill_m
 	var opening_top_m: float = lintel_m
@@ -552,8 +558,13 @@ func _step_outside_opening_o2(
 	# Reponer o2_lower directamente proporcional al flujo de entrada; la masa de
 	# la zona baja es aproximadamente lower_frac * room_air_mass_kg.
 	if air_in_kg > 0.0 and lower_inlet_height_m > 0.0:
+		var flow_interface_ext_m: float = LayerInterfaceModel.get_flow_interface_height_m(
+			indoor,
+			null,
+			building.outside_temp_c
+		)
 		var lower_frac_ext: float = clampf(
-			indoor.thermal_layer_m / maxf(0.01, indoor.height_m), 0.01, 0.99)
+			flow_interface_ext_m / maxf(0.01, indoor.height_m), 0.01, 0.99)
 		var lower_mass_ext: float = maxf(0.001, room_air_mass_kg * lower_frac_ext)
 		indoor.o2_lower = clampf(
 			(indoor.o2_lower * lower_mass_ext + building.outside_o2 * air_in_kg) / (lower_mass_ext + air_in_kg),
@@ -753,8 +764,13 @@ func _exchange_room_o2_active_flow(
 	# Bernoulli/Kawagoe: frío abajo, caliente arriba). Repone o2_lower para
 	# evitar el colapso por falta de reposición ante intercambio por abertura.
 	if hot_room_delta_o2_kg > 0.0:
+		var hot_flow_interface_m: float = LayerInterfaceModel.get_flow_interface_height_m(
+			hot_room,
+			null,
+			building.outside_temp_c
+		)
 		var lower_frac_hr: float = clampf(
-			hot_room.thermal_layer_m / maxf(0.01, hot_room.height_m), 0.01, 0.99)
+			hot_flow_interface_m / maxf(0.01, hot_room.height_m), 0.01, 0.99)
 		var lower_mass_hr: float = maxf(
 			0.001, _compute_room_air_mass_kg(hot_room, air_density_kg_m3) * lower_frac_hr)
 		var lower_replenish_scale: float = 1.0
@@ -809,8 +825,13 @@ func _exchange_room_o2_active_flow(
 	# y entra en la zona alta del cuarto frío. CFAST two-zone modela esto; SF one-zone
 	# usa O₂ promedio mezclado. gain=0.0 → no-op garantizado.
 	if doorway_o2_upper_routing_gain > 0.0:
+		var cold_flow_interface_m: float = LayerInterfaceModel.get_flow_interface_height_m(
+			cold_room,
+			null,
+			building.outside_temp_c
+		)
 		var cold_upper_frac: float = clampf(
-			1.0 - cold_room.thermal_layer_m / maxf(0.01, cold_room.height_m),
+			1.0 - cold_flow_interface_m / maxf(0.01, cold_room.height_m),
 			0.05, 0.95)
 		var cold_upper_mass_kg: float = maxf(0.001, cold_air_mass_kg * cold_upper_frac)
 		var mix_frac: float = clampf(

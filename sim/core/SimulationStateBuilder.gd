@@ -1,6 +1,8 @@
 extends RefCounted
 class_name SimulationStateBuilder
 
+const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
+
 # ============================================================
 # SIMULATION STATE BUILDER
 # ------------------------------------------------------------
@@ -71,11 +73,24 @@ func build_state(context: Dictionary) -> Dictionary:
 		if room == null:
 			continue
 
-		# smoke_layer_m: usa get_effective_smoke_spill_layer_height_m que ya unifica capa óptica y
-		# capa térmica internamente (SmokeModel). Eliminado doble-bridge empírico del StateBuilder
-		# (pesos 0.70/0.25m/0.30kg arbitrarios). Única fuente de verdad para visibilidad y SVV.
-		var smoke_layer_m: float = smoke_model.get_effective_smoke_spill_layer_height_m(room) if smoke_model != null else clampf(room.h_layer_m, 0.0, room.height_m)
-		var visible_smoke_layer_m: float = smoke_model.get_visible_smoke_layer_height_m(room) if smoke_model != null else smoke_layer_m
+		# Tres alturas con semántica separada:
+		# visible_smoke_layer_m: óptica/visibilidad.
+		# thermal_layer_m: energía/temperatura/FED térmico.
+		# flow_interface_m: referencia canónica para flujos por aberturas.
+		var visible_smoke_layer_m: float = LayerInterfaceModel.get_visible_smoke_layer_height_m(
+			room,
+			smoke_model,
+			20.0
+		)
+		var thermal_layer_m: float = LayerInterfaceModel.get_thermal_layer_height_m(room, 20.0)
+		var flow_interface_m: float = LayerInterfaceModel.get_flow_interface_height_m(
+			room,
+			smoke_model,
+			20.0
+		)
+		# Campo legacy: conserva el plano efectivo histórico de derrame/visualización para
+		# consumidores antiguos. Los flujos nuevos deben usar flow_interface_m.
+		var smoke_layer_m: float = smoke_model.get_effective_smoke_spill_layer_height_m(room) if smoke_model != null else visible_smoke_layer_m
 		var effective_hot_layer_m: float = _call_room_float(effective_hot_layer_callable, room, clampf(room.thermal_layer_m, 0.0, room.height_m))
 		if room.smoke_kg >= 0.30:
 			smoke_layer_m = minf(smoke_layer_m, effective_hot_layer_m + 0.68)
@@ -85,13 +100,12 @@ func build_state(context: Dictionary) -> Dictionary:
 		var smoke_display_layer_m: float = smoke_layer_m
 		if smoke_model != null:
 			smoke_display_layer_m = maxf(smoke_layer_m, smoke_model.estimate_smoke_layer_height_m(room))
-		var thermal_layer_m: float = clampf(room.thermal_layer_m, 0.0, room.height_m)
 		var layer_150c_m: float = clampf(room.layer_150c_m, 0.0, room.height_m)
-		# Visibilidad acoplada al smoke_layer_m efectivo que se exporta al CSV
-		# (única fuente de verdad). Evita el desacople histórico room.visibility_m vs smoke_layer_m.
+		# Visibilidad acoplada a la capa visible, no al plano de flujo ni a la capa
+		# térmica. Evita que gas caliente limpio degrade la visibilidad exportada.
 		var visibility_m: float = room.visibility_m
 		if smoke_model != null:
-			visibility_m = smoke_model.estimate_visibility_for_layer_m(room, smoke_layer_m)
+			visibility_m = smoke_model.estimate_visibility_for_layer_m(room, visible_smoke_layer_m)
 			room.visibility_m = visibility_m
 		var kawagoe_factor: float = _call_room_id_float(kawagoe_factor_callable, room_id, 0.0)
 		state[str(room_id)] = {
@@ -131,7 +145,9 @@ func build_state(context: Dictionary) -> Dictionary:
 			"mdot_vent_kg_s": room.mdot_vent_kg_s,
 
 			"h_layer_m": room.h_layer_m,
+			"visible_smoke_layer_m": visible_smoke_layer_m,
 			"thermal_layer_m": thermal_layer_m,
+			"flow_interface_m": flow_interface_m,
 			"hot_layer_m": effective_hot_layer_m,
 			"smoke_layer_m": smoke_layer_m,
 			"smoke_display_layer_m": smoke_display_layer_m,
