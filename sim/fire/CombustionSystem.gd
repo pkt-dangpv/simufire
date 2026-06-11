@@ -627,6 +627,20 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		)
 		co_yield = lerpf(co_yield, co_yield * co_vent_multiplier, vent_engagement)
 		co_yield = minf(co_yield, co_max_yield * co_vent_multiplier)
+	# R2-6: CO afterburning inhibition in two-zone mode (Gottuk & Roby, SFPE §3.4).
+	# When o2_upper drops below threshold, CO oxidation to CO2 is inhibited — CO
+	# accumulates instead. Only activates when no explicit multiplier override is set.
+	var two_zone_co_active: bool = bool(context.get("two_zone_solver_enabled", false))
+	var co_vent_explicit: bool = co_vent_multiplier > 1.0
+	if two_zone_co_active and not co_vent_explicit and can_flame:
+		var afterburn_threshold: float = float(context.get("fire_co_afterburn_o2_threshold", 0.15))
+		var afterburn_max_boost: float = float(context.get("fire_co_afterburn_max_boost", 30.0))
+		if room.o2_upper < afterburn_threshold:
+			var t: float = clampf(
+				inverse_lerp(afterburn_threshold, afterburn_threshold * 0.4, room.o2_upper),
+				0.0, 1.0
+			)
+			co_yield = minf(co_yield * (1.0 + (afterburn_max_boost - 1.0) * t), co_max_yield)
 	if not can_flame and latent_viable:
 		co_yield *= float(context.get("fire_latent_co_yield_multiplier", 1.0))
 	# Permite fijar un yield constante desde el caso (ej. para comparación CFAST que
@@ -1242,12 +1256,38 @@ func _resolve_fire_o2_selection(room: RoomModel, fire: FireModel, context: Dicti
 		# Primera aproximacion M2: muestra en la banda de mezcla de la interfaz.
 		o2_ref = lerpf(room.o2_lower, room.o2_upper, 0.5)
 	else:
-		var upper_blend: float = clampf(
-			float(context.get("fire_o2_upper_hrr_blend", 0.0)),
-			0.0,
-			1.0
-		)
-		o2_ref = lerpf(room.o2, minf(room.o2, room.o2_upper), upper_blend)
+		# R2-2: en modo two-zone, el fuego consume O₂ de la capa donde se encuentra.
+		# Mientras la interfaz de capa esté por encima del fuego → pluma entrana desde
+		# la capa inferior (o2_lower, cercano al ambiente). Cuando la interfaz desciende
+		# sobre el fuego → se usa o2_upper (capa caliente y empobrecida en O₂).
+		# Transición suave en una banda de 0.3 m alrededor de la interfaz/fuego.
+		# Equivalente al modelo de entrenamiento de CFAST (Allen & Quintiere, 1982).
+		var two_zone_active: bool = bool(context.get("two_zone_solver_enabled", false))
+		if two_zone_active and not _has_explicit_fire_o2_mode(context):
+			var interface_m: float = float(context.get("hot_layer_interface_m", room.height_m))
+			# Zona de transición: 0.0 m (base del fuego/suelo) a 0.3 m (altura mínima llama)
+			var fire_base_m: float = 0.0
+			var transition_m: float = 0.3
+			if interface_m >= fire_base_m + transition_m:
+				# Interfaz por encima del fuego: pluma en zona fría → usa o2_lower
+				o2_ref = room.o2_lower
+				mode = "plume_lower"
+			elif interface_m <= fire_base_m:
+				# Fuego completamente inmerso en capa caliente → usa o2_upper
+				o2_ref = room.o2_upper
+				mode = "plume_upper"
+			else:
+				# Interfaz dentro de la banda de transición → interpola
+				var t: float = (interface_m - fire_base_m) / transition_m
+				o2_ref = lerpf(room.o2_upper, room.o2_lower, t)
+				mode = "plume_blend"
+		else:
+			var upper_blend: float = clampf(
+				float(context.get("fire_o2_upper_hrr_blend", 0.0)),
+				0.0,
+				1.0
+			)
+			o2_ref = lerpf(room.o2, minf(room.o2, room.o2_upper), upper_blend)
 	return {
 		"mode": mode,
 		"o2_ref": o2_ref,

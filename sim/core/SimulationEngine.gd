@@ -99,10 +99,10 @@ var _targets: Array = []
 # ============================================================
 # CONTRATO DE MIGRACION TWO-ZONE
 # ============================================================
-# Pre-M1: selector observable pero deliberadamente no-op.
-# M1 conectara este flag al solver canonico manteniendo legacy como default.
-@export var two_zone_solver_enabled: bool = false
-@export var two_zone_opening_flow_enabled: bool = false
+# R2-1 (2026-06-11): TwoZoneV1 es ahora el modo default.
+# Legacy disponible como opt-in con two_zone_solver_enabled=false.
+@export var two_zone_solver_enabled: bool = true
+@export var two_zone_opening_flow_enabled: bool = true
 
 # ============================================================
 # ROTURA DE CRISTAL (SF-AUD-011)
@@ -285,6 +285,13 @@ var _layer_interface_warning_rooms: Dictionary = {}
 # phi efectiva para smoldering (combustion sin llama). Valores tipicos: 3-5.
 # phi=4 reproduce la alta emision de CO de brasas/smoldering (ISO 19706).
 @export var fire_smolder_phi: float = 4.0
+# R2-6: CO afterburning inhibition — activado en modo two-zone.
+# Cuando o2_upper < threshold, el CO generado no se oxida a CO2 (Gottuk & Roby, SFPE §3.4).
+# Sin override explícito, el modelo automático activa el boost de Gottuk/Lattimer.
+# fire_co_afterburn_o2_threshold: O2 molar fraction donde comienza la inhibición.
+# fire_co_afterburn_max_boost: factor máximo de boost del yield CO (a o2_upper→0).
+@export var fire_co_afterburn_o2_threshold: float = 0.15
+@export var fire_co_afterburn_max_boost: float = 30.0
 
 # Rendimiento de CO2 (kg/MJ)
 # ISO 19706 — madera (combustible residencial dominante):
@@ -720,12 +727,10 @@ var _step_time_us: int = 0
 @export var co2_yield_kg_per_MJ: float = 0.0831
 
 # ── Phase 3: modelo de presión termodinámica (campo paralelo) ──────────────
-# Default false = no-op. Solo activo via engine_overrides en casos sellados.
-# No modifica overpressure_pa; el campo paralelo pressure_pa_therm se expone en log (P=).
-@export var phase3_thermodynamic_pressure_enabled: bool = false
-# Opt-in: usa pressure_pa_therm como presión canónica para venting/doorways.
-# Default false conserva la dinámica legacy de overpressure_pa.
-@export var phase3_pressure_canonical_enabled: bool = false
+# R2-1: ambas flags activadas por default como parte del perfil TwoZoneV1.
+@export var phase3_thermodynamic_pressure_enabled: bool = true
+# Usa pressure_pa_therm como presión canónica para venting/doorways.
+@export var phase3_pressure_canonical_enabled: bool = true
 @export var phase3_leak_area_m2: float = 0.0
 @export var phase3_chi_conv: float = 0.70
 
@@ -1628,6 +1633,8 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_co_yield_force_kg_per_MJ": fire_co_yield_force_kg_per_MJ,
 		"fire_co_phi_rate": fire_co_phi_rate,
 		"fire_smolder_phi": fire_smolder_phi,
+		"fire_co_afterburn_o2_threshold": fire_co_afterburn_o2_threshold,
+		"fire_co_afterburn_max_boost": fire_co_afterburn_max_boost,
 		"co2_base_yield_kg_per_MJ": co2_base_yield_kg_per_MJ,
 		"co2_min_yield_kg_per_MJ": co2_min_yield_kg_per_MJ,
 		"co2_phi_decay_rate": co2_phi_decay_rate,
@@ -1659,7 +1666,9 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"phase2g_co_lower_source_guard":    phase2g_co_lower_source_guard,
 		"hot_layer_interface_m": thermal_system.effective_hot_layer_height_m(
 			building.get_room(room_id)
-		) if building != null and building.get_room(room_id) != null else 2.5
+		) if building != null and building.get_room(room_id) != null else 2.5,
+		# R2-2: two-zone flag for plume-entrainment O2 selection in CombustionSystem.
+		"two_zone_solver_enabled": two_zone_solver_enabled,
 	}
 
 # ============================================================

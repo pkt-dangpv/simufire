@@ -115,6 +115,10 @@ func _parse_validation_args(args: Array[String]) -> Dictionary:
 			parsed["validation_two_zone_v1"] = _parse_bool_arg(arg.get_slice("=", 1))
 		elif arg == "--validation-two-zone-v1":
 			parsed["validation_two_zone_v1"] = true
+		elif arg == "--validation-legacy":
+			# R2-1: opt-in legacy mode (overrides TwoZoneV1 default)
+			parsed["validation_two_zone_v1"] = false
+			parsed["validation_engine_mode"] = "legacy"
 		elif arg.begins_with("--validation-two-zone-opening-flow="):
 			parsed["validation_two_zone_opening_flow"] = _parse_bool_arg(arg.get_slice("=", 1))
 		elif arg == "--validation-two-zone-opening-flow":
@@ -448,7 +452,9 @@ func _apply_mutation_overrides(mutant_id: String) -> void:
 
 
 func _configure_validation_two_zone_v1_profile() -> bool:
-	_two_zone_v1_profile = bool(_cli_args.get("validation_two_zone_v1", false))
+	# R2-1: TwoZoneV1 is now the default profile for all validation runs.
+	# Use --validation-legacy to opt into legacy (one-zone) mode explicitly.
+	_two_zone_v1_profile = bool(_cli_args.get("validation_two_zone_v1", true))
 	if not _two_zone_v1_profile:
 		return true
 	var requested_mode: String = String(_cli_args.get("validation_engine_mode", "")).strip_edges().to_lower()
