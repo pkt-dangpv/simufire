@@ -191,16 +191,17 @@ var floor_heat_flux_kw_m2: float = 0.0
 var flashover_q_thomas_kw: float = 0.0
 var flashover_q_mqh_kw: float = 0.0
 
-# Propiedades térmicas de pared por sala — SF-AUD-014 (1D lumped conduction).
-# Sentinel -1.0 = usar parámetros globales (wall_heat_capacity_kj_m2_k / wall_absorption_rate).
-# Yeso 12.7mm: k=0.00016 kW/m·K, rho=1150 kg/m³, cp=1.09 kJ/kg·K, d=0.013 m
+# Propiedades térmicas de pared por sala — R2-3 Crank-Nicolson 5-nodo.
+# Default: yeso estándar (CFAST material por defecto, NIST SP 1041).
+# Yeso 12.7mm: k=0.00017 kW/m·K, rho=960 kg/m³, cp=1.09 kJ/kg·K, d=0.013 m
 # Hormigón 200mm: k=0.00100, rho=2300, cp=0.88, d=0.20
 # Madera/OSB 100mm: k=0.00009, rho=600, cp=1.70, d=0.10
 # Ref: SFPE Handbook Tabla 1-5.1; ISO 13786; NIST CFAST input guide
-var wall_k_kw_m_k: float = -1.0
-var wall_rho_kg_m3: float = -1.0
-var wall_cp_kj_kg_k: float = -1.0
-var wall_thickness_m: float = -1.0
+# Usar -1.0 para deshabilitar el PDE y caer al modelo lumped global.
+var wall_k_kw_m_k: float = 0.00017   # kW/(m·K), yeso (CFAST default)
+var wall_rho_kg_m3: float = 960.0    # kg/m³
+var wall_cp_kj_kg_k: float = 1.09   # kJ/(kg·K)
+var wall_thickness_m: float = 0.013  # m, 13 mm panel de yeso
 
 # SF-AUD-030: temperaturas del perfil 1D de pared (nodos Crank-Nicolson).
 # T[0]=cara interior (= _wall_surface_temp_c), T[2]=punto medio, T[4]=cara exterior.

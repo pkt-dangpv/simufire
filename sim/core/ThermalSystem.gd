@@ -217,7 +217,7 @@ var layer_relax_up: float = 0.015
 # pero ya no controlan la física; usar hrr_chi_rad_normal/low_o2 para ajustar.
 var hrr_chi_rad_normal: float = 0.35
 var hrr_chi_rad_low_o2: float = 0.50
-var hrr_rad_wall_fraction: float = 0.0       # fracción de χ_rad·HRR que va directamente a paredes
+var hrr_rad_wall_fraction: float = 1.0       # fracción de χ_rad·HRR depositada en superficies (R2-4)
 var two_zone_convective_heat_multiplier: float = 1.0
 var upper_heat_capture_min: float = 0.10      # obsoleto — usar hrr_chi_rad_normal
 var upper_heat_capture_max: float = 0.25      # obsoleto — usar hrr_chi_rad_normal
@@ -1536,6 +1536,23 @@ func _step_wall_pde(building: BuildingModel, dt: float, ambient_c: float) -> voi
 		# Temperatura del gas en la sala (BC Robin interior)
 		var T_gas: float = room.temp_upper_c
 
+		# R2-4: flujo radiativo del fuego depositado en la cara interior de la pared.
+		# q_fire = χ_rad·HRR·f_wall / A_wall  [kW/m²]
+		# Solo cuando hrr_rad_wall_fraction > 0 y hay fuego activo.
+		var wall_area_m2_pde: float = room.floor_area_m2() * 2.0
+		var q_fire_rad_kw_m2: float = 0.0
+		if hrr_rad_wall_fraction > 0.0 and room.hrr_kw > 0.0:
+			var eff_chi_rad: float = hrr_chi_rad_normal
+			if room.chi_rad_normal >= 0.0:
+				eff_chi_rad = room.chi_rad_normal
+			var chi_rad_pde: float = lerpf(
+				eff_chi_rad * (hrr_chi_rad_low_o2 / maxf(0.01, hrr_chi_rad_normal)),
+				eff_chi_rad,
+				clampf(inverse_lerp(0.06, 0.12, room.o2), 0.0, 1.0)
+			)
+			q_fire_rad_kw_m2 = room.hrr_kw * chi_rad_pde * hrr_rad_wall_fraction \
+					/ maxf(1.0, wall_area_m2_pde)
+
 		# Parámetro de Crank-Nicolson: r = k·dt / (2·ρ·cp·dx²)
 		var dxdx: float = dx * dx
 		var r: float = k * dt / (2.0 * rho * cp_v * dxdx)
@@ -1556,9 +1573,9 @@ func _step_wall_pde(building: BuildingModel, dt: float, ambient_c: float) -> voi
 		# -------------------------------------------------------
 		# Sistema 5×5 tridiagonal Crank-Nicolson para T[0..4]^{n+1}
 		#
-		# Nodo 0 (semi-nodo, Robin interior):
+		# Nodo 0 (semi-nodo, Robin interior + fuente radiativa R2-4):
 		#   (B_half + 0.5*(k_dx+h_ci))·T0 - 0.5*k_dx·T1 =
-		#       (B_half - 0.5*(k_dx+h_ci))·t0 + 0.5*k_dx·t1 + h_ci·T_gas
+		#       (B_half - 0.5*(k_dx+h_ci))·t0 + 0.5*k_dx·t1 + h_ci·T_gas + q_fire_rad
 		#
 		# Nodos 1..3 (nodos interiores completos, C-N estándar):
 		#   -r·T{i-1} + (1+2r)·Ti - r·T{i+1} =
@@ -1578,7 +1595,7 @@ func _step_wall_pde(building: BuildingModel, dt: float, ambient_c: float) -> voi
 		]
 		var cu5: Array = [-0.5 * k_dx, -r,   -r,   -r,   0.0]
 		var dv5: Array = [
-			(B_half - 0.5 * (k_dx + h_ci)) * t0 + 0.5 * k_dx * t1 + h_ci * T_gas,
+			(B_half - 0.5 * (k_dx + h_ci)) * t0 + 0.5 * k_dx * t1 + h_ci * T_gas + q_fire_rad_kw_m2,
 			r * t0 + (1.0 - 2.0 * r) * t1 + r * t2,
 			r * t1 + (1.0 - 2.0 * r) * t2 + r * t3,
 			r * t2 + (1.0 - 2.0 * r) * t3 + r * t4,
