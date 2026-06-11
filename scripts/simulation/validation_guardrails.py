@@ -39,6 +39,19 @@ import phase2e_preflight
 import gap_inventory_check
 import legacy_two_zone_compare
 
+# Herramienta R0-3 — puede no existir en sesiones anteriores al commit
+try:
+    import importlib.util as _ilu
+    _fp = Path(__file__).resolve().parent.parent.parent / "tools/freeze_cfast_truth.py"
+    _spec = _ilu.spec_from_file_location("freeze_cfast_truth", _fp)
+    _mod = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_mod)
+    _verify_cfast_truth = _mod.verify_manifest
+    _manifest_path = _mod.MANIFEST_PATH
+except Exception:
+    _verify_cfast_truth = None
+    _manifest_path = None
+
 
 # ---------------------------------------------------------------------------
 # PHY-C1 — Carbon/HCN sentinel checks
@@ -158,6 +171,22 @@ def main() -> int:
     rc_carbon,   out_carbon   = (0, "(sin datos)") if data is None else _check_carbon_hcn_sentinels(data)
     rc_two_zone, out_two_zone = _run_silent(legacy_two_zone_compare.main, ["check-reference"])
 
+    # R0-3: integridad de la verdad CFAST
+    rc_cfast_truth = 0
+    out_cfast_truth = "(herramienta R0-3 no disponible)"
+    if _verify_cfast_truth is not None and _manifest_path is not None:
+        if _manifest_path.exists():
+            import json as _json
+            with open(_manifest_path, encoding="utf-8") as _f:
+                _manifest = _json.load(_f)
+            _buf = io.StringIO()
+            with contextlib.redirect_stdout(_buf):
+                _ok = _verify_cfast_truth(_manifest)
+            rc_cfast_truth = 0 if _ok else 1
+            out_cfast_truth = _buf.getvalue()
+        else:
+            out_cfast_truth = "(MANIFEST.json no generado aún — ejecutar: python tools/freeze_cfast_truth.py)"
+
     # -- Resumen compacto -------------------------------------------------------
     def _tag(rc: int) -> str:
         return "PASS" if rc == 0 else "FAIL"
@@ -174,6 +203,7 @@ def main() -> int:
     print(f"  {'Phase 2E sentinels (7)':<32}  {_tag(rc_sentinel):>12}")
     print(f"  {'Carbon/HCN sentinels (5)':<32}  {_tag(rc_carbon):>12}")
     print(f"  {'Legacy/two-zone contract':<32}  {_tag(rc_two_zone):>12}")
+    print(f"  {'CFAST truth integrity (R0-3)':<32}  {_tag(rc_cfast_truth):>12}")
 
     # -- Salida verbose ---------------------------------------------------------
     if args.verbose:
@@ -196,7 +226,7 @@ def main() -> int:
         print(out_two_zone)
 
     # -- Resultado global -------------------------------------------------------
-    all_ok = all_req_pass and rc_sentinel == 0 and rc_gaps == 0 and rc_carbon == 0 and rc_two_zone == 0
+    all_ok = all_req_pass and rc_sentinel == 0 and rc_gaps == 0 and rc_carbon == 0 and rc_two_zone == 0 and rc_cfast_truth == 0
     print()
     print("-" * W)
     print()
@@ -214,6 +244,8 @@ def main() -> int:
             print("    - Carbon/HCN sentinels: ejecuta --verbose para detalles")
         if rc_two_zone != 0:
             print("    - Legacy/two-zone contract: regenera o corrige la referencia Pre-M1")
+        if rc_cfast_truth != 0:
+            print("    - CFAST truth integrity: CSVs modificados — ejecutar regenerate_truth.ps1 si fue intencionado")
         print()
         print("  Para diagnóstico completo:")
         print("    python scripts/simulation/validation_guardrails.py --verbose")
