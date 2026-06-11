@@ -34,7 +34,6 @@
 	"engine_overrides": {
 		"time_scale": 5.0,
 		"ach_infiltration": 0.0,
-		"background_species_exchange_kg_s_m2": 0.0,
 		"pressure_vent_threshold_pa": 999999.0,
 		"outside_open_species_purge_base_per_s": 0.0,
 		"outside_open_species_purge_bonus_per_s": 0.0,
