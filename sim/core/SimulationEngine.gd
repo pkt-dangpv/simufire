@@ -362,6 +362,8 @@ var _layer_interface_warning_rooms: Dictionary = {}
 @export var fire_pool_release_max_fraction: float = 0.18
 @export var fire_hrr_rise_tau_s: float = 6.0
 @export var fire_hrr_fall_tau_s: float = 20.0
+# Multiplicador global de HRR — solo para mutation testing (M-HRR). Valor 1.0 = sin mutación.
+@export var fire_hrr_global_multiplier: float = 1.0
 @export var fire_backdraft_pool_threshold_MJ: float = 8.0
 @export var fire_backdraft_o2_max: float = 0.13
 @export var fire_backdraft_temp_min_c: float = 180.0
@@ -601,6 +603,8 @@ var _step_time_us: int = 0
 # Cuando true: flujo calculado con Q = Cd·W·f·(2/3)·h^(3/2)·sqrt(2g·ΔT/T_ref) y plano
 # neutro calculado desde densidades. Default true → paridad CFAST (2026-05-17).
 @export var vent_bernoulli_enabled: bool = true
+# Multiplicador sobre el caudal Bernoulli de vanos exteriores — solo para mutation testing (M-VENT).
+@export var vent_bernoulli_flow_multiplier: float = 1.0
 
 
 # Absorción de calor por paredes — término proporcional simple sobre (T_upper - T_ambient).
@@ -1077,6 +1081,7 @@ func _sync_auxiliary_services() -> void:
 		"door_deform_max_gap": door_deform_max_gap,
 		"natural_vent_inlet_fraction": natural_vent_inlet_fraction,
 		"vent_bernoulli_enabled": vent_bernoulli_enabled,
+		"vent_bernoulli_flow_multiplier": vent_bernoulli_flow_multiplier,
 		"o2_smoke_carry_coeff": o2_smoke_carry_coeff,
 		"doorway_o2_counterflow_coeff": doorway_o2_counterflow_coeff,
 		"background_o2_exchange_multiplier": background_o2_exchange_multiplier,
@@ -1596,6 +1601,7 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_pool_release_max_fraction": fire_pool_release_max_fraction,
 		"fire_hrr_rise_tau_s": fire_hrr_rise_tau_s,
 		"fire_hrr_fall_tau_s": fire_hrr_fall_tau_s,
+		"fire_hrr_global_multiplier": fire_hrr_global_multiplier,
 		"fire_backdraft_pool_threshold_MJ": fire_backdraft_pool_threshold_MJ,
 		"fire_backdraft_o2_max": fire_backdraft_o2_max,
 		"fire_backdraft_temp_min_c": fire_backdraft_temp_min_c,

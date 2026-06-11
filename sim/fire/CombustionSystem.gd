@@ -458,6 +458,12 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		room.hrr_kw = 0.0
 	room.burned_hrr_kw = maxf(0.0, room.hrr_kw)
 
+	# M-HRR mutation: multiplicador global de HRR para mutation testing.
+	var _hrr_mult: float = float(context.get("fire_hrr_global_multiplier", 1.0))
+	if _hrr_mult != 1.0 and room.hrr_kw > 0.0:
+		room.hrr_kw *= _hrr_mult
+		room.burned_hrr_kw = maxf(0.0, room.hrr_kw)
+
 	# Backdraft: fase explosiva — pico de HRR con envolvente sinusoidal.
 	# Gottuk (1992): backdraft genera picos de HRR 3-6× el máximo pre-extinción en <15 s.
 	if room.backdraft_active:

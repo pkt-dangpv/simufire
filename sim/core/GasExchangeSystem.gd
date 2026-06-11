@@ -75,6 +75,8 @@ var natural_vent_inlet_fraction: float = 0.5
 # SF-AUD-010: cuando true, la ventilación natural exterior usa plano neutro
 # calculado por densidad (SFPE §3.2) en lugar de natural_vent_inlet_fraction fijo.
 var vent_bernoulli_enabled: bool = true
+# Multiplicador sobre el caudal Bernoulli calculado — solo para mutation testing (M-VENT).
+var vent_bernoulli_flow_multiplier: float = 1.0
 # Carry de O2 con el parcel caliente en transporte de humo inter-sala.
 # 0.0 = deshabilitado (default; baselines sin cambio).
 var o2_smoke_carry_coeff: float = 0.0
@@ -179,6 +181,7 @@ func configure(settings: Dictionary) -> void:
 	door_deform_max_gap = float(settings.get("door_deform_max_gap", door_deform_max_gap))
 	natural_vent_inlet_fraction = float(settings.get("natural_vent_inlet_fraction", natural_vent_inlet_fraction))
 	vent_bernoulli_enabled = bool(settings.get("vent_bernoulli_enabled", vent_bernoulli_enabled))
+	vent_bernoulli_flow_multiplier = float(settings.get("vent_bernoulli_flow_multiplier", vent_bernoulli_flow_multiplier))
 	o2_smoke_carry_coeff = float(settings.get("o2_smoke_carry_coeff", o2_smoke_carry_coeff))
 	doorway_o2_counterflow_coeff = float(settings.get("doorway_o2_counterflow_coeff", doorway_o2_counterflow_coeff))
 	two_zone_opening_flow_enabled = bool(settings.get("two_zone_opening_flow_enabled", two_zone_opening_flow_enabled))
@@ -618,6 +621,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					# natural_vent_inlet_fraction=0.5 asume plano neutro a mid-height.
 					fresh_air_kg = 0.61 * (nat_area_m2 * natural_vent_inlet_fraction) * v_nat_m_s * air_density_kg_m3_s * dt
 				var room_mass_kg: float = maxf(1.0, room_out.volume_m3()) * air_density_kg_m3_s
+				fresh_air_kg *= vent_bernoulli_flow_multiplier
 				fresh_air_kg = minf(fresh_air_kg, room_mass_kg * 0.30)
 				if fresh_air_kg > 0.0:
 					# 1.5A: acumular flujo másico de ventilación natural [kg/s]

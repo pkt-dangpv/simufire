@@ -125,6 +125,11 @@ func _parse_validation_args(args: Array[String]) -> Dictionary:
 			parsed["validation_canonical_pressure"] = true
 		elif arg == "--validation-no-quit":
 			parsed["validation_no_quit"] = true
+		elif arg.begins_with("--validation-mutate="):
+			parsed["validation_mutate"] = arg.get_slice("=", 1).strip_edges().to_upper()
+		elif arg == "--validation-mutate" and index + 1 < args.size():
+			index += 1
+			parsed["validation_mutate"] = String(args[index]).strip_edges().to_upper()
 		index += 1
 
 	if not parsed.has("validation_case"):
@@ -163,6 +168,7 @@ func _begin_validation_run() -> void:
 
 	building.load_template_data(template_data)
 	_apply_engine_overrides(Dictionary(_case_config.get("engine_overrides", {})))
+	_apply_mutation_overrides(String(_cli_args.get("validation_mutate", "")))
 	if not _configure_validation_two_zone_v1_profile():
 		return
 	if not _configure_validation_engine_mode():
@@ -386,6 +392,59 @@ func _apply_opening_overrides(template_data: Dictionary, overrides: Variant) -> 
 func _apply_engine_overrides(overrides: Dictionary) -> void:
 	for key in overrides.keys():
 		engine.set(String(key), overrides[key])
+
+
+# ── R0-2: Mutation testing ────────────────────────────────────────────────────
+# Tabla de mutantes: cada entrada es un diccionario de engine_overrides que
+# sobreescribe los parámetros DESPUÉS de los overrides del caso, de modo que
+# el caso no puede cancelar la mutación. Los valores son fijos (no dependen
+# del caso actual) para garantizar que la mutación es reproducible.
+#
+# Para añadir un nuevo mutante: añadir una entrada aquí + documentarlo en
+# tools/mutation_audit.py. El mutante debe matar ≥1 check required.
+const _MUTATION_TABLE: Dictionary = {
+	# M-HRR: HRR ×1.5 — todos los casos con fuego activo deben fallar en T/O2/presión.
+	"M-HRR": {"fire_hrr_global_multiplier": 1.5},
+	# M-ENTR: entrenamiento de pluma ×0.5 — capa más baja, T upper menor, llenado más lento.
+	"M-ENTR": {"o2_upper_plume_entr_rate": 0.0125},
+	# M-O2EXT: umbral extinción O2 0.122→0.05 — sobre-combustión en escenarios sellados.
+	"M-O2EXT": {"fire_o2_min_for_flame": 0.05},
+	# M-YCO: yield CO ×3 — CO upper y FED deben salir de banda.
+	"M-YCO": {
+		"co_base_yield_kg_per_MJ": 0.00075,
+		"co_max_yield_kg_per_MJ": 0.03750,
+	},
+	# M-YHCN: yield HCN = 0 — FED desglosado y checks HCN deben fallar.
+	"M-YHCN": {
+		"hcn_base_yield_kg_per_MJ": 0.0,
+		"hcn_max_yield_kg_per_MJ": 0.0,
+	},
+	# M-WALL: chi_rad ×0.3 (menos calor convectivo a gas) — T upper se dispara.
+	"M-WALL": {
+		"hrr_chi_rad_normal": 0.10,
+		"hrr_chi_rad_low_o2": 0.15,
+	},
+	# M-VENT: caudal Bernoulli ×0.7 — menos entrada de aire fresco, más depleción O2.
+	"M-VENT": {"vent_bernoulli_flow_multiplier": 0.7},
+	# M-PRES: deshabilitar presión canónica — checks de presión deben fallar.
+	"M-PRES": {
+		"phase3_pressure_canonical_enabled": false,
+		"phase3_thermodynamic_pressure_enabled": false,
+	},
+}
+
+
+func _apply_mutation_overrides(mutant_id: String) -> void:
+	if mutant_id.is_empty():
+		return
+	if not _MUTATION_TABLE.has(mutant_id):
+		push_warning("CaseRunner: mutante desconocido '%s' — ignorado. Mutantes válidos: %s"
+			% [mutant_id, ", ".join(_MUTATION_TABLE.keys())])
+		return
+	var overrides: Dictionary = Dictionary(_MUTATION_TABLE[mutant_id])
+	for key in overrides.keys():
+		engine.set(String(key), overrides[key])
+	print("[MUTANT] %s aplicado: %s" % [mutant_id, str(overrides)])
 
 
 func _configure_validation_two_zone_v1_profile() -> bool:
