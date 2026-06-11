@@ -54,6 +54,49 @@ except Exception:
 
 
 # ---------------------------------------------------------------------------
+# R1-3 — Physics override linter
+# ---------------------------------------------------------------------------
+
+# Claves de motor que NO deben aparecer en ningún caso de validación.
+# Son knobs de calibración del motor, no parámetros del experimento.
+_PHYSICS_OVERRIDE_KEYS: frozenset[str] = frozenset({
+    "fire_hrr_global_multiplier",
+    "vent_bernoulli_flow_multiplier",
+    "two_zone_convective_heat_multiplier",
+    "doorway_o2_upper_routing_gain",
+    "phase2h_lower_cf_drain_coeff",
+    "outside_open_upper_heat_boost",
+    "fire_co_vent_limited_multiplier",
+    "background_species_exchange_kg_s_m2",
+    "hot_gas_species_carry_fraction",
+})
+
+
+def _check_physics_overrides(repo_root: Path) -> tuple[int, str]:
+    """R1-3: detecta overrides de física del motor en casos de validación."""
+    cases_dir = repo_root / "sim/validation/cases"
+    violations: list[str] = []
+    for case_file in sorted(cases_dir.glob("*.json")):
+        try:
+            case = json.loads(case_file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        overrides = case.get("engine_overrides", {})
+        for key in overrides:
+            if key in _PHYSICS_OVERRIDE_KEYS:
+                violations.append(f"    {case_file.stem}: {key} = {overrides[key]}")
+    if violations:
+        lines = ["R1-3: overrides de física del motor en casos de validación:"]
+        lines.extend(violations)
+        lines.append(
+            f"  {len(violations)} violaciones. Mueve estos valores al motor (defaults) "
+            "y elimínalos del JSON del caso."
+        )
+        return 1, "\n".join(lines)
+    return 0, "R1-3: sin overrides de física en casos de validación. OK"
+
+
+# ---------------------------------------------------------------------------
 # PHY-C1 — Carbon/HCN sentinel checks
 # ---------------------------------------------------------------------------
 
@@ -166,10 +209,11 @@ def main() -> int:
     gap_count    = data.get("known_gap_count",   "?") if data else "?"
 
     # -- Ejecutar guardrails ----------------------------------------------------
-    rc_sentinel, out_sentinel = _run_silent(phase2e_preflight.main, json_argv)
-    rc_gaps,     out_gaps     = _run_silent(gap_inventory_check.main, json_argv)
-    rc_carbon,   out_carbon   = (0, "(sin datos)") if data is None else _check_carbon_hcn_sentinels(data)
-    rc_two_zone, out_two_zone = _run_silent(legacy_two_zone_compare.main, ["check-reference"])
+    rc_sentinel,   out_sentinel   = _run_silent(phase2e_preflight.main, json_argv)
+    rc_gaps,       out_gaps       = _run_silent(gap_inventory_check.main, json_argv)
+    rc_carbon,     out_carbon     = (0, "(sin datos)") if data is None else _check_carbon_hcn_sentinels(data)
+    rc_two_zone,   out_two_zone   = _run_silent(legacy_two_zone_compare.main, ["check-reference"])
+    rc_phy_lint,   out_phy_lint   = _check_physics_overrides(repo_root)
 
     # R0-3: integridad de la verdad CFAST
     rc_cfast_truth = 0
@@ -204,6 +248,7 @@ def main() -> int:
     print(f"  {'Carbon/HCN sentinels (5)':<32}  {_tag(rc_carbon):>12}")
     print(f"  {'Legacy/two-zone contract':<32}  {_tag(rc_two_zone):>12}")
     print(f"  {'CFAST truth integrity (R0-3)':<32}  {_tag(rc_cfast_truth):>12}")
+    print(f"  {'Physics override linter (R1-3)':<32}  {_tag(rc_phy_lint):>12}")
 
     # -- Salida verbose ---------------------------------------------------------
     if args.verbose:
@@ -224,9 +269,15 @@ def main() -> int:
         print("  [Detalle] Legacy/two-zone contract (Pre-M1)")
         print("─" * W)
         print(out_two_zone)
+        print("─" * W)
+        print("  [Detalle] Physics override linter (R1-3)")
+        print("─" * W)
+        print(out_phy_lint)
 
     # -- Resultado global -------------------------------------------------------
-    all_ok = all_req_pass and rc_sentinel == 0 and rc_gaps == 0 and rc_carbon == 0 and rc_two_zone == 0 and rc_cfast_truth == 0
+    all_ok = (all_req_pass and rc_sentinel == 0 and rc_gaps == 0
+              and rc_carbon == 0 and rc_two_zone == 0
+              and rc_cfast_truth == 0 and rc_phy_lint == 0)
     print()
     print("-" * W)
     print()
@@ -246,6 +297,8 @@ def main() -> int:
             print("    - Legacy/two-zone contract: regenera o corrige la referencia Pre-M1")
         if rc_cfast_truth != 0:
             print("    - CFAST truth integrity: CSVs modificados — ejecutar regenerate_truth.ps1 si fue intencionado")
+        if rc_phy_lint != 0:
+            print("    - Physics override linter (R1-3): elimina engine knobs de los JSONs de validación")
         print()
         print("  Para diagnóstico completo:")
         print("    python scripts/simulation/validation_guardrails.py --verbose")

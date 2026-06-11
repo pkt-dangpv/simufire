@@ -686,8 +686,9 @@ def build_cfast_checks() -> list[Check]:
     c240 = _nearest(cfast, 240.0)
     s240 = _nearest(sim, 240.0)
     checks.append(Check("cfast_t240_o2_depleted", s240.get("o2_upper", s240["o2"]),
-                        expected=c240["o2"], tolerance=0.022,
-                        note="Deep O2 depletion by t=240s (CFAST ULO2=8.51%). Uses SF o2_upper (apples-to-apples after entrainment fix)."))
+                        expected=c240["o2"], tolerance=0.031,
+                        note="Deep O2 depletion by t=240s (CFAST ULO2=8.51%). Uses SF o2_upper. "
+                             "R1-1: tol widened 0.022→0.031 (a priori §6.2: 25%×O2_delta=0.031)."))
     # SF HRR at t=240 = 528.9 kW: SF uses room-avg O2 (>>8.51%) so fire runs near
     # capacity; CFAST upper-zone O2=8.51% → limits HRR to 276 kW (two-zone self-
     # limiting). Structural Phase 2 gap. max=560 kW (>SF actual 528.9 kW).
@@ -723,11 +724,14 @@ def build_cfast_checks() -> list[Check]:
         _add_abs_check(checks, prefix, "o2", c, s, 0.015)
         _add_abs_check(checks, prefix, "temp_upper_c", c, s, 80.0)
         _add_abs_check(checks, prefix, "temp_lower_c", c, s, 45.0)
-        # t=360 is the window-open boundary tick (window opens at t=360.2): HRR drops
-        # as ventilation tightens near the event, causing the SF layer to rise slightly
-        # vs CFAST's prescribed-HRR layer. Widen tolerance by 0.05 m for this tick only.
-        hot_tol = 0.55 if target_s == 360.0 else 0.50
-        _add_abs_check(checks, prefix, "hot_layer_m", c, s, hot_tol)
+        # KNOWN_DEVIATION: a priori tol = 20% × layer_height (min 0.15 m) → 0.15 m.
+        # Structural gap: SF one-zone mixing prevents accurate layer-height at O2 crisis.
+        # Pre-R1: tol was 0.50–0.55 m (FITTED > 3× a priori). Required=False until Fase 2.
+        _add_abs_check(checks, prefix, "hot_layer_m", c, s, 0.15,
+                       required=False,
+                       note="KNOWN_DEVIATION R1-1: layer height during O2-crisis ticks. "
+                            "A priori tol=0.15 m (§6.2). Structural gap Fase 2: SF uses "
+                            "room-avg O2, hot-layer height diverges from CFAST two-zone.")
         _add_abs_check(checks, prefix, "co_upper_ppm", c, s, 320.0,
                        note="CO upper layer pre-opening (CFAST: ~690 ppm).")
 
@@ -968,13 +972,15 @@ def build_cfast_single_room_closed_checks() -> list[Check]:
                         " prevents two-zone stratification (structural gap, Fase 2).")
     _add_abs_check(checks, "cfast_closed_t210", "temp_upper_c", c210, s210, 80.0)
     _add_abs_check(checks, "cfast_closed_t210", "co_upper_ppm", c210, s210, 600.0)
+    # R1-1: co_upper_ppm tol at t=450: a priori = factor-2 × 731 ppm (CFAST=731 ppm).
+    _closed_co_tol = {300: 600.0, 450: 731.0}
     for target_s in [300.0, 450.0]:
         c = _nearest(cfast, target_s)
         s = _nearest(sim, target_s)
         prefix = f"cfast_closed_t{int(target_s)}"
         _add_abs_check(checks, prefix, "o2", c, s, 0.018, sim_field="o2_upper")
         _add_abs_check(checks, prefix, "temp_upper_c", c, s, 80.0)
-        _add_abs_check(checks, prefix, "co_upper_ppm", c, s, 600.0)
+        _add_abs_check(checks, prefix, "co_upper_ppm", c, s, _closed_co_tol[int(target_s)])
 
     # ── CMV-1: sealed-room pressure — Phase 3 ODE calibrated ────────────────────
     # Phase 3 ODE active (phase3_thermodynamic_pressure_enabled=true, phase3_leak_area_m2=0.030).
@@ -985,7 +991,8 @@ def build_cfast_single_room_closed_checks() -> list[Check]:
     # t=240: SF=7136 Pa   vs CFAST=12.75 Pa;  |diff|=7123.  tol=7200.0 (required=False; fire persists in SF).
     # t=360: SF=1322 Pa   vs CFAST=167.94 Pa; |diff|=1154.  tol=1200.0 (required=False).
     # t=480: SF=471.77 Pa vs CFAST=168.17 Pa; |diff|=303.6. tol=320.0  (required=False).
-    _closed_pressure_tol = {60: 68.0, 120: 200.0, 240: 7200.0, 360: 1200.0, 480: 320.0}
+    # R1-1: t=120 a priori tol = 30% × 1022 Pa = 306 Pa (widened from fitted 200 Pa).
+    _closed_pressure_tol = {60: 68.0, 120: 306.0, 240: 7200.0, 360: 1200.0, 480: 320.0}
     for target_s in [60.0, 120.0, 240.0, 360.0, 480.0]:
         c = _nearest(cfast, target_s)
         s = _nearest(sim, target_s)
@@ -1335,17 +1342,21 @@ def build_cfast_corridor_chain_checks() -> list[Check]:
         note="CCH-2 Stage-F: corridor chain R0 temp_upper RMSE ≤ 30°C (SF=20.5°C, margin 9°C).",
     )
 
-    # ── Required: R2 O2 — smoke reaches far room (Dormitorio1) ────────────────
+    # ── KNOWN_DEVIATION: R2 O2 — smoke reaches far room (Dormitorio1) ──────────
     # Both models show O2 depletion in R2, validating 3-room transport.
     # Gaps: t=480 0.0481 (CF 13.6%, SF 18.4%), t=600 0.0508 (CF 11.9%, SF 17.0%).
-    for t_s, tol in [(480, 0.055), (600, 0.055)]:
+    # R1-1: a priori tol = 25%×O2_delta: t=480→0.019, t=600→0.023. Gaps exceed a priori
+    # → KNOWN_DEVIATION (required=False). Structural: SF single-zone transport vs CFAST two-zone.
+    for t_s, tol in [(480, 0.019), (600, 0.023)]:
         c = _nearest(cfast_r2, float(t_s))
         s = _nearest(sim2, float(t_s))
         _add_abs_check(
             checks, f"cfast_chain_r2_o2_t{t_s}", "o2", c, s, tol,
             sim_field="o2_upper",
-            note=f"CCH-1: corridor chain R2 O2 upper at t={t_s}s — smoke reaches far room. "
-                 f"tol=0.055 (≥3× @0.0001).",
+            required=False,
+            note=f"KNOWN_DEVIATION R1-1: CCH-1 corridor chain R2 O2 at t={t_s}s. "
+                 f"A priori tol=25%×delta (§6.2). Structural gap: SF single-zone transport "
+                 f"vs CFAST two-zone. Will gate after Fase 2 two-zone migration.",
         )
 
     # ── Required: R2 min O2 < 20% (smoke arrival confirmation) ───────────────
@@ -1922,7 +1933,11 @@ def build_cfast_hvac_residential_checks() -> list[Check]:
     # t=180: SF.o2_upper=0.149 vs CFAST.ULO2=0.132, diff=0.017, tol=0.025 → PASS (margin=0.008)
     # t=300: SF.o2_upper=0.098 vs CFAST.ULO2=0.074, diff=0.024, tol=0.025 → PASS (margin=0.001)
     # t=450: SF.o2_upper=0.095 vs CFAST.ULO2=0.053, diff=0.042. tol=0.045 (structural HVAC gap).
-    _hvac_o2_tol = {180: 0.025, 300: 0.025, 450: 0.045}
+    # R1-1: a priori tol=25%×O2_delta: t=300→0.034, t=450→0.039.
+    # t=300: diff=0.024 < 0.034 → keep required=True (widened from fitted 0.025).
+    # t=450: diff=0.042 > 0.039 → KNOWN_DEVIATION required=False.
+    _hvac_o2_tol = {180: 0.025, 300: 0.034, 450: 0.039}
+    _hvac_o2_required = {180: True, 300: True, 450: False}
     # Phase 2C: o2_lower now tracks near-ambient (HVAC replenishes, fire_o2_lower_for_flame=true).
     # SF.o2_lower=0.2090 vs CFAST.LLO2=0.205, diff=0.004. tol=0.010 (required gate).
     _hvac_o2_lower_tol = {180: 0.010, 300: 0.010, 450: 0.010}
@@ -1931,8 +1946,9 @@ def build_cfast_hvac_residential_checks() -> list[Check]:
     # t=180: SF=182.7°C vs CFAST=259.6°C, diff=76.9°C, tol=80.0 → PASS
     # t=300: SF=350.8°C vs CFAST=173.4°C, diff=177.4°C → structural gap; tol=178.0 non-required
     # t=450: SF=360.1°C vs CFAST=174.8°C, diff=185.3°C → structural gap; tol=186.0 non-required
-    _hvac_temp_tol = {180: 80.0, 300: 178.0, 450: 186.0}
-    _hvac_temp_required = {180: True, 300: False, 450: False}
+    # R1-1: t=180 a priori tol=15%×ΔT=36°C; diff=76.9°C > 36°C → KNOWN_DEVIATION required=False.
+    _hvac_temp_tol = {180: 36.0, 300: 178.0, 450: 186.0}
+    _hvac_temp_required = {180: False, 300: False, 450: False}
     for target_s in [180.0, 300.0, 450.0]:
         c = _nearest(cfast, target_s)
         s = _nearest(sim, target_s)
@@ -1940,7 +1956,11 @@ def build_cfast_hvac_residential_checks() -> list[Check]:
         ti = int(target_s)
         _add_abs_check(checks, prefix, "o2", c, s, _hvac_o2_tol[ti],
                        sim_field="o2_upper",
-                       note="Phase 2C: SF o2_upper vs CFAST ULO2 (fire uses o2_lower; room.o2 stays near-ambient).")
+                       required=_hvac_o2_required[ti],
+                       note=("Phase 2C: SF o2_upper vs CFAST ULO2 (fire uses o2_lower; room.o2 stays near-ambient)."
+                             if _hvac_o2_required[ti] else
+                             f"KNOWN_DEVIATION R1-1: Phase 2C HVAC t={ti}s O2 upper. "
+                             f"A priori tol={_hvac_o2_tol[ti]:.3f} (§6.2). Structural HVAC gap, Fase 2."))
         # Phase 2C: o2_lower now near-ambient → required gate.
         _add_abs_check(checks, prefix, "o2_lower", c, s, _hvac_o2_lower_tol[ti],
                        sim_field="o2_lower", required=True,
@@ -1951,7 +1971,9 @@ def build_cfast_hvac_residential_checks() -> list[Check]:
         # Phase 2C: fire survives → temp_upper gate at t=180; structural gap at t=300/450.
         _add_abs_check(checks, prefix, "temp_upper_c", c, s, _hvac_temp_tol[ti],
                        required=_hvac_temp_required[ti],
-                       note=("" if ti == 180 else
+                       note=(f"KNOWN_DEVIATION R1-1: HVAC t=180s temp_upper. A priori tol=36°C (15%×ΔT, §6.2). "
+                             f"diff=76.9°C > 36°C. Structural: SF burns at full HRR vs CFAST two-zone O2 moderation."
+                             if ti == 180 else
                              f"Phase 2C structural gap: SF fire at max HRR (SF={s['temp_upper_c']:.1f}°C) vs CFAST two-zone moderation ({c['temp_upper_c']:.1f}°C). tol={_hvac_temp_tol[ti]}°C non-gating."))
         _add_abs_check(checks, prefix, "co_upper_ppm", c, s, 500.0,
                        required=(target_s < 300.0),
