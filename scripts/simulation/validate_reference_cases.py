@@ -971,7 +971,9 @@ def build_cfast_single_room_closed_checks() -> list[Check]:
                    note="CMV-1: t=210 o2_upper gap — hot layer fills room, homogenization"
                         " prevents two-zone stratification (structural gap, Fase 2).")
     _add_abs_check(checks, "cfast_closed_t210", "temp_upper_c", c210, s210, 80.0)
-    _add_abs_check(checks, "cfast_closed_t210", "co_upper_ppm", c210, s210, 600.0)
+    # R1-2: a priori CO tol = factor-2 × CFAST_value (§6.2). CFAST at t=210: ~595ppm → tol=595.
+    _add_abs_check(checks, "cfast_closed_t210", "co_upper_ppm", c210, s210, 595.0,
+                   note="CMV-1: closed room CO upper at t=210s. R1-2: tol=595ppm (factor-2×CFAST≈595, §6.2).")
     # R1-1: co_upper_ppm tol at t=450: a priori = factor-2 × 731 ppm (CFAST=731 ppm).
     _closed_co_tol = {300: 600.0, 450: 731.0}
     for target_s in [300.0, 450.0]:
@@ -1565,15 +1567,25 @@ def build_cfast_suppression_water_checks() -> list[Check]:
     # Both models: window open → vent dilutes upper layer.
     # CFAST two-zone upper: 34→53→78°C; SF one-zone: 33→40→47°C (uniform mix lower).
     # Gap grows from 2°C at t=60s to 31°C at t=120s (Phase 1.5: two-zone vs one-zone).
-    _supr_temp_tols = {60: 15.0, 90: 20.0, 120: 40.0}
+    # R1-2: a priori tol = 15%×CFAST_temp (min 10°C).
+    # t=60: CFAST=34°C → tol=10°C (min floor); t=90: CFAST=53°C → tol=10°C; t=120: CFAST=78°C → tol=12°C.
+    # t=120: SF=47°C vs CFAST=78°C, diff=31°C > 12°C → KNOWN_DEVIATION required=False.
+    # t=60/90: diff=1-7°C < 10°C → required=True (pass with margin).
+    _supr_temp_tols = {60: 10.0, 90: 10.0, 120: 12.0}
+    _supr_temp_required = {60: True, 90: True, 120: False}
     for t_s, tol in _supr_temp_tols.items():
         c = _nearest(cfast, float(t_s))
         s = _nearest(sim, float(t_s))
+        req = _supr_temp_required[t_s]
         _add_abs_check(
             checks, f"cfast_supr_temp_t{t_s}", "temp_upper_c", c, s, tol,
-            note=f"SW-1: ventilated room temp_upper at t={t_s}s (pre-suppression). "
-                 f"CFAST {c['temp_upper_c']:.1f}°C; SF {s['temp_upper_c']:.1f}°C. "
-                 f"tol={tol}°C (≥3× step @0.1°C).",
+            required=req,
+            note=(f"SW-1: ventilated room temp_upper at t={t_s}s (pre-suppression). "
+                  f"CFAST {c['temp_upper_c']:.1f}°C; SF {s['temp_upper_c']:.1f}°C. "
+                  f"tol={tol}°C (a priori §6.2)."
+                  if req else
+                  f"KNOWN_DEVIATION R1-2: SW-1 t=120s temp_upper. A priori tol=12°C (15%×78°C, §6.2). "
+                  f"diff=31°C > 12°C. Structural: SF one-zone uniform mix vs CFAST two-zone stratification."),
         )
 
     # ── Required: RMSE temp_upper t=0–120s ────────────────────────────────────
@@ -1783,6 +1795,11 @@ def build_cfast_two_room_door_open_checks() -> list[Check]:
     _add_rmse_check(checks, "cfast_2r_r0_rmse_temp_upper_c", sim_r0, cfast_r0,
                     "temp_upper_c", threshold=60.0, end_t=350.0, required=True,
                     note="CMV-2 Stage-F: fire-room temp_upper RMSE ≤ 60°C t=[0,350]s (SF=45.6°C, margin 14°C).")
+    # R1-4: full-window RMSE (non-gating) — publishes the structural divergence post-t=350 openly.
+    _add_rmse_check(checks, "cfast_2r_r0_rmse_temp_upper_c_full", sim_r0, cfast_r0,
+                    "temp_upper_c", threshold=float("inf"), required=False,
+                    note="R1-4: full-window temp_upper RMSE (non-gating). Structural gap post-t=350 visible here. "
+                         "See cfast_2r_r0_rmse_temp_upper_c for gating truncated window.")
     _add_rmse_check(checks, "cfast_2r_r0_rmse_o2", sim_r0, cfast_r0,
                     "o2", threshold=0.028,
                     note="CMV-2: fire-room O2 RMSE ≤ 0.028 (two-room). Structural gap expected. Threshold 0.025→0.028: hardened from 0.0009 margin (actual=0.02406) to ≥3× headroom. Phase 2 gap.")
@@ -1975,9 +1992,12 @@ def build_cfast_hvac_residential_checks() -> list[Check]:
                              f"diff=76.9°C > 36°C. Structural: SF burns at full HRR vs CFAST two-zone O2 moderation."
                              if ti == 180 else
                              f"Phase 2C structural gap: SF fire at max HRR (SF={s['temp_upper_c']:.1f}°C) vs CFAST two-zone moderation ({c['temp_upper_c']:.1f}°C). tol={_hvac_temp_tol[ti]}°C non-gating."))
-        _add_abs_check(checks, prefix, "co_upper_ppm", c, s, 500.0,
+        # R1-2: a priori CO tol = factor-2 × CFAST_value (§6.2). t=180: CFAST≈380ppm → tol=380.
+        # t=300/450 are non-required structural gaps; tol=500 retained as wide bound.
+        _hvac_co_tol = 380.0 if ti == 180 else 500.0
+        _add_abs_check(checks, prefix, "co_upper_ppm", c, s, _hvac_co_tol,
                        required=(target_s < 300.0),
-                       note=("" if target_s < 300.0 else
+                       note=("R1-2: a priori tol=380ppm (factor-2×CFAST 380ppm, §6.2). SF=593ppm, diff=213ppm." if ti == 180 else
                              "Structural gap (Phase 2C): CO upper — SF fire at max HRR vs CFAST two-zone O2 dynamics."))
 
     # ── CMV-1: non-gating structural-gap metrics ────────────────────────────────────────
@@ -2017,12 +2037,22 @@ def build_cfast_hvac_residential_checks() -> list[Check]:
     _add_rmse_check(checks, "cfast_hvac_rmse_temp_upper_c", sim, cfast,
                     "temp_upper_c", threshold=60.0, end_t=240.0, required=True,
                     note="CMV-2 Phase-2C: temp_upper RMSE ≤ 60°C over t=[0,240]s growth phase (SF=51.9°C, margin 8.1°C). Post-t=240 SF hits max HRR while CFAST two-zone moderates — structural gap.")
+    # R1-4: full-window RMSE (non-gating) — post-t=240 structural divergence openly published.
+    _add_rmse_check(checks, "cfast_hvac_rmse_temp_upper_c_full", sim, cfast,
+                    "temp_upper_c", threshold=float("inf"), required=False,
+                    note="R1-4: full-window temp_upper RMSE (non-gating). Structural gap post-t=240 visible here. "
+                         "See cfast_hvac_rmse_temp_upper_c for gating truncated window.")
     _add_rmse_check(checks, "cfast_hvac_rmse_o2", sim, cfast,
                     "o2", threshold=0.07, sim_field="o2_upper",
                     note="Phase 2C: O2 upper RMSE vs CFAST ULO2. SF o2_upper depletes from fire; room.o2 stays near-ambient. Structural gap in late-time (t>280s SF keeps max HRR, CFAST moderates).")
     _add_rmse_check(checks, "cfast_hvac_rmse_co_upper_ppm", sim, cfast,
                     "co_upper_ppm", threshold=500.0, end_t=240.0, required=True,
                     note="CMV-2 Phase-2C: CO upper RMSE ≤ 500 ppm over t=[0,240]s growth phase (SF=247.1ppm, margin 252ppm). Post-t=240 SF at max HRR vs CFAST moderation — structural gap.")
+    # R1-4: full-window CO RMSE (non-gating) — post-t=240 structural gap openly published.
+    _add_rmse_check(checks, "cfast_hvac_rmse_co_upper_ppm_full", sim, cfast,
+                    "co_upper_ppm", threshold=float("inf"), required=False,
+                    note="R1-4: full-window CO upper RMSE (non-gating). Structural gap post-t=240 visible here. "
+                         "See cfast_hvac_rmse_co_upper_ppm for gating truncated window.")
 
     return checks
 
