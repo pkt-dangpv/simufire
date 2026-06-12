@@ -198,10 +198,10 @@ var flashover_q_mqh_kw: float = 0.0
 # Madera/OSB 100mm: k=0.00009, rho=600, cp=1.70, d=0.10
 # Ref: SFPE Handbook Tabla 1-5.1; ISO 13786; NIST CFAST input guide
 # Usar -1.0 para deshabilitar el PDE y caer al modelo lumped global.
-var wall_k_kw_m_k: float = 0.00017   # kW/(m·K), yeso (CFAST default)
-var wall_rho_kg_m3: float = 960.0    # kg/m³
-var wall_cp_kj_kg_k: float = 1.09   # kJ/(kg·K)
-var wall_thickness_m: float = 0.013  # m, 13 mm panel de yeso
+var wall_k_kw_m_k: float = -1.0   # kW/(m·K); -1 = lumped fallback (PDE opt-in via room overrides)
+var wall_rho_kg_m3: float = -1.0  # kg/m³
+var wall_cp_kj_kg_k: float = -1.0 # kJ/(kg·K)
+var wall_thickness_m: float = -1.0 # m; -1 = lumped fallback
 
 # SF-AUD-030: temperaturas del perfil 1D de pared (nodos Crank-Nicolson).
 # T[0]=cara interior (= _wall_surface_temp_c), T[2]=punto medio, T[4]=cara exterior.

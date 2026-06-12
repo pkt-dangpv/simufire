@@ -217,7 +217,7 @@ var layer_relax_up: float = 0.015
 # pero ya no controlan la física; usar hrr_chi_rad_normal/low_o2 para ajustar.
 var hrr_chi_rad_normal: float = 0.35
 var hrr_chi_rad_low_o2: float = 0.50
-var hrr_rad_wall_fraction: float = 1.0       # fracción de χ_rad·HRR depositada en superficies (R2-4)
+var hrr_rad_wall_fraction: float = 0.0       # fracción de χ_rad·HRR depositada en superficies (R2-4)
 var two_zone_convective_heat_multiplier: float = 1.0
 var upper_heat_capture_min: float = 0.10      # obsoleto — usar hrr_chi_rad_normal
 var upper_heat_capture_max: float = 0.25      # obsoleto — usar hrr_chi_rad_normal
