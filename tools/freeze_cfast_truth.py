@@ -31,11 +31,9 @@ CFAST_VERSION_NOTE = (
 
 
 def sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    # Normalize CRLF → LF before hashing so Windows/Linux produce identical digests.
+    data = path.read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(data).hexdigest()
 
 
 def build_manifest() -> dict:

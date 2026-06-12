@@ -1,23 +1,23 @@
 {
-  "generated_utc": "2026-06-11T06:22:43.345495+00:00",
+  "generated_utc": "2026-06-12T21:13:11.003442+00:00",
   "cfast_version_note": "CFAST 7.7.x — versión exacta registrada en sim/validation/cfast/codex_cfast_run si el directorio existe. Para regenerar CSVs instalar CFAST 7.7 y ejecutar regenerate_truth.ps1.",
   "source_dir": "sim/validation/cfast",
   "file_count": 99,
   "files": {
     "sim/validation/cfast/cfast_bedroom_closed_door.in": {
-      "sha256": "5e5e6ca51078810219127132d4840cb3859be46f8cb0bfd539b3102b33ecf54d",
+      "sha256": "5a5c10b3a0ff905236c783ada4b1215728ef1f8824f0d60f4ba9a35314ff55e0",
       "size_bytes": 2423
     },
     "sim/validation/cfast/cfast_corridor_chain.in": {
-      "sha256": "b34f43bc5ef1fd962ec62ebeff945fca55075b84683759a43762a7a69e543fb6",
+      "sha256": "13880aae5553acc57c78537946ed7fae219e000c44ec78d813ea9499fb436bea",
       "size_bytes": 3378
     },
     "sim/validation/cfast/cfast_door_close_midfire.in": {
-      "sha256": "e376d40c1dd36f2e3a1cc77789df808cf96f3a0f0261c01ee33623b8af56ab88",
+      "sha256": "c11a1a769e3ebbcd90812c00f00a1686cf274555bf57381fac4da8376f1feb96",
       "size_bytes": 3433
     },
     "sim/validation/cfast/cfast_fast_growth_closed.in": {
-      "sha256": "47560cb508b67a9533f9e2277f12cec844f590b7db12b7c74ea0e9f99552fb16",
+      "sha256": "f203ef8155793948a398fb2623d38b850dc4fb243832249202d88b2dd2859646",
       "size_bytes": 2125
     },
     "sim/validation/cfast/cfast_hvac_residential.in": {
@@ -25,15 +25,15 @@
       "size_bytes": 3028
     },
     "sim/validation/cfast/cfast_long_burnout_3600s.in": {
-      "sha256": "afe88b160e0ec8d3eb00d46ef83cbf44c179217384823967917976c2cc108d64",
+      "sha256": "2d078223a1e47caf888e2c6d34ccd30fdca25e03f1ad14b37bc54122e0658590",
       "size_bytes": 2929
     },
     "sim/validation/cfast/cfast_multi_fuel_couch_tv.in": {
-      "sha256": "610c0bd59077f81b3be7d880a8c61bb4118ab42b676c141ed0fedc54d4b09567",
+      "sha256": "8f3de4c4d3552ab52ea05ebaa10be70d067568dd9a1e4080282c0f6888d00c75",
       "size_bytes": 3485
     },
     "sim/validation/cfast/cfast_pool_fire_open.in": {
-      "sha256": "ab3aa9a61b63f76ed7dd5ed72e509a3a0371c056ee2a62c62f04b5466f614bd6",
+      "sha256": "ed0ebf92cfde6bf1766120a81aae4fc5c60b212ecd6c7dcfd0b5c3a65d7ba393",
       "size_bytes": 2321
     },
     "sim/validation/cfast/cfast_post_flashover_vented.in": {
@@ -45,15 +45,15 @@
       "size_bytes": 2324
     },
     "sim/validation/cfast/cfast_slow_growth_sealed.in": {
-      "sha256": "fe73b8c2881b2c09248b262e89a49bb7ee9a8b962aac434158d01485b8220133",
+      "sha256": "b22e9611e9ec1263984b8429ed6a9ab65d25f11971122a938320f4327e712408",
       "size_bytes": 2756
     },
     "sim/validation/cfast/cfast_suppression_water.in": {
-      "sha256": "9b66c8a8d772627e2fde22b767b2a4802cb2048f8ddd578696908284bbcb847e",
+      "sha256": "b4313cb8e5ccb015a6123339f653cb189446748a88e129936c815d55c13be451",
       "size_bytes": 3498
     },
     "sim/validation/cfast/cfast_two_floor_stairwell.in": {
-      "sha256": "7023bcf293e5c42acb4684617562d6fa78634eb954ad5e2d918d7a9af1f9dbc2",
+      "sha256": "c76e73faa55cb96f9b454295504f405cdb72add1ee28d7296740f8bc2bef8a72",
       "size_bytes": 3442
     },
     "sim/validation/cfast/cfast_two_room_door_open.in": {
@@ -61,7 +61,7 @@
       "size_bytes": 2995
     },
     "sim/validation/cfast/cfast_window_break_t180.in": {
-      "sha256": "3deb202b19cd34dc344e33dea6944aeb3bef743ecb8219e9e636c30aef25a6b2",
+      "sha256": "f6e92689f9bf1f664b26a646746c74f85885bd76f70201d44cac8d454902d75b",
       "size_bytes": 2972
     },
     "sim/validation/cfast/r0_hall_window_360.in": {
@@ -73,99 +73,99 @@
       "size_bytes": 2859
     },
     "sim/validation/cfast/cfast_bedroom_closed_door_compartments.csv": {
-      "sha256": "32ebe55aa436c9fc7c2ab4bbc7737623769978e3afc658fa67c5f702a48c7c17",
+      "sha256": "42dbff99795d2ff8f2fbb36420c8ff9c394173567a12def530b9d9fd4c37fc16",
       "size_bytes": 53996
     },
     "sim/validation/cfast/cfast_bedroom_closed_door_devices.csv": {
-      "sha256": "ab075f1c5d265a485fa09dfa4551852124a3e573b0230c570b0962515d850ca4",
+      "sha256": "581cf361739efa97098ea5e98c9f46c60ecaf2b66f04bd7d9dbb140390271bcd",
       "size_bytes": 3362
     },
     "sim/validation/cfast/cfast_bedroom_closed_door_masses.csv": {
-      "sha256": "3a36fa124e6c614ee555fdca4a78b199a670454dfe4ede3526a2b401b320ae46",
+      "sha256": "67561c41ede4c0511e09e332c4e741c65902748bcfde586421b36aa91c03a87d",
       "size_bytes": 37293
     },
     "sim/validation/cfast/cfast_bedroom_closed_door_vents.csv": {
-      "sha256": "396747d0b9368331c09c42b51efaaddb96f772356f7283bee7cdd58c11bbafae",
+      "sha256": "7f745c4c71b9b16922937c079b3cca821360dd2c1debe42787282d98961681ca",
       "size_bytes": 5989
     },
     "sim/validation/cfast/cfast_bedroom_closed_door_walls.csv": {
-      "sha256": "5a024d5b7ce6722a663a092eef03a2c6b95e4fd97261bce7dca4da351ee7cfda",
+      "sha256": "829b6b46acc60e1259aaf250a142272cfb95621ede77b36322e03bb861d014ef",
       "size_bytes": 8561
     },
     "sim/validation/cfast/cfast_bedroom_closed_door_zone.csv": {
-      "sha256": "8f00b334650910cd62ade02f90b62166a2a1c43cd6fa479c84a7943ca7261515",
+      "sha256": "fcf2147463de7f17a392f53fb3d92b71cbc249bdb2d4f6808a5c864e333fa740",
       "size_bytes": 23655
     },
     "sim/validation/cfast/cfast_corridor_chain_compartments.csv": {
-      "sha256": "dc8efaffd5bc5968e6b33fd1a42b914f2a5d7dd3b37b7543abfed05a0974008d",
+      "sha256": "ce1a302f471a495c58d2094f4d933660c5d88abdde0dade664b1464e4122b8b0",
       "size_bytes": 87175
     },
     "sim/validation/cfast/cfast_corridor_chain_devices.csv": {
-      "sha256": "a9b49879a7fea0c1edec0ce30d32dcd0d44aa99a0fc843d7820fb2f9ea5de41b",
+      "sha256": "da353b7ece095157fc5e2da2c171a215d630ed7be8324eebaa4f00fc10b97706",
       "size_bytes": 2252
     },
     "sim/validation/cfast/cfast_corridor_chain_masses.csv": {
-      "sha256": "5c89e8042e2b02c6612d59d556a87474aa2d1b1f11c25e79ff39e83b79a2db97",
+      "sha256": "480a947ff35f73cf4e6a7177fdab2edecd1a7d8c07bd340b9537d50cace9d723",
       "size_bytes": 67423
     },
     "sim/validation/cfast/cfast_corridor_chain_vents.csv": {
-      "sha256": "09159b00a6220a822d2ecc36e4954e3f17ee6e54f652c1f7f5649974eb0d0518",
+      "sha256": "05d8086244052f11a28f346e48b8d8b0c69b2a63264cf239ebdd4cd074aa1b27",
       "size_bytes": 11101
     },
     "sim/validation/cfast/cfast_corridor_chain_walls.csv": {
-      "sha256": "128a75e8991ff396d3103d12070237ea59eda7595ab4c8a1c3ecf04438b1545a",
+      "sha256": "fc7387076a38028e7a7883d682ce65706ddbd7f982104a6f444d7017c085d717",
       "size_bytes": 12757
     },
     "sim/validation/cfast/cfast_corridor_chain_zone.csv": {
-      "sha256": "ea6aee84c2390cc4044ba45983c0f43f83b9adc792a584ad16737653d0797fdc",
+      "sha256": "9a2f4f8e1cf0c699c5d1e7c4cd4228fef5b4b26feb2cc1ff3ec844d971b4ec22",
       "size_bytes": 107965
     },
     "sim/validation/cfast/cfast_door_close_midfire_compartments.csv": {
-      "sha256": "49295fe642ab7885ff6b71a09075d6d44425d637775337ddca9ab0c1b41b0607",
+      "sha256": "e87f0a0190292dc27f709a04c30023e19f915a4d7150de4ba44c5dd5179ebd27",
       "size_bytes": 61806
     },
     "sim/validation/cfast/cfast_door_close_midfire_devices.csv": {
-      "sha256": "a9b49879a7fea0c1edec0ce30d32dcd0d44aa99a0fc843d7820fb2f9ea5de41b",
+      "sha256": "da353b7ece095157fc5e2da2c171a215d630ed7be8324eebaa4f00fc10b97706",
       "size_bytes": 2252
     },
     "sim/validation/cfast/cfast_door_close_midfire_masses.csv": {
-      "sha256": "22398775931c804a7b6717efc8148d7c2aeb2ebffe3777f8de3e3dba833fc3e4",
+      "sha256": "df98c9a55f6e7e4f30cf84cde6192045755c98871bf6fe1c2ee10c95a0be24d2",
       "size_bytes": 46309
     },
     "sim/validation/cfast/cfast_door_close_midfire_vents.csv": {
-      "sha256": "1e130276ece7c365c7b161a6a8c16a6e96b4bb7f8a11dcf3ecb6553b475802b4",
+      "sha256": "073bba8fa9548d6988049be3b6c55139a2ea0d4e6e7ba435bc8070a66bee058d",
       "size_bytes": 7567
     },
     "sim/validation/cfast/cfast_door_close_midfire_walls.csv": {
-      "sha256": "9b6fbf38fa9f5909378766c2dc2e9db0001e7ddd027381f585943c1b56ceed0f",
+      "sha256": "95e2115a4e3dbfe0e533c0a52b777ae4bcf59cf66dbd9888e3f6df9cc9a796f6",
       "size_bytes": 9258
     },
     "sim/validation/cfast/cfast_door_close_midfire_zone.csv": {
-      "sha256": "09a750d1ccbc84986cb8c2c45fee91cd4e9b3c2558bedbeadd5beda67d2529df",
+      "sha256": "6aa1d4ade90cf11c283b9b52706a3f92cd46341fc36e3249da130df426e9bc3f",
       "size_bytes": 61895
     },
     "sim/validation/cfast/cfast_fast_growth_closed_compartments.csv": {
-      "sha256": "4b6f9530e2cc42f55dde8362d16d15165f77485a4aa6085da7c0bbe680c38cdd",
+      "sha256": "99de885aac57684d3c3b88308a4bba0b24dba7fcd6cce6be34046fe350cd954d",
       "size_bytes": 18880
     },
     "sim/validation/cfast/cfast_fast_growth_closed_devices.csv": {
-      "sha256": "8d88f48e4be576908c6737319455efe56b1ffd2dfb7c96e5718173db03a9c227",
+      "sha256": "89f363231a70a2da5de4b017805acca4f2bddadf00feffeb8a911236ee05c34b",
       "size_bytes": 1142
     },
     "sim/validation/cfast/cfast_fast_growth_closed_masses.csv": {
-      "sha256": "6208860f1b8f52001111dd7a0c0f661c7d96e06c2c5f030b095e38d26ab16654",
+      "sha256": "08750f712040a05c4381ad5a8bf283409c998db4e2b1ae67c27e15133d349f34",
       "size_bytes": 13115
     },
     "sim/validation/cfast/cfast_fast_growth_closed_vents.csv": {
-      "sha256": "a807000cb806860b543b69e355296095b41f86b8f63f6135d3e2c5df69bb93e1",
+      "sha256": "22d863fa73bfeee1efb928f8d5ed28d7ddb2498a4048a407adf17610a78aeff0",
       "size_bytes": 2079
     },
     "sim/validation/cfast/cfast_fast_growth_closed_walls.csv": {
-      "sha256": "e7ae32d4da31bd6003da806c04652ad9ef0b968fef2e2212287e60880476aded",
+      "sha256": "793a9539469fe8c15d8786081b53904acf09f86ac112645636e9febc7810a57c",
       "size_bytes": 2961
     },
     "sim/validation/cfast/cfast_fast_growth_closed_zone.csv": {
-      "sha256": "dcc2f67a849b4fdc2b817e9fc458dfbe1bdd68452f227cf02ad2a94fe8e60f78",
+      "sha256": "2a8134001e04c3ac1c21f843b9847cd91191cca0cd8175ffc56c57afd06bd00d",
       "size_bytes": 7995
     },
     "sim/validation/cfast/cfast_hvac_residential_compartments.csv": {
@@ -173,75 +173,75 @@
       "size_bytes": 36315
     },
     "sim/validation/cfast/cfast_long_burnout_3600s_compartments.csv": {
-      "sha256": "b15ce55bc0f256ae9318ddeb8c92fb2526b45fe7408a819cb28c3df854f6b702",
+      "sha256": "02106584caca0804280bebae8ec602860e971e95f0e6f075d64b67430bb8b1b9",
       "size_bytes": 71359
     },
     "sim/validation/cfast/cfast_long_burnout_3600s_devices.csv": {
-      "sha256": "7d506c6dfae684e0d550244e100ee9af981af34ad0a2a39974dcd38de7237fd0",
+      "sha256": "19bc3e760dbfb1921e3f2070b0f6e81a4835fb100868a659458c7aafb678dbfe",
       "size_bytes": 4472
     },
     "sim/validation/cfast/cfast_long_burnout_3600s_masses.csv": {
-      "sha256": "98db5d30cd8b2cb32125624cdb42cf2c20e58a2d9301685be4610ab228aae774",
+      "sha256": "627b997c098fd9066f64456de342e40350e2274a3544ba61f587402f0537c710",
       "size_bytes": 49207
     },
     "sim/validation/cfast/cfast_long_burnout_3600s_vents.csv": {
-      "sha256": "98eb0d47d8acfac078a7968492b197b9f44a9babdcb9d812301d343a63c061d1",
+      "sha256": "b0cc66714f00424ce124c319be1ab411ffd2c33da43407df4496e86cc25a8f1a",
       "size_bytes": 7929
     },
     "sim/validation/cfast/cfast_long_burnout_3600s_walls.csv": {
-      "sha256": "d287934dd42b86d4358565a6e255936ed32a38cb23e0c20ac1e890204deb6005",
+      "sha256": "f38270879a7fee59d2aec7af45cbb974ffa9b39449e09f8f5dad3d3dba838063",
       "size_bytes": 11331
     },
     "sim/validation/cfast/cfast_long_burnout_3600s_zone.csv": {
-      "sha256": "b3d116d42096edf6847a65b483453d15d6da43e126dadc1f945945e80bf1786b",
+      "sha256": "ddb6fc2f1cb206d83c5481e5171d191e28fd10b4a965ac212452bd88593f0e5c",
       "size_bytes": 31485
     },
     "sim/validation/cfast/cfast_multi_fuel_couch_tv_compartments.csv": {
-      "sha256": "be94f9d4fad31d2c98eb6f2ac70ff5dcec01ddd0c96115c5c9db94061942a929",
+      "sha256": "d37cb26ee9543f7194fd38e78b52ba03946d6502ce8a636fcecde3af8f05f936",
       "size_bytes": 36415
     },
     "sim/validation/cfast/cfast_multi_fuel_couch_tv_devices.csv": {
-      "sha256": "a9b49879a7fea0c1edec0ce30d32dcd0d44aa99a0fc843d7820fb2f9ea5de41b",
+      "sha256": "da353b7ece095157fc5e2da2c171a215d630ed7be8324eebaa4f00fc10b97706",
       "size_bytes": 2252
     },
     "sim/validation/cfast/cfast_multi_fuel_couch_tv_masses.csv": {
-      "sha256": "7f91ab76ac691aba27e38a2e889f2f2aceef87763421c702d94e4643feea2f56",
+      "sha256": "365bbc3c4543dabcbdba5ef9b73837e238997fdd461797292419d156155ef40e",
       "size_bytes": 25155
     },
     "sim/validation/cfast/cfast_multi_fuel_couch_tv_vents.csv": {
-      "sha256": "da508b0734a9342f9e399333a04e5139976fbda5c51ffdf6b2d319667f18c2c4",
+      "sha256": "f30242caeca809282ce413b7e682561f5b8bd3725688cd75b5db0be316dfff2b",
       "size_bytes": 5790
     },
     "sim/validation/cfast/cfast_multi_fuel_couch_tv_walls.csv": {
-      "sha256": "cbe5ce4d33a37ddece32f524cc89bedbd8b283f7e9693a3a5b3043cc609233a1",
+      "sha256": "6d599834601eb0521955afc761a9a3f8546a76cdad0c5cf19af74fb8880d874d",
       "size_bytes": 5751
     },
     "sim/validation/cfast/cfast_multi_fuel_couch_tv_zone.csv": {
-      "sha256": "baf2d6ba9c252f4a252bccc37d422b401332e55ba02351d6afcacdebc8ed213e",
+      "sha256": "2c7d94257a46471ebc518f923e6f291a008de59e6690c00cbce59719d265b3bc",
       "size_bytes": 51700
     },
     "sim/validation/cfast/cfast_pool_fire_open_compartments.csv": {
-      "sha256": "d49f396b30af14fc77c7692d72bf5796bd314a21a5382a8124070c8dba9995ca",
+      "sha256": "555e7244b7e3bdb134f3cfd5620ebc31421f1106fb00b728e5257708f9bb2c56",
       "size_bytes": 53869
     },
     "sim/validation/cfast/cfast_pool_fire_open_devices.csv": {
-      "sha256": "ab075f1c5d265a485fa09dfa4551852124a3e573b0230c570b0962515d850ca4",
+      "sha256": "581cf361739efa97098ea5e98c9f46c60ecaf2b66f04bd7d9dbb140390271bcd",
       "size_bytes": 3362
     },
     "sim/validation/cfast/cfast_pool_fire_open_masses.csv": {
-      "sha256": "8996628b1f45000544759586a5027c592d2340c131b5858a3f32b8c5bbf3ea04",
+      "sha256": "d793dbfdb5e49e2ed88683be8c06da20bcb4aee869c1ac9ff73b1d3fc433a193",
       "size_bytes": 37177
     },
     "sim/validation/cfast/cfast_pool_fire_open_vents.csv": {
-      "sha256": "a592880ba30cc4472542de5d6dbf5670b79d5f9d264a97f0b19a9e7e39f6a9c5",
+      "sha256": "d799e58e05769337618942ac3f4eef34f95d8ad7ead2003587d9ae23b139175a",
       "size_bytes": 8582
     },
     "sim/validation/cfast/cfast_pool_fire_open_walls.csv": {
-      "sha256": "7ba122daf1f43bf1daa1a37eefca1b66f502a8062255e3f33fd19349702181c4",
+      "sha256": "2880c2728b9d7f47cd3f519c73acdbf66278fe007ed9f5a7016527083d58344f",
       "size_bytes": 8541
     },
     "sim/validation/cfast/cfast_pool_fire_open_zone.csv": {
-      "sha256": "bda4db313666c55506a08e7bde916c883ce68098a5ea954399824c96c3981c3a",
+      "sha256": "b3b22a55127a31a6728fbadd37cdb03f44cd0afe0770f71c98d64c66b44ad12a",
       "size_bytes": 77170
     },
     "sim/validation/cfast/cfast_post_flashover_vented_compartments.csv": {
@@ -253,75 +253,75 @@
       "size_bytes": 36315
     },
     "sim/validation/cfast/cfast_slow_growth_sealed_compartments.csv": {
-      "sha256": "04973bdbca95b57e892c90650609e989a2aa0d1906ccc753a417d41338f48f10",
+      "sha256": "7152f9924015da8fd6d2e73c397adf8fac6e482bb1522f27ba1c14c008ffa653",
       "size_bytes": 106339
     },
     "sim/validation/cfast/cfast_slow_growth_sealed_devices.csv": {
-      "sha256": "670fa3ec3cbcc543b01359bf92a0a4485906e51a8e069da569e1180c6e4c8b86",
+      "sha256": "1f626579141543f119c49dc0a16cd20c3ead01115bf06ddb23cf36aa4bd39eca",
       "size_bytes": 6692
     },
     "sim/validation/cfast/cfast_slow_growth_sealed_masses.csv": {
-      "sha256": "e9144bffdfa2954f8c6e82d21a6876b60fae23ad0df5e879e63740e99f52af1e",
+      "sha256": "db8b51798ad1f1dc842c88d9ed682bbc8ff7889c22ca64932df830dc00ac18bd",
       "size_bytes": 73267
     },
     "sim/validation/cfast/cfast_slow_growth_sealed_vents.csv": {
-      "sha256": "0441678929fbe6e42bcfb9b71178d5dc7c73793ded1bfd5dacbacc0bb6551232",
+      "sha256": "6e8bbcf7b7587f4e70902a8378874e094c439d9e084411eb85849561ba2e5bde",
       "size_bytes": 11829
     },
     "sim/validation/cfast/cfast_slow_growth_sealed_walls.csv": {
-      "sha256": "20cd93091bb4ed8037ed3e9e8bc97d6ae81858c9e5fcc30d08a5e286fde738c2",
+      "sha256": "8a86de22c26bb5bd71baee69b4b196dde185e800bdae77077a0081d8fce8495b",
       "size_bytes": 16911
     },
     "sim/validation/cfast/cfast_slow_growth_sealed_zone.csv": {
-      "sha256": "ef8b65ffb4251a85e7049ae685512950919e4c275f92a1095652ef51bc05fb38",
+      "sha256": "814a4806173f83618ae05fbd35bb308fbd366169ed57d28f859aabf039c6812f",
       "size_bytes": 47145
     },
     "sim/validation/cfast/cfast_suppression_water_compartments.csv": {
-      "sha256": "84f02cdaca9fb511bde8ef8cec29a7a0c1bc83175a93624bf6c406340c3cff7a",
+      "sha256": "60dc69523bbe0c043a14e7f33dbdaf2473bbfa85aa18cc0fb313201b20a14428",
       "size_bytes": 36370
     },
     "sim/validation/cfast/cfast_suppression_water_devices.csv": {
-      "sha256": "2ef65cf4d2717e898914267228f2a51738d99198bf7d671793a16a85a9a9eed9",
+      "sha256": "9a7ac1b28ff4ad80ec5e03c2d9604eaefeb28d5d27621126dee7917c2043f95b",
       "size_bytes": 2252
     },
     "sim/validation/cfast/cfast_suppression_water_masses.csv": {
-      "sha256": "e2ea89d4e99b9dd131b76b9ef008f9af3d884ed7204964e0e68bdce4c6c845a2",
+      "sha256": "d2e34c7ab5c8fc0d8c73e7d30e05fb2d0d49140a7225c5da2d9d81494db01b76",
       "size_bytes": 25145
     },
     "sim/validation/cfast/cfast_suppression_water_vents.csv": {
-      "sha256": "849a410663855f0b0db30dad4b367d63d3d9a3e40c04e3e8c8c5e2ead515d426",
+      "sha256": "30d33b2ec1da444c291e9f1f79f319847826c2c177e08bb4e58b2795bf2351e8",
       "size_bytes": 5792
     },
     "sim/validation/cfast/cfast_suppression_water_walls.csv": {
-      "sha256": "88db3da942438d5b6abada249222c370becebcbf8b7877ea902b8580eeccd367",
+      "sha256": "b080f24753fbffb15ca667de3c56bd3e8fc273850b34f0f74de7243df2d593fa",
       "size_bytes": 5751
     },
     "sim/validation/cfast/cfast_suppression_water_zone.csv": {
-      "sha256": "e50816a6210113683953e2b00763b2372708363b099e1acb913ea792def63da1",
+      "sha256": "215823e2320ff873e6c6693599c0db4e6fc2284004605dc06e8afea28a12f22f",
       "size_bytes": 26230
     },
     "sim/validation/cfast/cfast_two_floor_stairwell_compartments.csv": {
-      "sha256": "4a9f47efae26c1ecdf4c71b3c5310c295d164a39449b50ab48828ecc6e55ae62",
+      "sha256": "c2ca52668520c4cc3706d0cc1aa9ad1563b4cae731a393e4e7d20ad5e847a1fb",
       "size_bytes": 62134
     },
     "sim/validation/cfast/cfast_two_floor_stairwell_devices.csv": {
-      "sha256": "a9b49879a7fea0c1edec0ce30d32dcd0d44aa99a0fc843d7820fb2f9ea5de41b",
+      "sha256": "da353b7ece095157fc5e2da2c171a215d630ed7be8324eebaa4f00fc10b97706",
       "size_bytes": 2252
     },
     "sim/validation/cfast/cfast_two_floor_stairwell_masses.csv": {
-      "sha256": "cd6d9a3fa2bcb16eed38ea1e36bd706a1089f42a1bdd24971081e5fecf304181",
+      "sha256": "0cd22d456256d2484a5deeeb06005ec35464c6d8121c49704910ed3664060b7c",
       "size_bytes": 46575
     },
     "sim/validation/cfast/cfast_two_floor_stairwell_vents.csv": {
-      "sha256": "51b0e90223332bc2ae778491f5155852dd655f8930de648c9491e5dce66bf1af",
+      "sha256": "e87d0f9266869286ec5435223e0e5eac9d42f15d017d911aa4441eea17285882",
       "size_bytes": 7583
     },
     "sim/validation/cfast/cfast_two_floor_stairwell_walls.csv": {
-      "sha256": "d2d5ea8ca0930391612158cf7f437d3d17b7bb354f01e9c95b925f51894f6f14",
+      "sha256": "77a1356f4e1f386575859edbeb784c0e474c84f3022785831a97d98a498427bc",
       "size_bytes": 9302
     },
     "sim/validation/cfast/cfast_two_floor_stairwell_zone.csv": {
-      "sha256": "2f12f24571322b828eba96b7558bffbfb772b7d3c267a20f17649f1d27dc7533",
+      "sha256": "86d7db35b56b40696022f68795e31bb5d568655c03022787828d1debda155a82",
       "size_bytes": 61895
     },
     "sim/validation/cfast/cfast_two_room_door_open_compartments.csv": {
@@ -329,75 +329,75 @@
       "size_bytes": 61742
     },
     "sim/validation/cfast/cfast_window_break_t180_compartments.csv": {
-      "sha256": "cf9c0786fbfd8881a9c954c64ceec47a10b8bb19a1faf2c0e8914d1fb459fc6a",
+      "sha256": "612523733de2bf9bd40775817715eb4448ee193b45c877ab6044e2286a559eca",
       "size_bytes": 36379
     },
     "sim/validation/cfast/cfast_window_break_t180_devices.csv": {
-      "sha256": "a9b49879a7fea0c1edec0ce30d32dcd0d44aa99a0fc843d7820fb2f9ea5de41b",
+      "sha256": "da353b7ece095157fc5e2da2c171a215d630ed7be8324eebaa4f00fc10b97706",
       "size_bytes": 2252
     },
     "sim/validation/cfast/cfast_window_break_t180_masses.csv": {
-      "sha256": "87001210b926eb7fa4dddbb24e8db28e753ffa1fdff49556deb1fc780f4ba3d9",
+      "sha256": "fbf57df2515ee110753dd26d5dcc6ca698b62f32f469aea290a11b9731628b75",
       "size_bytes": 25147
     },
     "sim/validation/cfast/cfast_window_break_t180_vents.csv": {
-      "sha256": "ef3c4866213e031d3f485c070830bf9c2135695918a33d06023ecb77b657d3aa",
+      "sha256": "02500e8b1e8a75cf00ef24eeefdb948e9c2aac96ddf294edfd888c89c4cece10",
       "size_bytes": 5804
     },
     "sim/validation/cfast/cfast_window_break_t180_walls.csv": {
-      "sha256": "8a9be7c2bf624a14f0d155ac537cee8685ce7425d17a7b681e191e778184b02e",
+      "sha256": "1663fd1ce02d24fa2952d6aae5977da8de1dd822de80e5d99901fa46787d4ada",
       "size_bytes": 5751
     },
     "sim/validation/cfast/cfast_window_break_t180_zone.csv": {
-      "sha256": "450b67cbab9f7171b384089ff61b50b2ab357eb9257948ca42b633202b04bc32",
+      "sha256": "6fa6857ca0d1439e371c84ffb111d8b31755e1037f2972dea441daca919b9661",
       "size_bytes": 51700
     },
     "sim/validation/cfast/r0_hall_window_360_compartments.csv": {
-      "sha256": "2817b4ec05201be1005d33ccd5d4c5be5a895a60262db7801338bfd4a9a3b705",
+      "sha256": "d44fecee018a1bf8fc2c40a34ebfd62c95cf238905b04e2a0dabf9df1a776e40",
       "size_bytes": 53894
     },
     "sim/validation/cfast/r0_hall_window_360_devices.csv": {
-      "sha256": "bc62523cf0a0c1c2ed5f5369130a27fd44ee273013091ad27c2b1af9768fc961",
+      "sha256": "49517d666fcd8d960ae550ffa75aa13893cc9e0941c784f2c710ff3bcabb95bd",
       "size_bytes": 1956
     },
     "sim/validation/cfast/r0_hall_window_360_masses.csv": {
-      "sha256": "fc504a7cf827a8c2f986048eca820a0464b3049bf462040aff79c82a458cbe2b",
+      "sha256": "cce693b6b547830044b3ec9d495af9d7a6a913866588da8c9335cc1a5ee2068b",
       "size_bytes": 40413
     },
     "sim/validation/cfast/r0_hall_window_360_top20_compartments.csv": {
-      "sha256": "1b9e02961852d96dbf66e0bbfdde45209cab26af870e08e2d7ce8cc365d60c55",
+      "sha256": "7255c768342c25668e72becf248f726bfa33a764b0906431bd9c84f5166d0c49",
       "size_bytes": 53894
     },
     "sim/validation/cfast/r0_hall_window_360_top20_devices.csv": {
-      "sha256": "bc62523cf0a0c1c2ed5f5369130a27fd44ee273013091ad27c2b1af9768fc961",
+      "sha256": "49517d666fcd8d960ae550ffa75aa13893cc9e0941c784f2c710ff3bcabb95bd",
       "size_bytes": 1956
     },
     "sim/validation/cfast/r0_hall_window_360_top20_masses.csv": {
-      "sha256": "097163c8b1b7015793a440456df97b6c474ac3fe4de91568026b9dfba3508705",
+      "sha256": "3ef51346ba456fb6375a53631af4ae344c0614bc82d376391ec6a013f424b460",
       "size_bytes": 40413
     },
     "sim/validation/cfast/r0_hall_window_360_top20_vents.csv": {
-      "sha256": "929a5f0ef4397889c415db223c69201f4fdc2f70d88d9041aec0cd7da3d1b8cd",
+      "sha256": "24f17dd648c993127eb20b189764d4c5742cda8a5075b8b44597a4e3540eda5f",
       "size_bytes": 8138
     },
     "sim/validation/cfast/r0_hall_window_360_top20_walls.csv": {
-      "sha256": "7fb3bd82a93cf13c7be158628ebaf6aa1ce84d643c059a332925c865626762e8",
+      "sha256": "6038c48a21e0816df68e0564664303afb4159b3c43e957978d7004bad84d430d",
       "size_bytes": 8066
     },
     "sim/validation/cfast/r0_hall_window_360_top20_zone.csv": {
-      "sha256": "9ca659660dfa13b7a64bc531cd6d802510c55d0644e978d9f167e06cebc6f97a",
+      "sha256": "a55e59be333a722e6c72f11f882f30a07ba4db365314c533d9da8e96ec7f8077",
       "size_bytes": 84930
     },
     "sim/validation/cfast/r0_hall_window_360_vents.csv": {
-      "sha256": "1a38287476d20ac9f267f943cdab81ea3fc21fb81edb2a9439fabbd47bc20714",
+      "sha256": "c934b64f4ebe8ebce343d4a7352a18ab5ebbc3062fb3b8cdc7772de437dd0176",
       "size_bytes": 8138
     },
     "sim/validation/cfast/r0_hall_window_360_walls.csv": {
-      "sha256": "6d55548db8fa13e70d92f6285bf0f7dd93ce0094e01f05d88c2afbb14a0fc150",
+      "sha256": "1e424c77d766ef1405929342f2731e4846d5722ec8c915c5a5b09dc1d2e060a6",
       "size_bytes": 8066
     },
     "sim/validation/cfast/r0_hall_window_360_zone.csv": {
-      "sha256": "70e9c008de60f8e69148296dd3494572280b52323e768800022f642d0d2a4de9",
+      "sha256": "dbcd5eb2c78a72d90f4ff2a674999fafb132701c5331d2104b16daefc74e1533",
       "size_bytes": 84930
     }
   }

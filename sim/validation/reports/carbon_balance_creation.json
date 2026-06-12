@@ -14,7 +14,11 @@
 		}
 	},
 	"case": "carbon_balance_creation",
+	"comparison_contract_version": 1,
 	"duration_s": 3.0,
+	"engine_mode": "two-zone",
+	"fire_o2_mode": "legacy",
+	"fire_o2_mode_requested": "legacy",
 	"metrics": {
 		"carbon_event_0_time_s": 1.0,
 		"conservation_max_violation_frac": -1.0,
@@ -32,13 +36,17 @@
 		"peak_hrr_kw_global": 0.0,
 		"peak_temp_upper_c_global": 20.0,
 		"peak_temp_upper_raw_c_global": 20.0,
+		"phase3_pressure_canonical_enabled": 1.0,
 		"smoke_deposited_total_kg": 0.0,
 		"smoke_generated_total_kg": 0.0,
 		"smoke_vented_total_kg": 0.0,
 		"suppression_cooling_total_kj": 0.0,
 		"suppression_water_applied_l": 0.0,
+		"two_zone_opening_flow_enabled": 1.0,
+		"two_zone_solver_enabled": 1.0,
 		"watched_temp_upper_clamp_count": 0,
 		"watched_temp_upper_clamp_time_s": 0.0
 	},
-	"sim_time_s": 3.0
+	"sim_time_s": 3.0,
+	"two_zone_v1_profile": true
 }
