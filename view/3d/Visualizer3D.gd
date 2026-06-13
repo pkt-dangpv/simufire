@@ -2029,15 +2029,16 @@ func _update_smoke_volume(
 	var density_t: float = float(target_optics.get("density_t", 0.0))
 	var layer_depth_t: float = float(target_optics.get("layer_depth_t", 0.0))
 	var mass_t: float = float(target_optics.get("mass_t", 0.0))
-	var alpha_cap: float = 0.96 if _first_person_overlay else 0.76
+	var alpha_cap: float = 0.86 if _first_person_overlay else 0.70
+	var alpha_floor: float = 0.055 if target_depth_m > smoke_min_visible_depth_m else 0.0
 	var alpha: float = clampf(
-		smoke_color.a * 0.38
+		smoke_color.a * 0.22
 			+ mass_t * (0.30 if _first_person_overlay else 0.22)
-			+ density_t * (0.34 if _first_person_overlay else 0.28)
-			+ visibility_t * (0.42 if _first_person_overlay else 0.30)
-			+ layer_depth_t * (0.20 if _first_person_overlay else 0.14)
+			+ density_t * (0.30 if _first_person_overlay else 0.25)
+			+ visibility_t * (0.36 if _first_person_overlay else 0.28)
+			+ layer_depth_t * (0.16 if _first_person_overlay else 0.12)
 			+ hrr_smoke_t * smoke_hrr_alpha_boost * 0.96,
-		0.12,
+		alpha_floor,
 		alpha_cap
 	)
 	item["smoke_physics_depth_m"] = target_depth_m
@@ -2067,12 +2068,12 @@ func _update_smoke_volume(
 		and (not _first_person_overlay or show_smoke_puffs_in_first_person)
 	node.visible = smoke_geometry_visible
 	if edge_node != null:
-		edge_node.visible = smoke_geometry_visible
+		edge_node.visible = false
 	var current_optics: Dictionary = _smoke_optical_terms(rect, height_m, current_depth_m, smoke_kg, visibility_m, hrr_smoke_t)
 	var smoke_light_transmission: float = _smoke_light_transmission_from_terms(current_optics)
 	item["smoke_light_transmission"] = smoke_light_transmission
 	var mask_alpha: float = clampf(
-		0.05 + float(current_optics.get("optical_t", 0.0)) * smoke_ceiling_mask_max_alpha,
+		0.025 + float(current_optics.get("optical_t", 0.0)) * smoke_ceiling_mask_max_alpha * (0.86 if _first_person_overlay else 1.0),
 		0.0,
 		smoke_ceiling_mask_max_alpha
 	)
@@ -2119,15 +2120,7 @@ func _update_smoke_volume(
 		node.position = _room_center(rect, visual_bottom_m + render_depth_m * 0.5, floor_level_m)
 
 		if edge_node != null:
-			var edge_height_m: float = 0.22 if _first_person_overlay else 0.090
-			var edge_mesh := edge_node.mesh as BoxMesh
-			if edge_mesh != null:
-				edge_mesh.size = Vector3(room_smoke_width_m, edge_height_m, room_smoke_depth_m) * meters_to_units
-			edge_node.position = _room_center(rect, visual_bottom_m + edge_height_m * 0.5, floor_level_m)
-			var edge_shader := edge_node.material_override as ShaderMaterial
-			if edge_shader != null:
-				var edge_alpha: float = clampf(alpha * (0.82 if _first_person_overlay else 0.42), 0.06, 0.58)
-				_apply_smoke_edge_shader(edge_shader, edge_alpha, edge_height_m, hrr_smoke_t)
+			edge_node.visible = false
 
 	var puffs_root := item.get("smoke_puffs_root") as Node3D
 	if puffs_root != null:
@@ -2272,15 +2265,15 @@ func _apply_smoke_volume_shader(
 	hrr_smoke_t: float,
 	render_depth_m: float
 ) -> void:
-	var volume_alpha_scale: float = 2.80 if _first_person_overlay else 1.42
+	var volume_alpha_scale: float = 2.10 if _first_person_overlay else 1.32
 	var volume_density: float = clampf(
-		1.05 + alpha * 2.30 + visibility_t * 0.46,
-		0.92,
-		2.40
+		0.92 + alpha * 1.90 + visibility_t * 0.38,
+		0.78,
+		2.05
 	) if _first_person_overlay else clampf(
-		0.72 + alpha * 1.78 + visibility_t * 0.26,
-		0.58,
-		1.62
+		0.66 + alpha * 1.62 + visibility_t * 0.24,
+		0.52,
+		1.48
 	)
 	_set_smoke_shader_params(smoke_mat, {
 		"smoke_color": Color(smoke_color.r, smoke_color.g, smoke_color.b, clampf(alpha * volume_alpha_scale, 0.0, 0.98)),
@@ -2288,11 +2281,11 @@ func _apply_smoke_volume_shader(
 		"turbulence": clampf(0.58 + hrr_smoke_t * 0.34, 0.50, 0.95),
 		"drift_speed": 0.045 + hrr_smoke_t * 0.13,
 		"volume_depth_m": maxf(render_depth_m, 0.05),
-		"edge_softness": lerpf(0.16, 0.30, hrr_smoke_t) if _first_person_overlay else lerpf(0.12, 0.24, hrr_smoke_t),
-		"bottom_waviness": lerpf(0.08, 0.22, hrr_smoke_t) if _first_person_overlay else lerpf(0.05, 0.18, hrr_smoke_t),
-		"edge_band_strength": 1.05 if _first_person_overlay else 0.70,
+		"edge_softness": lerpf(0.28, 0.48, hrr_smoke_t) if _first_person_overlay else lerpf(0.22, 0.38, hrr_smoke_t),
+		"bottom_waviness": lerpf(0.16, 0.34, hrr_smoke_t) if _first_person_overlay else lerpf(0.12, 0.28, hrr_smoke_t),
+		"edge_band_strength": 0.24 if _first_person_overlay else 0.20,
 		"side_visibility": 0.0 if _first_person_overlay else 0.34,
-		"bottom_surface_strength": 0.92 if _first_person_overlay else 0.66,
+		"bottom_surface_strength": 0.46 if _first_person_overlay else 0.38,
 		"top_visibility": 0.08 if _first_person_overlay else 0.03,
 		"vertical_gradient_strength": 0.82 if _first_person_overlay else 0.90,
 		"lower_density_floor": 0.18 if _first_person_overlay else 0.10,

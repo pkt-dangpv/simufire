@@ -167,9 +167,9 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 
 @export_group("FP HUD Layout")
 ## Rect del panel superior de estado FP. x/y son offsets desde su ancla; w/h son tamaño.
-@export var fp_status_panel_rect: Rect2 = Rect2(430.0, 18.0, 360.0, 66.0)
-## Rect del panel técnico. Usa ancla inferior izquierda; y suele ser negativo para subirlo desde el borde inferior.
-@export var technical_overlay_panel_rect: Rect2 = Rect2(18.0, -178.0, 212.0, 160.0)
+@export var fp_status_panel_rect: Rect2 = Rect2(18.0, 18.0, 360.0, 66.0)
+## Rect del panel técnico. Usa ancla superior izquierda para no pisar controles inferiores.
+@export var technical_overlay_panel_rect: Rect2 = Rect2(18.0, 92.0, 212.0, 160.0)
 ## Rect del readout compacto de visibilidad. Usa ancla inferior izquierda.
 @export var visibility_readout_panel_rect: Rect2 = Rect2(18.0, -70.0, 178.0, 46.0)
 ## Rect del prompt de interacción central.
@@ -497,7 +497,7 @@ func apply_hud_layout() -> void:
 		_fp_status_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		_apply_panel_rect(_fp_status_panel, fp_status_panel_rect)
 	if _technical_overlay_panel != null:
-		_technical_overlay_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+		_technical_overlay_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		_apply_panel_rect(_technical_overlay_panel, technical_overlay_panel_rect)
 	if _visibility_readout_panel != null:
 		_visibility_readout_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -2985,9 +2985,10 @@ func _update_status_hud() -> void:
 				visibility_label = _format_fp_visibility(float(smoke_view.get("fp_visibility_m", room_state.get("visibility_m", 30.0))))
 				_update_technical_overlay(room_state, smoke_view)
 				has_data = true
-	_fp_status_label.text = "FP | %s | %s\nESC salir | F usar | CTRL postura" % [
+	_fp_status_label.text = "FP | %s | %s | %s\nESC salir | F usar | CTRL postura" % [
 		room_label,
-		_stance_label()
+		_stance_label(),
+		visibility_label
 	]
 	var technical_visible: bool = show_technical_overlay and has_data
 	if _technical_overlay_panel != null:

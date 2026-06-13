@@ -31,29 +31,23 @@ static func compute(
 	var upper_depth_m: float = maxf(0.05, room_height_m - smoke_layer_m)
 	var upper_volume_m3: float = maxf(0.05, room_rect.size.x * room_rect.size.y * upper_depth_m)
 	var smoke_density_t: float = clampf((smoke_kg / upper_volume_m3) / 0.018, 0.0, 1.0)
-	var layer_distance_to_eye_m: float = smoke_layer_m - eye_height_m
-	var layer_proximity: float = clampf(
-		(layer_transition_m * 1.8 - layer_distance_to_eye_m) / (layer_transition_m * 1.8),
-		0.0,
-		1.0
-	)
-	var optical_block: float = maxf(immersion, layer_proximity)
+	var optical_block: float = immersion
 	var alpha_from_visibility: float = clampf(
 		(visibility_reference_m - visibility_m) / visibility_reference_m,
 		0.0,
 		0.86
 	)
-	var alpha_from_density: float = clampf(smoke_density_t * 0.58, 0.0, 0.62)
-	var alpha_from_mass: float = clampf(smoke_kg / 3.0, 0.0, 0.28)
-	var alpha_from_layer: float = (0.24 + smoke_density_t * 0.54) * optical_block
-	var alpha_from_optics: float = alpha_from_visibility * lerpf(0.22, 1.0, optical_block)
+	var alpha_from_density: float = clampf(smoke_density_t * lerpf(0.18, 0.64, immersion), 0.0, 0.62)
+	var alpha_from_mass: float = clampf(smoke_kg / 3.0, 0.0, 0.24)
+	var alpha_from_layer: float = (0.18 + smoke_density_t * 0.58) * immersion
+	var alpha_from_optics: float = alpha_from_visibility * lerpf(0.10, 1.0, optical_block)
 	var heat_tint: float = clampf((upper_temp_c - 80.0) / 420.0, 0.0, 1.0)
 	var alpha: float = clampf(
 		maxf(maxf(alpha_from_optics, alpha_from_density * lerpf(0.18, 1.0, optical_block)), maxf(alpha_from_layer, alpha_from_mass * optical_block)),
 		0.0,
 		max_alpha
 	)
-	var display_block: float = clampf(maxf(optical_block, smoke_density_t * 0.18), 0.0, 1.0)
+	var display_block: float = clampf(maxf(optical_block, smoke_density_t * 0.34 * immersion), 0.0, 1.0)
 	var fp_visibility_m: float = lerpf(max_visibility_m, visibility_m, display_block)
 	return {
 		"overlay_alpha": alpha,

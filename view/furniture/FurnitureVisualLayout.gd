@@ -79,23 +79,31 @@ static func _kitchen_spec(room_size: Vector2, spec: Dictionary, tokens: String) 
 static func _living_room_spec(room_size: Vector2, spec: Dictionary, tokens: String) -> Dictionary:
 	var w: float = maxf(0.1, room_size.x)
 	var d: float = maxf(0.1, room_size.y)
+	var room_area_m2: float = w * d
+	var large_room_t: float = clampf((room_area_m2 - 20.0) / 24.0, 0.0, 1.0)
 	if _has_any(tokens, ["sofa", "sofá", "couch"]):
-		_set_pose(spec, Vector2(0.38, clampf(d - 1.28, 1.20, d - 0.92)), Vector2(minf(2.35, w - 1.10), 0.86), 0.0, "sofa")
+		var sofa_w: float = minf(lerpf(2.35, 3.20, large_room_t), w - 1.10)
+		var sofa_d: float = minf(lerpf(0.86, 1.02, large_room_t), d - 1.15)
+		_set_pose(spec, Vector2(0.38, clampf(d - sofa_d - 0.42, 1.20, d - sofa_d - 0.16)), Vector2(sofa_w, sofa_d), 0.0, "sofa")
 		return spec
 	if _has_any(tokens, ["mesa centro", "coffee"]):
-		_set_pose(spec, Vector2(clampf(w * 0.43, 1.35, w - 1.45), clampf(d * 0.48, 1.10, d - 1.30)), Vector2(1.10, 0.62), 0.0, "coffee_table")
+		var table_size := Vector2(lerpf(1.10, 1.55, large_room_t), lerpf(0.62, 0.82, large_room_t))
+		_set_pose(spec, Vector2(clampf(w * 0.43, 1.35, w - table_size.x - 0.45), clampf(d * 0.48, 1.10, d - table_size.y - 0.58)), table_size, 0.0, "coffee_table")
 		return spec
 	if _has_any(tokens, ["mueble tv", "tv"]):
-		_set_pose(spec, Vector2(0.35, 0.24), Vector2(minf(1.55, w - 0.90), 0.34), 0.0, "tv_stand")
+		_set_pose(spec, Vector2(0.35, 0.24), Vector2(minf(lerpf(1.55, 2.35, large_room_t), w - 0.90), 0.38), 0.0, "tv_stand")
 		return spec
 	if _has_any(tokens, ["libreria", "librería", "bookcase", "shelf"]):
-		_set_pose(spec, Vector2(clampf(w - 1.55, 1.20, w - 1.20), maxf(0.24, d - 0.46)), Vector2(1.05, 0.32), 180.0, "bookcase")
+		var shelf_w: float = minf(lerpf(1.05, 1.75, large_room_t), w - 0.90)
+		_set_pose(spec, Vector2(clampf(w - shelf_w - 0.38, 1.20, w - shelf_w - 0.16), maxf(0.24, d - 0.48)), Vector2(shelf_w, 0.34), 180.0, "bookcase")
 		return spec
 	if _has_any(tokens, ["alfombra", "rug", "textil"]):
-		_set_pose(spec, Vector2(clampf(w * 0.28, 0.85, w - 2.80), clampf(d * 0.35, 0.85, d - 1.70)), Vector2(minf(2.35, w - 1.30), minf(1.35, d - 1.40)), 0.0, "rug")
+		var rug_size := Vector2(minf(lerpf(2.35, 3.45, large_room_t), w - 1.30), minf(lerpf(1.35, 2.05, large_room_t), d - 1.40))
+		_set_pose(spec, Vector2(clampf(w * 0.28, 0.85, w - rug_size.x - 0.45), clampf(d * 0.35, 0.85, d - rug_size.y - 0.35)), rug_size, 0.0, "rug")
 		return spec
 	if _has_any(tokens, ["sillon", "sillón", "butaca", "armchair"]):
-		_set_pose(spec, Vector2(clampf(w - 1.20, 1.80, w - 0.90), clampf(d - 1.28, 1.25, d - 0.95)), Vector2(0.72, 0.74), -25.0, "armchair")
+		var armchair_size := Vector2(lerpf(0.72, 0.84, large_room_t), lerpf(0.74, 0.86, large_room_t))
+		_set_pose(spec, Vector2(clampf(w - armchair_size.x - 0.48, 1.80, w - armchair_size.x - 0.18), clampf(d - armchair_size.y - 0.48, 1.25, d - armchair_size.y - 0.18)), armchair_size, -25.0, "armchair")
 		return spec
 	if _has_any(tokens, ["aparador", "dresser", "storage"]):
 		_set_pose(spec, Vector2(clampf(w - 1.00, 2.20, w - 0.70), maxf(0.18, d - 0.50)), Vector2(0.66, 0.30), 0.0, "dresser")

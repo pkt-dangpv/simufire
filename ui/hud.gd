@@ -153,6 +153,9 @@ func _ready() -> void:
 	_update_hvac_button(false, false)
 	_apply_hud_visual_style()
 	_sync_shortcut_labels()
+	_apply_hud_panel_layout()
+	if get_viewport() != null:
+		_connect_once(get_viewport().size_changed, _apply_hud_panel_layout)
 
 
 func _connect_ui_signals() -> void:
@@ -230,6 +233,52 @@ func _apply_hud_visual_style() -> void:
 		button.add_theme_font_override("font", SimuFireThemeScript.title_font())
 		button.add_theme_font_size_override("font_size", action_button_font_size)
 		button.focus_mode = Control.FOCUS_NONE
+
+
+func _apply_hud_panel_layout() -> void:
+	var viewport_size: Vector2 = get_viewport_rect().size
+	var right_margin: float = 8.0
+	var panel_gap: float = 10.0
+	var panel_width: float = clampf(viewport_size.x * 0.30, 320.0, 392.0)
+	var bottom_reserved: float = 122.0
+
+	if openings_panel != null:
+		openings_panel.anchor_left = 1.0
+		openings_panel.anchor_right = 1.0
+		openings_panel.anchor_top = 1.0
+		openings_panel.anchor_bottom = 1.0
+		openings_panel.offset_left = -panel_width
+		openings_panel.offset_right = -right_margin
+		openings_panel.offset_bottom = -bottom_reserved
+		var openings_height: float = maxf(openings_panel_min_height_px, openings_panel.offset_bottom - openings_panel.offset_top)
+		openings_panel.offset_top = openings_panel.offset_bottom - openings_height
+
+	if _victims_panel != null:
+		_victims_panel.anchor_left = 1.0
+		_victims_panel.anchor_right = 1.0
+		_victims_panel.anchor_top = 1.0
+		_victims_panel.anchor_bottom = 1.0
+		_victims_panel.offset_left = -panel_width
+		_victims_panel.offset_right = -right_margin
+		var victims_height: float = clampf(maxf(_victims_panel.size.y, 118.0), 96.0, 156.0)
+		var victims_bottom: float = (openings_panel.offset_top if openings_panel != null else -bottom_reserved) - panel_gap
+		_victims_panel.offset_bottom = victims_bottom
+		_victims_panel.offset_top = victims_bottom - victims_height
+
+	if _rooms_data_panel != null:
+		_rooms_data_panel.anchor_left = 1.0
+		_rooms_data_panel.anchor_right = 1.0
+		_rooms_data_panel.anchor_top = 0.0
+		_rooms_data_panel.anchor_bottom = 1.0
+		_rooms_data_panel.offset_left = -panel_width
+		_rooms_data_panel.offset_right = -right_margin
+		_rooms_data_panel.offset_top = 8.0
+		var stack_top: float = openings_panel.offset_top if openings_panel != null else -bottom_reserved
+		if _victims_panel != null and _victims_panel.visible:
+			stack_top = _victims_panel.offset_top
+		_rooms_data_panel.offset_bottom = minf(-bottom_reserved, stack_top - panel_gap)
+		if viewport_size.y + _rooms_data_panel.offset_bottom - _rooms_data_panel.offset_top < 150.0:
+			_rooms_data_panel.offset_bottom = -bottom_reserved
 
 
 func _configure_mouse_filters() -> void:
@@ -461,6 +510,7 @@ func _apply_mode_panel_visibility() -> void:
 		_rooms_data_panel.visible = not _first_person_enabled
 	if _victims_panel != null:
 		_victims_panel.visible = (not _first_person_enabled) and not _victim_rows.is_empty()
+	_apply_hud_panel_layout()
 
 
 func _ensure_first_person_button() -> void:
@@ -712,6 +762,7 @@ func _resize_openings_panel_for_count(item_count: int, columns: int) -> void:
 		openings_panel_max_height_px
 	)
 	openings_panel.offset_top = openings_panel.offset_bottom - target_height
+	_apply_hud_panel_layout()
 
 
 func _refresh_opening_controls() -> void:
