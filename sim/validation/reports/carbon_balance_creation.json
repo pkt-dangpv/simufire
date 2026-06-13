@@ -36,7 +36,7 @@
 		"peak_hrr_kw_global": 0.0,
 		"peak_temp_upper_c_global": 20.0,
 		"peak_temp_upper_raw_c_global": 20.0,
-		"phase3_pressure_canonical_enabled": 1.0,
+		"phase3_pressure_canonical_enabled": 0.0,
 		"smoke_deposited_total_kg": 0.0,
 		"smoke_generated_total_kg": 0.0,
 		"smoke_vented_total_kg": 0.0,

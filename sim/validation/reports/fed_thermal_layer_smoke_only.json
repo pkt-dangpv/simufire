@@ -92,7 +92,7 @@
 		"peak_hrr_kw_global": 0.0,
 		"peak_temp_upper_c_global": 20.0,
 		"peak_temp_upper_raw_c_global": 20.0,
-		"phase3_pressure_canonical_enabled": 1.0,
+		"phase3_pressure_canonical_enabled": 0.0,
 		"room_0_final_bud_cum_e_fire_kj": 0.0,
 		"room_0_final_bud_cum_q_residual_kj": 0.0,
 		"room_0_final_bud_cum_residual_frac": 0.0,

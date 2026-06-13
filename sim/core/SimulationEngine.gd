@@ -730,7 +730,7 @@ var _step_time_us: int = 0
 # R2-1: ambas flags activadas por default como parte del perfil TwoZoneV1.
 @export var phase3_thermodynamic_pressure_enabled: bool = true
 # Usa pressure_pa_therm como presión canónica para venting/doorways.
-@export var phase3_pressure_canonical_enabled: bool = true
+@export var phase3_pressure_canonical_enabled: bool = false
 @export var phase3_leak_area_m2: float = 0.0
 @export var phase3_chi_conv: float = 0.70
 

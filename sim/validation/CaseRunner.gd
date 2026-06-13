@@ -463,7 +463,9 @@ func _configure_validation_two_zone_v1_profile() -> bool:
 		return false
 	_cli_args["validation_engine_mode"] = "two-zone"
 	_cli_args["validation_two_zone_opening_flow"] = true
-	_cli_args["validation_canonical_pressure"] = true
+	# phase3_pressure_canonical_enabled stays at engine default (false) — the ODE
+	# pressure source term only relieves via ACH infiltration, not doorway areas,
+	# so canonical mode accumulates 100k+ Pa and corrupts all gas-flow checks.
 	return true
 
 
