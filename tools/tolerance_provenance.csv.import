@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://c6twfx1au512j"
+
+[deps]
+
+files=["res://tools/tolerance_provenance.required.translation", "res://tools/tolerance_provenance.pass.translation", "res://tools/tolerance_provenance.category.translation", "res://tools/tolerance_provenance.reason.translation", "res://tools/tolerance_provenance.actual.translation", "res://tools/tolerance_provenance.expected.translation", "res://tools/tolerance_provenance.tolerance.translation", "res://tools/tolerance_provenance.minimum.translation", "res://tools/tolerance_provenance.maximum.translation", "res://tools/tolerance_provenance.diff.translation", "res://tools/tolerance_provenance.tol.translation", "res://tools/tolerance_provenance.note.translation"]
+
+source_file="res://tools/tolerance_provenance.csv"
+dest_files=["res://tools/tolerance_provenance.required.translation", "res://tools/tolerance_provenance.pass.translation", "res://tools/tolerance_provenance.category.translation", "res://tools/tolerance_provenance.reason.translation", "res://tools/tolerance_provenance.actual.translation", "res://tools/tolerance_provenance.expected.translation", "res://tools/tolerance_provenance.tolerance.translation", "res://tools/tolerance_provenance.minimum.translation", "res://tools/tolerance_provenance.maximum.translation", "res://tools/tolerance_provenance.diff.translation", "res://tools/tolerance_provenance.tol.translation", "res://tools/tolerance_provenance.note.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

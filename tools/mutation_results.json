@@ -1,0 +1,47 @@
+{
+  "baseline_required_checks": 381,
+  "cases_tested": [
+    "cfast_r0_window_360",
+    "cfast_single_room_closed",
+    "cfast_two_room_door_open",
+    "cfast_corridor_chain",
+    "cfast_bedroom_closed_door",
+    "cfast_hvac_residential",
+    "cfast_window_break_t180",
+    "cfast_fast_growth_closed",
+    "ghanekar_bedroom_hallway",
+    "v2_sealed_room_o2_depletion",
+    "v4_co_remote_rooms",
+    "pu_sofa_fec_incapacitation",
+    "victim_fed_incapacitation",
+    "c_balance_high_phi",
+    "confinement_open_close",
+    "energy_budget_living_room",
+    "cfast_two_floor_stairwell"
+  ],
+  "mutants": {
+    "M-HRR": {
+      "killed": false,
+      "required_checks_evaluated": 0,
+      "checks_failed_by_mutation": 0,
+      "kill_rate": 0.0,
+      "godot_runs_ok": 17,
+      "godot_runs_fail": 0,
+      "godot_runs_timeout": 0,
+      "failed_check_names": []
+    },
+    "M-YHCN": {
+      "killed": false,
+      "required_checks_evaluated": 0,
+      "checks_failed_by_mutation": 0,
+      "kill_rate": 0.0,
+      "godot_runs_ok": 17,
+      "godot_runs_fail": 0,
+      "godot_runs_timeout": 0,
+      "failed_check_names": []
+    }
+  },
+  "kill_rate_global": 0.0,
+  "killed_count": 0,
+  "total_mutants": 2
+}
