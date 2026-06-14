@@ -261,7 +261,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		# • fire_o2_mode = "legacy" (selección automática por interfaz, no explícita)
 		# • bi-zona válida (lower_frac ≥ 0.15)
 		# • interfaz por encima de la base de llama (hot_h_upper ≥ 0.3 m)
-		# • habitación sin ventilación significativa al exterior (sellada)
+		# • habitación realmente sellada: sin ventilación al exterior NI por puertas interiores
+		#   (puertas interiores abiertas suministran O₂ de habitaciones adyacentes y
+		#    evitan el doble consumo que el modo produce en salas comunicadas).
 		# En este modo el consumo va de o2_lower directamente; room.o2 se recalcula
 		# como mezcla ponderada al final del bloque — evita el doble consumo.
 		var plume_lower_mode: bool = (
@@ -270,7 +272,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			hot_h_upper >= 0.3 and
 			not fire_uses_lower_o2 and
 			room.hrr_kw > 0.0 and
-			_estimate_room_outside_open_factor(building, room) <= 0.01
+			_estimate_room_outside_open_factor(building, room) <= 0.01 and
+			_estimate_room_interior_open_factor(building, room) <= 0.01
 		)
 
 		# ── room.o2: variable de estado ──────────────────────────────────────────────
