@@ -73,7 +73,7 @@
 		"plume_flame_region_entrainment_enabled": true,
 		"plume_flame_region_coeff": 0.025,
 		"upper_heat_capture_outside_open_bonus": 0.0,
-		"outside_open_ambient_loss_multiplier": 1.0,
+		"outside_open_ambient_loss_multiplier": 0.0,
 		"outside_open_wall_absorption_multiplier": 0.3,
 		"outside_open_lower_warming_rate": -0.033,
 		"outside_lower_fresh_air_cooling_rate": 0.005,

@@ -1,7 +1,7 @@
 {
   "all_required_pass": false,
   "required_count": 303,
-  "failed_required_count": 34,
+  "failed_required_count": 33,
   "known_gap_count": 137,
   "checks": [
     {
@@ -2723,13 +2723,13 @@
     },
     {
       "name": "cfast_winbreak_t300_temp_upper_c",
-      "actual": 189.36,
+      "actual": 201.06,
       "expected": null,
       "tolerance": null,
       "minimum": 200.0,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "CMV-3 Stage-C: post-break temp_upper > 200\u00b0C at t=300s (CFAST=347\u00b0C, SimuFire=314\u00b0C). Window-break sustained-fire guard."
     },
     {
@@ -2745,7 +2745,7 @@
     },
     {
       "name": "cfast_winbreak_hrr_grows_after_break",
-      "actual": 626.5,
+      "actual": 626.7,
       "expected": null,
       "tolerance": null,
       "minimum": 0.0,
@@ -2756,7 +2756,7 @@
     },
     {
       "name": "cfast_winbreak_t300_pressure_pa",
-      "actual": 130603.71,
+      "actual": 130607.51,
       "expected": null,
       "tolerance": null,
       "minimum": null,
