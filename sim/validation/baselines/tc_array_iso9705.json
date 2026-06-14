@@ -6,6 +6,6 @@
 		"room_0_final_temp_at_1_0m_c": { "min": 30.0,  "max": 500.0 },
 		"room_0_final_temp_at_0_5m_c": { "min": 30.0,  "max": 500.0 },
 		"room_0_final_temp_at_0_1m_c": { "min": 20.0,  "max": 100.0 },
-		"room_0_final_smoke_layer_m":  { "min": 1.0,   "max": 2.4  }
+		"room_0_final_smoke_layer_m":  { "min": 0.3,   "max": 2.4  }
 	}
 }

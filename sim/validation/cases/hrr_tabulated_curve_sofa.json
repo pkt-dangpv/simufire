@@ -43,6 +43,9 @@
 			]
 		}
 	],
+	"opening_overrides": [
+		{"a": 0, "b": 1, "type": "door", "open_fraction": 0.0}
+	],
 	"engine_overrides": {
 		"time_scale": 5.0,
 		"fire_spread_enabled": false,

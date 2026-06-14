@@ -35,6 +35,7 @@
 			"after_time_s": 170.0
 		}
 	],
+	"validation_fire_o2_mode": "upper",
 	"engine_overrides": {
 		"time_scale": 5.0,
 		"fire_alpha_kw_s2": 0.12,

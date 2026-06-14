@@ -5,8 +5,8 @@
             "_note": "Victima 0.9m sala fuego PU: FED ~0.98 a los 800s; confirma acumulacion FED via compute_fed_delta_for_height"
         },
         "room_0_peak_hrr_kw": {
-            "expected": 682.185520419288,
-            "tolerance": 200.0
+            "min": 2000.0,
+            "_note": "Casa conectada con puerta interior abierta — fuego libre hasta flashover. Check primario es victim_v0_final_fed."
         },
         "peak_co_ppm_global": {
             "min": 1500.0,

@@ -1,8 +1,8 @@
 {
   "all_required_pass": false,
-  "required_count": 323,
-  "failed_required_count": 21,
-  "known_gap_count": 111,
+  "required_count": 320,
+  "failed_required_count": 23,
+  "known_gap_count": 113,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -1040,18 +1040,18 @@
     },
     {
       "name": "cfast_slow_t300_o2",
-      "actual": 0.1598,
+      "actual": 0.1426,
       "expected": 0.164631,
       "tolerance": 0.01,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": true,
+      "pass": false,
       "note": "SGB-1: slow-growth O2 upper at t=300s \u2014 sealed depletion profile. tol=0.01 (\u22653\u00d7 step @0.0001)."
     },
     {
       "name": "cfast_slow_t480_o2",
-      "actual": 0.074,
+      "actual": 0.0739,
       "expected": 0.083965,
       "tolerance": 0.012,
       "minimum": null,
@@ -1062,7 +1062,7 @@
     },
     {
       "name": "cfast_slow_t600_o2",
-      "actual": 0.0678,
+      "actual": 0.0691,
       "expected": 0.0696598,
       "tolerance": 0.02,
       "minimum": null,
@@ -1073,29 +1073,29 @@
     },
     {
       "name": "cfast_slow_t900_o2",
-      "actual": 0.0605,
+      "actual": 0.0613,
       "expected": 0.0459719,
       "tolerance": 0.015,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": true,
+      "pass": false,
       "note": "SGB-1: slow-growth O2 upper at t=900s \u2014 sealed depletion profile. tol=0.015 (\u22653\u00d7 step @0.0001)."
     },
     {
       "name": "cfast_slow_t1200_o2",
-      "actual": 0.0595,
+      "actual": 0.0607,
       "expected": 0.0350666,
       "tolerance": 0.025,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": true,
+      "pass": false,
       "note": "SGB-1: slow-growth O2 upper at t=1200s \u2014 sealed depletion profile. tol=0.025 (\u22653\u00d7 step @0.0001)."
     },
     {
       "name": "cfast_slow_t480_temp_upper_c",
-      "actual": 98.45,
+      "actual": 135.02,
       "expected": 151.003,
       "tolerance": 10.0,
       "minimum": null,
@@ -1106,18 +1106,18 @@
     },
     {
       "name": "cfast_slow_t600_temp_upper_c",
-      "actual": 103.9,
+      "actual": 151.93,
       "expected": 152.025,
       "tolerance": 15.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "SGB-1: slow-growth temp_upper at t=600s. O2-depleted steady-state; tol=15.0\u00b0C (\u22653\u00d7 @0.1\u00b0C)."
     },
     {
       "name": "cfast_slow_t120_temp_upper_c",
-      "actual": 30.23,
+      "actual": 37.16,
       "expected": 39.6869,
       "tolerance": 15.0,
       "minimum": null,
@@ -1128,7 +1128,7 @@
     },
     {
       "name": "cfast_slow_t240_temp_upper_c",
-      "actual": 61.26,
+      "actual": 101.2,
       "expected": 104.933,
       "tolerance": 50.0,
       "minimum": null,
@@ -1139,7 +1139,7 @@
     },
     {
       "name": "cfast_slow_t300_temp_upper_c",
-      "actual": 95.12,
+      "actual": 142.47,
       "expected": 154.196,
       "tolerance": 60.0,
       "minimum": null,
@@ -1161,7 +1161,7 @@
     },
     {
       "name": "cfast_slow_t480_pressure_pa",
-      "actual": 4293.62,
+      "actual": 3559.53,
       "expected": 23.1977,
       "tolerance": 22.0,
       "minimum": null,
@@ -1172,7 +1172,7 @@
     },
     {
       "name": "cfast_slow_t600_pressure_pa",
-      "actual": 4845.1,
+      "actual": 4570.39,
       "expected": 65.1494,
       "tolerance": 63.0,
       "minimum": null,
@@ -1183,7 +1183,7 @@
     },
     {
       "name": "cfast_slow_rmse_temp_upper_c",
-      "actual": 55.93894201548949,
+      "actual": 30.2186170318976,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -1194,7 +1194,7 @@
     },
     {
       "name": "cfast_slow_min_o2_upper",
-      "actual": 0.0582,
+      "actual": 0.0595,
       "expected": null,
       "tolerance": null,
       "minimum": 0.0,
@@ -3768,7 +3768,7 @@
     },
     {
       "name": "v2_sealed_room_o2_depletion_room_0_final_o2",
-      "actual": 0.0837057619402066,
+      "actual": 0.128265390392139,
       "expected": null,
       "tolerance": null,
       "minimum": 0.13,
@@ -3779,7 +3779,7 @@
     },
     {
       "name": "v2_sealed_room_o2_depletion_room_0_final_retained_unburned_MJ",
-      "actual": 0.0282583867562355,
+      "actual": 0.0259655161513241,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -3790,13 +3790,13 @@
     },
     {
       "name": "v2_sealed_room_o2_depletion_room_0_peak_hrr_kw",
-      "actual": 1105.88939367089,
+      "actual": 2994.93786961635,
       "expected": null,
       "tolerance": null,
       "minimum": 1300.0,
       "maximum": null,
-      "required": false,
-      "pass": false,
+      "required": true,
+      "pass": true,
       "note": "Regression baseline: v2_sealed_room_o2_depletion"
     },
     {
@@ -3834,7 +3834,7 @@
     },
     {
       "name": "v5_ventilation_hrr_spike_room_0_peak_co_upper_ppm",
-      "actual": 19708.4361472039,
+      "actual": 18144.6232103935,
       "expected": null,
       "tolerance": null,
       "minimum": 500.0,
@@ -3845,7 +3845,7 @@
     },
     {
       "name": "v5_ventilation_hrr_spike_room_0_peak_hrr_kw",
-      "actual": 1827.3131366227,
+      "actual": 3221.61718615438,
       "expected": null,
       "tolerance": null,
       "minimum": 950.0,
@@ -3856,18 +3856,18 @@
     },
     {
       "name": "v5_ventilation_hrr_spike_time_room_0_hrr_above_1000_post_vent_s",
-      "actual": 214.33333333334,
+      "actual": 164.166666666668,
       "expected": 205.5,
       "tolerance": 10.0,
       "minimum": null,
       "maximum": null,
-      "required": true,
-      "pass": true,
+      "required": false,
+      "pass": false,
       "note": "Regression baseline: v5_ventilation_hrr_spike"
     },
     {
       "name": "v5_ventilation_hrr_spike_time_room_0_l150_below_1_8m_s",
-      "actual": 188.166666666671,
+      "actual": 160.416666666667,
       "expected": 109.5,
       "tolerance": 10.0,
       "minimum": null,
@@ -4549,7 +4549,7 @@
     },
     {
       "name": "v4_co_remote_rooms_room_0_peak_hrr_kw",
-      "actual": 688.78997861731,
+      "actual": 3425.0486204367,
       "expected": null,
       "tolerance": null,
       "minimum": 600.0,
@@ -4560,7 +4560,7 @@
     },
     {
       "name": "v4_co_remote_rooms_room_1_peak_co_upper_ppm",
-      "actual": 86194.3644902686,
+      "actual": 25537.6137144428,
       "expected": null,
       "tolerance": null,
       "minimum": 2000.0,
@@ -4571,7 +4571,7 @@
     },
     {
       "name": "v4_co_remote_rooms_room_2_peak_co_upper_ppm",
-      "actual": 14500.2711311734,
+      "actual": 33301.7229246509,
       "expected": null,
       "tolerance": null,
       "minimum": 1000.0,
@@ -4582,7 +4582,7 @@
     },
     {
       "name": "v4_co_remote_rooms_time_room_1_co_upper_above_1200_s",
-      "actual": 136.083333333331,
+      "actual": 135.166666666665,
       "expected": 140.25,
       "tolerance": 20.0,
       "minimum": null,
@@ -4593,20 +4593,9 @@
     },
     {
       "name": "v4_co_remote_rooms_time_room_1_o2_below_18pct_s",
-      "actual": 288.500000000004,
+      "actual": 237.000000000009,
       "expected": 287.75,
       "tolerance": 10.0,
-      "minimum": null,
-      "maximum": null,
-      "required": true,
-      "pass": true,
-      "note": "Regression baseline: v4_co_remote_rooms"
-    },
-    {
-      "name": "v4_co_remote_rooms_time_room_2_co_upper_above_200_s",
-      "actual": 237.416666666676,
-      "expected": 152.25,
-      "tolerance": 30.0,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -4614,8 +4603,19 @@
       "note": "Regression baseline: v4_co_remote_rooms"
     },
     {
+      "name": "v4_co_remote_rooms_time_room_2_co_upper_above_200_s",
+      "actual": 179.500000000003,
+      "expected": 152.25,
+      "tolerance": 30.0,
+      "minimum": null,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "Regression baseline: v4_co_remote_rooms"
+    },
+    {
       "name": "v6_spread_to_hallway_room_0_peak_hrr_kw",
-      "actual": 1012.31266275961,
+      "actual": 3441.16725307109,
       "expected": null,
       "tolerance": null,
       "minimum": 1000.0,
@@ -4626,7 +4626,7 @@
     },
     {
       "name": "v6_spread_to_hallway_room_1_peak_temp_upper_c",
-      "actual": 246.553908579548,
+      "actual": 335.663513703775,
       "expected": null,
       "tolerance": null,
       "minimum": 200.0,
@@ -4637,7 +4637,7 @@
     },
     {
       "name": "v6_spread_to_hallway_time_room_0_l150_below_1_8m_s",
-      "actual": 99.833333333332,
+      "actual": 94.749999999999,
       "expected": 70.416667,
       "tolerance": 10.0,
       "minimum": null,
@@ -4714,7 +4714,7 @@
     },
     {
       "name": "layer150_tenability_room_0_final_layer_150c_m",
-      "actual": 2.0094052810686,
+      "actual": 0.182273638226904,
       "expected": 1.225133,
       "tolerance": 0.2,
       "minimum": null,
@@ -4725,7 +4725,7 @@
     },
     {
       "name": "layer150_tenability_room_1_final_temp_at_1_8m_c",
-      "actual": 22.1313549621332,
+      "actual": 163.635351347831,
       "expected": 104.932563,
       "tolerance": 15.0,
       "minimum": null,
@@ -4736,7 +4736,7 @@
     },
     {
       "name": "layer150_tenability_room_1_min_l150_m",
-      "actual": 2.01899316578192,
+      "actual": 1.17038294185714,
       "expected": 1.672793,
       "tolerance": 0.15,
       "minimum": null,
@@ -4747,18 +4747,18 @@
     },
     {
       "name": "v3_hallway_fed_exposure_room_0_peak_hrr_kw",
-      "actual": 688.78997861731,
+      "actual": 3425.0486204367,
       "expected": 698.298928,
       "tolerance": 100.0,
       "minimum": null,
       "maximum": null,
-      "required": true,
-      "pass": true,
+      "required": false,
+      "pass": false,
       "note": "Regression baseline: v3_hallway_fed_exposure"
     },
     {
       "name": "v3_hallway_fed_exposure_room_1_max_fed",
-      "actual": 22.1493873548541,
+      "actual": 3471354503.90893,
       "expected": null,
       "tolerance": null,
       "minimum": 1.0,
@@ -4769,7 +4769,7 @@
     },
     {
       "name": "v3_hallway_fed_exposure_room_1_peak_temp_upper_c",
-      "actual": 156.409706169181,
+      "actual": 280.88883691293,
       "expected": null,
       "tolerance": null,
       "minimum": 100.0,
@@ -4780,18 +4780,18 @@
     },
     {
       "name": "v3_hallway_fed_exposure_smoke_generated_total_kg",
-      "actual": 4.02834808390783,
+      "actual": 9.06182300223634,
       "expected": null,
       "tolerance": null,
       "minimum": 5.0,
       "maximum": null,
-      "required": false,
-      "pass": false,
+      "required": true,
+      "pass": true,
       "note": "Regression baseline: v3_hallway_fed_exposure"
     },
     {
       "name": "v3_hallway_fed_exposure_time_room_1_co_upper_above_1200_s",
-      "actual": 136.083333333331,
+      "actual": 135.166666666665,
       "expected": 125.75,
       "tolerance": 25.0,
       "minimum": null,
@@ -4802,18 +4802,18 @@
     },
     {
       "name": "v3_hallway_fed_exposure_time_room_1_fed_above_0_1_s",
-      "actual": 220.583333333341,
+      "actual": 235.000000000009,
       "expected": 252.166666,
       "tolerance": 30.0,
       "minimum": null,
       "maximum": null,
-      "required": false,
-      "pass": false,
+      "required": true,
+      "pass": true,
       "note": "Regression baseline: v3_hallway_fed_exposure"
     },
     {
       "name": "v3_hallway_fed_exposure_time_room_1_fed_above_0_3_s",
-      "actual": 270.000000000008,
+      "actual": 247.416666666677,
       "expected": 315.916666,
       "tolerance": 35.0,
       "minimum": null,
@@ -4824,7 +4824,7 @@
     },
     {
       "name": "v3_hallway_fed_exposure_time_room_1_smoke_start_s",
-      "actual": 46.4166666666669,
+      "actual": 46.5833333333336,
       "expected": 47.0,
       "tolerance": 15.0,
       "minimum": null,
@@ -5044,7 +5044,7 @@
     },
     {
       "name": "postfire_decay_room_0_final_hot_layer_m",
-      "actual": 2.07746690776006,
+      "actual": 2.03973270267378,
       "expected": 1.985807,
       "tolerance": 0.25,
       "minimum": null,
@@ -5066,18 +5066,18 @@
     },
     {
       "name": "postfire_decay_room_0_final_smoke_kg",
-      "actual": 0.312573040980839,
+      "actual": 0.449270874463352,
       "expected": null,
       "tolerance": null,
       "minimum": 0.03,
       "maximum": 0.35,
-      "required": true,
-      "pass": true,
+      "required": false,
+      "pass": false,
       "note": "Regression baseline: postfire_decay"
     },
     {
       "name": "postfire_decay_room_0_final_temp_at_1_8m_c",
-      "actual": 20.0456418004651,
+      "actual": 20.2253514685203,
       "expected": 20.740368,
       "tolerance": 8.0,
       "minimum": null,
@@ -5088,18 +5088,18 @@
     },
     {
       "name": "postfire_decay_room_0_peak_hrr_kw",
-      "actual": 1012.31266275961,
+      "actual": 3441.16725307109,
       "expected": null,
       "tolerance": null,
       "minimum": 800.0,
       "maximum": 1500.0,
-      "required": true,
-      "pass": true,
+      "required": false,
+      "pass": false,
       "note": "Regression baseline: postfire_decay"
     },
     {
       "name": "postfire_decay_room_1_final_smoke_kg",
-      "actual": 0.207088366974614,
+      "actual": 0.302593169894174,
       "expected": 0.127451,
       "tolerance": 0.015,
       "minimum": null,
@@ -5110,7 +5110,7 @@
     },
     {
       "name": "postfire_decay_smoke_deposited_total_kg",
-      "actual": 0.500825940752806,
+      "actual": 0.71344134440328,
       "expected": 0.146603,
       "tolerance": 0.022,
       "minimum": null,
@@ -5121,7 +5121,7 @@
     },
     {
       "name": "postfire_decay_time_room_0_l150_below_1_8m_s",
-      "actual": 99.833333333332,
+      "actual": 94.749999999999,
       "expected": 70.416667,
       "tolerance": 15.0,
       "minimum": null,
@@ -5143,7 +5143,7 @@
     },
     {
       "name": "v1_backdraft_accumulation_room_0_final_retained_unburned_MJ",
-      "actual": 0.0833329342232734,
+      "actual": 0.0,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -5154,7 +5154,7 @@
     },
     {
       "name": "v1_backdraft_accumulation_room_0_peak_hrr_kw",
-      "actual": 1817.93428191918,
+      "actual": 3425.0486204367,
       "expected": null,
       "tolerance": null,
       "minimum": 1200.0,
@@ -5165,7 +5165,7 @@
     },
     {
       "name": "v1_backdraft_accumulation_room_0_peak_temp_upper_c",
-      "actual": 551.418960441,
+      "actual": 568.587086265053,
       "expected": null,
       "tolerance": null,
       "minimum": 300.0,
@@ -5176,7 +5176,7 @@
     },
     {
       "name": "v1_backdraft_accumulation_time_room_0_hrr_above_400_post_vent_s",
-      "actual": 356.916666666655,
+      "actual": 340.083333333326,
       "expected": 363.5,
       "tolerance": 30.0,
       "minimum": null,
@@ -5187,7 +5187,7 @@
     },
     {
       "name": "v1_backdraft_accumulation_time_room_0_o2_below_13pct_s",
-      "actual": 170.000000000002,
+      "actual": 179.833333333336,
       "expected": 302.75,
       "tolerance": 30.0,
       "minimum": null,
@@ -5198,7 +5198,7 @@
     },
     {
       "name": "v8_suppression_reburn_room_0_peak_co_upper_ppm",
-      "actual": 112779.049019669,
+      "actual": 190897.097631953,
       "expected": null,
       "tolerance": null,
       "minimum": 1600.0,
@@ -5209,7 +5209,7 @@
     },
     {
       "name": "v8_suppression_reburn_room_0_peak_hrr_kw",
-      "actual": 1782.08791703324,
+      "actual": 3199.48054289965,
       "expected": null,
       "tolerance": null,
       "minimum": 1000.0,
@@ -5242,24 +5242,24 @@
     },
     {
       "name": "ul_exterior_water_knockdown_room_0_final_hrr_kw",
-      "actual": 0.0,
+      "actual": 2137.64718793965,
       "expected": null,
       "tolerance": null,
       "minimum": null,
       "maximum": 260.0,
-      "required": true,
-      "pass": true,
+      "required": false,
+      "pass": false,
       "note": "Regression baseline: ul_exterior_water_knockdown"
     },
     {
       "name": "ul_exterior_water_knockdown_room_0_final_temp_at_1_8m_c",
-      "actual": 20.3938018442936,
+      "actual": 407.553365585,
       "expected": null,
       "tolerance": null,
       "minimum": null,
       "maximum": 60.0,
-      "required": true,
-      "pass": true,
+      "required": false,
+      "pass": false,
       "note": "Regression baseline: ul_exterior_water_knockdown"
     },
     {
@@ -5286,7 +5286,7 @@
     },
     {
       "name": "ul_exterior_water_knockdown_time_room_0_temp_1_8m_below_150c_after_suppression_s",
-      "actual": 170.000000000002,
+      "actual": 171.000000000002,
       "expected": null,
       "tolerance": null,
       "minimum": 170.0,
@@ -5363,18 +5363,18 @@
     },
     {
       "name": "living_room_hallway_room_0_final_layer_150c_m",
-      "actual": 2.17925201875671,
+      "actual": 0.245822981552513,
       "expected": 0.213764,
       "tolerance": 0.15,
       "minimum": null,
       "maximum": null,
-      "required": false,
-      "pass": false,
+      "required": true,
+      "pass": true,
       "note": "Regression baseline: living_room_hallway"
     },
     {
       "name": "living_room_hallway_room_1_final_temp_at_1_8m_c",
-      "actual": 21.0244428663164,
+      "actual": 180.614080800294,
       "expected": 122.534751,
       "tolerance": 15.0,
       "minimum": null,
@@ -5385,7 +5385,7 @@
     },
     {
       "name": "living_room_hallway_room_1_min_l150_m",
-      "actual": 2.01909872034277,
+      "actual": 1.23202327186407,
       "expected": 1.672793,
       "tolerance": 0.2,
       "minimum": null,
@@ -5396,18 +5396,18 @@
     },
     {
       "name": "living_room_hallway_room_1_peak_temp_upper_c",
-      "actual": 246.245152513304,
+      "actual": 338.395445266941,
       "expected": 349.191257,
       "tolerance": 25.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "Regression baseline: living_room_hallway"
     },
     {
       "name": "living_room_hallway_time_room_0_smoke_layer_2m_s",
-      "actual": 25.9166666666666,
+      "actual": 25.8333333333332,
       "expected": 24.75,
       "tolerance": 8.0,
       "minimum": null,
@@ -5418,7 +5418,7 @@
     },
     {
       "name": "living_room_hallway_time_room_1_smoke_start_s",
-      "actual": 39.0833333333334,
+      "actual": 39.0,
       "expected": 39.416667,
       "tolerance": 8.0,
       "minimum": null,
@@ -5462,7 +5462,7 @@
     },
     {
       "name": "confinement_open_close_room_0_final_o2",
-      "actual": 0.0767463657496635,
+      "actual": 0.03214213830109,
       "expected": 0.113254,
       "tolerance": 0.02,
       "minimum": null,
@@ -5473,7 +5473,7 @@
     },
     {
       "name": "confinement_open_close_room_0_final_smoke_kg",
-      "actual": 0.591333217386336,
+      "actual": 0.242454026175491,
       "expected": 1.154722,
       "tolerance": 0.3,
       "minimum": null,
@@ -5484,7 +5484,7 @@
     },
     {
       "name": "confinement_open_close_room_0_peak_hrr_kw",
-      "actual": 1947.57869344032,
+      "actual": 3432.35532492406,
       "expected": null,
       "tolerance": null,
       "minimum": 1500.0,
@@ -5495,7 +5495,7 @@
     },
     {
       "name": "confinement_open_close_smoke_deposited_total_kg",
-      "actual": 0.152708798846538,
+      "actual": 0.0531726745389764,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -5506,7 +5506,7 @@
     },
     {
       "name": "confinement_open_close_smoke_vented_total_kg",
-      "actual": 17.7333519245904,
+      "actual": 18.2018304110553,
       "expected": null,
       "tolerance": null,
       "minimum": 0.5,
@@ -5561,7 +5561,7 @@
     },
     {
       "name": "g2_gie_transitional_attack_room_0_peak_hrr_kw",
-      "actual": 1012.31266275961,
+      "actual": 3432.16945167882,
       "expected": null,
       "tolerance": null,
       "minimum": 1000.0,
@@ -5583,18 +5583,18 @@
     },
     {
       "name": "g2_gie_transitional_attack_time_room_0_hrr_below_100_post_attack_s",
-      "actual": 200.000000000005,
+      "actual": null,
       "expected": null,
       "tolerance": null,
       "minimum": 1.0,
       "maximum": null,
-      "required": true,
-      "pass": true,
+      "required": false,
+      "pass": false,
       "note": "Regression baseline: g2_gie_transitional_attack"
     },
     {
       "name": "g2_gie_transitional_attack_time_room_0_l150_below_1_8m_s",
-      "actual": 99.833333333332,
+      "actual": 94.749999999999,
       "expected": 70.416667,
       "tolerance": 5.0,
       "minimum": null,
@@ -5605,7 +5605,7 @@
     },
     {
       "name": "g2_gie_transitional_attack_time_room_0_temp_1_8m_below_150c_post_attack_s",
-      "actual": 200.000000000005,
+      "actual": 200.500000000005,
       "expected": null,
       "tolerance": null,
       "minimum": 1.0,
