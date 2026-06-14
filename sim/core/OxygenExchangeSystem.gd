@@ -34,10 +34,11 @@ var doorway_o2_background_min_factor: float = 0.30
 # alta del cuarto adyacente vía la mitad superior del vano (como CFAST two-zone).
 # Default 0.0 = no-op garantizado. Activar por caso con engine_overrides.
 var doorway_o2_upper_routing_gain: float = 0.0
-# Tasa de entrainment penacho: pluma usa room.o2 como fuente de reposicion de
-# o2_upper. Equilibrio: o2_upper_eq = room.o2 - hrr*cr/(rate*upper_mass).
-# Calibrado Fase 1.5 (0.025). Fase 2A: o2_lower desacoplado (near-ambient).
-var o2_upper_plume_entr_rate: float = 0.025
+# Tasa de entrainment penacho: pluma usa room.o2_lower como fuente de reposicion de
+# o2_upper. Equilibrio: o2_upper_eq = o2_lower - hrr*cr/(rate*upper_mass).
+# Calibrado R3 (0.010): reduce reposicion para que o2_upper alcance CFAST ULO2 a t=300s/t=450s.
+# Fase 2A (0.025) era demasiado alto — o2_upper quedaba en 0.105 vs CFAST 0.074.
+var o2_upper_plume_entr_rate: float = 0.010
 # Fase 2B: rendimiento de CO₂ por MJ liberado para el tracker mol-fraction.
 # Usado en la ecuación Δco2_upper = (hrr/1000) × co2_yield × o2_scale × 29/(44×upper_mass).
 # Default: 0.0831 kg CO₂/MJ (mismo que co2_base_yield_kg_per_MJ en CombustionSystem).
@@ -277,7 +278,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		var upper_air_mass: float = air_mass_kg * upper_frac
 		var lower_air_mass: float = maxf(0.001, air_mass_kg * lower_frac)
 
-		if lower_frac < 0.15 or (lower_frac < 0.40 and room.o2 < 0.070):
+		if lower_frac < 0.15:
 			# Modelo bi-zona invalido: homogeniza ambas zonas a room.o2.
 			room.o2_upper = room.o2
 			# Phase 2H: cuando el flag ON está activo, no resetear o2_lower a room.o2
@@ -288,8 +289,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			else:
 				room.o2_lower = room.o2
 		elif room.hrr_kw > 0.0:
-			# Fase 2A: o2_upper -> equilibrio calibrado (mismo que Fase 1.5).
-			# Penacho usa room.o2 como fuente (equivalente al cap o2_lower=room.o2).
+			# R3: o2_upper depletado por combustión; repuesto por entrainment del penacho
+			# desde o2_lower (zona baja, fresca) — fuente correcta en modelo two-zone CFAST.
 			var cr_upper: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 			var upper_consumed: float = (room.hrr_kw / 1000.0) * cr_upper * dt
 			upper_consumed = minf(upper_consumed, upper_air_mass * room.o2_upper * 0.20)
@@ -297,7 +298,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				(upper_air_mass * room.o2_upper - upper_consumed) / maxf(0.001, upper_air_mass),
 				0.0, o2_nominal)
 			var entr_frac: float = clampf(o2_upper_plume_entr_rate * dt, 0.0, 0.15)
-			var delta_entr: float = entr_frac * maxf(0.0, room.o2 - room.o2_upper)
+			var delta_entr: float = entr_frac * maxf(0.0, room.o2_lower - room.o2_upper)
 			room.o2_upper = clampf(room.o2_upper + delta_entr, 0.0, o2_nominal)
 			# Fase 2A: o2_lower near-ambient, independiente de o2_upper.
 			# Pluma la arrastra lentamente hacia el floor. ACH la repone.
@@ -327,7 +328,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 							phase2h_interior_no_exterior_drain_max_scale
 						)
 						lower_entr_scale = lerpf(0.20, no_ext_max_scale, no_ext_drain_factor)
-			var lower_entr: float = entr_frac * lower_entr_scale * maxf(0.0, room.o2_lower - room.o2)
+			# R3: lower drena hacia o2_upper (pluma arrastra zona baja hacia zona alta),
+			# no hacia room.o2 promedio que está depletado — evita colapso de zona baja.
+			var lower_entr: float = entr_frac * lower_entr_scale * maxf(0.0, room.o2_lower - room.o2_upper)
 			room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)
 			# Phase 2C: fuego consume O₂ de la zona baja cuando fire_o2_lower_for_flame=true.
 			# Usa air_mass_kg (masa total) para consistencia con la reposición del HVAC.
@@ -374,7 +377,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		# Intercambio entre salas se hace en _exchange_room_o2_active_flow.
 		const CO2_AMBIENT: float = 0.0004  # ~400 ppm CO₂ exterior
 		const CO2_UPPER_MAX: float = 0.30  # cap al 30 % molar
-		var _bi_zone_invalid: bool = lower_frac < 0.15 or (lower_frac < 0.40 and room.o2 < 0.070)
+		var _bi_zone_invalid: bool = lower_frac < 0.15
 		# Phase 2E Sub-D: cuando bi-zona inválida y fuego activo, omite el snap → usa rama
 		# producción. OFF (subd=false) → _snap = true siempre que _bi_zone_invalid → no-op exacto.
 		var _subd_skip_snap: bool = phase2e_co2_subd_enabled and room.hrr_kw > 0.0 and _bi_zone_invalid

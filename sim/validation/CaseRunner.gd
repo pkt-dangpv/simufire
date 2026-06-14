@@ -162,6 +162,11 @@ func _begin_validation_run() -> void:
 		_abort_validation_run("CaseRunner: no se pudo cargar el caso '%s'" % _case_name)
 		return
 
+	# Allow per-case override of validation profile params (CLI takes precedence).
+	for key in ["validation_fire_o2_mode", "validation_engine_mode"]:
+		if _case_config.has(key) and not _cli_args.has(key):
+			_cli_args[key] = String(_case_config[key])
+
 	if _cli_args.has("validation_duration"):
 		_case_config["duration_s"] = float(_cli_args["validation_duration"])
 
@@ -463,6 +468,13 @@ func _configure_validation_two_zone_v1_profile() -> bool:
 		return false
 	_cli_args["validation_engine_mode"] = "two-zone"
 	_cli_args["validation_two_zone_opening_flow"] = true
+	# R3: fire_o2_mode defaults to "legacy" for TwoZoneV1 — most cases were calibrated
+	# with legacy mode. Only sealed-room calibration cases (e.g. cfast_single_room_closed)
+	# opt-in to "upper" via per-case validation_fire_o2_mode override.
+	# NOTE: "upper" with sealed rooms gives physically correct O2 depletion but was causing
+	# regressions in all vented/semi-vented cases.
+	if not _cli_args.has("validation_fire_o2_mode"):
+		_cli_args["validation_fire_o2_mode"] = "legacy"
 	# phase3_pressure_canonical_enabled stays at engine default (false) — the ODE
 	# pressure source term only relieves via ACH infiltration, not doorway areas,
 	# so canonical mode accumulates 100k+ Pa and corrupts all gas-flow checks.
