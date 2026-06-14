@@ -1,8 +1,8 @@
 {
   "all_required_pass": false,
   "required_count": 323,
-  "failed_required_count": 24,
-  "known_gap_count": 112,
+  "failed_required_count": 21,
+  "known_gap_count": 111,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -666,7 +666,7 @@
     },
     {
       "name": "cfast_closed_t210_o2",
-      "actual": 0.103,
+      "actual": 0.0824,
       "expected": 0.0911866,
       "tolerance": 0.018,
       "minimum": null,
@@ -677,7 +677,7 @@
     },
     {
       "name": "cfast_closed_t210_temp_upper_c",
-      "actual": 176.97,
+      "actual": 157.57,
       "expected": 265.736,
       "tolerance": 80.0,
       "minimum": null,
@@ -688,7 +688,7 @@
     },
     {
       "name": "cfast_closed_t210_co_upper_ppm",
-      "actual": 858.0,
+      "actual": 770.0,
       "expected": 594.979,
       "tolerance": 595.0,
       "minimum": null,
@@ -699,7 +699,7 @@
     },
     {
       "name": "cfast_closed_t300_o2",
-      "actual": 0.0875,
+      "actual": 0.0654,
       "expected": 0.07402199999999999,
       "tolerance": 0.018,
       "minimum": null,
@@ -710,7 +710,7 @@
     },
     {
       "name": "cfast_closed_t300_temp_upper_c",
-      "actual": 226.44,
+      "actual": 157.18,
       "expected": 173.005,
       "tolerance": 80.0,
       "minimum": null,
@@ -721,7 +721,7 @@
     },
     {
       "name": "cfast_closed_t300_co_upper_ppm",
-      "actual": 1251.0,
+      "actual": 918.0,
       "expected": 660.5329999999999,
       "tolerance": 600.0,
       "minimum": null,
@@ -732,18 +732,18 @@
     },
     {
       "name": "cfast_closed_t450_o2",
-      "actual": 0.0803,
+      "actual": 0.0596,
       "expected": 0.0531661,
       "tolerance": 0.018,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": ""
     },
     {
       "name": "cfast_closed_t450_temp_upper_c",
-      "actual": 218.04,
+      "actual": 162.3,
       "expected": 174.794,
       "tolerance": 80.0,
       "minimum": null,
@@ -754,13 +754,13 @@
     },
     {
       "name": "cfast_closed_t450_co_upper_ppm",
-      "actual": 1805.0,
+      "actual": 1207.0,
       "expected": 731.046,
       "tolerance": 731.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": ""
     },
     {
@@ -776,7 +776,7 @@
     },
     {
       "name": "cfast_closed_t60_co2_upper_pct",
-      "actual": 0.6438,
+      "actual": 0.6427,
       "expected": 0.374868,
       "tolerance": 3.0,
       "minimum": null,
@@ -798,7 +798,7 @@
     },
     {
       "name": "cfast_closed_t120_co2_upper_pct",
-      "actual": 2.2528,
+      "actual": 2.2257,
       "expected": 1.71445,
       "tolerance": 3.0,
       "minimum": null,
@@ -809,7 +809,7 @@
     },
     {
       "name": "cfast_closed_t240_pressure_pa",
-      "actual": 5113.37,
+      "actual": 2276.71,
       "expected": 12.7462,
       "tolerance": 7200.0,
       "minimum": null,
@@ -820,7 +820,7 @@
     },
     {
       "name": "cfast_closed_t240_co2_upper_pct",
-      "actual": 9.9247,
+      "actual": 8.2044,
       "expected": 9.94217,
       "tolerance": 3.0,
       "minimum": null,
@@ -831,7 +831,7 @@
     },
     {
       "name": "cfast_closed_t360_pressure_pa",
-      "actual": 5637.7,
+      "actual": 2377.21,
       "expected": 167.939,
       "tolerance": 1200.0,
       "minimum": null,
@@ -842,7 +842,7 @@
     },
     {
       "name": "cfast_closed_t360_co2_upper_pct",
-      "actual": 12.5802,
+      "actual": 9.0348,
       "expected": 11.1406,
       "tolerance": 3.0,
       "minimum": null,
@@ -853,7 +853,7 @@
     },
     {
       "name": "cfast_closed_t480_pressure_pa",
-      "actual": 4803.69,
+      "actual": 2082.33,
       "expected": 168.174,
       "tolerance": 320.0,
       "minimum": null,
@@ -864,7 +864,7 @@
     },
     {
       "name": "cfast_closed_t480_co2_upper_pct",
-      "actual": 13.8378,
+      "actual": 9.276,
       "expected": 11.886,
       "tolerance": 3.0,
       "minimum": null,
@@ -886,7 +886,7 @@
     },
     {
       "name": "cfast_closed_t60_o2_lower",
-      "actual": 0.2086,
+      "actual": 0.2088,
       "expected": 0.204932,
       "tolerance": 0.015,
       "minimum": null,
@@ -897,7 +897,7 @@
     },
     {
       "name": "cfast_closed_t120_o2_lower",
-      "actual": 0.2068,
+      "actual": 0.2077,
       "expected": 0.204932,
       "tolerance": 0.015,
       "minimum": null,
@@ -908,7 +908,7 @@
     },
     {
       "name": "cfast_closed_t210_o2_lower",
-      "actual": 0.1935,
+      "actual": 0.2,
       "expected": 0.204932,
       "tolerance": 0.015,
       "minimum": null,
@@ -919,7 +919,7 @@
     },
     {
       "name": "cfast_closed_t300_o2_lower",
-      "actual": 0.1755,
+      "actual": 0.1886,
       "expected": 0.204932,
       "tolerance": 0.139,
       "minimum": null,
@@ -930,7 +930,7 @@
     },
     {
       "name": "cfast_closed_t450_o2_lower",
-      "actual": 0.1536,
+      "actual": 0.1731,
       "expected": 0.204932,
       "tolerance": 0.164,
       "minimum": null,
@@ -974,7 +974,7 @@
     },
     {
       "name": "cfast_closed_rmse_temp_upper_c",
-      "actual": 47.99709183419172,
+      "actual": 40.39781412658982,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -985,29 +985,29 @@
     },
     {
       "name": "cfast_closed_rmse_o2",
-      "actual": 0.03310723093400192,
+      "actual": 0.023528465393731057,
       "expected": null,
       "tolerance": null,
       "minimum": null,
       "maximum": 0.025,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "CMV-2: O2 RMSE \u2264 0.025 (sealed room). Structural gap expected."
     },
     {
       "name": "cfast_closed_rmse_co_upper_ppm",
-      "actual": 770.5584224147224,
+      "actual": 359.5288210342334,
       "expected": null,
       "tolerance": null,
       "minimum": null,
       "maximum": 600.0,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "CMV-2 Stage-E: CO upper RMSE \u2264 600 ppm sealed room (SF=400.1ppm, margin 199ppm)."
     },
     {
       "name": "cfast_closed_peak_temp_upper_c",
-      "actual": 227.57,
+      "actual": 165.67,
       "expected": null,
       "tolerance": null,
       "minimum": 80.0,
@@ -1018,7 +1018,7 @@
     },
     {
       "name": "cfast_closed_peak_temp_timing",
-      "actual": 320.1,
+      "actual": 370.1,
       "expected": 200.0,
       "tolerance": 90.0,
       "minimum": null,
@@ -1029,7 +1029,7 @@
     },
     {
       "name": "cfast_closed_min_o2",
-      "actual": 0.0753,
+      "actual": 0.0584,
       "expected": null,
       "tolerance": null,
       "minimum": 0.0,
@@ -1205,7 +1205,7 @@
     },
     {
       "name": "cfast_pool_t60_o2",
-      "actual": 0.19,
+      "actual": 0.185,
       "expected": 0.195612,
       "tolerance": 0.015,
       "minimum": null,
@@ -1216,7 +1216,7 @@
     },
     {
       "name": "cfast_pool_t120_o2",
-      "actual": 0.2044,
+      "actual": 0.2042,
       "expected": 0.194288,
       "tolerance": 0.015,
       "minimum": null,
@@ -1227,7 +1227,7 @@
     },
     {
       "name": "cfast_pool_t300_o2",
-      "actual": 0.2038,
+      "actual": 0.2035,
       "expected": 0.19403800000000002,
       "tolerance": 0.008,
       "minimum": null,
@@ -1238,7 +1238,7 @@
     },
     {
       "name": "cfast_pool_t600_o2",
-      "actual": 0.2038,
+      "actual": 0.2035,
       "expected": 0.194087,
       "tolerance": 0.01,
       "minimum": null,
@@ -1249,7 +1249,7 @@
     },
     {
       "name": "cfast_pool_t900_o2",
-      "actual": 0.2038,
+      "actual": 0.2035,
       "expected": 0.19412700000000002,
       "tolerance": 0.015,
       "minimum": null,
@@ -1271,7 +1271,7 @@
     },
     {
       "name": "cfast_pool_min_o2_upper",
-      "actual": 0.1898,
+      "actual": 0.1846,
       "expected": null,
       "tolerance": null,
       "minimum": 0.15,

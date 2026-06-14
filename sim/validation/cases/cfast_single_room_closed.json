@@ -82,7 +82,7 @@
 		"glass_auto_break_enabled": false,
 		"fire_co_yield_force_kg_per_MJ": 0.0003,
 		"fire_o2_nominal": 0.17,
-		"o2_upper_plume_entr_rate": 0.013,
+		"o2_upper_plume_entr_rate": 0.006,
 		"ach_infiltration": 5.0,
 		"fire_o2_hrr_fall_tau_s": 4.0,
 		"phase3_thermodynamic_pressure_enabled": true,
