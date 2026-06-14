@@ -226,6 +226,14 @@ func step_thermodynamic_pressure(building: BuildingModel, dt: float) -> void:
 			# Derivar de ach_infiltration: Q(P_ref) = ACH*V/3600 = Cd*A*sqrt(2*P_ref/rho)
 			var q_ref_m3s: float = ach_infiltration * V / 3600.0
 			a_eff = q_ref_m3s / (CD * sqrt(2.0 * P_REF_ACH / RHO_AMB))
+		# Sumar áreas de aperturas exteriores abiertas (ventanas/puertas al exterior)
+		for op in building.get_openings():
+			var connects_outside: bool = (
+				(op.a == room.id and op.b == BuildingModel.OUTSIDE_ID) or
+				(op.b == room.id and op.a == BuildingModel.OUTSIDE_ID)
+			)
+			if connects_outside and op.open_fraction > 0.001:
+				a_eff += op.width_m * op.height_m * op.open_fraction
 		# ODE fuente: Q_conv = HRR * phase3_chi_conv * 1000 W
 		var q_conv_w: float = room.hrr_kw * phase3_chi_conv * 1000.0
 		var dp_source: float = (GAMMA - 1.0) * q_conv_w / V
