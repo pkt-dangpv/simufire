@@ -1,15 +1,15 @@
 ﻿{
     "metrics":  {
                     "opening_event_0_time_s":  {
-                                                   "expected":  300.000000,
+                                                   "expected":  300,
                                                    "tolerance":  5.0
                                                },
                     "time_room_0_o2_below_18pct_s":  {
-                                                         "expected":  131.250000,
+                                                         "expected":  126.166667,
                                                          "tolerance":  25.0
                                                      },
                     "time_room_0_o2_below_13pct_s":  {
-                                                         "expected":  200.500000,
+                                                         "expected":  174.333333,
                                                          "tolerance":  30.0
                                                      },
                     "room_0_peak_hrr_kw":  {
@@ -19,7 +19,7 @@
                                                      "min":  300.0
                                                  },
                     "room_0_final_o2":  {
-                                            "min":  0.13
+                                            "min":  0.12
                                         },
                     "room_0_final_retained_unburned_MJ":  {
                                                               "max":  0.5

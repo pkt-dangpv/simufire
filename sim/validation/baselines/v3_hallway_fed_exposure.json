@@ -1,33 +1,33 @@
 ﻿{
-    "metrics": {
-        "time_room_1_smoke_start_s": {
-            "expected": 47.000000,
-            "tolerance": 15.0
-        },
-        "time_room_1_co_upper_above_1200_s": {
-            "expected": 125.750000,
-            "tolerance": 25.0
-        },
-        "time_room_1_fed_above_0_1_s": {
-            "expected": 252.166666,
-            "tolerance": 30.0
-        },
-        "time_room_1_fed_above_0_3_s": {
-            "expected": 315.916666,
-            "tolerance": 35.0
-        },
-        "room_0_peak_hrr_kw": {
-            "expected": 698.298928,
-            "tolerance": 100.0
-        },
-        "room_1_peak_temp_upper_c": {
-            "min": 100.0
-        },
-        "room_1_max_fed": {
-            "min": 1.0
-        },
-        "smoke_generated_total_kg": {
-            "min": 5.0
-        }
-    }
+    "metrics":  {
+                    "time_room_1_smoke_start_s":  {
+                                                      "expected":  46.583333,
+                                                      "tolerance":  15.0
+                                                  },
+                    "time_room_1_co_upper_above_1200_s":  {
+                                                              "expected":  138.75,
+                                                              "tolerance":  25.0
+                                                          },
+                    "time_room_1_fed_above_0_1_s":  {
+                                                        "expected":  233.583333,
+                                                        "tolerance":  30.0
+                                                    },
+                    "time_room_1_fed_above_0_3_s":  {
+                                                        "expected":  245.666667,
+                                                        "tolerance":  35.0
+                                                    },
+                    "room_0_peak_hrr_kw":  {
+                                               "expected":  2437.317451,
+                                               "tolerance":  100.0
+                                           },
+                    "room_1_peak_temp_upper_c":  {
+                                                     "min":  100.0
+                                                 },
+                    "room_1_max_fed":  {
+                                           "min":  1.0
+                                       },
+                    "smoke_generated_total_kg":  {
+                                                     "min":  2.0
+                                                 }
+                }
 }

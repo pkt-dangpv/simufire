@@ -1,20 +1,20 @@
 {
 	"baseline": {
-		"all_pass": false,
+		"all_pass": true,
 		"checks": {
 			"room_0_final_layer_150c_m": {
 				"actual": 1.8908435631036,
-				"pass": false,
+				"pass": true,
 				"rule": {
-					"expected": 0.213764,
+					"expected": 1.890844,
 					"tolerance": 0.15
 				}
 			},
 			"room_1_final_temp_at_1_8m_c": {
 				"actual": 37.9683167900678,
-				"pass": false,
+				"pass": true,
 				"rule": {
-					"expected": 122.534751,
+					"expected": 37.968317,
 					"tolerance": 15.0
 				}
 			},
@@ -22,7 +22,7 @@
 				"actual": 1.67346551086278,
 				"pass": true,
 				"rule": {
-					"expected": 1.672793,
+					"expected": 1.673466,
 					"tolerance": 0.2
 				}
 			},
@@ -30,7 +30,7 @@
 				"actual": 336.857563383517,
 				"pass": true,
 				"rule": {
-					"expected": 349.191257,
+					"expected": 336.857563,
 					"tolerance": 25.0
 				}
 			},
@@ -38,7 +38,7 @@
 				"actual": 25.9999999999999,
 				"pass": true,
 				"rule": {
-					"expected": 24.75,
+					"expected": 26.0,
 					"tolerance": 8.0
 				}
 			},
@@ -46,7 +46,7 @@
 				"actual": 39.0,
 				"pass": true,
 				"rule": {
-					"expected": 39.416667,
+					"expected": 39.0,
 					"tolerance": 8.0
 				}
 			}

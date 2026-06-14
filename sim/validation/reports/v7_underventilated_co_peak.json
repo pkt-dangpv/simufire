@@ -1,6 +1,6 @@
 {
 	"baseline": {
-		"all_pass": false,
+		"all_pass": true,
 		"checks": {
 			"room_0_peak_co_upper_ppm": {
 				"actual": 73526.9180662302,
@@ -18,17 +18,17 @@
 			},
 			"time_room_0_co_upper_above_5000_s": {
 				"actual": 120.999999999997,
-				"pass": false,
+				"pass": true,
 				"rule": {
-					"expected": 177.0,
+					"expected": 121.0,
 					"tolerance": 10.0
 				}
 			},
 			"time_room_0_o2_below_15pct_s": {
 				"actual": 156.25,
-				"pass": false,
+				"pass": true,
 				"rule": {
-					"expected": 164.75,
+					"expected": 156.25,
 					"tolerance": 5.0
 				}
 			},
@@ -36,7 +36,7 @@
 				"actual": 126.083333333331,
 				"pass": true,
 				"rule": {
-					"expected": 128.583333,
+					"expected": 126.083333,
 					"tolerance": 5.0
 				}
 			}

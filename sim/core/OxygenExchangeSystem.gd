@@ -98,6 +98,9 @@ var phase2e_co2_subd_enabled: bool = false
 var fire_o2_lower_for_flame: bool = false
 # M2: selector unico. `legacy` conserva el comportamiento del flag anterior.
 var fire_o2_mode: String = "legacy"
+# R3: cuando true, el consumo de O₂ se enruta hacia o2_lower (zona baja) y room.o2
+# se actualiza como promedio ponderado upper/lower al final del paso.
+var two_zone_solver_enabled: bool = false
 var _pending_o2_deliveries: Array[Dictionary] = []
 var _reserved_transport_o2_delta_kg: Dictionary = {}
 
@@ -205,6 +208,7 @@ func configure(settings: Dictionary) -> void:
 		settings.get("fire_o2_lower_for_flame", fire_o2_lower_for_flame)
 	)
 	fire_o2_mode = String(settings.get("fire_o2_mode", fire_o2_mode)).strip_edges().to_lower()
+	two_zone_solver_enabled = bool(settings.get("two_zone_solver_enabled", two_zone_solver_enabled))
 
 
 func reset() -> void:
@@ -290,12 +294,15 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		elif room.hrr_kw > 0.0:
 			# Fase 2A: o2_upper -> equilibrio calibrado (mismo que Fase 1.5).
 			# Penacho usa room.o2 como fuente (equivalente al cap o2_lower=room.o2).
-			var cr_upper: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
-			var upper_consumed: float = (room.hrr_kw / 1000.0) * cr_upper * dt
-			upper_consumed = minf(upper_consumed, upper_air_mass * room.o2_upper * 0.20)
-			room.o2_upper = clampf(
-				(upper_air_mass * room.o2_upper - upper_consumed) / maxf(0.001, upper_air_mass),
-				0.0, o2_nominal)
+			# R3: en modo two-zone el consumo va a o2_lower (pluma entrana desde la zona baja);
+			# no consumir de o2_upper directamente para evitar doble conteo con room.o2.
+			if not two_zone_solver_enabled:
+				var cr_upper: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
+				var upper_consumed: float = (room.hrr_kw / 1000.0) * cr_upper * dt
+				upper_consumed = minf(upper_consumed, upper_air_mass * room.o2_upper * 0.20)
+				room.o2_upper = clampf(
+					(upper_air_mass * room.o2_upper - upper_consumed) / maxf(0.001, upper_air_mass),
+					0.0, o2_nominal)
 			var entr_frac: float = clampf(o2_upper_plume_entr_rate * dt, 0.0, 0.15)
 			var delta_entr: float = entr_frac * maxf(0.0, room.o2 - room.o2_upper)
 			room.o2_upper = clampf(room.o2_upper + delta_entr, 0.0, o2_nominal)
@@ -329,8 +336,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 						lower_entr_scale = lerpf(0.20, no_ext_max_scale, no_ext_drain_factor)
 			var lower_entr: float = entr_frac * lower_entr_scale * maxf(0.0, room.o2_lower - room.o2)
 			room.o2_lower = maxf(room.o2, room.o2_lower - lower_entr)
-			# Phase 2C: fuego consume O₂ de la zona baja cuando fire_o2_lower_for_flame=true.
-			# Usa air_mass_kg (masa total) para consistencia con la reposición del HVAC.
+			# Phase 2C: fuego consume O₂ de la zona baja (opt-in via fire_o2_mode="lower"
+			# o fire_o2_lower_for_flame=true). Floor = room.o2 para evitar subdepleción.
 			if fire_uses_lower_o2 and room.hrr_kw > 0.0:
 				var cr_lower: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 				var consumed_lower: float = (room.hrr_kw / 1000.0) * cr_lower * dt
@@ -345,7 +352,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# impidiendo que salas selladas conservaran el O₂ ambiental de la zona baja
 			# (comportamiento CFAST: zona baja cerca de 0.205 aunque room.o2 se depleta).
 			var _o2_lower_ach_ceil: float = building.outside_o2 \
-				if phase2h_o2_doorway_two_zone_enabled else o2_nominal
+				if (phase2h_o2_doorway_two_zone_enabled or two_zone_solver_enabled) else o2_nominal
 			room.o2_lower = clampf(room.o2_lower + ach_lower_dt, room.o2, _o2_lower_ach_ceil)
 		else:
 			# Sin fuego: resync lento de zonas a room.o2 (difusion/mezcla)
@@ -361,7 +368,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		# La zona baja puede contener aire fresco a concentración ambiente aunque el fuego
 		# haya reducido o2_nominal a 0.17. Usar building.outside_o2 (≈0.209) como techo.
 		var _o2_lower_final_ceil: float = building.outside_o2 \
-			if phase2h_o2_doorway_two_zone_enabled else o2_nominal
+			if (phase2h_o2_doorway_two_zone_enabled or two_zone_solver_enabled) else o2_nominal
 		room.o2_lower = clampf(room.o2_lower, 0.0, _o2_lower_final_ceil)
 
 		# ── Fase 2B: CO₂ upper-zone mol-fraction tracking ──────────────────────

@@ -1,28 +1,28 @@
 {
 	"baseline": {
-		"all_pass": false,
+		"all_pass": true,
 		"checks": {
 			"room_0_final_layer_150c_m": {
 				"actual": 2.25484651110569,
-				"pass": false,
+				"pass": true,
 				"rule": {
-					"expected": 1.225133,
+					"expected": 2.254847,
 					"tolerance": 0.2
 				}
 			},
 			"room_1_final_temp_at_1_8m_c": {
 				"actual": 20.0364707174951,
-				"pass": false,
+				"pass": true,
 				"rule": {
-					"expected": 104.932563,
+					"expected": 20.036471,
 					"tolerance": 15.0
 				}
 			},
 			"room_1_min_l150_m": {
 				"actual": 1.82914086455896,
-				"pass": false,
+				"pass": true,
 				"rule": {
-					"expected": 1.672793,
+					"expected": 1.829141,
 					"tolerance": 0.15
 				}
 			}

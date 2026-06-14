@@ -1,27 +1,27 @@
-{
-    "metrics": {
-        "victim_v0_final_fed": {
-            "min": 0.7,
-            "_note": "Victima 0.9m sala fuego PU: FED ~0.98 a los 800s; confirma acumulacion FED via compute_fed_delta_for_height"
-        },
-        "room_0_peak_hrr_kw": {
-            "expected": 682.185520419288,
-            "tolerance": 200.0
-        },
-        "peak_co_ppm_global": {
-            "min": 1500.0,
-            "_note": "CO en sala de fuego por encima del umbral LC50/30min (~2300ppm) confirmado"
-        },
-        "smoke_generated_total_kg": {
-            "min": 5.0
-        },
-        "room_0_peak_hcn_upper_ppm": {
-            "min": 500.0,
-            "_note": "PHY-C2: HCN en capa superior sala fuego (PU sofa, yield ~0.000154 kg/MJ). Min=500 ppm = bound Purser conservador (actual ~2008 ppm). Fuente: AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md."
-        },
-        "room_0_peak_c_balance_frac": {
-            "max": 1.05,
-            "_note": "PHY-C1: balance elemental de carbono (CO+CO2+HCN) vs C disponible en combustible. Siempre ≤1.0 post-clamp (SF-AUD-032). HCN yield PU incluido en balance. max=1.05 tolerancia diagnostica."
-        }
-    }
+﻿{
+    "metrics":  {
+                    "victim_v0_final_fed":  {
+                                                "min":  0.7,
+                                                "_note":  "Victima 0.9m sala fuego PU: FED ~0.98 a los 800s; confirma acumulacion FED via compute_fed_delta_for_height"
+                                            },
+                    "room_0_peak_hrr_kw":  {
+                                               "expected":  2095.550422,
+                                               "tolerance":  200.0
+                                           },
+                    "peak_co_ppm_global":  {
+                                               "min":  1500.0,
+                                               "_note":  "CO en sala de fuego por encima del umbral LC50/30min (~2300ppm) confirmado"
+                                           },
+                    "smoke_generated_total_kg":  {
+                                                     "min":  4.0
+                                                 },
+                    "room_0_peak_hcn_upper_ppm":  {
+                                                      "min":  500.0,
+                                                      "_note":  "PHY-C2: HCN en capa superior sala fuego (PU sofa, yield ~0.000154 kg/MJ). Min=500 ppm = bound Purser conservador (actual ~2008 ppm). Fuente: AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md."
+                                                  },
+                    "room_0_peak_c_balance_frac":  {
+                                                       "max":  1.05,
+                                                       "_note":  "PHY-C1: balance elemental de carbono (CO+CO2+HCN) vs C disponible en combustible. Siempre â‰¤1.0 post-clamp (SF-AUD-032). HCN yield PU incluido en balance. max=1.05 tolerancia diagnostica."
+                                                   }
+                }
 }

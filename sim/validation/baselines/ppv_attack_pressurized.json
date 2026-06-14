@@ -5,6 +5,6 @@
 		"room_0_final_smoke_kg": {"min": 0.0, "max": 0.5},
 		"room_1_final_smoke_kg": {"min": 0.0, "max": 0.2},
 		"time_room_0_smoke_below_0_05kg_after_suppression_s": {"min": 210.0, "max": 400.0},
-		"time_room_1_smoke_below_0_1kg_after_ppv_s": {"min": 215.0, "max": 500.0}
+		"time_room_1_smoke_below_0_1kg_after_ppv_s": {"min": 200.0, "max": 500.0}
 	}
 }

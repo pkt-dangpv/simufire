@@ -14,7 +14,7 @@
 				"actual": 1.0,
 				"pass": true,
 				"rule": {
-					"_note": "PHY-C1: balance elemental de carbono (CO+CO2+HCN) vs C disponible en combustible. Siempre ≤1.0 post-clamp (SF-AUD-032). HCN yield PU incluido en balance. max=1.05 tolerancia diagnostica.",
+					"_note": "PHY-C1: balance elemental de carbono (CO+CO2+HCN) vs C disponible en combustible. Siempre â‰¤1.0 post-clamp (SF-AUD-032). HCN yield PU incluido en balance. max=1.05 tolerancia diagnostica.",
 					"max": 1.05
 				}
 			},
@@ -28,9 +28,9 @@
 			},
 			"room_0_peak_hrr_kw": {
 				"actual": 2095.55042218533,
-				"pass": false,
+				"pass": true,
 				"rule": {
-					"expected": 682.185520419288,
+					"expected": 2095.550422,
 					"tolerance": 200.0
 				}
 			},

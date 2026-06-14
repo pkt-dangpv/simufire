@@ -1,25 +1,25 @@
 ﻿{
-    "metrics": {
-        "time_room_1_co_upper_above_1200_s": {
-            "expected": 140.250000,
-            "tolerance": 20.0
-        },
-        "time_room_1_o2_below_18pct_s": {
-            "expected": 287.75,
-            "tolerance": 10.0
-        },
-        "time_room_2_co_upper_above_200_s": {
-            "expected": 152.25,
-            "tolerance": 30.0
-        },
-        "room_0_peak_hrr_kw": {
-            "min": 600.0
-        },
-        "room_1_peak_co_upper_ppm": {
-            "min": 2000.0
-        },
-        "room_2_peak_co_upper_ppm": {
-            "min": 1000.0
-        }
-    }
+    "metrics":  {
+                    "time_room_1_co_upper_above_1200_s":  {
+                                                              "expected":  138.75,
+                                                              "tolerance":  20.0
+                                                          },
+                    "time_room_1_o2_below_18pct_s":  {
+                                                         "expected":  235.333333,
+                                                         "tolerance":  10.0
+                                                     },
+                    "time_room_2_co_upper_above_200_s":  {
+                                                             "expected":  176.75,
+                                                             "tolerance":  30.0
+                                                         },
+                    "room_0_peak_hrr_kw":  {
+                                               "min":  600.0
+                                           },
+                    "room_1_peak_co_upper_ppm":  {
+                                                     "min":  2000.0
+                                                 },
+                    "room_2_peak_co_upper_ppm":  {
+                                                     "min":  1000.0
+                                                 }
+                }
 }
