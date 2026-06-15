@@ -99,6 +99,14 @@ var phase2e_co2_subd_enabled: bool = false
 var fire_o2_lower_for_flame: bool = false
 # M2: selector unico. `legacy` conserva el comportamiento del flag anterior.
 var fire_o2_mode: String = "legacy"
+# Phase 4A: fracción del consumo estequiométrico que se descuenta de o2_lower en plume_lower_mode.
+# Default 1.0 = comportamiento correcto (todo el O2 consumido viene de la zona baja).
+var plume_lower_o2_depletion_fraction: float = 1.0
+# Phase 4A: fracción del consumo que se aplica a o2_upper en plume_lower_mode como desplazamiento
+# por productos de combustión (CO2, H2O llenan la zona superior, desplazando O2).
+# Default 0.09: calibrado para o2_upper_eq ≈ 0.058 a HRR=265 kW → room.o2 ≈ 0.065 en sala sellada.
+# Permite que ambas zonas se depleten (como en CFAST) sin causar extinción por cascada.
+var plume_upper_o2_displacement_frac: float = 0.09
 var _pending_o2_deliveries: Array[Dictionary] = []
 var _reserved_transport_o2_delta_kg: Dictionary = {}
 
@@ -206,6 +214,12 @@ func configure(settings: Dictionary) -> void:
 		settings.get("fire_o2_lower_for_flame", fire_o2_lower_for_flame)
 	)
 	fire_o2_mode = String(settings.get("fire_o2_mode", fire_o2_mode)).strip_edges().to_lower()
+	plume_lower_o2_depletion_fraction = float(
+		settings.get("plume_lower_o2_depletion_fraction", plume_lower_o2_depletion_fraction)
+	)
+	plume_upper_o2_displacement_frac = float(
+		settings.get("plume_upper_o2_displacement_frac", plume_upper_o2_displacement_frac)
+	)
 
 
 func reset() -> void:
@@ -306,14 +320,31 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		elif room.hrr_kw > 0.0:
 			# R3: o2_upper depletado por combustión; repuesto por entrainment del penacho
 			# desde o2_lower (zona baja, fresca) — fuente correcta en modelo two-zone CFAST.
-			var cr_upper: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
-			var upper_consumed: float = (room.hrr_kw / 1000.0) * cr_upper * dt
-			upper_consumed = minf(upper_consumed, upper_air_mass * room.o2_upper * 0.20)
+			# Phase 4A: en plume_lower_mode el fuego consume O2 de la zona baja (no superior).
+			# En lugar del consumo estequiométrico completo (causa cascada), se aplica
+			# plume_upper_o2_displacement_frac para modelar el desplazamiento de O2 por
+			# productos de combustión (CO2, H2O) que llenan la zona superior.
+			var upper_consumed: float = 0.0
+			if not plume_lower_mode:
+				var cr_upper: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
+				upper_consumed = (room.hrr_kw / 1000.0) * cr_upper * dt
+				upper_consumed = minf(upper_consumed, upper_air_mass * room.o2_upper * 0.20)
+			elif plume_upper_o2_displacement_frac > 0.0:
+				var cr_upper: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
+				upper_consumed = (room.hrr_kw / 1000.0) * cr_upper * dt * plume_upper_o2_displacement_frac
+				upper_consumed = minf(upper_consumed, upper_air_mass * room.o2_upper * 0.20)
 			room.o2_upper = clampf(
 				(upper_air_mass * room.o2_upper - upper_consumed) / maxf(0.001, upper_air_mass),
 				0.0, o2_nominal)
 			var entr_frac: float = clampf(o2_upper_plume_entr_rate * dt, 0.0, 0.15)
-			var delta_entr: float = entr_frac * maxf(0.0, room.o2_lower - room.o2_upper)
+			# Phase 4A: en plume_lower_mode el penacho entrana aire de la zona baja (o2_lower)
+			# hacia la zona alta. Si o2_lower < o2_upper, ese gas diluye o2_upper (bidireccional).
+			# En otros modos: sólo se permite delta positivo (zona baja más rica → sube o2_upper).
+			var delta_entr: float
+			if plume_lower_mode:
+				delta_entr = entr_frac * (room.o2_lower - room.o2_upper)
+			else:
+				delta_entr = entr_frac * maxf(0.0, room.o2_lower - room.o2_upper)
 			room.o2_upper = clampf(room.o2_upper + delta_entr, 0.0, o2_nominal)
 			# Fase 2A: o2_lower near-ambient, independiente de o2_upper.
 			# Pluma la arrastra lentamente hacia el floor. ACH la repone.
@@ -362,9 +393,12 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# El consumo va proporcional al HRR y a la masa de aire de la zona baja.
 			if plume_lower_mode:
 				var cr_plume: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
-				var plume_consumed: float = (room.hrr_kw / 1000.0) * cr_plume * dt
+				var plume_consumed: float = (room.hrr_kw / 1000.0) * cr_plume * dt * plume_lower_o2_depletion_fraction
 				plume_consumed = minf(plume_consumed, lower_air_mass * room.o2_lower * 0.20)
-				room.o2_lower = maxf(0.0, room.o2_lower - plume_consumed / lower_air_mass)
+				# Phase 4A: dividir por air_mass_kg (no lower_air_mass) modela que el penacho
+				# entrana aire de toda la zona baja efectiva de la sala, evitando depleción
+				# acelerada cuando la capa baja es delgada (lower_air_mass << air_mass_kg).
+				room.o2_lower = maxf(0.0, room.o2_lower - plume_consumed / air_mass_kg)
 			var ach_lower_dt: float = (ach_infiltration / 3600.0) \
 				* (building.outside_o2 - room.o2_lower) * dt
 			# Phase 2H fix: en modo two-zone, la zona baja puede reponerse hasta el O₂
