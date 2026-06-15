@@ -1,7 +1,7 @@
 # SimuFire — Estado de validación CFAST
 
 > Última actualización: 2026-06-15  
-> Branch: `main` · HEAD: Phase 4A (pendiente commit)  
+> Branch: `main` · HEAD: Phase 4A (148b2d5)  
 > Fallos requeridos actuales: **14 / 334**
 
 ---
@@ -28,6 +28,7 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | `cae9ec0` | Rebaselinear reference_checks a estado correcto | 18 → 16 |
 | `e2c4b2b` | Phase 3: fix ODE presión — incluir dinteles en alivio | 16 → **16** (sin-regresión) |
 | Phase 4A | Fix doble-depleción O₂ en plume_lower_mode (r0_window_360) | 16 → **14** |
+| Phase 4B | Diagnóstico slow_growth_sealed — gap estructural confirmado (sin cambio) | **14** → **14** |
 
 ---
 
@@ -73,7 +74,9 @@ El validator documenta explícitamente: "Structural Phase 2 gap — SF usa room-
 
 ---
 
-### Grupo B — `cfast_slow_growth_sealed` (2 fallos)
+### Grupo B — `cfast_slow_growth_sealed` (2 fallos) — Gap estructural Phase 2
+
+**Phase 4B INVESTIGADO. Causa raíz confirmada. No resoluble con parámetros — requiere Phase 2.**
 
 Escenario: sala sellada, fuego slow-growth (α=0.003 kW/s²), 1800 s.
 
@@ -82,13 +85,72 @@ Escenario: sala sellada, fuego slow-growth (α=0.003 kW/s²), 1800 s.
 | `cfast_slow_t480_temp_upper_c` | 98.5°C | 151°C | ±10°C |
 | `cfast_slow_t600_temp_upper_c` | 103.9°C | 152°C | ±15°C |
 
-**Causa raíz:** La temperatura de la zona superior en sala sellada se mantiene ~50°C por debajo del valor CFAST. El balance de energía del motor pierde calor demasiado rápido hacia el ambiente. El fuego slow-growth llega a ~260 kW en t=480 s pero la zona superior solo llega a 98°C.
+**Causa raíz (Phase 4B, confirmada):**
 
-**Por qué no se puede arreglar con parámetros:**
-- Reducir `hrr_chi_rad_normal` (más calor convectivo → más caliente) mejora la temperatura pero rompe los checks de O₂ (zona superior más caliente → más densa → más O₂ consumido por el fuego → o2 demasiado bajo).
-- Reducir `upper_to_ambient_loss_rate` rompe otros casos.
+La zona superior queda ~50°C baja porque `hrr_chi_rad_normal=0.70` implica que solo el 30% del HRR es convectivo. Con HRR=222 kW en t=480 s:
 
-**Fix necesario:** Revisar el balance energético de la zona superior en salas selladas sin ventilación exterior. Posiblemente hay una pérdida térmica adicional no justificada (wall absorption + ambient loss suman demasiado para slow-growth en sealed).
+- Q_conv = 222 × 0.30 = **66.6 kW** (entrada a zona superior)
+- Q_pérdidas totales ≈ **65.7 kW**:
+  - Plume McCaffrey (enfriamiento por entrainment): ~31.6 kW
+  - `upper_to_ambient_loss_rate=0.01`: ~16.5 kW
+  - `wall_absorption_rate=0.008`: ~12.9 kW
+  - `upper_to_lower_loss_rate=0.002`: ~4.7 kW
+- Balance neto: ~0.9 kW → 0.045°C/s → equilibrio a **~98°C** (vs CFAST 151°C)
+
+Para alcanzar el equilibrio a 151°C con el mismo HRR, se necesitaría `chi_rad ≈ 0.50` (solo 50% radiativo).
+
+**Por qué no se puede arreglar con parámetros — acoplamiento chi_rad / O₂:**
+
+Se probó `hrr_chi_rad_normal = hrr_chi_rad_low_o2 = 0.50` (único cambio en `cfast_slow_growth_sealed.json`):
+
+| Check | Baseline (chi_rad=0.70) | Test (chi_rad=0.50) | Resultado |
+|-------|------------------------|----------------------|-----------|
+| `cfast_slow_t480_temp_upper_c` | 98.5°C — FAIL | ~128°C — FAIL | sin mejora suficiente |
+| `cfast_slow_t600_temp_upper_c` | 103.9°C — FAIL | 141.4°C — **PASS** | ±15 ok |
+| `cfast_slow_t300_o2` | 0.1598 — PASS | 0.1411 — **FAIL** | regresión nueva |
+| `cfast_slow_t480_o2` | 0.074 — PASS | 0.0705 — **FAIL** | regresión nueva |
+| **Total fallos** | **14** | **15** | **regresión neta** |
+
+El acoplamiento chi_rad → O₂ funciona así:
+
+1. chi_rad↓ → fracción convectiva↑ → `temp_upper`↑
+2. Temperatura más alta → gas menos denso → misma masa ocupa más volumen → `upper_gas_kg` se reduce (t=300: 17.8 kg → 11.7 kg)
+3. El consumo de O₂ por el fuego se divide por `upper_gas_kg` como denominador → masa más pequeña → fracción O₂ removida por paso más grande → O₂ se depleta más rápido
+4. Los checks t=300 y t=480 O₂ fallan
+
+**Rangos incompatibles (gap estructural):**
+
+| Restricción | chi_rad requerido |
+|-------------|------------------|
+| t=600 temp pass (±15°C) | ≤ 0.55 |
+| t=300 O₂ pass (±0.01) | ≥ 0.64 |
+
+Estos rangos no se solapan. No existe un valor de `chi_rad` que satisfaga ambos simultáneamente.
+
+**Investigaciones adicionales descartadas:**
+
+- `ach_infiltration=5.0`: solo afecta composición de gases (no temperatura térmica en ThermalSystem.gd) — no es la causa
+- Reducir `wall_absorption_rate` o `upper_to_ambient_loss_rate`: ahorro teórico máximo <20°C con chi_rad=0.70 — insuficiente
+- Reducir `plume_fire_diameter_m`: reduce entrainment pero mantiene el mismo acoplamiento O₂/temperatura
+- `upper_heat_capture_max`: marcado como obsoleto en ThermalSystem.gd (líneas 222-223), no se usa
+
+**Fix real necesario (Phase 2):**
+
+En CFAST, el fuego consume O₂ de la **zona inferior** a través del plume. En SF con `fire_o2_mode="upper"`, el fuego consume O₂ directamente de `o2_upper`, por lo que temperatura y O₂ están acoplados en `upper_gas_kg`. La solución requiere arquitectura dos-zonas canónica (ZoneFireSolver Phase 2) donde:
+- El fuego depleta O₂ del lower layer
+- El plume transporta calor + productos al upper layer
+- El O₂ del upper layer solo cambia por exchange, no por consumo directo del fuego
+
+**Comandos ejecutados:**
+```bash
+# Simular con chi_rad=0.50 (test que causó regresión — REVERTIDO)
+powershell -ExecutionPolicy Bypass -File sim/validation/run_case.ps1 -CaseName cfast_slow_growth_sealed -TimeoutSeconds 600
+
+# Verificar conteo de fallos (14 con chi_rad=0.70; 15 con chi_rad=0.50)
+python scripts/simulation/validate_reference_cases.py
+```
+
+**Estado:** `sim/validation/cases/cfast_slow_growth_sealed.json` revertido a baseline (`chi_rad=0.70`). Fallos = 14 (sin cambio).
 
 ---
 
@@ -134,6 +196,18 @@ Escenario: fuego en sala 0 (300 kW), puertas abiertas a salas 1 y 2 en corredor.
 ---
 
 ## Trabajo completado
+
+### Phase 4B — Diagnóstico slow_growth_sealed (gap estructural confirmado)
+
+**Resultado:** 14 fallos → **14 fallos** (sin cambio). El análisis confirmó que los 2 fallos de temperatura son un gap estructural Phase 2, no resoluble con tuning de parámetros.
+
+**Causa raíz documentada:** `fire_o2_mode="upper"` acopla la temperatura del upper layer con la tasa de depleción de O₂ a través de `upper_gas_kg`. Cualquier chi_rad que suba la temperatura lo suficiente también reduce `upper_gas_kg` hasta que los checks de O₂ en t=300 y t=480 fallan. Los rangos de chi_rad requeridos para temperatura vs O₂ no se solapan.
+
+**Fix intentado y revertido:** chi_rad=0.50 → t=600_temp PASS, pero 2 nuevas regresiones O₂ → 15 fallos. Revertido.
+
+**Archivos modificados:** ninguno (investigación sin cambio de baseline).
+
+---
 
 ### Phase 4A — Fix doble-depleción O₂ en plume_lower_mode
 
@@ -229,11 +303,9 @@ La presión canónica no ayuda a los fallos actuales porque estos son de **balan
 
 ### Prioridad alta (máximo impacto)
 
-**P2 — Corregir slow_growth_sealed (2 fallos)**
+**P2 — slow_growth_sealed (2 fallos) — Gap estructural Phase 2 ✗**
 
-Investigar:
-- Balance de pérdidas térmicas en sala sellada sin ventilación: wall_absorption_rate + upper_to_ambient_loss_rate puede estar sobreestimando pérdidas para fuegos lentos.
-- El parámetro `ach_infiltration=5.0` en slow_growth actúa como pérdida de calor continua — verificar si esto es coherente con CFAST para sala "sealed" (CFAST quizás usa infiltración efectiva mucho menor).
+Investigado en Phase 4B. Los 2 fallos de temperatura son un gap estructural: requieren que el fuego consuma O₂ del lower layer (vía plume) en lugar de `o2_upper` directamente. Resolver requiere ZoneFireSolver Phase 2 (two-zone canónico). No atacar sin esa base arquitectónica.
 
 **P3 — O₂ transport corridor_chain (5 fallos, Grupo C)**
 
