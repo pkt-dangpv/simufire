@@ -1,7 +1,7 @@
 {
   "all_required_pass": false,
   "required_count": 334,
-  "failed_required_count": 19,
+  "failed_required_count": 18,
   "known_gap_count": 100,
   "checks": [
     {
@@ -2778,7 +2778,7 @@
     },
     {
       "name": "cfast_doorclose_r0_t60_temp_upper_c",
-      "actual": 54.75,
+      "actual": 38.76,
       "expected": null,
       "tolerance": null,
       "minimum": 20.0,
@@ -2789,18 +2789,18 @@
     },
     {
       "name": "cfast_doorclose_r0_t120_temp_upper_c",
-      "actual": 248.06,
+      "actual": 170.43,
       "expected": null,
       "tolerance": null,
       "minimum": 50.0,
       "maximum": 220.0,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "CMV-3 Stage-D: pre-close R0 temp_upper in [50.0,220.0]\u00b0C at t={target_s}s. Pre-close fire sequence guard."
     },
     {
       "name": "cfast_doorclose_r0_t240_temp_active",
-      "actual": 317.38,
+      "actual": 192.06,
       "expected": null,
       "tolerance": null,
       "minimum": 100.0,
@@ -2811,7 +2811,7 @@
     },
     {
       "name": "cfast_doorclose_r0_t300_o2_depleted",
-      "actual": 0.0001,
+      "actual": 0.0,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2822,7 +2822,7 @@
     },
     {
       "name": "cfast_doorclose_r1_t300_cooling",
-      "actual": 27.0,
+      "actual": 25.24,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2844,7 +2844,7 @@
     },
     {
       "name": "cfast_doorclose_r0_t300_pressure_pa",
-      "actual": 799678.11,
+      "actual": 322631.82,
       "expected": 154.307,
       "tolerance": 145.7,
       "minimum": null,
@@ -2855,7 +2855,7 @@
     },
     {
       "name": "cfast_doorclose_r0_rmse_temp_upper_pre_close",
-      "actual": 64.16250260909045,
+      "actual": 20.4554287054336,
       "expected": null,
       "tolerance": null,
       "minimum": null,
