@@ -1,7 +1,7 @@
 {
   "all_required_pass": false,
   "required_count": 334,
-  "failed_required_count": 13,
+  "failed_required_count": 14,
   "known_gap_count": 103,
   "checks": [
     {
@@ -3097,13 +3097,13 @@
     },
     {
       "name": "ghanekar_far_hall_o2_response_time_s",
-      "actual": 219.833333333341,
+      "actual": 162.500000000001,
       "expected": 198.0,
       "tolerance": 30.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": true,
+      "pass": false,
       "note": "Ghanekar bedroom tests report initial hallway O2 response near 3.3 min."
     },
     {
@@ -3119,7 +3119,7 @@
     },
     {
       "name": "ghanekar_origin_peak_upper_temp_reasonable_c",
-      "actual": 566.836011013477,
+      "actual": 577.903755004006,
       "expected": null,
       "tolerance": null,
       "minimum": 450.0,
@@ -3141,7 +3141,7 @@
     },
     {
       "name": "ghanekar_far_hall_co_known_gap",
-      "actual": 152.583333333333,
+      "actual": 151.333333333333,
       "expected": 204.0,
       "tolerance": 45.0,
       "minimum": null,
