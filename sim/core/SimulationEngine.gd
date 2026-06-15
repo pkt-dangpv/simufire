@@ -224,6 +224,8 @@ var _layer_interface_warning_rooms: Dictionary = {}
 ## Cuando true, OxygenExchangeSystem consume de o2_lower cuando fire_o2_mode_used="plume_lower".
 ## Default false = no-op exacto (compatibilidad legacy). Activar vía engine_overrides.
 @export var fire_o2_canonical_enabled: bool = false
+## Phase 5 M2: tracer conservado de masa O2 en zona superior. Default false = no-op exacto.
+@export var fire_o2_mass_tracking_enabled: bool = false
 # Rendimiento de humo (kg/MJ)
 # SFPE: ~0.06 kg/kg ÷ 16 MJ/kg = 0.00375 kg/MJ
 @export var fire_smoke_yield_kg_per_MJ: float = 0.0088
@@ -1140,6 +1142,7 @@ func _sync_auxiliary_services() -> void:
 		"fire_o2_mode": fire_o2_mode,
 		"fire_o2_lower_for_flame": fire_o2_lower_for_flame,
 		"fire_o2_canonical_enabled": fire_o2_canonical_enabled,
+		"fire_o2_mass_tracking_enabled": fire_o2_mass_tracking_enabled,
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
@@ -1190,6 +1193,7 @@ func _build_state_context() -> Dictionary:
 				and phase3_pressure_canonical_enabled,
 		"fire_o2_mode": fire_o2_mode,
 		"fire_o2_effective_mode": _resolve_fire_o2_mode(),
+		"fire_o2_mass_tracking_enabled": fire_o2_mass_tracking_enabled,
 		"step_time_us": _step_time_us,
 	}
 

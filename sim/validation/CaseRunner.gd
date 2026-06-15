@@ -837,6 +837,9 @@ func _update_metrics(state: Dictionary) -> void:
 	_metrics["phase3_pressure_canonical_enabled"] = 1.0 if bool(
 		state.get("phase3_pressure_canonical_enabled", false)
 	) else 0.0
+	_metrics["fire_o2_mass_tracking_enabled"] = 1.0 if bool(
+		state.get("fire_o2_mass_tracking_enabled", false)
+	) else 0.0
 
 	var trigger_room_id: int = int(_case_config.get("smoke_trigger_room_id", 0))
 	var target_room_id: int = int(_case_config.get("spread_target_room_id", 1))

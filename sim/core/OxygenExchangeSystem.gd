@@ -292,6 +292,16 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		var upper_air_mass: float = air_mass_kg * upper_frac
 		var lower_air_mass: float = maxf(0.001, air_mass_kg * lower_frac)
 
+		if fire_o2_mass_tracking_enabled:
+			if room.upper_o2_mass_tracked < 0.0:
+				room.upper_o2_mass_tracked = room.o2_upper * upper_air_mass
+			else:
+				room.o2_upper = clampf(
+					room.upper_o2_mass_tracked / maxf(0.001, upper_air_mass),
+					0.0,
+					o2_nominal
+				)
+
 		# R2-2: El fuego consume O₂ del caudal entrenado de la zona inferior cuando:
 		# • fire_o2_mode = "legacy" (selección automática por interfaz, no explícita)
 		# • bi-zona válida (lower_frac ≥ 0.15)
@@ -466,6 +476,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		var _o2_lower_final_ceil: float = building.outside_o2 \
 			if (phase2h_o2_doorway_two_zone_enabled or two_zone_solver_enabled or effective_plume_lower) else o2_nominal
 		room.o2_lower = clampf(room.o2_lower, 0.0, _o2_lower_final_ceil)
+		if fire_o2_mass_tracking_enabled:
+			room.upper_o2_mass_tracked = room.o2_upper * upper_air_mass
 
 		# ── Fase 2B: CO₂ upper-zone mol-fraction tracking ──────────────────────
 		# Análogo a Fase 2A (o2_upper), pero para CO₂ producido por combustión.
