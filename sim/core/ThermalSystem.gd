@@ -234,6 +234,14 @@ var vent_bernoulli_enabled: bool = true
 var pressure_spill_ref_delta_pa: float = 8.0
 var interior_spill_start_layer_m: float = 2.0
 
+# Phase 5 M3: contraflujo térmico bidireccional por puertas interiores.
+# Cuando true: flujo Bernoulli adicional desde zona caliente → zona fría incluso
+# cuando hot_band_m ≈ 0 (capa caliente alta, flow_state active=false).
+# Default false = no-op exacto. Activar por caso vía engine_overrides.
+var doorway_thermal_counterflow_enabled: bool = false
+var doorway_thermal_counterflow_gain: float = 1.0
+var doorway_thermal_counterflow_min_delta_c: float = 5.0
+
 # FED (ISO 13571) — componentes asfixiantes disponibles en el modelo
 var fed_hypoxia_enabled: bool = true
 var fed_hypoxia_a: float = 8.13
@@ -534,6 +542,9 @@ func configure(settings: Dictionary) -> void:
 	doorway_o2_pressure_weight = float(settings.get("doorway_o2_pressure_weight", doorway_o2_pressure_weight))
 	pressure_spill_ref_delta_pa = float(settings.get("pressure_spill_ref_delta_pa", pressure_spill_ref_delta_pa))
 	interior_spill_start_layer_m = float(settings.get("interior_spill_start_layer_m", interior_spill_start_layer_m))
+	doorway_thermal_counterflow_enabled = bool(settings.get("doorway_thermal_counterflow_enabled", doorway_thermal_counterflow_enabled))
+	doorway_thermal_counterflow_gain = float(settings.get("doorway_thermal_counterflow_gain", doorway_thermal_counterflow_gain))
+	doorway_thermal_counterflow_min_delta_c = float(settings.get("doorway_thermal_counterflow_min_delta_c", doorway_thermal_counterflow_min_delta_c))
 	plume_mccaffrey_enabled = bool(settings.get("plume_mccaffrey_enabled", plume_mccaffrey_enabled))
 	plume_mccaffrey_qc_fraction = float(settings.get("plume_mccaffrey_qc_fraction", plume_mccaffrey_qc_fraction))
 	plume_fire_diameter_m = float(settings.get("plume_fire_diameter_m", plume_fire_diameter_m))
@@ -934,6 +945,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		)
 		_apply_interior_background_heat_exchange(room_a, room_b, op, dt, ambient_c)
 		_apply_stairwell_heat_bridge(room_a, room_b, op, dt, ambient_c)
+		_apply_doorway_thermal_counterflow(room_a, room_b, op, flow_state, dt, ambient_c)
 		if not bool(flow_state.get("active", false)):
 			continue
 
@@ -2149,6 +2161,87 @@ func _apply_interior_background_heat_exchange(
 		sync_room_upper_layer(source, dt)
 	if touched_target:
 		sync_room_upper_layer(target, dt)
+
+
+# Phase 5 M3: contraflujo térmico bidireccional por puertas interiores.
+# Modela flujo Bernoulli caliente-frío a través de la puerta incluso cuando la capa
+# caliente está cerca del techo (hot_band_m ≈ 0, flow_state.active = false).
+# Referencia: SFPE §3.2 / CFAST TN 1889v1 §2.2 — igual fórmula que el path Bernoulli
+# activo, pero sin requerir hot_band_m > 0.
+func _apply_doorway_thermal_counterflow(
+	room_a: RoomModel,
+	room_b: RoomModel,
+	op: OpeningModel,
+	flow_state: Dictionary,
+	dt: float,
+	ambient_c: float
+) -> void:
+	if not doorway_thermal_counterflow_enabled:
+		return
+	if room_a == null or room_b == null or op == null or dt <= 0.0:
+		return
+	if op.open_fraction <= 0.0:
+		return
+
+	var hot_room: RoomModel = room_a
+	var cold_room: RoomModel = room_b
+	if room_b.temp_upper_c > room_a.temp_upper_c:
+		hot_room = room_b
+		cold_room = room_a
+
+	var delta_c: float = maxf(0.0, hot_room.temp_upper_c - cold_room.temp_upper_c)
+	if delta_c < doorway_thermal_counterflow_min_delta_c:
+		return
+
+	# Flujo Bernoulli: caudal volumétrico impulsado por boyantez (m³/s).
+	# Usamos T_hot_upper vs T_cold_lower como diferencia motriz (mayor gradiente hidrostático).
+	var T_hot_k: float = hot_room.temp_upper_c + 273.15
+	var T_cold_k: float = cold_room.temp_lower_c + 273.15
+	var T_ref_k: float = (T_hot_k + T_cold_k) * 0.5
+	var dT_drive_k: float = maxf(0.0, T_hot_k - T_cold_k)
+	if dT_drive_k < 0.5:
+		return
+
+	var g: float = 9.81
+	var Cd: float = 0.65
+	var w: float = op.width_m * op.open_fraction
+	# h_upper = complemento del plano activo Bernoulli: resta hot_band_m para no duplicar
+	# el flujo que ya gestiona el path activo cuando la capa caliente cruza el dintel.
+	var hot_band_m: float = float(flow_state.get("hot_band_m", 0.0))
+	var h_upper: float = maxf(0.0, op.height_m * 0.5 - hot_band_m)
+	if h_upper < 0.05:
+		return
+
+	var q_upper_m3s: float = Cd * w * (2.0 / 3.0) * pow(h_upper, 1.5) \
+			* sqrt(2.0 * g * dT_drive_k / T_ref_k)
+	if q_upper_m3s <= 0.0:
+		return
+
+	# Modelo de conductancia convectiva pura: no se transfiere masa entre salas.
+	# Q [kW] = ṁ_eff [kg/s] × (T_hot_upper − T_cold_upper) [kJ/kg] × gain
+	# La tasa másica efectiva es el caudal Bernoulli × densidad del gas caliente.
+	# La diferencia de temperatura usa upper−upper para reflejar el gradiente real de la zona superior.
+	var rho_hot: float = 353.0 / maxf(50.0, T_hot_k)
+	var dT_upper_k: float = maxf(0.0, hot_room.temp_upper_c - cold_room.temp_upper_c)
+	var Q_kw: float = q_upper_m3s * rho_hot * dT_upper_k * doorway_thermal_counterflow_gain
+	var energy_moved_kj: float = Q_kw * dt
+
+	# Cap: no drenar más del 5% de la energía superior en un paso (estabilidad numérica)
+	energy_moved_kj = minf(energy_moved_kj, maxf(0.0, hot_room.upper_energy_kj * 0.05))
+	if energy_moved_kj <= 0.0:
+		return
+
+	# Transferencia de energía pura (sin movimiento de masa): evita acumulación de gas
+	# en la sala receptora y conserva la estructura de capas de cada sala.
+	hot_room.upper_energy_kj = maxf(0.0, hot_room.upper_energy_kj - energy_moved_kj)
+
+	# Si la sala fría no tiene capa superior establecida, crear masa mínima para aceptar energía
+	if cold_room.upper_gas_kg < 0.01:
+		cold_room.upper_gas_kg += 0.005
+	cold_room.upper_energy_kj = maxf(0.0, cold_room.upper_energy_kj + energy_moved_kj)
+
+	sync_room_upper_layer(hot_room, dt)
+	sync_room_upper_layer(cold_room, dt)
 
 
 func _apply_stairwell_heat_bridge(
