@@ -47,6 +47,10 @@ var o2: float = 0.209
 var o2_upper: float = 0.209
 # Fraccion O2 en capa inferior (zona fría). Variable persistente; NO derivada de o2. Fase 2A (2026-05-20).
 var o2_lower: float = 0.209
+# Phase 5 M2: masa conservada de O₂ en zona superior [kg]. -1.0 = sin inicializar.
+# Inicializado/actualizado por OxygenExchangeSystem cuando fire_o2_mass_tracking_enabled=true.
+# Con flag OFF este campo nunca se lee ni escribe → no-op garantizado.
+var upper_o2_mass_tracked: float = -1.0
 # M2: muestra local de O2 realmente usada por CombustionSystem.
 var fire_o2_mode_used: String = "legacy"
 var fire_o2_ref: float = 0.209
@@ -281,6 +285,7 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	o2 = ambient_o2
 	o2_upper = ambient_o2
 	o2_lower = ambient_o2
+	upper_o2_mass_tracked = -1.0
 	fire_o2_mode_used = "legacy"
 	fire_o2_ref = ambient_o2
 	fire_o2_min_ref = 0.0

@@ -129,8 +129,8 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var selection_highlight_color: Color = Color(1.0, 0.88, 0.18, 1.0)
 
 @export_group("Dynamics")
-@export var smoke_visible_threshold_kg: float = 0.01
-@export var smoke_reference_kg: float = 1.2
+@export var smoke_visible_threshold_kg: float = 0.003
+@export var smoke_reference_kg: float = 0.35
 @export var smoke_density_reference_kg_m3: float = 0.018
 @export var smoke_dense_visibility_m: float = 12.0
 @export var smoke_ceiling_mask_max_alpha: float = 0.92
@@ -2014,7 +2014,7 @@ func _update_smoke_volume(
 		return
 	var target_depth_m: float = maxf(0.0, height_m - smoke_layer_m)
 	var floor_level_m: float = float(item.get("floor_level_m", 0.0))
-	if smoke_kg <= smoke_visible_threshold_kg:
+	if smoke_kg <= smoke_visible_threshold_kg and visibility_m >= smoke_dense_visibility_m:
 		target_depth_m = 0.0
 	var hrr_smoke_t: float = clampf(sqrt(maxf(0.0, hrr_kw) / maxf(1.0, smoke_hrr_reference_kw)), 0.0, 1.0)
 	if hrr_kw > fire_min_visible_hrr_kw:
@@ -2030,7 +2030,7 @@ func _update_smoke_volume(
 	var layer_depth_t: float = float(target_optics.get("layer_depth_t", 0.0))
 	var mass_t: float = float(target_optics.get("mass_t", 0.0))
 	var alpha_cap: float = 0.86 if _first_person_overlay else 0.70
-	var alpha_floor: float = 0.055 if target_depth_m > smoke_min_visible_depth_m else 0.0
+	var alpha_floor: float = 0.08 if target_depth_m > smoke_min_visible_depth_m else 0.0
 	var alpha: float = clampf(
 		smoke_color.a * 0.22
 			+ mass_t * (0.30 if _first_person_overlay else 0.22)
@@ -2329,6 +2329,7 @@ func _update_fire_visual(item: Dictionary, rect: Rect2, room_height_m: float, hr
 	if fire_root == null:
 		return
 	var anchor: Dictionary = _find_fire_anchor(item, rect, rs)
+	var has_fire_anchor: bool = not anchor.is_empty()
 	var fire_pos: Vector3 = Vector3(anchor.get("position", _room_center(rect, 0.0)))
 	var fire_base_y_m: float = float(anchor.get("base_y_m", 0.0))
 	var source_radius_m: float = float(anchor.get("radius_m", fire_base_radius_m))
@@ -2337,7 +2338,7 @@ func _update_fire_visual(item: Dictionary, rect: Rect2, room_height_m: float, hr
 	var target_radius: float = fire_base_radius_m
 	var target_cap_radius: float = 0.0
 	var target_cap_weight: float = 0.0
-	if show_hrr_columns and hrr_kw > fire_min_visible_hrr_kw:
+	if has_fire_anchor and show_hrr_columns and hrr_kw > fire_min_visible_hrr_kw:
 		var fire_t: float = clampf(hrr_kw / maxf(1.0, hrr_reference_kw), 0.0, 1.8)
 		var ceiling_height_m: float = maxf(0.16, available_height_m)
 		var free_plume_height_m: float = clampf(
@@ -2471,7 +2472,7 @@ func _find_fire_anchor(item: Dictionary, rect: Rect2, rs: Dictionary) -> Diction
 	var fuel_objects: Array = rs.get("fuel_objects", [])
 	if fuel_objects.is_empty():
 		item["fire_anchor_id"] = ""
-		return {"position": anchor_pos, "base_y_m": anchor_y_m, "radius_m": anchor_radius_m}
+		return {}
 
 	var best_obj: Dictionary = {}
 	var best_score: float = -1.0
@@ -2517,7 +2518,7 @@ func _find_fire_anchor(item: Dictionary, rect: Rect2, rs: Dictionary) -> Diction
 			best_obj = previous_obj
 		else:
 			item["fire_anchor_id"] = ""
-			return {"position": anchor_pos, "base_y_m": anchor_y_m, "radius_m": anchor_radius_m}
+			return {}
 	if not previous_obj.is_empty() and previous_score > maxf(1.0, best_score * 0.35):
 		best_obj = previous_obj
 	item["fire_anchor_id"] = String(best_obj.get("id", ""))

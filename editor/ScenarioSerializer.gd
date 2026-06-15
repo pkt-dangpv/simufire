@@ -76,6 +76,7 @@ static func to_runtime_template(editor_data: Dictionary) -> Dictionary:
 			openings_data.append(Dictionary(raw_opening).duplicate(true))
 
 	return {
+		"ignition_room_id": _resolve_ignition_room_id(data),
 		"outside_temp_c": float(data.get("outside_temp_c", 20.0)),
 		"outside_o2": float(data.get("outside_o2", 0.209)),
 		"building_type": String(data.get("building_type", "single_family")),
@@ -98,6 +99,7 @@ static func to_runtime_template(editor_data: Dictionary) -> Dictionary:
 static func to_runtime_json_data(editor_data: Dictionary) -> Dictionary:
 	var data: Dictionary = normalize_editor_data(editor_data)
 	return {
+		"ignition_room_id": _resolve_ignition_room_id(data),
 		"outside_temp_c": float(data.get("outside_temp_c", 20.0)),
 		"outside_o2": float(data.get("outside_o2", 0.209)),
 		"building_type": String(data.get("building_type", "single_family")),
@@ -116,6 +118,22 @@ static func to_runtime_json_data(editor_data: Dictionary) -> Dictionary:
 		"detectors": Array(data.get("detectors", [])).duplicate(true),
 		"victims": Array(data.get("victims", [])).duplicate(true)
 	}
+
+
+static func _resolve_ignition_room_id(data: Dictionary) -> int:
+	for raw_room in Array(data.get("rooms_data", [])):
+		if typeof(raw_room) != TYPE_DICTIONARY:
+			continue
+		var room: Dictionary = raw_room
+		for raw_obj in Array(room.get("fuel_objects", [])):
+			if typeof(raw_obj) != TYPE_DICTIONARY:
+				continue
+			var obj: Dictionary = raw_obj
+			if bool(obj.get("is_primary_ignition_source", false)):
+				return int(room.get("id", obj.get("room_id", 0)))
+	if data.has("ignition_room_id"):
+		return int(data.get("ignition_room_id", 0))
+	return 0
 
 
 static func normalize_editor_data(raw_data: Dictionary) -> Dictionary:

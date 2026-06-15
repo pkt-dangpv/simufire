@@ -164,6 +164,8 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var show_technical_overlay: bool = true
 ## Muestra readout compacto de visibilidad en FP cuando el overlay técnico está oculto.
 @export var show_visibility_readout: bool = true
+## Intervalo real de refresco del texto FP. Mantiene datos legibles aunque la simulación vaya acelerada.
+@export_range(0.05, 1.0, 0.05) var fp_hud_refresh_interval_s: float = 0.35
 
 @export_group("FP HUD Layout")
 ## Rect del panel superior de estado FP. x/y son offsets desde su ancla; w/h son tamaño.
@@ -217,6 +219,7 @@ var _f_hold_mode: bool = false
 var _f_hold_elapsed_s: float = 0.0
 var _f_hold_opening_index: int = -1
 var _f_hold_fraction: float = 0.0
+var _last_fp_hud_update_msec: int = 0
 
 
 func _ready() -> void:
@@ -269,7 +272,7 @@ func set_active(enabled: bool) -> void:
 	if enabled:
 		apply_hud_layout()
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		_update_status_hud()
+		_update_status_hud(true)
 		_update_prompt()
 		_update_safety_marker_states()
 	else:
@@ -2180,6 +2183,8 @@ func _update_fp_fire_item(room_id: int, item: Dictionary) -> void:
 	var rect := Rect2(item.get("rect", Rect2(Vector2.ZERO, Vector2.ONE)))
 	var room_height_m: float = maxf(0.24, float(item.get("height_m", boundary_height_m)))
 	var anchor: Dictionary = _fp_fire_anchor(item, rect, rs)
+	if anchor.is_empty():
+		has_visible_fire = false
 	var fire_pos: Vector3 = Vector3(anchor.get("position", _to_world(Vector3(rect.get_center().x, 0.0, rect.get_center().y))))
 	var fire_base_y_m: float = float(anchor.get("base_y_m", 0.0))
 	var source_radius_m: float = float(anchor.get("radius_m", fp_fire_base_radius_m))
@@ -2276,7 +2281,7 @@ func _fp_fire_anchor(item: Dictionary, rect: Rect2, rs: Dictionary) -> Dictionar
 	var best_obj: Dictionary = _fp_fire_anchor_object(item, rs)
 	if best_obj.is_empty():
 		item["fire_anchor_id"] = ""
-		return {"position": anchor_pos, "base_y_m": anchor_y_m, "radius_m": anchor_radius_m}
+		return {}
 
 	item["fire_anchor_id"] = String(best_obj.get("id", ""))
 	var pos_m: Vector2 = _vector2_from_variant(best_obj.get("position_m", rect.size * 0.5), rect.size * 0.5)
@@ -2966,9 +2971,14 @@ func _compute_fp_smoke_view(room_state: Dictionary) -> Dictionary:
 	})
 
 
-func _update_status_hud() -> void:
+func _update_status_hud(force: bool = false) -> void:
 	if _fp_status_label == null:
 		return
+	var now_msec: int = Time.get_ticks_msec()
+	var min_interval_msec: int = int(maxf(0.01, fp_hud_refresh_interval_s) * 1000.0)
+	if not force and _last_fp_hud_update_msec > 0 and now_msec - _last_fp_hud_update_msec < min_interval_msec:
+		return
+	_last_fp_hud_update_msec = now_msec
 	var room_label: String = "SIN SALA"
 	var visibility_label: String = "Vis --"
 	var has_data: bool = false
@@ -3011,11 +3021,11 @@ func _update_technical_overlay(room_state: Dictionary, smoke_view: Dictionary) -
 			temp_c = float(room_state.get("temp_at_1_1m_c", room_state.get("temp_upper_c", 20.0)))
 		_: # STANCE_PRONE
 			temp_c = float(room_state.get("temp_at_0_5m_c", room_state.get("temp_lower_c", 20.0)))
-	# Gases: capa superior conservadora (worst-case). Sin interpolación de altura por capa
-	# para no duplicar lógica de SmokeModel. FED es el acumulado de la sala (peor posición).
+	# Gases: usa la capa coherente con la postura para evitar mezclar upper y promedio.
 	var co_ppm: float = float(room_state.get("co_upper_ppm", 0.0))
 	var co2_vol_pct: float = float(room_state.get("co2_upper_ppm", 4000.0)) / 10000.0
-	var o2_vol_pct: float = float(room_state.get("o2", 0.209)) * 100.0
+	var o2_key: String = "o2_upper" if _stance == STANCE_STAND else "o2_lower"
+	var o2_vol_pct: float = float(room_state.get(o2_key, room_state.get("o2", 0.209))) * 100.0
 	var hcn_ppm: float = float(room_state.get("hcn_upper_ppm", 0.0))
 	var fed_val: float = float(room_state.get("fed", 0.0))
 	var vis_m: float = float(smoke_view.get("fp_visibility_m", room_state.get("visibility_m", 30.0)))

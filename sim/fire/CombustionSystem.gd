@@ -45,6 +45,8 @@ func create_legacy_room_fire(room: RoomModel, defaults: Dictionary) -> FireModel
 		return null
 
 	ensure_room_fuel_objects(room)
+	if not _has_ignitable_fuel_object(room):
+		return null
 	_mark_room_ignition_object(room)
 
 	var fire: FireModel = FireModelScript.new()
@@ -2092,6 +2094,23 @@ func _has_explicit_fuel_objects(room: RoomModel) -> bool:
 
 	for obj in room.fuel_objects:
 		if obj != null and not _is_legacy_room_proxy(obj):
+			return true
+
+	return false
+
+
+func _has_ignitable_fuel_object(room: RoomModel) -> bool:
+	if room == null:
+		return false
+	if not _has_explicit_fuel_objects(room):
+		return room.fuel_energy_MJ > 0.001 \
+			or room.max_hrr_kw > 0.001 \
+			or get_room_total_remaining_fuel_MJ(room) > 0.001
+
+	for obj in room.fuel_objects:
+		if _should_skip_object_for_room(room, obj):
+			continue
+		if obj.remaining_fuel_MJ > 0.001:
 			return true
 
 	return false

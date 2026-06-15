@@ -30,7 +30,7 @@ static func card_summary(room_id: int, room_state: Dictionary, sim_time_s: float
 	lines.append("%s | T+ %.0f T- %.0fC" % [fire_line, t_upper, t_lower])
 	lines.append("O2 %.1f%% | Sm %.2fm | FED %.2f" % [o2_pct, smoke_l, fed])
 	if hrr > 0.5:
-		lines.append("T@0.9 %.0fC | Comb %.0f/%.0fMJ" % [t09, remaining_fuel_mj, fuel_capacity_mj])
+		lines.append("T 0.9m %.0fC | Comb %.0f/%.0fMJ" % [t09, remaining_fuel_mj, fuel_capacity_mj])
 	elif co_ppm > 1.0:
 		lines.append("CO %.0fppm | SVV %.0f%%" % [co_ppm, svv_pct(room_state)])
 	else:
@@ -61,7 +61,7 @@ static func detail_text(room_state: Dictionary) -> String:
 	var data_lines: Array[String] = [
 		"HRR: %.0f kW" % float(room_state.get("hrr_kw", 0.0)),
 		"T+ %.0f  T- %.0f C" % [float(room_state.get("temp_upper_c", 0.0)), float(room_state.get("temp_lower_c", 0.0))],
-		"T@0.9m: %.0f C  T@1.8m: %.0f C" % [float(room_state.get("temp_at_0_9m_c", room_state.get("temp_lower_c", 0.0))), float(room_state.get("temp_at_1_8m_c", 0.0))],
+		"Temp 0.9m: %.0f C  Temp 1.8m: %.0f C" % [float(room_state.get("temp_at_0_9m_c", room_state.get("temp_lower_c", 0.0))), float(room_state.get("temp_at_1_8m_c", 0.0))],
 		"O2: %.1f%%  CO2: %.2f%%" % [float(room_state.get("o2", 0.0)) * 100.0, float(room_state.get("co2", 0.0)) * 100.0],
 		"SmL: %.2f m  L150: %.2f m" % [float(room_state.get("smoke_layer_m", room_state.get("h_layer_m", 0.0))), float(room_state.get("layer_150c_m", 0.0))],
 		"CO: %.0f ppm  HCN: %.1f ppm" % [float(room_state.get("co_ppm", 0.0)), float(room_state.get("hcn_ppm", 0.0))],

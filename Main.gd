@@ -4,7 +4,9 @@ const FirstPersonControllerScript = preload("res://view/fp/FirstPersonController
 const Minimap2DScript = preload("res://ui/Minimap2D.gd")
 const UILocalizationScript = preload("res://ui/UILocalization.gd")
 const MAIN_MENU_PATH: String = "res://scenes/MainMenu.tscn"
+const SCENARIO_EDITOR_PATH: String = "res://scenes/ScenarioEditorScene.tscn"
 const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
+const RETURN_TO_EDITOR_FLAG_PATH: String = "user://return_to_editor.flag"
 
 @onready var building: BuildingModel = $World/BuildingModel
 @onready var engine: SimulationEngine = $World/SimulationEngine
@@ -97,6 +99,7 @@ func _connect_hud_signals() -> void:
 	_connect_once(hud.faster_requested, _on_faster_requested)
 	_connect_once(hud.stop_and_generate_requested, _on_stop_and_generate_requested)
 	_connect_once(hud.exit_without_graphs_requested, _on_exit_without_graphs_requested)
+	_connect_once(hud.return_to_editor_requested, _on_return_to_editor_requested)
 	_connect_once(hud.view_3d_toggled, _on_view_3d_toggled)
 	_connect_once(hud.first_person_toggled, _on_first_person_toggled)
 	_connect_once(hud.hvac_toggled, _on_hvac_toggled)
@@ -359,6 +362,17 @@ func _on_exit_without_graphs_requested() -> void:
 	if first_person_enabled:
 		_set_first_person_enabled(false)
 	get_tree().change_scene_to_file(MAIN_MENU_PATH)
+
+
+func _on_return_to_editor_requested() -> void:
+	playback_paused = true
+	if first_person_enabled:
+		_set_first_person_enabled(false)
+	var flag := FileAccess.open(RETURN_TO_EDITOR_FLAG_PATH, FileAccess.WRITE)
+	if flag != null:
+		flag.store_string("1")
+		flag.close()
+	get_tree().change_scene_to_file(SCENARIO_EDITOR_PATH)
 
 
 func _pick_time_speed(current_speed: float, direction: int) -> float:

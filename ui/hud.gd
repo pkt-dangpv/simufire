@@ -7,6 +7,7 @@ signal slower_requested
 signal faster_requested
 signal stop_and_generate_requested
 signal exit_without_graphs_requested
+signal return_to_editor_requested
 signal view_3d_toggled(enabled: bool)
 signal first_person_toggled(enabled: bool)
 signal hvac_toggled(enabled: bool)
@@ -29,6 +30,7 @@ const HUD_PANEL_PATHS: Array[String] = [
 ]
 const EXIT_MENU_EXIT_ONLY: int = 1
 const EXIT_MENU_SAVE_GRAPHS: int = 2
+const EXIT_MENU_RETURN_EDITOR: int = 3
 
 @export var show_status_panel: bool = false
 @export var status_panel_room_id: int = 0
@@ -555,7 +557,14 @@ func _ensure_exit_options_menu() -> void:
 		add_child(exit_options_menu)
 	exit_options_menu.clear()
 	exit_options_menu.add_item(UILocalizationScript.t("hud.exit_only", "Salir sin guardar"), EXIT_MENU_EXIT_ONLY)
+	exit_options_menu.add_item(UILocalizationScript.t("hud.exit_editor", "Volver al editor"), EXIT_MENU_RETURN_EDITOR)
 	exit_options_menu.add_item(UILocalizationScript.t("hud.exit_save_graphs", "Salir y guardar + graficas"), EXIT_MENU_SAVE_GRAPHS)
+	exit_options_menu.add_theme_font_override("font", SimuFireThemeScript.title_font())
+	exit_options_menu.add_theme_font_size_override("font_size", action_button_font_size)
+	exit_options_menu.add_theme_stylebox_override("panel", SimuFireThemeScript.stylebox(SimuFireThemeScript.PANEL_DARK, SimuFireThemeScript.BORDER, 1, 0, Vector2(10.0, 8.0)))
+	exit_options_menu.add_theme_stylebox_override("hover", SimuFireThemeScript.stylebox(Color(0.04, 0.10, 0.12, 0.98), SimuFireThemeScript.BLUE, 1, 0, Vector2(10.0, 8.0)))
+	exit_options_menu.add_theme_color_override("font_color", SimuFireThemeScript.TEXT)
+	exit_options_menu.add_theme_color_override("font_hover_color", Color.WHITE)
 
 
 func _ensure_victims_panel() -> void:
@@ -977,6 +986,8 @@ func _on_exit_option_pressed(id: int) -> void:
 	match id:
 		EXIT_MENU_EXIT_ONLY:
 			exit_without_graphs_requested.emit()
+		EXIT_MENU_RETURN_EDITOR:
+			return_to_editor_requested.emit()
 		EXIT_MENU_SAVE_GRAPHS:
 			if _can_stop_and_generate_graphs():
 				stop_and_generate_requested.emit()

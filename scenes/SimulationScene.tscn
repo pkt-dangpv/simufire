@@ -327,7 +327,7 @@ theme_override_constants/separation = 4
 
 [node name="VictimsPanelTitle" type="Label" parent="UI/HUD/VictimsPanel/MarginContainer/VBoxContainer" unique_id=1200100004]
 layout_mode = 2
-text = "V\u00edctimas"
+text = "VICTIMAS"
 
 [node name="VictimsRows" type="VBoxContainer" parent="UI/HUD/VictimsPanel/MarginContainer/VBoxContainer" unique_id=1200100005]
 layout_mode = 2

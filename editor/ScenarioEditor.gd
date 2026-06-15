@@ -42,6 +42,7 @@ const GRID_M: float = 0.25
 const OUTSIDE_ID: int = -1
 const DEFAULT_SAVE_PATH: String = "user://editor_scenario.json"
 const RUNTIME_EXPORT_PATH: String = "user://last_editor_runtime_template.json"
+const RETURN_TO_EDITOR_FLAG_PATH: String = "user://return_to_editor.flag"
 const SCENARIOS_RES_PATH: String = "res://scenarios"
 const VALIDATION_CASES_PATH: String = "res://sim/validation/cases"
 const MAIN_SCENE_PATH: String = "res://scenes/SimulationScene.tscn"
@@ -329,6 +330,7 @@ var _ctx_exterior_wall_index: int = -1
 func _ready() -> void:
 	UILocalizationScript.ensure_loaded()
 	_create_empty_scenario()
+	_load_returned_runtime_if_requested()
 	_setup_grid()
 	if not _bind_existing_ui():
 		_setup_ui()
@@ -341,6 +343,20 @@ func _ready() -> void:
 	_set_tool(Tool.SELECT)
 	_set_editor_view_mode(EditorViewMode.MODE_2D, true)
 	queue_redraw()
+
+
+func _load_returned_runtime_if_requested() -> void:
+	if not FileAccess.file_exists(RETURN_TO_EDITOR_FLAG_PATH):
+		return
+	var user_dir := DirAccess.open("user://")
+	if user_dir != null:
+		user_dir.remove("return_to_editor.flag")
+	if not FileAccess.file_exists(RUNTIME_EXPORT_PATH):
+		return
+	var loaded: Dictionary = Serializer.load_scenario(RUNTIME_EXPORT_PATH)
+	if loaded.is_empty():
+		return
+	editor_data = Serializer.normalize_editor_data(loaded)
 
 
 func _setup_grid() -> void:
@@ -5169,6 +5185,7 @@ func _mark_object_as_ignition(target_room_id: int, target_index: int) -> void:
 		room["fuel_objects"] = objects
 		rooms[i] = room
 	editor_data["rooms_data"] = rooms
+	editor_data["ignition_room_id"] = target_room_id
 	_select_object(target_room_id, target_index)
 	_set_status("Foco inicial marcado.")
 	queue_redraw()
