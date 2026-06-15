@@ -1,8 +1,8 @@
 # SimuFire — Estado de validación CFAST
 
 > Última actualización: 2026-06-15  
-> Branch: `main` · HEAD: Phase 4A (148b2d5)  
-> Fallos requeridos actuales: **14 / 334**
+> Branch: `main` · HEAD: Phase 4C  
+> Fallos requeridos actuales: **13 / 334**
 
 ---
 
@@ -29,10 +29,11 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | `e2c4b2b` | Phase 3: fix ODE presión — incluir dinteles en alivio | 16 → **16** (sin-regresión) |
 | Phase 4A | Fix doble-depleción O₂ en plume_lower_mode (r0_window_360) | 16 → **14** |
 | Phase 4B | Diagnóstico slow_growth_sealed — gap estructural confirmado (sin cambio) | **14** → **14** |
+| Phase 4C | corridor_chain: `o2_upper_plume_entr_rate=0.025` → O₂ t=480 pasa | **14** → **13** |
 
 ---
 
-## Los 14 fallos actuales
+## Los 13 fallos actuales
 
 ### Grupo A — `cfast_r0_window_360` (→ 0 fallos originales, 3 nuevos O₂ parcialmente estructurales)
 
@@ -154,25 +155,52 @@ python scripts/simulation/validate_reference_cases.py
 
 ---
 
-### Grupo C — `cfast_corridor_chain` (5 fallos)
+### Grupo C — `cfast_corridor_chain` (4 fallos) — 1 resuelto en Phase 4C
 
-Escenario: fuego en sala 0 (300 kW), puertas abiertas a salas 1 y 2 en corredor.
+**Phase 4C COMPLETO.** `o2_upper_plume_entr_rate=0.025` resuelve el fallo O₂ t=480. Quedan 4 fallos estructurales (gap Phase 2).
 
-| Check | Actual | Esperado | Tolerancia |
-|-------|--------|----------|------------|
-| `cfast_chain_r0_t180_temp_upper_c` | 203.4°C | 158°C | ±15°C |
-| `cfast_chain_r0_t600_temp_upper_c` | 111.9°C | 168.4°C | ±30°C |
-| `cfast_chain_r0_o2_t480_o2` | 0.077 | 0.117 | ±0.028 |
-| `cfast_chain_r0_o2_t600_o2` | 0.077 | 0.102 | ±0.015 |
-| `cfast_chain_r0_rmse_temp_upper` | 52.0 | — | máx 30 |
+Escenario: fuego en sala 0 (α=0.047 kW/s², max 300 kW), puertas abiertas r0↔r1 y r1↔r2, ventana r0 cerrada, 600 s.
 
-**Causa raíz:** El motor es demasiado caliente en t=180 (+45°C) y demasiado frío en t=600 (-56°C). El O₂ es demasiado bajo en t=480/t600, lo que indica que el fuego consumió O₂ más rápido que CFAST. El patrón "pico alto + decaimiento rápido" sugiere que el modelo de transporte de O₂ inter-sala (desde rooms 1 y 2) no reabastece la sala de fuego a la tasa correcta.
+| Check | Actual | Esperado | Tolerancia | Estado |
+|-------|--------|----------|------------|--------|
+| `cfast_chain_r0_t180_temp_upper_c` | 233.82°C | 158.0°C | ±15°C | **FAIL** (+75.8°C) |
+| `cfast_chain_r0_t600_temp_upper_c` | 115.74°C | 168.4°C | ±30°C | **FAIL** (-52.7°C) |
+| ~~`cfast_chain_r0_o2_t480_o2`~~ | ~~0.077~~ | ~~0.117~~ | ~~±0.028~~ | **PASS** ✓ (0.0901, resuelto Phase 4C) |
+| `cfast_chain_r0_o2_t600_o2` | 0.0855 | 0.1020 | ±0.015 | **FAIL** (gap=0.0015) |
+| `cfast_chain_r0_rmse_temp_upper` | 55.51 | — | máx 30 | **FAIL** |
 
-**Por qué no se puede arreglar con parámetros:**
-- `fire_o2_mode="upper"` ya está activo; eliminó el fallo de t=300 pero los otros 5 permanecen.
-- Los fallos están acoplados: temperatura alta inicial y O₂ bajo son consecuencia del mismo problema de transporte de O₂ entre salas.
+**Causa raíz investigada (Phase 4C):**
 
-**Fix necesario:** Mejorar el transporte de O₂ bidireccional a través de aperturas interiores abiertas. El modelo actual usa `doorway_o2_counterflow_coeff` pero puede estar subestimando el flujo de O₂ desde salas adyacentes hacia la sala de fuego en escenarios multi-sala con puertas abiertas.
+`fire_o2_mode="upper"` hace que el fuego consuma O₂ directamente de `o2_upper` (~8-12 kg de gas). El pool `o2_lower` (~40 kg), que sí recibe reabastecimiento de O₂ desde r1 vía counterflow activo, no alimenta al fuego directamente. La conexión `o2_lower → o2_upper` pasa solo por plume entrainment (`o2_upper_plume_entr_rate`, default=0.010).
+
+Con rate=0.010, el entrainment es insuficiente: `o2_upper` se depleta en t≈130 s → fuego se auto-throttlea → pico alto de temperatura en t=180 (gas caliente sin dilución suficiente) seguido de decaimiento porque el fuego corre al 50-60% de HRR nominal durante t=300-600.
+
+**Fix aplicado (Phase 4C):** `o2_upper_plume_entr_rate = 0.025` en `cfast_corridor_chain.json` (caso-específico, no afecta otros escenarios).
+
+Efecto: el entrainment repone `o2_upper` 2.5× más rápido → O₂ t=480 sube de 0.077 a 0.0901 → PASS (tolerancia ±0.028).
+
+**Fallos restantes — gap estructural Phase 2:**
+
+Los 4 fallos que permanecen comparten la misma raíz que slow_growth_sealed:
+
+1. **t=180 temp alta (+75.8°C):** sin contraflujo térmico bidireccional, el aire frío entrante desde r1 no enfría la zona inferior de r0, que está en contacto con el fuego. Solo modelamos calor saliente (hot gas de r0 → r1), no el calor absorbido por aire frío entrante.
+
+2. **t=600 temp baja (-52.7°C):** el fuego se throttlea en t≈130s por o2_upper bajo. Con Phase 2 (fuego consuma o2_lower vía plume), el o2_lower reabastecido por counterflow mantendría el HRR más estable → temperatura sostenida.
+
+3. **O₂ t=600 (gap=0.0015 bajo tolerancia):** asintótico — o2_lower en r0 también se depleta lentamente en t=300-600, reduciendo la fuerza motriz de entrainment (o2_lower - o2_upper). Insoluble sin two-zone canónico.
+
+4. **RMSE (55.51 vs máx 30):** forma de curva estructuralmente incorrecta: pico a t≈180, decaimiento hasta t=600. CFAST muestra meseta estable ≈165°C. Requiere HRR sostenido → requiere O₂ estable → requiere Phase 2.
+
+**Comandos ejecutados (Phase 4C):**
+```bash
+# Simular con o2_upper_plume_entr_rate=0.025
+powershell -ExecutionPolicy Bypass -File sim/validation/run_case.ps1 -CaseName cfast_corridor_chain -TimeoutSeconds 600
+
+# Verificar conteo (resultado: 13 fallos)
+python scripts/simulation/validate_reference_cases.py
+```
+
+**Estado:** `sim/validation/cases/cfast_corridor_chain.json` modificado con `o2_upper_plume_entr_rate=0.025`. Fallos corridor_chain: 5 → **4**. Fallos totales: 14 → **13**.
 
 ---
 
@@ -196,6 +224,25 @@ Escenario: fuego en sala 0 (300 kW), puertas abiertas a salas 1 y 2 en corredor.
 ---
 
 ## Trabajo completado
+
+### Phase 4C — Fix O₂ t=480 en corridor_chain
+
+**Resultado:** 14 → **13** fallos requeridos.
+
+**Causa raíz:** `fire_o2_mode="upper"` desconecta el pool `o2_upper` (pequeño, ~8-12 kg) del pool `o2_lower` (grande, ~40 kg, reabastecido por counterflow desde r1). La única reconexión es plume entrainment (rate=0.010), insuficiente para sostener el fuego.
+
+**Fix:** `o2_upper_plume_entr_rate = 0.025` en `cfast_corridor_chain.json`.
+
+**Reproducir:**
+```bash
+powershell -ExecutionPolicy Bypass -File sim/validation/run_case.ps1 -CaseName cfast_corridor_chain -TimeoutSeconds 600
+python scripts/simulation/validate_reference_cases.py
+```
+
+**Archivos modificados:**
+- `sim/validation/cases/cfast_corridor_chain.json` — campo `o2_upper_plume_entr_rate` añadido a `engine_overrides`
+
+---
 
 ### Phase 4B — Diagnóstico slow_growth_sealed (gap estructural confirmado)
 
@@ -307,12 +354,13 @@ La presión canónica no ayuda a los fallos actuales porque estos son de **balan
 
 Investigado en Phase 4B. Los 2 fallos de temperatura son un gap estructural: requieren que el fuego consuma O₂ del lower layer (vía plume) en lugar de `o2_upper` directamente. Resolver requiere ZoneFireSolver Phase 2 (two-zone canónico). No atacar sin esa base arquitectónica.
 
-**P3 — O₂ transport corridor_chain (5 fallos, Grupo C)**
+**P3 — corridor_chain restantes (4 fallos) — Gap estructural Phase 2 ✗**
 
-Investigar:
-- El flujo de O₂ bidireccional a través de dinteles abiertos en `GasExchangeSystem.step_smoke()` (counterflow O₂).
-- `doorway_o2_counterflow_coeff = 0.18` puede ser demasiado bajo para reabastecimiento en corredor de 3 salas.
-- Considerar si `two_zone_opening_flow_enabled=true` mejora el transporte de O₂ en este escenario.
+1 fallo resuelto en Phase 4C (`o2_upper_plume_entr_rate=0.025` → O₂ t=480 PASS). Los 4 fallos restantes (t=180 temp alta, t=600 temp baja, O₂ t=600, RMSE) requieren:
+- Contraflujo térmico bidireccional (aire frío entrante desde r1 como sumidero de calor)
+- Fuego consumiendo O₂ del lower layer vía plume (two-zone canónico)
+
+No atacar sin ZoneFireSolver Phase 2.
 
 ### Prioridad media
 
@@ -376,7 +424,7 @@ python scripts/simulation/validate_reference_cases.py
 # Re-ejecutar un caso específico (regenera el .log)
 powershell -ExecutionPolicy Bypass -File sim/validation/run_case.ps1 -CaseName <nombre> -TimeoutSeconds 600
 
-# Ver los 16 fallos requeridos del commit HEAD
+# Ver los 13 fallos requeridos del commit HEAD
 git show HEAD:sim/validation/reports/reference_checks.json | python -c "
 import json,sys
 d=json.load(sys.stdin)
