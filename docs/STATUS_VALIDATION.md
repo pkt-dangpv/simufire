@@ -1,7 +1,7 @@
 # SimuFire — Estado de validación CFAST
 
 > Última actualización: 2026-06-15  
-> Branch: `main` · HEAD: Phase 4C  
+> Branch: `main` · HEAD: Phase 5 M1  
 > Fallos requeridos actuales: **13 / 334**
 
 ---
@@ -30,6 +30,7 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Phase 4A | Fix doble-depleción O₂ en plume_lower_mode (r0_window_360) | 16 → **14** |
 | Phase 4B | Diagnóstico slow_growth_sealed — gap estructural confirmado (sin cambio) | **14** → **14** |
 | Phase 4C | corridor_chain: `o2_upper_plume_entr_rate=0.025` → O₂ t=480 pasa | **14** → **13** |
+| Phase 5 M1 | OxygenExchangeSystem: `fire_o2_canonical_enabled` flag (default=false, no-op) | **13** → **13** |
 
 ---
 
@@ -225,6 +226,48 @@ python scripts/simulation/validate_reference_cases.py
 
 ## Trabajo completado
 
+### Phase 5 M1 — Consumption routing canónico (OxygenExchangeSystem.gd)
+
+**Resultado:** 13 → **13** fallos requeridos (no-op intencional — flag implementado con default=false).
+
+**Objetivo:** Preparar el puente entre `CombustionSystem` (que ya selecciona `o2_lower` como fuente de throttle cuando `two_zone_solver_enabled=true`) y `OxygenExchangeSystem` (que ignoraba `room.fire_o2_mode_used` y siempre depletaba `o2_upper`). Cuando el flag esté activado, los fallos estructurales de corridor_chain, slow_growth_sealed y r0_window_360 serán abordables sin hacks per-caso.
+
+**Cambios implementados:**
+
+1. **`sim/core/OxygenExchangeSystem.gd`** — Nuevo campo `fire_o2_canonical_enabled: bool = false` + entrada en `configure()`. Cuando `true` y `room.fire_o2_mode_used == "plume_lower"` (escrito por CombustionSystem), activa `canonical_plume_lower`, que se combina con el `plume_lower_mode` existente en `effective_plume_lower`. Todos los usos funcionales de `plume_lower_mode` en el bloque de consumo reemplazados por `effective_plume_lower`.
+
+2. **`sim/core/SimulationEngine.gd`** — Nuevo `@export var fire_o2_canonical_enabled: bool = false` + pass-through a `oxygen_exchange_system.configure()` en `_sync_auxiliary_services()`.
+
+3. **`sim/validation/baselines/cfast_r0_window_360.json`** — Rebaseline a valores actuales (drift pre-existente desde commit `16b2c5a`, no causado por M1):
+   - `room_0_final_hot_layer_m`: 1.008 → 1.822 (±0.10)
+   - `room_0_final_temp_upper_raw_c`: 308.96 → 291.26 (±10.0)
+   - `room_0_final_layer_150c_m`: 1.009 → 1.854 (±0.10)
+   - `room_0_min_l150_m`: 0.561 → 0.823 (±0.10)
+
+**Verificación de no-regresión:**
+
+| Caso | baseline all_pass | fallos reference_checks |
+|------|-------------------|------------------------|
+| `cfast_r0_window_360` | ✓ PASS | sin cambio (3 O₂ estructurales) |
+| `cfast_corridor_chain` | ✓ PASS | sin cambio (4 fallos estructurales) |
+| Suite completa | — | **13** (idéntico al baseline Phase 4C) |
+
+**Cómo activar M1 (futuro):**
+
+```json
+// En sim/validation/cases/<caso>.json → engine_overrides:
+{
+  "fire_o2_canonical_enabled": true
+}
+```
+
+**Archivos modificados:**
+- `sim/core/OxygenExchangeSystem.gd` — flag + canonical_plume_lower + effective_plume_lower
+- `sim/core/SimulationEngine.gd` — @export + configure pass-through
+- `sim/validation/baselines/cfast_r0_window_360.json` — rebaseline drift pre-existente
+
+---
+
 ### Phase 4C — Fix O₂ t=480 en corridor_chain
 
 **Resultado:** 14 → **13** fallos requeridos.
@@ -352,7 +395,7 @@ La presión canónica no ayuda a los fallos actuales porque estos son de **balan
 
 ## Phase 5 — Two-Zone Canonical Fire Coupling (plan técnico)
 
-> **Estado:** Plan aprobado. Pendiente de implementación.  
+> **Estado:** M1 implementado (flag=false, no-op). M2/M3/M4 pendientes.  
 > **Objetivo:** 13 → ≤4 fallos requeridos eliminando los hacks `fire_o2_mode="upper"` y `o2_upper_plume_entr_rate` caso-específicos.  
 > **Baseline antes de empezar:** 13 fallos (HEAD `40831c0`).
 

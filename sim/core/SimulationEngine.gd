@@ -220,6 +220,10 @@ var _layer_interface_warning_rooms: Dictionary = {}
 ## Compatibilidad legacy: ignorado cuando fire_o2_mode es explicito.
 @export var fire_o2_lower_for_flame: bool = false
 @export var fire_o2_consumption_kg_per_MJ: float = 0.076  # Regla de Thornton: 1/13.1 MJ/kgO2
+## Phase 5 M1: routing canónico de consumo de O₂.
+## Cuando true, OxygenExchangeSystem consume de o2_lower cuando fire_o2_mode_used="plume_lower".
+## Default false = no-op exacto (compatibilidad legacy). Activar vía engine_overrides.
+@export var fire_o2_canonical_enabled: bool = false
 # Rendimiento de humo (kg/MJ)
 # SFPE: ~0.06 kg/kg ÷ 16 MJ/kg = 0.00375 kg/MJ
 @export var fire_smoke_yield_kg_per_MJ: float = 0.0088
@@ -1135,6 +1139,7 @@ func _sync_auxiliary_services() -> void:
 		"phase2e_co2_subd_enabled": phase2e_co2_subd_enabled,
 		"fire_o2_mode": fire_o2_mode,
 		"fire_o2_lower_for_flame": fire_o2_lower_for_flame,
+		"fire_o2_canonical_enabled": fire_o2_canonical_enabled,
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
