@@ -1,8 +1,8 @@
 {
   "all_required_pass": false,
   "required_count": 334,
-  "failed_required_count": 22,
-  "known_gap_count": 100,
+  "failed_required_count": 21,
+  "known_gap_count": 99,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -2019,7 +2019,7 @@
     },
     {
       "name": "cfast_fo_t150_hrr_kw",
-      "actual": 1009.68,
+      "actual": 1009.7,
       "expected": 1058.0,
       "tolerance": 300.0,
       "minimum": null,
@@ -2030,18 +2030,18 @@
     },
     {
       "name": "cfast_fo_t150_temp_upper_c",
-      "actual": 129.44,
+      "actual": 148.4,
       "expected": 242.387,
       "tolerance": 100.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": ""
     },
     {
       "name": "cfast_fo_t150_o2",
-      "actual": 0.1745,
+      "actual": 0.1728,
       "expected": 0.1603,
       "tolerance": 0.04,
       "minimum": null,
@@ -2063,7 +2063,7 @@
     },
     {
       "name": "cfast_fo_t240_temp_upper_c",
-      "actual": 371.51,
+      "actual": 400.04,
       "expected": 387.024,
       "tolerance": 100.0,
       "minimum": null,
@@ -2074,7 +2074,7 @@
     },
     {
       "name": "cfast_fo_t240_o2",
-      "actual": 0.1359,
+      "actual": 0.1363,
       "expected": 0.11251699999999999,
       "tolerance": 0.04,
       "minimum": null,
@@ -2096,7 +2096,7 @@
     },
     {
       "name": "cfast_fo_t350_temp_upper_c",
-      "actual": 371.12,
+      "actual": 400.97,
       "expected": 402.072,
       "tolerance": 100.0,
       "minimum": null,
@@ -2107,7 +2107,7 @@
     },
     {
       "name": "cfast_fo_t350_o2",
-      "actual": 0.1359,
+      "actual": 0.1363,
       "expected": 0.111108,
       "tolerance": 0.04,
       "minimum": null,
@@ -2118,7 +2118,7 @@
     },
     {
       "name": "cfast_fo_t150_pressure_pa",
-      "actual": 233210.1,
+      "actual": 490.83,
       "expected": -2.81472,
       "tolerance": 15.0,
       "minimum": null,
@@ -2129,7 +2129,7 @@
     },
     {
       "name": "cfast_fo_t150_co2_upper_pct",
-      "actual": 6.7972,
+      "actual": 6.8386,
       "expected": 3.75437,
       "tolerance": 3.0,
       "minimum": null,
@@ -2140,18 +2140,18 @@
     },
     {
       "name": "cfast_fo_t240_pressure_pa",
-      "actual": 969717.43,
+      "actual": 1.75,
       "expected": -5.79607,
       "tolerance": 15.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "CMV-1: vented-room pressure sign/magnitude \u2014 CFAST ~\u22126 Pa (outflow driven)."
     },
     {
       "name": "cfast_fo_t240_co2_upper_pct",
-      "actual": 2.0295,
+      "actual": 1.7915,
       "expected": 7.77377,
       "tolerance": 4.5,
       "minimum": null,
@@ -2162,7 +2162,7 @@
     },
     {
       "name": "cfast_fo_t350_pressure_pa",
-      "actual": 1988262.16,
+      "actual": 972.22,
       "expected": -6.00936,
       "tolerance": 15.0,
       "minimum": null,
@@ -2173,7 +2173,7 @@
     },
     {
       "name": "cfast_fo_t350_co2_upper_pct",
-      "actual": 0.2541,
+      "actual": 0.2421,
       "expected": 7.89231,
       "tolerance": 7.5,
       "minimum": null,
@@ -2184,7 +2184,7 @@
     },
     {
       "name": "cfast_fo_t150_o2_lower",
-      "actual": 0.2008,
+      "actual": 0.203,
       "expected": 0.200287,
       "tolerance": 0.02,
       "minimum": null,
@@ -2195,7 +2195,7 @@
     },
     {
       "name": "cfast_fo_t240_o2_lower",
-      "actual": 0.1993,
+      "actual": 0.1994,
       "expected": 0.186248,
       "tolerance": 0.02,
       "minimum": null,
@@ -2217,7 +2217,7 @@
     },
     {
       "name": "cfast_fo_rmse_temp_upper_c",
-      "actual": 54.13116106510879,
+      "actual": 39.921545619586794,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2228,7 +2228,7 @@
     },
     {
       "name": "cfast_fo_rmse_o2",
-      "actual": 0.01862832142666107,
+      "actual": 0.018661720825663433,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2239,7 +2239,7 @@
     },
     {
       "name": "cfast_fo_rmse_hrr_kw",
-      "actual": 27.992427325032928,
+      "actual": 27.65570447569994,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2250,7 +2250,7 @@
     },
     {
       "name": "cfast_fo_peak_temp_upper_c",
-      "actual": 371.87,
+      "actual": 401.1,
       "expected": null,
       "tolerance": null,
       "minimum": 350.0,
@@ -2261,7 +2261,7 @@
     },
     {
       "name": "cfast_fo_peak_temp_timing",
-      "actual": 260.0,
+      "actual": 310.1,
       "expected": 390.0,
       "tolerance": 193.0,
       "minimum": null,
