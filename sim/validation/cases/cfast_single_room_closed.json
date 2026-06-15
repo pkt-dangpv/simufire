@@ -71,7 +71,7 @@
 		"outside_lower_fresh_air_cooling_rate": 0.005,
 		"plume_fire_diameter_m": 3.5,
 		"plume_mccaffrey_qc_fraction": 0.3,
-		"hrr_chi_rad_normal": 0.7,
+		"hrr_chi_rad_normal": 0.58,
 		"hrr_chi_rad_low_o2": 0.7,
 		"natural_vent_inlet_fraction": 0.2,
 		"layer_150c_relax_up_per_s": 0.05,
