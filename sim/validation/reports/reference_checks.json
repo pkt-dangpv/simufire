@@ -1304,7 +1304,7 @@
     },
     {
       "name": "cfast_pool_t900_temp_upper_c",
-      "actual": 31.9,
+      "actual": 32.03,
       "expected": 72.3939,
       "tolerance": 55.0,
       "minimum": null,
