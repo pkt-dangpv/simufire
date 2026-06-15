@@ -226,13 +226,14 @@ func step_thermodynamic_pressure(building: BuildingModel, dt: float) -> void:
 			# Derivar de ach_infiltration: Q(P_ref) = ACH*V/3600 = Cd*A*sqrt(2*P_ref/rho)
 			var q_ref_m3s: float = ach_infiltration * V / 3600.0
 			a_eff = q_ref_m3s / (CD * sqrt(2.0 * P_REF_ACH / RHO_AMB))
-		# Sumar áreas de aperturas exteriores abiertas (ventanas/puertas al exterior)
+		# Sumar áreas de TODAS las aperturas abiertas conectadas a esta sala.
+		# Las interiores abiertas son vías de alivio de presión hacia salas adyacentes
+		# (que eventualmente conectan al exterior). Sin este canal, salas con dinteles
+		# abiertos acumulan 100k+ Pa porque el único sumidero era la infiltración ACH.
 		for op in building.get_openings():
-			var connects_outside: bool = (
-				(op.a == room.id and op.b == BuildingModel.OUTSIDE_ID) or
-				(op.b == room.id and op.a == BuildingModel.OUTSIDE_ID)
-			)
-			if connects_outside and op.open_fraction > 0.001:
+			if op.a != room.id and op.b != room.id:
+				continue
+			if op.open_fraction > 0.001:
 				a_eff += op.width_m * op.height_m * op.open_fraction
 		# ODE fuente: Q_conv = HRR * phase3_chi_conv * 1000 W
 		var q_conv_w: float = room.hrr_kw * phase3_chi_conv * 1000.0

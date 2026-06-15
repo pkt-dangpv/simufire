@@ -475,9 +475,10 @@ func _configure_validation_two_zone_v1_profile() -> bool:
 	# regressions in all vented/semi-vented cases.
 	if not _cli_args.has("validation_fire_o2_mode"):
 		_cli_args["validation_fire_o2_mode"] = "legacy"
-	# phase3_pressure_canonical_enabled stays at engine default (false) — the ODE
-	# pressure source term only relieves via ACH infiltration, not doorway areas,
-	# so canonical mode accumulates 100k+ Pa and corrupts all gas-flow checks.
+	# phase3_pressure_canonical_enabled stays at engine default (false).
+	# The ODE now includes open doorway areas as relief paths (GasExchangeSystem.gd).
+	# Canonical mode can be enabled per-case via validation_canonical_pressure=true
+	# for scenarios where ODE pressure gives better Bernoulli flow than the buoyancy model.
 	return true
 
 
