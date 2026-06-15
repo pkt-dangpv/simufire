@@ -1,7 +1,7 @@
 {
   "all_required_pass": false,
   "required_count": 334,
-  "failed_required_count": 21,
+  "failed_required_count": 20,
   "known_gap_count": 99,
   "checks": [
     {
@@ -1568,29 +1568,29 @@
     },
     {
       "name": "cfast_supr_temp_t60_temp_upper_c",
-      "actual": 27.44,
+      "actual": 33.72,
       "expected": 34.4008,
       "tolerance": 10.0,
       "minimum": null,
       "maximum": null,
       "required": true,
       "pass": true,
-      "note": "SW-1: ventilated room temp_upper at t=60s (pre-suppression). CFAST 34.4\u00b0C; SF 27.4\u00b0C. tol=10.0\u00b0C (a priori \u00a76.2)."
+      "note": "SW-1: ventilated room temp_upper at t=60s (pre-suppression). CFAST 34.4\u00b0C; SF 33.7\u00b0C. tol=10.0\u00b0C (a priori \u00a76.2)."
     },
     {
       "name": "cfast_supr_temp_t90_temp_upper_c",
-      "actual": 32.86,
+      "actual": 42.76,
       "expected": 52.7588,
       "tolerance": 10.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
-      "note": "SW-1: ventilated room temp_upper at t=90s (pre-suppression). CFAST 52.8\u00b0C; SF 32.9\u00b0C. tol=10.0\u00b0C (a priori \u00a76.2)."
+      "pass": true,
+      "note": "SW-1: ventilated room temp_upper at t=90s (pre-suppression). CFAST 52.8\u00b0C; SF 42.8\u00b0C. tol=10.0\u00b0C (a priori \u00a76.2)."
     },
     {
       "name": "cfast_supr_temp_t120_temp_upper_c",
-      "actual": 38.05,
+      "actual": 52.07,
       "expected": 78.1626,
       "tolerance": 12.0,
       "minimum": null,
@@ -1601,7 +1601,7 @@
     },
     {
       "name": "cfast_supr_rmse_temp_pre",
-      "actual": 17.293277169698055,
+      "actual": 10.37047794019157,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -1656,14 +1656,14 @@
     },
     {
       "name": "cfast_supr_temp_t210_temp_upper_c",
-      "actual": 22.94,
+      "actual": 26.03,
       "expected": 40.5975,
       "tolerance": 25.0,
       "minimum": null,
       "maximum": null,
       "required": false,
       "pass": true,
-      "note": "SW-1 (non-gating): Phase 1.5 post-suppression temp gap at t=210s. CFAST two-zone upper 40.6\u00b0C (gradual cooling); SF one-zone 22.9\u00b0C (snaps to ambient). tol=25.0\u00b0C. SF re-ignition diverges from CFAST residual 4 kW."
+      "note": "SW-1 (non-gating): Phase 1.5 post-suppression temp gap at t=210s. CFAST two-zone upper 40.6\u00b0C (gradual cooling); SF one-zone 26.0\u00b0C (snaps to ambient). tol=25.0\u00b0C. SF re-ignition diverges from CFAST residual 4 kW."
     },
     {
       "name": "cfast_2r_r0_t180_o2",
