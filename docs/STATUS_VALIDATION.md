@@ -348,35 +348,199 @@ La presión canónica no ayuda a los fallos actuales porque estos son de **balan
 
 **P1 — r0_window_360 (Phase 4A) ✓** — 5 fallos originales → 0. Quedan 3 O₂ estructurales (Phase 2 scope).
 
-### Prioridad alta (máximo impacto)
+---
 
-**P2 — slow_growth_sealed (2 fallos) — Gap estructural Phase 2 ✗**
+## Phase 5 — Two-Zone Canonical Fire Coupling (plan técnico)
 
-Investigado en Phase 4B. Los 2 fallos de temperatura son un gap estructural: requieren que el fuego consuma O₂ del lower layer (vía plume) en lugar de `o2_upper` directamente. Resolver requiere ZoneFireSolver Phase 2 (two-zone canónico). No atacar sin esa base arquitectónica.
+> **Estado:** Plan aprobado. Pendiente de implementación.  
+> **Objetivo:** 13 → ≤4 fallos requeridos eliminando los hacks `fire_o2_mode="upper"` y `o2_upper_plume_entr_rate` caso-específicos.  
+> **Baseline antes de empezar:** 13 fallos (HEAD `40831c0`).
 
-**P3 — corridor_chain restantes (4 fallos) — Gap estructural Phase 2 ✗**
+### Diagnóstico de raíz
 
-1 fallo resuelto en Phase 4C (`o2_upper_plume_entr_rate=0.025` → O₂ t=480 PASS). Los 4 fallos restantes (t=180 temp alta, t=600 temp baja, O₂ t=600, RMSE) requieren:
-- Contraflujo térmico bidireccional (aire frío entrante desde r1 como sumidero de calor)
-- Fuego consumiendo O₂ del lower layer vía plume (two-zone canónico)
+Las 9 brechas estructurales restantes (corridor_chain ×4, slow_growth ×2, r0_window O₂ ×3) comparten la misma raíz: **el fuego consume O₂ del pool incorrecto.**
 
-No atacar sin ZoneFireSolver Phase 2.
+**CFAST (modelo canónico):**
+1. Fuego en zona inferior → pluma entrana aire de zona baja → consume su O₂
+2. Pluma sube productos (CO₂, H₂O, CO, calor) a zona superior
+3. Zona superior pierde O₂ porque los productos *desplazan* el aire puro (no consumo directo)
+4. Zona inferior se reabastece de O₂ vía counterflow desde salas adyacentes
 
-### Prioridad media
+**SimuFire estado actual (`fire_o2_mode="upper"`):**
+- Fuego throttlea y consume de `o2_upper` (~8-12 kg de gas)
+- `o2_lower` (~40 kg, reabastecido por counterflow) está desconectado del fuego
+- La única reconexión es `o2_upper_plume_entr_rate` — parámetro de calibración artificial
 
-**P4 — pool_fire O₂ (1 fallo, Δ=0.0098)**
+**Lo que ya existe en el código (no hay que inventar nada):**
 
-Ajuste fino: reducir ligeramente `natural_vent_inlet_fraction` solo para este caso (actualmente=0.2). Riesgo bajo si se hace por-caso. Alternativa: aumentar `o2_upper_plume_entr_rate` para incrementar consumo.
+`CombustionSystem._resolve_fire_o2_selection()` líneas 1264-1283: cuando `two_zone_solver_enabled=true` y sin `fire_o2_mode` explícito, el **throttle** ya usa `o2_lower` (modo `"plume_lower"`). El gap es que **la depleción** sigue yendo a `o2_upper` en `OxygenExchangeSystem.gd`.
 
-**P5 — RMSE two_room y multifuel (2 fallos)**
+El puente ya existe: `room.fire_o2_mode_used` (escrito por CombustionSystem = `"plume_lower"/"plume_upper"/"plume_blend"`). OxygenExchangeSystem no lo lee todavía.
 
-Necesita diagnóstico: generar gráfica temporal de temperatura para identificar en qué fase del escenario diverge el motor de CFAST. Herramienta: `tools/rmse_profile_tworoom.py`.
+---
 
-**P6 — Ghanekar FED (1 fallo, Δ=252 s)**
+### M1 — Consumption routing (OxygenExchangeSystem.gd)
 
-El FED en pasillo lejano tarda 252 s más que el paper. Investigar:
-- Velocidad de transporte de CO/HCN inter-sala (delay de transporte en `interior_transport_speed_m_s`).
-- Calibración del yield de CO en fuegos de cocina (`fire_co_yield_force_kg_per_MJ`).
+**Descripción:** Cuando `room.fire_o2_mode_used == "plume_lower"`, redirigir el consumo de O₂ desde `o2_upper` hacia `o2_lower`. Tratar exactamente igual al `plume_lower_mode` existente, pero sin la restricción de sala sellada.
+
+**Flag:** `fire_o2_canonical_enabled: bool = false` (en OxygenExchangeSystem + configurado via `engine_overrides`)
+
+**Cambio en OxygenExchangeSystem.gd (bloque lines ~320-348):**
+
+```gdscript
+# Antes: plume_lower_mode requiere sala sellada + legacy mode
+var plume_lower_mode: bool = (
+    fire_o2_mode == "legacy" and interior_open_factor <= 0.01 and ...
+)
+
+# Después: añadir rama canónica para salas abiertas
+var canonical_plume_lower: bool = (
+    fire_o2_canonical_enabled and
+    room.fire_o2_mode_used == "plume_lower" and
+    room.hrr_kw > 0.0 and
+    not fire_uses_lower_o2  # evita doble consumo con Phase 2C
+)
+var effective_plume_lower: bool = plume_lower_mode or canonical_plume_lower
+```
+
+En el bloque de depleción de `o2_upper`:
+```gdscript
+# Con effective_plume_lower=true:
+# - upper_consumed = 0 (no hay consumo directo de zona superior)
+# - plume_upper_o2_displacement_frac aplica el desplazamiento por productos
+# Con effective_plume_lower=false (legacy):
+# - comportamiento actual sin cambio
+```
+
+En el bloque de depleción de `o2_lower` (lines ~394-400):
+```gdscript
+# Con canonical_plume_lower y fire_o2_canonical_enabled:
+# - plume_consumed usa air_mass_kg (no lower_air_mass) — igual que Phase 4A fix
+# - plume_lower_o2_depletion_fraction controla la tasa
+```
+
+**Efecto esperado:** `o2_lower` se depleta; `o2_upper` solo cambia por desplazamiento de productos + entrainment desde `o2_lower`. `o2_upper` sube respecto al baseline porque ya no se lo drena directamente el fuego.
+
+**Tests de regresión críticos:**
+- Todos los checks de `cfast_r0_window_360` (fuego sellado — no debe cambiar con `fire_o2_canonical_enabled=false`)
+- `cfast_slow_growth_sealed` (sellado — tampoco debe cambiar)
+- `cfast_corridor_chain` con `fire_o2_canonical_enabled=true`: se espera que O₂ t=600 mejore (objetivo ≥0.087)
+- Suite completa: no debe añadir fallos requeridos fuera del grupo objetivo
+
+---
+
+### M2 — Upper-zone O₂ como tracer conservado
+
+**Descripción:** Añadir `upper_o2_mass_kg` como variable de estado en `RoomModel`. Inicializar a `upper_air_mass * o2_nominal`. Actualizar conservativamente cada step. Derivar `o2_upper = upper_o2_mass_kg / upper_air_mass_kg`.
+
+**Flag:** `fire_o2_mass_tracking_enabled: bool = false` (en OxygenExchangeSystem)
+
+**Ecuación de balance para `upper_o2_mass_kg` por paso:**
+
+```
+Δupper_o2_mass = 
+  + entr_frac * dt * o2_lower * upper_air_mass        # plume entrana aire puro de zona baja
+  - displacement_frac * consumed_kg                    # productos CO2/H2O desplazan O2
+  - export_hot_gas_frac * upper_o2_mass / upper_air_mass * hot_gas_flow_kg  # salida por doorways
+  + inflow_from_adj_o2_upper * inflow_kg               # entrada gas caliente de sala adyacente
+```
+
+Esto hace que `o2_upper` sea una consecuencia del balance de masa, no un parámetro calibrado por `o2_upper_plume_entr_rate`.
+
+**Tests de validación específicos:**
+- Verificar que `o2_upper` en `cfast_r0_window_360` baja de 0.209 a ~0.065 en t=360s (matching CFAST)
+- Verificar que `o2_upper` en `cfast_corridor_chain` baja a ~0.087 en t=600s (objetivo check)
+- Conservación: `upper_o2_mass_kg >= 0` siempre; no puede superar `upper_air_mass * o2_nominal`
+
+---
+
+### M3 — Contraflujo térmico bidireccional (ThermalSystem.gd)
+
+**Descripción:** ThermalSystem actualmente modela solo la salida de gas caliente desde sala caliente → sala fría. No modela el calor extraído de la sala caliente por el aire frío que entra desde la sala fría (counterflow). Este déficit causa la temperatura t=180 alta en corridor_chain.
+
+**Flag:** `doorway_thermal_counterflow_enabled: bool = false` (en ThermalSystem)
+
+**Física:** En cada apertura interior abierta con flujo activo:
+```
+q_counterflow_cool = bernoulli_lower_kg_s * air_cp_kj_kg_k * (temp_hot_lower_c - temp_cold_lower_c)
+```
+Este calor se resta de la zona inferior de la sala caliente (donde entra el aire frío). No afecta a la zona superior directamente.
+
+**Archivos:** `ThermalSystem.gd` función `_step_interior_doorway_thermal()` (o equivalente). La variable `bernoulli_lower_kg_s` ya existe en el flow_cache de cada apertura.
+
+**Tests críticos:**
+- `cfast_chain_r0_t180_temp_upper_c`: objetivo ≤173°C (actual 233.82°C, tol=±15°C sobre expected=158°C)
+- `cfast_2r_r0_rmse_temp_upper_c`: no empeorar el RMSE actual (88.0)
+- `cfast_slow_growth_sealed`: sala sellada, no debe cambiar (bernoulli_lower_kg_s = 0 para salas sin doorway abierto)
+
+---
+
+### M4 — Eliminar overrides per-caso
+
+**Condición:** M1 + M2 en producción con baseline ≤ 4 fallos requeridos.
+
+**Acciones:**
+1. Eliminar `"validation_fire_o2_mode": "upper"` de todos los JSONs de casos
+2. Eliminar `"o2_upper_plume_entr_rate": 0.025` de `cfast_corridor_chain.json`
+3. Establecer `fire_o2_canonical_enabled=true` como default en SimulationEngine (o en engine_overrides de todos los casos de validación)
+4. Eliminar ramas de código `fire_o2_mode="upper"` legacy si ya no son necesarias
+
+**Archivos afectados:**
+- `sim/validation/cases/cfast_corridor_chain.json`
+- `sim/validation/cases/cfast_slow_growth_sealed.json`
+- `sim/validation/cases/cfast_r0_window_360.json`
+- `sim/validation/cases/cfast_single_room_closed.json`
+- `sim/validation/cases/cfast_two_room_door_open.json`
+- `sim/validation/cases/cfast_long_burnout_3600s.json`
+
+---
+
+### Riesgos y mitigaciones
+
+| Riesgo | Probabilidad | Impacto | Mitigación |
+|--------|-------------|---------|------------|
+| M1 sobreestima deplección o2_lower → fuego se apaga antes | Media | Alto | `plume_lower_o2_depletion_fraction` ya existe como parámetro; bajar de 1.0 si hay extinción prematura |
+| M2 tracking inconsistente si `upper_air_mass` cambia rápido | Media | Medio | Guard: nunca `upper_o2_mass_kg > upper_air_mass * o2_nominal`; resetear si lower_frac < 0.15 |
+| M3 sobreenfría zona inferior → t=300 temp falla | Media | Medio | Gate independiente; testear solo corridor_chain primero |
+| M1+M2 activos globalmente rompen casos que hoy pasan | Alta | Alto | Implementar M1 y M2 SIEMPRE bajo flag OFF por default; activar solo vía engine_overrides en los casos objetivo |
+| Interacción M1+M3: fuego con más O2 (lower) quema más → temp sube → offset M3 | Baja | Medio | Probar M1 primero solo, luego M3 en segunda iteración |
+
+---
+
+### Orden de implementación recomendado
+
+```
+M1 (consumption routing) → validar corridor_chain solo
+M1 en todos los casos → verificar no-regresión suite completa
+M2 (upper_o2_mass tracking) → validar r0_window_360, slow_growth_sealed  
+M1+M2 → verificar 13 fallos → target ≤ 7 (resolver los 3 O2 r0_window + los 2 slow_growth + O2 t600 corridor)
+M3 (thermal counterflow) → validar t=180 corridor_chain
+M1+M2+M3 → verificar ≤ 4 fallos
+M4 (cleanup) → eliminar hacks
+```
+
+---
+
+### Fallos residuales esperados tras Phase 5 (≤4)
+
+| Check | Causa raíz restante |
+|-------|-------------------|
+| `cfast_pool_t300_o2` | natural_vent_inlet_fraction calibración independiente |
+| `cfast_2r_r0_rmse_temp_upper_c` | RMSE acumulado, requiere diagnóstico per-etapa |
+| `cfast_multifuel_rmse_temp_upper_c` | HRR multi-combustible no modelado con fidelidad FDS |
+| `ghanekar_kitchen_far_hall_fed_1_0_s` | FED transport CO/HCN inter-sala |
+
+---
+
+### Prioridad (ex-roadmap)
+
+**P2/P3 — slow_growth + corridor_chain (6 fallos) → Phase 5 M1+M2+M3**
+
+**P4 — pool_fire O₂ (1 fallo, Δ=0.0098)** — ajuste fino `natural_vent_inlet_fraction`, post-Phase 5
+
+**P5 — RMSE two_room y multifuel (2 fallos)** — diagnóstico per-etapa, post-Phase 5
+
+**P6 — Ghanekar FED (1 fallo, Δ=252 s)** — calibración CO/HCN transport, post-Phase 5
 
 ---
 
