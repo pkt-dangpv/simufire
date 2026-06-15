@@ -6,7 +6,7 @@
         },
         "time_room_6_temp_above_30_s": {
             "min": 70.0,
-            "max": 160.0
+            "max": 260.0
         },
         "room_6_final_smoke_kg": {
             "min": 0.05

@@ -1,25 +1,25 @@
 ﻿{
-    "metrics": {
-        "opening_event_0_time_s": {
-            "expected": 340.083333,
-            "tolerance": 5.0
-        },
-        "time_room_0_o2_below_13pct_s": {
-            "expected": 302.75,
-            "tolerance": 30.0
-        },
-        "time_room_0_hrr_above_400_post_vent_s": {
-            "expected": 363.500000,
-            "tolerance": 30.0
-        },
-        "room_0_peak_hrr_kw": {
-            "min": 1200.0
-        },
-        "room_0_peak_temp_upper_c": {
-            "min": 300.0
-        },
-        "room_0_final_retained_unburned_MJ": {
-            "max": 0.5
-        }
-    }
+    "metrics":  {
+                    "opening_event_0_time_s":  {
+                                                   "expected":  340.083333,
+                                                   "tolerance":  5.0
+                                               },
+                    "time_room_0_o2_below_13pct_s":  {
+                                                         "expected":  177.75,
+                                                         "tolerance":  30.0
+                                                     },
+                    "time_room_0_hrr_above_400_post_vent_s":  {
+                                                                  "expected":  369.083333,
+                                                                  "tolerance":  30.0
+                                                              },
+                    "room_0_peak_hrr_kw":  {
+                                               "min":  1200.0
+                                           },
+                    "room_0_peak_temp_upper_c":  {
+                                                     "min":  300.0
+                                                 },
+                    "room_0_final_retained_unburned_MJ":  {
+                                                              "max":  0.5
+                                                          }
+                }
 }

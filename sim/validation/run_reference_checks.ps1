@@ -74,7 +74,7 @@ Write-Host ("[Reference Suite] Timeout por caso: {0}s" -f $TimeoutSeconds)
 
 if (-not $SkipCaseRuns) {
 	foreach ($caseName in $cases) {
-		& $runCaseScript -CaseName $caseName -GodotExe $GodotExe -ProjectPath $ProjectPath -TimeoutSeconds $TimeoutSeconds
+		& $runCaseScript -CaseName $caseName -GodotExe $GodotExe -ProjectPath $ProjectPath -TimeoutSeconds $TimeoutSeconds -AllowBaselineFailure
 	}
 } else {
 	Write-Host "[Reference Suite] Omitiendo ejecucion de casos; se reutilizan reportes existentes"

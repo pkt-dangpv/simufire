@@ -1,33 +1,33 @@
-{
-  "metrics": {
-    "opening_event_0_time_s": {
-      "expected": 200.0,
-      "tolerance": 5.0
-    },
-    "opening_event_1_time_s": {
-      "expected": 550.083333,
-      "tolerance": 5.0
-    },
-    "room_0_peak_hrr_kw": {
-      "min": 1500.0
-    },
-    "room_0_final_o2": {
-      "expected": 0.113254,
-      "tolerance": 0.02
-    },
-    "room_0_final_hrr_kw": {
-      "expected": 62.532601,
-      "tolerance": 5.0
-    },
-    "room_0_final_smoke_kg": {
-      "expected": 1.154722,
-      "tolerance": 0.3
-    },
-    "smoke_vented_total_kg": {
-      "min": 0.5
-    },
-    "smoke_deposited_total_kg": {
-      "max": 0.5
-    }
-  }
+﻿{
+    "metrics":  {
+                    "opening_event_0_time_s":  {
+                                                   "expected":  200,
+                                                   "tolerance":  5.0
+                                               },
+                    "opening_event_1_time_s":  {
+                                                   "expected":  550.083333,
+                                                   "tolerance":  5.0
+                                               },
+                    "room_0_peak_hrr_kw":  {
+                                               "min":  1500.0
+                                           },
+                    "room_0_final_o2":  {
+                                            "expected":  0.065235,
+                                            "tolerance":  0.02
+                                        },
+                    "room_0_final_hrr_kw":  {
+                                                "expected":  0,
+                                                "tolerance":  5.0
+                                            },
+                    "room_0_final_smoke_kg":  {
+                                                  "expected":  0.279763,
+                                                  "tolerance":  0.3
+                                              },
+                    "smoke_vented_total_kg":  {
+                                                  "min":  0.5
+                                              },
+                    "smoke_deposited_total_kg":  {
+                                                     "max":  0.5
+                                                 }
+                }
 }

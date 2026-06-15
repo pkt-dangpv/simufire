@@ -113,6 +113,14 @@ var plume_upper_o2_displacement_frac: float = 0.09
 # requerir sala sellada. Default false = no-op exacto; comportamiento legacy sin cambios.
 # Activar vía engine_overrides: { "fire_o2_canonical_enabled": true }.
 var fire_o2_canonical_enabled: bool = false
+# Phase 5 M2: tracer conservado de masa de O2 en zona superior.
+# Cuando true, inicializa room.upper_o2_mass_tracked y deriva o2_upper = masa / upper_air_mass.
+# Default false = no-op exacto; room.upper_o2_mass_tracked nunca se toca.
+# Activar via engine_overrides: { "fire_o2_mass_tracking_enabled": true }.
+var fire_o2_mass_tracking_enabled: bool = false
+# R3: cuando true, el consumo de O2 se enruta hacia o2_lower (zona baja) y room.o2
+# se actualiza como promedio ponderado upper/lower al final del paso.
+var two_zone_solver_enabled: bool = false
 var _pending_o2_deliveries: Array[Dictionary] = []
 var _reserved_transport_o2_delta_kg: Dictionary = {}
 
@@ -229,6 +237,10 @@ func configure(settings: Dictionary) -> void:
 	fire_o2_canonical_enabled = bool(
 		settings.get("fire_o2_canonical_enabled", fire_o2_canonical_enabled)
 	)
+	fire_o2_mass_tracking_enabled = bool(
+		settings.get("fire_o2_mass_tracking_enabled", fire_o2_mass_tracking_enabled)
+	)
+	two_zone_solver_enabled = bool(settings.get("two_zone_solver_enabled", two_zone_solver_enabled))
 
 
 func reset() -> void:
@@ -347,7 +359,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# plume_upper_o2_displacement_frac para modelar el desplazamiento de O2 por
 			# productos de combustión (CO2, H2O) que llenan la zona superior.
 			var upper_consumed: float = 0.0
-			if not effective_plume_lower:
+			if not two_zone_solver_enabled and not effective_plume_lower:
 				var cr_upper: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 				upper_consumed = (room.hrr_kw / 1000.0) * cr_upper * dt
 				upper_consumed = minf(upper_consumed, upper_air_mass * room.o2_upper * 0.20)
@@ -432,7 +444,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# R2-2: en plume_lower_mode la zona baja puede contener aire fresco hasta ambient;
 			# el ceiling es building.outside_o2, no fire_o2_nominal (que es el parámetro del fuego).
 			var _o2_lower_ach_ceil: float = building.outside_o2 \
-				if (phase2h_o2_doorway_two_zone_enabled or effective_plume_lower) else o2_nominal
+				if (phase2h_o2_doorway_two_zone_enabled or two_zone_solver_enabled or effective_plume_lower) else o2_nominal
 			var _o2_lower_floor: float = 0.0 if effective_plume_lower else room.o2
 			room.o2_lower = clampf(room.o2_lower + ach_lower_dt, _o2_lower_floor, _o2_lower_ach_ceil)
 			# R2-2: cuando el fuego entrana de o2_lower, room.o2 refleja la mezcla ponderada.
@@ -452,7 +464,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		# La zona baja puede contener aire fresco a concentración ambiente aunque el fuego
 		# haya reducido o2_nominal a 0.17. Usar building.outside_o2 (≈0.209) como techo.
 		var _o2_lower_final_ceil: float = building.outside_o2 \
-			if (phase2h_o2_doorway_two_zone_enabled or effective_plume_lower) else o2_nominal
+			if (phase2h_o2_doorway_two_zone_enabled or two_zone_solver_enabled or effective_plume_lower) else o2_nominal
 		room.o2_lower = clampf(room.o2_lower, 0.0, _o2_lower_final_ceil)
 
 		# ── Fase 2B: CO₂ upper-zone mol-fraction tracking ──────────────────────

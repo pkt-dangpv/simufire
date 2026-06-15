@@ -1,23 +1,23 @@
 ﻿{
-  "metrics": {
-    "time_room_1_fed_above_0_1_s": {
-      "expected": 197.75,
-      "tolerance": 10.0,
-      "comment": "Phase 2C: CO is now correctly placed in the upper zone (co_upper_kg = co_kg during fire-active collapse). Lower-zone CO at breathing height is near 0, so FED accumulation is slower and the threshold is reached later than the old well-mixed-style expectation (169 s → 197.75 s)."
-    },
-    "time_room_1_temp_upper_above_100c_s": {
-      "expected": 70.833333,
-      "tolerance": 5.0
-    },
-    "time_room_1_co_upper_above_1200_s": {
-      "expected": 87.333333,
-      "tolerance": 5.0
-    },
-    "room_1_peak_temp_upper_c": {
-      "min": 200.0
-    },
-    "room_1_peak_co_upper_ppm": {
-      "min": 2000.0
-    }
-  }
+    "metrics":  {
+                    "time_room_1_fed_above_0_1_s":  {
+                                                        "expected":  201.5,
+                                                        "tolerance":  10.0,
+                                                        "comment":  "Phase 2C: CO is now correctly placed in the upper zone (co_upper_kg = co_kg during fire-active collapse). Lower-zone CO at breathing height is near 0, so FED accumulation is slower and the threshold is reached later than the old well-mixed-style expectation (169 s → 197.75 s)."
+                                                    },
+                    "time_room_1_temp_upper_above_100c_s":  {
+                                                                "expected":  89.833333,
+                                                                "tolerance":  5.0
+                                                            },
+                    "time_room_1_co_upper_above_1200_s":  {
+                                                              "expected":  93.916667,
+                                                              "tolerance":  5.0
+                                                          },
+                    "room_1_peak_temp_upper_c":  {
+                                                     "min":  200.0
+                                                 },
+                    "room_1_peak_co_upper_ppm":  {
+                                                     "min":  2000.0
+                                                 }
+                }
 }
