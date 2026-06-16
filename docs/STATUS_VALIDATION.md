@@ -304,6 +304,114 @@ O₂ en cuarto de cama depleta más lento que en CFAST. El cuarto tiene puerta c
 
 ---
 
+## Phase 9 — Triage 21/350 (2026-06-16)
+
+> **Estado:** Triage completo. Sin cambio de física. Plan de ataque documentado.
+
+### Agrupación por causa raíz
+
+Los 21 fallos se distribuyen en 6 clusters según su caso y causa raíz. Los casos con múltiples fallos por causa compartida son los candidatos prioritarios.
+
+| Cluster | Fallos | Casos | Causa raíz | Atacable P9 |
+|---------|--------|-------|------------|-------------|
+| C1 — Phase 2 estructural | 8 | r0_window(×3), slow_growth(×2), corridor_chain(×3) | Arquitectura two-zone canónica; gap documentado Phase 2 | No |
+| C2 — HVAC Phase 2C | 1 | hvac_residential | o2_upper/lower desacoplados cuando fire usa o2_lower (HVAC fresh air) | No |
+| C3 — RMSE acumulado | 2 | two_room_door, multi_fuel | Error de temperatura acumulado en curva de 900/180s | Posponer |
+| C4 — Pool fire O₂ equilibrio | 2 | pool_fire_open | natural_vent_inlet_fraction=0.2 → equilibrio O₂ ~0.205 vs CFAST 0.194 | Sí (bajo riesgo) |
+| C5 — Bedroom/origin temp | 7 | ghanekar_bedroom_hallway | fire_flashover_hrr_multiplier=3.0 → origin peak 868°C → exchange anómalo | Sí (riesgo medio) |
+| C6 — Kitchen CO timing | 1 | ghanekar_kitchen_living_room | CO llega IDLH 117s demasiado pronto en pasillo lejano | Posponer |
+
+### Análisis por cluster
+
+#### C1 — Phase 2 estructural (8 fallos) — No tocar
+
+Gap documentado en fases anteriores:
+- **r0_window_360 O₂ ×3:** SF usa room-avg O₂ vs CFAST upper-zone O₂ → fuego corre cerca de capacidad mientras CFAST se auto-limita. Resolución: Phase 2 two-zone architecture.
+- **slow_growth_sealed temp ×2:** chi_rad requerido para temp (≤0.55) y O₂ (≥0.64) no se solapan. Resolución: Phase 2 ZoneFireSolver donde fuego depleta o2_lower.
+- **corridor_chain temp ×3:** M3 energy-only insuficiente; falta mass+energy bidireccional en puertas. Resolución: M1+M2+M3 completo.
+
+#### C2 — HVAC Phase 2C (1 fallo) — Estructural
+
+`cfast_hvac_t300_o2: actual=0.0009, expected=0.0737`. El caso tiene `fire_o2_lower_for_flame=True` y `phase2h_o2_doorway_two_zone_enabled=True`. El HVAC provee aire fresco a o2_lower → o2_lower permanece en 0.209 (PASS). Pero el fuego depleta o2_upper directamente sin throttle (throttlea sobre o2_lower) → o2_upper crashea de 0.1088 (t=180, PASS) a 0.0009 (t=300, FAIL) en 120 s. CFAST mantiene 0.0737 por acoplamiento upper/lower de dos zonas. Requiere Phase 2C upper/lower exchange explícito. No se toca.
+
+#### C3 — RMSE acumulado (2 fallos) — Posponer
+
+- `cfast_2r_r0_rmse_temp_upper_c: 88.0 (máx 60)`: drift térmico en 900s. Necesita diagnóstico por etapa.
+- `cfast_multifuel_rmse_temp_upper_c: 232.5 (máx 200)`: HRR multi-combustible desalineado con CFAST en alguna fase. El check pasa en su ventana de evaluación antigua (SF=189°C, margen=11°C per nota), pero la ventana actual la pone en 232. Posponer análisis.
+
+#### C4 — Pool fire O₂ equilibrio (2 fallos) — Bajo riesgo, atacar primero
+
+```
+cfast_pool_t300_o2: actual=0.2046, expected=0.194038, tol=0.008  (delta=0.0106, 1.3×tol)
+cfast_pool_t600_o2: actual=0.2044, expected=0.194087, tol=0.010  (delta=0.0103, 1.0×tol)
+```
+
+**Patrón observado:** O₂ depleta a 0.1879 en t=60 (PASS) y se recupera a 0.205 en equilibrio. El fuego (80 kW max) con ventana abierta: a t<120s la depleción supera el reabastecimiento; después el reabastecimiento supera la depleción → O₂ sube hacia el ambiente. CFAST mantiene equilibrio en 0.194 → SF en 0.205.
+
+**Checks que pasan y podrían regresar:**
+- `cfast_pool_t60_o2: actual=0.1879, tol=0.015` → mínimo aceptable=0.1806, margen 0.0073
+- `cfast_pool_t120_o2: actual=0.1887, tol=0.015` → mínimo=0.1793, margen 0.0094
+
+**Mecanismo de fix:** Reducir `natural_vent_inlet_fraction` de 0.2 → ~0.15 en `cfast_pool_fire_open.json`. Menos reabastecimiento → equilibrio más bajo. Riesgo: t60 y t120 podrían caer, verificar con margen actual.
+
+#### C5 — Bedroom/origin temp (7 fallos) — Riesgo medio, candidato principal
+
+Todos los fallos son del mismo caso `ghanekar_bedroom_hallway` con fire en room_id=0:
+
+```
+ghanekar_origin_peak_upper_temp_reasonable_c: actual=868.7°C, max=650°C  (+219°C)
+ghanekar_far_hall_o2_response_time_s:         actual=161.5s,  expected=198±30s  (37s demasiado rápida)
+cfast_bed_o2_t120_o2: actual=0.204,  expected=0.187, tol=0.008  (room_id=2, Dormitorio1)
+cfast_bed_o2_t300_o2: actual=0.160,  expected=0.117, tol=0.008
+cfast_bed_o2_t480_o2: actual=0.123,  expected=0.081, tol=0.020
+cfast_bed_o2_t600_o2: actual=0.109,  expected=0.071, tol=0.023
+cfast_bed_o2_t720_o2: actual=0.099,  expected=0.062, tol=0.026
+```
+
+**Causa raíz probable — fuego de origen demasiado intenso:**
+
+La secuencia causal es:
+1. `fire_flashover_hrr_multiplier=3.0` lleva el fuego a ~3× HRR post-flashover → origin peak 868°C
+2. El fuego intenso depleta O₂ en room 0 rápidamente → self-throttle prematuro
+3. Pico inicial genera gas caliente que llega a room 2 a t=161.5s (demasiado pronto)
+4. Después del pico, el fuego throttleado produce menos exchange sostenido → room 2 depleta O₂ más lento que CFAST (que mantiene HRR sostenido moderado)
+
+**Candidato a investigar:** Reducir `fire_flashover_hrr_multiplier` de 3.0 a ~1.5-2.0 en el JSON de caso. Un multiplicador menor:
+- Baja el pico de temp origen (868→ ≤650°C)
+- Mantiene HRR más sostenido (sin spike → sin throttle prematuro)
+- Normaliza el exchange a room 2 → bed_o2 depleta más consistentemente
+- Podría normalizar el response time (161.5→ ~198s)
+
+**Blast radius a verificar:** `cfast_bed_fed_lethal` (PASS, requiere FED≥1.0 en room 2), `cfast_bed_min_o2_lethal` (PASS, O₂<10% en room 2), `three_bed_apartment_smoke_*` (PASS, ×5 checks de humo/timing), `two_bed_apartment_smoke_*` (PASS, ×6 checks).
+
+Nota: la temperatura del dormitorio (room 2) también aparece baja: `cfast_bed_temp_t300: 85°C vs 170°C (opt)`. Más HRR sostenido en room 0 debería subir la temperatura en room 2 también.
+
+#### C6 — Kitchen CO timing (1 fallo) — Posponer
+
+`ghanekar_kitchen_far_hall_idlh_co_s: actual=524.3s, expected=642±102s`. CO IDLH en pasillo lejano 117.7s demasiado pronto. La check de FED_1.0 (actual=650.3s) pasa por 10.3s de margen. Tocar CO timing podría hacer pasar idlh_co pero fallar fed_1_0_s. Riesgo neto neutral o negativo. Posponer hasta después de C5.
+
+---
+
+### Plan de Phase 9
+
+**Objetivo A — cfast_pool_fire_open inlet fraction** (bajo riesgo, 2 fallos → 0)
+
+1. Reducir `natural_vent_inlet_fraction: 0.2 → 0.15` en `sim/validation/cases/cfast_pool_fire_open.json`
+2. Ejecutar caso, verificar t60/t120 siguen PASS, t300/t600 se corrigen
+3. Si t60/t120 caen: probar valor intermedio 0.17-0.18
+4. Si no converge: dejar como known gap con nota de calibración
+
+**Objetivo B — ghanekar_bedroom_hallway origin temp** (riesgo medio, potencial 7 fallos → ≤2)
+
+1. Reducir `fire_flashover_hrr_multiplier: 3.0 → 1.5` o `2.0` en `sim/validation/cases/ghanekar_bedroom_hallway.json`
+2. Ejecutar caso, verificar origin peak ≤650°C
+3. Verificar bed_o2 mejoran y far_hall_o2_response_time se acerca a 198s
+4. Verificar que checks PASS no regresen: fed_lethal, min_o2_lethal, apartment_smoke_* ×11
+
+**Bloqueo P9:** No tocar C1/C2/C3/C6. No añadir infraestructura nueva. Solo ajustes case-specific en JSON.
+
+---
+
 ## Trabajo completado
 
 
