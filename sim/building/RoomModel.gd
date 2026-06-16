@@ -51,6 +51,9 @@ var o2_lower: float = 0.209
 # Inicializado/actualizado por OxygenExchangeSystem cuando fire_o2_mass_tracking_enabled=true.
 # Con flag OFF este campo nunca se lee ni escribe → no-op garantizado.
 var upper_o2_mass_tracked: float = -1.0
+# Phase 8: señal de que ThermalSystem (canonical Part A) actualizó o2_upper este paso.
+# OxygenExchangeSystem re-sincroniza el tracker desde o2_upper en lugar de sobreescribirlo.
+var canonical_o2_upper_updated: bool = false
 # M2: muestra local de O2 realmente usada por CombustionSystem.
 var fire_o2_mode_used: String = "legacy"
 var fire_o2_ref: float = 0.209
@@ -286,6 +289,7 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	o2_upper = ambient_o2
 	o2_lower = ambient_o2
 	upper_o2_mass_tracked = -1.0
+	canonical_o2_upper_updated = false
 	fire_o2_mode_used = "legacy"
 	fire_o2_ref = ambient_o2
 	fire_o2_min_ref = 0.0

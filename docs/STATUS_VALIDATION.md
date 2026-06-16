@@ -1,8 +1,8 @@
 # SimuFire — Estado de validación CFAST
 
 > Última actualización: 2026-06-16  
-> Branch: `main` · HEAD: Phase 7 full two-zone doorway enthalpy solver (Part B bug fix; bloqueo estructural documentado)  
-> Fallos requeridos actuales: **13 / 333**
+> Branch: `main` · HEAD: Phase 8 — auditoría M1/M2 global (revertidos); `canonical_o2_upper_updated` flag añadido; log refresh revela estado verdadero  
+> Fallos requeridos actuales: **20 / 333** (13 conocidos + 7 pre-existentes revelados por log refresh)
 
 ---
 
@@ -37,6 +37,8 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Phase 5 M3b | ThermalSystem: `doorway_thermal_counterflow_o2_return_fraction` (retorno O₂ zona inferior, default=0.0); activado en corridor_chain con fraction=1.0 | **13** → **13** |
 | Phase 5 M4 | Auditoría de overrides per-caso. Conclusión: ningún cleanup es seguro sin M1/M2 globales. | **13** → **13** |
 | Phase 6 | ThermalSystem: `canonical_doorway_exchange_enabled` (intercambio bidireccional masa+O₂, default=false). Exploración confirma bloqueo estructural corridor_chain: 3 fallos independientemente de calibración (t180+t600_temp siempre fallan). | **13** → **13** |
+| Phase 7 | ThermalSystem: `_apply_canonical_doorway_exchange()` Part B corregida — conserva `lower_energy_kj` en vez de sobreescribir `temp_lower_c`. corridor_chain o2_t600: PASS (0.099 vs 0.102 ±0.015). Bloqueo térmico en t180/t300/t600_temp persiste. | **14** → **13** |
+| Phase 8 | Auditoría de conservación de masa + M1/M2 global. Activación global rompe 10+ checks por interacciones con plume_lower_mode y dilución del tracker. Flags desactivados. `canonical_o2_upper_updated` añadido para consistencia futura. Bloqueo corridor_chain sin cambio. | **13** → **13** |
 
 ---
 
@@ -652,6 +654,93 @@ Se evaluó si habilitar presión canónica en `cfast_corridor_chain` (puertas ab
 Con presión canónica (0.34 Pa < 2.0 Pa umbral), `step_pressure_venting` no activaría el venteo por presión → sala más caliente → empeora el fallo t=180 (ya 45°C demasiado caliente).
 
 La presión canónica no ayuda a los fallos actuales porque estos son de **balance de O₂** y **balance térmico**, no de flujo Bernoulli por presión.
+
+---
+
+## Phase 8 — Conservación de masa upper/lower + M1/M2 global (auditoría)
+
+> **Estado:** Auditoría completa. M1/M2 revertidos a false global. Infraestructura `canonical_o2_upper_updated` añadida.
+> **Resultado:** 13 → 13 fallos (sin cambio neto en código). Log refresh revela 7 fallos pre-existentes ocultos por logs stale (20 total verdadero).
+
+### Objetivo
+
+Atacar el gap restante de `corridor_chain` activando:
+1. Conservación explícita de masa upper/lower en intercambio por puertas
+2. **M1 global:** fuego consume O₂ desde `o2_lower`/plume_lower cuando corresponde
+3. **M2 global:** `o2_upper` como tracer conservado, no derivado/calibrado
+
+### Análisis de conservación de masa
+
+Auditoría de `ThermalSystem.gd` confirma que la conservación ya está implementada:
+- **Zona superior:** `upper_gas_kg` y `upper_energy_kj` conservados explícitamente en el loop Bernoulli principal (líneas 1089-1090). La masa upper se transfiere de sala caliente a sala fría vía `upper_gas_moved_kg`.
+- **Zona inferior energía:** Conservada vía `lower_energy_kj` (fix de Phase 7). La temperatura se deriva de la energía, no se sobreescribe.
+- **Zona inferior masa:** Implícita: `lower_gas_kg = lower_volume × density(T_lower)` calculado en `project_room_state()` (cierre de presión). No hay drift acumulado.
+
+**Conclusión:** No hay brecha de conservación de masa que explique el gap de corridor_chain.
+
+### M1 global — Resultado: REVERTIDO
+
+**Activación:** `fire_o2_canonical_enabled = true` en `SimulationEngine.gd`.
+
+**Regressions observadas:** 10+ checks requeridos fallaron, incluyendo:
+- `cfast_pool_t60_o2: 0.0524` (crash O₂ → fuego sin throttle)
+- `cfast_bed_o2_t120_o2: 0.1122` (O₂ bajo anormal en cuarto sellado)
+- `cfast_multifuel_t180_temp_upper_c: 552°C`
+
+**Causa raíz:** En salas con apertura exterior, `fire_o2_mode_used` auto-selecciona `"plume_lower"`. Cuando M1 activa `canonical_plume_lower`, el fuego consume O₂ desde `o2_lower` en lugar de `o2_upper` → `o2_upper` permanece cerca del ambiente → fuego no throttlea → consumo de O₂ inferior se dispara → crash.
+
+La distinción necesaria entre `"plume_lower"` auto-seleccionado vs. `"plume_lower"` explícito-por-caso no existe actualmente en el motor.
+
+**Estado final:** `fire_o2_canonical_enabled = false` (default). Activar sólo por caso en case JSON con `fire_o2_mode="plume_lower"` explícito.
+
+### M2 global — Resultado: REVERTIDO
+
+**Activación:** `fire_o2_mass_tracking_enabled = true` en `SimulationEngine.gd`.
+
+**Regressions observadas:** `cfast_bedroom_closed_door` — O₂ stuck near ambient (0.209) en todos los checks de O₂ superiores.
+
+**Causas raíz (tres interacciones):**
+
+1. **Dilución del tracker:** `upper_air_mass = volume × 1.2 × upper_frac` (densidad ambiente 1.2 kg/m³) vs `upper_gas_kg` (masa real del gas caliente a T_upper). A 150°C: `upper_gas_kg ≈ 0.693 × upper_air_mass`. Cuando la zona superior crece (incendio construyendo capa caliente), `upper_air_mass` aumenta → `o2_upper = tracker / upper_air_mass` baja artificialmente → fuego percibe menos O₂ del real.
+
+2. **Feedback delta_entr bidireccional:** Para casos con `effective_plume_lower=true`, `delta_entr` es bidireccional. Cuando `o2_upper < o2_lower`, el plume infla `o2_upper` desde la zona inferior. Con tracker diluyendo `o2_upper`, el feedback delta_entr lo empuja de vuelta hacia arriba → `o2_upper` stuck near ambient.
+
+3. **`room.o2` no se depleta:** En `effective_plume_lower`, el consumo de O₂ del fuego va a `o2_lower`, no a `room.o2`. El mecanismo de relajación (`room.o2 → o2_upper` cuando fuego apagado) no se activa mientras el fuego corre → `room.o2` permanece en 0.209.
+
+**Fix de consistencia añadido:** Flag `canonical_o2_upper_updated: bool` en `RoomModel.gd`. Cuando `ThermalSystem` canonical Part A mezcla `o2_upper` por transporte de masa entre salas, activa este flag → `OxygenExchangeSystem` re-sincroniza el tracker desde `o2_upper` actual en lugar de sobreescribirlo con el tracker stale. Flag es no-op cuando M2=false o canonical=false.
+
+**Estado final:** `fire_o2_mass_tracking_enabled = false` (default). Activar sólo por caso con engine_override, después de resolver la incompatibilidad con `plume_lower_mode`.
+
+### corridor_chain — Sin cambio (bloqueo estructural confirmado)
+
+| Check | Phase 7 | Phase 8 | CFAST esperado |
+|-------|---------|---------|----------------|
+| `t180_temp_upper_c` | 186.35°C | 186.35°C | 158.01 ±15 |
+| `t300_temp_upper_c` | 145.04°C | 145.04°C | 165.84 ±20 |
+| `t600_temp_upper_c` | 104.75°C | 104.75°C | 168.39 ±30 |
+| `o2_t600_o2` | 0.0994 ✓ | 0.0994 ✓ | 0.102 ±0.015 |
+
+Valores idénticos al Phase 7. El bloqueo estructural persiste: la zona inferior se enfría hasta ambiente vía Part B (masa × (T_fría - T_caliente) supera `energy_to_lower_kj` en ~5×), haciendo que el plume entraine aire frío y sobrefría la zona superior a t=600.
+
+### Log refresh — 7 fallos pre-existentes revelados
+
+Al ejecutar los casos frescos con M1=false, M2=false, se reveló que el reporte Phase 7 contenía **logs stale** para 3 casos. Los valores en el commit no reflejaban el estado real del código:
+
+| Check | Phase 7 reporte | Estado real (Phase 8 fresh) |
+|-------|-----------------|------------------------------|
+| `cfast_pool_t600_o2` | 0.2038 ✓ (delta=0.0003 < tol) | 0.2044 ✗ (delta=0.0103 > tol=0.01) |
+| `cfast_bed_o2_t120_o2` | 0.1898 ✓ | 0.2040 ✗ (tol=0.008) |
+| `cfast_bed_o2_t300_o2` | 0.1149 ✓ | 0.1596 ✗ |
+| `cfast_bed_o2_t480–t720_o2` | PASS ✓ (×3) | FAIL ✗ (×3) |
+| `ghanekar_origin_peak_upper_temp_reasonable_c` | 577°C ✓ | 868°C ✗ (max=650°C) |
+
+**Estado verdadero con Phase 8 code:** **20/333** fallos requeridos.
+
+- **pool_t600:** fallo marginal (Δ=0.0003 sobre tolerancia). Candidato a ajuste fino de `natural_vent_inlet_fraction`.
+- **bed_o2 ×5:** O₂ depleta más lento que CFAST en cuarto sellado. Probablemente `ach_infiltration=5.0` excesivo o desequilibrio de chi_rad/denominador en modo sellado.
+- **ghanekar_origin:** Peak temp 868°C vs. 650°C máximo. El fuego en la cocina alcanza temperaturas más altas de lo observado. Posible `max_upper_temp_c` override necesario o calibración HRR.
+
+Estos fallos son **pre-existentes** (existían antes de Phase 8 — visibles en b3jl3vyja run pre-Phase8). La infraestructura de Phase 8 no los causó.
 
 ---
 

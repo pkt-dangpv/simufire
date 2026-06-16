@@ -222,9 +222,15 @@ var _layer_interface_warning_rooms: Dictionary = {}
 @export var fire_o2_consumption_kg_per_MJ: float = 0.076  # Regla de Thornton: 1/13.1 MJ/kgO2
 ## Phase 5 M1: routing canónico de consumo de O₂.
 ## Cuando true, OxygenExchangeSystem consume de o2_lower cuando fire_o2_mode_used="plume_lower".
-## Default false = no-op exacto (compatibilidad legacy). Activar vía engine_overrides.
+## Phase 8 audit: activación global rompe throttle en salas abiertas con auto-select "plume_lower"
+## (canonical_plume_lower activo → o2_upper se mantiene alto → fuego no throttlea → crash O2 inferior).
+## Activar solo per-caso con fire_o2_mode="plume_lower" explícito vía engine_overrides.
 @export var fire_o2_canonical_enabled: bool = false
-## Phase 5 M2: tracer conservado de masa O2 en zona superior. Default false = no-op exacto.
+## Phase 5 M2: tracer conservado de masa O2 en zona superior.
+## Phase 8 audit: activación global interactúa incorrectamente con plume_lower_mode.
+## La dilución del tracker (upper_air_mass 1.2 kg/m³ vs upper_gas_kg en caliente) + delta_entr
+## fija o2_upper cerca de ambient en salas selladas → room.o2 stuck at 0.209.
+## Activar solo per-caso con engine_overrides. Consistencia con canonical Part A: ver canonical_o2_upper_updated.
 @export var fire_o2_mass_tracking_enabled: bool = false
 ## Phase 5 M3: contraflujo térmico bidireccional por puertas. Default false = no-op exacto.
 @export var doorway_thermal_counterflow_enabled: bool = false

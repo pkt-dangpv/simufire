@@ -293,8 +293,12 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		var lower_air_mass: float = maxf(0.001, air_mass_kg * lower_frac)
 
 		if fire_o2_mass_tracking_enabled:
-			if room.upper_o2_mass_tracked < 0.0:
+			if room.upper_o2_mass_tracked < 0.0 or room.canonical_o2_upper_updated:
+				# Inicialización o re-sincronización desde o2_upper actual.
+				# canonical_o2_upper_updated=true indica que ThermalSystem canonical Part A
+				# actualizó o2_upper este paso; el tracker stale no debe sobreescribir ese valor.
 				room.upper_o2_mass_tracked = room.o2_upper * upper_air_mass
+				room.canonical_o2_upper_updated = false
 			else:
 				room.o2_upper = clampf(
 					room.upper_o2_mass_tracked / maxf(0.001, upper_air_mass),

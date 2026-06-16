@@ -2363,7 +2363,10 @@ func _apply_canonical_doorway_exchange(
 			/ cold_room.upper_gas_kg,
 			0.0, 0.209
 		)
-		# hot_room.o2_upper no cambia: composición invariante al perder masa (mezcla perfecta).
+		# Señal M2: indica a OxygenExchangeSystem que o2_upper fue modificado por mixing canónico
+		# este paso. O₂ExchangeSystem re-sincronizará el tracker desde el valor actual en lugar
+		# de sobreescribirlo con el tracker antiguo (que daría un o2_upper erróneo).
+		cold_room.canonical_o2_upper_updated = true
 
 	# ── PARTE B: Flujo inferior (cold.lower → hot.lower) — Phase 7: conservación de entalpía ──
 	# Phase 6 cambiaba temp_lower_c directamente, pero project_room_state() la sobreescribe
