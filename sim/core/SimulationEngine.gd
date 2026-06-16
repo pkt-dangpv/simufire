@@ -229,6 +229,8 @@ var _layer_interface_warning_rooms: Dictionary = {}
 ## Phase 5 M3: contraflujo térmico bidireccional por puertas. Default false = no-op exacto.
 @export var doorway_thermal_counterflow_enabled: bool = false
 @export var doorway_thermal_counterflow_gain: float = 1.0
+## Phase 5 M3b: fracción del flujo másico superior que retorna como aire fresco (zona inferior). 0.0 = no-op.
+@export var doorway_thermal_counterflow_o2_return_fraction: float = 0.0
 # Rendimiento de humo (kg/MJ)
 # SFPE: ~0.06 kg/kg ÷ 16 MJ/kg = 0.00375 kg/MJ
 @export var fire_smoke_yield_kg_per_MJ: float = 0.0088
@@ -1034,7 +1036,8 @@ func _sync_auxiliary_services() -> void:
 		"phase2f_co_interlayer_mixing_guard": phase2f_co_interlayer_mixing_guard,
 		"phase2i_co2_upper_fraction": phase2i_co2_upper_fraction,
 		"doorway_thermal_counterflow_enabled": doorway_thermal_counterflow_enabled,
-		"doorway_thermal_counterflow_gain": doorway_thermal_counterflow_gain
+		"doorway_thermal_counterflow_gain": doorway_thermal_counterflow_gain,
+		"doorway_thermal_counterflow_o2_return_fraction": doorway_thermal_counterflow_o2_return_fraction
 	})
 	fire_spread_system.set_references(building, smoke_model, combustion_system)
 	fire_spread_system.configure({
@@ -1200,6 +1203,7 @@ func _build_state_context() -> Dictionary:
 		"fire_o2_effective_mode": _resolve_fire_o2_mode(),
 		"fire_o2_mass_tracking_enabled": fire_o2_mass_tracking_enabled,
 		"doorway_thermal_counterflow_enabled": doorway_thermal_counterflow_enabled,
+		"doorway_thermal_counterflow_o2_return_fraction": doorway_thermal_counterflow_o2_return_fraction,
 		"step_time_us": _step_time_us,
 	}
 

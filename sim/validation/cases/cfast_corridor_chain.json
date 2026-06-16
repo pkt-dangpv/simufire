@@ -92,7 +92,8 @@
 		"fire_co_yield_force_kg_per_MJ": 0.000343,
 		"fire_o2_nominal": 0.17,
 		"o2_upper_plume_entr_rate": 0.025,
-		"doorway_thermal_counterflow_enabled": false,
-		"doorway_thermal_counterflow_gain": 0.3
+		"doorway_thermal_counterflow_enabled": true,
+		"doorway_thermal_counterflow_gain": 0.3,
+		"doorway_thermal_counterflow_o2_return_fraction": 1.0
 	}
 }

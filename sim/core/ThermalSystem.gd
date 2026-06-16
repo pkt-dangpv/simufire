@@ -241,6 +241,10 @@ var interior_spill_start_layer_m: float = 2.0
 var doorway_thermal_counterflow_enabled: bool = false
 var doorway_thermal_counterflow_gain: float = 1.0
 var doorway_thermal_counterflow_min_delta_c: float = 5.0
+# Phase 5 M3b: fracción del flujo másico superior que retorna como aire fresco por la zona inferior.
+# 0.0 = no-op (default). 1.0 = retorno simétrico completo (conservación de masa).
+# Repone O₂ en la sala de fuego → sostiene HRR → alcanza plateau 158-168°C (CFAST target).
+var doorway_thermal_counterflow_o2_return_fraction: float = 0.0
 
 # FED (ISO 13571) — componentes asfixiantes disponibles en el modelo
 var fed_hypoxia_enabled: bool = true
@@ -545,6 +549,7 @@ func configure(settings: Dictionary) -> void:
 	doorway_thermal_counterflow_enabled = bool(settings.get("doorway_thermal_counterflow_enabled", doorway_thermal_counterflow_enabled))
 	doorway_thermal_counterflow_gain = float(settings.get("doorway_thermal_counterflow_gain", doorway_thermal_counterflow_gain))
 	doorway_thermal_counterflow_min_delta_c = float(settings.get("doorway_thermal_counterflow_min_delta_c", doorway_thermal_counterflow_min_delta_c))
+	doorway_thermal_counterflow_o2_return_fraction = float(settings.get("doorway_thermal_counterflow_o2_return_fraction", doorway_thermal_counterflow_o2_return_fraction))
 	plume_mccaffrey_enabled = bool(settings.get("plume_mccaffrey_enabled", plume_mccaffrey_enabled))
 	plume_mccaffrey_qc_fraction = float(settings.get("plume_mccaffrey_qc_fraction", plume_mccaffrey_qc_fraction))
 	plume_fire_diameter_m = float(settings.get("plume_fire_diameter_m", plume_fire_diameter_m))
@@ -2242,6 +2247,58 @@ func _apply_doorway_thermal_counterflow(
 
 	sync_room_upper_layer(hot_room, dt)
 	sync_room_upper_layer(cold_room, dt)
+
+	# ── Phase 5 M3b: retorno de aire fresco (zona inferior) ──────────────────────────────────
+	# Contraparte de conservación de masa del flujo superior: el gas caliente que sale por la
+	# mitad superior de la puerta debe ser compensado por aire fresco que entra por la mitad
+	# inferior (flujo de retorno Bernoulli / CFAST TN 1889v1 §2.3).
+	# Solo aplica cuando la sala caliente tiene fuego activo (evita cascada O₂ entre salas sin fuego).
+	# Efecto: repone O₂ en zona superior de la sala de fuego → mantiene HRR sostenido.
+	if doorway_thermal_counterflow_o2_return_fraction <= 0.0:
+		return
+	if hot_room.hrr_kw < 1.0:
+		return
+	var m_return_kg_s: float = q_upper_m3s * rho_hot * doorway_thermal_counterflow_o2_return_fraction
+	var m_return_kg: float = m_return_kg_s * dt
+	if m_return_kg < 0.0001:
+		return
+
+	# Fracción O₂ disponible en zona inferior de la sala fría (fuente del retorno).
+	var cold_o2_src: float = maxf(cold_room.o2_lower, cold_room.o2)
+	var rho_ambient: float = 353.0 / maxf(270.0, ambient_c + 273.15)
+	var hot_lower_mass: float = maxf(0.1, hot_room.lower_volume_m3() * rho_ambient)
+	var cold_lower_mass: float = maxf(0.1, cold_room.lower_volume_m3() * rho_ambient)
+
+	# Cap: no extraer más del 5 % del O₂ de la zona inferior fría por paso.
+	var cold_o2_avail_kg: float = cold_lower_mass * cold_o2_src
+	var o2_delta_kg: float = minf(m_return_kg * cold_o2_src, cold_o2_avail_kg * 0.05)
+	if o2_delta_kg <= 0.0:
+		return
+
+	# Sala caliente: O₂ entra en zona inferior (flujo de retorno) Y zona superior (pluma inmediata).
+	# En el modelo 2-zonas el aire fresco que entra por la puerta baja es entrenado por la pluma
+	# casi instantáneamente → se distribuye 50 % inferior / 50 % superior como aproximación.
+	var hot_upper_mass: float = maxf(0.1, hot_room.upper_volume_m3() * rho_ambient)
+	hot_room.o2_lower = clampf(hot_room.o2_lower + o2_delta_kg * 0.5 / hot_lower_mass, 0.0, 0.209)
+	hot_room.o2_upper = clampf(hot_room.o2_upper + o2_delta_kg * 0.5 / hot_upper_mass, 0.0, 0.209)
+
+	# Sala fría: pierde O₂ de la zona inferior (fuente del retorno).
+	cold_room.o2_lower = clampf(cold_room.o2_lower - o2_delta_kg / cold_lower_mass, 0.0, 0.209)
+
+	# Sincronizar o2 bulk como promedio volumétrico de las dos zonas.
+	var _hot_total_vol: float = maxf(0.01, hot_room.volume_m3())
+	var _hot_lower_vol: float = hot_room.lower_volume_m3()
+	var _hot_upper_vol: float = _hot_total_vol - _hot_lower_vol
+	hot_room.o2 = clampf(
+		(hot_room.o2_upper * _hot_upper_vol + hot_room.o2_lower * _hot_lower_vol) / _hot_total_vol,
+		0.0, 0.209)
+
+	var _cold_total_vol: float = maxf(0.01, cold_room.volume_m3())
+	var _cold_lower_vol: float = cold_room.lower_volume_m3()
+	var _cold_upper_vol: float = _cold_total_vol - _cold_lower_vol
+	cold_room.o2 = clampf(
+		(cold_room.o2_upper * _cold_upper_vol + cold_room.o2_lower * _cold_lower_vol) / _cold_total_vol,
+		0.0, 0.209)
 
 
 func _apply_stairwell_heat_bridge(
