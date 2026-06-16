@@ -164,12 +164,12 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var show_technical_overlay: bool = true
 ## Muestra readout compacto de visibilidad en FP cuando el overlay técnico está oculto.
 @export var show_visibility_readout: bool = true
-## Intervalo real de refresco del texto FP. Mantiene datos legibles aunque la simulación vaya acelerada.
-@export_range(0.05, 1.0, 0.05) var fp_hud_refresh_interval_s: float = 0.35
+## Intervalo real de refresco del texto FP. Por defecto coincide con la cadencia de datos del HUD 2D.
+@export_range(0.05, 1.0, 0.05) var fp_hud_refresh_interval_s: float = 0.05
 
 @export_group("FP HUD Layout")
 ## Rect del panel superior de estado FP. x/y son offsets desde su ancla; w/h son tamaño.
-@export var fp_status_panel_rect: Rect2 = Rect2(18.0, 18.0, 360.0, 66.0)
+@export var fp_status_panel_rect: Rect2 = Rect2(18.0, 18.0, 480.0, 66.0)
 ## Rect del panel técnico. Usa ancla superior izquierda para no pisar controles inferiores.
 @export var technical_overlay_panel_rect: Rect2 = Rect2(18.0, 92.0, 212.0, 160.0)
 ## Rect del readout compacto de visibilidad. Usa ancla inferior izquierda.
@@ -2981,6 +2981,7 @@ func _update_status_hud(force: bool = false) -> void:
 	_last_fp_hud_update_msec = now_msec
 	var room_label: String = "SIN SALA"
 	var visibility_label: String = "Vis --"
+	var hrr_label: String = "HRR --"
 	var has_data: bool = false
 	if building != null:
 		_current_room_id = _find_current_room_id()
@@ -2991,12 +2992,14 @@ func _update_status_hud(force: bool = false) -> void:
 			if room_name != "":
 				room_label = "%s %s" % [room_label, room_name]
 			if not room_state.is_empty():
+				hrr_label = "HRR %.0f kW" % float(room_state.get("hrr_kw", 0.0))
 				var smoke_view: Dictionary = _compute_fp_smoke_view(room_state)
 				visibility_label = _format_fp_visibility(float(smoke_view.get("fp_visibility_m", room_state.get("visibility_m", 30.0))))
 				_update_technical_overlay(room_state, smoke_view)
 				has_data = true
-	_fp_status_label.text = "FP | %s | %s | %s\nESC salir | F usar | CTRL postura" % [
+	_fp_status_label.text = "FP | %s | %s | %s | %s\nESC salir | F usar | CTRL postura" % [
 		room_label,
+		hrr_label,
 		_stance_label(),
 		visibility_label
 	]
@@ -3029,9 +3032,10 @@ func _update_technical_overlay(room_state: Dictionary, smoke_view: Dictionary) -
 	var hcn_ppm: float = float(room_state.get("hcn_upper_ppm", 0.0))
 	var fed_val: float = float(room_state.get("fed", 0.0))
 	var vis_m: float = float(smoke_view.get("fp_visibility_m", room_state.get("visibility_m", 30.0)))
+	var hrr_kw: float = float(room_state.get("hrr_kw", 0.0))
 	_technical_overlay_label.text = (
-		"T  %5.0f °C\nCO %5.0f ppm\nCO₂ %4.1f %%vol\nO₂  %4.1f %%vol\nHCN %4.0f ppm\nFED  %.2f\nVis  %s"
-		% [temp_c, co_ppm, co2_vol_pct, o2_vol_pct, hcn_ppm, fed_val, _format_fp_visibility(vis_m)]
+		"HRR %5.0f kW\nT   %5.0f °C\nCO  %5.0f ppm\nCO₂ %4.1f %%vol\nO₂   %4.1f %%vol\nHCN %5.0f ppm\nFED %.2f\nVis %s"
+		% [hrr_kw, temp_c, co_ppm, co2_vol_pct, o2_vol_pct, hcn_ppm, fed_val, _format_fp_visibility(vis_m)]
 	)
 
 func _format_fp_visibility(visibility_m: float) -> String:

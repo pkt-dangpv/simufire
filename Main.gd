@@ -176,9 +176,6 @@ func _build_view_state() -> Dictionary:
 func _update_views_for_frame(delta: float) -> void:
 	if engine == null:
 		return
-	if first_person_enabled:
-		_update_views()
-		return
 
 	_view_update_accum_s += delta
 	_view_3d_update_accum_s += delta
@@ -188,6 +185,19 @@ func _update_views_for_frame(delta: float) -> void:
 		return
 
 	var state: Dictionary = _build_view_state()
+	if first_person_enabled:
+		if should_update_view:
+			_view_update_accum_s = 0.0
+			if first_person_controller != null:
+				first_person_controller.set_state(state)
+			if hud != null:
+				hud.update_state(state)
+		if should_update_3d:
+			_view_3d_update_accum_s = 0.0
+			if visualizer_3d != null:
+				visualizer_3d.set_state(state)
+		return
+
 	if view_3d_enabled:
 		if should_update_view:
 			_view_update_accum_s = 0.0
