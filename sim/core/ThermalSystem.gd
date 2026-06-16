@@ -2365,7 +2365,10 @@ func _apply_canonical_doorway_exchange(
 		)
 		# hot_room.o2_upper no cambia: composición invariante al perder masa (mezcla perfecta).
 
-	# ── PARTE B: Flujo inferior (cold.lower → hot.lower) ─────────────────────────
+	# ── PARTE B: Flujo inferior (cold.lower → hot.lower) — Phase 7: conservación de entalpía ──
+	# Phase 6 cambiaba temp_lower_c directamente, pero project_room_state() la sobreescribe
+	# cada paso desde lower_energy_kj / lower_gas_kg → era un no-op.
+	# Phase 7 actúa sobre lower_energy_kj, el estado conservado real del solver dos-zonas.
 	var m_lower_kg_s: float = float(flow_state.get("bernoulli_lower_kg_s", 0.0)) \
 			* canonical_doorway_lower_flow_frac
 	var m_lower_kg: float = m_lower_kg_s * dt
@@ -2382,19 +2385,26 @@ func _apply_canonical_doorway_exchange(
 	if m_lower_kg <= 0.0001:
 		return
 
-	# Temperatura: el aire fresco mezcla con la zona inferior caliente.
-	# ΔT proporcional a la masa relativa entrante (conservación de entalpía, cp constante).
-	var delta_t_lower: float = (cold_room.temp_lower_c - hot_room.temp_lower_c) \
-			* m_lower_kg / (hot_lower_mass + m_lower_kg)
-	hot_room.temp_lower_c = maxf(ambient_c, hot_room.temp_lower_c + delta_t_lower)
+	# cp = 1.0 kJ/(kg·K) — igual que ZoneFireSolver.AIR_CP_KJ_KG_K.
+	# Δenergía_hot = m × (T_cold − T_hot) [negativo → enfría la capa inferior caliente].
+	# Actuar sobre lower_energy_kj garantiza que project_room_state() derive
+	# el temp_lower_c correcto en el paso siguiente.
+	var _cp: float = 1.0
+	var delta_energy_hot_kj: float = \
+			m_lower_kg * (cold_room.temp_lower_c - hot_room.temp_lower_c) * _cp
+	hot_room.lower_energy_kj = maxf(0.0, hot_room.lower_energy_kj + delta_energy_hot_kj)
+	# cold.lower pierde la entalpía (sobre ambiente) del aire exportado.
+	var cold_energy_out_kj: float = \
+			m_lower_kg * maxf(0.0, cold_room.temp_lower_c - ambient_c) * _cp
+	cold_room.lower_energy_kj = maxf(0.0, cold_room.lower_energy_kj - cold_energy_out_kj)
 
-	# O₂ zona inferior: mezcla conservativa.
+	# O₂ zona inferior: mezcla conservativa (masa estimada desde geometría × densidad).
 	hot_room.o2_lower = clampf(
 		(hot_lower_mass * hot_room.o2_lower + m_lower_kg * cold_room.o2_lower)
 		/ (hot_lower_mass + m_lower_kg),
 		0.0, 0.209
 	)
-	# cold_room.o2_lower: composición sin cambio (mezcla perfecta — fracción conservada).
+	# cold_room.o2_lower: fracción conservada al perder masa (mezcla perfecta).
 
 	# Sync O₂ bulk para sala caliente: promedio volumétrico superior + inferior.
 	var hot_total_vol: float = maxf(0.01, hot_room.volume_m3())

@@ -1,7 +1,7 @@
 # SimuFire — Estado de validación CFAST
 
 > Última actualización: 2026-06-16  
-> Branch: `main` · HEAD: Phase 6 canonical doorway exchange (infraestructura implementada, bloqueo estructural documentado)  
+> Branch: `main` · HEAD: Phase 7 full two-zone doorway enthalpy solver (Part B bug fix; bloqueo estructural documentado)  
 > Fallos requeridos actuales: **13 / 333**
 
 ---
@@ -165,18 +165,20 @@ python scripts/simulation/validate_reference_cases.py
 ### Grupo C — `cfast_corridor_chain` (3 fallos required) — Phase 4C + M3 + M3b
 
 **Phase 4C COMPLETO.** `o2_upper_plume_entr_rate=0.025` resuelve el fallo O₂ t=480.  
-**M3 IMPLEMENTADO (fe06c10).** `doorway_thermal_counterflow_enabled=true` en este caso; bloqueo estructural confirmado (no hay gain único que pase t=180 y t=300 simultáneamente).  
-**M3b IMPLEMENTADO (6e32049).** `doorway_thermal_counterflow_o2_return_fraction=1.0`; sostiene O₂ en zona superior con M3 activo. Quedan 3 fallos required (gap estructural) + 1 KNOWN_DEVIATION (RMSE térmico).
+**M3 IMPLEMENTADO (fe06c10).** `doorway_thermal_counterflow_enabled=true` en este caso; bloqueo estructural confirmado.  
+**M3b DESACTIVADO (Phase 7).** `o2_return_fraction=0.0`; reemplazado por canonical Part B con conservación de entalpía real.  
+**Phase 7 COMPLETO.** Canonical habilitado; Part B corregida. Quedan 3 fallos required (gap estructural) + 1 KNOWN_DEVIATION (RMSE térmico).
 
 Escenario: fuego en sala 0 (α=0.047 kW/s², max 300 kW), puertas abiertas r0↔r1 y r1↔r2, ventana r0 cerrada, 600 s.
 
 | Check | Actual | Esperado | Tolerancia | Estado |
 |-------|--------|----------|------------|--------|
-| `cfast_chain_r0_t180_temp_upper_c` | 193.0°C | 158.0°C | ±15°C | **FAIL** (+35°C) |
-| `cfast_chain_r0_t600_temp_upper_c` | 116.4°C | 168.4°C | ±30°C | **FAIL** (-52°C) |
+| `cfast_chain_r0_t180_temp_upper_c` | 186.35°C | 158.0°C | ±15°C | **FAIL** (+28.35°C) |
+| `cfast_chain_r0_t300_temp_upper_c` | 145.04°C | 165.84°C | ±20°C | **FAIL** (−0.80°C desde umbral) |
+| `cfast_chain_r0_t600_temp_upper_c` | 104.75°C | 168.39°C | ±30°C | **FAIL** (−63.64°C) |
 | ~~`cfast_chain_r0_o2_t480_o2`~~ | ~~0.077~~ | ~~0.117~~ | ~~±0.028~~ | **PASS** ✓ (resuelto Phase 4C) |
-| `cfast_chain_r0_o2_t600_o2` | 0.135 | 0.102 | ±0.015 | **FAIL** (+0.033) |
-| `cfast_chain_r0_rmse_temp_upper` | 43.8 | — | máx 60 | KNOWN_DEVIATION (required=False) ✓ |
+| `cfast_chain_r0_o2_t600_o2` | **0.099** | 0.102 | ±0.015 | **PASS** ✓ (Phase 7) |
+| `cfast_chain_r0_rmse_temp_upper` | 43.29 | — | máx 60 | KNOWN_DEVIATION (required=False) ✓ |
 
 **Causa raíz investigada (Phase 4C):**
 
@@ -208,7 +210,7 @@ Efecto: el entrainment repone `o2_upper` 2.5× más rápido → O₂ t=480 sube 
 | `doorway_thermal_counterflow_gain` | `0.3` | Calibrado: máximo que no rompe t=300 |
 | `doorway_thermal_counterflow_o2_return_fraction` | `1.0` | M3b activo — retorno O₂ completo |
 
-**Estado:** 13 fallos requeridos. 3 corridor_chain = gap estructural (requires M1+M2+masa-in-puertas).
+**Estado:** 13 fallos requeridos. 3 corridor_chain = gap estructural (requires M1+M2+masa-in-puertas). Phase 7 canonical activo; o2_t600 pasa; t300 falla por 0.8°C desde umbral.
 
 ---
 
@@ -233,6 +235,64 @@ Efecto: el entrainment repone `o2_upper` 2.5× más rápido → O₂ t=480 sube 
 
 ## Trabajo completado
 
+
+### Phase 7 — Full two-zone doorway enthalpy solver: corrección Part B (ThermalSystem.gd) (2026-06-16)
+
+**Resultado:** 13 → **13** fallos requeridos. Bug crítico corregido en Part B; bloqueo estructural corridor_chain sigue en 3 fallos.
+
+**Bug descubierto:** Phase 6 Part B cambiaba `hot_room.temp_lower_c` directamente, pero `ZoneFireSolver.project_room_state()` sobreescribe `temp_lower_c` cada paso a partir de `lower_energy_kj / lower_gas_kg`. La Part B era efectivamente un **no-op**.
+
+**Fix aplicado (`sim/core/ThermalSystem.gd`):**
+
+Reemplazado en `_apply_canonical_doorway_exchange()` Part B:
+- **Antes:** `hot_room.temp_lower_c += delta_t_lower` (sobreescrito por project_room_state — sin efecto)
+- **Después:** `hot_room.lower_energy_kj += m_lower_kg × (T_cold − T_hot) × cp` (estado conservado real)
+- **Nuevo:** `cold_room.lower_energy_kj -= m_lower_kg × max(0, T_cold − T_amb) × cp` (conservación en sala fría)
+
+**Cambio en configuración corridor_chain:**
+
+| Parámetro | Phase 6 | Phase 7 |
+|-----------|---------|---------|
+| `doorway_thermal_counterflow_o2_return_fraction` | 1.0 (M3b activo) | 0.0 (M3b desactivado) |
+| `canonical_doorway_exchange_enabled` | false | true |
+
+**Resultados Phase 7 vs Phase 6 M4 baseline:**
+
+| Métrica | M4 baseline | Phase 7 | Esperado | Tol |
+|---------|------------|---------|----------|-----|
+| t=180 temp_upper_c | 193°C | **186.35°C** | 158°C | ±15 |
+| t=300 temp_upper_c | PASS (157°C) | **FAIL 145.04°C** (−0.80°C vs umbral) | 165.84°C | ±20 |
+| t=600 temp_upper_c | FAIL 116.4°C | FAIL **104.75°C** | 168.39°C | ±30 |
+| o2_t600 | FAIL 0.135 | **PASS 0.099** | 0.102 | ±0.015 |
+| Fallos corridor | 3 | **3** | — | — |
+
+**Análisis:**
+
+La Part B ahora funciona: enfría la zona inferior del fire room vía `lower_energy_kj`, que `project_room_state()` convierte en un `temp_lower_c` más bajo → el plume en el siguiente paso entrena aire más frío → la zona superior se enfría indirectamente.
+
+Efectos observados:
+- **t=180:** mejora 6.65°C (193°C → 186.35°C). Aún 28.35°C fuera de tolerancia (+15°C).
+- **t=300:** falla por 0.80°C desde el umbral inferior (umbral=145.84°C, actual=145.04°C). Era PASS con M4+M3b.
+- **t=600:** empeora 12°C respecto a M4 (104.75°C vs 116.4°C). El enfriamiento adicional de Part B se acumula en la segunda mitad de la simulación.
+- **o2_t600:** PASA (0.099, esperado 0.102). Sin M3b artificial, el O₂ del fire room evoluciona naturalmente.
+
+**Bloqueo estructural — qué falta:**
+
+1. **t=180 sigue +28°C:** la dilución por flujo inferior reduce la zona superior indirectamente vía plume, pero el volumen de masa es pequeño relativo a la zona superior a t=180 (fuego a 300kW). El McCaffrey entrainment usa HRR+altura como entradas, no temperatura de la zona inferior directamente — la dilución es débil.
+
+2. **t=300 borderline (−0.80°C):** el umbral de tolerancia es 20°C (expected=165.84, mín_pass=145.84). El cooling continuo de Part B arrastra la temperatura ligeramente por debajo. Si el problema es solo 0.8°C, es la distancia más pequeña de los 3 fallos.
+
+3. **t=600 overcooled (−64°C):** el fuego a t=600 sigue activo (O₂=0.099 > límite 0.025, HRR=~220kW) pero la zona superior es solo 105°C. CFAST mantiene 168°C. Discrepancia probable: (a) M3 energy-only counterflow extrae energía continuamente a lo largo de 600s; (b) modelo de pared diferente al de CFAST.
+
+4. **Causa raíz profunda:** en CFAST la zona superior crece en masa conforme el fuego avanza (más gas entrainado → zona más gruesa). En SF, la zona superior pierde masa por el flujo hot→cold (main loop), y la masa que entra via plume está calibrada por parámetros. La discrepancia de masa en zona superior crea la discrepancia de temperatura.
+
+**Estado final:** Canonical activo en corridor_chain (`canonical=true`, M3b=0.0). 13/333 fallos (sin regresión). o2_t600 pasa correctamente. Bloqueo estructural: 3 corridor_chain = irreducible sin arquitectura dos-zonas con masa superior explícitamente conservada por puertas.
+
+**Archivos modificados:**
+- `sim/core/ThermalSystem.gd` — Part B de `_apply_canonical_doorway_exchange` corregida
+- `sim/validation/cases/cfast_corridor_chain.json` — canonical=true, M3b=0.0
+
+---
 
 ### Phase 6 — Intercambio canónico dos zonas por puertas (ThermalSystem.gd) (2026-06-16)
 

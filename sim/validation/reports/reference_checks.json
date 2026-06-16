@@ -2,7 +2,7 @@
   "all_required_pass": false,
   "required_count": 333,
   "failed_required_count": 13,
-  "known_gap_count": 101,
+  "known_gap_count": 102,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -1315,7 +1315,7 @@
     },
     {
       "name": "cfast_chain_r0_t180_temp_upper_c",
-      "actual": 193.0,
+      "actual": 186.35,
       "expected": 158.005,
       "tolerance": 15.0,
       "minimum": null,
@@ -1326,18 +1326,18 @@
     },
     {
       "name": "cfast_chain_r0_t300_temp_upper_c",
-      "actual": 153.18,
+      "actual": 145.04,
       "expected": 165.835,
       "tolerance": 20.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": true,
+      "pass": false,
       "note": "CCH-1: corridor chain R0 fire room temp_upper at t=300s. tol=20.0\u00b0C (\u22653\u00d7 @0.1\u00b0C)."
     },
     {
       "name": "cfast_chain_r0_t600_temp_upper_c",
-      "actual": 116.38,
+      "actual": 104.75,
       "expected": 168.39,
       "tolerance": 30.0,
       "minimum": null,
@@ -1348,7 +1348,7 @@
     },
     {
       "name": "cfast_chain_r0_o2_t480_o2",
-      "actual": 0.1269,
+      "actual": 0.1005,
       "expected": 0.11732799999999999,
       "tolerance": 0.028,
       "minimum": null,
@@ -1359,18 +1359,18 @@
     },
     {
       "name": "cfast_chain_r0_o2_t600_o2",
-      "actual": 0.1345,
+      "actual": 0.0994,
       "expected": 0.101968,
       "tolerance": 0.015,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "CCH-1: corridor chain R0 O2 upper at t=600s. tol=0.015 (\u22653\u00d7 step @0.0001)."
     },
     {
       "name": "cfast_chain_r0_rmse_temp_upper",
-      "actual": 39.371165622489514,
+      "actual": 43.28954497073745,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -1381,29 +1381,29 @@
     },
     {
       "name": "cfast_chain_r2_o2_t480_o2",
-      "actual": 0.1262,
+      "actual": 0.2,
       "expected": 0.135705,
       "tolerance": 0.019,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "KNOWN_DEVIATION R1-1: CCH-1 corridor chain R2 O2 at t=480s. A priori tol=25%\u00d7delta (\u00a76.2). Structural gap: SF single-zone transport vs CFAST two-zone. Will gate after Fase 2 two-zone migration."
     },
     {
       "name": "cfast_chain_r2_o2_t600_o2",
-      "actual": 0.1002,
+      "actual": 0.1936,
       "expected": 0.119003,
       "tolerance": 0.023,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "KNOWN_DEVIATION R1-1: CCH-1 corridor chain R2 O2 at t=600s. A priori tol=25%\u00d7delta (\u00a76.2). Structural gap: SF single-zone transport vs CFAST two-zone. Will gate after Fase 2 two-zone migration."
     },
     {
       "name": "cfast_chain_r2_min_o2_smoke_arrival",
-      "actual": 0.1025,
+      "actual": 0.1943,
       "expected": null,
       "tolerance": null,
       "minimum": 0.0,
@@ -1414,7 +1414,7 @@
     },
     {
       "name": "cfast_chain_r1_temp_t300_temp_upper_c",
-      "actual": 68.14,
+      "actual": 65.08,
       "expected": 97.746,
       "tolerance": 60.0,
       "minimum": null,
@@ -1425,7 +1425,7 @@
     },
     {
       "name": "cfast_chain_r2_temp_t300_temp_upper_c",
-      "actual": 49.28,
+      "actual": 47.27,
       "expected": 63.3018,
       "tolerance": 35.0,
       "minimum": null,
@@ -1436,13 +1436,13 @@
     },
     {
       "name": "cfast_chain_r1_o2_t480_o2",
-      "actual": 0.0148,
+      "actual": 0.1782,
       "expected": 0.125443,
       "tolerance": 0.065,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "CCH-1 (non-gating): Phase 2A corridor O2 transport lag at t=480s. CFAST R1 O2=12.5% (two-zone doorway); SF R1=18.8% (one-zone lag). Gap=0.0625 < tol=0.065 (margin 25 steps)."
     },
     {
