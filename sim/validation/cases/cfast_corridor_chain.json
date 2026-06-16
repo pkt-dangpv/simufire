@@ -94,6 +94,8 @@
 		"o2_upper_plume_entr_rate": 0.025,
 		"doorway_thermal_counterflow_enabled": true,
 		"doorway_thermal_counterflow_gain": 0.3,
-		"doorway_thermal_counterflow_o2_return_fraction": 1.0
+		"doorway_thermal_counterflow_o2_return_fraction": 1.0,
+		"canonical_doorway_exchange_enabled": false,
+		"canonical_doorway_lower_flow_frac": 1.0
 	}
 }

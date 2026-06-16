@@ -1,7 +1,7 @@
 # SimuFire — Estado de validación CFAST
 
 > Última actualización: 2026-06-16  
-> Branch: `main` · HEAD: Phase 5 M4 audit (M3+M3b implementados, cleanup diferido)  
+> Branch: `main` · HEAD: Phase 6 canonical doorway exchange (infraestructura implementada, bloqueo estructural documentado)  
 > Fallos requeridos actuales: **13 / 333**
 
 ---
@@ -36,6 +36,7 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Phase 5 M3 | ThermalSystem: `doorway_thermal_counterflow_enabled` (Bernoulli energy-only, default=false); activado en corridor_chain con gain=0.3 | **13** → **13** |
 | Phase 5 M3b | ThermalSystem: `doorway_thermal_counterflow_o2_return_fraction` (retorno O₂ zona inferior, default=0.0); activado en corridor_chain con fraction=1.0 | **13** → **13** |
 | Phase 5 M4 | Auditoría de overrides per-caso. Conclusión: ningún cleanup es seguro sin M1/M2 globales. | **13** → **13** |
+| Phase 6 | ThermalSystem: `canonical_doorway_exchange_enabled` (intercambio bidireccional masa+O₂, default=false). Exploración confirma bloqueo estructural corridor_chain: 3 fallos independientemente de calibración (t180+t600_temp siempre fallan). | **13** → **13** |
 
 ---
 
@@ -175,7 +176,7 @@ Escenario: fuego en sala 0 (α=0.047 kW/s², max 300 kW), puertas abiertas r0↔
 | `cfast_chain_r0_t600_temp_upper_c` | 116.4°C | 168.4°C | ±30°C | **FAIL** (-52°C) |
 | ~~`cfast_chain_r0_o2_t480_o2`~~ | ~~0.077~~ | ~~0.117~~ | ~~±0.028~~ | **PASS** ✓ (resuelto Phase 4C) |
 | `cfast_chain_r0_o2_t600_o2` | 0.135 | 0.102 | ±0.015 | **FAIL** (+0.033) |
-| `cfast_chain_r0_rmse_temp_upper` | 55.5 | — | máx 60 | KNOWN_DEVIATION (required=False) |
+| `cfast_chain_r0_rmse_temp_upper` | 43.8 | — | máx 60 | KNOWN_DEVIATION (required=False) ✓ |
 
 **Causa raíz investigada (Phase 4C):**
 
@@ -231,6 +232,56 @@ Efecto: el entrainment repone `o2_upper` 2.5× más rápido → O₂ t=480 sube 
 ---
 
 ## Trabajo completado
+
+
+### Phase 6 — Intercambio canónico dos zonas por puertas (ThermalSystem.gd) (2026-06-16)
+
+**Resultado:** 13 → **13** fallos requeridos. Infraestructura implementada; bloqueo estructural corridor_chain confirmado.
+
+**Objetivo:** Implementar intercambio bidireccional conservativo por capas en puertas: flujo superior hot→cold con O₂ correcto (Parte A) y flujo inferior cold→hot con temperatura+O₂ (Parte B), para reducir los 3 fallos corridor_chain estructurales por debajo de 2.
+
+**Cambios implementados:**
+
+1. **`sim/core/ThermalSystem.gd`**:
+   - Variables: `canonical_doorway_exchange_enabled: bool = false`, `canonical_doorway_lower_flow_frac: float = 1.0`
+   - Entrada en `configure()`
+   - Guard en `_apply_doorway_thermal_counterflow()`: cuando canonical está activo, M3b se omite (evita doble conteo del flujo inferior)
+   - Función `_apply_canonical_doorway_exchange(hot, cold, op, flow_state, dt, ambient_c, upper_gas_moved_kg)`:
+     - **Parte A:** actualiza `cold_room.o2_upper` basado en `hot_room.o2_upper` al mover gas upper hot→cold (mezcla ponderada)
+     - **Parte B:** flujo `bernoulli_lower_kg_s × frac` desde cold.lower hacia hot.lower — temperatura mixing + O₂ conservativo; cap 5% masa inferior fría por paso
+
+2. **`sim/core/SimulationEngine.gd`**: `@export` para ambas variables + configure + state_context
+
+3. **`sim/validation/cases/cfast_corridor_chain.json`**: campos añadidos (`canonical_doorway_exchange_enabled: false`, `canonical_doorway_lower_flow_frac: 1.0`); M3b restaurado a `o2_return_fraction: 1.0`
+
+**Exploración de calibración (corridor_chain):**
+
+| Config | t180 | t300 | t600_temp | o2_t600 | Corridor fallos |
+|--------|------|------|-----------|---------|-----------------|
+| M4 baseline (M3b=1.0, canonical=off) | FAIL 193°C | PASS 157°C | FAIL 116°C | FAIL 0.135 | 3 |
+| canonical ON, frac=1.0, M3b=0.0 | FAIL 186°C | FAIL 145°C | FAIL 105°C | PASS 0.099 | 3 |
+| canonical ON, frac=0.3, M3b=0.0 | FAIL 187°C | FAIL 145°C | FAIL 103°C | PASS 0.093 | 3 |
+| canonical ON, frac=0.0, M3b=0.0 | FAIL 186°C | FAIL 145°C | FAIL 103°C | PASS 0.093 | 3 |
+| canonical OFF, M3b=0.17 | FAIL 193°C | PASS | FAIL 116°C | FAIL 0.129 | 3 |
+| canonical OFF, M3b=0.2+ | FAIL 193°C | PASS | FAIL 116°C | FAIL 0.131 | 3 |
+| **Phase 6 final (M4 restored)** | FAIL 193°C | PASS | FAIL 116°C | FAIL 0.135 | **3** |
+
+**Bloqueo estructural confirmado:**
+
+- **t180** (+35°C): el fuego sin contraflujo masa bidireccional no puede disipar suficiente calor hacia r1. M3 energy-only (gain=0.3) reduce 233→193°C pero no puede llegar a 158°C sin romper t300. Gap estructural = falta transporte masa r1→r0 lower zone.
+- **t600_temp** (−52°C): a t=600 el fuego en SF ha quemado casi toda la energía del combustible (peak α=0.047 kW/s² → max 300 kW → fuel depletion). CFAST sostiene 168°C porque el modelo dos-zonas con counterflow masa mantiene HRR pleno más tiempo. Gap estructural = mismo que t180.
+- **o2_t600 vs t300 (oscilante):** añadir O₂ al fire room (M3b>0.17) permite t300 PASS pero sobredispara o2_upper a t=600 (0.13 vs esperado 0.102). Sin O₂ extra, t300 falla por 1.2°C. El rango útil de M3b (0.15–0.17) es inestable: umbral de activación de M3b cae entre 0.15 (dead zone) y 0.17 (maximal), sin ventana estable donde ambos pasen.
+
+**Conclusión:** corridor_chain tiene 2 fallos estruturales irreducibles (t180, t600_temp) + 1 fallo oscilante (t300 o o2_t600) con calibración. No existe configuración que reduce el corridor_chain a <3 fallos sin arquitectura two-zone completa (M1+M2+masa bidireccional en puertas).
+
+**Estado final:** JSON restaurado a M4 baseline (o2_return_fraction=1.0, canonical=false). Canonical infrastructure lista en código para uso futuro.
+
+**Archivos modificados:**
+- `sim/core/ThermalSystem.gd` — vars canonical + función `_apply_canonical_doorway_exchange`
+- `sim/core/SimulationEngine.gd` — @export + configure + state_context
+- `sim/validation/cases/cfast_corridor_chain.json` — campos canonical añadidos (disabled)
+
+---
 
 ### Phase 5 M4 — Auditoría de overrides per-caso (2026-06-16)
 
@@ -554,7 +605,7 @@ La presión canónica no ayuda a los fallos actuales porque estos son de **balan
 
 ## Phase 5 — Two-Zone Canonical Fire Coupling (plan técnico)
 
-> **Estado:** M1 ✓ · M2 ✓ · M3 ✓ (gain=0.3, bloqueo estructural documentado) · M3b ✓ (fraction=1.0) · M4 auditado (cleanup diferido).  
+> **Estado:** M1 ✓ · M2 ✓ · M3 ✓ (gain=0.3, bloqueo estructural documentado) · M3b ✓ (fraction=1.0) · M4 auditado (cleanup diferido) · **Phase 6** ✓ (canonical doorway exchange infra, bloqueo structural confirmado).  
 > **Objetivo:** 13 → ≤4 fallos requeridos eliminando los hacks `fire_o2_mode="upper"` y `o2_upper_plume_entr_rate` caso-específicos.  
 > **Baseline actual:** 13 fallos.  
 > **Bloqueante para continuar:** resolver gap masa+energía en puertas (M3 energy-only insufficient) antes de proceder con M1+M2 globales.

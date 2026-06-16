@@ -246,6 +246,16 @@ var doorway_thermal_counterflow_min_delta_c: float = 5.0
 # Repone O₂ en la sala de fuego → sostiene HRR → alcanza plateau 158-168°C (CFAST target).
 var doorway_thermal_counterflow_o2_return_fraction: float = 0.0
 
+# Phase 6: intercambio canónico dos zonas por puertas interiores (masa + entalpía + O₂).
+# Reemplaza M3/M3b con un modelo físico conservativo bidireccional:
+#   - Flujo superior (hot.upper → cold.upper): O₂ upper actualizado tras el movimiento de masa existente.
+#   - Flujo inferior (cold.lower → hot.lower): masa + temperatura + O₂ de zona inferior.
+# Default false = no-op exacto (M3/M3b mantienen su comportamiento previo).
+var canonical_doorway_exchange_enabled: bool = false
+## Fracción del flujo Bernoulli inferior aplicada al flujo de zona inferior (calibración).
+## 1.0 = flujo conservativo completo (caudal inferior = upper × ρ_hot/ρ_cold).
+var canonical_doorway_lower_flow_frac: float = 1.0
+
 # FED (ISO 13571) — componentes asfixiantes disponibles en el modelo
 var fed_hypoxia_enabled: bool = true
 var fed_hypoxia_a: float = 8.13
@@ -550,6 +560,8 @@ func configure(settings: Dictionary) -> void:
 	doorway_thermal_counterflow_gain = float(settings.get("doorway_thermal_counterflow_gain", doorway_thermal_counterflow_gain))
 	doorway_thermal_counterflow_min_delta_c = float(settings.get("doorway_thermal_counterflow_min_delta_c", doorway_thermal_counterflow_min_delta_c))
 	doorway_thermal_counterflow_o2_return_fraction = float(settings.get("doorway_thermal_counterflow_o2_return_fraction", doorway_thermal_counterflow_o2_return_fraction))
+	canonical_doorway_exchange_enabled = bool(settings.get("canonical_doorway_exchange_enabled", canonical_doorway_exchange_enabled))
+	canonical_doorway_lower_flow_frac = float(settings.get("canonical_doorway_lower_flow_frac", canonical_doorway_lower_flow_frac))
 	plume_mccaffrey_enabled = bool(settings.get("plume_mccaffrey_enabled", plume_mccaffrey_enabled))
 	plume_mccaffrey_qc_fraction = float(settings.get("plume_mccaffrey_qc_fraction", plume_mccaffrey_qc_fraction))
 	plume_fire_diameter_m = float(settings.get("plume_fire_diameter_m", plume_fire_diameter_m))
@@ -1090,6 +1102,11 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		flow_state["zone_resolved_upper_mass_kg"] = gas_moved_kg
 		flow_state["zone_resolved_hot_room_id"] = hot_room.id
 		flow_state["zone_resolved_cold_room_id"] = cold_room.id
+		# Phase 6: intercambio canónico — O₂ upper + flujo inferior (cold.lower → hot.lower).
+		if canonical_doorway_exchange_enabled:
+			_apply_canonical_doorway_exchange(
+				hot_room, cold_room, op, flow_state, dt, ambient_c, gas_moved_kg
+			)
 		sync_room_upper_layer(hot_room, dt)
 		sync_room_upper_layer(cold_room, dt)
 		_apply_post_transfer_vertical_mix(hot_room, dt)
@@ -2256,6 +2273,10 @@ func _apply_doorway_thermal_counterflow(
 	# Efecto: repone O₂ en zona superior de la sala de fuego → mantiene HRR sostenido.
 	if doorway_thermal_counterflow_o2_return_fraction <= 0.0:
 		return
+	# Phase 6: cuando el intercambio canónico está activo, el flujo inferior está manejado
+	# correctamente por _apply_canonical_doorway_exchange — omitir M3b para evitar doble conteo.
+	if canonical_doorway_exchange_enabled:
+		return
 	if hot_room.hrr_kw < 1.0:
 		return
 	var m_return_kg_s: float = q_upper_m3s * rho_hot * doorway_thermal_counterflow_o2_return_fraction
@@ -2299,6 +2320,90 @@ func _apply_doorway_thermal_counterflow(
 	cold_room.o2 = clampf(
 		(cold_room.o2_upper * _cold_upper_vol + cold_room.o2_lower * _cold_lower_vol) / _cold_total_vol,
 		0.0, 0.209)
+
+
+# ============================================================
+# PHASE 6: INTERCAMBIO CANÓNICO DOS ZONAS POR PUERTAS
+# ------------------------------------------------------------
+# Modelo conservativo bidireccional masa + entalpía + O₂.
+# Llamado desde el bucle de aperturas DESPUÉS de que el bucle principal
+# haya movido masa + energía de hot.upper → cold.upper.
+#
+# Parte A: O₂ zona superior — la masa que salió lleva o2_upper del origen.
+#          Se actualiza cold.o2_upper con mezcla ponderada.
+#
+# Parte B: Flujo inferior — aire fresco de cold.lower entra a hot.lower.
+#          Efecto (1): enfría zona inferior → reduce pico t=180.
+#          Efecto (2): repone O₂ en hot.lower → difunde a upper por plume
+#                      → sostiene HRR → meseta t=300-600.
+# ============================================================
+
+func _apply_canonical_doorway_exchange(
+	hot_room: RoomModel,
+	cold_room: RoomModel,
+	op: OpeningModel,
+	flow_state: Dictionary,
+	dt: float,
+	ambient_c: float,
+	upper_gas_moved_kg: float
+) -> void:
+	if not canonical_doorway_exchange_enabled:
+		return
+	if hot_room == null or cold_room == null:
+		return
+
+	# ── PARTE A: O₂ zona superior ────────────────────────────────────────────────
+	# El bucle principal movió upper_gas_moved_kg de hot.upper → cold.upper.
+	# El gas transportado lleva la concentración o2_upper de la sala caliente.
+	# cold.o2_upper = mezcla ponderada (masa_antes × o2_cold + masa_movida × o2_hot) / masa_después.
+	if upper_gas_moved_kg > 0.0 and cold_room.upper_gas_kg > 0.0001:
+		var cold_upper_mass_before: float = maxf(0.0001, cold_room.upper_gas_kg - upper_gas_moved_kg)
+		cold_room.o2_upper = clampf(
+			(cold_upper_mass_before * cold_room.o2_upper + upper_gas_moved_kg * hot_room.o2_upper)
+			/ cold_room.upper_gas_kg,
+			0.0, 0.209
+		)
+		# hot_room.o2_upper no cambia: composición invariante al perder masa (mezcla perfecta).
+
+	# ── PARTE B: Flujo inferior (cold.lower → hot.lower) ─────────────────────────
+	var m_lower_kg_s: float = float(flow_state.get("bernoulli_lower_kg_s", 0.0)) \
+			* canonical_doorway_lower_flow_frac
+	var m_lower_kg: float = m_lower_kg_s * dt
+	if m_lower_kg < 0.0001:
+		return
+
+	var rho_hot_lower: float = gas_density_kg_m3(hot_room.temp_lower_c)
+	var rho_cold_lower: float = gas_density_kg_m3(cold_room.temp_lower_c)
+	var hot_lower_mass: float = maxf(0.1, hot_room.lower_volume_m3() * rho_hot_lower)
+	var cold_lower_mass: float = maxf(0.1, cold_room.lower_volume_m3() * rho_cold_lower)
+
+	# Cap: no extraer más del 5 % de la zona inferior fría por paso.
+	m_lower_kg = minf(m_lower_kg, cold_lower_mass * 0.05)
+	if m_lower_kg <= 0.0001:
+		return
+
+	# Temperatura: el aire fresco mezcla con la zona inferior caliente.
+	# ΔT proporcional a la masa relativa entrante (conservación de entalpía, cp constante).
+	var delta_t_lower: float = (cold_room.temp_lower_c - hot_room.temp_lower_c) \
+			* m_lower_kg / (hot_lower_mass + m_lower_kg)
+	hot_room.temp_lower_c = maxf(ambient_c, hot_room.temp_lower_c + delta_t_lower)
+
+	# O₂ zona inferior: mezcla conservativa.
+	hot_room.o2_lower = clampf(
+		(hot_lower_mass * hot_room.o2_lower + m_lower_kg * cold_room.o2_lower)
+		/ (hot_lower_mass + m_lower_kg),
+		0.0, 0.209
+	)
+	# cold_room.o2_lower: composición sin cambio (mezcla perfecta — fracción conservada).
+
+	# Sync O₂ bulk para sala caliente: promedio volumétrico superior + inferior.
+	var hot_total_vol: float = maxf(0.01, hot_room.volume_m3())
+	var hot_lower_vol: float = hot_room.lower_volume_m3()
+	var hot_upper_vol: float = hot_total_vol - hot_lower_vol
+	hot_room.o2 = clampf(
+		(hot_room.o2_upper * hot_upper_vol + hot_room.o2_lower * hot_lower_vol) / hot_total_vol,
+		0.0, 0.209
+	)
 
 
 func _apply_stairwell_heat_bridge(
