@@ -1,8 +1,8 @@
 # SimuFire — Estado de validación CFAST
 
 > Última actualización: 2026-06-16  
-> Branch: `main` · HEAD: Phase 8 — auditoría M1/M2 global (revertidos); `canonical_o2_upper_updated` flag añadido; log refresh revela estado verdadero  
-> Fallos requeridos actuales: **20 / 333** (13 conocidos + 7 pre-existentes revelados por log refresh)
+> Branch: `main` · HEAD: Hotfix exterior opening transition smoothing (`open_fraction_smooth`, tau=2.0s)  
+> Fallos requeridos actuales: **20 / 333** (sin cambio — hotfix no introduce ni elimina fallos)
 
 ---
 
@@ -39,6 +39,7 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Phase 6 | ThermalSystem: `canonical_doorway_exchange_enabled` (intercambio bidireccional masa+O₂, default=false). Exploración confirma bloqueo estructural corridor_chain: 3 fallos independientemente de calibración (t180+t600_temp siempre fallan). | **13** → **13** |
 | Phase 7 | ThermalSystem: `_apply_canonical_doorway_exchange()` Part B corregida — conserva `lower_energy_kj` en vez de sobreescribir `temp_lower_c`. corridor_chain o2_t600: PASS (0.099 vs 0.102 ±0.015). Bloqueo térmico en t180/t300/t600_temp persiste. | **14** → **13** |
 | Phase 8 | Auditoría de conservación de masa + M1/M2 global. Activación global rompe 10+ checks por interacciones con plume_lower_mode y dilución del tracker. Flags desactivados. `canonical_o2_upper_updated` añadido para consistencia futura. Bloqueo corridor_chain sin cambio. | **13** → **13** |
+| Hotfix-smooth | `open_fraction_smooth` en aperturas exteriores: suavizado exponencial tau=2.0s evita saltos instantáneos de presión/O₂/humo al abrir/cerrar ventanas/puertas. Interior openings: mirror directo (no-op). 8 call sites exteriores actualizados en GasExchangeSystem + OxygenExchangeSystem. Cero regresiones. | **20** → **20** |
 
 ---
 
