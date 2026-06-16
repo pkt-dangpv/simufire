@@ -233,8 +233,9 @@ func step_thermodynamic_pressure(building: BuildingModel, dt: float) -> void:
 		for op in building.get_openings():
 			if op.a != room.id and op.b != room.id:
 				continue
-			if op.open_fraction > 0.001:
-				a_eff += op.width_m * op.height_m * op.open_fraction
+			var _frac_pv: float = op.open_fraction_smooth if op.is_exterior_opening() else op.open_fraction
+			if _frac_pv > 0.001:
+				a_eff += op.width_m * op.height_m * _frac_pv
 		# ODE fuente: Q_conv = HRR * phase3_chi_conv * 1000 W
 		var q_conv_w: float = room.hrr_kw * phase3_chi_conv * 1000.0
 		var dp_source: float = (GAMMA - 1.0) * q_conv_w / V
@@ -396,8 +397,8 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 			# del área de infiltración. Un ventana/puerta abierta alivia
 			# la presión mucho más rápido que las fugas de marco.
 			var area_m2: float
-			if op.open_fraction > 0.001:
-				area_m2 = op.width_m * op.height_m * op.open_fraction
+			if op.open_fraction_smooth > 0.001:
+				area_m2 = op.width_m * op.height_m * op.open_fraction_smooth
 			else:
 				if use_canonical_pressure:
 					continue
@@ -591,7 +592,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			# térmica) y entra aire fresco por la mitad inferior. Este mecanismo opera
 			# con independencia del flujo de humo y es el canal principal de reposición
 			# de O2 y dilución de gases cuando hay una abertura exterior abierta.
-			var nat_area_m2: float = op.width_m * op.height_m * op.open_fraction
+			var nat_area_m2: float = op.width_m * op.height_m * op.open_fraction_smooth
 			if nat_area_m2 > 0.0:
 				var delta_t: float = maxf(0.0, room_out.temp_upper_c - building.outside_temp_c)
 				var t_room_k: float = room_out.temp_upper_c + 273.15
@@ -611,7 +612,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					var _q_upper_e: float = 0.0
 					if _h_upper_e > 0.001 and _dT_e > 0.5:
 						var _T_ref_e: float = (t_room_k + t_amb_k) * 0.5
-						_q_upper_e = 0.61 * op.width_m * op.open_fraction \
+						_q_upper_e = 0.61 * op.width_m * op.open_fraction_smooth \
 								* (2.0 / 3.0) * pow(_h_upper_e, 1.5) \
 								* sqrt(2.0 * 9.81 * _dT_e / _T_ref_e)
 					# Masa entrante: conservación ḟ_in = ḟ_out (ρ_hot × Q_out = ρ_cold × Q_in)
@@ -1940,7 +1941,7 @@ func _estimate_room_outside_open_factor(building: BuildingModel, room: RoomModel
 
 	var total_open_area_m2: float = 0.0
 	for op in building.get_openings():
-		if op.open_fraction <= 0.0:
+		if op.open_fraction_smooth <= 0.0:
 			continue
 
 		var connects_outside: bool = (
@@ -1950,7 +1951,7 @@ func _estimate_room_outside_open_factor(building: BuildingModel, room: RoomModel
 		if not connects_outside:
 			continue
 
-		total_open_area_m2 += op.width_m * op.height_m * op.open_fraction
+		total_open_area_m2 += op.width_m * op.height_m * op.open_fraction_smooth
 
 	if total_open_area_m2 <= 0.0:
 		return 0.0

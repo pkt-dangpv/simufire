@@ -232,6 +232,9 @@ var _layer_interface_warning_rooms: Dictionary = {}
 ## fija o2_upper cerca de ambient en salas selladas → room.o2 stuck at 0.209.
 ## Activar solo per-caso con engine_overrides. Consistencia con canonical Part A: ver canonical_o2_upper_updated.
 @export var fire_o2_mass_tracking_enabled: bool = false
+## Hotfix exterior smoothing: tau de suavizado exponencial para open_fraction de aperturas exteriores.
+## Evita saltos instantáneos al abrir/cerrar ventanas/puertas ext. 0.0 = sin suavizado (inmediato).
+@export var exterior_opening_smooth_tau_s: float = 2.0
 ## Phase 5 M3: contraflujo térmico bidireccional por puertas. Default false = no-op exacto.
 @export var doorway_thermal_counterflow_enabled: bool = false
 @export var doorway_thermal_counterflow_gain: float = 1.0
@@ -1471,6 +1474,11 @@ func step(delta: float) -> void:
 			_on_sim_finished()
 		return
 
+	# Actualizar open_fraction_smooth de todas las aperturas.
+	# Exteriores: suavizado exponencial con tau configurable (evita saltos de presión/O₂/humo).
+	# Interiores: mirror directo (sin suavizado, usan effective_open_fraction para thermal gap).
+	_step_exterior_opening_smooth(dt)
+
 	# Pre-computar el estado de flujo de cada abertura interior una sola vez,
 	# con las condiciones de sala al inicio de este paso. Esto garantiza que
 	# ThermalSystem y OxygenExchangeSystem operen sobre la misma "realidad física"
@@ -1703,6 +1711,26 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		# R2-2: two-zone flag for plume-entrainment O2 selection in CombustionSystem.
 		"two_zone_solver_enabled": two_zone_solver_enabled,
 	}
+
+# ============================================================
+# SUAVIZADO DE APERTURAS EXTERIORES
+# ============================================================
+
+func _step_exterior_opening_smooth(dt: float) -> void:
+	if building == null:
+		return
+	var blend: float = 1.0
+	if exterior_opening_smooth_tau_s > 0.001:
+		blend = 1.0 - exp(-dt / exterior_opening_smooth_tau_s)
+	for op in building.get_openings():
+		if not op.is_exterior_opening():
+			op.open_fraction_smooth = op.open_fraction
+			continue
+		if op.open_fraction_smooth < 0.0:
+			op.open_fraction_smooth = op.open_fraction
+		else:
+			op.open_fraction_smooth = lerpf(op.open_fraction_smooth, op.open_fraction, blend)
+
 
 # ============================================================
 # INTERCAMBIO DE GASES

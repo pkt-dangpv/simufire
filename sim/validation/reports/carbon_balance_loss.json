@@ -23,6 +23,8 @@
 		"carbon_event_0_time_s": 0.0,
 		"carbon_event_1_time_s": 1.0,
 		"conservation_max_violation_frac": -1.0,
+		"doorway_thermal_counterflow_enabled": 0.0,
+		"fire_o2_mass_tracking_enabled": 0.0,
 		"global_carbon_error_kg": -0.0272727272727273,
 		"global_carbon_error_kg_abs": 0.0272727272727273,
 		"global_carbon_postclamp_excess_kg": 0.0,

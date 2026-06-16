@@ -4,9 +4,9 @@
 		"checks": {
 			"room_0_final_layer_150c_m": {
 				"actual": 0.245822981552513,
-				"pass": true,
+				"pass": false,
 				"rule": {
-					"expected": 0.213764,
+					"expected": 1.890844,
 					"tolerance": 0.15
 				}
 			},
@@ -14,7 +14,7 @@
 				"actual": 180.614080800294,
 				"pass": false,
 				"rule": {
-					"expected": 122.534751,
+					"expected": 37.968317,
 					"tolerance": 15.0
 				}
 			},
@@ -22,7 +22,7 @@
 				"actual": 1.23202327186407,
 				"pass": false,
 				"rule": {
-					"expected": 1.672793,
+					"expected": 1.673466,
 					"tolerance": 0.2
 				}
 			},
@@ -30,7 +30,7 @@
 				"actual": 338.395445266941,
 				"pass": true,
 				"rule": {
-					"expected": 349.191257,
+					"expected": 336.857563,
 					"tolerance": 25.0
 				}
 			},
@@ -38,7 +38,7 @@
 				"actual": 25.8333333333332,
 				"pass": true,
 				"rule": {
-					"expected": 24.75,
+					"expected": 26.0,
 					"tolerance": 8.0
 				}
 			},
@@ -46,7 +46,7 @@
 				"actual": 39.0,
 				"pass": true,
 				"rule": {
-					"expected": 39.416667,
+					"expected": 39.0,
 					"tolerance": 8.0
 				}
 			}
@@ -60,6 +60,8 @@
 	"fire_o2_mode_requested": "legacy",
 	"metrics": {
 		"conservation_max_violation_frac": -1.0,
+		"doorway_thermal_counterflow_enabled": 0.0,
+		"fire_o2_mass_tracking_enabled": 0.0,
 		"global_carbon_error_kg": 5.08682965453973,
 		"global_carbon_error_kg_abs": 5.08682965453973,
 		"global_carbon_postclamp_excess_kg": 5.08690738123209,
@@ -117,7 +119,7 @@
 		"room_0_final_outside_open_path_factor": 0.0,
 		"room_0_final_overpressure_model_pa": 11.5616580602559,
 		"room_0_final_pool_release_hrr_target_kw": 0.0,
-		"room_0_final_pressure_pa_therm": 2374986.55027903,
+		"room_0_final_pressure_pa_therm": 0.0,
 		"room_0_final_pyrolysis_kw": 3420.98989478475,
 		"room_0_final_remaining_fuel_MJ": 5496.6473660809,
 		"room_0_final_retained_unburned_MJ": 0.0,
@@ -162,10 +164,10 @@
 		"room_0_max_fuel_objects_heating_count": 6,
 		"room_0_max_fuel_objects_pyrolyzing_count": 3,
 		"room_0_max_overpressure_model_pa": 11.5616580602559,
-		"room_0_max_overpressure_pa": 2374986.55027903,
+		"room_0_max_overpressure_pa": 1661.13661648934,
 		"room_0_max_passive_fuel_flux_kw_m2": 19.2707006825453,
 		"room_0_max_passive_fuel_surface_temp_c": 496.706734880047,
-		"room_0_max_pressure_pa_therm": 2374986.55027903,
+		"room_0_max_pressure_pa_therm": 1661.13661648934,
 		"room_0_max_unburned_generation_kw": 0.0,
 		"room_0_max_upper_radiative_loss_kw": 724.269705666231,
 		"room_0_min_fire_o2_ref": 0.196651149091807,

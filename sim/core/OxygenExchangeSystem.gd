@@ -532,7 +532,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 
 	var g_gravity: float = 9.8
 	for op in building.get_openings():
-		if op.open_fraction <= 0.0:
+		var _guard_frac: float = op.open_fraction_smooth if op.is_exterior_opening() else op.open_fraction
+		if _guard_frac <= 0.0:
 			continue
 
 		var lintel_m: float = op.lintel_height_m()
@@ -629,7 +630,7 @@ func _step_outside_opening_o2(
 	if lower_inlet_height_m <= 0.000001 and indoor.overpressure_pa > 0.2 and oxygen_deficit_factor > 0.35:
 		lower_inlet_height_m = minf(op.height_m, maxf(0.10, op.height_m * 0.20))
 
-	var inlet_area_m2: float = op.width_m * lower_inlet_height_m * op.open_fraction
+	var inlet_area_m2: float = op.width_m * lower_inlet_height_m * op.open_fraction_smooth
 	if inlet_area_m2 <= 0.0:
 		return
 
@@ -1053,7 +1054,7 @@ func _estimate_room_outside_open_factor(building: BuildingModel, room: RoomModel
 
 	var total_open_area_m2: float = 0.0
 	for op in building.get_openings():
-		if op == null or op.open_fraction <= 0.0:
+		if op == null or op.open_fraction_smooth <= 0.0:
 			continue
 
 		var connects_outside: bool = (
@@ -1063,7 +1064,7 @@ func _estimate_room_outside_open_factor(building: BuildingModel, room: RoomModel
 		if not connects_outside:
 			continue
 
-		total_open_area_m2 += op.width_m * op.height_m * op.open_fraction
+		total_open_area_m2 += op.width_m * op.height_m * op.open_fraction_smooth
 
 	if total_open_area_m2 <= 0.0:
 		return 0.0

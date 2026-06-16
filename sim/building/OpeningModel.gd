@@ -43,6 +43,12 @@ var thermal_gap_fraction: float = 0.0
 # Ejemplo: hueco de escalera que conecta PB con P1.
 var is_vertical: bool = false
 
+# Fracción suavizada para aperturas exteriores (low-pass sobre open_fraction).
+# Evita saltos instantáneos de presión/O₂/humo al abrir/cerrar ventanas/puertas ext.
+# -1.0 = no inicializado (SimulationEngine lo fija al primer step).
+# Para aperturas interiores, SimulationEngine lo mantiene = open_fraction (sin suavizado).
+var open_fraction_smooth: float = -1.0
+
 # Coeficiente de "derrame" (tunable)
 var spill_coeff: float = 0.65
 
