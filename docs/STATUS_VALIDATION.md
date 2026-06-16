@@ -1,8 +1,8 @@
 # SimuFire — Estado de validación CFAST
 
 > Última actualización: 2026-06-16  
-> Branch: `main` · HEAD: Hotfix exterior opening transition smoothing (`open_fraction_smooth`, tau=2.0s) — commits `69d6b55`, `b5dac89`  
-> Fallos requeridos actuales: **21 / 350** — hotfix cero regresiones; +1 fallo por stale log HVAC de Phase 8; +17 checks required de logs frescos
+> Branch: `main` · HEAD: Phase 9 — pool fire O₂ fix (vent_bernoulli_flow_multiplier=0.45)  
+> Fallos requeridos actuales: **19 / 350** — Phase 9 reduce 2 fallos C4 (pool fire O₂); C5 bedroom sin cambio (gap estructural confirmado)
 
 ---
 
@@ -40,6 +40,7 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Phase 7 | ThermalSystem: `_apply_canonical_doorway_exchange()` Part B corregida — conserva `lower_energy_kj` en vez de sobreescribir `temp_lower_c`. corridor_chain o2_t600: PASS (0.099 vs 0.102 ±0.015). Bloqueo térmico en t180/t300/t600_temp persiste. | **14** → **13** |
 | Phase 8 | Auditoría de conservación de masa + M1/M2 global. Activación global rompe 10+ checks por interacciones con plume_lower_mode y dilución del tracker. Flags desactivados. `canonical_o2_upper_updated` añadido para consistencia futura. Bloqueo corridor_chain sin cambio. | **13** → **13** |
 | Hotfix-smooth | `open_fraction_smooth` en aperturas exteriores: suavizado exponencial tau=2.0s evita saltos instantáneos de presión/O₂/humo al abrir/cerrar ventanas/puertas. Interior openings: mirror directo (no-op). 8 call sites exteriores en GasExchangeSystem + OxygenExchangeSystem. Cero regresiones del hotfix. Baseline real post-reconciliación: **21/350** (ver § Baseline post-hotfix). | **20** → **21\*** |
+| Phase 9-C4 | Pool fire O₂: `vent_bernoulli_flow_multiplier=0.45` en `cfast_pool_fire_open.json`. `natural_vent_inlet_fraction` no tiene efecto (ruta Bernoulli activa por defecto). Multiplier 0.45 baja equilibrio O₂ de 0.205 a ~0.200 (CFAST 0.194 ± tol 0.008-0.010). Cero regresiones: t60/t120 siguen dentro de tol. | **21** → **19** |
 
 ---
 
@@ -84,6 +85,8 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | 21 | `ghanekar_kitchen_far_hall_idlh_co_s` | 524.3 s | 642 s | ±102 s | ghanekar_kitchen_living_room |
 
 Todos preexistentes al hotfix. Verificado mediante `git show 1e34ef5:sim/validation/reports/*.json`.
+
+**Actualización Phase 9:** fallos 6 y 7 (cfast_pool_t300_o2 y cfast_pool_t600_o2) resueltos con `vent_bernoulli_flow_multiplier=0.45`. Baseline actual: **19/350**.
 
 ---
 
@@ -304,9 +307,9 @@ O₂ en cuarto de cama depleta más lento que en CFAST. El cuarto tiene puerta c
 
 ---
 
-## Phase 9 — Triage 21/350 (2026-06-16)
+## Phase 9 — Triage + fixes C4/C5 (2026-06-16)
 
-> **Estado:** Triage completo. Sin cambio de física. Plan de ataque documentado.
+> **Estado:** C4 pool fire RESUELTO (2 fallos → 0). C5 bedroom investigado — gap estructural confirmado, sin fix (7 fallos sin cambio). Baseline: **19/350**.
 
 ### Agrupación por causa raíz
 
@@ -408,7 +411,46 @@ Nota: la temperatura del dormitorio (room 2) también aparece baja: `cfast_bed_t
 3. Verificar bed_o2 mejoran y far_hall_o2_response_time se acerca a 198s
 4. Verificar que checks PASS no regresen: fed_lethal, min_o2_lethal, apartment_smoke_* ×11
 
-**Bloqueo P9:** No tocar C1/C2/C3/C6. No añadir infraestructura nueva. Solo ajustes case-specific en JSON.
+### Resultados Phase 9
+
+#### C4 — Pool fire O₂ (2 fallos → 0) ✓
+
+**Root cause real:** `vent_bernoulli_enabled=true` (default) activa la ruta Bernoulli en GasExchangeSystem.gd. `natural_vent_inlet_fraction` solo aplica en la ruta legacy (`else`). El equilibrio O₂ lo controla `vent_bernoulli_flow_multiplier`.
+
+**Fix aplicado:** `vent_bernoulli_flow_multiplier: 0.45` en `cfast_pool_fire_open.json`.
+
+| Ajuste | t300 O₂ | t600 O₂ | Resultado |
+|--------|---------|---------|-----------|
+| multiplier=1.0 (original) | 0.2046 | 0.2044 | FAIL/FAIL |
+| multiplier=0.65 | 0.2024 | ~0.202 | FAIL/FAIL (mejora parcial) |
+| multiplier=0.45 | 0.2001 | 0.1996 | **PASS/PASS** |
+
+Checks verificados sin regresión: t60 (0.1879 ✓), t120 (0.1887 ✓), RMSE (32.0 ✓).
+
+**Estimación del equilibrio O₂ con Bernoulli dominante (Bern ≈ 20×ACH):**
+`o2_eq = 0.209 - C / (20m + 1)` → multiplier=0.45 da o2_eq ≈ 0.200 ✓
+
+#### C5 — Bedroom/origin temp (7 fallos → 7, sin cambio) — Gap estructural
+
+**Hipótesis original refutada:** `fire_flashover_hrr_multiplier=3.0` no es la causa. Con multiplier=1.5, los valores de origin_peak (868°C), bed_o2 y far_hall_response son idénticos.
+
+**Root cause real — dos problemas independientes:**
+
+**1. `ghanekar_origin_peak_upper_temp_reasonable_c` (868°C > 650°C):**
+- El fire en room 0 crece con alpha=0.035 kW/s² y pica a ~1581 kW
+- El peak de 868°C ocurre ENTRE intervalos de log (10s); el log muestra 569.4°C como máximo en snapshots
+- El `fire_flashover_hrr_multiplier` no afecta porque la limitación del HRR viene de O₂ o fuel, no del cap de flashover
+- Fix posible: `hrr_chi_rad_normal` hacia 0.76 (más radiativo → menos convectivo → menor T_upper)
+- **Riesgo bloqueante:** mayor chi_rad reduce calor a room 2 → `cfast_bed_fed_lethal` (FED≥1.0) y `cfast_bed_min_o2_lethal` (O₂<10%) podrían fallar. Sin análisis previo, no se toca.
+
+**2. `cfast_bed_o2_*` ×5 y `ghanekar_far_hall_o2_response_time_s` — Gap estructural single-zone:**
+- Room 2 (Dormitorio1) recibe O₂ depleta desde room 0 vía intercambio por puertas
+- En SF (single-zone), room 0 tiene O₂ promedio ≈ 0.17-0.18 → intercambio débil a room 2
+- En CFAST (two-zone), la zona superior de room 0 tiene O₂ ≈ 0.05 → potencial de transferencia mucho mayor → room 2 se depleta 4× más rápido
+- Parámetros `doorway_o2_background_exchange_kg_s_m2: 0.018` y `doorway_o2_exchange_coeff: 0.5` controlan la tasa, pero sin un upper-zone más depleto en room 0, el intercambio no puede igualar a CFAST
+- **Resolución real:** Phase 2 two-zone architecture. No hay calibración de parámetros que cierre el gap.
+
+**C5 clasificado como gap estructural Phase 2 (transfer from depleted upper zone).** No atacable en Phase 9.
 
 ---
 
