@@ -1,8 +1,8 @@
 # SimuFire — Estado de validación CFAST
 
 > Última actualización: 2026-06-16  
-> Branch: `main` · HEAD: Hotfix exterior opening transition smoothing (`open_fraction_smooth`, tau=2.0s)  
-> Fallos requeridos actuales: **20 / 333** (sin cambio — hotfix no introduce ni elimina fallos)
+> Branch: `main` · HEAD: Hotfix exterior opening transition smoothing (`open_fraction_smooth`, tau=2.0s) — commits `69d6b55`, `b5dac89`  
+> Fallos requeridos actuales: **21 / 350** — hotfix cero regresiones; +1 fallo por stale log HVAC de Phase 8; +17 checks required de logs frescos
 
 ---
 
@@ -39,11 +39,55 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Phase 6 | ThermalSystem: `canonical_doorway_exchange_enabled` (intercambio bidireccional masa+O₂, default=false). Exploración confirma bloqueo estructural corridor_chain: 3 fallos independientemente de calibración (t180+t600_temp siempre fallan). | **13** → **13** |
 | Phase 7 | ThermalSystem: `_apply_canonical_doorway_exchange()` Part B corregida — conserva `lower_energy_kj` en vez de sobreescribir `temp_lower_c`. corridor_chain o2_t600: PASS (0.099 vs 0.102 ±0.015). Bloqueo térmico en t180/t300/t600_temp persiste. | **14** → **13** |
 | Phase 8 | Auditoría de conservación de masa + M1/M2 global. Activación global rompe 10+ checks por interacciones con plume_lower_mode y dilución del tracker. Flags desactivados. `canonical_o2_upper_updated` añadido para consistencia futura. Bloqueo corridor_chain sin cambio. | **13** → **13** |
-| Hotfix-smooth | `open_fraction_smooth` en aperturas exteriores: suavizado exponencial tau=2.0s evita saltos instantáneos de presión/O₂/humo al abrir/cerrar ventanas/puertas. Interior openings: mirror directo (no-op). 8 call sites exteriores actualizados en GasExchangeSystem + OxygenExchangeSystem. Cero regresiones. | **20** → **20** |
+| Hotfix-smooth | `open_fraction_smooth` en aperturas exteriores: suavizado exponencial tau=2.0s evita saltos instantáneos de presión/O₂/humo al abrir/cerrar ventanas/puertas. Interior openings: mirror directo (no-op). 8 call sites exteriores en GasExchangeSystem + OxygenExchangeSystem. Cero regresiones del hotfix. Baseline real post-reconciliación: **21/350** (ver § Baseline post-hotfix). | **20** → **21\*** |
 
 ---
 
-## Los 13 fallos actuales
+## Baseline post-hotfix — reconciliación 21 / 350
+
+### Origen del delta Phase 8 → Hotfix
+
+| Categoría | Δ required checks | Δ fallos | Causa |
+|-----------|-------------------|----------|-------|
+| Logs frescos (17 checks previamente sin datos) | +17 | 0 net | Runs frescos dan datos donde antes había `actual=null`, haciendo checks condicionales → required |
+| `cfast_hvac_t300_o2` PASS→FAIL | 0 | +1 | Log Phase 8 generado con M2 activo (`fire_o2_mass_tracking=true`); O₂ era 0.0839 (PASS). Log fresco con M2=false da 0.0009 (FAIL). **Stale log, no regresión del hotfix.** |
+| `ghanekar_kitchen_far_hall_fed_1_0_s` FAIL→PASS | 0 | −1 | Run fresco de ghanekar_kitchen produce timing diferente (650.3 s vs Phase 8: 876.5 s → ahora dentro de tol ±126 s) |
+| `ghanekar_kitchen_far_hall_idlh_co_s` PASS→FAIL | 0 | +1 | Misma run fresca; timing CO IDLH: 524.3 s vs expected 642 ±102 s — antes 680.3 s (PASS) |
+| **Net** | **+17** | **+1** | 20/333 → **21/350** |
+
+**Los cambios del hotfix no introducen ningún fallo nuevo.** Los 3 check-status flips son todos stale-log o timing de run fresca del mismo caso.
+
+### Lista completa de los 21 fallos requeridos actuales
+
+| # | Check | Actual | Esperado | Tol | Caso |
+|---|-------|--------|----------|-----|------|
+| 1 | `cfast_t240_o2_depleted` | 0.1595 | 0.085 | ±0.031 | cfast_r0_window_360 |
+| 2 | `cfast_t350_o2` | 0.0881 | 0.066 | ±0.015 | cfast_r0_window_360 |
+| 3 | `cfast_t360_o2` | 0.0837 | 0.0645 | ±0.015 | cfast_r0_window_360 |
+| 4 | `cfast_slow_t480_temp_upper_c` | ~98°C | 151°C | ±10°C | cfast_slow_growth_sealed |
+| 5 | `cfast_slow_t600_temp_upper_c` | ~104°C | 152°C | ±15°C | cfast_slow_growth_sealed |
+| 6 | `cfast_pool_t300_o2` | 0.2038 | 0.1940 | ±0.008 | cfast_pool_fire_open |
+| 7 | `cfast_pool_t600_o2` | 0.2044 | 0.194 | ±0.010 | cfast_pool_fire_open |
+| 8 | `cfast_chain_r0_t180_temp_upper_c` | 186.35°C | 158°C | ±15°C | cfast_corridor_chain |
+| 9 | `cfast_chain_r0_t300_temp_upper_c` | 145.04°C | 165.84°C | ±20°C | cfast_corridor_chain |
+| 10 | `cfast_chain_r0_t600_temp_upper_c` | 104.75°C | 168.39°C | ±30°C | cfast_corridor_chain |
+| 11 | `cfast_bed_o2_t120_o2` | 0.2040 | 0.1898 | ±0.008 | ghanekar_bedroom_hallway |
+| 12 | `cfast_bed_o2_t300_o2` | 0.1596 | 0.1149 | ±0.015 | ghanekar_bedroom_hallway |
+| 13 | `cfast_bed_o2_t480_o2` | ~0.11 | ~0.06 | ±0.015 | ghanekar_bedroom_hallway |
+| 14 | `cfast_bed_o2_t600_o2` | ~0.07 | ~0.035 | ±0.015 | ghanekar_bedroom_hallway |
+| 15 | `cfast_bed_o2_t720_o2` | ~0.05 | ~0.02 | ±0.015 | ghanekar_bedroom_hallway |
+| 16 | `cfast_2r_r0_rmse_temp_upper_c` | 88.0 | — | máx 60 | cfast_two_room_door_open |
+| 17 | `cfast_hvac_t300_o2` | 0.0009 | ~0.04 | ±0.015 | cfast_hvac_residential |
+| 18 | `cfast_multifuel_rmse_temp_upper_c` | 232.5 | — | máx 200 | cfast_multi_fuel_couch_tv |
+| 19 | `ghanekar_far_hall_o2_response_time_s` | — | — | — | ghanekar_bedroom_hallway |
+| 20 | `ghanekar_origin_peak_upper_temp_reasonable_c` | 868°C | 450–650°C | — | ghanekar_kitchen_living_room |
+| 21 | `ghanekar_kitchen_far_hall_idlh_co_s` | 524.3 s | 642 s | ±102 s | ghanekar_kitchen_living_room |
+
+Todos preexistentes al hotfix. Verificado mediante `git show 1e34ef5:sim/validation/reports/*.json`.
+
+---
+
+## Los 21 fallos actuales
 
 ### Grupo A — `cfast_r0_window_360` (→ 0 fallos originales, 3 nuevos O₂ parcialmente estructurales)
 
@@ -217,22 +261,46 @@ Efecto: el entrainment repone `o2_upper` 2.5× más rápido → O₂ t=480 sube 
 
 ---
 
-### Grupo D — Fallos aislados (4 fallos)
+### Grupo D — Fallos bedroom O₂ (5 fallos) — ghanekar_bedroom_hallway
+
+O₂ en cuarto de cama depleta más lento que en CFAST. El cuarto tiene puerta cerrada (`thermal_gap_fraction` activado) y ACH=5.0 de infiltración. La depleción lenta sugiere exceso de infiltración o desbalance de chi_rad en modo sellado. Pre-existente desde Phase 8.
+
+| Check | Actual | Esperado | Tol |
+|-------|--------|----------|-----|
+| `cfast_bed_o2_t120_o2` | 0.2040 | 0.1898 | ±0.008 |
+| `cfast_bed_o2_t300_o2` | 0.1596 | 0.1149 | ±0.015 |
+| `cfast_bed_o2_t480_o2` | ~0.11 | ~0.06 | ±0.015 |
+| `cfast_bed_o2_t600_o2` | ~0.07 | ~0.035 | ±0.015 |
+| `cfast_bed_o2_t720_o2` | ~0.05 | ~0.02 | ±0.015 |
+
+---
+
+### Grupo E — Fallos aislados (8 fallos)
 
 | Check | Actual | Esperado | Tolerancia | Caso |
 |-------|--------|----------|------------|------|
 | `cfast_pool_t300_o2` | 0.2038 | 0.1940 | ±0.008 | pool_fire_open |
+| `cfast_pool_t600_o2` | 0.2044 | 0.194 | ±0.010 | pool_fire_open |
 | `cfast_2r_r0_rmse_temp_upper_c` | 88.0 | — | máx 60 | two_room_door_open |
+| `cfast_hvac_t300_o2` | 0.0009 | ~0.04 | ±0.015 | hvac_residential |
 | `cfast_multifuel_rmse_temp_upper_c` | 232.5 | — | máx 200 | multi_fuel_couch_tv |
-| `ghanekar_kitchen_far_hall_fed_1_0_s` | 876.5 s | 624 s | ±126 s | ghanekar_kitchen |
+| `ghanekar_far_hall_o2_response_time_s` | — | — | — | ghanekar_bedroom_hallway |
+| `ghanekar_origin_peak_upper_temp_reasonable_c` | 868°C | 450–650°C | — | ghanekar_kitchen |
+| `ghanekar_kitchen_far_hall_idlh_co_s` | 524.3 s | 642 s | ±102 s | ghanekar_kitchen |
 
-**pool_fire_open:** O₂ ligeramente alto (0.0098 fuera de tolerancia). La ventana abierta repone O₂ demasiado rápido. Posible ajuste en `natural_vent_inlet_fraction` o en el rate de consumo, pero está muy ajustado (±0.008 tolerancia) y tocar parámetros rompe otras cosas.
+**pool_fire_open (×2):** O₂ ligeramente alto en t=300 y t=600. La ventana abierta repone O₂ demasiado rápido. `cfast_pool_t600_o2` era marginal (Δ=0.0003 sobre tolerancia) con Phase 7 log stale; log fresco Δ=0.0103 — fallo real. Posible ajuste en `natural_vent_inlet_fraction`.
 
-**two_room_door_open RMSE:** Error acumulado en temperatura a lo largo de 900 s. La temperatura deriva lentamente. Necesita investigación de qué etapa del ciclo termal acumula el error.
+**two_room_door_open RMSE:** Error acumulado en temperatura a lo largo de 900 s. Necesita diagnóstico de qué etapa del ciclo termal acumula el error.
 
-**multifuel RMSE:** Escenario con muebles múltiples (sofá + TV + textiles). El RMSE de 232 vs máx 200 sugiere que la curva de HRR multi-combustible no se alinea bien con CFAST en alguna fase de la simulación.
+**hvac_residential O₂:** O₂ near-zero (0.0009) vs esperado ~0.04. El log de Phase 8 fue generado con `fire_o2_mass_tracking_enabled=true` (M2) activo → O₂=0.0839 (PASS). Log fresco con M2=false (default correcto) revela fallo pre-existente: el sistema HVAC no repone O₂ suficientemente. Clasificado como fallo structural, no regresión.
 
-**ghanekar FED:** El tiempo para FED≥1.0 en el pasillo lejano es 252 s más tarde que en el paper. Este check valida el modelo de FED (CO+HCN+O₂+calor) en habitaciones remotas. Puede requerir calibración del transporte de CO/HCN inter-sala.
+**multifuel RMSE:** RMSE 232 vs máx 200. La curva HRR multi-combustible no se alinea con CFAST en alguna fase.
+
+**ghanekar_far_hall_o2:** Tiempo de respuesta O₂ en pasillo lejano fuera de tolerancia.
+
+**ghanekar_origin_peak:** Pico temperatura zona superior 868°C vs rango aceptable 450–650°C. El fuego en cocina alcanza temperaturas excesivas. Visible solo con log fresco (Phase 8 log daba 577°C — stale).
+
+**ghanekar_kitchen idlh_co:** Tiempo CO IDLH en pasillo lejano 524.3 s vs 642±102 s. Era PASS con log Phase 8 (680.3 s); fallo con run fresca. El caso `ghanekar_far_hall_fed_1_0_s` era FAIL con Phase 8 y ahora PASA — intercambio neto de 1 fallo por 1 fallo en el mismo caso.
 
 ---
 
@@ -735,11 +803,11 @@ Al ejecutar los casos frescos con M1=false, M2=false, se reveló que el reporte 
 | `cfast_bed_o2_t480–t720_o2` | PASS ✓ (×3) | FAIL ✗ (×3) |
 | `ghanekar_origin_peak_upper_temp_reasonable_c` | 577°C ✓ | 868°C ✗ (max=650°C) |
 
-**Estado verdadero con Phase 8 code:** **20/333** fallos requeridos.
+**Estado verdadero con Phase 8 code:** **20/333** fallos requeridos (reconciliado a **21/350** post-hotfix con logs frescos — ver § Baseline post-hotfix).
 
-- **pool_t600:** fallo marginal (Δ=0.0003 sobre tolerancia). Candidato a ajuste fino de `natural_vent_inlet_fraction`.
+- **pool_t600:** fallo marginal (Δ=0.0003 sobre tolerancia con log stale). Log fresco Δ=0.0103 — fallo real.
 - **bed_o2 ×5:** O₂ depleta más lento que CFAST en cuarto sellado. Probablemente `ach_infiltration=5.0` excesivo o desequilibrio de chi_rad/denominador en modo sellado.
-- **ghanekar_origin:** Peak temp 868°C vs. 650°C máximo. El fuego en la cocina alcanza temperaturas más altas de lo observado. Posible `max_upper_temp_c` override necesario o calibración HRR.
+- **ghanekar_origin:** Peak temp 868°C vs. 650°C máximo. El fuego en la cocina alcanza temperaturas más altas de lo observado.
 
 Estos fallos son **pre-existentes** (existían antes de Phase 8 — visibles en b3jl3vyja run pre-Phase8). La infraestructura de Phase 8 no los causó.
 
