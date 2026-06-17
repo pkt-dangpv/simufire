@@ -70,3 +70,52 @@ Do not try to make `validation_guardrails.py` green by widening tolerances, rewr
 ## Suggested Next Step
 
 Close this repository hygiene phase as its own commit or series of commits, then handle validation failures as a separate workstream.
+
+## Other Machine Sync Protocol
+
+Context recorded on 2026-06-17:
+
+- The user pushed the repository hygiene commit from this machine/session.
+- Another machine may contain partial local work because power was lost while work was in progress.
+- Do not assume that the other machine is clean.
+- Do not run `git pull`, `git reset`, `git restore` or conflict-resolution commands blindly on that machine.
+- Do not touch `sim/core` until explicitly authorized.
+
+When continuing on the other machine, inspect first:
+
+```powershell
+git status --short
+git branch --show-current
+git log --oneline --decorate -5
+git fetch
+git log --oneline --decorate --graph --all -20
+git diff --name-status
+git diff --stat
+```
+
+If the other machine has local changes, protect them before integrating remote work:
+
+```powershell
+git switch -c backup/cambios-maquina-apagon
+git add -A
+git commit -m "WIP cambios locales antes de sincronizar"
+```
+
+Then compare the backup branch, the original branch and the remote branch before merging anything. The intended rule is: preserve first, synchronize second, resolve conflicts last.
+
+## Pending Temperature HUD Investigation
+
+No fix has been applied yet for the first-person HUD temperature jumps.
+
+Current diagnosis:
+
+- The exterior-opening smoothing hotfix exists: commit `69d6b55 feat(hotfix): exterior opening transition smoothing`.
+- `open_fraction_smooth` is applied in several gas/O2 paths.
+- Some thermal paths still appear to read `open_fraction` directly, so opening a window can still affect heat transfer abruptly.
+- The first-person HUD displays `temp_at_1_8m_c`, `temp_at_1_1m_c` or `temp_at_0_5m_c` directly, refreshed every 0.05 s, without a display-side damping layer.
+- If the thermal interface crosses near the player eye height, the HUD can jump between lower/mixed/upper temperatures even when the scene looks continuous.
+
+Recommended next analysis before editing motor code:
+
+- Log or display, for the current FP room: `temp_at_1_8m_c`, `temp_upper_c`, `temp_lower_c`, `thermal_layer_m`, `open_fraction`, `open_fraction_smooth`.
+- Decide separately between a motor-side fix for thermal use of smoothed exterior opening fractions and a HUD-only visual smoothing fix.
