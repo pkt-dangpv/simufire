@@ -1,7 +1,7 @@
 {
   "all_required_pass": false,
   "required_count": 350,
-  "failed_required_count": 19,
+  "failed_required_count": 16,
   "known_gap_count": 76,
   "checks": [
     {
@@ -3097,13 +3097,13 @@
     },
     {
       "name": "ghanekar_far_hall_o2_response_time_s",
-      "actual": 161.500000000001,
+      "actual": 193.000000000004,
       "expected": 198.0,
       "tolerance": 30.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "Ghanekar bedroom tests report initial hallway O2 response near 3.3 min."
     },
     {
@@ -3119,13 +3119,13 @@
     },
     {
       "name": "ghanekar_origin_peak_upper_temp_reasonable_c",
-      "actual": 868.683580594605,
+      "actual": 536.651484169077,
       "expected": null,
       "tolerance": null,
       "minimum": 450.0,
       "maximum": 650.0,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": ""
     },
     {
@@ -3141,7 +3141,7 @@
     },
     {
       "name": "ghanekar_far_hall_co_known_gap",
-      "actual": 151.666666666666,
+      "actual": 154.75,
       "expected": 204.0,
       "tolerance": 45.0,
       "minimum": null,
@@ -3163,7 +3163,7 @@
     },
     {
       "name": "ghanekar_kitchen_far_hall_fed_0_3_s",
-      "actual": 609.916666666665,
+      "actual": 626.833333333339,
       "expected": 546.0,
       "tolerance": 515.0,
       "minimum": null,
@@ -3174,7 +3174,7 @@
     },
     {
       "name": "ghanekar_kitchen_far_hall_fed_1_0_s",
-      "actual": 650.33333333335,
+      "actual": 665.333333333356,
       "expected": 624.0,
       "tolerance": 126.0,
       "minimum": null,
@@ -3185,13 +3185,13 @@
     },
     {
       "name": "ghanekar_kitchen_far_hall_idlh_co_s",
-      "actual": 524.249999999959,
+      "actual": 545.166666666635,
       "expected": 642.0,
       "tolerance": 102.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "Ghanekar kitchen/salon: CO IDLH (1200 ppm) in far hallway at 10.7 \u00b1 1.7 min. Phase 2 calibration closed gap (684.4s \u2208 [540,744])."
     },
     {

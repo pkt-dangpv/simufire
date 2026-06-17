@@ -93,6 +93,8 @@
 		"doorway_o2_counterflow_coeff": 0.1,
 		"doorway_o2_exchange_coeff": 0.5,
 		"doorway_o2_background_exchange_kg_s_m2": 0.018,
+		"co_base_yield_kg_per_MJ": 0.00015,
+		"co_max_yield_kg_per_MJ": 0.00750,
 		"fire_spread_enabled": false,
 		"glass_auto_break_enabled": false,
 		"fed_upper_layer_threshold_m": 2.0

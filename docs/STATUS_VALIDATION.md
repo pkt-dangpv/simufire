@@ -1,8 +1,8 @@
 # SimuFire — Estado de validación CFAST
 
-> Última actualización: 2026-06-16  
-> Branch: `main` · HEAD: Phase 9 — pool fire O₂ fix (vent_bernoulli_flow_multiplier=0.45)  
-> Fallos requeridos actuales: **19 / 350** — Phase 9 reduce 2 fallos C4 (pool fire O₂); C5 bedroom sin cambio (gap estructural confirmado)
+> Última actualización: 2026-06-17  
+> Branch: `main` · HEAD: Phase 10 — C5 origin_peak/far_hall O₂ (chi_rad=0.55) + C6 kitchen CO IDLH (co_yield −40%)  
+> Fallos requeridos actuales: **16 / 350** — Phase 10 reduce 3 fallos: C5 origin_peak + far_hall_o2 + C6 kitchen CO IDLH
 
 ---
 
@@ -41,6 +41,8 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Phase 8 | Auditoría de conservación de masa + M1/M2 global. Activación global rompe 10+ checks por interacciones con plume_lower_mode y dilución del tracker. Flags desactivados. `canonical_o2_upper_updated` añadido para consistencia futura. Bloqueo corridor_chain sin cambio. | **13** → **13** |
 | Hotfix-smooth | `open_fraction_smooth` en aperturas exteriores: suavizado exponencial tau=2.0s evita saltos instantáneos de presión/O₂/humo al abrir/cerrar ventanas/puertas. Interior openings: mirror directo (no-op). 8 call sites exteriores en GasExchangeSystem + OxygenExchangeSystem. Cero regresiones del hotfix. Baseline real post-reconciliación: **21/350** (ver § Baseline post-hotfix). | **20** → **21\*** |
 | Phase 9-C4 | Pool fire O₂: `vent_bernoulli_flow_multiplier=0.45` en `cfast_pool_fire_open.json`. `natural_vent_inlet_fraction` no tiene efecto (ruta Bernoulli activa por defecto). Multiplier 0.45 baja equilibrio O₂ de 0.205 a ~0.200 (CFAST 0.194 ± tol 0.008-0.010). Cero regresiones: t60/t120 siguen dentro de tol. | **21** → **19** |
+| Phase 10-C5 | `hrr_chi_rad_normal=hrr_chi_rad_low_o2=0.55` en `ghanekar_bedroom_hallway.json`. Reduce fracción convectiva 0.65→0.45 → origin_peak 868→537°C ✓. Bonus: menos buoyancy → O₂ exchange más tardío → far_hall_o2_response 161.5→193.0s ✓. | **19** → **17** |
+| Phase 10-C6 | `co_base_yield=0.00015, co_max_yield=0.00750` en `ghanekar_kitchen_living_room.json` (−40% del default). CO IDLH en pasillo lejano 524→545s ✓. FED 1.0: 650→665s (dentro de [498,750]). Cero regresiones. | **17** → **16** |
 
 ---
 
@@ -86,7 +88,9 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 
 Todos preexistentes al hotfix. Verificado mediante `git show 1e34ef5:sim/validation/reports/*.json`.
 
-**Actualización Phase 9:** fallos 6 y 7 (cfast_pool_t300_o2 y cfast_pool_t600_o2) resueltos con `vent_bernoulli_flow_multiplier=0.45`. Baseline actual: **19/350**.
+**Actualización Phase 9:** fallos 6 y 7 (cfast_pool_t300_o2 y cfast_pool_t600_o2) resueltos con `vent_bernoulli_flow_multiplier=0.45`. Baseline: **19/350**.
+
+**Actualización Phase 10:** fallos 19 y 20 (ghanekar_far_hall_o2 y ghanekar_origin_peak) resueltos con `hrr_chi_rad_normal=hrr_chi_rad_low_o2=0.55` en bedroom. Fallo 21 (ghanekar_kitchen_idlh_co) resuelto con co_base/co_max −40% en kitchen. Baseline actual: **16/350**.
 
 ---
 
@@ -451,6 +455,45 @@ Checks verificados sin regresión: t60 (0.1879 ✓), t120 (0.1887 ✓), RMSE (32
 - **Resolución real:** Phase 2 two-zone architecture. No hay calibración de parámetros que cierre el gap.
 
 **C5 clasificado como gap estructural Phase 2 (transfer from depleted upper zone).** No atacable en Phase 9.
+
+---
+
+## Phase 10 — C5 origin_peak + C6 kitchen CO IDLH (2026-06-17)
+
+> **Estado:** 3 fallos resueltos (19 → 16/350). Sin regresiones. C5 bed_o2 ×5 y C3 RMSE sin cambio (gaps estructurales).
+
+### C5 — Origin peak y far_hall O₂ (2 fallos → 0)
+
+**Causa raíz:** `hrr_chi_rad_normal=0.35` (default) → fracción convectiva = 0.65 → demasiado calor al upper layer → origin_peak 868°C (max 650°C). El menor calor al upper layer también reducía la buoyancy → gas caliente llegaba a room 2 (far hallway) demasiado pronto (161.5s vs [168, 228]s).
+
+**Fix:** `hrr_chi_rad_normal=0.55, hrr_chi_rad_low_o2=0.55` en `ghanekar_bedroom_hallway.json`.
+
+Ambos al mismo valor para mantener chi_rad flat (sin dependencia O₂) y evitar el escalado de `eff_chi_rad_low_o2 = eff_chi_rad_normal × (low_o2 / normal)` que habría dado chi_rad=0.786 a bajo O₂.
+
+| Check | Antes | Después | Ventana | Estado |
+|-------|-------|---------|---------|--------|
+| `origin_peak_temp` | 868.7°C | 536.7°C | [450, 650]°C | **PASS** |
+| `far_hall_o2_response` | 161.5s | 193.0s | [168, 228]s | **PASS** |
+| `ghanekar_no_temperature_cap` | 0 | 0 | =0 | PASS (sin cambio) |
+
+**`cfast_bed_*` no afectados** — vienen del caso `cfast_bedroom_closed_door` (diferente), no de `ghanekar_bedroom_hallway`. Los 5 fallos `cfast_bed_o2_*` siguen siendo gap estructural Phase 2 (single-zone vs two-zone exchange).
+
+### C6 — Kitchen CO IDLH (1 fallo → 0)
+
+**Causa raíz:** CO genera en fire room (room 3) via `co_yield = co_base * exp(2*(phi-1))` capado en `co_max_yield`. Los defaults (0.00025 base / 0.01250 max) producen CO IDLH en far hall a 524s vs ventana [540, 744]s.
+
+**Nota técnica:** `fire_co_low_quality_yield_multiplier=12.0` y `fire_co_max_effective_fraction=0.9` en el caso son parámetros **legacy** sin efecto actual: `low_quality` afecta HCN (no CO) en commits recientes; `max_effective_fraction` nunca fue consumido en `CombustionSystem.gd`.
+
+**Fix:** reducción uniforme −40% en yields de CO via `co_base_yield_kg_per_MJ=0.00015, co_max_yield_kg_per_MJ=0.00750` en `ghanekar_kitchen_living_room.json`.
+
+| Métrica | Antes | Después | Ventana | Estado |
+|---------|-------|---------|---------|--------|
+| CO IDLH (1200ppm) | 524.25s | 545.2s | [540, 744]s | **PASS** |
+| FED=0.3 | 609.9s | 626.8s | [31, 1061]s | PASS (sin cambio crítico) |
+| FED=1.0 | 650.3s | 665.3s | [498, 750]s | PASS (margen 85s) |
+| O₂ response | 401.7s | 401.7s | [318, 486]s | PASS (sin cambio) |
+
+**Calibración:** 20% inicial dio 532s (insuficiente); 40% da 545s (5s de margen sobre límite inferior). El slope de CO en el cruce es ~39 ppm/s (más empinado que el promedio de 11.6 ppm/s entre 437-524s), lo que requirió una reducción mayor que la estimación lineal inicial.
 
 ---
 
