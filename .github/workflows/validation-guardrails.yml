@@ -6,17 +6,21 @@ on:
       - 'scripts/simulation/phase2e_preflight.py'
       - 'scripts/simulation/gap_inventory_check.py'
       - 'scripts/simulation/validation_guardrails.py'
-      - 'docs/GAPS_INVENTORY.md'
-      - 'docs/PHASE_2E_DESIGN.md'
+      - 'docs/validation/GAPS_INVENTORY.md'
+      - 'docs/architecture/PHASE_2E_DESIGN.md'
       - 'sim/validation/reports/reference_checks.json'
   pull_request:
     paths:
       - 'scripts/simulation/phase2e_preflight.py'
       - 'scripts/simulation/gap_inventory_check.py'
       - 'scripts/simulation/validation_guardrails.py'
-      - 'docs/GAPS_INVENTORY.md'
-      - 'docs/PHASE_2E_DESIGN.md'
+      - 'docs/validation/GAPS_INVENTORY.md'
+      - 'docs/architecture/PHASE_2E_DESIGN.md'
       - 'sim/validation/reports/reference_checks.json'
+      - 'docs/**/*.md'
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'scripts/check_docs_links.py'
 
 jobs:
   guardrails:
@@ -37,3 +41,6 @@ jobs:
 
       - name: Run guardrail unit tests
         run: python -m unittest tests.test_guardrails -v
+
+      - name: Check documentation links
+        run: python scripts/check_docs_links.py

@@ -1,93 +1,106 @@
 # SimuFire
 
-Simulador de dinámica de incendios en compartimentos para entrenamiento y toma de decisiones de bomberos.
+SimuFire is a Godot-based compartment fire dynamics simulator for training, scenario comparison and firefighter decision-support workflows.
 
-**Estado**: `v0.4.0-validation-rc1` · legacy 381/381 required PASS · two-zone M4 contract PASS opt-in · Godot 4.6.3
+It combines a scenario editor, 2D/3D/first-person visualization, technical exports and a validation lane for scientific guardrails.
 
----
+**Current status**: `v0.4.0-validation-rc1` · legacy 381/381 required PASS · Two-Zone M4 contract PASS opt-in · Godot 4.6.3.
 
 ## Quickstart
 
 ```powershell
-# 1. Checks de producto/editor (incluye smokes Godot headless)
-python scripts/check_product.py         # 57 tests: editor JSON + UI localization + editabilidad Godot + guardrails + export headless
+# Product/editor checks
+python scripts/check_product.py
 
-# 2. Guardrails científicos (sin Godot, lee reference_checks.json)
+# Documentation links
+python scripts/check_docs_links.py
+
+# Fast scientific guardrails
 python scripts/simulation/validation_guardrails.py
 
-# 3. Recalcular checks desde los informes existentes
+# Recalculate checks from existing reports
 python scripts/simulation/validate_reference_cases.py
 
-# 3b. Suite completa de validación científica fresca (requiere Godot, ~15-20 min)
+# Full fresh scientific validation, requires Godot
 powershell -ExecutionPolicy Bypass -File sim/validation/run_reference_checks.ps1 -TimeoutSeconds 900
 
-# 4. Bateria dedicada TwoZoneV1: unitarios + contrato runtime + auditoria de flags + guardrails
-powershell -ExecutionPolicy Bypass -File sim/validation/run_two_zone_v1_checks.ps1 -TimeoutSeconds 900
-
-# 4a. Solo contrato two-zone v1 contra la referencia legacy congelada
-powershell -ExecutionPolicy Bypass -File sim/validation/run_legacy_two_zone_compare.ps1 -Action compare -CandidateMode two-zone -TwoZoneV1
-
-# 4b. Ejecutar un caso two-zone v1 directo en Godot/headless
-& "C:\Users\dangp\Desktop\Godot_v4.6.3-stable_win64_console.exe" `
-    --headless --path "." --log-file "$env:TEMP\simufire.log" -- `
-    --validation-case=cfast_two_room_door_open --validation-two-zone-v1
-
-# 5. Reproducir un escenario predefinido y generar export tecnico
+# Run a scenario and generate technical outputs
 python scripts/run_scenario.py scenarios/compact_apartment_reference.json --duration 60
-
-# 6. Ejecutar un caso individual (headless)
-& "C:\Users\dangp\Desktop\Godot_v4.6.3-stable_win64_console.exe" `
-    --headless --path "." -- --validation-case=victim_fed_incapacitation
 ```
 
----
+More commands are listed in [docs/COMMANDS.md](docs/COMMANDS.md).
 
-## Fenómenos modelados
+## Main Features
 
-- Combustión: HRR por objeto, pirólisis, factor O₂, extinción, smoldering, backdraft.
-- Termodinámica zonal: temperaturas capa superior/inferior, altura de capa de humo, presión termodinámica en recintos sellados.
-- Transición: flashover (Thomas + MQH), burnout.
-- Productos tóxicos: CO, CO₂, O₂, HCN estratificado upper/lower.
-- Tenabilidad: FED descompuesto (CO · HCN · hipoxia · calor) + FEC irritantes + visibilidad.
-- Ventilación: vanos (Bernoulli), rotura de cristal, apertura/cierre de puertas, HVAC, PPV.
+- Scenario editor for residential compartment layouts.
+- Runtime simulation scene with HUD, 2D, 3D and first-person views.
+- Compartment fire phenomena including HRR, oxygen effects, smoke, toxic gases, tenability, ventilation, HVAC, glass failure and suppression hooks.
+- Technical logging, graph generation and validation reports.
+- Separate product/editor checks and scientific validation lanes.
 
----
+## Documentation
 
-## Validación (v0.4.0)
+- [docs/INDEX.md](docs/INDEX.md): documentation entrypoint.
+- [docs/architecture/PROGRAM_FLOW.md](docs/architecture/PROGRAM_FLOW.md): product flow and architecture map.
+- [docs/architecture/MODULE_BOUNDARIES.md](docs/architecture/MODULE_BOUNDARIES.md): intended module boundaries.
+- [docs/validation/SIMUFIRE_VALIDATION_SUMMARY_2026-05-31.md](docs/validation/SIMUFIRE_VALIDATION_SUMMARY_2026-05-31.md): validation summary.
+- [docs/validation/GAPS_INVENTORY.md](docs/validation/GAPS_INVENTORY.md): known gaps.
+- [CHANGELOG.md](CHANGELOG.md): notable changes.
+- [CONTRIBUTING.md](CONTRIBUTING.md): repository conventions.
 
-| Métrica | Valor |
+## Repository Layout
+
+| Path | Purpose |
 |---|---|
-| Checks requeridos | **381/381 PASS** |
-| Gaps no-gating | 6 (4 HVAC estructurales + 2 Ghanekar flashover empíricos) |
-| Guardrails científicos | ALL PASS |
-| Tests unitarios guardrails | 13/13 OK |
-| Tests editor/producto | 57/57 OK |
-| Commit base | `80f3c09` |
+| `assets/` | Product assets, fonts, textures and reusable scenes |
+| `docs/` | Documentation, validation summaries, audits, architecture and literature |
+| `editor/` | Scenario editor implementation |
+| `scenes/` | Godot entry scenes |
+| `scripts/` | Official command-line entrypoints |
+| `sim/` | Simulation models, core systems, templates and scientific validation |
+| `tests/` | Python tests |
+| `tools/` | Godot headless validators and technical utilities |
+| `ui/` | HUD, localization and UI helpers |
+| `view/` | 2D, 3D and first-person views |
 
----
+## Validation Lanes
 
-## Artefactos publicables
+Product/editor lane:
 
-| Documento | Contenido |
-|---|---|
-| [docs/SIMUFIRE_VALIDATION_SUMMARY_2026-05-31.md](docs/SIMUFIRE_VALIDATION_SUMMARY_2026-05-31.md) | Resumen de validación para terceros |
-| [docs/PUBLICATION_READINESS_AUDIT_2026-05-31.md](docs/PUBLICATION_READINESS_AUDIT_2026-05-31.md) | Auditoría interna pre-publicación |
-| [docs/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md](docs/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md) | Calibración HCN/FED |
-| [docs/GAPS_INVENTORY.md](docs/GAPS_INVENTORY.md) | Inventario de gaps |
-| [docs/ROADMAP_POST_V0_4_0.md](docs/ROADMAP_POST_V0_4_0.md) | Roadmap v0.4.1+ |
+```powershell
+python scripts/check_product.py
+```
 
----
+Scientific guardrails lane:
 
-## Limitaciones conocidas
+```powershell
+python scripts/simulation/validation_guardrails.py
+```
 
-- **HVAC two-zone transport**: 4 checks CO/CO₂ upper con HVAC divergen de CFAST (gaps no-gating aceptados). No afectan escenarios de tenabilidad.
-- **Ghanekar flashover empírico**: 2 checks de timing/altura de flashover quedan no-gating tras corrida fresca 2026-06-05; O₂/FED/CO remotos siguen required y PASS.
-- **HCN yield conservador**: representa combustión bien ventilada; subestima HCN bajo-ventilado.
-- **Modelo zonal**: no sustituye simulaciones CFD (p. ej. FDS) para análisis cuantitativo de alto rigor.
-- **Two-zone v1.0 opt-in**: masa/energía, O2 local y flujos de apertura por zona activos por flags; el preset de validación `-TwoZoneV1` activa `two-zone + two_zone_opening_flow + canonical_pressure` y compara contra legacy con **18/18 required PASS**. `fire_o2_mode=upper` queda explícito, no default global, porque aún introduce regresiones HRR/temperatura al forzarlo en todos los casos.
+Full scientific validation:
 
----
+```powershell
+powershell -ExecutionPolicy Bypass -File sim/validation/run_reference_checks.ps1 -TimeoutSeconds 900
+```
 
-## Motor
+## Known Limitations
 
-Godot 4.6.3 / GDScript · Windows · Python 3.x para scripts de validación.
+- HVAC two-zone transport has accepted non-gating divergences against CFAST for selected upper-layer CO/CO2 checks.
+- Ghanekar flashover empirical timing/height checks remain non-gating in the current documented validation state.
+- HCN yield is conservative for well-ventilated combustion and can underestimate under-ventilated HCN.
+- The zone model does not replace CFD tools such as FDS for high-rigor quantitative analysis.
+- Two-Zone V1 remains opt-in through validation/runtime flags rather than the default global mode.
+
+## Local Workspace
+
+Generated outputs belong in ignored folders such as `runs/`, `graphs/`, `.godot_validation_logs/` or temporary directories. See [docs/RUN_WITHOUT_ARTIFACTS.md](docs/RUN_WITHOUT_ARTIFACTS.md) and [docs/LOCAL_WORKSPACE.md](docs/LOCAL_WORKSPACE.md).
+
+Preview cleanup:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/clean_workspace.ps1 -WhatIf
+```
+
+## Engine
+
+Godot 4.6.3 / GDScript · Windows-oriented tooling · Python 3.x for scripts and validation helpers.

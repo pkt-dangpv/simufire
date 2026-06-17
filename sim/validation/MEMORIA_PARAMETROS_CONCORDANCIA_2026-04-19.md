@@ -71,8 +71,8 @@ Esta memoria deja fijado el mapa actual del codigo tras la reestructuracion y lo
 
 ### Incidencias del corpus local
 
-- `Docu Simufire/Journals_OpenAccess/Effects_of_HVAC_on_Combustion_Gas_Transport_2022.pdf` no contiene el articulo completo sino una pagina de error del proveedor.
-- `Docu Simufire/FSRI_ULRI/Measurement_of_Heat_Transfer_and_Fire_Damage_Patterns_2024.pdf` esta corrupto y no debe usarse como fuente.
+- `docs/literature/Journals_OpenAccess/Effects_of_HVAC_on_Combustion_Gas_Transport_2022.pdf` no contiene el articulo completo sino una pagina de error del proveedor.
+- `docs/literature/FSRI_ULRI/Measurement_of_Heat_Transfer_and_Fire_Damage_Patterns_2024.pdf` esta corrupto y no debe usarse como fuente.
 - Para `HVAC` y validacion de paredes hay base suficiente en el resto del corpus, pero conviene sustituir esos dos ficheros cuando aparezca una descarga limpia.
 
 ## Observables que el simulador ya produce
@@ -743,4 +743,3 @@ Parametros a mover mas tarde:
 - Hoy podemos calibrar de forma seria `ventilacion`, `O2`, `CO`, `humo`, `temperatura`, `L150` y `tiempos de llegada`.
 - No podemos afirmar concordancia realista de `FED`, `IDLH toxico`, `HVAC` o `HCN` porque el modelo todavia no los representa.
 - La prioridad no es mover muchos coeficientes a la vez, sino alinear primero escenario, ventilacion y puntos de medida con cada paper de referencia.
-

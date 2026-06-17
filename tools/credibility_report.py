@@ -11,7 +11,7 @@ un informe Markdown con:
 
 USO:
     python tools/credibility_report.py
-    python tools/credibility_report.py --output docs/CREDIBILITY_REPORT.md
+    python tools/credibility_report.py --output docs/audits/CREDIBILITY_REPORT.md
 """
 
 from __future__ import annotations
@@ -84,7 +84,7 @@ def find_physics_overrides() -> list[dict[str, str]]:
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="R0-4: Informe de credibilidad.")
-    parser.add_argument("--output", type=Path, default=ROOT / "docs/CREDIBILITY_REPORT.md")
+    parser.add_argument("--output", type=Path, default=ROOT / "docs/audits/CREDIBILITY_REPORT.md")
     args = parser.parse_args()
 
     provenance = load_provenance()

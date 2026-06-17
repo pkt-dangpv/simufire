@@ -10,23 +10,23 @@ This file records source-derived calibration targets used by the validation case
   - Interrupting inlet/exhaust flow paths limits fire growth.
   - Exterior water applied into the fire compartment improves conditions throughout the structure.
 
-- `Docu Simufire/NIST/NS_FS_Article_Interrupting_Flow_Path1.pdf`
+- `docs/literature/NIST/NS_FS_Article_Interrupting_Flow_Path1.pdf`
   - Modern ventilation-limited fires can reach flashover about 2 min after tactical ventilation, versus about 8 min for legacy furnishings.
   - In a Governors Island flow-path experiment, the front door temperature rose from about 75 F to over 550 F in less than 90 s after ventilation.
   - Closing a bedroom door reversed severe gas conditions in about 2 min: O2 rose from about 8% to 16%, CO2 dropped from about 9% to 4%.
   - Closing the front door after basement flashover reduced room temperatures by up to about 70%.
 
-- `Docu Simufire/NIST/UL-FSRI-2010-DHS-Report_Comp.pdf`
+- `docs/literature/NIST/UL-FSRI-2010-DHS-Report_Comp.pdf`
   - Modern synthetic fuel loads produce faster, less forgiving ventilation response.
   - Door control delays flashover by minutes by limiting air supply.
   - A 4 ft by 8 ft vertical vent over a ventilation-limited fire did not improve conditions by itself.
   - Applying water quickly to the fire compartment improved conditions and did not push fire.
 
-- `Docu Simufire/NIST/UL-Study-Binder-TransitionalFireAttack.pdf`
+- `docs/literature/NIST/UL-Study-Binder-TransitionalFireAttack.pdf`
   - 25 gal applied into a second-floor fire room reduced fire-room temperature from about 1792 F to 632 F in 10 s.
   - The adjacent hallway dropped from about 273 F to 104 F in the same 10 s interval.
 
-- `Docu Simufire/NIST/nbstechnicalnote1629.pdf`
+- `docs/literature/NIST/nbstechnicalnote1629.pdf`
   - Wind-driven flow paths rapidly force hot gases from the fire apartment into corridors/stairs.
   - Wind control, exterior water, and coordinated tactics reduce the thermal hazard.
 

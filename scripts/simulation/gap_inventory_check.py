@@ -93,7 +93,7 @@ def main() -> int:
 
     repo_root = Path(__file__).resolve().parent.parent.parent
     json_path = Path(args.json) if args.json else repo_root / "sim/validation/reports/reference_checks.json"
-    inv_path  = Path(args.inventory) if args.inventory else repo_root / "docs/GAPS_INVENTORY.md"
+    inv_path  = Path(args.inventory) if args.inventory else repo_root / "docs/validation/GAPS_INVENTORY.md"
 
     W = 72
     print()
@@ -198,7 +198,7 @@ def main() -> int:
         if not all_req_pass:
             print("  → Revisar required failures antes de cualquier otra acción.")
         if not doc_match and documented is not None:
-            print("  → Actualizar el encabezado de docs/GAPS_INVENTORY.md con el conteo real.")
+            print("  → Actualizar el encabezado de docs/validation/GAPS_INVENTORY.md con el conteo real.")
 
     print("=" * W)
     print()

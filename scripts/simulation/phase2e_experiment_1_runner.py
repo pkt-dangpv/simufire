@@ -321,7 +321,7 @@ def main() -> int:
     print("=" * W)
     print("  Experimento completado. Los reports experimentales no modifican")
     print("  reference_checks.json ni los baselines de referencia.")
-    print("  Para documentar resultados ver docs/PHASE_2E_DESIGN.md.")
+    print("  Para documentar resultados ver docs/architecture/PHASE_2E_DESIGN.md.")
     print("=" * W)
     print()
 

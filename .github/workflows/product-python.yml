@@ -1,0 +1,42 @@
+name: Product Python Checks
+
+on:
+  push:
+    paths:
+      - 'tests/**/*.py'
+      - 'scripts/check_product.py'
+      - 'scripts/check_docs_links.py'
+      - 'i18n/**/*.json'
+      - 'scenarios/**/*.json'
+      - '.github/workflows/product-python.yml'
+  pull_request:
+    paths:
+      - 'tests/**/*.py'
+      - 'scripts/check_product.py'
+      - 'scripts/check_docs_links.py'
+      - 'i18n/**/*.json'
+      - 'scenarios/**/*.json'
+      - '.github/workflows/product-python.yml'
+
+jobs:
+  python-product:
+    name: Python product checks without Godot
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Documentation links
+        run: python scripts/check_docs_links.py
+
+      - name: UI localization tests
+        run: python -m unittest tests.test_ui_localization -v
+
+      - name: Editor scenario JSON tests
+        run: python -m unittest tests.test_editor_scenarios -v

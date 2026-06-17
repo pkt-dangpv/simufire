@@ -10,7 +10,7 @@ $ErrorActionPreference = "Stop"
 if ([string]::IsNullOrWhiteSpace($LibraryRoot)) {
     $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
     $projectRoot = Split-Path -Parent $scriptDirectory
-    $LibraryRoot = Join-Path $projectRoot "Docu Simufire"
+    $LibraryRoot = Join-Path $projectRoot "docs/literature"
 }
 
 function Invoke-WebRequestCompat {

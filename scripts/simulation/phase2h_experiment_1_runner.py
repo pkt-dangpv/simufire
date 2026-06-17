@@ -423,7 +423,7 @@ def main() -> int:
     print()
     print("  NOTA: los checks de o2_lower (cfast_2r_r0_t*_o2_lower, etc.) requieren")
     print("  ejecutar la suite completa de validación con el flag ON activado.")
-    print("  Ver docs/PHASE_2E_DESIGN.md §12 para el protocolo de verificación.")
+    print("  Ver docs/architecture/PHASE_2E_DESIGN.md §12 para el protocolo de verificación.")
     print("=" * W)
     print()
 

@@ -41,6 +41,14 @@ sim/validation/cfast/*.csv.import
 # Cache
 .matplotlib-cache/
 
+# Historical archives kept intentionally in the repository
+!docs/archive/
+!docs/archive/**
+!docs/literature/
+!docs/literature/**
+!tools/archive/
+!tools/archive/**
+
 # Sistema
 .DS_Store
 Thumbs.db

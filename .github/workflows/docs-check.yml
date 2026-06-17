@@ -1,0 +1,46 @@
+name: Documentation Checks
+
+on:
+  push:
+    paths:
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'CHANGELOG.md'
+      - 'docs/**/*.md'
+      - 'scripts/check_docs_links.py'
+      - '.github/workflows/docs-check.yml'
+  pull_request:
+    paths:
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'CHANGELOG.md'
+      - 'docs/**/*.md'
+      - 'scripts/check_docs_links.py'
+      - '.github/workflows/docs-check.yml'
+
+jobs:
+  docs:
+    name: Docs link and structure checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check Markdown links
+        run: python scripts/check_docs_links.py
+
+      - name: Check required documentation entrypoints
+        shell: bash
+        run: |
+          test -f README.md
+          test -f CONTRIBUTING.md
+          test -f CHANGELOG.md
+          test -f docs/INDEX.md
+          test -f docs/COMMANDS.md
+          test -f docs/architecture/PROGRAM_FLOW.md
