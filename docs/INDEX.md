@@ -31,6 +31,7 @@ Este índice separa la documentación vigente del histórico, bibliografía y ar
 - [architecture/TWO_ZONE_ENGINE_MIGRATION_PLAN.md](architecture/TWO_ZONE_ENGINE_MIGRATION_PLAN.md): plan de migración del motor two-zone.
 - [architecture/PHASE_2E_DESIGN.md](architecture/PHASE_2E_DESIGN.md): diseño fase 2E.
 - [architecture/PHASE_2E_CO2_DESIGN.md](architecture/PHASE_2E_CO2_DESIGN.md): diseño específico CO2 fase 2E.
+- [architecture/ILV_COMBUSTION_REGIME_PLAN.md](architecture/ILV_COMBUSTION_REGIME_PLAN.md): plan para detectar y modelar combustión ILV, infraventilada y ventilada sin tocar motor todavía.
 
 ## Auditorías
 
