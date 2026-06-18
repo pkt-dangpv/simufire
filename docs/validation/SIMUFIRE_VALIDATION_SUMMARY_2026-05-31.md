@@ -190,7 +190,7 @@ test_guardrails.py           →  Ran 13 tests  OK
 | [docs/audits/PUBLICATION_READINESS_AUDIT_2026-05-31.md](../audits/PUBLICATION_READINESS_AUDIT_2026-05-31.md) | Auditoría completa pre-publicación (interna) |
 | [docs/audits/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md](../audits/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md) | Calibración FED/HCN detallada |
 | [docs/validation/GAPS_INVENTORY.md](GAPS_INVENTORY.md) | Inventario completo de gaps |
-| [docs/planning/FINAL_VALIDATION_AND_PUBLICATION_PLAN.md](../planning/FINAL_VALIDATION_AND_PUBLICATION_PLAN.md) | Plan de validación y publicación |
+| [docs/planning/MASTER_ROADMAP_CURRENT.md](../planning/MASTER_ROADMAP_CURRENT.md) | Hoja de ruta activa de validación, hotfix FP e ILV |
 
 ---
 

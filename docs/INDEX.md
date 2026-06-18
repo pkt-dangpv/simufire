@@ -48,10 +48,7 @@ Este índice separa la documentación vigente del histórico, bibliografía y ar
 
 ## Roadmaps y Planificación
 
-- [roadmaps/ROADMAP_POST_V0_4_0.md](roadmaps/ROADMAP_POST_V0_4_0.md): roadmap posterior a v0.4.0.
-- [roadmaps/ROADMAP_TECHNICAL_SIMULATOR_V0_5.md](roadmaps/ROADMAP_TECHNICAL_SIMULATOR_V0_5.md): roadmap técnico hacia v0.5.
-- [planning/FINAL_VALIDATION_AND_PUBLICATION_PLAN.md](planning/FINAL_VALIDATION_AND_PUBLICATION_PLAN.md): plan final de validación/publicación.
-- [planning/PLAN_TRABAJO.md](planning/PLAN_TRABAJO.md): plan de trabajo.
+- [planning/MASTER_ROADMAP_CURRENT.md](planning/MASTER_ROADMAP_CURRENT.md): hoja de ruta activa y fuente de verdad para validación CFAST, hotfix FP e ILV.
 - [planning/EDITOR_FLOW_CHECKLIST.md](planning/EDITOR_FLOW_CHECKLIST.md): checklist del flujo de editor.
 
 ## Histórico y Archivo
