@@ -37,6 +37,8 @@
         "glass_break_mode": 0,
         "fire_spread_enabled": false,
         "fire_co_yield_force_kg_per_MJ": 0.0062,
-        "fire_smoke_yield_force_kg_per_MJ": 0.015
+        "fire_smoke_yield_force_kg_per_MJ": 0.015,
+        "hrr_chi_rad_normal": 0.45,
+        "hrr_chi_rad_low_o2": 0.45
     }
 }
