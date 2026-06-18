@@ -1,6 +1,6 @@
 # Current Handoff State
 
-Date: 2026-06-17.
+Date: 2026-06-18.
 
 ## Purpose
 
@@ -67,21 +67,48 @@ No simulation motor, editor runtime, visualizer runtime, scenes, HUD logic or ph
 
 Do not try to make `validation_guardrails.py` green by widening tolerances, rewriting reports or reclassifying required failures unless the scientific validation decision has been explicitly reviewed.
 
-## Suggested Next Step
+## Estado actual de esta máquina (2026-06-18)
 
-Close this repository hygiene phase as its own commit or series of commits, then handle validation failures as a separate workstream.
+- Rama: `main`.
+- Commit remoto base de hoja de ruta: `4bacebd Consolidate active roadmap`.
+- Commit local de handoff pendiente de subir al iniciar este guardado: `f76e5ba docs(handoff): update sync state 2026-06-18 — power loss on other machine`.
+- 16/350 required FAIL en validation guardrails (esperado, no es regresión).
+- El plan ILV está documentado pero sin implementar.
+- Hoja de ruta activa: `docs/planning/MASTER_ROADMAP_CURRENT.md`.
+- No hay cambios de motor/core en la hoja de ruta ni en este handoff.
+
+## Próximo paso recomendado
+
+Ejecutar baseline de guardrails para confirmar 16/350 antes de tocar motor:
+
+```powershell
+python scripts\simulation\validation_guardrails.py --verbose
+```
+
+Después atacar **Grupo A** (`cfast_r0_window_360` O2): diagnóstico sin tocar motor.
+
+## Estado guardado ahora (2026-06-18)
+
+- La planificación activa quedó consolidada en `docs/planning/MASTER_ROADMAP_CURRENT.md`.
+- Se retiraron de la planificación activa los roadmaps antiguos que podían confundir:
+  - `docs/planning/FINAL_VALIDATION_AND_PUBLICATION_PLAN.md`
+  - `docs/planning/PLAN_TRABAJO.md`
+  - `docs/roadmaps/ROADMAP_POST_V0_4_0.md`
+  - `docs/roadmaps/ROADMAP_TECHNICAL_SIMULATOR_V0_5.md`
+- El siguiente trabajo real no es ILV todavía salvo decisión expresa: primero confirmar baseline y atacar validación Grupo A.
+- El hotfix FP queda como línea pendiente independiente: diagnosticar saltos de temperatura antes de tocar física/HUD.
 
 ## Other Machine Sync Protocol
 
-Context recorded on 2026-06-17:
+Context recorded on 2026-06-18:
 
-- The user pushed the repository hygiene commit from this machine/session.
-- Another machine may contain partial local work because power was lost while work was in progress.
-- Do not assume that the other machine is clean.
-- Do not run `git pull`, `git reset`, `git restore` or conflict-resolution commands blindly on that machine.
-- Do not touch `sim/core` until explicitly authorized.
+- Se perdió corriente en la otra máquina mientras ejecutaba Claude. El repo en esta máquina está limpio (ver `git status`).
+- La otra máquina puede tener cambios locales sin commitear del trabajo anterior.
+- No asumir que la otra máquina está limpia.
+- No ejecutar `git pull`, `git reset`, `git restore` ni resolución de conflictos a ciegas en esa máquina.
+- No tocar `sim/core` hasta autorización explícita.
 
-When continuing on the other machine, inspect first:
+Cuando se retome en la otra máquina, inspeccionar primero:
 
 ```powershell
 git status --short
