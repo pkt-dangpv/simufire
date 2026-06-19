@@ -102,6 +102,7 @@ Todos preexistentes al hotfix. Verificado mediante `git show 1e34ef5:sim/validat
 
 > Auditoría de equivalencia (2026-06-19): ver `docs/validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md`.
 > Resultado corto: 14/15 fallos se clasifican como gaps válidos de arquitectura/modelo; `cfast_multifuel_rmse_temp_upper_c` además tiene referencia trackeada stale (`reference_checks.json` muestra 200.86) frente a diagnósticos frescos (232.5 sellado, 204.65 con apertura 0.25 descartada) y topología CFAST vented vs SF sealed.
+> Auditoría de modelos (2026-06-19): ver `docs/validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md`. Hallazgos principales: `cfast_multi_fuel_couch_tv` no es topológicamente equivalente (CFAST puerta exterior abierta vs SF ventana cerrada), `cfast_corridor_chain` tiene R2 CFAST 33.6 m³ vs SF 25.2 m³, `cfast_window_break_t180` usa geometría de ventana distinta, y Ghanekar kitchen/living es aproximado/no estricto.
 
 ### Grupo A — `cfast_r0_window_360` (→ 0 fallos originales, 3 nuevos O₂ parcialmente estructurales)
 

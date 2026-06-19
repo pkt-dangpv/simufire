@@ -17,6 +17,8 @@ Este índice separa la documentación vigente del histórico, bibliografía y ar
 
 - [validation/SIMUFIRE_VALIDATION_SUMMARY_2026-05-31.md](validation/SIMUFIRE_VALIDATION_SUMMARY_2026-05-31.md): resumen de validación para terceros.
 - [validation/STATUS_VALIDATION.md](validation/STATUS_VALIDATION.md): estado amplio de validación.
+- [validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md](validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md): auditoría de equivalencia de los 15 fallos CFAST actuales.
+- [validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md](validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md): auditoría de geometría/topología de modelos CFAST y Ghanekar.
 - [validation/GAPS_INVENTORY.md](validation/GAPS_INVENTORY.md): inventario de gaps técnicos y científicos.
 - [../sim/validation/](../sim/validation/): casos, baselines, reportes y herramientas del carril de validación científica.
 

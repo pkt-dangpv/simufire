@@ -13,11 +13,13 @@ This note records the repository hygiene and validation state after the non-moto
 - Current validation baseline: `335/350` required PASS, `15/350` required FAIL.
 - `docs/validation/STATUS_VALIDATION.md` is the current validation source of truth.
 - `docs/validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md` records the equivalence audit for the 15 required FAILs.
+- `docs/validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md` records the dwelling-model audit across CFAST/Ghanekar comparison cases.
 - A-E validation groups were diagnosed and documented.
 - Group C `cfast_corridor_chain` t300 was resolved by `doorway_thermal_counterflow_gain=0.25` in `sim/validation/cases/cfast_corridor_chain.json`.
 - Remaining Group C t180/t600 failures are still structural M3/Phase 2 gaps.
 - `cfast_multifuel_rmse_temp_upper_c` was confirmed as a C3 topology gap: CFAST vented exterior-door scenario vs SF sealed room/pasillo topology.
 - Equivalence audit result: 14/15 current FAILs are valid architecture gaps; `cfast_multifuel_rmse_temp_upper_c` also has a stale tracked reference value (`200.86`) versus fresh diagnostics (`232.5` sealed baseline, `204.65` with rejected open=0.25 experiment).
+- Model audit result: some comparison models are valid macro approximations, but `cfast_multi_fuel_couch_tv`, `cfast_corridor_chain` R2, `cfast_window_break_t180`, and Ghanekar kitchen/living have geometry/topology caveats that must be fixed before strict calibration.
 - No motor/core code, tolerances or required/known-gap classifications were changed in this session.
 
 Validation commands run during this session:
