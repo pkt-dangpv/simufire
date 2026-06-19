@@ -100,6 +100,9 @@ Todos preexistentes al hotfix. Verificado mediante `git show 1e34ef5:sim/validat
 
 ## Los 15 fallos actuales
 
+> Auditoría de equivalencia (2026-06-19): ver `docs/validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md`.
+> Resultado corto: 14/15 fallos se clasifican como gaps válidos de arquitectura/modelo; `cfast_multifuel_rmse_temp_upper_c` además tiene referencia trackeada stale (`reference_checks.json` muestra 200.86) frente a diagnósticos frescos (232.5 sellado, 204.65 con apertura 0.25 descartada) y topología CFAST vented vs SF sealed.
+
 ### Grupo A — `cfast_r0_window_360` (→ 0 fallos originales, 3 nuevos O₂ parcialmente estructurales)
 
 **Phase 4A COMPLETO.** Los 5 fallos originales están resueltos. Quedan 3 fallos de O₂ nuevos (parcialmente estructurales por brecha Phase 2).
