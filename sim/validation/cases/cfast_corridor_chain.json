@@ -30,7 +30,14 @@
 			"a": 1,
 			"b": 2,
 			"type": "door",
+			"width_m": 0.9,
 			"open_fraction": 1.0
+		},
+		{
+			"a": 0,
+			"b": 4,
+			"type": "door",
+			"open_fraction": 0.0
 		},
 		{
 			"a": 0,

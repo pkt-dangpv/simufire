@@ -1,7 +1,7 @@
 # SimuFire — Estado de validación CFAST
 
 > Última actualización: 2026-06-19
-> Branch: `main` · HEAD: Phase 10 — C5 origin_peak/far_hall O₂ (chi_rad=0.55) + C6 kitchen CO IDLH (co_yield −40%)
+> Branch: `main` · HEAD: Equivalencia CFAST geometría/topología — multifuel ventilado (RMSE PASS), corridor_chain R2+topología auditada, 14 required FAIL
 > Fallos requeridos actuales: **14 / 350** — equivalencia CFAST corregida en `window_break`, `multifuel` y `corridor_chain` R2; `cfast_multifuel_rmse_temp_upper_c` pasa
 
 ---
@@ -46,6 +46,7 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Grupo C gain=0.25 | `doorway_thermal_counterflow_gain=0.25` en `cfast_corridor_chain.json`. Resuelve `cfast_chain_r0_t300_temp_upper_c` con mínima perturbación: t300=147.00°C pasa por 1.16°C; t180 empeora dentro del fallo preexistente; O₂ sigue PASS. | **16** → **15** |
 | Exp. multifuel open=0.25 | `open_fraction=0.25` en ventana exterior de `cfast_multi_fuel_couch_tv.json`. RMSE fresco=204.65°C (sigue > 200°C umbral); rompe checks internos de temperatura y humo. Revertido. Confirma que la topología de venting es el eje correcto. | **15** → **15** (rechazado) |
 | Equivalencia CFAST 2026-06-19 | `cfast_window_break_t180`: geometría ventana 1.2x1.0 sill 0.8; `cfast_multi_fuel_couch_tv`: apertura exterior equivalente 0.9x2.0 abierta desde t=0; `cfast_corridor_chain`: R2 CFAST corregido a 25.2 m³ y outputs CFAST regenerados. Multifuel RMSE=183.79°C PASS; window-break pressure gap cierra; corridor required sin cambio. | **15** → **14** |
+| Topología corridor_chain | Puerta Hall↔R2 `width_m=0.9` y cierre Salón↔Cocina (r0↔r4) en `cfast_corridor_chain.json`. Cocina no existe en CFAST; el template la tenía abierta por defecto. Corrida fresca confirma t180=189.76°C y t600=105.8°C invariantes — fallos son gaps estructurales de intercambio entálpico, no artefactos topológicos. | **14** → **14** (confirmado) |
 
 ---
 
@@ -259,6 +260,7 @@ python scripts/simulation/validate_reference_cases.py
 **M3b DESACTIVADO (Phase 7).** `o2_return_fraction=0.0`; reemplazado por canonical Part B con conservación de entalpía real.  
 **Phase 7 COMPLETO.** Canonical habilitado; Part B corregida.
 **Experimento gain=0.25 COMPLETO (2026-06-19).** `doorway_thermal_counterflow_gain=0.25` resuelve t300 con mínima perturbación. Quedan 2 fallos required (gap estructural) + 1 KNOWN_DEVIATION (RMSE térmico).
+**Auditoría topológica COMPLETA (2026-06-19).** Gaps de geometría/topología corregidos: Hall↔R2 door fijada a `width_m=0.9` (coincide con CFAST) y puerta Salón↔Cocina (r0↔r4) cerrada (Cocina no existe en CFAST). Corrida fresca post-corrección confirma t180=189.76°C y t600=105.8°C **sin cambio** — los fallos t180/t600 son gaps estructurales de intercambio entálpico en puertas, no artefactos de topología.
 
 Escenario: fuego en sala 0 (α=0.047 kW/s², max 300 kW), puertas abiertas r0↔r1 y r1↔r2, ventana r0 cerrada, 600 s.
 
