@@ -6,52 +6,54 @@ Date: 2026-06-19.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
-## Current Session Update — 2026-06-19
+## Current Session Update — 2026-06-19 (final)
 
-- Branch: `main`, synchronized with `origin/main`.
-- Latest pushed commit before this work: `72c4e98 docs(validation): audit CFAST and Ghanekar model geometry`.
-- Current validation baseline: `336/350` required PASS, `14/350` required FAIL.
+- Branch: `main`. Commits ahead of origin: 1 (pending push).
+- Latest committed: `9ffd38c diag(validation): audit two_room topology and diagnose RMSE=88C as Phase 2 gap`.
+- Current validation baseline: `336/350` required PASS, **`14/350` required FAIL** — unchanged from equivalence audit.
 - `docs/validation/STATUS_VALIDATION.md` is the current validation source of truth.
-- `docs/validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md` records the equivalence audit and 2026-06-19 resolution that reduced required FAILs to 14.
-- `docs/validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md` records the dwelling-model audit across CFAST/Ghanekar comparison cases.
-- A-E validation groups were diagnosed and documented.
-- Group C `cfast_corridor_chain` t300 was resolved by `doorway_thermal_counterflow_gain=0.25` in `sim/validation/cases/cfast_corridor_chain.json`.
-- Remaining Group C t180/t600 failures are still structural M3/Phase 2 gaps.
-- `cfast_multifuel_rmse_temp_upper_c` was resolved by matching the CFAST vented exterior-door topology with a 0.9x2.0 exterior opening open from t=0. Fresh RMSE=183.79°C <= 200°C.
-- `cfast_window_break_t180` now matches CFAST window geometry (1.2x1.0, sill 0.8); the t300 pressure known gap now passes.
-- `cfast_corridor_chain.in` R2 now matches SimuFire at 25.2 m3 and CFAST outputs were regenerated; required R0 t180/t600 failures remain structural.
-- Equivalence audit result: all 14 current required FAILs are valid architecture/model gaps after geometry/topology reconciliation.
-- Model audit result: CFAST multifuel/window/corridor R2 caveats were corrected; Ghanekar kitchen/living remains approximate/no estricto.
-- No motor/core code, tolerances or required/known-gap classifications were changed in this session.
+- `docs/validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md` records the full equivalence audit.
+- `docs/validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md` records the dwelling-model audit.
 
-Validation commands run during this session:
+### What was done in this session
 
-```powershell
-python scripts\simulation\validate_reference_cases.py
-python scripts\simulation\validation_guardrails.py --verbose
-python scripts\check_docs_links.py
-git diff --check
-```
+- **Equivalence audit CFAST (commits `b27d5ee`, `72c4e98`, `230a098`):** corrected geometry/topology in `cfast_window_break_t180`, `cfast_multi_fuel_couch_tv`, and `cfast_corridor_chain.in` R2. Multifuel RMSE resolved (15→14 required FAILs).
+- **`cfast_two_room_door_open` topology fix + diagnosis (`9ffd38c`):** closed Pasillo↔Dorm1 (r1↔r2) and Salon↔Cocina (r0↔r4) to match CFAST 2-compartment topology. Zero effect on RMSE=88.0°C — confirms Phase 2 structural gap.
 
-Current guardrail state:
+### two_room RMSE root cause (C3 — Phase 2 gap)
 
-- Required checks: FAIL, expected, `14` required failures.
+RMSE window: t=[0,350]s, threshold 60°C. Actual: 88.0°C (FAIL).
+
+Curve pattern: SF overshoots CFAST by +132°C at t=120s (early spike), then undershoots by −174°C at t=250s (fire throttled). Root cause: `O2u` in R0 depletes to 3.96% by t=180s while CFAST fire still grows to its natural peak at t≈240s. Hall/Pasillo has O2u=20.7% (nearly fresh), but without `canonical_doorway_exchange_enabled` SF cannot replenish R0 upper layer O2 from adjacent compartment. No safe per-case fix. Requires Phase 2: two-zone canonical combustion + bidirectional doorway O2/enthalpy exchange.
+
+### Current guardrail state
+
+- Required checks: FAIL — `14` required failures, all confirmed VALID_GAP.
 - Known gaps: `75` non-gating gaps in JSON and docs.
-- Gap inventory count: synchronized, but guardrail still reports FAIL because required checks remain.
-- Phase 2E sentinel: still FAIL on `g4 FED timing [s]`.
+- Gap inventory count: synchronized.
+- Phase 2E sentinel: FAIL on `g4 FED timing [s]` (pre-existing, not caused by this session).
 - Carbon/HCN sentinels: PASS.
 - Legacy/two-zone contract: PASS.
-- CFAST truth integrity: PASS.
+- CFAST truth integrity: PASS (99/99).
 - Physics override linter: PASS.
 
-Recommended next work:
+### 14 required FAILs by group
 
-1. If pausing or changing machine, start from `docs/validation/STATUS_VALIDATION.md` and this handoff.
-2. If continuing validation, treat the next low-risk experiment as separate work:
-   - `cfast_two_room_door_open`: C3 RMSE per-stage diagnosis.
-   - `cfast_corridor_chain`: only with a full doorway mass+energy plan, not another scalar gain sweep.
-3. If prioritizing product/UX, resume the FP temperature HUD investigation below.
-4. Do not start ILV or Phase 2C HVAC without an explicit architecture pass.
+| Group | Checks | Root cause |
+|-------|--------|------------|
+| A — r0_window_360 (×3) | O2 upper vs bulk | Phase 2 gap (early_opening_signal=0) |
+| B — slow_growth_sealed (×2) | temp_upper | Phase 2 gap (thermal/O2 coupling) |
+| C — corridor_chain (×2) | t180+t600 temp | Phase 2 gap (M3 doorway enthalpy) |
+| D — bedroom_closed_door (×5) | O2 upper | Phase 2 gap (bulk vs upper combustion) |
+| E — two_room_door_open (×1) | RMSE t=[0,350] | Phase 2 gap (O2u+canonical doorway exchange) |
+| E — hvac_residential (×1) | O2 t300 | Phase 2C gap (HVAC upper/lower coupling) |
+
+### Recommended next work
+
+1. **`cfast_hvac_t300_o2` diagnosis** — run `cfast_hvac_residential` fresh, compare O2 upper/lower/bulk vs CFAST by tramo, confirm if failure is `fire_o2_lower_for_flame`, missing mass tracking, or HVAC-room exchange gap. Verdict: per-case fix yes/no; if not, document as Phase 2C confirmed.
+2. **Phase 2 architecture** — design canonical two-zone combustion with bidirectional doorway O2 exchange to resolve groups A, C, D, E simultaneously.
+3. Do not start ILV without explicit instruction.
+4. Do not activate M2 global (`fire_o2_mass_tracking`) — it broke 10+ checks.
 
 ## What Changed
 
