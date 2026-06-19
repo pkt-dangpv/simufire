@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-06-12T21:13:11.003442+00:00",
+  "generated_utc": "2026-06-19T20:20:33.668413+00:00",
   "cfast_version_note": "CFAST 7.7.x — versión exacta registrada en sim/validation/cfast/codex_cfast_run si el directorio existe. Para regenerar CSVs instalar CFAST 7.7 y ejecutar regenerate_truth.ps1.",
   "source_dir": "sim/validation/cfast",
   "file_count": 99,
@@ -9,8 +9,8 @@
       "size_bytes": 2423
     },
     "sim/validation/cfast/cfast_corridor_chain.in": {
-      "sha256": "13880aae5553acc57c78537946ed7fae219e000c44ec78d813ea9499fb436bea",
-      "size_bytes": 3378
+      "sha256": "29e84f4192c0632b03d8084bbaf3cfce148132b9079a7d7506388ea0e0e1b593",
+      "size_bytes": 3417
     },
     "sim/validation/cfast/cfast_door_close_midfire.in": {
       "sha256": "c11a1a769e3ebbcd90812c00f00a1686cf274555bf57381fac4da8376f1feb96",
@@ -97,28 +97,28 @@
       "size_bytes": 23655
     },
     "sim/validation/cfast/cfast_corridor_chain_compartments.csv": {
-      "sha256": "ce1a302f471a495c58d2094f4d933660c5d88abdde0dade664b1464e4122b8b0",
-      "size_bytes": 87175
+      "sha256": "0636b4459643c260ee6dc789be28a4c680b39bdd1b3267e00709641adf619280",
+      "size_bytes": 85855
     },
     "sim/validation/cfast/cfast_corridor_chain_devices.csv": {
       "sha256": "da353b7ece095157fc5e2da2c171a215d630ed7be8324eebaa4f00fc10b97706",
       "size_bytes": 2252
     },
     "sim/validation/cfast/cfast_corridor_chain_masses.csv": {
-      "sha256": "480a947ff35f73cf4e6a7177fdab2edecd1a7d8c07bd340b9537d50cace9d723",
-      "size_bytes": 67423
+      "sha256": "95389663a1221feca05312a83cff6db452ab9fc115152e0cd43f6a4aa110cc4f",
+      "size_bytes": 66103
     },
     "sim/validation/cfast/cfast_corridor_chain_vents.csv": {
-      "sha256": "05d8086244052f11a28f346e48b8d8b0c69b2a63264cf239ebdd4cd074aa1b27",
-      "size_bytes": 11101
+      "sha256": "758b4762647231fbeb096405d505dab0a794e2aa34a836f537ed56f4268d1265",
+      "size_bytes": 9781
     },
     "sim/validation/cfast/cfast_corridor_chain_walls.csv": {
-      "sha256": "fc7387076a38028e7a7883d682ce65706ddbd7f982104a6f444d7017c085d717",
-      "size_bytes": 12757
+      "sha256": "a2e6b0322dffbfbb2d036a5b362f4b9b92f91d96f7521bcc445e8dba93e591ca",
+      "size_bytes": 11437
     },
     "sim/validation/cfast/cfast_corridor_chain_zone.csv": {
-      "sha256": "9a2f4f8e1cf0c699c5d1e7c4cd4228fef5b4b26feb2cc1ff3ec844d971b4ec22",
-      "size_bytes": 107965
+      "sha256": "bd6939df0225ad414dca4e2d07b45e3f61c3a6ed76b9748197ca88b1cfed08ea",
+      "size_bytes": 106645
     },
     "sim/validation/cfast/cfast_door_close_midfire_compartments.csv": {
       "sha256": "e87f0a0190292dc27f709a04c30023e19f915a4d7150de4ba44c5dd5179ebd27",

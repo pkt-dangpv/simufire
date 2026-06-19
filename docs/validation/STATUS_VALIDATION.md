@@ -2,7 +2,7 @@
 
 > Última actualización: 2026-06-19
 > Branch: `main` · HEAD: Phase 10 — C5 origin_peak/far_hall O₂ (chi_rad=0.55) + C6 kitchen CO IDLH (co_yield −40%)
-> Fallos requeridos actuales: **15 / 350** — Phase 10 reduce 3 fallos; experimento Grupo C gain=0.25 resuelve `cfast_chain_r0_t300_temp_upper_c`
+> Fallos requeridos actuales: **14 / 350** — equivalencia CFAST corregida en `window_break`, `multifuel` y `corridor_chain` R2; `cfast_multifuel_rmse_temp_upper_c` pasa
 
 ---
 
@@ -44,7 +44,8 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Phase 10-C5 | `hrr_chi_rad_normal=hrr_chi_rad_low_o2=0.55` en `ghanekar_bedroom_hallway.json`. Reduce fracción convectiva 0.65→0.45 → origin_peak 868→537°C ✓. Bonus: menos buoyancy → O₂ exchange más tardío → far_hall_o2_response 161.5→193.0s ✓. | **19** → **17** |
 | Phase 10-C6 | `co_base_yield=0.00015, co_max_yield=0.00750` en `ghanekar_kitchen_living_room.json` (−40% del default). CO IDLH en pasillo lejano 524→545s ✓. FED 1.0: 650→665s (dentro de [498,750]). Cero regresiones. | **17** → **16** |
 | Grupo C gain=0.25 | `doorway_thermal_counterflow_gain=0.25` en `cfast_corridor_chain.json`. Resuelve `cfast_chain_r0_t300_temp_upper_c` con mínima perturbación: t300=147.00°C pasa por 1.16°C; t180 empeora dentro del fallo preexistente; O₂ sigue PASS. | **16** → **15** |
-| Exp. multifuel open=0.25 | `open_fraction=0.25` en ventana exterior de `cfast_multi_fuel_couch_tv.json`. RMSE fresco=204.65°C (sigue > 200°C umbral); rompe checks internos de temperatura y humo. Revertido. Confirma C3 estructural por topología de venting. | **15** → **15** (rechazado) |
+| Exp. multifuel open=0.25 | `open_fraction=0.25` en ventana exterior de `cfast_multi_fuel_couch_tv.json`. RMSE fresco=204.65°C (sigue > 200°C umbral); rompe checks internos de temperatura y humo. Revertido. Confirma que la topología de venting es el eje correcto. | **15** → **15** (rechazado) |
+| Equivalencia CFAST 2026-06-19 | `cfast_window_break_t180`: geometría ventana 1.2x1.0 sill 0.8; `cfast_multi_fuel_couch_tv`: apertura exterior equivalente 0.9x2.0 abierta desde t=0; `cfast_corridor_chain`: R2 CFAST corregido a 25.2 m³ y outputs CFAST regenerados. Multifuel RMSE=183.79°C PASS; window-break pressure gap cierra; corridor required sin cambio. | **15** → **14** |
 
 ---
 
@@ -94,15 +95,17 @@ Todos preexistentes al hotfix. Verificado mediante `git show 1e34ef5:sim/validat
 
 **Actualización Phase 10:** fallos 19 y 20 (ghanekar_far_hall_o2 y ghanekar_origin_peak) resueltos con `hrr_chi_rad_normal=hrr_chi_rad_low_o2=0.55` en bedroom. Fallo 21 (ghanekar_kitchen_idlh_co) resuelto con co_base/co_max −40% en kitchen. Baseline post-Phase 10: **16/350**.
 
-**Actualización Grupo C (2026-06-19):** `doorway_thermal_counterflow_gain=0.25` resuelve `cfast_chain_r0_t300_temp_upper_c`. Baseline actual: **15/350**.
+**Actualización Grupo C (2026-06-19):** `doorway_thermal_counterflow_gain=0.25` resuelve `cfast_chain_r0_t300_temp_upper_c`. Baseline: **15/350**.
+
+**Actualización equivalencia CFAST (2026-06-19):** la auditoría de modelos corrigió tres discrepancias de escenario: `cfast_window_break_t180` ahora usa la ventana CFAST 1.2x1.0, `cfast_multi_fuel_couch_tv` ahora representa la puerta exterior CFAST como apertura 0.9x2.0 abierta, y `cfast_corridor_chain.in` usa R2=25.2 m³ como SimuFire. Baseline actual: **14/350**.
 
 ---
 
-## Los 15 fallos actuales
+## Los 14 fallos actuales
 
 > Auditoría de equivalencia (2026-06-19): ver `docs/validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md`.
-> Resultado corto: 14/15 fallos se clasifican como gaps válidos de arquitectura/modelo; `cfast_multifuel_rmse_temp_upper_c` además tiene referencia trackeada stale (`reference_checks.json` muestra 200.86) frente a diagnósticos frescos (232.5 sellado, 204.65 con apertura 0.25 descartada) y topología CFAST vented vs SF sealed.
-> Auditoría de modelos (2026-06-19): ver `docs/validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md`. Hallazgos principales: `cfast_multi_fuel_couch_tv` no es topológicamente equivalente (CFAST puerta exterior abierta vs SF ventana cerrada), `cfast_corridor_chain` tiene R2 CFAST 33.6 m³ vs SF 25.2 m³, `cfast_window_break_t180` usa geometría de ventana distinta, y Ghanekar kitchen/living es aproximado/no estricto.
+> Resultado corto: tras corregir las discrepancias de geometría/topología detectadas, los 14 fallos required restantes se clasifican como gaps válidos de arquitectura/modelo.
+> Auditoría de modelos (2026-06-19): ver `docs/validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md`. Hallazgos corregidos: `cfast_multi_fuel_couch_tv` venting exterior, `cfast_corridor_chain` R2, y `cfast_window_break_t180` geometría de ventana. Ghanekar kitchen/living sigue siendo aproximado/no estricto.
 
 ### Grupo A — `cfast_r0_window_360` (→ 0 fallos originales, 3 nuevos O₂ parcialmente estructurales)
 
@@ -261,12 +264,12 @@ Escenario: fuego en sala 0 (α=0.047 kW/s², max 300 kW), puertas abiertas r0↔
 
 | Check | Actual | Esperado | Tolerancia | Estado |
 |-------|--------|----------|------------|--------|
-| `cfast_chain_r0_t180_temp_upper_c` | 189.76°C | 158.0°C | ±15°C | **FAIL** (+16.76°C desde umbral) |
-| `cfast_chain_r0_t300_temp_upper_c` | 147.00°C | 165.84°C | ±20°C | **PASS** (+1.16°C desde umbral) |
-| `cfast_chain_r0_t600_temp_upper_c` | 105.80°C | 168.39°C | ±30°C | **FAIL** (−32.59°C desde umbral) |
+| `cfast_chain_r0_t180_temp_upper_c` | 189.76°C | 159.82°C | ±15°C | **FAIL** (+14.94°C desde umbral) |
+| `cfast_chain_r0_t300_temp_upper_c` | 147.00°C | 166.27°C | ±20°C | **PASS** (+0.73°C desde umbral) |
+| `cfast_chain_r0_t600_temp_upper_c` | 105.80°C | 168.80°C | ±30°C | **FAIL** (−33.00°C desde umbral) |
 | ~~`cfast_chain_r0_o2_t480_o2`~~ | ~~0.077~~ | ~~0.117~~ | ~~±0.028~~ | **PASS** ✓ (resuelto Phase 4C) |
 | `cfast_chain_r0_o2_t600_o2` | **0.099** | 0.102 | ±0.015 | **PASS** ✓ (Phase 7) |
-| `cfast_chain_r0_rmse_temp_upper` | 43.29 | — | máx 60 | KNOWN_DEVIATION (required=False) ✓ |
+| `cfast_chain_r0_rmse_temp_upper` | 44.22 | — | máx 60 | KNOWN_DEVIATION (required=False) ✓ |
 
 **Causa raíz investigada (Phase 4C):**
 
@@ -282,18 +285,18 @@ Efecto: el entrainment repone `o2_upper` 2.5× más rápido → O₂ t=480 sube 
 
 | Check | Naturaleza | Accionable |
 |-------|------------|------------|
-| `cfast_chain_r0_t180_temp_upper_c` | Overshoot: 189.76°C vs máximo 173°C. El gain=0.25 calienta +3.41°C frente al baseline 0.30, pero el fallo ya era estructural. | No, gap estructural M3/masa+energía |
-| `cfast_chain_r0_t300_temp_upper_c` | Resuelto por `doorway_thermal_counterflow_gain=0.25`: 147.00°C vs mínimo 145.84°C. `gain=0.20` también pasaba, pero perturbaba más t180. | Sí, resuelto |
-| `cfast_chain_r0_t600_temp_upper_c` | Undershoot acumulado: 105.80°C vs mínimo 138.39°C. O₂ inferior sigue alto, pero el fuego usa `fire_o2_mode="upper"` y throttlea con `o2_upper`; la extracción por puertas domina después de t≈300 s. | No, gap estructural Phase 2 |
+| `cfast_chain_r0_t180_temp_upper_c` | Overshoot: 189.76°C vs máximo 174.82°C. El gain=0.25 calienta +3.41°C frente al baseline 0.30, pero el fallo ya era estructural. | No, gap estructural M3/masa+energía |
+| `cfast_chain_r0_t300_temp_upper_c` | Resuelto por `doorway_thermal_counterflow_gain=0.25`: 147.00°C vs mínimo 146.27°C. `gain=0.20` también pasaba, pero perturbaba más t180. | Sí, resuelto |
+| `cfast_chain_r0_t600_temp_upper_c` | Undershoot acumulado: 105.80°C vs mínimo 138.80°C. O₂ inferior sigue alto, pero el fuego usa `fire_o2_mode="upper"` y throttlea con `o2_upper`; la extracción por puertas domina después de t≈300 s. | No, gap estructural Phase 2 |
 
 O₂ ya está limpio en este caso:
 
 | Check | Actual | Esperado | Tolerancia | Margen útil |
 |-------|--------|----------|------------|-------------|
-| `cfast_chain_r0_o2_t480_o2` | 0.1001 | 0.1173 | ±0.028 | ~0.011 |
-| `cfast_chain_r0_o2_t600_o2` | 0.0992 | 0.1020 | ±0.015 | ~0.012 |
+| `cfast_chain_r0_o2_t480_o2` | 0.1001 | 0.1139 | ±0.028 | ~0.014 |
+| `cfast_chain_r0_o2_t600_o2` | 0.0992 | 0.1006 | ±0.015 | ~0.014 |
 
-`cfast_chain_r0_rmse_temp_upper` queda `required=False` como KNOWN_DEVIATION: RMSE=43.29 con umbral 60. La curva sigue siendo pico-decaimiento frente a la meseta CFAST, pero ya no bloquea la validación.
+`cfast_chain_r0_rmse_temp_upper` queda `required=False` como KNOWN_DEVIATION: RMSE=44.22 con umbral 60. La curva sigue siendo pico-decaimiento frente a la meseta CFAST, pero ya no bloquea la validación.
 
 **Experimento per-case aceptado (2026-06-19):** bajar `doorway_thermal_counterflow_gain` de 0.30 a 0.25 recupera t300 sin fallos required nuevos. Comparativa:
 
@@ -301,7 +304,7 @@ O₂ ya está limpio en este caso:
 |------|------|------|------|----------|
 | 0.30 baseline | 186.35 FAIL | 145.04 FAIL | 104.75 FAIL | 16/350 FAIL |
 | 0.20 test | 192.03 FAIL | 149.24 PASS | 106.95 FAIL | 15/350 FAIL |
-| 0.25 aceptado | 189.76 FAIL | 147.00 PASS | 105.80 FAIL | 15/350 FAIL |
+| 0.25 aceptado | 189.76 FAIL | 147.00 PASS | 105.80 FAIL | 15/350 FAIL; 14/350 tras corrección multifuel |
 
 Se acepta 0.25 por mínima perturbación: pasa t300 con margen suficiente (+1.16°C) y empeora menos t180 que 0.20.
 
@@ -339,25 +342,22 @@ La causa raíz coincide con Grupo A: SF en modo `legacy` consume `room.o2`/bulk,
 
 ---
 
-### Grupo E — Residuales actuales (3 fallos)
+### Grupo E — Residuales actuales (2 fallos)
 
 | Check | Actual | Esperado | Tolerancia | Caso |
 |-------|--------|----------|------------|------|
 | `cfast_2r_r0_rmse_temp_upper_c` | 88.0 | — | máx 60 | cfast_two_room_door_open |
 | `cfast_hvac_t300_o2` | 0.0009 | ~0.04 | ±0.015 | cfast_hvac_residential |
-| `cfast_multifuel_rmse_temp_upper_c` | 232.5 | — | máx 200 | cfast_multi_fuel_couch_tv |
 
 **`cfast_2r_r0_rmse_temp_upper_c` — C3 RMSE acumulado.** Caso `cfast_two_room_door_open`, 900 s, puerta r0↔r1 abierta. RMSE=88°C frente a máximo 60°C. El error no es un pico puntual: es drift integrado de temperatura superior durante toda la curva. SF sigue siendo one-zone por sala para el intercambio entálpico entre zonas de salas distintas; CFAST redistribuye calor con two-zone completo. No hay fix per-case seguro: activar `doorway_thermal_counterflow` aquí sin recalibración de casos con puertas abiertas arriesga regresiones. Requiere M3 completo/canonical validado o Phase 2.
 
 **`cfast_hvac_t300_o2` — C2 HVAC Phase 2C.** Caso `cfast_hvac_residential`, t=300 s. El fallo actual no es regresión del hotfix: el log Phase 8 que pasaba estaba contaminado por M2 (`fire_o2_mass_tracking_enabled=true`). Con M2=false, default correcto, el motor no rastrea `o2_lower` separado de forma suficiente para que el aire fresco HVAC reponga la fuente efectiva de combustión; el O₂ cae a 0.0009 frente a ~0.04 esperado. Una flag M2 per-case podría mover este caso, pero no es segura: M2 global rompió 10+ checks. Requiere aislamiento upper/lower real de Phase 2C.
 
-**`cfast_multifuel_rmse_temp_upper_c` — C3 topología vented/sealed.** Caso `cfast_multi_fuel_couch_tv`, 600 s. Corrida fresca 2026-06-19 confirma RMSE=232.5°C frente a máximo 200°C; el valor 200.86°C visto en `reference_checks.json` venía de log stale. La divergencia no nace del HRR: en t=60 SF tiene HRR menor que CFAST (122 kW vs 169 kW) pero temperatura muy superior (139°C vs 66°C). El patrón t=60-130 crece de +73°C a +355°C porque el escenario CFAST ventila gases calientes por una puerta exterior, mientras SF conserva la energía en una sala/pasillo cerrados. En t≈140 SF cae bruscamente al empezar el throttle por O₂, mientras CFAST sigue subiendo suavemente con ventilación exterior.
+**`cfast_multifuel_rmse_temp_upper_c` — resuelto por equivalencia de modelo (2026-06-19).** El diagnóstico inicial detectó que CFAST era un escenario ventilado por una puerta exterior 0.9x2.0 abierta desde t=0, mientras SimuFire estaba sellado (`open_fraction=0.0`). El experimento parcial `open_fraction=0.25` no bastó (RMSE=204.65°C y regresiones internas), pero la corrección equivalente completa sí: el caso ahora usa una apertura exterior 0.9x2.0, sill 0.0, `open_fraction=1.0`. Corrida fresca: RMSE=183.79°C frente a máximo 200°C, todos los checks required multifuel PASS. Queda solo presión t120 como known gap non-required.
 
-No hay fix escalar seguro: subir `chi_rad` o pérdidas térmicas no cierra un gap de 100-350°C, y retocar timing/alpha del HRR no ataca la causa. Experimento ejecutado 2026-06-19: `open_fraction=0.25` en la ventana exterior (door-to-outside). Resultado: RMSE fresco=204.65°C (sigue > 200°C umbral), y el caso rompe checks internos de temperatura y humo al ventilarse parcialmente. Experimento revertido; JSON vuelve a `open_fraction=0.0`. **Confirmado C3 estructural por topología de venting** — la apertura parcial no cierra el gap; el problema es el modo de ventilación del escenario, no un parámetro ajustable per-case. Posponer a Phase 2.
+**Residuales post-Phase 9/10:** no quedan fallos required de pool, ghanekar ni multifuel. Los checks ghanekar están en PASS desde Phase 10. Los fallos non-required restantes (`ghanekar_flashover_0_9m_known_gap`, `ghanekar_far_hall_co_known_gap`, presión, `cfast_bed_temp_*`) no forman parte de los 14 required FAIL.
 
-**Residuales post-Phase 9/10:** no quedan fallos required de pool ni ghanekar. Los checks ghanekar están en PASS desde Phase 10. Los fallos non-required restantes (`ghanekar_flashover_0_9m_known_gap`, `ghanekar_far_hall_co_known_gap`, presión, `cfast_bed_temp_*`) no forman parte de los 15 required FAIL.
-
-**Estado:** Grupo E no tiene fix per-case de bajo riesgo disponible. `cfast_2r` y `multifuel` son C3/RMSE acumulado; `hvac` es C2/Phase 2C. Posponer a trabajo Phase 2/diagnóstico dedicado.
+**Estado:** Grupo E queda reducido a `cfast_2r` (C3/RMSE acumulado) y `hvac` (C2/Phase 2C). No hay fix per-case de bajo riesgo disponible para esos dos sin trabajo Phase 2/diagnóstico dedicado.
 
 ---
 
@@ -373,7 +373,7 @@ Los 21 fallos se distribuyen en 6 clusters según su caso y causa raíz. Los cas
 |---------|--------|-------|------------|-------------|
 | C1 — Phase 2 estructural | 8 | r0_window(×3), slow_growth(×2), corridor_chain(×3) | Arquitectura two-zone canónica; gap documentado Phase 2 | No |
 | C2 — HVAC Phase 2C | 1 | hvac_residential | o2_upper/lower desacoplados cuando fire usa o2_lower (HVAC fresh air) | No |
-| C3 — RMSE acumulado | 2 | two_room_door, multi_fuel | Error de temperatura acumulado en curva de 900/180s | Posponer |
+| C3 — RMSE acumulado | 1 | two_room_door | Error de temperatura acumulado en curva de 900 s | Posponer |
 | C4 — Pool fire O₂ equilibrio | 2 | pool_fire_open | natural_vent_inlet_fraction=0.2 → equilibrio O₂ ~0.205 vs CFAST 0.194 | Sí (bajo riesgo) |
 | C5 — Bedroom/origin temp | 7 | ghanekar_bedroom_hallway | fire_flashover_hrr_multiplier=3.0 → origin peak 868°C → exchange anómalo | Sí (riesgo medio) |
 | C6 — Kitchen CO timing | 1 | ghanekar_kitchen_living_room | CO llega IDLH 117s demasiado pronto en pasillo lejano | Posponer |
@@ -391,10 +391,10 @@ Gap documentado en fases anteriores:
 
 `cfast_hvac_t300_o2: actual=0.0009, expected=0.0737`. El caso tiene `fire_o2_lower_for_flame=True` y `phase2h_o2_doorway_two_zone_enabled=True`. El HVAC provee aire fresco a o2_lower → o2_lower permanece en 0.209 (PASS). Pero el fuego depleta o2_upper directamente sin throttle (throttlea sobre o2_lower) → o2_upper crashea de 0.1088 (t=180, PASS) a 0.0009 (t=300, FAIL) en 120 s. CFAST mantiene 0.0737 por acoplamiento upper/lower de dos zonas. Requiere Phase 2C upper/lower exchange explícito. No se toca.
 
-#### C3 — RMSE acumulado (2 fallos) — Posponer
+#### C3 — RMSE acumulado (1 fallo) — Posponer
 
 - `cfast_2r_r0_rmse_temp_upper_c: 88.0 (máx 60)`: drift térmico en 900s. Necesita diagnóstico por etapa.
-- `cfast_multifuel_rmse_temp_upper_c: 232.5 (máx 200)`: HRR multi-combustible desalineado con CFAST en alguna fase. El check pasa en su ventana de evaluación antigua (SF=189°C, margen=11°C per nota), pero la ventana actual la pone en 232. Posponer análisis.
+- `cfast_multifuel_rmse_temp_upper_c`: resuelto el 2026-06-19 por equivalencia de modelo. La causa era topología CFAST vented vs SF sellado, no desalineación HRR. Con apertura exterior equivalente 0.9x2.0 abierta desde t=0, RMSE=183.79°C y el check required pasa.
 
 #### C4 — Pool fire O₂ equilibrio (2 fallos) — Bajo riesgo, atacar primero
 
@@ -1245,7 +1245,7 @@ M4 (cleanup) → eliminar hacks
 |-------|-------------------|
 | `cfast_pool_t300_o2` | natural_vent_inlet_fraction calibración independiente |
 | `cfast_2r_r0_rmse_temp_upper_c` | RMSE acumulado, requiere diagnóstico per-etapa |
-| `cfast_multifuel_rmse_temp_upper_c` | HRR multi-combustible no modelado con fidelidad FDS |
+| `cfast_multifuel_rmse_temp_upper_c` | RESUELTO 2026-06-19: topología de venting exterior equivalente; ya no es residual esperado |
 | `ghanekar_kitchen_far_hall_fed_1_0_s` | FED transport CO/HCN inter-sala |
 
 ---
@@ -1256,7 +1256,7 @@ M4 (cleanup) → eliminar hacks
 
 **P4 — pool_fire O₂ (1 fallo, Δ=0.0098)** — ajuste fino `natural_vent_inlet_fraction`, post-Phase 5
 
-**P5 — RMSE two_room y multifuel (2 fallos)** — diagnóstico per-etapa, post-Phase 5
+**P5 — RMSE two_room (1 fallo)** — diagnóstico per-etapa, post-Phase 5. Multifuel quedó resuelto por equivalencia de modelo el 2026-06-19.
 
 **P6 — Ghanekar FED (1 fallo, Δ=252 s)** — calibración CO/HCN transport, post-Phase 5
 

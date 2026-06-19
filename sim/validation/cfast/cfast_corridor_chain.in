@@ -22,11 +22,11 @@
       DEPTH = 7.0 HEIGHT = 2.4 WIDTH = 1.5
       CEILING_MATL_ID = 'CONCRETE' WALL_MATL_ID = 'CONCRETE' FLOOR_MATL_ID = 'CONCRETE'
       ORIGIN = 5.0, 0.0, 0.0 GRID = 12, 56, 24 LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
-!! R2: Bedroom, 3.5x4x2.4m = 33.6 m3
+!! R2: Bedroom, 3.5x3x2.4m = 25.2 m3 (matches SimuFire simple_house Dormitorio1)
 &COMP ID = 'R2'
-      DEPTH = 4.0 HEIGHT = 2.4 WIDTH = 3.5
+      DEPTH = 3.0 HEIGHT = 2.4 WIDTH = 3.5
       CEILING_MATL_ID = 'CONCRETE' WALL_MATL_ID = 'CONCRETE' FLOOR_MATL_ID = 'CONCRETE'
-      ORIGIN = 6.5, 0.0, 0.0 GRID = 28, 32, 24 LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
+      ORIGIN = 6.5, 0.0, 0.0 GRID = 28, 24, 24 LEAK_AREA_RATIO = 0.00017, 5.2E-05 /
 
 !! Vents: R0-Hall door open, Hall-R2 door open; all other vents closed
 &VENT TYPE = 'WALL' ID = 'R0 Hall Door' COMP_IDS = 'R0' 'Hall' TOP = 2.0 BOTTOM = 0.0 WIDTH = 0.9

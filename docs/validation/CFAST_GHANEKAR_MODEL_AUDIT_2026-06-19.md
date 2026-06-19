@@ -2,15 +2,17 @@
 
 Scope: geometry/topology equivalence between SimuFire validation cases, CFAST `.in` files, and the Ghanekar empirical reference. This audit checks whether the *dwelling models* used for comparison are valid enough before further calibration work.
 
-No motor code, cases, reports, tolerances, or baselines were changed.
+Initial audit note: no motor code, cases, reports, tolerances, or baselines were changed by the audit itself.
+
+Resolution update (2026-06-19): the actionable CFAST equivalence mismatches found here were corrected after the audit. `cfast_multi_fuel_couch_tv` now has an equivalent 0.9x2.0 exterior opening open from t=0, `cfast_window_break_t180` now uses the CFAST 1.2x1.0 window geometry, and `cfast_corridor_chain.in` now uses R2=25.2 m3 with regenerated CFAST outputs.
 
 ## Verdict
 
-Some validation models are valid approximations, but several are not equivalent enough for strict calibration. The highest-risk discrepancies are topological, not numeric:
+Some validation models are valid approximations. The highest-risk CFAST discrepancies found in this audit were topological, not numeric, and have now been corrected where they affected tracked CFAST validation cases:
 
-1. `cfast_multi_fuel_couch_tv`: CFAST has an open exterior door; SimuFire models a closed exterior window. This is a direct scenario mismatch.
-2. `cfast_corridor_chain`: CFAST R2 volume is 33.6 m3; SimuFire `simple_house` room 2 is 25.2 m3. This can bias far-room O2/smoke transport and any R2 curve interpretation.
-3. `cfast_window_break_t180`: CFAST break window is 1.2 x 1.0 m; SimuFire uses the template living-room window 2.0 x 1.2 m because the case only overrides `open_fraction`.
+1. `cfast_multi_fuel_couch_tv`: resolved. CFAST has an open exterior door; SimuFire now represents it as an equivalent 0.9x2.0 exterior opening open from t=0. Result: required multifuel RMSE passes.
+2. `cfast_corridor_chain`: resolved for geometry. CFAST R2 was 33.6 m3; it now matches SimuFire `simple_house` room 2 at 25.2 m3. Remaining R0 temperature failures are still model gaps, not this volume mismatch.
+3. `cfast_window_break_t180`: resolved. SimuFire now overrides the break window to 1.2 x 1.0 m, sill 0.8 m, matching CFAST.
 4. Ghanekar kitchen/living-room: production case does not faithfully represent the paper's kitchen-window/fire-compartment topology; prior exploratory notes already show this is a structural mismatch.
 5. Ghanekar bedroom/hallway: approximate, not exact. It matches key macro traits, but still lacks localized 0.9 m sampling, HCN, sampling-line delay, and full experimental floor-plan fidelity.
 
@@ -38,9 +40,9 @@ Important implementation detail: `CaseRunner.gd` can override opening geometry, 
 | `cfast_hvac_residential` | Good macro equivalence | R0 48.0 m3. CFAST supply 0.08 m3/s at 0.25 m and return at 2.30 m; SimuFire case uses `hvac_data` with 0.08 m3/s, supply height_fraction 0.1 (~0.24 m), return height_fraction 0.96 (~2.30 m), outside air fraction 1.0. | Low | Keep. Failure is HVAC upper/lower coupling, not geometry. |
 | `cfast_pool_fire_open`, `cfast_post_flashover_vented`, `cfast_suppression_water` | Good opening geometry | R0 48.0 m3 and window 2.0x1.2 sill 0.8 match `simple_house` living-room window; cases open the window and close R0-Hall door. | Low | Keep. |
 | `cfast_fast_growth_closed`, `cfast_single_room_closed`, `cfast_long_burnout_3600s`, `cfast_door_close_midfire` | Good macro equivalence | Single/two-room variants use R0 48.0 m3 and/or Hall 25.2 m3 matching `simple_house`. | Low | Keep. |
-| `cfast_corridor_chain` | Volume mismatch | CFAST R2=3.5x4.0x2.4=33.6 m3, but SimuFire `simple_house` R2 (`Dormitorio1`) is 3.5x3.0x2.4=25.2 m3. R2 is 33% larger in CFAST. R0 and Hall match. | High | Do not treat R2 O2/smoke timing as strict until fixed. Either change CFAST R2 to 3.5x3.0 or create a dedicated SF case/template with R2 length 4.0. Re-run CFAST and SF after deciding. |
-| `cfast_multi_fuel_couch_tv` | Topology mismatch | CFAST `.in` has `DoorHall` from R0 to OUTSIDE, 0.9x2.0, open from start. SimuFire case has only R0 exterior `window` with `open_fraction=0.0`; no equivalent open exterior door. This makes CFAST vented and SF effectively sealed. | Critical | Do not calibrate RMSE against current pair. Build an equivalent SF case with exterior door open, or regenerate CFAST as sealed. Current `cfast_multifuel_rmse_temp_upper_c` should remain suspect/stale. |
-| `cfast_window_break_t180` | Opening geometry mismatch | CFAST break window is 1.2x1.0, sill 0.8, lintel 1.8. SimuFire `simple_house` R0 window is 2.0x1.2, sill 0.8, lintel 2.0. The case only overrides `open_fraction`, so SF opening area is 2.4 m2 vs CFAST 1.2 m2 after break. | Medium/high | Add `width_m=1.2`, `height_m=1.0`, `sill_m=0.8` to the SF case before using it for strict window-break calibration. Re-run and review. |
+| `cfast_corridor_chain` | Geometry resolved; model gap remains | CFAST R2 was corrected from 3.5x4.0x2.4=33.6 m3 to 3.5x3.0x2.4=25.2 m3, matching SimuFire `simple_house` R2 (`Dormitorio1`). R0 and Hall already matched. | Low for geometry; medium/high for doorway model | Keep the corrected CFAST file and regenerated outputs. Remaining R0 t180/t600 failures are doorway mass+energy model gaps; R2 O2 non-required checks remain transport-model evidence, not geometry evidence. |
+| `cfast_multi_fuel_couch_tv` | Topology resolved | CFAST `.in` has `DoorHall` from R0 to OUTSIDE, 0.9x2.0, open from start. SimuFire now represents this with an equivalent exterior opening 0.9x2.0, sill 0.0, `open_fraction=1.0`. Required RMSE is now 183.79°C <= 200°C. | Low for current required checks | Keep the equivalent exterior opening. Do not compare the current CFAST reference against a sealed SimuFire case. |
+| `cfast_window_break_t180` | Opening geometry resolved | CFAST break window is 1.2x1.0, sill 0.8, lintel 1.8. SimuFire now overrides width/height/sill to match. The pressure known gap at t300 closes (1.89 Pa <= 10 Pa). | Low | Keep explicit opening geometry in the case so future template changes do not silently alter this reference. |
 | `cfast_two_floor_stairwell` | Deliberate reduced-order mismatch | CFAST collapses the stair path into direct `R0_Living` to `R8_Upper` vent. SimuFire uses full `two_storey_house` path with stair rooms and a heat-bridge override. The `.in` comments explicitly call this an approximation. | Medium | Keep only as coarse stack-effect sentinel; not a strict geometry validation case. |
 
 ## Ghanekar Cases
@@ -52,19 +54,17 @@ Important implementation detail: `CaseRunner.gd` can override opening geometry, 
 
 ## Priority Fix Queue
 
-1. **Critical: multifuel topology**
-   - Decide whether the intended reference is vented or sealed.
-   - If vented: add an exterior door/opening equivalent to CFAST `DoorHall` (0.9x2.0 open from t=0), not a closed window.
-   - If sealed: regenerate CFAST without the exterior door.
+1. **Done: multifuel topology**
+   - SimuFire now uses an equivalent exterior opening to CFAST `DoorHall` (0.9x2.0 open from t=0).
+   - Required multifuel RMSE passes after regeneration.
 
-2. **High: corridor_chain R2 volume**
-   - Choose one canonical R2 size.
-   - Prefer matching the SimuFire template unless the CFAST scenario intentionally wants a 4.0 m bedroom.
-   - Re-run both references after changing either side.
+2. **Done: corridor_chain R2 volume**
+   - CFAST R2 now matches the SimuFire template at 25.2 m3.
+   - CFAST outputs and SimuFire validation report were regenerated.
 
-3. **Medium/high: window_break_t180 window geometry**
-   - Add explicit opening geometry override in `cfast_window_break_t180.json`.
-   - Re-run the case and check whether existing passes remain stable.
+3. **Done: window_break_t180 window geometry**
+   - Explicit opening geometry override added in `cfast_window_break_t180.json`.
+   - Existing required passes remain stable; pressure known gap closes.
 
 4. **High: Ghanekar kitchen**
    - Stop treating current production case as a strict experimental replica.
@@ -74,13 +74,14 @@ Important implementation detail: `CaseRunner.gd` can override opening geometry, 
    - Keep current case as approximate.
    - Add explicit documentation that PASS means selected timing benchmarks pass, not full paper reproduction.
 
-## Implication For Current 15 FAIL Baseline
+## Implication For Current 14 FAIL Baseline
 
-This audit changes interpretation, not the current baseline count.
+The original audit changed interpretation; the follow-up equivalence fixes changed the baseline count from 15 to 14 required FAILs.
 
 - Group A, B, D and HVAC failures are still mainly engine/model architecture gaps.
-- `cfast_corridor_chain` now has an additional geometry caveat for R2; current required failures are R0 temperature, but R2 O2 non-gating checks should not be used as strict evidence until the R2 volume is reconciled.
-- `cfast_multifuel_rmse_temp_upper_c` should be treated as invalid for strict calibration until the vented/sealed mismatch and stale reference value are corrected.
+- `cfast_corridor_chain` no longer has the R2 geometry caveat; current required failures are R0 temperature and remain doorway thermal/Phase 2 gaps.
+- `cfast_multifuel_rmse_temp_upper_c` is no longer a required FAIL after matching the exterior venting topology.
+- `cfast_window_break_t180` no longer has the window-geometry caveat; its t300 pressure known gap now passes.
 
 ## Rule For Future Validation Cases
 

@@ -1,6 +1,6 @@
 # Inventario de Gaps - SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 17 junio 2026 (sincronizado con `sim/validation/reports/reference_checks.json`; quedan fallos requeridos por revisar antes de cerrar la validacion)
-**Estado validacion**: 334/350 PASS required, 76 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 19 junio 2026 (sincronizado con `sim/validation/reports/reference_checks.json`; quedan fallos requeridos por revisar antes de cerrar la validacion)
+**Estado validacion**: 336/350 PASS required, 75 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -38,7 +38,7 @@
 | Phase 2C structural (HVAC) | 4 | SF fire at max HRR vs CFAST two-zone moderation (t>240s): CO_upper t300/t450, co2_upper_pct t300/t450. Phase 4A blend rejected: cannot close gaps without breaking required o2_upper/temp checks. Non-gating. | Structural accepted |
 | HCN/FED toxicity validation | Registro, no gap CFAST actual | **Phase 4B COMPLETADO (observability + FED decomposition + calibración 2026-05-27):** HCN logging (`HCN=`/`HCNu=`) added to .log and CSV. `peak_hcn_ppm`/`peak_hcn_upper_ppm` tracked in CaseRunner. Non-gating sanity checks (`min: 10 ppm`) added to `victim_fed_incapacitation` + `pu_sofa_fec_incapacitation` baselines — promoted to required (actual ~2000 ppm). Transport active by default (0.40). Default yield 0.000040 kg/MJ. FED decomposition (`fed_co`, `fed_hcn`, `fed_hypoxia`, `fed_heat`) in RoomModel, ThermalSystem, StateBuilder, CSV and ROOM log. CaseRunner tracks `room_N_final_fed_co/hcn/hypoxia/heat`. **Calibration assessment (2026-05-27):** in `pu_sofa_fec_incapacitation` (sustained fire), FED_HCN/FED_total = 19.7% (room 0) and 25.1% (room 1) — within or at lower bound of Purser SFPE range (20–30% for residential PU). Yield `0.000154 kg/MJ` ≈ 0.004 g/g = lower bound of well-ventilated flaming PU foam (Purser 0.004–0.017 g/g). In `victim_fed_incapacitation` (ramp-up fire), HCN=0.9% — explained by CO dominating early phase before HCN peaks at t=800s (physically plausible). See `docs/audits/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md`. — 379/379 PASS. | Phase 4B ✅ observability ✅ FED decomposition ✅ calibración aceptable |
 
-**Total: 76 gaps non-gating (per reference_checks.json). 334/350 required checks PASS.**
+**Total: 75 gaps non-gating (per reference_checks.json). 336/350 required checks PASS.**
 *(R3, 13 junio 2026: O2 routing fix en `OxygenExchangeSystem.gd` — eliminado double-count de o2_upper en two_zone mode; fuego ahora consume desde o2_lower con floor maxf(0.0,...); room.o2 sincronizado como promedio ponderado upper/lower. 290→301 PASS (+11), 0 regresiones. 30 checks siguen fallando por gap estructural two-zone: CFAST preserva lower layer O2 near-ambient via plume mass-flow; SF depleta o2_lower directamente → divergencia en sealed/semi-sealed rooms. Cierre requiere plume mass-flow tracking arquitectónico.)*
 
 *(2026-06-05: corrida fresca `run_reference_checks.ps1` reabre como no-gating dos checks empíricos Ghanekar de flashover. No se amplían tolerancias: se conserva `expected`/`tolerance` y se reclasifica porque son discrepancias de calibración vertical/local, no fallos de los checks requeridos de O2/FED/CO remotos. Resultado validado tras reclasificación: 381/381 required PASS, 6 gaps.)*

@@ -1,6 +1,6 @@
 # Guardrails Status
 
-Date: 2026-06-17.
+Date: 2026-06-19.
 
 ## Summary
 
@@ -8,11 +8,12 @@ Date: 2026-06-17.
 
 The pure guardrail behavior tests pass, but the real-json integration smoke currently returns exit code `1` in this workspace.
 
-As of 2026-06-17, the documentation count and physics override linter are synchronized:
+As of 2026-06-19, the documentation count, CFAST truth manifest and physics override linter are synchronized:
 
-- `docs/validation/GAPS_INVENTORY.md` matches the 76 non-gating gaps reported by `reference_checks.json`.
+- `docs/validation/GAPS_INVENTORY.md` matches the 75 non-gating gaps reported by `reference_checks.json`.
+- `truth/cfast/MANIFEST.json` was regenerated after the intentional `cfast_corridor_chain.in`/CSV update.
 - Validation cases no longer carry the `vent_bernoulli_flow_multiplier` physics override flagged by R1-3.
-- The remaining red status is driven by 16 required validation failures plus one Phase 2E sentinel failure.
+- The remaining red status is driven by 14 required validation failures plus one Phase 2E sentinel failure.
 
 ## Reproduction
 

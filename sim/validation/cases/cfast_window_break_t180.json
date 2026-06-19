@@ -28,6 +28,9 @@
 			"a": 0,
 			"b": -1,
 			"type": "window",
+			"width_m": 1.2,
+			"height_m": 1.0,
+			"sill_m": 0.8,
 			"open_fraction": 0.0
 		}
 	],

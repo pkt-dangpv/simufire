@@ -1,8 +1,8 @@
 {
   "all_required_pass": false,
   "required_count": 350,
-  "failed_required_count": 15,
-  "known_gap_count": 76,
+  "failed_required_count": 14,
+  "known_gap_count": 75,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -1316,7 +1316,7 @@
     {
       "name": "cfast_chain_r0_t180_temp_upper_c",
       "actual": 189.76,
-      "expected": 158.005,
+      "expected": 159.816,
       "tolerance": 15.0,
       "minimum": null,
       "maximum": null,
@@ -1327,7 +1327,7 @@
     {
       "name": "cfast_chain_r0_t300_temp_upper_c",
       "actual": 147.0,
-      "expected": 165.835,
+      "expected": 166.268,
       "tolerance": 20.0,
       "minimum": null,
       "maximum": null,
@@ -1338,7 +1338,7 @@
     {
       "name": "cfast_chain_r0_t600_temp_upper_c",
       "actual": 105.8,
-      "expected": 168.39,
+      "expected": 168.796,
       "tolerance": 30.0,
       "minimum": null,
       "maximum": null,
@@ -1349,7 +1349,7 @@
     {
       "name": "cfast_chain_r0_o2_t480_o2",
       "actual": 0.1002,
-      "expected": 0.11732799999999999,
+      "expected": 0.112265,
       "tolerance": 0.028,
       "minimum": null,
       "maximum": null,
@@ -1360,7 +1360,7 @@
     {
       "name": "cfast_chain_r0_o2_t600_o2",
       "actual": 0.0992,
-      "expected": 0.101968,
+      "expected": 0.09568289999999999,
       "tolerance": 0.015,
       "minimum": null,
       "maximum": null,
@@ -1370,7 +1370,7 @@
     },
     {
       "name": "cfast_chain_r0_rmse_temp_upper",
-      "actual": 44.18282480451916,
+      "actual": 44.218187278435934,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -1382,7 +1382,7 @@
     {
       "name": "cfast_chain_r2_o2_t480_o2",
       "actual": 0.2001,
-      "expected": 0.135705,
+      "expected": 0.129077,
       "tolerance": 0.019,
       "minimum": null,
       "maximum": null,
@@ -1393,7 +1393,7 @@
     {
       "name": "cfast_chain_r2_o2_t600_o2",
       "actual": 0.1937,
-      "expected": 0.119003,
+      "expected": 0.111228,
       "tolerance": 0.023,
       "minimum": null,
       "maximum": null,
@@ -1415,7 +1415,7 @@
     {
       "name": "cfast_chain_r1_temp_t300_temp_upper_c",
       "actual": 63.63,
-      "expected": 97.746,
+      "expected": 97.5024,
       "tolerance": 60.0,
       "minimum": null,
       "maximum": null,
@@ -1426,7 +1426,7 @@
     {
       "name": "cfast_chain_r2_temp_t300_temp_upper_c",
       "actual": 45.25,
-      "expected": 63.3018,
+      "expected": 65.8876,
       "tolerance": 35.0,
       "minimum": null,
       "maximum": null,
@@ -1437,7 +1437,7 @@
     {
       "name": "cfast_chain_r1_o2_t480_o2",
       "actual": 0.1779,
-      "expected": 0.125443,
+      "expected": 0.12058400000000001,
       "tolerance": 0.065,
       "minimum": null,
       "maximum": null,
@@ -2723,7 +2723,7 @@
     },
     {
       "name": "cfast_winbreak_t300_temp_upper_c",
-      "actual": 201.06,
+      "actual": 304.88,
       "expected": null,
       "tolerance": null,
       "minimum": 200.0,
@@ -2745,7 +2745,7 @@
     },
     {
       "name": "cfast_winbreak_hrr_grows_after_break",
-      "actual": 626.7,
+      "actual": 628.3000000000001,
       "expected": null,
       "tolerance": null,
       "minimum": 0.0,
@@ -2756,18 +2756,18 @@
     },
     {
       "name": "cfast_winbreak_t300_pressure_pa",
-      "actual": 130607.51,
+      "actual": 1.89,
       "expected": null,
       "tolerance": null,
       "minimum": null,
       "maximum": 10.0,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "CMV-1: vented-room pressure \u2264 10 Pa (CFAST=\u22126 Pa outflow, SimuFire=+2 Pa \u2014 sign gap)."
     },
     {
       "name": "cfast_winbreak_rmse_temp_upper_pre_break",
-      "actual": 37.1826981982137,
+      "actual": 37.19003036611798,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -3020,7 +3020,7 @@
     },
     {
       "name": "cfast_multifuel_t60_temp_upper_c",
-      "actual": 115.64,
+      "actual": 102.64,
       "expected": null,
       "tolerance": null,
       "minimum": 50.0,
@@ -3031,7 +3031,7 @@
     },
     {
       "name": "cfast_multifuel_t120_temp_upper_c",
-      "actual": 503.5,
+      "actual": 497.83,
       "expected": null,
       "tolerance": null,
       "minimum": 100.0,
@@ -3042,7 +3042,7 @@
     },
     {
       "name": "cfast_multifuel_t180_temp_upper_c",
-      "actual": 359.8,
+      "actual": 323.85,
       "expected": null,
       "tolerance": null,
       "minimum": 100.0,
@@ -3053,7 +3053,7 @@
     },
     {
       "name": "cfast_multifuel_t120_hrr_above_350kw",
-      "actual": 631.69,
+      "actual": 646.78,
       "expected": null,
       "tolerance": null,
       "minimum": 350.0,
@@ -3064,7 +3064,7 @@
     },
     {
       "name": "cfast_multifuel_t60_pressure_pa",
-      "actual": 0.92,
+      "actual": 0.83,
       "expected": -0.139439,
       "tolerance": 10.0,
       "minimum": null,
@@ -3075,7 +3075,7 @@
     },
     {
       "name": "cfast_multifuel_t120_pressure_pa",
-      "actual": 307.07,
+      "actual": 314.41,
       "expected": -1.12982,
       "tolerance": 10.0,
       "minimum": null,
@@ -3086,13 +3086,13 @@
     },
     {
       "name": "cfast_multifuel_rmse_temp_upper_c",
-      "actual": 200.8634015762626,
+      "actual": 183.78768788097062,
       "expected": null,
       "tolerance": null,
       "minimum": null,
       "maximum": 200.0,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "CMV-3 Stage-F: multi-fuel temp_upper RMSE \u2264 200\u00b0C (SF=189\u00b0C, margin 11\u00b0C). Phase 1.5 structural documented."
     },
     {

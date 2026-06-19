@@ -9,17 +9,19 @@ This note records the repository hygiene and validation state after the non-moto
 ## Current Session Update — 2026-06-19
 
 - Branch: `main`, synchronized with `origin/main`.
-- Latest pushed commit: `eb5f23a docs(handoff): update roadmap for 15-fail validation baseline`.
-- Current validation baseline: `335/350` required PASS, `15/350` required FAIL.
+- Latest pushed commit before this work: `72c4e98 docs(validation): audit CFAST and Ghanekar model geometry`.
+- Current validation baseline: `336/350` required PASS, `14/350` required FAIL.
 - `docs/validation/STATUS_VALIDATION.md` is the current validation source of truth.
-- `docs/validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md` records the equivalence audit for the 15 required FAILs.
+- `docs/validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md` records the equivalence audit and 2026-06-19 resolution that reduced required FAILs to 14.
 - `docs/validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md` records the dwelling-model audit across CFAST/Ghanekar comparison cases.
 - A-E validation groups were diagnosed and documented.
 - Group C `cfast_corridor_chain` t300 was resolved by `doorway_thermal_counterflow_gain=0.25` in `sim/validation/cases/cfast_corridor_chain.json`.
 - Remaining Group C t180/t600 failures are still structural M3/Phase 2 gaps.
-- `cfast_multifuel_rmse_temp_upper_c` was confirmed as a C3 topology gap: CFAST vented exterior-door scenario vs SF sealed room/pasillo topology.
-- Equivalence audit result: 14/15 current FAILs are valid architecture gaps; `cfast_multifuel_rmse_temp_upper_c` also has a stale tracked reference value (`200.86`) versus fresh diagnostics (`232.5` sealed baseline, `204.65` with rejected open=0.25 experiment).
-- Model audit result: some comparison models are valid macro approximations, but `cfast_multi_fuel_couch_tv`, `cfast_corridor_chain` R2, `cfast_window_break_t180`, and Ghanekar kitchen/living have geometry/topology caveats that must be fixed before strict calibration.
+- `cfast_multifuel_rmse_temp_upper_c` was resolved by matching the CFAST vented exterior-door topology with a 0.9x2.0 exterior opening open from t=0. Fresh RMSE=183.79°C <= 200°C.
+- `cfast_window_break_t180` now matches CFAST window geometry (1.2x1.0, sill 0.8); the t300 pressure known gap now passes.
+- `cfast_corridor_chain.in` R2 now matches SimuFire at 25.2 m3 and CFAST outputs were regenerated; required R0 t180/t600 failures remain structural.
+- Equivalence audit result: all 14 current required FAILs are valid architecture/model gaps after geometry/topology reconciliation.
+- Model audit result: CFAST multifuel/window/corridor R2 caveats were corrected; Ghanekar kitchen/living remains approximate/no estricto.
 - No motor/core code, tolerances or required/known-gap classifications were changed in this session.
 
 Validation commands run during this session:
@@ -33,8 +35,8 @@ git diff --check
 
 Current guardrail state:
 
-- Required checks: FAIL, expected, `15` required failures.
-- Known gaps: `76` non-gating gaps in JSON and docs.
+- Required checks: FAIL, expected, `14` required failures.
+- Known gaps: `75` non-gating gaps in JSON and docs.
 - Gap inventory count: synchronized, but guardrail still reports FAIL because required checks remain.
 - Phase 2E sentinel: still FAIL on `g4 FED timing [s]`.
 - Carbon/HCN sentinels: PASS.
@@ -46,8 +48,8 @@ Recommended next work:
 
 1. If pausing or changing machine, start from `docs/validation/STATUS_VALIDATION.md` and this handoff.
 2. If continuing validation, treat the next low-risk experiment as separate work:
-   - `cfast_multi_fuel_couch_tv`: exterior-opening/door-to-outside experiment to test the vented/sealed topology hypothesis.
    - `cfast_two_room_door_open`: C3 RMSE per-stage diagnosis.
+   - `cfast_corridor_chain`: only with a full doorway mass+energy plan, not another scalar gain sweep.
 3. If prioritizing product/UX, resume the FP temperature HUD investigation below.
 4. Do not start ILV or Phase 2C HVAC without an explicit architecture pass.
 
@@ -117,14 +119,14 @@ Do not try to make `validation_guardrails.py` green by widening tolerances, rewr
 - Rama: `main`.
 - Commit remoto base de hoja de ruta: `4bacebd Consolidate active roadmap`.
 - Commit local de handoff pendiente de subir al iniciar este guardado: `f76e5ba docs(handoff): update sync state 2026-06-18 — power loss on other machine`.
-- Baseline anterior: 16/350 required FAIL. Baseline actual tras 2026-06-19: 15/350 required FAIL.
+- Baseline anterior: 16/350 required FAIL. Baseline actual tras 2026-06-19: 14/350 required FAIL.
 - El plan ILV está documentado pero sin implementar.
 - Hoja de ruta activa: `docs/planning/MASTER_ROADMAP_CURRENT.md`.
 - No hay cambios de motor/core en la hoja de ruta ni en este handoff.
 
 ## Próximo paso recomendado
 
-Ejecutar baseline de guardrails para confirmar 15/350 antes de tocar motor:
+Ejecutar baseline de guardrails para confirmar 14/350 antes de tocar motor:
 
 ```powershell
 python scripts\simulation\validation_guardrails.py --verbose
@@ -133,7 +135,7 @@ python scripts\simulation\validation_guardrails.py --verbose
 Después elegir una línea explícita:
 
 - Producto/UX: hotfix de temperatura FP.
-- Validación acotada: experimento `cfast_multi_fuel_couch_tv` con apertura exterior parcial/door-to-outside.
+- Validación acotada: diagnóstico `cfast_two_room_door_open` RMSE o plan completo de doorway thermal para `cfast_corridor_chain`.
 - Diagnóstico largo: `cfast_two_room_door_open` RMSE.
 - Arquitectura: Phase 2/Phase 2C solo con plan explícito.
 
