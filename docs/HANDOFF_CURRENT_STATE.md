@@ -48,12 +48,25 @@ Curve pattern: SF overshoots CFAST by +132°C at t=120s (early spike), then unde
 | E — two_room_door_open (×1) | RMSE t=[0,350] | Phase 2 gap (O2u+canonical doorway exchange) |
 | E — hvac_residential (×1) | O2 t300 | Phase 2C gap (HVAC upper/lower coupling) |
 
+### `cfast_hvac_t300_o2` diagnosis — Phase 2C confirmed (2026-06-19, commit `105a0a5`)
+
+Fresh run result:
+- O2l = 20.9% stable (HVAC supply to lower layer works) ✓
+- O2u collapses to 0.09% by t=270s; fire runs at 1280 kW max HRR
+- CFAST maintains O2u ≈7%: HVAC return at 2.30m extracts depleted upper gas, two-zone mass balance replenishes upper from lower → fire throttles at 173°C
+- SF lacks two-zone HVAC mass balance → O2u collapses indefinitely; no per-case fix
+- **Verdict: Phase 2C structural gap confirmed. No fix without architecture work.**
+
+### All 14 required FAILs now diagnosed
+
+All 14 are Phase 2 / Phase 2C structural gaps. No further per-case work available without architecture changes.
+
 ### Recommended next work
 
-1. **`cfast_hvac_t300_o2` diagnosis** — run `cfast_hvac_residential` fresh, compare O2 upper/lower/bulk vs CFAST by tramo, confirm if failure is `fire_o2_lower_for_flame`, missing mass tracking, or HVAC-room exchange gap. Verdict: per-case fix yes/no; if not, document as Phase 2C confirmed.
-2. **Phase 2 architecture** — design canonical two-zone combustion with bidirectional doorway O2 exchange to resolve groups A, C, D, E simultaneously.
-3. Do not start ILV without explicit instruction.
-4. Do not activate M2 global (`fire_o2_mass_tracking`) — it broke 10+ checks.
+1. **Phase 2 architecture** — design canonical two-zone combustion with bidirectional doorway O2 exchange and HVAC mass balance to resolve groups A–E simultaneously.
+2. Do not start ILV without explicit instruction.
+3. Do not activate M2 global (`fire_o2_mass_tracking`) — it broke 10+ checks.
+4. If pivoting to product/UX, resume FP temperature HUD investigation (separate from validation lane).
 
 ## What Changed
 
