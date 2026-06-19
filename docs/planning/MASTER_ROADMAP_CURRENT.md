@@ -1,6 +1,6 @@
 # Hoja de ruta activa de SimuFire
 
-Fecha: 2026-06-18
+Fecha: 2026-06-19
 Estado: fuente de verdad para continuar trabajo
 Alcance: validacion CFAST pendiente, hotfix de aperturas/temperatura FP e ILV.
 
@@ -25,7 +25,29 @@ Antes de tocar motor:
 - Ultimo plan ILV documentado: `docs/architecture/ILV_COMBUSTION_REGIME_PLAN.md`.
 - Handoff vigente: `docs/HANDOFF_CURRENT_STATE.md`.
 - Estado de validacion documentado: `docs/validation/STATUS_VALIDATION.md`.
-- Baseline reciente: 334/350 required PASS, 16 required FAIL.
+- Baseline reciente: 335/350 required PASS, 15 required FAIL.
+- Commit de validacion reciente: `9dfc74d feat(validation): reduce corridor chain thermal failures to 2`.
+- Commit documental reciente: `31957c0 docs(validation): classify multifuel RMSE as venting topology gap`.
+
+## Actualizacion 2026-06-19
+
+Trabajo completado:
+
+- Grupo A `cfast_r0_window_360`: diagnosticado como gap Phase 2.
+- Grupo B `cfast_slow_growth_sealed`: diagnosticado como gap Phase 2.
+- Grupo C `cfast_corridor_chain`: t300 resuelto con `doorway_thermal_counterflow_gain=0.25`; t180/t600 siguen como gaps estructurales M3/Phase 2.
+- Grupo D `cfast_bedroom_closed_door`: diagnosticado como gap Phase 2; corregida atribucion anterior desde ghanekar.
+- Grupo E:
+  - `cfast_2r_r0_rmse_temp_upper_c`: C3/RMSE acumulado.
+  - `cfast_hvac_t300_o2`: C2/Phase 2C.
+  - `cfast_multifuel_rmse_temp_upper_c`: C3 topologia vented/sealed confirmada.
+
+Reglas actuales:
+
+- No perseguir los 15 fallos con cambios de tolerancia, reports o reclasificacion.
+- No tocar `sim/core` sin autorizacion explicita.
+- No iniciar ILV todavia salvo decision expresa.
+- Cualquier experimento per-case debe aislar un caso, correrlo fresco y comparar contra `STATUS_VALIDATION.md`.
 
 ## Donde se dejo antes del hotfix
 
@@ -98,7 +120,7 @@ Pasos:
 1. Ejecutar `python scripts\simulation\validation_guardrails.py --verbose`.
 2. Guardar salida en artefacto local ignorado, no versionado.
 3. Comparar con `docs/validation/STATUS_VALIDATION.md`.
-4. Si el conteo no es 16/350, actualizar primero el diagnostico antes de tocar motor.
+4. Si el conteo no es 15/350, actualizar primero el diagnostico antes de tocar motor.
 
 Criterio de salida:
 
@@ -106,35 +128,19 @@ Criterio de salida:
 - ningun cambio de codigo;
 - decision del primer grupo a atacar.
 
-## Prioridad 2 - Validacion CFAST: atacar por grupos
+## Prioridad 2 - Validacion CFAST: estado de grupos
 
-Orden recomendado:
+Los grupos A-E ya fueron diagnosticados. No repetir diagnostico salvo que una corrida fresca cambie el baseline.
 
 ### 2.1 Grupo A - `cfast_r0_window_360` O2
 
-Fallos conocidos:
+Estado:
 
 - `cfast_t240_o2_depleted`
 - `cfast_t350_o2`
 - `cfast_t360_o2`
 
-Por que primero:
-
-- Conecta directamente con Phase 8, hotfix de ventanas y limitacion por ventilacion.
-- Es buen puente hacia ILV sin implementar ILV todavia.
-
-Analisis requerido:
-
-- revisar consumo O2 upper/lower;
-- verificar si el hotfix cambia timing de ventilacion;
-- comparar `open_fraction` vs `open_fraction_smooth`;
-- comprobar si el fuego esta usando O2 promedio cuando deberia limitarse por capa.
-
-No hacer:
-
-- no ampliar tolerancias;
-- no activar M1/M2 global sin suite completa;
-- no meter ILV aqui salvo diagnostico.
+Veredicto: gap Phase 2. No hay fix per-case de bajo riesgo. No tocar sin arquitectura two-zone.
 
 ### 2.2 Grupo B - `cfast_slow_growth_sealed` temperatura upper
 
@@ -143,61 +149,51 @@ Fallos conocidos:
 - `cfast_slow_t480_temp_upper_c`
 - `cfast_slow_t600_temp_upper_c`
 
-Diagnostico ya documentado:
+Veredicto:
 
-- bajar `chi_rad` mejora temperatura pero rompe O2;
-- no hay valor unico de `chi_rad` que cierre ambos;
-- probable gap estructural por consumo O2/capa y captura convectiva.
-
-Trabajo real:
-
-- decidir si se acepta como gap estructural o se ataca con arquitectura two-zone;
-- no resolver con parametro de radiacion aislado.
+- Gap Phase 2 confirmado.
+- Bajar `chi_rad` mejora temperatura pero rompe O2.
+- No hay valor unico de `chi_rad` que cierre ambos.
 
 ### 2.3 Grupo C - `cfast_corridor_chain` curva termica
 
-Fallos conocidos:
+Estado:
 
 - `cfast_chain_r0_t180_temp_upper_c`
-- `cfast_chain_r0_t300_temp_upper_c`
 - `cfast_chain_r0_t600_temp_upper_c`
 
-Diagnostico:
+Veredicto:
 
-- O2 mejoro con Phase 4C/Phase 7;
-- la curva termica sigue mal: pico temprano y caida posterior;
-- M3 energy-only no basta.
+- `cfast_chain_r0_t300_temp_upper_c` resuelto con `doorway_thermal_counterflow_gain=0.25`.
+- t180/t600 siguen como gaps estructurales M3/Phase 2.
+- No seguir ajustando gain para perseguir t180/t600.
 
-Trabajo real:
+### 2.4 Grupo D - `cfast_bedroom_closed_door` O2
 
-- evaluar si el problema es intercambio puerta masa+energia o throttle por O2 upper;
-- evitar gains unicos que arreglan t180 y rompen t300/t600.
+Estado:
 
-### 2.4 Grupo D - Ghanekar bedroom/kitchen
+- `cfast_bed_o2_*` x5.
 
-Fallos relacionados:
-
-- O2 bedroom hallway en varios tiempos.
-- origin/kitchen/far hall si siguen en el reporte actual.
-- CO/FED timings si reaparecen por corrida fresca.
-
-Trabajo real:
-
-- tratar como validacion empirica, no CFAST pura;
-- separar transporte de gases, produccion CO y flashover local;
-- no calibrar CO global para arreglar un caso.
+Veredicto: gap Phase 2. La atribucion anterior a ghanekar era incorrecta; el caso real es `cfast_bedroom_closed_door`.
 
 ### 2.5 Grupo E - HVAC y RMSE termicos
 
-Fallos conocidos:
+Estado:
 
 - `cfast_hvac_t300_o2`
-- RMSE temp upper two-room/multifuel si siguen activos.
+- `cfast_2r_r0_rmse_temp_upper_c`
+- `cfast_multifuel_rmse_temp_upper_c`
 
-Trabajo real:
+Veredicto:
 
-- confirmar si son estructurales o si hay regresion por stale logs;
-- no priorizar antes de Grupo A salvo que el guardrail indique regresion nueva.
+- HVAC: C2/Phase 2C.
+- two_room RMSE: C3/RMSE acumulado.
+- multifuel RMSE: C3 topologia vented/sealed.
+
+Trabajo futuro opcional:
+
+- Experimento separado en `cfast_multi_fuel_couch_tv` con apertura exterior parcial/door-to-outside, verificando temperatura, HRR y O2 de todo el caso.
+- Diagnostico por etapas de `cfast_two_room_door_open`.
 
 ## Prioridad 3 - Hotfix temperatura FP
 
@@ -278,9 +274,12 @@ Para cambios solo de documentacion:
 
 Siguiente sesion de trabajo:
 
-1. Ejecutar baseline verbose.
-2. Elegir Grupo A (`cfast_r0_window_360` O2).
-3. Hacer diagnostico sin tocar motor.
-4. Solo si el diagnostico es claro, aplicar un cambio pequeno.
+1. Confirmar `git status --short --branch` y baseline 15/350.
+2. Elegir una linea:
+   - producto/UX: hotfix FP temperatura;
+   - validacion acotada: experimento multifuel vented/sealed;
+   - diagnostico largo: two_room RMSE;
+   - arquitectura: Phase 2/Phase 2C solo con plan explicito.
+3. No tocar motor ni ILV sin decision expresa.
 
 ILV queda preparado, pero no debe adelantarse a la validacion abierta salvo que el usuario lo priorice expresamente.

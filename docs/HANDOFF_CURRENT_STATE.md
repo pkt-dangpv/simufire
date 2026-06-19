@@ -1,10 +1,51 @@
 # Current Handoff State
 
-Date: 2026-06-18.
+Date: 2026-06-19.
 
 ## Purpose
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
+
+## Current Session Update — 2026-06-19
+
+- Branch: `main`, synchronized with `origin/main`.
+- Latest pushed commit: `31957c0 docs(validation): classify multifuel RMSE as venting topology gap`.
+- Current validation baseline: `335/350` required PASS, `15/350` required FAIL.
+- `docs/validation/STATUS_VALIDATION.md` is the current validation source of truth.
+- A-E validation groups were diagnosed and documented.
+- Group C `cfast_corridor_chain` t300 was resolved by `doorway_thermal_counterflow_gain=0.25` in `sim/validation/cases/cfast_corridor_chain.json`.
+- Remaining Group C t180/t600 failures are still structural M3/Phase 2 gaps.
+- `cfast_multifuel_rmse_temp_upper_c` was confirmed as a C3 topology gap: CFAST vented exterior-door scenario vs SF sealed room/pasillo topology.
+- No motor/core code, tolerances or required/known-gap classifications were changed in this session.
+
+Validation commands run during this session:
+
+```powershell
+python scripts\simulation\validate_reference_cases.py
+python scripts\simulation\validation_guardrails.py --verbose
+python scripts\check_docs_links.py
+git diff --check
+```
+
+Current guardrail state:
+
+- Required checks: FAIL, expected, `15` required failures.
+- Known gaps: `76` non-gating gaps in JSON and docs.
+- Gap inventory count: synchronized, but guardrail still reports FAIL because required checks remain.
+- Phase 2E sentinel: still FAIL on `g4 FED timing [s]`.
+- Carbon/HCN sentinels: PASS.
+- Legacy/two-zone contract: PASS.
+- CFAST truth integrity: PASS.
+- Physics override linter: PASS.
+
+Recommended next work:
+
+1. If pausing or changing machine, start from `docs/validation/STATUS_VALIDATION.md` and this handoff.
+2. If continuing validation, treat the next low-risk experiment as separate work:
+   - `cfast_multi_fuel_couch_tv`: exterior-opening/door-to-outside experiment to test the vented/sealed topology hypothesis.
+   - `cfast_two_room_door_open`: C3 RMSE per-stage diagnosis.
+3. If prioritizing product/UX, resume the FP temperature HUD investigation below.
+4. Do not start ILV or Phase 2C HVAC without an explicit architecture pass.
 
 ## What Changed
 
@@ -72,20 +113,25 @@ Do not try to make `validation_guardrails.py` green by widening tolerances, rewr
 - Rama: `main`.
 - Commit remoto base de hoja de ruta: `4bacebd Consolidate active roadmap`.
 - Commit local de handoff pendiente de subir al iniciar este guardado: `f76e5ba docs(handoff): update sync state 2026-06-18 — power loss on other machine`.
-- 16/350 required FAIL en validation guardrails (esperado, no es regresión).
+- Baseline anterior: 16/350 required FAIL. Baseline actual tras 2026-06-19: 15/350 required FAIL.
 - El plan ILV está documentado pero sin implementar.
 - Hoja de ruta activa: `docs/planning/MASTER_ROADMAP_CURRENT.md`.
 - No hay cambios de motor/core en la hoja de ruta ni en este handoff.
 
 ## Próximo paso recomendado
 
-Ejecutar baseline de guardrails para confirmar 16/350 antes de tocar motor:
+Ejecutar baseline de guardrails para confirmar 15/350 antes de tocar motor:
 
 ```powershell
 python scripts\simulation\validation_guardrails.py --verbose
 ```
 
-Después atacar **Grupo A** (`cfast_r0_window_360` O2): diagnóstico sin tocar motor.
+Después elegir una línea explícita:
+
+- Producto/UX: hotfix de temperatura FP.
+- Validación acotada: experimento `cfast_multi_fuel_couch_tv` con apertura exterior parcial/door-to-outside.
+- Diagnóstico largo: `cfast_two_room_door_open` RMSE.
+- Arquitectura: Phase 2/Phase 2C solo con plan explícito.
 
 ## Estado guardado ahora (2026-06-18)
 
@@ -95,7 +141,7 @@ Después atacar **Grupo A** (`cfast_r0_window_360` O2): diagnóstico sin tocar m
   - `docs/planning/PLAN_TRABAJO.md`
   - `docs/roadmaps/ROADMAP_POST_V0_4_0.md`
   - `docs/roadmaps/ROADMAP_TECHNICAL_SIMULATOR_V0_5.md`
-- El siguiente trabajo real no es ILV todavía salvo decisión expresa: primero confirmar baseline y atacar validación Grupo A.
+- El siguiente trabajo real no es ILV todavía salvo decisión expresa. Los grupos A-E ya están diagnosticados; no repetirlos salvo que una corrida fresca cambie el baseline.
 - El hotfix FP queda como línea pendiente independiente: diagnosticar saltos de temperatura antes de tocar física/HUD.
 
 ## Other Machine Sync Protocol
