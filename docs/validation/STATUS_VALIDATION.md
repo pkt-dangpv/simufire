@@ -373,7 +373,29 @@ No hay fix per-case seguro:
 
 Clasificación: **Phase 2 gap** — requiere acoplamiento two-zone canónico en combustión (O2 de capa superior correctamente abastecido por doorway exchange bidireccional).
 
-**`cfast_hvac_t300_o2` — C2 HVAC Phase 2C.** Caso `cfast_hvac_residential`, t=300 s. El fallo actual no es regresión del hotfix: el log Phase 8 que pasaba estaba contaminado por M2 (`fire_o2_mass_tracking_enabled=true`). Con M2=false, default correcto, el motor no rastrea `o2_lower` separado de forma suficiente para que el aire fresco HVAC reponga la fuente efectiva de combustión; el O₂ cae a 0.0009 frente a ~0.04 esperado. Una flag M2 per-case podría mover este caso, pero no es segura: M2 global rompió 10+ checks. Requiere aislamiento upper/lower real de Phase 2C.
+**`cfast_hvac_t300_o2` — C2 HVAC Phase 2C. Diagnóstico completo (2026-06-19).** Caso `cfast_hvac_residential`, HVAC supply 0.08 m³/s suelo → retorno 0.08 m³/s techo, sala sellada, R0 solo.
+
+Curva SF vs CFAST (corrida fresca `9ffd38c`):
+
+| t | CF temp | SF temp | CF O2u | SF O2u | SF O2l | SF HRR |
+|---|---------|---------|--------|--------|--------|--------|
+| 180s | 259.6°C | 181.8°C | 13.2% | 10.9% | 20.9% | 691 kW |
+| 300s | 173.4°C | 352.6°C | 7.4% | 0.09% | 20.9% | 1280 kW |
+| 600s | 177.5°C | 353.0°C | 4.1% | 0.09% | 20.9% | 1280 kW |
+
+Causa raíz:
+- SF `O2l` = 20.9% estable ✓ — HVAC supply repone capa inferior correctamente.
+- SF `O2u` colapsa a 0.09% en t=270s — sin reposición desde capa inferior.
+- `fire_o2_lower_for_flame=true` hace que el fuego use `O2l` para throttle → SF quema a 1280 kW sin limit.
+- CFAST: el retorno HVAC a 2.30m extrae gas depleccionado de capa superior → balance de masa repone desde capa inferior → O2u se estabiliza en ~7%. El fuego ve O2u ≈7% y se throttlea → temperatura ≈173°C (no crece más).
+- SF no tiene ese balance de masa two-zone en el HVAC → O2u colapsa indefinidamente mientras fuego sigue a plena potencia → temperatura SF sube a 353°C.
+
+Sin fix per-case seguro:
+- `fire_o2_lower_for_flame=false`: fuego usa bulk O2 (20.9%), sigue a 1280 kW, O2u sigue cayendo.
+- `validation_fire_o2_mode="upper"`: fuego throttleado por O2u → oscilaciones extinction/restart sin alcanzar el equilibrio CFAST de 7%.
+- M2 per-case (`fire_o2_mass_tracking=true`): rompió 10+ checks en global, no es segura.
+
+Requiere Phase 2C: balance de masa two-zone en HVAC donde el retorno de capa superior activa intercambio con capa inferior.
 
 **`cfast_multifuel_rmse_temp_upper_c` — resuelto por equivalencia de modelo (2026-06-19).** El diagnóstico inicial detectó que CFAST era un escenario ventilado por una puerta exterior 0.9x2.0 abierta desde t=0, mientras SimuFire estaba sellado (`open_fraction=0.0`). El experimento parcial `open_fraction=0.25` no bastó (RMSE=204.65°C y regresiones internas), pero la corrección equivalente completa sí: el caso ahora usa una apertura exterior 0.9x2.0, sill 0.0, `open_fraction=1.0`. Corrida fresca: RMSE=183.79°C frente a máximo 200°C, todos los checks required multifuel PASS. Queda solo presión t120 como known gap non-required.
 
@@ -409,9 +431,9 @@ Gap documentado en fases anteriores:
 - **slow_growth_sealed temp ×2:** chi_rad requerido para temp (≤0.55) y O₂ (≥0.64) no se solapan. Resolución: Phase 2 ZoneFireSolver donde fuego depleta o2_lower.
 - **corridor_chain temp ×3:** M3 energy-only insuficiente; falta mass+energy bidireccional en puertas. Resolución: M1+M2+M3 completo.
 
-#### C2 — HVAC Phase 2C (1 fallo) — Estructural
+#### C2 — HVAC Phase 2C (1 fallo) — Estructural (diagnóstico 2026-06-19)
 
-`cfast_hvac_t300_o2: actual=0.0009, expected=0.0737`. El caso tiene `fire_o2_lower_for_flame=True` y `phase2h_o2_doorway_two_zone_enabled=True`. El HVAC provee aire fresco a o2_lower → o2_lower permanece en 0.209 (PASS). Pero el fuego depleta o2_upper directamente sin throttle (throttlea sobre o2_lower) → o2_upper crashea de 0.1088 (t=180, PASS) a 0.0009 (t=300, FAIL) en 120 s. CFAST mantiene 0.0737 por acoplamiento upper/lower de dos zonas. Requiere Phase 2C upper/lower exchange explícito. No se toca.
+`cfast_hvac_t300_o2: actual=0.0009, expected=0.0737`. El caso tiene `fire_o2_lower_for_flame=True`. O2l=20.9% estable ✓ (HVAC supply funciona). O2u colapsa a 0.09% en t≈270s porque SF no implementa el balance de masa two-zone del retorno HVAC: en CFAST el retorno a 2.30m extrae gas depleccionado y el balance repone O2 de capa inferior → O2u estabiliza en ~7% y fuego se throttlea. En SF sin ese acoplamiento, O2u colapsa y fuego quema a 1280 kW todo el tiempo. Sin fix per-case seguro. Requiere Phase 2C.
 
 #### C3 — RMSE acumulado (1 fallo) — Phase 2
 
