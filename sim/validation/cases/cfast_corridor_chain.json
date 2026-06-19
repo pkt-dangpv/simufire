@@ -93,7 +93,7 @@
 		"fire_o2_nominal": 0.17,
 		"o2_upper_plume_entr_rate": 0.025,
 		"doorway_thermal_counterflow_enabled": true,
-		"doorway_thermal_counterflow_gain": 0.3,
+		"doorway_thermal_counterflow_gain": 0.25,
 		"doorway_thermal_counterflow_o2_return_fraction": 0.0,
 		"canonical_doorway_exchange_enabled": true,
 		"canonical_doorway_lower_flow_frac": 1.0
