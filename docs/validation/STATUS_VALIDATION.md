@@ -44,6 +44,7 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Phase 10-C5 | `hrr_chi_rad_normal=hrr_chi_rad_low_o2=0.55` en `ghanekar_bedroom_hallway.json`. Reduce fracción convectiva 0.65→0.45 → origin_peak 868→537°C ✓. Bonus: menos buoyancy → O₂ exchange más tardío → far_hall_o2_response 161.5→193.0s ✓. | **19** → **17** |
 | Phase 10-C6 | `co_base_yield=0.00015, co_max_yield=0.00750` en `ghanekar_kitchen_living_room.json` (−40% del default). CO IDLH en pasillo lejano 524→545s ✓. FED 1.0: 650→665s (dentro de [498,750]). Cero regresiones. | **17** → **16** |
 | Grupo C gain=0.25 | `doorway_thermal_counterflow_gain=0.25` en `cfast_corridor_chain.json`. Resuelve `cfast_chain_r0_t300_temp_upper_c` con mínima perturbación: t300=147.00°C pasa por 1.16°C; t180 empeora dentro del fallo preexistente; O₂ sigue PASS. | **16** → **15** |
+| Exp. multifuel open=0.25 | `open_fraction=0.25` en ventana exterior de `cfast_multi_fuel_couch_tv.json`. RMSE fresco=204.65°C (sigue > 200°C umbral); rompe checks internos de temperatura y humo. Revertido. Confirma C3 estructural por topología de venting. | **15** → **15** (rechazado) |
 
 ---
 
@@ -348,7 +349,7 @@ La causa raíz coincide con Grupo A: SF en modo `legacy` consume `room.o2`/bulk,
 
 **`cfast_multifuel_rmse_temp_upper_c` — C3 topología vented/sealed.** Caso `cfast_multi_fuel_couch_tv`, 600 s. Corrida fresca 2026-06-19 confirma RMSE=232.5°C frente a máximo 200°C; el valor 200.86°C visto en `reference_checks.json` venía de log stale. La divergencia no nace del HRR: en t=60 SF tiene HRR menor que CFAST (122 kW vs 169 kW) pero temperatura muy superior (139°C vs 66°C). El patrón t=60-130 crece de +73°C a +355°C porque el escenario CFAST ventila gases calientes por una puerta exterior, mientras SF conserva la energía en una sala/pasillo cerrados. En t≈140 SF cae bruscamente al empezar el throttle por O₂, mientras CFAST sigue subiendo suavemente con ventilación exterior.
 
-No hay fix escalar seguro: subir `chi_rad` o pérdidas térmicas no cierra un gap de 100-350°C, y retocar timing/alpha del HRR no ataca la causa. La única ruta per-case que ataca la raíz sería un experimento separado con apertura exterior parcial/door-to-outside en el JSON, verificando temperatura, HRR y O₂ de todo el caso. Hasta entonces, clasificar como C3 estructural por topología de venting.
+No hay fix escalar seguro: subir `chi_rad` o pérdidas térmicas no cierra un gap de 100-350°C, y retocar timing/alpha del HRR no ataca la causa. Experimento ejecutado 2026-06-19: `open_fraction=0.25` en la ventana exterior (door-to-outside). Resultado: RMSE fresco=204.65°C (sigue > 200°C umbral), y el caso rompe checks internos de temperatura y humo al ventilarse parcialmente. Experimento revertido; JSON vuelve a `open_fraction=0.0`. **Confirmado C3 estructural por topología de venting** — la apertura parcial no cierra el gap; el problema es el modo de ventilación del escenario, no un parámetro ajustable per-case. Posponer a Phase 2.
 
 **Residuales post-Phase 9/10:** no quedan fallos required de pool ni ghanekar. Los checks ghanekar están en PASS desde Phase 10. Los fallos non-required restantes (`ghanekar_flashover_0_9m_known_gap`, `ghanekar_far_hall_co_known_gap`, presión, `cfast_bed_temp_*`) no forman parte de los 15 required FAIL.
 
