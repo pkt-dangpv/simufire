@@ -63,10 +63,23 @@ All 14 are Phase 2 / Phase 2C structural gaps. No further per-case work availabl
 
 ### Recommended next work
 
-1. **Phase 2 architecture** — design canonical two-zone combustion with bidirectional doorway O2 exchange and HVAC mass balance to resolve groups A–E simultaneously.
+1. **Phase 2 implementation** — plan técnico completo en `docs/architecture/PHASE_2_TWO_ZONE_ARCHITECTURE_PLAN.md`. Siguiente paso: implementar Phase 2A (no-op data model), luego 2B (combustion routing), 2C (doorway exchange), 2D (HVAC).
 2. Do not start ILV without explicit instruction.
 3. Do not activate M2 global (`fire_o2_mass_tracking`) — it broke 10+ checks.
 4. If pivoting to product/UX, resume FP temperature HUD investigation (separate from validation lane).
+
+### Phase 2 architecture plan (2026-06-20)
+
+Documento: `docs/architecture/PHASE_2_TWO_ZONE_ARCHITECTURE_PLAN.md`
+
+Fases planificadas:
+- **2A** (no-op): sync zonal mass (upper_gas_kg/lower_gas_kg) para todas las salas en ThermalSystem
+- **2B** (combustion routing): O₂ consumido → solo o2_upper; throttle desde o2_upper; bedroom gets `fire_o2_mode="upper"`; archivos: OxygenExchangeSystem.gd, CombustionSystem.gd, cfast_bedroom_closed_door.json; target: Grupo D ×5, Grupo A ×3
+- **2C** (doorway exchange): activar canonical_doorway_exchange en cfast_two_room_door_open; recalibrar corridor_chain; archivos: ThermalSystem.gd, cfast_two_room_door_open.json; target: Grupo E two_room ×1, Grupo C ×2
+- **2D** (HVAC mass balance): return extrae o2_upper, repone desde o2_lower; archivos: HVACSystem.gd, cfast_hvac_residential.json; target: Grupo E HVAC ×1
+- **2E** (cleanup): retirar M2, phase2h_*, phase2e_* una vez 2A–2D verdes
+
+Regla: cada fase lleva flag default=false (no-op garantizado). Activar per-case primero, luego global solo si todos los sentinels PASS.
 
 ## What Changed
 
