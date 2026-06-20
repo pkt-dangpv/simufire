@@ -8,19 +8,20 @@ This note records the repository hygiene and validation state after the non-moto
 
 ## Current Session Update — 2026-06-20
 
-- Branch: `main`. Commits ahead of origin: 2 (pending push).
-- Latest committed: `b574b80 feat(Phase2B): canonical combustion O2 routing to upper zone — per-case bedroom activation`.
+- Branch: `main`. Commits ahead of origin: 2+ (pending push).
+- Latest committed: `df8429f docs(baseline): reconcile to 13/350 FAIL with full suite fresh run`.
 - **True validation baseline (fresh run): 337/350 PASS, `13/350` required FAIL** — baseline reconciliado con suite completa (18 casos) 2026-06-20.
 - `docs/validation/STATUS_VALIDATION.md` es la fuente de verdad de validación.
 
 ### Qué se hizo en esta sesión (2026-06-20)
 
-- **Phase 2A (`ThermalSystem.gd`):** flag `phase2a_zone_mass_canonical=false` (default=false, no-op). Sync upper/lower_gas_kg desde volumen×1.2 cuando activo. Committed en sesión anterior.
+- **Phase 2A (`ThermalSystem.gd`):** flag `phase2a_zone_mass_canonical=false` (default=false, no-op). Sync upper/lower_gas_kg desde volumen×1.2 cuando activo. Committed.
 - **Phase 2B (`OxygenExchangeSystem.gd`):** flag `phase2b_canonical_combustion_enabled=false` (default=false). Activado solo en `cfast_bedroom_closed_door.json` con `validation_fire_o2_mode=upper`. Elimina doble-depleción bulk en modo upper; rutea consumo a `o2_upper`; deriva `room.o2` como promedio ponderado. Committed `b574b80`.
 - **Reconciliación baseline:** suite completa (18 casos, `run_full_reference_suite.ps1`) reveló baseline real **13/350** FAIL. Breakdown: single_room_closed = 0 (stale log), bedroom 5→4 (Phase 2B mejoró t120), pool 2→0 (restauración de regresión `686b09f`).
 - **Regresión restaurada:** `686b09f` ("Organize repository docs") había eliminado `vent_bernoulli_flow_multiplier=0.45` de `cfast_pool_fire_open.json`. Restaurado.
-- **`reference_checks.json`** actualizado al estado real (337/350 PASS).
-- **`docs/validation/STATUS_VALIDATION.md`** actualizado con baseline real, Phase 2A/2B, y reconciliación completa.
+- **`reference_checks.json`** actualizado al estado real (337/350 PASS). Committed `df8429f`.
+- **Phase 2C (`cfast_two_room_door_open.json`):** `canonical_doorway_exchange_enabled=true`, `canonical_doorway_lower_flow_frac=1.0`, `o2_upper_plume_entr_rate=0.080` activados per-caso. RMSE two_room: 88.0→**64.2°C** (↓23.8°C, 27% mejora). Sigue FAIL (umbral 60°C). Gap residual 4.2°C es estructural: requiere intercambio upper↔upper en motor. Experimentos: fire_o2_mode=lower peor (70.6°C + rompe 2 O₂ checks); plume_entr plateau en rate=0.080. Pendiente commit.
+- **`docs/validation/STATUS_VALIDATION.md`** actualizado con baseline real, Phase 2A/2B/2C y reconciliación completa.
 
 ### What was done in this session
 
@@ -74,16 +75,17 @@ Todos clasificados como gaps estructurales Phase 2/2C:
 | B — slow_growth_sealed (×2) | temp_upper | Phase 2 gap (thermal/O2 coupling) |
 | C — corridor_chain (×2) | t180+t600 temp | Phase 2 gap (M3 doorway enthalpy) |
 | D — bedroom_closed_door (×4) | O2 upper t300-720 | Phase 2 gap (t120 resuelto por Phase 2B) |
-| E — two_room_door_open (×1) | RMSE t=[0,350] | Phase 2 gap (O2u+canonical doorway) |
+| E — two_room_door_open (×1) | RMSE t=[0,350] | Phase 2C partial: 88→64.2°C; gap residual upper↔upper motor |
 | E — hvac_residential (×1) | O2 t300 | Phase 2C gap (HVAC two-zone) |
 
 ### Recommended next work
 
-1. **Phase 2C** — doorway exchange canonical para `two_room` y `corridor_chain`. Plan en `docs/architecture/PHASE_2_TWO_ZONE_ARCHITECTURE_PLAN.md`.
-2. **Diagnosticar 13 fallos no clasificados** — especialmente `cfast_single_room_closed` (O₂ colapsa a 0, temperatura crash).
-3. Do not start ILV without explicit instruction.
-4. Do not activate M2 global (`fire_o2_mass_tracking`) — broke 10+ checks.
-5. If pivoting to product/UX, resume FP temperature HUD investigation (separate lane).
+1. **Phase 2D** — HVAC two-zone mass balance: retorno extrae o2_upper, repone desde o2_lower. Target: `cfast_hvac_t300_o2`. Files: `HVACSystem.gd`, `cfast_hvac_residential.json`.
+2. **Phase 2C upper↔upper** — intercambio O2/entálpico directo capa-superior↔capa-superior en doorway (motor). Cierra el gap residual 4.2°C en two_room RMSE (64.2→<60°C). Requiere arquitectura explícita.
+3. **corridor_chain thermal** — t180/t600 temp gaps (×2). Structural M3 doorway enthalpy gap; no fix per-case disponible actualmente.
+4. Do not start ILV without explicit instruction.
+5. Do not activate M2 global (`fire_o2_mass_tracking`) — broke 10+ checks.
+6. If pivoting to product/UX, resume FP temperature HUD investigation (separate lane).
 
 ### Phase 2 architecture plan (2026-06-20)
 

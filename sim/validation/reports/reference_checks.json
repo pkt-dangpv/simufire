@@ -2,7 +2,7 @@
   "all_required_pass": false,
   "required_count": 350,
   "failed_required_count": 13,
-  "known_gap_count": 74,
+  "known_gap_count": 75,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -1667,7 +1667,7 @@
     },
     {
       "name": "cfast_2r_r0_t180_o2",
-      "actual": 0.1698,
+      "actual": 0.1608,
       "expected": 0.14938,
       "tolerance": 0.025,
       "minimum": null,
@@ -1678,7 +1678,7 @@
     },
     {
       "name": "cfast_2r_r0_t180_temp_upper_c",
-      "actual": 247.11,
+      "actual": 295.8,
       "expected": 237.192,
       "tolerance": 80.0,
       "minimum": null,
@@ -1689,7 +1689,7 @@
     },
     {
       "name": "cfast_2r_r0_t300_o2",
-      "actual": 0.0506,
+      "actual": 0.0572,
       "expected": 0.0397333,
       "tolerance": 0.025,
       "minimum": null,
@@ -1700,7 +1700,7 @@
     },
     {
       "name": "cfast_2r_r0_t300_temp_upper_c",
-      "actual": 181.12,
+      "actual": 240.23,
       "expected": 237.347,
       "tolerance": 80.0,
       "minimum": null,
@@ -1711,7 +1711,7 @@
     },
     {
       "name": "cfast_2r_r0_t450_o2",
-      "actual": 0.047,
+      "actual": 0.0469,
       "expected": 0.0641765,
       "tolerance": 0.025,
       "minimum": null,
@@ -1722,18 +1722,18 @@
     },
     {
       "name": "cfast_2r_r0_t450_temp_upper_c",
-      "actual": 145.36,
+      "actual": 149.29,
       "expected": 58.8687,
       "tolerance": 90.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "Structural gap (Phase 2): fire over-burns because room-avg O2 stays high; CFAST extinguishes via upper-zone depletion. Tol=90 covers 85.6\u00b0C structural error."
     },
     {
       "name": "cfast_2r_hall_t120_o2",
-      "actual": 0.2087,
+      "actual": 0.2083,
       "expected": 0.194996,
       "tolerance": 0.02,
       "minimum": null,
@@ -1744,7 +1744,7 @@
     },
     {
       "name": "cfast_2r_hall_t120_temp_upper_c",
-      "actual": 52.19,
+      "actual": 52.38,
       "expected": 60.7964,
       "tolerance": 60.0,
       "minimum": null,
@@ -1755,7 +1755,7 @@
     },
     {
       "name": "cfast_2r_hall_t240_o2",
-      "actual": 0.2017,
+      "actual": 0.1786,
       "expected": 0.11126200000000001,
       "tolerance": 0.025,
       "minimum": null,
@@ -1766,18 +1766,18 @@
     },
     {
       "name": "cfast_2r_hall_t240_temp_upper_c",
-      "actual": 73.52,
+      "actual": 112.05,
       "expected": 163.553,
       "tolerance": 60.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "Structural gap (Phase 2): hall temp lags CFAST \u2014 hot-gas doorway transport not modelled in one-zone SF."
     },
     {
       "name": "cfast_2r_hall_t360_o2",
-      "actual": 0.1937,
+      "actual": 0.1641,
       "expected": 0.056457,
       "tolerance": 0.06,
       "minimum": null,
@@ -1788,7 +1788,7 @@
     },
     {
       "name": "cfast_2r_hall_t360_temp_upper_c",
-      "actual": 53.87,
+      "actual": 60.61,
       "expected": 73.674,
       "tolerance": 60.0,
       "minimum": null,
@@ -1799,7 +1799,7 @@
     },
     {
       "name": "cfast_2r_r0_t120_pressure_pa",
-      "actual": 145.66,
+      "actual": 146.67,
       "expected": 303.747,
       "tolerance": 303.8,
       "minimum": null,
@@ -1810,7 +1810,7 @@
     },
     {
       "name": "cfast_2r_r0_t120_co2_upper_pct",
-      "actual": 5.5934,
+      "actual": 6.2424,
       "expected": 1.58066,
       "tolerance": 3.5,
       "minimum": null,
@@ -1821,7 +1821,7 @@
     },
     {
       "name": "cfast_2r_r0_t240_pressure_pa",
-      "actual": 1.61,
+      "actual": 2.14,
       "expected": 163.079,
       "tolerance": 160.3,
       "minimum": null,
@@ -1832,18 +1832,18 @@
     },
     {
       "name": "cfast_2r_r0_t240_co2_upper_pct",
-      "actual": 10.9489,
+      "actual": 26.5181,
       "expected": 10.6992,
       "tolerance": 3.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "CMV-1: CO2 transport to fire room \u2014 structural gap."
     },
     {
       "name": "cfast_2r_r0_t360_pressure_pa",
-      "actual": 84.22,
+      "actual": 165.65,
       "expected": -38.7189,
       "tolerance": 47.0,
       "minimum": null,
@@ -1854,18 +1854,18 @@
     },
     {
       "name": "cfast_2r_r0_t360_co2_upper_pct",
-      "actual": 12.9698,
+      "actual": 29.9997,
       "expected": 11.178,
       "tolerance": 3.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "CMV-1: CO2 transport to fire room \u2014 structural gap."
     },
     {
       "name": "cfast_2r_r0_t480_pressure_pa",
-      "actual": 85.03,
+      "actual": 103.76,
       "expected": 6.01672,
       "tolerance": 30.0,
       "minimum": null,
@@ -1876,7 +1876,7 @@
     },
     {
       "name": "cfast_2r_r0_t480_co2_upper_pct",
-      "actual": 14.5054,
+      "actual": 29.9997,
       "expected": 9.9052,
       "tolerance": 3.0,
       "minimum": null,
@@ -1887,7 +1887,7 @@
     },
     {
       "name": "cfast_2r_r0_t240_co2_upper_strat_min",
-      "actual": 10.9489,
+      "actual": 26.5181,
       "expected": null,
       "tolerance": null,
       "minimum": 5.0,
@@ -1898,7 +1898,7 @@
     },
     {
       "name": "cfast_2r_r0_t180_o2_lower",
-      "actual": 0.1932,
+      "actual": 0.1695,
       "expected": 0.182583,
       "tolerance": 0.022,
       "minimum": null,
@@ -1909,7 +1909,7 @@
     },
     {
       "name": "cfast_2r_r0_t300_o2_lower",
-      "actual": 0.1652,
+      "actual": 0.0917,
       "expected": 0.0951797,
       "tolerance": 0.116,
       "minimum": null,
@@ -1920,7 +1920,7 @@
     },
     {
       "name": "cfast_2r_r0_t450_o2_lower",
-      "actual": 0.1398,
+      "actual": 0.0616,
       "expected": 0.09087329999999999,
       "tolerance": 0.025,
       "minimum": null,
@@ -1942,7 +1942,7 @@
     },
     {
       "name": "cfast_2r_hall_t240_co_lower_ppm",
-      "actual": 24.0,
+      "actual": 39.0,
       "expected": 0.0,
       "tolerance": 100.0,
       "minimum": null,
@@ -1953,7 +1953,7 @@
     },
     {
       "name": "cfast_2r_hall_t360_co_lower_ppm",
-      "actual": 24.0,
+      "actual": 55.0,
       "expected": 0.0,
       "tolerance": 100.0,
       "minimum": null,
@@ -1964,7 +1964,7 @@
     },
     {
       "name": "cfast_2r_r0_rmse_temp_upper_c",
-      "actual": 88.00234692968894,
+      "actual": 64.18534329597547,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -1975,7 +1975,7 @@
     },
     {
       "name": "cfast_2r_r0_rmse_temp_upper_c_full",
-      "actual": 86.11211436119001,
+      "actual": 74.67471045711973,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -1986,18 +1986,18 @@
     },
     {
       "name": "cfast_2r_r0_rmse_o2",
-      "actual": 0.06420595380633326,
+      "actual": 0.01950513383311344,
       "expected": null,
       "tolerance": null,
       "minimum": null,
       "maximum": 0.028,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "CMV-2: fire-room O2 RMSE \u2264 0.028 (two-room). Structural gap expected. Threshold 0.025\u21920.028: hardened from 0.0009 margin (actual=0.02406) to \u22653\u00d7 headroom. Phase 2 gap."
     },
     {
       "name": "cfast_2r_hall_rmse_temp_upper_c",
-      "actual": 38.19633436789234,
+      "actual": 24.82359929805708,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2008,7 +2008,7 @@
     },
     {
       "name": "cfast_2r_hall_rmse_o2",
-      "actual": 0.09659437454139863,
+      "actual": 0.07497818181340489,
       "expected": null,
       "tolerance": null,
       "minimum": null,

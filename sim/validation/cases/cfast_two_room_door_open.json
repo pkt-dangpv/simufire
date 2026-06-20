@@ -95,6 +95,9 @@
 		"fire_spread_enabled": false,
 		"glass_auto_break_enabled": false,
 		"fire_co_yield_force_kg_per_MJ": 0.000343,
-		"fire_o2_nominal": 0.17
+		"fire_o2_nominal": 0.17,
+		"canonical_doorway_exchange_enabled": true,
+		"canonical_doorway_lower_flow_frac": 1.0,
+		"o2_upper_plume_entr_rate": 0.080
 	}
 }

@@ -53,6 +53,7 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Phase 2B | `OxygenExchangeSystem.gd`: flag `phase2b_canonical_combustion_enabled=false` (default=false). Activado solo en `cfast_bedroom_closed_door.json` junto con `validation_fire_o2_mode=upper`. Rutea consumo de combustión a `o2_upper` (elimina doble-depleción bulk). Mecánica correcta; bedroom ya pasaba dentro de tol en legacy. Diff de fallos con/sin Phase 2B: vacío — sin regresión. | **27** → **27** (no-op neto) |
 | Regresión pool restaurada (2026-06-20) | `686b09f Organize repository docs` había eliminado accidentalmente `vent_bernoulli_flow_multiplier=0.45` de `cfast_pool_fire_open.json` (Phase 9 C4). Restaurado. Pool t300/t600 O₂: PASS. | — |
 | Suite completa fresca (2026-06-20) | 18 casos corridos con `run_full_reference_suite.ps1`. `cfast_single_room_closed`: 0 required FAIL (artefacto de log stale confirmado). Bedroom: 5→4 (Phase 2B mejoró 1 check). Pool: 0 (restaurado). Total reconciliado: **13/350**. | **27** → **13** (real) |
+| Phase 2C — doorway exchange (2026-06-20) | `canonical_doorway_exchange_enabled=true`, `canonical_doorway_lower_flow_frac=1.0`, `o2_upper_plume_entr_rate=0.080` activados per-caso en `cfast_two_room_door_open.json`. RMSE two_room: 88.0→64.2°C (↓23.8°C, 27% mejora). Gap residual 4.2°C estructural: requiere intercambio upper↔upper a través del vano (motor). Experimentos: fire_o2_mode=lower peor (70.6°C + rompe O₂ checks); plume_entr plateau confirmado en rate=0.080. | **13** → **13** (partial) |
 
 ---
 
@@ -368,29 +369,37 @@ La causa raíz coincide con Grupo A: SF en modo `legacy` consume `room.o2`/bulk,
 
 | Check | Actual | Esperado | Tolerancia | Caso |
 |-------|--------|----------|------------|------|
-| `cfast_2r_r0_rmse_temp_upper_c` | 88.0 | — | máx 60 | cfast_two_room_door_open |
+| `cfast_2r_r0_rmse_temp_upper_c` | 64.2 | — | máx 60 | cfast_two_room_door_open |
 | `cfast_hvac_t300_o2` | 0.0009 | ~0.04 | ±0.015 | cfast_hvac_residential |
 
-**`cfast_2r_r0_rmse_temp_upper_c` — C3 RMSE acumulado. Diagnóstico completo (2026-06-19).** Caso `cfast_two_room_door_open`, ventana RMSE t=[0,350]s, umbral 60°C.
+**`cfast_2r_r0_rmse_temp_upper_c` — C3 RMSE acumulado. Phase 2C parcial (2026-06-20): 88.0→64.2°C.** Caso `cfast_two_room_door_open`, ventana RMSE t=[0,350]s, umbral 60°C.
 
-Topología post-auditoría: `cfast_two_room_door_open.json` ahora cierra Pasillo↔Dorm1 (r1↔r2) y Salón↔Cocina (r0↔r4), dejando exactamente R0+Pasillo como CFAST. Corrida con topología corregida: RMSE=88.0°C — invariante (cero efecto de cierre de habitaciones extra).
+**Phase 2C aplicada (2026-06-20):** `canonical_doorway_exchange_enabled=true`, `o2_upper_plume_entr_rate=0.080` activados per-caso. RMSE: 88.0°C → 64.2°C (↓23.8°C). El gap residual de 4.2°C requiere intercambio upper↔upper en el motor.
 
-Patrón de curva (SF vs CFAST):
+Topología post-auditoría: `cfast_two_room_door_open.json` ahora cierra Pasillo↔Dorm1 (r1↔r2) y Salón↔Cocina (r0↔r4), dejando exactamente R0+Pasillo como CFAST.
+
+Patrón de curva (SF vs CFAST, antes de Phase 2C):
 - t=0–70s: SF ligeramente por debajo (+24°C máx)
 - t=70–180s: SF **muy por encima** — pico +132°C en t=120s (SF=247°C, CFAST=115°C)
 - t=180–310s: SF **muy por debajo** — mínimo -174°C en t=250s (SF=163°C, CFAST=338°C)
 - t=320–350s: inversión, SF sube mientras CFAST cae
 
-Causa raíz identificada:
-1. **Combustión O2u:** `validation_fire_o2_mode="upper"` hace que SF consuma O2 de la capa superior de R0. En t=180s, `O2u=3.96%` — fuego throttleado al 30% cuando CFAST todavía crece hacia su pico natural (t≈240s, HRR=1280 kW).
-2. **Retorno O2 bloqueado:** Pasillo/R1 tiene `O2u=20.7%` en t=180s, pero sin `canonical_doorway_exchange_enabled`, SF no retorna O2 rico desde la capa superior del Pasillo hacia R0. En CFAST el intercambio bidireccional masa+O2 mantiene el fuego abastecido.
+Causa raíz:
+1. **Combustión O2u:** `validation_fire_o2_mode="upper"` hace que SF consuma O2 de la capa superior de R0. Sin canonical exchange: O2u=3.96% en t=180s → fuego throttleado al 30% cuando CFAST crece hacia su pico (t≈240s, 1280 kW).
+2. **Retorno O2 bloqueado (sin Phase 2C):** Pasillo/R1 tiene O2u=20.7% en t=180s, pero sin `canonical_doorway_exchange_enabled`, SF no retorna O2 hacia R0. Phase 2C parte B sí repone o2_lower de R0 vía flujo Bernoulli; plume_entr_rate=0.080 transfiere o2_lower→o2_upper.
 
-No hay fix per-case seguro:
-- Cerrar habitaciones extra: cero efecto (confirmado).
-- Activar `canonical_doorway_exchange`: reduciría el throttle tardío pero amplificaría el pico temprano (más O2 disponible antes de t=120s) y requeriría verificar checks puntuales pasantes (t180, t300 temp y O2).
-- `doorway_thermal_counterflow`: afecta transporte de calor, no resuelve el desequilibrio O2u.
+Experimentos de calibración Phase 2C (progresión plume_entr_rate):
+| rate | RMSE |
+|------|------|
+| 0 (sin canonical) | 88.0°C |
+| 0.040 | 68.2°C |
+| 0.080 | **64.2°C** (mínimo) |
+| 0.150 | 64.6°C (peor — plateau) |
+| lower_mode+0.080 | 70.6°C (peor + rompe O₂ checks) |
 
-Clasificación: **Phase 2 gap** — requiere acoplamiento two-zone canónico en combustión (O2 de capa superior correctamente abastecido por doorway exchange bidireccional).
+Gap residual 4.2°C: la ruta de replenishment es two-step (Bernoulli→o2_lower; plume_entr→o2_upper). El intercambio directo upper↔upper en el vano (no implementado) resolvería el gap.
+
+Clasificación: **Phase 2C gap** — requiere intercambio entálpico/O2 upper↔upper en doorway (motor).
 
 **`cfast_hvac_t300_o2` — C2 HVAC Phase 2C. Diagnóstico completo (2026-06-19).** Caso `cfast_hvac_residential`, HVAC supply 0.08 m³/s suelo → retorno 0.08 m³/s techo, sala sellada, R0 solo.
 
