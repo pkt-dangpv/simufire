@@ -1,8 +1,8 @@
 # SimuFire — Estado de validación CFAST
 
-> Última actualización: 2026-06-19
-> Branch: `main` · HEAD: Topología two_room auditada — RMSE=88°C confirmado gap Phase 2 (O2u+doorway), 14 required FAIL
-> Fallos requeridos actuales: **14 / 350** — equivalencia CFAST corregida en `window_break`, `multifuel`, `corridor_chain` y `two_room`; `cfast_multifuel_rmse_temp_upper_c` pasa
+> Última actualización: 2026-06-20
+> Branch: `main` · Phase 2A (no-op) + Phase 2B (combustion O₂ routing upper) — baseline real reconciliado: **27 required FAIL**
+> Fallos requeridos actuales: **27 / 350** — baseline reconciliado con run fresca 2026-06-20; 14 documentados (gaps estructurales) + 13 preexistentes no registrados (ver § Baseline reconciliación 2026-06-20)
 
 ---
 
@@ -48,6 +48,9 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Equivalencia CFAST 2026-06-19 | `cfast_window_break_t180`: geometría ventana 1.2x1.0 sill 0.8; `cfast_multi_fuel_couch_tv`: apertura exterior equivalente 0.9x2.0 abierta desde t=0; `cfast_corridor_chain`: R2 CFAST corregido a 25.2 m³ y outputs CFAST regenerados. Multifuel RMSE=183.79°C PASS; window-break pressure gap cierra; corridor required sin cambio. | **15** → **14** |
 | Topología corridor_chain | Puerta Hall↔R2 `width_m=0.9` y cierre Salón↔Cocina (r0↔r4) en `cfast_corridor_chain.json`. Cocina no existe en CFAST; el template la tenía abierta por defecto. Corrida fresca confirma t180=189.76°C y t600=105.8°C invariantes — fallos son gaps estructurales de intercambio entálpico, no artefactos topológicos. | **14** → **14** (confirmado) |
 | Topología two_room | Cierre Pasillo↔Dorm1 (r1↔r2) y Salón↔Cocina (r0↔r4) en `cfast_two_room_door_open.json`. Dorm1/Cocina no existen en CFAST. Corrida fresca confirma RMSE=88.0°C invariante — fallo es gap Phase 2: O2u agotada al 3.96% en t=180s por combustión upper-layer, retorno O2 desde Pasillo (O2u=20.7%) bloqueado sin canonical exchange. Fix per-case no disponible. | **14** → **14** (confirmado) |
+| Reconciliación baseline 2026-06-20 | Run fresca completa (350 checks) revela baseline real **27/350** — el `reference_checks.json` estaba desactualizado desde sesión anterior (mostraba 336/350). Los 13 fallos no documentados son preexistentes: 9 de `cfast_single_room_closed` (O₂ colapso a 0, crash temperatura) + 4 adicionales. Verificado con `git stash`: lista de fallos idéntica con/sin Phase 2B. No hay regresión. | **14** → **27\*** (stale→real) |
+| Phase 2A | `ThermalSystem.gd`: flag `phase2a_zone_mass_canonical=false` (default=false, no-op). Sync upper/lower_gas_kg desde volumen×1.2 cuando activo. Confirmado no-op: lista fallos igual con/sin stash de 2A. | **27** → **27** (no-op) |
+| Phase 2B | `OxygenExchangeSystem.gd`: flag `phase2b_canonical_combustion_enabled=false` (default=false). Activado solo en `cfast_bedroom_closed_door.json` junto con `validation_fire_o2_mode=upper`. Rutea consumo de combustión a `o2_upper` (elimina doble-depleción bulk). Mecánica correcta; bedroom ya pasaba dentro de tol en legacy. Diff de fallos con/sin Phase 2B: vacío — sin regresión. | **27** → **27** (no-op neto) |
 
 ---
 
@@ -99,11 +102,17 @@ Todos preexistentes al hotfix. Verificado mediante `git show 1e34ef5:sim/validat
 
 **Actualización Grupo C (2026-06-19):** `doorway_thermal_counterflow_gain=0.25` resuelve `cfast_chain_r0_t300_temp_upper_c`. Baseline: **15/350**.
 
-**Actualización equivalencia CFAST (2026-06-19):** la auditoría de modelos corrigió tres discrepancias de escenario: `cfast_window_break_t180` ahora usa la ventana CFAST 1.2x1.0, `cfast_multi_fuel_couch_tv` ahora representa la puerta exterior CFAST como apertura 0.9x2.0 abierta, y `cfast_corridor_chain.in` usa R2=25.2 m³ como SimuFire. Baseline actual: **14/350**.
+**Actualización equivalencia CFAST (2026-06-19):** la auditoría de modelos corrigió tres discrepancias de escenario: `cfast_window_break_t180` ahora usa la ventana CFAST 1.2x1.0, `cfast_multi_fuel_couch_tv` ahora representa la puerta exterior CFAST como apertura 0.9x2.0 abierta, y `cfast_corridor_chain.in` usa R2=25.2 m³ como SimuFire. Baseline documentado: **14/350**.
+
+**Reconciliación baseline (2026-06-20):** run fresca completa (`validate_reference_cases.py`) revela baseline real **27/350**. El `reference_checks.json` estaba desactualizado (generado en sesión anterior con 336 PASS). Los 13 fallos adicionales son preexistentes — verificado con `git stash`: lista de fallos con y sin Phase 2B es idéntica (diff vacío). Phase 2A y 2B son neutros: no introducen ni resuelven fallos. Los 13 nuevos incluyen 9 de `cfast_single_room_closed` (O₂ colapsa a 0 en t≈300, crash de temperatura) más 4 adicionales no documentados. Clasificación completa pendiente.
+
+**Phase 2A (2026-06-20, no-op):** `phase2a_zone_mass_canonical=false` committeado. Sync upper/lower_gas_kg desde volumen×1.2 — desactivado por defecto.
+
+**Phase 2B (2026-06-20, no-op neto):** `phase2b_canonical_combustion_enabled=false` committeado. Activado únicamente en `cfast_bedroom_closed_door.json` con `validation_fire_o2_mode=upper`. Elimina doble-depleción bulk en modo upper; rutea consumo a `o2_upper`; deriva `room.o2` como promedio ponderado. Mecánica correcta — bedroom ya pasaba en legacy. Baseline real: **27/350**.
 
 ---
 
-## Los 14 fallos actuales
+## Los 27 fallos actuales (baseline 2026-06-20)
 
 > Auditoría de equivalencia (2026-06-19): ver `docs/validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md`.
 > Resultado corto: tras corregir las discrepancias de geometría/topología detectadas, los 14 fallos required restantes se clasifican como gaps válidos de arquitectura/modelo.

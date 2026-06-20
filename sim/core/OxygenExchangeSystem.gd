@@ -113,6 +113,10 @@ var plume_upper_o2_displacement_frac: float = 0.09
 # requerir sala sellada. Default false = no-op exacto; comportamiento legacy sin cambios.
 # Activar vía engine_overrides: { "fire_o2_canonical_enabled": true }.
 var fire_o2_canonical_enabled: bool = false
+# Phase 2B: consumo O₂ va solo a o2_upper; room.o2 se deriva como promedio ponderado de zonas.
+# Elimina la doble contabilidad (bulk + upper) cuando fire_o2_mode="upper".
+# Default false = no-op exacto. Activar per-caso con engine_overrides.
+var phase2b_canonical_combustion_enabled: bool = false
 # Phase 5 M2: tracer conservado de masa de O2 en zona superior.
 # Cuando true, inicializa room.upper_o2_mass_tracked y deriva o2_upper = masa / upper_air_mass.
 # Default false = no-op exacto; room.upper_o2_mass_tracked nunca se toca.
@@ -240,6 +244,9 @@ func configure(settings: Dictionary) -> void:
 	fire_o2_mass_tracking_enabled = bool(
 		settings.get("fire_o2_mass_tracking_enabled", fire_o2_mass_tracking_enabled)
 	)
+	phase2b_canonical_combustion_enabled = bool(
+		settings.get("phase2b_canonical_combustion_enabled", phase2b_canonical_combustion_enabled)
+	)
 	two_zone_solver_enabled = bool(settings.get("two_zone_solver_enabled", two_zone_solver_enabled))
 
 
@@ -337,13 +344,15 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			room.hrr_kw > 0.0
 		)
 		var effective_plume_lower: bool = plume_lower_mode or canonical_plume_lower
+		# Phase 2B: consumo O₂ solo a o2_upper; room.o2 se deriva de zonas al final del paso.
+		var _phase2b_upper_active: bool = phase2b_canonical_combustion_enabled and fire_o2_mode == "upper"
 
 		# ── room.o2: variable de estado ──────────────────────────────────────────────
 		# Phase 2C: cuando fire_o2_lower_for_flame=true, el fuego consume de o2_lower;
 		# room.o2 no se depleta por combustión (solo ACH + HVAC lo modifican).
 		# R2-2: en plume_lower_mode el consumo va a o2_lower (ver bloque two-zone).
 		var o2_mass_kg: float = air_mass_kg * room.o2
-		if room.hrr_kw > 0.0 and not fire_uses_lower_o2 and not effective_plume_lower:
+		if room.hrr_kw > 0.0 and not fire_uses_lower_o2 and not effective_plume_lower and not _phase2b_upper_active:
 			var cr: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 			var consumed: float = (room.hrr_kw / 1000.0) * cr * dt
 			consumed = minf(consumed, o2_mass_kg * 0.05)
@@ -462,7 +471,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			var _o2_lower_floor: float = 0.0 if effective_plume_lower else room.o2
 			room.o2_lower = clampf(room.o2_lower + ach_lower_dt, _o2_lower_floor, _o2_lower_ach_ceil)
 			# R2-2: cuando el fuego entrana de o2_lower, room.o2 refleja la mezcla ponderada.
-			if effective_plume_lower:
+			# Phase 2B: idem cuando consumo va solo a o2_upper (fire_o2_mode="upper").
+			if effective_plume_lower or _phase2b_upper_active:
 				room.o2 = clampf(room.o2_upper * upper_frac + room.o2_lower * lower_frac, 0.0, o2_nominal)
 		else:
 			# Sin fuego: resync lento de zonas a room.o2 (difusion/mezcla)
