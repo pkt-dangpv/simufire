@@ -1,8 +1,8 @@
 {
   "all_required_pass": false,
   "required_count": 350,
-  "failed_required_count": 11,
-  "known_gap_count": 71,
+  "failed_required_count": 7,
+  "known_gap_count": 70,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -1458,57 +1458,57 @@
     },
     {
       "name": "cfast_bed_o2_t300_o2",
-      "actual": 0.129,
+      "actual": 0.1232,
       "expected": 0.116653,
       "tolerance": 0.008,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "BCD-1: bedroom O2 upper at t=300s. tol=0.008 (\u22653\u00d7 step @0.0001). Both models: sealed O2 depletion."
     },
     {
       "name": "cfast_bed_o2_t480_o2",
-      "actual": 0.1186,
+      "actual": 0.0929,
       "expected": 0.0809916,
       "tolerance": 0.02,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "BCD-1: bedroom O2 upper at t=480s. tol=0.02 (\u22653\u00d7 step @0.0001). Both models: sealed O2 depletion."
     },
     {
       "name": "cfast_bed_o2_t600_o2",
-      "actual": 0.1142,
+      "actual": 0.0852,
       "expected": 0.0705026,
       "tolerance": 0.023,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "BCD-1: bedroom O2 upper at t=600s. tol=0.023 (\u22653\u00d7 step @0.0001). Both models: sealed O2 depletion."
     },
     {
       "name": "cfast_bed_o2_t720_o2",
-      "actual": 0.1107,
+      "actual": 0.0795,
       "expected": 0.0622151,
       "tolerance": 0.026,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "BCD-1: bedroom O2 upper at t=720s. tol=0.026 (\u22653\u00d7 step @0.0001). Both models: sealed O2 depletion."
     },
     {
       "name": "cfast_bed_min_o2_lethal",
-      "actual": 0.107,
+      "actual": 0.0722,
       "expected": null,
       "tolerance": null,
       "minimum": 0.0,
       "maximum": 0.1,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "BCD-2: bedroom O2 upper < 10% (lethal depletion in sealed room). SF min=7.93%, CFAST min=5.34%. 207 steps @0.0001."
     },
     {
@@ -1524,7 +1524,7 @@
     },
     {
       "name": "cfast_bed_rmse_temp_upper",
-      "actual": 65.41005730235561,
+      "actual": 61.680954484145445,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -1535,29 +1535,29 @@
     },
     {
       "name": "cfast_bed_temp_t300_temp_upper_c",
-      "actual": 85.75,
+      "actual": 91.03,
       "expected": 170.085,
       "tolerance": 85.0,
       "minimum": null,
       "maximum": null,
       "required": false,
       "pass": true,
-      "note": "BCD-1 (non-gating): Phase 1.5 temperature gap at t=300s. CFAST two-zone upper 170.1\u00b0C; SF one-zone 85.8\u00b0C. tol=85.0\u00b0C."
+      "note": "BCD-1 (non-gating): Phase 1.5 temperature gap at t=300s. CFAST two-zone upper 170.1\u00b0C; SF one-zone 91.0\u00b0C. tol=85.0\u00b0C."
     },
     {
       "name": "cfast_bed_temp_t480_temp_upper_c",
-      "actual": 80.73,
+      "actual": 89.54,
       "expected": 141.099,
       "tolerance": 65.0,
       "minimum": null,
       "maximum": null,
       "required": false,
       "pass": true,
-      "note": "BCD-1 (non-gating): Phase 1.5 temperature gap at t=480s. CFAST two-zone upper 141.1\u00b0C; SF one-zone 80.7\u00b0C. tol=65.0\u00b0C."
+      "note": "BCD-1 (non-gating): Phase 1.5 temperature gap at t=480s. CFAST two-zone upper 141.1\u00b0C; SF one-zone 89.5\u00b0C. tol=65.0\u00b0C."
     },
     {
       "name": "cfast_bed_co_upper_t480_co_upper_ppm",
-      "actual": 7838.0,
+      "actual": 12442.0,
       "expected": 4224.12,
       "tolerance": 3200.0,
       "minimum": null,
@@ -2613,7 +2613,7 @@
     },
     {
       "name": "cfast_burnout_t600_fire_active",
-      "actual": 497.21,
+      "actual": 582.17,
       "expected": null,
       "tolerance": null,
       "minimum": 30.0,
@@ -2690,7 +2690,7 @@
     },
     {
       "name": "cfast_burnout_t1800_fire_active",
-      "actual": 291.77,
+      "actual": 582.17,
       "expected": null,
       "tolerance": null,
       "minimum": 10.0,
@@ -2701,7 +2701,7 @@
     },
     {
       "name": "cfast_burnout_t600_o2_depleted",
-      "actual": 0.0699,
+      "actual": 0.0774,
       "expected": null,
       "tolerance": null,
       "minimum": null,

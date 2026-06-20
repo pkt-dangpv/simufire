@@ -65,7 +65,7 @@ Fresh run result:
 - SF lacks two-zone HVAC mass balance → O2u collapses indefinitely; no per-case fix
 - **Verdict: Phase 2C structural gap confirmed. No fix without architecture work.**
 
-### Fallos required actuales: 11 (post-Phase2C-thermal, 2026-06-20)
+### Fallos required actuales: 7 (post-Phase2E-bedroom, 2026-06-20)
 
 Todos clasificados como gaps estructurales Phase 2:
 
@@ -73,21 +73,19 @@ Todos clasificados como gaps estructurales Phase 2:
 |-------|--------|------------|
 | A — r0_window_360 (×3) | O2 upper vs bulk | Phase 2 gap |
 | B — slow_growth_sealed (×2) | temp_upper | Phase 2 gap (thermal/O2 coupling) |
-| C — corridor_chain (×2) | t180+t600 temp | Phase 2 gap (M3 doorway enthalpy) |
-| D — bedroom_closed_door (×4) | O2 upper t300-720 | Phase 2 gap (t120 resuelto por Phase 2B) |
+| C — corridor_chain (×2) | t180+t600 temp | Phase 2 gap (M3 doorway O2 replenishment) |
+
+Grupo D completamente resuelto: `cfast_bed_o2_t300/t480/t600/t720_o2` PASS (Phase 2E-bedroom).
 
 Grupo E completamente resuelto: `hvac_t300_o2` PASS (Phase 2D `b960d29`); `two_room RMSE` PASS 53.8°C (Phase 2C-thermal `e0785e8`).
 
 ### Recommended next work
 
-1. **corridor_chain thermal** — t180/t600 temp gaps (×2). M3 doorway enthalpy gap estructural.
-2. **Grupo D bedroom O2** — t300/t480/t600/t720 (×4). Phase 2 combustion routing gap.
+1. **Grupo C corridor_chain thermal** — t180/t600 temp (×2). Diagnóstico 2026-06-20: gain tuning imposible (t180 demasiado caliente, t600 demasiado frío en direcciones opuestas). Fuente entálpica real: falta O2 upper replenishment doorway para sostener HRR tardío (CFAST: O2u ~15% en steady state; SF: depleta a ~10% → fire throttled 60%). Phase 2 structural pending.
+2. **Grupo A r0_window_360** (×3) y **Grupo B slow_growth_sealed** (×2). Phase 2 structural gaps.
 3. Do not start ILV without explicit instruction.
-4. Do not activate M2 global (fire_o2_mass_tracking).
-3. **corridor_chain thermal** — t180/t600 temp gaps (×2). Structural M3 doorway enthalpy gap; no fix per-case disponible actualmente.
-4. Do not start ILV without explicit instruction.
-5. Do not activate M2 global (`fire_o2_mass_tracking`) — broke 10+ checks.
-6. If pivoting to product/UX, resume FP temperature HUD investigation (separate lane).
+4. Do not activate M2 global (`fire_o2_mass_tracking`) — broke 10+ checks.
+5. If pivoting to product/UX, resume FP temperature HUD investigation (separate lane).
 
 ### Phase 2 architecture plan (2026-06-20)
 

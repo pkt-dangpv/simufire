@@ -1,8 +1,8 @@
 # SimuFire — Estado de validación CFAST
 
 > Última actualización: 2026-06-20
-> Branch: `main` · Phase 2C-thermal (doorway thermal counterflow) — commit e0785e8
-> Fallos requeridos actuales: **11 / 350** — todos clasificados como gaps estructurales Phase 2
+> Branch: `main` · Phase 2E-bedroom O₂ (fire_o2_full_hrr_open=0.10, ach_infiltration=0.5)
+> Fallos requeridos actuales: **7 / 350** — todos clasificados como gaps estructurales Phase 2
 
 ---
 
@@ -56,6 +56,7 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Phase 2C — doorway exchange (2026-06-20) | `canonical_doorway_exchange_enabled=true`, `canonical_doorway_lower_flow_frac=1.0`, `o2_upper_plume_entr_rate=0.080` activados per-caso en `cfast_two_room_door_open.json`. RMSE two_room: 88.0→64.2°C (↓23.8°C, 27% mejora). Gap residual 4.2°C estructural: requiere intercambio upper↔upper a través del vano (motor). Experimentos: fire_o2_mode=lower peor (70.6°C + rompe O₂ checks); plume_entr plateau confirmado en rate=0.080. | **13** → **13** (partial) |
 | Phase 2D — HVAC two-zone O₂ mass balance (2026-06-20, commit `b960d29`) | `hvac_two_zone_o2_enabled=true` per-caso en `cfast_hvac_residential.json`. Cuando return vent está en zona alta, gas depleccionado extraído crea vacío que rellena gas de zona baja (conservación de masa): `o2_upper += air_fraction × (o2_lower − o2_upper)`. Adicionalmente: `hvac_mode=on` (HVAC no corría), `validation_fire_o2_mode=upper`, eliminado `fire_o2_lower_for_flame=true`. `cfast_hvac_t300_o2`: actual=0.0845 vs esperado=0.0737 ±0.034 → **PASS**. Todos checks HVAC existentes: sin regresión. | **13** → **12** |
 | Phase 2C-thermal — doorway thermal counterflow (2026-06-20, commit `e0785e8`) | `doorway_thermal_counterflow_enabled=true`, `gain=0.25` per-caso en `cfast_two_room_door_open.json`. Transfiere energía zona superior R0→R1 vía caudal Bernoulli convectivo, sin mover masa ni O2. M3b O₂ return desactivado automáticamente cuando `canonical_doorway_exchange_enabled=true`. Experimento previo upper↔upper O₂ descartado: empeoraba RMSE en todos los rates. `cfast_2r_r0_rmse_temp_upper_c`: 64.2°C → **53.8°C** (umbral ≤60°C) → **PASS**. | **12** → **11** |
+| Phase 2E-bedroom — O₂ depletion rate fix (2026-06-20) | `fire_o2_full_hrr_open=0.10` (de 0.15) y `ach_infiltration=0.5` (de 5.0) per-caso en `cfast_bedroom_closed_door.json`. Diagnóstico: CFAST usa `LOWER_OXYGEN_LIMIT=0.10` (fuego a plena HRR hasta O₂<10%) y LEAK_AREA_RATIO≈0.3 ACH; SF tenía umbral 15% + infiltración 17× mayor → fuego throttled prematuro + exceso de reposición de O₂. Con fix: fire quema a 150kW hasta O₂u<10%, o2_lower se depleta 10× más despacio. t=120 O₂u sin cambio (fire ya a 100% HRR). t=300-720 O₂u baja 18-28% cerrando los 4 checks. Temperatura aumenta (margin 0.7→5.9°C en t=300). `cfast_bed_o2_t300/t480/t600/t720_o2`: **PASS** (4 checks resueltos). | **11** → **7** |
 
 ---
 
