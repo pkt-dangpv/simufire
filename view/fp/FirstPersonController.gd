@@ -166,6 +166,8 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var show_visibility_readout: bool = true
 ## Intervalo real de refresco del texto FP. Por defecto coincide con la cadencia de datos del HUD 2D.
 @export_range(0.05, 1.0, 0.05) var fp_hud_refresh_interval_s: float = 0.05
+## Suavizado visual para la temperatura del HUD técnico FP. 0.0 desactiva el filtro.
+@export_range(0.0, 3.0, 0.05) var fp_hud_temperature_smoothing_tau_s: float = 0.5
 
 @export_group("FP HUD Layout")
 ## Rect del panel superior de estado FP. x/y son offsets desde su ancla; w/h son tamaño.
@@ -220,6 +222,10 @@ var _f_hold_elapsed_s: float = 0.0
 var _f_hold_opening_index: int = -1
 var _f_hold_fraction: float = 0.0
 var _last_fp_hud_update_msec: int = 0
+var _technical_overlay_temp_initialized: bool = false
+var _technical_overlay_smoothed_temp_c: float = 20.0
+var _technical_overlay_temp_room_id: int = -1
+var _technical_overlay_temp_stance: int = -1
 
 
 func _ready() -> void:
@@ -301,7 +307,7 @@ func set_state(next_state: Dictionary) -> void:
 	_update_fp_fire_visuals()
 	_update_safety_marker_states()
 	_update_visibility_overlay()
-	_update_status_hud()
+	_update_status_hud(true)
 
 
 func _physics_process(delta: float) -> void:
@@ -2978,6 +2984,9 @@ func _update_status_hud(force: bool = false) -> void:
 	var min_interval_msec: int = int(maxf(0.01, fp_hud_refresh_interval_s) * 1000.0)
 	if not force and _last_fp_hud_update_msec > 0 and now_msec - _last_fp_hud_update_msec < min_interval_msec:
 		return
+	var hud_dt_s: float = fp_hud_refresh_interval_s
+	if _last_fp_hud_update_msec > 0:
+		hud_dt_s = maxf(0.001, float(now_msec - _last_fp_hud_update_msec) / 1000.0)
 	_last_fp_hud_update_msec = now_msec
 	var room_label: String = "SIN SALA"
 	var visibility_label: String = "Vis --"
@@ -2995,7 +3004,7 @@ func _update_status_hud(force: bool = false) -> void:
 				hrr_label = "HRR %.0f kW" % float(room_state.get("hrr_kw", 0.0))
 				var smoke_view: Dictionary = _compute_fp_smoke_view(room_state)
 				visibility_label = _format_fp_visibility(float(smoke_view.get("fp_visibility_m", room_state.get("visibility_m", 30.0))))
-				_update_technical_overlay(room_state, smoke_view)
+				_update_technical_overlay(room_state, smoke_view, hud_dt_s)
 				has_data = true
 	_fp_status_label.text = "FP | %s | %s | %s | %s\nESC salir | F usar | CTRL postura" % [
 		room_label,
@@ -3010,9 +3019,11 @@ func _update_status_hud(force: bool = false) -> void:
 		_visibility_readout_panel.visible = show_visibility_readout and has_data and not technical_visible
 	if _visibility_readout_label != null and has_data:
 		_visibility_readout_label.text = visibility_label
+	if not has_data:
+		_reset_technical_overlay_temperature_filter()
 
 
-func _update_technical_overlay(room_state: Dictionary, smoke_view: Dictionary) -> void:
+func _update_technical_overlay(room_state: Dictionary, smoke_view: Dictionary, hud_dt_s: float) -> void:
 	if _technical_overlay_label == null:
 		return
 	# Temperatura según postura: usa campos interpolados por altura del motor de simulación.
@@ -3024,6 +3035,7 @@ func _update_technical_overlay(room_state: Dictionary, smoke_view: Dictionary) -
 			temp_c = float(room_state.get("temp_at_1_1m_c", room_state.get("temp_upper_c", 20.0)))
 		_: # STANCE_PRONE
 			temp_c = float(room_state.get("temp_at_0_5m_c", room_state.get("temp_lower_c", 20.0)))
+	temp_c = _smooth_technical_overlay_temperature(temp_c, hud_dt_s)
 	# Gases: usa la capa coherente con la postura para evitar mezclar upper y promedio.
 	var co_ppm: float = float(room_state.get("co_upper_ppm", 0.0))
 	var co2_vol_pct: float = float(room_state.get("co2_upper_ppm", 4000.0)) / 10000.0
@@ -3037,6 +3049,34 @@ func _update_technical_overlay(room_state: Dictionary, smoke_view: Dictionary) -
 		"HRR %5.0f kW\nT   %5.0f °C\nCO  %5.0f ppm\nCO₂ %4.1f %%vol\nO₂   %4.1f %%vol\nHCN %5.0f ppm\nFED %.2f\nVis %s"
 		% [hrr_kw, temp_c, co_ppm, co2_vol_pct, o2_vol_pct, hcn_ppm, fed_val, _format_fp_visibility(vis_m)]
 	)
+
+
+func _smooth_technical_overlay_temperature(raw_temp_c: float, hud_dt_s: float) -> float:
+	var context_changed: bool = (
+		_technical_overlay_temp_room_id != _current_room_id
+		or _technical_overlay_temp_stance != _stance
+	)
+	if (
+		fp_hud_temperature_smoothing_tau_s <= 0.0
+		or not _technical_overlay_temp_initialized
+		or context_changed
+	):
+		_technical_overlay_smoothed_temp_c = raw_temp_c
+		_technical_overlay_temp_initialized = true
+		_technical_overlay_temp_room_id = _current_room_id
+		_technical_overlay_temp_stance = _stance
+		return raw_temp_c
+
+	var alpha: float = 1.0 - exp(-maxf(0.0, hud_dt_s) / maxf(0.001, fp_hud_temperature_smoothing_tau_s))
+	_technical_overlay_smoothed_temp_c = lerpf(_technical_overlay_smoothed_temp_c, raw_temp_c, clampf(alpha, 0.0, 1.0))
+	return _technical_overlay_smoothed_temp_c
+
+
+func _reset_technical_overlay_temperature_filter() -> void:
+	_technical_overlay_temp_initialized = false
+	_technical_overlay_temp_room_id = -1
+	_technical_overlay_temp_stance = -1
+
 
 func _format_fp_visibility(visibility_m: float) -> String:
 	return FPVisibilityOverlay.format_visibility(visibility_m, fp_visibility_clear_m)
@@ -3261,7 +3301,7 @@ func _update_window_leaf_pair(
 func _cycle_stance() -> void:
 	_stance = FPPlayerMotion.next_stance(_stance)
 	_apply_stance(false)
-	_update_status_hud()
+	_update_status_hud(true)
 
 
 func _apply_stance(immediate: bool) -> void:
