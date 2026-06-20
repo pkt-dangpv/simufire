@@ -10,16 +10,17 @@ This note records the repository hygiene and validation state after the non-moto
 
 - Branch: `main`. Commits ahead of origin: 2 (pending push).
 - Latest committed: `b574b80 feat(Phase2B): canonical combustion O2 routing to upper zone — per-case bedroom activation`.
-- **True validation baseline (fresh run): 323/350 PASS, `27/350` required FAIL** — baseline reconciliado 2026-06-20. El `reference_checks.json` anterior estaba desactualizado (mostraba 336/350, generado en sesión anterior).
+- **True validation baseline (fresh run): 337/350 PASS, `13/350` required FAIL** — baseline reconciliado con suite completa (18 casos) 2026-06-20.
 - `docs/validation/STATUS_VALIDATION.md` es la fuente de verdad de validación.
 
 ### Qué se hizo en esta sesión (2026-06-20)
 
 - **Phase 2A (`ThermalSystem.gd`):** flag `phase2a_zone_mass_canonical=false` (default=false, no-op). Sync upper/lower_gas_kg desde volumen×1.2 cuando activo. Committed en sesión anterior.
 - **Phase 2B (`OxygenExchangeSystem.gd`):** flag `phase2b_canonical_combustion_enabled=false` (default=false). Activado solo en `cfast_bedroom_closed_door.json` con `validation_fire_o2_mode=upper`. Elimina doble-depleción bulk en modo upper; rutea consumo a `o2_upper`; deriva `room.o2` como promedio ponderado. Committed `b574b80`.
-- **Reconciliación baseline:** run fresca reveló 27/350 reales (no 14). Los 13 fallos adicionales son preexistentes: 9 de `cfast_single_room_closed` + 4 adicionales. Diff de fail lists con/sin Phase 2B: vacío — cero regresiones.
-- **`reference_checks.json`** actualizado al estado real (323/350).
-- **`docs/validation/STATUS_VALIDATION.md`** actualizado con baseline real y Phase 2A/2B.
+- **Reconciliación baseline:** suite completa (18 casos, `run_full_reference_suite.ps1`) reveló baseline real **13/350** FAIL. Breakdown: single_room_closed = 0 (stale log), bedroom 5→4 (Phase 2B mejoró t120), pool 2→0 (restauración de regresión `686b09f`).
+- **Regresión restaurada:** `686b09f` ("Organize repository docs") había eliminado `vent_bernoulli_flow_multiplier=0.45` de `cfast_pool_fire_open.json`. Restaurado.
+- **`reference_checks.json`** actualizado al estado real (337/350 PASS).
+- **`docs/validation/STATUS_VALIDATION.md`** actualizado con baseline real, Phase 2A/2B, y reconciliación completa.
 
 ### What was done in this session
 
@@ -63,20 +64,18 @@ Fresh run result:
 - SF lacks two-zone HVAC mass balance → O2u collapses indefinitely; no per-case fix
 - **Verdict: Phase 2C structural gap confirmed. No fix without architecture work.**
 
-### Fallos required actuales: 27 (baseline 2026-06-20)
+### Fallos required actuales: 13 (baseline reconciliado 2026-06-20)
 
-Los 27 son preexistentes. Desglose:
+Todos clasificados como gaps estructurales Phase 2/2C:
 
 | Group | Checks | Root cause |
 |-------|--------|------------|
 | A — r0_window_360 (×3) | O2 upper vs bulk | Phase 2 gap |
 | B — slow_growth_sealed (×2) | temp_upper | Phase 2 gap (thermal/O2 coupling) |
 | C — corridor_chain (×2) | t180+t600 temp | Phase 2 gap (M3 doorway enthalpy) |
-| D — bedroom_closed_door (×5) | O2 upper | Phase 2B activo (mecánica correcta, tol PASS) |
+| D — bedroom_closed_door (×4) | O2 upper t300-720 | Phase 2 gap (t120 resuelto por Phase 2B) |
 | E — two_room_door_open (×1) | RMSE t=[0,350] | Phase 2 gap (O2u+canonical doorway) |
 | E — hvac_residential (×1) | O2 t300 | Phase 2C gap (HVAC two-zone) |
-| Sin clasificar — single_room_closed (×9) | O2/temp colapso | Preexistentes, diagnóstico pendiente |
-| Sin clasificar (×4) | varios | Preexistentes, diagnóstico pendiente |
 
 ### Recommended next work
 

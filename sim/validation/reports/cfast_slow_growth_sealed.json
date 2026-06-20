@@ -10,6 +10,8 @@
 	"fire_o2_mode_requested": "upper",
 	"metrics": {
 		"conservation_max_violation_frac": -1.0,
+		"doorway_thermal_counterflow_enabled": 0.0,
+		"fire_o2_mass_tracking_enabled": 0.0,
 		"global_carbon_error_kg": 11.7872054302782,
 		"global_carbon_error_kg_abs": 11.7872054302782,
 		"global_carbon_postclamp_excess_kg": 11.7873068964286,

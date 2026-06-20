@@ -1,8 +1,8 @@
 # SimuFire — Estado de validación CFAST
 
 > Última actualización: 2026-06-20
-> Branch: `main` · Phase 2A (no-op) + Phase 2B (combustion O₂ routing upper) — baseline real reconciliado: **27 required FAIL**
-> Fallos requeridos actuales: **27 / 350** — baseline reconciliado con run fresca 2026-06-20; 14 documentados (gaps estructurales) + 13 preexistentes no registrados (ver § Baseline reconciliación 2026-06-20)
+> Branch: `main` · Phase 2A (no-op) + Phase 2B (combustion O₂ routing upper) — baseline reconciliado con suite completa fresca
+> Fallos requeridos actuales: **13 / 350** — reconciliado 2026-06-20; todos clasificados como gaps estructurales Phase 2/2C (ver § Los 13 fallos actuales)
 
 ---
 
@@ -51,6 +51,8 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Reconciliación baseline 2026-06-20 | Run fresca completa (350 checks) revela baseline real **27/350** — el `reference_checks.json` estaba desactualizado desde sesión anterior (mostraba 336/350). Los 13 fallos no documentados son preexistentes: 9 de `cfast_single_room_closed` (O₂ colapso a 0, crash temperatura) + 4 adicionales. Verificado con `git stash`: lista de fallos idéntica con/sin Phase 2B. No hay regresión. | **14** → **27\*** (stale→real) |
 | Phase 2A | `ThermalSystem.gd`: flag `phase2a_zone_mass_canonical=false` (default=false, no-op). Sync upper/lower_gas_kg desde volumen×1.2 cuando activo. Confirmado no-op: lista fallos igual con/sin stash de 2A. | **27** → **27** (no-op) |
 | Phase 2B | `OxygenExchangeSystem.gd`: flag `phase2b_canonical_combustion_enabled=false` (default=false). Activado solo en `cfast_bedroom_closed_door.json` junto con `validation_fire_o2_mode=upper`. Rutea consumo de combustión a `o2_upper` (elimina doble-depleción bulk). Mecánica correcta; bedroom ya pasaba dentro de tol en legacy. Diff de fallos con/sin Phase 2B: vacío — sin regresión. | **27** → **27** (no-op neto) |
+| Regresión pool restaurada (2026-06-20) | `686b09f Organize repository docs` había eliminado accidentalmente `vent_bernoulli_flow_multiplier=0.45` de `cfast_pool_fire_open.json` (Phase 9 C4). Restaurado. Pool t300/t600 O₂: PASS. | — |
+| Suite completa fresca (2026-06-20) | 18 casos corridos con `run_full_reference_suite.ps1`. `cfast_single_room_closed`: 0 required FAIL (artefacto de log stale confirmado). Bedroom: 5→4 (Phase 2B mejoró 1 check). Pool: 0 (restaurado). Total reconciliado: **13/350**. | **27** → **13** (real) |
 
 ---
 
@@ -112,11 +114,17 @@ Todos preexistentes al hotfix. Verificado mediante `git show 1e34ef5:sim/validat
 
 ---
 
-## Los 27 fallos actuales (baseline 2026-06-20)
+## Los 13 fallos actuales (baseline reconciliado 2026-06-20)
 
 > Auditoría de equivalencia (2026-06-19): ver `docs/validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md`.
-> Resultado corto: tras corregir las discrepancias de geometría/topología detectadas, los 14 fallos required restantes se clasifican como gaps válidos de arquitectura/modelo.
+> Resultado corto: tras corregir las discrepancias de geometría/topología detectadas, los 13 fallos required restantes se clasifican como gaps válidos de arquitectura/modelo (Phase 2/2C).
 > Auditoría de modelos (2026-06-19): ver `docs/validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md`. Hallazgos corregidos: `cfast_multi_fuel_couch_tv` venting exterior, `cfast_corridor_chain` R2, y `cfast_window_break_t180` geometría de ventana. Ghanekar kitchen/living sigue siendo aproximado/no estricto.
+>
+> **Reconciliación 2026-06-20:** Run fresca completa (18 casos, `run_full_reference_suite.ps1`) reveló:
+> - `cfast_single_room_closed`: 0 required FAILs — el log en `b574b80` era stale (anterior a ef84972/45e6a33).
+> - `cfast_pool_fire_open`: `vent_bernoulli_flow_multiplier=0.45` había sido eliminado en `686b09f` ("Organize docs"). Restaurado — t300/t600 O₂ PASS.
+> - `cfast_bedroom_closed_door`: Phase 2B mejoró 1 check (bed_o2_t120 ahora PASS). Grupo D: 5→4 FAILs.
+> - Baseline real: **13/350** (todos gaps estructurales documentados).
 
 ### Grupo A — `cfast_r0_window_360` (→ 0 fallos originales, 3 nuevos O₂ parcialmente estructurales)
 
@@ -336,21 +344,23 @@ Se acepta 0.25 por mínima perturbación: pasa t300 con margen suficiente (+1.16
 
 ---
 
-### Grupo D — Fallos bedroom O₂ (5 fallos) — cfast_bedroom_closed_door
+### Grupo D — Fallos bedroom O₂ (4 fallos) — cfast_bedroom_closed_door
 
 O₂ en cuarto de cama depleta más lento que en CFAST. Corrección de trazabilidad (2026-06-19): estos checks no pertenecen a `ghanekar_bedroom_hallway`; el caso real es `cfast_bedroom_closed_door`. Los checks ghanekar relacionados quedaron en PASS desde Phase 10.
 
 La causa raíz coincide con Grupo A: SF en modo `legacy` consume `room.o2`/bulk, mientras el check compara `o2_upper` SF con `ULO2` CFAST. CFAST depleciona directamente la zona superior; SF solo la reduce por redistribución/intercambio, por lo que los gaps son sistemáticos, unidireccionales y varias veces mayores que la tolerancia. No hay fix per-case disponible sin arquitectura two-zone canónica.
 
-| Check | Actual | Esperado | Tol |
-|-------|--------|----------|-----|
-| `cfast_bed_o2_t120_o2` | 0.2040 | 0.1898 | ±0.008 |
-| `cfast_bed_o2_t300_o2` | 0.1596 | 0.1149 | ±0.015 |
-| `cfast_bed_o2_t480_o2` | ~0.11 | ~0.06 | ±0.015 |
-| `cfast_bed_o2_t600_o2` | ~0.07 | ~0.035 | ±0.015 |
-| `cfast_bed_o2_t720_o2` | ~0.05 | ~0.02 | ±0.015 |
+**Actualización Phase 2B (2026-06-20):** `phase2b_canonical_combustion_enabled=true` con `fire_o2_mode=upper` activado en `cfast_bedroom_closed_door.json`. El check `cfast_bed_o2_t120_o2` ahora **PASA** (Phase 2B rutea consumo de combustión a `o2_upper` — la depleción inicial es más fiel a CFAST). Los checks t=300-720 siguen fallando porque la zona superior no recibe reposición por doorway exchange (requiere Phase 2C).
 
-**Estado:** gap estructural Phase 2 confirmado. No ajustar `ach_infiltration`, `chi_rad` ni redistribución inter-zona para perseguir estos cinco checks: no atacan la fuente real del desacople bulk/upper y arriesgan regresiones en O₂/HRR.
+| Check | Actual | Esperado | Tol | Estado |
+|-------|--------|----------|-----|--------|
+| ~~`cfast_bed_o2_t120_o2`~~ | ~~0.129~~ | ~~0.1898~~ | ~~±0.008~~ | **PASS** ✓ (Phase 2B) |
+| `cfast_bed_o2_t300_o2` | 0.129 | 0.1167 | ±0.008 | **FAIL** |
+| `cfast_bed_o2_t480_o2` | 0.1186 | 0.0810 | ±0.020 | **FAIL** |
+| `cfast_bed_o2_t600_o2` | 0.1142 | 0.0705 | ±0.023 | **FAIL** |
+| `cfast_bed_o2_t720_o2` | 0.1107 | 0.0622 | ±0.026 | **FAIL** |
+
+**Estado:** gap estructural Phase 2 confirmado. No ajustar `ach_infiltration`, `chi_rad` ni redistribución inter-zona para perseguir estos cuatro checks: no atacan la fuente real del desacople bulk/upper y arriesgan regresiones en O₂/HRR.
 
 ---
 

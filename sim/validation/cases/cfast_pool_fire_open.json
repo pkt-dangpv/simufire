@@ -73,6 +73,7 @@
 		"hrr_chi_rad_normal": 0.7,
 		"hrr_chi_rad_low_o2": 0.7,
 		"natural_vent_inlet_fraction": 0.2,
+		"vent_bernoulli_flow_multiplier": 0.45,
 		"layer_150c_relax_up_per_s": 0.05,
 		"thermal_gradient_band_fraction": 0.0,
 		"max_upper_temp_c": 480.0,
