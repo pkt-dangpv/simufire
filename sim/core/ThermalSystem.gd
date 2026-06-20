@@ -23,6 +23,10 @@ var _zone_fire_solver: ZoneFireSolver
 # M1: rama two-zone canonica. Default false conserva exactamente legacy.
 var two_zone_solver_enabled: bool = false
 
+# Phase 2A: sync zonal mass (upper_gas_kg/lower_gas_kg) desde geometría para todas las salas.
+# Default false = no-op absoluto; no cambia ningún resultado hasta que un caso active el flag.
+var phase2a_zone_mass_canonical: bool = false
+
 # Masa térmica de paredes
 var wall_heat_capacity_kj_m2_k: float = 20.0  # kJ/m²K — cap. efectiva superficie (~5cm yeso)
 var wall_core_decay_per_s: float = 0.0002     # τ ≈ 5000 s — conducción de la superficie al núcleo
@@ -624,6 +628,7 @@ func configure(settings: Dictionary) -> void:
 	phase2f_co_interlayer_mixing_rate = float(settings.get("phase2f_co_interlayer_mixing_rate", phase2f_co_interlayer_mixing_rate))
 	phase2f_co_interlayer_mixing_guard = String(settings.get("phase2f_co_interlayer_mixing_guard", phase2f_co_interlayer_mixing_guard))
 	phase2i_co2_upper_fraction = float(settings.get("phase2i_co2_upper_fraction", phase2i_co2_upper_fraction))
+	phase2a_zone_mass_canonical = bool(settings.get("phase2a_zone_mass_canonical", phase2a_zone_mass_canonical))
 
 
 # ============================================================
@@ -670,6 +675,16 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 	var _bud_total_residual_kj: float = 0.0
 	if energy_budget_enabled:
 		_energy_budget.clear()
+
+	# Phase 2A: sincronizar masa zonal desde geometría actual para todas las salas.
+	# Con flag=false (default) este bloque no se ejecuta — no-op garantizado.
+	if phase2a_zone_mass_canonical:
+		for _p2a_id in building.get_rooms().keys():
+			var _p2a_room: RoomModel = building.get_room(_p2a_id)
+			if _p2a_room == null:
+				continue
+			_p2a_room.upper_gas_kg = maxf(0.0, _p2a_room.upper_volume_m3() * 1.2)
+			_p2a_room.lower_gas_kg = maxf(0.0, _p2a_room.lower_volume_m3() * 1.2)
 
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
