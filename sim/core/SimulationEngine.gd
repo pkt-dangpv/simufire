@@ -247,6 +247,16 @@ var _layer_interface_warning_rooms: Dictionary = {}
 ## Phase 2G: multiplicador del flujo inferior canónico para compensar subestimación Bernoulli vs CFAST PDE.
 ## 1.0 = no-op exacto. Activar sólo per-caso en engine_overrides.
 @export var canonical_doorway_lower_inflow_multiplier: float = 1.0
+## Phase 3A: ODE de sobrepresión termogénica. false = no-op (pressure_pa_therm siempre 0).
+@export var phase3a_pressure_ode_enabled: bool = false
+## Phase 3A: coeficiente de disipación [1/s]. 24000 → dp_ss≈0.1 Pa para 300kW/50m³.
+@export var phase3a_pressure_vent_loss_coeff: float = 24000.0
+## Phase 3A: cap de sobrepresión [Pa]. 500 Pa >> valor real (~0.1 Pa).
+@export var phase3a_pressure_max_pa: float = 500.0
+## Phase 3B: corrección del plano neutro con dp_fire. false = sin corrección.
+@export var phase3b_neutral_plane_dp_correction: bool = false
+## Phase 3D: fracción del inflow inferior enviada directamente a hot.upper. 0.0 = no-op.
+@export var canonical_doorway_plume_direct_upper_frac: float = 0.0
 # Rendimiento de humo (kg/MJ)
 # SFPE: ~0.06 kg/kg ÷ 16 MJ/kg = 0.00375 kg/MJ
 @export var fire_smoke_yield_kg_per_MJ: float = 0.0088
@@ -1062,6 +1072,11 @@ func _sync_auxiliary_services() -> void:
 		"canonical_doorway_exchange_enabled": canonical_doorway_exchange_enabled,
 		"canonical_doorway_lower_flow_frac": canonical_doorway_lower_flow_frac,
 		"canonical_doorway_lower_inflow_multiplier": canonical_doorway_lower_inflow_multiplier,
+		"phase3a_pressure_ode_enabled": phase3a_pressure_ode_enabled,
+		"phase3a_pressure_vent_loss_coeff": phase3a_pressure_vent_loss_coeff,
+		"phase3a_pressure_max_pa": phase3a_pressure_max_pa,
+		"phase3b_neutral_plane_dp_correction": phase3b_neutral_plane_dp_correction,
+		"canonical_doorway_plume_direct_upper_frac": canonical_doorway_plume_direct_upper_frac,
 	})
 	fire_spread_system.set_references(building, smoke_model, combustion_system)
 	fire_spread_system.configure({

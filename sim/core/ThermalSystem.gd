@@ -263,6 +263,27 @@ var canonical_doorway_lower_flow_frac: float = 1.0
 ## Compensa subestimación Bernoulli vs CFAST PDE. Activar sólo per-caso.
 var canonical_doorway_lower_inflow_multiplier: float = 1.0
 
+# Phase 3A: ODE de sobrepresión termogénica por fuego.
+# dp/dt = (γ-1)×HRR_kw×1000/V [Pa/s] - loss_coeff×dp [Pa/s]
+# Escribe en room.pressure_pa_therm (campo existente en RoomModel, default 0.0).
+# Default false = no-op absoluto: pressure_pa_therm permanece en 0.0 siempre.
+var phase3a_pressure_ode_enabled: bool = false
+# Coeficiente de disipación [1/s]. Mayor = disipación más rápida → dp más bajo.
+# Calibrado: coeff≈24000 → dp_ss≈0.1 Pa para 300kW en 50m³.
+var phase3a_pressure_vent_loss_coeff: float = 24000.0
+# Cap de dp_fire para evitar runaway numérico. 500 Pa >> valor real (~0.1 Pa).
+var phase3a_pressure_max_pa: float = 500.0
+
+# Phase 3B: corrección del plano neutro con dp_fire (pressure_pa_therm).
+# Aplica post-caché: δh = dp_hot/(ρ_cold·g·H_door) → neutral_plane_f baja → más inflow.
+# Default false = plano neutro sin modificar. No-op si Phase 3A = false o dp ≈ 0.
+var phase3b_neutral_plane_dp_correction: bool = false
+
+# Phase 3D: fracción del inflow inferior que va directamente a hot.upper vía pluma.
+# 0.0 = no-op (todo el inflow va a hot.lower como antes).
+# Activar per-caso. Solo activa si canonical_doorway_exchange_enabled=true.
+var canonical_doorway_plume_direct_upper_frac: float = 0.0
+
 # FED (ISO 13571) — componentes asfixiantes disponibles en el modelo
 var fed_hypoxia_enabled: bool = true
 var fed_hypoxia_a: float = 8.13
@@ -570,6 +591,11 @@ func configure(settings: Dictionary) -> void:
 	canonical_doorway_exchange_enabled = bool(settings.get("canonical_doorway_exchange_enabled", canonical_doorway_exchange_enabled))
 	canonical_doorway_lower_flow_frac = float(settings.get("canonical_doorway_lower_flow_frac", canonical_doorway_lower_flow_frac))
 	canonical_doorway_lower_inflow_multiplier = float(settings.get("canonical_doorway_lower_inflow_multiplier", canonical_doorway_lower_inflow_multiplier))
+	phase3a_pressure_ode_enabled = bool(settings.get("phase3a_pressure_ode_enabled", phase3a_pressure_ode_enabled))
+	phase3a_pressure_vent_loss_coeff = float(settings.get("phase3a_pressure_vent_loss_coeff", phase3a_pressure_vent_loss_coeff))
+	phase3a_pressure_max_pa = float(settings.get("phase3a_pressure_max_pa", phase3a_pressure_max_pa))
+	phase3b_neutral_plane_dp_correction = bool(settings.get("phase3b_neutral_plane_dp_correction", phase3b_neutral_plane_dp_correction))
+	canonical_doorway_plume_direct_upper_frac = float(settings.get("canonical_doorway_plume_direct_upper_frac", canonical_doorway_plume_direct_upper_frac))
 	plume_mccaffrey_enabled = bool(settings.get("plume_mccaffrey_enabled", plume_mccaffrey_enabled))
 	plume_mccaffrey_qc_fraction = float(settings.get("plume_mccaffrey_qc_fraction", plume_mccaffrey_qc_fraction))
 	plume_fire_diameter_m = float(settings.get("plume_fire_diameter_m", plume_fire_diameter_m))
@@ -922,6 +948,18 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		update_room_layer_150c(room, dt)
 		step_fed(room, dt)
 
+		# Phase 3A: ODE de sobrepresión termogénica por fuego.
+		# Integra dp_fire/dt = (γ-1)×HRR×1000/V - loss_coeff×dp.
+		# No-op cuando phase3a_pressure_ode_enabled=false (default).
+		if phase3a_pressure_ode_enabled:
+			var _p3a_v: float = maxf(1.0, room.volume_m3())
+			var _p3a_source: float = 0.4 * room.hrr_kw * 1000.0 / _p3a_v  # Pa/s; 0.4 = γ-1
+			var _p3a_loss: float = phase3a_pressure_vent_loss_coeff * room.pressure_pa_therm
+			room.pressure_pa_therm += (_p3a_source - _p3a_loss) * dt
+			room.pressure_pa_therm = clampf(room.pressure_pa_therm, 0.0, phase3a_pressure_max_pa)
+		else:
+			room.pressure_pa_therm = 0.0
+
 		if energy_budget_enabled:
 			var _bud_de_upper_kj: float = room.upper_energy_kj - _bud_e_before_kj
 			# Residual: E_fire + Q_wall_emit - Q_rad - Q_to_lower - Q_to_ambient - Q_wall_abs - ΔE_upper
@@ -976,6 +1014,46 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			continue
 
 		var flow_state: Dictionary = _flow_cache.get(op, build_interior_opening_flow_state(room_a, room_b, op))
+
+		# Phase 3B: corrección post-caché del plano neutro con dp_fire (pressure_pa_therm).
+		# dp_hot > 0 sólo cuando phase3a_pressure_ode_enabled=true y hay fuego activo.
+		# Con defaults (3A=false → dp=0): esta corrección es 0 → no-op garantizado.
+		if phase3b_neutral_plane_dp_correction and bool(flow_state.get("active", false)):
+			var _p3b_hot: RoomModel = flow_state.get("hot_room", null)
+			var _p3b_cold: RoomModel = flow_state.get("cold_room", null)
+			if _p3b_hot != null and _p3b_cold != null and _p3b_hot.pressure_pa_therm > 0.01:
+				var _p3b_rho_cold: float = gas_density_kg_m3(ambient_c)
+				var _p3b_door_h: float = maxf(0.01, op.height_m)
+				# δh = dp / (ρ_cold × g × H_door) → plano neutro sube → neutral_plane_f baja
+				var _p3b_delta_f: float = _p3b_hot.pressure_pa_therm / (_p3b_rho_cold * 9.8 * _p3b_door_h * _p3b_door_h)
+				var _p3b_npf: float = clampf(float(flow_state.get("neutral_plane_f", 0.5)) - _p3b_delta_f, 0.05, 0.90)
+				if absf(_p3b_npf - float(flow_state.get("neutral_plane_f", 0.5))) > 0.001:
+					flow_state["neutral_plane_f"] = _p3b_npf
+					# Recompute Bernoulli flows with corrected neutral_plane_f
+					var _p3b_cd: float = 0.65
+					var _p3b_w: float = op.width_m * op.open_fraction
+					var _p3b_g: float = 9.81
+					var _p3b_hu: float = _p3b_npf * _p3b_door_h
+					var _p3b_hl: float = (1.0 - _p3b_npf) * _p3b_door_h
+					var _p3b_Th: float = _p3b_hot.temp_upper_c + 273.15
+					var _p3b_Tc: float = _p3b_cold.temp_lower_c + 273.15
+					var _p3b_Tref: float = (_p3b_Th + _p3b_Tc) * 0.5
+					var _p3b_dTu: float = maxf(0.0, _p3b_Th - _p3b_Tc)
+					var _p3b_qu: float = 0.0
+					if _p3b_hu > 0.001 and _p3b_dTu > 0.5:
+						_p3b_qu = _p3b_cd * _p3b_w * (2.0 / 3.0) * pow(_p3b_hu, 1.5) \
+								* sqrt(2.0 * _p3b_g * _p3b_dTu / _p3b_Tref)
+					var _p3b_Thl: float = _p3b_hot.temp_lower_c + 273.15
+					var _p3b_dTl: float = maxf(0.0, _p3b_Tc - _p3b_Thl)
+					var _p3b_ql: float = 0.0
+					if _p3b_hl > 0.001 and _p3b_dTl > 0.5:
+						_p3b_ql = _p3b_cd * _p3b_w * (2.0 / 3.0) * pow(_p3b_hl, 1.5) \
+								* sqrt(2.0 * _p3b_g * _p3b_dTl / ((_p3b_Tc + _p3b_Thl) * 0.5))
+					elif _p3b_qu > 0.0:
+						_p3b_ql = _p3b_qu * (353.0 / maxf(50.0, _p3b_Th)) / maxf(0.001, 353.0 / maxf(50.0, _p3b_Tc))
+					flow_state["bernoulli_upper_kg_s"] = _p3b_qu * (353.0 / maxf(50.0, _p3b_Th))
+					flow_state["bernoulli_lower_kg_s"] = _p3b_ql * (353.0 / maxf(50.0, _p3b_Tc))
+
 		_apply_outside_assisted_background_heat_exchange(
 			room_a, room_b, op, dt, ambient_c, _outside_open_path_factor_callable
 		)
@@ -2408,25 +2486,56 @@ func _apply_canonical_doorway_exchange(
 	if m_lower_kg <= 0.0001:
 		return
 
+	# Phase 3D: fracción del inflow inferior que va directamente a hot.upper (pluma inmediata).
+	# hot_layer_frac = fracción del vano interior en zona caliente del cuarto de fuego.
+	# direct_frac = hot_layer_frac × canonical_doorway_plume_direct_upper_frac.
+	# Conservativo: m_lower_kg = m_direct + m_to_lower (sin doble contabilidad).
+	var _p3d_frac: float = 0.0
+	if canonical_doorway_plume_direct_upper_frac > 0.0:
+		var _p3d_door_h: float = maxf(0.01, op.height_m)
+		var _p3d_hot_layer_f: float = clampf(
+			1.0 - hot_room.thermal_layer_m / _p3d_door_h,
+			0.0, 1.0
+		)
+		_p3d_frac = _p3d_hot_layer_f * canonical_doorway_plume_direct_upper_frac
+	var m_direct_kg: float = m_lower_kg * _p3d_frac
+	var m_to_lower_kg: float = m_lower_kg - m_direct_kg
+
 	# cp = 1.0 kJ/(kg·K) — igual que ZoneFireSolver.AIR_CP_KJ_KG_K.
 	# Δenergía_hot = m × (T_cold − T_hot) [negativo → enfría la capa inferior caliente].
 	# Actuar sobre lower_energy_kj garantiza que project_room_state() derive
 	# el temp_lower_c correcto en el paso siguiente.
 	var _cp: float = 1.0
-	var delta_energy_hot_kj: float = \
-			m_lower_kg * (cold_room.temp_lower_c - hot_room.temp_lower_c) * _cp
-	hot_room.lower_energy_kj = maxf(0.0, hot_room.lower_energy_kj + delta_energy_hot_kj)
-	# cold.lower pierde la entalpía (sobre ambiente) del aire exportado.
+	if m_to_lower_kg > 0.0001:
+		var delta_energy_hot_kj: float = \
+				m_to_lower_kg * (cold_room.temp_lower_c - hot_room.temp_lower_c) * _cp
+		hot_room.lower_energy_kj = maxf(0.0, hot_room.lower_energy_kj + delta_energy_hot_kj)
+	# cold.lower pierde la entalpía (sobre ambiente) del aire exportado (total, incluso la fracción direct).
 	var cold_energy_out_kj: float = \
 			m_lower_kg * maxf(0.0, cold_room.temp_lower_c - ambient_c) * _cp
 	cold_room.lower_energy_kj = maxf(0.0, cold_room.lower_energy_kj - cold_energy_out_kj)
 
-	# O₂ zona inferior: mezcla conservativa (masa estimada desde geometría × densidad).
-	hot_room.o2_lower = clampf(
-		(hot_lower_mass * hot_room.o2_lower + m_lower_kg * cold_room.o2_lower)
-		/ (hot_lower_mass + m_lower_kg),
-		0.0, 0.209
-	)
+	# Phase 3D: fracción directa entra en hot.upper — mezcla conservativa.
+	# El gas frío entra con la entalpía del aire fresco (cold.lower temp).
+	if m_direct_kg > 0.0001:
+		var hot_upper_mass_before: float = maxf(0.001, hot_room.upper_gas_kg)
+		hot_room.upper_gas_kg += m_direct_kg
+		var direct_energy_kj: float = m_direct_kg * maxf(0.0, cold_room.temp_lower_c - ambient_c) * _cp
+		hot_room.upper_energy_kj = maxf(0.0, hot_room.upper_energy_kj + direct_energy_kj)
+		# O₂ zona superior: mezcla conservativa con o2_lower del cuarto frío.
+		hot_room.o2_upper = clampf(
+			(hot_upper_mass_before * hot_room.o2_upper + m_direct_kg * cold_room.o2_lower)
+			/ hot_room.upper_gas_kg,
+			0.0, 0.209
+		)
+
+	# O₂ zona inferior: mezcla conservativa con la fracción que va a lower.
+	if m_to_lower_kg > 0.0001:
+		hot_room.o2_lower = clampf(
+			(hot_lower_mass * hot_room.o2_lower + m_to_lower_kg * cold_room.o2_lower)
+			/ (hot_lower_mass + m_to_lower_kg),
+			0.0, 0.209
+		)
 	# cold_room.o2_lower: fracción conservada al perder masa (mezcla perfecta).
 
 	# Sync O₂ bulk para sala caliente: promedio volumétrico superior + inferior.
