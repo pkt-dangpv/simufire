@@ -81,7 +81,7 @@ Grupo E completamente resuelto: `hvac_t300_o2` PASS (Phase 2D `b960d29`); `two_r
 
 ### Recommended next work
 
-1. **Grupo C corridor_chain thermal** — t180/t600 temp (×2). Diagnóstico 2026-06-20: gain tuning imposible (t180 demasiado caliente, t600 demasiado frío en direcciones opuestas). Fuente entálpica real: falta O2 upper replenishment doorway para sostener HRR tardío (CFAST: O2u ~15% en steady state; SF: depleta a ~10% → fire throttled 60%). Phase 2 structural pending.
+1. **Grupo C corridor_chain thermal** — t180/t600 temp (×2). **Phase 2 architectural gap confirmado (2026-06-20)**. Sweep `o2_upper_plume_entr_rate` 0.025→0.050→0.080: mejora t=600 sólo +2.9°C decelerando (gap = 63°C); `fire_o2_full_hrr_open=0.10` inviable (O₂u@t=180 = 11.3%, umbral dispararía HRR plena early → t=180 +15–20°C peor). Causa raíz: SF carece de flujo entálpico outflow por doorway superior (hot upper gas exits R0 en CFAST → enfría t=180, mantiene temps tardías). Requiere intercambio entálpico doorway bidireccional en motor. NO tiene lever per-caso.
 2. **Grupo A r0_window_360** (×3) y **Grupo B slow_growth_sealed** (×2). Phase 2 structural gaps.
 3. Do not start ILV without explicit instruction.
 4. Do not activate M2 global (`fire_o2_mass_tracking`) — broke 10+ checks.
