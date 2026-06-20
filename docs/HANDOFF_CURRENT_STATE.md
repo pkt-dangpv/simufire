@@ -36,8 +36,8 @@ Curve pattern: SF overshoots CFAST by +132°C at t=120s (early spike), then unde
 
 ### Current guardrail state
 
-- Required checks: FAIL — `14` required failures, all confirmed VALID_GAP.
-- Known gaps: `75` non-gating gaps in JSON and docs.
+- Required checks: FAIL — `5` required failures, all confirmed VALID_GAP.
+- Known gaps: `68` non-gating gaps in JSON and docs.
 - Gap inventory count: synchronized.
 - Phase 2E sentinel: FAIL on `g4 FED timing [s]` (pre-existing, not caused by this session).
 - Carbon/HCN sentinels: PASS.
