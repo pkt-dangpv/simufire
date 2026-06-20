@@ -1,8 +1,8 @@
 # SimuFire — Estado de validación CFAST
 
 > Última actualización: 2026-06-20
-> Branch: `main` · Phase 2A (no-op) + Phase 2B (combustion O₂ routing upper) — baseline reconciliado con suite completa fresca
-> Fallos requeridos actuales: **13 / 350** — reconciliado 2026-06-20; todos clasificados como gaps estructurales Phase 2/2C (ver § Los 13 fallos actuales)
+> Branch: `main` · Phase 2D (HVAC two-zone mass balance) — commit b960d29
+> Fallos requeridos actuales: **12 / 350** — reconciliado 2026-06-20; todos clasificados como gaps estructurales Phase 2/2C
 
 ---
 
@@ -54,6 +54,7 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Regresión pool restaurada (2026-06-20) | `686b09f Organize repository docs` había eliminado accidentalmente `vent_bernoulli_flow_multiplier=0.45` de `cfast_pool_fire_open.json` (Phase 9 C4). Restaurado. Pool t300/t600 O₂: PASS. | — |
 | Suite completa fresca (2026-06-20) | 18 casos corridos con `run_full_reference_suite.ps1`. `cfast_single_room_closed`: 0 required FAIL (artefacto de log stale confirmado). Bedroom: 5→4 (Phase 2B mejoró 1 check). Pool: 0 (restaurado). Total reconciliado: **13/350**. | **27** → **13** (real) |
 | Phase 2C — doorway exchange (2026-06-20) | `canonical_doorway_exchange_enabled=true`, `canonical_doorway_lower_flow_frac=1.0`, `o2_upper_plume_entr_rate=0.080` activados per-caso en `cfast_two_room_door_open.json`. RMSE two_room: 88.0→64.2°C (↓23.8°C, 27% mejora). Gap residual 4.2°C estructural: requiere intercambio upper↔upper a través del vano (motor). Experimentos: fire_o2_mode=lower peor (70.6°C + rompe O₂ checks); plume_entr plateau confirmado en rate=0.080. | **13** → **13** (partial) |
+| Phase 2D — HVAC two-zone O₂ mass balance (2026-06-20, commit `b960d29`) | `hvac_two_zone_o2_enabled=true` per-caso en `cfast_hvac_residential.json`. Cuando return vent está en zona alta, gas depleccionado extraído crea vacío que rellena gas de zona baja (conservación de masa): `o2_upper += air_fraction × (o2_lower − o2_upper)`. Adicionalmente: `hvac_mode=on` (HVAC no corría), `validation_fire_o2_mode=upper`, eliminado `fire_o2_lower_for_flame=true`. `cfast_hvac_t300_o2`: actual=0.0845 vs esperado=0.0737 ±0.034 → **PASS**. Todos checks HVAC existentes: sin regresión. | **13** → **12** |
 
 ---
 
@@ -115,7 +116,7 @@ Todos preexistentes al hotfix. Verificado mediante `git show 1e34ef5:sim/validat
 
 ---
 
-## Los 13 fallos actuales (baseline reconciliado 2026-06-20)
+## Los 12 fallos actuales (baseline post-Phase2D, 2026-06-20)
 
 > Auditoría de equivalencia (2026-06-19): ver `docs/validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md`.
 > Resultado corto: tras corregir las discrepancias de geometría/topología detectadas, los 13 fallos required restantes se clasifican como gaps válidos de arquitectura/modelo (Phase 2/2C).
@@ -365,12 +366,14 @@ La causa raíz coincide con Grupo A: SF en modo `legacy` consume `room.o2`/bulk,
 
 ---
 
-### Grupo E — Residuales actuales (2 fallos)
+### Grupo E — Residuales actuales (1 fallo)
 
 | Check | Actual | Esperado | Tolerancia | Caso |
 |-------|--------|----------|------------|------|
 | `cfast_2r_r0_rmse_temp_upper_c` | 64.2 | — | máx 60 | cfast_two_room_door_open |
-| `cfast_hvac_t300_o2` | 0.0009 | ~0.04 | ±0.015 | cfast_hvac_residential |
+
+**`cfast_hvac_t300_o2` — RESUELTO por Phase 2D (commit `b960d29`, 2026-06-20).**
+`hvac_two_zone_o2_enabled=true` + `hvac_mode=on` + `validation_fire_o2_mode=upper`. actual=0.0845, esperado=0.0737 ±0.034 → PASS.
 
 **`cfast_2r_r0_rmse_temp_upper_c` — C3 RMSE acumulado. Phase 2C parcial (2026-06-20): 88.0→64.2°C.** Caso `cfast_two_room_door_open`, ventana RMSE t=[0,350]s, umbral 60°C.
 
@@ -429,7 +432,7 @@ Requiere Phase 2C: balance de masa two-zone en HVAC donde el retorno de capa sup
 
 **Residuales post-Phase 9/10:** no quedan fallos required de pool, ghanekar ni multifuel. Los checks ghanekar están en PASS desde Phase 10. Los fallos non-required restantes (`ghanekar_flashover_0_9m_known_gap`, `ghanekar_far_hall_co_known_gap`, presión, `cfast_bed_temp_*`) no forman parte de los 14 required FAIL.
 
-**Estado:** Grupo E queda reducido a `cfast_2r` (C3/RMSE acumulado, diagnóstico Phase 2 completo 2026-06-19) y `hvac` (C2/Phase 2C). No hay fix per-case de bajo riesgo disponible para ninguno de los dos sin trabajo Phase 2.
+**Estado:** Grupo E queda reducido a `cfast_2r` (C3/RMSE acumulado). `hvac_t300_o2` resuelto por Phase 2D. Gap residual two_room 4.2°C requiere intercambio upper↔upper en motor (Phase 2C upper↔upper).
 
 ---
 
