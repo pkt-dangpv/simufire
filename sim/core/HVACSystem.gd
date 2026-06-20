@@ -205,6 +205,16 @@ func _extract_return_air(
 		)
 		_remove_heat_from_return(room, air_fraction, upper_sample_factor, hooks)
 
+		# Phase 2D: return vent in upper zone extracts depleted gas → lower gas fills void.
+		# Mass conservation: o2_upper rises toward o2_lower at rate proportional to extracted fraction.
+		if bool(hooks.get("hvac_two_zone_o2_enabled", false)) and sample_upper_zone:
+			if room.o2_lower > room.o2_upper:
+				var d2_frac: float = clampf(air_fraction, 0.0, 0.15)
+				room.o2_upper = clampf(
+					room.o2_upper + d2_frac * (room.o2_lower - room.o2_upper),
+					0.0, building.outside_o2
+				)
+
 		sample["air_kg"] = float(sample["air_kg"]) + air_kg
 		sample["temp_weighted_c_kg"] = float(sample["temp_weighted_c_kg"]) + sample_temp_c * air_kg
 		sample["o2_weighted_kg"] = float(sample["o2_weighted_kg"]) + room.o2 * air_kg

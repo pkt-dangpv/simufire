@@ -1,8 +1,8 @@
 {
   "all_required_pass": false,
   "required_count": 350,
-  "failed_required_count": 13,
-  "known_gap_count": 75,
+  "failed_required_count": 12,
+  "known_gap_count": 72,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -2283,7 +2283,7 @@
     },
     {
       "name": "cfast_hvac_t180_o2",
-      "actual": 0.1088,
+      "actual": 0.1118,
       "expected": 0.132338,
       "tolerance": 0.025,
       "minimum": null,
@@ -2316,7 +2316,7 @@
     },
     {
       "name": "cfast_hvac_t180_temp_upper_c",
-      "actual": 181.77,
+      "actual": 178.51,
       "expected": 259.591,
       "tolerance": 36.0,
       "minimum": null,
@@ -2327,7 +2327,7 @@
     },
     {
       "name": "cfast_hvac_t180_co_upper_ppm",
-      "actual": 689.0,
+      "actual": 590.0,
       "expected": 380.376,
       "tolerance": 380.0,
       "minimum": null,
@@ -2338,13 +2338,13 @@
     },
     {
       "name": "cfast_hvac_t300_o2",
-      "actual": 0.0009,
+      "actual": 0.0845,
       "expected": 0.07371660000000001,
       "tolerance": 0.034,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "Phase 2C: SF o2_upper vs CFAST ULO2 (fire uses o2_lower; room.o2 stays near-ambient)."
     },
     {
@@ -2371,35 +2371,35 @@
     },
     {
       "name": "cfast_hvac_t300_temp_upper_c",
-      "actual": 352.61,
+      "actual": 252.2,
       "expected": 173.386,
       "tolerance": 178.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
-      "note": "Phase 2C structural gap: SF fire at max HRR (SF=352.6\u00b0C) vs CFAST two-zone moderation (173.4\u00b0C). tol=178.0\u00b0C non-gating."
+      "pass": true,
+      "note": "Phase 2C structural gap: SF fire at max HRR (SF=252.2\u00b0C) vs CFAST two-zone moderation (173.4\u00b0C). tol=178.0\u00b0C non-gating."
     },
     {
       "name": "cfast_hvac_t300_co_upper_ppm",
-      "actual": 2738.0,
+      "actual": 916.0,
       "expected": 661.289,
       "tolerance": 500.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "Structural gap (Phase 2C): CO upper \u2014 SF fire at max HRR vs CFAST two-zone O2 dynamics."
     },
     {
       "name": "cfast_hvac_t450_o2",
-      "actual": 0.0009,
+      "actual": 0.0901,
       "expected": 0.052955300000000004,
       "tolerance": 0.039,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "KNOWN_DEVIATION R1-1: Phase 2C HVAC t=450s O2 upper. A priori tol=0.039 (\u00a76.2). Structural HVAC gap, Fase 2."
     },
     {
@@ -2426,18 +2426,18 @@
     },
     {
       "name": "cfast_hvac_t450_temp_upper_c",
-      "actual": 353.37,
+      "actual": 269.71,
       "expected": 174.843,
       "tolerance": 186.0,
       "minimum": null,
       "maximum": null,
       "required": false,
       "pass": true,
-      "note": "Phase 2C structural gap: SF fire at max HRR (SF=353.4\u00b0C) vs CFAST two-zone moderation (174.8\u00b0C). tol=186.0\u00b0C non-gating."
+      "note": "Phase 2C structural gap: SF fire at max HRR (SF=269.7\u00b0C) vs CFAST two-zone moderation (174.8\u00b0C). tol=186.0\u00b0C non-gating."
     },
     {
       "name": "cfast_hvac_t450_co_upper_ppm",
-      "actual": 4876.0,
+      "actual": 1499.0,
       "expected": 731.456,
       "tolerance": 500.0,
       "minimum": null,
@@ -2448,7 +2448,7 @@
     },
     {
       "name": "cfast_hvac_t180_pressure_pa",
-      "actual": 179824.45,
+      "actual": 179201.97,
       "expected": 768.421,
       "tolerance": 767.5,
       "minimum": null,
@@ -2459,7 +2459,7 @@
     },
     {
       "name": "cfast_hvac_t180_co2_upper_pct",
-      "actual": 7.8644,
+      "actual": 7.4706,
       "expected": 6.10644,
       "tolerance": 3.0,
       "minimum": null,
@@ -2470,7 +2470,7 @@
     },
     {
       "name": "cfast_hvac_t300_pressure_pa",
-      "actual": 801609.95,
+      "actual": 522538.6,
       "expected": 154.56,
       "tolerance": 148.5,
       "minimum": null,
@@ -2481,7 +2481,7 @@
     },
     {
       "name": "cfast_hvac_t300_co2_upper_pct",
-      "actual": 11.8188,
+      "actual": 11.3945,
       "expected": 10.6161,
       "tolerance": 3.0,
       "minimum": null,
@@ -2492,7 +2492,7 @@
     },
     {
       "name": "cfast_hvac_t450_pressure_pa",
-      "actual": 1595529.05,
+      "actual": 977647.57,
       "expected": 168.371,
       "tolerance": 161.6,
       "minimum": null,
@@ -2503,7 +2503,7 @@
     },
     {
       "name": "cfast_hvac_t450_co2_upper_pct",
-      "actual": 11.7066,
+      "actual": 14.1847,
       "expected": 11.7426,
       "tolerance": 3.0,
       "minimum": null,
@@ -2514,7 +2514,7 @@
     },
     {
       "name": "cfast_hvac_rmse_temp_upper_c",
-      "actual": 53.0842385426748,
+      "actual": 44.93983079869794,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2525,7 +2525,7 @@
     },
     {
       "name": "cfast_hvac_rmse_temp_upper_c_full",
-      "actual": 139.96957585099165,
+      "actual": 73.70191618476754,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2536,7 +2536,7 @@
     },
     {
       "name": "cfast_hvac_rmse_o2",
-      "actual": 0.04629500882220818,
+      "actual": 0.02626506599741058,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2547,7 +2547,7 @@
     },
     {
       "name": "cfast_hvac_rmse_co_upper_ppm",
-      "actual": 310.0429008463151,
+      "actual": 89.97937984448411,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -2558,7 +2558,7 @@
     },
     {
       "name": "cfast_hvac_rmse_co_upper_ppm_full",
-      "actual": 3017.811016572644,
+      "actual": 561.0006773857014,
       "expected": null,
       "tolerance": null,
       "minimum": null,

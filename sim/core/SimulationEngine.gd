@@ -846,6 +846,11 @@ var _step_time_us: int = 0
 ## Nombre del preset: phase2h_o2_lower_replenish_candidate
 ## Uso en engine_overrides JSON: { "phase2h_candidate_preset": true }
 @export var phase2h_candidate_preset: bool = false
+## Phase 2D: HVAC return en zona alta extrae gas depleccionado; la zona superior se repone desde
+## la zona baja (conservación de masa). Modela el balance two-zone que CFAST tiene en HVAC return.
+## Cuando true: o2_upper ← lerp(o2_upper, o2_lower, flow/upper_vol) en cada paso del return.
+## Default false = no-op exacto. Activar per-caso via engine_overrides.
+@export var hvac_two_zone_o2_enabled: bool = false
 ## Phase 2I — CO₂ upper fraction floor en sala fuego (default OFF = 0.0)
 ## Cuando > 0.0: co2_upper_kg se eleva a mín. co2_kg × fraction en salas con fuego activo.
 ## co2_kg invariante (sin creación/destrucción). Rango experimental: [0.25, 0.50, 0.75, 1.0].
@@ -1274,7 +1279,8 @@ func _build_hvac_hooks() -> Dictionary:
 		"sync_room_upper_layer_callable": Callable(thermal_system, "sync_room_upper_layer"),
 		"ambient_temp_callable": Callable(thermal_system, "ambient_temp_c"),
 		"two_zone_opening_flow_enabled": two_zone_solver_enabled and two_zone_opening_flow_enabled,
-		"phase2h_o2_doorway_two_zone_enabled": phase2h_o2_doorway_two_zone_enabled
+		"phase2h_o2_doorway_two_zone_enabled": phase2h_o2_doorway_two_zone_enabled,
+		"hvac_two_zone_o2_enabled": hvac_two_zone_o2_enabled
 	}
 
 # ============================================================
