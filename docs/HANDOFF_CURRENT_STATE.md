@@ -1,19 +1,25 @@
 # Current Handoff State
 
-Date: 2026-06-19.
+Date: 2026-06-20.
 
 ## Purpose
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
-## Current Session Update — 2026-06-19 (final)
+## Current Session Update — 2026-06-20
 
-- Branch: `main`. Commits ahead of origin: 1 (pending push).
-- Latest committed: `9ffd38c diag(validation): audit two_room topology and diagnose RMSE=88C as Phase 2 gap`.
-- Current validation baseline: `336/350` required PASS, **`14/350` required FAIL** — unchanged from equivalence audit.
-- `docs/validation/STATUS_VALIDATION.md` is the current validation source of truth.
-- `docs/validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md` records the full equivalence audit.
-- `docs/validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md` records the dwelling-model audit.
+- Branch: `main`. Commits ahead of origin: 2 (pending push).
+- Latest committed: `b574b80 feat(Phase2B): canonical combustion O2 routing to upper zone — per-case bedroom activation`.
+- **True validation baseline (fresh run): 323/350 PASS, `27/350` required FAIL** — baseline reconciliado 2026-06-20. El `reference_checks.json` anterior estaba desactualizado (mostraba 336/350, generado en sesión anterior).
+- `docs/validation/STATUS_VALIDATION.md` es la fuente de verdad de validación.
+
+### Qué se hizo en esta sesión (2026-06-20)
+
+- **Phase 2A (`ThermalSystem.gd`):** flag `phase2a_zone_mass_canonical=false` (default=false, no-op). Sync upper/lower_gas_kg desde volumen×1.2 cuando activo. Committed en sesión anterior.
+- **Phase 2B (`OxygenExchangeSystem.gd`):** flag `phase2b_canonical_combustion_enabled=false` (default=false). Activado solo en `cfast_bedroom_closed_door.json` con `validation_fire_o2_mode=upper`. Elimina doble-depleción bulk en modo upper; rutea consumo a `o2_upper`; deriva `room.o2` como promedio ponderado. Committed `b574b80`.
+- **Reconciliación baseline:** run fresca reveló 27/350 reales (no 14). Los 13 fallos adicionales son preexistentes: 9 de `cfast_single_room_closed` + 4 adicionales. Diff de fail lists con/sin Phase 2B: vacío — cero regresiones.
+- **`reference_checks.json`** actualizado al estado real (323/350).
+- **`docs/validation/STATUS_VALIDATION.md`** actualizado con baseline real y Phase 2A/2B.
 
 ### What was done in this session
 
@@ -57,16 +63,28 @@ Fresh run result:
 - SF lacks two-zone HVAC mass balance → O2u collapses indefinitely; no per-case fix
 - **Verdict: Phase 2C structural gap confirmed. No fix without architecture work.**
 
-### All 14 required FAILs now diagnosed
+### Fallos required actuales: 27 (baseline 2026-06-20)
 
-All 14 are Phase 2 / Phase 2C structural gaps. No further per-case work available without architecture changes.
+Los 27 son preexistentes. Desglose:
+
+| Group | Checks | Root cause |
+|-------|--------|------------|
+| A — r0_window_360 (×3) | O2 upper vs bulk | Phase 2 gap |
+| B — slow_growth_sealed (×2) | temp_upper | Phase 2 gap (thermal/O2 coupling) |
+| C — corridor_chain (×2) | t180+t600 temp | Phase 2 gap (M3 doorway enthalpy) |
+| D — bedroom_closed_door (×5) | O2 upper | Phase 2B activo (mecánica correcta, tol PASS) |
+| E — two_room_door_open (×1) | RMSE t=[0,350] | Phase 2 gap (O2u+canonical doorway) |
+| E — hvac_residential (×1) | O2 t300 | Phase 2C gap (HVAC two-zone) |
+| Sin clasificar — single_room_closed (×9) | O2/temp colapso | Preexistentes, diagnóstico pendiente |
+| Sin clasificar (×4) | varios | Preexistentes, diagnóstico pendiente |
 
 ### Recommended next work
 
-1. **Phase 2 implementation** — plan técnico completo en `docs/architecture/PHASE_2_TWO_ZONE_ARCHITECTURE_PLAN.md`. Siguiente paso: implementar Phase 2A (no-op data model), luego 2B (combustion routing), 2C (doorway exchange), 2D (HVAC).
-2. Do not start ILV without explicit instruction.
-3. Do not activate M2 global (`fire_o2_mass_tracking`) — it broke 10+ checks.
-4. If pivoting to product/UX, resume FP temperature HUD investigation (separate from validation lane).
+1. **Phase 2C** — doorway exchange canonical para `two_room` y `corridor_chain`. Plan en `docs/architecture/PHASE_2_TWO_ZONE_ARCHITECTURE_PLAN.md`.
+2. **Diagnosticar 13 fallos no clasificados** — especialmente `cfast_single_room_closed` (O₂ colapsa a 0, temperatura crash).
+3. Do not start ILV without explicit instruction.
+4. Do not activate M2 global (`fire_o2_mass_tracking`) — broke 10+ checks.
+5. If pivoting to product/UX, resume FP temperature HUD investigation (separate lane).
 
 ### Phase 2 architecture plan (2026-06-20)
 
