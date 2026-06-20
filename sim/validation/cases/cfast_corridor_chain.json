@@ -103,6 +103,7 @@
 		"doorway_thermal_counterflow_gain": 0.25,
 		"doorway_thermal_counterflow_o2_return_fraction": 0.0,
 		"canonical_doorway_exchange_enabled": true,
-		"canonical_doorway_lower_flow_frac": 1.0
+		"canonical_doorway_lower_flow_frac": 1.0,
+		"canonical_doorway_lower_inflow_multiplier": 1.0
 	}
 }

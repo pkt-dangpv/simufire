@@ -259,6 +259,9 @@ var canonical_doorway_exchange_enabled: bool = false
 ## Fracción del flujo Bernoulli inferior aplicada al flujo de zona inferior (calibración).
 ## 1.0 = flujo conservativo completo (caudal inferior = upper × ρ_hot/ρ_cold).
 var canonical_doorway_lower_flow_frac: float = 1.0
+## Phase 2G: multiplicador sobre el flujo inferior canónico. 1.0 = no-op exacto.
+## Compensa subestimación Bernoulli vs CFAST PDE. Activar sólo per-caso.
+var canonical_doorway_lower_inflow_multiplier: float = 1.0
 
 # FED (ISO 13571) — componentes asfixiantes disponibles en el modelo
 var fed_hypoxia_enabled: bool = true
@@ -566,6 +569,7 @@ func configure(settings: Dictionary) -> void:
 	doorway_thermal_counterflow_o2_return_fraction = float(settings.get("doorway_thermal_counterflow_o2_return_fraction", doorway_thermal_counterflow_o2_return_fraction))
 	canonical_doorway_exchange_enabled = bool(settings.get("canonical_doorway_exchange_enabled", canonical_doorway_exchange_enabled))
 	canonical_doorway_lower_flow_frac = float(settings.get("canonical_doorway_lower_flow_frac", canonical_doorway_lower_flow_frac))
+	canonical_doorway_lower_inflow_multiplier = float(settings.get("canonical_doorway_lower_inflow_multiplier", canonical_doorway_lower_inflow_multiplier))
 	plume_mccaffrey_enabled = bool(settings.get("plume_mccaffrey_enabled", plume_mccaffrey_enabled))
 	plume_mccaffrey_qc_fraction = float(settings.get("plume_mccaffrey_qc_fraction", plume_mccaffrey_qc_fraction))
 	plume_fire_diameter_m = float(settings.get("plume_fire_diameter_m", plume_fire_diameter_m))
@@ -2388,7 +2392,8 @@ func _apply_canonical_doorway_exchange(
 	# cada paso desde lower_energy_kj / lower_gas_kg → era un no-op.
 	# Phase 7 actúa sobre lower_energy_kj, el estado conservado real del solver dos-zonas.
 	var m_lower_kg_s: float = float(flow_state.get("bernoulli_lower_kg_s", 0.0)) \
-			* canonical_doorway_lower_flow_frac
+			* canonical_doorway_lower_flow_frac \
+			* canonical_doorway_lower_inflow_multiplier
 	var m_lower_kg: float = m_lower_kg_s * dt
 	if m_lower_kg < 0.0001:
 		return

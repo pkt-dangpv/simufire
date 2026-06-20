@@ -244,6 +244,9 @@ var _layer_interface_warning_rooms: Dictionary = {}
 @export var canonical_doorway_exchange_enabled: bool = false
 ## Phase 6: fracción del flujo Bernoulli inferior usada para flujo de zona inferior. 1.0 = completo.
 @export var canonical_doorway_lower_flow_frac: float = 1.0
+## Phase 2G: multiplicador del flujo inferior canónico para compensar subestimación Bernoulli vs CFAST PDE.
+## 1.0 = no-op exacto. Activar sólo per-caso en engine_overrides.
+@export var canonical_doorway_lower_inflow_multiplier: float = 1.0
 # Rendimiento de humo (kg/MJ)
 # SFPE: ~0.06 kg/kg ÷ 16 MJ/kg = 0.00375 kg/MJ
 @export var fire_smoke_yield_kg_per_MJ: float = 0.0088
@@ -1058,6 +1061,7 @@ func _sync_auxiliary_services() -> void:
 		"doorway_thermal_counterflow_o2_return_fraction": doorway_thermal_counterflow_o2_return_fraction,
 		"canonical_doorway_exchange_enabled": canonical_doorway_exchange_enabled,
 		"canonical_doorway_lower_flow_frac": canonical_doorway_lower_flow_frac,
+		"canonical_doorway_lower_inflow_multiplier": canonical_doorway_lower_inflow_multiplier,
 	})
 	fire_spread_system.set_references(building, smoke_model, combustion_system)
 	fire_spread_system.configure({

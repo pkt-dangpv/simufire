@@ -81,7 +81,7 @@ Grupo E completamente resuelto: `hvac_t300_o2` PASS (Phase 2D `b960d29`); `two_r
 
 ### Recommended next work
 
-1. **Grupo C corridor_chain thermal** — t180/t600 temp (×2). **Phase 2 architectural gap confirmado (2026-06-20)**. Sweep `o2_upper_plume_entr_rate` 0.025→0.050→0.080: mejora t=600 sólo +2.9°C decelerando (gap = 63°C); `fire_o2_full_hrr_open=0.10` inviable (O₂u@t=180 = 11.3%, umbral dispararía HRR plena early → t=180 +15–20°C peor). Causa raíz: SF carece de flujo entálpico outflow por doorway superior (hot upper gas exits R0 en CFAST → enfría t=180, mantiene temps tardías). Requiere intercambio entálpico doorway bidireccional en motor. NO tiene lever per-caso.
+1. **Grupo C corridor_chain thermal** — t180/t600 temp (×2). **Phase 2 architectural gap definitivo (2026-06-20)**. Sweeps Phase 2F y Phase 2G agotados: `o2_upper_plume_entr_rate` (max +2.9°C), `canonical_doorway_lower_inflow_multiplier` hasta m=3.0 (max +2.4°C, t=300 rompe con gain≥0.30). Causa raíz: CFAST quema a 300kW plenos en t=600 (O₂u=11.2% > LOWER_OXYGEN_LIMIT=10%); SF throttlea al 68% con fire_o2_full_hrr_open=0.15. Fix único (threshold=0.10) destruye t=180 (O₂u@t=180=11.3%, entre 0.10 y 0.15 → HRR plena early). Requiere ODE presión dos zonas para replicar exchange rates CFAST. NO tiene lever per-caso. El motor incorpora `canonical_doorway_lower_inflow_multiplier=1.0` (no-op) para uso futuro.
 2. **Grupo A r0_window_360** (×3) y **Grupo B slow_growth_sealed** (×2). Phase 2 structural gaps.
 3. Do not start ILV without explicit instruction.
 4. Do not activate M2 global (`fire_o2_mass_tracking`) — broke 10+ checks.
