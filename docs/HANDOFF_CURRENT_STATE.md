@@ -1,6 +1,6 @@
 # Current Handoff State
 
-Date: 2026-06-20.
+Date: 2026-06-21.
 
 ## Purpose
 
@@ -65,15 +65,16 @@ Fresh run result:
 - SF lacks two-zone HVAC mass balance → O2u collapses indefinitely; no per-case fix
 - **Verdict: Phase 2C structural gap confirmed. No fix without architecture work.**
 
-### Fallos required actuales: 7 (post-Phase2E-bedroom, 2026-06-20)
+### Fallos required actuales: 5 (post-Phase4B slow_growth, 2026-06-20)
 
-Todos clasificados como gaps estructurales Phase 2:
+Baseline actual: **345/350 PASS**, **5/350 required FAIL**. Todos los fallos restantes estan clasificados como gaps estructurales Phase 2/3+:
 
 | Group | Checks | Root cause |
 |-------|--------|------------|
 | A — r0_window_360 (×3) | O2 upper vs bulk | Phase 2 gap |
-| B — slow_growth_sealed (×2) | temp_upper | Phase 2 gap (thermal/O2 coupling) |
 | C — corridor_chain (×2) | t180+t600 temp | Phase 2 gap (M3 doorway O2 replenishment) |
+
+Grupo B completamente resuelto: `cfast_slow_t480_temp_upper_c` y `cfast_slow_t600_temp_upper_c` PASS con Phase 4B wall reradiation durante fuego activo. Config actual per-caso: `hrr_chi_rad_* = 0.7`, `hrr_rad_wall_fraction=1.0`, `phase4b_wall_reradiation_during_fire_enabled=true`, `phase4b_wall_reradiation_during_fire_gain=5.0`, `wall_heat_capacity_kj_m2_k=6.5`, `wall_core_decay_per_s=0.0009`. La clave fue devolver energia radiativa desde pared sin cambiar HRR ni deplecion O2.
 
 Grupo D completamente resuelto: `cfast_bed_o2_t300/t480/t600/t720_o2` PASS (Phase 2E-bedroom).
 
@@ -81,11 +82,22 @@ Grupo E completamente resuelto: `hvac_t300_o2` PASS (Phase 2D `b960d29`); `two_r
 
 ### Recommended next work
 
-1. **Grupo C corridor_chain thermal** — t180/t600 temp (×2). **Phase 2 architectural gap definitivo (2026-06-20)**. Sweeps Phase 2F y Phase 2G agotados: `o2_upper_plume_entr_rate` (max +2.9°C), `canonical_doorway_lower_inflow_multiplier` hasta m=3.0 (max +2.4°C, t=300 rompe con gain≥0.30). Causa raíz: CFAST quema a 300kW plenos en t=600 (O₂u=11.2% > LOWER_OXYGEN_LIMIT=10%); SF throttlea al 68% con fire_o2_full_hrr_open=0.15. Fix único (threshold=0.10) destruye t=180 (O₂u@t=180=11.3%, entre 0.10 y 0.15 → HRR plena early). Requiere ODE presión dos zonas para replicar exchange rates CFAST. NO tiene lever per-caso. El motor incorpora `canonical_doorway_lower_inflow_multiplier=1.0` (no-op) para uso futuro.
-2. **Grupo A r0_window_360** (×3) y **Grupo B slow_growth_sealed** (×2). Phase 2 structural gaps.
-3. Do not start ILV without explicit instruction.
-4. Do not activate M2 global (`fire_o2_mass_tracking`) — broke 10+ checks.
-5. If pivoting to product/UX, resume FP temperature HUD investigation (separate lane).
+**Los 5 fallos restantes son todos VALID_GAP confirmados. No hay siguiente candidato con fix per-caso disponible.**
+
+- **Grupo A `cfast_r0_window_360` (×3)** — VALID_GAP confirmado definitivamente por Phase 5A sweep (2026-06-21). 15 configs barridas (`plume_upper_o2_displacement_frac` × `o2_upper_plume_entr_rate`); `plume_upper_o2_displacement_frac` tiene CERO efecto; mejor parcial t240=0.177 vs target ≤0.116. Causa estructural: `plume_lower_mode` equilibra zonas bidireccional; llegar al target requeriría room.o2=0.085 → HRR<198 kW → guard FAIL. Requiere arquitectura two-zone canónica (Phase 2 scope). Ver `docs/architecture/PHASE_5A_O2UPPER_SWEEP_RESULTS.md`.
+- **Grupo C `cfast_corridor_chain` (×2)** — VALID_GAP. Phase 2F, Phase 2G y Phase 3 simplificado descartados; no hay lever per-caso viable. Requiere ODE de presión dos zonas para replicar exchange rates CFAST. Phase 3+ scope.
+
+Para continuar cerrando fallos sería necesaria una rearchitectura mayor (two-zone canónica) — fuera del alcance de la calibración per-caso. No iniciar ILV, M2 global ni cambios de doorway/O₂ en `sim/core` sin plan explícito.
+
+### CFAST reference sources
+
+- Public source repository: `https://github.com/firemodels/cfast`
+- Official CFAST landing page: `https://pages.nist.gov/cfast/`
+- Local technical reference manual: `docs/literature/Reviews_and_Models/CFAST_Technical_Reference_Guide_2004.pdf`
+- Local modern NIST reference/validation docs: `docs/literature/NIST.TN.1889v1.pdf`, `docs/literature/NIST.SP.1018e6.pdf`
+- Local CFAST truth/output files for current validation cases: `sim/validation/cfast/`
+
+Use these as primary references before changing physics: first read the CFAST manual/source for the relevant subsystem, then compare against the local `.out`/CSV truth files, then implement SimuFire changes behind default-off/per-case controls.
 
 ### Phase 2 architecture plan (2026-06-20)
 

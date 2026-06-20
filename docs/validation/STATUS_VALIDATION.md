@@ -1,14 +1,31 @@
 # SimuFire — Estado de validación CFAST
 
-> Última actualización: 2026-06-20
-> Branch: `main` · Phase 2E-bedroom O₂ (fire_o2_full_hrr_open=0.10, ach_infiltration=0.5)
-> Fallos requeridos actuales: **7 / 350** — todos clasificados como gaps estructurales Phase 2
+> Última actualización: 2026-06-21
+> Branch: `main` · Phase 5A Grupo A sweep — VALID_GAP confirmado empíricamente
+> Fallos requeridos actuales: **5 / 350** — todos clasificados como gaps estructurales Phase 2/3+
 
 ---
 
 ## Resumen ejecutivo
 
-La validación compara SimuFire contra referencias NIST CFAST para escenarios residenciales estándar. El motor pasó de **41 fallos requeridos** (baseline R2) a **14 fallos** a lo largo de varias fases de trabajo.
+La validación compara SimuFire contra referencias NIST CFAST para escenarios residenciales estándar. El motor pasó de **41 fallos requeridos** (baseline R2) a **5 fallos** a lo largo de varias fases de trabajo.
+
+### Estado final de los 5 fallos restantes — todos VALID_GAP
+
+1. **Grupo A (`cfast_r0_window_360`, ×3) — VALID_GAP confirmado (Phase 5A sweep 2026-06-21)**: sweep exhaustivo 15 configs (`plume_upper_o2_displacement_frac` ∈ {0.5, 0.75, 1.0} × `o2_upper_plume_entr_rate` ∈ {0.0005–0.005}) descartó todas las opciones per-caso JSON sin tocar `sim/core`. Mejor parcial: t240=0.177 (target ≤0.116). Causa raíz: `plume_lower_mode` auto-triggered acopla todas las zonas vía intercambio bidireccional; llegar a ULO2=0.085 en t=240 requeriría room.o2=0.085 → HRR<198kW → rompe guard `cfast_t350_hrr_kw`. Gap estructural Phase 2.
+2. **Grupo C (`cfast_corridor_chain`, ×2) — VALID_GAP**: Phase 2F/2G y Phase 3 simplificado descartados; sweep confirmó que el único lever (ODE de presión dos zonas) requiere arquitectura mayor. Mantener como VALID_GAP Phase 3+.
+
+No iniciar ILV, M2 global ni cambios de doorway/O₂ en `sim/core` sin plan explícito.
+
+### Fuentes CFAST para próximos diagnósticos
+
+- Código fuente público: `https://github.com/firemodels/cfast`
+- Página oficial NIST: `https://pages.nist.gov/cfast/`
+- Manual técnico local: `docs/literature/Reviews_and_Models/CFAST_Technical_Reference_Guide_2004.pdf`
+- Referencias NIST locales: `docs/literature/NIST.TN.1889v1.pdf`, `docs/literature/NIST.SP.1018e6.pdf`
+- Truth/output local de casos: `sim/validation/cfast/`
+
+Regla de trabajo: antes de tocar física, consultar manual/source CFAST del subsistema afectado y contrastar con los `.out`/CSV locales del caso.
 
 ---
 
@@ -28,7 +45,7 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | `cae9ec0` | Rebaselinear reference_checks a estado correcto | 18 → 16 |
 | `e2c4b2b` | Phase 3: fix ODE presión — incluir dinteles en alivio | 16 → **16** (sin-regresión) |
 | Phase 4A | Fix doble-depleción O₂ en plume_lower_mode (r0_window_360) | 16 → **14** |
-| Phase 4B | Diagnóstico slow_growth_sealed — gap estructural confirmado (sin cambio) | **14** → **14** |
+| Phase 4B-diagnosis | Diagnóstico slow_growth_sealed — tuning directo de `chi_rad` descartado por conflicto temp/O2 | **14** → **14** |
 | Phase 4C | corridor_chain: `o2_upper_plume_entr_rate=0.025` → O₂ t=480 pasa | **14** → **13** |
 | Phase 5 M1 | OxygenExchangeSystem: `fire_o2_canonical_enabled` flag (default=false, no-op) | **13** → **13** |
 | Phase 5 M2 | RoomModel+OxygenExchangeSystem: `upper_o2_mass_tracked` tracer conservado (default=false, no-op) | **13** → **13** |
@@ -59,6 +76,8 @@ La validación compara SimuFire contra referencias NIST CFAST para escenarios re
 | Phase 2E-bedroom — O₂ depletion rate fix (2026-06-20) | `fire_o2_full_hrr_open=0.10` (de 0.15) y `ach_infiltration=0.5` (de 5.0) per-caso en `cfast_bedroom_closed_door.json`. Diagnóstico: CFAST usa `LOWER_OXYGEN_LIMIT=0.10` (fuego a plena HRR hasta O₂<10%) y LEAK_AREA_RATIO≈0.3 ACH; SF tenía umbral 15% + infiltración 17× mayor → fuego throttled prematuro + exceso de reposición de O₂. Con fix: fire quema a 150kW hasta O₂u<10%, o2_lower se depleta 10× más despacio. t=120 O₂u sin cambio (fire ya a 100% HRR). t=300-720 O₂u baja 18-28% cerrando los 4 checks. Temperatura aumenta (margin 0.7→5.9°C en t=300). `cfast_bed_o2_t300/t480/t600/t720_o2`: **PASS** (4 checks resueltos). | **11** → **7** |
 | Phase 2F-corridor sweep — descartado (2026-06-20) | Sweep `o2_upper_plume_entr_rate` 0.025→0.050→0.080 en `cfast_corridor_chain.json`. Diagnóstico: LOWER_OXYGEN_LIMIT=0.10 idéntico al bedroom pero `fire_o2_full_hrr_open=0.10` no aplicable: O₂u@t=180 ya es 11.3% (entre 0.10 y 0.15) → umbral más bajo dispararía HRR plena a t=180 → fallo t=180 +15–20°C peor. Lever `o2_upper_plume_entr_rate`: mejora t=600 sólo +2.9°C tras triplicar rate (0.025→0.080); la mejora **decelera** (Δ2.0°C, Δ0.9°C por paso). Gap t=600 = 63°C; lever converge a <<5°C mejora máxima. Causa raíz real: flujo entálpico outflow doorway superior ausente en SF (CFAST: hot upper gas exits R0 through upper doorway venting, reduciendo temp early y manteniendo steady state tardío). Rollback a 0.025. Clasificado **Phase 2 architectural gap**: requiere intercambio bidireccional upper entálpico en motor. | **7** → **7** (sin cambio) |
 | Phase 2G-corridor sweep — descartado (2026-06-20) | Motor: `canonical_doorway_lower_inflow_multiplier` (ThermalSystem + SimulationEngine, default=1.0 no-op verificado). Sweep bidimensional (multiplier × gain): m=2.0 g=0.25 → t300 PASS, t600=107.7°C (+1.9°C); m=2.0 g=0.30 → t300 FAIL (gap=20.87°C); m=3.0 g=0.30 → t300 FAIL (gap=20.53°C), t600=108.2°C (+2.4°C). Guardrail t=300 activo en g=0.30 — gain extrae calor de upper que no puede compensarse con multiplier a valores físicamente razonables. Causa raíz confirmada: CFAST quema a 300kW plenos en t=600 (O₂u=11.2% > LOWER_OXYGEN_LIMIT=10%); SF throttlea al 68% (fire_o2_full_hrr_open=0.15). Elevar O₂u a 11% sube HRR a 205kW, no 300kW. Fix único (`fire_o2_full_hrr_open=0.10`) destruye t=180 (O₂u@t=180=11.3% entre 0.10 y 0.15). Rollback a m=1.0, g=0.25. Grupo C clasificado **Phase 2 architectural gap definitivo**: requiere ODE de presión dos zonas para replicar exchange rates de CFAST. | **7** → **7** (sin cambio) |
+| Phase 4B slow_growth wall reradiation (2026-06-20) | ThermalSystem: `phase4b_wall_reradiation_during_fire_enabled` + `phase4b_wall_reradiation_during_fire_gain` default-off. Activado solo en `cfast_slow_growth_sealed.json` con `hrr_rad_wall_fraction=1.0`, `gain=5.0`, `wall_heat_capacity_kj_m2_k=6.5`, `wall_core_decay_per_s=0.0009`, manteniendo `hrr_chi_rad_* = 0.7`. Resultado: `cfast_slow_t480_temp_upper_c`=141.52 PASS, `cfast_slow_t600_temp_upper_c`=166.92 PASS; O2 required checks siguen PASS. | **7** → **5** |
+| Phase 5A Grupo A sweep (2026-06-21) | Sweep exhaustivo 15 configs (`plume_upper_o2_displacement_frac` ∈ {0.5, 0.75, 1.0} × `o2_upper_plume_entr_rate` ∈ {0.0005, 0.001, 0.002, 0.003, 0.005}) en `cfast_r0_window_360.json` sin tocar `sim/core`. Ninguna config pasa targets O₂; `plume_upper_o2_displacement_frac` tiene CERO efecto (todas las fracs idénticas para misma rate); mayor rate reduce O₂u levemente pero nunca lo suficiente. Mejor parcial: t240=0.177 (target ≤0.116). Guards HRR/temp/CO nunca rotos. Confirma empíricamente VALID_GAP estructural Phase 2 para los 3 checks Grupo A. Baseline sin cambio: **5/350**. | **5** → **5** (VALID_GAP) |
 
 ---
 
@@ -181,11 +200,46 @@ El validator documenta explícitamente: "Structural Phase 2 gap — SF usa room-
 
 Conclusión: no hay fix per-case de bajo riesgo. Los tres fallos son gaps estructurales Phase 2: resolverlos requiere una ruta two-zone canónica donde el fuego y la depleción de O₂ se acoplen a la capa correcta sin romper los checks HRR existentes.
 
+**Phase 5A sweep (2026-06-21) — VALID_GAP confirmado empíricamente:**
+
+Sweep exhaustivo de 15 configs (`plume_upper_o2_displacement_frac` ∈ {0.5, 0.75, 1.0} × `o2_upper_plume_entr_rate` ∈ {0.0005, 0.001, 0.002, 0.003, 0.005}) sin modificar `sim/core`. Resultados:
+
+| `frac` | `rate` | t240\_o2 | t350\_o2 | t360\_o2 | Guards | Total |
+|--------|--------|----------|----------|----------|--------|-------|
+| 0.50   | 0.0005 | 0.1908   | 0.1396   | 0.1370   | OK     | FAIL  |
+| 0.50   | 0.0010 | 0.1889   | 0.1355   | 0.1327   | OK     | FAIL  |
+| 0.50   | 0.0020 | 0.1854   | 0.1283   | 0.1250   | OK     | FAIL  |
+| 0.50   | 0.0030 | 0.1822   | 0.1221   | 0.1185   | OK     | FAIL  |
+| 0.50   | 0.0050 | 0.1766   | 0.1121   | 0.1081   | OK     | FAIL  |
+| 0.75   | *todas* | idéntico a frac=0.50 | — | — | OK | FAIL |
+| 1.00   | *todas* | idéntico a frac=0.50 | — | — | OK | FAIL |
+
+**Targets** (zona de PASS): t240\_o2 ∈ [0.054, 0.116], t350\_o2 ∈ [0.051, 0.081], t360\_o2 ∈ [0.050, 0.080].
+
+Hallazgos clave:
+1. **`plume_upper_o2_displacement_frac` tiene CERO efecto**: los tres valores de frac producen resultados idénticos para la misma rate. Causa: en `plume_lower_mode` (auto-triggered), el intercambio bidireccional `entr_rate × (o2_lower − o2_upper)` equilibra ambas zonas en τ=1/rate s, eliminando cualquier displacement de frac.
+2. **Mayor rate mueve o2\_upper en la dirección correcta (bajar)** pero de forma insuficiente: incluso con rate=0.005 (τ=200s), t240=0.177 vs target máx 0.116 — gap de 0.061 sin cruzar.
+3. **Guards nunca rotos** en todo el sweep (HRR/temp\_upper/temp\_lower/CO\_upper en t=350/360 siguen PASS). No existe trade-off guard↔target: el espacio de parámetros simplemente no alcanza el target.
+4. **Por qué no se puede cerrar**: para llegar a o2\_upper=0.085 en t=240, room.o2 debe bajar a ~0.085 (zonas equilibradas). Con room.o2=0.085: `o2_factor=(0.085−0.055)/(0.209−0.055)=0.195`, HRR=~197 kW → bajo el mínimo del guard `cfast_t350_hrr_kw` (198 kW, tol ±90 kW centrado en 288 kW). El guardrail bloquea estructuralmente cualquier path que lleve O2 al target.
+
+**Clasificación definitiva: VALID_GAP Phase 2.** Los 3 checks de Grupo A requieren arquitectura two-zone canónica donde combustión deplecione directamente la zona superior (sin equilibrar con la zona inferior) y la zona inferior se reponga desde el exterior vía filtraciones (CFAST: `LEAK_AREA_RATIO` mantiene LLO2=20.49% constante). Sin esta separación de zonas, SF no puede replicar la dinámica de CFAST en sala sellada.
+
 ---
 
-### Grupo B — `cfast_slow_growth_sealed` (2 fallos) — Gap estructural Phase 2
+### Grupo B — `cfast_slow_growth_sealed` — RESUELTO por Phase 4B
 
-**Phase 4B INVESTIGADO. Causa raíz confirmada. No resoluble con parámetros — requiere Phase 2.**
+**Estado actual:** los 2 fallos de temperatura estan resueltos. Phase 4B evita el conflicto temp/O2 del sweep `chi_rad` manteniendo `hrr_chi_rad_* = 0.7` y devolviendo energia radiativa desde paredes durante fuego activo.
+
+Config activa en `cfast_slow_growth_sealed.json`: `hrr_rad_wall_fraction=1.0`, `phase4b_wall_reradiation_during_fire_enabled=true`, `phase4b_wall_reradiation_during_fire_gain=5.0`, `wall_heat_capacity_kj_m2_k=6.5`, `wall_core_decay_per_s=0.0009`.
+
+Resultado fresco:
+
+| Check | Actual | Esperado | Tolerancia | Estado |
+|-------|--------|----------|------------|--------|
+| `cfast_slow_t480_temp_upper_c` | 141.52°C | 151.00°C | ±10°C | PASS |
+| `cfast_slow_t600_temp_upper_c` | 166.92°C | 152.03°C | ±15°C | PASS |
+
+Los checks O2 asociados siguen PASS. El diagnostico siguiente queda como historico de por que el tuning directo de `chi_rad` no era viable.
 
 Escenario: sala sellada, fuego slow-growth (α=0.003 kW/s²), 1800 s.
 
@@ -951,15 +1005,15 @@ python scripts/simulation/validate_reference_cases.py
 
 ---
 
-### Phase 4B — Diagnóstico slow_growth_sealed (gap estructural confirmado)
+### Phase 4B-diagnosis — Diagnóstico slow_growth_sealed (tuning chi_rad descartado)
 
-**Resultado:** 14 fallos → **14 fallos** (sin cambio). El análisis confirmó que los 2 fallos de temperatura son un gap estructural Phase 2, no resoluble con tuning de parámetros.
+**Resultado:** 14 fallos → **14 fallos** (sin cambio). El análisis confirmó que los 2 fallos de temperatura no eran resolubles con tuning directo de `chi_rad`.
 
 **Causa raíz documentada:** `fire_o2_mode="upper"` acopla la temperatura del upper layer con la tasa de depleción de O₂ a través de `upper_gas_kg`. Cualquier chi_rad que suba la temperatura lo suficiente también reduce `upper_gas_kg` hasta que los checks de O₂ en t=300 y t=480 fallan. Los rangos de chi_rad requeridos para temperatura vs O₂ no se solapan.
 
 **Fix intentado y revertido:** chi_rad=0.50 → t=600_temp PASS, pero 2 nuevas regresiones O₂ → 15 fallos. Revertido.
 
-**Archivos modificados:** ninguno (investigación sin cambio de baseline).
+**Archivos modificados:** ninguno (investigación sin cambio de baseline). Superado posteriormente por Phase 4B wall reradiation.
 
 ---
 

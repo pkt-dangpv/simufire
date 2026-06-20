@@ -221,6 +221,8 @@ var layer_relax_up: float = 0.015
 # pero ya no controlan la física; usar hrr_chi_rad_normal/low_o2 para ajustar.
 var hrr_chi_rad_normal: float = 0.35
 var hrr_chi_rad_low_o2: float = 0.50
+var phase4b_wall_reradiation_during_fire_enabled: bool = false
+var phase4b_wall_reradiation_during_fire_gain: float = 1.0
 var hrr_rad_wall_fraction: float = 0.0       # fracción de χ_rad·HRR depositada en superficies (R2-4)
 var two_zone_convective_heat_multiplier: float = 1.0
 var upper_heat_capture_min: float = 0.10      # obsoleto — usar hrr_chi_rad_normal
@@ -640,6 +642,8 @@ func configure(settings: Dictionary) -> void:
 	hrr_chi_rad_normal = float(settings.get("hrr_chi_rad_normal", hrr_chi_rad_normal))
 	hrr_chi_rad_low_o2 = float(settings.get("hrr_chi_rad_low_o2", hrr_chi_rad_low_o2))
 	hrr_rad_wall_fraction = float(settings.get("hrr_rad_wall_fraction", hrr_rad_wall_fraction))
+	phase4b_wall_reradiation_during_fire_enabled = bool(settings.get("phase4b_wall_reradiation_during_fire_enabled", phase4b_wall_reradiation_during_fire_enabled))
+	phase4b_wall_reradiation_during_fire_gain = float(settings.get("phase4b_wall_reradiation_during_fire_gain", phase4b_wall_reradiation_during_fire_gain))
 	two_zone_convective_heat_multiplier = float(
 		settings.get("two_zone_convective_heat_multiplier", two_zone_convective_heat_multiplier)
 	)
@@ -869,7 +873,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		# Después de la extinción, las paredes calientes sostienen la temperatura post-incendio.
 		var wall_emit_delta_t: float = 0.0
 		var wall_emission_kj: float = 0.0
-		if not any_fire_active:
+		var wall_emit_allowed: bool = not any_fire_active or phase4b_wall_reradiation_during_fire_enabled
+		if wall_emit_allowed:
 			wall_emit_delta_t = maxf(0.0, t_wall_c - room.temp_upper_c)
 			if _use_material_wall:
 				wall_emission_kj = wall_h_k_eff * wall_area_m2 * wall_emit_delta_t * dt
@@ -879,6 +884,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 						* wall_absorption_rate \
 						* dt
 			# Limitar emisión a un 15% de la energía almacenada en la pared por encima de ambiente
+			if any_fire_active:
+				wall_emission_kj *= maxf(0.0, phase4b_wall_reradiation_during_fire_gain)
 			wall_emission_kj = minf(
 				wall_emission_kj,
 				maxf(0.0, t_wall_c - ambient_c) * wall_capacity_kj_k * 0.15

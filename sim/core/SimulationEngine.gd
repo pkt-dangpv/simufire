@@ -529,6 +529,8 @@ var _layer_interface_warning_rooms: Dictionary = {}
 @export var hrr_chi_rad_low_o2: float = 0.50
 ## Fracción de χ_rad·HRR que se deposita directamente en paredes/techo (0 = todo a capa superior).
 @export var hrr_rad_wall_fraction: float = 0.0
+@export var phase4b_wall_reradiation_during_fire_enabled: bool = false
+@export var phase4b_wall_reradiation_during_fire_gain: float = 1.0
 @export var two_zone_convective_heat_multiplier: float = 1.0
 @export var retained_hot_layer_temp_start_c: float = 100.0
 @export var retained_hot_layer_temp_full_c: float = 350.0
@@ -979,6 +981,8 @@ func _sync_auxiliary_services() -> void:
 		"hrr_chi_rad_normal": hrr_chi_rad_normal,
 		"hrr_chi_rad_low_o2": hrr_chi_rad_low_o2,
 		"hrr_rad_wall_fraction": hrr_rad_wall_fraction,
+		"phase4b_wall_reradiation_during_fire_enabled": phase4b_wall_reradiation_during_fire_enabled,
+		"phase4b_wall_reradiation_during_fire_gain": phase4b_wall_reradiation_during_fire_gain,
 		"two_zone_convective_heat_multiplier": two_zone_convective_heat_multiplier,
 		"retained_hot_layer_temp_start_c": retained_hot_layer_temp_start_c,
 		"retained_hot_layer_temp_full_c": retained_hot_layer_temp_full_c,

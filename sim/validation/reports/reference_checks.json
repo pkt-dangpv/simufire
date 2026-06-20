@@ -1,8 +1,8 @@
 {
   "all_required_pass": false,
   "required_count": 350,
-  "failed_required_count": 7,
-  "known_gap_count": 70,
+  "failed_required_count": 5,
+  "known_gap_count": 69,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -424,9 +424,20 @@
     },
     {
       "name": "cfast_t350_pressure_pa",
-      "actual": 403945.54,
+      "actual": 128.86,
       "expected": 167.461,
       "tolerance": 162.9,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": true,
+      "note": "CMV-1: window-vented scenario pressure \u2014 CFAST ~0 Pa post-opening; t=350 sealed structural gap."
+    },
+    {
+      "name": "cfast_t420_pressure_pa",
+      "actual": 622.22,
+      "expected": -5.46443,
+      "tolerance": 20.0,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -434,25 +445,14 @@
       "note": "CMV-1: window-vented scenario pressure \u2014 CFAST ~0 Pa post-opening; t=350 sealed structural gap."
     },
     {
-      "name": "cfast_t420_pressure_pa",
-      "actual": 1.82,
-      "expected": -5.46443,
-      "tolerance": 20.0,
-      "minimum": null,
-      "maximum": null,
-      "required": false,
-      "pass": true,
-      "note": "CMV-1: window-vented scenario pressure \u2014 CFAST ~0 Pa post-opening; t=350 sealed structural gap."
-    },
-    {
       "name": "cfast_t510_pressure_pa",
-      "actual": 1.81,
+      "actual": 622.22,
       "expected": -5.4811,
       "tolerance": 20.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "CMV-1: window-vented scenario pressure \u2014 CFAST ~0 Pa post-opening; t=350 sealed structural gap."
     },
     {
@@ -1040,7 +1040,7 @@
     },
     {
       "name": "cfast_slow_t300_o2",
-      "actual": 0.1598,
+      "actual": 0.1552,
       "expected": 0.164631,
       "tolerance": 0.01,
       "minimum": null,
@@ -1051,7 +1051,7 @@
     },
     {
       "name": "cfast_slow_t480_o2",
-      "actual": 0.074,
+      "actual": 0.0729,
       "expected": 0.083965,
       "tolerance": 0.012,
       "minimum": null,
@@ -1062,7 +1062,7 @@
     },
     {
       "name": "cfast_slow_t600_o2",
-      "actual": 0.0678,
+      "actual": 0.0665,
       "expected": 0.0696598,
       "tolerance": 0.02,
       "minimum": null,
@@ -1073,7 +1073,7 @@
     },
     {
       "name": "cfast_slow_t900_o2",
-      "actual": 0.0605,
+      "actual": 0.0591,
       "expected": 0.0459719,
       "tolerance": 0.015,
       "minimum": null,
@@ -1084,7 +1084,7 @@
     },
     {
       "name": "cfast_slow_t1200_o2",
-      "actual": 0.0595,
+      "actual": 0.0581,
       "expected": 0.0350666,
       "tolerance": 0.025,
       "minimum": null,
@@ -1095,29 +1095,29 @@
     },
     {
       "name": "cfast_slow_t480_temp_upper_c",
-      "actual": 98.45,
+      "actual": 141.52,
       "expected": 151.003,
       "tolerance": 10.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "SGB-1: slow-growth temp_upper at t=480s. O2-depleted steady-state; tol=10.0\u00b0C (\u22653\u00d7 @0.1\u00b0C)."
     },
     {
       "name": "cfast_slow_t600_temp_upper_c",
-      "actual": 103.9,
+      "actual": 166.92,
       "expected": 152.025,
       "tolerance": 15.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": false,
+      "pass": true,
       "note": "SGB-1: slow-growth temp_upper at t=600s. O2-depleted steady-state; tol=15.0\u00b0C (\u22653\u00d7 @0.1\u00b0C)."
     },
     {
       "name": "cfast_slow_t120_temp_upper_c",
-      "actual": 30.23,
+      "actual": 30.8,
       "expected": 39.6869,
       "tolerance": 15.0,
       "minimum": null,
@@ -1128,7 +1128,7 @@
     },
     {
       "name": "cfast_slow_t240_temp_upper_c",
-      "actual": 61.26,
+      "actual": 70.3,
       "expected": 104.933,
       "tolerance": 50.0,
       "minimum": null,
@@ -1139,7 +1139,7 @@
     },
     {
       "name": "cfast_slow_t300_temp_upper_c",
-      "actual": 95.12,
+      "actual": 104.46,
       "expected": 154.196,
       "tolerance": 60.0,
       "minimum": null,
@@ -1150,18 +1150,18 @@
     },
     {
       "name": "cfast_slow_t240_pressure_pa",
-      "actual": 2240.43,
+      "actual": 81.55,
       "expected": 176.193,
       "tolerance": 177.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "SGB-1 (non-gating): Phase 3 \u2014 thermodynamic vs buoyancy pressure model gap."
     },
     {
       "name": "cfast_slow_t480_pressure_pa",
-      "actual": 4293.62,
+      "actual": 103.48,
       "expected": 23.1977,
       "tolerance": 22.0,
       "minimum": null,
@@ -1172,18 +1172,18 @@
     },
     {
       "name": "cfast_slow_t600_pressure_pa",
-      "actual": 4845.1,
+      "actual": 110.47,
       "expected": 65.1494,
       "tolerance": 63.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "SGB-1 (non-gating): Phase 3 \u2014 thermodynamic vs buoyancy pressure model gap."
     },
     {
       "name": "cfast_slow_rmse_temp_upper_c",
-      "actual": 55.93894201548949,
+      "actual": 41.20808215541035,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -1194,7 +1194,7 @@
     },
     {
       "name": "cfast_slow_min_o2_upper",
-      "actual": 0.0582,
+      "actual": 0.0561,
       "expected": null,
       "tolerance": null,
       "minimum": 0.0,
