@@ -2613,7 +2613,7 @@
     },
     {
       "name": "cfast_burnout_t600_fire_active",
-      "actual": 582.17,
+      "actual": 497.21,
       "expected": null,
       "tolerance": null,
       "minimum": 30.0,
@@ -2690,7 +2690,7 @@
     },
     {
       "name": "cfast_burnout_t1800_fire_active",
-      "actual": 582.17,
+      "actual": 291.77,
       "expected": null,
       "tolerance": null,
       "minimum": 10.0,
@@ -2701,7 +2701,7 @@
     },
     {
       "name": "cfast_burnout_t600_o2_depleted",
-      "actual": 0.0774,
+      "actual": 0.0699,
       "expected": null,
       "tolerance": null,
       "minimum": null,
