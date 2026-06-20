@@ -65,9 +65,9 @@ Fresh run result:
 - SF lacks two-zone HVAC mass balance → O2u collapses indefinitely; no per-case fix
 - **Verdict: Phase 2C structural gap confirmed. No fix without architecture work.**
 
-### Fallos required actuales: 12 (post-Phase2D, 2026-06-20)
+### Fallos required actuales: 11 (post-Phase2C-thermal, 2026-06-20)
 
-Todos clasificados como gaps estructurales Phase 2/2C:
+Todos clasificados como gaps estructurales Phase 2:
 
 | Group | Checks | Root cause |
 |-------|--------|------------|
@@ -75,14 +75,15 @@ Todos clasificados como gaps estructurales Phase 2/2C:
 | B — slow_growth_sealed (×2) | temp_upper | Phase 2 gap (thermal/O2 coupling) |
 | C — corridor_chain (×2) | t180+t600 temp | Phase 2 gap (M3 doorway enthalpy) |
 | D — bedroom_closed_door (×4) | O2 upper t300-720 | Phase 2 gap (t120 resuelto por Phase 2B) |
-| E — two_room_door_open (×1) | RMSE t=[0,350] | Phase 2C partial: 88→64.2°C; gap residual upper↔upper motor |
 
-`cfast_hvac_t300_o2` RESUELTO por Phase 2D (commit `b960d29`).
+Grupo E completamente resuelto: `hvac_t300_o2` PASS (Phase 2D `b960d29`); `two_room RMSE` PASS 53.8°C (Phase 2C-thermal `e0785e8`).
 
 ### Recommended next work
 
-1. **Phase 2C upper↔upper** — intercambio O2/entálpico directo capa-superior↔capa-superior en doorway (motor). Cierra el gap residual 4.2°C en two_room RMSE (64.2→<60°C). Requiere arquitectura explícita.
-2. **corridor_chain thermal** — t180/t600 temp gaps (×2). Structural M3 doorway enthalpy gap.
+1. **corridor_chain thermal** — t180/t600 temp gaps (×2). M3 doorway enthalpy gap estructural.
+2. **Grupo D bedroom O2** — t300/t480/t600/t720 (×4). Phase 2 combustion routing gap.
+3. Do not start ILV without explicit instruction.
+4. Do not activate M2 global (fire_o2_mass_tracking).
 3. **corridor_chain thermal** — t180/t600 temp gaps (×2). Structural M3 doorway enthalpy gap; no fix per-case disponible actualmente.
 4. Do not start ILV without explicit instruction.
 5. Do not activate M2 global (`fire_o2_mass_tracking`) — broke 10+ checks.
