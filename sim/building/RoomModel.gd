@@ -178,6 +178,9 @@ var fire_o2_extinguished: bool = false
 var o2_hrr_factor: float = 1.0
 var retained_unburned_MJ: float = 0.0
 var ventilation_response_factor: float = 0.0
+# Régimen de combustión actual — clasificado por CombustionRegimeClassifier (Fase 1, solo diagnóstico).
+# No altera ningún campo de física. Ver docs/architecture/ILV_COMBUSTION_REGIME_PLAN.md.
+var combustion_regime: String = "EXTINGUISHED"
 
 # Presion de la capa superior respecto al exterior
 var overpressure_pa: float = 0.0
@@ -347,6 +350,7 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	o2_hrr_factor = 1.0
 	retained_unburned_MJ = 0.0
 	ventilation_response_factor = 0.0
+	combustion_regime = "EXTINGUISHED"
 	overpressure_pa = 0.0
 	pressure_pa_therm = 0.0
 	ceiling_jet_temp_c = ambient_temp_c

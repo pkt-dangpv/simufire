@@ -3,6 +3,7 @@ class_name CombustionSystem
 
 const FuelObjectModelScript = preload("res://sim/fire/FuelObjectModel.gd")
 const FireModelScript = preload("res://sim/fire/FireModel.gd")
+const CombustionRegimeClassifierScript = preload("res://sim/fire/CombustionRegimeClassifier.gd")
 
 # ============================================================
 # COMBUSTION SYSTEM
@@ -91,6 +92,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		room.pool_release_hrr_target_kw = 0.0
 		room.smoke_prod_kg_s = 0.0
 		room.fire_smoldering = false
+		room.combustion_regime = "EXTINGUISHED"
 		_sync_legacy_proxy_idle(room)
 		return false
 
@@ -799,6 +801,8 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	# Actualizar flag de smoldering para UI y exportación.
 	# "smoldering" = fuego latente activo (sin llama) con emisión de humo/CO visible.
 	room.fire_smoldering = (not can_flame) and latent_viable and (room.hrr_kw > 0.5)
+	# Fase 1 ILV: clasificador diagnóstico read-only — no altera física.
+	room.combustion_regime = CombustionRegimeClassifierScript.classify(room)
 
 	if fire.remaining_fuel_MJ <= 0.0 and room.retained_unburned_MJ <= 0.01:
 		return _extinguish_room_fire(room, fire, true)
@@ -1703,6 +1707,7 @@ func _extinguish_room_fire(room: RoomModel, fire: FireModel, burned_out: bool = 
 	if room == null:
 		return false
 
+	room.combustion_regime = "EXTINGUISHED"
 	if burned_out:
 		_mark_legacy_proxy_burned_out(room)
 	elif fire != null:
