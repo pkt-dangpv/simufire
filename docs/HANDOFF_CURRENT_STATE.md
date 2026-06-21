@@ -6,12 +6,13 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
-## Current Session Update — 2026-06-21
+## Current Session Update — 2026-06-21 (rev 2)
 
 - Branch: `main`, synchronized with `origin/main`.
-- Latest committed: `bf5e5d0 docs: sync handoff validation state`.
+- Latest committed: `497b663 feat(fp-hud): smooth HUD temperature at thermal layer crossing`.
 - **Current validation baseline: 345/350 PASS, `5/350` required FAIL**.
 - `docs/validation/STATUS_VALIDATION.md` is the validation source of truth.
+- FP/HUD temperature jump fix closed — HUD-only, no física tocada. Ver §HUD/FP Temperature Fix cerrado más abajo.
 
 ### What is current now
 
@@ -55,7 +56,7 @@ Los 5 fallos restantes, cerrados definitivamente como VALID_GAP:
 - **Grupo A `cfast_r0_window_360` (×3)** — Phase 5A sweep (15 configs) agotó espacio per-caso. Causa estructural: `plume_lower_mode` equilibra zonas bidireccional; target requeriría room.o2=0.085 → HRR<198 kW → guard FAIL. Ver `docs/architecture/PHASE_5A_O2UPPER_SWEEP_RESULTS.md`.
 - **Grupo C `cfast_corridor_chain` (×2)** — Phase 2F, 2G y Phase 3 simplificado descartados. Requiere ODE de presión dos zonas. Phase 3+ scope.
 
-**Próxima línea de trabajo: investigación HUD/FP temperatura.** Diagnóstico de saltos de temperatura en vista primera persona sin tocar física. Ver §Pending Temperature HUD Investigation más abajo.
+**Fix HUD/FP temperatura cerrado** (`497b663`). Ver §HUD/FP Temperature Fix cerrado más abajo. No hay línea de trabajo abierta en este hito.
 
 ### CFAST reference sources
 
@@ -193,19 +194,21 @@ git commit -m "WIP cambios locales antes de sincronizar"
 
 Then compare the backup branch, the original branch and the remote branch before merging anything. The intended rule is: preserve first, synchronize second, resolve conflicts last.
 
-## Pending Temperature HUD Investigation
+## HUD/FP Temperature Fix cerrado
 
-No fix has been applied yet for the first-person HUD temperature jumps.
+Commit `497b663 feat(fp-hud): smooth HUD temperature at thermal layer crossing` — 2026-06-21.
 
-Current diagnosis:
+**Diagnóstico confirmado (Causa 2):** con `thermal_gradient_band_fraction=0.0`, `estimate_temperature_at_height_m` es una función escalón en `thermal_layer_m`. Cuando la capa desciende a través de la altura del jugador (1.8 m de pie), `T@1.8m` saltaba instantáneamente entre `temp_lower_c` y `temp_upper_c` — hasta +8 °C en un paso de 0.5 s en el escenario de diagnóstico, hasta cientos de °C en escenarios calientes.
 
-- The exterior-opening smoothing hotfix exists: commit `69d6b55 feat(hotfix): exterior opening transition smoothing`.
-- `open_fraction_smooth` is applied in several gas/O2 paths.
-- Some thermal paths still appear to read `open_fraction` directly, so opening a window can still affect heat transfer abruptly.
-- The first-person HUD displays `temp_at_1_8m_c`, `temp_at_1_1m_c` or `temp_at_0_5m_c` directly, refreshed every 0.05 s, without a display-side damping layer.
-- If the thermal interface crosses near the player eye height, the HUD can jump between lower/mixed/upper temperatures even when the scene looks continuous.
+**Fix aplicado (HUD-only, sin tocar física):**
 
-Recommended next analysis before editing motor code:
+- `view/fp/FirstPersonController.gd`:
+  - Constante `HUD_LAYER_BLEND_HALF_M = 0.25`.
+  - Helper `_hud_temp_at_height_m(room_state, height_m)`: lerp de `temp_lower_c` a `temp_upper_c` dentro de una banda de ±25 cm alrededor de `thermal_layer_m`; satura limpiamente fuera de la banda.
+  - `_update_technical_overlay()`: las tres posturas (stand/crouch/prone) usan el helper en lugar de los campos precomputados `temp_at_N_m_c`.
+  - El filtro `fp_hud_temperature_smoothing_tau_s=0.5 s` sigue actuando sobre el valor resultante.
+- `tools/validate_fp_technical_hud.gd`: test actualizado con `thermal_layer_m=1.15 m`; expectativas ajustadas a la salida del blend (stand=210, crouch=105, prone=35 °C).
 
-- Log or display, for the current FP room: `temp_at_1_8m_c`, `temp_upper_c`, `temp_lower_c`, `thermal_layer_m`, `open_fraction`, `open_fraction_smooth`.
-- Decide separately between a motor-side fix for thermal use of smoothed exterior opening fractions and a HUD-only visual smoothing fix.
+**Verificación final:** `python scripts/check_product.py` — FP technical HUD Godot 1/1 OK; todos los demás suites OK. Único fallo: `tests.test_guardrails.test_exit0_real_json`, pre-existente por los 5 VALID_GAP.
+
+No se tocó `ThermalSystem.gd`, `SimulationStateBuilder.gd`, ni ningún archivo de validación científica.
