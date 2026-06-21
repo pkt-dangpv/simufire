@@ -2928,7 +2928,7 @@ func _update_prompt() -> void:
 			_prompt_panel.visible = false
 		return
 	if op.type == OpeningModel.Type.WINDOW and op.glass_broken:
-		_prompt_label.text = "Ventana rota | ventilacion %.0f%%" % (op.open_fraction * 100.0)
+		_prompt_label.text = "Ventana rota | ventilación %.0f%%" % (op.open_fraction * 100.0)
 		if _prompt_panel != null:
 			_prompt_panel.visible = true
 		return
@@ -2936,10 +2936,11 @@ func _update_prompt() -> void:
 		var kind: String = "puerta" if op.type == OpeningModel.Type.DOOR else "ventana"
 		var selected_pct: int = int(round(_f_hold_fraction * 100.0))
 		if _f_hold_mode:
-			_prompt_label.text = "F pulsado: rueda o 1-5 para %s (%d%%). Suelta para aplicar." % [kind, selected_pct]
+			_prompt_label.text = "F pulsado: rueda o 1-5 para %s (%d%%). Suelta F para aplicar." % [kind, selected_pct]
 		else:
 			var toggle_pct: int = 0 if op.open_fraction > 0.01 else 100
-			_prompt_label.text = "Suelta F: %s %d%% | manten F para elegir grado" % [kind, toggle_pct]
+			var toggle_action: String = "cerrar" if toggle_pct == 0 else "abrir"
+			_prompt_label.text = "Suelta F: %s %s %d%% | mantén F para elegir grado" % [toggle_action, kind, toggle_pct]
 	else:
 		var toggle_frac: float = 0.0 if op.open_fraction > 0.01 else 1.0
 		_prompt_label.text = FPOpeningInteraction.prompt_text(op.type == OpeningModel.Type.DOOR, op.open_fraction, toggle_frac)
