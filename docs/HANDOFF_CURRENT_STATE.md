@@ -6,29 +6,36 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
-## Current Session Update — 2026-06-21 (rev 3 — v0.4.0 stable)
+## Current Session Update — 2026-06-21 (rev 4 — UX polish cerrado)
 
 - Branch: `main`, synchronized with `origin/main`.
 - **Tag publicado: `v0.4.0` — release estable.**
+- **Hito UX polish FP cerrado** — commits `c7e3db8` y `a689f1d`.
 - **Current validation baseline: 345/350 PASS, `5/350` required FAIL (todos VALID_GAP)**.
 - `docs/validation/STATUS_VALIDATION.md` is the validation source of truth.
-- FP/HUD temperature jump fix closed — HUD-only, no física tocada. Ver §HUD/FP Temperature Fix cerrado más abajo.
 
-### QA FP/UX — resultado (2026-06-21)
+### UX Polish FP — cerrado (2026-06-21)
 
-Suite headless Godot completa ejecutada sobre `v0.4.0-validation-rc2` / `main`:
+| Ítem | Commit | Resultado |
+|------|--------|-----------|
+| Camera stance easing (`_apply_stance`) | `c7e3db8` | Cerrado — lerp tau=80ms, test headless PASS |
+| Opening prompt text (accents, consistency) | `a689f1d` | Cerrado — 4 fixes de texto, sin cambio de lógica |
+| Colisiones corner FP | — | Deuda futura no bloqueante |
+
+Suite headless Godot completa post-polish:
 
 | Suite | Resultado |
 |-------|-----------|
-| FP technical HUD (temperature blend) | PASS |
-| FP victim states (FED 0/0.35/1.2) | PASS |
-| FP detector alarm (color, audio, volumen) | PASS |
-| FP fire visuals (900/1100 kW, anchor, extinción) | PASS |
-| FP player start (posición, yaw, marker) | PASS |
-| FPVisibilityOverlay smoke layer | SIN ISSUE — banda 42 cm continua |
+| FP stance easing Godot | PASS |
+| FP technical HUD | PASS |
+| FP victim states | PASS |
+| FP detector alarm | PASS |
+| FP fire visuals | PASS |
+| FP player start | PASS |
+| FPVisibilityOverlay smoke layer | SIN ISSUE |
 | Colisiones corner FP | NO CUBIERTO — no bloqueante |
 
-Deuda conocida no bloqueante: `_apply_stance(immediate=false)` en `view/fp/FirstPersonController.gd` línea 3349 — parámetro `immediate` no tiene efecto real (ambas ramas idénticas). La cámara siempre hace snap al cambiar postura. Mejora UX futura; impacto perceptual bajo a 60 fps.
+No hay deuda de motor abierta en este hito. Próxima decisión: ILV no invasivo, Phase 3+, o nueva línea de producto.
 
 ### What is current now
 

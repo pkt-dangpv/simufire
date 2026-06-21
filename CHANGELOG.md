@@ -4,13 +4,21 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+## v0.4.0+ux-polish
+
+### FP UX Polish
+
+- **Camera stance easing** (`c7e3db8`) — `_apply_stance(immediate=false)` now lerps the camera toward the stance target height (tau = 80 ms) instead of snapping. `immediate=true` preserves snap on init. Test: `tools/validate_fp_stance_easing.gd` (stand/crouch/prone convergence in 30 physics frames).
+- **Opening prompt text** (`a689f1d`) — four consistency and orthography fixes: `"Dejar pulsado F: elegir apertura"` → `"Mantén F: elegir grado"`; `"ventilacion"` → `"ventilación"`; `"Suelta para aplicar."` → `"Suelta F para aplicar."`; `"Suelta F: puerta 0% | manten F…"` → `"Suelta F: cerrar puerta 0% | mantén F…"` (added action verb, fixed accent).
+- **Remaining debt** — FP corner collisions not covered by automated tests; non-blocking, deferred to future pass.
+
 ## v0.4.0
 
 ### QA FP/UX
 
 - Headless FP suite (Godot): victim states, detector alarm, fire visuals, player start, technical HUD — all PASS.
 - `FPVisibilityOverlay` smoke layer transition confirmed continuous (42 cm band); no step-function issue.
-- Known minor debt: `_apply_stance(immediate)` camera easing not implemented — both branches snap identically. Non-blocking; logged for a future UX improvement pass.
+- Known minor debt: `_apply_stance(immediate)` camera easing not implemented — resolved in v0.4.0+ux-polish.
 
 ## v0.4.0-validation-rc2
 
