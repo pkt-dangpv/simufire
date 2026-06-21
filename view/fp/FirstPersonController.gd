@@ -21,6 +21,7 @@ const STANCE_CROUCH: int = 1
 const STANCE_PRONE: int = 2
 const OPENING_FRACTION_STEPS: Array[float] = [0.0, 0.25, 0.5, 0.75, 1.0]
 const OPENING_HOLD_THRESHOLD_S: float = 0.35
+const HUD_LAYER_BLEND_HALF_M: float = 0.25
 const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 
 @export var wall_thickness_m: float = 0.10
@@ -168,6 +169,8 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.05, 1.0, 0.05) var fp_hud_refresh_interval_s: float = 0.05
 ## Suavizado visual para la temperatura del HUD técnico FP. 0.0 desactiva el filtro.
 @export_range(0.0, 3.0, 0.05) var fp_hud_temperature_smoothing_tau_s: float = 0.5
+## Imprime telemetría de temperatura FP para diagnosticar saltos HUD/capa térmica.
+@export var fp_debug_temp_log: bool = false
 
 @export_group("FP HUD Layout")
 ## Rect del panel superior de estado FP. x/y son offsets desde su ancla; w/h son tamaño.
@@ -3026,15 +3029,17 @@ func _update_status_hud(force: bool = false) -> void:
 func _update_technical_overlay(room_state: Dictionary, smoke_view: Dictionary, hud_dt_s: float) -> void:
 	if _technical_overlay_label == null:
 		return
-	# Temperatura según postura: usa campos interpolados por altura del motor de simulación.
+	# Temperatura según postura: usa banda de gradiente HUD para suavizar el cruce de capa.
 	var temp_c: float
 	match _stance:
 		STANCE_STAND:
-			temp_c = float(room_state.get("temp_at_1_8m_c", room_state.get("temp_upper_c", 20.0)))
+			temp_c = _hud_temp_at_height_m(room_state, 1.8)
 		STANCE_CROUCH:
-			temp_c = float(room_state.get("temp_at_1_1m_c", room_state.get("temp_upper_c", 20.0)))
+			temp_c = _hud_temp_at_height_m(room_state, 1.1)
 		_: # STANCE_PRONE
-			temp_c = float(room_state.get("temp_at_0_5m_c", room_state.get("temp_lower_c", 20.0)))
+			temp_c = _hud_temp_at_height_m(room_state, 0.5)
+	if fp_debug_temp_log:
+		_log_fp_temperature_diagnostics(room_state, temp_c)
 	temp_c = _smooth_technical_overlay_temperature(temp_c, hud_dt_s)
 	# Gases: usa la capa coherente con la postura para evitar mezclar upper y promedio.
 	var co_ppm: float = float(room_state.get("co_upper_ppm", 0.0))
@@ -3048,6 +3053,47 @@ func _update_technical_overlay(room_state: Dictionary, smoke_view: Dictionary, h
 	_technical_overlay_label.text = (
 		"HRR %5.0f kW\nT   %5.0f °C\nCO  %5.0f ppm\nCO₂ %4.1f %%vol\nO₂   %4.1f %%vol\nHCN %5.0f ppm\nFED %.2f\nVis %s"
 		% [hrr_kw, temp_c, co_ppm, co2_vol_pct, o2_vol_pct, hcn_ppm, fed_val, _format_fp_visibility(vis_m)]
+	)
+
+
+func _hud_temp_at_height_m(room_state: Dictionary, height_m: float) -> float:
+	var t_up: float = float(room_state.get("temp_upper_c", 20.0))
+	var t_lo: float = float(room_state.get("temp_lower_c", 20.0))
+	var layer_m: float = float(room_state.get("thermal_layer_m", 99.0))
+	var band_bottom_m: float = layer_m - HUD_LAYER_BLEND_HALF_M
+	var band_top_m: float = layer_m + HUD_LAYER_BLEND_HALF_M
+	var t: float = clampf((height_m - band_bottom_m) / (band_top_m - band_bottom_m), 0.0, 1.0)
+	return lerpf(t_lo, t_up, t)
+
+
+func _log_fp_temperature_diagnostics(room_state: Dictionary, raw_temp_c: float) -> void:
+	var exterior_openings: String = ""
+	if building != null:
+		for index in range(building.get_opening_count()):
+			var op: OpeningModel = building.get_opening_at(index)
+			if op == null:
+				continue
+			if op.a != OUTSIDE_ID and op.b != OUTSIDE_ID:
+				continue
+			if op.open_fraction <= 0.0 and op.open_fraction_smooth <= 0.0:
+				continue
+			exterior_openings += " op%d(f=%.2f fs=%.2f)" % [
+				index,
+				op.open_fraction,
+				op.open_fraction_smooth,
+			]
+	print(
+		"FP-TEMP t=%.2f room=%d stance=%s raw=%.1f upper=%.1f lower=%.1f layer=%.2fm%s"
+		% [
+			float(Time.get_ticks_msec()) / 1000.0,
+			_current_room_id,
+			_stance_label(),
+			raw_temp_c,
+			float(room_state.get("temp_upper_c", 0.0)),
+			float(room_state.get("temp_lower_c", 0.0)),
+			float(room_state.get("thermal_layer_m", -1.0)),
+			exterior_openings,
+		]
 	)
 
 

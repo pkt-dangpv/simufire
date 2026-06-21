@@ -36,7 +36,7 @@ func _run() -> void:
 	_expect(technical_panel != null and technical_panel.visible, "FP technical overlay was not visible")
 	_expect(technical_label != null, "FP technical overlay label missing")
 	if technical_label != null:
-		_expect(technical_label.text.contains("185"), "standing temperature missing from FP technical overlay")
+		_expect(technical_label.text.contains("210"), "standing temperature missing from FP technical overlay")
 		_expect(technical_label.text.contains("740"), "CO ppm missing from FP technical overlay")
 		_expect(technical_label.text.contains("1.9"), "CO2 percent missing from FP technical overlay")
 		_expect(technical_label.text.contains("17.4"), "O2 percent missing from FP technical overlay")
@@ -46,10 +46,10 @@ func _run() -> void:
 
 	fp._cycle_stance()
 	if technical_label != null:
-		_expect(technical_label.text.contains("82"), "crouch temperature did not update in FP technical overlay")
+		_expect(technical_label.text.contains("105"), "crouch temperature did not update in FP technical overlay")
 	fp._cycle_stance()
 	if technical_label != null:
-		_expect(technical_label.text.contains("38"), "prone temperature did not update in FP technical overlay")
+		_expect(technical_label.text.contains("35"), "prone temperature did not update in FP technical overlay")
 
 	fp.show_technical_overlay = false
 	fp.show_visibility_readout = true
@@ -116,6 +116,7 @@ func _make_state() -> Dictionary:
 			"height_m": 2.5,
 			"temp_upper_c": 210.0,
 			"temp_lower_c": 35.0,
+			"thermal_layer_m": 1.15,
 			"temp_at_1_8m_c": 185.0,
 			"temp_at_1_1m_c": 82.0,
 			"temp_at_0_5m_c": 38.0,
