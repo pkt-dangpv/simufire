@@ -64,7 +64,8 @@ static func compute(
 	var display_block: float = clampf(maxf(maxf(optical_block, smoke_density_t * 0.34 * immersion), alpha_from_visibility * 0.85), 0.0, 1.0)
 	var fp_visibility_m: float = lerpf(max_visibility_m, visibility_m, display_block)
 	if ilv_t > 0.0:
-		fp_visibility_m = minf(fp_visibility_m, lerpf(visibility_m, severe_visibility_m, ilv_t))
+		var severe_cap_m: float = minf(visibility_m, severe_visibility_m)
+		fp_visibility_m = minf(fp_visibility_m, lerpf(fp_visibility_m, severe_cap_m, ilv_t))
 	return {
 		"overlay_alpha": alpha,
 		"heat_tint": heat_tint,

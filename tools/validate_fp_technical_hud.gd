@@ -66,6 +66,13 @@ func _run() -> void:
 		_expect(technical_label.text.contains("Reg ILV CRIT"), "critical ILV low-O2 alert missing from FP technical overlay")
 		_expect(technical_label.text.contains("Vis FP 1.6m"), "critical ILV did not clamp FP visibility in technical overlay")
 
+	state["0"]["visibility_m"] = 0.04
+	fp.set_state(state)
+	fp._update_status_hud(true)
+	await get_tree().process_frame
+	if technical_label != null:
+		_expect(technical_label.text.contains("Vis FP 0.1m"), "critical ILV raised sub-meter raw visibility instead of preserving it")
+
 	fp._cycle_stance()
 	if technical_label != null:
 		_expect(technical_label.text.contains("105"), "crouch temperature did not update in FP technical overlay")
