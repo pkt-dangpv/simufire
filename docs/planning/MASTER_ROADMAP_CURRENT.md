@@ -21,12 +21,13 @@ Antes de tocar motor:
 
 ## Estado actual conocido
 
-- Rama esperada: `main`; al cierre de rev 8 queda `ahead 2` por commits FP locales pendientes de push.
+- Rama esperada: `main`; al cierre de rev 9 queda sincronizada con `origin/main`.
 - Handoff vigente: `docs/HANDOFF_CURRENT_STATE.md`.
 - Estado de validacion documentado: `docs/validation/STATUS_VALIDATION.md`.
 - Baseline vigente: **345/350 required PASS, 5/350 required FAIL**.
 - Gaps non-gating sincronizados: **69**.
 - Los 5 fallos restantes estan clasificados como VALID_GAP estructural Phase 2/3+.
+- QA manual FP ILV/humo encontro incoherencias que ya no son solo visuales: HRR/regimen pueden seguir altos/ILC con `o2_upper` casi cero mientras `o2_lower` permanece fresco. Pendiente auditoria de motor/layer coupling.
 
 ## Validacion CFAST: fallos vivos
 
@@ -46,7 +47,7 @@ No queda candidato per-case de bajo riesgo. Los grupos B, D y E ya estan resuelt
 1. Confirmar baseline/producto: `python scripts\check_product.py` y, para motor, `python scripts\simulation\validation_guardrails.py --verbose`.
 2. Elegir una linea:
    - producto/UX: QA manual de FP ILV/humo y ajuste de severidad visual;
-   - auditoria motor: diagnosticar si `smoke_kg`/`visibility_m` son fisicamente insuficientes en ILV;
+   - auditoria motor: diagnosticar coupling HRR/regimen/O2 por capas y si `smoke_kg`/`visibility_m` son fisicamente insuficientes en ILV;
    - arquitectura cientifica: solo con plan explicito para two-zone canonico / Phase 3+;
    - documentacion: mantener sincronizados handoff, roadmap, guardrails y gap inventory.
 3. No iniciar ILV, M2 global ni cambios de doorway/O2 en `sim/core` sin aprobacion explicita.
@@ -67,46 +68,53 @@ Fix aplicado (HUD-only, sin tocar fisica):
 
 Pendiente de Causa 1 (baja prioridad): algunas rutas termicas en `ThermalSystem.gd` usan `open_fraction` directo. No genera saltos detectables en el escenario de diagnostico (`tools/diag_fp_temp_jump.json`), pero podria importar en escenarios muy calientes con aperturas grandes.
 
-## FP ILV / HUD / humo — VISUAL CERRADO, QA PENDIENTE
+## FP ILV / HUD / humo — VISUAL CERRADO, MOTOR PENDIENTE
 
-Commits locales pendientes de push:
+Commits aplicados y publicados:
 
 - `a6d44c0 fix(fp-hud): clarify ILV critical display`
 - `b59fa33 fix(fp): strengthen ILV smoke visibility`
+- `929ac03 fix(fp): preserve sub-meter smoke visibility`
+- `2ee8b2c fix(fp): respect smoke layer when crouching`
+- `d69232c fix(fp): eye-height gas layer + overhead smoke block WIP`
+- `696f03f fix(fp): tighten overhead smoke visibility`
 
 Alcance aplicado:
 
 - HUD FP sin duplicar datos: el panel superior oculta HRR/visibilidad cuando el panel tecnico esta visible.
 - Regimen visible como `ILC`, `ILV` o `ILV CRIT`.
-- Gases etiquetados por capa (`O₂u/O₂l`, `COu`, `CO₂u`, `HCNu`) para evitar confundir capa superior con promedio de sala.
+- Gases etiquetados por capa (`u/l`) segun altura de ojos frente a `smoke_layer_m`, para evitar mezclar capa superior con exposicion del jugador.
 - Llama FP atenuada visualmente en `ILV_LATENT` o con O2 superior critico, sin cambiar HRR ni fisica.
 - Humo FP endurecido en ILV critico: visibilidad severa default `1.6 m`, overlay mas opaco y luces de techo/aperturas atenuadas casi a cero.
+- Humo superior sigue oscureciendo techo/luminarias aunque el jugador este bajo la capa; agacharse mejora visibilidad, pero ya no limpia automaticamente a `Vis FP 29m` si `visibility_m` fisica es sub-metrica.
+- El HUD fuerza `Reg ILV CRIT` si `hrr_kw > 0.5` y `o2_upper < 5%`, aunque el clasificador base aun indique `FUEL_CONTROLLED`.
 
 Verificacion:
 
 - `git diff --check` OK.
 - `python scripts\check_product.py`: FP fire visuals, FP technical HUD y Combustion regime PASS; unico fallo sigue siendo guardrail conocido por los 5 VALID_GAP.
 
-Pendiente:
+Hallazgos pendientes de motor:
 
-1. QA manual en Godot con escenario ILV real.
-2. Ajustar `smoke_overlay_ilv_severe_visibility_m` si 1.6 m resulta demasiado o poco agresivo.
-3. No confundir este fix con calibracion de motor: no cambia `smoke_kg`, yields, soot ni transporte.
+1. En logs FP reales aparecen estados como `hrr_kw≈3108`, `combustion_regime=FUEL_CONTROLLED`, `o2_upper≈0.3%`, `o2_lower≈20.3%` y `visibility_m≈0.08 m`.
+2. Esto sugiere que HRR/clasificador pueden depender de `o2`/lower/global mientras la capa superior esta en ILV critico.
+3. No confundir los fixes FP con calibracion de motor: no cambian `smoke_kg`, yields, soot, transporte, HRR ni consumo de O2.
 
-## Auditoria humo motor — SIGUIENTE RECOMENDADO
+## Auditoria motor ILV/layer coupling — SIGUIENTE RECOMENDADO
 
-Objetivo: determinar si la visibilidad irreal restante proviene de generacion fisica insuficiente, transporte/estratificacion o solo representacion.
+Objetivo: determinar si las incongruencias restantes provienen de combustion acoplada a O2 global/lower, generacion fisica insuficiente de humo, transporte/estratificacion o solo representacion.
 
 Escenario recomendado:
 
 - Caso ILV reproducible (`cfast_ilv_audit` o variante FP jugable).
-- Registrar por segundo: `combustion_regime`, `hrr_kw`, `o2_upper`, `o2_lower`, `smoke_kg`, `visibility_m`, `smoke_layer_m`, `soot_fraction`, `CO`, `CO2`, `HCN`, `FED`.
+- Registrar por segundo: `combustion_regime`, `hrr_kw`, `o2`, `o2_upper`, `o2_lower`, `o2_hrr_factor`, `co_upper_ppm`, `co_lower_ppm`, `co2_ppm`, `co2_upper_ppm`, `hcn_ppm`, `hcn_upper_ppm`, `smoke_kg`, `visibility_m`, `smoke_layer_m`, `thermal_layer_m`, `fire_latent_active`, `FED`.
 
 Criterios de decision:
 
 - Si `smoke_kg` y `visibility_m` ya son severos pero FP se ve limpio: continuar visualizacion avanzada.
 - Si `smoke_kg` es bajo o `visibility_m` demasiado alto en ILV con CO/HCN altos: abrir calibracion motor de humo/soot.
 - Si humo se genera pero se evacua/mezcla de forma irreal: auditar transporte y estratificacion.
+- Si HRR/regimen se mantienen fuel-controlled con `o2_upper` critico: abrir diseno explicito de HRR limitado por capa superior o two-zone canonico; no tocar `CombustionSystem` sin caso headless y rollback.
 
 ## Humo visual avanzado — FUTURO PRODUCTO
 

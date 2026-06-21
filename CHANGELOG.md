@@ -8,7 +8,9 @@ All notable changes to SimuFire should be recorded here.
 
 - **HUD ILV critical display** (`a6d44c0`) — FP technical HUD now shows `Reg ILC`, `Reg ILV` or `Reg ILV CRIT`, labels gases by layer (`O₂u/O₂l`, `COu`, `CO₂u`, `HCNu`), removes duplicated HRR/visibility from the top FP panel while the technical overlay is visible, and visually dampens FP flames in `ILV_LATENT` or critical upper-layer O₂. No simulation physics changed.
 - **FP smoke visibility hardening** (`b59fa33`) — ILV-critical FP view now clamps effective display visibility to a severe default (`smoke_overlay_ilv_severe_visibility_m = 1.6` m), increases overlay opacity, and allows ceiling/opening lights to attenuate almost completely through smoke (`smoke_light_min_transmission = 0.01`). Tests cover `Reg ILV CRIT`, `Vis FP 1.6m`, damped fire light, and near-extinguished ceiling light under ILV smoke.
-- **Open follow-up:** this is presentation-layer mitigation only. The motor still needs a smoke audit to determine whether `smoke_kg`, `visibility_m`, soot/yields, and smoke transport are physically strong enough in ILV scenarios.
+- **FP eye-height layer consistency** (`d69232c`) — FP technical HUD now selects gas labels/readings by eye height versus `smoke_layer_m`/`smoke_display_layer_m`, instead of mixing upper-layer gases with lower-layer visibility/temperature while crouched. Critical upper-layer O₂ can override the display label to `Reg ILV CRIT`. No simulation physics changed.
+- **Overhead smoke visibility tightening** (`696f03f`) — FP smoke display no longer jumps back to clear `Vis FP 29m` merely because the camera is below the smoke plane when the upper layer is optically severe. Crouching still improves visibility, but ceiling smoke/lights remain obscured.
+- **Open follow-up:** this is presentation-layer mitigation only. New manual QA logs show a motor/layer-coupling issue: HRR and base regime can remain high/`FUEL_CONTROLLED` with `o2_upper` near zero while `o2_lower` remains fresh. The next milestone is an ILV motor audit covering HRR/regime/O₂/gases/smoke by layer.
 
 ### Hito B — ILV latent observability milestone (cerrado 2026-06-21)
 

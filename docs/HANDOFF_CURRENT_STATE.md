@@ -6,6 +6,41 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update — 2026-06-21 (rev 9 — FP ILV/humo QA, estado guardado para otra maquina)
+
+### Estado operativo actual
+
+- Branch: `main`, sincronizado con `origin/main` tras push de cierre.
+- Ultimos commits relevantes:
+  - `d69232c fix(fp): eye-height gas layer + overhead smoke block WIP`
+  - `696f03f fix(fp): tighten overhead smoke visibility`
+- Validacion de producto: `python scripts/check_product.py` mantiene todos los suites de producto/Godot en PASS; unico fallo conocido: `Guardrail script unit tests` por los 5 `VALID_GAP` required.
+- `git diff --check`: OK.
+- Worktree esperado al continuar: limpio.
+
+### Hallazgos nuevos de QA manual FP ILV/humo
+
+Fuente de diagnostico: capturas FP y logs exportados en `F:/OneDrive/Escritorio/graficas/2026-06-21_23-21-39/`.
+
+**Problema visual corregido:** el HUD podia mostrar `Vis FP 29m` aunque el CSV tuviera `visibility_m` fisica de centimetros. Causa: el ajuste de capa permitia que estar ligeramente bajo el plano de humo limpiara demasiado la vista. `696f03f` endurece el bloqueo por humo superior: agacharse sigue mejorando la visibilidad, pero una capa superior opticamente negra oscurece techo/luminarias y reduce contraste de la escena.
+
+**Problema de HUD corregido:** el panel tecnico mezclaba datos de capa superior (`COu`, `HCNu`, `CO2u`) con temperatura/O2/visibilidad a la altura del jugador. El HUD ahora selecciona gases segun la altura de los ojos frente a `smoke_layer_m`/`smoke_display_layer_m`, mostrando sufijos `u` o `l` coherentes. Si hay HRR activo y `o2_upper < 5%`, el HUD muestra `Reg ILV CRIT` aunque el clasificador base aun devuelva `FUEL_CONTROLLED`.
+
+**Hallazgo de motor no corregido:** el log contiene estados fisicamente incoherentes desde el punto de vista de combustion/layer coupling, por ejemplo:
+
+- t≈940 s: `hrr_kw≈3108`, `combustion_regime=FUEL_CONTROLLED`, `o2_upper≈0.3%`, `o2_lower≈20.3%`, `visibility_m≈0.08 m`.
+- t≈1280 s: patron similar, con jugador agachado viendo capa baja fresca pero capa superior sin O2.
+
+Esto apunta a que combustion/clasificacion aun pueden usar una senal global/lower demasiado optimista frente a una capa superior agotada. No se ha tocado `sim/core` ni fisica para ocultarlo. Requiere auditoria de motor antes de cualquier fix.
+
+### Proxima sesion recomendada
+
+1. **Auditoria motor ILV/layer coupling**: reproducir el escenario FP/ILV y loggear por segundo `hrr_kw`, `combustion_regime`, `o2`, `o2_upper`, `o2_lower`, `co_upper_ppm`, `co_lower_ppm`, `co2_ppm`, `co2_upper_ppm`, `hcn_ppm`, `hcn_upper_ppm`, `smoke_kg`, `visibility_m`, `smoke_layer_m`, `thermal_layer_m`, `fire_latent_active`.
+2. **Hipotesis principal**: HRR y clasificador estan acoplados a `o2`/lower/global mientras el fuego/llama visual y la capa superior indican ILV critico. Confirmar antes de tocar `CombustionSystem`.
+3. **No cambiar motor aun**: preparar primero un informe con filas clave y un caso headless reproducible. Cualquier fix probablemente pertenece a two-zone canonico/Phase 3+ o a una regla intermedia explicita para HRR limitado por `o2_upper`.
+
+---
+
 ## Current Session Update — 2026-06-21 (rev 8 — FP ILV/HUD/humo visual, pendiente push)
 
 ### Estado operativo actual
