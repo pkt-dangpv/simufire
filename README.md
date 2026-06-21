@@ -4,7 +4,7 @@ SimuFire is a Godot-based compartment fire dynamics simulator for training, scen
 
 It combines a scenario editor, 2D/3D/first-person visualization, technical exports and a validation lane for scientific guardrails.
 
-**Current status**: `v0.4.0-validation-rc2` · 345/350 PASS · 5 VALID_GAP (structural, Phase 2/3+) · Godot 4.6.3.
+**Current status**: `v0.4.0` · 345/350 PASS · 5 VALID_GAP (structural, Phase 2/3+) · Godot 4.6.3.
 
 ## Quickstart
 

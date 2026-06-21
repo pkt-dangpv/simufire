@@ -6,13 +6,29 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
-## Current Session Update — 2026-06-21 (rev 2)
+## Current Session Update — 2026-06-21 (rev 3 — v0.4.0 stable)
 
 - Branch: `main`, synchronized with `origin/main`.
-- Latest committed: `497b663 feat(fp-hud): smooth HUD temperature at thermal layer crossing`.
-- **Current validation baseline: 345/350 PASS, `5/350` required FAIL**.
+- **Tag publicado: `v0.4.0` — release estable.**
+- **Current validation baseline: 345/350 PASS, `5/350` required FAIL (todos VALID_GAP)**.
 - `docs/validation/STATUS_VALIDATION.md` is the validation source of truth.
 - FP/HUD temperature jump fix closed — HUD-only, no física tocada. Ver §HUD/FP Temperature Fix cerrado más abajo.
+
+### QA FP/UX — resultado (2026-06-21)
+
+Suite headless Godot completa ejecutada sobre `v0.4.0-validation-rc2` / `main`:
+
+| Suite | Resultado |
+|-------|-----------|
+| FP technical HUD (temperature blend) | PASS |
+| FP victim states (FED 0/0.35/1.2) | PASS |
+| FP detector alarm (color, audio, volumen) | PASS |
+| FP fire visuals (900/1100 kW, anchor, extinción) | PASS |
+| FP player start (posición, yaw, marker) | PASS |
+| FPVisibilityOverlay smoke layer | SIN ISSUE — banda 42 cm continua |
+| Colisiones corner FP | NO CUBIERTO — no bloqueante |
+
+Deuda conocida no bloqueante: `_apply_stance(immediate=false)` en `view/fp/FirstPersonController.gd` línea 3349 — parámetro `immediate` no tiene efecto real (ambas ramas idénticas). La cámara siempre hace snap al cambiar postura. Mejora UX futura; impacto perceptual bajo a 60 fps.
 
 ### What is current now
 

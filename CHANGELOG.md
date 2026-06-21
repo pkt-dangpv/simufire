@@ -4,6 +4,14 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+## v0.4.0
+
+### QA FP/UX
+
+- Headless FP suite (Godot): victim states, detector alarm, fire visuals, player start, technical HUD — all PASS.
+- `FPVisibilityOverlay` smoke layer transition confirmed continuous (42 cm band); no step-function issue.
+- Known minor debt: `_apply_stance(immediate)` camera easing not implemented — both branches snap identically. Non-blocking; logged for a future UX improvement pass.
+
 ## v0.4.0-validation-rc2
 
 ### Validation — 345/350 PASS, 5 VALID_GAP
