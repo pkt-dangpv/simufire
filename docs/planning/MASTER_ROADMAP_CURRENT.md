@@ -50,22 +50,21 @@ No queda candidato per-case de bajo riesgo. Los grupos B, D y E ya estan resuelt
    - documentacion: mantener sincronizados handoff, roadmap, guardrails y gap inventory.
 3. No iniciar ILV, M2 global ni cambios de doorway/O2 en `sim/core` sin aprobacion explicita.
 
-## Hotfix temperatura FP
+## Hotfix temperatura FP — CERRADO
 
-Commit de referencia: `69d6b55 feat(hotfix): exterior opening transition smoothing`.
+Commit: `497b663 feat(fp-hud): smooth HUD temperature at thermal layer crossing` — 2026-06-21.
 
-Pendiente:
+Causa raiz confirmada (Causa 2): funcion escalon en `estimate_temperature_at_height_m` con `thermal_gradient_band_fraction=0.0`. Al cruzar `thermal_layer_m` por la altura del jugador, el HUD saltaba hasta cientos de grados en un paso.
 
-- Algunas rutas termicas pueden seguir usando `open_fraction` directo.
-- El HUD FP muestra temperatura directa cada 0.05 s, sin suavizado visual.
-- Si la interfaz de capa caliente cruza la altura del usuario, el HUD puede saltar entre temperatura baja/mezclada/alta.
+Fix aplicado (HUD-only, sin tocar fisica):
 
-Diagnostico recomendado antes de tocar comportamiento:
+- `HUD_LAYER_BLEND_HALF_M = 0.25` en `FirstPersonController.gd`.
+- Helper `_hud_temp_at_height_m()`: lerp `temp_lower_c`/`temp_upper_c` en banda ±25 cm alrededor de `thermal_layer_m`.
+- Las tres posturas usan el helper; el filtro `fp_hud_temperature_smoothing_tau_s=0.5 s` sigue activo.
+- Test `validate_fp_technical_hud.gd` actualizado.
+- Verificado: FP technical HUD Godot 1/1 OK; producto/editor OK.
 
-- Registrar para la sala FP: `temp_at_1_8m_c`, `temp_upper_c`, `temp_lower_c`, `thermal_layer_m`, `open_fraction`, `open_fraction_smooth`.
-- Separar decision fisica de decision UI:
-  - fisica: usar apertura suavizada tambien en rutas termicas si procede;
-  - interfaz: suavizar el numero mostrado en HUD sin alterar la simulacion.
+Pendiente de Causa 1 (baja prioridad): algunas rutas termicas en `ThermalSystem.gd` usan `open_fraction` directo. No genera saltos detectables en el escenario de diagnostico (`tools/diag_fp_temp_jump.json`), pero podria importar en escenarios muy calientes con aperturas grandes.
 
 ## ILV / infraventilado / ventilado
 
