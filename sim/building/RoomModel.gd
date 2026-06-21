@@ -172,6 +172,9 @@ var flame_hrr_target_kw: float = 0.0
 var smolder_hrr_target_kw: float = 0.0
 var pool_release_hrr_target_kw: float = 0.0
 var fire_smoldering: bool = false
+# Fase 2 ILV: latencia viable sin gate de HRR — (not can_flame) AND latent_viable.
+# Solo diagnóstico; no es input a ningún cálculo de física.
+var fire_latent_active: bool = false
 var fire_dormant_time_s: float = 0.0
 var fire_low_hrr_time_s: float = 0.0
 var fire_o2_extinguished: bool = false
@@ -344,6 +347,7 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	smolder_hrr_target_kw = 0.0
 	pool_release_hrr_target_kw = 0.0
 	fire_smoldering = false
+	fire_latent_active = false
 	fire_dormant_time_s = 0.0
 	fire_low_hrr_time_s = 0.0
 	fire_o2_extinguished = false

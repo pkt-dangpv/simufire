@@ -127,8 +127,8 @@ func _test_ilv_latent() -> void:
 	room.o2_hrr_factor = 0.05
 	room.ventilation_response_factor = 0.0
 	room.retained_unburned_MJ = 0.1
-	room.fire_smoldering = true
-	_assert_regime("ILV latente / smoldering", room, "ILV_LATENT")
+	room.fire_latent_active = true  # Fase 2: señal upstream sin gate de HRR
+	_assert_regime("ILV latente / fire_latent_active", room, "ILV_LATENT")
 
 
 func _test_ventilation_controlled_burning() -> void:

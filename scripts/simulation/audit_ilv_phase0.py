@@ -62,6 +62,7 @@ DIAG_COLS = [
     "temp_upper_c",
     "temp_lower_c",
     "fire_smoldering",
+    "fire_latent_active",
 ]
 
 COL_W = {
@@ -82,6 +83,7 @@ COL_W = {
     "temp_upper_c": 12,
     "temp_lower_c": 12,
     "fire_smoldering": 14,
+    "fire_latent_active": 18,
 }
 
 
@@ -177,14 +179,21 @@ def _print_summary(rows: list[dict[str, str]], transitions: list[tuple[float, st
         hrr_last = float(last.get("hrr_kw", "0"))
         print(f"\n  Sin extinción en {t_last:.0f}s — O₂={o2_last:.5f}, hrr={hrr_last:.1f} kW al final.")
 
-    # fire_smoldering
+    # fire_smoldering / fire_latent_active
     smoldering_rows = [r for r in rows if r.get("fire_smoldering", "").strip() in ("1", "true", "True")]
+    latent_rows = [r for r in rows if r.get("fire_latent_active", "").strip() in ("1", "true", "True")]
     if smoldering_rows:
         t0 = float(smoldering_rows[0].get("time_s", 0.0))
         t1 = float(smoldering_rows[-1].get("time_s", 0.0))
         print(f"\n  fire_smoldering=true: t={t0:.1f}s .. {t1:.1f}s  ({len(smoldering_rows)} muestras)")
     else:
-        print("\n  fire_smoldering nunca fue true — ILV_LATENT no se activó.")
+        print("\n  fire_smoldering nunca fue true.")
+    if latent_rows:
+        t0 = float(latent_rows[0].get("time_s", 0.0))
+        t1 = float(latent_rows[-1].get("time_s", 0.0))
+        print(f"  fire_latent_active=true: t={t0:.1f}s .. {t1:.1f}s  ({len(latent_rows)} muestras)")
+    else:
+        print("  fire_latent_active nunca fue true — ILV_LATENT no se activó (gap O2 sin cerrar).")
 
     # Primer instante con o2_hrr_factor < 0.15
     stressed_row = next(

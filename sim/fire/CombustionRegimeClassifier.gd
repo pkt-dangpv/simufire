@@ -64,8 +64,8 @@ static func classify(room: RoomModel) -> String:
 			and room.retained_unburned_MJ >= VIG_RETAINED_MIN_MJ:
 		return "VENTILATION_INDUCED_GROWTH"
 
-	# 5. ILV_LATENT — sin llama pero latencia viable (fire_smoldering ya lo codifica)
-	if room.fire_smoldering:
+	# 5. ILV_LATENT — latencia viable sin requerir HRR mínimo (Fase 2: fire_latent_active)
+	if room.fire_latent_active:
 		return "ILV_LATENT"
 
 	# 6. VENTILATION_CONTROLLED_BURNING — HRR limitado por O₂, llama presente

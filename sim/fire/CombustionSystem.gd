@@ -800,8 +800,9 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 
 	# Actualizar flag de smoldering para UI y exportación.
 	# "smoldering" = fuego latente activo (sin llama) con emisión de humo/CO visible.
+	room.fire_latent_active = (not can_flame) and latent_viable
 	room.fire_smoldering = (not can_flame) and latent_viable and (room.hrr_kw > 0.5)
-	# Fase 1 ILV: clasificador diagnóstico read-only — no altera física.
+	# Fase 1/2 ILV: clasificador diagnóstico read-only — no altera física.
 	room.combustion_regime = CombustionRegimeClassifierScript.classify(room)
 
 	if fire.remaining_fuel_MJ <= 0.0 and room.retained_unburned_MJ <= 0.01:

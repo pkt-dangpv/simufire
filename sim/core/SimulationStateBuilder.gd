@@ -232,6 +232,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"retained_unburned_MJ": room.retained_unburned_MJ,
 			"unburned_fuel_MJ": room.retained_unburned_MJ,
 			"ventilation_response_factor": room.ventilation_response_factor,
+			"fire_latent_active": room.fire_latent_active,
 			"combustion_regime": room.combustion_regime,
 			"co_ppm": _call_room_float(compute_co_ppm_callable, room, 0.0),
 			"co_upper_ppm": _call_room_float(compute_co_upper_ppm_callable, room, 0.0),
