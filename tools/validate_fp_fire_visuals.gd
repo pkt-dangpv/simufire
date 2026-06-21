@@ -50,14 +50,18 @@ func _run() -> void:
 	var light := fire_root.get_node_or_null("FireLight") as OmniLight3D
 	_expect(light != null and light.light_energy > 0.1, "FP fire light did not receive energy")
 	var normal_light_energy: float = light.light_energy if light != null else 0.0
+	var ceiling_light := fp.get_node_or_null("FirstPersonWorld/CeilingLight_0") as OmniLight3D
+	_expect(ceiling_light != null and ceiling_light.light_energy > 0.1, "FP ceiling light did not start lit")
 
-	fp.set_state(_make_fire_state(Vector2(1.0, 0.9), 900.0, "VENTILATION_CONTROLLED_BURNING", 0.017))
+	fp.set_state(_make_fire_state(Vector2(1.0, 0.9), 900.0, "VENTILATION_CONTROLLED_BURNING", 0.017, false, 1.2, 0.2))
 	_expect(fire_root.visible, "FP ILV critical fire should remain visible as a weak flame")
 	if light != null:
 		_expect(
 			light.light_energy < normal_light_energy * 0.55,
 			"FP ILV critical fire light was not damped by low upper-layer O2"
 		)
+	if ceiling_light != null:
+		_expect(ceiling_light.light_energy < 0.02, "FP ceiling light remained too visible in critical ILV smoke")
 
 	fp.set_state(_make_fire_state(Vector2(1.0, 0.9), 900.0, "ILV_LATENT", 0.017, true))
 	if light != null:
@@ -141,7 +145,9 @@ func _make_fire_state(
 	hrr_kw: float,
 	combustion_regime: String = "FUEL_CONTROLLED",
 	o2_upper: float = 0.209,
-	fire_latent_active: bool = false
+	fire_latent_active: bool = false,
+	visibility_m: float = 30.0,
+	smoke_kg: float = 0.0
 ) -> Dictionary:
 	return {
 		"0": {
@@ -151,9 +157,10 @@ func _make_fire_state(
 			"o2_upper": o2_upper,
 			"combustion_regime": combustion_regime,
 			"fire_latent_active": fire_latent_active,
-			"visibility_m": 30.0,
-			"smoke_kg": 0.0,
-			"smoke_layer_m": 2.5,
+			"visibility_m": visibility_m,
+			"smoke_kg": smoke_kg,
+			"smoke_layer_m": 1.1 if smoke_kg > 0.0 else 2.5,
+			"smoke_display_layer_m": 1.1 if smoke_kg > 0.0 else 2.5,
 			"fuel_objects": [
 				_fuel_object_snapshot(position_m, "flaming", hrr_kw)
 			]

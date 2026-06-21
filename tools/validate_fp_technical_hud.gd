@@ -64,6 +64,7 @@ func _run() -> void:
 	await get_tree().process_frame
 	if technical_label != null:
 		_expect(technical_label.text.contains("Reg ILV CRIT"), "critical ILV low-O2 alert missing from FP technical overlay")
+		_expect(technical_label.text.contains("Vis FP 1.6m"), "critical ILV did not clamp FP visibility in technical overlay")
 
 	fp._cycle_stance()
 	if technical_label != null:

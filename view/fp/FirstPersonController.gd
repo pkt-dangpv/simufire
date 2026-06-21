@@ -137,6 +137,8 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var smoke_overlay_layer_clearance_m: float = 0.10
 @export var smoke_overlay_layer_transition_m: float = 0.48
 @export var smoke_overlay_max_alpha: float = 0.97
+@export var smoke_overlay_ilv_severe_visibility_m: float = 1.6
+@export var smoke_light_min_transmission: float = 0.01
 @export var fp_visibility_clear_m: float = 30.0
 
 @export_group("Fuego FP")
@@ -2997,7 +2999,8 @@ func _compute_fp_smoke_view(room_state: Dictionary) -> Dictionary:
 		"visibility_reference_m": smoke_overlay_visibility_reference_m,
 		"layer_clearance_m": smoke_overlay_layer_clearance_m,
 		"layer_transition_m": smoke_overlay_layer_transition_m,
-		"max_alpha": smoke_overlay_max_alpha
+		"max_alpha": smoke_overlay_max_alpha,
+		"severe_visibility_m": smoke_overlay_ilv_severe_visibility_m
 	})
 
 
@@ -3603,6 +3606,9 @@ func _light_smoke_transmission_for_room(room_id: int, height_m: float) -> float:
 		return 1.0
 	var visibility_m: float = float(room_state.get("visibility_m", 30.0))
 	var smoke_kg: float = float(room_state.get("smoke_kg", 0.0))
+	var regime: String = String(room_state.get("combustion_regime", ""))
+	var o2_upper: float = float(room_state.get("o2_upper", room_state.get("o2", 0.209)))
+	var hrr_kw: float = float(room_state.get("hrr_kw", 0.0))
 	var layer_m: float = clampf(
 		float(room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_state.get("h_layer_m", height_m)))),
 		0.0,
@@ -3621,7 +3627,13 @@ func _light_smoke_transmission_for_room(room_id: int, height_m: float) -> float:
 		0.0,
 		1.0
 	)
-	return clampf(1.0 - blocked, 0.08, 1.0)
+	if _hud_is_ventilation_limited_regime(regime):
+		blocked = maxf(blocked, 0.78)
+		if o2_upper < 0.05 and hrr_kw > 0.5:
+			blocked = maxf(blocked, 0.97)
+	if bool(room_state.get("fire_latent_active", false)) or regime == "ILV_LATENT":
+		blocked = maxf(blocked, 0.92)
+	return clampf(1.0 - blocked, smoke_light_min_transmission, 1.0)
 
 
 func _light_smoke_transmission_for_opening(op: OpeningModel) -> float:
@@ -3634,6 +3646,9 @@ func _light_smoke_transmission_for_opening(op: OpeningModel) -> float:
 	var room: RoomModel = building.get_room(room_id) if building != null else null
 	var height_m: float = _room_height(room)
 	var visibility_m: float = float(room_state.get("visibility_m", 30.0))
+	var regime: String = String(room_state.get("combustion_regime", ""))
+	var o2_upper: float = float(room_state.get("o2_upper", room_state.get("o2", 0.209)))
+	var hrr_kw: float = float(room_state.get("hrr_kw", 0.0))
 	var layer_m: float = clampf(
 		float(room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_state.get("h_layer_m", height_m)))),
 		0.0,
@@ -3642,7 +3657,13 @@ func _light_smoke_transmission_for_opening(op: OpeningModel) -> float:
 	var visibility_block: float = clampf((12.0 - visibility_m) / 12.0, 0.0, 1.0)
 	var layer_block: float = clampf((height_m - layer_m) / maxf(0.1, height_m), 0.0, 1.0)
 	var blocked: float = maxf(visibility_block * 0.72, layer_block * 0.48)
-	return clampf(1.0 - blocked, 0.14, 1.0)
+	if _hud_is_ventilation_limited_regime(regime):
+		blocked = maxf(blocked, 0.74)
+		if o2_upper < 0.05 and hrr_kw > 0.5:
+			blocked = maxf(blocked, 0.94)
+	if bool(room_state.get("fire_latent_active", false)) or regime == "ILV_LATENT":
+		blocked = maxf(blocked, 0.88)
+	return clampf(1.0 - blocked, smoke_light_min_transmission, 1.0)
 
 
 func _door_swing_direction(op: OpeningModel) -> String:

@@ -12,10 +12,14 @@ static func compute(
 	var layer_clearance_m: float = float(settings.get("layer_clearance_m", 0.10))
 	var layer_transition_m: float = maxf(0.05, float(settings.get("layer_transition_m", 0.42)))
 	var max_alpha: float = clampf(float(settings.get("max_alpha", 0.92)), 0.0, 1.0)
+	var severe_visibility_m: float = maxf(0.1, float(settings.get("severe_visibility_m", 2.0)))
 
 	var visibility_m: float = clampf(float(room_state.get("visibility_m", 30.0)), 0.0, max_visibility_m)
 	var smoke_kg: float = float(room_state.get("smoke_kg", 0.0))
 	var upper_temp_c: float = float(room_state.get("temp_upper_c", 20.0))
+	var o2_upper: float = float(room_state.get("o2_upper", room_state.get("o2", 0.209)))
+	var hrr_kw: float = float(room_state.get("hrr_kw", 0.0))
+	var regime: String = String(room_state.get("combustion_regime", ""))
 	var room_height_m: float = float(room_state.get("height_m", 2.4))
 	var smoke_layer_m: float = clampf(
 		float(room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_state.get("h_layer_m", room_height_m)))),
@@ -42,19 +46,32 @@ static func compute(
 	var alpha_from_layer: float = (0.18 + smoke_density_t * 0.58) * immersion
 	var alpha_from_optics: float = alpha_from_visibility * lerpf(0.35, 1.0, optical_block)
 	var heat_tint: float = clampf((upper_temp_c - 80.0) / 420.0, 0.0, 1.0)
+	var ilv_t: float = 0.0
+	if _is_ventilation_limited_regime(regime):
+		ilv_t = maxf(ilv_t, 0.55)
+		if o2_upper < 0.05 and hrr_kw > 0.5:
+			ilv_t = 1.0
+	if regime == "ILV_LATENT" or bool(room_state.get("fire_latent_active", false)):
+		ilv_t = maxf(ilv_t, 0.88)
 	var alpha: float = clampf(
 		maxf(maxf(alpha_from_optics, alpha_from_density * lerpf(0.18, 1.0, optical_block)), maxf(alpha_from_layer, alpha_from_mass * optical_block)),
 		0.0,
 		max_alpha
 	)
+	if ilv_t > 0.0:
+		var severe_alpha: float = lerpf(0.84, max_alpha, maxf(immersion, smoke_density_t))
+		alpha = maxf(alpha, severe_alpha * ilv_t)
 	var display_block: float = clampf(maxf(maxf(optical_block, smoke_density_t * 0.34 * immersion), alpha_from_visibility * 0.85), 0.0, 1.0)
 	var fp_visibility_m: float = lerpf(max_visibility_m, visibility_m, display_block)
+	if ilv_t > 0.0:
+		fp_visibility_m = minf(fp_visibility_m, lerpf(visibility_m, severe_visibility_m, ilv_t))
 	return {
 		"overlay_alpha": alpha,
 		"heat_tint": heat_tint,
 		"fp_visibility_m": fp_visibility_m,
 		"raw_visibility_m": visibility_m,
-		"optical_block": optical_block
+		"optical_block": optical_block,
+		"ilv_block": ilv_t
 	}
 
 
@@ -66,3 +83,14 @@ static func format_visibility(visibility_m: float, clear_visibility_m: float) ->
 	if v < 10.0:
 		return "Vis FP %.1fm" % maxf(0.1, v)
 	return "Vis FP %.0fm" % v
+
+
+static func _is_ventilation_limited_regime(regime: String) -> bool:
+	return regime in [
+		"VENTILATION_STRESSED",
+		"VENTILATION_CONTROLLED_BURNING",
+		"VENTILATION_INDUCED_GROWTH",
+		"ILV_LATENT",
+		"BACKDRAFT_RISK",
+		"BACKDRAFT_EVENT",
+	]
