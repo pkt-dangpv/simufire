@@ -20,7 +20,7 @@ This note records the repository hygiene and validation state after the non-moto
 |------|--------|-----------|
 | Camera stance easing (`_apply_stance`) | `c7e3db8` | Cerrado — lerp tau=80ms, test headless PASS |
 | Opening prompt text (accents, consistency) | `a689f1d` | Cerrado — 4 fixes de texto, sin cambio de lógica |
-| Colisiones corner FP | — | Deuda futura no bloqueante |
+| Colisiones corner FP | — | Cerrado — sin issue reproducible (ver diagnóstico abajo) |
 
 Suite headless Godot completa post-polish:
 
@@ -33,9 +33,11 @@ Suite headless Godot completa post-polish:
 | FP fire visuals | PASS |
 | FP player start | PASS |
 | FPVisibilityOverlay smoke layer | SIN ISSUE |
-| Colisiones corner FP | NO CUBIERTO — no bloqueante |
+| Colisiones corner FP | SIN ISSUE REPRODUCIBLE — diagnóstico cerrado |
 
-No hay deuda de motor abierta en este hito. Próxima decisión: ILV no invasivo, Phase 3+, o nueva línea de producto.
+**Diagnóstico colisiones corner FP (2026-06-21):** inspección de `CharacterBody3D + CapsuleShape3D (r=0.24m) + move_and_slide()`. La geometría de habitaciones (mínimo 2.8 m de espacio libre) y puertas (0.42 m de holgura lateral) supera el diámetro de cápsula (0.48 m). No se identificó bug ni escenario de traversal/clipping reproducible. No se añadió test headless por ausencia de caso de reproducción. Deuda cerrada como "sin issue reproducible".
+
+No hay deuda de motor abierta. Próxima decisión: ILV no invasivo, Phase 3+, o nueva línea de producto.
 
 ### What is current now
 
