@@ -44,7 +44,7 @@ static func compute(
 	var alpha_from_density: float = clampf(smoke_density_t * lerpf(0.18, 0.64, immersion), 0.0, 0.62)
 	var alpha_from_mass: float = clampf(smoke_kg / 3.0, 0.0, 0.24)
 	var alpha_from_layer: float = (0.18 + smoke_density_t * 0.58) * immersion
-	var alpha_from_optics: float = alpha_from_visibility * lerpf(0.35, 1.0, optical_block)
+	var alpha_from_optics: float = alpha_from_visibility * lerpf(0.04, 1.0, optical_block)
 	var heat_tint: float = clampf((upper_temp_c - 80.0) / 420.0, 0.0, 1.0)
 	var ilv_t: float = 0.0
 	if _is_ventilation_limited_regime(regime):
@@ -58,21 +58,29 @@ static func compute(
 		0.0,
 		max_alpha
 	)
-	if ilv_t > 0.0:
+	var ilv_exposure_t: float = ilv_t * immersion
+	if ilv_exposure_t > 0.0:
 		var severe_alpha: float = lerpf(0.84, max_alpha, maxf(immersion, smoke_density_t))
-		alpha = maxf(alpha, severe_alpha * ilv_t)
-	var display_block: float = clampf(maxf(maxf(optical_block, smoke_density_t * 0.34 * immersion), alpha_from_visibility * 0.85), 0.0, 1.0)
+		alpha = maxf(alpha, severe_alpha * ilv_exposure_t)
+	var display_block: float = clampf(
+		maxf(
+			maxf(optical_block, smoke_density_t * 0.34 * immersion),
+			alpha_from_visibility * lerpf(0.05, 0.85, immersion)
+		),
+		0.0,
+		1.0
+	)
 	var fp_visibility_m: float = lerpf(max_visibility_m, visibility_m, display_block)
-	if ilv_t > 0.0:
+	if ilv_exposure_t > 0.0:
 		var severe_cap_m: float = minf(visibility_m, severe_visibility_m)
-		fp_visibility_m = minf(fp_visibility_m, lerpf(fp_visibility_m, severe_cap_m, ilv_t))
+		fp_visibility_m = minf(fp_visibility_m, lerpf(fp_visibility_m, severe_cap_m, ilv_exposure_t))
 	return {
 		"overlay_alpha": alpha,
 		"heat_tint": heat_tint,
 		"fp_visibility_m": fp_visibility_m,
 		"raw_visibility_m": visibility_m,
 		"optical_block": optical_block,
-		"ilv_block": ilv_t
+		"ilv_block": ilv_exposure_t
 	}
 
 

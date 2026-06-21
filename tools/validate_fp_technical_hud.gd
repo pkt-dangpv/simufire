@@ -2,6 +2,7 @@ extends Node
 
 const BuildingModelScript := preload("res://sim/BuildingModel.gd")
 const FirstPersonControllerScript := preload("res://view/fp/FirstPersonController.gd")
+const FPVisibilityOverlay := preload("res://view/fp/FPVisibilityOverlay.gd")
 
 var _failures: Array[String] = []
 
@@ -67,16 +68,29 @@ func _run() -> void:
 		_expect(technical_label.text.contains("Vis FP 1.6m"), "critical ILV did not clamp FP visibility in technical overlay")
 
 	state["0"]["visibility_m"] = 0.04
+	state["0"]["smoke_layer_m"] = 1.25
+	state["0"]["smoke_display_layer_m"] = 1.25
 	fp.set_state(state)
 	fp._update_status_hud(true)
 	await get_tree().process_frame
 	if technical_label != null:
 		_expect(technical_label.text.contains("Vis FP 0.1m"), "critical ILV raised sub-meter raw visibility instead of preserving it")
 
+	state["0"]["smoke_layer_m"] = 1.35
+	state["0"]["smoke_display_layer_m"] = 1.35
 	fp._cycle_stance()
+	fp.set_state(state)
+	fp._update_status_hud(true)
+	await get_tree().process_frame
 	if technical_label != null:
 		_expect(technical_label.text.contains("105"), "crouch temperature did not update in FP technical overlay")
 		_expect(technical_label.text.contains("O₂l"), "crouch O2 layer label missing from FP technical overlay")
+	var stand_smoke_view: Dictionary = FPVisibilityOverlay.compute(state["0"], Rect2(Vector2.ZERO, Vector2(4.0, 3.0)), 1.8, _smoke_settings())
+	var crouch_smoke_view: Dictionary = FPVisibilityOverlay.compute(state["0"], Rect2(Vector2.ZERO, Vector2(4.0, 3.0)), 1.05, _smoke_settings())
+	_expect(
+		float(crouch_smoke_view.get("fp_visibility_m", 0.0)) > float(stand_smoke_view.get("fp_visibility_m", 0.0)) + 5.0,
+		"crouch below smoke layer did not improve FP visibility"
+	)
 	fp._cycle_stance()
 	if technical_label != null:
 		_expect(technical_label.text.contains("35"), "prone temperature did not update in FP technical overlay")
@@ -169,6 +183,17 @@ func _make_state() -> Dictionary:
 			"combustion_regime": "FUEL_CONTROLLED",
 			"fuel_objects": []
 		}
+	}
+
+
+func _smoke_settings() -> Dictionary:
+	return {
+		"clear_visibility_m": 30.0,
+		"visibility_reference_m": 26.0,
+		"layer_clearance_m": 0.10,
+		"layer_transition_m": 0.48,
+		"max_alpha": 0.97,
+		"severe_visibility_m": 1.6
 	}
 
 
