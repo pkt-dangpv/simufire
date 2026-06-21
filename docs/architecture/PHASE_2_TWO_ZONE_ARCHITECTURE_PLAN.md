@@ -1,20 +1,23 @@
 # Phase 2 Two-Zone Architecture Plan
 
 Date: 2026-06-20
-Status: DESIGN — no motor code written yet
-Baseline: 336/350 PASS, **14/350 required FAIL** (all VALID_GAP)
+Status: PARTIALLY EXECUTED / SUPERSEDED BY CURRENT VALIDATION STATE
+Current baseline: 345/350 PASS, **5/350 required FAIL** (all VALID_GAP)
+Original design baseline: see `STATUS_VALIDATION.md` history for the pre-Phase-2A count.
+
+> Current note (2026-06-21): phases 2A/2B/2C/2D and related per-case follow-ups have already been implemented or superseded for the current baseline. Groups B, D and E are now PASS. The remaining failures are Group A (`cfast_r0_window_360` ×3) and Group C (`cfast_corridor_chain` ×2).
 
 ---
 
 ## 1. Objetivo
 
-Eliminar los 14 required FAILs actuales mediante un conjunto de cambios arquitectónicos por fases que refuerzan el motor hacia un comportamiento canónico de dos zonas (two-zone), sin tocar tolerancias ni reclasificar checks. Cada fase debe ser segura: flag default=false → no-op exacto antes de activarla.
+Original objective: eliminate the then-current 14 required FAILs mediante un conjunto de cambios arquitectónicos por fases que refuerzan el motor hacia un comportamiento canónico de dos zonas (two-zone), sin tocar tolerancias ni reclasificar checks. Current objective after partial execution: only the 5 remaining VALID_GAPs require further architecture work.
 
 ---
 
 ## 2. Análisis de causas raíz por grupo
 
-Los 14 FAILs comparten una raíz común: **SimuFire carece de un balance de masa conservativo por zona** para O₂. Los efectos se manifiestan de tres formas distintas según el grupo:
+The original 14 FAILs shared a common root: **SimuFire carece de un balance de masa conservativo por zona** para O₂. Current status by original group:
 
 | Grupo | Checks | Mecanismo faltante |
 |-------|--------|--------------------|

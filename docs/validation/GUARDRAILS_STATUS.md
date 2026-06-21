@@ -1,19 +1,31 @@
 # Guardrails Status
 
-Date: 2026-06-19.
+Date: 2026-06-21.
+
+## Hito de validación cerrado — 2026-06-21
+
+**Baseline final: 345/350 PASS · 5/350 required FAIL (todos VALID_GAP, closed-as-gap).**
+No se planifican más fases de motor en este hito. Los 5 fallos restantes están clasificados definitivamente como gaps estructurales Phase 2/3+ sin fix per-caso viable. Ver `docs/validation/GAPS_INVENTORY.md` §"Required failures closed-as-gap".
 
 ## Summary
 
 `tests.test_guardrails` contains both pure unit tests and an integration smoke test that reads the real validation output at `sim/validation/reports/reference_checks.json`.
 
-The pure guardrail behavior tests pass, but the real-json integration smoke currently returns exit code `1` in this workspace.
+The pure guardrail behavior tests pass, but the real-json integration smoke currently returns exit code `1` in this workspace because the validation lane still has accepted required failures.
 
-As of 2026-06-19, the documentation count, CFAST truth manifest and physics override linter are synchronized:
+As of 2026-06-21, the documentation count, CFAST truth manifest and physics override linter are synchronized:
 
-- `docs/validation/GAPS_INVENTORY.md` matches the 75 non-gating gaps reported by `reference_checks.json`.
+- `docs/validation/GAPS_INVENTORY.md` matches the 68 non-gating gaps reported by `reference_checks.json`.
 - `truth/cfast/MANIFEST.json` was regenerated after the intentional `cfast_corridor_chain.in`/CSV update.
-- Validation cases no longer carry the `vent_bernoulli_flow_multiplier` physics override flagged by R1-3.
-- The remaining red status is driven by 14 required validation failures plus one Phase 2E sentinel failure.
+- Physics override linter passes.
+- The remaining red status is driven by 5 required validation failures, all classified as VALID_GAP, plus one Phase 2E sentinel failure.
+
+Current required failures:
+
+| Group | Checks | Status |
+|-------|--------|--------|
+| A — `cfast_r0_window_360` | 3 O2 upper checks | VALID_GAP Phase 2; Phase 5A sweep found no viable per-case fix |
+| C — `cfast_corridor_chain` | 2 temp_upper checks | VALID_GAP Phase 3+; requires larger two-zone pressure/exchange architecture |
 
 ## Reproduction
 

@@ -1,9 +1,9 @@
 # Phase 3: Two-Zone Doorway Pressure ODE — Plan Técnico
 
 **Estado:** PENDIENTE DE APROBACIÓN. No implementar hasta aprobación explícita.
-**Fecha:** 2026-06-20  
+**Fecha:** 2026-06-20; actualizado 2026-06-21
 **Objetivo:** Cerrar gap Grupo C corridor_chain (2 FAILs: t180, t600 temp).  
-**Baseline de partida:** 343/350 PASS, 7 FAIL requeridos.
+**Baseline actual:** 345/350 PASS, 5 FAIL requeridos. Si este plan cerrase Grupo C completo, el objetivo sería 347/350 PASS, 3 FAIL requeridos restantes (Grupo A).
 
 ---
 
@@ -270,7 +270,7 @@ Secuencia de activación incremental (ver Sección 8 para rollback en cada paso)
 
 ## 7. Sentinels — lista completa
 
-Para cada paso de implementación, verificar que TODOS los siguientes casos mantienen exactamente el mismo resultado que el baseline (343/350 PASS, 7 FAIL):
+Para cada paso de implementación, verificar que TODOS los siguientes casos mantienen exactamente el mismo resultado que el baseline actual (345/350 PASS, 5 FAIL):
 
 | Caso | Por qué es sentinel |
 |------|---------------------|
@@ -296,7 +296,7 @@ Para cada paso de implementación, verificar que TODOS los siguientes casos mant
 - Añadir `dp_fire_pa: float = 0.0` a RoomModel.
 - Añadir flags Phase 3A/3B/3D a ThermalSystem y SimulationEngine con defaults.
 - No activar nada per-caso.
-- Correr suite completa → verificar 343/350 exacto.
+- Correr suite completa → verificar 345/350 exacto.
 - Log: emitir `dp_fire_pa`, `neutral_plane_f`, `bernoulli_upper_kg_s`, `bernoulli_lower_kg_s` para R0 en corridor_chain (cada log_interval_s=10s).
 - Comparar `neutral_plane_f` SF vs valor teórico CFAST a t=300, t=600.
 
@@ -309,7 +309,7 @@ Para cada paso de implementación, verificar que TODOS los siguientes casos mant
 **Verificar:**
 - dp_fire_pa en R0 a t=300, t=600: rango esperado 5–50 Pa.
 - bernoulli_upper_kg_s, bernoulli_lower_kg_s: ¿cambian? (No deben hasta Phase 3B).
-- Suite completa con flags=default: 343/350 exacto.
+- Suite completa con flags=default: 345/350 exacto.
 - corridor_chain con flag activo: anotar cambios de O2u, temp_upper R0.
 
 ### Paso 2 — Phase 3B: corrección plano neutro per-caso corridor_chain
@@ -321,7 +321,7 @@ Para cada paso de implementación, verificar que TODOS los siguientes casos mant
 - bernoulli_lower_kg_s: debe aumentar (más ΔP en zona inferior).
 - bernoulli_upper_kg_s: puede cambiar (menor h_upper por neutral plane más alto, pero mayor velocidad).
 - O2u R0 a t=600: debe subir hacia 11.2% (objetivo).
-- Suite completa con flags=default: 343/350 exacto.
+- Suite completa con flags=default: 345/350 exacto.
 - t=180, t=600 checks corridor_chain: anotar.
 
 **Sentinel crítico:** `cfast_two_room_door_open` no debe cambiar con flags=default.
@@ -359,7 +359,7 @@ Cada paso es rollback independiente:
 - **Phase 3A rollback:** eliminar `phase3a_pressure_ode_enabled` del JSON → false por default → dp_fire_pa permanece en 0.0 siempre → no afecta ningún flujo.
 - **Variables de estado (dp_fire_pa):** en 0.0 permanente si Phase 3A=false → equivalente a no existir.
 
-**Rollback total:** revertir los 4 campos añadidos a ThermalSystem + SimulationEngine + RoomModel. Suite completa debe volver a 343/350 exacto.
+**Rollback total:** revertir los 4 campos añadidos a ThermalSystem + SimulationEngine + RoomModel. Suite completa debe volver a 345/350 exacto.
 
 ---
 
@@ -393,9 +393,9 @@ Si dp_fire aumenta el flujo total a t=180, la sala de fuego podría quemar más 
 
 ## 11. Definición de éxito
 
-**Éxito completo:** corridor_chain t180 Y t600 PASS, sin degradar ningún otro check. 343 → 345/350 PASS, 5 FAIL requeridos.
+**Éxito completo:** corridor_chain t180 Y t600 PASS, sin degradar ningún otro check. 345 → 347/350 PASS, 3 FAIL requeridos.
 
-**Éxito parcial aceptable:** solo t600 PASS (345→344... no, 7→6 FAILs). Documentar t180 como VALID_GAP estructural separado.
+**Éxito parcial aceptable:** solo t600 PASS o solo t180 PASS (345 → 346/350, 4 FAILs). Documentar el check restante como VALID_GAP estructural separado.
 
 **Fracaso definitivo:** ni t600 ni t180 mejoran significativamente con Phase 3A+3B+3D dentro de los guard rails. Clasificar corridor_chain como Phase 4 (require full pressure ODE + upper↔upper exchange). No escalar parámetros fuera de guard rails.
 

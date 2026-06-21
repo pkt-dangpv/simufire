@@ -2,7 +2,7 @@
 
 > Fecha: 2026-06-20
 > Target: Grupo C `cfast_corridor_chain` (×2 FAILs: t180 + t600 temp_upper)
-> Baseline previo: 343/350 PASS, 7 FAIL estructurales Phase 2
+> Estado actual: superseded by Phase 2G results and current 345/350 PASS, 5 FAIL baseline. This plan is historical context only.
 
 ---
 

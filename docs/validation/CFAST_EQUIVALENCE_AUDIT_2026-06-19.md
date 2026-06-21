@@ -1,6 +1,6 @@
 # CFAST equivalence audit — 2026-06-19
 
-Scope: the required FAIL checks in `sim/validation/reports/reference_checks.json`. This document began as the 15-fail audit and now includes the 2026-06-19 equivalence fixes that reduced the baseline to 14 required FAILs.
+Scope: historical audit of the required FAIL checks as they existed on 2026-06-19. Current validation state is maintained in `docs/validation/STATUS_VALIDATION.md`.
 
 Purpose: separate real SimuFire engine gaps from CFAST/SimuFire scenario mismatch, validator mismatch, and stale reference data. This audit did not change motor code, tolerances, or required/non-required classifications. The follow-up equivalence fixes changed validation case geometry/topology and regenerated reports where needed.
 
@@ -8,7 +8,7 @@ Purpose: separate real SimuFire engine gaps from CFAST/SimuFire scenario mismatc
 
 SimuFire is not exactly equivalent to CFAST for the remaining failing checks. It has two-zone state variables and several two-zone transport mechanisms, but the failing paths still use hybrid/bulk behavior for combustion, oxygen consumption, doorway enthalpy exchange, or HVAC lower-layer replenishment.
 
-Current classification:
+Classification at the time of this audit:
 
 | Class | Count | Meaning |
 |-------|------:|---------|
@@ -18,7 +18,7 @@ Current classification:
 | `MODEL_MISMATCH` | 0 | The known CFAST model mismatches found in this audit were corrected or moved out of the current required FAIL set. |
 | `CHECK_MISMATCH` | 0 | No current required FAIL appears to compare the wrong SF variable by accident. Several checks intentionally compare SF `o2_upper` to CFAST `ULO2`; the failures expose model gaps rather than validator bugs. |
 
-The practical result is important: the remaining 14 FAILs should not be treated as proof that CFAST and SimuFire scenarios are exactly equal. They are a validation ledger over partially equivalent scenarios, and the audit confidence differs by cluster.
+The practical result was important at the time: the then-remaining failures should not be treated as proof that CFAST and SimuFire scenarios are exactly equal. They were a validation ledger over partially equivalent scenarios, and the audit confidence differed by cluster.
 
 ## Audit Table
 
@@ -50,4 +50,4 @@ The practical result is important: the remaining 14 FAILs should not be treated 
 
 3. Before Phase 2 implementation, build a small equivalence checklist per CFAST case: topology, openings to exterior, fire location/source, oxygen variable, HVAC routing, and RMSE window.
 
-4. Keep the validation baseline at 14/350 after the report regeneration that resolved multifuel. Any future baseline movement should come from fresh case runs plus review of all required and non-required checks for that case.
+4. Historical note: after the report regeneration that resolved multifuel, future baseline movement was expected to come from fresh case runs plus review of all required and non-required checks for each case. The current baseline is documented in `STATUS_VALIDATION.md`.

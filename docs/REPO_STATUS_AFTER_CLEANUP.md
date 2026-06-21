@@ -35,7 +35,7 @@ For machine-to-machine or session-to-session continuation, see `docs/HANDOFF_CUR
 - `python scripts/check_docs_links.py`: passing.
 - `python -m unittest tests.test_ui_localization -v`: passing.
 - `python -m unittest tests.test_editor_scenarios -v`: passing.
-- `python scripts/simulation/validation_guardrails.py --verbose`: failing because 16 required validation checks and one Phase 2E sentinel remain red.
+- `python scripts/simulation/validation_guardrails.py --verbose`: failing because 5 required validation checks remain accepted VALID_GAPs and one Phase 2E sentinel remains red.
 - `git diff --check`: passing.
 - `git diff --cached --check`: passing.
 - `powershell -ExecutionPolicy Bypass -File scripts/clean_workspace.ps1 -WhatIf`: passing.
