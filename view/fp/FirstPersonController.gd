@@ -22,6 +22,7 @@ const STANCE_PRONE: int = 2
 const OPENING_FRACTION_STEPS: Array[float] = [0.0, 0.25, 0.5, 0.75, 1.0]
 const OPENING_HOLD_THRESHOLD_S: float = 0.35
 const HUD_LAYER_BLEND_HALF_M: float = 0.25
+const CAMERA_STANCE_EASE_TAU_S: float = 0.08
 const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 
 @export var wall_thickness_m: float = 0.10
@@ -229,6 +230,7 @@ var _technical_overlay_temp_initialized: bool = false
 var _technical_overlay_smoothed_temp_c: float = 20.0
 var _technical_overlay_temp_room_id: int = -1
 var _technical_overlay_temp_stance: int = -1
+var _camera_y_target: float = 1.72
 
 
 func _ready() -> void:
@@ -323,6 +325,12 @@ func _physics_process(delta: float) -> void:
 	_update_prompt()
 	_update_visibility_overlay()
 	_update_status_hud()
+	if _camera != null:
+		_camera.position.y = lerpf(
+			_camera.position.y,
+			_camera_y_target,
+			1.0 - exp(-delta / CAMERA_STANCE_EASE_TAU_S)
+		)
 
 
 func _input(event: InputEvent) -> void:
@@ -3359,9 +3367,8 @@ func _apply_stance(immediate: bool) -> void:
 		_collision_shape.position.y = h * 0.5
 	if _camera != null:
 		var target_y: float = maxf(0.20, h - 0.08)
+		_camera_y_target = target_y
 		if immediate:
-			_camera.position.y = target_y
-		else:
 			_camera.position.y = target_y
 
 

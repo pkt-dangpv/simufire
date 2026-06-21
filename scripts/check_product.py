@@ -292,6 +292,14 @@ def main() -> int:
         diagnostics.append("Godot FP detector alarm: " + (diagnostic or "failed"))
 
     rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_fp_stance_easing.tscn",
+        "FP STANCE EASING VALIDATION PASS",
+    )
+    rows.append(("FP stance easing Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot FP stance easing: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_editor_to_sim_flow.tscn",
         "EDITOR TO SIM FLOW VALIDATION PASS",
     )
