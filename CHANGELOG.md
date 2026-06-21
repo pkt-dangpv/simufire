@@ -4,6 +4,12 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### FP ILV HUD / Smoke Visibility (visual-only)
+
+- **HUD ILV critical display** (`a6d44c0`) — FP technical HUD now shows `Reg ILC`, `Reg ILV` or `Reg ILV CRIT`, labels gases by layer (`O₂u/O₂l`, `COu`, `CO₂u`, `HCNu`), removes duplicated HRR/visibility from the top FP panel while the technical overlay is visible, and visually dampens FP flames in `ILV_LATENT` or critical upper-layer O₂. No simulation physics changed.
+- **FP smoke visibility hardening** (`b59fa33`) — ILV-critical FP view now clamps effective display visibility to a severe default (`smoke_overlay_ilv_severe_visibility_m = 1.6` m), increases overlay opacity, and allows ceiling/opening lights to attenuate almost completely through smoke (`smoke_light_min_transmission = 0.01`). Tests cover `Reg ILV CRIT`, `Vis FP 1.6m`, damped fire light, and near-extinguished ceiling light under ILV smoke.
+- **Open follow-up:** this is presentation-layer mitigation only. The motor still needs a smoke audit to determine whether `smoke_kg`, `visibility_m`, soot/yields, and smoke transport are physically strong enough in ILV scenarios.
+
 ### Hito B — ILV latent observability milestone (cerrado 2026-06-21)
 
 **Alcance cerrado:** observabilidad de régimen ILV en escenario de auditoría. El campo `fire_latent_active=true` y el régimen `ILV_LATENT` son visibles en `cfast_ilv_audit.csv`. No hay pool latent smoldering real con HRR positivo durante `ILV_LATENT` — eso es Fase 3. Validación 345/350 PASS intacta.

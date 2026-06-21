@@ -2,14 +2,14 @@
 
 Fecha: 2026-06-21
 Estado: fuente de verdad operativa para continuar trabajo
-Alcance: validacion CFAST restante, hotfix temperatura FP e ILV futuro.
+Alcance: validacion CFAST restante, FP ILV/humo, auditoria de humo motor e ILV futuro.
 
 ## Regla principal
 
 No hacer cambios por hacer. Cada cambio debe estar ligado a una de estas tres lineas:
 
 1. Reducir fallos reales de validacion o documentar por que son estructurales.
-2. Corregir saltos visibles/fisicos derivados de aperturas exteriores y HUD FP.
+2. Corregir discrepancias visibles de FP/HUD/humo sin esconder datos fisicos.
 3. Preparar el modelo ILV/infraventilado/ventilado sin romper el motor actual.
 
 Antes de tocar motor:
@@ -21,11 +21,11 @@ Antes de tocar motor:
 
 ## Estado actual conocido
 
-- Rama esperada: `main`, sincronizada con `origin/main`.
+- Rama esperada: `main`; al cierre de rev 8 queda `ahead 2` por commits FP locales pendientes de push.
 - Handoff vigente: `docs/HANDOFF_CURRENT_STATE.md`.
 - Estado de validacion documentado: `docs/validation/STATUS_VALIDATION.md`.
 - Baseline vigente: **345/350 required PASS, 5/350 required FAIL**.
-- Gaps non-gating sincronizados: **68**.
+- Gaps non-gating sincronizados: **69**.
 - Los 5 fallos restantes estan clasificados como VALID_GAP estructural Phase 2/3+.
 
 ## Validacion CFAST: fallos vivos
@@ -43,9 +43,10 @@ No queda candidato per-case de bajo riesgo. Los grupos B, D y E ya estan resuelt
 
 ## Decision inmediata recomendada
 
-1. Confirmar baseline: `python scripts\simulation\validation_guardrails.py --verbose`.
+1. Confirmar baseline/producto: `python scripts\check_product.py` y, para motor, `python scripts\simulation\validation_guardrails.py --verbose`.
 2. Elegir una linea:
-   - producto/UX: diagnosticar y corregir saltos de temperatura FP;
+   - producto/UX: QA manual de FP ILV/humo y ajuste de severidad visual;
+   - auditoria motor: diagnosticar si `smoke_kg`/`visibility_m` son fisicamente insuficientes en ILV;
    - arquitectura cientifica: solo con plan explicito para two-zone canonico / Phase 3+;
    - documentacion: mantener sincronizados handoff, roadmap, guardrails y gap inventory.
 3. No iniciar ILV, M2 global ni cambios de doorway/O2 en `sim/core` sin aprobacion explicita.
@@ -65,6 +66,57 @@ Fix aplicado (HUD-only, sin tocar fisica):
 - Verificado: FP technical HUD Godot 1/1 OK; producto/editor OK.
 
 Pendiente de Causa 1 (baja prioridad): algunas rutas termicas en `ThermalSystem.gd` usan `open_fraction` directo. No genera saltos detectables en el escenario de diagnostico (`tools/diag_fp_temp_jump.json`), pero podria importar en escenarios muy calientes con aperturas grandes.
+
+## FP ILV / HUD / humo — VISUAL CERRADO, QA PENDIENTE
+
+Commits locales pendientes de push:
+
+- `a6d44c0 fix(fp-hud): clarify ILV critical display`
+- `b59fa33 fix(fp): strengthen ILV smoke visibility`
+
+Alcance aplicado:
+
+- HUD FP sin duplicar datos: el panel superior oculta HRR/visibilidad cuando el panel tecnico esta visible.
+- Regimen visible como `ILC`, `ILV` o `ILV CRIT`.
+- Gases etiquetados por capa (`O₂u/O₂l`, `COu`, `CO₂u`, `HCNu`) para evitar confundir capa superior con promedio de sala.
+- Llama FP atenuada visualmente en `ILV_LATENT` o con O2 superior critico, sin cambiar HRR ni fisica.
+- Humo FP endurecido en ILV critico: visibilidad severa default `1.6 m`, overlay mas opaco y luces de techo/aperturas atenuadas casi a cero.
+
+Verificacion:
+
+- `git diff --check` OK.
+- `python scripts\check_product.py`: FP fire visuals, FP technical HUD y Combustion regime PASS; unico fallo sigue siendo guardrail conocido por los 5 VALID_GAP.
+
+Pendiente:
+
+1. QA manual en Godot con escenario ILV real.
+2. Ajustar `smoke_overlay_ilv_severe_visibility_m` si 1.6 m resulta demasiado o poco agresivo.
+3. No confundir este fix con calibracion de motor: no cambia `smoke_kg`, yields, soot ni transporte.
+
+## Auditoria humo motor — SIGUIENTE RECOMENDADO
+
+Objetivo: determinar si la visibilidad irreal restante proviene de generacion fisica insuficiente, transporte/estratificacion o solo representacion.
+
+Escenario recomendado:
+
+- Caso ILV reproducible (`cfast_ilv_audit` o variante FP jugable).
+- Registrar por segundo: `combustion_regime`, `hrr_kw`, `o2_upper`, `o2_lower`, `smoke_kg`, `visibility_m`, `smoke_layer_m`, `soot_fraction`, `CO`, `CO2`, `HCN`, `FED`.
+
+Criterios de decision:
+
+- Si `smoke_kg` y `visibility_m` ya son severos pero FP se ve limpio: continuar visualizacion avanzada.
+- Si `smoke_kg` es bajo o `visibility_m` demasiado alto en ILV con CO/HCN altos: abrir calibracion motor de humo/soot.
+- Si humo se genera pero se evacua/mezcla de forma irreal: auditar transporte y estratificacion.
+
+## Humo visual avanzado — FUTURO PRODUCTO
+
+Tras QA manual, posible siguiente bloque visual:
+
+- niebla/volumen local en FP;
+- perdida de contraste por distancia;
+- gradiente por altura;
+- atenuacion de geometria lejana, techo y luminarias por profundidad;
+- pruebas headless o capturas comparativas si es viable.
 
 ## ILV / infraventilado / ventilado
 

@@ -6,6 +6,50 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update — 2026-06-21 (rev 8 — FP ILV/HUD/humo visual, pendiente push)
+
+### Estado operativo actual
+
+- Branch: `main`, **ahead 2** respecto a `origin/main`.
+- Commits locales pendientes de push:
+  - `a6d44c0 fix(fp-hud): clarify ILV critical display`
+  - `b59fa33 fix(fp): strengthen ILV smoke visibility`
+- Validación de producto: `python scripts/check_product.py` mantiene todos los suites de producto/Godot en PASS; único fallo conocido: `Guardrail script unit tests` por los 5 `VALID_GAP` required.
+- `git diff --check`: OK.
+- Worktree conserva artefactos generados/untracked no relacionados (`*.translation`, `.uid`, reports de auditoría); no incluirlos salvo decisión explícita.
+
+### FP ILV / HUD / humo — cerrado visualmente en esta sesión
+
+**Commit `a6d44c0` — HUD FP ILV**
+
+- El panel superior deja de duplicar HRR/visibilidad cuando el panel técnico está visible.
+- El panel técnico muestra `Reg ILC`, `Reg ILV` o `Reg ILV CRIT`.
+- Gases etiquetados por capa: `O₂u/O₂l`, `COu`, `CO₂u`, `HCNu`.
+- La llama FP se atenúa visualmente en `ILV_LATENT` o con O₂ superior crítico, sin cambiar `hrr_kw` ni física.
+- `docs/validation/GAPS_INVENTORY.md` sincronizado a **69 gaps non-gating**.
+
+**Commit `b59fa33` — humo/visibilidad FP en ILV**
+
+- `FPVisibilityOverlay` fuerza visibilidad severa en ILV crítico (`smoke_overlay_ilv_severe_visibility_m = 1.6` m por defecto).
+- Overlay de humo más opaco en régimen ventilación-limitado, especialmente con `o2_upper < 5%` y HRR activo.
+- Luces de techo/aperturas pueden atenuarse casi a cero (`smoke_light_min_transmission = 0.01`), evitando que luminarias de techo sigan visibles en humo severo.
+- Tests actualizados:
+  - `tools/validate_fp_technical_hud.gd`: `Reg ILV CRIT` + `Vis FP 1.6m`.
+  - `tools/validate_fp_fire_visuals.gd`: llama/luz atenuadas y luz de techo casi apagada en ILV crítico.
+
+**Diagnóstico importante:** estos fixes son **visualización FP only**. No recalibran generación física de humo (`smoke_kg`, yields, soot, transporte). La queja sobre visibilidad irreal queda mitigada visualmente, pero requiere auditoría de motor para confirmar si la producción de humo/visibilidad física es suficiente en ILV.
+
+### Pendientes priorizados para próximas sesiones
+
+1. **Publicar commits FP locales**: push de `a6d44c0` y `b59fa33` si el QA visual manual es aceptable.
+2. **QA manual FP ILV**: jugar escenario ILV y verificar pérdida de techo/luminarias, severidad de `Vis FP 1.6m` y llama atenuada.
+3. **Auditoría humo motor**: loggear `smoke_kg`, `visibility_m`, `soot_fraction`, `CO`, `O₂`, `HRR`, `combustion_regime` en escenario ILV reproducible.
+4. **Visualización avanzada de humo**: niebla/volumen local, pérdida de contraste por distancia, gradiente por altura y atenuación de geometría lejana.
+5. **ILV Fase 3 motor**: pool latente real con HRR bajo positivo, reventilación, crecimiento inducido y backdraft risk.
+6. **Phase 3+ two-zone canónico**: única ruta real para cerrar los 5 `VALID_GAP`; requiere plan de arquitectura y rollback.
+
+---
+
 ## Current Session Update — 2026-06-21 (rev 7 — Hito B cerrado, publicado)
 
 ### ILV Hito B — cerrado hasta Fase 2 Paso 2 (2026-06-21)
@@ -100,7 +144,7 @@ Suite headless Godot completa post-polish:
 
 **Diagnóstico colisiones corner FP (2026-06-21):** inspección de `CharacterBody3D + CapsuleShape3D (r=0.24m) + move_and_slide()`. La geometría de habitaciones (mínimo 2.8 m de espacio libre) y puertas (0.42 m de holgura lateral) supera el diámetro de cápsula (0.48 m). No se identificó bug ni escenario de traversal/clipping reproducible. No se añadió test headless por ausencia de caso de reproducción. Deuda cerrada como "sin issue reproducible".
 
-No hay deuda de motor abierta. Próxima decisión: ILV no invasivo, Phase 3+, o nueva línea de producto.
+Deuda de producto UX polish cerrada. Tras rev 8 quedan abiertas como líneas nuevas: QA visual FP ILV/humo, auditoría de humo motor, ILV Fase 3 y Phase 3+ two-zone.
 
 ### What is current now
 
@@ -114,7 +158,7 @@ No hay deuda de motor abierta. Próxima decisión: ILV no invasivo, Phase 3+, o 
 ### Current guardrail state
 
 - Required checks: FAIL — `5` required failures, all confirmed VALID_GAP.
-- Known gaps: `68` non-gating gaps in JSON and docs.
+- Known gaps: `69` non-gating gaps in JSON and docs.
 - Gap inventory count: synchronized.
 - Phase 2E sentinel: FAIL on `g4 FED timing [s]` (pre-existing, not caused by this session).
 - Carbon/HCN sentinels: PASS.
@@ -209,7 +253,7 @@ Current result:
 
 The following guardrail parts are now clean:
 
-- Gap count is synchronized: `68` non-gating gaps in JSON and docs.
+- Gap count is synchronized: `69` non-gating gaps in JSON and docs.
 - Physics override linter passes.
 - Carbon/HCN sentinels pass.
 - Legacy/two-zone contract passes.
