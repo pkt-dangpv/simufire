@@ -1,0 +1,53 @@
+{
+	"template": "simple_house",
+	"duration_s": 120.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 0,
+	"enable_logging": true,
+	"opening_overrides": [
+		{
+			"a": 0,
+			"b": 1,
+			"type": "door",
+			"open_fraction": 0.0
+		},
+		{
+			"a": 0,
+			"b": -1,
+			"type": "window",
+			"open_fraction": 0.0
+		}
+	],
+	"opening_events": [
+		{
+			"time_s": 60.0,
+			"a": 0,
+			"b": -1,
+			"type": "window",
+			"action": "open"
+		}
+	],
+	"engine_overrides": {
+		"log_interval_s": 0.5,
+		"fire_alpha_kw_s2": 0.047,
+		"fire_max_hrr_kw": 1280.0,
+		"fire_flashover_hrr_multiplier": 1.0,
+		"fire_flashover_min_hrr_kw": 99999.0,
+		"thermal_feedback_coeff": 0.0,
+		"fire_o2_min_for_flame": 0.055,
+		"fire_o2_full_hrr_open": 0.15,
+		"fire_hrr_rise_tau_s": 2.0,
+		"fire_unburned_generation_fraction": 0.0,
+		"fire_extinction_delay_s": 9999.0,
+		"fire_latent_extinction_delay_s": 9999.0,
+		"upper_to_lower_loss_rate": 0.002,
+		"lower_layer_warming_rate": 0.001,
+		"upper_to_ambient_loss_rate": 0.01,
+		"wall_absorption_rate": 0.008,
+		"thermal_gradient_band_fraction": 0.0,
+		"hrr_chi_rad_normal": 0.7,
+		"hrr_chi_rad_low_o2": 0.7,
+		"fire_spread_enabled": false,
+		"glass_auto_break_enabled": false
+	}
+}
