@@ -70,6 +70,9 @@ static func compute(
 		0.0,
 		1.0
 	)
+	var below_layer_t: float = clampf((smoke_layer_m - eye_height_m) / layer_transition_m, 0.0, 1.0)
+	var overhead_smoke_block: float = alpha_from_visibility * lerpf(0.35, 0.12, below_layer_t)
+	display_block = maxf(display_block, overhead_smoke_block)
 	var fp_visibility_m: float = lerpf(max_visibility_m, visibility_m, display_block)
 	if ilv_exposure_t > 0.0:
 		var severe_cap_m: float = minf(visibility_m, severe_visibility_m)

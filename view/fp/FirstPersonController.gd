@@ -3071,28 +3071,33 @@ func _update_technical_overlay(room_state: Dictionary, smoke_view: Dictionary, h
 	if fp_debug_temp_log:
 		_log_fp_temperature_diagnostics(room_state, temp_c)
 	temp_c = _smooth_technical_overlay_temperature(temp_c, hud_dt_s)
-	# Gases: usa la capa coherente con la postura para evitar mezclar upper y promedio.
-	var co_ppm: float = float(room_state.get("co_upper_ppm", 0.0))
-	var co2_vol_pct: float = float(room_state.get("co2_upper_ppm", 4000.0)) / 10000.0
-	var o2_key: String = "o2_upper" if _stance == STANCE_STAND else "o2_lower"
-	var o2_suffix: String = "u" if _stance == STANCE_STAND else "l"
+	# Gases: usa la capa coherente con la altura de los ojos; el régimen sigue siendo de combustión.
+	var eye_height_m: float = _hud_eye_height_m()
+	var eye_in_upper_layer: bool = _hud_eye_in_upper_layer(room_state, eye_height_m)
+	var gas_suffix: String = "u" if eye_in_upper_layer else "l"
+	var co_ppm: float = float(room_state.get("co_upper_ppm" if eye_in_upper_layer else "co_lower_ppm", room_state.get("co_ppm", 0.0)))
+	var co2_source_key: String = "co2_upper_ppm" if eye_in_upper_layer else "co2_ppm"
+	var co2_vol_pct: float = float(room_state.get(co2_source_key, room_state.get("co2_upper_ppm", 4000.0))) / 10000.0
+	var o2_key: String = "o2_upper" if eye_in_upper_layer else "o2_lower"
 	var o2_vol_pct: float = float(room_state.get(o2_key, room_state.get("o2", 0.209))) * 100.0
-	var hcn_ppm: float = float(room_state.get("hcn_upper_ppm", 0.0))
+	var hcn_source_key: String = "hcn_upper_ppm" if eye_in_upper_layer else "hcn_ppm"
+	var hcn_ppm: float = float(room_state.get(hcn_source_key, room_state.get("hcn_upper_ppm", 0.0)))
 	var fed_val: float = float(room_state.get("fed", 0.0))
 	var vis_m: float = float(smoke_view.get("fp_visibility_m", room_state.get("visibility_m", 30.0)))
 	var hrr_kw: float = float(room_state.get("hrr_kw", 0.0))
-	var regime_alert: String = _hud_combustion_regime_alert(room_state, o2_vol_pct, hrr_kw)
+	var regime_alert: String = _hud_combustion_regime_alert(room_state, hrr_kw)
 	_technical_overlay_label.text = (
-		"HRR %5.0f kW\nReg %s\nT   %5.0f °C\nCOu %5.0f ppm\nCO₂u %4.1f %%vol\nO₂%s  %4.1f %%vol\nHCNu %5.0f ppm\nFED %.2f\nVis %s"
-		% [hrr_kw, regime_alert, temp_c, co_ppm, co2_vol_pct, o2_suffix, o2_vol_pct, hcn_ppm, fed_val, _format_fp_visibility(vis_m)]
+		"HRR %5.0f kW\nReg %s\nT   %5.0f °C\nCO%s %5.0f ppm\nCO₂%s %4.1f %%vol\nO₂%s  %4.1f %%vol\nHCN%s %5.0f ppm\nFED %.2f\nVis %s"
+		% [hrr_kw, regime_alert, temp_c, gas_suffix, co_ppm, gas_suffix, co2_vol_pct, gas_suffix, o2_vol_pct, gas_suffix, hcn_ppm, fed_val, _format_fp_visibility(vis_m)]
 	)
 
 
-func _hud_combustion_regime_alert(room_state: Dictionary, o2_vol_pct: float, hrr_kw: float) -> String:
+func _hud_combustion_regime_alert(room_state: Dictionary, hrr_kw: float) -> String:
 	var regime: String = String(room_state.get("combustion_regime", "EXTINGUISHED"))
+	var o2_upper_vol_pct: float = float(room_state.get("o2_upper", room_state.get("o2", 0.209))) * 100.0
+	if hrr_kw > 0.5 and o2_upper_vol_pct < 5.0:
+		return "ILV CRIT"
 	if _hud_is_ventilation_limited_regime(regime):
-		if o2_vol_pct < 5.0 and hrr_kw > 0.5:
-			return "ILV CRIT"
 		return "ILV"
 	match regime:
 		"FUEL_CONTROLLED", "FULLY_DEVELOPED":
@@ -3110,6 +3115,26 @@ func _hud_is_ventilation_limited_regime(regime: String) -> bool:
 		"BACKDRAFT_RISK",
 		"BACKDRAFT_EVENT",
 	]
+
+
+func _hud_eye_height_m() -> float:
+	match _stance:
+		STANCE_STAND:
+			return 1.8
+		STANCE_CROUCH:
+			return 1.1
+		_:
+			return 0.5
+
+
+func _hud_eye_in_upper_layer(room_state: Dictionary, eye_height_m: float) -> bool:
+	var room_height_m: float = float(room_state.get("height_m", 2.4))
+	var smoke_layer_m: float = clampf(
+		float(room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_state.get("h_layer_m", room_height_m)))),
+		0.0,
+		room_height_m
+	)
+	return eye_height_m + smoke_overlay_layer_clearance_m >= smoke_layer_m
 
 
 func _hud_temp_at_height_m(room_state: Dictionary, height_m: float) -> float:
