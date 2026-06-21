@@ -4,6 +4,13 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### Hito B — ILV Fase 2 Paso 2 (thermal_hold fix → ILV_LATENT en auditoría)
+
+- **Thermal hold overrides** (`cfast_ilv_audit.json`) — `fire_latent_hold_upper_temp_c=40.0` y `fire_latent_hold_lower_temp_c=40.0`. Causa raíz: el engine default de 140°C/60°C excluía la sala sellada (pico ~70°C) del check `thermal_hold`, por lo que `latent_viable` nunca fue `true`. 40°C es alcanzable: `temp_upper=67°C` y `temp_lower=49°C` a t=406 s.
+- **Idle reset `fire_latent_active`** (`CombustionSystem.gd` línea ~94) — `room.fire_latent_active = false` añadido junto a `room.fire_smoldering = false` en la rama idle/post-extinción, evitando que el campo quede stuck en `true` tras `_extinguish_room_fire`.
+- **Revertido código muerto** (`CombustionSystem.gd`) — `fire_latent_smolder_o2_margin` nunca fue añadido al diccionario de contexto en `_build_room_combustion_context`; la variable `latent_smolder_margin` era inerte. Revertido a usar `latent_o2_viable_margin` directamente.
+- **Resultado:** `fire_latent_active=1` durante 52 s (t=406.1–457.1 s), régimen `VENTILATION_CONTROLLED_BURNING → ILV_LATENT → EXTINGUISHED` en `cfast_ilv_audit.csv`. Post-extinción: `latent=0` correctamente. Clasificador 9/9 PASS. Baseline 345/350 PASS intacto.
+
 ### Hito B — ILV Fase 2 Paso 1 (observabilidad fire_latent_active)
 
 - **`fire_latent_active: bool`** (`efcc492`) — nuevo campo en `RoomModel`, asignado desde `(not can_flame) AND latent_viable` sin gate de `hrr_kw`. Señal upstream de `fire_smoldering`; el clasificador ahora lee `fire_latent_active` para el régimen `ILV_LATENT`. Expuesto en dict de estado y CSV. Default `false`; ningún cambio de física. Con defaults el gap O2 (8.5–10.8 %) impide que `fire_latent_active` se active — Paso 2 cerrará ese gap.

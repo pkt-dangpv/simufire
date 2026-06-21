@@ -6,6 +6,31 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update — 2026-06-21 (rev 6 — ILV Fase 2 Paso 2 cerrado)
+
+### ILV Hito B — Fase 2 Paso 2 cerrado (2026-06-21)
+
+**Objetivo:** `fire_latent_active=true` y régimen `ILV_LATENT` visible en `cfast_ilv_audit.csv`.
+
+**Causa raíz encontrada:** `_can_sustain_latent_fire` bloqueada por `thermal_hold=FALSE`. El default del engine `fire_latent_hold_upper_temp_c=140°C` nunca era alcanzado en la sala sellada (pico ~70°C upper, ~49°C lower).
+
+**Cambios realizados (mínimos, sin tocar física global):**
+
+1. `sim/validation/cases/cfast_ilv_audit.json` — añadidos dos overrides per-caso:
+   - `fire_latent_hold_upper_temp_c: 40.0` (temp_upper=67°C > 40°C a t=406 s ✓)
+   - `fire_latent_hold_lower_temp_c: 40.0` (temp_lower=49°C > 40°C a t=406 s ✓)
+2. `sim/fire/CombustionSystem.gd` — `room.fire_latent_active = false` añadido en rama idle/post-extinción (previene stuck post-extinción).
+3. Revertido código muerto: `fire_latent_smolder_o2_margin` nunca estuvo en el contexto de combustión; eliminado.
+
+**Verificación:**
+- `fire_latent_active=1`: 52 rows, t=406.1–457.1 s ✓
+- Post-extinción: `latent=0` correctamente ✓
+- Régimen: `VENTILATION_CONTROLLED_BURNING → ILV_LATENT → EXTINGUISHED` ✓
+- Clasificador headless 9/9 PASS ✓
+- Baseline: 345/350 PASS intacto (5 FAILs requeridos VALID_GAP sin cambio) ✓
+
+---
+
 ## Current Session Update — 2026-06-21 (rev 5 — ILV Fase 0 cerrada)
 
 ### ILV Hito B — Auditoría Fase 0 cerrada (2026-06-21)

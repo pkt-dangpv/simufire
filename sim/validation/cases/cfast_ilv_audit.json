@@ -32,6 +32,8 @@
 		"fire_latent_enabled": true,
 		"fire_extinction_delay_s": 30.0,
 		"fire_latent_extinction_delay_s": 60.0,
+		"fire_latent_hold_upper_temp_c": 40.0,
+		"fire_latent_hold_lower_temp_c": 40.0,
 		"fire_unburned_generation_fraction": 0.30,
 		"fire_pool_release_max_fraction": 0.18,
 		"ach_infiltration": 0.0,

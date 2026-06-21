@@ -92,6 +92,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		room.pool_release_hrr_target_kw = 0.0
 		room.smoke_prod_kg_s = 0.0
 		room.fire_smoldering = false
+		room.fire_latent_active = false
 		room.combustion_regime = "EXTINGUISHED"
 		_sync_legacy_proxy_idle(room)
 		return false
