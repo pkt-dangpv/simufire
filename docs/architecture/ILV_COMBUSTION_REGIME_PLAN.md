@@ -95,7 +95,34 @@ La propuesta original es correcta en direccion, pero para SimuFire debe ajustars
 
 ## Fases recomendadas
 
-### Fase 0 - Auditoria y reproduccion
+### Fase 0 - Resultado de auditoria (2026-06-21, CERRADA)
+
+Artefactos: `sim/validation/cases/cfast_ilv_audit.json`, `scripts/simulation/audit_ilv_phase0.py`.
+
+Secuencia de regimenes (room 2, 36 m³, sellada, 900 s):
+
+```
+t=  0s  EXTINGUISHED
+t=  1s  FUEL_CONTROLLED
+t=186s  VENTILATION_STRESSED
+t=274s  VENTILATION_CONTROLLED_BURNING
+t=436s  EXTINGUISHED  <-- extincion directa, ILV_LATENT nunca mostrado
+```
+
+Condiciones en extincion (t=436 s): o2=10.9%, hrr_kw=0.00, retained_unburned_MJ=0.1497, fire_smoldering=false.
+
+Gap estructural confirmado: con `fire_o2_min_for_flame=0.10`:
+- `can_flame=false` cuando o2 < 8.5%
+- `latent_viable=false` cuando o2 < 10.8%
+- Ventana 8.5-10.8%: ni llama ni latencia posible -> extincion directa
+
+Causa adicional: `fire_smoldering` requiere `hrr_kw > 0.5`, pero el HRR cayo por debajo antes de que `latent_viable` se convirtiera en la condicion limitante. El clasificador no puede mostrar `ILV_LATENT` porque depende de `fire_smoldering`.
+
+Aceptacion verificada: se puede explicar por datos por que el fuego se apaga directamente y que condicion impidio la latencia.
+
+---
+
+### Fase 0 - Auditoria y reproduccion (objetivo original)
 
 No tocar comportamiento. Crear un escenario minimo que reproduzca el apagado directo en ILV y registrar cada segundo:
 
