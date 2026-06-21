@@ -56,6 +56,14 @@ python scripts/run_scenario.py scenarios/compact_apartment_reference.json --dura
 
 Ejecuta un escenario definido en JSON y genera salidas técnicas.
 
+## Auditar Coherencia ILV Por Capas
+
+```powershell
+python scripts/simulation/check_ilv_layer_coherence.py runs/<escenario>/sim_log.csv --room-id 0
+```
+
+Detecta estados incoherentes de ILV/two-zone: HRR significativo con `o2_upper` crítico mientras el régimen sigue `FUEL_CONTROLLED`/`FULLY_DEVELOPED`, o mientras `o2_hrr_factor` permanece alto por la capa baja/global.
+
 ## Generar Gráficas
 
 ```powershell

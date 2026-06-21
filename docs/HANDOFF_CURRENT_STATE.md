@@ -36,6 +36,8 @@ Esto apunta a que combustion/clasificacion aun pueden usar una senal global/lowe
 ### Proxima sesion recomendada
 
 1. **Auditoria motor ILV/layer coupling**: reproducir el escenario FP/ILV y loggear por segundo `hrr_kw`, `combustion_regime`, `o2`, `o2_upper`, `o2_lower`, `co_upper_ppm`, `co_lower_ppm`, `co2_ppm`, `co2_upper_ppm`, `hcn_ppm`, `hcn_upper_ppm`, `smoke_kg`, `visibility_m`, `smoke_layer_m`, `thermal_layer_m`, `fire_latent_active`.
+   - Detector automatico: `python scripts/simulation/check_ilv_layer_coherence.py <sim_log.csv> --room-id 0`.
+   - Tests unitarios: `python -m unittest tests.test_ilv_layer_coherence -v`.
 2. **Hipotesis principal**: HRR y clasificador estan acoplados a `o2`/lower/global mientras el fuego/llama visual y la capa superior indican ILV critico. Confirmar antes de tocar `CombustionSystem`.
 3. **No cambiar motor aun**: preparar primero un informe con filas clave y un caso headless reproducible. Cualquier fix probablemente pertenece a two-zone canonico/Phase 3+ o a una regla intermedia explicita para HRR limitado por `o2_upper`.
 

@@ -104,6 +104,14 @@ Hallazgos pendientes de motor:
 
 Objetivo: determinar si las incongruencias restantes provienen de combustion acoplada a O2 global/lower, generacion fisica insuficiente de humo, transporte/estratificacion o solo representacion.
 
+Herramienta disponible:
+
+```powershell
+python scripts/simulation/check_ilv_layer_coherence.py <ruta-a-sim_log.csv> --room-id 0
+```
+
+Este check falla si encuentra HRR significativo con `o2_upper` critico mientras el regimen sigue fuel-controlled, o si `o2_hrr_factor` permanece alto con capa superior sin O2 y capa baja fresca. `tests/test_ilv_layer_coherence.py` cubre los patrones detectados en QA manual.
+
 Escenario recomendado:
 
 - Caso ILV reproducible (`cfast_ilv_audit` o variante FP jugable).

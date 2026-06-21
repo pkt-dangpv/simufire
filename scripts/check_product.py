@@ -177,6 +177,11 @@ def main() -> int:
             _REPO_ROOT / "tests" / "test_godot_editability.py",
             "python tests/test_godot_editability.py",
         ),
+        (
+            "ILV layer coherence unit tests",
+            _REPO_ROOT / "tests" / "test_ilv_layer_coherence.py",
+            "python tests/test_ilv_layer_coherence.py",
+        ),
     ]
 
     rows = []
