@@ -2195,7 +2195,7 @@ func _update_fp_fire_item(room_id: int, item: Dictionary) -> void:
 	if fire_root == null:
 		return
 	var rs: Dictionary = _room_state_for_fire(room_id)
-	var hrr_kw: float = _fp_fire_hrr_kw(rs)
+	var hrr_kw: float = _fp_fire_visual_hrr_kw(rs)
 	var has_visible_fire: bool = show_fp_fire and hrr_kw > fp_fire_min_visible_hrr_kw
 	var rect := Rect2(item.get("rect", Rect2(Vector2.ZERO, Vector2.ONE)))
 	var room_height_m: float = maxf(0.24, float(item.get("height_m", boundary_height_m)))
@@ -2286,6 +2286,18 @@ func _fp_fire_hrr_kw(room_state: Dictionary) -> float:
 			continue
 		var obj: Dictionary = raw
 		hrr_kw = maxf(hrr_kw, maxf(float(obj.get("hrr_kw", 0.0)), float(obj.get("hrr", 0.0))))
+	return hrr_kw
+
+
+func _fp_fire_visual_hrr_kw(room_state: Dictionary) -> float:
+	var hrr_kw: float = _fp_fire_hrr_kw(room_state)
+	var regime: String = String(room_state.get("combustion_regime", ""))
+	if bool(room_state.get("fire_latent_active", false)) or regime == "ILV_LATENT":
+		return minf(hrr_kw, fp_fire_min_visible_hrr_kw * 0.75)
+	if _hud_is_ventilation_limited_regime(regime):
+		var o2_upper: float = float(room_state.get("o2_upper", room_state.get("o2", 0.209)))
+		if o2_upper < 0.05:
+			return hrr_kw * clampf(o2_upper / 0.05, 0.05, 0.35)
 	return hrr_kw
 
 
@@ -3018,13 +3030,19 @@ func _update_status_hud(force: bool = false) -> void:
 				visibility_label = _format_fp_visibility(float(smoke_view.get("fp_visibility_m", room_state.get("visibility_m", 30.0))))
 				_update_technical_overlay(room_state, smoke_view, hud_dt_s)
 				has_data = true
-	_fp_status_label.text = "FP | %s | %s | %s | %s\nESC salir | F usar | CTRL postura" % [
-		room_label,
-		hrr_label,
-		_stance_label(),
-		visibility_label
-	]
 	var technical_visible: bool = show_technical_overlay and has_data
+	if technical_visible:
+		_fp_status_label.text = "FP | %s | %s\nESC salir | F usar | CTRL postura" % [
+			room_label,
+			_stance_label()
+		]
+	else:
+		_fp_status_label.text = "FP | %s | %s | %s | %s\nESC salir | F usar | CTRL postura" % [
+			room_label,
+			hrr_label,
+			_stance_label(),
+			visibility_label
+		]
 	if _technical_overlay_panel != null:
 		_technical_overlay_panel.visible = technical_visible
 	if _visibility_readout_panel != null:
@@ -3054,15 +3072,41 @@ func _update_technical_overlay(room_state: Dictionary, smoke_view: Dictionary, h
 	var co_ppm: float = float(room_state.get("co_upper_ppm", 0.0))
 	var co2_vol_pct: float = float(room_state.get("co2_upper_ppm", 4000.0)) / 10000.0
 	var o2_key: String = "o2_upper" if _stance == STANCE_STAND else "o2_lower"
+	var o2_suffix: String = "u" if _stance == STANCE_STAND else "l"
 	var o2_vol_pct: float = float(room_state.get(o2_key, room_state.get("o2", 0.209))) * 100.0
 	var hcn_ppm: float = float(room_state.get("hcn_upper_ppm", 0.0))
 	var fed_val: float = float(room_state.get("fed", 0.0))
 	var vis_m: float = float(smoke_view.get("fp_visibility_m", room_state.get("visibility_m", 30.0)))
 	var hrr_kw: float = float(room_state.get("hrr_kw", 0.0))
+	var regime_alert: String = _hud_combustion_regime_alert(room_state, o2_vol_pct, hrr_kw)
 	_technical_overlay_label.text = (
-		"HRR %5.0f kW\nT   %5.0f °C\nCO  %5.0f ppm\nCO₂ %4.1f %%vol\nO₂   %4.1f %%vol\nHCN %5.0f ppm\nFED %.2f\nVis %s"
-		% [hrr_kw, temp_c, co_ppm, co2_vol_pct, o2_vol_pct, hcn_ppm, fed_val, _format_fp_visibility(vis_m)]
+		"HRR %5.0f kW\nReg %s\nT   %5.0f °C\nCOu %5.0f ppm\nCO₂u %4.1f %%vol\nO₂%s  %4.1f %%vol\nHCNu %5.0f ppm\nFED %.2f\nVis %s"
+		% [hrr_kw, regime_alert, temp_c, co_ppm, co2_vol_pct, o2_suffix, o2_vol_pct, hcn_ppm, fed_val, _format_fp_visibility(vis_m)]
 	)
+
+
+func _hud_combustion_regime_alert(room_state: Dictionary, o2_vol_pct: float, hrr_kw: float) -> String:
+	var regime: String = String(room_state.get("combustion_regime", "EXTINGUISHED"))
+	if _hud_is_ventilation_limited_regime(regime):
+		if o2_vol_pct < 5.0 and hrr_kw > 0.5:
+			return "ILV CRIT"
+		return "ILV"
+	match regime:
+		"FUEL_CONTROLLED", "FULLY_DEVELOPED":
+			return "ILC"
+		_:
+			return "--"
+
+
+func _hud_is_ventilation_limited_regime(regime: String) -> bool:
+	return regime in [
+		"VENTILATION_STRESSED",
+		"VENTILATION_CONTROLLED_BURNING",
+		"VENTILATION_INDUCED_GROWTH",
+		"ILV_LATENT",
+		"BACKDRAFT_RISK",
+		"BACKDRAFT_EVENT",
+	]
 
 
 func _hud_temp_at_height_m(room_state: Dictionary, height_m: float) -> float:

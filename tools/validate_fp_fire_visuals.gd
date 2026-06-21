@@ -49,6 +49,19 @@ func _run() -> void:
 	_expect(core != null and core.scale.y > 0.05, "FP fire core was not animated/scaled")
 	var light := fire_root.get_node_or_null("FireLight") as OmniLight3D
 	_expect(light != null and light.light_energy > 0.1, "FP fire light did not receive energy")
+	var normal_light_energy: float = light.light_energy if light != null else 0.0
+
+	fp.set_state(_make_fire_state(Vector2(1.0, 0.9), 900.0, "VENTILATION_CONTROLLED_BURNING", 0.017))
+	_expect(fire_root.visible, "FP ILV critical fire should remain visible as a weak flame")
+	if light != null:
+		_expect(
+			light.light_energy < normal_light_energy * 0.55,
+			"FP ILV critical fire light was not damped by low upper-layer O2"
+		)
+
+	fp.set_state(_make_fire_state(Vector2(1.0, 0.9), 900.0, "ILV_LATENT", 0.017, true))
+	if light != null:
+		_expect(light.light_energy <= 0.01, "FP ILV latent fire light should be hidden")
 
 	fp.set_state(_make_fire_state(Vector2(2.0, 1.6), 1100.0))
 	_expect_vec3_close(
@@ -123,11 +136,21 @@ func _make_template() -> Dictionary:
 	}
 
 
-func _make_fire_state(position_m: Vector2, hrr_kw: float) -> Dictionary:
+func _make_fire_state(
+	position_m: Vector2,
+	hrr_kw: float,
+	combustion_regime: String = "FUEL_CONTROLLED",
+	o2_upper: float = 0.209,
+	fire_latent_active: bool = false
+) -> Dictionary:
 	return {
 		"0": {
 			"has_fire": true,
 			"hrr_kw": hrr_kw,
+			"o2": o2_upper,
+			"o2_upper": o2_upper,
+			"combustion_regime": combustion_regime,
+			"fire_latent_active": fire_latent_active,
 			"visibility_m": 30.0,
 			"smoke_kg": 0.0,
 			"smoke_layer_m": 2.5,

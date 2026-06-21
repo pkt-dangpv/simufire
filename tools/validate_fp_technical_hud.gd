@@ -33,20 +33,42 @@ func _run() -> void:
 
 	var technical_panel := _find_child_by_name(fp, "TechnicalOverlayPanel") as Control
 	var technical_label := _find_child_by_name(fp, "TechnicalOverlayLabel") as Label
+	var status_label := _find_child_by_name(fp, "FirstPersonStatusLabel") as Label
 	_expect(technical_panel != null and technical_panel.visible, "FP technical overlay was not visible")
 	_expect(technical_label != null, "FP technical overlay label missing")
+	_expect(status_label != null, "FP status label missing")
 	if technical_label != null:
 		_expect(technical_label.text.contains("210"), "standing temperature missing from FP technical overlay")
 		_expect(technical_label.text.contains("740"), "CO ppm missing from FP technical overlay")
 		_expect(technical_label.text.contains("1.9"), "CO2 percent missing from FP technical overlay")
 		_expect(technical_label.text.contains("17.4"), "O2 percent missing from FP technical overlay")
+		_expect(technical_label.text.contains("O₂u"), "standing O2 layer label missing from FP technical overlay")
 		_expect(technical_label.text.contains("32"), "HCN ppm missing from FP technical overlay")
 		_expect(technical_label.text.contains("0.42"), "FED missing from FP technical overlay")
 		_expect(technical_label.text.contains("Vis FP"), "FP visibility missing from technical overlay")
+		_expect(technical_label.text.contains("Reg ILC"), "ILC regime alert missing from FP technical overlay")
+	if status_label != null:
+		_expect(not status_label.text.contains("HRR"), "top FP status duplicated HRR while technical overlay was visible")
+		_expect(not status_label.text.contains("Vis"), "top FP status duplicated visibility while technical overlay was visible")
+
+	state["0"]["combustion_regime"] = "VENTILATION_CONTROLLED_BURNING"
+	fp.set_state(state)
+	fp._update_status_hud(true)
+	await get_tree().process_frame
+	if technical_label != null:
+		_expect(technical_label.text.contains("Reg ILV"), "ILV regime alert missing after ventilation-limited transition")
+
+	state["0"]["o2_upper"] = 0.017
+	fp.set_state(state)
+	fp._update_status_hud(true)
+	await get_tree().process_frame
+	if technical_label != null:
+		_expect(technical_label.text.contains("Reg ILV CRIT"), "critical ILV low-O2 alert missing from FP technical overlay")
 
 	fp._cycle_stance()
 	if technical_label != null:
 		_expect(technical_label.text.contains("105"), "crouch temperature did not update in FP technical overlay")
+		_expect(technical_label.text.contains("O₂l"), "crouch O2 layer label missing from FP technical overlay")
 	fp._cycle_stance()
 	if technical_label != null:
 		_expect(technical_label.text.contains("35"), "prone temperature did not update in FP technical overlay")
@@ -54,7 +76,11 @@ func _run() -> void:
 	fp.show_technical_overlay = false
 	fp.show_visibility_readout = true
 	fp.set_state(state)
+	fp._update_status_hud(true)
 	await get_tree().process_frame
+	if status_label != null:
+		_expect(status_label.text.contains("HRR"), "top FP status omitted HRR when technical overlay was hidden")
+		_expect(status_label.text.contains("Vis"), "top FP status omitted visibility when technical overlay was hidden")
 	var readout_panel := _find_child_by_name(fp, "VisibilityReadoutPanel") as Control
 	var readout_label := _find_child_by_name(fp, "VisibilityReadoutLabel") as Label
 	_expect(readout_panel != null and readout_panel.visible, "compact FP visibility readout was not visible")
@@ -114,6 +140,7 @@ func _make_state() -> Dictionary:
 			"name": "Salon HUD",
 			"kind": "salon",
 			"height_m": 2.5,
+			"hrr_kw": 120.0,
 			"temp_upper_c": 210.0,
 			"temp_lower_c": 35.0,
 			"thermal_layer_m": 1.15,
@@ -123,12 +150,15 @@ func _make_state() -> Dictionary:
 			"co_upper_ppm": 740.0,
 			"co2_upper_ppm": 18500.0,
 			"o2": 0.174,
+			"o2_upper": 0.174,
+			"o2_lower": 0.209,
 			"hcn_upper_ppm": 32.0,
 			"fed": 0.42,
 			"visibility_m": 7.4,
 			"smoke_kg": 1.6,
 			"smoke_layer_m": 1.25,
 			"smoke_display_layer_m": 1.25,
+			"combustion_regime": "FUEL_CONTROLLED",
 			"fuel_objects": []
 		}
 	}
