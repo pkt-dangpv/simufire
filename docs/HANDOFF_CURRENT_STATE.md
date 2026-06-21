@@ -6,6 +6,24 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update — 2026-06-21 (rev 7 — Hito B cerrado, publicado)
+
+### ILV Hito B — cerrado hasta Fase 2 Paso 2 (2026-06-21)
+
+| Fase | Commit | Estado |
+|------|--------|--------|
+| Fase 0 — auditoría extinción directa | `c59aeba` | Cerrado |
+| Fase 1 — clasificador 9 regímenes + `combustion_regime` | `922a56a` | Cerrado |
+| Fase 2 Paso 1 — `fire_latent_active` en `RoomModel` | `efcc492` | Cerrado |
+| Fase 2 Paso 2 — `thermal_hold` fix → `ILV_LATENT` visible | `fbf4d3e` | Cerrado |
+| Fase 3 — reventilación y smoldering con HRR positivo | — | **No iniciada** |
+
+**Validación:** 345/350 PASS, 5/350 FAIL (todos VALID_GAP — Grupos A y C sin candidato per-caso). Intacta.
+
+**Alcance de Hito B:** solo observabilidad. No hay pool latent smoldering real con HRR positivo durante `ILV_LATENT`. El campo `fire_latent_active=true` indica que `latent_viable=true` sin llama sostenida, pero el HRR decae hacia cero durante ese período. Fase 3 define la ruta para smoldering real con energía activa.
+
+---
+
 ## Current Session Update — 2026-06-21 (rev 6 — ILV Fase 2 Paso 2 cerrado)
 
 ### ILV Hito B — Fase 2 Paso 2 cerrado (2026-06-21)

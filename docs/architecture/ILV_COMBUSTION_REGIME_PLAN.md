@@ -134,19 +134,25 @@ No tocar comportamiento. Crear un escenario minimo que reproduzca el apagado dir
 
 Aceptacion: se puede explicar por datos por que el fuego se apaga y que condicion impidio la latencia.
 
-### Fase 1 - Clasificador solo diagnostico
+### Fase 1 - Clasificador solo diagnostico (2026-06-21, CERRADA — commit 922a56a)
 
-Anadir un clasificador sin cambiar HRR ni gases. Debe escribir el regimen por sala en logs y, opcionalmente, exponerlo en debug.
+`sim/fire/CombustionRegimeClassifier.gd` — clasificador read-only de 9 regimenes. Escribe `combustion_regime: String` en `RoomModel`, expuesto en dict + CSV. No modifica HRR, O2, gases, temperaturas ni checks de validacion. Test headless 9 casos PASS. Baseline 345/350 intacto.
 
-Aceptacion: el clasificador identifica transiciones coherentes sin parpadeo: ventilado -> estresado -> ILV latente o ventilacion-controlado.
+Aceptacion verificada: el clasificador identifica transiciones coherentes. `ILV_LATENT` queda correctamente ligado a `fire_latent_active` (Fase 2).
 
-### Fase 2 - Latencia ILV controlada
+### Fase 2 - Latencia ILV controlada (observabilidad CERRADA hasta Paso 2 — 2026-06-21)
 
-Modificar la condicion de latencia para que no requiera siempre O2 suficiente para llama. Debe permitir un estado latente con HRR bajo, acumulacion limitada de no quemados y temperatura decreciente si no hay aporte.
+**Paso 1 cerrado** (commit `efcc492`): `fire_latent_active: bool` en `RoomModel`, asignado desde `(not can_flame) AND latent_viable` sin gate de `hrr_kw`. Señal upstream de `fire_smoldering`; el clasificador lee `fire_latent_active` para `ILV_LATENT`. Expuesto en dict y CSV. Sin cambio de fisica.
 
-Aceptacion: un fuego ILV no se apaga instantaneamente si queda energia termica y combustible, pero se extingue si la temperatura cae o el combustible se agota.
+**Paso 2 cerrado** (commit `fbf4d3e`): Causa raiz identificada: `_can_sustain_latent_fire` bloqueada por `thermal_hold` con defaults 140°C/60°C. La sala sellada de auditoria alcanza ~70°C upper y ~49°C lower — nunca pasaba el check. Fix per-caso: `fire_latent_hold_upper_temp_c=40.0` y `fire_latent_hold_lower_temp_c=40.0` en `cfast_ilv_audit.json`. Tambien: idle reset de `fire_latent_active=false` en rama post-extincion (previene stuck), y revertido codigo muerto de `fire_latent_smolder_o2_margin` (nunca estuvo en el contexto de combustion).
 
-### Fase 3 - Reventilacion y crecimiento inducido
+Resultado: `fire_latent_active=1` durante 52 s (t=406.1–457.1 s), regimen `VENTILATION_CONTROLLED_BURNING → ILV_LATENT → EXTINGUISHED` en `cfast_ilv_audit.csv`. Post-extincion: `fire_latent_active=0` correctamente. Clasificador 9/9 PASS. Baseline 345/350 PASS intacto.
+
+**Estado del Hito B al 2026-06-21:** cerrado hasta Fase 2 Paso 2 (observabilidad). No hay pool latent smoldering real con HRR positivo durante `ILV_LATENT`. Fase 3 no iniciada.
+
+Aceptacion verificada: un fuego ILV pasa a estado latente con `fire_latent_active=true` y el clasificador lo reporta correctamente. La extincion ocurre a los 60 s de latencia (`fire_latent_extinction_delay_s=60.0`).
+
+### Fase 3 - Reventilacion y crecimiento inducido (NO INICIADA)
 
 Usar apertura/caudal y `retained_unburned_MJ` para crecimiento transitorio. La liberacion debe estar acotada por mezcla, O2, combustible retenido y constantes de tiempo.
 

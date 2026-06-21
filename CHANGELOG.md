@@ -4,6 +4,19 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### Hito B — ILV latent observability milestone (cerrado 2026-06-21)
+
+**Alcance cerrado:** observabilidad de régimen ILV en escenario de auditoría. El campo `fire_latent_active=true` y el régimen `ILV_LATENT` son visibles en `cfast_ilv_audit.csv`. No hay pool latent smoldering real con HRR positivo durante `ILV_LATENT` — eso es Fase 3. Validación 345/350 PASS intacta.
+
+| Componente | Commit | Descripción |
+|-----------|--------|-------------|
+| Fase 0 auditoría | `c59aeba` | Escenario sellado + script diagnóstico read-only |
+| Fase 1 clasificador | `922a56a` | `CombustionRegimeClassifier` 9 regímenes, `combustion_regime` en CSV |
+| Fase 2 Paso 1 | `efcc492` | `fire_latent_active: bool` en `RoomModel`, upstream de `fire_smoldering` |
+| Fase 2 Paso 2 | `fbf4d3e` | `thermal_hold` fix per-caso 40°C, idle reset, revert código muerto |
+
+---
+
 ### Hito B — ILV Fase 2 Paso 2 (thermal_hold fix → ILV_LATENT en auditoría)
 
 - **Thermal hold overrides** (`cfast_ilv_audit.json`) — `fire_latent_hold_upper_temp_c=40.0` y `fire_latent_hold_lower_temp_c=40.0`. Causa raíz: el engine default de 140°C/60°C excluía la sala sellada (pico ~70°C) del check `thermal_hold`, por lo que `latent_viable` nunca fue `true`. 40°C es alcanzable: `temp_upper=67°C` y `temp_lower=49°C` a t=406 s.
