@@ -67,6 +67,16 @@ func _run() -> void:
 		_expect(technical_label.text.contains("Reg ILV CRIT"), "critical ILV low-O2 alert missing from FP technical overlay")
 		_expect(technical_label.text.contains("Vis FP 1.6m"), "critical ILV did not clamp FP visibility in technical overlay")
 
+	state["0"]["combustion_regime"] = "FUEL_CONTROLLED"
+	state["0"]["o2_upper"] = 0.003
+	fp.set_state(state)
+	fp._update_status_hud(true)
+	await get_tree().process_frame
+	if technical_label != null:
+		_expect(technical_label.text.contains("Reg ILV CRIT"), "critical upper-layer O2 did not override ILC HUD label")
+	state["0"]["combustion_regime"] = "VENTILATION_CONTROLLED_BURNING"
+	state["0"]["o2_upper"] = 0.017
+
 	state["0"]["visibility_m"] = 0.04
 	state["0"]["smoke_layer_m"] = 1.25
 	state["0"]["smoke_display_layer_m"] = 1.25
@@ -85,6 +95,7 @@ func _run() -> void:
 	if technical_label != null:
 		_expect(technical_label.text.contains("105"), "crouch temperature did not update in FP technical overlay")
 		_expect(technical_label.text.contains("O₂l"), "crouch O2 layer label missing from FP technical overlay")
+		_expect(technical_label.text.contains("COl"), "crouch CO layer label missing from FP technical overlay")
 	var stand_smoke_view: Dictionary = FPVisibilityOverlay.compute(state["0"], Rect2(Vector2.ZERO, Vector2(4.0, 3.0)), 1.8, _smoke_settings())
 	var crouch_smoke_view: Dictionary = FPVisibilityOverlay.compute(state["0"], Rect2(Vector2.ZERO, Vector2(4.0, 3.0)), 1.05, _smoke_settings())
 	_expect(
@@ -170,10 +181,13 @@ func _make_state() -> Dictionary:
 			"temp_at_1_1m_c": 82.0,
 			"temp_at_0_5m_c": 38.0,
 			"co_upper_ppm": 740.0,
+			"co_lower_ppm": 18.0,
+			"co2_ppm": 9000.0,
 			"co2_upper_ppm": 18500.0,
 			"o2": 0.174,
 			"o2_upper": 0.174,
 			"o2_lower": 0.209,
+			"hcn_ppm": 3.0,
 			"hcn_upper_ppm": 32.0,
 			"fed": 0.42,
 			"visibility_m": 7.4,
