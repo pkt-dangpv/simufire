@@ -55,12 +55,40 @@ This note records the repository hygiene and validation state after the non-moto
 - Canonical aplica en casos donde se quiere que la combustión deplecione `o2_lower` directamente
 - **No activar ambos flags simultáneamente sin plan explícito de interacción**
 
-### Próxima sesión recomendada
+### EXP-2 — Hallazgo: casos existentes tienen threshold_metrics calibradas sobre el bug
 
-1. **No activar globalmente**: mantener `fire_o2_upper_throttle_enabled=false` en defaults.
-2. **EXP-2 revisado**: probar M4 en caso SIN canonical con ventana exterior. Candidatos: `v5_ventilation_hrr_spike` (sin canonical, ventana abre t=120s) o `confinement_open_close` (sin canonical). Medir impacto en metrics calibradas antes de activar.
-3. **EXP-3**: `cfast_r0_window_360` (Grupo A FAIL) — solo para caracterizar, no para activar ciegamente.
-4. **Combinación M4+canonical**: requiere análisis explícito del comportamiento de doble-freno y si es el scenario deseado (p.ej. "fuego se apaga antes" puede ser correcto para ciertos escenarios de entrenamiento FP).
+**Experimento (2026-06-22)**: `v5_ventilation_hrr_spike` con M4 standalone (sin canonical). Caso tiene ventana exterior abriendo a t=120s, `fire_secondary_hrr_gain_kw: 2500`, y threshold_metric `hrr >= 1000 post-vent`.
+
+**Resultados clave**:
+
+| t | HRR OFF | HRR M4 | delta | o2_upper OFF | o2_upper M4 |
+|---|---|---|---|---|---|
+| t=115s | 486 kW | 486 kW | 0% | 10.22% | 10.22% |
+| t=120s | 537 kW | 414 kW | -23% | 8.30% | 8.56% |
+| t=145s | 819 kW | 122 kW | -85% | 0.08% | 6.56% |
+| t=300s | 3104 kW | 107 kW | -97% | 0.08% | 10.15% |
+| t=595s | 3232 kW | 162 kW | -95% | 0.08% | 9.44% |
+
+**Coherence OFF**: 75 findings (bug ILV activo desde t=145s, o2_upper=0.08% mientras HRR sube a 3232 kW).
+**Coherence M4**: PASS (0 findings).
+
+**Problema**: `threshold_metric hrr >= 1000 post-vent` fallaría con M4 (HRR máximo ~210 kW). El caso testea el spike como feature — que es la manifestación del bug ILV con `fire_secondary_hrr_gain_kw`.
+
+**Conclusión**: M4 es físicamente correcto pero incompatible con los threshold_metrics de casos diseñados pre-M4.
+
+### Situación actual — Activación de M4 en casos existentes bloqueada
+
+**Patrón identificado en EXP-1 y EXP-2:**
+- Casos con `fire_o2_canonical_enabled`: M4 crea doble-freno, cambio >>10% HRR
+- Casos sin canonical pero con ventana exterior: M4 funciona correctamente, pero threshold_metrics calibradas sobre HRR buggy fallan
+
+**Única ruta segura**: activar M4 en **nuevos casos** diseñados desde cero con M4 como comportamiento esperado. Los `fp_ilv_upper_throttle_on/off.json` son el modelo correcto.
+
+### Proxima sesion recomendada
+
+1. **Abortar EXP-3** (`cfast_r0_window_360`): mismo patrón que EXP-2 — pre-existing FAIL checks calibrados sobre comportamiento pre-M4. Riesgo alto, beneficio bajo.
+2. **Ruta alternativa de activación**: diseñar nuevos escenarios ILV FP con M4 como física correcta. Partir del template de `fp_ilv_upper_throttle_on` y explorar variantes de ventilación.
+3. **Pasada ILV coordinada** (si se decide activar globalmente): requiere auditar TODOS los threshold_metrics de casos con ventana exterior y actualizar los afectados por M4. Luego activar globalmente. Estimación: ~8-10 casos con threshold_metrics a revisar.
 
 ---
 
