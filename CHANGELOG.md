@@ -30,7 +30,7 @@ All notable changes to SimuFire should be recorded here.
 | t=1400s | 1211 kW | 0.08% | 0.894 | N/A | — | — |
 
 - **Flag scoped per-caso**: default `false`. El motor base no cambia. Baseline 345/350 PASS intacto (sin regresión).
-- **Recomendación**: activar en escenarios FP con `two_zone_solver_enabled=true` y exposición a ventanas abiertas. Migración global requiere plan explícito con análisis de todos los casos afectados.
+- **EXP-1 (`cfast_ilv_open_window_repro` + M4, 2026-06-22) — REVERTIDO**: experimento de activación controlada mostró que M4 y `fire_o2_canonical_enabled` son mecanismos **en competencia**, no independientes. Con canonical activo (`o2_lower ≈ 13%`), cuando M4 guarda activa (`o2_upper < 0.10`) sobreescribe con `min(room.o2, o2_upper) ≈ 9%` — más agresivo que canonical solo. Resultado: doble-freno, HRR oscila 100–750 kW (vs 972 kW estable con canonical solo), ciclos ILV_LATENT↔VCB. Coherence=0, guardrails 345/350 intactos, pero el criterio ±10% HRR no se cumple. **Conclusión**: M4 aplica en casos SIN canonical (donde `o2_lower` se mantiene fresco). No activar junto a `fire_o2_canonical_enabled`. Plan revisado: EXP-2 y EXP-3 deben usarse en casos sin canonical.
 
 ### ILV motor — Opción A + Opción C (en curso 2026-06-22)
 

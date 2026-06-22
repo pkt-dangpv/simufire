@@ -36,12 +36,31 @@ This note records the repository hygiene and validation state after the non-moto
 - `sim/validation/cases/fp_ilv_upper_throttle_on.json` — escenario con flag activo per-caso
 - `sim/validation/cases/fp_ilv_upper_throttle_off.json` — escenario control
 
+### EXP-1 — Hallazgo crítico: M4 y canonical son mecanismos en competencia
+
+**Experimento (2026-06-22)**: Activar `fire_o2_upper_throttle_enabled=true` en `cfast_ilv_open_window_repro` (que ya tiene `fire_o2_canonical_enabled=true`). Revertido después de análisis.
+
+**Mecanismo de interacción descubierto**:
+- Con canonical: `o2_lower ≈ 13–16%` (depleta por consumo real)
+- `_resolve_fire_o2_selection()` en `plume_lower` → `o2_ref = room.o2_lower ≈ 13%`
+- Cuando M4 activa (`o2_upper < 0.10`): `o2_ref = min(room.o2=14%, o2_upper=9%) = 9%`
+- Resultado: M4 sobreescribe canonical con referencia MÁS agresiva → doble-freno
+- Comportamiento observado: HRR oscila 100–750 kW (vs 972 kW estable con canonical solo), ciclos ILV_LATENT↔VCB, fuego termina en ILV_LATENT a t=1400s
+
+**Coherence**: 0 findings (correcto). **Guardrails**: 345/350 (sin regresión). **Pero criterio ±10% HRR no se cumple** — cambio >>10%.
+
+**Conclusión operativa**:
+- M4 NO es "defense-in-depth" junto a canonical — es un mecanismo **en competencia**
+- M4 aplica en casos **SIN canonical** (donde `o2_lower` se mantiene fresco ~19.7% por `plume_lower_mode=false`)
+- Canonical aplica en casos donde se quiere que la combustión deplecione `o2_lower` directamente
+- **No activar ambos flags simultáneamente sin plan explícito de interacción**
+
 ### Próxima sesión recomendada
 
-1. **No activar globalmente**: mantener `fire_o2_upper_throttle_enabled=false` en defaults. Activar per-caso solo en escenarios FP con two-zone abierto.
-2. **Activar en FP scenarios**: `fp_ilv_open_partial_window.json` y variantes con ventana abierta son candidatos directos.
-3. **Migración global** (si se decide): requiere análisis de todos los casos con `two_zone_solver_enabled=true`, verificar `o2_upper` tracking en sala con `ach>0`, y establecer threshold `fire_o2_upper_throttle_critical` por caso o calibración.
-4. **Combinación con Opción C** (`fire_o2_canonical_enabled`): ambas son complementarias (M4 throttlea HRR por upper, Opción C depleta lower). No activar ambas sin caracterización conjunta.
+1. **No activar globalmente**: mantener `fire_o2_upper_throttle_enabled=false` en defaults.
+2. **EXP-2 revisado**: probar M4 en caso SIN canonical con ventana exterior. Candidatos: `v5_ventilation_hrr_spike` (sin canonical, ventana abre t=120s) o `confinement_open_close` (sin canonical). Medir impacto en metrics calibradas antes de activar.
+3. **EXP-3**: `cfast_r0_window_360` (Grupo A FAIL) — solo para caracterizar, no para activar ciegamente.
+4. **Combinación M4+canonical**: requiere análisis explícito del comportamiento de doble-freno y si es el scenario deseado (p.ej. "fuego se apaga antes" puede ser correcto para ciertos escenarios de entrenamiento FP).
 
 ---
 
