@@ -6,6 +6,45 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update — 2026-06-22 (rev 10 — ILV Opción A + C, línea cerrada per-caso)
+
+### Estado operativo actual
+
+- Branch: `main`, limpio, **ahead 3** respecto a `origin/main` (push pendiente).
+- Últimos commits relevantes:
+  - `56faa6e test(ilv): enable canonical O2 routing in open-window repro`
+  - `9e23f9e fix(ilv): classify upper-O2 starvation as VCB in open rooms`
+  - `afc1208 test(ilv): add layer coherence detector`
+- Validación: 345/350 PASS (sin regresión), clasificador 11/11 PASS, coherence checker 0/1686 findings.
+
+### Cierre de línea ILV motor (Opciones A y C)
+
+**Causa raíz confirmada** (auditoria completa 2026-06-22):
+- `SimulationEngine.two_zone_solver_enabled = true` (default) → `CombustionSystem._resolve_fire_o2_selection` elige `o2_ref = room.o2_lower` (zona baja, fresca ~19.7%) como señal de throttle.
+- `OxygenExchangeSystem.plume_lower_mode = false` en salas con apertura exterior (guard `outside_open_factor <= 0.01` no se cumple) → el consumo de O₂ va al bulk `room.o2`, nunca a `room.o2_lower`.
+- Resultado: `o2_lower` nunca depleta → `o2_hrr_factor ≈ 0.894` → HRR sin throttle → `o2_upper` colapsa a ~0 sin que el motor reaccione. Causa exacta de `hrr≈3108 kW` / `o2_upper≈0.3%` del QA manual rev 9.
+
+**Opción A aplicada** (`9e23f9e`): `CombustionRegimeClassifier` regla 7.5 — si `o2_upper < 5%` y `hrr_kw >= 100` → `VENTILATION_CONTROLLED_BURNING`. Fix de display/régimen, sin cambio de física. 258 filas `upper-O2-critical-but-regime-fuel-controlled` → 0.
+
+**Opción C aplicada per-caso** (`56faa6e`): `fire_o2_canonical_enabled: true` en `sim/validation/cases/cfast_ilv_open_window_repro.json` únicamente. Resultado verificado headless:
+- `o2_lower`: 19.7% → 13.0% (depleta por combustión)
+- `o2_hrr_factor`: 0.894 → 0.278 (throttle sigue zona baja real)
+- `hrr_kw`: 1211 → 972 kW (self-throttled, sin extinción)
+- `o2_upper`: 0.08% → 7.9% (entrainment bidireccional estabiliza zona superior)
+- Coherence checker: 258 findings `HRR-throttle-high` → 0
+
+**No globalizado**: el flag default del engine permanece `false`. Sin candidatos FP reales seguros para activación inmediata (`layer_interface_single_room_window` tiene `ach=0` → crash de zona baja; `bv031` tiene `fire_o2_full_hrr_open` simultáneo → sin caracterizar).
+
+**El QA manual rev 9 fue interactivo**, no un JSON de validación. No existe escenario headless FP dedicado para ese caso (hrr≈3108, jugador con ventana abierta).
+
+### Próxima sesión recomendada
+
+1. **Mantener** `fire_o2_canonical_enabled=true` solo en `cfast_ilv_open_window_repro.json`. No aplicar a más casos sin análisis individual de `ach_infiltration` y flags de throttle existentes.
+2. **Si se quiere reproducir el QA manual headless**: diseñar `sim/validation/cases/fp_ilv_open_partial_window.json` basado en el repro actual pero con `fire_secondary_hrr_gain_kw` para alcanzar hrr~3100 kW. Es diseño de escenario, no fix de motor.
+3. **Para globalizar Opción C**: requiere plan explícito que incluya calibración de `plume_lower_o2_depletion_fraction`, análisis de casos con `ach=0`, y doorway pressure-driven exchange (Phase 3+). No iniciar sin plan.
+
+---
+
 ## Current Session Update — 2026-06-21 (rev 9 — FP ILV/humo QA, estado guardado para otra maquina)
 
 ### Estado operativo actual
