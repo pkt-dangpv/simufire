@@ -36,6 +36,13 @@ const VCB_O2_FACTOR_MAX: float = 0.40
 # VENTILATION_STRESSED
 const VS_O2_FACTOR_MAX: float = 0.75
 
+# UPPER_O2_ILV — two-zone decoupling guard
+# Fires when the upper combustion zone is critically O2-starved even though
+# the bulk/lower-zone signal lets the fire believe it is well-ventilated.
+# Read-only: does not touch HRR, O2, or any physics field.
+const O2_UPPER_ILV_CRITICAL: float = 0.05
+const HRR_ILV_MIN_KW: float = 100.0
+
 # ── API pública ──────────────────────────────────────────────
 
 static func classify(room: RoomModel) -> String:
@@ -75,6 +82,15 @@ static func classify(room: RoomModel) -> String:
 	# 7. VENTILATION_STRESSED — O₂ moderadamente reducido
 	if room.o2_hrr_factor < VS_O2_FACTOR_MAX and room.hrr_kw > 0.0:
 		return "VENTILATION_STRESSED"
+
+	# 7.5. ILV upper-O2 starvation — two-zone decoupling: upper layer is critically
+	# O2-starved but the fire throttle (o2_hrr_factor) remains high because it reads
+	# bulk or lower-zone O2. Reclassify as VENTILATION_CONTROLLED_BURNING so the HUD
+	# and any downstream logic reflect the actual combustion zone condition.
+	# This rule only reaches here when o2_hrr_factor >= VS_O2_FACTOR_MAX (≥0.75),
+	# meaning no earlier ventilation-limited rule matched.
+	if room.o2_upper < O2_UPPER_ILV_CRITICAL and room.hrr_kw >= HRR_ILV_MIN_KW:
+		return "VENTILATION_CONTROLLED_BURNING"
 
 	# 8. FUEL_CONTROLLED — default cuando hay fuego activo bien ventilado
 	if room.hrr_kw > 0.0 or room.fire_time_s > 0.0:

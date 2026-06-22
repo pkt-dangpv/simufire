@@ -34,7 +34,9 @@ func _run_all() -> void:
 	_test_ilv_latent()
 	_test_ventilation_controlled_burning()
 	_test_ventilation_stressed()
+	_test_ilv_decoupled_upper_o2_critical()
 	_test_fuel_controlled()
+	_test_fuel_controlled_with_fresh_upper_o2()
 
 
 func _make_room(with_fire: bool = true) -> RoomModel:
@@ -157,6 +159,32 @@ func _test_ventilation_stressed() -> void:
 	_assert_regime("estrés ventilatorio", room, "VENTILATION_STRESSED")
 
 
+func _test_ilv_decoupled_upper_o2_critical() -> void:
+	# Reproduce el bug ILV/layer-coupling: sala con ventana abierta, o2_upper agotado
+	# pero o2_hrr_factor alto (el fuego ve room.o2 bulk/lower, no o2_upper).
+	# max_hrr_kw=3500 (reproducción headless): hrr/max = 0.35 < FD_HRR_FRACTION(0.85)
+	# → FULLY_DEVELOPED no dispara; temp_upper < FD_TEMP_MIN_C(500) también lo evita.
+	# Antes del fix: FUEL_CONTROLLED. Después: VENTILATION_CONTROLLED_BURNING.
+	var room: RoomModel = _make_room(false)
+	var fire: FireModel = FireModelScript.new()
+	fire.max_hrr_kw = 3500.0
+	fire.fuel_energy_MJ = 9999.0
+	fire.remaining_fuel_MJ = 9999.0
+	room.fire = fire
+	room.fire_time_s = 165.0
+	room.backdraft_active = false
+	room.unburned_gas_vol_frac = 0.0
+	room.hrr_kw = 1211.0
+	room.temp_upper_c = 450.0   # < FD_TEMP_MIN_C(500) — no dispara FULLY_DEVELOPED
+	room.o2_hrr_factor = 0.894  # señal bulk alta — no dispara VCB/VS clásico
+	room.o2_upper = 0.0008      # zona superior virtualmente sin O2
+	room.o2_lower = 0.1975      # zona baja fresca (ventana abierta abajo)
+	room.ventilation_response_factor = 0.0
+	room.retained_unburned_MJ = 0.0
+	room.fire_latent_active = false
+	_assert_regime("ILV desacoplado: o2_upper critico, o2_hrr_factor alto", room, "VENTILATION_CONTROLLED_BURNING")
+
+
 func _test_fuel_controlled() -> void:
 	var room: RoomModel = _make_room(true)
 	room.backdraft_active = false
@@ -167,4 +195,20 @@ func _test_fuel_controlled() -> void:
 	room.ventilation_response_factor = 0.0
 	room.retained_unburned_MJ = 0.0
 	room.fire_smoldering = false
+	# o2_upper = 0.209 (default de reset_dynamic_state) — zona superior fresca
 	_assert_regime("controlado por combustible", room, "FUEL_CONTROLLED")
+
+
+func _test_fuel_controlled_with_fresh_upper_o2() -> void:
+	# Verifica que la nueva regla 7.5 no interfiere cuando o2_upper es normal.
+	var room: RoomModel = _make_room(true)
+	room.backdraft_active = false
+	room.unburned_gas_vol_frac = 0.0
+	room.hrr_kw = 800.0
+	room.temp_upper_c = 350.0
+	room.o2_hrr_factor = 0.88
+	room.o2_upper = 0.18         # zona superior con O2 — no dispara la nueva regla
+	room.ventilation_response_factor = 0.0
+	room.retained_unburned_MJ = 0.0
+	room.fire_latent_active = false
+	_assert_regime("fuel controlled con o2_upper normal (no dispara regla ILV)", room, "FUEL_CONTROLLED")
