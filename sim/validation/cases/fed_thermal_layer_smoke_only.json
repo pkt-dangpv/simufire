@@ -32,6 +32,7 @@
 	],
 	"engine_overrides": {
 		"time_scale": 5.0,
+		"two_zone_solver_enabled": true,
 		"two_zone_opening_flow_enabled": true,
 		"ach_infiltration": 0.0,
 		"pressure_vent_threshold_pa": 999999.0,
