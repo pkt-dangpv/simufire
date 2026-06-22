@@ -6,6 +6,34 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update — 2026-06-22 (rev 11 — FP ILV base scenario consolidado)
+
+### Estado operativo actual
+
+- Branch: `main`, limpio, **ahead 4** respecto a `origin/main` (push pendiente).
+- Último commit: `test(ilv): add FP open-window ILV QA case` (pendiente).
+- Validación: 345/350 PASS, clasificador 11/11 PASS, coherence checker 0/1686 findings.
+
+### Escenario FP/QA ILV base (`fp_ilv_open_partial_window.json`)
+
+Nuevo escenario headless dedicado para validación FP de ILV con ventana parcialmente abierta:
+- `sim/validation/cases/fp_ilv_open_partial_window.json`
+- Derivado del repro: `simple_house`, room 2, ventana exterior 0.5, puerta cerrada, 1400 s.
+- `fire_o2_canonical_enabled: true` per-caso (no global).
+- Resultado verificado: `o2_lower` 20.4% → 13.0%, `o2_hrr_factor` 0.986 → 0.278, HRR estable ~972 kW.
+- Régimen: FUEL_CONTROLLED → VENTILATION_STRESSED → VENTILATION_CONTROLLED_BURNING.
+- Coherence checker: 0/1686 findings.
+
+**Por qué HRR ~972 kW y no ~3100 kW (QA manual):** diseño deliberado. Con canonical activo y `fire_secondary_hrr_gain_kw=0`, el fuego se autorregula por `o2_lower` (~13%). El QA manual de rev 9 operó con un modo interactivo con posiblemente mayor secondary gain o ventilación dinámica. La variante stress queda pendiente para diseño futuro explícito.
+
+### Próxima sesión recomendada
+
+1. **No hacer nada** con motor/defaults/casos existentes hasta decisión explícita.
+2. **Variante stress** (`fp_ilv_open_partial_window_stress.json`): añadir `fire_secondary_hrr_gain_kw` para alcanzar HRR ~3100 kW y verificar si canonical sigue siendo estable. Solo si se decide reproducir el QA manual headless con fidelidad.
+3. **Globalizar Opción C**: requiere plan explícito con calibración de `plume_lower_o2_depletion_fraction`, análisis de casos con `ach=0`, y Phase 3+ doorway exchange. No iniciar sin plan.
+
+---
+
 ## Current Session Update — 2026-06-22 (rev 10 — ILV Opción A + C, línea cerrada per-caso)
 
 ### Estado operativo actual
