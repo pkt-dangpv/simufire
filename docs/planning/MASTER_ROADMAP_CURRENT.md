@@ -1,184 +1,281 @@
 # Hoja de ruta activa de SimuFire
 
-Fecha: 2026-06-21
+Fecha: 2026-06-23
 Estado: fuente de verdad operativa para continuar trabajo
-Alcance: validacion CFAST restante, FP ILV/humo, auditoria de humo motor e ILV futuro.
+Alcance: credibilidad del motor O2/HRR/ILV, validacion CFAST restante, escenarios FP/QA y limites de activacion M4.
 
 ## Regla principal
 
-No hacer cambios por hacer. Cada cambio debe estar ligado a una de estas tres lineas:
+Durante la fase actual, la prioridad es credibilidad del motor. No perseguir un baseline bonito si eso conserva fisica falsa.
 
-1. Reducir fallos reales de validacion o documentar por que son estructurales.
-2. Corregir discrepancias visibles de FP/HUD/humo sin esconder datos fisicos.
-3. Preparar el modelo ILV/infraventilado/ventilado sin romper el motor actual.
+Cada cambio debe estar ligado a una de estas lineas:
+
+1. Eliminar incoherencias fisicas reales, especialmente HRR alto con `o2_upper` critico.
+2. Mantener o mejorar validacion sin tocar tolerancias para esconder fallos.
+3. Crear escenarios nuevos que nazcan con la fisica correcta, en vez de recalibrar a ciegas casos legacy.
+4. Documentar claramente que queda como VALID_GAP, caso legacy/control o deuda Phase 3+.
 
 Antes de tocar motor:
 
 - ejecutar o revisar `python scripts\simulation\validation_guardrails.py --verbose`;
 - confirmar `git status --short --branch`;
 - aislar el caso que se va a tocar;
-- no modificar tolerancias ni reports para esconder fallos.
+- no modificar tolerancias ni reports para esconder fallos;
+- si se activa M4 en un caso existente, comparar OFF/ON y revisar semantica de sus `threshold_metrics`.
 
 ## Estado actual conocido
 
-- Rama esperada: `main`; al cierre de rev 9 queda sincronizada con `origin/main`.
-- Handoff vigente: `docs/HANDOFF_CURRENT_STATE.md`.
-- Estado de validacion documentado: `docs/validation/STATUS_VALIDATION.md`.
-- Baseline vigente: **345/350 required PASS, 5/350 required FAIL**.
-- Gaps non-gating sincronizados: **69**.
-- Los 5 fallos restantes estan clasificados como VALID_GAP estructural Phase 2/3+.
-- QA manual FP ILV/humo encontro incoherencias que ya no son solo visuales: HRR/regimen pueden seguir altos/ILC con `o2_upper` casi cero mientras `o2_lower` permanece fresco. Pendiente auditoria de motor/layer coupling.
+- Rama esperada: `main`, sincronizada con `origin/main` tras push de `e944952`.
+- Handoff vigente: `docs/HANDOFF_CURRENT_STATE.md` rev 15.
+- Estado de validacion CFAST legacy: **345/350 PASS**, 5 required FAIL pre-existentes, todos VALID_GAP estructurales.
+- Guardrails ampliados tras `v5_m4_ventilation_throttle`: **354 total**, 5 failures pre-existentes sin cambio.
+- Auditor ILV suite: **8/8 PASS** en CSVs permanentes si se excluye el control intencional `fp_ilv_upper_throttle_off`.
+- `fp_ilv_upper_throttle_off` sigue fallando por diseno: es control intencional para demostrar el bug HRR zombie.
+- Python tests completos reportados: 244 tests, 5 failures + 1 error pre-existentes, sin regresion en la linea M4.
 
-## Validacion CFAST: fallos vivos
+## Decision tecnica vigente
 
-| Grupo | Checks | Estado |
-|-------|--------|--------|
-| A — `cfast_r0_window_360` | `cfast_t240_o2_depleted`, `cfast_t350_o2`, `cfast_t360_o2` | VALID_GAP Phase 2 confirmado por Phase 5A sweep |
-| C — `cfast_corridor_chain` | `cfast_chain_r0_t180_temp_upper_c`, `cfast_chain_r0_t600_temp_upper_c` | VALID_GAP Phase 3+; requiere arquitectura de presion/intercambio two-zone |
+`fire_o2_upper_throttle_enabled` (M4) es el fix fisico gated para impedir HRR zombie cuando `o2_upper` esta critico.
 
-No queda candidato per-case de bajo riesgo. Los grupos B, D y E ya estan resueltos:
+Estado:
 
-- Grupo B `cfast_slow_growth_sealed`: PASS con Phase 4B wall reradiation durante fuego activo.
-- Grupo D `cfast_bedroom_closed_door`: PASS con Phase 2E-bedroom.
-- Grupo E: `cfast_hvac_t300_o2` PASS con Phase 2D; `cfast_two_room_door_open` RMSE PASS con Phase 2C-thermal; multifuel PASS tras equivalencia de topologia CFAST.
+- Default global: `false`.
+- Activacion global: **bloqueada** hasta migracion coordinada.
+- Activacion junto a `fire_o2_canonical_enabled`: **no recomendada** sin plan explicito, porque M4 y canonical compiten y generan doble-freno.
+- Activacion en casos legacy con threshold calibrado sobre HRR zombie: **no hacer silenciosamente**.
+- Uso recomendado hoy: escenarios nuevos ILV/FP/QA disenados desde cero, o migraciones puntuales donde el caso no mida HRR como feature.
 
-## Decision inmediata recomendada
+## Motor credibility: M4 y auditor ILV
 
-1. Confirmar baseline/producto: `python scripts\check_product.py` y, para motor, `python scripts\simulation\validation_guardrails.py --verbose`.
-2. Elegir una linea:
-   - producto/UX: QA manual de FP ILV/humo y ajuste de severidad visual;
-   - auditoria motor: diagnosticar coupling HRR/regimen/O2 por capas y si `smoke_kg`/`visibility_m` son fisicamente insuficientes en ILV;
-   - arquitectura cientifica: solo con plan explicito para two-zone canonico / Phase 3+;
-   - documentacion: mantener sincronizados handoff, roadmap, guardrails y gap inventory.
-3. No iniciar ILV, M2 global ni cambios de doorway/O2 en `sim/core` sin aprobacion explicita.
+### M4 completado
 
-## Hotfix temperatura FP — CERRADO
+Commit base: `ba13139 fix(ilv): add fire_o2_upper_throttle_enabled motor guard (Phase 5 M4)`.
 
-Commit: `497b663 feat(fp-hud): smooth HUD temperature at thermal layer crossing` — 2026-06-21.
+Causa raiz:
 
-Causa raiz confirmada (Causa 2): funcion escalon en `estimate_temperature_at_height_m` con `thermal_gradient_band_fraction=0.0`. Al cruzar `thermal_layer_m` por la altura del jugador, el HUD saltaba hasta cientos de grados en un paso.
+- `two_zone_solver_enabled=true` podia elegir `o2_ref = room.o2_lower` para HRR throttle.
+- En salas con ventana exterior, `OxygenExchangeSystem.plume_lower_mode=false`, por lo que el consumo de O2 no depletaba `o2_lower`.
+- Resultado: `o2_lower` fresco, `o2_hrr_factor` alto y HRR sostenido, mientras `o2_upper` caia a ~0.08%.
 
-Fix aplicado (HUD-only, sin tocar fisica):
+Fix:
 
-- `HUD_LAYER_BLEND_HALF_M = 0.25` en `FirstPersonController.gd`.
-- Helper `_hud_temp_at_height_m()`: lerp `temp_lower_c`/`temp_upper_c` en banda ±25 cm alrededor de `thermal_layer_m`.
-- Las tres posturas usan el helper; el filtro `fp_hud_temperature_smoothing_tau_s=0.5 s` sigue activo.
-- Test `validate_fp_technical_hud.gd` actualizado.
-- Verificado: FP technical HUD Godot 1/1 OK; producto/editor OK.
-
-Pendiente de Causa 1 (baja prioridad): algunas rutas termicas en `ThermalSystem.gd` usan `open_fraction` directo. No genera saltos detectables en el escenario de diagnostico (`tools/diag_fp_temp_jump.json`), pero podria importar en escenarios muy calientes con aperturas grandes.
-
-## FP ILV / HUD / humo — VISUAL CERRADO, MOTOR PENDIENTE
-
-Commits aplicados y publicados:
-
-- `a6d44c0 fix(fp-hud): clarify ILV critical display`
-- `b59fa33 fix(fp): strengthen ILV smoke visibility`
-- `929ac03 fix(fp): preserve sub-meter smoke visibility`
-- `2ee8b2c fix(fp): respect smoke layer when crouching`
-- `d69232c fix(fp): eye-height gas layer + overhead smoke block WIP`
-- `696f03f fix(fp): tighten overhead smoke visibility`
-
-Alcance aplicado:
-
-- HUD FP sin duplicar datos: el panel superior oculta HRR/visibilidad cuando el panel tecnico esta visible.
-- Regimen visible como `ILC`, `ILV` o `ILV CRIT`.
-- Gases etiquetados por capa (`u/l`) segun altura de ojos frente a `smoke_layer_m`, para evitar mezclar capa superior con exposicion del jugador.
-- Llama FP atenuada visualmente en `ILV_LATENT` o con O2 superior critico, sin cambiar HRR ni fisica.
-- Humo FP endurecido en ILV critico: visibilidad severa default `1.6 m`, overlay mas opaco y luces de techo/aperturas atenuadas casi a cero.
-- Humo superior sigue oscureciendo techo/luminarias aunque el jugador este bajo la capa; agacharse mejora visibilidad, pero ya no limpia automaticamente a `Vis FP 29m` si `visibility_m` fisica es sub-metrica.
-- El HUD fuerza `Reg ILV CRIT` si `hrr_kw > 0.5` y `o2_upper < 5%`, aunque el clasificador base aun indique `FUEL_CONTROLLED`.
+- `CombustionSystem` aplica guardia si `fire_o2_upper_throttle_enabled=true`, `o2_upper < fire_o2_upper_throttle_critical` y el modo de O2 es `plume_lower`/`plume_blend`.
+- En ese caso usa una referencia conservadora `min(room.o2, room.o2_upper)`.
+- Keys ubicadas correctamente en `_build_room_combustion_context()`, no en `_sync_auxiliary_services()`.
 
 Verificacion:
 
-- `git diff --check` OK.
-- `python scripts\check_product.py`: FP fire visuals, FP technical HUD y Combustion regime PASS; unico fallo sigue siendo guardrail conocido por los 5 VALID_GAP.
+- Unit test Godot `tools/validate_fire_o2_upper_throttle.tscn`: 7/7 PASS.
+- Control OFF: 258 findings, HRR zombie reproducido.
+- M4 ON: 0 findings / 1686 rows, fuego se apaga alrededor de t=165 s.
+- Guardrails legacy: sin regresion.
 
-Hallazgos pendientes de motor:
+### Auditor de coherencia de suite
 
-1. En logs FP reales aparecen estados como `hrr_kw≈3108`, `combustion_regime=FUEL_CONTROLLED`, `o2_upper≈0.3%`, `o2_lower≈20.3%` y `visibility_m≈0.08 m`.
-2. Esto sugiere que HRR/clasificador pueden depender de `o2`/lower/global mientras la capa superior esta en ILV critico.
-3. No confundir los fixes FP con calibracion de motor: no cambian `smoke_kg`, yields, soot, transporte, HRR ni consumo de O2.
+Commit: `d635c83 feat(ilv): add ILV layer-coherence suite auditor`.
 
-## Auditoria motor ILV/layer coupling — SIGUIENTE RECOMENDADO
-
-Objetivo: determinar si las incongruencias restantes provienen de combustion acoplada a O2 global/lower, generacion fisica insuficiente de humo, transporte/estratificacion o solo representacion.
-
-Herramienta disponible:
+Herramientas:
 
 ```powershell
-python scripts/simulation/check_ilv_layer_coherence.py <ruta-a-sim_log.csv> --room-id 0
+python scripts\simulation\check_ilv_layer_coherence.py <csv> --room-id <id>
+python scripts\simulation\audit_ilv_layer_coherence_suite.py --allow-findings
 ```
 
-Este check falla si encuentra HRR significativo con `o2_upper` critico mientras el regimen sigue fuel-controlled, o si `o2_hrr_factor` permanece alto con capa superior sin O2 y capa baja fresca. `tests/test_ilv_layer_coherence.py` cubre los patrones detectados en QA manual.
+Uso:
 
-Escenario recomendado:
+- Detecta HRR significativo con `o2_upper` critico y throttle/regimen incoherente.
+- Resume findings por CSV y localiza peor fila.
+- Debe usarse antes y despues de cualquier migracion M4.
 
-- Caso ILV reproducible (`cfast_ilv_audit` o variante FP jugable).
-- Registrar por segundo: `combustion_regime`, `hrr_kw`, `o2`, `o2_upper`, `o2_lower`, `o2_hrr_factor`, `co_upper_ppm`, `co_lower_ppm`, `co2_ppm`, `co2_upper_ppm`, `hcn_ppm`, `hcn_upper_ppm`, `smoke_kg`, `visibility_m`, `smoke_layer_m`, `thermal_layer_m`, `fire_latent_active`, `FED`.
+Estado post rev 15:
 
-Criterios de decision:
+| CSV permanente | Estado | Notas |
+|---|---|---|
+| `cfast_ilv_audit` | PASS | Multi-room, sin HRR zombie |
+| `fp_ilv_open_partial_window` | PASS | FP/QA fisico base |
+| `fp_ilv_upper_throttle_on` | PASS | M4 activo, referencia de diseno |
+| `ilv_open_window_repro` | PASS | Canonical activo |
+| `layer_interface_single_room_window` | PASS | Migrado a M4 |
+| `p2h_diag_off` | PASS | Sin exposicion exterior relevante |
+| `p2h_diag_on` | PASS | Sin exposicion exterior relevante |
+| `v5_m4_ventilation_throttle` | PASS | Nuevo caso M4 de supresion |
+| `fp_ilv_upper_throttle_off` | FAIL intencional | Control de bug, no migrar |
 
-- Si `smoke_kg` y `visibility_m` ya son severos pero FP se ve limpio: continuar visualizacion avanzada.
-- Si `smoke_kg` es bajo o `visibility_m` demasiado alto en ILV con CO/HCN altos: abrir calibracion motor de humo/soot.
-- Si humo se genera pero se evacua/mezcla de forma irreal: auditar transporte y estratificacion.
-- Si HRR/regimen se mantienen fuel-controlled con `o2_upper` critico: abrir diseno explicito de HRR limitado por capa superior o two-zone canonico; no tocar `CombustionSystem` sin caso headless y rollback.
+## Migraciones M4 completadas
 
-## Humo visual avanzado — FUTURO PRODUCTO
+### `layer_interface_single_room_window`
 
-Tras QA manual, posible siguiente bloque visual:
+Commits: `ee9216c`, `02ac871`.
 
-- niebla/volumen local en FP;
+Decision: activar `fire_o2_upper_throttle_enabled=true` permanentemente.
+
+Motivo:
+
+- El caso mide interfaz/capas, no HRR.
+- OFF tenia 11 findings: HRR ~1142 kW con `o2_upper` ~0.08%.
+- ON elimina HRR zombie sin romper metricas de capa.
+
+Resultado:
+
+- Coherence: 0 findings / 222 rows.
+- Report: `all_pass=true`.
+- Guardrails: sin regresion.
+
+### `v5_m4_ventilation_throttle`
+
+Commits: `21ba9ee`, `e944952`.
+
+Decision: mantener `v5_ventilation_hrr_spike` como legacy/control y crear un caso nuevo M4.
+
+Motivo:
+
+- `v5_ventilation_hrr_spike` mide un spike HRR que resulta ser HRR zombie.
+- Activar M4 en el caso original invertiria el sentido de sus checks.
+- La ruta limpia es conservar trazabilidad legacy y crear una referencia corregida.
+
+Nuevo caso:
+
+- `sim/validation/cases/v5_m4_ventilation_throttle.json`
+- `fire_o2_upper_throttle_enabled=true`
+- Sin canonical.
+- Baseline propio en `sim/validation/baselines/v5_m4_ventilation_throttle.json`.
+
+Checks M4:
+
+| Metrica | Regla | Estado |
+|---|---|---|
+| `room_0_peak_hrr_kw` | max 600 kW | PASS |
+| `room_0_min_o2_upper` | min 0.05 | PASS |
+| `room_0_min_l150_m` | min 1.90 m | PASS |
+| `room_0_peak_co_upper_ppm` | min 1000 ppm | PASS |
+
+Resultado:
+
+- Baseline del caso: `all_pass=true`.
+- Coherence: 0 findings / 726 rows.
+- Guardrails ampliados: 354 total, 5 failures pre-existentes sin cambio.
+
+## Casos legacy/control que NO migrar ahora
+
+### `fp_ilv_upper_throttle_off`
+
+Rol: control intencional para demostrar el bug HRR zombie.
+
+No migrar. Debe seguir fallando en el auditor si se incluye como control. Usar `fp_ilv_upper_throttle_on` como pareja corregida.
+
+### `v5_ventilation_hrr_spike`
+
+Rol vigente: legacy/control de spike pre-M4.
+
+No activar M4 directamente. El caso queda como referencia historica del comportamiento pre-M4. La fisica corregida vive en `v5_m4_ventilation_throttle`.
+
+### Casos con `fire_o2_canonical_enabled=true`
+
+No mezclar M4 con canonical sin plan. EXP-1 demostro doble-freno:
+
+- canonical solo: HRR estable ~972 kW;
+- canonical + M4: HRR oscila 100-750 kW y aparecen ciclos `ILV_LATENT`/`VENTILATION_CONTROLLED_BURNING`.
+
+## Validacion CFAST: fallos vivos
+
+Los fallos CFAST legacy restantes siguen fuera de la linea M4.
+
+| Grupo | Checks | Estado |
+|---|---|---|
+| A - `cfast_r0_window_360` | 3 checks O2 | VALID_GAP Phase 2 confirmado por sweep |
+| C - `cfast_corridor_chain` | 2 checks temperatura | VALID_GAP Phase 3+; requiere presion/intercambio two-zone |
+
+No queda candidato per-case de bajo riesgo para cerrar esos 5 checks. No usar M4 para intentar cerrar Grupo A sin plan separado: mezcla una migracion ILV con gaps estructurales de validacion.
+
+## Proxima linea recomendada
+
+### Opcion A - Escenarios M4 nuevos (bajo riesgo)
+
+Crear 1-2 escenarios ILV/FP/QA con M4 desde el principio:
+
+- ventana parcial 25% / 75%;
+- ACH moderado;
+- sin canonical;
+- baselines que midan supresion de HRR zombie, recuperacion de `o2_upper`, y ausencia de findings.
+
+Objetivo: ampliar cobertura de fisica corregida sin tocar suite legacy.
+
+### Opcion B - Migracion coordinada de casos con ventana (alto coste)
+
+Inventariar todos los casos con:
+
+- ventana exterior abierta o evento de apertura;
+- `threshold_metrics`;
+- HRR alto post-vent;
+- `two_zone_solver_enabled=true` o seleccion O2 por capa.
+
+Para cada caso:
+
+1. correr OFF/ON con M4;
+2. revisar si sus checks miden fisica valida o comportamiento bugged;
+3. si miden bug, crear caso M4 paralelo o cambiar semantica con documentacion explicita;
+4. solo despues considerar activacion global/perfil.
+
+### Opcion C - Arquitectura Phase 3+ (alto coste, necesario a largo plazo)
+
+Planificar two-zone canonico:
+
+- `room.o2` como derivado de `o2_upper/o2_lower`, no fuente independiente;
+- combustion vinculada a capa fisica correcta;
+- intercambio por presion/doorway ODE;
+- recalibracion completa de casos CFAST afectados.
+
+Este es el camino para cerrar los VALID_GAP estructurales, pero no debe mezclarse con pequenas migraciones M4.
+
+## Trabajo FP/visual
+
+El bloque visual FP ILV/HUD/humo esta cerrado como mitigacion de presentacion:
+
+- HUD por capa;
+- `Reg ILV CRIT`;
+- humo FP severo con visibilidad sub-metrica;
+- luces/techo atenuados.
+
+No confundir esos cambios con fisica. Las siguientes mejoras visuales quedan por debajo de motor credibility:
+
+- volumen/niebla local;
 - perdida de contraste por distancia;
 - gradiente por altura;
-- atenuacion de geometria lejana, techo y luminarias por profundidad;
-- pruebas headless o capturas comparativas si es viable.
+- capturas comparativas FP.
 
-## ILV / infraventilado / ventilado
+## Criterios de no-regresion
 
-Documento base: `docs/architecture/ILV_COMBUSTION_REGIME_PLAN.md`.
+Antes de commit de motor o caso de validacion:
 
-Principio de implementacion:
+```powershell
+python scripts\simulation\validation_guardrails.py --verbose
+python scripts\simulation\audit_ilv_layer_coherence_suite.py --allow-findings
+python scripts\check_product.py
+git diff --check
+```
 
-- No crear un motor paralelo.
-- No sustituir `CombustionSystem.step_room_fire` de golpe.
-- Primero clasificar y registrar; despues cambiar comportamiento.
-- Reutilizar campos existentes: `pyrolysis_kw`, `hrr_kw`, `hrr_target_kw`, `smolder_hrr_target_kw`, `retained_unburned_MJ`, `unburned_gas_vol_frac`, `o2_hrr_factor`, `ventilation_response_factor`.
+Para cambios solo de documentacion:
 
-Estados objetivo:
+```powershell
+python scripts\check_docs_links.py
+git diff --check
+```
 
-- `FUEL_CONTROLLED`
-- `VENTILATION_STRESSED`
-- `ILV_LATENT`
-- `VENTILATION_CONTROLLED_BURNING`
-- `VENTILATION_INDUCED_GROWTH`
-- `FULLY_DEVELOPED`
-- `BACKDRAFT_RISK`
-- `BACKDRAFT_EVENT`
-- `EXTINGUISHED`
+Para migraciones M4 puntuales:
 
-ILV queda preparado, pero no debe adelantarse a la validacion abierta salvo que el usuario lo priorice expresamente.
+```powershell
+python scripts\simulation\check_ilv_layer_coherence.py sim\validation\reports\<case>.csv --room-id <id>
+python scripts\simulation\validate_reference_cases.py
+python scripts\simulation\validation_guardrails.py
+git diff --check
+```
 
 ## Puntos de entrada vivos
 
 - `docs/HANDOFF_CURRENT_STATE.md`: estado operativo de sincronizacion.
-- `docs/validation/STATUS_VALIDATION.md`: fuente de verdad de validacion.
+- `docs/validation/STATUS_VALIDATION.md`: fuente de verdad de validacion legacy.
 - `docs/validation/GAPS_INVENTORY.md`: conteo de gaps non-gating.
 - `docs/validation/GUARDRAILS_STATUS.md`: estado de guardrails.
 - `docs/architecture/PHASE_5A_O2UPPER_SWEEP_RESULTS.md`: descarte per-case Grupo A.
-- `docs/architecture/PHASE_3_DOORWAY_PRESSURE_ODE_PLAN.md`: plan pendiente de aprobacion para corridor_chain.
+- `docs/architecture/PHASE_3_DOORWAY_PRESSURE_ODE_PLAN.md`: plan pendiente para corridor_chain.
 - `docs/architecture/ILV_COMBUSTION_REGIME_PLAN.md`: diseno ILV.
-
-## Criterios de no-regresion
-
-Antes de commit de motor:
-
-- `python scripts\simulation\validation_guardrails.py --verbose`
-- `python scripts\check_product.py`
-- `python scripts\check_docs_links.py`
-- `git diff --check`
-
-Para cambios solo de documentacion:
-
-- `python scripts\check_docs_links.py`
-- `git diff --check`
