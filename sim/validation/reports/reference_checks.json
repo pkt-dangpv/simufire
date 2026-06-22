@@ -1,6 +1,6 @@
 {
   "all_required_pass": false,
-  "required_count": 350,
+  "required_count": 354,
   "failed_required_count": 5,
   "known_gap_count": 69,
   "checks": [
@@ -3875,6 +3875,50 @@
       "required": true,
       "pass": true,
       "note": "Regression baseline: v5_ventilation_hrr_spike"
+    },
+    {
+      "name": "v5_m4_ventilation_throttle_room_0_min_l150_m",
+      "actual": 1.9798017308314,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 1.9,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "Regression baseline: v5_m4_ventilation_throttle"
+    },
+    {
+      "name": "v5_m4_ventilation_throttle_room_0_min_o2_upper",
+      "actual": 0.0636556367792077,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 0.05,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "Regression baseline: v5_m4_ventilation_throttle"
+    },
+    {
+      "name": "v5_m4_ventilation_throttle_room_0_peak_co_upper_ppm",
+      "actual": 12386.0372292743,
+      "expected": null,
+      "tolerance": null,
+      "minimum": 1000.0,
+      "maximum": null,
+      "required": true,
+      "pass": true,
+      "note": "Regression baseline: v5_m4_ventilation_throttle"
+    },
+    {
+      "name": "v5_m4_ventilation_throttle_room_0_peak_hrr_kw",
+      "actual": 492.405525717576,
+      "expected": null,
+      "tolerance": null,
+      "minimum": null,
+      "maximum": 600.0,
+      "required": true,
+      "pass": true,
+      "note": "Regression baseline: v5_m4_ventilation_throttle"
     },
     {
       "name": "tmp_r2_window_open_start_room_0_final_hrr_kw",

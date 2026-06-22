@@ -13,6 +13,14 @@ All notable changes to SimuFire should be recorded here.
 - **ILV layer coherence detector** — added `scripts/simulation/check_ilv_layer_coherence.py` plus unit tests. The check fails on exported CSV rows with significant HRR and critical `o2_upper` while the base regime remains fuel-controlled or `o2_hrr_factor` remains high from lower/global oxygen.
 - **Open follow-up:** this is presentation-layer mitigation only. New manual QA logs show a motor/layer-coupling issue: HRR and base regime can remain high/`FUEL_CONTROLLED` with `o2_upper` near zero while `o2_lower` remains fresh. The next milestone is an ILV motor audit covering HRR/regime/O₂/gases/smoke by layer.
 
+### ILV motor — Ruta B: v5_m4_ventilation_throttle reference case (2026-06-23)
+
+- **Caso de referencia M4 `v5_m4_ventilation_throttle`** — nuevo caso headless que verifica que `fire_o2_upper_throttle_enabled: true` SUPRIME el spike HRR zombie en ventilación exterior. Semántica invertida respecto a `v5_ventilation_hrr_spike` (legacy control): el nuevo caso testea supresión (HRR ≤ 600 kW), no ocurrencia del spike.
+- **`v5_ventilation_hrr_spike` sin cambios** — conservado como caso legacy/control que expone el bug ILV (spike 3245 kW, `time_hrr_above_1000_post_vent ≈ 164 s`). No se modifica ni se activa M4 en él.
+- **Métricas verificadas** (física M4 desde `tmp_v5_m4.csv`): `peak_hrr ≈ 492 kW` (≤ 600 ✓), `min_o2_upper ≈ 6.37%` (≥ 5% ✓), `min_l150 ≈ 1.98 m` (≥ 1.90 ✓), `peak_co_upper ≈ 12386 ppm` (≥ 1000 ✓).
+- **Archivos nuevos**: `sim/validation/cases/v5_m4_ventilation_throttle.json`, `sim/validation/baselines/v5_m4_ventilation_throttle.json`, `sim/validation/reports/v5_m4_ventilation_throttle.{json,csv}`.
+- **Suite ampliada**: `validate_reference_cases.py` incluye el nuevo caso en `build_single_room_fire_checks()`. Guardrails suben de 350 a 354 checks (4 nuevos, todos PASS).
+
 ### ILV motor — Phase C: Motor credibility audit + primera migración M4 (2026-06-22)
 
 - **Suite auditor `audit_ilv_layer_coherence_suite.py`** (`d635c83`) — wrapper batch sobre `check_ilv_layer_coherence.py`. Escanea todos los CSVs en `sim/validation/reports/`, reporta findings por archivo (total rows, finding counts, peor fila), sale con código 1 si hay findings salvo `--allow-findings`. 16 tests Python PASS. Resultados sobre 10 CSVs: 7 PASS, 3 FAIL (364 findings totales).

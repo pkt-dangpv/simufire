@@ -525,6 +525,7 @@ def build_single_room_fire_checks() -> list[Check]:
         "kitchen_grease_pool_fire",
         "v2_sealed_room_o2_depletion",
         "v5_ventilation_hrr_spike",
+        "v5_m4_ventilation_throttle",
         "tmp_r2_window_open_start",
     ]:
         checks.extend(_build_checks_from_baseline_json(case))

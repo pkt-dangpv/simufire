@@ -1,0 +1,36 @@
+{
+	"template": "simple_house",
+	"duration_s": 600.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 0,
+	"enable_logging": true,
+	"watch_room_ids": [0],
+	"smoke_trigger_room_id": 0,
+	"l150_room_id": 0,
+	"opening_events": [
+		{
+			"time_s": 120.0,
+			"a": 0,
+			"b": -1,
+			"type": "window",
+			"action": "open"
+		}
+	],
+	"engine_overrides": {
+		"time_scale": 5.0,
+		"log_interval_s": 5.0,
+		"log_file_path": "res://sim/validation/reports/v5_m4_ventilation_throttle.log",
+		"csv_log_file_path": "res://sim/validation/reports/v5_m4_ventilation_throttle.csv",
+		"fire_spread_enabled": false,
+		"glass_auto_break_enabled": false,
+		"fire_alpha_kw_s2": 0.04,
+		"fire_o2_min_for_flame": 0.10,
+		"fire_secondary_hrr_gain_kw": 2500.0,
+		"fire_latent_o2_viable_margin": 0.008,
+		"fire_extinction_delay_s": 240.0,
+		"fire_latent_extinction_delay_s": 300.0,
+		"fire_backdraft_pool_threshold_MJ": 1.0,
+		"fire_pool_release_max_fraction": 0.18,
+		"fire_o2_upper_throttle_enabled": true
+	}
+}

@@ -6,6 +6,51 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update — 2026-06-23 (rev 15 — Ruta B: v5_m4_ventilation_throttle)
+
+### Estado operativo actual
+
+- Branch: `main`, limpio, **ahead 7** respecto a `origin/main` (push pendiente).
+- Commit nuevo: `test(ilv): add M4 ventilation throttle reference case` (pendiente de confirmar hash).
+- Validación: **354/354 PASS** (guardrails ampliados, 4 nuevos checks del caso M4 — todos PASS).
+- Python tests: 244 tests, 5 failures pre-existentes (sin regresión).
+
+### Ruta B: caso de referencia M4 para v5
+
+**Decisión**: mantener `v5_ventilation_hrr_spike` como caso legacy/control (sin cambios). Crear nuevo caso `v5_m4_ventilation_throttle` con `fire_o2_upper_throttle_enabled: true` que verifica que M4 suprime el HRR zombie.
+
+**Semántica**:
+- `v5_ventilation_hrr_spike`: testea el spike como comportamiento esperado (bug ILV expuesto). `peak_hrr = 3245 kW`, `time_hrr_above_1000_post_vent ≈ 164 s`.
+- `v5_m4_ventilation_throttle`: testea supresión M4. `peak_hrr ≤ 600 kW`, fire extinguido ~178 s post-ignición.
+
+**Métricas baseline (M4)**:
+
+| Métrica | Valor medido | Regla | Estado |
+|---|---:|---|---|
+| `room_0_peak_hrr_kw` | ~492 kW | `max: 600` | PASS |
+| `room_0_min_o2_upper` | ~6.37% | `min: 0.05` | PASS |
+| `room_0_min_l150_m` | ~1.98 m | `min: 1.90` | PASS |
+| `room_0_peak_co_upper_ppm` | ~12386 ppm | `min: 1000` | PASS |
+
+**Archivos añadidos**:
+- `sim/validation/cases/v5_m4_ventilation_throttle.json` — misma física que v5, `fire_o2_upper_throttle_enabled: true`
+- `sim/validation/baselines/v5_m4_ventilation_throttle.json` — 4 reglas de supresión
+- `sim/validation/reports/v5_m4_ventilation_throttle.json` — reporte generado headless
+- `sim/validation/reports/v5_m4_ventilation_throttle.csv` — CSV copiado desde tmp_v5_m4.csv (misma física)
+- `scripts/simulation/validate_reference_cases.py` — caso añadido a `build_single_room_fire_checks()`
+
+**Auditor ILV post-Ruta B**: coherence checker sobre `v5_m4_ventilation_throttle.csv` → 0 findings. `audit_ilv_layer_coherence_suite.py`: 8/8 PASS (excluye `fp_ilv_upper_throttle_off` como control intencional).
+
+### Próxima sesión
+
+El único HRR zombie sin resolver en CSVs permanentes es `fp_ilv_upper_throttle_off` (control intencional, 258 findings). No requiere acción.
+
+Opciones abiertas:
+- **Opción A** (baja prioridad): diseñar más escenarios M4 con `fire_o2_upper_throttle_enabled: true` desde el principio.
+- **Opción B coordinada** (alta complejidad): migración de los ~8-10 casos con ventana exterior y `threshold_metrics` calibradas pre-M4.
+
+---
+
 ## Current Session Update — 2026-06-22 (rev 14 — Phase C: credibility audit + primera migración M4)
 
 ### Estado operativo actual
