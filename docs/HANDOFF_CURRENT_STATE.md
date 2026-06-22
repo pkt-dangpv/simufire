@@ -11,7 +11,7 @@ This note records the repository hygiene and validation state after the non-moto
 ### Estado operativo actual
 
 - Branch: `main`, limpio, **ahead 7** respecto a `origin/main` (push pendiente).
-- Commit nuevo: `test(ilv): add M4 ventilation throttle reference case` (pendiente de confirmar hash).
+- Commit nuevo: `21ba9ee` — `test(ilv): add M4 ventilation throttle reference case`.
 - Validación: **354/354 PASS** (guardrails ampliados, 4 nuevos checks del caso M4 — todos PASS).
 - Python tests: 244 tests, 5 failures pre-existentes (sin regresión).
 
