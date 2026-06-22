@@ -6,12 +6,15 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
-## Current Session Update — 2026-06-22 (rev 12 — Phase 5 M4: fire_o2_upper_throttle_enabled)
+## Current Session Update — 2026-06-22 (rev 13 — Cierre campaña M4)
 
 ### Estado operativo actual
 
-- Branch: `main`, limpio, **ahead N** respecto a `origin/main` (push pendiente).
-- Último commit: `fix(ilv): add fire_o2_upper_throttle_enabled motor guard (Phase 5 M4)` (pendiente).
+- Branch: `main`, limpio, **ahead 4** respecto a `origin/main` (push pendiente).
+- Commits esta sesión:
+  - `ba13139` — fix(ilv): add fire_o2_upper_throttle_enabled motor guard (Phase 5 M4)
+  - `5c98429` — docs(ilv): document EXP-1 finding — M4 and canonical are competing mechanisms
+  - `10e93ed` — docs(ilv): document EXP-2 finding — existing threshold_metrics built on ILV bug
 - Validación: 345/350 PASS (sin regresión), unit test 7/7 PASS, coherence checker 0/1686 findings (throttle ON).
 
 ### Phase 5 M4 — ILV upper-O₂ throttle guard
@@ -84,11 +87,27 @@ This note records the repository hygiene and validation state after the non-moto
 
 **Única ruta segura**: activar M4 en **nuevos casos** diseñados desde cero con M4 como comportamiento esperado. Los `fp_ilv_upper_throttle_on/off.json` son el modelo correcto.
 
-### Proxima sesion recomendada
+### Cierre de campaña M4 — CERRADA
 
-1. **Abortar EXP-3** (`cfast_r0_window_360`): mismo patrón que EXP-2 — pre-existing FAIL checks calibrados sobre comportamiento pre-M4. Riesgo alto, beneficio bajo.
-2. **Ruta alternativa de activación**: diseñar nuevos escenarios ILV FP con M4 como física correcta. Partir del template de `fp_ilv_upper_throttle_on` y explorar variantes de ventilación.
-3. **Pasada ILV coordinada** (si se decide activar globalmente): requiere auditar TODOS los threshold_metrics de casos con ventana exterior y actualizar los afectados por M4. Luego activar globalmente. Estimación: ~8-10 casos con threshold_metrics a revisar.
+**EXP-3 (`cfast_r0_window_360`) — ABORTADO**: mismo patrón que EXP-2 sin investigación necesaria. Los checks de Grupo A ya fallan y son pre-existentes; añadir M4 solo agregaría más variables sin beneficio claro.
+
+**Estado de activación M4 — BLOQUEADA en casos existentes:**
+
+| Escenario | Resultado | Motivo |
+|---|---|---|
+| Caso con `fire_o2_canonical_enabled` (EXP-1) | NO ACTIVAR | Doble-freno: M4 sobreescribe canonical, HRR oscila 100–750 vs 972 kW |
+| Caso sin canonical + ventana exterior (EXP-2) | NO ACTIVAR | Threshold_metrics calibradas sobre HRR buggy fallarían |
+| Caso nuevo diseñado para M4 (`fp_ilv_upper_throttle_on`) | ACTIVO | Física correcta, 0 coherence findings, referencia de diseño |
+
+**M4 queda como fix gated**, disponible tras flag `fire_o2_upper_throttle_enabled=false` (default). No rompe nada existente. Listo para usar en nuevos escenarios.
+
+### Proxima sesion — si se quiere progresar M4
+
+**Opción A — Nuevos casos ILV FP** (coste bajo): diseñar 1-2 escenarios QA basados en `fp_ilv_upper_throttle_on` con variantes de ventilación (ventana 25%, 75%, 100%). Sin impacto en suite existente.
+
+**Opción B — Pasada coordinada de validación** (coste alto): auditar todos los casos con ventana exterior y `threshold_metrics`, actualizar los afectados (~8-10 casos), luego activar M4 globalmente o per-familia. Requiere plan explícito antes de iniciar.
+
+**Opción C — Dejar en standby** (sin coste): M4 queda disponible como fix gated. Se activa solo en escenarios FP/QA futuros. No hacer nada hasta que se necesite un escenario ILV concreto.
 
 ---
 
