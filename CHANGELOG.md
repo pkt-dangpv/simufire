@@ -13,6 +13,11 @@ All notable changes to SimuFire should be recorded here.
 - **ILV layer coherence detector** — added `scripts/simulation/check_ilv_layer_coherence.py` plus unit tests. The check fails on exported CSV rows with significant HRR and critical `o2_upper` while the base regime remains fuel-controlled or `o2_hrr_factor` remains high from lower/global oxygen.
 - **Open follow-up:** this is presentation-layer mitigation only. New manual QA logs show a motor/layer-coupling issue: HRR and base regime can remain high/`FUEL_CONTROLLED` with `o2_upper` near zero while `o2_lower` remains fresh. The next milestone is an ILV motor audit covering HRR/regime/O₂/gases/smoke by layer.
 
+### ILV motor — Opción A + Opción C (en curso 2026-06-22)
+
+- **Opción A — classifier fix** (`9e23f9e`) — `CombustionRegimeClassifier` rule 7.5: when `o2_upper < 5%` AND `hrr_kw >= 100`, reclassify as `VENTILATION_CONTROLLED_BURNING` regardless of `o2_hrr_factor`. Display/regime now reflects upper-zone starvation in open-room ILV. No HRR/O₂/physics change. Test 11/11 PASS.
+- **Opción C — canonical O₂ routing per-case** (`pending`) — `fire_o2_canonical_enabled: true` in `cfast_ilv_open_window_repro.json` only. Routes combustion O₂ consumption to `o2_lower` (the zone CombustionSystem reads for throttle), making HRR physically self-consistent with the two-zone plume path. Result: `o2_lower` depletes 19.7% → 13%, `o2_hrr_factor` drops 0.894 → 0.278, HRR throttles 1211 → 972 kW, `o2_upper` stabilises at ~7.9% via bidirectional entrainment. ILV coherence checker: 0 findings (was 258). Baseline 345/350 unaffected — flag scoped to repro case only.
+
 ### Hito B — ILV latent observability milestone (cerrado 2026-06-21)
 
 **Alcance cerrado:** observabilidad de régimen ILV en escenario de auditoría. El campo `fire_latent_active=true` y el régimen `ILV_LATENT` son visibles en `cfast_ilv_audit.csv`. No hay pool latent smoldering real con HRR positivo durante `ILV_LATENT` — eso es Fase 3. Validación 345/350 PASS intacta.

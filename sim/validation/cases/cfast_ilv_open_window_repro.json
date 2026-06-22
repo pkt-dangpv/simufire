@@ -19,6 +19,7 @@
 	],
 	"opening_events": [],
 	"engine_overrides": {
+		"fire_o2_canonical_enabled": true,
 		"time_scale": 5.0,
 		"log_interval_s": 5.0,
 		"log_file_path": "res://sim/validation/reports/ilv_open_window_repro.log",
