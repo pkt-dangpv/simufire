@@ -6,6 +6,45 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update — 2026-06-22 (rev 12 — Phase 5 M4: fire_o2_upper_throttle_enabled)
+
+### Estado operativo actual
+
+- Branch: `main`, limpio, **ahead N** respecto a `origin/main` (push pendiente).
+- Último commit: `fix(ilv): add fire_o2_upper_throttle_enabled motor guard (Phase 5 M4)` (pendiente).
+- Validación: 345/350 PASS (sin regresión), unit test 7/7 PASS, coherence checker 0/1686 findings (throttle ON).
+
+### Phase 5 M4 — ILV upper-O₂ throttle guard
+
+**Causa raíz auditada**: `two_zone_solver_enabled=true` → `CombustionSystem` elige `o2_ref = room.o2_lower` para HRR throttle. En salas abiertas (`outside_open_factor > 0.01`), `OxygenExchangeSystem.plume_lower_mode=false` → consumo O₂ va al bulk `room.o2`, nunca a `room.o2_lower`. Resultado: `o2_lower` permanece ~19.7%, `o2_hrr_factor ≈ 0.894`, HRR ~1211 kW, mientras `o2_upper → 0.08%` sin efecto en combustión.
+
+**Solución implementada**: flag `fire_o2_upper_throttle_enabled` (motor engine-side). En `CombustionSystem.step_room_fire()`, después de resolver `o2_selection`, si `fire_o2_upper_throttle_enabled=true` y `o2_upper < fire_o2_upper_throttle_critical(0.10)` y `sel_mode == "plume_lower" OR "plume_blend"`: `o2_ref = minf(room.o2, room.o2_upper)`.
+
+**Corrección de placement**: los keys `fire_o2_upper_throttle_enabled` / `fire_o2_upper_throttle_critical` debían estar en `_build_room_combustion_context()` (dict leído por CombustionSystem), no en `_sync_auxiliary_services()` (dict de OxygenExchangeSystem, sin relación).
+
+**Resultados verificados**:
+- Throttle OFF: HRR 1211 kW indefinido, 258 coherence FAIL (fuego zombie)
+- Throttle ON: HRR 549→299→184→46→25 kW (fuego se apaga t≈165 s), 0 coherence FAIL (1686 rows)
+- Unit test: 7/7 PASS (bug secundario: `fire_max_active_s` ausente del contexto de test → fixed)
+- Guardrails: 345/350 PASS intactos (5 failures pre-existentes, sin regresión)
+
+**Archivos modificados**:
+- `sim/fire/CombustionSystem.gd` — throttle guard (líneas ~124-136 post o2_selection)
+- `sim/core/SimulationEngine.gd` — keys movidos a `_build_room_combustion_context()` (eliminados de `_sync_auxiliary_services()`)
+- `tools/validate_fire_o2_upper_throttle.gd` — context fix `fire_max_active_s: 1800.0`
+- `tools/validate_fire_o2_upper_throttle.tscn` — escena de test headless
+- `sim/validation/cases/fp_ilv_upper_throttle_on.json` — escenario con flag activo per-caso
+- `sim/validation/cases/fp_ilv_upper_throttle_off.json` — escenario control
+
+### Próxima sesión recomendada
+
+1. **No activar globalmente**: mantener `fire_o2_upper_throttle_enabled=false` en defaults. Activar per-caso solo en escenarios FP con two-zone abierto.
+2. **Activar en FP scenarios**: `fp_ilv_open_partial_window.json` y variantes con ventana abierta son candidatos directos.
+3. **Migración global** (si se decide): requiere análisis de todos los casos con `two_zone_solver_enabled=true`, verificar `o2_upper` tracking en sala con `ach>0`, y establecer threshold `fire_o2_upper_throttle_critical` por caso o calibración.
+4. **Combinación con Opción C** (`fire_o2_canonical_enabled`): ambas son complementarias (M4 throttlea HRR por upper, Opción C depleta lower). No activar ambas sin caracterización conjunta.
+
+---
+
 ## Current Session Update — 2026-06-22 (rev 11 — FP ILV base scenario consolidado)
 
 ### Estado operativo actual

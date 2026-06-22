@@ -121,6 +121,19 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	room.fire_o2_mode_used = String(o2_selection.get("mode", "legacy"))
 	room.fire_o2_ref = o2_ref
 	room.fire_o2_min_ref = o2_min_ref
+	# Phase 5 M4: ILV upper-O2 throttle guard.
+	# Cuando fire_o2_upper_throttle_enabled=true y el path two-zone eligió o2_lower como
+	# referencia de throttle (plume_lower/blend), pero o2_upper ha caído por debajo del
+	# umbral crítico: usar min(room.o2, room.o2_upper) en su lugar. Impide que el fuego
+	# mantenga HRR alto ignorando el agotamiento de O₂ en la zona superior.
+	# No-op exacto con flag false (default). No afecta modos upper/lower/interface explícitos.
+	if bool(context.get("fire_o2_upper_throttle_enabled", false)):
+		var _sel_mode: String = String(o2_selection.get("mode", "legacy"))
+		if _sel_mode == "plume_lower" or _sel_mode == "plume_blend":
+			var _upper_crit: float = float(context.get("fire_o2_upper_throttle_critical", 0.10))
+			if room.o2_upper < _upper_crit:
+				o2_ref = minf(room.o2, room.o2_upper)
+				room.fire_o2_ref = o2_ref
 	full_hrr_o2 = maxf(o2_min_ref + 0.001, full_hrr_o2)
 	var raw_o2_factor: float = _compute_o2_factor(o2_ref, full_hrr_o2, o2_min_ref)
 	var use_fds_extinction: bool = bool(context.get("fire_fds_extinction_enabled", false))

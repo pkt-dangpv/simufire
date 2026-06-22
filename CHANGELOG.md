@@ -13,6 +13,25 @@ All notable changes to SimuFire should be recorded here.
 - **ILV layer coherence detector** — added `scripts/simulation/check_ilv_layer_coherence.py` plus unit tests. The check fails on exported CSV rows with significant HRR and critical `o2_upper` while the base regime remains fuel-controlled or `o2_hrr_factor` remains high from lower/global oxygen.
 - **Open follow-up:** this is presentation-layer mitigation only. New manual QA logs show a motor/layer-coupling issue: HRR and base regime can remain high/`FUEL_CONTROLLED` with `o2_upper` near zero while `o2_lower` remains fresh. The next milestone is an ILV motor audit covering HRR/regime/O₂/gases/smoke by layer.
 
+### ILV motor — Phase 5 M4: fire_o2_upper_throttle_enabled (2026-06-22)
+
+- **Motor guard `fire_o2_upper_throttle_enabled`** (`pending`) — Nuevo flag en `SimulationEngine` y `CombustionSystem`. Cuando está activo y el two-zone solver elige `o2_lower` como referencia de throttle (modo `plume_lower/blend`) pero `o2_upper` cae bajo el umbral crítico (`fire_o2_upper_throttle_critical=0.10`): reemplaza `o2_ref = minf(room.o2, room.o2_upper)`, forzando el throttle de HRR a respetar la zona superior. Fix de física real (no solo display/régimen).
+- **Bug raíz corregido**: el flag se colocó erróneamente en `_sync_auxiliary_services()` (dict de `OxygenExchangeSystem`) en lugar de `_build_room_combustion_context()` (dict leído por `CombustionSystem.step_room_fire()`). Resultado: `CombustionSystem` siempre leía `fire_o2_upper_throttle_enabled=false` en escenarios headless.
+- **Unit test 7/7 PASS** (`tools/validate_fire_o2_upper_throttle.gd`): bug secundario en el test era `fire_max_active_s` ausente del contexto (`context.get` usa default 0.0 → extinguía el fuego en step 0). Fix: agregar `"fire_max_active_s": 1800.0` + `"fire_extinction_delay_s": 90.0`.
+- **Scenarios**: `fp_ilv_upper_throttle_on.json` / `fp_ilv_upper_throttle_off.json` — verificación before/after con `fire_o2_upper_throttle_enabled` per-caso. Coherence checker: 258 FAIL (throttle OFF) → 0 FAIL/1686 rows (throttle ON).
+- **Efecto físico verificado**:
+
+| Tiempo | HRR (OFF) | o2_upper (OFF) | o2_hrr (OFF) | HRR (ON) | o2_upper (ON) | o2_hrr (ON) |
+|--------|-----------|----------------|--------------|----------|---------------|-------------|
+| t=110s | 459 kW | 6.03% | 0.983 | 299 kW | 7.02% | 0.817 |
+| t=120s | 550 kW | 0.08% | 0.971 | 184 kW | 5.08% | 0.612 |
+| t=150s | 833 kW | 0.08% | 0.921 | 46 kW | 6.45% | 0.243 |
+| t=200s | 1201 kW | 0.08% | 0.883 | (fuego apagado) | — | — |
+| t=1400s | 1211 kW | 0.08% | 0.894 | N/A | — | — |
+
+- **Flag scoped per-caso**: default `false`. El motor base no cambia. Baseline 345/350 PASS intacto (sin regresión).
+- **Recomendación**: activar en escenarios FP con `two_zone_solver_enabled=true` y exposición a ventanas abiertas. Migración global requiere plan explícito con análisis de todos los casos afectados.
+
 ### ILV motor — Opción A + Opción C (en curso 2026-06-22)
 
 - **Opción A — classifier fix** (`9e23f9e`) — `CombustionRegimeClassifier` rule 7.5: when `o2_upper < 5%` AND `hrr_kw >= 100`, reclassify as `VENTILATION_CONTROLLED_BURNING` regardless of `o2_hrr_factor`. Display/regime now reflects upper-zone starvation in open-room ILV. No HRR/O₂/physics change. Test 11/11 PASS.

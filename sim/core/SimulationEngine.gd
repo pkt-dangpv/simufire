@@ -226,6 +226,14 @@ var _layer_interface_warning_rooms: Dictionary = {}
 ## (canonical_plume_lower activo → o2_upper se mantiene alto → fuego no throttlea → crash O2 inferior).
 ## Activar solo per-caso con fire_o2_mode="plume_lower" explícito vía engine_overrides.
 @export var fire_o2_canonical_enabled: bool = false
+## Phase 5 M4: ILV upper-O2 throttle guard.
+## Cuando true, en modo two-zone (plume_lower/plume_blend), si room.o2_upper cae por debajo
+## de fire_o2_upper_throttle_critical, el throttle de HRR usa min(room.o2, room.o2_upper) en
+## lugar de o2_lower. Impide que HRR permanezca alto mientras la zona superior se agota.
+## Default false — activar per-caso o como preparación de Phase 3+. No afecta salas selladas
+## (que usan plume_lower_mode de OxygenExchangeSystem, no el two-zone path automático).
+@export var fire_o2_upper_throttle_enabled: bool = false
+@export var fire_o2_upper_throttle_critical: float = 0.10
 ## Phase 5 M2: tracer conservado de masa O2 en zona superior.
 ## Phase 8 audit: activación global interactúa incorrectamente con plume_lower_mode.
 ## La dilución del tracker (upper_air_mass 1.2 kg/m³ vs upper_gas_kg en caliente) + delta_entr
@@ -1739,6 +1747,9 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		) if building != null and building.get_room(room_id) != null else 2.5,
 		# R2-2: two-zone flag for plume-entrainment O2 selection in CombustionSystem.
 		"two_zone_solver_enabled": two_zone_solver_enabled,
+		# Phase 5 M4: ILV upper-O2 throttle guard (leído por CombustionSystem.step_room_fire).
+		"fire_o2_upper_throttle_enabled": fire_o2_upper_throttle_enabled,
+		"fire_o2_upper_throttle_critical": fire_o2_upper_throttle_critical,
 	}
 
 # ============================================================
