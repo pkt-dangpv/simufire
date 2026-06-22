@@ -13,6 +13,21 @@ All notable changes to SimuFire should be recorded here.
 - **ILV layer coherence detector** — added `scripts/simulation/check_ilv_layer_coherence.py` plus unit tests. The check fails on exported CSV rows with significant HRR and critical `o2_upper` while the base regime remains fuel-controlled or `o2_hrr_factor` remains high from lower/global oxygen.
 - **Open follow-up:** this is presentation-layer mitigation only. New manual QA logs show a motor/layer-coupling issue: HRR and base regime can remain high/`FUEL_CONTROLLED` with `o2_upper` near zero while `o2_lower` remains fresh. The next milestone is an ILV motor audit covering HRR/regime/O₂/gases/smoke by layer.
 
+### ILV motor — Phase C: Motor credibility audit + primera migración M4 (2026-06-22)
+
+- **Suite auditor `audit_ilv_layer_coherence_suite.py`** (`d635c83`) — wrapper batch sobre `check_ilv_layer_coherence.py`. Escanea todos los CSVs en `sim/validation/reports/`, reporta findings por archivo (total rows, finding counts, peor fila), sale con código 1 si hay findings salvo `--allow-findings`. 16 tests Python PASS. Resultados sobre 10 CSVs: 7 PASS, 3 FAIL (364 findings totales).
+- **Mapa de daño — motor credibility audit**: 8 CSVs permanentes auditados. 3 casos con HRR zombie: `fp_ilv_upper_throttle_off` (258, control intencional), `tmp_v5_off` (95, spike calibrado sobre bug), `layer_interface_single_room_window` (11, hallazgo nuevo — ILV incidental en testbed de capas).
+- **Primera migración M4 segura: `layer_interface_single_room_window`** (`ee9216c`) — `fire_o2_upper_throttle_enabled: true` activado permanentemente en caso de regresión de interfaz de capa. El caso no tiene `threshold_metrics` — es diagnóstico puro de alturas de capa. Todos los 7 baseline checks pasan: los mínimos de capa son idénticos (descenso ocurre antes de que M4 se active, t<130 s), los finales dentro de tolerancia. Zombie eliminado: HRR 1142→32 kW a t=180 s, `o2_upper` se recupera de 0.08% a 8.5%. Fix adicional: `two_zone_solver_enabled: true` añadido explícitamente al JSON del caso (y `fed_thermal_layer_smoke_only.json`), corrigiendo 2 failures pre-existentes en `test_layer_interface_model.py`. Suite auditor post-migración: 7/8 PASS (único FAIL = `fp_ilv_upper_throttle_off`, control intencional).
+
+| Tiempo | HRR OFF | HRR M4 | o2_upper OFF | o2_upper M4 | Regime OFF | Regime M4 |
+|--------|---------|--------|-------------|------------|-----------|----------|
+| t=100s | 377.7 kW | 377.7 kW | 16.9% | 16.9% | FUEL_CONTROLLED | FUEL_CONTROLLED |
+| t=130s | 662.3 kW | 336.1 kW | 4.2% | 6.5% | VCB | ILV_LATENT |
+| t=160s | 959.3 kW | 79.9 kW | 0.08% | 6.6% | VCB | VCB |
+| t=180s | **1142.2 kW** | **32.8 kW** | 0.08% | 8.5% | VCB | VCB |
+
+- **Próximo caso pendiente**: `v5_ventilation_hrr_spike` (95 findings, HRR zombie 3245 kW). Requiere actualizar `threshold_metrics` antes de activar M4 — el spike está calibrado sobre el bug ILV.
+
 ### ILV motor — Phase 5 M4: fire_o2_upper_throttle_enabled (2026-06-22)
 
 - **Motor guard `fire_o2_upper_throttle_enabled`** (`pending`) — Nuevo flag en `SimulationEngine` y `CombustionSystem`. Cuando está activo y el two-zone solver elige `o2_lower` como referencia de throttle (modo `plume_lower/blend`) pero `o2_upper` cae bajo el umbral crítico (`fire_o2_upper_throttle_critical=0.10`): reemplaza `o2_ref = minf(room.o2, room.o2_upper)`, forzando el throttle de HRR a respetar la zona superior. Fix de física real (no solo display/régimen).

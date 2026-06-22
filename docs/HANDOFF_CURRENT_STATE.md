@@ -6,6 +6,70 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update — 2026-06-22 (rev 14 — Phase C: credibility audit + primera migración M4)
+
+### Estado operativo actual
+
+- Branch: `main`, limpio, **ahead 6** respecto a `origin/main` (push pendiente).
+- Commits nuevos en esta ronda:
+  - `d635c83` — feat(ilv): add ILV layer-coherence suite auditor
+  - `ee9216c` — fix(ilv): activate M4 guard in layer_interface_single_room_window
+- Validación: 345/350 PASS (sin regresión). 42/42 Python tests PASS (incluye 2 pre-existentes corregidos).
+
+### Motor credibility audit (Phase C) — Mapa de daño completado
+
+**Auditor creado**: `scripts/simulation/audit_ilv_layer_coherence_suite.py` + `tests/test_audit_ilv_layer_coherence_suite.py` (16 tests).
+
+**Resultados sobre 8 CSVs permanentes** (tmp excluidos, `--include-tmp` para incluirlos):
+
+| Archivo CSV | Estado | Findings | Notas |
+|---|---|---:|---|
+| `cfast_ilv_audit` | PASS | 0 | Multi-room, canonical activo |
+| `fp_ilv_open_partial_window` | PASS | 0 | Ventana parcial, canonical activo |
+| `fp_ilv_upper_throttle_on` | PASS | 0 | M4 activo — referencia de diseño |
+| `ilv_open_window_repro` | PASS | 0 | Canonical activo |
+| `layer_interface_single_room_window` | **PASS** | 0 | ✅ Migrado a M4 (antes: 11 findings) |
+| `p2h_diag_off` | PASS | 0 | Sin exposición exterior |
+| `p2h_diag_on` | PASS | 0 | Sin exposición exterior |
+| `fp_ilv_upper_throttle_off` | **FAIL** | 258 | Control intencional (HRR zombie ~1211 kW) |
+
+**Único FAIL restante = caso de control intencional** `fp_ilv_upper_throttle_off`. No hay HRR zombies no intencionados en CSVs activos.
+
+### Primera migración M4 permanente: `layer_interface_single_room_window`
+
+**Contexto**: el auditor descubrió 11 findings en este caso de regresión de interfaz de capa — ILV zombie incidental (caso diseñado para testear alturas de capa, no combustión).
+
+**Análisis OFF vs M4** (room 0, ventana exterior 50% abierta, sin canonical):
+
+| t (s) | HRR OFF | HRR M4 | o2_upper OFF | o2_upper M4 |
+|---|---:|---:|---:|---:|
+| 100 | 377.7 kW | 377.7 kW | 16.9% | 16.9% |
+| 130 | 662.3 kW | 336.1 kW | 4.2% | 6.5% |
+| 160 | 959.3 kW | 79.9 kW | 0.08% | 6.6% |
+| 180 | 1142.2 kW | **32.8 kW** | 0.08% | **8.5%** |
+
+**Baseline checks con M4** — todos PASS:
+- `min_visible_smoke_layer_m`: 1.175 (idéntico — mínimo antes de t=130s)
+- `min_thermal/flow_interface_m`: 1.171 (idéntico)
+- `final_flow_interface_m`: 1.428 ∈ [0, 2.40] ✓
+- `final_visibility_m`: 0.33 ≤ 5.0 ✓
+
+**Cambios en `ee9216c`**:
+- `sim/validation/cases/layer_interface_single_room_window.json` — añadidos `fire_o2_upper_throttle_enabled: true` + `two_zone_solver_enabled: true`
+- `sim/validation/cases/fed_thermal_layer_smoke_only.json` — añadido `two_zone_solver_enabled: true` (corrige 2 failures pre-existentes en test_layer_interface_model.py)
+
+### Único caso real pendiente con HRR zombie: `v5_ventilation_hrr_spike`
+
+El auditor `tmp_v5_off.csv` (95 findings, HRR zombie hasta 3245 kW) queda como único caso problemático real. Ruta de migración bloqueada: el caso tiene `threshold_metric: hrr >= 1000 post-vent` calibrado sobre el bug ILV. Para migrar: actualizar el threshold_metric a medir supresión por M4 en lugar de magnitud del spike.
+
+### Próxima sesión
+
+**Opción A (preferida)**: diseñar nuevos escenarios ILV/FP con M4 como física esperada desde el principio. Sin impacto en suite existente.
+
+**Opción B**: migración coordinada de `v5_ventilation_hrr_spike` — requiere actualizar explícitamente el `threshold_metric` del caso antes de activar M4.
+
+---
+
 ## Current Session Update — 2026-06-22 (rev 13 — Cierre campaña M4)
 
 ### Estado operativo actual
