@@ -185,6 +185,20 @@ class TestMain(unittest.TestCase):
         self.assertTrue(result.intentional)
         self.assertGreater(result.finding_count, 0)
 
+    def test_known_intentional_controls_applied_without_flag(self):
+        """KNOWN_INTENTIONAL_CONTROLS stems are CTRL by default — no --intentional needed."""
+        import tempfile
+        # Use a stem from the canonical list
+        ctrl_stem = next(iter(suite.KNOWN_INTENTIONAL_CONTROLS))
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / f"{ctrl_stem}.csv", [_ROW_ZOMBIE])
+            rc = suite.main(["--reports-dir", td])  # no --intentional passed
+        self.assertEqual(rc, 0)
+
+    def test_known_intentional_controls_is_nonempty(self):
+        """KNOWN_INTENTIONAL_CONTROLS must have at least one entry."""
+        self.assertGreater(len(suite.KNOWN_INTENTIONAL_CONTROLS), 0)
+
     def test_include_tmp_passes_through(self):
         """--include-tmp causes tmp_ files to be included in the audit."""
         import tempfile

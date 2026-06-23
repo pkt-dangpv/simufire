@@ -86,4 +86,14 @@ foreach ($r in $results) {
 Write-Host ""
 Write-Host "[Full Reference Suite] Ejecutando validate_reference_cases.py..."
 & $PythonExe (Join-Path $ProjectPath "scripts\simulation\validate_reference_cases.py")
+
+Write-Host ""
+Write-Host "[Full Reference Suite] Ejecutando audit_ilv_layer_coherence_suite.py..."
+& $PythonExe (Join-Path $ProjectPath "scripts\simulation\audit_ilv_layer_coherence_suite.py") -v
+$ilv_exit = $LASTEXITCODE
+if ($ilv_exit -ne 0) {
+	Write-Host "[Full Reference Suite] ADVERTENCIA: ILV coherence audit encontró findings inesperados (exit $ilv_exit)."
+} else {
+	Write-Host "[Full Reference Suite] ILV coherence audit: OK"
+}
 Write-Host "[Full Reference Suite] Completado."

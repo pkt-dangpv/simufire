@@ -18,9 +18,12 @@ Two classes of CSV findings are therefore expected in the suite:
   Exit code 1 — needs action.
 
 * **Intentional control (CTRL)**: a case that deliberately runs with
-  M4 off to expose the zombie as a reference.  Register it with
-  ``--intentional`` so the auditor labels it CTRL and does not raise
-  exit 1.  Example: ``fp_ilv_upper_throttle_off`` (258 findings,
+  M4 off to expose the zombie as a reference.  Known controls are
+  declared in ``KNOWN_INTENTIONAL_CONTROLS`` at module level and applied
+  automatically — no command-line flag needed.  Add new controls there
+  in the same commit that creates the case.  Use ``--intentional`` only
+  for ad-hoc overrides outside the committed list.
+  Example: ``fp_ilv_upper_throttle_off`` (258 findings,
   HRR zombie ~1211 kW — the before-M4 baseline).
 
 Do NOT combine M4 (``fire_o2_upper_throttle_enabled``) with
@@ -71,6 +74,23 @@ from check_ilv_layer_coherence import (  # noqa: E402
     find_ilv_layer_coherence_issues,
     load_rows,
 )
+
+
+# ---------------------------------------------------------------------------
+# Known intentional controls
+#
+# CSVs listed here are M4-off reference cases: they intentionally expose the
+# ILV HRR-zombie behaviour so future changes can compare against the baseline.
+# They are labelled CTRL in reports and never raise exit code 1.
+#
+# Rule: when you add a new intentional-control case to the test suite, add its
+# stem here in the same commit.  This is the single source of truth — callers
+# do not need to pass --intentional on the command line.
+# ---------------------------------------------------------------------------
+
+KNOWN_INTENTIONAL_CONTROLS: frozenset[str] = frozenset({
+    "fp_ilv_upper_throttle_off",   # 258 findings, HRR zombie ~1211 kW, M4 off baseline
+})
 
 
 # ---------------------------------------------------------------------------
@@ -285,7 +305,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: reports directory not found: {reports_dir}", file=sys.stderr)
         return 2
 
-    intentional_stems: set[str] = {
+    intentional_stems: set[str] = set(KNOWN_INTENTIONAL_CONTROLS) | {
         s.strip() for s in args.intentional.split(",") if s.strip()
     }
 
