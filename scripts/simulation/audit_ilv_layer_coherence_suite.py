@@ -5,15 +5,45 @@ Scans sim/validation/reports/ for CSV logs and runs the same coherence
 checks as check_ilv_layer_coherence.py on each file, then prints a
 ranked summary of incoherence findings.
 
+Background
+----------
+The ILV HRR-zombie bug (found 2026-06-21) occurs when two_zone_solver
+chooses o2_lower as the combustion throttle reference while o2_upper
+collapses to near-zero.  The motor guard fix (M4, flag
+``fire_o2_upper_throttle_enabled``) is opt-in per-case (default false).
+
+Two classes of CSV findings are therefore expected in the suite:
+
+* **Real bug (FAIL)**: a case that should have M4 active but doesn't.
+  Exit code 1 — needs action.
+
+* **Intentional control (CTRL)**: a case that deliberately runs with
+  M4 off to expose the zombie as a reference.  Register it with
+  ``--intentional`` so the auditor labels it CTRL and does not raise
+  exit 1.  Example: ``fp_ilv_upper_throttle_off`` (258 findings,
+  HRR zombie ~1211 kW — the before-M4 baseline).
+
+Do NOT combine M4 (``fire_o2_upper_throttle_enabled``) with
+``fire_o2_canonical_enabled`` without an explicit plan: they are
+competing mechanisms and can cancel each other.
+
 Usage
 -----
   # Audit all existing CSVs:
   python scripts/simulation/audit_ilv_layer_coherence_suite.py
 
+  # Mark a CSV as an intentional control (findings expected, no exit 1):
+  python scripts/simulation/audit_ilv_layer_coherence_suite.py \\
+      --intentional fp_ilv_upper_throttle_off
+
+  # Multiple controls:
+  python scripts/simulation/audit_ilv_layer_coherence_suite.py \\
+      --intentional fp_ilv_upper_throttle_off,some_other_control
+
   # Include a specific extra directory:
   python scripts/simulation/audit_ilv_layer_coherence_suite.py --reports-dir path/to/reports
 
-  # Allow findings without exiting 1 (useful for CI dashboards):
+  # Allow ALL findings without exiting 1 (CI dashboard / info mode):
   python scripts/simulation/audit_ilv_layer_coherence_suite.py --allow-findings
 
   # Filter to a specific kind of finding:
@@ -21,8 +51,8 @@ Usage
 
 Exit codes
 ----------
-  0  All CSVs passed coherence check (or --allow-findings was set)
-  1  One or more CSVs have coherence findings
+  0  All CSVs passed (or only intentional controls have findings, or --allow-findings)
+  1  One or more non-intentional CSVs have coherence findings
   2  Invocation error (bad path, etc.)
 """
 
@@ -54,6 +84,7 @@ class FileResult:
     rooms: set[str]
     findings: list[Finding]
     error: str | None = None
+    intentional: bool = False
 
     @property
     def name(self) -> str:
@@ -139,9 +170,17 @@ def _print_file_result(result: FileResult, *, verbose: bool) -> None:
     worst = result.worst_finding
     kinds = result.findings_by_kind()
     kind_str = "  ".join(f"{k.split('-')[-1]}:{v}" for k, v in kinds.items())
+
+    if result.intentional:
+        label = "CTRL"
+        suffix = "  (intentional control -- M4 off reference)"
+    else:
+        label = "FAIL"
+        suffix = ""
+
     print(
-        f"  FAIL  {result.name:<52} findings={result.finding_count:>4}  "
-        f"rows={result.total_rows:>5}  [{kind_str}]"
+        f"  {label}  {result.name:<52} findings={result.finding_count:>4}  "
+        f"rows={result.total_rows:>5}  [{kind_str}]{suffix}"
     )
     if worst:
         print(
@@ -216,6 +255,17 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="o2_hrr_factor threshold above which throttle is considered high (default: 0.75).",
     )
     parser.add_argument(
+        "--intentional",
+        default="",
+        metavar="STEMS",
+        help=(
+            "Comma-separated CSV stems whose findings are expected "
+            "(intentional controls — M4-off references).  These are labelled "
+            "CTRL in the report and do not raise exit code 1.  "
+            "Example: --intentional fp_ilv_upper_throttle_off"
+        ),
+    )
+    parser.add_argument(
         "--verbose", "-v",
         action="store_true",
         help="Also print PASS lines.",
@@ -235,6 +285,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: reports directory not found: {reports_dir}", file=sys.stderr)
         return 2
 
+    intentional_stems: set[str] = {
+        s.strip() for s in args.intentional.split(",") if s.strip()
+    }
+
     csv_paths = find_csvs(reports_dir, exclude_tmp=not args.include_tmp)
     if not csv_paths:
         print(f"No CSV files found in {reports_dir}")
@@ -243,6 +297,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"ILV Coherence Suite Audit")
     print(f"Reports dir : {reports_dir}")
     print(f"CSV files   : {len(csv_paths)}")
+    if intentional_stems:
+        print(f"CTRL stems  : {', '.join(sorted(intentional_stems))}")
     print(_SEP)
 
     results: list[FileResult] = []
@@ -255,18 +311,24 @@ def main(argv: list[str] | None = None) -> int:
             high_o2_hrr_factor=args.high_o2_hrr_factor,
             kind_filter=args.kind,
         )
+        if path.stem in intentional_stems:
+            result.intentional = True
         results.append(result)
         _print_file_result(result, verbose=args.verbose)
 
     # Summary
-    clean  = [r for r in results if r.finding_count == 0 and not r.error]
-    dirty  = [r for r in results if r.finding_count  > 0 and not r.error]
-    errors = [r for r in results if r.error]
+    clean        = [r for r in results if r.finding_count == 0 and not r.error]
+    intentional  = [r for r in results if r.finding_count  > 0 and not r.error and r.intentional]
+    dirty        = [r for r in results if r.finding_count  > 0 and not r.error and not r.intentional]
+    errors       = [r for r in results if r.error]
     total_findings = sum(r.finding_count for r in dirty)
+    total_ctrl     = sum(r.finding_count for r in intentional)
 
     print(_SEP)
     print(f"SUMMARY: {len(csv_paths)} file(s) audited")
     print(f"  PASS : {len(clean):>3}")
+    if intentional:
+        print(f"  CTRL : {len(intentional):>3}  ({total_ctrl} findings, expected -- intentional controls)")
     print(f"  FAIL : {len(dirty):>3}  ({total_findings} total findings)")
     if errors:
         print(f"  ERROR: {len(errors):>3}")

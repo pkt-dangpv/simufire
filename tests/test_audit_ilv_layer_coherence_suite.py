@@ -151,6 +151,58 @@ class TestMain(unittest.TestCase):
         rc = suite.main(["--reports-dir", "/nonexistent/path/xyz"])
         self.assertEqual(rc, 2)
 
+    def test_intentional_control_does_not_raise_exit_1(self):
+        """A CSV registered as intentional should not cause exit code 1."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "fp_ilv_upper_throttle_off.csv", [_ROW_ZOMBIE])
+            rc = suite.main([
+                "--reports-dir", td,
+                "--intentional", "fp_ilv_upper_throttle_off",
+            ])
+        self.assertEqual(rc, 0)
+
+    def test_intentional_control_still_exits_1_for_other_failures(self):
+        """Registering one control should not suppress other real failures."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "fp_ilv_upper_throttle_off.csv", [_ROW_ZOMBIE])
+            self._write_csv(Path(td) / "some_broken_case.csv", [_ROW_ZOMBIE])
+            rc = suite.main([
+                "--reports-dir", td,
+                "--intentional", "fp_ilv_upper_throttle_off",
+            ])
+        self.assertEqual(rc, 1)
+
+    def test_intentional_flag_sets_result_attribute(self):
+        """FileResult.intentional is True for registered stems."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "fp_ilv_upper_throttle_off.csv"
+            self._write_csv(path, [_ROW_ZOMBIE])
+            result = suite.audit_csv(path)
+            result.intentional = True
+        self.assertTrue(result.intentional)
+        self.assertGreater(result.finding_count, 0)
+
+    def test_include_tmp_passes_through(self):
+        """--include-tmp causes tmp_ files to be included in the audit."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "tmp_exp.csv", [_ROW_ZOMBIE])
+            rc_exclude = suite.main(["--reports-dir", td])
+            rc_include = suite.main(["--reports-dir", td, "--include-tmp"])
+        self.assertEqual(rc_exclude, 0)
+        self.assertEqual(rc_include, 1)
+
+    def test_verbose_prints_pass_lines(self):
+        """--verbose should not crash and returns 0 for clean dir."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "clean.csv", [_ROW_CLEAN])
+            rc = suite.main(["--reports-dir", td, "--verbose"])
+        self.assertEqual(rc, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
