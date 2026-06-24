@@ -948,7 +948,8 @@ class TestGlobalCarbonStructure(unittest.TestCase):
         self.assertIn('"global_carbon_postclamp_excess_kg"', self.case_runner_src)
 
 
-_LOG_WRITER = _REPO_ROOT / "sim" / "core" / "SimulationLogWriter.gd"
+_LOG_WRITER     = _REPO_ROOT / "sim" / "core" / "SimulationLogWriter.gd"
+_THERMAL_SYSTEM = _REPO_ROOT / "sim" / "core" / "ThermalSystem.gd"
 
 
 # ---------------------------------------------------------------------------
@@ -1012,6 +1013,33 @@ class TestPerStepDiagnosticInstrumentation(unittest.TestCase):
 
     def test_room_model_resets_co_net_transport_kg_step(self):
         self.assertRegex(self.reset_body, r"\bco_net_transport_kg_step\s*=\s*0\.0\b")
+
+    def test_room_model_declares_co_generated_kg_total(self):
+        self.assertRegex(
+            self.room_src,
+            r"\bvar\s+co_generated_kg_total\s*:\s*float\s*=\s*0\.0",
+        )
+
+    def test_room_model_declares_co_net_transport_kg_total(self):
+        self.assertRegex(
+            self.room_src,
+            r"\bvar\s+co_net_transport_kg_total\s*:\s*float\s*=\s*0\.0",
+        )
+
+    def test_room_model_declares_co_exterior_removed_kg_total(self):
+        self.assertRegex(
+            self.room_src,
+            r"\bvar\s+co_exterior_removed_kg_total\s*:\s*float\s*=\s*0\.0",
+        )
+
+    def test_room_model_resets_co_generated_kg_total(self):
+        self.assertRegex(self.reset_body, r"\bco_generated_kg_total\s*=\s*0\.0\b")
+
+    def test_room_model_resets_co_net_transport_kg_total(self):
+        self.assertRegex(self.reset_body, r"\bco_net_transport_kg_total\s*=\s*0\.0\b")
+
+    def test_room_model_resets_co_exterior_removed_kg_total(self):
+        self.assertRegex(self.reset_body, r"\bco_exterior_removed_kg_total\s*=\s*0\.0\b")
 
     # ── CombustionSystem — no-fire branch zeros ───────────────────────────────
 
@@ -1086,10 +1114,40 @@ class TestPerStepDiagnosticInstrumentation(unittest.TestCase):
         pos_co_kg = self.gas_src.find(
             "room.co_kg = maxf(0.0, room.co_kg + float(co_delta_kg[int(room_id)]))"
         )
+        pos_pre_transport = self.gas_src.find("_co_pre_transport: float = room.co_kg")
         self.assertGreater(pos_transport, -1, "co_net_transport_kg_step line not found")
         self.assertGreater(pos_co_kg, -1, "room.co_kg update line not found")
+        self.assertGreater(pos_pre_transport, -1, "_co_pre_transport capture not found")
         self.assertLess(pos_transport, pos_co_kg,
                         "co_net_transport_kg_step must appear before room.co_kg update")
+        self.assertLess(pos_pre_transport, pos_co_kg,
+                        "_co_pre_transport must be captured before room.co_kg update")
+
+    def test_combustion_increments_co_generated_kg_total(self):
+        """step_room_fire() must increment room.co_generated_kg_total += generated_co_kg."""
+        self.assertIn(
+            "room.co_generated_kg_total += generated_co_kg",
+            self.step_fire_body,
+            "Active-fire branch must accumulate co_generated_kg_total",
+        )
+
+    def test_gas_exchange_increments_co_net_transport_kg_total(self):
+        """GasExchangeSystem must accumulate room.co_net_transport_kg_total with actual delta."""
+        # Uses the post-clamp actual delta (room.co_kg - _co_pre_transport) to avoid
+        # over-tracking when maxf(0, co_kg + co_delta_kg) clips the transport delta.
+        self.assertIn(
+            "room.co_net_transport_kg_total += room.co_kg - _co_pre_transport",
+            self.gas_src,
+            "GasExchangeSystem must accumulate co_net_transport_kg_total with actual delta",
+        )
+
+    def test_gas_exchange_increments_co_exterior_removed_kg_total(self):
+        """GasExchangeSystem must accumulate co_exterior_removed_kg_total at ACH/purge paths."""
+        self.assertIn(
+            "room.co_exterior_removed_kg_total +=",
+            self.gas_src,
+            "GasExchangeSystem must accumulate co_exterior_removed_kg_total",
+        )
 
     # ── SimulationStateBuilder exports ────────────────────────────────────────
 
@@ -1110,6 +1168,15 @@ class TestPerStepDiagnosticInstrumentation(unittest.TestCase):
 
     def test_state_builder_exports_co_kg(self):
         self.assertIn('"co_kg"', self.builder_src)
+
+    def test_state_builder_exports_co_generated_kg_total(self):
+        self.assertIn('"co_generated_kg_total"', self.builder_src)
+
+    def test_state_builder_exports_co_net_transport_kg_total(self):
+        self.assertIn('"co_net_transport_kg_total"', self.builder_src)
+
+    def test_state_builder_exports_co_exterior_removed_kg_total(self):
+        self.assertIn('"co_exterior_removed_kg_total"', self.builder_src)
 
     # ── SimulationLogWriter CSV ───────────────────────────────────────────────
 
@@ -1147,6 +1214,18 @@ class TestPerStepDiagnosticInstrumentation(unittest.TestCase):
         header = self._csv_header()
         self.assertIn("co_kg", header)
 
+    def test_log_writer_csv_header_has_co_generated_kg_total(self):
+        header = self._csv_header()
+        self.assertIn("co_generated_kg_total", header)
+
+    def test_log_writer_csv_header_has_co_net_transport_kg_total(self):
+        header = self._csv_header()
+        self.assertIn("co_net_transport_kg_total", header)
+
+    def test_log_writer_csv_header_has_co_exterior_removed_kg_total(self):
+        header = self._csv_header()
+        self.assertIn("co_exterior_removed_kg_total", header)
+
     def test_log_writer_csv_row_appends_c_balance_frac(self):
         """_append_csv_snapshot must append c_balance_frac after combustion_regime."""
         pos_regime = self.logwriter_src.find(
@@ -1168,6 +1247,125 @@ class TestPerStepDiagnosticInstrumentation(unittest.TestCase):
 
     def test_log_writer_csv_row_appends_co_kg(self):
         self.assertIn('rs.get("co_kg"', self.logwriter_src)
+
+    def test_log_writer_csv_row_appends_co_generated_kg_total(self):
+        self.assertIn('rs.get("co_generated_kg_total"', self.logwriter_src)
+
+    def test_log_writer_csv_row_appends_co_net_transport_kg_total(self):
+        self.assertIn('rs.get("co_net_transport_kg_total"', self.logwriter_src)
+
+    def test_log_writer_csv_row_appends_co_exterior_removed_kg_total(self):
+        self.assertIn('rs.get("co_exterior_removed_kg_total"', self.logwriter_src)
+
+
+# ---------------------------------------------------------------------------
+# Part H — D1 CO mass-balance tracking paths (SF-D1)
+# Verifies that every untracked CO removal / transport path discovered during
+# D1 WARN elimination is correctly instrumented:
+#   Fix 1: _purge_upper_species_to_exterior_direct  → co_exterior_removed_kg_total
+#   Fix 2: ThermalSystem._flush_contaminant_deltas  → co_net_transport_kg_total
+#   Fix 3: _release_pending_interior_deliveries     → co_net_transport_kg_total
+# ---------------------------------------------------------------------------
+
+class TestD1COTrackingPaths(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.gas_src     = _load(_GAS_EXCHANGE)
+        cls.thermal_src = _load(_THERMAL_SYSTEM)
+        cls.purge_body  = _extract_function_body(
+            cls.gas_src, "_purge_upper_species_to_exterior_direct"
+        )
+        cls.flush_body  = _extract_function_body(
+            cls.thermal_src, "_flush_contaminant_deltas"
+        )
+        cls.pending_body = _extract_function_body(
+            cls.gas_src, "_release_pending_interior_deliveries"
+        )
+
+    # ── Fix 1: two_zone pressure-venting path ────────────────────────────────
+
+    def test_purge_upper_direct_tracks_co_exterior_removed(self):
+        """_purge_upper_species_to_exterior_direct must accumulate co_exterior_removed_kg_total."""
+        self.assertIn(
+            "room.co_exterior_removed_kg_total +=",
+            self.purge_body,
+            "_purge_upper_species_to_exterior_direct must track co_exterior_removed_kg_total "
+            "(two_zone pressure-venting path was a D1 blind spot)",
+        )
+
+    def test_purge_upper_direct_captures_co_removed_kg(self):
+        """Must capture co_removed_kg before updating room.co_kg."""
+        pos_capture  = self.purge_body.find("co_removed_kg")
+        pos_co_kg    = self.purge_body.find("room.co_kg = maxf(0.0, room.co_kg - co_removed_kg)")
+        pos_tracking = self.purge_body.find("room.co_exterior_removed_kg_total += co_removed_kg")
+        self.assertGreater(pos_capture,  -1, "co_removed_kg not found in purge function")
+        self.assertGreater(pos_co_kg,    -1, "room.co_kg update not found in purge function")
+        self.assertGreater(pos_tracking, -1, "co_exterior_removed_kg_total tracking not found")
+        self.assertLess(pos_tracking, pos_co_kg,
+                        "co_exterior_removed_kg_total must be accumulated before room.co_kg update")
+
+    # ── Fix 2: ThermalSystem hot-gas carry path ───────────────────────────────
+
+    def test_thermal_flush_contaminant_deltas_tracks_co_net_transport(self):
+        """_flush_contaminant_deltas must accumulate co_net_transport_kg_total."""
+        self.assertIn(
+            "room.co_net_transport_kg_total +=",
+            self.flush_body,
+            "_flush_contaminant_deltas must track co_net_transport_kg_total "
+            "(ThermalSystem hot-gas carry was a D1 blind spot)",
+        )
+
+    def test_thermal_flush_captures_pre_thermal_co_kg(self):
+        """_flush_contaminant_deltas must capture room.co_kg before applying delta."""
+        pos_pre    = self.flush_body.find("_co_pre_thermal")
+        pos_apply  = self.flush_body.find("room.co_kg")
+        pos_accum  = self.flush_body.find("room.co_net_transport_kg_total += room.co_kg - _co_pre_thermal")
+        self.assertGreater(pos_pre,   -1, "_co_pre_thermal capture not found in flush body")
+        self.assertGreater(pos_apply, -1, "room.co_kg update not found in flush body")
+        self.assertGreater(pos_accum, -1, "co_net_transport_kg_total accumulation not found")
+        self.assertLess(pos_pre, pos_apply,
+                        "_co_pre_thermal must be captured before room.co_kg is updated")
+
+    def test_thermal_flush_uses_actual_delta_for_transport(self):
+        """Transport delta must be actual post-clamp delta (room.co_kg - _co_pre_thermal)."""
+        self.assertIn(
+            "room.co_net_transport_kg_total += room.co_kg - _co_pre_thermal",
+            self.flush_body,
+            "Must use post-clamp actual delta, not raw _delta_co_kg",
+        )
+
+    # ── Fix 3: pending interior deliveries path ───────────────────────────────
+
+    def test_pending_deliveries_tracks_co_net_transport(self):
+        """_release_pending_interior_deliveries must accumulate co_net_transport_kg_total."""
+        self.assertIn(
+            "target.co_net_transport_kg_total +=",
+            self.pending_body,
+            "_release_pending_interior_deliveries must track co_net_transport_kg_total "
+            "(delayed delivery path was a D1 blind spot)",
+        )
+
+    def test_pending_deliveries_captures_pre_delivery_co_kg(self):
+        """Must capture target.co_kg before applying the pending delivery."""
+        pos_pre   = self.pending_body.find("_co_pre_delivery")
+        pos_apply = self.pending_body.find("target.co_kg = maxf(0.0, target.co_kg + float(entry.get(\"co_kg\"")
+        pos_accum = self.pending_body.find("target.co_net_transport_kg_total += target.co_kg - _co_pre_delivery")
+        self.assertGreater(pos_pre,   -1, "_co_pre_delivery capture not found")
+        self.assertGreater(pos_apply, -1, "target.co_kg update not found")
+        self.assertGreater(pos_accum, -1, "co_net_transport_kg_total accumulation not found")
+        self.assertLess(pos_pre, pos_apply,
+                        "_co_pre_delivery must be captured before target.co_kg is updated")
+        self.assertGreater(pos_accum, pos_apply,
+                           "co_net_transport_kg_total must be accumulated after target.co_kg update")
+
+    def test_pending_deliveries_uses_actual_delta_for_transport(self):
+        """Transport delta must be actual post-clamp delta (target.co_kg - _co_pre_delivery)."""
+        self.assertIn(
+            "target.co_net_transport_kg_total += target.co_kg - _co_pre_delivery",
+            self.pending_body,
+            "Must use post-clamp actual delta, not raw entry co_kg",
+        )
 
 
 if __name__ == "__main__":

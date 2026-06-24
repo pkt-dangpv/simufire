@@ -438,6 +438,7 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 					+ room.co2_kg * air_frac_out * (12.0 / 44.0) \
 					+ room.hcn_kg * air_frac_out * (12.0 / 27.0) \
 					+ smoke_out_kg * 0.87
+			room.co_exterior_removed_kg_total += room.co_kg * air_frac_out
 			room.co_kg = maxf(0.0, room.co_kg * (1.0 - air_frac_out))
 			room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - air_frac_out))
 			room.co2_kg = maxf(0.0, room.co2_kg * (1.0 - air_frac_out))
@@ -978,7 +979,11 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 		room.smoke_kg = maxf(0.0, room.smoke_kg + float(smoke_delta_kg[int(room_id)]))
 		room.co_net_transport_kg_step = float(co_delta_kg[int(room_id)])
+		var _co_pre_transport: float = room.co_kg
 		room.co_kg = maxf(0.0, room.co_kg + float(co_delta_kg[int(room_id)]))
+		# Acumular el delta REAL (post-clamp) para que D1 no falle cuando la ventilación
+		# intenta extraer más CO del disponible (maxf clamp en co_delta_kg).
+		room.co_net_transport_kg_total += room.co_kg - _co_pre_transport
 		room.co_upper_kg = maxf(0.0, room.co_upper_kg + float(co_upper_delta_kg[int(room_id)]))
 		room.co2_kg = maxf(0.0, room.co2_kg + float(co2_delta_kg[int(room_id)]))
 		room.co2_upper_kg = maxf(0.0, room.co2_upper_kg + float(co2_upper_delta_kg[int(room_id)]))
@@ -993,6 +998,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		var co_remove_fraction: float = 0.0
 		if room.co_kg > 0.000001:
 			co_remove_fraction = co_removed / room.co_kg
+		room.co_exterior_removed_kg_total += co_removed
 		room.co_kg = maxf(0.0, room.co_kg - co_removed)
 		room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - clampf(co_remove_fraction, 0.0, 1.0)))
 		var co2_removed: float = minf(room.co2_kg, room.co2_kg * ach_rate * dt)
@@ -1044,6 +1050,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			var co_upper_removed_kg: float = co_upper_kg * open_species_purge_fraction
 			var co_lower_removed_kg: float = co_lower_kg * open_species_purge_fraction * (1.0 - upper_bias) * 0.55
 			room.co_upper_kg = maxf(0.0, co_upper_kg - co_upper_removed_kg)
+			room.co_exterior_removed_kg_total += co_upper_removed_kg + co_lower_removed_kg
 			room.co_kg = maxf(0.0, room.co_kg - co_upper_removed_kg - co_lower_removed_kg)
 
 			var co2_removed_kg: float = room.co2_kg \
@@ -1099,6 +1106,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			var purge_co_fraction: float = 0.0
 			if room.co_kg > 0.000001:
 				purge_co_fraction = purged_co_kg / room.co_kg
+			room.co_exterior_removed_kg_total += purged_co_kg
 			room.co_kg = maxf(0.0, room.co_kg - purged_co_kg)
 			room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - clampf(purge_co_fraction, 0.0, 1.0)))
 
@@ -1183,7 +1191,9 @@ func _release_pending_interior_deliveries(
 			continue
 
 		target.smoke_kg = maxf(0.0, target.smoke_kg + float(entry.get("smoke_kg", 0.0)))
+		var _co_pre_delivery: float = target.co_kg
 		target.co_kg = maxf(0.0, target.co_kg + float(entry.get("co_kg", 0.0)))
+		target.co_net_transport_kg_total += target.co_kg - _co_pre_delivery
 		target.co_upper_kg = maxf(0.0, target.co_upper_kg + float(entry.get("co_upper_kg", 0.0)))
 		target.co2_kg = maxf(0.0, target.co2_kg + float(entry.get("co2_kg", 0.0)))
 		target.co2_upper_kg = maxf(0.0, target.co2_upper_kg + float(entry.get("co2_upper_kg", 0.0)))
@@ -1698,6 +1708,7 @@ func _purge_upper_species_to_exterior_direct(room: RoomModel, fraction: float, s
 	var frac: float = clampf(fraction, 0.0, 0.30)
 	var co_removed_kg: float = minf(clampf(room.co_upper_kg, 0.0, room.co_kg), room.co_upper_kg * frac)
 	room.co_upper_kg = maxf(0.0, room.co_upper_kg - co_removed_kg)
+	room.co_exterior_removed_kg_total += co_removed_kg
 	room.co_kg = maxf(0.0, room.co_kg - co_removed_kg)
 
 	var co2_removed_kg: float = minf(clampf(room.co2_upper_kg, 0.0, room.co2_kg), room.co2_upper_kg * frac)

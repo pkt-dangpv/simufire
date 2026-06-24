@@ -2809,7 +2809,9 @@ func _flush_contaminant_deltas(building: BuildingModel) -> void:
 		var room: RoomModel = building.get_room(rid)
 		if room == null:
 			continue
+		var _co_pre_thermal: float = room.co_kg
 		room.co_kg           = maxf(0.0, room.co_kg           + _delta_co_kg.get(rid, 0.0))
+		room.co_net_transport_kg_total += room.co_kg - _co_pre_thermal
 		room.co_upper_kg     = maxf(0.0, room.co_upper_kg     + _delta_co_upper_kg.get(rid, 0.0))
 		room.co2_kg          = maxf(0.0, room.co2_kg          + _delta_co2_kg.get(rid, 0.0))
 		room.co2_upper_kg    = maxf(0.0, room.co2_upper_kg    + _delta_co2_upper_kg.get(rid, 0.0))

@@ -33,16 +33,19 @@ A3  Regime/O2 mismatch  combustion_regime is FUEL_CONTROLLED or FULLY_DEVELOPED
 
 Rules — third slice
 -------------------
-D1  CO balance residual Per room/step: the change in co_kg must equal
-                        co_generated_kg_step + co_net_transport_kg_step within
-                        a relative tolerance of 5 % of abs(expected) — i.e. of
-                        the accounting term, not the observed delta (floor
-                        1 × 10⁻⁶ kg).  A persistent large residual
-                        indicates untracked CO creation or disappearance.
-                        Severity: WARN (first corrida; promote to FAIL once
-                        validated clean on the full reference suite).
-                        Skipped gracefully when new diagnostic columns are
-                        absent (older CSV schema).
+D1  CO balance residual Per room/log-interval: the change in co_kg between
+                        consecutive CSV rows must equal the change in
+                        co_generated_kg_total + co_net_transport_kg_total
+                        − co_exterior_removed_kg_total over the same interval.
+                        Uses cumulative totals (not per-step fields) so the
+                        check is invariant to log_interval vs timestep ratio.
+                        co_exterior_removed_kg_total tracks CO removed by
+                        ACH/infiltration, pressure-relief ventilation, species
+                        purge, and post-fire purge.  Tolerance: 5 % of
+                        abs(expected), floor 1 × 10⁻⁶ kg.  Severity: WARN
+                        (promote to FAIL once validated clean on the full
+                        reference suite).  Skipped gracefully when cumulative
+                        total columns are absent (older CSV schema).
 
 Usage
 -----
@@ -120,7 +123,7 @@ REQUIRED_COLS: dict[str, set[str]] = {
     "B1": {"temp_upper_c", "temp_lower_c"},
     "C1": {"fed", "fed_co", "fed_hcn", "fed_hypoxia", "fed_heat"},
     "C2": {"fed"},
-    "D1": {"co_kg", "co_generated_kg_step", "co_net_transport_kg_step"},
+    "D1": {"co_kg", "co_generated_kg_total", "co_net_transport_kg_total", "co_exterior_removed_kg_total"},
 }
 
 ALL_RULES: tuple[str, ...] = ("A2", "A3", "B1", "C1", "C2", "D1")
@@ -300,12 +303,26 @@ _D1_REL_TOL = 0.05
 
 
 def _check_d1_co_balance_residual(rows: list[dict[str, str]]) -> list[Finding]:
-    """Per-room CO mass balance: Δco_kg ≈ co_generated_kg_step + co_net_transport_kg_step.
+    """Per-room CO mass balance using cumulative totals.
 
-    Groups rows by room_id, sorts by time_s, then checks each consecutive pair.
-    The residual is compared against a 5 % relative tolerance with a 1 µg floor.
-    Severity is WARN — the rule is new and needs validation against the full suite
-    before being promoted to FAIL.
+    Between consecutive CSV rows (which may span many simulation steps):
+        Δco_kg       = co_kg[t] − co_kg[t−1]
+        Δco_gen      = co_generated_kg_total[t] − co_generated_kg_total[t−1]
+        Δco_trans    = co_net_transport_kg_total[t] − co_net_transport_kg_total[t−1]
+        Δco_ext_rm   = co_exterior_removed_kg_total[t] − co_exterior_removed_kg_total[t−1]
+        expected     = Δco_gen + Δco_trans − Δco_ext_rm
+        residual     = |Δco_kg − expected|
+
+    co_exterior_removed_kg_total accumulates all CO removed by ACH/infiltration,
+    pressure-relief ventilation, outside-open species purge, and post-fire purge —
+    paths that subtract from co_kg without going through co_net_transport_kg_total.
+
+    Using cumulative totals (not per-step fields) makes the check invariant to the
+    ratio of log_interval to simulation timestep: per-step fields capture only the
+    last step, but totals accumulate all steps between log entries.
+
+    Tolerance: 5 % of abs(expected), floor 1 × 10⁻⁶ kg.
+    Severity: WARN — promote to FAIL once validated clean on the full suite.
     """
     by_room: dict[str, list[dict[str, str]]] = defaultdict(list)
     for row in rows:
@@ -315,12 +332,19 @@ def _check_d1_co_balance_residual(rows: list[dict[str, str]]) -> list[Finding]:
     for room_id, room_rows in by_room.items():
         room_rows.sort(key=lambda r: _float(r, "time_s"))
         prev_co_kg: float = _float(room_rows[0], "co_kg")
+        prev_gen_total: float = _float(room_rows[0], "co_generated_kg_total")
+        prev_transport_total: float = _float(room_rows[0], "co_net_transport_kg_total")
+        prev_ext_rm_total: float = _float(room_rows[0], "co_exterior_removed_kg_total")
         for row in room_rows[1:]:
             co_kg = _float(row, "co_kg")
-            generated = _float(row, "co_generated_kg_step")
-            transported = _float(row, "co_net_transport_kg_step")
+            gen_total = _float(row, "co_generated_kg_total")
+            transport_total = _float(row, "co_net_transport_kg_total")
+            ext_rm_total = _float(row, "co_exterior_removed_kg_total")
             delta_co = co_kg - prev_co_kg
-            expected = generated + transported
+            delta_gen = gen_total - prev_gen_total
+            delta_transport = transport_total - prev_transport_total
+            delta_ext_rm = ext_rm_total - prev_ext_rm_total
+            expected = delta_gen + delta_transport - delta_ext_rm
             residual = abs(delta_co - expected)
             # Reference magnitude: abs(expected), not abs(delta_co).
             # Using delta_co would inflate the threshold by the anomaly itself,
@@ -336,11 +360,15 @@ def _check_d1_co_balance_residual(rows: list[dict[str, str]]) -> list[Finding]:
                     metric="co_balance_residual_kg",
                     value=round(residual, 9),
                     reason=(
-                        f"delta_co={delta_co:.6g} kg  expected(gen+transport)={expected:.6g} kg  "
+                        f"delta_co={delta_co:.6g} kg  "
+                        f"expected(dgen+dtrans-dext_rm)={expected:.6g} kg  "
                         f"residual={residual:.3g} kg  tol={threshold:.3g} kg"
                     ),
                 ))
             prev_co_kg = co_kg
+            prev_gen_total = gen_total
+            prev_transport_total = transport_total
+            prev_ext_rm_total = ext_rm_total
     return findings
 
 

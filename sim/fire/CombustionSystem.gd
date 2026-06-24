@@ -774,6 +774,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	room.co_generated_kg_step = generated_co_kg
 	room.co2_generated_kg_step = generated_co2_kg
 	room.hcn_generated_kg_step = generated_hcn_kg
+	room.co_generated_kg_total += generated_co_kg
 
 	# SF-CBAL: la fuente canónica es el carbono consumido del combustible PRE-clamp.
 	# La fracción no representada por especies se mantiene como producto no modelado.

@@ -123,7 +123,7 @@
 		"room_0_final_outside_open_path_factor": 0.5,
 		"room_0_final_overpressure_model_pa": 1.80304103875187,
 		"room_0_final_pool_release_hrr_target_kw": 0.0,
-		"room_0_final_pressure_pa_therm": 15.9546957553667,
+		"room_0_final_pressure_pa_therm": 0.0,
 		"room_0_final_pyrolysis_kw": 0.0,
 		"room_0_final_remaining_fuel_MJ": 5967.03567809476,
 		"room_0_final_retained_unburned_MJ": 0.0,

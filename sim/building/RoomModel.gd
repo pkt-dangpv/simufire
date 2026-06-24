@@ -132,6 +132,14 @@ var hcn_generated_kg_step: float = 0.0
 # Positivo = ganancia neta (CO llegó desde otras salas o exterior).
 # Negativo = pérdida neta (CO salió hacia otras salas o exterior / venteo).
 var co_net_transport_kg_step: float = 0.0
+# Acumuladores corrientes desde el inicio de la simulación — necesarios para D1.
+# co_generated_kg_step/co_net_transport_kg_step son solo el último paso y no sirven
+# para verificar balance cuando el log_interval > timestep.
+var co_generated_kg_total: float = 0.0
+var co_net_transport_kg_total: float = 0.0
+# CO removido por ACH/infiltracion/purga/venteo hacia el exterior (siempre >= 0).
+# Necesario para D1: expected = delta_gen + delta_transport - delta_exterior_removed.
+var co_exterior_removed_kg_total: float = 0.0
 # SF-CBAL global: carbono acumulado que salió por aperturas exteriores (kg C).
 # Incrementado en GasExchangeSystem cada vez que CO/CO₂/HCN/humo se ventila
 # al exterior (presión, flujo de humo, purgas, ACH o PPV).
@@ -397,3 +405,6 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	co2_generated_kg_step = 0.0
 	hcn_generated_kg_step = 0.0
 	co_net_transport_kg_step = 0.0
+	co_generated_kg_total = 0.0
+	co_net_transport_kg_total = 0.0
+	co_exterior_removed_kg_total = 0.0

@@ -601,16 +601,21 @@ class TestFindCsvs(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # D1 row helper
 # ---------------------------------------------------------------------------
+# D1 uses CUMULATIVE totals (co_generated_kg_total, co_net_transport_kg_total,
+# co_exterior_removed_kg_total) to be invariant to the log_interval vs timestep
+# ratio.  Per-step fields capture only the last step and alias badly.
 
 def _row_d1(
     time_s="10.0", room_id="0",
-    co_kg="0.0", co_generated_kg_step="0.0", co_net_transport_kg_step="0.0",
+    co_kg="0.0", co_generated_kg_total="0.0", co_net_transport_kg_total="0.0",
+    co_exterior_removed_kg_total="0.0",
 ) -> dict[str, str]:
     return {
         "time_s": time_s, "room_id": room_id,
         "co_kg": co_kg,
-        "co_generated_kg_step": co_generated_kg_step,
-        "co_net_transport_kg_step": co_net_transport_kg_step,
+        "co_generated_kg_total": co_generated_kg_total,
+        "co_net_transport_kg_total": co_net_transport_kg_total,
+        "co_exterior_removed_kg_total": co_exterior_removed_kg_total,
     }
 
 
@@ -627,12 +632,12 @@ class TestCheckD1(unittest.TestCase):
     # ── Clean cases ───────────────────────────────────────────────────────────
 
     def test_perfect_balance_no_finding(self):
-        """delta_co == generated + transport → no finding."""
+        """Δco_kg == Δgen_total + Δtransport_total → no finding."""
         rows = [
             _row_d1(time_s="0.0", co_kg="0.0"),
             _row_d1(time_s="10.0", co_kg="0.001",
-                    co_generated_kg_step="0.001",
-                    co_net_transport_kg_step="0.0"),
+                    co_generated_kg_total="0.001",
+                    co_net_transport_kg_total="0.0"),
         ]
         self.assertEqual(len(self._run(rows)), 0)
 
@@ -641,18 +646,20 @@ class TestCheckD1(unittest.TestCase):
         rows = [
             _row_d1(time_s="0.0", co_kg="0.0"),
             _row_d1(time_s="10.0", co_kg="0.002",
-                    co_generated_kg_step="0.0",
-                    co_net_transport_kg_step="0.002"),
+                    co_generated_kg_total="0.0",
+                    co_net_transport_kg_total="0.002"),
         ]
         self.assertEqual(len(self._run(rows)), 0)
 
     def test_transport_out_no_finding(self):
         """CO left to adjacent rooms; co_kg decreased."""
         rows = [
-            _row_d1(time_s="0.0", co_kg="0.005"),
+            _row_d1(time_s="0.0", co_kg="0.005",
+                    co_generated_kg_total="0.010",
+                    co_net_transport_kg_total="0.000"),
             _row_d1(time_s="10.0", co_kg="0.003",
-                    co_generated_kg_step="0.0",
-                    co_net_transport_kg_step="-0.002"),
+                    co_generated_kg_total="0.010",
+                    co_net_transport_kg_total="-0.002"),
         ]
         self.assertEqual(len(self._run(rows)), 0)
 
@@ -661,8 +668,8 @@ class TestCheckD1(unittest.TestCase):
         rows = [
             _row_d1(time_s="0.0", co_kg="0.000"),
             _row_d1(time_s="10.0", co_kg="0.003",
-                    co_generated_kg_step="0.002",
-                    co_net_transport_kg_step="0.001"),
+                    co_generated_kg_total="0.002",
+                    co_net_transport_kg_total="0.001"),
         ]
         self.assertEqual(len(self._run(rows)), 0)
 
@@ -671,8 +678,8 @@ class TestCheckD1(unittest.TestCase):
         rows = [
             _row_d1(time_s="0.0", co_kg="0.0"),
             _row_d1(time_s="10.0", co_kg="0.0",
-                    co_generated_kg_step="0.0",
-                    co_net_transport_kg_step="0.0"),
+                    co_generated_kg_total="0.0",
+                    co_net_transport_kg_total="0.0"),
         ]
         self.assertEqual(len(self._run(rows)), 0)
 
@@ -692,8 +699,8 @@ class TestCheckD1(unittest.TestCase):
         rows = [
             _row_d1(time_s="0.0", co_kg=str(co_prev)),
             _row_d1(time_s="10.0", co_kg=str(co_new),
-                    co_generated_kg_step=str(generated),
-                    co_net_transport_kg_step=str(transported)),
+                    co_generated_kg_total=str(generated),
+                    co_net_transport_kg_total=str(transported)),
         ]
         self.assertEqual(len(self._run(rows)), 0)
 
@@ -706,8 +713,8 @@ class TestCheckD1(unittest.TestCase):
         rows = [
             _row_d1(time_s="0.0", co_kg=str(co_prev)),
             _row_d1(time_s="10.0", co_kg=str(co_new),
-                    co_generated_kg_step=str(generated),
-                    co_net_transport_kg_step=str(transported)),
+                    co_generated_kg_total=str(generated),
+                    co_net_transport_kg_total=str(transported)),
         ]
         findings = self._run(rows)
         self.assertEqual(len(findings), 1)
@@ -718,8 +725,8 @@ class TestCheckD1(unittest.TestCase):
         rows = [
             _row_d1(time_s="0.0", co_kg="0.0"),
             _row_d1(time_s="10.0", co_kg="0.005",
-                    co_generated_kg_step="0.0",
-                    co_net_transport_kg_step="0.0"),
+                    co_generated_kg_total="0.0",
+                    co_net_transport_kg_total="0.0"),
         ]
         findings = self._run(rows)
         self.assertEqual(len(findings), 1)
@@ -727,21 +734,56 @@ class TestCheckD1(unittest.TestCase):
         self.assertEqual(findings[0].metric, "co_balance_residual_kg")
         self.assertAlmostEqual(findings[0].value, 0.005, places=6)
 
+    def test_exterior_removal_tracked_no_finding(self):
+        """CO decreased by ACH removal tracked in co_exterior_removed_kg_total → no finding.
+
+        CO generated: 0.002 kg.  ACH removed: 0.0005 kg.  Net change: +0.0015 kg.
+        expected = delta_gen + delta_trans - delta_ext_rm = 0.002 + 0 - 0.0005 = 0.0015.
+        """
+        rows = [
+            _row_d1(time_s="0.0",  co_kg="0.001",
+                    co_generated_kg_total="0.010",
+                    co_net_transport_kg_total="0.000",
+                    co_exterior_removed_kg_total="0.000"),
+            _row_d1(time_s="10.0", co_kg="0.0025",
+                    co_generated_kg_total="0.012",
+                    co_net_transport_kg_total="0.000",
+                    co_exterior_removed_kg_total="0.0005"),
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_exterior_removal_untracked_flagged(self):
+        """CO decreased by ACH but co_exterior_removed_kg_total not updated → WARN.
+
+        delta_co = -0.0005.  expected = 0.002 + 0 - 0 = 0.002.  residual = 0.0025 >> tol.
+        """
+        rows = [
+            _row_d1(time_s="0.0",  co_kg="0.001",
+                    co_generated_kg_total="0.010"),
+            _row_d1(time_s="10.0", co_kg="0.0025",
+                    co_generated_kg_total="0.012"),
+            # co_exterior_removed_kg_total stays 0 — simulating the old bug
+        ]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].severity, "WARN")
+
     # ── Temporal ordering ────────────────────────────────────────────────────
 
     def test_rows_sorted_by_time_before_diff(self):
         """Rows given out of time order must still be diffed in chronological order."""
-        # t=20 has co_kg=0.003, t=10 has co_kg=0.001 (both perfectly balanced)
+        # Cumulative totals at each timestamp:
+        # t=0:  co_kg=0.001 (baseline), gen_total=0, transport_total=0
+        # t=10: co_kg=0.001, gen_total=0,     transport_total=0     → Δco=0, expected=0 ✓
+        # t=20: co_kg=0.003, gen_total=0.002, transport_total=0     → Δco=0.002, expected=0.002 ✓
         rows = [
             _row_d1(time_s="20.0", co_kg="0.003",
-                    co_generated_kg_step="0.002", co_net_transport_kg_step="0.000"),
+                    co_generated_kg_total="0.002", co_net_transport_kg_total="0.000"),
             _row_d1(time_s="0.0", co_kg="0.001",
-                    co_generated_kg_step="0.001", co_net_transport_kg_step="0.000"),
+                    co_generated_kg_total="0.000", co_net_transport_kg_total="0.000"),
             _row_d1(time_s="10.0", co_kg="0.001",
-                    co_generated_kg_step="0.0",   co_net_transport_kg_step="0.0"),
+                    co_generated_kg_total="0.000", co_net_transport_kg_total="0.000"),
         ]
-        # t=0→10: delta=0, gen=0, transport=0 → ok
-        # t=10→20: delta=0.002, gen=0.002, transport=0 → ok
         self.assertEqual(len(self._run(rows)), 0)
 
     # ── Multi-room independence ──────────────────────────────────────────────
@@ -752,11 +794,11 @@ class TestCheckD1(unittest.TestCase):
             # room 0: perfectly balanced
             _row_d1(time_s="0.0",  room_id="0", co_kg="0.0"),
             _row_d1(time_s="10.0", room_id="0", co_kg="0.001",
-                    co_generated_kg_step="0.001", co_net_transport_kg_step="0.0"),
+                    co_generated_kg_total="0.001", co_net_transport_kg_total="0.0"),
             # room 1: unbalanced (CO appeared with no source)
             _row_d1(time_s="0.0",  room_id="1", co_kg="0.0"),
             _row_d1(time_s="10.0", room_id="1", co_kg="0.005",
-                    co_generated_kg_step="0.0", co_net_transport_kg_step="0.0"),
+                    co_generated_kg_total="0.0", co_net_transport_kg_total="0.0"),
         ]
         findings = self._run(rows)
         self.assertEqual(len(findings), 1)
@@ -770,7 +812,7 @@ class TestCheckD1(unittest.TestCase):
     # ── Missing columns / old CSV schema ─────────────────────────────────────
 
     def test_missing_co_generated_column_skips_rule(self):
-        """Old CSV without co_generated_kg_step → D1 silently skipped."""
+        """CSV without co_generated_kg_total → D1 silently skipped."""
         rows = [
             {"time_s": "0.0", "room_id": "0", "co_kg": "0.0"},
             {"time_s": "10.0", "room_id": "0", "co_kg": "0.005"},
@@ -778,10 +820,10 @@ class TestCheckD1(unittest.TestCase):
         self.assertEqual(len(self._run(rows)), 0)
 
     def test_missing_co_kg_column_skips_rule(self):
-        """Old CSV without co_kg → D1 silently skipped."""
+        """CSV without co_kg → D1 silently skipped."""
         rows = [
             {"time_s": "0.0", "room_id": "0",
-             "co_generated_kg_step": "0.0", "co_net_transport_kg_step": "0.0"},
+             "co_generated_kg_total": "0.0", "co_net_transport_kg_total": "0.0"},
         ]
         self.assertEqual(len(self._run(rows)), 0)
 
@@ -796,7 +838,7 @@ class TestCheckD1(unittest.TestCase):
         rows = [
             _row_d1(time_s="0.0", co_kg="0.0"),
             _row_d1(time_s="10.0", co_kg="0.01",
-                    co_generated_kg_step="0.0", co_net_transport_kg_step="0.0"),
+                    co_generated_kg_total="0.0", co_net_transport_kg_total="0.0"),
         ]
         self.assertEqual(self._run(rows)[0].rule_id, "D1")
 
@@ -804,7 +846,7 @@ class TestCheckD1(unittest.TestCase):
         rows = [
             _row_d1(time_s="0.0", co_kg="0.0"),
             _row_d1(time_s="10.0", co_kg="0.01",
-                    co_generated_kg_step="0.0", co_net_transport_kg_step="0.0"),
+                    co_generated_kg_total="0.0", co_net_transport_kg_total="0.0"),
         ]
         self.assertEqual(self._run(rows)[0].severity, "WARN")
 
@@ -812,7 +854,7 @@ class TestCheckD1(unittest.TestCase):
         rows = [
             _row_d1(time_s="0.0", co_kg="0.0"),
             _row_d1(time_s="10.0", co_kg="0.01",
-                    co_generated_kg_step="0.0", co_net_transport_kg_step="0.0"),
+                    co_generated_kg_total="0.0", co_net_transport_kg_total="0.0"),
         ]
         reason = self._run(rows)[0].reason
         self.assertIn("delta_co", reason)
