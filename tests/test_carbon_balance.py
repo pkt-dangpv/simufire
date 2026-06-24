@@ -1108,6 +1108,9 @@ class TestPerStepDiagnosticInstrumentation(unittest.TestCase):
     def test_state_builder_exports_co_net_transport_kg_step(self):
         self.assertIn('"co_net_transport_kg_step"', self.builder_src)
 
+    def test_state_builder_exports_co_kg(self):
+        self.assertIn('"co_kg"', self.builder_src)
+
     # ── SimulationLogWriter CSV ───────────────────────────────────────────────
 
     def _csv_header(self) -> str:
@@ -1140,6 +1143,10 @@ class TestPerStepDiagnosticInstrumentation(unittest.TestCase):
         header = self._csv_header()
         self.assertIn("co_net_transport_kg_step", header)
 
+    def test_log_writer_csv_header_has_co_kg(self):
+        header = self._csv_header()
+        self.assertIn("co_kg", header)
+
     def test_log_writer_csv_row_appends_c_balance_frac(self):
         """_append_csv_snapshot must append c_balance_frac after combustion_regime."""
         pos_regime = self.logwriter_src.find(
@@ -1158,6 +1165,9 @@ class TestPerStepDiagnosticInstrumentation(unittest.TestCase):
 
     def test_log_writer_csv_row_appends_co_net_transport_kg_step(self):
         self.assertIn('rs.get("co_net_transport_kg_step"', self.logwriter_src)
+
+    def test_log_writer_csv_row_appends_co_kg(self):
+        self.assertIn('rs.get("co_kg"', self.logwriter_src)
 
 
 if __name__ == "__main__":

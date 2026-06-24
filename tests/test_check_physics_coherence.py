@@ -598,5 +598,227 @@ class TestFindCsvs(unittest.TestCase):
         self.assertEqual(sorted(f.name for f in found), ["case_a.csv", "tmp_exp.csv"])
 
 
+# ---------------------------------------------------------------------------
+# D1 row helper
+# ---------------------------------------------------------------------------
+
+def _row_d1(
+    time_s="10.0", room_id="0",
+    co_kg="0.0", co_generated_kg_step="0.0", co_net_transport_kg_step="0.0",
+) -> dict[str, str]:
+    return {
+        "time_s": time_s, "room_id": room_id,
+        "co_kg": co_kg,
+        "co_generated_kg_step": co_generated_kg_step,
+        "co_net_transport_kg_step": co_net_transport_kg_step,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tests: Rule D1 — CO balance residual
+# ---------------------------------------------------------------------------
+
+class TestCheckD1(unittest.TestCase):
+
+    def _run(self, rows):
+        return [f for f in checker.find_physics_coherence_issues(rows, rule_ids={"D1"})
+                if f.rule_id == "D1"]
+
+    # ── Clean cases ───────────────────────────────────────────────────────────
+
+    def test_perfect_balance_no_finding(self):
+        """delta_co == generated + transport → no finding."""
+        rows = [
+            _row_d1(time_s="0.0", co_kg="0.0"),
+            _row_d1(time_s="10.0", co_kg="0.001",
+                    co_generated_kg_step="0.001",
+                    co_net_transport_kg_step="0.0"),
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_pure_transport_in_no_finding(self):
+        """CO arrived entirely from transport, no local generation."""
+        rows = [
+            _row_d1(time_s="0.0", co_kg="0.0"),
+            _row_d1(time_s="10.0", co_kg="0.002",
+                    co_generated_kg_step="0.0",
+                    co_net_transport_kg_step="0.002"),
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_transport_out_no_finding(self):
+        """CO left to adjacent rooms; co_kg decreased."""
+        rows = [
+            _row_d1(time_s="0.0", co_kg="0.005"),
+            _row_d1(time_s="10.0", co_kg="0.003",
+                    co_generated_kg_step="0.0",
+                    co_net_transport_kg_step="-0.002"),
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_generation_plus_transport_no_finding(self):
+        """Fire room: local generation plus incoming transport."""
+        rows = [
+            _row_d1(time_s="0.0", co_kg="0.000"),
+            _row_d1(time_s="10.0", co_kg="0.003",
+                    co_generated_kg_step="0.002",
+                    co_net_transport_kg_step="0.001"),
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_zero_step_no_finding(self):
+        """All zeros: nothing happens — balance is trivially exact."""
+        rows = [
+            _row_d1(time_s="0.0", co_kg="0.0"),
+            _row_d1(time_s="10.0", co_kg="0.0",
+                    co_generated_kg_step="0.0",
+                    co_net_transport_kg_step="0.0"),
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    # ── Tolerance boundary ───────────────────────────────────────────────────
+
+    def test_small_residual_within_relative_tolerance_no_finding(self):
+        """Residual at 4 % of expected (< 5 % threshold) → no finding.
+
+        threshold = max(1e-6, 0.05 * abs(expected)) = 0.05 * 0.001 = 5e-5
+        residual  = 4 % * 0.001 = 4e-5 < 5e-5 → pass.
+        """
+        co_prev = 0.0
+        generated = 0.001000   # 1 mg CO generated
+        transported = 0.0
+        residual_injected = generated * 0.04   # 4 % of expected
+        co_new = co_prev + generated + transported + residual_injected
+        rows = [
+            _row_d1(time_s="0.0", co_kg=str(co_prev)),
+            _row_d1(time_s="10.0", co_kg=str(co_new),
+                    co_generated_kg_step=str(generated),
+                    co_net_transport_kg_step=str(transported)),
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_residual_just_above_relative_tolerance_flagged(self):
+        """Residual slightly above 5 % of magnitude → WARN finding."""
+        generated = 0.001000
+        transported = 0.0
+        co_prev = 0.0
+        co_new = co_prev + generated + transported + generated * 0.051  # 5.1 % > 5 %
+        rows = [
+            _row_d1(time_s="0.0", co_kg=str(co_prev)),
+            _row_d1(time_s="10.0", co_kg=str(co_new),
+                    co_generated_kg_step=str(generated),
+                    co_net_transport_kg_step=str(transported)),
+        ]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].severity, "WARN")
+
+    def test_large_unaccounted_residual_flagged(self):
+        """CO increased by 5 mg with zero generation and zero transport → WARN."""
+        rows = [
+            _row_d1(time_s="0.0", co_kg="0.0"),
+            _row_d1(time_s="10.0", co_kg="0.005",
+                    co_generated_kg_step="0.0",
+                    co_net_transport_kg_step="0.0"),
+        ]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].severity, "WARN")
+        self.assertEqual(findings[0].metric, "co_balance_residual_kg")
+        self.assertAlmostEqual(findings[0].value, 0.005, places=6)
+
+    # ── Temporal ordering ────────────────────────────────────────────────────
+
+    def test_rows_sorted_by_time_before_diff(self):
+        """Rows given out of time order must still be diffed in chronological order."""
+        # t=20 has co_kg=0.003, t=10 has co_kg=0.001 (both perfectly balanced)
+        rows = [
+            _row_d1(time_s="20.0", co_kg="0.003",
+                    co_generated_kg_step="0.002", co_net_transport_kg_step="0.000"),
+            _row_d1(time_s="0.0", co_kg="0.001",
+                    co_generated_kg_step="0.001", co_net_transport_kg_step="0.000"),
+            _row_d1(time_s="10.0", co_kg="0.001",
+                    co_generated_kg_step="0.0",   co_net_transport_kg_step="0.0"),
+        ]
+        # t=0→10: delta=0, gen=0, transport=0 → ok
+        # t=10→20: delta=0.002, gen=0.002, transport=0 → ok
+        self.assertEqual(len(self._run(rows)), 0)
+
+    # ── Multi-room independence ──────────────────────────────────────────────
+
+    def test_multi_room_independent_balance(self):
+        """Two rooms checked independently; violation in room 1 doesn't affect room 0."""
+        rows = [
+            # room 0: perfectly balanced
+            _row_d1(time_s="0.0",  room_id="0", co_kg="0.0"),
+            _row_d1(time_s="10.0", room_id="0", co_kg="0.001",
+                    co_generated_kg_step="0.001", co_net_transport_kg_step="0.0"),
+            # room 1: unbalanced (CO appeared with no source)
+            _row_d1(time_s="0.0",  room_id="1", co_kg="0.0"),
+            _row_d1(time_s="10.0", room_id="1", co_kg="0.005",
+                    co_generated_kg_step="0.0", co_net_transport_kg_step="0.0"),
+        ]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].room_id, "1")
+
+    def test_first_row_per_room_is_baseline_no_finding(self):
+        """The very first row of each room is used as baseline; it never generates a finding."""
+        rows = [_row_d1(time_s="0.0", co_kg="9999.0")]  # huge starting value
+        self.assertEqual(len(self._run(rows)), 0)
+
+    # ── Missing columns / old CSV schema ─────────────────────────────────────
+
+    def test_missing_co_generated_column_skips_rule(self):
+        """Old CSV without co_generated_kg_step → D1 silently skipped."""
+        rows = [
+            {"time_s": "0.0", "room_id": "0", "co_kg": "0.0"},
+            {"time_s": "10.0", "room_id": "0", "co_kg": "0.005"},
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_missing_co_kg_column_skips_rule(self):
+        """Old CSV without co_kg → D1 silently skipped."""
+        rows = [
+            {"time_s": "0.0", "room_id": "0",
+             "co_generated_kg_step": "0.0", "co_net_transport_kg_step": "0.0"},
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_missing_all_new_columns_skips_rule(self):
+        """Pre-diagnostic CSV (only original columns) → D1 skipped, no crash."""
+        rows = [_row(), _row(time_s="20.0")]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    # ── Finding metadata ─────────────────────────────────────────────────────
+
+    def test_finding_rule_id_is_d1(self):
+        rows = [
+            _row_d1(time_s="0.0", co_kg="0.0"),
+            _row_d1(time_s="10.0", co_kg="0.01",
+                    co_generated_kg_step="0.0", co_net_transport_kg_step="0.0"),
+        ]
+        self.assertEqual(self._run(rows)[0].rule_id, "D1")
+
+    def test_finding_severity_is_warn(self):
+        rows = [
+            _row_d1(time_s="0.0", co_kg="0.0"),
+            _row_d1(time_s="10.0", co_kg="0.01",
+                    co_generated_kg_step="0.0", co_net_transport_kg_step="0.0"),
+        ]
+        self.assertEqual(self._run(rows)[0].severity, "WARN")
+
+    def test_finding_reason_contains_delta_and_expected(self):
+        rows = [
+            _row_d1(time_s="0.0", co_kg="0.0"),
+            _row_d1(time_s="10.0", co_kg="0.01",
+                    co_generated_kg_step="0.0", co_net_transport_kg_step="0.0"),
+        ]
+        reason = self._run(rows)[0].reason
+        self.assertIn("delta_co", reason)
+        self.assertIn("expected", reason)
+        self.assertIn("residual", reason)
+
+
 if __name__ == "__main__":
     unittest.main()

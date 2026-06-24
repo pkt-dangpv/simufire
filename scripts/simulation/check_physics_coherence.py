@@ -31,6 +31,19 @@ A3  Regime/O2 mismatch  combustion_regime is FUEL_CONTROLLED or FULLY_DEVELOPED
                         adequately oxygenated combustion zone; critical upper-
                         layer O2 starvation is physically incompatible.
 
+Rules — third slice
+-------------------
+D1  CO balance residual Per room/step: the change in co_kg must equal
+                        co_generated_kg_step + co_net_transport_kg_step within
+                        a relative tolerance of 5 % of abs(expected) — i.e. of
+                        the accounting term, not the observed delta (floor
+                        1 × 10⁻⁶ kg).  A persistent large residual
+                        indicates untracked CO creation or disappearance.
+                        Severity: WARN (first corrida; promote to FAIL once
+                        validated clean on the full reference suite).
+                        Skipped gracefully when new diagnostic columns are
+                        absent (older CSV schema).
+
 Usage
 -----
   # Check all rules:
@@ -107,9 +120,10 @@ REQUIRED_COLS: dict[str, set[str]] = {
     "B1": {"temp_upper_c", "temp_lower_c"},
     "C1": {"fed", "fed_co", "fed_hcn", "fed_hypoxia", "fed_heat"},
     "C2": {"fed"},
+    "D1": {"co_kg", "co_generated_kg_step", "co_net_transport_kg_step"},
 }
 
-ALL_RULES: tuple[str, ...] = ("A2", "A3", "B1", "C1", "C2")
+ALL_RULES: tuple[str, ...] = ("A2", "A3", "B1", "C1", "C2", "D1")
 
 
 # ---------------------------------------------------------------------------
@@ -278,6 +292,59 @@ def _check_c2_fed_monotone(rows: list[dict[str, str]]) -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
+# Rule D1 — CO balance residual
+# ---------------------------------------------------------------------------
+
+_D1_ABS_FLOOR_KG = 1e-6
+_D1_REL_TOL = 0.05
+
+
+def _check_d1_co_balance_residual(rows: list[dict[str, str]]) -> list[Finding]:
+    """Per-room CO mass balance: Δco_kg ≈ co_generated_kg_step + co_net_transport_kg_step.
+
+    Groups rows by room_id, sorts by time_s, then checks each consecutive pair.
+    The residual is compared against a 5 % relative tolerance with a 1 µg floor.
+    Severity is WARN — the rule is new and needs validation against the full suite
+    before being promoted to FAIL.
+    """
+    by_room: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for row in rows:
+        by_room[row.get("room_id", "?").strip()].append(row)
+
+    findings: list[Finding] = []
+    for room_id, room_rows in by_room.items():
+        room_rows.sort(key=lambda r: _float(r, "time_s"))
+        prev_co_kg: float = _float(room_rows[0], "co_kg")
+        for row in room_rows[1:]:
+            co_kg = _float(row, "co_kg")
+            generated = _float(row, "co_generated_kg_step")
+            transported = _float(row, "co_net_transport_kg_step")
+            delta_co = co_kg - prev_co_kg
+            expected = generated + transported
+            residual = abs(delta_co - expected)
+            # Reference magnitude: abs(expected), not abs(delta_co).
+            # Using delta_co would inflate the threshold by the anomaly itself,
+            # suppressing the very finding we are trying to raise.
+            magnitude = max(abs(expected), _D1_ABS_FLOOR_KG)
+            threshold = max(_D1_ABS_FLOOR_KG, _D1_REL_TOL * magnitude)
+            if residual > threshold:
+                findings.append(Finding(
+                    time_s=_float(row, "time_s"),
+                    room_id=room_id,
+                    rule_id="D1",
+                    severity="WARN",
+                    metric="co_balance_residual_kg",
+                    value=round(residual, 9),
+                    reason=(
+                        f"delta_co={delta_co:.6g} kg  expected(gen+transport)={expected:.6g} kg  "
+                        f"residual={residual:.3g} kg  tol={threshold:.3g} kg"
+                    ),
+                ))
+            prev_co_kg = co_kg
+    return findings
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -321,6 +388,8 @@ def find_physics_coherence_issues(
         findings.extend(_check_c1_fed_sum(rows))
     if "C2" in active and _has_cols(headers, REQUIRED_COLS["C2"]):
         findings.extend(_check_c2_fed_monotone(rows))
+    if "D1" in active and _has_cols(headers, REQUIRED_COLS["D1"]):
+        findings.extend(_check_d1_co_balance_residual(rows))
 
     return findings
 

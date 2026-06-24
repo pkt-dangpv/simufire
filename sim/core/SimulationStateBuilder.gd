@@ -253,6 +253,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"fed_heat": room.fed_heat,
 			"c_balance_frac": room.c_balance_frac,
 			"carbon_conservation_error_kg": room.carbon_conservation_error_kg,
+			"co_kg": room.co_kg,
 			"co_generated_kg_step": room.co_generated_kg_step,
 			"co2_generated_kg_step": room.co2_generated_kg_step,
 			"hcn_generated_kg_step": room.hcn_generated_kg_step,
