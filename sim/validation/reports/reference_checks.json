@@ -2,7 +2,7 @@
   "all_required_pass": false,
   "required_count": 354,
   "failed_required_count": 5,
-  "known_gap_count": 69,
+  "known_gap_count": 70,
   "checks": [
     {
       "name": "cfast_t60_temp_upper_c",
@@ -1821,7 +1821,7 @@
     },
     {
       "name": "cfast_2r_r0_t240_pressure_pa",
-      "actual": 2.39,
+      "actual": 355.14,
       "expected": 163.079,
       "tolerance": 160.3,
       "minimum": null,
@@ -2140,13 +2140,13 @@
     },
     {
       "name": "cfast_fo_t240_pressure_pa",
-      "actual": 1.89,
+      "actual": 972.22,
       "expected": -5.79607,
       "tolerance": 15.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "CMV-1: vented-room pressure sign/magnitude \u2014 CFAST ~\u22126 Pa (outflow driven)."
     },
     {
@@ -2448,13 +2448,13 @@
     },
     {
       "name": "cfast_hvac_t180_pressure_pa",
-      "actual": 179201.97,
+      "actual": 318.7,
       "expected": 768.421,
       "tolerance": 767.5,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "CMV-1: HVAC-pressurized room overpressure \u2014 structural Phase 3 gap."
     },
     {
@@ -2470,7 +2470,7 @@
     },
     {
       "name": "cfast_hvac_t300_pressure_pa",
-      "actual": 522538.6,
+      "actual": 377.37,
       "expected": 154.56,
       "tolerance": 148.5,
       "minimum": null,
@@ -2492,7 +2492,7 @@
     },
     {
       "name": "cfast_hvac_t450_pressure_pa",
-      "actual": 977647.57,
+      "actual": 410.44,
       "expected": 168.371,
       "tolerance": 161.6,
       "minimum": null,
@@ -2756,13 +2756,13 @@
     },
     {
       "name": "cfast_winbreak_t300_pressure_pa",
-      "actual": 1.89,
+      "actual": 622.22,
       "expected": null,
       "tolerance": null,
       "minimum": null,
       "maximum": 10.0,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "CMV-1: vented-room pressure \u2264 10 Pa (CFAST=\u22126 Pa outflow, SimuFire=+2 Pa \u2014 sign gap)."
     },
     {
@@ -2844,13 +2844,13 @@
     },
     {
       "name": "cfast_doorclose_r0_t300_pressure_pa",
-      "actual": 550261.25,
+      "actual": 248.1,
       "expected": 154.307,
       "tolerance": 145.7,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "CMV-3/CMV-1: sealed-room thermodynamic vs buoyancy pressure structural Phase 3 gap."
     },
     {
@@ -3064,13 +3064,13 @@
     },
     {
       "name": "cfast_multifuel_t60_pressure_pa",
-      "actual": 0.83,
+      "actual": 58.98,
       "expected": -0.139439,
       "tolerance": 10.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "CMV-3/CMV-1: multi-fuel vented room pressure comparison (expected near-zero both)."
     },
     {
@@ -5836,14 +5836,14 @@
     }
   ],
   "references": {
-    "nist_cfast_csv": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\r0_hall_window_360_compartments.csv",
-    "cfast_case": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\reports\\cfast_r0_window_360.json",
-    "ghanekar_case": "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\reports\\ghanekar_bedroom_hallway.json",
+    "nist_cfast_csv": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\r0_hall_window_360_compartments.csv",
+    "cfast_case": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\cfast_r0_window_360.json",
+    "ghanekar_case": "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\reports\\ghanekar_bedroom_hallway.json",
     "cfast_new_scenarios": [
-      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_single_room_closed.in",
-      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_two_room_door_open.in",
-      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_post_flashover_vented.in",
-      "C:\\Users\\dangp\\Documents\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_hvac_residential.in"
+      "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_single_room_closed.in",
+      "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_two_room_door_open.in",
+      "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_post_flashover_vented.in",
+      "F:\\OneDrive\\Documentos\\GitHub\\simufire\\sim\\validation\\cfast\\cfast_hvac_residential.in"
     ]
   }
 }
