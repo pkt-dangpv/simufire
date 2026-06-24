@@ -424,9 +424,20 @@
     },
     {
       "name": "cfast_t350_pressure_pa",
-      "actual": 128.86,
+      "actual": 403945.54,
       "expected": 167.461,
       "tolerance": 162.9,
+      "minimum": null,
+      "maximum": null,
+      "required": false,
+      "pass": false,
+      "note": "CMV-1: window-vented scenario pressure \u2014 CFAST ~0 Pa post-opening; t=350 sealed structural gap."
+    },
+    {
+      "name": "cfast_t420_pressure_pa",
+      "actual": 1.82,
+      "expected": -5.46443,
+      "tolerance": 20.0,
       "minimum": null,
       "maximum": null,
       "required": false,
@@ -434,25 +445,14 @@
       "note": "CMV-1: window-vented scenario pressure \u2014 CFAST ~0 Pa post-opening; t=350 sealed structural gap."
     },
     {
-      "name": "cfast_t420_pressure_pa",
-      "actual": 622.22,
-      "expected": -5.46443,
-      "tolerance": 20.0,
-      "minimum": null,
-      "maximum": null,
-      "required": false,
-      "pass": false,
-      "note": "CMV-1: window-vented scenario pressure \u2014 CFAST ~0 Pa post-opening; t=350 sealed structural gap."
-    },
-    {
       "name": "cfast_t510_pressure_pa",
-      "actual": 622.22,
+      "actual": 1.81,
       "expected": -5.4811,
       "tolerance": 20.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "CMV-1: window-vented scenario pressure \u2014 CFAST ~0 Pa post-opening; t=350 sealed structural gap."
     },
     {
@@ -1150,18 +1150,18 @@
     },
     {
       "name": "cfast_slow_t240_pressure_pa",
-      "actual": 81.55,
+      "actual": 2240.43,
       "expected": 176.193,
       "tolerance": 177.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "SGB-1 (non-gating): Phase 3 \u2014 thermodynamic vs buoyancy pressure model gap."
     },
     {
       "name": "cfast_slow_t480_pressure_pa",
-      "actual": 103.48,
+      "actual": 3920.68,
       "expected": 23.1977,
       "tolerance": 22.0,
       "minimum": null,
@@ -1172,13 +1172,13 @@
     },
     {
       "name": "cfast_slow_t600_pressure_pa",
-      "actual": 110.47,
+      "actual": 4395.22,
       "expected": 65.1494,
       "tolerance": 63.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "SGB-1 (non-gating): Phase 3 \u2014 thermodynamic vs buoyancy pressure model gap."
     },
     {
@@ -1821,7 +1821,7 @@
     },
     {
       "name": "cfast_2r_r0_t240_pressure_pa",
-      "actual": 355.14,
+      "actual": 2.39,
       "expected": 163.079,
       "tolerance": 160.3,
       "minimum": null,
@@ -2140,13 +2140,13 @@
     },
     {
       "name": "cfast_fo_t240_pressure_pa",
-      "actual": 972.22,
+      "actual": 1.89,
       "expected": -5.79607,
       "tolerance": 15.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "CMV-1: vented-room pressure sign/magnitude \u2014 CFAST ~\u22126 Pa (outflow driven)."
     },
     {
@@ -2448,13 +2448,13 @@
     },
     {
       "name": "cfast_hvac_t180_pressure_pa",
-      "actual": 318.7,
+      "actual": 179201.97,
       "expected": 768.421,
       "tolerance": 767.5,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "CMV-1: HVAC-pressurized room overpressure \u2014 structural Phase 3 gap."
     },
     {
@@ -2470,7 +2470,7 @@
     },
     {
       "name": "cfast_hvac_t300_pressure_pa",
-      "actual": 377.37,
+      "actual": 522538.6,
       "expected": 154.56,
       "tolerance": 148.5,
       "minimum": null,
@@ -2492,7 +2492,7 @@
     },
     {
       "name": "cfast_hvac_t450_pressure_pa",
-      "actual": 410.44,
+      "actual": 977647.57,
       "expected": 168.371,
       "tolerance": 161.6,
       "minimum": null,
@@ -2756,13 +2756,13 @@
     },
     {
       "name": "cfast_winbreak_t300_pressure_pa",
-      "actual": 622.22,
+      "actual": 1.89,
       "expected": null,
       "tolerance": null,
       "minimum": null,
       "maximum": 10.0,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "CMV-1: vented-room pressure \u2264 10 Pa (CFAST=\u22126 Pa outflow, SimuFire=+2 Pa \u2014 sign gap)."
     },
     {
@@ -2844,13 +2844,13 @@
     },
     {
       "name": "cfast_doorclose_r0_t300_pressure_pa",
-      "actual": 248.1,
+      "actual": 550261.25,
       "expected": 154.307,
       "tolerance": 145.7,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": true,
+      "pass": false,
       "note": "CMV-3/CMV-1: sealed-room thermodynamic vs buoyancy pressure structural Phase 3 gap."
     },
     {
@@ -3064,13 +3064,13 @@
     },
     {
       "name": "cfast_multifuel_t60_pressure_pa",
-      "actual": 58.98,
+      "actual": 0.83,
       "expected": -0.139439,
       "tolerance": 10.0,
       "minimum": null,
       "maximum": null,
       "required": false,
-      "pass": false,
+      "pass": true,
       "note": "CMV-3/CMV-1: multi-fuel vented room pressure comparison (expected near-zero both)."
     },
     {

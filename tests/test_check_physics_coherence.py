@@ -705,7 +705,7 @@ class TestCheckD1(unittest.TestCase):
         self.assertEqual(len(self._run(rows)), 0)
 
     def test_residual_just_above_relative_tolerance_flagged(self):
-        """Residual slightly above 5 % of magnitude → WARN finding."""
+        """Residual slightly above 5 % of magnitude → FAIL finding."""
         generated = 0.001000
         transported = 0.0
         co_prev = 0.0
@@ -718,10 +718,10 @@ class TestCheckD1(unittest.TestCase):
         ]
         findings = self._run(rows)
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0].severity, "WARN")
+        self.assertEqual(findings[0].severity, "FAIL")
 
     def test_large_unaccounted_residual_flagged(self):
-        """CO increased by 5 mg with zero generation and zero transport → WARN."""
+        """CO increased by 5 mg with zero generation and zero transport → FAIL."""
         rows = [
             _row_d1(time_s="0.0", co_kg="0.0"),
             _row_d1(time_s="10.0", co_kg="0.005",
@@ -730,7 +730,7 @@ class TestCheckD1(unittest.TestCase):
         ]
         findings = self._run(rows)
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0].severity, "WARN")
+        self.assertEqual(findings[0].severity, "FAIL")
         self.assertEqual(findings[0].metric, "co_balance_residual_kg")
         self.assertAlmostEqual(findings[0].value, 0.005, places=6)
 
@@ -753,7 +753,7 @@ class TestCheckD1(unittest.TestCase):
         self.assertEqual(len(self._run(rows)), 0)
 
     def test_exterior_removal_untracked_flagged(self):
-        """CO decreased by ACH but co_exterior_removed_kg_total not updated → WARN.
+        """CO decreased by ACH but co_exterior_removed_kg_total not updated → FAIL.
 
         delta_co = -0.0005.  expected = 0.002 + 0 - 0 = 0.002.  residual = 0.0025 >> tol.
         """
@@ -766,7 +766,7 @@ class TestCheckD1(unittest.TestCase):
         ]
         findings = self._run(rows)
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0].severity, "WARN")
+        self.assertEqual(findings[0].severity, "FAIL")
 
     # ── Temporal ordering ────────────────────────────────────────────────────
 
@@ -842,13 +842,13 @@ class TestCheckD1(unittest.TestCase):
         ]
         self.assertEqual(self._run(rows)[0].rule_id, "D1")
 
-    def test_finding_severity_is_warn(self):
+    def test_finding_severity_is_fail(self):
         rows = [
             _row_d1(time_s="0.0", co_kg="0.0"),
             _row_d1(time_s="10.0", co_kg="0.01",
                     co_generated_kg_total="0.0", co_net_transport_kg_total="0.0"),
         ]
-        self.assertEqual(self._run(rows)[0].severity, "WARN")
+        self.assertEqual(self._run(rows)[0].severity, "FAIL")
 
     def test_finding_reason_contains_delta_and_expected(self):
         rows = [

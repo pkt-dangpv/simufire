@@ -17,7 +17,7 @@
 				}
 			},
 			"room_upper_floor_vs_lower_floor_pressure_delta_pa": {
-				"actual": -16.5209261818389,
+				"actual": 0.1059211697264,
 				"pass": false,
 				"rule": {
 					"max": 0.0,
@@ -412,7 +412,7 @@
 		"room_8_peak_temp_upper_raw_c": 21.8482421442255,
 		"room_8_peak_upper_zone_mass_kg": 18.2804487232418,
 		"room_8_peak_zone_total_energy_kj": 64.4265018923957,
-		"room_upper_floor_vs_lower_floor_pressure_delta_pa": -16.5209261818389,
+		"room_upper_floor_vs_lower_floor_pressure_delta_pa": 0.1059211697264,
 		"smoke_deposited_total_kg": 0.012589283697494,
 		"smoke_generated_total_kg": 18.5911702528502,
 		"smoke_vented_total_kg": 7.84734674726652,

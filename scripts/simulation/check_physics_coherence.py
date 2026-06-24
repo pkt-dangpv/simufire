@@ -356,7 +356,7 @@ def _check_d1_co_balance_residual(rows: list[dict[str, str]]) -> list[Finding]:
                     time_s=_float(row, "time_s"),
                     room_id=room_id,
                     rule_id="D1",
-                    severity="WARN",
+                    severity="FAIL",
                     metric="co_balance_residual_kg",
                     value=round(residual, 9),
                     reason=(
