@@ -6,6 +6,112 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update — 2026-06-25 (rev 16 — Physics coherence + D1 CO balance gating)
+
+### Estado operativo actual
+
+- Branch: `main`, limpio antes del cierre documental, **ahead 12** respecto a `origin/main` (push pendiente antes de esta nota).
+- HEAD previo al cierre: `b6e355f` — `feat(d1): promote D1 CO balance from WARN to FAIL`.
+- Suite completa: 18 casos lanzados, **17 OK** y 1 timeout preexistente (`long_burnout_3600s`).
+- `validate_reference_cases`: **349/354 PASS** — los 5 FAIL restantes son los `VALID_GAP` conocidos (Grupo A O2 window + Grupo C corridor temp).
+- Physics coherence audit: **5/5 PASS**, **0 FAIL**, con D1 ya `FAIL`/gating.
+- Tests Python de la fase: **221/221 PASS**.
+
+### Validación física: cambio de enfoque
+
+Se acordó dejar de tratar el problema como una suma de casos M4 y pasar a una revalidación física integral del motor. El objetivo es auditar, con balances e instrumentación, que sean coherentes:
+
+- HRR, combustible, energía y régimen de combustión.
+- O2 por capa/sala y su acoplamiento con HRR.
+- CO/CO2/HCN, generación local, transporte y balance de carbono.
+- Humo/soot, visibilidad, FED y tenabilidad.
+- Temperaturas upper/lower, capas, presión, plano neutro e isoterma 150 C.
+- Modelo bizona, ventilación por puertas/ventanas, flotabilidad, transporte multi-room/multi-planta.
+- Paredes, radiación, almacenamiento térmico y reradiación.
+
+Documento nuevo/actualizado:
+
+- `docs/validation/MOTOR_PHYSICS_VALIDATION_CHECKLIST.md` — checklist maestro de items físicos pendientes y cobertura actual.
+
+### Auditor físico general
+
+Se creó e integró el auditor físico general:
+
+- `scripts/simulation/check_physics_coherence.py`
+- `scripts/simulation/audit_physics_coherence_suite.py`
+- `tests/test_check_physics_coherence.py`
+
+Reglas cerradas actualmente:
+
+| Regla | Severidad | Estado |
+|---|---|---|
+| `B1` inversión térmica fuerte | FAIL | Gating |
+| `C1` FED suma | FAIL | Gating |
+| `C2` FED monotónica | FAIL | Gating |
+| `A2` HRR sin combustible | FAIL | Gating |
+| `A3` régimen vs O2 superior crítico | FAIL | Gating |
+| `D1` balance de CO por sala/paso | FAIL | Gating |
+
+El auditor está integrado en `run_full_reference_suite.ps1` junto al auditor ILV.
+
+### D1 CO balance — cerrado y gating
+
+La línea CO/CO2/HCN se cerró en D1 como balance real, no como heurística de "CO sube sin fuego local".
+
+Instrumentación añadida al CSV sin cambiar física:
+
+- `c_balance_frac`
+- `carbon_conservation_error_kg`
+- `co_kg`
+- `co_generated_kg_step`
+- `co2_generated_kg_step`
+- `hcn_generated_kg_step`
+- `co_net_transport_kg_step`
+- Acumulados usados por D1: `co_generated_kg_total`, `co_net_transport_kg_total`, `co_exterior_removed_kg_total`
+
+Invariante D1:
+
+```text
+delta_co = co_kg[t] - co_kg[t-1]
+expected = delta(co_generated_kg_total) + delta(co_net_transport_kg_total) - delta(co_exterior_removed_kg_total)
+residual = abs(delta_co - expected)
+```
+
+`D1` empezó como `WARN`, detectó rutas reales de CO no contabilizadas, y después se promovió a `FAIL` tras corpus limpio.
+
+Paths corregidos por D1 (`b41fcbd`):
+
+1. `GasExchangeSystem._purge_upper_species_to_exterior_direct` — actualiza `co_exterior_removed_kg_total`.
+2. `ThermalSystem._flush_contaminant_deltas` — actualiza `co_net_transport_kg_total`.
+3. `GasExchangeSystem._release_pending_interior_deliveries` — actualiza `co_net_transport_kg_total`.
+
+Semántica importante: `co_net_transport_kg_total` es **neto amplio**, no solo room-to-room. Incluye intercambio, arrastre térmico/hot-gas carry y entregas interiores diferidas. La pérdida a exterior se trata por separado con `co_exterior_removed_kg_total`.
+
+Resultados antes/después:
+
+| CSV | Antes | Después |
+|---|---:|---:|
+| `layer_interface_single_room_window` | 1 WARN | 0 findings |
+| `v5_m4_ventilation_throttle` | 612 WARN | 0 findings |
+| `cfast_ilv_audit` | 0 | 0 findings |
+
+### Hallazgos CO/CO2/HCN que quedan registrados
+
+- CO y HCN usan masa interna (`kg`) para generación/transporte/conversión.
+- CO2 tiene **dual tracking**: `co2_kg`/`co2_upper_kg` por masa, pero `co2_upper_ppm` sale de `co2_upper * 1e6` (tracer/fracción molar), no de `co2_upper_kg`.
+- Por eso `D2` CO/CO2 ratio queda **bloqueado**: no implementar hasta resolver o documentar mejor la dualidad de CO2 upper.
+- La regla naive "CO sube sin fuego local" queda descartada para multi-room: puede ser transporte real desde otra sala con fuego.
+
+### Próxima sesión recomendada
+
+1. Confirmar que el cierre documental quedó pusheado.
+2. Mantener D1 como gating y no tocar su severidad/tolerancia salvo evidencia nueva.
+3. Elegir el siguiente bloque de balance, preferiblemente **O2 + energía/HRR** antes que D2 CO/CO2 ratio.
+4. Para O2/energía: inventariar columnas e instrumentación necesaria antes de añadir reglas.
+5. No tocar HVAC ni visual FP en esta línea; están fuera de foco hasta estabilizar el núcleo físico.
+
+---
+
 ## Current Session Update — 2026-06-23 (rev 15 — Ruta B: v5_m4_ventilation_throttle)
 
 ### Estado operativo actual

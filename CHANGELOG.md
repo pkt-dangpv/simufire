@@ -4,6 +4,16 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### Physics validation — general coherence auditor and D1 CO balance (2026-06-25)
+
+- **General physics coherence auditor** — added `check_physics_coherence.py` and `audit_physics_coherence_suite.py`, integrated into the full reference suite. Current gating rules cover strong thermal inversion (`B1`), FED arithmetic (`C1`), FED monotonicity (`C2`), HRR without fuel (`A2`), regime vs critical upper-layer O2 (`A3`), and per-step CO mass balance (`D1`).
+- **Phase 3 pressure regression fixed** — removed the `ThermalSystem` branch that reset `pressure_pa_therm` when the Phase 3A pressure ODE was disabled. `cfast_closed_t120_pressure_pa` is restored and the reference suite is back to **349/354 PASS** with only the 5 accepted `VALID_GAP` failures.
+- **CO/CO2/HCN diagnostic instrumentation** — CSV exports now include toxic-gas diagnostic fields needed for balance checks, including CO mass, per-step generated CO/CO2/HCN, carbon clamp/error fields, CO net transport and cumulative CO balance terms.
+- **D1 CO balance is FAIL-gating** — D1 verifies per-room, per-step CO conservation using `co_kg`, cumulative generated CO, broad net CO transport and exterior CO removal. It started as WARN, found three untracked CO paths, and was promoted to FAIL after fresh CSVs produced 0 findings.
+- **D1 tracking fixes** (`b41fcbd`) — instrumented `GasExchangeSystem._purge_upper_species_to_exterior_direct`, `ThermalSystem._flush_contaminant_deltas`, and `GasExchangeSystem._release_pending_interior_deliveries` so all relevant CO movement is included in the D1 balance.
+- **Motor validation checklist** — added `docs/validation/MOTOR_PHYSICS_VALIDATION_CHECKLIST.md`, capturing the remaining validation items for HRR/energy, O2, toxic gases, smoke/visibility, FED, temperatures, two-zone behavior, ventilation, pressure, wall radiation and the future CFAST/reference battery.
+- **Known toxic-gas caveat** — `co2_upper_ppm` is tracer-derived (`co2_upper * 1e6`), while CO upper ppm is mass-derived. CO/CO2 ratio rules remain blocked until the CO2 upper dual-tracking semantics are resolved.
+
 ### FP ILV HUD / Smoke Visibility (visual-only)
 
 - **HUD ILV critical display** (`a6d44c0`) — FP technical HUD now shows `Reg ILC`, `Reg ILV` or `Reg ILV CRIT`, labels gases by layer (`O₂u/O₂l`, `COu`, `CO₂u`, `HCNu`), removes duplicated HRR/visibility from the top FP panel while the technical overlay is visible, and visually dampens FP flames in `ILV_LATENT` or critical upper-layer O₂. No simulation physics changed.
