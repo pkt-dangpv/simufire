@@ -58,6 +58,42 @@ _ROW_FED_SEQ_B_DECR = _row(time_s="20.0", fed="0.0050",
 
 
 # ---------------------------------------------------------------------------
+# Shared test rows — A2 (HRR without fuel)
+# ---------------------------------------------------------------------------
+
+def _row_a2(
+    time_s="30.0", room_id="0",
+    hrr_kw="50.0",
+    fuel_remaining_MJ="5.0",
+    fire_smoldering="0",
+    fire_latent_active="0",
+) -> dict[str, str]:
+    return {
+        "time_s": time_s, "room_id": room_id,
+        "hrr_kw": hrr_kw,
+        "fuel_remaining_MJ": fuel_remaining_MJ,
+        "fire_smoldering": fire_smoldering,
+        "fire_latent_active": fire_latent_active,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Shared test rows — A3 (Regime/O2 mismatch)
+# ---------------------------------------------------------------------------
+
+def _row_a3(
+    time_s="30.0", room_id="0",
+    combustion_regime="FUEL_CONTROLLED",
+    o2_upper="0.15",
+) -> dict[str, str]:
+    return {
+        "time_s": time_s, "room_id": room_id,
+        "combustion_regime": combustion_regime,
+        "o2_upper": o2_upper,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Helper: write a minimal CSV
 # ---------------------------------------------------------------------------
 
@@ -250,6 +286,131 @@ class TestCheckC2(unittest.TestCase):
 
     def test_single_row_no_finding(self):
         self.assertEqual(len(self._run([_ROW_FED_SEQ_A])), 0)
+
+
+# ---------------------------------------------------------------------------
+# Tests: Rule A2 — HRR without fuel
+# ---------------------------------------------------------------------------
+
+class TestCheckA2(unittest.TestCase):
+
+    def _run(self, rows):
+        return checker.find_physics_coherence_issues(rows, rule_ids={"A2"})
+
+    def test_hrr_with_fuel_no_finding(self):
+        self.assertEqual(len(self._run([_row_a2(hrr_kw="50.0", fuel_remaining_MJ="5.0")])), 0)
+
+    def test_hrr_zero_no_fuel_no_finding(self):
+        # HRR=0 is below the 20 kW threshold → no violation
+        self.assertEqual(len(self._run([_row_a2(hrr_kw="0.0", fuel_remaining_MJ="0.0")])), 0)
+
+    def test_hrr_at_threshold_not_flagged(self):
+        # hrr = 20.0 exactly → strict >, not flagged
+        self.assertEqual(len(self._run([_row_a2(hrr_kw="20.0", fuel_remaining_MJ="0.0")])), 0)
+
+    def test_hrr_above_threshold_no_fuel_violation(self):
+        findings = self._run([_row_a2(hrr_kw="50.0", fuel_remaining_MJ="0.0")])
+        a2 = [f for f in findings if f.rule_id == "A2"]
+        self.assertEqual(len(a2), 1)
+        self.assertEqual(a2[0].severity, "FAIL")
+        self.assertAlmostEqual(a2[0].value, 50.0, places=1)
+
+    def test_smoldering_active_exempts_finding(self):
+        row = _row_a2(hrr_kw="50.0", fuel_remaining_MJ="0.0", fire_smoldering="1")
+        self.assertEqual(len(self._run([row])), 0)
+
+    def test_latent_active_exempts_finding(self):
+        row = _row_a2(hrr_kw="50.0", fuel_remaining_MJ="0.0", fire_latent_active="1")
+        self.assertEqual(len(self._run([row])), 0)
+
+    def test_small_fuel_residual_not_flagged(self):
+        # fuel_remaining = 0.001 is exactly at the threshold → not depleted
+        row = _row_a2(hrr_kw="50.0", fuel_remaining_MJ="0.001")
+        self.assertEqual(len(self._run([row])), 0)
+
+    def test_negative_fuel_is_depleted(self):
+        # Negative fuel_remaining (float overshoot) counts as depleted
+        findings = self._run([_row_a2(hrr_kw="50.0", fuel_remaining_MJ="-0.1")])
+        self.assertEqual(len([f for f in findings if f.rule_id == "A2"]), 1)
+
+    def test_missing_cols_skips_rule(self):
+        row = {"time_s": "10.0", "room_id": "0", "hrr_kw": "100.0"}
+        self.assertEqual(len(self._run([row])), 0)
+
+    def test_multiple_violations_all_reported(self):
+        rows = [
+            _row_a2(time_s="10.0", hrr_kw="50.0", fuel_remaining_MJ="0.0"),
+            _row_a2(time_s="20.0", hrr_kw="80.0", fuel_remaining_MJ="0.0"),
+            _row_a2(time_s="30.0", hrr_kw="30.0", fuel_remaining_MJ="1.0"),  # has fuel → no violation
+        ]
+        findings = self._run(rows)
+        a2 = [f for f in findings if f.rule_id == "A2"]
+        self.assertEqual(len(a2), 2)
+
+
+# ---------------------------------------------------------------------------
+# Tests: Rule A3 — Regime/O2 upper mismatch
+# ---------------------------------------------------------------------------
+
+class TestCheckA3(unittest.TestCase):
+
+    def _run(self, rows):
+        return checker.find_physics_coherence_issues(rows, rule_ids={"A3"})
+
+    def test_fuel_controlled_normal_o2_no_finding(self):
+        self.assertEqual(len(self._run([_row_a3(combustion_regime="FUEL_CONTROLLED", o2_upper="0.15")])), 0)
+
+    def test_fully_developed_normal_o2_no_finding(self):
+        self.assertEqual(len(self._run([_row_a3(combustion_regime="FULLY_DEVELOPED", o2_upper="0.12")])), 0)
+
+    def test_fuel_controlled_o2_at_threshold_not_flagged(self):
+        # o2_upper = 0.05 exactly → strict <, not flagged
+        self.assertEqual(len(self._run([_row_a3(combustion_regime="FUEL_CONTROLLED", o2_upper="0.05")])), 0)
+
+    def test_fuel_controlled_depleted_o2_violation(self):
+        findings = self._run([_row_a3(combustion_regime="FUEL_CONTROLLED", o2_upper="0.03")])
+        a3 = [f for f in findings if f.rule_id == "A3"]
+        self.assertEqual(len(a3), 1)
+        self.assertEqual(a3[0].severity, "FAIL")
+        self.assertAlmostEqual(a3[0].value, 0.03, places=4)
+
+    def test_fully_developed_depleted_o2_violation(self):
+        findings = self._run([_row_a3(combustion_regime="FULLY_DEVELOPED", o2_upper="0.02")])
+        a3 = [f for f in findings if f.rule_id == "A3"]
+        self.assertEqual(len(a3), 1)
+        self.assertEqual(a3[0].severity, "FAIL")
+
+    def test_ventilation_controlled_depleted_o2_no_finding(self):
+        # VENTILATION_CONTROLLED_BURNING is not in the incoherent-regime set
+        row = _row_a3(combustion_regime="VENTILATION_CONTROLLED_BURNING", o2_upper="0.03")
+        self.assertEqual(len(self._run([row])), 0)
+
+    def test_ventilation_stressed_depleted_o2_no_finding(self):
+        row = _row_a3(combustion_regime="VENTILATION_STRESSED", o2_upper="0.03")
+        self.assertEqual(len(self._run([row])), 0)
+
+    def test_extinguished_depleted_o2_no_finding(self):
+        row = _row_a3(combustion_regime="EXTINGUISHED", o2_upper="0.00")
+        self.assertEqual(len(self._run([row])), 0)
+
+    def test_ilv_latent_depleted_o2_no_finding(self):
+        row = _row_a3(combustion_regime="ILV_LATENT", o2_upper="0.01")
+        self.assertEqual(len(self._run([row])), 0)
+
+    def test_missing_cols_skips_rule(self):
+        row = {"time_s": "10.0", "room_id": "0", "hrr_kw": "100.0"}
+        self.assertEqual(len(self._run([row])), 0)
+
+    def test_room_id_reported_correctly(self):
+        row = dict(_row_a3(combustion_regime="FUEL_CONTROLLED", o2_upper="0.03"))
+        row["room_id"] = "2"
+        findings = self._run([row])
+        self.assertEqual(findings[0].room_id, "2")
+
+    def test_reason_contains_regime_and_o2(self):
+        findings = self._run([_row_a3(combustion_regime="FULLY_DEVELOPED", o2_upper="0.02")])
+        self.assertIn("FULLY_DEVELOPED", findings[0].reason)
+        self.assertIn("0.02", findings[0].reason)
 
 
 # ---------------------------------------------------------------------------

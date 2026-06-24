@@ -19,6 +19,18 @@ C2  FED monotonicity    fed must never decrease (per room, ordered by time_s).
                         FED is a cumulative integral of dose — once accumulated,
                         dose cannot be "un-accumulated".
 
+Rules — second slice
+--------------------
+A2  HRR without fuel    hrr_kw > 20 while fuel_remaining_MJ ≈ 0 and neither
+                        fire_smoldering nor fire_latent_active is active.
+                        A non-trivial fire cannot sustain itself with no fuel
+                        and no latent combustion source.
+
+A3  Regime/O2 mismatch  combustion_regime is FUEL_CONTROLLED or FULLY_DEVELOPED
+                        while o2_upper < 0.05.  These regimes require an
+                        adequately oxygenated combustion zone; critical upper-
+                        layer O2 starvation is physically incompatible.
+
 Usage
 -----
   # Check all rules:
@@ -90,12 +102,81 @@ def _has_cols(headers: set[str], required: set[str]) -> bool:
 # ---------------------------------------------------------------------------
 
 REQUIRED_COLS: dict[str, set[str]] = {
+    "A2": {"hrr_kw", "fuel_remaining_MJ", "fire_smoldering", "fire_latent_active"},
+    "A3": {"combustion_regime", "o2_upper"},
     "B1": {"temp_upper_c", "temp_lower_c"},
     "C1": {"fed", "fed_co", "fed_hcn", "fed_hypoxia", "fed_heat"},
     "C2": {"fed"},
 }
 
-ALL_RULES: tuple[str, ...] = ("B1", "C1", "C2")
+ALL_RULES: tuple[str, ...] = ("A2", "A3", "B1", "C1", "C2")
+
+
+# ---------------------------------------------------------------------------
+# Rule A2 — HRR without fuel
+# ---------------------------------------------------------------------------
+
+_A2_HRR_MIN_KW = 20.0
+_A2_FUEL_DEPLETED_MJ = 0.001
+
+
+def _check_a2_hrr_no_fuel(rows: list[dict[str, str]]) -> list[Finding]:
+    findings: list[Finding] = []
+    for row in rows:
+        hrr = _float(row, "hrr_kw")
+        if hrr <= _A2_HRR_MIN_KW:
+            continue
+        fuel = _float(row, "fuel_remaining_MJ")
+        if fuel >= _A2_FUEL_DEPLETED_MJ:
+            continue
+        smoldering = _float(row, "fire_smoldering")
+        latent = _float(row, "fire_latent_active")
+        if smoldering != 0.0 or latent != 0.0:
+            continue
+        findings.append(Finding(
+            time_s=_float(row, "time_s"),
+            room_id=row.get("room_id", "?").strip(),
+            rule_id="A2",
+            severity="FAIL",
+            metric="hrr_without_fuel_kw",
+            value=round(hrr, 3),
+            reason=(
+                f"hrr_kw={hrr:.1f} with fuel_remaining={fuel:.4f} MJ, "
+                f"fire_smoldering=0, fire_latent_active=0"
+            ),
+        ))
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# Rule A3 — Regime/O2 upper mismatch
+# ---------------------------------------------------------------------------
+
+_A3_REGIMES_INCOHERENT: frozenset[str] = frozenset({"FUEL_CONTROLLED", "FULLY_DEVELOPED"})
+_A3_O2_UPPER_CRITICAL = 0.05
+
+
+def _check_a3_regime_o2_starvation(rows: list[dict[str, str]]) -> list[Finding]:
+    findings: list[Finding] = []
+    for row in rows:
+        regime = row.get("combustion_regime", "").strip()
+        if regime not in _A3_REGIMES_INCOHERENT:
+            continue
+        o2_upper = _float(row, "o2_upper", default=0.21)
+        if o2_upper < _A3_O2_UPPER_CRITICAL:
+            findings.append(Finding(
+                time_s=_float(row, "time_s"),
+                room_id=row.get("room_id", "?").strip(),
+                rule_id="A3",
+                severity="FAIL",
+                metric="regime_o2_upper_starvation",
+                value=round(o2_upper, 5),
+                reason=(
+                    f"combustion_regime={regime} while o2_upper={o2_upper:.4f} "
+                    f"< {_A3_O2_UPPER_CRITICAL} (critical starvation threshold)"
+                ),
+            ))
+    return findings
 
 
 # ---------------------------------------------------------------------------
@@ -230,6 +311,10 @@ def find_physics_coherence_issues(
 
     findings: list[Finding] = []
 
+    if "A2" in active and _has_cols(headers, REQUIRED_COLS["A2"]):
+        findings.extend(_check_a2_hrr_no_fuel(rows))
+    if "A3" in active and _has_cols(headers, REQUIRED_COLS["A3"]):
+        findings.extend(_check_a3_regime_o2_starvation(rows))
     if "B1" in active and _has_cols(headers, REQUIRED_COLS["B1"]):
         findings.extend(_check_b1_thermal_inversion(rows))
     if "C1" in active and _has_cols(headers, REQUIRED_COLS["C1"]):
