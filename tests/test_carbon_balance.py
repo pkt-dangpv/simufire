@@ -948,5 +948,217 @@ class TestGlobalCarbonStructure(unittest.TestCase):
         self.assertIn('"global_carbon_postclamp_excess_kg"', self.case_runner_src)
 
 
+_LOG_WRITER = _REPO_ROOT / "sim" / "core" / "SimulationLogWriter.gd"
+
+
+# ---------------------------------------------------------------------------
+# Part G — Per-step diagnostic instrumentation (SF-DIAG)
+# Verifies that co_generated_kg_step / co2_generated_kg_step / hcn_generated_kg_step
+# and co_net_transport_kg_step are declared, reset, and wired correctly across
+# RoomModel, CombustionSystem, GasExchangeSystem, SimulationStateBuilder,
+# and SimulationLogWriter.
+# ---------------------------------------------------------------------------
+
+class TestPerStepDiagnosticInstrumentation(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.room_src     = _load(_ROOM_MODEL)
+        cls.combustion_src = _load(_COMBUSTION)
+        cls.gas_src      = _load(_GAS_EXCHANGE)
+        cls.builder_src  = _load(_STATE_BUILDER)
+        cls.logwriter_src = _load(_LOG_WRITER)
+        cls.reset_body   = _extract_function_body(cls.room_src, "reset_dynamic_state")
+        cls.step_fire_body = _extract_function_body(cls.combustion_src, "step_room_fire")
+
+    # ── RoomModel field declarations ──────────────────────────────────────────
+
+    def test_room_model_declares_co_generated_kg_step(self):
+        """RoomModel must declare var co_generated_kg_step: float = 0.0."""
+        self.assertRegex(
+            self.room_src,
+            r"\bvar\s+co_generated_kg_step\s*:\s*float\s*=\s*0\.0",
+        )
+
+    def test_room_model_declares_co2_generated_kg_step(self):
+        self.assertRegex(
+            self.room_src,
+            r"\bvar\s+co2_generated_kg_step\s*:\s*float\s*=\s*0\.0",
+        )
+
+    def test_room_model_declares_hcn_generated_kg_step(self):
+        self.assertRegex(
+            self.room_src,
+            r"\bvar\s+hcn_generated_kg_step\s*:\s*float\s*=\s*0\.0",
+        )
+
+    def test_room_model_declares_co_net_transport_kg_step(self):
+        """RoomModel must declare var co_net_transport_kg_step: float = 0.0."""
+        self.assertRegex(
+            self.room_src,
+            r"\bvar\s+co_net_transport_kg_step\s*:\s*float\s*=\s*0\.0",
+        )
+
+    # ── RoomModel reset ───────────────────────────────────────────────────────
+
+    def test_room_model_resets_co_generated_kg_step(self):
+        self.assertRegex(self.reset_body, r"\bco_generated_kg_step\s*=\s*0\.0\b")
+
+    def test_room_model_resets_co2_generated_kg_step(self):
+        self.assertRegex(self.reset_body, r"\bco2_generated_kg_step\s*=\s*0\.0\b")
+
+    def test_room_model_resets_hcn_generated_kg_step(self):
+        self.assertRegex(self.reset_body, r"\bhcn_generated_kg_step\s*=\s*0\.0\b")
+
+    def test_room_model_resets_co_net_transport_kg_step(self):
+        self.assertRegex(self.reset_body, r"\bco_net_transport_kg_step\s*=\s*0\.0\b")
+
+    # ── CombustionSystem — no-fire branch zeros ───────────────────────────────
+
+    def test_combustion_zeros_generated_fields_in_no_fire_branch(self):
+        """step_room_fire() must zero co_generated_kg_step in the no-fire (null fire) branch.
+
+        The no-fire branch is the `if room.fire == null` block (second null guard),
+        which is distinct from the earlier `if room == null: return false` guard.
+        We verify by checking that the zeroing appears BEFORE the assignment of
+        the generated values (which only happens in the active-fire path).
+        """
+        pos_zero_co  = self.step_fire_body.find("room.co_generated_kg_step = 0.0")
+        pos_zero_co2 = self.step_fire_body.find("room.co2_generated_kg_step = 0.0")
+        pos_zero_hcn = self.step_fire_body.find("room.hcn_generated_kg_step = 0.0")
+        pos_assign   = self.step_fire_body.find("room.co_generated_kg_step = generated_co_kg")
+        self.assertGreater(pos_zero_co, -1,
+                           "No-fire branch must zero co_generated_kg_step")
+        self.assertGreater(pos_zero_co2, -1,
+                           "No-fire branch must zero co2_generated_kg_step")
+        self.assertGreater(pos_zero_hcn, -1,
+                           "No-fire branch must zero hcn_generated_kg_step")
+        # All zeroing must precede the active-fire assignment
+        self.assertLess(pos_zero_co, pos_assign,
+                        "Zeroing must appear before active-fire assignment in function text")
+
+    # ── CombustionSystem — active-fire branch assigns post-clamp values ───────
+
+    def test_combustion_sets_co_generated_kg_step_in_fire_branch(self):
+        """step_room_fire() must assign room.co_generated_kg_step = generated_co_kg after clamp."""
+        self.assertIn(
+            "room.co_generated_kg_step = generated_co_kg",
+            self.step_fire_body,
+            "Active-fire branch must set co_generated_kg_step from generated_co_kg",
+        )
+
+    def test_combustion_sets_co2_generated_kg_step_in_fire_branch(self):
+        self.assertIn(
+            "room.co2_generated_kg_step = generated_co2_kg",
+            self.step_fire_body,
+        )
+
+    def test_combustion_sets_hcn_generated_kg_step_in_fire_branch(self):
+        self.assertIn(
+            "room.hcn_generated_kg_step = generated_hcn_kg",
+            self.step_fire_body,
+        )
+
+    def test_combustion_assignment_appears_after_c_balance_frac(self):
+        """Generated-step fields must be set AFTER the carbon-balance clamp block."""
+        pos_frac = self.step_fire_body.find("room.c_balance_frac")
+        pos_gen  = self.step_fire_body.find("room.co_generated_kg_step = generated_co_kg")
+        self.assertGreater(pos_frac, -1, "step_room_fire must set c_balance_frac")
+        self.assertGreater(pos_gen,  -1, "step_room_fire must set co_generated_kg_step")
+        self.assertGreater(pos_gen, pos_frac,
+                           "co_generated_kg_step must be assigned after c_balance_frac")
+
+    # ── GasExchangeSystem — net transport recorded ────────────────────────────
+
+    def test_gas_exchange_sets_co_net_transport_kg_step(self):
+        """GasExchangeSystem apply-delta loop must set room.co_net_transport_kg_step."""
+        self.assertIn(
+            "room.co_net_transport_kg_step = float(co_delta_kg[int(room_id)])",
+            self.gas_src,
+            "GasExchangeSystem must record net CO transport in co_net_transport_kg_step",
+        )
+
+    def test_gas_exchange_transport_set_before_co_kg_update(self):
+        """co_net_transport_kg_step must be recorded before room.co_kg is mutated."""
+        pos_transport = self.gas_src.find(
+            "room.co_net_transport_kg_step = float(co_delta_kg[int(room_id)])"
+        )
+        pos_co_kg = self.gas_src.find(
+            "room.co_kg = maxf(0.0, room.co_kg + float(co_delta_kg[int(room_id)]))"
+        )
+        self.assertGreater(pos_transport, -1, "co_net_transport_kg_step line not found")
+        self.assertGreater(pos_co_kg, -1, "room.co_kg update line not found")
+        self.assertLess(pos_transport, pos_co_kg,
+                        "co_net_transport_kg_step must appear before room.co_kg update")
+
+    # ── SimulationStateBuilder exports ────────────────────────────────────────
+
+    def test_state_builder_exports_carbon_conservation_error_kg(self):
+        self.assertIn('"carbon_conservation_error_kg"', self.builder_src)
+
+    def test_state_builder_exports_co_generated_kg_step(self):
+        self.assertIn('"co_generated_kg_step"', self.builder_src)
+
+    def test_state_builder_exports_co2_generated_kg_step(self):
+        self.assertIn('"co2_generated_kg_step"', self.builder_src)
+
+    def test_state_builder_exports_hcn_generated_kg_step(self):
+        self.assertIn('"hcn_generated_kg_step"', self.builder_src)
+
+    def test_state_builder_exports_co_net_transport_kg_step(self):
+        self.assertIn('"co_net_transport_kg_step"', self.builder_src)
+
+    # ── SimulationLogWriter CSV ───────────────────────────────────────────────
+
+    def _csv_header(self) -> str:
+        match = re.search(r'_build_csv_header.*?return\s+"([^"]+)"', self.logwriter_src, re.S)
+        self.assertIsNotNone(match, "_build_csv_header return not found")
+        return match.group(1)
+
+    def test_log_writer_csv_header_has_c_balance_frac(self):
+        header = self._csv_header()
+        self.assertIn("c_balance_frac", header,
+                      "CSV header must include c_balance_frac")
+
+    def test_log_writer_csv_header_has_carbon_conservation_error_kg(self):
+        header = self._csv_header()
+        self.assertIn("carbon_conservation_error_kg", header)
+
+    def test_log_writer_csv_header_has_co_generated_kg_step(self):
+        header = self._csv_header()
+        self.assertIn("co_generated_kg_step", header)
+
+    def test_log_writer_csv_header_has_co2_generated_kg_step(self):
+        header = self._csv_header()
+        self.assertIn("co2_generated_kg_step", header)
+
+    def test_log_writer_csv_header_has_hcn_generated_kg_step(self):
+        header = self._csv_header()
+        self.assertIn("hcn_generated_kg_step", header)
+
+    def test_log_writer_csv_header_has_co_net_transport_kg_step(self):
+        header = self._csv_header()
+        self.assertIn("co_net_transport_kg_step", header)
+
+    def test_log_writer_csv_row_appends_c_balance_frac(self):
+        """_append_csv_snapshot must append c_balance_frac after combustion_regime."""
+        pos_regime = self.logwriter_src.find(
+            'fields.append(str(rs.get("combustion_regime"'
+        )
+        pos_c_bal = self.logwriter_src.find(
+            'rs.get("c_balance_frac"', pos_regime
+        )
+        self.assertGreater(pos_regime, -1, "combustion_regime append not found")
+        self.assertGreater(pos_c_bal, -1, "c_balance_frac append not found")
+        self.assertGreater(pos_c_bal, pos_regime,
+                           "c_balance_frac must appear after combustion_regime in CSV row")
+
+    def test_log_writer_csv_row_appends_co_generated_kg_step(self):
+        self.assertIn('rs.get("co_generated_kg_step"', self.logwriter_src)
+
+    def test_log_writer_csv_row_appends_co_net_transport_kg_step(self):
+        self.assertIn('rs.get("co_net_transport_kg_step"', self.logwriter_src)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

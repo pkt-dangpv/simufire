@@ -95,6 +95,9 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		room.fire_latent_active = false
 		room.combustion_regime = "EXTINGUISHED"
 		_sync_legacy_proxy_idle(room)
+		room.co_generated_kg_step = 0.0
+		room.co2_generated_kg_step = 0.0
+		room.hcn_generated_kg_step = 0.0
 		return false
 
 	var fire: FireModel = room.fire
@@ -767,6 +770,10 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		room.c_balance_frac = c_produced / c_avail_kg
 	else:
 		room.c_balance_frac = 0.0
+	# SF-DIAG: generación por paso — exportada al CSV para auditar balance CO/CO2/HCN.
+	room.co_generated_kg_step = generated_co_kg
+	room.co2_generated_kg_step = generated_co2_kg
+	room.hcn_generated_kg_step = generated_hcn_kg
 
 	# SF-CBAL: la fuente canónica es el carbono consumido del combustible PRE-clamp.
 	# La fracción no representada por especies se mantiene como producto no modelado.

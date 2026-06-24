@@ -977,6 +977,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		room.o2 = clampf(room_o2_mass_kg / room_air_mass_kg, 0.0, o2_nominal)
 
 		room.smoke_kg = maxf(0.0, room.smoke_kg + float(smoke_delta_kg[int(room_id)]))
+		room.co_net_transport_kg_step = float(co_delta_kg[int(room_id)])
 		room.co_kg = maxf(0.0, room.co_kg + float(co_delta_kg[int(room_id)]))
 		room.co_upper_kg = maxf(0.0, room.co_upper_kg + float(co_upper_delta_kg[int(room_id)]))
 		room.co2_kg = maxf(0.0, room.co2_kg + float(co2_delta_kg[int(room_id)]))

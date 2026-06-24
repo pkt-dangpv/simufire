@@ -121,6 +121,17 @@ var c_postclamp_excess_kg: float = 0.0
 # Negativo = C transportado a otras salas o exterior (normal en sala de fuego).
 # Positivo en sala de fuego = posible creación espuria (diagnóstico SF-CBAL).
 var carbon_conservation_error_kg: float = 0.0
+
+# Diagnóstico per-paso: gases generados localmente por CombustionSystem (kg).
+# Puesto a 0 por CombustionSystem en cada paso (rama con y sin fuego activo).
+# Permite separar generación local de CO/CO2/HCN del transporte entre salas.
+var co_generated_kg_step: float = 0.0
+var co2_generated_kg_step: float = 0.0
+var hcn_generated_kg_step: float = 0.0
+# Transporte neto de CO por GasExchangeSystem en este paso (kg).
+# Positivo = ganancia neta (CO llegó desde otras salas o exterior).
+# Negativo = pérdida neta (CO salió hacia otras salas o exterior / venteo).
+var co_net_transport_kg_step: float = 0.0
 # SF-CBAL global: carbono acumulado que salió por aperturas exteriores (kg C).
 # Incrementado en GasExchangeSystem cada vez que CO/CO₂/HCN/humo se ventila
 # al exterior (presión, flujo de humo, purgas, ACH o PPV).
@@ -382,3 +393,7 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	carbon_conservation_error_kg = 0.0
 	c_exited_kg = 0.0
 	c_deposited_kg = 0.0
+	co_generated_kg_step = 0.0
+	co2_generated_kg_step = 0.0
+	hcn_generated_kg_step = 0.0
+	co_net_transport_kg_step = 0.0
