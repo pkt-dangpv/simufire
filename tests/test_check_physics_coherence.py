@@ -1,0 +1,441 @@
+"""Tests for check_physics_coherence.py and audit_physics_coherence_suite.py."""
+
+import csv
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+_SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts" / "simulation"
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+import check_physics_coherence as checker  # noqa: E402
+import audit_physics_coherence_suite as suite  # noqa: E402
+
+
+# ---------------------------------------------------------------------------
+# Shared test rows
+# ---------------------------------------------------------------------------
+
+def _row(
+    time_s="10.0", room_id="0",
+    temp_upper_c="80.0", temp_lower_c="30.0",
+    fed="0.0500", fed_co="0.0200", fed_hcn="0.0100",
+    fed_hypoxia="0.0150", fed_heat="0.0050",
+) -> dict[str, str]:
+    """Return a minimal valid row with FED sum = 0.05 exactly."""
+    return {
+        "time_s": time_s, "room_id": room_id,
+        "temp_upper_c": temp_upper_c, "temp_lower_c": temp_lower_c,
+        "fed": fed, "fed_co": fed_co, "fed_hcn": fed_hcn,
+        "fed_hypoxia": fed_hypoxia, "fed_heat": fed_heat,
+    }
+
+
+_ROW_CLEAN = _row()
+
+_ROW_FED_BROKEN = _row(
+    fed="0.1000",
+    fed_co="0.0200", fed_hcn="0.0100", fed_hypoxia="0.0150", fed_heat="0.0050",
+    # sum = 0.05, but fed = 0.10 -> diff = 0.05 > 0.001
+)
+
+_ROW_THERMAL_INVERSION = _row(
+    temp_upper_c="20.0",   # upper is cold
+    temp_lower_c="50.0",   # lower is hotter by 30 °C -> inversion
+)
+
+_ROW_FED_SEQ_A = _row(time_s="10.0", fed="0.0100",
+                       fed_co="0.0050", fed_hcn="0.0020",
+                       fed_hypoxia="0.0020", fed_heat="0.0010")
+_ROW_FED_SEQ_B_OK = _row(time_s="20.0", fed="0.0200",
+                          fed_co="0.0100", fed_hcn="0.0040",
+                          fed_hypoxia="0.0040", fed_heat="0.0020")
+_ROW_FED_SEQ_B_DECR = _row(time_s="20.0", fed="0.0050",
+                             fed_co="0.0020", fed_hcn="0.0010",
+                             fed_hypoxia="0.0010", fed_heat="0.0010")
+
+
+# ---------------------------------------------------------------------------
+# Helper: write a minimal CSV
+# ---------------------------------------------------------------------------
+
+def _write_csv(path: Path, rows: list[dict]) -> None:
+    if not rows:
+        raise ValueError("rows must be non-empty")
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+# ---------------------------------------------------------------------------
+# Tests: Finding
+# ---------------------------------------------------------------------------
+
+class TestFinding(unittest.TestCase):
+
+    def _make(self, **kwargs) -> checker.Finding:
+        defaults = dict(
+            time_s=10.0, room_id="0", rule_id="C1", severity="FAIL",
+            metric="fed_sum_error", value=0.05,
+            reason="fed=0.10 != components=0.05",
+        )
+        defaults.update(kwargs)
+        return checker.Finding(**defaults)
+
+    def test_format_contains_rule_id(self):
+        f = self._make(rule_id="C1")
+        self.assertIn("C1", f.format())
+
+    def test_format_contains_severity(self):
+        f = self._make(severity="FAIL")
+        self.assertIn("FAIL", f.format())
+
+    def test_format_contains_metric(self):
+        f = self._make(metric="fed_sum_error")
+        self.assertIn("fed_sum_error", f.format())
+
+    def test_format_contains_reason(self):
+        f = self._make(reason="the reason here")
+        self.assertIn("the reason here", f.format())
+
+
+# ---------------------------------------------------------------------------
+# Tests: Rule B1 — thermal inversion
+# ---------------------------------------------------------------------------
+
+class TestCheckB1(unittest.TestCase):
+
+    def _run(self, rows):
+        return checker.find_physics_coherence_issues(rows, rule_ids={"B1"})
+
+    def test_no_inversion_no_finding(self):
+        findings = self._run([_ROW_CLEAN])
+        b1 = [f for f in findings if f.rule_id == "B1"]
+        self.assertEqual(len(b1), 0)
+
+    def test_small_diff_below_threshold_not_flagged(self):
+        # upper=30, lower=35, diff=5 < 10 -> no finding
+        row = _row(temp_upper_c="30.0", temp_lower_c="35.0")
+        findings = self._run([row])
+        self.assertEqual(len([f for f in findings if f.rule_id == "B1"]), 0)
+
+    def test_exactly_at_threshold_not_flagged(self):
+        # diff = 10.0 -> condition is strict >, so no finding
+        row = _row(temp_upper_c="20.0", temp_lower_c="30.0")
+        findings = self._run([row])
+        self.assertEqual(len([f for f in findings if f.rule_id == "B1"]), 0)
+
+    def test_inversion_above_threshold_is_flagged(self):
+        findings = self._run([_ROW_THERMAL_INVERSION])
+        b1 = [f for f in findings if f.rule_id == "B1"]
+        self.assertEqual(len(b1), 1)
+        self.assertEqual(b1[0].severity, "FAIL")
+        self.assertAlmostEqual(b1[0].value, 30.0, places=1)
+
+    def test_missing_cols_skips_rule(self):
+        row = {"time_s": "10.0", "room_id": "0", "fed": "0.0"}
+        findings = self._run([row])
+        self.assertEqual(len([f for f in findings if f.rule_id == "B1"]), 0)
+
+    def test_multiple_rows_counts_per_violation(self):
+        rows = [_ROW_THERMAL_INVERSION, _ROW_THERMAL_INVERSION, _ROW_CLEAN]
+        findings = self._run(rows)
+        self.assertEqual(len([f for f in findings if f.rule_id == "B1"]), 2)
+
+
+# ---------------------------------------------------------------------------
+# Tests: Rule C1 — FED arithmetic
+# ---------------------------------------------------------------------------
+
+class TestCheckC1(unittest.TestCase):
+
+    def _run(self, rows):
+        return checker.find_physics_coherence_issues(rows, rule_ids={"C1"})
+
+    def test_valid_fed_sum_no_finding(self):
+        self.assertEqual(len(self._run([_ROW_CLEAN])), 0)
+
+    def test_zero_fed_skipped(self):
+        row = _row(fed="0.0", fed_co="0.0", fed_hcn="0.0", fed_hypoxia="0.0", fed_heat="0.0")
+        self.assertEqual(len(self._run([row])), 0)
+
+    def test_arithmetic_violation_detected(self):
+        findings = self._run([_ROW_FED_BROKEN])
+        c1 = [f for f in findings if f.rule_id == "C1"]
+        self.assertEqual(len(c1), 1)
+        self.assertEqual(c1[0].severity, "FAIL")
+        self.assertGreater(c1[0].value, 0.001)
+
+    def test_diff_within_tolerance_not_flagged(self):
+        # diff = 0.0005, below 0.001 tolerance
+        row = _row(
+            fed="0.0505",
+            fed_co="0.0200", fed_hcn="0.0100",
+            fed_hypoxia="0.0150", fed_heat="0.0050",
+        )
+        self.assertEqual(len(self._run([row])), 0)
+
+    def test_missing_cols_skips_rule(self):
+        row = {"time_s": "10.0", "room_id": "0", "temp_upper_c": "80.0", "temp_lower_c": "30.0"}
+        self.assertEqual(len(self._run([row])), 0)
+
+    def test_room_id_reported_in_finding(self):
+        row = dict(_ROW_FED_BROKEN)
+        row["room_id"] = "3"
+        findings = self._run([row])
+        self.assertEqual(findings[0].room_id, "3")
+
+
+# ---------------------------------------------------------------------------
+# Tests: Rule C2 — FED monotonicity
+# ---------------------------------------------------------------------------
+
+class TestCheckC2(unittest.TestCase):
+
+    def _run(self, rows):
+        return checker.find_physics_coherence_issues(rows, rule_ids={"C2"})
+
+    def test_monotone_sequence_no_finding(self):
+        findings = self._run([_ROW_FED_SEQ_A, _ROW_FED_SEQ_B_OK])
+        self.assertEqual(len([f for f in findings if f.rule_id == "C2"]), 0)
+
+    def test_decrement_detected(self):
+        findings = self._run([_ROW_FED_SEQ_A, _ROW_FED_SEQ_B_DECR])
+        c2 = [f for f in findings if f.rule_id == "C2"]
+        self.assertEqual(len(c2), 1)
+        self.assertEqual(c2[0].severity, "FAIL")
+        self.assertLess(c2[0].value, 0)   # delta is negative
+
+    def test_tiny_decrement_within_tolerance_not_flagged(self):
+        # delta = -0.0003, below tolerance 0.0005
+        a = _row(time_s="10.0", fed="0.0100",
+                 fed_co="0.0050", fed_hcn="0.0020",
+                 fed_hypoxia="0.0020", fed_heat="0.0010")
+        b = _row(time_s="20.0", fed="0.0097",
+                 fed_co="0.0049", fed_hcn="0.0019",
+                 fed_hypoxia="0.0019", fed_heat="0.0010")
+        self.assertEqual(len(self._run([a, b])), 0)
+
+    def test_unordered_rows_sorted_by_time(self):
+        # Row B has t=20 (higher fed), row A has t=10 (lower fed).
+        # Even though B appears first in the list, sorting by time gives A->B = monotone.
+        findings = self._run([_ROW_FED_SEQ_B_OK, _ROW_FED_SEQ_A])
+        self.assertEqual(len([f for f in findings if f.rule_id == "C2"]), 0)
+
+    def test_multi_room_independent_sequences(self):
+        # room 0: monotone; room 1: decreases
+        r0_a = _row(time_s="10.0", room_id="0", fed="0.0100",
+                    fed_co="0.0050", fed_hcn="0.0020",
+                    fed_hypoxia="0.0020", fed_heat="0.0010")
+        r0_b = _row(time_s="20.0", room_id="0", fed="0.0200",
+                    fed_co="0.0100", fed_hcn="0.0040",
+                    fed_hypoxia="0.0040", fed_heat="0.0020")
+        r1_a = _row(time_s="10.0", room_id="1", fed="0.0300",
+                    fed_co="0.0150", fed_hcn="0.0060",
+                    fed_hypoxia="0.0060", fed_heat="0.0030")
+        r1_b = _row(time_s="20.0", room_id="1", fed="0.0050",  # decreases
+                    fed_co="0.0020", fed_hcn="0.0010",
+                    fed_hypoxia="0.0010", fed_heat="0.0010")
+        findings = self._run([r0_a, r0_b, r1_a, r1_b])
+        c2 = [f for f in findings if f.rule_id == "C2"]
+        self.assertEqual(len(c2), 1)
+        self.assertEqual(c2[0].room_id, "1")
+
+    def test_missing_fed_col_skips_rule(self):
+        row = {"time_s": "10.0", "room_id": "0", "temp_upper_c": "80.0", "temp_lower_c": "30.0"}
+        self.assertEqual(len(self._run([row])), 0)
+
+    def test_single_row_no_finding(self):
+        self.assertEqual(len(self._run([_ROW_FED_SEQ_A])), 0)
+
+
+# ---------------------------------------------------------------------------
+# Tests: find_physics_coherence_issues — integration / cross-cutting
+# ---------------------------------------------------------------------------
+
+class TestFindPhysicsCoherenceIssues(unittest.TestCase):
+
+    def test_empty_rows_returns_empty(self):
+        self.assertEqual(checker.find_physics_coherence_issues([]), [])
+
+    def test_room_id_filter(self):
+        row_r0 = dict(_ROW_FED_BROKEN); row_r0["room_id"] = "0"
+        row_r1 = dict(_ROW_FED_BROKEN); row_r1["room_id"] = "1"
+        findings = checker.find_physics_coherence_issues([row_r0, row_r1], room_id="1")
+        self.assertTrue(all(f.room_id == "1" for f in findings))
+
+    def test_rule_id_filter_c1_only(self):
+        row = dict(_ROW_THERMAL_INVERSION)
+        row.update({"fed": "0.10", "fed_co": "0.01", "fed_hcn": "0.01",
+                    "fed_hypoxia": "0.01", "fed_heat": "0.01"})
+        findings = checker.find_physics_coherence_issues([row], rule_ids={"C1"})
+        self.assertTrue(all(f.rule_id == "C1" for f in findings))
+
+    def test_rule_id_filter_b1_only(self):
+        row = dict(_ROW_THERMAL_INVERSION)
+        row.update({"fed": "0.10", "fed_co": "0.01", "fed_hcn": "0.01",
+                    "fed_hypoxia": "0.01", "fed_heat": "0.01"})
+        findings = checker.find_physics_coherence_issues([row], rule_ids={"B1"})
+        self.assertTrue(all(f.rule_id == "B1" for f in findings))
+
+    def test_unknown_rule_ids_ignored(self):
+        findings = checker.find_physics_coherence_issues(
+            [_ROW_CLEAN], rule_ids={"NONEXISTENT"}
+        )
+        self.assertEqual(findings, [])
+
+    def test_schema_without_fed_components_skips_c1(self):
+        row = {"time_s": "10.0", "room_id": "0", "fed": "0.10",
+               "temp_upper_c": "80.0", "temp_lower_c": "30.0"}
+        findings = checker.find_physics_coherence_issues([row])
+        c1 = [f for f in findings if f.rule_id == "C1"]
+        self.assertEqual(len(c1), 0)
+
+
+# ---------------------------------------------------------------------------
+# Tests: audit_physics_coherence_suite — FileResult
+# ---------------------------------------------------------------------------
+
+class TestFileResult(unittest.TestCase):
+
+    def _make(self, findings):
+        return suite.FileResult(
+            path=Path("fake.csv"),
+            total_rows=100,
+            rooms={"0"},
+            findings=findings,
+        )
+
+    def _finding(self, severity="FAIL", rule_id="C1"):
+        return checker.Finding(
+            time_s=10.0, room_id="0", rule_id=rule_id, severity=severity,
+            metric="fed_sum_error", value=0.05, reason="test",
+        )
+
+    def test_fail_count_counts_fails(self):
+        result = self._make([self._finding("FAIL"), self._finding("WARN")])
+        self.assertEqual(result.fail_count, 1)
+
+    def test_warn_count_counts_warns(self):
+        result = self._make([self._finding("FAIL"), self._finding("WARN")])
+        self.assertEqual(result.warn_count, 1)
+
+    def test_worst_finding_prefers_fail_over_warn(self):
+        warn = self._finding("WARN")
+        fail = self._finding("FAIL")
+        result = self._make([warn, fail])
+        self.assertEqual(result.worst_finding.severity, "FAIL")
+
+    def test_worst_finding_none_when_empty(self):
+        self.assertIsNone(self._make([]).worst_finding)
+
+    def test_findings_by_rule_counts_correctly(self):
+        result = self._make([
+            self._finding(rule_id="C1"),
+            self._finding(rule_id="C1"),
+            self._finding(rule_id="B1"),
+        ])
+        self.assertEqual(result.findings_by_rule(), {"C1": 2, "B1": 1})
+
+    def test_intentional_default_false(self):
+        self.assertFalse(self._make([]).intentional)
+
+
+# ---------------------------------------------------------------------------
+# Tests: audit_physics_coherence_suite — main() exit codes
+# ---------------------------------------------------------------------------
+
+class TestAuditSuiteMain(unittest.TestCase):
+
+    def _write_csv(self, path: Path, rows: list[dict]) -> None:
+        with open(path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+            writer.writeheader()
+            writer.writerows(rows)
+
+    def test_returns_0_for_clean_directory(self):
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "clean.csv", [_ROW_CLEAN])
+            rc = suite.main(["--reports-dir", td])
+        self.assertEqual(rc, 0)
+
+    def test_returns_1_for_fail_findings(self):
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "broken.csv", [_ROW_FED_BROKEN])
+            rc = suite.main(["--reports-dir", td])
+        self.assertEqual(rc, 1)
+
+    def test_allow_findings_overrides_exit_code(self):
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "broken.csv", [_ROW_FED_BROKEN])
+            rc = suite.main(["--reports-dir", td, "--allow-findings"])
+        self.assertEqual(rc, 0)
+
+    def test_intentional_control_does_not_raise_exit_1(self):
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "fp_ctrl_case.csv", [_ROW_FED_BROKEN])
+            rc = suite.main(["--reports-dir", td, "--intentional", "fp_ctrl_case"])
+        self.assertEqual(rc, 0)
+
+    def test_intentional_control_still_exits_1_for_other_failures(self):
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "fp_ctrl_case.csv", [_ROW_FED_BROKEN])
+            self._write_csv(Path(td) / "real_failure.csv", [_ROW_FED_BROKEN])
+            rc = suite.main(["--reports-dir", td, "--intentional", "fp_ctrl_case"])
+        self.assertEqual(rc, 1)
+
+    def test_returns_2_for_missing_directory(self):
+        rc = suite.main(["--reports-dir", "/nonexistent/path/xyz"])
+        self.assertEqual(rc, 2)
+
+    def test_include_tmp_flag_includes_tmp_files(self):
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "tmp_exp.csv", [_ROW_FED_BROKEN])
+            rc_exclude = suite.main(["--reports-dir", td])
+            rc_include = suite.main(["--reports-dir", td, "--include-tmp"])
+        self.assertEqual(rc_exclude, 0)   # tmp excluded -> nothing audited -> PASS
+        self.assertEqual(rc_include, 1)   # tmp included -> findings -> FAIL
+
+    def test_rules_filter_passed_through(self):
+        # B1-only audit: ROW_FED_BROKEN has valid temps -> no B1 finding -> exit 0
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "broken.csv", [_ROW_FED_BROKEN])
+            rc = suite.main(["--reports-dir", td, "--rules", "B1"])
+        self.assertEqual(rc, 0)
+
+    def test_verbose_does_not_crash(self):
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "clean.csv", [_ROW_CLEAN])
+            rc = suite.main(["--reports-dir", td, "--verbose"])
+        self.assertEqual(rc, 0)
+
+    def test_known_intentional_controls_is_frozenset(self):
+        self.assertIsInstance(suite.KNOWN_INTENTIONAL_CONTROLS, frozenset)
+
+
+# ---------------------------------------------------------------------------
+# Tests: find_csvs helper
+# ---------------------------------------------------------------------------
+
+class TestFindCsvs(unittest.TestCase):
+
+    def test_excludes_tmp_by_default(self):
+        with tempfile.TemporaryDirectory() as td:
+            Path(td, "case_a.csv").write_text("x")
+            Path(td, "tmp_exp.csv").write_text("x")
+            found = suite.find_csvs(Path(td))
+        self.assertEqual([f.name for f in found], ["case_a.csv"])
+
+    def test_includes_tmp_when_requested(self):
+        with tempfile.TemporaryDirectory() as td:
+            Path(td, "case_a.csv").write_text("x")
+            Path(td, "tmp_exp.csv").write_text("x")
+            found = suite.find_csvs(Path(td), exclude_tmp=False)
+        self.assertEqual(sorted(f.name for f in found), ["case_a.csv", "tmp_exp.csv"])
+
+
+if __name__ == "__main__":
+    unittest.main()
