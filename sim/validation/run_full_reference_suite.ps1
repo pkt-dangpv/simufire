@@ -96,4 +96,14 @@ if ($ilv_exit -ne 0) {
 } else {
 	Write-Host "[Full Reference Suite] ILV coherence audit: OK"
 }
+
+Write-Host ""
+Write-Host "[Full Reference Suite] Ejecutando audit_physics_coherence_suite.py..."
+& $PythonExe (Join-Path $ProjectPath "scripts\simulation\audit_physics_coherence_suite.py") -v
+$physics_exit = $LASTEXITCODE
+if ($physics_exit -ne 0) {
+	Write-Host "[Full Reference Suite] ADVERTENCIA: physics coherence audit encontró findings inesperados (exit $physics_exit)."
+} else {
+	Write-Host "[Full Reference Suite] Physics coherence audit: OK"
+}
 Write-Host "[Full Reference Suite] Completado."
