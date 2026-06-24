@@ -957,15 +957,15 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 
 		# Phase 3A: ODE de sobrepresión termogénica por fuego.
 		# Integra dp_fire/dt = (γ-1)×HRR×1000/V - loss_coeff×dp.
-		# No-op cuando phase3a_pressure_ode_enabled=false (default).
+		# No-op cuando phase3a_pressure_ode_enabled=false (default): no toca pressure_pa_therm.
+		# GasExchangeSystem.step_thermodynamic_pressure() puede escribir en el mismo campo;
+		# el else branch (= 0.0) destruia esa acumulacion -- eliminado.
 		if phase3a_pressure_ode_enabled:
 			var _p3a_v: float = maxf(1.0, room.volume_m3())
 			var _p3a_source: float = 0.4 * room.hrr_kw * 1000.0 / _p3a_v  # Pa/s; 0.4 = γ-1
 			var _p3a_loss: float = phase3a_pressure_vent_loss_coeff * room.pressure_pa_therm
 			room.pressure_pa_therm += (_p3a_source - _p3a_loss) * dt
 			room.pressure_pa_therm = clampf(room.pressure_pa_therm, 0.0, phase3a_pressure_max_pa)
-		else:
-			room.pressure_pa_therm = 0.0
 
 		if energy_budget_enabled:
 			var _bud_de_upper_kj: float = room.upper_energy_kj - _bud_e_before_kj
