@@ -8,6 +8,7 @@ Fecha: 2026-06-25
 - Commits del carril actual (más reciente primero):
 
 ```
+pending feat(s0): close smoke global conservation as FAIL-gating
 ad146b6 feat(s0): add S0 smoke global conservation rule and export engine accumulators
 54a701b promote(e1): E1 fuel balance rule WARN→FAIL after clean corpus validation
 e7d73e6 fix(e1): increase fuel_remaining_MJ log precision from %.2f to %.6f
@@ -18,26 +19,32 @@ a6eff5a feat(e1): add E1 fuel balance rule, diagnostic case, and tests
 
 ## Carriles cerrados
 
-### S0 smoke global conservation — ABIERTO (WARN, pendiente validación corpus)
+### S0 smoke global conservation — CERRADO
 
 - Regla S0 implementada en `scripts/simulation/check_physics_coherence.py`.
-- Invariante global: `Σ smoke_kg (todas las salas) = smoke_generated_total_kg - smoke_vented_total_kg - smoke_deposited_total_kg`
+- Invariante global: `Σ smoke_kg (todas las salas) + smoke_in_transit_kg = smoke_generated_total_kg - smoke_vented_total_kg - smoke_deposited_total_kg`
 - Los tres acumuladores del engine ya existían; ahora se exportan al CSV en cada fila (mismo valor repetido para todas las salas del mismo timestep).
-- Columnas nuevas en CSV: `smoke_generated_total_kg`, `smoke_vented_total_kg`, `smoke_deposited_total_kg`.
-- Severity: WARN. Pendiente regenerar corpus y auditar para promover a FAIL.
+- Columnas CSV: `smoke_generated_total_kg`, `smoke_vented_total_kg`, `smoke_deposited_total_kg`, `smoke_in_transit_kg`.
+- Severity: FAIL. Corpus: 11 CSVs auditados, 9 con esquema nuevo ejercitando S0/E1 y 2 legacy `p2h_diag_*` con skip graceful; 0 findings.
+- Paths corregidos al cerrar S0:
+  - extracción ACH/infiltración acumula `smoke_vented_total_kg`;
+  - purga por ventilación natural acumula `smoke_vented_total_kg`;
+  - entregas interiores diferidas se contabilizan con `smoke_in_transit_kg`;
+  - `SmokeModel.recompute_layer_from_mass()` ya no destruye humo sub-umbral poniendo `smoke_kg = 0`.
 - Limitación: S0 es global — no detecta errores compensados de transporte inter-sala.
   S1 per-sala bloqueado hasta instrumentar `smoke_generated/vented/deposited/net_transport` por sala.
-- Tests: 13 (TestCheckS0). Total coherence tests: 117.
+- Tests: 15 (TestCheckS0). Total coherence tests: 119.
 
 ### E1 fuel balance — CERRADO
 
 - Regla E1 implementada en `scripts/simulation/check_physics_coherence.py`.
-- Invariante: `fuel_remaining_MJ[t] = fuel_remaining_MJ[t-1] - fuel_consumed_MJ_step[t]`
+- Invariante: `solid_fuel_remaining_MJ[t] = solid_fuel_remaining_MJ[t-1] - Δfuel_consumed_MJ_total`
   usando totales acumulados para evitar aliasing por `log_interval`.
-- Severity promovida de WARN a FAIL (commit 54a701b). Corpus 7 CSVs: 0 findings.
+- Severity promovida de WARN a FAIL (commit 54a701b). Corpus: 11 CSVs auditados, 9 con esquema nuevo ejercitando S0/E1 y 2 legacy `p2h_diag_*` con skip graceful; 0 findings.
 - Caso diagnóstico: `sim/validation/cases/fuel_balance_diag_sealed.json` →
   `sim/validation/reports/fuel_balance_diag_sealed.csv`. Residuales en 10⁻⁷–10⁻⁶ MJ (suelo numérico).
 - Precisión fix (commit e7d73e6): `fuel_remaining_MJ` de `%.2f` a `%.6f` en SimulationLogWriter.
+- Fix semántico actual: E1 usa `solid_fuel_remaining_MJ`, no `fuel_remaining_MJ`, porque `fuel_remaining_MJ` es legacy/visible y puede incorporar semántica de objetos/retained unburned que no representa el tanque sólido exacto que valida E1.
 - Tests: `TestE1FuelTracking` (13 tests), `TestCheckE1` (17 tests).
 - Campos nuevos en RoomModel: `fuel_consumed_MJ_step`, `fuel_consumed_MJ_total` (ver abajo).
 
@@ -81,6 +88,8 @@ diagnóstico en CSV. OES sigue siendo el único escritor de la depleción físic
 | `o2_consumed_kg_total` | `float` | Acumulado. 0 si flag=false. |
 | `fuel_consumed_MJ_step` | `float` | `solid_fuel_demand_MJ` post-escala este paso (CombustionSystem). |
 | `fuel_consumed_MJ_total` | `float` | Acumulado. Usado por regla E1. |
+| `solid_fuel_remaining_MJ` | `float` | Campo CSV/StateBuilder canónico para E1; refleja el tanque sólido restante sin semántica legacy de `fuel_remaining_MJ`. |
+| `smoke_in_transit_kg` | `float` | Campo CSV/StateBuilder global; humo removido de sala origen y pendiente de entrega interior. |
 
 Todos los campos se exportan en CSV y en SimulationStateBuilder.
 Todos se resetean en `reset_dynamic_state()`.
@@ -125,8 +134,8 @@ como paths auditables independientes. No tocar motor sin plan explícito.
 
 ```
 160 passed  tests/test_carbon_balance.py    (TestE1FuelTracking 13 + TestD2O2StoichTracking 14)
-117 passed  tests/test_check_physics_coherence.py  (TestCheckS0 13 + TestCheckE1 17)
-...
+119 passed  tests/test_check_physics_coherence.py  (TestCheckS0 15 + TestCheckE1 17)
+11/11 PASS  scripts/simulation/audit_physics_coherence_suite.py  (all rules, 0 FAIL findings; 9 fresh-schema CSVs + 2 legacy skips)
 ```
 
 Failures conocidas pre-existentes (no relacionadas con este carril):

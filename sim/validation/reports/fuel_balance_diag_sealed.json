@@ -2,7 +2,7 @@
 	"baseline": {
 
 	},
-	"case": "o2_stoich_diag_sealed",
+	"case": "fuel_balance_diag_sealed",
 	"comparison_contract_version": 1,
 	"duration_s": 300.0,
 	"engine_mode": "two-zone",

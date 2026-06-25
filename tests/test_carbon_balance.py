@@ -717,7 +717,7 @@ class TestGlobalCarbonStructure(unittest.TestCase):
         """GasExchangeSystem must increment c_exited_kg at the natural vent purge_frac path."""
         purge_pos = self.gas_src.find("var purge_frac: float = clampf(fresh_air_kg")
         self.assertGreater(purge_pos, -1, "purge_frac block not found in GasExchangeSystem")
-        segment = self.gas_src[purge_pos: purge_pos + 1200]
+        segment = self.gas_src[purge_pos: purge_pos + 2400]
         self.assertIn(
             "c_exited_kg",
             segment,

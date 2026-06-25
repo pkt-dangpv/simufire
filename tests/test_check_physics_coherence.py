@@ -870,12 +870,12 @@ class TestCheckD1(unittest.TestCase):
 
 def _row_e1(
     time_s="10.0", room_id="0",
-    fuel_remaining_MJ="50.0",
+    solid_fuel_remaining_MJ="50.0",
     fuel_consumed_MJ_total="0.0",
 ) -> dict[str, str]:
     return {
         "time_s": time_s, "room_id": room_id,
-        "fuel_remaining_MJ": fuel_remaining_MJ,
+        "solid_fuel_remaining_MJ": solid_fuel_remaining_MJ,
         "fuel_consumed_MJ_total": fuel_consumed_MJ_total,
     }
 
@@ -895,25 +895,25 @@ class TestCheckE1(unittest.TestCase):
     def test_perfect_balance_no_finding(self):
         """Δremaining == −Δconsumed_total → no finding."""
         rows = [
-            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
-            _row_e1(time_s="10.0", fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="0.5"),
+            _row_e1(time_s="0.0",  solid_fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", solid_fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="0.5"),
         ]
         self.assertEqual(len(self._run(rows)), 0)
 
     def test_no_fire_no_finding(self):
         """No consumption and no change in remaining → trivially balanced."""
         rows = [
-            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
-            _row_e1(time_s="10.0", fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="0.0",  solid_fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", solid_fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
         ]
         self.assertEqual(len(self._run(rows)), 0)
 
     def test_fuel_depleted_to_zero_no_finding(self):
         """Fuel reaches zero and stays there — balance holds."""
         rows = [
-            _row_e1(time_s="0.0",  fuel_remaining_MJ="1.0",  fuel_consumed_MJ_total="49.0"),
-            _row_e1(time_s="10.0", fuel_remaining_MJ="0.0",  fuel_consumed_MJ_total="50.0"),
-            _row_e1(time_s="20.0", fuel_remaining_MJ="0.0",  fuel_consumed_MJ_total="50.0"),
+            _row_e1(time_s="0.0",  solid_fuel_remaining_MJ="1.0",  fuel_consumed_MJ_total="49.0"),
+            _row_e1(time_s="10.0", solid_fuel_remaining_MJ="0.0",  fuel_consumed_MJ_total="50.0"),
+            _row_e1(time_s="20.0", solid_fuel_remaining_MJ="0.0",  fuel_consumed_MJ_total="50.0"),
         ]
         self.assertEqual(len(self._run(rows)), 0)
 
@@ -923,8 +923,8 @@ class TestCheckE1(unittest.TestCase):
         # residual = |(-1.0) - (-1.0)| = 0 — use a tiny imprecision instead
         # residual = 0.005 MJ on expected = 1.0 → 0.5 % < 1 % → clean
         rows = [
-            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.000", fuel_consumed_MJ_total="0.000"),
-            _row_e1(time_s="10.0", fuel_remaining_MJ="48.995", fuel_consumed_MJ_total="1.000"),
+            _row_e1(time_s="0.0",  solid_fuel_remaining_MJ="50.000", fuel_consumed_MJ_total="0.000"),
+            _row_e1(time_s="10.0", solid_fuel_remaining_MJ="48.995", fuel_consumed_MJ_total="1.000"),
         ]
         # delta_remaining = -1.005, expected = -1.000, residual = 0.005 < 0.01 (1%)
         self.assertEqual(len(self._run(rows)), 0)
@@ -935,8 +935,8 @@ class TestCheckE1(unittest.TestCase):
         """Residual much larger than tolerance raises E1 finding."""
         # delta_remaining=-0.5, delta_consumed=1.0, expected=-1.0, residual=0.5 >> 0.01
         rows = [
-            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
-            _row_e1(time_s="10.0", fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="1.0"),
+            _row_e1(time_s="0.0",  solid_fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", solid_fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="1.0"),
         ]
         findings = self._run(rows)
         self.assertGreater(len(findings), 0)
@@ -946,8 +946,8 @@ class TestCheckE1(unittest.TestCase):
         """fuel_remaining_MJ increasing is physically impossible — must flag."""
         # delta_remaining = +2.0 (fuel appeared from nowhere)
         rows = [
-            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="5.0"),
-            _row_e1(time_s="10.0", fuel_remaining_MJ="52.0", fuel_consumed_MJ_total="5.0"),
+            _row_e1(time_s="0.0",  solid_fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="5.0"),
+            _row_e1(time_s="10.0", solid_fuel_remaining_MJ="52.0", fuel_consumed_MJ_total="5.0"),
         ]
         findings = self._run(rows)
         self.assertGreater(len(findings), 0)
@@ -956,8 +956,8 @@ class TestCheckE1(unittest.TestCase):
     def test_consumed_without_remaining_decrease_flagged(self):
         """Consumed increased but remaining didn't decrease → balance residual."""
         rows = [
-            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
-            _row_e1(time_s="10.0", fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="2.0"),
+            _row_e1(time_s="0.0",  solid_fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", solid_fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="2.0"),
         ]
         # delta_remaining=0, expected=-2.0, residual=2.0 >> tolerance
         findings = self._run(rows)
@@ -970,11 +970,11 @@ class TestCheckE1(unittest.TestCase):
         """Each room's balance is checked independently."""
         rows = [
             # Room 0: balanced
-            _row_e1(time_s="0.0",  room_id="0", fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
-            _row_e1(time_s="10.0", room_id="0", fuel_remaining_MJ="49.0", fuel_consumed_MJ_total="1.0"),
+            _row_e1(time_s="0.0",  room_id="0", solid_fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", room_id="0", solid_fuel_remaining_MJ="49.0", fuel_consumed_MJ_total="1.0"),
             # Room 1: imbalanced
-            _row_e1(time_s="0.0",  room_id="1", fuel_remaining_MJ="30.0", fuel_consumed_MJ_total="0.0"),
-            _row_e1(time_s="10.0", room_id="1", fuel_remaining_MJ="29.0", fuel_consumed_MJ_total="5.0"),
+            _row_e1(time_s="0.0",  room_id="1", solid_fuel_remaining_MJ="30.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", room_id="1", solid_fuel_remaining_MJ="29.0", fuel_consumed_MJ_total="5.0"),
         ]
         findings = self._run(rows)
         room_ids = {f.room_id for f in findings}
@@ -984,15 +984,15 @@ class TestCheckE1(unittest.TestCase):
     def test_rows_sorted_by_time_before_diff(self):
         """Out-of-order rows must be sorted before computing deltas."""
         rows = [
-            _row_e1(time_s="10.0", fuel_remaining_MJ="49.0", fuel_consumed_MJ_total="1.0"),
-            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", solid_fuel_remaining_MJ="49.0", fuel_consumed_MJ_total="1.0"),
+            _row_e1(time_s="0.0",  solid_fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
         ]
         self.assertEqual(len(self._run(rows)), 0)
 
     def test_first_row_per_room_is_baseline_no_finding(self):
         """The first row sets the baseline; no finding is generated for it."""
         rows = [
-            _row_e1(time_s="5.0", fuel_remaining_MJ="48.0", fuel_consumed_MJ_total="2.0"),
+            _row_e1(time_s="5.0", solid_fuel_remaining_MJ="48.0", fuel_consumed_MJ_total="2.0"),
         ]
         self.assertEqual(len(self._run(rows)), 0)
 
@@ -1001,13 +1001,13 @@ class TestCheckE1(unittest.TestCase):
     def test_missing_fuel_consumed_column_skips_rule(self):
         """E1 skips gracefully when fuel_consumed_MJ_total is absent."""
         rows = [
-            {"time_s": "0.0",  "room_id": "0", "fuel_remaining_MJ": "50.0"},
-            {"time_s": "10.0", "room_id": "0", "fuel_remaining_MJ": "45.0"},
+            {"time_s": "0.0",  "room_id": "0", "solid_fuel_remaining_MJ": "50.0"},
+            {"time_s": "10.0", "room_id": "0", "solid_fuel_remaining_MJ": "45.0"},
         ]
         self.assertEqual(len(self._run(rows)), 0)
 
-    def test_missing_fuel_remaining_column_skips_rule(self):
-        """E1 skips gracefully when fuel_remaining_MJ is absent (old schema)."""
+    def test_missing_solid_fuel_remaining_column_skips_rule(self):
+        """E1 skips gracefully when solid_fuel_remaining_MJ is absent (old schema)."""
         rows = [
             {"time_s": "0.0",  "room_id": "0", "fuel_consumed_MJ_total": "0.0"},
             {"time_s": "10.0", "room_id": "0", "fuel_consumed_MJ_total": "1.0"},
@@ -1031,8 +1031,8 @@ class TestCheckE1(unittest.TestCase):
     def test_finding_rule_id_is_e1(self):
         """Finding must report rule_id == 'E1'."""
         rows = [
-            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
-            _row_e1(time_s="10.0", fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="5.0"),
+            _row_e1(time_s="0.0",  solid_fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", solid_fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="5.0"),
         ]
         findings = self._run(rows)
         self.assertTrue(all(f.rule_id == "E1" for f in findings))
@@ -1040,8 +1040,8 @@ class TestCheckE1(unittest.TestCase):
     def test_finding_severity_is_fail(self):
         """E1 is gating (FAIL) after clean corpus validation."""
         rows = [
-            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
-            _row_e1(time_s="10.0", fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="5.0"),
+            _row_e1(time_s="0.0",  solid_fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", solid_fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="5.0"),
         ]
         findings = self._run(rows)
         self.assertTrue(len(findings) > 0)
@@ -1050,8 +1050,8 @@ class TestCheckE1(unittest.TestCase):
     def test_finding_reason_contains_delta_and_expected(self):
         """Finding reason must contain delta_remaining and expected for diagnostics."""
         rows = [
-            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
-            _row_e1(time_s="10.0", fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="5.0"),
+            _row_e1(time_s="0.0",  solid_fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", solid_fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="5.0"),
         ]
         reason = self._run(rows)[0].reason
         self.assertIn("delta_remaining", reason)
@@ -1064,6 +1064,7 @@ def _row_s0(
     smoke_generated_total_kg="0.0",
     smoke_vented_total_kg="0.0",
     smoke_deposited_total_kg="0.0",
+    smoke_in_transit_kg="0.0",
 ) -> dict[str, str]:
     return {
         "time_s": time_s,
@@ -1072,6 +1073,7 @@ def _row_s0(
         "smoke_generated_total_kg": smoke_generated_total_kg,
         "smoke_vented_total_kg": smoke_vented_total_kg,
         "smoke_deposited_total_kg": smoke_deposited_total_kg,
+        "smoke_in_transit_kg": smoke_in_transit_kg,
     }
 
 
@@ -1190,8 +1192,8 @@ class TestCheckS0(unittest.TestCase):
         self.assertEqual(findings[0].room_id, "global")
         self.assertEqual(findings[0].metric, "smoke_balance_residual_kg")
 
-    def test_finding_is_warn_severity(self):
-        """S0 is WARN (not yet promoted to FAIL)."""
+    def test_finding_is_fail_severity(self):
+        """S0 is FAIL after clean corpus validation."""
         rows = [
             _row_s0(time_s="10.0", room_id="0",
                     smoke_kg="10.0",
@@ -1201,7 +1203,7 @@ class TestCheckS0(unittest.TestCase):
         ]
         findings = self._run(rows)
         self.assertTrue(len(findings) > 0)
-        self.assertTrue(all(f.severity == "WARN" for f in findings))
+        self.assertTrue(all(f.severity == "FAIL" for f in findings))
 
     def test_only_failing_timestep_flagged(self):
         """First timestep ok, second has residual → only second flagged."""
@@ -1241,17 +1243,44 @@ class TestCheckS0(unittest.TestCase):
         self.assertEqual(self._run(rows), [])
 
     def test_missing_one_column_skips(self):
-        """Only 3 of 4 required columns → skip."""
+        """Only 4 of 5 required columns → skip."""
         rows = [
             {
                 "time_s": "10.0", "room_id": "0",
                 "smoke_kg": "1.0",
                 "smoke_generated_total_kg": "2.0",
                 "smoke_vented_total_kg": "0.0",
-                # smoke_deposited_total_kg absent
+                "smoke_deposited_total_kg": "0.0",
+                # smoke_in_transit_kg absent
             },
         ]
         self.assertEqual(self._run(rows), [])
+
+    def test_in_transit_included_in_balance(self):
+        """smoke_in_transit_kg closes the balance when sum_smoke < expected."""
+        # sum_smoke=0.8, in_transit=0.2, expected=1.0 → accounted=1.0 → no finding
+        rows = [
+            _row_s0(time_s="10.0", room_id="0",
+                    smoke_kg="0.8",
+                    smoke_generated_total_kg="1.0",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0",
+                    smoke_in_transit_kg="0.2"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_in_transit_does_not_mask_real_loss(self):
+        """in_transit=0, sum_smoke much less than expected → still a finding."""
+        rows = [
+            _row_s0(time_s="10.0", room_id="0",
+                    smoke_kg="0.5",
+                    smoke_generated_total_kg="1.0",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0",
+                    smoke_in_transit_kg="0.0"),
+        ]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
 
 
 if __name__ == "__main__":

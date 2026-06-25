@@ -19,6 +19,7 @@ func build_state(context: Dictionary) -> Dictionary:
 		"smoke_generated_total_kg": float(context.get("smoke_generated_total_kg", 0.0)),
 		"smoke_vented_total_kg": float(context.get("smoke_vented_total_kg", 0.0)),
 		"smoke_deposited_total_kg": float(context.get("smoke_deposited_total_kg", 0.0)),
+		"smoke_in_transit_kg": float(context.get("smoke_in_transit_kg", 0.0)),
 		"suppression_water_applied_l": float(context.get("suppression_water_applied_l", 0.0)),
 		"suppression_cooling_total_kj": float(context.get("suppression_cooling_total_kj", 0.0)),
 		# SF-R6 Phase 3: residual de conservación de transporte (-1.0 = check desactivado).
@@ -67,7 +68,6 @@ func build_state(context: Dictionary) -> Dictionary:
 	var kawagoe_factor_callable: Callable = context.get("kawagoe_factor_callable", Callable())
 	var kawagoe_coeff: float = float(context.get("kawagoe_coeff", 0.0))
 	var energy_budget: Dictionary = context.get("energy_budget", {})
-
 	for room_id in _collect_sorted_room_ids(building):
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
@@ -211,6 +211,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"fuel_energy_MJ": room.fuel_energy_MJ,
 			"fuel_capacity_MJ": _resolve_fuel_capacity_MJ(room),
 			"remaining_fuel_MJ": _resolve_remaining_fuel_MJ(room, combustion_system),
+			"solid_fuel_remaining_MJ": _resolve_solid_fuel_remaining_MJ(room, combustion_system),
 			"fuel_objects": _build_fuel_object_snapshots(room, combustion_system),
 			"fuel_object_count": room.fuel_objects.size(),
 			"fuel_objects_remaining_MJ": combustion_system.get_room_total_remaining_fuel_MJ(room) if combustion_system != null else 0.0,
@@ -348,6 +349,17 @@ func _resolve_remaining_fuel_MJ(room: RoomModel, combustion_system: CombustionSy
 	if room.fire_time_s > 0.0:
 		return combustion_system.get_room_legacy_proxy_remaining_fuel_MJ(room)
 	return combustion_system.get_room_total_remaining_fuel_MJ(room)
+
+
+func _resolve_solid_fuel_remaining_MJ(room: RoomModel, combustion_system: CombustionSystem) -> float:
+	if room == null:
+		return 0.0
+	if room.fire != null:
+		return maxf(0.0, room.fire.remaining_fuel_MJ)
+	if combustion_system == null:
+		return maxf(0.0, room.fuel_energy_MJ)
+	var total_remaining: float = combustion_system.get_room_total_remaining_fuel_MJ(room)
+	return maxf(0.0, total_remaining - maxf(0.0, room.retained_unburned_MJ))
 
 
 func _build_fuel_object_snapshots(room: RoomModel, combustion_system: CombustionSystem) -> Array[Dictionary]:

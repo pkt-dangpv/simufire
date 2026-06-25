@@ -222,8 +222,6 @@ func recompute_layer_from_mass(room: RoomModel, dt: float, ambient_c: float = 20
 		smoke_volume_m3 *= maxf(1.0, temp_expansion)
 		var smoke_depth_m: float = smoke_volume_m3 / floor_area_m2
 		soot_target_layer_m = clampf(room.height_m - smoke_depth_m, 0.0, room.height_m)
-	else:
-		room.smoke_kg = 0.0
 
 	# --- Capa por masa de gas caliente: método clásico de dos zonas (CFAST/FAST) ---
 	# h_layer = H - V_upper / A_floor;  V_upper = m_upper / rho_upper

@@ -49,14 +49,14 @@ D1  CO balance residual Per room/log-interval: the change in co_kg between
 
 Rules — fourth slice
 --------------------
-E1  Fuel balance        Per room/log-interval: the change in fuel_remaining_MJ
+E1  Fuel balance        Per room/log-interval: the change in solid_fuel_remaining_MJ
                         must equal −Δfuel_consumed_MJ_total (what was drawn
                         from the solid fuel tank).  Uses fuel_consumed_MJ_total
                         (cumulative) to be invariant to log_interval vs
                         timestep ratio.  fuel_consumed_MJ_step is NOT used
                         here (it only captures the last simulation step, not
                         the sum over all steps since the previous log entry).
-                        Also flags if fuel_remaining_MJ increases between rows
+                        Also flags if solid_fuel_remaining_MJ increases between rows
                         (solid fuel is monotonically decreasing once fire
                         starts).  Tolerance: 1 % of abs(expected), floor
                         1 × 10⁻⁶ MJ.  Severity: FAIL.
@@ -64,8 +64,12 @@ E1  Fuel balance        Per room/log-interval: the change in fuel_remaining_MJ
 Rules — fifth slice
 -------------------
 S0  Smoke global        At every logged timestep: the sum of smoke_kg across
-    conservation        all rooms must equal smoke_generated_total_kg −
-                        smoke_vented_total_kg − smoke_deposited_total_kg.
+    conservation        all rooms plus smoke_in_transit_kg must equal
+                        smoke_generated_total_kg − smoke_vented_total_kg
+                        − smoke_deposited_total_kg.
+                        smoke_in_transit_kg is smoke queued in the interior
+                        transport delay buffer (removed from source room, not
+                        yet delivered to target room at log time).
                         These engine-level accumulators are written to every
                         CSV row (same value repeated for all rooms).
                         Limitation: S0 is a global check and cannot detect
@@ -75,7 +79,7 @@ S0  Smoke global        At every logged timestep: the sum of smoke_kg across
                         vented/deposited/net_transport accumulators, which are
                         not yet instrumented.
                         Tolerance: 5 % of abs(expected), floor 0.01 kg.
-                        Severity: WARN.
+                        Severity: FAIL.
 
 Usage
 -----
@@ -154,8 +158,8 @@ REQUIRED_COLS: dict[str, set[str]] = {
     "C1": {"fed", "fed_co", "fed_hcn", "fed_hypoxia", "fed_heat"},
     "C2": {"fed"},
     "D1": {"co_kg", "co_generated_kg_total", "co_net_transport_kg_total", "co_exterior_removed_kg_total"},
-    "E1": {"fuel_remaining_MJ", "fuel_consumed_MJ_total"},
-    "S0": {"smoke_kg", "smoke_generated_total_kg", "smoke_vented_total_kg", "smoke_deposited_total_kg"},
+    "E1": {"solid_fuel_remaining_MJ", "fuel_consumed_MJ_total"},
+    "S0": {"smoke_kg", "smoke_generated_total_kg", "smoke_vented_total_kg", "smoke_deposited_total_kg", "smoke_in_transit_kg"},
 }
 
 ALL_RULES: tuple[str, ...] = ("A2", "A3", "B1", "C1", "C2", "D1", "E1", "S0")
@@ -416,7 +420,7 @@ def _check_e1_fuel_balance_residual(rows: list[dict[str, str]]) -> list[Finding]
     """Per-room fuel balance using cumulative totals.
 
     Between consecutive CSV rows (which may span many simulation steps):
-        Δfuel_remaining  = fuel_remaining_MJ[t] − fuel_remaining_MJ[t−1]
+        Δfuel_remaining  = solid_fuel_remaining_MJ[t] − solid_fuel_remaining_MJ[t−1]
         Δfuel_consumed   = fuel_consumed_MJ_total[t] − fuel_consumed_MJ_total[t−1]
         expected         = −Δfuel_consumed  (each MJ consumed depletes remaining by 1 MJ)
         residual         = |Δfuel_remaining − expected|
@@ -430,8 +434,9 @@ def _check_e1_fuel_balance_residual(rows: list[dict[str, str]]) -> list[Finding]
     non-increasing once the fire is active; spontaneous fuel gain is unphysical).
 
     Tolerance: 1 % of abs(expected), floor 1 × 10⁻⁶ MJ.
-    Severity: WARN — promote to FAIL once validated clean on full reference suite.
-    Skipped gracefully when fuel_consumed_MJ_total is absent (older CSV schema).
+    Severity: FAIL.
+    Skipped gracefully when solid_fuel_remaining_MJ or fuel_consumed_MJ_total
+    is absent (older CSV schema).
     """
     by_room: dict[str, list[dict[str, str]]] = defaultdict(list)
     for row in rows:
@@ -440,10 +445,10 @@ def _check_e1_fuel_balance_residual(rows: list[dict[str, str]]) -> list[Finding]
     findings: list[Finding] = []
     for room_id, room_rows in by_room.items():
         room_rows.sort(key=lambda r: _float(r, "time_s"))
-        prev_remaining: float = _float(room_rows[0], "fuel_remaining_MJ")
+        prev_remaining: float = _float(room_rows[0], "solid_fuel_remaining_MJ")
         prev_consumed_total: float = _float(room_rows[0], "fuel_consumed_MJ_total")
         for row in room_rows[1:]:
-            remaining = _float(row, "fuel_remaining_MJ")
+            remaining = _float(row, "solid_fuel_remaining_MJ")
             consumed_total = _float(row, "fuel_consumed_MJ_total")
             delta_remaining = remaining - prev_remaining
             delta_consumed = consumed_total - prev_consumed_total
@@ -476,7 +481,7 @@ def _check_e1_fuel_balance_residual(rows: list[dict[str, str]]) -> list[Finding]
                     metric="fuel_remaining_increased_MJ",
                     value=round(delta_remaining, 9),
                     reason=(
-                        f"fuel_remaining_MJ increased by {delta_remaining:.3g} MJ "
+                        f"solid_fuel_remaining_MJ increased by {delta_remaining:.3g} MJ "
                         f"(solid fuel is monotonically non-increasing)"
                     ),
                 ))
@@ -496,17 +501,20 @@ _S0_REL_TOL = 0.05
 def _check_s0_smoke_global_conservation(rows: list[dict[str, str]]) -> list[Finding]:
     """Global smoke mass conservation at every logged timestep.
 
-    At each time_s: sum smoke_kg across all rooms and compare against the
-    engine accumulators (same value in every row of that timestep):
+    At each time_s: sum smoke_kg across all rooms plus smoke_in_transit_kg
+    must equal the engine accumulators (same value in every row):
         expected = smoke_generated_total_kg − smoke_vented_total_kg
                    − smoke_deposited_total_kg
-        residual = |sum_smoke_kg − expected|
+        residual = |sum_smoke_kg + smoke_in_transit_kg − expected|
+
+    smoke_in_transit_kg accounts for smoke removed from source rooms but not
+    yet delivered to target rooms via the interior transport delay buffer.
 
     Limitation: global check only — compensated inter-room transport errors
     are invisible.  Per-room S1 is pending per-room accumulator instrumentation.
 
     Tolerance: 5 % of abs(expected), floor 0.01 kg.
-    Severity: WARN.
+    Severity: FAIL.
     """
     by_time: dict[float, list[dict[str, str]]] = defaultdict(list)
     for row in rows:
@@ -521,8 +529,10 @@ def _check_s0_smoke_global_conservation(rows: list[dict[str, str]]) -> list[Find
         generated = _float(ref, "smoke_generated_total_kg")
         vented = _float(ref, "smoke_vented_total_kg")
         deposited = _float(ref, "smoke_deposited_total_kg")
+        in_transit = _float(ref, "smoke_in_transit_kg")
         expected = generated - vented - deposited
-        residual = abs(sum_smoke - expected)
+        accounted = sum_smoke + in_transit
+        residual = abs(accounted - expected)
         magnitude = max(abs(expected), _S0_ABS_FLOOR_KG)
         threshold = max(_S0_ABS_FLOOR_KG, _S0_REL_TOL * magnitude)
 
@@ -531,11 +541,13 @@ def _check_s0_smoke_global_conservation(rows: list[dict[str, str]]) -> list[Find
                 time_s=time_s,
                 room_id="global",
                 rule_id="S0",
-                severity="WARN",
+                severity="FAIL",
                 metric="smoke_balance_residual_kg",
                 value=round(residual, 6),
                 reason=(
                     f"sum_smoke_kg={sum_smoke:.6g} kg  "
+                    f"in_transit={in_transit:.6g} kg  "
+                    f"accounted={accounted:.6g} kg  "
                     f"expected(gen-vent-dep)={expected:.6g} kg  "
                     f"residual={residual:.3g} kg  tol={threshold:.3g} kg"
                 ),

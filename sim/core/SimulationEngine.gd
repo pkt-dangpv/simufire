@@ -1223,6 +1223,7 @@ func _build_state_context() -> Dictionary:
 		"smoke_generated_total_kg": smoke_generated_total_kg,
 		"smoke_vented_total_kg": smoke_vented_total_kg,
 		"smoke_deposited_total_kg": smoke_deposited_total_kg,
+		"smoke_in_transit_kg": gas_exchange_system.get_smoke_in_transit_kg(),
 		"suppression_water_applied_l": suppression_water_applied_l,
 		"suppression_cooling_total_kj": suppression_cooling_total_kj,
 		"hvac": building.build_hvac_summary() if building != null else {},

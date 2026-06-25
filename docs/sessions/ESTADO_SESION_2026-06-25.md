@@ -104,9 +104,31 @@ El documento registra items pendientes para revisar:
 
 ## Proximo Trabajo Recomendado
 
-1. Confirmar que este cierre documental esta committeado y pusheado.
-2. Mantener D1 como gating.
-3. Siguiente bloque: O2 + energia/HRR.
-4. Antes de implementar reglas, inventariar columnas actuales e instrumentacion faltante para balance O2/energia.
-5. No tocar fisica global ni tolerancias hasta tener plan explicito.
+### Actualizacion posterior: S0 humo y E1 combustible
 
+Se cerro S0 como regla gating tras regenerar corpus CSV:
+
+- `scripts/simulation/audit_physics_coherence_suite.py`: 11/11 PASS, 0 FAIL findings.
+- `--rules S0`: 11/11 PASS (9 CSVs con esquema nuevo ejercitan la regla, 2 `p2h_diag_*` legacy hacen skip graceful).
+- `--rules E1`: 11/11 PASS (9 CSVs con esquema nuevo ejercitan la regla, 2 `p2h_diag_*` legacy hacen skip graceful).
+- `tests/test_check_physics_coherence.py`: 119/119 PASS.
+
+Fixes de S0:
+
+- ACH/infiltracion suma humo retirado a `smoke_vented_total_kg`.
+- Purga por ventilacion natural suma humo retirado a `smoke_vented_total_kg`.
+- Humo removido de una sala y pendiente de entrega interior se expone como `smoke_in_transit_kg`.
+- `SmokeModel.recompute_layer_from_mass()` ya no destruye masa de humo sub-umbral.
+
+Fix semantico de E1:
+
+- E1 usa `solid_fuel_remaining_MJ`, no `fuel_remaining_MJ`.
+- Motivo: `fuel_remaining_MJ` queda como campo legacy/visible y puede mezclar estado de objetos/retained unburned; E1 necesita el tanque solido exacto que se decrementa con `fuel_consumed_MJ_total`.
+
+Proximo trabajo recomendado:
+
+1. Mantener D1, E1 y S0 como gating.
+2. Siguiente bloque: S1 per-sala o O1/O2, pero solo tras instrumentar acumuladores faltantes.
+3. Para S1 faltan `smoke_generated/vented/deposited/net_transport` por sala.
+4. Para O1 faltan transporte y exterior de O2 por masa.
+5. No tocar fisica global ni tolerancias hasta tener plan explicito.

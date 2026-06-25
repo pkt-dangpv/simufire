@@ -327,6 +327,14 @@ func get_pending_carbon_kg() -> float:
 	return total_c_kg
 
 
+# SF-S0: humo en tránsito inter-sala (removido de origen, aún no entregado al destino).
+func get_smoke_in_transit_kg() -> float:
+	var total: float = 0.0
+	for raw_entry in _pending_interior_deliveries:
+		total += maxf(0.0, float(raw_entry.get("smoke_kg", 0.0)))
+	return total
+
+
 func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictionary:
 	var result: Dictionary = {
 		"smoke_vented_kg": 0.0
@@ -643,11 +651,14 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					# diluyendo humo/CO/CO2 en proporción al caudal de intercambio
 					var purge_frac: float = clampf(fresh_air_kg / room_mass_kg, 0.0, 0.30)
 					purge_frac *= _compute_flow_path_direct_exterior_vent_fraction(building, room_out)
+					var smoke_purge_kg: float = room_out.smoke_kg * purge_frac
+					# SF-S0: contabilizar humo purgado por ventilación natural en acumulador global.
+					result["smoke_vented_kg"] = float(result.get("smoke_vented_kg", 0.0)) + smoke_purge_kg
 					if two_zone_opening_flow_enabled:
 						_queue_upper_species_to_exterior(
 							room_out,
 							purge_frac,
-							room_out.smoke_kg * purge_frac,
+							smoke_purge_kg,
 							smoke_delta_kg,
 							co_delta_kg,
 							co_upper_delta_kg,
@@ -660,7 +671,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 							formaldehyde_delta_kg
 						)
 					else:
-						smoke_delta_kg[room_out.id] -= room_out.smoke_kg * purge_frac
+						smoke_delta_kg[room_out.id] -= smoke_purge_kg
 						co_delta_kg[room_out.id] -= room_out.co_kg * purge_frac
 						co_upper_delta_kg[room_out.id] -= room_out.co_upper_kg * purge_frac
 						co2_delta_kg[room_out.id] -= room_out.co2_kg * purge_frac
@@ -671,7 +682,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 						room_out.c_exited_kg += room_out.co_kg * purge_frac * (12.0 / 28.0) \
 								+ room_out.co2_kg * purge_frac * (12.0 / 44.0) \
 								+ room_out.hcn_kg * purge_frac * (12.0 / 27.0) \
-								+ room_out.smoke_kg * purge_frac * 0.87
+								+ smoke_purge_kg * 0.87
 
 			continue
 
@@ -1036,6 +1047,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 				* dt \
 				* smoke_ach_efficiency)
 		room.smoke_kg = maxf(0.0, room.smoke_kg - smoke_removed)
+		# SF-S0: contabilizar extracción ACH en el acumulador de ventilación global.
+		result["smoke_vented_kg"] = float(result.get("smoke_vented_kg", 0.0)) + smoke_removed
 		# SF-CBAL: la infiltración ACH sustituye aire interior por aire exterior.
 		room.c_exited_kg += co_removed * (12.0 / 28.0) \
 				+ co2_removed * (12.0 / 44.0) \

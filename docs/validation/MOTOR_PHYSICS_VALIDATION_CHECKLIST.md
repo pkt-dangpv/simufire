@@ -285,9 +285,17 @@ Items to check:
 
 Open gaps:
 
-- Smoke mass balance by room/layer.
+- S1 smoke mass balance by room/layer.
 - Soot-yield validation.
 - Cooling/descent validation.
+
+Current auditor coverage:
+
+- S0: global smoke conservation is FAIL-gating. Invariant:
+  `Σ smoke_kg + smoke_in_transit_kg ≈ smoke_generated_total_kg - smoke_vented_total_kg - smoke_deposited_total_kg`.
+- Fresh corpus result: 11/11 CSVs PASS, 0 S0 findings; 9 CSVs have the fresh S0 schema and 2 legacy `p2h_diag_*` CSVs skip gracefully.
+- S0 closure fixed missing smoke accounting in ACH/infiltration removal and natural-ventilation purge, exposed `smoke_in_transit_kg` for delayed interior deliveries, and stopped `SmokeModel.recompute_layer_from_mass()` from zeroing sub-threshold smoke mass.
+- Limitation: S0 is global. It can miss compensated inter-room transport errors. S1 remains blocked until per-room `smoke_generated`, `smoke_vented`, `smoke_deposited` and `smoke_net_transport` accumulators exist.
 
 ## 5. Smoke Height, Layer Interfaces And Neutral Plane
 
@@ -479,4 +487,3 @@ Medium priority:
 3. Build balance-based checks before heuristic checks.
 4. Expand the CFAST/reference scenario battery.
 5. Only then change motor physics, one subsystem at a time, behind explicit validation.
-
