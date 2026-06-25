@@ -140,6 +140,11 @@ var co_net_transport_kg_total: float = 0.0
 # CO removido por ACH/infiltracion/purga/venteo hacia el exterior (siempre >= 0).
 # Necesario para D1: expected = delta_gen + delta_transport - delta_exterior_removed.
 var co_exterior_removed_kg_total: float = 0.0
+# SF-D2: O2 consumido por combustión (Thornton, default-off via fire_o2_stoich_consumption_enabled).
+# o2_consumed_kg_step: O2 consumido en ESTE paso (kg); 0.0 si flag=false o sin fuego.
+# o2_consumed_kg_total: acumulador desde el inicio — necesario para auditar balance O2.
+var o2_consumed_kg_step: float = 0.0
+var o2_consumed_kg_total: float = 0.0
 # SF-CBAL global: carbono acumulado que salió por aperturas exteriores (kg C).
 # Incrementado en GasExchangeSystem cada vez que CO/CO₂/HCN/humo se ventila
 # al exterior (presión, flujo de humo, purgas, ACH o PPV).
@@ -315,6 +320,8 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	o2_lower = ambient_o2
 	upper_o2_mass_tracked = -1.0
 	canonical_o2_upper_updated = false
+	o2_consumed_kg_step = 0.0
+	o2_consumed_kg_total = 0.0
 	fire_o2_mode_used = "legacy"
 	fire_o2_ref = ambient_o2
 	fire_o2_min_ref = 0.0

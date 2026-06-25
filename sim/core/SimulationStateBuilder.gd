@@ -261,6 +261,8 @@ func build_state(context: Dictionary) -> Dictionary:
 			"co_generated_kg_total": room.co_generated_kg_total,
 			"co_net_transport_kg_total": room.co_net_transport_kg_total,
 			"co_exterior_removed_kg_total": room.co_exterior_removed_kg_total,
+			"o2_consumed_kg_step": room.o2_consumed_kg_step,
+			"o2_consumed_kg_total": room.o2_consumed_kg_total,
 			"svv_pct": room.svv_pct,
 			"svv_worst_pct": room.svv_worst_pct,
 			"is_quiescent": _call_room_bool(is_quiescent_callable, room, false),

@@ -234,6 +234,11 @@ var _layer_interface_warning_rooms: Dictionary = {}
 ## (que usan plume_lower_mode de OxygenExchangeSystem, no el two-zone path automático).
 @export var fire_o2_upper_throttle_enabled: bool = false
 @export var fire_o2_upper_throttle_critical: float = 0.10
+## SF-D2: consumo estequiométrico de O2 por combustión (Thornton, default-off).
+## Cuando activo: CombustionSystem descuenta o2_consumed_kg = hrr_kw*dt/1000 * o2_consumption_kg_per_MJ
+## de o2_upper por paso. Activa o2_consumed_kg_step / o2_consumed_kg_total en CSV.
+## Activar per-caso o globalmente solo cuando se quiera auditar/cerrar balance O2.
+@export var fire_o2_stoich_consumption_enabled: bool = false
 ## Phase 5 M2: tracer conservado de masa O2 en zona superior.
 ## Phase 8 audit: activación global interactúa incorrectamente con plume_lower_mode.
 ## La dilución del tracker (upper_air_mass 1.2 kg/m³ vs upper_gas_kg en caliente) + delta_entr
@@ -1750,6 +1755,8 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		# Phase 5 M4: ILV upper-O2 throttle guard (leído por CombustionSystem.step_room_fire).
 		"fire_o2_upper_throttle_enabled": fire_o2_upper_throttle_enabled,
 		"fire_o2_upper_throttle_critical": fire_o2_upper_throttle_critical,
+		# SF-D2: consumo estequiométrico O2 (default-off).
+		"fire_o2_stoich_consumption_enabled": fire_o2_stoich_consumption_enabled,
 	}
 
 # ============================================================
