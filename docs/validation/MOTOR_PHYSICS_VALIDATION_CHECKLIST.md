@@ -105,43 +105,78 @@ RoomModel O2 fields:
 | `upper_o2_mass_tracked` | kg | Mass of O2 in upper zone. **Opt-in Phase 5 M2** (`fire_o2_mass_tracking_enabled`). `-1.0` = uninitialized. Never used in combustion physics. |
 | `canonical_o2_upper_updated` | bool | Set by ThermalSystem; prevents OxygenExchangeSystem from overwriting with stale fraction. |
 
-### O2 consumption — CRITICAL GAP
+### O2 consumption — corrected diagnosis (2026-06-25)
 
-**`fire.o2_consumption_kg_per_MJ = 0.076` (FireModel.gd:33) is defined but NEVER APPLIED.**
+> **Prior diagnosis was wrong.** An earlier audit stated that `fire.o2_consumption_kg_per_MJ` was
+> "defined but never applied." That was incorrect.
 
-Combustion does NOT remove O2 from the room. O2 depletion occurs only via:
-1. **Layer dilution** — ThermalSystem plume entrainment mixes lower air (fresh O2) into upper zone, diluting upper O2 fraction. This is ratio-based, not stoichiometric.
-2. **Transport** — GasExchangeSystem carries O2 out via venting and between rooms via doorway flows.
+`OxygenExchangeSystem.gd` **already applies** the Thornton rate (`fire.o2_consumption_kg_per_MJ = 0.076`)
+for stoichiometric combustion depletion:
 
-Consequence: `o2_hrr_factor` throttles HRR based on current `o2_upper`, but combustion never removes the O2 that was consumed. The O2 field is not a mass-balance ledger — it is a transport/dilution proxy.
+| Site | Variable | Condition |
+|------|----------|-----------|
+| Line 356 | `room.o2` (bulk) | `hrr_kw > 0` and not lower-zone / canonical modes |
+| Lines 386–395 | `room.o2_upper` | `lower_frac ≥ 0.15`, `hrr_kw > 0`, and not `two_zone_solver_enabled` |
+
+Both uses: `consumed = (hrr_kw / 1000.0) * fire.o2_consumption_kg_per_MJ * dt`.
+Capped at 5 % of total O2 mass (bulk) and 20 % of upper O2 mass per step to prevent numeric instability.
+
+This means combustion **does** remove O2 from the room — via OxygenExchangeSystem, not CombustionSystem.
+
+### Double-count fix (commit d7e4aba, 2026-06-25)
+
+An MVP implementation (`fire_o2_stoich_consumption_enabled`, commit 03372fe) attempted to add a second
+Thornton-rate deduction inside CombustionSystem. Because OES already applies the same deduction, this
+caused `o2_upper` to deplete at **twice** the correct rate.
+
+Fix: the CombustionSystem block was converted to **tracking-only**. It computes
+`o2_consumed_kg = hrr_kw * dt / 1000 * fire.o2_consumption_kg_per_MJ` and stores it in
+`room.o2_consumed_kg_step` / `room.o2_consumed_kg_total` for diagnostic CSV export, but does **not**
+modify `room.o2_upper`. OES remains the sole writer of combustion O2 depletion.
+
+`fire_o2_stoich_consumption_enabled` (default=`false`) now means "emit Thornton accounting in CSV,"
+not "activate a second depletion physics path."
 
 ### O2 transport functions
 
-- ThermalSystem `_step_two_zone_plume_entrainment` — mixes lower air into upper zone; updates `o2_upper`/`o2_lower` via blending ratio.
-- GasExchangeSystem `_handle_internal_doorway_flow` — calculates `moved_o2_kg = room_o2_fraction * air_mass_kg`; transfers between adjacent rooms.
-- GasExchangeSystem `step_pressure_venting` → `_vent_exterior_gas` — vents upper O2 to exterior proportionally.
+- OxygenExchangeSystem lines 386–395 — combustion depletion of `o2_upper` (Thornton rate).
+- OxygenExchangeSystem line 356 — combustion depletion of `room.o2` bulk (Thornton rate).
+- OxygenExchangeSystem line 405 — plume entrainment: blends `o2_lower` into `o2_upper`.
+- OxygenExchangeSystem line 440 — plume drag: drains `o2_lower`.
+- OxygenExchangeSystem line 472 — ACH infiltration replenishes `o2_lower`.
+- ThermalSystem `_step_two_zone_plume_entrainment` — blending ratio update on `o2_upper`/`o2_lower`.
+- GasExchangeSystem `_handle_internal_doorway_flow` — inter-room O2 transfer.
+- GasExchangeSystem `step_pressure_venting` → `_vent_exterior_gas` — vents O2 to exterior.
 - GasExchangeSystem `step_ppv` — injects exterior O2 via PPV.
-- GasExchangeSystem infiltration paths — background leakage (implicit in ACH flows).
 
-### Missing for O2 mass balance audit (equivalent to D1)
+### Diagnostic tracking fields (available in CSV)
 
-An O2 mass balance rule is **not viable without first implementing stoichiometric O2 consumption**. Fields that would be needed:
+| Field | Status | Semantics |
+|-------|--------|-----------|
+| `o2_consumed_kg_step` | Exported (flag=true) | Thornton O2 consumed by fire this step (shadow of OES). |
+| `o2_consumed_kg_total` | Exported (flag=true) | Cumulative Thornton O2 consumed. |
+| `upper_o2_mass_tracked` | Orphaned | Opt-in Phase 5 M2; `-1.0` = uninitialized; not used in physics. |
 
-- `o2_consumed_by_fire_kg_step` — `hrr_kw * dt / 1000 * fire.o2_consumption_kg_per_MJ` (not currently computed).
-- `o2_consumed_by_fire_kg_total` — cumulative.
-- `o2_net_transport_kg_total` — net inter-room O2 transport (analogous to `co_net_transport_kg_total`).
-- `o2_exterior_removed_kg_total` — O2 vented out (analogous to `co_exterior_removed_kg_total`).
-- `o2_exterior_added_kg_total` — O2 entering from exterior via infiltration/PPV.
+### Missing for O2 mass balance rule (O1)
+
+An O2 mass balance rule equivalent to D1 still requires:
+
+- `o2_net_transport_kg_total` — net inter-room O2 transport per step.
+- `o2_exterior_removed_kg_total` — O2 vented to exterior.
+- `o2_exterior_added_kg_total` — O2 entering via infiltration / PPV.
+
+These are not currently tracked. O1 is **blocked** until transport and exterior paths are instrumented.
 
 ### Current auditor coverage
 
-None. O2 balance rule requires stoichiometric coupling to exist first.
+None. O1 balance rule requires transport/exterior instrumentation before it can be audited.
 
 ### Open gaps
 
-- Stoichiometric O2 consumption must be implemented before any mass balance rule.
-- `upper_o2_mass_tracked` exists but is orphaned — not used in combustion, not exported to CSV.
+- O1 rule requires `o2_net_transport_kg_total`, `o2_exterior_removed_kg_total`, `o2_exterior_added_kg_total`.
+- `upper_o2_mass_tracked` is orphaned — not used in combustion, not exported to CSV.
 - Dual-track risk: `o2_upper` (fraction) and `upper_o2_mass_tracked` (mass) may diverge if `canonical_o2_upper_updated` flag handling fails.
+- Option C (canonical mass redesign) needed to fully separate combustion/transport/dilution paths.
 
 ## 3. CO, CO2 And HCN
 

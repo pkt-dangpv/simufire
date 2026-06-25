@@ -1368,5 +1368,151 @@ class TestD1COTrackingPaths(unittest.TestCase):
         )
 
 
+class TestD2O2StoichTracking(unittest.TestCase):
+    """
+    Structural tests for SF-D2 O2 stoichiometric tracking in CombustionSystem.
+
+    OxygenExchangeSystem already applies Thornton-rate combustion depletion on
+    both room.o2 (line 356) and o2_upper (lines 386-395).  The CombustionSystem
+    block is TRACKING-ONLY — it must NOT modify room.o2_upper (double-count fix,
+    commit d7e4aba).
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.room_src    = _load(_ROOM_MODEL)
+        cls.comb_src    = _load(_COMBUSTION)
+        cls.state_src   = _load(_STATE_BUILDER)
+        cls.logw_src    = _load(_LOG_WRITER)
+
+        # Extract the SF-D2 block: from the sentinel comment to the next one.
+        comb = cls.comb_src
+        start = comb.find("# SF-D2:")
+        end   = comb.find("# SF-CBAL:", start + 1)
+        cls.d2_block = comb[start:end] if (start != -1 and end != -1) else ""
+
+    # ── RoomModel field declarations ─────────────────────────────────────────
+
+    def test_room_model_declares_o2_consumed_kg_step(self):
+        """RoomModel must declare o2_consumed_kg_step."""
+        self.assertIn(
+            "o2_consumed_kg_step",
+            self.room_src,
+            "RoomModel.gd must declare o2_consumed_kg_step (SF-D2 tracking field)",
+        )
+
+    def test_room_model_declares_o2_consumed_kg_total(self):
+        """RoomModel must declare o2_consumed_kg_total."""
+        self.assertIn(
+            "o2_consumed_kg_total",
+            self.room_src,
+            "RoomModel.gd must declare o2_consumed_kg_total (SF-D2 tracking field)",
+        )
+
+    def test_room_model_resets_o2_consumed_kg_step(self):
+        """reset_dynamic_state must zero o2_consumed_kg_step."""
+        reset_body = _extract_function_body(self.room_src, "reset_dynamic_state")
+        self.assertIn(
+            "o2_consumed_kg_step = 0.0",
+            reset_body,
+            "reset_dynamic_state must zero o2_consumed_kg_step",
+        )
+
+    def test_room_model_resets_o2_consumed_kg_total(self):
+        """reset_dynamic_state must zero o2_consumed_kg_total."""
+        reset_body = _extract_function_body(self.room_src, "reset_dynamic_state")
+        self.assertIn(
+            "o2_consumed_kg_total = 0.0",
+            reset_body,
+            "reset_dynamic_state must zero o2_consumed_kg_total",
+        )
+
+    # ── CombustionSystem SF-D2 block: tracking-only, no o2_upper mutation ───
+
+    def test_d2_block_found(self):
+        """SF-D2 sentinel block must exist in CombustionSystem."""
+        self.assertNotEqual(
+            self.d2_block, "",
+            "Could not locate '# SF-D2:' ... '# SF-CBAL:' block in CombustionSystem.gd",
+        )
+
+    def test_d2_block_does_not_mutate_o2_upper(self):
+        """SF-D2 block must NOT assign room.o2_upper (OES is the sole depletion writer)."""
+        self.assertNotIn(
+            "room.o2_upper =",
+            self.d2_block,
+            "SF-D2 block must not modify room.o2_upper — OxygenExchangeSystem already "
+            "applies Thornton-rate depletion there (double-count fix, commit d7e4aba)",
+        )
+
+    def test_d2_block_uses_thornton_rate(self):
+        """SF-D2 block must use fire.o2_consumption_kg_per_MJ (Thornton = 0.076)."""
+        self.assertIn(
+            "fire.o2_consumption_kg_per_MJ",
+            self.d2_block,
+            "SF-D2 block must use fire.o2_consumption_kg_per_MJ for Thornton rate",
+        )
+
+    def test_d2_block_assigns_step_field(self):
+        """SF-D2 flag=true branch must write room.o2_consumed_kg_step."""
+        self.assertIn(
+            "room.o2_consumed_kg_step = o2_consumed_kg",
+            self.d2_block,
+            "SF-D2 block must assign room.o2_consumed_kg_step when flag=true",
+        )
+
+    def test_d2_block_accumulates_total_field(self):
+        """SF-D2 flag=true branch must accumulate room.o2_consumed_kg_total."""
+        self.assertIn(
+            "room.o2_consumed_kg_total += o2_consumed_kg",
+            self.d2_block,
+            "SF-D2 block must accumulate room.o2_consumed_kg_total when flag=true",
+        )
+
+    def test_d2_block_zeros_step_when_flag_false(self):
+        """SF-D2 else (flag=false) branch must zero room.o2_consumed_kg_step."""
+        self.assertIn(
+            "room.o2_consumed_kg_step = 0.0",
+            self.d2_block,
+            "SF-D2 else branch must zero o2_consumed_kg_step (flag=false no-op)",
+        )
+
+    # ── StateBuilder export ──────────────────────────────────────────────────
+
+    def test_state_builder_exports_o2_consumed_kg_step(self):
+        """SimulationStateBuilder must export o2_consumed_kg_step."""
+        self.assertIn(
+            '"o2_consumed_kg_step"',
+            self.state_src,
+            "SimulationStateBuilder must export o2_consumed_kg_step",
+        )
+
+    def test_state_builder_exports_o2_consumed_kg_total(self):
+        """SimulationStateBuilder must export o2_consumed_kg_total."""
+        self.assertIn(
+            '"o2_consumed_kg_total"',
+            self.state_src,
+            "SimulationStateBuilder must export o2_consumed_kg_total",
+        )
+
+    # ── LogWriter CSV ────────────────────────────────────────────────────────
+
+    def test_log_writer_csv_header_has_o2_consumed_kg_step(self):
+        """CSV header must contain o2_consumed_kg_step column."""
+        self.assertIn(
+            "o2_consumed_kg_step",
+            self.logw_src,
+            "SimulationLogWriter CSV header must include o2_consumed_kg_step",
+        )
+
+    def test_log_writer_csv_header_has_o2_consumed_kg_total(self):
+        """CSV header must contain o2_consumed_kg_total column."""
+        self.assertIn(
+            "o2_consumed_kg_total",
+            self.logw_src,
+            "SimulationLogWriter CSV header must include o2_consumed_kg_total",
+        )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
