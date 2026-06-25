@@ -441,7 +441,7 @@ def _check_e1_fuel_balance_residual(rows: list[dict[str, str]]) -> list[Finding]
                     time_s=_float(row, "time_s"),
                     room_id=room_id,
                     rule_id="E1",
-                    severity="WARN",
+                    severity="FAIL",
                     metric="fuel_balance_residual_MJ",
                     value=round(residual, 9),
                     reason=(
@@ -456,7 +456,7 @@ def _check_e1_fuel_balance_residual(rows: list[dict[str, str]]) -> list[Finding]
                     time_s=_float(row, "time_s"),
                     room_id=room_id,
                     rule_id="E1",
-                    severity="WARN",
+                    severity="FAIL",
                     metric="fuel_remaining_increased_MJ",
                     value=round(delta_remaining, 9),
                     reason=(

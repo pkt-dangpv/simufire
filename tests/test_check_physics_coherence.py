@@ -1037,15 +1037,15 @@ class TestCheckE1(unittest.TestCase):
         findings = self._run(rows)
         self.assertTrue(all(f.rule_id == "E1" for f in findings))
 
-    def test_finding_severity_is_warn(self):
-        """E1 is WARN until validated clean on the full reference suite."""
+    def test_finding_severity_is_fail(self):
+        """E1 is gating (FAIL) after clean corpus validation."""
         rows = [
             _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
             _row_e1(time_s="10.0", fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="5.0"),
         ]
         findings = self._run(rows)
         self.assertTrue(len(findings) > 0)
-        self.assertTrue(all(f.severity == "WARN" for f in findings))
+        self.assertTrue(all(f.severity == "FAIL" for f in findings))
 
     def test_finding_reason_contains_delta_and_expected(self):
         """Finding reason must contain delta_remaining and expected for diagnostics."""
