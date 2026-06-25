@@ -1368,6 +1368,156 @@ class TestD1COTrackingPaths(unittest.TestCase):
         )
 
 
+class TestE1FuelTracking(unittest.TestCase):
+    """
+    Structural tests for SF-E1 fuel consumption tracking.
+
+    solid_fuel_demand_MJ (post fuel-availability scaling, CombustionSystem line 338/825)
+    is the canonical fuel drawn from fire.remaining_fuel_MJ each step.  It is NOT
+    hrr_kw*dt/1000 — pool release and backdraft contribute to hrr_kw without
+    consuming solid fuel that same step.
+
+    Invariant E1: fuel_remaining_MJ[t] = fuel_remaining_MJ[t-1] - fuel_consumed_MJ_step[t].
+    Invariant E2: fuel_consumed_MJ_step >= 0 always (monotonic decrement).
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.room_src  = _load(_ROOM_MODEL)
+        cls.comb_src  = _load(_COMBUSTION)
+        cls.state_src = _load(_STATE_BUILDER)
+        cls.logw_src  = _load(_LOG_WRITER)
+
+        # Extract the SF-E1 capture block (active-fire branch).
+        comb = cls.comb_src
+        start = comb.find("# SF-E1:")
+        # The block ends at _sync_explicit_objects_from_active_fire call.
+        end   = comb.find("_sync_explicit_objects_from_active_fire(", start + 1)
+        cls.e1_block = comb[start:end] if (start != -1 and end != -1) else ""
+
+        cls.no_fire_body = ""
+        # No-fire branch ends at the first return after setting zeros.
+        idx = comb.find("room.fuel_consumed_MJ_step = 0.0")
+        if idx != -1:
+            cls.no_fire_body = comb[max(0, idx - 200):idx + 50]
+
+    # ── RoomModel field declarations ─────────────────────────────────────────
+
+    def test_room_model_declares_fuel_consumed_MJ_step(self):
+        """RoomModel must declare fuel_consumed_MJ_step."""
+        self.assertIn(
+            "fuel_consumed_MJ_step",
+            self.room_src,
+            "RoomModel.gd must declare fuel_consumed_MJ_step (SF-E1 tracking field)",
+        )
+
+    def test_room_model_declares_fuel_consumed_MJ_total(self):
+        """RoomModel must declare fuel_consumed_MJ_total."""
+        self.assertIn(
+            "fuel_consumed_MJ_total",
+            self.room_src,
+            "RoomModel.gd must declare fuel_consumed_MJ_total (SF-E1 cumulative)",
+        )
+
+    def test_room_model_resets_fuel_consumed_MJ_step(self):
+        """reset_dynamic_state must zero fuel_consumed_MJ_step."""
+        reset_body = _extract_function_body(self.room_src, "reset_dynamic_state")
+        self.assertIn(
+            "fuel_consumed_MJ_step = 0.0",
+            reset_body,
+            "reset_dynamic_state must zero fuel_consumed_MJ_step",
+        )
+
+    def test_room_model_resets_fuel_consumed_MJ_total(self):
+        """reset_dynamic_state must zero fuel_consumed_MJ_total."""
+        reset_body = _extract_function_body(self.room_src, "reset_dynamic_state")
+        self.assertIn(
+            "fuel_consumed_MJ_total = 0.0",
+            reset_body,
+            "reset_dynamic_state must zero fuel_consumed_MJ_total",
+        )
+
+    # ── CombustionSystem: active-fire capture ────────────────────────────────
+
+    def test_e1_block_found(self):
+        """SF-E1 capture block must exist in CombustionSystem active-fire branch."""
+        self.assertNotEqual(
+            self.e1_block, "",
+            "Could not locate '# SF-E1:' block before _sync_explicit_objects_from_active_fire",
+        )
+
+    def test_e1_block_captures_solid_fuel_demand(self):
+        """SF-E1 block must assign fuel_consumed_MJ_step from solid_fuel_demand_MJ."""
+        self.assertIn(
+            "room.fuel_consumed_MJ_step = solid_fuel_demand_MJ",
+            self.e1_block,
+            "SF-E1 block must set fuel_consumed_MJ_step = solid_fuel_demand_MJ "
+            "(not hrr_kw*dt/1000 — that includes pool/backdraft, not just solid decrement)",
+        )
+
+    def test_e1_block_accumulates_total(self):
+        """SF-E1 block must accumulate fuel_consumed_MJ_total."""
+        self.assertIn(
+            "room.fuel_consumed_MJ_total += solid_fuel_demand_MJ",
+            self.e1_block,
+            "SF-E1 block must accumulate fuel_consumed_MJ_total",
+        )
+
+    def test_e1_block_placed_after_remaining_fuel_decrement(self):
+        """fuel_consumed_MJ_step capture must follow fire.remaining_fuel_MJ decrement."""
+        comb = self.comb_src
+        pos_decrement = comb.find("fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ - solid_fuel_demand_MJ)")
+        pos_capture   = comb.find("room.fuel_consumed_MJ_step = solid_fuel_demand_MJ")
+        self.assertGreater(pos_decrement, -1, "remaining_fuel_MJ decrement not found")
+        self.assertGreater(pos_capture,   -1, "fuel_consumed_MJ_step capture not found")
+        self.assertGreater(pos_capture, pos_decrement,
+                           "fuel_consumed_MJ_step must be captured after the tank decrement")
+
+    def test_no_fire_branch_zeros_step(self):
+        """No-fire branch must zero fuel_consumed_MJ_step."""
+        self.assertIn(
+            "room.fuel_consumed_MJ_step = 0.0",
+            self.comb_src,
+            "No-fire branch must zero fuel_consumed_MJ_step (step is per-step, not cumulative)",
+        )
+
+    # ── StateBuilder export ──────────────────────────────────────────────────
+
+    def test_state_builder_exports_fuel_consumed_MJ_step(self):
+        """SimulationStateBuilder must export fuel_consumed_MJ_step."""
+        self.assertIn(
+            '"fuel_consumed_MJ_step"',
+            self.state_src,
+            "SimulationStateBuilder must export fuel_consumed_MJ_step",
+        )
+
+    def test_state_builder_exports_fuel_consumed_MJ_total(self):
+        """SimulationStateBuilder must export fuel_consumed_MJ_total."""
+        self.assertIn(
+            '"fuel_consumed_MJ_total"',
+            self.state_src,
+            "SimulationStateBuilder must export fuel_consumed_MJ_total",
+        )
+
+    # ── LogWriter CSV ────────────────────────────────────────────────────────
+
+    def test_log_writer_csv_header_has_fuel_consumed_MJ_step(self):
+        """CSV header must include fuel_consumed_MJ_step column."""
+        self.assertIn(
+            "fuel_consumed_MJ_step",
+            self.logw_src,
+            "SimulationLogWriter CSV header must include fuel_consumed_MJ_step",
+        )
+
+    def test_log_writer_csv_header_has_fuel_consumed_MJ_total(self):
+        """CSV header must include fuel_consumed_MJ_total column."""
+        self.assertIn(
+            "fuel_consumed_MJ_total",
+            self.logw_src,
+            "SimulationLogWriter CSV header must include fuel_consumed_MJ_total",
+        )
+
+
 class TestD2O2StoichTracking(unittest.TestCase):
     """
     Structural tests for SF-D2 O2 stoichiometric tracking in CombustionSystem.

@@ -145,6 +145,13 @@ var co_exterior_removed_kg_total: float = 0.0
 # o2_consumed_kg_total: acumulador desde el inicio — necesario para auditar balance O2.
 var o2_consumed_kg_step: float = 0.0
 var o2_consumed_kg_total: float = 0.0
+
+# SF-E1: combustible sólido consumido por pirolización en ESTE paso (kg MJ).
+# = solid_fuel_demand_MJ post-recorte (CombustionSystem línea 338/825).
+# NO es hrr_kw*dt/1000 — HRR incluye pool/backdraft que no decrementan el tank sólido.
+# Invariante E1: fuel_remaining_MJ[t] = fuel_remaining_MJ[t-1] - fuel_consumed_MJ_step[t].
+var fuel_consumed_MJ_step: float = 0.0
+var fuel_consumed_MJ_total: float = 0.0
 # SF-CBAL global: carbono acumulado que salió por aperturas exteriores (kg C).
 # Incrementado en GasExchangeSystem cada vez que CO/CO₂/HCN/humo se ventila
 # al exterior (presión, flujo de humo, purgas, ACH o PPV).
@@ -322,6 +329,8 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	canonical_o2_upper_updated = false
 	o2_consumed_kg_step = 0.0
 	o2_consumed_kg_total = 0.0
+	fuel_consumed_MJ_step = 0.0
+	fuel_consumed_MJ_total = 0.0
 	fire_o2_mode_used = "legacy"
 	fire_o2_ref = ambient_o2
 	fire_o2_min_ref = 0.0

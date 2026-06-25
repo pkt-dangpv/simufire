@@ -99,6 +99,7 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		room.co2_generated_kg_step = 0.0
 		room.hcn_generated_kg_step = 0.0
 		room.o2_consumed_kg_step = 0.0
+		room.fuel_consumed_MJ_step = 0.0
 		return false
 
 	var fire: FireModel = room.fire
@@ -823,6 +824,9 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	room.hcn_upper_kg += generated_hcn_kg  # generado en capa superior (2026-05-17)
 
 	fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ - solid_fuel_demand_MJ)
+	# SF-E1: capturar consumo de combustible sólido para auditoría de balance energético.
+	room.fuel_consumed_MJ_step = solid_fuel_demand_MJ
+	room.fuel_consumed_MJ_total += solid_fuel_demand_MJ
 	_sync_explicit_objects_from_active_fire(
 		room,
 		actual_solid_burn_kw,
