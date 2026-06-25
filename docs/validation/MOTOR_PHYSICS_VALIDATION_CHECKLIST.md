@@ -28,45 +28,120 @@ Validation must check more than isolated final values. Each scenario should be t
 
 ## 1. HRR And Energy
 
-Items to check:
+### Internal storage and calculation (audited 2026-06-25)
 
-- HRR magnitude against fuel, pyrolysis and available oxygen.
-- Integrated HRR against fuel energy consumed and `fuel_remaining_MJ`.
-- Coherence among `hrr_kw`, `burned_hrr_kw`, `pyrolysis_kw` and `unburned_generation_kw`.
-- Fuel-controlled, ventilation-controlled, smoldering, latent, extinguished and reventilation transitions.
-- HRR response when doors/windows change the oxygen supply.
-- Long-fire stability: no artificial HRR plateaus, spikes or zombie fires.
-- Energy budget consistency with wall absorption, wall reradiation, ventilation losses and gas temperature.
+HRR pipeline (`CombustionSystem.gd::step_room_fire`):
 
-Current auditor coverage:
+- `ideal_hrr_kw` — t² curve up to `fire.max_hrr_kw`, before any limiting.
+- `solid_pyrolysis_kw` — fuel gasification rate (pre-combustion, O2-independent).
+- `fresh_flame_target_kw` — portion burning immediately in flames (O2-limited via `flame_drive`).
+- `smolder_hrr_target_kw` — portion burning in low-O2 smoldering.
+- `pool_release_hrr_target_kw` — portion from `retained_unburned_MJ` pool release.
+- `hrr_target_kw` — sum of the three above (stored in `room.hrr_target_kw`).
+- `room.hrr_kw` — time-smoothed output via rise/fall constants; **primary HRR seen by room**.
+- `burned_hrr_kw` — equals `maxf(0, room.hrr_kw)`; semantically redundant with `hrr_kw` post-clamp.
+- `unburned_generation_kw` — pyrolysis gases not combusted; feeds `retained_unburned_MJ` pool.
+- `retained_unburned_MJ` — unburned gas pool; released in backdraft or decays.
 
-- A2: HRR without fuel is checked.
-- A3: fuel-controlled/full-developed regime with critical upper-layer O2 is checked.
-- ILV HRR-zombie pattern is checked by the ILV coherence auditor.
+Fuel accounting (`fire.remaining_fuel_MJ`, `FireModel.gd:13`):
 
-Open gaps:
+- Decremented each step: `maxf(0, remaining_fuel_MJ - solid_pyrolysis_kw * dt / 1000)`.
+- Scale-clamped: if demand exceeds available, all pyrolysis targets scale down proportionally.
+- Extinguishment gate: `remaining_fuel_MJ <= 0 AND retained_unburned_MJ <= 0.01`.
+- Multi-object: `fuel_objects[].remaining_fuel_MJ` decremented independently per object.
 
-- Full HRR integrated-energy balance.
-- Oxygen-limited HRR magnitude validation, not only zombie detection.
-- Reventilation growth validation.
+Thermal feedback:
+
+- `rad_feedback = 1.0 + thermal_feedback_coeff * (T_upper - T_ambient) / 500.0`
+- Amplifies HRR target with room temperature. O2 consumption is NOT scaled proportionally — stoichiometric violation (see risks below).
+
+Energy budget fields (exported to JSON only, not CSV by default):
+
+- `bud_e_fire_kj`, `bud_q_rad_kj`, `bud_q_to_lower_kj`, `bud_q_to_ambient_kj`
+- `bud_q_wall_abs_kj`, `bud_q_wall_emit_kj`, `bud_de_upper_kj`, `bud_q_residual_kj`
+- `bud_chi_rad`, `bud_q_fire_rad_kj`
+
+### CSV/JSON export status
+
+Already exported to CSV: `hrr_kw`, `pyrolysis_kw`, `burned_hrr_kw`, `unburned_generation_kw`, `flame_hrr_target_kw`, `smolder_hrr_target_kw`, `pool_release_hrr_target_kw`, `o2_hrr_factor`, `fuel_remaining_MJ`, `retained_unburned_MJ`.
+
+Already exported to JSON: all of the above plus `hrr_target_kw`, `fire_time_s`, `fuel_energy_MJ`, `fuel_capacity_MJ`, `unburned_fuel_MJ`, energy budget fields.
+
+### Missing for per-step HRR/energy audit
+
+- `fuel_consumed_MJ_step` — `solid_pyrolysis_kw * dt / 1000` not persisted; only snapshot `remaining_fuel_MJ` available.
+- `hrr_delivered_kj_step` — `hrr_kw * dt` (kJ released to room this step); derivable from CSV but not explicit.
+- `fuel_burned_fraction_step` — `fresh_flame_target_kw / solid_pyrolysis_kw`; not exported.
+- `backdraft_energy_release_kj_step` — pool combustion energy not isolated from base HRR.
+
+### Current auditor coverage
+
+- A2: HRR without fuel (FAIL-gating).
+- A3: fuel-controlled regime with critical O2 (FAIL-gating).
+- ILV HRR-zombie pattern (ILV coherence auditor).
+
+### Open gaps
+
+- Per-step `fuel_consumed_MJ_step` to close integrated-energy balance.
+- HRR × dt vs `Δfuel_remaining_MJ` consistency check (not yet implementable without step field).
+- Backdraft energy isolation.
+- Reventilation HRR growth validation.
+
+---
 
 ## 2. Oxygen
 
-Items to check:
+### Internal storage (audited 2026-06-25)
 
-- O2 consumption from HRR and combustion chemistry.
-- O2 storage by bulk, upper and lower layer: `o2`, `o2_upper`, `o2_lower`.
-- O2 inflow through lower openings and outflow/entrainment through upper layers.
-- O2 transport between connected rooms and exterior.
-- O2 response to remote ventilation: opening a window in another room should affect the fire if doors connect the spaces.
-- O2 and HRR coupling during ventilation-controlled burning.
-- O2 recovery after extinguishment or ventilation changes.
+O2 representation is **dual: fraction (primary) + optional mass (secondary, opt-in)**.
 
-Open gaps:
+RoomModel O2 fields:
 
-- Full O2 mass balance by room/layer.
-- Door/window flow validation against two-zone expectations.
-- Multi-floor convection and oxygen path validation.
+| Field | Type | Semantics |
+|-------|------|-----------|
+| `o2` | fraction | Whole-room average. Derived from two-zone layers if solver enabled; legacy field. |
+| `o2_upper` | fraction | Upper-layer (hot zone). Canonical O2 source for combustion throttling. Updated by ThermalSystem + GasExchangeSystem. |
+| `o2_lower` | fraction | Lower-layer (cool zone). Independent since Phase 2A. Near-ambient unless HVAC or fire affects it. |
+| `upper_o2_mass_tracked` | kg | Mass of O2 in upper zone. **Opt-in Phase 5 M2** (`fire_o2_mass_tracking_enabled`). `-1.0` = uninitialized. Never used in combustion physics. |
+| `canonical_o2_upper_updated` | bool | Set by ThermalSystem; prevents OxygenExchangeSystem from overwriting with stale fraction. |
+
+### O2 consumption — CRITICAL GAP
+
+**`fire.o2_consumption_kg_per_MJ = 0.076` (FireModel.gd:33) is defined but NEVER APPLIED.**
+
+Combustion does NOT remove O2 from the room. O2 depletion occurs only via:
+1. **Layer dilution** — ThermalSystem plume entrainment mixes lower air (fresh O2) into upper zone, diluting upper O2 fraction. This is ratio-based, not stoichiometric.
+2. **Transport** — GasExchangeSystem carries O2 out via venting and between rooms via doorway flows.
+
+Consequence: `o2_hrr_factor` throttles HRR based on current `o2_upper`, but combustion never removes the O2 that was consumed. The O2 field is not a mass-balance ledger — it is a transport/dilution proxy.
+
+### O2 transport functions
+
+- ThermalSystem `_step_two_zone_plume_entrainment` — mixes lower air into upper zone; updates `o2_upper`/`o2_lower` via blending ratio.
+- GasExchangeSystem `_handle_internal_doorway_flow` — calculates `moved_o2_kg = room_o2_fraction * air_mass_kg`; transfers between adjacent rooms.
+- GasExchangeSystem `step_pressure_venting` → `_vent_exterior_gas` — vents upper O2 to exterior proportionally.
+- GasExchangeSystem `step_ppv` — injects exterior O2 via PPV.
+- GasExchangeSystem infiltration paths — background leakage (implicit in ACH flows).
+
+### Missing for O2 mass balance audit (equivalent to D1)
+
+An O2 mass balance rule is **not viable without first implementing stoichiometric O2 consumption**. Fields that would be needed:
+
+- `o2_consumed_by_fire_kg_step` — `hrr_kw * dt / 1000 * fire.o2_consumption_kg_per_MJ` (not currently computed).
+- `o2_consumed_by_fire_kg_total` — cumulative.
+- `o2_net_transport_kg_total` — net inter-room O2 transport (analogous to `co_net_transport_kg_total`).
+- `o2_exterior_removed_kg_total` — O2 vented out (analogous to `co_exterior_removed_kg_total`).
+- `o2_exterior_added_kg_total` — O2 entering from exterior via infiltration/PPV.
+
+### Current auditor coverage
+
+None. O2 balance rule requires stoichiometric coupling to exist first.
+
+### Open gaps
+
+- Stoichiometric O2 consumption must be implemented before any mass balance rule.
+- `upper_o2_mass_tracked` exists but is orphaned — not used in combustion, not exported to CSV.
+- Dual-track risk: `o2_upper` (fraction) and `upper_o2_mass_tracked` (mass) may diverge if `canonical_o2_upper_updated` flag handling fails.
 
 ## 3. CO, CO2 And HCN
 
