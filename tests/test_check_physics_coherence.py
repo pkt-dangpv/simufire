@@ -862,5 +862,201 @@ class TestCheckD1(unittest.TestCase):
         self.assertIn("residual", reason)
 
 
+# ---------------------------------------------------------------------------
+# E1 row helper
+# ---------------------------------------------------------------------------
+# E1 uses fuel_consumed_MJ_total (cumulative) to be invariant to the
+# log_interval vs timestep ratio.  fuel_consumed_MJ_step is NOT used here.
+
+def _row_e1(
+    time_s="10.0", room_id="0",
+    fuel_remaining_MJ="50.0",
+    fuel_consumed_MJ_total="0.0",
+) -> dict[str, str]:
+    return {
+        "time_s": time_s, "room_id": room_id,
+        "fuel_remaining_MJ": fuel_remaining_MJ,
+        "fuel_consumed_MJ_total": fuel_consumed_MJ_total,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tests: Rule E1 — Fuel balance residual
+# ---------------------------------------------------------------------------
+
+class TestCheckE1(unittest.TestCase):
+
+    def _run(self, rows):
+        return [f for f in checker.find_physics_coherence_issues(rows, rule_ids={"E1"})
+                if f.rule_id == "E1"]
+
+    # ── Clean cases ───────────────────────────────────────────────────────────
+
+    def test_perfect_balance_no_finding(self):
+        """Δremaining == −Δconsumed_total → no finding."""
+        rows = [
+            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="0.5"),
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_no_fire_no_finding(self):
+        """No consumption and no change in remaining → trivially balanced."""
+        rows = [
+            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_fuel_depleted_to_zero_no_finding(self):
+        """Fuel reaches zero and stays there — balance holds."""
+        rows = [
+            _row_e1(time_s="0.0",  fuel_remaining_MJ="1.0",  fuel_consumed_MJ_total="49.0"),
+            _row_e1(time_s="10.0", fuel_remaining_MJ="0.0",  fuel_consumed_MJ_total="50.0"),
+            _row_e1(time_s="20.0", fuel_remaining_MJ="0.0",  fuel_consumed_MJ_total="50.0"),
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_small_residual_within_relative_tolerance_no_finding(self):
+        """Residual of 0.5 % of expected is within the 1 % tolerance."""
+        # delta_remaining=-1.0, delta_consumed=1.0, expected=-1.0
+        # residual = |(-1.0) - (-1.0)| = 0 — use a tiny imprecision instead
+        # residual = 0.005 MJ on expected = 1.0 → 0.5 % < 1 % → clean
+        rows = [
+            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.000", fuel_consumed_MJ_total="0.000"),
+            _row_e1(time_s="10.0", fuel_remaining_MJ="48.995", fuel_consumed_MJ_total="1.000"),
+        ]
+        # delta_remaining = -1.005, expected = -1.000, residual = 0.005 < 0.01 (1%)
+        self.assertEqual(len(self._run(rows)), 0)
+
+    # ── Flagged cases ─────────────────────────────────────────────────────────
+
+    def test_large_balance_residual_flagged(self):
+        """Residual much larger than tolerance raises E1 finding."""
+        # delta_remaining=-0.5, delta_consumed=1.0, expected=-1.0, residual=0.5 >> 0.01
+        rows = [
+            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="1.0"),
+        ]
+        findings = self._run(rows)
+        self.assertGreater(len(findings), 0)
+        self.assertTrue(any(f.metric == "fuel_balance_residual_MJ" for f in findings))
+
+    def test_fuel_increased_flagged(self):
+        """fuel_remaining_MJ increasing is physically impossible — must flag."""
+        # delta_remaining = +2.0 (fuel appeared from nowhere)
+        rows = [
+            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="5.0"),
+            _row_e1(time_s="10.0", fuel_remaining_MJ="52.0", fuel_consumed_MJ_total="5.0"),
+        ]
+        findings = self._run(rows)
+        self.assertGreater(len(findings), 0)
+        self.assertTrue(any(f.metric == "fuel_remaining_increased_MJ" for f in findings))
+
+    def test_consumed_without_remaining_decrease_flagged(self):
+        """Consumed increased but remaining didn't decrease → balance residual."""
+        rows = [
+            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="2.0"),
+        ]
+        # delta_remaining=0, expected=-2.0, residual=2.0 >> tolerance
+        findings = self._run(rows)
+        self.assertGreater(len(findings), 0)
+        self.assertTrue(any(f.metric == "fuel_balance_residual_MJ" for f in findings))
+
+    # ── Multi-room and ordering ────────────────────────────────────────────────
+
+    def test_multi_room_independent(self):
+        """Each room's balance is checked independently."""
+        rows = [
+            # Room 0: balanced
+            _row_e1(time_s="0.0",  room_id="0", fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", room_id="0", fuel_remaining_MJ="49.0", fuel_consumed_MJ_total="1.0"),
+            # Room 1: imbalanced
+            _row_e1(time_s="0.0",  room_id="1", fuel_remaining_MJ="30.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", room_id="1", fuel_remaining_MJ="29.0", fuel_consumed_MJ_total="5.0"),
+        ]
+        findings = self._run(rows)
+        room_ids = {f.room_id for f in findings}
+        self.assertIn("1", room_ids)
+        self.assertNotIn("0", room_ids)
+
+    def test_rows_sorted_by_time_before_diff(self):
+        """Out-of-order rows must be sorted before computing deltas."""
+        rows = [
+            _row_e1(time_s="10.0", fuel_remaining_MJ="49.0", fuel_consumed_MJ_total="1.0"),
+            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_first_row_per_room_is_baseline_no_finding(self):
+        """The first row sets the baseline; no finding is generated for it."""
+        rows = [
+            _row_e1(time_s="5.0", fuel_remaining_MJ="48.0", fuel_consumed_MJ_total="2.0"),
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    # ── Schema / graceful skip ─────────────────────────────────────────────────
+
+    def test_missing_fuel_consumed_column_skips_rule(self):
+        """E1 skips gracefully when fuel_consumed_MJ_total is absent."""
+        rows = [
+            {"time_s": "0.0",  "room_id": "0", "fuel_remaining_MJ": "50.0"},
+            {"time_s": "10.0", "room_id": "0", "fuel_remaining_MJ": "45.0"},
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_missing_fuel_remaining_column_skips_rule(self):
+        """E1 skips gracefully when fuel_remaining_MJ is absent (old schema)."""
+        rows = [
+            {"time_s": "0.0",  "room_id": "0", "fuel_consumed_MJ_total": "0.0"},
+            {"time_s": "10.0", "room_id": "0", "fuel_consumed_MJ_total": "1.0"},
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_old_csv_without_e1_columns_does_not_raise(self):
+        """CSV with only legacy columns must not raise — E1 skips silently."""
+        rows = [
+            {"time_s": "0.0",  "room_id": "0", "hrr_kw": "0.0",  "co_kg": "0.0"},
+            {"time_s": "10.0", "room_id": "0", "hrr_kw": "50.0", "co_kg": "0.001"},
+        ]
+        try:
+            result = self._run(rows)
+        except Exception as exc:
+            self.fail(f"E1 raised {exc!r} on old-schema CSV")
+        self.assertEqual(len(result), 0)
+
+    # ── Finding fields ────────────────────────────────────────────────────────
+
+    def test_finding_rule_id_is_e1(self):
+        """Finding must report rule_id == 'E1'."""
+        rows = [
+            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="5.0"),
+        ]
+        findings = self._run(rows)
+        self.assertTrue(all(f.rule_id == "E1" for f in findings))
+
+    def test_finding_severity_is_warn(self):
+        """E1 is WARN until validated clean on the full reference suite."""
+        rows = [
+            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="5.0"),
+        ]
+        findings = self._run(rows)
+        self.assertTrue(len(findings) > 0)
+        self.assertTrue(all(f.severity == "WARN" for f in findings))
+
+    def test_finding_reason_contains_delta_and_expected(self):
+        """Finding reason must contain delta_remaining and expected for diagnostics."""
+        rows = [
+            _row_e1(time_s="0.0",  fuel_remaining_MJ="50.0", fuel_consumed_MJ_total="0.0"),
+            _row_e1(time_s="10.0", fuel_remaining_MJ="49.5", fuel_consumed_MJ_total="5.0"),
+        ]
+        reason = self._run(rows)[0].reason
+        self.assertIn("delta_remaining", reason)
+        self.assertIn("expected", reason)
+
+
 if __name__ == "__main__":
     unittest.main()

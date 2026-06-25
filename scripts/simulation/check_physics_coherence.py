@@ -47,6 +47,21 @@ D1  CO balance residual Per room/log-interval: the change in co_kg between
                         reference suite).  Skipped gracefully when cumulative
                         total columns are absent (older CSV schema).
 
+Rules — fourth slice
+--------------------
+E1  Fuel balance        Per room/log-interval: the change in fuel_remaining_MJ
+                        must equal −Δfuel_consumed_MJ_total (what was drawn
+                        from the solid fuel tank).  Uses fuel_consumed_MJ_total
+                        (cumulative) to be invariant to log_interval vs
+                        timestep ratio.  fuel_consumed_MJ_step is NOT used
+                        here (it only captures the last simulation step, not
+                        the sum over all steps since the previous log entry).
+                        Also flags if fuel_remaining_MJ increases between rows
+                        (solid fuel is monotonically decreasing once fire
+                        starts).  Tolerance: 1 % of abs(expected), floor
+                        1 × 10⁻⁶ MJ.  Severity: WARN — promote to FAIL once
+                        validated clean on the reference suite.
+
 Usage
 -----
   # Check all rules:
@@ -124,9 +139,10 @@ REQUIRED_COLS: dict[str, set[str]] = {
     "C1": {"fed", "fed_co", "fed_hcn", "fed_hypoxia", "fed_heat"},
     "C2": {"fed"},
     "D1": {"co_kg", "co_generated_kg_total", "co_net_transport_kg_total", "co_exterior_removed_kg_total"},
+    "E1": {"fuel_remaining_MJ", "fuel_consumed_MJ_total"},
 }
 
-ALL_RULES: tuple[str, ...] = ("A2", "A3", "B1", "C1", "C2", "D1")
+ALL_RULES: tuple[str, ...] = ("A2", "A3", "B1", "C1", "C2", "D1", "E1")
 
 
 # ---------------------------------------------------------------------------
@@ -373,6 +389,87 @@ def _check_d1_co_balance_residual(rows: list[dict[str, str]]) -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
+# Rule E1 — Fuel balance residual
+# ---------------------------------------------------------------------------
+
+_E1_ABS_FLOOR_MJ = 1e-6
+_E1_REL_TOL = 0.01
+
+
+def _check_e1_fuel_balance_residual(rows: list[dict[str, str]]) -> list[Finding]:
+    """Per-room fuel balance using cumulative totals.
+
+    Between consecutive CSV rows (which may span many simulation steps):
+        Δfuel_remaining  = fuel_remaining_MJ[t] − fuel_remaining_MJ[t−1]
+        Δfuel_consumed   = fuel_consumed_MJ_total[t] − fuel_consumed_MJ_total[t−1]
+        expected         = −Δfuel_consumed  (each MJ consumed depletes remaining by 1 MJ)
+        residual         = |Δfuel_remaining − expected|
+
+    fuel_consumed_MJ_total captures solid_fuel_demand_MJ accumulated over all
+    simulation steps between log entries.  It is NOT hrr_kw*dt/1000 — pool
+    release and backdraft contribute to HRR without drawing from the solid fuel
+    tank that same step.
+
+    Also flags: Δfuel_remaining > tolerance (solid fuel must be monotonically
+    non-increasing once the fire is active; spontaneous fuel gain is unphysical).
+
+    Tolerance: 1 % of abs(expected), floor 1 × 10⁻⁶ MJ.
+    Severity: WARN — promote to FAIL once validated clean on full reference suite.
+    Skipped gracefully when fuel_consumed_MJ_total is absent (older CSV schema).
+    """
+    by_room: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for row in rows:
+        by_room[row.get("room_id", "?").strip()].append(row)
+
+    findings: list[Finding] = []
+    for room_id, room_rows in by_room.items():
+        room_rows.sort(key=lambda r: _float(r, "time_s"))
+        prev_remaining: float = _float(room_rows[0], "fuel_remaining_MJ")
+        prev_consumed_total: float = _float(room_rows[0], "fuel_consumed_MJ_total")
+        for row in room_rows[1:]:
+            remaining = _float(row, "fuel_remaining_MJ")
+            consumed_total = _float(row, "fuel_consumed_MJ_total")
+            delta_remaining = remaining - prev_remaining
+            delta_consumed = consumed_total - prev_consumed_total
+            expected = -delta_consumed
+            residual = abs(delta_remaining - expected)
+            magnitude = max(abs(expected), _E1_ABS_FLOOR_MJ)
+            threshold = max(_E1_ABS_FLOOR_MJ, _E1_REL_TOL * magnitude)
+
+            if residual > threshold:
+                findings.append(Finding(
+                    time_s=_float(row, "time_s"),
+                    room_id=room_id,
+                    rule_id="E1",
+                    severity="WARN",
+                    metric="fuel_balance_residual_MJ",
+                    value=round(residual, 9),
+                    reason=(
+                        f"delta_remaining={delta_remaining:.6g} MJ  "
+                        f"expected(-delta_consumed)={expected:.6g} MJ  "
+                        f"residual={residual:.3g} MJ  tol={threshold:.3g} MJ"
+                    ),
+                ))
+            # Monotone check: solid fuel cannot spontaneously increase.
+            if delta_remaining > threshold:
+                findings.append(Finding(
+                    time_s=_float(row, "time_s"),
+                    room_id=room_id,
+                    rule_id="E1",
+                    severity="WARN",
+                    metric="fuel_remaining_increased_MJ",
+                    value=round(delta_remaining, 9),
+                    reason=(
+                        f"fuel_remaining_MJ increased by {delta_remaining:.3g} MJ "
+                        f"(solid fuel is monotonically non-increasing)"
+                    ),
+                ))
+            prev_remaining = remaining
+            prev_consumed_total = consumed_total
+    return findings
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -418,6 +515,8 @@ def find_physics_coherence_issues(
         findings.extend(_check_c2_fed_monotone(rows))
     if "D1" in active and _has_cols(headers, REQUIRED_COLS["D1"]):
         findings.extend(_check_d1_co_balance_residual(rows))
+    if "E1" in active and _has_cols(headers, REQUIRED_COLS["E1"]):
+        findings.extend(_check_e1_fuel_balance_residual(rows))
 
     return findings
 
