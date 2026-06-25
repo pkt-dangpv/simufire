@@ -477,7 +477,7 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		fields.append("%.3f" % float(rs.get("floor_heat_flux_kw_m2", 0.0)))
 		fields.append("%.1f" % float(rs.get("flashover_q_thomas_kw", 0.0)))
 		fields.append("%.1f" % float(rs.get("flashover_q_mqh_kw", 0.0)))
-		fields.append("%.2f" % float(rs.get("fuel_objects_remaining_MJ", rs.get("remaining_fuel_MJ", 0.0))))
+		fields.append("%.6f" % float(rs.get("fuel_objects_remaining_MJ", rs.get("remaining_fuel_MJ", 0.0))))
 		fields.append("%.4f" % float(rs.get("ventilation_response_factor", 0.0)))
 		fields.append("%.2f" % float(rs.get("pyrolysis_kw", 0.0)))
 		fields.append("%.2f" % float(rs.get("burned_hrr_kw", rs.get("hrr_kw", 0.0))))
