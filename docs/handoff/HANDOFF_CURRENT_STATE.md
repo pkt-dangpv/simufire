@@ -8,15 +8,26 @@ Fecha: 2026-06-25
 - Commits del carril actual (más reciente primero):
 
 ```
+ad146b6 feat(s0): add S0 smoke global conservation rule and export engine accumulators
 54a701b promote(e1): E1 fuel balance rule WARN→FAIL after clean corpus validation
 e7d73e6 fix(e1): increase fuel_remaining_MJ log precision from %.2f to %.6f
 a6eff5a feat(e1): add E1 fuel balance rule, diagnostic case, and tests
 6105dcd feat(e1): add fuel_consumed_MJ_step/total tracking for energy audit
 04310df docs(o2): correct O2 diagnosis, add D2 structural tests, update handoff
-d7e4aba fix(o2): eliminate double-count in stoich O2 tracking
 ```
 
 ## Carriles cerrados
+
+### S0 smoke global conservation — ABIERTO (WARN, pendiente validación corpus)
+
+- Regla S0 implementada en `scripts/simulation/check_physics_coherence.py`.
+- Invariante global: `Σ smoke_kg (todas las salas) = smoke_generated_total_kg - smoke_vented_total_kg - smoke_deposited_total_kg`
+- Los tres acumuladores del engine ya existían; ahora se exportan al CSV en cada fila (mismo valor repetido para todas las salas del mismo timestep).
+- Columnas nuevas en CSV: `smoke_generated_total_kg`, `smoke_vented_total_kg`, `smoke_deposited_total_kg`.
+- Severity: WARN. Pendiente regenerar corpus y auditar para promover a FAIL.
+- Limitación: S0 es global — no detecta errores compensados de transporte inter-sala.
+  S1 per-sala bloqueado hasta instrumentar `smoke_generated/vented/deposited/net_transport` por sala.
+- Tests: 13 (TestCheckS0). Total coherence tests: 117.
 
 ### E1 fuel balance — CERRADO
 
@@ -114,7 +125,7 @@ como paths auditables independientes. No tocar motor sin plan explícito.
 
 ```
 160 passed  tests/test_carbon_balance.py    (TestE1FuelTracking 13 + TestD2O2StoichTracking 14)
-104 passed  tests/test_check_physics_coherence.py  (TestCheckE1 17 tests)
+117 passed  tests/test_check_physics_coherence.py  (TestCheckS0 13 + TestCheckE1 17)
 ...
 ```
 
