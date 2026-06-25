@@ -1058,5 +1058,201 @@ class TestCheckE1(unittest.TestCase):
         self.assertIn("expected", reason)
 
 
+def _row_s0(
+    time_s="10.0", room_id="0",
+    smoke_kg="0.0",
+    smoke_generated_total_kg="0.0",
+    smoke_vented_total_kg="0.0",
+    smoke_deposited_total_kg="0.0",
+) -> dict[str, str]:
+    return {
+        "time_s": time_s,
+        "room_id": room_id,
+        "smoke_kg": smoke_kg,
+        "smoke_generated_total_kg": smoke_generated_total_kg,
+        "smoke_vented_total_kg": smoke_vented_total_kg,
+        "smoke_deposited_total_kg": smoke_deposited_total_kg,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tests: Rule S0 — Smoke global conservation
+# ---------------------------------------------------------------------------
+
+class TestCheckS0(unittest.TestCase):
+
+    def _run(self, rows):
+        return [f for f in checker.find_physics_coherence_issues(rows, rule_ids={"S0"})
+                if f.rule_id == "S0"]
+
+    # ── Clean cases ───────────────────────────────────────────────────────────
+
+    def test_perfect_balance_no_finding(self):
+        """sum_smoke == generated - vented - deposited → no finding."""
+        rows = [
+            _row_s0(time_s="10.0", room_id="0",
+                    smoke_kg="2.0",
+                    smoke_generated_total_kg="2.0",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_generation_only_no_finding(self):
+        """All generated smoke still in room → no finding."""
+        rows = [
+            _row_s0(time_s="5.0", room_id="0",
+                    smoke_kg="1.5",
+                    smoke_generated_total_kg="1.5",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_vented_smoke_no_finding(self):
+        """Generated smoke partly vented; remainder matches. → no finding."""
+        rows = [
+            _row_s0(time_s="20.0", room_id="0",
+                    smoke_kg="0.8",
+                    smoke_generated_total_kg="1.0",
+                    smoke_vented_total_kg="0.2",
+                    smoke_deposited_total_kg="0.0"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_deposited_smoke_no_finding(self):
+        """Generated smoke partly deposited; remainder matches. → no finding."""
+        rows = [
+            _row_s0(time_s="30.0", room_id="0",
+                    smoke_kg="0.7",
+                    smoke_generated_total_kg="1.0",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.3"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_multi_room_sum_by_timestep(self):
+        """Smoke across 3 rooms must sum to expected; each room too-small individually."""
+        rows = [
+            _row_s0(time_s="10.0", room_id="0", smoke_kg="1.0",
+                    smoke_generated_total_kg="3.0",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0"),
+            _row_s0(time_s="10.0", room_id="1", smoke_kg="1.0",
+                    smoke_generated_total_kg="3.0",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0"),
+            _row_s0(time_s="10.0", room_id="2", smoke_kg="1.0",
+                    smoke_generated_total_kg="3.0",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_timestamps_checked_independently(self):
+        """Two timesteps each correct → no finding."""
+        rows = [
+            _row_s0(time_s="10.0", room_id="0", smoke_kg="1.0",
+                    smoke_generated_total_kg="1.0",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0"),
+            _row_s0(time_s="20.0", room_id="0", smoke_kg="2.0",
+                    smoke_generated_total_kg="2.0",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_all_zero_no_finding(self):
+        """All fields zero (no fire) → no finding."""
+        rows = [
+            _row_s0(time_s="0.0", room_id="0", smoke_kg="0.0",
+                    smoke_generated_total_kg="0.0",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    # ── Finding cases ─────────────────────────────────────────────────────────
+
+    def test_residual_above_floor_triggers_finding(self):
+        """sum_smoke clearly differs from expected → finding."""
+        rows = [
+            _row_s0(time_s="10.0", room_id="0",
+                    smoke_kg="5.0",          # 5 kg in room
+                    smoke_generated_total_kg="3.0",   # but only 3 generated
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0"),  # residual = 2 kg > 0.01 floor
+        ]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].rule_id, "S0")
+        self.assertEqual(findings[0].room_id, "global")
+        self.assertEqual(findings[0].metric, "smoke_balance_residual_kg")
+
+    def test_finding_is_warn_severity(self):
+        """S0 is WARN (not yet promoted to FAIL)."""
+        rows = [
+            _row_s0(time_s="10.0", room_id="0",
+                    smoke_kg="10.0",
+                    smoke_generated_total_kg="0.0",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0"),
+        ]
+        findings = self._run(rows)
+        self.assertTrue(len(findings) > 0)
+        self.assertTrue(all(f.severity == "WARN" for f in findings))
+
+    def test_only_failing_timestep_flagged(self):
+        """First timestep ok, second has residual → only second flagged."""
+        rows = [
+            _row_s0(time_s="10.0", room_id="0", smoke_kg="1.0",
+                    smoke_generated_total_kg="1.0",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0"),
+            _row_s0(time_s="20.0", room_id="0", smoke_kg="99.0",
+                    smoke_generated_total_kg="1.5",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0"),
+        ]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+        self.assertAlmostEqual(findings[0].time_s, 20.0)
+
+    def test_finding_reason_contains_sum_and_expected(self):
+        """Finding reason must mention sum_smoke_kg and expected for diagnostics."""
+        rows = [
+            _row_s0(time_s="10.0", room_id="0", smoke_kg="5.0",
+                    smoke_generated_total_kg="2.0",
+                    smoke_vented_total_kg="0.0",
+                    smoke_deposited_total_kg="0.0"),
+        ]
+        reason = self._run(rows)[0].reason
+        self.assertIn("sum_smoke_kg", reason)
+        self.assertIn("expected", reason)
+
+    # ── Graceful skip ─────────────────────────────────────────────────────────
+
+    def test_missing_columns_skips_gracefully(self):
+        """Rows without S0 columns must not raise or produce findings."""
+        rows = [
+            {"time_s": "10.0", "room_id": "0", "smoke_kg": "1.0"},
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_missing_one_column_skips(self):
+        """Only 3 of 4 required columns → skip."""
+        rows = [
+            {
+                "time_s": "10.0", "room_id": "0",
+                "smoke_kg": "1.0",
+                "smoke_generated_total_kg": "2.0",
+                "smoke_vented_total_kg": "0.0",
+                # smoke_deposited_total_kg absent
+            },
+        ]
+        self.assertEqual(self._run(rows), [])
+
+
 if __name__ == "__main__":
     unittest.main()
