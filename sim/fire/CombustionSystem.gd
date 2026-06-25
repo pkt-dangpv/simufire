@@ -777,19 +777,14 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	room.hcn_generated_kg_step = generated_hcn_kg
 	room.co_generated_kg_total += generated_co_kg
 
-	# SF-D2: consumo estequiométrico de O2 (Thornton, default-off).
-	# Regla: 1 kg O2 libera ~13.1 MJ → fire.o2_consumption_kg_per_MJ ≈ 0.076.
-	# Se descuenta de o2_upper usando masa de aire estimada por gas ideal a 1 atm.
+	# SF-D2: tracking estequiométrico de O2 (Thornton, default-off).
+	# OxygenExchangeSystem ya aplica esta tasa sobre o2_upper (líneas 386-395) y room.o2
+	# (línea 356) usando fire.o2_consumption_kg_per_MJ. Aquí solo contabilizamos para
+	# diagnóstico sin modificar o2_upper (evita doble-descuento).
 	# Flag: fire_o2_stoich_consumption_enabled=false (no activa por defecto).
 	if bool(context.get("fire_o2_stoich_consumption_enabled", false)):
 		var hrr_energy_MJ_step: float = maxf(0.0, room.hrr_kw) * dt / 1000.0
 		var o2_consumed_kg: float = hrr_energy_MJ_step * fire.o2_consumption_kg_per_MJ
-		var upper_vol: float = room.upper_volume_m3()
-		if upper_vol > 0.001:
-			var T_K: float = room.temp_upper_raw_c + 273.15
-			var upper_air_mass_kg: float = upper_vol * (353.0 / T_K)
-			if upper_air_mass_kg > 0.0:
-				room.o2_upper = maxf(0.0, room.o2_upper - o2_consumed_kg / upper_air_mass_kg)
 		room.o2_consumed_kg_step = o2_consumed_kg
 		room.o2_consumed_kg_total += o2_consumed_kg
 	else:
