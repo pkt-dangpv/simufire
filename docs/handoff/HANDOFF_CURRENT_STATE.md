@@ -8,13 +8,27 @@ Fecha: 2026-06-25
 - Commits del carril actual (más reciente primero):
 
 ```
+54a701b promote(e1): E1 fuel balance rule WARN→FAIL after clean corpus validation
+e7d73e6 fix(e1): increase fuel_remaining_MJ log precision from %.2f to %.6f
+a6eff5a feat(e1): add E1 fuel balance rule, diagnostic case, and tests
+6105dcd feat(e1): add fuel_consumed_MJ_step/total tracking for energy audit
+04310df docs(o2): correct O2 diagnosis, add D2 structural tests, update handoff
 d7e4aba fix(o2): eliminate double-count in stoich O2 tracking
-03372fe feat(o2): add stoichiometric O2 consumption behind flag (default-off)
-b6e355f feat(d1): promote D1 CO balance from WARN to FAIL
-b41fcbd fix(d1): eliminate all D1 CO mass-balance WARNs across reference suite
 ```
 
 ## Carriles cerrados
+
+### E1 fuel balance — CERRADO
+
+- Regla E1 implementada en `scripts/simulation/check_physics_coherence.py`.
+- Invariante: `fuel_remaining_MJ[t] = fuel_remaining_MJ[t-1] - fuel_consumed_MJ_step[t]`
+  usando totales acumulados para evitar aliasing por `log_interval`.
+- Severity promovida de WARN a FAIL (commit 54a701b). Corpus 7 CSVs: 0 findings.
+- Caso diagnóstico: `sim/validation/cases/fuel_balance_diag_sealed.json` →
+  `sim/validation/reports/fuel_balance_diag_sealed.csv`. Residuales en 10⁻⁷–10⁻⁶ MJ (suelo numérico).
+- Precisión fix (commit e7d73e6): `fuel_remaining_MJ` de `%.2f` a `%.6f` en SimulationLogWriter.
+- Tests: `TestE1FuelTracking` (13 tests), `TestCheckE1` (17 tests).
+- Campos nuevos en RoomModel: `fuel_consumed_MJ_step`, `fuel_consumed_MJ_total` (ver abajo).
 
 ### D1 CO balance — CERRADO
 
@@ -54,9 +68,11 @@ diagnóstico en CSV. OES sigue siendo el único escritor de la depleción físic
 |-------|------|-----------|
 | `o2_consumed_kg_step` | `float` | Thornton O2 consumido este paso (shadow de OES). 0 si flag=false. |
 | `o2_consumed_kg_total` | `float` | Acumulado. 0 si flag=false. |
+| `fuel_consumed_MJ_step` | `float` | `solid_fuel_demand_MJ` post-escala este paso (CombustionSystem). |
+| `fuel_consumed_MJ_total` | `float` | Acumulado. Usado por regla E1. |
 
-Ambos campos se exportan en CSV y en SimulationStateBuilder.
-Ambos se resetean en `reset_dynamic_state()`.
+Todos los campos se exportan en CSV y en SimulationStateBuilder.
+Todos se resetean en `reset_dynamic_state()`.
 
 ## Caso diagnóstico
 
@@ -97,8 +113,8 @@ como paths auditables independientes. No tocar motor sin plan explícito.
 ## Suite de tests
 
 ```
-147 passed  tests/test_carbon_balance.py    (incluye TestD2O2StoichTracking — 14 tests nuevos)
-221 passed  tests/test_check_physics_coherence.py
+160 passed  tests/test_carbon_balance.py    (TestE1FuelTracking 13 + TestD2O2StoichTracking 14)
+104 passed  tests/test_check_physics_coherence.py  (TestCheckE1 17 tests)
 ...
 ```
 
