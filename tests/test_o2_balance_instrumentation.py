@@ -210,5 +210,83 @@ class TestLogWriterColumns(unittest.TestCase):
             )
 
 
+BULK_FIELDS = [
+    "o2_consumed_bulk_kg_step",
+    "o2_consumed_bulk_kg_total",
+]
+
+
+class TestO1CBulkOnlyAccumulator(unittest.TestCase):
+    """SF-O1C: o2_consumed_bulk_kg_step/total track only the path that writes room.o2 bulk."""
+
+    def test_bulk_fields_declared_in_roommodel(self):
+        for field in BULK_FIELDS:
+            self.assertIn(
+                f"var {field}: float",
+                ROOM,
+                msg=f"RoomModel missing bulk-only field: {field}",
+            )
+
+    def test_reset_dynamic_state_zeros_bulk_fields(self):
+        reset_body = ROOM.split("func reset_dynamic_state(", 1)[1].split("\nfunc ", 1)[0]
+        for field in BULK_FIELDS:
+            self.assertIn(
+                f"{field} = 0.0",
+                reset_body,
+                msg=f"reset_dynamic_state missing zero for bulk field: {field}",
+            )
+
+    def test_combustion_system_zeros_bulk_step_field(self):
+        step_body = COMBUSTION.split("func step_room_fire(", 1)[1].split("\nfunc ", 1)[0]
+        self.assertIn(
+            "o2_consumed_bulk_kg_step = 0.0",
+            step_body,
+            msg="step_room_fire must zero o2_consumed_bulk_kg_step per tick",
+        )
+
+    def test_oes_bulk_path_accumulates_bulk_fields(self):
+        """The bulk consumption block (modifies room.o2) must increment both bulk accumulators."""
+        body = OES.split("func step(", 1)[1].split("\nfunc ", 1)[0]
+        self.assertIn("o2_consumed_bulk_kg_step += consumed", body)
+        self.assertIn("o2_consumed_bulk_kg_total += consumed", body)
+
+    def test_oes_upper_path_does_not_touch_bulk_fields(self):
+        """Upper zone consumption must NOT increment bulk-only accumulators."""
+        body = OES.split("func step(", 1)[1].split("\nfunc ", 1)[0]
+        # Upper consumption uses variable 'upper_consumed'; bulk accumulators must not appear there.
+        # Find the upper_consumed block and verify no bulk accumulator reference inside it.
+        upper_block_start = body.find("upper_consumed = (room.hrr_kw / 1000.0)")
+        self.assertGreater(upper_block_start, 0, "upper_consumed path not found in OES.step")
+        # The bulk accumulator must appear BEFORE upper_consumed (in bulk block), not after
+        bulk_acc_pos = body.find("o2_consumed_bulk_kg_step += consumed")
+        self.assertGreater(upper_block_start, bulk_acc_pos,
+                           "o2_consumed_bulk_kg_step must appear in bulk block, before upper block")
+
+    def test_statebuilder_exports_bulk_fields(self):
+        for field in BULK_FIELDS:
+            self.assertIn(
+                f'"{field}": room.{field}',
+                STATE,
+                msg=f"SimulationStateBuilder missing export: {field}",
+            )
+
+    def test_logwriter_header_contains_bulk_columns(self):
+        header_line = LOG.split("func _build_csv_header()", 1)[1].split("\n\n", 1)[0]
+        for field in BULK_FIELDS:
+            self.assertIn(
+                field,
+                header_line,
+                msg=f"CSV header missing bulk column: {field}",
+            )
+
+    def test_logwriter_row_appends_bulk_fields(self):
+        for field in BULK_FIELDS:
+            self.assertIn(
+                f'rs.get("{field}"',
+                LOG,
+                msg=f"SimulationLogWriter row missing bulk field: {field}",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

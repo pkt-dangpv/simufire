@@ -152,6 +152,11 @@ var o2_consumed_kg_total: float = 0.0
 # net_transport: O₂ neto inter-sala (>0 = recibe). Vanos interior, canonical doorway, thermal counterflow.
 var o2_consumed_kg_step_all: float = 0.0
 var o2_consumed_kg_total_all: float = 0.0
+# SF-O1C: consumo bulk-only (path que modifica room.o2 directamente via o2_mass_kg).
+# Excluye consumo de o2_upper (upper zone) y o2_lower (pluma/lower_for_flame).
+# Usado por la fórmula de balance bulk corregida: delta_bulk ≈ -consumed_bulk + exterior + transport.
+var o2_consumed_bulk_kg_step: float = 0.0
+var o2_consumed_bulk_kg_total: float = 0.0
 var o2_exterior_net_kg_step: float = 0.0
 var o2_exterior_net_kg_total: float = 0.0
 var o2_net_transport_kg_step: float = 0.0
@@ -342,6 +347,8 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	o2_consumed_kg_total = 0.0
 	o2_consumed_kg_step_all = 0.0
 	o2_consumed_kg_total_all = 0.0
+	o2_consumed_bulk_kg_step = 0.0
+	o2_consumed_bulk_kg_total = 0.0
 	o2_exterior_net_kg_step = 0.0
 	o2_exterior_net_kg_total = 0.0
 	o2_net_transport_kg_step = 0.0

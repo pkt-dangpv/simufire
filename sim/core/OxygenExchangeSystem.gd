@@ -360,6 +360,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# SF-O1A: consumo bulk (path sin two-zone ni plume_lower).
 			room.o2_consumed_kg_step_all += consumed
 			room.o2_consumed_kg_total_all += consumed
+			# SF-O1C: bulk-only accumulator (solo este path modifica room.o2 via o2_mass_kg).
+			room.o2_consumed_bulk_kg_step += consumed
+			room.o2_consumed_bulk_kg_total += consumed
 		var ach_o2_delta_kg: float = room.volume_m3() \
 			* (ach_infiltration / 3600.0) \
 			* air_density_kg_m3 \

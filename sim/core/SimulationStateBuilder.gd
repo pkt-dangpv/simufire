@@ -113,6 +113,8 @@ func build_state(context: Dictionary) -> Dictionary:
 			"name": room.name,
 			"kind": room.kind,
 			"height_m": room.height_m,
+			"volume_m3": room.volume_m3(),
+			"air_mass_kg": room.volume_m3() * 1.2,
 
 			"hrr_kw": room.hrr_kw,
 			"hrr_target_kw": room.hrr_target_kw,
@@ -266,6 +268,8 @@ func build_state(context: Dictionary) -> Dictionary:
 			"o2_consumed_kg_total": room.o2_consumed_kg_total,
 			"o2_consumed_kg_step_all": room.o2_consumed_kg_step_all,
 			"o2_consumed_kg_total_all": room.o2_consumed_kg_total_all,
+			"o2_consumed_bulk_kg_step": room.o2_consumed_bulk_kg_step,
+			"o2_consumed_bulk_kg_total": room.o2_consumed_bulk_kg_total,
 			"o2_exterior_net_kg_step": room.o2_exterior_net_kg_step,
 			"o2_exterior_net_kg_total": room.o2_exterior_net_kg_total,
 			"o2_net_transport_kg_step": room.o2_net_transport_kg_step,
