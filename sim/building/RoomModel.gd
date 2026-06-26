@@ -161,6 +161,12 @@ var o2_exterior_net_kg_step: float = 0.0
 var o2_exterior_net_kg_total: float = 0.0
 var o2_net_transport_kg_step: float = 0.0
 var o2_net_transport_kg_total: float = 0.0
+# SF-O1D: corrección de sincronización zonal — diferencia entre room.o2 (bulk OES) y
+# el promedio volumétrico de las zonas (o2_upper·frac_upper + o2_lower·frac_lower)
+# calculada cuando ThermalSystem reescribe room.o2 como blend. No es transporte físico.
+# Permite cerrar el balance bulk: delta_bulk = -consumed_bulk + exterior + transport + zone_sync.
+var o2_zone_sync_kg_step: float = 0.0
+var o2_zone_sync_kg_total: float = 0.0
 
 # SF-E1: combustible sólido consumido por pirolización en ESTE paso (kg MJ).
 # = solid_fuel_demand_MJ post-recorte (CombustionSystem línea 338/825).
@@ -353,6 +359,8 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	o2_exterior_net_kg_total = 0.0
 	o2_net_transport_kg_step = 0.0
 	o2_net_transport_kg_total = 0.0
+	o2_zone_sync_kg_step = 0.0
+	o2_zone_sync_kg_total = 0.0
 	fuel_consumed_MJ_step = 0.0
 	fuel_consumed_MJ_total = 0.0
 	fire_o2_mode_used = "legacy"

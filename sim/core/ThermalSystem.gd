@@ -2416,19 +2416,28 @@ func _apply_doorway_thermal_counterflow(
 	cold_room.o2_lower = clampf(cold_room.o2_lower - o2_delta_kg / cold_lower_mass, 0.0, 0.209)
 
 	# Sincronizar o2 bulk como promedio volumétrico de las dos zonas.
+	# SF-O1D: rastrear la corrección de sincronización zonal (diferencia entre blend y room.o2 previo).
 	var _hot_total_vol: float = maxf(0.01, hot_room.volume_m3())
 	var _hot_lower_vol: float = hot_room.lower_volume_m3()
 	var _hot_upper_vol: float = _hot_total_vol - _hot_lower_vol
-	hot_room.o2 = clampf(
+	var _hot_blend: float = clampf(
 		(hot_room.o2_upper * _hot_upper_vol + hot_room.o2_lower * _hot_lower_vol) / _hot_total_vol,
 		0.0, 0.209)
+	var _hot_sync_kg: float = (_hot_blend - hot_room.o2) * _hot_total_vol * 1.2
+	hot_room.o2_zone_sync_kg_step += _hot_sync_kg
+	hot_room.o2_zone_sync_kg_total += _hot_sync_kg
+	hot_room.o2 = _hot_blend
 
 	var _cold_total_vol: float = maxf(0.01, cold_room.volume_m3())
 	var _cold_lower_vol: float = cold_room.lower_volume_m3()
 	var _cold_upper_vol: float = _cold_total_vol - _cold_lower_vol
-	cold_room.o2 = clampf(
+	var _cold_blend: float = clampf(
 		(cold_room.o2_upper * _cold_upper_vol + cold_room.o2_lower * _cold_lower_vol) / _cold_total_vol,
 		0.0, 0.209)
+	var _cold_sync_kg: float = (_cold_blend - cold_room.o2) * _cold_total_vol * 1.2
+	cold_room.o2_zone_sync_kg_step += _cold_sync_kg
+	cold_room.o2_zone_sync_kg_total += _cold_sync_kg
+	cold_room.o2 = _cold_blend
 
 
 # ============================================================
@@ -2561,13 +2570,18 @@ func _apply_canonical_doorway_exchange(
 	cold_room.o2_net_transport_kg_total -= _cde_net_hot
 
 	# Sync O₂ bulk para sala caliente: promedio volumétrico superior + inferior.
+	# SF-O1D: rastrear la corrección de sincronización zonal.
 	var hot_total_vol: float = maxf(0.01, hot_room.volume_m3())
 	var hot_lower_vol: float = hot_room.lower_volume_m3()
 	var hot_upper_vol: float = hot_total_vol - hot_lower_vol
-	hot_room.o2 = clampf(
+	var _hot_cde_blend: float = clampf(
 		(hot_room.o2_upper * hot_upper_vol + hot_room.o2_lower * hot_lower_vol) / hot_total_vol,
 		0.0, 0.209
 	)
+	var _hot_cde_sync_kg: float = (_hot_cde_blend - hot_room.o2) * hot_total_vol * 1.2
+	hot_room.o2_zone_sync_kg_step += _hot_cde_sync_kg
+	hot_room.o2_zone_sync_kg_total += _hot_cde_sync_kg
+	hot_room.o2 = _hot_cde_blend
 
 
 func _apply_stairwell_heat_bridge(

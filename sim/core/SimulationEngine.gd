@@ -1533,6 +1533,7 @@ func step(delta: float) -> void:
 	_ensure_carbon_balance_initialized()
 
 	var pre_hrr_o2_step: bool = _uses_pre_hrr_oxygen_step()
+
 	_step_pool_fires(dt)
 	if pre_hrr_o2_step:
 		_step_oxygen(dt)

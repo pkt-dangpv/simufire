@@ -133,12 +133,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"temp_upper_clamp_count": room.temp_upper_clamp_count,
 			"temp_lower_c": room.temp_lower_c,
 
-			# Fracción de O2 corregida por dilución molar de CO2 (solo para reporte/CSV).
-			# La física de combustión sigue usando room.o2 directamente.
-			# En salas con fuego activo el O2 ya se consume por combustión — no aplicar
-			# la dilución CO2 (sería double-counting). Solo corregir en salas frías.
-			# Fórmula salas frías: x_O2_eff = room.o2 / (1 + co2_kg/air_kg * Mair/Mco2)
-			"o2": room.o2 if room.hrr_kw > 0.0 else room.o2 / (1.0 + room.co2_kg / maxf(0.1, room.volume_m3() * 1.2) * (29.0 / 44.0)),
+			"o2": room.o2,
 			"o2_upper": room.o2_upper,
 			"o2_lower": room.o2_lower,
 			"fire_o2_mode_used": room.fire_o2_mode_used,
@@ -274,6 +269,8 @@ func build_state(context: Dictionary) -> Dictionary:
 			"o2_exterior_net_kg_total": room.o2_exterior_net_kg_total,
 			"o2_net_transport_kg_step": room.o2_net_transport_kg_step,
 			"o2_net_transport_kg_total": room.o2_net_transport_kg_total,
+			"o2_zone_sync_kg_step": room.o2_zone_sync_kg_step,
+			"o2_zone_sync_kg_total": room.o2_zone_sync_kg_total,
 			"fuel_consumed_MJ_step": room.fuel_consumed_MJ_step,
 			"fuel_consumed_MJ_total": room.fuel_consumed_MJ_total,
 			"svv_pct": room.svv_pct,
