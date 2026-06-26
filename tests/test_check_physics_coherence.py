@@ -1283,5 +1283,321 @@ class TestCheckS0(unittest.TestCase):
         self.assertEqual(len(findings), 1)
 
 
+# ---------------------------------------------------------------------------
+# O1 row helper
+# ---------------------------------------------------------------------------
+# O1 uses CUMULATIVE totals to be invariant to the log_interval vs timestep
+# ratio.  air_mass_kg is fixed per room (volume × 1.2 kg/m³).
+
+def _row_o1(
+    time_s="10.0", room_id="0",
+    o2="0.209",
+    air_mass_kg="30.24",
+    o2_consumed_bulk_kg_total="0.0",
+    o2_exterior_net_kg_total="0.0",
+    o2_net_transport_kg_total="0.0",
+    hrr_kw="0.0",
+    fire_o2_mode_used="",
+) -> dict[str, str]:
+    return {
+        "time_s": time_s,
+        "room_id": room_id,
+        "o2": o2,
+        "air_mass_kg": air_mass_kg,
+        "o2_consumed_bulk_kg_total": o2_consumed_bulk_kg_total,
+        "o2_exterior_net_kg_total": o2_exterior_net_kg_total,
+        "o2_net_transport_kg_total": o2_net_transport_kg_total,
+        "hrr_kw": hrr_kw,
+        "fire_o2_mode_used": fire_o2_mode_used,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tests: Rule O1 — O2 bulk mass balance
+# ---------------------------------------------------------------------------
+
+class TestCheckO1(unittest.TestCase):
+
+    def _run(self, rows):
+        return [f for f in checker.find_physics_coherence_issues(rows, rule_ids={"O1"})
+                if f.rule_id == "O1"]
+
+    # ── Clean cases ───────────────────────────────────────────────────────────
+
+    def test_perfect_balance_no_finding(self):
+        """Δo2_bulk == expected when nothing changes → no finding."""
+        rows = [
+            _row_o1(time_s="0.0",  o2="0.209"),
+            _row_o1(time_s="5.0",  o2="0.209"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_bulk_consumption_balanced(self):
+        """O2 consumed by combustion; tracked in o2_consumed_bulk_kg_total."""
+        # air_mass=30.24, delta_o2=-0.001 → delta_bulk=-0.03024 kg
+        # delta_consumed=+0.03024 → expected = -0.03024 → residual=0
+        air_mass = 30.24
+        delta_o2_frac = -0.001
+        delta_consumed = -delta_o2_frac * air_mass   # 0.03024 kg consumed
+        rows = [
+            _row_o1(time_s="0.0", o2="0.209",
+                    air_mass_kg=str(air_mass),
+                    o2_consumed_bulk_kg_total="0.0"),
+            _row_o1(time_s="5.0", o2=str(0.209 + delta_o2_frac),
+                    air_mass_kg=str(air_mass),
+                    o2_consumed_bulk_kg_total=str(delta_consumed)),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_exterior_net_positive_balanced(self):
+        """O2 gained from exterior (ACH); tracked in o2_exterior_net_kg_total."""
+        # o2 rises from 0.200 to 0.202 (+0.060 kg), exterior delivered +0.060 kg
+        air_mass = 30.24
+        o2_start, o2_end = 0.200, 0.202
+        delta_bulk = (o2_end - o2_start) * air_mass
+        rows = [
+            _row_o1(time_s="0.0", o2=str(o2_start), air_mass_kg=str(air_mass),
+                    o2_exterior_net_kg_total="0.0"),
+            _row_o1(time_s="5.0", o2=str(o2_end),   air_mass_kg=str(air_mass),
+                    o2_exterior_net_kg_total=str(delta_bulk)),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_exterior_net_negative_balanced(self):
+        """O2 lost to exterior (pressure venting); tracked as negative exterior."""
+        air_mass = 30.24
+        o2_start, o2_end = 0.209, 0.205
+        delta_bulk = (o2_end - o2_start) * air_mass  # negative
+        rows = [
+            _row_o1(time_s="0.0", o2=str(o2_start), air_mass_kg=str(air_mass),
+                    o2_exterior_net_kg_total="0.0"),
+            _row_o1(time_s="5.0", o2=str(o2_end),   air_mass_kg=str(air_mass),
+                    o2_exterior_net_kg_total=str(delta_bulk)),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_transport_net_in_balanced(self):
+        """O2 received from adjacent room; tracked in o2_net_transport_kg_total."""
+        air_mass = 20.16
+        o2_start, o2_end = 0.200, 0.203
+        delta_bulk = (o2_end - o2_start) * air_mass
+        rows = [
+            _row_o1(time_s="0.0", o2=str(o2_start), air_mass_kg=str(air_mass),
+                    o2_net_transport_kg_total="0.0"),
+            _row_o1(time_s="5.0", o2=str(o2_end),   air_mass_kg=str(air_mass),
+                    o2_net_transport_kg_total=str(delta_bulk)),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_transport_net_out_balanced(self):
+        """O2 sent to adjacent room; tracked as negative transport."""
+        air_mass = 20.16
+        o2_start, o2_end = 0.209, 0.205
+        delta_bulk = (o2_end - o2_start) * air_mass
+        rows = [
+            _row_o1(time_s="0.0", o2=str(o2_start), air_mass_kg=str(air_mass),
+                    o2_net_transport_kg_total="0.0"),
+            _row_o1(time_s="5.0", o2=str(o2_end),   air_mass_kg=str(air_mass),
+                    o2_net_transport_kg_total=str(delta_bulk)),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_residual_within_floor_no_finding(self):
+        """Residual < 1 g floor → no finding."""
+        # delta_bulk = -0.5e-3 kg, expected = 0 → residual = 0.0005 < 0.001 floor
+        air_mass = 30.24
+        o2_frac_delta = -0.5e-3 / air_mass   # residual = 0.5e-3 < 1e-3 floor
+        rows = [
+            _row_o1(time_s="0.0", o2="0.209", air_mass_kg=str(air_mass)),
+            _row_o1(time_s="5.0", o2=str(0.209 + o2_frac_delta),
+                    air_mass_kg=str(air_mass)),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    # ── Flagged cases ─────────────────────────────────────────────────────────
+
+    def test_large_untracked_residual_raises_warn(self):
+        """O2 disappeared with no tracked source → residual > floor → WARN."""
+        # delta_bulk = -0.1 kg, all accumulators zero → residual = 0.1 kg >> 1e-3
+        air_mass = 30.24
+        o2_delta = -0.1 / air_mass
+        rows = [
+            _row_o1(time_s="0.0", o2="0.209", air_mass_kg=str(air_mass)),
+            _row_o1(time_s="5.0", o2=str(0.209 + o2_delta), air_mass_kg=str(air_mass)),
+        ]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].severity, "WARN")
+        self.assertEqual(findings[0].rule_id, "O1")
+
+    def test_finding_is_never_fail(self):
+        """O1 must never produce a FAIL — only WARN or nothing."""
+        air_mass = 30.24
+        o2_delta = -0.5 / air_mass  # huge residual
+        rows = [
+            _row_o1(time_s="0.0", o2="0.209", air_mass_kg=str(air_mass)),
+            _row_o1(time_s="5.0", o2=str(max(0.0, 0.209 + o2_delta)),
+                    air_mass_kg=str(air_mass)),
+        ]
+        findings = self._run(rows)
+        self.assertTrue(all(f.severity != "FAIL" for f in findings))
+
+    # ── Skip logic ────────────────────────────────────────────────────────────
+
+    def test_plume_lower_fire_room_skipped(self):
+        """Active fire room in plume_lower mode — row must be skipped (no finding even with imbalance)."""
+        air_mass = 30.24
+        o2_delta = -0.1 / air_mass
+        rows = [
+            _row_o1(time_s="0.0", o2="0.209", air_mass_kg=str(air_mass),
+                    hrr_kw="0.0", fire_o2_mode_used=""),
+            _row_o1(time_s="5.0", o2=str(0.209 + o2_delta), air_mass_kg=str(air_mass),
+                    hrr_kw="50.0", fire_o2_mode_used="plume_lower"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_plume_blend_fire_room_skipped(self):
+        """Active fire room in plume_blend mode — row must be skipped."""
+        air_mass = 30.24
+        o2_delta = -0.1 / air_mass
+        rows = [
+            _row_o1(time_s="0.0", o2="0.209", air_mass_kg=str(air_mass),
+                    hrr_kw="0.0", fire_o2_mode_used=""),
+            _row_o1(time_s="5.0", o2=str(0.209 + o2_delta), air_mass_kg=str(air_mass),
+                    hrr_kw="50.0", fire_o2_mode_used="plume_blend"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_plume_lower_idle_room_included(self):
+        """Idle room (hrr_kw <= 0.1) with plume_lower label is NOT skipped — must flag if imbalanced."""
+        # CombustionSystem attaches plume_lower to idle rooms as a diagnostic artifact.
+        # room.o2 is still the true bulk value for idle rooms.
+        air_mass = 30.24
+        o2_delta = -0.1 / air_mass
+        rows = [
+            _row_o1(time_s="0.0", o2="0.209", air_mass_kg=str(air_mass),
+                    hrr_kw="0.0", fire_o2_mode_used="plume_lower"),
+            _row_o1(time_s="5.0", o2=str(0.209 + o2_delta), air_mass_kg=str(air_mass),
+                    hrr_kw="0.0", fire_o2_mode_used="plume_lower"),
+        ]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].severity, "WARN")
+
+    def test_missing_o1_columns_skips_rule(self):
+        """Old CSV without o2_consumed_bulk_kg_total → O1 skipped silently."""
+        rows = [
+            {"time_s": "0.0",  "room_id": "0", "o2": "0.209", "air_mass_kg": "30.24"},
+            {"time_s": "5.0",  "room_id": "0", "o2": "0.100", "air_mass_kg": "30.24"},
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_partial_o1_columns_skips_rule(self):
+        """Only some O1 columns present → O1 skipped (no crash)."""
+        rows = [
+            {"time_s": "0.0",  "room_id": "0", "o2": "0.209",
+             "o2_consumed_bulk_kg_total": "0.0"},
+            {"time_s": "5.0",  "room_id": "0", "o2": "0.150",
+             "o2_consumed_bulk_kg_total": "0.0"},
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    # ── Multi-room independence ──────────────────────────────────────────────
+
+    def test_multi_room_independent_balance(self):
+        """Two rooms; violation in room 1 does not affect room 0."""
+        air_mass = 30.24
+        o2_delta_bad = -0.1 / air_mass
+        rows = [
+            # room 0: perfectly balanced (no change, no trackers)
+            _row_o1(time_s="0.0", room_id="0", o2="0.209", air_mass_kg=str(air_mass)),
+            _row_o1(time_s="5.0", room_id="0", o2="0.209", air_mass_kg=str(air_mass)),
+            # room 1: O2 dropped with no tracked cause
+            _row_o1(time_s="0.0", room_id="1", o2="0.209", air_mass_kg=str(air_mass)),
+            _row_o1(time_s="5.0", room_id="1",
+                    o2=str(0.209 + o2_delta_bad), air_mass_kg=str(air_mass)),
+        ]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].room_id, "1")
+
+    # ── Temporal ordering ────────────────────────────────────────────────────
+
+    def test_rows_sorted_by_time_before_diff(self):
+        """Out-of-order rows must be sorted before computing deltas."""
+        air_mass = 30.24
+        delta_consumed = 0.03
+        o2_start, o2_end = 0.209, 0.209 - delta_consumed / air_mass
+        rows = [
+            # reversed: t=5 first, t=0 second
+            _row_o1(time_s="5.0", o2=str(o2_end),   air_mass_kg=str(air_mass),
+                    o2_consumed_bulk_kg_total=str(delta_consumed)),
+            _row_o1(time_s="0.0", o2=str(o2_start), air_mass_kg=str(air_mass),
+                    o2_consumed_bulk_kg_total="0.0"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_first_row_per_room_is_baseline_no_finding(self):
+        """The first row sets the baseline; no finding generated for it alone."""
+        rows = [
+            _row_o1(time_s="5.0", o2="0.185", air_mass_kg="30.24",
+                    o2_consumed_bulk_kg_total="0.72"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    # ── air_mass_kg: uses current row's value ─────────────────────────────────
+
+    def test_air_mass_from_current_row_used_for_delta_bulk(self):
+        """delta_bulk = (o2_curr - o2_prev) * air_mass_curr (current row, not previous)."""
+        # Two rooms with different air masses; verify the correct one is used.
+        # Room A: air_mass=30.24.  Room B: air_mass=43.20.
+        # For room B: delta_o2_frac=-0.005, air_mass=43.20
+        # delta_bulk = -0.005 * 43.20 = -0.216 kg; consumed = 0.216 → balanced
+        rows = [
+            _row_o1(time_s="0.0", room_id="B", o2="0.209", air_mass_kg="43.20",
+                    o2_consumed_bulk_kg_total="0.0"),
+            _row_o1(time_s="5.0", room_id="B", o2="0.204", air_mass_kg="43.20",
+                    o2_consumed_bulk_kg_total="0.216"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    # ── Finding fields ────────────────────────────────────────────────────────
+
+    def test_finding_metric_is_o2_bulk_balance_residual_kg(self):
+        """Finding metric must be 'o2_bulk_balance_residual_kg'."""
+        air_mass = 30.24
+        rows = [
+            _row_o1(time_s="0.0", o2="0.209", air_mass_kg=str(air_mass)),
+            _row_o1(time_s="5.0", o2=str(0.209 - 0.1/air_mass), air_mass_kg=str(air_mass)),
+        ]
+        findings = self._run(rows)
+        self.assertTrue(len(findings) > 0)
+        self.assertEqual(findings[0].metric, "o2_bulk_balance_residual_kg")
+
+    def test_finding_reason_contains_delta_and_expected(self):
+        """Finding reason must include delta_bulk, expected, residual, and tol."""
+        air_mass = 30.24
+        rows = [
+            _row_o1(time_s="0.0", o2="0.209", air_mass_kg=str(air_mass)),
+            _row_o1(time_s="5.0", o2=str(0.209 - 0.1/air_mass), air_mass_kg=str(air_mass)),
+        ]
+        reason = self._run(rows)[0].reason
+        self.assertIn("delta_bulk", reason)
+        self.assertIn("expected", reason)
+        self.assertIn("residual", reason)
+        self.assertIn("tol", reason)
+
+    def test_o1_in_all_rules(self):
+        """O1 must be present in ALL_RULES tuple."""
+        self.assertIn("O1", checker.ALL_RULES)
+
+    def test_o1_required_cols_declared(self):
+        """O1 required columns must be declared in REQUIRED_COLS."""
+        self.assertIn("O1", checker.REQUIRED_COLS)
+        self.assertIn("o2", checker.REQUIRED_COLS["O1"])
+        self.assertIn("air_mass_kg", checker.REQUIRED_COLS["O1"])
+        self.assertIn("o2_consumed_bulk_kg_total", checker.REQUIRED_COLS["O1"])
+
+
 if __name__ == "__main__":
     unittest.main()

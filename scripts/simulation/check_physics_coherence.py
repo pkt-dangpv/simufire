@@ -81,6 +81,28 @@ S0  Smoke global        At every logged timestep: the sum of smoke_kg across
                         Tolerance: 5 % of abs(expected), floor 0.01 kg.
                         Severity: FAIL.
 
+Rules — sixth slice
+-------------------
+O1  O2 bulk balance     Per room/log-interval: the change in O2 mass bulk
+                        must equal the sum of tracked O2 fluxes:
+                        Δo2_bulk = (o2[t] − o2[t−1]) × air_mass_kg
+                        expected = −Δo2_consumed_bulk_kg_total
+                                   + Δo2_exterior_net_kg_total
+                                   + Δo2_net_transport_kg_total
+                        residual = |Δo2_bulk − expected|
+                        o2_consumed_bulk_kg_total tracks O2 removed by
+                        combustion from the room bulk store (OES stoichiometric
+                        path).  o2_exterior_net_kg_total and
+                        o2_net_transport_kg_total are the cumulative ACH/
+                        exterior and inter-room fluxes respectively.
+                        Skips rows where fire_o2_mode_used is plume_lower or
+                        plume_blend AND hrr_kw > 0.1 — in that mode room.o2
+                        is derived from zone layers, not the bulk accumulator.
+                        Tolerance: floor 1 × 10⁻³ kg (1 g), plus relative
+                        1 % of the more conservative of |expected| or O2
+                        available mass (o2[t−1] × air_mass_kg).
+                        Severity: WARN.  Not gating.
+
 Usage
 -----
   # Check all rules:
@@ -159,10 +181,11 @@ REQUIRED_COLS: dict[str, set[str]] = {
     "C2": {"fed"},
     "D1": {"co_kg", "co_generated_kg_total", "co_net_transport_kg_total", "co_exterior_removed_kg_total"},
     "E1": {"solid_fuel_remaining_MJ", "fuel_consumed_MJ_total"},
+    "O1": {"o2", "air_mass_kg", "o2_consumed_bulk_kg_total", "o2_exterior_net_kg_total", "o2_net_transport_kg_total"},
     "S0": {"smoke_kg", "smoke_generated_total_kg", "smoke_vented_total_kg", "smoke_deposited_total_kg", "smoke_in_transit_kg"},
 }
 
-ALL_RULES: tuple[str, ...] = ("A2", "A3", "B1", "C1", "C2", "D1", "E1", "S0")
+ALL_RULES: tuple[str, ...] = ("A2", "A3", "B1", "C1", "C2", "D1", "E1", "O1", "S0")
 
 
 # ---------------------------------------------------------------------------
@@ -491,6 +514,138 @@ def _check_e1_fuel_balance_residual(rows: list[dict[str, str]]) -> list[Finding]
 
 
 # ---------------------------------------------------------------------------
+# Rule O1 — O2 bulk mass balance
+# ---------------------------------------------------------------------------
+
+_O1_ABS_FLOOR_KG = 1e-3   # 1 g — below this residuals are floating-point noise
+_O1_REL_TOL      = 0.01   # 1 % relative tolerance
+
+# Modes where room.o2 is derived from zone layers (not the bulk accumulator).
+_O1_LAYER_DERIVED_MODES: frozenset[str] = frozenset({"plume_lower", "plume_blend"})
+
+
+def _check_o1_o2_bulk_balance(rows: list[dict[str, str]]) -> list[Finding]:
+    """Per-room O2 bulk mass balance using cumulative totals.
+
+    Between consecutive CSV rows (which may span many simulation steps):
+
+        Δo2_bulk      = (o2[t] − o2[t−1]) × air_mass_kg              [kg]
+        Δo2_consumed  = o2_consumed_bulk_kg_total[t] − …[t−1]
+        Δo2_exterior  = o2_exterior_net_kg_total[t] − …[t−1]
+        Δo2_transport = o2_net_transport_kg_total[t] − …[t−1]
+        expected      = −Δo2_consumed + Δo2_exterior + Δo2_transport
+        residual      = |Δo2_bulk − expected|
+
+    o2_consumed_bulk_kg_total: cumulative O2 removed by combustion from the
+    room bulk store (OES stoichiometric path, SF-O1C).  Does not include
+    per-zone consumption (o2_upper, o2_lower) tracked in the _all columns.
+
+    o2_exterior_net_kg_total: cumulative net O2 exchanged with the exterior
+    (positive = room gained O2 from outside).  Includes ACH/infiltration,
+    exterior openings, PPV, and pressure-venting.
+
+    o2_net_transport_kg_total: cumulative net O2 transported between rooms
+    (positive = room received from adjacent rooms).  Includes interior vanos,
+    canonical doorway exchange, thermal counterflow, and GES background flow.
+
+    Using cumulative totals (not per-step fields) makes the check invariant
+    to the ratio of log_interval to simulation timestep.
+
+    Skip conditions:
+    1. rows where fire_o2_mode_used is 'plume_lower' or 'plume_blend' AND
+       hrr_kw > 0.1 — room.o2 is zone-derived in those modes, bulk balance N/A.
+       Non-fire rooms carry the label as a CombustionSystem artifact but use
+       the true bulk value — include them.
+    2. rows where hvac_exists == '1' — HvacSystem modifies room.o2 via lerpf
+       (supply/return, HvacSystem.gd line 302) without contributing to any O2
+       accumulator.  HVAC O2 instrumentation is out of scope; WARNs in
+       scenarios with HVAC configured are expected and excluded here.
+
+    Tolerance design:
+      Floor: 1 × 10⁻³ kg (1 g).  The O1-D post-fix audit produced a maximum
+      residual of 3.87 × 10⁻⁴ kg on the sealed diagnostic case; the floor is
+      2.6× above that, providing margin for scenario-to-scenario variation
+      while keeping all current validation cases clean.
+      Relative: 1 % of the more conservative (smaller) of two references —
+        ref_expected  = 1 % × |expected|   (proportional to the magnitude of
+                                             tracked fluxes this interval)
+        ref_available = 1 % × (o2[t−1] × air_mass_kg)  (proportional to the
+                                             total O2 present at interval start)
+      threshold = max(floor, min(ref_expected, ref_available)).
+      When expected ≈ 0 and both refs collapse to near-zero, the floor
+      dominates.  The available-mass cap prevents the threshold from growing
+      without bound if expected becomes large.
+
+    Severity: WARN.  Not gating — O1 has not been validated exhaustively
+    across all scenario configurations; promote to FAIL once the full
+    reference corpus is confirmed clean.
+    """
+    by_room: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for row in rows:
+        by_room[row.get("room_id", "?").strip()].append(row)
+
+    findings: list[Finding] = []
+    for room_id, room_rows in by_room.items():
+        room_rows.sort(key=lambda r: _float(r, "time_s"))
+        prev = room_rows[0]
+        for curr in room_rows[1:]:
+            # Skip fire-room rows where room.o2 is zone-derived.
+            hrr = _float(curr, "hrr_kw")
+            o2_mode = curr.get("fire_o2_mode_used", "").strip()
+            if hrr > 0.1 and o2_mode in _O1_LAYER_DERIVED_MODES:
+                prev = curr
+                continue
+            # Skip rows where HVAC is configured: HvacSystem modifies room.o2
+            # via lerpf (supply/return, line 302 of HvacSystem.gd) without
+            # contributing to any O2 accumulator.  HVAC instrumentation is out
+            # of scope; WARNs in scenarios with HVAC are expected and documented.
+            if curr.get("hvac_exists", "0") == "1":
+                prev = curr
+                continue
+
+            o2_curr  = _float(curr, "o2")
+            o2_prev  = _float(prev, "o2")
+            air_mass = _float(curr, "air_mass_kg")
+
+            consumed_curr  = _float(curr, "o2_consumed_bulk_kg_total")
+            consumed_prev  = _float(prev, "o2_consumed_bulk_kg_total")
+            exterior_curr  = _float(curr, "o2_exterior_net_kg_total")
+            exterior_prev  = _float(prev, "o2_exterior_net_kg_total")
+            transport_curr = _float(curr, "o2_net_transport_kg_total")
+            transport_prev = _float(prev, "o2_net_transport_kg_total")
+
+            delta_bulk      = (o2_curr - o2_prev) * air_mass
+            delta_consumed  = consumed_curr - consumed_prev
+            delta_exterior  = exterior_curr - exterior_prev
+            delta_transport = transport_curr - transport_prev
+            expected        = -delta_consumed + delta_exterior + delta_transport
+            residual        = abs(delta_bulk - expected)
+
+            # Tolerance: more conservative of two relative references, floored.
+            o2_available    = abs(o2_prev * air_mass)
+            ref_expected    = _O1_REL_TOL * abs(expected) if abs(expected) > 0.0 else _O1_REL_TOL * o2_available
+            ref_available   = _O1_REL_TOL * o2_available if o2_available > 0.0 else _O1_ABS_FLOOR_KG
+            threshold       = max(_O1_ABS_FLOOR_KG, min(ref_expected, ref_available))
+
+            if residual > threshold:
+                findings.append(Finding(
+                    time_s=_float(curr, "time_s"),
+                    room_id=room_id,
+                    rule_id="O1",
+                    severity="WARN",
+                    metric="o2_bulk_balance_residual_kg",
+                    value=round(residual, 9),
+                    reason=(
+                        f"delta_bulk={delta_bulk:.6g} kg  "
+                        f"expected(-dcons+dext+dtrans)={expected:.6g} kg  "
+                        f"residual={residual:.3g} kg  tol={threshold:.3g} kg"
+                    ),
+                ))
+            prev = curr
+    return findings
+
+
+# ---------------------------------------------------------------------------
 # Rule S0 — Smoke global conservation
 # ---------------------------------------------------------------------------
 
@@ -603,6 +758,8 @@ def find_physics_coherence_issues(
         findings.extend(_check_d1_co_balance_residual(rows))
     if "E1" in active and _has_cols(headers, REQUIRED_COLS["E1"]):
         findings.extend(_check_e1_fuel_balance_residual(rows))
+    if "O1" in active and _has_cols(headers, REQUIRED_COLS["O1"]):
+        findings.extend(_check_o1_o2_bulk_balance(rows))
     if "S0" in active and _has_cols(headers, REQUIRED_COLS["S0"]):
         findings.extend(_check_s0_smoke_global_conservation(rows))
 
