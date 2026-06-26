@@ -1,6 +1,6 @@
 # SimuFire — Handoff: estado actual
 
-Fecha: 2026-06-25
+Fecha: 2026-06-26
 
 ## Rama y commits recientes
 
@@ -8,7 +8,9 @@ Fecha: 2026-06-25
 - Commits del carril actual (más reciente primero):
 
 ```
-pending feat(s0): close smoke global conservation as FAIL-gating
+33c3593 feat(o1-a): instrument per-sala O2 mass balance accumulators
+b9721c1 feat(s0): close smoke conservation as gating
+c1e02e1 docs(handoff): add S0 smoke conservation status and update test counts
 ad146b6 feat(s0): add S0 smoke global conservation rule and export engine accumulators
 54a701b promote(e1): E1 fuel balance rule WARN→FAIL after clean corpus validation
 e7d73e6 fix(e1): increase fuel_remaining_MJ log precision from %.2f to %.6f
@@ -90,6 +92,12 @@ diagnóstico en CSV. OES sigue siendo el único escritor de la depleción físic
 | `fuel_consumed_MJ_total` | `float` | Acumulado. Usado por regla E1. |
 | `solid_fuel_remaining_MJ` | `float` | Campo CSV/StateBuilder canónico para E1; refleja el tanque sólido restante sin semántica legacy de `fuel_remaining_MJ`. |
 | `smoke_in_transit_kg` | `float` | Campo CSV/StateBuilder global; humo removido de sala origen y pendiente de entrega interior. |
+| `o2_consumed_kg_step_all` | `float` | SF-O1A: suma de todos los paths de consumo O2 (bulk + upper + lower + pluma). Reset cada tick en CombustionSystem. |
+| `o2_consumed_kg_total_all` | `float` | Acumulado. |
+| `o2_exterior_net_kg_step` | `float` | SF-O1A: O2 neto desde exterior este paso (>0 = entra). ACH bulk, apertura exterior, PPV, pressure_venting. |
+| `o2_exterior_net_kg_total` | `float` | Acumulado. |
+| `o2_net_transport_kg_step` | `float` | SF-O1A: O2 neto inter-sala este paso (>0 = recibe). Vanos interior, canonical doorway, thermal counterflow, GES background. |
+| `o2_net_transport_kg_total` | `float` | Acumulado. |
 
 Todos los campos se exportan en CSV y en SimulationStateBuilder.
 Todos se resetean en `reset_dynamic_state()`.
@@ -99,14 +107,29 @@ Todos se resetean en `reset_dynamic_state()`.
 `sim/validation/cases/o2_stoich_diag_sealed.json` — sala sellada con `fire_o2_stoich_consumption_enabled=true`.
 Genera `sim/validation/reports/o2_stoich_diag_sealed.csv` con columnas de tracking O2.
 
+## O1-A — Instrumentación de balance O2 (CERRADO)
+
+Commit: `33c3593 feat(o1-a): instrument per-sala O2 mass balance accumulators`
+
+Paths instrumentados:
+- **OES**: consumo bulk, ACH exterior, consumo upper, consumo lower (`fire_uses_lower_o2`), consumo pluma lower, apertura exterior, outgoing de `_exchange_room_o2_immediate`, received en `_apply_room_o2_mass_delta`
+- **GES**: transport background (`step_smoke` o2_delta_kg), `pressure_venting` (exterior), PPV (exterior)
+- **ThermalSystem**: `_apply_doorway_thermal_counterflow` (transport), `_apply_canonical_doorway_exchange` (transport)
+
+Paths bloqueados (no instrumentados):
+- `ach_lower_dt` (OES línea 472): cambio fraccional a `o2_lower` sin kg delta disponible — requeriría modificar física
+- HVAC: fuera de scope por constraints activos
+
+Tests: 20 (tests/test_o2_balance_instrumentation.py). Total suite: 469 passed.
+
 ## Lo que queda bloqueado / pendiente
 
-### O1 (balance de masa de O2)
+### O1 (regla de balance de masa de O2)
 
-Bloqueado hasta instrumentar:
-- `o2_net_transport_kg_total` — transporte inter-sala
-- `o2_exterior_removed_kg_total` — O2 ventilado al exterior
-- `o2_exterior_added_kg_total` — O2 que entra por infiltración/PPV
+Instrumentación (O1-A) cerrada. Para crear la regla O1 FAIL queda:
+- Validar que los acumuladores son coherentes en corpus real (correr sim y revisar CSV)
+- Definir tolerancias para balance por sala: `Δo2_bulk ≈ consumed_all + exterior_net + net_transport`
+- Decidir qué hacer con `ach_lower_dt` (path no instrumentado)
 
 ### D2 (ratio CO/CO2)
 
@@ -133,11 +156,14 @@ como paths auditables independientes. No tocar motor sin plan explícito.
 ## Suite de tests
 
 ```
+469 passed  (total suite, 2026-06-26)
+ 20 passed  tests/test_o2_balance_instrumentation.py  (TestRoomModelDeclarations, TestCombustionSystemStepReset, TestOESConsumptionPaths, TestOESExteriorOpeningPath, TestOESTransportPaths, TestGESInstrumentation, TestThermalSystemInstrumentation, TestStateBuilderExports, TestLogWriterColumns)
 160 passed  tests/test_carbon_balance.py    (TestE1FuelTracking 13 + TestD2O2StoichTracking 14)
 119 passed  tests/test_check_physics_coherence.py  (TestCheckS0 15 + TestCheckE1 17)
 11/11 PASS  scripts/simulation/audit_physics_coherence_suite.py  (all rules, 0 FAIL findings; 9 fresh-schema CSVs + 2 legacy skips)
 ```
 
 Failures conocidas pre-existentes (no relacionadas con este carril):
-- `test_guardrails.py::test_exit0_real_json` — `g4 FED timing` en FAIL en reference_checks.json
+- `test_guardrails.py::test_exit0_real_json` — 5 CFAST checks failing en reference_checks.json (O2 depletion timings, chain room temps)
+- `test_legacy_two_zone_compare.py::test_engine_flag_is_exported_and_default_off`
 - 4 tests en `test_two_zone_energy_core.py` / `test_two_zone_opening_flow.py`
