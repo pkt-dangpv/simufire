@@ -155,25 +155,48 @@ not "activate a second depletion physics path."
 |-------|--------|-----------|
 | `o2_consumed_kg_step` | Exported (flag=true) | Thornton O2 consumed by fire this step (shadow of OES). |
 | `o2_consumed_kg_total` | Exported (flag=true) | Cumulative Thornton O2 consumed. |
+| `o2_consumed_bulk_kg_step` | Exported | O2 consumed by the path that directly depletes `room.o2` bulk. |
+| `o2_consumed_bulk_kg_total` | Exported | Cumulative bulk-only O2 consumption. Used by O1. |
+| `o2_consumed_kg_step_all` | Exported | Sum of all O2 consumption paths: bulk, upper, lower and plume. Diagnostic only for O1 bulk. |
+| `o2_consumed_kg_total_all` | Exported | Cumulative all-path O2 consumption. Diagnostic only for O1 bulk. |
+| `o2_exterior_net_kg_step` | Exported | Net O2 exchange with exterior this step; positive means O2 entered the room. |
+| `o2_exterior_net_kg_total` | Exported | Cumulative exterior O2 exchange. Used by O1. |
+| `o2_net_transport_kg_step` | Exported | Net inter-room O2 transport this step; positive means the room received O2. |
+| `o2_net_transport_kg_total` | Exported | Cumulative inter-room O2 transport. Used by O1. |
+| `o2_zone_sync_kg_step` | Exported | Bulk O2 mass delta caused by zone-to-bulk sync. Used by O1 after O1-D. |
+| `o2_zone_sync_kg_total` | Exported | Cumulative zone-sync O2 mass delta. Used by O1. |
 | `upper_o2_mass_tracked` | Orphaned | Opt-in Phase 5 M2; `-1.0` = uninitialized; not used in physics. |
 
-### Missing for O2 mass balance rule (O1)
+### O1 bulk O2 mass balance — CLOSED AS WARN (2026-06-26)
 
-An O2 mass balance rule equivalent to D1 still requires:
+O1 now audits the bulk `room.o2` mass balance per room/log interval:
 
-- `o2_net_transport_kg_total` — net inter-room O2 transport per step.
-- `o2_exterior_removed_kg_total` — O2 vented to exterior.
-- `o2_exterior_added_kg_total` — O2 entering via infiltration / PPV.
+```text
+delta_bulk = (o2[t] - o2[t-1]) * air_mass_kg
+expected   = -delta(o2_consumed_bulk_kg_total)
+             + delta(o2_exterior_net_kg_total)
+             + delta(o2_net_transport_kg_total)
+             + delta(o2_zone_sync_kg_total)
+residual   = abs(delta_bulk - expected)
+```
 
-These are not currently tracked. O1 is **blocked** until transport and exterior paths are instrumented.
+Status:
 
-### Current auditor coverage
+- O1 is implemented in `scripts/simulation/check_physics_coherence.py` as **WARN**, not FAIL-gating.
+- Corpus O1 audit after O1-F: 11/11 PASS, 0 O1 findings, 0 WARN, 0 FAIL.
+- Maximum residual observed after fixes: `3.87e-4 kg`.
+- Tests: 22 `TestCheckO1`; O1 instrumentation subset green.
 
-None. O1 balance rule requires transport/exterior instrumentation before it can be audited.
+Important fixes found while closing O1:
+
+- `SimulationStateBuilder` had applied a CO2 molar correction to logged `o2` in non-fire rooms only. This made CSV `o2` diverge from actual `room.o2`; fixed by exporting `room.o2` directly.
+- `o2_consumed_kg_total_all` cannot be used for bulk O1 because it includes upper/lower/plume consumption. O1 uses `o2_consumed_bulk_kg_total`.
+- `_apply_room_o2_mass_delta` now accumulates the post-clamp `actual_delta_kg`, not the intended delta, avoiding false WARNs when clamped at `o2_nominal`.
 
 ### Open gaps
 
-- O1 rule requires `o2_net_transport_kg_total`, `o2_exterior_removed_kg_total`, `o2_exterior_added_kg_total`.
+- O1 is not yet FAIL-gating. Keep as WARN until it remains clean across a broader long-duration/multi-floor corpus.
+- O1 is a bulk balance rule. It does not replace future zonal O2 balance for `o2_upper`/`o2_lower`.
 - `upper_o2_mass_tracked` is orphaned — not used in combustion, not exported to CSV.
 - Dual-track risk: `o2_upper` (fraction) and `upper_o2_mass_tracked` (mass) may diverge if `canonical_o2_upper_updated` flag handling fails.
 - Option C (canonical mass redesign) needed to fully separate combustion/transport/dilution paths.

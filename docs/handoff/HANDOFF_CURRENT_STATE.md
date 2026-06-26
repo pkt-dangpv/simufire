@@ -8,16 +8,13 @@ Fecha: 2026-06-26 (actualizado O1-F)
 - Commits del carril actual (más reciente primero):
 
 ```
-(pendiente commit O1-E)
+9a973a1 feat(o1-f): close O1 WARNs via post-clamp transport tracking
+cfd6826 feat(o1-e): add O1 bulk O2 balance WARN rule
+d0f3421 feat(o1-d): fix StateBuilder O2 reporting; add zone-sync accumulator
+494387b feat(o1-c): separate bulk-only O2 consumption accumulator
+11decea docs(handoff): update with O1-A closed, S0 done, test counts
 33c3593 feat(o1-a): instrument per-sala O2 mass balance accumulators
 b9721c1 feat(s0): close smoke conservation as gating
-c1e02e1 docs(handoff): add S0 smoke conservation status and update test counts
-ad146b6 feat(s0): add S0 smoke global conservation rule and export engine accumulators
-54a701b promote(e1): E1 fuel balance rule WARN→FAIL after clean corpus validation
-e7d73e6 fix(e1): increase fuel_remaining_MJ log precision from %.2f to %.6f
-a6eff5a feat(e1): add E1 fuel balance rule, diagnostic case, and tests
-6105dcd feat(e1): add fuel_consumed_MJ_step/total tracking for energy audit
-04310df docs(o2): correct O2 diagnosis, add D2 structural tests, update handoff
 ```
 
 ## Carriles cerrados
