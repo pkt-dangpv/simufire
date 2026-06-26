@@ -26,6 +26,15 @@ python scripts/simulation/validate_reference_cases.py
 
 Recalcula checks a partir de reportes ya generados. No sustituye una corrida fresca completa.
 
+## Auditoria Fisica General
+
+```powershell
+python scripts/simulation/check_physics_coherence.py sim/validation/reports/<caso>.csv
+python scripts/simulation/audit_physics_coherence_suite.py
+```
+
+Comprueba reglas de coherencia fisica del motor sobre CSVs existentes. La suite actual incluye reglas gating para inversion termica fuerte, FED, HRR sin combustible, regimen contra O2 superior critico y balance CO D1.
+
 ## Validación Científica Completa
 
 ```powershell
@@ -60,6 +69,7 @@ Ejecuta un escenario definido en JSON y genera salidas técnicas.
 
 ```powershell
 python scripts/simulation/check_ilv_layer_coherence.py runs/<escenario>/sim_log.csv --room-id 0
+python scripts/simulation/audit_ilv_layer_coherence_suite.py --allow-findings
 ```
 
 Detecta estados incoherentes de ILV/two-zone: HRR significativo con `o2_upper` crítico mientras el régimen sigue `FUEL_CONTROLLED`/`FULLY_DEVELOPED`, o mientras `o2_hrr_factor` permanece alto por la capa baja/global.

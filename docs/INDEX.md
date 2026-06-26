@@ -20,6 +20,7 @@ Este índice separa la documentación vigente del histórico, bibliografía y ar
 - [validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md](validation/CFAST_EQUIVALENCE_AUDIT_2026-06-19.md): auditoría de equivalencia de los 15 fallos CFAST actuales.
 - [validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md](validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md): auditoría de geometría/topología de modelos CFAST y Ghanekar.
 - [validation/GAPS_INVENTORY.md](validation/GAPS_INVENTORY.md): inventario de gaps técnicos y científicos.
+- [validation/MOTOR_PHYSICS_VALIDATION_CHECKLIST.md](validation/MOTOR_PHYSICS_VALIDATION_CHECKLIST.md): checklist maestro de credibilidad física del motor.
 - [../sim/validation/](../sim/validation/): casos, baselines, reportes y herramientas del carril de validación científica.
 
 ## Arquitectura y Diseño
@@ -50,7 +51,7 @@ Este índice separa la documentación vigente del histórico, bibliografía y ar
 
 ## Roadmaps y Planificación
 
-- [planning/MASTER_ROADMAP_CURRENT.md](planning/MASTER_ROADMAP_CURRENT.md): hoja de ruta activa y fuente de verdad para validación CFAST, hotfix FP e ILV.
+- [planning/MASTER_ROADMAP_CURRENT.md](planning/MASTER_ROADMAP_CURRENT.md): hoja de ruta activa para credibilidad física del motor, balances y validación restante.
 - [planning/EDITOR_FLOW_CHECKLIST.md](planning/EDITOR_FLOW_CHECKLIST.md): checklist del flujo de editor.
 
 ## Histórico y Archivo
