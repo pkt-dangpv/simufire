@@ -1,6 +1,6 @@
 # SimuFire — Handoff: estado actual
 
-Fecha: 2026-06-26
+Fecha: 2026-06-26 (actualizado O1-F)
 
 ## Rama y commits recientes
 
@@ -8,6 +8,7 @@ Fecha: 2026-06-26
 - Commits del carril actual (más reciente primero):
 
 ```
+(pendiente commit O1-E)
 33c3593 feat(o1-a): instrument per-sala O2 mass balance accumulators
 b9721c1 feat(s0): close smoke conservation as gating
 c1e02e1 docs(handoff): add S0 smoke conservation status and update test counts
@@ -122,14 +123,68 @@ Paths bloqueados (no instrumentados):
 
 Tests: 20 (tests/test_o2_balance_instrumentation.py). Total suite: 469 passed.
 
-## Lo que queda bloqueado / pendiente
+## O1-D — Diagnóstico de bloqueos (CERRADO)
 
-### O1 (regla de balance de masa de O2)
+Dos bloqueos resueltos:
 
-Instrumentación (O1-A) cerrada. Para crear la regla O1 FAIL queda:
-- Validar que los acumuladores son coherentes en corpus real (correr sim y revisar CSV)
-- Definir tolerancias para balance por sala: `Δo2_bulk ≈ consumed_all + exterior_net + net_transport`
-- Decidir qué hacer con `ach_lower_dt` (path no instrumentado)
+**Bloqueo B** (plume_lower en salas idle): `fire_o2_mode_used = "plume_lower"` en salas no-fuego
+es un artefacto diagnóstico de `CombustionSystem._resolve_fire_o2_selection`. El filtro del auditor
+(`hrr_kw > 0.1 AND mode in plume_lower/plume_blend`) lo maneja correctamente — salas idle incluidas.
+
+**Bloqueo A** (residuales grandes en salas frías): `SimulationStateBuilder.gd` aplicaba corrección
+molar de CO2 a la columna `o2` solo en salas no-fuego:
+`room.o2 / (1 + co2_kg / (volume*1.2) * 29/44)`. A medida que el CO2 se acumulaba, el valor
+logeado caía más rápido que `room.o2` real, creando residuales aparentes de 0.04–0.10 kg (FAIL).
+Fix: eliminar la corrección — `"o2": room.o2` siempre. Sin cambios de física.
+Post-fix: max residual = 3.87×10⁻⁴ kg (< 0.4 g). Todos los intervalos CLEAN.
+
+## O1-E — Regla O1 WARN (CERRADO)
+
+Implementada en `scripts/simulation/check_physics_coherence.py`.
+
+**Invariante**: por sala y log-interval:
+```
+Δo2_bulk = (o2[t] − o2[t−1]) × air_mass_kg
+expected = −Δo2_consumed_bulk_kg_total + Δo2_exterior_net_kg_total + Δo2_net_transport_kg_total
+residual = |Δo2_bulk − expected|
+```
+
+**Skip**: filas con `hrr_kw > 0.1 AND fire_o2_mode_used in (plume_lower, plume_blend)` — `room.o2`
+es derivado de zonas en ese modo; balance bulk N/A para sala con fuego activo.
+Salas idle con ese label (artefacto CombustionSystem) se incluyen.
+
+**Tolerancia**: floor 1×10⁻³ kg (1 g); relativo 1% del mínimo de `|expected|` y `o2_available_kg`
+(= `o2[t−1] × air_mass_kg`), lo más conservador. Justificación: floor 2.6× por encima del
+residual máximo observado post-fix (3.87×10⁻⁴ kg); la referencia de masa disponible evita
+que la tolerancia crezca sin cota cuando `expected` es grande.
+
+**Severity**: WARN. No gating.
+
+**Corpus (11 CSVs) — post O1-F**:
+- 11/11 PASS (0 findings O1). Las dos causas de WARN del carril anterior (stale CSV,
+  clamping en o2_nominal) fueron eliminadas en O1-F.
+- 0/11 WARN, 0/11 FAIL.
+
+**Tests**: 22 nuevos (`TestCheckO1`). Tests coherence total: 141 passed.
+
+## O1-F — Cierre de WARNs O1 (CERRADO)
+
+**Causa de fuel_balance_diag_sealed WARNs (159)**: CSV stale generado con log writer anterior
+sin columnas `fire_o2_mode_used`, `o2_zone_sync_kg_*` (97 cols en lugar de 101). El auditor
+no podía filtrar filas `plume_lower` del cuarto de fuego → falsos WARNs. Fix: regenerar CSV.
+
+**Causa de v5_m4_ventilation_throttle WARNs (67)**: artefacto de clamping en `o2_nominal`.
+`_exchange_room_o2_active_flow` usa `_effective_room_o2_fraction` (incluye reservas negativas
+de Pasillo), haciendo `eff_Pasillo < Pasillo.o2`. Con `eff_Salon ≥ eff_Pasillo`, el active flow
+encola entregas POSITIVAS a Pasillo. Al llegar, `_apply_room_o2_mass_delta` las clampea a 0
+(Pasillo en techo `o2_nominal=0.209`) pero acumulaba el delta INTENDIDO, no el real → residual.
+
+**Fix (pure tracking, sin cambio de física)**:
+`_apply_room_o2_mass_delta` (OES línea 1049) ahora acumula `actual_delta_kg = (room.o2_after − room.o2_before) × air_mass` en lugar de `delta_o2_kg`. Cuando no hay clamping: `actual = intended` (sin cambio). Cuando hay clamping en `o2_nominal`: `actual < intended` (residual eliminado).
+
+**hvac_exists**: columna añadida a SimulationLogWriter (SF-O1F) y skip en check_physics_coherence para escenarios con HVAC configurado — documentado aunque `hvac_exists=false` siempre en simple_house (HVAC fuera de scope).
+
+**Resultado post-fix**: 0 WARNs en corpus completo. Max residual < 4×10⁻⁴ kg (< 0.4 g).
 
 ### D2 (ratio CO/CO2)
 
@@ -151,16 +206,20 @@ como paths auditables independientes. No tocar motor sin plan explícito.
 - `fp_ilv_upper_throttle_off` es control intencional con findings esperados.
 - No commitear `reference_checks.json` si solo refleja logs stale.
 - No implementar D2 CO/CO2 ratio hasta resolver dual-tracking CO2.
-- No implementar O1 hasta instrumentar transport/exterior O2.
 
 ## Suite de tests
 
 ```
-469 passed  (total suite, 2026-06-26)
- 20 passed  tests/test_o2_balance_instrumentation.py  (TestRoomModelDeclarations, TestCombustionSystemStepReset, TestOESConsumptionPaths, TestOESExteriorOpeningPath, TestOESTransportPaths, TestGESInstrumentation, TestThermalSystemInstrumentation, TestStateBuilderExports, TestLogWriterColumns)
-160 passed  tests/test_carbon_balance.py    (TestE1FuelTracking 13 + TestD2O2StoichTracking 14)
-119 passed  tests/test_check_physics_coherence.py  (TestCheckS0 15 + TestCheckE1 17)
-11/11 PASS  scripts/simulation/audit_physics_coherence_suite.py  (all rules, 0 FAIL findings; 9 fresh-schema CSVs + 2 legacy skips)
+329 passed  (subset: test_check_physics_coherence + test_o2_balance_instrumentation + test_carbon_balance, 2026-06-26)
+ 22 passed  TestCheckO1  (tests/test_check_physics_coherence.py)
+141 passed  tests/test_check_physics_coherence.py  (TestCheckS0 15 + TestCheckE1 17 + TestCheckO1 22 + resto)
+ 20 passed  tests/test_o2_balance_instrumentation.py  (actualizado SF-O1F: actual_delta_kg)
+160 passed  tests/test_carbon_balance.py
+
+Corpus O1 audit (post O1-F):
+  11/11 PASS (0 O1 findings) — incluyendo fuel_balance_diag_sealed y v5_m4_ventilation_throttle
+  0/11 WARN, 0/11 FAIL (O1 no es gating)
+  Max residual: 3.87×10⁻⁴ kg (< 0.4 g)
 ```
 
 Failures conocidas pre-existentes (no relacionadas con este carril):

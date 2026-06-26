@@ -1,20 +1,27 @@
 #!/usr/bin/env python3
-"""O1-B: sondeo de balance de masa de O2 bulk por sala y timestep.
+"""O1-D: auditoría de balance de masa de O2 bulk por sala y timestep.
 
 Calcula, por cada sala y log-interval:
 
     delta_o2_mass_bulk  = (o2[t] - o2[t-1]) * air_mass_kg          [kg]
-    expected            = -Δ(o2_consumed_kg_total_all)
+    expected            = -Δ(o2_consumed_bulk_kg_total)
                           + Δ(o2_exterior_net_kg_total)
-                          + Δ(o2_net_transport_kg_total)            [kg]
+                          + Δ(o2_net_transport_kg_total)
+                          + Δ(o2_zone_sync_kg_total)                [kg]
     residual            = delta_o2_mass_bulk - expected              [kg]
 
-Requiere columnas O1-A (presentes desde commit 33c3593):
-    o2_consumed_kg_total_all, o2_exterior_net_kg_total,
-    o2_net_transport_kg_total, air_mass_kg
+SF-O1D: o2_zone_sync_kg_total captura la corrección de sincronización zonal
+que ThermalSystem aplica al mezclar o2_upper/o2_lower en room.o2 (bulk).
+Esta corrección no es transporte físico sino un ajuste numérico necesario para
+cerrar el balance cuando ambos sistemas (OES bulk y ThermalSystem zonas) escriben
+room.o2 de forma independiente.
 
-air_mass_kg usa densidad fija 1.2 kg/m³ × volumen de la sala (constante
-de geometría; se exporta desde SimulationStateBuilder desde commit 11decea).
+fire_o2_mode_used: cuando es "plume_lower" o "plume_blend", room.o2 es derivado
+de las zonas (no independiente); el balance bulk O1 no es aplicable en ese modo.
+
+Requiere columnas O1-A/O1-C/O1-D:
+    o2_consumed_bulk_kg_total, o2_exterior_net_kg_total,
+    o2_net_transport_kg_total, o2_zone_sync_kg_total, air_mass_kg
 
 Uso
 ---
@@ -40,6 +47,7 @@ REQUIRED_COLS = {
     "o2_consumed_bulk_kg_total",
     "o2_exterior_net_kg_total",
     "o2_net_transport_kg_total",
+    "o2_zone_sync_kg_total",
 }
 
 # O1-B compatibility: fall back to _all if bulk-only column absent (pre-O1C CSVs).
@@ -48,9 +56,11 @@ _CONSUMED_COL_FALLBACK = "o2_consumed_kg_total_all"
 
 OPTIONAL_COLS_FOR_CONTEXT = [
     "hrr_kw",
+    "fire_o2_mode_used",
     "o2_consumed_kg_step_all",
     "o2_exterior_net_kg_step",
     "o2_net_transport_kg_step",
+    "o2_zone_sync_kg_step",
 ]
 
 # Tolerance thresholds for classifying residuals
@@ -131,29 +141,44 @@ def _analyse(path: Path, verbose: bool = False) -> dict:
                 exterior_prev  = float(prev["o2_exterior_net_kg_total"])
                 transport_curr = float(curr["o2_net_transport_kg_total"])
                 transport_prev = float(prev["o2_net_transport_kg_total"])
+                # SF-O1D: zone_sync corrects for ThermalSystem blend overwrites.
+                zone_sync_curr = float(curr.get("o2_zone_sync_kg_total", 0.0) or 0.0)
+                zone_sync_prev = float(prev.get("o2_zone_sync_kg_total", 0.0) or 0.0)
             except (ValueError, KeyError):
                 continue
 
-            delta_bulk     = (o2_curr - o2_prev) * air_mass_kg
-            delta_consumed = consumed_curr - consumed_prev
-            delta_exterior = exterior_curr - exterior_prev
-            delta_transport= transport_curr - transport_prev
-            expected       = -delta_consumed + delta_exterior + delta_transport
-            residual       = delta_bulk - expected
+            # SF-O1D: skip fire rooms in plume_lower/plume_blend mode — room.o2 is a
+            # derived zone quantity there, making the bulk balance formula N/A.
+            # Non-fire rooms (hrr_kw == 0) carry the mode label from CombustionSystem's
+            # idle path but their room.o2 is NOT derived; include them in the audit.
+            o2_mode = curr.get("fire_o2_mode_used", "legacy")
+            row_hrr = float(curr.get("hrr_kw", 0.0) or 0.0)
+            if row_hrr > 0.1 and o2_mode in ("plume_lower", "plume_blend"):
+                continue
+
+            delta_bulk      = (o2_curr - o2_prev) * air_mass_kg
+            delta_consumed  = consumed_curr - consumed_prev
+            delta_exterior  = exterior_curr - exterior_prev
+            delta_transport = transport_curr - transport_prev
+            delta_zone_sync = zone_sync_curr - zone_sync_prev
+            expected        = -delta_consumed + delta_exterior + delta_transport + delta_zone_sync
+            residual        = delta_bulk - expected
 
             residuals.append(residual)
 
             rec = {
-                "time_s":     float(curr["time_s"]),
-                "room_id":    room_id,
-                "delta_bulk": delta_bulk,
-                "expected":   expected,
-                "residual":   residual,
-                "abs_res":    abs(residual),
-                "d_consumed": delta_consumed,
-                "d_exterior": delta_exterior,
-                "d_transport":delta_transport,
-                "hrr_kw":     float(curr.get("hrr_kw", 0.0) or 0.0),
+                "time_s":       float(curr["time_s"]),
+                "room_id":      room_id,
+                "delta_bulk":   delta_bulk,
+                "expected":     expected,
+                "residual":     residual,
+                "abs_res":      abs(residual),
+                "d_consumed":   delta_consumed,
+                "d_exterior":   delta_exterior,
+                "d_transport":  delta_transport,
+                "d_zone_sync":  delta_zone_sync,
+                "hrr_kw":       float(curr.get("hrr_kw", 0.0) or 0.0),
+                "o2_mode":      o2_mode,
             }
             row_records.append(rec)
             all_residuals.append((abs(residual), room_id, float(curr["time_s"]), rec))
@@ -206,11 +231,12 @@ def _classify_residual(abs_res: float) -> str:
 
 def _diagnose_row(rec: dict) -> str:
     """Heuristic: guess probable cause from sign/magnitude of delta components."""
-    res = rec["residual"]
-    d_c = rec["d_consumed"]
-    d_e = rec["d_exterior"]
-    d_t = rec["d_transport"]
-    hrr = rec["hrr_kw"]
+    res  = rec["residual"]
+    d_c  = rec["d_consumed"]
+    d_e  = rec["d_exterior"]
+    d_t  = rec["d_transport"]
+    d_zs = rec.get("d_zone_sync", 0.0)
+    hrr  = rec["hrr_kw"]
 
     hints = []
     if abs(d_c) > 10 * max(abs(d_e), abs(d_t), 1e-9) and hrr > 0.1:
@@ -219,6 +245,8 @@ def _diagnose_row(rec: dict) -> str:
         hints.append(f"exterior neto {d_e:+.4f} kg")
     if abs(d_t) > 1e-4:
         hints.append(f"transporte {d_t:+.4f} kg")
+    if abs(d_zs) > 1e-4:
+        hints.append(f"zone_sync {d_zs:+.4f} kg (blend ThermalSystem)")
     if res > _WARN_KG:
         hints.append("bulk cae menos de lo esperado — probable writer no contabilizado")
     elif res < -_WARN_KG:
@@ -305,7 +333,8 @@ def _print_report(results: list[dict], verbose: bool = False) -> None:
         print(f"       d_consumed={wr['d_consumed']:+.4e}  "
               f"d_exterior={wr['d_exterior']:+.4e}  "
               f"d_transport={wr['d_transport']:+.4e}  "
-              f"hrr={wr['hrr_kw']:.0f} kW")
+              f"d_zone_sync={wr.get('d_zone_sync', 0.0):+.4e}  "
+              f"hrr={wr['hrr_kw']:.0f} kW  mode={wr.get('o2_mode', '?')}")
         print(f"       Probable causa: {diag}")
         print()
 
@@ -334,8 +363,14 @@ def _print_missing_col_note() -> None:
     print("  o2_consumed_bulk_kg_total (SF-O1C): solo el path que depleta room.o2 bulk")
     print("  directamente (OES linea bulk). NO incluye consumo de o2_upper ni o2_lower.")
     print("  o2_consumed_kg_total_all: suma de todos los paths (bulk + upper + lower + pluma).")
-    print("  La formula de balance bulk corregida usa o2_consumed_bulk_kg_total.")
-    print("  Si esta columna no esta en el CSV, se usa _all como fallback (residuales altos).")
+    print("  o2_zone_sync_kg_total (SF-O1D): corrección de sincronización zonal acumulada.")
+    print("    ThermalSystem blend-overwrites room.o2 con promedio(o2_upper, o2_lower);")
+    print("    la diferencia (blend - bulk_previo) × air_mass_kg se acumula aquí.")
+    print("    No es transporte; es un artefacto de tener dos representaciones de O2.")
+    print("  fire_o2_mode_used: filas de SALA FUEGO (hrr_kw > 0.1) con 'plume_lower'/'plume_blend'")
+    print("    se OMITEN porque room.o2 es derivado de zonas (bulk balance N/A).")
+    print("    Salas idle (no-fuego) siempre se incluyen aunque lleven el label (artefacto")
+    print("    de CombustionSystem que llama _resolve_fire_o2_selection en salas idle).")
 
 
 def main(argv: list[str] | None = None) -> int:

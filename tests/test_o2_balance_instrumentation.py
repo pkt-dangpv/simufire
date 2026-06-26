@@ -134,9 +134,12 @@ class TestOESTransportPaths(unittest.TestCase):
         self.assertIn("o2_net_transport_kg_total -= o2_b_out_kg", body)
 
     def test_apply_mass_delta_accumulates_transport(self):
+        # SF-O1F: tracks actual (post-clamp) delta, not intended delta_o2_kg.
+        # actual_delta_kg = (room.o2 - o2_before) * room_air_mass_kg
         body = OES.split("func _apply_room_o2_mass_delta(", 1)[1].split("\nfunc ", 1)[0]
-        self.assertIn("o2_net_transport_kg_step += delta_o2_kg", body)
-        self.assertIn("o2_net_transport_kg_total += delta_o2_kg", body)
+        self.assertIn("actual_delta_kg", body)
+        self.assertIn("o2_net_transport_kg_step += actual_delta_kg", body)
+        self.assertIn("o2_net_transport_kg_total += actual_delta_kg", body)
 
 
 class TestGESInstrumentation(unittest.TestCase):

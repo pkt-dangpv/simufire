@@ -1051,11 +1051,16 @@ func _apply_room_o2_mass_delta(room: RoomModel, delta_o2_kg: float, air_density_
 		return
 
 	var room_air_mass_kg: float = _compute_room_air_mass_kg(room, air_density_kg_m3)
+	var o2_before: float = room.o2
 	var room_o2_mass_kg: float = room.o2 * room_air_mass_kg + delta_o2_kg
 	room.o2 = clampf(room_o2_mass_kg / room_air_mass_kg, 0.0, o2_nominal)
-	# SF-O1A: accumulate net transport (received = positive, sent = negative).
-	room.o2_net_transport_kg_step += delta_o2_kg
-	room.o2_net_transport_kg_total += delta_o2_kg
+	# SF-O1F: track actual applied delta (post-clamp), not intended delta.
+	# When room.o2 is at ceiling (o2_nominal) and a deferred positive delivery
+	# arrives, clampf discards the excess; recording the intended delta_o2_kg
+	# creates a phantom residual in the O1 bulk balance check.
+	var actual_delta_kg: float = (room.o2 - o2_before) * room_air_mass_kg
+	room.o2_net_transport_kg_step += actual_delta_kg
+	room.o2_net_transport_kg_total += actual_delta_kg
 
 
 func _effective_room_o2_fraction(room: RoomModel, air_density_kg_m3: float) -> float:
