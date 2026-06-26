@@ -357,11 +357,17 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			var consumed: float = (room.hrr_kw / 1000.0) * cr * dt
 			consumed = minf(consumed, o2_mass_kg * 0.05)
 			o2_mass_kg = maxf(0.0, o2_mass_kg - consumed)
+			# SF-O1A: consumo bulk (path sin two-zone ni plume_lower).
+			room.o2_consumed_kg_step_all += consumed
+			room.o2_consumed_kg_total_all += consumed
 		var ach_o2_delta_kg: float = room.volume_m3() \
 			* (ach_infiltration / 3600.0) \
 			* air_density_kg_m3 \
 			* (building.outside_o2 - room.o2) * dt
 		o2_mass_kg += ach_o2_delta_kg
+		# SF-O1A: ACH exterior neto sobre o2 bulk.
+		room.o2_exterior_net_kg_step += ach_o2_delta_kg
+		room.o2_exterior_net_kg_total += ach_o2_delta_kg
 		room.o2 = clampf(o2_mass_kg / air_mass_kg, 0.0, o2_nominal)
 
 		if lower_frac < 0.15:
@@ -393,6 +399,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			room.o2_upper = clampf(
 				(upper_air_mass * room.o2_upper - upper_consumed) / maxf(0.001, upper_air_mass),
 				0.0, o2_nominal)
+			# SF-O1A: consumo zona superior por pluma/fuego (kg ya calculados).
+			room.o2_consumed_kg_step_all += upper_consumed
+			room.o2_consumed_kg_total_all += upper_consumed
 			var entr_frac: float = clampf(o2_upper_plume_entr_rate * dt, 0.0, 0.15)
 			# Phase 4A: en plume_lower_mode el penacho entrana aire de la zona baja (o2_lower)
 			# hacia la zona alta. Si o2_lower < o2_upper, ese gas diluye o2_upper (bidireccional).
@@ -445,6 +454,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				var consumed_lower: float = (room.hrr_kw / 1000.0) * cr_lower * dt
 				consumed_lower = minf(consumed_lower, air_mass_kg * room.o2_lower * 0.05)
 				room.o2_lower = maxf(room.o2, room.o2_lower - consumed_lower / air_mass_kg)
+				# SF-O1A: consumo zona inferior (fire_uses_lower_o2).
+				room.o2_consumed_kg_step_all += consumed_lower
+				room.o2_consumed_kg_total_all += consumed_lower
 			# R2-2: consumo directo de o2_lower por la pluma entrenada del fuego.
 			# La pluma arrastra aire de la zona inferior; ese O₂ se consume en la llama.
 			# El consumo va proporcional al HRR y a la masa de aire de la zona baja.
@@ -456,6 +468,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				# entrana aire de toda la zona baja efectiva de la sala, evitando depleción
 				# acelerada cuando la capa baja es delgada (lower_air_mass << air_mass_kg).
 				room.o2_lower = maxf(0.0, room.o2_lower - plume_consumed / air_mass_kg)
+				# SF-O1A: consumo zona inferior por pluma entrenada (effective_plume_lower).
+				room.o2_consumed_kg_step_all += plume_consumed
+				room.o2_consumed_kg_total_all += plume_consumed
 			var ach_lower_dt: float = (ach_infiltration / 3600.0) \
 				* (building.outside_o2 - room.o2_lower) * dt
 			# Phase 2H fix: en modo two-zone, la zona baja puede reponerse hasta el O₂
@@ -679,11 +694,15 @@ func _step_outside_opening_o2(
 	if air_in_kg <= 0.0:
 		return
 
+	var _o2_before_ext: float = indoor.o2
 	indoor.o2 = clampf(
 		(indoor.o2 * room_air_mass_kg + building.outside_o2 * air_in_kg) / (room_air_mass_kg + air_in_kg),
 		0.0,
 		o2_nominal
 	)
+	# SF-O1A: exterior neto por apertura al exterior (antes/después × masa).
+	indoor.o2_exterior_net_kg_step += (indoor.o2 - _o2_before_ext) * room_air_mass_kg
+	indoor.o2_exterior_net_kg_total += (indoor.o2 - _o2_before_ext) * room_air_mass_kg
 	# Fase 2A: el aire fresco entra por la capa baja de la apertura exterior.
 	# Reponer o2_lower directamente proporcional al flujo de entrada; la masa de
 	# la zona baja es aproximadamente lower_frac * room_air_mass_kg.
@@ -863,6 +882,12 @@ func _exchange_room_o2_immediate(
 	var o2_a_out_kg: float = room_a.o2 * exchange_kg
 	var o2_b_out_kg: float = room_b.o2 * exchange_kg
 
+	# SF-O1A: registrar fracción saliente antes del write (el recibido se acumula en _apply_room_o2_mass_delta).
+	room_a.o2_net_transport_kg_step -= o2_a_out_kg
+	room_a.o2_net_transport_kg_total -= o2_a_out_kg
+	room_b.o2_net_transport_kg_step -= o2_b_out_kg
+	room_b.o2_net_transport_kg_total -= o2_b_out_kg
+
 	room_a.o2 = clampf((room_a.o2 * mass_a_kg - o2_a_out_kg) / mass_a_kg, 0.0, o2_nominal)
 	room_b.o2 = clampf((room_b.o2 * mass_b_kg - o2_b_out_kg) / mass_b_kg, 0.0, o2_nominal)
 
@@ -1025,6 +1050,9 @@ func _apply_room_o2_mass_delta(room: RoomModel, delta_o2_kg: float, air_density_
 	var room_air_mass_kg: float = _compute_room_air_mass_kg(room, air_density_kg_m3)
 	var room_o2_mass_kg: float = room.o2 * room_air_mass_kg + delta_o2_kg
 	room.o2 = clampf(room_o2_mass_kg / room_air_mass_kg, 0.0, o2_nominal)
+	# SF-O1A: accumulate net transport (received = positive, sent = negative).
+	room.o2_net_transport_kg_step += delta_o2_kg
+	room.o2_net_transport_kg_total += delta_o2_kg
 
 
 func _effective_room_o2_fraction(room: RoomModel, air_density_kg_m3: float) -> float:

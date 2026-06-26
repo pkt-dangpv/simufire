@@ -145,6 +145,17 @@ var co_exterior_removed_kg_total: float = 0.0
 # o2_consumed_kg_total: acumulador desde el inicio — necesario para auditar balance O2.
 var o2_consumed_kg_step: float = 0.0
 var o2_consumed_kg_total: float = 0.0
+# SF-O1A: balance bulk O₂ — acumuladores per-sala instrumentados en OES/GES/ThermalSystem.
+# _step: zeroed at the start of each fire tick in CombustionSystem.step_room_fire.
+# consumed_all: combustión (bulk + upper + lower + pluma) — suma todos los paths activos.
+# exterior_net: O₂ neto desde exterior (>0 = entra, <0 = sale). ACH bulk, apertura exterior, PPV, pressure_venting.
+# net_transport: O₂ neto inter-sala (>0 = recibe). Vanos interior, canonical doorway, thermal counterflow.
+var o2_consumed_kg_step_all: float = 0.0
+var o2_consumed_kg_total_all: float = 0.0
+var o2_exterior_net_kg_step: float = 0.0
+var o2_exterior_net_kg_total: float = 0.0
+var o2_net_transport_kg_step: float = 0.0
+var o2_net_transport_kg_total: float = 0.0
 
 # SF-E1: combustible sólido consumido por pirolización en ESTE paso (kg MJ).
 # = solid_fuel_demand_MJ post-recorte (CombustionSystem línea 338/825).
@@ -329,6 +340,12 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	canonical_o2_upper_updated = false
 	o2_consumed_kg_step = 0.0
 	o2_consumed_kg_total = 0.0
+	o2_consumed_kg_step_all = 0.0
+	o2_consumed_kg_total_all = 0.0
+	o2_exterior_net_kg_step = 0.0
+	o2_exterior_net_kg_total = 0.0
+	o2_net_transport_kg_step = 0.0
+	o2_net_transport_kg_total = 0.0
 	fuel_consumed_MJ_step = 0.0
 	fuel_consumed_MJ_total = 0.0
 	fire_o2_mode_used = "legacy"

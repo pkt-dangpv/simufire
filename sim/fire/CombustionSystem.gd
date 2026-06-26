@@ -77,6 +77,11 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	if room == null:
 		return false
 
+	# SF-O1A: zero per-step O₂ accumulators at the start of every engine tick.
+	room.o2_consumed_kg_step_all = 0.0
+	room.o2_exterior_net_kg_step = 0.0
+	room.o2_net_transport_kg_step = 0.0
+
 	if room.fire == null:
 		var idle_o2_selection: Dictionary = _resolve_fire_o2_selection(room, null, context)
 		room.fire_o2_mode_used = String(idle_o2_selection.get("mode", "legacy"))

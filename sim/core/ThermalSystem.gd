@@ -2406,6 +2406,11 @@ func _apply_doorway_thermal_counterflow(
 	var hot_upper_mass: float = maxf(0.1, hot_room.upper_volume_m3() * rho_ambient)
 	hot_room.o2_lower = clampf(hot_room.o2_lower + o2_delta_kg * 0.5 / hot_lower_mass, 0.0, 0.209)
 	hot_room.o2_upper = clampf(hot_room.o2_upper + o2_delta_kg * 0.5 / hot_upper_mass, 0.0, 0.209)
+	# SF-O1A: counterflow thermal doorway — hot recibe, cold cede (o2_delta_kg en kg).
+	hot_room.o2_net_transport_kg_step += o2_delta_kg
+	hot_room.o2_net_transport_kg_total += o2_delta_kg
+	cold_room.o2_net_transport_kg_step -= o2_delta_kg
+	cold_room.o2_net_transport_kg_total -= o2_delta_kg
 
 	# Sala fría: pierde O₂ de la zona inferior (fuente del retorno).
 	cold_room.o2_lower = clampf(cold_room.o2_lower - o2_delta_kg / cold_lower_mass, 0.0, 0.209)
@@ -2544,6 +2549,16 @@ func _apply_canonical_doorway_exchange(
 			0.0, 0.209
 		)
 	# cold_room.o2_lower: fracción conservada al perder masa (mezcla perfecta).
+
+	# SF-O1A: canonical doorway — O₂ transportado entre salas (conserved pair).
+	# hot recibe de cold.lower; cold recibe de hot.upper.
+	var _cde_o2_hot_received: float = m_lower_kg * cold_room.o2_lower
+	var _cde_o2_cold_received: float = upper_gas_moved_kg * hot_room.o2_upper if upper_gas_moved_kg > 0.0 and cold_room.upper_gas_kg > 0.0001 else 0.0
+	var _cde_net_hot: float = _cde_o2_hot_received - _cde_o2_cold_received
+	hot_room.o2_net_transport_kg_step += _cde_net_hot
+	hot_room.o2_net_transport_kg_total += _cde_net_hot
+	cold_room.o2_net_transport_kg_step -= _cde_net_hot
+	cold_room.o2_net_transport_kg_total -= _cde_net_hot
 
 	# Sync O₂ bulk para sala caliente: promedio volumétrico superior + inferior.
 	var hot_total_vol: float = maxf(0.01, hot_room.volume_m3())

@@ -464,11 +464,16 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 
 		var air_in_kg: float = smoke_out_kg * 0.40
 		var room_mass_kg: float = maxf(1.0, room.volume_m3()) * rho_ext
+		var _pv_o2_before: float = room.o2
 		room.o2 = clampf(
 			(room.o2 * room_mass_kg + building.outside_o2 * air_in_kg) / (room_mass_kg + air_in_kg),
 			0.0,
 			o2_nominal
 		)
+		# SF-O1A: exterior neto por pressure_venting (dilución con aire exterior).
+		var _pv_o2_delta: float = (room.o2 - _pv_o2_before) * room_mass_kg
+		room.o2_exterior_net_kg_step += _pv_o2_delta
+		room.o2_exterior_net_kg_total += _pv_o2_delta
 
 	if use_canonical_pressure and phase3_pressure_component_equalization_enabled:
 		_equalize_thermodynamic_pressure_components(building)
@@ -985,8 +990,12 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 		var room_volume_m3_s: float = maxf(0.1, room.volume_m3())
 		var room_air_mass_kg: float = room_volume_m3_s * air_density_kg_m3_s
-		var room_o2_mass_kg: float = room.o2 * room_air_mass_kg + float(o2_delta_kg[int(room_id)])
+		var _ges_o2_delta: float = float(o2_delta_kg[int(room_id)])
+		var room_o2_mass_kg: float = room.o2 * room_air_mass_kg + _ges_o2_delta
 		room.o2 = clampf(room_o2_mass_kg / room_air_mass_kg, 0.0, o2_nominal)
+		# SF-O1A: transporte inter-sala por background + two-zone species exchange (GasExchangeSystem).
+		room.o2_net_transport_kg_step += _ges_o2_delta
+		room.o2_net_transport_kg_total += _ges_o2_delta
 
 		room.smoke_kg = maxf(0.0, room.smoke_kg + float(smoke_delta_kg[int(room_id)]))
 		room.co_net_transport_kg_step = float(co_delta_kg[int(room_id)])
@@ -2314,11 +2323,16 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 		var room_air_mass_kg: float = room_vol_m3 * rho_ext
 
 		# Diluir O2 hacia el nominal
+		var _ppv_o2_before: float = inlet_room.o2
 		inlet_room.o2 = clampf(
 			lerpf(inlet_room.o2, building.outside_o2, mix_frac),
 			0.0,
 			o2_nominal
 		)
+		# SF-O1A: exterior neto por inyección PPV.
+		var _ppv_o2_delta: float = (inlet_room.o2 - _ppv_o2_before) * room_air_mass_kg
+		inlet_room.o2_exterior_net_kg_step += _ppv_o2_delta
+		inlet_room.o2_exterior_net_kg_total += _ppv_o2_delta
 		# Purgar humo y especies por dilución
 		var smoke_purged_inlet: float = inlet_room.smoke_kg * mix_frac
 		var co_purged_inlet: float = inlet_room.co_kg * mix_frac
