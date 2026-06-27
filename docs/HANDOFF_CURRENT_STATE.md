@@ -6,6 +6,71 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-06-28 (rev 21 - M5 post-backdraft guard plan)
+
+### Estado operativo actual
+
+- Branch: `main`, worktree limpio antes de esta nota, local ahead de `origin/main`.
+- Ultimo bloque tecnico cerrado: C1 backdraft/pool-release queda "path exercised, not clean promotion evidence".
+- No hay cambio de motor en esta rev. Solo se guarda el plan M5 para la siguiente sesion.
+- O2E1 permanece WARN. No promover a FAIL todavia.
+
+### Diagnostico exacto del zombie post-backdraft
+
+`v1_m4_pool_release` ya ejercita el path de backdraft:
+
+- `backdraft_triggered=1` a t=350 s.
+- HRR spike principal: 21.369 kW.
+- `retained_unburned_MJ` se agota a t=355 s.
+- O2E1 esta limpio durante la ventana de backdraft (t=340-360 s).
+
+El problema restante empieza despues del evento:
+
+1. Tras agotarse el pool, `can_flame=false` y `hrr_target_kw=0`, pero `room.hrr_kw` no cae inmediatamente; decae con `fire_hrr_fall_tau_s=20`.
+2. Esa inercia mantiene HRR positivo con `o2_upper` critico, generando filas A3 y O2E1 WARN en fase zombie.
+3. Cuando `o2_upper` se recupera por encima del umbral M4, el motor puede volver a alimentar llama/pool y disparar un segundo backdraft artificial.
+
+La causa no es Thornton ni O2E1. Es una incoherencia de ciclo post-evento en `CombustionSystem.gd`: HRR suavizado y pool reaccumulado sobreviven a una condicion donde no hay llama ni latencia fisicamente viable.
+
+### M5 recomendado
+
+Implementar un guard opt-in:
+
+- Flag: `fire_post_bd_hrr_cut_enabled`, default `false`.
+- Activacion inicial: solo en `v1_m4_pool_release`.
+- Ubicacion: `CombustionSystem.gd`, despues del bloque `if room.backdraft_active:` y antes del consumo/reacumulacion de pool.
+
+Condicion propuesta:
+
+```gdscript
+if fire_post_bd_hrr_cut_enabled \
+        and not room.backdraft_active \
+        and not can_flame \
+        and not latent_viable \
+        and room.retained_unburned_MJ < 0.001 \
+        and room.fire_o2_ref < o2_min_ref:
+    room.hrr_kw = 0.0
+    room.hrr_target_kw = 0.0
+    retained_generation_kw = 0.0
+```
+
+La forma exacta puede ajustarse al estilo local del archivo, pero la intencion debe mantenerse: cortar la cola de HRR y bloquear la reacumulacion de pool cuando el backdraft ya termino, el pool esta agotado y no existe llama/latencia viable.
+
+### Criterios de aceptacion M5
+
+- `v1_m4_pool_release`: backdraft principal sigue ocurriendo a t≈350 s.
+- `v1_m4_pool_release`: no hay segundo backdraft artificial.
+- `v1_m4_pool_release`: A3=0 y O2E1=0 WARN.
+- `check_physics_coherence.py` sobre el CSV del caso sale limpio.
+- Guardrails globales se mantienen estables: `validate_reference_cases` no cambia por default-off.
+- No tocar O2E1 severity ni tolerancias.
+
+### Decision vigente
+
+O2E1 sigue como WARN hasta que M5 produzca evidencia C1 limpia o hasta que se apruebe una politica formal de exclusion. La ruta preferida ahora es M5, no exclusion.
+
+---
+
 ## Current Session Update — 2026-06-27 (rev 20 — M4 pool-release path-exercise)
 
 ### Estado operativo actual

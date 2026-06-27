@@ -1,6 +1,6 @@
 # Hoja de ruta activa de SimuFire
 
-Fecha: 2026-06-26
+Fecha: 2026-06-28
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
 
@@ -25,14 +25,14 @@ Antes de tocar motor:
 
 ## Estado actual conocido
 
-- Rama esperada: `main`, sincronizada con `origin/main`.
-- Handoff vigente: `docs/HANDOFF_CURRENT_STATE.md` rev 18.
-- Ultimo estado documentado: O2E1 Thornton cross-check WARN-clean 11/11 (2026-06-27, commits 88ce7d7 + 1c6c419).
+- Rama esperada: `main`; antes de esta nota estaba local ahead de `origin/main`.
+- Handoff vigente: `docs/HANDOFF_CURRENT_STATE.md` rev 21.
+- Ultimo estado documentado: C1 backdraft/pool-release path exercised, pero no clean promotion evidence; M5 post-backdraft HRR cut queda como proximo experimento de motor.
 - Suite referencia: **349/354 PASS**.
 - Los 5 FAIL restantes son los `VALID_GAP` conocidos:
   - Grupo A: O2 en `cfast_r0_window_360`.
   - Grupo C: temperatura en `cfast_corridor_chain`.
-- Physics coherence audit: **11/11 PASS**, 0 WARN, 0 FAIL. Reglas FAIL/gating: B1, C1, C2, A2, A3, D1, E1, S0. WARN-clean: O1, O2E1.
+- Physics coherence audit: suite con controles intencionales registrados (`v1_backdraft_accumulation`, `v1_m4_pool_release`). Reglas FAIL/gating: B1, C1, C2, A2, A3, D1, E1, S0. WARN: O1, O2E1.
 - Tests Python: **157 PASS**.
 
 ## Cambio de enfoque
@@ -152,7 +152,7 @@ Decision:
 
 ### O2E1 Thornton cross-check HRR↔O2
 
-Estado: **WARN-clean**, no `FAIL`/gating todavia.
+Estado: **WARN**, no `FAIL`/gating todavia. La regla esta limpia en el corpus base; C1 backdraft/pool-release esta ejercitado pero no aporta evidencia limpia de promocion por zombie A3 post-evento.
 
 Invariante:
 
@@ -172,14 +172,14 @@ Por que `*_fire` y no `*_all`: `o2_consumed_kg_total_all` acumula todas las ruta
 
 Resultado actual:
 
-- 11/11 PASS.
-- 0 O2E1 findings.
+- Corpus base O2E1: PASS limpio.
+- C1 backdraft/pool-release: `v1_m4_pool_release` ejercita el path (`backdraft_triggered=1` a t=350 s) pero deja 5 WARN post-evento por zombie A3.
 - No cambio de fisica. O1 intacto.
 - 157 tests PASS.
 
 Criterios para promover a FAIL:
 
-1. O2E1 PASS en corpus que incluya: backdraft o pool-release, caso largo (≥ 600 s), caso multi-room con intercambio O2, caso con `effective_plume_lower` o `fire_uses_lower_o2` activos.
+1. O2E1 PASS limpio en corpus que incluya: backdraft o pool-release, caso largo (≥ 600 s), caso multi-room con intercambio O2, caso con `effective_plume_lower` o `fire_uses_lower_o2` activos.
 2. Revision de tolerancias bajo condiciones de O2 bajo y cap activo.
 3. Plan explicito de promocion antes de tocar `severity`.
 
@@ -245,13 +245,32 @@ No cambiar tolerancias ni reclasificar estos FAIL sin decision cientifica explic
 
 ## Proxima linea recomendada
 
-### Prioridad 1 - O2 + energia/HRR  *(O2E1 completada)*
+### Prioridad 1 - M5 post-backdraft HRR cut
 
-Motivo: tras cerrar D1/S0 y dejar O1 WARN-clean, el siguiente bloque natural es cerrar la coherencia entre combustible, HRR, consumo O2 y energia entregada.
+Motivo: C1 backdraft/pool-release ya esta ejercitado, pero el caso no es evidencia limpia para promover O2E1 porque queda un zombie A3 post-evento.
 
-**O2E1 ya esta completada** (2026-06-27, WARN-clean 11/11). Fue la primera regla de este bloque.
+Diagnostico:
 
-Siguiente paso en este bloque:
+- El backdraft principal de `v1_m4_pool_release` ocurre a t=350 s y agota el pool a t=355 s.
+- Despues, `hrr_target_kw=0` pero `room.hrr_kw` cae con smoothing (`fire_hrr_fall_tau_s=20`), dejando HRR positivo con `o2_upper` critico.
+- Esa cola produce A3/O2E1 WARNs post-evento y puede permitir reacumulacion de pool/segundo backdraft artificial.
+
+Implementacion recomendada:
+
+- Nuevo flag `fire_post_bd_hrr_cut_enabled`, default `false`.
+- Activarlo primero solo en `v1_m4_pool_release`.
+- En `CombustionSystem.gd`, despues de `room.backdraft_active` y antes de consumo/reacumulacion de pool, cortar `room.hrr_kw`, `room.hrr_target_kw` y `retained_generation_kw` cuando: no backdraft activo, no llama viable, no latencia viable, `retained_unburned_MJ < 0.001` y `fire_o2_ref < fire_o2_min_for_flame`.
+
+Criterios de aceptacion:
+
+- Backdraft principal preservado a t≈350 s.
+- Sin segundo backdraft artificial.
+- A3=0 y O2E1=0 WARN en `v1_m4_pool_release`.
+- `check_physics_coherence.py` limpio para el caso.
+- Guardrails globales estables por default-off.
+- No tocar tolerancias ni `severity` de O2E1.
+
+### Prioridad 1b - O2 + energia/HRR
 
 Corpus diagnostico completado (2026-06-27). Resultados:
 
@@ -269,10 +288,7 @@ Bloqueo para O2E1 → FAIL:
 - C1 "path exercised" pero no "clean promotion evidence": los 5 O2E1 WARN post-backdraft son consecuencia del zombie A3, no de un fallo de Thornton. La promocion requiere un caso backdraft/pool-release completo sin A3 zombie post-evento, o una politica de exclusion explicita aprobada.
 - Requisito minimo para promover: (a) caso C1 que sale exit 0 en check_physics_coherence, o (b) decision documentada de que O2E1 WARN del zombie no bloquea la promocion porque ocurren fuera de la ventana de backdraft.
 
-Proximo experimento para C1 limpio — dos opciones:
-
-1. **Fix A3 zombie en motor**: `CombustionSystem.gd` no transiciona regimen cuando `o2_upper < fire_o2_min_for_flame` con plume_lower activo. Un guard explicito (`if o2_upper < threshold: force ILV_LATENT`) eliminaría el zombie y permitiria un run limpio. Requiere plan de motor antes de tocar `sim/fire/`.
-2. **Politica de exclusion**: documentar formalmente que los WARN del zombie post-backdraft no son evidencia contra Thornton (O2 ya estaba capeado, no hay consumo real — el WARN es un artefacto del zombie, no de la fisica). Requiere revision del criterio de exclusion antes de cambiar severity.
+Proximo experimento para C1 limpio: M5 post-backdraft HRR cut. La politica de exclusion queda como alternativa secundaria, no preferida.
 
 Otras reglas pendientes en el bloque O2/energia:
 

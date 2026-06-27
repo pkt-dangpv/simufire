@@ -1,6 +1,6 @@
 # Motor Physics Validation Checklist
 
-Date: 2026-06-24.
+Date: 2026-06-28.
 
 This checklist tracks the physics and validation items that must be audited before treating the SimuFire motor as physically credible. It is intentionally focused on engine data and validation, not first-person visuals or presentation-layer effects.
 
@@ -275,7 +275,12 @@ Estado de criterios WARN→FAIL (actualizado):
 4. **Plan explicito de promocion** acordado antes de tocar `severity`.
 
 **Que bloquea O2E1 → FAIL ahora:**
-C1 path exercised pero no clean: `v1_m4_pool_release` tiene 5 O2E1 WARN en la fase zombie post-backdraft. Eliminar ese bloqueo requiere: (a) fix del bug A3 motor (`CombustionSystem.gd`: guard de transicion de regimen cuando `o2_upper < fire_o2_min_for_flame` con plume_lower activo), o (b) decision formal documentada de exclusion (zombie WARNs != fallo Thornton).
+C1 path exercised pero no clean: `v1_m4_pool_release` tiene 5 O2E1 WARN en la fase zombie post-backdraft. El diagnostico actualizado (2026-06-28) acota la causa: tras agotar el pool, `hrr_target_kw=0` pero `room.hrr_kw` decae por suavizado (`fire_hrr_fall_tau_s=20`), dejando HRR positivo con `o2_upper` critico. Mas tarde puede haber reacumulacion artificial de pool y segundo backdraft. Esto no es fallo Thornton; es bug de ciclo post-evento en `CombustionSystem.gd`.
+
+**M5 recomendado antes de promover O2E1:**
+Implementar `fire_post_bd_hrr_cut_enabled` (default `false`) para cortar `room.hrr_kw`, `room.hrr_target_kw` y `retained_generation_kw` cuando el backdraft ya no esta activo, no hay llama viable, no hay latencia viable, `retained_unburned_MJ < 0.001` y `fire_o2_ref < fire_o2_min_for_flame`. Activar inicialmente solo en `v1_m4_pool_release`. Criterio de salida: backdraft principal preservado, sin segundo backdraft artificial, A3=0, O2E1=0 WARN y `check_physics_coherence.py` limpio para el caso.
+
+O2E1 no debe pasar a FAIL hasta que M5 produzca ese C1 limpio o exista una decision formal documentada de exclusion (zombie WARNs != fallo Thornton).
 
 Open items:
 

@@ -4,6 +4,14 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### M5 post-backdraft HRR cut plan (2026-06-28)
+
+- **Estado guardado, no implementado**: siguiente experimento de motor propuesto como `fire_post_bd_hrr_cut_enabled` (default `false`), activado solo en `v1_m4_pool_release` si se aprueba el cambio de codigo.
+- **Causa exacta post-evento**: despues del backdraft principal (`backdraft_triggered=1` t=350 s, pool agotado t=355 s), `hrr_target_kw` cae a 0 porque `can_flame=false`, pero `room.hrr_kw` sigue bajando por la constante de suavizado (`fire_hrr_fall_tau_s=20`). Esa inercia produce filas A3/O2E1 en la fase zombie. Mas tarde, cuando `o2_upper` se recupera por encima del umbral M4, el motor puede volver a alimentar llama/pool y generar un segundo evento artificial.
+- **Guard M5 recomendado**: insertar en `CombustionSystem.gd` despues del bloque `room.backdraft_active` y antes del consumo/reacumulacion del pool. Si `fire_post_bd_hrr_cut_enabled=true`, `not room.backdraft_active`, `not can_flame`, `not latent_viable`, `room.retained_unburned_MJ < 0.001` y `room.fire_o2_ref < fire_o2_min_for_flame`, cortar `room.hrr_kw`, `room.hrr_target_kw` y `retained_generation_kw` a 0.
+- **Criterios de aceptacion esperados**: `v1_m4_pool_release` mantiene el backdraft principal a t≈350 s; no aparece segundo backdraft; A3=0; O2E1=0 WARN; physics coherence para el caso sale limpio. `validate_reference_cases` y guardrails globales no cambian porque el flag queda default-off.
+- **Decision vigente**: O2E1 permanece WARN hasta que M5 produzca un C1 limpio o se apruebe una politica formal de exclusion. No tocar tolerancias ni severidad O2E1 en este paso.
+
 ### M4 pool-release path-exercise case `v1_m4_pool_release` (2026-06-27)
 
 - **Caso `v1_m4_pool_release`**: path-exercise controlado que verifica que el motor ejecuta el camino backdraft/pool-release con M4 activo y gates relajados. Derivado de `v1_backdraft_accumulation` con overrides: `fire_o2_upper_throttle_enabled: true`, `fire_backdraft_pool_threshold_MJ: 0.35`, `fire_backdraft_o2_max: 0.20`, `fire_backdraft_temp_min_c: 100.0`, `fire_backdraft_lfl: 0.001`. No representativo de un backdraft real.
