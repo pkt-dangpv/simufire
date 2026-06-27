@@ -1610,13 +1610,13 @@ def _row_o2e1(
     time_s: str = "10.0",
     room_id: str = "0",
     hrr_kj_total: str = "0.0",
-    o2_consumed_kg_total_all: str = "0.0",
+    o2_consumed_fire_kg_total: str = "0.0",
 ) -> dict[str, str]:
     return {
         "time_s": time_s,
         "room_id": room_id,
         "hrr_kj_total": hrr_kj_total,
-        "o2_consumed_kg_total_all": o2_consumed_kg_total_all,
+        "o2_consumed_fire_kg_total": o2_consumed_fire_kg_total,
     }
 
 
@@ -1633,82 +1633,97 @@ class TestCheckO2E1(unittest.TestCase):
     # ── Clean cases ───────────────────────────────────────────────────────────
 
     def test_exact_thornton_ratio_no_finding(self):
-        """delta_o2_all == delta_hrr_kj * Thornton exactly → no finding."""
+        """delta_o2_fire == delta_hrr_kj * Thornton exactly → no finding."""
         delta_hrr_kj = 500.0
         expected_o2 = delta_hrr_kj * _O2E1_THORNTON
         rows = [
             _row_o2e1(time_s="0.0",  hrr_kj_total="0.0",
-                      o2_consumed_kg_total_all="0.0"),
+                      o2_consumed_fire_kg_total="0.0"),
             _row_o2e1(time_s="10.0", hrr_kj_total=str(delta_hrr_kj),
-                      o2_consumed_kg_total_all=str(expected_o2)),
+                      o2_consumed_fire_kg_total=str(expected_o2)),
         ]
         self.assertEqual(self._run(rows), [])
 
     def test_within_5pct_tolerance_no_finding(self):
-        """OES capping may reduce delta_o2_all slightly below expected; within 5 % → no finding."""
+        """OES capping may reduce delta_o2_fire slightly below expected; within 5 % → no finding."""
         delta_hrr_kj = 1000.0
         expected_o2 = delta_hrr_kj * _O2E1_THORNTON
         actual_o2 = expected_o2 * 0.96   # 4 % below — within 5 % tolerance
         rows = [
             _row_o2e1(time_s="0.0",  hrr_kj_total="0.0",
-                      o2_consumed_kg_total_all="0.0"),
+                      o2_consumed_fire_kg_total="0.0"),
             _row_o2e1(time_s="10.0", hrr_kj_total=str(delta_hrr_kj),
-                      o2_consumed_kg_total_all=str(actual_o2)),
+                      o2_consumed_fire_kg_total=str(actual_o2)),
         ]
         self.assertEqual(self._run(rows), [])
 
     def test_zero_delta_both_sides_skipped(self):
-        """When both delta_hrr_kj and delta_o2_all are zero (pre-ignition) → skip."""
+        """When both delta_hrr_kj and delta_o2_fire are zero (pre-ignition) → skip."""
         rows = [
-            _row_o2e1(time_s="0.0",  hrr_kj_total="0.0", o2_consumed_kg_total_all="0.0"),
-            _row_o2e1(time_s="10.0", hrr_kj_total="0.0", o2_consumed_kg_total_all="0.0"),
+            _row_o2e1(time_s="0.0",  hrr_kj_total="0.0", o2_consumed_fire_kg_total="0.0"),
+            _row_o2e1(time_s="10.0", hrr_kj_total="0.0", o2_consumed_fire_kg_total="0.0"),
         ]
         self.assertEqual(self._run(rows), [])
 
     def test_single_row_no_finding(self):
         """Only one row → no consecutive pair, no finding."""
         rows = [_row_o2e1(time_s="10.0", hrr_kj_total="100.0",
-                          o2_consumed_kg_total_all="0.0076")]
+                          o2_consumed_fire_kg_total="0.0076")]
         self.assertEqual(self._run(rows), [])
 
     def test_cumulative_monotone_fire_clean(self):
         """Multiple rows of steady fire — cumulative totals grow uniformly → no finding."""
         o2_per_kj = _O2E1_THORNTON
         rows = [
-            _row_o2e1(time_s="0.0",  hrr_kj_total="0.0",    o2_consumed_kg_total_all="0.0"),
-            _row_o2e1(time_s="10.0", hrr_kj_total="500.0",   o2_consumed_kg_total_all=str(500.0 * o2_per_kj)),
-            _row_o2e1(time_s="20.0", hrr_kj_total="1000.0",  o2_consumed_kg_total_all=str(1000.0 * o2_per_kj)),
-            _row_o2e1(time_s="30.0", hrr_kj_total="1500.0",  o2_consumed_kg_total_all=str(1500.0 * o2_per_kj)),
+            _row_o2e1(time_s="0.0",  hrr_kj_total="0.0",    o2_consumed_fire_kg_total="0.0"),
+            _row_o2e1(time_s="10.0", hrr_kj_total="500.0",   o2_consumed_fire_kg_total=str(500.0 * o2_per_kj)),
+            _row_o2e1(time_s="20.0", hrr_kj_total="1000.0",  o2_consumed_fire_kg_total=str(1000.0 * o2_per_kj)),
+            _row_o2e1(time_s="30.0", hrr_kj_total="1500.0",  o2_consumed_fire_kg_total=str(1500.0 * o2_per_kj)),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_two_zone_double_count_does_not_warn(self):
+        """o2_consumed_fire_kg_total holds ONE Thornton unit even when OES two-zone
+        double-counts in o2_consumed_kg_total_all (2x).  O2E1 must not WARN."""
+        delta_hrr_kj = 1000.0
+        one_thornton = delta_hrr_kj * _O2E1_THORNTON
+        # Simulate: fire accumulator = 1x Thornton (correct primary path)
+        # Even though o2_consumed_kg_total_all would be 2x, O2E1 no longer reads it.
+        rows = [
+            _row_o2e1(time_s="0.0",  hrr_kj_total="0.0",
+                      o2_consumed_fire_kg_total="0.0"),
+            _row_o2e1(time_s="10.0", hrr_kj_total=str(delta_hrr_kj),
+                      o2_consumed_fire_kg_total=str(one_thornton)),
         ]
         self.assertEqual(self._run(rows), [])
 
     # ── Findings ──────────────────────────────────────────────────────────────
 
     def test_oes_overconsumes_above_tolerance_warns(self):
-        """OES consuming >5 % more O2 than Thornton predicts → WARN."""
+        """Primary path consuming >5 % more O2 than Thornton predicts → WARN."""
         delta_hrr_kj = 1000.0
         expected_o2 = delta_hrr_kj * _O2E1_THORNTON
         actual_o2 = expected_o2 * 1.10   # 10 % above → exceeds 5 % threshold
         rows = [
             _row_o2e1(time_s="0.0",  hrr_kj_total="0.0",
-                      o2_consumed_kg_total_all="0.0"),
+                      o2_consumed_fire_kg_total="0.0"),
             _row_o2e1(time_s="10.0", hrr_kj_total=str(delta_hrr_kj),
-                      o2_consumed_kg_total_all=str(actual_o2)),
+                      o2_consumed_fire_kg_total=str(actual_o2)),
         ]
         findings = self._run(rows)
         self.assertEqual(len(findings), 1)
         self.assertEqual(findings[0].severity, "WARN")
 
     def test_oes_underconsumes_below_tolerance_warns(self):
-        """OES consuming <5 % less O2 than Thornton predicts → WARN."""
+        """Primary path consuming >5 % less O2 than Thornton predicts → WARN."""
         delta_hrr_kj = 1000.0
         expected_o2 = delta_hrr_kj * _O2E1_THORNTON
         actual_o2 = expected_o2 * 0.90   # 10 % below → exceeds 5 % threshold
         rows = [
             _row_o2e1(time_s="0.0",  hrr_kj_total="0.0",
-                      o2_consumed_kg_total_all="0.0"),
+                      o2_consumed_fire_kg_total="0.0"),
             _row_o2e1(time_s="10.0", hrr_kj_total=str(delta_hrr_kj),
-                      o2_consumed_kg_total_all=str(actual_o2)),
+                      o2_consumed_fire_kg_total=str(actual_o2)),
         ]
         findings = self._run(rows)
         self.assertEqual(len(findings), 1)
@@ -1720,9 +1735,9 @@ class TestCheckO2E1(unittest.TestCase):
         actual_o2 = delta_hrr_kj * _O2E1_THORNTON * 1.20   # 20 % over
         rows = [
             _row_o2e1(time_s="0.0",  hrr_kj_total="0.0",
-                      o2_consumed_kg_total_all="0.0"),
+                      o2_consumed_fire_kg_total="0.0"),
             _row_o2e1(time_s="10.0", hrr_kj_total=str(delta_hrr_kj),
-                      o2_consumed_kg_total_all=str(actual_o2)),
+                      o2_consumed_fire_kg_total=str(actual_o2)),
         ]
         self.assertEqual(self._run(rows)[0].rule_id, "O2E1")
 
@@ -1732,26 +1747,26 @@ class TestCheckO2E1(unittest.TestCase):
         actual_o2 = delta_hrr_kj * _O2E1_THORNTON * 1.20
         rows = [
             _row_o2e1(time_s="0.0",  hrr_kj_total="0.0",
-                      o2_consumed_kg_total_all="0.0"),
+                      o2_consumed_fire_kg_total="0.0"),
             _row_o2e1(time_s="10.0", hrr_kj_total=str(delta_hrr_kj),
-                      o2_consumed_kg_total_all=str(actual_o2)),
+                      o2_consumed_fire_kg_total=str(actual_o2)),
         ]
         self.assertEqual(self._run(rows)[0].metric, "thornton_cross_residual_kg")
 
     def test_finding_reason_contains_key_fields(self):
-        """Finding reason must mention delta_hrr_kj, expected_o2, delta_o2_all."""
+        """Finding reason must mention delta_hrr_kj, expected_o2, delta_o2_fire."""
         delta_hrr_kj = 1000.0
         actual_o2 = delta_hrr_kj * _O2E1_THORNTON * 1.20
         rows = [
             _row_o2e1(time_s="0.0",  hrr_kj_total="0.0",
-                      o2_consumed_kg_total_all="0.0"),
+                      o2_consumed_fire_kg_total="0.0"),
             _row_o2e1(time_s="10.0", hrr_kj_total=str(delta_hrr_kj),
-                      o2_consumed_kg_total_all=str(actual_o2)),
+                      o2_consumed_fire_kg_total=str(actual_o2)),
         ]
         reason = self._run(rows)[0].reason
         self.assertIn("delta_hrr_kj", reason)
         self.assertIn("expected_o2", reason)
-        self.assertIn("delta_o2_all", reason)
+        self.assertIn("delta_o2_fire", reason)
 
     def test_multiroom_only_failing_room_flagged(self):
         """Two rooms: one balanced, one over-consuming → only over-consuming flagged."""
@@ -1760,13 +1775,13 @@ class TestCheckO2E1(unittest.TestCase):
         bad_o2 = ok_o2 * 1.20   # 20 % over
         rows = [
             _row_o2e1(time_s="0.0",  room_id="0", hrr_kj_total="0.0",
-                      o2_consumed_kg_total_all="0.0"),
+                      o2_consumed_fire_kg_total="0.0"),
             _row_o2e1(time_s="0.0",  room_id="1", hrr_kj_total="0.0",
-                      o2_consumed_kg_total_all="0.0"),
+                      o2_consumed_fire_kg_total="0.0"),
             _row_o2e1(time_s="10.0", room_id="0", hrr_kj_total=str(delta_hrr_kj),
-                      o2_consumed_kg_total_all=str(ok_o2)),
+                      o2_consumed_fire_kg_total=str(ok_o2)),
             _row_o2e1(time_s="10.0", room_id="1", hrr_kj_total=str(delta_hrr_kj),
-                      o2_consumed_kg_total_all=str(bad_o2)),
+                      o2_consumed_fire_kg_total=str(bad_o2)),
         ]
         findings = self._run(rows)
         self.assertEqual(len(findings), 1)
@@ -1777,16 +1792,26 @@ class TestCheckO2E1(unittest.TestCase):
     def test_missing_hrr_kj_total_skips_gracefully(self):
         """CSV without hrr_kj_total (old schema) → O2E1 skipped silently."""
         rows = [
-            {"time_s": "0.0",  "room_id": "0", "o2_consumed_kg_total_all": "0.0"},
-            {"time_s": "10.0", "room_id": "0", "o2_consumed_kg_total_all": "0.05"},
+            {"time_s": "0.0",  "room_id": "0", "o2_consumed_fire_kg_total": "0.0"},
+            {"time_s": "10.0", "room_id": "0", "o2_consumed_fire_kg_total": "0.05"},
         ]
         self.assertEqual(self._run(rows), [])
 
-    def test_missing_o2_consumed_all_skips_gracefully(self):
-        """CSV without o2_consumed_kg_total_all → O2E1 skipped silently."""
+    def test_missing_o2_consumed_fire_skips_gracefully(self):
+        """CSV without o2_consumed_fire_kg_total (pre-O2E1-fix schema) → O2E1 skipped silently."""
         rows = [
             {"time_s": "0.0",  "room_id": "0", "hrr_kj_total": "0.0"},
             {"time_s": "10.0", "room_id": "0", "hrr_kj_total": "500.0"},
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_old_o2_consumed_all_col_alone_skips_gracefully(self):
+        """CSV with only o2_consumed_kg_total_all (old O2E1 schema, pre-fix) → O2E1 skips silently."""
+        rows = [
+            {"time_s": "0.0",  "room_id": "0",
+             "hrr_kj_total": "0.0", "o2_consumed_kg_total_all": "0.0"},
+            {"time_s": "10.0", "room_id": "0",
+             "hrr_kj_total": "500.0", "o2_consumed_kg_total_all": "0.076"},
         ]
         self.assertEqual(self._run(rows), [])
 

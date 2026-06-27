@@ -203,7 +203,7 @@ REQUIRED_COLS: dict[str, set[str]] = {
     "D1": {"co_kg", "co_generated_kg_total", "co_net_transport_kg_total", "co_exterior_removed_kg_total"},
     "E1": {"solid_fuel_remaining_MJ", "fuel_consumed_MJ_total"},
     "O1": {"o2", "air_mass_kg", "o2_consumed_bulk_kg_total", "o2_exterior_net_kg_total", "o2_net_transport_kg_total"},
-    "O2E1": {"o2_consumed_kg_total_all", "hrr_kj_total"},
+    "O2E1": {"o2_consumed_fire_kg_total", "hrr_kj_total"},
     "S0": {"smoke_kg", "smoke_generated_total_kg", "smoke_vented_total_kg", "smoke_deposited_total_kg", "smoke_in_transit_kg"},
 }
 
@@ -549,26 +549,27 @@ def _check_o2e1_thornton_cross(rows: list[dict[str, str]]) -> list[Finding]:
 
     Between consecutive CSV rows (which may span many simulation steps):
 
-        delta_hrr_kj  = hrr_kj_total[t] − hrr_kj_total[t−1]       [kJ]
-        expected_o2   = delta_hrr_kj × 0.076 / 1000                [kg]
-        delta_o2_all  = o2_consumed_kg_total_all[t] − …[t−1]       [kg]
-        residual      = |delta_o2_all − expected_o2|
+        delta_hrr_kj   = hrr_kj_total[t] − hrr_kj_total[t−1]          [kJ]
+        expected_o2    = delta_hrr_kj × 0.076 / 1000                   [kg]
+        delta_o2_fire  = o2_consumed_fire_kg_total[t] − …[t−1]         [kg]
+        residual       = |delta_o2_fire − expected_o2|
 
     hrr_kj_total is accumulated by CombustionSystem as hrr_kw × dt per step.
-    o2_consumed_kg_total_all is accumulated by OES across all combustion O2
-    depletion paths (bulk, upper, lower, plume), each computed as
-    hrr_kw × dt × 0.076 / 1000.  Both subsystems read the same room.hrr_kw,
-    so near-perfect agreement is expected.
+    o2_consumed_fire_kg_total is accumulated by OES as the "primary" O2
+    depletion path: bulk when it ran (standard two-zone, homogeneous),
+    otherwise the lower/plume/upper path that replaced it.  Exactly one
+    Thornton unit per step — unlike o2_consumed_kg_total_all which double-
+    counts in standard two-zone (bulk + upper both accumulate).
 
     The check acts as a cross-subsystem regression guard: if a future refactor
     causes OES or CombustionSystem to use a different HRR value, or applies
-    the wrong Thornton constant, or double-counts a path, the residual grows.
+    the wrong Thornton constant, the residual grows.
 
-    OES caps per-step consumption at 5 % of bulk O2 mass (20 % upper), so
-    delta_o2_all may fall slightly below expected in O2-depleted conditions.
-    Tolerance: 5 % of abs(expected), floor 1 × 10⁻⁵ kg.
+    OES caps per-step consumption at 5 % of bulk O2 mass (plume/lower also
+    capped), so delta_o2_fire may fall slightly below expected when O2-
+    depleted.  Tolerance: 5 % of abs(expected), floor 1 × 10⁻⁵ kg.
 
-    Skipped rows where both delta_hrr_kj and delta_o2_all are zero (no fire,
+    Skipped rows where both delta_hrr_kj and delta_o2_fire are zero (no fire,
     or pre-ignition steps).
 
     Severity: WARN.  Not gating.
@@ -582,21 +583,21 @@ def _check_o2e1_thornton_cross(rows: list[dict[str, str]]) -> list[Finding]:
         room_rows.sort(key=lambda r: _float(r, "time_s"))
         prev = room_rows[0]
         for curr in room_rows[1:]:
-            hrr_kj_curr  = _float(curr, "hrr_kj_total")
-            hrr_kj_prev  = _float(prev, "hrr_kj_total")
-            o2_all_curr  = _float(curr, "o2_consumed_kg_total_all")
-            o2_all_prev  = _float(prev, "o2_consumed_kg_total_all")
+            hrr_kj_curr   = _float(curr, "hrr_kj_total")
+            hrr_kj_prev   = _float(prev, "hrr_kj_total")
+            o2_fire_curr  = _float(curr, "o2_consumed_fire_kg_total")
+            o2_fire_prev  = _float(prev, "o2_consumed_fire_kg_total")
 
-            delta_hrr_kj = hrr_kj_curr - hrr_kj_prev
-            delta_o2_all = o2_all_curr - o2_all_prev
+            delta_hrr_kj  = hrr_kj_curr  - hrr_kj_prev
+            delta_o2_fire = o2_fire_curr - o2_fire_prev
 
             # Skip pre-ignition and post-extinction rows where nothing changed.
-            if delta_hrr_kj <= 0.0 and delta_o2_all <= 0.0:
+            if delta_hrr_kj <= 0.0 and delta_o2_fire <= 0.0:
                 prev = curr
                 continue
 
             expected_o2 = delta_hrr_kj * _O2E1_THORNTON_KG_PER_KJ
-            residual    = abs(delta_o2_all - expected_o2)
+            residual    = abs(delta_o2_fire - expected_o2)
             magnitude   = max(abs(expected_o2), _O2E1_ABS_FLOOR_KG)
             threshold   = max(_O2E1_ABS_FLOOR_KG, _O2E1_REL_TOL * magnitude)
 
@@ -611,7 +612,7 @@ def _check_o2e1_thornton_cross(rows: list[dict[str, str]]) -> list[Finding]:
                     reason=(
                         f"delta_hrr_kj={delta_hrr_kj:.4g} kJ  "
                         f"expected_o2(Thornton)={expected_o2:.4g} kg  "
-                        f"delta_o2_all(OES)={delta_o2_all:.4g} kg  "
+                        f"delta_o2_fire(primary)={delta_o2_fire:.4g} kg  "
                         f"residual={residual:.3g} kg  tol={threshold:.3g} kg"
                     ),
                 ))

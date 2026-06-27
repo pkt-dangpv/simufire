@@ -265,6 +265,8 @@ func build_state(context: Dictionary) -> Dictionary:
 			"o2_consumed_kg_total_all": room.o2_consumed_kg_total_all,
 			"o2_consumed_bulk_kg_step": room.o2_consumed_bulk_kg_step,
 			"o2_consumed_bulk_kg_total": room.o2_consumed_bulk_kg_total,
+			"o2_consumed_fire_kg_step": room.o2_consumed_fire_kg_step,
+			"o2_consumed_fire_kg_total": room.o2_consumed_fire_kg_total,
 			"o2_exterior_net_kg_step": room.o2_exterior_net_kg_step,
 			"o2_exterior_net_kg_total": room.o2_exterior_net_kg_total,
 			"o2_net_transport_kg_step": room.o2_net_transport_kg_step,

@@ -157,6 +157,11 @@ var o2_consumed_kg_total_all: float = 0.0
 # Usado por la fórmula de balance bulk corregida: delta_bulk ≈ -consumed_bulk + exterior + transport.
 var o2_consumed_bulk_kg_step: float = 0.0
 var o2_consumed_bulk_kg_total: float = 0.0
+# SF-O2E1: O2 consumido por fuego vía path primario por paso/total (tracking-only, una unidad
+# Thornton). Selecciona bulk si corrió; si no: lower (fire_uses_lower_o2),
+# plume (effective_plume_lower) o upper (_phase2b_upper_active only). No modifica física.
+var o2_consumed_fire_kg_step: float = 0.0
+var o2_consumed_fire_kg_total: float = 0.0
 var o2_exterior_net_kg_step: float = 0.0
 var o2_exterior_net_kg_total: float = 0.0
 var o2_net_transport_kg_step: float = 0.0
@@ -358,6 +363,8 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	o2_consumed_kg_total_all = 0.0
 	o2_consumed_bulk_kg_step = 0.0
 	o2_consumed_bulk_kg_total = 0.0
+	o2_consumed_fire_kg_step = 0.0
+	o2_consumed_fire_kg_total = 0.0
 	o2_exterior_net_kg_step = 0.0
 	o2_exterior_net_kg_total = 0.0
 	o2_net_transport_kg_step = 0.0

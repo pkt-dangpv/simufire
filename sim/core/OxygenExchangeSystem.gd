@@ -346,6 +346,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		var effective_plume_lower: bool = plume_lower_mode or canonical_plume_lower
 		# Phase 2B: consumo O₂ solo a o2_upper; room.o2 se deriva de zonas al final del paso.
 		var _phase2b_upper_active: bool = phase2b_canonical_combustion_enabled and fire_o2_mode == "upper"
+		# SF-O2E1: tracking-only. Captura UNA unidad Thornton por paso: bulk si corrió;
+		# si no: lower (fire_uses_lower_o2), plume (effective_plume_lower), upper (_phase2b).
+		var _o2_fire_primary: float = 0.0
 
 		# ── room.o2: variable de estado ──────────────────────────────────────────────
 		# Phase 2C: cuando fire_o2_lower_for_flame=true, el fuego consume de o2_lower;
@@ -363,6 +366,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# SF-O1C: bulk-only accumulator (solo este path modifica room.o2 via o2_mass_kg).
 			room.o2_consumed_bulk_kg_step += consumed
 			room.o2_consumed_bulk_kg_total += consumed
+			# SF-O2E1: bulk es el path primario cuando corre.
+			_o2_fire_primary = consumed
 		var ach_o2_delta_kg: float = room.volume_m3() \
 			* (ach_infiltration / 3600.0) \
 			* air_density_kg_m3 \
@@ -405,6 +410,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			# SF-O1A: consumo zona superior por pluma/fuego (kg ya calculados).
 			room.o2_consumed_kg_step_all += upper_consumed
 			room.o2_consumed_kg_total_all += upper_consumed
+			# SF-O2E1: upper es primario solo cuando bulk fue bloqueado por _phase2b_upper_active.
+			if _phase2b_upper_active:
+				_o2_fire_primary = upper_consumed
 			var entr_frac: float = clampf(o2_upper_plume_entr_rate * dt, 0.0, 0.15)
 			# Phase 4A: en plume_lower_mode el penacho entrana aire de la zona baja (o2_lower)
 			# hacia la zona alta. Si o2_lower < o2_upper, ese gas diluye o2_upper (bidireccional).
@@ -460,6 +468,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				# SF-O1A: consumo zona inferior (fire_uses_lower_o2).
 				room.o2_consumed_kg_step_all += consumed_lower
 				room.o2_consumed_kg_total_all += consumed_lower
+				# SF-O2E1: lower es primario (bulk fue bloqueado por fire_uses_lower_o2).
+				_o2_fire_primary = consumed_lower
 			# R2-2: consumo directo de o2_lower por la pluma entrenada del fuego.
 			# La pluma arrastra aire de la zona inferior; ese O₂ se consume en la llama.
 			# El consumo va proporcional al HRR y a la masa de aire de la zona baja.
@@ -474,6 +484,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				# SF-O1A: consumo zona inferior por pluma entrenada (effective_plume_lower).
 				room.o2_consumed_kg_step_all += plume_consumed
 				room.o2_consumed_kg_total_all += plume_consumed
+				# SF-O2E1: plume es primario (bulk fue bloqueado por effective_plume_lower).
+				_o2_fire_primary = plume_consumed
 			var ach_lower_dt: float = (ach_infiltration / 3600.0) \
 				* (building.outside_o2 - room.o2_lower) * dt
 			# Phase 2H fix: en modo two-zone, la zona baja puede reponerse hasta el O₂
@@ -508,6 +520,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		var _o2_lower_final_ceil: float = building.outside_o2 \
 			if (phase2h_o2_doorway_two_zone_enabled or two_zone_solver_enabled or effective_plume_lower) else o2_nominal
 		room.o2_lower = clampf(room.o2_lower, 0.0, _o2_lower_final_ceil)
+		# SF-O2E1: acumular el path primario (una unidad Thornton por paso, tracking-only).
+		room.o2_consumed_fire_kg_step   = _o2_fire_primary
+		room.o2_consumed_fire_kg_total += _o2_fire_primary
 		if fire_o2_mass_tracking_enabled:
 			room.upper_o2_mass_tracked = room.o2_upper * upper_air_mass
 
