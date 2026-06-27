@@ -834,6 +834,10 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	# SF-E1: capturar consumo de combustible sólido para auditoría de balance energético.
 	room.fuel_consumed_MJ_step = solid_fuel_demand_MJ
 	room.fuel_consumed_MJ_total += solid_fuel_demand_MJ
+	# SF-O2E1: acumular energía HRR liberada (kJ). Tracking-only — no modifica física.
+	# OES aplica Thornton sobre hrr_kw; este acumulador permite verificar la coherencia
+	# entre ambos subsistemas: delta(o2_consumed_kg_total_all) ≈ delta(hrr_kj_total) * 7.6e-5.
+	room.hrr_kj_total += maxf(0.0, room.hrr_kw) * dt
 	_sync_explicit_objects_from_active_fire(
 		room,
 		actual_solid_burn_kw,

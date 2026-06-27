@@ -174,6 +174,9 @@ var o2_zone_sync_kg_total: float = 0.0
 # Invariante E1: fuel_remaining_MJ[t] = fuel_remaining_MJ[t-1] - fuel_consumed_MJ_step[t].
 var fuel_consumed_MJ_step: float = 0.0
 var fuel_consumed_MJ_total: float = 0.0
+# SF-O2E1: energía HRR acumulada (kJ). Tracking-only — no modifica física.
+# Permite auditar que OES aplica Thornton (0.076 kg O2/MJ) correctamente.
+var hrr_kj_total: float = 0.0
 # SF-CBAL global: carbono acumulado que salió por aperturas exteriores (kg C).
 # Incrementado en GasExchangeSystem cada vez que CO/CO₂/HCN/humo se ventila
 # al exterior (presión, flujo de humo, purgas, ACH o PPV).
@@ -363,6 +366,7 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	o2_zone_sync_kg_total = 0.0
 	fuel_consumed_MJ_step = 0.0
 	fuel_consumed_MJ_total = 0.0
+	hrr_kj_total = 0.0
 	fire_o2_mode_used = "legacy"
 	fire_o2_ref = ambient_o2
 	fire_o2_min_ref = 0.0

@@ -273,6 +273,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"o2_zone_sync_kg_total": room.o2_zone_sync_kg_total,
 			"fuel_consumed_MJ_step": room.fuel_consumed_MJ_step,
 			"fuel_consumed_MJ_total": room.fuel_consumed_MJ_total,
+			"hrr_kj_total": room.hrr_kj_total,
 			"svv_pct": room.svv_pct,
 			"svv_worst_pct": room.svv_worst_pct,
 			"is_quiescent": _call_room_bool(is_quiescent_callable, room, false),

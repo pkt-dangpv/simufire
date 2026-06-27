@@ -83,6 +83,27 @@ S0  Smoke global        At every logged timestep: the sum of smoke_kg across
 
 Rules — sixth slice
 -------------------
+O2E1 Thornton cross-check Per room/log-interval: the change in o2_consumed_kg_total_all
+                        must equal the change in hrr_kj_total × Thornton constant
+                        (0.076 kg O2 / MJ = 7.6 × 10⁻⁵ kg O2 / kJ).
+                        o2_consumed_kg_total_all is accumulated by OES across ALL
+                        combustion O2 depletion paths (bulk, upper, lower, plume).
+                        hrr_kj_total is accumulated by CombustionSystem as
+                        hrr_kw × dt each step.  Both use the same room.hrr_kw, so
+                        perfect agreement is expected under stable conditions; the
+                        check acts as a cross-subsystem regression guard — if OES
+                        or CombustionSystem ever reads a different HRR value, or
+                        applies the wrong Thornton constant, the residual grows.
+                        OES caps per-step consumption at 5 % of bulk O2 mass and
+                        20 % of upper O2 mass, so delta_o2_all may fall below
+                        delta_hrr × Thornton in severely O2-depleted conditions;
+                        tolerance is set wide enough (5 %) to absorb this.
+                        Tolerance: 5 % of abs(expected), floor 1 × 10⁻⁵ kg.
+                        Severity: WARN.  Not gating.
+                        Skipped when hrr_kj_total is absent (older CSV schema).
+
+Rules — seventh slice
+---------------------
 O1  O2 bulk balance     Per room/log-interval: the change in O2 mass bulk
                         must equal the sum of tracked O2 fluxes:
                         Δo2_bulk = (o2[t] − o2[t−1]) × air_mass_kg
@@ -182,10 +203,11 @@ REQUIRED_COLS: dict[str, set[str]] = {
     "D1": {"co_kg", "co_generated_kg_total", "co_net_transport_kg_total", "co_exterior_removed_kg_total"},
     "E1": {"solid_fuel_remaining_MJ", "fuel_consumed_MJ_total"},
     "O1": {"o2", "air_mass_kg", "o2_consumed_bulk_kg_total", "o2_exterior_net_kg_total", "o2_net_transport_kg_total"},
+    "O2E1": {"o2_consumed_kg_total_all", "hrr_kj_total"},
     "S0": {"smoke_kg", "smoke_generated_total_kg", "smoke_vented_total_kg", "smoke_deposited_total_kg", "smoke_in_transit_kg"},
 }
 
-ALL_RULES: tuple[str, ...] = ("A2", "A3", "B1", "C1", "C2", "D1", "E1", "O1", "S0")
+ALL_RULES: tuple[str, ...] = ("A2", "A3", "B1", "C1", "C2", "D1", "E1", "O1", "O2E1", "S0")
 
 
 # ---------------------------------------------------------------------------
@@ -514,6 +536,90 @@ def _check_e1_fuel_balance_residual(rows: list[dict[str, str]]) -> list[Finding]
 
 
 # ---------------------------------------------------------------------------
+# Rule O2E1 — Thornton cross-check (OES vs CombustionSystem)
+# ---------------------------------------------------------------------------
+
+_O2E1_THORNTON_KG_PER_KJ = 0.076 / 1000.0   # 7.6e-5 kg O2 / kJ
+_O2E1_ABS_FLOOR_KG        = 1e-5
+_O2E1_REL_TOL             = 0.05
+
+
+def _check_o2e1_thornton_cross(rows: list[dict[str, str]]) -> list[Finding]:
+    """Per-room Thornton stoichiometry cross-check.
+
+    Between consecutive CSV rows (which may span many simulation steps):
+
+        delta_hrr_kj  = hrr_kj_total[t] − hrr_kj_total[t−1]       [kJ]
+        expected_o2   = delta_hrr_kj × 0.076 / 1000                [kg]
+        delta_o2_all  = o2_consumed_kg_total_all[t] − …[t−1]       [kg]
+        residual      = |delta_o2_all − expected_o2|
+
+    hrr_kj_total is accumulated by CombustionSystem as hrr_kw × dt per step.
+    o2_consumed_kg_total_all is accumulated by OES across all combustion O2
+    depletion paths (bulk, upper, lower, plume), each computed as
+    hrr_kw × dt × 0.076 / 1000.  Both subsystems read the same room.hrr_kw,
+    so near-perfect agreement is expected.
+
+    The check acts as a cross-subsystem regression guard: if a future refactor
+    causes OES or CombustionSystem to use a different HRR value, or applies
+    the wrong Thornton constant, or double-counts a path, the residual grows.
+
+    OES caps per-step consumption at 5 % of bulk O2 mass (20 % upper), so
+    delta_o2_all may fall slightly below expected in O2-depleted conditions.
+    Tolerance: 5 % of abs(expected), floor 1 × 10⁻⁵ kg.
+
+    Skipped rows where both delta_hrr_kj and delta_o2_all are zero (no fire,
+    or pre-ignition steps).
+
+    Severity: WARN.  Not gating.
+    """
+    by_room: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for row in rows:
+        by_room[row.get("room_id", "?").strip()].append(row)
+
+    findings: list[Finding] = []
+    for room_id, room_rows in by_room.items():
+        room_rows.sort(key=lambda r: _float(r, "time_s"))
+        prev = room_rows[0]
+        for curr in room_rows[1:]:
+            hrr_kj_curr  = _float(curr, "hrr_kj_total")
+            hrr_kj_prev  = _float(prev, "hrr_kj_total")
+            o2_all_curr  = _float(curr, "o2_consumed_kg_total_all")
+            o2_all_prev  = _float(prev, "o2_consumed_kg_total_all")
+
+            delta_hrr_kj = hrr_kj_curr - hrr_kj_prev
+            delta_o2_all = o2_all_curr - o2_all_prev
+
+            # Skip pre-ignition and post-extinction rows where nothing changed.
+            if delta_hrr_kj <= 0.0 and delta_o2_all <= 0.0:
+                prev = curr
+                continue
+
+            expected_o2 = delta_hrr_kj * _O2E1_THORNTON_KG_PER_KJ
+            residual    = abs(delta_o2_all - expected_o2)
+            magnitude   = max(abs(expected_o2), _O2E1_ABS_FLOOR_KG)
+            threshold   = max(_O2E1_ABS_FLOOR_KG, _O2E1_REL_TOL * magnitude)
+
+            if residual > threshold:
+                findings.append(Finding(
+                    time_s=_float(curr, "time_s"),
+                    room_id=room_id,
+                    rule_id="O2E1",
+                    severity="WARN",
+                    metric="thornton_cross_residual_kg",
+                    value=round(residual, 9),
+                    reason=(
+                        f"delta_hrr_kj={delta_hrr_kj:.4g} kJ  "
+                        f"expected_o2(Thornton)={expected_o2:.4g} kg  "
+                        f"delta_o2_all(OES)={delta_o2_all:.4g} kg  "
+                        f"residual={residual:.3g} kg  tol={threshold:.3g} kg"
+                    ),
+                ))
+            prev = curr
+    return findings
+
+
+# ---------------------------------------------------------------------------
 # Rule O1 — O2 bulk mass balance
 # ---------------------------------------------------------------------------
 
@@ -760,6 +866,8 @@ def find_physics_coherence_issues(
         findings.extend(_check_e1_fuel_balance_residual(rows))
     if "O1" in active and _has_cols(headers, REQUIRED_COLS["O1"]):
         findings.extend(_check_o1_o2_bulk_balance(rows))
+    if "O2E1" in active and _has_cols(headers, REQUIRED_COLS["O2E1"]):
+        findings.extend(_check_o2e1_thornton_cross(rows))
     if "S0" in active and _has_cols(headers, REQUIRED_COLS["S0"]):
         findings.extend(_check_s0_smoke_global_conservation(rows))
 
