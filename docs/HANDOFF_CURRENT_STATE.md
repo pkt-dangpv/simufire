@@ -6,6 +6,69 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update — 2026-06-27 (rev 17 — O2E1 Thornton cross-check corpus audit)
+
+### Estado operativo actual
+
+- Branch: `main`, limpio. HEAD: `90c436a` — `feat(o2e1): add O2E1 Thornton cross-check between CombustionSystem and OES`.
+- `validate_reference_cases`: **349/354 PASS** — los 5 FAIL son los `VALID_GAP` conocidos (sin cambio).
+- Unit tests Python: **155 PASS** (incluye 15 tests `TestCheckO2E1`).
+- Physics coherence audit (11 CSVs): 8 WARN (O2E1), 3 PASS (old schema, skip graceful), **0 FAIL**.
+
+### O2E1 Thornton cross-check — resultado corpus
+
+Regla nueva `O2E1` (WARN, no gating). Cruza `o2_consumed_kg_total_all` (OES) con `hrr_kj_total * 7.6e-5 kg/kJ` (CombustionSystem tracking).
+
+Instrumentación añadida al CSV sin cambiar física:
+- `room.hrr_kj_total` en RoomModel — tracking-only, acumula `maxf(0, room.hrr_kw) * dt` en CombustionSystem.
+- Exportado via StateBuilder + columna nueva `hrr_kj_total` en LogWriter CSV.
+
+Corpus audit 2026-06-27 (11 CSVs):
+
+| CSV | O2E1 resultado | Worst residual |
+|---|---|---|
+| `cfast_ilv_audit` | 439 WARN | 1.019e-05 kg |
+| `fp_ilv_open_partial_window` | 279 WARN | 1.948e-05 kg |
+| `fp_ilv_upper_throttle_off` | 280 WARN | 1.751e-05 kg |
+| `fp_ilv_upper_throttle_on` | 34 WARN | 1.751e-05 kg |
+| `fuel_balance_diag_sealed` | 60 WARN | 1.523e-05 kg |
+| `layer_interface_single_room_window` | 36 WARN | 1.789e-05 kg |
+| `o2_stoich_diag_sealed` | 60 WARN | 1.523e-05 kg |
+| `v5_m4_ventilation_throttle` | 120 WARN | 1.523e-05 kg |
+| `ilv_open_window_repro` | PASS (old schema) | — |
+| `p2h_diag_off` | PASS (old schema) | — |
+| `p2h_diag_on` | PASS (old schema) | — |
+
+**Root cause identificado**: en modo two-zone estándar (`lower_frac ≥ 0.15`, no `plume_lower`, no `two_zone_solver`), OES acumula en `o2_consumed_kg_total_all` dos veces por paso:
+1. Línea 362: bulk path `consumed = (hrr_kw/1000) * cr * dt`
+2. Línea 407: upper-zone path `upper_consumed = (hrr_kw/1000) * cr_upper * dt`
+
+Resultado: `o2_consumed_kg_total_all ≈ 2 × Thornton`. Los residuales (1–2 × 10⁻⁵ kg) cruzan el piso absoluto `1e-5` pero son pequeños. El acumulador `o2_consumed_bulk_kg_total` (usado por O1) **no está afectado** — solo acumula el bulk path.
+
+### Reglas coherencia física — estado actualizado
+
+| Regla | Severidad | Estado |
+|---|---|---|
+| `B1` inversión térmica fuerte | FAIL | Gating |
+| `C1` FED suma | FAIL | Gating |
+| `C2` FED monotónica | FAIL | Gating |
+| `A2` HRR sin combustible | FAIL | Gating |
+| `A3` régimen vs O2 superior crítico | FAIL | Gating |
+| `D1` balance de CO por sala/paso | FAIL | Gating |
+| `E1` balance de combustible sólido | FAIL | Gating |
+| `S0` conservación de humo global | FAIL | Gating |
+| `O1` balance masa O2 bulk | WARN | Clean (11/11 PASS) |
+| `O2E1` cross-check Thornton HRR↔O2 | WARN | 8/11 WARN findings (double-accounting) |
+
+### Próxima sesión recomendada
+
+1. Decidir si se aborda el double-accounting de `o2_consumed_kg_total_all` (fix: separar acumuladores bulk y upper, usar solo uno para Thornton).
+2. Regenerar CSVs restantes con schema nuevo (`ilv_open_window_repro`, `p2h_diag_*`) para completar el corpus de 11/11.
+3. O2E1 se queda como WARN hasta que el double-accounting esté resuelto y el corpus esté limpio.
+4. No promover O2E1 a FAIL sin un plan explícito de fix + re-audit.
+
+---
+
 ## Current Session Update — 2026-06-25 (rev 16 — Physics coherence + D1 CO balance gating)
 
 ### Estado operativo actual

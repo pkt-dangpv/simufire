@@ -201,6 +201,31 @@ Important fixes found while closing O1:
 - Dual-track risk: `o2_upper` (fraction) and `upper_o2_mass_tracked` (mass) may diverge if `canonical_o2_upper_updated` flag handling fails.
 - Option C (canonical mass redesign) needed to fully separate combustion/transport/dilution paths.
 
+### O2E1 Thornton cross-check — OPEN AS WARN (2026-06-27)
+
+O2E1 cross-checks `o2_consumed_kg_total_all` (OES all-paths accumulator) against the Thornton prediction derived from `hrr_kj_total` (CombustionSystem tracking-only accumulator). Rule:
+
+```text
+expected_o2 = delta(hrr_kj_total) * 7.6e-5  (kg/kJ — Thornton 13.1 MJ/kg O2)
+residual    = |delta(o2_consumed_kg_total_all) - expected_o2|
+tolerance   = max(1e-5, 0.05 * |expected_o2|)
+```
+
+Status after corpus audit (2026-06-27):
+
+- **11 CSVs audited**: 8 WARN, 3 PASS (old schema — no `hrr_kj_total` column, graceful skip).
+- **0 FAIL findings** (O2E1 is WARN-only, not gating).
+- **1308 WARN findings** across the 8 cases with `hrr_kj_total`.
+- **Root cause identified**: in standard two-zone mode (`lower_frac ≥ 0.15`, not `plume_lower`, not `two_zone_solver`), OES accumulates Thornton O2 in **both** the bulk path (line 362, `room.o2_consumed_kg_total_all += consumed`) and the upper-zone path (line 407, `room.o2_consumed_kg_total_all += upper_consumed`). Each uses the same formula `(hrr_kw/1000) * cr * dt`, so `o2_consumed_kg_total_all ≈ 2 × Thornton`. The `o2_consumed_bulk_kg_total` (O1 rule) is not affected because it only accumulates from the bulk path.
+- **Max residual**: `1.948e-5 kg` (`fp_ilv_open_partial_window`, t=10s, room 2). All residuals are small (1–2 × 10⁻⁵ kg), but exceed the `1e-5` absolute floor.
+
+Open items:
+
+- O2E1 is not FAIL-gating. Keep as WARN until root cause is addressed.
+- Fix path: restructure `o2_consumed_kg_total_all` to accumulate net O2 removed from the room (not additive across parallel paths that represent the same fire consumption event). Requires explicit plan — do not touch without one.
+- Alternative: create separate accumulators `o2_consumed_bulk_total` + `o2_consumed_upper_total` and use only one for Thornton cross-check.
+- Promotion to FAIL requires: (a) fix the double-accounting in `o2_consumed_kg_total_all`, (b) clean corpus re-audit across ≥ 11 cases including backdraft and pool release.
+
 ## 3. CO, CO2 And HCN
 
 Items to check:
