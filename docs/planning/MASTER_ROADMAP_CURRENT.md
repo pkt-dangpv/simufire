@@ -257,16 +257,22 @@ Corpus diagnostico completado (2026-06-27). Resultados:
 
 | Criterio | Caso | Resultado |
 |---|---|---|
-| C1 backdraft/pool-release | v1_backdraft_accumulation | ❌ A3 FAIL — pool release no activo |
+| C1 backdraft/pool-release | v1_m4_pool_release | ⚠️ Path ejercitado (CTRL) — O2E1 limpio durante backdraft; zombie A3 post-evento |
 | C2 larga duracion ≥ 600 s | cfast_slow_growth_sealed | ✅ PASS total |
 | C3 multi-room O2 exchange | cfast_two_room_door_open | O2E1 ✅ PASS; O1 247 WARNs (gap multi-room) |
 | C4 effective_plume_lower | fp_ilv_open_partial_window | ✅ Ya en suite, PASS |
 
-Pendiente para promocion O2E1:
+**Decision C1 cerrada (2026-06-27):** `v1_m4_pool_release` confirma que el motor ejecuta correctamente el path backdraft/pool-release (`backdraft_triggered=1` a t=350s, pico HRR 21 369 kW, pool agotado en t=355s, O2E1 limpio durante el evento). El zombie A3 que reaparece post-evento es un bug de motor separado — ambos casos marcados CTRL. **O2E1 permanece WARN.**
 
-1. Resolver C1: diagnosticar por que `retained_unburned_MJ=0` en v1_backdraft (pool release no activa). Ajustar el caso o buscar uno alternativo que ejerza correctamente el backdraft pool release.
-2. Investigar A3 en v1_backdraft: motor mantiene FULLY_DEVELOPED con o2=0.09% — puede requerir fix de transicion de regimen.
-3. Una vez C1 cubierto sin A3 FAIL: proponer plan de promocion O2E1 → FAIL.
+Bloqueo para O2E1 → FAIL:
+
+- C1 "path exercised" pero no "clean promotion evidence": los 5 O2E1 WARN post-backdraft son consecuencia del zombie A3, no de un fallo de Thornton. La promocion requiere un caso backdraft/pool-release completo sin A3 zombie post-evento, o una politica de exclusion explicita aprobada.
+- Requisito minimo para promover: (a) caso C1 que sale exit 0 en check_physics_coherence, o (b) decision documentada de que O2E1 WARN del zombie no bloquea la promocion porque ocurren fuera de la ventana de backdraft.
+
+Proximo experimento para C1 limpio — dos opciones:
+
+1. **Fix A3 zombie en motor**: `CombustionSystem.gd` no transiciona regimen cuando `o2_upper < fire_o2_min_for_flame` con plume_lower activo. Un guard explicito (`if o2_upper < threshold: force ILV_LATENT`) eliminaría el zombie y permitiria un run limpio. Requiere plan de motor antes de tocar `sim/fire/`.
+2. **Politica de exclusion**: documentar formalmente que los WARN del zombie post-backdraft no son evidencia contra Thornton (O2 ya estaba capeado, no hay consumo real — el WARN es un artefacto del zombie, no de la fisica). Requiere revision del criterio de exclusion antes de cambiar severity.
 
 Otras reglas pendientes en el bloque O2/energia:
 

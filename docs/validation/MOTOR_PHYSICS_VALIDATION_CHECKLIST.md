@@ -265,13 +265,17 @@ Estado de criterios WARN→FAIL (actualizado):
 | C3 multi-room O2 exchange | ✅ Cubierto para O2E1 — `cfast_two_room_door_open` O2E1 PASS |
 | C4 effective_plume_lower | ✅ Cubierto — `fp_ilv_open_partial_window` PASS |
 
-Criteria for promotion to FAIL:
+**Decision C1 — cerrada (2026-06-27):** C1 queda marcado como "path exercised, not clean promotion evidence." `v1_m4_pool_release` confirma que el motor ejecuta correctamente el path backdraft/pool-release (O2E1 limpio durante t=340-360 s). El zombie A3 que reaparece post-evento no es evidencia contra Thornton — ocurre fuera de la ventana de backdraft, en una fase en que O2 ya estaba capeado a cero. Ambos casos de control registrados en `KNOWN_INTENTIONAL_CONTROLS`. **O2E1 permanece WARN.**
 
-1. O2E1 must remain PASS on a corpus that includes at least: a backdraft or pool-release case, a long-duration case (≥ 600 s), a multi-room case with inter-room O2 exchange, and a case with `effective_plume_lower` or `fire_uses_lower_o2` active.
-2. Tolerance review: confirm that the 5 % relative / `1e-5` absolute floor is appropriate for the wider corpus (particularly under O2-depletion and cap-active conditions).
-3. Explicit promotion plan agreed before touching `severity`.
+**Criterios de promocion O2E1 WARN → FAIL** (todos deben cumplirse):
 
-C1 is partially satisfied: the backdraft/pool-release code path is exercised in `v1_m4_pool_release`. The remaining question for promotion is whether to require a clean O2E1 PASS throughout the case (which would require fixing the A3 zombie engine issue) or to accept that O2E1 is clean during the backdraft window and the post-event WARNs are a documented engine limitation (CTRL).
+1. **C1 clean run o exclusion policy aprobada**: O2E1 debe estar PASS en un caso backdraft/pool-release que salga exit 0 en `check_physics_coherence.py`, o debe existir una decision documentada de que los WARN del zombie post-backdraft no son bloqueantes (porque ocurren fuera de la ventana del evento y son consecuencia de un bug de motor separado, no de Thornton).
+2. **C2–C4 cubiertos** — ya cumplidos: `cfast_slow_growth_sealed`, `cfast_two_room_door_open` (O2E1), `fp_ilv_open_partial_window`.
+3. **Tolerance review**: confirmar que el 5 % relativo / `1e-5` absoluto es apropiado para el corpus ampliado (especialmente bajo deplecion de O2 y cap activo).
+4. **Plan explicito de promocion** acordado antes de tocar `severity`.
+
+**Que bloquea O2E1 → FAIL ahora:**
+C1 path exercised pero no clean: `v1_m4_pool_release` tiene 5 O2E1 WARN en la fase zombie post-backdraft. Eliminar ese bloqueo requiere: (a) fix del bug A3 motor (`CombustionSystem.gd`: guard de transicion de regimen cuando `o2_upper < fire_o2_min_for_flame` con plume_lower activo), o (b) decision formal documentada de exclusion (zombie WARNs != fallo Thornton).
 
 Open items:
 

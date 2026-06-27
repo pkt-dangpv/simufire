@@ -33,10 +33,22 @@ Estado criterios WARN→FAIL O2E1 actualizado:
 | C3 multi-room O2 exchange | ✅ O2E1 PASS en `cfast_two_room_door_open` |
 | C4 effective_plume_lower | ✅ `fp_ilv_open_partial_window` PASS |
 
-### Próxima sesión recomendada
+### Decisión C1 cerrada
 
-1. **Plan de promoción O2E1 → FAIL**: C1 está parcialmente cubierto (path ejercitado). Para completar C1 limpiamente se necesita: (a) fix del bug A3 motor, o (b) aceptar que O2E1 está limpio durante la ventana de backdraft y documentar explícitamente que los WARNs post-evento son una consecuencia del zombie, no de O2E1.
-2. Resolver gap O1 multi-room (no urgente hasta promover O1 a FAIL).
+**C1 = "path exercised, not clean promotion evidence."** El backdraft/pool-release fue ejercitado exitosamente en `v1_m4_pool_release`. O2E1 está limpio durante el evento (t=340-360 s). Los 5 O2E1 WARN post-evento son consecuencia del zombie A3 (bug de motor separado), no de un fallo de Thornton. **O2E1 permanece WARN.** No se promueve hasta tener C1 limpio o política de exclusión aprobada.
+
+**Próxima sesión recomendada**
+
+Para desbloquear O2E1 → FAIL, elegir una vía:
+
+**Vía A (recomendada) — Fix A3 zombie:**  
+`CombustionSystem.gd` no transiciona régimen cuando `o2_upper < fire_o2_min_for_flame` con plume_lower activo. Añadir un guard explícito (`if o2_upper < threshold: force ILV_LATENT`) eliminaría el zombie. Requiere plan de motor explícito antes de tocar `sim/fire/`. Con A3 resuelto, `v1_m4_pool_release` (o una variante) produciría un run limpio y cerraría C1.
+
+**Vía B — Política de exclusión:**  
+Documentar formalmente que los WARN del zombie post-backdraft no son bloqueantes para la promoción: ocurren fuera de la ventana del evento, O2 ya estaba capeado (no hay consumo real posible), y son artefacto del bug A3, no de la coherencia Thornton. Requiere decisión explícita documentada.
+
+Otros pendientes (no bloqueantes para O2E1):
+- Resolver gap O1 multi-room (no urgente hasta promover O1 a FAIL).
 
 ---
 
