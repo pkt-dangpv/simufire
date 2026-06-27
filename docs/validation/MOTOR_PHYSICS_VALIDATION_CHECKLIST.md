@@ -201,29 +201,47 @@ Important fixes found while closing O1:
 - Dual-track risk: `o2_upper` (fraction) and `upper_o2_mass_tracked` (mass) may diverge if `canonical_o2_upper_updated` flag handling fails.
 - Option C (canonical mass redesign) needed to fully separate combustion/transport/dilution paths.
 
-### O2E1 Thornton cross-check — OPEN AS WARN (2026-06-27)
+### O2E1 Thornton cross-check — WARN-CLEAN (2026-06-27, commits 90c436a + 88ce7d7)
 
-O2E1 cross-checks `o2_consumed_kg_total_all` (OES all-paths accumulator) against the Thornton prediction derived from `hrr_kj_total` (CombustionSystem tracking-only accumulator). Rule:
+O2E1 cross-checks `o2_consumed_fire_kg_total` (OES primary-path accumulator) against the Thornton prediction derived from `hrr_kj_total` (CombustionSystem tracking-only accumulator).
 
 ```text
 expected_o2 = delta(hrr_kj_total) * 7.6e-5  (kg/kJ — Thornton 13.1 MJ/kg O2)
-residual    = |delta(o2_consumed_kg_total_all) - expected_o2|
+residual    = |delta(o2_consumed_fire_kg_total) - expected_o2|
 tolerance   = max(1e-5, 0.05 * |expected_o2|)
 ```
 
-Status after corpus audit (2026-06-27, post-fix commit 88ce7d7):
+Why `o2_consumed_fire_kg_total` and not `o2_consumed_kg_total_all`:
 
-- **11/11 PASS, 0 WARN, 0 FAIL** — corpus fully clean after fix.
-- Prior state (commit f557c2a, before fix): 8 WARN, 3 PASS (old schema), 1308 WARN findings, max residual 1.95e-5 kg.
-- **Root cause resolved**: `o2_consumed_kg_total_all` double-counted in standard two-zone mode (bulk + upper both accumulated). Fixed by introducing `o2_consumed_fire_kg_total` — a tracking-only primary-path accumulator that captures exactly ONE Thornton unit per step: bulk if bulk ran; lower/plume/upper if bulk was blocked by the respective flag.
-- `o2_consumed_kg_total_all` and `o2_consumed_bulk_kg_total` (O1) remain unchanged.
+`o2_consumed_kg_total_all` accumulates from every OES depletion path per step. In standard two-zone mode (`lower_frac ≥ 0.15`, no special flags), OES runs both the bulk path (OES line 362) and the upper-zone path (OES line 407) with the same full Thornton formula, making `*_all ≈ 2 × Thornton`. This is a pre-existing tracking issue, not a physics bug (both zone layers do lose O2), but it makes O2E1 compare against the wrong magnitude.
+
+`o2_consumed_fire_kg_total` captures exactly ONE Thornton unit per step by selecting the primary depletion path:
+
+| Condition | Primary path | Rationale |
+|---|---|---|
+| Default (bulk ran) | bulk (`o2_consumed_bulk_kg_step`) | bulk always runs in homogeneous and standard two-zone |
+| `fire_uses_lower_o2` | lower (`consumed_lower`) | bulk is blocked by this flag |
+| `effective_plume_lower` | plume (`plume_consumed`) | bulk is blocked by this flag |
+| `_phase2b_upper_active` only | upper (`upper_consumed`) | bulk is blocked by this flag |
+
+Status:
+
+- **11/11 PASS, 0 WARN, 0 FAIL** — corpus fully clean after fix (2026-06-27).
+- Prior state before fix: 8 WARN, 1308 false WARN findings, max residual 1.95e-5 kg.
+- `o2_consumed_kg_total_all` and `o2_consumed_bulk_kg_total` (O1) unchanged.
 - Tests: 157 PASS (includes `test_two_zone_double_count_does_not_warn`, `test_old_o2_consumed_all_col_alone_skips_gracefully`).
+- No physics change. No O1 impact.
+
+Criteria for promotion to FAIL:
+
+1. O2E1 must remain PASS on a corpus that includes at least: a backdraft or pool-release case, a long-duration case (≥ 600 s), a multi-room case with inter-room O2 exchange, and a case with `effective_plume_lower` or `fire_uses_lower_o2` active.
+2. Tolerance review: confirm that the 5 % relative / `1e-5` absolute floor is appropriate for the wider corpus (particularly under O2-depletion and cap-active conditions).
+3. Explicit promotion plan agreed before touching `severity`.
 
 Open items:
 
-- O2E1 is not FAIL-gating. Keep as WARN until validated across a broader corpus (backdraft, pool release, multi-floor).
-- `o2_consumed_kg_total_all` still double-counts in two-zone mode — not fixed (tracking issue, not physics). If a future rule needs "actual total O2 removed from all zones per Thornton step," it should use `o2_consumed_fire_kg_total`, not `*_all`.
-- Promotion to FAIL requires: (a) clean corpus re-audit across ≥ broader scenarios, (b) explicit plan.
+- `o2_consumed_kg_total_all` still double-counts in two-zone mode — not fixed (tracking issue, not physics). Future rules needing "one Thornton unit" must use `o2_consumed_fire_kg_total`, not `*_all`.
+- `upper_o2_mass_tracked` remains orphaned — not used in combustion, not exported to CSV.
 
 ## 3. CO, CO2 And HCN
 

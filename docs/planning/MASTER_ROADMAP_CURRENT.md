@@ -26,15 +26,14 @@ Antes de tocar motor:
 ## Estado actual conocido
 
 - Rama esperada: `main`, sincronizada con `origin/main`.
-- Handoff vigente: `docs/HANDOFF_CURRENT_STATE.md` rev 16.
-- Ultimo estado documentado: physics coherence + D1 CO balance gating, O1 bulk O2 WARN-clean.
+- Handoff vigente: `docs/HANDOFF_CURRENT_STATE.md` rev 18.
+- Ultimo estado documentado: O2E1 Thornton cross-check WARN-clean 11/11 (2026-06-27, commits 88ce7d7 + 1c6c419).
 - Suite referencia: **349/354 PASS**.
 - Los 5 FAIL restantes son los `VALID_GAP` conocidos:
   - Grupo A: O2 en `cfast_r0_window_360`.
   - Grupo C: temperatura en `cfast_corridor_chain`.
-- Physics coherence audit: **5/5 PASS**, 0 FAIL, D1 ya `FAIL`/gating.
-- Full reference suite: 18 casos lanzados, 17 OK y 1 timeout preexistente (`long_burnout_3600s`).
-- Tests Python de la fase physics coherence: **221/221 PASS**.
+- Physics coherence audit: **11/11 PASS**, 0 WARN, 0 FAIL. Reglas FAIL/gating: B1, C1, C2, A2, A3, D1, E1, S0. WARN-clean: O1, O2E1.
+- Tests Python: **157 PASS**.
 
 ## Cambio de enfoque
 
@@ -62,7 +61,7 @@ Archivos:
 - `scripts/simulation/audit_physics_coherence_suite.py`
 - `tests/test_check_physics_coherence.py`
 
-Reglas gating cerradas:
+Reglas vigentes:
 
 | Regla | Severidad | Estado |
 |---|---|---|
@@ -72,6 +71,10 @@ Reglas gating cerradas:
 | `A2` HRR sin combustible | FAIL | Gating |
 | `A3` regimen vs O2 superior critico | FAIL | Gating |
 | `D1` balance CO por sala/paso | FAIL | Gating |
+| `E1` balance combustible solido | FAIL | Gating |
+| `S0` conservacion humo global | FAIL | Gating |
+| `O1` balance masa O2 bulk | WARN | Clean 11/11, no gating |
+| `O2E1` cross-check Thornton HRR↔O2 | WARN | Clean 11/11, no gating |
 
 ### Auditor ILV por capas
 
@@ -147,6 +150,39 @@ Decision:
 - E1 valida `solid_fuel_remaining_MJ` contra `fuel_consumed_MJ_total`.
 - No usar `fuel_remaining_MJ` legacy visible como fuente principal: puede incluir retained/unburned/object state y dar falsos residuales.
 
+### O2E1 Thornton cross-check HRR↔O2
+
+Estado: **WARN-clean**, no `FAIL`/gating todavia.
+
+Invariante:
+
+```text
+expected_o2   = delta(hrr_kj_total) * 7.6e-5   (Thornton: kg O2 / kJ HRR)
+delta_o2_fire = delta(o2_consumed_fire_kg_total)
+residual      = |delta_o2_fire - expected_o2|
+tolerance     = max(1e-5, 0.05 * |expected_o2|)
+```
+
+Columnas clave:
+
+- `hrr_kj_total` — acumulado por CombustionSystem como `maxf(0, hrr_kw) * dt`. Tracking-only.
+- `o2_consumed_fire_kg_total` — acumulado por OES via path primario (una unidad Thornton por paso). Tracking-only.
+
+Por que `*_fire` y no `*_all`: `o2_consumed_kg_total_all` acumula todas las rutas OES. En modo two-zone estandar (bulk + upper ambos activos), acumula 2× Thornton. El acumulador `*_fire` selecciona solo el path primario: bulk si corrio; de lo contrario lower/plume/upper segun el flag activo.
+
+Resultado actual:
+
+- 11/11 PASS.
+- 0 O2E1 findings.
+- No cambio de fisica. O1 intacto.
+- 157 tests PASS.
+
+Criterios para promover a FAIL:
+
+1. O2E1 PASS en corpus que incluya: backdraft o pool-release, caso largo (≥ 600 s), caso multi-room con intercambio O2, caso con `effective_plume_lower` o `fire_uses_lower_o2` activos.
+2. Revision de tolerancias bajo condiciones de O2 bajo y cap activo.
+3. Plan explicito de promocion antes de tocar `severity`.
+
 ### O1 bulk O2 balance
 
 Estado: **WARN-clean**, no `FAIL`/gating todavia.
@@ -209,24 +245,30 @@ No cambiar tolerancias ni reclasificar estos FAIL sin decision cientifica explic
 
 ## Proxima linea recomendada
 
-### Prioridad 1 - O2 + energia/HRR
+### Prioridad 1 - O2 + energia/HRR  *(O2E1 completada)*
 
 Motivo: tras cerrar D1/S0 y dejar O1 WARN-clean, el siguiente bloque natural es cerrar la coherencia entre combustible, HRR, consumo O2 y energia entregada.
 
-Primeros pasos:
+**O2E1 ya esta completada** (2026-06-27, WARN-clean 11/11). Fue la primera regla de este bloque.
 
-1. Inventariar columnas CSV/JSON ya disponibles para HRR/energia/O2.
-2. Separar consumo O2 bulk, upper, lower y plume.
-3. Definir si la proxima regla sera WARN o FAIL.
-4. No anadir una segunda ruta fisica de consumo O2: OES ya aplica Thornton rate.
-5. Evitar doble conteo con `fire_o2_stoich_consumption_enabled`, que ahora debe tratarse como tracking/diagnostico.
+Siguiente paso en este bloque:
 
-Posibles reglas:
+Ampliar el corpus de O2E1 y O1 antes de la promocion a FAIL:
 
-- HRR x dt vs consumo de combustible solido.
-- O2 consumido por combustion vs energia liberada.
-- No HRR sostenido con combustible solido agotado y pool no disponible.
-- Coherencia entre `solid_pyrolysis_kw`, `fresh_flame_target_kw`, `smolder_hrr_target_kw`, `pool_release_hrr_target_kw` y `hrr_kw`.
+1. Generar y auditar un caso con `effective_plume_lower` o `fire_uses_lower_o2` activos para validar el path primario alternativo.
+2. Generar un caso de larga duracion (≥ 600 s) con fuego sostenido.
+3. Si ambos son WARN-clean: proponer plan de promocion O2E1 → FAIL.
+
+Otras reglas pendientes en el bloque O2/energia:
+
+- HRR x dt vs consumo de combustible solido (ya cubierto parcialmente por E1 en sentido inverso).
+- Coherencia entre `solid_pyrolysis_kw`, `fresh_flame_target_kw`, `smolder_hrr_target_kw`, `pool_release_hrr_target_kw` y `hrr_kw` — verificar que la suma de targets no exceda la generacion de pirolisis.
+- Balance zonal O2 (`o2_upper`/`o2_lower`) — pendiente, ver caveat "O1 no sustituye balance zonal".
+
+Restricciones vigentes:
+
+- No anadir una segunda ruta fisica de consumo O2: OES ya aplica Thornton rate.
+- `o2_consumed_kg_total_all` no es la fuente correcta para reglas de coherencia energetica: usar `o2_consumed_fire_kg_total`.
 
 ### Prioridad 2 - Corpus O1 ampliado
 
