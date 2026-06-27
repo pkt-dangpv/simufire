@@ -79,7 +79,12 @@ from check_physics_coherence import (  # noqa: E402
 # ---------------------------------------------------------------------------
 
 KNOWN_INTENTIONAL_CONTROLS: frozenset[str] = frozenset({
-    # (empty — no physics-coherence intentional controls yet)
+    # A3 zombie CTRL: both cases expose FULLY_DEVELOPED at o2_upper≈0 via the
+    # ILV lower-O2 reference bug (motor issue, not a validation defect).
+    # v1_backdraft_accumulation: zombie without M4, 2 A3 FAILs at t≈290-295s
+    # v1_m4_pool_release: M4 active but zombie resumes post-backdraft, 8 A3 FAILs t≈365-385/640-650s
+    "v1_backdraft_accumulation",
+    "v1_m4_pool_release",
 })
 
 

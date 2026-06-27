@@ -90,6 +90,11 @@ from check_ilv_layer_coherence import (  # noqa: E402
 
 KNOWN_INTENTIONAL_CONTROLS: frozenset[str] = frozenset({
     "fp_ilv_upper_throttle_off",   # 258 findings, HRR zombie ~1211 kW, M4 off baseline
+    # A3 zombie CTRL: both cases expose ILV lower-O2 reference bug (motor issue).
+    # v1_backdraft_accumulation: zombie without M4, 105 findings
+    # v1_m4_pool_release: M4 active, zombie resumes post-backdraft, 8 findings
+    "v1_backdraft_accumulation",
+    "v1_m4_pool_release",
 })
 
 

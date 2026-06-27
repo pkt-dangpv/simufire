@@ -6,7 +6,41 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
-## Current Session Update — 2026-06-27 (rev 19 — corpus diagnóstico O2E1/O1: 3 casos nuevos)
+## Current Session Update — 2026-06-27 (rev 20 — M4 pool-release path-exercise)
+
+### Estado operativo actual
+
+- Branch: `main`, HEAD: último commit de este bloque.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio.
+- Unit tests Python: sin regresión (5 FAIL + 1 ERROR pre-existentes).
+- Physics coherence suite: **exit 0** — 12 PASS, 2 CTRL (`v1_backdraft_accumulation`, `v1_m4_pool_release`), 1 WARN (`cfast_two_room_door_open`).
+- ILV suite: exit 1 (pre-existente: `fuel_balance_diag_sealed`, `o2_stoich_diag_sealed`). `v1_backdraft_accumulation` y `v1_m4_pool_release` registrados como CTRL.
+- Sin cambio de física. Sin cambio de motor.
+
+### M4 pool-release path-exercise `v1_m4_pool_release`
+
+- **Caso**: derivado de `v1_backdraft_accumulation` con gates relajados y M4 activo. `fire_backdraft_pool_threshold_MJ: 0.35`, `fire_backdraft_o2_max: 0.20`, `fire_backdraft_temp_min_c: 100.0`, `fire_backdraft_lfl: 0.001`, `fire_o2_upper_throttle_enabled: true`.
+- **Backdraft ejercitado**: `backdraft_triggered=1` a t=350 s, HRR spike 21.369 kW, pool exhaustado en t=355 s. Path ejecutado.
+- **Post-evento zombie (CTRL)**: tras agotar el pool el motor vuelve a `FULLY_DEVELOPED` con `o2_upper≈0.0008` — mismo bug A3 que `v1_backdraft_accumulation`. 8 A3 FAILs + 5 O2E1 WARNs (todos en fase zombie, no en ventana de backdraft). Ambos casos registrados en `KNOWN_INTENTIONAL_CONTROLS`.
+- **C1 parcialmente cubierto**: el path de backdraft/pool-release fue ejercitado exitosamente. Los O2E1 WARNs no son del backdraft propiamente, sino del zombie que continúa. C1 queda marcado "path ejercitado / zombie persiste post-backdraft".
+
+Estado criterios WARN→FAIL O2E1 actualizado:
+
+| Criterio | Estado |
+|---|---|
+| C1 backdraft / pool-release | ⚠️ Path ejercitado — zombie persiste post-backdraft (O2E1 WARNs en zombie, no en backdraft) |
+| C2 larga duración ≥ 600 s | ✅ `cfast_slow_growth_sealed` PASS |
+| C3 multi-room O2 exchange | ✅ O2E1 PASS en `cfast_two_room_door_open` |
+| C4 effective_plume_lower | ✅ `fp_ilv_open_partial_window` PASS |
+
+### Próxima sesión recomendada
+
+1. **Plan de promoción O2E1 → FAIL**: C1 está parcialmente cubierto (path ejercitado). Para completar C1 limpiamente se necesita: (a) fix del bug A3 motor, o (b) aceptar que O2E1 está limpio durante la ventana de backdraft y documentar explícitamente que los WARNs post-evento son una consecuencia del zombie, no de O2E1.
+2. Resolver gap O1 multi-room (no urgente hasta promover O1 a FAIL).
+
+---
+
+## Previous Session — 2026-06-27 (rev 19 — corpus diagnóstico O2E1/O1: 3 casos nuevos)
 
 ### Estado operativo actual
 
@@ -50,15 +84,9 @@ Estado criterios WARN→FAIL O2E1:
 | C3 multi-room O2 exchange | ✅ O2E1 PASS en `cfast_two_room_door_open` |
 | C4 effective_plume_lower | ✅ `fp_ilv_open_partial_window` PASS |
 
-### Próxima sesión recomendada
-
-1. Investigar por qué `v1_backdraft_accumulation` no acumula `retained_unburned_MJ` — el pool release requiere que el fuego se extingan primero. Puede requerir ajuste del caso (no del motor).
-2. Resolver gap O1 multi-room (no urgente hasta promover O1 a FAIL).
-3. Una vez C1 cubierto: proponer plan de promoción O2E1 → FAIL.
-
 ---
 
-## Current Session Update — 2026-06-27 (rev 18 — O2E1 fix: o2_consumed_fire_kg_total)
+## Previous Session — 2026-06-27 (rev 18 — O2E1 fix: o2_consumed_fire_kg_total)
 
 ### Estado operativo actual
 

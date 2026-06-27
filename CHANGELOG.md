@@ -4,6 +4,14 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### M4 pool-release path-exercise case `v1_m4_pool_release` (2026-06-27)
+
+- **Caso `v1_m4_pool_release`**: path-exercise controlado que verifica que el motor ejecuta el camino backdraft/pool-release con M4 activo y gates relajados. Derivado de `v1_backdraft_accumulation` con overrides: `fire_o2_upper_throttle_enabled: true`, `fire_backdraft_pool_threshold_MJ: 0.35`, `fire_backdraft_o2_max: 0.20`, `fire_backdraft_temp_min_c: 100.0`, `fire_backdraft_lfl: 0.001`. No representativo de un backdraft real.
+- **Backdraft ejercitado**: `backdraft_triggered=1` a t=350 s. `retained_unburned_MJ` acumuló hasta 0.371 MJ (pool exhaustado en t=355 s), HRR spike a 21.369 kW. Path de código backdraft/pool-release confirmado activo.
+- **A3 zombie post-evento (CTRL)**: tras agotar el pool (t≥365 s) el motor vuelve a `FULLY_DEVELOPED` con `o2_upper=0.0008` — mismo zombie que `v1_backdraft_accumulation`. Los 8 A3 FAILs y 5 O2E1 WARNs son consecuencia del bug de motor (no de la física de backdraft). O2E1 no presenta WARNs durante la ventana de backdraft propiamente dicha (t=340-360 s).
+- **CTRL registrados**: `v1_backdraft_accumulation` y `v1_m4_pool_release` añadidos a `KNOWN_INTENTIONAL_CONTROLS` en `audit_physics_coherence_suite.py` y `audit_ilv_layer_coherence_suite.py`. Physics coherence suite pasa a exit 0 (antes exit 1 por v1_backdraft sin registrar).
+- **C1 parcialmente cubierto**: el path de backdraft/pool-release fue ejercitado. Los O2E1 WARNs persisten en la fase zombie post-evento. C1 queda marcado como "path ejercitado — zombie persiste post-backdraft" hasta que se aborde el bug A3 de motor.
+
 ### Corpus diagnóstico O2E1/O1 — 3 casos nuevos (2026-06-27)
 
 - **Ampliación de corpus O2E1/O1**: tres casos nuevos corridos para cubrir los criterios WARN→FAIL antes de promover O2E1. Sin cambio de física, motor, tolerancias ni baselines. Solo se actualizan los JSON de caso (añadido `csv_log_file_path`, `enable_logging`) y se generan los CSVs.

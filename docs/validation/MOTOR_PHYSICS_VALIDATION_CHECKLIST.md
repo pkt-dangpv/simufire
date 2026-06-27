@@ -241,7 +241,8 @@ Three new cases run to cover the WARN→FAIL promotion criteria:
 |---|---|---|---|---|---|
 | `cfast_slow_growth_sealed` | C2 larga duración ≥ 600 s + O2 sealed | 1800 s | PASS | PASS | ✅ Criterio cumplido |
 | `cfast_two_room_door_open` | C3 multi-room + intercambio O2 | 600 s | PASS | 247 WARN | O2E1 ✅; O1 gap (ver abajo) |
-| `v1_backdraft_accumulation` | C1 backdraft / pool-release | 650 s | 16 WARN | PASS | ❌ A3 FAIL (ver abajo) |
+| `v1_backdraft_accumulation` | C1 backdraft / pool-release | 650 s | 16 WARN | PASS | ❌ A3 FAIL (CTRL — ver abajo) |
+| `v1_m4_pool_release` | C1 backdraft path-exercise (M4) | 650 s | 5 WARN | PASS | ⚠️ Path ejercitado; WARNs en zombie post-backdraft (CTRL) |
 
 **C4** (`effective_plume_lower`): ya cubierto por `fp_ilv_open_partial_window` (280 pasos con path no-bulk activo, O2E1 PASS — en suite desde 2026-06-27).
 
@@ -251,13 +252,15 @@ Diagnóstico por caso:
 
 - **`cfast_two_room_door_open`** (O2E1 PASS, O1 247 WARNs): O2E1 no registra ningún hallazgo — criterio C3 cubierto para O2E1. Los 247 O1 WARNs son un gap conocido de la fórmula O1 en multi-room: el balance `(-dcons + dext + dtrans + dsync)` no captura completamente el intercambio O2 vía `canonical_doorway_exchange_enabled`. Residual O1 típico 0.11-0.12 kg vs. tolerancia 0.003-0.004 kg, presente en rooms 0-5 desde t=90s. Este gap es estructural — O1 bulk no fue diseñado para capturar O2 doorway transport. No es un fallo de física; es un límite del invariante O1. Ver "Open gaps O1" abajo.
 
-- **`v1_backdraft_accumulation`** (FAIL — A3 + O2E1 WARN): El motor mantiene `combustion_regime=FULLY_DEVELOPED` cuando `o2_upper=0.0009` (0.09%), violando la transición de régimen (`fire_o2_min_for_flame=0.10`). A3 captura correctamente esta incoherencia (2 FAIL a t=295-300 s). Los 16 O2E1 WARNs son consecuencia directa: el motor acumula `hrr_kj_total` a ~3425 kW mientras O2 está capeado a cero → `delta_o2_fire ≈ 40 %` del Thornton esperado (el restante no puede consumirse). **El pool release nunca activó** (`retained_unburned_MJ=0` en todo el CSV) — el caso no ejercita el escenario de backdraft/pool-release que motiva el criterio C1. C1 NO queda cubierto. El A3 FAIL es una nueva incoherencia descubierta durante la ampliación de corpus.
+- **`v1_backdraft_accumulation`** (CTRL — A3 + O2E1 WARN): Motor mantiene `FULLY_DEVELOPED` con `o2_upper=0.0009`. A3 captura la incoherencia. `retained_unburned_MJ=0` — pool release nunca activó. Registrado como CTRL en ambos audit suites.
 
-Estado de criterios WARN→FAIL tras corpus diagnóstico:
+- **`v1_m4_pool_release`** (CTRL — path-exercise): M4 activo, gates relajados (`fire_backdraft_pool_threshold_MJ: 0.35`, `fire_backdraft_o2_max: 0.20`, `fire_backdraft_temp_min_c: 100.0`, `fire_backdraft_lfl: 0.001`). `backdraft_triggered=1` a t=350 s, HRR pico 21.369 kW, `retained_unburned_MJ` agotado a t=355 s — **path de backdraft/pool-release ejercitado**. Post-evento: zombie A3 reanuda (mismo bug que v1_backdraft). 8 A3 FAILs + 5 O2E1 WARNs en fase zombie, no durante backdraft. Ambos casos registrados como CTRL en `KNOWN_INTENTIONAL_CONTROLS` de physics + ILV suites. Physics coherence suite ahora exit 0.
+
+Estado de criterios WARN→FAIL (actualizado):
 
 | Criterio | Estado |
 |---|---|
-| C1 backdraft / pool-release | ❌ Pendiente — pool release no activó; A3 bloquea el caso |
+| C1 backdraft / pool-release | ⚠️ Path ejercitado (`v1_m4_pool_release`) — O2E1 WARN en zombie post-backdraft, no en backdraft. CTRL. |
 | C2 larga duración ≥ 600 s | ✅ Cubierto — `cfast_slow_growth_sealed` PASS |
 | C3 multi-room O2 exchange | ✅ Cubierto para O2E1 — `cfast_two_room_door_open` O2E1 PASS |
 | C4 effective_plume_lower | ✅ Cubierto — `fp_ilv_open_partial_window` PASS |
@@ -268,7 +271,7 @@ Criteria for promotion to FAIL:
 2. Tolerance review: confirm that the 5 % relative / `1e-5` absolute floor is appropriate for the wider corpus (particularly under O2-depletion and cap-active conditions).
 3. Explicit promotion plan agreed before touching `severity`.
 
-C1 remains the only blocking criterion. Resolving it requires either fixing the engine regime transition at ultra-low O2 (so that pool release actually accumulates) or identifying a different case that exercises pool-release without triggering A3.
+C1 is partially satisfied: the backdraft/pool-release code path is exercised in `v1_m4_pool_release`. The remaining question for promotion is whether to require a clean O2E1 PASS throughout the case (which would require fixing the A3 zombie engine issue) or to accept that O2E1 is clean during the backdraft window and the post-event WARNs are a documented engine limitation (CTRL).
 
 Open items:
 
