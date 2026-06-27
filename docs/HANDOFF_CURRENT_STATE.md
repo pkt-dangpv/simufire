@@ -6,6 +6,37 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update — 2026-06-27 (rev 18 — O2E1 fix: o2_consumed_fire_kg_total)
+
+### Estado operativo actual
+
+- Branch: `main`, limpio. HEAD: `88ce7d7` — `fix(o2e1): add o2_consumed_fire_kg_total primary-path accumulator`.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio.
+- Unit tests Python: **157 PASS** (+2 tests O2E1).
+- Physics coherence audit: **11/11 PASS, 0 WARN, 0 FAIL** — O2E1 limpio tras fix.
+
+### O2E1 fix — o2_consumed_fire_kg_total
+
+Problema: `o2_consumed_kg_total_all` acumulaba dos veces en modo two-zone estándar (bulk + upper, misma fórmula Thornton) → 1308 WARNs falsos.
+
+Fix tracking-only (sin cambio de física):
+- Nuevo campo `room.o2_consumed_fire_kg_total` (+ step) en RoomModel.
+- OES selecciona path primario una vez por paso (en este orden de prioridad): bulk si corrió → lower si `fire_uses_lower_o2` → plume si `effective_plume_lower` → upper si `_phase2b_upper_active`. La asignación usa la variable local `_o2_fire_primary`.
+- Zeroed en CombustionSystem junto a los demás step accumulators.
+- Exportado en StateBuilder + CSV (columna nueva `o2_consumed_fire_kg_total`).
+- O2E1 ahora compara `o2_consumed_fire_kg_total` vs `hrr_kj_total * Thornton`.
+- `o2_consumed_kg_total_all` y `o2_consumed_bulk_kg_total` (O1) sin cambio.
+
+Corpus audit post-fix (11 CSVs regenerados con nuevo schema): **11/11 PASS, 0 WARN**.
+
+### Próxima sesión recomendada
+
+1. O2E1 está limpio. Siguiente regla de balance: candidatos = balance O2 por zona (upper/lower) o validación de temperatura two-zone.
+2. O2E1 puede considerarse para promoción a FAIL una vez el corpus incluya backdraft y pool release.
+3. No tocar `o2_consumed_kg_total_all` (sigue siendo raw sum, correcto para diagnóstico granular).
+
+---
+
 ## Current Session Update — 2026-06-27 (rev 17 — O2E1 Thornton cross-check corpus audit)
 
 ### Estado operativo actual
