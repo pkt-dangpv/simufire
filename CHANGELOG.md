@@ -4,6 +4,15 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### Corpus diagnóstico O2E1/O1 — 3 casos nuevos (2026-06-27)
+
+- **Ampliación de corpus O2E1/O1**: tres casos nuevos corridos para cubrir los criterios WARN→FAIL antes de promover O2E1. Sin cambio de física, motor, tolerancias ni baselines. Solo se actualizan los JSON de caso (añadido `csv_log_file_path`, `enable_logging`) y se generan los CSVs.
+- **`cfast_slow_growth_sealed` (C2) — PASS completo**: O2E1 y O1 PASS en 1800 s sellado. Confirma que el acumulador `o2_consumed_fire_kg_total` se mantiene dentro de la tolerancia Thornton bajo fuerte depleción de O2 y cap activo. Criterio C2 (larga duración ≥ 600 s) cubierto. Apto para suite permanente.
+- **`cfast_two_room_door_open` (C3) — O2E1 PASS, O1 247 WARNs**: O2E1 sin hallazgos — criterio C3 (multi-room con intercambio O2) cubierto para O2E1. Los 247 O1 WARNs exponen un gap estructural: la fórmula O1 no captura completamente el flujo O2 vía `canonical_doorway_exchange_enabled`. Residual típico 0.11-0.12 kg vs. tolerancia 0.003-0.004 kg, en todos los rooms desde t=90 s. Gap documentado — O1 no debe ser gating en multi-room con canonical doorway hasta resolverlo.
+- **`v1_backdraft_accumulation` (C1) — FAIL**: A3 (2 FAIL): motor mantiene `FULLY_DEVELOPED` con `o2_upper=0.0009` (0.09%), violando la transición de régimen con `fire_o2_min_for_flame=0.10`. Los 16 O2E1 WARNs son consecuencia directa: HRR acumula ~3425 kW mientras O2 está capeado a cero. `retained_unburned_MJ=0` en todo el CSV — el pool release nunca activa. Criterio C1 (backdraft/pool-release) NO cubierto.
+- **Nueva incoherencia A3 identificada**: motor no transiciona régimen cuando O2 baja a 0.09% — el fuego debería estar LATENTE pero permanece FULLY_DEVELOPED. Esta incoherencia es capturada por la regla A3 existente. No se corrige en esta sesión.
+- **Estado criterios WARN→FAIL**: C2 ✅ C3 ✅ C4 ✅ (fp_ilv_open_partial_window) — solo C1 pendiente.
+
 ### Physics validation — general coherence auditor and D1 CO balance (2026-06-25)
 
 - **General physics coherence auditor** — added `check_physics_coherence.py` and `audit_physics_coherence_suite.py`, integrated into the full reference suite. Current gating rules cover strong thermal inversion (`B1`), FED arithmetic (`C1`), FED monotonicity (`C2`), HRR without fuel (`A2`), regime vs critical upper-layer O2 (`A3`), and per-step CO mass balance (`D1`).

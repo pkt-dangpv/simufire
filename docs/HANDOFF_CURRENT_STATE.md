@@ -6,6 +6,58 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update — 2026-06-27 (rev 19 — corpus diagnóstico O2E1/O1: 3 casos nuevos)
+
+### Estado operativo actual
+
+- Branch: `main`, HEAD: último commit de este bloque.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio.
+- Unit tests Python: **157 PASS** — sin cambio.
+- Physics coherence audit: **14/14 PASS + 1 WARN + 1 FAIL** (con tmp incluidos, 16 CSVs).
+- Sin cambio de física. Sin cambio de motor.
+
+### Corpus diagnóstico O2E1/O1 — 3 casos nuevos
+
+Objetivo: cubrir criterios WARN→FAIL de O2E1 antes de promover severidad.
+
+Casos añadidos (solo CSV + JSON de caso actualizados):
+- `v1_backdraft_accumulation` — C1 backdraft/pool-release (650 s)
+- `cfast_slow_growth_sealed` — C2 larga duración (1800 s, sellada)
+- `cfast_two_room_door_open` — C3 multi-room + intercambio O2 (600 s)
+
+Resultados:
+
+| Caso | O2E1 | O1 | Diagnóstico |
+|---|---|---|---|
+| `cfast_slow_growth_sealed` | PASS | PASS | ✅ C2 cubierto. Apto para suite permanente. |
+| `cfast_two_room_door_open` | PASS | 247 WARN | O2E1 ✅ C3 cubierto. O1 gap en multi-room (ver abajo). |
+| `v1_backdraft_accumulation` | 16 WARN | PASS | ❌ A3 FAIL + O2E1 WARN consecuencia. Pool release no activó. C1 NO cubierto. |
+
+**C4** (`effective_plume_lower`): ya cubierto por `fp_ilv_open_partial_window` en suite (280 pasos path no-bulk, O2E1 PASS).
+
+Diagnósticos clave:
+
+- **`v1_backdraft_accumulation` — A3 FAIL**: Motor mantiene `FULLY_DEVELOPED` cuando `o2_upper=0.0009` (0.09%), violando `fire_o2_min_for_flame=0.10`. A3 captura la incoherencia. O2E1 WARNs son consecuencia: HRR acumula ~3425 kW pero O2 está capeado a cero → `delta_o2_fire ≈ 40%` Thornton. `retained_unburned_MJ=0` en todo el CSV — pool release nunca activa. C1 requiere caso distinto o fix de régimen.
+
+- **`cfast_two_room_door_open` — O1 gap multi-room**: El balance O1 (`-dcons + dext + dtrans + dsync`) no captura el flujo O2 vía `canonical_doorway_exchange_enabled`. Residual típico 0.11 kg vs. tolerancia 0.003 kg. Gap estructural de la fórmula O1 — no es bug de física. O1 no debe usarse como gating en casos multi-room con canonical doorway hasta resolver.
+
+Estado criterios WARN→FAIL O2E1:
+
+| Criterio | Estado |
+|---|---|
+| C1 backdraft / pool-release | ❌ Pendiente — A3 bloquea, pool release no activó |
+| C2 larga duración ≥ 600 s | ✅ `cfast_slow_growth_sealed` PASS |
+| C3 multi-room O2 exchange | ✅ O2E1 PASS en `cfast_two_room_door_open` |
+| C4 effective_plume_lower | ✅ `fp_ilv_open_partial_window` PASS |
+
+### Próxima sesión recomendada
+
+1. Investigar por qué `v1_backdraft_accumulation` no acumula `retained_unburned_MJ` — el pool release requiere que el fuego se extingan primero. Puede requerir ajuste del caso (no del motor).
+2. Resolver gap O1 multi-room (no urgente hasta promover O1 a FAIL).
+3. Una vez C1 cubierto: proponer plan de promoción O2E1 → FAIL.
+
+---
+
 ## Current Session Update — 2026-06-27 (rev 18 — O2E1 fix: o2_consumed_fire_kg_total)
 
 ### Estado operativo actual

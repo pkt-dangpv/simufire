@@ -197,6 +197,7 @@ Important fixes found while closing O1:
 
 - O1 is not yet FAIL-gating. Keep as WARN until it remains clean across a broader long-duration/multi-floor corpus.
 - O1 is a bulk balance rule. It does not replace future zonal O2 balance for `o2_upper`/`o2_lower`.
+- **Multi-room gap (2026-06-27)**: In `cfast_two_room_door_open` (canonical doorway exchange enabled), O1 produced 247 WARNs across all rooms from t=90 s. Residual 0.11-0.12 kg vs. tolerance ~0.003 kg. Root cause: the O1 balance formula `(-dcons + dext + dtrans + dsync)` does not fully account for the O2 moved by `canonical_doorway_exchange_enabled`. The doorway exchange path is not fully reflected in `o2_net_transport_kg_total` for all rooms. This is a structural limit of the O1 invariant — not a physics bug. Until resolved, O1 should not be run as gating on multi-room cases with canonical doorway exchange.
 - `upper_o2_mass_tracked` is orphaned — not used in combustion, not exported to CSV.
 - Dual-track risk: `o2_upper` (fraction) and `upper_o2_mass_tracked` (mass) may diverge if `canonical_o2_upper_updated` flag handling fails.
 - Option C (canonical mass redesign) needed to fully separate combustion/transport/dilution paths.
@@ -232,11 +233,42 @@ Status:
 - Tests: 157 PASS (includes `test_two_zone_double_count_does_not_warn`, `test_old_o2_consumed_all_col_alone_skips_gracefully`).
 - No physics change. No O1 impact.
 
+Corpus diagnóstico (2026-06-27) — ampliación O2E1/O1:
+
+Three new cases run to cover the WARN→FAIL promotion criteria:
+
+| Caso | Criterio | Dur | O2E1 | O1 | Resultado |
+|---|---|---|---|---|---|
+| `cfast_slow_growth_sealed` | C2 larga duración ≥ 600 s + O2 sealed | 1800 s | PASS | PASS | ✅ Criterio cumplido |
+| `cfast_two_room_door_open` | C3 multi-room + intercambio O2 | 600 s | PASS | 247 WARN | O2E1 ✅; O1 gap (ver abajo) |
+| `v1_backdraft_accumulation` | C1 backdraft / pool-release | 650 s | 16 WARN | PASS | ❌ A3 FAIL (ver abajo) |
+
+**C4** (`effective_plume_lower`): ya cubierto por `fp_ilv_open_partial_window` (280 pasos con path no-bulk activo, O2E1 PASS — en suite desde 2026-06-27).
+
+Diagnóstico por caso:
+
+- **`cfast_slow_growth_sealed`** (PASS total): O2E1 y O1 PASS en 1800 s sellado con fuerte depleción O2 y plume engine overrides. Confirma que el acumulador primario se mantiene dentro de Thornton bajo condiciones de cap extenso. Apto para suite permanente.
+
+- **`cfast_two_room_door_open`** (O2E1 PASS, O1 247 WARNs): O2E1 no registra ningún hallazgo — criterio C3 cubierto para O2E1. Los 247 O1 WARNs son un gap conocido de la fórmula O1 en multi-room: el balance `(-dcons + dext + dtrans + dsync)` no captura completamente el intercambio O2 vía `canonical_doorway_exchange_enabled`. Residual O1 típico 0.11-0.12 kg vs. tolerancia 0.003-0.004 kg, presente en rooms 0-5 desde t=90s. Este gap es estructural — O1 bulk no fue diseñado para capturar O2 doorway transport. No es un fallo de física; es un límite del invariante O1. Ver "Open gaps O1" abajo.
+
+- **`v1_backdraft_accumulation`** (FAIL — A3 + O2E1 WARN): El motor mantiene `combustion_regime=FULLY_DEVELOPED` cuando `o2_upper=0.0009` (0.09%), violando la transición de régimen (`fire_o2_min_for_flame=0.10`). A3 captura correctamente esta incoherencia (2 FAIL a t=295-300 s). Los 16 O2E1 WARNs son consecuencia directa: el motor acumula `hrr_kj_total` a ~3425 kW mientras O2 está capeado a cero → `delta_o2_fire ≈ 40 %` del Thornton esperado (el restante no puede consumirse). **El pool release nunca activó** (`retained_unburned_MJ=0` en todo el CSV) — el caso no ejercita el escenario de backdraft/pool-release que motiva el criterio C1. C1 NO queda cubierto. El A3 FAIL es una nueva incoherencia descubierta durante la ampliación de corpus.
+
+Estado de criterios WARN→FAIL tras corpus diagnóstico:
+
+| Criterio | Estado |
+|---|---|
+| C1 backdraft / pool-release | ❌ Pendiente — pool release no activó; A3 bloquea el caso |
+| C2 larga duración ≥ 600 s | ✅ Cubierto — `cfast_slow_growth_sealed` PASS |
+| C3 multi-room O2 exchange | ✅ Cubierto para O2E1 — `cfast_two_room_door_open` O2E1 PASS |
+| C4 effective_plume_lower | ✅ Cubierto — `fp_ilv_open_partial_window` PASS |
+
 Criteria for promotion to FAIL:
 
 1. O2E1 must remain PASS on a corpus that includes at least: a backdraft or pool-release case, a long-duration case (≥ 600 s), a multi-room case with inter-room O2 exchange, and a case with `effective_plume_lower` or `fire_uses_lower_o2` active.
 2. Tolerance review: confirm that the 5 % relative / `1e-5` absolute floor is appropriate for the wider corpus (particularly under O2-depletion and cap-active conditions).
 3. Explicit promotion plan agreed before touching `severity`.
+
+C1 remains the only blocking criterion. Resolving it requires either fixing the engine regime transition at ultra-low O2 (so that pool release actually accumulates) or identifying a different case that exercises pool-release without triggering A3.
 
 Open items:
 

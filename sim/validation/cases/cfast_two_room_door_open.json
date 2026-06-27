@@ -49,6 +49,7 @@
 		"time_scale": 5.0,
 		"log_interval_s": 10.0,
 		"log_file_path": "res://sim/validation/reports/cfast_two_room_door_open.log",
+		"csv_log_file_path": "res://sim/validation/reports/cfast_two_room_door_open.csv",
 		"fire_alpha_kw_s2": 0.0222,
 		"fire_max_hrr_kw": 1280.0,
 		"fire_secondary_hrr_gain_kw": 0.0,

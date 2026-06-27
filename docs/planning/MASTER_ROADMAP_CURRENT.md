@@ -253,11 +253,20 @@ Motivo: tras cerrar D1/S0 y dejar O1 WARN-clean, el siguiente bloque natural es 
 
 Siguiente paso en este bloque:
 
-Ampliar el corpus de O2E1 y O1 antes de la promocion a FAIL:
+Corpus diagnostico completado (2026-06-27). Resultados:
 
-1. Generar y auditar un caso con `effective_plume_lower` o `fire_uses_lower_o2` activos para validar el path primario alternativo.
-2. Generar un caso de larga duracion (≥ 600 s) con fuego sostenido.
-3. Si ambos son WARN-clean: proponer plan de promocion O2E1 → FAIL.
+| Criterio | Caso | Resultado |
+|---|---|---|
+| C1 backdraft/pool-release | v1_backdraft_accumulation | ❌ A3 FAIL — pool release no activo |
+| C2 larga duracion ≥ 600 s | cfast_slow_growth_sealed | ✅ PASS total |
+| C3 multi-room O2 exchange | cfast_two_room_door_open | O2E1 ✅ PASS; O1 247 WARNs (gap multi-room) |
+| C4 effective_plume_lower | fp_ilv_open_partial_window | ✅ Ya en suite, PASS |
+
+Pendiente para promocion O2E1:
+
+1. Resolver C1: diagnosticar por que `retained_unburned_MJ=0` en v1_backdraft (pool release no activa). Ajustar el caso o buscar uno alternativo que ejerza correctamente el backdraft pool release.
+2. Investigar A3 en v1_backdraft: motor mantiene FULLY_DEVELOPED con o2=0.09% — puede requerir fix de transicion de regimen.
+3. Una vez C1 cubierto sin A3 FAIL: proponer plan de promocion O2E1 → FAIL.
 
 Otras reglas pendientes en el bloque O2/energia:
 
