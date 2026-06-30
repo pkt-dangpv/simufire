@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="FireModel" format=3 uid="uid://t3sb1fkrsy0n"]
+
+[ext_resource type="Script" uid="uid://cu03yvhohkig4" path="res://sim/FireModel.gd" id="1_e2285"]
+
+[resource]
+script = ExtResource("1_e2285")
+metadata/_custom_type_script = "uid://cu03yvhohkig4"

@@ -402,7 +402,7 @@ func _collect_room_ids(state: Dictionary) -> Array[int]:
 # ============================================================
 
 func _build_csv_header() -> String:
-	return "time_s,room_id,room_name,hrr_kw,temp_upper_c,temp_lower_c,temp_at_0_9m_c,smoke_kg,visibility_m,smoke_layer_m,visible_smoke_layer_m,thermal_layer_m,flow_interface_m,hot_layer_m,layer_150c_m,overpressure_pa,o2,o2_upper,o2_lower,fire_o2_mode_used,co_ppm,co_upper_ppm,co_lower_ppm,co2_ppm,hcn_ppm,hcn_upper_ppm,hcl_ppm,acrolein_ppm,formaldehyde_ppm,fec_irritant,fed,fed_co,fed_hcn,fed_hypoxia,fed_heat,svv_worst_pct,flashover_triggered,flashover_time_s,floor_heat_flux_kw_m2,flashover_q_thomas_kw,flashover_q_mqh_kw,fuel_remaining_MJ,solid_fuel_remaining_MJ,ventilation_response_factor,pyrolysis_kw,burned_hrr_kw,unburned_generation_kw,retained_unburned_MJ,unburned_gas_vol_frac,steam_kg,flame_hrr_target_kw,smolder_hrr_target_kw,pool_release_hrr_target_kw,o2_hrr_factor,fire_smoldering,fire_latent_active,backdraft_triggered,bud_e_fire_kj,bud_q_rad_kj,bud_q_to_lower_kj,bud_q_to_ambient_kj,bud_q_wall_abs_kj,bud_q_wall_emit_kj,bud_de_upper_kj,bud_q_residual_kj,bud_chi_rad,bud_q_fire_rad_kj,wall_T_mid_c,mdot_vent_kg_s,combustion_regime,c_balance_frac,carbon_conservation_error_kg,co_kg,co_generated_kg_step,co2_generated_kg_step,hcn_generated_kg_step,co_net_transport_kg_step,co_generated_kg_total,co_net_transport_kg_total,co_exterior_removed_kg_total,o2_consumed_kg_step,o2_consumed_kg_total,o2_consumed_kg_step_all,o2_consumed_kg_total_all,o2_consumed_bulk_kg_step,o2_consumed_bulk_kg_total,o2_consumed_fire_kg_step,o2_consumed_fire_kg_total,o2_exterior_net_kg_step,o2_exterior_net_kg_total,o2_net_transport_kg_step,o2_net_transport_kg_total,o2_zone_sync_kg_step,o2_zone_sync_kg_total,fuel_consumed_MJ_step,fuel_consumed_MJ_total,hrr_kj_total,smoke_generated_total_kg,smoke_vented_total_kg,smoke_deposited_total_kg,smoke_in_transit_kg,volume_m3,air_mass_kg,hvac_exists"
+	return "time_s,room_id,room_name,hrr_kw,temp_upper_c,temp_lower_c,temp_at_0_9m_c,smoke_kg,visibility_m,smoke_layer_m,visible_smoke_layer_m,thermal_layer_m,flow_interface_m,hot_layer_m,layer_150c_m,overpressure_pa,o2,o2_upper,o2_lower,fire_o2_mode_used,co_ppm,co_upper_ppm,co_lower_ppm,co2_ppm,co2_upper_ppm,co2_upper_ppm_mass,hcn_ppm,hcn_upper_ppm,hcl_ppm,acrolein_ppm,formaldehyde_ppm,fec_irritant,fed,fed_co,fed_hcn,fed_hypoxia,fed_heat,svv_worst_pct,flashover_triggered,flashover_time_s,floor_heat_flux_kw_m2,flashover_q_thomas_kw,flashover_q_mqh_kw,fuel_remaining_MJ,solid_fuel_remaining_MJ,ventilation_response_factor,pyrolysis_kw,burned_hrr_kw,unburned_generation_kw,retained_unburned_MJ,unburned_gas_vol_frac,steam_kg,flame_hrr_target_kw,smolder_hrr_target_kw,pool_release_hrr_target_kw,o2_hrr_factor,fire_smoldering,fire_latent_active,backdraft_triggered,backdraft_active,bud_e_fire_kj,bud_q_rad_kj,bud_q_to_lower_kj,bud_q_to_ambient_kj,bud_q_wall_abs_kj,bud_q_wall_emit_kj,bud_de_upper_kj,bud_q_residual_kj,bud_chi_rad,bud_q_fire_rad_kj,wall_T_mid_c,mdot_vent_kg_s,combustion_regime,c_balance_frac,carbon_conservation_error_kg,co_kg,co_generated_kg_step,co2_generated_kg_step,hcn_generated_kg_step,co_net_transport_kg_step,co_generated_kg_total,co_net_transport_kg_total,co_exterior_removed_kg_total,o2_consumed_kg_step,o2_consumed_kg_total,o2_consumed_kg_step_all,o2_consumed_kg_total_all,o2_consumed_bulk_kg_step,o2_consumed_bulk_kg_total,o2_consumed_fire_kg_step,o2_consumed_fire_kg_total,o2_exterior_net_kg_step,o2_exterior_net_kg_total,o2_net_transport_kg_step,o2_net_transport_kg_total,o2_zone_sync_kg_step,o2_zone_sync_kg_total,fuel_consumed_MJ_step,fuel_consumed_MJ_total,hrr_kj_total,smoke_generated_kg_step,smoke_generated_kg_total,smoke_vented_kg_step,smoke_vented_kg_total,smoke_deposited_kg_step,smoke_deposited_kg_total,smoke_net_transport_kg_step,smoke_net_transport_kg_total,smoke_generated_total_kg,smoke_vented_total_kg,smoke_deposited_total_kg,smoke_in_transit_kg,volume_m3,air_mass_kg,hvac_exists"
 
 
 func _open_csv_file(mode: FileAccess.ModeFlags) -> FileAccess:
@@ -461,6 +461,9 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		fields.append("%.0f" % float(rs.get("co_upper_ppm", 0.0)))
 		fields.append("%.0f" % float(rs.get("co_lower_ppm", 0.0)))
 		fields.append("%.0f" % float(rs.get("co2_ppm", 0.0)))
+		# SF-D2: CO2 upper-layer — tracer-derived y mass-derived en paralelo para D2-pre.
+		fields.append("%.0f" % float(rs.get("co2_upper_ppm", 0.0)))
+		fields.append("%.0f" % float(rs.get("co2_upper_ppm_mass", 0.0)))
 		fields.append("%.2f" % float(rs.get("hcn_ppm", 0.0)))
 		fields.append("%.2f" % float(rs.get("hcn_upper_ppm", 0.0)))
 		fields.append("%.2f" % float(rs.get("hcl_ppm", 0.0)))
@@ -494,6 +497,7 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		fields.append("1" if bool(rs.get("fire_smoldering", false)) else "0")
 		fields.append("1" if bool(rs.get("fire_latent_active", false)) else "0")
 		fields.append("1" if bool(rs.get("backdraft_triggered", false)) else "0")
+		fields.append("1" if bool(rs.get("backdraft_active", false)) else "0")
 		fields.append("%.4f" % float(rs.get("bud_e_fire_kj", 0.0)))
 		fields.append("%.4f" % float(rs.get("bud_q_rad_kj", 0.0)))
 		fields.append("%.4f" % float(rs.get("bud_q_to_lower_kj", 0.0)))
@@ -535,6 +539,15 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		fields.append("%.8f" % float(rs.get("fuel_consumed_MJ_total", 0.0)))
 		# SF-O2E1: energía HRR acumulada para auditoría de Thornton cruzada.
 		fields.append("%.4f" % float(rs.get("hrr_kj_total", 0.0)))
+		# SF-S1: acumuladores per-room de humo para balance local.
+		fields.append("%.8f" % float(rs.get("smoke_generated_kg_step", 0.0)))
+		fields.append("%.8f" % float(rs.get("smoke_generated_kg_total", 0.0)))
+		fields.append("%.8f" % float(rs.get("smoke_vented_kg_step", 0.0)))
+		fields.append("%.8f" % float(rs.get("smoke_vented_kg_total", 0.0)))
+		fields.append("%.8f" % float(rs.get("smoke_deposited_kg_step", 0.0)))
+		fields.append("%.8f" % float(rs.get("smoke_deposited_kg_total", 0.0)))
+		fields.append("%.8f" % float(rs.get("smoke_net_transport_kg_step", 0.0)))
+		fields.append("%.8f" % float(rs.get("smoke_net_transport_kg_total", 0.0)))
 		# SF-S0: acumuladores globales de humo (mismo valor en todas las salas del mismo timestep).
 		fields.append("%.8f" % float(state.get("smoke_generated_total_kg", 0.0)))
 		fields.append("%.8f" % float(state.get("smoke_vented_total_kg", 0.0)))

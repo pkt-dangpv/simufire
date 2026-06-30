@@ -234,6 +234,9 @@ var _layer_interface_warning_rooms: Dictionary = {}
 ## (que usan plume_lower_mode de OxygenExchangeSystem, no el two-zone path automático).
 @export var fire_o2_upper_throttle_enabled: bool = false
 @export var fire_o2_upper_throttle_critical: float = 0.10
+## M5: guard post-backdraft — corta HRR/pool cuando el backdraft terminó, el pool está
+## agotado y no existe llama ni latencia viable. Default false. Activar per-caso.
+@export var fire_post_bd_hrr_cut_enabled: bool = false
 ## SF-D2: consumo estequiométrico de O2 por combustión (Thornton, default-off).
 ## Cuando activo: CombustionSystem descuenta o2_consumed_kg = hrr_kw*dt/1000 * o2_consumption_kg_per_MJ
 ## de o2_upper por paso. Activa o2_consumed_kg_step / o2_consumed_kg_total en CSV.
@@ -1235,6 +1238,7 @@ func _build_state_context() -> Dictionary:
 		"compute_co_lower_ppm_callable": Callable(thermal_system, "compute_co_lower_ppm"),
 		"compute_co2_ppm_callable": Callable(thermal_system, "compute_co2_ppm"),
 		"compute_co2_upper_ppm_callable": Callable(thermal_system, "compute_co2_upper_ppm"),
+		"compute_co2_upper_ppm_mass_callable": Callable(thermal_system, "compute_co2_upper_ppm_mass"),
 		"compute_co2_lower_ppm_callable": Callable(thermal_system, "compute_co2_lower_ppm"),
 		"compute_hcn_ppm_callable": Callable(thermal_system, "compute_hcn_ppm"),
 		"compute_hcn_upper_ppm_callable": Callable(thermal_system, "compute_hcn_upper_ppm"),
@@ -1757,6 +1761,8 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		# Phase 5 M4: ILV upper-O2 throttle guard (leído por CombustionSystem.step_room_fire).
 		"fire_o2_upper_throttle_enabled": fire_o2_upper_throttle_enabled,
 		"fire_o2_upper_throttle_critical": fire_o2_upper_throttle_critical,
+		# M5: post-backdraft HRR cut guard (leído por CombustionSystem.step_room_fire).
+		"fire_post_bd_hrr_cut_enabled": fire_post_bd_hrr_cut_enabled,
 		# SF-D2: consumo estequiométrico O2 (default-off).
 		"fire_o2_stoich_consumption_enabled": fire_o2_stoich_consumption_enabled,
 	}

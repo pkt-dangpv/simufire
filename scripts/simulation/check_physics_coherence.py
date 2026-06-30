@@ -42,9 +42,8 @@ D1  CO balance residual Per room/log-interval: the change in co_kg between
                         co_exterior_removed_kg_total tracks CO removed by
                         ACH/infiltration, pressure-relief ventilation, species
                         purge, and post-fire purge.  Tolerance: 5 % of
-                        abs(expected), floor 1 × 10⁻⁶ kg.  Severity: WARN
-                        (promote to FAIL once validated clean on the full
-                        reference suite).  Skipped gracefully when cumulative
+                        abs(expected), floor 1 × 10⁻⁶ kg.  Severity: FAIL.
+                        Skipped gracefully when cumulative
                         total columns are absent (older CSV schema).
 
 Rules — fourth slice
@@ -75,19 +74,77 @@ S0  Smoke global        At every logged timestep: the sum of smoke_kg across
                         Limitation: S0 is a global check and cannot detect
                         compensated inter-room transport errors (smoke created
                         in one room and destroyed in another cancel out).
-                        Per-room S1 would require per-room smoke_generated/
-                        vented/deposited/net_transport accumulators, which are
-                        not yet instrumented.
+                        Per-room S1 uses per-room smoke_generated/vented/
+                        deposited/net_transport accumulators to close the local
+                        balance for each room independently.
                         Tolerance: 5 % of abs(expected), floor 0.01 kg.
                         Severity: FAIL.
 
+S1  Smoke per-room      Per room/log-interval: the change in smoke_kg between
+                        consecutive CSV rows must equal:
+                        Δsmoke_generated_kg_total
+                        − Δsmoke_vented_kg_total
+                        − Δsmoke_deposited_kg_total
+                        + Δsmoke_net_transport_kg_total.
+                        This is the local complement to S0 and can detect
+                        compensated inter-room transport errors that the global
+                        invariant cannot see.  Severity: FAIL/gating (promoted
+                        2026-06-30 after C-S1-1 through C-S1-6 satisfied).
+                        Tolerance: 5 % of abs(expected), floor 0.01 kg.
+                        Severity: WARN.
+
+Rules — eighth slice
+--------------------
+D2PRE CO₂ dual-tracking  Point-in-time comparison per row: relative divergence
+      diagnostic          between co2_upper_ppm (tracer, ODE-derived by
+                          OxygenExchangeSystem) and co2_upper_ppm_mass
+                          (mass-derived from co2_upper_kg via ThermalSystem).
+                          rel_div = |co2_upper_ppm_mass − co2_upper_ppm|
+                                    / max(co2_upper_ppm, 400)
+                          Threshold: rel_div > 1.0  (mass more than 2× tracer
+                          or vice versa).  Severity: WARN — diagnostic only,
+                          does not affect exit code.  Not gating.  Skipped
+                          gracefully when co2_upper_ppm_mass is absent (legacy
+                          CSV schema, pre-D2-Fase-1).  Purpose: quantify
+                          dual-tracking disagreement to block or inform D2
+                          CO/CO₂ ratio rule in Fase 3.
+
+Rules — ninth slice
+-------------------
+D2  CO/CO₂ upper ratio   Point-in-time comparison per row: CO/CO₂ molar
+    diagnostic            ratio in the upper layer using mass-derived fields.
+                          ratio = co_upper_ppm / co2_upper_ppm_mass
+                          Both fields use the same geometric upper-zone mass
+                          at hot-gas density (compute_co_upper_ppm and
+                          compute_co2_upper_ppm_mass in ThermalSystem share
+                          the same denominator).  The ratio is therefore
+                          co_upper_kg/28 divided by co2_upper_kg/44 — a
+                          molar fraction ratio, not a mass ratio.
+                          Threshold: ratio > 0.5  (CO exceeds 50 % of CO₂
+                          by mole — corresponds to severely under-ventilated
+                          or post-flashover conditions in SFPE reference
+                          data).  Severity: WARN — diagnostic only, not
+                          gating.  Skip conditions:
+                            • co2_upper_ppm_mass absent (legacy CSV schema).
+                            • co2_upper_ppm_mass < 1 000 ppm (CO₂ not
+                              established — early transient or cold zone).
+                            • time_s < 60 s (M3 initial-condition asymmetry:
+                              mass path inits at 0 kg vs 400 ppm tracer).
+                          Note: co2_upper_ppm (OES tracer) is NOT used as the
+                          denominator here — the tracer is suppressed by
+                          o2_scale double-throttle (M1, D2PRE root cause)
+                          and would produce misleadingly high ratios.
+                          co2_upper_ppm_mass is the reliable denominator for
+                          t > 300 s per D2 diagnosis (2026-06-30).
+
 Rules — sixth slice
 -------------------
-O2E1 Thornton cross-check Per room/log-interval: the change in o2_consumed_kg_total_all
+O2E1 Thornton cross-check Per room/log-interval: the change in o2_consumed_fire_kg_total
                         must equal the change in hrr_kj_total × Thornton constant
                         (0.076 kg O2 / MJ = 7.6 × 10⁻⁵ kg O2 / kJ).
-                        o2_consumed_kg_total_all is accumulated by OES across ALL
-                        combustion O2 depletion paths (bulk, upper, lower, plume).
+                        o2_consumed_fire_kg_total is the OES primary-path
+                        accumulator that captures exactly one Thornton unit per
+                        step (bulk, lower, plume, or upper).
                         hrr_kj_total is accumulated by CombustionSystem as
                         hrr_kw × dt each step.  Both use the same room.hrr_kw, so
                         perfect agreement is expected under stable conditions; the
@@ -99,7 +156,7 @@ O2E1 Thornton cross-check Per room/log-interval: the change in o2_consumed_kg_to
                         delta_hrr × Thornton in severely O2-depleted conditions;
                         tolerance is set wide enough (5 %) to absorb this.
                         Tolerance: 5 % of abs(expected), floor 1 × 10⁻⁵ kg.
-                        Severity: WARN.  Not gating.
+                        Severity: FAIL.
                         Skipped when hrr_kj_total is absent (older CSV schema).
 
 Rules — seventh slice
@@ -110,6 +167,7 @@ O1  O2 bulk balance     Per room/log-interval: the change in O2 mass bulk
                         expected = −Δo2_consumed_bulk_kg_total
                                    + Δo2_exterior_net_kg_total
                                    + Δo2_net_transport_kg_total
+                                   + Δo2_zone_sync_kg_total
                         residual = |Δo2_bulk − expected|
                         o2_consumed_bulk_kg_total tracks O2 removed by
                         combustion from the room bulk store (OES stoichiometric
@@ -122,7 +180,7 @@ O1  O2 bulk balance     Per room/log-interval: the change in O2 mass bulk
                         Tolerance: floor 1 × 10⁻³ kg (1 g), plus relative
                         1 % of the more conservative of |expected| or O2
                         available mass (o2[t−1] × air_mass_kg).
-                        Severity: WARN.  Not gating.
+                        Severity: FAIL.
 
 Usage
 -----
@@ -201,13 +259,16 @@ REQUIRED_COLS: dict[str, set[str]] = {
     "C1": {"fed", "fed_co", "fed_hcn", "fed_hypoxia", "fed_heat"},
     "C2": {"fed"},
     "D1": {"co_kg", "co_generated_kg_total", "co_net_transport_kg_total", "co_exterior_removed_kg_total"},
+    "D2": {"co_upper_ppm", "co2_upper_ppm_mass"},
+    "D2PRE": {"co2_upper_ppm", "co2_upper_ppm_mass"},
     "E1": {"solid_fuel_remaining_MJ", "fuel_consumed_MJ_total"},
     "O1": {"o2", "air_mass_kg", "o2_consumed_bulk_kg_total", "o2_exterior_net_kg_total", "o2_net_transport_kg_total"},
     "O2E1": {"o2_consumed_fire_kg_total", "hrr_kj_total"},
     "S0": {"smoke_kg", "smoke_generated_total_kg", "smoke_vented_total_kg", "smoke_deposited_total_kg", "smoke_in_transit_kg"},
+    "S1": {"smoke_kg", "smoke_generated_kg_total", "smoke_vented_kg_total", "smoke_deposited_kg_total", "smoke_net_transport_kg_total"},
 }
 
-ALL_RULES: tuple[str, ...] = ("A2", "A3", "B1", "C1", "C2", "D1", "E1", "O1", "O2E1", "S0")
+ALL_RULES: tuple[str, ...] = ("A2", "A3", "B1", "C1", "C2", "D1", "D2", "D2PRE", "E1", "O1", "O2E1", "S0", "S1")
 
 
 # ---------------------------------------------------------------------------
@@ -403,7 +464,7 @@ def _check_d1_co_balance_residual(rows: list[dict[str, str]]) -> list[Finding]:
     last step, but totals accumulate all steps between log entries.
 
     Tolerance: 5 % of abs(expected), floor 1 × 10⁻⁶ kg.
-    Severity: WARN — promote to FAIL once validated clean on the full suite.
+    Severity: FAIL.
     """
     by_room: dict[str, list[dict[str, str]]] = defaultdict(list)
     for row in rows:
@@ -572,7 +633,7 @@ def _check_o2e1_thornton_cross(rows: list[dict[str, str]]) -> list[Finding]:
     Skipped rows where both delta_hrr_kj and delta_o2_fire are zero (no fire,
     or pre-ignition steps).
 
-    Severity: WARN.  Not gating.
+    Severity: FAIL.  Gating.
     """
     by_room: dict[str, list[dict[str, str]]] = defaultdict(list)
     for row in rows:
@@ -596,6 +657,14 @@ def _check_o2e1_thornton_cross(rows: list[dict[str, str]]) -> list[Finding]:
                 prev = curr
                 continue
 
+            # Skip intervals that span a backdraft explosion: during a backdraft,
+            # HRR is driven by pool combustion (not bulk Thornton), so the cross-
+            # check does not apply. Skip when backdraft_active=1 in either endpoint.
+            if prev.get("backdraft_active", "0") == "1" \
+                    or curr.get("backdraft_active", "0") == "1":
+                prev = curr
+                continue
+
             expected_o2 = delta_hrr_kj * _O2E1_THORNTON_KG_PER_KJ
             residual    = abs(delta_o2_fire - expected_o2)
             magnitude   = max(abs(expected_o2), _O2E1_ABS_FLOOR_KG)
@@ -606,7 +675,7 @@ def _check_o2e1_thornton_cross(rows: list[dict[str, str]]) -> list[Finding]:
                     time_s=_float(curr, "time_s"),
                     room_id=room_id,
                     rule_id="O2E1",
-                    severity="WARN",
+                    severity="FAIL",
                     metric="thornton_cross_residual_kg",
                     value=round(residual, 9),
                     reason=(
@@ -640,7 +709,8 @@ def _check_o1_o2_bulk_balance(rows: list[dict[str, str]]) -> list[Finding]:
         Δo2_consumed  = o2_consumed_bulk_kg_total[t] − …[t−1]
         Δo2_exterior  = o2_exterior_net_kg_total[t] − …[t−1]
         Δo2_transport = o2_net_transport_kg_total[t] − …[t−1]
-        expected      = −Δo2_consumed + Δo2_exterior + Δo2_transport
+        Δo2_zone_sync = o2_zone_sync_kg_total[t] − …[t−1]
+        expected      = −Δo2_consumed + Δo2_exterior + Δo2_transport + Δo2_zone_sync
         residual      = |Δo2_bulk − expected|
 
     o2_consumed_bulk_kg_total: cumulative O2 removed by combustion from the
@@ -654,6 +724,12 @@ def _check_o1_o2_bulk_balance(rows: list[dict[str, str]]) -> list[Finding]:
     o2_net_transport_kg_total: cumulative net O2 transported between rooms
     (positive = room received from adjacent rooms).  Includes interior vanos,
     canonical doorway exchange, thermal counterflow, and GES background flow.
+
+    o2_zone_sync_kg_total: cumulative correction to room.o2 from zone-blend
+    resynchronisation after canonical doorway exchange modifies o2_upper/o2_lower
+    (ThermalSystem._apply_canonical_doorway_exchange, SF-O1D).  Zero in cases
+    without canonical_doorway_exchange_enabled.  Column is optional (defaults
+    to 0.0 when absent, correct for older CSVs without canonical doorway).
 
     Using cumulative totals (not per-step fields) makes the check invariant
     to the ratio of log_interval to simulation timestep.
@@ -683,9 +759,8 @@ def _check_o1_o2_bulk_balance(rows: list[dict[str, str]]) -> list[Finding]:
       dominates.  The available-mass cap prevents the threshold from growing
       without bound if expected becomes large.
 
-    Severity: WARN.  Not gating — O1 has not been validated exhaustively
-    across all scenario configurations; promote to FAIL once the full
-    reference corpus is confirmed clean.
+    Severity: FAIL.  Gating — corpus confirmed clean across all 14 reference
+    cases including canonical doorway exchange (cfast_two_room_door_open).
     """
     by_room: dict[str, list[dict[str, str]]] = defaultdict(list)
     for row in rows:
@@ -720,12 +795,15 @@ def _check_o1_o2_bulk_balance(rows: list[dict[str, str]]) -> list[Finding]:
             exterior_prev  = _float(prev, "o2_exterior_net_kg_total")
             transport_curr = _float(curr, "o2_net_transport_kg_total")
             transport_prev = _float(prev, "o2_net_transport_kg_total")
+            zone_sync_curr = _float(curr, "o2_zone_sync_kg_total")
+            zone_sync_prev = _float(prev, "o2_zone_sync_kg_total")
 
             delta_bulk      = (o2_curr - o2_prev) * air_mass
             delta_consumed  = consumed_curr - consumed_prev
             delta_exterior  = exterior_curr - exterior_prev
             delta_transport = transport_curr - transport_prev
-            expected        = -delta_consumed + delta_exterior + delta_transport
+            delta_zone_sync = zone_sync_curr - zone_sync_prev
+            expected        = -delta_consumed + delta_exterior + delta_transport + delta_zone_sync
             residual        = abs(delta_bulk - expected)
 
             # Tolerance: more conservative of two relative references, floored.
@@ -739,12 +817,12 @@ def _check_o1_o2_bulk_balance(rows: list[dict[str, str]]) -> list[Finding]:
                     time_s=_float(curr, "time_s"),
                     room_id=room_id,
                     rule_id="O1",
-                    severity="WARN",
+                    severity="FAIL",
                     metric="o2_bulk_balance_residual_kg",
                     value=round(residual, 9),
                     reason=(
                         f"delta_bulk={delta_bulk:.6g} kg  "
-                        f"expected(-dcons+dext+dtrans)={expected:.6g} kg  "
+                        f"expected(-dcons+dext+dtrans+dzsync)={expected:.6g} kg  "
                         f"residual={residual:.3g} kg  tol={threshold:.3g} kg"
                     ),
                 ))
@@ -754,6 +832,113 @@ def _check_o1_o2_bulk_balance(rows: list[dict[str, str]]) -> list[Finding]:
 
 # ---------------------------------------------------------------------------
 # Rule S0 — Smoke global conservation
+# ---------------------------------------------------------------------------
+# Rule D2PRE — CO₂ upper-layer dual-tracking diagnostic
+# ---------------------------------------------------------------------------
+# Rule D2 — CO/CO₂ upper-layer ratio (mass-derived, diagnostic WARN)
+# ---------------------------------------------------------------------------
+
+_D2_RATIO_WARN = 0.5        # CO ppm > 50 % of CO₂ ppm → severe VC / post-FO
+_D2_CO2_MIN_PPM = 1000.0    # skip when CO₂ not established (cold zone / early transient)
+_D2_EARLY_TRANSIENT_S = 60.0  # skip first 60 s (M3: mass path inits at 0 kg)
+
+
+def _check_d2_co_co2_ratio(rows: list[dict[str, str]]) -> list[Finding]:
+    """Diagnostic: CO/CO₂ molar ratio in the upper layer.
+
+    Uses mass-derived fields (same hot-gas-density denominator in both):
+        ratio = co_upper_ppm / co2_upper_ppm_mass
+
+    Skip conditions
+    ---------------
+    • co2_upper_ppm_mass < _D2_CO2_MIN_PPM — CO₂ not established.
+    • time_s < _D2_EARLY_TRANSIENT_S — M3 initial-condition asymmetry
+      (mass path inits at 0 kg while tracer starts at 400 ppm; CO₂ mass
+      path needs time to build before ratios are meaningful).
+
+    Threshold: ratio > _D2_RATIO_WARN (0.5).
+    In SFPE reference data: well-ventilated fires produce CO/CO₂ molar
+    ratios < 0.08; severely under-ventilated / post-flashover fires can
+    reach 0.5–1.5.  This threshold therefore flags abnormal combustion
+    product ratios that warrant investigation.
+
+    Severity: WARN — diagnostic only, does not affect exit code or gating.
+    """
+    findings: list[Finding] = []
+    for row in rows:
+        time_s = _float(row, "time_s")
+        if time_s < _D2_EARLY_TRANSIENT_S:
+            continue
+        co2_mass = _float(row, "co2_upper_ppm_mass")
+        if co2_mass < _D2_CO2_MIN_PPM:
+            continue
+        co = _float(row, "co_upper_ppm")
+        ratio = co / co2_mass
+        if ratio > _D2_RATIO_WARN:
+            findings.append(Finding(
+                time_s=time_s,
+                room_id=row.get("room_id", "?").strip(),
+                rule_id="D2",
+                severity="WARN",
+                metric="co_co2_upper_ratio",
+                value=round(ratio, 4),
+                reason=(
+                    f"co_upper_ppm={co:.0f}  "
+                    f"co2_upper_ppm_mass={co2_mass:.0f}  "
+                    f"ratio={ratio:.4f}  tol={_D2_RATIO_WARN:.2f}"
+                ),
+            ))
+    return findings
+
+
+# ---------------------------------------------------------------------------
+
+_D2PRE_REL_TOL = 1.0  # 100% relative — mass must be >2× tracer (or vice versa) to fire
+
+
+def _check_d2pre_co2_upper_divergence(rows: list[dict[str, str]]) -> list[Finding]:
+    """Diagnostic: CO₂ upper-layer tracer vs mass-derived divergence.
+
+    Point-in-time check per row:
+        rel_div = |co2_upper_ppm_mass − co2_upper_ppm| / max(co2_upper_ppm, 400.0)
+
+    Fires when rel_div > _D2PRE_REL_TOL (1.0 = 100%).  This means the
+    mass-derived value is more than twice the tracer value (or vice versa),
+    indicating systematic dual-tracking disagreement rather than early-transient
+    start-up noise.
+
+    Severity: WARN — diagnostic only, does not affect exit code.
+    Not gating.  Skipped gracefully when co2_upper_ppm_mass is absent (legacy
+    CSV, pre-D2-Fase-1).  If findings appear in every corpus case, D2 CO/CO₂
+    ratio rule (Fase 3) remains blocked until root cause is resolved.
+
+    Threshold _D2PRE_REL_TOL = 1.0 is conservative for a diagnostic rule and
+    is not a physical criterion — it exists to surface systematic disagreement,
+    not to reject scenarios.
+    """
+    findings: list[Finding] = []
+    for row in rows:
+        tracer = _float(row, "co2_upper_ppm")
+        mass = _float(row, "co2_upper_ppm_mass")
+        denom = max(tracer, 400.0)
+        rel_div = abs(mass - tracer) / denom
+        if rel_div > _D2PRE_REL_TOL:
+            findings.append(Finding(
+                time_s=_float(row, "time_s"),
+                room_id=row.get("room_id", "?").strip(),
+                rule_id="D2PRE",
+                severity="WARN",
+                metric="co2_upper_ppm_divergence_rel",
+                value=round(rel_div, 4),
+                reason=(
+                    f"co2_upper_ppm(tracer)={tracer:.0f}  "
+                    f"co2_upper_ppm_mass={mass:.0f}  "
+                    f"rel_div={rel_div:.3f}  tol={_D2PRE_REL_TOL:.1f}"
+                ),
+            ))
+    return findings
+
+
 # ---------------------------------------------------------------------------
 
 _S0_ABS_FLOOR_KG = 0.01
@@ -773,7 +958,8 @@ def _check_s0_smoke_global_conservation(rows: list[dict[str, str]]) -> list[Find
     yet delivered to target rooms via the interior transport delay buffer.
 
     Limitation: global check only — compensated inter-room transport errors
-    are invisible.  Per-room S1 is pending per-room accumulator instrumentation.
+    are invisible.  Per-room S1 closes the local balance per room using the
+    per-room smoke_generated/vented/deposited/net_transport accumulators.
 
     Tolerance: 5 % of abs(expected), floor 0.01 kg.
     Severity: FAIL.
@@ -814,6 +1000,64 @@ def _check_s0_smoke_global_conservation(rows: list[dict[str, str]]) -> list[Find
                     f"residual={residual:.3g} kg  tol={threshold:.3g} kg"
                 ),
             ))
+    return findings
+
+
+# ---------------------------------------------------------------------------
+# Rule S1 — Smoke per-room balance
+# ---------------------------------------------------------------------------
+
+_S1_ABS_FLOOR_KG = 0.01
+_S1_REL_TOL = 0.05
+
+
+def _check_s1_smoke_per_room_balance(rows: list[dict[str, str]]) -> list[Finding]:
+    """Local smoke mass balance per room and logged interval.
+
+    Uses cumulative per-room totals to stay invariant to log_interval vs
+    timestep ratio:
+        delta_smoke = smoke_kg[t] - smoke_kg[t-1]
+        expected = dgenerated - dvented - ddeposited + dnet_transport
+
+    Tolerance: 5 % of abs(expected), floor 0.01 kg.
+    Severity: FAIL/gating (promoted 2026-06-30 after C-S1-1 to C-S1-6 satisfied).
+    """
+    by_room: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for row in rows:
+        by_room[row.get("room_id", "?").strip()].append(row)
+
+    findings: list[Finding] = []
+    for room_id, room_rows in by_room.items():
+        room_rows.sort(key=lambda r: _float(r, "time_s"))
+        if len(room_rows) < 2:
+            continue
+        prev = room_rows[0]
+        for curr in room_rows[1:]:
+            delta_smoke = _float(curr, "smoke_kg") - _float(prev, "smoke_kg")
+            delta_generated = _float(curr, "smoke_generated_kg_total") - _float(prev, "smoke_generated_kg_total")
+            delta_vented = _float(curr, "smoke_vented_kg_total") - _float(prev, "smoke_vented_kg_total")
+            delta_deposited = _float(curr, "smoke_deposited_kg_total") - _float(prev, "smoke_deposited_kg_total")
+            delta_transport = _float(curr, "smoke_net_transport_kg_total") - _float(prev, "smoke_net_transport_kg_total")
+            expected = delta_generated - delta_vented - delta_deposited + delta_transport
+            residual = abs(delta_smoke - expected)
+            magnitude = max(abs(expected), _S1_ABS_FLOOR_KG)
+            threshold = max(_S1_ABS_FLOOR_KG, _S1_REL_TOL * magnitude)
+
+            if residual > threshold:
+                findings.append(Finding(
+                    time_s=_float(curr, "time_s"),
+                    room_id=room_id,
+                    rule_id="S1",
+                    severity="FAIL",
+                    metric="smoke_room_balance_residual_kg",
+                    value=round(residual, 6),
+                    reason=(
+                        f"delta_smoke={delta_smoke:.6g} kg  "
+                        f"expected(dgen-dvent-ddep+dtrans)={expected:.6g} kg  "
+                        f"residual={residual:.3g} kg  tol={threshold:.3g} kg"
+                    ),
+                ))
+            prev = curr
     return findings
 
 
@@ -863,6 +1107,10 @@ def find_physics_coherence_issues(
         findings.extend(_check_c2_fed_monotone(rows))
     if "D1" in active and _has_cols(headers, REQUIRED_COLS["D1"]):
         findings.extend(_check_d1_co_balance_residual(rows))
+    if "D2" in active and _has_cols(headers, REQUIRED_COLS["D2"]):
+        findings.extend(_check_d2_co_co2_ratio(rows))
+    if "D2PRE" in active and _has_cols(headers, REQUIRED_COLS["D2PRE"]):
+        findings.extend(_check_d2pre_co2_upper_divergence(rows))
     if "E1" in active and _has_cols(headers, REQUIRED_COLS["E1"]):
         findings.extend(_check_e1_fuel_balance_residual(rows))
     if "O1" in active and _has_cols(headers, REQUIRED_COLS["O1"]):
@@ -871,6 +1119,8 @@ def find_physics_coherence_issues(
         findings.extend(_check_o2e1_thornton_cross(rows))
     if "S0" in active and _has_cols(headers, REQUIRED_COLS["S0"]):
         findings.extend(_check_s0_smoke_global_conservation(rows))
+    if "S1" in active and _has_cols(headers, REQUIRED_COLS["S1"]):
+        findings.extend(_check_s1_smoke_per_room_balance(rows))
 
     return findings
 

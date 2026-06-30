@@ -1283,6 +1283,88 @@ class TestCheckS0(unittest.TestCase):
         self.assertEqual(len(findings), 1)
 
 
+def _row_s1(
+    time_s="10.0", room_id="0",
+    smoke_kg="0.0",
+    smoke_generated_kg_total="0.0",
+    smoke_vented_kg_total="0.0",
+    smoke_deposited_kg_total="0.0",
+    smoke_net_transport_kg_total="0.0",
+) -> dict[str, str]:
+    return {
+        "time_s": time_s,
+        "room_id": room_id,
+        "smoke_kg": smoke_kg,
+        "smoke_generated_kg_total": smoke_generated_kg_total,
+        "smoke_vented_kg_total": smoke_vented_kg_total,
+        "smoke_deposited_kg_total": smoke_deposited_kg_total,
+        "smoke_net_transport_kg_total": smoke_net_transport_kg_total,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tests: Rule S1 — Smoke per-room balance
+# ---------------------------------------------------------------------------
+
+class TestCheckS1(unittest.TestCase):
+
+    def _run(self, rows):
+        return [f for f in checker.find_physics_coherence_issues(rows, rule_ids={"S1"})
+                if f.rule_id == "S1"]
+
+    def test_generation_vent_deposition_balance_no_finding(self):
+        """Local cumulative totals close the room smoke delta."""
+        rows = [
+            _row_s1(time_s="0.0", smoke_kg="0.0"),
+            _row_s1(
+                time_s="10.0",
+                smoke_kg="1.2",
+                smoke_generated_kg_total="2.0",
+                smoke_vented_kg_total="0.5",
+                smoke_deposited_kg_total="0.3",
+            ),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_net_transport_between_rooms_no_finding(self):
+        """Negative source transport and positive target transport are checked per room."""
+        rows = [
+            _row_s1(time_s="0.0", room_id="0", smoke_kg="2.0"),
+            _row_s1(time_s="0.0", room_id="1", smoke_kg="0.0"),
+            _row_s1(time_s="10.0", room_id="0", smoke_kg="1.5", smoke_net_transport_kg_total="-0.5"),
+            _row_s1(time_s="10.0", room_id="1", smoke_kg="0.5", smoke_net_transport_kg_total="0.5"),
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_residual_above_floor_triggers_fail(self):
+        """S1 is FAIL/gating after promotion (2026-06-30)."""
+        rows = [
+            _row_s1(time_s="0.0", smoke_kg="0.0"),
+            _row_s1(time_s="10.0", smoke_kg="2.0", smoke_generated_kg_total="1.0"),
+        ]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].severity, "FAIL")
+        self.assertEqual(findings[0].metric, "smoke_room_balance_residual_kg")
+
+    def test_missing_columns_skips_gracefully(self):
+        """Older CSV schemas without S1 columns are ignored."""
+        rows = [
+            {"time_s": "0.0", "room_id": "0", "smoke_kg": "0.0"},
+            {"time_s": "10.0", "room_id": "0", "smoke_kg": "1.0"},
+        ]
+        self.assertEqual(self._run(rows), [])
+
+    def test_reason_contains_delta_and_expected(self):
+        rows = [
+            _row_s1(time_s="0.0", smoke_kg="0.0"),
+            _row_s1(time_s="10.0", smoke_kg="2.0", smoke_generated_kg_total="1.0"),
+        ]
+        reason = self._run(rows)[0].reason
+        self.assertIn("delta_smoke", reason)
+        self.assertIn("expected", reason)
+
+
 # ---------------------------------------------------------------------------
 # O1 row helper
 # ---------------------------------------------------------------------------
@@ -1416,8 +1498,8 @@ class TestCheckO1(unittest.TestCase):
 
     # ── Flagged cases ─────────────────────────────────────────────────────────
 
-    def test_large_untracked_residual_raises_warn(self):
-        """O2 disappeared with no tracked source → residual > floor → WARN."""
+    def test_large_untracked_residual_raises_fail(self):
+        """O2 disappeared with no tracked source → residual > floor → FAIL."""
         # delta_bulk = -0.1 kg, all accumulators zero → residual = 0.1 kg >> 1e-3
         air_mass = 30.24
         o2_delta = -0.1 / air_mass
@@ -1427,11 +1509,11 @@ class TestCheckO1(unittest.TestCase):
         ]
         findings = self._run(rows)
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0].severity, "WARN")
+        self.assertEqual(findings[0].severity, "FAIL")
         self.assertEqual(findings[0].rule_id, "O1")
 
-    def test_finding_is_never_fail(self):
-        """O1 must never produce a FAIL — only WARN or nothing."""
+    def test_finding_is_fail_not_warn(self):
+        """O1 must produce FAIL (not WARN) for any untracked residual."""
         air_mass = 30.24
         o2_delta = -0.5 / air_mass  # huge residual
         rows = [
@@ -1440,7 +1522,7 @@ class TestCheckO1(unittest.TestCase):
                     air_mass_kg=str(air_mass)),
         ]
         findings = self._run(rows)
-        self.assertTrue(all(f.severity != "FAIL" for f in findings))
+        self.assertTrue(all(f.severity == "FAIL" for f in findings))
 
     # ── Skip logic ────────────────────────────────────────────────────────────
 
@@ -1482,7 +1564,7 @@ class TestCheckO1(unittest.TestCase):
         ]
         findings = self._run(rows)
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0].severity, "WARN")
+        self.assertEqual(findings[0].severity, "FAIL")
 
     def test_missing_o1_columns_skips_rule(self):
         """Old CSV without o2_consumed_bulk_kg_total → O1 skipped silently."""
@@ -1699,8 +1781,8 @@ class TestCheckO2E1(unittest.TestCase):
 
     # ── Findings ──────────────────────────────────────────────────────────────
 
-    def test_oes_overconsumes_above_tolerance_warns(self):
-        """Primary path consuming >5 % more O2 than Thornton predicts → WARN."""
+    def test_oes_overconsumes_above_tolerance_fails(self):
+        """Primary path consuming >5 % more O2 than Thornton predicts → FAIL."""
         delta_hrr_kj = 1000.0
         expected_o2 = delta_hrr_kj * _O2E1_THORNTON
         actual_o2 = expected_o2 * 1.10   # 10 % above → exceeds 5 % threshold
@@ -1712,10 +1794,10 @@ class TestCheckO2E1(unittest.TestCase):
         ]
         findings = self._run(rows)
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0].severity, "WARN")
+        self.assertEqual(findings[0].severity, "FAIL")
 
-    def test_oes_underconsumes_below_tolerance_warns(self):
-        """Primary path consuming >5 % less O2 than Thornton predicts → WARN."""
+    def test_oes_underconsumes_below_tolerance_fails(self):
+        """Primary path consuming >5 % less O2 than Thornton predicts → FAIL."""
         delta_hrr_kj = 1000.0
         expected_o2 = delta_hrr_kj * _O2E1_THORNTON
         actual_o2 = expected_o2 * 0.90   # 10 % below → exceeds 5 % threshold
@@ -1727,7 +1809,7 @@ class TestCheckO2E1(unittest.TestCase):
         ]
         findings = self._run(rows)
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0].severity, "WARN")
+        self.assertEqual(findings[0].severity, "FAIL")
 
     def test_finding_rule_id_is_o2e1(self):
         """Finding must report rule_id == 'O2E1'."""
@@ -1823,6 +1905,390 @@ class TestCheckO2E1(unittest.TestCase):
         except Exception as exc:
             self.fail(f"O2E1 raised {exc!r} on old-schema CSV")
         self.assertEqual(len(result), 0)
+
+
+_D2PRE_REL_TOL = 1.0  # mirrors checker._D2PRE_REL_TOL
+
+
+def _row_d2pre(
+    time_s="10.0", room_id="0",
+    co2_upper_ppm="400",
+    co2_upper_ppm_mass="400",
+) -> dict[str, str]:
+    return {
+        "time_s": time_s,
+        "room_id": room_id,
+        "co2_upper_ppm": co2_upper_ppm,
+        "co2_upper_ppm_mass": co2_upper_ppm_mass,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tests: Rule D2PRE — CO₂ dual-tracking diagnostic
+# ---------------------------------------------------------------------------
+
+class TestCheckD2PRE(unittest.TestCase):
+
+    def _run(self, rows):
+        return [f for f in checker.find_physics_coherence_issues(rows, rule_ids={"D2PRE"})
+                if f.rule_id == "D2PRE"]
+
+    # ── Clean cases ───────────────────────────────────────────────────────────
+
+    def test_equal_values_no_finding(self):
+        """tracer == mass-derived at ambient → no finding."""
+        rows = [_row_d2pre(co2_upper_ppm="400", co2_upper_ppm_mass="400")]
+        self.assertEqual(self._run(rows), [])
+
+    def test_both_elevated_equal_no_finding(self):
+        """Both at 50000 ppm and equal → rel_div = 0 → no finding."""
+        rows = [_row_d2pre(co2_upper_ppm="50000", co2_upper_ppm_mass="50000")]
+        self.assertEqual(self._run(rows), [])
+
+    def test_small_divergence_within_threshold_no_finding(self):
+        """mass = 1.5× tracer: rel_div = 0.5 < 1.0 → no finding."""
+        tracer = 10000.0
+        mass = tracer * 1.5  # rel_div = (15000 - 10000) / 10000 = 0.5
+        rows = [_row_d2pre(co2_upper_ppm=str(tracer), co2_upper_ppm_mass=str(mass))]
+        self.assertEqual(self._run(rows), [])
+
+    def test_divergence_exactly_at_threshold_no_finding(self):
+        """mass = 2× tracer: rel_div = 1.0 — not strictly above threshold → no finding."""
+        tracer = 10000.0
+        mass = tracer * 2.0  # rel_div = 10000 / 10000 = 1.0 exactly
+        rows = [_row_d2pre(co2_upper_ppm=str(tracer), co2_upper_ppm_mass=str(mass))]
+        self.assertEqual(self._run(rows), [])
+
+    # ── Firing cases ──────────────────────────────────────────────────────────
+
+    def test_mass_above_twice_tracer_warns(self):
+        """mass > 2× tracer: rel_div > 1.0 → WARN D2PRE."""
+        tracer = 10000.0
+        mass = tracer * 2.1  # rel_div = 1.1
+        rows = [_row_d2pre(co2_upper_ppm=str(tracer), co2_upper_ppm_mass=str(mass))]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+
+    def test_tracer_above_twice_mass_warns(self):
+        """tracer > 2× mass (early transient): rel_div > 1.0 → WARN D2PRE."""
+        tracer = 10000.0
+        mass = tracer * 0.3  # rel_div = |3000 - 10000| / 10000 = 0.7 — NOT above 1.0
+        rows = [_row_d2pre(co2_upper_ppm=str(tracer), co2_upper_ppm_mass=str(mass))]
+        # rel_div = 0.7 < 1.0 → no finding
+        self.assertEqual(self._run(rows), [])
+
+    def test_tracer_below_fifth_of_mass_warns(self):
+        """mass = 5× tracer: rel_div = 4.0 → WARN D2PRE."""
+        tracer = 5000.0
+        mass = tracer * 5.0  # rel_div = 20000 / 5000 = 4.0
+        rows = [_row_d2pre(co2_upper_ppm=str(tracer), co2_upper_ppm_mass=str(mass))]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+
+    def test_ambient_tracer_elevated_mass_warns(self):
+        """tracer at ambient 400, mass = 1201 ppm: rel_div = 801/400 = 2.0 — not above → no finding."""
+        rows = [_row_d2pre(co2_upper_ppm="400", co2_upper_ppm_mass="1201")]
+        # rel_div = (1201 - 400) / 400 = 2.0025 → above 1.0 → WARN
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+
+    # ── Finding properties ────────────────────────────────────────────────────
+
+    def test_finding_is_warn_not_fail(self):
+        """D2PRE must be WARN severity (not FAIL — diagnostic only, not gating)."""
+        rows = [_row_d2pre(co2_upper_ppm="10000", co2_upper_ppm_mass="25000")]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].severity, "WARN")
+
+    def test_finding_rule_id_is_d2pre(self):
+        rows = [_row_d2pre(co2_upper_ppm="10000", co2_upper_ppm_mass="25000")]
+        findings = self._run(rows)
+        self.assertEqual(findings[0].rule_id, "D2PRE")
+
+    def test_finding_metric_is_divergence_rel(self):
+        rows = [_row_d2pre(co2_upper_ppm="10000", co2_upper_ppm_mass="25000")]
+        findings = self._run(rows)
+        self.assertEqual(findings[0].metric, "co2_upper_ppm_divergence_rel")
+
+    def test_finding_value_is_rel_div(self):
+        """Finding value equals rel_div rounded to 4 decimals."""
+        tracer = 10000.0
+        mass = 25000.0
+        expected_rel_div = round(abs(mass - tracer) / max(tracer, 400.0), 4)
+        rows = [_row_d2pre(co2_upper_ppm=str(tracer), co2_upper_ppm_mass=str(mass))]
+        findings = self._run(rows)
+        self.assertAlmostEqual(findings[0].value, expected_rel_div, places=4)
+
+    def test_finding_reason_contains_key_fields(self):
+        rows = [_row_d2pre(co2_upper_ppm="10000", co2_upper_ppm_mass="25000")]
+        findings = self._run(rows)
+        reason = findings[0].reason
+        self.assertIn("co2_upper_ppm(tracer)=", reason)
+        self.assertIn("co2_upper_ppm_mass=", reason)
+        self.assertIn("rel_div=", reason)
+
+    def test_room_id_propagated(self):
+        rows = [_row_d2pre(room_id="3", co2_upper_ppm="5000", co2_upper_ppm_mass="15000")]
+        findings = self._run(rows)
+        self.assertEqual(findings[0].room_id, "3")
+
+    def test_time_s_propagated(self):
+        rows = [_row_d2pre(time_s="350.0", co2_upper_ppm="5000", co2_upper_ppm_mass="15000")]
+        findings = self._run(rows)
+        self.assertAlmostEqual(findings[0].time_s, 350.0, places=1)
+
+    # ── Multi-row ─────────────────────────────────────────────────────────────
+
+    def test_only_divergent_rows_flagged(self):
+        """Mixed rows: only those above threshold generate a finding."""
+        rows = [
+            _row_d2pre(time_s="10.0", co2_upper_ppm="400", co2_upper_ppm_mass="400"),    # ok
+            _row_d2pre(time_s="20.0", co2_upper_ppm="10000", co2_upper_ppm_mass="10500"),  # ok (0.05)
+            _row_d2pre(time_s="30.0", co2_upper_ppm="10000", co2_upper_ppm_mass="21000"),  # WARN (1.1)
+        ]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+        self.assertAlmostEqual(findings[0].time_s, 30.0, places=1)
+
+    # ── Skip on legacy CSV ────────────────────────────────────────────────────
+
+    def test_missing_mass_column_skips_gracefully(self):
+        """CSV without co2_upper_ppm_mass (legacy pre-D2-Fase-1 schema) → D2PRE skipped."""
+        rows = [{"time_s": "10.0", "room_id": "0", "co2_upper_ppm": "50000"}]
+        self.assertEqual(self._run(rows), [])
+
+    def test_missing_tracer_column_skips_gracefully(self):
+        """CSV without co2_upper_ppm → D2PRE skipped."""
+        rows = [{"time_s": "10.0", "room_id": "0", "co2_upper_ppm_mass": "50000"}]
+        self.assertEqual(self._run(rows), [])
+
+    def test_old_schema_no_crash(self):
+        """Legacy CSV without D2PRE columns must not raise."""
+        rows = [_row(), _row(time_s="20.0")]
+        try:
+            result = self._run(rows)
+        except Exception as exc:
+            self.fail(f"D2PRE raised {exc!r} on old-schema CSV")
+        self.assertEqual(result, [])
+
+    # ── Registration checks ───────────────────────────────────────────────────
+
+    def test_d2pre_in_all_rules(self):
+        """D2PRE must appear in ALL_RULES."""
+        self.assertIn("D2PRE", checker.ALL_RULES)
+
+    def test_d2pre_required_cols_declared(self):
+        """REQUIRED_COLS must have D2PRE entry with both column names."""
+        self.assertIn("D2PRE", checker.REQUIRED_COLS)
+        self.assertIn("co2_upper_ppm", checker.REQUIRED_COLS["D2PRE"])
+        self.assertIn("co2_upper_ppm_mass", checker.REQUIRED_COLS["D2PRE"])
+
+
+# ---------------------------------------------------------------------------
+# Helpers: Rule D2 — CO/CO₂ upper ratio
+# ---------------------------------------------------------------------------
+
+_D2_RATIO_WARN = 0.5        # mirrors checker._D2_RATIO_WARN
+_D2_CO2_MIN_PPM = 1000.0    # mirrors checker._D2_CO2_MIN_PPM
+_D2_EARLY_TRANSIENT_S = 60.0  # mirrors checker._D2_EARLY_TRANSIENT_S
+
+
+def _row_d2(
+    time_s="300.0", room_id="0",
+    co_upper_ppm="1000",
+    co2_upper_ppm_mass="50000",
+) -> dict[str, str]:
+    return {
+        "time_s": time_s,
+        "room_id": room_id,
+        "co_upper_ppm": co_upper_ppm,
+        "co2_upper_ppm_mass": co2_upper_ppm_mass,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tests: Rule D2 — CO/CO₂ upper-layer ratio diagnostic
+# ---------------------------------------------------------------------------
+
+class TestCheckD2(unittest.TestCase):
+
+    def _run(self, rows):
+        return [f for f in checker.find_physics_coherence_issues(rows, rule_ids={"D2"})
+                if f.rule_id == "D2"]
+
+    # --- Clean cases (no finding expected) ---
+
+    def test_normal_ratio_no_finding(self):
+        """CO/CO2 = 0.02 (well-ventilated) → no finding."""
+        rows = [_row_d2(co_upper_ppm="1000", co2_upper_ppm_mass="50000")]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_ratio_exactly_at_threshold_no_finding(self):
+        """ratio = 0.5 exactly → threshold is strict (>), no finding."""
+        rows = [_row_d2(co_upper_ppm="5000", co2_upper_ppm_mass="10000")]
+        self.assertAlmostEqual(5000 / 10000, _D2_RATIO_WARN)
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_low_co_no_finding(self):
+        """CO near zero, CO2 high → ratio ≪ threshold."""
+        rows = [_row_d2(co_upper_ppm="100", co2_upper_ppm_mass="100000")]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    # --- Skip conditions (no finding even if ratio > threshold) ---
+
+    def test_co2_below_min_ppm_skipped(self):
+        """co2_upper_ppm_mass < 1000 → skip (CO₂ not established)."""
+        rows = [_row_d2(co_upper_ppm="999", co2_upper_ppm_mass="999")]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_co2_exactly_at_min_ppm_skipped(self):
+        """co2_upper_ppm_mass == 1000 → skip (boundary is exclusive: < 1000)."""
+        # ratio would be 0.6 > 0.5 but co2 == 1000, which is NOT < 1000 → fires
+        # Wait: skip if < 1000, so exactly 1000 does NOT skip. Check below.
+        rows = [_row_d2(co_upper_ppm="600", co2_upper_ppm_mass="1000")]
+        # ratio = 0.6 > 0.5, co2 = 1000 (not < 1000) → should WARN
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+
+    def test_early_transient_skipped(self):
+        """time_s < 60 → skip (M3 initial-condition asymmetry)."""
+        rows = [_row_d2(time_s="59.9", co_upper_ppm="60000", co2_upper_ppm_mass="100000")]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_time_exactly_at_early_transient_boundary_skipped(self):
+        """time_s == 60 → skip (boundary is strict: < 60.0)."""
+        # < 60 skips; == 60 does not skip
+        rows = [_row_d2(time_s="60.0", co_upper_ppm="60000", co2_upper_ppm_mass="100000")]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+
+    def test_missing_co2_mass_column_skips_gracefully(self):
+        """CSV without co2_upper_ppm_mass (legacy schema) → D2 skipped."""
+        rows = [{"time_s": "300.0", "room_id": "0", "co_upper_ppm": "99999"}]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_missing_co_upper_column_skips_gracefully(self):
+        """CSV without co_upper_ppm → D2 skipped."""
+        rows = [{"time_s": "300.0", "room_id": "0", "co2_upper_ppm_mass": "50000"}]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    def test_old_schema_no_crash(self):
+        """Legacy CSV without D2 columns must not raise."""
+        rows = [{"time_s": "100.0", "room_id": "0", "hrr_kw": "100"}]
+        try:
+            result = self._run(rows)
+        except Exception as exc:
+            self.fail(f"D2 raised {exc!r} on old-schema CSV")
+        self.assertEqual(len(result), 0)
+
+    # --- Firing cases (WARN expected) ---
+
+    def test_ratio_above_threshold_warns(self):
+        """ratio = 0.6 > 0.5 → WARN D2."""
+        rows = [_row_d2(co_upper_ppm="6000", co2_upper_ppm_mass="10000")]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+
+    def test_extreme_ratio_warns(self):
+        """CO > CO₂ (ratio = 1.5) → WARN D2."""
+        rows = [_row_d2(co_upper_ppm="15000", co2_upper_ppm_mass="10000")]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+
+    def test_ratio_just_above_threshold_warns(self):
+        """ratio = 0.5001 → just above threshold → WARN."""
+        rows = [_row_d2(co_upper_ppm="5001", co2_upper_ppm_mass="10000")]
+        self.assertEqual(len(self._run(rows)), 1)
+
+    # --- Finding properties ---
+
+    def test_finding_is_warn_not_fail(self):
+        """D2 must be WARN severity (diagnostic, not gating)."""
+        rows = [_row_d2(co_upper_ppm="6000", co2_upper_ppm_mass="10000")]
+        findings = self._run(rows)
+        self.assertEqual(findings[0].severity, "WARN")
+
+    def test_finding_rule_id_is_d2(self):
+        rows = [_row_d2(co_upper_ppm="6000", co2_upper_ppm_mass="10000")]
+        findings = self._run(rows)
+        self.assertEqual(findings[0].rule_id, "D2")
+
+    def test_finding_metric_is_ratio(self):
+        rows = [_row_d2(co_upper_ppm="6000", co2_upper_ppm_mass="10000")]
+        findings = self._run(rows)
+        self.assertEqual(findings[0].metric, "co_co2_upper_ratio")
+
+    def test_finding_value_is_ratio(self):
+        rows = [_row_d2(co_upper_ppm="6000", co2_upper_ppm_mass="10000")]
+        findings = self._run(rows)
+        self.assertAlmostEqual(findings[0].value, 0.6, places=3)
+
+    def test_finding_reason_contains_key_fields(self):
+        rows = [_row_d2(co_upper_ppm="6000", co2_upper_ppm_mass="10000")]
+        reason = self._run(rows)[0].reason
+        self.assertIn("co_upper_ppm=", reason)
+        self.assertIn("co2_upper_ppm_mass=", reason)
+        self.assertIn("ratio=", reason)
+
+    def test_room_id_propagated(self):
+        rows = [_row_d2(room_id="2", co_upper_ppm="6000", co2_upper_ppm_mass="10000")]
+        self.assertEqual(self._run(rows)[0].room_id, "2")
+
+    def test_time_s_propagated(self):
+        rows = [_row_d2(time_s="700.0", co_upper_ppm="6000", co2_upper_ppm_mass="10000")]
+        self.assertAlmostEqual(self._run(rows)[0].time_s, 700.0)
+
+    def test_only_exceeding_rows_flagged(self):
+        """Only rows with ratio > 0.5 appear; sub-threshold rows are silent."""
+        rows = [
+            _row_d2(time_s="100.0", co_upper_ppm="1000", co2_upper_ppm_mass="50000"),  # 0.02 ok
+            _row_d2(time_s="300.0", co_upper_ppm="4000", co2_upper_ppm_mass="10000"),  # 0.4 ok
+            _row_d2(time_s="500.0", co_upper_ppm="6000", co2_upper_ppm_mass="10000"),  # 0.6 WARN
+            _row_d2(time_s="700.0", co_upper_ppm="8000", co2_upper_ppm_mass="10000"),  # 0.8 WARN
+        ]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 2)
+        self.assertAlmostEqual(findings[0].time_s, 500.0)
+        self.assertAlmostEqual(findings[1].time_s, 700.0)
+
+    def test_early_transient_row_not_flagged_even_if_high(self):
+        """Row at t=30s with ratio > threshold → skipped by early-transient guard."""
+        rows = [
+            _row_d2(time_s="30.0", co_upper_ppm="9000", co2_upper_ppm_mass="10000"),  # skip (t<60)
+            _row_d2(time_s="300.0", co_upper_ppm="6000", co2_upper_ppm_mass="10000"),  # WARN
+        ]
+        findings = self._run(rows)
+        self.assertEqual(len(findings), 1)
+        self.assertAlmostEqual(findings[0].time_s, 300.0)
+
+    def test_co2_below_min_not_flagged_even_if_co_huge(self):
+        """co2_upper_ppm_mass = 500 (< 1000) with huge CO → skipped."""
+        rows = [
+            _row_d2(time_s="300.0", co_upper_ppm="9999", co2_upper_ppm_mass="999"),
+        ]
+        self.assertEqual(len(self._run(rows)), 0)
+
+    # --- Registration ---
+
+    def test_d2_in_all_rules(self):
+        """D2 must appear in ALL_RULES."""
+        self.assertIn("D2", checker.ALL_RULES)
+
+    def test_d2_required_cols_declared(self):
+        """REQUIRED_COLS must have D2 entry with both column names."""
+        self.assertIn("D2", checker.REQUIRED_COLS)
+        self.assertIn("co_upper_ppm", checker.REQUIRED_COLS["D2"])
+        self.assertIn("co2_upper_ppm_mass", checker.REQUIRED_COLS["D2"])
+
+    def test_d2_does_not_affect_exit_code(self):
+        """D2 WARN findings alone must not raise exit 1 (severity WARN)."""
+        rows = [_row_d2(co_upper_ppm="6000", co2_upper_ppm_mass="10000")]
+        findings = checker.find_physics_coherence_issues(rows)
+        d2_findings = [f for f in findings if f.rule_id == "D2"]
+        self.assertTrue(len(d2_findings) >= 1)
+        for f in d2_findings:
+            self.assertEqual(f.severity, "WARN")
 
 
 if __name__ == "__main__":

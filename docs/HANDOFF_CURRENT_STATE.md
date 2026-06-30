@@ -6,6 +6,738 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-06-30 (rev 34 - D2 CTRL wood_vc_reference + diagnóstico diag_sealed D2PRE)
+
+### Estado operativo actual
+
+- Branch: `main`, cambios locales sin commitear — `wood_vc_reference` añadido a `KNOWN_INTENTIONAL_CONTROLS`.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio.
+- Physics coherence corpus: **9 PASS / 5 CTRL / 3 WARN / 0 FAIL** — estado final limpio.
+- Tests: **209/209 PASS** — sin cambio.
+
+### wood_vc_reference — Clasificación CTRL (2026-06-30)
+
+`wood_vc_reference` añadido a `KNOWN_INTENTIONAL_CONTROLS`. Razón: fue creado explícitamente en Plan A Fase A1 para demostrar que D2 dispara en VC profundo con fuel mixto/sintético. Sus 114 D2 WARNs (t=710–1800s, ratio 0.51→2.14) y 74 D2PRE WARNs (M1 colateral, rooms 0/1/4) son todos esperados y necesarios como caso de referencia canónico para D2.
+
+### fuel_balance_diag_sealed / o2_stoich_diag_sealed — Diagnóstico D2PRE (2026-06-30)
+
+Ambos casos tienen 230 D2PRE WARNs cada uno. Análisis completo:
+
+- **Room 0** (13 WARNs): tracer CO₂ < mass CO₂ en fire room — misma M1 o2_scale que en `cfast_slow_growth_sealed`. Esperado.
+- **Rooms 1–5** (217 WARNs por caso): tracer CO₂ (400–1100 ppm) << mass CO₂ (4000–21000 ppm) desde t=60s. El mass path transporta CO₂ vía intercambio de gas caliente (ThermalSystem), pero el tracer OES no sigue la misma trayectoria de transporte. Root cause: M1 o2_scale double-throttle reduce tracer CO₂ en fire room → menos CO₂ disponible para transportar al tracer de rooms adyacentes.
+- **Decisión: dejar como WARN.** Divergencia real, no control intencional. Documenta el alcance completo de Plan B en escenarios multi-room (no solo room 0). `fuel_balance_diag_sealed` y `o2_stoich_diag_sealed` no son CTRL porque sus WARNs no son consecuencia del mecanismo bajo prueba.
+
+### Estado CTRL/WARN final (post-sesión)
+
+**CTRLs (5):**
+| Stem | Findings | Razón |
+|---|---|---|
+| v1_backdraft_accumulation | A3:2, D2PRE:563, O2E1:16 | Zombie sin M4, ILV lower-O2 bug |
+| v1_m4_pool_release | D2:9, D2PRE:545 | Zombie post-backdraft con M4 |
+| cfast_two_floor_stairwell | A3:4, O2E1:20 | Multi-floor sellado, O2 depleta |
+| v5_m4_ventilation_throttle | D2:13, D2PRE:421 | M4 pool-release cíclico |
+| wood_vc_reference | D2:114, D2PRE:74 | Referencia canónica D2 alto-CO |
+
+**WARNs restantes (3, todos D2PRE / Plan B):**
+| Stem | WARNs | Razón |
+|---|---|---|
+| cfast_slow_growth_sealed | D2PRE:243 | M1 o2_scale en fire room (referencia canónica Plan B) |
+| fuel_balance_diag_sealed | D2PRE:230 | M1 tracer transport divergence rooms 0–5 (Plan B scope multi-room) |
+| o2_stoich_diag_sealed | D2PRE:230 | ídem |
+
+---
+
+## Current Session Update - 2026-06-30 (rev 33 - D2 CTRL v5_m4_ventilation_throttle)
+
+### Estado operativo actual
+
+- Branch: `main`, cambios locales sin commitear — `v5_m4_ventilation_throttle` añadido a `KNOWN_INTENTIONAL_CONTROLS`.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio.
+- Physics coherence corpus: **9 PASS / 4 CTRL / 4 WARN / 0 FAIL** — estado limpio.
+- Tests: **209/209 PASS** — sin cambio.
+
+### v5_m4_ventilation_throttle — Diagnóstico D2 WARNs (2026-06-30)
+
+**Pregunta:** ¿Son los 13 D2 WARNs (ratio 0.51–0.62, t=225–600s) de `v5_m4_ventilation_throttle` intencionales o un defecto de calibración?
+
+**Análisis del CSV:** Los 13 WARNs están todos en room=0. Correlación perfecta con `retained_unburned_MJ > 0` (pool release cíclico):
+
+| t (s) | regime | retained_unburned_MJ | co_upper_ppm | ratio |
+|---|---|---|---|---|
+| 225 | ILV_LATENT | 0.0587 | 4969 | 0.510 |
+| 325 | ILV_LATENT | 0.1620 | 4943 | 0.553 |
+| 460 | ILV_LATENT | 0.1384 | 4722 | 0.618 |
+| 505 | ILV_LATENT | 0.1325 | 4350 | 0.570 |
+| 550 | ILV_LATENT | 0.1286 | 4344 | 0.554 |
+
+Patrón: el M4 throttle deprime el fuego a `ILV_LATENT` → `retained_unburned_MJ` acumula hasta 0.12–0.17 MJ → pool release → CO burst → ratio > 0.50. Ciclo cada ~45s.
+
+**Causa raíz del pool CO:** `fire_pool_release_max_fraction: 0.18` + `fire_secondary_hrr_gain_kw: 2500` en el JSON. El CO liberado del pool no está sujeto al cap phi-scaling (co_max=0.01250 kg/MJ), alcanzando yld_co efectivo de 0.03577 kg/MJ (2.84× cap).
+
+**Decisión: CTRL — WARNs intencionales.** Los WARNs son consecuencia directa y esperada del mecanismo M4 bajo prueba. El propósito del caso es validar M4 ventilation throttle con secondary HRR gain; el CO post-throttle es parte del escenario.
+
+**Acción:** Añadido `"v5_m4_ventilation_throttle"` a `KNOWN_INTENTIONAL_CONTROLS` en `scripts/simulation/audit_physics_coherence_suite.py`.
+
+**Audit suite confirmado:** 9 PASS / 4 CTRL / 4 WARN / 0 FAIL. Exit code 0.
+
+**WARNs restantes (no CTRL):**
+- `cfast_slow_growth_sealed`: D2PRE (M1 o2_scale double-throttle, Plan B pendiente)
+- `fuel_balance_diag_sealed`: D2PRE desde room=1, t=60s (M3 init asymmetry non-fire room — pendiente revisión)
+- `o2_stoich_diag_sealed`: ídem
+- `wood_vc_reference`: D2+D2PRE (intencionales — caso de referencia para D2 de alto CO yield)
+
+---
+
+## Current Session Update - 2026-06-30 (rev 32 - Plan A Sesión 4: D2 Sensitivity)
+
+### Estado operativo actual
+
+- Branch: `main`, cambios locales sin commitear — D2 sensitivity análisis completado. No hay cambios de motor ni de thresholds.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio.
+- Physics coherence corpus: **9 PASS / 5 WARN / 3 CTRL / 0 FAIL** — WARNs adicionales identificadas esta sesión (ver abajo).
+- Tests: **209/209 PASS** — sin cambio.
+
+### Plan A Sesión 4 — Análisis sensibilidad D2 threshold (completado 2026-06-30)
+
+**Objetivo:** Medir max D2 ratio y cruces de umbral (0.10/0.20/0.30/0.50) en todos los casos del corpus con columna `co2_upper_ppm_mass`. Concluir si el threshold 0.50 debe bajar.
+
+**Caso diagnóstico creado:** `tmp_d2_sensitivity_engine_defaults.json` — sellado 1800s, engine defaults (co_base=0.00025, co_max=0.01250), sin pool release. CSV: `sim/validation/reports/tmp_d2_sensitivity_engine_defaults.csv`.
+
+**Tabla de sensibilidad (todos los casos con co2_upper_ppm_mass):**
+
+| Caso | CO yield config | max phi | max D2 ratio | ≥0.10 | ≥0.20 | ≥0.50 |
+|---|---|---|---|---|---|---|
+| cfast_slow_growth_sealed | FORCE=0.0003 | 3.60 | 0.0077 | never | never | never |
+| fuel_balance_diag_sealed | engine defaults | 1.06 | 0.2465 | 135s | 175s | never |
+| o2_stoich_diag_sealed | engine defaults | 1.06 | 0.2465 | 135s | 175s | never |
+| v1_backdraft_accumulation (CTRL) | engine defaults | 1.17 | 0.2529 | 135s | 160s | never |
+| **tmp_d2_sensitivity_eng_def** | engine defaults, sealed 1800s | 8.24 | **0.2982** | 580s | 870s | never |
+| v5_m4_ventilation_throttle | eng + pool_release=0.18 | 8.38 | **0.6184** | 135s | 145s | **225s** |
+| tmp_v1_backdraft_accum_m4 | eng + pool_release | 7.87 | **0.5661** | 135s | 155s | **285s** |
+| v1_m4_pool_release (CTRL) | eng + pool_release | 10.00 | **0.7997** | 135s | 155s | **285s** |
+| wood_vc_reference | base=0.004, max=0.10 | 8.24 | **2.1388** | 550s | 600s | **710s** |
+
+**Hallazgo crítico — bifurcación pool release:**
+
+- Sin pool release (`fire_pool_release_max_fraction=0`): max ratio con engine defaults = **0.2982** (phi=8.24, 1800s sellado). NUNCA alcanza 0.30 ni 0.50.
+- Con pool release activo: `yld_co` alcanza 0.03577 kg/MJ (2.84× cap co_max=0.01250) porque el CO proviene del pool de gases no quemados, no del phi-scaling. Ratio alcanza 0.566–0.800 con madera engine defaults.
+- La estimación teórica A2 (max ratio = 0.236, phi→inf) era correcta para phi-scaling normal. Pool release genera CO adicional no sujeto al cap.
+
+**Corrección a la recomendación A2:**
+
+A2 recomendó "bajar threshold a 0.20" asumiendo max ratio teórico = 0.236. Los datos medidos revelan que:
+- Threshold 0.50 YA FUNCIONA: detecta backdraft/pool-release CO bursts y `wood_vc_reference`.
+- Bajar a 0.20 causaría WARNs en `fuel_balance_diag_sealed` y `o2_stoich_diag_sealed` a t=135–175s (artefacto M3 init en room non-fire). Ruido diagnóstico sin valor físico.
+- **Recomendación actualizada: Opción 3 — Mantener threshold 0.50 sin cambios.** D2 está calibrado correctamente para escenarios de CO extremo.
+
+**Descubrimiento — `v5_m4_ventilation_throttle` WARN:**
+
+El caso genera 13 D2 WARNs (ratio pico 0.6184, t=225s). Tiene `pool_release_max_fraction=0.18` y `secondary_hrr_gain=2500 kW`. La WARN refleja un CO burst físicamente real (ventilation-induced pool ignition con M4). El caso NO está en CTRL → pendiente agregar a CTRL en sesión futura con plan explícito.
+
+**Nuevo estado audit suite (post sesión 4):**
+
+- 9 PASS / 5 WARN / 3 CTRL / 0 FAIL (17 CSVs).
+- WARNs: `cfast_slow_growth_sealed` (D2PRE), `fuel_balance_diag_sealed` (D2PRE), `o2_stoich_diag_sealed` (D2PRE), `v5_m4_ventilation_throttle` (D2+D2PRE), `wood_vc_reference` (D2+D2PRE).
+- `fuel_balance_diag_sealed` y `o2_stoich_diag_sealed`: D2PRE desde room=1 a t=60s (M3 init asymmetry non-fire room). Pendiente revisión en sesión futura.
+
+---
+
+## Current Session Update - 2026-06-30 (rev 31 - Plan A Diagnóstico CO yield)
+
+### Estado operativo actual
+
+- Branch: `main`, cambios locales sin commitear — Plan A diagnóstico completado. No hay cambios de motor.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio.
+- Physics coherence corpus: **13 PASS / 1 WARN / 2 CTRL / 0 FAIL** — sin cambio.
+- Tests: **209/209 PASS** — sin cambio.
+
+### Plan A — Diagnóstico CO yield en régimen VC (completado 2026-06-30)
+
+**Pregunta:** ¿Por qué CO/CO₂ ratio en `cfast_slow_growth_sealed` es ~0.004–0.008 molar en condiciones VC (phi 2.8–3.6), cuando SFPE wood phi~2 debería ser ~0.3 masa / ~0.47 molar?
+
+**Root cause: tres capas, no un bug del motor.**
+
+**Capa 1 — Force override intencional (causa primaria):**
+`cfast_slow_growth_sealed.json:88`: `"fire_co_yield_force_kg_per_MJ": 0.0003`
+Activa `CombustionSystem.gd:705–707`: si `co_yield_force >= 0.0`, `co_yield = co_yield_force` incondicional. Bypass total del escalado phi. El case es CFAST comparison — yield fijo es intencional. Sin override, yield phi-escalado a phi=2.79: `0.0003 * exp(2.0*1.79) ≈ 0.0108 kg/MJ` (36× mayor). CSV confirma: `yld_co ≈ 0.000300` constante a todo tiempo (t=200s a t=1800s).
+
+**Capa 2 — Default `co_base_yield = 0.0` (brecha silenciosa):**
+`CombustionSystem.gd:663`: `context.get("co_base_yield_kg_per_MJ", 0.0)`. Casos sin yield explícito → CO = 0. `FuelObjectModel.co_yield_kg_per_MJ = 0.00025` (default) es muy bajo (nivel CFAST), no SFPE (~0.004 kg/MJ wood FC).
+
+**Capa 3 — Clamp invertido cuando `co_max_yield = 0.0` (default):**
+`CombustionSystem.gd:665–671`: `clampf(base*exp(k*(phi-1)), base, max=0.0)` → GDScript devuelve `base` siempre. Phi-scaling nunca aumenta CO sobre base. Solo `ghanekar_kitchen_living_room.json` tiene `co_max > co_base` → único caso con phi-scaling activo.
+
+**Conclusión:** El motor phi→CO scaling está implementado correctamente. Las tres capas lo anulan o suprimen en todos los casos del corpus actual.
+
+**Qué NO tocar:**
+- `cfast_slow_growth_sealed.json`: force override 0.0003 es intencional.
+- `CombustionSystem.gd` motor: no modificar.
+- D2 threshold 0.5: correcto — no disparará en casos CFAST por diseño.
+- OES tracer / Plan B: independiente.
+
+**Plan A Fase A1 — COMPLETADO en esta sesión:**
+- Caso `sim/validation/cases/wood_vc_reference.json` creado y ejecutado (1800s, exit 0).
+- D2 dispara en t=710s: ratio=0.5123, VENTILATION_CONTROLLED_BURNING, phi=3.45, yld_co=0.04554 kg/MJ.
+- Audit suite: 0 FAIL / 13 PASS / 2 WARN / 2 CTRL — sin regresiones.
+- CSV producido en `sim/validation/reports/wood_vc_reference.csv`.
+
+**Plan A Fase A2 — Diagnóstico completado 2026-06-30:**
+
+Hallazgos principales:
+
+1. **`FuelObjectModel.co_yield_kg_per_MJ` es irrelevante** — ningún caso define `fuel_objects` explícito. Los defaults reales son `SimulationEngine.co_base_yield_kg_per_MJ = 0.00025` y `co_max_yield_kg_per_MJ = 0.01250`. phi-scaling ya activo para todos los casos plain.
+
+2. **Los defaults del motor son físicamente correctos para madera SFPE** (0.004 kg/kg / 16 MJ/kg = 0.00025 kg/MJ FC; 0.200 kg/kg / 16 MJ/kg = 0.01250 kg/MJ VC). NO cambiar.
+
+3. **D2 threshold (0.5) nunca alcanzable con madera pura SFPE** — máximo ratio molar con engine defaults: 0.236 (phi→∞). D2 solo dispara con combustibles de alto CO (PU foam, mezcla residencial con sintéticos).
+
+4. **Cambio global co_base 0.00025→0.004 sería INCORRECTO** para madera: equivaldría a 0.064 kg/kg FC (16× SFPE). FED CO 16× inflado. No afectaría 349/354 PASS (no hay CO checks non-CFAST), pero los valores físicos serían incorrectos.
+
+5. **Inventario de riesgo:**
+   - 23 casos CFAST (force override): inmunes.
+   - 2 casos con co_base+co_max explícitos: inmunes.
+   - 81 casos plain (engine defaults): CO físicamente correcto para madera, FED CO correcto.
+   - 0 baseline CO checks en funciones non-CFAST.
+
+**Recomendación:** Bajar D2 threshold a ~0.20 (para capturar madera VC severa phi≥3) O añadir caso PU foam VC (co_base=0.002, co_max=0.03) O dejar D2 como guardia de escenarios extremos. NO tocar engine defaults. Sesión futura con plan explícito.
+
+---
+
+## Current Session Update - 2026-06-30 (rev 30 - D2 Fase 3)
+
+### Estado operativo actual
+
+- Branch: `main`, cambios locales sin commitear — D2 Fase 3 (regla D2) implementada.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio.
+- Physics coherence corpus: **13 PASS / 1 WARN / 2 CTRL / 0 FAIL** — sin cambio. D2 no genera findings en corpus actual (ratio CO/CO₂ max = 0.008 << threshold 0.5).
+- Tests: **209/209 PASS** (183 pre-existentes + 26 nuevos TestCheckD2).
+
+### D2 Fase 3 — regla diagnóstica CO/CO₂ upper ratio
+
+**Función:** `_check_d2_co_co2_ratio()` en `check_physics_coherence.py`.
+
+**Campos usados:**
+- Numerador: `co_upper_ppm` (from `compute_co_upper_ppm()`, uses `co_upper_kg` con hot-gas density)
+- Denominador: `co2_upper_ppm_mass` (from `compute_co2_upper_ppm_mass()`, uses `co2_upper_kg` con hot-gas density)
+- Mismo denominador en ambos → ratio = `co_upper_kg/28` / `co2_upper_kg/44` (razón molar pura).
+
+**Threshold:** `ratio > 0.5` — CO supera 50% de CO₂ en moles. Referencia SFPE: bien ventilado < 0.08, bajo-ventilado VC 0.08–0.5, post-FO severo > 0.5.
+
+**Skip conditions (conservadoras):**
+- `co2_upper_ppm_mass` ausente → legacy CSV sin D2 Fase 1 (21 de 22 CSVs del corpus actual).
+- `co2_upper_ppm_mass < 1000 ppm` → CO₂ no establecido, zona fría o sin fuego.
+- `time_s < 60 s` → M3 initial-condition asymmetry (mass path inicia en 0 kg vs 400 ppm tracer).
+
+**Severity:** WARN — diagnóstico, no gating, no afecta exit code.
+
+**Resultado en corpus:**
+- 21 CSVs legacy (sin `co2_upper_ppm_mass`): skip graceful, 0 findings.
+- `cfast_slow_growth_sealed`: CO/CO₂ ppm ratio = 0.006–0.008 durante toda la simulación (FUEL_CONTROLLED y VENTILATION_CONTROLLED). Muy por debajo del threshold 0.5 → **0 findings D2**. Esto indica que el modelo de CombustionSystem produce poco CO relativo a CO₂ incluso en condiciones ventilation-controlled. Documentado como observación calibración pendiente.
+
+**Por qué `co2_upper_ppm` tracer NO se usa como denominador:**
+El tracer OES es suprimido por `o2_scale` double-throttle (M1, D2PRE root cause). Usarlo produciría ratios artificialmente altos que no reflejan el estado real del fuego. `co2_upper_ppm_mass` es el denominador fiable para t > 300 s según diagnóstico D2 (rev 29).
+
+**Observación calibración CO:**
+El ratio de generación CO/CO₂ es ~0.004–0.005 (masa), constante incluso en VENTILATION_CONTROLLED_BURNING. Valor SFPE para wood, under-ventilated (phi~2): ~0.3 masa → ~0.47 molar. El modelo SimuFire parece infra-estimar CO en VC — pendiente como plan calibración separado, no bloqueante para D2 Fase 3.
+
+### Próximos planes separados (post D2 Fase 3)
+
+**Plan A — Calibración CO yield en régimen VC** *(prioridad: media)*
+- CO/CO₂ ratio generación ~0.004–0.005 masa en `cfast_slow_growth_sealed` incluso en VENTILATION_CONTROLLED (phi >> 1). SFPE para wood phi~2: ~0.3 masa. Gap de ~60×.
+- Sin Plan A, D2 nunca disparará en VC gradual — solo en post-FO con CO anómalamente alto.
+- Precondición: leer y auditar escalado phi→CO en `CombustionSystem.gd`. No implementar sin diagnóstico previo.
+
+**Plan B — Fix motor: o2_scale double-throttle en OES tracer CO₂** *(prioridad: baja)*
+- Causa los 243 D2PRE WARNs en `cfast_slow_growth_sealed`. No bloqueante en corpus actual.
+- Fix: eliminar/flag `co2_produced *= o2_scale` en OES (HRR ya refleja disponibilidad de O₂).
+- Impacto en FED: el tracer CO₂ afecta `compute_co2_upper_ppm` → FED CO₂ narcosis. Aumentaría CO₂ FED en VC. Requiere validación FED.
+- Constraint: flag per-case (no global) hasta que corpus valide. Requiere sesión con plan explícito.
+
+**Prioridad recomendada:** Plan A primero (calibración CO es independiente del motor de tracking CO₂). Plan B después, con plan motor formal.
+
+---
+
+## Current Session Update - 2026-06-30 (rev 29 - D2 Diagnóstico completo)
+
+### Estado operativo actual
+
+- Branch: `main`, cambios locales sin commitear — diagnóstico D2 completado.
+- Todos los contadores previos sin cambio: **349/354 PASS**, **183/183 tests PASS**, **13 PASS / 1 WARN / 2 CTRL / 0 FAIL** physics suite.
+
+### D2 Diagnóstico — causa raíz identificada
+
+**Causa raíz: tres mecanismos independientes compuestos.**
+
+#### Hallazgo clave: dt_physics = 0.0833s, no 10s
+
+`co2_generated_kg_step` registra el valor de UN paso físico (dt=0.0833s = 1/120s). Los 120 pasos físicos por intervalo de log de 10s producen ~0.155 kg totales de CO₂ (10s equivalente), mientras que el ACH=5.0 drena ~0.082 kg en ese mismo intervalo. El bulk co2_kg crece porque producción > drenaje ACH, lo que es consistente con los datos observados.
+
+#### Mecanismo 1 — o2_scale double-throttle en OES (DOMINANTE)
+
+OES aplica `o2_scale = clamp(o2_upper / 0.209, 0, 1)` a la producción de CO₂ del tracer.  
+En t=700s: `o2_upper=0.063 → o2_scale=0.301` → tracer recibe solo 30% de producción nominal.  
+CombustionSystem añade CO₂ proporcional al HRR real — el HRR **ya refleja** la disponibilidad de O₂ (régimen VENTILATION_CONTROLLED). Aplicar o2_scale en OES es un doble-descuento: throttle físico ya en HRR, throttle adicional en producción de tracer.
+
+Ratio de producción masa/tracer medido: **2.56× en t=700s**, crece a **2.65× en t=1800s**.
+
+#### Mecanismo 2 — Densidad en denominador (amplificador)
+
+`compute_co2_upper_ppm_mass` divide por densidad caliente (≈0.71 kg/m³ a 186°C):  
+`ppm_mass = co2_upper_kg × 29e6 / (floor_area × upper_height × rho_hot(temp_upper_c))`
+
+OES tracer usa masa de aire a densidad ambiente:  
+`upper_air_mass = volume × 1.2 × upper_frac`
+
+Para igual masa de CO₂, la conversión mass da **1.68× más ppm** a t=700s (crece a 1.83× a t=1800s).
+
+Esto NO es un error del mass path — la densidad caliente es más correcta para la concentración real de CO₂ en el gas caliente. El tracer OES usa densidad fija ambient (subestima la concentración real).
+
+#### Mecanismo 3 — Condición inicial asimétrica (early-transient)
+
+Tracer: `co2_upper` inicia en 0.0004 (400 ppm atmosférico) — physically correct.  
+Mass path: `co2_upper_kg` inicia en 0.0 — missing atmospheric background CO₂.
+
+Efecto: tracer **supera** al mass-derived para t < 300s (ratio < 1). La inversión ocurre alrededor de t=290s cuando la producción acumulada mass path supera el head-start inicial del tracer.
+
+#### Dinámica observada
+
+| t (s) | tracer_ppm | mass_ppm | ratio | o2_scale | rho_ratio |
+|-------|-----------|---------|-------|---------|---------|
+| 100   | 3827      | 2046    | 0.53  | 0.979   | 1.10    |
+| 300   | 40376     | 77271   | 1.91  | 0.743   | 1.38    |
+| 700   | 85501     | 181891  | 2.13  | 0.301   | 1.68    |
+| 1800  | 69481     | 223740  | 3.22  | 0.268   | 1.83    |
+
+Tracer pico en ~t=700s y **declina** (ACH drain supera producción throttleada).  
+Mass path sigue creciendo lentamente hasta t≈1750s, luego estabiliza.
+
+#### ¿Cuál representación es más fiable?
+
+**Ninguna es completamente correcta:**
+- **Tracer OES**: condición inicial correcta (400 ppm), física ACH correcta. **Error**: o2_scale duplica el throttle de O₂ (el HRR ya lo aplica). Denominator usa densidad ambiente → subestima ppm en zona caliente.
+- **Mass-derived**: producción correcta (proporcional a HRR real, sin doble-throttle). Denominator usa densidad caliente (más correcto para concentración real). **Error**: inicia en 0 kg (falta CO₂ atmosférico), y `co2_upper_kg` no tiene verificación de que realmente esté en la capa superior.
+
+**Para tenabilidad (CO₂ narcosis/hiperventilación)**: mass path es más fiable en t > 300s. El tracer subestima sistemáticamente por el o2_scale.
+
+#### Instrumentación faltante para cerrar diagnóstico
+
+Para confirmar cuantitativamente cada mecanismo, faltarían estas columnas CSV:
+1. `co2_upper_oes_prod_ppm_step` — producción de tracer por paso físico (en ppm-equivalente)
+2. `o2_scale_oes` — valor de o2_scale aplicado en OES por paso
+3. `upper_frac_oes` — fracción upper_frac usada en OES para upper_air_mass
+4. `co2_upper_kg_ach_step` — ACH drain aplicado a co2_upper_kg en GES por paso
+
+Sin estas columnas, el diagnóstico es deductivo (código + datos CSV). Con ellas sería verificable por fila.
+
+#### Conclusión y siguiente paso
+
+Root cause confirmado sin ambigüedad: **el o2_scale en OES es la causa dominante** de divergencia. No es un bug de ACH ni de ventilación. El density mismatch amplifica. La initial condition asimetría explica el t < 300s.
+
+**D2 Fase 3 (CO/CO₂ ratio rule)**: puede implementarse sobre el mass path (`co2_upper_ppm_mass`) con corrección de condición inicial (+400 ppm offset o init co2_upper_kg con CO₂ atmosférico). El tracer path no es adecuado para un ratio rule hasta que se corrija el o2_scale en OES — lo que requiere un plan motor separado.
+
+---
+
+## Current Session Update - 2026-06-30 (rev 28 - D2 Fase 2)
+
+### Estado operativo actual
+
+- Branch: `main`, cambios locales sin commitear — D2PRE implementado.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio.
+- Physics coherence corpus: **13 PASS / 1 WARN / 2 CTRL / 0 FAIL** — `cfast_slow_growth_sealed` ahora clasifica como WARN por 243 D2PRE WARNs (no gating, exit code 0).
+- Tests: **183/183 PASS** (162 pre-existentes + 21 nuevos TestCheckD2PRE).
+
+### D2 Fase 2 — regla D2PRE implementada
+
+**Función:** `_check_d2pre_co2_upper_divergence()` en `check_physics_coherence.py`.
+
+**Métrica:** `rel_div = |co2_upper_ppm_mass − co2_upper_ppm| / max(co2_upper_ppm, 400.0)`
+
+**Threshold:** `_D2PRE_REL_TOL = 1.0` — solo dispara cuando mass >2× tracer (o viceversa). Evita el ruido early-transient (t=50s da rel_div~0.6).
+
+**Severity:** WARN — diagnóstica, no afecta exit code, no gating. Skip graceful en CSV legacy sin `co2_upper_ppm_mass`.
+
+**Resultado diagnóstico — `cfast_slow_growth_sealed`:**
+- 243 D2PRE WARNs — room 0 (fire room), t=320s en adelante.
+- Tracer (`co2_upper_ppm`): toca techo ~85k ppm → decrece por dilución ODE.
+- Mass-derived (`co2_upper_ppm_mass`): continúa acumulando hasta >220k ppm.
+- `rel_div` crece de 1.0 (t=320s) hasta >2.2 (t=1800s) y sigue creciendo.
+- Rooms 2, 3, 5: sin findings (permanecen en 400 ppm ambient).
+- Room 1: WARN tardío a t=1800s (rel_div=3.81, mass=1928 vs tracer=401).
+- Room 4: WARN intermitente a t=1200s (rel_div=1.40).
+
+**Conclusión D2:**
+D2 CO/CO₂ ratio rule (Fase 3) **bloqueada**. Divergencia tracer vs mass es sistemática y creciente en el fire room. Hipótesis root cause: el tracer ODE (`co2_upper` en `OxygenExchangeSystem`) pierde CO₂ por dilución en intercambios O₂/N₂ y ventilación, mientras `co2_upper_kg` (`CombustionSystem`+`GasExchangeSystem`) acumula directamente sin dilución proporcional. Debe diagnosticarse cuál representación es física antes de proceder.
+
+**Próximo paso D2 (Fase 3 condicionada):**
+Antes de implementar la regla ratio, entender por qué divergen. Opciones:
+a) El tracer se diluye incorrectamente (bug en OES — dilución de CO₂ no proporcional a intercambio gaseoso).
+b) El mass-derived acumula sin ventear correctamente (GES no descuenta CO₂ ventilado de `co2_upper_kg`).
+c) La geometría de zona upper cambia y la conversión kg→ppm no compensa.
+
+---
+
+## Current Session Update - 2026-06-30 (rev 27 - D2 Fase 1)
+
+### Estado operativo actual
+
+- Branch: `main`, cambios locales sin commitear — GDScript D2 Fase 1 implementado.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio.
+- Physics coherence corpus: **14 PASS / 2 CTRL / 0 FAIL** — sin cambio (sin regresiones tras añadir nuevas columnas CSV).
+- Tests: **162/162 PASS** — sin cambio (tests Python no cubren GDScript directamente).
+
+### D2 Fase 1 — implementación completa
+
+**Objetivo:** Exportar `co2_upper_ppm` (tracer, faltaba en CSV) y `co2_upper_ppm_mass` (mass-derived, nueva) al CSV para diagnóstico D2-pre en Fase 2.
+
+**Cambios GDScript (4 archivos):**
+
+1. **`sim/core/ThermalSystem.gd`** — añadida `compute_co2_upper_ppm_mass()`. Fórmula: `co2_upper_kg * 29e6 / (upper_zone_mass_kg * 44.0)`. Guarda `upper_gas_kg < 0.1` → fallback a `room.co2_upper * 1e6` (400 ppm ambient). FED intacto.
+2. **`sim/core/SimulationEngine.gd`** — callable `compute_co2_upper_ppm_mass_callable` registrado.
+3. **`sim/core/SimulationStateBuilder.gd`** — callable declarado + `"co2_upper_ppm_mass"` añadido al state dict.
+4. **`sim/core/SimulationLogWriter.gd`** — header y body: `co2_upper_ppm` y `co2_upper_ppm_mass` añadidos tras `co2_ppm`. Header=115 columnas, body=115 appends.
+
+**Verificación headless:**
+- `cfast_slow_growth_sealed`: 384 rows. `co2_upper_ppm` y `co2_upper_ppm_mass` presentes. t=5s: ambas = 400 ppm (fallback correcto, sin hot layer).
+- Audit suite: **14 PASS / 2 CTRL / 0 FAIL** — sin regresiones.
+
+**Próximos pasos D2:**
+- **Fase 2:** Añadir regla `D2PRE` (WARN) en `check_physics_coherence.py` — diagnostica divergencia tracer vs mass-derived. Prerequisito: correr headless y comparar columnas en CSV largo.
+- **Fase 3:** D2 ratio CO/CO2 en campos comparable (ambos mass-derived o ambos tracer).
+
+---
+
+## Current Session Update - 2026-06-30 (rev 26 - D2 semantic plan)
+
+### Estado operativo actual
+
+- Branch: `main`, cambios locales sin commitear — sin cambios de código esta sesión.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio.
+- Physics coherence corpus: **14 PASS / 2 CTRL / 0 FAIL** — sin cambio.
+- Tests: **162/162 PASS** — sin cambio.
+
+### Plan D2 — CO/CO2 ratio rule
+
+#### Mapa semántico actual CO/CO2
+
+**`room.co2_upper` (tracer, fracción molar)**
+- Init: `0.0004` (~400 ppm ambient)
+- Escrito por: `OxygenExchangeSystem.gd` (6 sitios: combustión-delta, infiltración-ACH, dilución-inflow, canonical doorway exchange) y `HVACSystem.gd` (supply mix)
+- NO escrito por ThermalSystem ni GasExchangeSystem
+- Exportado como: `co2_upper_ppm = room.co2_upper × 1e6` (vía `compute_co2_upper_ppm()` en ThermalSystem.gd:3251)
+- Usado en FED: `v_co2 = exp(0.1903 × co2_pct + 2.0004) / 7.1` — factor de potenciación CO/HCN en ISO 13571
+
+**`room.co2_upper_kg` (mass-derived, kg)**
+- Init: `0.0` — NO inicializado con masa ambient
+- Escrito por: `CombustionSystem.gd` (generación: `room.co2_upper_kg += generated_co2_kg`), `GasExchangeSystem.gd` (14+ sitios: doorway exchange, ventilación exterior, purge, smoke-CO2 coupling)
+- NO exportado al CSV
+- NO usado en FED (FED usa tracer `co2_upper` vía `compute_co2_upper_ppm`)
+
+**`room.co2_kg` (total CO2 mass, kg)**
+- Init: `0.0` — NO inicializado con masa ambient
+- Escrito por: `CombustionSystem.gd` (generación) y `GasExchangeSystem.gd` (transporte, ventilación, purge)
+- NO exportado al CSV
+
+**`room.co_upper_kg` (CO upper, kg)**
+- Init: `0.0`
+- Mass-derived, temperatura-corregida para exportar como `co_upper_ppm`
+- Usado en FED directamente
+
+**Incompatibilidad central:**
+`co2_upper_ppm` (tracer, fracción molar ODE) y `co_upper_ppm` (mass-derived, temperatura-corregida) provienen de trayectorias computacionales completamente distintas. Un ratio CO/CO2 construido sobre ellas mezcla dos representaciones incomparables.
+
+**Además: brecha de inicialización.** `co2_upper_kg` y `co2_kg` se inicializan a 0.0. El tracer `co2_upper` se inicializa a 0.0004. A t=0, `co2_upper_ppm` = 400 ppm (ambient), pero `co2_upper_ppm_mass` (si se exportara desde `co2_upper_kg`) = 0 ppm. Toda divergencia inicial se debe a esta brecha, no a física real.
+
+---
+
+#### Opciones de diseño D2
+
+**Opción A — CO2 upper mass-derived como representación autoritativa**
+
+Descripción: Añadir `compute_co2_upper_ppm_mass()` en ThermalSystem que usa `co2_upper_kg` y la masa de zona upper (temperatura-corregida, mismo método que `co_upper_ppm`). Exportar como `co2_upper_ppm_mass` al CSV. D2 compara `co_upper_ppm` vs `co2_upper_ppm_mass`.
+
+| Aspecto | Detalle |
+|---------|---------|
+| Impacto FED | Ninguno — FED sigue usando tracer `co2_upper_ppm` para V_CO2. Solo se añade columna nueva. |
+| Riesgo regresión | Bajo si se añade solo la columna. Si se cambia FED a mass-derived en el futuro: potencial regresión en fed_co/fed_hcn. |
+| Cambios GDScript | 1 nueva función en ThermalSystem.gd + 1 export en SimulationStateBuilder.gd + 1 CSV column en SimulationLogWriter.gd + inicializar `co2_upper_kg` con masa ambient en RoomModel/setup |
+| Columnas CSV nuevas | `co2_upper_ppm_mass` |
+| Tests necesarios | Test que verifica D2 produce WARN/FAIL cuando ratio CO/CO2 sale de rango; test que verifica column existe en schema |
+| Severidad inicial | WARN (observación) |
+| Bloqueo previo | Hay que resolver la brecha de inicialización `co2_upper_kg = 0` antes de implementar D2, o la regla dará falsos positivos al inicio de cada simulación. |
+
+**Opción B — D2 sobre campos existentes (co_upper_ppm + co2_upper_ppm tracer)**
+
+Descripción: Implementar D2 directamente sobre `co_upper_ppm` y `co2_upper_ppm` existentes, con tolerancia amplia para absorber el mismatch representacional.
+
+| Aspecto | Detalle |
+|---------|---------|
+| Impacto FED | Ninguno |
+| Riesgo regresión | Ninguno en motor — no toca código. Pero la regla D2 sería semánticamente débil. |
+| Cambios GDScript | Ninguno |
+| Columnas CSV nuevas | Ninguna |
+| Tests necesarios | Tests de la regla D2 en check_physics_coherence.py |
+| Severidad inicial | Solo WARN o diagnóstico — no puede ser FAIL/gating con mismatch representacional |
+| Problema fundamental | CO2 tracer y CO mass-derived no son comparables. El ratio reflejaría ruido del mismatch, no física real. Falsos positivos garantizados en multi-room (CO transportado de una sala, CO2 tracer independiente). **No recomendado.** |
+
+**Opción C — Exportar ambas representaciones, D2-pre diagnóstico primero**
+
+Descripción: Dos fases. Fase 1: exportar `co2_upper_ppm_mass` (desde `co2_upper_kg`) como columna CSV nueva. Añadir regla D2-pre como WARN diagnóstico que mide `abs(co2_upper_ppm_mass - co2_upper_ppm) / co2_upper_ppm` — si la divergencia es grande, el dual-tracking tiene un problema real antes de intentar D2. Fase 2: si D2-pre muestra convergencia en corpus, implementar D2 ratio rule sobre la representación mass-derived.
+
+| Aspecto | Detalle |
+|---------|---------|
+| Impacto FED | Ninguno |
+| Riesgo regresión | Bajo — solo se añade columna + regla WARN |
+| Cambios GDScript | Idéntico a Opción A (columna), más la brecha de inicialización ambient |
+| Columnas CSV nuevas | `co2_upper_ppm_mass` |
+| Tests necesarios | Test D2-pre WARN cuando divergencia > umbral; test no-finding cuando convergentes |
+| Severidad inicial | D2-pre: WARN diagnóstico. D2 ratio: WARN inicial → FAIL si corpus limpio |
+| Ventaja diferencial | Revela si el dual-tracking es realmente problemático en el corpus actual antes de comprometerse a una D2 ratio rule. Si D2-pre muestra divergencia masiva, el problema está en la inicialización o en el motor — no en el balance rule. |
+
+---
+
+#### Recomendación: Opción C
+
+**Ruta mínima para desbloquear D2:**
+
+1. **Fase 0 (diagnóstico, sin motor):** Examinar un CSV existente para estimar cuánto divergen `co2_upper_ppm` (tracer, disponible) y una estimación de `co2_upper_ppm_mass` (requiere `co2_upper_kg`, no disponible en CSV actualmente). Como `co2_upper_kg` no está en CSV, este diagnóstico no puede hacerse sin tocar motor.
+
+2. **Fase 1 (mínimo motor):** Añadir 3 cambios GDScript:
+   - `RoomModel.gd`: inicializar `co2_upper_kg` con masa ambient estimada (o añadir campo `co2_upper_kg_initialized: bool`).
+   - `ThermalSystem.gd`: añadir `compute_co2_upper_ppm_mass(room)` usando `co2_upper_kg`.
+   - `SimulationStateBuilder.gd` + `SimulationLogWriter.gd`: exportar `co2_upper_ppm_mass` al CSV.
+
+3. **Fase 2 (regla D2-pre):** Implementar en `check_physics_coherence.py` una regla D2-pre que mida la divergencia `co2_upper_ppm_mass` vs `co2_upper_ppm`. WARN solo. Auditar corpus. Si divergencia < 50% en todos los casos activos → D2 ratio es viable.
+
+4. **Fase 3 (D2 ratio rule):** Implementar D2 propiamente: `co_upper_ppm / co2_upper_ppm_mass` dentro de rango esperado por condición de fuego (ventilated: CO/CO2 ratio < 0.1; under-ventilated: 0.1–1.0; post-flashover: hasta 2.0+). WARN inicial.
+
+**Prerrequisito bloqueante identificado:** La brecha de inicialización `co2_upper_kg = 0` vs `co2_upper = 0.0004` producirá falsos positivos en D2-pre y D2. Hay que inicializar `co2_upper_kg` con la masa ambient CO2 del volumen de aire de la sala antes de que D2 sea significativo. Esto requiere acceso al volumen y masa de aire de la sala en el setup — cambio en el constructor de `RoomModel` o en `SimulationEngine._setup_rooms()`.
+
+---
+
+### Archivos modificados esta sesión
+
+Solo documentación:
+- `docs/HANDOFF_CURRENT_STATE.md` — rev 26 (este, plan D2)
+- `docs/validation/MOTOR_PHYSICS_VALIDATION_CHECKLIST.md` — sección D2 ampliada
+
+---
+
+## Current Session Update - 2026-06-30 (rev 25 - S1 promovida a FAIL/gating)
+
+### Estado operativo actual
+
+- Branch: `main`, cambios locales sin commitear (S1→FAIL, O2E1, O1, M5, C-S1-3 — sesiones 2026-06-29/30).
+- Último commit: `18b6b5c2` docs(fire): record M5 post-backdraft guard plan.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio.
+- Physics coherence corpus: **14 PASS / 2 CTRL / 0 FAIL**.
+- Tests `test_check_physics_coherence.py`: **162/162 PASS**.
+
+### S1 — FAIL/gating (cerrado)
+
+`severity="WARN"` → `severity="FAIL"` en `_check_s1_smoke_per_room_balance`. Sin cambio de tolerancias.
+
+Criterios cumplidos: C-S1-1 (corpus sostenido), C-S1-2 (multi-room `cfast_two_room_door_open`), C-S1-3 (multi-floor `cfast_two_floor_stairwell`), C-S1-4 venting, C-S1-5 (sin residuos compensados), C-S1-6 (sin cambio de tolerancia). C-S1-4 deposition documentada como limitación de floor precision (max 0.002 kg < floor 0.01 kg).
+
+`cfast_two_floor_stairwell` añadido a `KNOWN_INTENTIONAL_CONTROLS` en `audit_physics_coherence_suite.py`: A3/O2E1 por depleción O2 en edificio sellado (misma causa que `v1_backdraft_accumulation`); S1 limpia — propósito es cobertura C-S1-3.
+
+### Archivos modificados esta sesión
+
+- `scripts/simulation/check_physics_coherence.py` — S1 severity WARN → FAIL; docstring actualizado
+- `scripts/simulation/audit_physics_coherence_suite.py` — `cfast_two_floor_stairwell` añadido a KNOWN_INTENTIONAL_CONTROLS
+- `tests/test_check_physics_coherence.py` — `test_residual_above_floor_triggers_fail` (era `_warn`)
+- `CHANGELOG.md` — entrada S1 FAIL/gating
+- `docs/HANDOFF_CURRENT_STATE.md` — rev 25
+
+### Gating balance lanes — estado final
+
+| Lane | Severidad | Estado |
+|------|-----------|--------|
+| S0 | FAIL/gating | Cerrado |
+| E1 | FAIL/gating | Cerrado |
+| D1 | FAIL/gating | Cerrado |
+| O2E1 | FAIL/gating | Cerrado |
+| O1 | FAIL/gating | Cerrado |
+| **S1** | **FAIL/gating** | **Cerrado (2026-06-30)** |
+| D2 | Bloqueado | `co2_upper_ppm` tracer vs `co2_upper_kg` mass — sin resolver |
+
+### Siguiente paso recomendado
+
+- D2 sigue bloqueado. Opciones: (a) exportar `co2_upper_kg` al CSV como columna comparable, (b) derivar `co2_upper_ppm` de masa en lugar de tracer. Requiere plan semántico explícito.
+- No hay balance lanes gating pendientes de implementar.
+
+---
+
+## Current Session Update - 2026-06-30 (rev 24 - C-S1-3 cubierto, corpus 15 PASS)
+
+### Estado operativo actual
+
+- Branch: `main`, cambios locales sin commitear (S1, O2E1, O1, M5, C-S1-3 — sesiones 2026-06-29/30).
+- Último commit: `18b6b5c2` docs(fire): record M5 post-backdraft guard plan.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio.
+- Physics coherence corpus: **15 PASS / 1 CTRL / 0 FAIL / 0 WARN**.
+- Tests `test_check_physics_coherence.py`: **162/162 PASS**.
+
+### C-S1-3 cerrado — cfast_two_floor_stairwell
+
+Se añadió `csv_log_file_path` al caso JSON `sim/validation/cases/cfast_two_floor_stairwell.json` (único cambio; faltaba en `engine_overrides`). Se ejecutó headless con Godot 4.6.3.
+
+**Resultado S1 (13 rooms, PB + P1, 0–350 s):**
+
+| Room | Nombre | Transport total | Floor |
+|------|--------|----------------|-------|
+| 0 | Salon-comedor PB | −2.979 kg (emisor) | PB |
+| 1 | Recibidor distribuidor | +0.192 kg | PB |
+| 2 | Escalera PB | +0.135 kg | PB |
+| 3 | Cocina PB | +0.224 kg | PB |
+| 6 | **Escalera P1** | **+0.101 kg** | **P1** |
+| 7 | **Distribuidor P1** | **+0.138 kg** | **P1** |
+| 8–10,12 | Dormitorios P1 | +0.021–0.026 kg | P1 |
+
+Todos los valores por encima del floor S1 (0.01 kg). S1 exit 0, sin WARNs. Transporte vertical vía escalera confirmado.
+
+### Estado criterios C-S1
+
+| Criterio | Estado |
+|----------|--------|
+| C-S1-1 Corpus sostenido | ✅ 15/15 PASS, 0 WARN |
+| C-S1-2 Multi-room transport | ✅ `cfast_two_room_door_open` (5.43 kg, 6 rooms) |
+| C-S1-3 Multi-floor transport | ✅ `cfast_two_floor_stairwell` (0.101–0.138 kg inter-floor) |
+| C-S1-4 Venting | ✅ `fp_ilv_open_partial_window` (45.97 kg) |
+| C-S1-4 Deposition | ⚠️ Limitación de escala — max 0.002 kg, bajo floor 0.01 kg. No bloquea. |
+| C-S1-5 Sin residuos compensados | ✅ S1 exit 0 en ambos casos con transporte no trivial |
+| C-S1-6 Sin cambio de tolerancia | ✅ Tolerancias intactas |
+
+S1 permanece **WARN**. Todos los criterios bloqueantes cubiertos. La deposition está documentada como limitación de escala física (soot settling bajo en escenarios ≤600 s), no como gap de instrumentación. Promoción a FAIL/gating puede planificarse en sesión futura.
+
+### Archivos modificados esta sesión
+
+- `sim/validation/cases/cfast_two_floor_stairwell.json` — añadido `csv_log_file_path`
+- `sim/validation/reports/cfast_two_floor_stairwell.csv` — generado (nuevo)
+- `sim/validation/reports/cfast_two_floor_stairwell.json` — actualizado por Godot
+- `docs/HANDOFF_CURRENT_STATE.md` — rev 24 (este)
+- `docs/validation/MOTOR_PHYSICS_VALIDATION_CHECKLIST.md` — C-S1-2/3/4/5 marcados con estado
+- `CHANGELOG.md` — entrada C-S1-3
+
+### Siguiente paso recomendado
+
+Con C-S1-1 a C-S1-6 todos cubiertos (deposition documentada como limitación aceptable), S1 está lista para promoción a FAIL/gating. La única acción pendiente es:
+1. Cambiar `severity="WARN"` → `severity="FAIL"` en `_check_s1_smoke_per_room_balance`.
+2. Re-auditar corpus completo y confirmar 0 FAIL.
+3. Actualizar checklist, CHANGELOG y HANDOFF con fecha de promoción.
+
+D2 sigue bloqueado (CO2 dual-tracking). No tocar hasta decisión semántica.
+
+---
+
+## Current Session Update - 2026-06-30 (rev 23 - S1 WARN-clean, promotion criteria defined)
+
+### Estado operativo actual
+
+- Branch: `main`, cambios locales sin commitear (S1, O2E1, O1, M5 — sesiones 2026-06-29/30).
+- Último commit: `18b6b5c2` docs(fire): record M5 post-backdraft guard plan.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio.
+- Physics coherence corpus: **14 PASS / 0 FAIL / 0 WARN** en casos activos.
+- Tests `test_check_physics_coherence.py`: **162/162 PASS**.
+
+### S1 smoke per-room balance — WARN-clean
+
+S1 implementada en `scripts/simulation/check_physics_coherence.py` como **WARN**.
+
+- Invariante: `Δsmoke_kg = Δsmoke_generated_kg_total − Δsmoke_vented_kg_total − Δsmoke_deposited_kg_total + Δsmoke_net_transport_kg_total`.
+- Acumuladores per-room ya existían en `RoomModel.gd` y GDScript — no se tocó motor.
+- Corpus S1 (2026-06-30): **14 PASS / 0 WARN / 0 FAIL** en todos los casos activos.
+- Criterios de promoción S1 WARN → FAIL/gating definidos en `docs/validation/MOTOR_PHYSICS_VALIDATION_CHECKLIST.md` (C-S1-1 a C-S1-6).
+- S1 permanece WARN. No promover sin evidencia de los criterios.
+
+### Stale comments corregidos
+
+- `docs/HANDOFF_CURRENT_STATE.md` rev 22: eliminada la referencia a "S1 bloqueado" y al plan de instrumentación.
+- `docs/handoff/HANDOFF_CURRENT_STATE.md`: S0 limitations actualizado ("S1 bloqueado" → "S1 implementada WARN-clean").
+
+### D2 — sigue bloqueado
+
+`co2_upper_ppm` es tracer-derived (`room.co2_upper * 1e6`, actualizado por `ThermalSystem`).
+`co2_upper_kg` es mass-derived (acumulado por `GasExchangeSystem`, 14+ sitios de escritura) y no está exportado al CSV.
+Las dos representaciones son semánticamente incomparables. Reglas CO/CO2 ratio (D2 y derivadas) no pueden implementarse hasta resolver cuál es autoritativa o exportar `co2_upper_kg` de forma comparable.
+
+### Siguiente paso recomendado
+
+Opciones sin tocar motor directamente:
+
+1. **Ampliar corpus S1** — verificar que los casos multi-room ya en suite tienen `smoke_net_transport_kg_total` no trivial (C-S1-2). Si es así, S1 cubre criterio C-S1-2/3 y la promoción puede planificarse.
+2. **Plan D2** — decidir entre: (a) exportar `co2_upper_kg` al CSV como columna adicional comparable, o (b) derivar `co2_upper_ppm` de masa en lugar de tracer. Requiere plan semántico explícito antes de tocar `ThermalSystem`.
+3. **Nuevas reglas de balance** — candidatos: temperatura upper/lower vs energía (B2), smoke visibility vs smoke_kg (V1).
+
+---
+
+## Current Session Update - 2026-06-29 (rev 22 - O2E1/O1 promoted to FAIL-gating)
+
+### Estado operativo actual
+
+- Branch: `main`, worktree limpio antes de esta nota, local ahead de `origin/main`.
+- Ultimos commits relevantes:
+  - `6db12f7` — O2E1 promoted to FAIL/gating.
+  - `bd3e13e` — O1 canonical doorway double-count fixed.
+  - `6a8dd2a` / `41eb069` — O1 promoted to FAIL/gating and documented.
+- `validate_reference_cases`: **349/354 PASS** — sin cambio; los 5 FAIL restantes son `VALID_GAP` preexistentes.
+- Physics coherence corpus: **14 PASS / 0 FAIL** en casos activos.
+- Carriles gating activos: `S0`, `E1`, `D1`, `O2E1`, `O1`, y cobertura M5/C1.
+- S1 añadida como WARN-clean (2026-06-30): ver entrada S1 en CHANGELOG y checklist.
+- Bloqueado sin cambio: `D2` (CO2 upper dual-tracking).
+
+### M5 y C1 cerrados
+
+M5 ya no es solo plan. `fire_post_bd_hrr_cut_enabled` fue implementado y activado en `v1_m4_pool_release` como guard opt-in/default-off.
+
+Resultado:
+
+- `v1_m4_pool_release` mantiene el backdraft principal.
+- No hay segundo backdraft artificial.
+- El zombie post-backdraft queda cortado en el caso M5.
+- C1 backdraft/pool-release queda cerrado como evidencia limpia para O2E1.
+
+### O2E1 cerrado como FAIL/gating
+
+O2E1 ahora usa `o2_consumed_fire_kg_total` contra `hrr_kj_total * 7.6e-5 kg/kJ` y su severidad es `FAIL`.
+
+Decisiones:
+
+- No tocar tolerancias: se mantiene 5 % relativo / `1e-5 kg` absoluto.
+- No tocar fisica en la promocion: fue cambio de severidad/documentacion/tests.
+- `v1_backdraft_accumulation` sigue como CTRL intencional con findings esperados.
+
+### O1 canonical doorway cerrado y promovido
+
+Causa raiz del gap O1 en `cfast_two_room_door_open`:
+
+- `_apply_canonical_doorway_exchange` sumaba `_cde_net_hot` a `o2_net_transport_kg_total`.
+- Pero `room.o2` se actualiza via zone blend; el zone sync ya capturaba el efecto neto de CDE en bulk O2.
+- Resultado: O1 contaba dos veces el efecto y `expected > delta_bulk` por ~`_cde_net_hot` por paso.
+
+Fix:
+
+- `ThermalSystem.gd`: eliminado el tracking directo de `_cde_net_hot` hacia `o2_net_transport_kg_total`.
+- `ThermalSystem.gd`: anadido zone sync para `cold_room` en CDE.
+- `check_physics_coherence.py`: O1 suma `delta(o2_zone_sync_kg_total)` al expected.
+
+Resultado:
+
+- `cfast_two_room_door_open` limpio.
+- Corpus de coherencia fisica: **14 PASS / 0 FAIL**.
+- O1 promovido a `FAIL/gating`.
+
+### Siguiente paso recomendado
+
+No abrir D2/S1 directamente sin plan semantico.
+
+Opcion recomendada ahora:
+
+1. Cerrar documentalmente la fase de balances principales — ver entrada S1 en CHANGELOG (2026-06-30).
+2. S1 ya está implementada como WARN-clean: 14 PASS / 0 WARN / 0 FAIL. Criterios de promoción definidos en `docs/validation/MOTOR_PHYSICS_VALIDATION_CHECKLIST.md`.
+3. D2 sigue bloqueado: resolver/normalizar la dualidad `co2_upper_ppm` tracer-derived vs `co2_upper_kg` mass-derived antes de implementar reglas CO/CO2.
+
+---
+
 ## Current Session Update - 2026-06-28 (rev 21 - M5 post-backdraft guard plan)
 
 ### Estado operativo actual

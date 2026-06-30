@@ -57,6 +57,7 @@ func build_state(context: Dictionary) -> Dictionary:
 	var compute_co_lower_ppm_callable: Callable = context.get("compute_co_lower_ppm_callable", Callable())
 	var compute_co2_ppm_callable: Callable = context.get("compute_co2_ppm_callable", Callable())
 	var compute_co2_upper_ppm_callable: Callable = context.get("compute_co2_upper_ppm_callable", Callable())
+	var compute_co2_upper_ppm_mass_callable: Callable = context.get("compute_co2_upper_ppm_mass_callable", Callable())
 	var compute_hcn_ppm_callable: Callable = context.get("compute_hcn_ppm_callable", Callable())
 	var compute_hcn_upper_ppm_callable: Callable = context.get("compute_hcn_upper_ppm_callable", Callable())
 	var compute_hcl_ppm_callable: Callable = context.get("compute_hcl_ppm_callable", Callable())
@@ -237,6 +238,7 @@ func build_state(context: Dictionary) -> Dictionary:
 			"co_lower_ppm": _call_room_float(compute_co_lower_ppm_callable, room, 0.0),
 			"co2_ppm": _call_room_float(compute_co2_ppm_callable, room, 0.0),
 			"co2_upper_ppm": _call_room_float(compute_co2_upper_ppm_callable, room, 0.0),
+			"co2_upper_ppm_mass": _call_room_float(compute_co2_upper_ppm_mass_callable, room, 0.0),
 			"hcn_ppm": _call_room_float(compute_hcn_ppm_callable, room, 0.0),
 			"hcn_upper_ppm": _call_room_float(compute_hcn_upper_ppm_callable, room, 0.0),
 			"hcl_ppm": _call_room_float(compute_hcl_ppm_callable, room, 0.0),
@@ -252,6 +254,14 @@ func build_state(context: Dictionary) -> Dictionary:
 			"c_balance_frac": room.c_balance_frac,
 			"carbon_conservation_error_kg": room.carbon_conservation_error_kg,
 			"co_kg": room.co_kg,
+			"smoke_generated_kg_step": room.smoke_generated_kg_step,
+			"smoke_generated_kg_total": room.smoke_generated_kg_total,
+			"smoke_vented_kg_step": room.smoke_vented_kg_step,
+			"smoke_vented_kg_total": room.smoke_vented_kg_total,
+			"smoke_deposited_kg_step": room.smoke_deposited_kg_step,
+			"smoke_deposited_kg_total": room.smoke_deposited_kg_total,
+			"smoke_net_transport_kg_step": room.smoke_net_transport_kg_step,
+			"smoke_net_transport_kg_total": room.smoke_net_transport_kg_total,
 			"co_generated_kg_step": room.co_generated_kg_step,
 			"co2_generated_kg_step": room.co2_generated_kg_step,
 			"hcn_generated_kg_step": room.hcn_generated_kg_step,

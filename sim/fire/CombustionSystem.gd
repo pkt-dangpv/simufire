@@ -84,6 +84,10 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	room.o2_exterior_net_kg_step = 0.0
 	room.o2_net_transport_kg_step = 0.0
 	room.o2_zone_sync_kg_step = 0.0
+	room.smoke_generated_kg_step = 0.0
+	room.smoke_vented_kg_step = 0.0
+	room.smoke_deposited_kg_step = 0.0
+	room.smoke_net_transport_kg_step = 0.0
 
 	if room.fire == null:
 		var idle_o2_selection: Dictionary = _resolve_fire_o2_selection(room, null, context)
@@ -346,6 +350,16 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	retained_generation_kw *= solid_fuel_scale
 	solid_fuel_demand_MJ = solid_pyrolysis_kw * dt / 1000.0
 
+	# M5 early guard: bloquea re-acumulación de gases sin quemar post-backdraft.
+	# Condición: backdraft ya ocurrió, no estamos en la explosión activa, y O₂ aún no
+	# ha superado el umbral de backdraft (mezcla demasiado pobre para re-acumular).
+	# No-op cuando flag=false (default). No cambia física de combustión.
+	if bool(context.get("fire_post_bd_hrr_cut_enabled", false)) \
+			and room.backdraft_triggered \
+			and not room.backdraft_active \
+			and room.o2 < float(context.get("fire_backdraft_o2_max", 0.13)):
+		retained_generation_kw = 0.0
+
 	var pool_capacity_MJ: float = maxf(
 		0.0,
 		room.floor_area_m2() * float(context.get("fire_unburned_capacity_MJ_per_m2", 1.20))
@@ -511,6 +525,18 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			room.hrr_kw = maxf(room.hrr_kw, bd_hrr_kw)
 			room.hrr_target_kw = maxf(room.hrr_target_kw, bd_hrr_kw)
 			room.burned_hrr_kw = maxf(0.0, room.hrr_kw)
+
+	# M5 late guard: corta HRR zombie post-backdraft cuando no hay llama ni latencia.
+	# Opera durante la ventana en que O₂ está agotado y el fuego no puede sustentar llama,
+	# evitando que la inercia del smooth HRR genere filas A3 y O2E1 WARNs.
+	# No-op cuando flag=false (default). No cambia física de combustión.
+	if bool(context.get("fire_post_bd_hrr_cut_enabled", false)) \
+			and room.backdraft_triggered \
+			and not room.backdraft_active \
+			and not can_flame \
+			and not latent_viable:
+		room.hrr_kw = 0.0
+		room.hrr_target_kw = 0.0
 
 	var total_target_kw: float = maxf(
 		0.0001,

@@ -140,6 +140,15 @@ var co_net_transport_kg_total: float = 0.0
 # CO removido por ACH/infiltracion/purga/venteo hacia el exterior (siempre >= 0).
 # Necesario para D1: expected = delta_gen + delta_transport - delta_exterior_removed.
 var co_exterior_removed_kg_total: float = 0.0
+# SF-S1: balance de humo per-room. Tracking-only; no modifica la fisica.
+var smoke_generated_kg_step: float = 0.0
+var smoke_generated_kg_total: float = 0.0
+var smoke_vented_kg_step: float = 0.0
+var smoke_vented_kg_total: float = 0.0
+var smoke_deposited_kg_step: float = 0.0
+var smoke_deposited_kg_total: float = 0.0
+var smoke_net_transport_kg_step: float = 0.0
+var smoke_net_transport_kg_total: float = 0.0
 # SF-D2: O2 consumido por combustión (Thornton, default-off via fire_o2_stoich_consumption_enabled).
 # o2_consumed_kg_step: O2 consumido en ESTE paso (kg); 0.0 si flag=false o sin fuego.
 # o2_consumed_kg_total: acumulador desde el inicio — necesario para auditar balance O2.
@@ -379,6 +388,14 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	fire_o2_min_ref = 0.0
 	smoke_kg = 0.0
 	smoke_prod_kg_s = 0.0
+	smoke_generated_kg_step = 0.0
+	smoke_generated_kg_total = 0.0
+	smoke_vented_kg_step = 0.0
+	smoke_vented_kg_total = 0.0
+	smoke_deposited_kg_step = 0.0
+	smoke_deposited_kg_total = 0.0
+	smoke_net_transport_kg_step = 0.0
+	smoke_net_transport_kg_total = 0.0
 	soot_fraction = 1.0
 	chi_rad_normal = -1.0
 	h_layer_m = height_m

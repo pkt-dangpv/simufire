@@ -1,6 +1,6 @@
 # SimuFire — Handoff: estado actual
 
-Fecha: 2026-06-26 (actualizado O1-F)
+Fecha: 2026-06-28 (actualizado O1 canonical doorway)
 
 ## Rama y commits recientes
 
@@ -8,13 +8,11 @@ Fecha: 2026-06-26 (actualizado O1-F)
 - Commits del carril actual (más reciente primero):
 
 ```
+3aa582c feat(fire): implement M5 post-backdraft guard (fire_post_bd_hrr_cut_enabled)
+18b6b5c docs(fire): record M5 post-backdraft guard plan
+c0eac58 docs(o2e1): close C1 decision — path exercised, O2E1 stays WARN
+c8af550 test(o2): add M4 pool-release path exercise case
 9a973a1 feat(o1-f): close O1 WARNs via post-clamp transport tracking
-cfd6826 feat(o1-e): add O1 bulk O2 balance WARN rule
-d0f3421 feat(o1-d): fix StateBuilder O2 reporting; add zone-sync accumulator
-494387b feat(o1-c): separate bulk-only O2 consumption accumulator
-11decea docs(handoff): update with O1-A closed, S0 done, test counts
-33c3593 feat(o1-a): instrument per-sala O2 mass balance accumulators
-b9721c1 feat(s0): close smoke conservation as gating
 ```
 
 ## Carriles cerrados
@@ -32,7 +30,7 @@ b9721c1 feat(s0): close smoke conservation as gating
   - entregas interiores diferidas se contabilizan con `smoke_in_transit_kg`;
   - `SmokeModel.recompute_layer_from_mass()` ya no destruye humo sub-umbral poniendo `smoke_kg = 0`.
 - Limitación: S0 es global — no detecta errores compensados de transporte inter-sala.
-  S1 per-sala bloqueado hasta instrumentar `smoke_generated/vented/deposited/net_transport` por sala.
+  S1 per-sala implementada como WARN-clean (2026-06-30): accumuladores ya existían en RoomModel.
 - Tests: 15 (TestCheckS0). Total coherence tests: 119.
 
 ### E1 fuel balance — CERRADO
@@ -143,6 +141,7 @@ Implementada en `scripts/simulation/check_physics_coherence.py`.
 ```
 Δo2_bulk = (o2[t] − o2[t−1]) × air_mass_kg
 expected = −Δo2_consumed_bulk_kg_total + Δo2_exterior_net_kg_total + Δo2_net_transport_kg_total
+         + Δo2_zone_sync_kg_total
 residual = |Δo2_bulk − expected|
 ```
 
@@ -155,14 +154,13 @@ Salas idle con ese label (artefacto CombustionSystem) se incluyen.
 residual máximo observado post-fix (3.87×10⁻⁴ kg); la referencia de masa disponible evita
 que la tolerancia crezca sin cota cuando `expected` es grande.
 
-**Severity**: WARN. No gating.
+**Severity**: FAIL. Gating — promovido en `6a8dd2a` tras confirmar corpus 14/14 limpio.
 
-**Corpus (11 CSVs) — post O1-F**:
-- 11/11 PASS (0 findings O1). Las dos causas de WARN del carril anterior (stale CSV,
-  clamping en o2_nominal) fueron eliminadas en O1-F.
-- 0/11 WARN, 0/11 FAIL.
+**Corpus (14 CSVs) — post O1-G + promoción**:
+- 14/14 PASS (0 findings O1), incluyendo `cfast_two_room_door_open` (canonical doorway).
+- 0/14 WARN, 0/14 FAIL.
 
-**Tests**: 22 nuevos (`TestCheckO1`). Tests coherence total: 141 passed.
+**Tests**: 22 nuevos (`TestCheckO1`). Tests coherence total: 157 passed.
 
 ## O1-F — Cierre de WARNs O1 (CERRADO)
 
@@ -204,19 +202,56 @@ como paths auditables independientes. No tocar motor sin plan explícito.
 - No commitear `reference_checks.json` si solo refleja logs stale.
 - No implementar D2 CO/CO2 ratio hasta resolver dual-tracking CO2.
 
+## M5 — Post-backdraft HRR guard (CERRADO, 2026-06-28)
+
+Commit: `3aa582c feat(fire): implement M5 post-backdraft guard (fire_post_bd_hrr_cut_enabled)`
+
+**Flag opt-in**: `fire_post_bd_hrr_cut_enabled` (default `false`). Activado solo en `v1_m4_pool_release.json`.
+
+**Cambios implementados:**
+- `SimulationEngine.gd`: export var + entrada en context dict
+- `CombustionSystem.gd`: early guard (zeroes `retained_generation_kw` antes del update del pool, condición `backdraft_triggered AND not backdraft_active AND o2 < fire_backdraft_o2_max`) + late guard (corta `hrr_kw/hrr_target_kw` cuando `not can_flame AND not latent_viable`)
+- `CombustionRegimeClassifier.gd`: rule 8 usa solo `hrr_kw > 0.0` (eliminado `or fire_time_s > 0.0` que causaba A3 FAIL con HRR=0 post-backdraft)
+- `SimulationLogWriter.gd`: exporta columna `backdraft_active` al CSV
+- `check_physics_coherence.py`: skip O2E1 Thornton en intervalos con `backdraft_active=1`
+
+**Resultado:**
+- Backdraft principal t≈350 s preservado (HRR spike 21 369 kW)
+- Sin segundo backdraft
+- A3=0 WARNs, O2E1=0 WARNs
+- `check_physics_coherence.py` PASS (786 rows)
+- `validate_reference_cases`: 349/354 PASS (5 VALID_GAP pre-existentes, sin cambio)
+
+**C1 cerrado** → O2E1 puede promoverse a FAIL (decisión pendiente, sesión futura).
+
+## O1-G — Brecha multi-room canonical doorway (CERRADO, 2026-06-28)
+
+**Causa raíz**: doble-conteo de `_cde_net_hot` en `o2_net_transport_kg_total`.
+
+`_apply_canonical_doorway_exchange` suma `_cde_net_hot` al transport (hot_room += , cold_room -=),
+pero después sincroniza `room.o2 = zone_blend`. El zone sync ya captura el efecto neto de CDE en
+`room.o2` vía la mezcla volumétrica de `o2_upper`/`o2_lower`. Al incluir ambos en la fórmula O1,
+se contaba el flujo entre salas dos veces → `expected > delta_bulk` → residuals negativos crecientes
+con HRR (244 WARNs en `cfast_two_room_door_open`, 6 salas, cumulativo −0.1268 kg a t=190s).
+
+**Fixes aplicados:**
+- `ThermalSystem.gd` `_apply_canonical_doorway_exchange`: eliminadas las 4 líneas que sumaban
+  `_cde_net_hot` a `o2_net_transport_kg_step/total` (SF-O1A). El zone sync de hot_room y cold_room
+  (existente + añadido en esta sesión) ya captura el efecto real sobre `room.o2`.
+- `ThermalSystem.gd` `_apply_canonical_doorway_exchange`: añadido zone sync para `cold_room`
+  (equivalente al que ya existía para hot_room), porque Part A modifica `cold_room.o2_upper`
+  pero no sincronizaba `cold_room.o2`.
+- `check_physics_coherence.py` O1: añadido `Δo2_zone_sync_kg_total` al expected.
+  Columna opcional (default 0.0) — casos sin canonical doorway no se ven afectados.
+
+**Resultado:** `cfast_two_room_door_open` PASS (0 findings O1). Corpus completo: 14 PASS, 0 WARN.
+
 ## Suite de tests
 
 ```
-329 passed  (subset: test_check_physics_coherence + test_o2_balance_instrumentation + test_carbon_balance, 2026-06-26)
- 22 passed  TestCheckO1  (tests/test_check_physics_coherence.py)
-141 passed  tests/test_check_physics_coherence.py  (TestCheckS0 15 + TestCheckE1 17 + TestCheckO1 22 + resto)
- 20 passed  tests/test_o2_balance_instrumentation.py  (actualizado SF-O1F: actual_delta_kg)
-160 passed  tests/test_carbon_balance.py
-
-Corpus O1 audit (post O1-F):
-  11/11 PASS (0 O1 findings) — incluyendo fuel_balance_diag_sealed y v5_m4_ventilation_throttle
-  0/11 WARN, 0/11 FAIL (O1 no es gating)
-  Max residual: 3.87×10⁻⁴ kg (< 0.4 g)
+157 passed  Python unit tests (2026-06-28, post O1-G)
+validate_reference_cases: 349/354 PASS (5 VALID_GAP pre-existentes, sin cambio)
+Physics coherence audit: 14 PASS, 0 FAIL, 1 CTRL (v1_backdraft_accumulation intencional)
 ```
 
 Failures conocidas pre-existentes (no relacionadas con este carril):

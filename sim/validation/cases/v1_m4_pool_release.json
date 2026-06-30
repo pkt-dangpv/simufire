@@ -55,6 +55,7 @@
 		"fire_latent_extinction_delay_s": 300.0,
 		"fire_pool_release_max_fraction": 0.18,
 		"fire_o2_upper_throttle_enabled": true,
+		"fire_post_bd_hrr_cut_enabled": true,
 		"fire_backdraft_pool_threshold_MJ": 0.35,
 		"fire_backdraft_o2_max": 0.20,
 		"fire_backdraft_temp_min_c": 100.0,

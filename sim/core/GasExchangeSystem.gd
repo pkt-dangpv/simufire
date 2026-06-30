@@ -435,6 +435,7 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 		var air_frac_out: float = clampf(q_out_m3s * dt / room_vol_m3, 0.0, 0.10)
 
 		room.smoke_kg = maxf(0.0, room.smoke_kg - smoke_out_kg)
+		_record_smoke_vented(room, smoke_out_kg)
 		result["smoke_vented_kg"] = float(result.get("smoke_vented_kg", 0.0)) + smoke_out_kg
 
 		_call_room_fraction(remove_upper_layer_fraction_callable, room, frac_out)
@@ -532,6 +533,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 		var generated_kg: float = smoke_model.add_generated_smoke(room, dt)
 		result["smoke_generated_kg"] = float(result.get("smoke_generated_kg", 0.0)) + generated_kg
+		_record_smoke_generated(room, generated_kg)
 		smoke_delta_kg[int(room_id)] += generated_kg
 
 	# Actualiza thermal_gap_fraction en puertas interiores calientes.
@@ -554,6 +556,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			if vented_kg > 0.0:
 				smoke_delta_kg[room_out.id] -= vented_kg
 				result["smoke_vented_kg"] = float(result.get("smoke_vented_kg", 0.0)) + vented_kg
+				_record_smoke_vented(room_out, vented_kg)
 				# El hollín sale aunque la masa restante sea demasiado baja para arrastrar especies.
 				room_out.c_exited_kg += vented_kg * 0.87
 
@@ -659,6 +662,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					var smoke_purge_kg: float = room_out.smoke_kg * purge_frac
 					# SF-S0: contabilizar humo purgado por ventilación natural en acumulador global.
 					result["smoke_vented_kg"] = float(result.get("smoke_vented_kg", 0.0)) + smoke_purge_kg
+					_record_smoke_vented(room_out, smoke_purge_kg)
 					if two_zone_opening_flow_enabled:
 						_queue_upper_species_to_exterior(
 							room_out,
@@ -770,6 +774,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			continue
 
 		smoke_delta_kg[from_id] -= kg
+		_record_smoke_net_transport(source, null, kg)
 
 		var flow_ratio: float = kg / (target.smoke_kg + kg + 0.1)
 		var travel_delay_s: float = _estimate_interior_transport_delay_s(building, from_id, to_id)
@@ -871,6 +876,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			})
 		else:
 			smoke_delta_kg[to_id] += kg
+			_record_smoke_net_transport(null, target, kg)
 			co_delta_kg[to_id] += co_moved_kg
 			co_upper_delta_kg[to_id] += co_moved_kg
 			co2_delta_kg[to_id] += co2_moved_kg
@@ -1056,6 +1062,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 				* dt \
 				* smoke_ach_efficiency)
 		room.smoke_kg = maxf(0.0, room.smoke_kg - smoke_removed)
+		_record_smoke_vented(room, smoke_removed)
 		# SF-S0: contabilizar extracción ACH en el acumulador de ventilación global.
 		result["smoke_vented_kg"] = float(result.get("smoke_vented_kg", 0.0)) + smoke_removed
 		# SF-CBAL: la infiltración ACH sustituye aire interior por aire exterior.
@@ -1116,6 +1123,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 				smoke_settling_rate += smoke_settling_bonus_per_s * cleanup_factor
 			var deposited_smoke_kg: float = minf(room.smoke_kg, room.smoke_kg * smoke_settling_rate * dt)
 			room.smoke_kg = maxf(0.0, room.smoke_kg - deposited_smoke_kg)
+			_record_smoke_deposited(room, deposited_smoke_kg)
 			result["smoke_deposited_kg"] = float(result.get("smoke_deposited_kg", 0.0)) + deposited_smoke_kg
 			# SF-CBAL: hollín depositado en paredes (carbono que sale de la fase gaseosa).
 			room.c_deposited_kg += deposited_smoke_kg * 0.87
@@ -1212,7 +1220,9 @@ func _release_pending_interior_deliveries(
 		if target == null:
 			continue
 
-		target.smoke_kg = maxf(0.0, target.smoke_kg + float(entry.get("smoke_kg", 0.0)))
+		var delivered_smoke_kg: float = float(entry.get("smoke_kg", 0.0))
+		target.smoke_kg = maxf(0.0, target.smoke_kg + delivered_smoke_kg)
+		_record_smoke_net_transport(null, target, delivered_smoke_kg)
 		var _co_pre_delivery: float = target.co_kg
 		target.co_kg = maxf(0.0, target.co_kg + float(entry.get("co_kg", 0.0)))
 		target.co_net_transport_kg_total += target.co_kg - _co_pre_delivery
@@ -1418,6 +1428,10 @@ func _apply_background_species_exchange(
 	) * exchange_air_kg
 	smoke_delta_kg[room_a.id] -= net_smoke_a_to_b
 	smoke_delta_kg[room_b.id] += net_smoke_a_to_b
+	if net_smoke_a_to_b >= 0.0:
+		_record_smoke_net_transport(room_a, room_b, net_smoke_a_to_b)
+	else:
+		_record_smoke_net_transport(room_b, room_a, -net_smoke_a_to_b)
 
 	var net_co_a_to_b: float = (
 		room_a.co_kg / mass_a_kg - room_b.co_kg / mass_b_kg
@@ -1817,6 +1831,7 @@ func _move_upper_zone_species(
 	var moved_smoke_kg: float = from_r.smoke_kg * frac
 	_add_delta(smoke_delta_kg, from_r.id, -moved_smoke_kg)
 	_add_delta(smoke_delta_kg, to_r.id, moved_smoke_kg)
+	_record_smoke_net_transport(from_r, to_r, moved_smoke_kg)
 
 	var moved_co_kg: float = minf(clampf(from_r.co_upper_kg, 0.0, from_r.co_kg) * frac, from_r.co_kg)
 	_add_delta(co_delta_kg, from_r.id, -moved_co_kg)
@@ -1936,6 +1951,38 @@ func _add_delta(delta: Dictionary, room_id: int, amount_kg: float) -> void:
 	if delta.is_empty() or amount_kg == 0.0:
 		return
 	delta[room_id] = float(delta.get(room_id, 0.0)) + amount_kg
+
+
+func _record_smoke_generated(room: RoomModel, amount_kg: float) -> void:
+	if room == null or amount_kg <= 0.0:
+		return
+	room.smoke_generated_kg_step += amount_kg
+	room.smoke_generated_kg_total += amount_kg
+
+
+func _record_smoke_vented(room: RoomModel, amount_kg: float) -> void:
+	if room == null or amount_kg <= 0.0:
+		return
+	room.smoke_vented_kg_step += amount_kg
+	room.smoke_vented_kg_total += amount_kg
+
+
+func _record_smoke_deposited(room: RoomModel, amount_kg: float) -> void:
+	if room == null or amount_kg <= 0.0:
+		return
+	room.smoke_deposited_kg_step += amount_kg
+	room.smoke_deposited_kg_total += amount_kg
+
+
+func _record_smoke_net_transport(from_room: RoomModel, to_room: RoomModel, amount_kg: float) -> void:
+	if amount_kg <= 0.0:
+		return
+	if from_room != null:
+		from_room.smoke_net_transport_kg_step -= amount_kg
+		from_room.smoke_net_transport_kg_total -= amount_kg
+	if to_room != null:
+		to_room.smoke_net_transport_kg_step += amount_kg
+		to_room.smoke_net_transport_kg_total += amount_kg
 
 
 func _compute_outside_species_purge_fraction(building: BuildingModel, room: RoomModel, dt: float) -> float:
@@ -2343,6 +2390,7 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 				+ hcn_purged_inlet * (12.0 / 27.0) \
 				+ smoke_purged_inlet * 0.87
 		inlet_room.smoke_kg = maxf(0.0, inlet_room.smoke_kg - smoke_purged_inlet)
+		_record_smoke_vented(inlet_room, smoke_purged_inlet)
 		inlet_room.co_kg = maxf(0.0, inlet_room.co_kg * (1.0 - mix_frac))
 		inlet_room.co_upper_kg = maxf(0.0, inlet_room.co_upper_kg * (1.0 - mix_frac))
 		inlet_room.co2_kg = maxf(0.0, inlet_room.co2_kg * (1.0 - mix_frac))
@@ -2391,6 +2439,7 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 					+ hcn_purged_ex * (12.0 / 27.0) \
 					+ smoke_purged_ex * 0.87
 			inlet_room.smoke_kg = maxf(0.0, inlet_room.smoke_kg - smoke_purged_ex)
+			_record_smoke_vented(inlet_room, smoke_purged_ex)
 			inlet_room.co_kg = maxf(0.0, inlet_room.co_kg * (1.0 - ex_frac))
 			inlet_room.co_upper_kg = maxf(0.0, inlet_room.co_upper_kg * (1.0 - ex_frac))
 			inlet_room.co2_kg = maxf(0.0, inlet_room.co2_kg * (1.0 - ex_frac))
@@ -2428,7 +2477,13 @@ func _apply_species_net_exchange(
 		return
 	var m_a: float = maxf(0.1, room_a.volume_m3()) * 1.2
 	var m_b: float = maxf(0.1, room_b.volume_m3()) * 1.2
-	_apply_net_pair(room_a.id, room_b.id, room_a.smoke_kg, room_b.smoke_kg, m_a, m_b, exchange_kg, smoke_delta_kg)
+	var net_smoke_a_to_b: float = (room_a.smoke_kg / maxf(0.001, m_a) - room_b.smoke_kg / maxf(0.001, m_b)) * exchange_kg
+	_add_delta(smoke_delta_kg, room_a.id, -net_smoke_a_to_b)
+	_add_delta(smoke_delta_kg, room_b.id, net_smoke_a_to_b)
+	if net_smoke_a_to_b >= 0.0:
+		_record_smoke_net_transport(room_a, room_b, net_smoke_a_to_b)
+	else:
+		_record_smoke_net_transport(room_b, room_a, -net_smoke_a_to_b)
 	_apply_net_pair(room_a.id, room_b.id, room_a.co_kg, room_b.co_kg, m_a, m_b, exchange_kg, co_delta_kg)
 	_apply_net_pair(room_a.id, room_b.id, room_a.co_upper_kg, room_b.co_upper_kg, m_a, m_b, exchange_kg, co_upper_delta_kg)
 	_apply_net_pair(room_a.id, room_b.id, room_a.co2_kg, room_b.co2_kg, m_a, m_b, exchange_kg, co2_delta_kg)
@@ -2467,6 +2522,7 @@ func _apply_directed_species_exchange(
 	var d_form: float = from_r.formaldehyde_kg * frac
 	smoke_delta_kg[from_r.id] = float(smoke_delta_kg.get(from_r.id, 0.0)) - d_smoke
 	smoke_delta_kg[to_r.id] = float(smoke_delta_kg.get(to_r.id, 0.0)) + d_smoke
+	_record_smoke_net_transport(from_r, to_r, d_smoke)
 	co_delta_kg[from_r.id] = float(co_delta_kg.get(from_r.id, 0.0)) - d_co
 	co_delta_kg[to_r.id] = float(co_delta_kg.get(to_r.id, 0.0)) + d_co
 	co_upper_delta_kg[from_r.id] = float(co_upper_delta_kg.get(from_r.id, 0.0)) - d_co_up

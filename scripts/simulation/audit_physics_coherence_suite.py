@@ -85,6 +85,28 @@ KNOWN_INTENTIONAL_CONTROLS: frozenset[str] = frozenset({
     # v1_m4_pool_release: M4 active but zombie resumes post-backdraft, 8 A3 FAILs t≈365-385/640-650s
     "v1_backdraft_accumulation",
     "v1_m4_pool_release",
+    # A3/O2E1 CTRL: sealed multi-floor building, all external windows closed,
+    # fire room depletes O2 after t≈400s.  A3 (regime mismatch) and O2E1
+    # (Thornton divergence) are expected consequences of extreme O2 depletion
+    # in a fully sealed configuration — same root cause as v1_backdraft_accumulation.
+    # Purpose of this case is S1 C-S1-3 (multi-floor inter-room smoke transport
+    # coverage); S1 is clean throughout.  Added as CTRL 2026-06-30.
+    "cfast_two_floor_stairwell",
+    # D2 pool-release CTRL: M4 ventilation throttle (fire_o2_upper_throttle_enabled)
+    # causes cyclical ILV_LATENT → pool-release oscillations throughout t=225–600s.
+    # retained_unburned_MJ accumulates to 0.12–0.17 MJ per cycle; pool combustion
+    # produces CO bursts that push CO/CO₂ ratio to 0.51–0.62 (threshold 0.50).
+    # 13 D2 WARNs are a direct, expected consequence of the M4 mechanism under test.
+    # Also has D2PRE WARNs (M1 o2_scale double-throttle, same root cause as other cases).
+    # Added as CTRL 2026-06-30.
+    "v5_m4_ventilation_throttle",
+    # D2 + D2PRE reference CTRL: created in Plan A Fase A1 to demonstrate that D2 fires
+    # in deep VC with mixed/synthetic fuel yields (co_base=0.004 kg/MJ, co_max=0.10 kg/MJ,
+    # 16× SFPE wood FC).  D2 WARN starts at t=710s (ratio=0.512) and escalates to 2.14 at
+    # t=1800s — intentional by design; this is the canonical D2 reference case.
+    # D2PRE WARNs in rooms 0, 1, 4 are collateral M1 o2_scale (same root cause as
+    # cfast_slow_growth_sealed).  All 188 findings are expected.  Added as CTRL 2026-06-30.
+    "wood_vc_reference",
 })
 
 

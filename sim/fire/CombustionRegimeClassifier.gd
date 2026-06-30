@@ -92,8 +92,10 @@ static func classify(room: RoomModel) -> String:
 	if room.o2_upper < O2_UPPER_ILV_CRITICAL and room.hrr_kw >= HRR_ILV_MIN_KW:
 		return "VENTILATION_CONTROLLED_BURNING"
 
-	# 8. FUEL_CONTROLLED — default cuando hay fuego activo bien ventilado
-	if room.hrr_kw > 0.0 or room.fire_time_s > 0.0:
+	# 8. FUEL_CONTROLLED — fuego activo bien ventilado con HRR positivo.
+	# No usar fire_time_s: un fuego dormido (HRR=0) post-backdraft caería aquí y
+	# generaría A3 FAIL cuando o2_upper está depletado.
+	if room.hrr_kw > 0.0:
 		return "FUEL_CONTROLLED"
 
 	return "EXTINGUISHED"

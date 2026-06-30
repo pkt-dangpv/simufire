@@ -2559,15 +2559,9 @@ func _apply_canonical_doorway_exchange(
 		)
 	# cold_room.o2_lower: fracción conservada al perder masa (mezcla perfecta).
 
-	# SF-O1A: canonical doorway — O₂ transportado entre salas (conserved pair).
-	# hot recibe de cold.lower; cold recibe de hot.upper.
-	var _cde_o2_hot_received: float = m_lower_kg * cold_room.o2_lower
-	var _cde_o2_cold_received: float = upper_gas_moved_kg * hot_room.o2_upper if upper_gas_moved_kg > 0.0 and cold_room.upper_gas_kg > 0.0001 else 0.0
-	var _cde_net_hot: float = _cde_o2_hot_received - _cde_o2_cold_received
-	hot_room.o2_net_transport_kg_step += _cde_net_hot
-	hot_room.o2_net_transport_kg_total += _cde_net_hot
-	cold_room.o2_net_transport_kg_step -= _cde_net_hot
-	cold_room.o2_net_transport_kg_total -= _cde_net_hot
+	# SF-O1A: CDE moves O₂ mass between rooms physically, but room.o2 is set via zone blend
+	# (lines below). Adding _cde_net_hot to o2_net_transport would double-count because the
+	# zone sync already captures the net effect on room.o2. Leave transport untouched here.
 
 	# Sync O₂ bulk para sala caliente: promedio volumétrico superior + inferior.
 	# SF-O1D: rastrear la corrección de sincronización zonal.
@@ -2582,6 +2576,21 @@ func _apply_canonical_doorway_exchange(
 	hot_room.o2_zone_sync_kg_step += _hot_cde_sync_kg
 	hot_room.o2_zone_sync_kg_total += _hot_cde_sync_kg
 	hot_room.o2 = _hot_cde_blend
+
+	# Sync O₂ bulk para sala fría: Part A modificó cold_room.o2_upper (upper mixing),
+	# pero cold_room.o2 no se actualizó. Sincronizar para que el balance O1 sea correcto.
+	# Equivalente al sync que _apply_doorway_thermal_counterflow ya hace para ambas salas.
+	var cold_total_vol: float = maxf(0.01, cold_room.volume_m3())
+	var cold_lower_vol: float = cold_room.lower_volume_m3()
+	var cold_upper_vol: float = cold_total_vol - cold_lower_vol
+	var _cold_cde_blend: float = clampf(
+		(cold_room.o2_upper * cold_upper_vol + cold_room.o2_lower * cold_lower_vol) / cold_total_vol,
+		0.0, 0.209
+	)
+	var _cold_cde_sync_kg: float = (_cold_cde_blend - cold_room.o2) * cold_total_vol * 1.2
+	cold_room.o2_zone_sync_kg_step += _cold_cde_sync_kg
+	cold_room.o2_zone_sync_kg_total += _cold_cde_sync_kg
+	cold_room.o2 = _cold_cde_blend
 
 
 func _apply_stairwell_heat_bridge(
@@ -2844,7 +2853,10 @@ func _flush_contaminant_deltas(building: BuildingModel) -> void:
 		room.co_upper_kg     = maxf(0.0, room.co_upper_kg     + _delta_co_upper_kg.get(rid, 0.0))
 		room.co2_kg          = maxf(0.0, room.co2_kg          + _delta_co2_kg.get(rid, 0.0))
 		room.co2_upper_kg    = maxf(0.0, room.co2_upper_kg    + _delta_co2_upper_kg.get(rid, 0.0))
+		var _smoke_pre_thermal: float = room.smoke_kg
 		room.smoke_kg        = maxf(0.0, room.smoke_kg        + _delta_smoke_kg.get(rid, 0.0))
+		room.smoke_net_transport_kg_step  += room.smoke_kg - _smoke_pre_thermal
+		room.smoke_net_transport_kg_total += room.smoke_kg - _smoke_pre_thermal
 		room.hcn_kg          = maxf(0.0, room.hcn_kg          + _delta_hcn_kg.get(rid, 0.0))
 		room.hcn_upper_kg    = maxf(0.0, room.hcn_upper_kg    + _delta_hcn_upper_kg.get(rid, 0.0))
 		room.hcl_kg          = maxf(0.0, room.hcl_kg          + _delta_hcl_kg.get(rid, 0.0))
@@ -3233,10 +3245,31 @@ func compute_co_lower_ppm(room: RoomModel) -> float:
 ## Fase 2B (2026-05-23): co2_upper se trackea como fracción molar directa en
 ## OxygenExchangeSystem para evitar el error de densidad del gas caliente.
 ## compute_co2_upper_ppm = room.co2_upper × 10⁶ (conversion directa, sin masa).
+## FED usa esta función (V_CO2 potentiation en ISO 13571); NO cambiar a mass-derived
+## sin auditar impacto en fed_co/fed_hcn.
 func compute_co2_upper_ppm(room: RoomModel) -> float:
 	if room == null:
 		return 0.0
 	return room.co2_upper * 1.0e6
+
+
+## CO₂ capa superior — representación mass-derived (D2 Fase 1, 2026-06-30).
+## Mismo patrón que compute_co_upper_ppm: usa co2_upper_kg y masa de zona upper
+## temperatura-corregida.  MW_CO2 = 44 g/mol (vs MW_CO = 28 g/mol).
+## Cuando upper_gas_kg < 0.1 kg (sin zona caliente establecida), devuelve el valor
+## tracer (room.co2_upper × 1e6) como fallback — evita divergencia espuria antes
+## de que el fuego estratifique la sala.  FED sin cambio: sigue usando compute_co2_upper_ppm.
+func compute_co2_upper_ppm_mass(room: RoomModel) -> float:
+	if room == null:
+		return 0.0
+	if room.upper_gas_kg < 0.1:
+		return room.co2_upper * 1.0e6
+	var hot_h: float = effective_hot_layer_height_m(room)
+	var upper_height_m: float = maxf(0.05, room.height_m - hot_h)
+	var upper_zone_mass_kg: float = maxf(0.1,
+		room.floor_area_m2() * upper_height_m * gas_density_kg_m3(room.temp_upper_c))
+	var co2_upper_kg: float = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
+	return co2_upper_kg * 29.0e6 / maxf(0.1, upper_zone_mass_kg * 44.0)
 
 
 func compute_co2_lower_ppm(room: RoomModel) -> float:

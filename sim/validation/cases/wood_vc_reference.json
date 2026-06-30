@@ -1,0 +1,55 @@
+{
+	"template": "simple_house",
+	"duration_s": 1800.0,
+	"ignite_on_start": true,
+	"ignition_room_id": 0,
+	"enable_logging": true,
+	"watch_room_ids": [
+		0
+	],
+	"smoke_trigger_room_id": 0,
+	"spread_target_room_id": 0,
+	"l150_room_id": 0,
+	"opening_overrides": [
+		{
+			"a": 0,
+			"b": 1,
+			"type": "door",
+			"open_fraction": 0.0
+		},
+		{
+			"a": 0,
+			"b": -1,
+			"type": "window",
+			"open_fraction": 0.0
+		}
+	],
+	"opening_events": [],
+	"engine_overrides": {
+		"time_scale": 5.0,
+		"log_interval_s": 10.0,
+		"log_file_path": "res://sim/validation/reports/wood_vc_reference.log",
+		"csv_log_file_path": "res://sim/validation/reports/wood_vc_reference.csv",
+		"fire_alpha_kw_s2": 0.003,
+		"fire_max_hrr_kw": 800.0,
+		"fire_flashover_min_hrr_kw": 99999.0,
+		"fire_flashover_hrr_multiplier": 1.0,
+		"thermal_feedback_coeff": 0.0,
+		"fire_o2_min_for_flame": 0.02,
+		"fire_o2_full_hrr_open": 0.15,
+		"fire_o2_hrr_rise_tau_s": 2.0,
+		"fire_hrr_rise_tau_s": 2.0,
+		"fire_unburned_generation_fraction": 0.0,
+		"fire_pool_release_max_fraction": 0.0,
+		"fire_extinction_delay_s": 1800.0,
+		"fire_latent_extinction_delay_s": 1800.0,
+		"fire_max_active_s": 9999.0,
+		"fire_secondary_hrr_gain_kw": 0.0,
+		"ach_infiltration": 5.0,
+		"fire_spread_enabled": false,
+		"glass_auto_break_enabled": false,
+		"co_base_yield_kg_per_MJ": 0.004,
+		"co_max_yield_kg_per_MJ": 0.10,
+		"fire_co_phi_rate": 2.0
+	}
+}
