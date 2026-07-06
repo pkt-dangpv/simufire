@@ -124,6 +124,25 @@ def _gap_check(name: str) -> dict:
     }
 
 
+def _failed_required_check(name: str) -> dict:
+    """A required check fixture with pass=False."""
+    return {
+        "name": name,
+        "actual": 0.0,
+        "expected": 1.0,
+        "tolerance": 0.1,
+        "minimum": None,
+        "maximum": None,
+        "required": True,
+        "pass": False,
+        "note": "",
+    }
+
+
+# Any one of the documented VALID_GAP required failures.
+A_VALID_GAP_NAME = sorted(gap_inventory_check.KNOWN_VALID_GAP_REQUIRED_FAILURES)[0]
+
+
 def _json_data(
     all_required_pass: bool = True,
     required_count: int = 0,
@@ -232,7 +251,8 @@ class TestGapInventoryCheckMain(unittest.TestCase):
             self.assertEqual(rc, 1)
 
     def test_exit1_required_failure(self):
-        """exit 1 when JSON reports all_required_pass=False."""
+        """exit 1 when JSON reports all_required_pass=False (corrupt: no failing
+        required check present in checks — consistency guard)."""
         with _temporary_directory() as tmp:
             data = _json_data(
                 all_required_pass=False,
@@ -242,6 +262,62 @@ class TestGapInventoryCheckMain(unittest.TestCase):
             )
             jp = _write_json(tmp, data)
             ip = _write_inventory(tmp, 2)
+            rc, _ = _run_main(
+                gap_inventory_check.main,
+                ["--json", str(jp), "--inventory", str(ip)],
+            )
+            self.assertEqual(rc, 1)
+
+    def test_exit1_unexpected_required_failure(self):
+        """exit 1 when a required check fails and is NOT in the VALID_GAP allowlist."""
+        with _temporary_directory() as tmp:
+            data = _json_data(
+                all_required_pass=False,
+                failed_required_count=1,
+                known_gap_count=0,
+                checks=[_failed_required_check("brand_new_regression_check")],
+            )
+            jp = _write_json(tmp, data)
+            ip = _write_inventory(tmp, 0)
+            rc, out = _run_main(
+                gap_inventory_check.main,
+                ["--json", str(jp), "--inventory", str(ip)],
+            )
+            self.assertEqual(rc, 1)
+            self.assertIn("brand_new_regression_check", out)
+
+    def test_exit0_valid_gap_required_failures_allowed(self):
+        """exit 0 when the only failing required checks are documented VALID_GAPs."""
+        with _temporary_directory() as tmp:
+            data = _json_data(
+                all_required_pass=False,
+                failed_required_count=1,
+                known_gap_count=0,
+                checks=[_failed_required_check(A_VALID_GAP_NAME)],
+            )
+            jp = _write_json(tmp, data)
+            ip = _write_inventory(tmp, 0)
+            rc, out = _run_main(
+                gap_inventory_check.main,
+                ["--json", str(jp), "--inventory", str(ip)],
+            )
+            self.assertEqual(rc, 0)
+            self.assertIn("VALID_GAP", out)
+
+    def test_exit1_valid_gap_plus_unexpected(self):
+        """exit 1 when an unexpected required failure accompanies a VALID_GAP one."""
+        with _temporary_directory() as tmp:
+            data = _json_data(
+                all_required_pass=False,
+                failed_required_count=2,
+                known_gap_count=0,
+                checks=[
+                    _failed_required_check(A_VALID_GAP_NAME),
+                    _failed_required_check("brand_new_regression_check"),
+                ],
+            )
+            jp = _write_json(tmp, data)
+            ip = _write_inventory(tmp, 0)
             rc, _ = _run_main(
                 gap_inventory_check.main,
                 ["--json", str(jp), "--inventory", str(ip)],
@@ -323,6 +399,18 @@ class TestPhase2EPreflightMain(unittest.TestCase):
             rc, _ = _run_main(phase2e_preflight.main, ["--json", str(jp)])
             self.assertEqual(rc, 1)
 
+    def test_exit0_non_required_sentinel_fails(self):
+        """exit 0 when a failing sentinel is non-required (known gap, non-gating)."""
+        with _temporary_directory() as tmp:
+            checks = [_sentinel_check(n) for n in SENTINEL_NAMES]
+            checks[0]["pass"] = False
+            checks[0]["required"] = False
+            data = _json_data(checks=checks)
+            jp = _write_json(tmp, data)
+            rc, out = _run_main(phase2e_preflight.main, ["--json", str(jp)])
+            self.assertEqual(rc, 0)
+            self.assertIn("GAP (non-gating)", out)
+
 
 # ---------------------------------------------------------------------------
 # 5. validation_guardrails.main()
@@ -354,6 +442,198 @@ class TestValidationGuardrails(unittest.TestCase):
             jp = _write_json(tmp, data)
             rc, _ = _run_main(validation_guardrails.main, ["--json", str(jp)])
             self.assertEqual(rc, 1)
+
+    def test_exit1_unexpected_required_failure(self):
+        """exit 1 when a required check outside the VALID_GAP allowlist fails."""
+        with _temporary_directory() as tmp:
+            checks = [_sentinel_check(n) for n in SENTINEL_NAMES]
+            checks.append(_failed_required_check("brand_new_regression_check"))
+            data = _json_data(
+                all_required_pass=False,
+                failed_required_count=1,
+                known_gap_count=0,
+                checks=checks,
+            )
+            jp = _write_json(tmp, data)
+            rc, out = _run_main(validation_guardrails.main, ["--json", str(jp)])
+            self.assertEqual(rc, 1)
+            self.assertIn("brand_new_regression_check", out)
+
+
+# ---------------------------------------------------------------------------
+# 6. Physics override linter (R1-3)
+# ---------------------------------------------------------------------------
+
+class TestPhysicsOverrideLinter(unittest.TestCase):
+
+    def _write_case(self, root: Path, stem: str, overrides: dict) -> None:
+        cases_dir = root / "sim" / "validation" / "cases"
+        cases_dir.mkdir(parents=True, exist_ok=True)
+        (cases_dir / f"{stem}.json").write_text(
+            json.dumps({"engine_overrides": overrides}), encoding="utf-8"
+        )
+
+    def test_exit1_non_exempt_override(self):
+        """rc 1 when a validation case carries a physics override with no exemption."""
+        with _temporary_directory() as tmp:
+            root = Path(tmp) / "lint_violation"
+            self._write_case(root, "some_case", {"fire_hrr_global_multiplier": 2.0})
+            rc, out = validation_guardrails._check_physics_overrides(root)
+            self.assertEqual(rc, 1)
+            self.assertIn("some_case", out)
+
+    def test_exit0_exempted_override(self):
+        """rc 0 when the only override present is a documented exemption."""
+        with _temporary_directory() as tmp:
+            root = Path(tmp) / "lint_exempt"
+            self._write_case(
+                root, "cfast_pool_fire_open", {"vent_bernoulli_flow_multiplier": 0.45}
+            )
+            rc, out = validation_guardrails._check_physics_overrides(root)
+            self.assertEqual(rc, 0)
+            self.assertIn("Exenciones activas", out)
+
+    def test_exemption_is_key_scoped(self):
+        """rc 1 when the exempted case carries a DIFFERENT physics override key."""
+        with _temporary_directory() as tmp:
+            root = Path(tmp) / "lint_scoped"
+            self._write_case(
+                root, "cfast_pool_fire_open", {"fire_hrr_global_multiplier": 2.0}
+            )
+            rc, _ = validation_guardrails._check_physics_overrides(root)
+            self.assertEqual(rc, 1)
+
+
+# ---------------------------------------------------------------------------
+# 7. Reports freshness (R2-1)
+# ---------------------------------------------------------------------------
+
+import shutil      # noqa: E402
+import subprocess  # noqa: E402
+
+_GIT_AVAILABLE = shutil.which("git") is not None
+
+
+@unittest.skipUnless(_GIT_AVAILABLE, "git not available")
+class TestReportsFreshness(unittest.TestCase):
+
+    def _git(self, root: Path, *args: str, date: str = "2026-01-01T00:00:00") -> None:
+        env = dict(os.environ,
+                   GIT_COMMITTER_DATE=date, GIT_AUTHOR_DATE=date,
+                   GIT_CONFIG_NOSYSTEM="1")
+        subprocess.run(["git", *args], cwd=root, capture_output=True,
+                       text=True, env=env, check=True)
+
+    def _make_repo(self, name: str) -> tuple[Path, Path, Path]:
+        """Fresh git repo with engine .gd + reports json committed together."""
+        root = _TEST_TMP_ROOT / name
+        if root.exists():
+            shutil.rmtree(root, ignore_errors=True)
+        engine = root / "sim" / "core" / "engine.gd"
+        engine.parent.mkdir(parents=True)
+        engine.write_text("# engine v1\n", encoding="utf-8")
+        report = root / "sim" / "validation" / "reports" / "reference_checks.json"
+        report.parent.mkdir(parents=True)
+        report.write_text("{}", encoding="utf-8")
+        self._git(root, "init", "-q")
+        self._git(root, "config", "user.email", "t@t")
+        self._git(root, "config", "user.name", "t")
+        self._git(root, "add", "-A")
+        self._git(root, "commit", "-q", "-m", "init")
+        return root, engine, report
+
+    def test_rc0_engine_and_report_in_sync(self):
+        root, _, report = self._make_repo("fresh_sync")
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 0, out)
+
+    def test_rc1_uncommitted_engine_change_without_regeneration(self):
+        root, engine, report = self._make_repo("fresh_dirty")
+        engine.write_text("# engine v2\n", encoding="utf-8")
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 1)
+        self.assertIn("sin commitear", out)
+
+    def test_rc0_uncommitted_engine_change_with_regenerated_report(self):
+        root, engine, report = self._make_repo("fresh_both")
+        engine.write_text("# engine v2\n", encoding="utf-8")
+        report.write_text('{"regenerated": true}', encoding="utf-8")
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 0, out)
+
+    def test_rc1_engine_committed_after_report(self):
+        root, engine, report = self._make_repo("fresh_stale")
+        engine.write_text("# engine v2\n", encoding="utf-8")
+        self._git(root, "add", "-A")
+        self._git(root, "commit", "-q", "-m", "engine change",
+                  date="2026-01-02T00:00:00")
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 1)
+        self.assertIn("DESPUÉS", out)
+
+    def test_rc0_skipped_outside_git_repo(self):
+        root = _TEST_TMP_ROOT / "fresh_norepo"
+        report = root / "sim" / "validation" / "reports" / "reference_checks.json"
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text("{}", encoding="utf-8")
+        rc, out = validation_guardrails._check_reports_freshness(root, report)
+        self.assertEqual(rc, 0)
+        self.assertIn("omitido", out)
+
+
+# ---------------------------------------------------------------------------
+# 8. Metric plausibility (PHY-P1)
+# ---------------------------------------------------------------------------
+
+class TestMetricPlausibility(unittest.TestCase):
+
+    def _write_report(self, root: Path, stem: str, metrics: dict) -> None:
+        reports = root / "sim" / "validation" / "reports"
+        reports.mkdir(parents=True, exist_ok=True)
+        (reports / f"{stem}.json").write_text(
+            json.dumps({"metrics": metrics}), encoding="utf-8"
+        )
+
+    def test_rc0_plausible_metrics(self):
+        root = _TEST_TMP_ROOT / "plaus_clean"
+        self._write_report(root, "some_case", {"room_0_peak_co2_ppm": 88000.0})
+        rc, out = validation_guardrails._check_metric_plausibility(root)
+        self.assertEqual(rc, 0, out)
+
+    def test_rc1_new_impossible_ppm(self):
+        """A ppm metric above 1e6 (100% of the mixture) in an unregistered case gates."""
+        root = _TEST_TMP_ROOT / "plaus_new"
+        self._write_report(root, "some_case", {"room_1_peak_co2_ppm": 1_500_000.0})
+        rc, out = validation_guardrails._check_metric_plausibility(root)
+        self.assertEqual(rc, 1)
+        self.assertIn("some_case", out)
+
+    def test_rc0_known_violation_reported_as_note(self):
+        """Registered (stem, metric) pairs pass with an explicit debt note."""
+        root = _TEST_TMP_ROOT / "plaus_known"
+        self._write_report(
+            root, "v3_hallway_fed_exposure", {"room_1_peak_co2_ppm": 1_099_282.0}
+        )
+        rc, out = validation_guardrails._check_metric_plausibility(root)
+        self.assertEqual(rc, 0)
+        self.assertIn("Violaciones conocidas", out)
+
+    def test_rc1_known_stem_new_metric(self):
+        """The allowlist is metric-scoped: a NEW metric in a known stem gates."""
+        root = _TEST_TMP_ROOT / "plaus_scoped"
+        self._write_report(
+            root, "v3_hallway_fed_exposure",
+            {"room_1_peak_co2_ppm": 1_099_282.0, "room_1_peak_co_ppm": 2_000_000.0},
+        )
+        rc, out = validation_guardrails._check_metric_plausibility(root)
+        self.assertEqual(rc, 1)
+        self.assertIn("room_1_peak_co_ppm", out)
+
+    def test_tmp_reports_ignored(self):
+        root = _TEST_TMP_ROOT / "plaus_tmp"
+        self._write_report(root, "tmp_experiment", {"room_1_peak_co2_ppm": 9e9})
+        rc, _ = validation_guardrails._check_metric_plausibility(root)
+        self.assertEqual(rc, 0)
 
 
 if __name__ == "__main__":

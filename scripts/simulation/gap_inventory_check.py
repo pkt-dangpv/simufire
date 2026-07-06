@@ -32,6 +32,53 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 # ---------------------------------------------------------------------------
+# VALID_GAP — required checks cuyo FAIL es estructural y está aceptado.
+#
+# Documentados en docs/validation/GAPS_INVENTORY.md §"Los 5 fallos required
+# VALID_GAP".  No son gaps non-gating: son checks required que fallan por
+# limitaciones arquitectónicas (Phase 2 / Phase 3+) sin fix per-caso viable.
+# El gate de required checks PASA si el conjunto de required fallidos es
+# exactamente un subconjunto de esta lista; cualquier fallo required NUEVO
+# sigue disparando exit 1.
+#
+# Regla: solo se añade una entrada aquí con su fila correspondiente en la
+# tabla VALID_GAP de GAPS_INVENTORY.md (mismo commit).  Si un check de esta
+# lista empieza a PASAR, elimínalo de ambos sitios.
+# ---------------------------------------------------------------------------
+
+KNOWN_VALID_GAP_REQUIRED_FAILURES: frozenset[str] = frozenset({
+    # Grupo A — cfast_r0_window_360: plume_lower_mode equilibra zonas
+    # bidireccional; SF usa room-avg O2 vs CFAST upper-zone O2.  Cierre: Phase 2.
+    "cfast_t240_o2_depleted",
+    "cfast_t350_o2",
+    "cfast_t360_o2",
+    # Grupo C — cfast_corridor_chain: falta ODE de presión dos zonas
+    # (upper-layer outflow entálpico).  Cierre: Phase 3+.
+    "cfast_chain_r0_t180_temp_upper_c",
+    "cfast_chain_r0_t600_temp_upper_c",
+})
+
+
+def classify_required_failures(checks: list[dict]) -> tuple[list[str], list[str]]:
+    """
+    Separa los required checks fallidos en (valid_gap, unexpected).
+
+    valid_gap  — fallos listados en KNOWN_VALID_GAP_REQUIRED_FAILURES (aceptados)
+    unexpected — cualquier otro fallo required (debe disparar exit 1)
+    """
+    failed = [c["name"] for c in checks if c.get("required") and not c.get("pass")]
+    valid_gap = [n for n in failed if n in KNOWN_VALID_GAP_REQUIRED_FAILURES]
+    unexpected = [n for n in failed if n not in KNOWN_VALID_GAP_REQUIRED_FAILURES]
+    return valid_gap, unexpected
+
+
+def stale_valid_gap_entries(checks: list[dict]) -> list[str]:
+    """Entradas VALID_GAP cuyo check ahora PASA (candidatas a retirarse)."""
+    passing = {c["name"] for c in checks if c.get("required") and c.get("pass")}
+    return sorted(KNOWN_VALID_GAP_REQUIRED_FAILURES & passing)
+
+
+# ---------------------------------------------------------------------------
 # Categorías (basadas en patrones en el nombre del check)
 # Las reglas se evalúan en orden; la primera que coincide gana.
 # "resto" captura todo lo que no encaje en las categorías anteriores.
@@ -116,10 +163,28 @@ def main() -> int:
     known_gap_json: int  = data.get("known_gap_count", 0)
 
     # -- Required summary ----------------------------------------------------
-    req_icon = "✓" if all_req_pass else "✗"
+    valid_gap_fails, unexpected_fails = classify_required_failures(checks)
+    # Guardia de consistencia: si el JSON declara fallos required pero no
+    # encontramos ninguno en checks, el reporte está corrupto → gatear.
+    if not all_req_pass and not valid_gap_fails and not unexpected_fails:
+        unexpected_fails = ["<inconsistencia: all_required_pass=False sin checks required fallidos>"]
+    req_ok = not unexpected_fails
+    req_icon = "✓" if req_ok else "✗"
     print()
     print(f"  Required checks  : {req_count}")
     print(f"  Failed required  : {failed_req}  {req_icon}")
+    if valid_gap_fails:
+        print(f"    de los cuales VALID_GAP permitidos: {len(valid_gap_fails)} "
+              f"(documentados en GAPS_INVENTORY.md)")
+    if unexpected_fails:
+        print(f"    NO PERMITIDOS ({len(unexpected_fails)}):")
+        for n in unexpected_fails:
+            print(f"      - {n}")
+    stale = stale_valid_gap_entries(checks)
+    if stale:
+        print(f"    NOTA: {len(stale)} entrada(s) VALID_GAP ahora PASAN — retirar de la allowlist:")
+        for n in stale:
+            print(f"      - {n}")
     print(f"  Gaps (JSON)      : {known_gap_json}")
 
     # -- Contar non-gating failures ------------------------------------------
@@ -180,22 +245,23 @@ def main() -> int:
     print()
 
     problems: list[str] = []
-    if not all_req_pass:
-        problems.append(f"required FAIL: {failed_req} checks")
+    if unexpected_fails:
+        problems.append(f"required FAIL no permitidos: {len(unexpected_fails)} checks")
     if not doc_match and documented is not None:
         problems.append(f"conteo documentado ({documented}) ≠ real ({known_gap_json})")
     if real_gap_count != known_gap_json:
         problems.append("mismatch interno en JSON (known_gap_count vs conteo real)")
 
     if not problems:
+        vg_note = f" (+{len(valid_gap_fails)} VALID_GAP permitidos)" if valid_gap_fails else ""
         print("  ✓ OK — reporte y documentación sincronizados.")
-        print(f"    {req_count} required PASS  |  {known_gap_json} gaps non-gating")
+        print(f"    {req_count} required{vg_note}  |  {known_gap_json} gaps non-gating")
     else:
         print("  ✗ DESINCRONIZACIÓN detectada:")
         for p in problems:
             print(f"    • {p}")
         print()
-        if not all_req_pass:
+        if unexpected_fails:
             print("  → Revisar required failures antes de cualquier otra acción.")
         if not doc_match and documented is not None:
             print("  → Actualizar el encabezado de docs/validation/GAPS_INVENTORY.md con el conteo real.")
@@ -203,7 +269,7 @@ def main() -> int:
     print("=" * W)
     print()
 
-    return 0 if (all_req_pass and doc_match and real_gap_count == known_gap_json) else 1
+    return 0 if (req_ok and doc_match and real_gap_count == known_gap_json) else 1
 
 
 if __name__ == "__main__":

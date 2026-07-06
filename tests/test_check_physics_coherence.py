@@ -573,8 +573,73 @@ class TestAuditSuiteMain(unittest.TestCase):
             rc = suite.main(["--reports-dir", td, "--verbose"])
         self.assertEqual(rc, 0)
 
-    def test_known_intentional_controls_is_frozenset(self):
-        self.assertIsInstance(suite.KNOWN_INTENTIONAL_CONTROLS, frozenset)
+    def test_known_intentional_controls_is_envelope_dict(self):
+        """CTRLs are a dict stem -> {rule_id: max_count} (or None = unlimited)."""
+        self.assertIsInstance(suite.KNOWN_INTENTIONAL_CONTROLS, dict)
+        for stem, envelope in suite.KNOWN_INTENTIONAL_CONTROLS.items():
+            self.assertIsInstance(stem, str)
+            if envelope is not None:
+                self.assertIsInstance(envelope, dict)
+                for rule, cap in envelope.items():
+                    self.assertIsInstance(rule, str)
+                    self.assertIsInstance(cap, int)
+                    self.assertGreater(cap, 0)
+
+
+# ---------------------------------------------------------------------------
+# Tests: audit_physics_coherence_suite — CTRL envelopes
+# ---------------------------------------------------------------------------
+
+class TestCtrlEnvelopes(unittest.TestCase):
+
+    def _write_csv(self, path: Path, rows: list[dict]) -> None:
+        with open(path, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+            writer.writeheader()
+            writer.writerows(rows)
+
+    def test_violations_empty_when_within_envelope(self):
+        self.assertEqual(
+            suite.envelope_violations({"C1": 3}, {"C1": 5}), [])
+
+    def test_violations_flag_unregistered_rule(self):
+        violations = suite.envelope_violations({"C1": 1, "E1": 2}, {"C1": 5})
+        self.assertEqual(len(violations), 1)
+        self.assertIn("E1", violations[0])
+
+    def test_violations_flag_exceeded_count(self):
+        violations = suite.envelope_violations({"C1": 6}, {"C1": 5})
+        self.assertEqual(len(violations), 1)
+        self.assertIn("C1:6 > max 5", violations[0])
+
+    def test_none_envelope_is_unlimited(self):
+        self.assertEqual(
+            suite.envelope_violations({"C1": 999, "E1": 999}, None), [])
+
+    def _run_with_ctrl(self, envelope) -> int:
+        """Run main() over a CSV producing 1 C1 finding, registered as CTRL."""
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "envctrl.csv", [_ROW_FED_BROKEN])
+            old = suite.KNOWN_INTENTIONAL_CONTROLS
+            suite.KNOWN_INTENTIONAL_CONTROLS = {"envctrl": envelope}
+            try:
+                return suite.main(["--reports-dir", td])
+            finally:
+                suite.KNOWN_INTENTIONAL_CONTROLS = old
+
+    def test_ctrl_within_envelope_exits_0(self):
+        self.assertEqual(self._run_with_ctrl({"C1": 1}), 0)
+
+    def test_ctrl_with_unregistered_rule_exits_1(self):
+        """A finding of a rule the envelope does not declare gates the suite."""
+        self.assertEqual(self._run_with_ctrl({"B1": 1}), 1)
+
+    def test_cli_intentional_stem_keeps_unlimited_envelope(self):
+        """Ad-hoc --intentional stems keep legacy absorb-everything behavior."""
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "adhoc.csv", [_ROW_FED_BROKEN])
+            rc = suite.main(["--reports-dir", td, "--intentional", "adhoc"])
+        self.assertEqual(rc, 0)
 
 
 # ---------------------------------------------------------------------------

@@ -199,6 +199,54 @@ class TestMain(unittest.TestCase):
         """KNOWN_INTENTIONAL_CONTROLS must have at least one entry."""
         self.assertGreater(len(suite.KNOWN_INTENTIONAL_CONTROLS), 0)
 
+    def test_known_intentional_controls_is_envelope_dict(self):
+        """CTRLs are a dict stem -> {kind: max_count} (or None = unlimited)."""
+        self.assertIsInstance(suite.KNOWN_INTENTIONAL_CONTROLS, dict)
+        for stem, envelope in suite.KNOWN_INTENTIONAL_CONTROLS.items():
+            self.assertIsInstance(stem, str)
+            if envelope is not None:
+                self.assertIsInstance(envelope, dict)
+                for kind, cap in envelope.items():
+                    self.assertIsInstance(kind, str)
+                    self.assertIsInstance(cap, int)
+                    self.assertGreater(cap, 0)
+
+    def test_envelope_violations_within(self):
+        self.assertEqual(
+            suite.envelope_violations({suite._KIND_HIGH: 3}, {suite._KIND_HIGH: 5}), [])
+
+    def test_envelope_violations_unregistered_kind(self):
+        violations = suite.envelope_violations(
+            {suite._KIND_HIGH: 1, suite._KIND_CONTROLLED: 2},
+            {suite._KIND_HIGH: 5},
+        )
+        self.assertEqual(len(violations), 1)
+        self.assertIn(suite._KIND_CONTROLLED, violations[0])
+
+    def test_envelope_violations_exceeded_count(self):
+        violations = suite.envelope_violations(
+            {suite._KIND_HIGH: 6}, {suite._KIND_HIGH: 5})
+        self.assertEqual(len(violations), 1)
+        self.assertIn("> max 5", violations[0])
+
+    def test_envelope_none_is_unlimited(self):
+        self.assertEqual(
+            suite.envelope_violations({suite._KIND_HIGH: 999}, None), [])
+
+    def test_registered_ctrl_breaching_envelope_exits_1(self):
+        """A registered CTRL whose findings exceed its envelope gates the suite."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            self._write_csv(Path(td) / "envctrl.csv", [_ROW_ZOMBIE])
+            old = suite.KNOWN_INTENTIONAL_CONTROLS
+            # Envelope declares a max of 0-effective: kind not registered.
+            suite.KNOWN_INTENTIONAL_CONTROLS = {"envctrl": {suite._KIND_CONTROLLED: 1}}
+            try:
+                rc = suite.main(["--reports-dir", td])
+            finally:
+                suite.KNOWN_INTENTIONAL_CONTROLS = old
+        self.assertEqual(rc, 1)
+
     def test_include_tmp_passes_through(self):
         """--include-tmp causes tmp_ files to be included in the audit."""
         import tempfile

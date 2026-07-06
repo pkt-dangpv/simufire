@@ -88,14 +88,60 @@ from check_ilv_layer_coherence import (  # noqa: E402
 # do not need to pass --intentional on the command line.
 # ---------------------------------------------------------------------------
 
-KNOWN_INTENTIONAL_CONTROLS: frozenset[str] = frozenset({
-    "fp_ilv_upper_throttle_off",   # 258 findings, HRR zombie ~1211 kW, M4 off baseline
-    # A3 zombie CTRL: both cases expose ILV lower-O2 reference bug (motor issue).
-    # v1_backdraft_accumulation: zombie without M4, 105 findings
-    # v1_m4_pool_release: M4 active, zombie resumes post-backdraft, 8 findings
-    "v1_backdraft_accumulation",
-    "v1_m4_pool_release",
-})
+# Each CTRL declares an ENVELOPE {finding_kind: max_count}: the case stays
+# CTRL only while every finding kind is registered and within its max.
+# A new kind, or a count beyond the max, flips the case to FAIL — a CTRL
+# absorbs only what it was registered to absorb.  Max counts carry ~25%
+# headroom over the counts measured at registration so CSV-regeneration
+# jitter does not flap the gate.  `None` = unlimited legacy envelope (only
+# for ad-hoc --intentional stems from the CLI).
+
+_KIND_HIGH = "upper-O2-critical-but-HRR-throttle-high"
+_KIND_CONTROLLED = "upper-O2-critical-but-regime-fuel-controlled"
+
+KNOWN_INTENTIONAL_CONTROLS: dict[str, dict[str, int] | None] = {
+    # HRR zombie ~1211 kW, M4 off baseline.  (measured 2026-07-06: high:258)
+    "fp_ilv_upper_throttle_off": {_KIND_HIGH: 320},
+    # A3 zombie CTRL: exposes ILV lower-O2 reference bug (motor issue).
+    # Zombie without M4.  (measured 2026-07-06: high:103, controlled:2)
+    # (v1_m4_pool_release retirado 2026-07-06: M5 post-backdraft guard lo dejó
+    #  en 0 findings aquí — un CTRL sin findings es un absorbedor obsoleto.)
+    "v1_backdraft_accumulation": {_KIND_HIGH: 130, _KIND_CONTROLLED: 5},
+    # ILV zombie in sealed configs without M4 (same lower-O2 reference bug):
+    # these cases run sealed/near-sealed with fire_o2_upper_throttle DISABLED,
+    # so sustained HRR at o2_upper≈0.09% is the known motor bug #1, not a new
+    # defect.  Registered 2026-07-06 after gate-rehabilitation audit.
+    # cfast_two_floor_stairwell: already A3/O2E1 CTRL in the physics coherence
+    #   suite for the same root cause; purpose is S1 C-S1-3.
+    #   (measured 2026-07-06: high:38, controlled:4)
+    # fuel_balance_diag_sealed / o2_stoich_diag_sealed: sealed diagnostic cases
+    #   for E1/O1 balance lanes.  NOTE: their D2PRE WARNs in the physics
+    #   coherence suite remain unabsorbed on purpose (genuine M1 gap) — this
+    #   CTRL only covers the known ILV zombie kinds.
+    #   (measured 2026-07-06: high:35 each)
+    "cfast_two_floor_stairwell": {_KIND_HIGH: 50, _KIND_CONTROLLED: 8},
+    "fuel_balance_diag_sealed": {_KIND_HIGH: 45},
+    "o2_stoich_diag_sealed": {_KIND_HIGH: 45},
+}
+
+
+def envelope_violations(
+    counts: dict[str, int], envelope: dict[str, int] | None
+) -> list[str]:
+    """Findings outside a CTRL envelope; empty list = within envelope.
+
+    ``envelope=None`` means unlimited (legacy ad-hoc --intentional stems).
+    """
+    if envelope is None:
+        return []
+    violations: list[str] = []
+    for kind, n in sorted(counts.items()):
+        cap = envelope.get(kind)
+        if cap is None:
+            violations.append(f"{kind}:{n} (kind no registrado en el envelope)")
+        elif n > cap:
+            violations.append(f"{kind}:{n} > max {cap}")
+    return violations
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +156,9 @@ class FileResult:
     findings: list[Finding]
     error: str | None = None
     intentional: bool = False
+    # CTRL stems whose findings exceed their registered envelope: the case
+    # gates (FAIL) — a regression on top of the known defect.
+    envelope_breaches: list[str] = field(default_factory=list)
 
     @property
     def name(self) -> str:
@@ -199,6 +248,9 @@ def _print_file_result(result: FileResult, *, verbose: bool) -> None:
     if result.intentional:
         label = "CTRL"
         suffix = "  (intentional control -- M4 off reference)"
+    elif result.envelope_breaches:
+        label = "FAIL"
+        suffix = f"  (CTRL envelope excedido: {'; '.join(result.envelope_breaches)})"
     else:
         label = "FAIL"
         suffix = ""
@@ -310,9 +362,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: reports directory not found: {reports_dir}", file=sys.stderr)
         return 2
 
-    intentional_stems: set[str] = set(KNOWN_INTENTIONAL_CONTROLS) | {
-        s.strip() for s in args.intentional.split(",") if s.strip()
+    # CLI stems get an unlimited (legacy) envelope; registered stems use theirs.
+    intentional_envelopes: dict[str, dict[str, int] | None] = {
+        s.strip(): None for s in args.intentional.split(",") if s.strip()
     }
+    intentional_envelopes.update(KNOWN_INTENTIONAL_CONTROLS)
+    intentional_stems = set(intentional_envelopes)
 
     csv_paths = find_csvs(reports_dir, exclude_tmp=not args.include_tmp)
     if not csv_paths:
@@ -336,12 +391,19 @@ def main(argv: list[str] | None = None) -> int:
             high_o2_hrr_factor=args.high_o2_hrr_factor,
             kind_filter=args.kind,
         )
-        if path.stem in intentional_stems:
-            result.intentional = True
+        if path.stem in intentional_stems and result.finding_count > 0:
+            breaches = envelope_violations(
+                result.findings_by_kind(), intentional_envelopes[path.stem]
+            )
+            if breaches:
+                result.envelope_breaches = breaches
+            else:
+                result.intentional = True
         results.append(result)
         _print_file_result(result, verbose=args.verbose)
 
-    # Summary
+    # Summary.  A CTRL whose findings exceed its envelope counts as dirty:
+    # the envelope IS the gate.
     clean        = [r for r in results if r.finding_count == 0 and not r.error]
     intentional  = [r for r in results if r.finding_count  > 0 and not r.error and r.intentional]
     dirty        = [r for r in results if r.finding_count  > 0 and not r.error and not r.intentional]
@@ -355,6 +417,11 @@ def main(argv: list[str] | None = None) -> int:
     if intentional:
         print(f"  CTRL : {len(intentional):>3}  ({total_ctrl} findings, expected -- intentional controls)")
     print(f"  FAIL : {len(dirty):>3}  ({total_findings} total findings)")
+    breached = [r for r in dirty if r.envelope_breaches]
+    if breached:
+        print(f"  CTRL envelope excedido en {len(breached)} caso(s) — regresión sobre control conocido:")
+        for r in breached:
+            print(f"    {r.name}: {'; '.join(r.envelope_breaches)}")
     if errors:
         print(f"  ERROR: {len(errors):>3}")
 

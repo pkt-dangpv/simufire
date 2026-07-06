@@ -4,7 +4,37 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
-### D2 CTRL: wood_vc_reference clasificado como control intencional (2026-06-30)
+### Guardrails nuevos R2-1 (frescura de reports) y PHY-P1 (plausibilidad ppm) + bug motor descubierto (2026-07-06)
+
+Cierra los vectores nº 5 y nº 6 de la auditoría 2026-07-06. Sin cambios de motor.
+
+- **R2-1 Reports freshness (`validation_guardrails.py`):** falla si el motor/casos (`sim/core`, `sim/fire`, `sim/building`, `sim/resources`, `sim/validation/cases`) tiene cambios sin commitear con el reporte limpio, o si el último commit que tocó motor/casos es posterior al último que tocó `reference_checks.json`. Basado en git (mtimes no sobreviven un checkout); se omite con nota en entornos sin git o con clone shallow (CI) — nunca da falso FAIL por entorno. Verificado en negativo: editar un `.gd` → exit 1; restaurar → exit 0.
+- **BUG DE MOTOR DESCUBIERTO — CO₂ bulk >100% en salas receptoras:** al diagnosticar el FED=3.47e9 de `v3_hallway_fed_exposure` (bound débil detectado en la auditoría), la causa NO es la fórmula de Purser fuera de rango: `room_1_peak_co2_ppm = 1.099e6 ppm` (109.9% de la mezcla, físicamente imposible) y CO bulk del pasillo 237222 ppm (9× el fire room). `fed_co=3.39e9` porque el sampling a altura de víctima lee esa concentración bulk imposible. Barrido completo: **7 casos afectados**, todos `room_N_peak_co2_ppm` en salas receptoras (1.02e6–2.10e6), nunca el fire room, nunca las métricas upper. Root cause probable: acumulación sin dilución correcta en el path bulk/lower del transporte inter-room. Diagnóstico de motor pendiente de sesión dedicada (constraint: no tocar sim/core sin plan).
+- **PHY-P1 Metric plausibility (`validation_guardrails.py`):** ninguna métrica `*_ppm` de los reports puede superar 1e6 (100%). Allowlist `_KNOWN_PPM_VIOLATIONS` con las 7 parejas (caso, métrica) conocidas — el bug queda visible como deuda y NO puede crecer en silencio: cualquier caso o métrica nueva que supere el 100% dispara exit 1. Retirar entradas cuando el fix de motor las corrija.
+- **Tests:** +10 en `tests/test_guardrails.py` (21→31): frescura (sync→0, motor dirty→1, motor+reporte regenerado→0, commit motor posterior→1, sin repo→omitido) y plausibilidad (limpio→0, violación nueva→1, conocida→0 con nota, métrica nueva en stem conocido→1, tmp_ ignorado).
+- **Guardrails: 10/10 gates PASS, exit 0.**
+
+### Endurecimiento CTRL: envelopes por regla y conteo en ambas audit suites (2026-07-06)
+
+Cierra el vector de validación errónea nº 3 de la auditoría 2026-07-06: `KNOWN_INTENTIONAL_CONTROLS` absorbía TODOS los findings de un caso CTRL (cualquier regla, cualquier cantidad) — una regresión nueva sobre un caso CTRL era invisible. Sin cambios de motor, thresholds ni baselines; los resultados actuales de ambas suites no cambian.
+
+- **`scripts/simulation/audit_physics_coherence_suite.py`** y **`audit_ilv_layer_coherence_suite.py`**: `KNOWN_INTENTIONAL_CONTROLS` pasa de `frozenset[str]` a `dict[str, dict[str, int] | None]` — cada CTRL declara su envelope `{regla/kind: conteo_max}` con los conteos medidos 2026-07-06 y ~25% de margen (jitter de regeneración de CSVs no hace flapping; una regresión real sí dispara).
+- **Semántica:** un finding de regla no registrada, o un conteo por encima del max, reclasifica el caso a FAIL con mensaje "CTRL envelope excedido" **y gatea aunque los findings excedentes sean WARN** — el envelope es el gate. `v1_m4_pool_release` declara explícitamente que A3 NO está en su envelope (los zombie FAILs los eliminó M5; si reaparecen, FAIL).
+- Stems ad-hoc por CLI (`--intentional`) mantienen envelope ilimitado (comportamiento legacy documentado).
+- **Tests:** +7 en `test_check_physics_coherence.py` (209→216) y +7 en `test_audit_ilv_layer_coherence_suite.py` (19→26): dentro de envelope→exit 0, regla no registrada→exit 1, conteo excedido→exit 1, envelope None ilimitado, CLI legacy.
+- **Estado verificado:** physics 9/5/3/0 exit 0 · ILV 12/5/0 exit 0 · guardrails 8/8 exit 0 · 216+26+21 tests PASS.
+
+### Rehabilitación de gates: ILV suite, guardrails y CI vuelven a exit 0 (2026-07-06)
+
+Auditoría completa detectó que 2 de las 3 suites-gate llevaban en exit 1 crónico (gate "quemado": un rojo nuevo era indistinguible del rojo permanente), incluido `tests.test_guardrails::test_exit0_real_json` que corre en CI. Sin cambios de motor, thresholds, severities ni baselines.
+
+- **`scripts/simulation/audit_ilv_layer_coherence_suite.py`**: registrados 3 CTRL nuevos — `cfast_two_floor_stairwell` (42 findings), `fuel_balance_diag_sealed` y `o2_stoich_diag_sealed` (35 c/u). Los tres son el bug ILV lower-O2 conocido (zombie HRR con o2_upper≈0.09%) en configs selladas sin M4. Retirado `v1_m4_pool_release` (0 findings tras M5 — CTRL obsoleto). Resultado: 12 PASS / 5 CTRL / 0 FAIL, exit 0.
+- **`scripts/simulation/gap_inventory_check.py`**: nueva allowlist `KNOWN_VALID_GAP_REQUIRED_FAILURES` (los 5 required FAIL VALID_GAP documentados en GAPS_INVENTORY.md §hito 2026-06-21). El gate de required pasa solo si los fallidos son subconjunto exacto de la lista; cualquier fallo required nuevo sigue disparando exit 1. Detecta entradas obsoletas (check que vuelve a PASS) y JSON corrupto (all_required_pass=False sin checks fallidos).
+- **`scripts/simulation/validation_guardrails.py`**: usa la clasificación VALID_GAP para el gate de required ("PASS (5 VALID_GAP)"). Linter R1-3: nueva `_PHYSICS_OVERRIDE_EXEMPTIONS` con una entrada — `(cfast_pool_fire_open, vent_bernoulli_flow_multiplier)`, override intencional de Phase 9 C4 (commit b5c63ce9) anterior al linter; queda como deuda documentada visible, la exención es por (caso, clave) y no cubre otros overrides.
+- **`scripts/simulation/phase2e_preflight.py`**: sentinels non-required que fallan se reportan como "GAP (non-gating)" con margen pero no gatean (coherente con la semántica de gap del validador). Los required siguen gateando. Desbloquea el FAIL crónico de `g4 FED timing` (non-required, en los 70 gaps).
+- **`docs/validation/GAPS_INVENTORY.md`**: encabezado sincronizado 345/350→349/354 required, 69→70 gaps. Delta desde 2026-06-21: +4 required (baselines `v5_m4_ventilation_throttle`, Ruta B, los 4 PASS); gaps +3/−2 por corrimiento de timestamps de presión (mismo gap estructural Phase 3, sin gap cualitativo nuevo).
+- **`tests/test_guardrails.py`**: 15→21 tests. Nuevos: VALID_GAP permitido→exit 0, required nuevo no permitido→exit 1 (gap_inventory y guardrails), VALID_GAP+nuevo→exit 1, sentinel non-required→exit 0, linter exención→0/violación→1/exención-limitada-a-clave→1.
+- **Estado final verificado:** guardrails exit 0 (8/8 gates PASS) · ILV exit 0 · physics coherence exit 0 (9/5/3/0 sin cambios) · 209/209 + 21/21 tests · docs links exit 0.
 
 - **`scripts/simulation/audit_physics_coherence_suite.py`**: añadido `"wood_vc_reference"` a `KNOWN_INTENTIONAL_CONTROLS`.
 - **Razón:** Caso creado explícitamente en Plan A Fase A1 para demostrar que D2 dispara en VC profundo con fuel mixto/sintético (`co_base=0.004 kg/MJ`, `co_max=0.10`). 114 D2 WARNs (t=710–1800s, ratio 0.51→2.14) y 74 D2PRE WARNs (M1 colateral, rooms 0/1/4) son todos esperados por diseño. Es el caso de referencia canónico para D2.

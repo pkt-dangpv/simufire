@@ -6,6 +6,49 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-06 (rev 35 - Rehabilitación de gates: ILV suite + guardrails + CI a exit 0)
+
+### Contexto
+
+Auditoría completa del proyecto detectó que 2 de las 3 suites-gate llevaban en **exit 1 crónico** — gates "quemados": un rojo nuevo era indistinguible del rojo permanente, incluido `tests.test_guardrails::test_exit0_real_json` que corre en CI (workflow `validation-guardrails.yml` en rojo). Sesión de rehabilitación sin tocar motor, thresholds, severities ni baselines.
+
+### Estado operativo actual (todo verificado en vivo)
+
+- Branch: `main`, cambios locales sin commitear (6 archivos, esta sesión).
+- `validate_reference_cases`: **349/354 PASS** (5 VALID_GAP) — sin cambio.
+- Physics coherence: **9 PASS / 5 CTRL / 3 WARN / 0 FAIL**, exit 0 — sin cambio.
+- ILV layer coherence: **12 PASS / 5 CTRL / 0 FAIL, exit 0** (antes: 3 FAIL, exit 1).
+- Guardrails: **8/8 gates PASS, exit 0** (antes: 4 secciones FAIL, exit 1).
+- Tests: **209/209** physics coherence + **21/21** guardrails (antes 15, con 1 en rojo).
+
+### Cambios (todos en capa de validación)
+
+1. **ILV suite** — 3 CTRL nuevos registrados: `cfast_two_floor_stairwell` (42), `fuel_balance_diag_sealed` (35), `o2_stoich_diag_sealed` (35). Los tres son el bug ILV lower-O2 conocido (zombie HRR, o2_upper≈0.09%) en configs selladas sin M4 — no defectos nuevos. `v1_m4_pool_release` retirado (0 findings tras M5, CTRL obsoleto). Nota: el CTRL de los diag_sealed en ILV NO absorbe sus D2PRE de la physics suite, que siguen como WARN a propósito (gap M1 real).
+2. **`gap_inventory_check.py`** — allowlist `KNOWN_VALID_GAP_REQUIRED_FAILURES` (los 5 VALID_GAP del hito 2026-06-21). Gate pasa solo si los required fallidos ⊆ allowlist; fallo required nuevo → exit 1. Detecta entradas obsoletas y JSON corrupto.
+3. **`validation_guardrails.py`** — gate required vía la allowlist ("PASS (5 VALID_GAP)"). Linter R1-3: exención por (caso, clave) para `(cfast_pool_fire_open, vent_bernoulli_flow_multiplier)` — override intencional Phase 9 C4 (commit b5c63ce9) anterior al linter; deuda documentada visible, retirar la exención cuando se elimine el override en sesión de motor.
+4. **`phase2e_preflight.py`** — sentinels non-required que fallan → "GAP (non-gating)", no gatean (el `g4 FED timing` es non-required y está en los 70 gaps). Los required siguen gateando.
+5. **`GAPS_INVENTORY.md`** — encabezado 345/350→**349/354** required, 69→**70** gaps. Delta desde 2026-06-21: +4 required (baselines `v5_m4_ventilation_throttle`, todos PASS); gaps +3/−2 por corrimiento de timestamps de presión (mismo gap estructural Phase 3).
+6. **`tests/test_guardrails.py`** — 6 tests nuevos que prueban que los gates siguen mordiendo: required nuevo no permitido → exit 1 (en ambos scripts), VALID_GAP+nuevo → exit 1, exención del linter limitada a su clave → exit 1 con otra clave.
+
+### Endurecimiento CTRL — envelopes por regla/conteo (2026-07-06, misma sesión)
+
+`KNOWN_INTENTIONAL_CONTROLS` en ambas audit suites pasa de set de stems a `{stem: {regla/kind: conteo_max}}` (conteos medidos 2026-07-06 + ~25% margen). Un finding de regla no registrada o conteo excedido reclasifica el caso CTRL a FAIL ("CTRL envelope excedido") y **gatea aunque el exceso sea WARN**. `v1_m4_pool_release` excluye A3 a propósito (eliminado por M5 — si reaparece, FAIL). `--intentional` CLI mantiene envelope ilimitado legacy. Tests: 209→216 physics, 19→26 ILV. Resultados actuales de las suites sin cambios (9/5/3/0 y 12/5/0, ambas exit 0).
+
+### Guardrails R2-1 + PHY-P1 y bug motor CO₂ bulk descubierto (2026-07-06, misma sesión)
+
+- **R2-1 frescura:** guardrail git-based — motor/casos más recientes que `reference_checks.json` (commit o working tree) → FAIL. Se omite con nota si no hay git/historial (CI shallow).
+- **BUG MOTOR NUEVO:** el FED=3.47e9 de `v3_hallway` no es la fórmula de Purser: es `room_1_peak_co2_ppm = 1.099e6` (>100% de la mezcla). **7 casos afectados** (`confinement_open_close`, `postfire_decay`, `row_house_ground_floor_smoke`, `secondary_ignition_demo`, `v3_hallway_fed_exposure`, `v4_co_remote_rooms`, `v6_spread_to_hallway`), siempre CO₂ bulk de sala receptora (1.02e6–2.10e6 ppm), nunca fire room ni métricas upper. Root cause probable: dilución incorrecta en el path bulk/lower del transporte inter-room. Diagnóstico pendiente de sesión de motor dedicada.
+- **PHY-P1 plausibilidad:** métrica `*_ppm` > 1e6 → FAIL salvo las 7 parejas registradas en `_KNOWN_PPM_VIOLATIONS` (deuda visible; el bug no puede crecer en silencio).
+- Guardrails: **10/10 gates PASS, exit 0**. Tests guardrails 21→31.
+
+### Deuda pendiente identificada en la auditoría (no abordada esta sesión)
+
+- ~~CTRL absorbe por stem completo~~ — **CERRADO misma sesión** (envelopes, ver arriba).
+- ~~Sin check de frescura reports vs código `sim/`~~ — **CERRADO misma sesión** (R2-1).
+- ~~Bounds débiles / FED 3.47e9~~ — **DIAGNOSTICADO misma sesión**: es un bug de motor (CO₂ bulk >100% en receptoras), acotado por PHY-P1; fix de motor pendiente.
+- **Cobertura de coherencia ~17/108 casos** — solo los casos con CSV pasan por las 13 reglas físicas. Único vector abierto.
+- Plan B (M1 o2_scale double-throttle) sigue siendo el fix de motor de mayor rendimiento: cerraría los 3 WARN D2PRE restantes. Nueva candidata de sesión motor: bug CO₂ bulk receptoras (7 casos, afecta FED/toxicidad).
+
 ## Current Session Update - 2026-06-30 (rev 34 - D2 CTRL wood_vc_reference + diagnóstico diag_sealed D2PRE)
 
 ### Estado operativo actual

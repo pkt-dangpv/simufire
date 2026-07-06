@@ -156,9 +156,13 @@ def main() -> int:
 
         actual: float = c["actual"]
         status_bool: bool = c["pass"]
+        is_required: bool = c.get("required", False)
         margin, bound_desc = _compute_margin(c)
 
-        if not status_bool:
+        # Solo los sentinels required gatean.  Un sentinel non-required que
+        # falla es un known gap del validador (cuenta en known_gap_count y en
+        # GAPS_INVENTORY.md): se reporta con margen pero no bloquea el preflight.
+        if not status_bool and is_required:
             all_pass = False
 
         # Formato margin
@@ -168,7 +172,12 @@ def main() -> int:
         else:
             margin_str = "n/a"
 
-        status_tag = "PASS" if status_bool else "FAIL ←"
+        if status_bool:
+            status_tag = "PASS"
+        elif is_required:
+            status_tag = "FAIL ←"
+        else:
+            status_tag = "GAP (non-gating)"
         warn = " ⚠" if (margin is not None and 0 < margin < abs(actual) * 0.05) else ""
 
         print()

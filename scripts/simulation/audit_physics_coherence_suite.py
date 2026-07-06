@@ -73,41 +73,77 @@ from check_physics_coherence import (  # noqa: E402
 #
 # Stems listed here produce findings by design (e.g. they document a motor
 # bug as a before-fix baseline).  They are labelled CTRL, not FAIL, and
-# never raise exit code 1.
+# never raise exit code 1 — but only within their declared ENVELOPE:
+# a dict of {rule_id: max_count}.  A finding whose rule is not in the
+# envelope, or whose per-rule count exceeds its max, flips the case to
+# FAIL: a CTRL absorbs only what it was registered to absorb; anything
+# else is a regression on top of the known defect.
+#
+# Max counts carry ~25% headroom over the counts measured at registration,
+# so CSV-regeneration jitter does not flap the gate; a real regression
+# (new rule, or counts well beyond the known mechanism) still trips it.
 #
 # Add a new entry here in the same commit that creates the control case.
+# Update an envelope only as a deliberate change to the control, never to
+# silence an unexplained increase.
 # ---------------------------------------------------------------------------
 
-KNOWN_INTENTIONAL_CONTROLS: frozenset[str] = frozenset({
-    # A3 zombie CTRL: both cases expose FULLY_DEVELOPED at o2_upper≈0 via the
-    # ILV lower-O2 reference bug (motor issue, not a validation defect).
-    # v1_backdraft_accumulation: zombie without M4, 2 A3 FAILs at t≈290-295s
-    # v1_m4_pool_release: M4 active but zombie resumes post-backdraft, 8 A3 FAILs t≈365-385/640-650s
-    "v1_backdraft_accumulation",
-    "v1_m4_pool_release",
+KNOWN_INTENTIONAL_CONTROLS: dict[str, dict[str, int] | None] = {
+    # A3 zombie CTRL: exposes FULLY_DEVELOPED at o2_upper≈0 via the ILV
+    # lower-O2 reference bug (motor issue, not a validation defect).
+    # Zombie without M4: 2 A3 FAILs t≈290-295s; D2PRE M1 collateral; O2E1
+    # Thornton divergence during depletion.
+    # (measured 2026-07-06: A3:2, D2PRE:563, O2E1:16)
+    "v1_backdraft_accumulation": {"A3": 4, "D2PRE": 700, "O2E1": 24},
+    # M4 active: pool-release D2 bursts post-backdraft; D2PRE M1 collateral.
+    # The historical A3 zombie FAILs were eliminated by M5 — A3 is
+    # deliberately NOT in this envelope; if it reappears, the case FAILs.
+    # (measured 2026-07-06: D2:9, D2PRE:545)
+    "v1_m4_pool_release": {"D2": 15, "D2PRE": 680},
     # A3/O2E1 CTRL: sealed multi-floor building, all external windows closed,
     # fire room depletes O2 after t≈400s.  A3 (regime mismatch) and O2E1
     # (Thornton divergence) are expected consequences of extreme O2 depletion
     # in a fully sealed configuration — same root cause as v1_backdraft_accumulation.
     # Purpose of this case is S1 C-S1-3 (multi-floor inter-room smoke transport
     # coverage); S1 is clean throughout.  Added as CTRL 2026-06-30.
-    "cfast_two_floor_stairwell",
+    # (measured 2026-07-06: A3:4, O2E1:20)
+    "cfast_two_floor_stairwell": {"A3": 8, "O2E1": 30},
     # D2 pool-release CTRL: M4 ventilation throttle (fire_o2_upper_throttle_enabled)
     # causes cyclical ILV_LATENT → pool-release oscillations throughout t=225–600s.
     # retained_unburned_MJ accumulates to 0.12–0.17 MJ per cycle; pool combustion
     # produces CO bursts that push CO/CO₂ ratio to 0.51–0.62 (threshold 0.50).
-    # 13 D2 WARNs are a direct, expected consequence of the M4 mechanism under test.
-    # Also has D2PRE WARNs (M1 o2_scale double-throttle, same root cause as other cases).
-    # Added as CTRL 2026-06-30.
-    "v5_m4_ventilation_throttle",
+    # D2 WARNs are a direct, expected consequence of the M4 mechanism under test.
+    # Also has D2PRE WARNs (M1 o2_scale double-throttle).  Added as CTRL 2026-06-30.
+    # (measured 2026-07-06: D2:13, D2PRE:421)
+    "v5_m4_ventilation_throttle": {"D2": 20, "D2PRE": 530},
     # D2 + D2PRE reference CTRL: created in Plan A Fase A1 to demonstrate that D2 fires
     # in deep VC with mixed/synthetic fuel yields (co_base=0.004 kg/MJ, co_max=0.10 kg/MJ,
     # 16× SFPE wood FC).  D2 WARN starts at t=710s (ratio=0.512) and escalates to 2.14 at
     # t=1800s — intentional by design; this is the canonical D2 reference case.
     # D2PRE WARNs in rooms 0, 1, 4 are collateral M1 o2_scale (same root cause as
-    # cfast_slow_growth_sealed).  All 188 findings are expected.  Added as CTRL 2026-06-30.
-    "wood_vc_reference",
-})
+    # cfast_slow_growth_sealed).  Added as CTRL 2026-06-30.
+    # (measured 2026-07-06: D2:114, D2PRE:74)
+    "wood_vc_reference": {"D2": 145, "D2PRE": 95},
+}
+
+
+def envelope_violations(
+    counts: dict[str, int], envelope: dict[str, int] | None
+) -> list[str]:
+    """Findings outside a CTRL envelope; empty list = within envelope.
+
+    ``envelope=None`` means unlimited (legacy ad-hoc --intentional stems).
+    """
+    if envelope is None:
+        return []
+    violations: list[str] = []
+    for rule, n in sorted(counts.items()):
+        cap = envelope.get(rule)
+        if cap is None:
+            violations.append(f"{rule}:{n} (regla no registrada en el envelope)")
+        elif n > cap:
+            violations.append(f"{rule}:{n} > max {cap}")
+    return violations
 
 
 # ---------------------------------------------------------------------------
@@ -122,6 +158,9 @@ class FileResult:
     findings: list[Finding]
     error: str | None = None
     intentional: bool = False
+    # CTRL stems whose findings exceed their registered envelope: the case
+    # gates (FAIL) even if the excess findings are WARN-severity.
+    envelope_breaches: list[str] = field(default_factory=list)
 
     @property
     def name(self) -> str:
@@ -206,6 +245,9 @@ def _print_file_result(result: FileResult, *, verbose: bool) -> None:
     if result.intentional:
         label = "CTRL"
         suffix = "  (intentional control)"
+    elif result.envelope_breaches:
+        label = "FAIL"
+        suffix = f"  (CTRL envelope excedido: {'; '.join(result.envelope_breaches)})"
     elif result.fail_count > 0:
         label = "FAIL"
         suffix = ""
@@ -298,9 +340,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: reports directory not found: {reports_dir}", file=sys.stderr)
         return 2
 
-    intentional_stems: set[str] = set(KNOWN_INTENTIONAL_CONTROLS) | {
-        s.strip() for s in args.intentional.split(",") if s.strip()
+    # CLI stems get an unlimited (legacy) envelope; registered stems use theirs.
+    intentional_envelopes: dict[str, dict[str, int] | None] = {
+        s.strip(): None for s in args.intentional.split(",") if s.strip()
     }
+    intentional_envelopes.update(KNOWN_INTENTIONAL_CONTROLS)
+    intentional_stems = set(intentional_envelopes)
 
     rule_ids: set[str] | None = None
     if args.rules:
@@ -322,16 +367,25 @@ def main(argv: list[str] | None = None) -> int:
     results: list[FileResult] = []
     for path in csv_paths:
         result = audit_csv(path, rule_ids=rule_ids)
-        if path.stem in intentional_stems:
-            result.intentional = True
+        if path.stem in intentional_stems and result.finding_count > 0:
+            breaches = envelope_violations(
+                result.findings_by_rule(), intentional_envelopes[path.stem]
+            )
+            if breaches:
+                result.envelope_breaches = breaches
+            else:
+                result.intentional = True
         results.append(result)
         _print_file_result(result, verbose=args.verbose)
 
-    # Summary
+    # Summary.  A CTRL whose findings exceed its envelope counts as dirty
+    # even if the excess findings are WARN-severity: the envelope IS the gate.
     clean       = [r for r in results if r.finding_count == 0 and not r.error]
     intentional = [r for r in results if r.finding_count > 0 and not r.error and r.intentional]
-    warn_only   = [r for r in results if r.fail_count == 0 and r.warn_count > 0 and not r.error and not r.intentional]
-    dirty       = [r for r in results if r.fail_count > 0 and not r.error and not r.intentional]
+    warn_only   = [r for r in results if r.fail_count == 0 and r.warn_count > 0 and not r.error
+                   and not r.intentional and not r.envelope_breaches]
+    dirty       = [r for r in results if (r.fail_count > 0 or r.envelope_breaches) and not r.error
+                   and not r.intentional]
     errors      = [r for r in results if r.error]
 
     total_fail = sum(r.fail_count for r in dirty)
@@ -346,6 +400,11 @@ def main(argv: list[str] | None = None) -> int:
     if warn_only:
         print(f"  WARN : {len(warn_only):>3}  ({total_warn} warnings, not gating)")
     print(f"  FAIL : {len(dirty):>3}  ({total_fail} FAIL findings)")
+    breached = [r for r in dirty if r.envelope_breaches]
+    if breached:
+        print(f"  CTRL envelope excedido en {len(breached)} caso(s) — regresión sobre control conocido:")
+        for r in breached:
+            print(f"    {r.name}: {'; '.join(r.envelope_breaches)}")
     if errors:
         print(f"  ERROR: {len(errors):>3}")
 
