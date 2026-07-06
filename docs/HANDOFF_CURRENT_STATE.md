@@ -41,13 +41,20 @@ Auditoría completa del proyecto detectó que 2 de las 3 suites-gate llevaban en
 - **PHY-P1 plausibilidad:** métrica `*_ppm` > 1e6 → FAIL salvo las 7 parejas registradas en `_KNOWN_PPM_VIOLATIONS` (deuda visible; el bug no puede crecer en silencio).
 - Guardrails: **10/10 gates PASS, exit 0**. Tests guardrails 21→31.
 
-### Deuda pendiente identificada en la auditoría (no abordada esta sesión)
+### Expansión de cobertura 17→29 CSVs (2026-07-06, continuación de sesión)
 
-- ~~CTRL absorbe por stem completo~~ — **CERRADO misma sesión** (envelopes, ver arriba).
-- ~~Sin check de frescura reports vs código `sim/`~~ — **CERRADO misma sesión** (R2-1).
-- ~~Bounds débiles / FED 3.47e9~~ — **DIAGNOSTICADO misma sesión**: es un bug de motor (CO₂ bulk >100% en receptoras), acotado por PHY-P1; fix de motor pendiente.
-- **Cobertura de coherencia ~17/108 casos** — solo los casos con CSV pasan por las 13 reglas físicas. Único vector abierto.
-- Plan B (M1 o2_scale double-throttle) sigue siendo el fix de motor de mayor rendimiento: cerraría los 3 WARN D2PRE restantes. Nueva candidata de sesión motor: bug CO₂ bulk receptoras (7 casos, afecta FED/toxicidad).
+- 12 casos representativos generados (`run_scenario.py` headless), deduplicados (el engine duplica las filas del último timestep — artefacto neutralizado en el pipeline) e instalados en reports/. Subsistemas nuevos bajo las 13 reglas: HVAC, supresión, cristales, multifuel, corridor, flashover, PPV, multi-planta, CO remoto, PVC/HCl, PU/FED, reburn.
+- 7 CTRL envelope nuevos en physics suite (12 total), 8 en ILV (14 total, pinean la extensión del zombie por caso). 4 casos solo-D2PRE quedan como WARN (Plan B multi-room). `cfast_suppression_water` limpio.
+- **Hallazgos motor nuevos:** (1) gap instrumentación HVAC — HVACSystem extrae smoke/CO sin acumuladores (D1/S1 en `cfast_hvac_residential`, mismo root cause que el skip O1); (2) write-off de inventario de fuel — `victim_fed_incapacitation` t=650s: `solid_fuel_remaining_MJ` cae 2200.15 MJ para igualar `fuel_remaining_MJ` post-extinción, sin acumulador de consumo.
+- **Estado final:** physics **10 PASS / 12 CTRL / 7 WARN / 0 FAIL** (29 CSVs, exit 0) · ILV **15 PASS / 14 CTRL / 0 FAIL** (exit 0) · guardrails **10/10** (exit 0) · 31+242 tests. Los 7 WARN son todos D2PRE (Plan B).
+
+### Deuda pendiente identificada en la auditoría (estado final de sesión)
+
+- ~~CTRL absorbe por stem completo~~ — **CERRADO** (envelopes en ambas suites).
+- ~~Sin check de frescura reports vs código `sim/`~~ — **CERRADO** (R2-1).
+- ~~Bounds débiles / FED 3.47e9~~ — **DIAGNOSTICADO**: bug de motor (CO₂ bulk >100% en receptoras), acotado por PHY-P1; fix de motor pendiente.
+- ~~Cobertura de coherencia ~17/108 casos~~ — **AMPLIADO a 29/108** (todos los subsistemas principales representados). Ampliar más es opcional e incremental con el mismo pipeline.
+- **Candidatas para próxima sesión de motor (por rendimiento):** (1) Plan B / M1 o2_scale double-throttle — cerraría los 7 WARN D2PRE y gran parte de los D2PRE absorbidos en CTRLs; (2) bug CO₂ bulk >100% en receptoras (7 casos, afecta FED/toxicidad); (3) instrumentación HVAC de especies (retiraría el CTRL de cfast_hvac_residential); (4) write-off de inventario de fuel post-extinción.
 
 ## Current Session Update - 2026-06-30 (rev 34 - D2 CTRL wood_vc_reference + diagnóstico diag_sealed D2PRE)
 

@@ -122,6 +122,25 @@ KNOWN_INTENTIONAL_CONTROLS: dict[str, dict[str, int] | None] = {
     "cfast_two_floor_stairwell": {_KIND_HIGH: 50, _KIND_CONTROLLED: 8},
     "fuel_balance_diag_sealed": {_KIND_HIGH: 45},
     "o2_stoich_diag_sealed": {_KIND_HIGH: 45},
+    # Coverage expansion 2026-07-06: multi-room CO transport, sealed-ish
+    # without M4 — same ILV lower-O2 zombie as the cases above.  Registered
+    # together with its physics-suite envelope (A3/O2E1/D2PRE family).
+    # (measured 2026-07-06: high:269, controlled:12)
+    "v4_co_remote_rooms": {_KIND_HIGH: 340, _KIND_CONTROLLED: 16},
+    # Coverage expansion 2026-07-06 (batch 2): the ILV zombie appears in every
+    # deep-O2-depletion case that runs without M4 (M4 is per-case opt-in).
+    # These envelopes PIN the current extent of the known bug per case: if a
+    # motor change worsens the zombie by >~25% or adds a new finding kind,
+    # the gate trips.  All same root cause (lower-O2 reference); remove each
+    # entry when the ILV motor fix lands.
+    "cfast_multi_fuel_couch_tv": {_KIND_HIGH: 65},            # measured high:49
+    "g3_gie_ppv_post_knockdown": {_KIND_HIGH: 580},           # measured high:461
+    "glass_break_window_spike": {_KIND_HIGH: 170},            # measured high:134
+    "flashover_simple_house": {_KIND_HIGH: 125, _KIND_CONTROLLED: 115},  # measured 99/91
+    "two_storey_smoke": {_KIND_HIGH: 205},                    # measured high:162
+    "v8_suppression_reburn": {_KIND_HIGH: 590},               # measured high:470
+    "pvc_curtain_hcl_release": {_KIND_HIGH: 205, _KIND_CONTROLLED: 14},   # measured 162/10
+    "victim_fed_incapacitation": {_KIND_HIGH: 190, _KIND_CONTROLLED: 17},  # measured 151/13
 }
 
 

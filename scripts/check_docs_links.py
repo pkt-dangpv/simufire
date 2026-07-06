@@ -110,6 +110,10 @@ def main() -> int:
     for path in sorted(ROOT.rglob("*.md")):
         if ".git" in path.parts:
             continue
+        # .claude/ es workspace de tooling (worktrees de sesiones spawneadas,
+        # settings) — sus copias de docs no son parte del repo a lintear.
+        if ".claude" in path.parts:
+            continue
         if not args.all and is_historical(path):
             continue
         all_errors.extend(check_file(path))

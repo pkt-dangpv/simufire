@@ -4,6 +4,16 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### Expansión de cobertura de coherencia: 17→29 casos con CSV (2026-07-06)
+
+Cierra el último vector de la auditoría 2026-07-06 (cobertura ~16% del corpus). 12 casos representativos generados con `run_scenario.py` (headless), deduplicados e instalados en `sim/validation/reports/`. Subsistemas cubiertos por primera vez por las 13 reglas: HVAC, supresión de agua, rotura de cristales, multifuel, corridor chain, flashover, PPV, multi-planta (9 rooms), CO remoto, especies PVC/HCl, PU foam/FED y reburn.
+
+- **Artefacto de logging descubierto y neutralizado:** el engine duplica las filas del último timestep en `sim_log.csv` (snapshot final). Un S0 "FAIL" con factor exactamente 2.0 en `v4_co_remote_rooms` resultó ser esto; el pipeline de instalación deduplica por (time_s, room_id). Los 17 CSVs preexistentes están limpios.
+- **Resultados por caso:** `cfast_suppression_water` limpio (PASS). 4 casos solo-D2PRE (Plan B multi-room, WARN no gating): `cfast_corridor_chain` (269), `cfast_multi_fuel_couch_tv` (259), `glass_break_window_spike` (623), `g3_gie_ppv_post_knockdown` (2502). 7 casos registrados como CTRL con envelope: `cfast_hvac_residential` (gap instrumentación HVAC: HVACSystem extrae smoke/CO sin alimentar acumuladores → D1:58+S1:36, mismo root cause que el skip documentado de O1), `v4_co_remote_rooms`, `flashover_simple_house`, `v8_suppression_reburn` (familia zombie ILV sin M4), `two_storey_smoke` (O2E1:2 solo en los 2 últimos pasos, familia M1; S1 multi-planta limpio), `pvc_curtain_hcl_release` y `victim_fed_incapacitation` (zombie ILV + D2 por CO del material PVC/PU, misma clase que wood_vc_reference).
+- **HALLAZGO MOTOR NUEVO — write-off de inventario de fuel:** en `victim_fed_incapacitation`, a t=650s `solid_fuel_remaining_MJ` cae 2200.15 MJ de golpe para igualar `fuel_remaining_MJ` tras la extinción — los dos inventarios divergen durante el incendio y se reconcilian sin pasar por ningún acumulador de consumo (E1 lo caza). Misma clase que el gap HVAC: acción real del motor sin instrumentar. Pendiente de diagnóstico en sesión de motor.
+- **Suite ILV:** el zombie ILV aparece en TODOS los casos nuevos con depleción profunda de O₂ sin M4 (esperable: M4 es opt-in per-case). 8 envelopes ILV nuevos pinean la extensión actual del bug por caso — si un cambio de motor lo empeora >~25% o añade un kind nuevo, el gate salta.
+- **Estado final:** physics 10 PASS / 12 CTRL / 7 WARN / 0 FAIL (29 CSVs, exit 0) · ILV 15 PASS / 14 CTRL / 0 FAIL (exit 0) · guardrails 10/10 (exit 0) · 31 + 242 tests PASS. Los 7 WARN son todos D2PRE (Plan B): los 3 previos + los 4 nuevos solo-D2PRE.
+
 ### Guardrails nuevos R2-1 (frescura de reports) y PHY-P1 (plausibilidad ppm) + bug motor descubierto (2026-07-06)
 
 Cierra los vectores nº 5 y nº 6 de la auditoría 2026-07-06. Sin cambios de motor.

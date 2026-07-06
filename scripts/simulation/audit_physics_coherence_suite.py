@@ -124,6 +124,59 @@ KNOWN_INTENTIONAL_CONTROLS: dict[str, dict[str, int] | None] = {
     # cfast_slow_growth_sealed).  Added as CTRL 2026-06-30.
     # (measured 2026-07-06: D2:114, D2PRE:74)
     "wood_vc_reference": {"D2": 145, "D2PRE": 95},
+    # HVAC species-instrumentation gap CTRL (coverage expansion 2026-07-06):
+    # HVACSystem.gd extracts smoke/CO from rooms (smoke_exhausted_kg, CO via
+    # return sampling) WITHOUT contributing to the balance accumulators
+    # (co_exterior_removed_kg_total etc.), so D1/S1 residuals appear in the
+    # HVAC-served fire room.  Same root cause O1 already documents and skips
+    # (hvac_exists rows, HvacSystem.gd line 302).  Pending motor session:
+    # instrument HVAC species accumulators, then remove this CTRL.
+    # (measured 2026-07-06: D1:58, S1:36, D2PRE:1 — all room 0 except D2PRE)
+    "cfast_hvac_residential": {"D1": 70, "S1": 45, "D2PRE": 5},
+    # ILV-zombie family CTRL (coverage expansion 2026-07-06): multi-room CO
+    # transport case, sealed-ish without M4.  A3 (zombie regime) + O2E1
+    # (Thornton mismatch while zombie burns without O2 accounting) + D2PRE
+    # (M1 multi-room, largest corpus count: 6 rooms × 700 s).  E1:2 is float
+    # noise (residual 2.1e-06 MJ ≈ 2 J vs tol 1e-06 MJ), not fuel physics.
+    # NOTE: this case is also one of the 7 PHY-P1 bulk-CO2 >100% cases —
+    # findings here are expected to change when that motor bug is fixed.
+    # (measured 2026-07-06: A3:12, D2PRE:2929, E1:2, O2E1:190)
+    "v4_co_remote_rooms": {"A3": 16, "D2PRE": 3500, "E1": 4, "O2E1": 240},
+    # ILV-zombie family CTRL (coverage expansion 2026-07-06): post-flashover
+    # FULLY_DEVELOPED at o2_upper=0.09% (A3, room 0, t=152-242s) with the
+    # matching Thornton mismatch (O2E1, t=180-280s) and M1 D2PRE collateral.
+    # Same lower-O2 reference bug; case runs without M4.
+    # (measured 2026-07-06: A3:91, D2PRE:894, O2E1:101)
+    "flashover_simple_house": {"A3": 115, "D2PRE": 1100, "O2E1": 130},
+    # M1-family CTRL (coverage expansion 2026-07-06): 9-room two-storey smoke
+    # transport case.  O2E1 only in the LAST 2 steps of the sim (t=299-300s,
+    # residual 0.04-0.10 kg) — primary O2 accumulator under-counts vs Thornton
+    # while M1 throttles the tracer (same Plan B family); D2PRE is the M1
+    # multi-room divergence.  S1 (multi-floor smoke) is clean throughout —
+    # that coverage is the purpose of this case.
+    # (measured 2026-07-06: D2PRE:880, O2E1:2)
+    "two_storey_smoke": {"D2PRE": 1100, "O2E1": 4},
+    # ILV-zombie family CTRL (coverage expansion 2026-07-06): suppression →
+    # reburn cycle ends in deep O2 depletion without M4; brief A3 zombie
+    # window plus M1 D2PRE collateral.
+    # (measured 2026-07-06: A3:4, D2PRE:2635)
+    "v8_suppression_reburn": {"A3": 6, "D2PRE": 3200},
+    # ILV-zombie + material-CO CTRL (coverage expansion 2026-07-06): PVC
+    # curtain fuel objects — D2 (ratio 0.53-0.55, room 1, t=424-431s) is the
+    # material CO yield under VC burst, same class as wood_vc_reference.
+    # A3/O2E1/D2PRE are the ILV/M1 family (no M4).
+    # (measured 2026-07-06: A3:10, D2:8, D2PRE:2399, O2E1:164)
+    "pvc_curtain_hcl_release": {"A3": 14, "D2": 12, "D2PRE": 2900, "O2E1": 200},
+    # ILV-zombie + material-CO CTRL (coverage expansion 2026-07-06): PU foam
+    # sofa — D2 (ratio 0.58, room 1) is the material CO yield, same class as
+    # wood_vc_reference.  A3/O2E1/D2PRE are the ILV/M1 family (no M4).
+    # E1:1 is a DISCRETE INVENTORY WRITE-OFF at t=650s: solid_fuel_remaining
+    # snaps down 2200.15 MJ to equal fuel_remaining after extinction (the two
+    # fuel inventories diverged during the burn and reconcile without any
+    # consumption accumulator entry).  Motor accounting item to diagnose —
+    # same class as the HVAC species-instrumentation gap.
+    # (measured 2026-07-06: A3:13, D2:8, D2PRE:3445, E1:1, O2E1:164)
+    "victim_fed_incapacitation": {"A3": 17, "D2": 12, "D2PRE": 4200, "E1": 2, "O2E1": 200},
 }
 
 
