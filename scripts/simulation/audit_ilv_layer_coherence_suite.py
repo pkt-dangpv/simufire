@@ -118,10 +118,12 @@ KNOWN_INTENTIONAL_CONTROLS: dict[str, dict[str, int] | None] = {
     #   for E1/O1 balance lanes.  NOTE: their D2PRE WARNs in the physics
     #   coherence suite remain unabsorbed on purpose (genuine M1 gap) — this
     #   CTRL only covers the known ILV zombie kinds.
-    #   (measured 2026-07-06: high:35 each)
+    #   controlled:1 each added 2026-07-07 after CSV regen exposed final-tick
+    #   FUEL_CONTROLLED at o2_upper≈0.09% in both cases (sealed run to depletion).
+    #   (measured 2026-07-06: high:35 each; remeasured 2026-07-07: high:35, controlled:1)
     "cfast_two_floor_stairwell": {_KIND_HIGH: 50, _KIND_CONTROLLED: 8},
-    "fuel_balance_diag_sealed": {_KIND_HIGH: 45},
-    "o2_stoich_diag_sealed": {_KIND_HIGH: 45},
+    "fuel_balance_diag_sealed": {_KIND_HIGH: 45, _KIND_CONTROLLED: 2},
+    "o2_stoich_diag_sealed": {_KIND_HIGH: 45, _KIND_CONTROLLED: 2},
     # Coverage expansion 2026-07-06: multi-room CO transport, sealed-ish
     # without M4 — same ILV lower-O2 zombie as the cases above.  Registered
     # together with its physics-suite envelope (A3/O2E1/D2PRE family).

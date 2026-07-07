@@ -2748,6 +2748,15 @@ func _transfer_hot_gas_contaminants(
 
 	var co_upper_available_kg: float = clampf(source.co_upper_kg, 0.0, source.co_kg)
 	var co_moved_kg: float = minf(source.co_kg, co_upper_available_kg * upper_fraction_moved * carry)
+	# Specie pumping fix: limitar CO al headroom de concentración fuente→receptor.
+	# Mismo patrón que el bloque CO₂ de F0 (líneas ~2784–2791 debajo).
+	var co_tgt_stock_kg: float = maxf(0.0, target.co_kg + _delta_co_kg.get(tgt_id, 0.0))
+	var co_headroom_kg: float = maxf(
+		0.0,
+		source.co_kg / (maxf(0.1, source.volume_m3()) * 1.2)
+			* (maxf(0.1, target.volume_m3()) * 1.2) - co_tgt_stock_kg
+	)
+	co_moved_kg = minf(co_moved_kg, co_headroom_kg)
 	if co_moved_kg > 0.0:
 		_delta_co_kg[src_id]       = _delta_co_kg.get(src_id, 0.0)       - co_moved_kg
 		_delta_co_upper_kg[src_id] = _delta_co_upper_kg.get(src_id, 0.0) - co_moved_kg

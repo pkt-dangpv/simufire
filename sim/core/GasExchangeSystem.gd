@@ -820,10 +820,22 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		var acrolein_moved_kg: float = 0.0
 		var formaldehyde_moved_kg: float = 0.0
 		if source.smoke_kg > 0.001:
+			# Masas de aire fuente/destino compartidas por todos los limitadores de
+			# concentración (1.2 kg/m³, consistente con compute_*_ppm). CO₂ reutiliza
+			# estos valores con nombres propios para no modificar ese bloque (F0).
+			var spec_src_air_kg: float = maxf(0.1, source.volume_m3()) * air_density_kg_m3_s
+			var spec_tgt_air_kg: float = maxf(0.1, target.volume_m3()) * air_density_kg_m3_s
 			co_moved_kg = minf(
 				minf(kg / source.smoke_kg, 1.0) * source.co_upper_kg,
 				source.co_kg
 			)
+			# Specie pumping fix: limitar CO al headroom de concentración fuente→receptor.
+			# El parcel lleva co_kg == co_upper_kg, así que capar co_moved_kg capa ambos.
+			co_moved_kg = minf(co_moved_kg, maxf(
+				0.0,
+				source.co_kg / spec_src_air_kg * spec_tgt_air_kg
+					- maxf(0.0, target.co_kg + float(co_delta_kg[to_id]))
+			))
 			co_delta_kg[from_id] -= co_moved_kg
 			co2_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.co2_kg
 			# F0 Plan B: cota de equilibrio por concentración. El proxy de fracción de
@@ -847,14 +859,40 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			co2_upper_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.co2_upper_kg * co2_cut_ratio
 			co2_upper_delta_kg[from_id] -= co2_upper_moved_kg
 			hcn_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.hcn_kg
+			# Specie pumping fix: limitar HCN al headroom; cut_ratio para upper proporcional.
+			var hcn_cut_ratio: float = 1.0
+			var hcn_headroom_kg: float = maxf(
+				0.0,
+				source.hcn_kg / spec_src_air_kg * spec_tgt_air_kg
+					- maxf(0.0, target.hcn_kg + float(hcn_delta_kg[to_id]))
+			)
+			if hcn_moved_kg > hcn_headroom_kg and hcn_moved_kg > 0.000001:
+				hcn_cut_ratio = hcn_headroom_kg / hcn_moved_kg
+				hcn_moved_kg = hcn_headroom_kg
 			hcn_delta_kg[from_id] -= hcn_moved_kg
-			hcn_upper_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.hcn_upper_kg
+			hcn_upper_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.hcn_upper_kg * hcn_cut_ratio
 			hcn_upper_delta_kg[from_id] -= hcn_upper_moved_kg
 			hcl_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.hcl_kg
+			# Specie pumping fix: limitar HCl al headroom (bulk-only, sin upper).
+			hcl_moved_kg = minf(hcl_moved_kg, maxf(
+				0.0,
+				source.hcl_kg / spec_src_air_kg * spec_tgt_air_kg
+					- maxf(0.0, target.hcl_kg + float(hcl_delta_kg[to_id]))
+			))
 			hcl_delta_kg[from_id] -= hcl_moved_kg
 			acrolein_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.acrolein_kg
+			acrolein_moved_kg = minf(acrolein_moved_kg, maxf(
+				0.0,
+				source.acrolein_kg / spec_src_air_kg * spec_tgt_air_kg
+					- maxf(0.0, target.acrolein_kg + float(acrolein_delta_kg[to_id]))
+			))
 			acrolein_delta_kg[from_id] -= acrolein_moved_kg
 			formaldehyde_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.formaldehyde_kg
+			formaldehyde_moved_kg = minf(formaldehyde_moved_kg, maxf(
+				0.0,
+				source.formaldehyde_kg / spec_src_air_kg * spec_tgt_air_kg
+					- maxf(0.0, target.formaldehyde_kg + float(formaldehyde_delta_kg[to_id]))
+			))
 			formaldehyde_delta_kg[from_id] -= formaldehyde_moved_kg
 
 		# O2 carry bidireccional con el parcel de gas caliente.
@@ -1241,10 +1279,36 @@ func _release_pending_interior_deliveries(
 		var delivered_smoke_kg: float = float(entry.get("smoke_kg", 0.0))
 		target.smoke_kg = maxf(0.0, target.smoke_kg + delivered_smoke_kg)
 		_record_smoke_net_transport(null, target, delivered_smoke_kg)
+		# Specie pumping fix: cota de concentración para CO en la entrega diferida.
+		# El headroom calculado al enviar no cuenta los parcels en vuelo; el receptor
+		# puede haber superado ya la concentración de la fuente cuando llega el parcel.
+		# El refund suma a co_net_transport_kg_total de la fuente para que D1 cierre.
+		var co_parcel_kg: float = float(entry.get("co_kg", 0.0))
+		var co_upper_parcel_kg: float = float(entry.get("co_upper_kg", 0.0))
+		if co_parcel_kg > 0.0:
+			var co_src_room: RoomModel = building.get_room(int(entry.get("from", -1)))
+			if co_src_room != null:
+				var co_tgt_air_kg: float = maxf(0.1, target.volume_m3()) * 1.2
+				var co_src_air_kg: float = maxf(0.1, co_src_room.volume_m3()) * 1.2
+				var co_headroom_kg: float = maxf(
+					0.0,
+					co_src_room.co_kg / co_src_air_kg * co_tgt_air_kg - target.co_kg
+				)
+				if co_parcel_kg > co_headroom_kg:
+					var co_cut: float = co_headroom_kg / co_parcel_kg
+					var co_refund_kg: float = co_parcel_kg - co_headroom_kg
+					co_src_room.co_kg += co_refund_kg
+					co_src_room.co_net_transport_kg_total += co_refund_kg
+					co_src_room.co_upper_kg = minf(
+						co_src_room.co_upper_kg + co_upper_parcel_kg * (1.0 - co_cut),
+						co_src_room.co_kg
+					)
+					co_parcel_kg = co_headroom_kg
+					co_upper_parcel_kg *= co_cut
 		var _co_pre_delivery: float = target.co_kg
-		target.co_kg = maxf(0.0, target.co_kg + float(entry.get("co_kg", 0.0)))
+		target.co_kg = maxf(0.0, target.co_kg + co_parcel_kg)
 		target.co_net_transport_kg_total += target.co_kg - _co_pre_delivery
-		target.co_upper_kg = maxf(0.0, target.co_upper_kg + float(entry.get("co_upper_kg", 0.0)))
+		target.co_upper_kg = maxf(0.0, target.co_upper_kg + co_upper_parcel_kg)
 		# F0 Plan B: cota de equilibrio también en la entrega diferida. El headroom
 		# calculado al enviar no cuenta los parcels aún en vuelo, así que salas hub
 		# con delays largos acumulan por encima de la concentración de la fuente.
@@ -1272,11 +1336,67 @@ func _release_pending_interior_deliveries(
 					co2_upper_parcel_kg *= co2_cut
 		target.co2_kg = maxf(0.0, target.co2_kg + co2_parcel_kg)
 		target.co2_upper_kg = maxf(0.0, target.co2_upper_kg + co2_upper_parcel_kg)
-		target.hcn_kg = maxf(0.0, target.hcn_kg + float(entry.get("hcn_kg", 0.0)))
-		target.hcn_upper_kg = maxf(0.0, target.hcn_upper_kg + float(entry.get("hcn_upper_kg", 0.0)))
-		target.hcl_kg = maxf(0.0, target.hcl_kg + float(entry.get("hcl_kg", 0.0)))
-		target.acrolein_kg = maxf(0.0, target.acrolein_kg + float(entry.get("acrolein_kg", 0.0)))
-		target.formaldehyde_kg = maxf(0.0, target.formaldehyde_kg + float(entry.get("formaldehyde_kg", 0.0)))
+		# Specie pumping fix: HCN, HCl, acroleína y formaldehído — mismo patrón refund.
+		var hcn_parcel_kg: float = float(entry.get("hcn_kg", 0.0))
+		var hcn_upper_parcel_kg: float = float(entry.get("hcn_upper_kg", 0.0))
+		if hcn_parcel_kg > 0.0:
+			var hcn_src_room: RoomModel = building.get_room(int(entry.get("from", -1)))
+			if hcn_src_room != null:
+				var hcn_headroom_kg: float = maxf(
+					0.0,
+					hcn_src_room.hcn_kg / (maxf(0.1, hcn_src_room.volume_m3()) * 1.2)
+						* (maxf(0.1, target.volume_m3()) * 1.2) - target.hcn_kg
+				)
+				if hcn_parcel_kg > hcn_headroom_kg:
+					var hcn_cut: float = hcn_headroom_kg / hcn_parcel_kg
+					hcn_src_room.hcn_kg += hcn_parcel_kg - hcn_headroom_kg
+					hcn_src_room.hcn_upper_kg = minf(
+						hcn_src_room.hcn_upper_kg + hcn_upper_parcel_kg * (1.0 - hcn_cut),
+						hcn_src_room.hcn_kg
+					)
+					hcn_parcel_kg = hcn_headroom_kg
+					hcn_upper_parcel_kg *= hcn_cut
+		target.hcn_kg = maxf(0.0, target.hcn_kg + hcn_parcel_kg)
+		target.hcn_upper_kg = maxf(0.0, target.hcn_upper_kg + hcn_upper_parcel_kg)
+		var hcl_parcel_kg: float = float(entry.get("hcl_kg", 0.0))
+		if hcl_parcel_kg > 0.0:
+			var hcl_src_room: RoomModel = building.get_room(int(entry.get("from", -1)))
+			if hcl_src_room != null:
+				var hcl_headroom_kg: float = maxf(
+					0.0,
+					hcl_src_room.hcl_kg / (maxf(0.1, hcl_src_room.volume_m3()) * 1.2)
+						* (maxf(0.1, target.volume_m3()) * 1.2) - target.hcl_kg
+				)
+				if hcl_parcel_kg > hcl_headroom_kg:
+					hcl_src_room.hcl_kg += hcl_parcel_kg - hcl_headroom_kg
+					hcl_parcel_kg = hcl_headroom_kg
+		target.hcl_kg = maxf(0.0, target.hcl_kg + hcl_parcel_kg)
+		var acrolein_parcel_kg: float = float(entry.get("acrolein_kg", 0.0))
+		if acrolein_parcel_kg > 0.0:
+			var acrolein_src_room: RoomModel = building.get_room(int(entry.get("from", -1)))
+			if acrolein_src_room != null:
+				var acrolein_headroom_kg: float = maxf(
+					0.0,
+					acrolein_src_room.acrolein_kg / (maxf(0.1, acrolein_src_room.volume_m3()) * 1.2)
+						* (maxf(0.1, target.volume_m3()) * 1.2) - target.acrolein_kg
+				)
+				if acrolein_parcel_kg > acrolein_headroom_kg:
+					acrolein_src_room.acrolein_kg += acrolein_parcel_kg - acrolein_headroom_kg
+					acrolein_parcel_kg = acrolein_headroom_kg
+		target.acrolein_kg = maxf(0.0, target.acrolein_kg + acrolein_parcel_kg)
+		var formaldehyde_parcel_kg: float = float(entry.get("formaldehyde_kg", 0.0))
+		if formaldehyde_parcel_kg > 0.0:
+			var formaldehyde_src_room: RoomModel = building.get_room(int(entry.get("from", -1)))
+			if formaldehyde_src_room != null:
+				var formaldehyde_headroom_kg: float = maxf(
+					0.0,
+					formaldehyde_src_room.formaldehyde_kg / (maxf(0.1, formaldehyde_src_room.volume_m3()) * 1.2)
+						* (maxf(0.1, target.volume_m3()) * 1.2) - target.formaldehyde_kg
+				)
+				if formaldehyde_parcel_kg > formaldehyde_headroom_kg:
+					formaldehyde_src_room.formaldehyde_kg += formaldehyde_parcel_kg - formaldehyde_headroom_kg
+					formaldehyde_parcel_kg = formaldehyde_headroom_kg
+		target.formaldehyde_kg = maxf(0.0, target.formaldehyde_kg + formaldehyde_parcel_kg)
 		target.upper_gas_kg = maxf(0.0, target.upper_gas_kg + float(entry.get("upper_gas_kg", 0.0)))
 		target.upper_energy_kj = maxf(0.0, target.upper_energy_kj + float(entry.get("upper_energy_kj", 0.0)))
 		var o2_delivery_kg: float = float(entry.get("o2_kg", 0.0))

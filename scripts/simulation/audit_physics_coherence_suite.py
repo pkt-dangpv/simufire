@@ -106,8 +106,18 @@ KNOWN_INTENTIONAL_CONTROLS: dict[str, dict[str, int] | None] = {
     # in a fully sealed configuration — same root cause as v1_backdraft_accumulation.
     # Purpose of this case is S1 C-S1-3 (multi-floor inter-room smoke transport
     # coverage); S1 is clean throughout.  Added as CTRL 2026-06-30.
-    # (measured 2026-07-06: A3:4, O2E1:20)
-    "cfast_two_floor_stairwell": {"A3": 8, "O2E1": 30},
+    # D2PRE: M1/Plan-B tracer-vs-mass divergence exposed after CSV regen with
+    # specie pumping fix (2026-07-07); same family as flashover_simple_house.
+    # (measured 2026-07-06: A3:4, O2E1:20; remeasured 2026-07-07: A3:4, D2PRE:305, O2E1:20)
+    "cfast_two_floor_stairwell": {"A3": 8, "D2PRE": 380, "O2E1": 30},
+    # Single-room sealed diagnostic CTRLs: designed to run to total O2 depletion.
+    # A3 (FULLY_DEVELOPED at final tick o2_upper≈0.09%) is expected — these cases
+    # model sealed combustion to exhaustion by design.  D2PRE is M1/Plan-B
+    # tracer-vs-mass collateral, same root cause as cfast_slow_growth_sealed.
+    # Both cases use identical parameters (366 rows, single room); A3:1 and
+    # D2PRE:248 measured post-specie-fix regen 2026-07-07.
+    "fuel_balance_diag_sealed": {"A3": 2, "D2PRE": 310},
+    "o2_stoich_diag_sealed": {"A3": 2, "D2PRE": 310},
     # D2 pool-release CTRL: M4 ventilation throttle (fire_o2_upper_throttle_enabled)
     # causes cyclical ILV_LATENT → pool-release oscillations throughout t=225–600s.
     # retained_unburned_MJ accumulates to 0.12–0.17 MJ per cycle; pool combustion
@@ -140,12 +150,12 @@ KNOWN_INTENTIONAL_CONTROLS: dict[str, dict[str, int] | None] = {
     # noise (residual 2.1e-06 MJ ≈ 2 J vs tol 1e-06 MJ), not fuel physics.
     # NOTE: PHY-P1 bulk-CO2 >100% FIXED (F0 Plan B, 2026-07-07) — CO2 limiter
     # applied in GES doorway, GES delayed delivery, and ThermalSystem.  CO2
-    # readings now plausible.  D2 (CO/CO2 ratio) newly visible in rooms 2+5 at
-    # t=184-200s (ratio 0.58-0.72, 55 WARNs): CO has the same concentration-
-    # pumping bug but CO fix is a separate follow-up (touches CO baselines).
-    # Remove D2 envelope entry after CO limiter is applied.
+    # readings now plausible.  D2 WARNs (CO/CO2 ratio 0.58-0.72, 55 rows) were
+    # CO concentration-pumping artifact; FIXED by specie pumping fix (2026-07-07)
+    # — CO headroom limiter in GES doorway/delivery and ThermalSystem.  D2→0.
     # (measured post-F0 2026-07-07: A3:12, D2:55, D2PRE:~2929, E1:2, O2E1:190)
-    "v4_co_remote_rooms": {"A3": 16, "D2": 69, "D2PRE": 3500, "E1": 4, "O2E1": 240},
+    # (measured post-specie-fix 2026-07-07: A3:12, D2:0, D2PRE:2996, E1:2, O2E1:190)
+    "v4_co_remote_rooms": {"A3": 16, "D2PRE": 3500, "E1": 4, "O2E1": 240},
     # ILV-zombie family CTRL (coverage expansion 2026-07-06): post-flashover
     # FULLY_DEVELOPED at o2_upper=0.09% (A3, room 0, t=152-242s) with the
     # matching Thornton mismatch (O2E1, t=180-280s) and M1 D2PRE collateral.

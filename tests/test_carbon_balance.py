@@ -786,7 +786,7 @@ class TestGlobalCarbonStructure(unittest.TestCase):
         # Search for the deposition computation block (unique variable name)
         depos_pos = self.gas_src.find("var deposited_smoke_kg: float = minf(")
         self.assertGreater(depos_pos, -1, "deposited_smoke_kg computation not found in GasExchangeSystem")
-        segment = self.gas_src[depos_pos: depos_pos + 400]
+        segment = self.gas_src[depos_pos: depos_pos + 700]
         self.assertIn(
             "c_deposited_kg",
             segment,
@@ -1349,7 +1349,9 @@ class TestD1COTrackingPaths(unittest.TestCase):
     def test_pending_deliveries_captures_pre_delivery_co_kg(self):
         """Must capture target.co_kg before applying the pending delivery."""
         pos_pre   = self.pending_body.find("_co_pre_delivery")
-        pos_apply = self.pending_body.find("target.co_kg = maxf(0.0, target.co_kg + float(entry.get(\"co_kg\"")
+        # Specie pumping fix (2026-07-07): co_kg is extracted to co_parcel_kg before the
+        # headroom-refund block; the apply line now uses co_parcel_kg, not the inline get().
+        pos_apply = self.pending_body.find("target.co_kg = maxf(0.0, target.co_kg + co_parcel_kg)")
         pos_accum = self.pending_body.find("target.co_net_transport_kg_total += target.co_kg - _co_pre_delivery")
         self.assertGreater(pos_pre,   -1, "_co_pre_delivery capture not found")
         self.assertGreater(pos_apply, -1, "target.co_kg update not found")
