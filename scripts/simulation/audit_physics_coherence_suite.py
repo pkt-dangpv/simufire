@@ -138,10 +138,14 @@ KNOWN_INTENTIONAL_CONTROLS: dict[str, dict[str, int] | None] = {
     # (Thornton mismatch while zombie burns without O2 accounting) + D2PRE
     # (M1 multi-room, largest corpus count: 6 rooms × 700 s).  E1:2 is float
     # noise (residual 2.1e-06 MJ ≈ 2 J vs tol 1e-06 MJ), not fuel physics.
-    # NOTE: this case is also one of the 7 PHY-P1 bulk-CO2 >100% cases —
-    # findings here are expected to change when that motor bug is fixed.
-    # (measured 2026-07-06: A3:12, D2PRE:2929, E1:2, O2E1:190)
-    "v4_co_remote_rooms": {"A3": 16, "D2PRE": 3500, "E1": 4, "O2E1": 240},
+    # NOTE: PHY-P1 bulk-CO2 >100% FIXED (F0 Plan B, 2026-07-07) — CO2 limiter
+    # applied in GES doorway, GES delayed delivery, and ThermalSystem.  CO2
+    # readings now plausible.  D2 (CO/CO2 ratio) newly visible in rooms 2+5 at
+    # t=184-200s (ratio 0.58-0.72, 55 WARNs): CO has the same concentration-
+    # pumping bug but CO fix is a separate follow-up (touches CO baselines).
+    # Remove D2 envelope entry after CO limiter is applied.
+    # (measured post-F0 2026-07-07: A3:12, D2:55, D2PRE:~2929, E1:2, O2E1:190)
+    "v4_co_remote_rooms": {"A3": 16, "D2": 69, "D2PRE": 3500, "E1": 4, "O2E1": 240},
     # ILV-zombie family CTRL (coverage expansion 2026-07-06): post-flashover
     # FULLY_DEVELOPED at o2_upper=0.09% (A3, room 0, t=152-242s) with the
     # matching Thornton mismatch (O2E1, t=180-280s) and M1 D2PRE collateral.

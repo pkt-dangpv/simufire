@@ -122,27 +122,18 @@ def _check_physics_overrides(repo_root: Path) -> tuple[int, str]:
 # ---------------------------------------------------------------------------
 
 # Una fracción molar no puede superar 1e6 ppm (100% de la mezcla).  Detectado
-# en la auditoría 2026-07-06: el CO₂ bulk de salas RECEPTORAS supera el 100%
-# en 7 casos (1.02e6–2.10e6 ppm; nunca en el fire room) — bug de motor en la
-# acumulación/dilución del path bulk/lower del transporte inter-room.
-# Consecuencia visible: FED del pasillo en v3_hallway = 3.47e9 (fed_co=3.4e9,
-# el sampling a altura de víctima lee la concentración bulk imposible).
+# en la auditoría 2026-07-06: el CO₂ bulk de salas RECEPTORAS superaba el 100%
+# en 7 casos (1.02e6–2.10e6 ppm; nunca en el fire room).  Corregido en F0 Plan B
+# (2026-07-07): limitador de equilibrio por concentración en el transporte CO₂
+# inter-room (GasExchangeSystem + ThermalSystem) — el receptor no puede quedar
+# por encima de la concentración de la fuente.  Allowlist vaciada tras el fix.
 #
-# Las parejas (stem, métrica) listadas aquí son el estado conocido del bug,
-# pendiente de sesión de motor.  Cualquier violación NUEVA (otro caso u otra
-# métrica) dispara FAIL — el bug no puede crecer en silencio.  Retirar cada
-# entrada cuando el fix de motor la corrija.
+# Las parejas (stem, métrica) listadas aquí son excepciones conocidas.
+# Cualquier violación NUEVA (otro caso u otra métrica) dispara FAIL — el bug
+# no puede crecer en silencio.  Retirar cada entrada cuando un fix la corrija.
 _PPM_CEILING = 1_000_000.0
 
-_KNOWN_PPM_VIOLATIONS: dict[str, frozenset[str]] = {
-    "confinement_open_close":       frozenset({"room_1_peak_co2_ppm"}),
-    "postfire_decay":               frozenset({"room_1_peak_co2_ppm"}),
-    "row_house_ground_floor_smoke": frozenset({"room_2_peak_co2_ppm"}),
-    "secondary_ignition_demo":      frozenset({"room_1_peak_co2_ppm"}),
-    "v3_hallway_fed_exposure":      frozenset({"room_1_peak_co2_ppm"}),
-    "v4_co_remote_rooms":           frozenset({"room_1_peak_co2_ppm"}),
-    "v6_spread_to_hallway":         frozenset({"room_1_peak_co2_ppm"}),
-}
+_KNOWN_PPM_VIOLATIONS: dict[str, frozenset[str]] = {}
 
 
 def _check_metric_plausibility(repo_root: Path) -> tuple[int, str]:

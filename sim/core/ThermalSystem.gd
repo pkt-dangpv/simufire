@@ -2777,6 +2777,18 @@ func _transfer_hot_gas_contaminants(
 	# SF-R6 Phase 2: CO₂ transport con upper zone tracking.
 	# El gas caliente transportado va a la zona superior del destino (flotabilidad).
 	var co2_moved_kg: float = minf(source.co2_kg, source.co2_kg * upper_fraction_moved * carry)
+	# F0 Plan B: cota de equilibrio por concentración (mismo limitador que el path
+	# de GasExchangeSystem). El receptor no puede quedar por encima de la
+	# concentración de la fuente por este movimiento. Masas de aire a densidad
+	# ambiente (1.2 kg/m³), consistente con compute_co2_ppm.
+	var co2_src_air_kg: float = maxf(0.1, source.volume_m3()) * 1.2
+	var co2_tgt_air_kg: float = maxf(0.1, target.volume_m3()) * 1.2
+	var co2_tgt_stock_kg: float = maxf(0.0, target.co2_kg + _delta_co2_kg.get(tgt_id, 0.0))
+	var co2_headroom_kg: float = maxf(
+		0.0,
+		source.co2_kg / co2_src_air_kg * co2_tgt_air_kg - co2_tgt_stock_kg
+	)
+	co2_moved_kg = minf(co2_moved_kg, co2_headroom_kg)
 	if co2_moved_kg > 0.0:
 		_delta_co2_kg[src_id] = _delta_co2_kg.get(src_id, 0.0) - co2_moved_kg
 		# Reducir zona superior del origen proporcionalmente (usando estado pre-bucle).

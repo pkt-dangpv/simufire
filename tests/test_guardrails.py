@@ -609,12 +609,23 @@ class TestMetricPlausibility(unittest.TestCase):
         self.assertIn("some_case", out)
 
     def test_rc0_known_violation_reported_as_note(self):
-        """Registered (stem, metric) pairs pass with an explicit debt note."""
-        root = _TEST_TMP_ROOT / "plaus_known"
+        """Registered (stem, metric) pairs pass with an explicit debt note.
+
+        La allowlist real quedó vacía tras el fix F0 Plan B (limitador CO2
+        inter-room), así que el mecanismo se prueba con una entrada sintética.
+        """
+        root = _TEST_TMP_ROOT / "plaus_known_synthetic"
         self._write_report(
-            root, "v3_hallway_fed_exposure", {"room_1_peak_co2_ppm": 1_099_282.0}
+            root, "synthetic_case", {"room_1_peak_co2_ppm": 1_099_282.0}
         )
-        rc, out = validation_guardrails._check_metric_plausibility(root)
+        original = validation_guardrails._KNOWN_PPM_VIOLATIONS
+        validation_guardrails._KNOWN_PPM_VIOLATIONS = {
+            "synthetic_case": frozenset({"room_1_peak_co2_ppm"}),
+        }
+        try:
+            rc, out = validation_guardrails._check_metric_plausibility(root)
+        finally:
+            validation_guardrails._KNOWN_PPM_VIOLATIONS = original
         self.assertEqual(rc, 0)
         self.assertIn("Violaciones conocidas", out)
 

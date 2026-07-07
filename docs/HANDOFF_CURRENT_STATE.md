@@ -56,6 +56,121 @@ Auditoría completa del proyecto detectó que 2 de las 3 suites-gate llevaban en
 - ~~Cobertura de coherencia ~17/108 casos~~ — **AMPLIADO a 29/108** (todos los subsistemas principales representados). Ampliar más es opcional e incremental con el mismo pipeline.
 - **Candidatas para próxima sesión de motor (por rendimiento):** (1) Plan B / M1 o2_scale double-throttle — cerraría los 7 WARN D2PRE y gran parte de los D2PRE absorbidos en CTRLs; (2) bug CO₂ bulk >100% en receptoras (7 casos, afecta FED/toxicidad); (3) instrumentación HVAC de especies (retiraría el CTRL de cfast_hvac_residential); (4) write-off de inventario de fuel post-extinción.
 
+## Session 2026-07-07 — M1 falsado, Plan B redirigido a transporte inter-room
+
+### Experimento M1 (o2_scale double-throttle) — FALSADO
+
+**Patch aplicado y revertido.** No produce cambio observable → revertido a `01610b46`.
+
+**Hipótesis original:** `OES.co2_produced *= o2_scale` aplica un segundo throttle con `room.o2_upper` cuando `effective_plume_lower` ya throttleó el HRR por `o2_lower`. Diagnóstico: causa del D2PRE 7 WARN.
+
+**Resultado del experimento:**
+- CSVs regenerados byte-a-byte idénticos al baseline.
+- D2PRE sin cambio: `cfast_slow_growth_sealed` 243, `fuel_balance_diag_sealed` 230, `o2_stoich_diag_sealed` 230.
+- Physics suite: 10/12/7/0 sin cambio. ILV: 15/14/0 sin cambio. FED: sin cambio.
+
+**Por qué M1 no activa:**
+
+`plume_lower_mode` requiere `fire_o2_mode == "legacy"`. Los casos de test usan:
+- `cfast_slow_growth_sealed`: `validation_fire_o2_mode: "upper"` → nunca activa.
+- `fuel_balance_diag_sealed` / `o2_stoich_diag_sealed`: casos multi-room con aberturas interiores → `interior_open_factor > 0.01` → nunca activa.
+
+**Root cause corregido de los 7 WARN D2PRE:** Los findings D2PRE están en salas **receptoras** (room=1, 2…), no en la sala de fuego. La divergencia `co2_upper_ppm(tracer) vs co2_upper_ppm_mass` es un problema de **transporte inter-room**, no de producción. Los dos paths (tracer mol-fraction via OES/GES y mass kg via CombustionSystem/GES doorway) divergen en cómo acumulan CO₂ en salas sin fuego.
+
+**Estado del bug M1/o2_scale:** El double-throttle es un bug latente real, pero solo afectaría a casos con `fire_o2_mode = "legacy"` Y sala single-room sellada. Ninguno de los 29 casos actuales lo ejerce. No es causa activa de D2PRE.
+
+**Plan B redirigido:** Sesión dedicada para mapear transporte inter-room de CO₂:
+- Tracer path: `room.co2_upper` (mol fraction) via `_exchange_room_o2_active_flow` en OES/GES.
+- Mass path: `room.co2_upper_kg` via transporte de gases en GES/doorway.
+- Oráculo: D2PRE peor caso room=1 t=60s en los diag_sealed (rel_div=7.1×).
+
+---
+
+## Session 2026-07-07 — F0 Plan B: CO₂ bulk >100% CORREGIDO (commit pendiente)
+
+### Objetivo y resultado
+
+PHY-P1 gate sin allowlist: PASS. Las 7 salas receptoras que superaban 1e6 ppm de CO₂ están
+corregidas. `_KNOWN_PPM_VIOLATIONS` queda vacío — el gate sigue activo y morderá si el bug
+reaparece.
+
+### Root cause
+
+NO era creación de masa. Conservación exacta verificada en v4:
+- CSV (submuestreo 1s): aparente 62 kg de CO₂ — artefacto × 12 del dt del engine (1/12 s).
+- Verificación real (engine dt): 61.44 kg generados ≈ 62.04 kg en salas. Conservación exacta.
+
+Root cause real: **bombeo concentrador** en el transporte inter-room.
+`co2_moved = min(smoke_kg/source.smoke_kg, 1.0) × source.co2_kg` satura a 1.0 cuando la sala
+de fuego tiene muy poco smoke_kg (~0.1 kg). En cada tick exporta TODO el stock CO₂ disponible
+al hub (pasillo). El delayed delivery path amplificaba el efecto sin una cota de equilibrio.
+
+### Fix — 3 puntos en el motor
+
+1. **GES doorway (~L828):** limitador de equilibrio por concentración. El receptor no puede
+   superar la concentración CO₂ de la fuente en esa advección.
+   `co2_headroom = max(0, c_src × air_tgt − stock_tgt)` con densidad de aire 1.2 kg/m³.
+   `co2_upper_moved` recortado por el mismo `cut_ratio`.
+
+2. **GES delayed delivery:** se añade `"from": from_id` al parcel en vuelo y se re-aplica la
+   misma cota al entregar. Excedente devuelto a la sala origen — conservación intacta.
+
+3. **ThermalSystem (~L2779):** mismo limitador para el segundo path de transporte CO₂.
+
+CO, HCN, OES, FED, baselines y tolerancias: **no tocados**.
+
+### Resultados medidos
+
+| Caso | CO₂ antes | CO₂ después |
+|------|-----------|-------------|
+| confinement_open_close | 1.02e6 ppm | 1.46e5 ppm |
+| postfire_decay | 1.19e6 ppm | 2.77e5 ppm |
+| row_house_ground_floor_smoke | 2.11e6 ppm | 4.40e5 ppm |
+| secondary_ignition_demo | 1.19e6 ppm | 2.77e5 ppm |
+| v3_hallway_fed_exposure | 1.10e6 ppm | 2.56e5 ppm |
+| v4_co_remote_rooms | 1.10e6 ppm | 2.56e5 ppm |
+| v6_spread_to_hallway | 1.19e6 ppm | 2.77e5 ppm |
+
+FED v3 pasillo: 3.47e9 → 2.91e3 (corrección, no regresión — el absurdo venía del CO₂ > 100%).
+
+### Estado de suites (post-fix)
+
+- Physics suite: **exit 0** — 10 PASS / 12 CTRL / 7 WARN / 0 FAIL.
+  v4_co_remote_rooms CTRL envelope actualizado: D2:69 añadido (55 medidos + 25% margen).
+  Motivo D2 nuevo: al normalizar CO₂, sube ratio CO/CO₂ en receptoras — CO tiene el mismo
+  bug de bombeo, pero la cota de CO es seguimiento separado (constraint: no tocar CO).
+- ILV suite: **exit 0** — 15 PASS / 14 CTRL / 0 FAIL.
+- Guardrails: **exit 1** — solo 5 stale checks pre-existentes (cfast_hvac + cfast_chain),
+  no causados por F0. PHY-P1 PASS.
+- pytest: **272/273** — único fallo `test_exit0_real_json` (stale reference_checks.json,
+  pre-existente, no causado por F0).
+- validate_reference_cases: **344/354** — mismos 10 FAILs que antes del fix
+  (5 VALID_GAP + 5 stale cfast); ningún delta causado por F0.
+
+### Archivos modificados (sin commit aún)
+
+Motor (2):
+- `sim/core/GasExchangeSystem.gd` — limitador GES doorway + delivery
+- `sim/core/ThermalSystem.gd` — limitador ThermalSystem
+
+Validación (3):
+- `scripts/simulation/validation_guardrails.py` — `_KNOWN_PPM_VIOLATIONS = {}`
+- `scripts/simulation/audit_physics_coherence_suite.py` — D2:69 en envelope v4
+- `tests/test_guardrails.py` — test allowlist usa entrada sintética (la real está vacía)
+
+Reports regenerados (9):
+- 7 reports JSON + `v4_co_remote_rooms.csv` + `reference_checks.json`
+
+### Pendientes separados (no causados por F0)
+
+1. **CO pumping follow-up:** CO tiene el mismo bug de bombeo concentrador en GES. Requiere
+   plan + auditoría de baselines CO (separate session). Los 69 D2 WARNs en v4 CTRL son la
+   huella visible hasta que se cierre.
+2. **5 stale checks cfast_hvac/cfast_chain:** reference_checks.json regenerado fresco activa
+   estos checks latentes. Tarea separada.
+
+---
+
 ## Current Session Update - 2026-06-30 (rev 34 - D2 CTRL wood_vc_reference + diagnóstico diag_sealed D2PRE)
 
 ### Estado operativo actual

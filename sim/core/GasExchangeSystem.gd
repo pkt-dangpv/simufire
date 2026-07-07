@@ -826,8 +826,25 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			)
 			co_delta_kg[from_id] -= co_moved_kg
 			co2_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.co2_kg
+			# F0 Plan B: cota de equilibrio por concentración. El proxy de fracción de
+			# humo satura a 1.0 cuando source.smoke_kg es pequeño y exporta casi todo
+			# el stock de CO2 cada tick, acumulando >100% vol en salas hub (PHY-P1).
+			# El receptor no puede quedar por encima de la concentración de la fuente
+			# por este movimiento. Masas de aire a densidad ambiente (1.2 kg/m³),
+			# consistente con compute_co2_ppm.
+			var co2_src_air_kg: float = maxf(0.1, source.volume_m3()) * air_density_kg_m3_s
+			var co2_tgt_air_kg: float = maxf(0.1, target.volume_m3()) * air_density_kg_m3_s
+			var co2_tgt_stock_kg: float = maxf(0.0, target.co2_kg + float(co2_delta_kg[to_id]))
+			var co2_headroom_kg: float = maxf(
+				0.0,
+				source.co2_kg / co2_src_air_kg * co2_tgt_air_kg - co2_tgt_stock_kg
+			)
+			var co2_cut_ratio: float = 1.0
+			if co2_moved_kg > co2_headroom_kg and co2_moved_kg > 0.000001:
+				co2_cut_ratio = co2_headroom_kg / co2_moved_kg
+				co2_moved_kg = co2_headroom_kg
 			co2_delta_kg[from_id] -= co2_moved_kg
-			co2_upper_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.co2_upper_kg
+			co2_upper_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.co2_upper_kg * co2_cut_ratio
 			co2_upper_delta_kg[from_id] -= co2_upper_moved_kg
 			hcn_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.hcn_kg
 			hcn_delta_kg[from_id] -= hcn_moved_kg
@@ -858,6 +875,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 		if use_transport_delay:
 			_pending_interior_deliveries.append({
+				"from": from_id,
 				"target": to_id,
 				"delay_s": travel_delay_s,
 				"smoke_kg": kg,
@@ -1227,8 +1245,33 @@ func _release_pending_interior_deliveries(
 		target.co_kg = maxf(0.0, target.co_kg + float(entry.get("co_kg", 0.0)))
 		target.co_net_transport_kg_total += target.co_kg - _co_pre_delivery
 		target.co_upper_kg = maxf(0.0, target.co_upper_kg + float(entry.get("co_upper_kg", 0.0)))
-		target.co2_kg = maxf(0.0, target.co2_kg + float(entry.get("co2_kg", 0.0)))
-		target.co2_upper_kg = maxf(0.0, target.co2_upper_kg + float(entry.get("co2_upper_kg", 0.0)))
+		# F0 Plan B: cota de equilibrio también en la entrega diferida. El headroom
+		# calculado al enviar no cuenta los parcels aún en vuelo, así que salas hub
+		# con delays largos acumulan por encima de la concentración de la fuente.
+		# El excedente se devuelve a la sala origen (conservación de masa).
+		var co2_parcel_kg: float = float(entry.get("co2_kg", 0.0))
+		var co2_upper_parcel_kg: float = float(entry.get("co2_upper_kg", 0.0))
+		if co2_parcel_kg > 0.0:
+			var co2_src_room: RoomModel = building.get_room(int(entry.get("from", -1)))
+			if co2_src_room != null:
+				var co2_tgt_air_kg: float = maxf(0.1, target.volume_m3()) * 1.2
+				var co2_src_air_kg: float = maxf(0.1, co2_src_room.volume_m3()) * 1.2
+				var co2_headroom_kg: float = maxf(
+					0.0,
+					co2_src_room.co2_kg / co2_src_air_kg * co2_tgt_air_kg - target.co2_kg
+				)
+				if co2_parcel_kg > co2_headroom_kg:
+					var co2_cut: float = co2_headroom_kg / co2_parcel_kg
+					var co2_refund_kg: float = co2_parcel_kg - co2_headroom_kg
+					co2_src_room.co2_kg += co2_refund_kg
+					co2_src_room.co2_upper_kg = minf(
+						co2_src_room.co2_upper_kg + co2_upper_parcel_kg * (1.0 - co2_cut),
+						co2_src_room.co2_kg
+					)
+					co2_parcel_kg = co2_headroom_kg
+					co2_upper_parcel_kg *= co2_cut
+		target.co2_kg = maxf(0.0, target.co2_kg + co2_parcel_kg)
+		target.co2_upper_kg = maxf(0.0, target.co2_upper_kg + co2_upper_parcel_kg)
 		target.hcn_kg = maxf(0.0, target.hcn_kg + float(entry.get("hcn_kg", 0.0)))
 		target.hcn_upper_kg = maxf(0.0, target.hcn_upper_kg + float(entry.get("hcn_upper_kg", 0.0)))
 		target.hcl_kg = maxf(0.0, target.hcl_kg + float(entry.get("hcl_kg", 0.0)))
