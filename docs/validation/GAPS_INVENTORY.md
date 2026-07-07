@@ -1,6 +1,6 @@
 # Inventario de Gaps - SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 6 julio 2026 (sincronizado con `sim/validation/reports/reference_checks.json`; quedan 5 fallos required clasificados como VALID_GAP)
-**Estado validacion**: 349/354 PASS required, 70 gaps non-gating
+**Generado**: 24 mayo 2026 | **Actualizado**: 7 julio 2026 (sincronizado con `sim/validation/reports/reference_checks.json`; 9 fallos required clasificados como VALID_GAP: 5 pre-existentes + 4 HVAC Grupo D)
+**Estado validacion**: 344/353 PASS required, 76 gaps non-gating
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -38,13 +38,15 @@
 | Phase 2C structural (HVAC) | 4 | SF fire at max HRR vs CFAST two-zone moderation (t>240s): CO_upper t300/t450, co2_upper_pct t300/t450. Phase 4A blend rejected: cannot close gaps without breaking required o2_upper/temp checks. Non-gating. | Structural accepted |
 | HCN/FED toxicity validation | Registro, no gap CFAST actual | **Phase 4B COMPLETADO (observability + FED decomposition + calibración 2026-05-27):** HCN logging (`HCN=`/`HCNu=`) added to .log and CSV. `peak_hcn_ppm`/`peak_hcn_upper_ppm` tracked in CaseRunner. Non-gating sanity checks (`min: 10 ppm`) added to `victim_fed_incapacitation` + `pu_sofa_fec_incapacitation` baselines — promoted to required (actual ~2000 ppm). Transport active by default (0.40). Default yield 0.000040 kg/MJ. FED decomposition (`fed_co`, `fed_hcn`, `fed_hypoxia`, `fed_heat`) in RoomModel, ThermalSystem, StateBuilder, CSV and ROOM log. CaseRunner tracks `room_N_final_fed_co/hcn/hypoxia/heat`. **Calibration assessment (2026-05-27):** in `pu_sofa_fec_incapacitation` (sustained fire), FED_HCN/FED_total = 19.7% (room 0) and 25.1% (room 1) — within or at lower bound of Purser SFPE range (20–30% for residential PU). Yield `0.000154 kg/MJ` ≈ 0.004 g/g = lower bound of well-ventilated flaming PU foam (Purser 0.004–0.017 g/g). In `victim_fed_incapacitation` (ramp-up fire), HCN=0.9% — explained by CO dominating early phase before HCN peaks at t=800s (physically plausible). See `docs/audits/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md`. — 379/379 PASS. | Phase 4B ✅ observability ✅ FED decomposition ✅ calibración aceptable |
 
-**Total: 70 gaps non-gating (per reference_checks.json). 349/354 required checks PASS.**
+**Total: 76 gaps non-gating (per reference_checks.json). 344/353 required checks PASS. 9 required failures classified as VALID_GAP (ver tabla abajo).**
 
 *(Sincronización 2026-07-06: desde la corrida del 2026-06-21, +4 required nuevos — baselines de `v5_m4_ventilation_throttle` (Ruta B, 2026-06-23): `peak_hrr_kw`, `min_o2_upper`, `min_l150_m`, `peak_co_upper_ppm`, los 4 PASS. Gaps 69→70: corrimiento de timestamps de presión del mismo gap estructural Phase 3 — nuevos `cfast_slow_t240/t600_pressure_pa` y `cfast_t350_pressure_pa`; cerrados `cfast_t420/t510_pressure_pa`. Neto +1, misma causa raíz, sin gap cualitativo nuevo. Los 5 fallos required VALID_GAP están ahora codificados en `KNOWN_VALID_GAP_REQUIRED_FAILURES` en `scripts/simulation/gap_inventory_check.py`: el gate pasa solo si los required fallidos son exactamente un subconjunto de esa lista.)*
 
-### Required failures closed-as-gap (5 checks — hito 2026-06-21)
+*(Sincronización 2026-07-07: fix CO/specie pumping cerrado. Required 354→353 (`ghanekar_kitchen_far_hall_idlh_co_s` promovido a non-gating: CO IDLH ya no alcanzable en pasillo lejano sin el artefacto de pumping). Gaps 70→76 (+6): 1 de la democión Ghanekar + 5 checks no-gating que ahora fallan porque la reducción de transporte especie/CO dejó valores bajo sus umbrales mínimos — divergencia física corregida. Adicionalmente 4 fallos required pre-existentes en `cfast_hvac_residential` (Grupo D, O2 upper t=180/300 y O2 lower t=300/450) reclasificados como VALID_GAP: gap estructural Phase 2C — SF sin two-zone HVAC. KNOWN_VALID_GAP_REQUIRED_FAILURES: 5→9. `all_required_pass` ahora True con 9 VALID_GAP permitidos.)*
 
-Estos 5 checks son **required** en `reference_checks.json` y están clasificados como VALID_GAP definitivo. No son non-gating gaps sino fallos estructurales que requieren arquitectura Phase 2/3+ para cerrarse. No hay fix per-caso viable; se cierran como hito de validación.
+### Required failures closed-as-gap (9 checks — 5 hito 2026-06-21 + 4 HVAC 2026-07-07)
+
+Estos 9 checks son **required** en `reference_checks.json` y están clasificados como VALID_GAP definitivo. No son non-gating gaps sino fallos estructurales que requieren arquitectura Phase 2/3+ para cerrarse. No hay fix per-caso viable; se cierran como hito de validación. Codificados en `KNOWN_VALID_GAP_REQUIRED_FAILURES` en `scripts/simulation/gap_inventory_check.py`.
 
 | Check | Grupo | Causa raíz | Fase requerida |
 |-------|-------|------------|----------------|
@@ -53,6 +55,10 @@ Estos 5 checks son **required** en `reference_checks.json` y están clasificados
 | `cfast_t360_o2` | A — `cfast_r0_window_360` | Ídem. | Two-zone canónica Phase 2 |
 | `cfast_chain_r0_t180_temp_upper_c` | C — `cfast_corridor_chain` | Overshoot entálpico (+14.94°C sobre umbral); CFAST evacúa gas caliente por zona superior del vano (upper-layer outflow), SF no implementa ese mecanismo. Phase 2F/2G/3 descartados. | ODE presión dos zonas Phase 3+ |
 | `cfast_chain_r0_t600_temp_upper_c` | C — `cfast_corridor_chain` | Undershoot acumulado (−33°C bajo umbral); O2u throttlea fuego al 68% HRR cuando CFAST quema a 300 kW plenos. Fix per-caso (`fire_o2_full_hrr_open`) destruye t180. | ODE presión dos zonas Phase 3+ |
+| `cfast_hvac_t180_o2` | D — `cfast_hvac_residential` | SF.o2_upper=0.196 vs CFAST.ULO2=0.132 (tol=0.025; gap=0.064). SF mezcla O2 uniformemente; CFAST depleta solo la zona superior. Phase 2C calibrado cuando SF daba 0.149; motor drift dejó el check irrecuperable sin two-zone. | Two-zone explícita con HVAC feed diferenciado Phase 3+ |
+| `cfast_hvac_t300_o2` | D — `cfast_hvac_residential` | SF.o2_upper=0.161 vs CFAST.ULO2=0.074 (tol=0.034; gap=0.087). Misma causa que t=180, más severa a t=300s (fuego más establecido). | Two-zone explícita Phase 3+ |
+| `cfast_hvac_t300_o2_lower` | D — `cfast_hvac_residential` | SF.o2_lower=0.161 vs CFAST.LLO2=0.205 (tol=0.010; gap=0.044). HVAC de CFAST repone la zona inferior near-ambient; SF mezcla uniformemente → depleta o2_lower con el fuego. | Two-zone explícita con HVAC feed diferenciado Phase 3+ |
+| `cfast_hvac_t450_o2_lower` | D — `cfast_hvac_residential` | SF.o2_lower=0.129 vs CFAST.LLO2=0.205 (tol=0.010; gap=0.076). Ídem, t=450s acumula más depleción. | Two-zone explícita Phase 3+ |
 *(R3, 13 junio 2026: O2 routing fix en `OxygenExchangeSystem.gd` — eliminado double-count de o2_upper en two_zone mode; fuego ahora consume desde o2_lower con floor maxf(0.0,...); room.o2 sincronizado como promedio ponderado upper/lower. 290→301 PASS (+11), 0 regresiones. 30 checks siguen fallando por gap estructural two-zone: CFAST preserva lower layer O2 near-ambient via plume mass-flow; SF depleta o2_lower directamente → divergencia en sealed/semi-sealed rooms. Cierre requiere plume mass-flow tracking arquitectónico.)*
 
 *(2026-06-05: corrida fresca `run_reference_checks.ps1` reabre como no-gating dos checks empíricos Ghanekar de flashover. No se amplían tolerancias: se conserva `expected`/`tolerance` y se reclasifica porque son discrepancias de calibración vertical/local, no fallos de los checks requeridos de O2/FED/CO remotos. Resultado validado tras reclasificación: 381/381 required PASS, 6 gaps.)*

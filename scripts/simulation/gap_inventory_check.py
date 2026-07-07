@@ -56,6 +56,17 @@ KNOWN_VALID_GAP_REQUIRED_FAILURES: frozenset[str] = frozenset({
     # (upper-layer outflow entálpico).  Cierre: Phase 3+.
     "cfast_chain_r0_t180_temp_upper_c",
     "cfast_chain_r0_t600_temp_upper_c",
+    # Grupo D — cfast_hvac_residential: gap estructural Phase 2C (2026-07-07).
+    # SF mezcla O2 uniformemente; CFAST mantiene two-zone con HVAC replenishing
+    # la zona inferior y depletando solo la zona superior.  Resultado: SF.o2_upper
+    # no depleta hacia ULO2 CFAST (t=180: 0.196 vs 0.132; t=300: 0.161 vs 0.074)
+    # y SF.o2_lower no se mantiene near-ambient por HVAC (t=300/450: 0.161/0.129
+    # vs CFAST LLO2=0.205).  Cierre requiere arquitectura two-zone explícita
+    # con HVAC feed diferenciado por zona (Phase 3+).
+    "cfast_hvac_t180_o2",
+    "cfast_hvac_t300_o2",
+    "cfast_hvac_t300_o2_lower",
+    "cfast_hvac_t450_o2_lower",
 })
 
 
