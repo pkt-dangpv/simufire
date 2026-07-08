@@ -140,12 +140,14 @@ KNOWN_INTENTIONAL_CONTROLS: dict[str, dict[str, int] | None] = {
     # cfast_slow_growth_sealed).  Added as CTRL 2026-06-30.
     # (measured 2026-07-06: D2:114, D2PRE:74)
     "wood_vc_reference": {"D2": 145, "D2PRE": 95},
-    # cfast_slow_growth_sealed CTRL (G1 2026-07-08): 1800 s slow-growth sealed scenario.
-    # D2PRE:59 is M1/tracer-vs-mass collateral (same root cause as fuel_balance_diag_sealed).
-    # S0 artifact retired 2026-07-09: _last_written_time_s guard in SimulationLogWriter
-    # prevents the double-log at t=1800.1 s; CSV now emits 6 rows at that tick (not 12).
-    # (measured 2026-07-09: D2PRE:58)
-    "cfast_slow_growth_sealed": {"D2PRE": 65},
+    # cfast_slow_growth_sealed CTRL (re-measured 2026-07-09 with fire_o2_mode=upper):
+    # fire_o2_mode="upper" added to engine_overrides so run_scenario_headless applies
+    # the same mode declared by validation_fire_o2_mode.  Upper mode concentrates O2
+    # consumption in the hot upper layer, producing more pronounced CO2 stratification
+    # and higher co2_upper_ppm_mass vs co2_upper_ppm(tracer) — hence higher D2PRE.
+    # D2PRE WARNs are M1/tracer-vs-mass collateral (same root cause as fuel_balance).
+    # (measured 2026-07-09: D2PRE:162)
+    "cfast_slow_growth_sealed": {"D2PRE": 200},
     # HVAC species-instrumentation gap CTRL (coverage expansion 2026-07-06):
     # HVACSystem.gd extracts smoke/CO from rooms (smoke_exhausted_kg, CO via
     # return sampling) WITHOUT contributing to the balance accumulators

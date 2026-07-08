@@ -89,6 +89,7 @@
 		"fire_o2_nominal": 0.17,
 		"ach_infiltration": 5.0,
 		"fire_o2_hrr_fall_tau_s": 4.0,
-		"o2_upper_plume_entr_rate": 0.0045
+		"o2_upper_plume_entr_rate": 0.0045,
+		"fire_o2_mode": "upper"
 	}
 }

@@ -67,18 +67,11 @@ KNOWN_VALID_GAP_REQUIRED_FAILURES: frozenset[str] = frozenset({
     "cfast_hvac_t300_o2",
     "cfast_hvac_t300_o2_lower",
     "cfast_hvac_t450_o2_lower",
-    # Grupo E — cfast_slow_growth_sealed: calibración pre-existente no alcanzable
-    # sin two-zone (2026-07-08).  SF produce O2u=0.196 a t=300s (CFAST 0.155, tol
-    # 0.010) y temp_upper=184°C a t=480s (CFAST 151°C, tol 10°C).  Room 0 es
-    # sellada; G1 no ejecuta parcels en este escenario (smoke_in_transit_kg=0
-    # throughout) — gap pre-existente enmascarado por JSON estático antes de G1.
-    # Cierre: two-zone O2/temp diferenciación Phase 2+.
-    "cfast_slow_t300_o2",
-    "cfast_slow_t480_o2",
-    "cfast_slow_t600_o2",
-    "cfast_slow_t900_o2",
-    "cfast_slow_t480_temp_upper_c",
-    "cfast_slow_t600_temp_upper_c",
+    # Grupo E — RETIRADO 2026-07-09: los 6 checks eran artefacto de runner/config,
+    # no gap físico.  El caso declaraba fire_o2_mode="upper" en top-level pero
+    # run_scenario_headless solo aplica engine_overrides; corregido añadiendo
+    # fire_o2_mode="upper" dentro de engine_overrides en el JSON del caso.
+    # Con la física declarada todos los checks pasan dentro de tolerancia.
 })
 
 
