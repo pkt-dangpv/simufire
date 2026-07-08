@@ -22,6 +22,10 @@ var csv_file_path: String = "user://sim_log.csv"
 var target_csv_file_path: String = "user://sim_log_targets.csv"
 
 var _next_log_time_s: float = 0.0
+## Último timestamp escrito (append_snapshot o append_snapshot_now).
+## Usado para evitar snapshots duplicados cuando _maybe_log_state y
+## _force_log_final_snapshot coinciden en el mismo tick.
+var _last_written_time_s: float = -INF
 var _resolved_log_file_path: String = ""
 var _log_io_failed: bool = false
 var _resolved_csv_file_path: String = ""
@@ -53,6 +57,7 @@ func configure_csv(is_enabled: bool, path: String) -> void:
 
 func reset_log_file() -> void:
 	_next_log_time_s = 0.0
+	_last_written_time_s = -INF
 	_resolved_log_file_path = ""
 	_log_io_failed = false
 	_resolved_csv_file_path = ""
@@ -111,15 +116,19 @@ func append_snapshot(sim_time_s: float, state: Dictionary) -> void:
 	if csv_enabled:
 		_append_csv_snapshot(sim_time_s, state)
 	_next_log_time_s += interval_s
+	_last_written_time_s = sim_time_s
 
 
 func append_snapshot_now(sim_time_s: float, state: Dictionary) -> void:
 	if not enabled:
 		return
+	if is_equal_approx(sim_time_s, _last_written_time_s):
+		return
 
 	_append_snapshot(sim_time_s, state)
 	if csv_enabled:
 		_append_csv_snapshot(sim_time_s, state)
+	_last_written_time_s = sim_time_s
 
 
 func append_initial_snapshot(sim_time_s: float, state: Dictionary) -> void:
