@@ -6,6 +6,75 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-08 — Plan B/F2 cerrado (fed_co2_source_mass flag)
+
+### Estado operativo actual (2026-07-08, HEAD pendiente de commit)
+
+- Branch: `main`, cambios sin commitear (motor F2 + script validate_reference_cases.py + reference_checks.json + docs).
+- `validate_reference_cases`: **344/353 PASS** — 9 VALID_GAP; sin cambio de comportamiento.
+- Physics coherence: **9 PASS / 14 CTRL / 6 WARN / 0 FAIL**, exit 0.
+- ILV suite: **15 PASS / 14 CTRL / 0 FAIL**, exit 0.
+- Guardrails: **10/10 PASS, exit 0** — R2-1 OK (reference_checks.json regenerado con `generated_at`).
+- pytest: **598/604** — 6 pre-existentes two-zone structure, sin cambio.
+
+### Plan B / F2 — flag `fed_co2_source_mass` (2026-07-08)
+
+**Objetivo:** Añadir flag experimental per-caso para cambiar la fuente de CO₂ en el cálculo
+`v_co2` del FED ISO 13571 del tracer OES (`room.co2_upper × 1e6`) al path mass-derived
+(`co2_upper_kg / upper_zone_mass_kg`). Evaluar si el path mass mejora la exactitud.
+
+**Resultado del experimento:** Flag ON es físicamente incorrecto en la cola post-extinción.
+`co2_upper_kg` no drena cuando el fuego se extingue pero `upper_zone_mass_kg` colapsa por
+enfriamiento → `co2_upper_ppm_mass` sube a >500 000 ppm (físicamente imposible). FED del adulto
+(1.8 m) acumula valores astronómicos. Impacto en víctima a 0.9 m (zona inferior): +0.08 s —
+irrelevante (usa `compute_co2_lower_ppm` en ambos modos).
+
+**Decisión:** Mantener flag como infraestructura experimental default OFF. Default OFF = no-op
+exacto — ningún check, baseline ni guardrail afectado. F3 (activar path mass en producción)
+está **bloqueado** hasta corregir `co2_upper_kg` post-extinción.
+
+Ver detalle completo: `docs/validation/plan_b_f2_fed_co2_mass_flag.md`
+
+### Fix permanente R2-1 (2026-07-08)
+
+`validate_reference_cases.py` ahora incluye `generated_at` (ISO 8601 UTC) en el JSON de salida.
+Esto garantiza que cada regeneración cambia el contenido del archivo → git lo marca dirty →
+R2-1 gate 1 pasa cuando el motor cambia pero el comportamiento es idéntico (flag OFF, etc.).
+Antes: regenerar con flag OFF producía JSON byte-a-byte idéntico al commitado → R2-1 disparaba
+aunque el usuario sí hubiera regenerado.
+
+### Archivos modificados en este commit
+
+Motor (2):
+- `sim/core/SimulationEngine.gd` — `@export var fed_co2_source_mass: bool = false` + settings
+- `sim/core/ThermalSystem.gd` — var + configure + 2 sitios FED patched
+
+Validación (2):
+- `scripts/simulation/validate_reference_cases.py` — `import datetime` + campo `generated_at`
+- `sim/validation/reports/reference_checks.json` — regenerado (mismos 9 VALID_GAP)
+
+Docs (2):
+- `docs/validation/plan_b_f2_fed_co2_mass_flag.md` — nuevo, experimento completo
+- `docs/HANDOFF_CURRENT_STATE.md` — esta entrada
+
+### Próximos pasos
+
+1. **Bug `co2_upper_kg` post-extinción:** mismo bug familiar que F0. El pool intra-room de
+   `co2_upper_kg` no vacía al ritmo que colapsa `upper_zone_mass_kg` al enfriarse. Síntoma:
+   `co2_upper_ppm_mass > 5 × 10⁵ ppm` a t ≈ 630 s en `victim_fed_incapacitation`.
+   Cuando se corrija, F3 puede proceder.
+
+2. **D2PRE transporte inter-room:** 6 WARNs restantes (divergencia tracer vs mass en salas
+   receptoras). Requiere mapeo del transporte de CO₂ entre rooms — sesión dedicada Plan B.
+
+---
+
+## Current Session Update - 2026-07-07 — CO/specie pumping fix + HVAC VALID_GAP
+
+(Registrado en project_overview.md — HEAD=3f5e0a4f, 5 commits pusheados)
+
+---
+
 ## Current Session Update - 2026-07-06 (rev 35 - Rehabilitación de gates: ILV suite + guardrails + CI a exit 0)
 
 ### Contexto

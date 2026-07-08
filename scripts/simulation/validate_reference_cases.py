@@ -15,6 +15,7 @@ The checks are deliberately narrow:
 from __future__ import annotations
 
 import csv
+import datetime
 import json
 import math
 import re
@@ -2748,6 +2749,7 @@ def main() -> int:
     known_gaps = [check for check in all_checks if not check.required and not check.passed()]
 
     output = {
+        "generated_at": datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z",
         "all_required_pass": not failed,
         "required_count": len(required),
         "failed_required_count": len(failed),

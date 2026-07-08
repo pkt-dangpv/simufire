@@ -294,6 +294,8 @@ var fed_hypoxia_b: float = 0.54
 # Valor por defecto 1.8 m (adulto de pie, ISO 13571). Puede sobreescribirse por caso
 # cuando el escenario implica ocupantes agachados, niños, o análisis conservador.
 var fed_upper_layer_threshold_m: float = 1.8
+# Plan B/F2: false=tracer OES (default, no-op), true=mass-derived co2_upper_ppm_mass.
+var fed_co2_source_mass: bool = false
 var _fed_layer_warning_keys: Dictionary = {}
 
 # Conducción a través de paredes compartidas entre salas geométricamente adyacentes
@@ -619,6 +621,7 @@ func configure(settings: Dictionary) -> void:
 	fed_hypoxia_a = float(settings.get("fed_hypoxia_a", fed_hypoxia_a))
 	fed_hypoxia_b = float(settings.get("fed_hypoxia_b", fed_hypoxia_b))
 	fed_upper_layer_threshold_m = float(settings.get("fed_upper_layer_threshold_m", fed_upper_layer_threshold_m))
+	fed_co2_source_mass = bool(settings.get("fed_co2_source_mass", fed_co2_source_mass))
 	wall_conduction_enabled = bool(settings.get("wall_conduction_enabled", wall_conduction_enabled))
 	wall_conduction_u_kw_m2_k = float(settings.get("wall_conduction_u_kw_m2_k", wall_conduction_u_kw_m2_k))
 	wall_conduction_max_fraction_per_step = float(
@@ -3392,7 +3395,10 @@ func compute_fed_delta_for_height(room: RoomModel, dt: float, height_m: float) -
 	var thermal_exposure_factor: float = _fed_breathing_zone_thermal_exposure_factor(room, height_m)
 	var in_upper: bool = (thermal_exposure_factor >= 0.5 and room.upper_gas_kg > 0.1)
 	var co_ppm: float   = compute_co_upper_ppm(room)  if in_upper else compute_co_ppm(room)
-	var co2_ppm: float  = compute_co2_upper_ppm(room) if in_upper else compute_co2_lower_ppm(room)
+	var co2_ppm: float  = (
+		(compute_co2_upper_ppm_mass(room) if fed_co2_source_mass else compute_co2_upper_ppm(room))
+		if in_upper else compute_co2_lower_ppm(room)
+	)
 	var dt_min: float   = dt / 60.0
 	var delta: float    = 0.0
 
@@ -3452,7 +3458,10 @@ func step_fed(room: RoomModel, dt: float) -> void:
 	)
 	var in_upper_layer: bool = (thermal_exposure_factor >= 0.5 and room.upper_gas_kg > 0.1)
 	var co_ppm: float = compute_co_upper_ppm(room) if in_upper_layer else compute_co_ppm(room)
-	var co2_ppm: float = compute_co2_upper_ppm(room) if in_upper_layer else compute_co2_lower_ppm(room)
+	var co2_ppm: float = (
+		(compute_co2_upper_ppm_mass(room) if fed_co2_source_mass else compute_co2_upper_ppm(room))
+		if in_upper_layer else compute_co2_lower_ppm(room)
+	)
 
 	var dt_min: float = dt / 60.0
 	# Phase 4B: per-component delta accumulators for observability.
