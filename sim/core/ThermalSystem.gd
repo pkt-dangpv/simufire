@@ -3731,6 +3731,8 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 	room.temp_upper_clamped = room.temp_upper_raw_c > max_upper_temp_c
 	room.temp_upper_c = maxf(room.temp_lower_c, minf(room.temp_upper_raw_c, max_upper_temp_c))
 	room.upper_energy_kj = room.upper_gas_kg * maxf(0.0, room.temp_upper_c - ambient_c)
+	# Fix A: registrar profundidad de zona superior antes de actualizar la interfaz.
+	var old_upper_depth_m: float = maxf(0.0, room.height_m - room.thermal_layer_m)
 	var target_thermal_layer_m: float = estimate_thermal_layer_height_m(room)
 	if target_thermal_layer_m < room.thermal_layer_m:
 		# Capa descendiendo: asignación directa (sin relajación).
@@ -3743,6 +3745,28 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 			target_thermal_layer_m,
 			clampf(layer_relax_up * dt, 0.0, 1.0)
 		)
+	# Fix A+D: sólo cuando el fuego está extinto. Durante fuego activo, la estratificación
+	# de especies la gestiona el sistema de combustión; actuar aquí distorsionaría
+	# co2_lower_kg (= co2_kg − co2_upper_kg) y aceleraría falsamente el FED en zona lower.
+	var new_upper_depth_m: float = maxf(0.0, room.height_m - room.thermal_layer_m)
+	var fire_inactive: bool = room.hrr_kw <= 0.1 and room.fire == null
+	if fire_inactive:
+		# Fix A: redistribución upper→lower proporcional al encogimiento de la zona superior.
+		# Si la interfaz sube (zona upper se contrae), las especies se redistribuyen;
+		# bulk (co2_kg, co_kg, hcn_kg) permanece invariante.
+		if old_upper_depth_m > 0.0 and new_upper_depth_m < old_upper_depth_m:
+			var upper_frac_remaining: float = new_upper_depth_m / old_upper_depth_m
+			room.co2_upper_kg = clampf(room.co2_upper_kg * upper_frac_remaining, 0.0, room.co2_kg)
+			room.co_upper_kg = clampf(room.co_upper_kg * upper_frac_remaining, 0.0, room.co_kg)
+			room.hcn_upper_kg = clampf(room.hcn_upper_kg * upper_frac_remaining, 0.0, room.hcn_kg)
+		# Fix D: clamp de consistencia geométrica — especies upper ≤ 3× peso volumétrico.
+		# Permite estratificación real (hasta 3×) pero bloquea el artefacto de colapso
+		# de denominador (~5×). No destruye masa bulk.
+		var upper_geom_frac: float = clampf(new_upper_depth_m / maxf(0.01, room.height_m), 0.0, 1.0)
+		var max_species_upper_frac: float = minf(1.0, 3.0 * upper_geom_frac)
+		room.co2_upper_kg = clampf(room.co2_upper_kg, 0.0, room.co2_kg * max_species_upper_frac)
+		room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg * max_species_upper_frac)
+		room.hcn_upper_kg = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg * max_species_upper_frac)
 	_smoke_model.recompute_layer_from_mass(room, dt, ambient_c)
 	# BV-030: en un modelo de zona, la capa superior nunca puede ser más fría que la inferior.
 	# Esta aserción defensiva detecta regresiones futuras; no debe activarse en operación normal.
@@ -3764,7 +3788,25 @@ func _sync_room_two_zone_layer(room: RoomModel, dt: float) -> void:
 	room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg)
 	room.co2_upper_kg = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
 	room.hcn_upper_kg = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)
+	# Fix A+D: sólo cuando el fuego está extinto (mismo guard que sync_room_upper_layer).
+	var old_upper_depth_m: float = maxf(0.0, room.height_m - room.thermal_layer_m)
 	_zone_fire_solver.project_room_state(room, ambient_c, max_upper_temp_c)
+	var new_upper_depth_m: float = maxf(0.0, room.height_m - room.thermal_layer_m)
+	var fire_inactive: bool = room.hrr_kw <= 0.1 and room.fire == null
+	if fire_inactive:
+		# Fix A: redistribución upper→lower proporcional al encogimiento de la zona superior.
+		if old_upper_depth_m > 0.0 and new_upper_depth_m < old_upper_depth_m:
+			var upper_frac_remaining: float = new_upper_depth_m / old_upper_depth_m
+			room.co2_upper_kg = clampf(room.co2_upper_kg * upper_frac_remaining, 0.0, room.co2_kg)
+			room.co_upper_kg = clampf(room.co_upper_kg * upper_frac_remaining, 0.0, room.co_kg)
+			room.hcn_upper_kg = clampf(room.hcn_upper_kg * upper_frac_remaining, 0.0, room.hcn_kg)
+		# Fix D: clamp de consistencia geométrica — especies upper ≤ 3× peso volumétrico.
+		# No destruye masa bulk.
+		var upper_geom_frac: float = clampf(new_upper_depth_m / maxf(0.01, room.height_m), 0.0, 1.0)
+		var max_species_upper_frac: float = minf(1.0, 3.0 * upper_geom_frac)
+		room.co2_upper_kg = clampf(room.co2_upper_kg, 0.0, room.co2_kg * max_species_upper_frac)
+		room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg * max_species_upper_frac)
+		room.hcn_upper_kg = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg * max_species_upper_frac)
 	_smoke_model.recompute_layer_from_mass(room, dt, ambient_c)
 
 	if room.temp_upper_c < room.temp_lower_c - 1.0:
