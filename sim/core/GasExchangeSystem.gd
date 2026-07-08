@@ -104,6 +104,7 @@ var phase3_leak_area_m2: float = 0.0
 # Este parámetro es independiente de hrr_chi_rad_normal (que calibra T_upper en SF).
 var phase3_chi_conv: float = 0.70
 var _pending_interior_deliveries: Array[Dictionary] = []
+var _inflight_species_kg: Dictionary = {}
 
 
 func configure(settings: Dictionary) -> void:
@@ -314,6 +315,7 @@ func _equalize_thermodynamic_pressure_components(building: BuildingModel) -> voi
 
 func reset() -> void:
 	_pending_interior_deliveries.clear()
+	_inflight_species_kg.clear()
 
 
 func get_pending_carbon_kg() -> float:
@@ -825,6 +827,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			# estos valores con nombres propios para no modificar ese bloque (F0).
 			var spec_src_air_kg: float = maxf(0.1, source.volume_m3()) * air_density_kg_m3_s
 			var spec_tgt_air_kg: float = maxf(0.1, target.volume_m3()) * air_density_kg_m3_s
+			# G1: masa ya en vuelo hacia este destino, para no sobre-otorgar headroom.
+			var _ifl_to: Dictionary = _inflight_species_kg.get(to_id, {}) as Dictionary
 			co_moved_kg = minf(
 				minf(kg / source.smoke_kg, 1.0) * source.co_upper_kg,
 				source.co_kg
@@ -834,7 +838,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			co_moved_kg = minf(co_moved_kg, maxf(
 				0.0,
 				source.co_kg / spec_src_air_kg * spec_tgt_air_kg
-					- maxf(0.0, target.co_kg + float(co_delta_kg[to_id]))
+					- maxf(0.0, target.co_kg + float(co_delta_kg[to_id])
+						+ float(_ifl_to.get("co", 0.0)))
 			))
 			co_delta_kg[from_id] -= co_moved_kg
 			co2_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.co2_kg
@@ -846,7 +851,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			# consistente con compute_co2_ppm.
 			var co2_src_air_kg: float = maxf(0.1, source.volume_m3()) * air_density_kg_m3_s
 			var co2_tgt_air_kg: float = maxf(0.1, target.volume_m3()) * air_density_kg_m3_s
-			var co2_tgt_stock_kg: float = maxf(0.0, target.co2_kg + float(co2_delta_kg[to_id]))
+			var co2_tgt_stock_kg: float = maxf(0.0, target.co2_kg + float(co2_delta_kg[to_id])
+				+ float(_ifl_to.get("co2", 0.0)))
 			var co2_headroom_kg: float = maxf(
 				0.0,
 				source.co2_kg / co2_src_air_kg * co2_tgt_air_kg - co2_tgt_stock_kg
@@ -864,7 +870,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			var hcn_headroom_kg: float = maxf(
 				0.0,
 				source.hcn_kg / spec_src_air_kg * spec_tgt_air_kg
-					- maxf(0.0, target.hcn_kg + float(hcn_delta_kg[to_id]))
+					- maxf(0.0, target.hcn_kg + float(hcn_delta_kg[to_id])
+						+ float(_ifl_to.get("hcn", 0.0)))
 			)
 			if hcn_moved_kg > hcn_headroom_kg and hcn_moved_kg > 0.000001:
 				hcn_cut_ratio = hcn_headroom_kg / hcn_moved_kg
@@ -877,21 +884,24 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			hcl_moved_kg = minf(hcl_moved_kg, maxf(
 				0.0,
 				source.hcl_kg / spec_src_air_kg * spec_tgt_air_kg
-					- maxf(0.0, target.hcl_kg + float(hcl_delta_kg[to_id]))
+					- maxf(0.0, target.hcl_kg + float(hcl_delta_kg[to_id])
+						+ float(_ifl_to.get("hcl", 0.0)))
 			))
 			hcl_delta_kg[from_id] -= hcl_moved_kg
 			acrolein_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.acrolein_kg
 			acrolein_moved_kg = minf(acrolein_moved_kg, maxf(
 				0.0,
 				source.acrolein_kg / spec_src_air_kg * spec_tgt_air_kg
-					- maxf(0.0, target.acrolein_kg + float(acrolein_delta_kg[to_id]))
+					- maxf(0.0, target.acrolein_kg + float(acrolein_delta_kg[to_id])
+						+ float(_ifl_to.get("acrolein", 0.0)))
 			))
 			acrolein_delta_kg[from_id] -= acrolein_moved_kg
 			formaldehyde_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.formaldehyde_kg
 			formaldehyde_moved_kg = minf(formaldehyde_moved_kg, maxf(
 				0.0,
 				source.formaldehyde_kg / spec_src_air_kg * spec_tgt_air_kg
-					- maxf(0.0, target.formaldehyde_kg + float(formaldehyde_delta_kg[to_id]))
+					- maxf(0.0, target.formaldehyde_kg + float(formaldehyde_delta_kg[to_id])
+						+ float(_ifl_to.get("formaldehyde", 0.0)))
 			))
 			formaldehyde_delta_kg[from_id] -= formaldehyde_moved_kg
 
@@ -930,6 +940,18 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 				"upper_energy_kj": moved_upper_energy_kj,
 				"o2_kg": o2_carry_kg
 			})
+			# G1: registrar masa en vuelo hacia este destino.
+			if not _inflight_species_kg.has(to_id):
+				_inflight_species_kg[to_id] = {}
+			var _ifl_new: Dictionary = _inflight_species_kg[to_id]
+			_ifl_new["co2"] = float(_ifl_new.get("co2", 0.0)) + co2_moved_kg
+			_ifl_new["co2_upper"] = float(_ifl_new.get("co2_upper", 0.0)) + co2_upper_moved_kg
+			_ifl_new["co"] = float(_ifl_new.get("co", 0.0)) + co_moved_kg
+			_ifl_new["hcn"] = float(_ifl_new.get("hcn", 0.0)) + hcn_moved_kg
+			_ifl_new["hcn_upper"] = float(_ifl_new.get("hcn_upper", 0.0)) + hcn_upper_moved_kg
+			_ifl_new["hcl"] = float(_ifl_new.get("hcl", 0.0)) + hcl_moved_kg
+			_ifl_new["acrolein"] = float(_ifl_new.get("acrolein", 0.0)) + acrolein_moved_kg
+			_ifl_new["formaldehyde"] = float(_ifl_new.get("formaldehyde", 0.0)) + formaldehyde_moved_kg
 		else:
 			smoke_delta_kg[to_id] += kg
 			_record_smoke_net_transport(null, target, kg)
@@ -1272,6 +1294,17 @@ func _release_pending_interior_deliveries(
 			continue
 
 		var target_id: int = int(entry.get("target", -1))
+		# G1: parcel deja la cola — restar del ledger in-flight (entregado o descartado).
+		if _inflight_species_kg.has(target_id):
+			var _ifl: Dictionary = _inflight_species_kg[target_id]
+			_ifl["co2"] = maxf(0.0, float(_ifl.get("co2", 0.0)) - float(entry.get("co2_kg", 0.0)))
+			_ifl["co2_upper"] = maxf(0.0, float(_ifl.get("co2_upper", 0.0)) - float(entry.get("co2_upper_kg", 0.0)))
+			_ifl["co"] = maxf(0.0, float(_ifl.get("co", 0.0)) - float(entry.get("co_kg", 0.0)))
+			_ifl["hcn"] = maxf(0.0, float(_ifl.get("hcn", 0.0)) - float(entry.get("hcn_kg", 0.0)))
+			_ifl["hcn_upper"] = maxf(0.0, float(_ifl.get("hcn_upper", 0.0)) - float(entry.get("hcn_upper_kg", 0.0)))
+			_ifl["hcl"] = maxf(0.0, float(_ifl.get("hcl", 0.0)) - float(entry.get("hcl_kg", 0.0)))
+			_ifl["acrolein"] = maxf(0.0, float(_ifl.get("acrolein", 0.0)) - float(entry.get("acrolein_kg", 0.0)))
+			_ifl["formaldehyde"] = maxf(0.0, float(_ifl.get("formaldehyde", 0.0)) - float(entry.get("formaldehyde_kg", 0.0)))
 		var target: RoomModel = building.get_room(target_id)
 		if target == null:
 			continue

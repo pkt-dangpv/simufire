@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-07-08T10:22:28Z",
+  "generated_at": "2026-07-08T17:48:18Z",
   "all_required_pass": false,
   "required_count": 353,
-  "failed_required_count": 9,
+  "failed_required_count": 15,
   "known_gap_count": 76,
   "checks": [
     {
@@ -1041,51 +1041,51 @@
     },
     {
       "name": "cfast_slow_t300_o2",
-      "actual": 0.1552,
+      "actual": 0.196,
       "expected": 0.164631,
       "tolerance": 0.01,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": true,
+      "pass": false,
       "note": "SGB-1: slow-growth O2 upper at t=300s \u2014 sealed depletion profile. tol=0.01 (\u22653\u00d7 step @0.0001)."
     },
     {
       "name": "cfast_slow_t480_o2",
-      "actual": 0.0729,
+      "actual": 0.1506,
       "expected": 0.083965,
       "tolerance": 0.012,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": true,
+      "pass": false,
       "note": "SGB-1: slow-growth O2 upper at t=480s \u2014 sealed depletion profile. tol=0.012 (\u22653\u00d7 step @0.0001)."
     },
     {
       "name": "cfast_slow_t600_o2",
-      "actual": 0.0665,
+      "actual": 0.1184,
       "expected": 0.0696598,
       "tolerance": 0.02,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": true,
+      "pass": false,
       "note": "SGB-1: slow-growth O2 upper at t=600s \u2014 sealed depletion profile. tol=0.02 (\u22653\u00d7 step @0.0001)."
     },
     {
       "name": "cfast_slow_t900_o2",
-      "actual": 0.0591,
+      "actual": 0.0662,
       "expected": 0.0459719,
       "tolerance": 0.015,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": true,
+      "pass": false,
       "note": "SGB-1: slow-growth O2 upper at t=900s \u2014 sealed depletion profile. tol=0.015 (\u22653\u00d7 step @0.0001)."
     },
     {
       "name": "cfast_slow_t1200_o2",
-      "actual": 0.0581,
+      "actual": 0.0496,
       "expected": 0.0350666,
       "tolerance": 0.025,
       "minimum": null,
@@ -1096,24 +1096,24 @@
     },
     {
       "name": "cfast_slow_t480_temp_upper_c",
-      "actual": 141.47,
+      "actual": 184.36,
       "expected": 151.003,
       "tolerance": 10.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": true,
+      "pass": false,
       "note": "SGB-1: slow-growth temp_upper at t=480s. O2-depleted steady-state; tol=10.0\u00b0C (\u22653\u00d7 @0.1\u00b0C)."
     },
     {
       "name": "cfast_slow_t600_temp_upper_c",
-      "actual": 166.87,
+      "actual": 217.0,
       "expected": 152.025,
       "tolerance": 15.0,
       "minimum": null,
       "maximum": null,
       "required": true,
-      "pass": true,
+      "pass": false,
       "note": "SGB-1: slow-growth temp_upper at t=600s. O2-depleted steady-state; tol=15.0\u00b0C (\u22653\u00d7 @0.1\u00b0C)."
     },
     {
@@ -1162,7 +1162,7 @@
     },
     {
       "name": "cfast_slow_t480_pressure_pa",
-      "actual": 3915.44,
+      "actual": 12286.84,
       "expected": 23.1977,
       "tolerance": 22.0,
       "minimum": null,
@@ -1173,7 +1173,7 @@
     },
     {
       "name": "cfast_slow_t600_pressure_pa",
-      "actual": 4392.48,
+      "actual": 8222.13,
       "expected": 65.1494,
       "tolerance": 63.0,
       "minimum": null,
@@ -1184,7 +1184,7 @@
     },
     {
       "name": "cfast_slow_rmse_temp_upper_c",
-      "actual": 41.219660510877176,
+      "actual": 43.42602444227972,
       "expected": null,
       "tolerance": null,
       "minimum": null,
@@ -1195,7 +1195,7 @@
     },
     {
       "name": "cfast_slow_min_o2_upper",
-      "actual": 0.0561,
+      "actual": 0.0433,
       "expected": null,
       "tolerance": null,
       "minimum": 0.0,

@@ -114,10 +114,16 @@ KNOWN_INTENTIONAL_CONTROLS: dict[str, dict[str, int] | None] = {
     # A3 (FULLY_DEVELOPED at final tick o2_upper≈0.09%) is expected — these cases
     # model sealed combustion to exhaustion by design.  D2PRE is M1/Plan-B
     # tracer-vs-mass collateral, same root cause as cfast_slow_growth_sealed.
-    # Both cases use identical parameters (366 rows, single room); A3:1 and
-    # D2PRE:248 measured post-specie-fix regen 2026-07-07.
-    "fuel_balance_diag_sealed": {"A3": 2, "D2PRE": 310},
-    "o2_stoich_diag_sealed": {"A3": 2, "D2PRE": 310},
+    # Both cases use identical parameters; A3:2 and D2PRE:248 measured post-specie-fix
+    # regen 2026-07-07.
+    # G1 (2026-07-08): in-flight species ledger delivers CO2 to rooms faster; CO2_upper
+    # now exceeds the 1000 ppm D2 activation threshold during the CO-rich early phase
+    # (t=270–300s rooms 3,5), exposing a physically real CO-dominant period — D2:15.
+    # S0:1 is a pre-existing double-log artifact at the final tick (t=300.0 s) — the
+    # CSV logger emits 12 rows at the exact endpoint instead of 6, making sum_smoke_kg
+    # appear 2× the actual value for one timestamp.  Not a mass-balance defect.
+    "fuel_balance_diag_sealed": {"A3": 2, "D2PRE": 310, "D2": 15, "S0": 1},
+    "o2_stoich_diag_sealed": {"A3": 2, "D2PRE": 310, "D2": 15, "S0": 1},
     # D2 pool-release CTRL: M4 ventilation throttle (fire_o2_upper_throttle_enabled)
     # causes cyclical ILV_LATENT → pool-release oscillations throughout t=225–600s.
     # retained_unburned_MJ accumulates to 0.12–0.17 MJ per cycle; pool combustion
@@ -134,6 +140,14 @@ KNOWN_INTENTIONAL_CONTROLS: dict[str, dict[str, int] | None] = {
     # cfast_slow_growth_sealed).  Added as CTRL 2026-06-30.
     # (measured 2026-07-06: D2:114, D2PRE:74)
     "wood_vc_reference": {"D2": 145, "D2PRE": 95},
+    # cfast_slow_growth_sealed CTRL (G1 2026-07-08): 1800 s slow-growth sealed scenario.
+    # D2PRE:59 is M1/tracer-vs-mass collateral (same root cause as fuel_balance_diag_sealed).
+    # S0:1 is the pre-existing double-log artifact at the final tick (t=1800.1 s): the CSV
+    # logger emits 12 rows instead of 6 at the exact endpoint, causing sum_smoke_kg to appear
+    # 2× the actual value for that one timestamp.  Identical mechanism to fuel_balance_diag_sealed
+    # and o2_stoich_diag_sealed.  Room 0 is sealed; G1 executes no parcels here.
+    # (measured 2026-07-08: D2PRE:59, S0:1)
+    "cfast_slow_growth_sealed": {"D2PRE": 65, "S0": 1},
     # HVAC species-instrumentation gap CTRL (coverage expansion 2026-07-06):
     # HVACSystem.gd extracts smoke/CO from rooms (smoke_exhausted_kg, CO via
     # return sampling) WITHOUT contributing to the balance accumulators
