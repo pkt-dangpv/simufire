@@ -56,17 +56,15 @@ KNOWN_VALID_GAP_REQUIRED_FAILURES: frozenset[str] = frozenset({
     # (upper-layer outflow entálpico).  Cierre: Phase 3+.
     "cfast_chain_r0_t180_temp_upper_c",
     "cfast_chain_r0_t600_temp_upper_c",
-    # Grupo D — cfast_hvac_residential: gap estructural Phase 2C (2026-07-07).
-    # SF mezcla O2 uniformemente; CFAST mantiene two-zone con HVAC replenishing
-    # la zona inferior y depletando solo la zona superior.  Resultado: SF.o2_upper
-    # no depleta hacia ULO2 CFAST (t=180: 0.196 vs 0.132; t=300: 0.161 vs 0.074)
-    # y SF.o2_lower no se mantiene near-ambient por HVAC (t=300/450: 0.161/0.129
-    # vs CFAST LLO2=0.205).  Cierre requiere arquitectura two-zone explícita
-    # con HVAC feed diferenciado por zona (Phase 3+).
-    "cfast_hvac_t180_o2",
-    "cfast_hvac_t300_o2",
-    "cfast_hvac_t300_o2_lower",
-    "cfast_hvac_t450_o2_lower",
+    # Grupo D — RETIRADO 2026-07-09: los 4 checks eran artefacto de runner/config,
+    # no gap físico.  El caso declaraba fire_o2_mode="upper" en top-level pero
+    # run_scenario_headless solo aplica engine_overrides; corregido añadiendo
+    # fire_o2_mode="upper" dentro de engine_overrides en el JSON del caso.
+    # Con la física declarada (upper mode) todos los checks pasan dentro de tolerancia:
+    # t=180: o2_upper=0.112 vs CFAST=0.132 (Δ=-0.020, tol=0.025 PASS)
+    # t=300: o2_upper=0.085 vs CFAST=0.074 (Δ=+0.011, tol=0.034 PASS)
+    # t=300: o2_lower=0.209 vs CFAST=0.205 (Δ=+0.004, tol=0.010 PASS)
+    # t=450: o2_lower=0.209 vs CFAST=0.205 (Δ=+0.004, tol=0.010 PASS)
     # Grupo E — RETIRADO 2026-07-09: los 6 checks eran artefacto de runner/config,
     # no gap físico.  El caso declaraba fire_o2_mode="upper" en top-level pero
     # run_scenario_headless solo aplica engine_overrides; corregido añadiendo

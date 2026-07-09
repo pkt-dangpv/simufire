@@ -156,7 +156,11 @@ KNOWN_INTENTIONAL_CONTROLS: dict[str, dict[str, int] | None] = {
     # (hvac_exists rows, HvacSystem.gd line 302).  Pending motor session:
     # instrument HVAC species accumulators, then remove this CTRL.
     # (measured 2026-07-06: D1:58, S1:36, D2PRE:1 — all room 0 except D2PRE)
-    "cfast_hvac_residential": {"D1": 70, "S1": 45, "D2PRE": 5},
+    # (remeasured 2026-07-09 with declared upper mode: D1:58, S1:39, D2PRE:28, O2E1:21)
+    # D2PRE increase: upper mode changes CO2 tracer-vs-mass dynamics (M1 collateral).
+    # O2E1: upper zone O2 depletes to <7% at t>400s; OES 5%-cap limits delta_o2_fire
+    # below Thornton expectation — same structural family as cfast_two_floor_stairwell.
+    "cfast_hvac_residential": {"D1": 70, "S1": 45, "D2PRE": 35, "O2E1": 25},
     # ILV-zombie family CTRL (coverage expansion 2026-07-06): multi-room CO
     # transport case, sealed-ish without M4.  A3 (zombie regime) + O2E1
     # (Thornton mismatch while zombie burns without O2 accounting) + D2PRE
