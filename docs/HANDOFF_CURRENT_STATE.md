@@ -6,6 +6,34 @@ Date: 2026-06-21.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-09 - Grupo C confirmado como VALID_GAP estructural
+
+### Estado guardado
+
+- HEAD remoto: `2a0766c6` (`fix(validation): apply declared fire_o2_mode in cfast_hvac_residential`).
+- Working tree: limpio antes de esta nota.
+- Physics coherence: **0 FAIL** - 9 PASS / 15 CTRL / 5 WARN.
+- Validation guardrails: **10/10 PASS**.
+- Gap inventory: **348/353 PASS**, **5 VALID_GAP**, 71 gaps non-gating.
+
+### Diagnostico Grupo C - `cfast_corridor_chain`
+
+Se verifico el candidato de runner/config mismatch despues de cerrar los Grupos D y E. Resultado:
+**Grupo C NO es runner/config mismatch**. Permanece como gap fisico estructural documentado.
+
+- Los 2 checks restantes de `cfast_corridor_chain` siguen siendo CCH-2: doorway thermal counterflow / Phase 3+.
+- No hay fix JSON-only equivalente al de `cfast_slow_growth_sealed` o `cfast_hvac_residential`.
+- No se realizaron cambios de motor, tolerancias, expected baselines ni reports.
+
+### VALID_GAP restantes
+
+- **Grupo A** - `cfast_r0_window_360` (3 checks): gap estructural O2/two-zone Phase 2/3+.
+- **Grupo C** - `cfast_corridor_chain` (2 checks): requiere bidirectional doorway thermal counterflow / ODE de presion dos zonas (M3/Phase 3+).
+
+Siguiente trabajo recomendado: no seguir con fixes per-case para Grupo C. Cualquier cierre real requiere plan de arquitectura Phase 3+ con STOP gate propio.
+
+---
+
 ## Current Session Update - 2026-07-08 — Plan B/F2 cerrado (fed_co2_source_mass flag)
 
 ### Estado operativo actual (2026-07-08, HEAD pendiente de commit)
