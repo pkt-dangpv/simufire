@@ -1,5 +1,4 @@
 extends RefCounted
-class_name OpeningModel
 
 enum Type { DOOR, WINDOW }
 

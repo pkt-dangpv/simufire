@@ -1,5 +1,4 @@
 extends Node2D
-class_name Visualizer
 ## Visualizer:
 ## - Dibuja habitaciones a partir de rects (en metros) del BuildingModel
 ## - Pinta capa superior (humo) usando h_layer_m / smoke_mass_kg

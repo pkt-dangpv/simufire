@@ -1,5 +1,4 @@
 extends Node
-class_name FireModel
 
 signal state_changed(state: Dictionary)
 

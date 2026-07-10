@@ -37,6 +37,12 @@ sim/validation/reports/mode_comparison/
 sim/validation/cfast/*.translation
 sim/validation/cfast/*.translation.import
 sim/validation/cfast/*.csv.import
+sim/validation/reports/*.translation
+sim/validation/reports/*.translation.import
+sim/validation/reports/*.csv.import
+sim/validation/reports/**/*.translation
+sim/validation/reports/**/*.translation.import
+sim/validation/reports/**/*.csv.import
 
 # Cache
 .matplotlib-cache/

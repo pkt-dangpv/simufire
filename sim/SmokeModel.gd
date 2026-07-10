@@ -1,5 +1,4 @@
 extends RefCounted
-class_name SmokeModel
 
 var smoke_density_kg_m3: float = 0.9
 

@@ -1,5 +1,4 @@
 extends RefCounted
-class_name RoomModel
 
 var id: int
 var name: String
