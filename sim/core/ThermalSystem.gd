@@ -22,6 +22,8 @@ var _zone_fire_solver: ZoneFireSolver
 
 # M1: rama two-zone canonica. Default false conserva exactamente legacy.
 var two_zone_solver_enabled: bool = false
+# Phase 3+ F0: activa exclusivamente contadores diagnosticos; no modifica fisica.
+var phase3_zone_diagnostics_enabled: bool = false
 
 # Phase 2A: sync zonal mass (upper_gas_kg/lower_gas_kg) desde geometría para todas las salas.
 # Default false = no-op absoluto; no cambia ningún resultado hasta que un caso active el flag.
@@ -404,6 +406,9 @@ func set_zone_fire_solver(solver: ZoneFireSolver) -> void:
 
 func configure(settings: Dictionary) -> void:
 	two_zone_solver_enabled = bool(settings.get("two_zone_solver_enabled", two_zone_solver_enabled))
+	phase3_zone_diagnostics_enabled = bool(settings.get(
+		"phase3_zone_diagnostics_enabled", phase3_zone_diagnostics_enabled
+	))
 	upper_to_lower_loss_rate = float(settings.get("upper_to_lower_loss_rate", upper_to_lower_loss_rate))
 	upper_to_ambient_loss_rate = float(settings.get("upper_to_ambient_loss_rate", upper_to_ambient_loss_rate))
 	lower_layer_warming_rate = float(settings.get("lower_layer_warming_rate", lower_layer_warming_rate))
@@ -1823,7 +1828,11 @@ func _step_two_zone_plume_entrainment(room: RoomModel, dt: float, ambient_c: flo
 	var max_upper_mass_kg: float = room.volume_m3() * gas_density_kg_m3(room.temp_upper_c)
 	var remaining_capacity_kg: float = maxf(0.0, max_upper_mass_kg - room.upper_gas_kg)
 	var requested_mass_kg: float = minf(m_dot_plume_kg_s * dt, remaining_capacity_kg)
-	_zone_fire_solver.transfer_lower_to_upper(room, requested_mass_kg, ambient_c)
+	var moved_mass_kg: float = _zone_fire_solver.transfer_lower_to_upper(
+		room, requested_mass_kg, ambient_c
+	)
+	if phase3_zone_diagnostics_enabled:
+		room.phase3_diag_plume_entrained_kg_total += moved_mass_kg
 
 
 func _add_flame_region_entrainment(
@@ -1861,7 +1870,11 @@ func _add_flame_region_entrainment(
 		return
 
 	if two_zone_solver_enabled and _zone_fire_solver != null:
-		_zone_fire_solver.transfer_lower_to_upper(room, mass_gain_kg, ambient_c)
+		var moved_mass_kg: float = _zone_fire_solver.transfer_lower_to_upper(
+			room, mass_gain_kg, ambient_c
+		)
+		if phase3_zone_diagnostics_enabled:
+			room.phase3_diag_plume_entrained_kg_total += moved_mass_kg
 	else:
 		room.upper_gas_kg += mass_gain_kg
 		room.upper_energy_kj += mass_gain_kg * maxf(0.0, room.temp_lower_c - ambient_c)

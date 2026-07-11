@@ -31,6 +31,7 @@ func build_state(context: Dictionary) -> Dictionary:
 		"global_carbon_transport_residual_kg": float(context.get("global_carbon_transport_residual_kg", 0.0)),
 		"two_zone_solver_enabled": bool(context.get("two_zone_solver_enabled", false)),
 		"two_zone_opening_flow_enabled": bool(context.get("two_zone_opening_flow_enabled", false)),
+		"phase3_zone_diagnostics_enabled": bool(context.get("phase3_zone_diagnostics_enabled", false)),
 		"phase3_pressure_canonical_enabled": bool(context.get("phase3_pressure_canonical_enabled", false)),
 		"fire_o2_mass_tracking_enabled": bool(context.get("fire_o2_mass_tracking_enabled", false)),
 		"doorway_thermal_counterflow_enabled": bool(context.get("doorway_thermal_counterflow_enabled", false)),
@@ -52,6 +53,11 @@ func build_state(context: Dictionary) -> Dictionary:
 
 	var smoke_model: SmokeModel = context.get("smoke_model")
 	var combustion_system: CombustionSystem = context.get("combustion_system")
+	var phase3_zone_diagnostics_enabled: bool = bool(
+		context.get("phase3_zone_diagnostics_enabled", false)
+	)
+	var phase3_zone_diagnostics: Dictionary = context.get("phase3_zone_diagnostics", {})
+	var ambient_temp_c: float = float(context.get("ambient_temp_c", 20.0))
 	var estimate_temperature_callable: Callable = context.get("estimate_temperature_callable", Callable())
 	var effective_hot_layer_callable: Callable = context.get("effective_hot_layer_callable", Callable())
 	var compute_co_ppm_callable: Callable = context.get("compute_co_ppm_callable", Callable())
@@ -312,6 +318,24 @@ func build_state(context: Dictionary) -> Dictionary:
 			"bud_cum_e_fire_kj": float(energy_budget.get(room_id, {}).get("cum_e_fire_kj", 0.0)),
 			"bud_cum_q_residual_kj": float(energy_budget.get(room_id, {}).get("cum_q_residual_kj", 0.0)),
 		}
+		if phase3_zone_diagnostics_enabled:
+			var room_state: Dictionary = state[str(room_id)]
+			var room_diag: Dictionary = phase3_zone_diagnostics.get(str(room_id), {})
+			room_state["lower_gas_kg"] = room.lower_gas_kg
+			room_state["lower_energy_kj"] = room.lower_energy_kj
+			var ambient_k: float = maxf(1.0, ambient_temp_c + 273.15)
+			var upper_k: float = maxf(1.0, room.temp_upper_c + 273.15)
+			var lower_k: float = maxf(1.0, room.temp_lower_c + 273.15)
+			var upper_density_kg_m3: float = 1.2 * ambient_k / upper_k
+			var lower_density_kg_m3: float = 1.2 * ambient_k / lower_k
+			var upper_volume_m3_eos: float = room.upper_gas_kg / maxf(0.05, upper_density_kg_m3)
+			var lower_volume_m3_eos: float = room.lower_gas_kg / maxf(0.05, lower_density_kg_m3)
+			room_state["upper_volume_m3_eos"] = upper_volume_m3_eos
+			room_state["lower_volume_m3_eos"] = lower_volume_m3_eos
+			room_state["volume_closure_error_m3"] = upper_volume_m3_eos \
+					+ lower_volume_m3_eos - room.volume_m3()
+			for diag_key in room_diag.keys():
+				room_state[diag_key] = room_diag[diag_key]
 
 	# Detectores: estado triggered de cada detector definido en el template.
 	if building.detectors.size() > 0:

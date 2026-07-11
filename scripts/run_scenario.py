@@ -73,6 +73,11 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--godot", default=None, help="Path to Godot console executable.")
     parser.add_argument("--timeout", type=int, default=120, help="Godot process timeout in seconds.")
     parser.add_argument("--no-ignite", action="store_true", help="Load the scenario without initial ignition.")
+    parser.add_argument(
+        "--phase3-zone-diagnostics",
+        action="store_true",
+        help="Enable passive Phase 3+ two-zone diagnostic columns in the CSV.",
+    )
     return parser.parse_args(argv)
 
 
@@ -149,6 +154,8 @@ def main(argv: list[str] | None = None) -> int:
         cmd.append(f"--step={args.step}")
     if args.no_ignite:
         cmd.append("--no-ignite")
+    if args.phase3_zone_diagnostics:
+        cmd.append("--phase3-zone-diagnostics")
 
     print(f"[run_scenario] scenario: {scenario}")
     print(f"[run_scenario] output:   {out_dir}")

@@ -21,6 +21,9 @@ var csv_file_path: String = "user://sim_log.csv"
 ## Ruta del CSV de targets (se deriva de csv_file_path automáticamente).
 var target_csv_file_path: String = "user://sim_log_targets.csv"
 
+## Phase 3+ F0: columnas two-zone adicionales. Default OFF conserva el schema legacy.
+var phase3_zone_diagnostics_enabled: bool = false
+
 var _next_log_time_s: float = 0.0
 ## Último timestamp escrito (append_snapshot o append_snapshot_now).
 ## Usado para evitar snapshots duplicados cuando _maybe_log_state y
@@ -53,6 +56,10 @@ func configure_csv(is_enabled: bool, path: String) -> void:
 		target_csv_file_path = path.substr(0, path.length() - 4) + "_targets.csv"
 	else:
 		target_csv_file_path = path + "_targets.csv"
+
+
+func configure_phase3_zone_diagnostics(is_enabled: bool) -> void:
+	phase3_zone_diagnostics_enabled = is_enabled
 
 
 func reset_log_file() -> void:
@@ -411,7 +418,10 @@ func _collect_room_ids(state: Dictionary) -> Array[int]:
 # ============================================================
 
 func _build_csv_header() -> String:
-	return "time_s,room_id,room_name,hrr_kw,temp_upper_c,temp_lower_c,temp_at_0_9m_c,smoke_kg,visibility_m,smoke_layer_m,visible_smoke_layer_m,thermal_layer_m,flow_interface_m,hot_layer_m,layer_150c_m,overpressure_pa,o2,o2_upper,o2_lower,fire_o2_mode_used,co_ppm,co_upper_ppm,co_lower_ppm,co2_ppm,co2_upper_ppm,co2_upper_ppm_mass,hcn_ppm,hcn_upper_ppm,hcl_ppm,acrolein_ppm,formaldehyde_ppm,fec_irritant,fed,fed_co,fed_hcn,fed_hypoxia,fed_heat,svv_worst_pct,flashover_triggered,flashover_time_s,floor_heat_flux_kw_m2,flashover_q_thomas_kw,flashover_q_mqh_kw,fuel_remaining_MJ,solid_fuel_remaining_MJ,ventilation_response_factor,pyrolysis_kw,burned_hrr_kw,unburned_generation_kw,retained_unburned_MJ,unburned_gas_vol_frac,steam_kg,flame_hrr_target_kw,smolder_hrr_target_kw,pool_release_hrr_target_kw,o2_hrr_factor,fire_smoldering,fire_latent_active,backdraft_triggered,backdraft_active,bud_e_fire_kj,bud_q_rad_kj,bud_q_to_lower_kj,bud_q_to_ambient_kj,bud_q_wall_abs_kj,bud_q_wall_emit_kj,bud_de_upper_kj,bud_q_residual_kj,bud_chi_rad,bud_q_fire_rad_kj,wall_T_mid_c,mdot_vent_kg_s,combustion_regime,c_balance_frac,carbon_conservation_error_kg,co_kg,co_generated_kg_step,co2_generated_kg_step,hcn_generated_kg_step,co_net_transport_kg_step,co_generated_kg_total,co_net_transport_kg_total,co_exterior_removed_kg_total,o2_consumed_kg_step,o2_consumed_kg_total,o2_consumed_kg_step_all,o2_consumed_kg_total_all,o2_consumed_bulk_kg_step,o2_consumed_bulk_kg_total,o2_consumed_fire_kg_step,o2_consumed_fire_kg_total,o2_exterior_net_kg_step,o2_exterior_net_kg_total,o2_net_transport_kg_step,o2_net_transport_kg_total,o2_zone_sync_kg_step,o2_zone_sync_kg_total,fuel_consumed_MJ_step,fuel_consumed_MJ_total,hrr_kj_total,smoke_generated_kg_step,smoke_generated_kg_total,smoke_vented_kg_step,smoke_vented_kg_total,smoke_deposited_kg_step,smoke_deposited_kg_total,smoke_net_transport_kg_step,smoke_net_transport_kg_total,smoke_generated_total_kg,smoke_vented_total_kg,smoke_deposited_total_kg,smoke_in_transit_kg,volume_m3,air_mass_kg,hvac_exists"
+	var header: String = "time_s,room_id,room_name,hrr_kw,temp_upper_c,temp_lower_c,temp_at_0_9m_c,smoke_kg,visibility_m,smoke_layer_m,visible_smoke_layer_m,thermal_layer_m,flow_interface_m,hot_layer_m,layer_150c_m,overpressure_pa,o2,o2_upper,o2_lower,fire_o2_mode_used,co_ppm,co_upper_ppm,co_lower_ppm,co2_ppm,co2_upper_ppm,co2_upper_ppm_mass,hcn_ppm,hcn_upper_ppm,hcl_ppm,acrolein_ppm,formaldehyde_ppm,fec_irritant,fed,fed_co,fed_hcn,fed_hypoxia,fed_heat,svv_worst_pct,flashover_triggered,flashover_time_s,floor_heat_flux_kw_m2,flashover_q_thomas_kw,flashover_q_mqh_kw,fuel_remaining_MJ,solid_fuel_remaining_MJ,ventilation_response_factor,pyrolysis_kw,burned_hrr_kw,unburned_generation_kw,retained_unburned_MJ,unburned_gas_vol_frac,steam_kg,flame_hrr_target_kw,smolder_hrr_target_kw,pool_release_hrr_target_kw,o2_hrr_factor,fire_smoldering,fire_latent_active,backdraft_triggered,backdraft_active,bud_e_fire_kj,bud_q_rad_kj,bud_q_to_lower_kj,bud_q_to_ambient_kj,bud_q_wall_abs_kj,bud_q_wall_emit_kj,bud_de_upper_kj,bud_q_residual_kj,bud_chi_rad,bud_q_fire_rad_kj,wall_T_mid_c,mdot_vent_kg_s,combustion_regime,c_balance_frac,carbon_conservation_error_kg,co_kg,co_generated_kg_step,co2_generated_kg_step,hcn_generated_kg_step,co_net_transport_kg_step,co_generated_kg_total,co_net_transport_kg_total,co_exterior_removed_kg_total,o2_consumed_kg_step,o2_consumed_kg_total,o2_consumed_kg_step_all,o2_consumed_kg_total_all,o2_consumed_bulk_kg_step,o2_consumed_bulk_kg_total,o2_consumed_fire_kg_step,o2_consumed_fire_kg_total,o2_exterior_net_kg_step,o2_exterior_net_kg_total,o2_net_transport_kg_step,o2_net_transport_kg_total,o2_zone_sync_kg_step,o2_zone_sync_kg_total,fuel_consumed_MJ_step,fuel_consumed_MJ_total,hrr_kj_total,smoke_generated_kg_step,smoke_generated_kg_total,smoke_vented_kg_step,smoke_vented_kg_total,smoke_deposited_kg_step,smoke_deposited_kg_total,smoke_net_transport_kg_step,smoke_net_transport_kg_total,smoke_generated_total_kg,smoke_vented_total_kg,smoke_deposited_total_kg,smoke_in_transit_kg,volume_m3,air_mass_kg,hvac_exists"
+	if phase3_zone_diagnostics_enabled:
+		header += ",upper_gas_kg,lower_gas_kg,upper_energy_kj,lower_energy_kj,upper_volume_m3_eos,lower_volume_m3_eos,volume_closure_error_m3,two_zone_boundary_mass_kg,two_zone_boundary_energy_kj,two_zone_boundary_mass_kg_step,two_zone_boundary_energy_kj_step,opening_upper_in_kg_step,opening_upper_out_kg_step,opening_lower_in_kg_step,opening_lower_out_kg_step,plume_entrained_kg_step,oxygen_exchange_mass_delta_kg_step,oxygen_exchange_energy_delta_kj_step,combustion_mass_delta_kg_step,combustion_energy_delta_kj_step,thermal_mass_delta_kg_step,thermal_energy_delta_kj_step,suppression_mass_delta_kg_step,suppression_energy_delta_kj_step,gas_exchange_mass_delta_kg_step,gas_exchange_energy_delta_kj_step,hvac_mass_delta_kg_step,hvac_energy_delta_kj_step,other_mass_delta_kg_step,other_energy_delta_kj_step,reconcile_mass_delta_kg_step,reconcile_energy_delta_kj_step,projection_clamp_mass_delta_kg_step,projection_clamp_energy_delta_kj_step,attribution_mass_residual_kg_step,attribution_energy_residual_kj_step"
+	return header
 
 
 func _open_csv_file(mode: FileAccess.ModeFlags) -> FileAccess:
@@ -566,6 +576,27 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 		fields.append("%.4f" % float(rs.get("air_mass_kg", 0.0)))
 		# SF-O1F: HVAC configurado — O2 de suministro/retorno no está en los acumuladores O1.
 		fields.append("1" if bool(state.get("hvac_exists", false)) else "0")
+		if phase3_zone_diagnostics_enabled:
+			for field_name in [
+				"upper_gas_kg", "lower_gas_kg", "upper_energy_kj", "lower_energy_kj",
+				"upper_volume_m3_eos", "lower_volume_m3_eos", "volume_closure_error_m3",
+				"two_zone_boundary_mass_kg", "two_zone_boundary_energy_kj",
+				"two_zone_boundary_mass_kg_step", "two_zone_boundary_energy_kj_step",
+				"opening_upper_in_kg_step", "opening_upper_out_kg_step",
+				"opening_lower_in_kg_step", "opening_lower_out_kg_step",
+				"plume_entrained_kg_step", "oxygen_exchange_mass_delta_kg_step",
+				"oxygen_exchange_energy_delta_kj_step", "combustion_mass_delta_kg_step",
+				"combustion_energy_delta_kj_step", "thermal_mass_delta_kg_step",
+				"thermal_energy_delta_kj_step", "suppression_mass_delta_kg_step",
+				"suppression_energy_delta_kj_step", "gas_exchange_mass_delta_kg_step",
+				"gas_exchange_energy_delta_kj_step", "hvac_mass_delta_kg_step",
+				"hvac_energy_delta_kj_step", "other_mass_delta_kg_step",
+				"other_energy_delta_kj_step", "reconcile_mass_delta_kg_step",
+				"reconcile_energy_delta_kj_step", "projection_clamp_mass_delta_kg_step",
+				"projection_clamp_energy_delta_kj_step", "attribution_mass_residual_kg_step",
+				"attribution_energy_residual_kj_step"
+			]:
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		file.store_line(",".join(fields))
 
 	file.close()

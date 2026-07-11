@@ -63,6 +63,8 @@ func _run() -> void:
 	await get_tree().process_frame
 
 	_apply_engine_overrides(engine, scenario.get("engine_overrides", {}))
+	if bool(_cli_args.get("phase3_zone_diagnostics", false)):
+		engine.phase3_zone_diagnostics_enabled = true
 	var ignite_on_start: bool = not bool(_cli_args.get("no_ignite", false)) and bool(scenario.get("ignite_on_start", true))
 	engine.reset_simulation(engine.ignition_room_id, ignite_on_start)
 	engine.sim_duration_limit_s = 0.0
@@ -134,6 +136,8 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["step_s"] = float(args[index])
 		elif arg == "--no-ignite":
 			parsed["no_ignite"] = true
+		elif arg == "--phase3-zone-diagnostics":
+			parsed["phase3_zone_diagnostics"] = true
 		index += 1
 	return parsed
 

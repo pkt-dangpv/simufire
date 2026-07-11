@@ -45,6 +45,9 @@ var zone_fire_solver = ZoneFireSolverScript.new()
 # Se recalcula una vez al comienzo de cada paso de tiempo y se comparte entre
 # ThermalSystem y OxygenExchangeSystem para garantizar consistencia física.
 var _opening_flow_cache: Dictionary = {}
+var _phase3_zone_diag_start: Dictionary = {}
+var _phase3_zone_diag_checkpoint: Dictionary = {}
+var _phase3_zone_diag_step: Dictionary = {}
 
 const o2_nominal: float = 0.209
 
@@ -959,6 +962,8 @@ var _step_time_us: int = 0
 ## Si es true, también guarda el log en formato CSV al parar la simulación.
 @export var enable_csv_log: bool = true
 @export var csv_log_file_path: String = "user://sim_log.csv"
+## Phase 3+ F0: telemetria two-zone temporal. Default OFF conserva el schema legacy.
+@export var phase3_zone_diagnostics_enabled: bool = false
 
 # ============================================================
 # SERVICIOS AUXILIARES
@@ -975,6 +980,7 @@ func _sync_auxiliary_services() -> void:
 	thermal_system.set_zone_fire_solver(zone_fire_solver)
 	thermal_system.configure({
 		"two_zone_solver_enabled": two_zone_solver_enabled,
+		"phase3_zone_diagnostics_enabled": phase3_zone_diagnostics_enabled,
 		"upper_to_lower_loss_rate": upper_to_lower_loss_rate,
 		"upper_to_ambient_loss_rate": upper_to_ambient_loss_rate,
 		"lower_layer_warming_rate": lower_layer_warming_rate,
@@ -1218,8 +1224,94 @@ func _sync_auxiliary_services() -> void:
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
+	log_writer.configure_phase3_zone_diagnostics(phase3_zone_diagnostics_enabled)
 	# SF-R6: ZoneFireSolver — inyectar referencia al building.
 	zone_fire_solver.set_building(building)
+
+
+func _phase3_zone_diag_snapshot() -> Dictionary:
+	var snapshot: Dictionary = {}
+	if not phase3_zone_diagnostics_enabled or building == null:
+		return snapshot
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+		snapshot[str(room_id)] = {
+			"mass_kg": room.zone_total_mass_kg(),
+			"energy_kj": room.zone_total_energy_kj(),
+			"boundary_mass_kg": room.two_zone_boundary_mass_kg,
+			"boundary_energy_kj": room.two_zone_boundary_energy_kj,
+			"opening_upper_in_kg": room.two_zone_opening_upper_in_kg,
+			"opening_upper_out_kg": room.two_zone_opening_upper_out_kg,
+			"opening_lower_in_kg": room.two_zone_opening_lower_in_kg,
+			"opening_lower_out_kg": room.two_zone_opening_lower_out_kg,
+			"plume_entrained_kg": room.phase3_diag_plume_entrained_kg_total,
+		}
+	return snapshot
+
+
+func _phase3_zone_diag_begin_step() -> void:
+	if not phase3_zone_diagnostics_enabled:
+		return
+	_phase3_zone_diag_step.clear()
+	_phase3_zone_diag_start = _phase3_zone_diag_snapshot()
+	_phase3_zone_diag_checkpoint = _phase3_zone_diag_start.duplicate(true)
+
+
+func _phase3_zone_diag_record_stage(stage_name: String) -> void:
+	if not phase3_zone_diagnostics_enabled:
+		return
+	var current: Dictionary = _phase3_zone_diag_snapshot()
+	for room_key in current.keys():
+		var before: Dictionary = _phase3_zone_diag_checkpoint.get(room_key, {})
+		var after: Dictionary = current.get(room_key, {})
+		var room_diag: Dictionary = _phase3_zone_diag_step.get(room_key, {})
+		var mass_key: String = stage_name + "_mass_delta_kg_step"
+		var energy_key: String = stage_name + "_energy_delta_kj_step"
+		room_diag[mass_key] = float(room_diag.get(mass_key, 0.0)) \
+				+ float(after.get("mass_kg", 0.0)) - float(before.get("mass_kg", 0.0))
+		room_diag[energy_key] = float(room_diag.get(energy_key, 0.0)) \
+				+ float(after.get("energy_kj", 0.0)) - float(before.get("energy_kj", 0.0))
+		_phase3_zone_diag_step[room_key] = room_diag
+	_phase3_zone_diag_checkpoint = current
+
+
+func _phase3_zone_diag_export() -> Dictionary:
+	if not phase3_zone_diagnostics_enabled:
+		return {}
+	var exported: Dictionary = _phase3_zone_diag_step.duplicate(true)
+	var current: Dictionary = _phase3_zone_diag_snapshot()
+	var stages: Array[String] = [
+		"oxygen_exchange", "combustion", "thermal", "suppression",
+		"gas_exchange", "hvac", "other", "reconcile", "projection_clamp"
+	]
+	for room_key in current.keys():
+		var start: Dictionary = _phase3_zone_diag_start.get(room_key, {})
+		var finish: Dictionary = current.get(room_key, {})
+		var room_diag: Dictionary = exported.get(room_key, {})
+		room_diag["two_zone_boundary_mass_kg_step"] = float(finish.get("boundary_mass_kg", 0.0)) \
+				- float(start.get("boundary_mass_kg", finish.get("boundary_mass_kg", 0.0)))
+		room_diag["two_zone_boundary_energy_kj_step"] = float(finish.get("boundary_energy_kj", 0.0)) \
+				- float(start.get("boundary_energy_kj", finish.get("boundary_energy_kj", 0.0)))
+		for opening_key in ["opening_upper_in_kg", "opening_upper_out_kg", "opening_lower_in_kg", "opening_lower_out_kg"]:
+			room_diag[opening_key + "_step"] = float(finish.get(opening_key, 0.0)) \
+					- float(start.get(opening_key, finish.get(opening_key, 0.0)))
+		room_diag["plume_entrained_kg_step"] = float(finish.get("plume_entrained_kg", 0.0)) \
+				- float(start.get("plume_entrained_kg", finish.get("plume_entrained_kg", 0.0)))
+		var attributed_mass_kg: float = 0.0
+		var attributed_energy_kj: float = 0.0
+		for stage_name in stages:
+			attributed_mass_kg += float(room_diag.get(stage_name + "_mass_delta_kg_step", 0.0))
+			attributed_energy_kj += float(room_diag.get(stage_name + "_energy_delta_kj_step", 0.0))
+		var observed_mass_kg: float = float(finish.get("mass_kg", 0.0)) \
+				- float(start.get("mass_kg", finish.get("mass_kg", 0.0)))
+		var observed_energy_kj: float = float(finish.get("energy_kj", 0.0)) \
+				- float(start.get("energy_kj", finish.get("energy_kj", 0.0)))
+		room_diag["attribution_mass_residual_kg_step"] = observed_mass_kg - attributed_mass_kg
+		room_diag["attribution_energy_residual_kj_step"] = observed_energy_kj - attributed_energy_kj
+		exported[room_key] = room_diag
+	return exported
 
 
 func _build_state_context() -> Dictionary:
@@ -1263,6 +1355,9 @@ func _build_state_context() -> Dictionary:
 		"global_carbon_transport_residual_kg": global_carbon_transport_residual_kg,
 		"two_zone_solver_enabled": two_zone_solver_enabled,
 		"two_zone_opening_flow_enabled": two_zone_solver_enabled and two_zone_opening_flow_enabled,
+		"phase3_zone_diagnostics_enabled": phase3_zone_diagnostics_enabled,
+		"phase3_zone_diagnostics": _phase3_zone_diag_export(),
+		"ambient_temp_c": thermal_system.ambient_temp_c(),
 		"phase3_pressure_canonical_enabled": phase3_thermodynamic_pressure_enabled \
 				and phase3_pressure_canonical_enabled,
 		"fire_o2_mode": fire_o2_mode,
@@ -1438,6 +1533,9 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	suppression_water_applied_l = 0.0
 	suppression_cooling_total_kj = 0.0
 	_active_suppression_by_room.clear()
+	_phase3_zone_diag_start.clear()
+	_phase3_zone_diag_checkpoint.clear()
+	_phase3_zone_diag_step.clear()
 	# SF-CBAL global: resetear para que el próximo paso recapture el inventario inicial.
 	_cbal_initialized = false
 	_cbal_c_initial_kg = 0.0
@@ -1540,21 +1638,26 @@ func step(delta: float) -> void:
 
 	# SF-CBAL: capturar inventario inicial antes de cualquier física.
 	_ensure_carbon_balance_initialized()
+	_phase3_zone_diag_begin_step()
 
 	var pre_hrr_o2_step: bool = _uses_pre_hrr_oxygen_step()
 
 	_step_pool_fires(dt)
 	if pre_hrr_o2_step:
 		_step_oxygen(dt)
+		_phase3_zone_diag_record_stage("oxygen_exchange")
 	_step_fire(dt)
 	_step_co_oxidation(dt)
 	_step_targets(dt)
+	_phase3_zone_diag_record_stage("combustion")
 	if not pre_hrr_o2_step:
 		_step_oxygen(dt)
+		_phase3_zone_diag_record_stage("oxygen_exchange")
 	thermal_system.step(building, dt, {
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
 		"opening_flow_cache": _opening_flow_cache
 	})
+	_phase3_zone_diag_record_stage("thermal")
 	# SF-R6 Phase 3: verificar conservación de transporte de contaminantes.
 	if conservation_check_enabled:
 		var _cons: Dictionary = zone_fire_solver.validate_conservation(
@@ -1567,15 +1670,21 @@ func step(delta: float) -> void:
 		glass_failure_system.step(dt)
 		for broken_idx in glass_failure_system.newly_broken_indices:
 			_log_opening_event(broken_idx, "glass_break")
+	_phase3_zone_diag_record_stage("suppression")
 	_step_gas_exchange(dt)
+	_phase3_zone_diag_record_stage("gas_exchange")
 	_step_hvac(dt)
+	_phase3_zone_diag_record_stage("hvac")
 	_step_passive_fuel(dt)
 	fire_spread_system.step(dt, Callable(self, "ignite_room"))
+	_phase3_zone_diag_record_stage("other")
 	if two_zone_solver_enabled:
 		# M1: absorber los cambios termicos de sistemas legacy (HVAC/supresion/flujos)
 		# como condiciones de contorno antes del clamp final.
 		thermal_system.reconcile_two_zone_building(building, dt)
+	_phase3_zone_diag_record_stage("reconcile")
 	_clamp_rooms(dt)
+	_phase3_zone_diag_record_stage("projection_clamp")
 	# Evaluar el estado final del paso, incluyendo cualquier pérdida por clamp.
 	_check_carbon_balance()
 	_check_layer_interface_guardrails(dt)
