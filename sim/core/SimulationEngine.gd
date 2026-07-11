@@ -276,6 +276,11 @@ var _layer_interface_warning_rooms: Dictionary = {}
 @export var phase3b_neutral_plane_dp_correction: bool = false
 ## Phase 3D: fracción del inflow inferior enviada directamente a hot.upper. 0.0 = no-op.
 @export var canonical_doorway_plume_direct_upper_frac: float = 0.0
+## Phase 3+ F1a: el lower return flow del intercambio canónico mueve masa física
+## lower_gas_kg (cold→hot) además de energía/O₂. Requiere two_zone_solver_enabled.
+## Default false = no-op exacto (legacy conserva el agujero de masa que la
+## proyección EOS reconstruye). Experimental — activar solo per-caso.
+@export var phase3_conservative_lower_return_enabled: bool = false
 # Rendimiento de humo (kg/MJ)
 # SFPE: ~0.06 kg/kg ÷ 16 MJ/kg = 0.00375 kg/MJ
 @export var fire_smoke_yield_kg_per_MJ: float = 0.0088
@@ -1108,6 +1113,7 @@ func _sync_auxiliary_services() -> void:
 		"phase3a_pressure_max_pa": phase3a_pressure_max_pa,
 		"phase3b_neutral_plane_dp_correction": phase3b_neutral_plane_dp_correction,
 		"canonical_doorway_plume_direct_upper_frac": canonical_doorway_plume_direct_upper_frac,
+		"phase3_conservative_lower_return_enabled": phase3_conservative_lower_return_enabled,
 	})
 	fire_spread_system.set_references(building, smoke_model, combustion_system)
 	fire_spread_system.configure({
@@ -1366,6 +1372,7 @@ func _build_state_context() -> Dictionary:
 		"doorway_thermal_counterflow_enabled": doorway_thermal_counterflow_enabled,
 		"doorway_thermal_counterflow_o2_return_fraction": doorway_thermal_counterflow_o2_return_fraction,
 		"canonical_doorway_exchange_enabled": canonical_doorway_exchange_enabled,
+		"phase3_conservative_lower_return_enabled": phase3_conservative_lower_return_enabled,
 		"step_time_us": _step_time_us,
 	}
 

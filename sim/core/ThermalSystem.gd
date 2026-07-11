@@ -288,6 +288,13 @@ var phase3b_neutral_plane_dp_correction: bool = false
 # Activar per-caso. Solo activa si canonical_doorway_exchange_enabled=true.
 var canonical_doorway_plume_direct_upper_frac: float = 0.0
 
+# Phase 3+ F1a: el lower return flow mueve masa física lower_gas_kg (cold→hot)
+# además de energía/O₂. Sin este flag, m_lower_kg es solo un caudal nominal:
+# la masa no se resta de cold.lower ni se suma a hot.lower, y la fracción direct
+# crea masa neta en hot.upper que project_room_state() enmascara vía EOS.
+# Default false = no-op exacto. Requiere two_zone_solver_enabled. Experimental.
+var phase3_conservative_lower_return_enabled: bool = false
+
 # FED (ISO 13571) — componentes asfixiantes disponibles en el modelo
 var fed_hypoxia_enabled: bool = true
 var fed_hypoxia_a: float = 8.13
@@ -605,6 +612,7 @@ func configure(settings: Dictionary) -> void:
 	phase3a_pressure_max_pa = float(settings.get("phase3a_pressure_max_pa", phase3a_pressure_max_pa))
 	phase3b_neutral_plane_dp_correction = bool(settings.get("phase3b_neutral_plane_dp_correction", phase3b_neutral_plane_dp_correction))
 	canonical_doorway_plume_direct_upper_frac = float(settings.get("canonical_doorway_plume_direct_upper_frac", canonical_doorway_plume_direct_upper_frac))
+	phase3_conservative_lower_return_enabled = bool(settings.get("phase3_conservative_lower_return_enabled", phase3_conservative_lower_return_enabled))
 	plume_mccaffrey_enabled = bool(settings.get("plume_mccaffrey_enabled", plume_mccaffrey_enabled))
 	plume_mccaffrey_qc_fraction = float(settings.get("plume_mccaffrey_qc_fraction", plume_mccaffrey_qc_fraction))
 	plume_fire_diameter_m = float(settings.get("plume_fire_diameter_m", plume_fire_diameter_m))
@@ -2523,6 +2531,17 @@ func _apply_canonical_doorway_exchange(
 	if m_lower_kg <= 0.0001:
 		return
 
+	# Phase 3+ F1a: cuando el transporte conservativo está activo, la masa se mueve
+	# de verdad desde el ledger cold.lower_gas_kg — cap adicional al 5 % del ledger
+	# real (no la estimación EOS) para que lower_gas_kg nunca sea negativa.
+	var _f1a_active: bool = phase3_conservative_lower_return_enabled \
+			and two_zone_solver_enabled \
+			and _zone_fire_solver != null
+	if _f1a_active:
+		m_lower_kg = minf(m_lower_kg, maxf(0.0, cold_room.lower_gas_kg) * 0.05)
+		if m_lower_kg <= 0.0001:
+			return
+
 	# Phase 3D: fracción del inflow inferior que va directamente a hot.upper (pluma inmediata).
 	# hot_layer_frac = fracción del vano interior en zona caliente del cuarto de fuego.
 	# direct_frac = hot_layer_frac × canonical_doorway_plume_direct_upper_frac.
@@ -2544,9 +2563,16 @@ func _apply_canonical_doorway_exchange(
 	# el temp_lower_c correcto en el paso siguiente.
 	var _cp: float = 1.0
 	if m_to_lower_kg > 0.0001:
-		var delta_energy_hot_kj: float = \
-				m_to_lower_kg * (cold_room.temp_lower_c - hot_room.temp_lower_c) * _cp
-		hot_room.lower_energy_kj = maxf(0.0, hot_room.lower_energy_kj + delta_energy_hot_kj)
+		if _f1a_active:
+			# F1a: la masa se mueve físicamente → hot.lower recibe la entalpía sensible
+			# del aire transportado (sobre ambiente), no un delta de mezcla a masa fija.
+			# El enfriamiento emerge de la nueva mezcla masa+energía en la proyección.
+			hot_room.lower_energy_kj = maxf(0.0, hot_room.lower_energy_kj \
+					+ m_to_lower_kg * maxf(0.0, cold_room.temp_lower_c - ambient_c) * _cp)
+		else:
+			var delta_energy_hot_kj: float = \
+					m_to_lower_kg * (cold_room.temp_lower_c - hot_room.temp_lower_c) * _cp
+			hot_room.lower_energy_kj = maxf(0.0, hot_room.lower_energy_kj + delta_energy_hot_kj)
 	# cold.lower pierde la entalpía (sobre ambiente) del aire exportado (total, incluso la fracción direct).
 	var cold_energy_out_kj: float = \
 			m_lower_kg * maxf(0.0, cold_room.temp_lower_c - ambient_c) * _cp
@@ -2574,6 +2600,20 @@ func _apply_canonical_doorway_exchange(
 			0.0, 0.209
 		)
 	# cold_room.o2_lower: fracción conservada al perder masa (mezcla perfecta).
+
+	# Phase 3+ F1a: transporte físico de masa lower. cold cede m_lower_kg completo;
+	# hot.lower recibe m_to_lower_kg y hot.upper ya recibió m_direct_kg arriba —
+	# con el decremento en origen el split total queda conservativo
+	# (cold −m_lower = hot.lower +m_to_lower + hot.upper +m_direct).
+	# Ledgers de apertura registrados para F0 diagnostics.
+	if _f1a_active:
+		cold_room.lower_gas_kg = maxf(0.0, cold_room.lower_gas_kg - m_lower_kg)
+		hot_room.lower_gas_kg += m_to_lower_kg
+		cold_room.two_zone_opening_lower_out_kg += m_lower_kg
+		if m_to_lower_kg > 0.0001:
+			hot_room.two_zone_opening_lower_in_kg += m_to_lower_kg
+		if m_direct_kg > 0.0001:
+			hot_room.two_zone_opening_upper_in_kg += m_direct_kg
 
 	# SF-O1A: CDE moves O₂ mass between rooms physically, but room.o2 is set via zone blend
 	# (lines below). Adding _cde_net_hot to o2_net_transport would double-count because the
