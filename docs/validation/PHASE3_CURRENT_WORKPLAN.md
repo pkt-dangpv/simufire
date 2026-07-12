@@ -35,8 +35,8 @@ canonical two-zone mass/energy/O2/species transaction.
 
 ## Active route
 
-F3.0 shadow canonical two-zone state is implemented as infrastructure. F3.0a
-is now active: connect the first explicit sealed-room flux owner.
+F3.0 shadow canonical two-zone state and F3.0a plume ownership are implemented.
+F3.0b is now active: design an explicit combustion result contract.
 
 The first implementation must be default OFF and read-only with respect to
 legacy physics. It should build a shadow state from:
@@ -59,16 +59,22 @@ That would make the ledger circular.
 - No authoritative request adapters yet. `needs_flux_owner` is the expected
   signal until a subsystem provides a pre-mutation physical output.
 
-## F3.0a minimum scope
+## F3.0a delivered
 
-1. Implement sealed single-room shadow requests first:
-   - combustion heat;
-   - O2 sink;
-   - CO2/CO/HCN/species source where already available;
-   - plume lower-to-upper mass/enthalpy if explicitly available.
-2. Prove each request originates in an explicit solver output before mutation.
-3. Add request-level conservation tests and a zero-O2 visibility assertion.
-4. Keep all legacy outputs bit-identical when the flag is OFF or ON.
+- Pure preview plus exact apply for lower-to-upper plume transfer.
+- Request carries gas mass, enthalpy and O2 under one accepted fraction.
+- Adapter is shadow-only and restricted to rooms without active openings.
+- Zero-O2 flaming is visible but remains a legacy motor debt.
+- Legacy outputs are invariant OFF and ON.
+
+## F3.0b minimum scope
+
+1. Produce a passive combustion result before any consumer mutates zonal state.
+2. Assign exactly one owner each for convective heat, O2 sink and species.
+3. Reconcile ordering between CombustionSystem, OxygenExchangeSystem and
+   ThermalSystem without reading post-mutation deltas.
+4. Start with energy only if O2/species cannot yet share a safe contract; do
+   not present partial ownership as full combustion closure.
 
 ## STOP gate for F3.0
 

@@ -990,6 +990,7 @@ func _sync_auxiliary_services() -> void:
 	thermal_system.configure({
 		"two_zone_solver_enabled": two_zone_solver_enabled,
 		"phase3_zone_diagnostics_enabled": phase3_zone_diagnostics_enabled,
+		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"upper_to_lower_loss_rate": upper_to_lower_loss_rate,
 		"upper_to_ambient_loss_rate": upper_to_ambient_loss_rate,
 		"lower_layer_warming_rate": lower_layer_warming_rate,
@@ -1324,6 +1325,29 @@ func _phase3_zone_diag_export() -> Dictionary:
 		room_diag["attribution_energy_residual_kj_step"] = observed_energy_kj - attributed_energy_kj
 		exported[room_key] = room_diag
 	return exported
+
+
+func _phase3_shadow_collect_thermal_requests() -> void:
+	for flux in thermal_system.drain_phase3_shadow_flux_results():
+		var mass_kg: float = maxf(0.0, float(flux.get("gas_mass_kg", 0.0)))
+		if mass_kg <= 0.0:
+			continue
+		var room_id: int = int(flux.get("room_id", -1))
+		var cause: String = String(flux.get("cause", ""))
+		var request_id: String = "%s:%d:%.6f" % [cause, room_id, sim_time_s]
+		phase3_zone_mass_system.add_request(
+			phase3_zone_mass_system.make_request(
+				request_id,
+				cause,
+				room_id,
+				room_id,
+				String(flux.get("source_zone", "lower")),
+				String(flux.get("destination_zone", "upper")),
+				mass_kg,
+				maxf(0.0, float(flux.get("sensible_enthalpy_kj", 0.0))),
+				maxf(0.0, float(flux.get("o2_kg", 0.0)))
+			)
+		)
 
 
 func _build_state_context() -> Dictionary:
@@ -1675,6 +1699,8 @@ func step(delta: float) -> void:
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
 		"opening_flow_cache": _opening_flow_cache
 	})
+	if phase3_canonical_zone_shadow_enabled:
+		_phase3_shadow_collect_thermal_requests()
 	_phase3_zone_diag_record_stage("thermal")
 	# SF-R6 Phase 3: verificar conservación de transporte de contaminantes.
 	if conservation_check_enabled:

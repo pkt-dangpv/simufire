@@ -3,6 +3,23 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0a first shadow flux owner (2026-07-12)
+
+- Selected plume entrainment as the first explicit owner; combustion remains
+  deferred because HRR, O2 and species are currently split across multiple
+  systems and cannot yet emit one non-duplicated result.
+- Split `ZoneFireSolver.transfer_lower_to_upper()` into a pure preview and an
+  exact apply operation. Thermal records the preview before legacy mutation;
+  SimulationEngine alone translates it into a shadow request.
+- The request moves lower-to-upper gas mass, sensible enthalpy and O2 together
+  and is limited to rooms with no active opening.
+- Added zone residuals, plume request mass, cause count and a passive
+  zero-O2-flame diagnostic. The known ILV defect is now visible in shadow mode:
+  7 hits in `cfast_multi_fuel_couch_tv` from 120-180 s, including about 971 kW
+  at 0.08% upper O2.
+- OFF remains identical to the previous F3.0 checkpoint; a 60 s OFF/ON run had
+  42 rows, 115 shared legacy columns and zero differences.
+
 ### Phase 3+ F3.0 canonical shadow transaction (2026-07-12)
 
 - Added `Phase3ZoneMassSystem`, an opt-in shadow-only transaction built from a

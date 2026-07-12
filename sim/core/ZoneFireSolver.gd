@@ -105,9 +105,19 @@ func transfer_lower_to_upper(room: RoomModel, requested_mass_kg: float, ambient_
 		return 0.0
 
 	ensure_room_state(room, ambient_c)
+	var transfer: Dictionary = preview_lower_to_upper_transfer(room, requested_mass_kg)
+	apply_lower_to_upper_transfer(room, transfer)
+	return float(transfer.get("mass_kg", 0.0))
+
+
+## Resultado fisico puro previo a la mutacion. F3.0a usa este mismo objeto para
+## aplicar legacy y emitir el request shadow, evitando inferir deltas posteriores.
+func preview_lower_to_upper_transfer(room: RoomModel, requested_mass_kg: float) -> Dictionary:
+	if not two_zone_energy_enabled or room == null or requested_mass_kg <= 0.0:
+		return {"mass_kg": 0.0, "energy_kj": 0.0}
 	var moved_mass_kg: float = minf(maxf(0.0, requested_mass_kg), room.lower_gas_kg)
 	if moved_mass_kg <= 0.0:
-		return 0.0
+		return {"mass_kg": 0.0, "energy_kj": 0.0}
 
 	var lower_specific_energy_kj_kg: float = room.lower_energy_kj \
 			/ maxf(ZONE_MASS_EPS_KG, room.lower_gas_kg)
@@ -115,11 +125,20 @@ func transfer_lower_to_upper(room: RoomModel, requested_mass_kg: float, ambient_
 		room.lower_energy_kj,
 		moved_mass_kg * lower_specific_energy_kj_kg
 	)
+	return {"mass_kg": moved_mass_kg, "energy_kj": moved_energy_kj}
+
+
+func apply_lower_to_upper_transfer(room: RoomModel, transfer: Dictionary) -> void:
+	if not two_zone_energy_enabled or room == null:
+		return
+	var moved_mass_kg: float = maxf(0.0, float(transfer.get("mass_kg", 0.0)))
+	var moved_energy_kj: float = maxf(0.0, float(transfer.get("energy_kj", 0.0)))
+	if moved_mass_kg <= 0.0:
+		return
 	room.lower_gas_kg = maxf(0.0, room.lower_gas_kg - moved_mass_kg)
 	room.lower_energy_kj = maxf(0.0, room.lower_energy_kj - moved_energy_kj)
 	room.upper_gas_kg += moved_mass_kg
 	room.upper_energy_kj += moved_energy_kj
-	return moved_mass_kg
 
 
 func add_lower_energy(room: RoomModel, energy_kj: float, ambient_c: float) -> void:

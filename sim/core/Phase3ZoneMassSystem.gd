@@ -90,6 +90,14 @@ func finalize_step(building) -> void:
 		var legacy_energy_kj: float = room.zone_total_energy_kj()
 		var mass_residual_kg: float = _state_mass(state) - legacy_mass_kg
 		var energy_residual_kj: float = _state_energy(state) - legacy_energy_kj
+		var upper_mass_residual_kg: float = float(state.get("upper_gas_kg", 0.0)) \
+				- maxf(0.0, room.upper_gas_kg)
+		var lower_mass_residual_kg: float = float(state.get("lower_gas_kg", 0.0)) \
+				- maxf(0.0, room.lower_gas_kg)
+		var upper_energy_residual_kj: float = float(state.get("upper_energy_kj", 0.0)) \
+				- maxf(0.0, room.upper_energy_kj)
+		var lower_energy_residual_kj: float = float(state.get("lower_energy_kj", 0.0)) \
+				- maxf(0.0, room.lower_energy_kj)
 		_results[room_key] = {
 			"phase3_shadow_upper_gas_kg": float(state.get("upper_gas_kg", 0.0)),
 			"phase3_shadow_lower_gas_kg": float(state.get("lower_gas_kg", 0.0)),
@@ -97,9 +105,21 @@ func finalize_step(building) -> void:
 			"phase3_shadow_lower_energy_kj": float(state.get("lower_energy_kj", 0.0)),
 			"phase3_shadow_mass_residual_kg": mass_residual_kg,
 			"phase3_shadow_energy_residual_kj": energy_residual_kj,
+			"phase3_shadow_upper_mass_residual_kg": upper_mass_residual_kg,
+			"phase3_shadow_lower_mass_residual_kg": lower_mass_residual_kg,
+			"phase3_shadow_upper_energy_residual_kj": upper_energy_residual_kj,
+			"phase3_shadow_lower_energy_residual_kj": lower_energy_residual_kj,
 			"phase3_shadow_request_count": _count_room_requests(room_id),
+			"phase3_shadow_plume_mass_request_kg": _sum_room_cause_mass(
+				room_id, "plume_entrainment"
+			),
+			"phase3_shadow_owned_cause_count": _count_room_causes(room_id),
 			"phase3_shadow_rejected_mass_kg": float(rejected_by_room.get(room_key, 0.0)),
 			"phase3_shadow_duplicate_owner_flag": 1.0 if _duplicate_owner_count > 0 else 0.0,
+			"phase3_shadow_zero_o2_flame_flag": 1.0 \
+					if room.hrr_kw > 0.5 and (
+						room.fire_o2_ref < room.fire_o2_min_ref or room.o2_upper < 0.05
+					) else 0.0,
 			"phase3_shadow_needs_flux_owner_flag": 1.0 \
 					if absf(mass_residual_kg) > 1.0e-6 or absf(energy_residual_kj) > 1.0e-4 else 0.0,
 		}
@@ -203,6 +223,26 @@ func _count_room_requests(room_id: int) -> int:
 				or int(request.get("destination_room_id", EXTERIOR_ID)) == room_id:
 			count += 1
 	return count
+
+
+func _count_room_causes(room_id: int) -> int:
+	var causes: Dictionary = {}
+	for request in _requests:
+		if int(request.get("source_room_id", EXTERIOR_ID)) == room_id \
+				or int(request.get("destination_room_id", EXTERIOR_ID)) == room_id:
+			causes[String(request.get("cause", ""))] = true
+	return causes.size()
+
+
+func _sum_room_cause_mass(room_id: int, cause: String) -> float:
+	var total_kg: float = 0.0
+	for request in _requests:
+		if String(request.get("cause", "")) != cause:
+			continue
+		if int(request.get("source_room_id", EXTERIOR_ID)) == room_id \
+				or int(request.get("destination_room_id", EXTERIOR_ID)) == room_id:
+			total_kg += maxf(0.0, float(request.get("gas_mass_kg", 0.0)))
+	return total_kg
 
 
 func _state_mass(state: Dictionary) -> float:

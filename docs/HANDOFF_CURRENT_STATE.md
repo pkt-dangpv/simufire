@@ -8,6 +8,28 @@ This note records the repository hygiene and validation state after the non-moto
 
 ## Current Session Update - 2026-07-12 - Clean start for Phase 3+ canonical two-zone
 
+### F3.0a first flux owner
+
+- First owner selected: plume entrainment, not combustion.
+- `ZoneFireSolver` now returns a pure lower-to-upper transfer preview before
+  applying that exact mass/energy object to legacy state.
+- Thermal records the preview only when shadow mode is enabled and the room has
+  no active opening. Engine converts it to one `plume_entrainment` request with
+  gas mass, sensible enthalpy and lower-zone O2.
+- Runtime `cfast_co2_stratification`, 60 s: 42 rows OFF/ON, 115 shared legacy
+  columns, zero legacy differences, max plume request 0.02416765 kg, zero
+  rejected mass, zero duplicate ownership, and exact upper-mass agreement for
+  the owned plume transfer.
+- `fuel_balance_diag_sealed` and `o2_stoich_diag_sealed` ran successfully but
+  emitted no request because their template still has active openings; the
+  conservative scope guard excluded them. Official CSVs were restored.
+- The passive zero-O2 flag detected 7 known zombie-ILV snapshots in
+  `cfast_multi_fuel_couch_tv` between 120 and 180 s. It does not alter HRR.
+- Physics and ILV remain at zero FAIL; gaps remain 348/353 with 5 VALID_GAP.
+
+Next target: F3.0b combustion result contract. Do not connect combustion until
+HRR energy, O2 sink and species sources have explicit, single-owner outputs.
+
 ### F3.0 implementation checkpoint
 
 - `Phase3ZoneMassSystem.gd` now owns the experimental shadow transaction.

@@ -24,6 +24,9 @@ var _zone_fire_solver: ZoneFireSolver
 var two_zone_solver_enabled: bool = false
 # Phase 3+ F0: activa exclusivamente contadores diagnosticos; no modifica fisica.
 var phase3_zone_diagnostics_enabled: bool = false
+# F3.0a: captura resultados pre-mutation para el shadow ledger; no cambia fisica.
+var phase3_canonical_zone_shadow_enabled: bool = false
+var _phase3_shadow_flux_results: Array[Dictionary] = []
 
 # Phase 2A: sync zonal mass (upper_gas_kg/lower_gas_kg) desde geometría para todas las salas.
 # Default false = no-op absoluto; no cambia ningún resultado hasta que un caso active el flag.
@@ -402,6 +405,12 @@ func get_transport_residuals() -> Dictionary:
 	}
 
 
+func drain_phase3_shadow_flux_results() -> Array[Dictionary]:
+	var results: Array[Dictionary] = _phase3_shadow_flux_results.duplicate(true)
+	_phase3_shadow_flux_results.clear()
+	return results
+
+
 func set_references(building: BuildingModel, smoke_model: SmokeModel) -> void:
 	_building = building
 	_smoke_model = smoke_model
@@ -415,6 +424,9 @@ func configure(settings: Dictionary) -> void:
 	two_zone_solver_enabled = bool(settings.get("two_zone_solver_enabled", two_zone_solver_enabled))
 	phase3_zone_diagnostics_enabled = bool(settings.get(
 		"phase3_zone_diagnostics_enabled", phase3_zone_diagnostics_enabled
+	))
+	phase3_canonical_zone_shadow_enabled = bool(settings.get(
+		"phase3_canonical_zone_shadow_enabled", phase3_canonical_zone_shadow_enabled
 	))
 	upper_to_lower_loss_rate = float(settings.get("upper_to_lower_loss_rate", upper_to_lower_loss_rate))
 	upper_to_ambient_loss_rate = float(settings.get("upper_to_ambient_loss_rate", upper_to_ambient_loss_rate))
@@ -686,6 +698,7 @@ func configure(settings: Dictionary) -> void:
 # ============================================================
 
 func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
+	_phase3_shadow_flux_results.clear()
 	var _outside_open_path_factor_callable: Callable = hooks.get(
 		"outside_open_path_factor_callable", Callable()
 	)
@@ -1839,11 +1852,34 @@ func _step_two_zone_plume_entrainment(room: RoomModel, dt: float, ambient_c: flo
 	var max_upper_mass_kg: float = room.volume_m3() * gas_density_kg_m3(room.temp_upper_c)
 	var remaining_capacity_kg: float = maxf(0.0, max_upper_mass_kg - room.upper_gas_kg)
 	var requested_mass_kg: float = minf(m_dot_plume_kg_s * dt, remaining_capacity_kg)
-	var moved_mass_kg: float = _zone_fire_solver.transfer_lower_to_upper(
-		room, requested_mass_kg, ambient_c
+	var transfer: Dictionary = _zone_fire_solver.preview_lower_to_upper_transfer(
+		room, requested_mass_kg
 	)
+	var moved_mass_kg: float = float(transfer.get("mass_kg", 0.0))
+	if phase3_canonical_zone_shadow_enabled and _phase3_shadow_plume_scope(room):
+		_phase3_shadow_flux_results.append({
+			"cause": "plume_entrainment",
+			"room_id": room.id,
+			"source_zone": "lower",
+			"destination_zone": "upper",
+			"gas_mass_kg": moved_mass_kg,
+			"sensible_enthalpy_kj": float(transfer.get("energy_kj", 0.0)),
+			"o2_kg": moved_mass_kg * clampf(room.o2_lower, 0.0, 1.0),
+		})
+	_zone_fire_solver.apply_lower_to_upper_transfer(room, transfer)
 	if phase3_zone_diagnostics_enabled:
 		room.phase3_diag_plume_entrained_kg_total += moved_mass_kg
+
+
+func _phase3_shadow_plume_scope(room: RoomModel) -> bool:
+	if room == null or _building == null:
+		return false
+	for opening in _building.get_openings():
+		if opening.a != room.id and opening.b != room.id:
+			continue
+		if opening.effective_open_fraction() > 0.01:
+			return false
+	return true
 
 
 func _add_flame_region_entrainment(

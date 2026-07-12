@@ -26,14 +26,16 @@ projection residuals or other post-mutation observations as physical inputs.
 
 ## Current ownership
 
-F3.0 has no authoritative flux producer. The empty transaction is useful: any
-legacy mass or energy change appears as a residual and sets
-`phase3_shadow_needs_flux_owner_flag`. This prevents an incomplete ledger from
-presenting numerical closure as physical conservation.
+F3.0a connects the first authoritative flux producer: plume entrainment in a
+room with no active opening. `ZoneFireSolver` creates a pure transfer preview;
+Thermal stores that result before applying the exact same object to legacy;
+Engine translates it to a lower-to-upper request. Gas mass, sensible enthalpy
+and O2 share one accepted fraction.
 
-F3.0a will connect one sealed-room producer at a time. A producer is accepted
-only when it exposes a value before mutating legacy state and cannot debit the
-same inventory through a second adapter.
+Other legacy changes continue to set `phase3_shadow_needs_flux_owner_flag`.
+Combustion is intentionally deferred: its HRR, O2 and species effects are split
+between CombustionSystem, OxygenExchangeSystem and ThermalSystem, so no single
+non-duplicated result object exists yet.
 
 ## Runtime proof
 
@@ -51,12 +53,32 @@ same inventory through a second adapter.
 | ILV suite | 0 FAIL |
 | Gap inventory | 348/353, 5 VALID_GAP |
 
-The OFF CSV schema remains legacy-only. ON adds state, residual, request count,
-rejected mass, duplicate-owner and missing-owner diagnostics.
+The OFF CSV schema remains legacy-only. F3.0a ON adds zone residuals, plume
+request mass, owned cause count and zero-O2-flame visibility to the original
+shadow diagnostics.
+
+## F3.0a runtime proof
+
+| Check | Result |
+|---|---|
+| OFF vs previous F3.0 checkpoint | 12 rows x 115 columns, 0 differences |
+| OFF vs ON, 60 s | 42 rows x 115 shared columns, 0 differences |
+| Maximum plume request | 0.02416765 kg/step |
+| Rejected plume mass | 0 kg |
+| Duplicate owner flag | 0 |
+| Owned causes | 1 (`plume_entrainment`) |
+| Upper mass residual for owned plume | 0 kg |
+| Physics / ILV | 0 FAIL / 0 FAIL |
+| Gap inventory | 348/353, 5 VALID_GAP |
+
+The zombie-ILV control `cfast_multi_fuel_couch_tv` produced 7 passive
+`phase3_shadow_zero_o2_flame_flag` hits from 120-180 s. The strongest observed
+state retained about 971 kW HRR with `o2_upper` around 0.00081. This records the
+known defect without changing combustion.
 
 ## Next STOP gate
 
-F3.0a must demonstrate a real request from a pre-mutation physical output,
-request-level conservation, zero duplicate ownership and unchanged legacy
-outputs. It must stop if closure depends on F0 observed deltas or a
-projection/clamp compensation term.
+F3.0b must first define a passive combustion result object with unambiguous
+ownership for convective heat, O2 sink and species sources. Do not connect a
+combustion request by reading RoomModel after CombustionSystem or OES mutated
+it, and do not duplicate Thermal's HRR heat source.

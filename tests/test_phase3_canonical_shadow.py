@@ -20,9 +20,16 @@ FIELDS = (
     "phase3_shadow_lower_energy_kj",
     "phase3_shadow_mass_residual_kg",
     "phase3_shadow_energy_residual_kj",
+    "phase3_shadow_upper_mass_residual_kg",
+    "phase3_shadow_lower_mass_residual_kg",
+    "phase3_shadow_upper_energy_residual_kj",
+    "phase3_shadow_lower_energy_residual_kj",
     "phase3_shadow_request_count",
+    "phase3_shadow_plume_mass_request_kg",
+    "phase3_shadow_owned_cause_count",
     "phase3_shadow_rejected_mass_kg",
     "phase3_shadow_duplicate_owner_flag",
+    "phase3_shadow_zero_o2_flame_flag",
     "phase3_shadow_needs_flux_owner_flag",
 )
 
@@ -88,6 +95,11 @@ class TestPhase3CanonicalShadow(unittest.TestCase):
         self.assertIn("phase3_shadow_needs_flux_owner_flag", SYSTEM)
         self.assertIn("absf(mass_residual_kg)", SYSTEM)
         self.assertIn("absf(energy_residual_kj)", SYSTEM)
+
+    def test_zero_o2_flame_is_visible(self):
+        self.assertIn("phase3_shadow_zero_o2_flame_flag", SYSTEM)
+        self.assertIn("room.fire_o2_ref < room.fire_o2_min_ref", SYSTEM)
+        self.assertIn("room.o2_upper < 0.05", SYSTEM)
 
 
 if __name__ == "__main__":
