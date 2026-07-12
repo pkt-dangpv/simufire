@@ -822,6 +822,16 @@ Open gaps:
 - Canonical two-zone mass and energy balance per layer.
 - Explicit validation of two-zone flow equations against CFAST-like behavior.
 
+Current Phase 3+ direction (2026-07-12):
+
+- F0/F2 diagnostics are in place and should be kept passive.
+- F2.1 ledger-aware projection and local pressure fixes are closed as NO-GO.
+- Next implementation target is F3.0 shadow canonical two-zone state, default OFF:
+  pre-step snapshot + explicit flux requests + shadow transaction + residuals.
+- `project_room_state()` must not be changed into another compensating mass
+  source. In the canonical path it should become derivation/validation only.
+- See `docs/validation/PHASE3_CANONICAL_TWO_ZONE_ARCHITECTURE.md`.
+
 ## 10. Doors, Windows And Ventilation
 
 Items to check:
@@ -858,6 +868,13 @@ Open gaps:
 
 - Coarse two-zone pressure ODE validation.
 - Neutral plane validation.
+
+Current pressure decision:
+
+- F2.2a pressure diagnostics are accepted as passive instrumentation.
+- Do not implement another pressure-vent patch before canonical zone inventory
+  exists. The legacy path mixes gas mass, smoke-particle stock and EOS backfill;
+  patching any one term locally can double-count venting or collapse lower gas.
 
 ## 12. Walls, Radiation And Heat Storage
 
@@ -902,6 +919,9 @@ Reference strategy:
 
 High priority:
 
+- F3.0 shadow canonical request ledger:
+  gas mass, enthalpy, O2 and species per request, with source/destination zone,
+  cause and ownership.
 - Per-step local gas generation: `co_generated_kg`, `co2_generated_kg`, `hcn_generated_kg`.
 - Per-step gas transport in/out by room: at least CO first.
 - Carbon budget fields in CSV: `c_balance_frac`, `carbon_conservation_error_kg`.
@@ -943,8 +963,9 @@ Diagnostic / planned lanes:
 
 ## 16. Current Priority Order
 
-1. Keep the current auditors green and integrated.
-2. Add missing instrumentation needed for gas and energy balances.
-3. Build balance-based checks before heuristic checks.
-4. Expand the CFAST/reference scenario battery.
-5. Only then change motor physics, one subsystem at a time, behind explicit validation.
+1. Keep guardrails, physics coherence and ILV at 0 FAIL.
+2. Commit/retain passive F2.2a pressure diagnostics and the canonical architecture document.
+3. Implement F3.0 shadow canonical two-zone state, default OFF, with no legacy physics changes.
+4. Use F3.0 residuals to decide the first authoritative canonical slice.
+5. Only after shadow residuals close, promote a tiny opt-in authoritative path.
+6. Expand the CFAST/reference scenario battery after the canonical transaction has stable ownership semantics.

@@ -13,6 +13,7 @@ export_presets.cfg
 *.log
 tmp_*
 .tmp_guardrail_tests/
+.test_tmp/
 tests/tmp_*
 last_run.txt
 editor_scenario.json
@@ -67,6 +68,7 @@ runs/
 
 # Python / tools
 __pycache__/
+.pytest_cache/
 *.pyc
 *.pyo
 .aider*

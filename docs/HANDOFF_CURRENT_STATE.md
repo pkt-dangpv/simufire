@@ -1,10 +1,75 @@
 # Current Handoff State
 
-Date: 2026-06-21.
+Date: 2026-07-12.
 
 ## Purpose
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
+
+## Current Session Update - 2026-07-12 - Clean start for Phase 3+ canonical two-zone
+
+### Baseline
+
+- Latest committed baseline before this update: `53898ba2` (`chore(validation): refresh reference_checks.json timestamp`).
+- F1a/F2.0 diagnostic infrastructure is already committed locally:
+  - `phase3_zone_diagnostics_enabled` exports opt-in two-zone diagnostics.
+  - `phase3_conservative_lower_return_enabled` exists as an experimental default-OFF transport diagnostic.
+  - F2.0 mass-flow ledger exports doorway, parcel and upper-removal counters when diagnostics are enabled.
+- F2.2a passive pressure-vent diagnostics are present in the working tree and are accepted as diagnostic-only baseline work.
+- Validation state to preserve:
+  - Guardrails: 10/10 PASS.
+  - Physics coherence: 0 FAIL.
+  - ILV suite: 0 FAIL.
+  - Gap inventory: 348/353 required PASS, 5 VALID_GAP, 71 non-gating gaps.
+
+### What changed in the plan
+
+The previous F2 pressure/projection path is closed:
+
+- F2.1 ledger-aware projection was tested and rejected. It reduced some boundary mass but collapsed lower-zone gas and exploded volume closure because the upstream zone inventory is not canonical.
+- F2.2 local pressure-vent fixes are also rejected as the next implementation target. F2.2a showed the pressure/vent path is diagnostic-rich but unsafe to patch locally while `project_room_state()` can recreate gas mass from EOS.
+- The active plan is now **F3.0 shadow canonical two-zone state**.
+
+The key architectural decision is: do not mutate `project_room_state()`, pressure venting, doorway transport or delayed parcels again as isolated fixes. First introduce a canonical shadow transaction that owns upper/lower mass, energy, O2 and species from a pre-step snapshot plus explicit flux requests.
+
+Authoritative planning document:
+
+- `docs/validation/PHASE3_CANONICAL_TWO_ZONE_ARCHITECTURE.md`
+
+Supporting diagnostic documents:
+
+- `docs/validation/PHASE3_F0_ZONE_DIAGNOSTICS.md`
+- `docs/validation/PHASE3_F22A_PRESSURE_VENT_DIAGNOSIS.md`
+
+### F3.0 objective
+
+Add `phase3_canonical_zone_shadow_enabled`, default OFF. The mode must:
+
+- Snapshot room state before the fixed physics step.
+- Collect explicit flux requests from combustion, plume/thermal, openings, gas exchange, HVAC, suppression and exterior boundaries.
+- Apply those requests to a shadow state only.
+- Export residuals against the legacy end-of-step state.
+- Change no legacy physics, no required baselines, no FED behavior and no CSV schema when the flag is OFF.
+
+Initial F3.0 scope should be deliberately narrow:
+
+1. Single-room sealed combustion and plume.
+2. Exterior leakage/pressure only after sealed residuals close.
+3. One interior doorway only after ownership and sign conventions are stable.
+
+### Stop conditions
+
+Stop and revert the F3.0 attempt if any of these occurs:
+
+- Flag OFF changes any legacy output.
+- A shadow request is built from post-mutation deltas rather than pre-step state plus an explicit physical flux.
+- A parcel/species/gas mass has two owners or no owner.
+- The implementation compensates a residual by adding a projection/clamp term and calling it physical.
+- Zero-O2 flaming behavior is carried into canonical mode without an explicit extinction check.
+
+### Clean-start rule
+
+From this point, avoid new per-case calibration knobs for Groups A/C. The remaining 5 VALID_GAP checks are structural and should move only through the canonical two-zone transaction path.
 
 ## Current Session Update - 2026-07-09 - Grupo C confirmado como VALID_GAP estructural
 

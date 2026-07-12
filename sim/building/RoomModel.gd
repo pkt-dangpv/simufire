@@ -104,6 +104,15 @@ var phase3_diag_zone_doorway_upper_in_kg_total: float = 0.0
 var phase3_diag_zone_parcel_upper_out_kg_total: float = 0.0
 var phase3_diag_zone_parcel_upper_in_kg_total: float = 0.0
 var phase3_diag_zone_upper_removed_kg_total: float = 0.0
+# Phase 3+ F2.2a: causal pressure-vent diagnostics. Current pressures are
+# overwritten on each vent step; mass totals are cumulative and sampling-safe.
+var phase3_diag_pressure_therm_pa: float = 0.0
+var phase3_diag_pressure_model_pa: float = 0.0
+var phase3_diag_pressure_effective_pa: float = 0.0
+var phase3_diag_pressure_buoyancy_pa: float = 0.0
+var phase3_diag_pressure_stack_pa: float = 0.0
+var phase3_diag_pressure_raw_vented_air_kg_total: float = 0.0
+var phase3_diag_pressure_capped_vented_air_kg_total: float = 0.0
 var upper_radiative_loss_kw: float = 0.0
 var layer_150c_m: float = 2.5
 
@@ -431,6 +440,13 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	phase3_diag_zone_parcel_upper_out_kg_total = 0.0
 	phase3_diag_zone_parcel_upper_in_kg_total = 0.0
 	phase3_diag_zone_upper_removed_kg_total = 0.0
+	phase3_diag_pressure_therm_pa = 0.0
+	phase3_diag_pressure_model_pa = 0.0
+	phase3_diag_pressure_effective_pa = 0.0
+	phase3_diag_pressure_buoyancy_pa = 0.0
+	phase3_diag_pressure_stack_pa = 0.0
+	phase3_diag_pressure_raw_vented_air_kg_total = 0.0
+	phase3_diag_pressure_capped_vented_air_kg_total = 0.0
 	upper_radiative_loss_kw = 0.0
 	layer_150c_m = height_m
 	co_kg = 0.0

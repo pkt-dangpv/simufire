@@ -3,6 +3,26 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ clean start: canonical two-zone route selected (2026-07-12)
+
+Documents and diagnostics updated to start the next motor phase from a clean
+baseline.
+
+- **Active route:** F3.0 shadow canonical two-zone state. The next motor work is
+  a default-OFF shadow transaction built from pre-step snapshots and explicit
+  flux requests. It must not change legacy physics, required baselines, FED, or
+  CSV schema with the flag OFF.
+- **Closed routes:** F2.1 ledger-aware projection and local pressure-vent fixes
+  are NO-GO. They expose the same upstream problem: upper/lower gas inventory is
+  not canonically owned, and `project_room_state()` can recreate mass via EOS
+  projection.
+- **Accepted diagnostics:** F2.2a pressure-vent diagnostics remain passive and
+  are retained as part of the Phase 3+ baseline.
+- **Docs added/updated:** `PHASE3_CURRENT_WORKPLAN.md`,
+  `PHASE3_CANONICAL_TWO_ZONE_ARCHITECTURE.md`,
+  `PHASE3_F22A_PRESSURE_VENT_DIAGNOSIS.md`, `GAPS_INVENTORY.md`,
+  `MOTOR_PHYSICS_VALIDATION_CHECKLIST.md`, `STATUS_VALIDATION.md`, and
+  `HANDOFF_CURRENT_STATE.md`.
 
 ### Expansión de cobertura de coherencia: 17→29 casos con CSV (2026-07-06)
 

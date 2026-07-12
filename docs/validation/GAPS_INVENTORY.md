@@ -1,5 +1,5 @@
 # Inventario de Gaps - SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 9 julio 2026 (Grupo D CERRADO — runner/config mismatch corregido; 348/353 PASS, 71 gaps, 5 VALID_GAP)
+**Generado**: 24 mayo 2026 | **Actualizado**: 12 julio 2026 (clean start Phase 3+; F3.0 canonical shadow state es la ruta activa para Grupo A/C)
 **Estado validacion**: 348/353 PASS required, 71 gaps non-gating, 5 VALID_GAP
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
@@ -40,6 +40,8 @@
 
 **Total: 71 gaps non-gating (per reference_checks.json). 348/353 required checks PASS. 5 required failures classified as VALID_GAP (ver tabla abajo).**
 
+*(Sincronización 2026-07-12 — clean start Phase 3+: F2.1 ledger-aware projection y fixes locales de presión quedan cerrados como NO-GO. F2.2a se conserva solo como instrumentación pasiva de diagnóstico de presión/venting. La ruta activa para cerrar Grupo A y Grupo C es F3.0 shadow canonical two-zone state: estado canónico upper/lower de masa, energía, O2 y especies construido desde snapshot pre-step + flux requests explícitos. No añadir knobs per-case ni relajar tolerancias para estos grupos.)*
+
 *(Sincronización 2026-07-06: desde la corrida del 2026-06-21, +4 required nuevos — baselines de `v5_m4_ventilation_throttle` (Ruta B, 2026-06-23): `peak_hrr_kw`, `min_o2_upper`, `min_l150_m`, `peak_co_upper_ppm`, los 4 PASS. Gaps 69→70: corrimiento de timestamps de presión del mismo gap estructural Phase 3 — nuevos `cfast_slow_t240/t600_pressure_pa` y `cfast_t350_pressure_pa`; cerrados `cfast_t420/t510_pressure_pa`. Neto +1, misma causa raíz, sin gap cualitativo nuevo. Los 5 fallos required VALID_GAP están ahora codificados en `KNOWN_VALID_GAP_REQUIRED_FAILURES` en `scripts/simulation/gap_inventory_check.py`: el gate pasa solo si los required fallidos son exactamente un subconjunto de esa lista.)*
 
 *(Sincronización 2026-07-07: fix CO/specie pumping cerrado. Required 354→353 (`ghanekar_kitchen_far_hall_idlh_co_s` promovido a non-gating: CO IDLH ya no alcanzable en pasillo lejano sin el artefacto de pumping). Gaps 70→76 (+6): 1 de la democión Ghanekar + 5 checks no-gating que ahora fallan porque la reducción de transporte especie/CO dejó valores bajo sus umbrales mínimos — divergencia física corregida. Adicionalmente 4 fallos required pre-existentes en `cfast_hvac_residential` (Grupo D, O2 upper t=180/300 y O2 lower t=300/450) reclasificados como VALID_GAP: gap estructural Phase 2C — SF sin two-zone HVAC. KNOWN_VALID_GAP_REQUIRED_FAILURES: 5→9. `all_required_pass` ahora True con 9 VALID_GAP permitidos.)*
@@ -58,11 +60,11 @@ Estos 5 checks son **required** en `reference_checks.json` y están clasificados
 
 | Check | Grupo | Causa raíz | Fase requerida |
 |-------|-------|------------|----------------|
-| `cfast_t240_o2_depleted` | A — `cfast_r0_window_360` | `plume_lower_mode` equilibra zonas bidireccional; llegar al target O2u exigiría room.o2=0.085 → HRR < 198 kW → guard FAIL. Phase 5A sweep 15 configs confirmó VALID_GAP. | Two-zone canónica Phase 2 |
-| `cfast_t350_o2` | A — `cfast_r0_window_360` | Ídem — SF usa room-avg O2 vs CFAST upper-zone O2. | Two-zone canónica Phase 2 |
-| `cfast_t360_o2` | A — `cfast_r0_window_360` | Ídem. | Two-zone canónica Phase 2 |
-| `cfast_chain_r0_t180_temp_upper_c` | C — `cfast_corridor_chain` | Overshoot entálpico (+14.94°C sobre umbral); CFAST evacúa gas caliente por zona superior del vano (upper-layer outflow), SF no implementa ese mecanismo. Phase 2F/2G/3 descartados. | ODE presión dos zonas Phase 3+ |
-| `cfast_chain_r0_t600_temp_upper_c` | C — `cfast_corridor_chain` | Undershoot acumulado (−33°C bajo umbral); O2u throttlea fuego al 68% HRR cuando CFAST quema a 300 kW plenos. Fix per-caso (`fire_o2_full_hrr_open`) destruye t180. | ODE presión dos zonas Phase 3+ |
+| `cfast_t240_o2_depleted` | A — `cfast_r0_window_360` | `plume_lower_mode` equilibra zonas bidireccional; llegar al target O2u exigiría room.o2=0.085 → HRR < 198 kW → guard FAIL. Phase 5A sweep 15 configs confirmó VALID_GAP. | F3 canonical two-zone mass/O2 transaction |
+| `cfast_t350_o2` | A — `cfast_r0_window_360` | Ídem — SF usa room-avg O2 vs CFAST upper-zone O2. | F3 canonical two-zone mass/O2 transaction |
+| `cfast_t360_o2` | A — `cfast_r0_window_360` | Ídem. | F3 canonical two-zone mass/O2 transaction |
+| `cfast_chain_r0_t180_temp_upper_c` | C — `cfast_corridor_chain` | Overshoot entálpico (+14.94°C sobre umbral); F2.0/F2.2a muestran que el problema no es un alivio de presión aislado sino inventario upper/lower no canónico y proyección EOS que recrea masa. | F3 canonical two-zone mass/energy + opening transaction |
+| `cfast_chain_r0_t600_temp_upper_c` | C — `cfast_corridor_chain` | Undershoot acumulado (−33°C bajo umbral); F1/F2 probaron que lower return, pressure relief y proyección local no cierran ambos timestamps sin romper conservación. | F3 canonical two-zone mass/energy + opening transaction |
 | ~~`cfast_hvac_t180_o2`~~ | ~~D — `cfast_hvac_residential`~~ | ~~SF.o2_upper=0.196 vs CFAST.ULO2=0.132 (tol=0.025; gap=0.064).~~ | **CERRADO 2026-07-09** — runner/config mismatch; no gap físico. Con upper mode: SF.o2_upper=0.112 vs CFAST=0.132 (gap=−0.020, tol=0.025 PASS). |
 | ~~`cfast_hvac_t300_o2`~~ | ~~D — `cfast_hvac_residential`~~ | ~~SF.o2_upper=0.161 vs CFAST.ULO2=0.074 (tol=0.034; gap=0.087).~~ | **CERRADO 2026-07-09** — Con upper mode: SF.o2_upper=0.085 vs CFAST=0.074 (gap=+0.011, tol=0.034 PASS). |
 | ~~`cfast_hvac_t300_o2_lower`~~ | ~~D — `cfast_hvac_residential`~~ | ~~SF.o2_lower=0.161 vs CFAST.LLO2=0.205 (tol=0.010; gap=0.044).~~ | **CERRADO 2026-07-09** — Con upper mode: SF.o2_lower=0.209 vs CFAST=0.205 (gap=+0.004, tol=0.010 PASS). |

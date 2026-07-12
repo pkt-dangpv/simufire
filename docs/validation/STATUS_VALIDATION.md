@@ -1,5 +1,20 @@
 # SimuFire — Estado de validación CFAST
 
+> **FASE ACTIVA - 2026-07-12**
+> Estado actual: **348 / 353 PASS required - 5 VALID_GAP**.
+> Los 5 VALID_GAP restantes son Grupo A (`cfast_r0_window_360` x3) y
+> Grupo C (`cfast_corridor_chain` x2). Ya no se consideran candidatos a
+> calibracion por caso. La linea activa es Phase 3+ F3.0: shadow canonical
+> two-zone state, default OFF, antes de cualquier cambio fisico autoritativo.
+>
+> Documentos actuales:
+> - `docs/validation/PHASE3_CURRENT_WORKPLAN.md`
+> - `docs/validation/PHASE3_CANONICAL_TWO_ZONE_ARCHITECTURE.md`
+> - `docs/validation/PHASE3_F0_ZONE_DIAGNOSTICS.md`
+> - `docs/validation/PHASE3_F22A_PRESSURE_VENT_DIAGNOSIS.md`
+>
+> F2.1 ledger-aware projection y fixes locales de presion quedan cerrados como
+> NO-GO. F2.2a se conserva como instrumentacion pasiva.
 > **HITO DE VALIDACIÓN CERRADO — 2026-06-21**
 > Baseline final: **345 / 350 PASS · 5 / 350 required FAIL — todos VALID_GAP (closed-as-gap)**
 > Los 5 fallos restantes (Grupo A ×3, Grupo C ×2) son gaps estructurales Phase 2/3+ sin fix per-caso viable.

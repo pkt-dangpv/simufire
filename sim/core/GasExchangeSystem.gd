@@ -382,6 +382,12 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 			var tau_s: float = 5.0
 			room.overpressure_pa += (dp_buoyancy + dp_stack - room.overpressure_pa) * minf(1.0, dt / tau_s)
 			room.overpressure_pa = maxf(0.0, room.overpressure_pa)
+		if phase3_zone_diagnostics_enabled:
+			room.phase3_diag_pressure_therm_pa = room.pressure_pa_therm
+			room.phase3_diag_pressure_model_pa = room.overpressure_pa
+			room.phase3_diag_pressure_effective_pa = room.overpressure_pa
+			room.phase3_diag_pressure_buoyancy_pa = dp_buoyancy
+			room.phase3_diag_pressure_stack_pa = dp_stack
 
 		if room.overpressure_pa < pressure_vent_threshold_pa:
 			continue
@@ -424,11 +430,15 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 		if total_q_out_m3s <= 0.0:
 			continue
 		var q_out_m3s: float = total_q_out_m3s
-		var smoke_out_kg: float = q_out_m3s * rho_hot * dt
+		var raw_vented_air_kg: float = q_out_m3s * rho_hot * dt
+		var smoke_out_kg: float = raw_vented_air_kg
 		# 1.5A: acumular flujo másico de salida por venteo de presión [kg/s]
 		room.mdot_vent_kg_s += q_out_m3s * rho_hot
 
 		smoke_out_kg = minf(smoke_out_kg, room.smoke_kg * 0.15)
+		if phase3_zone_diagnostics_enabled:
+			room.phase3_diag_pressure_raw_vented_air_kg_total += raw_vented_air_kg
+			room.phase3_diag_pressure_capped_vented_air_kg_total += smoke_out_kg
 		if smoke_out_kg <= 0.0:
 			continue
 

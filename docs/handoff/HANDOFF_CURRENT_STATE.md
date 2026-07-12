@@ -1,5 +1,10 @@
 # SimuFire — Handoff: estado actual
 
+> **Nota 2026-07-12:** este archivo queda como handoff historico del carril
+> S0/E1/D1/O2. La fuente viva para continuar Phase 3+ es
+> `docs/HANDOFF_CURRENT_STATE.md` junto con
+> `docs/validation/PHASE3_CURRENT_WORKPLAN.md` y
+> `docs/validation/PHASE3_CANONICAL_TWO_ZONE_ARCHITECTURE.md`.
 Fecha: 2026-06-28 (actualizado O1 canonical doorway)
 
 ## Rama y commits recientes

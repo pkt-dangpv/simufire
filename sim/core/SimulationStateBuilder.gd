@@ -340,6 +340,13 @@ func build_state(context: Dictionary) -> Dictionary:
 			room_state["zone_parcel_upper_out_kg_total"] = room.phase3_diag_zone_parcel_upper_out_kg_total
 			room_state["zone_parcel_upper_in_kg_total"] = room.phase3_diag_zone_parcel_upper_in_kg_total
 			room_state["zone_upper_removed_kg_total"] = room.phase3_diag_zone_upper_removed_kg_total
+			room_state["pressure_therm_pa"] = room.phase3_diag_pressure_therm_pa
+			room_state["pressure_model_pa"] = room.phase3_diag_pressure_model_pa
+			room_state["pressure_effective_pa"] = room.phase3_diag_pressure_effective_pa
+			room_state["pressure_buoyancy_pa"] = room.phase3_diag_pressure_buoyancy_pa
+			room_state["pressure_stack_pa"] = room.phase3_diag_pressure_stack_pa
+			room_state["pressure_raw_vented_air_kg_total"] = room.phase3_diag_pressure_raw_vented_air_kg_total
+			room_state["pressure_capped_vented_air_kg_total"] = room.phase3_diag_pressure_capped_vented_air_kg_total
 			for diag_key in room_diag.keys():
 				room_state[diag_key] = room_diag[diag_key]
 
