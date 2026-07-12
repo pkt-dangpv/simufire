@@ -32,6 +32,7 @@ func build_state(context: Dictionary) -> Dictionary:
 		"two_zone_solver_enabled": bool(context.get("two_zone_solver_enabled", false)),
 		"two_zone_opening_flow_enabled": bool(context.get("two_zone_opening_flow_enabled", false)),
 		"phase3_zone_diagnostics_enabled": bool(context.get("phase3_zone_diagnostics_enabled", false)),
+		"phase3_canonical_zone_shadow_enabled": bool(context.get("phase3_canonical_zone_shadow_enabled", false)),
 		"phase3_pressure_canonical_enabled": bool(context.get("phase3_pressure_canonical_enabled", false)),
 		"fire_o2_mass_tracking_enabled": bool(context.get("fire_o2_mass_tracking_enabled", false)),
 		"doorway_thermal_counterflow_enabled": bool(context.get("doorway_thermal_counterflow_enabled", false)),
@@ -58,6 +59,10 @@ func build_state(context: Dictionary) -> Dictionary:
 		context.get("phase3_zone_diagnostics_enabled", false)
 	)
 	var phase3_zone_diagnostics: Dictionary = context.get("phase3_zone_diagnostics", {})
+	var phase3_canonical_zone_shadow_enabled: bool = bool(
+		context.get("phase3_canonical_zone_shadow_enabled", false)
+	)
+	var phase3_canonical_zone_shadow: Dictionary = context.get("phase3_canonical_zone_shadow", {})
 	var ambient_temp_c: float = float(context.get("ambient_temp_c", 20.0))
 	var estimate_temperature_callable: Callable = context.get("estimate_temperature_callable", Callable())
 	var effective_hot_layer_callable: Callable = context.get("effective_hot_layer_callable", Callable())
@@ -349,6 +354,11 @@ func build_state(context: Dictionary) -> Dictionary:
 			room_state["pressure_capped_vented_air_kg_total"] = room.phase3_diag_pressure_capped_vented_air_kg_total
 			for diag_key in room_diag.keys():
 				room_state[diag_key] = room_diag[diag_key]
+		if phase3_canonical_zone_shadow_enabled:
+			var shadow_room_state: Dictionary = state[str(room_id)]
+			var shadow_diag: Dictionary = phase3_canonical_zone_shadow.get(str(room_id), {})
+			for shadow_key in shadow_diag.keys():
+				shadow_room_state[shadow_key] = shadow_diag[shadow_key]
 
 	# Detectores: estado triggered de cada detector definido en el template.
 	if building.detectors.size() > 0:

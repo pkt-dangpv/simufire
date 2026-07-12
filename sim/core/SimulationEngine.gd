@@ -12,6 +12,7 @@ const GlassFailureSystemScript = preload("res://sim/core/GlassFailureSystem.gd")
 const HVACSystemScript = preload("res://sim/core/HVACSystem.gd")
 const ZoneFireSolverScript = preload("res://sim/core/ZoneFireSolver.gd")
 const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
+const Phase3ZoneMassSystemScript = preload("res://sim/core/Phase3ZoneMassSystem.gd")
 
 # ============================================================
 # SIMULATION ENGINE
@@ -40,6 +41,7 @@ var glass_failure_system = GlassFailureSystemScript.new()
 var hvac_system = HVACSystemScript.new()
 # SF-R6: ZoneFireSolver — coordinador de flujos masa/energía/especies entre zonas.
 var zone_fire_solver = ZoneFireSolverScript.new()
+var phase3_zone_mass_system = Phase3ZoneMassSystemScript.new()
 
 # Cache de estados de flujo pre-computados para todas las aberturas interiores.
 # Se recalcula una vez al comienzo de cada paso de tiempo y se comparte entre
@@ -969,6 +971,8 @@ var _step_time_us: int = 0
 @export var csv_log_file_path: String = "user://sim_log.csv"
 ## Phase 3+ F0: telemetria two-zone temporal. Default OFF conserva el schema legacy.
 @export var phase3_zone_diagnostics_enabled: bool = false
+## F3.0: transaccion two-zone shadow. Default OFF; nunca escribe estado legacy.
+@export var phase3_canonical_zone_shadow_enabled: bool = false
 
 # ============================================================
 # SERVICIOS AUXILIARES
@@ -1232,6 +1236,7 @@ func _sync_auxiliary_services() -> void:
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
 	log_writer.configure_phase3_zone_diagnostics(phase3_zone_diagnostics_enabled)
+	log_writer.configure_phase3_canonical_shadow(phase3_canonical_zone_shadow_enabled)
 	# SF-R6: ZoneFireSolver — inyectar referencia al building.
 	zone_fire_solver.set_building(building)
 
@@ -1364,6 +1369,9 @@ func _build_state_context() -> Dictionary:
 		"two_zone_opening_flow_enabled": two_zone_solver_enabled and two_zone_opening_flow_enabled,
 		"phase3_zone_diagnostics_enabled": phase3_zone_diagnostics_enabled,
 		"phase3_zone_diagnostics": _phase3_zone_diag_export(),
+		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
+		"phase3_canonical_zone_shadow": phase3_zone_mass_system.get_results() \
+				if phase3_canonical_zone_shadow_enabled else {},
 		"ambient_temp_c": thermal_system.ambient_temp_c(),
 		"phase3_pressure_canonical_enabled": phase3_thermodynamic_pressure_enabled \
 				and phase3_pressure_canonical_enabled,
@@ -1647,6 +1655,8 @@ func step(delta: float) -> void:
 	# SF-CBAL: capturar inventario inicial antes de cualquier física.
 	_ensure_carbon_balance_initialized()
 	_phase3_zone_diag_begin_step()
+	if phase3_canonical_zone_shadow_enabled:
+		phase3_zone_mass_system.begin_step(building)
 
 	var pre_hrr_o2_step: bool = _uses_pre_hrr_oxygen_step()
 
@@ -1693,6 +1703,8 @@ func step(delta: float) -> void:
 	_phase3_zone_diag_record_stage("reconcile")
 	_clamp_rooms(dt)
 	_phase3_zone_diag_record_stage("projection_clamp")
+	if phase3_canonical_zone_shadow_enabled:
+		phase3_zone_mass_system.finalize_step(building)
 	# Evaluar el estado final del paso, incluyendo cualquier pérdida por clamp.
 	_check_carbon_balance()
 	_check_layer_interface_guardrails(dt)

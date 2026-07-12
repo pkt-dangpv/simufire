@@ -65,6 +65,8 @@ func _run() -> void:
 	_apply_engine_overrides(engine, scenario.get("engine_overrides", {}))
 	if bool(_cli_args.get("phase3_zone_diagnostics", false)):
 		engine.phase3_zone_diagnostics_enabled = true
+	if bool(_cli_args.get("phase3_canonical_shadow", false)):
+		engine.phase3_canonical_zone_shadow_enabled = true
 	var ignite_on_start: bool = not bool(_cli_args.get("no_ignite", false)) and bool(scenario.get("ignite_on_start", true))
 	engine.reset_simulation(engine.ignition_room_id, ignite_on_start)
 	engine.sim_duration_limit_s = 0.0
@@ -138,6 +140,8 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["no_ignite"] = true
 		elif arg == "--phase3-zone-diagnostics":
 			parsed["phase3_zone_diagnostics"] = true
+		elif arg == "--phase3-canonical-shadow":
+			parsed["phase3_canonical_shadow"] = true
 		index += 1
 	return parsed
 

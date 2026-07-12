@@ -3,6 +3,22 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0 canonical shadow transaction (2026-07-12)
+
+- Added `Phase3ZoneMassSystem`, an opt-in shadow-only transaction built from a
+  pre-step snapshot and immutable requests carrying gas mass, sensible
+  enthalpy, O2 and species.
+- Added `phase3_canonical_zone_shadow_enabled=false` and a headless runner
+  switch, `--phase3-canonical-shadow`.
+- Shadow mode exports ten diagnostic columns covering state, legacy residuals,
+  rejected mass, duplicate ownership and missing flux ownership. With the flag
+  OFF the legacy CSV schema is unchanged.
+- F3.0 deliberately emits no authoritative motor requests yet. Legacy changes
+  are reported as `phase3_shadow_needs_flux_owner_flag`; the next phase connects
+  one explicit sealed-room producer at a time.
+- Runtime OFF/ON comparison: 115 shared legacy columns, 12 rows, zero value
+  differences. Physics and ILV suites remain at zero FAIL.
+
 ### Phase 3+ clean start: canonical two-zone route selected (2026-07-12)
 
 Documents and diagnostics updated to start the next motor phase from a clean

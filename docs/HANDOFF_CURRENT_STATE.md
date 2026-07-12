@@ -8,6 +8,30 @@ This note records the repository hygiene and validation state after the non-moto
 
 ## Current Session Update - 2026-07-12 - Clean start for Phase 3+ canonical two-zone
 
+### F3.0 implementation checkpoint
+
+- `Phase3ZoneMassSystem.gd` now owns the experimental shadow transaction.
+- `phase3_canonical_zone_shadow_enabled` is default OFF and can be enabled by
+  engine override or `run_scenario.py --phase3-canonical-shadow`.
+- The transaction snapshots upper/lower mass, energy, O2 and CO/CO2/HCN before
+  the legacy step. Requests require a stable id, cause, endpoints, zones, gas
+  mass, enthalpy, O2 and species; duplicate ids and inventory rejection are
+  exported.
+- No subsystem emits authoritative requests in F3.0. This is intentional: the
+  shadow output marks legacy deltas with `phase3_shadow_needs_flux_owner_flag`
+  rather than deriving circular requests from observed post-step mutations.
+- Runtime proof on `cfast_co2_stratification` (10 s): 12 OFF rows and 12 ON
+  rows, 115 shared legacy columns, zero legacy differences; ON adds ten shadow
+  columns.
+- Validation after implementation: physics 0 FAIL, ILV 0 FAIL, gap inventory
+  348/353 with the same 5 VALID_GAP. Guardrail R2-1 requires only the usual
+  metadata freshness refresh while motor files are dirty.
+
+Next implementation target: F3.0a, one explicit sealed-room request adapter.
+Start with a producer that exposes a pre-mutation solver output; do not infer a
+request from F0 stage deltas. Combustion heat/O2 is preferred only after its
+single ownership and step ordering are demonstrated by focused tests.
+
 ### Baseline
 
 - Latest committed baseline before this update: `53898ba2` (`chore(validation): refresh reference_checks.json timestamp`).

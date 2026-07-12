@@ -35,7 +35,8 @@ canonical two-zone mass/energy/O2/species transaction.
 
 ## Active route
 
-F3.0 shadow canonical two-zone state.
+F3.0 shadow canonical two-zone state is implemented as infrastructure. F3.0a
+is now active: connect the first explicit sealed-room flux owner.
 
 The first implementation must be default OFF and read-only with respect to
 legacy physics. It should build a shadow state from:
@@ -48,25 +49,26 @@ legacy physics. It should build a shadow state from:
 No request may be derived by observing a mutation after it already happened.
 That would make the ledger circular.
 
-## F3.0 minimum scope
+### F3.0 delivered
 
-1. Add `Phase3ZoneMassSystem.gd`.
-2. Add `phase3_canonical_zone_shadow_enabled`, default false.
-3. Define a request schema:
-   - source room / destination room;
-   - source zone / destination zone;
-   - gas mass;
-   - sensible enthalpy;
-   - O2 and species masses;
-   - cause;
-   - request id.
-4. Implement sealed single-room shadow requests first:
+- New `Phase3ZoneMassSystem.gd` with immutable request identity and cause.
+- Pre-step shadow snapshot for mass, energy, O2 and CO/CO2/HCN by zone.
+- Proportional inventory limiting, rejected-mass telemetry and duplicate-id
+  detection.
+- Ten opt-in CSV fields; legacy schema and values remain unchanged when OFF.
+- No authoritative request adapters yet. `needs_flux_owner` is the expected
+  signal until a subsystem provides a pre-mutation physical output.
+
+## F3.0a minimum scope
+
+1. Implement sealed single-room shadow requests first:
    - combustion heat;
    - O2 sink;
    - CO2/CO/HCN/species source where already available;
    - plume lower-to-upper mass/enthalpy if explicitly available.
-5. Export shadow residual columns only when diagnostics are enabled.
-6. Keep all legacy outputs bit-identical when the flag is OFF.
+2. Prove each request originates in an explicit solver output before mutation.
+3. Add request-level conservation tests and a zero-O2 visibility assertion.
+4. Keep all legacy outputs bit-identical when the flag is OFF or ON.
 
 ## STOP gate for F3.0
 
