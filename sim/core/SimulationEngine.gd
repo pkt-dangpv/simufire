@@ -1139,6 +1139,7 @@ func _sync_auxiliary_services() -> void:
 	})
 	gas_exchange_system.configure({
 		"o2_nominal": o2_nominal,
+		"phase3_zone_diagnostics_enabled": phase3_zone_diagnostics_enabled,
 		"window_leakage_area_m2": window_leakage_area_m2,
 		"pressure_vent_threshold_pa": pressure_vent_threshold_pa,
 		"ach_infiltration": ach_infiltration,

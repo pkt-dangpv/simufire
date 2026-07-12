@@ -85,6 +85,9 @@ var o2_smoke_carry_coeff: float = 0.0
 # 0.18 = valor histórico. Reducir para ralentizar la dilución de O2 en salas remotas.
 var doorway_o2_counterflow_coeff: float = 0.18
 var two_zone_opening_flow_enabled: bool = false
+# Phase 3+ F2.0: ledger acumulativo de flujos de masa zonal (parcels/background).
+# Solo instrumentación pasiva; sin efecto físico. Default false = no-op.
+var phase3_zone_diagnostics_enabled: bool = false
 # Phase 3: modelo de presión termodinámica — ODE campo paralelo.
 # Cuando false (default): no-op, no toca room.pressure_pa_therm ni room.overpressure_pa.
 # Cuando true: integra dP/dt = (gamma-1)/V * Q_conv - Cd*A_eff/V * P_atm * sqrt(2P/rho)
@@ -186,6 +189,7 @@ func configure(settings: Dictionary) -> void:
 	o2_smoke_carry_coeff = float(settings.get("o2_smoke_carry_coeff", o2_smoke_carry_coeff))
 	doorway_o2_counterflow_coeff = float(settings.get("doorway_o2_counterflow_coeff", doorway_o2_counterflow_coeff))
 	two_zone_opening_flow_enabled = bool(settings.get("two_zone_opening_flow_enabled", two_zone_opening_flow_enabled))
+	phase3_zone_diagnostics_enabled = bool(settings.get("phase3_zone_diagnostics_enabled", phase3_zone_diagnostics_enabled))
 	phase3_thermodynamic_pressure_enabled = bool(
 		settings.get("phase3_thermodynamic_pressure_enabled", phase3_thermodynamic_pressure_enabled)
 	)
@@ -812,6 +816,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 
 			source.upper_gas_kg -= moved_upper_gas_kg
 			source.upper_energy_kj = maxf(0.0, source.upper_energy_kj - moved_upper_energy_kj)
+			if phase3_zone_diagnostics_enabled:
+				source.phase3_diag_zone_parcel_upper_out_kg_total += moved_upper_gas_kg
 
 		var co_moved_kg: float = 0.0
 		var co2_moved_kg: float = 0.0
@@ -1432,6 +1438,8 @@ func _release_pending_interior_deliveries(
 		target.formaldehyde_kg = maxf(0.0, target.formaldehyde_kg + formaldehyde_parcel_kg)
 		target.upper_gas_kg = maxf(0.0, target.upper_gas_kg + float(entry.get("upper_gas_kg", 0.0)))
 		target.upper_energy_kj = maxf(0.0, target.upper_energy_kj + float(entry.get("upper_energy_kj", 0.0)))
+		if phase3_zone_diagnostics_enabled:
+			target.phase3_diag_zone_parcel_upper_in_kg_total += maxf(0.0, float(entry.get("upper_gas_kg", 0.0)))
 		var o2_delivery_kg: float = float(entry.get("o2_kg", 0.0))
 		if o2_delivery_kg != 0.0:
 			var target_air_mass_kg: float = maxf(0.1, target.volume_m3()) * 1.2
@@ -1703,6 +1711,9 @@ func _apply_background_species_exchange(
 			hot_room_bg.upper_energy_kj = maxf(0.0, hot_room_bg.upper_energy_kj - energy_moved_bg)
 			cold_room_bg.upper_gas_kg += gas_moved_bg
 			cold_room_bg.upper_energy_kj += energy_moved_bg
+			if phase3_zone_diagnostics_enabled:
+				hot_room_bg.phase3_diag_zone_doorway_upper_out_kg_total += gas_moved_bg
+				cold_room_bg.phase3_diag_zone_doorway_upper_in_kg_total += gas_moved_bg
 
 
 func _apply_two_zone_opening_species_exchange(

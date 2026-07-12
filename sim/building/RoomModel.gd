@@ -92,6 +92,18 @@ var two_zone_opening_lower_out_kg: float = 0.0
 # Phase 3+ F0: telemetria pasiva del entrainment lower -> upper originado por plume.
 # Solo se incrementa cuando phase3_zone_diagnostics_enabled esta activo.
 var phase3_diag_plume_entrained_kg_total: float = 0.0
+# Phase 3+ F2.0: ledger acumulativo de flujos de masa zonal upper que hoy no
+# registran en two_zone_boundary ni en los ledgers de apertura. A prueba de
+# muestreo CSV (totales, no _step). Solo se incrementan con diagnostics ON.
+# - doorway: transporte upper inter-room (main loop + background exchanges).
+# - parcel: carve/delivery de parcels retardados de GasExchangeSystem.
+# - removed: remove_upper_layer_fraction (pressure venting, smoke exterior,
+#   HVAC inlet) — única deleción single-sided del ledger zonal.
+var phase3_diag_zone_doorway_upper_out_kg_total: float = 0.0
+var phase3_diag_zone_doorway_upper_in_kg_total: float = 0.0
+var phase3_diag_zone_parcel_upper_out_kg_total: float = 0.0
+var phase3_diag_zone_parcel_upper_in_kg_total: float = 0.0
+var phase3_diag_zone_upper_removed_kg_total: float = 0.0
 var upper_radiative_loss_kw: float = 0.0
 var layer_150c_m: float = 2.5
 
@@ -414,6 +426,11 @@ func reset_dynamic_state(ambient_temp_c: float, ambient_o2: float) -> void:
 	two_zone_opening_lower_in_kg = 0.0
 	two_zone_opening_lower_out_kg = 0.0
 	phase3_diag_plume_entrained_kg_total = 0.0
+	phase3_diag_zone_doorway_upper_out_kg_total = 0.0
+	phase3_diag_zone_doorway_upper_in_kg_total = 0.0
+	phase3_diag_zone_parcel_upper_out_kg_total = 0.0
+	phase3_diag_zone_parcel_upper_in_kg_total = 0.0
+	phase3_diag_zone_upper_removed_kg_total = 0.0
 	upper_radiative_loss_kw = 0.0
 	layer_150c_m = height_m
 	co_kg = 0.0

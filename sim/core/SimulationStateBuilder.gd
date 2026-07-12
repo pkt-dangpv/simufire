@@ -335,6 +335,11 @@ func build_state(context: Dictionary) -> Dictionary:
 			room_state["lower_volume_m3_eos"] = lower_volume_m3_eos
 			room_state["volume_closure_error_m3"] = upper_volume_m3_eos \
 					+ lower_volume_m3_eos - room.volume_m3()
+			room_state["zone_doorway_upper_out_kg_total"] = room.phase3_diag_zone_doorway_upper_out_kg_total
+			room_state["zone_doorway_upper_in_kg_total"] = room.phase3_diag_zone_doorway_upper_in_kg_total
+			room_state["zone_parcel_upper_out_kg_total"] = room.phase3_diag_zone_parcel_upper_out_kg_total
+			room_state["zone_parcel_upper_in_kg_total"] = room.phase3_diag_zone_parcel_upper_in_kg_total
+			room_state["zone_upper_removed_kg_total"] = room.phase3_diag_zone_upper_removed_kg_total
 			for diag_key in room_diag.keys():
 				room_state[diag_key] = room_diag[diag_key]
 

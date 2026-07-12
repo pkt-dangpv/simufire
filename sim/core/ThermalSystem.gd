@@ -1210,6 +1210,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		cold_room.upper_gas_kg = maxf(0.0, cold_room.upper_gas_kg + gas_moved_kg)
 		hot_room.upper_energy_kj = maxf(0.0, hot_room.upper_energy_kj - energy_moved_kj)
 		cold_room.upper_energy_kj = maxf(0.0, cold_room.upper_energy_kj + energy_moved_kj)
+		if phase3_zone_diagnostics_enabled:
+			hot_room.phase3_diag_zone_doorway_upper_out_kg_total += gas_moved_kg
+			cold_room.phase3_diag_zone_doorway_upper_in_kg_total += gas_moved_kg
 		_transfer_hot_gas_contaminants(
 			hot_room,
 			cold_room,
@@ -2123,6 +2126,9 @@ func _apply_outside_assisted_background_heat_exchange(
 				source.upper_energy_kj = maxf(0.0, source.upper_energy_kj - source_energy_removed_kj)
 				target.upper_gas_kg = maxf(0.0, target.upper_gas_kg + gas_moved_kg)
 				target.upper_energy_kj = maxf(0.0, target.upper_energy_kj + energy_moved_kj)
+				if phase3_zone_diagnostics_enabled:
+					source.phase3_diag_zone_doorway_upper_out_kg_total += gas_moved_kg
+					target.phase3_diag_zone_doorway_upper_in_kg_total += gas_moved_kg
 				_transfer_hot_gas_contaminants(
 					source,
 					target,
@@ -2268,6 +2274,9 @@ func _apply_interior_background_heat_exchange(
 			source.upper_energy_kj = maxf(0.0, source.upper_energy_kj - energy_moved_kj)
 			target.upper_gas_kg = maxf(0.0, target.upper_gas_kg + gas_moved_kg)
 			target.upper_energy_kj = maxf(0.0, target.upper_energy_kj + energy_moved_kj)
+			if phase3_zone_diagnostics_enabled:
+				source.phase3_diag_zone_doorway_upper_out_kg_total += gas_moved_kg
+				target.phase3_diag_zone_doorway_upper_in_kg_total += gas_moved_kg
 			_transfer_hot_gas_contaminants(
 				source,
 				target,
@@ -2765,6 +2774,8 @@ func remove_upper_layer_fraction(room: RoomModel, fraction: float) -> void:
 	if frac <= 0.0:
 		return
 
+	if phase3_zone_diagnostics_enabled:
+		room.phase3_diag_zone_upper_removed_kg_total += room.upper_gas_kg * frac
 	room.upper_gas_kg *= (1.0 - frac)
 	room.upper_energy_kj *= (1.0 - frac)
 
