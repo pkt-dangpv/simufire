@@ -1,10 +1,24 @@
 # Current Handoff State
 
-Date: 2026-07-12.
+Date: 2026-07-13.
 
 ## Purpose
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
+
+## Current Session Update - 2026-07-13 - F3.0b combustion energy contract
+
+- F3.0b connects only the unambiguous part of combustion: convective heat.
+  Thermal computes one `convective_energy_kj` value, records it pre-mutation and
+  applies that same value to legacy state. Engine does not recalculate HRR.
+- Shadow request: exterior to room upper zone, zero gas mass, zero O2 and no
+  species. `phase3_shadow_combustion_owned_mask=1` documents partial ownership.
+- O2 and species remain open for F3.0c because their ownership is split between
+  CombustionSystem and OxygenExchangeSystem. Do not derive them from observed
+  post-step deltas.
+- Runtime OFF/ON (`cfast_co2_stratification`, 60 s): 42 rows, 115 shared legacy
+  columns, zero differences; two causes, zero rejected requests, zero duplicate
+  owners.
 
 ## Current Session Update - 2026-07-12 - Clean start for Phase 3+ canonical two-zone
 

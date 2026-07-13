@@ -828,8 +828,24 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		# efectivo (combustión más completa). Modelado como boost proporcional a open_factor.
 		if outside_open_factor > 0.0 and outside_open_upper_heat_boost > 0.0:
 			conv_fraction = minf(0.90, conv_fraction * (1.0 + outside_open_upper_heat_boost * outside_open_factor))
-		room.upper_energy_kj += room.hrr_kw * conv_fraction * dt
-		var _bud_e_fire_kj: float = room.hrr_kw * conv_fraction * dt if energy_budget_enabled else 0.0
+		var convective_energy_kj: float = room.hrr_kw * conv_fraction * dt
+		if phase3_canonical_zone_shadow_enabled and _phase3_shadow_sealed_room_scope(room):
+			# F3.0b: Thermal owns this value. Record the exact pre-mutation result;
+			# O2 and species remain unowned until their split-system contracts exist.
+			_phase3_shadow_flux_results.append({
+				"cause": "combustion_convective_heat",
+				"room_id": room.id,
+				"source_room_id": -1,
+				"destination_room_id": room.id,
+				"source_zone": "upper",
+				"destination_zone": "upper",
+				"gas_mass_kg": 0.0,
+				"sensible_enthalpy_kj": convective_energy_kj,
+				"o2_kg": 0.0,
+				"species_kg": {},
+			})
+		room.upper_energy_kj += convective_energy_kj
+		var _bud_e_fire_kj: float = convective_energy_kj if energy_budget_enabled else 0.0
 		var pre_sync_upper_temp_c: float = _estimate_raw_upper_temp_c(room, ambient_c)
 		var radiative_loss_kj: float = _compute_upper_radiative_loss_kj(
 			room,
@@ -1856,7 +1872,7 @@ func _step_two_zone_plume_entrainment(room: RoomModel, dt: float, ambient_c: flo
 		room, requested_mass_kg
 	)
 	var moved_mass_kg: float = float(transfer.get("mass_kg", 0.0))
-	if phase3_canonical_zone_shadow_enabled and _phase3_shadow_plume_scope(room):
+	if phase3_canonical_zone_shadow_enabled and _phase3_shadow_sealed_room_scope(room):
 		_phase3_shadow_flux_results.append({
 			"cause": "plume_entrainment",
 			"room_id": room.id,
@@ -1871,7 +1887,7 @@ func _step_two_zone_plume_entrainment(room: RoomModel, dt: float, ambient_c: flo
 		room.phase3_diag_plume_entrained_kg_total += moved_mass_kg
 
 
-func _phase3_shadow_plume_scope(room: RoomModel) -> bool:
+func _phase3_shadow_sealed_room_scope(room: RoomModel) -> bool:
 	if room == null or _building == null:
 		return false
 	for opening in _building.get_openings():

@@ -76,9 +76,23 @@ The zombie-ILV control `cfast_multi_fuel_couch_tv` produced 7 passive
 state retained about 971 kW HRR with `o2_upper` around 0.00081. This records the
 known defect without changing combustion.
 
+## F3.0b combustion energy contract
+
+F3.0b connected the first combustion contract as energy-only. Thermal computes
+`convective_energy_kj` once, records that exact value before legacy mutation,
+then applies the same value to `upper_energy_kj`. Engine only translates the
+result into an exterior-to-upper shadow request. The contract carries zero gas
+mass, zero O2 and no species.
+
+Runtime proof (`cfast_co2_stratification`, 60 s): 42 OFF/ON rows, 115 shared
+legacy columns, zero differences, maximum combustion energy request
+0.23977973 kJ, two owned causes, zero rejected requests and zero duplicate
+owners. `phase3_shadow_combustion_owned_mask=1` explicitly means energy only
+(`energy=1`, `O2=2`, `species=4`).
+
 ## Next STOP gate
 
-F3.0b must first define a passive combustion result object with unambiguous
-ownership for convective heat, O2 sink and species sources. Do not connect a
-combustion request by reading RoomModel after CombustionSystem or OES mutated
-it, and do not duplicate Thermal's HRR heat source.
+F3.0c must define O2 and species contracts. These remain deferred because
+CombustionSystem selects the O2 reference and yields while OxygenExchangeSystem
+performs the actual O2 mutation. No future adapter may reconstruct either flux
+from post-mutation state or duplicate existing accounting fields.

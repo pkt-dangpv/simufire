@@ -26,6 +26,8 @@ FIELDS = (
     "phase3_shadow_lower_energy_residual_kj",
     "phase3_shadow_request_count",
     "phase3_shadow_plume_mass_request_kg",
+    "phase3_shadow_combustion_energy_request_kj",
+    "phase3_shadow_combustion_owned_mask",
     "phase3_shadow_owned_cause_count",
     "phase3_shadow_rejected_mass_kg",
     "phase3_shadow_duplicate_owner_flag",

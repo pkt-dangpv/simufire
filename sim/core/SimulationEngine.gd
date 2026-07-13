@@ -1330,7 +1330,10 @@ func _phase3_zone_diag_export() -> Dictionary:
 func _phase3_shadow_collect_thermal_requests() -> void:
 	for flux in thermal_system.drain_phase3_shadow_flux_results():
 		var mass_kg: float = maxf(0.0, float(flux.get("gas_mass_kg", 0.0)))
-		if mass_kg <= 0.0:
+		var energy_kj: float = maxf(0.0, float(flux.get("sensible_enthalpy_kj", 0.0)))
+		var o2_kg: float = maxf(0.0, float(flux.get("o2_kg", 0.0)))
+		var species_kg: Dictionary = flux.get("species_kg", {})
+		if mass_kg <= 0.0 and energy_kj <= 0.0 and o2_kg <= 0.0 and species_kg.is_empty():
 			continue
 		var room_id: int = int(flux.get("room_id", -1))
 		var cause: String = String(flux.get("cause", ""))
@@ -1339,13 +1342,14 @@ func _phase3_shadow_collect_thermal_requests() -> void:
 			phase3_zone_mass_system.make_request(
 				request_id,
 				cause,
-				room_id,
-				room_id,
+				int(flux.get("source_room_id", room_id)),
+				int(flux.get("destination_room_id", room_id)),
 				String(flux.get("source_zone", "lower")),
 				String(flux.get("destination_zone", "upper")),
 				mass_kg,
-				maxf(0.0, float(flux.get("sensible_enthalpy_kj", 0.0))),
-				maxf(0.0, float(flux.get("o2_kg", 0.0)))
+				energy_kj,
+				o2_kg,
+				species_kg
 			)
 		)
 

@@ -3,6 +3,17 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0b shadow combustion energy contract (2026-07-13)
+
+- Added an explicit energy-only combustion contract to the canonical shadow
+  transaction. Thermal records the exact convective heat value before applying
+  it to legacy upper-zone energy; Engine performs no HRR recalculation.
+- Added zero-mass energy request support and telemetry for requested combustion
+  energy plus an ownership bit mask (`1=energy`, `2=O2`, `4=species`). F3.0b
+  reports mask `1`; O2 and species remain deliberately unowned.
+- A 60 s OFF/ON run retained 42 rows and 115 identical shared legacy columns.
+  Shadow mode reported two causes with zero rejected or duplicate requests.
+
 ### Phase 3+ F3.0a first shadow flux owner (2026-07-12)
 
 - Selected plume entrainment as the first explicit owner; combustion remains

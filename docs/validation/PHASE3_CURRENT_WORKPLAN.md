@@ -35,8 +35,10 @@ canonical two-zone mass/energy/O2/species transaction.
 
 ## Active route
 
-F3.0 shadow canonical two-zone state and F3.0a plume ownership are implemented.
-F3.0b is now active: design an explicit combustion result contract.
+F3.0 shadow canonical two-zone state, F3.0a plume ownership and the energy-only
+part of F3.0b are implemented. F3.0c is now active: define non-duplicated O2
+sink and species-source contracts across CombustionSystem and
+OxygenExchangeSystem.
 
 The first implementation must be default OFF and read-only with respect to
 legacy physics. It should build a shadow state from:
@@ -76,6 +78,22 @@ That would make the ledger circular.
 4. Start with energy only if O2/species cannot yet share a safe contract; do
    not present partial ownership as full combustion closure.
 
+## F3.0b delivered
+
+- `ThermalSystem` emits the exact convective-energy value it already applies,
+  before mutating `upper_energy_kj`; Engine performs translation only.
+- The request is exterior-to-upper, has zero gas mass, and owns no O2 or
+  species. `phase3_shadow_combustion_owned_mask=1` means energy only
+  (`energy=1`, `O2=2`, `species=4`).
+- The adapter remains restricted to rooms without active openings and is
+  shadow-only/default OFF.
+- O2 and species were deliberately deferred: combustion selects yields and O2
+  references, while OES owns the actual O2 mutation. Reading either after the
+  step would make the ledger circular.
+- A 60 s OFF/ON control had 42 rows, 115 shared legacy columns and zero value
+  differences. The ON run had two owned causes, zero rejected requests and
+  zero duplicate owners.
+
 ## STOP gate for F3.0
 
 Required before commit:
@@ -105,5 +123,7 @@ Rollback the F3.0 attempt if:
 
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0 implementation planning or implementation. The task is
-architecture-sensitive and token-heavy enough to justify the stronger model.
+Use GPT-5.6 Sol for F3.0c contract design. Start by identifying one authoritative
+pre-mutation result for O2 consumption; do not infer it from HRR or accounting
+fields after OxygenExchangeSystem has mutated the room. Species may follow in a
+separate STOP gate if their generation object can be reused exactly.

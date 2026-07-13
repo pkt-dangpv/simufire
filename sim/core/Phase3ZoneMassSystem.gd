@@ -113,6 +113,12 @@ func finalize_step(building) -> void:
 			"phase3_shadow_plume_mass_request_kg": _sum_room_cause_mass(
 				room_id, "plume_entrainment"
 			),
+			"phase3_shadow_combustion_energy_request_kj": _sum_room_cause_energy(
+				room_id, "combustion_convective_heat"
+			),
+			# Bit mask: energy=1, O2=2, species=4. F3.0b owns energy only.
+			"phase3_shadow_combustion_owned_mask": 1.0 \
+					if _room_has_cause(room_id, "combustion_convective_heat") else 0.0,
 			"phase3_shadow_owned_cause_count": _count_room_causes(room_id),
 			"phase3_shadow_rejected_mass_kg": float(rejected_by_room.get(room_key, 0.0)),
 			"phase3_shadow_duplicate_owner_flag": 1.0 if _duplicate_owner_count > 0 else 0.0,
@@ -234,6 +240,16 @@ func _count_room_causes(room_id: int) -> int:
 	return causes.size()
 
 
+func _room_has_cause(room_id: int, cause: String) -> bool:
+	for request in _requests:
+		if String(request.get("cause", "")) != cause:
+			continue
+		if int(request.get("source_room_id", EXTERIOR_ID)) == room_id \
+				or int(request.get("destination_room_id", EXTERIOR_ID)) == room_id:
+			return true
+	return false
+
+
 func _sum_room_cause_mass(room_id: int, cause: String) -> float:
 	var total_kg: float = 0.0
 	for request in _requests:
@@ -243,6 +259,17 @@ func _sum_room_cause_mass(room_id: int, cause: String) -> float:
 				or int(request.get("destination_room_id", EXTERIOR_ID)) == room_id:
 			total_kg += maxf(0.0, float(request.get("gas_mass_kg", 0.0)))
 	return total_kg
+
+
+func _sum_room_cause_energy(room_id: int, cause: String) -> float:
+	var total_kj: float = 0.0
+	for request in _requests:
+		if String(request.get("cause", "")) != cause:
+			continue
+		if int(request.get("source_room_id", EXTERIOR_ID)) == room_id \
+				or int(request.get("destination_room_id", EXTERIOR_ID)) == room_id:
+			total_kj += maxf(0.0, float(request.get("sensible_enthalpy_kj", 0.0)))
+	return total_kj
 
 
 func _state_mass(state: Dictionary) -> float:

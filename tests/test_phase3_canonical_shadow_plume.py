@@ -36,7 +36,7 @@ class TestPhase3CanonicalShadowPlume(unittest.TestCase):
 
     def test_thermal_records_result_before_legacy_mutation(self):
         plume = THERMAL.split("func _step_two_zone_plume_entrainment", 1)[1].split(
-            "func _phase3_shadow_plume_scope", 1
+            "func _phase3_shadow_sealed_room_scope", 1
         )[0]
         self.assertLess(
             plume.index("_phase3_shadow_flux_results.append"),
@@ -44,8 +44,8 @@ class TestPhase3CanonicalShadowPlume(unittest.TestCase):
         )
 
     def test_adapter_is_shadow_gated_and_sealed(self):
-        self.assertIn("if phase3_canonical_zone_shadow_enabled and _phase3_shadow_plume_scope(room):", THERMAL)
-        scope = THERMAL.split("func _phase3_shadow_plume_scope", 1)[1]
+        self.assertIn("if phase3_canonical_zone_shadow_enabled and _phase3_shadow_sealed_room_scope(room):", THERMAL)
+        scope = THERMAL.split("func _phase3_shadow_sealed_room_scope", 1)[1]
         self.assertIn("opening.effective_open_fraction() > 0.01", scope)
 
     def test_mass_enthalpy_and_o2_share_one_result(self):
