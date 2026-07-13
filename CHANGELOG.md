@@ -3,6 +3,19 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0c zonal oxygen shadow contract (2026-07-13)
+
+- Added pre-mutation O2-only shadow results for upper, explicit-lower and
+  plume-lower combustion sinks. OxygenExchangeSystem records the exact accepted
+  value before applying the same zonal fraction to legacy state.
+- Left the bulk O2 path deliberately unowned because it has no canonical
+  upper/lower split. Its residual remains visible instead of being distributed
+  heuristically.
+- Added requested/rejected O2 telemetry and extended the combustion ownership
+  mask to `3` for energy plus zonal O2. Species remain unowned.
+- OFF/ON validation retained 42 rows and 115 identical legacy columns. The
+  sealed control had zero rejects and duplicates; all 7 zombie-ILV hits remain.
+
 ### Phase 3+ F3.0b shadow combustion energy contract (2026-07-13)
 
 - Added an explicit energy-only combustion contract to the canonical shadow

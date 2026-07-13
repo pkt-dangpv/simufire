@@ -1233,6 +1233,7 @@ func _sync_auxiliary_services() -> void:
 		"fire_o2_lower_for_flame": fire_o2_lower_for_flame,
 		"fire_o2_canonical_enabled": fire_o2_canonical_enabled,
 		"fire_o2_mass_tracking_enabled": fire_o2_mass_tracking_enabled,
+		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 	})
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
@@ -1350,6 +1351,33 @@ func _phase3_shadow_collect_thermal_requests() -> void:
 				energy_kj,
 				o2_kg,
 				species_kg
+			)
+		)
+
+
+func _phase3_shadow_collect_oxygen_requests() -> void:
+	for flux in oxygen_exchange_system.drain_phase3_shadow_flux_results():
+		var o2_kg: float = maxf(0.0, float(flux.get("o2_kg", 0.0)))
+		if o2_kg <= 0.0:
+			continue
+		var room_id: int = int(flux.get("room_id", -1))
+		var cause: String = String(flux.get("cause", ""))
+		var source_zone: String = String(flux.get("source_zone", "upper"))
+		var request_id: String = "%s:%d:%s:%.6f" % [
+			cause, room_id, source_zone, sim_time_s
+		]
+		phase3_zone_mass_system.add_request(
+			phase3_zone_mass_system.make_request(
+				request_id,
+				cause,
+				room_id,
+				phase3_zone_mass_system.EXTERIOR_ID,
+				source_zone,
+				source_zone,
+				0.0,
+				0.0,
+				o2_kg,
+				{}
 			)
 		)
 
@@ -1691,6 +1719,8 @@ func step(delta: float) -> void:
 	_step_pool_fires(dt)
 	if pre_hrr_o2_step:
 		_step_oxygen(dt)
+		if phase3_canonical_zone_shadow_enabled:
+			_phase3_shadow_collect_oxygen_requests()
 		_phase3_zone_diag_record_stage("oxygen_exchange")
 	_step_fire(dt)
 	_step_co_oxidation(dt)
@@ -1698,6 +1728,8 @@ func step(delta: float) -> void:
 	_phase3_zone_diag_record_stage("combustion")
 	if not pre_hrr_o2_step:
 		_step_oxygen(dt)
+		if phase3_canonical_zone_shadow_enabled:
+			_phase3_shadow_collect_oxygen_requests()
 		_phase3_zone_diag_record_stage("oxygen_exchange")
 	thermal_system.step(building, dt, {
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),

@@ -35,10 +35,9 @@ canonical two-zone mass/energy/O2/species transaction.
 
 ## Active route
 
-F3.0 shadow canonical two-zone state, F3.0a plume ownership and the energy-only
-part of F3.0b are implemented. F3.0c is now active: define non-duplicated O2
-sink and species-source contracts across CombustionSystem and
-OxygenExchangeSystem.
+F3.0 shadow canonical two-zone state, F3.0a plume ownership, F3.0b combustion
+energy and F3.0c zonal O2 sinks are implemented. F3.0d is now active: define
+pre-mutation species-source contracts without duplicating CombustionSystem.
 
 The first implementation must be default OFF and read-only with respect to
 legacy physics. It should build a shadow state from:
@@ -94,6 +93,22 @@ That would make the ledger circular.
   differences. The ON run had two owned causes, zero rejected requests and
   zero duplicate owners.
 
+## F3.0c delivered
+
+- `OxygenExchangeSystem` owns the accepted upper, explicit-lower and
+  plume-lower O2 removals. Each result is calculated from the same before/after
+  fractions used by legacy and is recorded before assignment.
+- Requests are zone-to-exterior, O2-only. Engine translates the result without
+  reading HRR, Thornton accumulators or post-step deltas.
+- The bulk O2 path remains deliberately unowned because it has no canonical
+  upper/lower split. In legacy modes that apply bulk plus upper depletion, the
+  zonal request is partial and the remaining shadow residual stays visible.
+- `phase3_shadow_combustion_owned_mask` is now a true bit mask: energy=1,
+  zonal O2=2, species=4. No code sets the species bit yet.
+- Runtime OFF/ON retained 42 rows and 115 identical legacy columns. The sealed
+  control reached mask 3 with zero rejected or duplicate requests. The zombie
+  ILV control retained all 7 zero-O2 flame hits.
+
 ## STOP gate for F3.0
 
 Required before commit:
@@ -118,12 +133,12 @@ Rollback the F3.0 attempt if:
 - residuals are hidden by a projection/clamp bucket;
 - zero-O2 flaming behavior is reproduced in canonical shadow without being
   visible as a failure signal;
-- a subsystem both mutates legacy canonical quantities and emits an
-  authoritative request in the same mode.
+- a subsystem emits a request from a separately reconstructed value instead of
+  reusing the exact pre-mutation result applied to legacy.
 
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0c contract design. Start by identifying one authoritative
-pre-mutation result for O2 consumption; do not infer it from HRR or accounting
-fields after OxygenExchangeSystem has mutated the room. Species may follow in a
-separate STOP gate if their generation object can be reused exactly.
+Use GPT-5.6 Sol for F3.0d species contract design. Start in CombustionSystem at
+the accepted CO/CO2/HCN generation values and determine whether one immutable
+result can be recorded before all bulk/upper mutations. Do not connect
+irritants or transport in the same gate unless ownership is equally explicit.

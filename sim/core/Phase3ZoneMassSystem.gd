@@ -76,8 +76,9 @@ func finalize_step(building) -> void:
 	_results.clear()
 	var shadow: Dictionary = _snapshots.duplicate(true)
 	var rejected_by_room: Dictionary = {}
+	var rejected_combustion_o2_by_room: Dictionary = {}
 	for request in _requests:
-		_apply_request(shadow, request, rejected_by_room)
+		_apply_request(shadow, request, rejected_by_room, rejected_combustion_o2_by_room)
 	if building == null:
 		return
 	for room_key in shadow.keys():
@@ -116,9 +117,14 @@ func finalize_step(building) -> void:
 			"phase3_shadow_combustion_energy_request_kj": _sum_room_cause_energy(
 				room_id, "combustion_convective_heat"
 			),
-			# Bit mask: energy=1, O2=2, species=4. F3.0b owns energy only.
-			"phase3_shadow_combustion_owned_mask": 1.0 \
-					if _room_has_cause(room_id, "combustion_convective_heat") else 0.0,
+			"phase3_shadow_combustion_o2_request_kg": _sum_room_cause_prefix_o2(
+				room_id, "combustion_o2_"
+			),
+			"phase3_shadow_combustion_o2_rejected_kg": float(
+				rejected_combustion_o2_by_room.get(room_key, 0.0)
+			),
+			# Bit mask: energy=1, O2=2, species=4. Bulk O2 remains unowned.
+			"phase3_shadow_combustion_owned_mask": _combustion_owned_mask(room_id),
 			"phase3_shadow_owned_cause_count": _count_room_causes(room_id),
 			"phase3_shadow_rejected_mass_kg": float(rejected_by_room.get(room_key, 0.0)),
 			"phase3_shadow_duplicate_owner_flag": 1.0 if _duplicate_owner_count > 0 else 0.0,
@@ -160,7 +166,12 @@ func _snapshot_room(room: RoomModel) -> Dictionary:
 	}
 
 
-func _apply_request(shadow: Dictionary, request: Dictionary, rejected_by_room: Dictionary) -> void:
+func _apply_request(
+		shadow: Dictionary,
+		request: Dictionary,
+		rejected_by_room: Dictionary,
+		rejected_combustion_o2_by_room: Dictionary
+	) -> void:
 	var source_id: int = int(request.get("source_room_id", EXTERIOR_ID))
 	var destination_id: int = int(request.get("destination_room_id", EXTERIOR_ID))
 	var source_zone: String = String(request.get("source_zone", ZONE_UPPER))
@@ -201,6 +212,10 @@ func _apply_request(shadow: Dictionary, request: Dictionary, rejected_by_room: D
 		if accepted_fraction < 1.0:
 			rejected_by_room[source_key] = float(rejected_by_room.get(source_key, 0.0)) \
 					+ requested_mass_kg * (1.0 - accepted_fraction)
+			if String(request.get("cause", "")).begins_with("combustion_o2_"):
+				rejected_combustion_o2_by_room[source_key] = float(
+					rejected_combustion_o2_by_room.get(source_key, 0.0)
+				) + requested_o2_kg * (1.0 - accepted_fraction)
 	if destination_id != EXTERIOR_ID:
 		var destination_key: String = str(destination_id)
 		var destination: Dictionary = shadow.get(destination_key, {})
@@ -250,6 +265,25 @@ func _room_has_cause(room_id: int, cause: String) -> bool:
 	return false
 
 
+func _room_has_cause_prefix(room_id: int, cause_prefix: String) -> bool:
+	for request in _requests:
+		if not String(request.get("cause", "")).begins_with(cause_prefix):
+			continue
+		if int(request.get("source_room_id", EXTERIOR_ID)) == room_id \
+				or int(request.get("destination_room_id", EXTERIOR_ID)) == room_id:
+			return true
+	return false
+
+
+func _combustion_owned_mask(room_id: int) -> float:
+	var mask: int = 0
+	if _room_has_cause(room_id, "combustion_convective_heat"):
+		mask |= 1
+	if _room_has_cause_prefix(room_id, "combustion_o2_"):
+		mask |= 2
+	return float(mask)
+
+
 func _sum_room_cause_mass(room_id: int, cause: String) -> float:
 	var total_kg: float = 0.0
 	for request in _requests:
@@ -270,6 +304,17 @@ func _sum_room_cause_energy(room_id: int, cause: String) -> float:
 				or int(request.get("destination_room_id", EXTERIOR_ID)) == room_id:
 			total_kj += maxf(0.0, float(request.get("sensible_enthalpy_kj", 0.0)))
 	return total_kj
+
+
+func _sum_room_cause_prefix_o2(room_id: int, cause_prefix: String) -> float:
+	var total_kg: float = 0.0
+	for request in _requests:
+		if not String(request.get("cause", "")).begins_with(cause_prefix):
+			continue
+		if int(request.get("source_room_id", EXTERIOR_ID)) == room_id \
+				or int(request.get("destination_room_id", EXTERIOR_ID)) == room_id:
+			total_kg += maxf(0.0, float(request.get("o2_kg", 0.0)))
+	return total_kg
 
 
 func _state_mass(state: Dictionary) -> float:

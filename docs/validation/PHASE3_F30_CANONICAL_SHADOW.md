@@ -92,7 +92,23 @@ owners. `phase3_shadow_combustion_owned_mask=1` explicitly means energy only
 
 ## Next STOP gate
 
-F3.0c must define O2 and species contracts. These remain deferred because
-CombustionSystem selects the O2 reference and yields while OxygenExchangeSystem
-performs the actual O2 mutation. No future adapter may reconstruct either flux
-from post-mutation state or duplicate existing accounting fields.
+F3.0c connects only the unambiguous zonal O2 sinks. OxygenExchangeSystem derives
+the accepted O2 mass from the exact before/after fractions before assigning
+`o2_upper` or `o2_lower`. Engine emits O2-only zone-to-exterior requests and
+does not read HRR, Thornton accumulators or post-mutation state.
+
+The legacy bulk sink remains unowned because there is no physical upper/lower
+split to apply to the shadow state. This is visible in `fuel_balance_diag_sealed`
+and `o2_stoich_diag_sealed`: the shadow request captures the upper sink while
+the bulk contribution remains in the residual. In a genuinely sealed plume
+case, zonal requests equal `o2_consumed_kg_step_all` exactly.
+
+Runtime proof (`cfast_co2_stratification`, 60 s): 42 OFF/ON rows, 115 shared
+legacy columns, zero differences, maximum zonal O2 request 0.00006621 kg,
+ownership mask 3, zero rejected requests and zero duplicates. The zombie-ILV
+control retained 7 hits from 120-180 s, including about 971 kW at 0.08% upper
+O2.
+
+F3.0d must define species-source ownership. Start from accepted generation
+values in CombustionSystem and reuse one pre-mutation object; do not derive
+species from post-step masses or transport accumulators.

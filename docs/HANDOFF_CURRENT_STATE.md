@@ -6,6 +6,20 @@ Date: 2026-07-13.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-13 - F3.0c zonal O2 contract
+
+- OxygenExchangeSystem now emits exact pre-mutation shadow results for upper,
+  explicit-lower and plume-lower combustion O2 sinks. Requests move only O2
+  from the source zone to exterior.
+- Bulk O2 consumption remains deliberately unowned because legacy has no
+  canonical upper/lower split. In mixed bulk+upper modes the residual remains
+  visible; no heuristic distribution was added.
+- Runtime OFF/ON: 42 rows, 115 shared legacy columns, zero differences; maximum
+  zonal request 0.00006621 kg, ownership mask 3, zero rejects and duplicates.
+- The known zombie ILV remains unchanged: 7 hits from 120-180 s, about 971 kW
+  at 0.08% upper O2. F3.0c instruments it but does not fix it.
+- Next gate: F3.0d species generation contract in CombustionSystem.
+
 ## Current Session Update - 2026-07-13 - F3.0b combustion energy contract
 
 - F3.0b connects only the unambiguous part of combustion: convective heat.

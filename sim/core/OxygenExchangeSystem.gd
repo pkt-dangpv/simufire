@@ -122,11 +122,14 @@ var phase2b_canonical_combustion_enabled: bool = false
 # Default false = no-op exacto; room.upper_o2_mass_tracked nunca se toca.
 # Activar via engine_overrides: { "fire_o2_mass_tracking_enabled": true }.
 var fire_o2_mass_tracking_enabled: bool = false
+# F3.0c: resultados zonales pre-mutation para el shadow ledger; no cambia fisica.
+var phase3_canonical_zone_shadow_enabled: bool = false
 # R3: cuando true, el consumo de O2 se enruta hacia o2_lower (zona baja) y room.o2
 # se actualiza como promedio ponderado upper/lower al final del paso.
 var two_zone_solver_enabled: bool = false
 var _pending_o2_deliveries: Array[Dictionary] = []
 var _reserved_transport_o2_delta_kg: Dictionary = {}
+var _phase3_shadow_flux_results: Array[Dictionary] = []
 
 
 func configure(settings: Dictionary) -> void:
@@ -244,6 +247,9 @@ func configure(settings: Dictionary) -> void:
 	fire_o2_mass_tracking_enabled = bool(
 		settings.get("fire_o2_mass_tracking_enabled", fire_o2_mass_tracking_enabled)
 	)
+	phase3_canonical_zone_shadow_enabled = bool(settings.get(
+		"phase3_canonical_zone_shadow_enabled", phase3_canonical_zone_shadow_enabled
+	))
 	phase2b_canonical_combustion_enabled = bool(
 		settings.get("phase2b_canonical_combustion_enabled", phase2b_canonical_combustion_enabled)
 	)
@@ -253,9 +259,17 @@ func configure(settings: Dictionary) -> void:
 func reset() -> void:
 	_pending_o2_deliveries.clear()
 	_reserved_transport_o2_delta_kg.clear()
+	_phase3_shadow_flux_results.clear()
+
+
+func drain_phase3_shadow_flux_results() -> Array[Dictionary]:
+	var results: Array[Dictionary] = _phase3_shadow_flux_results.duplicate(true)
+	_phase3_shadow_flux_results.clear()
+	return results
 
 
 func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
+	_phase3_shadow_flux_results.clear()
 	if building == null:
 		return
 
@@ -404,9 +418,17 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				var cr_upper: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 				upper_consumed = (room.hrr_kw / 1000.0) * cr_upper * dt * plume_upper_o2_displacement_frac
 				upper_consumed = minf(upper_consumed, upper_air_mass * room.o2_upper * 0.20)
-			room.o2_upper = clampf(
+			var upper_o2_before: float = room.o2_upper
+			var upper_o2_after: float = clampf(
 				(upper_air_mass * room.o2_upper - upper_consumed) / maxf(0.001, upper_air_mass),
 				0.0, o2_nominal)
+			var upper_o2_accepted_kg: float = maxf(
+				0.0, (upper_o2_before - upper_o2_after) * upper_air_mass
+			)
+			_record_phase3_shadow_o2_sink(
+				room, "upper", upper_o2_accepted_kg, "combustion_o2_upper_sink"
+			)
+			room.o2_upper = upper_o2_after
 			# SF-O1A: consumo zona superior por pluma/fuego (kg ya calculados).
 			room.o2_consumed_kg_step_all += upper_consumed
 			room.o2_consumed_kg_total_all += upper_consumed
@@ -464,7 +486,17 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				var cr_lower: float = room.fire.o2_consumption_kg_per_MJ if room.fire != null else 0.076
 				var consumed_lower: float = (room.hrr_kw / 1000.0) * cr_lower * dt
 				consumed_lower = minf(consumed_lower, air_mass_kg * room.o2_lower * 0.05)
-				room.o2_lower = maxf(room.o2, room.o2_lower - consumed_lower / air_mass_kg)
+				var lower_o2_before: float = room.o2_lower
+				var lower_o2_after: float = maxf(
+					room.o2, room.o2_lower - consumed_lower / air_mass_kg
+				)
+				var lower_o2_accepted_kg: float = maxf(
+					0.0, (lower_o2_before - lower_o2_after) * air_mass_kg
+				)
+				_record_phase3_shadow_o2_sink(
+					room, "lower", lower_o2_accepted_kg, "combustion_o2_lower_sink"
+				)
+				room.o2_lower = lower_o2_after
 				# SF-O1A: consumo zona inferior (fire_uses_lower_o2).
 				room.o2_consumed_kg_step_all += consumed_lower
 				room.o2_consumed_kg_total_all += consumed_lower
@@ -480,7 +512,17 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				# Phase 4A: dividir por air_mass_kg (no lower_air_mass) modela que el penacho
 				# entrana aire de toda la zona baja efectiva de la sala, evitando depleción
 				# acelerada cuando la capa baja es delgada (lower_air_mass << air_mass_kg).
-				room.o2_lower = maxf(0.0, room.o2_lower - plume_consumed / air_mass_kg)
+				var plume_o2_before: float = room.o2_lower
+				var plume_o2_after: float = maxf(
+					0.0, room.o2_lower - plume_consumed / air_mass_kg
+				)
+				var plume_o2_accepted_kg: float = maxf(
+					0.0, (plume_o2_before - plume_o2_after) * air_mass_kg
+				)
+				_record_phase3_shadow_o2_sink(
+					room, "lower", plume_o2_accepted_kg, "combustion_o2_plume_lower_sink"
+				)
+				room.o2_lower = plume_o2_after
 				# SF-O1A: consumo zona inferior por pluma entrenada (effective_plume_lower).
 				room.o2_consumed_kg_step_all += plume_consumed
 				room.o2_consumed_kg_total_all += plume_consumed
@@ -609,6 +651,28 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			outside_open_path_factor_callable,
 			opening_flow_cache
 		)
+
+
+func _record_phase3_shadow_o2_sink(
+		room: RoomModel,
+		source_zone: String,
+		accepted_o2_kg: float,
+		cause: String
+	) -> void:
+	if not phase3_canonical_zone_shadow_enabled or room == null or accepted_o2_kg <= 0.0:
+		return
+	_phase3_shadow_flux_results.append({
+		"cause": cause,
+		"room_id": room.id,
+		"source_room_id": room.id,
+		"destination_room_id": -1,
+		"source_zone": source_zone,
+		"destination_zone": source_zone,
+		"gas_mass_kg": 0.0,
+		"sensible_enthalpy_kj": 0.0,
+		"o2_kg": accepted_o2_kg,
+		"species_kg": {},
+	})
 
 
 func _uses_lower_o2_for_fire() -> bool:
