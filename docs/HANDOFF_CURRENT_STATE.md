@@ -6,6 +6,24 @@ Date: 2026-07-13.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-13 - F3.0d species source contract
+
+- `CombustionSystem` now creates one post-clamp result containing exact total
+  CO/CO2/HCN generation and its canonical upper/lower split before any species
+  stock is mutated. Legacy and shadow consume that same result.
+- CO uses the existing Phase 2G split. CO2 and HCN are upper-zone sources.
+  The OES CO2 tracer, smoke, HCl, acrolein and formaldehyde remain unowned.
+- Engine only translates upper/lower maps into exterior-to-zone requests. It
+  contains no yield, phi, carbon-clamp or pool-release reconstruction.
+- Runtime OFF vs F3.0c and OFF vs ON: 42 rows, 115 shared legacy columns, zero
+  differences. Species telemetry is nonzero; rejected mass and duplicate-owner
+  flags remain zero. The ownership mask can now reach 7 (energy + O2 + species).
+- A 720 s VC control passed with nonzero CO/CO2/HCN requests. The known zombie
+  ILV remains unchanged at 7 hits from 120-180 s.
+- Next gate: F3.0e should connect one pre-mutation species transport producer,
+  starting with direct doorway transfer. Delayed parcels must remain a separate
+  owner and must not be inferred from post-step stock deltas.
+
 ## Current Session Update - 2026-07-13 - F3.0c zonal O2 contract
 
 - OxygenExchangeSystem now emits exact pre-mutation shadow results for upper,

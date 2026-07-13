@@ -36,8 +36,9 @@ canonical two-zone mass/energy/O2/species transaction.
 ## Active route
 
 F3.0 shadow canonical two-zone state, F3.0a plume ownership, F3.0b combustion
-energy and F3.0c zonal O2 sinks are implemented. F3.0d is now active: define
-pre-mutation species-source contracts without duplicating CombustionSystem.
+energy, F3.0c zonal O2 sinks and F3.0d combustion species sources are
+implemented. F3.0e is now active: connect explicit species transport producers
+without deriving requests from post-mutation stock deltas.
 
 The first implementation must be default OFF and read-only with respect to
 legacy physics. It should build a shadow state from:
@@ -103,11 +104,24 @@ That would make the ledger circular.
 - The bulk O2 path remains deliberately unowned because it has no canonical
   upper/lower split. In legacy modes that apply bulk plus upper depletion, the
   zonal request is partial and the remaining shadow residual stays visible.
-- `phase3_shadow_combustion_owned_mask` is now a true bit mask: energy=1,
-  zonal O2=2, species=4. No code sets the species bit yet.
+- `phase3_shadow_combustion_owned_mask` is a true bit mask: energy=1,
+  zonal O2=2, species=4.
 - Runtime OFF/ON retained 42 rows and 115 identical legacy columns. The sealed
   control reached mask 3 with zero rejected or duplicate requests. The zombie
   ILV control retained all 7 zero-O2 flame hits.
+
+## F3.0d delivered
+
+- `CombustionSystem` emits one result after the carbon clamp and before species
+  writes. Exact totals preserve legacy arithmetic; upper/lower maps define the
+  canonical zonal source without creating a second request.
+- CO follows the Phase 2G split. CO2 and HCN enter upper. The CO2 tracer,
+  irritants and smoke remain outside this contract.
+- Engine translates results only. Pool/backdraft energy already feeds the
+  accepted generation values upstream, so it is not added again.
+- OFF remained identical to F3.0c and ON changed no legacy value across 42 rows
+  and 115 columns. A VC control reached ownership mask 7 with zero duplicates;
+  the zombie-ILV control retained all 7 known hits.
 
 ## STOP gate for F3.0
 
@@ -138,7 +152,7 @@ Rollback the F3.0 attempt if:
 
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0d species contract design. Start in CombustionSystem at
-the accepted CO/CO2/HCN generation values and determine whether one immutable
-result can be recorded before all bulk/upper mutations. Do not connect
-irritants or transport in the same gate unless ownership is equally explicit.
+Use GPT-5.6 Sol for F3.0e species transport ownership. Start with the direct
+doorway transfer in `GasExchangeSystem`, emit the exact pre-mutation zonal
+transfer once, and keep delayed parcels as a distinct cause. Do not infer any
+request from `*_net_transport_kg_step` or post-step stock differences.

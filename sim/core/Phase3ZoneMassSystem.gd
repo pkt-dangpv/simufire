@@ -123,6 +123,18 @@ func finalize_step(building) -> void:
 			"phase3_shadow_combustion_o2_rejected_kg": float(
 				rejected_combustion_o2_by_room.get(room_key, 0.0)
 			),
+			"phase3_shadow_combustion_co_request_kg": _sum_room_cause_species(
+				room_id, "combustion_species_source", "co"
+			),
+			"phase3_shadow_combustion_co2_request_kg": _sum_room_cause_species(
+				room_id, "combustion_species_source", "co2"
+			),
+			"phase3_shadow_combustion_hcn_request_kg": _sum_room_cause_species(
+				room_id, "combustion_species_source", "hcn"
+			),
+			# Combustion species originate in the exterior reservoir, so inventory
+			# limiting cannot reject them. Keep the field explicit for future caps.
+			"phase3_shadow_combustion_species_rejected_kg": 0.0,
 			# Bit mask: energy=1, O2=2, species=4. Bulk O2 remains unowned.
 			"phase3_shadow_combustion_owned_mask": _combustion_owned_mask(room_id),
 			"phase3_shadow_owned_cause_count": _count_room_causes(room_id),
@@ -281,6 +293,8 @@ func _combustion_owned_mask(room_id: int) -> float:
 		mask |= 1
 	if _room_has_cause_prefix(room_id, "combustion_o2_"):
 		mask |= 2
+	if _room_has_cause(room_id, "combustion_species_source"):
+		mask |= 4
 	return float(mask)
 
 
@@ -314,6 +328,19 @@ func _sum_room_cause_prefix_o2(room_id: int, cause_prefix: String) -> float:
 		if int(request.get("source_room_id", EXTERIOR_ID)) == room_id \
 				or int(request.get("destination_room_id", EXTERIOR_ID)) == room_id:
 			total_kg += maxf(0.0, float(request.get("o2_kg", 0.0)))
+	return total_kg
+
+
+func _sum_room_cause_species(room_id: int, cause: String, species_name: String) -> float:
+	var total_kg: float = 0.0
+	for request in _requests:
+		if String(request.get("cause", "")) != cause:
+			continue
+		if int(request.get("source_room_id", EXTERIOR_ID)) != room_id \
+				and int(request.get("destination_room_id", EXTERIOR_ID)) != room_id:
+			continue
+		var species: Dictionary = request.get("species_kg", {})
+		total_kg += maxf(0.0, float(species.get(species_name, 0.0)))
 	return total_kg
 
 

@@ -109,6 +109,38 @@ ownership mask 3, zero rejected requests and zero duplicates. The zombie-ILV
 control retained 7 hits from 120-180 s, including about 971 kW at 0.08% upper
 O2.
 
-F3.0d must define species-source ownership. Start from accepted generation
-values in CombustionSystem and reuse one pre-mutation object; do not derive
-species from post-step masses or transport accumulators.
+## F3.0d combustion species source contract
+
+`CombustionSystem` now builds one result after the carbon-balance clamp and
+before mutating any CO, CO2 or HCN stock. `total_species_kg` preserves the exact
+legacy totals; `upper_species_kg` and `lower_species_kg` are the unique zonal
+split consumed by shadow. They are views of one generated quantity, not two
+independent sources.
+
+CO follows the existing Phase 2G upper fraction. CO2 and HCN enter upper. Pool
+release and backdraft are already included in the accepted generation basis
+upstream. The OES CO2 tracer, smoke, HCl, acrolein and formaldehyde are excluded.
+Engine drains and translates the result only; it contains no yield, phi,
+carbon-clamp or retained-fuel formulas.
+
+Runtime proof (`cfast_co2_stratification`, 60 s):
+
+| Check | Result |
+|---|---|
+| OFF vs F3.0c | 42 rows x 115 columns, 0 differences |
+| OFF vs ON | 42 rows x 115 shared columns, 0 differences |
+| CO / CO2 / HCN requests | nonzero |
+| Rejected species mass | 0 kg |
+| Duplicate owner flag | 0 |
+| Maximum ownership mask | 7 (energy + O2 + species) |
+
+The 720 s `wood_vc_reference` control produced all three species with zero
+duplicates. `cfast_multi_fuel_couch_tv` retained all 7 known zero-O2 flame
+hits, so this contract does not hide or fix zombie ILV.
+
+## Next STOP gate
+
+F3.0e should connect a single explicit species transport producer. Start with
+direct doorway transfer and preserve exact source-zone inventory limiting.
+Delayed parcels must use a separate cause/request identity. Do not reconstruct
+transport from per-step accumulators or before/after stock differences.

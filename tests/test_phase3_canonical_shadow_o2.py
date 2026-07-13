@@ -95,7 +95,6 @@ class TestPhase3CanonicalShadowO2(unittest.TestCase):
         self.assertIn("phase3_shadow_combustion_o2_rejected_kg", SYSTEM)
         self.assertIn("requested_o2_kg * (1.0 - accepted_fraction)", SYSTEM)
         self.assertIn("mask |= 2", SYSTEM)
-        self.assertNotIn("mask |= 4", SYSTEM)
 
     def test_csv_fields_are_shadow_gated(self):
         for field in (

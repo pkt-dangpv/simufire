@@ -5,12 +5,42 @@ const FuelObjectModelScript = preload("res://sim/fire/FuelObjectModel.gd")
 const FireModelScript = preload("res://sim/fire/FireModel.gd")
 const CombustionRegimeClassifierScript = preload("res://sim/fire/CombustionRegimeClassifier.gd")
 
+var _phase3_shadow_species_results: Array[Dictionary] = []
+
 # ============================================================
 # COMBUSTION SYSTEM
 # ------------------------------------------------------------
 # Punto de entrada para migrar desde "un fuego por sala" a
 # "muchos objetos combustibles por sala".
 # ============================================================
+
+
+func begin_phase3_shadow_step() -> void:
+	_phase3_shadow_species_results.clear()
+
+
+func drain_phase3_shadow_species_results() -> Array[Dictionary]:
+	var results: Array[Dictionary] = _phase3_shadow_species_results.duplicate(true)
+	_phase3_shadow_species_results.clear()
+	return results
+
+
+func _apply_species_generation_result(room: RoomModel, result: Dictionary) -> void:
+	var total: Dictionary = result.get("total_species_kg", {})
+	var upper: Dictionary = result.get("upper_species_kg", {})
+	var co_kg: float = maxf(0.0, float(total.get("co", 0.0)))
+	var co2_kg: float = maxf(0.0, float(total.get("co2", 0.0)))
+	var hcn_kg: float = maxf(0.0, float(total.get("hcn", 0.0)))
+	room.co_generated_kg_step = co_kg
+	room.co2_generated_kg_step = co2_kg
+	room.hcn_generated_kg_step = hcn_kg
+	room.co_generated_kg_total += co_kg
+	room.co_kg += co_kg
+	room.co_upper_kg += maxf(0.0, float(upper.get("co", 0.0)))
+	room.co2_kg += co2_kg
+	room.co2_upper_kg += maxf(0.0, float(upper.get("co2", 0.0)))
+	room.hcn_kg += hcn_kg
+	room.hcn_upper_kg += maxf(0.0, float(upper.get("hcn", 0.0)))
 
 
 func ensure_room_fuel_objects(room: RoomModel) -> void:
@@ -806,12 +836,6 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		room.c_balance_frac = c_produced / c_avail_kg
 	else:
 		room.c_balance_frac = 0.0
-	# SF-DIAG: generación por paso — exportada al CSV para auditar balance CO/CO2/HCN.
-	room.co_generated_kg_step = generated_co_kg
-	room.co2_generated_kg_step = generated_co2_kg
-	room.hcn_generated_kg_step = generated_hcn_kg
-	room.co_generated_kg_total += generated_co_kg
-
 	# SF-D2: tracking estequiométrico de O2 (Thornton, default-off).
 	# OxygenExchangeSystem ya aplica esta tasa sobre o2_upper (líneas 386-395) y room.o2
 	# (línea 356) usando fire.o2_consumption_kg_per_MJ. Aquí solo contabilizamos para
@@ -850,12 +874,30 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 				_p2g_apply = true
 		if _p2g_apply:
 			_p2g_upper_frac = 1.0 - clampf(_p2g_frac, 0.0, 1.0)
-	room.co_kg += generated_co_kg
-	room.co_upper_kg += generated_co_kg * _p2g_upper_frac
-	room.co2_kg += generated_co2_kg
-	room.co2_upper_kg += generated_co2_kg  # generado en capa superior (2026-05-17)
-	room.hcn_kg += generated_hcn_kg
-	room.hcn_upper_kg += generated_hcn_kg  # generado en capa superior (2026-05-17)
+	var species_generation_result: Dictionary = {
+		"cause": "combustion_species_source",
+		"room_id": room.id,
+		# Preserve the exact post-clamp legacy totals; upper/lower are the zonal split.
+		"total_species_kg": {
+			"co": generated_co_kg,
+			"co2": generated_co2_kg,
+			"hcn": generated_hcn_kg,
+		},
+		"upper_species_kg": {
+			"co": generated_co_kg * _p2g_upper_frac,
+			"co2": generated_co2_kg,
+			"hcn": generated_hcn_kg,
+		},
+		"lower_species_kg": {
+			"co": generated_co_kg * (1.0 - _p2g_upper_frac),
+			"co2": 0.0,
+			"hcn": 0.0,
+		},
+	}
+	if bool(context.get("phase3_canonical_zone_shadow_enabled", false)):
+		# F3.0d: registrar el resultado post-clamp antes de cualquier write de especies.
+		_phase3_shadow_species_results.append(species_generation_result.duplicate(true))
+	_apply_species_generation_result(room, species_generation_result)
 
 	fire.remaining_fuel_MJ = maxf(0.0, fire.remaining_fuel_MJ - solid_fuel_demand_MJ)
 	# SF-E1: capturar consumo de combustible sólido para auditoría de balance energético.

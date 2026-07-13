@@ -971,6 +971,9 @@ class TestPerStepDiagnosticInstrumentation(unittest.TestCase):
         cls.logwriter_src = _load(_LOG_WRITER)
         cls.reset_body   = _extract_function_body(cls.room_src, "reset_dynamic_state")
         cls.step_fire_body = _extract_function_body(cls.combustion_src, "step_room_fire")
+        cls.apply_species_body = _extract_function_body(
+            cls.combustion_src, "_apply_species_generation_result"
+        )
 
     # ── RoomModel field declarations ──────────────────────────────────────────
 
@@ -1054,45 +1057,47 @@ class TestPerStepDiagnosticInstrumentation(unittest.TestCase):
         pos_zero_co  = self.step_fire_body.find("room.co_generated_kg_step = 0.0")
         pos_zero_co2 = self.step_fire_body.find("room.co2_generated_kg_step = 0.0")
         pos_zero_hcn = self.step_fire_body.find("room.hcn_generated_kg_step = 0.0")
-        pos_assign   = self.step_fire_body.find("room.co_generated_kg_step = generated_co_kg")
+        pos_apply    = self.step_fire_body.find(
+            "_apply_species_generation_result(room, species_generation_result)"
+        )
         self.assertGreater(pos_zero_co, -1,
                            "No-fire branch must zero co_generated_kg_step")
         self.assertGreater(pos_zero_co2, -1,
                            "No-fire branch must zero co2_generated_kg_step")
         self.assertGreater(pos_zero_hcn, -1,
                            "No-fire branch must zero hcn_generated_kg_step")
-        # All zeroing must precede the active-fire assignment
-        self.assertLess(pos_zero_co, pos_assign,
-                        "Zeroing must appear before active-fire assignment in function text")
+        # All zeroing must precede application of the post-clamp active-fire result.
+        self.assertLess(pos_zero_co, pos_apply,
+                        "Zeroing must appear before active-fire result application")
 
     # ── CombustionSystem — active-fire branch assigns post-clamp values ───────
 
     def test_combustion_sets_co_generated_kg_step_in_fire_branch(self):
-        """step_room_fire() must assign room.co_generated_kg_step = generated_co_kg after clamp."""
+        """The shared post-clamp result must set the CO per-step diagnostic."""
         self.assertIn(
-            "room.co_generated_kg_step = generated_co_kg",
-            self.step_fire_body,
-            "Active-fire branch must set co_generated_kg_step from generated_co_kg",
+            "room.co_generated_kg_step = co_kg",
+            self.apply_species_body,
+            "Species result application must set co_generated_kg_step",
         )
 
     def test_combustion_sets_co2_generated_kg_step_in_fire_branch(self):
         self.assertIn(
-            "room.co2_generated_kg_step = generated_co2_kg",
-            self.step_fire_body,
+            "room.co2_generated_kg_step = co2_kg",
+            self.apply_species_body,
         )
 
     def test_combustion_sets_hcn_generated_kg_step_in_fire_branch(self):
         self.assertIn(
-            "room.hcn_generated_kg_step = generated_hcn_kg",
-            self.step_fire_body,
+            "room.hcn_generated_kg_step = hcn_kg",
+            self.apply_species_body,
         )
 
     def test_combustion_assignment_appears_after_c_balance_frac(self):
         """Generated-step fields must be set AFTER the carbon-balance clamp block."""
         pos_frac = self.step_fire_body.find("room.c_balance_frac")
-        pos_gen  = self.step_fire_body.find("room.co_generated_kg_step = generated_co_kg")
+        pos_gen  = self.step_fire_body.find("var species_generation_result")
         self.assertGreater(pos_frac, -1, "step_room_fire must set c_balance_frac")
-        self.assertGreater(pos_gen,  -1, "step_room_fire must set co_generated_kg_step")
+        self.assertGreater(pos_gen,  -1, "step_room_fire must build the species result")
         self.assertGreater(pos_gen, pos_frac,
                            "co_generated_kg_step must be assigned after c_balance_frac")
 
@@ -1124,11 +1129,11 @@ class TestPerStepDiagnosticInstrumentation(unittest.TestCase):
                         "_co_pre_transport must be captured before room.co_kg update")
 
     def test_combustion_increments_co_generated_kg_total(self):
-        """step_room_fire() must increment room.co_generated_kg_total += generated_co_kg."""
+        """The shared result must increment the canonical CO generation total."""
         self.assertIn(
-            "room.co_generated_kg_total += generated_co_kg",
-            self.step_fire_body,
-            "Active-fire branch must accumulate co_generated_kg_total",
+            "room.co_generated_kg_total += co_kg",
+            self.apply_species_body,
+            "Species result application must accumulate co_generated_kg_total",
         )
 
     def test_gas_exchange_increments_co_net_transport_kg_total(self):

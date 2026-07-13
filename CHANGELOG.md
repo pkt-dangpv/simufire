@@ -3,6 +3,19 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0d combustion species shadow contract (2026-07-13)
+
+- Added one immutable post-carbon-clamp combustion result for CO, CO2 and HCN.
+  The same object supplies exact legacy totals and the canonical upper/lower
+  shadow split, so Engine does not reconstruct yields, phi scaling or clamps.
+- CO follows the existing Phase 2G upper/lower split; CO2 and HCN enter the
+  upper zone. The OES CO2 tracer, smoke and irritants remain out of scope.
+- Added species request telemetry and ownership bit `4`. A 60 s OFF/ON run
+  retained 42 rows and 115 identical legacy columns; CO, CO2 and HCN requests
+  were nonzero with zero rejected mass or duplicate ownership.
+- Verified a 720 s ventilation-controlled control and preserved all 7 known
+  zero-O2 flame hits. F3.0d observes the legacy defect but does not fix it.
+
 ### Phase 3+ F3.0c zonal oxygen shadow contract (2026-07-13)
 
 - Added pre-mutation O2-only shadow results for upper, explicit-lower and

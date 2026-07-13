@@ -1382,6 +1382,36 @@ func _phase3_shadow_collect_oxygen_requests() -> void:
 		)
 
 
+func _phase3_shadow_collect_species_requests() -> void:
+	for result in combustion_system.drain_phase3_shadow_species_results():
+		var room_id: int = int(result.get("room_id", -1))
+		var cause: String = String(result.get("cause", "combustion_species_source"))
+		for zone_name in ["upper", "lower"]:
+			var species: Dictionary = result.get(zone_name + "_species_kg", {})
+			var species_total_kg: float = 0.0
+			for species_name in species.keys():
+				species_total_kg += maxf(0.0, float(species[species_name]))
+			if species_total_kg <= 0.0:
+				continue
+			var request_id: String = "%s:%d:%s:%.6f" % [
+				cause, room_id, zone_name, sim_time_s
+			]
+			phase3_zone_mass_system.add_request(
+				phase3_zone_mass_system.make_request(
+					request_id,
+					cause,
+					phase3_zone_mass_system.EXTERIOR_ID,
+					room_id,
+					zone_name,
+					zone_name,
+					0.0,
+					0.0,
+					0.0,
+					species
+				)
+			)
+
+
 func _build_state_context() -> Dictionary:
 	return {
 		"building": building,
@@ -1722,7 +1752,11 @@ func step(delta: float) -> void:
 		if phase3_canonical_zone_shadow_enabled:
 			_phase3_shadow_collect_oxygen_requests()
 		_phase3_zone_diag_record_stage("oxygen_exchange")
+	if phase3_canonical_zone_shadow_enabled:
+		combustion_system.begin_phase3_shadow_step()
 	_step_fire(dt)
+	if phase3_canonical_zone_shadow_enabled:
+		_phase3_shadow_collect_species_requests()
 	_step_co_oxidation(dt)
 	_step_targets(dt)
 	_phase3_zone_diag_record_stage("combustion")
@@ -1961,6 +1995,7 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"fire_post_bd_hrr_cut_enabled": fire_post_bd_hrr_cut_enabled,
 		# SF-D2: consumo estequiométrico O2 (default-off).
 		"fire_o2_stoich_consumption_enabled": fire_o2_stoich_consumption_enabled,
+		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 	}
 
 # ============================================================
