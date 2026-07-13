@@ -138,9 +138,37 @@ The 720 s `wood_vc_reference` control produced all three species with zero
 duplicates. `cfast_multi_fuel_couch_tv` retained all 7 known zero-O2 flame
 hits, so this contract does not hide or fix zombie ILV.
 
+## F3.0e direct doorway species transport
+
+The owned path is the immediate canonical two-zone opening exchange only.
+`_move_upper_zone_species` and `_move_lower_zone_species` create one
+`doorway_species_direct` result containing source/destination room, explicit
+zones and CO/CO2/HCN masses. GasExchangeSystem records it before applying the
+same result to legacy delta dictionaries. Engine drains and translates it
+without transport physics.
+
+Explicit exclusions are background/counterflow exchange, exterior purge,
+HVAC, thermal transport, parcel carve and delayed parcel delivery. In
+particular, no request is derived from `*_net_transport_kg_step`, final stocks
+or the in-flight ledger.
+
+Runtime proof:
+
+| Check | Result |
+|---|---|
+| Checkpoint vs OFF | 42 rows x 115 columns, 0 differences |
+| OFF vs ON | 42 rows x 115 shared columns, 0 differences |
+| Two-room CO / CO2 transfer | source and destination values identical |
+| Doorway species rejection | 0 kg |
+| Duplicate owner flag | 0 |
+| Corridor control | all 6 rooms receive nontrivial direct telemetry |
+| Remote-CO control | direct requests nonzero; missing-owner residual remains |
+| Zombie ILV | 7 hits, unchanged |
+
 ## Next STOP gate
 
-F3.0e should connect a single explicit species transport producer. Start with
-direct doorway transfer and preserve exact source-zone inventory limiting.
-Delayed parcels must use a separate cause/request identity. Do not reconstruct
-transport from per-step accumulators or before/after stock differences.
+F3.0f must design a persistent canonical transit reservoir before delayed
+parcels can be owned. The current shadow state resets each step, while parcel
+carve and delivery occur in different steps. The next design must preserve one
+parcel identity across source-to-transit and transit-to-destination events,
+including refund/headroom handling, without pretending it is immediate flow.

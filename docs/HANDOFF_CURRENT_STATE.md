@@ -6,6 +6,26 @@ Date: 2026-07-13.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-13 - F3.0e direct doorway species transport
+
+- The owned producer is only `_apply_two_zone_opening_species_exchange` through
+  `_move_upper_zone_species` / `_move_lower_zone_species`. Each route emits one
+  `doorway_species_direct` result with explicit source/destination zones and
+  CO/CO2/HCN masses before applying it to the legacy delta dictionaries.
+- Background exchange, exterior purge, HVAC, thermal transport, parcel carve
+  and delayed delivery remain excluded. Engine reads no net-transport
+  accumulator, post-step stock, headroom formula or parcel queue.
+- Exact checkpoint proof: 42 rows x 115 columns, checkpoint vs OFF = 0
+  differences and OFF vs ON = 0 differences. Two-room source/destination
+  telemetry matched exactly; rejection and duplicate ownership were zero.
+- Corridor and v4 controls produced nontrivial doorway requests. In v4,
+  `needs_flux_owner` remains set in all rooms because direct doorway ownership
+  intentionally explains only part of legacy transport.
+- Zombie ILV remains unchanged: 7 hits from 120-180 s.
+- Next gate is F3.0f design for a persistent in-flight parcel reservoir. The
+  current per-step shadow cannot own delayed transport honestly without state
+  that survives between transactions.
+
 ## Current Session Update - 2026-07-13 - F3.0d species source contract
 
 - `CombustionSystem` now creates one post-clamp result containing exact total

@@ -1145,6 +1145,7 @@ func _sync_auxiliary_services() -> void:
 	gas_exchange_system.configure({
 		"o2_nominal": o2_nominal,
 		"phase3_zone_diagnostics_enabled": phase3_zone_diagnostics_enabled,
+		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"window_leakage_area_m2": window_leakage_area_m2,
 		"pressure_vent_threshold_pa": pressure_vent_threshold_pa,
 		"ach_infiltration": ach_infiltration,
@@ -1410,6 +1411,30 @@ func _phase3_shadow_collect_species_requests() -> void:
 					species
 				)
 			)
+
+
+func _phase3_shadow_collect_doorway_species_requests() -> void:
+	for result in gas_exchange_system.drain_phase3_shadow_doorway_species_results():
+		var species: Dictionary = result.get("species_kg", {})
+		var species_total_kg: float = 0.0
+		for species_name in species.keys():
+			species_total_kg += maxf(0.0, float(species[species_name]))
+		if species_total_kg <= 0.0:
+			continue
+		phase3_zone_mass_system.add_request(
+			phase3_zone_mass_system.make_request(
+				String(result.get("request_id", "")),
+				String(result.get("cause", "doorway_species_direct")),
+				int(result.get("source_room_id", -1)),
+				int(result.get("destination_room_id", -1)),
+				String(result.get("source_zone", "upper")),
+				String(result.get("destination_zone", "upper")),
+				0.0,
+				0.0,
+				0.0,
+				species
+			)
+		)
 
 
 func _build_state_context() -> Dictionary:
@@ -1785,7 +1810,11 @@ func step(delta: float) -> void:
 		for broken_idx in glass_failure_system.newly_broken_indices:
 			_log_opening_event(broken_idx, "glass_break")
 	_phase3_zone_diag_record_stage("suppression")
+	if phase3_canonical_zone_shadow_enabled:
+		gas_exchange_system.begin_phase3_shadow_step()
 	_step_gas_exchange(dt)
+	if phase3_canonical_zone_shadow_enabled:
+		_phase3_shadow_collect_doorway_species_requests()
 	_phase3_zone_diag_record_stage("gas_exchange")
 	_step_hvac(dt)
 	_phase3_zone_diag_record_stage("hvac")

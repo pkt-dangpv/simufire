@@ -123,6 +123,20 @@ That would make the ledger circular.
   and 115 columns. A VC control reached ownership mask 7 with zero duplicates;
   the zombie-ILV control retained all 7 known hits.
 
+## F3.0e delivered
+
+- Ownership is limited to the immediate canonical two-zone opening path.
+  GasExchangeSystem computes one `doorway_species_direct` object with explicit
+  source/destination zones, records it pre-mutation and applies the same object
+  to legacy CO/CO2/HCN delta dictionaries.
+- Engine performs translation only. It contains no opening-flow, concentration,
+  headroom, cut-ratio, parcel or net-transport formulas.
+- Background/counterflow, exterior purge, HVAC, thermal transport and all
+  delayed parcel paths remain unowned and visible through residuals.
+- Exact checkpoint/OFF/ON proof: 42 rows, 115 legacy columns, zero differences.
+  Two-room, corridor and remote-CO controls had nontrivial requests, zero
+  rejected species and zero duplicate ownership. Zombie ILV retained 7 hits.
+
 ## STOP gate for F3.0
 
 Required before commit:
@@ -152,7 +166,8 @@ Rollback the F3.0 attempt if:
 
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0e species transport ownership. Start with the direct
-doorway transfer in `GasExchangeSystem`, emit the exact pre-mutation zonal
-transfer once, and keep delayed parcels as a distinct cause. Do not infer any
-request from `*_net_transport_kg_step` or post-step stock differences.
+Use GPT-5.6 Sol for F3.0f delayed-parcel ownership design. First decide how a
+canonical in-flight reservoir persists across per-step shadow transactions.
+Model parcel carve and delivery as separate events with one identity; do not
+collapse them into a same-step room-to-room request or infer them from final
+stocks. No implementation until that persistence contract passes a STOP gate.

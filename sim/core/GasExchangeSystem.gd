@@ -88,6 +88,7 @@ var two_zone_opening_flow_enabled: bool = false
 # Phase 3+ F2.0: ledger acumulativo de flujos de masa zonal (parcels/background).
 # Solo instrumentación pasiva; sin efecto físico. Default false = no-op.
 var phase3_zone_diagnostics_enabled: bool = false
+var phase3_canonical_zone_shadow_enabled: bool = false
 # Phase 3: modelo de presión termodinámica — ODE campo paralelo.
 # Cuando false (default): no-op, no toca room.pressure_pa_therm ni room.overpressure_pa.
 # Cuando true: integra dP/dt = (gamma-1)/V * Q_conv - Cd*A_eff/V * P_atm * sqrt(2P/rho)
@@ -108,6 +109,8 @@ var phase3_leak_area_m2: float = 0.0
 var phase3_chi_conv: float = 0.70
 var _pending_interior_deliveries: Array[Dictionary] = []
 var _inflight_species_kg: Dictionary = {}
+var _phase3_shadow_doorway_species_results: Array[Dictionary] = []
+var _phase3_shadow_doorway_species_sequence: int = 0
 
 
 func configure(settings: Dictionary) -> void:
@@ -190,6 +193,9 @@ func configure(settings: Dictionary) -> void:
 	doorway_o2_counterflow_coeff = float(settings.get("doorway_o2_counterflow_coeff", doorway_o2_counterflow_coeff))
 	two_zone_opening_flow_enabled = bool(settings.get("two_zone_opening_flow_enabled", two_zone_opening_flow_enabled))
 	phase3_zone_diagnostics_enabled = bool(settings.get("phase3_zone_diagnostics_enabled", phase3_zone_diagnostics_enabled))
+	phase3_canonical_zone_shadow_enabled = bool(
+		settings.get("phase3_canonical_zone_shadow_enabled", phase3_canonical_zone_shadow_enabled)
+	)
 	phase3_thermodynamic_pressure_enabled = bool(
 		settings.get("phase3_thermodynamic_pressure_enabled", phase3_thermodynamic_pressure_enabled)
 	)
@@ -320,6 +326,70 @@ func _equalize_thermodynamic_pressure_components(building: BuildingModel) -> voi
 func reset() -> void:
 	_pending_interior_deliveries.clear()
 	_inflight_species_kg.clear()
+	_phase3_shadow_doorway_species_results.clear()
+	_phase3_shadow_doorway_species_sequence = 0
+
+
+func begin_phase3_shadow_step() -> void:
+	_phase3_shadow_doorway_species_results.clear()
+	_phase3_shadow_doorway_species_sequence = 0
+
+
+func drain_phase3_shadow_doorway_species_results() -> Array[Dictionary]:
+	var results: Array[Dictionary] = _phase3_shadow_doorway_species_results.duplicate(true)
+	_phase3_shadow_doorway_species_results.clear()
+	return results
+
+
+func _record_phase3_shadow_doorway_species_result(result: Dictionary) -> void:
+	if not phase3_canonical_zone_shadow_enabled:
+		return
+	var recorded: Dictionary = result.duplicate(true)
+	recorded["request_id"] = "doorway_species_direct:%d:%d:%s:%s:%d" % [
+		int(recorded.get("source_room_id", -1)),
+		int(recorded.get("destination_room_id", -1)),
+		String(recorded.get("source_zone", "upper")),
+		String(recorded.get("destination_zone", "upper")),
+		_phase3_shadow_doorway_species_sequence,
+	]
+	_phase3_shadow_doorway_species_sequence += 1
+	_phase3_shadow_doorway_species_results.append(recorded)
+
+
+func _apply_doorway_species_result(
+	result: Dictionary,
+	co_delta_kg: Dictionary,
+	co_upper_delta_kg: Dictionary,
+	co2_delta_kg: Dictionary,
+	co2_upper_delta_kg: Dictionary,
+	hcn_delta_kg: Dictionary,
+	hcn_upper_delta_kg: Dictionary
+) -> void:
+	var source_id: int = int(result.get("source_room_id", -1))
+	var destination_id: int = int(result.get("destination_room_id", -1))
+	var source_zone: String = String(result.get("source_zone", "upper"))
+	var destination_zone: String = String(result.get("destination_zone", "upper"))
+	var species: Dictionary = result.get("species_kg", {})
+	var moved_co_kg: float = float(species.get("co", 0.0))
+	var moved_co2_kg: float = float(species.get("co2", 0.0))
+	var moved_hcn_kg: float = float(species.get("hcn", 0.0))
+	_add_delta(co_delta_kg, source_id, -moved_co_kg)
+	_add_delta(co_delta_kg, destination_id, moved_co_kg)
+	_add_delta(co2_delta_kg, source_id, -moved_co2_kg)
+	_add_delta(co2_delta_kg, destination_id, moved_co2_kg)
+	if not hcn_delta_kg.is_empty():
+		_add_delta(hcn_delta_kg, source_id, -moved_hcn_kg)
+		_add_delta(hcn_delta_kg, destination_id, moved_hcn_kg)
+	if source_zone == "upper":
+		_add_delta(co_upper_delta_kg, source_id, -moved_co_kg)
+		_add_delta(co2_upper_delta_kg, source_id, -moved_co2_kg)
+		if not hcn_upper_delta_kg.is_empty():
+			_add_delta(hcn_upper_delta_kg, source_id, -moved_hcn_kg)
+	if destination_zone == "upper":
+		_add_delta(co_upper_delta_kg, destination_id, moved_co_kg)
+		_add_delta(co2_upper_delta_kg, destination_id, moved_co2_kg)
+		if not hcn_upper_delta_kg.is_empty():
+			_add_delta(hcn_upper_delta_kg, destination_id, moved_hcn_kg)
 
 
 func get_pending_carbon_kg() -> float:
@@ -2051,26 +2121,32 @@ func _move_upper_zone_species(
 	_record_smoke_net_transport(from_r, to_r, moved_smoke_kg)
 
 	var moved_co_kg: float = minf(clampf(from_r.co_upper_kg, 0.0, from_r.co_kg) * frac, from_r.co_kg)
-	_add_delta(co_delta_kg, from_r.id, -moved_co_kg)
-	_add_delta(co_delta_kg, to_r.id, moved_co_kg)
-	_add_delta(co_upper_delta_kg, from_r.id, -moved_co_kg)
-	if target_upper_zone:
-		_add_delta(co_upper_delta_kg, to_r.id, moved_co_kg)
-
 	var moved_co2_kg: float = minf(clampf(from_r.co2_upper_kg, 0.0, from_r.co2_kg) * frac, from_r.co2_kg)
-	_add_delta(co2_delta_kg, from_r.id, -moved_co2_kg)
-	_add_delta(co2_delta_kg, to_r.id, moved_co2_kg)
-	_add_delta(co2_upper_delta_kg, from_r.id, -moved_co2_kg)
-	if target_upper_zone:
-		_add_delta(co2_upper_delta_kg, to_r.id, moved_co2_kg)
-
+	var moved_hcn_kg: float = 0.0
 	if not hcn_delta_kg.is_empty():
-		var moved_hcn_kg: float = minf(clampf(from_r.hcn_upper_kg, 0.0, from_r.hcn_kg) * frac, from_r.hcn_kg)
-		_add_delta(hcn_delta_kg, from_r.id, -moved_hcn_kg)
-		_add_delta(hcn_delta_kg, to_r.id, moved_hcn_kg)
-		_add_delta(hcn_upper_delta_kg, from_r.id, -moved_hcn_kg)
-		if target_upper_zone:
-			_add_delta(hcn_upper_delta_kg, to_r.id, moved_hcn_kg)
+		moved_hcn_kg = minf(clampf(from_r.hcn_upper_kg, 0.0, from_r.hcn_kg) * frac, from_r.hcn_kg)
+	var species_result: Dictionary = {
+		"cause": "doorway_species_direct",
+		"source_room_id": from_r.id,
+		"destination_room_id": to_r.id,
+		"source_zone": "upper",
+		"destination_zone": "upper" if target_upper_zone else "lower",
+		"species_kg": {
+			"co": moved_co_kg,
+			"co2": moved_co2_kg,
+			"hcn": moved_hcn_kg,
+		},
+	}
+	_record_phase3_shadow_doorway_species_result(species_result)
+	_apply_doorway_species_result(
+		species_result,
+		co_delta_kg,
+		co_upper_delta_kg,
+		co2_delta_kg,
+		co2_upper_delta_kg,
+		hcn_delta_kg,
+		hcn_upper_delta_kg
+	)
 
 	_move_unlayered_species(
 		from_r,
@@ -2109,23 +2185,32 @@ func _move_lower_zone_species(
 		return
 
 	var moved_co_kg: float = maxf(0.0, from_r.co_kg - clampf(from_r.co_upper_kg, 0.0, from_r.co_kg)) * frac
-	_add_delta(co_delta_kg, from_r.id, -moved_co_kg)
-	_add_delta(co_delta_kg, to_r.id, moved_co_kg)
-	if target_upper_zone:
-		_add_delta(co_upper_delta_kg, to_r.id, moved_co_kg)
-
 	var moved_co2_kg: float = maxf(0.0, from_r.co2_kg - clampf(from_r.co2_upper_kg, 0.0, from_r.co2_kg)) * frac
-	_add_delta(co2_delta_kg, from_r.id, -moved_co2_kg)
-	_add_delta(co2_delta_kg, to_r.id, moved_co2_kg)
-	if target_upper_zone:
-		_add_delta(co2_upper_delta_kg, to_r.id, moved_co2_kg)
-
+	var moved_hcn_kg: float = 0.0
 	if not hcn_delta_kg.is_empty():
-		var moved_hcn_kg: float = maxf(0.0, from_r.hcn_kg - clampf(from_r.hcn_upper_kg, 0.0, from_r.hcn_kg)) * frac
-		_add_delta(hcn_delta_kg, from_r.id, -moved_hcn_kg)
-		_add_delta(hcn_delta_kg, to_r.id, moved_hcn_kg)
-		if target_upper_zone:
-			_add_delta(hcn_upper_delta_kg, to_r.id, moved_hcn_kg)
+		moved_hcn_kg = maxf(0.0, from_r.hcn_kg - clampf(from_r.hcn_upper_kg, 0.0, from_r.hcn_kg)) * frac
+	var species_result: Dictionary = {
+		"cause": "doorway_species_direct",
+		"source_room_id": from_r.id,
+		"destination_room_id": to_r.id,
+		"source_zone": "lower",
+		"destination_zone": "upper" if target_upper_zone else "lower",
+		"species_kg": {
+			"co": moved_co_kg,
+			"co2": moved_co2_kg,
+			"hcn": moved_hcn_kg,
+		},
+	}
+	_record_phase3_shadow_doorway_species_result(species_result)
+	_apply_doorway_species_result(
+		species_result,
+		co_delta_kg,
+		co_upper_delta_kg,
+		co2_delta_kg,
+		co2_upper_delta_kg,
+		hcn_delta_kg,
+		hcn_upper_delta_kg
+	)
 
 	_move_unlayered_species(
 		from_r,

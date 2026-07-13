@@ -3,6 +3,20 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0e direct doorway species transport (2026-07-13)
+
+- Added canonical shadow ownership for the immediate two-zone doorway transfer
+  of CO, CO2 and HCN. GasExchangeSystem records one zonal result before applying
+  that exact object to legacy transport deltas; Engine only translates it.
+- Kept background exchange, exterior purge, HVAC, thermal transport and the
+  delayed parcel conveyor explicitly unowned. Their residuals remain visible.
+- Added doorway request/rejection telemetry. A controlled checkpoint/OFF/ON run
+  retained 42 rows and 115 identical legacy columns, with matching source and
+  destination species, zero rejection and zero duplicate ownership.
+- Multi-room and remote-CO controls produced nontrivial direct requests while
+  `needs_flux_owner` remained active for excluded transport. All 7 known
+  zero-O2 flame hits remain unchanged.
+
 ### Phase 3+ F3.0d combustion species shadow contract (2026-07-13)
 
 - Added one immutable post-carbon-clamp combustion result for CO, CO2 and HCN.

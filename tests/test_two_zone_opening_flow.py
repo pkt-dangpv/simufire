@@ -71,24 +71,31 @@ class TestTwoZoneOpeningStructure(unittest.TestCase):
 
     def test_upper_path_routes_upper_species_to_resolved_destination_zone(self):
         body = GAS.split("func _move_upper_zone_species(", 1)[1].split("\nfunc ", 1)[0]
+        apply_body = GAS.split("func _apply_doorway_species_result(", 1)[1].split("\nfunc ", 1)[0]
         self.assertIn("target_upper_zone: bool", body)
         self.assertIn("clampf(from_r.co_upper_kg, 0.0, from_r.co_kg) * frac", body)
-        self.assertIn("_add_delta(co_upper_delta_kg, from_r.id, -moved_co_kg)", body)
-        self.assertIn("if target_upper_zone:", body)
-        self.assertIn("_add_delta(co_upper_delta_kg, to_r.id, moved_co_kg)", body)
-        self.assertIn("_add_delta(co2_upper_delta_kg, to_r.id, moved_co2_kg)", body)
-        self.assertIn("_add_delta(hcn_upper_delta_kg, to_r.id, moved_hcn_kg)", body)
+        self.assertIn('"source_zone": "upper"', body)
+        self.assertIn('"destination_zone": "upper" if target_upper_zone else "lower"', body)
+        self.assertIn('if source_zone == "upper":', apply_body)
+        self.assertIn('_add_delta(co_upper_delta_kg, source_id, -moved_co_kg)', apply_body)
+        self.assertIn('if destination_zone == "upper":', apply_body)
+        self.assertIn("_add_delta(co_upper_delta_kg, destination_id, moved_co_kg)", apply_body)
+        self.assertIn("_add_delta(co2_upper_delta_kg, destination_id, moved_co2_kg)", apply_body)
+        self.assertIn("_add_delta(hcn_upper_delta_kg, destination_id, moved_hcn_kg)", apply_body)
 
     def test_lower_path_routes_lower_species_to_resolved_destination_zone(self):
         body = GAS.split("func _move_lower_zone_species(", 1)[1].split("\nfunc ", 1)[0]
+        apply_body = GAS.split("func _apply_doorway_species_result(", 1)[1].split("\nfunc ", 1)[0]
         self.assertIn("target_upper_zone: bool", body)
         self.assertIn("from_r.co_kg - clampf(from_r.co_upper_kg", body)
         self.assertIn("from_r.co2_kg - clampf(from_r.co2_upper_kg", body)
         self.assertNotIn("_add_delta(co_upper_delta_kg, from_r.id", body)
-        self.assertIn("if target_upper_zone:", body)
-        self.assertIn("_add_delta(co_upper_delta_kg, to_r.id, moved_co_kg)", body)
-        self.assertIn("_add_delta(co2_upper_delta_kg, to_r.id, moved_co2_kg)", body)
-        self.assertIn("_add_delta(hcn_upper_delta_kg, to_r.id, moved_hcn_kg)", body)
+        self.assertIn('"source_zone": "lower"', body)
+        self.assertIn('"destination_zone": "upper" if target_upper_zone else "lower"', body)
+        self.assertIn('if destination_zone == "upper":', apply_body)
+        self.assertIn("_add_delta(co_upper_delta_kg, destination_id, moved_co_kg)", apply_body)
+        self.assertIn("_add_delta(co2_upper_delta_kg, destination_id, moved_co2_kg)", apply_body)
+        self.assertIn("_add_delta(hcn_upper_delta_kg, destination_id, moved_hcn_kg)", apply_body)
 
     def test_opening_segment_route_uses_neutral_plane_and_vertical_floor_context(self):
         self.assertIn("func _resolve_opening_segment_route(", GAS)

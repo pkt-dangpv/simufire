@@ -77,8 +77,15 @@ func finalize_step(building) -> void:
 	var shadow: Dictionary = _snapshots.duplicate(true)
 	var rejected_by_room: Dictionary = {}
 	var rejected_combustion_o2_by_room: Dictionary = {}
+	var rejected_doorway_species_by_room: Dictionary = {}
 	for request in _requests:
-		_apply_request(shadow, request, rejected_by_room, rejected_combustion_o2_by_room)
+		_apply_request(
+			shadow,
+			request,
+			rejected_by_room,
+			rejected_combustion_o2_by_room,
+			rejected_doorway_species_by_room
+		)
 	if building == null:
 		return
 	for room_key in shadow.keys():
@@ -135,6 +142,18 @@ func finalize_step(building) -> void:
 			# Combustion species originate in the exterior reservoir, so inventory
 			# limiting cannot reject them. Keep the field explicit for future caps.
 			"phase3_shadow_combustion_species_rejected_kg": 0.0,
+			"phase3_shadow_doorway_co_request_kg": _sum_room_cause_species(
+				room_id, "doorway_species_direct", "co"
+			),
+			"phase3_shadow_doorway_co2_request_kg": _sum_room_cause_species(
+				room_id, "doorway_species_direct", "co2"
+			),
+			"phase3_shadow_doorway_hcn_request_kg": _sum_room_cause_species(
+				room_id, "doorway_species_direct", "hcn"
+			),
+			"phase3_shadow_doorway_species_rejected_kg": float(
+				rejected_doorway_species_by_room.get(room_key, 0.0)
+			),
 			# Bit mask: energy=1, O2=2, species=4. Bulk O2 remains unowned.
 			"phase3_shadow_combustion_owned_mask": _combustion_owned_mask(room_id),
 			"phase3_shadow_owned_cause_count": _count_room_causes(room_id),
@@ -182,7 +201,8 @@ func _apply_request(
 		shadow: Dictionary,
 		request: Dictionary,
 		rejected_by_room: Dictionary,
-		rejected_combustion_o2_by_room: Dictionary
+		rejected_combustion_o2_by_room: Dictionary,
+		rejected_doorway_species_by_room: Dictionary
 	) -> void:
 	var source_id: int = int(request.get("source_room_id", EXTERIOR_ID))
 	var destination_id: int = int(request.get("destination_room_id", EXTERIOR_ID))
@@ -228,6 +248,15 @@ func _apply_request(
 				rejected_combustion_o2_by_room[source_key] = float(
 					rejected_combustion_o2_by_room.get(source_key, 0.0)
 				) + requested_o2_kg * (1.0 - accepted_fraction)
+			if String(request.get("cause", "")) == "doorway_species_direct":
+				var rejected_species_kg: float = 0.0
+				for species_name in requested_species.keys():
+					rejected_species_kg += maxf(
+						0.0, float(requested_species[species_name])
+					) * (1.0 - accepted_fraction)
+				rejected_doorway_species_by_room[source_key] = float(
+					rejected_doorway_species_by_room.get(source_key, 0.0)
+				) + rejected_species_kg
 	if destination_id != EXTERIOR_ID:
 		var destination_key: String = str(destination_id)
 		var destination: Dictionary = shadow.get(destination_key, {})
