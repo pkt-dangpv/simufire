@@ -1,10 +1,38 @@
 # Current Handoff State
 
-Date: 2026-07-13.
+Date: 2026-07-14.
 
 ## Purpose
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
+
+## Current Session Update - 2026-07-14 - F3.0f persistent parcel reservoir
+
+- Delayed CO/CO2/HCN parcels now carry a monotonic shadow id from carve through
+  delivery. The id and reservoir exist only with
+  `phase3_canonical_zone_shadow_enabled`; OFF remains bit-identical.
+- `GasExchangeSystem` emits exact `created`, `resolved` and `cancelled` events.
+  Resolution carries delivered and refunded total/upper species after the
+  existing headroom calculation. `Phase3ZoneMassSystem` persists the reservoir
+  across `begin_step` and generates separate upper/lower shadow requests.
+- This is not a physical ownership switch: no `RoomModel` state, transport
+  coefficient, headroom rule, FED path or timestep ordering changed.
+- Runtime conservation:
+  - two-room: created 0.039121 kg, delivered 0.014704 kg, in flight 0.024417 kg;
+  - corridor: created 1.408540 kg, delivered 1.031483 kg, refunded 0.000152 kg,
+    in flight 0.376905 kg;
+  - v4 remote CO: created 6.718308 kg, delivered 5.121284 kg, refunded
+    0.095449 kg, in flight 1.501574 kg.
+- All three controls had zero conservation residual, zero zonal rejection,
+  zero orphan deliveries, duplicate ids or negative balances. OFF vs ON kept
+  all 115 legacy columns identical; ON now has 157 columns total.
+- Safety controls are unchanged: sealed case creates zero parcels, victim
+  incapacitation remains 206.1 s, and zombie ILV remains at 7 hits.
+- Exclusions remain explicit: smoke, HCl, acrolein, formaldehyde, O2, parcel gas
+  mass/energy, background exchange, purge, HVAC and thermal transport.
+- Next gate: F3.0g should select one remaining explicit species transport
+  producer, preferably background/counterflow exchange, and reuse its exact
+  pre-mutation result. Do not promote shadow state to physical authority yet.
 
 ## Current Session Update - 2026-07-13 - F3.0e direct doorway species transport
 

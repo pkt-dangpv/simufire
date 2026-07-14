@@ -3,6 +3,25 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0f persistent delayed-species reservoir (2026-07-14)
+
+- Added a shadow-only persistent reservoir for delayed CO, CO2 and HCN
+  parcels. A monotonic parcel id now links carve, multi-step transit,
+  delivery, headroom refund and cancellation without changing legacy physics.
+- Preserved the exact legacy upper/lower species split as separate shadow
+  requests. Engine only forwards lifecycle events; it contains no transport or
+  headroom formulas.
+- Added opt-in telemetry for in-flight species, cumulative lifecycle totals,
+  active parcels, rejected zonal requests, orphan/duplicate/negative events and
+  the conservation residual. Smoke, irritants, O2 and gas/energy parcels remain
+  outside this contract.
+- Checkpoint/OFF/ON validation retained 42 rows and 115 identical legacy
+  columns. Two-room, corridor and remote-CO controls closed with zero residual,
+  zero rejected zonal mass and zero lifecycle anomalies; v4 exercised 0.095 kg
+  of real headroom refunds.
+- The sealed control created no parcels, victim incapacitation remained at
+  206.1 s and all 7 known zero-O2 flame hits remain visible.
+
 ### Phase 3+ F3.0e direct doorway species transport (2026-07-13)
 
 - Added canonical shadow ownership for the immediate two-zone doorway transfer

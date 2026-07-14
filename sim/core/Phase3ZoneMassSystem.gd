@@ -6,15 +6,36 @@ class_name Phase3ZoneMassSystem
 const ZONE_UPPER: String = "upper"
 const ZONE_LOWER: String = "lower"
 const EXTERIOR_ID: int = -1
+const TRANSIT_SPECIES: Array[String] = ["co", "co2", "hcn"]
 
 var _snapshots: Dictionary = {}
 var _requests: Array[Dictionary] = []
 var _request_ids: Dictionary = {}
 var _duplicate_owner_count: int = 0
 var _results: Dictionary = {}
+var _species_transit_reservoir: Dictionary = {}
+var _species_transit_created_kg: Dictionary = {}
+var _species_transit_delivered_kg: Dictionary = {}
+var _species_transit_refunded_kg: Dictionary = {}
+var _species_transit_cancelled_kg: Dictionary = {}
+var _species_transit_orphan_delivery_count: int = 0
+var _species_transit_duplicate_id_count: int = 0
+var _species_transit_negative_balance_count: int = 0
 
 
 func reset() -> void:
+	_reset_step_state()
+	_species_transit_reservoir.clear()
+	_species_transit_created_kg.clear()
+	_species_transit_delivered_kg.clear()
+	_species_transit_refunded_kg.clear()
+	_species_transit_cancelled_kg.clear()
+	_species_transit_orphan_delivery_count = 0
+	_species_transit_duplicate_id_count = 0
+	_species_transit_negative_balance_count = 0
+
+
+func _reset_step_state() -> void:
 	_snapshots.clear()
 	_requests.clear()
 	_request_ids.clear()
@@ -23,7 +44,7 @@ func reset() -> void:
 
 
 func begin_step(building) -> void:
-	reset()
+	_reset_step_state()
 	if building == null:
 		return
 	for room_id in building.get_rooms().keys():
@@ -31,6 +52,204 @@ func begin_step(building) -> void:
 		if room == null:
 			continue
 		_snapshots[str(room_id)] = _snapshot_room(room)
+
+
+func apply_species_transit_event(event: Dictionary) -> void:
+	var event_name: String = String(event.get("event", ""))
+	var parcel_id: String = String(event.get("parcel_id", ""))
+	if parcel_id.is_empty():
+		_species_transit_orphan_delivery_count += 1
+		return
+	match event_name:
+		"created":
+			if _species_transit_reservoir.has(parcel_id):
+				_species_transit_duplicate_id_count += 1
+				return
+			var created_species: Dictionary = _transit_species(event.get("species_kg", {}))
+			var created_upper_species: Dictionary = _bounded_upper_transit_species(
+				event.get("upper_species_kg", {}), created_species
+			)
+			_species_transit_reservoir[parcel_id] = {
+				"source_room_id": int(event.get("source_room_id", EXTERIOR_ID)),
+				"destination_room_id": int(event.get("destination_room_id", EXTERIOR_ID)),
+				"species_kg": created_species.duplicate(true),
+				"upper_species_kg": created_upper_species.duplicate(true),
+			}
+			_add_transit_species(_species_transit_created_kg, created_species)
+			_add_transit_zone_requests(
+				parcel_id + ":carve",
+				"delayed_species_parcel_carve",
+				int(event.get("source_room_id", EXTERIOR_ID)),
+				EXTERIOR_ID,
+				created_species,
+				created_upper_species
+			)
+		"resolved":
+			var delivered_species: Dictionary = _transit_species(
+				event.get("delivered_species_kg", {})
+			)
+			var refunded_species: Dictionary = _transit_species(
+				event.get("refunded_species_kg", {})
+			)
+			var delivered_upper_species: Dictionary = _bounded_upper_transit_species(
+				event.get("delivered_upper_species_kg", {}), delivered_species
+			)
+			var refunded_upper_species: Dictionary = _bounded_upper_transit_species(
+				event.get("refunded_upper_species_kg", {}), refunded_species
+			)
+			_add_transit_species(_species_transit_delivered_kg, delivered_species)
+			_add_transit_species(_species_transit_refunded_kg, refunded_species)
+			if not _species_transit_reservoir.has(parcel_id):
+				_species_transit_orphan_delivery_count += 1
+				return
+			var stored: Dictionary = _species_transit_reservoir[parcel_id]
+			var stored_species: Dictionary = stored.get("species_kg", {})
+			for species_name in TRANSIT_SPECIES:
+				var resolved_kg: float = float(delivered_species.get(species_name, 0.0)) \
+						+ float(refunded_species.get(species_name, 0.0))
+				if resolved_kg > float(stored_species.get(species_name, 0.0)) + 1.0e-9:
+					_species_transit_negative_balance_count += 1
+			_add_transit_zone_requests(
+				parcel_id + ":delivery",
+				"delayed_species_parcel_delivery",
+				EXTERIOR_ID,
+				int(event.get("destination_room_id", EXTERIOR_ID)),
+				delivered_species,
+				delivered_upper_species
+			)
+			_add_transit_zone_requests(
+				parcel_id + ":refund",
+				"delayed_species_parcel_refund",
+				EXTERIOR_ID,
+				int(event.get("source_room_id", EXTERIOR_ID)),
+				refunded_species,
+				refunded_upper_species
+			)
+			_species_transit_reservoir.erase(parcel_id)
+		"cancelled":
+			var cancelled_species: Dictionary = _transit_species(event.get("species_kg", {}))
+			_add_transit_species(_species_transit_cancelled_kg, cancelled_species)
+			if not _species_transit_reservoir.has(parcel_id):
+				_species_transit_orphan_delivery_count += 1
+				return
+			var stored_cancelled: Dictionary = _species_transit_reservoir[parcel_id]
+			var stored_cancelled_species: Dictionary = stored_cancelled.get("species_kg", {})
+			for species_name in TRANSIT_SPECIES:
+				if float(cancelled_species.get(species_name, 0.0)) \
+						> float(stored_cancelled_species.get(species_name, 0.0)) + 1.0e-9:
+					_species_transit_negative_balance_count += 1
+			_species_transit_reservoir.erase(parcel_id)
+		_:
+			_species_transit_orphan_delivery_count += 1
+
+
+func _transit_species(raw_species) -> Dictionary:
+	var species: Dictionary = raw_species if typeof(raw_species) == TYPE_DICTIONARY else {}
+	var filtered: Dictionary = {}
+	for species_name in TRANSIT_SPECIES:
+		filtered[species_name] = maxf(0.0, float(species.get(species_name, 0.0)))
+	return filtered
+
+
+func _bounded_upper_transit_species(raw_upper, total_species: Dictionary) -> Dictionary:
+	var upper: Dictionary = _transit_species(raw_upper)
+	for species_name in TRANSIT_SPECIES:
+		upper[species_name] = minf(
+			float(upper.get(species_name, 0.0)),
+			float(total_species.get(species_name, 0.0))
+		)
+	return upper
+
+
+func _lower_transit_species(total_species: Dictionary, upper_species: Dictionary) -> Dictionary:
+	var lower: Dictionary = {}
+	for species_name in TRANSIT_SPECIES:
+		lower[species_name] = maxf(
+			0.0,
+			float(total_species.get(species_name, 0.0))
+					- float(upper_species.get(species_name, 0.0))
+		)
+	return lower
+
+
+func _add_transit_zone_requests(
+	request_id_prefix: String,
+	cause: String,
+	source_room_id: int,
+	destination_room_id: int,
+	total_species: Dictionary,
+	upper_species: Dictionary
+	) -> void:
+	var lower_species: Dictionary = _lower_transit_species(total_species, upper_species)
+	_add_transit_zone_request(
+		request_id_prefix + ":upper",
+		cause,
+		source_room_id,
+		destination_room_id,
+		ZONE_UPPER,
+		upper_species
+	)
+	_add_transit_zone_request(
+		request_id_prefix + ":lower",
+		cause,
+		source_room_id,
+		destination_room_id,
+		ZONE_LOWER,
+		lower_species
+	)
+
+
+func _add_transit_zone_request(
+	request_id: String,
+	cause: String,
+	source_room_id: int,
+	destination_room_id: int,
+	zone_name: String,
+	species: Dictionary
+	) -> void:
+	if _sum_transit_species(species) <= 0.0:
+		return
+	add_request(make_request(
+		request_id,
+		cause,
+		source_room_id,
+		destination_room_id,
+		zone_name,
+		zone_name,
+		0.0,
+		0.0,
+		0.0,
+		species
+	))
+
+
+func _add_transit_species(target: Dictionary, species: Dictionary) -> void:
+	for species_name in TRANSIT_SPECIES:
+		target[species_name] = float(target.get(species_name, 0.0)) \
+				+ float(species.get(species_name, 0.0))
+
+
+func _sum_transit_species(species: Dictionary) -> float:
+	var total_kg: float = 0.0
+	for species_name in TRANSIT_SPECIES:
+		total_kg += float(species.get(species_name, 0.0))
+	return total_kg
+
+
+func _inflight_transit_species() -> Dictionary:
+	var inflight: Dictionary = {}
+	for raw_record in _species_transit_reservoir.values():
+		var record: Dictionary = raw_record
+		_add_transit_species(inflight, record.get("species_kg", {}))
+	return inflight
+
+
+func _species_transit_conservation_residual_kg() -> float:
+	return _sum_transit_species(_species_transit_created_kg) \
+			- _sum_transit_species(_species_transit_delivered_kg) \
+			- _sum_transit_species(_species_transit_refunded_kg) \
+			- _sum_transit_species(_species_transit_cancelled_kg) \
+			- _sum_transit_species(_inflight_transit_species())
 
 
 func make_request(
@@ -78,16 +297,24 @@ func finalize_step(building) -> void:
 	var rejected_by_room: Dictionary = {}
 	var rejected_combustion_o2_by_room: Dictionary = {}
 	var rejected_doorway_species_by_room: Dictionary = {}
+	var rejected_transit_species_by_room: Dictionary = {}
 	for request in _requests:
 		_apply_request(
 			shadow,
 			request,
 			rejected_by_room,
 			rejected_combustion_o2_by_room,
-			rejected_doorway_species_by_room
+			rejected_doorway_species_by_room,
+			rejected_transit_species_by_room
 		)
 	if building == null:
 		return
+	var inflight_transit_species: Dictionary = _inflight_transit_species()
+	var transit_created_total_kg: float = _sum_transit_species(_species_transit_created_kg)
+	var transit_delivered_total_kg: float = _sum_transit_species(_species_transit_delivered_kg)
+	var transit_refunded_total_kg: float = _sum_transit_species(_species_transit_refunded_kg)
+	var transit_cancelled_total_kg: float = _sum_transit_species(_species_transit_cancelled_kg)
+	var transit_residual_kg: float = _species_transit_conservation_residual_kg()
 	for room_key in shadow.keys():
 		var room_id: int = int(room_key)
 		var room: RoomModel = building.get_room(room_id)
@@ -154,6 +381,35 @@ func finalize_step(building) -> void:
 			"phase3_shadow_doorway_species_rejected_kg": float(
 				rejected_doorway_species_by_room.get(room_key, 0.0)
 			),
+			"phase3_shadow_species_inflight_co_kg": float(
+				inflight_transit_species.get("co", 0.0)
+			),
+			"phase3_shadow_species_inflight_co2_kg": float(
+				inflight_transit_species.get("co2", 0.0)
+			),
+			"phase3_shadow_species_inflight_hcn_kg": float(
+				inflight_transit_species.get("hcn", 0.0)
+			),
+			"phase3_shadow_species_created_kg_total": transit_created_total_kg,
+			"phase3_shadow_species_delivered_kg_total": transit_delivered_total_kg,
+			"phase3_shadow_species_refunded_kg_total": transit_refunded_total_kg,
+			"phase3_shadow_species_cancelled_kg_total": transit_cancelled_total_kg,
+			"phase3_shadow_species_active_parcel_count": float(
+				_species_transit_reservoir.size()
+			),
+			"phase3_shadow_species_orphan_delivery_count": float(
+				_species_transit_orphan_delivery_count
+			),
+			"phase3_shadow_species_duplicate_id_count": float(
+				_species_transit_duplicate_id_count
+			),
+			"phase3_shadow_species_negative_balance_count": float(
+				_species_transit_negative_balance_count
+			),
+			"phase3_shadow_species_conservation_residual_kg": transit_residual_kg,
+			"phase3_shadow_species_transit_rejected_kg": float(
+				rejected_transit_species_by_room.get(room_key, 0.0)
+			),
 			# Bit mask: energy=1, O2=2, species=4. Bulk O2 remains unowned.
 			"phase3_shadow_combustion_owned_mask": _combustion_owned_mask(room_id),
 			"phase3_shadow_owned_cause_count": _count_room_causes(room_id),
@@ -202,7 +458,8 @@ func _apply_request(
 		request: Dictionary,
 		rejected_by_room: Dictionary,
 		rejected_combustion_o2_by_room: Dictionary,
-		rejected_doorway_species_by_room: Dictionary
+		rejected_doorway_species_by_room: Dictionary,
+		rejected_transit_species_by_room: Dictionary
 	) -> void:
 	var source_id: int = int(request.get("source_room_id", EXTERIOR_ID))
 	var destination_id: int = int(request.get("destination_room_id", EXTERIOR_ID))
@@ -257,6 +514,15 @@ func _apply_request(
 				rejected_doorway_species_by_room[source_key] = float(
 					rejected_doorway_species_by_room.get(source_key, 0.0)
 				) + rejected_species_kg
+			if String(request.get("cause", "")).begins_with("delayed_species_parcel_"):
+				var rejected_transit_species_kg: float = 0.0
+				for species_name in requested_species.keys():
+					rejected_transit_species_kg += maxf(
+						0.0, float(requested_species[species_name])
+					) * (1.0 - accepted_fraction)
+				rejected_transit_species_by_room[source_key] = float(
+					rejected_transit_species_by_room.get(source_key, 0.0)
+				) + rejected_transit_species_kg
 	if destination_id != EXTERIOR_ID:
 		var destination_key: String = str(destination_id)
 		var destination: Dictionary = shadow.get(destination_key, {})

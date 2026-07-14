@@ -1437,6 +1437,11 @@ func _phase3_shadow_collect_doorway_species_requests() -> void:
 		)
 
 
+func _phase3_shadow_collect_parcel_species_events() -> void:
+	for event in gas_exchange_system.drain_phase3_shadow_parcel_events():
+		phase3_zone_mass_system.apply_species_transit_event(event)
+
+
 func _build_state_context() -> Dictionary:
 	return {
 		"building": building,
@@ -1565,6 +1570,7 @@ func _ready() -> void:
 	_sync_smoke_model_settings()
 	_sync_auxiliary_services()
 	gas_exchange_system.reset()
+	phase3_zone_mass_system.reset()
 	oxygen_exchange_system.reset()
 	hvac_system.reset()
 	_reset_log_file()
@@ -1652,6 +1658,7 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	_sync_smoke_model_settings()
 	_sync_auxiliary_services()
 	gas_exchange_system.reset()
+	phase3_zone_mass_system.reset()
 	oxygen_exchange_system.reset()
 	hvac_system.reset()
 	smoke_generated_total_kg = 0.0
@@ -1814,6 +1821,7 @@ func step(delta: float) -> void:
 		gas_exchange_system.begin_phase3_shadow_step()
 	_step_gas_exchange(dt)
 	if phase3_canonical_zone_shadow_enabled:
+		_phase3_shadow_collect_parcel_species_events()
 		_phase3_shadow_collect_doorway_species_requests()
 	_phase3_zone_diag_record_stage("gas_exchange")
 	_step_hvac(dt)

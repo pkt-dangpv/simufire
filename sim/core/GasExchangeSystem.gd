@@ -111,6 +111,8 @@ var _pending_interior_deliveries: Array[Dictionary] = []
 var _inflight_species_kg: Dictionary = {}
 var _phase3_shadow_doorway_species_results: Array[Dictionary] = []
 var _phase3_shadow_doorway_species_sequence: int = 0
+var _phase3_shadow_parcel_events: Array[Dictionary] = []
+var _phase3_shadow_parcel_sequence: int = 0
 
 
 func configure(settings: Dictionary) -> void:
@@ -328,17 +330,101 @@ func reset() -> void:
 	_inflight_species_kg.clear()
 	_phase3_shadow_doorway_species_results.clear()
 	_phase3_shadow_doorway_species_sequence = 0
+	_phase3_shadow_parcel_events.clear()
+	_phase3_shadow_parcel_sequence = 0
 
 
 func begin_phase3_shadow_step() -> void:
 	_phase3_shadow_doorway_species_results.clear()
 	_phase3_shadow_doorway_species_sequence = 0
+	_phase3_shadow_parcel_events.clear()
 
 
 func drain_phase3_shadow_doorway_species_results() -> Array[Dictionary]:
 	var results: Array[Dictionary] = _phase3_shadow_doorway_species_results.duplicate(true)
 	_phase3_shadow_doorway_species_results.clear()
 	return results
+
+
+func drain_phase3_shadow_parcel_events() -> Array[Dictionary]:
+	var events: Array[Dictionary] = _phase3_shadow_parcel_events.duplicate(true)
+	_phase3_shadow_parcel_events.clear()
+	return events
+
+
+func _phase3_shadow_assign_parcel_identity(entry: Dictionary) -> void:
+	if not phase3_canonical_zone_shadow_enabled:
+		return
+	entry["phase3_shadow_parcel_id"] = "delayed_species_parcel:%d" % \
+			_phase3_shadow_parcel_sequence
+	_phase3_shadow_parcel_sequence += 1
+
+
+func _phase3_shadow_parcel_species(entry: Dictionary) -> Dictionary:
+	return {
+		"co": maxf(0.0, float(entry.get("co_kg", 0.0))),
+		"co2": maxf(0.0, float(entry.get("co2_kg", 0.0))),
+		"hcn": maxf(0.0, float(entry.get("hcn_kg", 0.0))),
+	}
+
+
+func _phase3_shadow_parcel_upper_species(entry: Dictionary) -> Dictionary:
+	return {
+		"co": maxf(0.0, float(entry.get("co_upper_kg", 0.0))),
+		"co2": maxf(0.0, float(entry.get("co2_upper_kg", 0.0))),
+		"hcn": maxf(0.0, float(entry.get("hcn_upper_kg", 0.0))),
+	}
+
+
+func _record_phase3_shadow_parcel_created(entry: Dictionary) -> void:
+	if not phase3_canonical_zone_shadow_enabled:
+		return
+	_phase3_shadow_parcel_events.append({
+		"event": "created",
+		"parcel_id": String(entry.get("phase3_shadow_parcel_id", "")),
+		"source_room_id": int(entry.get("from", -1)),
+		"destination_room_id": int(entry.get("target", -1)),
+		"source_zone": "upper",
+		"destination_zone": "upper",
+		"species_kg": _phase3_shadow_parcel_species(entry),
+		"upper_species_kg": _phase3_shadow_parcel_upper_species(entry),
+	})
+
+
+func _record_phase3_shadow_parcel_resolved(
+	entry: Dictionary,
+	delivered_species_kg: Dictionary,
+	refunded_species_kg: Dictionary,
+	delivered_upper_species_kg: Dictionary,
+	refunded_upper_species_kg: Dictionary
+	) -> void:
+	if not phase3_canonical_zone_shadow_enabled:
+		return
+	_phase3_shadow_parcel_events.append({
+		"event": "resolved",
+		"parcel_id": String(entry.get("phase3_shadow_parcel_id", "")),
+		"source_room_id": int(entry.get("from", -1)),
+		"destination_room_id": int(entry.get("target", -1)),
+		"source_zone": "upper",
+		"destination_zone": "upper",
+		"delivered_species_kg": delivered_species_kg.duplicate(true),
+		"refunded_species_kg": refunded_species_kg.duplicate(true),
+		"delivered_upper_species_kg": delivered_upper_species_kg.duplicate(true),
+		"refunded_upper_species_kg": refunded_upper_species_kg.duplicate(true),
+	})
+
+
+func _record_phase3_shadow_parcel_cancelled(entry: Dictionary) -> void:
+	if not phase3_canonical_zone_shadow_enabled:
+		return
+	_phase3_shadow_parcel_events.append({
+		"event": "cancelled",
+		"parcel_id": String(entry.get("phase3_shadow_parcel_id", "")),
+		"source_room_id": int(entry.get("from", -1)),
+		"destination_room_id": int(entry.get("target", -1)),
+		"species_kg": _phase3_shadow_parcel_species(entry),
+		"upper_species_kg": _phase3_shadow_parcel_upper_species(entry),
+	})
 
 
 func _record_phase3_shadow_doorway_species_result(result: Dictionary) -> void:
@@ -1008,7 +1094,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			o2_delta_kg[from_id] -= o2_carry_kg
 
 		if use_transport_delay:
-			_pending_interior_deliveries.append({
+			var pending_entry: Dictionary = {
 				"from": from_id,
 				"target": to_id,
 				"delay_s": travel_delay_s,
@@ -1025,7 +1111,10 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 				"upper_gas_kg": moved_upper_gas_kg,
 				"upper_energy_kj": moved_upper_energy_kj,
 				"o2_kg": o2_carry_kg
-			})
+			}
+			_phase3_shadow_assign_parcel_identity(pending_entry)
+			_record_phase3_shadow_parcel_created(pending_entry)
+			_pending_interior_deliveries.append(pending_entry)
 			# G1: registrar masa en vuelo hacia este destino.
 			if not _inflight_species_kg.has(to_id):
 				_inflight_species_kg[to_id] = {}
@@ -1393,11 +1482,15 @@ func _release_pending_interior_deliveries(
 			_ifl["formaldehyde"] = maxf(0.0, float(_ifl.get("formaldehyde", 0.0)) - float(entry.get("formaldehyde_kg", 0.0)))
 		var target: RoomModel = building.get_room(target_id)
 		if target == null:
+			_record_phase3_shadow_parcel_cancelled(entry)
 			continue
 
 		var delivered_smoke_kg: float = float(entry.get("smoke_kg", 0.0))
 		target.smoke_kg = maxf(0.0, target.smoke_kg + delivered_smoke_kg)
 		_record_smoke_net_transport(null, target, delivered_smoke_kg)
+		var original_shadow_species_kg: Dictionary = _phase3_shadow_parcel_species(entry)
+		var original_shadow_upper_species_kg: Dictionary = \
+				_phase3_shadow_parcel_upper_species(entry)
 		# Specie pumping fix: cota de concentración para CO en la entrega diferida.
 		# El headroom calculado al enviar no cuenta los parcels en vuelo; el receptor
 		# puede haber superado ya la concentración de la fuente cuando llega el parcel.
@@ -1531,6 +1624,36 @@ func _release_pending_interior_deliveries(
 		target.co_upper_kg = clampf(target.co_upper_kg, 0.0, target.co_kg)
 		target.co2_upper_kg = clampf(target.co2_upper_kg, 0.0, target.co2_kg)
 		target.hcn_upper_kg = clampf(target.hcn_upper_kg, 0.0, target.hcn_kg)
+		var delivered_shadow_species_kg: Dictionary = {
+			"co": maxf(0.0, co_parcel_kg),
+			"co2": maxf(0.0, co2_parcel_kg),
+			"hcn": maxf(0.0, hcn_parcel_kg),
+		}
+		var delivered_shadow_upper_species_kg: Dictionary = {
+			"co": maxf(0.0, co_upper_parcel_kg),
+			"co2": maxf(0.0, co2_upper_parcel_kg),
+			"hcn": maxf(0.0, hcn_upper_parcel_kg),
+		}
+		var refunded_shadow_species_kg: Dictionary = {}
+		var refunded_shadow_upper_species_kg: Dictionary = {}
+		for shadow_species_name in original_shadow_species_kg.keys():
+			refunded_shadow_species_kg[shadow_species_name] = maxf(
+				0.0,
+				float(original_shadow_species_kg.get(shadow_species_name, 0.0))
+						- float(delivered_shadow_species_kg.get(shadow_species_name, 0.0))
+			)
+			refunded_shadow_upper_species_kg[shadow_species_name] = maxf(
+				0.0,
+				float(original_shadow_upper_species_kg.get(shadow_species_name, 0.0))
+						- float(delivered_shadow_upper_species_kg.get(shadow_species_name, 0.0))
+			)
+		_record_phase3_shadow_parcel_resolved(
+			entry,
+			delivered_shadow_species_kg,
+			refunded_shadow_species_kg,
+			delivered_shadow_upper_species_kg,
+			refunded_shadow_upper_species_kg
+		)
 		touched_rooms[target_id] = true
 
 	_pending_interior_deliveries = remaining

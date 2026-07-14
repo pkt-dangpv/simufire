@@ -1,6 +1,6 @@
 # Phase 3+ F3.0 canonical shadow transaction
 
-Date: 2026-07-12
+Date: 2026-07-14
 
 ## Scope
 
@@ -165,10 +165,41 @@ Runtime proof:
 | Remote-CO control | direct requests nonzero; missing-owner residual remains |
 | Zombie ILV | 7 hits, unchanged |
 
+## F3.0f persistent delayed-species reservoir
+
+Each delayed parcel receives a monotonic shadow identity at carve. GES retains
+that identity in the legacy queue and emits three lifecycle events:
+
+1. `created`: source stock becomes persistent in-flight stock;
+2. `resolved`: the same stock splits into delivered and headroom-refunded mass;
+3. `cancelled`: a missing destination terminates the parcel explicitly.
+
+The reservoir in `Phase3ZoneMassSystem` survives `begin_step`; only a full
+simulation reset clears it. Events carry exact total and upper CO/CO2/HCN maps
+from the legacy parcel. The complementary lower map is deterministic, allowing
+separate upper/lower source, delivery and refund requests without collapsing
+the journey into an immediate room-to-room transfer.
+
+Runtime proof:
+
+| Control | Created kg | Delivered kg | Refunded kg | In flight kg | Max parcels |
+|---|---:|---:|---:|---:|---:|
+| Two-room, 60 s | 0.039121 | 0.014704 | 0 | 0.024417 | 109 |
+| Corridor, 120 s | 1.408540 | 1.031483 | 0.000152 | 0.376905 | 896 |
+| v4 remote CO, 200 s | 6.718308 | 5.121284 | 0.095449 | 1.501574 | 1202 |
+
+All controls had zero lifecycle residual, request rejection, orphan delivery,
+duplicate identity and negative balance. OFF vs the F3.0e checkpoint and OFF
+vs ON retained 42 rows and 115 identical legacy columns; ON exports 157 total
+columns. A sealed control created no parcels, victim incapacitation remained
+206.1 s and the zombie-ILV control retained all 7 known hits.
+
+Smoke, irritants, O2 and parcel gas/energy are deliberately excluded. The
+reservoir is passive and never writes `RoomModel`.
+
 ## Next STOP gate
 
-F3.0f must design a persistent canonical transit reservoir before delayed
-parcels can be owned. The current shadow state resets each step, while parcel
-carve and delivery occur in different steps. The next design must preserve one
-parcel identity across source-to-transit and transit-to-destination events,
-including refund/headroom handling, without pretending it is immediate flow.
+F3.0g should audit the remaining direct species paths and connect one exact
+producer, preferably background/counterflow exchange. Exterior purge, HVAC
+and thermal transport must remain separate contracts. No physical authority
+switch is allowed until all active paths have non-duplicated ownership.

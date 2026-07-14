@@ -1,6 +1,6 @@
 # Phase 3+ current workplan
 
-Date: 2026-07-12
+Date: 2026-07-14
 
 ## Current baseline
 
@@ -35,10 +35,10 @@ canonical two-zone mass/energy/O2/species transaction.
 
 ## Active route
 
-F3.0 shadow canonical two-zone state, F3.0a plume ownership, F3.0b combustion
-energy, F3.0c zonal O2 sinks and F3.0d combustion species sources are
-implemented. F3.0e is now active: connect explicit species transport producers
-without deriving requests from post-mutation stock deltas.
+F3.0 shadow canonical two-zone state through F3.0f are implemented. Direct
+doorway transport and delayed CO/CO2/HCN parcels now have separate contracts.
+The active route remains completing explicit shadow ownership one producer at
+a time without deriving requests from post-mutation stock deltas.
 
 The first implementation must be default OFF and read-only with respect to
 legacy physics. It should build a shadow state from:
@@ -137,6 +137,24 @@ That would make the ledger circular.
   Two-room, corridor and remote-CO controls had nontrivial requests, zero
   rejected species and zero duplicate ownership. Zombie ILV retained 7 hits.
 
+## F3.0f delivered
+
+- Delayed parcels receive one monotonic identity at carve. That identity
+  survives across timesteps and terminates at delivery/refund or cancellation.
+- GES emits exact lifecycle events from the values already applied by legacy.
+  Total and upper species maps preserve the real CO/CO2/HCN zonal split;
+  `Phase3ZoneMassSystem` derives only the complementary lower map.
+- The persistent reservoir is not reset by `begin_step`; full simulation reset
+  clears GES and shadow together. Engine forwards events without formulas.
+- Telemetry reports in-flight CO/CO2/HCN, lifecycle totals, active parcels,
+  request rejection, anomalies and conservation residual. OFF schema remains
+  at 115 columns; ON has 157 and changes no shared value.
+- Two-room, corridor and v4 controls closed exactly. The v4 control exercised
+  0.095449 kg of refunds. No control produced rejection, orphan delivery,
+  duplicate identity or negative balance.
+- Smoke, irritants, O2 and parcel gas/energy remain unowned. This phase is
+  passive and does not authorize canonical writes to `RoomModel`.
+
 ## STOP gate for F3.0
 
 Required before commit:
@@ -166,8 +184,8 @@ Rollback the F3.0 attempt if:
 
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0f delayed-parcel ownership design. First decide how a
-canonical in-flight reservoir persists across per-step shadow transactions.
-Model parcel carve and delivery as separate events with one identity; do not
-collapse them into a same-step room-to-room request or infer them from final
-stocks. No implementation until that persistence contract passes a STOP gate.
+Use GPT-5.6 Sol for F3.0g. Audit the remaining CO/CO2/HCN transport producers
+and select one exact pre-mutation contract, preferably background/counterflow
+exchange. Keep exterior purge, HVAC and thermal transport separate, and do not
+promote the shadow transaction to physical authority until every active path
+has an owner and cross-path conservation is demonstrated.
