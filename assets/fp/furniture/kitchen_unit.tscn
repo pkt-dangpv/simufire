@@ -41,8 +41,26 @@ material_override = SubResource("Mat_metal")
 position = Vector3(0, 0.62, 0.555)
 scale = Vector3(0.48, 0.024, 0.024)
 
+[node name="Splashback" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_counter")
+position = Vector3(0, 1.08, -0.42)
+scale = Vector3(0.96, 0.42, 0.06)
+
 [node name="UpperCabinet" type="MeshInstance3D" parent="."]
 mesh = SubResource("BoxMesh_unit")
 material_override = SubResource("Mat_cabinet")
 position = Vector3(0, 1.55, -0.18)
 scale = Vector3(0.82, 0.52, 0.42)
+
+[node name="UpperSideLeft" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_cabinet")
+position = Vector3(-0.40, 1.08, -0.30)
+scale = Vector3(0.03, 0.42, 0.24)
+
+[node name="UpperSideRight" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_unit")
+material_override = SubResource("Mat_cabinet")
+position = Vector3(0.40, 1.08, -0.30)
+scale = Vector3(0.03, 0.42, 0.24)
