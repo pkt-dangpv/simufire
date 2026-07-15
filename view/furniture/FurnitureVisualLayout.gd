@@ -5,6 +5,11 @@ static func normalize_spec(room_id: int, room_name: String, room_kind: String, r
 	var result: Dictionary = spec.duplicate(true)
 	if bool(result.get("visual_pose_locked", false)):
 		return result
+	if _has_explicit_pose(result):
+		# El escenario define una pose curada: es autoritativa. Se marca locked
+		# para que los visores tampoco la recoloquen al resolver conflictos.
+		result["visual_pose_locked"] = true
+		return result
 	var tokens: String = _tokens(result.get("id", ""), result.get("name", ""), result.get("kind", ""))
 	var room_tokens: String = ("%s %s" % [room_name, room_kind]).to_lower()
 
@@ -117,6 +122,25 @@ static func _set_pose(spec: Dictionary, pos: Vector2, size: Vector2, rotation_de
 	spec["rotation_deg"] = rotation_deg
 	spec["kind"] = visual_kind
 	spec["visual_pose_locked"] = true
+
+
+static func _has_explicit_pose(spec: Dictionary) -> bool:
+	if not spec.has("position_m"):
+		return false
+	return _to_vector2(spec.get("position_m")).length_squared() > 0.000001
+
+
+static func _to_vector2(value: Variant) -> Vector2:
+	if typeof(value) == TYPE_VECTOR2:
+		return value
+	if typeof(value) == TYPE_DICTIONARY:
+		var data: Dictionary = value
+		return Vector2(float(data.get("x", 0.0)), float(data.get("y", 0.0)))
+	if typeof(value) == TYPE_ARRAY:
+		var values: Array = value
+		if values.size() >= 2:
+			return Vector2(float(values[0]), float(values[1]))
+	return Vector2.ZERO
 
 
 static func _tokens(id_value: Variant, name_value: Variant, kind_value: Variant) -> String:
