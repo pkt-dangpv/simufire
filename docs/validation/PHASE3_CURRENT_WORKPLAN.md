@@ -36,10 +36,11 @@ canonical two-zone mass/energy/O2/species transaction.
 
 ## Active route
 
-F3.0 shadow canonical two-zone state through F3.0i are implemented. Direct
+F3.0 shadow canonical two-zone state through F3.0j are implemented. Direct
 doorway transport, delayed parcels and immediate horizontal background/
 counterflow, legacy vertical-opening transport and all GES exterior purge
-paths for CO/CO2/HCN now have separate contracts.
+paths plus ThermalSystem hot-gas transport for CO/CO2/HCN now have separate
+contracts.
 The active route remains completing explicit shadow ownership one producer at
 a time without deriving requests from post-mutation stock deltas.
 
@@ -52,8 +53,8 @@ non-HVAC and existing HVAC findings must remain visible.
 
 The revised order is:
 
-1. F3.0j ThermalSystem species transport.
-2. F3.0k non-HVAC cross-path conservation closure.
+1. F3.0j ThermalSystem species transport. Completed.
+2. F3.0k non-HVAC cross-path conservation closure. Current target.
 3. F3.1 authoritative sealed mode plus zero-O2 extinction regression.
 4. F3.2 exterior pressure/leakage for Group A.
 5. F3.3 interior openings for Group C.
@@ -236,9 +237,23 @@ That would make the ledger circular.
   A real ventilated control closed 1.144611 kg exactly; a sealed control
   emitted zero. PPV closed `requested = applied + rejected` to floating-point
   precision while exposing 0.566436 kg of inventory rejection.
-- HVAC and thermal species removal remain explicitly unowned and cannot reuse
-  a GES purge identity. Thermal is the next owner; HVAC is intentionally
-  deferred until F3.5. Smoke, irritants and O2 are also outside this phase.
+- At the F3.0i checkpoint, HVAC and Thermal species transport remained
+  explicitly unowned and could not reuse a GES purge identity. F3.0j has now
+  assigned the Thermal owner; HVAC remains deferred until F3.5. Smoke,
+  irritants and O2 are also outside the purge phase.
+
+## F3.0j delivered
+
+- `ThermalSystem` emits exact pre-delta events for CO, CO2 and HCN from its
+  main doorway hot-gas carry and both background heat-exchange paths.
+- Optional Phase 2F CO interlayer mixing has a separate upper-to-lower event.
+- The contract preserves different source and destination zonal splits through
+  a conservative 2x2 route matrix; it never infers a flux from final stocks.
+- Projection/reconcile writes, exterior purge, smoke, irritants and HVAC are
+  explicitly excluded.
+- A 120 s OFF/ON control retained 78 rows and 115 shared legacy columns with
+  zero differences. ON recorded all three species, zero rejection, zero
+  duplicates and zero conservation residual.
 
 ## STOP gate for F3.0
 
@@ -269,9 +284,8 @@ Rollback the F3.0 attempt if:
 
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0j. Audit ThermalSystem CO/CO2/HCN transport and connect
-only exact pre-mutation values owned by ThermalSystem. Keep it disjoint from
-GES purge, doorway, parcel, horizontal and vertical identities. HVAC is
-explicitly deferred until F3.5 and must not be touched. Do not promote the
-shadow transaction to physical authority until F3.0k demonstrates non-HVAC
-cross-path conservation.
+Use GPT-5.6 Sol for F3.0k. Audit cross-path ownership and conservation across
+all completed non-HVAC shadow contracts. Detect semantic overlap between
+parallel legacy paths without merging identities, hiding rejection or reading
+post-mutation deltas. HVAC remains deferred until F3.5. Do not promote the
+shadow transaction to physical authority until this closure gate passes.

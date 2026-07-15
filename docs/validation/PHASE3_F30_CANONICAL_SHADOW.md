@@ -298,12 +298,47 @@ Runtime proof:
 Shadow mode now adds 24 purge columns. No physical state, FED result, purge
 coefficient, baseline, expected value or tolerance changed.
 
+## F3.0j ThermalSystem species transport
+
+F3.0j connects the exact CO, CO2 and HCN values calculated by
+`ThermalSystem._transfer_hot_gas_contaminants()` before its Jacobi delta
+writes. It assigns independent identities to the main hot-gas doorway path,
+outside-assisted background heat exchange and interior background heat
+exchange. The optional Phase 2F CO upper-to-lower mixing path is also recorded
+before mutation under its own identity.
+
+Source and destination zonal splits are not assumed to be equal. CO2, for
+example, can debit a proportional upper/lower mix from the source while legacy
+credits all transported mass to the destination upper zone. The shadow ledger
+therefore resolves a deterministic 2x2 upper/lower routing matrix for every
+event. Each route is inventory-limited as one debit/credit transaction, so
+requested mass always equals applied plus rejected mass per species.
+
+Runtime proof on `cfast_two_room_door_open`, 120 s:
+
+| Check | Result |
+|---|---|
+| OFF/ON rows | 78/78 |
+| Shared legacy columns | 115, zero differences |
+| ON CSV columns | 237 |
+| Thermal CO / CO2 / HCN | 0.0000489 / 0.01216127 / 0.00000126 kg |
+| Thermal events | 13,255 |
+| Applied rejection / duplicates | 0 kg / 0 |
+| Maximum CO/CO2/HCN residual | 0 kg |
+
+Projection/reconcile writes in `sync_room_upper_layer()`,
+`_sync_room_two_zone_layer()` and `reset_thermal_layer()` are not physical
+transport owners and remain excluded. `remove_upper_layer_fraction()` is
+already represented by the GES exterior-purge contract. Smoke, irritants and
+HVAC are outside F3.0j. No physical state, FED result, baseline, expected value
+or tolerance changed.
+
 ## Next STOP gate
 
-F3.0j should audit ThermalSystem species transport and connect only exact
-pre-mutation CO/CO2/HCN values owned by ThermalSystem. It must not reuse GES
-purge, doorway, parcel, horizontal or vertical causes. F3.0k then audits
-cross-path conservation using HVAC-disabled controls.
+F3.0k should audit non-HVAC cross-path ownership and conservation across
+combustion, O2, ThermalSystem and all GES contracts. It must expose semantic
+overlap between parallel legacy mechanisms instead of merging causes or
+relaxing residuals.
 
 HVAC ownership is deliberately deferred until F3.5, after a separate redesign
 specification and approval gate. Until then no physical authority switch may

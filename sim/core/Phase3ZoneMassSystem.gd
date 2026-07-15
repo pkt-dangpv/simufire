@@ -42,6 +42,15 @@ var _exterior_purge_mechanism_species_kg: Dictionary = {}
 var _exterior_purge_event_ids: Dictionary = {}
 var _exterior_purge_event_count: int = 0
 var _exterior_purge_duplicate_event_count: int = 0
+var _thermal_species_requested_kg: Dictionary = {}
+var _thermal_species_source_upper_kg: Dictionary = {}
+var _thermal_species_destination_upper_kg: Dictionary = {}
+var _thermal_species_applied_kg: Dictionary = {}
+var _thermal_species_rejected_kg: Dictionary = {}
+var _thermal_species_mechanism_kg: Dictionary = {}
+var _thermal_species_event_ids: Dictionary = {}
+var _thermal_species_event_count: int = 0
+var _thermal_species_duplicate_event_count: int = 0
 
 
 func reset() -> void:
@@ -70,6 +79,14 @@ func reset() -> void:
 	_exterior_purge_mechanism_species_kg.clear()
 	_exterior_purge_event_count = 0
 	_exterior_purge_duplicate_event_count = 0
+	_thermal_species_requested_kg.clear()
+	_thermal_species_source_upper_kg.clear()
+	_thermal_species_destination_upper_kg.clear()
+	_thermal_species_applied_kg.clear()
+	_thermal_species_rejected_kg.clear()
+	_thermal_species_mechanism_kg.clear()
+	_thermal_species_event_count = 0
+	_thermal_species_duplicate_event_count = 0
 
 
 func _reset_step_state() -> void:
@@ -83,6 +100,7 @@ func _reset_step_state() -> void:
 	_vertical_debited_species_kg_step.clear()
 	_vertical_credited_species_kg_step.clear()
 	_exterior_purge_event_ids.clear()
+	_thermal_species_event_ids.clear()
 
 
 func begin_step(building) -> void:
@@ -268,6 +286,45 @@ func apply_exterior_purge_event(event: Dictionary) -> void:
 	)
 
 
+func apply_thermal_species_event(event: Dictionary) -> void:
+	var event_id: String = String(event.get("event_id", ""))
+	var mechanism: String = String(event.get("mechanism", ""))
+	if event_id.is_empty() or mechanism.is_empty():
+		return
+	if _thermal_species_event_ids.has(event_id):
+		_thermal_species_duplicate_event_count += 1
+		_duplicate_owner_count += 1
+		return
+	_thermal_species_event_ids[event_id] = true
+	var total_species: Dictionary = _transit_species(event.get("species_kg", {}))
+	if _sum_transit_species(total_species) <= 0.0:
+		return
+	var source_upper_species: Dictionary = _bounded_upper_transit_species(
+		event.get("source_upper_species_kg", {}), total_species
+	)
+	var destination_upper_species: Dictionary = _bounded_upper_transit_species(
+		event.get("destination_upper_species_kg", {}), total_species
+	)
+	_thermal_species_event_count += 1
+	_add_transit_species(_thermal_species_requested_kg, total_species)
+	_add_transit_species(_thermal_species_source_upper_kg, source_upper_species)
+	_add_transit_species(_thermal_species_destination_upper_kg, destination_upper_species)
+	if not _thermal_species_mechanism_kg.has(mechanism):
+		_thermal_species_mechanism_kg[mechanism] = {}
+	var mechanism_species: Dictionary = _thermal_species_mechanism_kg[mechanism]
+	_add_transit_species(mechanism_species, total_species)
+	_thermal_species_mechanism_kg[mechanism] = mechanism_species
+	_add_thermal_species_route_requests(
+		event_id,
+		"thermal_species_transport:" + mechanism,
+		int(event.get("source_room_id", EXTERIOR_ID)),
+		int(event.get("destination_room_id", EXTERIOR_ID)),
+		total_species,
+		source_upper_species,
+		destination_upper_species
+	)
+
+
 func _is_immediate_species_cause(cause: String) -> bool:
 	return cause == "background_species_exchange" \
 			or cause == "doorway_species_counterflow" \
@@ -277,6 +334,10 @@ func _is_immediate_species_cause(cause: String) -> bool:
 
 func _is_exterior_purge_cause(cause: String) -> bool:
 	return cause.begins_with("exterior_species_purge:")
+
+
+func _is_thermal_species_cause(cause: String) -> bool:
+	return cause.begins_with("thermal_species_transport:")
 
 
 func _is_vertical_species_cause(cause: String) -> bool:
@@ -364,6 +425,56 @@ func _add_transit_zone_request(
 	))
 
 
+func _add_thermal_species_route_requests(
+		request_id_prefix: String,
+		cause: String,
+		source_room_id: int,
+		destination_room_id: int,
+		total_species: Dictionary,
+		source_upper_species: Dictionary,
+		destination_upper_species: Dictionary
+	) -> void:
+	var routes: Dictionary = {
+		"upper_upper": {},
+		"upper_lower": {},
+		"lower_upper": {},
+		"lower_lower": {},
+	}
+	for species_name in TRANSIT_SPECIES:
+		var total_kg: float = float(total_species.get(species_name, 0.0))
+		var source_upper_kg: float = float(source_upper_species.get(species_name, 0.0))
+		var destination_upper_kg: float = float(
+			destination_upper_species.get(species_name, 0.0)
+		)
+		var upper_upper_kg: float = minf(source_upper_kg, destination_upper_kg)
+		var upper_lower_kg: float = maxf(0.0, source_upper_kg - upper_upper_kg)
+		var lower_upper_kg: float = maxf(0.0, destination_upper_kg - upper_upper_kg)
+		var lower_lower_kg: float = maxf(
+			0.0, total_kg - upper_upper_kg - upper_lower_kg - lower_upper_kg
+		)
+		routes["upper_upper"][species_name] = upper_upper_kg
+		routes["upper_lower"][species_name] = upper_lower_kg
+		routes["lower_upper"][species_name] = lower_upper_kg
+		routes["lower_lower"][species_name] = lower_lower_kg
+	for route_name in routes.keys():
+		var route_parts: PackedStringArray = String(route_name).split("_")
+		var route_species: Dictionary = routes[route_name]
+		if _sum_transit_species(route_species) <= 0.0:
+			continue
+		add_request(make_request(
+			request_id_prefix + ":" + String(route_name),
+			cause,
+			source_room_id,
+			destination_room_id,
+			String(route_parts[0]),
+			String(route_parts[1]),
+			0.0,
+			0.0,
+			0.0,
+			route_species
+		))
+
+
 func _add_transit_species(target: Dictionary, species: Dictionary) -> void:
 	for species_name in TRANSIT_SPECIES:
 		target[species_name] = float(target.get(species_name, 0.0)) \
@@ -394,6 +505,24 @@ func _exterior_purge_residual_for(species_name: String) -> float:
 func _exterior_purge_mechanism_total(mechanism: String) -> float:
 	var species: Dictionary = _exterior_purge_mechanism_species_kg.get(mechanism, {})
 	return _sum_transit_species(species)
+
+
+func _thermal_species_lower_for(species_name: String, upper: Dictionary) -> float:
+	return maxf(
+		0.0,
+		float(_thermal_species_requested_kg.get(species_name, 0.0))
+				- float(upper.get(species_name, 0.0))
+	)
+
+
+func _thermal_species_residual_for(species_name: String) -> float:
+	return float(_thermal_species_requested_kg.get(species_name, 0.0)) \
+			- float(_thermal_species_applied_kg.get(species_name, 0.0)) \
+			- float(_thermal_species_rejected_kg.get(species_name, 0.0))
+
+
+func _thermal_species_mechanism_total(mechanism: String) -> float:
+	return _sum_transit_species(_thermal_species_mechanism_kg.get(mechanism, {}))
 
 
 func _inflight_transit_species() -> Dictionary:
@@ -619,6 +748,88 @@ func finalize_step(building) -> void:
 			"phase3_shadow_vertical_co_residual_kg": vertical_co_residual_kg,
 			"phase3_shadow_vertical_co2_residual_kg": vertical_co2_residual_kg,
 			"phase3_shadow_vertical_hcn_residual_kg": vertical_hcn_residual_kg,
+			"phase3_shadow_thermal_co_kg_total": float(
+				_thermal_species_requested_kg.get("co", 0.0)
+			),
+			"phase3_shadow_thermal_co2_kg_total": float(
+				_thermal_species_requested_kg.get("co2", 0.0)
+			),
+			"phase3_shadow_thermal_hcn_kg_total": float(
+				_thermal_species_requested_kg.get("hcn", 0.0)
+			),
+			"phase3_shadow_thermal_source_upper_co_kg_total": float(
+				_thermal_species_source_upper_kg.get("co", 0.0)
+			),
+			"phase3_shadow_thermal_source_upper_co2_kg_total": float(
+				_thermal_species_source_upper_kg.get("co2", 0.0)
+			),
+			"phase3_shadow_thermal_source_upper_hcn_kg_total": float(
+				_thermal_species_source_upper_kg.get("hcn", 0.0)
+			),
+			"phase3_shadow_thermal_source_lower_co_kg_total": _thermal_species_lower_for(
+				"co", _thermal_species_source_upper_kg
+			),
+			"phase3_shadow_thermal_source_lower_co2_kg_total": _thermal_species_lower_for(
+				"co2", _thermal_species_source_upper_kg
+			),
+			"phase3_shadow_thermal_source_lower_hcn_kg_total": _thermal_species_lower_for(
+				"hcn", _thermal_species_source_upper_kg
+			),
+			"phase3_shadow_thermal_destination_upper_co_kg_total": float(
+				_thermal_species_destination_upper_kg.get("co", 0.0)
+			),
+			"phase3_shadow_thermal_destination_upper_co2_kg_total": float(
+				_thermal_species_destination_upper_kg.get("co2", 0.0)
+			),
+			"phase3_shadow_thermal_destination_upper_hcn_kg_total": float(
+				_thermal_species_destination_upper_kg.get("hcn", 0.0)
+			),
+			"phase3_shadow_thermal_destination_lower_co_kg_total": _thermal_species_lower_for(
+				"co", _thermal_species_destination_upper_kg
+			),
+			"phase3_shadow_thermal_destination_lower_co2_kg_total": _thermal_species_lower_for(
+				"co2", _thermal_species_destination_upper_kg
+			),
+			"phase3_shadow_thermal_destination_lower_hcn_kg_total": _thermal_species_lower_for(
+				"hcn", _thermal_species_destination_upper_kg
+			),
+			"phase3_shadow_thermal_applied_co_kg_total": float(
+				_thermal_species_applied_kg.get("co", 0.0)
+			),
+			"phase3_shadow_thermal_applied_co2_kg_total": float(
+				_thermal_species_applied_kg.get("co2", 0.0)
+			),
+			"phase3_shadow_thermal_applied_hcn_kg_total": float(
+				_thermal_species_applied_kg.get("hcn", 0.0)
+			),
+			"phase3_shadow_thermal_rejected_co_kg_total": float(
+				_thermal_species_rejected_kg.get("co", 0.0)
+			),
+			"phase3_shadow_thermal_rejected_co2_kg_total": float(
+				_thermal_species_rejected_kg.get("co2", 0.0)
+			),
+			"phase3_shadow_thermal_rejected_hcn_kg_total": float(
+				_thermal_species_rejected_kg.get("hcn", 0.0)
+			),
+			"phase3_shadow_thermal_event_count": float(_thermal_species_event_count),
+			"phase3_shadow_thermal_duplicate_event_count": float(
+				_thermal_species_duplicate_event_count
+			),
+			"phase3_shadow_thermal_co_residual_kg": _thermal_species_residual_for("co"),
+			"phase3_shadow_thermal_co2_residual_kg": _thermal_species_residual_for("co2"),
+			"phase3_shadow_thermal_hcn_residual_kg": _thermal_species_residual_for("hcn"),
+			"phase3_shadow_thermal_doorway_kg_total": _thermal_species_mechanism_total(
+				"doorway_hot_gas"
+			),
+			"phase3_shadow_thermal_outside_background_kg_total": _thermal_species_mechanism_total(
+				"outside_assisted_background_heat"
+			),
+			"phase3_shadow_thermal_interior_background_kg_total": _thermal_species_mechanism_total(
+				"interior_background_heat"
+			),
+			"phase3_shadow_thermal_interlayer_kg_total": _thermal_species_mechanism_total(
+				"co_interlayer_mixing"
+			),
 			"phase3_shadow_purge_co_out_kg_total": float(
 				_exterior_purge_requested_species_kg.get("co", 0.0)
 			),
@@ -861,6 +1072,17 @@ func _apply_request(
 		if _is_vertical_species_cause(request_cause):
 			_add_transit_species(_vertical_debited_species_kg_step, accepted_immediate_species)
 			_add_transit_species(_vertical_credited_species_kg_step, accepted_immediate_species)
+	if _is_thermal_species_cause(request_cause):
+		var accepted_thermal_species: Dictionary = {}
+		var rejected_thermal_species: Dictionary = {}
+		for species_name in TRANSIT_SPECIES:
+			var requested_thermal_kg: float = maxf(
+				0.0, float(request.get("species_kg", {}).get(species_name, 0.0))
+			)
+			accepted_thermal_species[species_name] = requested_thermal_kg * accepted_fraction
+			rejected_thermal_species[species_name] = requested_thermal_kg * (1.0 - accepted_fraction)
+		_add_transit_species(_thermal_species_applied_kg, accepted_thermal_species)
+		_add_transit_species(_thermal_species_rejected_kg, rejected_thermal_species)
 	if destination_id != EXTERIOR_ID:
 		var destination_key: String = str(destination_id)
 		var destination: Dictionary = shadow.get(destination_key, {})

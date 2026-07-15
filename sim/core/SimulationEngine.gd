@@ -1356,6 +1356,11 @@ func _phase3_shadow_collect_thermal_requests() -> void:
 		)
 
 
+func _phase3_shadow_collect_thermal_species_events() -> void:
+	for event in thermal_system.drain_phase3_shadow_thermal_species_events():
+		phase3_zone_mass_system.apply_thermal_species_event(event)
+
+
 func _phase3_shadow_collect_oxygen_requests() -> void:
 	for flux in oxygen_exchange_system.drain_phase3_shadow_flux_results():
 		var o2_kg: float = maxf(0.0, float(flux.get("o2_kg", 0.0)))
@@ -1813,6 +1818,7 @@ func step(delta: float) -> void:
 	})
 	if phase3_canonical_zone_shadow_enabled:
 		_phase3_shadow_collect_thermal_requests()
+		_phase3_shadow_collect_thermal_species_events()
 	_phase3_zone_diag_record_stage("thermal")
 	# SF-R6 Phase 3: verificar conservación de transporte de contaminantes.
 	if conservation_check_enabled:

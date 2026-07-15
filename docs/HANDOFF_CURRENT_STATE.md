@@ -25,6 +25,22 @@ This note records the repository hygiene and validation state after the non-moto
 - Binding record:
   `docs/validation/PHASE3_HVAC_DEFERRED_DECISION.md`.
 
+## Current Session Update - 2026-07-15 - F3.0j Thermal species transport
+
+- `ThermalSystem` now emits exact pre-mutation CO/CO2/HCN events for main
+  doorway hot-gas carry, outside-assisted background heat exchange, interior
+  background heat exchange and optional CO interlayer mixing.
+- Source and destination upper/lower splits are preserved independently. The
+  canonical shadow resolves them as a conservative 2x2 routing matrix and
+  reports per-species requested, applied, rejected and residual values.
+- Runtime OFF/ON proof on `cfast_two_room_door_open` retained 78 rows and 115
+  shared legacy columns with zero differences. ON observed all three species,
+  13,255 events, zero rejection, zero duplicates and zero residual.
+- Projection/reconcile writes, GES exterior purge, smoke, irritants and HVAC
+  are not claimed by this contract. HVAC remains deferred until F3.5.
+- F3.0k is now the active gate: non-HVAC cross-path ownership and conservation
+  closure. The shadow state remains passive and must not be promoted yet.
+
 ## Current Session Update - 2026-07-15 - F3.0i exterior species purge
 
 - `GasExchangeSystem` now emits exact pre-mutation shadow events for every
@@ -47,9 +63,9 @@ This note records the repository hygiene and validation state after the non-moto
 - Validation remains Physics 9/15/5/0, ILV 15/14/0 and 348/353 required with
   5 VALID_GAP. Artifact integrity remains 29 CSV PASS and no malformed run
   packages. F3.0i changes no official report or baseline.
-- Next gate: F3.0j should isolate exact ThermalSystem CO/CO2/HCN transport.
-  HVAC is deferred by explicit decision and remains outside canonical claims.
-  Do not promote shadow state to physical authority.
+- This F3.0i checkpoint was followed by F3.0j ThermalSystem ownership, now
+  documented above. HVAC remains outside canonical claims. Do not promote
+  shadow state to physical authority before F3.0k closure.
 
 ## Current Session Update - 2026-07-15 - artifact integrity audit
 

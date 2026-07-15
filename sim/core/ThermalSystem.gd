@@ -27,6 +27,8 @@ var phase3_zone_diagnostics_enabled: bool = false
 # F3.0a: captura resultados pre-mutation para el shadow ledger; no cambia fisica.
 var phase3_canonical_zone_shadow_enabled: bool = false
 var _phase3_shadow_flux_results: Array[Dictionary] = []
+var _phase3_shadow_thermal_species_events: Array[Dictionary] = []
+var _phase3_shadow_thermal_species_sequence: int = 0
 
 # Phase 2A: sync zonal mass (upper_gas_kg/lower_gas_kg) desde geometría para todas las salas.
 # Default false = no-op absoluto; no cambia ningún resultado hasta que un caso active el flag.
@@ -411,6 +413,12 @@ func drain_phase3_shadow_flux_results() -> Array[Dictionary]:
 	return results
 
 
+func drain_phase3_shadow_thermal_species_events() -> Array[Dictionary]:
+	var events: Array[Dictionary] = _phase3_shadow_thermal_species_events.duplicate(true)
+	_phase3_shadow_thermal_species_events.clear()
+	return events
+
+
 func set_references(building: BuildingModel, smoke_model: SmokeModel) -> void:
 	_building = building
 	_smoke_model = smoke_model
@@ -699,6 +707,8 @@ func configure(settings: Dictionary) -> void:
 
 func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 	_phase3_shadow_flux_results.clear()
+	_phase3_shadow_thermal_species_events.clear()
+	_phase3_shadow_thermal_species_sequence = 0
 	var _outside_open_path_factor_callable: Callable = hooks.get(
 		"outside_open_path_factor_callable", Callable()
 	)
@@ -1247,7 +1257,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			cold_room,
 			gas_moved_kg,
 			hot_upper_gas_before_kg,
-			thermal_engagement
+			thermal_engagement,
+			"doorway_hot_gas"
 		)
 
 		# SF-R6: ZoneFireSolver — escribe la masa resuelta en el cache para downstream.
@@ -2186,7 +2197,8 @@ func _apply_outside_assisted_background_heat_exchange(
 					target,
 					gas_moved_kg,
 					source_upper_gas_before_kg,
-					carry_intensity
+					carry_intensity,
+					"outside_assisted_background_heat"
 				)
 
 	var source_bulk_temp_c: float = lerpf(source.temp_lower_c, source.temp_upper_c, 0.18)
@@ -2334,7 +2346,8 @@ func _apply_interior_background_heat_exchange(
 				target,
 				gas_moved_kg,
 				source_upper_gas_before_kg,
-				carry_intensity
+				carry_intensity,
+				"interior_background_heat"
 			)
 			touched_source = true
 			touched_target = true
@@ -2832,12 +2845,46 @@ func remove_upper_layer_fraction(room: RoomModel, fraction: float) -> void:
 	room.upper_energy_kj *= (1.0 - frac)
 
 
+func _record_phase3_shadow_thermal_species_event(
+		mechanism: String,
+		source: RoomModel,
+		target: RoomModel,
+		species_name: String,
+		total_kg: float,
+		source_upper_kg: float,
+		destination_upper_kg: float
+	) -> void:
+	if not phase3_canonical_zone_shadow_enabled or source == null or target == null:
+		return
+	if species_name not in ["co", "co2", "hcn"] or total_kg <= 0.0:
+		return
+	_phase3_shadow_thermal_species_sequence += 1
+	var bounded_source_upper_kg: float = clampf(source_upper_kg, 0.0, total_kg)
+	var bounded_destination_upper_kg: float = clampf(destination_upper_kg, 0.0, total_kg)
+	_phase3_shadow_thermal_species_events.append({
+		"event_id": "thermal:%s:%d:%d:%s:%d" % [
+			mechanism,
+			source.id,
+			target.id,
+			species_name,
+			_phase3_shadow_thermal_species_sequence,
+		],
+		"mechanism": mechanism,
+		"source_room_id": source.id,
+		"destination_room_id": target.id,
+		"species_kg": {species_name: total_kg},
+		"source_upper_species_kg": {species_name: bounded_source_upper_kg},
+		"destination_upper_species_kg": {species_name: bounded_destination_upper_kg},
+	})
+
+
 func _transfer_hot_gas_contaminants(
 	source: RoomModel,
 	target: RoomModel,
 	gas_moved_kg: float,
 	source_upper_gas_before_kg: float,
-	carry_intensity: float
+	carry_intensity: float,
+	mechanism: String
 ) -> void:
 	if source == null or target == null:
 		return
@@ -2877,9 +2924,6 @@ func _transfer_hot_gas_contaminants(
 	)
 	co_moved_kg = minf(co_moved_kg, co_headroom_kg)
 	if co_moved_kg > 0.0:
-		_delta_co_kg[src_id]       = _delta_co_kg.get(src_id, 0.0)       - co_moved_kg
-		_delta_co_upper_kg[src_id] = _delta_co_upper_kg.get(src_id, 0.0) - co_moved_kg
-		_delta_co_kg[tgt_id]       = _delta_co_kg.get(tgt_id, 0.0)       + co_moved_kg
 		# Phase 2E Experimento 2 — barrido de estrategia de deposición CO:
 		# Cuando flag OFF: comportamiento original (co_tgt_upper = co_moved_kg).
 		# Cuando flag ON:  se selecciona modo mediante phase2e_co_deposition_mode.
@@ -2900,6 +2944,12 @@ func _transfer_hot_gas_contaminants(
 					co_tgt_upper = co_moved_kg * maxf(0.95, geo_split)
 				_: # "all_upper" o desconocido — 100% upper (= baseline)
 					pass
+		_record_phase3_shadow_thermal_species_event(
+			mechanism, source, target, "co", co_moved_kg, co_moved_kg, co_tgt_upper
+		)
+		_delta_co_kg[src_id]       = _delta_co_kg.get(src_id, 0.0)       - co_moved_kg
+		_delta_co_upper_kg[src_id] = _delta_co_upper_kg.get(src_id, 0.0) - co_moved_kg
+		_delta_co_kg[tgt_id]       = _delta_co_kg.get(tgt_id, 0.0)       + co_moved_kg
 		_delta_co_upper_kg[tgt_id] = _delta_co_upper_kg.get(tgt_id, 0.0) + co_tgt_upper
 
 	# SF-R6 Phase 2: CO₂ transport con upper zone tracking.
@@ -2918,11 +2968,16 @@ func _transfer_hot_gas_contaminants(
 	)
 	co2_moved_kg = minf(co2_moved_kg, co2_headroom_kg)
 	if co2_moved_kg > 0.0:
-		_delta_co2_kg[src_id] = _delta_co2_kg.get(src_id, 0.0) - co2_moved_kg
-		# Reducir zona superior del origen proporcionalmente (usando estado pre-bucle).
+		var co2_source_upper_kg: float = 0.0
 		if source.co2_kg > 0.0001:
 			var src_upper_frac: float = clampf(source.co2_upper_kg / source.co2_kg, 0.0, 1.0)
-			_delta_co2_upper_kg[src_id] = _delta_co2_upper_kg.get(src_id, 0.0) - co2_moved_kg * src_upper_frac
+			co2_source_upper_kg = co2_moved_kg * src_upper_frac
+		_record_phase3_shadow_thermal_species_event(
+			mechanism, source, target, "co2", co2_moved_kg, co2_source_upper_kg, co2_moved_kg
+		)
+		_delta_co2_kg[src_id] = _delta_co2_kg.get(src_id, 0.0) - co2_moved_kg
+		# Reducir zona superior del origen proporcionalmente (usando estado pre-bucle).
+		_delta_co2_upper_kg[src_id] = _delta_co2_upper_kg.get(src_id, 0.0) - co2_source_upper_kg
 		_delta_co2_kg[tgt_id] = _delta_co2_kg.get(tgt_id, 0.0) + co2_moved_kg
 		# CO₂ llega a la zona superior del destino (gas caliente → boyante).
 		_delta_co2_upper_kg[tgt_id] = _delta_co2_upper_kg.get(tgt_id, 0.0) + co2_moved_kg
@@ -2940,6 +2995,9 @@ func _transfer_hot_gas_contaminants(
 			hcn_upper_available_kg * upper_fraction_moved * carry * clampf(hot_gas_hcn_carry_fraction, 0.0, 1.0)
 		)
 		if hcn_moved_kg > 0.0:
+			_record_phase3_shadow_thermal_species_event(
+				mechanism, source, target, "hcn", hcn_moved_kg, hcn_moved_kg, hcn_moved_kg
+			)
 			_delta_hcn_kg[src_id]    = _delta_hcn_kg.get(src_id, 0.0)    - hcn_moved_kg
 			_delta_hcn_upper_kg[src_id] = _delta_hcn_upper_kg.get(src_id, 0.0) - hcn_moved_kg
 			_delta_hcn_kg[tgt_id]    = _delta_hcn_kg.get(tgt_id, 0.0)    + hcn_moved_kg
@@ -3052,6 +3110,9 @@ func _apply_phase2f_co_interlayer_mixing(building: BuildingModel, dt: float) -> 
 				pass
 		# Transferir: co_upper_kg decrece, co_kg total invariante (lower = co_kg - co_upper_kg aumenta)
 		var transfer_kg: float = minf(room.co_upper_kg * phase2f_co_interlayer_mixing_rate * dt, room.co_upper_kg)
+		_record_phase3_shadow_thermal_species_event(
+			"co_interlayer_mixing", room, room, "co", transfer_kg, transfer_kg, 0.0
+		)
 		room.co_upper_kg = maxf(0.0, room.co_upper_kg - transfer_kg)
 
 

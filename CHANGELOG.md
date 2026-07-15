@@ -3,6 +3,24 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0j Thermal species shadow (2026-07-15)
+
+- Added shadow-only ownership for exact pre-delta CO, CO2 and HCN transport
+  from ThermalSystem doorway hot-gas carry and both background heat-exchange
+  paths, plus the optional CO upper-to-lower mixing path.
+- Preserved independent source and destination upper/lower splits with a
+  conservative 2x2 routing matrix. Every route applies one inventory-limited
+  debit/credit transaction and exposes requested, applied and rejected mass.
+- Added 30 opt-in CSV fields for species totals, source/destination zonal
+  margins, accepted/rejected mass, mechanism totals, event identities,
+  duplicates and per-species residuals.
+- Runtime OFF/ON validation retained 78/78 rows and 115 shared legacy columns
+  with zero differences. ON recorded CO, CO2 and HCN with zero rejection,
+  duplicate ownership or conservation residual.
+- Projection/reconcile writes, exterior purge, smoke, irritants and HVAC are
+  excluded. No physical state, FED result, official report value, baseline,
+  expected value or tolerance changed.
+
 ### Phase 3+ workplan: HVAC deferred (2026-07-15)
 
 - Deferred canonical HVAC ownership until the final Phase 3+ integration
