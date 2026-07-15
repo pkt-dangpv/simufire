@@ -57,10 +57,12 @@ static func compute_svv_pct(rs: Dictionary) -> float:
 
 
 static func svv_color(svv_pct: float) -> Color:
-	if svv_pct > 99.0:
-		return Color(0.88, 0.88, 0.88, 1.0)
 	if svv_pct >= 90.0:
-		return Color(1.00, 0.55, 0.10, 1.0)
+		return Color(0.30, 0.78, 0.35, 1.0)
+	if svv_pct >= 60.0:
+		return Color(1.00, 0.75, 0.15, 1.0)
+	if svv_pct >= 20.0:
+		return Color(1.00, 0.45, 0.10, 1.0)
 	if svv_pct >= 5.0:
 		return Color(0.95, 0.20, 0.20, 1.0)
 	return Color(0.35, 0.35, 0.35, 1.0)

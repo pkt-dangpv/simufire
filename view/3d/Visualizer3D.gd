@@ -293,7 +293,13 @@ func capture_screenshot_to(output_dir: String = "") -> void:
 	if vp == null:
 		screenshot_failed.emit("Viewport no disponible")
 		return
+	var legend_was_visible: bool = _legend_canvas != null and _legend_canvas.visible
+	if _legend_canvas != null:
+		_legend_canvas.visible = false
+	await RenderingServer.frame_post_draw
 	var img := vp.get_texture().get_image()
+	if _legend_canvas != null:
+		_legend_canvas.visible = legend_was_visible
 	if img == null:
 		screenshot_failed.emit("get_image() devolvio null")
 		return

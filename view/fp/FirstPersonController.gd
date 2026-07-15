@@ -3077,18 +3077,28 @@ func _update_technical_overlay(room_state: Dictionary, smoke_view: Dictionary, h
 	var gas_suffix: String = "u" if eye_in_upper_layer else "l"
 	var co_ppm: float = float(room_state.get("co_upper_ppm" if eye_in_upper_layer else "co_lower_ppm", room_state.get("co_ppm", 0.0)))
 	var co2_source_key: String = "co2_upper_ppm" if eye_in_upper_layer else "co2_ppm"
-	var co2_vol_pct: float = float(room_state.get(co2_source_key, room_state.get("co2_upper_ppm", 4000.0))) / 10000.0
+	var co2_raw: Variant = room_state.get(co2_source_key, room_state.get("co2_upper_ppm"))
+	var co2_str: String
+	if co2_raw == null:
+		co2_str = "  --"
+	else:
+		co2_str = "%4.1f" % (float(co2_raw) / 10000.0)
 	var o2_key: String = "o2_upper" if eye_in_upper_layer else "o2_lower"
 	var o2_vol_pct: float = float(room_state.get(o2_key, room_state.get("o2", 0.209))) * 100.0
 	var hcn_source_key: String = "hcn_upper_ppm" if eye_in_upper_layer else "hcn_ppm"
-	var hcn_ppm: float = float(room_state.get(hcn_source_key, room_state.get("hcn_upper_ppm", 0.0)))
+	var hcn_raw: Variant = room_state.get(hcn_source_key, room_state.get("hcn_upper_ppm"))
+	var hcn_str: String
+	if hcn_raw == null:
+		hcn_str = "   --"
+	else:
+		hcn_str = "%5.0f" % float(hcn_raw)
 	var fed_val: float = float(room_state.get("fed", 0.0))
 	var vis_m: float = float(smoke_view.get("fp_visibility_m", room_state.get("visibility_m", 30.0)))
 	var hrr_kw: float = float(room_state.get("hrr_kw", 0.0))
 	var regime_alert: String = _hud_combustion_regime_alert(room_state, hrr_kw)
 	_technical_overlay_label.text = (
-		"HRR %5.0f kW\nReg %s\nT   %5.0f °C\nCO%s %5.0f ppm\nCO₂%s %4.1f %%vol\nO₂%s  %4.1f %%vol\nHCN%s %5.0f ppm\nFED %.2f\nVis %s"
-		% [hrr_kw, regime_alert, temp_c, gas_suffix, co_ppm, gas_suffix, co2_vol_pct, gas_suffix, o2_vol_pct, gas_suffix, hcn_ppm, fed_val, _format_fp_visibility(vis_m)]
+		"HRR %5.0f kW\nReg %s\nT   %5.0f °C\nCO%s %5.0f ppm\nCO₂%s %s %%vol\nO₂%s  %4.1f %%vol\nHCN%s %s ppm\nFED %.2f\nVis %s"
+		% [hrr_kw, regime_alert, temp_c, gas_suffix, co_ppm, gas_suffix, co2_str, gas_suffix, o2_vol_pct, gas_suffix, hcn_str, fed_val, _format_fp_visibility(vis_m)]
 	)
 
 

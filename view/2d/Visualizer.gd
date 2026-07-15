@@ -439,7 +439,10 @@ func _get_opening_segment_px(index: int) -> PackedVector2Array:
 
 
 func _draw_background() -> void:
-	draw_rect(Rect2(-50, -50, 4000, 2500), background_color, true)
+	var vp_rect: Rect2 = get_viewport_rect()
+	var inv_tf: Transform2D = get_global_transform().affine_inverse()
+	var local_rect: Rect2 = inv_tf * vp_rect
+	draw_rect(local_rect.grow(50.0), background_color, true)
 
 
 func _refresh_floor_levels() -> void:
@@ -775,13 +778,9 @@ func _draw_hot_layer_overlay(rpx: Rect2, hot_layer_m: float, room_h: float = roo
 
 
 func _draw_150c_line(rpx: Rect2, layer_150c_m: float, room_h: float = room_height_m_default) -> void:
-	var h_m: float = layer_150c_m
-	if h_m <= 0.01:
-		h_m = 0.02
-	elif h_m >= room_h - 0.01:
-		h_m = room_h - 0.02
-	else:
-		h_m = clampf(h_m, 0.0, room_h)
+	if layer_150c_m >= room_h - 0.01:
+		return
+	var h_m: float = clampf(layer_150c_m, 0.02, room_h - 0.02)
 
 	var y_px: float = rpx.position.y + rpx.size.y * (1.0 - h_m / maxf(0.01, room_h))
 	draw_line(
