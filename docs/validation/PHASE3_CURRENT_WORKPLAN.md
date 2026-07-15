@@ -35,9 +35,10 @@ canonical two-zone mass/energy/O2/species transaction.
 
 ## Active route
 
-F3.0 shadow canonical two-zone state through F3.0g are implemented. Direct
+F3.0 shadow canonical two-zone state through F3.0h are implemented. Direct
 doorway transport, delayed parcels and immediate horizontal background/
-counterflow CO/CO2/HCN transport now have separate contracts.
+counterflow plus legacy vertical-opening CO/CO2/HCN transport now have
+separate contracts.
 The active route remains completing explicit shadow ownership one producer at
 a time without deriving requests from post-mutation stock deltas.
 
@@ -176,6 +177,27 @@ That would make the ledger circular.
 - Vertical-opening exchange, exterior purge, HVAC, thermal transport, smoke,
   irritants and O2 counterflow remain outside ownership.
 
+## F3.0h delivered
+
+- Both legacy vertical helpers emit exact events before their delta writes.
+  Net CO is split into independent upper and complementary lower movement, so
+  the two zones may travel in opposite room directions without cancellation.
+- Directed CO preserves the existing upper/lower split. CO2 and HCN are
+  lower-only because neither helper mutates their upper stocks. Smoke,
+  irritants and O2 remain explicitly outside this contract.
+- The canonical two-zone opening path returns before the legacy vertical
+  branch, preventing overlap with F3.0e. Delayed and horizontal paths retain
+  their own identities from F3.0f/F3.0g.
+- OFF/ON proof retained 12 rows in the short control and 793 rows in the real
+  two-storey control, with 115 shared legacy columns and zero differences.
+  The real path emitted 2,154 vertical requests with zero rejection,
+  duplicate ownership or per-species residual.
+- A deterministic Godot harness exercised net and directed branches for CO,
+  CO2 and HCN, including one opposite-zone CO direction. A horizontal control
+  kept every vertical metric at zero.
+- Exterior purge, HVAC, thermal transport, smoke, irritants and O2
+  counterflow remain outside ownership.
+
 ## STOP gate for F3.0
 
 Required before commit:
@@ -205,10 +227,9 @@ Rollback the F3.0 attempt if:
 
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0h. Audit the two vertical-opening helpers
-(`_apply_species_net_exchange` and `_apply_directed_species_exchange`) and
-connect them only if their total/upper zonal semantics can be made explicit
-before mutation. Keep exterior purge, HVAC and thermal transport as later,
-separate contracts. Do not promote the shadow transaction to physical
-authority until every active path has an owner and cross-path conservation is
-demonstrated.
+Use GPT-5.6 Sol for F3.0i. Audit exterior species purge/removal and select one
+exact pre-mutation owner that can represent CO/CO2/HCN without overlapping
+doorway, parcel, horizontal or vertical transport. Keep HVAC and thermal
+transport as later, separate contracts. Do not promote the shadow transaction
+to physical authority until every active path has an owner and cross-path
+conservation is demonstrated.

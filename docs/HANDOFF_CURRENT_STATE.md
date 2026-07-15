@@ -6,6 +6,34 @@ Date: 2026-07-15.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-15 - F3.0h vertical species exchange
+
+- The two legacy vertical-opening helpers now emit exact pre-mutation shadow
+  events for CO, CO2 and HCN. Net CO is represented as independent upper and
+  lower transfers, so opposite room directions are retained instead of being
+  collapsed. Directed CO uses the exact legacy upper/lower split; CO2 and HCN
+  are lower-only in both helpers.
+- The paths remain disjoint from canonical two-zone doorway flow, delayed
+  parcels and horizontal background/counterflow. Engine still only drains and
+  forwards events; the shadow never writes `RoomModel`.
+- Runtime proof: the short control retained 12 OFF/ON rows and the two-storey
+  vertical control retained 793 OFF/ON rows. Both had 115 shared legacy
+  columns and zero value differences. The real vertical path emitted 2,154
+  transfers with zero rejection, duplicates and CO/CO2/HCN residuals.
+- A deterministic Godot harness exercised net and directed branches with all
+  three species and one explicit opposite-zone CO event. The horizontal
+  two-room control produced zero for every vertical field.
+- Validation remains Physics 9/15/5/0, ILV 15/14/0 and 348/353 required with
+  5 VALID_GAP. Focused shadow tests are 114 PASS; the global suite becomes
+  765 PASS / 17 historical failures after the normal R2-1 freshness refresh.
+- Operational note for Codex runs: Godot must be launched outside the file
+  sandbox because it writes `user://` under AppData. A sandboxed launch fails
+  to create `user://logs` and can show a native access-violation dialog before
+  simulation starts; this is not a motor result.
+- Next gate: F3.0i should audit exterior purge as a separate exact species
+  contract. HVAC and thermal transport remain later owners. Do not promote
+  shadow state to physical authority.
+
 ## Current Session Update - 2026-07-15 - F3.0g immediate species exchange
 
 - Horizontal background diffusion and no-delay doorway counterflow now emit

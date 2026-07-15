@@ -94,11 +94,13 @@ class TestPhase3ShadowImmediateSpecies(unittest.TestCase):
         self.assertIn('"background_species_exchange"', GAS)
         self.assertIn('"doorway_species_counterflow"', GAS)
 
-    def test_vertical_helpers_are_not_silently_owned(self):
+    def test_vertical_helpers_use_separate_explicit_causes(self):
         net_vertical = _function(GAS, "_apply_species_net_exchange")
         directed_vertical = _function(GAS, "_apply_directed_species_exchange")
-        self.assertNotIn("phase3_shadow", net_vertical)
-        self.assertNotIn("phase3_shadow", directed_vertical)
+        self.assertIn('\"vertical_species_net_exchange\"', net_vertical)
+        self.assertIn('\"vertical_species_directed_exchange\"', directed_vertical)
+        self.assertNotIn('\"background_species_exchange\"', net_vertical)
+        self.assertNotIn('\"doorway_species_counterflow\"', directed_vertical)
 
     def test_events_are_drained_once_per_step(self):
         begin = _function(GAS, "begin_phase3_shadow_step")

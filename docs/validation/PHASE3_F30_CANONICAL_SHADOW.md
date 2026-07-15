@@ -208,7 +208,8 @@ net-only event would hide.
 
 The two paths cannot overlap F3.0e/F3.0f: canonical two-zone opening flow
 returns before classic background, and counterflow exists only in the
-non-delayed branch. Vertical opening helpers are separate and remain unowned.
+non-delayed branch. At this checkpoint the vertical opening helpers remained
+separate and unowned.
 
 Runtime proof:
 
@@ -225,9 +226,44 @@ and HCN. Small inventory rejection remains visible because other producers are
 still absent from shadow. Victim incapacitation remains 206.1 s and all 7
 known zero-O2 flame hits remain visible.
 
+## F3.0h legacy vertical-opening species
+
+F3.0h owns `_apply_species_net_exchange` and
+`_apply_directed_species_exchange` without changing their legacy arithmetic.
+The canonical two-zone opening path returns before these helpers, so their
+causes cannot duplicate `doorway_species_direct`.
+
+The net helper computes total and upper CO exactly once, derives lower CO as
+`total - upper`, and emits each signed zonal transfer independently. This is
+necessary because upper and lower concentration gradients can point toward
+opposite rooms. CO2 and HCN are lower-only because the helper changes only
+their bulk stocks. The directed helper uses the exact legacy fraction for CO,
+CO2 and HCN and preserves the same zonal semantics.
+
+Runtime proof:
+
+| Check | Result |
+|---|---|
+| Short OFF/ON control | 12/12 rows, 115 shared columns, 0 differences |
+| Two-storey OFF/ON control | 793/793 rows, 115 shared columns, 0 differences |
+| Real vertical requests | 2,154 |
+| Vertical request rejection | 0 kg |
+| CO/CO2/HCN residuals | 0 kg |
+| Duplicate owner flag | 0 |
+| Horizontal negative control | all 12 vertical fields equal 0 |
+
+A deterministic Godot harness additionally exercised both helpers with all
+three species. It produced four net and four directed zonal events and one
+explicit upper/lower opposite-direction CO marker while legacy OFF/ON delta
+dictionaries remained identical.
+
+Shadow mode now exports 183 columns; OFF remains at 115. Exterior purge, HVAC,
+thermal transport, smoke, irritants and O2 remain outside this contract. The
+known zero-O2 flame defect is still only observed, never corrected or hidden.
+
 ## Next STOP gate
 
-F3.0h should audit the vertical-opening helpers and connect them only through
-exact pre-mutation total/upper values. Exterior purge, HVAC and thermal
-transport remain separate later contracts. No physical authority switch is
-allowed until every active path has non-duplicated ownership.
+F3.0i should audit exterior species purge/removal and connect only an exact
+pre-mutation CO/CO2/HCN result with a unique cause. HVAC and thermal transport
+remain separate later contracts. No physical authority switch is allowed
+until every active path has non-duplicated ownership.

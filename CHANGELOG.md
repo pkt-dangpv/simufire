@@ -3,6 +3,24 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0h vertical-opening species shadow (2026-07-15)
+
+- Added shadow-only ownership for the two legacy vertical-opening species
+  helpers. Net exchange preserves independent upper/lower CO directions;
+  directed exchange preserves the exact upper/lower split. CO2 and HCN remain
+  lower-only because these legacy paths mutate only their bulk stocks.
+- Added explicit zonal events before legacy delta writes plus cumulative
+  telemetry for net/directed CO, CO2 and HCN, rejection, opposite-zone
+  directions and per-species conservation residuals.
+- Runtime OFF/ON validation retained 12/12 rows in the short control and
+  793/793 rows in the two-storey control, with 115 shared legacy columns and
+  zero value differences. The real vertical path emitted 2,154 transfers with
+  zero rejection, duplicate ownership or conservation residual.
+- A deterministic Godot harness exercised both net and directed helpers,
+  including simultaneous upper/lower CO movement in opposite room directions.
+  A horizontal control kept every vertical metric at zero. No physical state,
+  FED result, baseline, expected value or tolerance changed.
+
 ### Phase 3+ F3.0g immediate background/counterflow species (2026-07-15)
 
 - Added shadow-only ownership for the exact CO, CO2 and HCN deltas produced by

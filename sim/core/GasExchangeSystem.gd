@@ -414,6 +414,57 @@ func _record_phase3_shadow_signed_species_event(
 		)
 
 
+func _record_phase3_shadow_zonal_species_event(
+	cause: String,
+	source: RoomModel,
+	target: RoomModel,
+	source_zone: String,
+	destination_zone: String,
+	species_name: String,
+	mass_kg: float,
+	opposed_zone_direction: bool = false
+	) -> void:
+	if not phase3_canonical_zone_shadow_enabled or source == null or target == null:
+		return
+	var accepted_mass_kg: float = maxf(0.0, mass_kg)
+	if accepted_mass_kg <= 0.0:
+		return
+	_phase3_shadow_immediate_species_events.append({
+		"request_id": "species_immediate:%s:%d" % [
+			cause, _phase3_shadow_immediate_species_sequence
+		],
+		"cause": cause,
+		"source_room_id": source.id,
+		"destination_room_id": target.id,
+		"source_zone": source_zone,
+		"destination_zone": destination_zone,
+		"species_kg": {species_name: accepted_mass_kg},
+		"opposed_zone_direction": opposed_zone_direction,
+	})
+	_phase3_shadow_immediate_species_sequence += 1
+
+
+func _record_phase3_shadow_signed_zonal_species_event(
+	cause: String,
+	room_a: RoomModel,
+	room_b: RoomModel,
+	zone_name: String,
+	species_name: String,
+	net_a_to_b_kg: float,
+	opposed_zone_direction: bool = false
+	) -> void:
+	if net_a_to_b_kg > 0.0:
+		_record_phase3_shadow_zonal_species_event(
+			cause, room_a, room_b, zone_name, zone_name,
+			species_name, net_a_to_b_kg, opposed_zone_direction
+		)
+	elif net_a_to_b_kg < 0.0:
+		_record_phase3_shadow_zonal_species_event(
+			cause, room_b, room_a, zone_name, zone_name,
+			species_name, -net_a_to_b_kg, opposed_zone_direction
+		)
+
+
 func _phase3_shadow_assign_parcel_identity(entry: Dictionary) -> void:
 	if not phase3_canonical_zone_shadow_enabled:
 		return
@@ -3005,11 +3056,42 @@ func _apply_species_net_exchange(
 		_record_smoke_net_transport(room_a, room_b, net_smoke_a_to_b)
 	else:
 		_record_smoke_net_transport(room_b, room_a, -net_smoke_a_to_b)
-	_apply_net_pair(room_a.id, room_b.id, room_a.co_kg, room_b.co_kg, m_a, m_b, exchange_kg, co_delta_kg)
-	_apply_net_pair(room_a.id, room_b.id, room_a.co_upper_kg, room_b.co_upper_kg, m_a, m_b, exchange_kg, co_upper_delta_kg)
-	_apply_net_pair(room_a.id, room_b.id, room_a.co2_kg, room_b.co2_kg, m_a, m_b, exchange_kg, co2_delta_kg)
+	var net_co_a_to_b: float = _compute_net_pair(
+		room_a.co_kg, room_b.co_kg, m_a, m_b, exchange_kg
+	)
+	var net_co_upper_a_to_b: float = _compute_net_pair(
+		room_a.co_upper_kg, room_b.co_upper_kg, m_a, m_b, exchange_kg
+	)
+	var net_co_lower_a_to_b: float = net_co_a_to_b - net_co_upper_a_to_b
+	var co_zones_opposed: bool = net_co_upper_a_to_b * net_co_lower_a_to_b < -1.0e-18
+	_record_phase3_shadow_signed_zonal_species_event(
+		"vertical_species_net_exchange", room_a, room_b, "upper", "co",
+		net_co_upper_a_to_b, co_zones_opposed
+	)
+	_record_phase3_shadow_signed_zonal_species_event(
+		"vertical_species_net_exchange", room_a, room_b, "lower", "co",
+		net_co_lower_a_to_b
+	)
+	_apply_net_pair_value(room_a.id, room_b.id, net_co_a_to_b, co_delta_kg)
+	_apply_net_pair_value(room_a.id, room_b.id, net_co_upper_a_to_b, co_upper_delta_kg)
+
+	var net_co2_a_to_b: float = _compute_net_pair(
+		room_a.co2_kg, room_b.co2_kg, m_a, m_b, exchange_kg
+	)
+	_record_phase3_shadow_signed_zonal_species_event(
+		"vertical_species_net_exchange", room_a, room_b, "lower", "co2",
+		net_co2_a_to_b
+	)
+	_apply_net_pair_value(room_a.id, room_b.id, net_co2_a_to_b, co2_delta_kg)
 	if not hcn_delta_kg.is_empty():
-		_apply_net_pair(room_a.id, room_b.id, room_a.hcn_kg, room_b.hcn_kg, m_a, m_b, exchange_kg, hcn_delta_kg)
+		var net_hcn_a_to_b: float = _compute_net_pair(
+			room_a.hcn_kg, room_b.hcn_kg, m_a, m_b, exchange_kg
+		)
+		_record_phase3_shadow_signed_zonal_species_event(
+			"vertical_species_net_exchange", room_a, room_b, "lower", "hcn",
+			net_hcn_a_to_b
+		)
+		_apply_net_pair_value(room_a.id, room_b.id, net_hcn_a_to_b, hcn_delta_kg)
 
 
 # SF-R7: Transferencia unidireccional (ascendente) de especies de from_r a to_r,
@@ -3041,6 +3123,23 @@ func _apply_directed_species_exchange(
 	var d_hcl: float = from_r.hcl_kg * frac
 	var d_acro: float = from_r.acrolein_kg * frac
 	var d_form: float = from_r.formaldehyde_kg * frac
+	_record_phase3_shadow_zonal_species_event(
+		"vertical_species_directed_exchange", from_r, to_r,
+		"upper", "upper", "co", d_co_up
+	)
+	_record_phase3_shadow_zonal_species_event(
+		"vertical_species_directed_exchange", from_r, to_r,
+		"lower", "lower", "co", maxf(0.0, d_co - d_co_up)
+	)
+	_record_phase3_shadow_zonal_species_event(
+		"vertical_species_directed_exchange", from_r, to_r,
+		"lower", "lower", "co2", d_co2
+	)
+	if not hcn_delta_kg.is_empty():
+		_record_phase3_shadow_zonal_species_event(
+			"vertical_species_directed_exchange", from_r, to_r,
+			"lower", "lower", "hcn", d_hcn
+		)
 	smoke_delta_kg[from_r.id] = float(smoke_delta_kg.get(from_r.id, 0.0)) - d_smoke
 	smoke_delta_kg[to_r.id] = float(smoke_delta_kg.get(to_r.id, 0.0)) + d_smoke
 	_record_smoke_net_transport(from_r, to_r, d_smoke)
@@ -3064,13 +3163,14 @@ func _apply_directed_species_exchange(
 		formaldehyde_delta_kg[to_r.id] = float(formaldehyde_delta_kg.get(to_r.id, 0.0)) + d_form
 
 
-func _apply_net_pair(
-	id_a: int, id_b: int,
+func _compute_net_pair(
 	mass_a: float, mass_b: float,
 	total_a: float, total_b: float,
-	exchange_kg: float,
-	delta: Dictionary
-) -> void:
-	var net: float = (mass_a / maxf(0.001, total_a) - mass_b / maxf(0.001, total_b)) * exchange_kg
+	exchange_kg: float
+) -> float:
+	return (mass_a / maxf(0.001, total_a) - mass_b / maxf(0.001, total_b)) * exchange_kg
+
+
+func _apply_net_pair_value(id_a: int, id_b: int, net: float, delta: Dictionary) -> void:
 	delta[id_a] = float(delta.get(id_a, 0.0)) - net
 	delta[id_b] = float(delta.get(id_b, 0.0)) + net
