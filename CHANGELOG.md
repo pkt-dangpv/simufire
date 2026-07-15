@@ -3,6 +3,26 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0i exterior-purge species shadow (2026-07-15)
+
+- Added one shadow-only room-to-exterior contract for the eight active GES
+  purge mechanisms: pressure venting, exterior smoke vent, natural
+  ventilation, ACH infiltration, outside-open purge, post-fire purge and both
+  PPV dilution/exhaust paths.
+- Each event captures exact pre-mutation CO, CO2 and HCN totals plus the legacy
+  upper/lower split. HVAC and thermal transport remain separate owners and no
+  physical `RoomModel` state, purge coefficient, FED path or timestep order
+  changed.
+- Added cumulative telemetry for species, zones, mechanism totals, accepted
+  and rejected shadow mass, event identity, duplicate ownership and separate
+  CO/CO2/HCN residuals.
+- Runtime OFF/ON validation retained 150/150 rows, 163 shared columns and zero
+  value differences. The ventilated control resolved 1.144611 kg with zero
+  rejection, duplicates or residual; a sealed control emitted no events.
+- A PPV control accounted for 6.638345 kg as 6.071909 kg applied plus
+  0.566436 kg explicitly rejected, with residual below floating-point noise.
+  No official report, baseline, expected value or tolerance changed.
+
 ### Validation artifact integrity audit (2026-07-15)
 
 - Added a read-only auditor for official validation CSV structure, snapshot

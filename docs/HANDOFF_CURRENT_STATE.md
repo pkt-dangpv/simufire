@@ -6,6 +6,32 @@ Date: 2026-07-15.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-15 - F3.0i exterior species purge
+
+- `GasExchangeSystem` now emits exact pre-mutation shadow events for every
+  active CO/CO2/HCN purge it owns: pressure, smoke vent, natural ventilation,
+  ACH, outside-open, post-fire and PPV inlet/exhaust. Events always route from
+  the source room to the canonical exterior reservoir.
+- Upper/lower semantics mirror legacy exactly, including the unusual PPV
+  behavior where only CO upper stock is explicitly scaled. This phase records
+  that behavior; it does not silently repair or reinterpret it.
+- `Phase3ZoneMassSystem` exposes cumulative requested, applied and rejected
+  purge mass, zonal split, mechanism totals, event/duplicate counts and
+  per-species residuals. Engine only drains and forwards the event stream.
+- Runtime proof: the ventilated OFF/ON pair retained 150 rows and 163 shared
+  columns with zero value differences. ON requested and applied 1.144611 kg,
+  with zero rejection, duplicates and residual. The sealed negative control
+  emitted exactly zero purge events.
+- The PPV control requested 6.638345 kg; 6.071909 kg was accepted and
+  0.566436 kg rejected by shadow inventory limits. Conservation closed to
+  `8.9e-16 kg`, demonstrating that rejection remains visible.
+- Validation remains Physics 9/15/5/0, ILV 15/14/0 and 348/353 required with
+  5 VALID_GAP. Artifact integrity remains 29 CSV PASS and no malformed run
+  packages. F3.0i changes no official report or baseline.
+- Next gate: F3.0j should isolate HVAC CO/CO2/HCN exhaust as a separate exact
+  contract. Thermal species transport remains later. Do not promote shadow
+  state to physical authority.
+
 ## Current Session Update - 2026-07-15 - artifact integrity audit
 
 - A complete read-only audit of the 29 official CSVs found 48,884 valid rows,

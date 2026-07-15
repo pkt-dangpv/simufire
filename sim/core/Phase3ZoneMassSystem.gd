@@ -34,6 +34,14 @@ var _vertical_rejected_kg_total: float = 0.0
 var _vertical_opposed_zone_direction_count: int = 0
 var _vertical_debited_species_kg_step: Dictionary = {}
 var _vertical_credited_species_kg_step: Dictionary = {}
+var _exterior_purge_requested_species_kg: Dictionary = {}
+var _exterior_purge_upper_species_kg: Dictionary = {}
+var _exterior_purge_applied_species_kg: Dictionary = {}
+var _exterior_purge_rejected_species_kg: Dictionary = {}
+var _exterior_purge_mechanism_species_kg: Dictionary = {}
+var _exterior_purge_event_ids: Dictionary = {}
+var _exterior_purge_event_count: int = 0
+var _exterior_purge_duplicate_event_count: int = 0
 
 
 func reset() -> void:
@@ -55,6 +63,13 @@ func reset() -> void:
 	_vertical_transfer_count = 0
 	_vertical_rejected_kg_total = 0.0
 	_vertical_opposed_zone_direction_count = 0
+	_exterior_purge_requested_species_kg.clear()
+	_exterior_purge_upper_species_kg.clear()
+	_exterior_purge_applied_species_kg.clear()
+	_exterior_purge_rejected_species_kg.clear()
+	_exterior_purge_mechanism_species_kg.clear()
+	_exterior_purge_event_count = 0
+	_exterior_purge_duplicate_event_count = 0
 
 
 func _reset_step_state() -> void:
@@ -67,6 +82,7 @@ func _reset_step_state() -> void:
 	_immediate_credited_species_kg_step.clear()
 	_vertical_debited_species_kg_step.clear()
 	_vertical_credited_species_kg_step.clear()
+	_exterior_purge_event_ids.clear()
 
 
 func begin_step(building) -> void:
@@ -218,11 +234,49 @@ func apply_immediate_species_event(event: Dictionary) -> void:
 		)
 
 
+func apply_exterior_purge_event(event: Dictionary) -> void:
+	var event_id: String = String(event.get("event_id", ""))
+	var mechanism: String = String(event.get("mechanism", ""))
+	if event_id.is_empty() or mechanism.is_empty():
+		return
+	if _exterior_purge_event_ids.has(event_id):
+		_exterior_purge_duplicate_event_count += 1
+		_duplicate_owner_count += 1
+		return
+	_exterior_purge_event_ids[event_id] = true
+	var total_species: Dictionary = _transit_species(event.get("species_kg", {}))
+	if _sum_transit_species(total_species) <= 0.0:
+		return
+	var upper_species: Dictionary = _bounded_upper_transit_species(
+		event.get("upper_species_kg", {}), total_species
+	)
+	_exterior_purge_event_count += 1
+	_add_transit_species(_exterior_purge_requested_species_kg, total_species)
+	_add_transit_species(_exterior_purge_upper_species_kg, upper_species)
+	if not _exterior_purge_mechanism_species_kg.has(mechanism):
+		_exterior_purge_mechanism_species_kg[mechanism] = {}
+	var mechanism_species: Dictionary = _exterior_purge_mechanism_species_kg[mechanism]
+	_add_transit_species(mechanism_species, total_species)
+	_exterior_purge_mechanism_species_kg[mechanism] = mechanism_species
+	_add_transit_zone_requests(
+		event_id,
+		"exterior_species_purge:" + mechanism,
+		int(event.get("source_room_id", EXTERIOR_ID)),
+		EXTERIOR_ID,
+		total_species,
+		upper_species
+	)
+
+
 func _is_immediate_species_cause(cause: String) -> bool:
 	return cause == "background_species_exchange" \
 			or cause == "doorway_species_counterflow" \
 			or cause == "vertical_species_net_exchange" \
 			or cause == "vertical_species_directed_exchange"
+
+
+func _is_exterior_purge_cause(cause: String) -> bool:
+	return cause.begins_with("exterior_species_purge:")
 
 
 func _is_vertical_species_cause(cause: String) -> bool:
@@ -321,6 +375,25 @@ func _sum_transit_species(species: Dictionary) -> float:
 	for species_name in TRANSIT_SPECIES:
 		total_kg += float(species.get(species_name, 0.0))
 	return total_kg
+
+
+func _exterior_purge_lower_for(species_name: String) -> float:
+	return maxf(
+		0.0,
+		float(_exterior_purge_requested_species_kg.get(species_name, 0.0))
+				- float(_exterior_purge_upper_species_kg.get(species_name, 0.0))
+	)
+
+
+func _exterior_purge_residual_for(species_name: String) -> float:
+	return float(_exterior_purge_requested_species_kg.get(species_name, 0.0)) \
+			- float(_exterior_purge_applied_species_kg.get(species_name, 0.0)) \
+			- float(_exterior_purge_rejected_species_kg.get(species_name, 0.0))
+
+
+func _exterior_purge_mechanism_total(mechanism: String) -> float:
+	var species: Dictionary = _exterior_purge_mechanism_species_kg.get(mechanism, {})
+	return _sum_transit_species(species)
 
 
 func _inflight_transit_species() -> Dictionary:
@@ -546,6 +619,64 @@ func finalize_step(building) -> void:
 			"phase3_shadow_vertical_co_residual_kg": vertical_co_residual_kg,
 			"phase3_shadow_vertical_co2_residual_kg": vertical_co2_residual_kg,
 			"phase3_shadow_vertical_hcn_residual_kg": vertical_hcn_residual_kg,
+			"phase3_shadow_purge_co_out_kg_total": float(
+				_exterior_purge_requested_species_kg.get("co", 0.0)
+			),
+			"phase3_shadow_purge_co2_out_kg_total": float(
+				_exterior_purge_requested_species_kg.get("co2", 0.0)
+			),
+			"phase3_shadow_purge_hcn_out_kg_total": float(
+				_exterior_purge_requested_species_kg.get("hcn", 0.0)
+			),
+			"phase3_shadow_purge_upper_co_kg_total": float(
+				_exterior_purge_upper_species_kg.get("co", 0.0)
+			),
+			"phase3_shadow_purge_upper_co2_kg_total": float(
+				_exterior_purge_upper_species_kg.get("co2", 0.0)
+			),
+			"phase3_shadow_purge_upper_hcn_kg_total": float(
+				_exterior_purge_upper_species_kg.get("hcn", 0.0)
+			),
+			"phase3_shadow_purge_lower_co_kg_total": _exterior_purge_lower_for("co"),
+			"phase3_shadow_purge_lower_co2_kg_total": _exterior_purge_lower_for("co2"),
+			"phase3_shadow_purge_lower_hcn_kg_total": _exterior_purge_lower_for("hcn"),
+			"phase3_shadow_purge_applied_kg_total": _sum_transit_species(
+				_exterior_purge_applied_species_kg
+			),
+			"phase3_shadow_purge_rejected_kg_total": _sum_transit_species(
+				_exterior_purge_rejected_species_kg
+			),
+			"phase3_shadow_purge_event_count": float(_exterior_purge_event_count),
+			"phase3_shadow_purge_duplicate_event_count": float(
+				_exterior_purge_duplicate_event_count
+			),
+			"phase3_shadow_purge_co_residual_kg": _exterior_purge_residual_for("co"),
+			"phase3_shadow_purge_co2_residual_kg": _exterior_purge_residual_for("co2"),
+			"phase3_shadow_purge_hcn_residual_kg": _exterior_purge_residual_for("hcn"),
+			"phase3_shadow_purge_pressure_kg_total": _exterior_purge_mechanism_total(
+				"pressure_venting"
+			),
+			"phase3_shadow_purge_smoke_vent_kg_total": _exterior_purge_mechanism_total(
+				"exterior_smoke_vent"
+			),
+			"phase3_shadow_purge_natural_vent_kg_total": _exterior_purge_mechanism_total(
+				"natural_ventilation"
+			),
+			"phase3_shadow_purge_ach_kg_total": _exterior_purge_mechanism_total(
+				"ach_infiltration"
+			),
+			"phase3_shadow_purge_outside_open_kg_total": _exterior_purge_mechanism_total(
+				"outside_open_species_purge"
+			),
+			"phase3_shadow_purge_postfire_kg_total": _exterior_purge_mechanism_total(
+				"postfire_species_purge"
+			),
+			"phase3_shadow_purge_ppv_inlet_kg_total": _exterior_purge_mechanism_total(
+				"ppv_inlet_dilution"
+			),
+			"phase3_shadow_purge_ppv_exhaust_kg_total": _exterior_purge_mechanism_total(
+				"ppv_exhaust"
+			),
 			"phase3_shadow_species_inflight_co_kg": float(
 				inflight_transit_species.get("co", 0.0)
 			),
@@ -708,6 +839,17 @@ func _apply_request(
 				if _is_vertical_species_cause(String(request.get("cause", ""))):
 					_vertical_rejected_kg_total += rejected_immediate_kg
 	var request_cause: String = String(request.get("cause", ""))
+	if _is_exterior_purge_cause(request_cause):
+		var accepted_purge_species: Dictionary = {}
+		var rejected_purge_species: Dictionary = {}
+		for species_name in TRANSIT_SPECIES:
+			var requested_purge_kg: float = maxf(
+				0.0, float(request.get("species_kg", {}).get(species_name, 0.0))
+			)
+			accepted_purge_species[species_name] = requested_purge_kg * accepted_fraction
+			rejected_purge_species[species_name] = requested_purge_kg * (1.0 - accepted_fraction)
+		_add_transit_species(_exterior_purge_applied_species_kg, accepted_purge_species)
+		_add_transit_species(_exterior_purge_rejected_species_kg, rejected_purge_species)
 	if _is_immediate_species_cause(request_cause):
 		var accepted_immediate_species: Dictionary = {}
 		for species_name in TRANSIT_SPECIES:

@@ -115,6 +115,8 @@ var _phase3_shadow_parcel_events: Array[Dictionary] = []
 var _phase3_shadow_parcel_sequence: int = 0
 var _phase3_shadow_immediate_species_events: Array[Dictionary] = []
 var _phase3_shadow_immediate_species_sequence: int = 0
+var _phase3_shadow_exterior_purge_events: Array[Dictionary] = []
+var _phase3_shadow_exterior_purge_sequence: int = 0
 
 
 func configure(settings: Dictionary) -> void:
@@ -336,6 +338,8 @@ func reset() -> void:
 	_phase3_shadow_parcel_sequence = 0
 	_phase3_shadow_immediate_species_events.clear()
 	_phase3_shadow_immediate_species_sequence = 0
+	_phase3_shadow_exterior_purge_events.clear()
+	_phase3_shadow_exterior_purge_sequence = 0
 
 
 func begin_phase3_shadow_step() -> void:
@@ -344,6 +348,8 @@ func begin_phase3_shadow_step() -> void:
 	_phase3_shadow_parcel_events.clear()
 	_phase3_shadow_immediate_species_events.clear()
 	_phase3_shadow_immediate_species_sequence = 0
+	_phase3_shadow_exterior_purge_events.clear()
+	_phase3_shadow_exterior_purge_sequence = 0
 
 
 func drain_phase3_shadow_doorway_species_results() -> Array[Dictionary]:
@@ -362,6 +368,44 @@ func drain_phase3_shadow_immediate_species_events() -> Array[Dictionary]:
 	var events: Array[Dictionary] = _phase3_shadow_immediate_species_events.duplicate(true)
 	_phase3_shadow_immediate_species_events.clear()
 	return events
+
+
+func drain_phase3_shadow_exterior_purge_events() -> Array[Dictionary]:
+	var events: Array[Dictionary] = _phase3_shadow_exterior_purge_events.duplicate(true)
+	_phase3_shadow_exterior_purge_events.clear()
+	return events
+
+
+func _record_phase3_shadow_exterior_purge_event(
+	mechanism: String,
+	room: RoomModel,
+	species_kg: Dictionary,
+	upper_species_kg: Dictionary
+	) -> void:
+	if not phase3_canonical_zone_shadow_enabled or room == null:
+		return
+	var total: Dictionary = {}
+	var upper: Dictionary = {}
+	var total_kg: float = 0.0
+	for species_name in ["co", "co2", "hcn"]:
+		var species_mass_kg: float = maxf(0.0, float(species_kg.get(species_name, 0.0)))
+		total[species_name] = species_mass_kg
+		upper[species_name] = clampf(
+			float(upper_species_kg.get(species_name, 0.0)), 0.0, species_mass_kg
+		)
+		total_kg += species_mass_kg
+	if total_kg <= 0.0:
+		return
+	_phase3_shadow_exterior_purge_events.append({
+		"event_id": "exterior_species_purge:%s:%d" % [
+			mechanism, _phase3_shadow_exterior_purge_sequence
+		],
+		"mechanism": mechanism,
+		"source_room_id": room.id,
+		"species_kg": total,
+		"upper_species_kg": upper,
+	})
+	_phase3_shadow_exterior_purge_sequence += 1
 
 
 func _record_phase3_shadow_directional_species_event(
@@ -727,6 +771,19 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 		if two_zone_opening_flow_enabled:
 			_purge_upper_species_to_exterior_direct(room, air_frac_out, smoke_out_kg)
 		else:
+			_record_phase3_shadow_exterior_purge_event(
+				"pressure_venting", room,
+				{
+					"co": room.co_kg * air_frac_out,
+					"co2": room.co2_kg * air_frac_out,
+					"hcn": room.hcn_kg * air_frac_out,
+				},
+				{
+					"co": room.co_upper_kg * air_frac_out,
+					"co2": room.co2_upper_kg * air_frac_out,
+					"hcn": room.hcn_upper_kg * air_frac_out,
+				}
+			)
 			# SF-CBAL: registrar carbono que sale por venteo de presión ANTES de restar.
 			room.c_exited_kg += room.co_kg * air_frac_out * (12.0 / 28.0) \
 					+ room.co2_kg * air_frac_out * (12.0 / 44.0) \
@@ -850,6 +907,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					if two_zone_opening_flow_enabled:
 						_queue_upper_species_to_exterior(
 							room_out,
+							"exterior_smoke_vent",
 							vent_frac,
 							0.0,
 							smoke_delta_kg,
@@ -864,6 +922,19 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 							formaldehyde_delta_kg
 						)
 					else:
+						_record_phase3_shadow_exterior_purge_event(
+							"exterior_smoke_vent", room_out,
+							{
+								"co": vent_frac * room_out.co_kg,
+								"co2": vent_frac * room_out.co2_kg,
+								"hcn": vent_frac * room_out.hcn_kg,
+							},
+							{
+								"co": vent_frac * room_out.co_upper_kg,
+								"co2": vent_frac * room_out.co2_upper_kg,
+								"hcn": vent_frac * room_out.hcn_upper_kg,
+							}
+						)
 						co_delta_kg[room_out.id] -= vent_frac * room_out.co_kg
 						co_upper_delta_kg[room_out.id] -= vent_frac * room_out.co_upper_kg
 						co2_delta_kg[room_out.id] -= vent_frac * room_out.co2_kg
@@ -951,6 +1022,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					if two_zone_opening_flow_enabled:
 						_queue_upper_species_to_exterior(
 							room_out,
+							"natural_ventilation",
 							purge_frac,
 							smoke_purge_kg,
 							smoke_delta_kg,
@@ -965,6 +1037,19 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 							formaldehyde_delta_kg
 						)
 					else:
+						_record_phase3_shadow_exterior_purge_event(
+							"natural_ventilation", room_out,
+							{
+								"co": room_out.co_kg * purge_frac,
+								"co2": room_out.co2_kg * purge_frac,
+								"hcn": room_out.hcn_kg * purge_frac,
+							},
+							{
+								"co": room_out.co_upper_kg * purge_frac,
+								"co2": room_out.co2_upper_kg * purge_frac,
+								"hcn": room_out.hcn_upper_kg * purge_frac,
+							}
+						)
 						smoke_delta_kg[room_out.id] -= smoke_purge_kg
 						co_delta_kg[room_out.id] -= room_out.co_kg * purge_frac
 						co_upper_delta_kg[room_out.id] -= room_out.co_upper_kg * purge_frac
@@ -1411,19 +1496,28 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		var co_remove_fraction: float = 0.0
 		if room.co_kg > 0.000001:
 			co_remove_fraction = co_removed / room.co_kg
-		room.co_exterior_removed_kg_total += co_removed
-		room.co_kg = maxf(0.0, room.co_kg - co_removed)
-		room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - clampf(co_remove_fraction, 0.0, 1.0)))
 		var co2_removed: float = minf(room.co2_kg, room.co2_kg * ach_rate * dt)
 		var co2_remove_fraction: float = 0.0
 		if room.co2_kg > 0.000001:
 			co2_remove_fraction = co2_removed / room.co2_kg
-		room.co2_kg = maxf(0.0, room.co2_kg - co2_removed)
-		room.co2_upper_kg = maxf(0.0, room.co2_upper_kg * (1.0 - clampf(co2_remove_fraction, 0.0, 1.0)))
 		var hcn_removed: float = minf(room.hcn_kg, room.hcn_kg * ach_rate * dt)
 		var hcn_remove_fraction: float = 0.0
 		if room.hcn_kg > 0.000001:
 			hcn_remove_fraction = hcn_removed / room.hcn_kg
+		_record_phase3_shadow_exterior_purge_event(
+			"ach_infiltration", room,
+			{"co": co_removed, "co2": co2_removed, "hcn": hcn_removed},
+			{
+				"co": room.co_upper_kg * clampf(co_remove_fraction, 0.0, 1.0),
+				"co2": room.co2_upper_kg * clampf(co2_remove_fraction, 0.0, 1.0),
+				"hcn": room.hcn_upper_kg * clampf(hcn_remove_fraction, 0.0, 1.0),
+			}
+		)
+		room.co_exterior_removed_kg_total += co_removed
+		room.co_kg = maxf(0.0, room.co_kg - co_removed)
+		room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - clampf(co_remove_fraction, 0.0, 1.0)))
+		room.co2_kg = maxf(0.0, room.co2_kg - co2_removed)
+		room.co2_upper_kg = maxf(0.0, room.co2_upper_kg * (1.0 - clampf(co2_remove_fraction, 0.0, 1.0)))
 		room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_removed)
 		room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg * (1.0 - clampf(hcn_remove_fraction, 0.0, 1.0)))
 		var hcl_removed: float = room.hcl_kg * ach_rate * dt
@@ -1465,22 +1559,36 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			var co_lower_kg: float = maxf(0.0, room.co_kg - co_upper_kg)
 			var co_upper_removed_kg: float = co_upper_kg * open_species_purge_fraction
 			var co_lower_removed_kg: float = co_lower_kg * open_species_purge_fraction * (1.0 - upper_bias) * 0.55
-			room.co_upper_kg = maxf(0.0, co_upper_kg - co_upper_removed_kg)
-			room.co_exterior_removed_kg_total += co_upper_removed_kg + co_lower_removed_kg
-			room.co_kg = maxf(0.0, room.co_kg - co_upper_removed_kg - co_lower_removed_kg)
-
 			var co2_removed_kg: float = room.co2_kg \
 					* open_species_purge_fraction \
 					* lerpf(0.40, 0.75, upper_bias)
-			room.co2_kg = maxf(0.0, room.co2_kg - co2_removed_kg)
-			room.co2_upper_kg = maxf(0.0, room.co2_upper_kg - room.co2_upper_kg \
-					* open_species_purge_fraction * lerpf(0.40, 0.75, upper_bias))
+			var co2_upper_removed_kg: float = room.co2_upper_kg \
+					* open_species_purge_fraction * lerpf(0.40, 0.75, upper_bias)
 			var hcn_removed_kg: float = room.hcn_kg \
 					* open_species_purge_fraction \
 					* lerpf(0.40, 0.75, upper_bias)
+			var hcn_upper_removed_kg: float = room.hcn_upper_kg \
+					* open_species_purge_fraction * lerpf(0.40, 0.75, upper_bias)
+			_record_phase3_shadow_exterior_purge_event(
+				"outside_open_species_purge", room,
+				{
+					"co": co_upper_removed_kg + co_lower_removed_kg,
+					"co2": co2_removed_kg,
+					"hcn": hcn_removed_kg,
+				},
+				{
+					"co": co_upper_removed_kg,
+					"co2": co2_upper_removed_kg,
+					"hcn": hcn_upper_removed_kg,
+				}
+			)
+			room.co_upper_kg = maxf(0.0, co_upper_kg - co_upper_removed_kg)
+			room.co_exterior_removed_kg_total += co_upper_removed_kg + co_lower_removed_kg
+			room.co_kg = maxf(0.0, room.co_kg - co_upper_removed_kg - co_lower_removed_kg)
+			room.co2_kg = maxf(0.0, room.co2_kg - co2_removed_kg)
+			room.co2_upper_kg = maxf(0.0, room.co2_upper_kg - co2_upper_removed_kg)
 			room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_removed_kg)
-			room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg - room.hcn_upper_kg \
-					* open_species_purge_fraction * lerpf(0.40, 0.75, upper_bias))
+			room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg - hcn_upper_removed_kg)
 			var hcl_removed_kg: float = room.hcl_kg \
 					* open_species_purge_fraction \
 					* lerpf(0.40, 0.75, upper_bias)
@@ -1523,16 +1631,25 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			var purge_co_fraction: float = 0.0
 			if room.co_kg > 0.000001:
 				purge_co_fraction = purged_co_kg / room.co_kg
+			var purged_co2_kg: float = minf(room.co2_kg, room.co2_kg * co_purge_rate * dt)
+			var purged_hcn_kg: float = minf(room.hcn_kg, room.hcn_kg * co_purge_rate * dt)
+			var purge_fraction: float = clampf(purge_co_fraction, 0.0, 1.0)
+			_record_phase3_shadow_exterior_purge_event(
+				"postfire_species_purge", room,
+				{"co": purged_co_kg, "co2": purged_co2_kg, "hcn": purged_hcn_kg},
+				{
+					"co": room.co_upper_kg * purge_fraction,
+					"co2": room.co2_upper_kg * purge_fraction,
+					"hcn": room.hcn_upper_kg * purge_fraction,
+				}
+			)
 			room.co_exterior_removed_kg_total += purged_co_kg
 			room.co_kg = maxf(0.0, room.co_kg - purged_co_kg)
-			room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - clampf(purge_co_fraction, 0.0, 1.0)))
-
-			var purged_co2_kg: float = minf(room.co2_kg, room.co2_kg * co_purge_rate * dt)
+			room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - purge_fraction))
 			room.co2_kg = maxf(0.0, room.co2_kg - purged_co2_kg)
-			room.co2_upper_kg = maxf(0.0, room.co2_upper_kg * (1.0 - clampf(purge_co_fraction, 0.0, 1.0)))
-			var purged_hcn_kg: float = minf(room.hcn_kg, room.hcn_kg * co_purge_rate * dt)
+			room.co2_upper_kg = maxf(0.0, room.co2_upper_kg * (1.0 - purge_fraction))
 			room.hcn_kg = maxf(0.0, room.hcn_kg - purged_hcn_kg)
-			room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg * (1.0 - clampf(purge_co_fraction, 0.0, 1.0)))
+			room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg * (1.0 - purge_fraction))
 			# SF-CBAL: carbono que sale por purga post-incendio (CO/CO₂/HCN → exterior).
 			if co_purge_rate > 0.0:
 				room.c_exited_kg += purged_co_kg * (12.0 / 28.0) \
@@ -2300,15 +2417,20 @@ func _purge_upper_species_to_exterior_direct(room: RoomModel, fraction: float, s
 		return
 	var frac: float = clampf(fraction, 0.0, 0.30)
 	var co_removed_kg: float = minf(clampf(room.co_upper_kg, 0.0, room.co_kg), room.co_upper_kg * frac)
+	var co2_removed_kg: float = minf(clampf(room.co2_upper_kg, 0.0, room.co2_kg), room.co2_upper_kg * frac)
+	var hcn_removed_kg: float = minf(clampf(room.hcn_upper_kg, 0.0, room.hcn_kg), room.hcn_upper_kg * frac)
+	_record_phase3_shadow_exterior_purge_event(
+		"pressure_venting", room,
+		{"co": co_removed_kg, "co2": co2_removed_kg, "hcn": hcn_removed_kg},
+		{"co": co_removed_kg, "co2": co2_removed_kg, "hcn": hcn_removed_kg}
+	)
 	room.co_upper_kg = maxf(0.0, room.co_upper_kg - co_removed_kg)
 	room.co_exterior_removed_kg_total += co_removed_kg
 	room.co_kg = maxf(0.0, room.co_kg - co_removed_kg)
 
-	var co2_removed_kg: float = minf(clampf(room.co2_upper_kg, 0.0, room.co2_kg), room.co2_upper_kg * frac)
 	room.co2_upper_kg = maxf(0.0, room.co2_upper_kg - co2_removed_kg)
 	room.co2_kg = maxf(0.0, room.co2_kg - co2_removed_kg)
 
-	var hcn_removed_kg: float = minf(clampf(room.hcn_upper_kg, 0.0, room.hcn_kg), room.hcn_upper_kg * frac)
 	room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg - hcn_removed_kg)
 	room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_removed_kg)
 
@@ -2323,6 +2445,7 @@ func _purge_upper_species_to_exterior_direct(room: RoomModel, fraction: float, s
 
 func _queue_upper_species_to_exterior(
 	room: RoomModel,
+	mechanism: String,
 	fraction: float,
 	smoke_removed_kg: float,
 	smoke_delta_kg: Dictionary,
@@ -2340,17 +2463,19 @@ func _queue_upper_species_to_exterior(
 		return
 	var frac: float = clampf(fraction, 0.0, 0.30)
 	var removed_smoke_kg: float = maxf(0.0, smoke_removed_kg)
-	_add_delta(smoke_delta_kg, room.id, -removed_smoke_kg)
-
 	var co_removed_kg: float = minf(clampf(room.co_upper_kg, 0.0, room.co_kg), room.co_upper_kg * frac)
+	var co2_removed_kg: float = minf(clampf(room.co2_upper_kg, 0.0, room.co2_kg), room.co2_upper_kg * frac)
+	var hcn_removed_kg: float = minf(clampf(room.hcn_upper_kg, 0.0, room.hcn_kg), room.hcn_upper_kg * frac)
+	_record_phase3_shadow_exterior_purge_event(
+		mechanism, room,
+		{"co": co_removed_kg, "co2": co2_removed_kg, "hcn": hcn_removed_kg},
+		{"co": co_removed_kg, "co2": co2_removed_kg, "hcn": hcn_removed_kg}
+	)
+	_add_delta(smoke_delta_kg, room.id, -removed_smoke_kg)
 	_add_delta(co_delta_kg, room.id, -co_removed_kg)
 	_add_delta(co_upper_delta_kg, room.id, -co_removed_kg)
-
-	var co2_removed_kg: float = minf(clampf(room.co2_upper_kg, 0.0, room.co2_kg), room.co2_upper_kg * frac)
 	_add_delta(co2_delta_kg, room.id, -co2_removed_kg)
 	_add_delta(co2_upper_delta_kg, room.id, -co2_removed_kg)
-
-	var hcn_removed_kg: float = minf(clampf(room.hcn_upper_kg, 0.0, room.hcn_kg), room.hcn_upper_kg * frac)
 	_add_delta(hcn_delta_kg, room.id, -hcn_removed_kg)
 	_add_delta(hcn_upper_delta_kg, room.id, -hcn_removed_kg)
 
@@ -2957,6 +3082,11 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 		var co_purged_inlet: float = inlet_room.co_kg * mix_frac
 		var co2_purged_inlet: float = inlet_room.co2_kg * mix_frac
 		var hcn_purged_inlet: float = inlet_room.hcn_kg * mix_frac
+		_record_phase3_shadow_exterior_purge_event(
+			"ppv_inlet_dilution", inlet_room,
+			{"co": co_purged_inlet, "co2": co2_purged_inlet, "hcn": hcn_purged_inlet},
+			{"co": inlet_room.co_upper_kg * mix_frac, "co2": 0.0, "hcn": 0.0}
+		)
 		inlet_room.c_exited_kg += co_purged_inlet * (12.0 / 28.0) \
 				+ co2_purged_inlet * (12.0 / 44.0) \
 				+ hcn_purged_inlet * (12.0 / 27.0) \
@@ -3006,6 +3136,11 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 			var co_purged_ex: float = inlet_room.co_kg * ex_frac
 			var co2_purged_ex: float = inlet_room.co2_kg * ex_frac
 			var hcn_purged_ex: float = inlet_room.hcn_kg * ex_frac
+			_record_phase3_shadow_exterior_purge_event(
+				"ppv_exhaust", inlet_room,
+				{"co": co_purged_ex, "co2": co2_purged_ex, "hcn": hcn_purged_ex},
+				{"co": inlet_room.co_upper_kg * ex_frac, "co2": 0.0, "hcn": 0.0}
+			)
 			inlet_room.c_exited_kg += co_purged_ex * (12.0 / 28.0) \
 					+ co2_purged_ex * (12.0 / 44.0) \
 					+ hcn_purged_ex * (12.0 / 27.0) \

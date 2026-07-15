@@ -35,10 +35,10 @@ canonical two-zone mass/energy/O2/species transaction.
 
 ## Active route
 
-F3.0 shadow canonical two-zone state through F3.0h are implemented. Direct
+F3.0 shadow canonical two-zone state through F3.0i are implemented. Direct
 doorway transport, delayed parcels and immediate horizontal background/
-counterflow plus legacy vertical-opening CO/CO2/HCN transport now have
-separate contracts.
+counterflow, legacy vertical-opening transport and all GES exterior purge
+paths for CO/CO2/HCN now have separate contracts.
 The active route remains completing explicit shadow ownership one producer at
 a time without deriving requests from post-mutation stock deltas.
 
@@ -198,6 +198,24 @@ That would make the ledger circular.
 - Exterior purge, HVAC, thermal transport, smoke, irritants and O2
   counterflow remain outside ownership.
 
+## F3.0i delivered
+
+- GES owns one explicit room-to-exterior event stream for eight purge
+  mechanisms: pressure venting, exterior smoke vent, natural ventilation,
+  ACH, outside-open purge, post-fire purge and PPV inlet/exhaust.
+- Every event is recorded before the associated legacy stock or delta write.
+  Exact total and upper CO/CO2/HCN values are carried; the lower map is the
+  bounded complement. No purge mass is inferred from post-step stock.
+- Events have per-step identities and mechanism names. The shadow transaction
+  reports requested, accepted and rejected mass, upper/lower totals,
+  mechanism totals, duplicates and separate species residuals.
+- OFF/ON proof retained 150 rows and 163 shared columns with zero differences.
+  A real ventilated control closed 1.144611 kg exactly; a sealed control
+  emitted zero. PPV closed `requested = applied + rejected` to floating-point
+  precision while exposing 0.566436 kg of inventory rejection.
+- HVAC and thermal species removal remain explicitly unowned and cannot reuse
+  a GES purge identity. Smoke, irritants and O2 are also outside this phase.
+
 ## STOP gate for F3.0
 
 Required before commit:
@@ -227,9 +245,9 @@ Rollback the F3.0 attempt if:
 
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0i. Audit exterior species purge/removal and select one
-exact pre-mutation owner that can represent CO/CO2/HCN without overlapping
-doorway, parcel, horizontal or vertical transport. Keep HVAC and thermal
-transport as later, separate contracts. Do not promote the shadow transaction
-to physical authority until every active path has an owner and cross-path
-conservation is demonstrated.
+Use GPT-5.6 Sol for F3.0j. Audit HVAC extraction/dilution for CO, CO2 and HCN
+and connect only exact pre-mutation values owned by `HVACSystem`. Do not merge
+HVAC with GES purge identities, and keep ThermalSystem species transport as a
+later separate contract. Do not promote the shadow transaction to physical
+authority until every active path has an owner and cross-path conservation is
+demonstrated.

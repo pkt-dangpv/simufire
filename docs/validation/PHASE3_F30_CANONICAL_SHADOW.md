@@ -263,7 +263,45 @@ known zero-O2 flame defect is still only observed, never corrected or hidden.
 
 ## Next STOP gate
 
-F3.0i should audit exterior species purge/removal and connect only an exact
-pre-mutation CO/CO2/HCN result with a unique cause. HVAC and thermal transport
-remain separate later contracts. No physical authority switch is allowed
-until every active path has non-duplicated ownership.
+## F3.0i exterior-purge species contract
+
+F3.0i connects every CO/CO2/HCN removal owned by `GasExchangeSystem` to one
+room-to-`EXTERIOR_ID` event stream. The eight mechanism identities are:
+
+1. `pressure_venting`;
+2. `exterior_smoke_vent`;
+3. `natural_ventilation`;
+4. `ach_infiltration`;
+5. `outside_open_species_purge`;
+6. `postfire_species_purge`;
+7. `ppv_inlet_dilution`;
+8. `ppv_exhaust`.
+
+Each producer records the exact total and upper species values before its
+legacy mutation or delta write. The shadow ledger derives only the bounded
+lower complement, limits requests against its own inventory and reports both
+accepted and rejected mass. HVAC exhaust, ThermalSystem transport, smoke,
+irritants and O2 are excluded and receive no GES purge identity.
+
+Runtime proof:
+
+| Check | Result |
+|---|---|
+| Ventilated OFF/ON | 150/150 rows, 163 shared columns, 0 differences |
+| Ventilated requested/applied | 1.144611 / 1.144611 kg |
+| Ventilated duplicates/residual | 0 / 0 kg |
+| Sealed negative control | 0 events, 0 CO/CO2/HCN |
+| PPV requested | 6.638345 kg |
+| PPV applied/rejected | 6.071909 / 0.566436 kg |
+| PPV conservation residual | `-8.9e-16 kg` |
+
+Shadow mode now adds 24 purge columns. No physical state, FED result, purge
+coefficient, baseline, expected value or tolerance changed.
+
+## Next STOP gate
+
+F3.0j should audit HVAC extraction/dilution and connect only exact
+pre-mutation CO/CO2/HCN values owned by `HVACSystem`. It must not reuse the GES
+purge causes from F3.0i. Thermal species transport remains a later separate
+contract. No physical authority switch is allowed until every active path has
+non-duplicated ownership.
