@@ -206,20 +206,42 @@ stairwell control.
 STOP gate: internal building mass and energy close, no parcel churn creates
 boundary mass, Group C improves at both 180 s and 600 s, and D1/S1 remain clean.
 
-### F3.4 - HVAC, suppression, species and FED
+### F3.4 - Non-HVAC species, suppression and FED
 
-Migrate HVAC supply/return, suppression and the remaining species. Switch the
+Migrate remaining non-HVAC species, suppression and FED. Switch the
 experimental mass-derived CO2 FED source only after upper and lower CO2 close
-and remain physical through extinction and cooling.
+and remain physical through extinction and cooling. HVAC is excluded from this
+phase by the accepted deferral decision.
 
-Cases: `cfast_hvac_residential`, `victim_fed_incapacitation`,
-`v4_co_remote_rooms`, PU/PVC irritant controls.
+Cases: `victim_fed_incapacitation`, `v4_co_remote_rooms`, PU/PVC irritant
+controls, all with HVAC absent or disabled.
 
 STOP gate: no species pumping, D2PRE convergence improves, required FED deltas
 are reviewed explicitly, and no baseline is updated before a separate approval
 gate.
 
-### F3.5 - Promotion and legacy retirement
+### HVAC-R0 - Redesign specification
+
+Before any canonical HVAC code, approve a separate specification for
+supply/return zones, gas mass, enthalpy, O2/species/smoke transport,
+recirculation, filtration, exterior exhaust, pressure interaction and
+D1/S1/O1/FED accounting. This phase changes no motor behavior.
+
+### F3.5 - HVAC canonical integration
+
+Integrate the redesigned optional HVAC subsystem last. HVAC requests use their
+own identities and explicit boundary reservoirs; they must not reuse GES purge
+or ThermalSystem transport ownership.
+
+Cases: `cfast_hvac_residential`, a dedicated HVAC-disabled negative control,
+one recirculation control and one exterior supply/exhaust control.
+
+STOP gate: HVAC-off remains invariant; internal recirculation conserves mass,
+energy and species; exterior terms close; existing D1/S1/O1/FED findings are
+resolved or remain explicitly documented; baseline changes require separate
+approval.
+
+### F3.6 - Promotion and legacy retirement
 
 Run the full corpus with canonical mode opt-in per case, promote invariants to
 FAIL, then change defaults only after Groups A/C close and all baseline deltas
@@ -240,7 +262,8 @@ not in the promotion commit.
 ## Immediate next step
 
 Use `docs/validation/PHASE3_CURRENT_WORKPLAN.md` as the operational checklist.
-Then implement only the F3.0 data contracts and a sealed-room shadow
-transaction. Do not begin with pressure, doorway transport, or a modified
-`project_room_state()`: those become safe only after the transaction owns the
-inventory they currently reconstruct.
+Implement F3.0j ThermalSystem CO/CO2/HCN transport next, then run F3.0k
+cross-path conservation on HVAC-disabled controls. Do not begin HVAC work;
+HVAC is deferred to F3.5 after its own redesign gate. Do not promote or modify
+`project_room_state()` until the accepted non-HVAC transaction owns the
+inventory it currently reconstructs.

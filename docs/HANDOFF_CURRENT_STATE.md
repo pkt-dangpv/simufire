@@ -6,6 +6,25 @@ Date: 2026-07-15.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Planning Decision - 2026-07-15 - HVAC deferred
+
+- HVAC is deliberately deferred until the final Phase 3+ integration phase.
+  Do not start F3.0j in `HVACSystem`; the subsystem is optional and will be
+  redesigned before canonical ownership is implemented.
+- F3.0j now targets exact ThermalSystem CO/CO2/HCN transport. F3.0k then closes
+  cross-path conservation on HVAC-disabled controls before any shadow state is
+  promoted to authority.
+- Promotion proceeds through sealed mode, zero-O2 extinction, exterior
+  pressure/leakage, interior openings and remaining non-HVAC species/FED.
+- HVAC returns only after a user-approved specification defines supply/return
+  zones, gas mass, enthalpy, species, recirculation, filtration, pressure and
+  D1/S1/O1/FED ownership. Its implementation is F3.5, the last subsystem
+  integration before F3.6 final promotion and legacy retirement.
+- Until then, HVAC scenarios are legacy regression controls and cannot prove
+  canonical conservation. Existing HVAC findings or skips must remain visible.
+- Binding record:
+  `docs/validation/PHASE3_HVAC_DEFERRED_DECISION.md`.
+
 ## Current Session Update - 2026-07-15 - F3.0i exterior species purge
 
 - `GasExchangeSystem` now emits exact pre-mutation shadow events for every
@@ -28,9 +47,9 @@ This note records the repository hygiene and validation state after the non-moto
 - Validation remains Physics 9/15/5/0, ILV 15/14/0 and 348/353 required with
   5 VALID_GAP. Artifact integrity remains 29 CSV PASS and no malformed run
   packages. F3.0i changes no official report or baseline.
-- Next gate: F3.0j should isolate HVAC CO/CO2/HCN exhaust as a separate exact
-  contract. Thermal species transport remains later. Do not promote shadow
-  state to physical authority.
+- Next gate: F3.0j should isolate exact ThermalSystem CO/CO2/HCN transport.
+  HVAC is deferred by explicit decision and remains outside canonical claims.
+  Do not promote shadow state to physical authority.
 
 ## Current Session Update - 2026-07-15 - artifact integrity audit
 

@@ -3,6 +3,16 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ workplan: HVAC deferred (2026-07-15)
+
+- Deferred canonical HVAC ownership until the final Phase 3+ integration
+  phase because the optional subsystem will be redesigned before migration.
+- Reassigned F3.0j to exact ThermalSystem species transport, followed by a
+  non-HVAC cross-path closure and controlled canonical authority promotion.
+- Added an explicit deferral decision with scope boundaries, re-entry
+  prerequisites and acceptance gates. Non-HVAC validation may not be used to
+  claim HVAC conservation or retire existing HVAC findings.
+
 ### Phase 3+ F3.0i exterior-purge species shadow (2026-07-15)
 
 - Added one shadow-only room-to-exterior contract for the eight active GES

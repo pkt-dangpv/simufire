@@ -300,8 +300,11 @@ coefficient, baseline, expected value or tolerance changed.
 
 ## Next STOP gate
 
-F3.0j should audit HVAC extraction/dilution and connect only exact
-pre-mutation CO/CO2/HCN values owned by `HVACSystem`. It must not reuse the GES
-purge causes from F3.0i. Thermal species transport remains a later separate
-contract. No physical authority switch is allowed until every active path has
-non-duplicated ownership.
+F3.0j should audit ThermalSystem species transport and connect only exact
+pre-mutation CO/CO2/HCN values owned by ThermalSystem. It must not reuse GES
+purge, doorway, parcel, horizontal or vertical causes. F3.0k then audits
+cross-path conservation using HVAC-disabled controls.
+
+HVAC ownership is deliberately deferred until F3.5, after a separate redesign
+specification and approval gate. Until then no physical authority switch may
+claim HVAC coverage. See `PHASE3_HVAC_DEFERRED_DECISION.md`.

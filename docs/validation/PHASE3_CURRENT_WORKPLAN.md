@@ -21,6 +21,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - Architecture: `docs/validation/PHASE3_CANONICAL_TWO_ZONE_ARCHITECTURE.md`
 - F0 diagnostics: `docs/validation/PHASE3_F0_ZONE_DIAGNOSTICS.md`
 - F2.2a pressure diagnosis: `docs/validation/PHASE3_F22A_PRESSURE_VENT_DIAGNOSIS.md`
+- HVAC deferral decision: `docs/validation/PHASE3_HVAC_DEFERRED_DECISION.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -41,6 +42,28 @@ counterflow, legacy vertical-opening transport and all GES exterior purge
 paths for CO/CO2/HCN now have separate contracts.
 The active route remains completing explicit shadow ownership one producer at
 a time without deriving requests from post-mutation stock deltas.
+
+## Binding priority decision: HVAC last
+
+HVAC is not part of the remaining F3.0 shadow sequence. It stays on the legacy
+path until its behavior has been redesigned and approved. The canonical route
+may advance using HVAC-disabled cases, but all closure claims must be labelled
+non-HVAC and existing HVAC findings must remain visible.
+
+The revised order is:
+
+1. F3.0j ThermalSystem species transport.
+2. F3.0k non-HVAC cross-path conservation closure.
+3. F3.1 authoritative sealed mode plus zero-O2 extinction regression.
+4. F3.2 exterior pressure/leakage for Group A.
+5. F3.3 interior openings for Group C.
+6. F3.4 remaining non-HVAC species, suppression and FED.
+7. HVAC-R0 redesign specification.
+8. F3.5 HVAC canonical integration as the last subsystem.
+9. F3.6 final corpus promotion and legacy retirement.
+
+Do not change this order from an implementation prompt. Re-prioritizing HVAC
+requires an explicit planning decision and synchronized documentation updates.
 
 The first implementation must be default OFF and read-only with respect to
 legacy physics. It should build a shadow state from:
@@ -214,7 +237,8 @@ That would make the ledger circular.
   emitted zero. PPV closed `requested = applied + rejected` to floating-point
   precision while exposing 0.566436 kg of inventory rejection.
 - HVAC and thermal species removal remain explicitly unowned and cannot reuse
-  a GES purge identity. Smoke, irritants and O2 are also outside this phase.
+  a GES purge identity. Thermal is the next owner; HVAC is intentionally
+  deferred until F3.5. Smoke, irritants and O2 are also outside this phase.
 
 ## STOP gate for F3.0
 
@@ -245,9 +269,9 @@ Rollback the F3.0 attempt if:
 
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0j. Audit HVAC extraction/dilution for CO, CO2 and HCN
-and connect only exact pre-mutation values owned by `HVACSystem`. Do not merge
-HVAC with GES purge identities, and keep ThermalSystem species transport as a
-later separate contract. Do not promote the shadow transaction to physical
-authority until every active path has an owner and cross-path conservation is
-demonstrated.
+Use GPT-5.6 Sol for F3.0j. Audit ThermalSystem CO/CO2/HCN transport and connect
+only exact pre-mutation values owned by ThermalSystem. Keep it disjoint from
+GES purge, doorway, parcel, horizontal and vertical identities. HVAC is
+explicitly deferred until F3.5 and must not be touched. Do not promote the
+shadow transaction to physical authority until F3.0k demonstrates non-HVAC
+cross-path conservation.
