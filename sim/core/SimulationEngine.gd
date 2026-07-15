@@ -76,6 +76,13 @@ var _prev_open_fracs: Dictionary = {}
 var _graphs_launched: bool = false
 var _last_graphs_dir: String = ""
 var _last_graph_generation_ok: bool = false
+var _graph_gen_pid: int = -1
+var _graph_gen_latest_path: String = ""
+var _exit_graphs_suppressed: bool = false
+var _python_available: bool = true
+var _python_checked: bool = false
+var _python_command: String = ""
+var _python_prefix_args: PackedStringArray = PackedStringArray()
 # W-01: picos por sala para el resumen técnico post-simulación.
 var _room_peak_hrr: Dictionary = {}   # room_id (int) → float
 var _room_peak_temp: Dictionary = {}  # room_id (int) → float
@@ -1758,6 +1765,9 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	_graphs_launched = false
 	_last_graphs_dir = ""
 	_last_graph_generation_ok = false
+	_graph_gen_pid = -1
+	_graph_gen_latest_path = ""
+	_exit_graphs_suppressed = false
 	_room_peak_hrr.clear()
 	_room_peak_temp.clear()
 	_room_peak_co_upper.clear()
@@ -3066,12 +3076,54 @@ func was_last_graph_generation_ok() -> bool:
 	return _last_graph_generation_ok
 
 
+func check_python_available() -> bool:
+	if _python_checked:
+		return _python_available
+	_python_checked = true
+	_python_available = false
+	_python_command = ""
+	_python_prefix_args = PackedStringArray()
+	var output: Array = []
+	if OS.get_name() == "Windows":
+		if OS.execute("cmd.exe", PackedStringArray(["/c", "python", "--version"]), output, true) == 0:
+			_python_command = "python"
+		elif OS.execute("cmd.exe", PackedStringArray(["/c", "py", "-3", "--version"]), output, true) == 0:
+			_python_command = "py"
+			_python_prefix_args = PackedStringArray(["-3"])
+	else:
+		if OS.execute("python3", PackedStringArray(["--version"]), output, true) == 0:
+			_python_command = "python3"
+		elif OS.execute("python", PackedStringArray(["--version"]), output, true) == 0:
+			_python_command = "python"
+	_python_available = not _python_command.is_empty()
+	return _python_available
+
+
+func is_python_available() -> bool:
+	return _python_available
+
+
+func suppress_exit_graphs() -> void:
+	_exit_graphs_suppressed = true
+
+
 func stop_and_generate_graphs(details: String = "manual_stop_button", graphs_root: String = "") -> bool:
 	if sim_time_s <= 0.0 or _graphs_launched:
 		return false
+	if not check_python_available():
+		return false
 
-	_finish_and_launch_graphs(details, graphs_root, true)
-	return true
+	return _finish_and_launch_graphs(details, graphs_root, false)
+
+
+func poll_graph_generation() -> int:
+	if _graph_gen_pid <= 0:
+		return -2
+	if OS.is_process_running(_graph_gen_pid):
+		return 0
+	var exit_code: int = OS.get_process_exit_code(_graph_gen_pid)
+	_graph_gen_pid = -1
+	return 1 if _complete_graph_generation(exit_code) else -1
 
 
 func export_technical_results(details: String = "headless_export", output_dir: String = "") -> bool:
@@ -3541,9 +3593,9 @@ func _write_export_json(output_dir: String) -> void:
 	technical_summary_ready.emit(_last_technical_summary.duplicate(true), output_dir)
 
 
-func _finish_and_launch_graphs(details: String, graphs_root: String = "", wait_for_finish: bool = false) -> void:
+func _finish_and_launch_graphs(details: String, graphs_root: String = "", wait_for_finish: bool = false) -> bool:
 	if _graphs_launched or sim_time_s <= 0.0:
-		return
+		return false
 
 	is_finished = true
 	_force_log_final_snapshot()
@@ -3565,7 +3617,8 @@ func _finish_and_launch_graphs(details: String, graphs_root: String = "", wait_f
 	export_screenshot_requested.emit(export_dir)
 
 	if _should_launch_graphs():
-		_launch_graph_generator(graphs_root, wait_for_finish)
+		return _launch_graph_generator(graphs_root, wait_for_finish)
+	return false
 
 
 func _force_log_final_snapshot() -> void:
@@ -3578,9 +3631,18 @@ func _force_log_initial_snapshot() -> void:
 	log_writer.append_initial_snapshot(sim_time_s, get_state())
 
 
-func _launch_graph_generator(graphs_root: String = "", wait_for_finish: bool = false) -> void:
+func _launch_graph_generator(graphs_root: String = "", wait_for_finish: bool = false) -> bool:
+	if not check_python_available():
+		push_warning("[SimulationEngine] Python no detectado. No se pueden generar graficas.")
+		return false
 	var script_path: String = ProjectSettings.globalize_path("res://scripts/generate_fire_graphs.py")
 	var latest_path: String = ProjectSettings.globalize_path("user://latest_graphs_dir.txt")
+	if FileAccess.file_exists(latest_path):
+		var remove_error: Error = DirAccess.remove_absolute(latest_path)
+		if remove_error != OK:
+			push_warning("[SimulationEngine] No se pudo limpiar el marcador de graficas anterior.")
+			return false
+	_graph_gen_latest_path = latest_path
 	var log_path: String = log_writer.resolve_log_file_path()
 	var args: PackedStringArray = PackedStringArray([script_path, "--latest-file", latest_path, "--log", log_path, "--copy-log"])
 	if enable_csv_log:
@@ -3593,41 +3655,48 @@ func _launch_graph_generator(graphs_root: String = "", wait_for_finish: bool = f
 		args.append("--out-root")
 		args.append(graphs_root)
 
-	var pid: int = -1
-	var exit_code: int = -1
-	var output: Array = []
-	# En Windows, "python" puede no estar en el PATH de Godot.
-	# cmd.exe /c busca en el PATH del sistema, igual que un terminal normal.
 	if wait_for_finish:
-		if OS.get_name() == "Windows":
-			var win_args: PackedStringArray = PackedStringArray(["/c", "python"])
-			win_args.append_array(args)
-			exit_code = OS.execute("cmd.exe", win_args, output, true)
-		else:
-			exit_code = OS.execute("python3", args, output, true)
-			if exit_code != 0:
-				exit_code = OS.execute("python", args, output, true)
+		var output: Array = []
+		return _complete_graph_generation(_execute_python(args, output))
 
-		_last_graph_generation_ok = exit_code == 0
-		_last_graphs_dir = _read_latest_graphs_dir(latest_path)
-		if _last_graph_generation_ok:
-			print("[SimulationEngine] Graficas generadas en: %s" % _last_graphs_dir)
-		else:
-			push_warning("[SimulationEngine] No se pudieron generar graficas. Ejecuta: python scripts/generate_fire_graphs.py")
-		return
+	_graph_gen_pid = _create_python_process(args)
+	if _graph_gen_pid > 0:
+		print("[SimulationEngine] Generando graficas (PID %d)..." % _graph_gen_pid)
+		return true
+	push_warning("[SimulationEngine] No se pudo lanzar Python. Ejecuta: python scripts/generate_fire_graphs.py")
+	return false
 
+
+func _execute_python(args: PackedStringArray, output: Array) -> int:
+	var process_args: PackedStringArray = _python_prefix_args.duplicate()
+	process_args.append_array(args)
 	if OS.get_name() == "Windows":
-		var win_process_args: PackedStringArray = PackedStringArray(["/c", "python"])
-		win_process_args.append_array(args)
-		pid = OS.create_process("cmd.exe", win_process_args)
+		var win_args: PackedStringArray = PackedStringArray(["/c", _python_command])
+		win_args.append_array(process_args)
+		return OS.execute("cmd.exe", win_args, output, true)
+	return OS.execute(_python_command, process_args, output, true)
+
+
+func _create_python_process(args: PackedStringArray) -> int:
+	var process_args: PackedStringArray = _python_prefix_args.duplicate()
+	process_args.append_array(args)
+	if OS.get_name() == "Windows":
+		var win_args: PackedStringArray = PackedStringArray(["/c", _python_command])
+		win_args.append_array(process_args)
+		return OS.create_process("cmd.exe", win_args)
+	return OS.create_process(_python_command, process_args)
+
+
+func _complete_graph_generation(exit_code: int) -> bool:
+	_last_graphs_dir = _read_latest_graphs_dir(_graph_gen_latest_path)
+	_last_graph_generation_ok = exit_code == 0 \
+			and not _last_graphs_dir.is_empty() \
+			and DirAccess.dir_exists_absolute(_last_graphs_dir)
+	if _last_graph_generation_ok:
+		print("[SimulationEngine] Graficas generadas en: %s" % _last_graphs_dir)
 	else:
-		pid = OS.create_process("python3", args)
-		if pid <= 0:
-			pid = OS.create_process("python", args)
-	if pid > 0:
-		print("[SimulationEngine] Generando gráficas (PID %d)..." % pid)
-	else:
-		push_warning("[SimulationEngine] No se pudo lanzar Python. Ejecuta: python scripts/generate_fire_graphs.py")
+		push_warning("[SimulationEngine] No se pudieron generar graficas. Ejecuta: python scripts/generate_fire_graphs.py")
+	return _last_graph_generation_ok
 
 
 func _read_latest_graphs_dir(latest_path: String) -> String:
@@ -3665,7 +3734,7 @@ func _is_validation_mode() -> bool:
 ## o cierre de ventana). Garantiza que las gráficas se generen aunque la
 ## simulación no haya terminado por extinción natural del fuego.
 func _exit_tree() -> void:
-	if _is_validation_mode():
+	if _is_validation_mode() or _exit_graphs_suppressed:
 		return
 
 	_finish_and_launch_graphs("forced")

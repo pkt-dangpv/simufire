@@ -3,6 +3,21 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Visual/UI graph pipeline closure (2026-07-15)
+
+- Replaced the blocking manual graph-generation path with a tracked Python
+  process, 0.5 s UI polling, exit-code and fresh-marker validation, a modal
+  progress overlay and a defensive 60 s timeout.
+- Preserved graph-viewer/technical-summary sequencing while generation runs
+  asynchronously; legacy natural-finish and window-close generation remain.
+- Added explicit exit suppression so "exit without graphs" and "return to
+  editor" do not write graph exports or launch Python through `_exit_tree`.
+- Added cached Python preflight with Windows `py -3` fallback and a persistent
+  HUD warning when graph generation is unavailable.
+- Added structural regression tests for async launch, polling, stale-marker
+  rejection, Python fallback, exit suppression and UI timeout paths. No
+  physical simulation behavior, baseline, tolerance or validation case changed.
+
 ### Phase 3+ F3.0k.1b passive semantic arbitration (2026-07-15)
 
 - Added a provisional shadow-only owner policy for opening, interlayer and

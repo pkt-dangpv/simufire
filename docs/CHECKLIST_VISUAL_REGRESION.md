@@ -30,6 +30,7 @@
 | 13 | **FP:** HUD técnico muestra datos (sin "null" ni "--" inesperados) | | |
 | 14 | **FP:** subir escaleras a P1 funciona | | |
 | 15 | Salir con **"Salir y guardar + gráficas"** | | |
+| 15a | Aparece overlay "Generando gráficas..." y la ventana sigue respondiendo | | |
 | 16 | Ventana de gráficas aparece, dimensionada dentro de la pantalla | | |
 | 17 | Gráficas: 5 PNGs por sala, orden `hrr, temp, capas, gases, fed_svv` | | |
 | 18 | Zoom y pan en las gráficas funcionan | | |
@@ -51,6 +52,7 @@
 | 23 | Menú salir → "Salir sin guardar" | | |
 | 24 | Verificar que NO se crea carpeta nueva en `graphs/` | | |
 | 25 | Verificar que NO se lanza proceso Python | | |
+| 25a | Repetir con "Volver al editor": sin carpeta, JSON ni proceso Python | | |
 
 ### Regresión rápida (una planta)
 
@@ -60,12 +62,20 @@
 | 27 | Simulación ≥30 s, cambiar 2D→3D→FP→2D | | |
 | 28 | Salir con gráficas, verificar PNG generados | | |
 
+### Python no disponible
+
+| # | Paso | OK? | Notas |
+|---|------|-----|-------|
+| 29 | Iniciar sin `python` ni `py -3` accesibles | | |
+| 30 | El HUD muestra el aviso persistente de Python no detectado | | |
+| 31 | "Salir y guardar + gráficas" falla en menos de 2 s con mensaje accionable | | |
+
 ---
 
 ## Criterios de aceptación por fase
 
 - **Fase 0:** Pasos 1-2 (carga del escenario) funcionan; `.gdignore` impide imports en `graphs/`
-- **Fase 1:** Pasos 15-20 y 22-25 pasan
+- **Fase 1:** Pasos 15-20, 22-25a y 29-31 pasan
 - **Fase 2:** Pasos 7-9 pasan en escenario multi-planta
 - **Fase 3:** Pasos 3-5, 10, 13 verifican las correcciones puntuales
 - **Fase 4:** Sin regresión en pasos 1-20; mejora de FPS medible en escenarios grandes

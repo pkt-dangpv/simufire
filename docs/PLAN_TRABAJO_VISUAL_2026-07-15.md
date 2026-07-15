@@ -3,6 +3,10 @@
 **Fecha:** 2026-07-15 · **Base:** [AUDITORIA_VISUAL_2026-07-15.md](AUDITORIA_VISUAL_2026-07-15.md)
 **Regla del plan:** el motor (`sim/`) está en desarrollo activo en paralelo. Las tareas que tocan `SimulationEngine.gd` están marcadas ⚠️ MOTOR y agrupadas para hacerse en una ventana de coordinación única (o detrás de una interfaz nueva), nunca entremezcladas con el resto.
 
+**Estado 2026-07-15:** implementación completa. T1.2, T1.3 y T5.6 se
+cerraron en la ventana coordinada del motor. Queda únicamente la pasada manual
+del checklist en ambas resoluciones; los gates automáticos están verdes.
+
 Convención de IDs: referencia al hallazgo de la auditoría (G = gráficas, V2 = visor 2D, V3 = visor 3D, FP = primera persona).
 
 ---
@@ -52,8 +56,12 @@ Recomendación: **(a)** para el visor de gráficas (contenido grande, se benefic
 - Revisar `_graph_column_count()` y `_graph_texture_base_size()` para que usen el mismo espacio de coordenadas que la ventana.
 - *Aceptación:* en 1280×720 y en 1920×1080 con escala de Windows 125 %, ambas ventanas se ven completas, con barra de título accesible y grid de 1–2 columnas correcto.
 
-### T1.2 🔴 G-1 — Generación sin congelar la UI ⚠️ MOTOR (superficie mínima)
+### T1.2 ✅ G-1 — Generación sin congelar la UI ⚠️ MOTOR (completada)
 **Ficheros:** `SimulationEngine.gd` (`_launch_graph_generator`), `Main.gd`.
+**Implementado:** proceso Python no bloqueante con PID y exit code, marcador
+`latest_graphs_dir.txt` limpiado antes del lanzamiento, polling cada 0.5 s,
+overlay modal, timeout de 60 s y validación de la carpeta resultante. El
+resumen técnico permanece en cola hasta cerrar el visor de gráficas.
 **Enfoque de mínima invasión al motor:** no reescribir el flujo del engine; cambiar solo el modo de espera:
 1. En `Main._on_graphs_dir_selected`: mostrar inmediatamente un overlay modal "Generando gráficas…" (bloquea input, con spinner o texto animado).
 2. Lanzar la generación con `OS.create_process` (ya existe la rama async) y **sondear** la finalización desde `Main` (timer 0.5 s): fin = aparece/actualiza `user://latest_graphs_dir.txt` con mtime posterior al lanzamiento, o el PID muere (`OS.is_process_running`).
@@ -62,8 +70,11 @@ Recomendación: **(a)** para el visor de gráficas (contenido grande, se benefic
 - *Coordinación:* avisar en la línea del motor de que `_launch_graph_generator` cambia la semántica de `wait_for_finish`; es un diff pequeño y localizado (≈20 líneas).
 - *Aceptación:* durante la generación se puede mover el ratón, la ventana no entra en "no responde", y al terminar se abre el visor. Si Python falta, el error aparece en <2 s con mensaje accionable.
 
-### T1.3 🔴 G-3 — Respetar "salir sin gráficas" ⚠️ MOTOR (un flag)
+### T1.3 ✅ G-3 — Respetar "salir sin gráficas" ⚠️ MOTOR (completada)
 **Ficheros:** `SimulationEngine.gd` (`_exit_tree`), `Main.gd`, `hud.gd` (nada o casi nada).
+**Implementado:** `suppress_exit_graphs()` se llama antes de volver al menú o
+al editor. Cerrar la ventana o detener desde el editor conserva la generación
+automática existente.
 - Añadir en el engine un método/flag público `suppress_exit_graphs()` (o `set_exit_graphs_enabled(false)`).
 - `Main._on_exit_without_graphs_requested` y `_on_return_to_editor_requested` lo activan antes de `change_scene_to_file`.
 - `_exit_tree` lo consulta antes de `_finish_and_launch_graphs("forced")`. El comportamiento actual (generar al cerrar la ventana del juego / stop del editor) se conserva.
@@ -193,12 +204,18 @@ En `_clear_container`/`_rebuild_fuel_object_shape`/`_prune_marker_nodes` donde s
 ### T5.5 ℹ️ V2-5 — Decidir el minimapa en FP
 O se muestra el minimapa en modo FP (y `_draw_live_player` cobra sentido), o se elimina ese código. Decisión de producto; implementación trivial en `Main._sync_view_mode`.
 
-### T5.6 🟡 G-9 — Preflight de Python ⚠️ MOTOR (opcional)
-Chequeo al entrar en la escena de simulación (`OS.execute("python --version")` async) para avisar temprano "no habrá gráficas" en el HUD. Solo si la ventana de coordinación del motor de T1.2/T1.3 sigue abierta; si no, posponer.
+### T5.6 ✅ G-9 — Preflight de Python ⚠️ MOTOR (completada)
+Chequeo cacheado al entrar en la escena de simulación. Prueba `python` y el
+fallback Windows `py -3`; si ninguno está disponible, muestra un aviso
+persistente en el HUD y la generación falla inmediatamente con mensaje
+accionable. Se omite en modo validación.
 
 ---
 
 ## Ventana de coordinación con el motor (resumen ⚠️)
+
+**CERRADA 2026-07-15.** Las tres tareas obligatorias se implementaron juntas,
+sin tocar sistemas físicos, baselines, tolerancias ni casos de validación.
 
 Un único paquete de cambios en `sim/core/SimulationEngine.gd`, idealmente en un solo commit coordinado con la línea del motor:
 1. T1.2 — `_launch_graph_generator`: modo async con notificación de fin (≈20 líneas).

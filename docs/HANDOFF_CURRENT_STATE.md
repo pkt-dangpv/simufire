@@ -6,6 +6,23 @@ Date: 2026-07-15.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-15 - visual/UI plan closed
+
+- Phase 3+ motor work is paused after checkpoint `6b397ebb`; this parenthesis
+  touches only graph orchestration in `SimulationEngine.gd` plus `Main.gd` UI.
+- Manual graph generation now uses a tracked asynchronous Python process.
+  Main polls every 0.5 s behind a modal overlay, validates exit code and a
+  freshly written output marker, and times out defensively after 60 s.
+- "Exit without graphs" and "return to editor" suppress `_exit_tree` export.
+  Natural extinction and closing/stopping the game retain automatic graphs.
+- Python availability is checked once on scene entry with `python` and Windows
+  `py -3` fallback. Missing Python produces a persistent HUD warning and an
+  immediate actionable error when graph generation is requested.
+- Automatic gates: graph/UI focused tests PASS, physics and ILV remain at
+  zero FAIL, required validation remains 348/353 with five VALID_GAP. The
+  two-resolution visual checklist remains a manual acceptance step.
+- Resume Phase 3+ at F3.0k.1c only after this coordinated visual commit.
+
 ## Current Session Update - 2026-07-15 - F3.0k.1b passive arbitration
 
 - F3.0k.1b is a **GO for passive arbitration and exact CO-oxidation

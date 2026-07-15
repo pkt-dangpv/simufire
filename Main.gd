@@ -7,6 +7,8 @@ const MAIN_MENU_PATH: String = "res://scenes/MainMenu.tscn"
 const SCENARIO_EDITOR_PATH: String = "res://scenes/ScenarioEditorScene.tscn"
 const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 const RETURN_TO_EDITOR_FLAG_PATH: String = "user://return_to_editor.flag"
+const GRAPH_GENERATION_POLL_INTERVAL_S: float = 0.5
+const GRAPH_GENERATION_MAX_POLLS: int = 120
 
 @onready var building: BuildingModel = $World/BuildingModel
 @onready var engine: SimulationEngine = $World/SimulationEngine
@@ -31,6 +33,11 @@ var _graphs_room_prev_button: Button = null
 var _graphs_room_next_button: Button = null
 var _graph_drag_scroll: ScrollContainer = null
 var _graph_zoom: float = 1.0
+var _graph_generation_overlay: ColorRect = null
+var _graph_generation_timer: Timer = null
+var _graph_generation_poll_count: int = 0
+var _graph_generation_pending: bool = false
+var _python_warning_label: Label = null
 var _pending_technical_summary: Dictionary = {}
 var _pending_technical_summary_dir: String = ""
 var _view_update_accum_s: float = 0.0
@@ -46,6 +53,7 @@ var minimap_2d = null
 func _ready() -> void:
 	UILocalizationScript.ensure_loaded()
 	_setup_graph_dialogs()
+	_setup_python_warning()
 	if hud != null:
 		hud.bind_building(building)
 		_connect_hud_signals()
@@ -58,6 +66,8 @@ func _ready() -> void:
 		# W-01: capturar pantalla 3D cuando la simulación genera el export JSON.
 		_connect_once(engine.export_screenshot_requested, _on_export_screenshot_requested)
 		_connect_once(engine.technical_summary_ready, _on_technical_summary_ready)
+		if not _is_validation_mode():
+			_set_python_warning_visible(not engine.check_python_available())
 	_connect_visualizer_signals()
 	_update_views()
 
@@ -373,6 +383,8 @@ func _on_exit_without_graphs_requested() -> void:
 	playback_paused = true
 	if first_person_enabled:
 		_set_first_person_enabled(false)
+	if engine != null:
+		engine.suppress_exit_graphs()
 	get_tree().change_scene_to_file(MAIN_MENU_PATH)
 
 
@@ -384,6 +396,8 @@ func _on_return_to_editor_requested() -> void:
 	if flag != null:
 		flag.store_string("1")
 		flag.close()
+	if engine != null:
+		engine.suppress_exit_graphs()
 	get_tree().change_scene_to_file(SCENARIO_EDITOR_PATH)
 
 
@@ -435,23 +449,129 @@ func _setup_graph_dialogs() -> void:
 	_technical_summary_window.visible = false
 	_technical_summary_window.close_requested.connect(_on_technical_summary_window_close_requested)
 	add_child(_technical_summary_window)
+	_setup_graph_generation_overlay()
+
+
+func _setup_graph_generation_overlay() -> void:
+	if _graph_generation_overlay != null:
+		return
+	var ui_root: Node = get_node_or_null("UI")
+	if ui_root == null:
+		return
+	_graph_generation_overlay = ColorRect.new()
+	_graph_generation_overlay.name = "GraphGenerationOverlay"
+	_graph_generation_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_graph_generation_overlay.color = Color(0.02, 0.025, 0.03, 0.72)
+	_graph_generation_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_graph_generation_overlay.z_index = 1000
+	_graph_generation_overlay.visible = false
+	ui_root.add_child(_graph_generation_overlay)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_graph_generation_overlay.add_child(center)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(380.0, 96.0)
+	center.add_child(panel)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 24)
+	margin.add_theme_constant_override("margin_top", 18)
+	margin.add_theme_constant_override("margin_right", 24)
+	margin.add_theme_constant_override("margin_bottom", 18)
+	panel.add_child(margin)
+	var label := Label.new()
+	label.text = "Generando graficas..."
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 20)
+	margin.add_child(label)
+
+	_graph_generation_timer = Timer.new()
+	_graph_generation_timer.name = "GraphGenerationPollTimer"
+	_graph_generation_timer.wait_time = GRAPH_GENERATION_POLL_INTERVAL_S
+	_graph_generation_timer.one_shot = false
+	_graph_generation_timer.timeout.connect(_on_graph_generation_poll_timeout)
+	add_child(_graph_generation_timer)
+
+
+func _setup_python_warning() -> void:
+	if hud == null or _python_warning_label != null:
+		return
+	_python_warning_label = Label.new()
+	_python_warning_label.name = "PythonUnavailableWarning"
+	_python_warning_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_python_warning_label.offset_left = -270.0
+	_python_warning_label.offset_top = 12.0
+	_python_warning_label.offset_right = 270.0
+	_python_warning_label.offset_bottom = 42.0
+	_python_warning_label.text = "Python no detectado - no se generaran graficas"
+	_python_warning_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_python_warning_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_python_warning_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_python_warning_label.add_theme_color_override("font_color", Color(1.0, 0.72, 0.22))
+	_python_warning_label.add_theme_color_override("font_outline_color", Color(0.02, 0.02, 0.02, 0.95))
+	_python_warning_label.add_theme_constant_override("outline_size", 5)
+	_python_warning_label.z_index = 900
+	_python_warning_label.visible = false
+	hud.add_child(_python_warning_label)
+
+
+func _set_python_warning_visible(show_warning: bool) -> void:
+	if _python_warning_label != null:
+		_python_warning_label.visible = show_warning
 
 
 func _on_graphs_dir_selected(dir_path: String) -> void:
 	if engine == null:
 		return
 
+	_graph_generation_pending = true
 	var launched: bool = engine.stop_and_generate_graphs("manual_stop_button", dir_path)
 	_update_views()
 	if not launched:
-		_show_graphs_message("No se pudieron generar graficas: la simulacion no tenia datos o ya estaban lanzadas.")
+		_graph_generation_pending = false
+		if not engine.is_python_available():
+			_set_python_warning_visible(true)
+			_show_graphs_message("Python no esta disponible. Instala Python 3 y matplotlib para generar graficas.")
+		else:
+			_show_graphs_message("No se pudieron iniciar las graficas: la simulacion no tenia datos o ya estaban lanzadas.")
 		return
 
-	var graphs_dir: String = engine.get_last_graphs_dir()
-	if engine.was_last_graph_generation_ok() and graphs_dir != "":
-		_show_graphs_window(graphs_dir)
+	_graph_generation_poll_count = 0
+	if _graph_generation_overlay != null:
+		_graph_generation_overlay.show()
+	if _graph_generation_timer == null:
+		_finish_graph_generation_poll()
+		_show_graphs_message("No se pudo iniciar el seguimiento de las graficas. Ejecuta scripts/generate_fire_graphs.py manualmente.")
+		return
+	_graph_generation_timer.start()
+
+
+func _on_graph_generation_poll_timeout() -> void:
+	if engine == null or not _graph_generation_pending:
+		_finish_graph_generation_poll()
+		return
+	_graph_generation_poll_count += 1
+	var poll_result: int = engine.poll_graph_generation()
+	if poll_result == 0 and _graph_generation_poll_count < GRAPH_GENERATION_MAX_POLLS:
+		return
+
+	_graph_generation_pending = false
+	_finish_graph_generation_poll()
+	if poll_result == 1:
+		_show_graphs_window(engine.get_last_graphs_dir())
+	elif poll_result == 0:
+		_show_graphs_message("La generacion de graficas supero 60 segundos. Revisa Python y ejecuta scripts/generate_fire_graphs.py manualmente.")
 	else:
 		_show_graphs_message("No se pudieron generar graficas. Revisa que Python y matplotlib esten disponibles.")
+
+
+func _finish_graph_generation_poll() -> void:
+	_graph_generation_pending = false
+	if _graph_generation_timer != null:
+		_graph_generation_timer.stop()
+	if _graph_generation_overlay != null:
+		_graph_generation_overlay.hide()
 
 
 ## W-01: Captura la vista 3D (si está activa) en el directorio de exportación.
@@ -464,7 +584,7 @@ func _on_export_screenshot_requested(output_dir: String) -> void:
 
 
 func _on_technical_summary_ready(summary: Dictionary, output_dir: String) -> void:
-	if _graphs_view_window != null and _graphs_view_window.visible:
+	if _graph_generation_pending or (_graphs_view_window != null and _graphs_view_window.visible):
 		_pending_technical_summary = summary
 		_pending_technical_summary_dir = output_dir
 		return
