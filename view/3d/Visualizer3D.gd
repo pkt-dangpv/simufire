@@ -213,6 +213,7 @@ var _selected_player_start: bool = false
 var _dragging_element_kind: String = ""
 var _dragging_element_id: String = ""
 var _dragging_element_room_id: int = -1
+var _drag_floor_level_m: float = 0.0
 var _drag_floor_offset_m: Vector2 = Vector2.ZERO
 var _drag_start_floor_pos_m: Vector2 = Vector2.ZERO
 var _drag_started_emitted: bool = false
@@ -448,7 +449,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					if rid >= 0:
 						select_room(rid)
 						room_clicked.emit(rid)
-						var floor_hit: Variant = screen_to_floor_m(mb.position)
+						var rid_level_m: float = _get_room_floor_level(rid)
+						var floor_hit: Variant = _screen_to_floor_at_level(mb.position, rid_level_m)
 						if typeof(floor_hit) == TYPE_VECTOR2:
 							floor_clicked.emit(rid, Vector2(floor_hit))
 						get_viewport().set_input_as_handled()
@@ -1788,10 +1790,26 @@ func screen_to_floor_m(screen_pos: Vector2) -> Variant:
 	return ScreenPicking3D.floor_hit_m(_camera, screen_pos, meters_to_units, _origin_offset_m)
 
 
+func _screen_to_floor_at_level(screen_pos: Vector2, floor_level_m: float) -> Variant:
+	return ScreenPicking3D.floor_hit_at_level(_camera, screen_pos, meters_to_units, _origin_offset_m, floor_level_m)
+
+
 func _begin_element_drag(kind: String, element_id: String, room_id: int, screen_pos: Vector2) -> void:
 	if not allow_element_drag:
 		return
-	var floor_hit: Variant = screen_to_floor_m(screen_pos)
+	var level_m: float = 0.0
+	if room_id >= 0:
+		level_m = _get_room_floor_level(room_id)
+	else:
+		var node: Node3D = null
+		match kind:
+			"detector", "victim":
+				node = _safety_marker_node(kind, element_id)
+			"player_start":
+				node = _player_start_node
+		if node != null:
+			level_m = node.global_position.y / maxf(0.0001, meters_to_units)
+	var floor_hit: Variant = _screen_to_floor_at_level(screen_pos, level_m)
 	if typeof(floor_hit) != TYPE_VECTOR2:
 		return
 	var element_pos: Variant = _element_floor_position_m(kind, element_id, room_id)
@@ -1800,6 +1818,7 @@ func _begin_element_drag(kind: String, element_id: String, room_id: int, screen_
 	_dragging_element_kind = kind
 	_dragging_element_id = element_id
 	_dragging_element_room_id = room_id
+	_drag_floor_level_m = level_m
 	_drag_floor_offset_m = Vector2(element_pos) - Vector2(floor_hit)
 	_drag_start_floor_pos_m = Vector2(element_pos)
 	_drag_started_emitted = false
@@ -1808,7 +1827,7 @@ func _begin_element_drag(kind: String, element_id: String, room_id: int, screen_
 func _update_element_drag(screen_pos: Vector2) -> void:
 	if not _is_element_dragging():
 		return
-	var floor_hit: Variant = screen_to_floor_m(screen_pos)
+	var floor_hit: Variant = _screen_to_floor_at_level(screen_pos, _drag_floor_level_m)
 	if typeof(floor_hit) != TYPE_VECTOR2:
 		return
 	var next_floor_pos_m: Vector2 = Vector2(floor_hit) + _drag_floor_offset_m
