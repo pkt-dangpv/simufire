@@ -1,10 +1,37 @@
 # Current Handoff State
 
-Date: 2026-07-14.
+Date: 2026-07-15.
 
 ## Purpose
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
+
+## Current Session Update - 2026-07-15 - F3.0g immediate species exchange
+
+- Horizontal background diffusion and no-delay doorway counterflow now emit
+  exact pre-delta CO/CO2/HCN shadow events. The paths are disjoint from the
+  canonical two-zone opening contract (F3.0e) and delayed parcels (F3.0f).
+- Background emits one signed transfer per species. CO preserves the source
+  upper share; CO2 and HCN are lower-only because legacy changes only bulk
+  stock. Counterflow emits both gross directions, retaining each source's
+  upper/lower split rather than hiding churn in a net delta.
+- `Phase3ZoneMassSystem` applies the events only to shadow state and exports
+  cumulative mass by mechanism/species, rejection and conservation residuals.
+  Parcel lifecycle residuals are now also separated by CO, CO2 and HCN.
+- Runtime proof: 42 OFF/ON rows, 115 shared legacy columns, zero differences;
+  ON has 171 columns. Two-room/corridor/v4 exercised background, the sealed
+  control exercised both background and counterflow, and every immediate and
+  parcel residual was zero.
+- Small immediate shadow rejection (up to about 0.00051 kg in the audited
+  controls) remains visible. It reflects producers/order still absent from the
+  shadow ledger; no physical mass is removed and no tolerance was relaxed.
+- FED and the known ILV defect are unchanged: victim incapacitation remains
+  206.1 s and `cfast_multi_fuel_couch_tv` retains 7 zero-O2 flame hits.
+- Explicit exclusions: vertical-opening helpers, exterior purge, HVAC,
+  thermal transport, smoke, irritants and O2 counterflow.
+- Next gate: F3.0h should audit and connect the vertical-opening CO/CO2/HCN
+  paths as their own contract. Do not promote shadow state to physical
+  authority.
 
 ## Current Session Update - 2026-07-14 - F3.0f persistent parcel reservoir
 

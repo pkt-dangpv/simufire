@@ -24,6 +24,9 @@ FIELDS = (
     "phase3_shadow_species_duplicate_id_count",
     "phase3_shadow_species_negative_balance_count",
     "phase3_shadow_species_conservation_residual_kg",
+    "phase3_shadow_species_conservation_residual_co_kg",
+    "phase3_shadow_species_conservation_residual_co2_kg",
+    "phase3_shadow_species_conservation_residual_hcn_kg",
     "phase3_shadow_species_transit_rejected_kg",
 )
 
@@ -136,6 +139,17 @@ class TestPhase3ShadowSpeciesReservoir(unittest.TestCase):
         self.assertIn("_species_transit_refunded_kg", residual)
         self.assertIn("_species_transit_cancelled_kg", residual)
         self.assertIn("_inflight_transit_species()", residual)
+
+    def test_conservation_is_also_reported_per_species(self):
+        residual = _function(SYSTEM, "_species_transit_conservation_residual_for")
+        self.assertIn("_species_transit_created_kg", residual)
+        self.assertIn("_species_transit_delivered_kg", residual)
+        self.assertIn("_species_transit_refunded_kg", residual)
+        self.assertIn("_species_transit_cancelled_kg", residual)
+        for species in ("co", "co2", "hcn"):
+            self.assertIn(
+                f'"phase3_shadow_species_conservation_residual_{species}_kg"', SYSTEM
+            )
 
     def test_transit_events_do_not_become_same_step_room_requests(self):
         collector = _function(ENGINE, "_phase3_shadow_collect_parcel_species_events")

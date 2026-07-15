@@ -1,6 +1,6 @@
 # Phase 3+ F3.0 canonical shadow transaction
 
-Date: 2026-07-14
+Date: 2026-07-15
 
 ## Scope
 
@@ -90,7 +90,7 @@ legacy columns, zero differences, maximum combustion energy request
 owners. `phase3_shadow_combustion_owned_mask=1` explicitly means energy only
 (`energy=1`, `O2=2`, `species=4`).
 
-## Next STOP gate
+## F3.0c zonal oxygen contract
 
 F3.0c connects only the unambiguous zonal O2 sinks. OxygenExchangeSystem derives
 the accepted O2 mass from the exact before/after fractions before assigning
@@ -197,9 +197,37 @@ columns. A sealed control created no parcels, victim incapacitation remained
 Smoke, irritants, O2 and parcel gas/energy are deliberately excluded. The
 reservoir is passive and never writes `RoomModel`.
 
+## F3.0g immediate background/counterflow
+
+F3.0g owns two immediate horizontal paths. Classic background diffusion emits
+one signed CO/CO2/HCN transfer before each legacy delta write. CO retains its
+source upper fraction; CO2 and HCN are lower-only because this legacy path does
+not mutate their upper stocks. No-delay doorway counterflow emits both gross
+directions with explicit total and upper masses, preserving the churn that a
+net-only event would hide.
+
+The two paths cannot overlap F3.0e/F3.0f: canonical two-zone opening flow
+returns before classic background, and counterflow exists only in the
+non-delayed branch. Vertical opening helpers are separate and remain unowned.
+
+Runtime proof:
+
+| Control | Background CO2 kg | Counterflow CO2 kg | Immediate residuals |
+|---|---:|---:|---:|
+| Two-room, 60 s | 0.000361 | 0 | 0 |
+| Corridor, 120 s | 0.003248 | 0 | 0 |
+| Sealed multi-room, 60 s | 0.001249 | 0.001671 | 0 |
+| v4 remote CO, 200 s | 0.001948 | 0 | 0 |
+
+OFF/ON retained 42 rows and 115 identical legacy columns; ON exports 171
+columns. Delayed-parcel and immediate residuals close separately for CO, CO2
+and HCN. Small inventory rejection remains visible because other producers are
+still absent from shadow. Victim incapacitation remains 206.1 s and all 7
+known zero-O2 flame hits remain visible.
+
 ## Next STOP gate
 
-F3.0g should audit the remaining direct species paths and connect one exact
-producer, preferably background/counterflow exchange. Exterior purge, HVAC
-and thermal transport must remain separate contracts. No physical authority
-switch is allowed until all active paths have non-duplicated ownership.
+F3.0h should audit the vertical-opening helpers and connect them only through
+exact pre-mutation total/upper values. Exterior purge, HVAC and thermal
+transport remain separate later contracts. No physical authority switch is
+allowed until every active path has non-duplicated ownership.

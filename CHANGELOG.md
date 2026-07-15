@@ -3,6 +3,24 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0g immediate background/counterflow species (2026-07-15)
+
+- Added shadow-only ownership for the exact CO, CO2 and HCN deltas produced by
+  horizontal background diffusion and the no-delay doorway counterflow. GES
+  records each value before its legacy delta write; Engine only forwards it.
+- Preserved the legacy zonal semantics: background CO follows its upper share,
+  background CO2/HCN are lower-only because their upper stocks are unchanged,
+  and counterflow records both gross directions with their own upper/lower
+  splits instead of collapsing them into one net value.
+- Added cumulative transfer telemetry by mechanism/species, immediate request
+  rejection, and separate CO/CO2/HCN conservation residuals for both immediate
+  exchange and delayed parcels. Vertical openings, purge, HVAC and thermal
+  transport remain explicit exclusions.
+- OFF/ON validation retained 42 rows and 115 identical legacy columns; ON now
+  exports 171 columns. Immediate and parcel residuals were zero in two-room,
+  corridor, sealed, remote-CO, victim-FED and zombie-ILV controls. Victim
+  incapacitation remained 206.1 s and all 7 zero-O2 flame hits remain visible.
+
 ### Phase 3+ F3.0f persistent delayed-species reservoir (2026-07-14)
 
 - Added a shadow-only persistent reservoir for delayed CO, CO2 and HCN

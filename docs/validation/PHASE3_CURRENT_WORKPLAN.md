@@ -1,6 +1,6 @@
 # Phase 3+ current workplan
 
-Date: 2026-07-14
+Date: 2026-07-15
 
 ## Current baseline
 
@@ -35,8 +35,9 @@ canonical two-zone mass/energy/O2/species transaction.
 
 ## Active route
 
-F3.0 shadow canonical two-zone state through F3.0f are implemented. Direct
-doorway transport and delayed CO/CO2/HCN parcels now have separate contracts.
+F3.0 shadow canonical two-zone state through F3.0g are implemented. Direct
+doorway transport, delayed parcels and immediate horizontal background/
+counterflow CO/CO2/HCN transport now have separate contracts.
 The active route remains completing explicit shadow ownership one producer at
 a time without deriving requests from post-mutation stock deltas.
 
@@ -155,6 +156,26 @@ That would make the ledger circular.
 - Smoke, irritants, O2 and parcel gas/energy remain unowned. This phase is
   passive and does not authorize canonical writes to `RoomModel`.
 
+## F3.0g delivered
+
+- `GasExchangeSystem` records the exact horizontal background deltas before
+  writing the legacy dictionaries. Signed net values choose the real source;
+  CO carries its upper share while bulk-only CO2/HCN remain lower-zone.
+- The no-delay counterflow records both gross directions for CO, CO2 and HCN,
+  including each source's upper share. It is not collapsed to a net value and
+  cannot overlap the delayed parcel branch.
+- Engine forwards events without transport formulas. The shadow component
+  splits upper/lower, limits by its own inventory and exports cumulative
+  mechanism totals, rejection and per-species conservation.
+- OFF/ON proof retained 42 rows and 115 identical legacy columns; ON has 171.
+  Background and counterflow residuals were zero in all audited controls.
+  Parcel conservation is now also exported separately for CO, CO2 and HCN.
+- Small shadow rejection remains intentionally visible while producers outside
+  the ledger are unresolved. No legacy state, FED result, baseline or
+  tolerance changed. The 7 known zero-O2 flame hits remain visible.
+- Vertical-opening exchange, exterior purge, HVAC, thermal transport, smoke,
+  irritants and O2 counterflow remain outside ownership.
+
 ## STOP gate for F3.0
 
 Required before commit:
@@ -184,8 +205,10 @@ Rollback the F3.0 attempt if:
 
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0g. Audit the remaining CO/CO2/HCN transport producers
-and select one exact pre-mutation contract, preferably background/counterflow
-exchange. Keep exterior purge, HVAC and thermal transport separate, and do not
-promote the shadow transaction to physical authority until every active path
-has an owner and cross-path conservation is demonstrated.
+Use GPT-5.6 Sol for F3.0h. Audit the two vertical-opening helpers
+(`_apply_species_net_exchange` and `_apply_directed_species_exchange`) and
+connect them only if their total/upper zonal semantics can be made explicit
+before mutation. Keep exterior purge, HVAC and thermal transport as later,
+separate contracts. Do not promote the shadow transaction to physical
+authority until every active path has an owner and cross-path conservation is
+demonstrated.
