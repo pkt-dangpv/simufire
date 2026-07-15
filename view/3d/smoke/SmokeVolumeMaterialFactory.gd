@@ -138,7 +138,6 @@ static func create_volume(smoke_color: Color) -> ShaderMaterial:
 	material.set_shader_parameter("flow_strength", 0.0)
 	material.set_shader_parameter("flow_speed", 0.30)
 	material.set_shader_parameter("flow_direction", 0.0)
-	material.render_priority = 4
 	return material
 
 
@@ -151,5 +150,4 @@ static func create_ceiling_mask() -> ShaderMaterial:
 	material.set_shader_parameter("mask_alpha", 0.12)
 	material.set_shader_parameter("density", 1.0)
 	material.set_shader_parameter("drift_speed", 0.035)
-	material.render_priority = 5
 	return material

@@ -749,17 +749,17 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	smoke_ceiling_mask.visible = show_smoke_ceiling_masks
 	_atmosphere_root.add_child(smoke_ceiling_mask)
 
-	var gradient_band := _create_box("LayerGradient_%02d" % room_id, Vector3.ONE, _make_material(layer_gradient_top_color, true, 3))
+	var gradient_band := _create_box("LayerGradient_%02d" % room_id, Vector3.ONE, _make_material(layer_gradient_top_color, true))
 	gradient_band.visible = false
 	_disable_shadow_casting(gradient_band)
 	_atmosphere_root.add_child(gradient_band)
 
-	var hot := _create_box("HotLayer_%02d" % room_id, Vector3.ONE, _make_material(hot_layer_color, true, 1))
+	var hot := _create_box("HotLayer_%02d" % room_id, Vector3.ONE, _make_material(hot_layer_color, true))
 	hot.visible = false
 	_disable_shadow_casting(hot)
 	_atmosphere_root.add_child(hot)
 
-	var l150 := _create_box("Layer150C_%02d" % room_id, Vector3.ONE, _make_material(layer_150c_color, true, 2))
+	var l150 := _create_box("Layer150C_%02d" % room_id, Vector3.ONE, _make_material(layer_150c_color, true))
 	l150.visible = false
 	_disable_shadow_casting(l150)
 	_atmosphere_root.add_child(l150)
@@ -1205,23 +1205,19 @@ func _create_opening(index: int) -> void:
 	# Cortina de humo: rellena el vano abierto y suaviza el salto visual de capa
 	# entre estancias o hacia el exterior.
 	if op.type == OpeningModel.Type.DOOR or op.type == OpeningModel.Type.WINDOW or op.type == OpeningModel.Type.HOLE:
-		var curtain_mat := _make_smoke_volume_material()
-		curtain_mat.render_priority = 6
 		var curtain := _create_box(
 			"SmokeCurtain_%02d" % index,
 			Vector3(pose["size"]) * meters_to_units,
-			curtain_mat
+			_make_smoke_volume_material()
 		)
 		curtain.position = marker.position
 		curtain.visible = false
 		_disable_shadow_casting(curtain)
 		_atmosphere_root.add_child(curtain)
-		var inflow_mat := SmokeVolumeMaterialFactory.create_volume(cold_air_inflow_color)
-		inflow_mat.render_priority = 6
 		var inflow := _create_box(
 			"AirInflowCurtain_%02d" % index,
 			Vector3(pose["size"]) * meters_to_units,
-			inflow_mat
+			SmokeVolumeMaterialFactory.create_volume(cold_air_inflow_color)
 		)
 		inflow.position = marker.position
 		inflow.visible = false
@@ -2100,9 +2096,6 @@ func _update_smoke_volume(
 			mesh.size = Vector3(room_smoke_width_m, render_depth_m, room_smoke_depth_m) * meters_to_units
 		node.position = _room_center(rect, visual_bottom_m + render_depth_m * 0.5, floor_level_m)
 
-		if edge_node != null:
-			edge_node.visible = false
-
 	var puffs_root := item.get("smoke_puffs_root") as Node3D
 	if puffs_root != null:
 		puffs_root.visible = smoke_puffs_visible
@@ -2614,14 +2607,13 @@ func _make_smoke_volume_material() -> ShaderMaterial:
 	return SmokeVolumeMaterialFactory.create_volume(smoke_color)
 
 
-func _make_material(color: Color, transparent: bool, priority: int = 0) -> StandardMaterial3D:
+func _make_material(color: Color, transparent: bool) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = 0.94
 	material.metallic = 0.0
 	if transparent or color.a < 1.0:
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.render_priority = priority
 	return material
 
 
