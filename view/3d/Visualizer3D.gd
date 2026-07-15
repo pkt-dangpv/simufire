@@ -2438,8 +2438,8 @@ func _find_fire_anchor(item: Dictionary, rect: Rect2, rs: Dictionary) -> Diction
 		if is_previous_anchor:
 			previous_obj = obj
 		var state_name: String = String(obj.get("state", "cold")).to_lower()
-		var score: float = maxf(float(obj.get("hrr_kw", 0.0)), float(obj.get("hrr", 0.0)))
 		var is_active_state: bool = state_name == "flaming" or state_name == "pyrolyzing" or state_name == "decaying"
+		var score: float = maxf(float(obj.get("hrr_kw", 0.0)), float(obj.get("hrr", 0.0))) if is_active_state else 0.0
 		match state_name:
 			"flaming":
 				score += 1000.0

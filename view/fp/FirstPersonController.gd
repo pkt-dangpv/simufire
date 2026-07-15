@@ -2231,6 +2231,11 @@ func _fp_fire_hrr_kw(room_state: Dictionary) -> float:
 		if typeof(raw) != TYPE_DICTIONARY:
 			continue
 		var obj: Dictionary = raw
+		# El motor puede dejar hrr_kw residual en objetos que recaen a heating/cold
+		# (transición sin reset); solo los estados con llama real alimentan el visual.
+		var state_name: String = String(obj.get("state", "cold")).to_lower()
+		if state_name != "flaming" and state_name != "decaying":
+			continue
 		hrr_kw = maxf(hrr_kw, maxf(float(obj.get("hrr_kw", 0.0)), float(obj.get("hrr", 0.0))))
 	return hrr_kw
 
@@ -2295,8 +2300,8 @@ func _fp_fire_anchor_object(item: Dictionary, rs: Dictionary) -> Dictionary:
 		if is_previous_anchor:
 			previous_obj = obj
 		var state_name: String = String(obj.get("state", "cold")).to_lower()
-		var score: float = maxf(float(obj.get("hrr_kw", 0.0)), float(obj.get("hrr", 0.0)))
 		var is_active_state: bool = state_name == "flaming" or state_name == "pyrolyzing" or state_name == "decaying"
+		var score: float = maxf(float(obj.get("hrr_kw", 0.0)), float(obj.get("hrr", 0.0))) if is_active_state else 0.0
 		match state_name:
 			"flaming":
 				score += 1000.0
