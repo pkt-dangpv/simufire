@@ -18,7 +18,10 @@ const SEMANTIC_QUANTITY_BITS: Dictionary = {
 
 var _snapshots: Dictionary = {}
 var _requests: Array[Dictionary] = []
+var _transactions: Array[Dictionary] = []
 var _request_ids: Dictionary = {}
+var _atomic_bundles: Array[Dictionary] = []
+var _atomic_bundle_ids: Dictionary = {}
 var _duplicate_owner_count: int = 0
 var _results: Dictionary = {}
 var _species_transit_reservoir: Dictionary = {}
@@ -75,6 +78,23 @@ var _co_oxidation_event_ids: Dictionary = {}
 var _co_oxidation_co_sink_kg: float = 0.0
 var _co_oxidation_co2_source_kg: float = 0.0
 var _co_oxidation_carbon_residual_kg: float = 0.0
+var _co_oxidation_o2_sink_kg: float = 0.0
+var _co_oxidation_accepted_fraction: float = 1.0
+var _co_oxidation_accepted_co_sink_kg: float = 0.0
+var _co_oxidation_accepted_co2_source_kg: float = 0.0
+var _co_oxidation_accepted_o2_sink_kg: float = 0.0
+var _co_oxidation_o2_rejected_kg: float = 0.0
+var _co_oxidation_oxygen_residual_kg: float = 0.0
+var _co_oxidation_legacy_lower_co2_kg: float = 0.0
+var _atomic_bundle_count: int = 0
+var _atomic_route_count: int = 0
+var _atomic_min_accepted_fraction: float = 1.0
+var _atomic_rejected_mass_kg: float = 0.0
+var _atomic_rejected_energy_kj: float = 0.0
+var _atomic_rejected_o2_kg: float = 0.0
+var _atomic_rejected_species_kg: float = 0.0
+var _atomic_duplicate_bundle_count: int = 0
+var _atomic_invalid_bundle_count: int = 0
 
 
 func reset() -> void:
@@ -117,7 +137,10 @@ func reset() -> void:
 func _reset_step_state() -> void:
 	_snapshots.clear()
 	_requests.clear()
+	_transactions.clear()
 	_request_ids.clear()
+	_atomic_bundles.clear()
+	_atomic_bundle_ids.clear()
 	_duplicate_owner_count = 0
 	_results.clear()
 	_immediate_debited_species_kg_step.clear()
@@ -141,6 +164,23 @@ func _reset_step_state() -> void:
 	_co_oxidation_co_sink_kg = 0.0
 	_co_oxidation_co2_source_kg = 0.0
 	_co_oxidation_carbon_residual_kg = 0.0
+	_co_oxidation_o2_sink_kg = 0.0
+	_co_oxidation_accepted_fraction = 1.0
+	_co_oxidation_accepted_co_sink_kg = 0.0
+	_co_oxidation_accepted_co2_source_kg = 0.0
+	_co_oxidation_accepted_o2_sink_kg = 0.0
+	_co_oxidation_o2_rejected_kg = 0.0
+	_co_oxidation_oxygen_residual_kg = 0.0
+	_co_oxidation_legacy_lower_co2_kg = 0.0
+	_atomic_bundle_count = 0
+	_atomic_route_count = 0
+	_atomic_min_accepted_fraction = 1.0
+	_atomic_rejected_mass_kg = 0.0
+	_atomic_rejected_energy_kj = 0.0
+	_atomic_rejected_o2_kg = 0.0
+	_atomic_rejected_species_kg = 0.0
+	_atomic_duplicate_bundle_count = 0
+	_atomic_invalid_bundle_count = 0
 
 
 func begin_step(building) -> void:
@@ -406,10 +446,14 @@ func apply_co_oxidation_event(event: Dictionary) -> void:
 	var room_id: int = int(event.get("room_id", EXTERIOR_ID))
 	var co_sink_kg: float = maxf(0.0, float(event.get("co_consumed_kg", 0.0)))
 	var co2_source_kg: float = maxf(0.0, float(event.get("co2_generated_kg", 0.0)))
-	if event_id.is_empty() or room_id == EXTERIOR_ID or co_sink_kg <= 0.0:
+	var o2_sink_kg: float = maxf(0.0, float(event.get("o2_consumed_kg", 0.0)))
+	if event_id.is_empty() or room_id == EXTERIOR_ID \
+			or co_sink_kg <= 0.0 or co2_source_kg <= 0.0 or o2_sink_kg <= 0.0:
+		_atomic_invalid_bundle_count += 1
 		return
 	if _co_oxidation_event_ids.has(event_id):
 		_duplicate_owner_count += 1
+		_atomic_duplicate_bundle_count += 1
 		return
 	_co_oxidation_event_ids[event_id] = true
 	var connection_id: String = "chemical:%d:co_oxidation" % room_id
@@ -430,48 +474,68 @@ func apply_co_oxidation_event(event: Dictionary) -> void:
 		"producer": "SimulationEngine",
 		"transport_family": "co_oxidation",
 		"boundary_kind": "chemical_conversion",
-		"source_room_id": EXTERIOR_ID,
-		"destination_room_id": room_id,
-		"source_zone": ZONE_LOWER,
-		"destination_zone": ZONE_LOWER,
-		"quantity": "co2",
-		"amount": co2_source_kg,
-	})
-	register_semantic_unresolved({
-		"connection_id": connection_id,
 		"source_room_id": room_id,
 		"destination_room_id": EXTERIOR_ID,
 		"source_zone": ZONE_UPPER,
 		"destination_zone": ZONE_UPPER,
-	}, ["o2"])
-	add_request(make_request(
-		event_id + ":co_sink",
-		"co_oxidation_sink",
-		room_id,
-		EXTERIOR_ID,
-		ZONE_UPPER,
-		ZONE_UPPER,
-		0.0,
-		0.0,
-		0.0,
-		{"co": co_sink_kg}
-	))
-	# Legacy adds CO2 to bulk only, leaving co2_upper_kg unchanged. The exact
-	# compatibility source is therefore lower-zone even though chemistry occurs hot.
-	add_request(make_request(
-		event_id + ":co2_source",
-		"co_oxidation_source",
-		EXTERIOR_ID,
-		room_id,
-		ZONE_LOWER,
-		ZONE_LOWER,
-		0.0,
-		0.0,
-		0.0,
-		{"co2": co2_source_kg}
+		"quantity": "o2",
+		"amount": o2_sink_kg,
+	})
+	register_semantic_claim({
+		"connection_id": connection_id,
+		"producer": "SimulationEngine",
+		"transport_family": "co_oxidation",
+		"boundary_kind": "chemical_conversion",
+		"source_room_id": EXTERIOR_ID,
+		"destination_room_id": room_id,
+		"source_zone": ZONE_UPPER,
+		"destination_zone": ZONE_UPPER,
+		"quantity": "co2",
+		"amount": co2_source_kg,
+	})
+	var routes: Array = [
+		make_atomic_route(
+			event_id + ":reactants",
+			"co_oxidation_reactants",
+			room_id,
+			EXTERIOR_ID,
+			ZONE_UPPER,
+			ZONE_UPPER,
+			0.0,
+			0.0,
+			o2_sink_kg,
+			{"co": co_sink_kg}
+		),
+		make_atomic_route(
+			event_id + ":products",
+			"co_oxidation_products",
+			EXTERIOR_ID,
+			room_id,
+			ZONE_UPPER,
+			ZONE_UPPER,
+			0.0,
+			0.0,
+			0.0,
+			{"co2": co2_source_kg}
+		),
+	]
+	add_atomic_bundle(make_atomic_bundle(
+		event_id,
+		"co_oxidation",
+		routes,
+		{
+			"kind": "co_oxidation",
+			"room_id": room_id,
+			"co_consumed_kg": co_sink_kg,
+			"co2_generated_kg": co2_source_kg,
+			"o2_consumed_kg": o2_sink_kg,
+		}
 	))
 	_co_oxidation_co_sink_kg += co_sink_kg
 	_co_oxidation_co2_source_kg += co2_source_kg
+	_co_oxidation_o2_sink_kg += o2_sink_kg
+	# Compatibility telemetry only: legacy still adds bulk CO2 without an upper split.
+	_co_oxidation_legacy_lower_co2_kg += co2_source_kg
 	_co_oxidation_carbon_residual_kg += \
 			co_sink_kg * (12.0 / 28.0) - co2_source_kg * (12.0 / 44.0)
 
@@ -595,7 +659,7 @@ func _semantic_owner_for_claim(claim: Dictionary) -> String:
 			if quantity in TRANSIT_SPECIES:
 				return "CombustionSystem"
 		"chemical_conversion":
-			return "SimulationEngine" if quantity in ["co", "co2"] else ""
+			return "SimulationEngine" if quantity in ["co", "co2", "o2"] else ""
 	return ""
 
 
@@ -1047,6 +1111,66 @@ func make_request(
 	}
 
 
+func make_atomic_route(
+		route_id: String,
+		cause: String,
+		source_room_id: int,
+		destination_room_id: int,
+		source_zone: String,
+		destination_zone: String,
+		gas_mass_kg: float,
+		sensible_enthalpy_kj: float,
+		o2_kg: float = 0.0,
+		species_kg: Dictionary = {}
+	) -> Dictionary:
+	var valid: bool = gas_mass_kg >= 0.0 \
+			and sensible_enthalpy_kj >= 0.0 and o2_kg >= 0.0
+	for raw_species_name in species_kg.keys():
+		var species_name: String = String(raw_species_name)
+		if species_name not in TRANSIT_SPECIES \
+				or float(species_kg.get(raw_species_name, 0.0)) < 0.0:
+			valid = false
+	return {
+		"route_id": route_id,
+		"cause": cause,
+		"source_room_id": source_room_id,
+		"destination_room_id": destination_room_id,
+		"source_zone": source_zone,
+		"destination_zone": destination_zone,
+		"gas_mass_kg": maxf(0.0, gas_mass_kg),
+		"sensible_enthalpy_kj": maxf(0.0, sensible_enthalpy_kj),
+		"o2_kg": maxf(0.0, o2_kg),
+		"species_kg": _transit_species(species_kg),
+		"valid": valid,
+	}
+
+
+func make_atomic_bundle(
+		bundle_id: String,
+		cause: String,
+		routes: Array,
+		metadata: Dictionary = {}
+	) -> Dictionary:
+	var normalized_routes: Array[Dictionary] = []
+	var valid: bool = not bundle_id.is_empty() and not cause.is_empty() \
+			and not routes.is_empty()
+	for raw_route in routes:
+		if typeof(raw_route) != TYPE_DICTIONARY:
+			valid = false
+			continue
+		var route: Dictionary = raw_route.duplicate(true)
+		if not _atomic_route_is_valid(route):
+			valid = false
+		normalized_routes.append(route)
+	return {
+		"bundle_id": bundle_id,
+		"cause": cause,
+		"routes": normalized_routes,
+		"metadata": metadata.duplicate(true),
+		"valid": valid,
+	}
+
+
 func add_request(request: Dictionary) -> bool:
 	var request_id: String = String(request.get("request_id", ""))
 	var cause: String = String(request.get("cause", ""))
@@ -1056,7 +1180,25 @@ func add_request(request: Dictionary) -> bool:
 		_duplicate_owner_count += 1
 		return false
 	_request_ids[request_id] = true
-	_requests.append(request.duplicate(true))
+	var record: Dictionary = request.duplicate(true)
+	_requests.append(record)
+	_transactions.append({"kind": "request", "value": record})
+	return true
+
+
+func add_atomic_bundle(bundle: Dictionary) -> bool:
+	var bundle_id: String = String(bundle.get("bundle_id", ""))
+	if bundle_id.is_empty() or not bool(bundle.get("valid", false)):
+		_atomic_invalid_bundle_count += 1
+		return false
+	if _atomic_bundle_ids.has(bundle_id):
+		_atomic_duplicate_bundle_count += 1
+		_duplicate_owner_count += 1
+		return false
+	_atomic_bundle_ids[bundle_id] = true
+	var record: Dictionary = bundle.duplicate(true)
+	_atomic_bundles.append(record)
+	_transactions.append({"kind": "atomic_bundle", "value": record})
 	return true
 
 
@@ -1068,16 +1210,25 @@ func finalize_step(building) -> void:
 	var rejected_doorway_species_by_room: Dictionary = {}
 	var rejected_transit_species_by_room: Dictionary = {}
 	var rejected_immediate_species_by_room: Dictionary = {}
-	for request in _requests:
-		_apply_request(
-			shadow,
-			request,
-			rejected_by_room,
-			rejected_combustion_o2_by_room,
-			rejected_doorway_species_by_room,
-			rejected_transit_species_by_room,
-			rejected_immediate_species_by_room
-		)
+	for raw_transaction in _transactions:
+		var transaction: Dictionary = raw_transaction
+		match String(transaction.get("kind", "")):
+			"request":
+				_apply_request(
+					shadow,
+					transaction.get("value", {}),
+					rejected_by_room,
+					rejected_combustion_o2_by_room,
+					rejected_doorway_species_by_room,
+					rejected_transit_species_by_room,
+					rejected_immediate_species_by_room
+				)
+			"atomic_bundle":
+				_apply_atomic_bundle(
+					shadow,
+					transaction.get("value", {}),
+					rejected_by_room
+				)
 	if building == null:
 		return
 	var inflight_transit_species: Dictionary = _inflight_transit_species()
@@ -1466,10 +1617,40 @@ func finalize_step(building) -> void:
 			"phase3_shadow_semantic_unresolved_conflict_count": float(
 				semantic_summary.get("unresolved_conflict_count", 0)
 			),
+			"phase3_shadow_atomic_bundle_count": float(_atomic_bundle_count),
+			"phase3_shadow_atomic_route_count": float(_atomic_route_count),
+			"phase3_shadow_atomic_min_accepted_fraction": \
+					_atomic_min_accepted_fraction,
+			"phase3_shadow_atomic_rejected_mass_kg": _atomic_rejected_mass_kg,
+			"phase3_shadow_atomic_rejected_energy_kj": _atomic_rejected_energy_kj,
+			"phase3_shadow_atomic_rejected_o2_kg": _atomic_rejected_o2_kg,
+			"phase3_shadow_atomic_rejected_species_kg": \
+					_atomic_rejected_species_kg,
+			"phase3_shadow_atomic_duplicate_bundle_count": float(
+				_atomic_duplicate_bundle_count
+			),
+			"phase3_shadow_atomic_invalid_bundle_count": float(
+				_atomic_invalid_bundle_count
+			),
 			"phase3_shadow_co_oxidation_co_sink_kg_step": _co_oxidation_co_sink_kg,
 			"phase3_shadow_co_oxidation_co2_source_kg_step": _co_oxidation_co2_source_kg,
 			"phase3_shadow_co_oxidation_carbon_residual_kg_step": \
 					_co_oxidation_carbon_residual_kg,
+			"phase3_shadow_co_oxidation_o2_sink_kg_step": _co_oxidation_o2_sink_kg,
+			"phase3_shadow_co_oxidation_accepted_fraction": \
+					_co_oxidation_accepted_fraction,
+			"phase3_shadow_co_oxidation_accepted_co_sink_kg_step": \
+					_co_oxidation_accepted_co_sink_kg,
+			"phase3_shadow_co_oxidation_accepted_co2_source_kg_step": \
+					_co_oxidation_accepted_co2_source_kg,
+			"phase3_shadow_co_oxidation_accepted_o2_sink_kg_step": \
+					_co_oxidation_accepted_o2_sink_kg,
+			"phase3_shadow_co_oxidation_o2_rejected_kg_step": \
+					_co_oxidation_o2_rejected_kg,
+			"phase3_shadow_co_oxidation_oxygen_residual_kg_step": \
+					_co_oxidation_oxygen_residual_kg,
+			"phase3_shadow_co_oxidation_legacy_lower_co2_kg_step": \
+					_co_oxidation_legacy_lower_co2_kg,
 		}
 
 
@@ -1500,6 +1681,248 @@ func _snapshot_room(room: RoomModel) -> Dictionary:
 			"hcn": maxf(0.0, room.hcn_kg - room.hcn_upper_kg),
 		},
 	}
+
+
+func _atomic_route_is_valid(route: Dictionary) -> bool:
+	if not bool(route.get("valid", true)):
+		return false
+	if String(route.get("route_id", "")).is_empty() \
+			or String(route.get("cause", "")).is_empty():
+		return false
+	var source_id: int = int(route.get("source_room_id", EXTERIOR_ID))
+	var destination_id: int = int(route.get("destination_room_id", EXTERIOR_ID))
+	if source_id == EXTERIOR_ID and destination_id == EXTERIOR_ID:
+		return false
+	var source_zone: String = String(route.get("source_zone", ""))
+	var destination_zone: String = String(route.get("destination_zone", ""))
+	if source_zone not in [ZONE_UPPER, ZONE_LOWER] \
+			or destination_zone not in [ZONE_UPPER, ZONE_LOWER]:
+		return false
+	for quantity_name in ["gas_mass_kg", "sensible_enthalpy_kj", "o2_kg"]:
+		if float(route.get(quantity_name, 0.0)) < 0.0:
+			return false
+	var raw_species = route.get("species_kg", {})
+	if typeof(raw_species) != TYPE_DICTIONARY:
+		return false
+	for raw_species_name in raw_species.keys():
+		if String(raw_species_name) not in TRANSIT_SPECIES \
+				or float(raw_species.get(raw_species_name, 0.0)) < 0.0:
+			return false
+	return float(route.get("gas_mass_kg", 0.0)) > 0.0 \
+			or float(route.get("sensible_enthalpy_kj", 0.0)) > 0.0 \
+			or float(route.get("o2_kg", 0.0)) > 0.0 \
+			or _sum_transit_species(raw_species) > 0.0
+
+
+func _apply_atomic_bundle(
+		shadow: Dictionary,
+		bundle: Dictionary,
+		rejected_by_room: Dictionary
+	) -> void:
+	if not bool(bundle.get("valid", false)):
+		_atomic_invalid_bundle_count += 1
+		return
+	var routes: Array = bundle.get("routes", [])
+	if routes.is_empty():
+		_atomic_invalid_bundle_count += 1
+		return
+	var source_demands: Dictionary = {}
+	for raw_route in routes:
+		if typeof(raw_route) != TYPE_DICTIONARY:
+			_atomic_invalid_bundle_count += 1
+			return
+		var route: Dictionary = raw_route
+		if not _atomic_route_is_valid(route):
+			_atomic_invalid_bundle_count += 1
+			return
+		var source_id: int = int(route.get("source_room_id", EXTERIOR_ID))
+		var destination_id: int = int(route.get("destination_room_id", EXTERIOR_ID))
+		if (source_id != EXTERIOR_ID and not shadow.has(str(source_id))) \
+				or (destination_id != EXTERIOR_ID and not shadow.has(str(destination_id))):
+			_atomic_invalid_bundle_count += 1
+			return
+		if source_id == EXTERIOR_ID:
+			continue
+		var source_zone: String = String(route.get("source_zone", ZONE_UPPER))
+		var demand_key: String = "%d|%s" % [source_id, source_zone]
+		var demand: Dictionary = source_demands.get(demand_key, {
+			"room_id": source_id,
+			"zone": source_zone,
+			"gas_mass_kg": 0.0,
+			"sensible_enthalpy_kj": 0.0,
+			"o2_kg": 0.0,
+			"species_kg": _transit_species({}),
+		})
+		demand["gas_mass_kg"] = float(demand.get("gas_mass_kg", 0.0)) \
+				+ float(route.get("gas_mass_kg", 0.0))
+		demand["sensible_enthalpy_kj"] = float(
+			demand.get("sensible_enthalpy_kj", 0.0)
+		) + float(route.get("sensible_enthalpy_kj", 0.0))
+		demand["o2_kg"] = float(demand.get("o2_kg", 0.0)) \
+				+ float(route.get("o2_kg", 0.0))
+		var demand_species: Dictionary = demand.get("species_kg", {})
+		_add_transit_species(demand_species, route.get("species_kg", {}))
+		demand["species_kg"] = demand_species
+		source_demands[demand_key] = demand
+
+	var accepted_fraction: float = 1.0
+	for raw_demand in source_demands.values():
+		var demand: Dictionary = raw_demand
+		var source_key: String = str(int(demand.get("room_id", EXTERIOR_ID)))
+		if not shadow.has(source_key):
+			accepted_fraction = 0.0
+			break
+		var source: Dictionary = shadow[source_key]
+		var zone: String = String(demand.get("zone", ZONE_UPPER))
+		accepted_fraction = _limit_atomic_fraction(
+			accepted_fraction,
+			float(source.get(zone + "_gas_kg", 0.0)),
+			float(demand.get("gas_mass_kg", 0.0))
+		)
+		accepted_fraction = _limit_atomic_fraction(
+			accepted_fraction,
+			float(source.get(zone + "_energy_kj", 0.0)),
+			float(demand.get("sensible_enthalpy_kj", 0.0))
+		)
+		accepted_fraction = _limit_atomic_fraction(
+			accepted_fraction,
+			float(source.get(zone + "_o2_kg", 0.0)),
+			float(demand.get("o2_kg", 0.0))
+		)
+		var source_species: Dictionary = source.get(zone + "_species_kg", {})
+		var requested_species: Dictionary = demand.get("species_kg", {})
+		for species_name in TRANSIT_SPECIES:
+			accepted_fraction = _limit_atomic_fraction(
+				accepted_fraction,
+				float(source_species.get(species_name, 0.0)),
+				float(requested_species.get(species_name, 0.0))
+			)
+	accepted_fraction = clampf(accepted_fraction, 0.0, 1.0)
+
+	_atomic_bundle_count += 1
+	_atomic_route_count += routes.size()
+	if _atomic_bundle_count == 1:
+		_atomic_min_accepted_fraction = accepted_fraction
+	else:
+		_atomic_min_accepted_fraction = minf(
+			_atomic_min_accepted_fraction, accepted_fraction
+		)
+	var rejected_fraction: float = 1.0 - accepted_fraction
+	for raw_route in routes:
+		var route: Dictionary = raw_route
+		_atomic_rejected_mass_kg += float(route.get("gas_mass_kg", 0.0)) \
+				* rejected_fraction
+		_atomic_rejected_energy_kj += float(
+			route.get("sensible_enthalpy_kj", 0.0)
+		) * rejected_fraction
+		_atomic_rejected_o2_kg += float(route.get("o2_kg", 0.0)) \
+				* rejected_fraction
+		_atomic_rejected_species_kg += _sum_transit_species(
+			route.get("species_kg", {})
+		) * rejected_fraction
+		_apply_atomic_route(shadow, route, accepted_fraction)
+	for raw_demand in source_demands.values():
+		var demand: Dictionary = raw_demand
+		var source_key: String = str(int(demand.get("room_id", EXTERIOR_ID)))
+		rejected_by_room[source_key] = float(rejected_by_room.get(source_key, 0.0)) \
+				+ float(demand.get("gas_mass_kg", 0.0)) * rejected_fraction
+	_record_atomic_bundle_result(bundle, accepted_fraction)
+
+
+func _limit_atomic_fraction(
+		current_fraction: float,
+		available: float,
+		requested: float
+	) -> float:
+	if requested <= 0.0:
+		return current_fraction
+	return minf(current_fraction, maxf(0.0, available) / requested)
+
+
+func _apply_atomic_route(
+		shadow: Dictionary,
+		route: Dictionary,
+		accepted_fraction: float
+	) -> void:
+	var source_id: int = int(route.get("source_room_id", EXTERIOR_ID))
+	var destination_id: int = int(route.get("destination_room_id", EXTERIOR_ID))
+	var source_zone: String = String(route.get("source_zone", ZONE_UPPER))
+	var destination_zone: String = String(route.get("destination_zone", ZONE_UPPER))
+	var moved_mass_kg: float = float(route.get("gas_mass_kg", 0.0)) \
+			* accepted_fraction
+	var moved_energy_kj: float = float(route.get("sensible_enthalpy_kj", 0.0)) \
+			* accepted_fraction
+	var moved_o2_kg: float = float(route.get("o2_kg", 0.0)) * accepted_fraction
+	var moved_species: Dictionary = _transit_species(route.get("species_kg", {}))
+	if source_id != EXTERIOR_ID:
+		var source_key: String = str(source_id)
+		var source: Dictionary = shadow[source_key]
+		source[source_zone + "_gas_kg"] = maxf(
+			0.0, float(source.get(source_zone + "_gas_kg", 0.0)) - moved_mass_kg
+		)
+		source[source_zone + "_energy_kj"] = maxf(
+			0.0, float(source.get(source_zone + "_energy_kj", 0.0)) - moved_energy_kj
+		)
+		source[source_zone + "_o2_kg"] = maxf(
+			0.0, float(source.get(source_zone + "_o2_kg", 0.0)) - moved_o2_kg
+		)
+		var source_species: Dictionary = source.get(source_zone + "_species_kg", {})
+		for species_name in TRANSIT_SPECIES:
+			source_species[species_name] = maxf(
+				0.0,
+				float(source_species.get(species_name, 0.0))
+						- float(moved_species.get(species_name, 0.0)) * accepted_fraction
+			)
+		source[source_zone + "_species_kg"] = source_species
+		shadow[source_key] = source
+	if destination_id != EXTERIOR_ID:
+		var destination_key: String = str(destination_id)
+		var destination: Dictionary = shadow[destination_key]
+		destination[destination_zone + "_gas_kg"] = float(
+			destination.get(destination_zone + "_gas_kg", 0.0)
+		) + moved_mass_kg
+		destination[destination_zone + "_energy_kj"] = float(
+			destination.get(destination_zone + "_energy_kj", 0.0)
+		) + moved_energy_kj
+		destination[destination_zone + "_o2_kg"] = float(
+			destination.get(destination_zone + "_o2_kg", 0.0)
+		) + moved_o2_kg
+		var destination_species: Dictionary = destination.get(
+			destination_zone + "_species_kg", {}
+		)
+		for species_name in TRANSIT_SPECIES:
+			destination_species[species_name] = float(
+				destination_species.get(species_name, 0.0)
+			) + float(moved_species.get(species_name, 0.0)) * accepted_fraction
+		destination[destination_zone + "_species_kg"] = destination_species
+		shadow[destination_key] = destination
+
+
+func _record_atomic_bundle_result(bundle: Dictionary, accepted_fraction: float) -> void:
+	var metadata: Dictionary = bundle.get("metadata", {})
+	if String(metadata.get("kind", "")) != "co_oxidation":
+		return
+	var requested_co_kg: float = maxf(
+		0.0, float(metadata.get("co_consumed_kg", 0.0))
+	)
+	var requested_co2_kg: float = maxf(
+		0.0, float(metadata.get("co2_generated_kg", 0.0))
+	)
+	var requested_o2_kg: float = maxf(
+		0.0, float(metadata.get("o2_consumed_kg", 0.0))
+	)
+	_co_oxidation_accepted_fraction = minf(
+		_co_oxidation_accepted_fraction, accepted_fraction
+	)
+	var accepted_co_kg: float = requested_co_kg * accepted_fraction
+	var accepted_co2_kg: float = requested_co2_kg * accepted_fraction
+	var accepted_o2_kg: float = requested_o2_kg * accepted_fraction
+	_co_oxidation_accepted_co_sink_kg += accepted_co_kg
+	_co_oxidation_accepted_co2_source_kg += accepted_co2_kg
+	_co_oxidation_accepted_o2_sink_kg += accepted_o2_kg
+	_co_oxidation_o2_rejected_kg += requested_o2_kg - accepted_o2_kg
+	_co_oxidation_oxygen_residual_kg += accepted_co_kg * (16.0 / 28.0) \
+			- accepted_o2_kg
 
 
 func _apply_request(

@@ -6,6 +6,38 @@ Date: 2026-07-15.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-15 - F3.0k.1c atomic bundle
+
+- F3.0k.1c is a **GO for the passive atomic transaction primitive and shadow
+  CO oxidation chemistry**, but remains a **NO-GO for complete ownership and
+  F3.1 authority**.
+- Ordered simple requests and atomic bundles share one transaction queue. An
+  atomic bundle validates all routes, aggregates source-zone demand and applies
+  one accepted fraction limited by gas mass, energy, O2 and CO/CO2/HCN.
+- CO oxidation now carries exact upper-zone CO and O2 sinks plus an upper CO2
+  product in one bundle. Shadow stoichiometry is 16/28 kg O2 and 44/28 kg CO2
+  per kg CO. Legacy O2 is still untouched and legacy bulk-only CO2 remains.
+- A runtime harness proved both energy-limited and O2-limited bundles at
+  fraction 0.5 without mutating `RoomModel`. The 120 s oxidation control
+  accepted 0.05037876 kg CO, 0.07916658 kg CO2 and 0.02878782 kg O2 with zero
+  oxygen residual.
+- OFF/ON invariance is exact: two-room 78 rows and oxidation 726 rows retain
+  all 115 legacy columns with zero differences. ON now has 277 columns.
+- The eight-case non-HVAC matrix completes, but every transport control still
+  reports unresolved mask 7. No transport producer was falsely migrated.
+- One 300 s oxidation ON attempt reached 282 s and timed out at 420 s; it is
+  invalid evidence. The valid 120 s ON run took 95.7 s versus 38.0 s OFF, so
+  long shadow runs remain a performance watch item.
+- Validation: 225 focused tests PASS; physics 9/15/5/0; ILV 15/14/0; required
+  348/353 with five VALID_GAP. Full pytest is 867 PASS / 18 FAIL: 17 historic
+  plus expected R2-1 while motor is dirty. Official reports and baselines are
+  unchanged.
+- Active next phase: F3.0k.1d migrates one exact non-HVAC transport producer
+  into the atomic API. F3.1 remains blocked by mask 7 and zero-O2 flaming.
+  HVAC remains deferred to F3.5.
+- Binding record:
+  `docs/validation/PHASE3_F30K1C_ATOMIC_BUNDLE.md`.
+
 ## Current Session Update - 2026-07-15 - visual/UI plan closed
 
 - Phase 3+ motor work is paused after checkpoint `6b397ebb`; this parenthesis
@@ -21,7 +53,8 @@ This note records the repository hygiene and validation state after the non-moto
 - Automatic gates: graph/UI focused tests PASS, physics and ILV remain at
   zero FAIL, required validation remains 348/353 with five VALID_GAP. The
   two-resolution visual checklist remains a manual acceptance step.
-- Resume Phase 3+ at F3.0k.1c only after this coordinated visual commit.
+- The visual checkpoint is complete. Phase 3+ resumed, completed F3.0k.1c,
+  and now continues at F3.0k.1d.
 
 ## Current Session Update - 2026-07-15 - F3.0k.1b passive arbitration
 
@@ -44,9 +77,10 @@ This note records the repository hygiene and validation state after the non-moto
   260 columns. Physics 9/15/5/0, ILV 15/14/0, required 348/353 with five
   VALID_GAP, guardrails 10/10, full tests 836 PASS / 17 historical FAIL, and
   artifact integrity 29 CSV PASS / 9 packages complete.
-- Next: F3.0k.1c must introduce an atomic multi-zone accepted-fraction bundle
-  and explicit CO-oxidation O2 chemistry. F3.1 remains blocked, including by
-  the existing zero-O2 flaming defect. HVAC remains deferred to F3.5.
+- Follow-up: F3.0k.1c delivered the atomic multi-zone accepted-fraction bundle
+  and explicit shadow CO-oxidation O2 chemistry. F3.1 remains blocked by
+  transport mask 7 and the existing zero-O2 flaming defect. Continue with
+  F3.0k.1d; HVAC remains deferred to F3.5.
 - Binding record:
   `docs/validation/PHASE3_F30K1B_PASSIVE_ARBITRATION.md`.
 

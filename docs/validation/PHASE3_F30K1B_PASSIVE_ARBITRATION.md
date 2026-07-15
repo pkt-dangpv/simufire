@@ -134,3 +134,10 @@ stoichiometric O2 sink for CO oxidation as an explicit experimental contract.
 
 F3.1 remains blocked until that bundle closes on the non-HVAC runtime matrix
 and the zero-O2 extinction regression is fixed. HVAC remains deferred to F3.5.
+
+## Follow-up status
+
+F3.0k.1c is now complete as a partial GO. The atomic accepted-fraction bundle
+and explicit shadow CO/O2 chemistry are delivered, but transport producers
+still report unresolved mask 7. Continue with F3.0k.1d producer migration;
+see `PHASE3_F30K1C_ATOMIC_BUNDLE.md`.

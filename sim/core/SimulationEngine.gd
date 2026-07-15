@@ -2460,12 +2460,14 @@ func _step_co_oxidation(dt: float) -> void:
 		var oxidized_kg: float = room.co_upper_kg * co_oxidation_rate_per_s * dt
 		oxidized_kg = minf(oxidized_kg, room.co_upper_kg)
 		var generated_co2_kg: float = oxidized_kg * (44.0 / 28.0)
+		var consumed_o2_kg: float = oxidized_kg * (16.0 / 28.0)
 		if phase3_canonical_zone_shadow_enabled:
 			phase3_zone_mass_system.apply_co_oxidation_event({
 				"event_id": "co_oxidation:%d:%.6f" % [room.id, sim_time_s],
 				"room_id": room.id,
 				"co_consumed_kg": oxidized_kg,
 				"co2_generated_kg": generated_co2_kg,
+				"o2_consumed_kg": consumed_o2_kg,
 			})
 		room.co_upper_kg -= oxidized_kg
 		room.co_kg = maxf(0.0, room.co_kg - oxidized_kg)

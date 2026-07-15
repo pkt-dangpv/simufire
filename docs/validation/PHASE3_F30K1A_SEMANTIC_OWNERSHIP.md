@@ -141,7 +141,8 @@ F3.0k.1b remained passive and default OFF:
 5. Repeated the HVAC-disabled matrix: unresolved conflicts and unknown owners
    are zero, and OFF/ON legacy values remain identical.
 
-F3.1 authority remains blocked. F3.0k.1c must add an atomic multi-zone bundle
-and explicit CO-oxidation O2 chemistry, and the zero-O2 extinction regression
-must still be fixed. HVAC remains deferred to F3.5. See
-`PHASE3_F30K1B_PASSIVE_ARBITRATION.md`.
+F3.1 authority remains blocked. F3.0k.1c has since added the atomic multi-zone
+bundle and explicit shadow CO-oxidation O2 chemistry. F3.0k.1d must migrate
+the transport producers, and the zero-O2 extinction regression must still be
+fixed. HVAC remains deferred to F3.5. See
+`PHASE3_F30K1C_ATOMIC_BUNDLE.md`.

@@ -123,8 +123,9 @@ F3.0k.1a implements this registry passively. F3.0k.1b selects provisional
 shadow owners and suppresses duplicate opening-species requests only inside
 the shadow transaction; all legacy writers remain active. It also proves that
 the current single-route request cannot honestly express an atomic multi-zone
-gas/enthalpy/O2/species bundle. F3.0k.1c must close that contract before any
-authoritative mode is attempted.
+gas/enthalpy/O2/species bundle. F3.0k.1c now supplies that atomic primitive and
+uses it for exact shadow CO oxidation chemistry. F3.0k.1d must migrate the
+remaining transport producers before any authoritative mode is attempted.
 
 ## Mandatory invariants
 
@@ -286,10 +287,13 @@ not in the promotion commit.
 ## Immediate next step
 
 Use `docs/validation/PHASE3_CURRENT_WORKPLAN.md` as the operational checklist.
-F3.0k.1b has completed passive semantic arbitration and the exact legacy
-CO-to-CO2 compatibility event, but returned NO-GO for complete ownership. The
-next step is F3.0k.1c: introduce an atomic multi-zone accepted-fraction bundle
-for gas mass, enthalpy, O2 and species, plus an explicit experimental O2 sink
-for CO oxidation. Do not begin HVAC work; HVAC is deferred to F3.5 after its
-own redesign gate. Do not promote or modify `project_room_state()` until the
+F3.0k.1c has delivered the atomic multi-zone accepted-fraction primitive and
+an exact experimental CO + O2 to CO2 shadow bundle. It returned a partial GO:
+the primitive closes, but transport producers still report unresolved mask 7.
+The next step is F3.0k.1d: migrate one exact non-HVAC opening or parcel family
+without reconstructing any flux from post-mutation state. Delayed parcels
+require one accepted fraction to persist across creation, flight, delivery
+and refund; use direct doorway first if that lifecycle cannot be made exact in
+one phase. Do not begin HVAC work; HVAC is deferred to F3.5 after its own
+redesign gate. Do not promote or modify `project_room_state()` until the
 accepted non-HVAC transaction owns the inventory it currently reconstructs.

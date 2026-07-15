@@ -23,9 +23,26 @@ FIELDS = (
     "phase3_shadow_semantic_unresolved_o2_kg",
     "phase3_shadow_semantic_unresolved_species_kg",
     "phase3_shadow_semantic_unresolved_conflict_count",
+    "phase3_shadow_atomic_bundle_count",
+    "phase3_shadow_atomic_route_count",
+    "phase3_shadow_atomic_min_accepted_fraction",
+    "phase3_shadow_atomic_rejected_mass_kg",
+    "phase3_shadow_atomic_rejected_energy_kj",
+    "phase3_shadow_atomic_rejected_o2_kg",
+    "phase3_shadow_atomic_rejected_species_kg",
+    "phase3_shadow_atomic_duplicate_bundle_count",
+    "phase3_shadow_atomic_invalid_bundle_count",
     "phase3_shadow_co_oxidation_co_sink_kg_step",
     "phase3_shadow_co_oxidation_co2_source_kg_step",
     "phase3_shadow_co_oxidation_carbon_residual_kg_step",
+    "phase3_shadow_co_oxidation_o2_sink_kg_step",
+    "phase3_shadow_co_oxidation_accepted_fraction",
+    "phase3_shadow_co_oxidation_accepted_co_sink_kg_step",
+    "phase3_shadow_co_oxidation_accepted_co2_source_kg_step",
+    "phase3_shadow_co_oxidation_accepted_o2_sink_kg_step",
+    "phase3_shadow_co_oxidation_o2_rejected_kg_step",
+    "phase3_shadow_co_oxidation_oxygen_residual_kg_step",
+    "phase3_shadow_co_oxidation_legacy_lower_co2_kg_step",
 )
 
 
@@ -92,6 +109,8 @@ class TestShadowOnlySuppression(unittest.TestCase):
         self.assertIn("room.co_upper_kg -= oxidized_kg", oxidation)
         self.assertIn("room.co_kg = maxf", oxidation)
         self.assertIn("room.co2_kg += generated_co2_kg", oxidation)
+        self.assertNotIn("room.o2 -=", oxidation)
+        self.assertNotIn("room.o2_upper -=", oxidation)
 
 
 class TestCoOxidationContract(unittest.TestCase):
@@ -106,22 +125,37 @@ class TestCoOxidationContract(unittest.TestCase):
         oxidation = _function(ENGINE, "_step_co_oxidation")
         self.assertIn("if phase3_canonical_zone_shadow_enabled:", oxidation)
 
-    def test_conversion_has_exact_co_sink_and_co2_source(self):
+    def test_conversion_has_atomic_reactants_and_products(self):
         event = _function(SYSTEM, "apply_co_oxidation_event")
-        self.assertIn('event_id + ":co_sink"', event)
+        self.assertIn('event_id + ":reactants"', event)
         self.assertIn('{"co": co_sink_kg}', event)
-        self.assertIn('event_id + ":co2_source"', event)
+        self.assertIn('event_id + ":products"', event)
         self.assertIn('{"co2": co2_source_kg}', event)
+        self.assertIn("add_atomic_bundle(make_atomic_bundle(", event)
 
-    def test_co2_source_preserves_legacy_lower_zone_semantics(self):
+    def test_shadow_chemistry_is_upper_zone(self):
         event = _function(SYSTEM, "apply_co_oxidation_event")
-        source = event.split('event_id + ":co2_source"', 1)[1]
-        self.assertIn("ZONE_LOWER", source)
+        routes = event.split("var routes: Array =", 1)[1]
+        self.assertNotIn("ZONE_LOWER", routes)
+        self.assertGreaterEqual(routes.count("ZONE_UPPER"), 4)
 
-    def test_legacy_missing_o2_sink_is_visible(self):
+    def test_o2_sink_is_explicit_and_owned(self):
         event = _function(SYSTEM, "apply_co_oxidation_event")
-        self.assertIn("register_semantic_unresolved", event)
-        self.assertIn('["o2"]', event)
+        policy = _function(SYSTEM, "_semantic_owner_for_claim")
+        self.assertIn('"o2_consumed_kg"', event)
+        self.assertIn('"quantity": "o2"', event)
+        self.assertNotIn("register_semantic_unresolved", event)
+        self.assertIn('["co", "co2", "o2"]', policy)
+
+    def test_engine_emits_exact_o2_stoichiometry(self):
+        oxidation = _function(ENGINE, "_step_co_oxidation")
+        self.assertIn("oxidized_kg * (16.0 / 28.0)", oxidation)
+        self.assertIn('"o2_consumed_kg": consumed_o2_kg', oxidation)
+
+    def test_legacy_lower_co2_is_telemetry_only(self):
+        event = _function(SYSTEM, "apply_co_oxidation_event")
+        self.assertIn("_co_oxidation_legacy_lower_co2_kg += co2_source_kg", event)
+        self.assertNotIn("add_request(", event)
 
     def test_carbon_residual_uses_molecular_weights(self):
         event = _function(SYSTEM, "apply_co_oxidation_event")

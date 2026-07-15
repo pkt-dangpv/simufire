@@ -25,6 +25,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.0k cross-path audit: `docs/validation/PHASE3_F30K_CROSS_PATH_AUDIT.md`
 - F3.0k.1a semantic claims: `docs/validation/PHASE3_F30K1A_SEMANTIC_OWNERSHIP.md`
 - F3.0k.1b passive arbitration: `docs/validation/PHASE3_F30K1B_PASSIVE_ARBITRATION.md`
+- F3.0k.1c atomic bundle: `docs/validation/PHASE3_F30K1C_ATOMIC_BUNDLE.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -52,12 +53,15 @@ at runtime. F3.0k.1b now selects provisional shadow owners and suppresses the
 duplicate Thermal opening-species request only inside the passive shadow.
 It also records the exact legacy CO sink/CO2 source for CO oxidation.
 
-F3.0k.1b returned a partial GO: gas mass, enthalpy and O2 remain unresolved on
-opening and parcel paths because the current one-route request cannot express
-their multi-zone bundle under one accepted fraction. CO oxidation also lacks
-its legacy O2 sink. The active route is F3.0k.1c: add an atomic transaction
-group or route matrix and explicit experimental O2 chemistry. Do not promote
-F3.1 authority yet.
+F3.0k.1c now provides an ordered atomic route bundle with one fraction limited
+by aggregate source-zone gas mass, energy, O2 and species. CO oxidation is the
+first migrated producer and has explicit shadow O2 chemistry with zero carbon
+and oxygen residual. Legacy physics remains unchanged.
+
+The runtime matrix still reports unresolved mask 7 because opening, parcel,
+background, vertical and exterior producers do not yet emit complete atomic
+bundles. The active route is F3.0k.1d: migrate one exact non-HVAC transport
+family into the new API. Do not promote F3.1 authority yet.
 
 ## Binding priority decision: HVAC last
 
@@ -72,14 +76,15 @@ The revised order is:
 2. F3.0k non-HVAC cross-path conservation audit. Completed NO-GO.
 3. F3.0k.1a semantic claim telemetry. Completed, passive GO.
 4. F3.0k.1b passive arbitration and CO-oxidation compatibility. Completed, partial GO.
-5. F3.0k.1c atomic multi-zone bundle and explicit O2 chemistry. Current target.
-6. F3.1 authoritative sealed mode plus zero-O2 extinction regression.
-7. F3.2 exterior pressure/leakage for Group A.
-8. F3.3 interior openings for Group C.
-9. F3.4 remaining non-HVAC species, suppression and FED.
-10. HVAC-R0 redesign specification.
-11. F3.5 HVAC canonical integration as the last subsystem.
-12. F3.6 final corpus promotion and legacy retirement.
+5. F3.0k.1c atomic multi-zone bundle and explicit O2 chemistry. Completed, partial GO.
+6. F3.0k.1d migrate exact non-HVAC transport producers. Current target.
+7. F3.1 authoritative sealed mode plus zero-O2 extinction regression.
+8. F3.2 exterior pressure/leakage for Group A.
+9. F3.3 interior openings for Group C.
+10. F3.4 remaining non-HVAC species, suppression and FED.
+11. HVAC-R0 redesign specification.
+12. F3.5 HVAC canonical integration as the last subsystem.
+13. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
@@ -340,12 +345,31 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 - Complete ownership is NO-GO because one accepted fraction cannot yet bind
   the observed multi-zone gas/energy/O2/species routes. F3.1 is not authorized.
 
+## F3.0k.1c delivered
+
+- Ordered simple requests and atomic bundles now share one shadow transaction
+  queue, preserving producer order.
+- Each atomic bundle validates every route, aggregates demand by source zone,
+  computes one fraction from gas, energy, O2 and species inventory, then
+  applies all routes with that fraction.
+- CO oxidation now owns an upper CO + O2 reactant route and an upper CO2
+  product route. The shadow uses 16/28 kg O2 and 44/28 kg CO2 per kg CO;
+  legacy O2 and bulk-only CO2 writes remain unchanged.
+- Runtime OFF/ON controls retain all 115 legacy columns with zero differences.
+  The eight-case non-HVAC matrix completes, but every transport control still
+  reports unresolved mask 7 because its producers have not migrated.
+- The valid 120 s oxidation control closes carbon and oxygen exactly. A 300 s
+  ON attempt timed out at 282 s, so long-run shadow performance remains a
+  watch item.
+- F3.1 remains unauthorized. Zero-O2 flaming is still an independent blocker.
+
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0k.1c. Design an atomic transaction group or route
-matrix that applies exact pre-mutation gas mass, enthalpy, O2 and zonally split
-species under one accepted fraction. Add the stoichiometric CO-oxidation O2
-sink only as an explicit experimental shadow contract with tests and a STOP
-gate; do not silently change legacy physics. Do not use projection/clamp
-residuals as fluxes, do not enable authority and do not touch HVAC. HVAC
-remains deferred until F3.5.
+Use GPT-5.6 Sol for F3.0k.1d. Audit direct doorway versus delayed-parcel
+transport and choose the first producer that can emit exact pre-mutation gas,
+enthalpy, O2 and zonal species routes without inference. Migrate only that
+family to the atomic API. If delayed parcels are selected, one accepted
+fraction must persist through creation, flight, delivery and refund. Remove
+only the corresponding unresolved claims after runtime proof. Do not use
+projection/clamp residuals, do not enable authority and do not touch HVAC.
+HVAC remains deferred until F3.5.

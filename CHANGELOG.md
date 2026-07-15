@@ -3,6 +3,24 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0k.1c atomic shadow bundle (2026-07-15)
+
+- Added an ordered atomic shadow transaction whose multi-zone routes share one
+  accepted fraction limited by aggregate source gas mass, sensible enthalpy,
+  O2 and CO/CO2/HCN inventory.
+- Added strict route/bundle validation, duplicate and invalid counters, and
+  accepted/rejected telemetry. The shadow remains read-only with respect to
+  `RoomModel`; legacy physics and the default-OFF CSV schema are unchanged.
+- Migrated experimental CO oxidation to one upper-zone reactant/product
+  bundle: CO sink, stoichiometric O2 sink (16/28) and CO2 source (44/28).
+  Legacy still consumes no O2 and adds CO2 only to bulk state.
+- Runtime OFF/ON pairs retained all 115 legacy columns with zero differences.
+  Carbon and oxygen close exactly, including a dedicated fraction-0.5 runtime
+  test for O2 and energy limiting.
+- Recorded a partial GO only: all transport controls retain unresolved mask 7
+  until exact opening/parcel producers migrate to the atomic API. F3.1 and the
+  zero-O2 extinction fix remain pending; HVAC stays deferred to F3.5.
+
 ### Visual/UI graph pipeline closure (2026-07-15)
 
 - Replaced the blocking manual graph-generation path with a tracked Python
