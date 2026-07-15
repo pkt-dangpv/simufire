@@ -322,7 +322,7 @@ func _sync_view_mode() -> void:
 	if first_person_controller != null:
 		first_person_controller.set_active(first_person_enabled)
 	if minimap_2d != null:
-		minimap_2d.visible = view_3d_enabled and not first_person_enabled
+		minimap_2d.visible = view_3d_enabled
 
 
 func _setup_minimap() -> void:
