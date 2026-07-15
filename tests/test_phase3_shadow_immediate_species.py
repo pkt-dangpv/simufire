@@ -124,8 +124,11 @@ class TestPhase3ShadowImmediateSpecies(unittest.TestCase):
     def test_only_owned_species_are_filtered(self):
         apply_event = _function(SYSTEM, "apply_immediate_species_event")
         self.assertIn("_transit_species", apply_event)
+        transit_species = SYSTEM.split("const TRANSIT_SPECIES:", 1)[1].split("\n", 1)[0]
+        for included in ("co", "co2", "hcn"):
+            self.assertIn(f'"{included}"', transit_species)
         for excluded in ("smoke", "hcl", "acrolein", "formaldehyde", "o2"):
-            self.assertNotIn(f'"{excluded}"', apply_event)
+            self.assertNotIn(f'"{excluded}"', transit_species)
 
     def test_reset_is_atomic_for_cumulative_and_step_ledgers(self):
         reset = _function(SYSTEM, "reset")

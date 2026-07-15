@@ -6,6 +6,33 @@ Date: 2026-07-15.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-15 - F3.0k.1b passive arbitration
+
+- F3.0k.1b is a **GO for passive arbitration and exact CO-oxidation
+  telemetry**, but a **NO-GO for complete ownership or F3.1 authority**.
+- Provisional shadow owners are now explicit: GES owns opening CO/CO2/HCN,
+  Thermal owns interlayer and combustion enthalpy, OES owns combustion O2,
+  Combustion owns generated species and Engine owns CO oxidation.
+- Thermal opening-species claims remain in the raw conflict registry but are
+  suppressed only from the shadow request set. No legacy `RoomModel` writer,
+  physical formula, ordering, FED path or validation policy changed.
+- Missing gas mass, enthalpy and O2 transport bundles remain unresolved with
+  mask 7. All eight runtime controls have zero unresolved multi-producer
+  conflicts. Interior controls retain raw conflict/suppression mask 56.
+- The 300 s oxidation control recorded positive CO sink and CO2 source over
+  756 rows with exactly zero carbon residual. Its absent legacy O2 sink remains
+  explicit; CO2 uses lower-zone compatibility semantics because legacy writes
+  only bulk `co2_kg`.
+- OFF/ON proof: 78 rows, 115 shared legacy columns, zero differences; ON has
+  260 columns. Physics 9/15/5/0, ILV 15/14/0, required 348/353 with five
+  VALID_GAP, guardrails 10/10, full tests 836 PASS / 17 historical FAIL, and
+  artifact integrity 29 CSV PASS / 9 packages complete.
+- Next: F3.0k.1c must introduce an atomic multi-zone accepted-fraction bundle
+  and explicit CO-oxidation O2 chemistry. F3.1 remains blocked, including by
+  the existing zero-O2 flaming defect. HVAC remains deferred to F3.5.
+- Binding record:
+  `docs/validation/PHASE3_F30K1B_PASSIVE_ARBITRATION.md`.
+
 ## Current Planning Decision - 2026-07-15 - HVAC deferred
 
 - HVAC is deliberately deferred until the final Phase 3+ integration phase.

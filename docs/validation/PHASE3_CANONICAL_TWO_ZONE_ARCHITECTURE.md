@@ -119,9 +119,12 @@ the same opening/route/quantity. Building openings use their deterministic
 stable namespaces. A delayed parcel claims semantic transport at issue time,
 not again at delivery.
 
-F3.0k.1a implements this registry passively. It does not choose authority.
-F3.0k.1b must use the measured conflicts to select one provisional shadow
-owner before any authoritative mode is attempted.
+F3.0k.1a implements this registry passively. F3.0k.1b selects provisional
+shadow owners and suppresses duplicate opening-species requests only inside
+the shadow transaction; all legacy writers remain active. It also proves that
+the current single-route request cannot honestly express an atomic multi-zone
+gas/enthalpy/O2/species bundle. F3.0k.1c must close that contract before any
+authoritative mode is attempted.
 
 ## Mandatory invariants
 
@@ -283,10 +286,10 @@ not in the promotion commit.
 ## Immediate next step
 
 Use `docs/validation/PHASE3_CURRENT_WORKPLAN.md` as the operational checklist.
-F3.0j is implemented and F3.0k completed with a NO-GO for authority. The next
-step is F3.0k.1: define connection-level semantic arbitration, then complete
-passive ownership for gas mass, enthalpy, O2 and CO oxidation on the non-HVAC
-paths already covered for CO/CO2/HCN. Do not begin HVAC work; HVAC is deferred
-to F3.5 after its own redesign gate. Do not promote or modify
-`project_room_state()` until the accepted non-HVAC transaction owns the
-inventory it currently reconstructs.
+F3.0k.1b has completed passive semantic arbitration and the exact legacy
+CO-to-CO2 compatibility event, but returned NO-GO for complete ownership. The
+next step is F3.0k.1c: introduce an atomic multi-zone accepted-fraction bundle
+for gas mass, enthalpy, O2 and species, plus an explicit experimental O2 sink
+for CO oxidation. Do not begin HVAC work; HVAC is deferred to F3.5 after its
+own redesign gate. Do not promote or modify `project_room_state()` until the
+accepted non-HVAC transaction owns the inventory it currently reconstructs.

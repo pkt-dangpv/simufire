@@ -126,20 +126,22 @@ legacy columns byte-for-value identical. OFF had 115 columns; ON has 245.
 - It does not resolve CO oxidation, projection/reconcile or zero-O2 flaming.
 - It does not include HVAC.
 
-## Next phase: F3.0k.1b
+## F3.0k.1b outcome
 
-F3.0k.1b should remain passive and default OFF:
+F3.0k.1b remained passive and default OFF:
 
-1. Choose one provisional semantic owner per interior horizontal, vertical,
+1. Chose one provisional semantic owner per interior horizontal, vertical,
    exterior and delayed transport family using the measured keys.
-2. Extend the selected event to carry gas mass, enthalpy and O2 together with
-   CO/CO2/HCN under one accepted fraction.
-3. Add an exact pre-mutation CO sink/CO2 source event for CO oxidation.
-4. Report suppressed shadow claims and unresolved quantities; do not suppress
+2. Found that the selected events cannot yet carry gas mass, enthalpy and O2
+   together with zonally split CO/CO2/HCN under one honest accepted fraction.
+   Those quantities remain explicitly unresolved.
+3. Added an exact pre-mutation CO sink/CO2 source event for CO oxidation.
+4. Reports suppressed shadow claims and unresolved quantities; it does not suppress
    any legacy physical writer yet.
-5. Repeat this HVAC-disabled matrix and require unknown connections to remain
-   zero, contract residuals to remain zero and OFF/ON legacy values to remain
-   identical.
+5. Repeated the HVAC-disabled matrix: unresolved conflicts and unknown owners
+   are zero, and OFF/ON legacy values remain identical.
 
-F3.1 authority remains blocked until F3.0k.1b closes its declared scope and
-the zero-O2 extinction regression is fixed. HVAC remains deferred to F3.5.
+F3.1 authority remains blocked. F3.0k.1c must add an atomic multi-zone bundle
+and explicit CO-oxidation O2 chemistry, and the zero-O2 extinction regression
+must still be fixed. HVAC remains deferred to F3.5. See
+`PHASE3_F30K1B_PASSIVE_ARBITRATION.md`.

@@ -3,6 +3,25 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0k.1b passive semantic arbitration (2026-07-15)
+
+- Added a provisional shadow-only owner policy for opening, interlayer and
+  chemical CO/CO2/HCN claims. Raw conflicts remain visible, but duplicate
+  Thermal opening-species requests are suppressed from shadow application
+  when GES owns the connection; legacy physical writers are unchanged.
+- Added accepted, suppressed and unresolved claim telemetry with quantity
+  masks and amounts. Missing gas mass, enthalpy and O2 bundles remain
+  explicitly unresolved instead of being reconstructed from stock deltas.
+- Added an exact pre-mutation CO oxidation compatibility event: upper CO sink,
+  bulk-only/lower CO2 source and carbon residual. The missing legacy O2 sink
+  remains visible as unresolved.
+- Reconfirmed no-op behavior with 78 OFF/ON rows and 115 identical legacy
+  columns. Eight sequential Godot controls passed; physics and ILV remain at
+  zero FAIL. No official report, baseline, tolerance, control or gap changed.
+- Recorded a partial GO only. F3.1 authority remains blocked pending an atomic
+  multi-zone bundle, explicit CO-oxidation O2 chemistry and the zero-O2
+  extinction regression. HVAC remains deferred to F3.5.
+
 ### Phase 3+ F3.0k.1a semantic ownership claims (2026-07-15)
 
 - Added a passive step-local semantic claim registry keyed by stable

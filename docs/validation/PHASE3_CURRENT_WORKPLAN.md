@@ -24,6 +24,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - HVAC deferral decision: `docs/validation/PHASE3_HVAC_DEFERRED_DECISION.md`
 - F3.0k cross-path audit: `docs/validation/PHASE3_F30K_CROSS_PATH_AUDIT.md`
 - F3.0k.1a semantic claims: `docs/validation/PHASE3_F30K1A_SEMANTIC_OWNERSHIP.md`
+- F3.0k.1b passive arbitration: `docs/validation/PHASE3_F30K1B_PASSIVE_ARBITRATION.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -46,13 +47,17 @@ paths plus ThermalSystem hot-gas transport for CO/CO2/HCN now have separate
 contracts, and those contracts close exactly. The remaining blocker is
 incomplete mass/energy/O2 ownership plus semantic overlap between Thermal and
 GES legacy paths.
-F3.0k.1a now provides a stable pre-mutation connection key and proves the
-overlap at runtime: active interior controls report conflicts only in
-CO/CO2/HCN (mask 56), while sealed and exterior-only controls remain clean.
-It does not select an owner or change physics. The active route is F3.0k.1b:
-select a provisional shadow owner and complete explicit gas mass, enthalpy,
-O2 and CO-oxidation ownership without deriving requests from post-mutation
-stock deltas.
+F3.0k.1a provides a stable pre-mutation connection key and proves the overlap
+at runtime. F3.0k.1b now selects provisional shadow owners and suppresses the
+duplicate Thermal opening-species request only inside the passive shadow.
+It also records the exact legacy CO sink/CO2 source for CO oxidation.
+
+F3.0k.1b returned a partial GO: gas mass, enthalpy and O2 remain unresolved on
+opening and parcel paths because the current one-route request cannot express
+their multi-zone bundle under one accepted fraction. CO oxidation also lacks
+its legacy O2 sink. The active route is F3.0k.1c: add an atomic transaction
+group or route matrix and explicit experimental O2 chemistry. Do not promote
+F3.1 authority yet.
 
 ## Binding priority decision: HVAC last
 
@@ -66,14 +71,15 @@ The revised order is:
 1. F3.0j ThermalSystem species transport. Completed.
 2. F3.0k non-HVAC cross-path conservation audit. Completed NO-GO.
 3. F3.0k.1a semantic claim telemetry. Completed, passive GO.
-4. F3.0k.1b non-HVAC ownership completion and passive arbitration. Current target.
-5. F3.1 authoritative sealed mode plus zero-O2 extinction regression.
-6. F3.2 exterior pressure/leakage for Group A.
-7. F3.3 interior openings for Group C.
-8. F3.4 remaining non-HVAC species, suppression and FED.
-9. HVAC-R0 redesign specification.
-10. F3.5 HVAC canonical integration as the last subsystem.
-11. F3.6 final corpus promotion and legacy retirement.
+4. F3.0k.1b passive arbitration and CO-oxidation compatibility. Completed, partial GO.
+5. F3.0k.1c atomic multi-zone bundle and explicit O2 chemistry. Current target.
+6. F3.1 authoritative sealed mode plus zero-O2 extinction regression.
+7. F3.2 exterior pressure/leakage for Group A.
+8. F3.3 interior openings for Group C.
+9. F3.4 remaining non-HVAC species, suppression and FED.
+10. HVAC-R0 redesign specification.
+11. F3.5 HVAC canonical integration as the last subsystem.
+12. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
@@ -318,11 +324,28 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 - This is passive telemetry only. It does not choose an owner, suppress a
   legacy path or authorize F3.1.
 
+## F3.0k.1b delivered
+
+- Provisional owners are explicit for opening, interlayer, combustion and
+  chemical-conversion quantities. Raw conflicts remain visible.
+- GES-owned opening CO/CO2/HCN claims suppress the parallel Thermal request
+  only inside the shadow transaction. Legacy physical writers remain active.
+- Accepted, suppressed and unresolved claims have separate counts, masks and
+  amounts. Missing gas mass, enthalpy and O2 use unresolved mask 7.
+- CO oxidation now emits an exact upper CO sink and lower compatibility CO2
+  source before legacy mutation. Carbon closes exactly; the absent legacy O2
+  sink remains unresolved.
+- Eight runtime controls have zero unresolved multi-producer conflict. The
+  OFF/ON pair retained 78 rows and 115 identical legacy columns; ON has 260.
+- Complete ownership is NO-GO because one accepted fraction cannot yet bind
+  the observed multi-zone gas/energy/O2/species routes. F3.1 is not authorized.
+
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0k.1b. Select a provisional shadow owner per semantic
-connection, extend the selected non-HVAC events to gas mass, enthalpy and O2,
-and add an exact CO-oxidation event. Report suppressed shadow claims but do
-not suppress legacy physical writers or implement an authority switch. Do not
-use projection/clamp residuals as fluxes and do not touch HVAC. HVAC remains
-deferred until F3.5.
+Use GPT-5.6 Sol for F3.0k.1c. Design an atomic transaction group or route
+matrix that applies exact pre-mutation gas mass, enthalpy, O2 and zonally split
+species under one accepted fraction. Add the stoichiometric CO-oxidation O2
+sink only as an explicit experimental shadow contract with tests and a STOP
+gate; do not silently change legacy physics. Do not use projection/clamp
+residuals as fluxes, do not enable authority and do not touch HVAC. HVAC
+remains deferred until F3.5.

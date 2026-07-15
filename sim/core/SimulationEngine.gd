@@ -1355,8 +1355,10 @@ func _phase3_shadow_collect_thermal_requests() -> void:
 			)
 		)
 		var thermal_connection_id: String = "room:%d:interlayer" % room_id
+		var thermal_boundary_kind: String = "interlayer"
 		if cause == "combustion_convective_heat":
 			thermal_connection_id = "chemical:%d:combustion" % room_id
+			thermal_boundary_kind = "chemical_combustion"
 		for quantity_entry in [
 			{"quantity": "gas_mass", "amount": mass_kg},
 			{"quantity": "enthalpy", "amount": energy_kj},
@@ -1366,6 +1368,7 @@ func _phase3_shadow_collect_thermal_requests() -> void:
 				"connection_id": thermal_connection_id,
 				"producer": "ThermalSystem",
 				"transport_family": cause,
+				"boundary_kind": thermal_boundary_kind,
 				"source_room_id": int(flux.get("source_room_id", room_id)),
 				"destination_room_id": int(flux.get("destination_room_id", room_id)),
 				"source_zone": String(flux.get("source_zone", "lower")),
@@ -1409,6 +1412,7 @@ func _phase3_shadow_collect_oxygen_requests() -> void:
 			"connection_id": "chemical:%d:combustion" % room_id,
 			"producer": "OxygenExchangeSystem",
 			"transport_family": cause,
+			"boundary_kind": "chemical_combustion",
 			"source_room_id": room_id,
 			"destination_room_id": phase3_zone_mass_system.EXTERIOR_ID,
 			"source_zone": source_zone,
@@ -1451,6 +1455,7 @@ func _phase3_shadow_collect_species_requests() -> void:
 					"connection_id": "chemical:%d:combustion_species" % room_id,
 					"producer": "CombustionSystem",
 					"transport_family": cause,
+					"boundary_kind": "chemical_combustion",
 					"source_room_id": phase3_zone_mass_system.EXTERIOR_ID,
 					"destination_room_id": room_id,
 					"source_zone": zone_name,
@@ -1473,6 +1478,9 @@ func _phase3_shadow_collect_doorway_species_requests() -> void:
 			"GasExchangeSystem",
 			"doorway_bulk",
 			"interior_opening"
+		)
+		phase3_zone_mass_system.register_semantic_unresolved(
+			result, ["gas_mass", "enthalpy", "o2"]
 		)
 		phase3_zone_mass_system.add_request(
 			phase3_zone_mass_system.make_request(
@@ -2441,10 +2449,18 @@ func _step_co_oxidation(dt: float) -> void:
 		# Oxidación de primer orden: dm_CO/dt = -k * m_CO
 		var oxidized_kg: float = room.co_upper_kg * co_oxidation_rate_per_s * dt
 		oxidized_kg = minf(oxidized_kg, room.co_upper_kg)
+		var generated_co2_kg: float = oxidized_kg * (44.0 / 28.0)
+		if phase3_canonical_zone_shadow_enabled:
+			phase3_zone_mass_system.apply_co_oxidation_event({
+				"event_id": "co_oxidation:%d:%.6f" % [room.id, sim_time_s],
+				"room_id": room.id,
+				"co_consumed_kg": oxidized_kg,
+				"co2_generated_kg": generated_co2_kg,
+			})
 		room.co_upper_kg -= oxidized_kg
 		room.co_kg = maxf(0.0, room.co_kg - oxidized_kg)
 		# CO + ½O2 → CO2: por cada kg CO se producen 44/28 kg CO2.
-		room.co2_kg += oxidized_kg * (44.0 / 28.0)
+		room.co2_kg += generated_co2_kg
 
 
 ## Solo afecta a FuelObjectModel con pool_spread_rate_m2_s > 0.

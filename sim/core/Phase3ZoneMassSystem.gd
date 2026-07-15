@@ -55,6 +55,7 @@ var _thermal_species_source_upper_kg: Dictionary = {}
 var _thermal_species_destination_upper_kg: Dictionary = {}
 var _thermal_species_applied_kg: Dictionary = {}
 var _thermal_species_rejected_kg: Dictionary = {}
+var _thermal_species_semantic_suppressed_kg: Dictionary = {}
 var _thermal_species_mechanism_kg: Dictionary = {}
 var _thermal_species_event_ids: Dictionary = {}
 var _thermal_species_event_count: int = 0
@@ -62,6 +63,18 @@ var _thermal_species_duplicate_event_count: int = 0
 var _semantic_claims: Dictionary = {}
 var _semantic_claim_count: int = 0
 var _semantic_unknown_connection_count: int = 0
+var _semantic_accepted_claim_count: int = 0
+var _semantic_suppressed_claim_count: int = 0
+var _semantic_unresolved_claim_count: int = 0
+var _semantic_suppressed_quantity_mask: int = 0
+var _semantic_unresolved_quantity_mask: int = 0
+var _semantic_suppressed_amounts: Dictionary = {}
+var _semantic_unresolved_amounts: Dictionary = {}
+var _semantic_unresolved_keys: Dictionary = {}
+var _co_oxidation_event_ids: Dictionary = {}
+var _co_oxidation_co_sink_kg: float = 0.0
+var _co_oxidation_co2_source_kg: float = 0.0
+var _co_oxidation_carbon_residual_kg: float = 0.0
 
 
 func reset() -> void:
@@ -95,6 +108,7 @@ func reset() -> void:
 	_thermal_species_destination_upper_kg.clear()
 	_thermal_species_applied_kg.clear()
 	_thermal_species_rejected_kg.clear()
+	_thermal_species_semantic_suppressed_kg.clear()
 	_thermal_species_mechanism_kg.clear()
 	_thermal_species_event_count = 0
 	_thermal_species_duplicate_event_count = 0
@@ -115,6 +129,18 @@ func _reset_step_state() -> void:
 	_semantic_claims.clear()
 	_semantic_claim_count = 0
 	_semantic_unknown_connection_count = 0
+	_semantic_accepted_claim_count = 0
+	_semantic_suppressed_claim_count = 0
+	_semantic_unresolved_claim_count = 0
+	_semantic_suppressed_quantity_mask = 0
+	_semantic_unresolved_quantity_mask = 0
+	_semantic_suppressed_amounts.clear()
+	_semantic_unresolved_amounts.clear()
+	_semantic_unresolved_keys.clear()
+	_co_oxidation_event_ids.clear()
+	_co_oxidation_co_sink_kg = 0.0
+	_co_oxidation_co2_source_kg = 0.0
+	_co_oxidation_carbon_residual_kg = 0.0
 
 
 func begin_step(building) -> void:
@@ -158,6 +184,7 @@ func apply_species_transit_event(event: Dictionary) -> void:
 				created_species,
 				created_upper_species
 			)
+			register_semantic_unresolved(event, ["gas_mass", "enthalpy", "o2"])
 			_add_transit_zone_requests(
 				parcel_id + ":carve",
 				"delayed_species_parcel_carve",
@@ -240,6 +267,7 @@ func apply_immediate_species_event(event: Dictionary) -> void:
 		"vertical_opening" if _is_vertical_species_cause(cause) else "interior_opening",
 		total_species
 	)
+	register_semantic_unresolved(event, ["gas_mass", "enthalpy", "o2"])
 	match cause:
 		"background_species_exchange":
 			_add_transit_species(_immediate_background_species_kg, total_species)
@@ -305,6 +333,7 @@ func apply_exterior_purge_event(event: Dictionary) -> void:
 		total_species,
 		upper_species
 	)
+	register_semantic_unresolved(event, ["gas_mass", "enthalpy", "o2"])
 	_exterior_purge_event_count += 1
 	_add_transit_species(_exterior_purge_requested_species_kg, total_species)
 	_add_transit_species(_exterior_purge_upper_species_kg, upper_species)
@@ -342,7 +371,7 @@ func apply_thermal_species_event(event: Dictionary) -> void:
 	var destination_upper_species: Dictionary = _bounded_upper_transit_species(
 		event.get("destination_upper_species_kg", {}), total_species
 	)
-	_register_thermal_species_claims(
+	var shadow_owned: bool = _register_thermal_species_claims(
 		event,
 		total_species,
 		source_upper_species,
@@ -357,6 +386,10 @@ func apply_thermal_species_event(event: Dictionary) -> void:
 	var mechanism_species: Dictionary = _thermal_species_mechanism_kg[mechanism]
 	_add_transit_species(mechanism_species, total_species)
 	_thermal_species_mechanism_kg[mechanism] = mechanism_species
+	if not shadow_owned:
+		_add_transit_species(_thermal_species_semantic_suppressed_kg, total_species)
+		register_semantic_unresolved(event, ["gas_mass", "enthalpy", "o2"])
+		return
 	_add_thermal_species_route_requests(
 		event_id,
 		"thermal_species_transport:" + mechanism,
@@ -366,6 +399,81 @@ func apply_thermal_species_event(event: Dictionary) -> void:
 		source_upper_species,
 		destination_upper_species
 	)
+
+
+func apply_co_oxidation_event(event: Dictionary) -> void:
+	var event_id: String = String(event.get("event_id", ""))
+	var room_id: int = int(event.get("room_id", EXTERIOR_ID))
+	var co_sink_kg: float = maxf(0.0, float(event.get("co_consumed_kg", 0.0)))
+	var co2_source_kg: float = maxf(0.0, float(event.get("co2_generated_kg", 0.0)))
+	if event_id.is_empty() or room_id == EXTERIOR_ID or co_sink_kg <= 0.0:
+		return
+	if _co_oxidation_event_ids.has(event_id):
+		_duplicate_owner_count += 1
+		return
+	_co_oxidation_event_ids[event_id] = true
+	var connection_id: String = "chemical:%d:co_oxidation" % room_id
+	register_semantic_claim({
+		"connection_id": connection_id,
+		"producer": "SimulationEngine",
+		"transport_family": "co_oxidation",
+		"boundary_kind": "chemical_conversion",
+		"source_room_id": room_id,
+		"destination_room_id": EXTERIOR_ID,
+		"source_zone": ZONE_UPPER,
+		"destination_zone": ZONE_UPPER,
+		"quantity": "co",
+		"amount": co_sink_kg,
+	})
+	register_semantic_claim({
+		"connection_id": connection_id,
+		"producer": "SimulationEngine",
+		"transport_family": "co_oxidation",
+		"boundary_kind": "chemical_conversion",
+		"source_room_id": EXTERIOR_ID,
+		"destination_room_id": room_id,
+		"source_zone": ZONE_LOWER,
+		"destination_zone": ZONE_LOWER,
+		"quantity": "co2",
+		"amount": co2_source_kg,
+	})
+	register_semantic_unresolved({
+		"connection_id": connection_id,
+		"source_room_id": room_id,
+		"destination_room_id": EXTERIOR_ID,
+		"source_zone": ZONE_UPPER,
+		"destination_zone": ZONE_UPPER,
+	}, ["o2"])
+	add_request(make_request(
+		event_id + ":co_sink",
+		"co_oxidation_sink",
+		room_id,
+		EXTERIOR_ID,
+		ZONE_UPPER,
+		ZONE_UPPER,
+		0.0,
+		0.0,
+		0.0,
+		{"co": co_sink_kg}
+	))
+	# Legacy adds CO2 to bulk only, leaving co2_upper_kg unchanged. The exact
+	# compatibility source is therefore lower-zone even though chemistry occurs hot.
+	add_request(make_request(
+		event_id + ":co2_source",
+		"co_oxidation_source",
+		EXTERIOR_ID,
+		room_id,
+		ZONE_LOWER,
+		ZONE_LOWER,
+		0.0,
+		0.0,
+		0.0,
+		{"co2": co2_source_kg}
+	))
+	_co_oxidation_co_sink_kg += co_sink_kg
+	_co_oxidation_co2_source_kg += co2_source_kg
+	_co_oxidation_carbon_residual_kg += \
+			co_sink_kg * (12.0 / 28.0) - co2_source_kg * (12.0 / 44.0)
 
 
 func _is_immediate_species_cause(cause: String) -> bool:
@@ -388,16 +496,20 @@ func _is_vertical_species_cause(cause: String) -> bool:
 			or cause == "vertical_species_directed_exchange"
 
 
-func register_semantic_claim(claim: Dictionary) -> void:
+func register_semantic_claim(claim: Dictionary) -> String:
 	var connection_id: String = String(claim.get("connection_id", ""))
 	var producer: String = String(claim.get("producer", ""))
 	var quantity: String = String(claim.get("quantity", ""))
 	var amount: float = maxf(0.0, float(claim.get("amount", 0.0)))
 	if producer.is_empty() or not SEMANTIC_QUANTITY_BITS.has(quantity) or amount <= 0.0:
-		return
+		return "ignored"
 	if connection_id.is_empty():
 		_semantic_unknown_connection_count += 1
-		return
+		return "unknown"
+	var owner: String = _semantic_owner_for_claim(claim)
+	var status: String = "unresolved"
+	if not owner.is_empty():
+		status = "accepted" if producer == owner else "suppressed"
 	var key: String = "%s|%d|%d|%s|%s|%s" % [
 		connection_id,
 		int(claim.get("source_room_id", EXTERIOR_ID)),
@@ -408,6 +520,7 @@ func register_semantic_claim(claim: Dictionary) -> void:
 	]
 	var record: Dictionary = _semantic_claims.get(key, {
 		"quantity": quantity,
+		"owner": owner,
 		"producers": {},
 		"mechanisms": {},
 	})
@@ -422,6 +535,72 @@ func register_semantic_claim(claim: Dictionary) -> void:
 	record["mechanisms"] = mechanisms
 	_semantic_claims[key] = record
 	_semantic_claim_count += 1
+	match status:
+		"accepted":
+			_semantic_accepted_claim_count += 1
+		"suppressed":
+			_semantic_suppressed_claim_count += 1
+			_semantic_suppressed_quantity_mask |= int(
+				SEMANTIC_QUANTITY_BITS.get(quantity, 0)
+			)
+			_add_semantic_amount(_semantic_suppressed_amounts, quantity, amount)
+		_:
+			_semantic_unresolved_claim_count += 1
+			_semantic_unresolved_quantity_mask |= int(
+				SEMANTIC_QUANTITY_BITS.get(quantity, 0)
+			)
+			_add_semantic_amount(_semantic_unresolved_amounts, quantity, amount)
+	return status
+
+
+func register_semantic_unresolved(event: Dictionary, quantities: Array) -> void:
+	var connection_id: String = String(event.get("connection_id", ""))
+	if connection_id.is_empty():
+		_semantic_unknown_connection_count += 1
+		return
+	var source_zone: String = String(event.get("source_zone", "mixed"))
+	var destination_zone: String = String(event.get("destination_zone", "mixed"))
+	for raw_quantity in quantities:
+		var quantity: String = String(raw_quantity)
+		if not SEMANTIC_QUANTITY_BITS.has(quantity):
+			continue
+		var key: String = "%s|%d|%d|%s|%s|%s" % [
+			connection_id,
+			int(event.get("source_room_id", EXTERIOR_ID)),
+			int(event.get("destination_room_id", EXTERIOR_ID)),
+			source_zone,
+			destination_zone,
+			quantity,
+		]
+		if _semantic_unresolved_keys.has(key):
+			continue
+		_semantic_unresolved_keys[key] = true
+		_semantic_unresolved_claim_count += 1
+		_semantic_unresolved_quantity_mask |= int(SEMANTIC_QUANTITY_BITS[quantity])
+
+
+func _semantic_owner_for_claim(claim: Dictionary) -> String:
+	var boundary_kind: String = String(claim.get("boundary_kind", ""))
+	var quantity: String = String(claim.get("quantity", ""))
+	match boundary_kind:
+		"interior_opening", "vertical_opening", "exterior_opening":
+			return "GasExchangeSystem" if quantity in TRANSIT_SPECIES else ""
+		"interlayer":
+			return "ThermalSystem"
+		"chemical_combustion":
+			if quantity == "enthalpy":
+				return "ThermalSystem"
+			if quantity == "o2":
+				return "OxygenExchangeSystem"
+			if quantity in TRANSIT_SPECIES:
+				return "CombustionSystem"
+		"chemical_conversion":
+			return "SimulationEngine" if quantity in ["co", "co2"] else ""
+	return ""
+
+
+func _add_semantic_amount(target: Dictionary, quantity: String, amount: float) -> void:
+	target[quantity] = float(target.get(quantity, 0.0)) + maxf(0.0, amount)
 
 
 func register_semantic_species_claim(
@@ -429,9 +608,9 @@ func register_semantic_species_claim(
 		producer: String,
 		transport_family: String,
 		boundary_kind: String
-	) -> void:
+	) -> bool:
 	var total_species: Dictionary = _transit_species(event.get("species_kg", {}))
-	_register_event_species_claims(
+	return _register_event_species_claims(
 		event, producer, transport_family, boundary_kind, total_species
 	)
 
@@ -442,9 +621,9 @@ func _register_event_species_claims(
 		transport_family: String,
 		boundary_kind: String,
 		total_species: Dictionary
-	) -> void:
+	) -> bool:
 	if event.has("source_zone") and event.has("destination_zone"):
-		_register_species_map_claims(
+		return _register_species_map_claims(
 			event,
 			producer,
 			transport_family,
@@ -453,11 +632,10 @@ func _register_event_species_claims(
 			String(event.get("destination_zone", ZONE_UPPER)),
 			total_species
 		)
-		return
 	var upper_species: Dictionary = _bounded_upper_transit_species(
 		event.get("upper_species_kg", {}), total_species
 	)
-	_register_split_species_claims(
+	return _register_split_species_claims(
 		event, producer, transport_family, boundary_kind, total_species, upper_species
 	)
 
@@ -469,8 +647,8 @@ func _register_split_species_claims(
 		boundary_kind: String,
 		total_species: Dictionary,
 		upper_species: Dictionary
-	) -> void:
-	_register_species_map_claims(
+	) -> bool:
+	var upper_accepted: bool = _register_species_map_claims(
 		event,
 		producer,
 		transport_family,
@@ -479,7 +657,7 @@ func _register_split_species_claims(
 		ZONE_UPPER,
 		upper_species
 	)
-	_register_species_map_claims(
+	var lower_accepted: bool = _register_species_map_claims(
 		event,
 		producer,
 		transport_family,
@@ -488,6 +666,7 @@ func _register_split_species_claims(
 		ZONE_LOWER,
 		_lower_transit_species(total_species, upper_species)
 	)
+	return upper_accepted or lower_accepted
 
 
 func _register_thermal_species_claims(
@@ -495,7 +674,7 @@ func _register_thermal_species_claims(
 		total_species: Dictionary,
 		source_upper_species: Dictionary,
 		destination_upper_species: Dictionary
-	) -> void:
+	) -> bool:
 	var routes: Dictionary = {
 		"upper_upper": {},
 		"upper_lower": {},
@@ -518,9 +697,10 @@ func _register_thermal_species_claims(
 					- float(routes["upper_lower"][species_name])
 					- float(routes["lower_upper"][species_name])
 		)
+	var any_accepted: bool = false
 	for route_name in routes.keys():
 		var route_parts: PackedStringArray = String(route_name).split("_")
-		_register_species_map_claims(
+		any_accepted = _register_species_map_claims(
 			event,
 			"ThermalSystem",
 			"thermal_carry",
@@ -529,7 +709,8 @@ func _register_thermal_species_claims(
 			String(route_parts[0]),
 			String(route_parts[1]),
 			routes[route_name]
-		)
+		) or any_accepted
+	return any_accepted
 
 
 func _register_species_map_claims(
@@ -540,13 +721,14 @@ func _register_species_map_claims(
 		source_zone: String,
 		destination_zone: String,
 		species: Dictionary
-	) -> void:
+	) -> bool:
 	var connection_id: String = String(event.get("connection_id", ""))
+	var any_accepted: bool = false
 	for species_name in TRANSIT_SPECIES:
 		var mass_kg: float = maxf(0.0, float(species.get(species_name, 0.0)))
 		if mass_kg <= 0.0:
 			continue
-		register_semantic_claim({
+		var status: String = register_semantic_claim({
 			"connection_id": connection_id,
 			"producer": producer,
 			"transport_family": transport_family,
@@ -558,6 +740,8 @@ func _register_species_map_claims(
 			"quantity": species_name,
 			"amount": mass_kg,
 		})
+		any_accepted = status == "accepted" or any_accepted
+	return any_accepted
 
 
 func _semantic_transport_family(cause: String) -> String:
@@ -573,6 +757,7 @@ func _semantic_transport_family(cause: String) -> String:
 
 func _semantic_conflict_summary() -> Dictionary:
 	var conflict_count: int = 0
+	var unresolved_conflict_count: int = 0
 	var quantity_mask: int = 0
 	var conflict_mass_kg: float = 0.0
 	var conflict_energy_kj: float = 0.0
@@ -583,6 +768,8 @@ func _semantic_conflict_summary() -> Dictionary:
 		if producers.size() <= 1:
 			continue
 		conflict_count += 1
+		if String(record.get("owner", "")).is_empty():
+			unresolved_conflict_count += 1
 		var quantity: String = String(record.get("quantity", ""))
 		quantity_mask |= int(SEMANTIC_QUANTITY_BITS.get(quantity, 0))
 		var total: float = 0.0
@@ -609,7 +796,23 @@ func _semantic_conflict_summary() -> Dictionary:
 		"conflict_o2_kg": conflict_o2_kg,
 		"conflict_species_kg": conflict_species_kg,
 		"unknown_connection_count": _semantic_unknown_connection_count,
+		"accepted_claim_count": _semantic_accepted_claim_count,
+		"suppressed_claim_count": _semantic_suppressed_claim_count,
+		"unresolved_claim_count": _semantic_unresolved_claim_count,
+		"suppressed_quantity_mask": _semantic_suppressed_quantity_mask,
+		"unresolved_quantity_mask": _semantic_unresolved_quantity_mask,
+		"suppressed_species_kg": _semantic_species_amount(_semantic_suppressed_amounts),
+		"unresolved_mass_kg": float(_semantic_unresolved_amounts.get("gas_mass", 0.0)),
+		"unresolved_energy_kj": float(_semantic_unresolved_amounts.get("enthalpy", 0.0)),
+		"unresolved_o2_kg": float(_semantic_unresolved_amounts.get("o2", 0.0)),
+		"unresolved_species_kg": _semantic_species_amount(_semantic_unresolved_amounts),
+		"unresolved_conflict_count": unresolved_conflict_count,
 	}
+
+
+func _semantic_species_amount(amounts: Dictionary) -> float:
+	return float(amounts.get("co", 0.0)) + float(amounts.get("co2", 0.0)) \
+			+ float(amounts.get("hcn", 0.0))
 
 
 func _transit_species(raw_species) -> Dictionary:
@@ -785,7 +988,8 @@ func _thermal_species_lower_for(species_name: String, upper: Dictionary) -> floa
 func _thermal_species_residual_for(species_name: String) -> float:
 	return float(_thermal_species_requested_kg.get(species_name, 0.0)) \
 			- float(_thermal_species_applied_kg.get(species_name, 0.0)) \
-			- float(_thermal_species_rejected_kg.get(species_name, 0.0))
+			- float(_thermal_species_rejected_kg.get(species_name, 0.0)) \
+			- float(_thermal_species_semantic_suppressed_kg.get(species_name, 0.0))
 
 
 func _thermal_species_mechanism_total(mechanism: String) -> float:
@@ -1086,6 +1290,9 @@ func finalize_step(building) -> void:
 			"phase3_shadow_thermal_co_residual_kg": _thermal_species_residual_for("co"),
 			"phase3_shadow_thermal_co2_residual_kg": _thermal_species_residual_for("co2"),
 			"phase3_shadow_thermal_hcn_residual_kg": _thermal_species_residual_for("hcn"),
+			"phase3_shadow_thermal_semantic_suppressed_kg_total": _sum_transit_species(
+				_thermal_species_semantic_suppressed_kg
+			),
 			"phase3_shadow_thermal_doorway_kg_total": _thermal_species_mechanism_total(
 				"doorway_hot_gas"
 			),
@@ -1226,6 +1433,43 @@ func finalize_step(building) -> void:
 			"phase3_shadow_semantic_unknown_connection_count": float(
 				semantic_summary.get("unknown_connection_count", 0)
 			),
+			"phase3_shadow_semantic_accepted_claim_count": float(
+				semantic_summary.get("accepted_claim_count", 0)
+			),
+			"phase3_shadow_semantic_suppressed_claim_count": float(
+				semantic_summary.get("suppressed_claim_count", 0)
+			),
+			"phase3_shadow_semantic_unresolved_claim_count": float(
+				semantic_summary.get("unresolved_claim_count", 0)
+			),
+			"phase3_shadow_semantic_suppressed_quantity_mask": float(
+				semantic_summary.get("suppressed_quantity_mask", 0)
+			),
+			"phase3_shadow_semantic_unresolved_quantity_mask": float(
+				semantic_summary.get("unresolved_quantity_mask", 0)
+			),
+			"phase3_shadow_semantic_suppressed_species_kg": float(
+				semantic_summary.get("suppressed_species_kg", 0.0)
+			),
+			"phase3_shadow_semantic_unresolved_mass_kg": float(
+				semantic_summary.get("unresolved_mass_kg", 0.0)
+			),
+			"phase3_shadow_semantic_unresolved_energy_kj": float(
+				semantic_summary.get("unresolved_energy_kj", 0.0)
+			),
+			"phase3_shadow_semantic_unresolved_o2_kg": float(
+				semantic_summary.get("unresolved_o2_kg", 0.0)
+			),
+			"phase3_shadow_semantic_unresolved_species_kg": float(
+				semantic_summary.get("unresolved_species_kg", 0.0)
+			),
+			"phase3_shadow_semantic_unresolved_conflict_count": float(
+				semantic_summary.get("unresolved_conflict_count", 0)
+			),
+			"phase3_shadow_co_oxidation_co_sink_kg_step": _co_oxidation_co_sink_kg,
+			"phase3_shadow_co_oxidation_co2_source_kg_step": _co_oxidation_co2_source_kg,
+			"phase3_shadow_co_oxidation_carbon_residual_kg_step": \
+					_co_oxidation_carbon_residual_kg,
 		}
 
 
