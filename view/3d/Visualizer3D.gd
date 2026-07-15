@@ -2475,7 +2475,14 @@ func _find_fire_anchor(item: Dictionary, rect: Rect2, rs: Dictionary) -> Diction
 	var pos_m: Vector2 = _vector2_from_variant(best_obj.get("position_m", Vector2.ZERO), Vector2.ZERO)
 	var size_m: Vector2 = _vector2_from_variant(best_obj.get("size_m", Vector2(0.5, 0.5)), Vector2(0.5, 0.5))
 	var kind_name: String = _fuel_visual_archetype(best_obj)
-	anchor_y_m = FurniturePlacement3D.fire_base_height_for(best_obj, kind_name)
+	# Mismo tope que FP (_fp_fire_base_y_for_object): una elevation_m alta no
+	# debe plantar la llama en el techo — la base queda a media sala como mucho.
+	var room_height_m: float = maxf(0.5, float(item.get("height_m", default_room_height_m)))
+	anchor_y_m = clampf(
+		FurniturePlacement3D.fire_base_height_for(best_obj, kind_name),
+		0.02,
+		minf(1.25, room_height_m * 0.55)
+	)
 	anchor_radius_m = clampf(maxf(minf(size_m.x, size_m.y) * 0.34, sqrt(maxf(0.01, size_m.x * size_m.y)) * 0.20), fire_base_radius_m, fire_max_radius_m)
 	anchor_pos = _to_world(Vector3(
 		rect.position.x + pos_m.x + size_m.x * 0.5,

@@ -192,7 +192,10 @@ func _update_views_for_frame(delta: float) -> void:
 	_view_update_accum_s += delta
 	_view_3d_update_accum_s += delta
 	var should_update_view: bool = _view_update_accum_s >= VIEW_RUNNING_UPDATE_INTERVAL_S
-	var should_update_3d: bool = (view_3d_enabled or first_person_enabled) and _view_3d_update_accum_s >= VIEW_3D_RUNNING_UPDATE_INTERVAL_S
+	# En FP el overlay 3D se actualiza a la mitad de cadencia: set_state completo
+	# del Visualizer3D es caro y en FP solo aporta humo/fuego de ambiente.
+	var view_3d_interval_s: float = VIEW_3D_RUNNING_UPDATE_INTERVAL_S * (2.0 if first_person_enabled else 1.0)
+	var should_update_3d: bool = (view_3d_enabled or first_person_enabled) and _view_3d_update_accum_s >= view_3d_interval_s
 	if not should_update_view and not should_update_3d:
 		return
 
@@ -202,14 +205,14 @@ func _update_views_for_frame(delta: float) -> void:
 			_view_update_accum_s = 0.0
 			if first_person_controller != null:
 				first_person_controller.set_state(state)
-			if minimap_2d != null:
-				minimap_2d.set_state(state)
 			if hud != null:
 				hud.update_state(state)
 		if should_update_3d:
 			_view_3d_update_accum_s = 0.0
 			if visualizer_3d != null:
 				visualizer_3d.set_state(state)
+			if minimap_2d != null:
+				minimap_2d.set_state(state)
 		return
 
 	if view_3d_enabled:
@@ -335,6 +338,20 @@ func _sync_view_mode() -> void:
 		first_person_controller.set_active(first_person_enabled)
 	if minimap_2d != null:
 		minimap_2d.visible = view_3d_enabled or first_person_enabled
+		# En FP los paneles del HUD ocupan arriba-izquierda; el minimapa pasa
+		# a arriba-derecha para no quedar tapado.
+		if first_person_enabled:
+			minimap_2d.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+			minimap_2d.offset_left = -242.0
+			minimap_2d.offset_top = 14.0
+			minimap_2d.offset_right = -14.0
+			minimap_2d.offset_bottom = 174.0
+		else:
+			minimap_2d.set_anchors_preset(Control.PRESET_TOP_LEFT)
+			minimap_2d.offset_left = 14.0
+			minimap_2d.offset_top = 14.0
+			minimap_2d.offset_right = 242.0
+			minimap_2d.offset_bottom = 174.0
 
 
 func _setup_minimap() -> void:
