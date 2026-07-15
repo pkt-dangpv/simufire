@@ -1014,29 +1014,23 @@ func _create_stair_railings(rect: Rect2, lower_level_m: float, rise_m: float, ru
 
 
 func _stair_long_span_m(rect: Rect2, stair_dir: Vector2) -> float:
-	return rect.size.x if absf(stair_dir.x) > absf(stair_dir.y) else rect.size.y
+	return StairGeometry.long_span_m(rect, stair_dir)
 
 
 func _stair_cross_span_m(rect: Rect2, stair_dir: Vector2) -> float:
-	return rect.size.y if absf(stair_dir.x) > absf(stair_dir.y) else rect.size.x
+	return StairGeometry.cross_span_m(rect, stair_dir)
 
 
 func _stair_ramp_width_m(rect: Rect2, stair_dir: Vector2 = Vector2.DOWN) -> float:
-	var cross_span: float = _stair_cross_span_m(rect, stair_dir)
-	return minf(maxf(0.82, cross_span * 0.50), maxf(0.82, cross_span - 0.96))
+	return StairGeometry.ramp_width_m(rect, stair_dir)
 
 
 func _stair_top_landing_depth_m(rect: Rect2, stair_dir: Vector2 = Vector2.DOWN) -> float:
-	return clampf(_stair_long_span_m(rect, stair_dir) * 0.22, 0.72, 1.05)
+	return StairGeometry.top_landing_depth_m(rect, stair_dir)
 
 
 func _stair_point_along_run(rect: Rect2, stair_dir: Vector2, distance_from_entry_m: float) -> Vector2:
-	var center: Vector2 = rect.get_center()
-	if absf(stair_dir.x) > absf(stair_dir.y):
-		var entry_x: float = rect.position.x if stair_dir.x > 0.0 else rect.position.x + rect.size.x
-		return Vector2(entry_x + stair_dir.x * distance_from_entry_m, center.y)
-	var entry_y: float = rect.position.y if stair_dir.y > 0.0 else rect.position.y + rect.size.y
-	return Vector2(center.x, entry_y + stair_dir.y * distance_from_entry_m)
+	return StairGeometry.point_along_run(rect, stair_dir, distance_from_entry_m)
 
 
 func _vertical_stair_voids_for_floor(floor_level_m: float) -> Array[Rect2]:
@@ -1074,67 +1068,15 @@ func _vertical_stair_voids_for_level(floor_level_m: float, upper_floor: bool) ->
 
 
 func _stair_vertical_void_rect(rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> Rect2:
-	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
-		return Rect2()
-	if turn_degrees >= 179.0:
-		var gap_m: float = 0.18
-		var cross_span_m: float = _stair_cross_span_m(rect, stair_dir)
-		var flight_width_m: float = clampf((cross_span_m - gap_m) * 0.5, 0.72, 1.05)
-		var shaft_width_m: float = minf(cross_span_m, flight_width_m * 2.0 + gap_m + 0.18)
-		if absf(stair_dir.x) > absf(stair_dir.y):
-			return Rect2(
-				Vector2(rect.position.x, rect.get_center().y - shaft_width_m * 0.5),
-				Vector2(rect.size.x, shaft_width_m)
-			)
-		return Rect2(
-			Vector2(rect.get_center().x - shaft_width_m * 0.5, rect.position.y),
-			Vector2(shaft_width_m, rect.size.y)
-		)
-	var width_m: float = minf(_stair_ramp_width_m(rect, stair_dir), maxf(0.2, _stair_cross_span_m(rect, stair_dir) - 0.2))
-	var run_m: float = minf(
-		maxf(0.80, _stair_long_span_m(rect, stair_dir) - _stair_top_landing_depth_m(rect, stair_dir) - 0.22),
-		maxf(0.2, _stair_long_span_m(rect, stair_dir) - 0.2)
-	)
-	var start_margin_m: float = 0.22
-	if absf(stair_dir.x) > absf(stair_dir.y):
-		var x_m: float = rect.position.x + start_margin_m if stair_dir.x > 0.0 else rect.position.x + rect.size.x - start_margin_m - run_m
-		return Rect2(Vector2(x_m, rect.get_center().y - width_m * 0.5), Vector2(run_m, width_m))
-	var y_m: float = rect.position.y + start_margin_m if stair_dir.y > 0.0 else rect.position.y + rect.size.y - start_margin_m - run_m
-	return Rect2(Vector2(rect.get_center().x - width_m * 0.5, y_m), Vector2(width_m, run_m))
+	return StairGeometry.vertical_void_rect(rect, stair_dir, turn_degrees)
 
 
 func _split_rect_by_voids(rect: Rect2, voids: Array[Rect2]) -> Array[Rect2]:
-	var slabs: Array[Rect2] = [rect]
-	for void_rect in voids:
-		var next: Array[Rect2] = []
-		for slab in slabs:
-			for piece in _subtract_rect(slab, void_rect):
-				if piece.size.x >= 0.08 and piece.size.y >= 0.08:
-					next.append(piece)
-		slabs = next
-	return slabs
+	return StairGeometry.split_rect_by_voids(rect, voids)
 
 
 func _subtract_rect(rect: Rect2, void_rect: Rect2) -> Array[Rect2]:
-	if rect.size.x <= 0.0 or rect.size.y <= 0.0 or void_rect.size.x <= 0.0 or void_rect.size.y <= 0.0:
-		return [rect]
-	if not rect.intersects(void_rect, true):
-		return [rect]
-	var cut: Rect2 = rect.intersection(void_rect)
-	if cut.size.x <= 0.001 or cut.size.y <= 0.001:
-		return [rect]
-	var pieces: Array[Rect2] = []
-	var rect_end: Vector2 = rect.position + rect.size
-	var cut_end: Vector2 = cut.position + cut.size
-	if cut.position.y > rect.position.y + 0.001:
-		pieces.append(Rect2(rect.position, Vector2(rect.size.x, cut.position.y - rect.position.y)))
-	if cut_end.y < rect_end.y - 0.001:
-		pieces.append(Rect2(Vector2(rect.position.x, cut_end.y), Vector2(rect.size.x, rect_end.y - cut_end.y)))
-	if cut.position.x > rect.position.x + 0.001:
-		pieces.append(Rect2(Vector2(rect.position.x, cut.position.y), Vector2(cut.position.x - rect.position.x, cut.size.y)))
-	if cut_end.x < rect_end.x - 0.001:
-		pieces.append(Rect2(Vector2(cut_end.x, cut.position.y), Vector2(rect_end.x - cut_end.x, cut.size.y)))
-	return pieces
+	return StairGeometry.subtract_rect(rect, void_rect)
 
 
 func _rect_same(a: Rect2, b: Rect2) -> bool:

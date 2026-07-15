@@ -102,7 +102,6 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var wall_outline_color: Color = Color(0.95, 0.95, 0.90, 0.72)
 @export var smoke_color: Color = Color(0.028, 0.027, 0.025, 0.54)
 @export var smoke_puff_color: Color = Color(0.055, 0.052, 0.048, 0.42)
-@export var smoke_layer_edge_color: Color = Color(0.030, 0.029, 0.027, 0.82)
 @export var layer_gradient_top_color: Color = Color(0.10, 0.09, 0.08, 0.54)
 @export var layer_gradient_bottom_color: Color = Color(0.30, 0.26, 0.20, 0.08)
 @export var smoke_hot_outflow_color: Color = Color(1.00, 0.46, 0.16, 0.24)
@@ -726,11 +725,6 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	_disable_shadow_casting(smoke)
 	_atmosphere_root.add_child(smoke)
 
-	var smoke_edge := _create_box("SmokeLayerEdge_%02d" % room_id, Vector3.ONE, _make_smoke_volume_material())
-	smoke_edge.visible = false
-	_disable_shadow_casting(smoke_edge)
-	_atmosphere_root.add_child(smoke_edge)
-
 	var smoke_plume := _create_box("SmokePlume_%02d" % room_id, Vector3.ONE, _make_smoke_volume_material())
 	smoke_plume.visible = false
 	_disable_shadow_casting(smoke_plume)
@@ -828,7 +822,6 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 		"floor_parts": floor_parts,
 		"walls": walls,
 		"smoke": smoke,
-		"smoke_edge": smoke_edge,
 		"smoke_plume": smoke_plume,
 		"smoke_puffs_root": smoke_puffs_root,
 		"smoke_puffs": smoke_puffs,
@@ -1129,61 +1122,15 @@ func _vertical_stair_voids_for_floor(floor_level_m: float) -> Array[Rect2]:
 
 
 func _stair_vertical_void_rect(rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> Rect2:
-	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
-		return Rect2()
-	if turn_degrees >= 179.0:
-		var gap_m: float = 0.18
-		var cross_span_m: float = _stair_cross_span_m(rect, stair_dir)
-		var flight_width_m: float = clampf((cross_span_m - gap_m) * 0.5, 0.72, 1.05)
-		var shaft_width_m: float = minf(cross_span_m, flight_width_m * 2.0 + gap_m + 0.18)
-		if absf(stair_dir.x) > absf(stair_dir.y):
-			return Rect2(Vector2(rect.position.x, rect.get_center().y - shaft_width_m * 0.5), Vector2(rect.size.x, shaft_width_m))
-		return Rect2(Vector2(rect.get_center().x - shaft_width_m * 0.5, rect.position.y), Vector2(shaft_width_m, rect.size.y))
-	var width_m: float = minf(_stair_ramp_width_m(rect, stair_dir), maxf(0.2, _stair_cross_span_m(rect, stair_dir) - 0.2))
-	var run_m: float = minf(
-		maxf(0.80, _stair_long_span_m(rect, stair_dir) - _stair_top_landing_depth_m(rect, stair_dir) - 0.22),
-		maxf(0.2, _stair_long_span_m(rect, stair_dir) - 0.2)
-	)
-	var start_margin_m: float = 0.22
-	if absf(stair_dir.x) > absf(stair_dir.y):
-		var x_m: float = rect.position.x + start_margin_m if stair_dir.x > 0.0 else rect.position.x + rect.size.x - start_margin_m - run_m
-		return Rect2(Vector2(x_m, rect.get_center().y - width_m * 0.5), Vector2(run_m, width_m))
-	var y_m: float = rect.position.y + start_margin_m if stair_dir.y > 0.0 else rect.position.y + rect.size.y - start_margin_m - run_m
-	return Rect2(Vector2(rect.get_center().x - width_m * 0.5, y_m), Vector2(width_m, run_m))
+	return StairGeometry.vertical_void_rect(rect, stair_dir, turn_degrees)
 
 
 func _split_rect_by_voids(rect: Rect2, voids: Array[Rect2]) -> Array[Rect2]:
-	var slabs: Array[Rect2] = [rect]
-	for void_rect in voids:
-		var next: Array[Rect2] = []
-		for slab in slabs:
-			for piece in _subtract_rect(slab, void_rect):
-				if piece.size.x >= 0.08 and piece.size.y >= 0.08:
-					next.append(piece)
-		slabs = next
-	return slabs
+	return StairGeometry.split_rect_by_voids(rect, voids)
 
 
 func _subtract_rect(rect: Rect2, void_rect: Rect2) -> Array[Rect2]:
-	if rect.size.x <= 0.0 or rect.size.y <= 0.0 or void_rect.size.x <= 0.0 or void_rect.size.y <= 0.0:
-		return [rect]
-	if not rect.intersects(void_rect, true):
-		return [rect]
-	var cut: Rect2 = rect.intersection(void_rect)
-	if cut.size.x <= 0.001 or cut.size.y <= 0.001:
-		return [rect]
-	var pieces: Array[Rect2] = []
-	var rect_end: Vector2 = rect.position + rect.size
-	var cut_end: Vector2 = cut.position + cut.size
-	if cut.position.y > rect.position.y + 0.001:
-		pieces.append(Rect2(rect.position, Vector2(rect.size.x, cut.position.y - rect.position.y)))
-	if cut_end.y < rect_end.y - 0.001:
-		pieces.append(Rect2(Vector2(rect.position.x, cut_end.y), Vector2(rect.size.x, rect_end.y - cut_end.y)))
-	if cut.position.x > rect.position.x + 0.001:
-		pieces.append(Rect2(Vector2(rect.position.x, cut.position.y), Vector2(cut.position.x - rect.position.x, cut.size.y)))
-	if cut_end.x < rect_end.x - 0.001:
-		pieces.append(Rect2(Vector2(cut_end.x, cut.position.y), Vector2(rect_end.x - cut_end.x, cut.size.y)))
-	return pieces
+	return StairGeometry.subtract_rect(rect, void_rect)
 
 
 func _rect_same(a: Rect2, b: Rect2) -> bool:
@@ -1191,29 +1138,23 @@ func _rect_same(a: Rect2, b: Rect2) -> bool:
 
 
 func _stair_long_span_m(rect: Rect2, stair_dir: Vector2) -> float:
-	return rect.size.x if absf(stair_dir.x) > absf(stair_dir.y) else rect.size.y
+	return StairGeometry.long_span_m(rect, stair_dir)
 
 
 func _stair_cross_span_m(rect: Rect2, stair_dir: Vector2) -> float:
-	return rect.size.y if absf(stair_dir.x) > absf(stair_dir.y) else rect.size.x
+	return StairGeometry.cross_span_m(rect, stair_dir)
 
 
 func _stair_ramp_width_m(rect: Rect2, stair_dir: Vector2 = Vector2.DOWN) -> float:
-	var cross_span: float = _stair_cross_span_m(rect, stair_dir)
-	return minf(maxf(0.82, cross_span * 0.50), maxf(0.82, cross_span - 0.96))
+	return StairGeometry.ramp_width_m(rect, stair_dir)
 
 
 func _stair_top_landing_depth_m(rect: Rect2, stair_dir: Vector2 = Vector2.DOWN) -> float:
-	return clampf(_stair_long_span_m(rect, stair_dir) * 0.22, 0.72, 1.05)
+	return StairGeometry.top_landing_depth_m(rect, stair_dir)
 
 
 func _stair_point_along_run(rect: Rect2, stair_dir: Vector2, distance_from_entry_m: float) -> Vector2:
-	var center: Vector2 = rect.get_center()
-	if absf(stair_dir.x) > absf(stair_dir.y):
-		var entry_x: float = rect.position.x if stair_dir.x > 0.0 else rect.position.x + rect.size.x
-		return Vector2(entry_x + stair_dir.x * distance_from_entry_m, center.y)
-	var entry_y: float = rect.position.y if stair_dir.y > 0.0 else rect.position.y + rect.size.y
-	return Vector2(center.x, entry_y + stair_dir.y * distance_from_entry_m)
+	return StairGeometry.point_along_run(rect, stair_dir, distance_from_entry_m)
 
 
 func _create_opening(index: int) -> void:
@@ -1240,7 +1181,7 @@ func _create_opening(index: int) -> void:
 	var opening_floor_m: float = float(pose.get("floor_level_m", 0.0))
 	marker.position = _to_world(Vector3(pose["position"].x, opening_floor_m + pose["position"].y, pose["position"].z))
 	_openings_root.add_child(marker)
-	_opening_items[index] = {"marker": marker}
+	_opening_items[index] = {"marker": marker, "pose": pose}
 	if op.type == OpeningModel.Type.DOOR and not op.is_vertical:
 		_create_door_leaf_visual(index, op, pose, marker)
 	if op.type == OpeningModel.Type.WINDOW:
@@ -1370,7 +1311,7 @@ func _create_exterior_context_visuals() -> void:
 		var op: OpeningModel = building.get_opening_at(index)
 		if op == null or not op.is_exterior_opening():
 			continue
-		var pose: Dictionary = _opening_pose(op)
+		var pose: Dictionary = _get_cached_opening_pose(index)
 		if pose.is_empty():
 			continue
 		if String(building.building_type).to_lower() == "apartment":
@@ -1491,6 +1432,19 @@ func _opening_color(op: OpeningModel) -> Color:
 	if op.type == OpeningModel.Type.HOLE:
 		return hole_color
 	return door_color
+
+
+func _get_cached_opening_pose(index: int) -> Dictionary:
+	if _opening_items.has(index):
+		var item: Dictionary = Dictionary(_opening_items[index])
+		if item.has("pose"):
+			return Dictionary(item["pose"])
+	if building == null:
+		return {}
+	var op: OpeningModel = building.get_opening_at(index)
+	if op == null:
+		return {}
+	return _opening_pose(op)
 
 
 func _opening_pose(op: OpeningModel) -> Dictionary:
@@ -1634,7 +1588,6 @@ func _update_room(room_id: int, update_fuel_objects: bool = true) -> void:
 	var floor := item["floor"] as MeshInstance3D
 	var walls: Array = item.get("walls", [])
 	var smoke := item["smoke"] as MeshInstance3D
-	var smoke_edge := item["smoke_edge"] as MeshInstance3D
 	var gradient_band := item.get("gradient_band") as MeshInstance3D
 	var hot := item["hot"] as MeshInstance3D
 	var l150 := item["l150"] as MeshInstance3D
@@ -1669,7 +1622,7 @@ func _update_room(room_id: int, update_fuel_objects: bool = true) -> void:
 	else:
 		_update_wall_temperature(walls, 20.0)
 
-	_update_smoke_volume(item, smoke, smoke_edge, rect, height_m, smoke_layer_m, smoke_kg, hrr_kw, visibility_m)
+	_update_smoke_volume(item, smoke, rect, height_m, smoke_layer_m, smoke_kg, hrr_kw, visibility_m)
 	if gradient_band != null:
 		var grad_depth_m: float = maxf(0.0, height_m - smoke_layer_m)
 		var grad_visible: bool = show_layer_gradient and smoke_kg > smoke_visible_threshold_kg and grad_depth_m > 0.05
@@ -1777,10 +1730,8 @@ func _apply_floor_color(floor_node: MeshInstance3D, color: Color) -> void:
 
 func _apply_selection_visuals() -> void:
 	_update_room_selection_visuals()
-	_update_openings()
 	_update_fuel_object_selection_visuals()
 	_update_safety_marker_selection_visuals()
-	_update_player_start_marker_3d()
 
 
 func _has_selection() -> bool:
@@ -2027,7 +1978,6 @@ func _update_wall_temperature(walls: Array, temp_upper_c: float) -> void:
 func _update_smoke_volume(
 	item: Dictionary,
 	node: MeshInstance3D,
-	edge_node: MeshInstance3D,
 	rect: Rect2,
 	height_m: float,
 	smoke_layer_m: float,
@@ -2092,8 +2042,6 @@ func _update_smoke_volume(
 		and alpha > 0.105 \
 		and (not _first_person_overlay or show_smoke_puffs_in_first_person)
 	node.visible = smoke_geometry_visible
-	if edge_node != null:
-		edge_node.visible = false
 	var current_optics: Dictionary = _smoke_optical_terms(rect, height_m, current_depth_m, smoke_kg, visibility_m, hrr_smoke_t)
 	var smoke_light_transmission: float = _smoke_light_transmission_from_terms(current_optics)
 	item["smoke_light_transmission"] = smoke_light_transmission
@@ -2237,7 +2185,7 @@ func _same_floor_opening_smoke_spill_for_room(room_id: int, height_m: float) -> 
 		if source_depth_m <= smoke_min_visible_depth_m:
 			continue
 
-		var pose: Dictionary = _opening_pose(op)
+		var pose: Dictionary = _get_cached_opening_pose(index)
 		if pose.is_empty():
 			continue
 		var pose_size: Vector3 = Vector3(pose["size"])
@@ -2316,31 +2264,6 @@ func _apply_smoke_volume_shader(
 		"lower_density_floor": 0.18 if _first_person_overlay else 0.10,
 		"flow_strength": hrr_smoke_t * (0.16 if _first_person_overlay else 0.11),
 		"flow_speed": 0.18 + hrr_smoke_t * 0.15,
-	})
-
-
-func _apply_smoke_edge_shader(
-	edge_shader: ShaderMaterial,
-	edge_alpha: float,
-	edge_height_m: float,
-	hrr_smoke_t: float
-) -> void:
-	_set_smoke_shader_params(edge_shader, {
-		"smoke_color": Color(smoke_layer_edge_color.r, smoke_layer_edge_color.g, smoke_layer_edge_color.b, edge_alpha),
-		"density": 1.34 if _first_person_overlay else 0.76,
-		"turbulence": 0.86,
-		"drift_speed": 0.10,
-		"volume_depth_m": maxf(edge_height_m, 0.05),
-		"edge_softness": 0.36,
-		"bottom_waviness": 0.22,
-		"edge_band_strength": 1.18 if _first_person_overlay else 0.78,
-		"side_visibility": 0.00 if _first_person_overlay else 0.16,
-		"bottom_surface_strength": 0.62 if _first_person_overlay else 0.34,
-		"top_visibility": 0.0,
-		"vertical_gradient_strength": 0.72,
-		"lower_density_floor": 0.05,
-		"flow_strength": 0.18 + hrr_smoke_t * 0.26,
-		"flow_speed": 0.24,
 	})
 
 
@@ -2994,7 +2917,15 @@ func _create_human_limb_mesh(node_name: String, radius_m: float, length_m: float
 
 
 func _set_marker_color(root: Node3D, color: Color) -> void:
-	var mat := _make_material(color, false)
+	var cached: Variant = root.get_meta("marker_mat", null)
+	var mat: StandardMaterial3D
+	if cached is StandardMaterial3D and cached.albedo_color.is_equal_approx(color):
+		return
+	if cached is StandardMaterial3D:
+		cached.albedo_color = color
+		return
+	mat = _make_material(color, false)
+	root.set_meta("marker_mat", mat)
 	_set_marker_color_recursive(root, mat)
 
 
@@ -3281,7 +3212,7 @@ func _fuel_visual_opening_clearances_for_room(room_id: int, room_rect: Rect2) ->
 		var op: OpeningModel = building.get_opening_at(index)
 		if op == null or op.is_vertical or (op.a != room_id and op.b != room_id):
 			continue
-		var pose: Dictionary = _opening_pose(op)
+		var pose: Dictionary = _get_cached_opening_pose(index)
 		if pose.is_empty() or bool(pose.get("is_vertical", false)):
 			continue
 		var pos3: Vector3 = Vector3(pose.get("position", Vector3.ZERO))

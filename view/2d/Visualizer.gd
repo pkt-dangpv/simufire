@@ -200,6 +200,7 @@ var selected_room_id: int = -1
 var selected_opening_index: int = -1
 var floor_levels_m: Array[float] = []
 var selected_floor_index: int = 0
+var _frame_tf: Dictionary = {}
 
 @export var building_path: NodePath
 var building: BuildingModel = null
@@ -230,6 +231,7 @@ func set_state(s: Dictionary) -> void:
 
 func _draw() -> void:
 	_sync_building_geometry()
+	_frame_tf = _get_draw_transform()
 	_draw_background()
 
 	var room_ids: Array[int] = _get_sorted_room_ids()
@@ -621,9 +623,8 @@ func _draw_room_fire_overlay(rpx: Rect2, rs: Dictionary, room_id: int = -1) -> v
 			var rm: Rect2 = rects_m[room_id]
 			var pos_m: Vector2 = RoomStateVisuals2D.vector2_from_variant(best_obj.get("position_m", Vector2.ZERO))
 			var sz_m: Vector2 = RoomStateVisuals2D.vector2_from_variant(best_obj.get("size_m", Vector2.ONE))
-			var tf: Dictionary = _get_draw_transform()
-			var sc: float = float(tf["scale"])
-			var off: Vector2 = Vector2(tf["offset"])
+			var sc: float = float(_frame_tf.get("scale", meters_to_px))
+			var off: Vector2 = Vector2(_frame_tf.get("offset", Vector2.ZERO))
 			center = (rm.position + pos_m + sz_m * 0.5) * sc + off
 	var base_size: float = minf(rpx.size.x, rpx.size.y)
 
@@ -1365,9 +1366,8 @@ func _draw_openings() -> void:
 		if seg_m.size() != 2:
 			continue
 
-		var tf: Dictionary = _get_draw_transform()
-		var scale_px: float = float(tf["scale"])
-		var offset: Vector2 = tf["offset"]
+		var scale_px: float = float(_frame_tf.get("scale", meters_to_px))
+		var offset: Vector2 = _frame_tf.get("offset", Vector2.ZERO)
 
 		var p1: Vector2 = seg_m[0] * scale_px + offset
 		var p2: Vector2 = seg_m[1] * scale_px + offset
@@ -1378,8 +1378,7 @@ func _draw_openings() -> void:
 			var base_color: Color = door_color if op.type == OpeningModel.Type.DOOR else hole_color
 			col = Color(base_color.r, base_color.g, base_color.b, alpha)
 			if b_exists:
-				var tf2: Dictionary = _get_draw_transform()
-				var scale_px2: float = float(tf2["scale"])
+				var scale_px2: float = scale_px
 				var door_px: float = maxf(8.0, op.width_m * scale_px2)
 				var seg_dir: Vector2 = (p2 - p1).normalized() if p1.distance_to(p2) > 0.01 else Vector2(1, 0)
 				var seg_mid: Vector2 = (p1 + p2) * 0.5
@@ -1574,19 +1573,16 @@ func _get_room_content_rect(rpx: Rect2) -> Rect2:
 
 
 func _to_px(rm: Rect2) -> Rect2:
-	var tf: Dictionary = _get_draw_transform()
-	var scale_px: float = float(tf["scale"])
-	var offset: Vector2 = tf["offset"]
-
+	var scale_px: float = float(_frame_tf.get("scale", meters_to_px))
+	var offset: Vector2 = _frame_tf.get("offset", Vector2.ZERO)
 	var pos: Vector2 = rm.position * scale_px + offset
 	var size: Vector2 = rm.size * scale_px
 	return Rect2(pos, size)
 
 
 func _point_to_px(pos_m: Vector2) -> Vector2:
-	var tf: Dictionary = _get_draw_transform()
-	var offset: Vector2 = tf["offset"]
-	return pos_m * float(tf["scale"]) + offset
+	var offset: Vector2 = _frame_tf.get("offset", Vector2.ZERO)
+	return pos_m * float(_frame_tf.get("scale", meters_to_px)) + offset
 
 
 func _get_sorted_room_ids() -> Array[int]:
