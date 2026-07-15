@@ -157,23 +157,35 @@ def parse_log(path):
                     m2 = re.match(r"[+-]?[0-9.]+", v.strip())
                     return float(m2.group()) if m2 else 0.0
 
-                hrr       = _val(parts[1],  "HRR")
-                temp_up   = _val(parts[2],  "Up")
-                temp_low  = _val(parts[3],  "Low")
-                smoke     = _val(parts[4],  "Smoke")
-                vis       = _val(parts[5],  "Vis")
-                smoke_lyr = _val(parts[6],  "SmokeLayer") if len(parts) > 6  else 0.0
-                hot_lyr   = _val(parts[7],  "HotLayer")   if len(parts) > 7  else 0.0
-                l150      = _val(parts[8],  "L150")       if len(parts) > 8  else 0.0
-                press     = _val(parts[9],  "P", "Pa")    if len(parts) > 9  else 0.0
-                o2        = _val(parts[10], "O2")         if len(parts) > 10 else 0.0
-                co        = _val(parts[11], "CO",  "ppm") if len(parts) > 11 else 0.0
-                co_u      = _val(parts[12], "COu", "ppm") if len(parts) > 12 else 0.0
-                co2       = _val(parts[13], "CO2", "ppm") if len(parts) > 13 else 0.0
+                def _find_val(prefix, strip_suffix=""):
+                    anchor = prefix + "="
+                    for p in parts[1:]:
+                        idx = p.find(anchor)
+                        if idx == -1:
+                            continue
+                        before = p[idx - 1] if idx > 0 else " "
+                        if before.isalpha():
+                            continue
+                        return _val(p, prefix, strip_suffix)
+                    return 0.0
+
+                hrr       = _find_val("HRR")
+                temp_up   = _find_val("Up")
+                temp_low  = _find_val("Low")
+                smoke     = _find_val("Smoke")
+                vis       = _find_val("Vis")
+                smoke_lyr = _find_val("SmokeLayer")
+                hot_lyr   = _find_val("HotLayer")
+                l150      = _find_val("L150")
+                press     = _find_val("P", "Pa")
+                o2        = _find_val("O2")
+                co        = _find_val("CO", "ppm")
+                co_u      = _find_val("COu", "ppm")
+                co2       = _find_val("CO2", "ppm")
 
                 fed = 0.0
                 svv = 0.0
-                for part in parts[13:]:
+                for part in parts[1:]:
                     mf = re.search(r"FED=([0-9.]+)", part)
                     ms = re.search(r"SVV=([0-9.]+)", part)
                     if mf:
@@ -586,6 +598,8 @@ def main():
     csv_path = os.path.abspath(args.csv)
     graphs_root = os.path.abspath(args.out_root)
 
+    sim_label = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
     events = []
     if os.path.exists(log_path) and os.path.getsize(log_path) > 0:
         try:
@@ -593,12 +607,20 @@ def main():
         except Exception as exc:
             print("Aviso: no se pudieron leer eventos del log TXT: %s" % exc)
 
-    if os.path.exists(csv_path) and os.path.getsize(csv_path) > 0:
+    csv_usable = os.path.exists(csv_path) and os.path.getsize(csv_path) > 0
+    if csv_usable and os.path.exists(log_path) and os.path.getsize(log_path) > 0:
+        csv_mtime = os.path.getmtime(csv_path)
+        log_mtime = os.path.getmtime(log_path)
+        if csv_mtime < log_mtime - 5:
+            print("Aviso: CSV (%s) es mas viejo que el log TXT — usando TXT." % csv_path)
+            csv_usable = False
+
+    if csv_usable:
         print("Leyendo CSV: " + csv_path)
-        sim_label, rooms = parse_csv_log(csv_path)
+        _, rooms = parse_csv_log(csv_path)
     else:
         print("Leyendo log: " + log_path)
-        sim_label, rooms, events = parse_log(log_path)
+        _, rooms, events = parse_log(log_path)
 
     if not rooms:
         print("El log no contiene datos de habitaciones. Corre la simulacion primero.")

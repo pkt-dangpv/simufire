@@ -31,6 +31,8 @@ var _graphs_room_prev_button: Button = null
 var _graphs_room_next_button: Button = null
 var _graph_drag_scroll: ScrollContainer = null
 var _graph_zoom: float = 1.0
+var _pending_technical_summary: Dictionary = {}
+var _pending_technical_summary_dir: String = ""
 var _view_update_accum_s: float = 0.0
 var _view_3d_update_accum_s: float = 0.0
 const VIEW_RUNNING_UPDATE_INTERVAL_S: float = 0.05
@@ -416,9 +418,10 @@ func _setup_graph_dialogs() -> void:
 	_graphs_view_window.name = "GraphsViewer"
 	_graphs_view_window.title = UILocalizationScript.t("summary.graphs_window_title", "Graficas de simulacion")
 	_graphs_view_window.size = Vector2i(1500, 820)
-	_graphs_view_window.min_size = Vector2i(1280, 680)
+	_graphs_view_window.min_size = Vector2i(960, 560)
 	_graphs_view_window.wrap_controls = false
 	_graphs_view_window.visible = false
+	_graphs_view_window.force_native = true
 	_graphs_view_window.close_requested.connect(_on_graphs_window_close_requested)
 	_graphs_view_window.size_changed.connect(_on_graphs_window_size_changed)
 	add_child(_graphs_view_window)
@@ -426,8 +429,8 @@ func _setup_graph_dialogs() -> void:
 	_technical_summary_window = Window.new()
 	_technical_summary_window.name = "TechnicalSummaryWindow"
 	_technical_summary_window.title = UILocalizationScript.t("summary.window_title", "Resumen tecnico post-simulacion")
-	_technical_summary_window.size = Vector2i(1180, 760)
-	_technical_summary_window.min_size = Vector2i(980, 620)
+	_technical_summary_window.size = Vector2i(960, 560)
+	_technical_summary_window.min_size = Vector2i(720, 480)
 	_technical_summary_window.wrap_controls = false
 	_technical_summary_window.visible = false
 	_technical_summary_window.close_requested.connect(_on_technical_summary_window_close_requested)
@@ -461,6 +464,10 @@ func _on_export_screenshot_requested(output_dir: String) -> void:
 
 
 func _on_technical_summary_ready(summary: Dictionary, output_dir: String) -> void:
+	if _graphs_view_window != null and _graphs_view_window.visible:
+		_pending_technical_summary = summary
+		_pending_technical_summary_dir = output_dir
+		return
 	_show_technical_summary_window(summary, output_dir)
 
 
@@ -542,7 +549,13 @@ func _show_technical_summary_window(summary: Dictionary, output_dir: String = ""
 	close_button.pressed.connect(_on_technical_summary_window_close_requested)
 	button_row.add_child(close_button)
 
-	_technical_summary_window.popup_centered(_technical_summary_window.size)
+	var vp_size: Vector2 = get_viewport().get_visible_rect().size
+	var ts_size := Vector2i(
+		clampi(_technical_summary_window.size.x, 720, int(vp_size.x * 0.85)),
+		clampi(_technical_summary_window.size.y, 480, int(vp_size.y * 0.85))
+	)
+	_technical_summary_window.size = ts_size
+	_technical_summary_window.popup_centered(ts_size)
 
 
 func _add_summary_metric(parent: GridContainer, title_text: String, value_text: String) -> void:
@@ -686,13 +699,12 @@ func _show_graphs_window(graphs_dir: String) -> void:
 	if _graphs_view_window == null:
 		return
 
-	# Ajustar tamaño al de la ventana principal antes de mostrar.
-	var main_win: Window = get_window()
-	if main_win != null:
-		var ws: Vector2i = main_win.size
-		_graphs_view_window.size = Vector2i(maxi(ws.x - 40, 1280), maxi(ws.y - 60, 720))
-	else:
-		_graphs_view_window.size = Vector2i(1500, 820)
+	var screen_id: int = DisplayServer.window_get_current_screen()
+	var screen_sz: Vector2i = DisplayServer.screen_get_usable_rect(screen_id).size
+	_graphs_view_window.size = Vector2i(
+		clampi(screen_sz.x - 80, 960, screen_sz.x),
+		clampi(screen_sz.y - 80, 560, screen_sz.y)
+	)
 
 	_clear_graphs_view_window()
 	_graph_zoom = 1.0
@@ -786,6 +798,7 @@ func _show_graphs_window(graphs_dir: String) -> void:
 		room_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		room_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
 		room_scroll.gui_input.connect(_on_graph_scroll_gui_input.bind(room_scroll))
+		room_scroll.mouse_exited.connect(_on_graph_scroll_mouse_exited.bind(room_scroll))
 		tabs.add_child(room_scroll)
 		_graph_scrolls.append(room_scroll)
 
@@ -878,6 +891,12 @@ func _show_graphs_message(message: String) -> void:
 func _on_graphs_window_close_requested() -> void:
 	if _graphs_view_window != null:
 		_graphs_view_window.hide()
+	if not _pending_technical_summary.is_empty():
+		var summary: Dictionary = _pending_technical_summary
+		var dir: String = _pending_technical_summary_dir
+		_pending_technical_summary = {}
+		_pending_technical_summary_dir = ""
+		_show_technical_summary_window(summary, dir)
 
 
 func _clear_graphs_view_window() -> void:
@@ -965,13 +984,6 @@ func _apply_graph_zoom() -> void:
 		cell.custom_minimum_size = cell_base * _graph_zoom
 		for child in cell.get_children():
 			if child is TextureRect:
-				if child.has_meta("image_size"):
-					var image_size: Vector2i = Vector2i(child.get_meta("image_size"))
-					var recalculated_base: Vector2 = _graph_texture_base_size(image_size)
-					child.set_meta("base_size", recalculated_base)
-					cell.set_meta("base_size", recalculated_base + Vector2(24.0, 42.0))
-					cell_base = Vector2(cell.get_meta("base_size", Vector2(960.0, 560.0)))
-					cell.custom_minimum_size = cell_base * _graph_zoom
 				var tex_base: Vector2 = Vector2(child.get_meta("base_size", Vector2(940.0, 520.0)))
 				child.custom_minimum_size = tex_base * _graph_zoom
 
@@ -1024,11 +1036,11 @@ func _on_graph_scroll_gui_input(event: InputEvent, scroll: ScrollContainer) -> v
 				scroll.accept_event()
 			MOUSE_BUTTON_WHEEL_UP:
 				if mouse_event.ctrl_pressed:
-					_set_graph_zoom(_graph_zoom * 1.12)
+					_set_graph_zoom(_graph_zoom * 1.25)
 					scroll.accept_event()
 			MOUSE_BUTTON_WHEEL_DOWN:
 				if mouse_event.ctrl_pressed:
-					_set_graph_zoom(_graph_zoom / 1.12)
+					_set_graph_zoom(_graph_zoom / 1.25)
 					scroll.accept_event()
 	elif event is InputEventMouseMotion and _graph_drag_scroll == scroll:
 		_pan_graph_scroll(scroll, (event as InputEventMouseMotion).relative)
@@ -1046,19 +1058,33 @@ func _stop_graph_drag() -> void:
 	_graph_drag_scroll = null
 
 
+func _on_graph_scroll_mouse_exited(scroll: ScrollContainer) -> void:
+	if _graph_drag_scroll == scroll:
+		_stop_graph_drag()
+
+
+const GRAPH_ORDER: Array[String] = ["hrr", "temperaturas", "capas", "gases", "fed_svv"]
+
 func _collect_graph_images(room_path: String) -> Array[String]:
-	var result: Array[String] = []
+	var found: Array[String] = []
 	var dir := DirAccess.open(room_path)
 	if dir == null:
-		return result
+		return found
 	dir.list_dir_begin()
 	var file_name: String = dir.get_next()
 	while file_name != "":
 		if not dir.current_is_dir() and file_name.get_extension().to_lower() == "png":
-			result.append(file_name)
+			found.append(file_name)
 		file_name = dir.get_next()
 	dir.list_dir_end()
-	result.sort()
+	var result: Array[String] = []
+	for key in GRAPH_ORDER:
+		for f in found:
+			if f.get_basename().to_lower() == key:
+				result.append(f)
+	for f in found:
+		if not result.has(f):
+			result.append(f)
 	return result
 
 
