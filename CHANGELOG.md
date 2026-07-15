@@ -3,6 +3,17 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Validation artifact integrity audit (2026-07-15)
+
+- Added a read-only auditor for official validation CSV structure, snapshot
+  completeness, fixed-step timing, final duration and technical run package
+  atomicity.
+- Audited 29 CSVs (48,884 rows) and 84 technical run packages: zero malformed,
+  truncated, duplicate, partial or non-finite artifacts were found.
+- Documented that same-stem CSV and report JSON files may come from separate
+  runners and are not a valid same-run checksum. No motor, report, baseline,
+  expected value or tolerance changed.
+
 ### Phase 3+ F3.0h vertical-opening species shadow (2026-07-15)
 
 - Added shadow-only ownership for the two legacy vertical-opening species

@@ -6,6 +6,24 @@ Date: 2026-07-15.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-15 - artifact integrity audit
+
+- A complete read-only audit of the 29 official CSVs found 48,884 valid rows,
+  zero duplicate `(time_s, room_id)` rows, zero incomplete room snapshots,
+  zero malformed/non-finite rows and zero duration truncations.
+- All 84 technical packages under `runs/` that expose the run artifact
+  contract are complete; none are partial or malformed. The native Godot
+  dialogs seen during sandboxed launches did not contaminate accepted motor
+  results.
+- The 0.9/1.1 second variations are normal fixed-step logging quantization;
+  snapshot counts and final durations close within one tick.
+- Added `audit_artifact_integrity.py` as a reusable read-only gate. Same-stem
+  CSV/JSON equality is deliberately not asserted because those artifacts have
+  historically come from separate technical and CaseRunner workflows.
+- Four stale JSON reports and historical orphan experiment reports remain
+  provenance/hygiene debt. Do not bulk-regenerate them during Phase 3 shadow
+  work. F3.0i exterior-purge species remains the next motor gate.
+
 ## Current Session Update - 2026-07-15 - F3.0h vertical species exchange
 
 - The two legacy vertical-opening helpers now emit exact pre-mutation shadow
