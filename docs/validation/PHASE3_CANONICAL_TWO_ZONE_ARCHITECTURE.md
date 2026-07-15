@@ -102,6 +102,27 @@ Sign convention:
 - Numerical clamps are never physical fluxes. They are exported separately and
   must be zero within tolerance in an accepted canonical run.
 
+### Semantic ownership identity
+
+Request identity prevents applying one event twice, but it cannot detect two
+different legacy mechanisms that represent the same physical transfer. The
+shadow therefore also maintains a step-local semantic key:
+
+```text
+connection + source/destination rooms + source/destination zones + quantity
+```
+
+Producer, transport family and boundary kind are metadata, not key fields.
+This lets ThermalSystem and GasExchangeSystem collide visibly when they claim
+the same opening/route/quantity. Building openings use their deterministic
+`opening_index`; exterior, interlayer and chemical boundaries use separate
+stable namespaces. A delayed parcel claims semantic transport at issue time,
+not again at delivery.
+
+F3.0k.1a implements this registry passively. It does not choose authority.
+F3.0k.1b must use the measured conflicts to select one provisional shadow
+owner before any authoritative mode is attempted.
+
 ## Mandatory invariants
 
 Per step and cumulatively:

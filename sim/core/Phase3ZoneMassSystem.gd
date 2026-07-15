@@ -7,6 +7,14 @@ const ZONE_UPPER: String = "upper"
 const ZONE_LOWER: String = "lower"
 const EXTERIOR_ID: int = -1
 const TRANSIT_SPECIES: Array[String] = ["co", "co2", "hcn"]
+const SEMANTIC_QUANTITY_BITS: Dictionary = {
+	"gas_mass": 1,
+	"enthalpy": 2,
+	"o2": 4,
+	"co": 8,
+	"co2": 16,
+	"hcn": 32,
+}
 
 var _snapshots: Dictionary = {}
 var _requests: Array[Dictionary] = []
@@ -51,6 +59,9 @@ var _thermal_species_mechanism_kg: Dictionary = {}
 var _thermal_species_event_ids: Dictionary = {}
 var _thermal_species_event_count: int = 0
 var _thermal_species_duplicate_event_count: int = 0
+var _semantic_claims: Dictionary = {}
+var _semantic_claim_count: int = 0
+var _semantic_unknown_connection_count: int = 0
 
 
 func reset() -> void:
@@ -101,6 +112,9 @@ func _reset_step_state() -> void:
 	_vertical_credited_species_kg_step.clear()
 	_exterior_purge_event_ids.clear()
 	_thermal_species_event_ids.clear()
+	_semantic_claims.clear()
+	_semantic_claim_count = 0
+	_semantic_unknown_connection_count = 0
 
 
 func begin_step(building) -> void:
@@ -136,6 +150,14 @@ func apply_species_transit_event(event: Dictionary) -> void:
 				"upper_species_kg": created_upper_species.duplicate(true),
 			}
 			_add_transit_species(_species_transit_created_kg, created_species)
+			_register_split_species_claims(
+				event,
+				"GasExchangeSystem",
+				"delayed_parcel",
+				"interior_opening",
+				created_species,
+				created_upper_species
+			)
 			_add_transit_zone_requests(
 				parcel_id + ":carve",
 				"delayed_species_parcel_carve",
@@ -211,6 +233,13 @@ func apply_immediate_species_event(event: Dictionary) -> void:
 	var total_species: Dictionary = _transit_species(event.get("species_kg", {}))
 	if _sum_transit_species(total_species) <= 0.0:
 		return
+	_register_event_species_claims(
+		event,
+		"GasExchangeSystem",
+		_semantic_transport_family(cause),
+		"vertical_opening" if _is_vertical_species_cause(cause) else "interior_opening",
+		total_species
+	)
 	match cause:
 		"background_species_exchange":
 			_add_transit_species(_immediate_background_species_kg, total_species)
@@ -268,6 +297,14 @@ func apply_exterior_purge_event(event: Dictionary) -> void:
 	var upper_species: Dictionary = _bounded_upper_transit_species(
 		event.get("upper_species_kg", {}), total_species
 	)
+	_register_split_species_claims(
+		event,
+		"GasExchangeSystem",
+		"exterior_purge",
+		"exterior_opening",
+		total_species,
+		upper_species
+	)
 	_exterior_purge_event_count += 1
 	_add_transit_species(_exterior_purge_requested_species_kg, total_species)
 	_add_transit_species(_exterior_purge_upper_species_kg, upper_species)
@@ -304,6 +341,12 @@ func apply_thermal_species_event(event: Dictionary) -> void:
 	)
 	var destination_upper_species: Dictionary = _bounded_upper_transit_species(
 		event.get("destination_upper_species_kg", {}), total_species
+	)
+	_register_thermal_species_claims(
+		event,
+		total_species,
+		source_upper_species,
+		destination_upper_species
 	)
 	_thermal_species_event_count += 1
 	_add_transit_species(_thermal_species_requested_kg, total_species)
@@ -343,6 +386,230 @@ func _is_thermal_species_cause(cause: String) -> bool:
 func _is_vertical_species_cause(cause: String) -> bool:
 	return cause == "vertical_species_net_exchange" \
 			or cause == "vertical_species_directed_exchange"
+
+
+func register_semantic_claim(claim: Dictionary) -> void:
+	var connection_id: String = String(claim.get("connection_id", ""))
+	var producer: String = String(claim.get("producer", ""))
+	var quantity: String = String(claim.get("quantity", ""))
+	var amount: float = maxf(0.0, float(claim.get("amount", 0.0)))
+	if producer.is_empty() or not SEMANTIC_QUANTITY_BITS.has(quantity) or amount <= 0.0:
+		return
+	if connection_id.is_empty():
+		_semantic_unknown_connection_count += 1
+		return
+	var key: String = "%s|%d|%d|%s|%s|%s" % [
+		connection_id,
+		int(claim.get("source_room_id", EXTERIOR_ID)),
+		int(claim.get("destination_room_id", EXTERIOR_ID)),
+		String(claim.get("source_zone", ZONE_UPPER)),
+		String(claim.get("destination_zone", ZONE_UPPER)),
+		quantity,
+	]
+	var record: Dictionary = _semantic_claims.get(key, {
+		"quantity": quantity,
+		"producers": {},
+		"mechanisms": {},
+	})
+	var producers: Dictionary = record.get("producers", {})
+	producers[producer] = float(producers.get(producer, 0.0)) + amount
+	record["producers"] = producers
+	var mechanisms: Dictionary = record.get("mechanisms", {})
+	var mechanism: String = String(claim.get("transport_family", ""))
+	var boundary_kind: String = String(claim.get("boundary_kind", ""))
+	if not mechanism.is_empty():
+		mechanisms[producer + ":" + mechanism + ":" + boundary_kind] = true
+	record["mechanisms"] = mechanisms
+	_semantic_claims[key] = record
+	_semantic_claim_count += 1
+
+
+func register_semantic_species_claim(
+		event: Dictionary,
+		producer: String,
+		transport_family: String,
+		boundary_kind: String
+	) -> void:
+	var total_species: Dictionary = _transit_species(event.get("species_kg", {}))
+	_register_event_species_claims(
+		event, producer, transport_family, boundary_kind, total_species
+	)
+
+
+func _register_event_species_claims(
+		event: Dictionary,
+		producer: String,
+		transport_family: String,
+		boundary_kind: String,
+		total_species: Dictionary
+	) -> void:
+	if event.has("source_zone") and event.has("destination_zone"):
+		_register_species_map_claims(
+			event,
+			producer,
+			transport_family,
+			boundary_kind,
+			String(event.get("source_zone", ZONE_UPPER)),
+			String(event.get("destination_zone", ZONE_UPPER)),
+			total_species
+		)
+		return
+	var upper_species: Dictionary = _bounded_upper_transit_species(
+		event.get("upper_species_kg", {}), total_species
+	)
+	_register_split_species_claims(
+		event, producer, transport_family, boundary_kind, total_species, upper_species
+	)
+
+
+func _register_split_species_claims(
+		event: Dictionary,
+		producer: String,
+		transport_family: String,
+		boundary_kind: String,
+		total_species: Dictionary,
+		upper_species: Dictionary
+	) -> void:
+	_register_species_map_claims(
+		event,
+		producer,
+		transport_family,
+		boundary_kind,
+		ZONE_UPPER,
+		ZONE_UPPER,
+		upper_species
+	)
+	_register_species_map_claims(
+		event,
+		producer,
+		transport_family,
+		boundary_kind,
+		ZONE_LOWER,
+		ZONE_LOWER,
+		_lower_transit_species(total_species, upper_species)
+	)
+
+
+func _register_thermal_species_claims(
+		event: Dictionary,
+		total_species: Dictionary,
+		source_upper_species: Dictionary,
+		destination_upper_species: Dictionary
+	) -> void:
+	var routes: Dictionary = {
+		"upper_upper": {},
+		"upper_lower": {},
+		"lower_upper": {},
+		"lower_lower": {},
+	}
+	for species_name in TRANSIT_SPECIES:
+		var total_kg: float = float(total_species.get(species_name, 0.0))
+		var source_upper_kg: float = float(source_upper_species.get(species_name, 0.0))
+		var destination_upper_kg: float = float(
+			destination_upper_species.get(species_name, 0.0)
+		)
+		var upper_upper_kg: float = minf(source_upper_kg, destination_upper_kg)
+		routes["upper_upper"][species_name] = upper_upper_kg
+		routes["upper_lower"][species_name] = maxf(0.0, source_upper_kg - upper_upper_kg)
+		routes["lower_upper"][species_name] = maxf(0.0, destination_upper_kg - upper_upper_kg)
+		routes["lower_lower"][species_name] = maxf(
+			0.0,
+			total_kg - float(routes["upper_upper"][species_name])
+					- float(routes["upper_lower"][species_name])
+					- float(routes["lower_upper"][species_name])
+		)
+	for route_name in routes.keys():
+		var route_parts: PackedStringArray = String(route_name).split("_")
+		_register_species_map_claims(
+			event,
+			"ThermalSystem",
+			"thermal_carry",
+			"interlayer" if String(event.get("mechanism", "")) == "co_interlayer_mixing" \
+					else "interior_opening",
+			String(route_parts[0]),
+			String(route_parts[1]),
+			routes[route_name]
+		)
+
+
+func _register_species_map_claims(
+		event: Dictionary,
+		producer: String,
+		transport_family: String,
+		boundary_kind: String,
+		source_zone: String,
+		destination_zone: String,
+		species: Dictionary
+	) -> void:
+	var connection_id: String = String(event.get("connection_id", ""))
+	for species_name in TRANSIT_SPECIES:
+		var mass_kg: float = maxf(0.0, float(species.get(species_name, 0.0)))
+		if mass_kg <= 0.0:
+			continue
+		register_semantic_claim({
+			"connection_id": connection_id,
+			"producer": producer,
+			"transport_family": transport_family,
+			"boundary_kind": boundary_kind,
+			"source_room_id": int(event.get("source_room_id", EXTERIOR_ID)),
+			"destination_room_id": int(event.get("destination_room_id", EXTERIOR_ID)),
+			"source_zone": source_zone,
+			"destination_zone": destination_zone,
+			"quantity": species_name,
+			"amount": mass_kg,
+		})
+
+
+func _semantic_transport_family(cause: String) -> String:
+	match cause:
+		"background_species_exchange":
+			return "background_exchange"
+		"doorway_species_counterflow":
+			return "doorway_bulk"
+		"vertical_species_net_exchange", "vertical_species_directed_exchange":
+			return "vertical_flow"
+	return cause
+
+
+func _semantic_conflict_summary() -> Dictionary:
+	var conflict_count: int = 0
+	var quantity_mask: int = 0
+	var conflict_mass_kg: float = 0.0
+	var conflict_energy_kj: float = 0.0
+	var conflict_o2_kg: float = 0.0
+	var conflict_species_kg: float = 0.0
+	for record in _semantic_claims.values():
+		var producers: Dictionary = record.get("producers", {})
+		if producers.size() <= 1:
+			continue
+		conflict_count += 1
+		var quantity: String = String(record.get("quantity", ""))
+		quantity_mask |= int(SEMANTIC_QUANTITY_BITS.get(quantity, 0))
+		var total: float = 0.0
+		var largest: float = 0.0
+		for amount in producers.values():
+			total += float(amount)
+			largest = maxf(largest, float(amount))
+		var contested: float = maxf(0.0, total - largest)
+		match quantity:
+			"gas_mass":
+				conflict_mass_kg += contested
+			"enthalpy":
+				conflict_energy_kj += contested
+			"o2":
+				conflict_o2_kg += contested
+			"co", "co2", "hcn":
+				conflict_species_kg += contested
+	return {
+		"claim_count": _semantic_claim_count,
+		"conflict_count": conflict_count,
+		"quantity_mask": quantity_mask,
+		"conflict_mass_kg": conflict_mass_kg,
+		"conflict_energy_kj": conflict_energy_kj,
+		"conflict_o2_kg": conflict_o2_kg,
+		"conflict_species_kg": conflict_species_kg,
+		"unknown_connection_count": _semantic_unknown_connection_count,
+	}
 
 
 func _transit_species(raw_species) -> Dictionary:
@@ -633,6 +900,7 @@ func finalize_step(building) -> void:
 	var vertical_hcn_residual_kg: float = float(
 		_vertical_debited_species_kg_step.get("hcn", 0.0)
 	) - float(_vertical_credited_species_kg_step.get("hcn", 0.0))
+	var semantic_summary: Dictionary = _semantic_conflict_summary()
 	for room_key in shadow.keys():
 		var room_id: int = int(room_key)
 		var room: RoomModel = building.get_room(room_id)
@@ -934,6 +1202,30 @@ func finalize_step(building) -> void:
 					) else 0.0,
 			"phase3_shadow_needs_flux_owner_flag": 1.0 \
 					if absf(mass_residual_kg) > 1.0e-6 or absf(energy_residual_kj) > 1.0e-4 else 0.0,
+			"phase3_shadow_semantic_claim_count": float(
+				semantic_summary.get("claim_count", 0)
+			),
+			"phase3_shadow_semantic_conflict_count": float(
+				semantic_summary.get("conflict_count", 0)
+			),
+			"phase3_shadow_semantic_conflict_quantity_mask": float(
+				semantic_summary.get("quantity_mask", 0)
+			),
+			"phase3_shadow_semantic_conflict_mass_kg": float(
+				semantic_summary.get("conflict_mass_kg", 0.0)
+			),
+			"phase3_shadow_semantic_conflict_energy_kj": float(
+				semantic_summary.get("conflict_energy_kj", 0.0)
+			),
+			"phase3_shadow_semantic_conflict_o2_kg": float(
+				semantic_summary.get("conflict_o2_kg", 0.0)
+			),
+			"phase3_shadow_semantic_conflict_species_kg": float(
+				semantic_summary.get("conflict_species_kg", 0.0)
+			),
+			"phase3_shadow_semantic_unknown_connection_count": float(
+				semantic_summary.get("unknown_connection_count", 0)
+			),
 		}
 
 

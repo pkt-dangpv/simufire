@@ -26,6 +26,38 @@ This note records the repository hygiene and validation state after the non-moto
 - Binding record:
   `docs/validation/PHASE3_HVAC_DEFERRED_DECISION.md`.
 
+## Current Session Update - 2026-07-15 - F3.0k.1a semantic ownership claims
+
+- F3.0k.1a is complete as a passive **GO for telemetry**. The F3.0k NO-GO for
+  canonical authority remains in force.
+- A step-local semantic key now joins stable connection identity, room
+  direction, zonal direction and quantity before legacy mutation. Producer,
+  transport family and boundary kind remain metadata so overlapping owners
+  collide instead of hiding behind separate request ids.
+- Stable identities cover openings, exterior purge, room interlayer movement
+  and chemical sources. Delayed parcels claim only at creation, never again
+  at delivery/refund.
+- Runtime results: two-room max 14 conflicts, corridor 15, stairwell 3,
+  remote-CO 15 and PPV 15. All use mask 56 (CO + CO2 + HCN). Sealed and
+  partial-window controls have zero conflicts. Every case has zero unknown
+  connection identities.
+- OFF/ON proof retains 78 rows and 115 identical legacy columns. OFF has 115
+  columns; ON has 245. No physical state, official report value, baseline,
+  tolerance, expected value, control envelope or gap changed. Only the
+  `reference_checks.json` freshness timestamp is refreshed for R2-1.
+- Focused tests: 121 PASS. Physics and ILV remain 0 FAIL. Required validation
+  remains 348/353 with 5 VALID_GAP. Guardrails are 9/10 only while motor is
+  dirty (expected R2-1); full tests are 818 PASS plus 17 historical failures
+  and the same R2-1 failure.
+- One initial stairwell scratch CSV was discarded after the concurrently open
+  visual editor locked it at 10 s. `.gdignore` isolation produced a complete
+  180 s retry with no imports or lock errors; only that retry is evidence.
+- Next phase: F3.0k.1b selects a provisional shadow owner, adds gas mass,
+  enthalpy, O2 and exact CO-oxidation claims, but still does not suppress
+  legacy writers or switch authority. HVAC remains deferred to F3.5.
+- Binding record:
+  `docs/validation/PHASE3_F30K1A_SEMANTIC_OWNERSHIP.md`.
+
 ## Current Session Update - 2026-07-15 - F3.0k cross-path audit
 
 - F3.0k is complete as a documentation-only **NO-GO for canonical authority**.

@@ -122,13 +122,26 @@ More counters would refine attribution but would not change the architectural
 decision. The next useful work is ownership and arbitration, not another
 post-mutation observer.
 
-## Next phase: F3.0k.1 ownership completion
+## Follow-up: F3.0k.1a semantic claims
+
+F3.0k.1a is now complete as passive telemetry. A shared key based on opening,
+room direction, zonal direction and quantity detects the predicted
+Thermal/GES overlap before mutation. Interior doorway, corridor, stairwell,
+remote-CO and PPV controls report CO/CO2/HCN conflicts (mask 56); sealed and
+exterior-window controls report none. Every connection is identified and
+OFF/ON legacy values remain identical. See
+`PHASE3_F30K1A_SEMANTIC_OWNERSHIP.md`.
+
+The original NO-GO for authority is unchanged. F3.0k.1b must select one
+provisional shadow owner and complete gas mass, enthalpy, O2 and CO-oxidation
+claims before F3.1.
+
+## Next phase: F3.0k.1b ownership completion
 
 F3.0k.1 remains passive and default OFF. It must precede F3.1.
 
-1. Define a connection-level arbitration key: opening, source, destination,
-   source zone, destination zone, mechanism family and physics tick.
-2. Choose one canonical owner for each horizontal, vertical, exterior and
+1. Use the delivered step-local connection key and measured conflict set.
+2. Choose one provisional shadow owner for each horizontal, vertical, exterior and
    delayed path. Thermal and GES may supply solver outputs, but may not both
    own the same physical transfer.
 3. Extend the selected opening/parcel requests to carry gas mass, enthalpy and
@@ -137,7 +150,7 @@ F3.0k.1 remains passive and default OFF. It must precede F3.1.
 5. Keep projections and clamps outside ownership and visible as residuals.
 6. Repeat this audit on the same HVAC-disabled matrix.
 
-### F3.0k.1 STOP gate
+### F3.0k.1b STOP gate
 
 - Contract residuals remain zero and rejected inventory remains explicit.
 - `phase3_shadow_duplicate_owner_flag=0` and semantic arbitration reports no

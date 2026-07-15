@@ -3,6 +3,27 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0k.1a semantic ownership claims (2026-07-15)
+
+- Added a passive step-local semantic claim registry keyed by stable
+  connection, room direction, zone direction and quantity. Producer,
+  transport family and boundary kind remain metadata so parallel legacy
+  owners are reported as conflicts.
+- Propagated deterministic opening identities through Thermal and GES direct,
+  background, vertical and delayed-parcel species paths. Exterior, interlayer
+  and chemical boundaries use separate namespaces; parcels claim only when
+  created.
+- Added eight opt-in CSV fields for claim/conflict counts, quantity mask,
+  contested mass/energy/O2/species and unknown connection identities.
+- Runtime controls detect only the expected CO/CO2/HCN overlap (mask 56) on
+  interior and PPV paths. Sealed and exterior-window controls remain clean;
+  all cases have zero unknown connections.
+- Reconfirmed no-op behavior with 78 OFF/ON rows and 115 identical legacy
+  columns. No physical state, official report value, baseline, expected
+  value, tolerance, control envelope or gap changed; only report freshness
+  metadata is updated for R2-1. Canonical authority remains blocked pending
+  F3.0k.1b and the zero-O2 extinction regression.
+
 ### Phase 3+ F3.0k non-HVAC cross-path audit (2026-07-15)
 
 - Completed a source and runtime ownership audit across combustion, O2,

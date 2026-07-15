@@ -402,6 +402,8 @@ func _record_phase3_shadow_exterior_purge_event(
 		],
 		"mechanism": mechanism,
 		"source_room_id": room.id,
+		"destination_room_id": BuildingModel.OUTSIDE_ID,
+		"connection_id": "exterior:%d:%s" % [room.id, mechanism],
 		"species_kg": total,
 		"upper_species_kg": upper,
 	})
@@ -414,7 +416,8 @@ func _record_phase3_shadow_directional_species_event(
 	target: RoomModel,
 	species_name: String,
 	total_kg: float,
-	upper_kg: float
+	upper_kg: float,
+	connection_id: String = ""
 	) -> void:
 	if not phase3_canonical_zone_shadow_enabled or source == null or target == null:
 		return
@@ -432,6 +435,7 @@ func _record_phase3_shadow_directional_species_event(
 		"cause": cause,
 		"source_room_id": source.id,
 		"destination_room_id": target.id,
+		"connection_id": connection_id,
 		"species_kg": species_kg,
 		"upper_species_kg": upper_species_kg,
 	})
@@ -444,17 +448,18 @@ func _record_phase3_shadow_signed_species_event(
 	room_b: RoomModel,
 	species_name: String,
 	net_a_to_b_kg: float,
-	net_upper_a_to_b_kg: float
+	net_upper_a_to_b_kg: float,
+	connection_id: String = ""
 	) -> void:
 	if net_a_to_b_kg > 0.0:
 		_record_phase3_shadow_directional_species_event(
 			cause, room_a, room_b, species_name,
-			net_a_to_b_kg, maxf(0.0, net_upper_a_to_b_kg)
+			net_a_to_b_kg, maxf(0.0, net_upper_a_to_b_kg), connection_id
 		)
 	elif net_a_to_b_kg < 0.0:
 		_record_phase3_shadow_directional_species_event(
 			cause, room_b, room_a, species_name,
-			-net_a_to_b_kg, maxf(0.0, -net_upper_a_to_b_kg)
+			-net_a_to_b_kg, maxf(0.0, -net_upper_a_to_b_kg), connection_id
 		)
 
 
@@ -466,7 +471,8 @@ func _record_phase3_shadow_zonal_species_event(
 	destination_zone: String,
 	species_name: String,
 	mass_kg: float,
-	opposed_zone_direction: bool = false
+	opposed_zone_direction: bool = false,
+	connection_id: String = ""
 	) -> void:
 	if not phase3_canonical_zone_shadow_enabled or source == null or target == null:
 		return
@@ -480,6 +486,7 @@ func _record_phase3_shadow_zonal_species_event(
 		"cause": cause,
 		"source_room_id": source.id,
 		"destination_room_id": target.id,
+		"connection_id": connection_id,
 		"source_zone": source_zone,
 		"destination_zone": destination_zone,
 		"species_kg": {species_name: accepted_mass_kg},
@@ -495,17 +502,18 @@ func _record_phase3_shadow_signed_zonal_species_event(
 	zone_name: String,
 	species_name: String,
 	net_a_to_b_kg: float,
-	opposed_zone_direction: bool = false
+	opposed_zone_direction: bool = false,
+	connection_id: String = ""
 	) -> void:
 	if net_a_to_b_kg > 0.0:
 		_record_phase3_shadow_zonal_species_event(
 			cause, room_a, room_b, zone_name, zone_name,
-			species_name, net_a_to_b_kg, opposed_zone_direction
+			species_name, net_a_to_b_kg, opposed_zone_direction, connection_id
 		)
 	elif net_a_to_b_kg < 0.0:
 		_record_phase3_shadow_zonal_species_event(
 			cause, room_b, room_a, zone_name, zone_name,
-			species_name, -net_a_to_b_kg, opposed_zone_direction
+			species_name, -net_a_to_b_kg, opposed_zone_direction, connection_id
 		)
 
 
@@ -541,6 +549,7 @@ func _record_phase3_shadow_parcel_created(entry: Dictionary) -> void:
 		"parcel_id": String(entry.get("phase3_shadow_parcel_id", "")),
 		"source_room_id": int(entry.get("from", -1)),
 		"destination_room_id": int(entry.get("target", -1)),
+		"connection_id": String(entry.get("connection_id", "")),
 		"source_zone": "upper",
 		"destination_zone": "upper",
 		"species_kg": _phase3_shadow_parcel_species(entry),
@@ -1106,7 +1115,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			room_transfers.append({
 				"from": from_id,
 				"to": to_id,
-				"kg": kg
+				"kg": kg,
+				"opening_index": op.opening_index,
 			})
 
 	var outgoing: Dictionary = {}
@@ -1135,6 +1145,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		var from_id: int = int(transfer["from"])
 		var to_id: int = int(transfer["to"])
 		var kg: float = float(transfer["kg"])
+		var transfer_opening_index: int = int(transfer.get("opening_index", -1))
 		if kg <= 0.0:
 			continue
 
@@ -1295,6 +1306,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			var pending_entry: Dictionary = {
 				"from": from_id,
 				"target": to_id,
+				"connection_id": "opening:%d" % transfer_opening_index,
 				"delay_s": travel_delay_s,
 				"smoke_kg": kg,
 				"co_kg": co_moved_kg,
@@ -1375,11 +1387,13 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					var target_co_upper_out_kg: float = target_co_out_kg * clampf(target_upper_share, 0.0, 1.0)
 					_record_phase3_shadow_directional_species_event(
 						"doorway_species_counterflow", source, target, "co",
-						source_co_out_kg, source_co_upper_out_kg
+						source_co_out_kg, source_co_upper_out_kg,
+						"opening:%d" % transfer_opening_index
 					)
 					_record_phase3_shadow_directional_species_event(
 						"doorway_species_counterflow", target, source, "co",
-						target_co_out_kg, target_co_upper_out_kg
+						target_co_out_kg, target_co_upper_out_kg,
+						"opening:%d" % transfer_opening_index
 					)
 					co_delta_kg[from_id] += target_co_out_kg - source_co_out_kg
 					co_delta_kg[to_id] += source_co_out_kg - target_co_out_kg
@@ -1402,11 +1416,13 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					var target_co2_upper_out_kg: float = target_co2_out_kg * clampf(target_co2_upper_share, 0.0, 1.0)
 					_record_phase3_shadow_directional_species_event(
 						"doorway_species_counterflow", source, target, "co2",
-						source_co2_out_kg, source_co2_upper_out_kg
+						source_co2_out_kg, source_co2_upper_out_kg,
+						"opening:%d" % transfer_opening_index
 					)
 					_record_phase3_shadow_directional_species_event(
 						"doorway_species_counterflow", target, source, "co2",
-						target_co2_out_kg, target_co2_upper_out_kg
+						target_co2_out_kg, target_co2_upper_out_kg,
+						"opening:%d" % transfer_opening_index
 					)
 					co2_delta_kg[from_id] += target_co2_out_kg - source_co2_out_kg
 					co2_delta_kg[to_id] += source_co2_out_kg - target_co2_out_kg
@@ -1429,11 +1445,13 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					var target_hcn_upper_out_kg: float = target_hcn_out_kg * clampf(target_hcn_upper_share, 0.0, 1.0)
 					_record_phase3_shadow_directional_species_event(
 						"doorway_species_counterflow", source, target, "hcn",
-						source_hcn_out_kg, source_hcn_upper_out_kg
+						source_hcn_out_kg, source_hcn_upper_out_kg,
+						"opening:%d" % transfer_opening_index
 					)
 					_record_phase3_shadow_directional_species_event(
 						"doorway_species_counterflow", target, source, "hcn",
-						target_hcn_out_kg, target_hcn_upper_out_kg
+						target_hcn_out_kg, target_hcn_upper_out_kg,
+						"opening:%d" % transfer_opening_index
 					)
 					hcn_delta_kg[from_id] += target_hcn_out_kg - source_hcn_out_kg
 					hcn_delta_kg[to_id] += source_hcn_out_kg - target_hcn_out_kg
@@ -1997,7 +2015,7 @@ func _apply_background_species_exchange(
 				maxf(0.1, _lower_r.volume_m3()),
 				maxf(0.1, _upper_r.volume_m3())
 			) * air_density_kg_m3 * 0.02 * dt
-			_apply_species_net_exchange(room_a, room_b, _mass_ve,
+			_apply_species_net_exchange(room_a, room_b, _mass_ve, op.opening_index,
 				smoke_delta_kg, co_delta_kg, co_upper_delta_kg,
 				co2_delta_kg, hcn_delta_kg, hcl_delta_kg,
 				acrolein_delta_kg, formaldehyde_delta_kg, o2_delta_kg)
@@ -2014,7 +2032,8 @@ func _apply_background_species_exchange(
 		var _mass_lower_ke: float = maxf(0.1, _lower_r.volume_m3()) * air_density_kg_m3
 		var _mass_upper_ke: float = maxf(0.1, _upper_r.volume_m3()) * air_density_kg_m3
 		# Transferencia ascendente (species from lower to upper)
-		_apply_directed_species_exchange(_lower_r, _upper_r, _mass_up_kg, _mass_lower_ke,
+		_apply_directed_species_exchange(
+			_lower_r, _upper_r, _mass_up_kg, _mass_lower_ke, op.opening_index,
 			smoke_delta_kg, co_delta_kg, co_upper_delta_kg,
 			co2_delta_kg, hcn_delta_kg, hcl_delta_kg,
 			acrolein_delta_kg, formaldehyde_delta_kg, o2_delta_kg)
@@ -2101,7 +2120,7 @@ func _apply_background_species_exchange(
 		net_co_upper_a_to_b = net_co_a_to_b * clampf(room_b.co_upper_kg / room_b.co_kg, 0.0, 1.0)
 	_record_phase3_shadow_signed_species_event(
 		"background_species_exchange", room_a, room_b, "co",
-		net_co_a_to_b, net_co_upper_a_to_b
+		net_co_a_to_b, net_co_upper_a_to_b, "opening:%d" % op.opening_index
 	)
 	co_delta_kg[room_a.id] -= net_co_a_to_b
 	co_delta_kg[room_b.id] += net_co_a_to_b
@@ -2114,7 +2133,7 @@ func _apply_background_species_exchange(
 	# Legacy only mutates bulk CO2 here; the exact zonal interpretation is lower-to-lower.
 	_record_phase3_shadow_signed_species_event(
 		"background_species_exchange", room_a, room_b, "co2",
-		net_co2_a_to_b, 0.0
+		net_co2_a_to_b, 0.0, "opening:%d" % op.opening_index
 	)
 	co2_delta_kg[room_a.id] -= net_co2_a_to_b
 	co2_delta_kg[room_b.id] += net_co2_a_to_b
@@ -2126,7 +2145,7 @@ func _apply_background_species_exchange(
 		# As with CO2, this legacy path leaves hcn_upper_kg unchanged.
 		_record_phase3_shadow_signed_species_event(
 			"background_species_exchange", room_a, room_b, "hcn",
-			net_hcn_a_to_b, 0.0
+			net_hcn_a_to_b, 0.0, "opening:%d" % op.opening_index
 		)
 		hcn_delta_kg[room_a.id] -= net_hcn_a_to_b
 		hcn_delta_kg[room_b.id] += net_hcn_a_to_b
@@ -2242,6 +2261,7 @@ func _apply_two_zone_opening_species_exchange(
 				upper_fraction,
 				upper_exchange_kg,
 				upper_target_is_upper,
+				op.opening_index,
 				smoke_delta_kg,
 				co_delta_kg,
 				co_upper_delta_kg,
@@ -2261,6 +2281,7 @@ func _apply_two_zone_opening_species_exchange(
 				upper_fraction,
 				upper_exchange_kg,
 				upper_target_is_upper,
+				op.opening_index,
 				co_delta_kg,
 				co_upper_delta_kg,
 				co2_delta_kg,
@@ -2290,6 +2311,7 @@ func _apply_two_zone_opening_species_exchange(
 				lower_fraction,
 				lower_exchange_kg,
 				lower_target_is_upper,
+				op.opening_index,
 				smoke_delta_kg,
 				co_delta_kg,
 				co_upper_delta_kg,
@@ -2309,6 +2331,7 @@ func _apply_two_zone_opening_species_exchange(
 				lower_fraction,
 				lower_exchange_kg,
 				lower_target_is_upper,
+				op.opening_index,
 				co_delta_kg,
 				co_upper_delta_kg,
 				co2_delta_kg,
@@ -2494,6 +2517,7 @@ func _move_upper_zone_species(
 	fraction: float,
 	air_mass_kg: float,
 	target_upper_zone: bool,
+	opening_index: int,
 	smoke_delta_kg: Dictionary,
 	co_delta_kg: Dictionary,
 	co_upper_delta_kg: Dictionary,
@@ -2524,6 +2548,7 @@ func _move_upper_zone_species(
 		"cause": "doorway_species_direct",
 		"source_room_id": from_r.id,
 		"destination_room_id": to_r.id,
+		"connection_id": "opening:%d" % opening_index,
 		"source_zone": "upper",
 		"destination_zone": "upper" if target_upper_zone else "lower",
 		"species_kg": {
@@ -2564,6 +2589,7 @@ func _move_lower_zone_species(
 	fraction: float,
 	air_mass_kg: float,
 	target_upper_zone: bool,
+	opening_index: int,
 	co_delta_kg: Dictionary,
 	co_upper_delta_kg: Dictionary,
 	co2_delta_kg: Dictionary,
@@ -2588,6 +2614,7 @@ func _move_lower_zone_species(
 		"cause": "doorway_species_direct",
 		"source_room_id": from_r.id,
 		"destination_room_id": to_r.id,
+		"connection_id": "opening:%d" % opening_index,
 		"source_zone": "lower",
 		"destination_zone": "upper" if target_upper_zone else "lower",
 		"species_kg": {
@@ -3170,6 +3197,7 @@ func _apply_species_net_exchange(
 	room_a: RoomModel,
 	room_b: RoomModel,
 	exchange_kg: float,
+	opening_index: int,
 	smoke_delta_kg: Dictionary,
 	co_delta_kg: Dictionary,
 	co_upper_delta_kg: Dictionary,
@@ -3201,11 +3229,11 @@ func _apply_species_net_exchange(
 	var co_zones_opposed: bool = net_co_upper_a_to_b * net_co_lower_a_to_b < -1.0e-18
 	_record_phase3_shadow_signed_zonal_species_event(
 		"vertical_species_net_exchange", room_a, room_b, "upper", "co",
-		net_co_upper_a_to_b, co_zones_opposed
+		net_co_upper_a_to_b, co_zones_opposed, "opening:%d" % opening_index
 	)
 	_record_phase3_shadow_signed_zonal_species_event(
 		"vertical_species_net_exchange", room_a, room_b, "lower", "co",
-		net_co_lower_a_to_b
+		net_co_lower_a_to_b, false, "opening:%d" % opening_index
 	)
 	_apply_net_pair_value(room_a.id, room_b.id, net_co_a_to_b, co_delta_kg)
 	_apply_net_pair_value(room_a.id, room_b.id, net_co_upper_a_to_b, co_upper_delta_kg)
@@ -3215,7 +3243,7 @@ func _apply_species_net_exchange(
 	)
 	_record_phase3_shadow_signed_zonal_species_event(
 		"vertical_species_net_exchange", room_a, room_b, "lower", "co2",
-		net_co2_a_to_b
+		net_co2_a_to_b, false, "opening:%d" % opening_index
 	)
 	_apply_net_pair_value(room_a.id, room_b.id, net_co2_a_to_b, co2_delta_kg)
 	if not hcn_delta_kg.is_empty():
@@ -3224,7 +3252,7 @@ func _apply_species_net_exchange(
 		)
 		_record_phase3_shadow_signed_zonal_species_event(
 			"vertical_species_net_exchange", room_a, room_b, "lower", "hcn",
-			net_hcn_a_to_b
+			net_hcn_a_to_b, false, "opening:%d" % opening_index
 		)
 		_apply_net_pair_value(room_a.id, room_b.id, net_hcn_a_to_b, hcn_delta_kg)
 
@@ -3236,6 +3264,7 @@ func _apply_directed_species_exchange(
 	to_r: RoomModel,
 	mass_kg: float,
 	from_mass_kg: float,
+	opening_index: int,
 	smoke_delta_kg: Dictionary,
 	co_delta_kg: Dictionary,
 	co_upper_delta_kg: Dictionary,
@@ -3260,20 +3289,21 @@ func _apply_directed_species_exchange(
 	var d_form: float = from_r.formaldehyde_kg * frac
 	_record_phase3_shadow_zonal_species_event(
 		"vertical_species_directed_exchange", from_r, to_r,
-		"upper", "upper", "co", d_co_up
+		"upper", "upper", "co", d_co_up, false, "opening:%d" % opening_index
 	)
 	_record_phase3_shadow_zonal_species_event(
 		"vertical_species_directed_exchange", from_r, to_r,
-		"lower", "lower", "co", maxf(0.0, d_co - d_co_up)
+		"lower", "lower", "co", maxf(0.0, d_co - d_co_up), false,
+		"opening:%d" % opening_index
 	)
 	_record_phase3_shadow_zonal_species_event(
 		"vertical_species_directed_exchange", from_r, to_r,
-		"lower", "lower", "co2", d_co2
+		"lower", "lower", "co2", d_co2, false, "opening:%d" % opening_index
 	)
 	if not hcn_delta_kg.is_empty():
 		_record_phase3_shadow_zonal_species_event(
 			"vertical_species_directed_exchange", from_r, to_r,
-			"lower", "lower", "hcn", d_hcn
+			"lower", "lower", "hcn", d_hcn, false, "opening:%d" % opening_index
 		)
 	smoke_delta_kg[from_r.id] = float(smoke_delta_kg.get(from_r.id, 0.0)) - d_smoke
 	smoke_delta_kg[to_r.id] = float(smoke_delta_kg.get(to_r.id, 0.0)) + d_smoke

@@ -1354,6 +1354,25 @@ func _phase3_shadow_collect_thermal_requests() -> void:
 				species_kg
 			)
 		)
+		var thermal_connection_id: String = "room:%d:interlayer" % room_id
+		if cause == "combustion_convective_heat":
+			thermal_connection_id = "chemical:%d:combustion" % room_id
+		for quantity_entry in [
+			{"quantity": "gas_mass", "amount": mass_kg},
+			{"quantity": "enthalpy", "amount": energy_kj},
+			{"quantity": "o2", "amount": o2_kg},
+		]:
+			phase3_zone_mass_system.register_semantic_claim({
+				"connection_id": thermal_connection_id,
+				"producer": "ThermalSystem",
+				"transport_family": cause,
+				"source_room_id": int(flux.get("source_room_id", room_id)),
+				"destination_room_id": int(flux.get("destination_room_id", room_id)),
+				"source_zone": String(flux.get("source_zone", "lower")),
+				"destination_zone": String(flux.get("destination_zone", "upper")),
+				"quantity": String(quantity_entry.get("quantity", "")),
+				"amount": float(quantity_entry.get("amount", 0.0)),
+			})
 
 
 func _phase3_shadow_collect_thermal_species_events() -> void:
@@ -1386,6 +1405,17 @@ func _phase3_shadow_collect_oxygen_requests() -> void:
 				{}
 			)
 		)
+		phase3_zone_mass_system.register_semantic_claim({
+			"connection_id": "chemical:%d:combustion" % room_id,
+			"producer": "OxygenExchangeSystem",
+			"transport_family": cause,
+			"source_room_id": room_id,
+			"destination_room_id": phase3_zone_mass_system.EXTERIOR_ID,
+			"source_zone": source_zone,
+			"destination_zone": source_zone,
+			"quantity": "o2",
+			"amount": o2_kg,
+		})
 
 
 func _phase3_shadow_collect_species_requests() -> void:
@@ -1416,6 +1446,18 @@ func _phase3_shadow_collect_species_requests() -> void:
 					species
 				)
 			)
+			for species_name in species.keys():
+				phase3_zone_mass_system.register_semantic_claim({
+					"connection_id": "chemical:%d:combustion_species" % room_id,
+					"producer": "CombustionSystem",
+					"transport_family": cause,
+					"source_room_id": phase3_zone_mass_system.EXTERIOR_ID,
+					"destination_room_id": room_id,
+					"source_zone": zone_name,
+					"destination_zone": zone_name,
+					"quantity": String(species_name),
+					"amount": maxf(0.0, float(species[species_name])),
+				})
 
 
 func _phase3_shadow_collect_doorway_species_requests() -> void:
@@ -1426,6 +1468,12 @@ func _phase3_shadow_collect_doorway_species_requests() -> void:
 			species_total_kg += maxf(0.0, float(species[species_name]))
 		if species_total_kg <= 0.0:
 			continue
+		phase3_zone_mass_system.register_semantic_species_claim(
+			result,
+			"GasExchangeSystem",
+			"doorway_bulk",
+			"interior_opening"
+		)
 		phase3_zone_mass_system.add_request(
 			phase3_zone_mass_system.make_request(
 				String(result.get("request_id", "")),

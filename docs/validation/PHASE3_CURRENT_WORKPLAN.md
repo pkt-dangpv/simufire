@@ -23,6 +23,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F2.2a pressure diagnosis: `docs/validation/PHASE3_F22A_PRESSURE_VENT_DIAGNOSIS.md`
 - HVAC deferral decision: `docs/validation/PHASE3_HVAC_DEFERRED_DECISION.md`
 - F3.0k cross-path audit: `docs/validation/PHASE3_F30K_CROSS_PATH_AUDIT.md`
+- F3.0k.1a semantic claims: `docs/validation/PHASE3_F30K1A_SEMANTIC_OWNERSHIP.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -37,7 +38,7 @@ canonical two-zone mass/energy/O2/species transaction.
 
 ## Active route
 
-F3.0 shadow canonical two-zone state through F3.0j are implemented. F3.0k has
+F3.0 shadow canonical two-zone state through F3.0j are implemented. F3.0k
 completed the non-HVAC cross-path audit with a NO-GO for authority. Direct
 doorway transport, delayed parcels and immediate horizontal background/
 counterflow, legacy vertical-opening transport and all GES exterior purge
@@ -45,9 +46,13 @@ paths plus ThermalSystem hot-gas transport for CO/CO2/HCN now have separate
 contracts, and those contracts close exactly. The remaining blocker is
 incomplete mass/energy/O2 ownership plus semantic overlap between Thermal and
 GES legacy paths.
-The active route is F3.0k.1: arbitrate one physical owner per connection and
-complete explicit shadow ownership without deriving requests from
-post-mutation stock deltas.
+F3.0k.1a now provides a stable pre-mutation connection key and proves the
+overlap at runtime: active interior controls report conflicts only in
+CO/CO2/HCN (mask 56), while sealed and exterior-only controls remain clean.
+It does not select an owner or change physics. The active route is F3.0k.1b:
+select a provisional shadow owner and complete explicit gas mass, enthalpy,
+O2 and CO-oxidation ownership without deriving requests from post-mutation
+stock deltas.
 
 ## Binding priority decision: HVAC last
 
@@ -60,14 +65,15 @@ The revised order is:
 
 1. F3.0j ThermalSystem species transport. Completed.
 2. F3.0k non-HVAC cross-path conservation audit. Completed NO-GO.
-3. F3.0k.1 non-HVAC ownership completion and semantic arbitration. Current target.
-4. F3.1 authoritative sealed mode plus zero-O2 extinction regression.
-5. F3.2 exterior pressure/leakage for Group A.
-6. F3.3 interior openings for Group C.
-7. F3.4 remaining non-HVAC species, suppression and FED.
-8. HVAC-R0 redesign specification.
-9. F3.5 HVAC canonical integration as the last subsystem.
-10. F3.6 final corpus promotion and legacy retirement.
+3. F3.0k.1a semantic claim telemetry. Completed, passive GO.
+4. F3.0k.1b non-HVAC ownership completion and passive arbitration. Current target.
+5. F3.1 authoritative sealed mode plus zero-O2 extinction regression.
+6. F3.2 exterior pressure/leakage for Group A.
+7. F3.3 interior openings for Group C.
+8. F3.4 remaining non-HVAC species, suppression and FED.
+9. HVAC-R0 redesign specification.
+10. F3.5 HVAC canonical integration as the last subsystem.
+11. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
@@ -296,10 +302,27 @@ zero residual and no duplicate request identities, but every case retained
 and O2 paths, unowned CO oxidation and semantic overlap between Thermal and
 GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 
+## F3.0k.1a delivered
+
+- One step-local semantic key now joins connection, room direction, zonal
+  direction and quantity before legacy mutation. Producer, transport family
+  and boundary kind remain metadata so parallel owners collide visibly.
+- Stable identities cover building openings, exterior purge, room interlayer
+  movement and chemical generation. Delayed parcels claim only at creation.
+- Eight shadow-only CSV fields report claim/conflict count, quantity mask,
+  contested amounts and unknown connection identities.
+- Runtime controls report mask 56 (CO + CO2 + HCN) on interior doorway,
+  corridor, stairwell, remote-CO and PPV paths. Sealed and exterior-window
+  controls report zero conflicts. All controls report zero unknown identity.
+- OFF/ON retained 78 rows and 115 identical legacy columns; ON has 245.
+- This is passive telemetry only. It does not choose an owner, suppress a
+  legacy path or authorize F3.1.
+
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0k.1. Design connection-level semantic arbitration and
-complete passive non-HVAC ownership for gas mass, enthalpy and O2 on the
-already-owned species paths. Add an exact CO-oxidation event. Do not implement
-an authority switch, do not use projection/clamp residuals as fluxes, and do
-not touch HVAC. HVAC remains deferred until F3.5.
+Use GPT-5.6 Sol for F3.0k.1b. Select a provisional shadow owner per semantic
+connection, extend the selected non-HVAC events to gas mass, enthalpy and O2,
+and add an exact CO-oxidation event. Report suppressed shadow claims but do
+not suppress legacy physical writers or implement an authority switch. Do not
+use projection/clamp residuals as fluxes and do not touch HVAC. HVAC remains
+deferred until F3.5.
