@@ -3,6 +3,24 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0k non-HVAC cross-path audit (2026-07-15)
+
+- Completed a source and runtime ownership audit across combustion, O2,
+  ThermalSystem and all implemented GES shadow contracts without changing
+  motor behavior or validation policy.
+- Eight HVAC-disabled scratch controls covered sealed, horizontal doorway,
+  delayed parcel, vertical, exterior and PPV paths. Every implemented
+  CO/CO2/HCN contract closed with zero residual and no duplicate identities,
+  while all eight retained `phase3_shadow_needs_flux_owner_flag=1`.
+- Recorded a NO-GO for canonical authority: gas mass/enthalpy and O2 remain
+  unowned on several paths, CO oxidation is unowned, and Thermal/GES legacy
+  mechanisms can overlap semantically on one physical connection.
+- Reconfirmed shadow no-op behavior with 78 OFF/ON rows, 115 identical shared
+  legacy columns and zero differences. No official report, baseline, expected,
+  tolerance, control envelope or gap was changed.
+- Defined F3.0k.1 as the next gate: connection-level owner arbitration and
+  passive ownership completion. HVAC remains deferred until F3.5.
+
 ### Phase 3+ F3.0j Thermal species shadow (2026-07-15)
 
 - Added shadow-only ownership for exact pre-delta CO, CO2 and HCN transport

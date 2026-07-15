@@ -22,6 +22,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F0 diagnostics: `docs/validation/PHASE3_F0_ZONE_DIAGNOSTICS.md`
 - F2.2a pressure diagnosis: `docs/validation/PHASE3_F22A_PRESSURE_VENT_DIAGNOSIS.md`
 - HVAC deferral decision: `docs/validation/PHASE3_HVAC_DEFERRED_DECISION.md`
+- F3.0k cross-path audit: `docs/validation/PHASE3_F30K_CROSS_PATH_AUDIT.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -36,13 +37,17 @@ canonical two-zone mass/energy/O2/species transaction.
 
 ## Active route
 
-F3.0 shadow canonical two-zone state through F3.0j are implemented. Direct
+F3.0 shadow canonical two-zone state through F3.0j are implemented. F3.0k has
+completed the non-HVAC cross-path audit with a NO-GO for authority. Direct
 doorway transport, delayed parcels and immediate horizontal background/
 counterflow, legacy vertical-opening transport and all GES exterior purge
 paths plus ThermalSystem hot-gas transport for CO/CO2/HCN now have separate
-contracts.
-The active route remains completing explicit shadow ownership one producer at
-a time without deriving requests from post-mutation stock deltas.
+contracts, and those contracts close exactly. The remaining blocker is
+incomplete mass/energy/O2 ownership plus semantic overlap between Thermal and
+GES legacy paths.
+The active route is F3.0k.1: arbitrate one physical owner per connection and
+complete explicit shadow ownership without deriving requests from
+post-mutation stock deltas.
 
 ## Binding priority decision: HVAC last
 
@@ -54,14 +59,15 @@ non-HVAC and existing HVAC findings must remain visible.
 The revised order is:
 
 1. F3.0j ThermalSystem species transport. Completed.
-2. F3.0k non-HVAC cross-path conservation closure. Current target.
-3. F3.1 authoritative sealed mode plus zero-O2 extinction regression.
-4. F3.2 exterior pressure/leakage for Group A.
-5. F3.3 interior openings for Group C.
-6. F3.4 remaining non-HVAC species, suppression and FED.
-7. HVAC-R0 redesign specification.
-8. F3.5 HVAC canonical integration as the last subsystem.
-9. F3.6 final corpus promotion and legacy retirement.
+2. F3.0k non-HVAC cross-path conservation audit. Completed NO-GO.
+3. F3.0k.1 non-HVAC ownership completion and semantic arbitration. Current target.
+4. F3.1 authoritative sealed mode plus zero-O2 extinction regression.
+5. F3.2 exterior pressure/leakage for Group A.
+6. F3.3 interior openings for Group C.
+7. F3.4 remaining non-HVAC species, suppression and FED.
+8. HVAC-R0 redesign specification.
+9. F3.5 HVAC canonical integration as the last subsystem.
+10. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
@@ -282,10 +288,18 @@ Rollback the F3.0 attempt if:
 - a subsystem emits a request from a separately reconstructed value instead of
   reusing the exact pre-mutation result applied to legacy.
 
+## F3.0k audit decision
+
+The eight-case runtime matrix closed every implemented species contract with
+zero residual and no duplicate request identities, but every case retained
+`phase3_shadow_needs_flux_owner_flag=1`. Source audit found unowned gas/energy
+and O2 paths, unowned CO oxidation and semantic overlap between Thermal and
+GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
+
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0k. Audit cross-path ownership and conservation across
-all completed non-HVAC shadow contracts. Detect semantic overlap between
-parallel legacy paths without merging identities, hiding rejection or reading
-post-mutation deltas. HVAC remains deferred until F3.5. Do not promote the
-shadow transaction to physical authority until this closure gate passes.
+Use GPT-5.6 Sol for F3.0k.1. Design connection-level semantic arbitration and
+complete passive non-HVAC ownership for gas mass, enthalpy and O2 on the
+already-owned species paths. Add an exact CO-oxidation event. Do not implement
+an authority switch, do not use projection/clamp residuals as fluxes, and do
+not touch HVAC. HVAC remains deferred until F3.5.

@@ -333,12 +333,24 @@ already represented by the GES exterior-purge contract. Smoke, irritants and
 HVAC are outside F3.0j. No physical state, FED result, baseline, expected value
 or tolerance changed.
 
-## Next STOP gate
+## F3.0k cross-path audit
 
-F3.0k should audit non-HVAC cross-path ownership and conservation across
-combustion, O2, ThermalSystem and all GES contracts. It must expose semantic
-overlap between parallel legacy mechanisms instead of merging causes or
-relaxing residuals.
+F3.0k completed with a **NO-GO for canonical authority**. Eight HVAC-disabled
+controls exercised sealed, horizontal, delayed, vertical, exterior and PPV
+paths. Every implemented CO/CO2/HCN contract closed with zero residual and no
+duplicate identity, but all eight runs retained
+`phase3_shadow_needs_flux_owner_flag=1`.
+
+The source audit found that gas mass/enthalpy and O2 remain unowned on several
+opening, parcel, background and boundary paths. CO oxidation is also unowned.
+Thermal and GES can operate on the same physical connection under distinct
+identities, which is semantic overlap rather than a duplicate request ID.
+Projection/reconcile writes remain excluded and may not be used to force
+closure. The full record is `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
+
+F3.0k.1 must define one owner per physical connection, extend accepted
+transfers to gas/enthalpy/O2 and add the missing exact events before this STOP
+gate is repeated. No authority promotion is allowed yet.
 
 HVAC ownership is deliberately deferred until F3.5, after a separate redesign
 specification and approval gate. Until then no physical authority switch may

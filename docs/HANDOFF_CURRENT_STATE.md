@@ -11,9 +11,10 @@ This note records the repository hygiene and validation state after the non-moto
 - HVAC is deliberately deferred until the final Phase 3+ integration phase.
   Do not start F3.0j in `HVACSystem`; the subsystem is optional and will be
   redesigned before canonical ownership is implemented.
-- F3.0j now targets exact ThermalSystem CO/CO2/HCN transport. F3.0k then closes
-  cross-path conservation on HVAC-disabled controls before any shadow state is
-  promoted to authority.
+- F3.0j ThermalSystem CO/CO2/HCN transport is complete. F3.0k audited
+  cross-path conservation and returned NO-GO. F3.0k.1 now completes ownership
+  and semantic arbitration on HVAC-disabled controls before any shadow state
+  is promoted to authority.
 - Promotion proceeds through sealed mode, zero-O2 extinction, exterior
   pressure/leakage, interior openings and remaining non-HVAC species/FED.
 - HVAC returns only after a user-approved specification defines supply/return
@@ -24,6 +25,33 @@ This note records the repository hygiene and validation state after the non-moto
   canonical conservation. Existing HVAC findings or skips must remain visible.
 - Binding record:
   `docs/validation/PHASE3_HVAC_DEFERRED_DECISION.md`.
+
+## Current Session Update - 2026-07-15 - F3.0k cross-path audit
+
+- F3.0k is complete as a documentation-only **NO-GO for canonical authority**.
+  No motor, telemetry, report, baseline, tolerance, control envelope or gap
+  classification changed.
+- Source audit classified every non-HVAC writer of upper/lower gas mass,
+  energy, O2 and CO/CO2/HCN. Existing combustion, GES and Thermal species
+  contracts are exact, but gas/enthalpy and O2 remain unowned on several
+  opening, parcel, background and exterior paths. CO oxidation is also
+  unowned; projection/reconcile writes are not valid physical owners.
+- Eight sequential Godot 4.6.3 console controls covered sealed, two-room,
+  corridor, vertical, CO-remote, exterior-window and PPV paths. All ended in
+  `RUN_SCENARIO PASS`; no process remained. Every implemented species contract
+  had zero residual, zero duplicate identity and no parcel lifecycle anomaly.
+- All eight controls still set `phase3_shadow_needs_flux_owner_flag=1`.
+  Thermal and GES mechanisms also ran simultaneously on the same physical
+  connections under different identities. This is a semantic ownership
+  overlap, not a duplicate request-id defect.
+- OFF/ON no-op proof on `cfast_two_room_door_open`: 78/78 rows, 115 shared
+  legacy columns and zero differences; ON has 237 diagnostic columns.
+- Zero-O2 flame remained visible in PPV, stairwell and v4 controls. It is the
+  existing zombie-ILV debt and still blocks F3.1 authority.
+- Active next phase: F3.0k.1 connection-level arbitration plus passive
+  ownership completion for gas mass, enthalpy, O2 and CO oxidation. HVAC
+  remains deferred until F3.5.
+- Binding audit: `docs/validation/PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 
 ## Current Session Update - 2026-07-15 - F3.0j Thermal species transport
 
@@ -38,8 +66,9 @@ This note records the repository hygiene and validation state after the non-moto
   13,255 events, zero rejection, zero duplicates and zero residual.
 - Projection/reconcile writes, GES exterior purge, smoke, irritants and HVAC
   are not claimed by this contract. HVAC remains deferred until F3.5.
-- F3.0k is now the active gate: non-HVAC cross-path ownership and conservation
-  closure. The shadow state remains passive and must not be promoted yet.
+- F3.0k returned NO-GO; F3.0k.1 is now the active gate for non-HVAC ownership
+  completion and semantic arbitration. The shadow state remains passive and
+  must not be promoted yet.
 
 ## Current Session Update - 2026-07-15 - F3.0i exterior species purge
 

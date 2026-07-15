@@ -262,8 +262,10 @@ not in the promotion commit.
 ## Immediate next step
 
 Use `docs/validation/PHASE3_CURRENT_WORKPLAN.md` as the operational checklist.
-Implement F3.0j ThermalSystem CO/CO2/HCN transport next, then run F3.0k
-cross-path conservation on HVAC-disabled controls. Do not begin HVAC work;
-HVAC is deferred to F3.5 after its own redesign gate. Do not promote or modify
+F3.0j is implemented and F3.0k completed with a NO-GO for authority. The next
+step is F3.0k.1: define connection-level semantic arbitration, then complete
+passive ownership for gas mass, enthalpy, O2 and CO oxidation on the non-HVAC
+paths already covered for CO/CO2/HCN. Do not begin HVAC work; HVAC is deferred
+to F3.5 after its own redesign gate. Do not promote or modify
 `project_room_state()` until the accepted non-HVAC transaction owns the
 inventory it currently reconstructs.
