@@ -221,6 +221,7 @@ var _nearest_opening_index: int = -1
 var _state: Dictionary = {}
 var _visibility_overlay: ColorRect = null
 var _current_room_id: int = -1
+var _room_rects_cache: Dictionary = {}
 var _fp_fire_phase: float = 0.0
 var _f_key_down: bool = false
 var _f_hold_mode: bool = false
@@ -610,7 +611,8 @@ func _rebuild_world() -> void:
 	if building == null:
 		return
 
-	var rects: Dictionary = building.get_room_rects_m()
+	_room_rects_cache = building.get_room_rects_m()
+	var rects: Dictionary = _room_rects_cache
 	if rects.is_empty():
 		return
 
@@ -2932,7 +2934,7 @@ func _update_visibility_overlay() -> void:
 func _compute_fp_smoke_view(room_state: Dictionary) -> Dictionary:
 	var room_rect := Rect2()
 	if building != null and _current_room_id >= 0:
-		var rects: Dictionary = building.get_room_rects_m()
+		var rects: Dictionary = _room_rects_cache
 		room_rect = Rect2(rects.get(_current_room_id, Rect2()))
 	var eye_world_y_m: float = _camera.global_position.y if _camera != null else global_position.y + _current_height()
 	var eye_height_m: float = maxf(0.0, eye_world_y_m - _get_room_floor_level(_current_room_id))
@@ -2962,7 +2964,6 @@ func _update_status_hud(force: bool = false) -> void:
 	var hrr_label: String = "HRR --"
 	var has_data: bool = false
 	if building != null:
-		_current_room_id = _find_current_room_id()
 		if _current_room_id >= 0:
 			room_label = "R%d" % _current_room_id
 			var room_state: Dictionary = Dictionary(_state.get(str(_current_room_id), {}))
@@ -3170,7 +3171,7 @@ func _find_current_room_id() -> int:
 		return -1
 	var pos_m := Vector2(global_position.x - _origin_offset_m.x, global_position.z - _origin_offset_m.y)
 	var y_m: float = global_position.y
-	var rects: Dictionary = building.get_room_rects_m()
+	var rects: Dictionary = _room_rects_cache
 	var best_room_id: int = -1
 	var best_floor_m: float = -INF
 	for key in rects.keys():
@@ -3205,7 +3206,7 @@ func _find_current_room_id() -> int:
 func get_player_marker_state() -> Dictionary:
 	if building == null:
 		return {}
-	var room_id: int = _find_current_room_id()
+	var room_id: int = _current_room_id
 	var floor_level_m: float = _get_room_floor_level(room_id) if room_id >= 0 else global_position.y
 	return {
 		"active": _active,
@@ -3594,7 +3595,7 @@ func _light_smoke_transmission_for_room(room_id: int, height_m: float) -> float:
 	var depth_m: float = maxf(0.0, height_m - layer_m)
 	var layer_block: float = clampf(depth_m / maxf(0.1, height_m), 0.0, 1.0)
 	var visibility_block: float = clampf((16.0 - visibility_m) / 16.0, 0.0, 1.0)
-	var rects: Dictionary = building.get_room_rects_m() if building != null else {}
+	var rects: Dictionary = _room_rects_cache if building != null else {}
 	var rect := Rect2(rects.get(room_id, Rect2(Vector2.ZERO, Vector2.ONE)))
 	var upper_volume_m3: float = maxf(0.05, rect.size.x * rect.size.y * maxf(depth_m, 0.05))
 	var density_block: float = clampf((smoke_kg / upper_volume_m3) / 0.018, 0.0, 1.0) if smoke_kg > 0.0 and depth_m > 0.0 else 0.0
@@ -3697,7 +3698,7 @@ func _opening_info(index: int) -> Dictionary:
 	var op: OpeningModel = building.get_opening_at(index)
 	if op == null:
 		return {}
-	var rects: Dictionary = building.get_room_rects_m()
+	var rects: Dictionary = _room_rects_cache
 	var room_id: int = op.a if op.a != OUTSIDE_ID else op.b
 	if not rects.has(room_id):
 		return {}
@@ -3847,7 +3848,7 @@ func _place_at_entry() -> void:
 	if not building.player_start.is_empty():
 		var start: Dictionary = building.player_start
 		var room_id: int = int(start.get("room_id", -1))
-		var rects: Dictionary = building.get_room_rects_m()
+		var rects: Dictionary = _room_rects_cache
 		if rects.has(room_id):
 			var rect: Rect2 = Rect2(rects[room_id])
 			var local_pos: Vector2 = Vector2(start.get("position_m", Vector2(rect.size.x * 0.5, rect.size.y * 0.5)))
@@ -3886,7 +3887,7 @@ func _place_at_entry() -> void:
 			_camera.rotation.x = _pitch
 		return
 
-	var rects: Dictionary = building.get_room_rects_m()
+	var rects: Dictionary = _room_rects_cache
 	if not rects.is_empty():
 		var first_id: int = int(rects.keys()[0])
 		var rect: Rect2 = Rect2(rects[first_id])

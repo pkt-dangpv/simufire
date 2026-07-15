@@ -223,6 +223,7 @@ var _first_person_overlay: bool = false
 var _legend_canvas: CanvasLayer = null
 var _legend_panel: PanelContainer = null
 var _legend_vbox: VBoxContainer = null
+var _legend_flags_hash: int = -1
 
 
 func _ready() -> void:
@@ -566,7 +567,10 @@ func _build_legend_ui() -> void:
 func _update_legend() -> void:
 	if _legend_panel == null or _legend_vbox == null:
 		return
-	# Limpiar filas anteriores
+	var flags_hash: int = int(show_hot_layer) | (int(show_layer_150c) << 1) | (int(show_layer_gradient) << 2) | (int(_first_person_overlay) << 3)
+	if flags_hash == _legend_flags_hash:
+		return
+	_legend_flags_hash = flags_hash
 	for child in _legend_vbox.get_children():
 		child.queue_free()
 
@@ -664,7 +668,7 @@ func _clear_container(container: Node) -> void:
 	if container == null:
 		return
 	for child in container.get_children():
-		child.free()
+		child.queue_free()
 
 
 func _compute_bounds(rects: Dictionary) -> Rect2:
@@ -745,17 +749,17 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	smoke_ceiling_mask.visible = show_smoke_ceiling_masks
 	_atmosphere_root.add_child(smoke_ceiling_mask)
 
-	var gradient_band := _create_box("LayerGradient_%02d" % room_id, Vector3.ONE, _make_material(layer_gradient_top_color, true))
+	var gradient_band := _create_box("LayerGradient_%02d" % room_id, Vector3.ONE, _make_material(layer_gradient_top_color, true, 3))
 	gradient_band.visible = false
 	_disable_shadow_casting(gradient_band)
 	_atmosphere_root.add_child(gradient_band)
 
-	var hot := _create_box("HotLayer_%02d" % room_id, Vector3.ONE, _make_material(hot_layer_color, true))
+	var hot := _create_box("HotLayer_%02d" % room_id, Vector3.ONE, _make_material(hot_layer_color, true, 1))
 	hot.visible = false
 	_disable_shadow_casting(hot)
 	_atmosphere_root.add_child(hot)
 
-	var l150 := _create_box("Layer150C_%02d" % room_id, Vector3.ONE, _make_material(layer_150c_color, true))
+	var l150 := _create_box("Layer150C_%02d" % room_id, Vector3.ONE, _make_material(layer_150c_color, true, 2))
 	l150.visible = false
 	_disable_shadow_casting(l150)
 	_atmosphere_root.add_child(l150)
@@ -1201,19 +1205,23 @@ func _create_opening(index: int) -> void:
 	# Cortina de humo: rellena el vano abierto y suaviza el salto visual de capa
 	# entre estancias o hacia el exterior.
 	if op.type == OpeningModel.Type.DOOR or op.type == OpeningModel.Type.WINDOW or op.type == OpeningModel.Type.HOLE:
+		var curtain_mat := _make_smoke_volume_material()
+		curtain_mat.render_priority = 6
 		var curtain := _create_box(
 			"SmokeCurtain_%02d" % index,
 			Vector3(pose["size"]) * meters_to_units,
-			_make_smoke_volume_material()
+			curtain_mat
 		)
 		curtain.position = marker.position
 		curtain.visible = false
 		_disable_shadow_casting(curtain)
 		_atmosphere_root.add_child(curtain)
+		var inflow_mat := SmokeVolumeMaterialFactory.create_volume(cold_air_inflow_color)
+		inflow_mat.render_priority = 6
 		var inflow := _create_box(
 			"AirInflowCurtain_%02d" % index,
 			Vector3(pose["size"]) * meters_to_units,
-			SmokeVolumeMaterialFactory.create_volume(cold_air_inflow_color)
+			inflow_mat
 		)
 		inflow.position = marker.position
 		inflow.visible = false
@@ -2606,13 +2614,14 @@ func _make_smoke_volume_material() -> ShaderMaterial:
 	return SmokeVolumeMaterialFactory.create_volume(smoke_color)
 
 
-func _make_material(color: Color, transparent: bool) -> StandardMaterial3D:
+func _make_material(color: Color, transparent: bool, priority: int = 0) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = 0.94
 	material.metallic = 0.0
 	if transparent or color.a < 1.0:
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.render_priority = priority
 	return material
 
 
@@ -2942,7 +2951,7 @@ func _prune_marker_nodes(nodes: Dictionary, seen_ids: Dictionary) -> void:
 			continue
 		var stale_node := nodes[stale_id] as Node
 		if stale_node != null:
-			stale_node.free()
+			stale_node.queue_free()
 		nodes.erase(stale_id)
 
 
@@ -3075,7 +3084,7 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 			continue
 		var stale_node := fuel_obj_nodes[stale_id] as Node
 		if stale_node != null:
-			stale_node.free()
+			stale_node.queue_free()
 		fuel_obj_nodes.erase(stale_id)
 
 	item["fuel_obj_nodes"] = fuel_obj_nodes
