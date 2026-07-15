@@ -1,13 +1,25 @@
 extends RefCounted
 
+const FurniturePlacement3D := preload("res://view/3d/furniture/FurniturePlacement3D.gd")
+
 
 static func normalize_spec(room_id: int, room_name: String, room_kind: String, room_size: Vector2, spec: Dictionary) -> Dictionary:
 	var result: Dictionary = spec.duplicate(true)
 	if bool(result.get("visual_pose_locked", false)):
 		return result
 	if _has_explicit_pose(result):
-		# El escenario define una pose curada: es autoritativa. Se marca locked
-		# para que los visores tampoco la recoloquen al resolver conflictos.
+		# El escenario define una pose curada: es autoritativa, pero se encaja
+		# dentro de la sala (con extents de rotacion) para que no atraviese
+		# muros. Se marca locked para que los visores no la recoloquen.
+		var pos: Vector2 = _to_vector2(result.get("position_m"))
+		var size: Vector2 = _to_vector2(result.get("size_m"))
+		if size.x <= 0.0 or size.y <= 0.0:
+			size = Vector2(0.5, 0.5)
+		var rot: float = float(result.get("rotation_deg", 0.0))
+		var pose: Dictionary = FurniturePlacement3D.clamp_visual_pose(Rect2(Vector2.ZERO, room_size), pos, size, rot)
+		var visual_size: Vector2 = Vector2(pose.get("size_m", size))
+		result["position_m"] = Vector2(pose.get("center_m", pos + size * 0.5)) - visual_size * 0.5
+		result["size_m"] = visual_size
 		result["visual_pose_locked"] = true
 		return result
 	var tokens: String = _tokens(result.get("id", ""), result.get("name", ""), result.get("kind", ""))

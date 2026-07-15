@@ -164,7 +164,7 @@ func _update_views() -> void:
 		visualizer.set_state(state)
 	if visualizer_3d != null and visualizer_3d_active:
 		visualizer_3d.set_state(state)
-	if minimap_2d != null and view_3d_enabled:
+	if minimap_2d != null and (view_3d_enabled or first_person_enabled):
 		minimap_2d.set_state(state)
 	if first_person_controller != null and first_person_enabled:
 		first_person_controller.set_state(state)
@@ -192,7 +192,7 @@ func _update_views_for_frame(delta: float) -> void:
 	_view_update_accum_s += delta
 	_view_3d_update_accum_s += delta
 	var should_update_view: bool = _view_update_accum_s >= VIEW_RUNNING_UPDATE_INTERVAL_S
-	var should_update_3d: bool = view_3d_enabled and _view_3d_update_accum_s >= VIEW_3D_RUNNING_UPDATE_INTERVAL_S
+	var should_update_3d: bool = (view_3d_enabled or first_person_enabled) and _view_3d_update_accum_s >= VIEW_3D_RUNNING_UPDATE_INTERVAL_S
 	if not should_update_view and not should_update_3d:
 		return
 
@@ -202,6 +202,8 @@ func _update_views_for_frame(delta: float) -> void:
 			_view_update_accum_s = 0.0
 			if first_person_controller != null:
 				first_person_controller.set_state(state)
+			if minimap_2d != null:
+				minimap_2d.set_state(state)
 			if hud != null:
 				hud.update_state(state)
 		if should_update_3d:
@@ -332,7 +334,7 @@ func _sync_view_mode() -> void:
 	if first_person_controller != null:
 		first_person_controller.set_active(first_person_enabled)
 	if minimap_2d != null:
-		minimap_2d.visible = view_3d_enabled
+		minimap_2d.visible = view_3d_enabled or first_person_enabled
 
 
 func _setup_minimap() -> void:
