@@ -15,6 +15,7 @@ const FurnitureShapeBuilder := preload("res://view/3d/furniture/FurnitureShapeBu
 const FurnitureStateVisuals := preload("res://view/3d/furniture/FurnitureStateVisuals.gd")
 const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVisualClassifier.gd")
 const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayout.gd")
+const FPHudScene: PackedScene = preload("res://scenes/FPHud.tscn")
 const OUTSIDE_ID: int = -1
 const STANCE_STAND: int = 0
 const STANCE_CROUCH: int = 1
@@ -456,119 +457,22 @@ func _create_player_nodes() -> void:
 	add_child(_camera)
 	_apply_stance(true)
 
-	_prompt_layer = CanvasLayer.new()
-	_prompt_layer.name = "FirstPersonPromptLayer"
+	# El HUD FP vive en scenes/FPHud.tscn (estructura y estilos editables en
+	# Godot); aqui solo se instancia y se enlazan los nodos. Las posiciones
+	# se siguen gobernando por los exports *_panel_rect via apply_hud_layout.
+	_prompt_layer = FPHudScene.instantiate() as CanvasLayer
 	add_child(_prompt_layer)
-	_visibility_overlay = ColorRect.new()
-	_visibility_overlay.name = "SmokeVisibilityOverlay"
-	_visibility_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_visibility_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_visibility_overlay.color = Color(0.08, 0.09, 0.09, 0.0)
-	_prompt_layer.add_child(_visibility_overlay)
-
-	_fp_status_panel = PanelContainer.new()
-	_fp_status_panel.name = "FirstPersonStatusPanel"
-	_fp_status_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_apply_panel_rect(_fp_status_panel, fp_status_panel_rect)
-	_fp_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_fp_status_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
-	_prompt_layer.add_child(_fp_status_panel)
-	var status_margin := MarginContainer.new()
-	status_margin.add_theme_constant_override("margin_left", 10)
-	status_margin.add_theme_constant_override("margin_top", 7)
-	status_margin.add_theme_constant_override("margin_right", 10)
-	status_margin.add_theme_constant_override("margin_bottom", 7)
-	_fp_status_panel.add_child(status_margin)
-	_fp_status_label = Label.new()
-	_fp_status_label.name = "FirstPersonStatusLabel"
-	_fp_status_label.add_theme_font_size_override("font_size", 12)
-	_fp_status_label.add_theme_color_override("font_color", Color(0.88, 0.94, 0.92, 1.0))
-	_fp_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	status_margin.add_child(_fp_status_label)
-
-	_technical_overlay_panel = PanelContainer.new()
-	_technical_overlay_panel.name = "TechnicalOverlayPanel"
-	_technical_overlay_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_apply_panel_rect(_technical_overlay_panel, technical_overlay_panel_rect)
-	_technical_overlay_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_technical_overlay_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
-	_technical_overlay_panel.visible = false
-	_prompt_layer.add_child(_technical_overlay_panel)
-	var overlay_margin := MarginContainer.new()
-	overlay_margin.add_theme_constant_override("margin_left", 10)
-	overlay_margin.add_theme_constant_override("margin_top", 7)
-	overlay_margin.add_theme_constant_override("margin_right", 10)
-	overlay_margin.add_theme_constant_override("margin_bottom", 7)
-	_technical_overlay_panel.add_child(overlay_margin)
-	_technical_overlay_label = Label.new()
-	_technical_overlay_label.name = "TechnicalOverlayLabel"
-	_technical_overlay_label.add_theme_font_size_override("font_size", 12)
-	_technical_overlay_label.add_theme_color_override("font_color", Color(0.88, 0.94, 0.92, 1.0))
-	overlay_margin.add_child(_technical_overlay_label)
-
-	_visibility_readout_panel = PanelContainer.new()
-	_visibility_readout_panel.name = "VisibilityReadoutPanel"
-	_visibility_readout_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_apply_panel_rect(_visibility_readout_panel, visibility_readout_panel_rect)
-	_visibility_readout_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_visibility_readout_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
-	_visibility_readout_panel.visible = false
-	_prompt_layer.add_child(_visibility_readout_panel)
-	var vis_margin := MarginContainer.new()
-	vis_margin.add_theme_constant_override("margin_left", 10)
-	vis_margin.add_theme_constant_override("margin_top", 7)
-	vis_margin.add_theme_constant_override("margin_right", 10)
-	vis_margin.add_theme_constant_override("margin_bottom", 7)
-	_visibility_readout_panel.add_child(vis_margin)
-	_visibility_readout_label = Label.new()
-	_visibility_readout_label.name = "VisibilityReadoutLabel"
-	_visibility_readout_label.add_theme_font_size_override("font_size", 14)
-	_visibility_readout_label.add_theme_color_override("font_color", Color(0.88, 0.94, 0.92, 1.0))
-	vis_margin.add_child(_visibility_readout_label)
-
-	_crosshair_h = ColorRect.new()
-	_crosshair_h.name = "CrosshairH"
-	_crosshair_h.set_anchors_preset(Control.PRESET_CENTER)
-	_crosshair_h.offset_left = -9.0
-	_crosshair_h.offset_top = -1.0
-	_crosshair_h.offset_right = 9.0
-	_crosshair_h.offset_bottom = 1.0
-	_crosshair_h.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_crosshair_h.color = Color(1.0, 0.86, 0.45, 0.72)
-	_prompt_layer.add_child(_crosshair_h)
-	_crosshair_v = ColorRect.new()
-	_crosshair_v.name = "CrosshairV"
-	_crosshair_v.set_anchors_preset(Control.PRESET_CENTER)
-	_crosshair_v.offset_left = -1.0
-	_crosshair_v.offset_top = -9.0
-	_crosshair_v.offset_right = 1.0
-	_crosshair_v.offset_bottom = 9.0
-	_crosshair_v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_crosshair_v.color = Color(1.0, 0.86, 0.45, 0.72)
-	_prompt_layer.add_child(_crosshair_v)
-
-	_prompt_panel = PanelContainer.new()
-	_prompt_panel.name = "PromptPanel"
-	_prompt_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_apply_panel_rect(_prompt_panel, fp_prompt_panel_rect)
-	_prompt_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_prompt_panel.visible = false
-	_prompt_panel.add_theme_stylebox_override("panel", _make_fp_hud_style())
-	_prompt_layer.add_child(_prompt_panel)
-	var prompt_margin := MarginContainer.new()
-	prompt_margin.add_theme_constant_override("margin_left", 12)
-	prompt_margin.add_theme_constant_override("margin_top", 8)
-	prompt_margin.add_theme_constant_override("margin_right", 12)
-	prompt_margin.add_theme_constant_override("margin_bottom", 8)
-	_prompt_panel.add_child(prompt_margin)
-	_prompt_label = Label.new()
-	_prompt_label.name = "PromptLabel"
-	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_prompt_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_prompt_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_prompt_label.add_theme_font_size_override("font_size", 13)
-	_prompt_label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.72, 1.0))
-	prompt_margin.add_child(_prompt_label)
+	_visibility_overlay = _prompt_layer.get_node("SmokeVisibilityOverlay") as ColorRect
+	_fp_status_panel = _prompt_layer.get_node("FirstPersonStatusPanel") as PanelContainer
+	_fp_status_label = _prompt_layer.get_node("FirstPersonStatusPanel/Margin/FirstPersonStatusLabel") as Label
+	_technical_overlay_panel = _prompt_layer.get_node("TechnicalOverlayPanel") as PanelContainer
+	_technical_overlay_label = _prompt_layer.get_node("TechnicalOverlayPanel/Margin/TechnicalOverlayLabel") as Label
+	_visibility_readout_panel = _prompt_layer.get_node("VisibilityReadoutPanel") as PanelContainer
+	_visibility_readout_label = _prompt_layer.get_node("VisibilityReadoutPanel/Margin/VisibilityReadoutLabel") as Label
+	_crosshair_h = _prompt_layer.get_node("CrosshairH") as ColorRect
+	_crosshair_v = _prompt_layer.get_node("CrosshairV") as ColorRect
+	_prompt_panel = _prompt_layer.get_node("PromptPanel") as PanelContainer
+	_prompt_label = _prompt_layer.get_node("PromptPanel/Margin/PromptLabel") as Label
 	apply_hud_layout()
 
 
@@ -594,21 +498,6 @@ func _apply_panel_rect(panel: Control, rect: Rect2) -> void:
 	panel.offset_top = rect.position.y
 	panel.offset_right = rect.position.x + rect.size.x
 	panel.offset_bottom = rect.position.y + rect.size.y
-
-
-func _make_fp_hud_style() -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.01, 0.025, 0.03, 0.78)
-	box.border_color = Color(0.95, 0.58, 0.22, 0.76)
-	box.border_width_left = 1
-	box.border_width_top = 1
-	box.border_width_right = 1
-	box.border_width_bottom = 1
-	box.corner_radius_top_left = 0
-	box.corner_radius_top_right = 0
-	box.corner_radius_bottom_right = 0
-	box.corner_radius_bottom_left = 0
-	return box
 
 
 func _ensure_world_root() -> void:

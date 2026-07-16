@@ -1,0 +1,148 @@
+[gd_scene format=3]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fphud"]
+bg_color = Color(0.01, 0.025, 0.03, 0.78)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.95, 0.58, 0.22, 0.76)
+
+[node name="FirstPersonPromptLayer" type="CanvasLayer"]
+
+[node name="SmokeVisibilityOverlay" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.08, 0.09, 0.09, 0)
+
+[node name="FirstPersonStatusPanel" type="PanelContainer" parent="."]
+offset_left = 18.0
+offset_top = 18.0
+offset_right = 498.0
+offset_bottom = 84.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_fphud")
+
+[node name="Margin" type="MarginContainer" parent="FirstPersonStatusPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 7
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 7
+
+[node name="FirstPersonStatusLabel" type="Label" parent="FirstPersonStatusPanel/Margin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.92, 1)
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 3
+
+[node name="TechnicalOverlayPanel" type="PanelContainer" parent="."]
+visible = false
+offset_left = 18.0
+offset_top = 92.0
+offset_right = 230.0
+offset_bottom = 252.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_fphud")
+
+[node name="Margin" type="MarginContainer" parent="TechnicalOverlayPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 7
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 7
+
+[node name="TechnicalOverlayLabel" type="Label" parent="TechnicalOverlayPanel/Margin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.92, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="VisibilityReadoutPanel" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 18.0
+offset_top = -70.0
+offset_right = 196.0
+offset_bottom = -24.0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_fphud")
+
+[node name="Margin" type="MarginContainer" parent="VisibilityReadoutPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 7
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 7
+
+[node name="VisibilityReadoutLabel" type="Label" parent="VisibilityReadoutPanel/Margin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.92, 1)
+theme_override_font_sizes/font_size = 14
+
+[node name="CrosshairH" type="ColorRect" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -9.0
+offset_top = -1.0
+offset_right = 9.0
+offset_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 0.86, 0.45, 0.72)
+
+[node name="CrosshairV" type="ColorRect" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -1.0
+offset_top = -9.0
+offset_right = 1.0
+offset_bottom = 9.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 0.86, 0.45, 0.72)
+
+[node name="PromptPanel" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = 22.0
+offset_right = 180.0
+offset_bottom = 82.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_fphud")
+
+[node name="Margin" type="MarginContainer" parent="PromptPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="PromptLabel" type="Label" parent="PromptPanel/Margin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.92, 0.72, 1)
+theme_override_font_sizes/font_size = 13
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3

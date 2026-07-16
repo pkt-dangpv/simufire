@@ -38,6 +38,7 @@ const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVis
 const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayout.gd")
 const OpeningPose3D := preload("res://view/3d/openings/OpeningPose3D.gd")
 const RoomShellFactory := preload("res://view/3d/geometry/RoomShellFactory.gd")
+const Legend3DScene: PackedScene = preload("res://scenes/Legend3D.tscn")
 const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 
 @export_group("Scene Nodes")
@@ -557,43 +558,12 @@ func _apply_overlay_visibility() -> void:
 func _build_legend_ui() -> void:
 	if _legend_canvas != null:
 		return
-	_legend_canvas = CanvasLayer.new()
-	_legend_canvas.name = "LegendLayer"
-	_legend_canvas.layer = 8
+	# La leyenda vive en scenes/Legend3D.tscn (posicion/estilo editables);
+	# aqui solo se instancia y se enlazan panel y contenedor de filas.
+	_legend_canvas = Legend3DScene.instantiate() as CanvasLayer
 	add_child(_legend_canvas)
-
-	_legend_panel = PanelContainer.new()
-	_legend_panel.name = "LegendPanel"
-	_legend_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_legend_panel.offset_left = -200.0
-	_legend_panel.offset_top = 12.0
-	_legend_panel.offset_right = -12.0
-	_legend_panel.offset_bottom = 12.0
-	_legend_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_legend_panel.visible = false
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.06, 0.07, 0.08, 0.72)
-	style.border_width_left = 0
-	style.border_width_top = 0
-	style.border_width_right = 0
-	style.border_width_bottom = 0
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
-	_legend_panel.add_theme_stylebox_override("panel", style)
-	_legend_canvas.add_child(_legend_panel)
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_top", 6)
-	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_bottom", 6)
-	_legend_panel.add_child(margin)
-
-	_legend_vbox = VBoxContainer.new()
-	_legend_vbox.add_theme_constant_override("separation", 4)
-	margin.add_child(_legend_vbox)
+	_legend_panel = _legend_canvas.get_node("LegendPanel") as PanelContainer
+	_legend_vbox = _legend_canvas.get_node("LegendPanel/Margin/Rows") as VBoxContainer
 
 
 func _update_legend() -> void:
