@@ -74,6 +74,10 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 ## Aplica heatmap de temperatura en el color de las paredes (V3D-03).
 @export var show_wall_heatmap: bool = true
 @export var show_hrr_columns: bool = true
+## Muestra la llama del visor 3D tambien en primera persona. Apagado por
+## defecto: FP ya tiene su propia llama con luz sombreada, y la del 3D
+## (sin sombras) iluminaba salas vecinas a traves de las paredes.
+@export var show_fire_in_first_person: bool = false
 @export var show_fuel_objects_3d: bool = true
 ## Mantiene visible el mobiliario 3D compartido cuando la camara FP esta activa.
 @export var show_fuel_objects_in_first_person: bool = true
@@ -520,6 +524,8 @@ func _apply_overlay_visibility() -> void:
 				child.visible = show_fuel_objects_3d and (not _first_person_overlay or show_fuel_objects_in_first_person)
 			elif String(child.name).begins_with("SafetyMarkers_"):
 				child.visible = not _first_person_overlay
+			elif String(child.name).begins_with("Fire_"):
+				child.visible = child.visible and (not _first_person_overlay or show_fire_in_first_person)
 	var sun := get_node_or_null("Sun") as Light3D
 	if sun != null:
 		sun.visible = not _first_person_overlay
@@ -2342,7 +2348,7 @@ func _update_fire_visual(item: Dictionary, rect: Rect2, room_height_m: float, hr
 	item["fire_cap_weight"] = current_cap_weight
 	item["fire_available_height_m"] = available_height_m
 
-	fire_root.visible = current_height > 0.05
+	fire_root.visible = current_height > 0.05 and (not _first_person_overlay or show_fire_in_first_person)
 	fire_root.position = fire_pos
 	_update_fire_smoke_plume(item, fire_pos, fire_base_y_m, room_height_m, hrr_kw, current_radius)
 	var fire_light := item.get("fire_light") as OmniLight3D

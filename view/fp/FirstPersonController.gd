@@ -68,7 +68,13 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var window_light_energy: float = 0.86
 @export var window_light_range_m: float = 4.8
 @export var window_light_color: Color = Color(0.66, 0.78, 1.0, 1.0)
-@export var opening_lights_cast_shadows: bool = false
+## Sombras en las luces de puertas/ventanas exteriores. Activado, la luz
+## entra solo por el hueco (haz realista); desactivado, la luz banaba las
+## paredes contiguas. Coste: una luz sombreada por apertura exterior.
+@export var opening_lights_cast_shadows: bool = true
+## Atenuacion de las luces de aperturas. >1.0 concentra la luz junto a la
+## ventana/puerta; <1.0 la reparte mas al interior.
+@export_range(0.2, 4.0, 0.05) var opening_light_attenuation: float = 1.4
 
 @export_group("Materiales FP")
 @export var use_procedural_surface_noise: bool = false
@@ -1255,6 +1261,7 @@ func _create_opening_light(op: OpeningModel, info: Dictionary) -> OmniLight3D:
 	light.light_color = _effective_landing_light_color() if op.type == OpeningModel.Type.DOOR else _effective_window_light_color()
 	light.light_energy = 0.0
 	light.omni_range = landing_light_range_m if op.type == OpeningModel.Type.DOOR else window_light_range_m
+	light.omni_attenuation = opening_light_attenuation
 	light.shadow_enabled = opening_lights_cast_shadows
 	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
 	var inward: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
