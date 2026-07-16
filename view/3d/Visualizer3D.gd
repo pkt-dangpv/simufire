@@ -157,6 +157,14 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var fire_light_energy_per_1000kw: float = 2.4
 @export var fire_light_range_min_m: float = 2.0
 @export var fire_light_range_max_m: float = 9.5
+@export var fire_light_color: Color = Color(1.0, 0.42, 0.12, 1.0)
+## Sombras en la luz del fuego (evita iluminar a traves de paredes/muebles).
+## En la vista dollhouse el coste suele compensar solo con pocas salas ardiendo.
+@export var fire_light_cast_shadows: bool = false
+## Atenuacion de la OmniLight del fuego. <1.0 luz mas uniforme; >1.0 mas concentrada.
+@export_range(0.2, 4.0, 0.05) var fire_light_attenuation: float = 1.0
+## Altura (m) de la luz del fuego sobre la base de la llama.
+@export var fire_light_height_m: float = 0.9
 @export var temp_heat_floor_start_c: float = 80.0
 @export var temp_heat_floor_full_c: float = 450.0
 @export var temp_heat_wall_start_c: float = 60.0
@@ -784,11 +792,12 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	fire_root.add_child(fire_core)
 	var fire_light := OmniLight3D.new()
 	fire_light.name = "FireLight"
-	fire_light.light_color = Color(1.0, 0.42, 0.12, 1.0)
+	fire_light.light_color = fire_light_color
 	fire_light.light_energy = 0.0
 	fire_light.omni_range = fire_light_range_min_m
-	fire_light.shadow_enabled = false
-	fire_light.position = Vector3(0.0, 0.9, 0.0)
+	fire_light.omni_attenuation = fire_light_attenuation
+	fire_light.shadow_enabled = fire_light_cast_shadows
+	fire_light.position = Vector3(0.0, fire_light_height_m, 0.0)
 	fire_root.add_child(fire_light)
 
 	var label := shell.get("label") as Label3D

@@ -45,10 +45,22 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var ambient_fill_enabled: bool = true
 @export var ambient_fill_energy: float = 0.30
 @export var ambient_fill_color: Color = Color(0.72, 0.78, 0.82, 1.0)
+## Altura (m) de la luz ambiental global sobre el suelo.
+@export var ambient_fill_height_m: float = 1.6
+## Multiplicador del alcance de la luz ambiental respecto al lado mayor del edificio.
+@export var ambient_fill_range_factor: float = 1.35
 @export var room_ceiling_lights_enabled: bool = true
 @export var room_ceiling_light_energy: float = 0.56
 @export var room_ceiling_light_range_extra_m: float = 1.25
 @export var room_ceiling_light_color: Color = Color(1.0, 0.88, 0.68, 1.0)
+## Multiplicador del alcance base de la luz de techo (sobre el lado mayor de la sala).
+@export var room_ceiling_light_range_factor: float = 0.68
+## Limita el alcance de cada luz de techo a la semidiagonal de su sala (+0.4m),
+## evitando que ilumine esquinas de salas vecinas a traves de las paredes.
+@export var room_ceiling_light_contain_to_room: bool = true
+## Sombras en las luces de techo. Elimina del todo la luz que atraviesa
+## paredes, con coste de rendimiento (una luz sombreada por sala).
+@export var room_ceiling_lights_cast_shadows: bool = false
 @export var landing_light_energy: float = 0.92
 @export var landing_light_closed_ratio: float = 0.12
 @export var landing_light_range_m: float = 3.6
@@ -79,6 +91,22 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_group("Exterior FP")
 @export var exterior_context_enabled: bool = true
 @export_enum("Dia", "Noche") var exterior_lighting_mode: String = "Dia"
+## Sombras en la luz direccional del cielo. Sin sombras esta luz atraviesa
+## las paredes e ilumina esquinas interiores (recomendado activarlo).
+@export var exterior_sky_light_cast_shadows: bool = true
+@export var exterior_day_sky_light_energy: float = 0.58
+@export var exterior_night_sky_light_energy: float = 0.16
+@export var exterior_day_sky_light_color: Color = Color(0.88, 0.92, 1.0, 1.0)
+@export var exterior_night_sky_light_color: Color = Color(0.34, 0.44, 0.62, 1.0)
+## Inclinacion (pitch) y orientacion (yaw) de la luz del cielo, en grados.
+@export var exterior_sky_light_pitch_deg: float = -38.0
+@export var exterior_sky_light_yaw_deg: float = 28.0
+@export var exterior_soft_fill_day_energy: float = 0.18
+@export var exterior_soft_fill_night_energy: float = 0.06
+@export var exterior_soft_fill_day_color: Color = Color(0.78, 0.86, 0.94, 1.0)
+@export var exterior_soft_fill_night_color: Color = Color(0.25, 0.33, 0.46, 1.0)
+## Altura (m) de la luz suave exterior.
+@export var exterior_soft_fill_height_m: float = 3.2
 @export var exterior_floor_drop_m: float = 5.8
 @export var city_view_width_m: float = 22.0
 @export var city_building_distance_m: float = 15.0
@@ -153,6 +181,15 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var fp_fire_light_energy_per_1000kw: float = 2.2
 @export var fp_fire_light_range_min_m: float = 2.0
 @export var fp_fire_light_range_max_m: float = 8.0
+@export var fp_fire_light_color: Color = Color(1.0, 0.42, 0.12, 1.0)
+## Sombras en la luz del fuego: la llama deja de iluminar a traves de
+## muebles y paredes (recomendado; pocas luces, solo salas ardiendo).
+@export var fp_fire_light_cast_shadows: bool = true
+## Atenuacion de la OmniLight del fuego. <1.0 reparte la luz de forma mas
+## uniforme por la sala; >1.0 concentra la luz cerca de la llama.
+@export_range(0.2, 4.0, 0.05) var fp_fire_light_attenuation: float = 1.0
+## Altura (m) de la luz del fuego sobre la base de la llama.
+@export var fp_fire_light_height_m: float = 0.65
 @export var fp_fire_flicker_strength: float = 0.13
 @export var fp_fire_color: Color = Color(1.0, 0.34, 0.08, 0.90)
 @export var fp_fire_core_color: Color = Color(1.0, 0.86, 0.34, 0.95)
@@ -1094,11 +1131,11 @@ func _create_world_lighting(rects: Dictionary) -> void:
 		if not room_ceiling_lights_enabled:
 			fill_energy *= 0.38 if not _exterior_is_night() else 0.12
 		fill.light_energy = fill_energy
-		fill.omni_range = maxf(8.0, maxf(_bounds_m.size.x, _bounds_m.size.y) * 1.35)
+		fill.omni_range = maxf(8.0, maxf(_bounds_m.size.x, _bounds_m.size.y) * ambient_fill_range_factor)
 		fill.shadow_enabled = false
 		fill.position = _to_world(Vector3(
 			_bounds_m.position.x + _bounds_m.size.x * 0.5,
-			1.6,
+			ambient_fill_height_m,
 			_bounds_m.position.y + _bounds_m.size.y * 0.5
 		))
 		_world_root.add_child(fill)
@@ -1117,10 +1154,12 @@ func _create_world_lighting(rects: Dictionary) -> void:
 		light.name = "CeilingLight_%s" % str(room_id)
 		light.light_color = room_ceiling_light_color
 		var base_energy: float = room_ceiling_light_energy * clampf(sqrt(area_m2 / 14.0), 0.72, 1.35)
-		var base_range: float = maxf(rect.size.x, rect.size.y) * 0.68 + room_ceiling_light_range_extra_m
+		var base_range: float = maxf(rect.size.x, rect.size.y) * room_ceiling_light_range_factor + room_ceiling_light_range_extra_m
+		if room_ceiling_light_contain_to_room:
+			base_range = minf(base_range, rect.size.length() * 0.5 + 0.4)
 		light.light_energy = base_energy
 		light.omni_range = base_range
-		light.shadow_enabled = false
+		light.shadow_enabled = room_ceiling_lights_cast_shadows
 		light.position = _to_world(Vector3(
 			rect.position.x + rect.size.x * 0.5,
 			maxf(1.8, height_m - 0.22),
@@ -1753,21 +1792,21 @@ func _create_exterior_window_reveal(
 func _create_exterior_lighting(parent: Node3D) -> void:
 	var sky_light := DirectionalLight3D.new()
 	sky_light.name = "ExteriorSkyLight"
-	sky_light.light_color = Color(0.88, 0.92, 1.0, 1.0) if not _exterior_is_night() else Color(0.34, 0.44, 0.62, 1.0)
-	sky_light.light_energy = 0.58 if not _exterior_is_night() else 0.16
-	sky_light.shadow_enabled = false
-	sky_light.rotation = Vector3(deg_to_rad(-38.0), deg_to_rad(28.0), 0.0)
+	sky_light.light_color = exterior_day_sky_light_color if not _exterior_is_night() else exterior_night_sky_light_color
+	sky_light.light_energy = exterior_day_sky_light_energy if not _exterior_is_night() else exterior_night_sky_light_energy
+	sky_light.shadow_enabled = exterior_sky_light_cast_shadows
+	sky_light.rotation = Vector3(deg_to_rad(exterior_sky_light_pitch_deg), deg_to_rad(exterior_sky_light_yaw_deg), 0.0)
 	parent.add_child(sky_light)
 
 	var exterior_fill := OmniLight3D.new()
 	exterior_fill.name = "ExteriorSoftFill"
-	exterior_fill.light_color = Color(0.78, 0.86, 0.94, 1.0) if not _exterior_is_night() else Color(0.25, 0.33, 0.46, 1.0)
-	exterior_fill.light_energy = 0.18 if not _exterior_is_night() else 0.06
+	exterior_fill.light_color = exterior_soft_fill_day_color if not _exterior_is_night() else exterior_soft_fill_night_color
+	exterior_fill.light_energy = exterior_soft_fill_day_energy if not _exterior_is_night() else exterior_soft_fill_night_energy
 	exterior_fill.omni_range = maxf(14.0, city_view_width_m * 0.9)
 	exterior_fill.shadow_enabled = false
 	exterior_fill.position = _to_world(Vector3(
 		_bounds_m.position.x + _bounds_m.size.x * 0.5,
-		3.2,
+		exterior_soft_fill_height_m,
 		_bounds_m.position.y + _bounds_m.size.y * 0.5
 	))
 	parent.add_child(exterior_fill)
@@ -2093,11 +2132,12 @@ func _create_fp_fire_nodes(rects: Dictionary) -> void:
 
 		var fire_light := OmniLight3D.new()
 		fire_light.name = "FireLight"
-		fire_light.light_color = Color(1.0, 0.42, 0.12, 1.0)
+		fire_light.light_color = fp_fire_light_color
 		fire_light.light_energy = 0.0
 		fire_light.omni_range = fp_fire_light_range_min_m
-		fire_light.shadow_enabled = false
-		fire_light.position = Vector3(0.0, 0.65, 0.0)
+		fire_light.omni_attenuation = fp_fire_light_attenuation
+		fire_light.shadow_enabled = fp_fire_light_cast_shadows
+		fire_light.position = Vector3(0.0, fp_fire_light_height_m, 0.0)
 		fire_root.add_child(fire_light)
 
 		_fire_nodes_by_room[room_id] = {
