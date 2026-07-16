@@ -181,6 +181,8 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			if room.o2_upper < _upper_crit:
 				o2_ref = minf(room.o2, room.o2_upper)
 				room.fire_o2_ref = o2_ref
+	# Fuego prescrito: ignora la limitacion de O2 y sigue la curva t2.
+	var o2_independent: bool = bool(context.get("fire_o2_independent", false))
 	full_hrr_o2 = maxf(o2_min_ref + 0.001, full_hrr_o2)
 	var raw_o2_factor: float = _compute_o2_factor(o2_ref, full_hrr_o2, o2_min_ref)
 	var use_fds_extinction: bool = bool(context.get("fire_fds_extinction_enabled", false))
@@ -197,6 +199,10 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			extinction_o2_limit,
 			float(context.get("fire_fds_extinction_transition_width", 0.030))
 		)
+	var selected_o2_extinguished: bool = not o2_independent and (
+		(not use_fds_extinction and o2_ref <= o2_min_ref)
+		or (use_fds_extinction and o2_ref <= extinction_o2_limit)
+	)
 	var previous_hrr_kw: float = room.hrr_kw
 
 	var smoke_fill_fraction: float = clampf(
@@ -225,10 +231,6 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 		context,
 		ambient_c
 	)
-
-	# Si fire_o2_independent=true, el fuego sigue la curva t2 sin limitacion de O2.
-	# Es un modo analitico ideal, no el criterio de extincion oxygen-limited de FDS.
-	var o2_independent: bool = bool(context.get("fire_o2_independent", false))
 
 	var o2_factor_target: float = extinction_factor if use_fds_extinction else raw_o2_factor
 	if room.fire_time_s > 45.0:
@@ -380,6 +382,16 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	retained_generation_kw *= solid_fuel_scale
 	solid_fuel_demand_MJ = solid_pyrolysis_kw * dt / 1000.0
 
+	# F3.1: below the selected source's declared extinction limit there is no
+	# oxidant available for pyrolysis heat release or retained-gas generation.
+	# Apply this before updating the retained pool so the cutoff is atomic.
+	if selected_o2_extinguished:
+		solid_pyrolysis_kw = 0.0
+		solid_fuel_demand_MJ = 0.0
+		fresh_flame_target_kw = 0.0
+		smolder_target_kw = 0.0
+		retained_generation_kw = 0.0
+
 	# M5 early guard: bloquea re-acumulación de gases sin quemar post-backdraft.
 	# Condición: backdraft ya ocurrió, no estamos en la explosión activa, y O₂ aún no
 	# ha superado el umbral de backdraft (mezcla demasiado pobre para re-acumular).
@@ -443,7 +455,9 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 	# Temporizador de re-armado del backdraft
 	if room.backdraft_cooldown_s > 0.0:
 		room.backdraft_cooldown_s = maxf(0.0, room.backdraft_cooldown_s - dt)
-	if room.retained_unburned_MJ > 0.001 and opening_signal > 0.01:
+	if not selected_o2_extinguished \
+			and room.retained_unburned_MJ > 0.001 \
+			and opening_signal > 0.01:
 		var release_drive: float = room.ventilation_response_factor * maxf(0.15, oxygen_recovery_signal)
 
 		# ── LFL/UFL: comprobar que la mezcla gas/aire está en rango inflamable ──────
@@ -502,6 +516,9 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 				pool_release_cap_kw
 			) * clampf(release_drive, 0.0, 2.0)
 
+	if selected_o2_extinguished:
+		pool_release_target_kw = 0.0
+
 	var kawagoe_limit_kw: float = float(context.get("kawagoe_limit_kw", 0.0))
 	room.pyrolysis_kw = maxf(0.0, solid_pyrolysis_kw)
 	room.unburned_generation_kw = maxf(0.0, retained_generation_kw)
@@ -555,6 +572,9 @@ func step_room_fire(room: RoomModel, dt: float, context: Dictionary) -> bool:
 			room.hrr_kw = maxf(room.hrr_kw, bd_hrr_kw)
 			room.hrr_target_kw = maxf(room.hrr_target_kw, bd_hrr_kw)
 			room.burned_hrr_kw = maxf(0.0, room.hrr_kw)
+
+	if selected_o2_extinguished:
+		_apply_selected_o2_extinction_guard(room)
 
 	# M5 late guard: corta HRR zombie post-backdraft cuando no hay llama ni latencia.
 	# Opera durante la ventana en que O₂ está agotado y el fuego no puede sustentar llama,
@@ -1822,6 +1842,18 @@ func _can_sustain_latent_fire(
 		return false
 
 	return true
+
+
+func _apply_selected_o2_extinction_guard(room: RoomModel) -> void:
+	if room == null:
+		return
+	room.flame_hrr_target_kw = 0.0
+	room.smolder_hrr_target_kw = 0.0
+	room.pool_release_hrr_target_kw = 0.0
+	room.hrr_target_kw = 0.0
+	room.hrr_kw = 0.0
+	room.burned_hrr_kw = 0.0
+	room.fire_o2_extinguished = true
 
 
 func _extinguish_room_fire(room: RoomModel, fire: FireModel, burned_out: bool = false) -> bool:

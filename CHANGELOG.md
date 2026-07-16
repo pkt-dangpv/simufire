@@ -3,6 +3,21 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.1 selected-O2 extinction guard (2026-07-16)
+
+- Added a strict combustion invariant: when the selected O2 source is at or
+  below its extinction threshold, pyrolysis demand, retained-gas generation,
+  flame, smolder, pool release and actual HRR are zeroed atomically.
+- Preserved `fire_o2_independent` analytic behavior and retained the fire
+  object for existing reventilation semantics.
+- Added structural and Godot runtime regressions for below-threshold,
+  just-above-threshold and O2-independent operation.
+- Recorded a NO-GO for authoritative sealed Phase 3 state: the shadow still
+  reports incomplete flux ownership and non-zero mass/energy residuals.
+- Kept the visible `plume_lower` upper-O2 zombie open. In affected cases lower
+  O2 remains near ambient, so source authority must be resolved separately in
+  F3.1a before F3.2.
+
 ### Phase 3+ F3.0k.1g vertical transport audit (2026-07-16)
 
 - Audited active two-zone vertical openings, legacy net/directed fallbacks,

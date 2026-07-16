@@ -213,6 +213,13 @@ STOP gate: conservation per step, no negative zones, no boundary mass, O2E1
 clean, fire cannot sustain flaming below its declared O2 limit, FED OFF-path
 unchanged.
 
+Status 2026-07-16: **partial GO / authority NO-GO**. The selected-O2 extinction
+invariant is implemented and runtime-tested, but `phase3_canonical_zone_state_enabled`
+was not added. The shadow still reports incomplete flux ownership and non-zero
+mass/energy residuals. Affected visible zombie-fire cases select lower-zone O2
+through `plume_lower` while upper-zone O2 is exhausted, so F3.1a must establish
+the combustion-zone O2 authority before canonical state can be published.
+
 ### F3.2 - Exterior pressure and leakage
 
 Use canonical room mass/energy to solve gauge pressure and exterior gas flow.
@@ -295,13 +302,10 @@ not in the promotion commit.
 ## Immediate next step
 
 Use `docs/validation/PHASE3_CURRENT_WORKPLAN.md` as the operational checklist.
-F3.0k.1c has delivered the atomic multi-zone accepted-fraction primitive and
-an exact experimental CO + O2 to CO2 shadow bundle. It returned a partial GO:
-the primitive closes, but transport producers still report unresolved mask 7.
-The next step is F3.0k.1d: migrate one exact non-HVAC opening or parcel family
-without reconstructing any flux from post-mutation state. Delayed parcels
-require one accepted fraction to persist across creation, flight, delivery
-and refund; use direct doorway first if that lifecycle cannot be made exact in
-one phase. Do not begin HVAC work; HVAC is deferred to F3.5 after its own
-redesign gate. Do not promote or modify `project_room_state()` until the
-accepted non-HVAC transaction owns the inventory it currently reconstructs.
+F3.1 has delivered the selected-O2 extinction guard but returned NO-GO for
+authoritative sealed state. The next step is F3.1a: establish an explicit,
+default-OFF combustion O2-source contract for sealed/two-zone controls and
+measure HRR, O2 and FED deltas. Do not globally change `plume_lower`, publish
+the shadow into `RoomModel`, begin F3.2, or promote/modify
+`project_room_state()` until sealed ownership closes. HVAC remains deferred to
+F3.5 after its own redesign gate.

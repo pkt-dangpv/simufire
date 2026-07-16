@@ -30,6 +30,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.0k.1e parcel lifecycle: `docs/validation/PHASE3_F30K1E_DELAYED_PARCEL_ATOMIC.md`
 - F3.0k.1f immediate transport audit: `docs/validation/PHASE3_F30K1F_IMMEDIATE_TRANSPORT_AUDIT.md`
 - F3.0k.1g vertical transport audit: `docs/validation/PHASE3_F30K1G_VERTICAL_TRANSPORT_AUDIT.md`
+- F3.1 selected-O2 extinction: `docs/validation/PHASE3_F31_SELECTED_O2_EXTINCTION.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -82,9 +83,15 @@ F3.0k.1d doorway bundle. The legacy vertical net/directed fallbacks remain
 species-only because Thermal gas/energy and OES O2 use different solvers,
 thresholds and directions. A new complete vertical bundle is NO-GO.
 
-The next target is F3.1 authority restricted to a sealed single-room control,
-where opening, exterior and HVAC producers are absent. Zero-O2 extinction is
-the mandatory regression before any authority can be retained.
+F3.1 delivered the selected-O2 extinction invariant, but sealed state
+authority returned NO-GO. The shadow still lacks complete physical ownership
+and has non-zero mass/energy residuals. In addition, the visible upper-O2
+zombie is a source-selection problem: `plume_lower` can select ambient lower O2
+while upper O2 is exhausted.
+
+The next target is F3.1a, an opt-in combustion O2-source authority experiment
+for sealed/two-zone controls. It must close source semantics without publishing
+the full shadow state or globally changing `plume_lower`.
 
 ## Binding priority decision: HVAC last
 
@@ -104,13 +111,14 @@ The revised order is:
 7. F3.0k.1e delayed parcel atomic lifecycle. Completed, passive GO.
 8. F3.0k.1f horizontal background/counterflow audit. Completed NO-GO.
 9. F3.0k.1g vertical net/directed contract audit. Completed NO-GO; active two-zone path reuses F3.0k.1d.
-10. F3.1 authoritative sealed mode plus zero-O2 extinction regression. Current target.
-11. F3.2 exterior pressure/leakage for Group A.
-12. F3.3 interior openings for Group C.
-13. F3.4 remaining non-HVAC species, suppression and FED.
-14. HVAC-R0 redesign specification.
-15. F3.5 HVAC canonical integration as the last subsystem.
-16. F3.6 final corpus promotion and legacy retirement.
+10. F3.1 selected-O2 extinction guard. Completed GO; sealed state authority NO-GO.
+11. F3.1a sealed/two-zone combustion O2-source authority. Current target.
+12. F3.2 exterior pressure/leakage for Group A.
+13. F3.3 interior openings for Group C.
+14. F3.4 remaining non-HVAC species, suppression and FED.
+15. HVAC-R0 redesign specification.
+16. F3.5 HVAC canonical integration as the last subsystem.
+17. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
@@ -413,10 +421,10 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 
 ## Next prompt target
 
-Use GPT-5.6 for F3.1. Design the smallest authoritative mode restricted to a
-sealed single-room control. First add a deterministic regression proving that
-flaming and HRR cannot persist when the selected combustion O2 source is at or
-below the extinction threshold. Authority must remain default OFF, must not
-touch opening/exterior/HVAC paths and must roll back on any mismatch between
-canonical and legacy combustion ownership. Do not start F3.2 until sealed
-mass, energy, O2, species and FED invariants close.
+Use GPT-5.6 for F3.1a. Diagnose and design the smallest default-OFF authority
+for the O2 source used by combustion in sealed/two-zone controls. Compare
+`upper`, `lower` and plume-zone semantics using direct HRR/O2/FED evidence.
+Preserve reventilation and the analytic O2-independent mode. Do not publish
+the Phase 3 shadow into `RoomModel`, do not globally flip `plume_lower`, and do
+not start F3.2 until the selected source has an explicit physical contract and
+the sealed ownership residuals close.

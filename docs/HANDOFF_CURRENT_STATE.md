@@ -6,6 +6,31 @@ Date: 2026-07-16.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-16 - F3.1 selected-O2 extinction
+
+- F3.1 is split into a **GO for the selected-source extinction guard** and a
+  **NO-GO for authoritative sealed Phase 3 state**.
+- `CombustionSystem` now atomically zeros pyrolysis demand, retained-gas
+  generation, flame, smolder, pool release and HRR when the selected O2 source
+  reaches its declared extinction threshold. The analytic O2-independent mode
+  remains exempt.
+- The guard runs before retained-pool accumulation and leaves the `FireModel`
+  attached for existing reventilation semantics.
+- Runtime coverage proves cutoff below the threshold, no hard cutoff just
+  above it and no cutoff in analytic O2-independent mode.
+- A fresh 300 s `fuel_balance_diag_sealed` shadow run is bit-identical to the
+  official 115 legacy columns. It still shows 35 upper-O2 zombie rows because
+  `plume_lower` selects `o2_lower` near 20.9% while `o2_upper` is near 0.09%.
+- State authority was not implemented. The shadow still reports
+  `needs_flux_owner=1`, mass residual up to `0.08814274 kg` and energy residual
+  up to `25.83801043 kJ`.
+- Physics and ILV retain zero FAIL. Required validation remains 348/353 with
+  five VALID_GAP. Guardrails have only expected R2-1 while motor is dirty.
+- Next gate: F3.1a combustion O2-source authority, default OFF. Do not start
+  F3.2 or globally replace `plume_lower` without a dedicated STOP gate.
+- Binding record:
+  `docs/validation/PHASE3_F31_SELECTED_O2_EXTINCTION.md`.
+
 ## Current Session Update - 2026-07-16 - F3.0k.1g vertical audit
 
 - F3.0k.1g closes as a documentation-only **NO-GO for a new complete legacy
