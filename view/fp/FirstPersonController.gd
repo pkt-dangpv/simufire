@@ -184,9 +184,19 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var fp_fire_max_height_m: float = 1.75
 @export var fp_fire_ceiling_clearance_m: float = 0.10
 @export var fp_fire_ceiling_cap_thickness_m: float = 0.20
-@export var fp_fire_light_energy_per_1000kw: float = 2.2
+## Energia de la luz del fuego cuando HRR = 1000 kW (referencia 1 MW).
+## Relacion fisica: la fraccion radiante de un fuego es ~0.3 del HRR y la
+## luminosidad percibida crece de forma sublineal (ver exponente).
+@export var fp_fire_light_energy_per_1000kw: float = 2.4
+## Exponente de la ley de potencia energia = E_1MW * (HRR/1000)^exp.
+## 1.0 = lineal (fuegos pequenos casi no iluminan); 0.5-0.6 = perceptual
+## (un fuego de 50 kW ya ilumina la sala de forma visible).
+@export_range(0.3, 1.0, 0.05) var fp_fire_light_energy_exponent: float = 0.55
+## Alcance de la luz cuando HRR = 1000 kW. El alcance escala con sqrt(HRR)
+## (la iluminancia cae con 1/d^2): a 250 kW ilumina ~la mitad de radio.
+@export var fp_fire_light_range_at_1mw_m: float = 11.0
 @export var fp_fire_light_range_min_m: float = 2.0
-@export var fp_fire_light_range_max_m: float = 8.0
+@export var fp_fire_light_range_max_m: float = 14.0
 @export var fp_fire_light_color: Color = Color(1.0, 0.42, 0.12, 1.0)
 ## Sombras en la luz del fuego: la llama deja de iluminar a traves de
 ## muebles y paredes (recomendado; pocas luces, solo salas ardiendo).
@@ -2247,16 +2257,23 @@ func _update_fp_fire_item(room_id: int, item: Dictionary) -> void:
 
 	var fire_light := item.get("fire_light") as OmniLight3D
 	if fire_light != null:
-		var hrr_light_t: float = clampf(hrr_kw / 1000.0, 0.0, 4.0) if has_visible_fire else 0.0
+		# Ley de potencia HRR -> luz: energia = E_1MW * (HRR/1000)^exp, alcance
+		# proporcional a sqrt(HRR). Coherente con que la iluminancia de una
+		# fuente cae con 1/d^2 y la percepcion de brillo es sublineal.
+		var hrr_ratio: float = maxf(0.0, hrr_kw) / 1000.0 if has_visible_fire else 0.0
 		var smoke_transmission: float = _light_smoke_transmission_for_room(room_id, room_height_m)
-		var target_energy: float = fp_fire_light_energy_per_1000kw * hrr_light_t * smoke_transmission if fire_root.visible else 0.0
+		var target_energy: float = 0.0
+		if fire_root.visible and hrr_ratio > 0.0:
+			target_energy = fp_fire_light_energy_per_1000kw \
+				* pow(minf(hrr_ratio, 4.0), fp_fire_light_energy_exponent) \
+				* smoke_transmission
 		item["fire_light_energy_target"] = target_energy
 		fire_light.light_energy = target_energy
-		fire_light.omni_range = lerpf(
+		fire_light.omni_range = clampf(
+			fp_fire_light_range_at_1mw_m * sqrt(maxf(0.0, hrr_ratio)),
 			fp_fire_light_range_min_m,
-			fp_fire_light_range_max_m,
-			clampf(hrr_kw / 1800.0, 0.0, 1.0)
-		) * lerpf(0.58, 1.0, smoke_transmission)
+			fp_fire_light_range_max_m
+		) * lerpf(0.70, 1.0, smoke_transmission)
 		var light_top_m: float = maxf(0.25, available_height_m - 0.10)
 		fire_light.position.y = minf(light_top_m, maxf(0.25, current_height * 0.45 + 0.45))
 	if fire_root.visible:

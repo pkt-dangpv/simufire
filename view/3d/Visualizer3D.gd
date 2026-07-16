@@ -158,9 +158,15 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var fire_ceiling_cap_max_radius_m: float = 1.35
 @export var fire_ceiling_cap_thickness_m: float = 0.14
 @export var fire_flicker_strength: float = 0.12
+## Energia de la luz del fuego cuando HRR = 1000 kW (referencia 1 MW).
 @export var fire_light_energy_per_1000kw: float = 2.4
+## Exponente de la ley de potencia energia = E_1MW * (HRR/1000)^exp.
+## 0.5-0.6 = perceptual (fuegos pequenos ya iluminan); 1.0 = lineal.
+@export_range(0.3, 1.0, 0.05) var fire_light_energy_exponent: float = 0.55
+## Alcance de la luz a 1 MW; escala con sqrt(HRR).
+@export var fire_light_range_at_1mw_m: float = 10.0
 @export var fire_light_range_min_m: float = 2.0
-@export var fire_light_range_max_m: float = 9.5
+@export var fire_light_range_max_m: float = 12.0
 @export var fire_light_color: Color = Color(1.0, 0.42, 0.12, 1.0)
 ## Sombras en la luz del fuego (evita iluminar a traves de paredes/muebles).
 ## En la vista dollhouse el coste suele compensar solo con pocas salas ardiendo.
@@ -2353,12 +2359,21 @@ func _update_fire_visual(item: Dictionary, rect: Rect2, room_height_m: float, hr
 	_update_fire_smoke_plume(item, fire_pos, fire_base_y_m, room_height_m, hrr_kw, current_radius)
 	var fire_light := item.get("fire_light") as OmniLight3D
 	if fire_light != null:
-		var hrr_t: float = clampf(hrr_kw / 1000.0, 0.0, 4.0)
+		# Misma ley de potencia HRR -> luz que en FP (ver FirstPersonController).
+		var hrr_ratio: float = maxf(0.0, hrr_kw) / 1000.0
 		var smoke_transmission: float = float(item.get("smoke_light_transmission", 1.0))
-		var target_energy: float = fire_light_energy_per_1000kw * hrr_t * smoke_transmission if fire_root.visible else 0.0
+		var target_energy: float = 0.0
+		if fire_root.visible and hrr_ratio > 0.0:
+			target_energy = fire_light_energy_per_1000kw \
+				* pow(minf(hrr_ratio, 4.0), fire_light_energy_exponent) \
+				* smoke_transmission
 		item["fire_light_energy_target"] = target_energy
 		fire_light.light_energy = target_energy
-		fire_light.omni_range = lerpf(fire_light_range_min_m, fire_light_range_max_m, clampf(hrr_kw / 1800.0, 0.0, 1.0)) * lerpf(0.58, 1.0, smoke_transmission)
+		fire_light.omni_range = clampf(
+			fire_light_range_at_1mw_m * sqrt(maxf(0.0, hrr_ratio)),
+			fire_light_range_min_m,
+			fire_light_range_max_m
+		) * lerpf(0.70, 1.0, smoke_transmission)
 		fire_light.position.y = maxf(0.35, minf(available_height_m - 0.10, current_height * 0.45 + 0.45)) * meters_to_units
 	if fire_root.visible:
 		_animate_fire_item(item)
