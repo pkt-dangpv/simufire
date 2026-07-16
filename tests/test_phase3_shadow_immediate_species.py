@@ -90,7 +90,7 @@ class TestPhase3ShadowImmediateSpecies(unittest.TestCase):
 
     def test_two_zone_direct_and_parcels_keep_separate_causes(self):
         self.assertIn('"doorway_species_direct"', GAS)
-        self.assertIn('"delayed_species_parcel_carve"', SYSTEM)
+        self.assertIn('"delayed_parcel_carve"', SYSTEM)
         self.assertIn('"background_species_exchange"', GAS)
         self.assertIn('"doorway_species_counterflow"', GAS)
 

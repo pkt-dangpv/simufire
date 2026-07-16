@@ -76,10 +76,15 @@ class TestPhase3ShadowSpeciesReservoir(unittest.TestCase):
             self.assertIn(f'"{name}"', species)
             self.assertIn(f'"{name}"', upper_species)
 
-    def test_smoke_and_irritants_remain_outside_f30f_contract(self):
+    def test_f30k1e_extends_contract_to_smoke_and_irritants(self):
         species = _function(GAS, "_phase3_shadow_parcel_species")
-        for excluded in ("smoke", "hcl", "acrolein", "formaldehyde", "o2"):
-            self.assertNotIn(f'"{excluded}"', species)
+        for included in (
+            "smoke", "co", "co2", "hcn", "hcl", "acrolein", "formaldehyde"
+        ):
+            self.assertIn(f'"{included}"', species)
+        created = _function(GAS, "_record_phase3_shadow_parcel_created")
+        for quantity in ("gas_mass_kg", "sensible_enthalpy_kj", "o2_kg"):
+            self.assertIn(f'"{quantity}"', created)
 
     def test_release_records_delivered_and_refunded_local_values(self):
         release = _function(GAS, "_release_pending_interior_deliveries")
@@ -116,15 +121,16 @@ class TestPhase3ShadowSpeciesReservoir(unittest.TestCase):
         self.assertIn('"cancelled":', apply_event)
         self.assertIn("_species_transit_reservoir.erase(parcel_id)", apply_event)
 
-    def test_events_create_separate_upper_and_lower_shadow_requests(self):
+    def test_events_create_atomic_upper_and_lower_routes(self):
         apply_event = _function(SYSTEM, "apply_species_transit_event")
-        self.assertIn('"delayed_species_parcel_carve"', apply_event)
-        self.assertIn('"delayed_species_parcel_delivery"', apply_event)
-        self.assertIn('"delayed_species_parcel_refund"', apply_event)
-        splitter = _function(SYSTEM, "_add_transit_zone_requests")
-        self.assertIn("ZONE_UPPER", splitter)
-        self.assertIn("ZONE_LOWER", splitter)
-        self.assertIn("_lower_transit_species", splitter)
+        self.assertIn("_add_parcel_carve_bundle", apply_event)
+        self.assertIn("_add_parcel_resolution_bundle", apply_event)
+        carve = _function(SYSTEM, "_add_parcel_carve_bundle")
+        resolution = _function(SYSTEM, "_append_parcel_resolution_routes")
+        for body in (carve, resolution):
+            self.assertIn("ZONE_UPPER", body)
+            self.assertIn("ZONE_LOWER", body)
+            self.assertIn("make_atomic_route", body)
 
     def test_anomalies_are_visible(self):
         apply_event = _function(SYSTEM, "apply_species_transit_event")
@@ -151,10 +157,12 @@ class TestPhase3ShadowSpeciesReservoir(unittest.TestCase):
                 f'"phase3_shadow_species_conservation_residual_{species}_kg"', SYSTEM
             )
 
-    def test_transit_events_do_not_become_same_step_room_requests(self):
+    def test_transit_events_do_not_become_independent_simple_requests(self):
         collector = _function(ENGINE, "_phase3_shadow_collect_parcel_species_events")
         self.assertNotIn("make_request", collector)
         self.assertNotIn("add_request", collector)
+        apply_event = _function(SYSTEM, "apply_species_transit_event")
+        self.assertNotIn("_add_transit_zone_requests", apply_event)
 
     def test_csv_telemetry_is_shadow_gated(self):
         self.assertIn("if phase3_canonical_zone_shadow_enabled:", LOG)

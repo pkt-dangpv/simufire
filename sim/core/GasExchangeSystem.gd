@@ -527,17 +527,25 @@ func _phase3_shadow_assign_parcel_identity(entry: Dictionary) -> void:
 
 func _phase3_shadow_parcel_species(entry: Dictionary) -> Dictionary:
 	return {
+		"smoke": maxf(0.0, float(entry.get("smoke_kg", 0.0))),
 		"co": maxf(0.0, float(entry.get("co_kg", 0.0))),
 		"co2": maxf(0.0, float(entry.get("co2_kg", 0.0))),
 		"hcn": maxf(0.0, float(entry.get("hcn_kg", 0.0))),
+		"hcl": maxf(0.0, float(entry.get("hcl_kg", 0.0))),
+		"acrolein": maxf(0.0, float(entry.get("acrolein_kg", 0.0))),
+		"formaldehyde": maxf(0.0, float(entry.get("formaldehyde_kg", 0.0))),
 	}
 
 
 func _phase3_shadow_parcel_upper_species(entry: Dictionary) -> Dictionary:
 	return {
+		"smoke": maxf(0.0, float(entry.get("smoke_kg", 0.0))),
 		"co": maxf(0.0, float(entry.get("co_upper_kg", 0.0))),
 		"co2": maxf(0.0, float(entry.get("co2_upper_kg", 0.0))),
 		"hcn": maxf(0.0, float(entry.get("hcn_upper_kg", 0.0))),
+		"hcl": maxf(0.0, float(entry.get("hcl_kg", 0.0))),
+		"acrolein": maxf(0.0, float(entry.get("acrolein_kg", 0.0))),
+		"formaldehyde": maxf(0.0, float(entry.get("formaldehyde_kg", 0.0))),
 	}
 
 
@@ -552,6 +560,9 @@ func _record_phase3_shadow_parcel_created(entry: Dictionary) -> void:
 		"connection_id": String(entry.get("connection_id", "")),
 		"source_zone": "upper",
 		"destination_zone": "upper",
+		"gas_mass_kg": maxf(0.0, float(entry.get("upper_gas_kg", 0.0))),
+		"sensible_enthalpy_kj": maxf(0.0, float(entry.get("upper_energy_kj", 0.0))),
+		"o2_kg": float(entry.get("o2_kg", 0.0)),
 		"species_kg": _phase3_shadow_parcel_species(entry),
 		"upper_species_kg": _phase3_shadow_parcel_upper_species(entry),
 	})
@@ -1894,14 +1905,22 @@ func _release_pending_interior_deliveries(
 		target.co2_upper_kg = clampf(target.co2_upper_kg, 0.0, target.co2_kg)
 		target.hcn_upper_kg = clampf(target.hcn_upper_kg, 0.0, target.hcn_kg)
 		var delivered_shadow_species_kg: Dictionary = {
+			"smoke": maxf(0.0, delivered_smoke_kg),
 			"co": maxf(0.0, co_parcel_kg),
 			"co2": maxf(0.0, co2_parcel_kg),
 			"hcn": maxf(0.0, hcn_parcel_kg),
+			"hcl": maxf(0.0, hcl_parcel_kg),
+			"acrolein": maxf(0.0, acrolein_parcel_kg),
+			"formaldehyde": maxf(0.0, formaldehyde_parcel_kg),
 		}
 		var delivered_shadow_upper_species_kg: Dictionary = {
+			"smoke": maxf(0.0, delivered_smoke_kg),
 			"co": maxf(0.0, co_upper_parcel_kg),
 			"co2": maxf(0.0, co2_upper_parcel_kg),
 			"hcn": maxf(0.0, hcn_upper_parcel_kg),
+			"hcl": maxf(0.0, hcl_parcel_kg),
+			"acrolein": maxf(0.0, acrolein_parcel_kg),
+			"formaldehyde": maxf(0.0, formaldehyde_parcel_kg),
 		}
 		var refunded_shadow_species_kg: Dictionary = {}
 		var refunded_shadow_upper_species_kg: Dictionary = {}

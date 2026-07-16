@@ -100,8 +100,8 @@ class TestPhase3SemanticOwnershipClaims(unittest.TestCase):
         transit = _function(SYSTEM, "apply_species_transit_event")
         created = transit.split('"created":', 1)[1].split('"resolved":', 1)[0]
         resolved = transit.split('"resolved":', 1)[1].split('"cancelled":', 1)[0]
-        self.assertIn("_register_split_species_claims", created)
-        self.assertNotIn("_register_split_species_claims", resolved)
+        self.assertIn("_register_split_parcel_species_claims", created)
+        self.assertNotIn("_register_split_parcel_species_claims", resolved)
 
     def test_engine_registers_non_transport_chemical_claims(self):
         self.assertIn('"chemical:%d:combustion"', ENGINE)

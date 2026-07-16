@@ -42,13 +42,13 @@ class TestAtomicBundleApi(unittest.TestCase):
         self.assertIn("gas_mass_kg >= 0.0", route)
         self.assertIn("sensible_enthalpy_kj >= 0.0", route)
         self.assertIn("o2_kg >= 0.0", route)
-        self.assertIn("species_name not in TRANSIT_SPECIES", route)
+        self.assertIn("species_name not in PARCEL_SPECIES", route)
 
     def test_route_requires_nonempty_payload_and_valid_zones(self):
         validate = _function(SYSTEM, "_atomic_route_is_valid")
         self.assertIn("source_zone not in [ZONE_UPPER, ZONE_LOWER]", validate)
         self.assertIn("destination_zone not in [ZONE_UPPER, ZONE_LOWER]", validate)
-        self.assertIn("_sum_transit_species(raw_species) > 0.0", validate)
+        self.assertIn("_sum_parcel_species(raw_species) > 0.0", validate)
 
     def test_bundle_has_one_id_and_ordered_routes(self):
         bundle = _function(SYSTEM, "make_atomic_bundle")

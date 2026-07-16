@@ -7,6 +7,9 @@ const ZONE_UPPER: String = "upper"
 const ZONE_LOWER: String = "lower"
 const EXTERIOR_ID: int = -1
 const TRANSIT_SPECIES: Array[String] = ["co", "co2", "hcn"]
+const PARCEL_SPECIES: Array[String] = [
+	"smoke", "co", "co2", "hcn", "hcl", "acrolein", "formaldehyde"
+]
 const SEMANTIC_QUANTITY_BITS: Dictionary = {
 	"gas_mass": 1,
 	"enthalpy": 2,
@@ -14,6 +17,10 @@ const SEMANTIC_QUANTITY_BITS: Dictionary = {
 	"co": 8,
 	"co2": 16,
 	"hcn": 32,
+	"smoke": 64,
+	"hcl": 128,
+	"acrolein": 256,
+	"formaldehyde": 512,
 }
 
 var _snapshots: Dictionary = {}
@@ -32,6 +39,11 @@ var _species_transit_cancelled_kg: Dictionary = {}
 var _species_transit_orphan_delivery_count: int = 0
 var _species_transit_duplicate_id_count: int = 0
 var _species_transit_negative_balance_count: int = 0
+var _parcel_atomic_created_payload: Dictionary = {}
+var _parcel_atomic_delivered_payload: Dictionary = {}
+var _parcel_atomic_refunded_payload: Dictionary = {}
+var _parcel_atomic_cancelled_payload: Dictionary = {}
+var _parcel_atomic_unfinalized_resolution_count: int = 0
 var _immediate_background_species_kg: Dictionary = {}
 var _immediate_counterflow_species_kg: Dictionary = {}
 var _vertical_net_species_kg: Dictionary = {}
@@ -107,6 +119,11 @@ func reset() -> void:
 	_species_transit_orphan_delivery_count = 0
 	_species_transit_duplicate_id_count = 0
 	_species_transit_negative_balance_count = 0
+	_parcel_atomic_created_payload.clear()
+	_parcel_atomic_delivered_payload.clear()
+	_parcel_atomic_refunded_payload.clear()
+	_parcel_atomic_cancelled_payload.clear()
+	_parcel_atomic_unfinalized_resolution_count = 0
 	_immediate_background_species_kg.clear()
 	_immediate_counterflow_species_kg.clear()
 	_vertical_net_species_kg.clear()
@@ -205,18 +222,26 @@ func apply_species_transit_event(event: Dictionary) -> void:
 			if _species_transit_reservoir.has(parcel_id):
 				_species_transit_duplicate_id_count += 1
 				return
-			var created_species: Dictionary = _transit_species(event.get("species_kg", {}))
-			var created_upper_species: Dictionary = _bounded_upper_transit_species(
+			var created_species: Dictionary = _parcel_species(event.get("species_kg", {}))
+			var created_upper_species: Dictionary = _bounded_upper_parcel_species(
 				event.get("upper_species_kg", {}), created_species
 			)
-			_species_transit_reservoir[parcel_id] = {
+			var stored: Dictionary = {
 				"source_room_id": int(event.get("source_room_id", EXTERIOR_ID)),
 				"destination_room_id": int(event.get("destination_room_id", EXTERIOR_ID)),
+				"connection_id": String(event.get("connection_id", "")),
+				"gas_mass_kg": maxf(0.0, float(event.get("gas_mass_kg", 0.0))),
+				"sensible_enthalpy_kj": maxf(
+					0.0, float(event.get("sensible_enthalpy_kj", 0.0))
+				),
+				"o2_kg": float(event.get("o2_kg", 0.0)),
 				"species_kg": created_species.duplicate(true),
 				"upper_species_kg": created_upper_species.duplicate(true),
+				"accepted_fraction": -1.0,
 			}
-			_add_transit_species(_species_transit_created_kg, created_species)
-			_register_split_species_claims(
+			_species_transit_reservoir[parcel_id] = stored
+			_add_parcel_species(_species_transit_created_kg, created_species)
+			_register_split_parcel_species_claims(
 				event,
 				"GasExchangeSystem",
 				"delayed_parcel",
@@ -224,72 +249,337 @@ func apply_species_transit_event(event: Dictionary) -> void:
 				created_species,
 				created_upper_species
 			)
-			register_semantic_unresolved(event, ["gas_mass", "enthalpy", "o2"])
-			_add_transit_zone_requests(
-				parcel_id + ":carve",
-				"delayed_species_parcel_carve",
-				int(event.get("source_room_id", EXTERIOR_ID)),
-				EXTERIOR_ID,
-				created_species,
-				created_upper_species
-			)
+			_register_parcel_quantity_claims(event)
+			_add_parcel_carve_bundle(parcel_id, stored)
 		"resolved":
-			var delivered_species: Dictionary = _transit_species(
+			var delivered_species: Dictionary = _parcel_species(
 				event.get("delivered_species_kg", {})
 			)
-			var refunded_species: Dictionary = _transit_species(
+			var refunded_species: Dictionary = _parcel_species(
 				event.get("refunded_species_kg", {})
 			)
-			var delivered_upper_species: Dictionary = _bounded_upper_transit_species(
+			var delivered_upper_species: Dictionary = _bounded_upper_parcel_species(
 				event.get("delivered_upper_species_kg", {}), delivered_species
 			)
-			var refunded_upper_species: Dictionary = _bounded_upper_transit_species(
+			var refunded_upper_species: Dictionary = _bounded_upper_parcel_species(
 				event.get("refunded_upper_species_kg", {}), refunded_species
 			)
-			_add_transit_species(_species_transit_delivered_kg, delivered_species)
-			_add_transit_species(_species_transit_refunded_kg, refunded_species)
 			if not _species_transit_reservoir.has(parcel_id):
 				_species_transit_orphan_delivery_count += 1
 				return
-			var stored: Dictionary = _species_transit_reservoir[parcel_id]
-			var stored_species: Dictionary = stored.get("species_kg", {})
-			for species_name in TRANSIT_SPECIES:
+			var resolved_stored: Dictionary = _species_transit_reservoir[parcel_id]
+			var accepted_fraction: float = float(
+				resolved_stored.get("accepted_fraction", -1.0)
+			)
+			if accepted_fraction < 0.0:
+				_parcel_atomic_unfinalized_resolution_count += 1
+				_species_transit_reservoir.erase(parcel_id)
+				return
+			var stored_species: Dictionary = resolved_stored.get("species_kg", {})
+			for species_name in PARCEL_SPECIES:
 				var resolved_kg: float = float(delivered_species.get(species_name, 0.0)) \
 						+ float(refunded_species.get(species_name, 0.0))
-				if resolved_kg > float(stored_species.get(species_name, 0.0)) + 1.0e-9:
+				if absf(
+					resolved_kg - float(stored_species.get(species_name, 0.0))
+				) > 1.0e-9:
 					_species_transit_negative_balance_count += 1
-			_add_transit_zone_requests(
-				parcel_id + ":delivery",
-				"delayed_species_parcel_delivery",
-				EXTERIOR_ID,
-				int(event.get("destination_room_id", EXTERIOR_ID)),
+			_add_parcel_species(_species_transit_delivered_kg, delivered_species)
+			_add_parcel_species(_species_transit_refunded_kg, refunded_species)
+			_add_parcel_resolution_bundle(
+				parcel_id,
+				resolved_stored,
 				delivered_species,
-				delivered_upper_species
-			)
-			_add_transit_zone_requests(
-				parcel_id + ":refund",
-				"delayed_species_parcel_refund",
-				EXTERIOR_ID,
-				int(event.get("source_room_id", EXTERIOR_ID)),
+				delivered_upper_species,
 				refunded_species,
-				refunded_upper_species
+				refunded_upper_species,
+				false
 			)
 			_species_transit_reservoir.erase(parcel_id)
 		"cancelled":
-			var cancelled_species: Dictionary = _transit_species(event.get("species_kg", {}))
-			_add_transit_species(_species_transit_cancelled_kg, cancelled_species)
+			var cancelled_species: Dictionary = _parcel_species(event.get("species_kg", {}))
 			if not _species_transit_reservoir.has(parcel_id):
 				_species_transit_orphan_delivery_count += 1
 				return
 			var stored_cancelled: Dictionary = _species_transit_reservoir[parcel_id]
+			var cancelled_fraction: float = float(
+				stored_cancelled.get("accepted_fraction", -1.0)
+			)
+			if cancelled_fraction < 0.0:
+				_parcel_atomic_unfinalized_resolution_count += 1
+				_species_transit_reservoir.erase(parcel_id)
+				return
 			var stored_cancelled_species: Dictionary = stored_cancelled.get("species_kg", {})
-			for species_name in TRANSIT_SPECIES:
-				if float(cancelled_species.get(species_name, 0.0)) \
-						> float(stored_cancelled_species.get(species_name, 0.0)) + 1.0e-9:
+			for species_name in PARCEL_SPECIES:
+				if absf(
+					float(cancelled_species.get(species_name, 0.0))
+							- float(stored_cancelled_species.get(species_name, 0.0))
+				) > 1.0e-9:
 					_species_transit_negative_balance_count += 1
+			_add_parcel_species(_species_transit_cancelled_kg, cancelled_species)
+			_add_parcel_resolution_bundle(
+				parcel_id,
+				stored_cancelled,
+				{},
+				{},
+				cancelled_species,
+				_bounded_upper_parcel_species(
+					event.get("upper_species_kg", {}), cancelled_species
+				),
+				true
+			)
 			_species_transit_reservoir.erase(parcel_id)
 		_:
 			_species_transit_orphan_delivery_count += 1
+
+
+func _register_parcel_quantity_claims(event: Dictionary) -> void:
+	var source_room_id: int = int(event.get("source_room_id", EXTERIOR_ID))
+	var destination_room_id: int = int(event.get("destination_room_id", EXTERIOR_ID))
+	for quantity in ["gas_mass", "enthalpy"]:
+		var amount: float = maxf(
+			0.0,
+			float(event.get(
+				"gas_mass_kg" if quantity == "gas_mass" else "sensible_enthalpy_kj",
+				0.0
+			))
+		)
+		register_semantic_claim({
+			"connection_id": String(event.get("connection_id", "")),
+			"producer": "GasExchangeSystem",
+			"transport_family": "delayed_parcel",
+			"boundary_kind": "interior_opening",
+			"source_room_id": source_room_id,
+			"destination_room_id": destination_room_id,
+			"source_zone": ZONE_UPPER,
+			"destination_zone": ZONE_UPPER,
+			"quantity": quantity,
+			"amount": amount,
+		})
+	var signed_o2_kg: float = float(event.get("o2_kg", 0.0))
+	register_semantic_claim({
+		"connection_id": String(event.get("connection_id", "")),
+		"producer": "GasExchangeSystem",
+		"transport_family": "delayed_parcel",
+		"boundary_kind": "interior_opening",
+		"source_room_id": source_room_id if signed_o2_kg >= 0.0 else destination_room_id,
+		"destination_room_id": destination_room_id if signed_o2_kg >= 0.0 else source_room_id,
+		"source_zone": ZONE_UPPER,
+		"destination_zone": ZONE_UPPER,
+		"quantity": "o2",
+		"amount": absf(signed_o2_kg),
+	})
+
+
+func _add_parcel_carve_bundle(parcel_id: String, stored: Dictionary) -> void:
+	var source_room_id: int = int(stored.get("source_room_id", EXTERIOR_ID))
+	var destination_room_id: int = int(stored.get("destination_room_id", EXTERIOR_ID))
+	var upper_species: Dictionary = _bounded_upper_parcel_species(
+		stored.get("upper_species_kg", {}), stored.get("species_kg", {})
+	)
+	var lower_species: Dictionary = _lower_parcel_species(
+		stored.get("species_kg", {}), upper_species
+	)
+	var signed_o2_kg: float = float(stored.get("o2_kg", 0.0))
+	var routes: Array = []
+	routes.append(make_atomic_route(
+		parcel_id + ":carve:upper",
+		"delayed_parcel_carve",
+		source_room_id,
+		EXTERIOR_ID,
+		ZONE_UPPER,
+		ZONE_UPPER,
+		float(stored.get("gas_mass_kg", 0.0)),
+		float(stored.get("sensible_enthalpy_kj", 0.0)),
+		maxf(0.0, signed_o2_kg),
+		upper_species
+	))
+	if _sum_parcel_species(lower_species) > 0.0:
+		routes.append(make_atomic_route(
+			parcel_id + ":carve:lower",
+			"delayed_parcel_carve",
+			source_room_id,
+			EXTERIOR_ID,
+			ZONE_LOWER,
+			ZONE_LOWER,
+			0.0,
+			0.0,
+			0.0,
+			lower_species
+		))
+	if signed_o2_kg < 0.0:
+		routes.append(make_atomic_route(
+			parcel_id + ":carve:o2_reverse",
+			"delayed_parcel_carve",
+			destination_room_id,
+			EXTERIOR_ID,
+			ZONE_UPPER,
+			ZONE_UPPER,
+			0.0,
+			0.0,
+			-signed_o2_kg,
+			{}
+		))
+	for route in routes:
+		_record_request_telemetry(route)
+	add_atomic_bundle(make_atomic_bundle(
+		parcel_id + ":carve",
+		"delayed_parcel_carve",
+		routes,
+		{
+			"kind": "delayed_parcel_carve",
+			"parcel_id": parcel_id,
+			"transport_family": "delayed_parcel",
+		}
+	))
+
+
+func _add_parcel_resolution_bundle(
+		parcel_id: String,
+		stored: Dictionary,
+		delivered_species: Dictionary,
+		delivered_upper_species: Dictionary,
+		refunded_species: Dictionary,
+		refunded_upper_species: Dictionary,
+		cancelled: bool
+	) -> void:
+	var accepted_fraction: float = clampf(
+		float(stored.get("accepted_fraction", 0.0)), 0.0, 1.0
+	)
+	var source_room_id: int = int(stored.get("source_room_id", EXTERIOR_ID))
+	var destination_room_id: int = int(stored.get("destination_room_id", EXTERIOR_ID))
+	var signed_o2_kg: float = float(stored.get("o2_kg", 0.0))
+	var routes: Array = []
+	if cancelled:
+		# Legacy drops the parcel when its destination no longer exists. Keep that
+		# loss explicit as a terminal cancelled reservoir instead of fabricating a
+		# refund to the source room.
+		_add_parcel_payload(
+			_parcel_atomic_cancelled_payload,
+			_scaled_parcel_payload(stored, accepted_fraction)
+		)
+		return
+	else:
+		_append_parcel_resolution_routes(
+			routes,
+			parcel_id + ":delivery",
+			destination_room_id,
+			delivered_species,
+			delivered_upper_species,
+			float(stored.get("gas_mass_kg", 0.0)) * accepted_fraction,
+			float(stored.get("sensible_enthalpy_kj", 0.0)) * accepted_fraction,
+			maxf(0.0, signed_o2_kg) * accepted_fraction,
+			accepted_fraction
+		)
+		_append_parcel_resolution_routes(
+			routes,
+			parcel_id + ":refund",
+			source_room_id,
+			refunded_species,
+			refunded_upper_species,
+			0.0,
+			0.0,
+			0.0,
+			accepted_fraction
+		)
+		if signed_o2_kg < 0.0:
+			routes.append(make_atomic_route(
+				parcel_id + ":delivery:o2_reverse",
+				"delayed_parcel_delivery",
+				EXTERIOR_ID,
+				source_room_id,
+				ZONE_UPPER,
+				ZONE_UPPER,
+				0.0,
+				0.0,
+				-signed_o2_kg * accepted_fraction,
+				{}
+			))
+		_add_parcel_payload(
+			_parcel_atomic_delivered_payload,
+			{
+				"gas_mass_kg": float(stored.get("gas_mass_kg", 0.0)) * accepted_fraction,
+				"sensible_enthalpy_kj": float(
+					stored.get("sensible_enthalpy_kj", 0.0)
+				) * accepted_fraction,
+				"o2_kg": signed_o2_kg * accepted_fraction,
+				"species_kg": _scaled_parcel_species(
+					delivered_species, accepted_fraction
+				),
+			}
+		)
+		_add_parcel_payload(
+			_parcel_atomic_refunded_payload,
+			{
+				"gas_mass_kg": 0.0,
+				"sensible_enthalpy_kj": 0.0,
+				"o2_kg": 0.0,
+				"species_kg": _scaled_parcel_species(
+					refunded_species, accepted_fraction
+				),
+			}
+		)
+	for route in routes:
+		_record_request_telemetry(route)
+	if not routes.is_empty():
+		add_atomic_bundle(make_atomic_bundle(
+			parcel_id + ":resolve",
+			"delayed_parcel_resolve",
+			routes,
+			{
+				"kind": "delayed_parcel_resolution",
+				"parcel_id": parcel_id,
+				"transport_family": "delayed_parcel",
+				"persistent_accepted_fraction": accepted_fraction,
+			}
+		))
+
+
+func _append_parcel_resolution_routes(
+		routes: Array,
+		route_prefix: String,
+		destination_room_id: int,
+		total_species: Dictionary,
+		upper_species: Dictionary,
+		gas_mass_kg: float,
+		sensible_enthalpy_kj: float,
+		o2_kg: float,
+		accepted_fraction: float
+	) -> void:
+	var accepted_upper_species: Dictionary = _scaled_parcel_species(
+		_bounded_upper_parcel_species(upper_species, total_species),
+		accepted_fraction
+	)
+	var accepted_lower_species: Dictionary = _scaled_parcel_species(
+		_lower_parcel_species(total_species, upper_species),
+		accepted_fraction
+	)
+	if gas_mass_kg > 0.0 or sensible_enthalpy_kj > 0.0 or o2_kg > 0.0 \
+			or _sum_parcel_species(accepted_upper_species) > 0.0:
+		routes.append(make_atomic_route(
+			route_prefix + ":upper",
+			"delayed_parcel_resolution",
+			EXTERIOR_ID,
+			destination_room_id,
+			ZONE_UPPER,
+			ZONE_UPPER,
+			gas_mass_kg,
+			sensible_enthalpy_kj,
+			o2_kg,
+			accepted_upper_species
+		))
+	if _sum_parcel_species(accepted_lower_species) > 0.0:
+		routes.append(make_atomic_route(
+			route_prefix + ":lower",
+			"delayed_parcel_resolution",
+			EXTERIOR_ID,
+			destination_room_id,
+			ZONE_LOWER,
+			ZONE_LOWER,
+			0.0,
+			0.0,
+			0.0,
+			accepted_lower_species
+		))
 
 
 func apply_immediate_species_event(event: Dictionary) -> void:
@@ -717,7 +1007,13 @@ func _semantic_owner_for_claim(claim: Dictionary) -> String:
 		"interior_opening", "vertical_opening", "exterior_opening":
 			if quantity in TRANSIT_SPECIES:
 				return "GasExchangeSystem"
+			if transport_family == "delayed_parcel" \
+					and quantity in PARCEL_SPECIES:
+				return "GasExchangeSystem"
 			if transport_family == "doorway_bulk" \
+					and quantity in ["gas_mass", "enthalpy", "o2"]:
+				return "GasExchangeSystem"
+			if transport_family == "delayed_parcel" \
 					and quantity in ["gas_mass", "enthalpy", "o2"]:
 				return "GasExchangeSystem"
 			return ""
@@ -803,6 +1099,66 @@ func _register_split_species_claims(
 		_lower_transit_species(total_species, upper_species)
 	)
 	return upper_accepted or lower_accepted
+
+
+func _register_split_parcel_species_claims(
+		event: Dictionary,
+		producer: String,
+		transport_family: String,
+		boundary_kind: String,
+		total_species: Dictionary,
+		upper_species: Dictionary
+	) -> bool:
+	var upper_accepted: bool = _register_parcel_species_map_claims(
+		event,
+		producer,
+		transport_family,
+		boundary_kind,
+		ZONE_UPPER,
+		ZONE_UPPER,
+		upper_species
+	)
+	var lower_accepted: bool = _register_parcel_species_map_claims(
+		event,
+		producer,
+		transport_family,
+		boundary_kind,
+		ZONE_LOWER,
+		ZONE_LOWER,
+		_lower_parcel_species(total_species, upper_species)
+	)
+	return upper_accepted or lower_accepted
+
+
+func _register_parcel_species_map_claims(
+		event: Dictionary,
+		producer: String,
+		transport_family: String,
+		boundary_kind: String,
+		source_zone: String,
+		destination_zone: String,
+		species: Dictionary
+	) -> bool:
+	var connection_id: String = String(event.get("connection_id", ""))
+	var any_accepted: bool = false
+	for species_name in PARCEL_SPECIES:
+		var mass_kg: float = maxf(0.0, float(species.get(species_name, 0.0)))
+		if mass_kg <= 0.0:
+			continue
+		var status: String = register_semantic_claim({
+			"connection_id": connection_id,
+			"producer": producer,
+			"transport_family": transport_family,
+			"boundary_kind": boundary_kind,
+			"source_room_id": int(event.get("source_room_id", EXTERIOR_ID)),
+			"destination_room_id": int(event.get("destination_room_id", EXTERIOR_ID)),
+			"source_zone": source_zone,
+			"destination_zone": destination_zone,
+			"quantity": species_name,
+			"amount": mass_kg,
+		})
+		any_accepted = status == "accepted" or any_accepted
+	return any_accepted
 
 
 func _register_thermal_species_claims(
@@ -921,7 +1277,7 @@ func _semantic_conflict_summary() -> Dictionary:
 				conflict_energy_kj += contested
 			"o2":
 				conflict_o2_kg += contested
-			"co", "co2", "hcn":
+			"smoke", "co", "co2", "hcn", "hcl", "acrolein", "formaldehyde":
 				conflict_species_kg += contested
 	return {
 		"claim_count": _semantic_claim_count,
@@ -947,8 +1303,7 @@ func _semantic_conflict_summary() -> Dictionary:
 
 
 func _semantic_species_amount(amounts: Dictionary) -> float:
-	return float(amounts.get("co", 0.0)) + float(amounts.get("co2", 0.0)) \
-			+ float(amounts.get("hcn", 0.0))
+	return _sum_parcel_species(amounts)
 
 
 func _transit_species(raw_species) -> Dictionary:
@@ -957,6 +1312,85 @@ func _transit_species(raw_species) -> Dictionary:
 	for species_name in TRANSIT_SPECIES:
 		filtered[species_name] = maxf(0.0, float(species.get(species_name, 0.0)))
 	return filtered
+
+
+func _scaled_transit_species(species: Dictionary, fraction: float) -> Dictionary:
+	var scaled: Dictionary = {}
+	var safe_fraction: float = clampf(fraction, 0.0, 1.0)
+	for species_name in TRANSIT_SPECIES:
+		scaled[species_name] = maxf(
+			0.0, float(species.get(species_name, 0.0)) * safe_fraction
+		)
+	return scaled
+
+
+func _parcel_species(raw_species) -> Dictionary:
+	var species: Dictionary = raw_species if typeof(raw_species) == TYPE_DICTIONARY else {}
+	var filtered: Dictionary = {}
+	for species_name in PARCEL_SPECIES:
+		filtered[species_name] = maxf(0.0, float(species.get(species_name, 0.0)))
+	return filtered
+
+
+func _scaled_parcel_species(species: Dictionary, fraction: float) -> Dictionary:
+	var scaled: Dictionary = {}
+	var safe_fraction: float = clampf(fraction, 0.0, 1.0)
+	for species_name in PARCEL_SPECIES:
+		scaled[species_name] = maxf(
+			0.0, float(species.get(species_name, 0.0)) * safe_fraction
+		)
+	return scaled
+
+
+func _scaled_parcel_payload(stored: Dictionary, fraction: float) -> Dictionary:
+	var safe_fraction: float = clampf(fraction, 0.0, 1.0)
+	return {
+		"gas_mass_kg": maxf(
+			0.0, float(stored.get("gas_mass_kg", 0.0)) * safe_fraction
+		),
+		"sensible_enthalpy_kj": maxf(
+			0.0,
+			float(stored.get("sensible_enthalpy_kj", 0.0)) * safe_fraction
+		),
+		"o2_kg": float(stored.get("o2_kg", 0.0)) * safe_fraction,
+		"species_kg": _scaled_parcel_species(
+			stored.get("species_kg", {}), safe_fraction
+		),
+	}
+
+
+func _add_parcel_payload(target: Dictionary, payload: Dictionary) -> void:
+	target["gas_mass_kg"] = float(target.get("gas_mass_kg", 0.0)) \
+			+ float(payload.get("gas_mass_kg", 0.0))
+	target["sensible_enthalpy_kj"] = float(
+		target.get("sensible_enthalpy_kj", 0.0)
+	) + float(payload.get("sensible_enthalpy_kj", 0.0))
+	target["o2_kg"] = float(target.get("o2_kg", 0.0)) \
+			+ float(payload.get("o2_kg", 0.0))
+	var target_species: Dictionary = target.get("species_kg", {})
+	_add_parcel_species(target_species, payload.get("species_kg", {}))
+	target["species_kg"] = target_species
+
+
+func _bounded_upper_parcel_species(raw_upper, total_species: Dictionary) -> Dictionary:
+	var upper: Dictionary = _parcel_species(raw_upper)
+	for species_name in PARCEL_SPECIES:
+		upper[species_name] = minf(
+			float(upper.get(species_name, 0.0)),
+			float(total_species.get(species_name, 0.0))
+		)
+	return upper
+
+
+func _lower_parcel_species(total_species: Dictionary, upper_species: Dictionary) -> Dictionary:
+	var lower: Dictionary = {}
+	for species_name in PARCEL_SPECIES:
+		lower[species_name] = maxf(
+			0.0,
+			float(total_species.get(species_name, 0.0))
+					- float(upper_species.get(species_name, 0.0))
+		)
+	return lower
 
 
 func _bounded_upper_transit_species(raw_upper, total_species: Dictionary) -> Dictionary:
@@ -1087,9 +1521,22 @@ func _add_transit_species(target: Dictionary, species: Dictionary) -> void:
 				+ float(species.get(species_name, 0.0))
 
 
+func _add_parcel_species(target: Dictionary, species: Dictionary) -> void:
+	for species_name in PARCEL_SPECIES:
+		target[species_name] = float(target.get(species_name, 0.0)) \
+				+ float(species.get(species_name, 0.0))
+
+
 func _sum_transit_species(species: Dictionary) -> float:
 	var total_kg: float = 0.0
 	for species_name in TRANSIT_SPECIES:
+		total_kg += float(species.get(species_name, 0.0))
+	return total_kg
+
+
+func _sum_parcel_species(species: Dictionary) -> float:
+	var total_kg: float = 0.0
+	for species_name in PARCEL_SPECIES:
 		total_kg += float(species.get(species_name, 0.0))
 	return total_kg
 
@@ -1136,16 +1583,51 @@ func _inflight_transit_species() -> Dictionary:
 	var inflight: Dictionary = {}
 	for raw_record in _species_transit_reservoir.values():
 		var record: Dictionary = raw_record
-		_add_transit_species(inflight, record.get("species_kg", {}))
+		_add_parcel_species(inflight, record.get("species_kg", {}))
 	return inflight
 
 
+func _inflight_atomic_parcel_payload() -> Dictionary:
+	var inflight: Dictionary = {}
+	for raw_record in _species_transit_reservoir.values():
+		var record: Dictionary = raw_record
+		var accepted_fraction: float = maxf(
+			0.0, float(record.get("accepted_fraction", -1.0))
+		)
+		_add_parcel_payload(
+			inflight, _scaled_parcel_payload(record, accepted_fraction)
+		)
+	return inflight
+
+
+func _parcel_atomic_payload_residual(quantity: String) -> float:
+	var inflight: Dictionary = _inflight_atomic_parcel_payload()
+	return float(_parcel_atomic_created_payload.get(quantity, 0.0)) \
+			- float(_parcel_atomic_delivered_payload.get(quantity, 0.0)) \
+			- float(_parcel_atomic_refunded_payload.get(quantity, 0.0)) \
+			- float(_parcel_atomic_cancelled_payload.get(quantity, 0.0)) \
+			- float(inflight.get(quantity, 0.0))
+
+
+func _parcel_atomic_species_residual_kg() -> float:
+	var inflight: Dictionary = _inflight_atomic_parcel_payload()
+	return _sum_parcel_species(
+		_parcel_atomic_created_payload.get("species_kg", {})
+	) - _sum_parcel_species(
+		_parcel_atomic_delivered_payload.get("species_kg", {})
+	) - _sum_parcel_species(
+		_parcel_atomic_refunded_payload.get("species_kg", {})
+	) - _sum_parcel_species(
+		_parcel_atomic_cancelled_payload.get("species_kg", {})
+	) - _sum_parcel_species(inflight.get("species_kg", {}))
+
+
 func _species_transit_conservation_residual_kg() -> float:
-	return _sum_transit_species(_species_transit_created_kg) \
-			- _sum_transit_species(_species_transit_delivered_kg) \
-			- _sum_transit_species(_species_transit_refunded_kg) \
-			- _sum_transit_species(_species_transit_cancelled_kg) \
-			- _sum_transit_species(_inflight_transit_species())
+	return _sum_parcel_species(_species_transit_created_kg) \
+			- _sum_parcel_species(_species_transit_delivered_kg) \
+			- _sum_parcel_species(_species_transit_refunded_kg) \
+			- _sum_parcel_species(_species_transit_cancelled_kg) \
+			- _sum_parcel_species(_inflight_transit_species())
 
 
 func _species_transit_conservation_residual_for(species_name: String) -> float:
@@ -1199,7 +1681,7 @@ func make_atomic_route(
 			and sensible_enthalpy_kj >= 0.0 and o2_kg >= 0.0
 	for raw_species_name in species_kg.keys():
 		var species_name: String = String(raw_species_name)
-		if species_name not in TRANSIT_SPECIES \
+		if species_name not in PARCEL_SPECIES \
 				or float(species_kg.get(raw_species_name, 0.0)) < 0.0:
 			valid = false
 	return {
@@ -1212,7 +1694,7 @@ func make_atomic_route(
 		"gas_mass_kg": maxf(0.0, gas_mass_kg),
 		"sensible_enthalpy_kj": maxf(0.0, sensible_enthalpy_kj),
 		"o2_kg": maxf(0.0, o2_kg),
-		"species_kg": _transit_species(species_kg),
+		"species_kg": _parcel_species(species_kg),
 		"valid": valid,
 	}
 
@@ -1304,16 +1786,69 @@ func finalize_step(building) -> void:
 					shadow,
 					transaction.get("value", {}),
 					rejected_by_room,
-					rejected_doorway_species_by_room
+					rejected_doorway_species_by_room,
+					rejected_transit_species_by_room
 				)
 	if building == null:
 		return
 	var inflight_transit_species: Dictionary = _inflight_transit_species()
-	var transit_created_total_kg: float = _sum_transit_species(_species_transit_created_kg)
-	var transit_delivered_total_kg: float = _sum_transit_species(_species_transit_delivered_kg)
-	var transit_refunded_total_kg: float = _sum_transit_species(_species_transit_refunded_kg)
-	var transit_cancelled_total_kg: float = _sum_transit_species(_species_transit_cancelled_kg)
+	var transit_created_total_kg: float = _sum_parcel_species(_species_transit_created_kg)
+	var transit_delivered_total_kg: float = _sum_parcel_species(_species_transit_delivered_kg)
+	var transit_refunded_total_kg: float = _sum_parcel_species(_species_transit_refunded_kg)
+	var transit_cancelled_total_kg: float = _sum_parcel_species(_species_transit_cancelled_kg)
 	var transit_residual_kg: float = _species_transit_conservation_residual_kg()
+	var parcel_atomic_inflight: Dictionary = _inflight_atomic_parcel_payload()
+	var transit_residual_co_kg: float = float(_species_transit_created_kg.get("co", 0.0)) \
+			- float(_species_transit_delivered_kg.get("co", 0.0)) \
+			- float(_species_transit_refunded_kg.get("co", 0.0)) \
+			- float(_species_transit_cancelled_kg.get("co", 0.0)) \
+			- float(inflight_transit_species.get("co", 0.0))
+	var transit_residual_co2_kg: float = float(_species_transit_created_kg.get("co2", 0.0)) \
+			- float(_species_transit_delivered_kg.get("co2", 0.0)) \
+			- float(_species_transit_refunded_kg.get("co2", 0.0)) \
+			- float(_species_transit_cancelled_kg.get("co2", 0.0)) \
+			- float(inflight_transit_species.get("co2", 0.0))
+	var transit_residual_hcn_kg: float = float(_species_transit_created_kg.get("hcn", 0.0)) \
+			- float(_species_transit_delivered_kg.get("hcn", 0.0)) \
+			- float(_species_transit_refunded_kg.get("hcn", 0.0)) \
+			- float(_species_transit_cancelled_kg.get("hcn", 0.0)) \
+			- float(inflight_transit_species.get("hcn", 0.0))
+	var parcel_atomic_mass_residual_kg: float = float(
+		_parcel_atomic_created_payload.get("gas_mass_kg", 0.0)
+	) - float(
+		_parcel_atomic_delivered_payload.get("gas_mass_kg", 0.0)
+	) - float(
+		_parcel_atomic_refunded_payload.get("gas_mass_kg", 0.0)
+	) - float(
+		_parcel_atomic_cancelled_payload.get("gas_mass_kg", 0.0)
+	) - float(parcel_atomic_inflight.get("gas_mass_kg", 0.0))
+	var parcel_atomic_energy_residual_kj: float = float(
+		_parcel_atomic_created_payload.get("sensible_enthalpy_kj", 0.0)
+	) - float(
+		_parcel_atomic_delivered_payload.get("sensible_enthalpy_kj", 0.0)
+	) - float(
+		_parcel_atomic_refunded_payload.get("sensible_enthalpy_kj", 0.0)
+	) - float(
+		_parcel_atomic_cancelled_payload.get("sensible_enthalpy_kj", 0.0)
+	) - float(parcel_atomic_inflight.get("sensible_enthalpy_kj", 0.0))
+	var parcel_atomic_o2_residual_kg: float = float(
+		_parcel_atomic_created_payload.get("o2_kg", 0.0)
+	) - float(
+		_parcel_atomic_delivered_payload.get("o2_kg", 0.0)
+	) - float(
+		_parcel_atomic_refunded_payload.get("o2_kg", 0.0)
+	) - float(
+		_parcel_atomic_cancelled_payload.get("o2_kg", 0.0)
+	) - float(parcel_atomic_inflight.get("o2_kg", 0.0))
+	var parcel_atomic_species_residual_kg: float = _sum_parcel_species(
+		_parcel_atomic_created_payload.get("species_kg", {})
+	) - _sum_parcel_species(
+		_parcel_atomic_delivered_payload.get("species_kg", {})
+	) - _sum_parcel_species(
+		_parcel_atomic_refunded_payload.get("species_kg", {})
+	) - _sum_parcel_species(
+		_parcel_atomic_cancelled_payload.get("species_kg", {})
+	) - _sum_parcel_species(parcel_atomic_inflight.get("species_kg", {}))
 	var immediate_co_residual_kg: float = float(
 		_immediate_debited_species_kg_step.get("co", 0.0)
 	) - float(_immediate_credited_species_kg_step.get("co", 0.0))
@@ -1617,14 +2152,63 @@ func finalize_step(building) -> void:
 				_species_transit_negative_balance_count
 			),
 			"phase3_shadow_species_conservation_residual_kg": transit_residual_kg,
-			"phase3_shadow_species_conservation_residual_co_kg": \
-				_species_transit_conservation_residual_for("co"),
-			"phase3_shadow_species_conservation_residual_co2_kg": \
-				_species_transit_conservation_residual_for("co2"),
-			"phase3_shadow_species_conservation_residual_hcn_kg": \
-				_species_transit_conservation_residual_for("hcn"),
+			"phase3_shadow_species_conservation_residual_co_kg": transit_residual_co_kg,
+			"phase3_shadow_species_conservation_residual_co2_kg": transit_residual_co2_kg,
+			"phase3_shadow_species_conservation_residual_hcn_kg": transit_residual_hcn_kg,
 			"phase3_shadow_species_transit_rejected_kg": float(
 				rejected_transit_species_by_room.get(room_key, 0.0)
+			),
+			"phase3_shadow_parcel_atomic_inflight_gas_kg": float(
+				parcel_atomic_inflight.get("gas_mass_kg", 0.0)
+			),
+			"phase3_shadow_parcel_atomic_inflight_energy_kj": float(
+				parcel_atomic_inflight.get("sensible_enthalpy_kj", 0.0)
+			),
+			"phase3_shadow_parcel_atomic_inflight_o2_kg": float(
+				parcel_atomic_inflight.get("o2_kg", 0.0)
+			),
+			"phase3_shadow_parcel_atomic_inflight_species_kg": _sum_parcel_species(
+				parcel_atomic_inflight.get("species_kg", {})
+			),
+			"phase3_shadow_parcel_atomic_created_gas_kg_total": float(
+				_parcel_atomic_created_payload.get("gas_mass_kg", 0.0)
+			),
+			"phase3_shadow_parcel_atomic_delivered_gas_kg_total": float(
+				_parcel_atomic_delivered_payload.get("gas_mass_kg", 0.0)
+			),
+			"phase3_shadow_parcel_atomic_refunded_gas_kg_total": float(
+				_parcel_atomic_refunded_payload.get("gas_mass_kg", 0.0)
+			),
+			"phase3_shadow_parcel_atomic_cancelled_gas_kg_total": float(
+				_parcel_atomic_cancelled_payload.get("gas_mass_kg", 0.0)
+			),
+			"phase3_shadow_parcel_atomic_created_energy_kj_total": float(
+				_parcel_atomic_created_payload.get("sensible_enthalpy_kj", 0.0)
+			),
+			"phase3_shadow_parcel_atomic_delivered_energy_kj_total": float(
+				_parcel_atomic_delivered_payload.get("sensible_enthalpy_kj", 0.0)
+			),
+			"phase3_shadow_parcel_atomic_cancelled_energy_kj_total": float(
+				_parcel_atomic_cancelled_payload.get("sensible_enthalpy_kj", 0.0)
+			),
+			"phase3_shadow_parcel_atomic_created_o2_kg_total": float(
+				_parcel_atomic_created_payload.get("o2_kg", 0.0)
+			),
+			"phase3_shadow_parcel_atomic_delivered_o2_kg_total": float(
+				_parcel_atomic_delivered_payload.get("o2_kg", 0.0)
+			),
+			"phase3_shadow_parcel_atomic_cancelled_o2_kg_total": float(
+				_parcel_atomic_cancelled_payload.get("o2_kg", 0.0)
+			),
+			"phase3_shadow_parcel_atomic_mass_residual_kg": \
+				parcel_atomic_mass_residual_kg,
+			"phase3_shadow_parcel_atomic_energy_residual_kj": \
+				parcel_atomic_energy_residual_kj,
+			"phase3_shadow_parcel_atomic_o2_residual_kg": parcel_atomic_o2_residual_kg,
+			"phase3_shadow_parcel_atomic_species_residual_kg": \
+				parcel_atomic_species_residual_kg,
+			"phase3_shadow_parcel_atomic_unfinalized_resolution_count": float(
+				_parcel_atomic_unfinalized_resolution_count
 			),
 			# Bit mask: energy=1, O2=2, species=4. Bulk O2 remains unowned.
 			"phase3_shadow_combustion_owned_mask": _combustion_owned_mask(room_id),
@@ -1748,14 +2332,22 @@ func _snapshot_room(room: RoomModel) -> Dictionary:
 		"upper_o2_kg": maxf(0.0, room.upper_gas_kg * room.o2_upper),
 		"lower_o2_kg": maxf(0.0, room.lower_gas_kg * room.o2_lower),
 		"upper_species_kg": {
+			"smoke": maxf(0.0, room.smoke_kg),
 			"co": maxf(0.0, room.co_upper_kg),
 			"co2": maxf(0.0, room.co2_upper_kg),
 			"hcn": maxf(0.0, room.hcn_upper_kg),
+			"hcl": maxf(0.0, room.hcl_kg),
+			"acrolein": maxf(0.0, room.acrolein_kg),
+			"formaldehyde": maxf(0.0, room.formaldehyde_kg),
 		},
 		"lower_species_kg": {
+			"smoke": 0.0,
 			"co": maxf(0.0, room.co_kg - room.co_upper_kg),
 			"co2": maxf(0.0, room.co2_kg - room.co2_upper_kg),
 			"hcn": maxf(0.0, room.hcn_kg - room.hcn_upper_kg),
+			"hcl": 0.0,
+			"acrolein": 0.0,
+			"formaldehyde": 0.0,
 		},
 	}
 
@@ -1782,20 +2374,21 @@ func _atomic_route_is_valid(route: Dictionary) -> bool:
 	if typeof(raw_species) != TYPE_DICTIONARY:
 		return false
 	for raw_species_name in raw_species.keys():
-		if String(raw_species_name) not in TRANSIT_SPECIES \
+		if String(raw_species_name) not in PARCEL_SPECIES \
 				or float(raw_species.get(raw_species_name, 0.0)) < 0.0:
 			return false
 	return float(route.get("gas_mass_kg", 0.0)) > 0.0 \
 			or float(route.get("sensible_enthalpy_kj", 0.0)) > 0.0 \
 			or float(route.get("o2_kg", 0.0)) > 0.0 \
-			or _sum_transit_species(raw_species) > 0.0
+			or _sum_parcel_species(raw_species) > 0.0
 
 
 func _apply_atomic_bundle(
 		shadow: Dictionary,
 		bundle: Dictionary,
 		rejected_by_room: Dictionary,
-		rejected_doorway_species_by_room: Dictionary
+		rejected_doorway_species_by_room: Dictionary,
+		rejected_transit_species_by_room: Dictionary
 	) -> void:
 	if not bool(bundle.get("valid", false)):
 		_atomic_invalid_bundle_count += 1
@@ -1829,7 +2422,7 @@ func _apply_atomic_bundle(
 			"gas_mass_kg": 0.0,
 			"sensible_enthalpy_kj": 0.0,
 			"o2_kg": 0.0,
-			"species_kg": _transit_species({}),
+			"species_kg": _parcel_species({}),
 		})
 		demand["gas_mass_kg"] = float(demand.get("gas_mass_kg", 0.0)) \
 				+ float(route.get("gas_mass_kg", 0.0))
@@ -1839,7 +2432,7 @@ func _apply_atomic_bundle(
 		demand["o2_kg"] = float(demand.get("o2_kg", 0.0)) \
 				+ float(route.get("o2_kg", 0.0))
 		var demand_species: Dictionary = demand.get("species_kg", {})
-		_add_transit_species(demand_species, route.get("species_kg", {}))
+		_add_parcel_species(demand_species, route.get("species_kg", {}))
 		demand["species_kg"] = demand_species
 		source_demands[demand_key] = demand
 
@@ -1869,7 +2462,7 @@ func _apply_atomic_bundle(
 		)
 		var source_species: Dictionary = source.get(zone + "_species_kg", {})
 		var requested_species: Dictionary = demand.get("species_kg", {})
-		for species_name in TRANSIT_SPECIES:
+		for species_name in PARCEL_SPECIES:
 			accepted_fraction = _limit_atomic_fraction(
 				accepted_fraction,
 				float(source_species.get(species_name, 0.0)),
@@ -1895,7 +2488,7 @@ func _apply_atomic_bundle(
 		) * rejected_fraction
 		_atomic_rejected_o2_kg += float(route.get("o2_kg", 0.0)) \
 				* rejected_fraction
-		_atomic_rejected_species_kg += _sum_transit_species(
+		_atomic_rejected_species_kg += _sum_parcel_species(
 			route.get("species_kg", {})
 		) * rejected_fraction
 		_apply_atomic_route(shadow, route, accepted_fraction)
@@ -1908,7 +2501,11 @@ func _apply_atomic_bundle(
 		if String(metadata.get("transport_family", "")) == "doorway_bulk":
 			rejected_doorway_species_by_room[source_key] = float(
 				rejected_doorway_species_by_room.get(source_key, 0.0)
-			) + _sum_transit_species(demand.get("species_kg", {})) * rejected_fraction
+			) + _sum_parcel_species(demand.get("species_kg", {})) * rejected_fraction
+		elif String(metadata.get("transport_family", "")) == "delayed_parcel":
+			rejected_transit_species_by_room[source_key] = float(
+				rejected_transit_species_by_room.get(source_key, 0.0)
+			) + _sum_parcel_species(demand.get("species_kg", {})) * rejected_fraction
 	_record_atomic_bundle_result(bundle, accepted_fraction)
 
 
@@ -1936,7 +2533,7 @@ func _apply_atomic_route(
 	var moved_energy_kj: float = float(route.get("sensible_enthalpy_kj", 0.0)) \
 			* accepted_fraction
 	var moved_o2_kg: float = float(route.get("o2_kg", 0.0)) * accepted_fraction
-	var moved_species: Dictionary = _transit_species(route.get("species_kg", {}))
+	var moved_species: Dictionary = _parcel_species(route.get("species_kg", {}))
 	if source_id != EXTERIOR_ID:
 		var source_key: String = str(source_id)
 		var source: Dictionary = shadow[source_key]
@@ -1950,7 +2547,7 @@ func _apply_atomic_route(
 			0.0, float(source.get(source_zone + "_o2_kg", 0.0)) - moved_o2_kg
 		)
 		var source_species: Dictionary = source.get(source_zone + "_species_kg", {})
-		for species_name in TRANSIT_SPECIES:
+		for species_name in PARCEL_SPECIES:
 			source_species[species_name] = maxf(
 				0.0,
 				float(source_species.get(species_name, 0.0))
@@ -1973,7 +2570,7 @@ func _apply_atomic_route(
 		var destination_species: Dictionary = destination.get(
 			destination_zone + "_species_kg", {}
 		)
-		for species_name in TRANSIT_SPECIES:
+		for species_name in PARCEL_SPECIES:
 			destination_species[species_name] = float(
 				destination_species.get(species_name, 0.0)
 			) + float(moved_species.get(species_name, 0.0)) * accepted_fraction
@@ -1983,7 +2580,21 @@ func _apply_atomic_route(
 
 func _record_atomic_bundle_result(bundle: Dictionary, accepted_fraction: float) -> void:
 	var metadata: Dictionary = bundle.get("metadata", {})
-	if String(metadata.get("kind", "")) != "co_oxidation":
+	var result_kind: String = String(metadata.get("kind", ""))
+	if result_kind == "delayed_parcel_carve":
+		var parcel_id: String = String(metadata.get("parcel_id", ""))
+		if not _species_transit_reservoir.has(parcel_id):
+			_species_transit_orphan_delivery_count += 1
+			return
+		var stored: Dictionary = _species_transit_reservoir[parcel_id]
+		stored["accepted_fraction"] = clampf(accepted_fraction, 0.0, 1.0)
+		_species_transit_reservoir[parcel_id] = stored
+		_add_parcel_payload(
+			_parcel_atomic_created_payload,
+			_scaled_parcel_payload(stored, accepted_fraction)
+		)
+		return
+	if result_kind != "co_oxidation":
 		return
 	var requested_co_kg: float = maxf(
 		0.0, float(metadata.get("co_consumed_kg", 0.0))

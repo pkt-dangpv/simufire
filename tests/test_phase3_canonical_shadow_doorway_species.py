@@ -98,7 +98,7 @@ class TestPhase3CanonicalShadowDoorwaySpecies(unittest.TestCase):
     def test_shadow_rejection_tracks_species_not_zero_gas_mass(self):
         apply_bundle = _function(SYSTEM, "_apply_atomic_bundle")
         self.assertIn('transport_family", "")) == "doorway_bulk"', apply_bundle)
-        self.assertIn("_sum_transit_species", apply_bundle)
+        self.assertIn("_sum_parcel_species", apply_bundle)
         self.assertIn("rejected_doorway_species_by_room", SYSTEM)
 
     def test_csv_telemetry_is_shadow_gated(self):
