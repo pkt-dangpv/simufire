@@ -70,9 +70,12 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var window_light_range_m: float = 4.8
 @export var window_light_color: Color = Color(0.66, 0.78, 1.0, 1.0)
 ## Sombras en las luces de puertas/ventanas exteriores. Activado, la luz
-## entra solo por el hueco (haz realista); desactivado, la luz banaba las
-## paredes contiguas. Coste: una luz sombreada por apertura exterior.
-@export var opening_lights_cast_shadows: bool = true
+## entra solo por el hueco (haz realista) PERO cuesta una omni sombreada
+## por apertura exterior (~6 renders extra por luz en GL Compatibility):
+## con 10+ ventanas hunde el framerate. Off por defecto; activar solo en
+## equipos potentes. La luz del sol (sky light, direccional) si mantiene
+## sombras y es la que da el haz principal por las ventanas.
+@export var opening_lights_cast_shadows: bool = false
 ## Atenuacion de las luces de aperturas. >1.0 concentra la luz junto a la
 ## ventana/puerta; <1.0 la reparte mas al interior.
 @export_range(0.2, 4.0, 0.05) var opening_light_attenuation: float = 1.4
