@@ -3,6 +3,20 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0k.1d direct doorway atomic bundle (2026-07-16)
+
+- Migrated direct two-zone doorway shadow transport to one atomic route
+  carrying exact pre-mutation gas mass, source-zone sensible enthalpy, O2 and
+  CO/CO2/HCN under one accepted fraction.
+- Scoped complete GES ownership to the exact `doorway_bulk` family and made
+  semantic ownership resolution independent of producer registration order.
+- Preserved legacy physics and default-OFF behavior. A 120 s OFF/ON pair kept
+  78 rows and all 115 legacy columns with zero value differences; active
+  doorway bundles had fraction 1.0 with zero rejection, duplicates or invalids.
+- Left delayed parcels and other non-HVAC transport families unresolved until
+  they have complete atomic lifecycles. Zero-O2 flaming remains a separate
+  blocker for F3.1; HVAC remains deferred to F3.5.
+
 ### Phase 3+ F3.0k.1c atomic shadow bundle (2026-07-15)
 
 - Added an ordered atomic shadow transaction whose multi-zone routes share one

@@ -349,6 +349,70 @@ func apply_immediate_species_event(event: Dictionary) -> void:
 		)
 
 
+func apply_atomic_transport_event(
+		event: Dictionary,
+		producer: String,
+		transport_family: String,
+		boundary_kind: String
+	) -> bool:
+	var request_id: String = String(event.get("request_id", ""))
+	var cause: String = String(event.get("cause", ""))
+	if request_id.is_empty() or cause.is_empty() or producer.is_empty():
+		return false
+	var gas_mass_kg: float = maxf(0.0, float(event.get("gas_mass_kg", 0.0)))
+	var sensible_enthalpy_kj: float = maxf(
+		0.0, float(event.get("sensible_enthalpy_kj", 0.0))
+	)
+	var o2_kg: float = maxf(0.0, float(event.get("o2_kg", 0.0)))
+	var species: Dictionary = _transit_species(event.get("species_kg", {}))
+	if gas_mass_kg <= 0.0 and sensible_enthalpy_kj <= 0.0 and o2_kg <= 0.0 \
+			and _sum_transit_species(species) <= 0.0:
+		return false
+	var route: Dictionary = make_atomic_route(
+		request_id + ":route",
+		cause,
+		int(event.get("source_room_id", EXTERIOR_ID)),
+		int(event.get("destination_room_id", EXTERIOR_ID)),
+		String(event.get("source_zone", ZONE_UPPER)),
+		String(event.get("destination_zone", ZONE_UPPER)),
+		gas_mass_kg,
+		sensible_enthalpy_kj,
+		o2_kg,
+		species
+	)
+	if not bool(route.get("valid", false)):
+		_atomic_invalid_bundle_count += 1
+		return false
+	for quantity in ["gas_mass", "enthalpy", "o2"]:
+		var amount: float = gas_mass_kg
+		if quantity == "enthalpy":
+			amount = sensible_enthalpy_kj
+		elif quantity == "o2":
+			amount = o2_kg
+		register_semantic_claim({
+			"connection_id": String(event.get("connection_id", "")),
+			"producer": producer,
+			"transport_family": transport_family,
+			"boundary_kind": boundary_kind,
+			"source_room_id": int(event.get("source_room_id", EXTERIOR_ID)),
+			"destination_room_id": int(event.get("destination_room_id", EXTERIOR_ID)),
+			"source_zone": String(event.get("source_zone", ZONE_UPPER)),
+			"destination_zone": String(event.get("destination_zone", ZONE_UPPER)),
+			"quantity": quantity,
+			"amount": amount,
+		})
+	_register_event_species_claims(
+		event, producer, transport_family, boundary_kind, species
+	)
+	_record_request_telemetry(route)
+	return add_atomic_bundle(make_atomic_bundle(
+		request_id,
+		cause,
+		[route],
+		{"kind": "atomic_transport", "transport_family": transport_family}
+	))
+
+
 func apply_exterior_purge_event(event: Dictionary) -> void:
 	var event_id: String = String(event.get("event_id", ""))
 	var mechanism: String = String(event.get("mechanism", ""))
@@ -588,6 +652,8 @@ func register_semantic_claim(claim: Dictionary) -> String:
 		"producers": {},
 		"mechanisms": {},
 	})
+	if String(record.get("owner", "")).is_empty() and not owner.is_empty():
+		record["owner"] = owner
 	var producers: Dictionary = record.get("producers", {})
 	producers[producer] = float(producers.get(producer, 0.0)) + amount
 	record["producers"] = producers
@@ -646,9 +712,15 @@ func register_semantic_unresolved(event: Dictionary, quantities: Array) -> void:
 func _semantic_owner_for_claim(claim: Dictionary) -> String:
 	var boundary_kind: String = String(claim.get("boundary_kind", ""))
 	var quantity: String = String(claim.get("quantity", ""))
+	var transport_family: String = String(claim.get("transport_family", ""))
 	match boundary_kind:
 		"interior_opening", "vertical_opening", "exterior_opening":
-			return "GasExchangeSystem" if quantity in TRANSIT_SPECIES else ""
+			if quantity in TRANSIT_SPECIES:
+				return "GasExchangeSystem"
+			if transport_family == "doorway_bulk" \
+					and quantity in ["gas_mass", "enthalpy", "o2"]:
+				return "GasExchangeSystem"
+			return ""
 		"interlayer":
 			return "ThermalSystem"
 		"chemical_combustion":
@@ -1186,6 +1258,10 @@ func add_request(request: Dictionary) -> bool:
 	return true
 
 
+func _record_request_telemetry(request: Dictionary) -> void:
+	_requests.append(request.duplicate(true))
+
+
 func add_atomic_bundle(bundle: Dictionary) -> bool:
 	var bundle_id: String = String(bundle.get("bundle_id", ""))
 	if bundle_id.is_empty() or not bool(bundle.get("valid", false)):
@@ -1227,7 +1303,8 @@ func finalize_step(building) -> void:
 				_apply_atomic_bundle(
 					shadow,
 					transaction.get("value", {}),
-					rejected_by_room
+					rejected_by_room,
+					rejected_doorway_species_by_room
 				)
 	if building == null:
 		return
@@ -1717,7 +1794,8 @@ func _atomic_route_is_valid(route: Dictionary) -> bool:
 func _apply_atomic_bundle(
 		shadow: Dictionary,
 		bundle: Dictionary,
-		rejected_by_room: Dictionary
+		rejected_by_room: Dictionary,
+		rejected_doorway_species_by_room: Dictionary
 	) -> void:
 	if not bool(bundle.get("valid", false)):
 		_atomic_invalid_bundle_count += 1
@@ -1826,6 +1904,11 @@ func _apply_atomic_bundle(
 		var source_key: String = str(int(demand.get("room_id", EXTERIOR_ID)))
 		rejected_by_room[source_key] = float(rejected_by_room.get(source_key, 0.0)) \
 				+ float(demand.get("gas_mass_kg", 0.0)) * rejected_fraction
+		var metadata: Dictionary = bundle.get("metadata", {})
+		if String(metadata.get("transport_family", "")) == "doorway_bulk":
+			rejected_doorway_species_by_room[source_key] = float(
+				rejected_doorway_species_by_room.get(source_key, 0.0)
+			) + _sum_transit_species(demand.get("species_kg", {})) * rejected_fraction
 	_record_atomic_bundle_result(bundle, accepted_fraction)
 
 

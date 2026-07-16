@@ -114,12 +114,11 @@ class TestPhase3SemanticOwnershipClaims(unittest.TestCase):
         self.assertIn('"opening:%d" % opening_index', THERMAL)
         self.assertIn('"opening:%d" % opening_index', GES)
 
-    def test_engine_forwards_direct_doorway_claim_before_request(self):
+    def test_engine_forwards_direct_doorway_as_one_atomic_event(self):
         collector = _function(ENGINE, "_phase3_shadow_collect_doorway_species_requests")
-        self.assertLess(
-            collector.index("register_semantic_species_claim"),
-            collector.index("phase3_zone_mass_system.add_request"),
-        )
+        self.assertIn("apply_atomic_transport_event", collector)
+        self.assertNotIn("register_semantic_unresolved", collector)
+        self.assertNotIn("phase3_zone_mass_system.add_request", collector)
 
     def test_unknown_connections_remain_visible(self):
         register = _function(SYSTEM, "register_semantic_claim")

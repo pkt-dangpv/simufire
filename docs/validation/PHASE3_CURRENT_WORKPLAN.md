@@ -1,6 +1,6 @@
 # Phase 3+ current workplan
 
-Date: 2026-07-15
+Date: 2026-07-16
 
 ## Current baseline
 
@@ -26,6 +26,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.0k.1a semantic claims: `docs/validation/PHASE3_F30K1A_SEMANTIC_OWNERSHIP.md`
 - F3.0k.1b passive arbitration: `docs/validation/PHASE3_F30K1B_PASSIVE_ARBITRATION.md`
 - F3.0k.1c atomic bundle: `docs/validation/PHASE3_F30K1C_ATOMIC_BUNDLE.md`
+- F3.0k.1d direct doorway bundle: `docs/validation/PHASE3_F30K1D_DIRECT_DOORWAY_ATOMIC.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -58,10 +59,12 @@ by aggregate source-zone gas mass, energy, O2 and species. CO oxidation is the
 first migrated producer and has explicit shadow O2 chemistry with zero carbon
 and oxygen residual. Legacy physics remains unchanged.
 
-The runtime matrix still reports unresolved mask 7 because opening, parcel,
-background, vertical and exterior producers do not yet emit complete atomic
-bundles. The active route is F3.0k.1d: migrate one exact non-HVAC transport
-family into the new API. Do not promote F3.1 authority yet.
+F3.0k.1d migrates the exact direct two-zone doorway family. Its air mass,
+zonal enthalpy, O2 and species now share one atomic accepted fraction, while
+legacy physics remains unchanged. The runtime matrix still reports unresolved
+mask 7 from delayed parcels, background/counterflow, vertical and exterior
+producers. The active route is the parcel lifecycle followed by the remaining
+non-HVAC producers. Do not promote F3.1 authority yet.
 
 ## Binding priority decision: HVAC last
 
@@ -77,14 +80,15 @@ The revised order is:
 3. F3.0k.1a semantic claim telemetry. Completed, passive GO.
 4. F3.0k.1b passive arbitration and CO-oxidation compatibility. Completed, partial GO.
 5. F3.0k.1c atomic multi-zone bundle and explicit O2 chemistry. Completed, partial GO.
-6. F3.0k.1d migrate exact non-HVAC transport producers. Current target.
-7. F3.1 authoritative sealed mode plus zero-O2 extinction regression.
-8. F3.2 exterior pressure/leakage for Group A.
-9. F3.3 interior openings for Group C.
-10. F3.4 remaining non-HVAC species, suppression and FED.
-11. HVAC-R0 redesign specification.
-12. F3.5 HVAC canonical integration as the last subsystem.
-13. F3.6 final corpus promotion and legacy retirement.
+6. F3.0k.1d direct doorway atomic producer. Completed, passive GO.
+7. F3.0k.1e delayed parcel atomic lifecycle and remaining non-HVAC producers. Current target.
+8. F3.1 authoritative sealed mode plus zero-O2 extinction regression.
+9. F3.2 exterior pressure/leakage for Group A.
+10. F3.3 interior openings for Group C.
+11. F3.4 remaining non-HVAC species, suppression and FED.
+12. HVAC-R0 redesign specification.
+13. F3.5 HVAC canonical integration as the last subsystem.
+14. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
@@ -365,11 +369,10 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0k.1d. Audit direct doorway versus delayed-parcel
-transport and choose the first producer that can emit exact pre-mutation gas,
-enthalpy, O2 and zonal species routes without inference. Migrate only that
-family to the atomic API. If delayed parcels are selected, one accepted
-fraction must persist through creation, flight, delivery and refund. Remove
-only the corresponding unresolved claims after runtime proof. Do not use
-projection/clamp residuals, do not enable authority and do not touch HVAC.
-HVAC remains deferred until F3.5.
+Use GPT-5.6 Sol for F3.0k.1e. Design the delayed-parcel atomic lifecycle so one
+accepted fraction persists through carve, flight, delivery, refund and
+cancellation. Do not represent lifecycle stages as independent inventory
+sources. If persistence cannot be proven without changing physical state,
+stop at design and migrate a smaller immediate non-HVAC producer instead.
+Keep authority OFF, retain zero-O2 flaming as a visible F3.1 blocker and do
+not touch HVAC before F3.5.

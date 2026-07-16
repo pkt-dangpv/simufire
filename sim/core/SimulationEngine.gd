@@ -1474,34 +1474,11 @@ func _phase3_shadow_collect_species_requests() -> void:
 
 func _phase3_shadow_collect_doorway_species_requests() -> void:
 	for result in gas_exchange_system.drain_phase3_shadow_doorway_species_results():
-		var species: Dictionary = result.get("species_kg", {})
-		var species_total_kg: float = 0.0
-		for species_name in species.keys():
-			species_total_kg += maxf(0.0, float(species[species_name]))
-		if species_total_kg <= 0.0:
-			continue
-		phase3_zone_mass_system.register_semantic_species_claim(
+		phase3_zone_mass_system.apply_atomic_transport_event(
 			result,
 			"GasExchangeSystem",
 			"doorway_bulk",
 			"interior_opening"
-		)
-		phase3_zone_mass_system.register_semantic_unresolved(
-			result, ["gas_mass", "enthalpy", "o2"]
-		)
-		phase3_zone_mass_system.add_request(
-			phase3_zone_mass_system.make_request(
-				String(result.get("request_id", "")),
-				String(result.get("cause", "doorway_species_direct")),
-				int(result.get("source_room_id", -1)),
-				int(result.get("destination_room_id", -1)),
-				String(result.get("source_zone", "upper")),
-				String(result.get("destination_zone", "upper")),
-				0.0,
-				0.0,
-				0.0,
-				species
-			)
 		)
 
 

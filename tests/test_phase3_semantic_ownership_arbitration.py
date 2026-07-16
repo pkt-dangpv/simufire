@@ -54,7 +54,8 @@ class TestSemanticOwnerPolicy(unittest.TestCase):
     def test_opening_species_owner_is_ges(self):
         policy = _function(SYSTEM, "_semantic_owner_for_claim")
         self.assertIn('"interior_opening", "vertical_opening", "exterior_opening"', policy)
-        self.assertIn('"GasExchangeSystem" if quantity in TRANSIT_SPECIES', policy)
+        self.assertIn("if quantity in TRANSIT_SPECIES:", policy)
+        self.assertIn('return "GasExchangeSystem"', policy)
 
     def test_interlayer_owner_is_thermal(self):
         policy = _function(SYSTEM, "_semantic_owner_for_claim")
@@ -73,16 +74,21 @@ class TestSemanticOwnerPolicy(unittest.TestCase):
         self.assertIn('_semantic_suppressed_claim_count += 1', register)
         self.assertIn('_semantic_unresolved_claim_count += 1', register)
 
+    def test_late_exact_owner_resolves_order_independent_registry_record(self):
+        register = _function(SYSTEM, "register_semantic_claim")
+        self.assertIn('String(record.get("owner", "")).is_empty()', register)
+        self.assertIn('record["owner"] = owner', register)
+
     def test_unresolved_declarations_are_deduplicated(self):
         unresolved = _function(SYSTEM, "register_semantic_unresolved")
         self.assertIn("_semantic_unresolved_keys.has(key)", unresolved)
         self.assertIn("_semantic_unresolved_quantity_mask", unresolved)
 
-    def test_missing_transport_bundle_stays_unresolved(self):
+    def test_direct_doorway_uses_atomic_transport_bundle(self):
         collector = _function(ENGINE, "_phase3_shadow_collect_doorway_species_requests")
-        self.assertIn('register_semantic_unresolved', collector)
-        for quantity in ("gas_mass", "enthalpy", "o2"):
-            self.assertIn(f'"{quantity}"', collector)
+        self.assertIn("apply_atomic_transport_event", collector)
+        self.assertNotIn("register_semantic_unresolved", collector)
+        self.assertNotIn("add_request", collector)
 
 
 class TestShadowOnlySuppression(unittest.TestCase):

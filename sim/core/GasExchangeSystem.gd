@@ -2366,6 +2366,16 @@ func _zone_air_mass_kg(room: RoomModel, upper_zone: bool) -> float:
 	return maxf(0.1, room.lower_volume_m3() * 1.2)
 
 
+func _zone_specific_sensible_energy_kj_kg(room: RoomModel, upper_zone: bool) -> float:
+	if room == null:
+		return 0.0
+	var gas_mass_kg: float = room.upper_gas_kg if upper_zone else room.lower_gas_kg
+	var energy_kj: float = room.upper_energy_kj if upper_zone else room.lower_energy_kj
+	if gas_mass_kg <= 0.000001 or energy_kj <= 0.0:
+		return 0.0
+	return energy_kj / gas_mass_kg
+
+
 func _resolve_opening_segment_route(
 	from_r: RoomModel,
 	to_r: RoomModel,
@@ -2557,6 +2567,15 @@ func _move_upper_zone_species(
 			"hcn": moved_hcn_kg,
 		},
 	}
+	var moved_o2_kg: float = 0.0
+	if not o2_delta_kg.is_empty() and background_o2_exchange_multiplier > 0.0:
+		moved_o2_kg = from_r.o2_upper * air_mass_kg * background_o2_exchange_multiplier
+	species_result["gas_mass_kg"] = maxf(0.0, air_mass_kg)
+	species_result["sensible_enthalpy_kj"] = maxf(
+		0.0,
+		air_mass_kg * _zone_specific_sensible_energy_kj_kg(from_r, true)
+	)
+	species_result["o2_kg"] = moved_o2_kg
 	_record_phase3_shadow_doorway_species_result(species_result)
 	_apply_doorway_species_result(
 		species_result,
@@ -2577,8 +2596,7 @@ func _move_upper_zone_species(
 		formaldehyde_delta_kg
 	)
 
-	if not o2_delta_kg.is_empty() and background_o2_exchange_multiplier > 0.0:
-		var moved_o2_kg: float = from_r.o2_upper * air_mass_kg * background_o2_exchange_multiplier
+	if moved_o2_kg > 0.0:
 		_add_delta(o2_delta_kg, from_r.id, -moved_o2_kg)
 		_add_delta(o2_delta_kg, to_r.id, moved_o2_kg)
 
@@ -2623,6 +2641,15 @@ func _move_lower_zone_species(
 			"hcn": moved_hcn_kg,
 		},
 	}
+	var moved_o2_kg: float = 0.0
+	if not o2_delta_kg.is_empty() and background_o2_exchange_multiplier > 0.0:
+		moved_o2_kg = from_r.o2_lower * air_mass_kg * background_o2_exchange_multiplier
+	species_result["gas_mass_kg"] = maxf(0.0, air_mass_kg)
+	species_result["sensible_enthalpy_kj"] = maxf(
+		0.0,
+		air_mass_kg * _zone_specific_sensible_energy_kj_kg(from_r, false)
+	)
+	species_result["o2_kg"] = moved_o2_kg
 	_record_phase3_shadow_doorway_species_result(species_result)
 	_apply_doorway_species_result(
 		species_result,
@@ -2643,8 +2670,7 @@ func _move_lower_zone_species(
 		formaldehyde_delta_kg
 	)
 
-	if not o2_delta_kg.is_empty() and background_o2_exchange_multiplier > 0.0:
-		var moved_o2_kg: float = from_r.o2_lower * air_mass_kg * background_o2_exchange_multiplier
+	if moved_o2_kg > 0.0:
 		_add_delta(o2_delta_kg, from_r.id, -moved_o2_kg)
 		_add_delta(o2_delta_kg, to_r.id, moved_o2_kg)
 

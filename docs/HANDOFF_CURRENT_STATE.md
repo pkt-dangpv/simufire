@@ -1,10 +1,37 @@
 # Current Handoff State
 
-Date: 2026-07-15.
+Date: 2026-07-16.
 
 ## Purpose
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
+
+## Current Session Update - 2026-07-16 - F3.0k.1d direct doorway bundle
+
+- F3.0k.1d is a **GO for passive direct two-zone doorway ownership** and a
+  **NO-GO for delayed parcels and F3.1 authority**.
+- GES now emits one exact pre-mutation atomic route per direct doorway segment:
+  gas mass, source-zone sensible enthalpy, O2 and CO/CO2/HCN share one accepted
+  fraction. Legacy physical deltas and `RoomModel` remain unchanged.
+- The owner policy grants complete opening ownership only to the exact
+  `doorway_bulk` family. Other opening/parcel families retain unresolved mask
+  7. Ownership registry resolution no longer depends on Thermal/GES arrival
+  order.
+- The 120 s two-room OFF/ON pair retained 78 rows and all 115 legacy columns
+  with zero value differences. ON has 277 columns; 42 snapshots contain 2-8
+  doorway bundles, fraction 1.0, zero rejection, zero duplicates/invalids and
+  zero unresolved multi-producer conflicts.
+- Delayed parcels remain separate because one accepted fraction must persist
+  through carve, flight, delivery, refund and cancellation.
+- Zero-O2 flaming remains a real independent blocker. Plume-lower can select
+  lower-zone O2 while upper O2 is near zero; M4 mitigates this only when its
+  default-OFF flag is enabled. No combustion fix or validation relabeling was
+  made here.
+- Physics and ILV remain at 0 FAIL; required validation remains 348/353 with
+  five VALID_GAP. Guardrails have only expected R2-1 while motor files are
+  dirty.
+- Binding record:
+  `docs/validation/PHASE3_F30K1D_DIRECT_DOORWAY_ATOMIC.md`.
 
 ## Current Session Update - 2026-07-15 - F3.0k.1c atomic bundle
 

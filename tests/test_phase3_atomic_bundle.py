@@ -104,6 +104,11 @@ class TestAtomicArbitration(unittest.TestCase):
         self.assertIn("_apply_atomic_route(shadow, route, accepted_fraction)", apply_bundle)
         self.assertNotIn("_limit_atomic_fraction", apply_route)
 
+    def test_atomic_rejection_is_available_to_doorway_telemetry(self):
+        apply_bundle = _function(SYSTEM, "_apply_atomic_bundle")
+        self.assertIn("rejected_doorway_species_by_room", apply_bundle)
+        self.assertIn('transport_family", "")) == "doorway_bulk"', apply_bundle)
+
     def test_shadow_atomic_path_never_writes_room_model(self):
         for name in ("_apply_atomic_bundle", "_apply_atomic_route"):
             body = _function(SYSTEM, name)

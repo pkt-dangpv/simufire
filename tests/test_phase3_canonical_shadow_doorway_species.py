@@ -69,7 +69,9 @@ class TestPhase3CanonicalShadowDoorwaySpecies(unittest.TestCase):
         self.assertIn('recorded["request_id"]', recorder)
         self.assertIn('"doorway_species_direct:', recorder)
         collector = _function(ENGINE, "_phase3_shadow_collect_doorway_species_requests")
-        self.assertIn('String(result.get("request_id", ""))', collector)
+        self.assertIn("apply_atomic_transport_event", collector)
+        apply_event = _function(SYSTEM, "apply_atomic_transport_event")
+        self.assertIn('String(event.get("request_id", ""))', apply_event)
 
     def test_engine_only_translates_results(self):
         collector = _function(ENGINE, "_phase3_shadow_collect_doorway_species_requests")
@@ -94,8 +96,9 @@ class TestPhase3CanonicalShadowDoorwaySpecies(unittest.TestCase):
         self.assertNotIn("_record_phase3_shadow_doorway_species_result", exterior)
 
     def test_shadow_rejection_tracks_species_not_zero_gas_mass(self):
-        self.assertIn('String(request.get("cause", "")) == "doorway_species_direct"', SYSTEM)
-        self.assertIn("rejected_species_kg", SYSTEM)
+        apply_bundle = _function(SYSTEM, "_apply_atomic_bundle")
+        self.assertIn('transport_family", "")) == "doorway_bulk"', apply_bundle)
+        self.assertIn("_sum_transit_species", apply_bundle)
         self.assertIn("rejected_doorway_species_by_room", SYSTEM)
 
     def test_csv_telemetry_is_shadow_gated(self):
