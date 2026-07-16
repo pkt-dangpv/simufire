@@ -6,7 +6,11 @@ class_name MainMenu
 # ------------------------------------------------------------
 # Punto de entrada del proyecto.
 # - Modo validación: redirige directamente a SimulationScene.
-# - Modo normal: muestra 3 botones.
+# - Modo normal: menú definido INTEGRAMENTE en MainMenu.tscn.
+#   Este script solo conecta señales, localiza textos y rellena
+#   el contenido dinámico (presets de plantilla, opciones guardadas).
+#   Regla del proyecto: nada de Controls estáticos creados por código
+#   (ver docs/AUDITORIA_UI_CODIGO_2026-07-16.md).
 # ============================================================
 
 const SIM_SCENE_PATH: String = "res://scenes/SimulationScene.tscn"
@@ -37,11 +41,12 @@ func _ready() -> void:
 	if _is_validation_mode():
 		_open_validation_scene_next_frame()
 		return
+	RenderingServer.set_default_clear_color(SimuFireThemeScript.BG)
 	if not _bind_existing_ui():
-		_setup_ui()
-	else:
-		RenderingServer.set_default_clear_color(SimuFireThemeScript.BG)
-	_apply_main_menu_visual_style()
+		push_error("MainMenu: faltan nodos en MainMenu.tscn — la escena es la fuente de verdad de este menu")
+		return
+	_localize_texts()
+	_fit_main_menu_layout()
 
 
 func _notification(what: int) -> void:
@@ -63,7 +68,28 @@ func _bind_existing_ui() -> bool:
 	_connect_once(btn_new.pressed, _on_new_sim_pressed)
 	_connect_once(btn_editor.pressed, _on_editor_pressed)
 	_connect_once(btn_quit.pressed, _on_quit_pressed)
-	_ensure_start_options_ui()
+
+	_template_option = get_node_or_null("Center/VBox/PresetRow/Option") as OptionButton
+	_building_type_option = get_node_or_null("Center/VBox/BuildingTypeRow/Option") as OptionButton
+	_apartment_floor_spin = get_node_or_null("Center/VBox/ApartmentFloorRow/Spin") as SpinBox
+	_hvac_option = get_node_or_null("Center/VBox/HvacRow/Option") as OptionButton
+	_lighting_option = get_node_or_null("Center/VBox/LightingRow/Option") as OptionButton
+	_interior_lights_option = get_node_or_null("Center/VBox/InteriorLightsRow/Option") as OptionButton
+	_glass_break_option = get_node_or_null("Center/VBox/GlassBreakRow/Option") as OptionButton
+	if _template_option == null or _building_type_option == null or _apartment_floor_spin == null \
+			or _hvac_option == null or _lighting_option == null or _glass_break_option == null \
+			or _interior_lights_option == null:
+		return false
+
+	_populate_template_option()
+	_populate_building_type_option()
+	_populate_apartment_floor_spin()
+	_populate_hvac_option()
+	_populate_lighting_option()
+	_populate_interior_lights_option()
+	_populate_glass_break_option()
+	_connect_once(_building_type_option.item_selected, _on_building_type_selected)
+	_sync_apartment_floor_visibility()
 	return true
 
 
@@ -76,172 +102,29 @@ func _ui_text(key: String, fallback: String) -> String:
 	return UILocalizationScript.t(key, fallback)
 
 
-func _setup_ui() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-
-	var bg := ColorRect.new()
-	bg.color = Color(0.08, 0.10, 0.13, 1.0)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 14)
-	center.add_child(vbox)
-
-	var title := Label.new()
-	title.text = "SimuFire"
-	title.add_theme_font_size_override("font_size", 36)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title)
-
-	var subtitle := Label.new()
-	subtitle.text = _ui_text("main.subtitle", "SIMULADOR TACTICO DE INCENDIOS")
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(subtitle)
-
-	vbox.add_child(HSeparator.new())
-	_ensure_start_options_ui(vbox)
-
-	_add_menu_button(vbox, _ui_text("main.start_simulation", "INICIAR SIMULACION"), _on_new_sim_pressed, "BtnNewSim")
-	_add_menu_button(vbox, _ui_text("main.open_editor", "EDITOR DE VIVIENDA"), _on_editor_pressed, "BtnEditor")
-	_add_menu_button(vbox, _ui_text("main.quit", "SALIR"), _on_quit_pressed, "BtnQuit")
+func _localize_texts() -> void:
+	_set_label_text("Center/VBox/Subtitle", _ui_text("main.subtitle", "SIMULADOR TACTICO DE INCENDIOS"))
+	_set_label_text("Center/VBox/PresetRow/PresetLabel", _ui_text("main.template", "Plantilla").to_upper())
+	_set_label_text("Center/VBox/BuildingTypeRow/BuildingTypeLabel", _ui_text("main.building_type", "Exterior").to_upper())
+	_set_label_text("Center/VBox/ApartmentFloorRow/ApartmentFloorLabel", _ui_text("main.apartment_floor", "Planta piso").to_upper())
+	_set_label_text("Center/VBox/LightingRow/LightingLabel", _ui_text("main.lighting", "Iluminacion").to_upper())
+	_set_label_text("Center/VBox/InteriorLightsRow/InteriorLightsLabel", _ui_text("main.interior_lights", "Luces int.").to_upper())
+	_set_label_text("Center/VBox/GlassBreakRow/GlassBreakLabel", _ui_text("main.glass_break", "Cristales").to_upper())
+	_set_button_text("Center/VBox/BtnNewSim", _ui_text("main.start_simulation", "INICIAR SIMULACION"))
+	_set_button_text("Center/VBox/BtnEditor", _ui_text("main.open_editor", "EDITOR DE VIVIENDA"))
+	_set_button_text("Center/VBox/BtnQuit", _ui_text("main.quit", "SALIR"))
 
 
-func _apply_main_menu_visual_style() -> void:
-	RenderingServer.set_default_clear_color(SimuFireThemeScript.BG)
-	theme = SimuFireThemeScript.build_theme()
-
-	var bg := get_node_or_null("Background") as ColorRect
-	if bg == null:
-		bg = ColorRect.new()
-		bg.name = "Background"
-		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-		add_child(bg)
-		move_child(bg, 0)
-	bg.color = SimuFireThemeScript.BG
-
-	var vbox := get_node_or_null("Center/VBox") as VBoxContainer
-	if vbox == null:
-		return
-	vbox.custom_minimum_size = Vector2(430.0, 0.0)
-	vbox.add_theme_constant_override("separation", 8)
-
-	var title := vbox.get_node_or_null("Title") as Label
-	if title != null:
-		title.visible = false
-
-	var logo := vbox.get_node_or_null("Logo") as TextureRect
-	if logo == null:
-		logo = TextureRect.new()
-		logo.name = "Logo"
-		logo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		vbox.add_child(logo)
-		vbox.move_child(logo, 0)
-	logo.texture = load(SimuFireThemeScript.LOGO_PATH) as Texture2D
-
-	var subtitle := vbox.get_node_or_null("Subtitle") as Label
-	if subtitle != null:
-		subtitle.text = _ui_text("main.subtitle", "SIMULADOR TACTICO DE INCENDIOS")
-		subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		subtitle.add_theme_font_override("font", SimuFireThemeScript.title_font())
-		subtitle.add_theme_font_size_override("font_size", 16)
-		subtitle.add_theme_color_override("font_color", SimuFireThemeScript.MUTED)
-
-	var btn_new := get_node_or_null("Center/VBox/BtnNewSim") as Button
-	var btn_editor := get_node_or_null("Center/VBox/BtnEditor") as Button
-	var btn_quit := get_node_or_null("Center/VBox/BtnQuit") as Button
-	if btn_new != null:
-		btn_new.text = _ui_text("main.start_simulation", "INICIAR SIMULACION")
-		btn_new.custom_minimum_size = Vector2(420.0, 44.0)
-		btn_new.add_theme_stylebox_override("normal", SimuFireThemeScript.stylebox(Color(0.16, 0.05, 0.01, 0.98), SimuFireThemeScript.ORANGE, 1, 0, Vector2(14.0, 9.0)))
-		btn_new.add_theme_stylebox_override("hover", SimuFireThemeScript.stylebox(Color(0.24, 0.07, 0.01, 0.98), SimuFireThemeScript.ORANGE, 1, 0, Vector2(14.0, 9.0)))
-	if btn_editor != null:
-		btn_editor.text = _ui_text("main.open_editor", "EDITOR DE VIVIENDA")
-		btn_editor.custom_minimum_size = Vector2(420.0, 44.0)
-	if btn_quit != null:
-		btn_quit.text = _ui_text("main.quit", "SALIR")
-		btn_quit.custom_minimum_size = Vector2(420.0, 44.0)
-
-	SimuFireThemeScript.apply_control_tree(vbox)
-	if subtitle != null:
-		subtitle.add_theme_font_override("font", SimuFireThemeScript.title_font())
-		subtitle.add_theme_font_size_override("font_size", 16)
-		subtitle.add_theme_color_override("font_color", SimuFireThemeScript.MUTED)
-	_fit_main_menu_layout()
+func _set_label_text(path: String, value: String) -> void:
+	var label := get_node_or_null(path) as Label
+	if label != null:
+		label.text = value
 
 
-func _ensure_start_options_ui(parent_override: Control = null) -> void:
-	var vbox: Control = parent_override
-	if vbox == null:
-		vbox = get_node_or_null("Center/VBox") as Control
-	if vbox == null:
-		return
-
-	var preset_row := vbox.get_node_or_null("PresetRow") as HBoxContainer
-	if preset_row == null:
-		preset_row = _make_option_row("PresetRow", _ui_text("main.template", "Plantilla"))
-		vbox.add_child(preset_row)
-		_move_before_first_button(vbox, preset_row)
-	_template_option = preset_row.get_node_or_null("Option") as OptionButton
-	_populate_template_option()
-
-	var building_row := vbox.get_node_or_null("BuildingTypeRow") as HBoxContainer
-	if building_row == null:
-		building_row = _make_option_row("BuildingTypeRow", _ui_text("main.building_type", "Exterior"))
-		vbox.add_child(building_row)
-		_move_before_first_button(vbox, building_row)
-	_building_type_option = building_row.get_node_or_null("Option") as OptionButton
-	_populate_building_type_option()
-	if _building_type_option != null:
-		_connect_once(_building_type_option.item_selected, _on_building_type_selected)
-
-	var apartment_floor_row := vbox.get_node_or_null("ApartmentFloorRow") as HBoxContainer
-	if apartment_floor_row == null:
-		apartment_floor_row = _make_spin_row("ApartmentFloorRow", _ui_text("main.apartment_floor", "Planta piso"), -5.0, 80.0, 1.0)
-		vbox.add_child(apartment_floor_row)
-		_move_before_first_button(vbox, apartment_floor_row)
-	_apartment_floor_spin = apartment_floor_row.get_node_or_null("Spin") as SpinBox
-	_populate_apartment_floor_spin()
-	_sync_apartment_floor_visibility()
-
-	var hvac_row := vbox.get_node_or_null("HvacRow") as HBoxContainer
-	if hvac_row == null:
-		hvac_row = _make_option_row("HvacRow", "HVAC")
-		vbox.add_child(hvac_row)
-		_move_before_first_button(vbox, hvac_row)
-	_hvac_option = hvac_row.get_node_or_null("Option") as OptionButton
-	_populate_hvac_option()
-
-	var lighting_row := vbox.get_node_or_null("LightingRow") as HBoxContainer
-	if lighting_row == null:
-		lighting_row = _make_option_row("LightingRow", _ui_text("main.lighting", "Iluminacion"))
-		vbox.add_child(lighting_row)
-		_move_before_first_button(vbox, lighting_row)
-	_lighting_option = lighting_row.get_node_or_null("Option") as OptionButton
-	_populate_lighting_option()
-
-	var interior_lights_row := vbox.get_node_or_null("InteriorLightsRow") as HBoxContainer
-	if interior_lights_row == null:
-		interior_lights_row = _make_option_row("InteriorLightsRow", _ui_text("main.interior_lights", "Luces int."))
-		vbox.add_child(interior_lights_row)
-		_move_before_first_button(vbox, interior_lights_row)
-	_interior_lights_option = interior_lights_row.get_node_or_null("Option") as OptionButton
-	_populate_interior_lights_option()
-
-	var glass_break_row := vbox.get_node_or_null("GlassBreakRow") as HBoxContainer
-	if glass_break_row == null:
-		glass_break_row = _make_option_row("GlassBreakRow", _ui_text("main.glass_break", "Cristales"))
-		vbox.add_child(glass_break_row)
-		_move_before_first_button(vbox, glass_break_row)
-	_glass_break_option = glass_break_row.get_node_or_null("Option") as OptionButton
-	_populate_glass_break_option()
-	_fit_main_menu_layout()
+func _set_button_text(path: String, value: String) -> void:
+	var button := get_node_or_null(path) as Button
+	if button != null:
+		button.text = value.to_upper()
 
 
 func _fit_main_menu_layout() -> void:
@@ -267,51 +150,6 @@ func _fit_main_menu_layout() -> void:
 			for row_child in child.get_children():
 				if row_child is OptionButton or row_child is SpinBox:
 					(row_child as Control).custom_minimum_size = Vector2(250.0, 30.0 if tight else 32.0)
-
-
-func _make_option_row(row_name: String, label_text: String) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.name = row_name
-	row.add_theme_constant_override("separation", 8)
-	var label := Label.new()
-	label.name = row_name.replace("Row", "Label")
-	label.custom_minimum_size = Vector2(92.0, 0.0)
-	label.text = label_text
-	row.add_child(label)
-	var option := OptionButton.new()
-	option.name = "Option"
-	option.custom_minimum_size = Vector2(250.0, 34.0)
-	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(option)
-	return row
-
-
-func _make_spin_row(row_name: String, label_text: String, min_value: float, max_value: float, step: float) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.name = row_name
-	row.add_theme_constant_override("separation", 8)
-	var label := Label.new()
-	label.name = row_name.replace("Row", "Label")
-	label.custom_minimum_size = Vector2(92.0, 0.0)
-	label.text = label_text
-	row.add_child(label)
-	var spin := SpinBox.new()
-	spin.name = "Spin"
-	spin.custom_minimum_size = Vector2(250.0, 34.0)
-	spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spin.min_value = min_value
-	spin.max_value = max_value
-	spin.step = step
-	spin.rounded = true
-	row.add_child(spin)
-	return row
-
-
-func _move_before_first_button(parent: Control, child: Control) -> void:
-	for i in range(parent.get_child_count()):
-		if parent.get_child(i) is Button:
-			parent.move_child(child, i)
-			return
 
 
 func _populate_template_option() -> void:
@@ -422,16 +260,6 @@ func _populate_glass_break_option() -> void:
 	var selected_index: int = maxi(0, _glass_break_modes.find(selected_mode))
 	if _glass_break_option.get_item_count() > 0:
 		_glass_break_option.select(clampi(selected_index, 0, _glass_break_option.get_item_count() - 1))
-
-
-func _add_menu_button(parent: Control, text: String, callback: Callable, node_name: String = "") -> void:
-	var btn := Button.new()
-	if not node_name.is_empty():
-		btn.name = node_name
-	btn.text = text
-	btn.custom_minimum_size = Vector2(420.0, 48.0)
-	btn.pressed.connect(callback)
-	parent.add_child(btn)
 
 
 func _load_startup_options() -> Dictionary:

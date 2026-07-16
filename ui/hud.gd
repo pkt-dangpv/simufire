@@ -14,6 +14,8 @@ signal hvac_toggled(enabled: bool)
 signal opening_fraction_requested(opening_index: int, open_fraction: float)
 
 const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
+## Tema compartido editable en el inspector (regenerable con tools/export_theme_tres.gd).
+const SimuFireThemeRes: Theme = preload("res://assets/ui/simufire_theme.tres")
 const HUDOpeningActionView = preload("res://ui/HUDOpeningActionView.gd")
 const HUDOpeningSummary = preload("res://ui/HUDOpeningSummary.gd")
 const HUDPlaybackLabels = preload("res://ui/HUDPlaybackLabels.gd")
@@ -193,7 +195,7 @@ func _connect_once(target_signal: Signal, target_callable: Callable) -> void:
 
 
 func _apply_hud_visual_style() -> void:
-	theme = SimuFireThemeScript.build_theme()
+	theme = SimuFireThemeRes
 	SimuFireThemeScript.apply_control_tree(self)
 
 	if time_label != null:

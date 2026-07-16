@@ -1,187 +1,9 @@
-[gd_scene format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="FontFile" path="res://assets/fonts/bahnschrift.ttf" id="1_2wh52"]
 [ext_resource type="Script" path="res://scenes/MainMenu.gd" id="1_mainmenu"]
 [ext_resource type="Texture2D" path="res://assets/ui/simufire_logo_editor.png" id="3_ow34m"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l72w3"]
-content_margin_left = 12.0
-content_margin_top = 8.0
-content_margin_right = 12.0
-content_margin_bottom = 8.0
-bg_color = Color(0.03, 0.04, 0.05, 0.82)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.1, 0.12, 0.14, 0.8)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_826wr"]
-content_margin_left = 12.0
-content_margin_top = 8.0
-content_margin_right = 12.0
-content_margin_bottom = 8.0
-bg_color = Color(0.04, 0.08, 0.1, 0.58)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0, 0.7, 0.88, 0.98)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ucygd"]
-content_margin_left = 12.0
-content_margin_top = 8.0
-content_margin_right = 12.0
-content_margin_bottom = 8.0
-bg_color = Color(0.04, 0.1, 0.12, 0.98)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0, 0.7, 0.88, 0.98)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mipys"]
-content_margin_left = 12.0
-content_margin_top = 8.0
-content_margin_right = 12.0
-content_margin_bottom = 8.0
-bg_color = Color(0, 0.02, 0.03, 0.98)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.18, 0.22, 0.25, 0.92)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8a8k8"]
-content_margin_left = 12.0
-content_margin_top = 8.0
-content_margin_right = 12.0
-content_margin_bottom = 8.0
-bg_color = Color(0.16, 0.05, 0.01, 0.98)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(1, 0.25, 0, 1)
-
-[sub_resource type="StyleBoxLine" id="StyleBoxLine_7la6k"]
-color = Color(0.18, 0.22, 0.25, 0.72)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2nypq"]
-content_margin_left = 8.0
-content_margin_top = 6.0
-content_margin_right = 8.0
-content_margin_bottom = 6.0
-bg_color = Color(0.03, 0.07, 0.09, 0.96)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0, 0.7, 0.88, 0.98)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bky6r"]
-content_margin_left = 8.0
-content_margin_top = 6.0
-content_margin_right = 8.0
-content_margin_bottom = 6.0
-bg_color = Color(0.03, 0.07, 0.09, 0.96)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.18, 0.22, 0.25, 0.92)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_l4mxc"]
-content_margin_left = 8.0
-content_margin_top = 6.0
-content_margin_right = 8.0
-content_margin_bottom = 6.0
-bg_color = Color(0.02, 0.03, 0.04, 0.85)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.18, 0.22, 0.25, 0.92)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_5faoh"]
-content_margin_left = 12.0
-content_margin_top = 8.0
-content_margin_right = 12.0
-content_margin_bottom = 8.0
-bg_color = Color(0.04, 0.08, 0.1, 0.58)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0, 0.7, 0.88, 0.98)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ptake"]
-content_margin_left = 12.0
-content_margin_top = 12.0
-content_margin_right = 12.0
-content_margin_bottom = 12.0
-bg_color = Color(0.02, 0.05, 0.07, 0.94)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.18, 0.22, 0.25, 0.92)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hubol"]
-content_margin_left = 8.0
-content_margin_top = 6.0
-content_margin_right = 8.0
-content_margin_bottom = 6.0
-bg_color = Color(0.02, 0.03, 0.04, 0.85)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.18, 0.22, 0.25, 0.92)
-
-[sub_resource type="Theme" id="Theme_8vx4p"]
-Button/colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
-Button/colors/font_disabled_color = Color(0.34, 0.38, 0.42, 0.72)
-Button/colors/font_focus_color = Color(0.9, 0.94, 0.96, 0.98)
-Button/colors/font_hover_color = Color(1, 1, 1, 1)
-Button/colors/font_pressed_color = Color(1, 0.25, 0, 1)
-Button/font_sizes/font_size = 12
-Button/fonts/font = ExtResource("1_2wh52")
-Button/styles/disabled = SubResource("StyleBoxFlat_l72w3")
-Button/styles/focus = SubResource("StyleBoxFlat_826wr")
-Button/styles/hover = SubResource("StyleBoxFlat_ucygd")
-Button/styles/normal = SubResource("StyleBoxFlat_mipys")
-Button/styles/pressed = SubResource("StyleBoxFlat_8a8k8")
-CheckBox/fonts/font = ExtResource("1_2wh52")
-HSeparator/styles/separator = SubResource("StyleBoxLine_7la6k")
-ItemList/fonts/font = ExtResource("1_2wh52")
-Label/colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
-Label/font_sizes/font_size = 12
-Label/fonts/font = ExtResource("1_2wh52")
-LineEdit/colors/caret_color = Color(1, 0.25, 0, 1)
-LineEdit/colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
-LineEdit/colors/font_placeholder_color = Color(0.49, 0.55, 0.6, 0.92)
-LineEdit/font_sizes/font_size = 12
-LineEdit/fonts/font = ExtResource("1_2wh52")
-LineEdit/styles/focus = SubResource("StyleBoxFlat_2nypq")
-LineEdit/styles/normal = SubResource("StyleBoxFlat_bky6r")
-LineEdit/styles/read_only = SubResource("StyleBoxFlat_l4mxc")
-OptionButton/colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
-OptionButton/font_sizes/font_size = 12
-OptionButton/fonts/font = ExtResource("1_2wh52")
-OptionButton/styles/disabled = SubResource("StyleBoxFlat_l72w3")
-OptionButton/styles/focus = SubResource("StyleBoxFlat_5faoh")
-OptionButton/styles/hover = SubResource("StyleBoxFlat_ucygd")
-OptionButton/styles/normal = SubResource("StyleBoxFlat_mipys")
-OptionButton/styles/pressed = SubResource("StyleBoxFlat_8a8k8")
-PanelContainer/styles/panel = SubResource("StyleBoxFlat_ptake")
-PopupMenu/fonts/font = ExtResource("1_2wh52")
-SpinBox/font_sizes/font_size = 12
-SpinBox/fonts/font = ExtResource("1_2wh52")
-SpinBox/styles/focus = SubResource("StyleBoxFlat_2nypq")
-SpinBox/styles/normal = SubResource("StyleBoxFlat_bky6r")
-SpinBox/styles/read_only = SubResource("StyleBoxFlat_hubol")
-Tree/fonts/font = ExtResource("1_2wh52")
+[ext_resource type="Theme" path="res://assets/ui/simufire_theme.tres" id="4_theme"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tdapf"]
 content_margin_left = 14.0
@@ -207,17 +29,17 @@ border_width_right = 1
 border_width_bottom = 1
 border_color = Color(1, 0.25, 0, 1)
 
-[node name="MainMenu" type="Control" unique_id=840078884]
+[node name="MainMenu" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme = SubResource("Theme_8vx4p")
+theme = ExtResource("4_theme")
 script = ExtResource("1_mainmenu")
 
-[node name="Background" type="ColorRect" parent="." unique_id=82418535]
+[node name="Background" type="ColorRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -226,7 +48,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0.01, 0.01, 1)
 
-[node name="Center" type="CenterContainer" parent="." unique_id=57514848]
+[node name="Center" type="CenterContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -234,12 +56,12 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBox" type="VBoxContainer" parent="Center" unique_id=395143774]
+[node name="VBox" type="VBoxContainer" parent="Center"]
 custom_minimum_size = Vector2(430, 0)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Logo" type="TextureRect" parent="Center/VBox" unique_id=1341850606]
+[node name="Logo" type="TextureRect" parent="Center/VBox"]
 custom_minimum_size = Vector2(430, 220)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -247,7 +69,7 @@ texture = ExtResource("3_ow34m")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Title" type="Label" parent="Center/VBox" unique_id=1523525978]
+[node name="Title" type="Label" parent="Center/VBox"]
 visible = false
 layout_mode = 2
 theme_override_fonts/font = ExtResource("1_2wh52")
@@ -256,7 +78,7 @@ theme_override_colors/font_color = Color(1, 0.25, 0, 1)
 text = "SIMUFIRE"
 horizontal_alignment = 1
 
-[node name="Subtitle" type="Label" parent="Center/VBox" unique_id=2077744587]
+[node name="Subtitle" type="Label" parent="Center/VBox"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("1_2wh52")
 theme_override_font_sizes/font_size = 16
@@ -264,66 +86,83 @@ theme_override_colors/font_color = Color(0.49, 0.55, 0.6, 0.92)
 text = "SIMULADOR TACTICO DE INCENDIOS"
 horizontal_alignment = 1
 
-[node name="Separator" type="HSeparator" parent="Center/VBox" unique_id=2023611668]
+[node name="Separator" type="HSeparator" parent="Center/VBox"]
 layout_mode = 2
 
-[node name="PresetRow" type="HBoxContainer" parent="Center/VBox" unique_id=1000077806]
+[node name="PresetRow" type="HBoxContainer" parent="Center/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="PresetLabel" type="Label" parent="Center/VBox/PresetRow" unique_id=867762135]
+[node name="PresetLabel" type="Label" parent="Center/VBox/PresetRow"]
 custom_minimum_size = Vector2(92, 0)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("1_2wh52")
-theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(1, 0.25, 0, 1)
 text = "PLANTILLA"
 
-[node name="Option" type="OptionButton" parent="Center/VBox/PresetRow" unique_id=1200304622]
+[node name="Option" type="OptionButton" parent="Center/VBox/PresetRow"]
 custom_minimum_size = Vector2(250, 34)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_fonts/font = ExtResource("1_2wh52")
-theme_override_font_sizes/font_size = 12
 selected = 0
-item_count = 9
+item_count = 1
 popup/item_0/text = "Casa simple"
 popup/item_0/id = 0
-popup/item_1/text = "Piso 1 dormitorio"
-popup/item_1/id = 1
-popup/item_2/text = "Piso 2 dormitorios"
-popup/item_2/id = 2
-popup/item_3/text = "Piso 3 dormitorios"
-popup/item_3/id = 3
-popup/item_4/text = "Adosado planta baja"
-popup/item_4/id = 4
-popup/item_5/text = "Ranch 3 dormitorios"
-popup/item_5/id = 5
-popup/item_6/text = "Ghanekar ranch HVAC"
-popup/item_6/id = 6
-popup/item_7/text = "Bungalow anglosajón"
-popup/item_7/id = 7
-popup/item_8/text = "Piso mediterráneo"
-popup/item_8/id = 8
 
-[node name="HvacRow" type="HBoxContainer" parent="Center/VBox" unique_id=1489012732]
+[node name="BuildingTypeRow" type="HBoxContainer" parent="Center/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="HvacLabel" type="Label" parent="Center/VBox/HvacRow" unique_id=778289106]
+[node name="BuildingTypeLabel" type="Label" parent="Center/VBox/BuildingTypeRow"]
 custom_minimum_size = Vector2(92, 0)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("1_2wh52")
-theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(1, 0.25, 0, 1)
-text = "HVAC"
+text = "EXTERIOR"
 
-[node name="Option" type="OptionButton" parent="Center/VBox/HvacRow" unique_id=1278341236]
+[node name="Option" type="OptionButton" parent="Center/VBox/BuildingTypeRow"]
 custom_minimum_size = Vector2(250, 34)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_fonts/font = ExtResource("1_2wh52")
-theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 2
+popup/item_0/text = "Casa unifamiliar"
+popup/item_0/id = 0
+popup/item_1/text = "Piso"
+popup/item_1/id = 1
+
+[node name="ApartmentFloorRow" type="HBoxContainer" parent="Center/VBox"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ApartmentFloorLabel" type="Label" parent="Center/VBox/ApartmentFloorRow"]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 1)
+text = "PLANTA PISO"
+
+[node name="Spin" type="SpinBox" parent="Center/VBox/ApartmentFloorRow"]
+custom_minimum_size = Vector2(250, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -5.0
+max_value = 80.0
+value = 1.0
+rounded = true
+
+[node name="HvacRow" type="HBoxContainer" parent="Center/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HvacLabel" type="Label" parent="Center/VBox/HvacRow"]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 1)
+text = "HVAC"
+
+[node name="Option" type="OptionButton" parent="Center/VBox/HvacRow"]
+custom_minimum_size = Vector2(250, 34)
+layout_mode = 2
+size_flags_horizontal = 3
 selected = 0
 item_count = 3
 popup/item_0/text = "Sin HVAC"
@@ -333,25 +172,84 @@ popup/item_1/id = 1
 popup/item_2/text = "HVAC instalado ON"
 popup/item_2/id = 2
 
-[node name="BtnNewSim" type="Button" parent="Center/VBox" unique_id=277234585]
+[node name="LightingRow" type="HBoxContainer" parent="Center/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LightingLabel" type="Label" parent="Center/VBox/LightingRow"]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 1)
+text = "ILUMINACION"
+
+[node name="Option" type="OptionButton" parent="Center/VBox/LightingRow"]
+custom_minimum_size = Vector2(250, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+selected = 0
+item_count = 2
+popup/item_0/text = "Dia exterior"
+popup/item_0/id = 0
+popup/item_1/text = "Noche exterior"
+popup/item_1/id = 1
+
+[node name="InteriorLightsRow" type="HBoxContainer" parent="Center/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="InteriorLightsLabel" type="Label" parent="Center/VBox/InteriorLightsRow"]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 1)
+text = "LUCES INT."
+
+[node name="Option" type="OptionButton" parent="Center/VBox/InteriorLightsRow"]
+custom_minimum_size = Vector2(250, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+selected = 0
+item_count = 2
+popup/item_0/text = "Interiores ON"
+popup/item_0/id = 0
+popup/item_1/text = "Interiores OFF"
+popup/item_1/id = 1
+
+[node name="GlassBreakRow" type="HBoxContainer" parent="Center/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="GlassBreakLabel" type="Label" parent="Center/VBox/GlassBreakRow"]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 1)
+text = "CRISTALES"
+
+[node name="Option" type="OptionButton" parent="Center/VBox/GlassBreakRow"]
+custom_minimum_size = Vector2(250, 34)
+layout_mode = 2
+size_flags_horizontal = 3
+selected = 0
+item_count = 3
+popup/item_0/text = "Sin rotura"
+popup/item_0/id = 0
+popup/item_1/text = "Umbral temp."
+popup/item_1/id = 1
+popup/item_2/text = "Probabilistica"
+popup/item_2/id = 2
+
+[node name="BtnNewSim" type="Button" parent="Center/VBox"]
 custom_minimum_size = Vector2(420, 44)
 layout_mode = 2
 theme_override_styles/normal = SubResource("StyleBoxFlat_tdapf")
 theme_override_styles/hover = SubResource("StyleBoxFlat_v41fp")
-theme_override_fonts/font = ExtResource("1_2wh52")
-theme_override_font_sizes/font_size = 12
 text = "INICIAR SIMULACION"
 
-[node name="BtnEditor" type="Button" parent="Center/VBox" unique_id=736215872]
+[node name="BtnEditor" type="Button" parent="Center/VBox"]
 custom_minimum_size = Vector2(420, 44)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("1_2wh52")
-theme_override_font_sizes/font_size = 12
 text = "EDITOR DE VIVIENDA"
 
-[node name="BtnQuit" type="Button" parent="Center/VBox" unique_id=1009353491]
+[node name="BtnQuit" type="Button" parent="Center/VBox"]
 custom_minimum_size = Vector2(420, 44)
 layout_mode = 2
-theme_override_fonts/font = ExtResource("1_2wh52")
-theme_override_font_sizes/font_size = 12
 text = "SALIR"
