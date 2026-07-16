@@ -1571,14 +1571,14 @@ func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> v
 		var span_step: float = city_view_width_m / float(count)
 		for slot in range(count):
 			var slot_t: float = (float(slot) + 0.5) / float(count) - 0.5
-			var seed: float = float(index * 31 + slot * 17)
-			var building_width: float = clampf(span_step * (0.72 + fposmod(seed * 0.37, 0.32)), 1.6, 4.6)
-			var building_depth: float = 0.72 + fposmod(seed * 0.19, 0.34)
-			var building_height: float = 7.5 + fposmod(seed * 1.13, 7.2)
-			var distance: float = city_building_distance_m + 2.8 + fposmod(seed * 0.23, 3.6)
+			var variant_seed: float = float(index * 31 + slot * 17)
+			var building_width: float = clampf(span_step * (0.72 + fposmod(variant_seed * 0.37, 0.32)), 1.6, 4.6)
+			var building_depth: float = 0.72 + fposmod(variant_seed * 0.19, 0.34)
+			var building_height: float = 7.5 + fposmod(variant_seed * 1.13, 7.2)
+			var distance: float = city_building_distance_m + 2.8 + fposmod(variant_seed * 0.23, 3.6)
 			var building_center: Vector3 = center - normal * distance + tangent * (slot_t * city_view_width_m)
 			building_center.y = -exterior_floor_drop_m + building_height * 0.5
-			var tone: float = fposmod(seed * 0.11, 0.24)
+			var tone: float = fposmod(variant_seed * 0.11, 0.24)
 			var building_color := Color(0.34 + tone, 0.36 + tone * 0.72, 0.37 + tone * 0.55, 1.0)
 			_add_oriented_box(
 				parent,
@@ -1591,7 +1591,7 @@ func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> v
 				_mat(building_color, false, building_color, 0.035 if not _exterior_is_night() else 0.0),
 				false
 			)
-			_create_city_windows(parent, index, slot, building_center, normal, tangent, building_width, building_height, building_depth, seed)
+			_create_city_windows(parent, index, slot, building_center, normal, tangent, building_width, building_height, building_depth, variant_seed)
 
 
 func _create_window_residential_view(parent: Node3D, index: int, info: Dictionary) -> void:
@@ -1727,7 +1727,7 @@ func _create_exterior_lighting(parent: Node3D) -> void:
 	parent.add_child(exterior_fill)
 
 
-func _create_exterior_window_sill(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, width_m: float, sill_m: float) -> void:
+func _create_exterior_window_sill(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, width_m: float, _sill_m: float) -> void:
 	var slab_center: Vector3 = center - normal * 0.62
 	slab_center.y = maxf(0.22, center.y - 0.50)
 	_add_oriented_box(parent, "ExteriorSill_%02d" % index, slab_center, tangent, width_m + 0.36, 0.06, 0.30, _mat(Color(0.55, 0.54, 0.49, 1.0), false), false)
@@ -1743,7 +1743,7 @@ func _create_city_windows(
 	building_width: float,
 	building_height: float,
 	building_depth: float,
-	seed: float
+	variant_seed: float
 ) -> void:
 	var columns: int = clampi(int(floor(building_width / 0.95)), 1, 3)
 	var rows: int = clampi(int(floor((building_height - 1.0) / 1.55)), 2, 6)
@@ -1754,7 +1754,7 @@ func _create_city_windows(
 			continue
 		for column in range(columns):
 			var col_t: float = (float(column) + 0.5) / float(columns) - 0.5
-			var lit_roll: float = fposmod(seed * 0.173 + float(row) * 0.277 + float(column) * 0.619, 1.0)
+			var lit_roll: float = fposmod(variant_seed * 0.173 + float(row) * 0.277 + float(column) * 0.619, 1.0)
 			var lit: bool = lit_roll < _effective_city_lit_window_ratio()
 			var win_center: Vector3 = face_center + tangent * (col_t * building_width * 0.72)
 			win_center.y = y
@@ -3819,9 +3819,9 @@ func _place_at_entry() -> void:
 	if not building.player_start.is_empty():
 		var start: Dictionary = building.player_start
 		var room_id: int = int(start.get("room_id", -1))
-		var rects: Dictionary = _room_rects_cache
-		if rects.has(room_id):
-			var rect: Rect2 = Rect2(rects[room_id])
+		var start_rects: Dictionary = _room_rects_cache
+		if start_rects.has(room_id):
+			var rect: Rect2 = Rect2(start_rects[room_id])
 			var local_pos: Vector2 = Vector2(start.get("position_m", Vector2(rect.size.x * 0.5, rect.size.y * 0.5)))
 			local_pos.x = clampf(local_pos.x, 0.0, rect.size.x)
 			local_pos.y = clampf(local_pos.y, 0.0, rect.size.y)
@@ -4014,9 +4014,9 @@ func _mat(
 	return material
 
 
-func _noise_texture(seed: int) -> Texture2D:
+func _noise_texture(variant_seed: int) -> Texture2D:
 	var noise := FastNoiseLite.new()
-	noise.seed = seed
+	noise.seed = variant_seed
 	noise.frequency = material_noise_frequency
 	var texture := NoiseTexture2D.new()
 	texture.width = 128

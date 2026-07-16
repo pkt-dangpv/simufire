@@ -187,11 +187,11 @@ static func _build_textile_pile_shape(parent: Node3D, size_m: Vector2, meters_to
 	var x: float = maxf(0.2, size_m.x)
 	var z: float = maxf(0.2, size_m.y)
 	for i in range(6):
-		var seed: float = float(i) * 1.73
+		var part_seed: float = float(i) * 1.73
 		var offset := Vector3(
-			sin(seed) * x * 0.22,
+			sin(part_seed) * x * 0.22,
 			0.10 + float(i % 3) * 0.055,
-			cos(seed * 0.8) * z * 0.20
+			cos(part_seed * 0.8) * z * 0.20
 		)
 		var item_size := Vector3(
 			x * (0.34 + 0.08 * float(i % 2)),
@@ -246,11 +246,11 @@ static func _build_clutter_shape(parent: Node3D, size_m: Vector2, meters_to_unit
 	var x: float = maxf(0.2, size_m.x)
 	var z: float = maxf(0.2, size_m.y)
 	for i in range(7):
-		var seed: float = float(i) * 2.11
+		var part_seed: float = float(i) * 2.11
 		var offset := Vector3(
-			sin(seed) * x * 0.28,
+			sin(part_seed) * x * 0.28,
 			0.09 + float(i % 3) * 0.09,
-			cos(seed * 0.7) * z * 0.28
+			cos(part_seed * 0.7) * z * 0.28
 		)
 		var color := Color(0.43 + 0.05 * float(i % 2), 0.32, 0.23, 1.0)
 		if i % 3 == 0:

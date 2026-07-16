@@ -38,32 +38,32 @@ static func animate(item: Dictionary, global_phase: float, settings: Dictionary)
 		var puff := puffs[i] as Sprite3D
 		if puff == null:
 			continue
-		var seed: float = float(puff.get_meta("seed", i))
-		var phase: float = global_phase * (0.20 + heat_t * 0.18 + fposmod(seed, 5.0) * 0.018) + seed
-		var x_frac: float = fposmod(seed * 0.618 + sin(phase) * 0.040, 1.0)
-		var z_frac: float = fposmod(seed * 0.382 + cos(phase * 0.83) * 0.040, 1.0)
-		var interface_puff: bool = fposmod(seed * 0.37, 1.0) < 0.58
+		var puff_seed: float = float(puff.get_meta("seed", i))
+		var phase: float = global_phase * (0.20 + heat_t * 0.18 + fposmod(puff_seed, 5.0) * 0.018) + puff_seed
+		var x_frac: float = fposmod(puff_seed * 0.618 + sin(phase) * 0.040, 1.0)
+		var z_frac: float = fposmod(puff_seed * 0.382 + cos(phase * 0.83) * 0.040, 1.0)
+		var interface_puff: bool = fposmod(puff_seed * 0.37, 1.0) < 0.58
 		var y_frac: float
 		if interface_puff:
-			y_frac = 0.06 + fposmod(seed * 0.271, 0.22)
+			y_frac = 0.06 + fposmod(puff_seed * 0.271, 0.22)
 		else:
-			y_frac = 0.42 + fposmod(seed * 0.193, 0.48)
+			y_frac = 0.42 + fposmod(puff_seed * 0.193, 0.48)
 		var x_m: float = rect.position.x + room_inset_m + x_frac * usable_w
 		var z_m: float = rect.position.y + room_inset_m + z_frac * usable_d
 		var y_m: float = bottom_m + depth_m * y_frac + sin(phase * 1.4) * minf(depth_m * 0.035, 0.042)
 		y_m = clampf(y_m, bottom_m + 0.06, height_m - 0.18)
 		puff.position = _to_world(Vector3(x_m, floor_level_m + y_m, z_m), meters_to_units, origin_offset_m)
 		var wobble: float = 1.0 + sin(phase * 1.1) * 0.07
-		var sprite_scale: float = puff_base * lerpf(0.58, 1.05, fposmod(seed * 0.13, 1.0)) * wobble
+		var sprite_scale: float = puff_base * lerpf(0.58, 1.05, fposmod(puff_seed * 0.13, 1.0)) * wobble
 		puff.scale = Vector3.ONE * sprite_scale * meters_to_units
-		puff.rotation_degrees.z = sin(phase * 0.32) * 6.0 + seed * 3.0
+		puff.rotation_degrees.z = sin(phase * 0.32) * 6.0 + puff_seed * 3.0
 		puff.texture = smoke_texture
 		var frame_count: int = maxi(1, puff.hframes * puff.vframes)
-		puff.frame = int(fposmod(floor(global_phase * (3.0 + heat_t * 2.0) + seed), float(frame_count)))
+		puff.frame = int(fposmod(floor(global_phase * (3.0 + heat_t * 2.0) + puff_seed), float(frame_count)))
 		var y_density_t: float = y_frac * y_frac * (3.0 - 2.0 * y_frac)
 		var band_alpha: float = lerpf(0.72, 0.22, y_density_t) if interface_puff else lerpf(0.18, 0.48, y_density_t)
 		var puff_alpha: float = clampf(
-			alpha * band_alpha * lerpf(0.48, 0.86, fposmod(seed * 0.47, 1.0)) * lerpf(0.72, 1.0, visibility_t),
+			alpha * band_alpha * lerpf(0.48, 0.86, fposmod(puff_seed * 0.47, 1.0)) * lerpf(0.72, 1.0, visibility_t),
 			0.0,
 			0.18
 		)

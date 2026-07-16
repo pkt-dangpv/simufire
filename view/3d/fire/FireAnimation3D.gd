@@ -41,12 +41,12 @@ static func animate(item: Dictionary, global_phase: float, settings: Dictionary)
 		var tongue := tongues[i] as MeshInstance3D
 		if tongue == null:
 			continue
-		var seed: float = float(tongue.get_meta("seed", i))
-		var wave: float = 1.0 + sin(global_phase * (7.0 + fposmod(seed, 4.0)) + seed) * fire_flicker_strength * 0.85
-		var angle: float = seed * 1.97 + sin(global_phase * 1.8 + seed) * 0.28
-		var orbit_r: float = radius_m * (0.22 + fposmod(seed * 0.17, 0.38))
-		var tongue_h: float = minf(max_column_h, maxf(0.04, height_m * lerpf(0.48, 0.92, fposmod(seed * 0.29, 1.0)) * wave))
-		var tongue_r: float = maxf(0.025, radius_m * lerpf(0.34, 0.68, fposmod(seed * 0.41, 1.0)))
+		var tongue_seed: float = float(tongue.get_meta("seed", i))
+		var wave: float = 1.0 + sin(global_phase * (7.0 + fposmod(tongue_seed, 4.0)) + tongue_seed) * fire_flicker_strength * 0.85
+		var angle: float = tongue_seed * 1.97 + sin(global_phase * 1.8 + tongue_seed) * 0.28
+		var orbit_r: float = radius_m * (0.22 + fposmod(tongue_seed * 0.17, 0.38))
+		var tongue_h: float = minf(max_column_h, maxf(0.04, height_m * lerpf(0.48, 0.92, fposmod(tongue_seed * 0.29, 1.0)) * wave))
+		var tongue_r: float = maxf(0.025, radius_m * lerpf(0.34, 0.68, fposmod(tongue_seed * 0.41, 1.0)))
 		tongue.visible = height_m > 0.05
 		tongue.position = Vector3(
 			cos(angle) * orbit_r * meters_to_units,
