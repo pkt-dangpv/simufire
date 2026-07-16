@@ -1,27 +1,26 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cl5o2xsurrpt6"]
 
-[node name="OpeningActionPanel" type="PanelContainer"]
+[node name="OpeningActionPanel" type="PanelContainer" unique_id=1526348531]
 visible = false
 custom_minimum_size = Vector2(310, 92)
-mouse_filter = 0
 
-[node name="Margin" type="MarginContainer" parent="."]
+[node name="Margin" type="MarginContainer" parent="." unique_id=275054501]
 layout_mode = 2
 theme_override_constants/margin_left = 8
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="Rows" type="VBoxContainer" parent="Margin"]
+[node name="Rows" type="VBoxContainer" parent="Margin" unique_id=1671529820]
 layout_mode = 2
 theme_override_constants/separation = 7
 
-[node name="Title" type="Label" parent="Margin/Rows"]
+[node name="Title" type="Label" parent="Margin/Rows" unique_id=1182456930]
 layout_mode = 2
 text = "Apertura"
 clip_text = true
 text_overrun_behavior = 3
 
-[node name="ButtonsRow" type="HBoxContainer" parent="Margin/Rows"]
+[node name="ButtonsRow" type="HBoxContainer" parent="Margin/Rows" unique_id=1273558508]
 layout_mode = 2
 theme_override_constants/separation = 5
