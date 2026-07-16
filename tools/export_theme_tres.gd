@@ -1,10 +1,13 @@
 extends SceneTree
-## Exporta el tema generado por SimuFireTheme.build_theme() a un recurso
-## editable en el inspector: assets/ui/simufire_theme.tres.
+## Exporta el tema generado por SimuFireTheme.build_theme() al recurso
+## canonico editable en el inspector: ui/SimuFireTheme.tres (referenciado
+## por MainMenu, SimulationScene y ScenarioEditorScene).
 ## Uso: godot --headless --path . --script res://tools/export_theme_tres.gd
 ## Re-ejecutar si se cambia build_theme() para regenerar el .tres.
+## OJO: conservar la linea uid del header si ResourceSaver la pierde
+## (uid://bnfl86slco45l — ScenarioEditorScene la referencia).
 
-const OUT_PATH := "res://assets/ui/simufire_theme.tres"
+const OUT_PATH := "res://ui/SimuFireTheme.tres"
 
 
 func _initialize() -> void:

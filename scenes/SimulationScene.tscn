@@ -9,6 +9,7 @@
 [ext_resource type="Script" uid="uid://b0fuen3e64cbj" path="res://view/3d/Visualizer3D.gd" id="6_3dviz"]
 [ext_resource type="Script" uid="uid://dp46g35hj2x73" path="res://view/fp/FirstPersonController.gd" id="7_fp"]
 [ext_resource type="Theme" path="res://ui/SimuFireTheme.tres" id="8_sftheme"]
+[ext_resource type="Script" path="res://ui/Minimap2D.gd" id="9_minimap"]
 
 [node name="Main" type="Node" unique_id=655075668]
 script = ExtResource("1_ig7tw")
@@ -332,6 +333,75 @@ text = "VICTIMAS"
 [node name="VictimsRows" type="VBoxContainer" parent="UI/HUD/VictimsPanel/MarginContainer/VBoxContainer" unique_id=1200100005]
 layout_mode = 2
 theme_override_constants/separation = 3
+
+[node name="Minimap2D" type="Control" parent="UI/HUD"]
+visible = false
+layout_mode = 1
+offset_left = 14.0
+offset_top = 14.0
+offset_right = 242.0
+offset_bottom = 174.0
+mouse_filter = 2
+script = ExtResource("9_minimap")
+
+[node name="PythonUnavailableWarning" type="Label" parent="UI/HUD"]
+visible = false
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -270.0
+offset_top = 12.0
+offset_right = 270.0
+offset_bottom = 42.0
+grow_horizontal = 2
+mouse_filter = 2
+z_index = 900
+theme_override_colors/font_color = Color(1, 0.72, 0.22, 1)
+theme_override_colors/font_outline_color = Color(0.02, 0.02, 0.02, 0.95)
+theme_override_constants/outline_size = 5
+text = "Python no detectado - no se generaran graficas"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GraphGenerationOverlay" type="ColorRect" parent="UI"]
+visible = false
+z_index = 1000
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.02, 0.025, 0.03, 0.72)
+
+[node name="Center" type="CenterContainer" parent="UI/GraphGenerationOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="UI/GraphGenerationOverlay/Center"]
+custom_minimum_size = Vector2(380, 96)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="UI/GraphGenerationOverlay/Center/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 18
+
+[node name="StatusLabel" type="Label" parent="UI/GraphGenerationOverlay/Center/Panel/Margin"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Generando graficas..."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GraphGenerationPollTimer" type="Timer" parent="."]
+wait_time = 0.5
 
 [node name="CaseRunner" type="Node" parent="." unique_id=1971390770]
 script = ExtResource("5_case")

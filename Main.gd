@@ -1,8 +1,9 @@
 extends Node
 
 const FirstPersonControllerScript = preload("res://view/fp/FirstPersonController.gd")
-const Minimap2DScript = preload("res://ui/Minimap2D.gd")
 const UILocalizationScript = preload("res://ui/UILocalization.gd")
+const GraphsWindowScene: PackedScene = preload("res://scenes/GraphsWindow.tscn")
+const TechnicalSummaryWindowScene: PackedScene = preload("res://scenes/TechnicalSummaryWindow.tscn")
 const MAIN_MENU_PATH: String = "res://scenes/MainMenu.tscn"
 const SCENARIO_EDITOR_PATH: String = "res://scenes/ScenarioEditorScene.tscn"
 const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
@@ -31,6 +32,14 @@ var _graphs_room_tabs: TabContainer = null
 var _graphs_room_selector: OptionButton = null
 var _graphs_room_prev_button: Button = null
 var _graphs_room_next_button: Button = null
+var _graphs_header_label: Label = null
+var _graphs_zoom_bar: Control = null
+var _graphs_room_nav: Control = null
+var _graphs_message_label: Label = null
+var _summary_title_label: Label = null
+var _summary_export_label: Label = null
+var _summary_metrics_grid: GridContainer = null
+var _summary_tabs: TabContainer = null
 var _graph_drag_scroll: ScrollContainer = null
 var _graph_zoom: float = 1.0
 var _graph_generation_overlay: ColorRect = null
@@ -338,35 +347,18 @@ func _sync_view_mode() -> void:
 		first_person_controller.set_active(first_person_enabled)
 	if minimap_2d != null:
 		minimap_2d.visible = view_3d_enabled or first_person_enabled
-		# En FP los paneles del HUD ocupan arriba-izquierda; el minimapa pasa
-		# a arriba-derecha para no quedar tapado.
-		if first_person_enabled:
-			minimap_2d.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-			minimap_2d.offset_left = -242.0
-			minimap_2d.offset_top = 14.0
-			minimap_2d.offset_right = -14.0
-			minimap_2d.offset_bottom = 174.0
-		else:
-			minimap_2d.set_anchors_preset(Control.PRESET_TOP_LEFT)
-			minimap_2d.offset_left = 14.0
-			minimap_2d.offset_top = 14.0
-			minimap_2d.offset_right = 242.0
-			minimap_2d.offset_bottom = 174.0
+		minimap_2d.set_fp_mode(first_person_enabled)
 
 
 func _setup_minimap() -> void:
 	if hud == null or minimap_2d != null:
 		return
-	minimap_2d = Minimap2DScript.new()
-	minimap_2d.name = "Minimap2D"
-	minimap_2d.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	minimap_2d.offset_left = 14.0
-	minimap_2d.offset_top = 14.0
-	minimap_2d.offset_right = 242.0
-	minimap_2d.offset_bottom = 174.0
-	minimap_2d.visible = false
-	minimap_2d.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hud.add_child(minimap_2d)
+	# El nodo vive en SimulationScene.tscn (posicion/tamano editables en el
+	# inspector via los exports de Minimap2D); aqui solo se enlaza.
+	minimap_2d = hud.get_node_or_null("Minimap2D")
+	if minimap_2d == null:
+		push_error("Main: falta UI/HUD/Minimap2D en SimulationScene.tscn")
+		return
 	minimap_2d.bind_building(building)
 
 
@@ -447,92 +439,61 @@ func _setup_graph_dialogs() -> void:
 	_graphs_dir_dialog.dir_selected.connect(_on_graphs_dir_selected)
 	add_child(_graphs_dir_dialog)
 
-	_graphs_view_window = Window.new()
-	_graphs_view_window.name = "GraphsViewer"
+	# Las dos ventanas viven en escenas editables (GraphsWindow.tscn /
+	# TechnicalSummaryWindow.tscn); aqui solo se instancian, se enlazan sus
+	# nodos y se conectan senales. El contenido dinamico se rellena al abrir.
+	_graphs_view_window = GraphsWindowScene.instantiate() as Window
 	_graphs_view_window.title = UILocalizationScript.t("summary.graphs_window_title", "Graficas de simulacion")
-	_graphs_view_window.size = Vector2i(1500, 820)
-	_graphs_view_window.min_size = Vector2i(960, 560)
-	_graphs_view_window.wrap_controls = false
-	_graphs_view_window.visible = false
-	_graphs_view_window.force_native = true
 	_graphs_view_window.close_requested.connect(_on_graphs_window_close_requested)
 	_graphs_view_window.size_changed.connect(_on_graphs_window_size_changed)
 	add_child(_graphs_view_window)
+	_graphs_header_label = _graphs_view_window.get_node("Root/Header") as Label
+	_graphs_zoom_bar = _graphs_view_window.get_node("Root/ZoomBar") as Control
+	_graphs_room_nav = _graphs_view_window.get_node("Root/RoomNav") as Control
+	_graphs_room_tabs = _graphs_view_window.get_node("Root/Tabs") as TabContainer
+	_graphs_message_label = _graphs_view_window.get_node("Root/MessageLabel") as Label
+	_graphs_room_selector = _graphs_view_window.get_node("Root/RoomNav/RoomSelector") as OptionButton
+	_graphs_room_prev_button = _graphs_view_window.get_node("Root/RoomNav/BtnRoomPrev") as Button
+	_graphs_room_next_button = _graphs_view_window.get_node("Root/RoomNav/BtnRoomNext") as Button
+	(_graphs_view_window.get_node("Root/ZoomBar/BtnZoomOut") as Button).pressed.connect(_on_graph_zoom_out)
+	(_graphs_view_window.get_node("Root/ZoomBar/BtnZoomIn") as Button).pressed.connect(_on_graph_zoom_in)
+	(_graphs_view_window.get_node("Root/ZoomBar/BtnZoomReset") as Button).pressed.connect(_on_graph_zoom_reset)
+	_graphs_room_prev_button.pressed.connect(_on_graph_room_prev)
+	_graphs_room_next_button.pressed.connect(_on_graph_room_next)
+	_graphs_room_selector.item_selected.connect(_on_graph_room_selected)
+	_graphs_room_tabs.tab_changed.connect(_on_graph_room_tab_changed)
 
-	_technical_summary_window = Window.new()
-	_technical_summary_window.name = "TechnicalSummaryWindow"
+	_technical_summary_window = TechnicalSummaryWindowScene.instantiate() as Window
 	_technical_summary_window.title = UILocalizationScript.t("summary.window_title", "Resumen tecnico post-simulacion")
-	_technical_summary_window.size = Vector2i(960, 560)
-	_technical_summary_window.min_size = Vector2i(720, 480)
-	_technical_summary_window.wrap_controls = false
-	_technical_summary_window.visible = false
 	_technical_summary_window.close_requested.connect(_on_technical_summary_window_close_requested)
 	add_child(_technical_summary_window)
+	_summary_title_label = _technical_summary_window.get_node("Margin/Root/Title") as Label
+	_summary_export_label = _technical_summary_window.get_node("Margin/Root/ExportLabel") as Label
+	_summary_metrics_grid = _technical_summary_window.get_node("Margin/Root/Metrics") as GridContainer
+	_summary_tabs = _technical_summary_window.get_node("Margin/Root/Tabs") as TabContainer
+	(_technical_summary_window.get_node("Margin/Root/ButtonRow/BtnClose") as Button).pressed.connect(_on_technical_summary_window_close_requested)
 	_setup_graph_generation_overlay()
 
 
 func _setup_graph_generation_overlay() -> void:
-	if _graph_generation_overlay != null:
-		return
-	var ui_root: Node = get_node_or_null("UI")
-	if ui_root == null:
-		return
-	_graph_generation_overlay = ColorRect.new()
-	_graph_generation_overlay.name = "GraphGenerationOverlay"
-	_graph_generation_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_graph_generation_overlay.color = Color(0.02, 0.025, 0.03, 0.72)
-	_graph_generation_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	_graph_generation_overlay.z_index = 1000
-	_graph_generation_overlay.visible = false
-	ui_root.add_child(_graph_generation_overlay)
-
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_graph_generation_overlay.add_child(center)
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(380.0, 96.0)
-	center.add_child(panel)
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_bottom", 18)
-	panel.add_child(margin)
-	var label := Label.new()
-	label.text = "Generando graficas..."
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 20)
-	margin.add_child(label)
-
-	_graph_generation_timer = Timer.new()
-	_graph_generation_timer.name = "GraphGenerationPollTimer"
-	_graph_generation_timer.wait_time = GRAPH_GENERATION_POLL_INTERVAL_S
-	_graph_generation_timer.one_shot = false
-	_graph_generation_timer.timeout.connect(_on_graph_generation_poll_timeout)
-	add_child(_graph_generation_timer)
+	# El overlay y su timer viven en SimulationScene.tscn (editables); aqui
+	# solo se enlazan.
+	_graph_generation_overlay = get_node_or_null("UI/GraphGenerationOverlay") as ColorRect
+	if _graph_generation_overlay == null:
+		push_error("Main: falta UI/GraphGenerationOverlay en SimulationScene.tscn")
+	_graph_generation_timer = get_node_or_null("GraphGenerationPollTimer") as Timer
+	if _graph_generation_timer == null:
+		push_error("Main: falta GraphGenerationPollTimer en SimulationScene.tscn")
+	else:
+		_connect_once(_graph_generation_timer.timeout, _on_graph_generation_poll_timeout)
 
 
 func _setup_python_warning() -> void:
 	if hud == null or _python_warning_label != null:
 		return
-	_python_warning_label = Label.new()
-	_python_warning_label.name = "PythonUnavailableWarning"
-	_python_warning_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_python_warning_label.offset_left = -270.0
-	_python_warning_label.offset_top = 12.0
-	_python_warning_label.offset_right = 270.0
-	_python_warning_label.offset_bottom = 42.0
-	_python_warning_label.text = "Python no detectado - no se generaran graficas"
-	_python_warning_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_python_warning_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_python_warning_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_python_warning_label.add_theme_color_override("font_color", Color(1.0, 0.72, 0.22))
-	_python_warning_label.add_theme_color_override("font_outline_color", Color(0.02, 0.02, 0.02, 0.95))
-	_python_warning_label.add_theme_constant_override("outline_size", 5)
-	_python_warning_label.z_index = 900
-	_python_warning_label.visible = false
-	hud.add_child(_python_warning_label)
+	_python_warning_label = hud.get_node_or_null("PythonUnavailableWarning") as Label
+	if _python_warning_label == null:
+		push_error("Main: falta UI/HUD/PythonUnavailableWarning en SimulationScene.tscn")
 
 
 func _set_python_warning_visible(show_warning: bool) -> void:
@@ -616,10 +577,16 @@ func _on_technical_summary_window_close_requested() -> void:
 
 
 func _clear_technical_summary_window() -> void:
-	if _technical_summary_window == null:
-		return
-	for child in _technical_summary_window.get_children():
-		child.queue_free()
+	# Solo se vacia el contenido dinamico (metricas y tabs); el esqueleto vive
+	# en TechnicalSummaryWindow.tscn.
+	if _summary_metrics_grid != null:
+		for child in _summary_metrics_grid.get_children():
+			_summary_metrics_grid.remove_child(child)
+			child.queue_free()
+	if _summary_tabs != null:
+		for child in _summary_tabs.get_children():
+			_summary_tabs.remove_child(child)
+			child.queue_free()
 
 
 func _show_technical_summary_window(summary: Dictionary, output_dir: String = "") -> void:
@@ -628,39 +595,22 @@ func _show_technical_summary_window(summary: Dictionary, output_dir: String = ""
 
 	_clear_technical_summary_window()
 
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 14)
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_bottom", 12)
-	_technical_summary_window.add_child(margin)
-
-	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 8)
-	margin.add_child(root)
-
 	var global_summary: Dictionary = Dictionary(summary.get("global", {}))
 	var scenario_name: String = String(summary.get("scenario", ""))
-	var title := Label.new()
-	title.text = "Resumen tecnico | %s | t=%s" % [
-		scenario_name if not scenario_name.is_empty() else "escenario",
-		_format_summary_time(float(summary.get("sim_duration_s", 0.0)))
-	]
-	title.add_theme_font_size_override("font_size", 22)
-	root.add_child(title)
+	if _summary_title_label != null:
+		_summary_title_label.text = "Resumen tecnico | %s | t=%s" % [
+			scenario_name if not scenario_name.is_empty() else "escenario",
+			_format_summary_time(float(summary.get("sim_duration_s", 0.0)))
+		]
 
 	var resolved_output_dir: String = output_dir if not output_dir.strip_edges().is_empty() else String(summary.get("output_dir", ""))
-	var export_label := Label.new()
-	export_label.text = "Export: %s" % (resolved_output_dir if not resolved_output_dir.is_empty() else "sin directorio")
-	export_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	root.add_child(export_label)
+	if _summary_export_label != null:
+		_summary_export_label.text = "Export: %s" % (resolved_output_dir if not resolved_output_dir.is_empty() else "sin directorio")
 
-	var metrics := GridContainer.new()
-	metrics.columns = 4
-	metrics.add_theme_constant_override("h_separation", 8)
-	metrics.add_theme_constant_override("v_separation", 8)
-	root.add_child(metrics)
+	var metrics: GridContainer = _summary_metrics_grid
+	var tabs: TabContainer = _summary_tabs
+	if metrics == null or tabs == null:
+		return
 	_add_summary_metric(metrics, "HRR pico", "%.0f kW (R%d)" % [float(global_summary.get("peak_hrr_kw", 0.0)), int(global_summary.get("peak_hrr_room_id", -1))])
 	_add_summary_metric(metrics, "Temp. pico", "%.0f C (R%d)" % [float(global_summary.get("peak_temp_upper_c", 0.0)), int(global_summary.get("peak_temp_room_id", -1))])
 	_add_summary_metric(metrics, "CO pico", "%.0f ppm (R%d)" % [float(global_summary.get("peak_co_upper_ppm", 0.0)), int(global_summary.get("peak_co_room_id", -1))])
@@ -670,23 +620,10 @@ func _show_technical_summary_window(summary: Dictionary, output_dir: String = ""
 	_add_summary_metric(metrics, "FED max", "%.2f (R%d)" % [float(global_summary.get("peak_fed", 0.0)), int(global_summary.get("peak_fed_room_id", -1))])
 	_add_summary_metric(metrics, "Detectores", "%d/%d" % [int(global_summary.get("detectors_triggered", 0)), int(global_summary.get("detector_count", 0))])
 
-	var tabs := TabContainer.new()
-	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root.add_child(tabs)
 	tabs.add_child(_build_summary_rooms_tab(Array(summary.get("rooms", []))))
 	tabs.add_child(_build_summary_victims_tab(Array(summary.get("victims", []))))
 	tabs.add_child(_build_summary_detectors_tab(Array(summary.get("detectors", []))))
 	tabs.add_child(_build_summary_files_tab(resolved_output_dir))
-
-	var button_row := HBoxContainer.new()
-	button_row.alignment = BoxContainer.ALIGNMENT_END
-	root.add_child(button_row)
-	var close_button := Button.new()
-	close_button.text = "Cerrar"
-	close_button.custom_minimum_size = Vector2(110.0, 34.0)
-	close_button.pressed.connect(_on_technical_summary_window_close_requested)
-	button_row.add_child(close_button)
 
 	var vp_size: Vector2 = get_viewport().get_visible_rect().size
 	var ts_size := Vector2i(
@@ -847,71 +784,18 @@ func _show_graphs_window(graphs_dir: String) -> void:
 
 	_clear_graphs_view_window()
 	_graph_zoom = 1.0
+	_set_graphs_window_mode(true)
+	if _graphs_header_label != null:
+		_graphs_header_label.text = "Graficas y log guardados en: %s" % graphs_dir
 
-	var root := VBoxContainer.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 4)
-	_graphs_view_window.add_child(root)
-
-	var header := Label.new()
-	header.text = "Graficas y log guardados en: %s" % graphs_dir
-	header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	root.add_child(header)
-
-	# Barra de zoom
-	var zoom_bar := HBoxContainer.new()
-	zoom_bar.add_theme_constant_override("separation", 6)
-	root.add_child(zoom_bar)
-	var lbl_zoom := Label.new()
-	lbl_zoom.text = "Zoom:"
-	zoom_bar.add_child(lbl_zoom)
-	var btn_zoom_out := Button.new()
-	btn_zoom_out.text = "  -  "
-	btn_zoom_out.pressed.connect(_on_graph_zoom_out)
-	zoom_bar.add_child(btn_zoom_out)
-	var btn_zoom_in := Button.new()
-	btn_zoom_in.text = "  +  "
-	btn_zoom_in.pressed.connect(_on_graph_zoom_in)
-	zoom_bar.add_child(btn_zoom_in)
-	var btn_zoom_reset := Button.new()
-	btn_zoom_reset.text = "100%"
-	btn_zoom_reset.pressed.connect(_on_graph_zoom_reset)
-	zoom_bar.add_child(btn_zoom_reset)
-
-	var room_nav := HBoxContainer.new()
-	room_nav.add_theme_constant_override("separation", 8)
-	root.add_child(room_nav)
-	_graphs_room_prev_button = Button.new()
-	_graphs_room_prev_button.text = "<"
-	_graphs_room_prev_button.tooltip_text = "Sala anterior"
-	_graphs_room_prev_button.pressed.connect(_on_graph_room_prev)
-	room_nav.add_child(_graphs_room_prev_button)
-	_graphs_room_selector = OptionButton.new()
-	_graphs_room_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_graphs_room_selector.item_selected.connect(_on_graph_room_selected)
-	room_nav.add_child(_graphs_room_selector)
-	_graphs_room_next_button = Button.new()
-	_graphs_room_next_button.text = ">"
-	_graphs_room_next_button.tooltip_text = "Sala siguiente"
-	_graphs_room_next_button.pressed.connect(_on_graph_room_next)
-	room_nav.add_child(_graphs_room_next_button)
-
-	var tabs := TabContainer.new()
-	_graphs_room_tabs = tabs
-	tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	tabs.add_theme_font_size_override("font_size", 18)
-	tabs.add_theme_color_override("font_selected_color", Color(0.94, 0.94, 0.90, 1.0))
-	tabs.add_theme_color_override("font_unselected_color", Color(0.70, 0.72, 0.72, 1.0))
-	tabs.tab_changed.connect(_on_graph_room_tab_changed)
-	root.add_child(tabs)
+	var tabs: TabContainer = _graphs_room_tabs
+	var room_nav: Control = _graphs_room_nav
+	if tabs == null:
+		return
 
 	var dir := DirAccess.open(graphs_dir)
 	if dir == null:
-		var err := Label.new()
-		err.text = "No se pudo abrir la carpeta de graficas."
-		root.add_child(err)
-		_graphs_view_window.popup_centered()
+		_show_graphs_message("No se pudo abrir la carpeta de graficas.")
 		return
 
 	var room_dirs: Array[String] = []
@@ -1013,18 +897,25 @@ func _show_graphs_message(message: String) -> void:
 		return
 
 	_clear_graphs_view_window()
-	var root := VBoxContainer.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override("separation", 10)
-	_graphs_view_window.add_child(root)
-
-	var label := Label.new()
-	label.text = message
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root.add_child(label)
+	_set_graphs_window_mode(false)
+	if _graphs_message_label != null:
+		_graphs_message_label.text = message
 	_graphs_view_window.popup_centered()
+
+
+## Alterna la ventana de graficas entre modo visor (header/zoom/salas/tabs)
+## y modo mensaje (solo MessageLabel).
+func _set_graphs_window_mode(viewer_mode: bool) -> void:
+	if _graphs_header_label != null:
+		_graphs_header_label.visible = viewer_mode
+	if _graphs_zoom_bar != null:
+		_graphs_zoom_bar.visible = viewer_mode
+	if _graphs_room_nav != null:
+		_graphs_room_nav.visible = viewer_mode
+	if _graphs_room_tabs != null:
+		_graphs_room_tabs.visible = viewer_mode
+	if _graphs_message_label != null:
+		_graphs_message_label.visible = not viewer_mode
 
 
 func _on_graphs_window_close_requested() -> void:
@@ -1040,16 +931,18 @@ func _on_graphs_window_close_requested() -> void:
 
 func _clear_graphs_view_window() -> void:
 	_stop_graph_drag()
-	for child in _graphs_view_window.get_children():
-		child.queue_free()
+	# Solo se vacia el contenido dinamico (tabs por sala); el esqueleto de la
+	# ventana vive en GraphsWindow.tscn y sus referencias siguen validas.
+	if _graphs_room_tabs != null:
+		for child in _graphs_room_tabs.get_children():
+			_graphs_room_tabs.remove_child(child)
+			child.queue_free()
+	if _graphs_room_selector != null:
+		_graphs_room_selector.clear()
 	_graph_textures.clear()
 	_graph_image_cells.clear()
 	_graph_scrolls.clear()
 	_graph_grids.clear()
-	_graphs_room_tabs = null
-	_graphs_room_selector = null
-	_graphs_room_prev_button = null
-	_graphs_room_next_button = null
 
 
 func _on_graph_zoom_in() -> void:

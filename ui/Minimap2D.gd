@@ -16,6 +16,14 @@ const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayo
 @export var player_color: Color = Color(0.58, 0.88, 1.0, 0.98)
 @export var live_player_color: Color = Color(0.30, 1.0, 0.64, 1.0)
 
+@export_group("Posicion")
+## Margen respecto a la esquina de anclaje.
+@export var margin_px: Vector2 = Vector2(14.0, 14.0)
+## Tamano del minimapa en pantalla.
+@export var map_size_px: Vector2 = Vector2(228.0, 160.0)
+## En FP el minimapa pasa a arriba-derecha (el HUD FP ocupa arriba-izquierda).
+@export var fp_top_right: bool = true
+
 var building: BuildingModel = null
 var state: Dictionary = {}
 var selected_floor_level_m: float = 0.0
@@ -30,6 +38,23 @@ func bind_building(next_building: BuildingModel) -> void:
 	building = next_building
 	selected_floor_level_m = _initial_floor_level()
 	queue_redraw()
+
+
+## Recoloca el minimapa segun el modo de vista: arriba-izquierda en 3D,
+## arriba-derecha en FP (configurable con los exports de Posicion).
+func set_fp_mode(fp_enabled: bool) -> void:
+	if fp_enabled and fp_top_right:
+		set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		offset_left = -(margin_px.x + map_size_px.x)
+		offset_top = margin_px.y
+		offset_right = -margin_px.x
+		offset_bottom = margin_px.y + map_size_px.y
+	else:
+		set_anchors_preset(Control.PRESET_TOP_LEFT)
+		offset_left = margin_px.x
+		offset_top = margin_px.y
+		offset_right = margin_px.x + map_size_px.x
+		offset_bottom = margin_px.y + map_size_px.y
 
 
 func set_state(next_state: Dictionary) -> void:
