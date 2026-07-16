@@ -6,6 +6,88 @@ Date: 2026-07-16.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-16 - F3.0k.1g vertical audit
+
+- F3.0k.1g closes as a documentation-only **NO-GO for a new complete legacy
+  vertical atomic bundle**. No motor, baseline, tolerance, report or
+  validation classification changed.
+- Active two-zone vertical openings already enter the
+  `doorway_species_direct` contract from F3.0k.1d.
+- The legacy vertical fallback is species-only. Thermal gas/energy and OES O2
+  use separate solvers and cannot be attached to its species with one honest
+  accepted fraction.
+- The legacy downward O2 expression scales as
+  `mass_down^2 / room_air_mass`; it is a mixing correction rather than the O2
+  content of the compensating gas stream.
+- New scratch controls completed:
+  - two-zone vertical: 90.1 s;
+  - forced legacy vertical: 90.1 s;
+  - vertical no-fire: 60.0 s.
+  No crash, hang, popup, incomplete CSV or unknown connection was observed.
+- A valid 350.1 s prior control with unchanged vertical physics reaches the
+  directed branch: vertical CO2 `1.1211 kg`, Thermal doorway carrier
+  `6.1891 kg` and bulk O2 transport `4.4703 kg`. Their different magnitudes
+  and activation times confirm separate physical contracts.
+- Next gate: F3.1 authoritative **sealed** mode plus the zero-O2 extinction
+  regression. Exterior remains F3.2, interior-opening authority F3.3 and HVAC
+  stays deferred to F3.5.
+- Binding record:
+  `docs/validation/PHASE3_F30K1G_VERTICAL_TRANSPORT_AUDIT.md`.
+
+## Current Session Update - 2026-07-16 - F3.0k.1f immediate transport audit
+
+- F3.0k.1f is a documentation-only **NO-GO for a complete horizontal
+  background/counterflow atomic bundle**. No motor code, baseline, tolerance,
+  report or validation classification changed.
+- Background uses one `exchange_air_kg` coefficient, but independent species
+  gradients, optional bulk O2 diffusion and conditional hot-to-cold upper
+  enthalpy can have different directions and activation conditions.
+- No-delay doorway counterflow has exact gross bidirectional O2/species
+  exchange, but legacy applies no matching gas-mass or enthalpy mutation.
+  Adding those routes only in the shadow would invent a physical owner.
+- Five normal scratch controls plus one no-delay control completed headlessly.
+  The no-delay run activated 11,622 immediate transfers with non-zero
+  counterflow and exactly zero CO/CO2/HCN debit-credit residual.
+- All controls retain unresolved mask 7 intentionally. There are zero unknown
+  connections, and parcel lifecycle residuals remain zero.
+- Next candidate: F3.0k.1g vertical net/directed contract audit. It has
+  explicit upward/downward flow masses, but enthalpy and zonal O2 must be
+  proven before implementation.
+- Exterior purge/pressure remains F3.2, zero-O2 flaming still blocks F3.1 and
+  HVAC remains deferred to F3.5.
+- Binding record:
+  `docs/validation/PHASE3_F30K1F_IMMEDIATE_TRANSPORT_AUDIT.md`.
+
+## Current Session Update - 2026-07-16 - F3.0k.1e delayed parcel lifecycle
+
+- Commit `4f718791` closes F3.0k.1e as a **GO for passive delayed-parcel
+  ownership**. F3.1 authority remains blocked.
+- Every parcel now owns one atomic payload across carve, flight,
+  delivery/refund or terminal cancellation. Its accepted fraction is computed
+  once at carve and persists in the in-flight reservoir.
+- The payload includes upper gas mass, sensible enthalpy, signed O2, smoke,
+  CO, CO2, HCN, HCl, acrolein and formaldehyde. Negative O2 carry is an
+  explicit reverse route. Legacy RoomModel writes are unchanged.
+- Runtime OFF/ON proof: 120.1 s, 78 rows each, 115 shared legacy columns and
+  8,970 cells with zero differences. OFF took 22.5 s and ON 36.3 s.
+- At the final snapshot, 129.88026501 kg was created, 93.76759058 kg
+  delivered and 36.11267443 kg remained in flight. Mass closed to
+  `-1.42e-14 kg`; energy, O2 and species residuals were zero.
+- Parcel anomalies are clean: zero orphan delivery, duplicate ID, negative
+  balance, invalid/duplicate bundle and incomplete resolution.
+- The first long ON attempt was discarded after a telemetry performance
+  defect repeatedly rebuilt the in-flight inventory. Residuals are now
+  calculated once per step.
+- Tests: lifecycle 13 PASS, related 76 PASS, all Phase 3 tests 252 PASS and
+  runtime fixture PASS. Physics and ILV retain zero FAIL; required validation
+  remains 348/353 with five VALID_GAP.
+- Next gate: audit horizontal background/counterflow before migration. Do not
+  infer one common atomic payload if gas, energy, O2 and species use different
+  legacy directions or activation rules.
+- Zero-O2 flaming still blocks F3.1. HVAC remains deferred to F3.5.
+- Binding record:
+  `docs/validation/PHASE3_F30K1E_DELAYED_PARCEL_ATOMIC.md`.
+
 ## Current Session Update - 2026-07-16 - F3.0k.1d direct doorway bundle
 
 - F3.0k.1d is a **GO for passive direct two-zone doorway ownership** and a

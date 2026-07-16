@@ -27,6 +27,9 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.0k.1b passive arbitration: `docs/validation/PHASE3_F30K1B_PASSIVE_ARBITRATION.md`
 - F3.0k.1c atomic bundle: `docs/validation/PHASE3_F30K1C_ATOMIC_BUNDLE.md`
 - F3.0k.1d direct doorway bundle: `docs/validation/PHASE3_F30K1D_DIRECT_DOORWAY_ATOMIC.md`
+- F3.0k.1e parcel lifecycle: `docs/validation/PHASE3_F30K1E_DELAYED_PARCEL_ATOMIC.md`
+- F3.0k.1f immediate transport audit: `docs/validation/PHASE3_F30K1F_IMMEDIATE_TRANSPORT_AUDIT.md`
+- F3.0k.1g vertical transport audit: `docs/validation/PHASE3_F30K1G_VERTICAL_TRANSPORT_AUDIT.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -61,10 +64,27 @@ and oxygen residual. Legacy physics remains unchanged.
 
 F3.0k.1d migrates the exact direct two-zone doorway family. Its air mass,
 zonal enthalpy, O2 and species now share one atomic accepted fraction, while
-legacy physics remains unchanged. The runtime matrix still reports unresolved
-mask 7 from delayed parcels, background/counterflow, vertical and exterior
-producers. The active route is the parcel lifecycle followed by the remaining
-non-HVAC producers. Do not promote F3.1 authority yet.
+legacy physics remains unchanged.
+
+F3.0k.1e gives delayed parcels one persistent atomic lifecycle. Gas mass,
+enthalpy, signed O2, smoke and all transported toxic species share the carve
+fraction through flight and terminal resolution. OFF/ON legacy output is
+identical and lifecycle conservation closes. Remaining unresolved scope is
+background/counterflow, vertical and exterior producers.
+
+F3.0k.1f audited background/counterflow and returned NO-GO for a complete
+atomic migration. Their species, O2 and enthalpy terms do not share one
+direction or activation rule, and no legacy gas-mass mutation exists for the
+gross counterflow.
+
+F3.0k.1g confirms that active two-zone vertical openings already reuse the
+F3.0k.1d doorway bundle. The legacy vertical net/directed fallbacks remain
+species-only because Thermal gas/energy and OES O2 use different solvers,
+thresholds and directions. A new complete vertical bundle is NO-GO.
+
+The next target is F3.1 authority restricted to a sealed single-room control,
+where opening, exterior and HVAC producers are absent. Zero-O2 extinction is
+the mandatory regression before any authority can be retained.
 
 ## Binding priority decision: HVAC last
 
@@ -81,14 +101,16 @@ The revised order is:
 4. F3.0k.1b passive arbitration and CO-oxidation compatibility. Completed, partial GO.
 5. F3.0k.1c atomic multi-zone bundle and explicit O2 chemistry. Completed, partial GO.
 6. F3.0k.1d direct doorway atomic producer. Completed, passive GO.
-7. F3.0k.1e delayed parcel atomic lifecycle and remaining non-HVAC producers. Current target.
-8. F3.1 authoritative sealed mode plus zero-O2 extinction regression.
-9. F3.2 exterior pressure/leakage for Group A.
-10. F3.3 interior openings for Group C.
-11. F3.4 remaining non-HVAC species, suppression and FED.
-12. HVAC-R0 redesign specification.
-13. F3.5 HVAC canonical integration as the last subsystem.
-14. F3.6 final corpus promotion and legacy retirement.
+7. F3.0k.1e delayed parcel atomic lifecycle. Completed, passive GO.
+8. F3.0k.1f horizontal background/counterflow audit. Completed NO-GO.
+9. F3.0k.1g vertical net/directed contract audit. Completed NO-GO; active two-zone path reuses F3.0k.1d.
+10. F3.1 authoritative sealed mode plus zero-O2 extinction regression. Current target.
+11. F3.2 exterior pressure/leakage for Group A.
+12. F3.3 interior openings for Group C.
+13. F3.4 remaining non-HVAC species, suppression and FED.
+14. HVAC-R0 redesign specification.
+15. F3.5 HVAC canonical integration as the last subsystem.
+16. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
@@ -367,12 +389,34 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
   watch item.
 - F3.1 remains unauthorized. Zero-O2 flaming is still an independent blocker.
 
+## F3.0k.1e delivered
+
+- Delayed parcel creation emits one atomic carve bundle with gas, sensible
+  energy, signed O2, smoke and seven transported species.
+- The inventory-limited accepted fraction persists in the in-flight reservoir
+  and is reused for delivery, refund or terminal cancellation.
+- Lifecycle telemetry closes mass, energy, O2 and species independently.
+- The 120 s OFF/ON control retained all 115 legacy columns with zero
+  differences. Runtime and anomaly gates are clean.
+- Commit: `4f718791`.
+
+## F3.0k.1g audit decision
+
+- The active two-zone vertical path already emits the F3.0k.1d doorway atomic
+  contract; it does not require a second vertical owner.
+- Legacy vertical net/directed helpers own exact species deltas only.
+- Their upward species path has no matching legacy gas/enthalpy mutation.
+- Their downward O2 expression is a separate bulk mixing correction and is
+  not the O2 content of the downward mass flow.
+- Thermal doorway/stairwell and OES opening flows remain separate contracts.
+- Therefore a new complete legacy vertical bundle is NO-GO.
+
 ## Next prompt target
 
-Use GPT-5.6 Sol for F3.0k.1e. Design the delayed-parcel atomic lifecycle so one
-accepted fraction persists through carve, flight, delivery, refund and
-cancellation. Do not represent lifecycle stages as independent inventory
-sources. If persistence cannot be proven without changing physical state,
-stop at design and migrate a smaller immediate non-HVAC producer instead.
-Keep authority OFF, retain zero-O2 flaming as a visible F3.1 blocker and do
-not touch HVAC before F3.5.
+Use GPT-5.6 for F3.1. Design the smallest authoritative mode restricted to a
+sealed single-room control. First add a deterministic regression proving that
+flaming and HRR cannot persist when the selected combustion O2 source is at or
+below the extinction threshold. Authority must remain default OFF, must not
+touch opening/exterior/HVAC paths and must roll back on any mismatch between
+canonical and legacy combustion ownership. Do not start F3.2 until sealed
+mass, energy, O2, species and FED invariants close.

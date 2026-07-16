@@ -3,6 +3,59 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.0k.1g vertical transport audit (2026-07-16)
+
+- Audited active two-zone vertical openings, legacy net/directed fallbacks,
+  Thermal stairwell/doorway transfer and OES opening transport without
+  changing motor code.
+- Confirmed that an active two-zone vertical opening already reuses the
+  F3.0k.1d `doorway_species_direct` atomic contract.
+- Recorded a NO-GO for manufacturing a complete bundle around the legacy
+  vertical helpers: their species-only flow, Thermal gas/energy flow and OES
+  O2 flow use different solvers, thresholds, directions and caps.
+- Identified the legacy downward O2 term as a mixing correction proportional
+  to `mass_down^2 / room_air_mass`, not the O2 carried by the gas stream.
+- Completed isolated 90 s two-zone/legacy controls and a 60 s no-fire control
+  without crash, incomplete CSV or official-report changes. The existing
+  350 s control confirms that doorway, vertical net, vertical directed,
+  Thermal and O2 mechanisms coexist during one transient.
+- F3.1 sealed authority plus zero-O2 extinction is now the next motor gate.
+
+### Phase 3+ F3.0k.1f immediate horizontal transport audit (2026-07-16)
+
+- Audited horizontal background diffusion and no-delay doorway counterflow
+  without changing motor code.
+- Confirmed that their exact species contracts close, but gas mass, enthalpy
+  and O2 do not form one common pre-mutation payload. Species gradients,
+  optional O2 diffusion and conditional hot-to-cold enthalpy can use different
+  directions in the same step.
+- Activated the normally dormant no-delay branch in a scratch control:
+  11,622 immediate transfers in 60 s, non-zero counterflow, zero CO/CO2/HCN
+  debit-credit residual and zero unknown connection identities.
+- Recorded a NO-GO for manufacturing paired gas routes from the exchange
+  coefficient. Vertical net/directed exchange is the next contract audit;
+  exterior pressure/leakage remains F3.2 and HVAC remains F3.5.
+
+### Phase 3+ F3.0k.1e delayed parcel atomic lifecycle (2026-07-16)
+
+- Added one persistent shadow identity and accepted fraction for each delayed
+  parcel across carve, flight, delivery, refund and cancellation.
+- Bound upper gas mass, sensible enthalpy, signed O2, smoke, CO, CO2, HCN,
+  HCl, acrolein and formaldehyde to the same atomic lifecycle while preserving
+  all legacy physical writes.
+- Added explicit created/delivered/refunded/cancelled/in-flight telemetry and
+  mass, energy, O2 and species residuals. Duplicate delivery, orphan events,
+  negative balances and incomplete resolutions remain visible.
+- Removed an accidental O(rooms x in-flight parcels) telemetry multiplier by
+  calculating parcel residuals once per step. The valid 120 s ON run completed
+  in 36.3 s versus 22.5 s OFF.
+- Verified 78 OFF/ON rows and 8,970 shared legacy cells with zero differences.
+  Final lifecycle residuals were zero within floating-point precision, with no
+  orphan, duplicate, invalid or incomplete parcel event.
+- Recorded a passive GO only. Remaining immediate, vertical and exterior
+  producers still require independent contracts; zero-O2 flaming continues to
+  block F3.1 and HVAC remains deferred to F3.5.
+
 ### Phase 3+ F3.0k.1d direct doorway atomic bundle (2026-07-16)
 
 - Migrated direct two-zone doorway shadow transport to one atomic route

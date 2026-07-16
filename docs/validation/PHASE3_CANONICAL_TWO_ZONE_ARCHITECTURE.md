@@ -124,8 +124,16 @@ shadow owners and suppresses duplicate opening-species requests only inside
 the shadow transaction; all legacy writers remain active. It also proves that
 the current single-route request cannot honestly express an atomic multi-zone
 gas/enthalpy/O2/species bundle. F3.0k.1c now supplies that atomic primitive and
-uses it for exact shadow CO oxidation chemistry. F3.0k.1d must migrate the
-remaining transport producers before any authoritative mode is attempted.
+uses it for exact shadow CO oxidation chemistry. F3.0k.1d migrates direct
+doorway transport and F3.0k.1e gives delayed parcels one persistent
+carve-to-resolution lifecycle. F3.0k.1f found that immediate horizontal
+background/counterflow cannot honestly share one atomic payload because their
+legacy species, O2 and enthalpy terms use different directions and activation
+rules. F3.0k.1g confirms that active two-zone vertical openings already reuse
+the direct doorway bundle, while the legacy vertical fallbacks remain
+species-only and cannot absorb the separate Thermal/OES models. The first
+authoritative boundary must therefore be sealed single-room F3.1; exterior
+and interior-opening authority remain later phases.
 
 ## Mandatory invariants
 
