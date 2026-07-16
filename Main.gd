@@ -443,6 +443,11 @@ func _setup_graph_dialogs() -> void:
 	# TechnicalSummaryWindow.tscn); aqui solo se instancian, se enlazan sus
 	# nodos y se conectan senales. El contenido dinamico se rellena al abrir.
 	_graphs_view_window = GraphsWindowScene.instantiate() as Window
+	# La escena se guarda visible para poder editarla en Godot; en runtime la
+	# ventana permanece oculta hasta popup_centered(). force_native debe
+	# fijarse con la ventana ya oculta (Godot lo rechaza en ventanas visibles).
+	_graphs_view_window.visible = false
+	_graphs_view_window.force_native = true
 	_graphs_view_window.title = UILocalizationScript.t("summary.graphs_window_title", "Graficas de simulacion")
 	_graphs_view_window.close_requested.connect(_on_graphs_window_close_requested)
 	_graphs_view_window.size_changed.connect(_on_graphs_window_size_changed)
@@ -464,6 +469,7 @@ func _setup_graph_dialogs() -> void:
 	_graphs_room_tabs.tab_changed.connect(_on_graph_room_tab_changed)
 
 	_technical_summary_window = TechnicalSummaryWindowScene.instantiate() as Window
+	_technical_summary_window.visible = false
 	_technical_summary_window.title = UILocalizationScript.t("summary.window_title", "Resumen tecnico post-simulacion")
 	_technical_summary_window.close_requested.connect(_on_technical_summary_window_close_requested)
 	add_child(_technical_summary_window)

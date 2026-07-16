@@ -473,6 +473,11 @@ func _create_player_nodes() -> void:
 	_crosshair_v = _prompt_layer.get_node("CrosshairV") as ColorRect
 	_prompt_panel = _prompt_layer.get_node("PromptPanel") as PanelContainer
 	_prompt_label = _prompt_layer.get_node("PromptPanel/Margin/PromptLabel") as Label
+	# La escena FPHud se guarda con todo visible para editarla en Godot;
+	# los paneles condicionales arrancan ocultos y los gestiona el update.
+	_technical_overlay_panel.visible = false
+	_visibility_readout_panel.visible = false
+	_prompt_panel.visible = false
 	apply_hud_layout()
 
 

@@ -12,6 +12,8 @@ const BOTTOM_RESERVED_PX: float = 118.0
 
 static func create(parent: Control, steps: Array[float], pressed_callback: Callable) -> Dictionary:
 	var panel := OpeningActionPanelScene.instantiate() as PanelContainer
+	# La escena se guarda visible para editarla; en runtime arranca oculto.
+	panel.visible = false
 	parent.add_child(panel)
 
 	var title := panel.get_node("Margin/Rows/Title") as Label

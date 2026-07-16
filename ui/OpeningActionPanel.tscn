@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://cl5o2xsurrpt6"]
 
 [node name="OpeningActionPanel" type="PanelContainer" unique_id=1526348531]
-visible = false
 custom_minimum_size = Vector2(310, 92)
 
 [node name="Margin" type="MarginContainer" parent="." unique_id=275054501]

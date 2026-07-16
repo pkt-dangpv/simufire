@@ -4,9 +4,7 @@
 title = "Graficas de simulacion"
 size = Vector2i(1500, 820)
 min_size = Vector2i(960, 560)
-visible = false
 wrap_controls = false
-force_native = true
 
 [node name="Root" type="VBoxContainer" parent="."]
 anchors_preset = 15
@@ -18,6 +16,7 @@ theme_override_constants/separation = 4
 
 [node name="Header" type="Label" parent="Root"]
 layout_mode = 2
+text = "Graficas y log guardados en: <carpeta>"
 autowrap_mode = 3
 
 [node name="ZoomBar" type="HBoxContainer" parent="Root"]
@@ -67,8 +66,8 @@ theme_override_colors/font_unselected_color = Color(0.7, 0.72, 0.72, 1)
 theme_override_font_sizes/font_size = 18
 
 [node name="MessageLabel" type="Label" parent="Root"]
-visible = false
 layout_mode = 2
+text = "(mensaje de estado/error — se alterna con el visor en runtime)"
 size_flags_horizontal = 3
 size_flags_vertical = 3
 autowrap_mode = 3

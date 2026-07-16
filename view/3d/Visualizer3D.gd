@@ -564,6 +564,9 @@ func _build_legend_ui() -> void:
 	add_child(_legend_canvas)
 	_legend_panel = _legend_canvas.get_node("LegendPanel") as PanelContainer
 	_legend_vbox = _legend_canvas.get_node("LegendPanel/Margin/Rows") as VBoxContainer
+	# La escena se guarda visible para editarla; en runtime la visibilidad
+	# la gobiernan show_legend y el modo overlay.
+	_legend_panel.visible = false
 
 
 func _update_legend() -> void:
