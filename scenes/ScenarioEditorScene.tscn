@@ -5,6 +5,18 @@
 [ext_resource type="Theme" uid="uid://bnfl86slco45l" path="res://ui/SimuFireTheme.tres" id="3_sftheme"]
 [ext_resource type="Texture2D" uid="uid://b4o1d27e1solc" path="res://assets/ui/simufire_logo_editor.png" id="4_logo"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hoverhelp"]
+content_margin_left = 8.0
+content_margin_top = 6.0
+content_margin_right = 8.0
+content_margin_bottom = 6.0
+bg_color = Color(0.01, 0.025, 0.03, 0.94)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.25, 0, 0.98)
+
 [node name="ScenarioEditor" type="Node2D" unique_id=1966896303]
 script = ExtResource("1_scenario_editor")
 
@@ -31,88 +43,91 @@ mouse_filter = 1
 theme = ExtResource("3_sftheme")
 
 [node name="TopBar" type="PanelContainer" parent="CanvasLayer/UI" unique_id=1228911550]
+custom_minimum_size = Vector2(560, 88)
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -215.0
+offset_left = -280.0
 offset_top = 8.0
-offset_right = 235.0
-offset_bottom = 140.0
+offset_right = 280.0
+offset_bottom = 96.0
 grow_horizontal = 2
 
 [node name="HBox" type="GridContainer" parent="CanvasLayer/UI/TopBar" unique_id=779570010]
 layout_mode = 2
-columns = 5
+columns = 7
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
 
 [node name="BtnSelect" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=627942734]
-custom_minimum_size = Vector2(82, 34)
+custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
 toggle_mode = true
 text = "Sel"
 
 [node name="BtnRoom" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=557386662]
-custom_minimum_size = Vector2(82, 34)
+custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
 toggle_mode = true
 text = "Sala"
 
 [node name="BtnCorridorL" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=312847561]
-custom_minimum_size = Vector2(82, 34)
+custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
 toggle_mode = true
 text = "Pasillo"
 
 [node name="BtnStairs" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=199594283]
-custom_minimum_size = Vector2(82, 34)
+custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
 toggle_mode = true
 text = "Escalera"
 
 [node name="BtnDoor" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=405410531]
-custom_minimum_size = Vector2(82, 34)
+custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
 toggle_mode = true
 text = "Puerta"
 
 [node name="BtnHole" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=2066551732]
-custom_minimum_size = Vector2(82, 34)
+custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
 toggle_mode = true
 text = "Hueco"
 
 [node name="BtnWindow" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1269220202]
-custom_minimum_size = Vector2(82, 34)
+custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
 toggle_mode = true
 text = "Ventana"
 
 [node name="BtnObject" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=161774304]
-custom_minimum_size = Vector2(82, 34)
+custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
 toggle_mode = true
 text = "Objeto"
 
 [node name="BtnIgnite" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1799331828]
-custom_minimum_size = Vector2(82, 34)
+custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
 toggle_mode = true
 text = "Ignicion"
 
 [node name="BtnDelete" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=713133688]
-custom_minimum_size = Vector2(82, 34)
+custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
 toggle_mode = true
 text = "Borrar"
 
 [node name="BtnDetector" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=811200001]
-custom_minimum_size = Vector2(82, 34)
+custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
 toggle_mode = true
 text = "Detect."
 
 [node name="BtnVictim" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=811200002]
-custom_minimum_size = Vector2(82, 34)
+custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
 toggle_mode = true
 text = "Vict."
@@ -642,6 +657,27 @@ text = "✓ Iniciar simulación"
 custom_minimum_size = Vector2(160, 42)
 layout_mode = 2
 text = "✗ Cancelar"
+
+[node name="HoverHelpPopup" type="PanelContainer" parent="CanvasLayer/UI"]
+visible = false
+custom_minimum_size = Vector2(220, 0)
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_hoverhelp")
+
+[node name="Margin" type="MarginContainer" parent="CanvasLayer/UI/HoverHelpPopup"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="HoverHelpLabel" type="Label" parent="CanvasLayer/UI/HoverHelpPopup/Margin"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.96, 0.98, 0.92, 1)
+autowrap_mode = 3
 
 [node name="World" type="Node2D" parent="." unique_id=1261753306]
 

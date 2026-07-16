@@ -504,14 +504,12 @@ func _normalize_editor_panel_readability() -> void:
 		var right_vbox := right_panel.get_node_or_null("VBox") as VBoxContainer
 		if right_vbox != null:
 			right_vbox.add_theme_constant_override("separation", 4)
+	# El layout base del TopBar (offsets, columnas, tamano de botones) vive en
+	# ScenarioEditorScene.tscn; aqui solo se aplica la altura export-driven.
 	var top_bar := _ui_root.get_node_or_null("TopBar") as Control
 	if top_bar != null:
-		top_bar.offset_left = -280.0
-		top_bar.offset_top = 8.0
-		top_bar.offset_right = 280.0
 		top_bar.offset_bottom = editor_top_bar_height_px
-		top_bar.custom_minimum_size = Vector2(560.0, editor_top_bar_height_px - 8.0)
-	_compact_top_bar()
+		top_bar.custom_minimum_size.y = editor_top_bar_height_px - 8.0
 
 
 func _restore_panel_vbox_from_scroll(panel: Control) -> void:
@@ -528,22 +526,6 @@ func _restore_panel_vbox_from_scroll(panel: Control) -> void:
 		existing_vbox.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	panel.remove_child(scroll)
 	scroll.queue_free()
-
-
-func _compact_top_bar() -> void:
-	if _ui_root == null:
-		return
-	var grid := _ui_root.get_node_or_null("TopBar/HBox") as GridContainer
-	if grid == null:
-		return
-	grid.columns = 7
-	grid.add_theme_constant_override("h_separation", 4)
-	grid.add_theme_constant_override("v_separation", 4)
-	for child in grid.get_children():
-		var button := child as Button
-		if button == null:
-			continue
-		button.custom_minimum_size = Vector2(72.0, 28.0)
 
 
 func _stylebox(bg: Color, border: Color, border_width: int, radius: int, margin: Vector2) -> StyleBoxFlat:
@@ -702,33 +684,17 @@ func _set_left_path_visible(path: String, visible: bool) -> void:
 
 
 func _ensure_hover_help_popup() -> void:
+	# El popup vive en ScenarioEditorScene.tscn (estilo/tamano editables);
+	# aqui solo se enlaza y se aplica el tamano de fuente export-driven.
 	if _ui_root == null or _hover_help_popup != null:
 		return
-	_hover_help_popup = PanelContainer.new()
-	_hover_help_popup.name = "HoverHelpPopup"
-	_hover_help_popup.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hover_help_popup.visible = false
-	_hover_help_popup.custom_minimum_size = Vector2(220.0, 0.0)
-	_hover_help_popup.add_theme_stylebox_override("panel", _stylebox(Color(0.01, 0.025, 0.03, 0.94), UI_BORDER_HOT, 1, 0, Vector2(8.0, 6.0)))
-	_ui_root.add_child(_hover_help_popup)
-
-	var margin := MarginContainer.new()
-	margin.name = "Margin"
-	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_top", 6)
-	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_bottom", 6)
-	_hover_help_popup.add_child(margin)
-
-	_hover_help_popup_label = Label.new()
-	_hover_help_popup_label.name = "HoverHelpLabel"
-	_hover_help_popup_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hover_help_popup_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_hover_help_popup_label.custom_minimum_size.x = 220.0
-	_hover_help_popup_label.add_theme_font_size_override("font_size", editor_font_size_body)
-	_hover_help_popup_label.add_theme_color_override("font_color", Color(0.96, 0.98, 0.92, 1.0))
-	margin.add_child(_hover_help_popup_label)
+	_hover_help_popup = _ui_root.get_node_or_null("HoverHelpPopup") as PanelContainer
+	if _hover_help_popup == null:
+		push_error("ScenarioEditor: falta HoverHelpPopup en ScenarioEditorScene.tscn")
+		return
+	_hover_help_popup_label = _hover_help_popup.get_node_or_null("Margin/HoverHelpLabel") as Label
+	if _hover_help_popup_label != null:
+		_hover_help_popup_label.add_theme_font_size_override("font_size", editor_font_size_body)
 
 
 func _show_hover_help_popup(text: String) -> void:
