@@ -487,6 +487,9 @@ func _setup_graph_generation_overlay() -> void:
 	_graph_generation_overlay = get_node_or_null("UI/GraphGenerationOverlay") as ColorRect
 	if _graph_generation_overlay == null:
 		push_error("Main: falta UI/GraphGenerationOverlay en SimulationScene.tscn")
+	else:
+		# La escena se guarda visible para editarla; oculto hasta generar.
+		_graph_generation_overlay.visible = false
 	_graph_generation_timer = get_node_or_null("GraphGenerationPollTimer") as Timer
 	if _graph_generation_timer == null:
 		push_error("Main: falta GraphGenerationPollTimer en SimulationScene.tscn")
@@ -500,6 +503,9 @@ func _setup_python_warning() -> void:
 	_python_warning_label = hud.get_node_or_null("PythonUnavailableWarning") as Label
 	if _python_warning_label == null:
 		push_error("Main: falta UI/HUD/PythonUnavailableWarning en SimulationScene.tscn")
+	else:
+		# La escena se guarda visible para editarla; oculto salvo aviso real.
+		_python_warning_label.visible = false
 
 
 func _set_python_warning_visible(show_warning: bool) -> void:

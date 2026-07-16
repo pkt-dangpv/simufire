@@ -659,7 +659,6 @@ layout_mode = 2
 text = "✗ Cancelar"
 
 [node name="HoverHelpPopup" type="PanelContainer" parent="CanvasLayer/UI"]
-visible = false
 custom_minimum_size = Vector2(220, 0)
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_hoverhelp")

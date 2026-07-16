@@ -695,6 +695,8 @@ func _ensure_hover_help_popup() -> void:
 	if _hover_help_popup == null:
 		push_error("ScenarioEditor: falta HoverHelpPopup en ScenarioEditorScene.tscn")
 		return
+	# La escena se guarda visible para editarla; oculto hasta hacer hover.
+	_hover_help_popup.visible = false
 	_hover_help_popup_label = _hover_help_popup.get_node_or_null("Margin/HoverHelpLabel") as Label
 	if _hover_help_popup_label != null:
 		_hover_help_popup_label.add_theme_font_size_override("font_size", editor_font_size_body)
