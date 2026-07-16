@@ -38,7 +38,7 @@ const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVis
 const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayout.gd")
 const OpeningPose3D := preload("res://view/3d/openings/OpeningPose3D.gd")
 const RoomShellFactory := preload("res://view/3d/geometry/RoomShellFactory.gd")
-const Legend3DScene: PackedScene = preload("res://scenes/Legend3D.tscn")
+const Legend3DScene: PackedScene = preload("res://view/3d/Legend3D.tscn")
 const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 
 @export_group("Scene Nodes")

@@ -5,8 +5,8 @@ extends SceneTree
 
 const SCENES: Array[String] = [
 	"res://scenes/MainMenu.tscn",
-	"res://scenes/GraphsWindow.tscn",
-	"res://scenes/TechnicalSummaryWindow.tscn",
+	"res://ui/GraphsWindow.tscn",
+	"res://ui/TechnicalSummaryWindow.tscn",
 ]
 
 

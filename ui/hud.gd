@@ -14,8 +14,8 @@ signal hvac_toggled(enabled: bool)
 signal opening_fraction_requested(opening_index: int, open_fraction: float)
 
 const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
-## Plantilla de tarjeta (salas/victimas) editable en scenes/HudCard.tscn.
-const HudCardScene: PackedScene = preload("res://scenes/HudCard.tscn")
+## Plantilla de tarjeta (salas/victimas) editable en ui/HudCard.tscn.
+const HudCardScene: PackedScene = preload("res://ui/HudCard.tscn")
 const HUDOpeningActionView = preload("res://ui/HUDOpeningActionView.gd")
 const HUDOpeningSummary = preload("res://ui/HUDOpeningSummary.gd")
 const HUDPlaybackLabels = preload("res://ui/HUDPlaybackLabels.gd")

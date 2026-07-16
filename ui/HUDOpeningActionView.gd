@@ -4,7 +4,7 @@ class_name HUDOpeningActionView
 const UILocalizationScript = preload("res://ui/UILocalization.gd")
 ## Esqueleto del panel editable en scenes/OpeningActionPanel.tscn; aqui
 ## solo se instancia y se anaden los botones dinamicos (uno por paso).
-const OpeningActionPanelScene: PackedScene = preload("res://scenes/OpeningActionPanel.tscn")
+const OpeningActionPanelScene: PackedScene = preload("res://ui/OpeningActionPanel.tscn")
 const DEFAULT_PANEL_SIZE: Vector2 = Vector2(310.0, 92.0)
 const VIEWPORT_MARGIN_PX: float = 8.0
 const BOTTOM_RESERVED_PX: float = 118.0

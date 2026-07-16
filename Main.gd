@@ -2,8 +2,8 @@ extends Node
 
 const FirstPersonControllerScript = preload("res://view/fp/FirstPersonController.gd")
 const UILocalizationScript = preload("res://ui/UILocalization.gd")
-const GraphsWindowScene: PackedScene = preload("res://scenes/GraphsWindow.tscn")
-const TechnicalSummaryWindowScene: PackedScene = preload("res://scenes/TechnicalSummaryWindow.tscn")
+const GraphsWindowScene: PackedScene = preload("res://ui/GraphsWindow.tscn")
+const TechnicalSummaryWindowScene: PackedScene = preload("res://ui/TechnicalSummaryWindow.tscn")
 const MAIN_MENU_PATH: String = "res://scenes/MainMenu.tscn"
 const SCENARIO_EDITOR_PATH: String = "res://scenes/ScenarioEditorScene.tscn"
 const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
