@@ -396,7 +396,10 @@ func _apply_editor_visual_style() -> void:
 		_editor_theme = _build_editor_theme()
 		_ui_root.theme = _editor_theme
 	else:
-		_editor_theme = _ui_root.theme
+		# Duplicar antes de aplicar los tamanos de fuente del editor: mutar el
+		# .tres compartido contaminaria el menu y el HUD en la misma sesion.
+		_editor_theme = _ui_root.theme.duplicate(true)
+		_ui_root.theme = _editor_theme
 	_apply_editor_theme_font_sizes(_editor_theme)
 	_normalize_editor_panel_readability()
 	_ensure_editor_branding()
