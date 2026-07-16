@@ -14,6 +14,8 @@ signal hvac_toggled(enabled: bool)
 signal opening_fraction_requested(opening_index: int, open_fraction: float)
 
 const SimuFireThemeScript = preload("res://ui/SimuFireTheme.gd")
+## Plantilla de tarjeta (salas/victimas) editable en scenes/HudCard.tscn.
+const HudCardScene: PackedScene = preload("res://scenes/HudCard.tscn")
 const HUDOpeningActionView = preload("res://ui/HUDOpeningActionView.gd")
 const HUDOpeningSummary = preload("res://ui/HUDOpeningSummary.gd")
 const HUDPlaybackLabels = preload("res://ui/HUDPlaybackLabels.gd")
@@ -418,38 +420,35 @@ func _rebuild_rooms_panel() -> void:
 	sorted_ids.sort()
 
 	for room_id in sorted_ids:
-		var card := PanelContainer.new()
-		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		card.custom_minimum_size = Vector2(0.0, 62.0)
+		var parts: Dictionary = _instance_hud_card(62.0, card_margin_px - 1)
+		var card := parts["card"] as PanelContainer
+		var header := parts["header"] as Label
+		var data_lbl := parts["data"] as Label
 		_style_room_card(card, "normal", false)
-		var margin := MarginContainer.new()
-		margin.add_theme_constant_override("margin_left", card_margin_px)
-		margin.add_theme_constant_override("margin_top", card_margin_px - 1)
-		margin.add_theme_constant_override("margin_right", card_margin_px)
-		margin.add_theme_constant_override("margin_bottom", card_margin_px - 1)
-		card.add_child(margin)
-
-		var vbox := VBoxContainer.new()
-		vbox.add_theme_constant_override("separation", 3)
-		margin.add_child(vbox)
-
-		var header := Label.new()
-		header.add_theme_font_override("font", SimuFireThemeScript.title_font())
-		header.add_theme_font_size_override("font_size", font_size_header)
-		header.add_theme_color_override("font_color", SimuFireThemeScript.TEXT)
 		header.text = "R%d" % room_id
-		vbox.add_child(header)
-
-		var data_lbl := Label.new()
-		data_lbl.add_theme_font_override("font", SimuFireThemeScript.body_font())
-		data_lbl.add_theme_font_size_override("font_size", font_size_data)
-		data_lbl.text = "-"
-		data_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		data_lbl.add_theme_color_override("font_color", card_data_color)
-		vbox.add_child(data_lbl)
-
 		rooms_data_vbox.add_child(card)
 		_room_cards[room_id] = {"header": header, "data": data_lbl, "card": card}
+
+
+## Instancia scenes/HudCard.tscn y aplica las fuentes/colores configurados
+## en los exports del HUD. Devuelve {card, header, data}.
+func _instance_hud_card(min_height_px: float, vertical_margin_px: int) -> Dictionary:
+	var card := HudCardScene.instantiate() as PanelContainer
+	card.custom_minimum_size = Vector2(0.0, min_height_px)
+	var margin := card.get_node("Margin") as MarginContainer
+	margin.add_theme_constant_override("margin_left", card_margin_px)
+	margin.add_theme_constant_override("margin_top", vertical_margin_px)
+	margin.add_theme_constant_override("margin_right", card_margin_px)
+	margin.add_theme_constant_override("margin_bottom", vertical_margin_px)
+	var header := card.get_node("Margin/Rows/Header") as Label
+	header.add_theme_font_override("font", SimuFireThemeScript.title_font())
+	header.add_theme_font_size_override("font_size", font_size_header)
+	header.add_theme_color_override("font_color", SimuFireThemeScript.TEXT)
+	var data_lbl := card.get_node("Margin/Rows/Data") as Label
+	data_lbl.add_theme_font_override("font", SimuFireThemeScript.body_font())
+	data_lbl.add_theme_font_size_override("font_size", font_size_data)
+	data_lbl.add_theme_color_override("font_color", card_data_color)
+	return {"card": card, "header": header, "data": data_lbl}
 
 
 func _update_rooms_panel(state: Dictionary) -> void:
@@ -602,35 +601,13 @@ func _rebuild_victims_panel() -> void:
 		var vic_name: String = String(vic.get("name", vic_id))
 		var room_id: int = int(vic.get("room_id", 0))
 
-		var card := PanelContainer.new()
-		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		card.custom_minimum_size = Vector2(0.0, 46.0)
+		var parts: Dictionary = _instance_hud_card(46.0, 3)
+		var card := parts["card"] as PanelContainer
+		var header := parts["header"] as Label
+		var data_lbl := parts["data"] as Label
 		_style_room_card(card, "normal", false)
-
-		var inner_margin := MarginContainer.new()
-		inner_margin.add_theme_constant_override("margin_left", card_margin_px)
-		inner_margin.add_theme_constant_override("margin_top", 3)
-		inner_margin.add_theme_constant_override("margin_right", card_margin_px)
-		inner_margin.add_theme_constant_override("margin_bottom", 3)
-		card.add_child(inner_margin)
-
-		var row_vbox := VBoxContainer.new()
-		row_vbox.add_theme_constant_override("separation", 2)
-		inner_margin.add_child(row_vbox)
-
-		var header := Label.new()
-		header.add_theme_font_override("font", SimuFireThemeScript.title_font())
-		header.add_theme_font_size_override("font_size", font_size_header)
-		header.add_theme_color_override("font_color", SimuFireThemeScript.TEXT)
 		header.text = "%s (R%d)" % [vic_name, room_id]
-		row_vbox.add_child(header)
-
-		var data_lbl := Label.new()
-		data_lbl.add_theme_font_override("font", SimuFireThemeScript.body_font())
-		data_lbl.add_theme_font_size_override("font_size", font_size_data)
-		data_lbl.add_theme_color_override("font_color", card_data_color)
 		data_lbl.text = "FED: 0.00"
-		row_vbox.add_child(data_lbl)
 
 		_victims_vbox.add_child(card)
 		_victim_rows[vic_id] = {"header": header, "data": data_lbl, "card": card}

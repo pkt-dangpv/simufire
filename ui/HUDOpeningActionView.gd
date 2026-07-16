@@ -2,41 +2,22 @@ extends RefCounted
 class_name HUDOpeningActionView
 
 const UILocalizationScript = preload("res://ui/UILocalization.gd")
+## Esqueleto del panel editable en scenes/OpeningActionPanel.tscn; aqui
+## solo se instancia y se anaden los botones dinamicos (uno por paso).
+const OpeningActionPanelScene: PackedScene = preload("res://scenes/OpeningActionPanel.tscn")
 const DEFAULT_PANEL_SIZE: Vector2 = Vector2(310.0, 92.0)
 const VIEWPORT_MARGIN_PX: float = 8.0
 const BOTTOM_RESERVED_PX: float = 118.0
 
 
 static func create(parent: Control, steps: Array[float], pressed_callback: Callable) -> Dictionary:
-	var panel := PanelContainer.new()
-	panel.name = "OpeningActionPanel"
-	panel.visible = false
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.custom_minimum_size = DEFAULT_PANEL_SIZE
-	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	var panel := OpeningActionPanelScene.instantiate() as PanelContainer
 	parent.add_child(panel)
 
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_top", 8)
-	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_bottom", 8)
-	panel.add_child(margin)
-
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 7)
-	margin.add_child(box)
-
-	var title := Label.new()
+	var title := panel.get_node("Margin/Rows/Title") as Label
 	title.text = UILocalizationScript.t("hud.opening", "Apertura")
-	title.clip_text = true
-	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	box.add_child(title)
 
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 5)
-	box.add_child(row)
-
+	var row := panel.get_node("Margin/Rows/ButtonsRow") as HBoxContainer
 	var buttons: Array[Button] = []
 	for step in steps:
 		var button := Button.new()
