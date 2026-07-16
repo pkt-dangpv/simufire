@@ -1,21 +1,82 @@
 [gd_scene format=3 uid="uid://dyq1lmxeqddfr"]
 
-[ext_resource type="Script" uid="uid://dsqdpf2tdhpcj" path="res://editor/ScenarioEditor.gd" id="1_scenario_editor"]
-[ext_resource type="Script" uid="uid://cvnba1cw8jujl" path="res://editor/EditorGrid.gd" id="2_editor_grid"]
-[ext_resource type="Theme" uid="uid://bnfl86slco45l" path="res://ui/SimuFireTheme.tres" id="3_sftheme"]
-[ext_resource type="Texture2D" uid="uid://b4o1d27e1solc" path="res://assets/ui/simufire_logo_editor.png" id="4_logo"]
+[ext_resource type="Script" path="res://editor/ScenarioEditor.gd" id="1_scenario_editor"]
+[ext_resource type="Script" path="res://editor/EditorGrid.gd" id="2_editor_grid"]
+[ext_resource type="FontFile" path="res://assets/fonts/bahnschrift.ttf" id="3_pdysm"]
+[ext_resource type="Theme" path="res://ui/SimuFireTheme.tres" id="3_sftheme"]
+[ext_resource type="Texture2D" path="res://assets/ui/simufire_logo_editor.png" id="4_logo"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hoverhelp"]
-content_margin_left = 8.0
-content_margin_top = 6.0
-content_margin_right = 8.0
-content_margin_bottom = 6.0
-bg_color = Color(0.01, 0.025, 0.03, 0.94)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_u8wv8"]
+content_margin_left = 12.0
+content_margin_top = 12.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+bg_color = Color(0.02, 0.05, 0.07, 0.94)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(1, 0.25, 0, 0.98)
+border_color = Color(0.18, 0.22, 0.25, 0.92)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dnoaf"]
+content_margin_left = 12.0
+content_margin_top = 12.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+bg_color = Color(0.02, 0.05, 0.07, 0.94)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.18, 0.22, 0.25, 0.92)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ejixe"]
+content_margin_left = 12.0
+content_margin_top = 12.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+bg_color = Color(0.02, 0.05, 0.07, 0.94)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.18, 0.22, 0.25, 0.92)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gyilq"]
+content_margin_left = 12.0
+content_margin_top = 12.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+bg_color = Color(0.02, 0.05, 0.07, 0.94)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.18, 0.22, 0.25, 0.92)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lvx7d"]
+content_margin_left = 12.0
+content_margin_top = 12.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+bg_color = Color(0.02, 0.05, 0.07, 0.94)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.18, 0.22, 0.25, 0.92)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3roc1"]
+content_margin_left = 12.0
+content_margin_top = 12.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+bg_color = Color(0.02, 0.05, 0.07, 0.94)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.18, 0.22, 0.25, 0.92)
 
 [node name="ScenarioEditor" type="Node2D" unique_id=1966896303]
 script = ExtResource("1_scenario_editor")
@@ -29,6 +90,7 @@ filters = PackedStringArray("*.json ; Plantillas SimuFire")
 
 [node name="LoadTemplateDialog" type="FileDialog" parent="CanvasLayer" unique_id=1757135158]
 title = "Cargar plantilla"
+file_mode = 0
 access = 2
 filters = PackedStringArray("*.json ; Plantillas SimuFire")
 
@@ -53,86 +115,157 @@ offset_top = 8.0
 offset_right = 280.0
 offset_bottom = 96.0
 grow_horizontal = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_u8wv8")
 
 [node name="HBox" type="GridContainer" parent="CanvasLayer/UI/TopBar" unique_id=779570010]
 layout_mode = 2
-columns = 7
 theme_override_constants/h_separation = 4
 theme_override_constants/v_separation = 4
+columns = 7
 
 [node name="BtnSelect" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=627942734]
 custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
+tooltip_text = "Seleccionar: clic en habitacion, objeto o apertura. Clic derecho para opciones."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Sel"
+button_pressed = true
+text = "SEL"
+
+[node name="BtnExteriorWall" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1824601915]
+custom_minimum_size = Vector2(72, 28)
+layout_mode = 2
+tooltip_text = "Exterior: arrastra para dibujar muros exteriores rectos. Tambien puedes marcar el contorno de una habitacion."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+text = "EXTERIOR"
 
 [node name="BtnRoom" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=557386662]
 custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
+tooltip_text = "Estancia: arrastra para crear una estancia en PB."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Sala"
+text = "SALA"
 
 [node name="BtnCorridorL" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=312847561]
 custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
+tooltip_text = "Pasillo: arrastra para crear un pasillo. Diagonal = giro en L. Ajusta ANCHO arriba a la izquierda. (1.20 m actualmente)"
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Pasillo"
+text = "PASILLO"
 
 [node name="BtnStairs" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=199594283]
 custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
+tooltip_text = "Escalera (auto): arrastra desde la ENTRADA hacia donde SUBE en PB. Crea la planta superior si falta y recorta el hueco en suelos/techos solapados."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Escalera"
+text = "ESCALERA"
 
 [node name="BtnDoor" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=405410531]
 custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
+tooltip_text = "Puerta: pulsa una pared compartida o exterior en PB para crear puerta."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Puerta"
+text = "PUERTA"
 
 [node name="BtnHole" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=2066551732]
 custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
+tooltip_text = "Hueco: pulsa una pared compartida en PB. Se crea un paso sin puerta con ancho maximo limitado por el paramento."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Hueco"
+text = "HUECO"
 
 [node name="BtnWindow" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1269220202]
 custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
+tooltip_text = "Ventana: pulsa cerca de una pared exterior en PB."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Ventana"
+text = "VENTANA"
 
 [node name="BtnObject" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=161774304]
 custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
+tooltip_text = "Objeto: pulsa dentro de una estancia de PB para colocar el combustible elegido."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Objeto"
+text = "OBJETO"
 
 [node name="BtnIgnite" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1799331828]
 custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
+tooltip_text = "Ignicion: pulsa un objeto de PB para marcarlo como foco inicial."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Ignicion"
+text = "IGNICION"
+
+[node name="BtnPlayerStart" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=1330466507]
+custom_minimum_size = Vector2(72, 28)
+layout_mode = 2
+tooltip_text = "Inicio FP: pulsa dentro de una estancia de PB para colocar donde aparece el jugador."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+toggle_mode = true
+text = "INICIO FP"
 
 [node name="BtnDelete" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=713133688]
 custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
+tooltip_text = "Borrar: elimina objeto, apertura o estancia bajo el cursor en PB."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Borrar"
+text = "BORRAR"
 
 [node name="BtnDetector" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=811200001]
 custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
+tooltip_text = "Detector: pulsa dentro de una habitacion de PB para colocar un detector de humo, calor o CO."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Detect."
+text = "DETECT."
 
 [node name="BtnVictim" type="Button" parent="CanvasLayer/UI/TopBar/HBox" unique_id=811200002]
 custom_minimum_size = Vector2(72, 28)
 layout_mode = 2
+tooltip_text = "Victima: pulsa dentro de una habitacion de PB para marcar la posicion de una victima."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Vict."
+text = "VICT."
 
 [node name="LeftPanel" type="PanelContainer" parent="CanvasLayer/UI" unique_id=260976689]
+custom_minimum_size = Vector2(276, 0)
 layout_mode = 1
 anchors_preset = 9
 anchor_bottom = 1.0
@@ -140,11 +273,11 @@ offset_top = 16.0
 offset_right = 276.0
 offset_bottom = -76.0
 grow_vertical = 2
-scale = Vector2(1, 1)
+theme_override_styles/panel = SubResource("StyleBoxFlat_dnoaf")
 
 [node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel" unique_id=1144839810]
 layout_mode = 2
-theme_override_constants/separation = 7
+theme_override_constants/separation = 5
 
 [node name="BrandHeader" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=481810983]
 custom_minimum_size = Vector2(0, 84)
@@ -161,72 +294,100 @@ stretch_mode = 5
 
 [node name="EditorModeLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/BrandHeader" unique_id=1858921621]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.49, 0.55, 0.6, 0.92)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
 text = "EDITOR DE ESCENARIOS"
 horizontal_alignment = 1
 
-[node name="EditorTabsRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="EditorTabsRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1592657740]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="TabTools" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/EditorTabsRow"]
+[node name="TabTools" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/EditorTabsRow" unique_id=1013663512]
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "Dibujo: herramientas de creación y edición sobre el plano."
 focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Dibujo"
+text = "DIBUJO"
 
-[node name="TabSelection" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/EditorTabsRow"]
+[node name="TabSelection" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/EditorTabsRow" unique_id=1229708488]
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "Lista: selecciona salas, objetos, aperturas, detectores, víctimas e inicio FP cuando se solapan."
 focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Lista"
+text = "LISTA"
 
-[node name="TabScenario" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/EditorTabsRow"]
+[node name="TabScenario" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/EditorTabsRow" unique_id=976861793]
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "Archivo: guardar, cargar, plantillas, tiempo, luces, tipo de edificio y HVAC."
 focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
-text = "Archivo"
+button_pressed = true
+text = "ARCHIVO"
 
-[node name="ViewModeRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox"]
+[node name="ViewModeRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=2042358301]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="BtnViewMode2D" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/ViewModeRow"]
+[node name="BtnViewMode2D" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/ViewModeRow" unique_id=1627026087]
 custom_minimum_size = Vector2(64, 30)
 layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "Vista 2D: edición precisa de geometría, aperturas, objetos y planta."
 focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
+button_pressed = true
 text = "2D"
 
-[node name="BtnViewMode3D" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/ViewModeRow"]
+[node name="BtnViewMode3D" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/ViewModeRow" unique_id=1910602613]
 custom_minimum_size = Vector2(64, 30)
 layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "Vista 3D: inspección orbital y edición de elementos simples."
 focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "3D"
 
-[node name="BtnViewModeFP" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/ViewModeRow"]
+[node name="BtnViewModeFP" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/ViewModeRow" unique_id=377959865]
 custom_minimum_size = Vector2(64, 30)
 layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "Vista FP: inspección en primera persona desde el marcador Inicio FP."
 focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
 toggle_mode = true
 text = "FP"
 
 [node name="FloorSection" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1232621465]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 5
 
 [node name="FloorTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection" unique_id=955659574]
 layout_mode = 2
-text = "Plantas"
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 15
+text = "PLANTAS"
 
 [node name="FloorRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection" unique_id=344908838]
 layout_mode = 2
@@ -235,11 +396,30 @@ theme_override_constants/separation = 4
 [node name="FloorOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection/FloorRow" unique_id=1836290134]
 layout_mode = 2
 size_flags_horizontal = 3
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 1
+popup/item_0/text = "PB  0.00m"
+popup/item_0/id = 0
 
 [node name="BtnAddFloor" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection/FloorRow" unique_id=1654805431]
 custom_minimum_size = Vector2(86, 28)
 layout_mode = 2
-text = "+ Planta"
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "+ PLANTA"
+
+[node name="BtnDeleteFloor" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection/FloorRow" unique_id=59839532]
+custom_minimum_size = Vector2(72, 28)
+layout_mode = 2
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+disabled = true
+text = "BORRAR"
 
 [node name="FloorLevelRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection" unique_id=749481526]
 layout_mode = 2
@@ -248,7 +428,10 @@ theme_override_constants/separation = 4
 [node name="FloorLevelLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection/FloorLevelRow" unique_id=528716257]
 custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
-text = "Cota (m)"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "COTA (M)"
 
 [node name="FloorLevelSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection/FloorLevelRow" unique_id=413612190]
 layout_mode = 2
@@ -259,64 +442,298 @@ step = 0.05
 
 [node name="FloorStatusLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/FloorSection" unique_id=1102403001]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.49, 0.55, 0.6, 0.92)
+theme_override_fonts/font = ExtResource("3_pdysm")
 theme_override_font_sizes/font_size = 12
+text = "Editando PB. Nuevas habitaciones, puertas, objetos y ventanas se crean en esta planta. Salas: 0."
+autowrap_mode = 3
+
+[node name="BuildingTypeRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1147591082]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BuildingTypeLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/BuildingTypeRow" unique_id=1275202084]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "TIPO EDIFICIO"
+
+[node name="BuildingTypeOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox/BuildingTypeRow" unique_id=1280741162]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 2
+popup/item_0/text = "Casa unifamiliar"
+popup/item_0/id = 0
+popup/item_1/text = "Piso"
+popup/item_1/id = 1
+
+[node name="ApartmentFloorRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=492074010]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ApartmentFloorRowLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/ApartmentFloorRow" unique_id=1261591420]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "PLANTA PISO"
+
+[node name="ApartmentFloorSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/VBox/ApartmentFloorRow" unique_id=1621999601]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -5.0
+max_value = 80.0
+value = 1.0
+rounded = true
+
+[node name="ElementListTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1790654901]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 15
+text = "ELEMENTOS DE PLANTA"
+
+[node name="ElementList" type="ItemList" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1416856336]
+visible = false
+custom_minimum_size = Vector2(0, 132)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+allow_reselect = true
+item_count = 1
+item_0/text = "Sin elementos en PB"
+item_0/disabled = true
+
+[node name="HoverHelpRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=2061814893]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="HoverHelpCheck" type="CheckBox" parent="CanvasLayer/UI/LeftPanel/VBox/HoverHelpRow" unique_id=596181626]
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Activa carteles sobre los elementos dibujados al dejar el cursor quieto en el plano."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+button_pressed = true
+text = "AYUDA CONTEXTUAL"
+
+[node name="ControlsHelpToggle" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=813305791]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+tooltip_text = "Abre la guía rápida del editor en una ventana modal paginada."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "AYUDA DEL EDITOR"
+
+[node name="ControlsHelpPanel" type="PanelContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=2133068813]
+visible = false
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_ejixe")
+
+[node name="Margin" type="MarginContainer" parent="CanvasLayer/UI/LeftPanel/VBox/ControlsHelpPanel" unique_id=2040747218]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="ControlsHelp" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/ControlsHelpPanel/Margin" unique_id=1916245612]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.49, 0.55, 0.6, 0.92)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "Dibujo
+
+Elige una herramienta en la barra superior. Sala, Pasillo y Escalera se crean arrastrando. Puerta, Ventana y Hueco se colocan clicando sobre una pared. Objeto, Detector, Victima e Inicio FP se colocan clicando dentro de una sala.
+
+Seleccion
+
+Usa Select para elegir elementos en el plano. Si un objeto, detector o victima esta encima de una sala, el editor prioriza el elemento pequeno antes que la sala. La pestaña Lista permite seleccionar cosas cuando se solapan.
+
+Edicion
+
+El panel derecho muestra solo las propiedades del elemento seleccionado. Las salas y objetos tienen tiradores para mover, redimensionar y rotar. Supr borra la seleccion y Ctrl+Z deshace.
+
+Archivo
+
+La pestaña Archivo agrupa guardar, cargar, exportar runtime, tiempo de parada, luces, tipo de edificio, HVAC y plantillas. Iniciar simulacion valida y exporta el escenario antes de abrir SimulationScene."
 autowrap_mode = 3
 
 [node name="ObjectLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1026911107]
+visible = false
 layout_mode = 2
-text = "Objeto a colocar"
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 15
+text = "OBJETO A COLOCAR"
 
 [node name="ObjectTypeOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=137288235]
+visible = false
 layout_mode = 2
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 14
+popup/item_0/text = "sofa"
+popup/item_0/id = 0
+popup/item_1/text = "armchair"
+popup/item_1/id = 1
+popup/item_2/text = "bed"
+popup/item_2/id = 2
+popup/item_3/text = "table"
+popup/item_3/id = 3
+popup/item_4/text = "coffee_table"
+popup/item_4/id = 4
+popup/item_5/text = "desk"
+popup/item_5/id = 5
+popup/item_6/text = "curtain"
+popup/item_6/id = 6
+popup/item_7/text = "wardrobe"
+popup/item_7/id = 7
+popup/item_8/text = "bookcase"
+popup/item_8/id = 8
+popup/item_9/text = "dresser"
+popup/item_9/id = 9
+popup/item_10/text = "tv_stand"
+popup/item_10/id = 10
+popup/item_11/text = "rug"
+popup/item_11/id = 11
+popup/item_12/text = "kitchen_unit"
+popup/item_12/id = 12
+popup/item_13/text = "plastic_bin"
+popup/item_13/id = 13
 
 [node name="PathEdit" type="LineEdit" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1659549896]
 layout_mode = 2
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
 text = "user://editor_scenario.json"
 
 [node name="BtnSave" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=55829757]
 layout_mode = 2
-text = "Guardar"
+tooltip_text = "Guarda el escenario actual en la ruta indicada."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "GUARDAR"
 
 [node name="BtnLoad" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=456158521]
 layout_mode = 2
-text = "Cargar"
+tooltip_text = "Carga un escenario desde la ruta indicada sin perder el anterior si falla la validación."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "CARGAR"
 
 [node name="BtnExportRuntime" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=2085730832]
 layout_mode = 2
-text = "Exportar simulacion"
+tooltip_text = "Guarda una copia interna para probar la simulacion; Iniciar simulacion lo hace automaticamente."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "EXPORTAR SIMULACION"
 
 [node name="SeparatorA" type="HSeparator" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=2108069766]
+visible = false
 layout_mode = 2
 
 [node name="CorridorSectionLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1755867705]
+visible = false
 layout_mode = 2
+theme_override_colors/font_color = Color(0.49, 0.55, 0.6, 0.92)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
 text = "PASILLO"
 
 [node name="CorridorWidthSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1666637995]
+visible = false
 layout_mode = 2
 min_value = 0.6
 max_value = 3.0
 step = 0.05
 value = 1.2
 
+[node name="StairToolSection" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1239436613]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="StairToolTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/StairToolSection" unique_id=1608642320]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 15
+text = "ESCALERA"
+
+[node name="StairToolTurnRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox/StairToolSection" unique_id=1235438882]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="StairToolTurnRowLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/StairToolSection/StairToolTurnRow" unique_id=1539906519]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "TIPO"
+
+[node name="StairToolTurnOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox/StairToolSection/StairToolTurnRow" unique_id=34725576]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 3
+popup/item_0/text = "Auto"
+popup/item_0/id = 0
+popup/item_1/text = "Recta"
+popup/item_1/id = 1
+popup/item_2/text = "180°"
+popup/item_2/id = 2
+
 [node name="OpeningToolSection" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=111482937]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
 [node name="OpeningToolTitle" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/OpeningToolSection" unique_id=1843974518]
 layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 15
 text = "APERTURA"
 
 [node name="OpeningToolWidthRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox/OpeningToolSection" unique_id=1167022486]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
 [node name="OpeningToolWidthLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/OpeningToolSection/OpeningToolWidthRow" unique_id=1493617539]
 custom_minimum_size = Vector2(112, 0)
 layout_mode = 2
-text = "Ancho hueco"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ANCHO HUECO"
 
 [node name="OpeningToolWidthSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/VBox/OpeningToolSection/OpeningToolWidthRow" unique_id=840411980]
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 0.3
@@ -325,11 +742,15 @@ step = 0.05
 value = 1.2
 
 [node name="SeparatorB" type="HSeparator" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1852410168]
+visible = false
 layout_mode = 2
 
 [node name="StopTimeLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1405461915]
 layout_mode = 2
-text = "Parar a (s)"
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 15
+text = "PARAR A (S)"
 
 [node name="StopTimeSpin" type="SpinBox" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1085679699]
 layout_mode = 2
@@ -338,7 +759,10 @@ step = 30.0
 
 [node name="ScenarioLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1893888048]
 layout_mode = 2
-text = "Plantillas"
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 15
+text = "PLANTILLAS"
 
 [node name="HVACRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=982996122]
 layout_mode = 2
@@ -347,26 +771,153 @@ theme_override_constants/separation = 4
 [node name="HVACLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/HVACRow" unique_id=1825093425]
 custom_minimum_size = Vector2(82, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
 text = "HVAC"
 
 [node name="HVACOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox/HVACRow" unique_id=1905153469]
 layout_mode = 2
 size_flags_horizontal = 3
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 3
+popup/item_0/text = "Sin HVAC"
+popup/item_0/id = 0
+popup/item_1/text = "Instalado OFF"
+popup/item_1/id = 1
+popup/item_2/text = "Instalado ON"
+popup/item_2/id = 2
+
+[node name="LightingRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=176308093]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="@Label@402" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox/LightingRow" unique_id=1296479679]
+custom_minimum_size = Vector2(82, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "LUCES"
+
+[node name="InteriorLightsCheck" type="CheckBox" parent="CanvasLayer/UI/LeftPanel/VBox/LightingRow" unique_id=1488744371]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+button_pressed = true
+text = "INTERIORES"
 
 [node name="ScenarioOption" type="OptionButton" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1034367345]
 layout_mode = 2
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 39
+popup/item_0/text = "Casa simple"
+popup/item_0/id = 0
+popup/item_1/text = "Piso 1 dormitorio"
+popup/item_1/id = 1
+popup/item_2/text = "Piso 2 dormitorios"
+popup/item_2/id = 2
+popup/item_3/text = "Piso 3 dormitorios"
+popup/item_3/id = 3
+popup/item_4/text = "Vivienda 2 plantas"
+popup/item_4/id = 4
+popup/item_5/text = "Adosado planta baja"
+popup/item_5/id = 5
+popup/item_6/text = "Ranch 3 dormitorios"
+popup/item_6/id = 6
+popup/item_7/text = "Ghanekar ranch HVAC"
+popup/item_7/id = 7
+popup/item_8/text = "Bungalow anglosajón"
+popup/item_8/id = 8
+popup/item_9/text = "Piso mediterráneo"
+popup/item_9/id = 9
+popup/item_10/text = "compact_apartment_reference"
+popup/item_10/id = 10
+popup/item_11/text = "long_hallway_reference"
+popup/item_11/id = 11
+popup/item_12/text = "simple_house_objects"
+popup/item_12/id = 12
+popup/item_13/text = "two_storey_reference"
+popup/item_13/id = 13
+popup/item_14/text = "CFAST: Bedroom Closed Door"
+popup/item_14/id = 14
+popup/item_15/text = "CFAST: Co 2 Stratification"
+popup/item_15/id = 15
+popup/item_16/text = "CFAST: Corridor Chain"
+popup/item_16/id = 16
+popup/item_17/text = "CFAST: Door Close Midfire"
+popup/item_17/id = 17
+popup/item_18/text = "CFAST: Fast Growth Closed"
+popup/item_18/id = 18
+popup/item_19/text = "CFAST: Fed Hypoxia Sealed"
+popup/item_19/id = 19
+popup/item_20/text = "CFAST: Hall Upper O 2 Doorway"
+popup/item_20/id = 20
+popup/item_21/text = "CFAST: Hrr Ventilation Limited F 2"
+popup/item_21/id = 21
+popup/item_22/text = "CFAST: Hvac O 2l G 000"
+popup/item_22/id = 22
+popup/item_23/text = "CFAST: Hvac O 2l G 100"
+popup/item_23/id = 23
+popup/item_24/text = "CFAST: Hvac Residential"
+popup/item_24/id = 24
+popup/item_25/text = "CFAST: Ilv Audit"
+popup/item_25/id = 25
+popup/item_26/text = "CFAST: Ilv Open Window Repro"
+popup/item_26/id = 26
+popup/item_27/text = "CFAST: Long Burnout 3600s"
+popup/item_27/id = 27
+popup/item_28/text = "CFAST: Multi Fuel Couch Tv"
+popup/item_28/id = 28
+popup/item_29/text = "CFAST: Overpressure Sealed"
+popup/item_29/id = 29
+popup/item_30/text = "CFAST: Pool Fire Open"
+popup/item_30/id = 30
+popup/item_31/text = "CFAST: Post Flashover Vented"
+popup/item_31/id = 31
+popup/item_32/text = "CFAST: R 0 Window 360"
+popup/item_32/id = 32
+popup/item_33/text = "CFAST: Single Room Closed"
+popup/item_33/id = 33
+popup/item_34/text = "CFAST: Slow Growth Sealed"
+popup/item_34/id = 34
+popup/item_35/text = "CFAST: Suppression Water"
+popup/item_35/id = 35
+popup/item_36/text = "CFAST: Two Floor Stairwell"
+popup/item_36/id = 36
+popup/item_37/text = "CFAST: Two Room Door Open"
+popup/item_37/id = 37
+popup/item_38/text = "CFAST: Window Break T 180"
+popup/item_38/id = 38
 
 [node name="BtnLoadScenario" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=445792796]
 layout_mode = 2
-text = "Editar plantilla"
+tooltip_text = "Carga la plantilla seleccionada en el editor."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "EDITAR PLANTILLA"
 
 [node name="StatusLabel" type="Label" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1852960015]
-custom_minimum_size = Vector2(0, 64)
+custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
-text = "Editor listo"
+theme_override_colors/font_color = Color(0.49, 0.55, 0.6, 0.92)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "Modo 2D: editor clasico activo."
 autowrap_mode = 3
 
 [node name="RightPanel" type="PanelContainer" parent="CanvasLayer/UI" unique_id=711849844]
+visible = false
+custom_minimum_size = Vector2(244, 0)
 layout_mode = 1
 anchors_preset = 11
 anchor_left = 1.0
@@ -378,81 +929,357 @@ offset_right = -12.0
 offset_bottom = -76.0
 grow_horizontal = 0
 grow_vertical = 2
-scale = Vector2(1, 1)
+theme_override_styles/panel = SubResource("StyleBoxFlat_gyilq")
 
 [node name="VBox" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel" unique_id=216967571]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 4
 
 [node name="RoomTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1841010525]
+visible = false
 layout_mode = 2
-text = "Propiedades de habitación"
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 15
+text = "PROPIEDADES DE HABITACIÓN"
 
 [node name="RoomNameEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=762771066]
+visible = false
 layout_mode = 2
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
 placeholder_text = "Nombre"
+editable = false
 
 [node name="RoomKindEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=231177903]
+visible = false
 layout_mode = 2
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
 placeholder_text = "Tipo"
+editable = false
+
+[node name="RoomGeometry" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=731231745]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="RoomXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=1200612267]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="RoomXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomXRow" unique_id=1360977639]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "X (M)"
+
+[node name="RoomXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomXRow" unique_id=1088090340]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -200.0
+max_value = 200.0
+step = 0.05
+editable = false
+
+[node name="RoomYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=1426285472]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="RoomYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomYRow" unique_id=1956179515]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "Y (M)"
+
+[node name="RoomYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomYRow" unique_id=815948228]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -200.0
+max_value = 200.0
+step = 0.05
+editable = false
+
+[node name="RoomWidthRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=969035441]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="RoomWidthRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomWidthRow" unique_id=862058369]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ANCHO (M)"
+
+[node name="RoomWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomWidthRow" unique_id=974265903]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.25
+max_value = 200.0
+step = 0.05
+value = 1.0
+editable = false
+
+[node name="RoomDepthRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=644293779]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="RoomDepthRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomDepthRow" unique_id=796022256]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "FONDO (M)"
+
+[node name="RoomDepthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomDepthRow" unique_id=381758016]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.25
+max_value = 200.0
+step = 0.05
+value = 1.0
+editable = false
+
+[node name="RoomRotationRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=304980432]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="RoomRotationRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomRotationRow" unique_id=835738687]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ANGULO (DEG)"
+
+[node name="RoomRotationSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/RoomRotationRow" unique_id=1758863150]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -180.0
+max_value = 180.0
+editable = false
+
+[node name="StairTurnRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=1957564102]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="StairTurnRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/StairTurnRow" unique_id=2070755996]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "TIPO ESCALERA"
+
+[node name="StairTurnOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/StairTurnRow" unique_id=348715655]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+disabled = true
+selected = 0
+item_count = 3
+popup/item_0/text = "Auto"
+popup/item_0/id = 0
+popup/item_1/text = "Recta"
+popup/item_1/id = 1
+popup/item_2/text = "180°"
+popup/item_2/id = 2
+
+[node name="StairWallsRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=496057205]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="StairWallsRowSpacer" type="Control" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/StairWallsRow" unique_id=1043535007]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+
+[node name="StairWallsCheck" type="CheckBox" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/StairWallsRow" unique_id=1892776917]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+disabled = true
+text = "ESCALERA CON PAREDES"
+
+[node name="StairRailingsRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=423263801]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="StairRailingsRowSpacer" type="Control" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/StairRailingsRow" unique_id=189080474]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+
+[node name="StairRailingsCheck" type="CheckBox" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry/StairRailingsRow" unique_id=464775520]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+disabled = true
+button_pressed = true
+text = "ESCALERA CON BARANDILLAS"
+
+[node name="StairAngleLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/RoomGeometry" unique_id=1665384688]
+visible = false
+modulate = Color(0.49, 0.55, 0.6, 0.92)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+autowrap_mode = 3
 
 [node name="RoomHeightLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1195206120]
+visible = false
 layout_mode = 2
-text = "Altura techo (m)"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ALTURA TECHO (M)"
 
 [node name="RoomHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1355792470]
+visible = false
 layout_mode = 2
 min_value = 1.8
 max_value = 6.0
 step = 0.1
 value = 2.7
+editable = false
 
 [node name="FuelEnergyLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=569333049]
+visible = false
 layout_mode = 2
-text = "Carga de fuego (MJ)"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "CARGA DE FUEGO (MJ)"
 
 [node name="FuelEnergySpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1716212050]
+visible = false
 layout_mode = 2
 max_value = 10000.0
 step = 10.0
+editable = false
 
 [node name="MaxHrrLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1080176794]
+visible = false
 layout_mode = 2
-text = "HRR máximo (kW)"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "HRR MÁXIMO (KW)"
 
 [node name="MaxHrrSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=655296354]
+visible = false
 layout_mode = 2
 max_value = 5000.0
 step = 10.0
+editable = false
 
 [node name="BtnApplyRoom" type="Button" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=964308888]
+visible = false
 layout_mode = 2
-text = "Aplicar habitación"
+tooltip_text = "Aplica los cambios numéricos de la habitación seleccionada."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "APLICAR HABITACIÓN"
 
 [node name="BtnDeleteRoom" type="Button" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1951604257]
+visible = false
 layout_mode = 2
-text = "Borrar habitación"
+tooltip_text = "Borra la habitación seleccionada."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "BORRAR HABITACIÓN"
 
 [node name="SeparatorB" type="HSeparator" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=175276598]
+visible = false
 layout_mode = 2
 
 [node name="ObjectTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=643658256]
+visible = false
 layout_mode = 2
-text = "Propiedades del objeto seleccionado"
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 15
+text = "PROPIEDADES DEL OBJETO SELECCIONADO"
 
 [node name="ObjProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1481127137]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 5
 
 [node name="ObjNameEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1161814676]
 layout_mode = 2
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
 placeholder_text = "Nombre objeto"
 
-[node name="ObjWidthLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1829439604]
+[node name="ObjXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1716790268]
 layout_mode = 2
-text = "Ancho (m)"
+theme_override_constants/separation = 4
+
+[node name="ObjXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps/ObjXRow" unique_id=469629605]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "X LOCAL (M)"
+
+[node name="ObjXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps/ObjXRow" unique_id=937329722]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -200.0
+max_value = 200.0
+step = 0.05
+
+[node name="ObjYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1443645140]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ObjYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps/ObjYRow" unique_id=1411388176]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "Y LOCAL (M)"
+
+[node name="ObjYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps/ObjYRow" unique_id=703955319]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -200.0
+max_value = 200.0
+step = 0.05
+
+[node name="ObjWidthLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1829439604]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ANCHO (M)"
 
 [node name="ObjWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=504730624]
+visible = false
 layout_mode = 2
 min_value = 0.1
 max_value = 20.0
@@ -460,38 +1287,51 @@ step = 0.05
 value = 0.1
 
 [node name="ObjHeightLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1061734162]
+visible = false
 layout_mode = 2
-text = "Largo (m)"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "LARGO (M)"
 
 [node name="ObjHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1410567642]
+visible = false
 layout_mode = 2
 min_value = 0.1
 max_value = 20.0
 step = 0.05
 value = 0.1
 
-[node name="ObjRotationLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps"]
+[node name="ObjRotationLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=454561501]
 layout_mode = 2
-text = "Rotacion (deg)"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ROTACION (DEG)"
 
-[node name="ObjRotationSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps"]
+[node name="ObjRotationSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=122038773]
 layout_mode = 2
 min_value = -180.0
 max_value = 180.0
-step = 1.0
 
-[node name="ObjElevationLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps"]
+[node name="ObjElevationLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1819385101]
 layout_mode = 2
-text = "Altura (m)"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ALTURA (M)"
 
-[node name="ObjElevationSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps"]
+[node name="ObjElevationSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=2011010877]
 layout_mode = 2
 max_value = 6.0
 step = 0.05
 
 [node name="ObjFuelLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1093911295]
 layout_mode = 2
-text = "Carga fuego (MJ)"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "CARGA FUEGO (MJ)"
 
 [node name="ObjFuelSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1573415355]
 layout_mode = 2
@@ -500,7 +1340,10 @@ step = 10.0
 
 [node name="ObjHrrLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=100655930]
 layout_mode = 2
-text = "HRR máx. (kW)"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "HRR MÁX. (KW)"
 
 [node name="ObjHrrSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=703785309]
 layout_mode = 2
@@ -509,31 +1352,51 @@ step = 10.0
 
 [node name="BtnApplyObject" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=1849481972]
 layout_mode = 2
-text = "Aplicar objeto"
+tooltip_text = "Aplica posición, tamaño, rotación y combustible del objeto seleccionado."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "APLICAR OBJETO"
 
 [node name="BtnDeleteObject" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/ObjProps" unique_id=670449681]
 layout_mode = 2
-text = "Borrar objeto"
+tooltip_text = "Borra el objeto seleccionado."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "BORRAR OBJETO"
 
 [node name="SeparatorC" type="HSeparator" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=110912611]
+visible = false
 layout_mode = 2
 
 [node name="OpeningTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=1162256429]
+visible = false
 layout_mode = 2
-text = "Propiedades de apertura"
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 15
+text = "PROPIEDADES DE APERTURA"
 
 [node name="OpeningProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=162593781]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
 [node name="OpeningTypeLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=38058230]
 modulate = Color(0.75, 0.878431, 1, 1)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
 text = "Tipo: —"
 
 [node name="OpeningWidthLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=1420258332]
 layout_mode = 2
-text = "Ancho (m)"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ANCHO (M)"
 
 [node name="OpeningWidthSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=878676402]
 layout_mode = 2
@@ -544,7 +1407,10 @@ value = 0.8999999999999999
 
 [node name="OpeningHeightLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=1066252635]
 layout_mode = 2
-text = "Alto (m)"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ALTO (M)"
 
 [node name="OpeningHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=268589647]
 layout_mode = 2
@@ -553,9 +1419,30 @@ max_value = 3.5
 step = 0.05
 value = 2.0
 
+[node name="OpeningOffsetRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=648712961]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningOffsetRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps/OpeningOffsetRow" unique_id=657768793]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "POSICION (M)"
+
+[node name="OpeningOffsetSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps/OpeningOffsetRow" unique_id=725991204]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 200.0
+step = 0.05
+
 [node name="OpeningSillLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=2086762699]
 layout_mode = 2
-text = "Alféizar (m)"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ALFÉIZAR (M)"
 
 [node name="OpeningSillSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=1242201272]
 layout_mode = 2
@@ -564,36 +1451,159 @@ step = 0.05
 
 [node name="OpeningOpenOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=53628024]
 layout_mode = 2
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 2
+popup/item_0/text = "Cerrada"
+popup/item_0/id = 0
+popup/item_1/text = "Abierta"
+popup/item_1/id = 1
+
+[node name="OpeningSwingRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=431085258]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningSwingRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps/OpeningSwingRow" unique_id=1882466829]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "ABRE HACIA"
+
+[node name="OpeningSwingOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps/OpeningSwingRow" unique_id=1614491914]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 2
+popup/item_0/text = "Interior"
+popup/item_0/id = 0
+popup/item_1/text = "Exterior"
+popup/item_1/id = 1
+
+[node name="OpeningHingeRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=1397775072]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OpeningHingeRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps/OpeningHingeRow" unique_id=1638264714]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "BISAGRA"
+
+[node name="OpeningHingeOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps/OpeningHingeRow" unique_id=963504766]
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 2
+popup/item_0/text = "Izquierda"
+popup/item_0/id = 0
+popup/item_1/text = "Derecha"
+popup/item_1/id = 1
 
 [node name="BtnApplyOpening" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/OpeningProps" unique_id=1200648205]
 layout_mode = 2
-text = "Aplicar apertura"
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "APLICAR APERTURA"
 
 [node name="SeparatorD" type="HSeparator" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200003]
+visible = false
 layout_mode = 2
 
 [node name="DetectorTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200004]
+visible = false
 layout_mode = 2
-text = "Propiedades del detector"
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 15
+text = "PROPIEDADES DEL DETECTOR"
 
 [node name="DetectorProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200005]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
 [node name="DetectorIdEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200006]
 layout_mode = 2
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
 placeholder_text = "ID"
+
+[node name="DetectorXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=1529697835]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="DetectorXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps/DetectorXRow" unique_id=1244291902]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "X LOCAL (M)"
+
+[node name="DetectorXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps/DetectorXRow" unique_id=507287410]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 200.0
+step = 0.05
+
+[node name="DetectorYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=1246165462]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="DetectorYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps/DetectorYRow" unique_id=951921071]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "Y LOCAL (M)"
+
+[node name="DetectorYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps/DetectorYRow" unique_id=589310399]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 200.0
+step = 0.05
 
 [node name="DetectorTypeLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200007]
 layout_mode = 2
-text = "Tipo"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "TIPO"
 
 [node name="DetectorTypeOption" type="OptionButton" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200008]
 layout_mode = 2
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+selected = 0
+item_count = 3
+popup/item_0/text = "Humo"
+popup/item_0/id = 0
+popup/item_1/text = "Calor"
+popup/item_1/id = 1
+popup/item_2/text = "CO"
+popup/item_2/id = 2
 
 [node name="DetectorThresholdLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200009]
 layout_mode = 2
-text = "Umbral"
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "UMBRAL"
 
 [node name="DetectorThresholdSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200010]
 layout_mode = 2
@@ -602,34 +1612,246 @@ step = 0.001
 
 [node name="BtnApplyDetector" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200011]
 layout_mode = 2
-text = "Aplicar detector"
+tooltip_text = "Aplica tipo, umbral y posición del detector seleccionado."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "APLICAR DETECTOR"
 
 [node name="BtnDeleteDetector" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/DetectorProps" unique_id=811200012]
 layout_mode = 2
-text = "Borrar detector"
+tooltip_text = "Borra el detector seleccionado."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "BORRAR DETECTOR"
 
 [node name="SeparatorE" type="HSeparator" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200013]
+visible = false
 layout_mode = 2
 
 [node name="VictimTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200014]
+visible = false
 layout_mode = 2
-text = "Propiedades de la victima"
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 15
+text = "PROPIEDADES DE LA VICTIMA"
 
 [node name="VictimProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=811200015]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 
 [node name="VictimNameEdit" type="LineEdit" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=811200016]
 layout_mode = 2
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
 placeholder_text = "Nombre"
+
+[node name="VictimXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=1990998943]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="VictimXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps/VictimXRow" unique_id=860281219]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "X LOCAL (M)"
+
+[node name="VictimXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps/VictimXRow" unique_id=1518115550]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 200.0
+step = 0.05
+
+[node name="VictimYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=546801580]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="VictimYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps/VictimYRow" unique_id=286942615]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "Y LOCAL (M)"
+
+[node name="VictimYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps/VictimYRow" unique_id=1341990098]
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 200.0
+step = 0.05
+
+[node name="VictimHeightRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=1678329313]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="VictimHeightRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps/VictimHeightRow" unique_id=444297450]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "PLANO RESP. (M)"
+
+[node name="VictimHeightSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps/VictimHeightRow" unique_id=144667763]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.2
+max_value = 2.2
+step = 0.05
+value = 0.2
 
 [node name="BtnApplyVictim" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=811200017]
 layout_mode = 2
-text = "Aplicar victima"
+tooltip_text = "Aplica nombre, posición local y plano respiratorio de la víctima seleccionada."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "APLICAR VICTIMA"
 
 [node name="BtnDeleteVictim" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/VictimProps" unique_id=811200018]
 layout_mode = 2
-text = "Borrar victima"
+tooltip_text = "Borra la víctima seleccionada."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "BORRAR VICTIMA"
+
+[node name="BtnMarkRoomExterior" type="Button" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=99174965]
+visible = false
+layout_mode = 2
+tooltip_text = "Marca la habitación seleccionada como parte del contorno exterior."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "MARCAR CONTORNO EXTERIOR"
+
+[node name="ExteriorWallTitle" type="Label" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=2000315787]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.25, 0, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 15
+text = "MURO EXTERIOR"
+
+[node name="ExteriorWallProps" type="VBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox" unique_id=2133062281]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="WallStartXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps" unique_id=1768365896]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="WallStartXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallStartXRow" unique_id=1903590038]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "INICIO X"
+
+[node name="WallStartXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallStartXRow" unique_id=1130296695]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -200.0
+max_value = 200.0
+step = 0.05
+
+[node name="WallStartYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps" unique_id=554839888]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="WallStartYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallStartYRow" unique_id=2096148810]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "INICIO Y"
+
+[node name="WallStartYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallStartYRow" unique_id=1196936439]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -200.0
+max_value = 200.0
+step = 0.05
+
+[node name="WallEndXRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps" unique_id=1782526101]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="WallEndXRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallEndXRow" unique_id=804962032]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "FIN X"
+
+[node name="WallEndXSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallEndXRow" unique_id=2064438801]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -200.0
+max_value = 200.0
+step = 0.05
+
+[node name="WallEndYRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps" unique_id=513888755]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="WallEndYRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallEndYRow" unique_id=52546197]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "FIN Y"
+
+[node name="WallEndYSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallEndYRow" unique_id=1569666956]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -200.0
+max_value = 200.0
+step = 0.05
+
+[node name="WallThicknessRow" type="HBoxContainer" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps" unique_id=777222434]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="WallThicknessRowLabel" type="Label" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallThicknessRow" unique_id=2044662407]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
+text = "GROSOR"
+
+[node name="WallThicknessSpin" type="SpinBox" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps/WallThicknessRow" unique_id=966169604]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.05
+max_value = 1.0
+step = 0.01
+value = 0.05
+
+[node name="BtnApplyExteriorWall" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps" unique_id=236944218]
+layout_mode = 2
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "APLICAR MURO"
+
+[node name="BtnDeleteExteriorWall" type="Button" parent="CanvasLayer/UI/RightPanel/VBox/ExteriorWallProps" unique_id=1720961175]
+layout_mode = 2
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "BORRAR MURO"
 
 [node name="BottomBar" type="PanelContainer" parent="CanvasLayer/UI" unique_id=475357514]
 layout_mode = 1
@@ -643,6 +1865,7 @@ offset_top = -66.0
 offset_right = 226.0
 grow_horizontal = 2
 grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_lvx7d")
 
 [node name="HBox" type="HBoxContainer" parent="CanvasLayer/UI/BottomBar" unique_id=1218321673]
 layout_mode = 2
@@ -651,19 +1874,29 @@ theme_override_constants/separation = 8
 [node name="BtnStartSimulation" type="Button" parent="CanvasLayer/UI/BottomBar/HBox" unique_id=973282199]
 custom_minimum_size = Vector2(260, 42)
 layout_mode = 2
-text = "✓ Iniciar simulación"
+tooltip_text = "Valida, exporta y abre la simulación con el escenario actual."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "✓ INICIAR SIMULACIÓN"
 
 [node name="BtnCancel" type="Button" parent="CanvasLayer/UI/BottomBar/HBox" unique_id=2143511484]
 custom_minimum_size = Vector2(160, 42)
 layout_mode = 2
-text = "✗ Cancelar"
+tooltip_text = "Sale del editor y vuelve al menú principal."
+focus_mode = 0
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 12
+text = "✗ CANCELAR"
 
-[node name="HoverHelpPopup" type="PanelContainer" parent="CanvasLayer/UI"]
+[node name="HoverHelpPopup" type="PanelContainer" parent="CanvasLayer/UI" unique_id=1425592107]
+visible = false
 custom_minimum_size = Vector2(220, 0)
+layout_mode = 0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_hoverhelp")
+theme_override_styles/panel = SubResource("StyleBoxFlat_3roc1")
 
-[node name="Margin" type="MarginContainer" parent="CanvasLayer/UI/HoverHelpPopup"]
+[node name="Margin" type="MarginContainer" parent="CanvasLayer/UI/HoverHelpPopup" unique_id=1140870138]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 8
@@ -671,16 +1904,18 @@ theme_override_constants/margin_top = 6
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 6
 
-[node name="HoverHelpLabel" type="Label" parent="CanvasLayer/UI/HoverHelpPopup/Margin"]
+[node name="HoverHelpLabel" type="Label" parent="CanvasLayer/UI/HoverHelpPopup/Margin" unique_id=615031460]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
-mouse_filter = 2
-theme_override_colors/font_color = Color(0.96, 0.98, 0.92, 1)
+theme_override_colors/font_color = Color(0.9, 0.94, 0.96, 0.98)
+theme_override_fonts/font = ExtResource("3_pdysm")
+theme_override_font_sizes/font_size = 13
 autowrap_mode = 3
 
 [node name="World" type="Node2D" parent="." unique_id=1261753306]
 
 [node name="EditorGrid" type="Node2D" parent="World" unique_id=1092522967]
+z_index = -100
 script = ExtResource("2_editor_grid")
 
 [node name="Camera2D" type="Camera2D" parent="World" unique_id=1521202413]

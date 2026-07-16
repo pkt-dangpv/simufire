@@ -113,6 +113,35 @@ def _run_godot_scene(scene_path: str, success_token: str, timeout_s: int = 60) -
     return result.returncode, 1, 0 if passed else 1, diagnostic
 
 
+def _run_godot_script(script_path: str, success_token: str, timeout_s: int = 60) -> tuple[int, int, int, str]:
+    """
+    Run a headless Godot SceneTree script (--script) product check.
+    Returns (exit_code, checks_run, failures, diagnostic).
+    """
+    godot = _find_godot()
+    if godot is None:
+        return 1, 1, 1, "Godot not found. Set GODOT_EXE or add godot to PATH."
+
+    result = subprocess.run(
+        [
+            str(godot),
+            "--headless",
+            "--path",
+            str(_REPO_ROOT),
+            "--script",
+            script_path,
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(_REPO_ROOT),
+        timeout=timeout_s,
+    )
+    combined = (result.stdout or "") + (result.stderr or "")
+    passed = result.returncode == 0 and success_token in combined
+    diagnostic = "" if passed else combined.strip()
+    return result.returncode, 1, 0 if passed else 1, diagnostic
+
+
 def _run_run_scenario_smoke() -> tuple[int, int, int, str]:
     """
     Exercise scripts/run_scenario.py end-to-end with a short headless run.
@@ -255,6 +284,22 @@ def main() -> int:
     rows.append(("Editor load error dialog Godot", rc, count, fails))
     if rc != 0 or fails != 0:
         diagnostics.append("Godot editor load error dialog: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_main_menu_scene.gd",
+        "[validate_main_menu] PASS",
+    )
+    rows.append(("Menu principal en escena Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot main menu scene: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_script(
+        "res://tools/validate_editor_scene_complete.gd",
+        "[validate_editor_scene] PASS",
+    )
+    rows.append(("UI del editor 100% en escena Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot editor scene complete: " + (diagnostic or "failed"))
 
     rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_fp_fire_visuals.tscn",
