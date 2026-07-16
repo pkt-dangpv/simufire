@@ -3282,7 +3282,8 @@ func _find_current_room_id() -> int:
 func get_player_marker_state() -> Dictionary:
 	if building == null:
 		return {}
-	var room_id: int = _current_room_id
+	# Cache por frame; si aun no se resolvio (p.ej. justo tras setup), calcular.
+	var room_id: int = _current_room_id if _current_room_id >= 0 else _find_current_room_id()
 	var floor_level_m: float = _get_room_floor_level(room_id) if room_id >= 0 else global_position.y
 	return {
 		"active": _active,

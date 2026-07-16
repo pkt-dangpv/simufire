@@ -321,7 +321,12 @@ func capture_screenshot_to(output_dir: String = "") -> void:
 	var legend_was_visible: bool = _legend_canvas != null and _legend_canvas.visible
 	if _legend_canvas != null:
 		_legend_canvas.visible = false
-	await RenderingServer.frame_post_draw
+	# frame_post_draw no dispara nunca en --headless (no hay render): la
+	# corrutina se colgaria sin emitir senal. Ahi basta un process_frame.
+	if DisplayServer.get_name() == "headless":
+		await get_tree().process_frame
+	else:
+		await RenderingServer.frame_post_draw
 	var img := vp.get_texture().get_image()
 	if _legend_canvas != null:
 		_legend_canvas.visible = legend_was_visible
@@ -695,6 +700,9 @@ func _clear_container(container: Node) -> void:
 	if container == null:
 		return
 	for child in container.get_children():
+		# remove_child inmediato: los nodos nuevos del rebuild reutilizan los
+		# mismos nombres y una colision los renombraria (@Nombre@N).
+		container.remove_child(child)
 		child.queue_free()
 
 
@@ -2965,7 +2973,9 @@ func _create_human_limb_mesh(node_name: String, radius_m: float, length_m: float
 
 
 func _set_marker_color(root: Node3D, color: Color) -> void:
-	var cached: Variant = root.get_meta("marker_mat", null)
+	# has_meta primero: get_meta(nombre, null) con default null tambien
+	# lanza error de engine cuando la clave no existe.
+	var cached: Variant = root.get_meta("marker_mat") if root.has_meta("marker_mat") else null
 	var mat: StandardMaterial3D
 	if cached is StandardMaterial3D and cached.albedo_color.is_equal_approx(color):
 		return
@@ -2990,6 +3000,8 @@ func _prune_marker_nodes(nodes: Dictionary, seen_ids: Dictionary) -> void:
 			continue
 		var stale_node := nodes[stale_id] as Node
 		if stale_node != null:
+			if stale_node.get_parent() != null:
+				stale_node.get_parent().remove_child(stale_node)
 			stale_node.queue_free()
 		nodes.erase(stale_id)
 
@@ -3123,6 +3135,8 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 			continue
 		var stale_node := fuel_obj_nodes[stale_id] as Node
 		if stale_node != null:
+			if stale_node.get_parent() != null:
+				stale_node.get_parent().remove_child(stale_node)
 			stale_node.queue_free()
 		fuel_obj_nodes.erase(stale_id)
 
