@@ -175,6 +175,13 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export_range(0.2, 4.0, 0.05) var fire_light_attenuation: float = 1.0
 ## Altura (m) de la luz del fuego sobre la base de la llama.
 @export var fire_light_height_m: float = 0.9
+## Transmision minima del humo aplicada a la luz del fuego (la llama vive
+## bajo la capa de humo; si es visible, ilumina al menos esta fraccion).
+@export_range(0.0, 1.0, 0.05) var fire_light_min_transmission: float = 0.35
+## Fraccion de la altura disponible que puede alcanzar la llama en la vista
+## 3D. La vista dollhouse no tiene techos: una llama a techo completo se
+## proyecta por encima de la silueta de los muros desde camaras bajas.
+@export_range(0.3, 1.0, 0.02) var fire_max_height_fraction: float = 0.72
 @export var temp_heat_floor_start_c: float = 80.0
 @export var temp_heat_floor_full_c: float = 450.0
 @export var temp_heat_wall_start_c: float = 60.0
@@ -2310,7 +2317,7 @@ func _update_fire_visual(item: Dictionary, rect: Rect2, room_height_m: float, hr
 	var target_cap_weight: float = 0.0
 	if has_fire_anchor and show_hrr_columns and hrr_kw > fire_min_visible_hrr_kw:
 		var fire_t: float = clampf(hrr_kw / maxf(1.0, hrr_reference_kw), 0.0, 1.8)
-		var ceiling_height_m: float = maxf(0.16, available_height_m)
+		var ceiling_height_m: float = maxf(0.16, available_height_m * fire_max_height_fraction)
 		var free_plume_height_m: float = clampf(
 			0.16 + fire_t * fire_max_extra_height_m,
 			0.16,
@@ -2361,7 +2368,10 @@ func _update_fire_visual(item: Dictionary, rect: Rect2, room_height_m: float, hr
 	if fire_light != null:
 		# Misma ley de potencia HRR -> luz que en FP (ver FirstPersonController).
 		var hrr_ratio: float = maxf(0.0, hrr_kw) / 1000.0
-		var smoke_transmission: float = float(item.get("smoke_light_transmission", 1.0))
+		var smoke_transmission: float = maxf(
+			float(item.get("smoke_light_transmission", 1.0)),
+			fire_light_min_transmission
+		)
 		var target_energy: float = 0.0
 		if fire_root.visible and hrr_ratio > 0.0:
 			target_energy = fire_light_energy_per_1000kw \

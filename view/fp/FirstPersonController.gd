@@ -206,6 +206,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.2, 4.0, 0.05) var fp_fire_light_attenuation: float = 1.0
 ## Altura (m) de la luz del fuego sobre la base de la llama.
 @export var fp_fire_light_height_m: float = 0.65
+## Transmision minima del humo aplicada a la luz del fuego. La llama vive
+## bajo la capa de humo: aunque el humo bloquee las luces de techo, una
+## llama visible siempre ilumina su entorno al menos esta fraccion.
+@export_range(0.0, 1.0, 0.05) var fp_fire_light_min_transmission: float = 0.35
 @export var fp_fire_flicker_strength: float = 0.13
 @export var fp_fire_color: Color = Color(1.0, 0.34, 0.08, 0.90)
 @export var fp_fire_core_color: Color = Color(1.0, 0.86, 0.34, 0.95)
@@ -2261,7 +2265,10 @@ func _update_fp_fire_item(room_id: int, item: Dictionary) -> void:
 		# proporcional a sqrt(HRR). Coherente con que la iluminancia de una
 		# fuente cae con 1/d^2 y la percepcion de brillo es sublineal.
 		var hrr_ratio: float = maxf(0.0, hrr_kw) / 1000.0 if has_visible_fire else 0.0
-		var smoke_transmission: float = _light_smoke_transmission_for_room(room_id, room_height_m)
+		var smoke_transmission: float = maxf(
+			_light_smoke_transmission_for_room(room_id, room_height_m),
+			fp_fire_light_min_transmission
+		)
 		var target_energy: float = 0.0
 		if fire_root.visible and hrr_ratio > 0.0:
 			target_energy = fp_fire_light_energy_per_1000kw \
