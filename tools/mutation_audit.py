@@ -181,7 +181,7 @@ def main() -> int:
         help="Timeout por caso en segundos (default: 180)."
     )
     parser.add_argument(
-        "--output", type=Path, default=ROOT / "tools/mutation_results.json",
+        "--output", type=Path, default=ROOT / "tools/reports/mutation_results.json",
         help="Ruta de salida del informe JSON."
     )
     parser.add_argument(

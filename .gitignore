@@ -45,8 +45,19 @@ sim/validation/reports/**/*.translation
 sim/validation/reports/**/*.translation.import
 sim/validation/reports/**/*.csv.import
 
+# Godot import artifacts fuera de sim/ (docs y tools no son recursos del juego;
+# docs/.gdignore y tools/reports/.gdignore evitan que Godot los importe)
+docs/**/*.import
+tools/*.translation
+tools/*.translation.import
+tools/*.csv.import
+
 # Cache
 .matplotlib-cache/
+.godot_validation_logs/
+
+# Carpeta local de documentacion personal (no versionada)
+Docu Simufire/
 
 # Historical archives kept intentionally in the repository
 !docs/archive/
@@ -65,7 +76,8 @@ Thumbs.db
 graphs/
 !graphs/.gdignore
 old/
-runs/
+runs/*
+!runs/.gdignore
 
 # Python / tools
 __pycache__/

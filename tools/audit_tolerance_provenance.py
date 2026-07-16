@@ -9,7 +9,7 @@ Clasifica cada check de reference_checks.json en:
   CONSERVATION — residual físico (conservación de masa/energía, simetría)
   NON_GATING  — required=False (no afecta al CI)
 
-Salida: tools/tolerance_provenance.csv + resumen impreso por pantalla.
+Salida: tools/reports/tolerance_provenance.csv + resumen impreso por pantalla.
 """
 
 import json
@@ -21,7 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CHECKS_JSON = ROOT / "sim/validation/reports/reference_checks.json"
-OUTPUT_CSV = ROOT / "tools/tolerance_provenance.csv"
+OUTPUT_CSV = ROOT / "tools/reports/tolerance_provenance.csv"
 
 # ── palabras clave para checks de conservación ───────────────────────────────
 CONSERVATION_KEYWORDS = [

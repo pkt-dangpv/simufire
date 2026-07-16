@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PROVENANCE_CSV = ROOT / "tools/tolerance_provenance.csv"
+PROVENANCE_CSV = ROOT / "tools/reports/tolerance_provenance.csv"
 CHECKS_JSON = ROOT / "sim/validation/reports/reference_checks.json"
 MUTATION_JSON = ROOT / "tools/mutation_results.json"
 OVERRIDE_REGISTRY = ROOT / "sim/validation/override_registry.json"
