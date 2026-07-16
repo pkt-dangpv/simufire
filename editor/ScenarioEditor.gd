@@ -570,76 +570,48 @@ func _layout_editor_shell() -> void:
 
 
 func _ensure_editor_branding() -> void:
+	# BrandHeader/Logo/EditorModeLabel viven en ScenarioEditorScene.tscn;
+	# aqui solo se aplican fuente y color dinamicos.
 	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
 	var brand := left_vbox.get_node_or_null("BrandHeader") as VBoxContainer
 	if brand == null:
-		brand = VBoxContainer.new()
-		brand.name = "BrandHeader"
-		brand.add_theme_constant_override("separation", 6)
-		left_vbox.add_child(brand)
-		left_vbox.move_child(brand, 0)
-	brand.custom_minimum_size = Vector2(0.0, 84.0)
-
-	var logo := brand.get_node_or_null("Logo") as TextureRect
-	if logo == null:
-		logo = TextureRect.new()
-		logo.name = "Logo"
-		logo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		brand.add_child(logo)
-	logo.custom_minimum_size = Vector2(236.0, 56.0)
-	logo.texture = load(EDITOR_LOGO_PATH) as Texture2D
-
+		push_error("ScenarioEditor: falta BrandHeader en ScenarioEditorScene.tscn")
+		return
 	var mode_label := brand.get_node_or_null("EditorModeLabel") as Label
-	if mode_label == null:
-		mode_label = Label.new()
-		mode_label.name = "EditorModeLabel"
-		mode_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		brand.add_child(mode_label)
-	mode_label.text = "EDITOR DE ESCENARIOS"
-	mode_label.add_theme_font_override("font", _editor_title_font)
-	mode_label.add_theme_font_size_override("font_size", editor_font_size_body)
-	mode_label.add_theme_color_override("font_color", UI_TEXT_MUTED)
+	if mode_label != null:
+		mode_label.add_theme_font_override("font", _editor_title_font)
+		mode_label.add_theme_font_size_override("font_size", editor_font_size_body)
+		mode_label.add_theme_color_override("font_color", UI_TEXT_MUTED)
 
 
 func _ensure_left_editor_tabs() -> void:
+	# EditorTabsRow y sus botones viven en ScenarioEditorScene.tscn; aqui
+	# solo se conectan y se sincroniza el estado.
 	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
 	var row := left_vbox.get_node_or_null("EditorTabsRow") as HBoxContainer
 	if row == null:
-		row = HBoxContainer.new()
-		row.name = "EditorTabsRow"
-		row.add_theme_constant_override("separation", 4)
-		left_vbox.add_child(row)
-	var brand := left_vbox.get_node_or_null("BrandHeader") as Control
-	if brand != null and row.get_parent() == left_vbox:
-		left_vbox.move_child(row, mini(brand.get_index() + 1, left_vbox.get_child_count() - 1))
+		push_error("ScenarioEditor: falta EditorTabsRow en ScenarioEditorScene.tscn")
+		return
 	_left_tab_buttons.clear()
-	_ensure_left_tab_button(row, "TabTools", "Dibujo", EditorLeftTab.TOOLS)
-	_ensure_left_tab_button(row, "TabSelection", "Lista", EditorLeftTab.SELECTION)
-	_ensure_left_tab_button(row, "TabScenario", "Archivo", EditorLeftTab.SCENARIO)
+	_ensure_left_tab_button(row, "TabTools", EditorLeftTab.TOOLS)
+	_ensure_left_tab_button(row, "TabSelection", EditorLeftTab.SELECTION)
+	_ensure_left_tab_button(row, "TabScenario", EditorLeftTab.SCENARIO)
 	var old_templates_tab := row.get_node_or_null("TabTemplates") as Button
 	if old_templates_tab != null:
 		old_templates_tab.visible = false
 	_sync_left_tab_buttons()
 
 
-func _ensure_left_tab_button(parent: Control, button_name: String, text: String, tab_id: int) -> Button:
+func _ensure_left_tab_button(parent: Control, button_name: String, tab_id: int) -> Button:
 	var button := parent.get_node_or_null(button_name) as Button
 	if button == null:
-		button = Button.new()
-		button.name = button_name
-		button.custom_minimum_size = Vector2(0.0, 28.0)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		parent.add_child(button)
-	button.text = text
+		push_error("ScenarioEditor: falta %s en EditorTabsRow (ScenarioEditorScene.tscn)" % button_name)
+		return null
 	button.tooltip_text = _left_tab_tooltip(tab_id)
-	button.toggle_mode = true
-	button.focus_mode = Control.FOCUS_NONE
 	var callback := Callable(self, "_set_left_editor_tab").bind(tab_id)
 	if not button.pressed.is_connected(callback):
 		button.pressed.connect(callback)
@@ -778,37 +750,27 @@ func _show_hover_help_popup(text: String) -> void:
 
 
 func _ensure_editor_mode_controls_in_existing_ui() -> void:
+	# ViewModeRow y sus botones viven en ScenarioEditorScene.tscn; aqui
+	# solo se conectan y se sincroniza el estado.
 	var left_vbox := _find_left_vbox()
 	if left_vbox == null:
 		return
 	var row := left_vbox.get_node_or_null("ViewModeRow") as HBoxContainer
 	if row == null:
-		row = HBoxContainer.new()
-		row.name = "ViewModeRow"
-		row.add_theme_constant_override("separation", 4)
-		left_vbox.add_child(row)
-	var brand := left_vbox.get_node_or_null("BrandHeader") as Control
-	if brand != null and row.get_parent() == left_vbox:
-		left_vbox.move_child(row, mini(brand.get_index() + 1, left_vbox.get_child_count() - 1))
-	_ensure_editor_mode_button(row, "BtnViewMode2D", "2D", EditorViewMode.MODE_2D)
-	_ensure_editor_mode_button(row, "BtnViewMode3D", "3D", EditorViewMode.MODE_3D)
-	_ensure_editor_mode_button(row, "BtnViewModeFP", "FP", EditorViewMode.MODE_FP)
+		push_error("ScenarioEditor: falta ViewModeRow en ScenarioEditorScene.tscn")
+		return
+	_ensure_editor_mode_button(row, "BtnViewMode2D", EditorViewMode.MODE_2D)
+	_ensure_editor_mode_button(row, "BtnViewMode3D", EditorViewMode.MODE_3D)
+	_ensure_editor_mode_button(row, "BtnViewModeFP", EditorViewMode.MODE_FP)
 	_update_editor_mode_buttons()
 
 
-func _ensure_editor_mode_button(parent: Control, button_name: String, text: String, mode: int) -> Button:
+func _ensure_editor_mode_button(parent: Control, button_name: String, mode: int) -> Button:
 	var button := parent.get_node_or_null(button_name) as Button
 	if button == null:
-		button = Button.new()
-		button.name = button_name
-		button.toggle_mode = true
-		button.custom_minimum_size = Vector2(64.0, 30.0)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		parent.add_child(button)
-	button.text = text
+		push_error("ScenarioEditor: falta %s en ViewModeRow (ScenarioEditorScene.tscn)" % button_name)
+		return null
 	button.tooltip_text = _editor_view_mode_tooltip(mode)
-	button.toggle_mode = true
-	button.focus_mode = Control.FOCUS_NONE
 	var callback := Callable(self, "_set_editor_view_mode").bind(mode)
 	if not button.pressed.is_connected(callback):
 		button.pressed.connect(callback)

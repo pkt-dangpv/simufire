@@ -149,6 +149,62 @@ layout_mode = 2
 text = "EDITOR DE ESCENARIOS"
 horizontal_alignment = 1
 
+[node name="EditorTabsRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TabTools" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/EditorTabsRow"]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "Dibujo"
+
+[node name="TabSelection" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/EditorTabsRow"]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "Lista"
+
+[node name="TabScenario" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/EditorTabsRow"]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "Archivo"
+
+[node name="ViewModeRow" type="HBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BtnViewMode2D" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/ViewModeRow"]
+custom_minimum_size = Vector2(64, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "2D"
+
+[node name="BtnViewMode3D" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/ViewModeRow"]
+custom_minimum_size = Vector2(64, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "3D"
+
+[node name="BtnViewModeFP" type="Button" parent="CanvasLayer/UI/LeftPanel/VBox/ViewModeRow"]
+custom_minimum_size = Vector2(64, 30)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "FP"
+
 [node name="FloorSection" type="VBoxContainer" parent="CanvasLayer/UI/LeftPanel/VBox" unique_id=1232621465]
 layout_mode = 2
 theme_override_constants/separation = 5
