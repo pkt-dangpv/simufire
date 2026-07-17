@@ -1,10 +1,34 @@
 # Current Handoff State
 
-Date: 2026-07-16.
+Date: 2026-07-17.
 
 ## Purpose
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
+
+## Current Session Update - 2026-07-17 - F3.1a O2 authority diagnosis
+
+- F3.1a closes as a **GO for one semantic invariant** and a **NO-GO for
+  global authority**: OES must debit the same O2 source selected by
+  Combustion, but that contract is not ready to become the default.
+- The existing default-OFF `fire_o2_canonical_enabled` flag removed all
+  upper-O2 zombie rows in sealed, stairwell, ventilated and backdraft scratch
+  controls. O2E1/A3 stayed clean and backdraft reventilation still recovered
+  HRR after opening.
+- Root cause: Combustion selects its source from the interface, while OES and
+  Thermal shadow each infer sealed scope from raw opening geometry. Cases can
+  contain opening objects while the corresponding transport is disabled, so
+  the three systems disagree.
+- The 120 s shadow control still reports ownership mask 6, missing combustion
+  heat, `needs_flux_owner=1`, mass residual `0.02809879 kg` and energy residual
+  `8.23522174 kJ`. Canonical state authority remains blocked.
+- No F3.1a motor code, physical baseline, tolerance, official report, CTRL or
+  VALID_GAP changed. Scratch runs are isolated under `runs/phase3_f31a/`.
+- Next gate: F3.1b, one shared effective-boundary/scope contract for
+  Combustion, OxygenExchange and Thermal shadow adapters. It must reach mask 7
+  and `needs_flux_owner=0` in the sealed control before F3.2 can begin.
+- Binding record:
+  `docs/validation/PHASE3_F31A_COMBUSTION_O2_AUTHORITY.md`.
 
 ## Current Session Update - 2026-07-16 - F3.1 selected-O2 extinction
 

@@ -1,6 +1,6 @@
 # Phase 3+ canonical two-zone mass architecture
 
-Date: 2026-07-12
+Date: 2026-07-17
 
 ## Decision
 
@@ -217,8 +217,16 @@ Status 2026-07-16: **partial GO / authority NO-GO**. The selected-O2 extinction
 invariant is implemented and runtime-tested, but `phase3_canonical_zone_state_enabled`
 was not added. The shadow still reports incomplete flux ownership and non-zero
 mass/energy residuals. Affected visible zombie-fire cases select lower-zone O2
-through `plume_lower` while upper-zone O2 is exhausted, so F3.1a must establish
-the combustion-zone O2 authority before canonical state can be published.
+through `plume_lower` while upper-zone O2 is exhausted. F3.1a was assigned to
+establish that combustion-zone O2 authority before canonical publication.
+
+F3.1a status 2026-07-17: **semantic GO / global authority NO-GO**. The existing
+default-OFF canonical O2 route proves that OES must debit the same source
+selected by Combustion and removes the zombie in the selected controls. Global
+activation is blocked because Combustion, OES and Thermal shadow do not share
+one effective-boundary predicate. The shadow remains at ownership mask 6 and
+`needs_flux_owner=1`. F3.1b must unify that scope and prove mask 7 before any
+authoritative state or exterior work begins.
 
 ### F3.2 - Exterior pressure and leakage
 
@@ -302,10 +310,11 @@ not in the promotion commit.
 ## Immediate next step
 
 Use `docs/validation/PHASE3_CURRENT_WORKPLAN.md` as the operational checklist.
-F3.1 has delivered the selected-O2 extinction guard but returned NO-GO for
-authoritative sealed state. The next step is F3.1a: establish an explicit,
-default-OFF combustion O2-source contract for sealed/two-zone controls and
-measure HRR, O2 and FED deltas. Do not globally change `plume_lower`, publish
-the shadow into `RoomModel`, begin F3.2, or promote/modify
-`project_room_state()` until sealed ownership closes. HVAC remains deferred to
-F3.5 after its own redesign gate.
+F3.1 has delivered the selected-O2 extinction guard and F3.1a has proved the
+selected-source/debit-source invariant, but authoritative sealed state remains
+NO-GO. The next step is F3.1b: establish one default-OFF effective-boundary and
+sealed-scope contract shared by Combustion, OES and Thermal shadow adapters.
+It must prove combustion ownership mask 7 and `needs_flux_owner=0` without
+inventing fluxes. Do not globally change `plume_lower`, publish the shadow into
+`RoomModel`, begin F3.2, or modify `project_room_state()` until sealed ownership
+closes. HVAC remains deferred to F3.5 after its own redesign gate.

@@ -3,6 +3,22 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.1a combustion O2 authority diagnosis (2026-07-17)
+
+- Confirmed that the visible upper-O2 zombie is caused by mismatched source
+  semantics: Combustion can select lower-zone O2 while OxygenExchange debits
+  bulk O2 and the Phase 3 shadow independently rejects combustion heat scope.
+- Reused the existing default-OFF `fire_o2_canonical_enabled` flag in isolated
+  controls. Synchronized routing removed all zombie rows and kept O2E1/A3
+  clean, including reventilation after opening.
+- Recorded a NO-GO for global activation. HRR and fuel deltas are large, O2
+  supply is not yet an atomic mass-flow contract and the shadow ownership mask
+  remains 6 instead of 7.
+- Defined F3.1b as a shared effective-boundary/scope contract across
+  Combustion, OxygenExchange and Thermal shadow adapters. F3.2 remains blocked.
+- Changed no motor code, baseline, tolerance, official report, CTRL envelope
+  or VALID_GAP classification.
+
 ### Phase 3+ F3.1 selected-O2 extinction guard (2026-07-16)
 
 - Added a strict combustion invariant: when the selected O2 source is at or
