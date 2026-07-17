@@ -228,6 +228,13 @@ one effective-boundary predicate. The shadow remains at ownership mask 6 and
 `needs_flux_owner=1`. F3.1b must unify that scope and prove mask 7 before any
 authoritative state or exterior work begins.
 
+F3.1b status 2026-07-17: **scope implementation NO-GO**. The legacy engine has
+no single effective-boundary switch: its O2, thermal, gas and cache paths use
+different guards. The `*_diag_sealed` cases also retain open doors. A separate
+closed control reached mask 7 but still had non-zero mass/energy residuals, so
+boundary classification cannot produce complete ownership. F3.1c must first
+close a dedicated one-room transaction and its remaining thermal terms.
+
 ### F3.2 - Exterior pressure and leakage
 
 Use canonical room mass/energy to solve gauge pressure and exterior gas flow.
@@ -310,11 +317,11 @@ not in the promotion commit.
 ## Immediate next step
 
 Use `docs/validation/PHASE3_CURRENT_WORKPLAN.md` as the operational checklist.
-F3.1 has delivered the selected-O2 extinction guard and F3.1a has proved the
-selected-source/debit-source invariant, but authoritative sealed state remains
-NO-GO. The next step is F3.1b: establish one default-OFF effective-boundary and
-sealed-scope contract shared by Combustion, OES and Thermal shadow adapters.
-It must prove combustion ownership mask 7 and `needs_flux_owner=0` without
-inventing fluxes. Do not globally change `plume_lower`, publish the shadow into
-`RoomModel`, begin F3.2, or modify `project_room_state()` until sealed ownership
-closes. HVAC remains deferred to F3.5 after its own redesign gate.
+F3.1 delivered selected-O2 extinction and F3.1a proved the selected-source/
+debit-source invariant. F3.1b then rejected a manufactured shared boundary
+boolean: scope and complete flux ownership are separate contracts. The next
+step is F3.1c, using a dedicated one-room topology to own the remaining exact
+single-room thermal terms until mask 7 and `needs_flux_owner=0` coexist. Do not
+globally change `plume_lower`, publish the shadow into `RoomModel`, begin F3.2,
+or modify `project_room_state()` until that closure. HVAC remains deferred to
+F3.5 after its own redesign gate.

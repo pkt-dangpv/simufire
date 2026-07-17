@@ -32,6 +32,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.0k.1g vertical transport audit: `docs/validation/PHASE3_F30K1G_VERTICAL_TRANSPORT_AUDIT.md`
 - F3.1 selected-O2 extinction: `docs/validation/PHASE3_F31_SELECTED_O2_EXTINCTION.md`
 - F3.1a O2 authority diagnosis: `docs/validation/PHASE3_F31A_COMBUSTION_O2_AUTHORITY.md`
+- F3.1b effective-boundary scope diagnosis: `docs/validation/PHASE3_F31B_EFFECTIVE_BOUNDARY_SCOPE.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -89,11 +90,12 @@ authority returned NO-GO. F3.1a then proved that OES must debit the same O2
 source selected by Combustion. The existing default-OFF canonical-routing flag
 removes the upper-O2 zombie and closes O2E1/A3 in the selected controls.
 
-Global activation remains NO-GO. Combustion, OES and Thermal shadow currently
-use different predicates for whether a room is sealed or a boundary is active.
-The shadow therefore reaches combustion mask 6 rather than 7 and still needs a
-flux owner. The next target is F3.1b: one shared effective-boundary/scope
-contract. It must consider enabled transport paths, not raw opening geometry.
+Global activation remains NO-GO. F3.1b proves that the mismatch cannot be
+closed by one shared boolean: the legacy systems activate different transport
+families, and the two diagnostic cases are not physically sealed. Even a
+genuinely closed scratch control reaches mask 7 while `needs_flux_owner`
+remains 1. The next target is F3.1c: a dedicated one-room fixture and explicit
+ownership of the remaining single-room thermal terms.
 
 ## Binding priority decision: HVAC last
 
@@ -115,13 +117,14 @@ The revised order is:
 9. F3.0k.1g vertical net/directed contract audit. Completed NO-GO; active two-zone path reuses F3.0k.1d.
 10. F3.1 selected-O2 extinction guard. Completed GO; sealed state authority NO-GO.
 11. F3.1a sealed/two-zone combustion O2-source authority diagnosis. Completed; semantic GO, global authority NO-GO.
-12. F3.1b shared effective-boundary/scope contract. Current target.
-13. F3.2 exterior pressure/leakage for Group A.
-14. F3.3 interior openings for Group C.
-15. F3.4 remaining non-HVAC species, suppression and FED.
-16. HVAC-R0 redesign specification.
-17. F3.5 HVAC canonical integration as the last subsystem.
-18. F3.6 final corpus promotion and legacy retirement.
+12. F3.1b effective-boundary/scope contract diagnosis. Completed NO-GO before motor code.
+13. F3.1c canonical one-room fixture and remaining thermal ownership. Current target.
+14. F3.2 exterior pressure/leakage for Group A.
+15. F3.3 interior openings for Group C.
+16. F3.4 remaining non-HVAC species, suppression and FED.
+17. HVAC-R0 redesign specification.
+18. F3.5 HVAC canonical integration as the last subsystem.
+19. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
@@ -424,12 +427,11 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 
 ## Next prompt target
 
-Use GPT-5.6 for F3.1b. Design and implement the smallest default-OFF shared
-effective-boundary/scope contract used by CombustionSystem,
-OxygenExchangeSystem and ThermalSystem shadow adapters. The contract must
-distinguish opening geometry from transport that is actually enabled. In the
-sealed shadow control it must reach combustion ownership mask 7 and
-`needs_flux_owner=0` without inventing fluxes or changing legacy output.
-Preserve reventilation and `fire_o2_independent`. Do not globally enable
+Use GPT-5.6 for F3.1c. Create a dedicated one-room shadow fixture with no
+interior opening objects, HVAC or exterior opening flow. Audit every remaining
+single-room mass/energy residual and migrate only exact pre-mutation thermal
+terms into the passive transaction. Combustion heat ownership must not depend
+on whether a doorway exists. Reach mask 7 and `needs_flux_owner=0` without
+changing legacy output. Do not add a shared boundary boolean, globally enable
 canonical O2 routing, publish the shadow into `RoomModel`, modify validation
 classifications or start F3.2.

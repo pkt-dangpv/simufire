@@ -6,6 +6,29 @@ Date: 2026-07-17.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-17 - F3.1b scope NO-GO
+
+- F3.1a documentation was committed separately as `d07b23b`; visual changes
+  remained outside that commit.
+- F3.1b returned **NO-GO before motor implementation**. There is no honest
+  single sealed/open predicate today: Combustion, OES, Thermal, GES and the
+  Engine cache activate different transport families with different guards.
+- `fuel_balance_diag_sealed` and `o2_stoich_diag_sealed` use `simple_house`
+  with five open interior doors. Their transport overrides do not disable all
+  Thermal/OES immediate paths, so they are not authoritative sealed fixtures.
+- A fresh 120 s physically closed control reached combustion mask 7 in 19/25
+  room-0 snapshots, but `needs_flux_owner=1` remained in 24/25. Maximum
+  residuals were `0.03571883 kg` mass and `14.49193968 kJ` energy.
+- Thermal gap deformation also makes the shadow predicate reject a closed door
+  while the physical transport loop still checks raw `open_fraction=0`.
+- No F3.1b motor code, baseline, tolerance, official report or validation
+  classification changed. F3.2 remains blocked.
+- Next gate: F3.1c, a dedicated one-room fixture plus ownership of remaining
+  single-room thermal terms. Introduce boundary authority only from registered
+  flux owners after that closure.
+- Binding record:
+  `docs/validation/PHASE3_F31B_EFFECTIVE_BOUNDARY_SCOPE.md`.
+
 ## Current Session Update - 2026-07-17 - F3.1a O2 authority diagnosis
 
 - F3.1a closes as a **GO for one semantic invariant** and a **NO-GO for

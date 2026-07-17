@@ -3,6 +3,21 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.1b effective-boundary scope diagnosis (2026-07-17)
+
+- Audited the sealed/open predicates used by Combustion, OxygenExchange,
+  Thermal, GasExchange and the Engine opening-flow cache.
+- Confirmed that `interior_transport_enabled=false` is not a building-wide
+  transport switch. The two `*_diag_sealed` cases retain open interior doors
+  and active legacy families, so they cannot authorize a sealed shadow state.
+- Ran a genuinely closed 120 s scratch control. Combustion ownership reached
+  mask 7 in 19 snapshots, but `needs_flux_owner` remained 1 in 24/25 snapshots;
+  maximum residuals were `0.03571883 kg` and `14.49193968 kJ`.
+- Recorded a NO-GO for adding a shared boolean scope or suppressing transport
+  to force closure. F3.1c must use a dedicated one-room fixture and migrate the
+  remaining single-room thermal owners before any boundary authority.
+- Changed no motor code, physical baseline, tolerance, report, CTRL or gap.
+
 ### Phase 3+ F3.1a combustion O2 authority diagnosis (2026-07-17)
 
 - Confirmed that the visible upper-O2 zombie is caused by mismatched source
