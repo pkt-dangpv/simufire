@@ -3,6 +3,22 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.1c single-room thermal ownership (2026-07-17)
+
+- Added a dedicated scratch one-room control with no openings, HVAC, ACH,
+  leakage or pressure flow to separate local ownership from boundary scope.
+- Added passive owners for exact local upper/lower/wall thermal transfers and
+  for the bulk-O2 debit used during invalid lower-zone homogenization.
+- Removed the doorway-presence restriction from passive combustion heat and
+  plume ownership. Ownership now follows the physical producer, not topology.
+- Increased fire snapshots with combustion ownership mask 7 from 22 to 36/36
+  and reduced maximum energy residual from `36.26236788` to `6.94237481 kJ`.
+  Semantic conflicts, unresolved claims and legacy CSV differences remain 0.
+- Recorded a PARTIAL GO only. The remaining `0.03016636 kg` and
+  `6.94237481 kJ` peaks belong to lower-zone EOS projection/reconcile, so
+  `needs_flux_owner` remains 1 and F3.2 stays blocked behind F3.1d.
+- Changed no physical baseline, tolerance, official report, CTRL or gap.
+
 ### Phase 3+ F3.1b effective-boundary scope diagnosis (2026-07-17)
 
 - Audited the sealed/open predicates used by Combustion, OxygenExchange,

@@ -33,6 +33,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.1 selected-O2 extinction: `docs/validation/PHASE3_F31_SELECTED_O2_EXTINCTION.md`
 - F3.1a O2 authority diagnosis: `docs/validation/PHASE3_F31A_COMBUSTION_O2_AUTHORITY.md`
 - F3.1b effective-boundary scope diagnosis: `docs/validation/PHASE3_F31B_EFFECTIVE_BOUNDARY_SCOPE.md`
+- F3.1c single-room ownership: `docs/validation/PHASE3_F31C_SINGLE_ROOM_THERMAL_OWNERSHIP.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -94,8 +95,15 @@ Global activation remains NO-GO. F3.1b proves that the mismatch cannot be
 closed by one shared boolean: the legacy systems activate different transport
 families, and the two diagnostic cases are not physically sealed. Even a
 genuinely closed scratch control reaches mask 7 while `needs_flux_owner`
-remains 1. The next target is F3.1c: a dedicated one-room fixture and explicit
-ownership of the remaining single-room thermal terms.
+remains 1.
+
+F3.1c now gives explicit owners to every exact local thermal term exercised by
+the dedicated one-room fixture and to the invalid-lower-zone bulk O2 debit.
+Mask 7 holds for all 36 fire snapshots, semantic ownership is clean and legacy
+output is identical. `needs_flux_owner` still remains 1 because the residual
+is lower-zone EOS projection/reconcile rather than a missing physical flux.
+The next target is F3.1d: isolate and remove that projection ownership debt
+without manufacturing a transport request.
 
 ## Binding priority decision: HVAC last
 
@@ -118,13 +126,14 @@ The revised order is:
 10. F3.1 selected-O2 extinction guard. Completed GO; sealed state authority NO-GO.
 11. F3.1a sealed/two-zone combustion O2-source authority diagnosis. Completed; semantic GO, global authority NO-GO.
 12. F3.1b effective-boundary/scope contract diagnosis. Completed NO-GO before motor code.
-13. F3.1c canonical one-room fixture and remaining thermal ownership. Current target.
-14. F3.2 exterior pressure/leakage for Group A.
-15. F3.3 interior openings for Group C.
-16. F3.4 remaining non-HVAC species, suppression and FED.
-17. HVAC-R0 redesign specification.
-18. F3.5 HVAC canonical integration as the last subsystem.
-19. F3.6 final corpus promotion and legacy retirement.
+13. F3.1c canonical one-room fixture and remaining thermal ownership. Completed, partial GO.
+14. F3.1d lower-zone EOS projection/reconcile ownership. Current target.
+15. F3.2 exterior pressure/leakage for Group A.
+16. F3.3 interior openings for Group C.
+17. F3.4 remaining non-HVAC species, suppression and FED.
+18. HVAC-R0 redesign specification.
+19. F3.5 HVAC canonical integration as the last subsystem.
+20. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
@@ -427,11 +436,11 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 
 ## Next prompt target
 
-Use GPT-5.6 for F3.1c. Create a dedicated one-room shadow fixture with no
-interior opening objects, HVAC or exterior opening flow. Audit every remaining
-single-room mass/energy residual and migrate only exact pre-mutation thermal
-terms into the passive transaction. Combustion heat ownership must not depend
-on whether a doorway exists. Reach mask 7 and `needs_flux_owner=0` without
-changing legacy output. Do not add a shared boundary boolean, globally enable
-canonical O2 routing, publish the shadow into `RoomModel`, modify validation
-classifications or start F3.2.
+Use GPT-5.6 for F3.1d. Reuse the dedicated one-room fixture and trace the lower
+mass/energy residual across every `project_room_state()` and reconcile call.
+Capture pre-projection inventory, EOS/geometric target and accepted correction
+without applying shadow authority. Decide whether canonical geometry must be
+derived from conserved state or whether an explicit reservoir is physically
+required. Reach `needs_flux_owner=0` without converting a projection residual
+into fake transport and without changing legacy output. Do not publish the
+shadow into `RoomModel`, modify validation classifications or start F3.2.

@@ -402,6 +402,22 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				room.o2_lower = maxf(room.o2, room.o2_lower)
 			else:
 				room.o2_lower = room.o2
+			# F3.1c: el path bulk ya desconto esta masa de O2, pero antes no
+			# publicaba ningun owner zonal. El split geometrico conserva exactamente
+			# el debito total sin cambiar la homogenizacion legacy.
+			if _o2_fire_primary > 0.0:
+				_record_phase3_shadow_o2_sink(
+					room,
+					"upper",
+					_o2_fire_primary * upper_frac,
+					"combustion_o2_bulk_upper_sink"
+				)
+				_record_phase3_shadow_o2_sink(
+					room,
+					"lower",
+					_o2_fire_primary * lower_frac,
+					"combustion_o2_bulk_lower_sink"
+				)
 		elif room.hrr_kw > 0.0:
 			# R3: o2_upper depletado por combustión; repuesto por entrainment del penacho
 			# desde o2_lower (zona baja, fresca) — fuente correcta en modelo two-zone CFAST.

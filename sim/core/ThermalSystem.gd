@@ -413,6 +413,30 @@ func drain_phase3_shadow_flux_results() -> Array[Dictionary]:
 	return results
 
 
+func _record_phase3_shadow_energy_transfer(
+		cause: String,
+		source_room_id: int,
+		destination_room_id: int,
+		source_zone: String,
+		destination_zone: String,
+		energy_kj: float
+	) -> void:
+	if not phase3_canonical_zone_shadow_enabled or energy_kj <= 0.0:
+		return
+	_phase3_shadow_flux_results.append({
+		"cause": cause,
+		"room_id": destination_room_id if destination_room_id >= 0 else source_room_id,
+		"source_room_id": source_room_id,
+		"destination_room_id": destination_room_id,
+		"source_zone": source_zone,
+		"destination_zone": destination_zone,
+		"gas_mass_kg": 0.0,
+		"sensible_enthalpy_kj": energy_kj,
+		"o2_kg": 0.0,
+		"species_kg": {},
+	})
+
+
 func drain_phase3_shadow_thermal_species_events() -> Array[Dictionary]:
 	var events: Array[Dictionary] = _phase3_shadow_thermal_species_events.duplicate(true)
 	_phase3_shadow_thermal_species_events.clear()
@@ -839,7 +863,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		if outside_open_factor > 0.0 and outside_open_upper_heat_boost > 0.0:
 			conv_fraction = minf(0.90, conv_fraction * (1.0 + outside_open_upper_heat_boost * outside_open_factor))
 		var convective_energy_kj: float = room.hrr_kw * conv_fraction * dt
-		if phase3_canonical_zone_shadow_enabled and _phase3_shadow_sealed_room_scope(room):
+		if phase3_canonical_zone_shadow_enabled:
 			# F3.0b: Thermal owns this value. Record the exact pre-mutation result;
 			# O2 and species remain unowned until their split-system contracts exist.
 			_phase3_shadow_flux_results.append({
@@ -865,6 +889,14 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			pre_sync_upper_temp_c
 		)
 		if radiative_loss_kj > 0.0:
+			_record_phase3_shadow_energy_transfer(
+				"thermal_upper_radiative_loss",
+				room.id,
+				-1,
+				"upper",
+				"upper",
+				radiative_loss_kj
+			)
 			room.upper_energy_kj = maxf(0.0, room.upper_energy_kj - radiative_loss_kj)
 			room.upper_radiative_loss_kw = radiative_loss_kj / maxf(0.001, dt)
 		sync_room_upper_layer(room, dt)
@@ -965,8 +997,24 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			energy_to_lower_kj *= loss_scale
 			energy_to_ambient_kj *= loss_scale
 			wall_absorption_kj *= loss_scale
+			_record_phase3_shadow_energy_transfer(
+				"thermal_upper_to_lower", room.id, room.id,
+				"upper", "lower", energy_to_lower_kj
+			)
+			_record_phase3_shadow_energy_transfer(
+				"thermal_upper_to_ambient", room.id, -1,
+				"upper", "upper", energy_to_ambient_kj
+			)
+			_record_phase3_shadow_energy_transfer(
+				"thermal_wall_absorption", room.id, -1,
+				"upper", "upper", wall_absorption_kj
+			)
 			room.upper_energy_kj -= energy_to_lower_kj + energy_to_ambient_kj + wall_absorption_kj
 		# Re-emisión: las paredes calientes calientan el gas superior al enfriarse el incendio
+		_record_phase3_shadow_energy_transfer(
+			"thermal_wall_emission", -1, room.id,
+			"upper", "upper", wall_emission_kj
+		)
 		room.upper_energy_kj += wall_emission_kj
 
 		if outside_open_factor > 0.0 and room.upper_gas_kg > 0.0001:
@@ -984,12 +1032,22 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 
 		if two_zone_solver_enabled and _zone_fire_solver != null:
 			_zone_fire_solver.add_lower_energy(room, energy_to_lower_kj, ambient_c)
-			_zone_fire_solver.remove_lower_energy_fraction(room, 0.0085 * dt, ambient_c)
+			var lower_decay_kj: float = _zone_fire_solver.remove_lower_energy_fraction(
+				room, 0.0085 * dt, ambient_c
+			)
+			_record_phase3_shadow_energy_transfer(
+				"thermal_lower_decay", room.id, -1,
+				"lower", "lower", lower_decay_kj
+			)
 			if outside_open_factor > 0.0 and outside_lower_fresh_air_cooling_rate > 0.0:
-				_zone_fire_solver.remove_lower_energy_fraction(
+				var lower_fresh_air_cooling_kj: float = _zone_fire_solver.remove_lower_energy_fraction(
 					room,
 					outside_lower_fresh_air_cooling_rate * outside_open_factor * dt,
 					ambient_c
+				)
+				_record_phase3_shadow_energy_transfer(
+					"thermal_lower_fresh_air_cooling", room.id, -1,
+					"lower", "lower", lower_fresh_air_cooling_kj
 				)
 			_zone_fire_solver.project_room_state(room, ambient_c, max_upper_temp_c)
 		else:
@@ -1884,7 +1942,7 @@ func _step_two_zone_plume_entrainment(room: RoomModel, dt: float, ambient_c: flo
 		room, requested_mass_kg
 	)
 	var moved_mass_kg: float = float(transfer.get("mass_kg", 0.0))
-	if phase3_canonical_zone_shadow_enabled and _phase3_shadow_sealed_room_scope(room):
+	if phase3_canonical_zone_shadow_enabled:
 		_phase3_shadow_flux_results.append({
 			"cause": "plume_entrainment",
 			"room_id": room.id,
@@ -1897,17 +1955,6 @@ func _step_two_zone_plume_entrainment(room: RoomModel, dt: float, ambient_c: flo
 	_zone_fire_solver.apply_lower_to_upper_transfer(room, transfer)
 	if phase3_zone_diagnostics_enabled:
 		room.phase3_diag_plume_entrained_kg_total += moved_mass_kg
-
-
-func _phase3_shadow_sealed_room_scope(room: RoomModel) -> bool:
-	if room == null or _building == null:
-		return false
-	for opening in _building.get_openings():
-		if opening.a != room.id and opening.b != room.id:
-			continue
-		if opening.effective_open_fraction() > 0.01:
-			return false
-	return true
 
 
 func _add_flame_region_entrainment(

@@ -6,6 +6,28 @@ Date: 2026-07-17.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-17 - F3.1c partial GO
+
+- A dedicated one-room scratch control removed all opening, HVAC, ACH,
+  leakage and pressure-flow ambiguity from the shadow audit.
+- ThermalSystem now publishes exact passive requests for local upper/lower,
+  wall and ambient energy transfers. OES publishes the exact bulk-O2 debit
+  during invalid lower-zone homogenization.
+- Combustion heat and plume ownership no longer depend on doorway presence.
+  They remain gated by the existing passive shadow flag and do not mutate
+  physical state.
+- Fire ownership mask 7 improves from 22 to 36/36 snapshots. Maximum energy
+  residual falls from `36.26236788` to `6.94237481 kJ`; maximum mass residual
+  remains `0.03016636 kg`. Semantic conflicts and unresolved claims are zero.
+- OFF/ON shared legacy CSV values are identical. No official report, baseline,
+  tolerance, CTRL envelope or gap changed.
+- Decision: **PARTIAL GO for passive owners; NO-GO for authority**.
+  `needs_flux_owner` remains 1 because lower-zone EOS projection/reconcile is
+  still unowned. F3.2 remains blocked.
+- Next gate: F3.1d lower-zone projection/reconcile ownership diagnosis.
+- Binding record:
+  `docs/validation/PHASE3_F31C_SINGLE_ROOM_THERMAL_OWNERSHIP.md`.
+
 ## Current Session Update - 2026-07-17 - F3.1b scope NO-GO
 
 - F3.1a documentation was committed separately as `d07b23b`; visual changes

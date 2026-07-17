@@ -1019,6 +1019,8 @@ func _semantic_owner_for_claim(claim: Dictionary) -> String:
 			return ""
 		"interlayer":
 			return "ThermalSystem"
+		"thermal_reservoir":
+			return "ThermalSystem" if quantity == "enthalpy" else ""
 		"chemical_combustion":
 			if quantity == "enthalpy":
 				return "ThermalSystem"

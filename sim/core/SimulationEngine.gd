@@ -1366,6 +1366,9 @@ func _phase3_shadow_collect_thermal_requests() -> void:
 		if cause == "combustion_convective_heat":
 			thermal_connection_id = "chemical:%d:combustion" % room_id
 			thermal_boundary_kind = "chemical_combustion"
+		elif cause != "plume_entrainment" and cause != "thermal_upper_to_lower":
+			thermal_connection_id = "room:%d:thermal_reservoir" % room_id
+			thermal_boundary_kind = "thermal_reservoir"
 		for quantity_entry in [
 			{"quantity": "gas_mass", "amount": mass_kg},
 			{"quantity": "enthalpy", "amount": energy_kj},

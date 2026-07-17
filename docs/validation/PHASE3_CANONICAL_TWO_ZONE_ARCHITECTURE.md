@@ -235,6 +235,14 @@ closed control reached mask 7 but still had non-zero mass/energy residuals, so
 boundary classification cannot produce complete ownership. F3.1c must first
 close a dedicated one-room transaction and its remaining thermal terms.
 
+F3.1c status 2026-07-17: **passive ownership PARTIAL GO / authority NO-GO**.
+The dedicated one-room control now owns exact combustion heat, O2, plume and
+local thermal reservoir transfers. Mask 7 holds for every fire snapshot, with
+zero semantic conflicts, zero unresolved claims and identical legacy output.
+The remaining residual is entirely the lower-zone EOS projection/reconcile
+path (`0.03016636 kg`, `6.94237481 kJ` peak), not a missing physical flow.
+F3.1d must resolve that state-definition debt before F3.2 can begin.
+
 ### F3.2 - Exterior pressure and leakage
 
 Use canonical room mass/energy to solve gauge pressure and exterior gas flow.
@@ -319,9 +327,11 @@ not in the promotion commit.
 Use `docs/validation/PHASE3_CURRENT_WORKPLAN.md` as the operational checklist.
 F3.1 delivered selected-O2 extinction and F3.1a proved the selected-source/
 debit-source invariant. F3.1b then rejected a manufactured shared boundary
-boolean: scope and complete flux ownership are separate contracts. The next
-step is F3.1c, using a dedicated one-room topology to own the remaining exact
-single-room thermal terms until mask 7 and `needs_flux_owner=0` coexist. Do not
-globally change `plume_lower`, publish the shadow into `RoomModel`, begin F3.2,
-or modify `project_room_state()` until that closure. HVAC remains deferred to
+boolean: scope and complete flux ownership are separate contracts. F3.1c now
+owns the exact local physical terms and reaches mask 7 throughout the fire,
+but it deliberately leaves the lower projection/reconcile residual visible.
+The next step is F3.1d: define canonical lower-zone state from conserved
+mass/energy and geometry without inventing a boundary flux. Do not globally
+change `plume_lower`, publish the shadow into `RoomModel`, begin F3.2, or grant
+projection authority until `needs_flux_owner=0`. HVAC remains deferred to
 F3.5 after its own redesign gate.

@@ -30,11 +30,12 @@ class TestPhase3CanonicalShadowCombustion(unittest.TestCase):
             block.index("room.upper_energy_kj += convective_energy_kj"),
         )
 
-    def test_contract_is_shadow_gated_and_sealed(self):
-        self.assertIn(
-            "if phase3_canonical_zone_shadow_enabled and _phase3_shadow_sealed_room_scope(room):",
-            THERMAL,
-        )
+    def test_contract_is_shadow_gated_and_topology_independent(self):
+        block = THERMAL.split("var convective_energy_kj", 1)[1].split(
+            "var pre_sync_upper_temp_c", 1
+        )[0]
+        self.assertIn("if phase3_canonical_zone_shadow_enabled:", block)
+        self.assertNotIn("_phase3_shadow_sealed_room_scope", block)
 
     def test_contract_owns_energy_only(self):
         block = THERMAL.split('"cause": "combustion_convective_heat"', 1)[1].split(
