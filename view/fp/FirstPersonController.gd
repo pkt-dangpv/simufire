@@ -16,6 +16,9 @@ const FurnitureStateVisuals := preload("res://view/3d/furniture/FurnitureStateVi
 const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVisualClassifier.gd")
 const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayout.gd")
 const FPHudScene: PackedScene = preload("res://view/fp/FPHud.tscn")
+## Entorno base de la camara FP (niebla); editable en el inspector abriendo
+## view/fp/fp_camera_environment.tres. Se duplica por instancia en runtime.
+const FPCameraEnvironmentRes: Environment = preload("res://view/fp/fp_camera_environment.tres")
 const OUTSIDE_ID: int = -1
 const STANCE_STAND: int = 0
 const STANCE_CROUCH: int = 1
@@ -179,6 +182,26 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var smoke_light_min_transmission: float = 0.01
 @export var fp_visibility_clear_m: float = 30.0
 
+@export_group("Visibilidad FP (niebla)")
+## Niebla de distancia real en la camara FP: lo lejano desaparece antes
+## (ley de Koschmieder, extincion ~ 3/visibilidad). Es el efecto principal
+## de visibilidad; el tinte de pantalla queda para calor e inmersion severa.
+@export var fp_fog_enabled: bool = true
+## Multiplicador sobre la extincion fisica 3/visibilidad (1.0 = fiel).
+@export_range(0.2, 3.0, 0.05) var fp_fog_extinction_scale: float = 1.0
+## Color de la niebla con humo frio.
+@export var fp_fog_color: Color = Color(0.085, 0.09, 0.095, 1.0)
+## Color hacia el que vira la niebla bajo capa caliente.
+@export var fp_fog_hot_color: Color = Color(0.16, 0.10, 0.07, 1.0)
+## Densidad extra de niebla POR ENCIMA de la interfase de humo (height fog
+## invertida): la capa alta se percibe como techo denso aunque a la altura
+## de los ojos aun se vea. 0 = desactivado.
+@export_range(0.0, 2.0, 0.05) var fp_fog_layer_density_boost: float = 0.55
+## Peso del tinte de pantalla cuando la niebla esta activa.
+@export_range(0.0, 1.0, 0.05) var fp_tint_weight_with_fog: float = 0.45
+## Suavizado temporal de la niebla (constante de tiempo, s).
+@export_range(0.02, 2.0, 0.01) var fp_fog_smooth_tau_s: float = 0.35
+
 @export_group("Fuego FP")
 @export var show_fp_fire: bool = true
 @export var fp_fire_min_visible_hrr_kw: float = 0.5
@@ -283,6 +306,9 @@ var _state: Dictionary = {}
 var _visibility_overlay: ColorRect = null
 var _current_room_id: int = -1
 var _room_rects_cache: Dictionary = {}
+var _fog_env: Environment = null
+var _fog_density_current: float = 0.0
+var _fog_height_density_current: float = 0.0
 var _fp_fire_phase: float = 0.0
 var _f_key_down: bool = false
 var _f_hold_mode: bool = false
@@ -457,6 +483,10 @@ func _create_player_nodes() -> void:
 	_camera.name = "FirstPersonCamera"
 	_camera.fov = 75.0
 	_camera.near = 0.03
+	# Niebla de visibilidad: entorno propio de la camara FP (duplicado del
+	# .tres para no mutar el recurso compartido).
+	_fog_env = FPCameraEnvironmentRes.duplicate() as Environment
+	_camera.environment = _fog_env
 	add_child(_camera)
 	_apply_stance(true)
 
@@ -2884,24 +2914,76 @@ func _update_visibility_overlay() -> void:
 		return
 	if not _active or building == null or _state.is_empty():
 		_visibility_overlay.color = Color(0.08, 0.09, 0.09, 0.0)
+		_decay_fp_fog()
 		return
 	_current_room_id = _find_current_room_id()
 	if _current_room_id < 0:
 		_visibility_overlay.color = Color(0.08, 0.09, 0.09, 0.0)
+		_decay_fp_fog()
 		return
 	var room_state: Dictionary = Dictionary(_state.get(str(_current_room_id), {}))
 	if room_state.is_empty():
 		_visibility_overlay.color = Color(0.08, 0.09, 0.09, 0.0)
+		_decay_fp_fog()
 		return
 	var smoke_view: Dictionary = _compute_fp_smoke_view(room_state)
 	var heat_tint: float = float(smoke_view.get("heat_tint", 0.0))
 	var alpha: float = float(smoke_view.get("overlay_alpha", 0.0))
+	if fp_fog_enabled and _fog_env != null:
+		# La distancia la lleva la niebla; el tinte queda para calor e
+		# inmersion severa (ILV / dentro de la capa).
+		alpha *= fp_tint_weight_with_fog
+		_update_fp_fog(room_state, smoke_view, heat_tint)
 	_visibility_overlay.color = Color(
 		lerpf(0.08, 0.18, heat_tint),
 		lerpf(0.09, 0.11, heat_tint),
 		lerpf(0.09, 0.07, heat_tint),
 		alpha
 	)
+
+
+## Niebla de distancia por visibilidad (Koschmieder: sigma = 3/V) + niebla
+## de altura invertida para que la capa de humo superior se lea como techo
+## denso desde debajo de la interfase.
+func _update_fp_fog(room_state: Dictionary, smoke_view: Dictionary, heat_tint: float) -> void:
+	var clear_m: float = maxf(1.0, fp_visibility_clear_m)
+	var fp_vis_m: float = clampf(float(smoke_view.get("fp_visibility_m", clear_m)), 0.35, clear_m)
+	var target_density: float = 0.0
+	if fp_vis_m < clear_m - 0.25:
+		target_density = (3.0 / fp_vis_m) * fp_fog_extinction_scale
+
+	# Capa superior: densidad tomada de la visibilidad cruda de la sala (la
+	# blended baja cuando los ojos estan bajo la interfase y ocultaria el techo).
+	var raw_vis_m: float = clampf(float(smoke_view.get("raw_visibility_m", clear_m)), 0.35, clear_m)
+	var room_h: float = float(room_state.get("height_m", 2.4))
+	var layer_m: float = clampf(
+		float(room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_h))),
+		0.0,
+		room_h
+	)
+	var target_height_density: float = 0.0
+	if fp_fog_layer_density_boost > 0.0 and layer_m < room_h - 0.05 and raw_vis_m < clear_m - 0.25:
+		target_height_density = -clampf((3.0 / raw_vis_m) * fp_fog_layer_density_boost, 0.0, 4.0)
+
+	var w: float = 1.0 - exp(-get_physics_process_delta_time() / maxf(0.02, fp_fog_smooth_tau_s))
+	_fog_density_current = lerpf(_fog_density_current, target_density, w)
+	_fog_height_density_current = lerpf(_fog_height_density_current, target_height_density, w)
+
+	_fog_env.fog_enabled = fp_fog_enabled
+	_fog_env.fog_density = _fog_density_current
+	_fog_env.fog_light_color = fp_fog_color.lerp(fp_fog_hot_color, heat_tint)
+	_fog_env.fog_height = _get_room_floor_level(_current_room_id) + layer_m
+	_fog_env.fog_height_density = _fog_height_density_current
+
+
+func _decay_fp_fog() -> void:
+	if _fog_env == null:
+		return
+	var w: float = 1.0 - exp(-get_physics_process_delta_time() / maxf(0.02, fp_fog_smooth_tau_s))
+	_fog_density_current = lerpf(_fog_density_current, 0.0, w)
+	_fog_height_density_current = lerpf(_fog_height_density_current, 0.0, w)
+	_fog_env.fog_density = _fog_density_current
+	_fog_env.fog_height_density = _fog_height_density_current
 
 
 func _compute_fp_smoke_view(room_state: Dictionary) -> Dictionary:

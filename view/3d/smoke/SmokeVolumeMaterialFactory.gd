@@ -21,6 +21,11 @@ uniform float lower_density_floor = 0.30;
 uniform float flow_strength = 0.0;
 uniform float flow_speed = 0.30;
 uniform float flow_direction = 0.0;
+// Textura de ruido opcional (canal R) para sustituir/mezclar el ruido
+// procedural. strength=0 -> solo procedural (sin coste extra apreciable).
+uniform sampler2D noise_texture : hint_default_black;
+uniform float noise_texture_strength : hint_range(0.0, 1.0) = 0.0;
+uniform float noise_texture_uv_scale = 3.0;
 
 varying float smoke_local_y;
 varying float smoke_horizontal_face;
@@ -53,6 +58,10 @@ void fragment() {
 	float n1 = noise(uv * 3.5 + vec2(t, -t * 0.7));
 	float n2 = noise(uv * 8.0 + vec2(-t * 1.6, t * 1.1));
 	float n = mix(n1, n2, turbulence);
+	if (noise_texture_strength > 0.001) {
+		float tex_n = texture(noise_texture, uv * noise_texture_uv_scale + vec2(t * 0.55, -t * 0.32)).r;
+		n = mix(n, tex_n, noise_texture_strength);
+	}
 	float bottom_noise = noise(uv * 4.0 + vec2(t * 1.9, t * 0.7));
 	float bottom_limit = 0.03 + bottom_noise * bottom_waviness;
 	float bottom_fade = smoothstep(bottom_limit, bottom_limit + edge_softness, smoke_local_y);
@@ -117,12 +126,21 @@ void fragment() {
 """
 
 
-static func create_volume(smoke_color: Color) -> ShaderMaterial:
+static func create_volume(
+	smoke_color: Color,
+	noise_texture: Texture2D = null,
+	noise_texture_strength: float = 0.0,
+	noise_texture_uv_scale: float = 3.0
+) -> ShaderMaterial:
 	var shader := Shader.new()
 	shader.code = VOLUME_SHADER_CODE
 	var material := ShaderMaterial.new()
 	material.shader = shader
 	material.set_shader_parameter("smoke_color", smoke_color)
+	if noise_texture != null and noise_texture_strength > 0.0:
+		material.set_shader_parameter("noise_texture", noise_texture)
+		material.set_shader_parameter("noise_texture_strength", noise_texture_strength)
+		material.set_shader_parameter("noise_texture_uv_scale", noise_texture_uv_scale)
 	material.set_shader_parameter("density", 0.72)
 	material.set_shader_parameter("turbulence", 0.55)
 	material.set_shader_parameter("drift_speed", 0.08)

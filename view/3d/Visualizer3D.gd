@@ -93,8 +93,10 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var smoke_puff_count: int = 12
 @export var show_smoke_geometry_in_first_person: bool = true
 @export var show_smoke_puffs_in_first_person: bool = false
-@export var show_smoke_opening_curtains: bool = false
-@export var show_smoke_opening_curtains_in_first_person: bool = false
+## Puente de humo en cada apertura abierta: conecta visualmente las capas
+## de dos salas con direccion de flujo (denso -> claro) y plano neutro.
+@export var show_smoke_opening_curtains: bool = true
+@export var show_smoke_opening_curtains_in_first_person: bool = true
 @export var show_smoke_ceiling_masks: bool = true
 @export var show_cold_air_inflow_curtains: bool = false
 @export var show_fire_smoke_plume: bool = false
@@ -107,6 +109,18 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var wall_outline_color: Color = Color(0.95, 0.95, 0.90, 0.72)
 @export var smoke_color: Color = Color(0.028, 0.027, 0.025, 0.54)
 @export var smoke_puff_color: Color = Color(0.055, 0.052, 0.048, 0.42)
+
+@export_group("Textura de humo")
+## Textura de ruido opcional para los volumenes de humo (canal R). Si se
+## asigna, se mezcla con el ruido procedural del shader segun strength.
+## Pensada para enchufar texturas propias sin tocar codigo.
+@export var smoke_noise_texture: Texture2D = null
+## Peso de la textura frente al ruido procedural (0 = solo procedural).
+@export_range(0.0, 1.0, 0.05) var smoke_noise_texture_strength: float = 0.65
+## Repeticiones de la textura sobre cada cara del volumen.
+@export var smoke_noise_texture_uv_scale: float = 3.0
+
+@export_group("Colors")
 @export var layer_gradient_top_color: Color = Color(0.10, 0.09, 0.08, 0.54)
 @export var layer_gradient_bottom_color: Color = Color(0.30, 0.26, 0.20, 0.08)
 @export var smoke_hot_outflow_color: Color = Color(1.00, 0.46, 0.16, 0.24)
@@ -1226,7 +1240,7 @@ func _create_opening(index: int) -> void:
 		var inflow := _create_box(
 			"AirInflowCurtain_%02d" % index,
 			Vector3(pose["size"]) * meters_to_units,
-			SmokeVolumeMaterialFactory.create_volume(cold_air_inflow_color)
+			SmokeVolumeMaterialFactory.create_volume(cold_air_inflow_color, smoke_noise_texture, smoke_noise_texture_strength, smoke_noise_texture_uv_scale)
 		)
 		inflow.position = marker.position
 		inflow.visible = false
@@ -2632,7 +2646,12 @@ func _create_box(node_name: String, size: Vector3, material: Material) -> MeshIn
 
 
 func _make_smoke_volume_material() -> ShaderMaterial:
-	return SmokeVolumeMaterialFactory.create_volume(smoke_color)
+	return SmokeVolumeMaterialFactory.create_volume(
+		smoke_color,
+		smoke_noise_texture,
+		smoke_noise_texture_strength,
+		smoke_noise_texture_uv_scale
+	)
 
 
 func _make_material(color: Color, transparent: bool) -> StandardMaterial3D:
