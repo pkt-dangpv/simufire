@@ -2957,7 +2957,7 @@ func _update_fp_fog(room_state: Dictionary, smoke_view: Dictionary, heat_tint: f
 	var raw_vis_m: float = clampf(float(smoke_view.get("raw_visibility_m", clear_m)), 0.35, clear_m)
 	var room_h: float = float(room_state.get("height_m", 2.4))
 	var layer_m: float = clampf(
-		float(room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_h))),
+		float(room_state.get("visible_smoke_layer_m", room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_h)))),
 		0.0,
 		room_h
 	)
@@ -3138,7 +3138,7 @@ func _hud_eye_height_m() -> float:
 func _hud_eye_in_upper_layer(room_state: Dictionary, eye_height_m: float) -> bool:
 	var room_height_m: float = float(room_state.get("height_m", 2.4))
 	var smoke_layer_m: float = clampf(
-		float(room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_state.get("h_layer_m", room_height_m)))),
+		float(room_state.get("visible_smoke_layer_m", room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_state.get("h_layer_m", room_height_m))))),
 		0.0,
 		room_height_m
 	)
@@ -3644,7 +3644,7 @@ func _light_smoke_transmission_for_room(room_id: int, height_m: float) -> float:
 	var o2_upper: float = float(room_state.get("o2_upper", room_state.get("o2", 0.209)))
 	var hrr_kw: float = float(room_state.get("hrr_kw", 0.0))
 	var layer_m: float = clampf(
-		float(room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_state.get("h_layer_m", height_m)))),
+		float(room_state.get("visible_smoke_layer_m", room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_state.get("h_layer_m", height_m))))),
 		0.0,
 		height_m
 	)
@@ -3684,7 +3684,7 @@ func _light_smoke_transmission_for_opening(op: OpeningModel) -> float:
 	var o2_upper: float = float(room_state.get("o2_upper", room_state.get("o2", 0.209)))
 	var hrr_kw: float = float(room_state.get("hrr_kw", 0.0))
 	var layer_m: float = clampf(
-		float(room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_state.get("h_layer_m", height_m)))),
+		float(room_state.get("visible_smoke_layer_m", room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_state.get("h_layer_m", height_m))))),
 		0.0,
 		height_m
 	)

@@ -1624,7 +1624,7 @@ func _update_room(room_id: int, update_fuel_objects: bool = true) -> void:
 
 	var temp_upper_c: float = float(rs.get("temp_upper_c", 20.0))
 	var smoke_kg: float = float(rs.get("smoke_kg", 0.0))
-	var smoke_layer_m: float = clampf(float(rs.get("smoke_display_layer_m", rs.get("smoke_layer_m", rs.get("h_layer_m", height_m)))), 0.0, height_m)
+	var smoke_layer_m: float = clampf(float(rs.get("visible_smoke_layer_m", rs.get("smoke_display_layer_m", rs.get("smoke_layer_m", rs.get("h_layer_m", height_m))))), 0.0, height_m)
 	var hot_layer_m: float = clampf(float(rs.get("hot_layer_m", rs.get("thermal_layer_m", height_m))), 0.0, height_m)
 	var layer_150c_m: float = clampf(float(rs.get("layer_150c_m", height_m)), 0.0, height_m)
 	var hrr_kw: float = maxf(0.0, float(rs.get("hrr_kw", 0.0)))
@@ -2739,7 +2739,7 @@ func _get_room_label(room_id: int, _room_state: Dictionary = {}) -> String:
 	var parts: PackedStringArray = PackedStringArray()
 	parts.append(base)
 	if debug_show_layer_heights:
-		var layer_m: float = float(_room_state.get("smoke_display_layer_m", _room_state.get("smoke_layer_m", _room_state.get("h_layer_m", -1.0))))
+		var layer_m: float = float(_room_state.get("visible_smoke_layer_m", _room_state.get("smoke_display_layer_m", _room_state.get("smoke_layer_m", _room_state.get("h_layer_m", -1.0)))))
 		if layer_m >= 0.0:
 			parts.append("L %.1fm" % layer_m)
 	if debug_show_room_temps:

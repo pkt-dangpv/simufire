@@ -21,8 +21,12 @@ static func compute(
 	var hrr_kw: float = float(room_state.get("hrr_kw", 0.0))
 	var regime: String = String(room_state.get("combustion_regime", ""))
 	var room_height_m: float = float(room_state.get("height_m", 2.4))
+	# Capa OPTICA (hollin visible): es la que gobierna lo que ves. La capa
+	# display (masa) puede quedar mas alta y diluia la inmersion aunque el
+	# motor reportara visibilidad casi nula.
 	var smoke_layer_m: float = clampf(
-		float(room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_state.get("h_layer_m", room_height_m)))),
+		float(room_state.get("visible_smoke_layer_m",
+			room_state.get("smoke_display_layer_m", room_state.get("smoke_layer_m", room_state.get("h_layer_m", room_height_m))))),
 		0.0,
 		room_height_m
 	)
@@ -73,6 +77,13 @@ static func compute(
 	var below_layer_t: float = clampf((smoke_layer_m - eye_height_m) / layer_transition_m, 0.0, 1.0)
 	var overhead_smoke_block: float = alpha_from_visibility * lerpf(0.75, 0.35, below_layer_t)
 	display_block = maxf(display_block, overhead_smoke_block)
+	# Con visibilidad catastrofica y los ojos DENTRO del humo, el bloqueo debe
+	# acercarse a 1 (la capa optica manda). Escalado por inmersion para no
+	# anular el beneficio de agacharse bajo la interfase (aire mas limpio);
+	# queda un suelo pequeno por el hollin ambiente.
+	var severe_block_t: float = clampf(1.0 - visibility_m / maxf(0.1, severe_visibility_m * 2.0), 0.0, 1.0) \
+		* maxf(immersion, 0.35)
+	display_block = maxf(display_block, severe_block_t)
 	var fp_visibility_m: float = lerpf(max_visibility_m, visibility_m, display_block)
 	if ilv_exposure_t > 0.0:
 		var severe_cap_m: float = minf(visibility_m, severe_visibility_m)
