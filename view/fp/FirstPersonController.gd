@@ -120,6 +120,18 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var exterior_soft_fill_night_color: Color = Color(0.25, 0.33, 0.46, 1.0)
 ## Altura (m) de la luz suave exterior.
 @export var exterior_soft_fill_height_m: float = 3.2
+## Cielo real (gradiente) de fondo por las aberturas, via el Environment de
+## la camara FP. Reemplaza las cajas planas de cielo. Colores editables aqui
+## y en view/fp/fp_camera_environment.tres.
+@export var exterior_procedural_sky_enabled: bool = true
+@export var sky_day_top_color: Color = Color(0.36, 0.52, 0.74, 1.0)
+@export var sky_day_horizon_color: Color = Color(0.74, 0.82, 0.88, 1.0)
+@export var sky_day_ground_color: Color = Color(0.42, 0.44, 0.44, 1.0)
+@export var sky_night_top_color: Color = Color(0.03, 0.05, 0.09, 1.0)
+@export var sky_night_horizon_color: Color = Color(0.10, 0.13, 0.20, 1.0)
+@export var sky_night_ground_color: Color = Color(0.05, 0.06, 0.08, 1.0)
+@export_range(0.1, 2.0, 0.05) var sky_day_energy: float = 1.0
+@export_range(0.05, 1.5, 0.05) var sky_night_energy: float = 0.35
 @export var exterior_floor_drop_m: float = 5.8
 @export var city_view_width_m: float = 22.0
 @export var city_building_distance_m: float = 15.0
@@ -489,9 +501,10 @@ func _create_player_nodes() -> void:
 	_camera.name = "FirstPersonCamera"
 	_camera.fov = 75.0
 	_camera.near = 0.03
-	# Niebla de visibilidad: entorno propio de la camara FP (duplicado del
-	# .tres para no mutar el recurso compartido).
-	_fog_env = FPCameraEnvironmentRes.duplicate() as Environment
+	# Niebla de visibilidad + cielo: entorno propio de la camara FP (duplicado
+	# del .tres para no mutar el recurso compartido).
+	_fog_env = FPCameraEnvironmentRes.duplicate(true) as Environment
+	_apply_fp_sky()
 	_camera.environment = _fog_env
 	add_child(_camera)
 	_apply_stance(true)
@@ -533,6 +546,29 @@ func apply_hud_layout() -> void:
 	if _prompt_panel != null:
 		_prompt_panel.set_anchors_preset(Control.PRESET_CENTER)
 		_apply_panel_rect(_prompt_panel, fp_prompt_panel_rect)
+
+
+## Aplica el cielo procedural dia/noche al Environment FP (o lo desactiva).
+func _apply_fp_sky() -> void:
+	if _fog_env == null:
+		return
+	if not exterior_procedural_sky_enabled or not exterior_context_enabled:
+		_fog_env.background_mode = Environment.BG_COLOR
+		_fog_env.background_color = Color(0.015, 0.02, 0.03, 1.0)
+		return
+	_fog_env.background_mode = Environment.BG_SKY
+	var night: bool = _exterior_is_night()
+	var sky := _fog_env.sky
+	if sky == null:
+		return
+	var mat := sky.sky_material as ProceduralSkyMaterial
+	if mat == null:
+		return
+	mat.sky_top_color = sky_night_top_color if night else sky_day_top_color
+	mat.sky_horizon_color = sky_night_horizon_color if night else sky_day_horizon_color
+	mat.ground_horizon_color = sky_night_horizon_color if night else sky_day_horizon_color
+	mat.ground_bottom_color = sky_night_ground_color if night else sky_day_ground_color
+	mat.sky_energy_multiplier = sky_night_energy if night else sky_day_energy
 
 
 func _apply_panel_rect(panel: Control, rect: Rect2) -> void:
@@ -1551,15 +1587,62 @@ func _create_exterior_context() -> void:
 
 	for index in range(building.get_opening_count()):
 		var op: OpeningModel = building.get_opening_at(index)
-		if op == null or not op.is_exterior_opening() or op.type != OpeningModel.Type.WINDOW:
+		if op == null or not op.is_exterior_opening():
 			continue
 		var info: Dictionary = _opening_info(index)
 		if info.is_empty():
 			continue
-		if _is_apartment_building():
-			_create_window_city_view(root, index, info)
-		else:
-			_create_window_residential_view(root, index, info)
+		if op.type == OpeningModel.Type.WINDOW:
+			if _is_apartment_building():
+				_create_window_city_view(root, index, info)
+			else:
+				_create_window_residential_view(root, index, info)
+		elif op.type == OpeningModel.Type.DOOR or op.type == OpeningModel.Type.HOLE:
+			_create_door_exterior_view(root, index, info)
+
+
+## Exterior visto por la puerta de entrada (o hueco exterior): rellano/porche
+## a ras de suelo + el mismo paisaje residencial/ciudad que las ventanas.
+func _create_door_exterior_view(parent: Node3D, index: int, info: Dictionary) -> void:
+	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
+	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
+	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
+	var width_m: float = float(info.get("width_m", 0.9))
+	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
+
+	# Rellano/porche: losa exterior justo delante del umbral, a nivel de suelo.
+	var porch_center: Vector3 = center - normal * 0.95
+	porch_center.y = floor_level_m - floor_thickness_m * 0.5
+	_add_oriented_box(
+		parent,
+		"DoorPorch_%02d" % index,
+		porch_center,
+		tangent,
+		maxf(1.4, width_m + 0.9),
+		floor_thickness_m,
+		1.7,
+		_mat(Color(0.42, 0.41, 0.39, 1.0), false, Color(0.05, 0.05, 0.05, 0.0), 0.02 if not _exterior_is_night() else 0.0),
+		false
+	)
+	# Escalon de entrada.
+	var step_center: Vector3 = center - normal * 0.30
+	step_center.y = floor_level_m - 0.09
+	_add_oriented_box(
+		parent,
+		"DoorStep_%02d" % index,
+		step_center,
+		tangent,
+		maxf(1.1, width_m + 0.45),
+		0.12,
+		0.42,
+		_mat(Color(0.48, 0.47, 0.45, 1.0), false),
+		false
+	)
+	# Paisaje comun de fondo (edificios/calle/cesped) a ras de la calle.
+	if _is_apartment_building():
+		_create_exterior_scenery_city(parent, index, center, normal, tangent, floor_level_m)
+	else:
+		_create_exterior_scenery_residential(parent, index, center, normal, tangent, floor_level_m)
 
 
 func _is_apartment_building() -> bool:
@@ -1573,26 +1656,31 @@ func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> v
 	var width_m: float = float(info.get("width_m", 1.0))
 	var height_m: float = float(info.get("height_m", 1.0))
 	var sill_m: float = float(info.get("sill_m", 0.9))
+	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
 
 	_create_exterior_window_reveal(parent, index, center, normal, tangent, width_m, height_m, sill_m)
+	_create_exterior_scenery_city(parent, index, center, normal, tangent, floor_level_m)
 
-	var sky_center: Vector3 = center - normal * city_backdrop_distance_m
-	sky_center.y = 4.0
-	var sky_color: Color = _effective_city_sky_color()
-	_add_oriented_box(
-		parent,
-		"CitySky_%02d" % index,
-		sky_center,
-		tangent,
-		city_view_width_m * 1.75,
-		14.0,
-		0.08,
-		_mat(sky_color, false, sky_color, 0.48 if not _exterior_is_night() else 0.22),
-		false
-	)
 
+func _create_window_residential_view(parent: Node3D, index: int, info: Dictionary) -> void:
+	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
+	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
+	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
+	var width_m: float = float(info.get("width_m", 1.0))
+	var height_m: float = float(info.get("height_m", 1.0))
+	var sill_m: float = float(info.get("sill_m", 0.9))
+	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
+
+	_create_exterior_window_reveal(parent, index, center, normal, tangent, width_m, height_m, sill_m)
+	_create_exterior_scenery_residential(parent, index, center, normal, tangent, floor_level_m)
+
+
+## Paisaje urbano (calle + bloques con ventanas) reutilizado por ventanas y
+## puerta. street_y toma la cota del suelo de la sala como referencia.
+func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, floor_level_m: float) -> void:
+	var street_y: float = floor_level_m - exterior_floor_drop_m - 0.03
 	var street_center: Vector3 = center - normal * (city_building_distance_m * 0.78)
-	street_center.y = -exterior_floor_drop_m - 0.03
+	street_center.y = street_y
 	_add_oriented_box(
 		parent,
 		"CityStreet_%02d" % index,
@@ -1616,7 +1704,7 @@ func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> v
 			var building_height: float = 7.5 + fposmod(variant_seed * 1.13, 7.2)
 			var distance: float = city_building_distance_m + 2.8 + fposmod(variant_seed * 0.23, 3.6)
 			var building_center: Vector3 = center - normal * distance + tangent * (slot_t * city_view_width_m)
-			building_center.y = -exterior_floor_drop_m + building_height * 0.5
+			building_center.y = floor_level_m - exterior_floor_drop_m + building_height * 0.5
 			var tone: float = fposmod(variant_seed * 0.11, 0.24)
 			var building_color := Color(0.34 + tone, 0.36 + tone * 0.72, 0.37 + tone * 0.55, 1.0)
 			_add_oriented_box(
@@ -1633,32 +1721,8 @@ func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> v
 			_create_city_windows(parent, index, slot, building_center, normal, tangent, building_width, building_height, building_depth, variant_seed)
 
 
-func _create_window_residential_view(parent: Node3D, index: int, info: Dictionary) -> void:
-	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
-	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
-	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
-	var width_m: float = float(info.get("width_m", 1.0))
-	var height_m: float = float(info.get("height_m", 1.0))
-	var sill_m: float = float(info.get("sill_m", 0.9))
-	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
-
-	_create_exterior_window_reveal(parent, index, center, normal, tangent, width_m, height_m, sill_m)
-
-	var sky_center: Vector3 = center - normal * city_backdrop_distance_m
-	sky_center.y = floor_level_m + 4.2
-	var sky_color: Color = Color(0.70, 0.84, 0.94, 1.0) if not _exterior_is_night() else Color(0.08, 0.12, 0.18, 1.0)
-	_add_oriented_box(
-		parent,
-		"ResidentialSky_%02d" % index,
-		sky_center,
-		tangent,
-		city_view_width_m * 1.35,
-		10.0,
-		0.08,
-		_mat(sky_color, false, sky_color, 0.42 if not _exterior_is_night() else 0.10),
-		false
-	)
-
+## Paisaje residencial (cesped + calle + casas) reutilizado por ventanas y puerta.
+func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, floor_level_m: float) -> void:
 	var lawn_center: Vector3 = center - normal * 2.65
 	lawn_center.y = floor_level_m - floor_thickness_m * 0.55
 	_add_oriented_box(
