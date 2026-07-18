@@ -158,6 +158,20 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var smoke_hrr_depth_boost_m: float = 0.55
 @export var smoke_hrr_alpha_boost: float = 0.18
 @export var smoke_opening_blend_depth_m: float = 1.55
+
+@export_group("Humo en aperturas (cortina)")
+## Intensidad de las bandas de flujo que cruzan el vano (denso->claro).
+## 0 = humo quieto en el hueco; alto = corriente marcada (puede parecer
+## un remolino en el dintel al reabrir con salto de densidad).
+@export_range(0.0, 1.0, 0.02) var opening_curtain_flow_strength: float = 0.42
+## Velocidad de la corriente de humo en el vano.
+@export_range(0.0, 1.0, 0.02) var opening_curtain_flow_speed: float = 0.24
+## Realce del borde inferior de la cortina (banda de densidad en el filo).
+@export_range(0.0, 1.5, 0.05) var opening_curtain_edge_band: float = 0.55
+## Suavizado del contorno de la cortina (mayor = mas difuso).
+@export_range(0.05, 0.8, 0.05) var opening_curtain_edge_softness: float = 0.40
+@export_group("")
+
 @export var smoke_grow_lerp: float = 0.08
 @export var smoke_clear_lerp: float = 0.035
 @export var hot_layer_visible_drop_m: float = 0.12
@@ -2607,6 +2621,10 @@ func _update_openings() -> void:
 			"first_person_overlay": _first_person_overlay,
 			"show_smoke_geometry_in_first_person": show_smoke_geometry_in_first_person,
 			"smoke_opening_blend_depth_m": smoke_opening_blend_depth_m,
+			"opening_curtain_flow_strength": opening_curtain_flow_strength,
+			"opening_curtain_flow_speed": opening_curtain_flow_speed,
+			"opening_curtain_edge_band": opening_curtain_edge_band,
+			"opening_curtain_edge_softness": opening_curtain_edge_softness,
 			"smoke_min_visible_depth_m": smoke_min_visible_depth_m,
 			"meters_to_units": meters_to_units,
 			"origin_offset_m": _origin_offset_m,

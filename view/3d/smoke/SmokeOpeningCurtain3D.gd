@@ -36,6 +36,10 @@ static func update(item_dict: Dictionary, op: OpeningModel, room_items: Dictiona
 		return
 
 	var context: Dictionary = _context_from(pose, settings)
+	context["opening_curtain_flow_strength"] = float(settings.get("opening_curtain_flow_strength", 0.42))
+	context["opening_curtain_flow_speed"] = float(settings.get("opening_curtain_flow_speed", 0.24))
+	context["opening_curtain_edge_band"] = float(settings.get("opening_curtain_edge_band", 0.55))
+	context["opening_curtain_edge_softness"] = float(settings.get("opening_curtain_edge_softness", 0.40))
 	if bool(pose.get("is_vertical", false)) or op.is_vertical:
 		_hide_layer(inflow)
 		_update_vertical(curtain, pose, item_a, item_b, open_frac, context)
@@ -114,16 +118,16 @@ static func _update_horizontal(
 				"turbulence": 0.88,
 				"drift_speed": 0.14 + fire_context_t * 0.08,
 				"volume_depth_m": maxf(curtain_depth_m, 0.05),
-				"edge_softness": 0.40,
+				"edge_softness": float(context.get("opening_curtain_edge_softness", 0.40)),
 				"bottom_waviness": 0.48,
-				"edge_band_strength": 0.55,
+				"edge_band_strength": float(context.get("opening_curtain_edge_band", 0.55)),
 				"side_visibility": 0.08 if first_person_overlay else 0.34,
 				"bottom_surface_strength": 0.46 if first_person_overlay else 0.28,
 				"top_visibility": 0.0,
 				"vertical_gradient_strength": 0.74,
 				"lower_density_floor": 0.24,
-				"flow_strength": clampf(0.14 + absf(alpha_a - alpha_b) * 0.55 + fire_context_t * 0.10, 0.12, 0.42),
-				"flow_speed": 0.24 + fire_context_t * 0.10,
+				"flow_strength": clampf((0.14 + absf(alpha_a - alpha_b) * 0.55 + fire_context_t * 0.10) * (float(context.get("opening_curtain_flow_strength", 0.42)) / 0.42), 0.0, 1.0),
+				"flow_speed": float(context.get("opening_curtain_flow_speed", 0.24)) + fire_context_t * 0.10,
 				"flow_direction": flow_direction,
 			},
 			clampf(curtain_alpha * 0.52, 0.035, 0.38)
