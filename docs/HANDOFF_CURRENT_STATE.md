@@ -6,6 +6,32 @@ Date: 2026-07-17.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-17 - F3.1d diagnostic GO
+
+- Added passive per-call trace telemetry for the legacy EOS projection and a
+  read-only JSONL analyzer. It is opt-in through scratch runner configuration;
+  legacy CSV schema and physics are unchanged.
+- The 180 s one-room control executes seven projections per timestep. The
+  first post-combustion call dominates, removing up to `0.05700088 kg` and
+  `6.99578420 kJ`; later calls backfill lower gas geometrically.
+- Projection sums exactly match the sign-opposite F3.1c residual at the key
+  timesteps. `ensure_room_state` and temperature-only projection are numerical
+  zero/negligible.
+- A 30 s no-fire control has exact zero projection deltas. A 30 s fire control
+  already shows the same lower-zone pattern.
+- Root cause: legacy projection assumes fixed ambient pressure and overwrites
+  conserved inventory to satisfy EOS, creating an implicit unregistered
+  reservoir. It is not a missing transport flux.
+- Decision: **GO for passive diagnostics; NO-GO for projection authority**.
+  F3.2 remains blocked.
+- Next gate: F3.1e pure canonical thermodynamic closure. Preserve mass/energy;
+  derive temperature, shared pressure, volumes and interface, and keep legacy
+  divergence as separate telemetry.
+- Physics and ILV retain zero FAIL; gap inventory remains 348/353 with five
+  VALID_GAP. Guardrails only has expected R2-1 while motor is dirty.
+- Binding record:
+  `docs/validation/PHASE3_F31D_LOWER_PROJECTION_RECONCILE.md`.
+
 ## Current Session Update - 2026-07-17 - F3.1c partial GO
 
 - A dedicated one-room scratch control removed all opening, HVAC, ACH,

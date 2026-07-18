@@ -43,6 +43,10 @@ var zone_solver_phase: int = 4
 ## M1: activa el ledger canonico de masa y energia de las dos zonas.
 ## Legacy permanece sin cambios cuando false.
 var two_zone_energy_enabled: bool = false
+## F3.1d: trace pasivo por llamada de project_room_state(). Solo telemetria.
+var projection_diagnostics_enabled: bool = false
+var _projection_trace_events: Array[Dictionary] = []
+var _projection_call_index: int = 0
 
 const AIR_DENSITY_REF_KG_M3: float = 1.2
 const AIR_CP_KJ_KG_K: float = 1.0
@@ -75,6 +79,27 @@ var _building: BuildingModel = null
 
 func set_building(b: BuildingModel) -> void:
 	_building = b
+
+
+func begin_projection_diagnostics_step() -> void:
+	_projection_trace_events.clear()
+	_projection_call_index = 0
+
+
+func get_projection_trace_events() -> Array[Dictionary]:
+	return _projection_trace_events.duplicate(true)
+
+
+func _projection_state(room: RoomModel) -> Dictionary:
+	return {
+		"upper_gas_kg": room.upper_gas_kg,
+		"lower_gas_kg": room.lower_gas_kg,
+		"upper_energy_kj": room.upper_energy_kj,
+		"lower_energy_kj": room.lower_energy_kj,
+		"thermal_layer_m": room.thermal_layer_m,
+		"temp_upper_c": room.temp_upper_c,
+		"temp_lower_c": room.temp_lower_c,
+	}
 
 
 # ------------------------------------------------------------------
@@ -171,10 +196,18 @@ func reconcile_projected_temperatures(room: RoomModel, ambient_c: float) -> void
 	room.two_zone_boundary_energy_kj += room.zone_total_energy_kj() - energy_before_kj
 
 
-func project_room_state(room: RoomModel, ambient_c: float, max_upper_temp_c: float) -> void:
+func project_room_state(
+		room: RoomModel,
+		ambient_c: float,
+		max_upper_temp_c: float,
+		projection_cause: String = "unspecified"
+	) -> void:
 	if not two_zone_energy_enabled or room == null:
 		return
+	var trace_enabled: bool = projection_diagnostics_enabled
+	var pre_state: Dictionary = _projection_state(room) if trace_enabled else {}
 	ensure_room_state(room, ambient_c)
+	var ensured_state: Dictionary = _projection_state(room) if trace_enabled else {}
 	var projection_energy_before_kj: float = room.zone_total_energy_kj()
 
 	var lower_temp_c: float = ambient_c
@@ -217,11 +250,14 @@ func project_room_state(room: RoomModel, ambient_c: float, max_upper_temp_c: flo
 	room.lower_energy_kj = room.lower_gas_kg \
 			* maxf(0.0, room.temp_lower_c - ambient_c) \
 			* AIR_CP_KJ_KG_K
+	var pre_geometry_state: Dictionary = _projection_state(room) if trace_enabled else {}
 
 	var ambient_k: float = ambient_c + 273.15
 	var upper_k: float = maxf(ambient_k, room.temp_upper_c + 273.15)
 	var upper_density_kg_m3: float = AIR_DENSITY_REF_KG_M3 * ambient_k / upper_k
 	var max_upper_mass_kg: float = room.volume_m3() * upper_density_kg_m3
+	var upper_mass_before_cap_kg: float = room.upper_gas_kg
+	var upper_energy_before_cap_kj: float = room.upper_energy_kj
 	if room.upper_gas_kg > max_upper_mass_kg and room.upper_gas_kg > ZONE_MASS_EPS_KG:
 		var upper_mass_before_kg: float = room.upper_gas_kg
 		room.upper_energy_kj *= max_upper_mass_kg / upper_mass_before_kg
@@ -239,6 +275,7 @@ func project_room_state(room: RoomModel, ambient_c: float, max_upper_temp_c: flo
 	var lower_density_kg_m3: float = AIR_DENSITY_REF_KG_M3 * ambient_k / lower_k
 	var target_lower_mass_kg: float = lower_volume_m3 * lower_density_kg_m3
 	var lower_mass_before_kg: float = room.lower_gas_kg
+	var lower_energy_before_kj: float = room.lower_energy_kj
 	if target_lower_mass_kg < lower_mass_before_kg and lower_mass_before_kg > ZONE_MASS_EPS_KG:
 		room.lower_energy_kj *= target_lower_mass_kg / lower_mass_before_kg
 	room.lower_gas_kg = maxf(0.0, target_lower_mass_kg)
@@ -250,6 +287,64 @@ func project_room_state(room: RoomModel, ambient_c: float, max_upper_temp_c: flo
 		room.lower_energy_kj = 0.0
 		room.temp_lower_c = ambient_c
 	room.two_zone_boundary_energy_kj += room.zone_total_energy_kj() - projection_energy_before_kj
+
+	if trace_enabled:
+		var post_state: Dictionary = _projection_state(room)
+		_projection_trace_events.append({
+			"call_index": _projection_call_index,
+			"cause": projection_cause,
+			"room_id": room.id,
+			"ambient_c": ambient_c,
+			"pre": pre_state,
+			"ensured": ensured_state,
+			"pre_geometry": pre_geometry_state,
+			"post": post_state,
+			"upper_density_kg_m3": upper_density_kg_m3,
+			"lower_density_kg_m3": lower_density_kg_m3,
+			"max_upper_mass_kg": max_upper_mass_kg,
+			"upper_mass_before_cap_kg": upper_mass_before_cap_kg,
+			"upper_energy_before_cap_kj": upper_energy_before_cap_kj,
+			"upper_volume_m3": upper_volume_m3,
+			"lower_volume_m3": lower_volume_m3,
+			"target_lower_mass_kg": target_lower_mass_kg,
+			"lower_mass_before_projection_kg": lower_mass_before_kg,
+			"lower_energy_before_projection_kj": lower_energy_before_kj,
+			"ensure_mass_delta_kg": (
+				float(ensured_state.get("upper_gas_kg", 0.0))
+				+ float(ensured_state.get("lower_gas_kg", 0.0))
+				- float(pre_state.get("upper_gas_kg", 0.0))
+				- float(pre_state.get("lower_gas_kg", 0.0))
+			),
+			"ensure_energy_delta_kj": (
+				float(ensured_state.get("upper_energy_kj", 0.0))
+				+ float(ensured_state.get("lower_energy_kj", 0.0))
+				- float(pre_state.get("upper_energy_kj", 0.0))
+				- float(pre_state.get("lower_energy_kj", 0.0))
+			),
+			"temperature_projection_energy_delta_kj": (
+				float(pre_geometry_state.get("upper_energy_kj", 0.0))
+				+ float(pre_geometry_state.get("lower_energy_kj", 0.0))
+				- float(ensured_state.get("upper_energy_kj", 0.0))
+				- float(ensured_state.get("lower_energy_kj", 0.0))
+			),
+			"upper_cap_mass_delta_kg": room.upper_gas_kg - upper_mass_before_cap_kg,
+			"upper_cap_energy_delta_kj": room.upper_energy_kj - upper_energy_before_cap_kj,
+			"lower_projection_mass_delta_kg": room.lower_gas_kg - lower_mass_before_kg,
+			"lower_projection_energy_delta_kj": room.lower_energy_kj - lower_energy_before_kj,
+			"total_mass_delta_kg": (
+				float(post_state.get("upper_gas_kg", 0.0))
+				+ float(post_state.get("lower_gas_kg", 0.0))
+				- float(pre_state.get("upper_gas_kg", 0.0))
+				- float(pre_state.get("lower_gas_kg", 0.0))
+			),
+			"total_energy_delta_kj": (
+				float(post_state.get("upper_energy_kj", 0.0))
+				+ float(post_state.get("lower_energy_kj", 0.0))
+				- float(pre_state.get("upper_energy_kj", 0.0))
+				- float(pre_state.get("lower_energy_kj", 0.0))
+			),
+		})
+		_projection_call_index += 1
 
 
 func collapse_upper_into_lower(room: RoomModel, ambient_c: float) -> void:

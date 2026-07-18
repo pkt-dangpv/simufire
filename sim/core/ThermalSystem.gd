@@ -899,7 +899,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			)
 			room.upper_energy_kj = maxf(0.0, room.upper_energy_kj - radiative_loss_kj)
 			room.upper_radiative_loss_kw = radiative_loss_kj / maxf(0.001, dt)
-		sync_room_upper_layer(room, dt)
+		sync_room_upper_layer(room, dt, "thermal_post_combustion_sync")
 
 		var delta_ul: float = maxf(0.0, room.temp_upper_c - room.temp_lower_c)
 		var lower_transfer_rate: float = upper_to_lower_loss_rate + lower_layer_warming_rate
@@ -1049,7 +1049,9 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 					"thermal_lower_fresh_air_cooling", room.id, -1,
 					"lower", "lower", lower_fresh_air_cooling_kj
 				)
-			_zone_fire_solver.project_room_state(room, ambient_c, max_upper_temp_c)
+			_zone_fire_solver.project_room_state(
+				room, ambient_c, max_upper_temp_c, "thermal_energy_projection"
+			)
 		else:
 			var lower_mass_kg: float = maxf(
 				1.0,
@@ -1064,7 +1066,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 				room.temp_lower_c -= maxf(0.0, room.temp_lower_c - ambient_c) \
 						* outside_lower_fresh_air_cooling_rate * outside_open_factor * dt
 			room.temp_lower_c = maxf(ambient_c, room.temp_lower_c)
-		sync_room_upper_layer(room, dt)
+		sync_room_upper_layer(room, dt, "thermal_post_losses_sync")
 		update_room_layer_150c(room, dt)
 		step_fed(room, dt)
 
@@ -1329,8 +1331,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 			_apply_canonical_doorway_exchange(
 				hot_room, cold_room, op, flow_state, dt, ambient_c, gas_moved_kg
 			)
-		sync_room_upper_layer(hot_room, dt)
-		sync_room_upper_layer(cold_room, dt)
+		sync_room_upper_layer(hot_room, dt, "doorway_hot_source_sync")
+		sync_room_upper_layer(cold_room, dt, "doorway_cold_target_sync")
 		_apply_post_transfer_vertical_mix(hot_room, dt)
 		_apply_post_transfer_vertical_mix(cold_room, dt)
 		update_room_layer_150c(hot_room, dt)
@@ -1456,8 +1458,8 @@ func _step_radiation_openings(building: BuildingModel, dt: float, ambient_c: flo
 		src.upper_energy_kj = maxf(0.0, src.upper_energy_kj - energy_kj)
 		tgt.upper_energy_kj += energy_kj
 
-		sync_room_upper_layer(src, dt)
-		sync_room_upper_layer(tgt, dt)
+		sync_room_upper_layer(src, dt, "opening_radiation_source_sync")
+		sync_room_upper_layer(tgt, dt, "opening_radiation_target_sync")
 		update_room_layer_150c(src, dt)
 		update_room_layer_150c(tgt, dt)
 
@@ -1566,7 +1568,7 @@ func _step_wall_conduction(building: BuildingModel, dt: float, ambient_c: float)
 				room_b.temp_lower_c += e_lower_b / maxf(0.1, lower_mass_b)
 			else:
 				room_b.upper_energy_kj += energy_kj
-			sync_room_upper_layer(room_b, dt)
+			sync_room_upper_layer(room_b, dt, "wall_conduction_room_b_sync")
 			update_room_layer_150c(room_b, dt)
 		elif energy_kj < 0.0:
 			# B→A: pared de B cede calor a A
@@ -1607,7 +1609,7 @@ func _step_wall_conduction(building: BuildingModel, dt: float, ambient_c: float)
 				room_a.temp_lower_c += e_lower_a / maxf(0.1, lower_mass_a)
 			else:
 				room_a.upper_energy_kj += abs_kj
-			sync_room_upper_layer(room_a, dt)
+			sync_room_upper_layer(room_a, dt, "wall_conduction_room_a_sync")
 			update_room_layer_150c(room_a, dt)
 
 
@@ -2276,8 +2278,8 @@ func _apply_outside_assisted_background_heat_exchange(
 			if target.upper_gas_kg <= 0.0001:
 				target.temp_upper_c = maxf(target.temp_upper_c, target.temp_lower_c)
 
-	sync_room_upper_layer(source, dt)
-	sync_room_upper_layer(target, dt)
+	sync_room_upper_layer(source, dt, "exterior_background_source_sync")
+	sync_room_upper_layer(target, dt, "exterior_background_target_sync")
 
 
 func _apply_interior_background_heat_exchange(
@@ -2432,9 +2434,9 @@ func _apply_interior_background_heat_exchange(
 			touched_target = true
 
 	if touched_source:
-		sync_room_upper_layer(source, dt)
+		sync_room_upper_layer(source, dt, "interior_background_source_sync")
 	if touched_target:
-		sync_room_upper_layer(target, dt)
+		sync_room_upper_layer(target, dt, "interior_background_target_sync")
 
 
 # Phase 5 M3: contraflujo térmico bidireccional por puertas interiores.
@@ -2514,8 +2516,8 @@ func _apply_doorway_thermal_counterflow(
 		cold_room.upper_gas_kg += 0.005
 	cold_room.upper_energy_kj = maxf(0.0, cold_room.upper_energy_kj + energy_moved_kj)
 
-	sync_room_upper_layer(hot_room, dt)
-	sync_room_upper_layer(cold_room, dt)
+	sync_room_upper_layer(hot_room, dt, "doorway_counterflow_hot_sync")
+	sync_room_upper_layer(cold_room, dt, "doorway_counterflow_cold_sync")
 
 	# ── Phase 5 M3b: retorno de aire fresco (zona inferior) ──────────────────────────────────
 	# Contraparte de conservación de masa del flujo superior: el gas caliente que sale por la
@@ -2877,8 +2879,8 @@ func _apply_stairwell_heat_bridge(
 
 	source.upper_energy_kj = maxf(0.0, source.upper_energy_kj - energy_moved_kj)
 	target.upper_energy_kj = maxf(0.0, target.upper_energy_kj + energy_moved_kj)
-	sync_room_upper_layer(source, dt)
-	sync_room_upper_layer(target, dt)
+	sync_room_upper_layer(source, dt, "interlayer_source_sync")
+	sync_room_upper_layer(target, dt, "interlayer_target_sync")
 
 
 func remove_upper_layer_fraction(room: RoomModel, fraction: float) -> void:
@@ -3301,7 +3303,7 @@ func _apply_post_transfer_vertical_mix(room: RoomModel, dt: float) -> void:
 			gas_density_kg_m3(room.temp_lower_c) * room.floor_area_m2() * maxf(0.2, effective_hot_layer_height_m(room))
 		)
 		room.temp_lower_c += mix_energy_kj / lower_mass_kg
-	sync_room_upper_layer(room, dt)
+	sync_room_upper_layer(room, dt, "post_transfer_vertical_mix_sync")
 
 
 func estimate_floor_cooling_band_m(room: RoomModel) -> float:
@@ -3883,12 +3885,16 @@ func _call_path_factor(callable: Callable, room_id: int) -> float:
 	return clampf(float(callable.call(room_id)), 0.0, 1.0)
 
 
-func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
+func sync_room_upper_layer(
+		room: RoomModel,
+		dt: float,
+		projection_cause: String = "thermal_layer_sync"
+	) -> void:
 	if room == null:
 		return
 
 	if two_zone_solver_enabled and _zone_fire_solver != null:
-		_sync_room_two_zone_layer(room, dt)
+		_sync_room_two_zone_layer(room, dt, projection_cause)
 		return
 
 	var ambient_c: float = ambient_temp_c()
@@ -4010,7 +4016,7 @@ func sync_room_upper_layer(room: RoomModel, dt: float) -> void:
 		])
 
 
-func _sync_room_two_zone_layer(room: RoomModel, dt: float) -> void:
+func _sync_room_two_zone_layer(room: RoomModel, dt: float, projection_cause: String) -> void:
 	var ambient_c: float = ambient_temp_c()
 	_zone_fire_solver.ensure_room_state(room, ambient_c)
 	if _should_collapse_thermal_layer(room):
@@ -4024,7 +4030,9 @@ func _sync_room_two_zone_layer(room: RoomModel, dt: float) -> void:
 	room.hcn_upper_kg = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)
 	# Fix A+D: sólo cuando el fuego está extinto (mismo guard que sync_room_upper_layer).
 	var old_upper_depth_m: float = maxf(0.0, room.height_m - room.thermal_layer_m)
-	_zone_fire_solver.project_room_state(room, ambient_c, max_upper_temp_c)
+	_zone_fire_solver.project_room_state(
+		room, ambient_c, max_upper_temp_c, projection_cause
+	)
 	var new_upper_depth_m: float = maxf(0.0, room.height_m - room.thermal_layer_m)
 	var fire_inactive: bool = room.hrr_kw <= 0.1 and room.fire == null
 	if fire_inactive:
@@ -4058,7 +4066,7 @@ func reconcile_two_zone_building(building: BuildingModel, dt: float) -> void:
 		if room == null:
 			continue
 		_zone_fire_solver.reconcile_projected_temperatures(room, ambient_c)
-		_sync_room_two_zone_layer(room, dt)
+		_sync_room_two_zone_layer(room, dt, "reconcile_layer_sync")
 
 
 func update_temperature_cap_telemetry(room: RoomModel, dt: float) -> void:

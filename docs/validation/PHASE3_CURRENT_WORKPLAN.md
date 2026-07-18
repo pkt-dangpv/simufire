@@ -97,13 +97,17 @@ families, and the two diagnostic cases are not physically sealed. Even a
 genuinely closed scratch control reaches mask 7 while `needs_flux_owner`
 remains 1.
 
-F3.1c now gives explicit owners to every exact local thermal term exercised by
-the dedicated one-room fixture and to the invalid-lower-zone bulk O2 debit.
-Mask 7 holds for all 36 fire snapshots, semantic ownership is clean and legacy
-output is identical. `needs_flux_owner` still remains 1 because the residual
-is lower-zone EOS projection/reconcile rather than a missing physical flux.
-The next target is F3.1d: isolate and remove that projection ownership debt
-without manufacturing a transport request.
+F3.1c gives explicit owners to every exact local thermal term exercised by the
+dedicated one-room fixture and to the invalid-lower-zone bulk O2 debit. F3.1d
+then traces every projection call and proves that the remaining residual is a
+legacy state-definition mutation, not missing physical transport. Fixed
+reference-pressure EOS projection overwrites lower inventory; repeated calls
+geometrically backfill ambient mass.
+
+The next target is F3.1e: implement a passive pure thermodynamic closure that
+keeps canonical mass and energy authoritative and derives temperature, shared
+pressure, zone volumes and interface. Legacy projection divergence stays
+explicit telemetry and is not assigned a physical owner.
 
 ## Binding priority decision: HVAC last
 
@@ -127,13 +131,14 @@ The revised order is:
 11. F3.1a sealed/two-zone combustion O2-source authority diagnosis. Completed; semantic GO, global authority NO-GO.
 12. F3.1b effective-boundary/scope contract diagnosis. Completed NO-GO before motor code.
 13. F3.1c canonical one-room fixture and remaining thermal ownership. Completed, partial GO.
-14. F3.1d lower-zone EOS projection/reconcile ownership. Current target.
-15. F3.2 exterior pressure/leakage for Group A.
-16. F3.3 interior openings for Group C.
-17. F3.4 remaining non-HVAC species, suppression and FED.
-18. HVAC-R0 redesign specification.
-19. F3.5 HVAC canonical integration as the last subsystem.
-20. F3.6 final corpus promotion and legacy retirement.
+14. F3.1d lower-zone EOS projection/reconcile diagnosis. Completed, diagnostic GO / authority NO-GO.
+15. F3.1e pure canonical thermodynamic closure. Current target.
+16. F3.2 exterior pressure/leakage for Group A.
+17. F3.3 interior openings for Group C.
+18. F3.4 remaining non-HVAC species, suppression and FED.
+19. HVAC-R0 redesign specification.
+20. F3.5 HVAC canonical integration as the last subsystem.
+21. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
@@ -436,11 +441,10 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 
 ## Next prompt target
 
-Use GPT-5.6 for F3.1d. Reuse the dedicated one-room fixture and trace the lower
-mass/energy residual across every `project_room_state()` and reconcile call.
-Capture pre-projection inventory, EOS/geometric target and accepted correction
-without applying shadow authority. Decide whether canonical geometry must be
-derived from conserved state or whether an explicit reservoir is physically
-required. Reach `needs_flux_owner=0` without converting a projection residual
-into fake transport and without changing legacy output. Do not publish the
-shadow into `RoomModel`, modify validation classifications or start F3.2.
+Use GPT-5.6 for F3.1e. Reuse the F3.1d one-room controls and implement only a
+passive pure closure. From canonical upper/lower mass and sensible energy,
+derive temperatures, one shared ideal-gas pressure, EOS volumes and interface
+without mutating inventory. Compare this result against the legacy projection
+trace using a separate state-definition-divergence signal. Do not manufacture
+a transport owner, publish the shadow into `RoomModel`, modify validation
+classifications or start F3.2.

@@ -243,6 +243,33 @@ The remaining residual is entirely the lower-zone EOS projection/reconcile
 path (`0.03016636 kg`, `6.94237481 kJ` peak), not a missing physical flow.
 F3.1d must resolve that state-definition debt before F3.2 can begin.
 
+F3.1d status 2026-07-17: **diagnostic GO / projection authority NO-GO**.
+Per-call telemetry proves that fixed-reference-pressure EOS projection creates
+the residual by overwriting conserved lower-zone mass and sensible energy.
+`ensure_room_state` is numerical zero, while the first post-combustion
+projection dominates and later calls geometrically backfill ambient gas. A
+no-fire control is exactly zero. This term is not transport and may not receive
+a physical owner.
+
+### F3.1e - Pure canonical thermodynamic closure
+
+Canonical upper/lower gas mass and sensible energy are authoritative. Derive
+zone temperatures from energy, solve one shared pressure from fixed room volume
+and both ideal-gas inventories, then derive upper/lower volume and interface.
+The closure must not add, delete or redistribute inventory.
+
+Keep legacy projection divergence in a separate diagnostic channel. Canonical
+transaction closure and legacy state equivalence are no longer the same gate:
+forcing equivalence would copy a known nonphysical implicit reservoir into the
+new model.
+
+Cases: the F3.1d no-fire, 30 s fire and 180 s one-room controls.
+
+STOP gate: finite positive pressure, non-negative volumes, exact room-volume
+closure, exact mass/energy invariance, deterministic interface, no physical
+output changes and no reduction of visible legacy divergence by relabelling it.
+Authority remains OFF.
+
 ### F3.2 - Exterior pressure and leakage
 
 Use canonical room mass/energy to solve gauge pressure and exterior gas flow.
@@ -327,11 +354,10 @@ not in the promotion commit.
 Use `docs/validation/PHASE3_CURRENT_WORKPLAN.md` as the operational checklist.
 F3.1 delivered selected-O2 extinction and F3.1a proved the selected-source/
 debit-source invariant. F3.1b then rejected a manufactured shared boundary
-boolean: scope and complete flux ownership are separate contracts. F3.1c now
-owns the exact local physical terms and reaches mask 7 throughout the fire,
-but it deliberately leaves the lower projection/reconcile residual visible.
-The next step is F3.1d: define canonical lower-zone state from conserved
-mass/energy and geometry without inventing a boundary flux. Do not globally
-change `plume_lower`, publish the shadow into `RoomModel`, begin F3.2, or grant
-projection authority until `needs_flux_owner=0`. HVAC remains deferred to
-F3.5 after its own redesign gate.
+boolean: scope and complete flux ownership are separate contracts. F3.1c owns
+the exact local physical terms, and F3.1d proves that the remaining legacy
+residual is created by EOS projection rather than a missing flux. The next
+step is F3.1e: a passive pure thermodynamic closure over conserved canonical
+mass and energy. Do not globally change `plume_lower`, publish the shadow into
+`RoomModel`, begin F3.2, or grant projection authority. HVAC remains deferred
+to F3.5 after its own redesign gate.

@@ -991,6 +991,7 @@ func _sync_auxiliary_services() -> void:
 		return
 
 	zone_fire_solver.two_zone_energy_enabled = two_zone_solver_enabled
+	zone_fire_solver.projection_diagnostics_enabled = phase3_zone_diagnostics_enabled
 	zone_fire_solver.set_building(building)
 	thermal_system.set_references(building, smoke_model)
 	thermal_system.set_zone_fire_solver(zone_fire_solver)
@@ -1276,6 +1277,7 @@ func _phase3_zone_diag_snapshot() -> Dictionary:
 func _phase3_zone_diag_begin_step() -> void:
 	if not phase3_zone_diagnostics_enabled:
 		return
+	zone_fire_solver.begin_projection_diagnostics_step()
 	_phase3_zone_diag_step.clear()
 	_phase3_zone_diag_start = _phase3_zone_diag_snapshot()
 	_phase3_zone_diag_checkpoint = _phase3_zone_diag_start.duplicate(true)
@@ -1564,7 +1566,7 @@ func _build_gas_exchange_hooks() -> Dictionary:
 	return {
 		"effective_hot_layer_height_callable": Callable(thermal_system, "flow_interface_height_m"),
 		"remove_upper_layer_fraction_callable": Callable(thermal_system, "remove_upper_layer_fraction"),
-		"sync_room_upper_layer_callable": Callable(thermal_system, "sync_room_upper_layer"),
+		"sync_room_upper_layer_callable": Callable(self, "_sync_room_upper_layer_from_gas_exchange"),
 		"compute_interroom_transfer_temp_callable": Callable(thermal_system, "compute_interroom_transfer_temp_c"),
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
 		"build_interior_opening_flow_state_callable": Callable(thermal_system, "build_interior_opening_flow_state"),
@@ -1607,12 +1609,20 @@ func _build_hvac_hooks() -> Dictionary:
 		"effective_hot_layer_height_callable": Callable(thermal_system, "flow_interface_height_m"),
 		"estimate_temperature_callable": Callable(thermal_system, "estimate_temperature_at_height_m"),
 		"remove_upper_layer_fraction_callable": Callable(thermal_system, "remove_upper_layer_fraction"),
-		"sync_room_upper_layer_callable": Callable(thermal_system, "sync_room_upper_layer"),
+		"sync_room_upper_layer_callable": Callable(self, "_sync_room_upper_layer_from_hvac"),
 		"ambient_temp_callable": Callable(thermal_system, "ambient_temp_c"),
 		"two_zone_opening_flow_enabled": two_zone_solver_enabled and two_zone_opening_flow_enabled,
 		"phase2h_o2_doorway_two_zone_enabled": phase2h_o2_doorway_two_zone_enabled,
 		"hvac_two_zone_o2_enabled": hvac_two_zone_o2_enabled
 	}
+
+
+func _sync_room_upper_layer_from_gas_exchange(room: RoomModel, dt: float) -> void:
+	thermal_system.sync_room_upper_layer(room, dt, "gas_exchange_sync")
+
+
+func _sync_room_upper_layer_from_hvac(room: RoomModel, dt: float) -> void:
+	thermal_system.sync_room_upper_layer(room, dt, "hvac_sync")
 
 # ============================================================
 # READY
@@ -2271,7 +2281,7 @@ func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> v
 		if obj.state == 3 and obj.surface_temp_c < obj.ignition_temp_c:
 			obj.state = 4
 
-	thermal_system.sync_room_upper_layer(room, dt)
+	thermal_system.sync_room_upper_layer(room, dt, "suppression_sync")
 	thermal_system.update_room_layer_150c(room, dt)
 
 
@@ -2926,7 +2936,8 @@ func _clamp_rooms(dt: float) -> void:
 				zone_fire_solver.project_room_state(
 					room,
 					thermal_system.ambient_temp_c(),
-					max_upper_temp_c
+					max_upper_temp_c,
+					"final_clamp_quiescent"
 				)
 			else:
 				room.upper_gas_kg = 0.0
@@ -2944,7 +2955,8 @@ func _clamp_rooms(dt: float) -> void:
 				zone_fire_solver.project_room_state(
 					room,
 					thermal_system.ambient_temp_c(),
-					max_upper_temp_c
+					max_upper_temp_c,
+					"final_clamp_active"
 				)
 			else:
 				room.upper_energy_kj = room.upper_gas_kg \
@@ -3001,7 +3013,9 @@ func _apply_phase3_stairwell_temperature_cap(room: RoomModel) -> void:
 		touched = true
 
 	if touched and two_zone_solver_enabled and zone_fire_solver != null:
-		zone_fire_solver.project_room_state(room, ambient_c, cap_c)
+		zone_fire_solver.project_room_state(
+			room, ambient_c, cap_c, "stairwell_temperature_cap"
+		)
 
 # ============================================================
 # ESTADO AGREGADO
@@ -3011,6 +3025,8 @@ func get_state() -> Dictionary:
 	if state_builder == null:
 		return {}
 	var state: Dictionary = state_builder.build_state(_build_state_context())
+	if phase3_zone_diagnostics_enabled:
+		state["phase3_projection_trace"] = zone_fire_solver.get_projection_trace_events()
 	# SF-AUD-029: exportar targets al estado
 	var targets_dict: Dictionary = {}
 	for t in _targets:

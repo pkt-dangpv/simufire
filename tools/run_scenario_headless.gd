@@ -9,6 +9,9 @@ var _cli_args: Dictionary = {}
 var _scenario_path: String = ""
 var _out_dir: String = ""
 var _failed: bool = false
+var _projection_trace_enabled: bool = false
+var _projection_trace_path: String = ""
+var _projection_trace_file: FileAccess = null
 
 
 func _ready() -> void:
@@ -67,6 +70,9 @@ func _run() -> void:
 		engine.phase3_zone_diagnostics_enabled = true
 	if bool(_cli_args.get("phase3_canonical_shadow", false)):
 		engine.phase3_canonical_zone_shadow_enabled = true
+	_projection_trace_enabled = bool(scenario.get("phase3_projection_trace_enabled", false))
+	if _projection_trace_enabled:
+		engine.phase3_zone_diagnostics_enabled = true
 	var ignite_on_start: bool = not bool(_cli_args.get("no_ignite", false)) and bool(scenario.get("ignite_on_start", true))
 	engine.reset_simulation(engine.ignition_room_id, ignite_on_start)
 	engine.sim_duration_limit_s = 0.0
@@ -76,9 +82,13 @@ func _run() -> void:
 	var step_s: float = _resolve_step_s(scenario)
 	var opening_events: Array = _prepare_opening_events(scenario.get("opening_events", []))
 	var suppression_events: Array = _prepare_suppression_events(scenario.get("suppression_events", []))
+	if not _open_projection_trace():
+		return
 
 	if not _run_loop(engine, building, duration_s, step_s, opening_events, suppression_events):
+		_close_projection_trace()
 		return
+	_close_projection_trace()
 
 	var details: String = "run_scenario scenario=%s duration_s=%.3f step_s=%.3f" % [
 		_scenario_path.get_file(),
@@ -391,6 +401,7 @@ func _run_loop(
 			return false
 
 		sim_time_s = float(state.get("sim_time_s", 0.0))
+		_append_projection_trace(state, sim_time_s)
 		if sim_time_s <= previous_time_s + 0.000001:
 			stagnant_steps += 1
 			if stagnant_steps >= 10:
@@ -403,6 +414,38 @@ func _run_loop(
 
 	_abort("run_scenario_headless: internal iteration limit reached")
 	return false
+
+
+func _open_projection_trace() -> bool:
+	if not _projection_trace_enabled:
+		return true
+	_projection_trace_path = _out_dir.path_join("projection_trace.jsonl")
+	_projection_trace_file = FileAccess.open(_projection_trace_path, FileAccess.WRITE)
+	if _projection_trace_file == null:
+		_abort("run_scenario_headless: could not open projection_trace.jsonl")
+		return false
+	return true
+
+
+func _append_projection_trace(state: Dictionary, sim_time_s: float) -> void:
+	if not _projection_trace_enabled or _projection_trace_file == null:
+		return
+	var raw_trace: Variant = state.get("phase3_projection_trace", [])
+	if typeof(raw_trace) != TYPE_ARRAY:
+		return
+	for raw_event in raw_trace:
+		if typeof(raw_event) != TYPE_DICTIONARY:
+			continue
+		var event: Dictionary = Dictionary(raw_event).duplicate(true)
+		event["sim_time_s"] = sim_time_s
+		_projection_trace_file.store_line(JSON.stringify(event))
+
+
+func _close_projection_trace() -> void:
+	if _projection_trace_file != null:
+		_projection_trace_file.flush()
+		_projection_trace_file.close()
+	_projection_trace_file = null
 
 
 func _apply_due_opening_events(building: BuildingModel, opening_events: Array, sim_time_s: float) -> void:
@@ -489,6 +532,8 @@ func _write_manifest(engine: SimulationEngine, duration_s: float, step_s: float,
 		"log_path": engine.log_writer.resolve_log_file_path(),
 		"csv_path": engine.log_writer.resolve_csv_file_path()
 	}
+	if _projection_trace_enabled:
+		manifest["projection_trace_path"] = _projection_trace_path
 	var file := FileAccess.open(_out_dir.path_join("run_manifest.json"), FileAccess.WRITE)
 	if file == null:
 		return false
@@ -506,6 +551,9 @@ func _validate_outputs() -> bool:
 	var summary: Dictionary = _load_json(_out_dir.path_join("summary.json"))
 	if String(summary.get("schema_version", "")) != "simufire_technical_summary_v1":
 		_abort("run_scenario_headless: summary.json schema mismatch")
+		return false
+	if _projection_trace_enabled and not FileAccess.file_exists(_projection_trace_path):
+		_abort("run_scenario_headless: expected projection trace was not written")
 		return false
 	return true
 

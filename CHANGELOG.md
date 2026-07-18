@@ -3,6 +3,21 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.1d lower projection diagnosis (2026-07-17)
+
+- Added opt-in per-call tracing around the legacy two-zone EOS projection and
+  a read-only JSONL analyzer. Legacy CSV schema and physical outputs remain
+  unchanged.
+- Proved on a dedicated one-room control that the remaining F3.1c residual is
+  created by fixed-reference-pressure projection, not a missing physical
+  flux. The first post-combustion projection removes up to `0.05700088 kg` and
+  `6.99578420 kJ`; later calls geometrically backfill ambient lower gas.
+- Verified exact zero deltas in a 30 s no-fire control and the same emerging
+  pattern in a 30 s fire control.
+- Recorded diagnostic GO and authority NO-GO. F3.1e must derive pressure,
+  zone volumes and interface from conserved mass/energy before F3.2 begins.
+- Changed no baseline, tolerance, official report, CTRL or gap.
+
 ### Phase 3+ F3.1c single-room thermal ownership (2026-07-17)
 
 - Added a dedicated scratch one-room control with no openings, HVAC, ACH,
