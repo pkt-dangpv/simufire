@@ -287,6 +287,65 @@ Group A does not improve because its pre-opening O2 state is still reseeded
 from legacy each step. F3.2b must establish persistent canonical continuity
 and combustion O2 coupling before authority.
 
+F3.2b0 status 2026-07-18: **persistence mechanism GO / authority and Group A
+NO-GO**. The canonical state now survives between steps and a degenerate
+zero-mass zone is fused conservatively into the remaining zone. Continuity and
+fusion residuals are exactly zero and legacy output stays byte-identical.
+Group A improves at 240 s, but an open-loop shadow cannot close the problem:
+legacy HRR continues to drive heat, plume, O2 demand and species after
+canonical O2 would have throttled the fire. O2 reaches zero and opening
+pressure reaches about `-34.1 kPa`.
+
+F3.2b1 must replace those independent legacy-derived combustion/plume requests
+with one closed candidate transaction. HRR, fuel, heat, plume gas/enthalpy,
+O2 and all generated species must share one pre-step canonical O2 contract and
+one accepted fraction. An O2-only multiplier is not an acceptable bridge.
+
+F3.2b1 status 2026-07-18: **closed transaction mechanism GO / authority
+NO-GO**. A pure evaluator now derives HRR, fuel, O2, species, convective heat
+and plume transport from canonical pre-step O2 and persistent fire state. One
+atomic bundle accepts or rejects every route together. O2, energy and species
+residuals close exactly, no zero-O2 flame is produced, and all three Group A
+O2 checks pass in shadow without changing expected values or tolerances.
+
+The remaining blocker is outside the combustion transaction. The canonical
+lower zone collapses before the window opens, and the exterior boundary reaches
+about `+26.9 kPa` after opening. F3.2b2 must resolve pressure relaxation and
+the degenerate-zone transition before canonical room-state authority or Group
+A gap retirement can be considered.
+
+F3.2b2 status 2026-07-18: **equilibrium-relaxation and lower-reseed mechanisms
+GO / authority NO-GO**. The exterior bundle is now limited by the exact EOS
+fraction that reaches ambient pressure, with gas, sensible energy, O2 and all
+species scaled together. An upper-only state receiving fresh air through a
+real open exterior boundary recreates lower conservatively; closed leakage
+does not trigger this transition.
+
+In Group A the first lower reseed occurs at step 4322 (`~360.167 s`). The old
+opening sign reversal from `-34.0 kPa` to `+26.9 kPa` is eliminated and the
+post-opening pressure reaches approximately zero without inventory residuals.
+All three Group A O2 checks still pass in shadow. Authority remains blocked by
+the earlier one-zone transition near 160 s and the pre-opening canonical range
+of about `-1.04..+2.81 kPa`. F3.2b3 owns that diagnosis.
+
+F3.2b3 status 2026-07-18: **canonical plume mechanism GO / authority NO-GO**.
+The premature one-zone transition was caused by a cross-state producer: plume
+entrainment used the legacy interface while its atomic gas/enthalpy/O2 route
+was applied to persistent canonical zones. A pure default-OFF preview now
+derives interface and lower inventory from canonical pre-step thermodynamics.
+
+Group A lower remains `2.48 kg` at 360 s instead of reaching zero near 160 s,
+all three canonical O2 checks remain PASS, volume closure is exact and legacy
+output is invariant. The interface remains above CFAST (`0.214 m` versus
+`0.10 m` at 360 s), so this does not authorize room-state publication.
+
+Pressure is now an independent blocker. Internal plume transfer conserves
+room mass and sensible energy and therefore cannot directly set total EOS
+pressure. Differences in radiative/convective split and closed leakage were
+measured, but neither isolated change closes the CFAST trajectory. F3.2b4 must
+establish pressure-source and boundary equivalence from explicit mass/energy
+contracts; fitted caps and per-case tuning remain forbidden.
+
 Use canonical room mass/energy to solve gauge pressure and exterior gas flow.
 Separate gas flow from soot removal. Transport gas, enthalpy, O2 and species
 with one fraction. Retire pressure vent mass deletion and EOS refill in this
@@ -367,14 +426,11 @@ not in the promotion commit.
 ## Immediate next step
 
 Use `docs/validation/PHASE3_CURRENT_WORKPLAN.md` as the operational checklist.
-F3.1 delivered selected-O2 extinction and F3.1a proved the selected-source/
-debit-source invariant. F3.1b then rejected a manufactured shared boundary
-boolean: scope and complete flux ownership are separate contracts. F3.1c owns
-the exact local physical terms, and F3.1d proves that the remaining legacy
-residual is created by EOS projection rather than a missing flux. F3.1e now
-closes canonical thermodynamics passively without copying the legacy implicit
-reservoir. The next step is F3.2: one default-OFF exterior pressure/leakage
-transaction using canonical pressure and inventory. Do not globally change
-`plume_lower`, publish the whole shadow into `RoomModel`, or double-count
-legacy purge/projection. HVAC remains deferred to F3.5 after its own redesign
-gate.
+F3.2b0-b2 established persistent state, one closed combustion transaction and
+bounded exterior pressure relaxation. F3.2b3 then replaced the cross-state
+legacy-geometry plume with a canonical pre-step preview and removed premature
+lower-zone collapse. The next step is F3.2b4: diagnose pressure-source and
+boundary equivalence from explicit heat, mass and enthalpy terms. Do not tune
+a pressure cap, publish the shadow into `RoomModel`, retire Group A, or begin
+Group C while pressure authority remains unresolved. HVAC remains deferred to
+F3.5 after its own redesign gate.

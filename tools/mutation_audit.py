@@ -34,8 +34,8 @@ CASES_DIR = ROOT / "sim/validation/cases"
 
 # Candidates de ejecutable Godot (mismo patrón que check_product.py)
 _GODOT_CANDIDATES = [
-    Path("F:/OneDrive/Escritorio/Godot_v4.6.3-stable_win64_console.exe"),
-    Path("C:/Users/dangp/Desktop/Godot_v4.6.3-stable_win64_console.exe"),
+    Path("C:/Users/dangp/Desktop/Godot_v4.7.1-stable_win64_console.exe"),
+    Path("F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe"),
 ]
 
 # Todos los mutantes implementados en CaseRunner._MUTATION_TABLE

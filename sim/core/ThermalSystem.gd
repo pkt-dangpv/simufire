@@ -1959,6 +1959,63 @@ func _step_two_zone_plume_entrainment(room: RoomModel, dt: float, ambient_c: flo
 		room.phase3_diag_plume_entrained_kg_total += moved_mass_kg
 
 
+## F3.2b3: candidato de plume puramente canonico. Usa la misma correlacion que
+## el motor live, pero la interfaz, masa y entalpia salen del snapshot pre-step.
+## No muta RoomModel ni el estado persistente.
+func preview_phase3_canonical_plume_flux(
+		room: RoomModel,
+		canonical_input: Dictionary,
+		dt: float
+	) -> Dictionary:
+	var result: Dictionary = {
+		"cause": "plume_entrainment",
+		"room_id": room.id if room != null else -1,
+		"source_zone": "lower",
+		"destination_zone": "upper",
+		"gas_mass_kg": 0.0,
+		"sensible_enthalpy_kj": 0.0,
+		"o2_kg": 0.0,
+	}
+	if room == null or dt <= 0.0 or canonical_input.is_empty() \
+			or not bool(canonical_input.get("valid", false)):
+		return result
+	var lower_mass_kg: float = maxf(
+		0.0, float(canonical_input.get("lower_gas_kg", 0.0))
+	)
+	if room.hrr_kw <= 0.0 or lower_mass_kg <= 1.0e-9:
+		return result
+	var qc_kw: float = maxf(0.0, room.hrr_kw * plume_mccaffrey_qc_fraction)
+	if qc_kw <= 0.0:
+		return result
+	var flame_length_m: float = maxf(
+		0.0,
+		0.235 * pow(room.hrr_kw, 0.4) - 1.02 * plume_fire_diameter_m
+	)
+	var interface_m: float = clampf(
+		float(canonical_input.get("interface_m", room.height_m)),
+		0.0,
+		room.height_m
+	)
+	var z_eff_m: float
+	if plume_confined_flame_enabled and flame_length_m >= room.height_m:
+		z_eff_m = maxf(0.1, room.height_m * plume_confined_z_eff_fraction)
+	else:
+		z_eff_m = maxf(0.1, interface_m - flame_length_m)
+	var requested_mass_kg: float = minf(
+		0.071 * pow(qc_kw, 1.0 / 3.0) * pow(z_eff_m, 5.0 / 3.0) * dt,
+		lower_mass_kg
+	)
+	var lower_fraction: float = requested_mass_kg / maxf(lower_mass_kg, 1.0e-9)
+	result["gas_mass_kg"] = requested_mass_kg
+	result["sensible_enthalpy_kj"] = maxf(
+		0.0, float(canonical_input.get("lower_energy_kj", 0.0)) * lower_fraction
+	)
+	result["o2_kg"] = requested_mass_kg * clampf(
+		float(canonical_input.get("lower_o2_fraction", 0.0)), 0.0, 1.0
+	)
+	return result
+
+
 func _add_flame_region_entrainment(
 	room: RoomModel,
 	qc_kw: float,

@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 WORKSPACE = Path(__file__).resolve().parents[1]
-GODOT_EXE = r"C:\Users\dangp\Desktop\Godot_v4.6.3-stable_win64_console.exe"
+GODOT_EXE = r"C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe"
 CASE_JSON = WORKSPACE / "sim/validation/cases/cfast_hvac_residential.json"
 LOG_FILE  = WORKSPACE / "sim/validation/reports/cfast_hvac_residential.log"
 CFAST_REF = {

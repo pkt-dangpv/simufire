@@ -73,6 +73,28 @@ func _run() -> void:
 	if bool(_cli_args.get("phase3_canonical_exterior_shadow", false)):
 		engine.phase3_canonical_zone_shadow_enabled = true
 		engine.phase3_canonical_exterior_boundary_shadow_enabled = true
+	if bool(_cli_args.get("phase3_canonical_persistence_shadow", false)):
+		engine.phase3_canonical_zone_shadow_enabled = true
+		engine.phase3_canonical_exterior_boundary_shadow_enabled = true
+		engine.phase3_canonical_persistence_shadow_enabled = true
+	if bool(_cli_args.get("phase3_canonical_combustion_shadow", false)):
+		engine.phase3_canonical_zone_shadow_enabled = true
+		engine.phase3_canonical_exterior_boundary_shadow_enabled = true
+		engine.phase3_canonical_persistence_shadow_enabled = true
+		engine.phase3_canonical_combustion_shadow_enabled = true
+	if bool(_cli_args.get("phase3_canonical_pressure_relaxation_shadow", false)):
+		engine.phase3_canonical_zone_shadow_enabled = true
+		engine.phase3_canonical_exterior_boundary_shadow_enabled = true
+		engine.phase3_canonical_persistence_shadow_enabled = true
+		engine.phase3_canonical_combustion_shadow_enabled = true
+		engine.phase3_canonical_pressure_relaxation_shadow_enabled = true
+	if bool(_cli_args.get("phase3_canonical_plume_shadow", false)):
+		engine.phase3_canonical_zone_shadow_enabled = true
+		engine.phase3_canonical_exterior_boundary_shadow_enabled = true
+		engine.phase3_canonical_persistence_shadow_enabled = true
+		engine.phase3_canonical_combustion_shadow_enabled = true
+		engine.phase3_canonical_pressure_relaxation_shadow_enabled = true
+		engine.phase3_canonical_plume_shadow_enabled = true
 	_projection_trace_enabled = bool(scenario.get("phase3_projection_trace_enabled", false))
 	if _projection_trace_enabled:
 		engine.phase3_zone_diagnostics_enabled = true
@@ -157,6 +179,14 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["phase3_canonical_shadow"] = true
 		elif arg == "--phase3-canonical-exterior-shadow":
 			parsed["phase3_canonical_exterior_shadow"] = true
+		elif arg == "--phase3-canonical-persistence-shadow":
+			parsed["phase3_canonical_persistence_shadow"] = true
+		elif arg == "--phase3-canonical-combustion-shadow":
+			parsed["phase3_canonical_combustion_shadow"] = true
+		elif arg == "--phase3-canonical-pressure-relaxation-shadow":
+			parsed["phase3_canonical_pressure_relaxation_shadow"] = true
+		elif arg == "--phase3-canonical-plume-shadow":
+			parsed["phase3_canonical_plume_shadow"] = true
 		index += 1
 	return parsed
 

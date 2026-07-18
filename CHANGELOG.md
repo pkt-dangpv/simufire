@@ -3,6 +3,78 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Default Godot runtime updated to 4.7.1 (2026-07-18)
+
+- Updated active Python and PowerShell runners to prefer
+  `Godot_v4.7.1-stable_win64_console.exe` from the local Desktop.
+- Preserved explicit `--godot`, `-GodotExe` and `GODOT_EXE` overrides.
+- Added a regression test that rejects stale 4.6.3 defaults in active runner
+  code and verifies the project declares the Godot 4.7 feature.
+- Repaired a pre-existing malformed string in `update_baselines_fixed.ps1`
+  found while parsing every updated PowerShell entrypoint.
+- Historical reports and session records remain labelled with the Godot
+  version that originally produced them.
+
+### Phase 3+ F3.2b3 canonical plume geometry (2026-07-18)
+
+- Added `phase3_canonical_plume_shadow_enabled=false` and a pure plume preview
+  driven by canonical pre-step mass, sensible energy, O2 and interface.
+- Proved the premature one-zone transition was a cross-state error: the live
+  plume used a `1.458 m` legacy interface while the receiving canonical state
+  had a `0.260 m` interface, over-requesting entrainment by roughly 18x at the
+  diagnostic sample.
+- Preserved canonical lower gas through the Group A opening (`2.48 kg` at
+  360 s instead of `0 kg`) while retaining all three shadow O2 PASS results,
+  exact volume closure and all 115 legacy columns.
+- Kept authority OFF. Pressure improves but remains outside the CFAST envelope;
+  F3.2b4 must diagnose heat-source and leakage/boundary equivalence without a
+  fitted pressure clamp or per-case tuning.
+
+### Phase 3+ F3.2b2 canonical pressure relaxation (2026-07-18)
+
+- Added a default-OFF equilibrium limiter for the canonical exterior bundle.
+  It derives the exact accepted fraction from the two-zone EOS and scales gas,
+  sensible energy, O2 and every species atomically.
+- Added a conservative one-zone-to-two-zone transition: when a real exterior
+  opening admits fresh air into an upper-only state, the first inflow recreates
+  the lower zone. Closed-window leakage does not trigger this transition.
+- Eliminated the Group A opening overshoot (`+26.9 kPa` to approximately
+  `0 Pa`) while preserving all three shadow O2 PASS results and all 115 legacy
+  columns.
+- Kept authority OFF. The pre-opening canonical range remains about
+  `-1.04..+2.81 kPa`, and the lower zone still reaches the one-zone limit near
+  160 s. F3.2b3 must diagnose those remaining representation differences.
+
+### Phase 3+ F3.2b1 closed combustion shadow transaction (2026-07-18)
+
+- Added a default-OFF pure combustion evaluator driven by canonical pre-step
+  O2 and persistent fire state. It does not write legacy room or fire state.
+- Added one atomic shadow bundle for HRR, fuel, O2, generated species,
+  convective heat and plume transport. All terms share one decision and one
+  accepted fraction.
+- Added 27 opt-in CSV diagnostics and a direct Godot fixture covering partial
+  O2 throttling, lower-zone bootstrap, extinction and atomic closure.
+- Verified all three Group A O2 checks pass in shadow without changing
+  expected values or tolerances; 115 legacy columns remain identical.
+- Kept authority OFF: the exterior-opening transient still reaches about
+  `+26.9 kPa`, and the lower canonical zone collapses before the opening.
+  F3.2b2 must address pressure relaxation and degenerate-zone transition
+  before Group A gaps can be retired.
+
+### Phase 3+ F3.2b0 persistent shadow diagnosis (2026-07-18)
+
+- Added default-OFF step-to-step persistence for canonical mass, sensible
+  energy, O2 and species without writing legacy room state.
+- Added a passive upper-zone combustion O2 candidate, one canonical O2 demand
+  request and conservative fusion of degenerate zero-mass zones.
+- Verified exact continuity and normalization residuals plus byte-identical
+  115-column legacy output.
+- Recorded authority NO-GO: Group A improves at 240 s but over-depletes by
+  350 s and reaches a nonphysical `-34.1 kPa` opening transient because legacy
+  HRR/plume fluxes do not feed back from canonical O2.
+- Assigned F3.2b1 to a closed combustion/plume transaction; an O2-only scale
+  is explicitly forbidden.
+
 ### Phase 3+ F3.2a passive exterior boundary (2026-07-18)
 
 - Added a default-OFF canonical exterior pressure/leakage bundle that moves

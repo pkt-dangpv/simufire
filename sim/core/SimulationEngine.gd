@@ -982,6 +982,14 @@ var _step_time_us: int = 0
 @export var phase3_canonical_zone_shadow_enabled: bool = false
 ## F3.2a: frontera exterior pressure/leakage solo en shadow. Requiere F3.0.
 @export var phase3_canonical_exterior_boundary_shadow_enabled: bool = false
+## F3.2b0: continuidad step-to-step solo en shadow. Default OFF; no cambia HRR.
+@export var phase3_canonical_persistence_shadow_enabled: bool = false
+## F3.2b1: transaccion cerrada combustion/plume solo en shadow. Default OFF.
+@export var phase3_canonical_combustion_shadow_enabled: bool = false
+## F3.2b2: relajacion exterior y reseed lower conservativos. Default OFF.
+@export var phase3_canonical_pressure_relaxation_shadow_enabled: bool = false
+## F3.2b3: plume evaluado desde geometria canonica pre-step. Default OFF.
+@export var phase3_canonical_plume_shadow_enabled: bool = false
 
 # ============================================================
 # SERVICIOS AUXILIARES
@@ -1254,6 +1262,22 @@ func _sync_auxiliary_services() -> void:
 		phase3_canonical_zone_shadow_enabled \
 				and phase3_canonical_exterior_boundary_shadow_enabled
 	)
+	log_writer.configure_phase3_canonical_persistence_shadow(
+		phase3_canonical_zone_shadow_enabled \
+				and phase3_canonical_persistence_shadow_enabled
+	)
+	log_writer.configure_phase3_canonical_combustion_shadow(
+		phase3_canonical_zone_shadow_enabled \
+				and phase3_canonical_persistence_shadow_enabled \
+				and phase3_canonical_combustion_shadow_enabled
+	)
+	log_writer.configure_phase3_canonical_pressure_relaxation_shadow(
+		phase3_canonical_zone_shadow_enabled \
+				and phase3_canonical_exterior_boundary_shadow_enabled \
+				and phase3_canonical_persistence_shadow_enabled \
+				and phase3_canonical_combustion_shadow_enabled \
+				and phase3_canonical_pressure_relaxation_shadow_enabled
+	)
 	# SF-R6: ZoneFireSolver — inyectar referencia al building.
 	zone_fire_solver.set_building(building)
 
@@ -1344,56 +1368,90 @@ func _phase3_zone_diag_export() -> Dictionary:
 	return exported
 
 
-func _phase3_shadow_collect_thermal_requests() -> void:
+func _phase3_shadow_collect_thermal_requests(dt: float) -> void:
+	var canonical_heat_by_room: Dictionary = {}
+	var canonical_plume_by_room: Dictionary = {}
 	for flux in thermal_system.drain_phase3_shadow_flux_results():
-		var mass_kg: float = maxf(0.0, float(flux.get("gas_mass_kg", 0.0)))
-		var energy_kj: float = maxf(0.0, float(flux.get("sensible_enthalpy_kj", 0.0)))
-		var o2_kg: float = maxf(0.0, float(flux.get("o2_kg", 0.0)))
-		var species_kg: Dictionary = flux.get("species_kg", {})
-		if mass_kg <= 0.0 and energy_kj <= 0.0 and o2_kg <= 0.0 and species_kg.is_empty():
-			continue
 		var room_id: int = int(flux.get("room_id", -1))
 		var cause: String = String(flux.get("cause", ""))
-		var request_id: String = "%s:%d:%.6f" % [cause, room_id, sim_time_s]
-		phase3_zone_mass_system.add_request(
-			phase3_zone_mass_system.make_request(
-				request_id,
-				cause,
-				int(flux.get("source_room_id", room_id)),
-				int(flux.get("destination_room_id", room_id)),
-				String(flux.get("source_zone", "lower")),
-				String(flux.get("destination_zone", "upper")),
-				mass_kg,
-				energy_kj,
-				o2_kg,
-				species_kg
+		if phase3_canonical_combustion_shadow_enabled:
+			if cause == "combustion_convective_heat":
+				canonical_heat_by_room[str(room_id)] = flux.duplicate(true)
+				continue
+			if cause == "plume_entrainment":
+				canonical_plume_by_room[str(room_id)] = flux.duplicate(true)
+				continue
+		_phase3_shadow_add_thermal_request(flux)
+	if not phase3_canonical_combustion_shadow_enabled:
+		return
+	for room_id in phase3_zone_mass_system.get_canonical_combustion_room_ids():
+		var plume_flux: Dictionary = canonical_plume_by_room.get(str(room_id), {})
+		if phase3_canonical_plume_shadow_enabled and building != null:
+			var room: RoomModel = building.get_room(room_id)
+			var canonical_input: Dictionary = \
+					phase3_zone_mass_system.get_canonical_thermodynamic_input(
+						room, thermal_system.ambient_temp_c()
+					)
+			plume_flux = thermal_system.preview_phase3_canonical_plume_flux(
+				room, canonical_input, dt
 			)
+		phase3_zone_mass_system.finalize_canonical_combustion_bundle(
+			room_id,
+			canonical_heat_by_room.get(str(room_id), {}),
+			plume_flux,
+			"%.6f" % sim_time_s
 		)
-		var thermal_connection_id: String = "room:%d:interlayer" % room_id
-		var thermal_boundary_kind: String = "interlayer"
-		if cause == "combustion_convective_heat":
-			thermal_connection_id = "chemical:%d:combustion" % room_id
-			thermal_boundary_kind = "chemical_combustion"
-		elif cause != "plume_entrainment" and cause != "thermal_upper_to_lower":
-			thermal_connection_id = "room:%d:thermal_reservoir" % room_id
-			thermal_boundary_kind = "thermal_reservoir"
-		for quantity_entry in [
-			{"quantity": "gas_mass", "amount": mass_kg},
-			{"quantity": "enthalpy", "amount": energy_kj},
-			{"quantity": "o2", "amount": o2_kg},
-		]:
-			phase3_zone_mass_system.register_semantic_claim({
-				"connection_id": thermal_connection_id,
-				"producer": "ThermalSystem",
-				"transport_family": cause,
-				"boundary_kind": thermal_boundary_kind,
-				"source_room_id": int(flux.get("source_room_id", room_id)),
-				"destination_room_id": int(flux.get("destination_room_id", room_id)),
-				"source_zone": String(flux.get("source_zone", "lower")),
-				"destination_zone": String(flux.get("destination_zone", "upper")),
-				"quantity": String(quantity_entry.get("quantity", "")),
-				"amount": float(quantity_entry.get("amount", 0.0)),
-			})
+
+
+func _phase3_shadow_add_thermal_request(flux: Dictionary) -> void:
+	var mass_kg: float = maxf(0.0, float(flux.get("gas_mass_kg", 0.0)))
+	var energy_kj: float = maxf(0.0, float(flux.get("sensible_enthalpy_kj", 0.0)))
+	var o2_kg: float = maxf(0.0, float(flux.get("o2_kg", 0.0)))
+	var species_kg: Dictionary = flux.get("species_kg", {})
+	if mass_kg <= 0.0 and energy_kj <= 0.0 and o2_kg <= 0.0 and species_kg.is_empty():
+		return
+	var room_id: int = int(flux.get("room_id", -1))
+	var cause: String = String(flux.get("cause", ""))
+	var request_id: String = "%s:%d:%.6f" % [cause, room_id, sim_time_s]
+	phase3_zone_mass_system.add_request(
+		phase3_zone_mass_system.make_request(
+			request_id,
+			cause,
+			int(flux.get("source_room_id", room_id)),
+			int(flux.get("destination_room_id", room_id)),
+			String(flux.get("source_zone", "lower")),
+			String(flux.get("destination_zone", "upper")),
+			mass_kg,
+			energy_kj,
+			o2_kg,
+			species_kg
+		)
+	)
+	var thermal_connection_id: String = "room:%d:interlayer" % room_id
+	var thermal_boundary_kind: String = "interlayer"
+	if cause == "combustion_convective_heat":
+		thermal_connection_id = "chemical:%d:combustion" % room_id
+		thermal_boundary_kind = "chemical_combustion"
+	elif cause != "plume_entrainment" and cause != "thermal_upper_to_lower":
+		thermal_connection_id = "room:%d:thermal_reservoir" % room_id
+		thermal_boundary_kind = "thermal_reservoir"
+	for quantity_entry in [
+		{"quantity": "gas_mass", "amount": mass_kg},
+		{"quantity": "enthalpy", "amount": energy_kj},
+		{"quantity": "o2", "amount": o2_kg},
+	]:
+		phase3_zone_mass_system.register_semantic_claim({
+			"connection_id": thermal_connection_id,
+			"producer": "ThermalSystem",
+			"transport_family": cause,
+			"boundary_kind": thermal_boundary_kind,
+			"source_room_id": int(flux.get("source_room_id", room_id)),
+			"destination_room_id": int(flux.get("destination_room_id", room_id)),
+			"source_zone": String(flux.get("source_zone", "lower")),
+			"destination_zone": String(flux.get("destination_zone", "upper")),
+			"quantity": String(quantity_entry.get("quantity", "")),
+			"amount": float(quantity_entry.get("amount", 0.0)),
+		})
 
 
 func _phase3_shadow_collect_thermal_species_events() -> void:
@@ -1402,12 +1460,24 @@ func _phase3_shadow_collect_thermal_species_events() -> void:
 
 
 func _phase3_shadow_collect_oxygen_requests() -> void:
-	for flux in oxygen_exchange_system.drain_phase3_shadow_flux_results():
+	var fluxes: Array[Dictionary] = oxygen_exchange_system.drain_phase3_shadow_flux_results()
+	var persistent_demand_by_room: Dictionary = {}
+	for flux in fluxes:
 		var o2_kg: float = maxf(0.0, float(flux.get("o2_kg", 0.0)))
 		if o2_kg <= 0.0:
 			continue
 		var room_id: int = int(flux.get("room_id", -1))
 		var cause: String = String(flux.get("cause", ""))
+		if phase3_canonical_combustion_shadow_enabled \
+				and cause.begins_with("combustion_o2_"):
+			# F3.2b1 owns O2 inside the closed atomic combustion bundle.
+			continue
+		if phase3_canonical_persistence_shadow_enabled \
+				and cause.begins_with("combustion_o2_"):
+			persistent_demand_by_room[str(room_id)] = maxf(
+				float(persistent_demand_by_room.get(str(room_id), 0.0)), o2_kg
+			)
+			continue
 		var source_zone: String = String(flux.get("source_zone", "upper"))
 		var request_id: String = "%s:%d:%s:%.6f" % [
 			cause, room_id, source_zone, sim_time_s
@@ -1438,10 +1508,73 @@ func _phase3_shadow_collect_oxygen_requests() -> void:
 			"quantity": "o2",
 			"amount": o2_kg,
 		})
+	if phase3_canonical_combustion_shadow_enabled \
+			or not phase3_canonical_persistence_shadow_enabled:
+		return
+	for room_key in persistent_demand_by_room.keys():
+		var room_id: int = int(room_key)
+		var room: RoomModel = building.get_room(room_id) if building != null else null
+		var o2_kg: float = float(persistent_demand_by_room[room_key])
+		if room != null and room.o2_consumed_fire_kg_step > 0.0:
+			o2_kg = room.o2_consumed_fire_kg_step
+		if o2_kg <= 0.0:
+			continue
+		var cause: String = "combustion_o2_canonical_upper_sink"
+		phase3_zone_mass_system.add_request(
+			phase3_zone_mass_system.make_request(
+				"%s:%d:upper:%.6f" % [cause, room_id, sim_time_s],
+				cause,
+				room_id,
+				phase3_zone_mass_system.EXTERIOR_ID,
+				"upper",
+				"upper",
+				0.0,
+				0.0,
+				o2_kg,
+				{}
+			)
+		)
+		phase3_zone_mass_system.register_semantic_claim({
+			"connection_id": "chemical:%d:combustion" % room_id,
+			"producer": "OxygenExchangeSystem",
+			"transport_family": cause,
+			"boundary_kind": "chemical_combustion",
+			"source_room_id": room_id,
+			"destination_room_id": phase3_zone_mass_system.EXTERIOR_ID,
+			"source_zone": "upper",
+			"destination_zone": "upper",
+			"quantity": "o2",
+			"amount": o2_kg,
+		})
 
 
-func _phase3_shadow_collect_species_requests() -> void:
-	for result in combustion_system.drain_phase3_shadow_species_results():
+func _phase3_shadow_collect_species_requests(dt: float) -> void:
+	var species_results: Array[Dictionary] = \
+			combustion_system.drain_phase3_shadow_species_results()
+	if phase3_canonical_combustion_shadow_enabled:
+		var species_by_room: Dictionary = {}
+		for result in species_results:
+			species_by_room[str(int(result.get("room_id", -1)))] = result
+		for raw_room_id in building.get_rooms().keys():
+			var room_id: int = int(raw_room_id)
+			var room: RoomModel = building.get_room(room_id)
+			if room == null:
+				continue
+			var transaction: Dictionary = \
+					combustion_system.evaluate_phase3_canonical_combustion_step(
+						room,
+						dt,
+						_build_room_combustion_context(room_id),
+						phase3_zone_mass_system.get_canonical_combustion_input(room_id),
+						phase3_zone_mass_system.get_persistent_combustion_state(room_id),
+						species_by_room.get(str(room_id), {})
+					)
+			if not transaction.is_empty():
+				phase3_zone_mass_system.stage_canonical_combustion_transaction(
+					transaction
+				)
+		return
+	for result in species_results:
 		var room_id: int = int(result.get("room_id", -1))
 		var cause: String = String(result.get("cause", "combustion_species_source"))
 		for zone_name in ["upper", "lower"]:
@@ -1557,6 +1690,14 @@ func _build_state_context() -> Dictionary:
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"phase3_canonical_exterior_boundary_shadow_enabled": \
 				phase3_canonical_exterior_boundary_shadow_enabled,
+		"phase3_canonical_persistence_shadow_enabled": \
+				phase3_canonical_persistence_shadow_enabled,
+		"phase3_canonical_combustion_shadow_enabled": \
+				phase3_canonical_combustion_shadow_enabled,
+		"phase3_canonical_pressure_relaxation_shadow_enabled": \
+				phase3_canonical_pressure_relaxation_shadow_enabled,
+		"phase3_canonical_plume_shadow_enabled": \
+				phase3_canonical_plume_shadow_enabled,
 		"phase3_canonical_zone_shadow": phase3_zone_mass_system.get_results() \
 				if phase3_canonical_zone_shadow_enabled else {},
 		"ambient_temp_c": thermal_system.ambient_temp_c(),
@@ -1856,7 +1997,9 @@ func step(delta: float) -> void:
 	_ensure_carbon_balance_initialized()
 	_phase3_zone_diag_begin_step()
 	if phase3_canonical_zone_shadow_enabled:
-		phase3_zone_mass_system.begin_step(building)
+		phase3_zone_mass_system.begin_step(
+			building, phase3_canonical_persistence_shadow_enabled
+		)
 		if phase3_canonical_exterior_boundary_shadow_enabled:
 			phase3_zone_mass_system.queue_canonical_exterior_boundary_requests(
 				building,
@@ -1864,7 +2007,9 @@ func step(delta: float) -> void:
 				thermal_system.ambient_temp_c(),
 				building.outside_o2,
 				window_leakage_area_m2,
-				pressure_vent_threshold_pa
+				pressure_vent_threshold_pa,
+				Phase3ZoneMassSystemScript.EXTERIOR_DISCHARGE_COEFF,
+				phase3_canonical_pressure_relaxation_shadow_enabled
 			)
 
 	var pre_hrr_o2_step: bool = _uses_pre_hrr_oxygen_step()
@@ -1876,10 +2021,12 @@ func step(delta: float) -> void:
 			_phase3_shadow_collect_oxygen_requests()
 		_phase3_zone_diag_record_stage("oxygen_exchange")
 	if phase3_canonical_zone_shadow_enabled:
-		combustion_system.begin_phase3_shadow_step()
+		combustion_system.begin_phase3_shadow_step(building)
 	_step_fire(dt)
 	if phase3_canonical_zone_shadow_enabled:
-		_phase3_shadow_collect_species_requests()
+		if phase3_canonical_persistence_shadow_enabled:
+			phase3_zone_mass_system.record_combustion_o2_probe(building)
+		_phase3_shadow_collect_species_requests(dt)
 	_step_co_oxidation(dt)
 	_step_targets(dt)
 	_phase3_zone_diag_record_stage("combustion")
@@ -1893,7 +2040,7 @@ func step(delta: float) -> void:
 		"opening_flow_cache": _opening_flow_cache
 	})
 	if phase3_canonical_zone_shadow_enabled:
-		_phase3_shadow_collect_thermal_requests()
+		_phase3_shadow_collect_thermal_requests(dt)
 		_phase3_shadow_collect_thermal_species_events()
 	_phase3_zone_diag_record_stage("thermal")
 	# SF-R6 Phase 3: verificar conservación de transporte de contaminantes.

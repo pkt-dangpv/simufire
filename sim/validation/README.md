@@ -53,9 +53,9 @@ Si necesitas lanzar Godot manualmente, pasa siempre un `--log-file` absoluto o r
 al proyecto para no depender del log por defecto de `user://logs`:
 
 ```powershell
-& 'F:\OneDrive\Escritorio\Godot_v4.6.3-stable_win64_console.exe' `
+& 'C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe' `
   --headless `
-  --path 'F:\OneDrive\Documentos\GitHub\simufire' `
+  --path 'C:\Users\dangp\Documents\GitHub\simufire' `
   --log-file '.godot_validation_logs\living_room_hallway.log' `
   -- `
   --validation-case=living_room_hallway

@@ -6,6 +6,7 @@ const FireModelScript = preload("res://sim/fire/FireModel.gd")
 const CombustionRegimeClassifierScript = preload("res://sim/fire/CombustionRegimeClassifier.gd")
 
 var _phase3_shadow_species_results: Array[Dictionary] = []
+var _phase3_shadow_pre_fire_state: Dictionary = {}
 
 # ============================================================
 # COMBUSTION SYSTEM
@@ -15,14 +16,290 @@ var _phase3_shadow_species_results: Array[Dictionary] = []
 # ============================================================
 
 
-func begin_phase3_shadow_step() -> void:
+func begin_phase3_shadow_step(building = null) -> void:
 	_phase3_shadow_species_results.clear()
+	_phase3_shadow_pre_fire_state.clear()
+	if building == null:
+		return
+	for raw_room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(raw_room_id)
+		if room != null:
+			_phase3_shadow_pre_fire_state[str(int(raw_room_id))] = \
+					_snapshot_phase3_fire_state(room)
 
 
 func drain_phase3_shadow_species_results() -> Array[Dictionary]:
 	var results: Array[Dictionary] = _phase3_shadow_species_results.duplicate(true)
 	_phase3_shadow_species_results.clear()
 	return results
+
+
+## F3.2b1: evaluates one closed, passive combustion transaction. The live fire
+## remains the proposal source; canonical O2 accepts the whole bundle together.
+## This function never writes RoomModel or FireModel.
+func evaluate_phase3_canonical_combustion_step(
+		room: RoomModel,
+		dt: float,
+		context: Dictionary,
+		canonical_input: Dictionary,
+		previous_state: Dictionary,
+		legacy_species_result: Dictionary
+	) -> Dictionary:
+	if room == null or dt <= 0.0:
+		return {}
+	var room_key: String = str(room.id)
+	var pre_state: Dictionary = _phase3_shadow_pre_fire_state.get(
+		room_key, _snapshot_phase3_fire_state(room)
+	).duplicate(true)
+	var state_before: Dictionary = previous_state.duplicate(true) \
+			if not previous_state.is_empty() else pre_state.duplicate(true)
+	var fire_active: bool = bool(state_before.get("active_flag", false)) \
+			or bool(pre_state.get("active_flag", false))
+
+	var upper_gas_kg: float = maxf(
+		0.0, float(canonical_input.get("upper_gas_kg", 0.0))
+	)
+	var lower_gas_kg: float = maxf(
+		0.0, float(canonical_input.get("lower_gas_kg", 0.0))
+	)
+	var upper_o2_kg: float = clampf(
+		float(canonical_input.get("upper_o2_kg", 0.0)), 0.0, upper_gas_kg
+	)
+	var lower_o2_kg: float = clampf(
+		float(canonical_input.get("lower_o2_kg", 0.0)), 0.0, lower_gas_kg
+	)
+	# A zero-mass upper zone cannot supply oxidant. Bootstrap the first plume
+	# from lower, then move the whole transaction to upper once that zone exists.
+	var o2_source_zone: String = "upper"
+	if upper_gas_kg <= 0.000001 \
+			or String(context.get("fire_o2_mode", "legacy")).to_lower() == "lower":
+		o2_source_zone = "lower"
+	var source_gas_kg: float = upper_gas_kg if o2_source_zone == "upper" else lower_gas_kg
+	var source_o2_kg: float = upper_o2_kg if o2_source_zone == "upper" else lower_o2_kg
+	var canonical_o2_ref: float = clampf(
+		source_o2_kg / source_gas_kg if source_gas_kg > 0.000001 else 0.0,
+		0.0,
+		1.0
+	)
+	var nominal_o2: float = maxf(
+		0.001, float(state_before.get("o2_nominal", 0.209))
+	)
+	var minimum_o2: float = clampf(
+		float(state_before.get("o2_min_for_flame", 0.12)), 0.0, nominal_o2
+	)
+	var early_opening_signal: float = clampf(
+		maxf(
+			maxf(
+				float(context.get("outside_open_factor", 0.0)),
+				float(context.get("outside_open_path_factor", 0.0))
+			),
+			maxf(
+				maxf(0.0, float(context.get("window_open_max", 0.0))),
+				1.0 if _has_explicit_fire_o2_mode(context) else 0.0
+			)
+		),
+		0.0,
+		1.0
+	)
+	var full_hrr_o2: float = maxf(
+		minimum_o2 + 0.001,
+		lerpf(
+			nominal_o2,
+			float(context.get("fire_o2_full_hrr_open", nominal_o2)),
+			early_opening_signal
+		)
+	)
+	var ambient_c: float = float(context.get("ambient_c", 20.0))
+	var use_fds_extinction: bool = bool(context.get("fire_fds_extinction_enabled", false))
+	var extinction_limit: float = minimum_o2
+	if use_fds_extinction:
+		extinction_limit = _compute_extinction_o2_limit(
+			room, context, ambient_c, minimum_o2
+		)
+	var raw_factor: float = _compute_o2_factor(
+		canonical_o2_ref, full_hrr_o2, minimum_o2
+	)
+	var target_factor: float = raw_factor
+	if use_fds_extinction:
+		target_factor = _compute_extinction_factor(
+			canonical_o2_ref,
+			extinction_limit,
+			float(context.get("fire_fds_extinction_transition_width", 0.030))
+		)
+	var oxygen_independent: bool = bool(context.get("fire_o2_independent", false))
+	var extinguished: bool = not oxygen_independent \
+			and canonical_o2_ref <= extinction_limit
+	var previous_factor: float = clampf(
+		float(state_before.get("o2_hrr_factor", 1.0)), 0.0, 1.0
+	)
+	var canonical_factor: float = 1.0 if oxygen_independent else _smooth_state_value(
+		previous_factor,
+		target_factor,
+		dt,
+		float(context.get("fire_o2_hrr_rise_tau_s", 14.0)),
+		float(context.get("fire_o2_hrr_fall_tau_s", 32.0))
+	)
+	if extinguished:
+		canonical_factor = 0.0
+	canonical_factor = clampf(canonical_factor, 0.0, 1.0)
+
+	var legacy_hrr_kw: float = maxf(0.0, room.hrr_kw)
+	var legacy_target_kw: float = maxf(0.0, room.hrr_target_kw)
+	var legacy_factor: float = clampf(room.o2_hrr_factor, 0.0, 1.0)
+	var throttle_fraction: float = 1.0
+	if not oxygen_independent:
+		if canonical_factor <= 0.0:
+			throttle_fraction = 0.0
+		elif legacy_factor > 0.000001:
+			throttle_fraction = minf(1.0, canonical_factor / legacy_factor)
+	var o2_rate_kg_per_MJ: float = maxf(
+		0.0, float(state_before.get("o2_consumption_kg_per_MJ", 0.076))
+	)
+	var requested_o2_kg: float = legacy_hrr_kw * dt / 1000.0 * o2_rate_kg_per_MJ
+	var throttled_o2_kg: float = requested_o2_kg * throttle_fraction
+	var protected_o2_kg: float = source_gas_kg * extinction_limit
+	var available_o2_kg: float = maxf(0.0, source_o2_kg - protected_o2_kg)
+	var inventory_fraction: float = 1.0
+	if throttled_o2_kg > 0.000000001:
+		inventory_fraction = minf(1.0, available_o2_kg / throttled_o2_kg)
+	var accepted_fraction: float = clampf(
+		throttle_fraction * inventory_fraction, 0.0, 1.0
+	)
+	if not fire_active:
+		accepted_fraction = 0.0
+
+	var accepted_hrr_kw: float = legacy_hrr_kw * accepted_fraction
+	var accepted_target_kw: float = legacy_target_kw * accepted_fraction
+	var accepted_o2_kg: float = requested_o2_kg * accepted_fraction
+	var requested_fuel_MJ: float = maxf(0.0, room.fuel_consumed_MJ_step)
+	var accepted_fuel_MJ: float = requested_fuel_MJ * accepted_fraction
+	var requested_species: Dictionary = _phase3_combustion_species_proposal(
+		room, dt, pre_state, legacy_species_result
+	)
+	var accepted_species: Dictionary = _scale_phase3_species(
+		requested_species, accepted_fraction
+	)
+
+	var legacy_retained_delta_MJ: float = float(room.retained_unburned_MJ) \
+			- float(pre_state.get("retained_unburned_MJ", room.retained_unburned_MJ))
+	var legacy_fire_time_delta_s: float = float(room.fire_time_s) \
+			- float(pre_state.get("fire_time_s", room.fire_time_s))
+	var next_remaining_fuel_MJ: float = maxf(
+		0.0,
+		float(state_before.get("remaining_fuel_MJ", 0.0)) - accepted_fuel_MJ
+	)
+	var next_retained_MJ: float = maxf(
+		0.0,
+		float(state_before.get("retained_unburned_MJ", 0.0))
+				+ legacy_retained_delta_MJ * accepted_fraction
+	)
+	var next_fire_time_s: float = maxf(
+		0.0,
+		float(state_before.get("fire_time_s", 0.0))
+				+ maxf(0.0, legacy_fire_time_delta_s) * accepted_fraction
+	)
+	var next_dormant_s: float = 0.0 if accepted_hrr_kw > 0.5 else \
+			maxf(0.0, float(state_before.get("fire_dormant_time_s", 0.0)) + dt)
+	var next_state: Dictionary = state_before.duplicate(true)
+	next_state.merge({
+		"active_flag": fire_active and (next_remaining_fuel_MJ > 0.0 or next_retained_MJ > 0.0),
+		"hrr_kw": accepted_hrr_kw,
+		"hrr_target_kw": accepted_target_kw,
+		"o2_hrr_factor": canonical_factor,
+		"remaining_fuel_MJ": next_remaining_fuel_MJ,
+		"retained_unburned_MJ": next_retained_MJ,
+		"fire_time_s": next_fire_time_s,
+		"fire_dormant_time_s": next_dormant_s,
+		"extinguished_flag": extinguished,
+	}, true)
+
+	return {
+		"room_id": room.id,
+		"active_flag": fire_active,
+		"canonical_o2_ref": canonical_o2_ref,
+		"o2_source_zone": o2_source_zone,
+		"o2_source_zone_code": 1.0 if o2_source_zone == "upper" else 2.0,
+		"extinction_o2_limit": extinction_limit,
+		"canonical_o2_hrr_factor": canonical_factor,
+		"legacy_o2_hrr_factor": legacy_factor,
+		"legacy_hrr_kw": legacy_hrr_kw,
+		"legacy_hrr_target_kw": legacy_target_kw,
+		"accepted_hrr_kw": accepted_hrr_kw,
+		"accepted_hrr_target_kw": accepted_target_kw,
+		"decision_fraction": accepted_fraction,
+		"throttle_fraction": throttle_fraction,
+		"inventory_fraction": inventory_fraction,
+		"requested_o2_kg": requested_o2_kg,
+		"accepted_o2_kg": accepted_o2_kg,
+		"requested_fuel_MJ": requested_fuel_MJ,
+		"accepted_fuel_MJ": accepted_fuel_MJ,
+		"requested_species_kg": requested_species,
+		"accepted_species_kg": accepted_species,
+		"heat_scale": accepted_fraction,
+		"plume_scale": pow(accepted_fraction, 1.0 / 3.0) if accepted_fraction > 0.0 else 0.0,
+		"zero_o2_flame_flag": 1.0 if canonical_o2_ref <= extinction_limit \
+				and accepted_hrr_kw > 0.01 else 0.0,
+		"fire_state_before": state_before,
+		"fire_state_proposed": next_state,
+	}
+
+
+func _snapshot_phase3_fire_state(room: RoomModel) -> Dictionary:
+	var fire = room.fire if room != null else null
+	return {
+		"active_flag": fire != null,
+		"hrr_kw": maxf(0.0, room.hrr_kw) if room != null else 0.0,
+		"hrr_target_kw": maxf(0.0, room.hrr_target_kw) if room != null else 0.0,
+		"o2_hrr_factor": clampf(room.o2_hrr_factor, 0.0, 1.0) if room != null else 1.0,
+		"remaining_fuel_MJ": maxf(0.0, fire.remaining_fuel_MJ) if fire != null else 0.0,
+		"retained_unburned_MJ": maxf(0.0, room.retained_unburned_MJ) \
+				if room != null else 0.0,
+		"fire_time_s": maxf(0.0, room.fire_time_s) if room != null else 0.0,
+		"fire_dormant_time_s": maxf(0.0, room.fire_dormant_time_s) \
+				if room != null else 0.0,
+		"o2_nominal": maxf(0.001, fire.o2_nominal) if fire != null else 0.209,
+		"o2_min_for_flame": maxf(0.0, fire.o2_min_for_flame) if fire != null else 0.12,
+		"o2_consumption_kg_per_MJ": maxf(0.0, fire.o2_consumption_kg_per_MJ) \
+				if fire != null else 0.076,
+		"hcl_kg": maxf(0.0, room.hcl_kg) if room != null else 0.0,
+		"acrolein_kg": maxf(0.0, room.acrolein_kg) if room != null else 0.0,
+		"formaldehyde_kg": maxf(0.0, room.formaldehyde_kg) if room != null else 0.0,
+	}
+
+
+func _phase3_combustion_species_proposal(
+		room: RoomModel,
+		dt: float,
+		pre_state: Dictionary,
+		legacy_species_result: Dictionary
+	) -> Dictionary:
+	var total: Dictionary = legacy_species_result.get("total_species_kg", {})
+	return {
+		"smoke": maxf(0.0, room.smoke_prod_kg_s * dt),
+		"co": maxf(0.0, float(total.get("co", 0.0))),
+		"co2": maxf(0.0, float(total.get("co2", 0.0))),
+		"hcn": maxf(0.0, float(total.get("hcn", 0.0))),
+		"hcl": maxf(0.0, room.hcl_kg - float(pre_state.get("hcl_kg", room.hcl_kg))),
+		"acrolein": maxf(
+			0.0,
+			room.acrolein_kg - float(pre_state.get("acrolein_kg", room.acrolein_kg))
+		),
+		"formaldehyde": maxf(
+			0.0,
+			room.formaldehyde_kg - float(
+				pre_state.get("formaldehyde_kg", room.formaldehyde_kg)
+			)
+		),
+	}
+
+
+func _scale_phase3_species(species: Dictionary, scale: float) -> Dictionary:
+	var result: Dictionary = {}
+	for species_name in species.keys():
+		result[String(species_name)] = maxf(
+			0.0, float(species.get(species_name, 0.0)) * clampf(scale, 0.0, 1.0)
+		)
+	return result
 
 
 func _apply_species_generation_result(room: RoomModel, result: Dictionary) -> void:

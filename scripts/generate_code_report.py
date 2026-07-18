@@ -220,7 +220,7 @@ MANUAL_SECTIONS = [
     (
         "Resumen ejecutivo",
         [
-            "Simufire es un simulador 2D de incendio compartimentado construido en Godot 4.6. No es un CFD: no resuelve Navier-Stokes ni malla espacial fina. Es un modelo reducido de zonas y balances globales que intenta capturar tendencias utiles para entrenamiento: crecimiento del HRR, agotamiento de oxigeno, estratificacion termica, movimiento de humo, CO/CO2, supervivencia y efecto de puertas/ventanas.",
+            "Simufire es un simulador 2D de incendio compartimentado construido en Godot 4.7.1. No es un CFD: no resuelve Navier-Stokes ni malla espacial fina. Es un modelo reducido de zonas y balances globales que intenta capturar tendencias utiles para entrenamiento: crecimiento del HRR, agotamiento de oxigeno, estratificacion termica, movimiento de humo, CO/CO2, supervivencia y efecto de puertas/ventanas.",
             "Cada habitacion se representa como un volumen con dos capas termicas aproximadas: capa alta caliente y capa baja respirable. Encima de eso se lleva masa de humo, O2, CO, CO2, combustible restante, energia de capa alta y variables de tenabilidad. Las aperturas conectan habitaciones entre si o con el exterior.",
             "El programa se divide en modelos de datos, un motor coordinador y sistemas fisicos especializados. SimulationEngine.gd manda el orden de calculo, mientras CombustionSystem, OxygenExchangeSystem, ThermalSystem, GasExchangeSystem, SmokeModel, FireSpreadSystem y GlassFailureSystem hacen cada bloque de fisica.",
             "La interfaz no calcula fisica. HUD solo muestra controles y estado, y Visualizer dibuja una planta 2D con capas, HRR, gases y etiquetas. La validacion headless se apoya en CaseRunner y casos JSON con baselines reproducibles.",
@@ -364,7 +364,7 @@ SCRIPT_EXPLANATIONS = {
         "Gestiona escala temporal y botones de reproduccion/graficas.",
     ]),
     "project.godot": ("Configuracion del proyecto Godot.", [
-        "Declara nombre simufire, escena principal, Godot 4.6 y renderer.",
+        "Declara nombre simufire, escena principal, Godot 4.7 y renderer.",
         "No contiene logica fisica.",
     ]),
     "main.tscn": ("Escena principal.", [

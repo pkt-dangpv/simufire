@@ -29,8 +29,8 @@ CASES_DIR = ROOT / "sim" / "validation" / "cases"
 REPORTS_DIR = ROOT / "sim" / "validation" / "reports"
 
 GODOT_CANDIDATES = [
-    Path("F:/OneDrive/Escritorio/Godot_v4.6.3-stable_win64_console.exe"),
-    Path("C:/Users/dangp/Desktop/Godot_v4.6.3-stable_win64_console.exe"),
+    Path("C:/Users/dangp/Desktop/Godot_v4.7.1-stable_win64_console.exe"),
+    Path("F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe"),
 ]
 
 O2_TARGETS = [

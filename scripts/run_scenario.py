@@ -18,8 +18,8 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _GODOT_CANDIDATES = [
-    Path("C:/Users/dangp/Desktop/Godot_v4.6.3-stable_win64_console.exe"),
-    Path("F:/OneDrive/Escritorio/Godot_v4.6.3-stable_win64_console.exe"),
+    Path("C:/Users/dangp/Desktop/Godot_v4.7.1-stable_win64_console.exe"),
+    Path("F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe"),
 ]
 _RUNNER_SCENE = "res://tools/run_scenario_headless.tscn"
 
@@ -88,6 +88,26 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="Enable passive F3.2a canonical pressure/leakage exterior bundles.",
     )
+    parser.add_argument(
+        "--phase3-canonical-persistence-shadow",
+        action="store_true",
+        help="Enable passive F3.2b0 persistent canonical step continuity.",
+    )
+    parser.add_argument(
+        "--phase3-canonical-combustion-shadow",
+        action="store_true",
+        help="Enable passive F3.2b1 closed canonical combustion/plume transactions.",
+    )
+    parser.add_argument(
+        "--phase3-canonical-pressure-relaxation-shadow",
+        action="store_true",
+        help="Enable passive F3.2b2 exterior pressure relaxation and lower-zone reseed.",
+    )
+    parser.add_argument(
+        "--phase3-canonical-plume-shadow",
+        action="store_true",
+        help="Enable passive F3.2b3 plume evaluation from canonical pre-step geometry.",
+    )
     return parser.parse_args(argv)
 
 
@@ -153,6 +173,8 @@ def main(argv: list[str] | None = None) -> int:
         "--headless",
         "--path",
         str(_REPO_ROOT),
+        "--log-file",
+        str(out_dir / "godot.log"),
         _RUNNER_SCENE,
         "--",
         f"--run-scenario={scenario}",
@@ -172,6 +194,41 @@ def main(argv: list[str] | None = None) -> int:
         if not args.phase3_canonical_shadow:
             cmd.append("--phase3-canonical-shadow")
         cmd.append("--phase3-canonical-exterior-shadow")
+    if args.phase3_canonical_persistence_shadow:
+        if not args.phase3_canonical_shadow:
+            cmd.append("--phase3-canonical-shadow")
+        if not args.phase3_canonical_exterior_shadow:
+            cmd.append("--phase3-canonical-exterior-shadow")
+        cmd.append("--phase3-canonical-persistence-shadow")
+    if args.phase3_canonical_combustion_shadow:
+        if "--phase3-canonical-shadow" not in cmd:
+            cmd.append("--phase3-canonical-shadow")
+        if "--phase3-canonical-exterior-shadow" not in cmd:
+            cmd.append("--phase3-canonical-exterior-shadow")
+        if "--phase3-canonical-persistence-shadow" not in cmd:
+            cmd.append("--phase3-canonical-persistence-shadow")
+        cmd.append("--phase3-canonical-combustion-shadow")
+    if args.phase3_canonical_pressure_relaxation_shadow:
+        for parent_flag in [
+            "--phase3-canonical-shadow",
+            "--phase3-canonical-exterior-shadow",
+            "--phase3-canonical-persistence-shadow",
+            "--phase3-canonical-combustion-shadow",
+        ]:
+            if parent_flag not in cmd:
+                cmd.append(parent_flag)
+        cmd.append("--phase3-canonical-pressure-relaxation-shadow")
+    if args.phase3_canonical_plume_shadow:
+        for parent_flag in [
+            "--phase3-canonical-shadow",
+            "--phase3-canonical-exterior-shadow",
+            "--phase3-canonical-persistence-shadow",
+            "--phase3-canonical-combustion-shadow",
+            "--phase3-canonical-pressure-relaxation-shadow",
+        ]:
+            if parent_flag not in cmd:
+                cmd.append(parent_flag)
+        cmd.append("--phase3-canonical-plume-shadow")
 
     print(f"[run_scenario] scenario: {scenario}")
     print(f"[run_scenario] output:   {out_dir}")

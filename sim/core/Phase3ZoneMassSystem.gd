@@ -115,10 +115,24 @@ var _atomic_duplicate_bundle_count: int = 0
 var _atomic_invalid_bundle_count: int = 0
 var _canonical_exterior_boundary_by_room: Dictionary = {}
 var _canonical_exterior_boundary_context: Dictionary = {}
+var _persistent_zone_state: Dictionary = {}
+var _persistent_step_index: int = 0
+var _persistent_combustion_state: Dictionary = {}
+var _persistence_enabled_step: bool = false
+var _persistence_seeded_by_room: Dictionary = {}
+var _persistence_continuity_by_room: Dictionary = {}
+var _combustion_o2_probe_by_room: Dictionary = {}
+var _persistent_zone_collapse_by_room: Dictionary = {}
+var _canonical_combustion_by_room: Dictionary = {}
+var _persistent_lower_reseed_by_room: Dictionary = {}
 
 
 func reset() -> void:
 	_reset_step_state()
+	_persistent_zone_state.clear()
+	_persistent_step_index = 0
+	_persistent_combustion_state.clear()
+	_persistent_lower_reseed_by_room.clear()
 	_species_transit_reservoir.clear()
 	_species_transit_created_kg.clear()
 	_species_transit_delivered_kg.clear()
@@ -208,17 +222,351 @@ func _reset_step_state() -> void:
 	_atomic_invalid_bundle_count = 0
 	_canonical_exterior_boundary_by_room.clear()
 	_canonical_exterior_boundary_context.clear()
+	_persistence_enabled_step = false
+	_persistence_seeded_by_room.clear()
+	_persistence_continuity_by_room.clear()
+	_combustion_o2_probe_by_room.clear()
+	_persistent_zone_collapse_by_room.clear()
+	_canonical_combustion_by_room.clear()
 
 
-func begin_step(building) -> void:
+func begin_step(building, persistence_enabled: bool = false) -> void:
 	_reset_step_state()
+	_persistence_enabled_step = persistence_enabled
+	if not persistence_enabled:
+		_persistent_zone_state.clear()
+		_persistent_step_index = 0
+		_persistent_combustion_state.clear()
+		_persistent_lower_reseed_by_room.clear()
 	if building == null:
 		return
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
 		if room == null:
 			continue
-		_snapshots[str(room_id)] = _snapshot_room(room)
+		var room_key: String = str(room_id)
+		var legacy_snapshot: Dictionary = _snapshot_room(room)
+		if persistence_enabled and _persistent_zone_state.has(room_key):
+			var persisted: Dictionary = _persistent_zone_state[room_key].duplicate(true)
+			_snapshots[room_key] = persisted
+			_persistence_seeded_by_room[room_key] = false
+			_persistence_continuity_by_room[room_key] = _state_delta_summary(
+				persisted, _persistent_zone_state[room_key]
+			)
+		else:
+			_snapshots[room_key] = legacy_snapshot
+			_persistence_seeded_by_room[room_key] = persistence_enabled
+			_persistence_continuity_by_room[room_key] = _zero_state_delta_summary()
+
+
+## F3.2b0: registra que zona eligio realmente CombustionSystem, pero no cambia
+## HRR ni RoomModel. El candidato usa el inventario canonico pre-step.
+func record_combustion_o2_probe(building) -> void:
+	if not _persistence_enabled_step or building == null:
+		return
+	for raw_room_id in building.get_rooms().keys():
+		var room_id: int = int(raw_room_id)
+		var room: RoomModel = building.get_room(room_id)
+		var room_key: String = str(room_id)
+		if room == null or not _snapshots.has(room_key):
+			continue
+		var state: Dictionary = _snapshots[room_key]
+		var upper_o2: float = _zone_o2_fraction(state, ZONE_UPPER)
+		var lower_o2: float = _zone_o2_fraction(state, ZONE_LOWER)
+		var legacy_mode: String = room.fire_o2_mode_used
+		# F3.2b0 candidate policy: combustion reads and debits upper-zone O2.
+		# The live engine keeps its legacy selected mode until an authority gate.
+		var selected: Dictionary = _canonical_o2_for_selected_mode(
+			"upper", upper_o2, lower_o2, room
+		)
+		var canonical_ref: float = float(selected.get("o2_ref", 0.0))
+		var legacy_ref: float = clampf(room.fire_o2_ref, 0.0, 1.0)
+		_combustion_o2_probe_by_room[room_key] = {
+			"pre_upper_o2_fraction": upper_o2,
+			"pre_lower_o2_fraction": lower_o2,
+			"canonical_o2_ref": canonical_ref,
+			"legacy_o2_ref": legacy_ref,
+			"legacy_mode": legacy_mode,
+			"selected_zone_code": float(selected.get("zone_code", 0.0)),
+			"would_limit_flag": 1.0 if canonical_ref + 1.0e-12 < legacy_ref else 0.0,
+		}
+
+
+## Input read-only para el evaluador F3.2b1. Siempre sale del snapshot canonico
+## pre-step, nunca del RoomModel ya mutado por el tick legacy.
+func get_canonical_combustion_input(room_id: int) -> Dictionary:
+	var room_key: String = str(room_id)
+	if not _snapshots.has(room_key):
+		return {}
+	var state: Dictionary = _snapshots[room_key]
+	return {
+		"upper_gas_kg": maxf(0.0, float(state.get("upper_gas_kg", 0.0))),
+		"lower_gas_kg": maxf(0.0, float(state.get("lower_gas_kg", 0.0))),
+		"upper_energy_kj": maxf(0.0, float(state.get("upper_energy_kj", 0.0))),
+		"lower_energy_kj": maxf(0.0, float(state.get("lower_energy_kj", 0.0))),
+		"upper_o2_kg": maxf(0.0, float(state.get("upper_o2_kg", 0.0))),
+		"lower_o2_kg": maxf(0.0, float(state.get("lower_o2_kg", 0.0))),
+		"upper_o2_fraction": _zone_o2_fraction(state, ZONE_UPPER),
+		"lower_o2_fraction": _zone_o2_fraction(state, ZONE_LOWER),
+	}
+
+
+## Estado termodinamico pre-step para evaluadores canonicos. Deriva geometria
+## exclusivamente desde masa y energia persistentes; nunca lee la interfaz legacy.
+func get_canonical_thermodynamic_input(
+		room: RoomModel,
+		reference_temp_c: float
+	) -> Dictionary:
+	if room == null:
+		return {}
+	var canonical_input: Dictionary = get_canonical_combustion_input(room.id)
+	if canonical_input.is_empty():
+		return {}
+	var thermo: Dictionary = derive_canonical_thermodynamic_state(
+		float(canonical_input.get("upper_gas_kg", 0.0)),
+		float(canonical_input.get("lower_gas_kg", 0.0)),
+		float(canonical_input.get("upper_energy_kj", 0.0)),
+		float(canonical_input.get("lower_energy_kj", 0.0)),
+		room.volume_m3(),
+		room.floor_area_m2(),
+		room.height_m,
+		reference_temp_c
+	)
+	canonical_input.merge(thermo, true)
+	return canonical_input
+
+
+func get_persistent_combustion_state(room_id: int) -> Dictionary:
+	return _persistent_combustion_state.get(str(room_id), {}).duplicate(true)
+
+
+func stage_canonical_combustion_transaction(transaction: Dictionary) -> bool:
+	var room_id: int = int(transaction.get("room_id", EXTERIOR_ID))
+	var room_key: String = str(room_id)
+	if room_id == EXTERIOR_ID or not _snapshots.has(room_key):
+		return false
+	var record: Dictionary = transaction.duplicate(true)
+	record["atomic_accepted_fraction"] = 1.0
+	record["effective_fraction"] = clampf(
+		float(record.get("decision_fraction", 0.0)), 0.0, 1.0
+	)
+	record["requested_convective_energy_kj"] = 0.0
+	record["accepted_convective_energy_kj"] = 0.0
+	record["requested_plume_mass_kg"] = 0.0
+	record["accepted_plume_mass_kg"] = 0.0
+	record["requested_plume_energy_kj"] = 0.0
+	record["accepted_plume_energy_kj"] = 0.0
+	record["committed_fire_state"] = record.get(
+		"fire_state_proposed", {}
+	).duplicate(true)
+	_canonical_combustion_by_room[room_key] = record
+	return true
+
+
+func get_canonical_combustion_room_ids() -> Array[int]:
+	var room_ids: Array[int] = []
+	for room_key in _canonical_combustion_by_room.keys():
+		room_ids.append(int(room_key))
+	return room_ids
+
+
+## Completa una unica transaccion atomica con calor convectivo y plume observados.
+## El evaluador ya tomo una decision comun; este bundle solo impone inventario.
+func finalize_canonical_combustion_bundle(
+		room_id: int,
+		convective_flux: Dictionary,
+		plume_flux: Dictionary,
+		step_token: String
+	) -> bool:
+	var room_key: String = str(room_id)
+	if not _canonical_combustion_by_room.has(room_key):
+		return false
+	var record: Dictionary = _canonical_combustion_by_room[room_key].duplicate(true)
+	var decision_fraction: float = clampf(
+		float(record.get("decision_fraction", 0.0)), 0.0, 1.0
+	)
+	var heat_scale: float = clampf(float(record.get("heat_scale", 0.0)), 0.0, 1.0)
+	var plume_scale: float = clampf(float(record.get("plume_scale", 0.0)), 0.0, 1.0)
+	var requested_heat_kj: float = maxf(
+		0.0, float(convective_flux.get("sensible_enthalpy_kj", 0.0))
+	)
+	var accepted_heat_kj: float = requested_heat_kj * heat_scale
+	var requested_plume_mass_kg: float = maxf(
+		0.0, float(plume_flux.get("gas_mass_kg", 0.0))
+	)
+	var requested_plume_energy_kj: float = maxf(
+		0.0, float(plume_flux.get("sensible_enthalpy_kj", 0.0))
+	)
+	var canonical_input: Dictionary = get_canonical_combustion_input(room_id)
+	var lower_zone_available: bool = float(
+		canonical_input.get("lower_gas_kg", 0.0)
+	) > THERMO_MASS_EPS_KG
+	var accepted_plume_mass_kg: float = requested_plume_mass_kg * plume_scale \
+			if lower_zone_available else 0.0
+	var accepted_plume_energy_kj: float = requested_plume_energy_kj * plume_scale \
+			if lower_zone_available else 0.0
+	var accepted_plume_o2_kg: float = accepted_plume_mass_kg * clampf(
+		float(canonical_input.get("lower_o2_fraction", 0.0)), 0.0, 1.0
+	)
+	record["requested_convective_energy_kj"] = requested_heat_kj
+	record["accepted_convective_energy_kj"] = accepted_heat_kj
+	record["requested_plume_mass_kg"] = requested_plume_mass_kg
+	record["accepted_plume_mass_kg"] = accepted_plume_mass_kg
+	record["requested_plume_energy_kj"] = requested_plume_energy_kj
+	record["accepted_plume_energy_kj"] = accepted_plume_energy_kj
+
+	var routes: Array = []
+	var accepted_o2_kg: float = maxf(0.0, float(record.get("accepted_o2_kg", 0.0)))
+	var o2_source_zone: String = String(record.get("o2_source_zone", ZONE_UPPER))
+	if o2_source_zone not in [ZONE_UPPER, ZONE_LOWER]:
+		o2_source_zone = ZONE_UPPER
+	if accepted_o2_kg > 0.0:
+		routes.append(make_atomic_route(
+			"f32b1:%s:%d:o2" % [step_token, room_id],
+			"canonical_combustion_o2_sink",
+			room_id,
+			EXTERIOR_ID,
+			o2_source_zone,
+			o2_source_zone,
+			0.0,
+			0.0,
+			accepted_o2_kg,
+			{}
+		))
+	var accepted_species: Dictionary = _parcel_species(
+		record.get("accepted_species_kg", {})
+	)
+	if _sum_parcel_species(accepted_species) > 0.0:
+		routes.append(make_atomic_route(
+			"f32b1:%s:%d:species" % [step_token, room_id],
+			"canonical_combustion_species_source",
+			EXTERIOR_ID,
+			room_id,
+			ZONE_UPPER,
+			ZONE_UPPER,
+			0.0,
+			0.0,
+			0.0,
+			accepted_species
+		))
+	if accepted_heat_kj > 0.0:
+		routes.append(make_atomic_route(
+			"f32b1:%s:%d:heat" % [step_token, room_id],
+			"canonical_combustion_convective_heat",
+			EXTERIOR_ID,
+			room_id,
+			ZONE_UPPER,
+			ZONE_UPPER,
+			0.0,
+			accepted_heat_kj,
+			0.0,
+			{}
+		))
+	if accepted_plume_mass_kg > 0.0 or accepted_plume_energy_kj > 0.0:
+		routes.append(make_atomic_route(
+			"f32b1:%s:%d:plume" % [step_token, room_id],
+			"canonical_combustion_plume",
+			room_id,
+			room_id,
+			ZONE_LOWER,
+			ZONE_UPPER,
+			accepted_plume_mass_kg,
+			accepted_plume_energy_kj,
+			accepted_plume_o2_kg,
+			{}
+		))
+
+	if routes.is_empty():
+		record["atomic_accepted_fraction"] = 1.0
+		record["effective_fraction"] = decision_fraction
+		record["committed_fire_state"] = record.get(
+			"fire_state_proposed", {}
+		).duplicate(true)
+		_canonical_combustion_by_room[room_key] = record
+		return true
+
+	var bundle: Dictionary = make_atomic_bundle(
+		"f32b1:%s:%d" % [step_token, room_id],
+		"canonical_combustion_transaction",
+		routes,
+		{
+			"kind": "canonical_combustion",
+			"room_id": room_id,
+			"transport_family": "canonical_combustion",
+		}
+	)
+	_canonical_combustion_by_room[room_key] = record
+	return add_atomic_bundle(bundle)
+
+
+## Una zona sin masa no puede conservar energia ni especies independientes.
+## Fusiona ese inventario en la zona restante sin cambiar los totales del room.
+func _collapse_degenerate_zones(shadow: Dictionary) -> void:
+	for room_key in shadow.keys():
+		var state: Dictionary = shadow[room_key]
+		var upper_mass_kg: float = maxf(0.0, float(state.get("upper_gas_kg", 0.0)))
+		var lower_mass_kg: float = maxf(0.0, float(state.get("lower_gas_kg", 0.0)))
+		var source_zone: String = ""
+		var destination_zone: String = ""
+		if lower_mass_kg <= THERMO_MASS_EPS_KG and upper_mass_kg > THERMO_MASS_EPS_KG:
+			source_zone = ZONE_LOWER
+			destination_zone = ZONE_UPPER
+		elif upper_mass_kg <= THERMO_MASS_EPS_KG and lower_mass_kg > THERMO_MASS_EPS_KG:
+			source_zone = ZONE_UPPER
+			destination_zone = ZONE_LOWER
+		else:
+			continue
+		var before: Dictionary = state.duplicate(true)
+		state[destination_zone + "_gas_kg"] = float(
+			state.get(destination_zone + "_gas_kg", 0.0)
+		) + float(state.get(source_zone + "_gas_kg", 0.0))
+		state[destination_zone + "_energy_kj"] = float(
+			state.get(destination_zone + "_energy_kj", 0.0)
+		) + float(state.get(source_zone + "_energy_kj", 0.0))
+		state[destination_zone + "_o2_kg"] = float(
+			state.get(destination_zone + "_o2_kg", 0.0)
+		) + float(state.get(source_zone + "_o2_kg", 0.0))
+		var destination_species: Dictionary = state.get(
+			destination_zone + "_species_kg", {}
+		).duplicate(true)
+		var source_species: Dictionary = state.get(source_zone + "_species_kg", {})
+		for species_name in PARCEL_SPECIES:
+			destination_species[species_name] = float(
+				destination_species.get(species_name, 0.0)
+			) + float(source_species.get(species_name, 0.0))
+		state[destination_zone + "_species_kg"] = destination_species
+		state[source_zone + "_gas_kg"] = 0.0
+		state[source_zone + "_energy_kj"] = 0.0
+		state[source_zone + "_o2_kg"] = 0.0
+		state[source_zone + "_species_kg"] = _empty_species_inventory()
+		shadow[room_key] = state
+		var delta: Dictionary = _state_delta_summary(state, before)
+		_persistent_zone_collapse_by_room[room_key] = {
+			"count": 1.0,
+			"source_zone_code": 1.0 if source_zone == ZONE_UPPER else 2.0,
+			"mass_residual_kg": float(delta.get("mass_kg", 0.0)),
+			"energy_residual_kj": float(delta.get("energy_kj", 0.0)),
+			"o2_residual_kg": float(delta.get("o2_kg", 0.0)),
+			"species_residual_kg": float(delta.get("species_kg", 0.0)),
+		}
+
+
+func _new_zone_collapse_record() -> Dictionary:
+	return {
+		"count": 0.0,
+		"source_zone_code": 0.0,
+		"mass_residual_kg": 0.0,
+		"energy_residual_kj": 0.0,
+		"o2_residual_kg": 0.0,
+		"species_residual_kg": 0.0,
+	}
+
+
+func _empty_species_inventory() -> Dictionary:
+	var result: Dictionary = {}
+	for species_name in PARCEL_SPECIES:
+		result[species_name] = 0.0
+	return result
 
 
 ## F3.1e: cierre termodinamico puro. Masa y energia son entradas autoritativas;
@@ -318,7 +666,8 @@ func queue_canonical_exterior_boundary_requests(
 		outside_o2: float,
 		closed_leakage_area_m2: float,
 		pressure_threshold_pa: float,
-		discharge_coeff: float = EXTERIOR_DISCHARGE_COEFF
+		discharge_coeff: float = EXTERIOR_DISCHARGE_COEFF,
+		pressure_relaxation_enabled: bool = false
 	) -> void:
 	if building == null or dt <= 0.0 or discharge_coeff <= 0.0:
 		return
@@ -329,6 +678,7 @@ func queue_canonical_exterior_boundary_requests(
 		"closed_leakage_area_m2": closed_leakage_area_m2,
 		"pressure_threshold_pa": pressure_threshold_pa,
 		"discharge_coeff": discharge_coeff,
+		"pressure_relaxation_enabled": pressure_relaxation_enabled,
 	}
 
 
@@ -374,6 +724,7 @@ func _apply_canonical_exterior_boundary_requests(
 		var pressure_gauge_pa: float = float(thermo.get("pressure_gauge_pa", 0.0))
 		if absf(pressure_gauge_pa) < maxf(0.0, pressure_threshold_pa):
 			continue
+		var outflow: bool = pressure_gauge_pa > 0.0
 		var area_by_zone: Dictionary = _canonical_exterior_area_by_zone(
 			building,
 			room_id,
@@ -384,6 +735,26 @@ func _apply_canonical_exterior_boundary_requests(
 		if float(area_by_zone.get(ZONE_UPPER, 0.0)) \
 				+ float(area_by_zone.get(ZONE_LOWER, 0.0)) <= 0.0:
 			continue
+		var pressure_relaxation_enabled: bool = bool(
+			_canonical_exterior_boundary_context.get(
+				"pressure_relaxation_enabled", false
+			)
+		)
+		# F3.2b2: fresh exterior inflow recreates a lower layer when the
+		# persistent state has reached the conservative one-zone upper limit.
+		# Routing the inflow back to upper would make that collapse irreversible.
+		if pressure_relaxation_enabled and not outflow \
+				and float(area_by_zone.get("actual_open_area_m2", 0.0)) > 1.0e-12 \
+				and float(state.get("lower_gas_kg", 0.0)) <= THERMO_MASS_EPS_KG \
+				and float(state.get("upper_gas_kg", 0.0)) > THERMO_MASS_EPS_KG:
+			var total_exterior_area_m2: float = maxf(
+				0.0,
+				float(area_by_zone.get(ZONE_UPPER, 0.0))
+						+ float(area_by_zone.get(ZONE_LOWER, 0.0))
+			)
+			area_by_zone[ZONE_UPPER] = 0.0
+			area_by_zone[ZONE_LOWER] = total_exterior_area_m2
+			record["degenerate_lower_reseed_flag"] = 1.0
 
 		var routes: Array = []
 		var requested_totals: Dictionary = {
@@ -392,7 +763,6 @@ func _apply_canonical_exterior_boundary_requests(
 			"o2_kg": 0.0,
 			"species_kg": 0.0,
 		}
-		var outflow: bool = pressure_gauge_pa > 0.0
 		var active_zone_count: int = 0
 		var source_zone_code: int = 0
 		for zone_name in [ZONE_UPPER, ZONE_LOWER]:
@@ -460,8 +830,54 @@ func _apply_canonical_exterior_boundary_requests(
 			) + _sum_parcel_species(species_kg)
 		if routes.is_empty():
 			continue
+		var raw_requested_totals: Dictionary = requested_totals.duplicate(true)
+		var relaxation: Dictionary = compute_exterior_pressure_relaxation(
+			pressure_gauge_pa,
+			float(raw_requested_totals.get("gas_mass_kg", 0.0)),
+			float(raw_requested_totals.get("sensible_enthalpy_kj", 0.0)),
+			outflow,
+			room.volume_m3(),
+			reference_temp_c
+		) if pressure_relaxation_enabled else {
+			"fraction": 1.0,
+			"full_delta_pa": 0.0,
+			"limited_delta_pa": 0.0,
+			"predicted_post_pa": pressure_gauge_pa,
+			"crossing_prevented_flag": 0.0,
+		}
+		var equilibrium_fraction: float = clampf(
+			float(relaxation.get("fraction", 1.0)), 0.0, 1.0
+		)
+		if equilibrium_fraction < 1.0 - 1.0e-12:
+			routes = _scaled_atomic_routes(routes, equilibrium_fraction)
+			for quantity_name in [
+				"gas_mass_kg", "sensible_enthalpy_kj", "o2_kg", "species_kg"
+			]:
+				requested_totals[quantity_name] = float(
+					raw_requested_totals.get(quantity_name, 0.0)
+				) * equilibrium_fraction
 		if outflow and active_zone_count > 1:
 			source_zone_code = 3
+		record["relaxation_enabled_flag"] = 1.0 if pressure_relaxation_enabled else 0.0
+		record["raw_requested_gas_kg"] = float(
+			raw_requested_totals.get("gas_mass_kg", 0.0)
+		)
+		record["raw_requested_energy_kj"] = float(
+			raw_requested_totals.get("sensible_enthalpy_kj", 0.0)
+		)
+		record["pressure_equilibrium_fraction"] = equilibrium_fraction
+		record["pressure_full_delta_pa"] = float(
+			relaxation.get("full_delta_pa", 0.0)
+		)
+		record["pressure_limited_delta_pa"] = float(
+			relaxation.get("limited_delta_pa", 0.0)
+		)
+		record["pressure_predicted_post_pa"] = float(
+			relaxation.get("predicted_post_pa", pressure_gauge_pa)
+		)
+		record["pressure_crossing_prevented_flag"] = float(
+			relaxation.get("crossing_prevented_flag", 0.0)
+		)
 		record["direction"] = 1.0 if outflow else -1.0
 		record["source_zone_code"] = float(source_zone_code)
 		record["event_count"] = 1.0
@@ -514,7 +930,11 @@ func _canonical_exterior_area_by_zone(
 		room_height_m: float,
 		closed_leakage_area_m2: float
 	) -> Dictionary:
-	var areas: Dictionary = {ZONE_UPPER: 0.0, ZONE_LOWER: 0.0}
+	var areas: Dictionary = {
+		ZONE_UPPER: 0.0,
+		ZONE_LOWER: 0.0,
+		"actual_open_area_m2": 0.0,
+	}
 	for op in building.get_openings():
 		if op == null or not op.is_exterior_opening():
 			continue
@@ -530,6 +950,10 @@ func _canonical_exterior_area_by_zone(
 			smooth_fraction = op.open_fraction
 		var area_m2: float = maxf(0.0, op.width_m * op.height_m) \
 				* clampf(smooth_fraction, 0.0, 1.0)
+		if area_m2 > 1.0e-12:
+			areas["actual_open_area_m2"] = float(
+				areas.get("actual_open_area_m2", 0.0)
+			) + area_m2
 		if area_m2 <= 1.0e-12:
 			area_m2 = maxf(0.0, closed_leakage_area_m2)
 		if area_m2 <= 0.0:
@@ -545,6 +969,73 @@ func _canonical_exterior_area_by_zone(
 		areas[ZONE_UPPER] = float(areas[ZONE_UPPER]) \
 				+ area_m2 * upper_span_m / span_m
 	return areas
+
+
+## F3.2b2: fraction of one explicit orifice step that reaches, but never
+## crosses, ambient pressure. The EOS is linear in total gas mass and sensible
+## energy, so this is an exact equilibrium bound rather than an empirical cap.
+func compute_exterior_pressure_relaxation(
+		pressure_gauge_pa: float,
+		requested_gas_kg: float,
+		requested_energy_kj: float,
+		outflow: bool,
+		room_volume_m3: float,
+		reference_temp_c: float
+	) -> Dictionary:
+	var result: Dictionary = {
+		"fraction": 1.0,
+		"full_delta_pa": 0.0,
+		"limited_delta_pa": 0.0,
+		"predicted_post_pa": pressure_gauge_pa,
+		"crossing_prevented_flag": 0.0,
+	}
+	var reference_temp_k: float = reference_temp_c + 273.15
+	if room_volume_m3 <= 0.0 or reference_temp_k <= 0.0 \
+			or requested_gas_kg < 0.0 or requested_energy_kj < 0.0:
+		return result
+	var gas_constant_model: float = AIR_PRESSURE_REF_PA \
+			/ (AIR_DENSITY_REF_KG_M3 * reference_temp_k)
+	var direction_sign: float = -1.0 if outflow else 1.0
+	var full_delta_pa: float = direction_sign * gas_constant_model \
+			/ room_volume_m3 * (
+				requested_gas_kg * reference_temp_k
+						+ requested_energy_kj / AIR_CP_KJ_KG_K
+			)
+	result["full_delta_pa"] = full_delta_pa
+	result["limited_delta_pa"] = full_delta_pa
+	result["predicted_post_pa"] = pressure_gauge_pa + full_delta_pa
+	if absf(full_delta_pa) <= 1.0e-12 \
+			or pressure_gauge_pa * full_delta_pa >= 0.0:
+		return result
+	var full_post_pa: float = pressure_gauge_pa + full_delta_pa
+	if pressure_gauge_pa * full_post_pa >= 0.0:
+		return result
+	var equilibrium_fraction: float = clampf(
+		-pressure_gauge_pa / full_delta_pa, 0.0, 1.0
+	)
+	result["fraction"] = equilibrium_fraction
+	result["limited_delta_pa"] = full_delta_pa * equilibrium_fraction
+	result["predicted_post_pa"] = pressure_gauge_pa \
+			+ float(result["limited_delta_pa"])
+	result["crossing_prevented_flag"] = 1.0
+	return result
+
+
+func _scaled_atomic_routes(routes: Array, fraction: float) -> Array:
+	var scaled_routes: Array = []
+	var accepted_fraction: float = clampf(fraction, 0.0, 1.0)
+	for raw_route in routes:
+		var route: Dictionary = raw_route.duplicate(true)
+		for quantity_name in ["gas_mass_kg", "sensible_enthalpy_kj", "o2_kg"]:
+			route[quantity_name] = float(route.get(quantity_name, 0.0)) \
+					* accepted_fraction
+		var species_kg: Dictionary = _parcel_species(route.get("species_kg", {}))
+		for species_name in PARCEL_SPECIES:
+			species_kg[species_name] = float(species_kg.get(species_name, 0.0)) \
+					* accepted_fraction
+		route["species_kg"] = species_kg
+		scaled_routes.append(route)
+	return scaled_routes
 
 
 func _new_canonical_exterior_boundary_record() -> Dictionary:
@@ -572,6 +1063,16 @@ func _new_canonical_exterior_boundary_record() -> Dictionary:
 		"energy_residual_kj": 0.0,
 		"o2_residual_kg": 0.0,
 		"species_residual_kg": 0.0,
+		"relaxation_enabled_flag": 0.0,
+		"raw_requested_gas_kg": 0.0,
+		"raw_requested_energy_kj": 0.0,
+		"pressure_equilibrium_fraction": 1.0,
+		"pressure_full_delta_pa": 0.0,
+		"pressure_limited_delta_pa": 0.0,
+		"pressure_predicted_post_pa": 0.0,
+		"pressure_crossing_prevented_flag": 0.0,
+		"degenerate_lower_reseed_flag": 0.0,
+		"degenerate_lower_reseed_mass_kg": 0.0,
 	}
 
 
@@ -2157,6 +2658,8 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 				)
 	if building == null:
 		return
+	if _persistence_enabled_step:
+		_collapse_degenerate_zones(shadow)
 	if not _canonical_exterior_boundary_context.is_empty():
 		_apply_canonical_exterior_boundary_requests(
 			shadow,
@@ -2248,6 +2751,8 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 		_vertical_debited_species_kg_step.get("hcn", 0.0)
 	) - float(_vertical_credited_species_kg_step.get("hcn", 0.0))
 	var semantic_summary: Dictionary = _semantic_conflict_summary()
+	var persistence_step_index: int = _persistent_step_index + 1 \
+			if _persistence_enabled_step else 0
 	for room_key in shadow.keys():
 		var room_id: int = int(room_key)
 		var room: RoomModel = building.get_room(room_id)
@@ -2279,6 +2784,40 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 		var exterior_boundary: Dictionary = _canonical_exterior_boundary_by_room.get(
 			room_key, _new_canonical_exterior_boundary_record()
 		)
+		var lower_reseed_history: Dictionary = _persistent_lower_reseed_by_room.get(
+			room_key,
+			{"count": 0.0, "mass_kg": 0.0, "first_step_index": 0.0}
+		)
+		var continuity: Dictionary = _persistence_continuity_by_room.get(
+			room_key, _zero_state_delta_summary()
+		)
+		var combustion_probe: Dictionary = _combustion_o2_probe_by_room.get(room_key, {})
+		var zone_collapse: Dictionary = _persistent_zone_collapse_by_room.get(
+			room_key, _new_zone_collapse_record()
+		)
+		var canonical_combustion: Dictionary = _canonical_combustion_by_room.get(
+			room_key, {}
+		)
+		var canonical_combustion_atomic_fraction: float = clampf(
+			float(canonical_combustion.get("atomic_accepted_fraction", 1.0)), 0.0, 1.0
+		)
+		var canonical_combustion_state: Dictionary = canonical_combustion.get(
+			"committed_fire_state", {}
+		)
+		var combustion_o2_requested_kg: float = _sum_room_cause_prefix_o2(
+			room_id, "combustion_o2_"
+		)
+		var combustion_o2_rejected_kg: float = float(
+			rejected_combustion_o2_by_room.get(room_key, 0.0)
+		)
+		var combustion_o2_accepted_kg: float = maxf(
+			0.0, combustion_o2_requested_kg - combustion_o2_rejected_kg
+		)
+		var combustion_o2_accepted_fraction: float = 1.0
+		if combustion_o2_requested_kg > THERMO_MASS_EPS_KG:
+			combustion_o2_accepted_fraction = clampf(
+				combustion_o2_accepted_kg / combustion_o2_requested_kg, 0.0, 1.0
+			)
 		_results[room_key] = {
 			"phase3_shadow_upper_gas_kg": float(state.get("upper_gas_kg", 0.0)),
 			"phase3_shadow_lower_gas_kg": float(state.get("lower_gas_kg", 0.0)),
@@ -2319,6 +2858,157 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"phase3_shadow_legacy_pressure_divergence_pa": float(
 				thermo.get("pressure_gauge_pa", 0.0)
 			) - room.overpressure_pa,
+			"phase3_shadow_persistent_step_index": float(persistence_step_index),
+			"phase3_shadow_persistent_seeded_from_legacy_flag": 1.0 \
+					if bool(_persistence_seeded_by_room.get(room_key, false)) else 0.0,
+			"phase3_shadow_persistent_continuity_mass_residual_kg": float(
+				continuity.get("mass_kg", 0.0)
+			),
+			"phase3_shadow_persistent_continuity_energy_residual_kj": float(
+				continuity.get("energy_kj", 0.0)
+			),
+			"phase3_shadow_persistent_continuity_o2_residual_kg": float(
+				continuity.get("o2_kg", 0.0)
+			),
+			"phase3_shadow_persistent_continuity_species_residual_kg": float(
+				continuity.get("species_kg", 0.0)
+			),
+			"phase3_shadow_persistent_pre_upper_o2_fraction": float(
+				combustion_probe.get(
+					"pre_upper_o2_fraction", _zone_o2_fraction(_snapshots[room_key], ZONE_UPPER)
+				)
+			),
+			"phase3_shadow_persistent_pre_lower_o2_fraction": float(
+				combustion_probe.get(
+					"pre_lower_o2_fraction", _zone_o2_fraction(_snapshots[room_key], ZONE_LOWER)
+				)
+			),
+			"phase3_shadow_persistent_post_upper_o2_fraction": _zone_o2_fraction(
+				state, ZONE_UPPER
+			),
+			"phase3_shadow_persistent_post_lower_o2_fraction": _zone_o2_fraction(
+				state, ZONE_LOWER
+			),
+			"phase3_shadow_persistent_combustion_o2_ref": float(
+				combustion_probe.get("canonical_o2_ref", 0.0)
+			),
+			"phase3_shadow_persistent_legacy_combustion_o2_ref": float(
+				combustion_probe.get("legacy_o2_ref", 0.0)
+			),
+			"phase3_shadow_persistent_combustion_o2_delta": float(
+				combustion_probe.get("canonical_o2_ref", 0.0)
+			) - float(combustion_probe.get("legacy_o2_ref", 0.0)),
+			"phase3_shadow_persistent_combustion_zone_code": float(
+				combustion_probe.get("selected_zone_code", 0.0)
+			),
+			"phase3_shadow_persistent_combustion_o2_requested_kg": \
+					combustion_o2_requested_kg,
+			"phase3_shadow_persistent_combustion_o2_accepted_kg": \
+					combustion_o2_accepted_kg,
+			"phase3_shadow_persistent_combustion_o2_rejected_kg": \
+					combustion_o2_rejected_kg,
+			"phase3_shadow_persistent_combustion_o2_accepted_fraction": \
+					combustion_o2_accepted_fraction,
+			"phase3_shadow_persistent_combustion_would_limit_flag": float(
+				combustion_probe.get("would_limit_flag", 0.0)
+			),
+			"phase3_shadow_persistent_zone_collapse_count": float(
+				zone_collapse.get("count", 0.0)
+			),
+			"phase3_shadow_persistent_zone_collapse_source_code": float(
+				zone_collapse.get("source_zone_code", 0.0)
+			),
+			"phase3_shadow_persistent_zone_collapse_mass_residual_kg": float(
+				zone_collapse.get("mass_residual_kg", 0.0)
+			),
+			"phase3_shadow_persistent_zone_collapse_energy_residual_kj": float(
+				zone_collapse.get("energy_residual_kj", 0.0)
+			),
+			"phase3_shadow_persistent_zone_collapse_o2_residual_kg": float(
+				zone_collapse.get("o2_residual_kg", 0.0)
+			),
+			"phase3_shadow_persistent_zone_collapse_species_residual_kg": float(
+				zone_collapse.get("species_residual_kg", 0.0)
+			),
+			"phase3_shadow_combustion_transaction_active_flag": 1.0 \
+					if not canonical_combustion.is_empty() else 0.0,
+			"phase3_shadow_combustion_canonical_o2_ref": float(
+				canonical_combustion.get("canonical_o2_ref", 0.0)
+			),
+			"phase3_shadow_combustion_o2_source_zone_code": float(
+				canonical_combustion.get("o2_source_zone_code", 0.0)
+			),
+			"phase3_shadow_combustion_extinction_o2_limit": float(
+				canonical_combustion.get("extinction_o2_limit", 0.0)
+			),
+			"phase3_shadow_combustion_canonical_o2_hrr_factor": float(
+				canonical_combustion.get("canonical_o2_hrr_factor", 0.0)
+			),
+			"phase3_shadow_combustion_legacy_o2_hrr_factor": float(
+				canonical_combustion.get("legacy_o2_hrr_factor", 0.0)
+			),
+			"phase3_shadow_combustion_legacy_hrr_kw": float(
+				canonical_combustion.get("legacy_hrr_kw", 0.0)
+			),
+			"phase3_shadow_combustion_accepted_hrr_kw": float(
+				canonical_combustion.get("accepted_hrr_kw", 0.0)
+			) * canonical_combustion_atomic_fraction,
+			"phase3_shadow_combustion_decision_fraction": float(
+				canonical_combustion.get("decision_fraction", 0.0)
+			),
+			"phase3_shadow_combustion_atomic_fraction": \
+					canonical_combustion_atomic_fraction,
+			"phase3_shadow_combustion_effective_fraction": float(
+				canonical_combustion.get("effective_fraction", 0.0)
+			),
+			"phase3_shadow_combustion_requested_o2_kg": float(
+				canonical_combustion.get("requested_o2_kg", 0.0)
+			),
+			"phase3_shadow_combustion_accepted_o2_kg": float(
+				canonical_combustion.get("accepted_o2_kg", 0.0)
+			) * canonical_combustion_atomic_fraction,
+			"phase3_shadow_combustion_requested_fuel_MJ": float(
+				canonical_combustion.get("requested_fuel_MJ", 0.0)
+			),
+			"phase3_shadow_combustion_accepted_fuel_MJ": float(
+				canonical_combustion.get("accepted_fuel_MJ", 0.0)
+			) * canonical_combustion_atomic_fraction,
+			"phase3_shadow_combustion_requested_species_kg": _sum_parcel_species(
+				canonical_combustion.get("requested_species_kg", {})
+			),
+			"phase3_shadow_combustion_accepted_species_kg": _sum_parcel_species(
+				canonical_combustion.get("accepted_species_kg", {})
+			) * canonical_combustion_atomic_fraction,
+			"phase3_shadow_combustion_requested_convective_energy_kj": float(
+				canonical_combustion.get("requested_convective_energy_kj", 0.0)
+			),
+			"phase3_shadow_combustion_accepted_convective_energy_kj": float(
+				canonical_combustion.get("accepted_convective_energy_kj", 0.0)
+			) * canonical_combustion_atomic_fraction,
+			"phase3_shadow_combustion_requested_plume_mass_kg": float(
+				canonical_combustion.get("requested_plume_mass_kg", 0.0)
+			),
+			"phase3_shadow_combustion_accepted_plume_mass_kg": float(
+				canonical_combustion.get("accepted_plume_mass_kg", 0.0)
+			) * canonical_combustion_atomic_fraction,
+			"phase3_shadow_combustion_remaining_fuel_MJ": float(
+				canonical_combustion_state.get("remaining_fuel_MJ", 0.0)
+			),
+			"phase3_shadow_combustion_retained_unburned_MJ": float(
+				canonical_combustion_state.get("retained_unburned_MJ", 0.0)
+			),
+			"phase3_shadow_combustion_zero_o2_flame_flag": float(
+				canonical_combustion.get("zero_o2_flame_flag", 0.0)
+			),
+			"phase3_shadow_combustion_o2_residual_kg": float(
+				canonical_combustion.get("o2_residual_kg", 0.0)
+			),
+			"phase3_shadow_combustion_energy_residual_kj": float(
+				canonical_combustion.get("energy_residual_kj", 0.0)
+			),
+			"phase3_shadow_combustion_species_residual_kg": float(
+				canonical_combustion.get("species_residual_kg", 0.0)
+			),
 			"phase3_shadow_exterior_pressure_pre_pa": float(
 				exterior_boundary.get("pressure_pre_pa", 0.0)
 			),
@@ -2399,6 +3089,45 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			),
 			"phase3_shadow_exterior_species_residual_kg": float(
 				exterior_boundary.get("species_residual_kg", 0.0)
+			),
+			"phase3_shadow_exterior_relaxation_enabled_flag": float(
+				exterior_boundary.get("relaxation_enabled_flag", 0.0)
+			),
+			"phase3_shadow_exterior_raw_requested_gas_kg": float(
+				exterior_boundary.get("raw_requested_gas_kg", 0.0)
+			),
+			"phase3_shadow_exterior_raw_requested_energy_kj": float(
+				exterior_boundary.get("raw_requested_energy_kj", 0.0)
+			),
+			"phase3_shadow_exterior_pressure_equilibrium_fraction": float(
+				exterior_boundary.get("pressure_equilibrium_fraction", 1.0)
+			),
+			"phase3_shadow_exterior_pressure_full_delta_pa": float(
+				exterior_boundary.get("pressure_full_delta_pa", 0.0)
+			),
+			"phase3_shadow_exterior_pressure_limited_delta_pa": float(
+				exterior_boundary.get("pressure_limited_delta_pa", 0.0)
+			),
+			"phase3_shadow_exterior_pressure_predicted_post_pa": float(
+				exterior_boundary.get("pressure_predicted_post_pa", 0.0)
+			),
+			"phase3_shadow_exterior_pressure_crossing_prevented_flag": float(
+				exterior_boundary.get("pressure_crossing_prevented_flag", 0.0)
+			),
+			"phase3_shadow_exterior_degenerate_lower_reseed_flag": float(
+				exterior_boundary.get("degenerate_lower_reseed_flag", 0.0)
+			),
+			"phase3_shadow_exterior_degenerate_lower_reseed_mass_kg": float(
+				exterior_boundary.get("degenerate_lower_reseed_mass_kg", 0.0)
+			),
+			"phase3_shadow_exterior_lower_reseed_count_total": float(
+				lower_reseed_history.get("count", 0.0)
+			),
+			"phase3_shadow_exterior_lower_reseed_mass_kg_total": float(
+				lower_reseed_history.get("mass_kg", 0.0)
+			),
+			"phase3_shadow_exterior_lower_reseed_first_step_index": float(
+				lower_reseed_history.get("first_step_index", 0.0)
 			),
 			"phase3_shadow_request_count": _count_room_requests(room_id),
 			"phase3_shadow_plume_mass_request_kg": _sum_room_cause_mass(
@@ -2822,6 +3551,16 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"phase3_shadow_co_oxidation_legacy_lower_co2_kg_step": \
 					_co_oxidation_legacy_lower_co2_kg,
 		}
+	if _persistence_enabled_step:
+		_persistent_zone_state = shadow.duplicate(true)
+		_persistent_step_index = persistence_step_index
+		for combustion_room_key in _canonical_combustion_by_room.keys():
+			var combustion_record: Dictionary = _canonical_combustion_by_room[
+				combustion_room_key
+			]
+			_persistent_combustion_state[combustion_room_key] = combustion_record.get(
+				"committed_fire_state", {}
+			).duplicate(true)
 
 
 func get_results() -> Dictionary:
@@ -3090,6 +3829,55 @@ func _apply_atomic_route(
 func _record_atomic_bundle_result(bundle: Dictionary, accepted_fraction: float) -> void:
 	var metadata: Dictionary = bundle.get("metadata", {})
 	var result_kind: String = String(metadata.get("kind", ""))
+	if result_kind == "canonical_combustion":
+		var combustion_room_key: String = str(int(metadata.get("room_id", EXTERIOR_ID)))
+		if not _canonical_combustion_by_room.has(combustion_room_key):
+			return
+		var combustion_record: Dictionary = _canonical_combustion_by_room[
+			combustion_room_key
+		].duplicate(true)
+		var atomic_fraction: float = clampf(accepted_fraction, 0.0, 1.0)
+		combustion_record["atomic_accepted_fraction"] = atomic_fraction
+		combustion_record["effective_fraction"] = clampf(
+			float(combustion_record.get("decision_fraction", 0.0)) * atomic_fraction,
+			0.0,
+			1.0
+		)
+		var routed_o2_kg: float = 0.0
+		var routed_energy_kj: float = 0.0
+		var routed_species_kg: float = 0.0
+		for raw_route in bundle.get("routes", []):
+			var route: Dictionary = raw_route
+			var route_cause: String = String(route.get("cause", ""))
+			if route_cause == "canonical_combustion_o2_sink":
+				routed_o2_kg += float(route.get("o2_kg", 0.0)) * atomic_fraction
+			elif route_cause == "canonical_combustion_convective_heat":
+				routed_energy_kj += float(
+					route.get("sensible_enthalpy_kj", 0.0)
+				) * atomic_fraction
+			elif route_cause == "canonical_combustion_species_source":
+				routed_species_kg += _sum_parcel_species(
+					route.get("species_kg", {})
+				) * atomic_fraction
+		combustion_record["routed_o2_kg"] = routed_o2_kg
+		combustion_record["routed_convective_energy_kj"] = routed_energy_kj
+		combustion_record["routed_species_kg"] = routed_species_kg
+		combustion_record["o2_residual_kg"] = float(
+			combustion_record.get("accepted_o2_kg", 0.0)
+		) * atomic_fraction - routed_o2_kg
+		combustion_record["energy_residual_kj"] = float(
+			combustion_record.get("accepted_convective_energy_kj", 0.0)
+		) * atomic_fraction - routed_energy_kj
+		combustion_record["species_residual_kg"] = _sum_parcel_species(
+			combustion_record.get("accepted_species_kg", {})
+		) * atomic_fraction - routed_species_kg
+		combustion_record["committed_fire_state"] = _interpolate_combustion_state(
+			combustion_record.get("fire_state_before", {}),
+			combustion_record.get("fire_state_proposed", {}),
+			atomic_fraction
+		)
+		_canonical_combustion_by_room[combustion_room_key] = combustion_record
+		return
 	if result_kind == "canonical_exterior_boundary":
 		var room_key: String = str(int(metadata.get("room_id", EXTERIOR_ID)))
 		var record: Dictionary = _canonical_exterior_boundary_by_room.get(
@@ -3115,6 +3903,23 @@ func _record_atomic_bundle_result(bundle: Dictionary, accepted_fraction: float) 
 			record[quantity_name + "_residual" + suffix] = requested_value \
 					- float(record["accepted_" + quantity_name + suffix]) \
 					- float(record["rejected_" + quantity_name + suffix])
+		record["pressure_predicted_post_pa"] = float(
+			record.get("pressure_pre_pa", 0.0)
+		) + float(record.get("pressure_limited_delta_pa", 0.0)) * accepted
+		if float(record.get("degenerate_lower_reseed_flag", 0.0)) > 0.5:
+			record["degenerate_lower_reseed_mass_kg"] = float(
+				record.get("accepted_gas_kg", 0.0)
+			)
+			var history: Dictionary = _persistent_lower_reseed_by_room.get(
+				room_key,
+				{"count": 0.0, "mass_kg": 0.0, "first_step_index": 0.0}
+			).duplicate(true)
+			if float(history.get("count", 0.0)) <= 0.0:
+				history["first_step_index"] = float(_persistent_step_index + 1)
+			history["count"] = float(history.get("count", 0.0)) + 1.0
+			history["mass_kg"] = float(history.get("mass_kg", 0.0)) \
+					+ float(record.get("degenerate_lower_reseed_mass_kg", 0.0))
+			_persistent_lower_reseed_by_room[room_key] = history
 		_canonical_exterior_boundary_by_room[room_key] = record
 		return
 	if result_kind == "delayed_parcel_carve":
@@ -3153,6 +3958,28 @@ func _record_atomic_bundle_result(bundle: Dictionary, accepted_fraction: float) 
 	_co_oxidation_o2_rejected_kg += requested_o2_kg - accepted_o2_kg
 	_co_oxidation_oxygen_residual_kg += accepted_co_kg * (16.0 / 28.0) \
 			- accepted_o2_kg
+
+
+func _interpolate_combustion_state(
+		before: Dictionary,
+		proposed: Dictionary,
+		fraction: float
+	) -> Dictionary:
+	var accepted: float = clampf(fraction, 0.0, 1.0)
+	var result: Dictionary = before.duplicate(true)
+	for key in [
+		"hrr_kw", "hrr_target_kw", "o2_hrr_factor", "remaining_fuel_MJ",
+		"retained_unburned_MJ", "fire_time_s", "fire_dormant_time_s"
+	]:
+		result[key] = lerpf(
+			float(before.get(key, proposed.get(key, 0.0))),
+			float(proposed.get(key, before.get(key, 0.0))),
+			accepted
+		)
+	for key in ["active_flag", "extinguished_flag"]:
+		result[key] = proposed.get(key, before.get(key, false)) \
+				if accepted > 0.0 else before.get(key, false)
+	return result
 
 
 func _apply_request(
@@ -3394,3 +4221,64 @@ func _state_mass(state: Dictionary) -> float:
 
 func _state_energy(state: Dictionary) -> float:
 	return float(state.get("upper_energy_kj", 0.0)) + float(state.get("lower_energy_kj", 0.0))
+
+
+func _state_o2(state: Dictionary) -> float:
+	return float(state.get("upper_o2_kg", 0.0)) + float(state.get("lower_o2_kg", 0.0))
+
+
+func _state_species(state: Dictionary) -> float:
+	return _sum_parcel_species(state.get("upper_species_kg", {})) \
+			+ _sum_parcel_species(state.get("lower_species_kg", {}))
+
+
+func _zone_o2_fraction(state: Dictionary, zone: String) -> float:
+	var gas_kg: float = maxf(0.0, float(state.get(zone + "_gas_kg", 0.0)))
+	if gas_kg <= THERMO_MASS_EPS_KG:
+		return 0.0
+	return clampf(float(state.get(zone + "_o2_kg", 0.0)) / gas_kg, 0.0, 1.0)
+
+
+func _zero_state_delta_summary() -> Dictionary:
+	return {"mass_kg": 0.0, "energy_kj": 0.0, "o2_kg": 0.0, "species_kg": 0.0}
+
+
+func _state_delta_summary(candidate: Dictionary, reference: Dictionary) -> Dictionary:
+	return {
+		"mass_kg": _state_mass(candidate) - _state_mass(reference),
+		"energy_kj": _state_energy(candidate) - _state_energy(reference),
+		"o2_kg": _state_o2(candidate) - _state_o2(reference),
+		"species_kg": _state_species(candidate) - _state_species(reference),
+	}
+
+
+func _canonical_o2_for_selected_mode(
+		mode: String,
+		upper_o2: float,
+		lower_o2: float,
+		room: RoomModel
+	) -> Dictionary:
+	if mode == "upper" or mode == "plume_upper":
+		return {"o2_ref": upper_o2, "zone_code": 1.0}
+	if mode == "lower" or mode == "plume_lower":
+		return {"o2_ref": lower_o2, "zone_code": 2.0}
+	if mode == "interface":
+		return {"o2_ref": lerpf(lower_o2, upper_o2, 0.5), "zone_code": 3.0}
+	if mode == "plume_blend":
+		var legacy_span: float = room.o2_lower - room.o2_upper
+		var blend: float = 0.5
+		if absf(legacy_span) > 1.0e-9:
+			blend = clampf((room.fire_o2_ref - room.o2_upper) / legacy_span, 0.0, 1.0)
+		return {"o2_ref": lerpf(upper_o2, lower_o2, blend), "zone_code": 3.0}
+	var total_gas_kg: float = maxf(
+		0.0,
+		float(_snapshots.get(str(room.id), {}).get("upper_gas_kg", 0.0))
+				+ float(_snapshots.get(str(room.id), {}).get("lower_gas_kg", 0.0))
+	)
+	var bulk_o2: float = 0.0
+	if total_gas_kg > THERMO_MASS_EPS_KG:
+		bulk_o2 = (
+			float(_snapshots.get(str(room.id), {}).get("upper_o2_kg", 0.0))
+					+ float(_snapshots.get(str(room.id), {}).get("lower_o2_kg", 0.0))
+		) / total_gas_kg
+	return {"o2_ref": clampf(bulk_o2, 0.0, 1.0), "zone_code": 4.0}

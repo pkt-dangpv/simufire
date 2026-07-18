@@ -8,7 +8,7 @@
 
 | Ítem | Valor |
 |------|-------|
-| Godot ejecutable | `Godot_v4.6.3-stable_win64_console.exe` |
+| Godot ejecutable | `Godot_v4.7.1-stable_win64_console.exe` |
 | Proyecto | `res://` → raíz del workspace simufire |
 | Archivo de prueba corrupto | Crear manualmente `test_corrupto.json` con contenido `{not valid json` |
 | Archivo de prueba válido | `scenarios/simple_house_objects.json` (ya existe) |

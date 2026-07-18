@@ -2,11 +2,121 @@
 
 Date: 2026-07-18.
 
+Runtime note: active local runners and test entrypoints now default to Godot
+`4.7.1` console at
+`C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe`. Explicit
+`GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
+Historical validation records retain their original engine labels.
+
 ## Purpose
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
-## Current Session Update - 2026-07-18 - F3.2a passive exterior GO
+## Current Session Update - 2026-07-18 - F3.2b3 canonical plume GO / authority NO-GO
+
+- Added `phase3_canonical_plume_shadow_enabled=false` and a pure plume preview
+  based on canonical pre-step mass, sensible energy, O2 and interface.
+- Root cause of the early one-zone transition is confirmed. At about 150 s the
+  live plume used the legacy `1.458 m` interface while canonical interface was
+  `0.260 m`; the same correlation requested `0.621 kg/s` versus about
+  `0.034 kg/s` from canonical geometry and `0.062 kg/s` in CFAST.
+- Group A canonical lower no longer collapses near 160 s. It remains
+  `12.84 kg` at 160 s, `2.68 kg` at 350 s and `2.48 kg` at 360 s. Canonical
+  interface is still too high (`0.214 m` versus CFAST `0.10 m` at 360 s), so
+  this is not an authority result.
+- Group A shadow O2 remains 3/3 PASS: `0.100996`, `0.074077`, `0.074071` at
+  240/350/360 s. All 115 legacy columns and the complete 407-column F3.2b2
+  OFF control remain identical.
+- Pressure is a separate blocker. F3.2b3 improves the late trajectory but
+  leaves `+1.812 kPa` at 160 s and `-0.341 kPa` at 350 s versus CFAST
+  `+1.061 kPa` and `+0.167 kPa`. Internal plume transfer cannot directly fix
+  total EOS pressure because it conserves room mass and energy.
+- Measured pressure differences include the heat split (CFAST radiative
+  fraction `0.35`, case override `0.70`) and leakage area (about `0.00905 m2`
+  versus `0.005 m2`). Neither one-cause change closes the trajectory, so no
+  tuning was accepted.
+- Decision: **canonical plume mechanism GO; canonical room-state authority and
+  Group A retirement NO-GO**. Next gate is F3.2b4 pressure source/boundary
+  equivalence, diagnostic first.
+- Binding record:
+  `docs/validation/PHASE3_F32B3_CANONICAL_PLUME.md`.
+- F3.2b0/b1/b2/b3 remain uncommitted at this STOP gate. Visual work in
+  `project.godot` and the two tool UID files remains untouched.
+
+## Previous Session Update - 2026-07-18 - F3.2b2 pressure relaxation GO / authority NO-GO
+
+- Added `phase3_canonical_pressure_relaxation_shadow_enabled=false`; the
+  runner option implies the full F3.2b1 parent stack.
+- Root cause was an explicit orifice overshoot. At the old Group A opening
+  sample, the state was `-34.0 kPa` and requested `34.62 kg`, while the EOS
+  required only `19.34 kg` to reach ambient pressure. The extra `15.29 kg`
+  produced the observed `+26.9 kPa` sign reversal.
+- The new pure limiter computes the exact equilibrium fraction and scales gas,
+  energy, O2 and species together. It is a physical EOS bound, not a fitted
+  pressure clamp.
+- A real open exterior boundary now recreates lower from ambient inflow when
+  the canonical state is upper-only. Closed-window leakage cannot trigger the
+  transition. In Group A the first reseed is step `4322`, about `360.167 s`,
+  with `0.14583 kg`.
+- Group A remains `3/3 PASS` in shadow and 115/115 legacy columns are
+  identical. Exterior, combustion and volume residuals remain exactly zero.
+- Decision: **pressure-relaxation and lower-reseed mechanisms GO; canonical
+  room-state authority NO-GO**. The catastrophic opening spike is gone, but
+  the pre-opening range remains `-1.04..+2.81 kPa` and lower reaches the
+  one-zone limit near 160 s.
+- Next: F3.2b3 must diagnose pre-opening canonical pressure and premature
+  one-zone residence before Group A can be retired or F3.3 authority begins.
+- Binding record:
+  `docs/validation/PHASE3_F32B2_PRESSURE_RELAXATION.md`.
+- F3.2b0/b1/b2 remain uncommitted at this STOP gate. Visual work in
+  `project.godot` and the two tool UID files remains untouched.
+
+## Previous Session Update - 2026-07-18 - F3.2b1 transaction GO / authority NO-GO
+
+- Added `phase3_canonical_combustion_shadow_enabled=false`. The passive mode
+  evaluates combustion from canonical pre-step O2 and persistent fire state,
+  without writing live `RoomModel` or `FireModel` state.
+- HRR, fuel, O2, generated species, convective heat and plume transport now
+  form one atomic shadow bundle with one decision fraction.
+- The direct Godot fixture closes O2, energy and species residuals exactly;
+  focused tests are `67/67 PASS` and broad Phase 3 tests are `332 PASS` after
+  excluding the known Windows analyzer-tempfile failures.
+- In `cfast_r0_window_360`, canonical upper O2 now passes all three Group A
+  checks in shadow: `0.10793` at 240 s, `0.07157` at 350 s and `0.07242` at
+  360 s. Expected values and tolerances were not changed.
+- Legacy output remains unchanged across all 115 shared columns. Physics and
+  ILV retain zero FAIL, and the five VALID_GAP entries remain active because
+  canonical authority is still OFF.
+- Decision: **closed combustion mechanism GO; room-state authority NO-GO**.
+  The lower canonical zone collapses before the opening and the exterior
+  transient reaches about `+26.9 kPa`.
+- F3.2b2 completed the opening-pressure and lower-reseed mechanisms. See the
+  current update for the remaining authority blockers.
+- Binding record:
+  `docs/validation/PHASE3_F32B1_COMBUSTION_TRANSACTION.md`.
+- F3.2b0/b1 remain uncommitted at this STOP gate. User visual edits in
+  `project.godot` and the two tool UID files remain out of scope.
+
+## Previous Session Update - 2026-07-18 - F3.2b0 persistence GO / authority NO-GO
+
+- Added default-OFF internal persistence to `Phase3ZoneMassSystem`; the first
+  step seeds legacy once and later steps reuse the prior canonical final state.
+- Added passive upper-zone combustion O2 demand/probe telemetry and a
+  conservative zero-mass-zone fusion. Continuity and fusion residuals close
+  mass, energy, O2 and species exactly.
+- `cfast_r0_window_360` retains all 115 legacy columns unchanged. Canonical
+  upper O2 moves toward CFAST at 240 s (`0.10079` versus target `0.08511`) but
+  over-depletes by 350 s and reaches `-34.1 kPa` after opening.
+- Decision: **persistence mechanism GO; combustion authority and Group A
+  closure NO-GO**. The shadow is open-loop because heat, plume and species are
+  still generated from legacy HRR.
+- Next gate was F3.2b1, now completed as a passive mechanism. See the current
+  session update for the remaining authority blockers.
+- Binding record:
+  `docs/validation/PHASE3_F32B_PERSISTENT_SHADOW.md`.
+- F3.2b0 remains part of the uncommitted Phase 3 shadow stack.
+
+## Previous Session Update - 2026-07-18 - F3.2a passive exterior GO
 
 - Added one default-OFF atomic exterior boundary to the canonical shadow. It
   carries gas, sensible energy, O2 and seven species with one accepted fraction
@@ -25,9 +135,7 @@ This note records the repository hygiene and validation state after the non-moto
   remains last.
 - Binding record:
   `docs/validation/PHASE3_F32A_EXTERIOR_BOUNDARY_SHADOW.md`.
-- F3.2a remains uncommitted at this STOP gate. Concurrent edits in
-  `project.godot`, `view/3d/smoke/SmokeVolumeMaterialFactory.gd` and two tool
-  UID files are user-owned visual work and must not be staged with the motor.
+- F3.2a was committed as `f34c52c4`; R2-1 metadata refresh is `72c9f4a8`.
 
 ## Previous Session Update - 2026-07-18 - F3.1e passive GO
 

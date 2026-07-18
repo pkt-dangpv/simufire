@@ -25,8 +25,8 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _GODOT_CANDIDATES = [
-    Path("C:/Users/dangp/Desktop/Godot_v4.6.3-stable_win64_console.exe"),
-    Path("F:/OneDrive/Escritorio/Godot_v4.6.3-stable_win64_console.exe"),
+    Path("C:/Users/dangp/Desktop/Godot_v4.7.1-stable_win64_console.exe"),
+    Path("F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe"),
 ]
 
 # En Windows, piped stdout puede usar cp1252; reconfigure para UTF-8 si disponible

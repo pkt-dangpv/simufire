@@ -1,5 +1,5 @@
 ﻿param(
-	[string]$GodotExe = "C:\Users\dangp\Desktop\Godot_v4.6.3-stable_win64_console.exe",
+	[string]$GodotExe = "C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe",
 	[string]$ProjectPath = "",
 	[int]$TimeoutSeconds = 300,
 	[string[]]$Cases = @()
@@ -50,7 +50,7 @@ foreach ($caseName in $targetCases) {
 	$reportPath   = Join-Path $ProjectPath "sim\validation\reports\$caseName.json"
 
 	if (-not (Test-Path $baselinePath)) {
-		Write-Host "[UpdateBaselines] SKIP $caseName â€" sin baseline existente"
+		Write-Host "[UpdateBaselines] SKIP $caseName - sin baseline existente"
 		continue
 	}
 

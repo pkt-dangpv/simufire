@@ -95,7 +95,9 @@ def test_thermal_reservoir_has_an_explicit_semantic_owner():
 
 
 def test_engine_classifies_only_non_internal_local_energy_as_reservoir():
-    collect = _function(ENGINE, "_phase3_shadow_collect_thermal_requests")
+    collect = _function(ENGINE, "_phase3_shadow_collect_thermal_requests") + _function(
+        ENGINE, "_phase3_shadow_add_thermal_request"
+    )
     assert 'cause != "plume_entrainment" and cause != "thermal_upper_to_lower"' in collect
     assert 'thermal_boundary_kind = "thermal_reservoir"' in collect
 

@@ -60,7 +60,7 @@ def test_flag_is_opt_in_and_exported_without_authority():
 
 def test_contract_is_registered_from_pre_step_snapshot_before_legacy_physics():
     step = _function(ENGINE, "step")
-    begin = step.index("phase3_zone_mass_system.begin_step(building)")
+    begin = step.index("phase3_zone_mass_system.begin_step(")
     queue = step.index("queue_canonical_exterior_boundary_requests(")
     fire = step.index("_step_pool_fires(")
     assert begin < queue < fire

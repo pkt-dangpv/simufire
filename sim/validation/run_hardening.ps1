@@ -62,8 +62,8 @@ function Resolve-GodotExecutable([string]$RequestedPath) {
 		return (Resolve-Path $env:GODOT_EXE).Path
 	}
 	$candidates = @(
-		"F:\OneDrive\Escritorio\Godot_v4.6.3-stable_win64_console.exe",
-		"C:\Users\dangp\Desktop\Godot_v4.6.3-stable_win64_console.exe"
+		"C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe",
+		"F:\OneDrive\Escritorio\Godot_v4.7.1-stable_win64_console.exe"
 	)
 	foreach ($c in $candidates) {
 		if (Test-Path $c) { return (Resolve-Path $c).Path }

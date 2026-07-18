@@ -77,8 +77,8 @@ REPORTS_DIR = ROOT / "sim" / "validation" / "reports"
 # ---------------------------------------------------------------------------
 
 _GODOT_CANDIDATES = [
-    "F:/OneDrive/Escritorio/Godot_v4.6.3-stable_win64_console.exe",
-    "C:/Users/dangp/Desktop/Godot_v4.6.3-stable_win64_console.exe",
+    "C:/Users/dangp/Desktop/Godot_v4.7.1-stable_win64_console.exe",
+    "F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe",
 ]
 
 
