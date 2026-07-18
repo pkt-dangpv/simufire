@@ -94,7 +94,10 @@ class TestPhase3CanonicalShadow(unittest.TestCase):
     def test_component_is_owned_by_engine(self):
         self.assertIn('preload("res://sim/core/Phase3ZoneMassSystem.gd")', ENGINE)
         self.assertIn("phase3_zone_mass_system.begin_step(building)", ENGINE)
-        self.assertIn("phase3_zone_mass_system.finalize_step(building)", ENGINE)
+        self.assertIn(
+            "phase3_zone_mass_system.finalize_step(building, thermal_system.ambient_temp_c())",
+            ENGINE,
+        )
 
     def test_headless_runner_has_explicit_opt_in(self):
         self.assertIn("--phase3-canonical-shadow", RUNNER)

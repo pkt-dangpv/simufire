@@ -1,10 +1,30 @@
 # Current Handoff State
 
-Date: 2026-07-17.
+Date: 2026-07-18.
 
 ## Purpose
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
+
+## Current Session Update - 2026-07-18 - F3.1e passive GO
+
+- Added a pure thermodynamic closure inside `Phase3ZoneMassSystem`: canonical
+  upper/lower mass and sensible energy remain authoritative; temperature,
+  shared pressure, EOS volumes and interface are derived values only.
+- The F3.1d no-fire, 30 s fire and 180 s controls have exact post-step mass,
+  energy and volume closure. All 344 inherited CSV columns are identical.
+- Canonical gauge pressure remains bounded in the 180 s control
+  (`-4.84..108.88 Pa`). Legacy state divergence remains separately visible.
+- Decision: **GO for passive closure; NO-GO for room-state authority**.
+- F3.2 exterior pressure/leakage is the next default-OFF phase. It may consume
+  the shadow closure but may not publish it globally or double-count legacy
+  purge/projection paths.
+- Physics and ILV retain zero FAIL; gap inventory remains 348/353 with five
+  VALID_GAP. Guardrails only has expected R2-1 while F3.1e is uncommitted.
+- The initial `t=0` row precedes shadow finalization and has zero closure
+  fields by design.
+- Binding record:
+  `docs/validation/PHASE3_F31E_THERMODYNAMIC_CLOSURE.md`.
 
 ## Current Session Update - 2026-07-17 - F3.1d diagnostic GO
 

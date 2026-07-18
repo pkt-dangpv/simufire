@@ -1911,7 +1911,7 @@ func step(delta: float) -> void:
 	_clamp_rooms(dt)
 	_phase3_zone_diag_record_stage("projection_clamp")
 	if phase3_canonical_zone_shadow_enabled:
-		phase3_zone_mass_system.finalize_step(building)
+		phase3_zone_mass_system.finalize_step(building, thermal_system.ambient_temp_c())
 	# Evaluar el estado final del paso, incluyendo cualquier pérdida por clamp.
 	_check_carbon_balance()
 	_check_layer_interface_guardrails(dt)

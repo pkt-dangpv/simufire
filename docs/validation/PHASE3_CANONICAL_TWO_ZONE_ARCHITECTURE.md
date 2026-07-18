@@ -270,6 +270,13 @@ closure, exact mass/energy invariance, deterministic interface, no physical
 output changes and no reduction of visible legacy divergence by relabelling it.
 Authority remains OFF.
 
+F3.1e status 2026-07-18: **passive closure GO / room-state authority NO-GO**.
+The no-fire, 30 s fire and 180 s controls close mass, energy and room volume
+exactly after the first step, with all inherited CSV values unchanged. Shared
+gauge pressure remains bounded (`-4.84..108.88 Pa` in the 180 s control), and
+legacy projection divergence remains a separate signal. F3.2 is now unblocked
+as a default-OFF shadow phase.
+
 ### F3.2 - Exterior pressure and leakage
 
 Use canonical room mass/energy to solve gauge pressure and exterior gas flow.
@@ -356,8 +363,10 @@ F3.1 delivered selected-O2 extinction and F3.1a proved the selected-source/
 debit-source invariant. F3.1b then rejected a manufactured shared boundary
 boolean: scope and complete flux ownership are separate contracts. F3.1c owns
 the exact local physical terms, and F3.1d proves that the remaining legacy
-residual is created by EOS projection rather than a missing flux. The next
-step is F3.1e: a passive pure thermodynamic closure over conserved canonical
-mass and energy. Do not globally change `plume_lower`, publish the shadow into
-`RoomModel`, begin F3.2, or grant projection authority. HVAC remains deferred
-to F3.5 after its own redesign gate.
+residual is created by EOS projection rather than a missing flux. F3.1e now
+closes canonical thermodynamics passively without copying the legacy implicit
+reservoir. The next step is F3.2: one default-OFF exterior pressure/leakage
+transaction using canonical pressure and inventory. Do not globally change
+`plume_lower`, publish the whole shadow into `RoomModel`, or double-count
+legacy purge/projection. HVAC remains deferred to F3.5 after its own redesign
+gate.

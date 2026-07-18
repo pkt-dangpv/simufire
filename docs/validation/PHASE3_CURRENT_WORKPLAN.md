@@ -1,6 +1,6 @@
 # Phase 3+ current workplan
 
-Date: 2026-07-17
+Date: 2026-07-18
 
 ## Current baseline
 
@@ -34,6 +34,8 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.1a O2 authority diagnosis: `docs/validation/PHASE3_F31A_COMBUSTION_O2_AUTHORITY.md`
 - F3.1b effective-boundary scope diagnosis: `docs/validation/PHASE3_F31B_EFFECTIVE_BOUNDARY_SCOPE.md`
 - F3.1c single-room ownership: `docs/validation/PHASE3_F31C_SINGLE_ROOM_THERMAL_OWNERSHIP.md`
+- F3.1d projection/reconcile trace: `docs/validation/PHASE3_F31D_LOWER_PROJECTION_RECONCILE.md`
+- F3.1e thermodynamic closure: `docs/validation/PHASE3_F31E_THERMODYNAMIC_CLOSURE.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -104,10 +106,16 @@ legacy state-definition mutation, not missing physical transport. Fixed
 reference-pressure EOS projection overwrites lower inventory; repeated calls
 geometrically backfill ambient mass.
 
-The next target is F3.1e: implement a passive pure thermodynamic closure that
-keeps canonical mass and energy authoritative and derives temperature, shared
-pressure, zone volumes and interface. Legacy projection divergence stays
-explicit telemetry and is not assigned a physical owner.
+F3.1e now provides a passive pure thermodynamic closure. Canonical mass and
+energy remain authoritative; temperature, shared pressure, zone volumes and
+interface are derived without writing legacy state. Exact post-step closure
+holds in all three one-room controls, while legacy projection divergence stays
+explicit telemetry.
+
+The next target is F3.2: use the canonical pressure and inventories for one
+default-OFF exterior leakage transaction. Do not publish the full shadow into
+`RoomModel`, reuse legacy pressure purge as a second owner, or update Group A
+baselines before its STOP gate.
 
 ## Binding priority decision: HVAC last
 
@@ -132,8 +140,8 @@ The revised order is:
 12. F3.1b effective-boundary/scope contract diagnosis. Completed NO-GO before motor code.
 13. F3.1c canonical one-room fixture and remaining thermal ownership. Completed, partial GO.
 14. F3.1d lower-zone EOS projection/reconcile diagnosis. Completed, diagnostic GO / authority NO-GO.
-15. F3.1e pure canonical thermodynamic closure. Current target.
-16. F3.2 exterior pressure/leakage for Group A.
+15. F3.1e pure canonical thermodynamic closure. Completed, passive GO / authority NO-GO.
+16. F3.2 exterior pressure/leakage for Group A. Current target.
 17. F3.3 interior openings for Group C.
 18. F3.4 remaining non-HVAC species, suppression and FED.
 19. HVAC-R0 redesign specification.
@@ -441,10 +449,9 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 
 ## Next prompt target
 
-Use GPT-5.6 for F3.1e. Reuse the F3.1d one-room controls and implement only a
-passive pure closure. From canonical upper/lower mass and sensible energy,
-derive temperatures, one shared ideal-gas pressure, EOS volumes and interface
-without mutating inventory. Compare this result against the legacy projection
-trace using a separate state-definition-divergence signal. Do not manufacture
-a transport owner, publish the shadow into `RoomModel`, modify validation
-classifications or start F3.2.
+Use GPT-5.6 for F3.2. Build one default-OFF exterior leakage transaction from
+the F3.1e canonical gauge pressure and source-zone inventory. Gas mass,
+sensible energy, O2 and species must share direction and accepted fraction.
+Do not call legacy pressure purge as a second owner, publish the whole shadow
+into `RoomModel`, modify validation classifications or update baselines before
+the STOP gate. Target Group A; Group C remains F3.3.

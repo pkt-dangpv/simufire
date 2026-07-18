@@ -6,6 +6,11 @@ class_name Phase3ZoneMassSystem
 const ZONE_UPPER: String = "upper"
 const ZONE_LOWER: String = "lower"
 const EXTERIOR_ID: int = -1
+const AIR_PRESSURE_REF_PA: float = 101325.0
+const AIR_DENSITY_REF_KG_M3: float = 1.2
+const AIR_CP_KJ_KG_K: float = 1.0
+const THERMO_MASS_EPS_KG: float = 1.0e-12
+const THERMO_ENERGY_EPS_KJ: float = 1.0e-12
 const TRANSIT_SPECIES: Array[String] = ["co", "co2", "hcn"]
 const PARCEL_SPECIES: Array[String] = [
 	"smoke", "co", "co2", "hcn", "hcl", "acrolein", "formaldehyde"
@@ -209,6 +214,94 @@ func begin_step(building) -> void:
 		if room == null:
 			continue
 		_snapshots[str(room_id)] = _snapshot_room(room)
+
+
+## F3.1e: cierre termodinamico puro. Masa y energia son entradas autoritativas;
+## solo se derivan temperatura, presion, volumenes e interfaz.
+func derive_canonical_thermodynamic_state(
+		upper_gas_kg: float,
+		lower_gas_kg: float,
+		upper_energy_kj: float,
+		lower_energy_kj: float,
+		room_volume_m3: float,
+		floor_area_m2: float,
+		room_height_m: float,
+		reference_temp_c: float
+	) -> Dictionary:
+	var result: Dictionary = {
+		"valid": false,
+		"failure_code": 0.0,
+		"temp_upper_c": reference_temp_c,
+		"temp_lower_c": reference_temp_c,
+		"pressure_abs_pa": 0.0,
+		"pressure_gauge_pa": -AIR_PRESSURE_REF_PA,
+		"upper_volume_m3": 0.0,
+		"lower_volume_m3": 0.0,
+		"volume_closure_error_m3": -room_volume_m3,
+		"interface_m": 0.0,
+		"mass_invariance_residual_kg": 0.0,
+		"energy_invariance_residual_kj": 0.0,
+		"canonical_transaction_closure_flag": 0.0,
+	}
+	for value in [
+		upper_gas_kg, lower_gas_kg, upper_energy_kj, lower_energy_kj,
+		room_volume_m3, floor_area_m2, room_height_m, reference_temp_c
+	]:
+		if not is_finite(float(value)):
+			result["failure_code"] = 1.0
+			return result
+	if upper_gas_kg < 0.0 or lower_gas_kg < 0.0 \
+			or upper_energy_kj < 0.0 or lower_energy_kj < 0.0:
+		result["failure_code"] = 2.0
+		return result
+	var reference_temp_k: float = reference_temp_c + 273.15
+	if room_volume_m3 <= 0.0 or floor_area_m2 <= 0.0 \
+			or room_height_m <= 0.0 or reference_temp_k <= 0.0:
+		result["failure_code"] = 3.0
+		return result
+	if (upper_gas_kg <= THERMO_MASS_EPS_KG and upper_energy_kj > THERMO_ENERGY_EPS_KJ) \
+			or (lower_gas_kg <= THERMO_MASS_EPS_KG and lower_energy_kj > THERMO_ENERGY_EPS_KJ):
+		result["failure_code"] = 4.0
+		return result
+	if upper_gas_kg + lower_gas_kg <= THERMO_MASS_EPS_KG:
+		result["failure_code"] = 5.0
+		return result
+
+	var upper_temp_k: float = reference_temp_k
+	if upper_gas_kg > THERMO_MASS_EPS_KG:
+		upper_temp_k += upper_energy_kj / (upper_gas_kg * AIR_CP_KJ_KG_K)
+	var lower_temp_k: float = reference_temp_k
+	if lower_gas_kg > THERMO_MASS_EPS_KG:
+		lower_temp_k += lower_energy_kj / (lower_gas_kg * AIR_CP_KJ_KG_K)
+	var gas_constant_model: float = AIR_PRESSURE_REF_PA \
+			/ (AIR_DENSITY_REF_KG_M3 * reference_temp_k)
+	var pressure_abs_pa: float = gas_constant_model * (
+		upper_gas_kg * upper_temp_k + lower_gas_kg * lower_temp_k
+	) / room_volume_m3
+	if not is_finite(pressure_abs_pa) or pressure_abs_pa <= 0.0:
+		result["failure_code"] = 6.0
+		return result
+
+	var upper_volume_m3: float = upper_gas_kg * gas_constant_model \
+			* upper_temp_k / pressure_abs_pa
+	var lower_volume_m3: float = lower_gas_kg * gas_constant_model \
+			* lower_temp_k / pressure_abs_pa
+	var volume_closure_error_m3: float = upper_volume_m3 + lower_volume_m3 \
+			- room_volume_m3
+	var interface_m: float = clampf(lower_volume_m3 / floor_area_m2, 0.0, room_height_m)
+	var closure_ok: bool = absf(volume_closure_error_m3) <= 1.0e-9
+
+	result["valid"] = true
+	result["temp_upper_c"] = upper_temp_k - 273.15
+	result["temp_lower_c"] = lower_temp_k - 273.15
+	result["pressure_abs_pa"] = pressure_abs_pa
+	result["pressure_gauge_pa"] = pressure_abs_pa - AIR_PRESSURE_REF_PA
+	result["upper_volume_m3"] = upper_volume_m3
+	result["lower_volume_m3"] = lower_volume_m3
+	result["volume_closure_error_m3"] = volume_closure_error_m3
+	result["interface_m"] = interface_m
+	result["canonical_transaction_closure_flag"] = 1.0 if closure_ok else 0.0
+	return result
 
 
 func apply_species_transit_event(event: Dictionary) -> void:
@@ -1762,7 +1855,7 @@ func add_atomic_bundle(bundle: Dictionary) -> bool:
 	return true
 
 
-func finalize_step(building) -> void:
+func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 	_results.clear()
 	var shadow: Dictionary = _snapshots.duplicate(true)
 	var rejected_by_room: Dictionary = {}
@@ -1888,6 +1981,16 @@ func finalize_step(building) -> void:
 				- maxf(0.0, room.upper_energy_kj)
 		var lower_energy_residual_kj: float = float(state.get("lower_energy_kj", 0.0)) \
 				- maxf(0.0, room.lower_energy_kj)
+		var thermo: Dictionary = derive_canonical_thermodynamic_state(
+			float(state.get("upper_gas_kg", 0.0)),
+			float(state.get("lower_gas_kg", 0.0)),
+			float(state.get("upper_energy_kj", 0.0)),
+			float(state.get("lower_energy_kj", 0.0)),
+			room.volume_m3(),
+			room.floor_area_m2(),
+			room.height_m,
+			reference_temp_c
+		)
 		_results[room_key] = {
 			"phase3_shadow_upper_gas_kg": float(state.get("upper_gas_kg", 0.0)),
 			"phase3_shadow_lower_gas_kg": float(state.get("lower_gas_kg", 0.0)),
@@ -1899,6 +2002,35 @@ func finalize_step(building) -> void:
 			"phase3_shadow_lower_mass_residual_kg": lower_mass_residual_kg,
 			"phase3_shadow_upper_energy_residual_kj": upper_energy_residual_kj,
 			"phase3_shadow_lower_energy_residual_kj": lower_energy_residual_kj,
+			"phase3_shadow_thermo_valid_flag": 1.0 if bool(thermo.get("valid", false)) else 0.0,
+			"phase3_shadow_thermo_failure_code": float(thermo.get("failure_code", 0.0)),
+			"phase3_shadow_thermo_temp_upper_c": float(thermo.get("temp_upper_c", reference_temp_c)),
+			"phase3_shadow_thermo_temp_lower_c": float(thermo.get("temp_lower_c", reference_temp_c)),
+			"phase3_shadow_thermo_pressure_abs_pa": float(thermo.get("pressure_abs_pa", 0.0)),
+			"phase3_shadow_thermo_pressure_gauge_pa": float(thermo.get("pressure_gauge_pa", 0.0)),
+			"phase3_shadow_thermo_upper_volume_m3": float(thermo.get("upper_volume_m3", 0.0)),
+			"phase3_shadow_thermo_lower_volume_m3": float(thermo.get("lower_volume_m3", 0.0)),
+			"phase3_shadow_thermo_volume_closure_error_m3": float(
+				thermo.get("volume_closure_error_m3", 0.0)
+			),
+			"phase3_shadow_thermo_interface_m": float(thermo.get("interface_m", 0.0)),
+			"phase3_shadow_thermo_mass_invariance_residual_kg": float(
+				thermo.get("mass_invariance_residual_kg", 0.0)
+			),
+			"phase3_shadow_thermo_energy_invariance_residual_kj": float(
+				thermo.get("energy_invariance_residual_kj", 0.0)
+			),
+			"phase3_shadow_canonical_transaction_closure_flag": float(
+				thermo.get("canonical_transaction_closure_flag", 0.0)
+			),
+			"phase3_shadow_legacy_state_mass_divergence_kg": mass_residual_kg,
+			"phase3_shadow_legacy_state_energy_divergence_kj": energy_residual_kj,
+			"phase3_shadow_legacy_interface_divergence_m": float(
+				thermo.get("interface_m", 0.0)
+			) - room.thermal_layer_m,
+			"phase3_shadow_legacy_pressure_divergence_pa": float(
+				thermo.get("pressure_gauge_pa", 0.0)
+			) - room.overpressure_pa,
 			"phase3_shadow_request_count": _count_room_requests(room_id),
 			"phase3_shadow_plume_mass_request_kg": _sum_room_cause_mass(
 				room_id, "plume_entrainment"
@@ -2190,6 +2322,9 @@ func finalize_step(building) -> void:
 			"phase3_shadow_parcel_atomic_delivered_energy_kj_total": float(
 				_parcel_atomic_delivered_payload.get("sensible_enthalpy_kj", 0.0)
 			),
+			"phase3_shadow_parcel_atomic_refunded_energy_kj_total": float(
+				_parcel_atomic_refunded_payload.get("sensible_enthalpy_kj", 0.0)
+			),
 			"phase3_shadow_parcel_atomic_cancelled_energy_kj_total": float(
 				_parcel_atomic_cancelled_payload.get("sensible_enthalpy_kj", 0.0)
 			),
@@ -2198,6 +2333,9 @@ func finalize_step(building) -> void:
 			),
 			"phase3_shadow_parcel_atomic_delivered_o2_kg_total": float(
 				_parcel_atomic_delivered_payload.get("o2_kg", 0.0)
+			),
+			"phase3_shadow_parcel_atomic_refunded_o2_kg_total": float(
+				_parcel_atomic_refunded_payload.get("o2_kg", 0.0)
 			),
 			"phase3_shadow_parcel_atomic_cancelled_o2_kg_total": float(
 				_parcel_atomic_cancelled_payload.get("o2_kg", 0.0)

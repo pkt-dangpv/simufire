@@ -3,6 +3,18 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.1e passive thermodynamic closure (2026-07-18)
+
+- Added a pure canonical closure that derives upper/lower temperature, shared
+  pressure, EOS volumes and interface from conserved shadow mass and sensible
+  energy without writing legacy room state.
+- Added 17 shadow-gated closure/divergence CSV fields and completed passive
+  atomic parcel refund telemetry for energy and O2.
+- Verified exact mass, energy and room-volume closure in no-fire, 30 s fire and
+  180 s fire controls. All 344 inherited CSV columns remain identical.
+- Recorded passive GO and authority NO-GO. F3.2 exterior pressure/leakage is
+  now the next default-OFF phase; no baseline, tolerance, report or gap changed.
+
 ### Phase 3+ F3.1d lower projection diagnosis (2026-07-17)
 
 - Added opt-in per-call tracing around the legacy two-zone EOS projection and
