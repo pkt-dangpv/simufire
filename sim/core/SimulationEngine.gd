@@ -980,6 +980,8 @@ var _step_time_us: int = 0
 @export var phase3_zone_diagnostics_enabled: bool = false
 ## F3.0: transaccion two-zone shadow. Default OFF; nunca escribe estado legacy.
 @export var phase3_canonical_zone_shadow_enabled: bool = false
+## F3.2a: frontera exterior pressure/leakage solo en shadow. Requiere F3.0.
+@export var phase3_canonical_exterior_boundary_shadow_enabled: bool = false
 
 # ============================================================
 # SERVICIOS AUXILIARES
@@ -1248,6 +1250,10 @@ func _sync_auxiliary_services() -> void:
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
 	log_writer.configure_phase3_zone_diagnostics(phase3_zone_diagnostics_enabled)
 	log_writer.configure_phase3_canonical_shadow(phase3_canonical_zone_shadow_enabled)
+	log_writer.configure_phase3_canonical_exterior_boundary_shadow(
+		phase3_canonical_zone_shadow_enabled \
+				and phase3_canonical_exterior_boundary_shadow_enabled
+	)
 	# SF-R6: ZoneFireSolver — inyectar referencia al building.
 	zone_fire_solver.set_building(building)
 
@@ -1499,6 +1505,9 @@ func _phase3_shadow_collect_immediate_species_events() -> void:
 
 func _phase3_shadow_collect_exterior_purge_events() -> void:
 	for event in gas_exchange_system.drain_phase3_shadow_exterior_purge_events():
+		if phase3_canonical_exterior_boundary_shadow_enabled \
+				and phase3_zone_mass_system.suppress_legacy_pressure_purge_event(event):
+			continue
 		phase3_zone_mass_system.apply_exterior_purge_event(event)
 
 
@@ -1546,6 +1555,8 @@ func _build_state_context() -> Dictionary:
 		"phase3_zone_diagnostics_enabled": phase3_zone_diagnostics_enabled,
 		"phase3_zone_diagnostics": _phase3_zone_diag_export(),
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
+		"phase3_canonical_exterior_boundary_shadow_enabled": \
+				phase3_canonical_exterior_boundary_shadow_enabled,
 		"phase3_canonical_zone_shadow": phase3_zone_mass_system.get_results() \
 				if phase3_canonical_zone_shadow_enabled else {},
 		"ambient_temp_c": thermal_system.ambient_temp_c(),
@@ -1846,6 +1857,15 @@ func step(delta: float) -> void:
 	_phase3_zone_diag_begin_step()
 	if phase3_canonical_zone_shadow_enabled:
 		phase3_zone_mass_system.begin_step(building)
+		if phase3_canonical_exterior_boundary_shadow_enabled:
+			phase3_zone_mass_system.queue_canonical_exterior_boundary_requests(
+				building,
+				dt,
+				thermal_system.ambient_temp_c(),
+				building.outside_o2,
+				window_leakage_area_m2,
+				pressure_vent_threshold_pa
+			)
 
 	var pre_hrr_o2_step: bool = _uses_pre_hrr_oxygen_step()
 

@@ -3,6 +3,20 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.2a passive exterior boundary (2026-07-18)
+
+- Added a default-OFF canonical exterior pressure/leakage bundle that moves
+  gas, sensible energy, O2 and all parcel species with one inventory-limited
+  fraction and never writes legacy room state.
+- Suppressed only the legacy `pressure_venting` owner inside the parallel
+  shadow; ACH, natural ventilation, smoke purge, post-fire purge and PPV remain
+  independent visible contracts.
+- Verified `-0.83..125.85 Pa`, zero boundary residuals, no lower-zone collapse
+  and byte-identical 115-column legacy output on `cfast_r0_window_360`.
+- Recorded passive-contract GO and authority/Group-A NO-GO: pre-opening upper
+  O2 remains near legacy, so F3.2b must address canonical state continuity and
+  combustion O2 coupling before promotion.
+
 ### Phase 3+ F3.1e passive thermodynamic closure (2026-07-18)
 
 - Added a pure canonical closure that derives upper/lower temperature, shared

@@ -279,6 +279,14 @@ as a default-OFF shadow phase.
 
 ### F3.2 - Exterior pressure and leakage
 
+F3.2a status 2026-07-18: **passive contract GO / authority and Group A
+NO-GO**. The canonical boundary is resolved after internal shadow fluxes and
+moves gas, enthalpy, O2 and species atomically. Pressure is bounded and all
+boundary residuals close, while 115 legacy columns remain byte-identical.
+Group A does not improve because its pre-opening O2 state is still reseeded
+from legacy each step. F3.2b must establish persistent canonical continuity
+and combustion O2 coupling before authority.
+
 Use canonical room mass/energy to solve gauge pressure and exterior gas flow.
 Separate gas flow from soot removal. Transport gas, enthalpy, O2 and species
 with one fraction. Retire pressure vent mass deletion and EOS refill in this

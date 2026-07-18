@@ -36,6 +36,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.1c single-room ownership: `docs/validation/PHASE3_F31C_SINGLE_ROOM_THERMAL_OWNERSHIP.md`
 - F3.1d projection/reconcile trace: `docs/validation/PHASE3_F31D_LOWER_PROJECTION_RECONCILE.md`
 - F3.1e thermodynamic closure: `docs/validation/PHASE3_F31E_THERMODYNAMIC_CLOSURE.md`
+- F3.2a exterior boundary shadow: `docs/validation/PHASE3_F32A_EXTERIOR_BOUNDARY_SHADOW.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -112,10 +113,17 @@ interface are derived without writing legacy state. Exact post-step closure
 holds in all three one-room controls, while legacy projection divergence stays
 explicit telemetry.
 
-The next target is F3.2: use the canonical pressure and inventories for one
-default-OFF exterior leakage transaction. Do not publish the full shadow into
-`RoomModel`, reuse legacy pressure purge as a second owner, or update Group A
-baselines before its STOP gate.
+F3.2a now provides one default-OFF exterior pressure/leakage transaction. It
+uses the F3.1e state after explicit internal shadow fluxes, transports gas,
+energy, O2 and species atomically and suppresses only the duplicate legacy
+pressure owner inside shadow. The passive contract closes exactly and legacy
+physics is invariant, but Group A does not move: its O2 checks precede the open
+window and canonical state is reseeded from legacy each timestep.
+
+The next target is F3.2b: persistent canonical step continuity plus explicit
+combustion O2 coupling in a single-room/no-HVAC scope. Do not publish the full
+shadow into `RoomModel`, activate authority, change Group A baselines or widen
+tolerances before its STOP gate.
 
 ## Binding priority decision: HVAC last
 
@@ -141,12 +149,13 @@ The revised order is:
 13. F3.1c canonical one-room fixture and remaining thermal ownership. Completed, partial GO.
 14. F3.1d lower-zone EOS projection/reconcile diagnosis. Completed, diagnostic GO / authority NO-GO.
 15. F3.1e pure canonical thermodynamic closure. Completed, passive GO / authority NO-GO.
-16. F3.2 exterior pressure/leakage for Group A. Current target.
-17. F3.3 interior openings for Group C.
-18. F3.4 remaining non-HVAC species, suppression and FED.
-19. HVAC-R0 redesign specification.
-20. F3.5 HVAC canonical integration as the last subsystem.
-21. F3.6 final corpus promotion and legacy retirement.
+16. F3.2a passive exterior pressure/leakage contract. Implemented; STOP gate recommends passive GO / authority and Group A NO-GO.
+17. F3.2b persistent canonical continuity and combustion O2 coupling. Current target.
+18. F3.3 interior openings for Group C.
+19. F3.4 remaining non-HVAC species, suppression and FED.
+20. HVAC-R0 redesign specification.
+21. F3.5 HVAC canonical integration as the last subsystem.
+22. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
@@ -449,9 +458,10 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 
 ## Next prompt target
 
-Use GPT-5.6 for F3.2. Build one default-OFF exterior leakage transaction from
-the F3.1e canonical gauge pressure and source-zone inventory. Gas mass,
-sensible energy, O2 and species must share direction and accepted fraction.
-Do not call legacy pressure purge as a second owner, publish the whole shadow
-into `RoomModel`, modify validation classifications or update baselines before
-the STOP gate. Target Group A; Group C remains F3.3.
+Use GPT-5.6 for F3.2b. Design persistent canonical continuity for the
+single-room/no-HVAC shadow so F3.1c local fluxes and F3.2a exterior bundles
+accumulate across timesteps instead of reseeding from legacy. Define how
+combustion reads and debits the same canonical upper-zone O2 without changing
+live physics yet. Require a Group A shadow delta in the expected direction
+before considering authority. Do not touch baselines, tolerances, Group C or
+HVAC. Authority remains OFF.

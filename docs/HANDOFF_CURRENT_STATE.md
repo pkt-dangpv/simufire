@@ -6,7 +6,30 @@ Date: 2026-07-18.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
-## Current Session Update - 2026-07-18 - F3.1e passive GO
+## Current Session Update - 2026-07-18 - F3.2a passive exterior GO
+
+- Added one default-OFF atomic exterior boundary to the canonical shadow. It
+  carries gas, sensible energy, O2 and seven species with one accepted fraction
+  and suppresses only the duplicate legacy pressure-purge owner in shadow.
+- Runtime rejected the initial pre-step pressure ordering because legacy
+  projection had already reset pressure. The accepted non-circular order
+  resolves the boundary after explicit internal shadow transactions.
+- `cfast_r0_window_360` stays unchanged in all 115 legacy columns. Shadow
+  pressure is `-0.83..125.85 Pa`; boundary and thermodynamic residuals are
+  zero; no lower-zone collapse or duplicate owner occurs.
+- Decision: **passive contract GO; canonical authority and Group A closure
+  NO-GO**. Shadow upper O2 remains `0.15949/0.09820/0.09347` at
+  240/350/360 s versus CFAST `0.08511/0.06598/0.06451`.
+- Next: F3.2b persistent canonical step continuity and combustion O2 coupling,
+  still default OFF and single-room/no-HVAC first. Group C remains F3.3; HVAC
+  remains last.
+- Binding record:
+  `docs/validation/PHASE3_F32A_EXTERIOR_BOUNDARY_SHADOW.md`.
+- F3.2a remains uncommitted at this STOP gate. Concurrent edits in
+  `project.godot`, `view/3d/smoke/SmokeVolumeMaterialFactory.gd` and two tool
+  UID files are user-owned visual work and must not be staged with the motor.
+
+## Previous Session Update - 2026-07-18 - F3.1e passive GO
 
 - Added a pure thermodynamic closure inside `Phase3ZoneMassSystem`: canonical
   upper/lower mass and sensible energy remain authoritative; temperature,

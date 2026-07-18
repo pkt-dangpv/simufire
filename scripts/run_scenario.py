@@ -83,6 +83,11 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="Enable the passive F3.0 canonical two-zone shadow transaction.",
     )
+    parser.add_argument(
+        "--phase3-canonical-exterior-shadow",
+        action="store_true",
+        help="Enable passive F3.2a canonical pressure/leakage exterior bundles.",
+    )
     return parser.parse_args(argv)
 
 
@@ -163,6 +168,10 @@ def main(argv: list[str] | None = None) -> int:
         cmd.append("--phase3-zone-diagnostics")
     if args.phase3_canonical_shadow:
         cmd.append("--phase3-canonical-shadow")
+    if args.phase3_canonical_exterior_shadow:
+        if not args.phase3_canonical_shadow:
+            cmd.append("--phase3-canonical-shadow")
+        cmd.append("--phase3-canonical-exterior-shadow")
 
     print(f"[run_scenario] scenario: {scenario}")
     print(f"[run_scenario] output:   {out_dir}")

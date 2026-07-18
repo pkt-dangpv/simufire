@@ -70,6 +70,9 @@ func _run() -> void:
 		engine.phase3_zone_diagnostics_enabled = true
 	if bool(_cli_args.get("phase3_canonical_shadow", false)):
 		engine.phase3_canonical_zone_shadow_enabled = true
+	if bool(_cli_args.get("phase3_canonical_exterior_shadow", false)):
+		engine.phase3_canonical_zone_shadow_enabled = true
+		engine.phase3_canonical_exterior_boundary_shadow_enabled = true
 	_projection_trace_enabled = bool(scenario.get("phase3_projection_trace_enabled", false))
 	if _projection_trace_enabled:
 		engine.phase3_zone_diagnostics_enabled = true
@@ -152,6 +155,8 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["phase3_zone_diagnostics"] = true
 		elif arg == "--phase3-canonical-shadow":
 			parsed["phase3_canonical_shadow"] = true
+		elif arg == "--phase3-canonical-exterior-shadow":
+			parsed["phase3_canonical_exterior_shadow"] = true
 		index += 1
 	return parsed
 

@@ -9,6 +9,7 @@ const EXTERIOR_ID: int = -1
 const AIR_PRESSURE_REF_PA: float = 101325.0
 const AIR_DENSITY_REF_KG_M3: float = 1.2
 const AIR_CP_KJ_KG_K: float = 1.0
+const EXTERIOR_DISCHARGE_COEFF: float = 0.61
 const THERMO_MASS_EPS_KG: float = 1.0e-12
 const THERMO_ENERGY_EPS_KJ: float = 1.0e-12
 const TRANSIT_SPECIES: Array[String] = ["co", "co2", "hcn"]
@@ -112,6 +113,8 @@ var _atomic_rejected_o2_kg: float = 0.0
 var _atomic_rejected_species_kg: float = 0.0
 var _atomic_duplicate_bundle_count: int = 0
 var _atomic_invalid_bundle_count: int = 0
+var _canonical_exterior_boundary_by_room: Dictionary = {}
+var _canonical_exterior_boundary_context: Dictionary = {}
 
 
 func reset() -> void:
@@ -203,6 +206,8 @@ func _reset_step_state() -> void:
 	_atomic_rejected_species_kg = 0.0
 	_atomic_duplicate_bundle_count = 0
 	_atomic_invalid_bundle_count = 0
+	_canonical_exterior_boundary_by_room.clear()
+	_canonical_exterior_boundary_context.clear()
 
 
 func begin_step(building) -> void:
@@ -302,6 +307,272 @@ func derive_canonical_thermodynamic_state(
 	result["interface_m"] = interface_m
 	result["canonical_transaction_closure_flag"] = 1.0 if closure_ok else 0.0
 	return result
+
+
+## F3.2a: registra el contrato exterior del paso. El bundle se resuelve solo
+## en finalize_step, despues de los fluxes internos, y nunca escribe legacy.
+func queue_canonical_exterior_boundary_requests(
+		building,
+		dt: float,
+		reference_temp_c: float,
+		outside_o2: float,
+		closed_leakage_area_m2: float,
+		pressure_threshold_pa: float,
+		discharge_coeff: float = EXTERIOR_DISCHARGE_COEFF
+	) -> void:
+	if building == null or dt <= 0.0 or discharge_coeff <= 0.0:
+		return
+	_canonical_exterior_boundary_context = {
+		"dt": dt,
+		"reference_temp_c": reference_temp_c,
+		"outside_o2": outside_o2,
+		"closed_leakage_area_m2": closed_leakage_area_m2,
+		"pressure_threshold_pa": pressure_threshold_pa,
+		"discharge_coeff": discharge_coeff,
+	}
+
+
+## Resuelve la frontera despues de las transacciones internas del paso. Sigue
+## siendo no circular: parte del snapshot pre-step mas fluxes shadow explicitos.
+func _apply_canonical_exterior_boundary_requests(
+		shadow: Dictionary,
+		building,
+		dt: float,
+		reference_temp_c: float,
+		outside_o2: float,
+		closed_leakage_area_m2: float,
+		pressure_threshold_pa: float,
+		discharge_coeff: float,
+		rejected_by_room: Dictionary,
+		rejected_doorway_species_by_room: Dictionary,
+		rejected_transit_species_by_room: Dictionary
+	) -> void:
+	for raw_room_id in building.get_rooms().keys():
+		var room_id: int = int(raw_room_id)
+		var room = building.get_room(room_id)
+		var room_key: String = str(room_id)
+		if room == null or not shadow.has(room_key):
+			continue
+		var state: Dictionary = shadow[room_key]
+		var thermo: Dictionary = derive_canonical_thermodynamic_state(
+			float(state.get("upper_gas_kg", 0.0)),
+			float(state.get("lower_gas_kg", 0.0)),
+			float(state.get("upper_energy_kj", 0.0)),
+			float(state.get("lower_energy_kj", 0.0)),
+			room.volume_m3(),
+			room.floor_area_m2(),
+			room.height_m,
+			reference_temp_c
+		)
+		var record: Dictionary = _canonical_exterior_boundary_by_room.get(
+			room_key, _new_canonical_exterior_boundary_record()
+		)
+		record["pressure_pre_pa"] = float(thermo.get("pressure_gauge_pa", 0.0))
+		_canonical_exterior_boundary_by_room[room_key] = record
+		if not bool(thermo.get("valid", false)):
+			continue
+		var pressure_gauge_pa: float = float(thermo.get("pressure_gauge_pa", 0.0))
+		if absf(pressure_gauge_pa) < maxf(0.0, pressure_threshold_pa):
+			continue
+		var area_by_zone: Dictionary = _canonical_exterior_area_by_zone(
+			building,
+			room_id,
+			float(thermo.get("interface_m", room.height_m)),
+			room.height_m,
+			closed_leakage_area_m2
+		)
+		if float(area_by_zone.get(ZONE_UPPER, 0.0)) \
+				+ float(area_by_zone.get(ZONE_LOWER, 0.0)) <= 0.0:
+			continue
+
+		var routes: Array = []
+		var requested_totals: Dictionary = {
+			"gas_mass_kg": 0.0,
+			"sensible_enthalpy_kj": 0.0,
+			"o2_kg": 0.0,
+			"species_kg": 0.0,
+		}
+		var outflow: bool = pressure_gauge_pa > 0.0
+		var active_zone_count: int = 0
+		var source_zone_code: int = 0
+		for zone_name in [ZONE_UPPER, ZONE_LOWER]:
+			var area_m2: float = maxf(0.0, float(area_by_zone.get(zone_name, 0.0)))
+			if area_m2 <= 0.0:
+				continue
+			var zone_volume_m3: float = float(
+				thermo.get(zone_name + "_volume_m3", 0.0)
+			)
+			var zone_mass_kg: float = float(state.get(zone_name + "_gas_kg", 0.0))
+			var density_kg_m3: float = AIR_DENSITY_REF_KG_M3
+			if outflow:
+				if zone_mass_kg <= THERMO_MASS_EPS_KG or zone_volume_m3 <= 1.0e-12:
+					continue
+				density_kg_m3 = zone_mass_kg / zone_volume_m3
+			var requested_mass_kg: float = discharge_coeff * area_m2 \
+					* sqrt(2.0 * absf(pressure_gauge_pa) * maxf(0.05, density_kg_m3)) \
+					* dt
+			if requested_mass_kg <= 0.0 or not is_finite(requested_mass_kg):
+				continue
+			var energy_kj: float = 0.0
+			var o2_kg: float = requested_mass_kg * clampf(outside_o2, 0.0, 1.0)
+			var species_kg: Dictionary = _parcel_species({})
+			var source_room_id: int = EXTERIOR_ID
+			var destination_room_id: int = room_id
+			if outflow:
+				var inventory_fraction: float = requested_mass_kg / zone_mass_kg
+				energy_kj = float(state.get(zone_name + "_energy_kj", 0.0)) \
+						* inventory_fraction
+				o2_kg = float(state.get(zone_name + "_o2_kg", 0.0)) \
+						* inventory_fraction
+				var source_species: Dictionary = state.get(zone_name + "_species_kg", {})
+				for species_name in PARCEL_SPECIES:
+					species_kg[species_name] = float(
+						source_species.get(species_name, 0.0)
+					) * inventory_fraction
+				source_room_id = room_id
+				destination_room_id = EXTERIOR_ID
+				active_zone_count += 1
+				source_zone_code = 1 if zone_name == ZONE_UPPER else 2
+			var route: Dictionary = make_atomic_route(
+				"f32a_exterior:%d:%s" % [room_id, zone_name],
+				"canonical_exterior_pressure",
+				source_room_id,
+				destination_room_id,
+				zone_name,
+				zone_name,
+				requested_mass_kg,
+				energy_kj,
+				o2_kg,
+				species_kg
+			)
+			routes.append(route)
+			requested_totals["gas_mass_kg"] = float(
+				requested_totals.get("gas_mass_kg", 0.0)
+			) + requested_mass_kg
+			requested_totals["sensible_enthalpy_kj"] = float(
+				requested_totals.get("sensible_enthalpy_kj", 0.0)
+			) + energy_kj
+			requested_totals["o2_kg"] = float(
+				requested_totals.get("o2_kg", 0.0)
+			) + o2_kg
+			requested_totals["species_kg"] = float(
+				requested_totals.get("species_kg", 0.0)
+			) + _sum_parcel_species(species_kg)
+		if routes.is_empty():
+			continue
+		if outflow and active_zone_count > 1:
+			source_zone_code = 3
+		record["direction"] = 1.0 if outflow else -1.0
+		record["source_zone_code"] = float(source_zone_code)
+		record["event_count"] = 1.0
+		record["requested_gas_kg"] = float(requested_totals["gas_mass_kg"])
+		record["requested_energy_kj"] = float(requested_totals["sensible_enthalpy_kj"])
+		record["requested_o2_kg"] = float(requested_totals["o2_kg"])
+		record["requested_species_kg"] = float(requested_totals["species_kg"])
+		_canonical_exterior_boundary_by_room[room_key] = record
+		var bundle: Dictionary = make_atomic_bundle(
+			"f32a_exterior:%d" % room_id,
+			"canonical_exterior_pressure",
+			routes,
+			{
+				"kind": "canonical_exterior_boundary",
+				"room_id": room_id,
+				"requested_totals": requested_totals,
+			}
+		)
+		if not add_atomic_bundle(bundle):
+			record["duplicate_owner_flag"] = 1.0
+			_canonical_exterior_boundary_by_room[room_key] = record
+		else:
+			_apply_atomic_bundle(
+				shadow,
+				bundle,
+				rejected_by_room,
+				rejected_doorway_species_by_room,
+				rejected_transit_species_by_room
+			)
+
+
+func suppress_legacy_pressure_purge_event(event: Dictionary) -> bool:
+	if String(event.get("mechanism", "")) != "pressure_venting":
+		return false
+	var room_key: String = str(int(event.get("source_room_id", EXTERIOR_ID)))
+	var record: Dictionary = _canonical_exterior_boundary_by_room.get(
+		room_key, _new_canonical_exterior_boundary_record()
+	)
+	record["legacy_pressure_suppressed_event_count"] = float(
+		record.get("legacy_pressure_suppressed_event_count", 0.0)
+	) + 1.0
+	_canonical_exterior_boundary_by_room[room_key] = record
+	return true
+
+
+func _canonical_exterior_area_by_zone(
+		building,
+		room_id: int,
+		interface_m: float,
+		room_height_m: float,
+		closed_leakage_area_m2: float
+	) -> Dictionary:
+	var areas: Dictionary = {ZONE_UPPER: 0.0, ZONE_LOWER: 0.0}
+	for op in building.get_openings():
+		if op == null or not op.is_exterior_opening():
+			continue
+		if op.a != room_id and op.b != room_id:
+			continue
+		var bottom_m: float = clampf(op.sill_m, 0.0, room_height_m)
+		var top_m: float = clampf(op.lintel_height_m(), bottom_m, room_height_m)
+		var span_m: float = top_m - bottom_m
+		if span_m <= 1.0e-9:
+			continue
+		var smooth_fraction: float = op.open_fraction_smooth
+		if smooth_fraction < 0.0:
+			smooth_fraction = op.open_fraction
+		var area_m2: float = maxf(0.0, op.width_m * op.height_m) \
+				* clampf(smooth_fraction, 0.0, 1.0)
+		if area_m2 <= 1.0e-12:
+			area_m2 = maxf(0.0, closed_leakage_area_m2)
+		if area_m2 <= 0.0:
+			continue
+		var lower_span_m: float = maxf(
+			0.0, minf(top_m, interface_m) - bottom_m
+		)
+		var upper_span_m: float = maxf(
+			0.0, top_m - maxf(bottom_m, interface_m)
+		)
+		areas[ZONE_LOWER] = float(areas[ZONE_LOWER]) \
+				+ area_m2 * lower_span_m / span_m
+		areas[ZONE_UPPER] = float(areas[ZONE_UPPER]) \
+				+ area_m2 * upper_span_m / span_m
+	return areas
+
+
+func _new_canonical_exterior_boundary_record() -> Dictionary:
+	return {
+		"pressure_pre_pa": 0.0,
+		"requested_gas_kg": 0.0,
+		"requested_energy_kj": 0.0,
+		"requested_o2_kg": 0.0,
+		"requested_species_kg": 0.0,
+		"accepted_gas_kg": 0.0,
+		"accepted_energy_kj": 0.0,
+		"accepted_o2_kg": 0.0,
+		"accepted_species_kg": 0.0,
+		"rejected_gas_kg": 0.0,
+		"rejected_energy_kj": 0.0,
+		"rejected_o2_kg": 0.0,
+		"rejected_species_kg": 0.0,
+		"direction": 0.0,
+		"source_zone_code": 0.0,
+		"event_count": 0.0,
+		"legacy_pressure_suppressed_event_count": 0.0,
+		"accepted_fraction": 1.0,
+		"duplicate_owner_flag": 0.0,
+		"mass_residual_kg": 0.0,
+		"energy_residual_kj": 0.0,
+		"o2_residual_kg": 0.0,
+		"species_residual_kg": 0.0,
+	}
 
 
 func apply_species_transit_event(event: Dictionary) -> void:
@@ -1886,6 +2157,20 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 				)
 	if building == null:
 		return
+	if not _canonical_exterior_boundary_context.is_empty():
+		_apply_canonical_exterior_boundary_requests(
+			shadow,
+			building,
+			float(_canonical_exterior_boundary_context.get("dt", 0.0)),
+			float(_canonical_exterior_boundary_context.get("reference_temp_c", reference_temp_c)),
+			float(_canonical_exterior_boundary_context.get("outside_o2", 0.209)),
+			float(_canonical_exterior_boundary_context.get("closed_leakage_area_m2", 0.0)),
+			float(_canonical_exterior_boundary_context.get("pressure_threshold_pa", 0.0)),
+			float(_canonical_exterior_boundary_context.get("discharge_coeff", EXTERIOR_DISCHARGE_COEFF)),
+			rejected_by_room,
+			rejected_doorway_species_by_room,
+			rejected_transit_species_by_room
+		)
 	var inflight_transit_species: Dictionary = _inflight_transit_species()
 	var transit_created_total_kg: float = _sum_parcel_species(_species_transit_created_kg)
 	var transit_delivered_total_kg: float = _sum_parcel_species(_species_transit_delivered_kg)
@@ -1991,6 +2276,9 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			room.height_m,
 			reference_temp_c
 		)
+		var exterior_boundary: Dictionary = _canonical_exterior_boundary_by_room.get(
+			room_key, _new_canonical_exterior_boundary_record()
+		)
 		_results[room_key] = {
 			"phase3_shadow_upper_gas_kg": float(state.get("upper_gas_kg", 0.0)),
 			"phase3_shadow_lower_gas_kg": float(state.get("lower_gas_kg", 0.0)),
@@ -2031,6 +2319,87 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"phase3_shadow_legacy_pressure_divergence_pa": float(
 				thermo.get("pressure_gauge_pa", 0.0)
 			) - room.overpressure_pa,
+			"phase3_shadow_exterior_pressure_pre_pa": float(
+				exterior_boundary.get("pressure_pre_pa", 0.0)
+			),
+			"phase3_shadow_exterior_requested_gas_kg": float(
+				exterior_boundary.get("requested_gas_kg", 0.0)
+			),
+			"phase3_shadow_exterior_requested_energy_kj": float(
+				exterior_boundary.get("requested_energy_kj", 0.0)
+			),
+			"phase3_shadow_exterior_requested_o2_kg": float(
+				exterior_boundary.get("requested_o2_kg", 0.0)
+			),
+			"phase3_shadow_exterior_requested_species_kg": float(
+				exterior_boundary.get("requested_species_kg", 0.0)
+			),
+			"phase3_shadow_exterior_accepted_gas_kg": float(
+				exterior_boundary.get("accepted_gas_kg", 0.0)
+			),
+			"phase3_shadow_exterior_accepted_energy_kj": float(
+				exterior_boundary.get("accepted_energy_kj", 0.0)
+			),
+			"phase3_shadow_exterior_accepted_o2_kg": float(
+				exterior_boundary.get("accepted_o2_kg", 0.0)
+			),
+			"phase3_shadow_exterior_accepted_species_kg": float(
+				exterior_boundary.get("accepted_species_kg", 0.0)
+			),
+			"phase3_shadow_exterior_post_upper_o2_kg": float(
+				state.get("upper_o2_kg", 0.0)
+			),
+			"phase3_shadow_exterior_post_lower_o2_kg": float(
+				state.get("lower_o2_kg", 0.0)
+			),
+			"phase3_shadow_exterior_post_upper_o2_fraction": clampf(float(
+				state.get("upper_o2_kg", 0.0)
+			) / maxf(THERMO_MASS_EPS_KG, float(state.get("upper_gas_kg", 0.0))), 0.0, 1.0),
+			"phase3_shadow_exterior_post_lower_o2_fraction": clampf(float(
+				state.get("lower_o2_kg", 0.0)
+			) / maxf(THERMO_MASS_EPS_KG, float(state.get("lower_gas_kg", 0.0))), 0.0, 1.0),
+			"phase3_shadow_exterior_rejected_gas_kg": float(
+				exterior_boundary.get("rejected_gas_kg", 0.0)
+			),
+			"phase3_shadow_exterior_rejected_energy_kj": float(
+				exterior_boundary.get("rejected_energy_kj", 0.0)
+			),
+			"phase3_shadow_exterior_rejected_o2_kg": float(
+				exterior_boundary.get("rejected_o2_kg", 0.0)
+			),
+			"phase3_shadow_exterior_rejected_species_kg": float(
+				exterior_boundary.get("rejected_species_kg", 0.0)
+			),
+			"phase3_shadow_exterior_direction": float(
+				exterior_boundary.get("direction", 0.0)
+			),
+			"phase3_shadow_exterior_source_zone_code": float(
+				exterior_boundary.get("source_zone_code", 0.0)
+			),
+			"phase3_shadow_exterior_event_count": float(
+				exterior_boundary.get("event_count", 0.0)
+			),
+			"phase3_shadow_exterior_legacy_pressure_suppressed_event_count": float(
+				exterior_boundary.get("legacy_pressure_suppressed_event_count", 0.0)
+			),
+			"phase3_shadow_exterior_accepted_fraction": float(
+				exterior_boundary.get("accepted_fraction", 1.0)
+			),
+			"phase3_shadow_exterior_duplicate_owner_flag": float(
+				exterior_boundary.get("duplicate_owner_flag", 0.0)
+			),
+			"phase3_shadow_exterior_mass_residual_kg": float(
+				exterior_boundary.get("mass_residual_kg", 0.0)
+			),
+			"phase3_shadow_exterior_energy_residual_kj": float(
+				exterior_boundary.get("energy_residual_kj", 0.0)
+			),
+			"phase3_shadow_exterior_o2_residual_kg": float(
+				exterior_boundary.get("o2_residual_kg", 0.0)
+			),
+			"phase3_shadow_exterior_species_residual_kg": float(
+				exterior_boundary.get("species_residual_kg", 0.0)
+			),
 			"phase3_shadow_request_count": _count_room_requests(room_id),
 			"phase3_shadow_plume_mass_request_kg": _sum_room_cause_mass(
 				room_id, "plume_entrainment"
@@ -2721,6 +3090,33 @@ func _apply_atomic_route(
 func _record_atomic_bundle_result(bundle: Dictionary, accepted_fraction: float) -> void:
 	var metadata: Dictionary = bundle.get("metadata", {})
 	var result_kind: String = String(metadata.get("kind", ""))
+	if result_kind == "canonical_exterior_boundary":
+		var room_key: String = str(int(metadata.get("room_id", EXTERIOR_ID)))
+		var record: Dictionary = _canonical_exterior_boundary_by_room.get(
+			room_key, _new_canonical_exterior_boundary_record()
+		)
+		var totals: Dictionary = metadata.get("requested_totals", {})
+		var accepted: float = clampf(accepted_fraction, 0.0, 1.0)
+		var rejected: float = 1.0 - accepted
+		record["accepted_fraction"] = accepted
+		for quantity_name in ["gas", "energy", "o2", "species"]:
+			var metadata_key: String = {
+				"gas": "gas_mass_kg",
+				"energy": "sensible_enthalpy_kj",
+				"o2": "o2_kg",
+				"species": "species_kg",
+			}[quantity_name]
+			var requested_value: float = maxf(
+				0.0, float(totals.get(metadata_key, 0.0))
+			)
+			var suffix: String = "_kg" if quantity_name != "energy" else "_kj"
+			record["accepted_" + quantity_name + suffix] = requested_value * accepted
+			record["rejected_" + quantity_name + suffix] = requested_value * rejected
+			record[quantity_name + "_residual" + suffix] = requested_value \
+					- float(record["accepted_" + quantity_name + suffix]) \
+					- float(record["rejected_" + quantity_name + suffix])
+		_canonical_exterior_boundary_by_room[room_key] = record
+		return
 	if result_kind == "delayed_parcel_carve":
 		var parcel_id: String = String(metadata.get("parcel_id", ""))
 		if not _species_transit_reservoir.has(parcel_id):
