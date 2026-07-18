@@ -82,8 +82,10 @@ void fragment() {
 	float flow_axis_mix = clamp(abs(flow_direction), 0.0, 1.0);
 	float flow_axis = mix(uv.y, uv.x, flow_axis_mix);
 	float flow_sign = flow_direction < 0.0 ? -1.0 : 1.0;
-	float moving_band = 0.5 + 0.5 * sin((flow_axis * flow_sign - TIME * flow_speed + n * 0.18) * 18.0);
-	float flow_filament = smoothstep(0.58, 0.98, moving_band) * side_face * flow_strength * (0.38 + filament * 0.62);
+	// Frecuencia baja y fase decorrelacionada con el ruido: bandas de flujo
+	// sueltas en vez de un patron de rayas que parece girar en el dintel.
+	float moving_band = 0.5 + 0.5 * sin((flow_axis * flow_sign - TIME * flow_speed) * 6.5 + n * 5.2);
+	float flow_filament = smoothstep(0.62, 0.98, moving_band) * side_face * flow_strength * (0.30 + filament * 0.55);
 	float alpha = base_alpha * mix(0.26, 1.0, bottom_fade) + smoke_color.a * density * edge_band_strength * edge_band * side_face * side_visibility + bottom_sheet;
 	alpha += smoke_color.a * density * flow_filament;
 	ALBEDO = smoke_color.rgb * mix(0.62, 1.10, n);
