@@ -27,6 +27,7 @@ var _hvac_option: OptionButton = null
 var _lighting_option: OptionButton = null
 var _interior_lights_option: OptionButton = null
 var _glass_break_option: OptionButton = null
+var _visibility_option: OptionButton = null
 var _building_type_option: OptionButton = null
 var _apartment_floor_spin: SpinBox = null
 var _preset_ids: Array[String] = []
@@ -76,9 +77,10 @@ func _bind_existing_ui() -> bool:
 	_lighting_option = get_node_or_null("Center/VBox/LightingRow/Option") as OptionButton
 	_interior_lights_option = get_node_or_null("Center/VBox/InteriorLightsRow/Option") as OptionButton
 	_glass_break_option = get_node_or_null("Center/VBox/GlassBreakRow/Option") as OptionButton
+	_visibility_option = get_node_or_null("Center/VBox/VisibilityRow/Option") as OptionButton
 	if _template_option == null or _building_type_option == null or _apartment_floor_spin == null \
 			or _hvac_option == null or _lighting_option == null or _glass_break_option == null \
-			or _interior_lights_option == null:
+			or _interior_lights_option == null or _visibility_option == null:
 		return false
 
 	_populate_template_option()
@@ -88,6 +90,7 @@ func _bind_existing_ui() -> bool:
 	_populate_lighting_option()
 	_populate_interior_lights_option()
 	_populate_glass_break_option()
+	_populate_visibility_option()
 	_connect_once(_building_type_option.item_selected, _on_building_type_selected)
 	_sync_apartment_floor_visibility()
 	return true
@@ -110,6 +113,7 @@ func _localize_texts() -> void:
 	_set_label_text("Center/VBox/LightingRow/LightingLabel", _ui_text("main.lighting", "Iluminacion").to_upper())
 	_set_label_text("Center/VBox/InteriorLightsRow/InteriorLightsLabel", _ui_text("main.interior_lights", "Luces int.").to_upper())
 	_set_label_text("Center/VBox/GlassBreakRow/GlassBreakLabel", _ui_text("main.glass_break", "Cristales").to_upper())
+	_set_label_text("Center/VBox/VisibilityRow/VisibilityLabel", _ui_text("main.visibility", "Visibilidad").to_upper())
 	_set_button_text("Center/VBox/BtnNewSim", _ui_text("main.start_simulation", "INICIAR SIMULACION"))
 	_set_button_text("Center/VBox/BtnEditor", _ui_text("main.open_editor", "EDITOR DE VIVIENDA"))
 	_set_button_text("Center/VBox/BtnQuit", _ui_text("main.quit", "SALIR"))
@@ -262,6 +266,17 @@ func _populate_glass_break_option() -> void:
 		_glass_break_option.select(clampi(selected_index, 0, _glass_break_option.get_item_count() - 1))
 
 
+func _populate_visibility_option() -> void:
+	if _visibility_option == null:
+		return
+	if _visibility_option.get_item_count() == 0:
+		_visibility_option.add_item(_ui_text("main.visibility.on", "Humo reduce visibilidad"), 0)
+		_visibility_option.add_item(_ui_text("main.visibility.off", "Sin efecto (solo HUD)"), 1)
+	var saved: Dictionary = _load_startup_options()
+	var enabled: bool = bool(saved.get("smoke_visibility_representation", true))
+	_visibility_option.select(0 if enabled else 1)
+
+
 func _load_startup_options() -> Dictionary:
 	if not FileAccess.file_exists(STARTUP_OPTIONS_PATH):
 		return {}
@@ -310,6 +325,10 @@ func _save_startup_options() -> void:
 		var glass_idx: int = clampi(_glass_break_option.selected, 0, _glass_break_modes.size() - 1)
 		selected_glass_break_mode = _glass_break_modes[glass_idx]
 
+	var selected_visibility_on: bool = true
+	if _visibility_option != null:
+		selected_visibility_on = _visibility_option.selected != 1
+
 	var file := FileAccess.open(STARTUP_OPTIONS_PATH, FileAccess.WRITE)
 	if file == null:
 		push_error("MainMenu: no se pudieron guardar opciones de inicio")
@@ -321,7 +340,8 @@ func _save_startup_options() -> void:
 		"hvac_mode": selected_hvac_mode,
 		"exterior_lighting_mode": selected_lighting_mode,
 		"interior_lights_on": selected_interior_lights_on,
-		"glass_break_mode": selected_glass_break_mode
+		"glass_break_mode": selected_glass_break_mode,
+		"smoke_visibility_representation": selected_visibility_on
 	}, "\t"))
 	file.close()
 

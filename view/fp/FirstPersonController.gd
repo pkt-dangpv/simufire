@@ -183,6 +183,12 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var fp_visibility_clear_m: float = 30.0
 
 @export_group("Visibilidad FP (niebla)")
+## ON/OFF de la REPRESENTACION visual de la visibilidad en FP (niebla +
+## tinte de humo). Con OFF el motor sigue calculando la visibilidad y el
+## HUD sigue mostrando los metros, pero la camara FP no la representa
+## (util para inspeccionar el escenario sin humo tapando). El menu del
+## juego expone este flag como "Visibilidad".
+@export var fp_visibility_representation_enabled: bool = true
 ## Niebla de distancia real en la camara FP: lo lejano desaparece antes
 ## (ley de Koschmieder, extincion ~ 3/visibilidad). Es el efecto principal
 ## de visibilidad; el tinte de pantalla queda para calor e inmersion severa.
@@ -2909,8 +2915,28 @@ func _update_prompt() -> void:
 		_prompt_panel.visible = true
 
 
+## Setter publico para el on/off de representacion de visibilidad (lo usa
+## Main desde la opcion del menu). No toca el calculo del motor ni el HUD.
+func set_visibility_representation_enabled(enabled: bool) -> void:
+	fp_visibility_representation_enabled = enabled
+	if not enabled:
+		if _visibility_overlay != null:
+			_visibility_overlay.color = Color(0.08, 0.09, 0.09, 0.0)
+		if _fog_env != null:
+			_fog_density_current = 0.0
+			_fog_height_density_current = 0.0
+			_fog_env.fog_density = 0.0
+			_fog_env.fog_height_density = 0.0
+
+
 func _update_visibility_overlay() -> void:
 	if _visibility_overlay == null:
+		return
+	# Representacion OFF: sin niebla ni tinte. El motor sigue calculando y el
+	# HUD (que computa su propio smoke_view) sigue mostrando los metros.
+	if not fp_visibility_representation_enabled:
+		_visibility_overlay.color = Color(0.08, 0.09, 0.09, 0.0)
+		_decay_fp_fog()
 		return
 	if not _active or building == null or _state.is_empty():
 		_visibility_overlay.color = Color(0.08, 0.09, 0.09, 0.0)

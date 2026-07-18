@@ -373,6 +373,19 @@ func _setup_first_person_controller() -> void:
 	first_person_controller.setup(building)
 	_connect_once(first_person_controller.exit_requested, _on_first_person_exit_requested)
 	_connect_once(first_person_controller.opening_changed, _on_first_person_opening_changed)
+	_apply_visibility_representation_option()
+
+
+## Aplica la opcion "Visibilidad" del menu al FP (representacion niebla+tinte).
+## No toca el calculo del motor ni el HUD, que siguen mostrando los metros.
+func _apply_visibility_representation_option() -> void:
+	if first_person_controller == null:
+		return
+	if not first_person_controller.has_method("set_visibility_representation_enabled"):
+		return
+	var options: Dictionary = _load_startup_options()
+	var enabled: bool = bool(options.get("smoke_visibility_representation", true))
+	first_person_controller.set_visibility_representation_enabled(enabled)
 
 
 func _on_first_person_exit_requested() -> void:
