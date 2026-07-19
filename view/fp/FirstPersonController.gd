@@ -178,6 +178,20 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var exterior_nearby_building_day_color: Color = Color(0.40, 0.42, 0.45, 1.0)
 @export var exterior_nearby_building_night_color: Color = Color(0.10, 0.11, 0.14, 1.0)
 
+@export_subgroup("Suelo y casas exteriores")
+## Losa del porche/rellano frente a la puerta de entrada.
+@export var exterior_porch_color: Color = Color(0.42, 0.41, 0.39, 1.0)
+## Escalon de entrada.
+@export var exterior_step_color: Color = Color(0.48, 0.47, 0.45, 1.0)
+## Cesped del jardin (vista residencial).
+@export var residential_lawn_color: Color = Color(0.17, 0.34, 0.20, 1.0)
+## Calzada de la calle residencial.
+@export var residential_street_color: Color = Color(0.13, 0.14, 0.14, 1.0)
+## Casas vecinas (vista residencial).
+@export var residential_house_color: Color = Color(0.55, 0.50, 0.43, 1.0)
+## Tejados de las casas vecinas.
+@export var residential_roof_color: Color = Color(0.31, 0.15, 0.10, 1.0)
+
 @export_group("Marcadores FP")
 @export var show_fp_detectors: bool = true
 @export var show_fp_victims: bool = true
@@ -1625,7 +1639,7 @@ func _create_door_exterior_view(parent: Node3D, index: int, info: Dictionary) ->
 		maxf(1.4, width_m + 0.9),
 		floor_thickness_m,
 		1.7,
-		_mat(Color(0.42, 0.41, 0.39, 1.0), false, Color(0.05, 0.05, 0.05, 0.0), 0.02 if not _exterior_is_night() else 0.0),
+		_mat(exterior_porch_color, false, Color(0.05, 0.05, 0.05, 0.0), 0.02 if not _exterior_is_night() else 0.0),
 		false
 	)
 	# Escalon de entrada.
@@ -1639,7 +1653,7 @@ func _create_door_exterior_view(parent: Node3D, index: int, info: Dictionary) ->
 		maxf(1.1, width_m + 0.45),
 		0.12,
 		0.42,
-		_mat(Color(0.48, 0.47, 0.45, 1.0), false),
+		_mat(exterior_step_color, false),
 		false
 	)
 	# Paisaje comun de fondo (edificios/calle/cesped) a ras de la calle.
@@ -1791,7 +1805,7 @@ func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Ve
 		city_view_width_m * 0.62,
 		floor_thickness_m,
 		3.45,
-		_mat(Color(0.17, 0.34, 0.20, 1.0), false, Color(0.08, 0.18, 0.08, 1.0), 0.03 if not _exterior_is_night() else 0.0),
+		_mat(residential_lawn_color, false, Color(0.08, 0.18, 0.08, 1.0), 0.03 if not _exterior_is_night() else 0.0),
 		false
 	)
 	var street_center: Vector3 = center - normal * 5.55
@@ -1804,7 +1818,7 @@ func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Ve
 		city_view_width_m * 0.74,
 		floor_thickness_m,
 		0.90,
-		_mat(Color(0.13, 0.14, 0.14, 1.0), false),
+		_mat(residential_street_color, false),
 		false
 	)
 	if exterior_window_obstacles_enabled:
@@ -1820,7 +1834,7 @@ func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Ve
 				1.75,
 				1.55,
 				0.82,
-				_mat(Color(0.55, 0.50, 0.43, 1.0), false),
+				_mat(residential_house_color, false),
 				false
 			)
 			var roof_center: Vector3 = house_center
@@ -1833,7 +1847,7 @@ func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Ve
 				1.95,
 				0.16,
 				0.98,
-				_mat(Color(0.31, 0.15, 0.10, 1.0), false),
+				_mat(residential_roof_color, false),
 				false
 			)
 
