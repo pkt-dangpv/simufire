@@ -96,8 +96,8 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var opening_panel_clearance_m: float = 0.028
 @export var opening_frame_interior_offset_m: float = 0.120
 @export var opening_frame_color: Color = Color(0.46, 0.34, 0.22, 1.0)
-@export var window_glass_closed_color: Color = Color(0.52, 0.70, 0.88, 0.42)
-@export var window_glass_open_color: Color = Color(0.62, 0.82, 1.0, 0.22)
+@export var window_glass_closed_color: Color = Color(0.58, 0.72, 0.86, 0.26)
+@export var window_glass_open_color: Color = Color(0.62, 0.82, 1.0, 0.12)
 @export var window_glass_shard_color: Color = Color(0.74, 0.92, 1.0, 0.34)
 @export var window_glass_crack_color: Color = Color(0.88, 0.98, 1.0, 0.78)
 
@@ -134,8 +134,8 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.05, 1.5, 0.05) var sky_night_energy: float = 0.35
 @export var exterior_floor_drop_m: float = 5.8
 @export var city_view_width_m: float = 22.0
-@export var city_building_distance_m: float = 15.0
-@export var city_backdrop_distance_m: float = 32.0
+@export var city_building_distance_m: float = 24.0
+@export var city_backdrop_distance_m: float = 52.0
 @export var exterior_window_obstacles_enabled: bool = true
 @export var city_building_count_per_window: int = 3
 @export var exterior_day_window_light_energy: float = 1.05
@@ -169,12 +169,12 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var exterior_skyline_day_color: Color = Color(0.44, 0.49, 0.57, 1.0)
 @export var exterior_skyline_night_color: Color = Color(0.05, 0.06, 0.10, 1.0)
 ## Altura de referencia del skyline de fondo (m).
-@export var exterior_skyline_height_m: float = 9.0
+@export var exterior_skyline_height_m: float = 13.0
 ## Nº de recortes de la silueta procedural.
-@export_range(3, 24, 1) var exterior_skyline_segments: int = 11
+@export_range(3, 24, 1) var exterior_skyline_segments: int = 14
 ## Nº de edificios 3D reales en primer plano (parallax). Pocos: el fondo
-## lo da el skyline plano.
-@export_range(0, 6, 1) var exterior_nearby_building_count: int = 2
+## lo da el skyline plano. 0 = solo skyline (mas limpio).
+@export_range(0, 6, 1) var exterior_nearby_building_count: int = 1
 @export var exterior_nearby_building_day_color: Color = Color(0.40, 0.42, 0.45, 1.0)
 @export var exterior_nearby_building_night_color: Color = Color(0.10, 0.11, 0.14, 1.0)
 
@@ -1719,12 +1719,14 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 		var base_col: Color = exterior_nearby_building_night_color if _exterior_is_night() else exterior_nearby_building_day_color
 		for slot in range(count):
 			var variant_seed: float = float(index * 31 + slot * 17)
-			var building_width: float = 2.4 + fposmod(variant_seed * 0.37, 2.2)
-			var building_depth: float = 2.0 + fposmod(variant_seed * 0.19, 1.4)
-			var building_height: float = 5.5 + fposmod(variant_seed * 1.13, 5.0)
-			var distance: float = city_building_distance_m + fposmod(variant_seed * 0.23, 3.2)
-			var slot_t: float = (float(slot) + 0.5) / float(count) - 0.5
-			var building_center: Vector3 = center - normal * distance + tangent * (slot_t * city_view_width_m * 0.62)
+			var building_width: float = 2.6 + fposmod(variant_seed * 0.37, 2.4)
+			var building_depth: float = 2.2 + fposmod(variant_seed * 0.19, 1.6)
+			var building_height: float = 4.0 + fposmod(variant_seed * 1.13, 3.5)
+			var distance: float = city_building_distance_m + fposmod(variant_seed * 0.23, 6.0)
+			# Descentrado (no frente al cristal) para no tapar la vista.
+			var side: float = -1.0 if fposmod(variant_seed * 0.53, 1.0) < 0.5 else 1.0
+			var slot_t: float = side * (0.32 + fposmod(variant_seed * 0.41, 0.30))
+			var building_center: Vector3 = center - normal * distance + tangent * (slot_t * city_view_width_m)
 			building_center.y = street_y + building_height * 0.5
 			var tone: float = fposmod(variant_seed * 0.11, 0.10)
 			var building_color := Color(base_col.r + tone, base_col.g + tone, base_col.b + tone, 1.0)
