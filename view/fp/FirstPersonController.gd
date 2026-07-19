@@ -19,6 +19,7 @@ const FPHudScene: PackedScene = preload("res://view/fp/FPHud.tscn")
 ## Entorno base de la camara FP (niebla); editable en el inspector abriendo
 ## view/fp/fp_camera_environment.tres. Se duplica por instancia en runtime.
 const FPCameraEnvironmentRes: Environment = preload("res://view/fp/fp_camera_environment.tres")
+const FPSkyDome := preload("res://view/fp/FPSkyDome.gd")
 const OUTSIDE_ID: int = -1
 const STANCE_STAND: int = 0
 const STANCE_CROUCH: int = 1
@@ -120,18 +121,24 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var exterior_soft_fill_night_color: Color = Color(0.25, 0.33, 0.46, 1.0)
 ## Altura (m) de la luz suave exterior.
 @export var exterior_soft_fill_height_m: float = 3.2
-## Cielo real (gradiente) de fondo por las aberturas, via el Environment de
-## la camara FP. Reemplaza las cajas planas de cielo. Colores editables aqui
-## y en view/fp/fp_camera_environment.tres.
+## Cielo: domo geometrico con gradiente y sol (view/fp/FPSkyDome.gd). Se usa
+## geometria porque el renderer GL Compatibility no dibuja el sky de un
+## Environment por camara.
 @export var exterior_procedural_sky_enabled: bool = true
-@export var sky_day_top_color: Color = Color(0.36, 0.52, 0.74, 1.0)
-@export var sky_day_horizon_color: Color = Color(0.74, 0.82, 0.88, 1.0)
-@export var sky_day_ground_color: Color = Color(0.42, 0.44, 0.44, 1.0)
-@export var sky_night_top_color: Color = Color(0.03, 0.05, 0.09, 1.0)
-@export var sky_night_horizon_color: Color = Color(0.10, 0.13, 0.20, 1.0)
-@export var sky_night_ground_color: Color = Color(0.05, 0.06, 0.08, 1.0)
-@export_range(0.1, 2.0, 0.05) var sky_day_energy: float = 1.0
-@export_range(0.05, 1.5, 0.05) var sky_night_energy: float = 0.35
+@export var sky_dome_radius_m: float = 160.0
+@export var sky_day_top_color: Color = Color(0.24, 0.45, 0.80, 1.0)
+@export var sky_day_horizon_color: Color = Color(0.78, 0.86, 0.93, 1.0)
+@export var sky_day_ground_color: Color = Color(0.40, 0.42, 0.42, 1.0)
+@export var sky_night_top_color: Color = Color(0.02, 0.03, 0.07, 1.0)
+@export var sky_night_horizon_color: Color = Color(0.07, 0.10, 0.17, 1.0)
+@export var sky_night_ground_color: Color = Color(0.04, 0.05, 0.07, 1.0)
+## Sol visible en el cielo (disco + halo). Se coloca segun los angulos de la
+## luz direccional exterior, asi que la sombra coincide con el sol.
+@export var sky_sun_day_color: Color = Color(1.0, 0.97, 0.86, 1.0)
+@export var sky_sun_night_color: Color = Color(0.86, 0.90, 1.0, 1.0)
+@export_range(0.2, 6.0, 0.1) var sky_sun_size_deg: float = 1.6
+@export_range(0.0, 1.5, 0.05) var sky_sun_halo_day: float = 0.55
+@export_range(0.0, 1.5, 0.05) var sky_sun_halo_night: float = 0.25
 @export var exterior_floor_drop_m: float = 5.8
 @export var city_view_width_m: float = 22.0
 @export var city_building_distance_m: float = 24.0
@@ -169,7 +176,7 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var exterior_skyline_day_color: Color = Color(0.44, 0.49, 0.57, 1.0)
 @export var exterior_skyline_night_color: Color = Color(0.05, 0.06, 0.10, 1.0)
 ## Altura de referencia del skyline de fondo (m).
-@export var exterior_skyline_height_m: float = 13.0
+@export var exterior_skyline_height_m: float = 22.0
 ## Nº de recortes de la silueta procedural.
 @export_range(3, 24, 1) var exterior_skyline_segments: int = 14
 ## Nº de edificios 3D reales en primer plano (parallax). Pocos: el fondo
@@ -177,6 +184,26 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0, 6, 1) var exterior_nearby_building_count: int = 1
 @export var exterior_nearby_building_day_color: Color = Color(0.40, 0.42, 0.45, 1.0)
 @export var exterior_nearby_building_night_color: Color = Color(0.10, 0.11, 0.14, 1.0)
+
+@export_subgroup("Calle (vista urbana)")
+## Composicion realista de calle: acera propia + calzada + acera opuesta y
+## la fachada del edificio de enfrente a esa distancia.
+@export var street_sidewalk_width_m: float = 2.6
+@export var street_road_width_m: float = 7.5
+@export var street_curb_height_m: float = 0.14
+@export var sidewalk_color: Color = Color(0.52, 0.51, 0.49, 1.0)
+@export var road_marking_color: Color = Color(0.78, 0.76, 0.62, 1.0)
+## Fachada continua de enfrente (lo normal en ciudad, no bloques sueltos).
+@export var opposite_facade_enabled: bool = true
+@export var opposite_facade_height_m: float = 15.0
+@export var opposite_facade_length_m: float = 46.0
+@export var opposite_facade_day_color: Color = Color(0.55, 0.52, 0.48, 1.0)
+@export var opposite_facade_night_color: Color = Color(0.13, 0.13, 0.15, 1.0)
+@export var opposite_window_day_color: Color = Color(0.22, 0.26, 0.30, 1.0)
+@export var opposite_window_night_color: Color = Color(0.10, 0.11, 0.13, 1.0)
+@export var opposite_window_lit_color: Color = Color(1.0, 0.82, 0.48, 1.0)
+@export_range(0, 12, 1) var opposite_facade_floors: int = 4
+@export_range(0, 20, 1) var opposite_facade_columns: int = 9
 
 @export_subgroup("Suelo y casas exteriores")
 ## Losa del porche/rellano frente a la puerta de entrada.
@@ -584,25 +611,14 @@ func apply_hud_layout() -> void:
 
 ## Aplica el cielo procedural dia/noche al Environment FP (o lo desactiva).
 func _apply_fp_sky() -> void:
+	# El cielo lo pinta el domo geometrico (FPSkyDome): GL Compatibility no
+	# dibuja el sky de un Environment por camara. Aqui solo se deja un color
+	# de fondo neutro para lo que quede fuera del domo.
 	if _fog_env == null:
 		return
-	if not exterior_procedural_sky_enabled or not exterior_context_enabled:
-		_fog_env.background_mode = Environment.BG_COLOR
-		_fog_env.background_color = Color(0.015, 0.02, 0.03, 1.0)
-		return
-	_fog_env.background_mode = Environment.BG_SKY
+	_fog_env.background_mode = Environment.BG_COLOR
 	var night: bool = _exterior_is_night()
-	var sky := _fog_env.sky
-	if sky == null:
-		return
-	var mat := sky.sky_material as ProceduralSkyMaterial
-	if mat == null:
-		return
-	mat.sky_top_color = sky_night_top_color if night else sky_day_top_color
-	mat.sky_horizon_color = sky_night_horizon_color if night else sky_day_horizon_color
-	mat.ground_horizon_color = sky_night_horizon_color if night else sky_day_horizon_color
-	mat.ground_bottom_color = sky_night_ground_color if night else sky_day_ground_color
-	mat.sky_energy_multiplier = sky_night_energy if night else sky_day_energy
+	_fog_env.background_color = sky_night_horizon_color if night else sky_day_horizon_color
 
 
 func _apply_panel_rect(panel: Control, rect: Rect2) -> void:
@@ -1602,7 +1618,13 @@ func _create_exterior_context() -> void:
 	root.name = "ExteriorContext"
 	_world_root.add_child(root)
 	_create_exterior_lighting(root)
+	_create_sky_dome(root)
 
+	# Los detalles del hueco (jambas, porche) son por abertura; el PAISAJE
+	# (calle, fachada de enfrente, skyline) se genera una sola vez por
+	# fachada: si no, cada ventana creaba su propio decorado y todos se
+	# superponian formando una maraña de bloques.
+	var facades: Dictionary = {}
 	for index in range(building.get_opening_count()):
 		var op: OpeningModel = building.get_opening_at(index)
 		if op == null or not op.is_exterior_opening():
@@ -1610,24 +1632,58 @@ func _create_exterior_context() -> void:
 		var info: Dictionary = _opening_info(index)
 		if info.is_empty():
 			continue
+		var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
+		var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
+		var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
+		var floor_level_m: float = float(info.get("floor_level_m", 0.0))
+
 		if op.type == OpeningModel.Type.WINDOW:
-			if _is_apartment_building():
-				_create_window_city_view(root, index, info)
-			else:
-				_create_window_residential_view(root, index, info)
+			_create_exterior_window_reveal(
+				root,
+				index,
+				center,
+				normal,
+				tangent,
+				float(info.get("width_m", 1.0)),
+				float(info.get("height_m", 1.0)),
+				float(info.get("sill_m", 0.9))
+			)
 		elif op.type == OpeningModel.Type.DOOR or op.type == OpeningModel.Type.HOLE:
-			_create_door_exterior_view(root, index, info)
+			_create_door_entrance(root, index, center, normal, tangent, float(info.get("width_m", 0.9)), floor_level_m)
+
+		var key: String = "%d_%d" % [roundi(normal.x * 4.0), roundi(normal.z * 4.0)]
+		if not facades.has(key):
+			facades[key] = {
+				"normal": normal,
+				"tangent": tangent,
+				"sum": Vector3.ZERO,
+				"count": 0,
+				"floor_level_m": floor_level_m,
+			}
+		var facade: Dictionary = facades[key]
+		facade["sum"] = Vector3(facade["sum"]) + center
+		facade["count"] = int(facade["count"]) + 1
+		facade["floor_level_m"] = minf(float(facade["floor_level_m"]), floor_level_m)
+		facades[key] = facade
+
+	var facade_index: int = 0
+	for key in facades.keys():
+		var facade: Dictionary = facades[key]
+		var count: int = maxi(1, int(facade["count"]))
+		var facade_center: Vector3 = Vector3(facade["sum"]) / float(count)
+		var facade_normal: Vector3 = Vector3(facade["normal"])
+		var facade_tangent: Vector3 = Vector3(facade["tangent"])
+		var facade_floor: float = float(facade["floor_level_m"])
+		if _is_apartment_building():
+			_create_exterior_scenery_city(root, facade_index, facade_center, facade_normal, facade_tangent, facade_floor)
+		else:
+			_create_exterior_scenery_residential(root, facade_index, facade_center, facade_normal, facade_tangent, facade_floor)
+		facade_index += 1
 
 
-## Exterior visto por la puerta de entrada (o hueco exterior): rellano/porche
-## a ras de suelo + el mismo paisaje residencial/ciudad que las ventanas.
-func _create_door_exterior_view(parent: Node3D, index: int, info: Dictionary) -> void:
-	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
-	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
-	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
-	var width_m: float = float(info.get("width_m", 0.9))
-	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
-
+## Entrada por la puerta: rellano/porche + escalon a ras de suelo. El
+## paisaje de fondo lo genera _create_exterior_context una vez por fachada.
+func _create_door_entrance(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, width_m: float, floor_level_m: float) -> void:
 	# Rellano/porche: losa exterior justo delante del umbral, a nivel de suelo.
 	var porch_center: Vector3 = center - normal * 0.95
 	porch_center.y = floor_level_m - floor_thickness_m * 0.5
@@ -1656,89 +1712,94 @@ func _create_door_exterior_view(parent: Node3D, index: int, info: Dictionary) ->
 		_mat(exterior_step_color, false),
 		false
 	)
-	# Paisaje comun de fondo (edificios/calle/cesped) a ras de la calle.
-	if _is_apartment_building():
-		_create_exterior_scenery_city(parent, index, center, normal, tangent, floor_level_m)
-	else:
-		_create_exterior_scenery_residential(parent, index, center, normal, tangent, floor_level_m)
 
 
 func _is_apartment_building() -> bool:
 	return building != null and String(building.building_type).strip_edges().to_lower() == "apartment"
 
 
-func _create_window_city_view(parent: Node3D, index: int, info: Dictionary) -> void:
-	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
-	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
-	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
-	var width_m: float = float(info.get("width_m", 1.0))
-	var height_m: float = float(info.get("height_m", 1.0))
-	var sill_m: float = float(info.get("sill_m", 0.9))
-	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
-
-	_create_exterior_window_reveal(parent, index, center, normal, tangent, width_m, height_m, sill_m)
-	_create_exterior_scenery_city(parent, index, center, normal, tangent, floor_level_m)
 
 
-func _create_window_residential_view(parent: Node3D, index: int, info: Dictionary) -> void:
-	var center: Vector3 = Vector3(info.get("center", Vector3.ZERO))
-	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
-	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
-	var width_m: float = float(info.get("width_m", 1.0))
-	var height_m: float = float(info.get("height_m", 1.0))
-	var sill_m: float = float(info.get("sill_m", 0.9))
-	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
-
-	_create_exterior_window_reveal(parent, index, center, normal, tangent, width_m, height_m, sill_m)
-	_create_exterior_scenery_residential(parent, index, center, normal, tangent, floor_level_m)
-
-
-## Paisaje urbano: calle + skyline plano de fondo + pocos edificios 3D en
-## primer plano (parallax). street_y toma la cota del suelo de la sala.
 func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, floor_level_m: float) -> void:
 	var street_y: float = floor_level_m - exterior_floor_drop_m - 0.03
-	var street_center: Vector3 = center - normal * (city_building_distance_m * 0.78)
-	street_center.y = street_y
-	_add_oriented_box(
-		parent,
-		"CityStreet_%02d" % index,
-		street_center,
-		tangent,
-		city_view_width_m * 1.55,
-		0.055,
-		city_building_distance_m * 1.35,
-		_mat(_effective_city_street_color(), false, _effective_city_street_color(), 0.045 if not _exterior_is_night() else 0.0),
-		false
-	)
+	var night: bool = _exterior_is_night()
+	var sidewalk_w: float = maxf(0.5, street_sidewalk_width_m)
+	var road_w: float = maxf(2.0, street_road_width_m)
+	var span_w: float = maxf(city_view_width_m * 1.6, opposite_facade_length_m)
 
+	# Acera propia (al pie de nuestra fachada).
+	var near_walk: Vector3 = center - normal * (sidewalk_w * 0.5)
+	near_walk.y = street_y + street_curb_height_m * 0.5
+	_add_oriented_box(parent, "Sidewalk_near_%02d" % index, near_walk, tangent,
+		span_w, street_curb_height_m, sidewalk_w, _mat(sidewalk_color, false), false)
+
+	# Calzada.
+	var road_center: Vector3 = center - normal * (sidewalk_w + road_w * 0.5)
+	road_center.y = street_y
+	_add_oriented_box(parent, "Road_%02d" % index, road_center, tangent,
+		span_w, 0.06, road_w, _mat(_effective_city_street_color(), false), false)
+	# Linea discontinua central.
+	for m in range(-3, 4):
+		var mark: Vector3 = road_center + tangent * (float(m) * 3.2)
+		mark.y = street_y + 0.035
+		_add_oriented_box(parent, "RoadMark_%02d_%d" % [index, m + 3], mark, tangent,
+			1.5, 0.02, 0.14, _mat(road_marking_color, false), false)
+
+	# Acera de enfrente.
+	var far_walk: Vector3 = center - normal * (sidewalk_w + road_w + sidewalk_w * 0.5)
+	far_walk.y = street_y + street_curb_height_m * 0.5
+	_add_oriented_box(parent, "Sidewalk_far_%02d" % index, far_walk, tangent,
+		span_w, street_curb_height_m, sidewalk_w, _mat(sidewalk_color, false), false)
+
+	# Fachada continua de enfrente, a ancho de calle real.
+	var facade_dist: float = sidewalk_w * 2.0 + road_w
+	if opposite_facade_enabled:
+		var facade_h: float = maxf(3.0, opposite_facade_height_m)
+		var facade_col: Color = opposite_facade_night_color if night else opposite_facade_day_color
+		var facade_center: Vector3 = center - normal * (facade_dist + 0.6)
+		facade_center.y = street_y + facade_h * 0.5
+		_add_oriented_box(parent, "OppositeFacade_%02d" % index, facade_center, tangent,
+			opposite_facade_length_m, facade_h, 1.2, _mat(facade_col, false), false)
+		_create_facade_windows(parent, index, center, normal, tangent, street_y, facade_dist, facade_h)
+
+	# Skyline lejano por detras del edificio de enfrente (profundidad).
 	_create_skyline_backdrop(parent, index, center, normal, tangent, street_y, 1.0)
 
-	# Pocos edificios 3D reales cerca, cajas mate sin ventanas-cajita.
-	var count: int = maxi(0, exterior_nearby_building_count)
-	if exterior_window_obstacles_enabled and count > 0:
-		var base_col: Color = exterior_nearby_building_night_color if _exterior_is_night() else exterior_nearby_building_day_color
-		for slot in range(count):
-			var variant_seed: float = float(index * 31 + slot * 17)
-			var building_width: float = 2.6 + fposmod(variant_seed * 0.37, 2.4)
-			var building_depth: float = 2.2 + fposmod(variant_seed * 0.19, 1.6)
-			var building_height: float = 4.0 + fposmod(variant_seed * 1.13, 3.5)
-			var distance: float = city_building_distance_m + fposmod(variant_seed * 0.23, 6.0)
-			# Descentrado (no frente al cristal) para no tapar la vista.
-			var side: float = -1.0 if fposmod(variant_seed * 0.53, 1.0) < 0.5 else 1.0
-			var slot_t: float = side * (0.32 + fposmod(variant_seed * 0.41, 0.30))
-			var building_center: Vector3 = center - normal * distance + tangent * (slot_t * city_view_width_m)
-			building_center.y = street_y + building_height * 0.5
-			var tone: float = fposmod(variant_seed * 0.11, 0.10)
-			var building_color := Color(base_col.r + tone, base_col.g + tone, base_col.b + tone, 1.0)
+
+## Ventanas de la fachada de enfrente: rejilla de paneles planos embebidos
+## (no cajitas sueltas), con algunas encendidas de noche.
+func _create_facade_windows(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, street_y: float, facade_dist: float, facade_h: float) -> void:
+	var floors: int = maxi(0, opposite_facade_floors)
+	var columns: int = maxi(0, opposite_facade_columns)
+	if floors <= 0 or columns <= 0:
+		return
+	var night: bool = _exterior_is_night()
+	var base_col: Color = opposite_window_night_color if night else opposite_window_day_color
+	var lit_ratio: float = city_night_lit_window_ratio if night else city_day_lit_window_ratio
+	var floor_h: float = facade_h / float(floors + 1)
+	var col_step: float = opposite_facade_length_m / float(columns + 1)
+	var win_w: float = minf(1.25, col_step * 0.52)
+	var win_h: float = minf(1.45, floor_h * 0.52)
+	var face: Vector3 = center - normal * facade_dist
+	for f in range(floors):
+		var y: float = street_y + floor_h * (float(f) + 1.0)
+		for c in range(columns):
+			var t: float = (float(c) + 1.0) / float(columns + 1) - 0.5
+			var variant_seed: float = float(index * 7 + f * 31 + c * 13)
+			var lit: bool = fposmod(variant_seed * 0.173, 1.0) < lit_ratio
+			var col: Color = opposite_window_lit_color if lit else base_col
+			var emission: float = 0.55 if (lit and night) else (0.10 if lit else 0.0)
+			var wc: Vector3 = face + tangent * (t * opposite_facade_length_m)
+			wc.y = y
 			_add_oriented_box(
 				parent,
-				"CityBuilding_%02d_%02d" % [index, slot],
-				building_center,
+				"OppositeWindow_%02d_%02d_%02d" % [index, f, c],
+				wc,
 				tangent,
-				building_width,
-				building_height,
-				building_depth,
-				_mat(building_color, false),
+				win_w,
+				win_h,
+				0.10,
+				_mat(col, false, col if lit else Color(0.0, 0.0, 0.0, 0.0), emission),
 				false
 			)
 
@@ -1879,6 +1940,30 @@ func _create_exterior_window_reveal(
 		var side_center: Vector3 = reveal_center + tangent * side_sign * (width_m * 0.5 + band_m * 0.5)
 		side_center.y = floor_level_m + sill_m + height_m * 0.5
 		_add_oriented_box(parent, "ExteriorWindowSide_%02d" % index, side_center, tangent, band_m, height_m + band_m * 2.0, band_depth, facade_mat, false)
+
+
+## Domo de cielo geometrico (gradiente + sol) centrado en el edificio.
+func _create_sky_dome(parent: Node3D) -> void:
+	if not exterior_procedural_sky_enabled:
+		return
+	var dome := FPSkyDome.create(sky_dome_radius_m)
+	var night: bool = _exterior_is_night()
+	FPSkyDome.apply_colors(
+		dome,
+		sky_night_top_color if night else sky_day_top_color,
+		sky_night_horizon_color if night else sky_day_horizon_color,
+		sky_night_ground_color if night else sky_day_ground_color,
+		sky_sun_night_color if night else sky_sun_day_color,
+		FPSkyDome.sun_direction_from_angles(exterior_sky_light_pitch_deg, exterior_sky_light_yaw_deg),
+		sky_sun_size_deg,
+		sky_sun_halo_night if night else sky_sun_halo_day
+	)
+	dome.position = _to_world(Vector3(
+		_bounds_m.position.x + _bounds_m.size.x * 0.5,
+		0.0,
+		_bounds_m.position.y + _bounds_m.size.y * 0.5
+	))
+	parent.add_child(dome)
 
 
 func _create_exterior_lighting(parent: Node3D) -> void:
