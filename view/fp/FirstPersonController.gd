@@ -158,6 +158,26 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.0, 1.0, 0.01) var city_day_lit_window_ratio: float = 0.07
 @export_range(0.0, 1.0, 0.01) var city_night_lit_window_ratio: float = 0.56
 
+@export_subgroup("Horizonte exterior")
+## Dibujo panoramico del skyline al fondo (tu propia imagen). Si se asigna,
+## reemplaza la silueta procedural. Usa el canal alfa para el recorte de
+## los tejados contra el cielo. Uno para dia y otro para noche.
+@export var exterior_skyline_texture: Texture2D = null
+@export var exterior_skyline_texture_night: Texture2D = null
+## Color de la silueta procedural (cuando no hay textura). Lejano y con
+## bruma en dia; casi negro en noche.
+@export var exterior_skyline_day_color: Color = Color(0.44, 0.49, 0.57, 1.0)
+@export var exterior_skyline_night_color: Color = Color(0.05, 0.06, 0.10, 1.0)
+## Altura de referencia del skyline de fondo (m).
+@export var exterior_skyline_height_m: float = 9.0
+## Nº de recortes de la silueta procedural.
+@export_range(3, 24, 1) var exterior_skyline_segments: int = 11
+## Nº de edificios 3D reales en primer plano (parallax). Pocos: el fondo
+## lo da el skyline plano.
+@export_range(0, 6, 1) var exterior_nearby_building_count: int = 2
+@export var exterior_nearby_building_day_color: Color = Color(0.40, 0.42, 0.45, 1.0)
+@export var exterior_nearby_building_night_color: Color = Color(0.10, 0.11, 0.14, 1.0)
+
 @export_group("Marcadores FP")
 @export var show_fp_detectors: bool = true
 @export var show_fp_victims: bool = true
@@ -1276,24 +1296,8 @@ func _effective_landing_light_color() -> Color:
 	return exterior_night_landing_light_color if _exterior_is_night() else exterior_day_landing_light_color
 
 
-func _effective_city_sky_color() -> Color:
-	return city_night_sky_color if _exterior_is_night() else city_sky_color
-
-
 func _effective_city_street_color() -> Color:
 	return city_night_street_color if _exterior_is_night() else city_street_color
-
-
-func _effective_city_window_color() -> Color:
-	return city_night_window_color if _exterior_is_night() else city_window_color
-
-
-func _effective_city_window_lit_color() -> Color:
-	return city_night_window_lit_color if _exterior_is_night() else city_window_lit_color
-
-
-func _effective_city_lit_window_ratio() -> float:
-	return city_night_lit_window_ratio if _exterior_is_night() else city_day_lit_window_ratio
 
 
 func _create_opening_frame(index: int, op: OpeningModel, info: Dictionary) -> Node3D:
@@ -1675,8 +1679,8 @@ func _create_window_residential_view(parent: Node3D, index: int, info: Dictionar
 	_create_exterior_scenery_residential(parent, index, center, normal, tangent, floor_level_m)
 
 
-## Paisaje urbano (calle + bloques con ventanas) reutilizado por ventanas y
-## puerta. street_y toma la cota del suelo de la sala como referencia.
+## Paisaje urbano: calle + skyline plano de fondo + pocos edificios 3D en
+## primer plano (parallax). street_y toma la cota del suelo de la sala.
 func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, floor_level_m: float) -> void:
 	var street_y: float = floor_level_m - exterior_floor_drop_m - 0.03
 	var street_center: Vector3 = center - normal * (city_building_distance_m * 0.78)
@@ -1693,20 +1697,23 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 		false
 	)
 
-	if exterior_window_obstacles_enabled and city_building_count_per_window > 0:
-		var count: int = maxi(1, city_building_count_per_window)
-		var span_step: float = city_view_width_m / float(count)
+	_create_skyline_backdrop(parent, index, center, normal, tangent, street_y, 1.0)
+
+	# Pocos edificios 3D reales cerca, cajas mate sin ventanas-cajita.
+	var count: int = maxi(0, exterior_nearby_building_count)
+	if exterior_window_obstacles_enabled and count > 0:
+		var base_col: Color = exterior_nearby_building_night_color if _exterior_is_night() else exterior_nearby_building_day_color
 		for slot in range(count):
-			var slot_t: float = (float(slot) + 0.5) / float(count) - 0.5
 			var variant_seed: float = float(index * 31 + slot * 17)
-			var building_width: float = clampf(span_step * (0.72 + fposmod(variant_seed * 0.37, 0.32)), 1.6, 4.6)
-			var building_depth: float = 0.72 + fposmod(variant_seed * 0.19, 0.34)
-			var building_height: float = 7.5 + fposmod(variant_seed * 1.13, 7.2)
-			var distance: float = city_building_distance_m + 2.8 + fposmod(variant_seed * 0.23, 3.6)
-			var building_center: Vector3 = center - normal * distance + tangent * (slot_t * city_view_width_m)
-			building_center.y = floor_level_m - exterior_floor_drop_m + building_height * 0.5
-			var tone: float = fposmod(variant_seed * 0.11, 0.24)
-			var building_color := Color(0.34 + tone, 0.36 + tone * 0.72, 0.37 + tone * 0.55, 1.0)
+			var building_width: float = 2.4 + fposmod(variant_seed * 0.37, 2.2)
+			var building_depth: float = 2.0 + fposmod(variant_seed * 0.19, 1.4)
+			var building_height: float = 5.5 + fposmod(variant_seed * 1.13, 5.0)
+			var distance: float = city_building_distance_m + fposmod(variant_seed * 0.23, 3.2)
+			var slot_t: float = (float(slot) + 0.5) / float(count) - 0.5
+			var building_center: Vector3 = center - normal * distance + tangent * (slot_t * city_view_width_m * 0.62)
+			building_center.y = street_y + building_height * 0.5
+			var tone: float = fposmod(variant_seed * 0.11, 0.10)
+			var building_color := Color(base_col.r + tone, base_col.g + tone, base_col.b + tone, 1.0)
 			_add_oriented_box(
 				parent,
 				"CityBuilding_%02d_%02d" % [index, slot],
@@ -1715,14 +1722,65 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 				building_width,
 				building_height,
 				building_depth,
-				_mat(building_color, false, building_color, 0.035 if not _exterior_is_night() else 0.0),
+				_mat(building_color, false),
 				false
 			)
-			_create_city_windows(parent, index, slot, building_center, normal, tangent, building_width, building_height, building_depth, variant_seed)
 
 
-## Paisaje residencial (cesped + calle + casas) reutilizado por ventanas y puerta.
+## Skyline de fondo: dibujo del usuario si hay textura, o silueta procedural
+## (fila de recortes planos de alturas variadas) contra el cielo.
+func _create_skyline_backdrop(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, base_y: float, height_scale: float) -> void:
+	var back_center: Vector3 = center - normal * city_backdrop_distance_m
+	var texture: Texture2D = exterior_skyline_texture_night if _exterior_is_night() else exterior_skyline_texture
+	var sil_color: Color = exterior_skyline_night_color if _exterior_is_night() else exterior_skyline_day_color
+	var skyline_h: float = exterior_skyline_height_m * height_scale
+
+	if texture != null:
+		var panel_w: float = city_view_width_m * 2.4
+		var panel_h: float = skyline_h * 1.7
+		var pc: Vector3 = back_center
+		pc.y = base_y + panel_h * 0.5 - 0.5
+		_add_oriented_panel(parent, "Skyline_%02d" % index, pc, tangent, panel_w, panel_h, texture, Color(1.0, 1.0, 1.0, 1.0))
+		return
+
+	var segments: int = maxi(3, exterior_skyline_segments)
+	var span: float = city_view_width_m * 2.05
+	var seg_w: float = span / float(segments)
+	for s in range(segments):
+		var variant_seed: float = float(index * 53 + s * 29)
+		var seg_h: float = skyline_h * (0.42 + fposmod(variant_seed * 0.31, 0.58))
+		var t: float = (float(s) + 0.5) / float(segments) - 0.5
+		var pc: Vector3 = back_center + tangent * (t * span)
+		pc.y = base_y + seg_h * 0.5
+		_add_oriented_box(
+			parent,
+			"Skyline_%02d_%02d" % [index, s],
+			pc,
+			tangent,
+			seg_w * 1.03,
+			seg_h,
+			0.14,
+			_mat(sil_color, false),
+			false
+		)
+
+
+## Panel plano orientado (quad fino) con textura opcional; unshaded para que
+## el skyline no dependa de las luces.
+func _add_oriented_panel(parent: Node3D, node_name: String, center: Vector3, tangent: Vector3, width_m: float, height_m: float, texture: Texture2D, color: Color) -> void:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = color
+	if texture != null:
+		mat.albedo_texture = texture
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	_add_oriented_box(parent, node_name, center, tangent, width_m, height_m, 0.06, mat, false)
+
+
+## Paisaje residencial (cesped + calle + casas + silueta lejana) por ventanas y puerta.
 func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, floor_level_m: float) -> void:
+	_create_skyline_backdrop(parent, index, center, normal, tangent, floor_level_m - floor_thickness_m, 0.55)
 	var lawn_center: Vector3 = center - normal * 2.65
 	lawn_center.y = floor_level_m - floor_thickness_m * 0.55
 	_add_oriented_box(
@@ -1836,44 +1894,6 @@ func _create_exterior_window_sill(parent: Node3D, index: int, center: Vector3, n
 	_add_oriented_box(parent, "ExteriorSill_%02d" % index, slab_center, tangent, width_m + 0.36, 0.06, 0.30, _mat(Color(0.55, 0.54, 0.49, 1.0), false), false)
 
 
-func _create_city_windows(
-	parent: Node3D,
-	opening_index: int,
-	building_slot: int,
-	building_center: Vector3,
-	normal: Vector3,
-	tangent: Vector3,
-	building_width: float,
-	building_height: float,
-	building_depth: float,
-	variant_seed: float
-) -> void:
-	var columns: int = clampi(int(floor(building_width / 0.95)), 1, 3)
-	var rows: int = clampi(int(floor((building_height - 1.0) / 1.55)), 2, 6)
-	var face_center: Vector3 = building_center + normal * (building_depth * 0.5 + 0.014)
-	for row in range(rows):
-		var y: float = -exterior_floor_drop_m + 0.95 + float(row) * 1.55
-		if y > building_center.y + building_height * 0.5 - 0.45:
-			continue
-		for column in range(columns):
-			var col_t: float = (float(column) + 0.5) / float(columns) - 0.5
-			var lit_roll: float = fposmod(variant_seed * 0.173 + float(row) * 0.277 + float(column) * 0.619, 1.0)
-			var lit: bool = lit_roll < _effective_city_lit_window_ratio()
-			var win_center: Vector3 = face_center + tangent * (col_t * building_width * 0.72)
-			win_center.y = y
-			var win_color: Color = _effective_city_window_lit_color() if lit else _effective_city_window_color()
-			var emission_energy: float = 0.30 if lit and _exterior_is_night() else 0.08 if lit else 0.018 if not _exterior_is_night() else 0.0
-			_add_oriented_box(
-				parent,
-				"CityWindow_%02d_%02d_%02d_%02d" % [opening_index, building_slot, row, column],
-				win_center,
-				tangent,
-				0.34,
-				0.42,
-				0.018,
-				_mat(win_color, false, win_color if lit else Color(0.0, 0.0, 0.0, 0.0), emission_energy),
-				false
-			)
 
 
 func _create_fp_furniture_nodes(rects: Dictionary) -> void:
