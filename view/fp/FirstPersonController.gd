@@ -1504,27 +1504,21 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	var floor_center: Vector3 = center - normal * (depth_m * 0.5 + 0.08)
 	floor_center.y = floor_level_m - floor_thickness_m * 0.5
 
-	# Caja de escalera contra la pared derecha del rellano. Se divide en:
-	#  - parte TRASERA (contra la pared del fondo): el tramo SUBE a un
-	#    descansillo intermedio y continua por un hueco en el techo que queda
-	#    TAPADO por una entreplanta oscura (sugiere planta de arriba, sin cielo).
-	#  - parte FRONTAL (hacia el observador): el tramo BAJA por un hueco del
-	#    suelo a un descansillo inferior CERRADO (no un agujero al vacio).
-	var stair_bay_w: float = 1.50
+	# Caja de escalera contra la pared derecha del rellano. Suelo y techo
+	# quedan CERRADOS (sin huecos): la escalera se ve parcialmente por una
+	# abertura en un muro divisorio y se pierde detras, sin mostrar como sube
+	# o baja ni dejar ver el cielo ni agujeros.
+	var stair_bay_w: float = 1.55
 	var stair_bay_center: Vector3 = floor_center + tangent * (width_m * 0.5 - stair_bay_w * 0.5 - wall_thickness_m)
-	var up_bay_center: Vector3 = stair_bay_center - normal * (depth_m * 0.24)
-	var down_hole_center: Vector3 = stair_bay_center + normal * (depth_m * 0.30)
-	var floor_hole: Rect2 = _xz_rect(down_hole_center, stair_bay_w * 0.46, depth_m * 0.16, tangent, normal)
-	var ceiling_hole: Rect2 = _xz_rect(up_bay_center, stair_bay_w * 0.46, depth_m * 0.20, tangent, normal)
 
-	var floor_rect: Rect2 = _xz_rect(floor_center, width_m * 0.5, depth_m * 0.5, tangent, normal)
-	_add_slab_with_holes(
+	var floor_size := Vector3(width_m, floor_thickness_m, depth_m) if horizontal else Vector3(depth_m, floor_thickness_m, width_m)
+	_add_box(
+		_world_root,
 		"LandingFloor_%02d" % index,
-		floor_rect,
-		floor_center.y,
-		floor_thickness_m,
-		[floor_hole],
-		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4100 + index)
+		floor_size,
+		floor_center,
+		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4100 + index),
+		false
 	)
 
 	var wall_center: Vector3 = center - normal * (depth_m + 0.11)
@@ -1554,35 +1548,15 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 
 	var ceiling_center: Vector3 = floor_center
 	ceiling_center.y = floor_level_m + corridor_height_m + ceiling_thickness_m * 0.5
-	var ceiling_rect: Rect2 = _xz_rect(ceiling_center, width_m * 0.5, depth_m * 0.5, tangent, normal)
-	_add_slab_with_holes(
-		"LandingCeiling_%02d" % index,
-		ceiling_rect,
-		ceiling_center.y,
-		ceiling_thickness_m,
-		[ceiling_hole],
-		_mat(landing_ceiling_color, false)
-	)
-	# Entreplanta oscura sobre el hueco del techo: tapa el cielo y deja el
-	# arranque del tramo superior en penumbra (planta de arriba insinuada).
-	var mezz_center: Vector3 = up_bay_center
-	mezz_center.y = ceiling_center.y + 1.15
+	var ceiling_size := Vector3(width_m, ceiling_thickness_m, depth_m) if horizontal else Vector3(depth_m, ceiling_thickness_m, width_m)
 	_add_box(
 		_world_root,
-		"LandingUpperSoffit_%02d" % index,
-		Vector3(ceiling_hole.size.x + 0.6, ceiling_thickness_m, ceiling_hole.size.y + 0.6),
-		mezz_center,
-		_mat(Color(0.06, 0.06, 0.07, 1.0), false),
+		"LandingCeiling_%02d" % index,
+		ceiling_size,
+		ceiling_center,
+		_mat(landing_ceiling_color, false),
 		false
 	)
-	# Paredes laterales del hueco de subida hasta la entreplanta (evitan ver
-	# el rellano vecino / cielo por los lados).
-	for wside in [-1.0, 1.0]:
-		var w_c: Vector3 = up_bay_center + tangent * (wside * ceiling_hole.size.x * 0.5)
-		w_c.y = ceiling_center.y + 0.575
-		_add_box(_world_root, "LandingUpperSide_%02d_%s" % [index, "L" if wside < 0.0 else "R"],
-			Vector3(wall_thickness_m, 1.15, ceiling_hole.size.y), w_c,
-			_mat(landing_wall_color.darkened(0.10), false), false)
 
 	var fixture_center: Vector3 = center - normal * (depth_m * 0.62)
 	fixture_center.y = floor_level_m + 2.18
@@ -1666,9 +1640,9 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		false
 	)
 
-	# Escalera: sube al hueco trasero (bajo la entreplanta) y baja al hueco
-	# frontal (a un descansillo cerrado).
-	_create_landing_stairs(index, floor_level_m, up_bay_center, down_hole_center, stair_bay_w, normal, tangent, corridor_height_m)
+	# Escalera parcialmente oculta tras un muro divisorio con abertura de paso:
+	# se ve el arranque subiendo y se pierde detras, sin revelar como continua.
+	_create_landing_stairs(index, floor_level_m, stair_bay_center, stair_bay_w, normal, tangent, corridor_height_m)
 
 
 func _create_single_family_entry_recess(index: int, _op: OpeningModel, info: Dictionary) -> void:
@@ -1822,46 +1796,51 @@ func _create_stair_flight(name_prefix: String, start: Vector3, run_dir: Vector3,
 	_add_bar_between("%s_Handrail" % name_prefix, post_from + Vector3.UP * rail_h, post_to + Vector3.UP * rail_h, 0.06, rail_mat)
 
 
-## Escalera del rellano estilo portal: un tramo SUBE hasta un descansillo
-## intermedio (bajo el hueco del techo, que queda tapado por la entreplanta →
-## sugiere planta de arriba sin ver cielo) y otro BAJA a un descansillo
-## inferior CERRADO (planta de abajo insinuada, sin agujero al vacio).
-func _create_landing_stairs(index: int, floor_level_m: float, up_bay_center: Vector3, down_hole_center: Vector3, stair_bay_w: float, normal: Vector3, tangent: Vector3, corridor_height_m: float) -> void:
+## Escalera del rellano estilo portal, PARCIALMENTE OCULTA: un unico tramo
+## sube hacia la pared del fondo, pero un muro divisorio con una abertura de
+## paso lo tapa casi por completo. Desde el rellano solo se ve el arranque
+## subiendo por la abertura; el resto queda detras del muro, sin revelar como
+## continua ni dejar huecos al cielo o al vacio (suelo y techo van cerrados).
+func _create_landing_stairs(index: int, floor_level_m: float, bay_center: Vector3, stair_bay_w: float, normal: Vector3, tangent: Vector3, corridor_height_m: float) -> void:
 	var tread: float = maxf(0.22, landing_step_tread_m)
 	var rise: float = maxf(0.12, landing_step_rise_m)
-	var flight_w: float = stair_bay_w * 0.82
+	var flight_w: float = stair_bay_w * 0.86
 	var step_mat: StandardMaterial3D = _mat(landing_stair_color, false)
+	var wall_mat: StandardMaterial3D = _mat(landing_wall_color, false)
 
-	# --- SUBIDA: tramo del suelo a un descansillo intermedio a media altura,
-	#     hacia la pared del fondo (run = -normal). El hueco del techo sobre el
-	#     descansillo, con la entreplanta encima, insinua el siguiente tramo.
-	var mid_steps: int = maxi(4, int(round((corridor_height_m * 0.5) / rise)))
+	# --- TRAMO UNICO: sube desde el suelo hacia la pared del fondo (run =
+	#     -normal). Empieza cerca del frente del hueco para que su arranque
+	#     asome por la abertura del muro.
+	var steps: int = 7
 	var run_up: Vector3 = -normal
-	var up_start: Vector3 = up_bay_center + normal * (mid_steps * tread * 0.5)
-	_create_stair_flight("LandingUp_%02d" % index, up_start, run_up, tangent, floor_level_m, tread, rise, mid_steps, flight_w, true)
-	# Descansillo intermedio al final del tramo, contra la pared del fondo.
-	var mid_landing: Vector3 = up_start + run_up * (float(mid_steps) * tread + 0.20)
-	mid_landing.y = floor_level_m + rise * float(mid_steps) - floor_thickness_m * 0.5
-	_add_oriented_box(_world_root, "LandingMid_%02d" % index, mid_landing, tangent,
+	var flight_start: Vector3 = bay_center + normal * (float(steps) * tread * 0.5 - 0.10)
+	_create_stair_flight("LandingUp_%02d" % index, flight_start, run_up, tangent, floor_level_m, tread, rise, steps, flight_w, true)
+	# Descansillo ciego al final del tramo, contra la pared del fondo: la
+	# escalera "gira" y se pierde, no se ve adonde va.
+	var top_y: float = floor_level_m + rise * float(steps)
+	var landing_top: Vector3 = flight_start + run_up * (float(steps) * tread + 0.24)
+	landing_top.y = top_y - floor_thickness_m * 0.5
+	_add_oriented_box(_world_root, "LandingStairTop_%02d" % index, landing_top, tangent,
 		stair_bay_w, floor_thickness_m, 0.55, step_mat, false)
 
-	# --- BAJADA: tramo hasta un descansillo inferior cerrado (cajon con suelo
-	#     y paredes), visible por el hueco del suelo. Baja hacia el observador.
-	var down_steps: int = maxi(4, int(round((corridor_height_m * 0.5) / rise)))
-	var down_bottom_y: float = floor_level_m - rise * float(down_steps)
-	var down_start: Vector3 = down_hole_center + normal * (float(down_steps) * tread * 0.5)
-	_create_stair_flight("LandingDown_%02d" % index, down_start, normal, tangent, down_bottom_y, tread, rise, down_steps, flight_w, false)
-	# Descansillo inferior + su cajon (suelo y paredes) para que no sea agujero.
-	var low_center: Vector3 = down_start + normal * (float(down_steps) * tread + 0.55)
-	var low_floor: Vector3 = low_center
-	low_floor.y = down_bottom_y - floor_thickness_m * 0.5
-	_add_oriented_box(_world_root, "LandingLowFloor_%02d" % index, low_floor, tangent,
-		stair_bay_w + 0.4, floor_thickness_m, 1.30, _mat(landing_floor_color.darkened(0.15), false), false)
-	# Pared del fondo del cajon inferior.
-	var low_wall: Vector3 = low_center + normal * 0.75
-	low_wall.y = down_bottom_y + 0.85
-	_add_oriented_box(_world_root, "LandingLowWall_%02d" % index, low_wall, tangent,
-		stair_bay_w + 0.4, 1.80, wall_thickness_m, _mat(landing_wall_color.darkened(0.18), false), false)
+	# --- MURO DIVISORIO con abertura de paso, delante del tramo (hacia el
+	#     observador). Se construye como dos machones + dintel dejando el hueco
+	#     de paso, para que la escalera se vea solo parcialmente por el.
+	var screen_z: Vector3 = bay_center + normal * (float(steps) * tread * 0.5 + 0.12)
+	var screen_th: float = 0.11
+	var wall_h: float = corridor_height_m
+	var open_w: float = clampf(stair_bay_w - 0.42, 0.72, 0.98)
+	var open_h: float = 2.05
+	var pier_w: float = (stair_bay_w - open_w) * 0.5
+	for pside in [-1.0, 1.0]:
+		var pier_c: Vector3 = screen_z + tangent * (pside * (open_w + pier_w) * 0.5)
+		pier_c.y = floor_level_m + wall_h * 0.5
+		_add_oriented_box(_world_root, "LandingScreenPier_%02d_%s" % [index, "L" if pside < 0.0 else "R"],
+			pier_c, tangent, pier_w, wall_h, screen_th, wall_mat, false)
+	var lintel_c: Vector3 = screen_z
+	lintel_c.y = floor_level_m + open_h + (wall_h - open_h) * 0.5
+	_add_oriented_box(_world_root, "LandingScreenLintel_%02d" % index, lintel_c, tangent,
+		open_w, wall_h - open_h, screen_th, wall_mat, false)
 
 
 func _create_exterior_context() -> void:
