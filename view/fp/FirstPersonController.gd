@@ -115,6 +115,13 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Inclinacion (pitch) y orientacion (yaw) de la luz del cielo, en grados.
 @export var exterior_sky_light_pitch_deg: float = -38.0
 @export var exterior_sky_light_yaw_deg: float = 28.0
+## Ajustes de la sombra del sol para evitar el borde dentado y el "baile" al
+## moverse. Mayor bias = menos acne; mayor blur = borde mas suave; menor
+## max_distance = mas resolucion cerca (menos temblor).
+@export var exterior_sky_shadow_bias: float = 0.08
+@export var exterior_sky_shadow_normal_bias: float = 2.0
+@export_range(0.0, 4.0, 0.1) var exterior_sky_shadow_blur: float = 1.4
+@export var exterior_sky_shadow_max_distance_m: float = 42.0
 @export var exterior_soft_fill_day_energy: float = 0.18
 @export var exterior_soft_fill_night_energy: float = 0.06
 @export var exterior_soft_fill_day_color: Color = Color(0.78, 0.86, 0.94, 1.0)
@@ -1455,6 +1462,27 @@ func _add_paneled_door(
 		0.12, 0.035, 0.035, _mat(handle_color, false), false)
 
 
+## Rect2 en el plano XZ (mundo) a partir de un centro y medios-tamaños medidos
+## a lo largo de tangent (lateral) y normal (profundidad). Asume ejes alineados.
+func _xz_rect(center: Vector3, half_tan: float, half_norm: float, tangent: Vector3, normal: Vector3) -> Rect2:
+	var hx: float = absf(tangent.x) * half_tan + absf(normal.x) * half_norm
+	var hz: float = absf(tangent.z) * half_tan + absf(normal.z) * half_norm
+	return Rect2(center.x - hx, center.z - hz, hx * 2.0, hz * 2.0)
+
+
+## Losa (suelo/techo) horizontal con huecos rectangulares recortados: se parte
+## en trozos alrededor de los huecos (reutiliza StairGeometry.split_rect_by_voids).
+func _add_slab_with_holes(name_prefix: String, rect_xz: Rect2, y_center: float, thickness_m: float, holes: Array[Rect2], material: StandardMaterial3D) -> void:
+	var typed_holes: Array[Rect2] = []
+	for h in holes:
+		typed_holes.append(h)
+	var pieces: Array[Rect2] = StairGeometry.split_rect_by_voids(rect_xz, typed_holes)
+	for i in range(pieces.size()):
+		var p: Rect2 = pieces[i]
+		var pc := Vector3(p.position.x + p.size.x * 0.5, y_center, p.position.y + p.size.y * 0.5)
+		_add_box(_world_root, "%s_%02d" % [name_prefix, i], Vector3(p.size.x, thickness_m, p.size.y), pc, material, false)
+
+
 func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> void:
 	if not show_landing_recess or op == null:
 		return
@@ -1475,14 +1503,26 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 
 	var floor_center: Vector3 = center - normal * (depth_m * 0.5 + 0.08)
 	floor_center.y = floor_level_m - floor_thickness_m * 0.5
-	var floor_size := Vector3(width_m, floor_thickness_m, depth_m) if horizontal else Vector3(depth_m, floor_thickness_m, width_m)
-	_add_box(
-		_world_root,
+
+	# Hueco de la escalera: banda contra la pared derecha del rellano. El
+	# tramo que SUBE se pierde por el hueco del techo; el que BAJA, por el del
+	# suelo (parte delantera de la banda, hacia el observador).
+	var stair_bay_w: float = 1.35
+	var stair_bay_center: Vector3 = floor_center + tangent * (width_m * 0.5 - stair_bay_w * 0.5 - wall_thickness_m)
+	# Hueco de bajada: mitad delantera de la banda.
+	var down_hole_center: Vector3 = stair_bay_center + normal * (depth_m * 0.26)
+	var floor_hole: Rect2 = _xz_rect(down_hole_center, stair_bay_w * 0.5, depth_m * 0.22, tangent, normal)
+	# Hueco del techo: toda la banda (por ahi sube el tramo ascendente).
+	var ceiling_hole: Rect2 = _xz_rect(stair_bay_center, stair_bay_w * 0.5, depth_m * 0.42, tangent, normal)
+
+	var floor_rect: Rect2 = _xz_rect(floor_center, width_m * 0.5, depth_m * 0.5, tangent, normal)
+	_add_slab_with_holes(
 		"LandingFloor_%02d" % index,
-		floor_size,
-		floor_center,
-		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4100 + index),
-		false
+		floor_rect,
+		floor_center.y,
+		floor_thickness_m,
+		[floor_hole],
+		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4100 + index)
 	)
 
 	var wall_center: Vector3 = center - normal * (depth_m + 0.11)
@@ -1512,13 +1552,14 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 
 	var ceiling_center: Vector3 = floor_center
 	ceiling_center.y = floor_level_m + corridor_height_m + ceiling_thickness_m * 0.5
-	_add_box(
-		_world_root,
+	var ceiling_rect: Rect2 = _xz_rect(ceiling_center, width_m * 0.5, depth_m * 0.5, tangent, normal)
+	_add_slab_with_holes(
 		"LandingCeiling_%02d" % index,
-		Vector3(width_m, ceiling_thickness_m, depth_m) if horizontal else Vector3(depth_m, ceiling_thickness_m, width_m),
-		ceiling_center,
-		_mat(landing_ceiling_color, false),
-		false
+		ceiling_rect,
+		ceiling_center.y,
+		ceiling_thickness_m,
+		[ceiling_hole],
+		_mat(landing_ceiling_color, false)
 	)
 
 	var fixture_center: Vector3 = center - normal * (depth_m * 0.62)
@@ -1603,9 +1644,9 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		false
 	)
 
-	# Caja de escalera contra la pared derecha: un tramo que sube y otro que
-	# baja, separados por el muro de la zanca, con pasamanos.
-	_create_landing_stairs(index, floor_level_m, floor_center, normal, tangent, width_m, depth_m)
+	# Escalera en la banda contra la pared derecha: un tramo sube y se pierde
+	# por el hueco del techo; otro baja por el hueco del suelo.
+	_create_landing_stairs(index, floor_level_m, stair_bay_center, stair_bay_w, down_hole_center, normal, tangent, depth_m, corridor_height_m)
 
 
 func _create_single_family_entry_recess(index: int, _op: OpeningModel, info: Dictionary) -> void:
@@ -1729,67 +1770,56 @@ func _add_bar_between(node_name: String, p_from: Vector3, p_to: Vector3, thickne
 	return mesh
 
 
-## Escalera del rellano al estilo de un portal real: un tramo ascendente de
-## peldaños macizos (perfil escalonado visible) contra la pared, con
-## barandilla de balaustres y pasamanos inclinado en el lado abierto.
-func _create_landing_stairs(index: int, floor_level_m: float, floor_center: Vector3, normal: Vector3, tangent: Vector3, width_m: float, depth_m: float) -> void:
-	var tread: float = maxf(0.22, landing_step_tread_m)
-	var rise: float = maxf(0.12, landing_step_rise_m)
-	var steps: int = 9
-	var flight_w: float = 1.10
+## Un tramo de escalera con peldaños macizos y barandilla (balaustres +
+## pasamanos inclinado). `start` es el centro del borde bajo del primer
+## peldaño; `run_dir` la direccion de avance; `y_bottom` la cota del primer
+## peldaño. `going_up` decide si sube (peldaños hacia arriba) o baja.
+func _create_stair_flight(name_prefix: String, start: Vector3, run_dir: Vector3, tangent: Vector3, y_bottom: float, tread: float, rise: float, steps: int, flight_w: float, going_up: bool) -> void:
 	var step_mat: StandardMaterial3D = _mat(landing_stair_color, false)
 	var rail_mat: StandardMaterial3D = _mat(landing_railing_color, false)
-
-	# Tramo pegado a la pared derecha, subiendo hacia el fondo del rellano.
-	var run_dir: Vector3 = -normal
-	var flight_axis: Vector3 = floor_center + tangent * (width_m * 0.5 - flight_w * 0.60 - wall_thickness_m)
-	var start: Vector3 = flight_axis - run_dir * (depth_m * 0.5 - 0.25)
-
 	for step_i in range(steps):
-		var block_h: float = rise * float(step_i + 1)
+		var top_y: float = y_bottom + rise * (float(step_i + 1) if going_up else float(steps - step_i))
+		var block_h: float = top_y - (y_bottom - rise)
 		var step_center: Vector3 = start + run_dir * (float(step_i) * tread + tread * 0.5)
-		step_center.y = floor_level_m + block_h * 0.5
-		_add_oriented_box(
-			_world_root,
-			"LandingStep_%02d_%02d" % [index, step_i],
-			step_center,
-			tangent,
-			flight_w,
-			block_h,
-			tread,
-			step_mat,
-			false
-		)
+		step_center.y = top_y - block_h * 0.5
+		_add_oriented_box(_world_root, "%s_Step_%02d" % [name_prefix, step_i],
+			step_center, tangent, flight_w, block_h, tread, step_mat, false)
 
-	# Barandilla en el lado abierto (hacia el interior del rellano).
-	var rail_side: Vector3 = tangent * (-flight_w * 0.5 + 0.05)
 	var rail_h: float = 0.98
+	var rail_side: Vector3 = tangent * (-flight_w * 0.5 + 0.05)
+	var y_first: float = y_bottom + (rise if going_up else rise * float(steps))
+	var y_last: float = y_bottom + (rise * float(steps) if going_up else rise)
 	var post_from: Vector3 = start + rail_side + run_dir * (tread * 0.5)
-	post_from.y = floor_level_m + rise
+	post_from.y = y_first
 	var post_to: Vector3 = start + rail_side + run_dir * (float(steps - 1) * tread + tread * 0.5)
-	post_to.y = floor_level_m + rise * float(steps)
-	# Balaustres verticales cada dos peldaños.
+	post_to.y = y_last
 	for step_i in range(0, steps, 2):
 		var base: Vector3 = start + rail_side + run_dir * (float(step_i) * tread + tread * 0.5)
-		base.y = floor_level_m + rise * float(step_i + 1)
-		var top: Vector3 = base + Vector3.UP * rail_h
-		_add_bar_between("LandingBaluster_%02d_%02d" % [index, step_i], base, top, 0.045, rail_mat)
-	# Pasamanos inclinado siguiendo la pendiente.
-	_add_bar_between(
-		"LandingHandrail_%02d" % index,
-		post_from + Vector3.UP * rail_h,
-		post_to + Vector3.UP * rail_h,
-		0.06,
-		rail_mat
-	)
-	# Zanquin: banda inclinada bajo los balaustres, cerrando el lado abierto.
-	_add_bar_between(
-		"LandingStringer_%02d" % index,
-		post_from + Vector3.UP * 0.10,
-		post_to + Vector3.UP * 0.10,
-		0.12,
-		step_mat
-	)
+		base.y = y_bottom + rise * (float(step_i + 1) if going_up else float(steps - step_i))
+		_add_bar_between("%s_Baluster_%02d" % [name_prefix, step_i], base, base + Vector3.UP * rail_h, 0.045, rail_mat)
+	_add_bar_between("%s_Handrail" % name_prefix, post_from + Vector3.UP * rail_h, post_to + Vector3.UP * rail_h, 0.06, rail_mat)
+
+
+## Escalera del rellano: tramo que SUBE hacia la planta de arriba (se pierde
+## por el hueco del techo) y tramo que BAJA hacia la de abajo (por el hueco
+## del suelo). Estilo de portal real.
+func _create_landing_stairs(index: int, floor_level_m: float, stair_bay_center: Vector3, stair_bay_w: float, down_hole_center: Vector3, normal: Vector3, tangent: Vector3, depth_m: float, corridor_height_m: float) -> void:
+	var tread: float = maxf(0.22, landing_step_tread_m)
+	var rise: float = maxf(0.12, landing_step_rise_m)
+	var flight_w: float = stair_bay_w * 0.80
+	var run_up: Vector3 = -normal   # sube hacia el fondo del rellano
+
+	# Tramo ascendente: arranca en la mitad trasera de la banda y sube hasta
+	# pasar el techo (perdiendose por el hueco). Nº de peldaños = altura de
+	# planta / tabica, para que atraviese de verdad.
+	var up_steps: int = int(ceil((corridor_height_m + 0.4) / rise))
+	var up_start: Vector3 = stair_bay_center - run_up * (depth_m * 0.10)
+	_create_stair_flight("LandingUp_%02d" % index, up_start, run_up, tangent, floor_level_m, tread, rise, up_steps, flight_w, true)
+
+	# Tramo descendente: baja por el hueco del suelo, hacia el observador.
+	var down_steps: int = 6
+	var down_start: Vector3 = down_hole_center + normal * (depth_m * 0.02)
+	_create_stair_flight("LandingDown_%02d" % index, down_start, normal, tangent, floor_level_m - rise * float(down_steps), tread, rise, down_steps, flight_w, false)
 
 
 func _create_exterior_context() -> void:
@@ -2153,6 +2183,11 @@ func _create_exterior_lighting(parent: Node3D) -> void:
 	sky_light.light_color = exterior_day_sky_light_color if not _exterior_is_night() else exterior_night_sky_light_color
 	sky_light.light_energy = exterior_day_sky_light_energy if not _exterior_is_night() else exterior_night_sky_light_energy
 	sky_light.shadow_enabled = exterior_sky_light_cast_shadows
+	sky_light.shadow_bias = exterior_sky_shadow_bias
+	sky_light.shadow_normal_bias = exterior_sky_shadow_normal_bias
+	sky_light.shadow_blur = exterior_sky_shadow_blur
+	sky_light.directional_shadow_max_distance = exterior_sky_shadow_max_distance_m
+	sky_light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sky_light.rotation = Vector3(deg_to_rad(exterior_sky_light_pitch_deg), deg_to_rad(exterior_sky_light_yaw_deg), 0.0)
 	parent.add_child(sky_light)
 
