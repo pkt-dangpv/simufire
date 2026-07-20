@@ -220,6 +220,13 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var landing_handle_color: Color = Color(0.78, 0.66, 0.36, 1.0)
 @export var landing_lift_color: Color = Color(0.55, 0.57, 0.58, 1.0)
 @export var landing_lift_frame_color: Color = Color(0.38, 0.39, 0.40, 1.0)
+## Puertas de vivienda en el rellano (2 es lo habitual por planta).
+@export_range(1, 4, 1) var landing_neighbor_doors: int = 2
+## Peldaños con proporciones reales (huella/tabica).
+@export var landing_step_tread_m: float = 0.29
+@export var landing_step_rise_m: float = 0.18
+@export var landing_stair_color: Color = Color(0.46, 0.44, 0.40, 1.0)
+@export var landing_railing_color: Color = Color(0.30, 0.30, 0.31, 1.0)
 ## Entrada de casa unifamiliar: porche techado con pilares.
 @export var house_porch_roof_enabled: bool = true
 @export var house_porch_color: Color = Color(0.52, 0.50, 0.45, 1.0)
@@ -1537,10 +1544,15 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	_add_oriented_box(_world_root, "LandingSkirting_%02d" % index, skirting, tangent,
 		width_m, 0.11, 0.030, _mat(landing_skirting_color, false), false)
 
-	# Puertas de vecinos: cerco + hoja con paneles rehundidos + manilla + placa.
-	var door_w: float = 0.82
+	# Puertas de vivienda en la pared del fondo, repartidas y separadas (2 por
+	# planta es lo habitual; nunca pegadas unas a otras).
+	var door_w: float = 0.86
 	var door_h: float = 2.03
-	var neighbor_offsets: Array[float] = [-width_m * 0.36, -width_m * 0.12, width_m * 0.12]
+	var doors: int = clampi(landing_neighbor_doors, 1, 4)
+	var neighbor_offsets: Array[float] = []
+	for d in range(doors):
+		var t_norm: float = (float(d) + 0.5) / float(doors) - 0.5
+		neighbor_offsets.append(t_norm * width_m * 0.62)
 	for door_i in range(neighbor_offsets.size()):
 		var offset_t: float = float(neighbor_offsets[door_i])
 		var door_surface: Vector3 = surface_center + tangent * offset_t
@@ -1556,40 +1568,44 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		_add_oriented_box(_world_root, "%s_Plate" % prefix, plate, tangent,
 			0.10, 0.13, 0.012, _mat(landing_handle_color, false), false)
 
-	# Ascensor: cerco metalico, dos hojas con junta central y botonera.
-	var lift_w: float = 0.86
+	# Ascensor en la PARED LATERAL izquierda (no pegado a las viviendas):
+	# su cara mira hacia el rellano, asi que normal/tangente se intercambian.
+	var lift_w: float = 0.90
 	var lift_h: float = 2.10
-	var lift_surface: Vector3 = surface_center + tangent * (width_m * 0.38)
+	var lift_normal: Vector3 = tangent          # apunta hacia el centro del rellano
+	var lift_tangent: Vector3 = normal          # recorre la pared lateral
+	var lift_surface: Vector3 = floor_center - tangent * (width_m * 0.5 - wall_thickness_m * 0.5 - 0.03)
 	lift_surface.y = floor_level_m + lift_h * 0.5
-	_add_door_frame("LandingLift_%02d" % index, lift_surface, normal, tangent,
+	_add_door_frame("LandingLift_%02d" % index, lift_surface, lift_normal, lift_tangent,
 		lift_w, lift_h, 0.10, 0.070, landing_lift_frame_color)
 	for leaf_i in [-1.0, 1.0]:
-		var leaf: Vector3 = lift_surface + tangent * (leaf_i * lift_w * 0.25) + normal * 0.020
+		var leaf: Vector3 = lift_surface + lift_tangent * (leaf_i * lift_w * 0.25) + lift_normal * 0.020
 		_add_oriented_box(_world_root, "LandingLiftLeaf_%02d_%s" % [index, "L" if leaf_i < 0.0 else "R"],
-			leaf, tangent, lift_w * 0.49, lift_h - 0.03, 0.034, _mat(landing_lift_color, false), false)
-	var split: Vector3 = lift_surface + normal * 0.040
-	_add_oriented_box(_world_root, "LandingLiftSplit_%02d" % index, split, tangent,
+			leaf, lift_tangent, lift_w * 0.49, lift_h - 0.03, 0.034, _mat(landing_lift_color, false), false)
+	var split: Vector3 = lift_surface + lift_normal * 0.040
+	_add_oriented_box(_world_root, "LandingLiftSplit_%02d" % index, split, lift_tangent,
 		0.018, lift_h - 0.05, 0.014, _mat(Color(0.16, 0.17, 0.17, 1.0), false), false)
-	# Indicador de planta sobre el ascensor.
-	var indicator: Vector3 = lift_surface + normal * 0.034
+	var indicator: Vector3 = lift_surface + lift_normal * 0.034
 	indicator.y = floor_level_m + lift_h + 0.20
-	_add_oriented_box(_world_root, "LandingLiftIndicator_%02d" % index, indicator, tangent,
+	_add_oriented_box(_world_root, "LandingLiftIndicator_%02d" % index, indicator, lift_tangent,
 		0.34, 0.14, 0.030, _mat(Color(0.10, 0.11, 0.12, 1.0), false, Color(0.9, 0.66, 0.28, 1.0), 0.5), false)
-	var panel_center: Vector3 = surface_center + tangent * (width_m * 0.47)
-	panel_center.y = floor_level_m + 1.18
+	var panel_center: Vector3 = lift_surface + lift_tangent * (lift_w * 0.5 + 0.20) + lift_normal * 0.030
+	panel_center.y = floor_level_m + 1.10
 	_add_oriented_box(
 		_world_root,
 		"LandingLiftPanel_%02d" % index,
 		panel_center,
-		tangent,
+		lift_tangent,
 		0.13,
 		0.30,
 		0.035,
 		_mat(Color(0.11, 0.12, 0.12, 1.0), false, Color(0.8, 0.62, 0.28, 1.0), 0.35),
 		false
 	)
-	_create_landing_stair_run(index, floor_level_m, center - normal * 0.74 - tangent * (width_m * 0.43), -normal, tangent, true)
-	_create_landing_stair_run(index + 1000, floor_level_m, center - normal * 1.05 + tangent * (width_m * 0.43), -normal, tangent, false)
+
+	# Caja de escalera contra la pared derecha: un tramo que sube y otro que
+	# baja, separados por el muro de la zanca, con pasamanos.
+	_create_landing_stairs(index, floor_level_m, floor_center, normal, tangent, width_m, depth_m)
 
 
 func _create_single_family_entry_recess(index: int, _op: OpeningModel, info: Dictionary) -> void:
@@ -1692,23 +1708,80 @@ func _create_single_family_entry_recess(index: int, _op: OpeningModel, info: Dic
 		)
 
 
-func _create_landing_stair_run(index: int, floor_level_m: float, base_center: Vector3, run_dir: Vector3, tangent: Vector3, ascending: bool) -> void:
-	var step_mat := _mat(Color(0.42, 0.37, 0.30, 1.0), false)
-	for step_i in range(6):
-		var step_center: Vector3 = base_center + run_dir.normalized() * (float(step_i) * 0.22)
-		var rise: float = 0.055 * float(step_i + 1)
-		step_center.y = floor_level_m + (rise if ascending else -rise * 0.62) + 0.035
-		_add_oriented_box(
+## Caja de escalera del rellano: dos tramos paralelos (sube / baja) contra la
+## pared derecha, separados por el muro de la zanca, con pasamanos inclinado.
+func _create_landing_stairs(index: int, floor_level_m: float, floor_center: Vector3, normal: Vector3, tangent: Vector3, width_m: float, depth_m: float) -> void:
+	var tread: float = maxf(0.22, landing_step_tread_m)
+	var rise: float = maxf(0.12, landing_step_rise_m)
+	var steps: int = 7
+	var flight_w: float = 1.05
+	var step_mat: StandardMaterial3D = _mat(landing_stair_color, false)
+	var rail_mat: StandardMaterial3D = _mat(landing_railing_color, false)
+	# Eje del hueco de escalera: contra la pared derecha del rellano.
+	var stair_axis: Vector3 = floor_center + tangent * (width_m * 0.5 - flight_w * 0.62)
+	# El tramo arranca al fondo del rellano y avanza hacia el observador.
+	var run_dir: Vector3 = normal
+
+	for flight in range(2):
+		var ascending: bool = flight == 0
+		# Sube pegado a la pared; baja en el hueco contiguo hacia el interior.
+		var lateral: float = -flight_w * 0.52 if ascending else flight_w * 0.52
+		var start: Vector3 = stair_axis + tangent * lateral - run_dir * (depth_m * 0.5 - 0.30)
+		for step_i in range(steps):
+			var along: float = float(step_i) * tread
+			var step_center: Vector3 = start + run_dir * along
+			var height: float = rise * float(step_i + 1)
+			# La huella se dibuja como bloque macizo desde el suelo (no flota).
+			var block_h: float = height if ascending else rise * float(steps - step_i)
+			step_center.y = floor_level_m + block_h * 0.5 * (1.0 if ascending else -1.0)
+			if not ascending:
+				step_center.y = floor_level_m - block_h * 0.5
+			_add_oriented_box(
+				_world_root,
+				"LandingStep_%02d_%d_%02d" % [index, flight, step_i],
+				step_center,
+				tangent,
+				flight_w * 0.94,
+				block_h,
+				tread,
+				step_mat,
+				false
+			)
+		# Pasamanos inclinado siguiendo el tramo.
+		var rail_len: float = tread * float(steps)
+		var rail_mid: Vector3 = start + run_dir * (rail_len * 0.5) + tangent * (lateral * 0.02)
+		var rail_top: float = rise * float(steps) * 0.5
+		rail_mid.y = floor_level_m + (rail_top + 0.95 if ascending else -rail_top + 0.95)
+		var rail := _add_oriented_box(
 			_world_root,
-			"LandingStairStep_%02d_%02d" % [index, step_i],
-			step_center,
-			tangent,
-			0.92,
-			0.07,
-			0.18,
-			step_mat,
+			"LandingRail_%02d_%d" % [index, flight],
+			rail_mid,
+			run_dir,
+			rail_len,
+			0.06,
+			0.06,
+			rail_mat,
 			false
 		)
+		if rail != null:
+			# Inclinar el pasamanos con la pendiente del tramo.
+			var slope: float = atan2(rise, tread) * (1.0 if ascending else -1.0)
+			rail.rotate(tangent.normalized(), slope)
+
+	# Muro de la zanca entre los dos tramos.
+	var wall_center: Vector3 = stair_axis - run_dir * (depth_m * 0.5 - 0.30 - tread * float(steps) * 0.5)
+	wall_center.y = floor_level_m + 0.45
+	_add_oriented_box(
+		_world_root,
+		"LandingStairWall_%02d" % index,
+		wall_center,
+		run_dir,
+		tread * float(steps),
+		0.90,
+		0.14,
+		_mat(landing_wall_color.darkened(0.05), false),
+		false
+	)
 
 
 func _create_exterior_context() -> void:
