@@ -128,6 +128,14 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var exterior_soft_fill_night_color: Color = Color(0.25, 0.33, 0.46, 1.0)
 ## Altura (m) de la luz suave exterior.
 @export var exterior_soft_fill_height_m: float = 3.2
+## Relleno local por fachada. Evita que una orientacion perpendicular al sol
+## quede negra sin aumentar la luz que atraviesa toda la vivienda.
+@export var exterior_facade_fill_enabled: bool = true
+@export_range(0.0, 2.0, 0.01) var exterior_facade_fill_day_energy: float = 0.26
+@export_range(0.0, 2.0, 0.01) var exterior_facade_fill_night_energy: float = 0.07
+@export var exterior_facade_fill_day_color: Color = Color(0.76, 0.84, 0.92, 1.0)
+@export var exterior_facade_fill_night_color: Color = Color(0.24, 0.31, 0.43, 1.0)
+@export_range(6.0, 32.0, 0.5) var exterior_facade_fill_range_m: float = 18.0
 ## Cielo: domo geometrico con gradiente y sol (view/fp/FPSkyDome.gd). Se usa
 ## geometria porque el renderer GL Compatibility no dibuja el sky de un
 ## Environment por camara.
@@ -216,6 +224,9 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(3, 8, 1) var city_facade_module_count: int = 5
 @export_range(1.5, 8.0, 0.1) var city_facade_depth_m: float = 3.0
 @export_range(0.0, 0.35, 0.01) var city_facade_height_variation: float = 0.16
+## Longitud maxima de cada frente. Mantenerla por debajo de la longitud total
+## evita que dos decorados perpendiculares atraviesen la calle y se tapen.
+@export_range(12.0, 46.0, 0.5) var city_facade_max_span_m: float = 20.0
 @export_range(0, 8, 1) var city_parked_car_count: int = 3
 @export_range(2.5, 10.0, 0.1) var city_parked_car_spacing_m: float = 5.4
 @export_range(0, 12, 1) var city_tree_count: int = 4
@@ -2148,14 +2159,15 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 		var facade_h: float = maxf(7.5, opposite_facade_height_m)
 		var base_color: Color = opposite_facade_night_color if night else opposite_facade_day_color
 		var module_count: int = clampi(city_facade_module_count, 3, 8)
-		var module_pitch: float = opposite_facade_length_m / float(module_count)
+		var facade_span_m: float = minf(opposite_facade_length_m, city_facade_max_span_m)
+		var module_pitch: float = facade_span_m / float(module_count)
 		for module_i in range(module_count):
 			var module_t: float = (float(module_i) + 0.5) / float(module_count) - 0.5
 			var variant: float = fposmod(float(index * 19 + module_i * 37) * 0.173, 1.0)
 			var module_w: float = module_pitch - 0.18
 			var module_h: float = facade_h * (1.0 - city_facade_height_variation + variant * city_facade_height_variation)
 			var module_depth: float = city_facade_depth_m * (1.0 + variant * 0.40)
-			var face_center: Vector3 = center - normal * facade_dist + tangent * (module_t * opposite_facade_length_m)
+			var face_center: Vector3 = center - normal * facade_dist + tangent * (module_t * facade_span_m)
 			var body_center: Vector3 = face_center - normal * (module_depth * 0.5)
 			body_center.y = street_y + module_h * 0.5
 			var module_color: Color = base_color.lightened(0.035) if module_i % 3 == 0 else (base_color.darkened(0.055) if module_i % 3 == 1 else base_color)
@@ -2170,6 +2182,12 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 			_add_oriented_box(parent, "CityFacadeCornice_%02d_%02d" % [index, module_i], cornice, tangent,
 				module_w + 0.10, 0.22, 0.18, _mat(module_color.lightened(0.10), false), false)
 			_create_facade_windows(parent, index, module_i, face_center, normal, tangent, street_y, module_w, module_h)
+		_create_exterior_facade_fill(
+			parent,
+			"CityFacadeFill_%02d" % index,
+			center - normal * (facade_dist * 0.72),
+			street_y + facade_h * 0.52
+		)
 
 	# Coches y arbolado dan escala y capas de profundidad sin cerrar la vista.
 	for car_i in range(city_parked_car_count):
@@ -2464,6 +2482,12 @@ func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Ve
 				hedge_center.y = surface_y + 0.38
 				_add_oriented_box(parent, "ResidentialHedge_%02d_%02d_%s" % [index, slot, str(hedge_side)], hedge_center, tangent,
 					body_w * 0.34, 0.76, 0.48, _mat(residential_hedge_color.darkened(0.18) if night else residential_hedge_color, false), false)
+		_create_exterior_facade_fill(
+			parent,
+			"ResidentialFacadeFill_%02d" % index,
+			center - normal * (house_face_distance * 0.72),
+			surface_y + residential_house_height_m * 0.52
+		)
 
 	for tree_i in range(residential_tree_count):
 		var tree_t: float = (float(tree_i) - float(residential_tree_count - 1) * 0.5) * residential_tree_spacing_m
@@ -2552,6 +2576,20 @@ func _create_exterior_lighting(parent: Node3D) -> void:
 		_bounds_m.position.y + _bounds_m.size.y * 0.5
 	))
 	parent.add_child(exterior_fill)
+
+
+func _create_exterior_facade_fill(parent: Node3D, node_name: String, position: Vector3, target_height_m: float) -> void:
+	if not exterior_facade_fill_enabled:
+		return
+	var facade_fill := OmniLight3D.new()
+	facade_fill.name = node_name
+	facade_fill.light_color = exterior_facade_fill_night_color if _exterior_is_night() else exterior_facade_fill_day_color
+	facade_fill.light_energy = exterior_facade_fill_night_energy if _exterior_is_night() else exterior_facade_fill_day_energy
+	facade_fill.omni_range = exterior_facade_fill_range_m
+	facade_fill.shadow_enabled = false
+	position.y = target_height_m
+	facade_fill.position = position
+	parent.add_child(facade_fill)
 
 
 func _create_exterior_window_sill(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, width_m: float, _sill_m: float) -> void:

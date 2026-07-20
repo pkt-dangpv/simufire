@@ -3,6 +3,16 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### FP perpendicular facade visibility fix (2026-07-20)
+
+- Prevented independent urban sets on perpendicular exterior walls from
+  intersecting and occluding one another by applying an Inspector-editable
+  maximum span to each opposite facade.
+- Added a soft local fill per urban/residential facade so walls facing away
+  from the directional sun retain readable daylight and night shading.
+- Expanded the exterior Godot validator to cover perpendicular facades,
+  volume separation and local-light coverage.
+
 ### FP procedural exterior rebuild (2026-07-20)
 
 - Rebuilt apartment views with a full street section, modular opposite

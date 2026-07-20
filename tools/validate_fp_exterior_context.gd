@@ -53,13 +53,16 @@ func _validate_city(ctx: Dictionary) -> void:
 	if exterior == null:
 		return
 	var facades := _find_meshes(exterior, "CityFacadeBody_")
+	var facade_fills := _find_lights(exterior, "CityFacadeFill_")
 	_expect(facades.size() >= 4, "City exterior needs several facade modules")
 	_expect(_find_meshes(exterior, "CityWindowGlass_").size() >= 24, "City facade windows missing")
 	_expect(_find_meshes(exterior, "CityEntrance_").size() == facades.size(), "Each city module needs an entrance")
 	_expect(_find_meshes(exterior, "CityCar_").size() >= 9, "City street scale objects missing")
 	_expect(_find_meshes(exterior, "CityTree_").size() >= 8, "City tree trunks/crowns missing")
-	_expect(_find_meshes(exterior, "CityCurbNear_").size() == 1, "Near city curb missing")
-	_expect(_find_meshes(exterior, "CityCurbFar_").size() == 1, "Far city curb missing")
+	_expect(_find_meshes(exterior, "CityCurbNear_").size() == 2, "Each city orientation needs a near curb")
+	_expect(_find_meshes(exterior, "CityCurbFar_").size() == 2, "Each city orientation needs a far curb")
+	_expect(facade_fills.size() == 2, "Each city orientation needs a local facade fill")
+	_validate_facade_fill_coverage(facades, facade_fills)
 	_expect(_find_meshes(exterior, "OppositeFacade_").is_empty(), "Legacy monolithic facade must be retired")
 	_expect(_find_meshes(exterior, "ResidentialHouseBody_").is_empty(), "Apartment exterior contains residential houses")
 	_validate_pairwise_separation("city facade", facades)
@@ -81,6 +84,7 @@ func _validate_residential(ctx: Dictionary) -> void:
 	_expect(_find_meshes(exterior, "ResidentialStreet_").size() == 1, "Residential road missing or duplicated")
 	_expect(_find_meshes(exterior, "ResidentialSidewalkNear_").size() == 1, "Near residential sidewalk missing")
 	_expect(_find_meshes(exterior, "ResidentialSidewalkFar_").size() == 1, "Far residential sidewalk missing")
+	_expect(_find_lights(exterior, "ResidentialFacadeFill_").size() == 1, "Residential facade fill missing")
 	_expect(_find_meshes(exterior, "CityFacadeBody_").is_empty(), "House exterior contains city facade modules")
 	var world := _world_root(ctx)
 	_expect(_find_meshes(world, "HouseStreet_").is_empty(), "Legacy duplicate house road still exists")
@@ -112,8 +116,18 @@ func _validate_pairwise_separation(label: String, meshes: Array[MeshInstance3D])
 		for j in range(i + 1, meshes.size()):
 			_expect(
 				not _aabb_has_volume_overlap(_world_aabb(meshes[i]), _world_aabb(meshes[j]), 0.01),
-				"%s volumes overlap: %s / %s" % [label, meshes[i].name, meshes[j].name]
+				"%s volumes overlap: %s %s / %s %s" % [label, meshes[i].name, str(_world_aabb(meshes[i])), meshes[j].name, str(_world_aabb(meshes[j]))]
 			)
+
+
+func _validate_facade_fill_coverage(facades: Array[MeshInstance3D], lights: Array[OmniLight3D]) -> void:
+	for facade in facades:
+		var covered := false
+		for light in lights:
+			if facade.global_position.distance_to(light.global_position) < light.omni_range:
+				covered = true
+				break
+		_expect(covered, "%s is outside every local facade fill" % facade.name)
 
 
 func _world_aabb(mesh: MeshInstance3D) -> AABB:
@@ -139,7 +153,56 @@ func _collect_meshes(node: Node, token: String, result: Array[MeshInstance3D]) -
 		_collect_meshes(child, token, result)
 
 
+func _find_lights(root_node: Node, token: String) -> Array[OmniLight3D]:
+	var result: Array[OmniLight3D] = []
+	_collect_lights(root_node, token, result)
+	return result
+
+
+func _collect_lights(node: Node, token: String, result: Array[OmniLight3D]) -> void:
+	var light := node as OmniLight3D
+	if light != null and String(light.name).contains(token):
+		result.append(light)
+	for child in node.get_children():
+		_collect_lights(child, token, result)
+
+
 func _make_template(building_type: String) -> Dictionary:
+	var openings: Array[Dictionary] = [
+		{
+			"a": 0,
+			"b": -1,
+			"type": "door",
+			"wall": "bottom",
+			"offset_m": 1.45,
+			"width_m": 0.92,
+			"height_m": 2.05,
+			"open_fraction": 1.0,
+		},
+		{
+			"a": 0,
+			"b": -1,
+			"type": "window",
+			"wall": "bottom",
+			"offset_m": 4.25,
+			"width_m": 1.30,
+			"height_m": 1.20,
+			"sill_m": 0.90,
+			"open_fraction": 0.0,
+		},
+	]
+	if building_type == "apartment":
+		openings.append({
+			"a": 0,
+			"b": -1,
+			"type": "window",
+			"wall": "right",
+			"offset_m": 2.0,
+			"width_m": 1.30,
+			"height_m": 1.20,
+			"sill_m": 0.90,
+			"open_fraction": 0.0,
+		})
 	return {
 		"version": 1,
 		"building_type": building_type,
@@ -161,29 +224,7 @@ func _make_template(building_type: String) -> Dictionary:
 				"fuel_objects": [],
 			},
 		],
-		"openings_data": [
-			{
-				"a": 0,
-				"b": -1,
-				"type": "door",
-				"wall": "bottom",
-				"offset_m": 1.45,
-				"width_m": 0.92,
-				"height_m": 2.05,
-				"open_fraction": 1.0,
-			},
-			{
-				"a": 0,
-				"b": -1,
-				"type": "window",
-				"wall": "bottom",
-				"offset_m": 4.25,
-				"width_m": 1.30,
-				"height_m": 1.20,
-				"sill_m": 0.90,
-				"open_fraction": 0.0,
-			},
-		],
+		"openings_data": openings,
 		"detectors": [],
 		"victims": [],
 		"exterior_walls": [],
