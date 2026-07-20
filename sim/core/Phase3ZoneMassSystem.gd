@@ -10,6 +10,8 @@ const AIR_PRESSURE_REF_PA: float = 101325.0
 const AIR_DENSITY_REF_KG_M3: float = 1.2
 const AIR_CP_KJ_KG_K: float = 1.0
 const EXTERIOR_DISCHARGE_COEFF: float = 0.61
+const EXTERIOR_COUNTERFLOW_SEGMENTS: int = 64
+const GRAVITY_M_S2: float = 9.81
 const THERMO_MASS_EPS_KG: float = 1.0e-12
 const THERMO_ENERGY_EPS_KJ: float = 1.0e-12
 const TRANSIT_SPECIES: Array[String] = ["co", "co2", "hcn"]
@@ -115,6 +117,8 @@ var _atomic_duplicate_bundle_count: int = 0
 var _atomic_invalid_bundle_count: int = 0
 var _canonical_exterior_boundary_by_room: Dictionary = {}
 var _canonical_exterior_boundary_context: Dictionary = {}
+var _canonical_exterior_counterflow_by_room: Dictionary = {}
+var _canonical_exterior_counterflow_cumulative_kg: Dictionary = {}
 var _persistent_zone_state: Dictionary = {}
 var _persistent_step_index: int = 0
 var _persistent_combustion_state: Dictionary = {}
@@ -125,6 +129,11 @@ var _combustion_o2_probe_by_room: Dictionary = {}
 var _persistent_zone_collapse_by_room: Dictionary = {}
 var _canonical_combustion_by_room: Dictionary = {}
 var _persistent_lower_reseed_by_room: Dictionary = {}
+var _canonical_interzone_heat_by_room: Dictionary = {}
+var _canonical_interzone_heat_cumulative_kj: Dictionary = {}
+var _canonical_wall_state_by_room: Dictionary = {}
+var _canonical_wall_ambient_by_room: Dictionary = {}
+var _canonical_wall_ambient_cumulative_by_room: Dictionary = {}
 
 
 func reset() -> void:
@@ -133,6 +142,10 @@ func reset() -> void:
 	_persistent_step_index = 0
 	_persistent_combustion_state.clear()
 	_persistent_lower_reseed_by_room.clear()
+	_canonical_interzone_heat_cumulative_kj.clear()
+	_canonical_exterior_counterflow_cumulative_kg.clear()
+	_canonical_wall_state_by_room.clear()
+	_canonical_wall_ambient_cumulative_by_room.clear()
 	_species_transit_reservoir.clear()
 	_species_transit_created_kg.clear()
 	_species_transit_delivered_kg.clear()
@@ -222,12 +235,15 @@ func _reset_step_state() -> void:
 	_atomic_invalid_bundle_count = 0
 	_canonical_exterior_boundary_by_room.clear()
 	_canonical_exterior_boundary_context.clear()
+	_canonical_exterior_counterflow_by_room.clear()
 	_persistence_enabled_step = false
 	_persistence_seeded_by_room.clear()
 	_persistence_continuity_by_room.clear()
 	_combustion_o2_probe_by_room.clear()
 	_persistent_zone_collapse_by_room.clear()
 	_canonical_combustion_by_room.clear()
+	_canonical_interzone_heat_by_room.clear()
+	_canonical_wall_ambient_by_room.clear()
 
 
 func begin_step(building, persistence_enabled: bool = false) -> void:
@@ -238,6 +254,9 @@ func begin_step(building, persistence_enabled: bool = false) -> void:
 		_persistent_step_index = 0
 		_persistent_combustion_state.clear()
 		_persistent_lower_reseed_by_room.clear()
+		_canonical_exterior_counterflow_cumulative_kg.clear()
+		_canonical_wall_state_by_room.clear()
+		_canonical_wall_ambient_cumulative_by_room.clear()
 	if building == null:
 		return
 	for room_id in building.get_rooms().keys():
@@ -311,6 +330,24 @@ func get_canonical_combustion_input(room_id: int) -> Dictionary:
 	}
 
 
+## F3.2b7: contexto pre-step del counterflow ya encolado. Permite que el
+## evaluador de combustion seleccione la reserva lower sin observar el estado
+## post-mutacion ni anticipar el resultado aceptado del bundle.
+func get_canonical_exterior_counterflow_request(room_id: int) -> Dictionary:
+	var record: Dictionary = _canonical_exterior_counterflow_by_room.get(
+		str(room_id), _new_canonical_exterior_counterflow_record()
+	)
+	return {
+		"requested_exchange_kg": maxf(
+			0.0, float(record.get("requested_exchange_kg", 0.0))
+		),
+		"requested_incoming_o2_kg": maxf(
+			0.0, float(record.get("requested_incoming_o2_kg", 0.0))
+		),
+		"opening_count": maxf(0.0, float(record.get("opening_count", 0.0))),
+	}
+
+
 ## Estado termodinamico pre-step para evaluadores canonicos. Deriva geometria
 ## exclusivamente desde masa y energia persistentes; nunca lee la interfaz legacy.
 func get_canonical_thermodynamic_input(
@@ -334,6 +371,197 @@ func get_canonical_thermodynamic_input(
 	)
 	canonical_input.merge(thermo, true)
 	return canonical_input
+
+
+## F3.2b5a: encola una transferencia energy-only como bundle atomico. El
+## limitador comun del ledger vuelve a acotar por la energia upper disponible
+## en el punto real de aplicacion, despues de solicitudes previas del tick.
+func queue_canonical_interzone_heat_transfer(
+		room_id: int,
+		preview: Dictionary,
+		step_token: String
+	) -> bool:
+	var room_key: String = str(room_id)
+	if room_id == EXTERIOR_ID or not _snapshots.has(room_key):
+		return false
+	var requested_kj: float = maxf(
+		0.0, float(preview.get("sensible_enthalpy_kj", 0.0))
+	)
+	var record: Dictionary = {
+		"legacy_requested_kj": maxf(
+			0.0, float(preview.get("legacy_requested_kj", 0.0))
+		),
+		"legacy_candidate_kj": maxf(
+			0.0, float(preview.get("legacy_candidate_kj", 0.0))
+		),
+		"capacity_candidate_kj": maxf(
+			0.0, float(preview.get("capacity_candidate_kj", 0.0))
+		),
+		"equilibrium_limit_kj": maxf(
+			0.0, float(preview.get("equilibrium_limit_kj", 0.0))
+		),
+		"requested_kj": requested_kj,
+		"accepted_kj": 0.0,
+		"rejected_kj": 0.0,
+		"pre_delta_t_c": float(preview.get("pre_delta_t_c", 0.0)),
+		"direction_code": float(preview.get("direction_code", 0.0)),
+		"rate_per_s": maxf(0.0, float(preview.get("rate_per_s", 0.0))),
+		"lower_fade": clampf(float(preview.get("lower_fade", 0.0)), 0.0, 1.0),
+		"energy_residual_kj": 0.0,
+	}
+	_canonical_interzone_heat_by_room[room_key] = record
+	if requested_kj <= THERMO_ENERGY_EPS_KJ:
+		return true
+	var bundle_id: String = "canonical_interzone_heat:%d:%s" % [room_id, step_token]
+	var route: Dictionary = make_atomic_route(
+		bundle_id + ":upper_to_lower",
+		"thermal_upper_to_lower",
+		room_id,
+		room_id,
+		ZONE_UPPER,
+		ZONE_LOWER,
+		0.0,
+		requested_kj,
+		0.0,
+		{}
+	)
+	return add_atomic_bundle(make_atomic_bundle(
+		bundle_id,
+		"canonical_interzone_heat",
+		[route],
+		{
+			"kind": "canonical_interzone_heat",
+			"room_id": room_id,
+			"requested_energy_kj": requested_kj,
+		}
+	))
+
+
+## Persistent wall reservoir input for F3.2b5b. The state is independent of
+## ThermalSystem's legacy wall dictionaries and is referenced to ambient.
+func get_canonical_wall_ambient_input(
+		room_id: int,
+		wall_capacity_kj_k: float,
+		reference_temp_c: float
+	) -> Dictionary:
+	var room_key: String = str(room_id)
+	var capacity_kj_k: float = maxf(0.1, wall_capacity_kj_k)
+	if not _canonical_wall_state_by_room.has(room_key):
+		_canonical_wall_state_by_room[room_key] = {
+			"wall_energy_kj": 0.0,
+			"wall_capacity_kj_k": capacity_kj_k,
+			"reference_temp_c": reference_temp_c,
+		}
+	var state: Dictionary = _canonical_wall_state_by_room[room_key].duplicate(true)
+	state["wall_capacity_kj_k"] = capacity_kj_k
+	state["reference_temp_c"] = reference_temp_c
+	state["wall_temp_c"] = reference_temp_c + maxf(
+		0.0, float(state.get("wall_energy_kj", 0.0))
+	) / capacity_kj_k
+	return state
+
+
+## Queues the gas-facing part as one atomic energy bundle. Wall storage and
+## ambient accounting are committed after all routes have resolved, including
+## the no-route wall-decay case.
+func queue_canonical_wall_ambient_transfer(
+		room_id: int,
+		preview: Dictionary,
+		legacy_requested: Dictionary,
+		step_token: String
+	) -> bool:
+	var room_key: String = str(room_id)
+	if room_id == EXTERIOR_ID or not _snapshots.has(room_key) \
+			or not bool(preview.get("valid", false)):
+		return false
+	var upper_wall_signed_kj: float = float(
+		preview.get("upper_wall_requested_kj", 0.0)
+	)
+	var lower_wall_signed_kj: float = float(
+		preview.get("lower_wall_requested_kj", 0.0)
+	)
+	var upper_ambient_kj: float = maxf(
+		0.0, float(preview.get("upper_ambient_requested_kj", 0.0))
+	)
+	var lower_ambient_kj: float = maxf(
+		0.0, float(preview.get("lower_ambient_requested_kj", 0.0))
+	)
+	var record: Dictionary = preview.duplicate(true)
+	record["legacy_upper_radiative_requested_kj"] = maxf(
+		0.0, float(legacy_requested.get("thermal_upper_radiative_loss", 0.0))
+	)
+	record["legacy_upper_ambient_requested_kj"] = maxf(
+		0.0, float(legacy_requested.get("thermal_upper_to_ambient", 0.0))
+	)
+	record["legacy_wall_absorption_requested_kj"] = maxf(
+		0.0, float(legacy_requested.get("thermal_wall_absorption", 0.0))
+	)
+	record["legacy_wall_emission_requested_kj"] = maxf(
+		0.0, float(legacy_requested.get("thermal_wall_emission", 0.0))
+	)
+	record["legacy_lower_decay_requested_kj"] = maxf(
+		0.0, float(legacy_requested.get("thermal_lower_decay", 0.0))
+	)
+	record["legacy_lower_fresh_requested_kj"] = maxf(
+		0.0, float(legacy_requested.get("thermal_lower_fresh_air_cooling", 0.0))
+	)
+	record["accepted_fraction"] = 1.0
+	record["accepted_upper_wall_kj"] = 0.0
+	record["accepted_lower_wall_kj"] = 0.0
+	record["accepted_upper_ambient_kj"] = 0.0
+	record["accepted_lower_ambient_kj"] = 0.0
+	record["wall_energy_post_kj"] = float(preview.get("wall_energy_pre_kj", 0.0))
+	record["wall_temp_post_c"] = float(preview.get("wall_temp_pre_c", 20.0))
+	record["gas_wall_energy_residual_kj"] = 0.0
+	record["total_boundary_energy_residual_kj"] = 0.0
+	_canonical_wall_ambient_by_room[room_key] = record
+	var routes: Array = []
+	var bundle_id: String = "canonical_wall_ambient:%d:%s" % [room_id, step_token]
+	if upper_wall_signed_kj > THERMO_ENERGY_EPS_KJ:
+		routes.append(make_atomic_route(
+			bundle_id + ":upper_to_wall", "canonical_upper_to_wall", room_id,
+			EXTERIOR_ID, ZONE_UPPER, ZONE_UPPER, 0.0, upper_wall_signed_kj, 0.0, {}
+		))
+	elif upper_wall_signed_kj < -THERMO_ENERGY_EPS_KJ:
+		routes.append(make_atomic_route(
+			bundle_id + ":wall_to_upper", "canonical_wall_to_upper", EXTERIOR_ID,
+			room_id, ZONE_UPPER, ZONE_UPPER, 0.0, -upper_wall_signed_kj, 0.0, {}
+		))
+	if lower_wall_signed_kj > THERMO_ENERGY_EPS_KJ:
+		routes.append(make_atomic_route(
+			bundle_id + ":lower_to_wall", "canonical_lower_to_wall", room_id,
+			EXTERIOR_ID, ZONE_LOWER, ZONE_LOWER, 0.0, lower_wall_signed_kj, 0.0, {}
+		))
+	elif lower_wall_signed_kj < -THERMO_ENERGY_EPS_KJ:
+		routes.append(make_atomic_route(
+			bundle_id + ":wall_to_lower", "canonical_wall_to_lower", EXTERIOR_ID,
+			room_id, ZONE_LOWER, ZONE_LOWER, 0.0, -lower_wall_signed_kj, 0.0, {}
+		))
+	if upper_ambient_kj > THERMO_ENERGY_EPS_KJ:
+		routes.append(make_atomic_route(
+			bundle_id + ":upper_to_ambient", "canonical_upper_to_ambient", room_id,
+			EXTERIOR_ID, ZONE_UPPER, ZONE_UPPER, 0.0, upper_ambient_kj, 0.0, {}
+		))
+	if lower_ambient_kj > THERMO_ENERGY_EPS_KJ:
+		routes.append(make_atomic_route(
+			bundle_id + ":lower_to_ambient", "canonical_lower_to_ambient", room_id,
+			EXTERIOR_ID, ZONE_LOWER, ZONE_LOWER, 0.0, lower_ambient_kj, 0.0, {}
+		))
+	if routes.is_empty():
+		return true
+	return add_atomic_bundle(make_atomic_bundle(
+		bundle_id,
+		"canonical_wall_ambient",
+		routes,
+		{
+			"kind": "canonical_wall_ambient",
+			"room_id": room_id,
+			"upper_wall_signed_kj": upper_wall_signed_kj,
+			"lower_wall_signed_kj": lower_wall_signed_kj,
+			"upper_ambient_kj": upper_ambient_kj,
+			"lower_ambient_kj": lower_ambient_kj,
+		}
+	))
 
 
 func get_persistent_combustion_state(room_id: int) -> Dictionary:
@@ -405,21 +633,55 @@ func finalize_canonical_combustion_bundle(
 			if lower_zone_available else 0.0
 	var accepted_plume_energy_kj: float = requested_plume_energy_kj * plume_scale \
 			if lower_zone_available else 0.0
-	var accepted_plume_o2_kg: float = accepted_plume_mass_kg * clampf(
+	var accepted_o2_kg: float = maxf(0.0, float(record.get("accepted_o2_kg", 0.0)))
+	var o2_source_zone: String = String(record.get("o2_source_zone", ZONE_UPPER))
+	if o2_source_zone not in [ZONE_UPPER, ZONE_LOWER]:
+		o2_source_zone = ZONE_UPPER
+	var lower_o2_fraction: float = clampf(
 		float(canonical_input.get("lower_o2_fraction", 0.0)), 0.0, 1.0
 	)
+	var coupled_lower_combustion: bool = bool(
+		float(record.get("post_opening_coupling_active_flag", 0.0)) > 0.5
+	) and o2_source_zone == ZONE_LOWER
+	var combustion_air_min_plume_mass_kg: float = 0.0
+	if coupled_lower_combustion and accepted_o2_kg > 0.0 \
+			and lower_o2_fraction > 0.000000001 and lower_zone_available:
+		combustion_air_min_plume_mass_kg = accepted_o2_kg / lower_o2_fraction
+		accepted_plume_mass_kg = minf(
+			maxf(accepted_plume_mass_kg, combustion_air_min_plume_mass_kg),
+			maxf(0.0, float(canonical_input.get("lower_gas_kg", 0.0)))
+		)
+		var lower_mass_kg: float = maxf(
+			0.000000001, float(canonical_input.get("lower_gas_kg", 0.0))
+		)
+		accepted_plume_energy_kj = maxf(
+			0.0, float(canonical_input.get("lower_energy_kj", 0.0))
+		) * accepted_plume_mass_kg / lower_mass_kg
+	var entrained_plume_o2_kg: float = accepted_plume_mass_kg * lower_o2_fraction
+	var accepted_plume_o2_kg: float = entrained_plume_o2_kg
+	if coupled_lower_combustion:
+		# Combustion and plume share one lower-air parcel. The O2 sink consumes
+		# part of that parcel; only the unburned remainder reaches upper.
+		accepted_plume_o2_kg = maxf(0.0, entrained_plume_o2_kg - accepted_o2_kg)
 	record["requested_convective_energy_kj"] = requested_heat_kj
 	record["accepted_convective_energy_kj"] = accepted_heat_kj
 	record["requested_plume_mass_kg"] = requested_plume_mass_kg
 	record["accepted_plume_mass_kg"] = accepted_plume_mass_kg
 	record["requested_plume_energy_kj"] = requested_plume_energy_kj
 	record["accepted_plume_energy_kj"] = accepted_plume_energy_kj
+	record["post_opening_combustion_air_min_plume_mass_kg"] = \
+			combustion_air_min_plume_mass_kg
+	record["post_opening_plume_height_term_mass_kg"] = maxf(
+		0.0, float(plume_flux.get("height_term_mass_kg", 0.0))
+	)
+	record["post_opening_plume_source_term_mass_kg"] = maxf(
+		0.0, float(plume_flux.get("source_term_mass_kg", 0.0))
+	)
+	record["post_opening_plume_o2_to_upper_kg"] = accepted_plume_o2_kg
+	record["post_opening_lower_o2_closure_residual_kg"] = entrained_plume_o2_kg \
+			- accepted_o2_kg - accepted_plume_o2_kg if coupled_lower_combustion else 0.0
 
 	var routes: Array = []
-	var accepted_o2_kg: float = maxf(0.0, float(record.get("accepted_o2_kg", 0.0)))
-	var o2_source_zone: String = String(record.get("o2_source_zone", ZONE_UPPER))
-	if o2_source_zone not in [ZONE_UPPER, ZONE_LOWER]:
-		o2_source_zone = ZONE_UPPER
 	if accepted_o2_kg > 0.0:
 		routes.append(make_atomic_route(
 			"f32b1:%s:%d:o2" % [step_token, room_id],
@@ -655,6 +917,447 @@ func derive_canonical_thermodynamic_state(
 	result["interface_m"] = interface_m
 	result["canonical_transaction_closure_flag"] = 1.0 if closure_ok else 0.0
 	return result
+
+
+## F3.2b6: preview puro del intercambio exterior por flotabilidad. El offset
+## hidrostatico se resuelve para flujo masico neto cero; el alivio neto por
+## presion sigue perteneciendo exclusivamente a F3.2a/F3.2b2.
+func preview_canonical_exterior_counterflow(
+		canonical_input: Dictionary,
+		opening_geometry: Dictionary,
+		outside_temp_c: float,
+		discharge_coeff: float,
+		dt: float,
+		integration_segments: int = EXTERIOR_COUNTERFLOW_SEGMENTS
+	) -> Dictionary:
+	var result: Dictionary = _new_canonical_exterior_counterflow_preview()
+	if not bool(canonical_input.get("valid", false)) or dt <= 0.0 \
+			or discharge_coeff <= 0.0:
+		result["invalid_flag"] = 1.0
+		return result
+	var bottom_m: float = maxf(0.0, float(opening_geometry.get("bottom_m", 0.0)))
+	var top_m: float = maxf(bottom_m, float(opening_geometry.get("top_m", bottom_m)))
+	var width_m: float = maxf(0.0, float(opening_geometry.get("width_m", 0.0)))
+	var open_fraction: float = clampf(
+		float(opening_geometry.get("open_fraction", 0.0)), 0.0, 1.0
+	)
+	var room_height_m: float = maxf(
+		top_m, float(opening_geometry.get("room_height_m", top_m))
+	)
+	if top_m - bottom_m <= 1.0e-9 or width_m <= 0.0 or open_fraction <= 0.0 \
+			or room_height_m <= 0.0:
+		return result
+	var upper_volume_m3: float = maxf(
+		0.0, float(canonical_input.get("upper_volume_m3", 0.0))
+	)
+	var lower_volume_m3: float = maxf(
+		0.0, float(canonical_input.get("lower_volume_m3", 0.0))
+	)
+	var upper_mass_kg: float = maxf(
+		0.0, float(canonical_input.get("upper_gas_kg", 0.0))
+	)
+	var lower_mass_kg: float = maxf(
+		0.0, float(canonical_input.get("lower_gas_kg", 0.0))
+	)
+	if upper_volume_m3 <= 1.0e-12 or upper_mass_kg <= THERMO_MASS_EPS_KG:
+		return result
+	var outside_temp_k: float = outside_temp_c + 273.15
+	if outside_temp_k <= 0.0:
+		result["invalid_flag"] = 1.0
+		return result
+	var reference_temp_k: float = float(
+		canonical_input.get("reference_temp_c", outside_temp_c)
+	) + 273.15
+	var outside_density_kg_m3: float = AIR_DENSITY_REF_KG_M3 \
+			* reference_temp_k / outside_temp_k
+	var upper_density_kg_m3: float = upper_mass_kg / upper_volume_m3
+	var lower_density_kg_m3: float = outside_density_kg_m3
+	if lower_volume_m3 > 1.0e-12 and lower_mass_kg > THERMO_MASS_EPS_KG:
+		lower_density_kg_m3 = lower_mass_kg / lower_volume_m3
+	var interface_m: float = clampf(
+		float(canonical_input.get("interface_m", room_height_m)), 0.0, room_height_m
+	)
+	if absf(upper_density_kg_m3 - outside_density_kg_m3) <= 1.0e-10 \
+			and absf(lower_density_kg_m3 - outside_density_kg_m3) <= 1.0e-10:
+		result["valid"] = true
+		result["neutral_plane_m"] = 0.5 * (bottom_m + top_m)
+		result["pressure_relief_pre_pa"] = float(
+			canonical_input.get("pressure_gauge_pa", 0.0)
+		)
+		return result
+	var segments: int = maxi(8, integration_segments)
+	var pressure_bound_pa: float = maxf(
+		1.0,
+		GRAVITY_M_S2 * room_height_m * maxf(
+			outside_density_kg_m3,
+			maxf(upper_density_kg_m3, lower_density_kg_m3)
+		) * 2.0
+	)
+	var low_offset_pa: float = -pressure_bound_pa
+	var high_offset_pa: float = pressure_bound_pa
+	for _iteration in range(72):
+		var mid_offset_pa: float = 0.5 * (low_offset_pa + high_offset_pa)
+		var mid_flow: Dictionary = _integrate_canonical_exterior_opening(
+			bottom_m, top_m, width_m, open_fraction, interface_m,
+			upper_density_kg_m3, lower_density_kg_m3, outside_density_kg_m3,
+			mid_offset_pa, discharge_coeff, segments
+		)
+		if float(mid_flow.get("net_kg_s", 0.0)) > 0.0:
+			high_offset_pa = mid_offset_pa
+		else:
+			low_offset_pa = mid_offset_pa
+	var neutral_offset_pa: float = 0.5 * (low_offset_pa + high_offset_pa)
+	var flow: Dictionary = _integrate_canonical_exterior_opening(
+		bottom_m, top_m, width_m, open_fraction, interface_m,
+		upper_density_kg_m3, lower_density_kg_m3, outside_density_kg_m3,
+		neutral_offset_pa, discharge_coeff, segments
+	)
+	var gross_upper_out_kg_s: float = maxf(
+		0.0, float(flow.get("upper_out_kg_s", 0.0))
+	)
+	var gross_lower_in_kg_s: float = maxf(0.0, float(flow.get("in_kg_s", 0.0)))
+	var exchange_kg_s: float = minf(gross_upper_out_kg_s, gross_lower_in_kg_s)
+	result["valid"] = true
+	result["neutral_plane_m"] = _counterflow_neutral_plane_m(
+		bottom_m, top_m, interface_m,
+		upper_density_kg_m3, lower_density_kg_m3, outside_density_kg_m3,
+		neutral_offset_pa
+	)
+	result["neutral_pressure_offset_pa"] = neutral_offset_pa
+	result["gross_out_kg_s"] = maxf(0.0, float(flow.get("out_kg_s", 0.0)))
+	result["gross_in_kg_s"] = gross_lower_in_kg_s
+	result["gross_upper_out_kg_s"] = gross_upper_out_kg_s
+	result["gross_lower_in_kg_s"] = gross_lower_in_kg_s
+	result["exchange_kg_s"] = exchange_kg_s
+	result["exchange_kg"] = exchange_kg_s * dt
+	result["hydrostatic_net_kg_s"] = float(flow.get("net_kg_s", 0.0))
+	result["opposed_out_kg_s"] = maxf(
+		0.0, float(flow.get("out_kg_s", 0.0)) - gross_upper_out_kg_s
+	)
+	result["pressure_relief_pre_pa"] = float(
+		canonical_input.get("pressure_gauge_pa", 0.0)
+	)
+	return result
+
+
+func _integrate_canonical_exterior_opening(
+		bottom_m: float,
+		top_m: float,
+		width_m: float,
+		open_fraction: float,
+		interface_m: float,
+		upper_density_kg_m3: float,
+		lower_density_kg_m3: float,
+		outside_density_kg_m3: float,
+		floor_pressure_offset_pa: float,
+		discharge_coeff: float,
+		segments: int
+	) -> Dictionary:
+	var out_kg_s: float = 0.0
+	var upper_out_kg_s: float = 0.0
+	var in_kg_s: float = 0.0
+	var dz_m: float = (top_m - bottom_m) / float(maxi(1, segments))
+	for segment_index in range(maxi(1, segments)):
+		var z_m: float = bottom_m + (float(segment_index) + 0.5) * dz_m
+		var inside_density_kg_m3: float = upper_density_kg_m3 \
+				if z_m >= interface_m else lower_density_kg_m3
+		var delta_p_pa: float = _canonical_exterior_delta_p_pa(
+			z_m, interface_m, upper_density_kg_m3, lower_density_kg_m3,
+			outside_density_kg_m3, floor_pressure_offset_pa
+		)
+		var strip_area_m2: float = width_m * open_fraction * dz_m
+		if delta_p_pa > 0.0:
+			var out_strip_kg_s: float = discharge_coeff * strip_area_m2 \
+					* sqrt(2.0 * maxf(0.05, inside_density_kg_m3) * delta_p_pa)
+			out_kg_s += out_strip_kg_s
+			if z_m >= interface_m:
+				upper_out_kg_s += out_strip_kg_s
+		elif delta_p_pa < 0.0:
+			in_kg_s += discharge_coeff * strip_area_m2 \
+					* sqrt(2.0 * maxf(0.05, outside_density_kg_m3) * -delta_p_pa)
+	return {
+		"out_kg_s": out_kg_s,
+		"upper_out_kg_s": upper_out_kg_s,
+		"in_kg_s": in_kg_s,
+		"net_kg_s": out_kg_s - in_kg_s,
+	}
+
+
+func _canonical_exterior_delta_p_pa(
+		z_m: float,
+		interface_m: float,
+		upper_density_kg_m3: float,
+		lower_density_kg_m3: float,
+		outside_density_kg_m3: float,
+		floor_pressure_offset_pa: float
+	) -> float:
+	var lower_height_m: float = minf(maxf(0.0, z_m), interface_m)
+	var upper_height_m: float = maxf(0.0, z_m - interface_m)
+	return floor_pressure_offset_pa + GRAVITY_M_S2 * (
+		(outside_density_kg_m3 - lower_density_kg_m3) * lower_height_m
+				+ (outside_density_kg_m3 - upper_density_kg_m3) * upper_height_m
+	)
+
+
+func _counterflow_neutral_plane_m(
+		bottom_m: float,
+		top_m: float,
+		interface_m: float,
+		upper_density_kg_m3: float,
+		lower_density_kg_m3: float,
+		outside_density_kg_m3: float,
+		floor_pressure_offset_pa: float
+	) -> float:
+	var low_m: float = bottom_m
+	var high_m: float = top_m
+	var low_dp: float = _canonical_exterior_delta_p_pa(
+		low_m, interface_m, upper_density_kg_m3, lower_density_kg_m3,
+		outside_density_kg_m3, floor_pressure_offset_pa
+	)
+	var high_dp: float = _canonical_exterior_delta_p_pa(
+		high_m, interface_m, upper_density_kg_m3, lower_density_kg_m3,
+		outside_density_kg_m3, floor_pressure_offset_pa
+	)
+	if low_dp * high_dp > 0.0:
+		return bottom_m if absf(low_dp) <= absf(high_dp) else top_m
+	for _iteration in range(64):
+		var mid_m: float = 0.5 * (low_m + high_m)
+		var mid_dp: float = _canonical_exterior_delta_p_pa(
+			mid_m, interface_m, upper_density_kg_m3, lower_density_kg_m3,
+			outside_density_kg_m3, floor_pressure_offset_pa
+		)
+		if low_dp * mid_dp <= 0.0:
+			high_m = mid_m
+		else:
+			low_m = mid_m
+			low_dp = mid_dp
+	return 0.5 * (low_m + high_m)
+
+
+func _new_canonical_exterior_counterflow_preview() -> Dictionary:
+	return {
+		"valid": false,
+		"invalid_flag": 0.0,
+		"neutral_plane_m": 0.0,
+		"neutral_pressure_offset_pa": 0.0,
+		"gross_out_kg_s": 0.0,
+		"gross_in_kg_s": 0.0,
+		"gross_upper_out_kg_s": 0.0,
+		"gross_lower_in_kg_s": 0.0,
+		"exchange_kg_s": 0.0,
+		"exchange_kg": 0.0,
+		"hydrostatic_net_kg_s": 0.0,
+		"opposed_out_kg_s": 0.0,
+		"pressure_relief_pre_pa": 0.0,
+	}
+
+
+## Encola un intercambio bruto compensado por abertura. Cada bundle contiene
+## exactamente dos rutas con la misma masa; por tanto no puede aliviar ni crear
+## presion neta. F3.2a se ejecuta despues y conserva esa autoridad exclusiva.
+func queue_canonical_exterior_counterflow_requests(
+		building,
+		dt: float,
+		reference_temp_c: float,
+		outside_o2: float,
+		discharge_coeff: float = EXTERIOR_DISCHARGE_COEFF
+	) -> void:
+	if building == null or dt <= 0.0 or discharge_coeff <= 0.0:
+		return
+	var openings: Array = building.get_openings()
+	for opening_position in range(openings.size()):
+		var op = openings[opening_position]
+		if op == null or not op.is_exterior_opening():
+			continue
+		var room_id: int = op.b if op.a == EXTERIOR_ID else op.a
+		var room = building.get_room(room_id)
+		var room_key: String = str(room_id)
+		if room == null or not _snapshots.has(room_key):
+			continue
+		var smooth_fraction: float = op.open_fraction_smooth
+		if smooth_fraction < 0.0:
+			smooth_fraction = op.open_fraction
+		smooth_fraction = clampf(smooth_fraction, 0.0, 1.0)
+		if smooth_fraction <= 0.0:
+			continue
+		var canonical_input: Dictionary = get_canonical_thermodynamic_input(
+			room, reference_temp_c
+		)
+		var preview: Dictionary = preview_canonical_exterior_counterflow(
+			canonical_input,
+			{
+				"bottom_m": clampf(op.sill_m, 0.0, room.height_m),
+				"top_m": clampf(op.lintel_height_m(), 0.0, room.height_m),
+				"width_m": maxf(0.0, op.width_m),
+				"open_fraction": smooth_fraction,
+				"room_height_m": room.height_m,
+			},
+			reference_temp_c,
+			discharge_coeff,
+			dt
+		)
+		var record: Dictionary = _canonical_exterior_counterflow_by_room.get(
+			room_key, _new_canonical_exterior_counterflow_record()
+		).duplicate(true)
+		record["opening_count"] = float(record.get("opening_count", 0.0)) + 1.0
+		if not bool(preview.get("valid", false)):
+			record["invalid_preview_count"] = float(
+				record.get("invalid_preview_count", 0.0)
+			) + float(preview.get("invalid_flag", 0.0))
+			_canonical_exterior_counterflow_by_room[room_key] = record
+			continue
+		var raw_upper_out_kg: float = maxf(
+			0.0, float(preview.get("gross_upper_out_kg_s", 0.0)) * dt
+		)
+		var raw_lower_in_kg: float = maxf(
+			0.0, float(preview.get("gross_lower_in_kg_s", 0.0)) * dt
+		)
+		var exchange_kg: float = maxf(0.0, float(preview.get("exchange_kg", 0.0)))
+		var neutral_weight_kg: float = maxf(exchange_kg, 1.0e-12)
+		record["neutral_plane_weighted_m_kg"] = float(
+			record.get("neutral_plane_weighted_m_kg", 0.0)
+		) + float(preview.get("neutral_plane_m", 0.0)) * neutral_weight_kg
+		record["neutral_plane_weight_kg"] = float(
+			record.get("neutral_plane_weight_kg", 0.0)
+		) + neutral_weight_kg
+		record["neutral_plane_m"] = float(record["neutral_plane_weighted_m_kg"]) \
+				/ maxf(1.0e-12, float(record["neutral_plane_weight_kg"]))
+		record["neutral_pressure_offset_pa"] = float(
+			preview.get("neutral_pressure_offset_pa", 0.0)
+		)
+		record["pressure_relief_pre_pa"] = float(
+			preview.get("pressure_relief_pre_pa", 0.0)
+		)
+		record["raw_upper_out_kg"] = float(record.get("raw_upper_out_kg", 0.0)) \
+				+ raw_upper_out_kg
+		record["raw_lower_in_kg"] = float(record.get("raw_lower_in_kg", 0.0)) \
+				+ raw_lower_in_kg
+		record["hydrostatic_net_kg"] = float(
+			record.get("hydrostatic_net_kg", 0.0)
+		) + float(preview.get("hydrostatic_net_kg_s", 0.0)) * dt
+		record["opposed_out_kg"] = float(record.get("opposed_out_kg", 0.0)) \
+				+ float(preview.get("opposed_out_kg_s", 0.0)) * dt
+		if exchange_kg <= THERMO_MASS_EPS_KG:
+			_canonical_exterior_counterflow_by_room[room_key] = record
+			continue
+		var source_state: Dictionary = _snapshots[room_key]
+		var upper_mass_kg: float = maxf(
+			THERMO_MASS_EPS_KG, float(source_state.get("upper_gas_kg", 0.0))
+		)
+		var inventory_fraction: float = exchange_kg / upper_mass_kg
+		var outgoing_energy_kj: float = float(
+			source_state.get("upper_energy_kj", 0.0)
+		) * inventory_fraction
+		var outgoing_o2_kg: float = float(
+			source_state.get("upper_o2_kg", 0.0)
+		) * inventory_fraction
+		var outgoing_species_kg: Dictionary = _parcel_species({})
+		var source_species: Dictionary = source_state.get("upper_species_kg", {})
+		for species_name in PARCEL_SPECIES:
+			outgoing_species_kg[species_name] = float(
+				source_species.get(species_name, 0.0)
+			) * inventory_fraction
+		var incoming_o2_kg: float = exchange_kg * clampf(outside_o2, 0.0, 1.0)
+		record["requested_exchange_kg"] = float(
+			record.get("requested_exchange_kg", 0.0)
+		) + exchange_kg
+		record["requested_outgoing_energy_kj"] = float(
+			record.get("requested_outgoing_energy_kj", 0.0)
+		) + outgoing_energy_kj
+		record["requested_outgoing_o2_kg"] = float(
+			record.get("requested_outgoing_o2_kg", 0.0)
+		) + outgoing_o2_kg
+		record["requested_incoming_o2_kg"] = float(
+			record.get("requested_incoming_o2_kg", 0.0)
+		) + incoming_o2_kg
+		record["requested_outgoing_species_kg"] = float(
+			record.get("requested_outgoing_species_kg", 0.0)
+		) + _sum_parcel_species(outgoing_species_kg)
+		_canonical_exterior_counterflow_by_room[room_key] = record
+		var opening_id: int = op.opening_index if op.opening_index >= 0 else opening_position
+		var bundle_id: String = "f32b6_exterior_counterflow:%d:%d" % [room_id, opening_id]
+		var routes: Array = [
+			make_atomic_route(
+				bundle_id + ":upper_out",
+				"canonical_exterior_counterflow_upper_out",
+				room_id,
+				EXTERIOR_ID,
+				ZONE_UPPER,
+				ZONE_UPPER,
+				exchange_kg,
+				outgoing_energy_kj,
+				outgoing_o2_kg,
+				outgoing_species_kg
+			),
+			make_atomic_route(
+				bundle_id + ":lower_in",
+				"canonical_exterior_counterflow_lower_in",
+				EXTERIOR_ID,
+				room_id,
+				ZONE_LOWER,
+				ZONE_LOWER,
+				exchange_kg,
+				0.0,
+				incoming_o2_kg,
+				{}
+			),
+		]
+		var bundle: Dictionary = make_atomic_bundle(
+			bundle_id,
+			"canonical_exterior_counterflow",
+			routes,
+			{
+				"kind": "canonical_exterior_counterflow",
+				"room_id": room_id,
+				"exchange_kg": exchange_kg,
+				"outgoing_energy_kj": outgoing_energy_kj,
+				"outgoing_o2_kg": outgoing_o2_kg,
+				"incoming_o2_kg": incoming_o2_kg,
+				"outgoing_species_kg": _sum_parcel_species(outgoing_species_kg),
+			}
+		)
+		if not add_atomic_bundle(bundle):
+			record = _canonical_exterior_counterflow_by_room[room_key].duplicate(true)
+			record["duplicate_owner_flag"] = 1.0
+			_canonical_exterior_counterflow_by_room[room_key] = record
+
+
+func _new_canonical_exterior_counterflow_record() -> Dictionary:
+	return {
+		"opening_count": 0.0,
+		"invalid_preview_count": 0.0,
+		"neutral_plane_m": 0.0,
+		"neutral_plane_weighted_m_kg": 0.0,
+		"neutral_plane_weight_kg": 0.0,
+		"neutral_pressure_offset_pa": 0.0,
+		"pressure_relief_pre_pa": 0.0,
+		"raw_upper_out_kg": 0.0,
+		"raw_lower_in_kg": 0.0,
+		"hydrostatic_net_kg": 0.0,
+		"opposed_out_kg": 0.0,
+		"requested_exchange_kg": 0.0,
+		"accepted_exchange_kg": 0.0,
+		"rejected_exchange_kg": 0.0,
+		"requested_outgoing_energy_kj": 0.0,
+		"accepted_outgoing_energy_kj": 0.0,
+		"rejected_outgoing_energy_kj": 0.0,
+		"requested_outgoing_o2_kg": 0.0,
+		"accepted_outgoing_o2_kg": 0.0,
+		"rejected_outgoing_o2_kg": 0.0,
+		"requested_incoming_o2_kg": 0.0,
+		"accepted_incoming_o2_kg": 0.0,
+		"rejected_incoming_o2_kg": 0.0,
+		"requested_outgoing_species_kg": 0.0,
+		"accepted_outgoing_species_kg": 0.0,
+		"rejected_outgoing_species_kg": 0.0,
+		"accepted_fraction": 1.0,
+		"mass_residual_kg": 0.0,
+		"energy_residual_kj": 0.0,
+		"o2_residual_kg": 0.0,
+		"species_residual_kg": 0.0,
+		"duplicate_owner_flag": 0.0,
+		"cumulative_exchange_kg": 0.0,
+	}
 
 
 ## F3.2a: registra el contrato exterior del paso. El bundle se resuelve solo
@@ -2656,6 +3359,7 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 					rejected_doorway_species_by_room,
 					rejected_transit_species_by_room
 				)
+	_commit_canonical_wall_ambient_records(reference_temp_c)
 	if building == null:
 		return
 	if _persistence_enabled_step:
@@ -2784,6 +3488,9 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 		var exterior_boundary: Dictionary = _canonical_exterior_boundary_by_room.get(
 			room_key, _new_canonical_exterior_boundary_record()
 		)
+		var exterior_counterflow: Dictionary = _canonical_exterior_counterflow_by_room.get(
+			room_key, _new_canonical_exterior_counterflow_record()
+		)
 		var lower_reseed_history: Dictionary = _persistent_lower_reseed_by_room.get(
 			room_key,
 			{"count": 0.0, "mass_kg": 0.0, "first_step_index": 0.0}
@@ -2796,6 +3503,12 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			room_key, _new_zone_collapse_record()
 		)
 		var canonical_combustion: Dictionary = _canonical_combustion_by_room.get(
+			room_key, {}
+		)
+		var canonical_interzone_heat: Dictionary = _canonical_interzone_heat_by_room.get(
+			room_key, {}
+		)
+		var canonical_wall_ambient: Dictionary = _canonical_wall_ambient_by_room.get(
 			room_key, {}
 		)
 		var canonical_combustion_atomic_fraction: float = clampf(
@@ -3009,6 +3722,54 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"phase3_shadow_combustion_species_residual_kg": float(
 				canonical_combustion.get("species_residual_kg", 0.0)
 			),
+			"phase3_shadow_post_opening_coupling_active_flag": float(
+				canonical_combustion.get("post_opening_coupling_active_flag", 0.0)
+			),
+			"phase3_shadow_post_opening_source_switched_to_lower_flag": float(
+				canonical_combustion.get(
+					"post_opening_source_switched_to_lower_flag", 0.0
+				)
+			),
+			"phase3_shadow_post_opening_counterflow_exchange_kg_step": float(
+				canonical_combustion.get("post_opening_counterflow_exchange_kg", 0.0)
+			),
+			"phase3_shadow_post_opening_counterflow_incoming_o2_kg_step": float(
+				canonical_combustion.get(
+					"post_opening_counterflow_incoming_o2_kg", 0.0
+				)
+			),
+			"phase3_shadow_post_opening_source_o2_available_kg": float(
+				canonical_combustion.get("post_opening_source_o2_available_kg", 0.0)
+			),
+			"phase3_shadow_post_opening_full_hrr_o2_demand_kg_step": float(
+				canonical_combustion.get("post_opening_full_hrr_o2_demand_kg", 0.0)
+			),
+			"phase3_shadow_post_opening_o2_supply_margin_kg_step": float(
+				canonical_combustion.get("post_opening_o2_supply_margin_kg", 0.0)
+			),
+			"phase3_shadow_post_opening_combustion_air_min_plume_mass_kg_step": float(
+				canonical_combustion.get(
+					"post_opening_combustion_air_min_plume_mass_kg", 0.0
+				)
+			),
+			"phase3_shadow_post_opening_plume_height_term_mass_kg_step": float(
+				canonical_combustion.get(
+					"post_opening_plume_height_term_mass_kg", 0.0
+				)
+			),
+			"phase3_shadow_post_opening_plume_source_term_mass_kg_step": float(
+				canonical_combustion.get(
+					"post_opening_plume_source_term_mass_kg", 0.0
+				)
+			),
+			"phase3_shadow_post_opening_plume_o2_to_upper_kg_step": float(
+				canonical_combustion.get("post_opening_plume_o2_to_upper_kg", 0.0)
+			),
+			"phase3_shadow_post_opening_lower_o2_closure_residual_kg": float(
+				canonical_combustion.get(
+					"post_opening_lower_o2_closure_residual_kg", 0.0
+				)
+			),
 			"phase3_shadow_exterior_pressure_pre_pa": float(
 				exterior_boundary.get("pressure_pre_pa", 0.0)
 			),
@@ -3129,7 +3890,197 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"phase3_shadow_exterior_lower_reseed_first_step_index": float(
 				lower_reseed_history.get("first_step_index", 0.0)
 			),
+			"phase3_shadow_counterflow_neutral_plane_m": float(
+				exterior_counterflow.get("neutral_plane_m", 0.0)
+			),
+			"phase3_shadow_counterflow_neutral_pressure_offset_pa": float(
+				exterior_counterflow.get("neutral_pressure_offset_pa", 0.0)
+			),
+			"phase3_shadow_counterflow_raw_upper_out_kg_step": float(
+				exterior_counterflow.get("raw_upper_out_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_raw_lower_in_kg_step": float(
+				exterior_counterflow.get("raw_lower_in_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_requested_exchange_kg_step": float(
+				exterior_counterflow.get("requested_exchange_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_accepted_exchange_kg_step": float(
+				exterior_counterflow.get("accepted_exchange_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_rejected_exchange_kg_step": float(
+				exterior_counterflow.get("rejected_exchange_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_cumulative_exchange_kg": float(
+				exterior_counterflow.get("cumulative_exchange_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_cumulative_upper_out_kg": float(
+				exterior_counterflow.get("cumulative_exchange_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_cumulative_lower_in_kg": float(
+				exterior_counterflow.get("cumulative_exchange_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_hydrostatic_net_kg_step": float(
+				exterior_counterflow.get("hydrostatic_net_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_pressure_relief_kg_step": float(
+				exterior_boundary.get("accepted_gas_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_pressure_relief_net_kg_step": float(
+				exterior_boundary.get("accepted_gas_kg", 0.0)
+			) * float(exterior_boundary.get("direction", 0.0)),
+			"phase3_shadow_counterflow_outgoing_energy_kj_step": float(
+				exterior_counterflow.get("accepted_outgoing_energy_kj", 0.0)
+			),
+			"phase3_shadow_counterflow_outgoing_o2_kg_step": float(
+				exterior_counterflow.get("accepted_outgoing_o2_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_incoming_o2_kg_step": float(
+				exterior_counterflow.get("accepted_incoming_o2_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_outgoing_species_kg_step": float(
+				exterior_counterflow.get("accepted_outgoing_species_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_accepted_fraction": float(
+				exterior_counterflow.get("accepted_fraction", 1.0)
+			),
+			"phase3_shadow_counterflow_mass_residual_kg": float(
+				exterior_counterflow.get("mass_residual_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_energy_residual_kj": float(
+				exterior_counterflow.get("energy_residual_kj", 0.0)
+			),
+			"phase3_shadow_counterflow_o2_residual_kg": float(
+				exterior_counterflow.get("o2_residual_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_species_residual_kg": float(
+				exterior_counterflow.get("species_residual_kg", 0.0)
+			),
+			"phase3_shadow_counterflow_opening_count": float(
+				exterior_counterflow.get("opening_count", 0.0)
+			),
+			"phase3_shadow_counterflow_duplicate_owner_flag": float(
+				exterior_counterflow.get("duplicate_owner_flag", 0.0)
+			),
+			"phase3_shadow_counterflow_invalid_preview_count": float(
+				exterior_counterflow.get("invalid_preview_count", 0.0)
+			),
+			"phase3_shadow_counterflow_opposed_out_kg_step": float(
+				exterior_counterflow.get("opposed_out_kg", 0.0)
+			),
 			"phase3_shadow_request_count": _count_room_requests(room_id),
+			"phase3_shadow_interzone_legacy_requested_kj": float(
+				canonical_interzone_heat.get("legacy_requested_kj", 0.0)
+			),
+			"phase3_shadow_interzone_legacy_candidate_kj": float(
+				canonical_interzone_heat.get("legacy_candidate_kj", 0.0)
+			),
+			"phase3_shadow_interzone_capacity_candidate_kj": float(
+				canonical_interzone_heat.get("capacity_candidate_kj", 0.0)
+			),
+			"phase3_shadow_interzone_equilibrium_limit_kj": float(
+				canonical_interzone_heat.get("equilibrium_limit_kj", 0.0)
+			),
+			"phase3_shadow_interzone_requested_kj": float(
+				canonical_interzone_heat.get("requested_kj", 0.0)
+			),
+			"phase3_shadow_interzone_accepted_kj": float(
+				canonical_interzone_heat.get("accepted_kj", 0.0)
+			),
+			"phase3_shadow_interzone_rejected_kj": float(
+				canonical_interzone_heat.get("rejected_kj", 0.0)
+			),
+			"phase3_shadow_interzone_cumulative_accepted_kj": float(
+				_canonical_interzone_heat_cumulative_kj.get(room_key, 0.0)
+			),
+			"phase3_shadow_interzone_pre_delta_t_c": float(
+				canonical_interzone_heat.get("pre_delta_t_c", 0.0)
+			),
+			"phase3_shadow_interzone_direction_code": float(
+				canonical_interzone_heat.get("direction_code", 0.0)
+			),
+			"phase3_shadow_interzone_energy_residual_kj": float(
+				canonical_interzone_heat.get("energy_residual_kj", 0.0)
+			),
+			"phase3_shadow_wall_energy_pre_kj": float(
+				canonical_wall_ambient.get("wall_energy_pre_kj", 0.0)
+			),
+			"phase3_shadow_wall_energy_post_kj": float(
+				canonical_wall_ambient.get("wall_energy_post_kj", 0.0)
+			),
+			"phase3_shadow_wall_temp_pre_c": float(
+				canonical_wall_ambient.get("wall_temp_pre_c", reference_temp_c)
+			),
+			"phase3_shadow_wall_temp_post_c": float(
+				canonical_wall_ambient.get("wall_temp_post_c", reference_temp_c)
+			),
+			"phase3_shadow_wall_decay_kj": float(
+				canonical_wall_ambient.get("wall_decay_requested_kj", 0.0)
+			),
+			"phase3_shadow_wall_upper_requested_kj": float(
+				canonical_wall_ambient.get("upper_wall_requested_kj", 0.0)
+			),
+			"phase3_shadow_wall_lower_requested_kj": float(
+				canonical_wall_ambient.get("lower_wall_requested_kj", 0.0)
+			),
+			"phase3_shadow_wall_upper_accepted_kj": float(
+				canonical_wall_ambient.get("accepted_upper_wall_kj", 0.0)
+			),
+			"phase3_shadow_wall_lower_accepted_kj": float(
+				canonical_wall_ambient.get("accepted_lower_wall_kj", 0.0)
+			),
+			"phase3_shadow_wall_upper_convective_requested_kj": float(
+				canonical_wall_ambient.get("upper_wall_convective_requested_kj", 0.0)
+			),
+			"phase3_shadow_wall_lower_convective_requested_kj": float(
+				canonical_wall_ambient.get("lower_wall_convective_requested_kj", 0.0)
+			),
+			"phase3_shadow_wall_upper_radiative_requested_kj": float(
+				canonical_wall_ambient.get("upper_wall_radiative_requested_kj", 0.0)
+			),
+			"phase3_shadow_wall_upper_ambient_requested_kj": float(
+				canonical_wall_ambient.get("upper_ambient_requested_kj", 0.0)
+			),
+			"phase3_shadow_wall_lower_ambient_requested_kj": float(
+				canonical_wall_ambient.get("lower_ambient_requested_kj", 0.0)
+			),
+			"phase3_shadow_wall_upper_ambient_accepted_kj": float(
+				canonical_wall_ambient.get("accepted_upper_ambient_kj", 0.0)
+			),
+			"phase3_shadow_wall_lower_ambient_accepted_kj": float(
+				canonical_wall_ambient.get("accepted_lower_ambient_kj", 0.0)
+			),
+			"phase3_shadow_wall_accepted_fraction": float(
+				canonical_wall_ambient.get("accepted_fraction", 1.0)
+			),
+			"phase3_shadow_wall_equilibrium_temp_c": float(
+				canonical_wall_ambient.get("equilibrium_temp_c", reference_temp_c)
+			),
+			"phase3_shadow_wall_cumulative_absorbed_kj": float(
+				canonical_wall_ambient.get("cumulative_wall_absorbed_kj", 0.0)
+			),
+			"phase3_shadow_wall_cumulative_emitted_kj": float(
+				canonical_wall_ambient.get("cumulative_wall_emitted_kj", 0.0)
+			),
+			"phase3_shadow_wall_cumulative_ambient_removed_kj": float(
+				canonical_wall_ambient.get("cumulative_ambient_removed_kj", 0.0)
+			),
+			"phase3_shadow_wall_gas_residual_kj": float(
+				canonical_wall_ambient.get("gas_wall_energy_residual_kj", 0.0)
+			),
+			"phase3_shadow_wall_boundary_residual_kj": float(
+				canonical_wall_ambient.get("total_boundary_energy_residual_kj", 0.0)
+			),
+			"phase3_shadow_wall_clamp_kj": float(
+				canonical_wall_ambient.get("wall_clamp_kj", 0.0)
+			),
+			"phase3_shadow_wall_legacy_requested_kj": \
+				float(canonical_wall_ambient.get("legacy_upper_radiative_requested_kj", 0.0)) \
+				+ float(canonical_wall_ambient.get("legacy_upper_ambient_requested_kj", 0.0)) \
+				+ float(canonical_wall_ambient.get("legacy_wall_absorption_requested_kj", 0.0)) \
+				+ float(canonical_wall_ambient.get("legacy_lower_decay_requested_kj", 0.0)) \
+				+ float(canonical_wall_ambient.get("legacy_lower_fresh_requested_kj", 0.0)) \
+				- float(canonical_wall_ambient.get("legacy_wall_emission_requested_kj", 0.0)),
 			"phase3_shadow_plume_mass_request_kg": _sum_room_cause_mass(
 				room_id, "plume_entrainment"
 			),
@@ -3563,6 +4514,88 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			).duplicate(true)
 
 
+func _commit_canonical_wall_ambient_records(reference_temp_c: float) -> void:
+	for room_key in _canonical_wall_ambient_by_room.keys():
+		var record: Dictionary = _canonical_wall_ambient_by_room[room_key].duplicate(true)
+		var capacity_kj_k: float = maxf(
+			0.1, float(record.get("wall_capacity_kj_k", 0.1))
+		)
+		var wall_energy_pre_kj: float = maxf(
+			0.0, float(record.get("wall_energy_pre_kj", 0.0))
+		)
+		var wall_decay_kj: float = minf(
+			wall_energy_pre_kj,
+			maxf(0.0, float(record.get("wall_decay_requested_kj", 0.0)))
+		)
+		var accepted_upper_wall_kj: float = float(
+			record.get("accepted_upper_wall_kj", 0.0)
+		)
+		var accepted_lower_wall_kj: float = float(
+			record.get("accepted_lower_wall_kj", 0.0)
+		)
+		var wall_exchange_kj: float = accepted_upper_wall_kj + accepted_lower_wall_kj
+		var wall_energy_post_raw_kj: float = wall_energy_pre_kj - wall_decay_kj \
+				+ wall_exchange_kj
+		var wall_energy_post_kj: float = maxf(0.0, wall_energy_post_raw_kj)
+		var wall_clamp_kj: float = wall_energy_post_kj - wall_energy_post_raw_kj
+		var accepted_upper_ambient_kj: float = maxf(
+			0.0, float(record.get("accepted_upper_ambient_kj", 0.0))
+		)
+		var accepted_lower_ambient_kj: float = maxf(
+			0.0, float(record.get("accepted_lower_ambient_kj", 0.0))
+		)
+		var gas_wall_delta_kj: float = -wall_exchange_kj
+		var wall_delta_kj: float = wall_energy_post_kj - wall_energy_pre_kj
+		var ambient_removed_kj: float = wall_decay_kj \
+				+ accepted_upper_ambient_kj + accepted_lower_ambient_kj
+		var gas_total_delta_kj: float = gas_wall_delta_kj \
+				- accepted_upper_ambient_kj - accepted_lower_ambient_kj
+		record["wall_energy_post_kj"] = wall_energy_post_kj
+		record["wall_temp_post_c"] = reference_temp_c \
+				+ wall_energy_post_kj / capacity_kj_k
+		record["wall_clamp_kj"] = wall_clamp_kj
+		record["gas_wall_energy_residual_kj"] = gas_wall_delta_kj \
+				+ wall_delta_kj + wall_decay_kj
+		record["total_boundary_energy_residual_kj"] = gas_total_delta_kj \
+				+ wall_delta_kj + ambient_removed_kj
+		var cumulative: Dictionary = _canonical_wall_ambient_cumulative_by_room.get(
+			room_key,
+			{
+				"wall_absorbed_kj": 0.0,
+				"wall_emitted_kj": 0.0,
+				"ambient_removed_kj": 0.0,
+			}
+		).duplicate(true)
+		for accepted_wall_kj in [accepted_upper_wall_kj, accepted_lower_wall_kj]:
+			if accepted_wall_kj >= 0.0:
+				cumulative["wall_absorbed_kj"] = float(
+					cumulative.get("wall_absorbed_kj", 0.0)
+				) + accepted_wall_kj
+			else:
+				cumulative["wall_emitted_kj"] = float(
+					cumulative.get("wall_emitted_kj", 0.0)
+				) - accepted_wall_kj
+		cumulative["ambient_removed_kj"] = float(
+			cumulative.get("ambient_removed_kj", 0.0)
+		) + ambient_removed_kj
+		_canonical_wall_ambient_cumulative_by_room[room_key] = cumulative
+		record["cumulative_wall_absorbed_kj"] = float(
+			cumulative.get("wall_absorbed_kj", 0.0)
+		)
+		record["cumulative_wall_emitted_kj"] = float(
+			cumulative.get("wall_emitted_kj", 0.0)
+		)
+		record["cumulative_ambient_removed_kj"] = float(
+			cumulative.get("ambient_removed_kj", 0.0)
+		)
+		_canonical_wall_state_by_room[room_key] = {
+			"wall_energy_kj": wall_energy_post_kj,
+			"wall_capacity_kj_k": capacity_kj_k,
+			"reference_temp_c": reference_temp_c,
+		}
+		_canonical_wall_ambient_by_room[room_key] = record
+
+
 func get_results() -> Dictionary:
 	return _results.duplicate(true)
 
@@ -3878,6 +4911,57 @@ func _record_atomic_bundle_result(bundle: Dictionary, accepted_fraction: float) 
 		)
 		_canonical_combustion_by_room[combustion_room_key] = combustion_record
 		return
+	if result_kind == "canonical_exterior_counterflow":
+		var counterflow_room_key: String = str(int(metadata.get("room_id", EXTERIOR_ID)))
+		var counterflow_record: Dictionary = _canonical_exterior_counterflow_by_room.get(
+			counterflow_room_key, _new_canonical_exterior_counterflow_record()
+		).duplicate(true)
+		var counterflow_fraction: float = clampf(accepted_fraction, 0.0, 1.0)
+		var exchange_kg: float = maxf(0.0, float(metadata.get("exchange_kg", 0.0)))
+		var accepted_exchange_kg: float = exchange_kg * counterflow_fraction
+		counterflow_record["accepted_fraction"] = minf(
+			float(counterflow_record.get("accepted_fraction", 1.0)), counterflow_fraction
+		)
+		counterflow_record["accepted_exchange_kg"] = float(
+			counterflow_record.get("accepted_exchange_kg", 0.0)
+		) + accepted_exchange_kg
+		counterflow_record["rejected_exchange_kg"] = float(
+			counterflow_record.get("rejected_exchange_kg", 0.0)
+		) + exchange_kg * (1.0 - counterflow_fraction)
+		for quantity_name in ["outgoing_energy_kj", "outgoing_o2_kg", "incoming_o2_kg", "outgoing_species_kg"]:
+			var accepted_key: String = "accepted_" + quantity_name
+			var rejected_key: String = "rejected_" + quantity_name
+			var requested_value: float = maxf(0.0, float(metadata.get(quantity_name, 0.0)))
+			counterflow_record[accepted_key] = float(
+				counterflow_record.get(accepted_key, 0.0)
+			) + requested_value * counterflow_fraction
+			counterflow_record[rejected_key] = float(
+				counterflow_record.get(rejected_key, 0.0)
+			) + requested_value * (1.0 - counterflow_fraction)
+		counterflow_record["mass_residual_kg"] = 0.0
+		counterflow_record["energy_residual_kj"] = float(
+			counterflow_record.get("requested_outgoing_energy_kj", 0.0)
+		) - float(counterflow_record.get("accepted_outgoing_energy_kj", 0.0)) \
+				- float(counterflow_record.get("rejected_outgoing_energy_kj", 0.0))
+		counterflow_record["o2_residual_kg"] = float(
+			counterflow_record.get("requested_outgoing_o2_kg", 0.0)
+		) + float(counterflow_record.get("requested_incoming_o2_kg", 0.0)) \
+				- float(counterflow_record.get("accepted_outgoing_o2_kg", 0.0)) \
+				- float(counterflow_record.get("accepted_incoming_o2_kg", 0.0)) \
+				- float(counterflow_record.get("rejected_outgoing_o2_kg", 0.0)) \
+				- float(counterflow_record.get("rejected_incoming_o2_kg", 0.0))
+		counterflow_record["species_residual_kg"] = float(
+			counterflow_record.get("requested_outgoing_species_kg", 0.0)
+		) - float(counterflow_record.get("accepted_outgoing_species_kg", 0.0)) \
+				- float(counterflow_record.get("rejected_outgoing_species_kg", 0.0))
+		_canonical_exterior_counterflow_cumulative_kg[counterflow_room_key] = float(
+			_canonical_exterior_counterflow_cumulative_kg.get(counterflow_room_key, 0.0)
+		) + accepted_exchange_kg
+		counterflow_record["cumulative_exchange_kg"] = float(
+			_canonical_exterior_counterflow_cumulative_kg[counterflow_room_key]
+		)
+		_canonical_exterior_counterflow_by_room[counterflow_room_key] = counterflow_record
+		return
 	if result_kind == "canonical_exterior_boundary":
 		var room_key: String = str(int(metadata.get("room_id", EXTERIOR_ID)))
 		var record: Dictionary = _canonical_exterior_boundary_by_room.get(
@@ -3921,6 +5005,52 @@ func _record_atomic_bundle_result(bundle: Dictionary, accepted_fraction: float) 
 					+ float(record.get("degenerate_lower_reseed_mass_kg", 0.0))
 			_persistent_lower_reseed_by_room[room_key] = history
 		_canonical_exterior_boundary_by_room[room_key] = record
+		return
+	if result_kind == "canonical_interzone_heat":
+		var interzone_room_key: String = str(int(metadata.get("room_id", EXTERIOR_ID)))
+		var interzone_record: Dictionary = _canonical_interzone_heat_by_room.get(
+			interzone_room_key, {}
+		).duplicate(true)
+		if interzone_record.is_empty():
+			return
+		var requested_interzone_kj: float = maxf(
+			0.0, float(metadata.get("requested_energy_kj", 0.0))
+		)
+		var accepted_interzone_kj: float = requested_interzone_kj \
+				* clampf(accepted_fraction, 0.0, 1.0)
+		var rejected_interzone_kj: float = requested_interzone_kj \
+				- accepted_interzone_kj
+		interzone_record["accepted_kj"] = accepted_interzone_kj
+		interzone_record["rejected_kj"] = rejected_interzone_kj
+		interzone_record["energy_residual_kj"] = requested_interzone_kj \
+				- accepted_interzone_kj - rejected_interzone_kj
+		_canonical_interzone_heat_by_room[interzone_room_key] = interzone_record
+		_canonical_interzone_heat_cumulative_kj[interzone_room_key] = float(
+			_canonical_interzone_heat_cumulative_kj.get(interzone_room_key, 0.0)
+		) + accepted_interzone_kj
+		return
+	if result_kind == "canonical_wall_ambient":
+		var wall_room_key: String = str(int(metadata.get("room_id", EXTERIOR_ID)))
+		var wall_record: Dictionary = _canonical_wall_ambient_by_room.get(
+			wall_room_key, {}
+		).duplicate(true)
+		if wall_record.is_empty():
+			return
+		var accepted_wall_fraction: float = clampf(accepted_fraction, 0.0, 1.0)
+		wall_record["accepted_fraction"] = accepted_wall_fraction
+		wall_record["accepted_upper_wall_kj"] = float(
+			metadata.get("upper_wall_signed_kj", 0.0)
+		) * accepted_wall_fraction
+		wall_record["accepted_lower_wall_kj"] = float(
+			metadata.get("lower_wall_signed_kj", 0.0)
+		) * accepted_wall_fraction
+		wall_record["accepted_upper_ambient_kj"] = maxf(
+			0.0, float(metadata.get("upper_ambient_kj", 0.0))
+		) * accepted_wall_fraction
+		wall_record["accepted_lower_ambient_kj"] = maxf(
+			0.0, float(metadata.get("lower_ambient_kj", 0.0))
+		) * accepted_wall_fraction
+		_canonical_wall_ambient_by_room[wall_room_key] = wall_record
 		return
 	if result_kind == "delayed_parcel_carve":
 		var parcel_id: String = String(metadata.get("parcel_id", ""))

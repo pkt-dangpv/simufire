@@ -1,6 +1,6 @@
 # Phase 3+ current workplan
 
-Date: 2026-07-18
+Date: 2026-07-20
 
 ## Current baseline
 
@@ -42,6 +42,12 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.2b1 combustion transaction: `docs/validation/PHASE3_F32B1_COMBUSTION_TRANSACTION.md`
 - F3.2b2 pressure relaxation: `docs/validation/PHASE3_F32B2_PRESSURE_RELAXATION.md`
 - F3.2b3 canonical plume: `docs/validation/PHASE3_F32B3_CANONICAL_PLUME.md`
+- F3.2b4 pressure equivalence: `docs/validation/PHASE3_F32B4_PRESSURE_EQUIVALENCE.md`
+- F3.2b5a inter-zone heat: `docs/validation/PHASE3_F32B5A_INTERZONE_HEAT.md`
+- F3.2b5b wall/ambient energy: `docs/validation/PHASE3_F32B5B_WALL_AMBIENT_ENERGY.md`
+- F3.2b5c equivalence diagnosis: `docs/validation/PHASE3_F32B5C_EQUIVALENCE.md`
+- F3.2b6 exterior counterflow: `docs/validation/PHASE3_F32B6_EXTERIOR_COUNTERFLOW.md`
+- F3.2b7 post-opening coupling: `docs/validation/PHASE3_F32B7_POST_OPENING_COUPLING.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -156,9 +162,72 @@ pass, volume closure is exact and all 115 legacy columns remain identical.
 Authority remains NO-GO. The canonical interface is still above CFAST and the
 pressure trajectory remains outside its envelope. Internal plume transfer
 cannot set total room pressure because it conserves room mass and energy.
-Measured heat-split and leakage-contract differences do not close the curve as
-independent knobs. F3.2b4 must diagnose pressure source and exterior-boundary
-equivalence before Group A can be retired or F3.3 can begin.
+F3.2b4 decomposes canonical EOS pressure into mass and sensible-energy terms.
+The apparently close pressure curve is cancellation between large independent
+errors: at 160 s SimuFire has about 11.10 kg too much gas and about 3.05 MJ too
+little energy relative to CFAST. Radiation, leakage and concrete-wall
+experiments do not close pressure, mass, energy and zone temperatures
+together.
+
+The binding blocker is another cross-state contract. Thermal loss requests
+are calculated from legacy temperatures and masses, then applied to canonical
+reservoirs. Canonical lower becomes hotter than upper near 313 s, but the
+legacy gradient continues sending heat downward; about 4.63 MJ is requested
+after inversion. F3.2b4 is diagnostic GO and authority NO-GO. F3.2b5 must
+provide canonical thermal-transfer and wall/ambient previews before pressure
+authority or Group A retirement can be reconsidered.
+
+F3.2b5a now replaces the downward legacy shadow request with a pure canonical
+pre-step transfer. A reduced-capacity equilibrium cap and one energy-only
+atomic bundle eliminate the canonical lower-hotter-than-upper inversion and
+close energy conservation exactly. Group A lower-temperature RMSE improves
+from about 93 C to 23 C while all three shadow O2 checks remain PASS.
+
+Authority remains NO-GO. Total pressure, mass and energy errors barely move,
+and the late canonical lower zone is underheated at about 20-23 C versus
+roughly 67 C in CFAST. This is evidence for missing wall/ambient reservoir
+ownership, not permission to tune the inter-zone coupling.
+
+F3.2b5b now gives the shadow a separate persistent canonical wall reservoir
+and replaces six legacy-derived wall/ambient requests. One atomic energy
+bundle plus explicit ambient accounting closes gas-wall and total boundary
+residuals exactly. The no-fire equilibrium is exact and all non-shadow output
+is invariant. In Group A the lower reservoir retains 49.14 kJ at 360 s instead
+of reaching zero, and the three shadow O2 checks remain inside their existing
+tolerances.
+
+Authority remains NO-GO. The upper layer is still too cool at 180 s, the lower
+layer remains too cool late, and material mass/energy/pressure residuals from
+earlier ownership gaps remain. That result defined F3.2b5c as a full
+mass/energy/EOS-pressure equivalence audit plus independent controls, with no
+thermal-rate tuning before the accounting was complete.
+
+F3.2b5c completes that accounting. The strongest simultaneous equivalence
+candidate is `chi_rad=0.35` plus the CFAST leakage area, but it remains
+scratch-only. Pressure agreement by itself is still insufficient, and the
+lumped concrete-wall candidate is rejected.
+
+F3.2b6 now adds the missing canonical bidirectional exterior opening. A
+hydrostatic neutral-plane solve creates equal opposing gross routes while the
+existing pressure bundle remains the sole net-mass owner. Mass, energy, O2
+and species close exactly, no-fire equilibrium is exact and legacy output is
+invariant.
+
+Group A reoxygenation, interface rise and HRR all move in the correct
+direction after the window opens, but authority remains NO-GO. By 420 s the
+canonical interface overshoots CFAST (`1.574` versus `1.020 m`) while HRR is
+still far too low (`490` versus `1280 kW`). The remaining blocker is the
+post-opening canonical combustion/O2/plume feedback, not another exterior
+flow multiplier.
+
+F3.2b7 now selects lower canonical O2 only while explicit exterior
+counterflow is active and binds combustion air to plume transport. Completing
+the Heskestad source term inside that opt-in path recovers full HRR and brings
+the 420 s interface to `1.084 m` versus `1.020 m` in CFAST, with exact
+conservation and invariant legacy output. Late upper O2 remains low and the
+370 s HRR response is early, so authority and Group A retirement remain
+NO-GO. The mechanism is sufficient to proceed to F3.3 shadow work; it is not
+permission to publish the canonical state.
 
 ## Binding priority decision: HVAC last
 
@@ -189,12 +258,17 @@ The revised order is:
 18. F3.2b1 closed combustion/plume shadow transaction. Implemented; passive mechanism GO / authority NO-GO, Group A shadow 3/3 PASS.
 19. F3.2b2 canonical exterior-opening pressure relaxation and degenerate-zone transition. Implemented; passive mechanism GO / authority NO-GO.
 20. F3.2b3 canonical plume geometry and one-zone residence. Implemented; passive mechanism GO / authority NO-GO.
-21. F3.2b4 canonical pressure source/boundary equivalence. Current target; diagnostic first.
-22. F3.3 interior openings for Group C.
-23. F3.4 remaining non-HVAC species, suppression and FED.
-24. HVAC-R0 redesign specification.
-25. F3.5 HVAC canonical integration as the last subsystem.
-26. F3.6 final corpus promotion and legacy retirement.
+21. F3.2b4 canonical pressure source/boundary equivalence. Completed; diagnostic GO / authority NO-GO.
+22. F3.2b5a canonical inter-zone heat transfer. Implemented; mechanism GO / authority NO-GO.
+23. F3.2b5b canonical wall/ambient energy ownership. Implemented; mechanism GO / authority NO-GO.
+24. F3.2b5c mass/energy/pressure equivalence and independent controls. Completed; diagnostic GO / authority NO-GO.
+25. F3.2b6 canonical bidirectional exterior opening. Implemented; shadow mechanism GO / authority NO-GO.
+26. F3.2b7 canonical post-opening combustion/O2/plume feedback. Implemented; shadow mechanism GO / authority NO-GO.
+27. F3.3 interior openings for Group C. Current target.
+28. F3.4 remaining non-HVAC species, suppression and FED.
+29. HVAC-R0 redesign specification.
+30. F3.5 HVAC canonical integration as the last subsystem.
+31. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
@@ -497,12 +571,12 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 
 ## Next prompt target
 
-Use GPT-5.6 for F3.2b4. Diagnose why canonical total EOS pressure still differs
-from CFAST after the canonical plume removes premature lower-zone collapse.
-Reconcile the convective/radiative heat source, wall losses, closed leakage
-definition and exterior mass/enthalpy boundary against the CFAST input and
-time series. Start from explicit mass and energy residuals. Do not tune a
-pressure cap, change case expected values, publish canonical state into
-`RoomModel`, alter the accepted F3.2b1-b3 contracts, or begin Group C/HVAC.
-Prefer a diagnostic-only STOP gate unless one general conservative contract is
-demonstrated across Group A and independent pressure controls.
+Use GPT-5.6 for F3.3 interior two-zone openings. Diagnose the current
+canonical and legacy owners first, then add the smallest default-OFF atomic
+upper-out/lower-in contract that is genuinely antisymmetric between rooms.
+Move gas mass, enthalpy, O2 and species together; do not infer fluxes from
+post-step state or duplicate delayed parcels. Validate on a direct two-room
+fixture, `cfast_two_room_door_open`, `cfast_corridor_chain` and the multi-floor
+stairwell. Group C must improve at both 180 and 600 s with exact building
+closure. Do not publish to `RoomModel`, change expected/tolerances, retire
+Group A/C or begin HVAC. STOP before commit.

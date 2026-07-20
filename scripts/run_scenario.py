@@ -108,6 +108,26 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help="Enable passive F3.2b3 plume evaluation from canonical pre-step geometry.",
     )
+    parser.add_argument(
+        "--phase3-canonical-interzone-heat-shadow",
+        action="store_true",
+        help="Enable passive F3.2b5a inter-zone heat transfer from canonical state.",
+    )
+    parser.add_argument(
+        "--phase3-canonical-wall-ambient-shadow",
+        action="store_true",
+        help="Enable passive F3.2b5b canonical wall/ambient energy ownership.",
+    )
+    parser.add_argument(
+        "--phase3-canonical-exterior-counterflow-shadow",
+        action="store_true",
+        help="Enable passive F3.2b6 bidirectional exterior-opening counterflow.",
+    )
+    parser.add_argument(
+        "--phase3-canonical-post-opening-coupling-shadow",
+        action="store_true",
+        help="Enable passive F3.2b7 lower-O2 combustion coupling during exterior counterflow.",
+    )
     return parser.parse_args(argv)
 
 
@@ -229,6 +249,60 @@ def main(argv: list[str] | None = None) -> int:
             if parent_flag not in cmd:
                 cmd.append(parent_flag)
         cmd.append("--phase3-canonical-plume-shadow")
+    if args.phase3_canonical_interzone_heat_shadow:
+        for parent_flag in [
+            "--phase3-canonical-shadow",
+            "--phase3-canonical-exterior-shadow",
+            "--phase3-canonical-persistence-shadow",
+            "--phase3-canonical-combustion-shadow",
+            "--phase3-canonical-pressure-relaxation-shadow",
+            "--phase3-canonical-plume-shadow",
+        ]:
+            if parent_flag not in cmd:
+                cmd.append(parent_flag)
+        cmd.append("--phase3-canonical-interzone-heat-shadow")
+    if args.phase3_canonical_wall_ambient_shadow:
+        for parent_flag in [
+            "--phase3-canonical-shadow",
+            "--phase3-canonical-exterior-shadow",
+            "--phase3-canonical-persistence-shadow",
+            "--phase3-canonical-combustion-shadow",
+            "--phase3-canonical-pressure-relaxation-shadow",
+            "--phase3-canonical-plume-shadow",
+            "--phase3-canonical-interzone-heat-shadow",
+        ]:
+            if parent_flag not in cmd:
+                cmd.append(parent_flag)
+        cmd.append("--phase3-canonical-wall-ambient-shadow")
+    if args.phase3_canonical_exterior_counterflow_shadow:
+        for parent_flag in [
+            "--phase3-canonical-shadow",
+            "--phase3-canonical-exterior-shadow",
+            "--phase3-canonical-persistence-shadow",
+            "--phase3-canonical-combustion-shadow",
+            "--phase3-canonical-pressure-relaxation-shadow",
+            "--phase3-canonical-plume-shadow",
+            "--phase3-canonical-interzone-heat-shadow",
+            "--phase3-canonical-wall-ambient-shadow",
+        ]:
+            if parent_flag not in cmd:
+                cmd.append(parent_flag)
+        cmd.append("--phase3-canonical-exterior-counterflow-shadow")
+    if args.phase3_canonical_post_opening_coupling_shadow:
+        for parent_flag in [
+            "--phase3-canonical-shadow",
+            "--phase3-canonical-exterior-shadow",
+            "--phase3-canonical-persistence-shadow",
+            "--phase3-canonical-combustion-shadow",
+            "--phase3-canonical-pressure-relaxation-shadow",
+            "--phase3-canonical-plume-shadow",
+            "--phase3-canonical-interzone-heat-shadow",
+            "--phase3-canonical-wall-ambient-shadow",
+            "--phase3-canonical-exterior-counterflow-shadow",
+        ]:
+            if parent_flag not in cmd:
+                cmd.append(parent_flag)
+        cmd.append("--phase3-canonical-post-opening-coupling-shadow")
 
     print(f"[run_scenario] scenario: {scenario}")
     print(f"[run_scenario] output:   {out_dir}")

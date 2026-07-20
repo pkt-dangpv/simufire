@@ -48,6 +48,18 @@ func build_state(context: Dictionary) -> Dictionary:
 		"phase3_canonical_plume_shadow_enabled": bool(
 			context.get("phase3_canonical_plume_shadow_enabled", false)
 		),
+		"phase3_canonical_interzone_heat_shadow_enabled": bool(
+			context.get("phase3_canonical_interzone_heat_shadow_enabled", false)
+		),
+		"phase3_canonical_wall_ambient_shadow_enabled": bool(
+			context.get("phase3_canonical_wall_ambient_shadow_enabled", false)
+		),
+		"phase3_canonical_exterior_counterflow_shadow_enabled": bool(
+			context.get("phase3_canonical_exterior_counterflow_shadow_enabled", false)
+		),
+		"phase3_canonical_post_opening_coupling_shadow_enabled": bool(
+			context.get("phase3_canonical_post_opening_coupling_shadow_enabled", false)
+		),
 		"phase3_pressure_canonical_enabled": bool(context.get("phase3_pressure_canonical_enabled", false)),
 		"fire_o2_mass_tracking_enabled": bool(context.get("fire_o2_mass_tracking_enabled", false)),
 		"doorway_thermal_counterflow_enabled": bool(context.get("doorway_thermal_counterflow_enabled", false)),

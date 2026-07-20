@@ -2,6 +2,7 @@ extends RefCounted
 class_name ThermalSystem
 
 const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
+const AIR_CP_KJ_KG_K: float = 1.0
 
 # ============================================================
 # THERMAL SYSTEM
@@ -1891,6 +1892,332 @@ func ambient_temp_c() -> float:
 	return _building.outside_temp_c if _building != null else 20.0
 
 
+## F3.2b5a: preview puro del intercambio sensible upper -> lower. La tasa
+## empirica legacy se interpreta como 1/s, pero la conductancia usa la
+## capacidad reducida de ambas zonas para no sobrecargar una lower pequena.
+## El limite de equilibrio impide cruzar temperaturas en un solo paso.
+func preview_phase3_canonical_interzone_heat_flux(
+		canonical_input: Dictionary,
+		dt: float
+	) -> Dictionary:
+	var result: Dictionary = {
+		"cause": "thermal_upper_to_lower",
+		"source_zone": "upper",
+		"destination_zone": "lower",
+		"gas_mass_kg": 0.0,
+		"sensible_enthalpy_kj": 0.0,
+		"o2_kg": 0.0,
+		"legacy_candidate_kj": 0.0,
+		"capacity_candidate_kj": 0.0,
+		"equilibrium_limit_kj": 0.0,
+		"pre_delta_t_c": 0.0,
+		"direction_code": 0.0,
+		"rate_per_s": 0.0,
+		"lower_fade": 0.0,
+		"preview_energy_residual_kj": 0.0,
+	}
+	if dt <= 0.0 or canonical_input.is_empty() \
+			or not bool(canonical_input.get("valid", false)):
+		return result
+	var upper_mass_kg: float = maxf(
+		0.0, float(canonical_input.get("upper_gas_kg", 0.0))
+	)
+	var lower_mass_kg: float = maxf(
+		0.0, float(canonical_input.get("lower_gas_kg", 0.0))
+	)
+	var upper_energy_kj: float = maxf(
+		0.0, float(canonical_input.get("upper_energy_kj", 0.0))
+	)
+	if upper_mass_kg <= 1.0e-9 or lower_mass_kg <= 1.0e-9 \
+			or upper_energy_kj <= 1.0e-12:
+		return result
+	var upper_temp_c: float = float(canonical_input.get("temp_upper_c", 20.0))
+	var lower_temp_c: float = float(canonical_input.get("temp_lower_c", 20.0))
+	var delta_t_c: float = upper_temp_c - lower_temp_c
+	result["pre_delta_t_c"] = delta_t_c
+	if delta_t_c <= 1.0e-9:
+		result["direction_code"] = -1.0 if delta_t_c < -1.0e-9 else 0.0
+		return result
+	result["direction_code"] = 1.0
+	var rate_per_s: float = maxf(
+		0.0, upper_to_lower_loss_rate + lower_layer_warming_rate
+	)
+	var interface_m: float = maxf(
+		0.0, float(canonical_input.get("interface_m", 0.0))
+	)
+	var lower_fade: float = clampf(
+		interface_m / maxf(0.05, lower_layer_energy_fade_m), 0.0, 1.0
+	)
+	result["rate_per_s"] = rate_per_s
+	result["lower_fade"] = lower_fade
+	if rate_per_s <= 0.0 or lower_fade <= 0.0:
+		return result
+	var upper_capacity_kj_k: float = upper_mass_kg * AIR_CP_KJ_KG_K
+	var lower_capacity_kj_k: float = lower_mass_kg * AIR_CP_KJ_KG_K
+	var reduced_capacity_kj_k: float = upper_capacity_kj_k * lower_capacity_kj_k \
+			/ maxf(1.0e-12, upper_capacity_kj_k + lower_capacity_kj_k)
+	var legacy_candidate_kj: float = upper_capacity_kj_k * delta_t_c \
+			* rate_per_s * lower_fade * dt
+	var capacity_candidate_kj: float = reduced_capacity_kj_k * delta_t_c \
+			* rate_per_s * lower_fade * dt
+	var equilibrium_limit_kj: float = reduced_capacity_kj_k * delta_t_c
+	var requested_kj: float = minf(
+		upper_energy_kj,
+		minf(capacity_candidate_kj, equilibrium_limit_kj)
+	)
+	result["legacy_candidate_kj"] = maxf(0.0, legacy_candidate_kj)
+	result["capacity_candidate_kj"] = maxf(0.0, capacity_candidate_kj)
+	result["equilibrium_limit_kj"] = maxf(0.0, equilibrium_limit_kj)
+	result["sensible_enthalpy_kj"] = maxf(0.0, requested_kj)
+	return result
+
+
+## F3.2b5b: static room/material context for the canonical wall reservoir.
+## Thermal state is deliberately absent; the preview receives it only from
+## the persistent canonical snapshot and wall ledger.
+func build_phase3_canonical_wall_ambient_context(room: RoomModel) -> Dictionary:
+	if room == null:
+		return {}
+	var wall_area_m2: float = maxf(0.1, room.floor_area_m2() * 2.0)
+	var use_material_wall: bool = room.wall_k_kw_m_k > 0.0 \
+			and room.wall_thickness_m > 0.0
+	var wall_capacity_kj_k: float = wall_heat_capacity_kj_m2_k * wall_area_m2
+	var wall_conductance_kw_k: float = 0.0
+	if use_material_wall:
+		var rho_kg_m3: float = room.wall_rho_kg_m3 \
+				if room.wall_rho_kg_m3 > 0.0 else 800.0
+		var cp_kj_kg_k: float = room.wall_cp_kj_kg_k \
+				if room.wall_cp_kj_kg_k > 0.0 else 1.0
+		wall_capacity_kj_k = rho_kg_m3 * cp_kj_kg_k \
+				* room.wall_thickness_m * wall_area_m2
+		wall_conductance_kw_k = h_conv_int_kw_m2_k * wall_area_m2
+	return {
+		"valid": wall_capacity_kj_k > 0.0,
+		"width_m": maxf(0.0, room.width_m),
+		"length_m": maxf(0.0, room.length_m),
+		"height_m": maxf(0.0, room.height_m),
+		"floor_area_m2": maxf(0.0, room.floor_area_m2()),
+		"wall_area_m2": wall_area_m2,
+		"wall_capacity_kj_k": maxf(0.1, wall_capacity_kj_k),
+		"wall_conductance_kw_k": maxf(0.0, wall_conductance_kw_k),
+		"material_wall_flag": 1.0 if use_material_wall else 0.0,
+		"wall_absorption_rate_per_s": maxf(0.0, wall_absorption_rate),
+		"wall_core_decay_per_s": maxf(0.0, wall_core_decay_per_s),
+		"upper_ambient_loss_rate_per_s": maxf(0.0, upper_to_ambient_loss_rate),
+		"lower_ambient_decay_rate_per_s": 0.0085,
+		"lower_fresh_air_cooling_rate_per_s": maxf(
+			0.0, outside_lower_fresh_air_cooling_rate
+		),
+		"outside_open_factor": clampf(estimate_room_outside_open_factor(room), 0.0, 1.0),
+		"outside_ambient_multiplier": maxf(0.0, outside_open_ambient_loss_multiplier),
+		"outside_wall_multiplier": maxf(0.0, outside_open_wall_absorption_multiplier),
+		"radiative_enabled": upper_radiative_loss_enabled,
+		"radiative_start_c": upper_radiative_loss_start_c,
+		"radiative_emissivity": maxf(0.0, upper_radiative_loss_emissivity),
+		"radiative_area_factor": maxf(0.0, upper_radiative_loss_area_factor),
+		"radiative_max_fraction": clampf(
+			upper_radiative_loss_max_fraction_per_step, 0.0, 1.0
+		),
+		"max_upper_temp_c": max_upper_temp_c,
+	}
+
+
+## Pure canonical gas <-> wall <-> ambient preview. Positive wall exchange
+## values mean gas -> wall; negative values mean wall -> gas. The finite-
+## reservoir equilibrium bounds prevent any gas/wall pair from crossing the
+## common three-reservoir equilibrium in one step.
+func preview_phase3_canonical_wall_ambient_flux(
+		canonical_input: Dictionary,
+		wall_input: Dictionary,
+		context: Dictionary,
+		dt: float
+	) -> Dictionary:
+	var result: Dictionary = {
+		"valid": false,
+		"wall_capacity_kj_k": 0.0,
+		"wall_energy_pre_kj": 0.0,
+		"wall_decay_requested_kj": 0.0,
+		"wall_temp_pre_c": 20.0,
+		"wall_temp_after_decay_c": 20.0,
+		"upper_wall_requested_kj": 0.0,
+		"lower_wall_requested_kj": 0.0,
+		"upper_wall_convective_requested_kj": 0.0,
+		"lower_wall_convective_requested_kj": 0.0,
+		"upper_wall_radiative_requested_kj": 0.0,
+		"upper_ambient_requested_kj": 0.0,
+		"lower_ambient_requested_kj": 0.0,
+		"upper_area_fraction": 0.0,
+		"lower_area_fraction": 0.0,
+		"equilibrium_temp_c": 20.0,
+		"preview_energy_residual_kj": 0.0,
+	}
+	if dt <= 0.0 or not bool(canonical_input.get("valid", false)) \
+			or not bool(context.get("valid", false)):
+		return result
+	var reference_temp_c: float = float(
+		canonical_input.get("reference_temp_c", wall_input.get("reference_temp_c", 20.0))
+	)
+	var upper_mass_kg: float = maxf(0.0, float(canonical_input.get("upper_gas_kg", 0.0)))
+	var lower_mass_kg: float = maxf(0.0, float(canonical_input.get("lower_gas_kg", 0.0)))
+	var upper_energy_kj: float = maxf(0.0, float(canonical_input.get("upper_energy_kj", 0.0)))
+	var lower_energy_kj: float = maxf(0.0, float(canonical_input.get("lower_energy_kj", 0.0)))
+	var upper_temp_c: float = float(canonical_input.get("temp_upper_c", reference_temp_c))
+	var lower_temp_c: float = float(canonical_input.get("temp_lower_c", reference_temp_c))
+	var wall_capacity_kj_k: float = maxf(
+		0.1, float(context.get("wall_capacity_kj_k", 0.1))
+	)
+	var wall_energy_pre_kj: float = maxf(0.0, float(wall_input.get("wall_energy_kj", 0.0)))
+	var wall_temp_pre_c: float = reference_temp_c + wall_energy_pre_kj / wall_capacity_kj_k
+	var decay_fraction: float = clampf(
+		float(context.get("wall_core_decay_per_s", 0.0)) * dt, 0.0, 0.99
+	)
+	var wall_decay_kj: float = wall_energy_pre_kj * decay_fraction
+	var wall_energy_after_decay_kj: float = maxf(0.0, wall_energy_pre_kj - wall_decay_kj)
+	var wall_temp_c: float = reference_temp_c + wall_energy_after_decay_kj / wall_capacity_kj_k
+	result["wall_capacity_kj_k"] = wall_capacity_kj_k
+	result["wall_energy_pre_kj"] = wall_energy_pre_kj
+	result["wall_decay_requested_kj"] = wall_decay_kj
+	result["wall_temp_pre_c"] = wall_temp_pre_c
+	result["wall_temp_after_decay_c"] = wall_temp_c
+
+	var width_m: float = maxf(0.0, float(context.get("width_m", 0.0)))
+	var length_m: float = maxf(0.0, float(context.get("length_m", 0.0)))
+	var height_m: float = maxf(0.01, float(context.get("height_m", 0.01)))
+	var floor_area_m2: float = maxf(0.0, float(context.get("floor_area_m2", 0.0)))
+	var interface_m: float = clampf(
+		float(canonical_input.get("interface_m", height_m)), 0.0, height_m
+	)
+	var perimeter_m: float = 2.0 * (width_m + length_m)
+	var upper_exposure_m2: float = floor_area_m2 + perimeter_m * (height_m - interface_m)
+	var lower_exposure_m2: float = floor_area_m2 + perimeter_m * interface_m
+	var exposure_total_m2: float = maxf(1.0e-9, upper_exposure_m2 + lower_exposure_m2)
+	var upper_area_fraction: float = clampf(upper_exposure_m2 / exposure_total_m2, 0.0, 1.0)
+	var lower_area_fraction: float = 1.0 - upper_area_fraction
+	result["upper_area_fraction"] = upper_area_fraction
+	result["lower_area_fraction"] = lower_area_fraction
+
+	var upper_capacity_kj_k: float = upper_mass_kg * AIR_CP_KJ_KG_K
+	var lower_capacity_kj_k: float = lower_mass_kg * AIR_CP_KJ_KG_K
+	var total_capacity_kj_k: float = upper_capacity_kj_k + lower_capacity_kj_k \
+			+ wall_capacity_kj_k
+	var equilibrium_temp_c: float = wall_temp_c
+	if total_capacity_kj_k > 1.0e-12:
+		equilibrium_temp_c = (
+			upper_capacity_kj_k * upper_temp_c
+			+ lower_capacity_kj_k * lower_temp_c
+			+ wall_capacity_kj_k * wall_temp_c
+		) / total_capacity_kj_k
+	result["equilibrium_temp_c"] = equilibrium_temp_c
+
+	var open_factor: float = clampf(float(context.get("outside_open_factor", 0.0)), 0.0, 1.0)
+	var wall_open_multiplier: float = 1.0 + maxf(
+		0.0, float(context.get("outside_wall_multiplier", 0.0))
+	) * open_factor
+	var material_wall: bool = float(context.get("material_wall_flag", 0.0)) > 0.5
+	var wall_conductance_kw_k: float = maxf(
+		0.0, float(context.get("wall_conductance_kw_k", 0.0))
+	)
+	var fallback_rate_per_s: float = maxf(
+		0.0, float(context.get("wall_absorption_rate_per_s", 0.0))
+	)
+	var upper_wall_kj: float = 0.0
+	var lower_wall_kj: float = 0.0
+	if upper_capacity_kj_k > 1.0e-12:
+		if material_wall:
+			upper_wall_kj = wall_conductance_kw_k * upper_area_fraction \
+					* (upper_temp_c - wall_temp_c) * wall_open_multiplier * dt
+		else:
+			upper_wall_kj = upper_capacity_kj_k * (upper_temp_c - wall_temp_c) \
+					* fallback_rate_per_s * upper_area_fraction * wall_open_multiplier * dt
+	if lower_capacity_kj_k > 1.0e-12:
+		if material_wall:
+			lower_wall_kj = wall_conductance_kw_k * lower_area_fraction \
+					* (lower_temp_c - wall_temp_c) * wall_open_multiplier * dt
+		else:
+			lower_wall_kj = lower_capacity_kj_k * (lower_temp_c - wall_temp_c) \
+					* fallback_rate_per_s * lower_area_fraction * wall_open_multiplier * dt
+	result["upper_wall_convective_requested_kj"] = upper_wall_kj
+	result["lower_wall_convective_requested_kj"] = lower_wall_kj
+
+	var radiative_kj: float = 0.0
+	if bool(context.get("radiative_enabled", false)) \
+			and upper_temp_c > float(context.get("radiative_start_c", 80.0)) \
+			and upper_energy_kj > 0.0:
+		var hot_depth_m: float = maxf(0.0, height_m - interface_m)
+		var exchange_area_m2: float = (
+			floor_area_m2 + perimeter_m * hot_depth_m
+		) * maxf(0.0, float(context.get("radiative_area_factor", 1.0)))
+		var activation: float = clampf(
+			(upper_temp_c - float(context.get("radiative_start_c", 80.0)))
+					/ maxf(1.0, float(context.get("max_upper_temp_c", 900.0))
+							- float(context.get("radiative_start_c", 80.0))),
+			0.0,
+			1.0
+		)
+		var q_kw: float = maxf(0.0, float(context.get("radiative_emissivity", 0.0))) \
+				* STEFAN_BOLTZMANN_KW_M2_K4 * exchange_area_m2 \
+				* maxf(0.0, pow(upper_temp_c + 273.15, 4.0)
+						- pow(wall_temp_c + 273.15, 4.0)) * activation
+		q_kw *= 1.0 + 0.25 * open_factor
+		radiative_kj = minf(
+			maxf(0.0, q_kw * dt),
+			upper_energy_kj * clampf(
+				float(context.get("radiative_max_fraction", 0.0)), 0.0, 1.0
+			)
+		)
+	upper_wall_kj += radiative_kj
+	result["upper_wall_radiative_requested_kj"] = radiative_kj
+
+	# Bound gas/wall exchange by the common finite-reservoir equilibrium.
+	if upper_wall_kj > 0.0:
+		upper_wall_kj = minf(upper_wall_kj, upper_capacity_kj_k \
+				* maxf(0.0, upper_temp_c - equilibrium_temp_c))
+	else:
+		upper_wall_kj = -minf(-upper_wall_kj, upper_capacity_kj_k \
+				* maxf(0.0, equilibrium_temp_c - upper_temp_c))
+	if lower_wall_kj > 0.0:
+		lower_wall_kj = minf(lower_wall_kj, lower_capacity_kj_k \
+				* maxf(0.0, lower_temp_c - equilibrium_temp_c))
+	else:
+		lower_wall_kj = -minf(-lower_wall_kj, lower_capacity_kj_k \
+				* maxf(0.0, equilibrium_temp_c - lower_temp_c))
+	var wall_net_gain_kj: float = upper_wall_kj + lower_wall_kj
+	var wall_net_limit_kj: float = wall_capacity_kj_k * (
+		equilibrium_temp_c - wall_temp_c
+	)
+	if absf(wall_net_gain_kj) > 1.0e-12 \
+			and signf(wall_net_gain_kj) == signf(wall_net_limit_kj) \
+			and absf(wall_net_gain_kj) > absf(wall_net_limit_kj):
+		var wall_scale: float = absf(wall_net_limit_kj / wall_net_gain_kj)
+		upper_wall_kj *= wall_scale
+		lower_wall_kj *= wall_scale
+	result["upper_wall_requested_kj"] = upper_wall_kj
+	result["lower_wall_requested_kj"] = lower_wall_kj
+
+	var upper_ambient_fraction: float = clampf(
+		float(context.get("upper_ambient_loss_rate_per_s", 0.0))
+				* (1.0 + float(context.get("outside_ambient_multiplier", 0.0)) * open_factor)
+				* dt,
+		0.0,
+		1.0
+	)
+	var lower_decay_fraction: float = clampf(
+		float(context.get("lower_ambient_decay_rate_per_s", 0.0)) * dt, 0.0, 1.0
+	)
+	var lower_fresh_fraction: float = clampf(
+		float(context.get("lower_fresh_air_cooling_rate_per_s", 0.0)) \
+				* open_factor * dt,
+		0.0,
+		1.0
+	)
+	result["upper_ambient_requested_kj"] = upper_energy_kj * upper_ambient_fraction
+	result["lower_ambient_requested_kj"] = lower_energy_kj * (
+		1.0 - (1.0 - lower_decay_fraction) * (1.0 - lower_fresh_fraction)
+	)
+	result["valid"] = true
+	return result
+
+
 func gas_density_kg_m3(temp_c: float) -> float:
 	var ambient_k: float = ambient_temp_c() + 273.15
 	var gas_k: float = maxf(ambient_k, temp_c + 273.15)
@@ -1965,7 +2292,8 @@ func _step_two_zone_plume_entrainment(room: RoomModel, dt: float, ambient_c: flo
 func preview_phase3_canonical_plume_flux(
 		room: RoomModel,
 		canonical_input: Dictionary,
-		dt: float
+		dt: float,
+		include_heskestad_source_term: bool = false
 	) -> Dictionary:
 	var result: Dictionary = {
 		"cause": "plume_entrainment",
@@ -1975,6 +2303,8 @@ func preview_phase3_canonical_plume_flux(
 		"gas_mass_kg": 0.0,
 		"sensible_enthalpy_kj": 0.0,
 		"o2_kg": 0.0,
+		"height_term_mass_kg": 0.0,
+		"source_term_mass_kg": 0.0,
 	}
 	if room == null or dt <= 0.0 or canonical_input.is_empty() \
 			or not bool(canonical_input.get("valid", false)):
@@ -2001,9 +2331,21 @@ func preview_phase3_canonical_plume_flux(
 		z_eff_m = maxf(0.1, room.height_m * plume_confined_z_eff_fraction)
 	else:
 		z_eff_m = maxf(0.1, interface_m - flame_length_m)
+	var height_term_mass_kg: float = 0.071 * pow(qc_kw, 1.0 / 3.0) \
+			* pow(z_eff_m, 5.0 / 3.0) * dt
+	# Heskestad's plume mass-flow expression includes a source term in
+	# addition to the height-dependent term. Keep it opt-in until the
+	# post-opening coupling experiment has completed its STOP gate.
+	var source_term_mass_kg: float = 0.0018 * qc_kw * dt \
+			if include_heskestad_source_term else 0.0
 	var requested_mass_kg: float = minf(
-		0.071 * pow(qc_kw, 1.0 / 3.0) * pow(z_eff_m, 5.0 / 3.0) * dt,
+		height_term_mass_kg + source_term_mass_kg,
 		lower_mass_kg
+	)
+	result["height_term_mass_kg"] = minf(height_term_mass_kg, requested_mass_kg)
+	result["source_term_mass_kg"] = minf(
+		source_term_mass_kg,
+		maxf(0.0, requested_mass_kg - float(result["height_term_mass_kg"]))
 	)
 	var lower_fraction: float = requested_mass_kg / maxf(lower_mass_kg, 1.0e-9)
 	result["gas_mass_kg"] = requested_mass_kg

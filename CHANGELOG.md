@@ -3,6 +3,91 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.2b7 post-opening coupling (2026-07-20)
+
+- Added a default-OFF shadow coupling that selects the fresh lower-zone O2
+  reservoir only during explicit canonical exterior counterflow.
+- Bound combustion O2 and plume air in one atomic lower-to-upper transaction,
+  including the opt-in Heskestad source term and 12 diagnostic CSV fields.
+- Recovered Group A post-opening HRR from 490 to 1280 kW at 420 s and moved
+  the canonical interface from 1.574 to 1.084 m versus 1.020 m in CFAST.
+- Preserved all legacy output and exact conservation. Late upper O2 remains
+  low and the 370 s HRR response is early, so authority and gap retirement
+  remain NO-GO. F3.3 interior openings is the next gate.
+
+### Phase 3+ F3.2b6 canonical exterior counterflow (2026-07-20)
+
+- Added a default-OFF, shadow-only hydrostatic exterior-opening exchange with
+  simultaneous canonical upper outflow and ambient lower inflow.
+- Kept net pressure relief as a separate owner and applied both counterflow
+  routes with one atomic acceptance fraction for mass, energy, O2 and species.
+- Added 29 opt-in CSV diagnostics and deterministic coverage for equilibrium,
+  inventory limits, pressure coexistence and duplicate ownership.
+- Improved Group A post-opening reoxygenation, interface rise and HRR in the
+  correct direction with exact conservation, but retained authority NO-GO:
+  interface now overshoots while HRR remains far below CFAST.
+- Defined F3.2b7 as the next gate for canonical post-opening combustion/O2/
+  plume feedback. No baseline, tolerance, report or gap changed.
+
+### Phase 3+ F3.2b5c equivalence diagnosis (2026-07-19)
+
+- Repeated the Group A mass/energy/EOS-pressure matrix after canonical
+  inter-zone and wall/ambient ownership. No motor behavior or validation
+  baseline changed.
+- Found that `chi_rad=0.35` plus the CFAST leakage area is the strongest
+  simultaneous equivalence candidate, reducing mass RMSE to 2.69 kg, energy
+  RMSE to 803 kJ and upper/lower temperature RMSE to 33.8/16.7 C.
+- Rejected the lumped concrete-wall candidate and kept all equivalence inputs
+  scratch-only pending boundary ownership.
+- Identified the next blocker: the canonical exterior path has one net
+  direction and cannot represent simultaneous upper outflow/lower fresh-air
+  inflow. F3.2b6 must add bidirectional exterior counterflow before Group C.
+
+### Phase 3+ F3.2b5b canonical wall/ambient energy (2026-07-19)
+
+- Added a default-OFF persistent canonical wall reservoir driven only by
+  canonical pre-step gas state, static room geometry and declared material or
+  fallback wall properties.
+- Replaced six legacy-derived shadow wall/ambient requests with one atomic
+  energy bundle and explicit ambient boundary accounting. Gas-wall and total
+  boundary residuals close exactly.
+- Preserved every non-shadow output and a zero-energy no-fire equilibrium.
+  Group A no longer drains canonical lower energy to zero, and its three
+  shadow O2 checks remain inside their existing tolerances.
+- Kept authority and Group A retirement at NO-GO. Earlier canonical mass,
+  energy and pressure residuals remain; F3.2b5c must audit full equivalence
+  before any production activation.
+
+### Phase 3+ F3.2b5a canonical inter-zone heat transfer (2026-07-19)
+
+- Added a default-OFF canonical upper/lower heat-transfer preview based only
+  on persistent pre-step mass, energy, temperature and interface.
+- Replaced the legacy shadow request with one energy-only atomic bundle when
+  opted in. The reduced-capacity equilibrium bound prevents temperature
+  crossing and closes the energy residual exactly.
+- Removed the Group A canonical thermal inversion and reduced lower-zone
+  temperature RMSE from about 93 C to 23 C while preserving all legacy output,
+  volume closure and the three shadow O2 PASS results.
+- Kept authority and Group A retirement at NO-GO. Pressure, total mass and
+  total energy remain materially wrong, and the late lower zone is now too
+  cold. F3.2b5b must establish canonical wall/ambient energy ownership.
+
+### Phase 3+ F3.2b4 pressure-equivalence diagnosis (2026-07-19)
+
+- Decomposed canonical EOS pressure into independent total-mass and sensible-
+  energy terms. The Group A pressure curve is a cancellation between large
+  state errors, not evidence that the canonical room state is ready.
+- Ran isolated canonical-plume experiments for radiative split, equivalent
+  leakage, concrete wall properties and their combinations. None closes
+  pressure, mass, energy, interface and both zone temperatures together.
+- Identified the remaining cross-state thermal contract: heat-loss requests
+  are calculated from legacy temperatures and applied to canonical
+  reservoirs. Canonical lower exceeds upper near 313 s but still receives
+  about 4.63 MJ of requested downward heat afterwards.
+- Kept motor, official reports, expected values, tolerances and gaps unchanged.
+  Decision is diagnostic GO and authority/Group A NO-GO. F3.2b5a will create a
+  pure canonical inter-zone heat-transfer preview before wall/ambient work.
+
 ### Default Godot runtime updated to 4.7.1 (2026-07-18)
 
 - Updated active Python and PowerShell runners to prefer

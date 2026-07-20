@@ -1,6 +1,6 @@
 # Current Handoff State
 
-Date: 2026-07-18.
+Date: 2026-07-20.
 
 Runtime note: active local runners and test entrypoints now default to Godot
 `4.7.1` console at
@@ -11,6 +11,150 @@ Historical validation records retain their original engine labels.
 ## Purpose
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
+
+## Current Session Update - 2026-07-20 - F3.2b7 shadow GO / authority NO-GO
+
+- Added `phase3_canonical_post_opening_coupling_shadow_enabled=false`.
+  Exterior counterflow can select lower canonical O2 for combustion without
+  changing closed or interior-opening behavior.
+- Combustion and plume now share one lower-air parcel. The accepted O2 sink
+  and the excess plume O2 close atomically; the source and height terms of the
+  Heskestad mass flow are reported separately.
+- Group A at 420 s reaches 1280 kW and 1.084 m versus CFAST 1280 kW and
+  1.020 m. Upper O2 remains 0.0906 versus 0.1320, and HRR rises too early at
+  370 s, so canonical authority remains NO-GO.
+- Group A and no-fire runs preserve all 115 legacy columns. The no-fire
+  control preserves 466 shared shadow columns. A 600 s Group C run has zero
+  coupling activations and zero source term. All relevant residuals are zero.
+- Verification: direct Godot 4.7.1 fixture PASS, focused/adjacent tests 36/36,
+  Physics 9/15/5/0, ILV 15/14/0, gap inventory 348/353 with 5 VALID_GAP.
+  Guardrails are 9/10 only because R2-1 correctly sees dirty motor.
+- Decision: **F3.2b7 shadow mechanism GO; authority and Group A retirement
+  NO-GO**. Next: F3.3 interior two-zone openings for Group C.
+- Binding record:
+  `docs/validation/PHASE3_F32B7_POST_OPENING_COUPLING.md`.
+
+## Previous Session Update - 2026-07-20 - F3.2b6 shadow GO / authority NO-GO
+
+- Added `phase3_canonical_exterior_counterflow_shadow_enabled=false` and a
+  pure canonical hydrostatic opening preview. It produces simultaneous equal
+  upper outflow and lower ambient inflow while the existing pressure bundle
+  remains the only signed net-mass owner.
+- One atomic acceptance fraction carries gas, sensible energy, O2 and species.
+  The opt-in CSV exports 29 counterflow fields, including neutral plane,
+  pressure offset, gross exchange, pressure relief and conservation residuals.
+- The open/no-fire control stays at exact ambient equilibrium; OFF is
+  bit-identical to the accepted prior shadow. The direct Godot 4.7.1 fixture
+  and 29 focused/adjacent tests pass.
+- Group A changes in the correct direction after opening. At 420 s upper O2
+  rises from 0.0614 to 0.0928, interface from 0.141 to 1.574 m and HRR from
+  142 to 490 kW. CFAST is 0.1320, 1.020 m and 1280 kW respectively.
+- Conservation residuals are exactly zero, but the interface overshoots while
+  HRR remains too low. The best prior scratch tuning worsens that combination
+  and remains rejected.
+- Verification: Physics 9/15/5/0, ILV 15/14/0, gap inventory 348/353 with 5
+  VALID_GAP. Guardrails are 9/10 only because R2-1 correctly sees dirty motor.
+- Decision: **F3.2b6 shadow GO; authority and Group A retirement NO-GO**.
+  Next: F3.2b7 canonical post-opening combustion/O2/plume feedback, then F3.3.
+- Binding record:
+  `docs/validation/PHASE3_F32B6_EXTERIOR_COUNTERFLOW.md`.
+
+## Previous Session Update - 2026-07-19 - F3.2b5c diagnostic GO / authority NO-GO
+
+- F3.2b5c adds no motor mechanism. It repeats the Group A equivalence matrix
+  after both canonical thermal owners and runs isolated no-fire/open/fire
+  controls under `runs/phase3_f32b5c/`.
+- The F3.2b5b baseline pressure RMSE improves to 274 Pa but still depends on
+  cancellation: at 160 s the shadow has +11.53 kg gas and -3.32 MJ sensible
+  energy versus CFAST.
+- `chi_rad=0.35` plus CFAST leakage is the best simultaneous candidate:
+  pressure 360 Pa, mass 2.69 kg, energy 803 kJ, upper/lower temperature
+  33.8/16.7 C RMSE. It remains scratch-only. Concrete lumped wall is rejected.
+- Closed/open no-fire controls remain at exact ambient equilibrium. The fire
+  opening control conserves every transaction and relaxes pressure to 0 Pa,
+  but fails to reoxygenate upper: 0.0614 versus CFAST 0.1320 at 420 s.
+- Root cause: F3.2a/F3.2b2 chooses one net exterior direction from gauge
+  pressure. It lacks simultaneous buoyant upper outflow and lower fresh-air
+  inflow at near-zero net pressure. Lower mass shrinks while CFAST lower layer
+  expands; HRR/plume/O2 then enter a low-flow feedback loop.
+- Decision: **F3.2b5c diagnostic GO; authority and Group A retirement NO-GO**.
+  Next: F3.2b6 canonical bidirectional exterior opening, then F3.3 Group C.
+- Binding record: `docs/validation/PHASE3_F32B5C_EQUIVALENCE.md`.
+
+## Previous Session Update - 2026-07-19 - F3.2b5b mechanism GO / authority NO-GO
+
+- Added `phase3_canonical_wall_ambient_shadow_enabled=false`. It replaces six
+  legacy-derived wall/ambient thermal requests only inside the persistent
+  canonical shadow.
+- The canonical wall is a separate persistent finite reservoir. It reuses
+  static geometry and declared material/fallback properties but never reads
+  legacy wall or gas temperatures.
+- Group A lower energy at 360 s improves from 0 to 49.14 kJ and lower
+  temperature at 350 s from 22.79 C to 33.60 C. The wall reaches 25.71 C and
+  stores 9.13 MJ. Gas-wall and total boundary residuals are exactly zero.
+- Group A shadow upper O2 is 0.10559, 0.06639 and 0.06686 at 240/350/360 s;
+  all three fit their existing checks. No expected value, tolerance or gap was
+  changed, so Group A remains officially open.
+- Legacy/non-shadow output is invariant. The no-fire control stays at exact
+  ambient equilibrium with zero wall energy and zero exchange.
+- Verification: direct Godot 4.7.1 fixture PASS, focused tests 21/21 PASS,
+  broad Phase 3/two-zone 404 PASS plus 4 unrelated pre-existing structural
+  failures, physics and ILV 0 FAIL, gap inventory unchanged. Guardrails are
+  9/10 only because R2-1 detects the expected dirty motor.
+- Decision: **F3.2b5b mechanism GO; canonical authority and Group A retirement
+  NO-GO**. Next: F3.2b5c full mass/energy/pressure equivalence and independent
+  controls.
+- Binding record:
+  `docs/validation/PHASE3_F32B5B_WALL_AMBIENT_ENERGY.md`.
+
+## Previous Session Update - 2026-07-19 - F3.2b5a mechanism GO / authority NO-GO
+
+- Added `phase3_canonical_interzone_heat_shadow_enabled=false`. When enabled,
+  the passive shadow suppresses only the legacy `thermal_upper_to_lower`
+  request and replaces it with a canonical pre-step energy transaction.
+- The request uses the reduced heat capacity of both finite reservoirs and an
+  exact equilibrium cap. It cannot cross upper/lower equilibrium, create
+  energy or consume more upper energy than remains after earlier bundles.
+- Group A no longer inverts its canonical zone temperatures. Lower-temperature
+  RMSE improves from about 93 C to 23 C; accepted transfer is 530.716 kJ and
+  the energy residual remains exactly zero. All three shadow O2 checks remain
+  PASS and all legacy columns are invariant.
+- Canonical authority remains NO-GO. Pressure, total-mass and total-energy RMSE
+  barely move, while the late lower zone reaches about 20-23 C versus roughly
+  67 C in CFAST. This isolates wall/ambient ownership as the next thermal
+  blocker rather than a reason to tune the inter-zone rate.
+- Verification: Godot 4.7.1 parse PASS, direct fixture PASS, focused tests
+  60/60 PASS, broad Phase 3 363/363 PASS after excluding the known sandbox
+  tempfile analyzer issue, Physics and ILV both 0 FAIL, gap inventory unchanged.
+- Guardrails are 9/10 only because R2-1 detects the expected dirty motor. No
+  report, baseline, tolerance or gap classification was changed.
+- Decision: **F3.2b5a mechanism GO; canonical authority and Group A retirement
+  NO-GO**. Next: F3.2b5b canonical wall/ambient exchange preview.
+- Binding record:
+  `docs/validation/PHASE3_F32B5A_INTERZONE_HEAT.md`.
+
+## Previous Session Update - 2026-07-19 - F3.2b4 diagnostic GO / authority NO-GO
+
+- No motor code, baseline, tolerance, official report or gap classification
+  changed. Six isolated Godot 4.7.1 runs live only under
+  `runs/phase3_f32b4/`.
+- Exact EOS decomposition proves pressure agreement is cancellation. At
+  160 s the canonical state has about 11.10 kg more gas and 3.05 MJ less
+  sensible energy than CFAST, while net pressure differs by only 752 Pa.
+- One-cause tests for radiative split, equivalent leakage and concrete wall
+  properties do not close pressure, mass, energy, interface and both zone
+  temperatures together. The full combination improves pressure RMSE only
+  from 507 to 444 Pa while leaving lower temperature at 268 C versus 66.5 C.
+- Root cause: `ThermalSystem` derives shadow thermal-loss requests from legacy
+  gas state and applies them to persistent canonical reservoirs. Canonical
+  lower first exceeds upper near 313 s, yet legacy state continues requesting
+  upper-to-lower heat; about 4.63 MJ is requested after inversion.
+- Decision: **F3.2b4 diagnostic GO; canonical pressure/state authority and
+  Group A retirement NO-GO**.
+- Next: F3.2b5a pure canonical inter-zone heat-transfer preview, default OFF
+  and shadow-only. Wall/ambient ownership follows in a separate gate.
+- Binding record:
+  `docs/validation/PHASE3_F32B4_PRESSURE_EQUIVALENCE.md`.
 
 ## Current Session Update - 2026-07-18 - F3.2b3 canonical plume GO / authority NO-GO
 

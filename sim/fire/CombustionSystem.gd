@@ -70,9 +70,25 @@ func evaluate_phase3_canonical_combustion_step(
 	)
 	# A zero-mass upper zone cannot supply oxidant. Bootstrap the first plume
 	# from lower, then move the whole transaction to upper once that zone exists.
+	# F3.2b7 keeps the lower reservoir as source while a real canonical exterior
+	# counterflow is feeding it. The debit still happens atomically in the
+	# combustion bundle; this selection neither creates nor pre-credits O2.
+	var post_opening_coupling_enabled: bool = bool(
+		context.get("phase3_post_opening_coupling_enabled", false)
+	)
+	var counterflow_exchange_kg: float = maxf(
+		0.0, float(context.get("phase3_post_opening_counterflow_exchange_kg", 0.0))
+	)
+	var counterflow_incoming_o2_kg: float = maxf(
+		0.0, float(context.get("phase3_post_opening_counterflow_incoming_o2_kg", 0.0))
+	)
+	var post_opening_lower_source: bool = post_opening_coupling_enabled \
+			and counterflow_exchange_kg > 0.000000001 \
+			and lower_gas_kg > 0.000001
 	var o2_source_zone: String = "upper"
 	if upper_gas_kg <= 0.000001 \
-			or String(context.get("fire_o2_mode", "legacy")).to_lower() == "lower":
+			or String(context.get("fire_o2_mode", "legacy")).to_lower() == "lower" \
+			or post_opening_lower_source:
 		o2_source_zone = "lower"
 	var source_gas_kg: float = upper_gas_kg if o2_source_zone == "upper" else lower_gas_kg
 	var source_o2_kg: float = upper_o2_kg if o2_source_zone == "upper" else lower_o2_kg
@@ -237,6 +253,14 @@ func evaluate_phase3_canonical_combustion_step(
 		"accepted_species_kg": accepted_species,
 		"heat_scale": accepted_fraction,
 		"plume_scale": pow(accepted_fraction, 1.0 / 3.0) if accepted_fraction > 0.0 else 0.0,
+		"post_opening_coupling_active_flag": 1.0 if post_opening_lower_source else 0.0,
+		"post_opening_source_switched_to_lower_flag": 1.0 \
+				if post_opening_lower_source else 0.0,
+		"post_opening_counterflow_exchange_kg": counterflow_exchange_kg,
+		"post_opening_counterflow_incoming_o2_kg": counterflow_incoming_o2_kg,
+		"post_opening_source_o2_available_kg": available_o2_kg,
+		"post_opening_full_hrr_o2_demand_kg": requested_o2_kg,
+		"post_opening_o2_supply_margin_kg": counterflow_incoming_o2_kg - requested_o2_kg,
 		"zero_o2_flame_flag": 1.0 if canonical_o2_ref <= extinction_limit \
 				and accepted_hrr_kw > 0.01 else 0.0,
 		"fire_state_before": state_before,

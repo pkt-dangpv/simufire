@@ -990,6 +990,14 @@ var _step_time_us: int = 0
 @export var phase3_canonical_pressure_relaxation_shadow_enabled: bool = false
 ## F3.2b3: plume evaluado desde geometria canonica pre-step. Default OFF.
 @export var phase3_canonical_plume_shadow_enabled: bool = false
+## F3.2b5a: intercambio upper/lower desde estado canonico pre-step. Default OFF.
+@export var phase3_canonical_interzone_heat_shadow_enabled: bool = false
+## F3.2b5b: pared/ambiente desde estado canonico y reservorio separado. Default OFF.
+@export var phase3_canonical_wall_ambient_shadow_enabled: bool = false
+## F3.2b6: counterflow exterior compensado desde estado canonico. Default OFF.
+@export var phase3_canonical_exterior_counterflow_shadow_enabled: bool = false
+## F3.2b7: combustion usa lower O2 durante counterflow exterior real. Default OFF.
+@export var phase3_canonical_post_opening_coupling_shadow_enabled: bool = false
 
 # ============================================================
 # SERVICIOS AUXILIARES
@@ -1278,6 +1286,33 @@ func _sync_auxiliary_services() -> void:
 				and phase3_canonical_combustion_shadow_enabled \
 				and phase3_canonical_pressure_relaxation_shadow_enabled
 	)
+	log_writer.configure_phase3_canonical_interzone_heat_shadow(
+		phase3_canonical_zone_shadow_enabled \
+				and phase3_canonical_persistence_shadow_enabled \
+				and phase3_canonical_plume_shadow_enabled \
+				and phase3_canonical_interzone_heat_shadow_enabled
+	)
+	log_writer.configure_phase3_canonical_wall_ambient_shadow(
+		phase3_canonical_zone_shadow_enabled \
+				and phase3_canonical_persistence_shadow_enabled \
+				and phase3_canonical_plume_shadow_enabled \
+				and phase3_canonical_interzone_heat_shadow_enabled \
+				and phase3_canonical_wall_ambient_shadow_enabled
+	)
+	log_writer.configure_phase3_canonical_exterior_counterflow_shadow(
+		phase3_canonical_zone_shadow_enabled \
+				and phase3_canonical_exterior_boundary_shadow_enabled \
+				and phase3_canonical_persistence_shadow_enabled \
+				and phase3_canonical_pressure_relaxation_shadow_enabled \
+				and phase3_canonical_exterior_counterflow_shadow_enabled
+	)
+	log_writer.configure_phase3_canonical_post_opening_coupling_shadow(
+		phase3_canonical_zone_shadow_enabled \
+				and phase3_canonical_persistence_shadow_enabled \
+				and phase3_canonical_combustion_shadow_enabled \
+				and phase3_canonical_exterior_counterflow_shadow_enabled \
+				and phase3_canonical_post_opening_coupling_shadow_enabled
+	)
 	# SF-R6: ZoneFireSolver — inyectar referencia al building.
 	zone_fire_solver.set_building(building)
 
@@ -1371,9 +1406,33 @@ func _phase3_zone_diag_export() -> Dictionary:
 func _phase3_shadow_collect_thermal_requests(dt: float) -> void:
 	var canonical_heat_by_room: Dictionary = {}
 	var canonical_plume_by_room: Dictionary = {}
+	var canonical_interzone_rooms: Dictionary = {}
+	var canonical_wall_legacy_by_room: Dictionary = {}
+	var canonical_wall_causes: Array[String] = [
+		"thermal_upper_radiative_loss",
+		"thermal_upper_to_ambient",
+		"thermal_wall_absorption",
+		"thermal_wall_emission",
+		"thermal_lower_decay",
+		"thermal_lower_fresh_air_cooling",
+	]
 	for flux in thermal_system.drain_phase3_shadow_flux_results():
 		var room_id: int = int(flux.get("room_id", -1))
 		var cause: String = String(flux.get("cause", ""))
+		if phase3_canonical_interzone_heat_shadow_enabled \
+				and cause == "thermal_upper_to_lower":
+			_phase3_shadow_queue_canonical_interzone_heat(room_id, flux, dt)
+			canonical_interzone_rooms[str(room_id)] = true
+			continue
+		if phase3_canonical_wall_ambient_shadow_enabled \
+				and cause in canonical_wall_causes:
+			var legacy_by_cause: Dictionary = canonical_wall_legacy_by_room.get(
+				str(room_id), {}
+			).duplicate(true)
+			legacy_by_cause[cause] = float(legacy_by_cause.get(cause, 0.0)) \
+					+ maxf(0.0, float(flux.get("sensible_enthalpy_kj", 0.0)))
+			canonical_wall_legacy_by_room[str(room_id)] = legacy_by_cause
+			continue
 		if phase3_canonical_combustion_shadow_enabled:
 			if cause == "combustion_convective_heat":
 				canonical_heat_by_room[str(room_id)] = flux.duplicate(true)
@@ -1382,6 +1441,19 @@ func _phase3_shadow_collect_thermal_requests(dt: float) -> void:
 				canonical_plume_by_room[str(room_id)] = flux.duplicate(true)
 				continue
 		_phase3_shadow_add_thermal_request(flux)
+	if phase3_canonical_interzone_heat_shadow_enabled and building != null:
+		for raw_room_id in building.get_rooms().keys():
+			var room_id: int = int(raw_room_id)
+			if not canonical_interzone_rooms.has(str(room_id)):
+				_phase3_shadow_queue_canonical_interzone_heat(room_id, {}, dt)
+	if phase3_canonical_wall_ambient_shadow_enabled and building != null:
+		for raw_room_id in building.get_rooms().keys():
+			var wall_room_id: int = int(raw_room_id)
+			_phase3_shadow_queue_canonical_wall_ambient(
+				wall_room_id,
+				canonical_wall_legacy_by_room.get(str(wall_room_id), {}),
+				dt
+			)
 	if not phase3_canonical_combustion_shadow_enabled:
 		return
 	for room_id in phase3_zone_mass_system.get_canonical_combustion_room_ids():
@@ -1392,8 +1464,17 @@ func _phase3_shadow_collect_thermal_requests(dt: float) -> void:
 					phase3_zone_mass_system.get_canonical_thermodynamic_input(
 						room, thermal_system.ambient_temp_c()
 					)
+			var include_heskestad_source_term: bool = false
+			if phase3_canonical_post_opening_coupling_shadow_enabled:
+				var counterflow_request: Dictionary = \
+						phase3_zone_mass_system.get_canonical_exterior_counterflow_request(
+							room_id
+						)
+				include_heskestad_source_term = float(
+					counterflow_request.get("requested_exchange_kg", 0.0)
+				) > 0.000000001
 			plume_flux = thermal_system.preview_phase3_canonical_plume_flux(
-				room, canonical_input, dt
+				room, canonical_input, dt, include_heskestad_source_term
 			)
 		phase3_zone_mass_system.finalize_canonical_combustion_bundle(
 			room_id,
@@ -1401,6 +1482,108 @@ func _phase3_shadow_collect_thermal_requests(dt: float) -> void:
 			plume_flux,
 			"%.6f" % sim_time_s
 		)
+
+
+func _phase3_shadow_queue_canonical_interzone_heat(
+		room_id: int,
+		legacy_flux: Dictionary,
+		dt: float
+	) -> void:
+	if building == null:
+		return
+	var room: RoomModel = building.get_room(room_id)
+	if room == null:
+		return
+	var canonical_input: Dictionary = phase3_zone_mass_system.get_canonical_thermodynamic_input(
+		room, thermal_system.ambient_temp_c()
+	)
+	var preview: Dictionary = thermal_system.preview_phase3_canonical_interzone_heat_flux(
+		canonical_input, dt
+	)
+	preview["legacy_requested_kj"] = maxf(
+		0.0, float(legacy_flux.get("sensible_enthalpy_kj", 0.0))
+	)
+	if not phase3_zone_mass_system.queue_canonical_interzone_heat_transfer(
+		room_id, preview, "%.6f" % sim_time_s
+	):
+		return
+	var requested_kj: float = maxf(
+		0.0, float(preview.get("sensible_enthalpy_kj", 0.0))
+	)
+	if requested_kj <= 0.0:
+		return
+	phase3_zone_mass_system.register_semantic_claim({
+		"connection_id": "room:%d:interlayer" % room_id,
+		"producer": "ThermalSystem",
+		"transport_family": "thermal_upper_to_lower",
+		"boundary_kind": "interlayer",
+		"source_room_id": room_id,
+		"destination_room_id": room_id,
+		"source_zone": "upper",
+		"destination_zone": "lower",
+		"quantity": "enthalpy",
+		"amount": requested_kj,
+	})
+
+
+func _phase3_shadow_queue_canonical_wall_ambient(
+		room_id: int,
+		legacy_requested: Dictionary,
+		dt: float
+	) -> void:
+	if building == null:
+		return
+	var room: RoomModel = building.get_room(room_id)
+	if room == null:
+		return
+	var ambient_c: float = thermal_system.ambient_temp_c()
+	var canonical_input: Dictionary = phase3_zone_mass_system.get_canonical_thermodynamic_input(
+		room, ambient_c
+	)
+	if canonical_input.is_empty():
+		return
+	canonical_input["reference_temp_c"] = ambient_c
+	var context: Dictionary = thermal_system.build_phase3_canonical_wall_ambient_context(room)
+	var wall_input: Dictionary = phase3_zone_mass_system.get_canonical_wall_ambient_input(
+		room_id,
+		float(context.get("wall_capacity_kj_k", 0.1)),
+		ambient_c
+	)
+	var preview: Dictionary = thermal_system.preview_phase3_canonical_wall_ambient_flux(
+		canonical_input, wall_input, context, dt
+	)
+	if not phase3_zone_mass_system.queue_canonical_wall_ambient_transfer(
+		room_id, preview, legacy_requested, "%.6f" % sim_time_s
+	):
+		return
+	for wall_claim in [
+		{
+			"family": "canonical_upper_wall_ambient",
+			"source_zone": "upper",
+			"amount": absf(float(preview.get("upper_wall_requested_kj", 0.0)))
+					+ float(preview.get("upper_ambient_requested_kj", 0.0)),
+		},
+		{
+			"family": "canonical_lower_wall_ambient",
+			"source_zone": "lower",
+			"amount": absf(float(preview.get("lower_wall_requested_kj", 0.0)))
+					+ float(preview.get("lower_ambient_requested_kj", 0.0)),
+		},
+	]:
+		if float(wall_claim.get("amount", 0.0)) <= 0.0:
+			continue
+		phase3_zone_mass_system.register_semantic_claim({
+			"connection_id": "room:%d:canonical_wall_ambient" % room_id,
+			"producer": "ThermalSystem",
+			"transport_family": String(wall_claim.get("family", "")),
+			"boundary_kind": "thermal_reservoir",
+			"source_room_id": room_id,
+			"destination_room_id": -1,
+			"source_zone": String(wall_claim.get("source_zone", "upper")),
+			"destination_zone": String(wall_claim.get("source_zone", "upper")),
+			"quantity": "enthalpy",
+			"amount": float(wall_claim.get("amount", 0.0)),
+		})
 
 
 func _phase3_shadow_add_thermal_request(flux: Dictionary) -> void:
@@ -1560,11 +1743,22 @@ func _phase3_shadow_collect_species_requests(dt: float) -> void:
 			var room: RoomModel = building.get_room(room_id)
 			if room == null:
 				continue
+			var combustion_context: Dictionary = _build_room_combustion_context(room_id)
+			if phase3_canonical_post_opening_coupling_shadow_enabled:
+				var counterflow_context: Dictionary = \
+						phase3_zone_mass_system.get_canonical_exterior_counterflow_request(
+							room_id
+						)
+				combustion_context["phase3_post_opening_coupling_enabled"] = true
+				combustion_context["phase3_post_opening_counterflow_exchange_kg"] = \
+						float(counterflow_context.get("requested_exchange_kg", 0.0))
+				combustion_context["phase3_post_opening_counterflow_incoming_o2_kg"] = \
+						float(counterflow_context.get("requested_incoming_o2_kg", 0.0))
 			var transaction: Dictionary = \
 					combustion_system.evaluate_phase3_canonical_combustion_step(
 						room,
 						dt,
-						_build_room_combustion_context(room_id),
+						combustion_context,
 						phase3_zone_mass_system.get_canonical_combustion_input(room_id),
 						phase3_zone_mass_system.get_persistent_combustion_state(room_id),
 						species_by_room.get(str(room_id), {})
@@ -1698,6 +1892,14 @@ func _build_state_context() -> Dictionary:
 				phase3_canonical_pressure_relaxation_shadow_enabled,
 		"phase3_canonical_plume_shadow_enabled": \
 				phase3_canonical_plume_shadow_enabled,
+		"phase3_canonical_interzone_heat_shadow_enabled": \
+				phase3_canonical_interzone_heat_shadow_enabled,
+		"phase3_canonical_wall_ambient_shadow_enabled": \
+				phase3_canonical_wall_ambient_shadow_enabled,
+		"phase3_canonical_exterior_counterflow_shadow_enabled": \
+				phase3_canonical_exterior_counterflow_shadow_enabled,
+		"phase3_canonical_post_opening_coupling_shadow_enabled": \
+				phase3_canonical_post_opening_coupling_shadow_enabled,
 		"phase3_canonical_zone_shadow": phase3_zone_mass_system.get_results() \
 				if phase3_canonical_zone_shadow_enabled else {},
 		"ambient_temp_c": thermal_system.ambient_temp_c(),
@@ -2011,6 +2213,14 @@ func step(delta: float) -> void:
 				Phase3ZoneMassSystemScript.EXTERIOR_DISCHARGE_COEFF,
 				phase3_canonical_pressure_relaxation_shadow_enabled
 			)
+			if phase3_canonical_exterior_counterflow_shadow_enabled:
+				phase3_zone_mass_system.queue_canonical_exterior_counterflow_requests(
+					building,
+					dt,
+					thermal_system.ambient_temp_c(),
+					building.outside_o2,
+					Phase3ZoneMassSystemScript.EXTERIOR_DISCHARGE_COEFF
+				)
 
 	var pre_hrr_o2_step: bool = _uses_pre_hrr_oxygen_step()
 

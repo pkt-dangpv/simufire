@@ -28,6 +28,10 @@ var phase3_canonical_exterior_boundary_shadow_enabled: bool = false
 var phase3_canonical_persistence_shadow_enabled: bool = false
 var phase3_canonical_combustion_shadow_enabled: bool = false
 var phase3_canonical_pressure_relaxation_shadow_enabled: bool = false
+var phase3_canonical_interzone_heat_shadow_enabled: bool = false
+var phase3_canonical_wall_ambient_shadow_enabled: bool = false
+var phase3_canonical_exterior_counterflow_shadow_enabled: bool = false
+var phase3_canonical_post_opening_coupling_shadow_enabled: bool = false
 
 var _next_log_time_s: float = 0.0
 ## Último timestamp escrito (append_snapshot o append_snapshot_now).
@@ -85,6 +89,22 @@ func configure_phase3_canonical_combustion_shadow(is_enabled: bool) -> void:
 
 func configure_phase3_canonical_pressure_relaxation_shadow(is_enabled: bool) -> void:
 	phase3_canonical_pressure_relaxation_shadow_enabled = is_enabled
+
+
+func configure_phase3_canonical_interzone_heat_shadow(is_enabled: bool) -> void:
+	phase3_canonical_interzone_heat_shadow_enabled = is_enabled
+
+
+func configure_phase3_canonical_wall_ambient_shadow(is_enabled: bool) -> void:
+	phase3_canonical_wall_ambient_shadow_enabled = is_enabled
+
+
+func configure_phase3_canonical_exterior_counterflow_shadow(is_enabled: bool) -> void:
+	phase3_canonical_exterior_counterflow_shadow_enabled = is_enabled
+
+
+func configure_phase3_canonical_post_opening_coupling_shadow(is_enabled: bool) -> void:
+	phase3_canonical_post_opening_coupling_shadow_enabled = is_enabled
 
 
 func reset_log_file() -> void:
@@ -456,6 +476,14 @@ func _build_csv_header() -> String:
 		header += ",phase3_shadow_combustion_transaction_active_flag,phase3_shadow_combustion_canonical_o2_ref,phase3_shadow_combustion_o2_source_zone_code,phase3_shadow_combustion_extinction_o2_limit,phase3_shadow_combustion_canonical_o2_hrr_factor,phase3_shadow_combustion_legacy_o2_hrr_factor,phase3_shadow_combustion_legacy_hrr_kw,phase3_shadow_combustion_accepted_hrr_kw,phase3_shadow_combustion_decision_fraction,phase3_shadow_combustion_atomic_fraction,phase3_shadow_combustion_effective_fraction,phase3_shadow_combustion_requested_o2_kg,phase3_shadow_combustion_accepted_o2_kg,phase3_shadow_combustion_requested_fuel_MJ,phase3_shadow_combustion_accepted_fuel_MJ,phase3_shadow_combustion_requested_species_kg,phase3_shadow_combustion_accepted_species_kg,phase3_shadow_combustion_requested_convective_energy_kj,phase3_shadow_combustion_accepted_convective_energy_kj,phase3_shadow_combustion_requested_plume_mass_kg,phase3_shadow_combustion_accepted_plume_mass_kg,phase3_shadow_combustion_remaining_fuel_MJ,phase3_shadow_combustion_retained_unburned_MJ,phase3_shadow_combustion_zero_o2_flame_flag,phase3_shadow_combustion_o2_residual_kg,phase3_shadow_combustion_energy_residual_kj,phase3_shadow_combustion_species_residual_kg"
 	if phase3_canonical_pressure_relaxation_shadow_enabled:
 		header += ",phase3_shadow_exterior_relaxation_enabled_flag,phase3_shadow_exterior_raw_requested_gas_kg,phase3_shadow_exterior_raw_requested_energy_kj,phase3_shadow_exterior_pressure_equilibrium_fraction,phase3_shadow_exterior_pressure_full_delta_pa,phase3_shadow_exterior_pressure_limited_delta_pa,phase3_shadow_exterior_pressure_predicted_post_pa,phase3_shadow_exterior_pressure_crossing_prevented_flag,phase3_shadow_exterior_degenerate_lower_reseed_flag,phase3_shadow_exterior_degenerate_lower_reseed_mass_kg,phase3_shadow_exterior_lower_reseed_count_total,phase3_shadow_exterior_lower_reseed_mass_kg_total,phase3_shadow_exterior_lower_reseed_first_step_index"
+	if phase3_canonical_interzone_heat_shadow_enabled:
+		header += ",phase3_shadow_interzone_legacy_requested_kj,phase3_shadow_interzone_legacy_candidate_kj,phase3_shadow_interzone_capacity_candidate_kj,phase3_shadow_interzone_equilibrium_limit_kj,phase3_shadow_interzone_requested_kj,phase3_shadow_interzone_accepted_kj,phase3_shadow_interzone_rejected_kj,phase3_shadow_interzone_cumulative_accepted_kj,phase3_shadow_interzone_pre_delta_t_c,phase3_shadow_interzone_direction_code,phase3_shadow_interzone_energy_residual_kj"
+	if phase3_canonical_wall_ambient_shadow_enabled:
+		header += ",phase3_shadow_wall_energy_pre_kj,phase3_shadow_wall_energy_post_kj,phase3_shadow_wall_temp_pre_c,phase3_shadow_wall_temp_post_c,phase3_shadow_wall_decay_kj,phase3_shadow_wall_upper_requested_kj,phase3_shadow_wall_lower_requested_kj,phase3_shadow_wall_upper_accepted_kj,phase3_shadow_wall_lower_accepted_kj,phase3_shadow_wall_upper_convective_requested_kj,phase3_shadow_wall_lower_convective_requested_kj,phase3_shadow_wall_upper_radiative_requested_kj,phase3_shadow_wall_upper_ambient_requested_kj,phase3_shadow_wall_lower_ambient_requested_kj,phase3_shadow_wall_upper_ambient_accepted_kj,phase3_shadow_wall_lower_ambient_accepted_kj,phase3_shadow_wall_accepted_fraction,phase3_shadow_wall_equilibrium_temp_c,phase3_shadow_wall_cumulative_absorbed_kj,phase3_shadow_wall_cumulative_emitted_kj,phase3_shadow_wall_cumulative_ambient_removed_kj,phase3_shadow_wall_gas_residual_kj,phase3_shadow_wall_boundary_residual_kj,phase3_shadow_wall_clamp_kj,phase3_shadow_wall_legacy_requested_kj"
+	if phase3_canonical_exterior_counterflow_shadow_enabled:
+		header += ",phase3_shadow_counterflow_neutral_plane_m,phase3_shadow_counterflow_neutral_pressure_offset_pa,phase3_shadow_counterflow_raw_upper_out_kg_step,phase3_shadow_counterflow_raw_lower_in_kg_step,phase3_shadow_counterflow_requested_exchange_kg_step,phase3_shadow_counterflow_accepted_exchange_kg_step,phase3_shadow_counterflow_rejected_exchange_kg_step,phase3_shadow_counterflow_cumulative_exchange_kg,phase3_shadow_counterflow_cumulative_upper_out_kg,phase3_shadow_counterflow_cumulative_lower_in_kg,phase3_shadow_counterflow_hydrostatic_net_kg_step,phase3_shadow_counterflow_pressure_relief_kg_step,phase3_shadow_counterflow_pressure_relief_net_kg_step,phase3_shadow_counterflow_outgoing_energy_kj_step,phase3_shadow_counterflow_outgoing_o2_kg_step,phase3_shadow_counterflow_incoming_o2_kg_step,phase3_shadow_counterflow_outgoing_species_kg_step,phase3_shadow_counterflow_accepted_fraction,phase3_shadow_counterflow_mass_residual_kg,phase3_shadow_counterflow_energy_residual_kj,phase3_shadow_counterflow_o2_residual_kg,phase3_shadow_counterflow_species_residual_kg,phase3_shadow_counterflow_opening_count,phase3_shadow_counterflow_duplicate_owner_flag,phase3_shadow_counterflow_invalid_preview_count,phase3_shadow_counterflow_opposed_out_kg_step"
+	if phase3_canonical_post_opening_coupling_shadow_enabled:
+		header += ",phase3_shadow_post_opening_coupling_active_flag,phase3_shadow_post_opening_source_switched_to_lower_flag,phase3_shadow_post_opening_counterflow_exchange_kg_step,phase3_shadow_post_opening_counterflow_incoming_o2_kg_step,phase3_shadow_post_opening_source_o2_available_kg,phase3_shadow_post_opening_full_hrr_o2_demand_kg_step,phase3_shadow_post_opening_o2_supply_margin_kg_step,phase3_shadow_post_opening_combustion_air_min_plume_mass_kg_step,phase3_shadow_post_opening_plume_height_term_mass_kg_step,phase3_shadow_post_opening_plume_source_term_mass_kg_step,phase3_shadow_post_opening_plume_o2_to_upper_kg_step,phase3_shadow_post_opening_lower_o2_closure_residual_kg"
 	return header
 
 
@@ -936,6 +964,96 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 				"phase3_shadow_exterior_lower_reseed_count_total",
 				"phase3_shadow_exterior_lower_reseed_mass_kg_total",
 				"phase3_shadow_exterior_lower_reseed_first_step_index"
+			]:
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
+		if phase3_canonical_interzone_heat_shadow_enabled:
+			for field_name in [
+				"phase3_shadow_interzone_legacy_requested_kj",
+				"phase3_shadow_interzone_legacy_candidate_kj",
+				"phase3_shadow_interzone_capacity_candidate_kj",
+				"phase3_shadow_interzone_equilibrium_limit_kj",
+				"phase3_shadow_interzone_requested_kj",
+				"phase3_shadow_interzone_accepted_kj",
+				"phase3_shadow_interzone_rejected_kj",
+				"phase3_shadow_interzone_cumulative_accepted_kj",
+				"phase3_shadow_interzone_pre_delta_t_c",
+				"phase3_shadow_interzone_direction_code",
+				"phase3_shadow_interzone_energy_residual_kj"
+			]:
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
+		if phase3_canonical_wall_ambient_shadow_enabled:
+			for field_name in [
+				"phase3_shadow_wall_energy_pre_kj",
+				"phase3_shadow_wall_energy_post_kj",
+				"phase3_shadow_wall_temp_pre_c",
+				"phase3_shadow_wall_temp_post_c",
+				"phase3_shadow_wall_decay_kj",
+				"phase3_shadow_wall_upper_requested_kj",
+				"phase3_shadow_wall_lower_requested_kj",
+				"phase3_shadow_wall_upper_accepted_kj",
+				"phase3_shadow_wall_lower_accepted_kj",
+				"phase3_shadow_wall_upper_convective_requested_kj",
+				"phase3_shadow_wall_lower_convective_requested_kj",
+				"phase3_shadow_wall_upper_radiative_requested_kj",
+				"phase3_shadow_wall_upper_ambient_requested_kj",
+				"phase3_shadow_wall_lower_ambient_requested_kj",
+				"phase3_shadow_wall_upper_ambient_accepted_kj",
+				"phase3_shadow_wall_lower_ambient_accepted_kj",
+				"phase3_shadow_wall_accepted_fraction",
+				"phase3_shadow_wall_equilibrium_temp_c",
+				"phase3_shadow_wall_cumulative_absorbed_kj",
+				"phase3_shadow_wall_cumulative_emitted_kj",
+				"phase3_shadow_wall_cumulative_ambient_removed_kj",
+				"phase3_shadow_wall_gas_residual_kj",
+				"phase3_shadow_wall_boundary_residual_kj",
+				"phase3_shadow_wall_clamp_kj",
+				"phase3_shadow_wall_legacy_requested_kj"
+			]:
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
+		if phase3_canonical_exterior_counterflow_shadow_enabled:
+			for field_name in [
+				"phase3_shadow_counterflow_neutral_plane_m",
+				"phase3_shadow_counterflow_neutral_pressure_offset_pa",
+				"phase3_shadow_counterflow_raw_upper_out_kg_step",
+				"phase3_shadow_counterflow_raw_lower_in_kg_step",
+				"phase3_shadow_counterflow_requested_exchange_kg_step",
+				"phase3_shadow_counterflow_accepted_exchange_kg_step",
+				"phase3_shadow_counterflow_rejected_exchange_kg_step",
+				"phase3_shadow_counterflow_cumulative_exchange_kg",
+				"phase3_shadow_counterflow_cumulative_upper_out_kg",
+				"phase3_shadow_counterflow_cumulative_lower_in_kg",
+				"phase3_shadow_counterflow_hydrostatic_net_kg_step",
+				"phase3_shadow_counterflow_pressure_relief_kg_step",
+				"phase3_shadow_counterflow_pressure_relief_net_kg_step",
+				"phase3_shadow_counterflow_outgoing_energy_kj_step",
+				"phase3_shadow_counterflow_outgoing_o2_kg_step",
+				"phase3_shadow_counterflow_incoming_o2_kg_step",
+				"phase3_shadow_counterflow_outgoing_species_kg_step",
+				"phase3_shadow_counterflow_accepted_fraction",
+				"phase3_shadow_counterflow_mass_residual_kg",
+				"phase3_shadow_counterflow_energy_residual_kj",
+				"phase3_shadow_counterflow_o2_residual_kg",
+				"phase3_shadow_counterflow_species_residual_kg",
+				"phase3_shadow_counterflow_opening_count",
+				"phase3_shadow_counterflow_duplicate_owner_flag",
+				"phase3_shadow_counterflow_invalid_preview_count",
+				"phase3_shadow_counterflow_opposed_out_kg_step"
+			]:
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
+		if phase3_canonical_post_opening_coupling_shadow_enabled:
+			for field_name in [
+				"phase3_shadow_post_opening_coupling_active_flag",
+				"phase3_shadow_post_opening_source_switched_to_lower_flag",
+				"phase3_shadow_post_opening_counterflow_exchange_kg_step",
+				"phase3_shadow_post_opening_counterflow_incoming_o2_kg_step",
+				"phase3_shadow_post_opening_source_o2_available_kg",
+				"phase3_shadow_post_opening_full_hrr_o2_demand_kg_step",
+				"phase3_shadow_post_opening_o2_supply_margin_kg_step",
+				"phase3_shadow_post_opening_combustion_air_min_plume_mass_kg_step",
+				"phase3_shadow_post_opening_plume_height_term_mass_kg_step",
+				"phase3_shadow_post_opening_plume_source_term_mass_kg_step",
+				"phase3_shadow_post_opening_plume_o2_to_upper_kg_step",
+				"phase3_shadow_post_opening_lower_o2_closure_residual_kg"
 			]:
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		file.store_line(",".join(fields))
