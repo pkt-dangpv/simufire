@@ -1708,79 +1708,87 @@ func _create_single_family_entry_recess(index: int, _op: OpeningModel, info: Dic
 		)
 
 
-## Caja de escalera del rellano: dos tramos paralelos (sube / baja) contra la
-## pared derecha, separados por el muro de la zanca, con pasamanos inclinado.
+## Barra recta entre dos puntos (pasamanos inclinado, zancas...).
+func _add_bar_between(node_name: String, p_from: Vector3, p_to: Vector3, thickness_m: float, material: StandardMaterial3D) -> MeshInstance3D:
+	var delta: Vector3 = p_to - p_from
+	var length: float = delta.length()
+	if length < 0.01:
+		return null
+	var mesh := MeshInstance3D.new()
+	mesh.name = node_name
+	var box := BoxMesh.new()
+	box.size = Vector3(thickness_m, thickness_m, length)
+	mesh.mesh = box
+	mesh.material_override = material
+	_world_root.add_child(mesh)
+	mesh.position = (p_from + p_to) * 0.5
+	var up: Vector3 = Vector3.UP
+	if absf(delta.normalized().dot(up)) > 0.99:
+		up = Vector3.RIGHT
+	mesh.look_at(p_to, up)
+	return mesh
+
+
+## Escalera del rellano al estilo de un portal real: un tramo ascendente de
+## peldaños macizos (perfil escalonado visible) contra la pared, con
+## barandilla de balaustres y pasamanos inclinado en el lado abierto.
 func _create_landing_stairs(index: int, floor_level_m: float, floor_center: Vector3, normal: Vector3, tangent: Vector3, width_m: float, depth_m: float) -> void:
 	var tread: float = maxf(0.22, landing_step_tread_m)
 	var rise: float = maxf(0.12, landing_step_rise_m)
-	var steps: int = 7
-	var flight_w: float = 1.05
+	var steps: int = 9
+	var flight_w: float = 1.10
 	var step_mat: StandardMaterial3D = _mat(landing_stair_color, false)
 	var rail_mat: StandardMaterial3D = _mat(landing_railing_color, false)
-	# Eje del hueco de escalera: contra la pared derecha del rellano.
-	var stair_axis: Vector3 = floor_center + tangent * (width_m * 0.5 - flight_w * 0.62)
-	# El tramo arranca al fondo del rellano y avanza hacia el observador.
-	var run_dir: Vector3 = normal
 
-	for flight in range(2):
-		var ascending: bool = flight == 0
-		# Sube pegado a la pared; baja en el hueco contiguo hacia el interior.
-		var lateral: float = -flight_w * 0.52 if ascending else flight_w * 0.52
-		var start: Vector3 = stair_axis + tangent * lateral - run_dir * (depth_m * 0.5 - 0.30)
-		for step_i in range(steps):
-			var along: float = float(step_i) * tread
-			var step_center: Vector3 = start + run_dir * along
-			var height: float = rise * float(step_i + 1)
-			# La huella se dibuja como bloque macizo desde el suelo (no flota).
-			var block_h: float = height if ascending else rise * float(steps - step_i)
-			step_center.y = floor_level_m + block_h * 0.5 * (1.0 if ascending else -1.0)
-			if not ascending:
-				step_center.y = floor_level_m - block_h * 0.5
-			_add_oriented_box(
-				_world_root,
-				"LandingStep_%02d_%d_%02d" % [index, flight, step_i],
-				step_center,
-				tangent,
-				flight_w * 0.94,
-				block_h,
-				tread,
-				step_mat,
-				false
-			)
-		# Pasamanos inclinado siguiendo el tramo.
-		var rail_len: float = tread * float(steps)
-		var rail_mid: Vector3 = start + run_dir * (rail_len * 0.5) + tangent * (lateral * 0.02)
-		var rail_top: float = rise * float(steps) * 0.5
-		rail_mid.y = floor_level_m + (rail_top + 0.95 if ascending else -rail_top + 0.95)
-		var rail := _add_oriented_box(
+	# Tramo pegado a la pared derecha, subiendo hacia el fondo del rellano.
+	var run_dir: Vector3 = -normal
+	var flight_axis: Vector3 = floor_center + tangent * (width_m * 0.5 - flight_w * 0.60 - wall_thickness_m)
+	var start: Vector3 = flight_axis - run_dir * (depth_m * 0.5 - 0.25)
+
+	for step_i in range(steps):
+		var block_h: float = rise * float(step_i + 1)
+		var step_center: Vector3 = start + run_dir * (float(step_i) * tread + tread * 0.5)
+		step_center.y = floor_level_m + block_h * 0.5
+		_add_oriented_box(
 			_world_root,
-			"LandingRail_%02d_%d" % [index, flight],
-			rail_mid,
-			run_dir,
-			rail_len,
-			0.06,
-			0.06,
-			rail_mat,
+			"LandingStep_%02d_%02d" % [index, step_i],
+			step_center,
+			tangent,
+			flight_w,
+			block_h,
+			tread,
+			step_mat,
 			false
 		)
-		if rail != null:
-			# Inclinar el pasamanos con la pendiente del tramo.
-			var slope: float = atan2(rise, tread) * (1.0 if ascending else -1.0)
-			rail.rotate(tangent.normalized(), slope)
 
-	# Muro de la zanca entre los dos tramos.
-	var wall_center: Vector3 = stair_axis - run_dir * (depth_m * 0.5 - 0.30 - tread * float(steps) * 0.5)
-	wall_center.y = floor_level_m + 0.45
-	_add_oriented_box(
-		_world_root,
-		"LandingStairWall_%02d" % index,
-		wall_center,
-		run_dir,
-		tread * float(steps),
-		0.90,
-		0.14,
-		_mat(landing_wall_color.darkened(0.05), false),
-		false
+	# Barandilla en el lado abierto (hacia el interior del rellano).
+	var rail_side: Vector3 = tangent * (-flight_w * 0.5 + 0.05)
+	var rail_h: float = 0.98
+	var post_from: Vector3 = start + rail_side + run_dir * (tread * 0.5)
+	post_from.y = floor_level_m + rise
+	var post_to: Vector3 = start + rail_side + run_dir * (float(steps - 1) * tread + tread * 0.5)
+	post_to.y = floor_level_m + rise * float(steps)
+	# Balaustres verticales cada dos peldaños.
+	for step_i in range(0, steps, 2):
+		var base: Vector3 = start + rail_side + run_dir * (float(step_i) * tread + tread * 0.5)
+		base.y = floor_level_m + rise * float(step_i + 1)
+		var top: Vector3 = base + Vector3.UP * rail_h
+		_add_bar_between("LandingBaluster_%02d_%02d" % [index, step_i], base, top, 0.045, rail_mat)
+	# Pasamanos inclinado siguiendo la pendiente.
+	_add_bar_between(
+		"LandingHandrail_%02d" % index,
+		post_from + Vector3.UP * rail_h,
+		post_to + Vector3.UP * rail_h,
+		0.06,
+		rail_mat
+	)
+	# Zanquin: banda inclinada bajo los balaustres, cerrando el lado abierto.
+	_add_bar_between(
+		"LandingStringer_%02d" % index,
+		post_from + Vector3.UP * 0.10,
+		post_to + Vector3.UP * 0.10,
+		0.12,
+		step_mat
 	)
 
 
