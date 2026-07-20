@@ -205,6 +205,29 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0, 12, 1) var opposite_facade_floors: int = 4
 @export_range(0, 20, 1) var opposite_facade_columns: int = 9
 
+@export_subgroup("Rellano y entrada")
+## Rellano de escalera (piso) y entrada de casa unifamiliar.
+@export var landing_floor_color: Color = Color(0.28, 0.27, 0.26, 1.0)
+@export var landing_wall_color: Color = Color(0.74, 0.73, 0.69, 1.0)
+@export var landing_wainscot_color: Color = Color(0.45, 0.43, 0.40, 1.0)
+@export var landing_ceiling_color: Color = Color(0.80, 0.79, 0.75, 1.0)
+@export var landing_skirting_color: Color = Color(0.38, 0.36, 0.33, 1.0)
+## Altura del zocalo pintado de la pared del rellano (m).
+@export var landing_wainscot_height_m: float = 1.05
+@export var landing_door_color: Color = Color(0.30, 0.19, 0.11, 1.0)
+@export var landing_door_panel_color: Color = Color(0.35, 0.23, 0.14, 1.0)
+@export var landing_door_frame_color: Color = Color(0.86, 0.85, 0.82, 1.0)
+@export var landing_handle_color: Color = Color(0.78, 0.66, 0.36, 1.0)
+@export var landing_lift_color: Color = Color(0.55, 0.57, 0.58, 1.0)
+@export var landing_lift_frame_color: Color = Color(0.38, 0.39, 0.40, 1.0)
+## Entrada de casa unifamiliar: porche techado con pilares.
+@export var house_porch_roof_enabled: bool = true
+@export var house_porch_color: Color = Color(0.52, 0.50, 0.45, 1.0)
+@export var house_porch_column_color: Color = Color(0.78, 0.76, 0.71, 1.0)
+@export var house_porch_roof_color: Color = Color(0.34, 0.18, 0.12, 1.0)
+@export var house_path_color: Color = Color(0.50, 0.49, 0.45, 1.0)
+@export var house_doormat_color: Color = Color(0.24, 0.20, 0.16, 1.0)
+
 @export_subgroup("Suelo y casas exteriores")
 ## Losa del porche/rellano frente a la puerta de entrada.
 @export var exterior_porch_color: Color = Color(0.42, 0.41, 0.39, 1.0)
@@ -1369,6 +1392,62 @@ func _create_opening_frame(index: int, op: OpeningModel, info: Dictionary) -> No
 	return frame_root
 
 
+## Cerco de puerta (2 jambas + dintel) sobre una pared. `surface` es el punto
+## del centro de la puerta en la cara de la pared; `out` apunta hacia fuera.
+func _add_door_frame(
+	prefix: String,
+	surface: Vector3,
+	out: Vector3,
+	tangent: Vector3,
+	door_w: float,
+	door_h: float,
+	frame_w: float,
+	frame_depth: float,
+	color: Color
+) -> void:
+	var base_y: float = surface.y - door_h * 0.5
+	var mat: StandardMaterial3D = _mat(color, false)
+	for side in [-1.0, 1.0]:
+		var jamb: Vector3 = surface + tangent * (side * (door_w * 0.5 + frame_w * 0.5)) + out * (frame_depth * 0.5)
+		jamb.y = base_y + (door_h + frame_w) * 0.5
+		_add_oriented_box(_world_root, "%s_Jamb_%s" % [prefix, "L" if side < 0.0 else "R"],
+			jamb, tangent, frame_w, door_h + frame_w, frame_depth, mat, false)
+	var lintel: Vector3 = surface + out * (frame_depth * 0.5)
+	lintel.y = base_y + door_h + frame_w * 0.5
+	_add_oriented_box(_world_root, "%s_Lintel" % prefix, lintel, tangent,
+		door_w + frame_w * 2.0, frame_w, frame_depth, mat, false)
+
+
+## Hoja de puerta con dos paneles rehundidos (relieve) y manilla.
+func _add_paneled_door(
+	prefix: String,
+	surface: Vector3,
+	out: Vector3,
+	tangent: Vector3,
+	door_w: float,
+	door_h: float,
+	leaf_color: Color,
+	panel_color: Color,
+	handle_color: Color,
+	handle_side: float
+) -> void:
+	var leaf: Vector3 = surface + out * 0.018
+	_add_oriented_box(_world_root, "%s_Leaf" % prefix, leaf, tangent,
+		door_w, door_h, 0.036, _mat(leaf_color, false), false)
+	# Dos paneles rehundidos (molduras clasicas).
+	var panel_w: float = door_w * 0.62
+	var panel_mat: StandardMaterial3D = _mat(panel_color, false)
+	for p in range(2):
+		var panel: Vector3 = leaf + out * 0.020
+		panel.y = surface.y + (door_h * 0.22 if p == 0 else -door_h * 0.20)
+		_add_oriented_box(_world_root, "%s_Panel_%d" % [prefix, p], panel, tangent,
+			panel_w, door_h * (0.30 if p == 0 else 0.34), 0.012, panel_mat, false)
+	var handle: Vector3 = leaf + tangent * (handle_side * door_w * 0.36) + out * 0.055
+	handle.y = surface.y - door_h * 0.03
+	_add_oriented_box(_world_root, "%s_Handle" % prefix, handle, tangent,
+		0.12, 0.035, 0.035, _mat(handle_color, false), false)
+
+
 func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> void:
 	if not show_landing_recess or op == null:
 		return
@@ -1395,7 +1474,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		"LandingFloor_%02d" % index,
 		floor_size,
 		floor_center,
-		_mat(Color(0.32, 0.31, 0.28, 1.0), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4100 + index),
+		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4100 + index),
 		false
 	)
 
@@ -1407,7 +1486,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		"LandingBackWall_%02d" % index,
 		wall_size,
 		wall_center,
-		_mat(Color(0.70, 0.70, 0.66, 1.0), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4200 + index),
+		_mat(landing_wall_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4200 + index),
 		false
 	)
 
@@ -1420,7 +1499,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 			"LandingSideWall_%02d" % index,
 			side_wall_size,
 			side_center,
-			_mat(Color(0.66, 0.66, 0.61, 1.0), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4250 + index),
+			_mat(landing_wall_color.darkened(0.06), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4250 + index),
 			false
 		)
 
@@ -1431,7 +1510,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		"LandingCeiling_%02d" % index,
 		Vector3(width_m, ceiling_thickness_m, depth_m) if horizontal else Vector3(depth_m, ceiling_thickness_m, width_m),
 		ceiling_center,
-		_mat(Color(0.78, 0.77, 0.71, 1.0), false),
+		_mat(landing_ceiling_color, false),
 		false
 	)
 
@@ -1447,61 +1526,55 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	)
 
 	var surface_center: Vector3 = wall_center + normal * (wall_thickness_m * 0.5 + 0.026)
+
+	# Zocalo pintado en la parte baja de la pared del fondo + rodapie.
+	var wainscot: Vector3 = surface_center + normal * 0.012
+	wainscot.y = floor_level_m + landing_wainscot_height_m * 0.5
+	_add_oriented_box(_world_root, "LandingWainscot_%02d" % index, wainscot, tangent,
+		width_m, landing_wainscot_height_m, 0.024, _mat(landing_wainscot_color, false), false)
+	var skirting: Vector3 = surface_center + normal * 0.022
+	skirting.y = floor_level_m + 0.055
+	_add_oriented_box(_world_root, "LandingSkirting_%02d" % index, skirting, tangent,
+		width_m, 0.11, 0.030, _mat(landing_skirting_color, false), false)
+
+	# Puertas de vecinos: cerco + hoja con paneles rehundidos + manilla + placa.
+	var door_w: float = 0.82
+	var door_h: float = 2.03
 	var neighbor_offsets: Array[float] = [-width_m * 0.36, -width_m * 0.12, width_m * 0.12]
 	for door_i in range(neighbor_offsets.size()):
 		var offset_t: float = float(neighbor_offsets[door_i])
-		var neighbor_center: Vector3 = surface_center + tangent * offset_t
-		neighbor_center.y = floor_level_m + 1.02
-		_add_oriented_box(
-			_world_root,
-			"LandingNeighborDoor_%02d_%02d" % [index, door_i],
-			neighbor_center,
-			tangent,
-			0.78,
-			1.94,
-			0.050,
-			_mat(Color(0.34, 0.22, 0.13, 1.0), false),
-			false
-		)
-		var handle_center: Vector3 = neighbor_center + tangent * 0.25 + normal * 0.038
-		handle_center.y = floor_level_m + 1.02
-		_add_oriented_box(
-			_world_root,
-			"LandingNeighborHandle_%02d_%02d" % [index, door_i],
-			handle_center,
-			tangent,
-			0.055,
-			0.055,
-			0.055,
-			_mat(Color(0.72, 0.58, 0.30, 1.0), false),
-			false
-		)
+		var door_surface: Vector3 = surface_center + tangent * offset_t
+		door_surface.y = floor_level_m + door_h * 0.5
+		var prefix: String = "LandingDoor_%02d_%02d" % [index, door_i]
+		_add_door_frame(prefix, door_surface, normal, tangent, door_w, door_h, 0.075, 0.055, landing_door_frame_color)
+		var handle_side: float = -1.0 if door_i % 2 == 0 else 1.0
+		_add_paneled_door(prefix, door_surface, normal, tangent, door_w, door_h,
+			landing_door_color, landing_door_panel_color, landing_handle_color, handle_side)
+		# Placa de numero junto al cerco.
+		var plate: Vector3 = door_surface + tangent * (door_w * 0.5 + 0.16) + normal * 0.030
+		plate.y = floor_level_m + 1.62
+		_add_oriented_box(_world_root, "%s_Plate" % prefix, plate, tangent,
+			0.10, 0.13, 0.012, _mat(landing_handle_color, false), false)
 
-	var lift_center: Vector3 = surface_center + tangent * (width_m * 0.38)
-	lift_center.y = floor_level_m + 1.04
-	_add_oriented_box(
-		_world_root,
-		"LandingLiftDoors_%02d" % index,
-		lift_center,
-		tangent,
-		0.72,
-		1.90,
-		0.036,
-		_mat(Color(0.46, 0.48, 0.47, 1.0), false),
-		false
-	)
-	var lift_split: Vector3 = lift_center + normal * 0.028
-	_add_oriented_box(
-		_world_root,
-		"LandingLiftSplit_%02d" % index,
-		lift_split,
-		tangent,
-		0.025,
-		1.86,
-		0.018,
-		_mat(Color(0.20, 0.20, 0.19, 1.0), false),
-		false
-	)
+	# Ascensor: cerco metalico, dos hojas con junta central y botonera.
+	var lift_w: float = 0.86
+	var lift_h: float = 2.10
+	var lift_surface: Vector3 = surface_center + tangent * (width_m * 0.38)
+	lift_surface.y = floor_level_m + lift_h * 0.5
+	_add_door_frame("LandingLift_%02d" % index, lift_surface, normal, tangent,
+		lift_w, lift_h, 0.10, 0.070, landing_lift_frame_color)
+	for leaf_i in [-1.0, 1.0]:
+		var leaf: Vector3 = lift_surface + tangent * (leaf_i * lift_w * 0.25) + normal * 0.020
+		_add_oriented_box(_world_root, "LandingLiftLeaf_%02d_%s" % [index, "L" if leaf_i < 0.0 else "R"],
+			leaf, tangent, lift_w * 0.49, lift_h - 0.03, 0.034, _mat(landing_lift_color, false), false)
+	var split: Vector3 = lift_surface + normal * 0.040
+	_add_oriented_box(_world_root, "LandingLiftSplit_%02d" % index, split, tangent,
+		0.018, lift_h - 0.05, 0.014, _mat(Color(0.16, 0.17, 0.17, 1.0), false), false)
+	# Indicador de planta sobre el ascensor.
+	var indicator: Vector3 = lift_surface + normal * 0.034
+	indicator.y = floor_level_m + lift_h + 0.20
+	_add_oriented_box(_world_root, "LandingLiftIndicator_%02d" % index, indicator, tangent,
+		0.34, 0.14, 0.030, _mat(Color(0.10, 0.11, 0.12, 1.0), false, Color(0.9, 0.66, 0.28, 1.0), 0.5), false)
 	var panel_center: Vector3 = surface_center + tangent * (width_m * 0.47)
 	panel_center.y = floor_level_m + 1.18
 	_add_oriented_box(
@@ -1509,10 +1582,10 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		"LandingLiftPanel_%02d" % index,
 		panel_center,
 		tangent,
-		0.14,
-		0.32,
+		0.13,
+		0.30,
 		0.035,
-		_mat(Color(0.11, 0.12, 0.12, 1.0), false, Color(0.8, 0.62, 0.28, 1.0), 0.18),
+		_mat(Color(0.11, 0.12, 0.12, 1.0), false, Color(0.8, 0.62, 0.28, 1.0), 0.35),
 		false
 	)
 	_create_landing_stair_run(index, floor_level_m, center - normal * 0.74 - tangent * (width_m * 0.43), -normal, tangent, true)
@@ -1524,30 +1597,57 @@ func _create_single_family_entry_recess(index: int, _op: OpeningModel, info: Dic
 	var normal: Vector3 = Vector3(info.get("normal", Vector3.FORWARD)).normalized()
 	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
 	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
-	var porch_center: Vector3 = center - normal * 0.62
+	# Losa del porche, mas ancha que la puerta.
+	var porch_w: float = 2.60
+	var porch_d: float = 1.70
+	var porch_center: Vector3 = center - normal * (porch_d * 0.5 - 0.05)
 	porch_center.y = floor_level_m - floor_thickness_m * 0.5
 	_add_oriented_box(
 		_world_root,
 		"HousePorch_%02d" % index,
 		porch_center,
 		tangent,
-		1.65,
+		porch_w,
 		floor_thickness_m,
-		1.20,
-		_mat(Color(0.47, 0.45, 0.39, 1.0), false),
+		porch_d,
+		_mat(house_porch_color, false),
 		false
 	)
-	var path_center: Vector3 = center - normal * 2.35
+	# Felpudo delante del umbral.
+	var mat_center: Vector3 = center - normal * 0.55
+	mat_center.y = floor_level_m + 0.012
+	_add_oriented_box(_world_root, "HouseDoormat_%02d" % index, mat_center, tangent,
+		0.80, 0.02, 0.50, _mat(house_doormat_color, false), false)
+	# Escalon de bajada del porche a la acera.
+	var step_center: Vector3 = center - normal * (porch_d + 0.20)
+	step_center.y = floor_level_m - 0.10
+	_add_oriented_box(_world_root, "HouseStep_%02d" % index, step_center, tangent,
+		porch_w * 0.85, 0.16, 0.40, _mat(house_porch_color.darkened(0.10), false), false)
+
+	# Porche techado: dos pilares y voladizo.
+	if house_porch_roof_enabled:
+		var col_h: float = 2.35
+		for side in [-1.0, 1.0]:
+			var col_center: Vector3 = center - normal * (porch_d - 0.22) + tangent * (side * porch_w * 0.40)
+			col_center.y = floor_level_m + col_h * 0.5
+			_add_oriented_box(_world_root, "HousePorchColumn_%02d_%s" % [index, "L" if side < 0.0 else "R"],
+				col_center, tangent, 0.16, col_h, 0.16, _mat(house_porch_column_color, false), false)
+		var roof_center: Vector3 = center - normal * (porch_d * 0.5 - 0.05)
+		roof_center.y = floor_level_m + col_h + 0.09
+		_add_oriented_box(_world_root, "HousePorchRoof_%02d" % index, roof_center, tangent,
+			porch_w + 0.30, 0.18, porch_d + 0.35, _mat(house_porch_roof_color, false), false)
+
+	var path_center: Vector3 = center - normal * (porch_d + 1.90)
 	path_center.y = floor_level_m - floor_thickness_m * 0.52
 	_add_oriented_box(
 		_world_root,
 		"HouseEntryPath_%02d" % index,
 		path_center,
 		tangent,
-		1.10,
+		1.20,
 		floor_thickness_m,
 		3.05,
-		_mat(Color(0.42, 0.42, 0.37, 1.0), false),
+		_mat(house_path_color, false),
 		false
 	)
 	var street_center: Vector3 = center - normal * 4.35

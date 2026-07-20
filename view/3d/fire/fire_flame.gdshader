@@ -1,0 +1,40 @@
+shader_type spatial;
+render_mode unshaded, cull_disabled, blend_add, depth_draw_never;
+
+uniform vec4 flame_color : source_color = vec4(1.0, 0.32, 0.04, 0.85);
+uniform vec4 core_color : source_color = vec4(1.0, 0.88, 0.26, 1.0);
+uniform float emission_energy = 1.35;
+uniform float flicker_speed = 2.8;
+
+float hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(
+		mix(hash(i + vec2(0.0, 0.0)), hash(i + vec2(1.0, 0.0)), u.x),
+		mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
+		u.y
+	);
+}
+
+void fragment() {
+	vec2 uv = UV;
+	float t = TIME * flicker_speed;
+	float n = noise(vec2(uv.x * 3.0, uv.y * 5.5 - t));
+	float center = abs(uv.x - 0.5) * 2.0;
+	float width = mix(0.70, 0.035, pow(uv.y, 0.68)) * mix(0.82, 1.16, n);
+	float lick = sin((uv.y * 8.0 - t * 3.1) + n * 2.4) * 0.10 + (n - 0.5) * 0.15;
+	float body = 1.0 - smoothstep(width, width + 0.18, center + lick);
+	float base = smoothstep(0.0, 0.10, uv.y);
+	float tip = 1.0 - smoothstep(0.66 + n * 0.16, 1.0, uv.y);
+	float split = mix(0.74, 1.0, smoothstep(0.18, 0.82, noise(vec2(uv.x * 12.0 + t, uv.y * 6.0))));
+	float alpha = clamp(body * base * tip * flame_color.a, 0.0, 1.0);
+	vec3 col = mix(flame_color.rgb, core_color.rgb, clamp((1.0 - center) * (1.0 - uv.y * 0.45), 0.0, 1.0));
+	ALBEDO = col;
+	EMISSION = col * emission_energy;
+	ALPHA = alpha * split;
+}
