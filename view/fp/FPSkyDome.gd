@@ -3,48 +3,18 @@ extends RefCounted
 ##
 ## El proyecto renderiza en GL Compatibility, donde el `sky` de un
 ## Environment asignado por Camera3D no se dibuja (se veia negro por las
-## ventanas). Este domo es geometria real (esfera invertida) con un shader
-## de gradiente cenit->horizonte + disco solar con halo, asi que se ve
-## siempre. Vive en el mundo FP, por lo que no afecta a la vista 3D.
+## ventanas). Este domo es geometria real (esfera invertida) con gradiente
+## cenit->horizonte y disco solar, asi que se ve siempre. Vive en el mundo
+## FP, por lo que no afecta a la vista 3D.
+##
+## TODO editable desde Godot:
+##  - Shader:   view/fp/fp_sky_dome.gdshader
+##  - Material: view/fp/fp_sky_dome_material.tres (curva del degradado,
+##              suavizado del horizonte, concentracion del halo...)
+##  - Colores dia/noche, radio y tamaño del sol: exports del
+##    FirstPersonController (se aplican encima al construir el mundo).
 
-const DOME_SHADER := """
-shader_type spatial;
-render_mode unshaded, cull_front, depth_draw_never, shadows_disabled, fog_disabled;
-
-uniform vec4 sky_top_color : source_color = vec4(0.24, 0.45, 0.80, 1.0);
-uniform vec4 sky_horizon_color : source_color = vec4(0.78, 0.86, 0.93, 1.0);
-uniform vec4 ground_color : source_color = vec4(0.34, 0.35, 0.35, 1.0);
-uniform vec4 sun_color : source_color = vec4(1.0, 0.97, 0.88, 1.0);
-uniform vec3 sun_direction = vec3(0.35, 0.55, -0.75);
-uniform float sun_cos_size = 0.9985;
-uniform float sun_halo_power = 220.0;
-uniform float sun_halo_strength = 0.55;
-uniform float horizon_softness = 0.04;
-uniform float sky_curve = 0.42;
-
-varying vec3 local_dir;
-
-void vertex() {
-	local_dir = normalize(VERTEX);
-}
-
-void fragment() {
-	vec3 dir = normalize(local_dir);
-	float h = dir.y;
-	// Gradiente de cielo: horizonte claro -> cenit saturado.
-	float t = clamp(pow(max(h, 0.0), sky_curve), 0.0, 1.0);
-	vec3 sky = mix(sky_horizon_color.rgb, sky_top_color.rgb, t);
-	// Suelo/bruma por debajo del horizonte.
-	vec3 col = mix(ground_color.rgb, sky, smoothstep(-horizon_softness, horizon_softness, h));
-	// Sol: disco nitido + halo suave.
-	float d = dot(dir, normalize(sun_direction));
-	float disk = smoothstep(sun_cos_size, sun_cos_size + 0.0006, d);
-	float halo = pow(max(d, 0.0), sun_halo_power) * sun_halo_strength;
-	float above = smoothstep(-0.02, 0.05, h);
-	col = mix(col, sun_color.rgb, clamp(disk + halo, 0.0, 1.0) * above);
-	ALBEDO = col;
-}
-"""
+const SkyDomeMaterial: ShaderMaterial = preload("res://view/fp/fp_sky_dome_material.tres")
 
 
 static func create(radius_m: float) -> MeshInstance3D:
@@ -58,12 +28,8 @@ static func create(radius_m: float) -> MeshInstance3D:
 	node.mesh = mesh
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.extra_cull_margin = radius_m
-	var shader := Shader.new()
-	shader.code = DOME_SHADER
-	var material := ShaderMaterial.new()
-	material.shader = shader
-	material.render_priority = -100
-	node.material_override = material
+	# Duplicado para no mutar el .tres compartido en disco.
+	node.material_override = SkyDomeMaterial.duplicate(true)
 	return node
 
 
