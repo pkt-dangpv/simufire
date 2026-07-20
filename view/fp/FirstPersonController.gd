@@ -212,6 +212,27 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0, 12, 1) var opposite_facade_floors: int = 4
 @export_range(0, 20, 1) var opposite_facade_columns: int = 9
 
+@export_subgroup("Detalle urbano procedural")
+@export_range(3, 8, 1) var city_facade_module_count: int = 5
+@export_range(1.5, 8.0, 0.1) var city_facade_depth_m: float = 3.0
+@export_range(0.0, 0.35, 0.01) var city_facade_height_variation: float = 0.16
+@export_range(0, 8, 1) var city_parked_car_count: int = 3
+@export_range(2.5, 10.0, 0.1) var city_parked_car_spacing_m: float = 5.4
+@export_range(0, 12, 1) var city_tree_count: int = 4
+@export_range(2.0, 12.0, 0.1) var city_tree_spacing_m: float = 6.2
+@export_range(1.5, 6.0, 0.1) var city_tree_trunk_height_m: float = 2.6
+@export_range(0.3, 1.8, 0.05) var city_tree_crown_radius_m: float = 0.72
+@export var city_window_frame_day_color: Color = Color(0.70, 0.70, 0.67, 1.0)
+@export var city_window_frame_night_color: Color = Color(0.16, 0.17, 0.18, 1.0)
+@export var city_car_colors: Array[Color] = [
+	Color(0.24, 0.31, 0.38, 1.0),
+	Color(0.48, 0.16, 0.13, 1.0),
+	Color(0.62, 0.60, 0.54, 1.0),
+]
+@export var exterior_tree_trunk_color: Color = Color(0.25, 0.17, 0.10, 1.0)
+@export var exterior_tree_leaf_color_a: Color = Color(0.18, 0.34, 0.20, 1.0)
+@export var exterior_tree_leaf_color_b: Color = Color(0.25, 0.37, 0.18, 1.0)
+
 @export_subgroup("Rellano y entrada")
 ## Rellano de escalera (piso) y entrada de casa unifamiliar.
 @export var landing_floor_color: Color = Color(0.28, 0.27, 0.26, 1.0)
@@ -234,6 +255,12 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var landing_step_rise_m: float = 0.18
 @export var landing_stair_color: Color = Color(0.46, 0.44, 0.40, 1.0)
 @export var landing_railing_color: Color = Color(0.30, 0.30, 0.31, 1.0)
+@export_range(2.3, 3.4, 0.01) var landing_floor_height_m: float = 2.62
+@export_range(1.8, 3.2, 0.01) var landing_stair_bay_width_m: float = 2.12
+@export_range(0.45, 1.2, 0.01) var landing_stair_front_landing_depth_m: float = 0.62
+@export_range(0.45, 1.2, 0.01) var landing_stair_rear_landing_depth_m: float = 0.56
+@export_range(0.08, 0.40, 0.01) var landing_stair_lane_gap_m: float = 0.16
+@export_range(0.02, 0.20, 0.01) var landing_stair_side_clearance_m: float = 0.05
 ## Entrada de casa unifamiliar: porche techado con pilares.
 @export var house_porch_roof_enabled: bool = true
 @export var house_porch_color: Color = Color(0.52, 0.50, 0.45, 1.0)
@@ -241,6 +268,11 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var house_porch_roof_color: Color = Color(0.34, 0.18, 0.12, 1.0)
 @export var house_path_color: Color = Color(0.50, 0.49, 0.45, 1.0)
 @export var house_doormat_color: Color = Color(0.24, 0.20, 0.16, 1.0)
+@export_range(1.8, 4.0, 0.05) var house_porch_width_m: float = 2.60
+@export_range(1.0, 3.0, 0.05) var house_porch_depth_m: float = 1.70
+@export_range(2.0, 3.2, 0.05) var house_porch_column_height_m: float = 2.35
+@export_range(0.25, 1.2, 0.01) var house_porch_roof_height_m: float = 0.54
+@export var house_porch_lamp_color: Color = Color(1.0, 0.72, 0.38, 1.0)
 
 @export_subgroup("Suelo y casas exteriores")
 ## Losa del porche/rellano frente a la puerta de entrada.
@@ -255,6 +287,26 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var residential_house_color: Color = Color(0.55, 0.50, 0.43, 1.0)
 ## Tejados de las casas vecinas.
 @export var residential_roof_color: Color = Color(0.31, 0.15, 0.10, 1.0)
+@export var residential_window_frame_color: Color = Color(0.79, 0.80, 0.76, 1.0)
+@export var residential_hedge_color: Color = Color(0.14, 0.30, 0.16, 1.0)
+@export_range(14.0, 40.0, 0.5) var residential_view_width_m: float = 20.0
+@export_range(2.0, 8.0, 0.05) var residential_lawn_depth_m: float = 4.55
+@export_range(0.8, 3.0, 0.05) var residential_sidewalk_depth_m: float = 1.35
+@export_range(3.0, 9.0, 0.05) var residential_road_depth_m: float = 5.40
+@export_range(1.0, 6.0, 0.05) var residential_opposite_yard_depth_m: float = 3.0
+@export_range(0.7, 2.0, 0.05) var residential_path_width_m: float = 1.08
+@export_range(1.5, 4.0, 0.05) var residential_driveway_width_m: float = 2.35
+@export_range(2.0, 6.0, 0.05) var residential_driveway_offset_m: float = 3.35
+@export_range(1, 5, 1) var residential_house_count: int = 3
+@export_range(4.5, 10.0, 0.05) var residential_house_spacing_m: float = 6.15
+@export_range(3.5, 8.0, 0.05) var residential_house_width_m: float = 4.85
+@export_range(3.0, 7.0, 0.05) var residential_house_height_m: float = 4.20
+@export_range(2.5, 7.0, 0.05) var residential_house_depth_m: float = 4.05
+@export_range(0.5, 2.5, 0.05) var residential_roof_height_m: float = 1.25
+@export_range(0, 12, 1) var residential_tree_count: int = 5
+@export_range(2.5, 8.0, 0.05) var residential_tree_spacing_m: float = 4.35
+@export_range(1.5, 5.0, 0.05) var residential_tree_trunk_height_m: float = 2.35
+@export_range(0.4, 1.8, 0.05) var residential_tree_crown_radius_m: float = 0.82
 
 @export_group("Marcadores FP")
 @export var show_fp_detectors: bool = true
@@ -1497,28 +1549,34 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
 	var horizontal: bool = String(info.get("orientation", "horizontal")) == "horizontal"
 	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
-	var width_m: float = maxf(5.40, float(info.get("width_m", 0.85)) + 4.10)
+	var doors: int = clampi(landing_neighbor_doors, 1, 4)
+	var stair_bay_w: float = landing_stair_bay_width_m
+	var width_m: float = maxf(
+		5.40,
+		maxf(float(info.get("width_m", 0.85)) + 4.10, float(doors) * 1.18 + stair_bay_w + 1.0)
+	)
 	var depth_m: float = maxf(3.30, landing_recess_depth_m * 2.35)
-	var corridor_height_m: float = 2.62
+	var corridor_height_m: float = landing_floor_height_m
 
 	var floor_center: Vector3 = center - normal * (depth_m * 0.5 + 0.08)
 	floor_center.y = floor_level_m - floor_thickness_m * 0.5
 
-	# Caja de escalera contra la pared derecha del rellano. Suelo y techo
-	# quedan CERRADOS (sin huecos): la escalera se ve parcialmente por una
-	# abertura en un muro divisorio y se pierde detras, sin mostrar como sube
-	# o baja ni dejar ver el cielo ni agujeros.
-	var stair_bay_w: float = 1.55
+	# Caja de escalera contra la pared derecha. Dos tiros paralelos conectan
+	# esta planta con las plantas inferior y superior sin compartir volumen.
 	var stair_bay_center: Vector3 = floor_center + tangent * (width_m * 0.5 - stair_bay_w * 0.5 - wall_thickness_m)
+	var stair_layout: Dictionary = _landing_stair_layout(
+		stair_bay_center, stair_bay_w, depth_m, normal, tangent, corridor_height_m
+	)
+	var shaft_hole: Rect2 = Rect2(stair_layout["shaft_hole_xz"])
 
-	var floor_size := Vector3(width_m, floor_thickness_m, depth_m) if horizontal else Vector3(depth_m, floor_thickness_m, width_m)
-	_add_box(
-		_world_root,
+	var floor_rect: Rect2 = _xz_rect(floor_center, width_m * 0.5, depth_m * 0.5, tangent, normal)
+	_add_slab_with_holes(
 		"LandingFloor_%02d" % index,
-		floor_size,
-		floor_center,
-		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4100 + index),
-		false
+		floor_rect,
+		floor_center.y,
+		floor_thickness_m,
+		[shaft_hole],
+		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4100 + index)
 	)
 
 	var wall_center: Vector3 = center - normal * (depth_m + 0.11)
@@ -1548,14 +1606,14 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 
 	var ceiling_center: Vector3 = floor_center
 	ceiling_center.y = floor_level_m + corridor_height_m + ceiling_thickness_m * 0.5
-	var ceiling_size := Vector3(width_m, ceiling_thickness_m, depth_m) if horizontal else Vector3(depth_m, ceiling_thickness_m, width_m)
-	_add_box(
-		_world_root,
+	var ceiling_rect: Rect2 = _xz_rect(ceiling_center, width_m * 0.5, depth_m * 0.5, tangent, normal)
+	_add_slab_with_holes(
 		"LandingCeiling_%02d" % index,
-		ceiling_size,
-		ceiling_center,
-		_mat(landing_ceiling_color, false),
-		false
+		ceiling_rect,
+		ceiling_center.y,
+		ceiling_thickness_m,
+		[shaft_hole],
+		_mat(landing_ceiling_color, false)
 	)
 
 	var fixture_center: Vector3 = center - normal * (depth_m * 0.62)
@@ -1585,11 +1643,13 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	# planta es lo habitual; nunca pegadas unas a otras).
 	var door_w: float = 0.86
 	var door_h: float = 2.03
-	var doors: int = clampi(landing_neighbor_doors, 1, 4)
+	var stair_inner_edge_t: float = width_m * 0.5 - stair_bay_w - wall_thickness_m
+	var door_band_min_t: float = -width_m * 0.5 + 0.55
+	var door_band_max_t: float = stair_inner_edge_t - 0.52
 	var neighbor_offsets: Array[float] = []
 	for d in range(doors):
-		var t_norm: float = (float(d) + 0.5) / float(doors) - 0.5
-		neighbor_offsets.append(t_norm * width_m * 0.62)
+		var t_norm: float = (float(d) + 0.5) / float(doors)
+		neighbor_offsets.append(lerpf(door_band_min_t, door_band_max_t, t_norm))
 	for door_i in range(neighbor_offsets.size()):
 		var offset_t: float = float(neighbor_offsets[door_i])
 		var door_surface: Vector3 = surface_center + tangent * offset_t
@@ -1640,9 +1700,17 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		false
 	)
 
-	# Escalera parcialmente oculta tras un muro divisorio con abertura de paso:
-	# se ve el arranque subiendo y se pierde detras, sin revelar como continua.
-	_create_landing_stairs(index, floor_level_m, stair_bay_center, stair_bay_w, normal, tangent, corridor_height_m)
+	_create_landing_stairs(
+		index,
+		floor_level_m,
+		stair_bay_center,
+		stair_bay_w,
+		depth_m,
+		normal,
+		tangent,
+		corridor_height_m,
+		stair_layout
+	)
 
 
 func _create_single_family_entry_recess(index: int, _op: OpeningModel, info: Dictionary) -> void:
@@ -1651,8 +1719,8 @@ func _create_single_family_entry_recess(index: int, _op: OpeningModel, info: Dic
 	var tangent: Vector3 = Vector3(info.get("tangent", Vector3.RIGHT)).normalized()
 	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
 	# Losa del porche, mas ancha que la puerta.
-	var porch_w: float = 2.60
-	var porch_d: float = 1.70
+	var porch_w: float = house_porch_width_m
+	var porch_d: float = house_porch_depth_m
 	var porch_center: Vector3 = center - normal * (porch_d * 0.5 - 0.05)
 	porch_center.y = floor_level_m - floor_thickness_m * 0.5
 	_add_oriented_box(
@@ -1679,70 +1747,24 @@ func _create_single_family_entry_recess(index: int, _op: OpeningModel, info: Dic
 
 	# Porche techado: dos pilares y voladizo.
 	if house_porch_roof_enabled:
-		var col_h: float = 2.35
+		var col_h: float = house_porch_column_height_m
 		for side in [-1.0, 1.0]:
 			var col_center: Vector3 = center - normal * (porch_d - 0.22) + tangent * (side * porch_w * 0.40)
 			col_center.y = floor_level_m + col_h * 0.5
 			_add_oriented_box(_world_root, "HousePorchColumn_%02d_%s" % [index, "L" if side < 0.0 else "R"],
 				col_center, tangent, 0.16, col_h, 0.16, _mat(house_porch_column_color, false), false)
-		var roof_center: Vector3 = center - normal * (porch_d * 0.5 - 0.05)
-		roof_center.y = floor_level_m + col_h + 0.09
-		_add_oriented_box(_world_root, "HousePorchRoof_%02d" % index, roof_center, tangent,
-			porch_w + 0.30, 0.18, porch_d + 0.35, _mat(house_porch_roof_color, false), false)
+		var roof_base: Vector3 = center - normal * (porch_d * 0.5 - 0.05)
+		roof_base.y = floor_level_m + col_h
+		_add_gable_roof(_world_root, "HousePorchRoof_%02d" % index, roof_base, tangent, normal,
+			porch_w + 0.34, porch_d + 0.38, house_porch_roof_height_m, house_porch_roof_color)
+		var lamp: Vector3 = center - normal * 0.12 + tangent * 0.62
+		lamp.y = floor_level_m + 1.78
+		var lamp_color: Color = house_porch_lamp_color
+		_add_oriented_box(_world_root, "HousePorchLamp_%02d" % index, lamp, tangent,
+			0.16, 0.24, 0.10, _mat(lamp_color.darkened(0.38), false, lamp_color, 0.72), false)
 
-	var path_center: Vector3 = center - normal * (porch_d + 1.90)
-	path_center.y = floor_level_m - floor_thickness_m * 0.52
-	_add_oriented_box(
-		_world_root,
-		"HouseEntryPath_%02d" % index,
-		path_center,
-		tangent,
-		1.20,
-		floor_thickness_m,
-		3.05,
-		_mat(house_path_color, false),
-		false
-	)
-	var street_center: Vector3 = center - normal * 4.35
-	street_center.y = floor_level_m - floor_thickness_m * 0.55
-	_add_oriented_box(
-		_world_root,
-		"HouseStreet_%02d" % index,
-		street_center,
-		tangent,
-		7.20,
-		floor_thickness_m,
-		0.80,
-		_mat(Color(0.12, 0.13, 0.13, 1.0), false),
-		false
-	)
-	for side_sign in [-1.0, 1.0]:
-		var garden_center: Vector3 = center - normal * 1.75 + tangent * side_sign * 1.65
-		garden_center.y = floor_level_m - floor_thickness_m * 0.57
-		_add_oriented_box(
-			_world_root,
-			"HouseGarden_%02d_%s" % [index, str(side_sign)],
-			garden_center,
-			tangent,
-			1.65,
-			floor_thickness_m,
-			2.45,
-			_mat(Color(0.17, 0.33, 0.19, 1.0), false),
-			false
-		)
-		var house_center: Vector3 = center - normal * 5.05 + tangent * side_sign * 2.45
-		house_center.y = floor_level_m + 0.70
-		_add_oriented_box(
-			_world_root,
-			"NeighbourHouse_%02d_%s" % [index, str(side_sign)],
-			house_center,
-			tangent,
-			1.55,
-			1.40,
-			0.70,
-			_mat(Color(0.55, 0.50, 0.43, 1.0), false),
-			false
-		)
+	# Jardin, camino, calle y vecindario pertenecen al generador residencial
+	# por fachada. Mantenerlos fuera evita duplicados cuando hay varias puertas.
 
 
 ## Barra recta entre dos puntos (pasamanos inclinado, zancas...).
@@ -1766,23 +1788,80 @@ func _add_bar_between(node_name: String, p_from: Vector3, p_to: Vector3, thickne
 	return mesh
 
 
-## Un tramo de escalera con peldaños macizos y barandilla (balaustres +
-## pasamanos inclinado). `start` es el centro del borde bajo del primer
-## peldaño; `run_dir` la direccion de avance; `y_bottom` la cota del primer
-## peldaño. `going_up` decide si sube (peldaños hacia arriba) o baja.
-func _create_stair_flight(name_prefix: String, start: Vector3, run_dir: Vector3, tangent: Vector3, y_bottom: float, tread: float, rise: float, steps: int, flight_w: float, going_up: bool) -> void:
+## Distribucion de una escalera de portal en U con dos carriles separados.
+## El mismo hueco lateral sirve al tiro que baja y a su continuacion superior.
+func _landing_stair_layout(
+	bay_center: Vector3,
+	stair_bay_w: float,
+	depth_m: float,
+	normal: Vector3,
+	tangent: Vector3,
+	corridor_height_m: float
+) -> Dictionary:
+	var half_height: float = corridor_height_m * 0.5
+	var requested_rise: float = clampf(landing_step_rise_m, 0.12, 0.19)
+	var steps: int = maxi(7, ceili(half_height / requested_rise))
+	var rise: float = half_height / float(steps)
+	var front_landing_depth: float = landing_stair_front_landing_depth_m
+	var rear_landing_depth: float = landing_stair_rear_landing_depth_m
+	var end_clearance: float = 0.04
+	var available_run: float = maxf(
+		1.60,
+		depth_m - front_landing_depth - rear_landing_depth - end_clearance * 2.0
+	)
+	var tread: float = minf(maxf(0.22, landing_step_tread_m), available_run / float(steps))
+	var run_m: float = tread * float(steps)
+	var lane_gap: float = landing_stair_lane_gap_m
+	var side_clearance: float = landing_stair_side_clearance_m
+	var flight_w: float = (stair_bay_w - lane_gap - side_clearance * 2.0) * 0.5
+	var lane_offset: float = lane_gap * 0.5 + flight_w * 0.5
+	var front_s: float = depth_m * 0.5 - front_landing_depth - end_clearance
+	var rear_s: float = front_s - run_m
+	var up_lane_center: Vector3 = bay_center - tangent * lane_offset
+	var down_lane_center: Vector3 = bay_center + tangent * lane_offset
+	var rear_landing_center: Vector3 = bay_center - normal * (depth_m * 0.5 - rear_landing_depth * 0.5)
+	var hole_rear_s: float = -depth_m * 0.5 + 0.025
+	var hole_front_s: float = front_s + 0.025
+	var hole_center: Vector3 = down_lane_center + normal * ((hole_front_s + hole_rear_s) * 0.5)
+	var hole_half_depth: float = (hole_front_s - hole_rear_s) * 0.5
+	return {
+		"steps": steps,
+		"rise": rise,
+		"tread": tread,
+		"run_m": run_m,
+		"flight_w": flight_w,
+		"front_landing_depth": front_landing_depth,
+		"rear_landing_depth": rear_landing_depth,
+		"up_current_start": up_lane_center + normal * front_s,
+		"down_current_start": down_lane_center + normal * front_s,
+		"up_next_start": down_lane_center + normal * rear_s,
+		"down_previous_start": up_lane_center + normal * rear_s,
+		"rear_landing_center": rear_landing_center,
+		"shaft_hole_xz": _xz_rect(
+			hole_center,
+			flight_w * 0.5 + side_clearance,
+			hole_half_depth,
+			tangent,
+			normal
+		),
+	}
+
+
+## Tramo de peldaños macizos con barandilla interior. Los bloques arrancan
+## exactamente en y_bottom para no penetrar el forjado de salida.
+func _create_stair_flight(name_prefix: String, start: Vector3, run_dir: Vector3, tangent: Vector3, y_bottom: float, tread: float, rise: float, steps: int, flight_w: float, going_up: bool, rail_side_sign: float = -1.0) -> void:
 	var step_mat: StandardMaterial3D = _mat(landing_stair_color, false)
 	var rail_mat: StandardMaterial3D = _mat(landing_railing_color, false)
 	for step_i in range(steps):
 		var top_y: float = y_bottom + rise * (float(step_i + 1) if going_up else float(steps - step_i))
-		var block_h: float = top_y - (y_bottom - rise)
+		var block_h: float = top_y - y_bottom
 		var step_center: Vector3 = start + run_dir * (float(step_i) * tread + tread * 0.5)
 		step_center.y = top_y - block_h * 0.5
 		_add_oriented_box(_world_root, "%s_Step_%02d" % [name_prefix, step_i],
 			step_center, tangent, flight_w, block_h, tread, step_mat, false)
 
 	var rail_h: float = 0.98
-	var rail_side: Vector3 = tangent * (-flight_w * 0.5 + 0.05)
+	var rail_side: Vector3 = tangent * (rail_side_sign * (flight_w * 0.5 - 0.05))
 	var y_first: float = y_bottom + (rise if going_up else rise * float(steps))
 	var y_last: float = y_bottom + (rise * float(steps) if going_up else rise)
 	var post_from: Vector3 = start + rail_side + run_dir * (tread * 0.5)
@@ -1796,51 +1875,119 @@ func _create_stair_flight(name_prefix: String, start: Vector3, run_dir: Vector3,
 	_add_bar_between("%s_Handrail" % name_prefix, post_from + Vector3.UP * rail_h, post_to + Vector3.UP * rail_h, 0.06, rail_mat)
 
 
-## Escalera del rellano estilo portal, PARCIALMENTE OCULTA: un unico tramo
-## sube hacia la pared del fondo, pero un muro divisorio con una abertura de
-## paso lo tapa casi por completo. Desde el rellano solo se ve el arranque
-## subiendo por la abertura; el resto queda detras del muro, sin revelar como
-## continua ni dejar huecos al cielo o al vacio (suelo y techo van cerrados).
-func _create_landing_stairs(index: int, floor_level_m: float, bay_center: Vector3, stair_bay_w: float, normal: Vector3, tangent: Vector3, corridor_height_m: float) -> void:
-	var tread: float = maxf(0.22, landing_step_tread_m)
-	var rise: float = maxf(0.12, landing_step_rise_m)
-	var flight_w: float = stair_bay_w * 0.86
+## Escalera de portal completa: dos tiros visibles desde el rellano y dos
+## retornos que alcanzan las plantas inferior y superior.
+func _create_landing_stairs(
+	index: int,
+	floor_level_m: float,
+	bay_center: Vector3,
+	stair_bay_w: float,
+	depth_m: float,
+	normal: Vector3,
+	tangent: Vector3,
+	corridor_height_m: float,
+	layout: Dictionary
+) -> void:
+	var tread: float = float(layout["tread"])
+	var rise: float = float(layout["rise"])
+	var steps: int = int(layout["steps"])
+	var flight_w: float = float(layout["flight_w"])
+	var half_height: float = corridor_height_m * 0.5
 	var step_mat: StandardMaterial3D = _mat(landing_stair_color, false)
 	var wall_mat: StandardMaterial3D = _mat(landing_wall_color, false)
+	var run_to_rear: Vector3 = -normal
+	var run_to_front: Vector3 = normal
 
-	# --- TRAMO UNICO: sube desde el suelo hacia la pared del fondo (run =
-	#     -normal). Empieza cerca del frente del hueco para que su arranque
-	#     asome por la abertura del muro.
-	var steps: int = 7
-	var run_up: Vector3 = -normal
-	var flight_start: Vector3 = bay_center + normal * (float(steps) * tread * 0.5 - 0.10)
-	_create_stair_flight("LandingUp_%02d" % index, flight_start, run_up, tangent, floor_level_m, tread, rise, steps, flight_w, true)
-	# Descansillo ciego al final del tramo, contra la pared del fondo: la
-	# escalera "gira" y se pierde, no se ve adonde va.
-	var top_y: float = floor_level_m + rise * float(steps)
-	var landing_top: Vector3 = flight_start + run_up * (float(steps) * tread + 0.24)
-	landing_top.y = top_y - floor_thickness_m * 0.5
-	_add_oriented_box(_world_root, "LandingStairTop_%02d" % index, landing_top, tangent,
-		stair_bay_w, floor_thickness_m, 0.55, step_mat, false)
+	# Los dos tiros visibles parten de este rellano en carriles distintos.
+	_create_stair_flight(
+		"LandingUpCurrent_%02d" % index,
+		Vector3(layout["up_current_start"]), run_to_rear, tangent,
+		floor_level_m, tread, rise, steps, flight_w, true, 1.0
+	)
+	_create_stair_flight(
+		"LandingDownCurrent_%02d" % index,
+		Vector3(layout["down_current_start"]), run_to_rear, tangent,
+		floor_level_m - half_height, tread, rise, steps, flight_w, false, -1.0
+	)
 
-	# --- MURO DIVISORIO con abertura de paso, delante del tramo (hacia el
-	#     observador). Se construye como dos machones + dintel dejando el hueco
-	#     de paso, para que la escalera se vea solo parcialmente por el.
-	var screen_z: Vector3 = bay_center + normal * (float(steps) * tread * 0.5 + 0.12)
-	var screen_th: float = 0.11
-	var wall_h: float = corridor_height_m
-	var open_w: float = clampf(stair_bay_w - 0.42, 0.72, 0.98)
-	var open_h: float = 2.05
-	var pier_w: float = (stair_bay_w - open_w) * 0.5
-	for pside in [-1.0, 1.0]:
-		var pier_c: Vector3 = screen_z + tangent * (pside * (open_w + pier_w) * 0.5)
-		pier_c.y = floor_level_m + wall_h * 0.5
-		_add_oriented_box(_world_root, "LandingScreenPier_%02d_%s" % [index, "L" if pside < 0.0 else "R"],
-			pier_c, tangent, pier_w, wall_h, screen_th, wall_mat, false)
-	var lintel_c: Vector3 = screen_z
-	lintel_c.y = floor_level_m + open_h + (wall_h - open_h) * 0.5
-	_add_oriented_box(_world_root, "LandingScreenLintel_%02d" % index, lintel_c, tangent,
-		open_w, wall_h - open_h, screen_th, wall_mat, false)
+	# Los tiros de retorno completan la U hasta las plantas contiguas.
+	_create_stair_flight(
+		"LandingUpNext_%02d" % index,
+		Vector3(layout["up_next_start"]), run_to_front, tangent,
+		floor_level_m + half_height, tread, rise, steps, flight_w, true, -1.0
+	)
+	_create_stair_flight(
+		"LandingDownPrevious_%02d" % index,
+		Vector3(layout["down_previous_start"]), run_to_front, tangent,
+		floor_level_m - corridor_height_m, tread, rise, steps, flight_w, false, 1.0
+	)
+
+	var rear_landing_depth: float = float(layout["rear_landing_depth"])
+	var rear_center: Vector3 = Vector3(layout["rear_landing_center"])
+	for landing_data in [
+		["Upper", floor_level_m + half_height],
+		["Lower", floor_level_m - half_height],
+	]:
+		var landing_center: Vector3 = rear_center
+		landing_center.y = float(landing_data[1]) - floor_thickness_m * 0.5
+		_add_oriented_box(
+			_world_root,
+			"LandingMid%s_%02d" % [String(landing_data[0]), index],
+			landing_center,
+			tangent,
+			stair_bay_w,
+			floor_thickness_m,
+			rear_landing_depth,
+			step_mat,
+			false
+		)
+
+	# Al mirar por los huecos siempre aparece otra planta cerrada, no cielo ni
+	# un pozo sin fondo.
+	var lower_floor: Vector3 = bay_center
+	lower_floor.y = floor_level_m - corridor_height_m - floor_thickness_m * 0.5
+	_add_oriented_box(_world_root, "LandingLowerFloor_%02d" % index, lower_floor, tangent,
+		stair_bay_w, floor_thickness_m, depth_m, step_mat, false)
+	var upper_ceiling: Vector3 = bay_center
+	upper_ceiling.y = floor_level_m + corridor_height_m * 2.0 + ceiling_thickness_m * 0.5
+	_add_oriented_box(_world_root, "LandingUpperCeiling_%02d" % index, upper_ceiling, tangent,
+		stair_bay_w, ceiling_thickness_m, depth_m, _mat(landing_ceiling_color.darkened(0.08), false), false)
+
+	# Cerramiento de la caja en las plantas contiguas. La planta actual queda
+	# abierta hacia el rellano para que subida y bajada se lean de un vistazo.
+	for level_data in [
+		["Lower", floor_level_m - corridor_height_m * 0.5],
+		["Upper", floor_level_m + corridor_height_m * 1.5],
+	]:
+		var level_name: String = String(level_data[0])
+		var band_center_y: float = float(level_data[1])
+		for side_sign in [-1.0, 1.0]:
+			var side_center: Vector3 = bay_center + tangent * side_sign * (stair_bay_w * 0.5 + wall_thickness_m * 0.5)
+			side_center.y = band_center_y
+			_add_oriented_box(
+				_world_root,
+				"LandingStairSide_%02d_%s_%s" % [index, level_name, "L" if side_sign < 0.0 else "R"],
+				side_center,
+				normal,
+				depth_m,
+				corridor_height_m,
+				wall_thickness_m,
+				wall_mat,
+				false
+			)
+		var back_center: Vector3 = bay_center - normal * (depth_m * 0.5 + wall_thickness_m * 0.5)
+		back_center.y = band_center_y
+		_add_oriented_box(
+			_world_root,
+			"LandingStairBack_%02d_%s" % [index, level_name],
+			back_center,
+			tangent,
+			stair_bay_w + wall_thickness_m * 2.0,
+			corridor_height_m,
+			wall_thickness_m,
+			wall_mat,
+			false
+		)
 
 
 func _create_exterior_context() -> void:
@@ -1881,7 +2028,8 @@ func _create_exterior_context() -> void:
 				float(info.get("sill_m", 0.9))
 			)
 		elif op.type == OpeningModel.Type.DOOR or op.type == OpeningModel.Type.HOLE:
-			_create_door_entrance(root, index, center, normal, tangent, float(info.get("width_m", 0.9)), floor_level_m)
+			if _is_apartment_building() or op.type == OpeningModel.Type.HOLE:
+				_create_door_entrance(root, index, center, normal, tangent, float(info.get("width_m", 0.9)), floor_level_m)
 
 		var key: String = "%d_%d" % [roundi(normal.x * 4.0), roundi(normal.z * 4.0)]
 		if not facades.has(key):
@@ -1958,41 +2106,82 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 	var sidewalk_w: float = maxf(0.5, street_sidewalk_width_m)
 	var road_w: float = maxf(2.0, street_road_width_m)
 	var span_w: float = maxf(city_view_width_m * 1.6, opposite_facade_length_m)
+	var pavement_mat: StandardMaterial3D = _mat(sidewalk_color, false)
+	var curb_mat: StandardMaterial3D = _mat(sidewalk_color.lightened(0.09), false)
 
-	# Acera propia (al pie de nuestra fachada).
+	# Calle completa a escala: dos aceras, bordillos levantados y calzada.
 	var near_walk: Vector3 = center - normal * (sidewalk_w * 0.5)
 	near_walk.y = street_y + street_curb_height_m * 0.5
 	_add_oriented_box(parent, "Sidewalk_near_%02d" % index, near_walk, tangent,
-		span_w, street_curb_height_m, sidewalk_w, _mat(sidewalk_color, false), false)
+		span_w, street_curb_height_m, sidewalk_w, pavement_mat, false)
 
-	# Calzada.
 	var road_center: Vector3 = center - normal * (sidewalk_w + road_w * 0.5)
 	road_center.y = street_y
 	_add_oriented_box(parent, "Road_%02d" % index, road_center, tangent,
 		span_w, 0.06, road_w, _mat(_effective_city_street_color(), false), false)
-	# Linea discontinua central.
-	for m in range(-3, 4):
-		var mark: Vector3 = road_center + tangent * (float(m) * 3.2)
-		mark.y = street_y + 0.035
-		_add_oriented_box(parent, "RoadMark_%02d_%d" % [index, m + 3], mark, tangent,
-			1.5, 0.02, 0.14, _mat(road_marking_color, false), false)
 
-	# Acera de enfrente.
 	var far_walk: Vector3 = center - normal * (sidewalk_w + road_w + sidewalk_w * 0.5)
 	far_walk.y = street_y + street_curb_height_m * 0.5
 	_add_oriented_box(parent, "Sidewalk_far_%02d" % index, far_walk, tangent,
-		span_w, street_curb_height_m, sidewalk_w, _mat(sidewalk_color, false), false)
+		span_w, street_curb_height_m, sidewalk_w, pavement_mat, false)
+	for curb_data in [
+		["Near", sidewalk_w + 0.07],
+		["Far", sidewalk_w + road_w - 0.07],
+	]:
+		var curb_center: Vector3 = center - normal * float(curb_data[1])
+		curb_center.y = street_y + 0.10
+		_add_oriented_box(parent, "CityCurb%s_%02d" % [String(curb_data[0]), index], curb_center, tangent,
+			span_w, 0.14, 0.14, curb_mat, false)
 
-	# Fachada continua de enfrente, a ancho de calle real.
+	var mark_count: int = maxi(5, int(floor(span_w / 3.6)))
+	for mark_i in range(mark_count):
+		var mark_t: float = (float(mark_i) + 0.5) / float(mark_count) - 0.5
+		var mark: Vector3 = road_center + tangent * (mark_t * span_w)
+		mark.y = street_y + 0.045
+		_add_oriented_box(parent, "RoadMark_%02d_%02d" % [index, mark_i], mark, tangent,
+			1.55, 0.018, 0.11, _mat(road_marking_color, false), false)
+
+	# Edificios de enfrente divididos en portales con anchura, profundidad y
+	# altura propias. Las juntas reales sustituyen a la antigua pared monolitica.
 	var facade_dist: float = sidewalk_w * 2.0 + road_w
 	if opposite_facade_enabled:
-		var facade_h: float = maxf(3.0, opposite_facade_height_m)
-		var facade_col: Color = opposite_facade_night_color if night else opposite_facade_day_color
-		var facade_center: Vector3 = center - normal * (facade_dist + 0.6)
-		facade_center.y = street_y + facade_h * 0.5
-		_add_oriented_box(parent, "OppositeFacade_%02d" % index, facade_center, tangent,
-			opposite_facade_length_m, facade_h, 1.2, _mat(facade_col, false), false)
-		_create_facade_windows(parent, index, center, normal, tangent, street_y, facade_dist, facade_h)
+		var facade_h: float = maxf(7.5, opposite_facade_height_m)
+		var base_color: Color = opposite_facade_night_color if night else opposite_facade_day_color
+		var module_count: int = clampi(city_facade_module_count, 3, 8)
+		var module_pitch: float = opposite_facade_length_m / float(module_count)
+		for module_i in range(module_count):
+			var module_t: float = (float(module_i) + 0.5) / float(module_count) - 0.5
+			var variant: float = fposmod(float(index * 19 + module_i * 37) * 0.173, 1.0)
+			var module_w: float = module_pitch - 0.18
+			var module_h: float = facade_h * (1.0 - city_facade_height_variation + variant * city_facade_height_variation)
+			var module_depth: float = city_facade_depth_m * (1.0 + variant * 0.40)
+			var face_center: Vector3 = center - normal * facade_dist + tangent * (module_t * opposite_facade_length_m)
+			var body_center: Vector3 = face_center - normal * (module_depth * 0.5)
+			body_center.y = street_y + module_h * 0.5
+			var module_color: Color = base_color.lightened(0.035) if module_i % 3 == 0 else (base_color.darkened(0.055) if module_i % 3 == 1 else base_color)
+			_add_oriented_box(parent, "CityFacadeBody_%02d_%02d" % [index, module_i], body_center, tangent,
+				module_w, module_h, module_depth, _mat(module_color, false), false)
+			var plinth: Vector3 = face_center + normal * 0.035
+			plinth.y = street_y + 0.42
+			_add_oriented_box(parent, "CityFacadePlinth_%02d_%02d" % [index, module_i], plinth, tangent,
+				module_w - 0.10, 0.84, 0.07, _mat(module_color.darkened(0.16), false), false)
+			var cornice: Vector3 = face_center + normal * 0.08
+			cornice.y = street_y + module_h - 0.14
+			_add_oriented_box(parent, "CityFacadeCornice_%02d_%02d" % [index, module_i], cornice, tangent,
+				module_w + 0.10, 0.22, 0.18, _mat(module_color.lightened(0.10), false), false)
+			_create_facade_windows(parent, index, module_i, face_center, normal, tangent, street_y, module_w, module_h)
+
+	# Coches y arbolado dan escala y capas de profundidad sin cerrar la vista.
+	for car_i in range(city_parked_car_count):
+		var car_offset: float = (float(car_i) - float(city_parked_car_count - 1) * 0.5) * city_parked_car_spacing_m
+		var car_center: Vector3 = center - normal * (sidewalk_w + road_w - 0.78) + tangent * car_offset
+		car_center.y = street_y + 0.30
+		_create_exterior_car(parent, "CityCar_%02d_%02d" % [index, car_i], car_center, tangent, normal, car_i)
+	for tree_i in range(city_tree_count):
+		var tree_t: float = (float(tree_i) - float(city_tree_count - 1) * 0.5) * city_tree_spacing_m
+		var tree_base: Vector3 = far_walk + tangent * tree_t
+		tree_base.y = street_y + street_curb_height_m
+		_create_low_poly_tree(parent, "CityTree_%02d_%02d" % [index, tree_i], tree_base, city_tree_trunk_height_m, city_tree_crown_radius_m, tree_i)
 
 	# Skyline lejano por detras del edificio de enfrente (profundidad).
 	_create_skyline_backdrop(parent, index, center, normal, tangent, street_y, 1.0)
@@ -2000,40 +2189,60 @@ func _create_exterior_scenery_city(parent: Node3D, index: int, center: Vector3, 
 
 ## Ventanas de la fachada de enfrente: rejilla de paneles planos embebidos
 ## (no cajitas sueltas), con algunas encendidas de noche.
-func _create_facade_windows(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, street_y: float, facade_dist: float, facade_h: float) -> void:
-	var floors: int = maxi(0, opposite_facade_floors)
-	var columns: int = maxi(0, opposite_facade_columns)
-	if floors <= 0 or columns <= 0:
+func _create_facade_windows(parent: Node3D, index: int, module_index: int, face_center: Vector3, normal: Vector3, tangent: Vector3, street_y: float, module_w: float, facade_h: float) -> void:
+	if opposite_facade_floors <= 0 or opposite_facade_columns <= 0:
 		return
+	var floors: int = clampi(mini(opposite_facade_floors, int(round((facade_h - 1.2) / 2.55))), 2, 6)
+	var columns: int = clampi(mini(opposite_facade_columns, int(round(module_w / 2.25))), 2, 4)
 	var night: bool = _exterior_is_night()
 	var base_col: Color = opposite_window_night_color if night else opposite_window_day_color
 	var lit_ratio: float = city_night_lit_window_ratio if night else city_day_lit_window_ratio
-	var floor_h: float = facade_h / float(floors + 1)
-	var col_step: float = opposite_facade_length_m / float(columns + 1)
-	var win_w: float = minf(1.25, col_step * 0.52)
-	var win_h: float = minf(1.45, floor_h * 0.52)
-	var face: Vector3 = center - normal * facade_dist
+	var floor_h: float = (facade_h - 1.25) / float(floors)
+	var col_step: float = module_w / float(columns + 1)
+	var win_w: float = minf(1.20, col_step * 0.64)
+	var win_h: float = minf(1.38, floor_h * 0.58)
+	var frame_col: Color = city_window_frame_night_color if night else city_window_frame_day_color
 	for f in range(floors):
-		var y: float = street_y + floor_h * (float(f) + 1.0)
+		var y: float = street_y + 1.28 + floor_h * (float(f) + 0.5)
 		for c in range(columns):
-			var t: float = (float(c) + 1.0) / float(columns + 1) - 0.5
-			var variant_seed: float = float(index * 7 + f * 31 + c * 13)
+			var x: float = (float(c) + 1.0) * col_step - module_w * 0.5
+			var variant_seed: float = float(index * 7 + module_index * 43 + f * 31 + c * 13)
 			var lit: bool = fposmod(variant_seed * 0.173, 1.0) < lit_ratio
 			var col: Color = opposite_window_lit_color if lit else base_col
 			var emission: float = 0.55 if (lit and night) else (0.10 if lit else 0.0)
-			var wc: Vector3 = face + tangent * (t * opposite_facade_length_m)
+			var wc: Vector3 = face_center + tangent * x + normal * 0.045
 			wc.y = y
+			_add_oriented_box(parent, "CityWindowFrame_%02d_%02d_%02d_%02d" % [index, module_index, f, c], wc, tangent,
+				win_w + 0.14, win_h + 0.14, 0.09, _mat(frame_col, false), false)
+			wc += normal * 0.075
 			_add_oriented_box(
 				parent,
-				"OppositeWindow_%02d_%02d_%02d" % [index, f, c],
+				"CityWindowGlass_%02d_%02d_%02d_%02d" % [index, module_index, f, c],
 				wc,
 				tangent,
 				win_w,
 				win_h,
-				0.10,
+				0.045,
 				_mat(col, false, col if lit else Color(0.0, 0.0, 0.0, 0.0), emission),
 				false
 			)
+			var mullion: Vector3 = wc + normal * 0.03
+			_add_oriented_box(parent, "CityWindowMullion_%02d_%02d_%02d_%02d" % [index, module_index, f, c], mullion, tangent,
+				0.035, win_h, 0.035, _mat(frame_col.darkened(0.12), false), false)
+			var sill: Vector3 = wc + normal * 0.055
+			sill.y = y - win_h * 0.5 - 0.055
+			_add_oriented_box(parent, "CityWindowSill_%02d_%02d_%02d_%02d" % [index, module_index, f, c], sill, tangent,
+				win_w + 0.18, 0.07, 0.22, _mat(frame_col.lightened(0.07), false), false)
+
+	# Entrada de portal centrada y ligeramente retranqueada.
+	var entrance: Vector3 = face_center + normal * 0.052
+	entrance.y = street_y + 1.08
+	_add_oriented_box(parent, "CityEntrance_%02d_%02d" % [index, module_index], entrance, tangent,
+		1.05, 2.16, 0.08, _mat(Color(0.16, 0.18, 0.19, 1.0), false), false)
+	var canopy: Vector3 = entrance + normal * 0.32
+	canopy.y = street_y + 2.28
+	_add_oriented_box(parent, "CityEntranceCanopy_%02d_%02d" % [index, module_index], canopy, tangent,
+		1.42, 0.10, 0.66, _mat(frame_col.darkened(0.18), false), false)
 
 
 ## Skyline de fondo: dibujo del usuario si hay textura, o silueta procedural
@@ -2059,17 +2268,18 @@ func _create_skyline_backdrop(parent: Node3D, index: int, center: Vector3, norma
 		var variant_seed: float = float(index * 53 + s * 29)
 		var seg_h: float = skyline_h * (0.42 + fposmod(variant_seed * 0.31, 0.58))
 		var t: float = (float(s) + 0.5) / float(segments) - 0.5
-		var pc: Vector3 = back_center + tangent * (t * span)
+		var pc: Vector3 = back_center + tangent * (t * span) - normal * fposmod(variant_seed * 0.11, 3.5)
 		pc.y = base_y + seg_h * 0.5
+		var segment_color: Color = sil_color.lightened(0.035) if s % 3 == 0 else (sil_color.darkened(0.05) if s % 3 == 1 else sil_color)
 		_add_oriented_box(
 			parent,
 			"Skyline_%02d_%02d" % [index, s],
 			pc,
 			tangent,
-			seg_w * 1.03,
+			seg_w * 0.88,
 			seg_h,
-			0.14,
-			_mat(sil_color, false),
+			0.22,
+			_mat(segment_color, false),
 			false
 		)
 
@@ -2087,64 +2297,182 @@ func _add_oriented_panel(parent: Node3D, node_name: String, center: Vector3, tan
 	_add_oriented_box(parent, node_name, center, tangent, width_m, height_m, 0.06, mat, false)
 
 
-## Paisaje residencial (cesped + calle + casas + silueta lejana) por ventanas y puerta.
+func _create_exterior_car(parent: Node3D, node_name: String, center: Vector3, tangent: Vector3, normal: Vector3, variant: int) -> void:
+	var colors: Array[Color] = city_car_colors
+	if colors.is_empty():
+		colors = [Color(0.24, 0.31, 0.38, 1.0)]
+	var body_color: Color = colors[variant % colors.size()]
+	_add_oriented_box(parent, node_name + "_Body", center, tangent,
+		3.65, 0.46, 1.62, _mat(body_color, false), false)
+	var cabin: Vector3 = center + Vector3.UP * 0.40 - tangent * 0.18
+	_add_oriented_box(parent, node_name + "_Cabin", cabin, tangent,
+		1.92, 0.50, 1.40, _mat(body_color.lightened(0.08), false), false)
+	var glass_center: Vector3 = cabin + normal * 0.715
+	_add_oriented_box(parent, node_name + "_Glass", glass_center, tangent,
+		1.48, 0.30, 0.035, _mat(Color(0.12, 0.18, 0.22, 1.0), false), false)
+	for wheel_t in [-1.22, 1.22]:
+		for wheel_n in [-0.72, 0.72]:
+			var wheel: Vector3 = center + tangent * wheel_t + normal * wheel_n
+			wheel.y -= 0.18
+			_add_oriented_box(parent, "%s_Wheel_%s_%s" % [node_name, str(wheel_t), str(wheel_n)], wheel, tangent,
+				0.42, 0.34, 0.16, _mat(Color(0.055, 0.06, 0.065, 1.0), false), false)
+
+
+func _create_low_poly_tree(parent: Node3D, node_name: String, base: Vector3, trunk_height: float, crown_radius: float, variant: int) -> void:
+	var trunk_node := MeshInstance3D.new()
+	trunk_node.name = node_name + "_Trunk"
+	var trunk_mesh := CylinderMesh.new()
+	trunk_mesh.top_radius = 0.10
+	trunk_mesh.bottom_radius = 0.16
+	trunk_mesh.height = trunk_height
+	trunk_mesh.radial_segments = 7
+	trunk_node.mesh = trunk_mesh
+	trunk_node.position = base + Vector3.UP * (trunk_height * 0.5)
+	trunk_node.material_override = _mat(exterior_tree_trunk_color, false)
+	parent.add_child(trunk_node)
+
+	var crown_node := MeshInstance3D.new()
+	crown_node.name = node_name + "_Crown"
+	var crown_mesh := SphereMesh.new()
+	crown_mesh.radius = crown_radius
+	crown_mesh.height = crown_radius * (1.65 + float(variant % 2) * 0.12)
+	crown_mesh.radial_segments = 9
+	crown_mesh.rings = 5
+	crown_node.mesh = crown_mesh
+	crown_node.position = base + Vector3.UP * (trunk_height + crown_radius * 0.62)
+	var leaf_color: Color = exterior_tree_leaf_color_a if variant % 3 != 1 else exterior_tree_leaf_color_b
+	crown_node.material_override = _mat(leaf_color.darkened(0.18) if _exterior_is_night() else leaf_color, false)
+	parent.add_child(crown_node)
+
+
+func _add_gable_roof(parent: Node3D, node_name: String, base_center: Vector3, tangent: Vector3, normal: Vector3, width_m: float, depth_m: float, roof_height_m: float, color: Color) -> MeshInstance3D:
+	var left_front: Vector3 = -tangent * (width_m * 0.5) + normal * (depth_m * 0.5)
+	var right_front: Vector3 = tangent * (width_m * 0.5) + normal * (depth_m * 0.5)
+	var left_back: Vector3 = -tangent * (width_m * 0.5) - normal * (depth_m * 0.5)
+	var right_back: Vector3 = tangent * (width_m * 0.5) - normal * (depth_m * 0.5)
+	var ridge_left: Vector3 = -tangent * (width_m * 0.5) + Vector3.UP * roof_height_m
+	var ridge_right: Vector3 = tangent * (width_m * 0.5) + Vector3.UP * roof_height_m
+	var triangles: Array = [
+		[left_front, right_front, ridge_right],
+		[left_front, ridge_right, ridge_left],
+		[right_back, left_back, ridge_left],
+		[right_back, ridge_left, ridge_right],
+		[left_back, left_front, ridge_left],
+		[right_front, right_back, ridge_right],
+	]
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for triangle in triangles:
+		for vertex in triangle:
+			surface.add_vertex(Vector3(vertex))
+	surface.generate_normals()
+	var roof_node := MeshInstance3D.new()
+	roof_node.name = node_name
+	roof_node.mesh = surface.commit()
+	roof_node.position = base_center
+	var roof_material: StandardMaterial3D = _mat(color, false)
+	roof_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	roof_node.material_override = roof_material
+	parent.add_child(roof_node)
+	return roof_node
+
+
+## Entorno residencial completo, compartido por todas las aberturas de la
+## fachada: jardin, acceso, aceras, calzada y viviendas de enfrente.
 func _create_exterior_scenery_residential(parent: Node3D, index: int, center: Vector3, normal: Vector3, tangent: Vector3, floor_level_m: float) -> void:
-	_create_skyline_backdrop(parent, index, center, normal, tangent, floor_level_m - floor_thickness_m, 0.55)
-	var lawn_center: Vector3 = center - normal * 2.65
-	lawn_center.y = floor_level_m - floor_thickness_m * 0.55
-	_add_oriented_box(
-		parent,
-		"ResidentialLawn_%02d" % index,
-		lawn_center,
-		tangent,
-		city_view_width_m * 0.62,
-		floor_thickness_m,
-		3.45,
-		_mat(residential_lawn_color, false, Color(0.08, 0.18, 0.08, 1.0), 0.03 if not _exterior_is_night() else 0.0),
-		false
-	)
-	var street_center: Vector3 = center - normal * 5.55
-	street_center.y = floor_level_m - floor_thickness_m * 0.58
-	_add_oriented_box(
-		parent,
-		"ResidentialStreet_%02d" % index,
-		street_center,
-		tangent,
-		city_view_width_m * 0.74,
-		floor_thickness_m,
-		0.90,
-		_mat(residential_street_color, false),
-		false
-	)
+	var night: bool = _exterior_is_night()
+	var span_w: float = residential_view_width_m
+	var surface_y: float = floor_level_m - 0.015
+	var lawn_depth: float = residential_lawn_depth_m
+	var sidewalk_depth: float = residential_sidewalk_depth_m
+	var road_depth: float = residential_road_depth_m
+
+	var lawn_center: Vector3 = center - normal * (lawn_depth * 0.5)
+	lawn_center.y = surface_y - 0.05
+	_add_oriented_box(parent, "ResidentialLawn_%02d" % index, lawn_center, tangent,
+		span_w, 0.10, lawn_depth, _mat(residential_lawn_color, false), false)
+	var path_center: Vector3 = center - normal * ((lawn_depth + sidewalk_depth) * 0.5)
+	path_center.y = surface_y + 0.035
+	_add_oriented_box(parent, "ResidentialEntryPath_%02d" % index, path_center, tangent,
+		residential_path_width_m, 0.04, lawn_depth + sidewalk_depth, _mat(house_path_color, false), false)
+	var driveway_center: Vector3 = path_center + tangent * residential_driveway_offset_m
+	_add_oriented_box(parent, "ResidentialDriveway_%02d" % index, driveway_center, tangent,
+		residential_driveway_width_m, 0.035, lawn_depth + sidewalk_depth, _mat(house_path_color.darkened(0.08), false), false)
+
+	var near_sidewalk: Vector3 = center - normal * (lawn_depth + sidewalk_depth * 0.5)
+	near_sidewalk.y = surface_y + 0.045
+	_add_oriented_box(parent, "ResidentialSidewalkNear_%02d" % index, near_sidewalk, tangent,
+		span_w, 0.09, sidewalk_depth, _mat(sidewalk_color.lightened(0.06), false), false)
+	var road_center: Vector3 = center - normal * (lawn_depth + sidewalk_depth + road_depth * 0.5)
+	road_center.y = surface_y - 0.035
+	_add_oriented_box(parent, "ResidentialStreet_%02d" % index, road_center, tangent,
+		span_w, 0.07, road_depth, _mat(residential_street_color, false), false)
+	var far_sidewalk: Vector3 = center - normal * (lawn_depth + sidewalk_depth + road_depth + sidewalk_depth * 0.5)
+	far_sidewalk.y = surface_y + 0.045
+	_add_oriented_box(parent, "ResidentialSidewalkFar_%02d" % index, far_sidewalk, tangent,
+		span_w, 0.09, sidewalk_depth, _mat(sidewalk_color.lightened(0.06), false), false)
+
+	var road_mark_count: int = maxi(4, int(floor(span_w / 4.0)))
+	for mark_i in range(road_mark_count):
+		var mark_t: float = (float(mark_i) + 0.5) / float(road_mark_count) - 0.5
+		var mark: Vector3 = road_center + tangent * (mark_t * span_w)
+		mark.y = surface_y + 0.008
+		_add_oriented_box(parent, "ResidentialRoadMark_%02d_%02d" % [index, mark_i], mark, tangent,
+			1.20, 0.015, 0.085, _mat(Color(0.72, 0.69, 0.55, 1.0), false), false)
+
+	var opposite_yard_depth: float = residential_opposite_yard_depth_m
+	var opposite_yard: Vector3 = center - normal * (lawn_depth + sidewalk_depth * 2.0 + road_depth + opposite_yard_depth * 0.5)
+	opposite_yard.y = surface_y - 0.05
+	_add_oriented_box(parent, "ResidentialOppositeLawn_%02d" % index, opposite_yard, tangent,
+		span_w, 0.10, opposite_yard_depth, _mat(residential_lawn_color.darkened(0.04), false), false)
+
 	if exterior_window_obstacles_enabled:
-		for slot in range(3):
-			var slot_t: float = float(slot - 1) * 2.85
-			var house_center: Vector3 = center - normal * (7.2 + float(slot % 2) * 0.45) + tangent * slot_t
-			house_center.y = floor_level_m + 0.78
-			_add_oriented_box(
-				parent,
-				"ResidentialHouse_%02d_%02d" % [index, slot],
-				house_center,
-				tangent,
-				1.75,
-				1.55,
-				0.82,
-				_mat(residential_house_color, false),
-				false
-			)
-			var roof_center: Vector3 = house_center
-			roof_center.y = floor_level_m + 1.62
-			_add_oriented_box(
-				parent,
-				"ResidentialRoof_%02d_%02d" % [index, slot],
-				roof_center,
-				tangent,
-				1.95,
-				0.16,
-				0.98,
-				_mat(residential_roof_color, false),
-				false
-			)
+		var house_face_distance: float = lawn_depth + sidewalk_depth * 2.0 + road_depth + opposite_yard_depth
+		for slot in range(residential_house_count):
+			var slot_t: float = (float(slot) - float(residential_house_count - 1) * 0.5) * residential_house_spacing_m
+			var body_w: float = residential_house_width_m + float(slot % 2) * 0.35
+			var body_h: float = residential_house_height_m + float((slot + 1) % 2) * 0.35
+			var body_d: float = residential_house_depth_m
+			var face_center: Vector3 = center - normal * house_face_distance + tangent * slot_t
+			var house_center: Vector3 = face_center - normal * (body_d * 0.5)
+			house_center.y = surface_y + body_h * 0.5
+			var house_color: Color = residential_house_color.lightened(0.07) if slot == 0 else (residential_house_color.darkened(0.06) if slot == 2 else residential_house_color)
+			_add_oriented_box(parent, "ResidentialHouseBody_%02d_%02d" % [index, slot], house_center, tangent,
+				body_w, body_h, body_d, _mat(house_color, false), false)
+			var roof_base: Vector3 = house_center
+			roof_base.y = surface_y + body_h
+			_add_gable_roof(parent, "ResidentialRoof_%02d_%02d" % [index, slot], roof_base, tangent, normal,
+				body_w + 0.34, body_d + 0.36, residential_roof_height_m, residential_roof_color.darkened(0.12) if night else residential_roof_color)
+
+			var door_center: Vector3 = face_center + normal * 0.055
+			door_center.y = surface_y + 1.05
+			_add_oriented_box(parent, "ResidentialDoor_%02d_%02d" % [index, slot], door_center, tangent,
+				0.92, 2.10, 0.08, _mat(landing_door_color.darkened(0.08), false), false)
+			for window_side in [-1.0, 1.0]:
+				for window_floor in range(2):
+					var window_center: Vector3 = face_center + tangent * (window_side * body_w * 0.29) + normal * 0.065
+					window_center.y = surface_y + 1.25 + float(window_floor) * 1.82
+					_add_oriented_box(parent, "ResidentialWindowFrame_%02d_%02d_%s_%02d" % [index, slot, str(window_side), window_floor], window_center, tangent,
+						1.06, 1.18, 0.08, _mat(residential_window_frame_color, false), false)
+					window_center += normal * 0.065
+					var glass_color: Color = city_night_window_lit_color if (night and (slot + window_floor) % 2 == 0) else city_window_color.darkened(0.12)
+					_add_oriented_box(parent, "ResidentialWindowGlass_%02d_%02d_%s_%02d" % [index, slot, str(window_side), window_floor], window_center, tangent,
+						0.88, 1.00, 0.035, _mat(glass_color, false, glass_color if night else Color(0.0, 0.0, 0.0, 0.0), 0.35 if night else 0.0), false)
+
+			for hedge_side in [-1.0, 1.0]:
+				var hedge_center: Vector3 = face_center + normal * 1.75 + tangent * hedge_side * (body_w * 0.31)
+				hedge_center.y = surface_y + 0.38
+				_add_oriented_box(parent, "ResidentialHedge_%02d_%02d_%s" % [index, slot, str(hedge_side)], hedge_center, tangent,
+					body_w * 0.34, 0.76, 0.48, _mat(residential_hedge_color.darkened(0.18) if night else residential_hedge_color, false), false)
+
+	for tree_i in range(residential_tree_count):
+		var tree_t: float = (float(tree_i) - float(residential_tree_count - 1) * 0.5) * residential_tree_spacing_m
+		if absf(tree_t) < 1.0:
+			tree_t += 2.1
+		var tree_base: Vector3 = far_sidewalk - normal * 1.7 + tangent * tree_t
+		tree_base.y = surface_y
+		_create_low_poly_tree(parent, "ResidentialTree_%02d_%02d" % [index, tree_i], tree_base,
+			residential_tree_trunk_height_m + float(tree_i % 2) * 0.35, residential_tree_crown_radius_m, tree_i)
 
 
 func _create_exterior_window_reveal(

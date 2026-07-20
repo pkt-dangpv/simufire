@@ -3,6 +3,31 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### FP procedural exterior rebuild (2026-07-20)
+
+- Rebuilt apartment views with a full street section, modular opposite
+  buildings, framed windows, entrances, cars, trees and separated skyline
+  volumes instead of one flat facade and overlapping silhouette blocks.
+- Rebuilt single-family exteriors with one authoritative garden/street layout,
+  correctly scaled neighboring houses, gable roofs, paths, pavements, hedges
+  and vegetation; removed the duplicate legacy road and toy-house geometry.
+- Upgraded the house entrance with a pitched porch roof and exterior lamp, and
+  added a Godot validator for composition ownership and geometric separation.
+- Exposed the principal city, residential, porch and vegetation dimensions,
+  counts and colors in the `FirstPersonController` Inspector; defaults preserve
+  the validated layouts while allowing scene-level art direction in Godot.
+
+### FP apartment landing stairwell (2026-07-20)
+
+- Replaced the decorative single landing flight with a complete U-shaped
+  stairwell that visibly continues to both the lower and upper floors.
+- Split floor and ceiling slabs around the stair shaft, separated both lanes,
+  enclosed adjacent levels and reserved a non-overlapping door band.
+- Exposed floor height, stair-bay width, landings, lane gap and side clearance
+  in the `FirstPersonController` Inspector.
+- Added a Godot geometry validator for flight direction, solid intersections,
+  floor openings and door clearance.
+
 ### Phase 3+ F3.2b7 post-opening coupling (2026-07-20)
 
 - Added a default-OFF shadow coupling that selects the fresh lower-zone O2

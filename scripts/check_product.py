@@ -230,6 +230,22 @@ def main() -> int:
         diagnostics.append("Godot stair geometry: " + (diagnostic or "failed"))
 
     rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_fp_landing_stairs.tscn",
+        "FP LANDING STAIRS VALIDATION PASS",
+    )
+    rows.append(("FP landing stairs Godot headless", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot FP landing stairs: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_fp_exterior_context.tscn",
+        "FP EXTERIOR CONTEXT VALIDATION PASS",
+    )
+    rows.append(("FP exterior context Godot headless", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot FP exterior context: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_technical_summary.tscn",
         "TECHNICAL SUMMARY VALIDATION PASS",
     )

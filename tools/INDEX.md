@@ -17,6 +17,10 @@ This index groups technical tools and validation scenes.
 - `validate_editor_load_error_dialog.gd`
 - `validate_stairs_geometry.tscn`
 - `validate_stairs_geometry.gd`
+- `validate_fp_landing_stairs.tscn`
+- `validate_fp_landing_stairs.gd`
+- `validate_fp_exterior_context.tscn`
+- `validate_fp_exterior_context.gd`
 
 ## 3D View
 
