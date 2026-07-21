@@ -12,7 +12,33 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
-## Current Session Update - 2026-07-20 - F3.2b7 shadow GO / authority NO-GO
+## Current Session Update - 2026-07-20 - F3.3a shadow GO / Group C NO-GO
+
+- Added `phase3_canonical_interior_opening_shadow_enabled=false` and a pure
+  canonical horizontal interior-opening network transaction.
+- All openings are evaluated from one pre-step snapshot, sorted by stable id
+  and applied in one globally capped atomic bundle. Gas, sensible enthalpy,
+  O2 and seven species move together from source-zone concentrations.
+- Hydrostatic pressure is integrated exactly across piecewise-uniform zones.
+  One-zone ambient receivers are valid; vertical and exterior openings remain
+  outside this owner.
+- Direct fixture and 42 focused tests pass. Two-room legacy OFF/ON preserves
+  all 115 non-Phase-3 columns exactly. Runtime controls close mass, energy, O2
+  and species with zero duplicate owners.
+- Group C R0 shadow temperature changes from 227.90 to 130.94 C at 180 s
+  (early improvement) and from 113.91 to 102.73 C at 600 s (late regression).
+  Group C therefore remains 2 VALID_GAP and authority is NO-GO.
+- Physics is 9/15/5/0, ILV 15/14/0, gap inventory 348/353 with 5 VALID_GAP.
+  Guardrails are 9/10 only because R2-1 sees the intentional dirty motor.
+- Full pytest outside the filesystem sandbox is 1044 PASS, 18 pre-existing
+  structural failures and the expected R2-1 integration failure.
+- Decision: **F3.3a shadow infrastructure GO; authority and Group C retirement
+  NO-GO**. Next: F3.3b canonical signed inter-room pressure coupling, still
+  default OFF and without HVAC.
+- Binding record:
+  `docs/validation/PHASE3_F33A_INTERIOR_OPENING_SHADOW.md`.
+
+## Previous Session Update - 2026-07-20 - F3.2b7 shadow GO / authority NO-GO
 
 - Added `phase3_canonical_post_opening_coupling_shadow_enabled=false`.
   Exterior counterflow can select lower canonical O2 for combustion without

@@ -48,6 +48,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.2b5c equivalence diagnosis: `docs/validation/PHASE3_F32B5C_EQUIVALENCE.md`
 - F3.2b6 exterior counterflow: `docs/validation/PHASE3_F32B6_EXTERIOR_COUNTERFLOW.md`
 - F3.2b7 post-opening coupling: `docs/validation/PHASE3_F32B7_POST_OPENING_COUPLING.md`
+- F3.3a interior-opening shadow: `docs/validation/PHASE3_F33A_INTERIOR_OPENING_SHADOW.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -229,6 +230,19 @@ conservation and invariant legacy output. Late upper O2 remains low and the
 NO-GO. The mechanism is sufficient to proceed to F3.3 shadow work; it is not
 permission to publish the canonical state.
 
+F3.3a now owns horizontal interior-opening transport inside the passive
+canonical shadow. A common pre-step snapshot and one globally capped atomic
+network bundle move gas, enthalpy, O2 and all seven species independently of
+opening order. The exact piecewise hydrostatic integral handles one-zone
+receivers and leaves vertical/exterior ownership unchanged. Legacy output is
+bit-identical and all building residuals close.
+
+Authority and Group C retirement remain NO-GO. R0 improves strongly at 180 s
+but worsens at 600 s, showing that equal-gross buoyant counterflow fixes the
+early thin-layer error but cannot supply the signed pressure/enthalpy coupling
+needed late. F3.3b is the next target; it must diagnose a canonical network
+pressure owner rather than tune the F3.3a exchange rate.
+
 ## Binding priority decision: HVAC last
 
 HVAC is not part of the remaining F3.0 shadow sequence. It stays on the legacy
@@ -264,11 +278,12 @@ The revised order is:
 24. F3.2b5c mass/energy/pressure equivalence and independent controls. Completed; diagnostic GO / authority NO-GO.
 25. F3.2b6 canonical bidirectional exterior opening. Implemented; shadow mechanism GO / authority NO-GO.
 26. F3.2b7 canonical post-opening combustion/O2/plume feedback. Implemented; shadow mechanism GO / authority NO-GO.
-27. F3.3 interior openings for Group C. Current target.
-28. F3.4 remaining non-HVAC species, suppression and FED.
-29. HVAC-R0 redesign specification.
-30. F3.5 HVAC canonical integration as the last subsystem.
-31. F3.6 final corpus promotion and legacy retirement.
+27. F3.3a horizontal interior-opening shadow. Implemented; mechanism GO / authority and Group C NO-GO.
+28. F3.3b signed canonical inter-room pressure coupling. Current target.
+29. F3.4 remaining non-HVAC species, suppression and FED.
+30. HVAC-R0 redesign specification.
+31. F3.5 HVAC canonical integration as the last subsystem.
+32. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
@@ -571,12 +586,13 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 
 ## Next prompt target
 
-Use GPT-5.6 for F3.3 interior two-zone openings. Diagnose the current
-canonical and legacy owners first, then add the smallest default-OFF atomic
-upper-out/lower-in contract that is genuinely antisymmetric between rooms.
-Move gas mass, enthalpy, O2 and species together; do not infer fluxes from
-post-step state or duplicate delayed parcels. Validate on a direct two-room
-fixture, `cfast_two_room_door_open`, `cfast_corridor_chain` and the multi-floor
-stairwell. Group C must improve at both 180 and 600 s with exact building
-closure. Do not publish to `RoomModel`, change expected/tolerances, retire
-Group A/C or begin HVAC. STOP before commit.
+Use GPT-5.6 for F3.3b canonical signed inter-room pressure coupling. Start
+from the accepted F3.3a common-snapshot atomic network and diagnose why equal
+gross counterflow over-cools Group C late. Do not tune its discharge
+coefficient. Determine whether canonical room pressure can supply a single
+network-consistent signed component without duplicating legacy pressure,
+delayed parcels, vertical flow or the F3.3a gross exchange. Keep the work
+default OFF and shadow-only. Group C must improve at both 180 and 600 s with
+exact building mass, energy, O2 and species closure. Do not publish to
+`RoomModel`, change expected/tolerances, retire Group A/C or begin HVAC. STOP
+before commit.

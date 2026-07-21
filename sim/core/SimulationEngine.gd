@@ -998,6 +998,8 @@ var _step_time_us: int = 0
 @export var phase3_canonical_exterior_counterflow_shadow_enabled: bool = false
 ## F3.2b7: combustion usa lower O2 durante counterflow exterior real. Default OFF.
 @export var phase3_canonical_post_opening_coupling_shadow_enabled: bool = false
+## F3.3a: transporte two-zone horizontal interior, atomico y solo shadow.
+@export var phase3_canonical_interior_opening_shadow_enabled: bool = false
 
 # ============================================================
 # SERVICIOS AUXILIARES
@@ -1312,6 +1314,11 @@ func _sync_auxiliary_services() -> void:
 				and phase3_canonical_combustion_shadow_enabled \
 				and phase3_canonical_exterior_counterflow_shadow_enabled \
 				and phase3_canonical_post_opening_coupling_shadow_enabled
+	)
+	log_writer.configure_phase3_canonical_interior_opening_shadow(
+		phase3_canonical_zone_shadow_enabled \
+				and phase3_canonical_persistence_shadow_enabled \
+				and phase3_canonical_interior_opening_shadow_enabled
 	)
 	# SF-R6: ZoneFireSolver — inyectar referencia al building.
 	zone_fire_solver.set_building(building)
@@ -1639,6 +1646,9 @@ func _phase3_shadow_add_thermal_request(flux: Dictionary) -> void:
 
 func _phase3_shadow_collect_thermal_species_events() -> void:
 	for event in thermal_system.drain_phase3_shadow_thermal_species_events():
+		if phase3_canonical_interior_opening_shadow_enabled \
+				and _phase3_shadow_event_is_horizontal_interior_opening(event):
+			continue
 		phase3_zone_mass_system.apply_thermal_species_event(event)
 
 
@@ -1812,6 +1822,9 @@ func _phase3_shadow_collect_species_requests(dt: float) -> void:
 
 func _phase3_shadow_collect_doorway_species_requests() -> void:
 	for result in gas_exchange_system.drain_phase3_shadow_doorway_species_results():
+		if phase3_canonical_interior_opening_shadow_enabled \
+				and _phase3_shadow_event_is_horizontal_interior_opening(result):
+			continue
 		phase3_zone_mass_system.apply_atomic_transport_event(
 			result,
 			"GasExchangeSystem",
@@ -1822,12 +1835,45 @@ func _phase3_shadow_collect_doorway_species_requests() -> void:
 
 func _phase3_shadow_collect_parcel_species_events() -> void:
 	for event in gas_exchange_system.drain_phase3_shadow_parcel_events():
+		if phase3_canonical_interior_opening_shadow_enabled \
+				and _phase3_shadow_event_is_horizontal_interior_opening(event):
+			continue
 		phase3_zone_mass_system.apply_species_transit_event(event)
 
 
 func _phase3_shadow_collect_immediate_species_events() -> void:
 	for event in gas_exchange_system.drain_phase3_shadow_immediate_species_events():
+		if phase3_canonical_interior_opening_shadow_enabled \
+				and _phase3_shadow_event_is_horizontal_interior_opening(event):
+			continue
 		phase3_zone_mass_system.apply_immediate_species_event(event)
+
+
+func _phase3_shadow_event_is_horizontal_interior_opening(event: Dictionary) -> bool:
+	if building == null:
+		return false
+	var source_room_id: int = int(event.get("source_room_id", -1))
+	var destination_room_id: int = int(event.get("destination_room_id", -1))
+	if source_room_id < 0 or destination_room_id < 0 \
+			or source_room_id == destination_room_id:
+		return false
+	for op in building.get_openings():
+		if op == null or op.is_exterior_opening() or op.is_vertical \
+				or op.open_fraction <= 0.0:
+			continue
+		var connects_pair: bool = (
+			op.a == source_room_id and op.b == destination_room_id
+		) or (
+			op.a == destination_room_id and op.b == source_room_id
+		)
+		if not connects_pair:
+			continue
+		var room_a: RoomModel = building.get_room(op.a)
+		var room_b: RoomModel = building.get_room(op.b)
+		if room_a != null and room_b != null \
+				and absf(room_a.floor_level_z_m - room_b.floor_level_z_m) <= 0.01:
+			return true
+	return false
 
 
 func _phase3_shadow_collect_exterior_purge_events() -> void:
@@ -1900,6 +1946,8 @@ func _build_state_context() -> Dictionary:
 				phase3_canonical_exterior_counterflow_shadow_enabled,
 		"phase3_canonical_post_opening_coupling_shadow_enabled": \
 				phase3_canonical_post_opening_coupling_shadow_enabled,
+		"phase3_canonical_interior_opening_shadow_enabled": \
+				phase3_canonical_interior_opening_shadow_enabled,
 		"phase3_canonical_zone_shadow": phase3_zone_mass_system.get_results() \
 				if phase3_canonical_zone_shadow_enabled else {},
 		"ambient_temp_c": thermal_system.ambient_temp_c(),
@@ -2221,6 +2269,13 @@ func step(delta: float) -> void:
 					building.outside_o2,
 					Phase3ZoneMassSystemScript.EXTERIOR_DISCHARGE_COEFF
 				)
+		if phase3_canonical_interior_opening_shadow_enabled:
+			phase3_zone_mass_system.queue_canonical_interior_opening_requests(
+				building,
+				dt,
+				thermal_system.ambient_temp_c(),
+				Phase3ZoneMassSystemScript.EXTERIOR_DISCHARGE_COEFF
+			)
 
 	var pre_hrr_o2_step: bool = _uses_pre_hrr_oxygen_step()
 

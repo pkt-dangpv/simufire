@@ -32,6 +32,7 @@ var phase3_canonical_interzone_heat_shadow_enabled: bool = false
 var phase3_canonical_wall_ambient_shadow_enabled: bool = false
 var phase3_canonical_exterior_counterflow_shadow_enabled: bool = false
 var phase3_canonical_post_opening_coupling_shadow_enabled: bool = false
+var phase3_canonical_interior_opening_shadow_enabled: bool = false
 
 var _next_log_time_s: float = 0.0
 ## Último timestamp escrito (append_snapshot o append_snapshot_now).
@@ -105,6 +106,10 @@ func configure_phase3_canonical_exterior_counterflow_shadow(is_enabled: bool) ->
 
 func configure_phase3_canonical_post_opening_coupling_shadow(is_enabled: bool) -> void:
 	phase3_canonical_post_opening_coupling_shadow_enabled = is_enabled
+
+
+func configure_phase3_canonical_interior_opening_shadow(is_enabled: bool) -> void:
+	phase3_canonical_interior_opening_shadow_enabled = is_enabled
 
 
 func reset_log_file() -> void:
@@ -484,6 +489,8 @@ func _build_csv_header() -> String:
 		header += ",phase3_shadow_counterflow_neutral_plane_m,phase3_shadow_counterflow_neutral_pressure_offset_pa,phase3_shadow_counterflow_raw_upper_out_kg_step,phase3_shadow_counterflow_raw_lower_in_kg_step,phase3_shadow_counterflow_requested_exchange_kg_step,phase3_shadow_counterflow_accepted_exchange_kg_step,phase3_shadow_counterflow_rejected_exchange_kg_step,phase3_shadow_counterflow_cumulative_exchange_kg,phase3_shadow_counterflow_cumulative_upper_out_kg,phase3_shadow_counterflow_cumulative_lower_in_kg,phase3_shadow_counterflow_hydrostatic_net_kg_step,phase3_shadow_counterflow_pressure_relief_kg_step,phase3_shadow_counterflow_pressure_relief_net_kg_step,phase3_shadow_counterflow_outgoing_energy_kj_step,phase3_shadow_counterflow_outgoing_o2_kg_step,phase3_shadow_counterflow_incoming_o2_kg_step,phase3_shadow_counterflow_outgoing_species_kg_step,phase3_shadow_counterflow_accepted_fraction,phase3_shadow_counterflow_mass_residual_kg,phase3_shadow_counterflow_energy_residual_kj,phase3_shadow_counterflow_o2_residual_kg,phase3_shadow_counterflow_species_residual_kg,phase3_shadow_counterflow_opening_count,phase3_shadow_counterflow_duplicate_owner_flag,phase3_shadow_counterflow_invalid_preview_count,phase3_shadow_counterflow_opposed_out_kg_step"
 	if phase3_canonical_post_opening_coupling_shadow_enabled:
 		header += ",phase3_shadow_post_opening_coupling_active_flag,phase3_shadow_post_opening_source_switched_to_lower_flag,phase3_shadow_post_opening_counterflow_exchange_kg_step,phase3_shadow_post_opening_counterflow_incoming_o2_kg_step,phase3_shadow_post_opening_source_o2_available_kg,phase3_shadow_post_opening_full_hrr_o2_demand_kg_step,phase3_shadow_post_opening_o2_supply_margin_kg_step,phase3_shadow_post_opening_combustion_air_min_plume_mass_kg_step,phase3_shadow_post_opening_plume_height_term_mass_kg_step,phase3_shadow_post_opening_plume_source_term_mass_kg_step,phase3_shadow_post_opening_plume_o2_to_upper_kg_step,phase3_shadow_post_opening_lower_o2_closure_residual_kg"
+	if phase3_canonical_interior_opening_shadow_enabled:
+		header += ",phase3_shadow_interior_opening_active_flag,phase3_shadow_interior_opening_count,phase3_shadow_interior_active_opening_count,phase3_shadow_interior_vertical_skipped_count,phase3_shadow_interior_invalid_preview_count,phase3_shadow_interior_route_count,phase3_shadow_interior_neutral_plane_m,phase3_shadow_interior_requested_out_gas_kg_step,phase3_shadow_interior_requested_in_gas_kg_step,phase3_shadow_interior_accepted_out_gas_kg_step,phase3_shadow_interior_accepted_in_gas_kg_step,phase3_shadow_interior_accepted_out_energy_kj_step,phase3_shadow_interior_accepted_in_energy_kj_step,phase3_shadow_interior_accepted_out_o2_kg_step,phase3_shadow_interior_accepted_in_o2_kg_step,phase3_shadow_interior_accepted_out_species_kg_step,phase3_shadow_interior_accepted_in_species_kg_step,phase3_shadow_interior_accepted_fraction,phase3_shadow_interior_net_mass_kg_step,phase3_shadow_interior_net_energy_kj_step,phase3_shadow_interior_net_o2_kg_step,phase3_shadow_interior_net_species_kg_step,phase3_shadow_interior_mass_residual_kg,phase3_shadow_interior_energy_residual_kj,phase3_shadow_interior_o2_residual_kg,phase3_shadow_interior_species_residual_kg,phase3_shadow_interior_duplicate_owner_flag"
 	return header
 
 
@@ -1054,6 +1061,37 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 				"phase3_shadow_post_opening_plume_source_term_mass_kg_step",
 				"phase3_shadow_post_opening_plume_o2_to_upper_kg_step",
 				"phase3_shadow_post_opening_lower_o2_closure_residual_kg"
+			]:
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
+		if phase3_canonical_interior_opening_shadow_enabled:
+			for field_name in [
+				"phase3_shadow_interior_opening_active_flag",
+				"phase3_shadow_interior_opening_count",
+				"phase3_shadow_interior_active_opening_count",
+				"phase3_shadow_interior_vertical_skipped_count",
+				"phase3_shadow_interior_invalid_preview_count",
+				"phase3_shadow_interior_route_count",
+				"phase3_shadow_interior_neutral_plane_m",
+				"phase3_shadow_interior_requested_out_gas_kg_step",
+				"phase3_shadow_interior_requested_in_gas_kg_step",
+				"phase3_shadow_interior_accepted_out_gas_kg_step",
+				"phase3_shadow_interior_accepted_in_gas_kg_step",
+				"phase3_shadow_interior_accepted_out_energy_kj_step",
+				"phase3_shadow_interior_accepted_in_energy_kj_step",
+				"phase3_shadow_interior_accepted_out_o2_kg_step",
+				"phase3_shadow_interior_accepted_in_o2_kg_step",
+				"phase3_shadow_interior_accepted_out_species_kg_step",
+				"phase3_shadow_interior_accepted_in_species_kg_step",
+				"phase3_shadow_interior_accepted_fraction",
+				"phase3_shadow_interior_net_mass_kg_step",
+				"phase3_shadow_interior_net_energy_kj_step",
+				"phase3_shadow_interior_net_o2_kg_step",
+				"phase3_shadow_interior_net_species_kg_step",
+				"phase3_shadow_interior_mass_residual_kg",
+				"phase3_shadow_interior_energy_residual_kj",
+				"phase3_shadow_interior_o2_residual_kg",
+				"phase3_shadow_interior_species_residual_kg",
+				"phase3_shadow_interior_duplicate_owner_flag"
 			]:
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		file.store_line(",".join(fields))
