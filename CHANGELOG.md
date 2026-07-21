@@ -3,6 +3,27 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3c1 enthalpy residence ledger (2026-07-21)
+
+- Added a default-OFF cumulative accepted-route sensible-enthalpy ledger by
+  room, zone, direction and cause family, with exact zone/room/building closure.
+- Preserved all 527 shared F3.3b columns exactly in the 600 s Group C OFF/ON
+  comparison; the opt-in ledger adds 68 diagnostic fields only when enabled.
+- Quantified Group C R0 energy residence and confirmed the canonical budget is
+  internally exact. F3.3d will compare source and boundary families with CFAST
+  before any physical coefficient or owner changes.
+
+### Phase 3+ F3.3c late-enthalpy audit (2026-07-21)
+
+- Established from CFAST layer masses and sensible energies that Group C's
+  late temperature undershoot is energy-residence dominated: F3.3b retains
+  94.8% of CFAST upper mass but only 49.3% of upper sensible energy at 600 s.
+- Rejected a scalar radiation/convection retune: a scratch CFAST-aligned
+  `chi_rad=0.35` control fixes the late point but produces a severe early
+  overshoot.
+- Defined F3.3c1 as a default-OFF cumulative accepted-route enthalpy ledger;
+  no motor physics, official report, baseline, tolerance or gap changed.
+
 ### Phase 3+ F3.3b signed interior pressure shadow (2026-07-21)
 
 - Added a default-OFF signed canonical pressure component for horizontal

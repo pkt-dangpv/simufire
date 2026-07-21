@@ -1002,6 +1002,8 @@ var _step_time_us: int = 0
 @export var phase3_canonical_interior_opening_shadow_enabled: bool = false
 ## F3.3b: componente firmado por diferencia de presion interior. Default OFF.
 @export var phase3_canonical_interior_pressure_shadow_enabled: bool = false
+## F3.3c1: ledger acumulativo de entalpia aceptada por ruta. Default OFF.
+@export var phase3_enthalpy_residence_diagnostics_enabled: bool = false
 
 # ============================================================
 # SERVICIOS AUXILIARES
@@ -1266,6 +1268,21 @@ func _sync_auxiliary_services() -> void:
 		"fire_o2_mass_tracking_enabled": fire_o2_mass_tracking_enabled,
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 	})
+	var phase3_enthalpy_residence_diagnostics_active: bool = \
+			phase3_canonical_zone_shadow_enabled \
+			and phase3_canonical_persistence_shadow_enabled \
+			and phase3_canonical_combustion_shadow_enabled \
+			and phase3_canonical_plume_shadow_enabled \
+			and phase3_canonical_interzone_heat_shadow_enabled \
+			and phase3_canonical_wall_ambient_shadow_enabled \
+			and phase3_canonical_exterior_counterflow_shadow_enabled \
+			and phase3_canonical_post_opening_coupling_shadow_enabled \
+			and phase3_canonical_interior_opening_shadow_enabled \
+			and phase3_canonical_interior_pressure_shadow_enabled \
+			and phase3_enthalpy_residence_diagnostics_enabled
+	phase3_zone_mass_system.configure_enthalpy_residence_diagnostics(
+		phase3_enthalpy_residence_diagnostics_active
+	)
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
 	log_writer.configure_phase3_zone_diagnostics(phase3_zone_diagnostics_enabled)
@@ -1327,6 +1344,9 @@ func _sync_auxiliary_services() -> void:
 				and phase3_canonical_persistence_shadow_enabled \
 				and phase3_canonical_interior_opening_shadow_enabled \
 				and phase3_canonical_interior_pressure_shadow_enabled
+	)
+	log_writer.configure_phase3_enthalpy_residence_diagnostics(
+		phase3_enthalpy_residence_diagnostics_active
 	)
 	# SF-R6: ZoneFireSolver — inyectar referencia al building.
 	zone_fire_solver.set_building(building)
@@ -1958,6 +1978,8 @@ func _build_state_context() -> Dictionary:
 				phase3_canonical_interior_opening_shadow_enabled,
 		"phase3_canonical_interior_pressure_shadow_enabled": \
 				phase3_canonical_interior_pressure_shadow_enabled,
+		"phase3_enthalpy_residence_diagnostics_enabled": \
+				phase3_enthalpy_residence_diagnostics_enabled,
 		"phase3_canonical_zone_shadow": phase3_zone_mass_system.get_results() \
 				if phase3_canonical_zone_shadow_enabled else {},
 		"ambient_temp_c": thermal_system.ambient_temp_c(),

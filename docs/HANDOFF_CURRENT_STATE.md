@@ -12,7 +12,54 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
-## Current Session Update - 2026-07-21 - F3.3b shadow GO / Group C NO-GO
+## Current Session Update - 2026-07-21 - F3.3c1 enthalpy ledger GO
+
+- Added `phase3_enthalpy_residence_diagnostics_enabled=false`, effective only
+  with the complete F3.3b stack. It is instrumentation-only and does not write
+  legacy or canonical physics.
+- The ledger counts accepted energy after atomic limiting, by room, upper/lower
+  zone, direction and exclusive cause family. Legacy requests and zone collapse
+  remain visible. Initial/expected/observed energy closes per zone, room and
+  building.
+- Direct Godot fixture PASS. `cfast_corridor_chain` OFF/ON preserves 366 rows
+  and all 527 shared columns exactly; ON adds 68 fields. Maximum residual is
+  `0.0 kJ` at every level.
+- R0 through 600 s accepts 40.711 MJ combustion heat. Its largest upper losses
+  are F3.3a opening transport (20.817 MJ gross), ambient (11.625 MJ), wall
+  (6.362 MJ) and F3.3b pressure transport (2.419 MJ gross).
+- `cfast_r0_window_360` also closes exactly; its dominant sinks are ambient
+  (11.024 MJ), wall (9.337 MJ) and exterior pressure (1.520 MJ).
+- Verification: direct Godot fixture PASS, focused tests 38/38, full pytest
+  1063 PASS with the same 18 pre-existing failures plus the expected dirty-
+  motor R2-1 integration failure. Physics is 9/15/5/0, ILV 15/14/0, gap
+  inventory remains 348/353 and guardrails are 9/10 only for R2-1.
+- Decision: instrumentation GO; authority and the 5 VALID_GAP remain NO-GO.
+  Next is F3.3d source/boundary correspondence against CFAST, with no motor
+  change authorized yet.
+- Binding record:
+  `docs/validation/PHASE3_F33C1_ENTHALPY_RESIDENCE_LEDGER.md`.
+
+## Previous Session Update - 2026-07-21 - F3.3c enthalpy audit
+
+- CFAST and canonical layer inventories were compared directly with the same
+  sensible-energy convention. At 600 s, F3.3b has 23.97 kg upper gas versus
+  25.28 kg in CFAST, but only 1855 versus 3762 kJ upper sensible energy.
+- Matching the CFAST temperature at the F3.3b mass requires about 1712 kJ
+  additional upper energy. The late error is energy-residence dominated, not
+  an excessive upper-layer mass error.
+- CFAST supplies about 65% convective HRR; the case override leaves about 30%
+  in SimuFire. A scratch `chi_rad=0.35` control improves 600 s from 97.39 to
+  165.11 C but overheats 180 s to 218.35 C. Do not retune the case: one scalar
+  moves the curve and does not close both checks.
+- Current cumulative wall/inter-zone counters are useful, but combustion,
+  plume, F3.3a/F3.3b doorway and exterior enthalpy are not all cumulative or
+  cause-separated. Sparse `*_step` CSV fields cannot be summed safely.
+- Decision: F3.3c diagnosis GO. Its requested F3.3c1 instrumentation has now
+  been implemented and verified in the update above.
+- Binding record:
+  `docs/validation/PHASE3_F33C_LATE_ENTHALPY_AUDIT.md`.
+
+## Previous Session Update - 2026-07-21 - F3.3b shadow GO / Group C NO-GO
 
 - Added `phase3_canonical_interior_pressure_shadow_enabled=false` and CLI flag
   `--phase3-canonical-interior-pressure-shadow`.

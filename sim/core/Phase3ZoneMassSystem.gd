@@ -19,6 +19,11 @@ const TRANSIT_SPECIES: Array[String] = ["co", "co2", "hcn"]
 const PARCEL_SPECIES: Array[String] = [
 	"smoke", "co", "co2", "hcn", "hcl", "acrolein", "formaldehyde"
 ]
+const ENTHALPY_RESIDENCE_FAMILIES: Array[String] = [
+	"combustion", "plume", "interzone", "wall", "ambient", "exterior",
+	"exterior_counterflow", "interior_opening", "interior_pressure", "parcel",
+	"legacy", "zone_collapse", "other",
+]
 const SEMANTIC_QUANTITY_BITS: Dictionary = {
 	"gas_mass": 1,
 	"enthalpy": 2,
@@ -136,6 +141,16 @@ var _canonical_interzone_heat_cumulative_kj: Dictionary = {}
 var _canonical_wall_state_by_room: Dictionary = {}
 var _canonical_wall_ambient_by_room: Dictionary = {}
 var _canonical_wall_ambient_cumulative_by_room: Dictionary = {}
+var enthalpy_residence_diagnostics_enabled: bool = false
+var _enthalpy_residence_initial_by_room: Dictionary = {}
+var _enthalpy_residence_cumulative_by_room: Dictionary = {}
+
+
+func configure_enthalpy_residence_diagnostics(is_enabled: bool) -> void:
+	enthalpy_residence_diagnostics_enabled = is_enabled
+	if not is_enabled:
+		_enthalpy_residence_initial_by_room.clear()
+		_enthalpy_residence_cumulative_by_room.clear()
 
 
 func reset() -> void:
@@ -148,6 +163,8 @@ func reset() -> void:
 	_canonical_exterior_counterflow_cumulative_kg.clear()
 	_canonical_wall_state_by_room.clear()
 	_canonical_wall_ambient_cumulative_by_room.clear()
+	_enthalpy_residence_initial_by_room.clear()
+	_enthalpy_residence_cumulative_by_room.clear()
 	_species_transit_reservoir.clear()
 	_species_transit_created_kg.clear()
 	_species_transit_delivered_kg.clear()
@@ -260,6 +277,8 @@ func begin_step(building, persistence_enabled: bool = false) -> void:
 		_canonical_exterior_counterflow_cumulative_kg.clear()
 		_canonical_wall_state_by_room.clear()
 		_canonical_wall_ambient_cumulative_by_room.clear()
+		_enthalpy_residence_initial_by_room.clear()
+		_enthalpy_residence_cumulative_by_room.clear()
 	if building == null:
 		return
 	for room_id in building.get_rooms().keys():
@@ -279,6 +298,19 @@ func begin_step(building, persistence_enabled: bool = false) -> void:
 			_snapshots[room_key] = legacy_snapshot
 			_persistence_seeded_by_room[room_key] = persistence_enabled
 			_persistence_continuity_by_room[room_key] = _zero_state_delta_summary()
+		if enthalpy_residence_diagnostics_enabled \
+				and not _enthalpy_residence_initial_by_room.has(room_key):
+			var initial_state: Dictionary = _snapshots[room_key]
+			_enthalpy_residence_initial_by_room[room_key] = {
+				"upper_energy_kj": maxf(
+					0.0, float(initial_state.get("upper_energy_kj", 0.0))
+				),
+				"lower_energy_kj": maxf(
+					0.0, float(initial_state.get("lower_energy_kj", 0.0))
+				),
+			}
+			_enthalpy_residence_cumulative_by_room[room_key] = \
+					_new_enthalpy_residence_record()
 
 
 ## F3.2b0: registra que zona eligio realmente CombustionSystem, pero no cambia
@@ -782,6 +814,12 @@ func _collapse_degenerate_zones(shadow: Dictionary) -> void:
 		else:
 			continue
 		var before: Dictionary = state.duplicate(true)
+		_record_enthalpy_zone_collapse(
+			int(room_key),
+			source_zone,
+			destination_zone,
+			maxf(0.0, float(state.get(source_zone + "_energy_kj", 0.0)))
+		)
 		state[destination_zone + "_gas_kg"] = float(
 			state.get(destination_zone + "_gas_kg", 0.0)
 		) + float(state.get(source_zone + "_gas_kg", 0.0))
@@ -825,6 +863,200 @@ func _new_zone_collapse_record() -> Dictionary:
 		"o2_residual_kg": 0.0,
 		"species_residual_kg": 0.0,
 	}
+
+
+func _new_enthalpy_residence_record() -> Dictionary:
+	var record: Dictionary = {
+		"accepted_route_count": 0.0,
+		"legacy_route_count": 0.0,
+	}
+	for zone_name in [ZONE_UPPER, ZONE_LOWER]:
+		record[zone_name + "_in_kj_total"] = 0.0
+		record[zone_name + "_out_kj_total"] = 0.0
+		for family_name in ENTHALPY_RESIDENCE_FAMILIES:
+			record[family_name + "_" + zone_name + "_in_kj_total"] = 0.0
+			record[family_name + "_" + zone_name + "_out_kj_total"] = 0.0
+	return record
+
+
+func _ensure_enthalpy_residence_record(room_key: String) -> Dictionary:
+	if not _enthalpy_residence_cumulative_by_room.has(room_key):
+		_enthalpy_residence_cumulative_by_room[room_key] = \
+				_new_enthalpy_residence_record()
+	return _enthalpy_residence_cumulative_by_room[room_key]
+
+
+func _enthalpy_cause_family(cause: String) -> String:
+	match cause:
+		"canonical_combustion_convective_heat":
+			return "combustion"
+		"canonical_combustion_plume":
+			return "plume"
+		"thermal_upper_to_lower":
+			return "interzone"
+		"canonical_upper_to_wall", "canonical_lower_to_wall", \
+		"canonical_wall_to_upper", "canonical_wall_to_lower":
+			return "wall"
+		"canonical_upper_to_ambient", "canonical_lower_to_ambient":
+			return "ambient"
+		"canonical_exterior_pressure":
+			return "exterior"
+		"canonical_exterior_counterflow_upper_out", \
+		"canonical_exterior_counterflow_lower_in":
+			return "exterior_counterflow"
+		"canonical_interior_opening":
+			return "interior_opening"
+		"canonical_interior_pressure":
+			return "interior_pressure"
+		"delayed_parcel_carve", "delayed_parcel_delivery", \
+		"delayed_parcel_resolution":
+			return "parcel"
+		"zone_collapse":
+			return "zone_collapse"
+	if cause.begins_with("delayed_parcel") \
+			or cause.begins_with("delayed_species_parcel_"):
+		return "parcel"
+	return "legacy" if not cause.begins_with("canonical_") else "other"
+
+
+func _accumulate_enthalpy_residence(
+		room_id: int,
+		zone_name: String,
+		direction: String,
+		family_name: String,
+		energy_kj: float
+	) -> void:
+	if room_id == EXTERIOR_ID or energy_kj <= THERMO_ENERGY_EPS_KJ:
+		return
+	var room_key: String = str(room_id)
+	var record: Dictionary = _ensure_enthalpy_residence_record(room_key)
+	var total_key: String = zone_name + "_" + direction + "_kj_total"
+	var family_key: String = family_name + "_" + zone_name + "_" \
+			+ direction + "_kj_total"
+	record[total_key] = float(record.get(total_key, 0.0)) + energy_kj
+	record[family_key] = float(record.get(family_key, 0.0)) + energy_kj
+	_enthalpy_residence_cumulative_by_room[room_key] = record
+
+
+func _record_enthalpy_residence_route(
+		shadow: Dictionary,
+		route: Dictionary,
+		accepted_fraction: float,
+		is_legacy_request: bool = false
+	) -> void:
+	if not enthalpy_residence_diagnostics_enabled:
+		return
+	var moved_energy_kj: float = maxf(
+		0.0, float(route.get("sensible_enthalpy_kj", 0.0))
+	) * clampf(accepted_fraction, 0.0, 1.0)
+	if moved_energy_kj <= THERMO_ENERGY_EPS_KJ:
+		return
+	var source_id: int = int(route.get("source_room_id", EXTERIOR_ID))
+	var destination_id: int = int(route.get("destination_room_id", EXTERIOR_ID))
+	var source_zone: String = String(route.get("source_zone", ZONE_UPPER))
+	var destination_zone: String = String(route.get("destination_zone", ZONE_UPPER))
+	var family_name: String = _enthalpy_cause_family(
+		String(route.get("cause", ""))
+	)
+	var source_out_kj: float = moved_energy_kj
+	if source_id != EXTERIOR_ID:
+		var source: Dictionary = shadow.get(str(source_id), {})
+		source_out_kj = minf(
+			moved_energy_kj,
+			maxf(0.0, float(source.get(source_zone + "_energy_kj", 0.0)))
+		)
+		_accumulate_enthalpy_residence(
+			source_id, source_zone, "out", family_name, source_out_kj
+		)
+	if destination_id != EXTERIOR_ID:
+		_accumulate_enthalpy_residence(
+			destination_id, destination_zone, "in", family_name, moved_energy_kj
+		)
+	var touched_rooms: Dictionary = {}
+	if source_id != EXTERIOR_ID:
+		touched_rooms[str(source_id)] = true
+	if destination_id != EXTERIOR_ID:
+		touched_rooms[str(destination_id)] = true
+	for room_key in touched_rooms.keys():
+		var record: Dictionary = _ensure_enthalpy_residence_record(String(room_key))
+		record["accepted_route_count"] = float(
+			record.get("accepted_route_count", 0.0)
+		) + 1.0
+		if is_legacy_request:
+			record["legacy_route_count"] = float(
+				record.get("legacy_route_count", 0.0)
+			) + 1.0
+		_enthalpy_residence_cumulative_by_room[String(room_key)] = record
+
+
+func _record_enthalpy_zone_collapse(
+		room_id: int,
+		source_zone: String,
+		destination_zone: String,
+		energy_kj: float
+	) -> void:
+	if not enthalpy_residence_diagnostics_enabled \
+			or energy_kj <= THERMO_ENERGY_EPS_KJ:
+		return
+	_accumulate_enthalpy_residence(
+		room_id, source_zone, "out", "zone_collapse", energy_kj
+	)
+	_accumulate_enthalpy_residence(
+		room_id, destination_zone, "in", "zone_collapse", energy_kj
+	)
+	var record: Dictionary = _ensure_enthalpy_residence_record(str(room_id))
+	record["accepted_route_count"] = float(
+		record.get("accepted_route_count", 0.0)
+	) + 1.0
+	_enthalpy_residence_cumulative_by_room[str(room_id)] = record
+
+
+func _enthalpy_residence_result(room_key: String, state: Dictionary) -> Dictionary:
+	var initial: Dictionary = _enthalpy_residence_initial_by_room.get(room_key, {})
+	var cumulative: Dictionary = _ensure_enthalpy_residence_record(room_key)
+	var initial_upper_kj: float = float(initial.get("upper_energy_kj", 0.0))
+	var initial_lower_kj: float = float(initial.get("lower_energy_kj", 0.0))
+	var upper_in_kj: float = float(cumulative.get("upper_in_kj_total", 0.0))
+	var upper_out_kj: float = float(cumulative.get("upper_out_kj_total", 0.0))
+	var lower_in_kj: float = float(cumulative.get("lower_in_kj_total", 0.0))
+	var lower_out_kj: float = float(cumulative.get("lower_out_kj_total", 0.0))
+	var expected_upper_kj: float = initial_upper_kj + upper_in_kj - upper_out_kj
+	var expected_lower_kj: float = initial_lower_kj + lower_in_kj - lower_out_kj
+	var observed_upper_kj: float = float(state.get("upper_energy_kj", 0.0))
+	var observed_lower_kj: float = float(state.get("lower_energy_kj", 0.0))
+	var result: Dictionary = {
+		"phase3_shadow_enthalpy_initial_upper_kj": initial_upper_kj,
+		"phase3_shadow_enthalpy_initial_lower_kj": initial_lower_kj,
+		"phase3_shadow_enthalpy_upper_in_kj_total": upper_in_kj,
+		"phase3_shadow_enthalpy_upper_out_kj_total": upper_out_kj,
+		"phase3_shadow_enthalpy_lower_in_kj_total": lower_in_kj,
+		"phase3_shadow_enthalpy_lower_out_kj_total": lower_out_kj,
+		"phase3_shadow_enthalpy_expected_upper_kj": expected_upper_kj,
+		"phase3_shadow_enthalpy_expected_lower_kj": expected_lower_kj,
+		"phase3_shadow_enthalpy_observed_upper_kj": observed_upper_kj,
+		"phase3_shadow_enthalpy_observed_lower_kj": observed_lower_kj,
+		"phase3_shadow_enthalpy_upper_residual_kj": \
+				observed_upper_kj - expected_upper_kj,
+		"phase3_shadow_enthalpy_lower_residual_kj": \
+				observed_lower_kj - expected_lower_kj,
+		"phase3_shadow_enthalpy_room_residual_kj": \
+				observed_upper_kj + observed_lower_kj \
+				- expected_upper_kj - expected_lower_kj,
+		"phase3_shadow_enthalpy_accepted_route_count": float(
+			cumulative.get("accepted_route_count", 0.0)
+		),
+		"phase3_shadow_enthalpy_legacy_route_count": float(
+			cumulative.get("legacy_route_count", 0.0)
+		),
+	}
+	for family_name in ENTHALPY_RESIDENCE_FAMILIES:
+		for zone_name in [ZONE_UPPER, ZONE_LOWER]:
+			for direction in ["in", "out"]:
+				var source_key: String = family_name + "_" + zone_name + "_" \
+						+ direction + "_kj_total"
+				var result_key: String = "phase3_shadow_enthalpy_" + source_key
+				result[result_key] = float(cumulative.get(source_key, 0.0))
+	return result
 
 
 func _empty_species_inventory() -> Dictionary:
@@ -5686,6 +5918,22 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"phase3_shadow_co_oxidation_legacy_lower_co2_kg_step": \
 					_co_oxidation_legacy_lower_co2_kg,
 		}
+	if enthalpy_residence_diagnostics_enabled:
+		var building_residual_kj: float = 0.0
+		for room_key in shadow.keys():
+			if not _results.has(room_key):
+				continue
+			var ledger_result: Dictionary = _enthalpy_residence_result(
+				String(room_key), shadow[room_key]
+			)
+			for ledger_key in ledger_result.keys():
+				_results[room_key][ledger_key] = ledger_result[ledger_key]
+			building_residual_kj += float(
+				ledger_result.get("phase3_shadow_enthalpy_room_residual_kj", 0.0)
+			)
+		for room_key in _results.keys():
+			_results[room_key]["phase3_shadow_enthalpy_building_residual_kj"] = \
+					building_residual_kj
 	if _persistence_enabled_step:
 		_persistent_zone_state = shadow.duplicate(true)
 		_persistent_step_index = persistence_step_index
@@ -5956,6 +6204,7 @@ func _apply_atomic_bundle(
 		_atomic_rejected_species_kg += _sum_parcel_species(
 			route.get("species_kg", {})
 		) * rejected_fraction
+		_record_enthalpy_residence_route(shadow, route, accepted_fraction)
 		_apply_atomic_route(shadow, route, accepted_fraction)
 	for raw_demand in source_demands.values():
 		var demand: Dictionary = raw_demand
@@ -6378,6 +6627,7 @@ func _apply_request(
 	var destination_zone: String = String(request.get("destination_zone", ZONE_UPPER))
 	var requested_mass_kg: float = maxf(0.0, float(request.get("gas_mass_kg", 0.0)))
 	var accepted_fraction: float = 1.0
+	var enthalpy_route_recorded: bool = false
 	if source_id != EXTERIOR_ID:
 		var source_key: String = str(source_id)
 		var source: Dictionary = shadow.get(source_key, {})
@@ -6396,6 +6646,8 @@ func _apply_request(
 				accepted_fraction = minf(accepted_fraction,
 						float(source_species.get(species_name, 0.0)) / requested_species_kg)
 		accepted_fraction = clampf(accepted_fraction, 0.0, 1.0)
+		_record_enthalpy_residence_route(shadow, request, accepted_fraction, true)
+		enthalpy_route_recorded = true
 		var accepted_mass_kg: float = requested_mass_kg * accepted_fraction
 		source[source_zone + "_gas_kg"] = maxf(0.0, available_kg - accepted_mass_kg)
 		source[source_zone + "_energy_kj"] = maxf(0.0,
@@ -6446,6 +6698,8 @@ func _apply_request(
 				_immediate_rejected_kg_total += rejected_immediate_kg
 				if _is_vertical_species_cause(String(request.get("cause", ""))):
 					_vertical_rejected_kg_total += rejected_immediate_kg
+	if not enthalpy_route_recorded:
+		_record_enthalpy_residence_route(shadow, request, accepted_fraction, true)
 	var request_cause: String = String(request.get("cause", ""))
 	if _is_exterior_purge_cause(request_cause):
 		var accepted_purge_species: Dictionary = {}

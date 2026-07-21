@@ -34,6 +34,7 @@ var phase3_canonical_exterior_counterflow_shadow_enabled: bool = false
 var phase3_canonical_post_opening_coupling_shadow_enabled: bool = false
 var phase3_canonical_interior_opening_shadow_enabled: bool = false
 var phase3_canonical_interior_pressure_shadow_enabled: bool = false
+var phase3_enthalpy_residence_diagnostics_enabled: bool = false
 
 var _next_log_time_s: float = 0.0
 ## Último timestamp escrito (append_snapshot o append_snapshot_now).
@@ -115,6 +116,44 @@ func configure_phase3_canonical_interior_opening_shadow(is_enabled: bool) -> voi
 
 func configure_phase3_canonical_interior_pressure_shadow(is_enabled: bool) -> void:
 	phase3_canonical_interior_pressure_shadow_enabled = is_enabled
+
+
+func configure_phase3_enthalpy_residence_diagnostics(is_enabled: bool) -> void:
+	phase3_enthalpy_residence_diagnostics_enabled = is_enabled
+
+
+func _phase3_enthalpy_residence_fields() -> Array[String]:
+	var fields: Array[String] = [
+		"phase3_shadow_enthalpy_initial_upper_kj",
+		"phase3_shadow_enthalpy_initial_lower_kj",
+		"phase3_shadow_enthalpy_upper_in_kj_total",
+		"phase3_shadow_enthalpy_upper_out_kj_total",
+		"phase3_shadow_enthalpy_lower_in_kj_total",
+		"phase3_shadow_enthalpy_lower_out_kj_total",
+		"phase3_shadow_enthalpy_expected_upper_kj",
+		"phase3_shadow_enthalpy_expected_lower_kj",
+		"phase3_shadow_enthalpy_observed_upper_kj",
+		"phase3_shadow_enthalpy_observed_lower_kj",
+		"phase3_shadow_enthalpy_upper_residual_kj",
+		"phase3_shadow_enthalpy_lower_residual_kj",
+		"phase3_shadow_enthalpy_room_residual_kj",
+		"phase3_shadow_enthalpy_building_residual_kj",
+		"phase3_shadow_enthalpy_accepted_route_count",
+		"phase3_shadow_enthalpy_legacy_route_count",
+	]
+	for family_name in [
+		"combustion", "plume", "interzone", "wall", "ambient", "exterior",
+		"exterior_counterflow", "interior_opening", "interior_pressure", "parcel",
+		"legacy", "zone_collapse", "other",
+	]:
+		for zone_name in ["upper", "lower"]:
+			for direction in ["in", "out"]:
+				fields.append(
+					"phase3_shadow_enthalpy_%s_%s_%s_kj_total" % [
+						family_name, zone_name, direction
+					]
+				)
+	return fields
 
 
 func reset_log_file() -> void:
@@ -498,6 +537,10 @@ func _build_csv_header() -> String:
 		header += ",phase3_shadow_interior_opening_active_flag,phase3_shadow_interior_opening_count,phase3_shadow_interior_active_opening_count,phase3_shadow_interior_vertical_skipped_count,phase3_shadow_interior_invalid_preview_count,phase3_shadow_interior_route_count,phase3_shadow_interior_neutral_plane_m,phase3_shadow_interior_requested_out_gas_kg_step,phase3_shadow_interior_requested_in_gas_kg_step,phase3_shadow_interior_accepted_out_gas_kg_step,phase3_shadow_interior_accepted_in_gas_kg_step,phase3_shadow_interior_accepted_out_energy_kj_step,phase3_shadow_interior_accepted_in_energy_kj_step,phase3_shadow_interior_accepted_out_o2_kg_step,phase3_shadow_interior_accepted_in_o2_kg_step,phase3_shadow_interior_accepted_out_species_kg_step,phase3_shadow_interior_accepted_in_species_kg_step,phase3_shadow_interior_accepted_fraction,phase3_shadow_interior_net_mass_kg_step,phase3_shadow_interior_net_energy_kj_step,phase3_shadow_interior_net_o2_kg_step,phase3_shadow_interior_net_species_kg_step,phase3_shadow_interior_mass_residual_kg,phase3_shadow_interior_energy_residual_kj,phase3_shadow_interior_o2_residual_kg,phase3_shadow_interior_species_residual_kg,phase3_shadow_interior_duplicate_owner_flag"
 	if phase3_canonical_interior_pressure_shadow_enabled:
 		header += ",phase3_shadow_interior_pressure_enabled_flag,phase3_shadow_interior_pressure_opening_count,phase3_shadow_interior_pressure_pre_pa,phase3_shadow_interior_pressure_raw_out_gas_kg_step,phase3_shadow_interior_pressure_raw_in_gas_kg_step,phase3_shadow_interior_pressure_requested_out_gas_kg_step,phase3_shadow_interior_pressure_requested_in_gas_kg_step,phase3_shadow_interior_pressure_accepted_out_gas_kg_step,phase3_shadow_interior_pressure_accepted_in_gas_kg_step,phase3_shadow_interior_pressure_net_mass_kg_step,phase3_shadow_interior_pressure_equilibrium_fraction,phase3_shadow_interior_pressure_full_delta_pa,phase3_shadow_interior_pressure_limited_delta_pa,phase3_shadow_interior_pressure_predicted_post_pa,phase3_shadow_interior_pressure_crossing_prevented_count,phase3_shadow_interior_pressure_mass_residual_kg,phase3_shadow_interior_pressure_energy_residual_kj,phase3_shadow_interior_pressure_o2_residual_kg,phase3_shadow_interior_pressure_species_residual_kg"
+	if phase3_enthalpy_residence_diagnostics_enabled:
+		header += "," + ",".join(PackedStringArray(
+			_phase3_enthalpy_residence_fields()
+		))
 	return header
 
 
@@ -1123,6 +1166,9 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 				"phase3_shadow_interior_pressure_o2_residual_kg",
 				"phase3_shadow_interior_pressure_species_residual_kg"
 			]:
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
+		if phase3_enthalpy_residence_diagnostics_enabled:
+			for field_name in _phase3_enthalpy_residence_fields():
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		file.store_line(",".join(fields))
 

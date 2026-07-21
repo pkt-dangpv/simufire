@@ -50,6 +50,8 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.2b7 post-opening coupling: `docs/validation/PHASE3_F32B7_POST_OPENING_COUPLING.md`
 - F3.3a interior-opening shadow: `docs/validation/PHASE3_F33A_INTERIOR_OPENING_SHADOW.md`
 - F3.3b signed interior-pressure shadow: `docs/validation/PHASE3_F33B_INTERIOR_PRESSURE_SHADOW.md`
+- F3.3c late-enthalpy audit: `docs/validation/PHASE3_F33C_LATE_ENTHALPY_AUDIT.md`
+- F3.3c1 enthalpy ledger: `docs/validation/PHASE3_F33C1_ENTHALPY_RESIDENCE_LEDGER.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -258,6 +260,23 @@ shadow GO, but authority and Group C retirement remain NO-GO. F3.3c must audit
 late upper-energy residence term by term before another motor mechanism is
 designed.
 
+F3.3c has now established that the late deficit is energy-residence dominated.
+At 600 s F3.3b retains 94.8% of the CFAST upper mass but only 49.3% of its
+upper sensible energy. A CFAST-aligned `chi_rad=0.35` scratch control fixes the
+late temperature but recreates a severe early overshoot, so scalar case tuning
+is rejected. Exact cause attribution remains blocked because several accepted
+energy routes were exported only as current-step values. F3.3c1 now supplies
+the missing exact ledger. In Group C all 527 shared OFF/ON columns are
+identical and every zone/room/building residual is `0.0 kJ`. R0 accepts
+40.711 MJ combustion heat through 600 s and exports most of it through gross
+interior opening flow, ambient and wall paths. Group A closes equally cleanly.
+
+F3.3d is now the current target. It must compare the exact canonical source
+and sink families against time-resolved CFAST convective HRR, wall and opening
+energy over `0-180`, `180-300` and `300-600 s`. It is diagnostic only: no
+combustion, radiation, wall or doorway coefficient may change before that
+correspondence selects one owner and passes a new STOP gate.
+
 ## Binding priority decision: HVAC last
 
 HVAC is not part of the remaining F3.0 shadow sequence. It stays on the legacy
@@ -295,11 +314,13 @@ The revised order is:
 26. F3.2b7 canonical post-opening combustion/O2/plume feedback. Implemented; shadow mechanism GO / authority NO-GO.
 27. F3.3a horizontal interior-opening shadow. Implemented; mechanism GO / authority and Group C NO-GO.
 28. F3.3b signed canonical inter-room pressure coupling. Implemented; diagnostic shadow GO / authority and Group C NO-GO.
-29. F3.3c Group C late-enthalpy residence audit. Current target.
-30. F3.4 remaining non-HVAC species, suppression and FED.
-31. HVAC-R0 redesign specification.
-32. F3.5 HVAC canonical integration as the last subsystem.
-33. F3.6 final corpus promotion and legacy retirement.
+29. F3.3c Group C late-enthalpy residence audit. Completed diagnostic GO; energy-residence dominance confirmed.
+30. F3.3c1 cumulative accepted-route enthalpy ledger. Implemented; exact closure and legacy invariance verified, default OFF.
+31. F3.3d CFAST source/boundary correspondence audit. Current target; diagnosis only, no motor patch.
+32. F3.4 remaining non-HVAC species, suppression and FED.
+33. HVAC-R0 redesign specification.
+34. F3.5 HVAC canonical integration as the last subsystem.
+35. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
