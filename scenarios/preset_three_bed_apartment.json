@@ -1,0 +1,518 @@
+{
+	"apartment_floor_number": 1,
+	"building_type": "apartment",
+	"detectors": [],
+	"exterior_lighting_mode": "Dia",
+	"exterior_walls": [],
+	"floors": [
+		{
+			"level_m": 0.0,
+			"name": "PB"
+		}
+	],
+	"hvac_data": {
+		"condition_supply_air": false,
+		"conditioning_strength": 0.45,
+		"exists": false,
+		"fan_flow_m3_s": 0.32,
+		"mode": "none",
+		"off_passive_flow_m3_s": 0.02,
+		"on": false,
+		"outside_air_fraction": 0.08,
+		"returns": [
+			{
+				"flow_fraction": 1.0,
+				"height_fraction": 0.9,
+				"room_id": 2
+			}
+		],
+		"smoke_filter_penetration": 0.72,
+		"species_filter_penetration": 0.95,
+		"supplies": [
+			{
+				"flow_fraction": 1.2,
+				"height_fraction": 0.92,
+				"room_id": 0
+			},
+			{
+				"flow_fraction": 0.55,
+				"height_fraction": 0.92,
+				"room_id": 3
+			},
+			{
+				"flow_fraction": 0.85,
+				"height_fraction": 0.92,
+				"room_id": 4
+			},
+			{
+				"flow_fraction": 0.75,
+				"height_fraction": 0.92,
+				"room_id": 5
+			},
+			{
+				"flow_fraction": 0.75,
+				"height_fraction": 0.92,
+				"room_id": 6
+			},
+			{
+				"flow_fraction": 0.3,
+				"height_fraction": 0.92,
+				"room_id": 7
+			}
+		],
+		"supply_temp_c": 20.0
+	},
+	"hvac_mode": "none",
+	"interior_lights_on": true,
+	"openings_data": [
+		{
+			"a": 1,
+			"b": 0,
+			"height_m": 2.1,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 1.0,
+			"sill_m": 0.0,
+			"swing_direction": "in",
+			"type": "door",
+			"wall": "",
+			"width_m": 1.0
+		},
+		{
+			"a": 1,
+			"b": 2,
+			"height_m": 2.1,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 1.0,
+			"sill_m": 0.0,
+			"swing_direction": "in",
+			"type": "door",
+			"wall": "",
+			"width_m": 0.9
+		},
+		{
+			"a": 0,
+			"b": 3,
+			"height_m": 2.05,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 1.0,
+			"sill_m": 0.0,
+			"swing_direction": "in",
+			"type": "door",
+			"wall": "",
+			"width_m": 0.9
+		},
+		{
+			"a": 2,
+			"b": 4,
+			"height_m": 2.0,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 1.0,
+			"sill_m": 0.0,
+			"swing_direction": "in",
+			"type": "door",
+			"wall": "",
+			"width_m": 0.8
+		},
+		{
+			"a": 2,
+			"b": 5,
+			"height_m": 2.0,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 1.0,
+			"sill_m": 0.0,
+			"swing_direction": "in",
+			"type": "door",
+			"wall": "",
+			"width_m": 0.8
+		},
+		{
+			"a": 2,
+			"b": 6,
+			"height_m": 2.0,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 1.0,
+			"sill_m": 0.0,
+			"swing_direction": "in",
+			"type": "door",
+			"wall": "",
+			"width_m": 0.8
+		},
+		{
+			"a": 2,
+			"b": 7,
+			"height_m": 2.0,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 0.0,
+			"sill_m": 0.0,
+			"swing_direction": "in",
+			"type": "door",
+			"wall": "",
+			"width_m": 0.7
+		},
+		{
+			"a": 2,
+			"b": 8,
+			"height_m": 2.0,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 0.0,
+			"sill_m": 0.0,
+			"swing_direction": "in",
+			"type": "door",
+			"wall": "",
+			"width_m": 0.7
+		},
+		{
+			"a": 1,
+			"b": -1,
+			"height_m": 2.1,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 0.0,
+			"sill_m": 0.0,
+			"swing_direction": "in",
+			"type": "door",
+			"wall": "top",
+			"width_m": 0.95
+		},
+		{
+			"a": 0,
+			"b": -1,
+			"height_m": 1.2,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 0.0,
+			"sill_m": 0.85,
+			"swing_direction": "in",
+			"type": "window",
+			"wall": "left",
+			"width_m": 2.6
+		},
+		{
+			"a": 3,
+			"b": -1,
+			"height_m": 1.0,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 0.0,
+			"sill_m": 1.0,
+			"swing_direction": "in",
+			"type": "window",
+			"wall": "bottom",
+			"width_m": 1.2
+		},
+		{
+			"a": 4,
+			"b": -1,
+			"height_m": 1.1,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 0.0,
+			"sill_m": 0.9,
+			"swing_direction": "in",
+			"type": "window",
+			"wall": "right",
+			"width_m": 1.6
+		},
+		{
+			"a": 5,
+			"b": -1,
+			"height_m": 1.1,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 0.0,
+			"sill_m": 0.9,
+			"swing_direction": "in",
+			"type": "window",
+			"wall": "right",
+			"width_m": 1.4
+		},
+		{
+			"a": 6,
+			"b": -1,
+			"height_m": 1.1,
+			"hinge_side": "left",
+			"offset_is_fraction": true,
+			"offset_m": 0.5,
+			"open_fraction": 0.0,
+			"sill_m": 0.9,
+			"swing_direction": "in",
+			"type": "window",
+			"wall": "right",
+			"width_m": 1.4
+		}
+	],
+	"outside_o2": 0.209,
+	"outside_temp_c": 20.0,
+	"player_start": {},
+	"room_rect_m": {
+		"0": {
+			"h": 4.5,
+			"w": 5.19999980926514,
+			"x": 0.0,
+			"y": 0.0
+		},
+		"1": {
+			"h": 2.5,
+			"w": 1.5,
+			"x": 5.19999980926514,
+			"y": 0.0
+		},
+		"2": {
+			"h": 5.80000019073486,
+			"w": 1.5,
+			"x": 5.19999980926514,
+			"y": 2.5
+		},
+		"3": {
+			"h": 3.0,
+			"w": 3.29999995231628,
+			"x": 0.0,
+			"y": 4.5
+		},
+		"4": {
+			"h": 3.59999990463257,
+			"w": 3.90000009536743,
+			"x": 6.69999980926514,
+			"y": 0.0
+		},
+		"5": {
+			"h": 3.0,
+			"w": 3.29999995231628,
+			"x": 6.69999980926514,
+			"y": 3.59999990463257
+		},
+		"6": {
+			"h": 3.0,
+			"w": 3.29999995231628,
+			"x": 6.69999980926514,
+			"y": 6.59999990463257
+		},
+		"7": {
+			"h": 2.20000004768372,
+			"w": 1.89999997615814,
+			"x": 3.29999995231628,
+			"y": 4.5
+		},
+		"8": {
+			"h": 1.60000002384186,
+			"w": 1.89999997615814,
+			"x": 3.29999995231628,
+			"y": 6.69999980926514
+		}
+	},
+	"rooms_data": [
+		{
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 7200.0,
+			"fuel_objects": [],
+			"height_m": 2.5,
+			"id": 0,
+			"kind": "salon",
+			"max_hrr_kw": 3400.0,
+			"name": "Salon-comedor",
+			"rect": "[P: (0.0, 0.0), S: (5.2, 4.5)]",
+			"rotation_deg": 0.0,
+			"stair_flight_count": 1,
+			"stair_has_railings": true,
+			"stair_has_walls": false,
+			"stair_run_direction_m": {
+				"x": 0.0,
+				"y": 1.0
+			},
+			"stair_turn_degrees": 0.0,
+			"stair_turn_mode": "auto"
+		},
+		{
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 320.0,
+			"fuel_objects": [],
+			"height_m": 2.5,
+			"id": 1,
+			"kind": "pasillo",
+			"max_hrr_kw": 200.0,
+			"name": "Recibidor",
+			"rect": "[P: (5.2, 0.0), S: (1.5, 2.5)]",
+			"rotation_deg": 0.0,
+			"stair_flight_count": 1,
+			"stair_has_railings": true,
+			"stair_has_walls": false,
+			"stair_run_direction_m": {
+				"x": 0.0,
+				"y": 1.0
+			},
+			"stair_turn_degrees": 0.0,
+			"stair_turn_mode": "auto"
+		},
+		{
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 520.0,
+			"fuel_objects": [],
+			"height_m": 2.5,
+			"id": 2,
+			"kind": "pasillo",
+			"max_hrr_kw": 300.0,
+			"name": "Pasillo",
+			"rect": "[P: (5.2, 2.5), S: (1.5, 5.8)]",
+			"rotation_deg": 0.0,
+			"stair_flight_count": 1,
+			"stair_has_railings": true,
+			"stair_has_walls": false,
+			"stair_run_direction_m": {
+				"x": 0.0,
+				"y": 1.0
+			},
+			"stair_turn_degrees": 0.0,
+			"stair_turn_mode": "auto"
+		},
+		{
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 3200.0,
+			"fuel_objects": [],
+			"height_m": 2.5,
+			"id": 3,
+			"kind": "cocina",
+			"max_hrr_kw": 2200.0,
+			"name": "Cocina",
+			"rect": "[P: (0.0, 4.5), S: (3.3, 3.0)]",
+			"rotation_deg": 0.0,
+			"stair_flight_count": 1,
+			"stair_has_railings": true,
+			"stair_has_walls": false,
+			"stair_run_direction_m": {
+				"x": 0.0,
+				"y": 1.0
+			},
+			"stair_turn_degrees": 0.0,
+			"stair_turn_mode": "auto"
+		},
+		{
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 3800.0,
+			"fuel_objects": [],
+			"height_m": 2.5,
+			"id": 4,
+			"kind": "dormitorio",
+			"max_hrr_kw": 2200.0,
+			"name": "Dormitorio principal",
+			"rect": "[P: (6.7, 0.0), S: (3.9, 3.6)]",
+			"rotation_deg": 0.0,
+			"stair_flight_count": 1,
+			"stair_has_railings": true,
+			"stair_has_walls": false,
+			"stair_run_direction_m": {
+				"x": 0.0,
+				"y": 1.0
+			},
+			"stair_turn_degrees": 0.0,
+			"stair_turn_mode": "auto"
+		},
+		{
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 3000.0,
+			"fuel_objects": [],
+			"height_m": 2.5,
+			"id": 5,
+			"kind": "dormitorio",
+			"max_hrr_kw": 1800.0,
+			"name": "Dormitorio 2",
+			"rect": "[P: (6.7, 3.6), S: (3.3, 3.0)]",
+			"rotation_deg": 0.0,
+			"stair_flight_count": 1,
+			"stair_has_railings": true,
+			"stair_has_walls": false,
+			"stair_run_direction_m": {
+				"x": 0.0,
+				"y": 1.0
+			},
+			"stair_turn_degrees": 0.0,
+			"stair_turn_mode": "auto"
+		},
+		{
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 2800.0,
+			"fuel_objects": [],
+			"height_m": 2.5,
+			"id": 6,
+			"kind": "dormitorio",
+			"max_hrr_kw": 1700.0,
+			"name": "Dormitorio 3",
+			"rect": "[P: (6.7, 6.6), S: (3.3, 3.0)]",
+			"rotation_deg": 0.0,
+			"stair_flight_count": 1,
+			"stair_has_railings": true,
+			"stair_has_walls": false,
+			"stair_run_direction_m": {
+				"x": 0.0,
+				"y": 1.0
+			},
+			"stair_turn_degrees": 0.0,
+			"stair_turn_mode": "auto"
+		},
+		{
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 300.0,
+			"fuel_objects": [],
+			"height_m": 2.5,
+			"id": 7,
+			"kind": "bano",
+			"max_hrr_kw": 200.0,
+			"name": "Bano",
+			"rect": "[P: (3.3, 4.5), S: (1.9, 2.2)]",
+			"rotation_deg": 0.0,
+			"stair_flight_count": 1,
+			"stair_has_railings": true,
+			"stair_has_walls": false,
+			"stair_run_direction_m": {
+				"x": 0.0,
+				"y": 1.0
+			},
+			"stair_turn_degrees": 0.0,
+			"stair_turn_mode": "auto"
+		},
+		{
+			"floor_level_z_m": 0.0,
+			"fuel_energy_MJ": 200.0,
+			"fuel_objects": [],
+			"height_m": 2.5,
+			"id": 8,
+			"kind": "bano",
+			"max_hrr_kw": 150.0,
+			"name": "Aseo",
+			"rect": "[P: (3.3, 6.7), S: (1.9, 1.6)]",
+			"rotation_deg": 0.0,
+			"stair_flight_count": 1,
+			"stair_has_railings": true,
+			"stair_has_walls": false,
+			"stair_run_direction_m": {
+				"x": 0.0,
+				"y": 1.0
+			},
+			"stair_turn_degrees": 0.0,
+			"stair_turn_mode": "auto"
+		}
+	],
+	"stop_time_s": 0.0,
+	"version": 1,
+	"victims": []
+}

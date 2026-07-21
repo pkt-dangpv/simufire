@@ -1,66 +1,7 @@
-[gd_scene format=3]
+[gd_scene format=3 load_steps=2]
 
-[sub_resource type="BoxMesh" id="BoxMesh_unit"]
-
-[sub_resource type="StandardMaterial3D" id="Mat_cabinet"]
-albedo_color = Color(0.50, 0.42, 0.30, 1)
-roughness = 0.95
-
-[sub_resource type="StandardMaterial3D" id="Mat_counter"]
-albedo_color = Color(0.22, 0.22, 0.2, 1)
-roughness = 0.88
-
-[sub_resource type="StandardMaterial3D" id="Mat_metal"]
-albedo_color = Color(0.52, 0.53, 0.52, 1)
-roughness = 0.5
-metallic = 0.25
+[ext_resource type="PackedScene" path="res://assets/fp/furniture/gltfs/kitchenCabinet.glb" id="1"]
 
 [node name="KitchenUnit" type="Node3D"]
 
-[node name="BaseCabinet" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_cabinet")
-position = Vector3(0, 0.40, 0)
-scale = Vector3(1, 0.8, 1)
-
-[node name="Countertop" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_counter")
-position = Vector3(0, 0.83, 0)
-scale = Vector3(1.04, 0.08, 1.04)
-
-[node name="DrawerBand" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_cabinet")
-position = Vector3(0, 0.62, 0.515)
-scale = Vector3(0.84, 0.15, 0.035)
-
-[node name="HandleBand" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_metal")
-position = Vector3(0, 0.62, 0.555)
-scale = Vector3(0.48, 0.024, 0.024)
-
-[node name="Splashback" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_counter")
-position = Vector3(0, 1.08, -0.42)
-scale = Vector3(0.96, 0.42, 0.06)
-
-[node name="UpperCabinet" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_cabinet")
-position = Vector3(0, 1.55, -0.18)
-scale = Vector3(0.82, 0.52, 0.42)
-
-[node name="UpperSideLeft" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_cabinet")
-position = Vector3(-0.40, 1.08, -0.30)
-scale = Vector3(0.03, 0.42, 0.24)
-
-[node name="UpperSideRight" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_cabinet")
-position = Vector3(0.40, 1.08, -0.30)
-scale = Vector3(0.03, 0.42, 0.24)
+[node name="Model" parent="." instance=ExtResource("1")]

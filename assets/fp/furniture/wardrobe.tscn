@@ -1,48 +1,7 @@
-[gd_scene format=3]
+[gd_scene format=3 load_steps=2]
 
-[sub_resource type="BoxMesh" id="BoxMesh_unit"]
-
-[sub_resource type="StandardMaterial3D" id="Mat_wood"]
-albedo_color = Color(0.44, 0.27, 0.14, 1)
-roughness = 0.94
-
-[sub_resource type="StandardMaterial3D" id="Mat_wood_light"]
-albedo_color = Color(0.53, 0.34, 0.18, 1)
-roughness = 0.94
-
-[sub_resource type="StandardMaterial3D" id="Mat_metal"]
-albedo_color = Color(0.72, 0.58, 0.34, 1)
-roughness = 0.55
-metallic = 0.2
+[ext_resource type="PackedScene" path="res://assets/fp/furniture/gltfs/bookcaseClosedDoors.glb" id="1"]
 
 [node name="Wardrobe" type="Node3D"]
 
-[node name="Body" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_wood")
-position = Vector3(0, 0.95, 0)
-scale = Vector3(1, 1.9, 1)
-
-[node name="DoorLeft" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_wood_light")
-position = Vector3(-0.25, 0.97, 0.515)
-scale = Vector3(0.45, 1.55, 0.035)
-
-[node name="DoorRight" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_wood_light")
-position = Vector3(0.25, 0.97, 0.515)
-scale = Vector3(0.45, 1.55, 0.035)
-
-[node name="HandleLeft" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_metal")
-position = Vector3(-0.06, 0.95, 0.555)
-scale = Vector3(0.022, 0.42, 0.022)
-
-[node name="HandleRight" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_metal")
-position = Vector3(0.06, 0.95, 0.555)
-scale = Vector3(0.022, 0.42, 0.022)
+[node name="Model" parent="." instance=ExtResource("1")]

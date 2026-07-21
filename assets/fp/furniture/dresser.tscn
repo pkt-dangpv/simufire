@@ -1,48 +1,7 @@
-[gd_scene format=3]
+[gd_scene format=3 load_steps=2]
 
-[sub_resource type="BoxMesh" id="BoxMesh_unit"]
-
-[sub_resource type="StandardMaterial3D" id="Mat_wood"]
-albedo_color = Color(0.45, 0.28, 0.15, 1)
-roughness = 0.94
-
-[sub_resource type="StandardMaterial3D" id="Mat_wood_light"]
-albedo_color = Color(0.54, 0.34, 0.18, 1)
-roughness = 0.94
-
-[sub_resource type="StandardMaterial3D" id="Mat_metal"]
-albedo_color = Color(0.72, 0.58, 0.34, 1)
-roughness = 0.55
-metallic = 0.2
+[ext_resource type="PackedScene" path="res://assets/fp/furniture/gltfs/cabinetBedDrawer.glb" id="1"]
 
 [node name="Dresser" type="Node3D"]
 
-[node name="Body" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_wood")
-position = Vector3(0, 0.41, 0)
-scale = Vector3(1, 0.82, 1)
-
-[node name="DrawerTop" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_wood_light")
-position = Vector3(0, 0.54, 0.515)
-scale = Vector3(0.82, 0.18, 0.035)
-
-[node name="DrawerBottom" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_wood_light")
-position = Vector3(0, 0.29, 0.515)
-scale = Vector3(0.82, 0.18, 0.035)
-
-[node name="HandleTop" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_metal")
-position = Vector3(0, 0.54, 0.555)
-scale = Vector3(0.25, 0.022, 0.022)
-
-[node name="HandleBottom" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_unit")
-material_override = SubResource("Mat_metal")
-position = Vector3(0, 0.29, 0.555)
-scale = Vector3(0.25, 0.022, 0.022)
+[node name="Model" parent="." instance=ExtResource("1")]
