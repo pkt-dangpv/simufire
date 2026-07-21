@@ -1000,6 +1000,8 @@ var _step_time_us: int = 0
 @export var phase3_canonical_post_opening_coupling_shadow_enabled: bool = false
 ## F3.3a: transporte two-zone horizontal interior, atomico y solo shadow.
 @export var phase3_canonical_interior_opening_shadow_enabled: bool = false
+## F3.3b: componente firmado por diferencia de presion interior. Default OFF.
+@export var phase3_canonical_interior_pressure_shadow_enabled: bool = false
 
 # ============================================================
 # SERVICIOS AUXILIARES
@@ -1319,6 +1321,12 @@ func _sync_auxiliary_services() -> void:
 		phase3_canonical_zone_shadow_enabled \
 				and phase3_canonical_persistence_shadow_enabled \
 				and phase3_canonical_interior_opening_shadow_enabled
+	)
+	log_writer.configure_phase3_canonical_interior_pressure_shadow(
+		phase3_canonical_zone_shadow_enabled \
+				and phase3_canonical_persistence_shadow_enabled \
+				and phase3_canonical_interior_opening_shadow_enabled \
+				and phase3_canonical_interior_pressure_shadow_enabled
 	)
 	# SF-R6: ZoneFireSolver — inyectar referencia al building.
 	zone_fire_solver.set_building(building)
@@ -1948,6 +1956,8 @@ func _build_state_context() -> Dictionary:
 				phase3_canonical_post_opening_coupling_shadow_enabled,
 		"phase3_canonical_interior_opening_shadow_enabled": \
 				phase3_canonical_interior_opening_shadow_enabled,
+		"phase3_canonical_interior_pressure_shadow_enabled": \
+				phase3_canonical_interior_pressure_shadow_enabled,
 		"phase3_canonical_zone_shadow": phase3_zone_mass_system.get_results() \
 				if phase3_canonical_zone_shadow_enabled else {},
 		"ambient_temp_c": thermal_system.ambient_temp_c(),
@@ -2274,7 +2284,8 @@ func step(delta: float) -> void:
 				building,
 				dt,
 				thermal_system.ambient_temp_c(),
-				Phase3ZoneMassSystemScript.EXTERIOR_DISCHARGE_COEFF
+				Phase3ZoneMassSystemScript.EXTERIOR_DISCHARGE_COEFF,
+				phase3_canonical_interior_pressure_shadow_enabled
 			)
 
 	var pre_hrr_o2_step: bool = _uses_pre_hrr_oxygen_step()

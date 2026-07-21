@@ -3,6 +3,28 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3b signed interior pressure shadow (2026-07-21)
+
+- Added a default-OFF signed canonical pressure component for horizontal
+  interior openings, evaluated from one common snapshot and committed in the
+  existing F3.3a atomic network bundle.
+- Added a network-wide EOS relaxation cap that prevents one-step pressure
+  reversal while conserving gas, enthalpy, O2 and all transported species.
+- Added 19 opt-in diagnostics plus runtime coverage for direction, pressure
+  reversal, order independence, vertical exclusion and complete conservation.
+- Rejected the Group C pressure-flow hypothesis: R0 upper temperature worsens
+  from `130.94/102.73 C` to `125.70/97.39 C` at 180/600 s. Authority and gap
+  retirement remain NO-GO; F3.3c will audit late enthalpy residence.
+
+### Phase 3+ F3.3a horizontal interior-opening shadow (2026-07-20)
+
+- Added one default-OFF, opening-order-independent canonical network bundle
+  for horizontal interior openings with exact hydrostatic integration.
+- Transported gas, enthalpy, O2 and seven species under one global atomic cap;
+  vertical and exterior ownership remained unchanged.
+- Improved Group C early temperature but worsened its late undershoot, leaving
+  authority and gap retirement at NO-GO.
+
 ### FP perpendicular facade visibility fix (2026-07-20)
 
 - Prevented independent urban sets on perpendicular exterior walls from

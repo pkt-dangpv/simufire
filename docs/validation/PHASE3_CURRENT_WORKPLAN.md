@@ -1,6 +1,6 @@
 # Phase 3+ current workplan
 
-Date: 2026-07-20
+Date: 2026-07-21
 
 ## Current baseline
 
@@ -49,6 +49,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.2b6 exterior counterflow: `docs/validation/PHASE3_F32B6_EXTERIOR_COUNTERFLOW.md`
 - F3.2b7 post-opening coupling: `docs/validation/PHASE3_F32B7_POST_OPENING_COUPLING.md`
 - F3.3a interior-opening shadow: `docs/validation/PHASE3_F33A_INTERIOR_OPENING_SHADOW.md`
+- F3.3b signed interior-pressure shadow: `docs/validation/PHASE3_F33B_INTERIOR_PRESSURE_SHADOW.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -243,6 +244,20 @@ early thin-layer error but cannot supply the signed pressure/enthalpy coupling
 needed late. F3.3b is the next target; it must diagnose a canonical network
 pressure owner rather than tune the F3.3a exchange rate.
 
+F3.3b now adds that signed component from the same canonical snapshot and
+inside the same atomic network bundle. A single network relaxation fraction
+prevents connected pressure differences from crossing in one explicit step;
+gas, enthalpy, O2 and all seven species remain exactly conservative. Legacy
+output and official validation reports remain unchanged.
+
+The Group C hypothesis is rejected. R0 upper temperature moves from F3.3a's
+`130.94/102.73 C` at 180/600 s to `125.70/97.39 C`, farther from both CFAST
+targets. Signed transport removes more upper enthalpy, so neither a doorway
+multiplier nor additional pressure relief is justified. F3.3b is diagnostic
+shadow GO, but authority and Group C retirement remain NO-GO. F3.3c must audit
+late upper-energy residence term by term before another motor mechanism is
+designed.
+
 ## Binding priority decision: HVAC last
 
 HVAC is not part of the remaining F3.0 shadow sequence. It stays on the legacy
@@ -279,11 +294,12 @@ The revised order is:
 25. F3.2b6 canonical bidirectional exterior opening. Implemented; shadow mechanism GO / authority NO-GO.
 26. F3.2b7 canonical post-opening combustion/O2/plume feedback. Implemented; shadow mechanism GO / authority NO-GO.
 27. F3.3a horizontal interior-opening shadow. Implemented; mechanism GO / authority and Group C NO-GO.
-28. F3.3b signed canonical inter-room pressure coupling. Current target.
-29. F3.4 remaining non-HVAC species, suppression and FED.
-30. HVAC-R0 redesign specification.
-31. F3.5 HVAC canonical integration as the last subsystem.
-32. F3.6 final corpus promotion and legacy retirement.
+28. F3.3b signed canonical inter-room pressure coupling. Implemented; diagnostic shadow GO / authority and Group C NO-GO.
+29. F3.3c Group C late-enthalpy residence audit. Current target.
+30. F3.4 remaining non-HVAC species, suppression and FED.
+31. HVAC-R0 redesign specification.
+32. F3.5 HVAC canonical integration as the last subsystem.
+33. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.

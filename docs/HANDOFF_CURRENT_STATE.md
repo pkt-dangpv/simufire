@@ -1,6 +1,6 @@
 # Current Handoff State
 
-Date: 2026-07-20.
+Date: 2026-07-21.
 
 Runtime note: active local runners and test entrypoints now default to Godot
 `4.7.1` console at
@@ -12,7 +12,30 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
-## Current Session Update - 2026-07-20 - F3.3a shadow GO / Group C NO-GO
+## Current Session Update - 2026-07-21 - F3.3b shadow GO / Group C NO-GO
+
+- Added `phase3_canonical_interior_pressure_shadow_enabled=false` and CLI flag
+  `--phase3-canonical-interior-pressure-shadow`.
+- The signed pressure component uses the same pre-step snapshot and the same
+  atomic network bundle as F3.3a. One global relaxation fraction prevents a
+  connected pressure difference from crossing during the explicit step.
+- Gas, enthalpy, O2 and seven species close exactly; opening order is
+  invariant; exterior and vertical owners remain separate; legacy output is
+  unchanged.
+- Group C R0 upper temperature changed from F3.3a `130.94/102.73 C` to
+  `125.70/97.39 C` at 180/600 s. Both checks worsen, so the missing late heat
+  is not signed doorway pressure flow.
+- Physics remains 9/15/5/0, ILV 15/14/0 and gap inventory 348/353 with 5
+  VALID_GAP. Guardrails are 9/10 only because R2-1 sees the dirty motor.
+- Full pytest: 1053 PASS, the same 18 pre-existing structural failures plus
+  the expected R2-1 integration failure.
+- Decision: **F3.3b diagnostic shadow GO; authority and Group C retirement
+  NO-GO**. Next: F3.3c cumulative late-enthalpy residence audit, with no
+  doorway-rate tuning.
+- Binding record:
+  `docs/validation/PHASE3_F33B_INTERIOR_PRESSURE_SHADOW.md`.
+
+## Previous Session Update - 2026-07-20 - F3.3a shadow GO / Group C NO-GO
 
 - Added `phase3_canonical_interior_opening_shadow_enabled=false` and a pure
   canonical horizontal interior-opening network transaction.
