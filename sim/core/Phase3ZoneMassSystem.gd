@@ -13,6 +13,10 @@ const EXTERIOR_DISCHARGE_COEFF: float = 0.61
 const EXTERIOR_COUNTERFLOW_SEGMENTS: int = 64
 const INTERIOR_PRESSURE_SOLVE_ITERATIONS: int = 32
 const GRAVITY_M_S2: float = 9.81
+const POREH_AIR_DENSITY_TEMPERATURE_KG_K_M3: float = 352.981915
+const POREH_ENTRAINMENT_COEFFICIENT: float = 0.44
+const POREH_COOL_JET_MIXING_FACTOR: float = 0.25
+const CFAST_DESTINATION_DELTA_TEMP_K: float = 1.0
 const THERMO_MASS_EPS_KG: float = 1.0e-12
 const THERMO_ENERGY_EPS_KJ: float = 1.0e-12
 const TRANSIT_SPECIES: Array[String] = ["co", "co2", "hcn"]
@@ -22,7 +26,12 @@ const PARCEL_SPECIES: Array[String] = [
 const ENTHALPY_RESIDENCE_FAMILIES: Array[String] = [
 	"combustion", "plume", "interzone", "wall", "ambient", "exterior",
 	"exterior_counterflow", "interior_opening", "interior_pressure", "parcel",
-	"legacy", "zone_collapse", "other",
+	"doorway_jet", "legacy", "zone_collapse", "other",
+]
+const MASS_RESIDENCE_FAMILIES: Array[String] = [
+	"combustion", "plume", "interzone", "wall", "ambient", "exterior",
+	"exterior_counterflow", "interior_opening", "interior_pressure", "parcel",
+	"doorway_jet", "legacy", "zone_collapse", "reconcile", "other",
 ]
 const SEMANTIC_QUANTITY_BITS: Dictionary = {
 	"gas_mass": 1,
@@ -144,6 +153,9 @@ var _canonical_wall_ambient_cumulative_by_room: Dictionary = {}
 var enthalpy_residence_diagnostics_enabled: bool = false
 var _enthalpy_residence_initial_by_room: Dictionary = {}
 var _enthalpy_residence_cumulative_by_room: Dictionary = {}
+var mass_residence_diagnostics_enabled: bool = false
+var _mass_residence_initial_by_room: Dictionary = {}
+var _mass_residence_cumulative_by_room: Dictionary = {}
 
 
 func configure_enthalpy_residence_diagnostics(is_enabled: bool) -> void:
@@ -151,6 +163,13 @@ func configure_enthalpy_residence_diagnostics(is_enabled: bool) -> void:
 	if not is_enabled:
 		_enthalpy_residence_initial_by_room.clear()
 		_enthalpy_residence_cumulative_by_room.clear()
+
+
+func configure_mass_residence_diagnostics(is_enabled: bool) -> void:
+	mass_residence_diagnostics_enabled = is_enabled
+	if not is_enabled:
+		_mass_residence_initial_by_room.clear()
+		_mass_residence_cumulative_by_room.clear()
 
 
 func reset() -> void:
@@ -165,6 +184,8 @@ func reset() -> void:
 	_canonical_wall_ambient_cumulative_by_room.clear()
 	_enthalpy_residence_initial_by_room.clear()
 	_enthalpy_residence_cumulative_by_room.clear()
+	_mass_residence_initial_by_room.clear()
+	_mass_residence_cumulative_by_room.clear()
 	_species_transit_reservoir.clear()
 	_species_transit_created_kg.clear()
 	_species_transit_delivered_kg.clear()
@@ -279,6 +300,8 @@ func begin_step(building, persistence_enabled: bool = false) -> void:
 		_canonical_wall_ambient_cumulative_by_room.clear()
 		_enthalpy_residence_initial_by_room.clear()
 		_enthalpy_residence_cumulative_by_room.clear()
+		_mass_residence_initial_by_room.clear()
+		_mass_residence_cumulative_by_room.clear()
 	if building == null:
 		return
 	for room_id in building.get_rooms().keys():
@@ -311,6 +334,19 @@ func begin_step(building, persistence_enabled: bool = false) -> void:
 			}
 			_enthalpy_residence_cumulative_by_room[room_key] = \
 					_new_enthalpy_residence_record()
+		if mass_residence_diagnostics_enabled \
+				and not _mass_residence_initial_by_room.has(room_key):
+			var initial_mass_state: Dictionary = _snapshots[room_key]
+			_mass_residence_initial_by_room[room_key] = {
+				"upper_gas_kg": maxf(
+					0.0, float(initial_mass_state.get("upper_gas_kg", 0.0))
+				),
+				"lower_gas_kg": maxf(
+					0.0, float(initial_mass_state.get("lower_gas_kg", 0.0))
+				),
+			}
+			_mass_residence_cumulative_by_room[room_key] = \
+					_new_mass_residence_record()
 
 
 ## F3.2b0: registra que zona eligio realmente CombustionSystem, pero no cambia
@@ -820,6 +856,12 @@ func _collapse_degenerate_zones(shadow: Dictionary) -> void:
 			destination_zone,
 			maxf(0.0, float(state.get(source_zone + "_energy_kj", 0.0)))
 		)
+		_record_mass_zone_collapse(
+			int(room_key),
+			source_zone,
+			destination_zone,
+			maxf(0.0, float(state.get(source_zone + "_gas_kg", 0.0)))
+		)
 		state[destination_zone + "_gas_kg"] = float(
 			state.get(destination_zone + "_gas_kg", 0.0)
 		) + float(state.get(source_zone + "_gas_kg", 0.0))
@@ -906,6 +948,8 @@ func _enthalpy_cause_family(cause: String) -> String:
 			return "exterior_counterflow"
 		"canonical_interior_opening":
 			return "interior_opening"
+		"canonical_doorway_jet_entrainment":
+			return "doorway_jet"
 		"canonical_interior_pressure":
 			return "interior_pressure"
 		"delayed_parcel_carve", "delayed_parcel_delivery", \
@@ -1055,6 +1099,162 @@ func _enthalpy_residence_result(room_key: String, state: Dictionary) -> Dictiona
 				var source_key: String = family_name + "_" + zone_name + "_" \
 						+ direction + "_kj_total"
 				var result_key: String = "phase3_shadow_enthalpy_" + source_key
+				result[result_key] = float(cumulative.get(source_key, 0.0))
+	return result
+
+
+func _new_mass_residence_record() -> Dictionary:
+	var record: Dictionary = {
+		"accepted_route_count": 0.0,
+		"legacy_route_count": 0.0,
+	}
+	for zone_name in [ZONE_UPPER, ZONE_LOWER]:
+		record[zone_name + "_in_kg_total"] = 0.0
+		record[zone_name + "_out_kg_total"] = 0.0
+		for family_name in MASS_RESIDENCE_FAMILIES:
+			record[family_name + "_" + zone_name + "_in_kg_total"] = 0.0
+			record[family_name + "_" + zone_name + "_out_kg_total"] = 0.0
+	return record
+
+
+func _ensure_mass_residence_record(room_key: String) -> Dictionary:
+	if not _mass_residence_cumulative_by_room.has(room_key):
+		_mass_residence_cumulative_by_room[room_key] = \
+				_new_mass_residence_record()
+	return _mass_residence_cumulative_by_room[room_key]
+
+
+func _mass_cause_family(cause: String) -> String:
+	if "reconcile" in cause or "projection" in cause:
+		return "reconcile"
+	return _enthalpy_cause_family(cause)
+
+
+func _accumulate_mass_residence(
+		room_id: int,
+		zone_name: String,
+		direction: String,
+		family_name: String,
+		mass_kg: float
+	) -> void:
+	if room_id == EXTERIOR_ID or mass_kg <= THERMO_MASS_EPS_KG:
+		return
+	var room_key: String = str(room_id)
+	var record: Dictionary = _ensure_mass_residence_record(room_key)
+	var total_key: String = zone_name + "_" + direction + "_kg_total"
+	var family_key: String = family_name + "_" + zone_name + "_" \
+			+ direction + "_kg_total"
+	record[total_key] = float(record.get(total_key, 0.0)) + mass_kg
+	record[family_key] = float(record.get(family_key, 0.0)) + mass_kg
+	_mass_residence_cumulative_by_room[room_key] = record
+
+
+func _record_mass_residence_route(
+		route: Dictionary,
+		accepted_fraction: float,
+		is_legacy_request: bool = false
+	) -> void:
+	if not mass_residence_diagnostics_enabled:
+		return
+	var moved_mass_kg: float = maxf(
+		0.0, float(route.get("gas_mass_kg", 0.0))
+	) * clampf(accepted_fraction, 0.0, 1.0)
+	if moved_mass_kg <= THERMO_MASS_EPS_KG:
+		return
+	var source_id: int = int(route.get("source_room_id", EXTERIOR_ID))
+	var destination_id: int = int(route.get("destination_room_id", EXTERIOR_ID))
+	var source_zone: String = String(route.get("source_zone", ZONE_UPPER))
+	var destination_zone: String = String(route.get("destination_zone", ZONE_UPPER))
+	var family_name: String = _mass_cause_family(String(route.get("cause", "")))
+	_accumulate_mass_residence(
+		source_id, source_zone, "out", family_name, moved_mass_kg
+	)
+	_accumulate_mass_residence(
+		destination_id, destination_zone, "in", family_name, moved_mass_kg
+	)
+	var touched_rooms: Dictionary = {}
+	if source_id != EXTERIOR_ID:
+		touched_rooms[str(source_id)] = true
+	if destination_id != EXTERIOR_ID:
+		touched_rooms[str(destination_id)] = true
+	for room_key in touched_rooms.keys():
+		var record: Dictionary = _ensure_mass_residence_record(String(room_key))
+		record["accepted_route_count"] = float(
+			record.get("accepted_route_count", 0.0)
+		) + 1.0
+		if is_legacy_request:
+			record["legacy_route_count"] = float(
+				record.get("legacy_route_count", 0.0)
+			) + 1.0
+		_mass_residence_cumulative_by_room[String(room_key)] = record
+
+
+func _record_mass_zone_collapse(
+		room_id: int,
+		source_zone: String,
+		destination_zone: String,
+		mass_kg: float
+	) -> void:
+	if not mass_residence_diagnostics_enabled \
+			or mass_kg <= THERMO_MASS_EPS_KG:
+		return
+	_accumulate_mass_residence(
+		room_id, source_zone, "out", "zone_collapse", mass_kg
+	)
+	_accumulate_mass_residence(
+		room_id, destination_zone, "in", "zone_collapse", mass_kg
+	)
+	var record: Dictionary = _ensure_mass_residence_record(str(room_id))
+	record["accepted_route_count"] = float(
+		record.get("accepted_route_count", 0.0)
+	) + 1.0
+	_mass_residence_cumulative_by_room[str(room_id)] = record
+
+
+func _mass_residence_result(room_key: String, state: Dictionary) -> Dictionary:
+	var initial: Dictionary = _mass_residence_initial_by_room.get(room_key, {})
+	var cumulative: Dictionary = _ensure_mass_residence_record(room_key)
+	var initial_upper_kg: float = float(initial.get("upper_gas_kg", 0.0))
+	var initial_lower_kg: float = float(initial.get("lower_gas_kg", 0.0))
+	var upper_in_kg: float = float(cumulative.get("upper_in_kg_total", 0.0))
+	var upper_out_kg: float = float(cumulative.get("upper_out_kg_total", 0.0))
+	var lower_in_kg: float = float(cumulative.get("lower_in_kg_total", 0.0))
+	var lower_out_kg: float = float(cumulative.get("lower_out_kg_total", 0.0))
+	var expected_upper_kg: float = initial_upper_kg + upper_in_kg - upper_out_kg
+	var expected_lower_kg: float = initial_lower_kg + lower_in_kg - lower_out_kg
+	var observed_upper_kg: float = float(state.get("upper_gas_kg", 0.0))
+	var observed_lower_kg: float = float(state.get("lower_gas_kg", 0.0))
+	var result: Dictionary = {
+		"phase3_shadow_mass_residence_initial_upper_kg": initial_upper_kg,
+		"phase3_shadow_mass_residence_initial_lower_kg": initial_lower_kg,
+		"phase3_shadow_mass_residence_upper_in_kg_total": upper_in_kg,
+		"phase3_shadow_mass_residence_upper_out_kg_total": upper_out_kg,
+		"phase3_shadow_mass_residence_lower_in_kg_total": lower_in_kg,
+		"phase3_shadow_mass_residence_lower_out_kg_total": lower_out_kg,
+		"phase3_shadow_mass_residence_expected_upper_kg": expected_upper_kg,
+		"phase3_shadow_mass_residence_expected_lower_kg": expected_lower_kg,
+		"phase3_shadow_mass_residence_observed_upper_kg": observed_upper_kg,
+		"phase3_shadow_mass_residence_observed_lower_kg": observed_lower_kg,
+		"phase3_shadow_mass_residence_upper_residual_kg": \
+				observed_upper_kg - expected_upper_kg,
+		"phase3_shadow_mass_residence_lower_residual_kg": \
+				observed_lower_kg - expected_lower_kg,
+		"phase3_shadow_mass_residence_room_residual_kg": \
+				observed_upper_kg + observed_lower_kg \
+				- expected_upper_kg - expected_lower_kg,
+		"phase3_shadow_mass_residence_accepted_route_count": float(
+			cumulative.get("accepted_route_count", 0.0)
+		),
+		"phase3_shadow_mass_residence_legacy_route_count": float(
+			cumulative.get("legacy_route_count", 0.0)
+		),
+	}
+	for family_name in MASS_RESIDENCE_FAMILIES:
+		for zone_name in [ZONE_UPPER, ZONE_LOWER]:
+			for direction in ["in", "out"]:
+				var source_key: String = family_name + "_" + zone_name + "_" \
+						+ direction + "_kg_total"
+				var result_key: String = "phase3_shadow_mass_residence_" + source_key
 				result[result_key] = float(cumulative.get(source_key, 0.0))
 	return result
 
@@ -1604,7 +1804,9 @@ func preview_canonical_interior_opening(
 		opening_geometry: Dictionary,
 		discharge_coeff: float,
 		dt: float,
-		_integration_segments: int = EXTERIOR_COUNTERFLOW_SEGMENTS
+		_integration_segments: int = EXTERIOR_COUNTERFLOW_SEGMENTS,
+		source_preserving_destination_enabled: bool = false,
+		buoyancy_destination_enabled: bool = false
 	) -> Dictionary:
 	var result: Dictionary = {
 		"valid": false,
@@ -1616,6 +1818,7 @@ func preview_canonical_interior_opening(
 		"net_a_to_b_kg": 0.0,
 		"exchange_kg": 0.0,
 		"routes": [],
+		"slabs": [],
 	}
 	if not bool(canonical_a.get("valid", false)) \
 			or not bool(canonical_b.get("valid", false)) \
@@ -1657,7 +1860,9 @@ func preview_canonical_interior_opening(
 		var mid_flow: Dictionary = _integrate_canonical_interior_opening(
 			canonical_a, canonical_b, densities_a, densities_b,
 			bottom_m, top_m, width_m, open_fraction,
-			mid_offset_pa, discharge_coeff
+			mid_offset_pa, discharge_coeff,
+			source_preserving_destination_enabled,
+			buoyancy_destination_enabled
 		)
 		if float(mid_flow.get("net_a_to_b_kg_s", 0.0)) > 0.0:
 			high_offset_pa = mid_offset_pa
@@ -1667,7 +1872,9 @@ func preview_canonical_interior_opening(
 	var flow: Dictionary = _integrate_canonical_interior_opening(
 		canonical_a, canonical_b, densities_a, densities_b,
 		bottom_m, top_m, width_m, open_fraction,
-		neutral_offset_pa, discharge_coeff
+		neutral_offset_pa, discharge_coeff,
+		source_preserving_destination_enabled,
+		buoyancy_destination_enabled
 	)
 	var routes: Array[Dictionary] = []
 	for raw_key in flow.get("route_kg_s", {}).keys():
@@ -1686,6 +1893,13 @@ func preview_canonical_interior_opening(
 			"destination_zone": parts[3],
 			"gas_mass_kg": route_mass_kg,
 		})
+	var slabs: Array[Dictionary] = []
+	for raw_slab in flow.get("slabs", []):
+		var slab: Dictionary = raw_slab.duplicate(true)
+		slab["gas_mass_kg"] = maxf(
+			0.0, float(slab.get("mass_flow_kg_s", 0.0)) * dt
+		)
+		slabs.append(slab)
 	result["valid"] = true
 	result["neutral_plane_m"] = float(flow.get("neutral_plane_m", 0.0))
 	result["neutral_pressure_offset_pa"] = neutral_offset_pa
@@ -1696,6 +1910,7 @@ func preview_canonical_interior_opening(
 		float(result["gross_a_to_b_kg"]), float(result["gross_b_to_a_kg"])
 	)
 	result["routes"] = routes
+	result["slabs"] = slabs
 	return result
 
 
@@ -1707,7 +1922,9 @@ func preview_canonical_interior_pressure_flow(
 		canonical_b: Dictionary,
 		opening_geometry: Dictionary,
 		discharge_coeff: float,
-		dt: float
+		dt: float,
+		source_preserving_destination_enabled: bool = false,
+		buoyancy_destination_enabled: bool = false
 	) -> Dictionary:
 	var result: Dictionary = {
 		"valid": false,
@@ -1718,6 +1935,7 @@ func preview_canonical_interior_pressure_flow(
 		"raw_b_to_a_kg": 0.0,
 		"signed_net_a_to_b_kg": 0.0,
 		"routes": [],
+		"slabs": [],
 	}
 	if not bool(canonical_a.get("valid", false)) \
 			or not bool(canonical_b.get("valid", false)) \
@@ -1743,7 +1961,9 @@ func preview_canonical_interior_pressure_flow(
 	var flow: Dictionary = _integrate_canonical_interior_opening(
 		canonical_a, canonical_b, densities_a, densities_b,
 		bottom_m, top_m, width_m, open_fraction,
-		pressure_delta_pa, discharge_coeff
+		pressure_delta_pa, discharge_coeff,
+		source_preserving_destination_enabled,
+		buoyancy_destination_enabled
 	)
 	var a_to_b_kg_s: float = maxf(0.0, float(flow.get("a_to_b_kg_s", 0.0)))
 	var b_to_a_kg_s: float = maxf(0.0, float(flow.get("b_to_a_kg_s", 0.0)))
@@ -1754,6 +1974,7 @@ func preview_canonical_interior_pressure_flow(
 	var signed_scale: float = absf(net_a_to_b_kg_s) \
 			/ maxf(THERMO_MASS_EPS_KG, dominant_total_kg_s)
 	var routes: Array[Dictionary] = []
+	var slabs: Array[Dictionary] = []
 	if absf(net_a_to_b_kg_s) > THERMO_MASS_EPS_KG:
 		for raw_key in flow.get("route_kg_s", {}).keys():
 			var parts: PackedStringArray = String(raw_key).split("|")
@@ -1772,11 +1993,24 @@ func preview_canonical_interior_pressure_flow(
 				"destination_zone": parts[3],
 				"gas_mass_kg": route_mass_kg,
 			})
+		for raw_slab in flow.get("slabs", []):
+			var slab: Dictionary = raw_slab
+			if String(slab.get("source_side", "")) != dominant_side:
+				continue
+			var scaled_slab: Dictionary = slab.duplicate(true)
+			scaled_slab["mass_flow_kg_s"] = maxf(
+				0.0, float(slab.get("mass_flow_kg_s", 0.0)) * signed_scale
+			)
+			scaled_slab["gas_mass_kg"] = float(
+				scaled_slab.get("mass_flow_kg_s", 0.0)
+			) * dt
+			slabs.append(scaled_slab)
 	result["valid"] = true
 	result["raw_a_to_b_kg"] = a_to_b_kg_s * dt
 	result["raw_b_to_a_kg"] = b_to_a_kg_s * dt
 	result["signed_net_a_to_b_kg"] = net_a_to_b_kg_s * dt
 	result["routes"] = routes
+	result["slabs"] = slabs
 	return result
 
 
@@ -1862,9 +2096,12 @@ func _integrate_canonical_interior_opening(
 		width_m: float,
 		open_fraction: float,
 		floor_pressure_offset_pa: float,
-		discharge_coeff: float
+		discharge_coeff: float,
+		source_preserving_destination_enabled: bool = false,
+		buoyancy_destination_enabled: bool = false
 	) -> Dictionary:
 	var route_kg_s: Dictionary = {}
+	var slabs: Array[Dictionary] = []
 	var a_to_b_kg_s: float = 0.0
 	var b_to_a_kg_s: float = 0.0
 	var neutral_plane_m: float = 0.5 * (bottom_m + top_m)
@@ -1907,12 +2144,16 @@ func _integrate_canonical_interior_opening(
 			var lower_flow: Dictionary = _canonical_interior_interval_flow(
 				canonical_a, canonical_b, densities_a, densities_b,
 				interval_bottom_m, zero_m, dp_bottom_pa, 0.0,
-				width_m, open_fraction, discharge_coeff
+				width_m, open_fraction, discharge_coeff,
+				source_preserving_destination_enabled,
+				buoyancy_destination_enabled
 			)
 			var upper_flow: Dictionary = _canonical_interior_interval_flow(
 				canonical_a, canonical_b, densities_a, densities_b,
 				zero_m, interval_top_m, 0.0, dp_top_pa,
-				width_m, open_fraction, discharge_coeff
+				width_m, open_fraction, discharge_coeff,
+				source_preserving_destination_enabled,
+				buoyancy_destination_enabled
 			)
 			for interval_flow in [lower_flow, upper_flow]:
 				var mass_flow_kg_s: float = float(interval_flow.get("mass_flow_kg_s", 0.0))
@@ -1922,11 +2163,14 @@ func _integrate_canonical_interior_opening(
 				elif source_side == "b":
 					b_to_a_kg_s += mass_flow_kg_s
 				_accumulate_canonical_interior_route(route_kg_s, interval_flow)
+				_append_canonical_interior_slab(slabs, interval_flow)
 		else:
 			var interval_flow: Dictionary = _canonical_interior_interval_flow(
 				canonical_a, canonical_b, densities_a, densities_b,
 				interval_bottom_m, interval_top_m, dp_bottom_pa, dp_top_pa,
-				width_m, open_fraction, discharge_coeff
+				width_m, open_fraction, discharge_coeff,
+				source_preserving_destination_enabled,
+				buoyancy_destination_enabled
 			)
 			var mass_flow_kg_s: float = float(interval_flow.get("mass_flow_kg_s", 0.0))
 			var source_side: String = String(interval_flow.get("source_side", ""))
@@ -1935,8 +2179,10 @@ func _integrate_canonical_interior_opening(
 			elif source_side == "b":
 				b_to_a_kg_s += mass_flow_kg_s
 			_accumulate_canonical_interior_route(route_kg_s, interval_flow)
+			_append_canonical_interior_slab(slabs, interval_flow)
 	return {
 		"route_kg_s": route_kg_s,
+		"slabs": slabs,
 		"a_to_b_kg_s": a_to_b_kg_s,
 		"b_to_a_kg_s": b_to_a_kg_s,
 		"net_a_to_b_kg_s": a_to_b_kg_s - b_to_a_kg_s,
@@ -1968,9 +2214,22 @@ func _canonical_interior_interval_flow(
 		dp_top_pa: float,
 		width_m: float,
 		open_fraction: float,
-		discharge_coeff: float
+		discharge_coeff: float,
+		source_preserving_destination_enabled: bool = false,
+		buoyancy_destination_enabled: bool = false
 	) -> Dictionary:
-	var result: Dictionary = {"mass_flow_kg_s": 0.0, "source_side": ""}
+	var result: Dictionary = {
+		"mass_flow_kg_s": 0.0,
+		"source_side": "",
+		"destination_side": "",
+		"source_zone": "",
+		"geometric_destination_zone": "",
+		"destination_zone": "",
+		"destination_fractions": {},
+		"source_temp_c": 0.0,
+		"bottom_m": bottom_m,
+		"top_m": top_m,
+	}
 	var dz_m: float = maxf(0.0, top_m - bottom_m)
 	if dz_m <= 1.0e-12:
 		return result
@@ -1984,9 +2243,25 @@ func _canonical_interior_interval_flow(
 	var source_densities: Dictionary = densities_a if source_side == "a" else densities_b
 	var midpoint_m: float = 0.5 * (bottom_m + top_m)
 	var source_zone: String = _canonical_zone_at_height(source_canonical, midpoint_m)
-	var destination_zone: String = _canonical_zone_at_height(
+	var geometric_destination_zone: String = _canonical_zone_at_height(
 		destination_canonical, midpoint_m
 	)
+	var destination_zone: String = _canonical_interior_destination_zone(
+		source_zone,
+		destination_canonical,
+		midpoint_m,
+		source_preserving_destination_enabled
+	)
+	var source_temp_c: float = float(source_canonical.get(
+		"temp_" + source_zone + "_c", 0.0
+	))
+	var destination_fractions: Dictionary = {}
+	if buoyancy_destination_enabled:
+		destination_fractions = preview_cfast_buoyancy_destination_split(
+			source_temp_c,
+			float(destination_canonical.get("temp_upper_c", 0.0)),
+			float(destination_canonical.get("temp_lower_c", 0.0))
+		)
 	var source_density_kg_m3: float = maxf(
 		0.0, float(source_densities.get(source_zone, 0.0))
 	)
@@ -1996,6 +2271,12 @@ func _canonical_interior_interval_flow(
 	result["mass_flow_kg_s"] = discharge_coeff * width_m * open_fraction \
 			* sqrt(2.0 * source_density_kg_m3) * pressure_integral_pa_sqrt_m
 	result["source_side"] = source_side
+	result["destination_side"] = destination_side
+	result["source_zone"] = source_zone
+	result["geometric_destination_zone"] = geometric_destination_zone
+	result["destination_zone"] = destination_zone
+	result["destination_fractions"] = destination_fractions
+	result["source_temp_c"] = source_temp_c
 	result["route_key"] = "%s|%s|%s|%s" % [
 		source_side, source_zone, destination_side, destination_zone
 	]
@@ -2021,13 +2302,45 @@ func _accumulate_canonical_interior_route(
 		route_kg_s: Dictionary,
 		interval_flow: Dictionary
 	) -> void:
-	var route_key: String = String(interval_flow.get("route_key", ""))
 	var mass_flow_kg_s: float = maxf(
 		0.0, float(interval_flow.get("mass_flow_kg_s", 0.0))
 	)
-	if route_key.is_empty() or mass_flow_kg_s <= 0.0:
+	if mass_flow_kg_s <= 0.0:
+		return
+	var destination_fractions: Dictionary = interval_flow.get(
+		"destination_fractions", {}
+	)
+	if not destination_fractions.is_empty():
+		for destination_zone in [ZONE_LOWER, ZONE_UPPER]:
+			var fraction: float = clampf(
+				float(destination_fractions.get(destination_zone, 0.0)), 0.0, 1.0
+			)
+			if fraction <= 0.0:
+				continue
+			var split_route_key: String = "%s|%s|%s|%s" % [
+				String(interval_flow.get("source_side", "")),
+				String(interval_flow.get("source_zone", "")),
+				String(interval_flow.get("destination_side", "")),
+				destination_zone,
+			]
+			route_kg_s[split_route_key] = float(
+				route_kg_s.get(split_route_key, 0.0)
+			) + mass_flow_kg_s * fraction
+		return
+	var route_key: String = String(interval_flow.get("route_key", ""))
+	if route_key.is_empty():
 		return
 	route_kg_s[route_key] = float(route_kg_s.get(route_key, 0.0)) + mass_flow_kg_s
+
+
+func _append_canonical_interior_slab(
+		slabs: Array[Dictionary],
+		interval_flow: Dictionary
+	) -> void:
+	if float(interval_flow.get("mass_flow_kg_s", 0.0)) <= THERMO_MASS_EPS_KG \
+			or String(interval_flow.get("source_side", "")).is_empty():
+		return
+	slabs.append(interval_flow.duplicate(true))
 
 
 func _canonical_hydrostatic_drop_pa(
@@ -2048,6 +2361,295 @@ func _canonical_zone_at_height(canonical: Dictionary, height_m: float) -> String
 	return ZONE_UPPER if height_m >= float(canonical.get("interface_m", 0.0)) else ZONE_LOWER
 
 
+## F3.3f1 candidate: direct horizontal vent flow retains the thermodynamic
+## identity of its source layer. Door-jet entrainment is a separate physical
+## owner and must not be approximated by reclassifying the direct destination.
+func _canonical_interior_destination_zone(
+		source_zone: String,
+		destination_canonical: Dictionary,
+		height_m: float,
+		source_preserving_destination_enabled: bool = false
+	) -> String:
+	if source_preserving_destination_enabled:
+		return source_zone
+	return _canonical_zone_at_height(destination_canonical, height_m)
+
+
+## F3.3h1: exact CFAST flogo receiver split. The source slab temperature is
+## compared with the receiver layer temperatures; source removal remains a
+## separate geometric decision.
+func preview_cfast_buoyancy_destination_split(
+		source_temp_c: float,
+		destination_upper_temp_c: float,
+		destination_lower_temp_c: float
+	) -> Dictionary:
+	var effective_lower_temp_c: float = minf(
+		destination_lower_temp_c, destination_upper_temp_c
+	)
+	var upper_fraction: float = _cfast_tanhsmooth(
+		source_temp_c,
+		destination_upper_temp_c + CFAST_DESTINATION_DELTA_TEMP_K,
+		effective_lower_temp_c - CFAST_DESTINATION_DELTA_TEMP_K,
+		1.0,
+		0.0
+	)
+	return {
+		ZONE_LOWER: 1.0 - upper_fraction,
+		ZONE_UPPER: upper_fraction,
+	}
+
+
+func _cfast_tanhsmooth(
+		x: float,
+		xmax: float,
+		xmin: float,
+		ymax: float,
+		ymin: float
+	) -> float:
+	if xmax <= xmin:
+		return ymax if x >= xmax else ymin
+	var fraction: float = clampf(
+		0.5 + 0.5025 * tanh(6.0 / (xmax - xmin) * (x - xmin) - 3.0),
+		0.0,
+		1.0
+	)
+	return fraction * (ymax - ymin) + ymin
+
+
+## F3.3g: pure receiver-side mixing preview matching current CFAST
+## flowhorizontal.f90 spill_plume/poreh_plume ownership. Direct vent flow is
+## intentionally absent: this is only the additional internal receiver route.
+func preview_canonical_doorway_jet_entrainment(
+		source_canonical: Dictionary,
+		destination_canonical: Dictionary,
+		source_zone: String,
+		slab_bottom_m: float,
+		slab_top_m: float,
+		vent_bottom_m: float,
+		vent_top_m: float,
+		opening_width_m: float,
+		source_flow_kg_s: float,
+		dt: float
+	) -> Dictionary:
+	var result: Dictionary = {
+		"valid": false,
+		"invalid_flag": 0.0,
+		"active": false,
+		"mixing_kind": "",
+		"source_zone": source_zone,
+		"geometric_destination_zone": "",
+		"entrained_source_zone": "",
+		"entrained_destination_zone": "",
+		"mixing_factor": 0.0,
+		"mixing_depth_m": 0.0,
+		"heat_flow_w": 0.0,
+		"entrainment_rate_kg_s": 0.0,
+		"gas_mass_kg": 0.0,
+	}
+	if not bool(source_canonical.get("valid", false)) \
+			or not bool(destination_canonical.get("valid", false)) \
+			or source_zone not in [ZONE_UPPER, ZONE_LOWER]:
+		result["invalid_flag"] = 1.0
+		return result
+	for value in [
+		slab_bottom_m, slab_top_m, vent_bottom_m, vent_top_m,
+		opening_width_m, source_flow_kg_s, dt,
+	]:
+		if not is_finite(float(value)):
+			result["invalid_flag"] = 1.0
+			return result
+	if slab_top_m <= slab_bottom_m or vent_top_m <= vent_bottom_m \
+			or slab_bottom_m < vent_bottom_m - 1.0e-9 \
+			or slab_top_m > vent_top_m + 1.0e-9 \
+			or opening_width_m < 0.0 or source_flow_kg_s < 0.0 or dt < 0.0:
+		result["invalid_flag"] = 1.0
+		return result
+
+	result["valid"] = true
+	if opening_width_m <= 0.0 or source_flow_kg_s <= 0.0 or dt <= 0.0:
+		return result
+	var slab_midpoint_m: float = 0.5 * (slab_bottom_m + slab_top_m)
+	var destination_zone: String = _canonical_zone_at_height(
+		destination_canonical, slab_midpoint_m
+	)
+	result["geometric_destination_zone"] = destination_zone
+	if destination_zone == source_zone:
+		return result
+
+	var source_interface_m: float = maxf(
+		0.0, float(source_canonical.get("interface_m", 0.0))
+	)
+	var destination_interface_m: float = maxf(
+		0.0, float(destination_canonical.get("interface_m", 0.0))
+	)
+	var upper_temp_k: float = 0.0
+	var lower_temp_k: float = 0.0
+	var mixing_depth_m: float = 0.0
+	var mixing_factor: float = 0.0
+	if source_zone == ZONE_UPPER and destination_zone == ZONE_LOWER:
+		upper_temp_k = float(source_canonical.get("temp_upper_c", 0.0)) + 273.15
+		lower_temp_k = float(destination_canonical.get("temp_lower_c", 0.0)) + 273.15
+		mixing_depth_m = maxf(
+			0.0,
+			destination_interface_m - maxf(vent_bottom_m, source_interface_m)
+		)
+		mixing_factor = 1.0
+		result["mixing_kind"] = "hot_jet_lower_to_upper"
+		result["entrained_source_zone"] = ZONE_LOWER
+		result["entrained_destination_zone"] = ZONE_UPPER
+	elif source_zone == ZONE_LOWER and destination_zone == ZONE_UPPER:
+		upper_temp_k = float(destination_canonical.get("temp_upper_c", 0.0)) + 273.15
+		lower_temp_k = float(source_canonical.get("temp_lower_c", 0.0)) + 273.15
+		mixing_depth_m = maxf(
+			0.0,
+			minf(vent_top_m, source_interface_m)
+					- maxf(destination_interface_m, vent_bottom_m)
+		)
+		mixing_factor = POREH_COOL_JET_MIXING_FACTOR
+		result["mixing_kind"] = "cool_jet_upper_to_lower"
+		result["entrained_source_zone"] = ZONE_UPPER
+		result["entrained_destination_zone"] = ZONE_LOWER
+	else:
+		return result
+
+	result["mixing_factor"] = mixing_factor
+	result["mixing_depth_m"] = mixing_depth_m
+	if upper_temp_k <= lower_temp_k or lower_temp_k <= 0.0 \
+			or mixing_depth_m <= 0.0:
+		return result
+	var air_cp_j_kg_k: float = AIR_CP_KJ_KG_K * 1000.0
+	var heat_flow_w: float = air_cp_j_kg_k * (upper_temp_k - lower_temp_k) \
+			* source_flow_kg_s
+	var lower_density_kg_m3: float = POREH_AIR_DENSITY_TEMPERATURE_KG_K_M3 \
+			/ lower_temp_k
+	var entrainment_rate_kg_s: float = mixing_factor \
+			* POREH_ENTRAINMENT_COEFFICIENT \
+			* pow(lower_temp_k / upper_temp_k, 2.0 / 3.0) \
+			* pow(
+				GRAVITY_M_S2 * lower_density_kg_m3 * lower_density_kg_m3
+						/ (air_cp_j_kg_k * lower_temp_k),
+				1.0 / 3.0
+			) \
+			* pow(heat_flow_w, 1.0 / 3.0) \
+			* pow(opening_width_m, 2.0 / 3.0) \
+			* mixing_depth_m
+	if not is_finite(entrainment_rate_kg_s) or entrainment_rate_kg_s <= 0.0:
+		return result
+	result["active"] = true
+	result["heat_flow_w"] = heat_flow_w
+	result["entrainment_rate_kg_s"] = entrainment_rate_kg_s
+	result["gas_mass_kg"] = entrainment_rate_kg_s * dt
+	return result
+
+
+## Build the receiver-internal atomic route from the pre-step destination
+## inventory. All payloads therefore share the same application-time cap.
+func make_canonical_doorway_jet_entrainment_route(
+		route_id: String,
+		destination_room_id: int,
+		preview: Dictionary
+	) -> Dictionary:
+	if not bool(preview.get("valid", false)) or not bool(preview.get("active", false)):
+		return {}
+	var room_key: String = str(destination_room_id)
+	if destination_room_id == EXTERIOR_ID or not _snapshots.has(room_key):
+		return {}
+	var source_zone: String = String(preview.get("entrained_source_zone", ""))
+	var destination_zone: String = String(
+		preview.get("entrained_destination_zone", "")
+	)
+	if source_zone not in [ZONE_UPPER, ZONE_LOWER] \
+			or destination_zone not in [ZONE_UPPER, ZONE_LOWER] \
+			or source_zone == destination_zone:
+		return {}
+	var requested_mass_kg: float = maxf(0.0, float(preview.get("gas_mass_kg", 0.0)))
+	if requested_mass_kg <= THERMO_MASS_EPS_KG:
+		return {}
+	var source_state: Dictionary = _snapshots[room_key]
+	var source_mass_kg: float = maxf(
+		THERMO_MASS_EPS_KG,
+		float(source_state.get(source_zone + "_gas_kg", 0.0))
+	)
+	var inventory_fraction: float = requested_mass_kg / source_mass_kg
+	var species_kg: Dictionary = _parcel_species({})
+	var source_species: Dictionary = source_state.get(source_zone + "_species_kg", {})
+	for species_name in PARCEL_SPECIES:
+		species_kg[species_name] = maxf(
+			0.0, float(source_species.get(species_name, 0.0)) * inventory_fraction
+		)
+	return make_atomic_route(
+		route_id,
+		"canonical_doorway_jet_entrainment",
+		destination_room_id,
+		destination_room_id,
+		source_zone,
+		destination_zone,
+		requested_mass_kg,
+		maxf(0.0, float(source_state.get(source_zone + "_energy_kj", 0.0)))
+				* inventory_fraction,
+		maxf(0.0, float(source_state.get(source_zone + "_o2_kg", 0.0)))
+				* inventory_fraction,
+		species_kg
+	)
+
+
+func build_canonical_doorway_jet_entrainment_routes(
+		route_prefix: String,
+		room_a_id: int,
+		room_b_id: int,
+		canonical_a: Dictionary,
+		canonical_b: Dictionary,
+		opening_geometry: Dictionary,
+		slabs: Array,
+		dt: float
+	) -> Array[Dictionary]:
+	var routes: Array[Dictionary] = []
+	var vent_bottom_m: float = float(opening_geometry.get("bottom_m", 0.0))
+	var vent_top_m: float = float(opening_geometry.get("top_m", vent_bottom_m))
+	var opening_width_m: float = maxf(0.0, float(opening_geometry.get("width_m", 0.0)))
+	for slab_position in range(slabs.size()):
+		var slab: Dictionary = slabs[slab_position]
+		var source_is_a: bool = String(slab.get("source_side", "")) == "a"
+		var source_canonical: Dictionary = canonical_a if source_is_a else canonical_b
+		var destination_canonical: Dictionary = canonical_b if source_is_a else canonical_a
+		var destination_room_id: int = room_b_id if source_is_a else room_a_id
+		var preview: Dictionary = preview_canonical_doorway_jet_entrainment(
+			source_canonical,
+			destination_canonical,
+			String(slab.get("source_zone", "")),
+			float(slab.get("bottom_m", vent_bottom_m)),
+			float(slab.get("top_m", vent_bottom_m)),
+			vent_bottom_m,
+			vent_top_m,
+			opening_width_m,
+			maxf(0.0, float(slab.get("mass_flow_kg_s", 0.0))),
+			dt
+		)
+		var route: Dictionary = make_canonical_doorway_jet_entrainment_route(
+			"%s:%03d" % [route_prefix, slab_position],
+			destination_room_id,
+			preview
+		)
+		if not route.is_empty():
+			routes.append(route)
+	return routes
+
+
+func _scaled_canonical_interior_slabs(slabs: Array, fraction: float) -> Array[Dictionary]:
+	var scaled: Array[Dictionary] = []
+	var bounded_fraction: float = clampf(fraction, 0.0, 1.0)
+	for raw_slab in slabs:
+		var slab: Dictionary = raw_slab.duplicate(true)
+		slab["mass_flow_kg_s"] = maxf(
+			0.0, float(slab.get("mass_flow_kg_s", 0.0)) * bounded_fraction
+		)
+		slab["gas_mass_kg"] = maxf(
+			0.0, float(slab.get("gas_mass_kg", 0.0)) * bounded_fraction
+		)
+		scaled.append(slab)
+	return scaled
+
+
 ## Build one opening-order-independent network bundle from the common pre-step
 ## canonical snapshots. Vertical openings deliberately remain owned by the
 ## existing stairwell contract.
@@ -2056,7 +2658,10 @@ func queue_canonical_interior_opening_requests(
 		dt: float,
 		reference_temp_c: float,
 		discharge_coeff: float = EXTERIOR_DISCHARGE_COEFF,
-		signed_pressure_enabled: bool = false
+		signed_pressure_enabled: bool = false,
+		source_preserving_destination_enabled: bool = false,
+		doorway_jet_entrainment_enabled: bool = false,
+		buoyancy_destination_enabled: bool = false
 	) -> void:
 	if building == null or dt <= 0.0 or discharge_coeff <= 0.0:
 		return
@@ -2090,6 +2695,8 @@ func queue_canonical_interior_opening_requests(
 	)
 	var network_routes: Array[Dictionary] = []
 	var pressure_routes_raw: Array[Dictionary] = []
+	var doorway_jet_routes: Array[Dictionary] = []
+	var pressure_jet_inputs: Array[Dictionary] = []
 	var room_totals: Dictionary = {}
 	var pressure_by_room: Dictionary = {}
 	var pressure_connection_pairs: Array[Dictionary] = []
@@ -2101,6 +2708,9 @@ func queue_canonical_interior_opening_requests(
 	var global_in_o2_kg: float = 0.0
 	var global_out_species_kg: float = 0.0
 	var global_in_species_kg: float = 0.0
+	var direct_source_preserving: bool = (
+		source_preserving_destination_enabled or doorway_jet_entrainment_enabled
+	) and not buoyancy_destination_enabled
 	for descriptor in descriptors:
 		var op = descriptor["opening"]
 		var room_a = descriptor["room_a"]
@@ -2116,8 +2726,24 @@ func queue_canonical_interior_opening_requests(
 		}
 		var preview: Dictionary = preview_canonical_interior_opening(
 			input_a, input_b, opening_geometry,
-			discharge_coeff, dt
+			discharge_coeff, dt,
+			EXTERIOR_COUNTERFLOW_SEGMENTS,
+			direct_source_preserving,
+			buoyancy_destination_enabled
 		)
+		if doorway_jet_entrainment_enabled:
+			doorway_jet_routes.append_array(
+				build_canonical_doorway_jet_entrainment_routes(
+					"f33g_opening:%d" % opening_id,
+					room_a.id,
+					room_b.id,
+					input_a,
+					input_b,
+					opening_geometry,
+					preview.get("slabs", []),
+					dt
+				)
+			)
 		_record_canonical_interior_preview(room_a.id, room_b.id, preview)
 		if signed_pressure_enabled:
 			pressure_by_room[str(room_a.id)] = float(input_a.get("pressure_gauge_pa", 0.0))
@@ -2129,8 +2755,20 @@ func queue_canonical_interior_opening_requests(
 			_record_canonical_interior_pressure_input(room_a.id, input_a)
 			_record_canonical_interior_pressure_input(room_b.id, input_b)
 			var pressure_preview: Dictionary = preview_canonical_interior_pressure_flow(
-				input_a, input_b, opening_geometry, discharge_coeff, dt
+				input_a, input_b, opening_geometry, discharge_coeff, dt,
+				direct_source_preserving,
+				buoyancy_destination_enabled
 			)
+			if doorway_jet_entrainment_enabled:
+				pressure_jet_inputs.append({
+					"route_prefix": "f33g_pressure:%d" % opening_id,
+					"room_a_id": room_a.id,
+					"room_b_id": room_b.id,
+					"canonical_a": input_a,
+					"canonical_b": input_b,
+					"opening_geometry": opening_geometry,
+					"slabs": pressure_preview.get("slabs", []),
+				})
 			if bool(pressure_preview.get("valid", false)):
 				var pressure_route_position: int = 0
 				for route_preview in pressure_preview.get("routes", []):
@@ -2306,6 +2944,22 @@ func queue_canonical_interior_opening_requests(
 			global_in_o2_kg += pressure_o2_kg
 			global_out_species_kg += pressure_species_sum_kg
 			global_in_species_kg += pressure_species_sum_kg
+		if doorway_jet_entrainment_enabled and pressure_fraction > 0.0:
+			for pressure_jet_input in pressure_jet_inputs:
+				doorway_jet_routes.append_array(
+					build_canonical_doorway_jet_entrainment_routes(
+						String(pressure_jet_input.get("route_prefix", "")),
+						int(pressure_jet_input.get("room_a_id", EXTERIOR_ID)),
+						int(pressure_jet_input.get("room_b_id", EXTERIOR_ID)),
+						pressure_jet_input.get("canonical_a", {}),
+						pressure_jet_input.get("canonical_b", {}),
+						pressure_jet_input.get("opening_geometry", {}),
+						_scaled_canonical_interior_slabs(
+							pressure_jet_input.get("slabs", []), pressure_fraction
+						),
+						dt
+					)
+				)
 		_record_canonical_interior_pressure_network(
 			pressure_by_room,
 			pressure_room_totals_raw,
@@ -2315,7 +2969,7 @@ func queue_canonical_interior_opening_requests(
 			pressure_limited_delta_by_room,
 			pressure_relaxation
 		)
-	if network_routes.is_empty():
+	if network_routes.is_empty() and doorway_jet_routes.is_empty():
 		return
 	for room_key in room_totals.keys():
 		var record: Dictionary = _canonical_interior_opening_by_room.get(
@@ -2329,32 +2983,43 @@ func queue_canonical_interior_opening_requests(
 				)
 		record["route_count"] = float(totals.get("route_count", 0.0))
 		_canonical_interior_opening_by_room[room_key] = record
-	var bundle: Dictionary = make_atomic_bundle(
-		"f33a_interior_network",
-		"canonical_interior_opening_network",
-		network_routes,
-		{
-			"kind": "canonical_interior_opening_network",
-			"transport_family": "canonical_interior_opening",
-			"room_totals": room_totals,
-			"pressure_room_totals": pressure_room_totals,
-			"pressure_pre_by_room": pressure_by_room,
-			"pressure_base_delta_by_room": pressure_base_delta_by_room,
-			"pressure_limited_delta_by_room": pressure_limited_delta_by_room,
-			"mass_residual_kg": global_out_mass_kg - global_in_mass_kg,
-			"energy_residual_kj": global_out_energy_kj - global_in_energy_kj,
-			"o2_residual_kg": global_out_o2_kg - global_in_o2_kg,
-			"species_residual_kg": global_out_species_kg - global_in_species_kg,
-		}
-	)
-	if add_atomic_bundle(bundle):
-		return
-	for room_key in room_totals.keys():
-		var duplicate_record: Dictionary = _canonical_interior_opening_by_room.get(
-			room_key, _new_canonical_interior_opening_record()
-		).duplicate(true)
-		duplicate_record["duplicate_owner_flag"] = 1.0
-		_canonical_interior_opening_by_room[room_key] = duplicate_record
+	if not network_routes.is_empty():
+		var bundle: Dictionary = make_atomic_bundle(
+			"f33a_interior_network",
+			"canonical_interior_opening_network",
+			network_routes,
+			{
+				"kind": "canonical_interior_opening_network",
+				"transport_family": "canonical_interior_opening",
+				"room_totals": room_totals,
+				"pressure_room_totals": pressure_room_totals,
+				"pressure_pre_by_room": pressure_by_room,
+				"pressure_base_delta_by_room": pressure_base_delta_by_room,
+				"pressure_limited_delta_by_room": pressure_limited_delta_by_room,
+				"mass_residual_kg": global_out_mass_kg - global_in_mass_kg,
+				"energy_residual_kj": global_out_energy_kj - global_in_energy_kj,
+				"o2_residual_kg": global_out_o2_kg - global_in_o2_kg,
+				"species_residual_kg": global_out_species_kg - global_in_species_kg,
+			}
+		)
+		if not add_atomic_bundle(bundle):
+			for room_key in room_totals.keys():
+				var duplicate_record: Dictionary = _canonical_interior_opening_by_room.get(
+					room_key, _new_canonical_interior_opening_record()
+				).duplicate(true)
+				duplicate_record["duplicate_owner_flag"] = 1.0
+				_canonical_interior_opening_by_room[room_key] = duplicate_record
+	if not doorway_jet_routes.is_empty():
+		var mixing_bundle: Dictionary = make_atomic_bundle(
+			"f33g_doorway_jet_network",
+			"canonical_doorway_jet_entrainment_network",
+			doorway_jet_routes,
+			{
+				"kind": "canonical_doorway_jet_entrainment_network",
+				"transport_family": "canonical_interior_opening",
+			}
+		)
+		add_atomic_bundle(mixing_bundle)
 
 
 func _record_canonical_interior_skip(room_a_id: int, room_b_id: int, reason: String) -> void:
@@ -5934,6 +6599,25 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 		for room_key in _results.keys():
 			_results[room_key]["phase3_shadow_enthalpy_building_residual_kj"] = \
 					building_residual_kj
+	if mass_residence_diagnostics_enabled:
+		var building_mass_residual_kg: float = 0.0
+		for room_key in shadow.keys():
+			if not _results.has(room_key):
+				continue
+			var mass_ledger_result: Dictionary = _mass_residence_result(
+				String(room_key), shadow[room_key]
+			)
+			for ledger_key in mass_ledger_result.keys():
+				_results[room_key][ledger_key] = mass_ledger_result[ledger_key]
+			building_mass_residual_kg += float(
+				mass_ledger_result.get(
+					"phase3_shadow_mass_residence_room_residual_kg", 0.0
+				)
+			)
+		for room_key in _results.keys():
+			_results[room_key][
+				"phase3_shadow_mass_residence_building_residual_kg"
+			] = building_mass_residual_kg
 	if _persistence_enabled_step:
 		_persistent_zone_state = shadow.duplicate(true)
 		_persistent_step_index = persistence_step_index
@@ -6205,6 +6889,7 @@ func _apply_atomic_bundle(
 			route.get("species_kg", {})
 		) * rejected_fraction
 		_record_enthalpy_residence_route(shadow, route, accepted_fraction)
+		_record_mass_residence_route(route, accepted_fraction)
 		_apply_atomic_route(shadow, route, accepted_fraction)
 	for raw_demand in source_demands.values():
 		var demand: Dictionary = raw_demand
@@ -6700,6 +7385,7 @@ func _apply_request(
 					_vertical_rejected_kg_total += rejected_immediate_kg
 	if not enthalpy_route_recorded:
 		_record_enthalpy_residence_route(shadow, request, accepted_fraction, true)
+	_record_mass_residence_route(request, accepted_fraction, true)
 	var request_cause: String = String(request.get("cause", ""))
 	if _is_exterior_purge_cause(request_cause):
 		var accepted_purge_species: Dictionary = {}

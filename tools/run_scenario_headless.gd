@@ -176,6 +176,20 @@ func _run() -> void:
 		engine.phase3_canonical_interior_opening_shadow_enabled = true
 		engine.phase3_canonical_interior_pressure_shadow_enabled = true
 		engine.phase3_enthalpy_residence_diagnostics_enabled = true
+	if bool(_cli_args.get("phase3_mass_residence_diagnostics", false)):
+		engine.phase3_canonical_zone_shadow_enabled = true
+		engine.phase3_canonical_exterior_boundary_shadow_enabled = true
+		engine.phase3_canonical_persistence_shadow_enabled = true
+		engine.phase3_canonical_combustion_shadow_enabled = true
+		engine.phase3_canonical_pressure_relaxation_shadow_enabled = true
+		engine.phase3_canonical_plume_shadow_enabled = true
+		engine.phase3_canonical_interzone_heat_shadow_enabled = true
+		engine.phase3_canonical_wall_ambient_shadow_enabled = true
+		engine.phase3_canonical_exterior_counterflow_shadow_enabled = true
+		engine.phase3_canonical_post_opening_coupling_shadow_enabled = true
+		engine.phase3_canonical_interior_opening_shadow_enabled = true
+		engine.phase3_canonical_interior_pressure_shadow_enabled = true
+		engine.phase3_mass_residence_diagnostics_enabled = true
 	_projection_trace_enabled = bool(scenario.get("phase3_projection_trace_enabled", false))
 	if _projection_trace_enabled:
 		engine.phase3_zone_diagnostics_enabled = true
@@ -282,6 +296,8 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["phase3_canonical_interior_pressure_shadow"] = true
 		elif arg == "--phase3-enthalpy-residence-diagnostics":
 			parsed["phase3_enthalpy_residence_diagnostics"] = true
+		elif arg == "--phase3-mass-residence-diagnostics":
+			parsed["phase3_mass_residence_diagnostics"] = true
 		index += 1
 	return parsed
 

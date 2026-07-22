@@ -7,6 +7,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 ENGINE = (ROOT / "sim/core/SimulationEngine.gd").read_text(encoding="utf-8")
 MAIN = (ROOT / "Main.gd").read_text(encoding="utf-8")
+SIMULATION_SCENE = (ROOT / "scenes/SimulationScene.tscn").read_text(encoding="utf-8")
 
 
 def _function(source: str, name: str) -> str:
@@ -81,9 +82,15 @@ class TestExitSuppression(unittest.TestCase):
 class TestAsyncGraphUi(unittest.TestCase):
     def test_overlay_blocks_input_and_timer_polls_twice_per_second(self):
         setup = _function(MAIN, "_setup_graph_generation_overlay")
-        self.assertIn("Control.MOUSE_FILTER_STOP", setup)
-        self.assertIn("GRAPH_GENERATION_POLL_INTERVAL_S", setup)
         self.assertIn("_on_graph_generation_poll_timeout", setup)
+        overlay = SIMULATION_SCENE.split(
+            '[node name="GraphGenerationOverlay"', 1
+        )[1].split("\n[node ", 1)[0]
+        timer = SIMULATION_SCENE.split(
+            '[node name="GraphGenerationPollTimer"', 1
+        )[1].split("\n[node ", 1)[0]
+        self.assertIn("mouse_filter = 0", overlay)
+        self.assertIn("wait_time = 0.5", timer)
 
     def test_poll_has_success_error_and_timeout_paths(self):
         poll = _function(MAIN, "_on_graph_generation_poll_timeout")

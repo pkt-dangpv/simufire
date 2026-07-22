@@ -77,6 +77,7 @@ var _graphs_launched: bool = false
 var _last_graphs_dir: String = ""
 var _last_graph_generation_ok: bool = false
 var _graph_gen_pid: int = -1
+var _html_dashboard_pid: int = -1
 var _graph_gen_latest_path: String = ""
 var _exit_graphs_suppressed: bool = false
 var _python_available: bool = true
@@ -976,6 +977,9 @@ var _step_time_us: int = 0
 ## Si es true, también guarda el log en formato CSV al parar la simulación.
 @export var enable_csv_log: bool = true
 @export var csv_log_file_path: String = "user://sim_log.csv"
+## Si es true, genera además un dashboard.html interactivo (Plotly) al terminar,
+## junto a los PNG. No sustituye a las gráficas matplotlib. Requiere Python+plotly.
+@export var enable_html_dashboard: bool = true
 ## Phase 3+ F0: telemetria two-zone temporal. Default OFF conserva el schema legacy.
 @export var phase3_zone_diagnostics_enabled: bool = false
 ## F3.0: transaccion two-zone shadow. Default OFF; nunca escribe estado legacy.
@@ -1004,6 +1008,8 @@ var _step_time_us: int = 0
 @export var phase3_canonical_interior_pressure_shadow_enabled: bool = false
 ## F3.3c1: ledger acumulativo de entalpia aceptada por ruta. Default OFF.
 @export var phase3_enthalpy_residence_diagnostics_enabled: bool = false
+## F3.3d1: ledger acumulativo de masa aceptada por ruta. Default OFF.
+@export var phase3_mass_residence_diagnostics_enabled: bool = false
 
 # ============================================================
 # SERVICIOS AUXILIARES
@@ -1283,6 +1289,21 @@ func _sync_auxiliary_services() -> void:
 	phase3_zone_mass_system.configure_enthalpy_residence_diagnostics(
 		phase3_enthalpy_residence_diagnostics_active
 	)
+	var phase3_mass_residence_diagnostics_active: bool = \
+			phase3_canonical_zone_shadow_enabled \
+			and phase3_canonical_persistence_shadow_enabled \
+			and phase3_canonical_combustion_shadow_enabled \
+			and phase3_canonical_plume_shadow_enabled \
+			and phase3_canonical_interzone_heat_shadow_enabled \
+			and phase3_canonical_wall_ambient_shadow_enabled \
+			and phase3_canonical_exterior_counterflow_shadow_enabled \
+			and phase3_canonical_post_opening_coupling_shadow_enabled \
+			and phase3_canonical_interior_opening_shadow_enabled \
+			and phase3_canonical_interior_pressure_shadow_enabled \
+			and phase3_mass_residence_diagnostics_enabled
+	phase3_zone_mass_system.configure_mass_residence_diagnostics(
+		phase3_mass_residence_diagnostics_active
+	)
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
 	log_writer.configure_phase3_zone_diagnostics(phase3_zone_diagnostics_enabled)
@@ -1348,10 +1369,11 @@ func _sync_auxiliary_services() -> void:
 	log_writer.configure_phase3_enthalpy_residence_diagnostics(
 		phase3_enthalpy_residence_diagnostics_active
 	)
+	log_writer.configure_phase3_mass_residence_diagnostics(
+		phase3_mass_residence_diagnostics_active
+	)
 	# SF-R6: ZoneFireSolver — inyectar referencia al building.
 	zone_fire_solver.set_building(building)
-
-
 func _phase3_zone_diag_snapshot() -> Dictionary:
 	var snapshot: Dictionary = {}
 	if not phase3_zone_diagnostics_enabled or building == null:
@@ -1980,6 +2002,8 @@ func _build_state_context() -> Dictionary:
 				phase3_canonical_interior_pressure_shadow_enabled,
 		"phase3_enthalpy_residence_diagnostics_enabled": \
 				phase3_enthalpy_residence_diagnostics_enabled,
+		"phase3_mass_residence_diagnostics_enabled": \
+				phase3_mass_residence_diagnostics_enabled,
 		"phase3_canonical_zone_shadow": phase3_zone_mass_system.get_results() \
 				if phase3_canonical_zone_shadow_enabled else {},
 		"ambient_temp_c": thermal_system.ambient_temp_c(),
@@ -2190,6 +2214,7 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	_last_graphs_dir = ""
 	_last_graph_generation_ok = false
 	_graph_gen_pid = -1
+	_html_dashboard_pid = -1
 	_graph_gen_latest_path = ""
 	_exit_graphs_suppressed = false
 	_room_peak_hrr.clear()
@@ -4120,14 +4145,62 @@ func _launch_graph_generator(graphs_root: String = "", wait_for_finish: bool = f
 
 	if wait_for_finish:
 		var output: Array = []
-		return _complete_graph_generation(_execute_python(args, output))
+		var ok: bool = _complete_graph_generation(_execute_python(args, output))
+		# Co-ubicar el dashboard en la misma carpeta que los PNG recién generados.
+		_launch_html_dashboard(graphs_root, _last_graphs_dir, true)
+		return ok
 
 	_graph_gen_pid = _create_python_process(args)
 	if _graph_gen_pid > 0:
 		print("[SimulationEngine] Generando graficas (PID %d)..." % _graph_gen_pid)
+		# Modo asíncrono: aún no conocemos la carpeta PNG, va a carpeta hermana.
+		_launch_html_dashboard(graphs_root, "", false)
 		return true
 	push_warning("[SimulationEngine] No se pudo lanzar Python. Ejecuta: python scripts/generate_fire_graphs.py")
 	return false
+
+
+## Lanza el exportador Plotly (dashboard.html interactivo) en paralelo a los PNG.
+## No interfiere con el flujo matplotlib: proceso independiente y fire-and-forget.
+## - out_dir no vacío  -> co-ubica el dashboard en esa carpeta (--out-dir).
+## - out_dir vacío     -> crea carpeta hermana bajo graphs_root (--out-root).
+func _launch_html_dashboard(graphs_root: String, out_dir: String, wait_for_finish: bool) -> void:
+	if not enable_html_dashboard:
+		return
+	if not check_python_available():
+		return
+	var script_path: String = ProjectSettings.globalize_path("res://scripts/generate_fire_graphs_html.py")
+	if not FileAccess.file_exists(script_path):
+		push_warning("[SimulationEngine] generate_fire_graphs_html.py no encontrado; se omite el dashboard.")
+		return
+	var log_path: String = log_writer.resolve_log_file_path()
+	var args: PackedStringArray = PackedStringArray([script_path, "--log", log_path, "--plotlyjs", "shared"])
+	if enable_csv_log:
+		var csv_path: String = log_writer.resolve_csv_file_path()
+		if csv_path.strip_edges() != "":
+			args.append("--csv")
+			args.append(csv_path)
+	if out_dir.strip_edges() != "":
+		args.append("--out-dir")
+		args.append(out_dir)
+	elif graphs_root.strip_edges() != "":
+		args.append("--out-root")
+		args.append(graphs_root)
+
+	if wait_for_finish:
+		var output: Array = []
+		var exit_code: int = _execute_python(args, output)
+		if exit_code == 0:
+			print("[SimulationEngine] Dashboard HTML generado.")
+		else:
+			push_warning("[SimulationEngine] Falló el dashboard HTML (exit=%d). ¿plotly instalado?" % exit_code)
+		return
+
+	_html_dashboard_pid = _create_python_process(args)
+	if _html_dashboard_pid > 0:
+		print("[SimulationEngine] Generando dashboard HTML (PID %d)..." % _html_dashboard_pid)
+	else:
+		push_warning("[SimulationEngine] No se pudo lanzar el dashboard HTML.")
 
 
 func _execute_python(args: PackedStringArray, output: Array) -> int:

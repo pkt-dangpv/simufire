@@ -35,6 +35,7 @@ var phase3_canonical_post_opening_coupling_shadow_enabled: bool = false
 var phase3_canonical_interior_opening_shadow_enabled: bool = false
 var phase3_canonical_interior_pressure_shadow_enabled: bool = false
 var phase3_enthalpy_residence_diagnostics_enabled: bool = false
+var phase3_mass_residence_diagnostics_enabled: bool = false
 
 var _next_log_time_s: float = 0.0
 ## Último timestamp escrito (append_snapshot o append_snapshot_now).
@@ -122,6 +123,10 @@ func configure_phase3_enthalpy_residence_diagnostics(is_enabled: bool) -> void:
 	phase3_enthalpy_residence_diagnostics_enabled = is_enabled
 
 
+func configure_phase3_mass_residence_diagnostics(is_enabled: bool) -> void:
+	phase3_mass_residence_diagnostics_enabled = is_enabled
+
+
 func _phase3_enthalpy_residence_fields() -> Array[String]:
 	var fields: Array[String] = [
 		"phase3_shadow_enthalpy_initial_upper_kj",
@@ -150,6 +155,40 @@ func _phase3_enthalpy_residence_fields() -> Array[String]:
 			for direction in ["in", "out"]:
 				fields.append(
 					"phase3_shadow_enthalpy_%s_%s_%s_kj_total" % [
+						family_name, zone_name, direction
+					]
+				)
+	return fields
+
+
+func _phase3_mass_residence_fields() -> Array[String]:
+	var fields: Array[String] = [
+		"phase3_shadow_mass_residence_initial_upper_kg",
+		"phase3_shadow_mass_residence_initial_lower_kg",
+		"phase3_shadow_mass_residence_upper_in_kg_total",
+		"phase3_shadow_mass_residence_upper_out_kg_total",
+		"phase3_shadow_mass_residence_lower_in_kg_total",
+		"phase3_shadow_mass_residence_lower_out_kg_total",
+		"phase3_shadow_mass_residence_expected_upper_kg",
+		"phase3_shadow_mass_residence_expected_lower_kg",
+		"phase3_shadow_mass_residence_observed_upper_kg",
+		"phase3_shadow_mass_residence_observed_lower_kg",
+		"phase3_shadow_mass_residence_upper_residual_kg",
+		"phase3_shadow_mass_residence_lower_residual_kg",
+		"phase3_shadow_mass_residence_room_residual_kg",
+		"phase3_shadow_mass_residence_building_residual_kg",
+		"phase3_shadow_mass_residence_accepted_route_count",
+		"phase3_shadow_mass_residence_legacy_route_count",
+	]
+	for family_name in [
+		"combustion", "plume", "interzone", "wall", "ambient", "exterior",
+		"exterior_counterflow", "interior_opening", "interior_pressure", "parcel",
+		"legacy", "zone_collapse", "reconcile", "other",
+	]:
+		for zone_name in ["upper", "lower"]:
+			for direction in ["in", "out"]:
+				fields.append(
+					"phase3_shadow_mass_residence_%s_%s_%s_kg_total" % [
 						family_name, zone_name, direction
 					]
 				)
@@ -540,6 +579,10 @@ func _build_csv_header() -> String:
 	if phase3_enthalpy_residence_diagnostics_enabled:
 		header += "," + ",".join(PackedStringArray(
 			_phase3_enthalpy_residence_fields()
+		))
+	if phase3_mass_residence_diagnostics_enabled:
+		header += "," + ",".join(PackedStringArray(
+			_phase3_mass_residence_fields()
 		))
 	return header
 
@@ -1169,6 +1212,9 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		if phase3_enthalpy_residence_diagnostics_enabled:
 			for field_name in _phase3_enthalpy_residence_fields():
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
+		if phase3_mass_residence_diagnostics_enabled:
+			for field_name in _phase3_mass_residence_fields():
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		file.store_line(",".join(fields))
 

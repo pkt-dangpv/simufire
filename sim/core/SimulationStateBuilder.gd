@@ -69,6 +69,9 @@ func build_state(context: Dictionary) -> Dictionary:
 		"phase3_enthalpy_residence_diagnostics_enabled": bool(
 			context.get("phase3_enthalpy_residence_diagnostics_enabled", false)
 		),
+		"phase3_mass_residence_diagnostics_enabled": bool(
+			context.get("phase3_mass_residence_diagnostics_enabled", false)
+		),
 		"phase3_pressure_canonical_enabled": bool(context.get("phase3_pressure_canonical_enabled", false)),
 		"fire_o2_mass_tracking_enabled": bool(context.get("fire_o2_mass_tracking_enabled", false)),
 		"doorway_thermal_counterflow_enabled": bool(context.get("doorway_thermal_counterflow_enabled", false)),

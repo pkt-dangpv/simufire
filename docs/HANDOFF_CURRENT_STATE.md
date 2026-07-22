@@ -1,6 +1,6 @@
 # Current Handoff State
 
-Date: 2026-07-21.
+Date: 2026-07-22.
 
 Runtime note: active local runners and test entrypoints now default to Godot
 `4.7.1` console at
@@ -12,7 +12,280 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
-## Current Session Update - 2026-07-21 - F3.3c1 enthalpy ledger GO
+## Current Session Update - 2026-07-22 - F3.3h1 buoyancy routing design GO
+
+- Implemented the exact CFAST `flogo` temperature destination split behind an
+  internal/default-false parameter in `Phase3ZoneMassSystem`.
+- Source zone, density, total slab flow, pressure and payload remain unchanged;
+  direct receiver mass is split lower/upper with one common fraction for mass,
+  enthalpy, O2 and species.
+- The direct bundle and Poreh receiver-mixing bundle remain separate and
+  individually identifiable.
+- No Engine, CLI, CSV or case surface exists. Official reports, baselines,
+  tolerances and gaps remain unchanged.
+- Verification: focused 31 PASS; all Phase 3 tests 455 PASS; F3.3h1, F3.3f1
+  and F3.3g Godot 4.7.1 fixtures PASS.
+- Next: F3.3h2 temporary default-OFF runtime gate, OFF exact and Group C only
+  to 180 s. Direct `h_mflow` and total `uflw2 + uflw3` comparisons must remain
+  separate.
+- Binding record:
+  `docs/validation/PHASE3_F33H1_BUOYANCY_ROUTING_DESIGN.md`.
+
+## Previous Session Update - 2026-07-22 - F3.3h CFAST flow semantics GO
+
+- Audited the exact CFAST 7.7.5 source that generated Group C and compared it
+  with current official `master`; `flowhorizontal.f90` is unchanged.
+- `flogo` removes direct flow from the geometric source zone but deposits it
+  into the receiver with a `tanhsmooth` temperature split, not by receiver
+  height and not by preserving the source zone.
+- `spill_plume`/`uflw3` is a separate receiver-internal Poreh transfer.
+  `wall_flow` adds it to the ODE, while `.out` and spreadsheet upper/lower
+  vent outputs read direct `h_mflow` only.
+- The existing Group C direct-flow comparison is valid. F3.3f correctly found
+  a destination-routing error, but F3.3f1 selected the wrong replacement.
+- Next: F3.3h1 pure/default-false CFAST buoyancy routing contract. It must
+  split each direct slab by source temperature against receiver layer
+  temperatures and keep Poreh separate. No runtime surface in the design gate.
+- Binding record:
+  `docs/validation/PHASE3_F33H_CFAST_DOORWAY_FLOW_SEMANTICS.md`.
+
+## Previous Session Update - 2026-07-22 - F3.3g1 runtime integration NO-GO
+
+- Preserved every nonzero F3.3a/F3.3b hydrostatic slab and proved aggregate
+  equivalence, pressure-relaxation scaling and opening-order independence.
+- Added the internal default-false composition of source-preserving direct
+  transport plus separate receiver-internal Poreh routes. Both atomic bundles
+  close mass, enthalpy, O2 and species exactly.
+- OFF is byte-identical to the F3.3f2 checkpoint (SHA-256
+  `6F7FD18D3C451D2AE615D695B066A08F9F593DF5708E864DD50067CECF09ED70`).
+- The 180 s candidate failed physically: R0 upper direct inflow fell
+  `7.516 -> 0.482 kg`; cool `upper -> lower` Poreh mixing was `0.738 kg`
+  versus only `0.036 kg` hot `lower -> upper`. Upper mass and interface moved
+  away from CFAST despite a small temperature improvement.
+- Per the STOP contract, no 300/590 s run was made. Temporary Engine, CLI and
+  CSV wiring was removed; the internal slab/Poreh contract and fixtures remain.
+- Next: F3.3h source-to-output audit of CFAST `UFLW/UFLW2/UFLW3`. Resolve
+  whether the published layer flows contain direct transport, induced mixing
+  or both before proposing another runtime candidate.
+- Verification: focused 16 PASS; all Phase 3 tests 448 PASS; isolated Godot
+  4.7.1 fixture PASS.
+- Binding record:
+  `docs/validation/PHASE3_F33G1_DOORWAY_JET_INTEGRATION_EXPERIMENT.md`.
+
+## Previous Session Update - 2026-07-22 - F3.3g pure doorway-jet contract GO
+
+- Bound the implementation to current official CFAST
+  `flowhorizontal.f90::spill_plume/poreh_plume`, rather than the older
+  historical McCaffrey description.
+- CFAST has two receiver-internal owners when source and receiver slab zones
+  differ: hot upper-source flow entrains receiver lower gas into upper at full
+  Poreh strength; cool lower-source flow entrains receiver upper gas into
+  lower with factor `0.25`.
+- Added a pure Poreh preview and a receiver-snapshot atomic route builder in
+  `Phase3ZoneMassSystem`. Direct vent mass is not part of this route.
+- The direct fixture verifies fixed numeric rates, thermal/zone activation,
+  source-flow and width scaling, one common inventory cap and exact mass,
+  sensible-energy, O2 and species conservation.
+- Verification: focused 15 PASS; all Phase 3 tests 439 PASS; isolated Godot
+  4.7.1 fixture PASS; `git diff --check` PASS.
+- No Engine/CLI/CSV/case surface, official report, baseline, tolerance, gap or
+  canonical authority changed.
+- Next: F3.3g1 must preserve each opening slab through F3.3a/F3.3b and add
+  separate internal receiver routes beside source-preserving direct routes.
+  Stop at 180 s; do not run 300/590 s or combine Qc until that paired gate
+  passes.
+- Binding record:
+  `docs/validation/PHASE3_F33G_DOORWAY_JET_ENTRAINMENT_DESIGN.md`.
+
+## Previous Session Update - 2026-07-22 - F3.3f2 runtime routing NO-GO
+
+- Temporarily wired the tested F3.3f1 source-preserving selector behind a
+  default-OFF Engine/CLI/CSV gate with the complete F3.3b stack and both exact
+  residence ledgers as mandatory prerequisites.
+- OFF was byte-identical to the prior 180 s F3.3d1 checkpoint: SHA-256
+  `6F7FD18D3C451D2AE615D695B066A08F9F593DF5708E864DD50067CECF09ED70`,
+  114 rows, 667 columns and no candidate column.
+- At the 180 s ON STOP, R0 opening+pressure inflow changed from
+  `46.143 lower / 7.516 upper / 53.659 total kg` to
+  `54.555 lower / 0.004 upper / 54.559 total kg`. CFAST is
+  `65.782 lower / 3.662 upper / 69.444 total kg`.
+- Lower renewal moved in the right direction without a total-flow surge, but
+  upper transport was effectively removed. Canonical upper mass fell
+  `22.921 -> 20.463 kg` and interface rose `1.101 -> 1.227 m`, both away from
+  CFAST (`26.94 kg`, `0.736 m`). Upper temperature improved only
+  `125.70 -> 130.02 C` versus CFAST `159.82 C`.
+- All mass, enthalpy, O2 and species residuals remained exactly zero, and all
+  shared non-Phase-3 cells were identical. This is a semantic failure, not a
+  conservation or legacy regression.
+- Per the STOP contract, 300/590 s were not run. All F3.3f2 Engine, runner,
+  logger and state wiring was removed. The pure default-false F3.3f1 selector
+  and direct fixture remain.
+- Decision: runtime candidate NO-GO. Next is F3.3g design-first work for the
+  separate CFAST doorway-jet entrainment/mixing owner. Do not retune flow or
+  pressure, and do not reintroduce F3.3e1 Qc yet.
+- Binding record:
+  `docs/validation/PHASE3_F33F2_DESTINATION_ROUTING_EXPERIMENT.md`.
+
+## Previous Session Update - 2026-07-22 - F3.3f1 routing design GO
+
+- CFAST's documented horizontal-flow contract separates direct layer-to-layer
+  transport from doorway-jet entrainment. The direct candidate therefore
+  preserves source-layer identity instead of using receiver midpoint height.
+- Added one optional/default-false selector in `Phase3ZoneMassSystem` and
+  propagated it through both F3.3a gross and F3.3b signed-pressure previews.
+  It changes no flow, pressure, neutral plane, atomic cap or payload formula.
+- There is deliberately no Engine export, CLI, CSV field or case wiring in
+  this phase, so runtime behavior remains unavailable and unchanged.
+- Direct fixture proves `lower->lower`, `upper->upper`, empty-zone creation,
+  exact OFF equivalence, exact mass/enthalpy/O2/species closure and reversed
+  opening-order equivalence.
+- Verification: focused 28 PASS; all Phase 3 tests 432 PASS; isolated Godot
+  4.7.1 fixture PASS. Official cases/reports/baselines/tolerances/gaps remain
+  unchanged.
+- Decision: design/fixture GO. Next is F3.3f2, a separate default-OFF runtime
+  routing experiment using current F3.3b physics. Do not combine Qc yet.
+- Binding record:
+  `docs/validation/PHASE3_F33F1_DESTINATION_ROUTING_DESIGN.md`.
+
+## Previous Session Update - 2026-07-22 - F3.3f routing root cause
+
+- Integrated CFAST's explicit R0 upper/lower doorway and leakage rates over
+  the same three windows as the exact SimuFire F3.3d1 mass ledger.
+- The late deficit is not gross flow magnitude. At 300-590 s CFAST receives
+  `168.393 kg` and SimuFire receives `223.489 kg`, but CFAST deposits
+  `166.815 kg` in lower while SimuFire deposits only `51.599 kg` there.
+  SimuFire instead sends `171.890 kg` to upper versus CFAST `1.578 kg`.
+- Root cause is the canonical destination-zone midpoint contract in
+  `Phase3ZoneMassSystem`: when the receiver interface falls, increasingly
+  more cool doorway inflow is classified as upper. That starves lower,
+  lowers the interface again and creates a positive feedback loop.
+- Flow multipliers, pressure gains and forcing all inflow to lower are
+  rejected. Conservation already closes; the error is zone assignment.
+- Next gate is F3.3f1, a design-first/default-OFF source-preserving destination
+  routing contract with direct hot/cold, one-zone, bidirectional and
+  order-independence fixtures. Do not reintroduce F3.3e1 Qc until this passes.
+- No runtime code, official case/report, baseline, tolerance, gap, CTRL or
+  authority changed in F3.3f.
+- Binding record:
+  `docs/validation/PHASE3_F33F_LOWER_RENEWAL_CORRESPONDENCE.md`.
+
+## Previous Session Update - 2026-07-22 - F3.3e1 coupled Qc runtime NO-GO
+
+- Implemented the F3.3e accepted-Qc contract as a default-OFF shadow
+  candidate and verified its NIST equation, explicit Qc heat and no-double-
+  throttle bundle in a direct Godot fixture.
+- Default OFF is exact: 114 rows x 667 shared columns, zero differing cells
+  against the pre-candidate F3.3d1 run.
+- The 180 s STOP passed: upper temperature `220.36 -> 190.49 C`, upper mass
+  `6.68 -> 25.76 kg` and interface `1.932 -> 0.690 m`, all toward CFAST
+  (`159.82 C`, `26.94 kg`, `0.736 m`).
+- The full run failed physically. At 590 s lower gas/interface collapse to
+  zero and upper gas reaches `41.37 kg` versus CFAST `25.25 kg`, despite exact
+  mass and enthalpy ledger closure.
+- Route accounting selects the next owner: cumulative plume lower out is
+  `208.26 kg`, while opening plus pressure lower inflow is only `169.71 kg`.
+  The lower inventory cap then suppresses late plume flow.
+- Decision: F3.3e1 runtime NO-GO and fully rolled back. No official case,
+  report, baseline, tolerance, gap, CTRL or authority changed. Next is F3.3f,
+  a design-first lower-zone renewal/doorway-routing correspondence audit.
+- Binding record:
+  `docs/validation/PHASE3_F33E1_COUPLED_QC_EXPERIMENT.md`.
+
+## Previous Session Update - 2026-07-22 - F3.3e coupled Qc design GO
+
+- Defined one dimensional source contract for the next shadow experiment:
+  canonical accepted HRR -> effective `chi_rad` -> accepted `Qc`; that same
+  `Qc` must own both convective energy and the complete plume correlation.
+- Confirmed a formula bug in the current canonical preview: it subtracts
+  flame length (`0.235 * Q^(2/5) - 1.02D`) from the interface where Heskestad
+  requires the virtual origin (`0.083 * Q^(2/5) - 1.02D`).
+- CFAST uses fire area `0.3015 m2` (`D=0.6196 m`), radiative fraction 0.35 and
+  exports plume `0.503/0.528/0.552 kg/s` at 180/300/590 s. The corrected
+  equation predicts `0.514/0.532/0.549 kg/s`, all within 2.3% without tuning.
+- The Group C SimuFire case still carries inherited calibration values
+  `D=3.5 m`, `chi_rad=0.70` and plume Qc fraction 0.30. They are not changed
+  here; a future experiment must use a scratch physical-input overlay first.
+- Late accepted HRR remains a separate owner: even with a 65% convective
+  split, SimuFire has only 41.23 MJ in 300-590 s versus CFAST 56.55 MJ. The
+  plume contract must not manufacture that missing O2/combustion energy.
+- Decision: design GO for F3.3e1, default OFF, with direct NIST-equation
+  fixture and 180 s STOP before a 600 s run. No runtime code or validation
+  contract changed in F3.3e.
+- Binding record:
+  `docs/validation/PHASE3_F33E_COUPLED_QC_DESIGN.md`.
+
+## Previous Session Update - 2026-07-22 - F3.3d2 source-term NO-GO
+
+- Tested the complete Heskestad source term (`0.0018 * Qc`) as the sole plume
+  change. The candidate remained shadow-only and exactly conservative.
+- Plume error improved from `-27.6/-29.4/-35.8%` to
+  `-16.9/-20.1/-29.9%` across the three CFAST windows.
+- At 180 s upper mass/interface improved from `22.92 kg / 1.101 m` to
+  `26.87 kg / 0.909 m` (CFAST `26.94 kg / 0.736 m`). At 590 s interface
+  improved from `1.140` to `0.990 m`.
+- Binding failure: upper temperature regressed from `125.7` to `114.2 C` at
+  180 s and from `97.5` to `90.1 C` at 590 s. The upper layer receives more
+  near-lower-temperature mass without the missing convective energy.
+- Decision: F3.3d2 NO-GO. All experiment code/tests/flags were rolled back;
+  only the scratch evidence and documentation remain. Group A was not run
+  after the binding temperature criterion failed.
+- Next: F3.3e design-first coupled `Qc` contract. Do not combine old patches
+  until one authoritative convective HRR drives both energy and plume mass.
+- Binding record:
+  `docs/validation/PHASE3_F33D2_PLUME_SOURCE_TERM_EXPERIMENT.md`.
+
+## Previous Session Update - 2026-07-22 - F3.3d1 mass ledger GO
+
+- Added `phase3_mass_residence_diagnostics_enabled=false`, active only with
+  the complete F3.3b shadow stack. It is passive and adds 72 CSV fields only
+  when enabled.
+- Initial plus cumulative accepted gas-mass routes now close exactly for the
+  upper zone, lower zone, room and building. Atomic routes are recorded after
+  limiting and before mutation; legacy requests and zone collapse are explicit.
+- The deterministic fixture and five Godot 4.7.1 scratch controls PASS. Group
+  C preserves 366 rows and all 595 shared columns exactly; every measured mass
+  residual is `0.0 kg`.
+- CFAST comparison selects plume partition: SimuFire accepts only 72.4%, 70.6%
+  and 64.2% of CFAST plume mass over `0-180`, `180-300` and `300-590 s`.
+  The `chi_rad=0.35` control changes plume mass by less than 2%, so radiation
+  cannot repair the mass/interface error.
+- Late interior-pressure lower outflow and exterior net inflow are secondary
+  churn signals. Do not change opening or pressure coefficients before testing
+  the plume owner independently.
+- Verification: Phase 3 tests 424/424; full pytest 1073 PASS with the same 18
+  pre-existing failures plus expected dirty-motor R2-1; physics 9/15/5/0; ILV
+  15/14/0; gap inventory 348/353; guardrails 9/10 only for R2-1.
+- Decision: F3.3d1 instrumentation GO. Physics, authority and the 5 VALID_GAP
+  remain NO-GO. Next separate gate is F3.3d2, a default-OFF canonical plume
+  entrainment/partition experiment.
+- Binding record:
+  `docs/validation/PHASE3_F33D1_MASS_RESIDENCE_LEDGER.md`.
+
+## Previous Session Update - 2026-07-21 - F3.3d CFAST correspondence
+
+- Integrated CFAST convective HRR, signed doorway-slab enthalpy and layer
+  sensible energy over `0-180`, `180-300` and the exported `300-590 s`
+  windows, then compared them with the exact F3.3c1 ledger.
+- SimuFire accepts only 44.3%, 43.2% and 33.6% of CFAST convective source
+  energy. Early actual HRR differs by only 4-6%; the dominant cause is the
+  explicit radiation split (`chi_rad=0.7` versus CFAST `0.35`). After 300 s,
+  O2 throttling adds a second source deficit.
+- Wall/exterior and doorway losses are both lower than CFAST in absolute
+  terms. Neither is the primary explanation for the late energy deficit, and
+  no sink coefficient change is authorized.
+- The `chi_rad=0.35` control exposes the coupled error: at 180 s upper energy
+  is within 3% of CFAST but upper mass is 32% low and the interface is 0.37 m
+  too high, producing 218.35 C instead of 159.82 C. At 590 s its apparently
+  correct temperature hides roughly 24% deficits in both upper energy and
+  mass.
+- Decision: F3.3d diagnostic GO; scalar source, wall and doorway changes are
+  NO-GO. F3.3d1 is next: a default-OFF exact mass-residence ledger to identify
+  plume/partition ownership before any physical patch.
+- No motor, case, report, baseline, tolerance, gap or CTRL changed.
+- Binding record:
+  `docs/validation/PHASE3_F33D_CFAST_SOURCE_BOUNDARY_CORRESPONDENCE.md`.
+
+## Previous Session Update - 2026-07-21 - F3.3c1 enthalpy ledger GO
 
 - Added `phase3_enthalpy_residence_diagnostics_enabled=false`, effective only
   with the complete F3.3b stack. It is instrumentation-only and does not write

@@ -1,6 +1,6 @@
 # Phase 3+ current workplan
 
-Date: 2026-07-21
+Date: 2026-07-22
 
 ## Current baseline
 
@@ -52,6 +52,18 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.3b signed interior-pressure shadow: `docs/validation/PHASE3_F33B_INTERIOR_PRESSURE_SHADOW.md`
 - F3.3c late-enthalpy audit: `docs/validation/PHASE3_F33C_LATE_ENTHALPY_AUDIT.md`
 - F3.3c1 enthalpy ledger: `docs/validation/PHASE3_F33C1_ENTHALPY_RESIDENCE_LEDGER.md`
+- F3.3d CFAST correspondence: `docs/validation/PHASE3_F33D_CFAST_SOURCE_BOUNDARY_CORRESPONDENCE.md`
+- F3.3d1 mass ledger: `docs/validation/PHASE3_F33D1_MASS_RESIDENCE_LEDGER.md`
+- F3.3d2 source-term experiment: `docs/validation/PHASE3_F33D2_PLUME_SOURCE_TERM_EXPERIMENT.md`
+- F3.3e coupled Qc design: `docs/validation/PHASE3_F33E_COUPLED_QC_DESIGN.md`
+- F3.3e1 coupled Qc experiment: `docs/validation/PHASE3_F33E1_COUPLED_QC_EXPERIMENT.md`
+- F3.3f lower-zone renewal correspondence: `docs/validation/PHASE3_F33F_LOWER_RENEWAL_CORRESPONDENCE.md`
+- F3.3f1 destination-routing design: `docs/validation/PHASE3_F33F1_DESTINATION_ROUTING_DESIGN.md`
+- F3.3f2 destination-routing experiment: `docs/validation/PHASE3_F33F2_DESTINATION_ROUTING_EXPERIMENT.md`
+- F3.3g doorway-jet entrainment design: `docs/validation/PHASE3_F33G_DOORWAY_JET_ENTRAINMENT_DESIGN.md`
+- F3.3g1 doorway-jet integration experiment: `docs/validation/PHASE3_F33G1_DOORWAY_JET_INTEGRATION_EXPERIMENT.md`
+- F3.3h CFAST doorway-flow semantics: `docs/validation/PHASE3_F33H_CFAST_DOORWAY_FLOW_SEMANTICS.md`
+- F3.3h1 buoyancy-routing design: `docs/validation/PHASE3_F33H1_BUOYANCY_ROUTING_DESIGN.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -271,11 +283,106 @@ identical and every zone/room/building residual is `0.0 kJ`. R0 accepts
 40.711 MJ combustion heat through 600 s and exports most of it through gross
 interior opening flow, ambient and wall paths. Group A closes equally cleanly.
 
-F3.3d is now the current target. It must compare the exact canonical source
-and sink families against time-resolved CFAST convective HRR, wall and opening
-energy over `0-180`, `180-300` and `300-600 s`. It is diagnostic only: no
-combustion, radiation, wall or doorway coefficient may change before that
-correspondence selects one owner and passes a new STOP gate.
+F3.3d has now compared the exact canonical source and sink families against
+time-resolved CFAST convective HRR, signed doorway-slab enthalpy and layer
+energy. SimuFire's source is only 34-44% of CFAST because the case retains 30%
+convective heat versus CFAST's 65%, with additional late O2 throttling. Wall
+and doorway losses are lower than CFAST in absolute terms and are not the
+primary late-energy cause.
+
+The source mismatch cannot be corrected alone. In the existing
+`chi_rad=0.35` control, 180 s upper energy is within 3% of CFAST but upper mass
+is 32% low and the interface is 0.37 m too high, producing an early thermal
+overshoot. Its late temperature match also hides roughly 24% deficits in both
+upper energy and mass. F3.3d therefore selects upper/lower mass partition as
+the next owner, while keeping radiation, wall and doorway coefficient changes
+at NO-GO.
+
+F3.3d1 now supplies that default-OFF cumulative accepted mass-residence ledger.
+It distinguishes plume, interior/exterior opening, parcel, collapse/reconcile,
+legacy and unclassified routes. Group C preserves all 595 shared columns and
+every upper/lower/room/building residual is exactly `0.0 kg`.
+
+The ledger selects the next owner. Accepted SimuFire plume mass is only 64-72%
+of CFAST across the three common windows, while the `chi_rad=0.35` source
+control changes plume mass by less than 2%. Early net doorway mass is already
+close to CFAST. Late signed-pressure lower outflow and exterior net inflow are
+secondary churn, not permission to retune opening coefficients.
+
+F3.3d2 tested the missing Heskestad source term as the sole plume change. It
+improved plume mass, upper/lower mass and interface while preserving exact
+closure, but it worsened upper temperature at both 180 s and 590 s. The
+candidate is fully rolled back. This proves that the convective-energy and
+plume-mass deficits cannot be corrected independently.
+
+F3.3e has completed that design. The current preview uses flame length where
+Heskestad requires a virtual origin and then applies one cube-root scale to
+both the cubic-root height term and the linear source term. With CFAST's
+physical `D=0.6196 m`, `Qc=195 kW` and exported interface, the corrected
+equation predicts its plume flow within 2.3% at 180/300/590 s without tuning.
+
+The selected contract is accepted total HRR -> effective `chi_rad` -> one
+accepted `Qc`. That same value drives `Qc*dt` upper energy and both Heskestad
+plume terms before atomic inventory limiting. The late 300-590 s source still
+has a separate O2/HRR deficit (41.23 MJ available at 65% convective versus
+CFAST 56.55 MJ), which the plume contract is forbidden to hide.
+
+F3.3e1 implemented that contract and passed its 180 s gate. The first CFAST
+window nearly closed in both Qc energy and plume mass, and all three state
+metrics moved toward CFAST with exact ledgers. The 600 s run is nevertheless
+NO-GO: lower gas and interface collapse to zero by 590 s while upper mass
+overshoots CFAST by 16.12 kg. All F3.3e1 runtime code was rolled back.
+
+F3.3f has now completed that comparison. The missing renewal is not a gross
+flow-magnitude deficit. In the late window SimuFire accepts about `223.49 kg`
+of interior opening plus pressure inflow versus CFAST `168.39 kg`. The zone
+split is inverted: SimuFire deposits only `51.60 kg` in lower and `171.89 kg`
+in upper, while CFAST deposits `166.82 kg` in lower and `1.58 kg` in upper.
+
+The binding owner is the destination midpoint-zone assignment shared by
+F3.3a and F3.3b. Once the receiver interface falls, cool incoming slabs are
+classified as upper; lower renewal falls, plume drains lower further and the
+same rule routes even more inflow upper. Conservation remains exact, so a
+flow multiplier or pressure gain would amplify the wrong route.
+
+F3.3f1 has now completed the design and direct-fixture gate. The optional pure
+selector preserves direct source-layer identity: lower source enters lower and
+upper source enters upper. This matches CFAST's separation between direct
+vent transport and a distinct doorway-jet entrainment term. Existing geometric
+destination routing remains the exact default.
+
+The candidate changes no flow magnitude, pressure integration, neutral plane,
+source payload or atomic acceptance. It has no Engine, CLI, CSV or case wiring.
+Direct hot/cold, one-zone, pressure, conservation and opening-order fixtures
+pass, as do all 432 Phase 3 tests.
+
+F3.3f2 temporarily wired that selector and stopped at 180 s. OFF remained
+byte-identical and all ledgers closed exactly. ON improved R0 lower inflow
+from `46.143` to `54.555 kg` with nearly unchanged total flow, but upper inflow
+collapsed from `7.516` to `0.004 kg`. Upper mass and interface both moved away
+from CFAST. The runtime wiring was fully removed and no 300/590 s run was made.
+
+F3.3g completed the pure Poreh contract. F3.3g1 then preserved each opening
+slab and tested source-preserving direct transport plus separate receiver-side
+mixing at the 180 s Group C STOP. The mechanism remained exactly conservative,
+but the cool `upper -> lower` branch dominated and upper mass/interface moved
+away from CFAST. Runtime wiring was removed and no longer run was made.
+
+F3.3h has closed the source-to-output correspondence. CFAST removes a slab
+from its geometric source zone, splits direct receiver deposition by source
+temperature versus receiver layer temperatures, and applies Poreh as a
+separate receiver-internal transfer. Published upper/lower vent flows contain
+the direct term only; the ODE contains direct plus Poreh.
+
+F3.3h1 now provides that pure/default-false CFAST `flogo` temperature split.
+Source removal, gross flow, pressure, payload and Poreh ownership are
+unchanged; exact split, conservation and order fixtures pass.
+
+F3.3h2 is now the current target. Temporarily expose the tested internal
+candidate with the full F3.3b stack and both residence ledgers, prove OFF byte
+identity, run Group C only to 180 s and compare direct flow and Poreh/zone
+evolution in their separate CFAST conventions. Remove runtime wiring after the
+STOP decision.
 
 ## Binding priority decision: HVAC last
 
@@ -316,11 +423,23 @@ The revised order is:
 28. F3.3b signed canonical inter-room pressure coupling. Implemented; diagnostic shadow GO / authority and Group C NO-GO.
 29. F3.3c Group C late-enthalpy residence audit. Completed diagnostic GO; energy-residence dominance confirmed.
 30. F3.3c1 cumulative accepted-route enthalpy ledger. Implemented; exact closure and legacy invariance verified, default OFF.
-31. F3.3d CFAST source/boundary correspondence audit. Current target; diagnosis only, no motor patch.
-32. F3.4 remaining non-HVAC species, suppression and FED.
-33. HVAC-R0 redesign specification.
-34. F3.5 HVAC canonical integration as the last subsystem.
-35. F3.6 final corpus promotion and legacy retirement.
+31. F3.3d CFAST source/boundary correspondence audit. Completed diagnostic GO; source mismatch confirmed, sink-only fixes rejected, mass partition selected.
+32. F3.3d1 cumulative accepted-route mass-residence ledger. Implemented; exact closure and legacy invariance verified, default OFF.
+33. F3.3d2 canonical plume source-term experiment. Completed NO-GO and fully rolled back; mass improved but both temperature checkpoints regressed.
+34. F3.3e coupled convective-source/plume Qc contract. Design completed; formula/authority GO, no runtime code.
+35. F3.3e1 default-OFF coupled Qc runtime experiment. NO-GO and rolled back after lower-zone collapse at 590 s.
+36. F3.3f lower-zone renewal/doorway-routing correspondence. Completed diagnostic GO; destination routing selected, flow magnitude rejected.
+37. F3.3f1 source-preserving destination-routing contract. Design/direct fixture GO; no runtime wiring.
+38. F3.3f2 default-OFF destination-routing runtime experiment. Completed NO-GO at 180 s; runtime wiring removed.
+39. F3.3g receiver-side doorway-jet entrainment contract. Design/direct fixture GO.
+40. F3.3g1 per-slab runtime integration. Completed NO-GO at 180 s; runtime surface removed.
+41. F3.3h CFAST doorway-flow source-to-output correspondence. Completed diagnostic GO.
+42. F3.3h1 pure CFAST buoyancy-routing contract. Design/direct fixture GO.
+43. F3.3h2 default-OFF 180 s runtime experiment. Current target.
+44. F3.4 remaining non-HVAC species, suppression and FED.
+45. HVAC-R0 redesign specification.
+46. F3.5 HVAC canonical integration as the last subsystem.
+47. F3.6 final corpus promotion and legacy retirement.
 
 Do not change this order from an implementation prompt. Re-prioritizing HVAC
 requires an explicit planning decision and synchronized documentation updates.
@@ -623,13 +742,13 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 
 ## Next prompt target
 
-Use GPT-5.6 for F3.3b canonical signed inter-room pressure coupling. Start
-from the accepted F3.3a common-snapshot atomic network and diagnose why equal
-gross counterflow over-cools Group C late. Do not tune its discharge
-coefficient. Determine whether canonical room pressure can supply a single
-network-consistent signed component without duplicating legacy pressure,
-delayed parcels, vertical flow or the F3.3a gross exchange. Keep the work
-default OFF and shadow-only. Group C must improve at both 180 and 600 s with
-exact building mass, energy, O2 and species closure. Do not publish to
-`RoomModel`, change expected/tolerances, retire Group A/C or begin HVAC. STOP
-before commit.
+Use GPT-5.6 for F3.3h2, the temporary default-OFF runtime experiment. Read the
+F3.3g1/F3.3h/F3.3h1 records. Wire the tested buoyancy split behind an explicit
+Engine/CLI/CSV candidate gate that implies the full F3.3b stack, enthalpy and
+mass residence ledgers, and separate Poreh mixing. Prove OFF byte identity to
+the F3.3d1 checkpoint, run `cfast_corridor_chain` only to 180 s and STOP.
+Report direct lower/upper accepted inflow against CFAST `h_mflow`, Poreh mass
+separately, zone state, residuals and legacy invariance. Remove runtime wiring
+after the decision. Do not run 300/590 s, tune coefficients, reintroduce
+F3.3e1 Qc, edit official reports/baselines/tolerances/gaps, promote authority
+or touch HVAC.
