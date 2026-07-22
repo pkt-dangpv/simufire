@@ -639,16 +639,17 @@ def main():
         os.makedirs(room_dir, exist_ok=True)
         plot_room(room_id, r, room_dir, events=events)
 
+    date_only = sim_label.split("_")[0]
     if args.copy_log:
         try:
-            shutil.copy2(log_path, os.path.join(out_root, "sim_log.txt"))
+            shutil.copy2(log_path, os.path.join(out_root, "datos_en_texto_%s.txt" % date_only))
         except OSError as exc:
             print("Aviso: no se pudo copiar el log: %s" % exc)
 
     if args.copy_csv:
         if os.path.exists(csv_path) and os.path.getsize(csv_path) > 0:
             try:
-                shutil.copy2(csv_path, os.path.join(out_root, "sim_log.csv"))
+                shutil.copy2(csv_path, os.path.join(out_root, "csv_%s.csv" % date_only))
             except OSError as exc:
                 print("Aviso: no se pudo copiar el CSV: %s" % exc)
         else:

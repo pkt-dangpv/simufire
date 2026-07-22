@@ -42,17 +42,49 @@ func _ready() -> void:
 	if _is_validation_mode():
 		_open_validation_scene_next_frame()
 		return
+	_fit_window_to_screen()
 	RenderingServer.set_default_clear_color(SimuFireThemeScript.BG)
 	if not _bind_existing_ui():
 		push_error("MainMenu: faltan nodos en MainMenu.tscn — la escena es la fuente de verdad de este menu")
 		return
 	_localize_texts()
-	_fit_main_menu_layout()
+	# Diferido: el tamaño real del viewport solo está listo tras el primer layout.
+	_fit_main_menu_layout.call_deferred()
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
 		_fit_main_menu_layout()
+
+
+## Si la ventana es más grande que la zona útil de la pantalla (barra de tareas
+## y de título incluidas), la encoge para que no se salga del monitor, y la
+## centra. Solo reduce, nunca agranda. No toca fullscreen/maximizado.
+func _fit_window_to_screen() -> void:
+	var mode := DisplayServer.window_get_mode()
+	if mode == DisplayServer.WINDOW_MODE_FULLSCREEN \
+			or mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN \
+			or mode == DisplayServer.WINDOW_MODE_MAXIMIZED:
+		return
+	var screen: int = DisplayServer.window_get_current_screen()
+	var usable: Rect2i = DisplayServer.screen_get_usable_rect(screen)
+	var title_allowance: int = 40  # hueco para la barra de título de la ventana
+	var win_size: Vector2i = DisplayServer.window_get_size()
+	# Si ya cabe, no tocar nada (respeta ventana embebida en el editor, etc.).
+	if win_size.x <= usable.size.x and win_size.y <= usable.size.y - title_allowance:
+		return
+	var target := Vector2i(
+		mini(win_size.x, usable.size.x),
+		mini(win_size.y, usable.size.y - title_allowance))
+	if target != win_size:
+		DisplayServer.window_set_size(target)
+	# Centrar en la zona útil, dejando el hueco de la barra de título arriba.
+	var final_size: Vector2i = DisplayServer.window_get_size()
+	var pos := Vector2i(
+		usable.position.x + (usable.size.x - final_size.x) / 2,
+		usable.position.y + title_allowance / 2 \
+			+ (usable.size.y - title_allowance - final_size.y) / 2)
+	DisplayServer.window_set_position(pos)
 
 
 func _open_validation_scene_next_frame() -> void:
@@ -135,25 +167,56 @@ func _fit_main_menu_layout() -> void:
 	var vbox := get_node_or_null("Center/VBox") as VBoxContainer
 	if vbox == null:
 		return
+	vbox.scale = Vector2.ONE  # por si quedó de una versión anterior
+	# Altura disponible real: tamaño del contenedor Center (full-rect), que
+	# refleja el área 2D tras el stretch; get_viewport_rect no es fiable aquí.
+	var center := get_node_or_null("Center") as Control
 	var viewport_h: float = get_viewport_rect().size.y
+	if center != null and center.size.y > 1.0:
+		viewport_h = center.size.y
 	var compact: bool = viewport_h < 820.0
 	var tight: bool = viewport_h < 700.0
 	vbox.add_theme_constant_override("separation", 6 if tight else (8 if compact else 10))
+
 	var logo := vbox.get_node_or_null("Logo") as TextureRect
+	var logo_h: float = 285.0
+	if compact:
+		logo_h = 220.0
+	if tight:
+		logo_h = 160.0
 	if logo != null:
-		var logo_h: float = 285.0
-		if compact:
-			logo_h = 220.0
-		if tight:
-			logo_h = 160.0
 		logo.custom_minimum_size = Vector2(430.0, logo_h)
+
+	var buttons: Array = []
+	var rows: Array = []
 	for child in vbox.get_children():
 		if child is Button:
 			(child as Button).custom_minimum_size = Vector2(420.0, 40.0 if tight else 44.0)
+			buttons.append(child)
 		elif child is HBoxContainer:
 			for row_child in child.get_children():
 				if row_child is OptionButton or row_child is SpinBox:
 					(row_child as Control).custom_minimum_size = Vector2(250.0, 30.0 if tight else 32.0)
+					rows.append(row_child)
+
+	# Reducir tamaños REALES hasta que quepa (determinista, sí renderiza).
+	# Primero el logo (lo más grande), luego reparte el resto entre filas y botones.
+	var avail: float = viewport_h * 0.98
+	var over: float = vbox.get_combined_minimum_size().y - avail
+	if over > 0.0 and logo != null:
+		var reduce_logo: float = minf(over, logo_h - 90.0)
+		logo.custom_minimum_size = Vector2(430.0, logo_h - reduce_logo)
+		over -= reduce_logo
+	if over > 0.0:
+		var n: int = buttons.size() + rows.size()
+		if n > 0:
+			var per: float = over / float(n)
+			for b in buttons:
+				var bc := b as Control
+				bc.custom_minimum_size = Vector2(bc.custom_minimum_size.x, maxf(30.0, bc.custom_minimum_size.y - per))
+			for r in rows:
+				var rc := r as Control
+				rc.custom_minimum_size = Vector2(rc.custom_minimum_size.x, maxf(22.0, rc.custom_minimum_size.y - per))
 
 
 func _populate_template_option() -> void:

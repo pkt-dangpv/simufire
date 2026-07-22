@@ -4,6 +4,8 @@ const FirstPersonControllerScript = preload("res://view/fp/FirstPersonController
 const UILocalizationScript = preload("res://ui/UILocalization.gd")
 const GraphsWindowScene: PackedScene = preload("res://ui/GraphsWindow.tscn")
 const TechnicalSummaryWindowScene: PackedScene = preload("res://ui/TechnicalSummaryWindow.tscn")
+const NativeChartsWindowScript = preload("res://ui/charts/NativeChartsWindow.gd")
+const LiveChartsOverlayScene: PackedScene = preload("res://ui/charts/LiveChartsOverlay.tscn")
 const MAIN_MENU_PATH: String = "res://scenes/MainMenu.tscn"
 const SCENARIO_EDITOR_PATH: String = "res://scenes/ScenarioEditorScene.tscn"
 const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
@@ -36,6 +38,10 @@ var _graphs_header_label: Label = null
 var _graphs_zoom_bar: Control = null
 var _graphs_room_nav: Control = null
 var _graphs_message_label: Label = null
+var _native_charts_window: Window = null
+var _live_overlay: Control = null
+var _live_sample_accum_s: float = 0.0
+var _current_graphs_dir: String = ""
 var _summary_title_label: Label = null
 var _summary_export_label: Label = null
 var _summary_metrics_grid: GridContainer = null
@@ -66,6 +72,7 @@ func _ready() -> void:
 	if hud != null:
 		hud.bind_building(building)
 		_connect_hud_signals()
+		_setup_live_charts()
 	_setup_minimap()
 	_setup_first_person_controller()
 	_set_3d_view_enabled(view_3d_enabled)
@@ -79,6 +86,9 @@ func _ready() -> void:
 			_set_python_warning_visible(not engine.check_python_available())
 	_connect_visualizer_signals()
 	_update_views()
+	# Poblar la lista de habitaciones del overlay en vivo antes de arrancar.
+	if _live_overlay != null and engine != null:
+		_live_overlay.seed_rooms(engine.get_state())
 
 
 func _apply_startup_engine_options() -> void:
@@ -146,6 +156,50 @@ func _physics_process(delta: float) -> void:
 		return
 	engine.step(delta)
 	_update_views_for_frame(delta)
+	_sample_live_charts(delta)
+
+
+## Crea el overlay de gráficas en vivo (recuadro translúcido, abajo a la
+## derecha, siempre visible) y un botón "EN VIVO" para mostrarlo/ocultarlo.
+func _setup_live_charts() -> void:
+	if _live_overlay == null:
+		_live_overlay = LiveChartsOverlayScene.instantiate() as Control
+		var ui_layer := get_node_or_null("UI")
+		if ui_layer != null:
+			ui_layer.add_child(_live_overlay)
+		else:
+			add_child(_live_overlay)
+		_live_overlay.reset()
+	var row := hud.get_node_or_null(
+		"TimeControlsPanel/MarginContainer/VBoxContainer/ButtonsRow") as Control
+	if row != null and row.get_node_or_null("BtnLiveCharts") == null:
+		var btn := Button.new()
+		btn.name = "BtnLiveCharts"
+		btn.text = "EN VIVO"
+		btn.custom_minimum_size = Vector2(110, 34)
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.toggle_mode = true
+		btn.button_pressed = true  # visible por defecto
+		btn.tooltip_text = "Muestra/oculta el recuadro de gráficas en tiempo real."
+		btn.toggled.connect(_on_live_charts_toggled)
+		row.add_child(btn)
+
+
+## Muestrea el estado del motor a intervalos regulares mientras corre la sim.
+## Acumula aunque el overlay esté oculto, para tener histórico desde el inicio.
+func _sample_live_charts(delta: float) -> void:
+	if _live_overlay == null or engine == null:
+		return
+	_live_sample_accum_s += delta
+	if _live_sample_accum_s < _live_overlay.sample_interval_s:
+		return
+	_live_sample_accum_s = 0.0
+	_live_overlay.sample(engine.sim_time_s, engine.get_state())
+
+
+func _on_live_charts_toggled(pressed: bool) -> void:
+	if _live_overlay != null:
+		_live_overlay.visible = pressed
 
 
 func _input(event: InputEvent) -> void:
@@ -476,6 +530,13 @@ func _setup_graph_dialogs() -> void:
 	(_graphs_view_window.get_node("Root/ZoomBar/BtnZoomOut") as Button).pressed.connect(_on_graph_zoom_out)
 	(_graphs_view_window.get_node("Root/ZoomBar/BtnZoomIn") as Button).pressed.connect(_on_graph_zoom_in)
 	(_graphs_view_window.get_node("Root/ZoomBar/BtnZoomReset") as Button).pressed.connect(_on_graph_zoom_reset)
+	# Botón para abrir el visor interactivo nativo (sin navegador).
+	var btn_interactive := Button.new()
+	btn_interactive.name = "BtnInteractive"
+	btn_interactive.text = "  Interactivo  "
+	btn_interactive.tooltip_text = "Abre las gráficas en el visor interactivo: hover, zoom por arrastre y series conmutables."
+	btn_interactive.pressed.connect(_on_open_native_charts)
+	(_graphs_zoom_bar as Control).add_child(btn_interactive)
 	_graphs_room_prev_button.pressed.connect(_on_graph_room_prev)
 	_graphs_room_next_button.pressed.connect(_on_graph_room_next)
 	_graphs_room_selector.item_selected.connect(_on_graph_room_selected)
@@ -564,7 +625,7 @@ func _on_graph_generation_poll_timeout() -> void:
 	_graph_generation_pending = false
 	_finish_graph_generation_poll()
 	if poll_result == 1:
-		_show_graphs_window(engine.get_last_graphs_dir())
+		_open_native_charts_for(engine.get_last_graphs_dir())
 	elif poll_result == 0:
 		_show_graphs_message("La generacion de graficas supero 60 segundos. Revisa Python y ejecuta scripts/generate_fire_graphs.py manualmente.")
 	else:
@@ -809,6 +870,7 @@ func _show_graphs_window(graphs_dir: String) -> void:
 
 	_clear_graphs_view_window()
 	_graph_zoom = 1.0
+	_current_graphs_dir = graphs_dir
 	_set_graphs_window_mode(true)
 	if _graphs_header_label != null:
 		_graphs_header_label.text = "Graficas y log guardados en: %s" % graphs_dir
@@ -915,6 +977,41 @@ func _show_graphs_window(graphs_dir: String) -> void:
 	_refresh_graph_grid_columns()
 	_sync_graph_room_nav()
 	_graphs_view_window.popup_centered(_graphs_view_window.size)
+
+
+## Abre el visor interactivo apuntando al CSV/TXT del run indicado.
+## Descubre los ficheros por extensión (nombres con fecha: csv_<fecha>.csv,
+## datos_en_texto_<fecha>.txt), con respaldo a los nombres antiguos.
+func _open_native_charts_for(graphs_dir: String) -> void:
+	if graphs_dir.strip_edges() == "":
+		return
+	_current_graphs_dir = graphs_dir
+	var csv_path: String = _find_data_file(graphs_dir, "csv", "sim_log.csv")
+	var txt_path: String = _find_data_file(graphs_dir, "txt", "sim_log.txt")
+	if _native_charts_window == null:
+		_native_charts_window = NativeChartsWindowScript.new()
+		add_child(_native_charts_window)
+	_native_charts_window.open(csv_path, txt_path)
+
+
+## Devuelve la ruta del primer fichero con la extensión dada en dir_path;
+## si no hay, cae al nombre por defecto (que puede no existir).
+func _find_data_file(dir_path: String, ext: String, fallback_name: String) -> String:
+	var dir := DirAccess.open(dir_path)
+	if dir != null:
+		dir.list_dir_begin()
+		var name: String = dir.get_next()
+		while name != "":
+			if not dir.current_is_dir() and name.get_extension().to_lower() == ext:
+				dir.list_dir_end()
+				return dir_path.path_join(name)
+			name = dir.get_next()
+		dir.list_dir_end()
+	return dir_path.path_join(fallback_name)
+
+
+func _on_open_native_charts() -> void:
+	_open_native_charts_for(_current_graphs_dir)
 
 
 func _show_graphs_message(message: String) -> void:
