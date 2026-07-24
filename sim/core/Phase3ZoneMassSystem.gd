@@ -156,6 +156,8 @@ var _enthalpy_residence_cumulative_by_room: Dictionary = {}
 var mass_residence_diagnostics_enabled: bool = false
 var _mass_residence_initial_by_room: Dictionary = {}
 var _mass_residence_cumulative_by_room: Dictionary = {}
+var connection_residence_diagnostics_enabled: bool = false
+var _connection_residence_cumulative: Dictionary = {}
 
 
 func configure_enthalpy_residence_diagnostics(is_enabled: bool) -> void:
@@ -172,6 +174,12 @@ func configure_mass_residence_diagnostics(is_enabled: bool) -> void:
 		_mass_residence_cumulative_by_room.clear()
 
 
+func configure_connection_residence_diagnostics(is_enabled: bool) -> void:
+	connection_residence_diagnostics_enabled = is_enabled
+	if not is_enabled:
+		_connection_residence_cumulative.clear()
+
+
 func reset() -> void:
 	_reset_step_state()
 	_persistent_zone_state.clear()
@@ -186,6 +194,7 @@ func reset() -> void:
 	_enthalpy_residence_cumulative_by_room.clear()
 	_mass_residence_initial_by_room.clear()
 	_mass_residence_cumulative_by_room.clear()
+	_connection_residence_cumulative.clear()
 	_species_transit_reservoir.clear()
 	_species_transit_created_kg.clear()
 	_species_transit_delivered_kg.clear()
@@ -302,6 +311,7 @@ func begin_step(building, persistence_enabled: bool = false) -> void:
 		_enthalpy_residence_cumulative_by_room.clear()
 		_mass_residence_initial_by_room.clear()
 		_mass_residence_cumulative_by_room.clear()
+		_connection_residence_cumulative.clear()
 	if building == null:
 		return
 	for room_id in building.get_rooms().keys():
@@ -2813,7 +2823,7 @@ func queue_canonical_interior_opening_requests(
 						pressure_species_kg[species_name] = float(
 							pressure_source_species.get(species_name, 0.0)
 						) * pressure_inventory_fraction
-					pressure_routes_raw.append(make_atomic_route(
+					var pressure_route: Dictionary = make_atomic_route(
 						"f33b_pressure:%d:%03d" % [opening_id, pressure_route_position],
 						"canonical_interior_pressure",
 						pressure_source_room_id,
@@ -2824,7 +2834,11 @@ func queue_canonical_interior_opening_requests(
 						pressure_energy_kj,
 						pressure_o2_kg,
 						pressure_species_kg
-					))
+					)
+					_tag_connection_route(
+						pressure_route, opening_id, reference_temp_c
+					)
+					pressure_routes_raw.append(pressure_route)
 					pressure_route_position += 1
 		if not bool(preview.get("valid", false)):
 			continue
@@ -2857,7 +2871,7 @@ func queue_canonical_interior_opening_requests(
 				) * inventory_fraction
 			var route_id: String = "f33a_interior:%d:%03d" % [opening_id, route_position]
 			route_position += 1
-			network_routes.append(make_atomic_route(
+			var opening_route: Dictionary = make_atomic_route(
 				route_id,
 				"canonical_interior_opening",
 				source_room_id,
@@ -2868,7 +2882,9 @@ func queue_canonical_interior_opening_requests(
 				energy_kj,
 				o2_kg,
 				species_kg
-			))
+			)
+			_tag_connection_route(opening_route, opening_id, reference_temp_c)
+			network_routes.append(opening_route)
 			_accumulate_canonical_interior_room_total(
 				room_totals, source_room_id, "out", gas_mass_kg, energy_kj, o2_kg,
 				_sum_parcel_species(species_kg)
@@ -5209,6 +5225,131 @@ func make_atomic_route(
 	}
 
 
+func _tag_connection_route(
+		route: Dictionary,
+		opening_id: int,
+		reference_temp_c: float
+	) -> void:
+	route["connection_id"] = "opening:%d" % opening_id
+	route["opening_id"] = opening_id
+	route["reference_temp_c"] = reference_temp_c
+
+
+func _record_connection_residence_route(
+		route: Dictionary,
+		accepted_fraction: float
+	) -> void:
+	if not connection_residence_diagnostics_enabled:
+		return
+	var family_name: String = _mass_cause_family(String(route.get("cause", "")))
+	if family_name not in ["interior_opening", "interior_pressure"]:
+		return
+	var connection_id: String = String(route.get("connection_id", ""))
+	if connection_id.is_empty():
+		return
+	var accepted_mass_kg: float = maxf(
+		0.0, float(route.get("gas_mass_kg", 0.0))
+	) * clampf(accepted_fraction, 0.0, 1.0)
+	if accepted_mass_kg <= THERMO_MASS_EPS_KG:
+		return
+	var accepted_energy_kj: float = maxf(
+		0.0, float(route.get("sensible_enthalpy_kj", 0.0))
+	) * clampf(accepted_fraction, 0.0, 1.0)
+	var source_room_id: int = int(route.get("source_room_id", EXTERIOR_ID))
+	var destination_room_id: int = int(
+		route.get("destination_room_id", EXTERIOR_ID)
+	)
+	var source_zone: String = String(route.get("source_zone", ZONE_UPPER))
+	var destination_zone: String = String(
+		route.get("destination_zone", ZONE_UPPER)
+	)
+	var record_key: String = "%s|%d>%d|%s" % [
+		connection_id, source_room_id, destination_room_id, family_name
+	]
+	var record: Dictionary = _connection_residence_cumulative.get(
+		record_key,
+		{
+			"connection_id": connection_id,
+			"opening_id": int(route.get("opening_id", -1)),
+			"family": family_name,
+			"source_room_id": source_room_id,
+			"destination_room_id": destination_room_id,
+			"accepted_mass_kg": 0.0,
+			"accepted_enthalpy_kj": 0.0,
+			"source_upper_mass_kg": 0.0,
+			"source_lower_mass_kg": 0.0,
+			"destination_upper_mass_kg": 0.0,
+			"destination_lower_mass_kg": 0.0,
+			"source_temp_mass_c_kg": 0.0,
+			"accepted_route_count": 0,
+		}
+	).duplicate(true)
+	var reference_temp_c: float = float(route.get("reference_temp_c", 20.0))
+	var source_temp_c: float = reference_temp_c
+	if accepted_mass_kg > THERMO_MASS_EPS_KG:
+		source_temp_c += accepted_energy_kj \
+				/ (accepted_mass_kg * AIR_CP_KJ_KG_K)
+	record["accepted_mass_kg"] = float(
+		record.get("accepted_mass_kg", 0.0)
+	) + accepted_mass_kg
+	record["accepted_enthalpy_kj"] = float(
+		record.get("accepted_enthalpy_kj", 0.0)
+	) + accepted_energy_kj
+	record["source_" + source_zone + "_mass_kg"] = float(
+		record.get("source_" + source_zone + "_mass_kg", 0.0)
+	) + accepted_mass_kg
+	record["destination_" + destination_zone + "_mass_kg"] = float(
+		record.get("destination_" + destination_zone + "_mass_kg", 0.0)
+	) + accepted_mass_kg
+	record["source_temp_mass_c_kg"] = float(
+		record.get("source_temp_mass_c_kg", 0.0)
+	) + source_temp_c * accepted_mass_kg
+	record["accepted_route_count"] = int(
+		record.get("accepted_route_count", 0)
+	) + 1
+	_connection_residence_cumulative[record_key] = record
+
+
+func get_connection_residence_results() -> Array:
+	var records: Array = []
+	for record_key in _connection_residence_cumulative.keys():
+		var record: Dictionary = _connection_residence_cumulative[
+			record_key
+		].duplicate(true)
+		var accepted_mass_kg: float = maxf(
+			0.0, float(record.get("accepted_mass_kg", 0.0))
+		)
+		record["mass_weighted_source_temp_c"] = (
+			float(record.get("source_temp_mass_c_kg", 0.0)) / accepted_mass_kg
+			if accepted_mass_kg > THERMO_MASS_EPS_KG
+			else 0.0
+		)
+		record["destination_upper_fraction"] = (
+			float(record.get("destination_upper_mass_kg", 0.0))
+					/ accepted_mass_kg
+			if accepted_mass_kg > THERMO_MASS_EPS_KG
+			else 0.0
+		)
+		record.erase("source_temp_mass_c_kg")
+		records.append(record)
+	records.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		var left_key: String = "%010d|%010d|%010d|%s" % [
+			int(left.get("opening_id", -1)),
+			int(left.get("source_room_id", EXTERIOR_ID)),
+			int(left.get("destination_room_id", EXTERIOR_ID)),
+			String(left.get("family", "")),
+		]
+		var right_key: String = "%010d|%010d|%010d|%s" % [
+			int(right.get("opening_id", -1)),
+			int(right.get("source_room_id", EXTERIOR_ID)),
+			int(right.get("destination_room_id", EXTERIOR_ID)),
+			String(right.get("family", "")),
+		]
+		return left_key < right_key
+	)
+	return records
+
+
 func make_atomic_bundle(
 		bundle_id: String,
 		cause: String,
@@ -6890,6 +7031,7 @@ func _apply_atomic_bundle(
 		) * rejected_fraction
 		_record_enthalpy_residence_route(shadow, route, accepted_fraction)
 		_record_mass_residence_route(route, accepted_fraction)
+		_record_connection_residence_route(route, accepted_fraction)
 		_apply_atomic_route(shadow, route, accepted_fraction)
 	for raw_demand in source_demands.values():
 		var demand: Dictionary = raw_demand

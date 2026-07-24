@@ -1,17 +1,20 @@
 # SimuFire — Estado de validación CFAST
 
-> **FASE ACTIVA - 2026-07-12**
-> Estado actual: **348 / 353 PASS required - 5 VALID_GAP**.
-> Los 5 VALID_GAP restantes son Grupo A (`cfast_r0_window_360` x3) y
-> Grupo C (`cfast_corridor_chain` x2). Ya no se consideran candidatos a
-> calibracion por caso. La linea activa es Phase 3+ F3.0: shadow canonical
-> two-zone state, default OFF, antes de cualquier cambio fisico autoritativo.
+> **FASE ACTIVA - 2026-07-23**
+> Estado actual: **347 / 353 PASS required - 6 VALID_GAP**.
+> Los 6 VALID_GAP son Grupo A (`cfast_r0_window_360` x3) y Grupo C
+> (`cfast_corridor_chain` x3). F3.3l corrigió la topología del corredor:
+> temperatura t=180 pasa; temperatura t=300 y O2 upper t=600 quedan expuestos
+> como gaps físicos, y temperatura t=600 sigue fallando. No se cambiaron
+> expected ni tolerancias. La línea activa es F3.3m, correspondencia temporal
+> R0-Hall antes de cualquier cambio físico autoritativo.
 >
 > Documentos actuales:
 > - `docs/validation/PHASE3_CURRENT_WORKPLAN.md`
 > - `docs/validation/PHASE3_CANONICAL_TWO_ZONE_ARCHITECTURE.md`
 > - `docs/validation/PHASE3_F0_ZONE_DIAGNOSTICS.md`
 > - `docs/validation/PHASE3_F22A_PRESSURE_VENT_DIAGNOSIS.md`
+> - `docs/validation/PHASE3_F33L_SCENARIO_EQUIVALENCE.md`
 >
 > F2.1 ledger-aware projection y fixes locales de presion quedan cerrados como
 > NO-GO. F2.2a se conserva como instrumentacion pasiva.
@@ -26,10 +29,10 @@
 
 La validación compara SimuFire contra referencias NIST CFAST para escenarios residenciales estándar. El motor pasó de **41 fallos requeridos** (baseline R2) a **5 fallos** a lo largo de varias fases de trabajo.
 
-### Estado final de los 5 fallos restantes — todos VALID_GAP
+### Estado actual de los 6 fallos restantes — todos VALID_GAP
 
 1. **Grupo A (`cfast_r0_window_360`, ×3) — VALID_GAP confirmado (Phase 5A sweep 2026-06-21)**: sweep exhaustivo 15 configs (`plume_upper_o2_displacement_frac` ∈ {0.5, 0.75, 1.0} × `o2_upper_plume_entr_rate` ∈ {0.0005–0.005}) descartó todas las opciones per-caso JSON sin tocar `sim/core`. Mejor parcial: t240=0.177 (target ≤0.116). Causa raíz: `plume_lower_mode` auto-triggered acopla todas las zonas vía intercambio bidireccional; llegar a ULO2=0.085 en t=240 requeriría room.o2=0.085 → HRR<198kW → rompe guard `cfast_t350_hrr_kw`. Gap estructural Phase 2.
-2. **Grupo C (`cfast_corridor_chain`, ×2) — VALID_GAP**: Phase 2F/2G y Phase 3 simplificado descartados; sweep confirmó que el único lever (ODE de presión dos zonas) requiere arquitectura mayor. Mantener como VALID_GAP Phase 3+.
+2. **Grupo C (`cfast_corridor_chain`, ×3) — VALID_GAP**: F3.3l corrigió la equivalencia topológica y dejó visibles temperatura R0 a 300/600 s y O2 upper a 600 s. F3.3k mide déficit de masa y entalpía caliente R0→Hall; el cierre requiere transacción canónica de masa/energía/O2, no otro knob per-case.
 
 No iniciar ILV, M2 global ni cambios de doorway/O₂ en `sim/core` sin plan explícito.
 

@@ -1,8 +1,8 @@
 {
-	"generated_at": "2026-07-22T22:59:18Z",
+	"generated_at": "2026-07-23T17:40:41Z",
 	"all_required_pass": false,
 	"required_count": 353,
-	"failed_required_count": 5,
+	"failed_required_count": 6,
 	"known_gap_count": 71,
 	"checks": [
 		{
@@ -1316,29 +1316,29 @@
 		},
 		{
 			"name": "cfast_chain_r0_t180_temp_upper_c",
-			"actual": 188.85,
+			"actual": 146.6,
 			"expected": 159.816,
 			"tolerance": 15.0,
 			"minimum": null,
 			"maximum": null,
 			"required": true,
-			"pass": false,
+			"pass": true,
 			"note": "CCH-1: corridor chain R0 fire room temp_upper at t=180s. tol=15.0°C (≥3× @0.1°C)."
 		},
 		{
 			"name": "cfast_chain_r0_t300_temp_upper_c",
-			"actual": 146.87,
+			"actual": 117.53,
 			"expected": 166.268,
 			"tolerance": 20.0,
 			"minimum": null,
 			"maximum": null,
 			"required": true,
-			"pass": true,
+			"pass": false,
 			"note": "CCH-1: corridor chain R0 fire room temp_upper at t=300s. tol=20.0°C (≥3× @0.1°C)."
 		},
 		{
 			"name": "cfast_chain_r0_t600_temp_upper_c",
-			"actual": 105.58,
+			"actual": 94.56,
 			"expected": 168.796,
 			"tolerance": 30.0,
 			"minimum": null,
@@ -1349,7 +1349,7 @@
 		},
 		{
 			"name": "cfast_chain_r0_o2_t480_o2",
-			"actual": 0.0995,
+			"actual": 0.1401,
 			"expected": 0.112265,
 			"tolerance": 0.028,
 			"minimum": null,
@@ -1360,29 +1360,29 @@
 		},
 		{
 			"name": "cfast_chain_r0_o2_t600_o2",
-			"actual": 0.0987,
+			"actual": 0.1329,
 			"expected": 0.09568289999999999,
 			"tolerance": 0.015,
 			"minimum": null,
 			"maximum": null,
 			"required": true,
-			"pass": true,
+			"pass": false,
 			"note": "CCH-1: corridor chain R0 O2 upper at t=600s. tol=0.015 (≥3× step @0.0001)."
 		},
 		{
 			"name": "cfast_chain_r0_rmse_temp_upper",
-			"actual": 44.18509687995301,
+			"actual": 52.16460105784541,
 			"expected": null,
 			"tolerance": null,
 			"minimum": null,
 			"maximum": 60.0,
 			"required": false,
 			"pass": true,
-			"note": "KNOWN_DEVIATION CCH-2: corridor chain R0 temp_upper RMSE ≤ 60°C. Structural gap: doorway thermal counterflow (M3 pending). fire_o2_mode=upper + plume_entr=0.025 delays O2 throttling → peak 256°C vs CFAST 158°C."
+			"note": "KNOWN_DEVIATION CCH-2: corridor chain R0 temp_upper RMSE ≤ 60°C. F3.3l topology-equivalent run; remaining curve-shape gap is canonical upper mass/enthalpy/O2 residence."
 		},
 		{
 			"name": "cfast_chain_r2_o2_t480_o2",
-			"actual": 0.1996,
+			"actual": 0.1863,
 			"expected": 0.129077,
 			"tolerance": 0.019,
 			"minimum": null,
@@ -1393,7 +1393,7 @@
 		},
 		{
 			"name": "cfast_chain_r2_o2_t600_o2",
-			"actual": 0.1912,
+			"actual": 0.1719,
 			"expected": 0.111228,
 			"tolerance": 0.023,
 			"minimum": null,
@@ -1404,7 +1404,7 @@
 		},
 		{
 			"name": "cfast_chain_r2_min_o2_smoke_arrival",
-			"actual": 0.1921,
+			"actual": 0.1732,
 			"expected": null,
 			"tolerance": null,
 			"minimum": 0.0,
@@ -1415,7 +1415,7 @@
 		},
 		{
 			"name": "cfast_chain_r1_temp_t300_temp_upper_c",
-			"actual": 63.59,
+			"actual": 48.23,
 			"expected": 97.5024,
 			"tolerance": 60.0,
 			"minimum": null,
@@ -1426,7 +1426,7 @@
 		},
 		{
 			"name": "cfast_chain_r2_temp_t300_temp_upper_c",
-			"actual": 45.24,
+			"actual": 34.37,
 			"expected": 65.8876,
 			"tolerance": 35.0,
 			"minimum": null,
@@ -1437,7 +1437,7 @@
 		},
 		{
 			"name": "cfast_chain_r1_o2_t480_o2",
-			"actual": 0.1759,
+			"actual": 0.1795,
 			"expected": 0.12058400000000001,
 			"tolerance": 0.065,
 			"minimum": null,

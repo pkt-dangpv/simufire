@@ -1010,6 +1010,10 @@ var _step_time_us: int = 0
 @export var phase3_enthalpy_residence_diagnostics_enabled: bool = false
 ## F3.3d1: ledger acumulativo de masa aceptada por ruta. Default OFF.
 @export var phase3_mass_residence_diagnostics_enabled: bool = false
+## F3.3k: ledger aceptado por conexion; solo se exporta en summary.json.
+@export var phase3_connection_residence_diagnostics_enabled: bool = false
+## F3.3n: reparto receptor CFAST flogo; experimento shadow, default OFF.
+@export var phase3_cfast_buoyancy_destination_shadow_enabled: bool = false
 
 # ============================================================
 # SERVICIOS AUXILIARES
@@ -1303,6 +1307,13 @@ func _sync_auxiliary_services() -> void:
 			and phase3_mass_residence_diagnostics_enabled
 	phase3_zone_mass_system.configure_mass_residence_diagnostics(
 		phase3_mass_residence_diagnostics_active
+	)
+	var phase3_connection_residence_diagnostics_active: bool = \
+			phase3_enthalpy_residence_diagnostics_active \
+			and phase3_mass_residence_diagnostics_active \
+			and phase3_connection_residence_diagnostics_enabled
+	phase3_zone_mass_system.configure_connection_residence_diagnostics(
+		phase3_connection_residence_diagnostics_active
 	)
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
@@ -2004,6 +2015,10 @@ func _build_state_context() -> Dictionary:
 				phase3_enthalpy_residence_diagnostics_enabled,
 		"phase3_mass_residence_diagnostics_enabled": \
 				phase3_mass_residence_diagnostics_enabled,
+		"phase3_connection_residence_diagnostics_enabled": \
+				phase3_connection_residence_diagnostics_enabled,
+		"phase3_cfast_buoyancy_destination_shadow_enabled": \
+				phase3_cfast_buoyancy_destination_shadow_enabled,
 		"phase3_canonical_zone_shadow": phase3_zone_mass_system.get_results() \
 				if phase3_canonical_zone_shadow_enabled else {},
 		"ambient_temp_c": thermal_system.ambient_temp_c(),
@@ -2332,7 +2347,10 @@ func step(delta: float) -> void:
 				dt,
 				thermal_system.ambient_temp_c(),
 				Phase3ZoneMassSystemScript.EXTERIOR_DISCHARGE_COEFF,
-				phase3_canonical_interior_pressure_shadow_enabled
+				phase3_canonical_interior_pressure_shadow_enabled,
+				false,
+				false,
+				phase3_cfast_buoyancy_destination_shadow_enabled
 			)
 
 	var pre_hrr_o2_step: bool = _uses_pre_hrr_oxygen_step()
@@ -3851,6 +3869,9 @@ func build_technical_summary(output_dir: String = "") -> Dictionary:
 		"victims": victims_arr,
 		"detectors": detectors_arr,
 	}
+	if phase3_connection_residence_diagnostics_enabled:
+		summary["phase3_connection_residence"] = \
+				phase3_zone_mass_system.get_connection_residence_results()
 	if not output_dir.strip_edges().is_empty():
 		summary["output_dir"] = output_dir
 	return summary

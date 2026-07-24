@@ -1,6 +1,6 @@
 # Phase 3+ current workplan
 
-Date: 2026-07-22
+Date: 2026-07-24
 
 ## Current baseline
 
@@ -8,10 +8,10 @@ Date: 2026-07-22
 - Physics coherence: 0 FAIL.
 - ILV suite: 0 FAIL.
 - Default local runtime and test executable: Godot `4.7.1` console.
-- Required validation: 348/353 PASS.
-- Active VALID_GAP: 5 checks.
+- Required validation: 347/353 PASS.
+- Active VALID_GAP: 6 checks.
   - Group A: `cfast_r0_window_360` x3.
-  - Group C: `cfast_corridor_chain` x2.
+  - Group C: `cfast_corridor_chain` x3.
 
 This phase starts from a clean rule: no more per-case tuning for Groups A/C
 and no more local pressure/projection fixes. The remaining gaps require a
@@ -64,6 +64,17 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.3g1 doorway-jet integration experiment: `docs/validation/PHASE3_F33G1_DOORWAY_JET_INTEGRATION_EXPERIMENT.md`
 - F3.3h CFAST doorway-flow semantics: `docs/validation/PHASE3_F33H_CFAST_DOORWAY_FLOW_SEMANTICS.md`
 - F3.3h1 buoyancy-routing design: `docs/validation/PHASE3_F33H1_BUOYANCY_ROUTING_DESIGN.md`
+- F3.3h2 runtime experiment: `docs/validation/PHASE3_F33H2_BUOYANCY_RUNTIME_EXPERIMENT.md`
+- F3.3i input correspondence: `docs/validation/PHASE3_F33I_INPUT_CORRESPONDENCE_AUDIT.md`
+- F3.3j Hall residence audit: `docs/validation/PHASE3_F33J_HALL_RESIDENCE_AUDIT.md`
+- F3.3k connection audit: `docs/validation/PHASE3_F33K_CONNECTION_RESIDENCE_AUDIT.md`
+- F3.3l scenario equivalence: `docs/validation/PHASE3_F33L_SCENARIO_EQUIVALENCE.md`
+- F3.3m source correspondence: `docs/validation/PHASE3_F33M_SOURCE_CORRESPONDENCE.md`
+- F3.3n buoyancy runtime: `docs/validation/PHASE3_F33N_BUOYANCY_RUNTIME.md`
+- F3.3o radiative-fraction experiment: `docs/validation/PHASE3_F33O_RADIATIVE_FRACTION_EXPERIMENT.md`
+- F3.3p coupled-Qc re-entry design: `docs/validation/PHASE3_F33P_COUPLED_QC_REENTRY_DESIGN.md`
+- F3.3p1 coupled-Qc experiment: `docs/validation/PHASE3_F33P1_COUPLED_QC_EXPERIMENT.md`
+- F3.3q boundary-energy correspondence: `docs/validation/PHASE3_F33Q_BOUNDARY_ENERGY_CORRESPONDENCE.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -740,15 +751,186 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 - Thermal doorway/stairwell and OES opening flows remain separate contracts.
 - Therefore a new complete legacy vertical bundle is NO-GO.
 
+## F3.3h2 runtime decision
+
+- The temporary default-OFF runtime gate reproduced the exact F3.3d1
+  checkpoint OFF: 114 rows, 667 columns and SHA-256
+  `6F7FD18D3C451D2AE615D695B066A08F9F593DF5708E864DD50067CECF09ED70`.
+- At the mandatory 180 s STOP, R0 direct lower/upper inflow was
+  `53.712/0.223 kg` versus CFAST `65.782/3.662 kg`.
+- Poreh moved `1.019 kg` from R0 upper to lower. Upper mass and interface
+  regressed despite a small upper-temperature improvement.
+- All transaction residuals were zero and all 115 legacy columns were
+  invariant.
+- Decision: runtime candidate NO-GO. No 300/590 s run was made and all
+  temporary Engine/CLI/CSV wiring was removed.
+- Binding record:
+  `PHASE3_F33H2_BUOYANCY_RUNTIME_EXPERIMENT.md`.
+
+## F3.3j Hall residence decision
+
+- The aggregate CFAST Hall balance was reconstructed over 0-180 s and compared
+  with the exact SimuFire accepted-route mass and enthalpy ledgers.
+- F3.3k later found that the gross direct comparison used non-equivalent
+  topologies: five active SimuFire Hall connections versus two in CFAST.
+  The `138.650 kg` result remains valid for the configured six-room case but
+  is not a CFAST correspondence result.
+- SimuFire's direct net sensible enthalpy is only `1.654 MJ` versus CFAST
+  `4.253 MJ`, or `38.88%`.
+- SimuFire direct upper net mass is `-9.015 kg` versus CFAST `+12.993 kg`.
+  The separate Poreh route moves `20.734 kg` lower-to-upper and nearly masks
+  that `22.008 kg` routing error without adding room energy.
+- Wall, ambient and exterior losses total `0.865 MJ`; they cannot own the
+  `2.599 MJ` direct-flow enthalpy deficit.
+- Decision: the binding owner is connection-level hot-mass and enthalpy
+  transport. Projection/collapse and boundary cooling are secondary.
+- No physical code or runtime surface changed.
+- Binding record:
+  `PHASE3_F33J_HALL_RESIDENCE_AUDIT.md`.
+
+## F3.3k connection audit decision
+
+- A default-OFF per-connection ledger now exports accepted opening/pressure
+  mass and enthalpy only to `summary.json`; no CSV or legacy physics changes.
+- It exposed a direction-exact override bug in `cfast_corridor_chain.json`.
+  Hall-R2 width is not applied, and Kitchen, Bedroom 2 and Bathroom remain
+  connected to Hall although CFAST contains no such compartments.
+- Equivalent topology reduces SimuFire Hall inflow from `138.650 kg` to
+  `88.168 kg`; CFAST receives `128.253 kg`.
+- Equivalent-topology net direct Hall enthalpy is `2.275 MJ` versus CFAST
+  `4.253 MJ`.
+- R0-Hall net gain is `3.581 MJ` versus CFAST `6.302 MJ`. Hall-R2 exports
+  less energy than CFAST, so it is not the primary sink.
+- The source deficiency combines about `31.5%` low R0-to-Hall mass with
+  `98.05 C` source gas versus CFAST `121.29 C`.
+- A 600 s legacy scratch control closes the current t=180 failure but exposes
+  t=300 and leaves t=600 failing. Group C remains at two gaps.
+- Official case and reports remain unchanged. Temporary physical experiment
+  wiring was removed.
+- Binding record:
+  `PHASE3_F33K_CONNECTION_RESIDENCE_AUDIT.md`.
+
+## F3.3l scenario-equivalence decision
+
+- Corrected the direction-exact opening overrides in the official
+  `cfast_corridor_chain` case.
+- Runtime now has exactly the two CFAST doors. The F3.3k ledger contains only
+  `opening:0` (`R0 <-> Hall`) and `opening:2` (`Hall <-> R2`).
+- Added the official CSV output path so the CFAST and physics gates consume
+  the same run.
+- R0 temperature at 180 s closes; temperature at 300 s and O2 upper at 600 s
+  become required failures; temperature at 600 s remains failing.
+- Expected values and tolerances are unchanged.
+- Group C changes from two to three VALID_GAP. Required status becomes
+  `347/353 PASS`, 6 VALID_GAP.
+- The lower score is accepted because it removes a false scenario match and
+  exposes the actual coupled mass/enthalpy/O2 deficit.
+- Binding record:
+  `PHASE3_F33L_SCENARIO_EQUIVALENCE.md`.
+
+## F3.3m source-correspondence decision
+
+- The five checkpoint runs separate a transient mass error from a persistent
+  source-energy error.
+- R0-to-Hall gross mass evolves from 54% low at 0-60 s to 10% high at
+  300-600 s. A global opening or pressure gain is NO-GO.
+- R0 upper mass is close to CFAST after 180 s, but its temperature and total
+  sensible energy remain low. At 600 s SimuFire has slightly more upper mass
+  and about 46% less room sensible energy.
+- Current geometric destination routing sends no R0-to-Hall gas into the Hall
+  upper zone. CFAST `flogo` sends 90-100%, and the passive Hall upper zone
+  never forms in SimuFire.
+- Reverse Hall-to-R0 routing sends too little mass to R0 lower late:
+  `122.74 kg` versus CFAST `166.82 kg` over 300-600 s despite comparable gross
+  return mass.
+- Total fire HRR is close, but the canonical convective source is only
+  35-45% of CFAST due to known radiative-fraction and O2-acceptance mapping
+  differences.
+- No motor, case, report, baseline, tolerance or gap changed.
+- Binding record:
+  `PHASE3_F33M_SOURCE_CORRESPONDENCE.md`.
+
+## F3.3n buoyancy-runtime decision
+
+- The existing exact CFAST `flogo` receiver split is available behind
+  `phase3_cfast_buoyancy_destination_shadow_enabled`, default OFF.
+- OFF is byte-identical to F3.3m and ON preserves all 115 legacy columns.
+- At 600 s every useful destination fraction moves toward CFAST:
+  R0-to-Hall `0 -> 77%` versus `99.7%`, Hall-to-R0 `28.5 -> 14.8%`
+  versus `2.3%`, Hall-to-R2 `0 -> 85.1%` versus `99.8%`, and R2-to-Hall
+  `0 -> 5.2%` versus `8.3%`.
+- Hall and R2 form upper layers without any mass, energy, O2 or species
+  residual. R0 lower remains non-degenerate.
+- R0 upper temperature improves only `3.5 C` at 600 s and transported
+  enthalpy remains well below CFAST. Receiver routing is therefore a
+  necessary mechanism, not the remaining thermal fix.
+- Decision: mechanism GO, authority and Group C retirement NO-GO.
+- Binding record:
+  `PHASE3_F33N_BUOYANCY_RUNTIME.md`.
+
+## F3.3o isolated radiative-fraction decision
+
+- A temporary default-OFF candidate changed only shadow convective heat from
+  the historical case fraction `0.30` to CFAST `0.65`.
+- OFF is byte-identical to F3.3n. ON preserves all 115 legacy columns.
+- At 180 s accepted R0 combustion heat increases from `10.996` to
+  `23.670 MJ`, while plume transfer is nearly unchanged:
+  `72.03 -> 71.20 kg`.
+- R0 upper temperature overshoots from `129.4` to `224.2 C` versus CFAST
+  `159.8 C`; upper mass regresses from `23.80` to `19.34 kg` versus
+  `26.94 kg`.
+- Hall and R2 also overheat. All canonical residuals remain exactly zero and
+  zero-O2 flame remains zero.
+- Decision: physical-correspondence NO-GO. No 600 s run. Temporary helper,
+  flag, CLI and test removed.
+- Binding record:
+  `PHASE3_F33O_RADIATIVE_FRACTION_EXPERIMENT.md`.
+
+## F3.3p1 coupled-Qc runtime decision
+
+- The corrected candidate keeps the CFAST physical pair inside the canonical
+  shadow and leaves all 115 legacy columns invariant.
+- At 180 s R0 upper/lower mass, lower temperature, interface and plume enter
+  their CFAST gates.
+- R0 upper temperature overshoots to `200.75 C` versus `159.82 C`, exceeding
+  the mandatory error gate by about `9.9 C`.
+- Hall and R2 also overheat despite exact mass, energy, O2 and species
+  closure.
+- The source-energy deficit is largely removed; remaining attribution points
+  to boundary-energy storage/loss and signed inter-room enthalpy over time.
+- Decision: runtime NO-GO. No 300/600 s run. Temporary runtime surface
+  removed.
+- Binding record:
+  `PHASE3_F33P1_COUPLED_QC_EXPERIMENT.md`.
+
+## F3.3q boundary-energy decision
+
+- CFAST inferred boundary loss is `14.163 MJ` over 0-180 s; the canonical
+  shadow records `10.749 MJ`, a `3.414 MJ` deficit.
+- Canonical inferred and observed balances agree, so the atomic energy ledger
+  is correct.
+- The validation case does not map CFAST concrete properties and therefore
+  uses the lumped fallback wall path.
+- Canonical wall conductance/capacity uses `40.0 m2`, only 48.1% of the
+  geometric R0 enclosure (`83.2 m2`).
+- A direct ambient decay removes another `4.817 MJ` but is not homologous to
+  CFAST surface conduction and must not be tuned to hide the mismatch.
+- Decision: diagnostic GO. Motor, authority and Group C retirement remain
+  NO-GO.
+- Binding record:
+  `PHASE3_F33Q_BOUNDARY_ENERGY_CORRESPONDENCE.md`.
+
 ## Next prompt target
 
-Use GPT-5.6 for F3.3h2, the temporary default-OFF runtime experiment. Read the
-F3.3g1/F3.3h/F3.3h1 records. Wire the tested buoyancy split behind an explicit
-Engine/CLI/CSV candidate gate that implies the full F3.3b stack, enthalpy and
-mass residence ledgers, and separate Poreh mixing. Prove OFF byte identity to
-the F3.3d1 checkpoint, run `cfast_corridor_chain` only to 180 s and STOP.
-Report direct lower/upper accepted inflow against CFAST `h_mflow`, Poreh mass
-separately, zone state, residuals and legacy invariance. Remove runtime wiring
-after the decision. Do not run 300/590 s, tune coefficients, reintroduce
-F3.3e1 Qc, edit official reports/baselines/tolerances/gaps, promote authority
-or touch HVAC.
+F3.3q is closed as diagnostic GO. The first mismatch is absent concrete
+material mapping; the second is canonical wall area.
+
+Use GPT-5.6 for F3.3r0. Create a scratch-only copy of the corridor case and
+map CFAST concrete properties through existing `room_overrides` for rooms
+0-2. Re-run the valid F3.3p1 shadow composition to 180 s while leaving the
+canonical `40 m2` wall-area contract unchanged. Require OFF equivalence and
+compare the full F3.3q balance plus R0/Hall/R2 thermal gates. Do not change
+motor code, direct ambient decay, official cases/reports, expected values,
+tolerances or gaps. If material-only overcools or moves the sink in the wrong
+direction, stop. F3.3r1 full-enclosure area requires a separate design.
+HVAC remains deferred.

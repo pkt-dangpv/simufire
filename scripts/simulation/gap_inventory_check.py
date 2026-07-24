@@ -34,7 +34,7 @@ if hasattr(sys.stdout, "reconfigure"):
 # ---------------------------------------------------------------------------
 # VALID_GAP — required checks cuyo FAIL es estructural y está aceptado.
 #
-# Documentados en docs/validation/GAPS_INVENTORY.md §"Los 5 fallos required
+# Documentados en docs/validation/GAPS_INVENTORY.md como fallos required
 # VALID_GAP".  No son gaps non-gating: son checks required que fallan por
 # limitaciones arquitectónicas (Phase 2 / Phase 3+) sin fix per-caso viable.
 # El gate de required checks PASA si el conjunto de required fallidos es
@@ -52,10 +52,11 @@ KNOWN_VALID_GAP_REQUIRED_FAILURES: frozenset[str] = frozenset({
     "cfast_t240_o2_depleted",
     "cfast_t350_o2",
     "cfast_t360_o2",
-    # Grupo C — cfast_corridor_chain: falta ODE de presión dos zonas
-    # (upper-layer outflow entálpico).  Cierre: Phase 3+.
-    "cfast_chain_r0_t180_temp_upper_c",
+    # Grupo C — cfast_corridor_chain: la equivalencia topológica F3.3l
+    # deja tres gaps acoplados de masa/entalpía/O2.  Cierre: Phase 3+.
+    "cfast_chain_r0_t300_temp_upper_c",
     "cfast_chain_r0_t600_temp_upper_c",
+    "cfast_chain_r0_o2_t600_o2",
     # Grupo D — RETIRADO 2026-07-09: los 4 checks eran artefacto de runner/config,
     # no gap físico.  El caso declaraba fire_o2_mode="upper" en top-level pero
     # run_scenario_headless solo aplica engine_overrides; corregido añadiendo

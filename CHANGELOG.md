@@ -3,6 +3,42 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3q boundary-energy correspondence (2026-07-24)
+
+- Added a tested, read-only analyzer for the R0 0-180 s source, storage,
+  signed-doorway and boundary-energy balance.
+- Measured `14.163 MJ` inferred CFAST boundary loss versus `10.749 MJ`
+  canonical loss, with exact shadow ledger closure.
+- Identified absent CFAST concrete mapping as the first mismatch and
+  canonical wall area (`40.0 m2` versus `83.2 m2` enclosure) as the second.
+- Selected a material-only scratch control as F3.3r0. No motor, official
+  validation artifact, expected value, tolerance, gap, FED or HVAC path
+  changed.
+
+### Phase 3+ F3.3p1 coupled-Qc runtime experiment (2026-07-24)
+
+- Tested a corrected shadow-only accepted-Qc source shared by combustion heat
+  and the complete Heskestad plume while retaining F3.3n receiver routing.
+- Preserved all legacy output and exact canonical mass, energy, O2 and
+  species closure.
+- Rejected the candidate at the mandatory 180 s STOP: R0 mass, interface and
+  plume entered their CFAST envelopes, but upper temperature reached
+  `200.75 C` versus `159.82 C`; Hall and R2 also overheated.
+- Removed the temporary runtime surface and skipped 300/600 s. F3.3q is a
+  read-only boundary-energy correspondence audit before another motor patch.
+
+### Phase 3+ F3.3p coupled-Qc re-entry design (2026-07-24)
+
+- Reconstructed the R0 lower-zone budget across the removed F3.3e1
+  candidate, accepted F3.3n routing and committed CFAST slab outputs.
+- Found that the 600 s plume shortfall (`109.09 kg`) closely matches the
+  missing lower-route margin (`123.44 kg`), confirming a closed-loop
+  source/neutral-plane/routing dependency rather than an isolated plume
+  coefficient.
+- Authorized one future default-OFF F3.3p1 experiment with explicit
+  180/300/600 s STOP gates. No motor, official case, report, baseline,
+  tolerance, gap, CTRL, FED or HVAC path changed.
+
 ### Phase 3+ F3.3h1 buoyancy-routing design (2026-07-22)
 
 - Added the exact CFAST `flogo` `tanhsmooth` destination split as an internal,

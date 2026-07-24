@@ -1,6 +1,14 @@
 # Guardrails Status
 
-Date: 2026-06-21.
+Date: 2026-07-23.
+
+## Current update
+
+F3.3l changes the active required state to `347/353 PASS` with 6 VALID_GAP:
+Group A x3 and Group C x3. The scenario-equivalence correction closes the
+old Group C t=180 temperature failure and exposes t=300 temperature plus
+t=600 O2 upper. Expected values and tolerances are unchanged. The current
+source of truth is `docs/validation/GAPS_INVENTORY.md`.
 
 ## Hito de validación cerrado — 2026-06-21
 
@@ -25,7 +33,7 @@ Current required failures:
 | Group | Checks | Status |
 |-------|--------|--------|
 | A — `cfast_r0_window_360` | 3 O2 upper checks | VALID_GAP Phase 2; Phase 5A sweep found no viable per-case fix |
-| C — `cfast_corridor_chain` | 2 temp_upper checks | VALID_GAP Phase 3+; requires larger two-zone pressure/exchange architecture |
+| C — `cfast_corridor_chain` | 2 temp_upper + 1 O2 upper | VALID_GAP Phase 3+; requires canonical mass/enthalpy/O2 exchange |
 
 ## Reproduction
 

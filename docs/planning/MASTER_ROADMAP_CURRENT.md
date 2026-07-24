@@ -1,6 +1,6 @@
 # Hoja de ruta activa de SimuFire
 
-Fecha: 2026-06-28
+Fecha: 2026-07-24
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
 
@@ -28,10 +28,34 @@ Antes de tocar motor:
 - Rama esperada: `main`; antes de esta nota estaba local ahead de `origin/main`.
 - Handoff vigente: `docs/HANDOFF_CURRENT_STATE.md` rev 21.
 - Ultimo estado documentado: C1 backdraft/pool-release path exercised, pero no clean promotion evidence; M5 post-backdraft HRR cut queda como proximo experimento de motor.
-- Suite referencia: **349/354 PASS**.
-- Los 5 FAIL restantes son los `VALID_GAP` conocidos:
+- Suite referencia: **347/353 PASS**.
+- Los 6 FAIL restantes son los `VALID_GAP` conocidos:
   - Grupo A: O2 en `cfast_r0_window_360`.
-  - Grupo C: temperatura en `cfast_corridor_chain`.
+  - Grupo C: temperatura y O2 upper en `cfast_corridor_chain`.
+- F3.3l corrigió la topología real de `cfast_corridor_chain`.
+- F3.3m cerró la correspondencia temporal R0→Hall: el caudal pasa de déficit
+  temprano a superávit tardío y el aporte convectivo queda muy por debajo de
+  CFAST.
+- F3.3n valida el reparto receptor `flogo` sobre la topología corregida:
+  forma las capas altas de Hall/R2 y acerca las cuatro direcciones a CFAST
+  con conservación exacta. Queda default OFF y no autoriza el shadow.
+- F3.3o descarta cambiar solo la fracción radiativa: duplica casi el calor
+  sin aumentar el plume, sobrecalienta R0/Hall/R2 y empeora la masa upper.
+- F3.3p reconstruye el balance lower y autoriza solo un experimento
+  escalonado: a 600 s faltan 109.1 kg de plume frente a CFAST y las rutas
+  pierden 123.4 kg de margen lower. F3.3n ayuda, pero no prueba por si solo
+  que el colapso antiguo este cerrado.
+- F3.3p1 reintrodujo temporalmente el contrato unificado
+  `Q aceptado -> Qc -> calor + plume` con routing F3.3n. A 180 s cerro masa,
+  interfaz y plume, pero sobrecalento R0 (`200.75 C` frente a `159.82 C`) y
+  tambien Hall/R2. Fue NO-GO y se retiro sin ejecutar 300/600 s.
+- F3.3q localiza un deficit de perdida de frontera de `3.414 MJ` hasta 180 s.
+  El balance canonico cierra, pero el caso no transmite el hormigon de CFAST
+  y el contrato usa `40.0 m2` de pared frente a `83.2 m2` de envolvente.
+- La siguiente fase es F3.3r0: control scratch material-only usando los
+  `room_overrides` existentes. No se cambia area, motor, decay ambiente ni
+  artefactos oficiales. F3.3r1 para area completa solo se diseña si el
+  material mueve el balance en la direccion correcta.
 - Physics coherence audit: suite con controles intencionales registrados (`v1_backdraft_accumulation`, `v1_m4_pool_release`). Reglas FAIL/gating: B1, C1, C2, A2, A3, D1, E1, S0. WARN: O1, O2E1.
 - Tests Python: **157 PASS**.
 

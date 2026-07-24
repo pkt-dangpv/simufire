@@ -1,6 +1,6 @@
 # Inventario de Gaps - SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 12 julio 2026 (clean start Phase 3+; F3.0 canonical shadow state es la ruta activa para Grupo A/C)
-**Estado validacion**: 348/353 PASS required, 71 gaps non-gating, 5 VALID_GAP
+**Generado**: 24 mayo 2026 | **Actualizado**: 23 julio 2026 (F3.3l equivalencia topológica `cfast_corridor_chain`)
+**Estado validacion**: 347/353 PASS required, 71 gaps non-gating, 6 VALID_GAP
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -38,7 +38,16 @@
 | Phase 2C structural (HVAC) | 4 | SF fire at max HRR vs CFAST two-zone moderation (t>240s): CO_upper t300/t450, co2_upper_pct t300/t450. Phase 4A blend rejected: cannot close gaps without breaking required o2_upper/temp checks. Non-gating. | Structural accepted |
 | HCN/FED toxicity validation | Registro, no gap CFAST actual | **Phase 4B COMPLETADO (observability + FED decomposition + calibración 2026-05-27):** HCN logging (`HCN=`/`HCNu=`) added to .log and CSV. `peak_hcn_ppm`/`peak_hcn_upper_ppm` tracked in CaseRunner. Non-gating sanity checks (`min: 10 ppm`) added to `victim_fed_incapacitation` + `pu_sofa_fec_incapacitation` baselines — promoted to required (actual ~2000 ppm). Transport active by default (0.40). Default yield 0.000040 kg/MJ. FED decomposition (`fed_co`, `fed_hcn`, `fed_hypoxia`, `fed_heat`) in RoomModel, ThermalSystem, StateBuilder, CSV and ROOM log. CaseRunner tracks `room_N_final_fed_co/hcn/hypoxia/heat`. **Calibration assessment (2026-05-27):** in `pu_sofa_fec_incapacitation` (sustained fire), FED_HCN/FED_total = 19.7% (room 0) and 25.1% (room 1) — within or at lower bound of Purser SFPE range (20–30% for residential PU). Yield `0.000154 kg/MJ` ≈ 0.004 g/g = lower bound of well-ventilated flaming PU foam (Purser 0.004–0.017 g/g). In `victim_fed_incapacitation` (ramp-up fire), HCN=0.9% — explained by CO dominating early phase before HCN peaks at t=800s (physically plausible). See `docs/audits/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md`. — 379/379 PASS. | Phase 4B ✅ observability ✅ FED decomposition ✅ calibración aceptable |
 
-**Total: 71 gaps non-gating (per reference_checks.json). 348/353 required checks PASS. 5 required failures classified as VALID_GAP (ver tabla abajo).**
+**Total: 71 gaps non-gating (per reference_checks.json). 347/353 required checks PASS. 6 required failures classified as VALID_GAP (ver tabla abajo).**
+
+*(Sincronización 2026-07-23 — F3.3l corrige la equivalencia topológica de
+`cfast_corridor_chain`: el runner hace matching direccional exacto y las
+overrides históricas `1→2`/`0→4` nunca se aplicaban. El caso ahora conserva
+solo las dos puertas CFAST (`0→1` y `2→1`, esta última de 0.9 m) y cierra
+`3→1`, `4→1` y `5→1`. La temperatura R0 a 180 s pasa; la de 300 s y el O2
+upper a 600 s pasan a FAIL, mientras la temperatura a 600 s permanece FAIL.
+No se cambian expected ni tolerancias. Grupo C pasa de 2 a 3 VALID_GAP y el
+total de required PASS cambia 348→347.)*
 
 *(Sincronización 2026-07-12 — clean start Phase 3+: F2.1 ledger-aware projection y fixes locales de presión quedan cerrados como NO-GO. F2.2a se conserva solo como instrumentación pasiva de diagnóstico de presión/venting. La ruta activa para cerrar Grupo A y Grupo C es F3.0 shadow canonical two-zone state: estado canónico upper/lower de masa, energía, O2 y especies construido desde snapshot pre-step + flux requests explícitos. No añadir knobs per-case ni relajar tolerancias para estos grupos.)*
 
@@ -52,9 +61,9 @@
 
 *(Sincronización 2026-07-09 — Grupo E CERRADO (`fix(logging): avoid duplicate final CSV snapshots` + fix runner/config): (a) artefacto doble-log cerrado en 5823ee98 — CTRLs S0:1 retirados. (b) Grupo E cfast_slow: los 6 VALID_GAP no eran gap físico sino mismatch de runner — el caso declaraba `validation_fire_o2_mode="upper"` en top-level pero `run_scenario_headless` solo aplica claves de `engine_overrides`; corregido añadiendo `fire_o2_mode="upper"` dentro de `engine_overrides`. Con la física declarada los 6 checks pasan: O2 upper a t=300 0.155 (CFAST 0.164, gap −0.009, tol 0.010), temp_upper a t=480 141.5°C (CFAST 151°C, gap −9.5°C, tol 10°C). KNOWN_VALID_GAP_REQUIRED_FAILURES: 15→9. Required PASS: 338→344.)*
 
-### Required failures closed-as-gap (5 checks — 5 hito 2026-06-21)
+### Required failures closed-as-gap (6 checks — estado F3.3l)
 
-Estos 5 checks son **required** en `reference_checks.json` y están clasificados como VALID_GAP definitivo. No son non-gating gaps sino fallos estructurales que requieren arquitectura Phase 2/3+ para cerrarse. No hay fix per-caso viable; se cierran como hito de validación. Codificados en `KNOWN_VALID_GAP_REQUIRED_FAILURES` en `scripts/simulation/gap_inventory_check.py`.
+Estos 6 checks son **required** en `reference_checks.json` y están clasificados como VALID_GAP. No son non-gating gaps sino fallos estructurales que requieren arquitectura Phase 3+ para cerrarse. Codificados en `KNOWN_VALID_GAP_REQUIRED_FAILURES` en `scripts/simulation/gap_inventory_check.py`.
 
 *(Los 6 checks Grupo E `cfast_slow_t*` — clasificados como VALID_GAP en 2026-07-08 — fueron CERRADOS en 2026-07-09: eran artefacto de runner/config, no gap estructural. Ver nota de sincronización arriba.)*
 
@@ -63,8 +72,10 @@ Estos 5 checks son **required** en `reference_checks.json` y están clasificados
 | `cfast_t240_o2_depleted` | A — `cfast_r0_window_360` | `plume_lower_mode` equilibra zonas bidireccional; llegar al target O2u exigiría room.o2=0.085 → HRR < 198 kW → guard FAIL. Phase 5A sweep 15 configs confirmó VALID_GAP. | F3 canonical two-zone mass/O2 transaction |
 | `cfast_t350_o2` | A — `cfast_r0_window_360` | Ídem — SF usa room-avg O2 vs CFAST upper-zone O2. | F3 canonical two-zone mass/O2 transaction |
 | `cfast_t360_o2` | A — `cfast_r0_window_360` | Ídem. | F3 canonical two-zone mass/O2 transaction |
-| `cfast_chain_r0_t180_temp_upper_c` | C — `cfast_corridor_chain` | Overshoot entálpico (+14.94°C sobre umbral); F2.0/F2.2a muestran que el problema no es un alivio de presión aislado sino inventario upper/lower no canónico y proyección EOS que recrea masa. | F3 canonical two-zone mass/energy + opening transaction |
-| `cfast_chain_r0_t600_temp_upper_c` | C — `cfast_corridor_chain` | Undershoot acumulado (−33°C bajo umbral); F1/F2 probaron que lower return, pressure relief y proyección local no cierran ambos timestamps sin romper conservación. | F3 canonical two-zone mass/energy + opening transaction |
+| ~~`cfast_chain_r0_t180_temp_upper_c`~~ | ~~C — `cfast_corridor_chain`~~ | ~~Topología no equivalente: ramas adicionales del template mantenían el R0 demasiado caliente.~~ | **CERRADO F3.3l** — 146.6°C vs CFAST 159.8±15°C. |
+| `cfast_chain_r0_t300_temp_upper_c` | C — `cfast_corridor_chain` | Con topología equivalente, R0 cae a 117.53°C frente a CFAST 166.27±20°C: déficit de residencia de masa/entalpía caliente R0→Hall ya medido por F3.3k. | F3 canonical two-zone mass/energy + opening transaction |
+| `cfast_chain_r0_t600_temp_upper_c` | C — `cfast_corridor_chain` | Undershoot acumulado: 94.56°C frente a CFAST 168.80±30°C. F3.3k mide ~30% menos masa caliente y menor temperatura fuente en R0→Hall. | F3 canonical two-zone mass/energy + opening transaction |
+| `cfast_chain_r0_o2_t600_o2` | C — `cfast_corridor_chain` | La topología equivalente deja O2 upper=0.1329 frente a CFAST 0.0957±0.015: el intercambio/consumo acoplado queda demasiado ventilado al final. | F3 canonical two-zone mass/O2 + combustion coupling |
 | ~~`cfast_hvac_t180_o2`~~ | ~~D — `cfast_hvac_residential`~~ | ~~SF.o2_upper=0.196 vs CFAST.ULO2=0.132 (tol=0.025; gap=0.064).~~ | **CERRADO 2026-07-09** — runner/config mismatch; no gap físico. Con upper mode: SF.o2_upper=0.112 vs CFAST=0.132 (gap=−0.020, tol=0.025 PASS). |
 | ~~`cfast_hvac_t300_o2`~~ | ~~D — `cfast_hvac_residential`~~ | ~~SF.o2_upper=0.161 vs CFAST.ULO2=0.074 (tol=0.034; gap=0.087).~~ | **CERRADO 2026-07-09** — Con upper mode: SF.o2_upper=0.085 vs CFAST=0.074 (gap=+0.011, tol=0.034 PASS). |
 | ~~`cfast_hvac_t300_o2_lower`~~ | ~~D — `cfast_hvac_residential`~~ | ~~SF.o2_lower=0.161 vs CFAST.LLO2=0.205 (tol=0.010; gap=0.044).~~ | **CERRADO 2026-07-09** — Con upper mode: SF.o2_lower=0.209 vs CFAST=0.205 (gap=+0.004, tol=0.010 PASS). |

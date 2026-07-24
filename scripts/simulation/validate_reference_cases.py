@@ -1289,6 +1289,11 @@ def build_cfast_corridor_chain_checks() -> list[Check]:
                  R1 O2 gap 0.0625 at t=480s (CFAST 12.5%, SF 18.8%).
     Required checks: R0 fire room temp (t=180-600s), R0 O2 (t=480-600s),
                      RMSE R0 temp ≤ 30°C, R2 O2 (t=480-600s), R2 min O2 < 20%.
+
+    F3.3l (2026-07-23) corrected the direction-exact opening overrides so the
+    runtime contains only the two CFAST doors. No expected value or tolerance
+    changed. Equivalent topology closes t=180 temperature and exposes gaps at
+    t=300 temperature and t=600 O2; t=600 temperature remains a gap.
     """
     csv_path = CFAST_DIR / "cfast_corridor_chain_compartments.csv"
     log_path = REPORTS_DIR / "cfast_corridor_chain.log"
@@ -1350,8 +1355,8 @@ def build_cfast_corridor_chain_checks() -> list[Check]:
         checks, "cfast_chain_r0_rmse_temp_upper", sim0, cfast_r0,
         "temp_upper_c", threshold=60.0, start_t=0.0, end_t=600.0, required=False,
         note="KNOWN_DEVIATION CCH-2: corridor chain R0 temp_upper RMSE ≤ 60°C. "
-             "Structural gap: doorway thermal counterflow (M3 pending). "
-             "fire_o2_mode=upper + plume_entr=0.025 delays O2 throttling → peak 256°C vs CFAST 158°C.",
+             "F3.3l topology-equivalent run; remaining curve-shape gap is canonical "
+             "upper mass/enthalpy/O2 residence.",
     )
 
     # ── KNOWN_DEVIATION: R2 O2 — smoke reaches far room (Dormitorio1) ──────────

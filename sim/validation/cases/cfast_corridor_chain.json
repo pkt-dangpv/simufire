@@ -27,15 +27,27 @@
 			"open_fraction": 1.0
 		},
 		{
-			"a": 1,
-			"b": 2,
+			"a": 2,
+			"b": 1,
 			"type": "door",
 			"width_m": 0.9,
 			"open_fraction": 1.0
 		},
 		{
-			"a": 0,
-			"b": 4,
+			"a": 4,
+			"b": 1,
+			"type": "door",
+			"open_fraction": 0.0
+		},
+		{
+			"a": 3,
+			"b": 1,
+			"type": "door",
+			"open_fraction": 0.0
+		},
+		{
+			"a": 5,
+			"b": 1,
 			"type": "door",
 			"open_fraction": 0.0
 		},
@@ -51,6 +63,7 @@
 		"time_scale": 5.0,
 		"log_interval_s": 10.0,
 		"log_file_path": "res://sim/validation/reports/cfast_corridor_chain.log",
+		"csv_log_file_path": "res://sim/validation/reports/cfast_corridor_chain.csv",
 		"fire_alpha_kw_s2": 0.047,
 		"fire_max_hrr_kw": 300.0,
 		"fire_secondary_hrr_gain_kw": 0.0,
