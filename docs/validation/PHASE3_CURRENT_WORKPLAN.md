@@ -1054,8 +1054,14 @@ diverges at 70 s and its far-field distance is pinched near `0.10 m` at
 therefore downstream. Binding record:
 `PHASE3_F33S_LAYER_MASS_O2_CAUSAL_AUDIT.md`.
 
-Next design only F3.3t: a continuous region-aware plume/interface transition
-with an aligned accepted/convective HRR source. Any runtime experiment must
-be default OFF, limited first to 180 s and preserve exact mass/O2/energy
-ledgers. Do not retry the F3.3d2 source-term-only patch, inject CFAST state,
-fit a corridor-only coefficient, alter official reports or touch HVAC.
+F3.3t is complete as a default-OFF experimental mechanism. It uses complete
+Heskestad entrainment from canonical accepted HRR and effective `chi_rad`,
+does not apply the O2 decision twice and preserves exact mass/O2/energy
+ledgers. The 10-180 s STOP gate improves all nine audited correspondence RMSE
+families by `25.9-95.5%`; OFF is byte-identical to F3.3r2d.
+
+Runtime authority and Group C retirement remain NO-GO because residual
+late-window error remains at 180 s. Next phase only F3.3u: extend this exact
+candidate to 300/600 s with no equation, coefficient, official-report,
+tolerance, HVAC or visual change. Binding record:
+`PHASE3_F33T_COUPLED_PLUME_EXPERIMENT.md`.

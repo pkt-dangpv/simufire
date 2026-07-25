@@ -84,9 +84,12 @@ Antes de tocar motor:
   acumulada, con O2 aun coherente y sin residual de proyeccion.
 - CFAST entra en regimen llama/interfaz a 60 s; el O2 de SimuFire diverge a
   70 s y su `z_eff` queda pinzado cerca de `0.10 m` a 80-90 s.
-- Siguiente fase: F3.3t, diseno y luego experimento default-OFF de transicion
-  plume/interfaz con fuente HRR convectiva compartida. No repetir el source
-  term aislado de F3.3d2 ni prescribir la interfaz CFAST.
+- F3.3t implementa un plume Heskestad completo default OFF desde HRR/chi_rad
+  canonicos aceptados y evita el segundo throttle O2. En 10-180 s mejora las
+  nueve familias RMSE, entre `25.9%` y `95.5%`, con residual maximo `8e-8`.
+- El mecanismo F3.3t queda GO experimental; autoridad runtime y cierre Grupo C
+  siguen NO-GO. Siguiente fase: F3.3u, extension sin nuevas ecuaciones a
+  300/600 s para comprobar estabilidad y correspondencia tardia.
 - Physics coherence audit: suite con controles intencionales registrados (`v1_backdraft_accumulation`, `v1_m4_pool_release`). Reglas FAIL/gating: B1, C1, C2, A2, A3, D1, E1, S0. WARN: O1, O2E1.
 - Tests Python: **157 PASS**.
 

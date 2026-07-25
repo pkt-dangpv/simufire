@@ -2358,6 +2358,85 @@ func preview_phase3_canonical_plume_flux(
 	return result
 
 
+## F3.3t: correlacion Heskestad completa, evaluada con la misma energia aceptada
+## y chi_rad que la transaccion canonica de combustion. El resultado ya incorpora
+## la decision de O2; finalize no debe volver a aplicar plume_scale.
+func preview_phase3_coupled_plume_flux(
+		room: RoomModel,
+		canonical_input: Dictionary,
+		combustion_transaction: Dictionary,
+		dt: float
+	) -> Dictionary:
+	var result: Dictionary = {
+		"cause": "plume_entrainment",
+		"room_id": room.id if room != null else -1,
+		"source_zone": "lower",
+		"destination_zone": "upper",
+		"gas_mass_kg": 0.0,
+		"sensible_enthalpy_kj": 0.0,
+		"o2_kg": 0.0,
+		"height_term_mass_kg": 0.0,
+		"source_term_mass_kg": 0.0,
+		"o2_decision_applied": true,
+		"coupled_qc_kw": 0.0,
+		"virtual_origin_m": 0.0,
+		"z_eff_m": 0.0,
+	}
+	if room == null or dt <= 0.0 or canonical_input.is_empty() \
+			or combustion_transaction.is_empty() \
+			or not bool(canonical_input.get("valid", false)):
+		return result
+	var lower_mass_kg: float = maxf(
+		0.0, float(canonical_input.get("lower_gas_kg", 0.0))
+	)
+	var accepted_hrr_kw: float = maxf(
+		0.0, float(combustion_transaction.get("accepted_hrr_kw", 0.0))
+	)
+	var effective_chi_rad: float = clampf(
+		float(combustion_transaction.get("effective_chi_rad", 0.0)),
+		0.0,
+		1.0
+	)
+	var qc_kw: float = accepted_hrr_kw * (1.0 - effective_chi_rad)
+	if qc_kw <= 0.0 or lower_mass_kg <= 1.0e-9:
+		return result
+	var interface_m: float = clampf(
+		float(canonical_input.get("interface_m", room.height_m)),
+		0.0,
+		room.height_m
+	)
+	var virtual_origin_m: float = -1.02 * plume_fire_diameter_m \
+			+ 0.083 * pow(accepted_hrr_kw, 0.4)
+	var z_eff_m: float = maxf(0.1, interface_m - virtual_origin_m)
+	var height_term_mass_kg: float = 0.071 * pow(qc_kw, 1.0 / 3.0) \
+			* pow(z_eff_m, 5.0 / 3.0) * dt
+	var source_term_mass_kg: float = 0.071 * 0.026 * qc_kw * dt
+	var requested_mass_kg: float = minf(
+		height_term_mass_kg + source_term_mass_kg,
+		lower_mass_kg
+	)
+	var accepted_height_mass_kg: float = minf(
+		height_term_mass_kg, requested_mass_kg
+	)
+	result["height_term_mass_kg"] = accepted_height_mass_kg
+	result["source_term_mass_kg"] = minf(
+		source_term_mass_kg,
+		maxf(0.0, requested_mass_kg - accepted_height_mass_kg)
+	)
+	var lower_fraction: float = requested_mass_kg / maxf(lower_mass_kg, 1.0e-9)
+	result["gas_mass_kg"] = requested_mass_kg
+	result["sensible_enthalpy_kj"] = maxf(
+		0.0, float(canonical_input.get("lower_energy_kj", 0.0)) * lower_fraction
+	)
+	result["o2_kg"] = requested_mass_kg * clampf(
+		float(canonical_input.get("lower_o2_fraction", 0.0)), 0.0, 1.0
+	)
+	result["coupled_qc_kw"] = qc_kw
+	result["virtual_origin_m"] = virtual_origin_m
+	result["z_eff_m"] = z_eff_m
+	return result
+
+
 func _add_flame_region_entrainment(
 	room: RoomModel,
 	qc_kw: float,

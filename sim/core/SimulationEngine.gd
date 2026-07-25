@@ -1000,6 +1000,8 @@ var _step_time_us: int = 0
 @export var phase3_canonical_wall_ambient_shadow_enabled: bool = false
 ## F3.3r2b: superficies canonicas independientes. Default OFF y excluye pared lumped.
 @export var phase3_canonical_multisurface_shadow_enabled: bool = false
+## F3.3t: plume Heskestad completo desde HRR/chi aceptados. Requiere multisurface.
+@export var phase3_coupled_plume_shadow_enabled: bool = false
 ## F3.2b6: counterflow exterior compensado desde estado canonico. Default OFF.
 @export var phase3_canonical_exterior_counterflow_shadow_enabled: bool = false
 ## F3.2b7: combustion usa lower O2 durante counterflow exterior real. Default OFF.
@@ -1555,18 +1557,29 @@ func _phase3_shadow_collect_thermal_requests(dt: float) -> void:
 					phase3_zone_mass_system.get_canonical_thermodynamic_input(
 						room, thermal_system.ambient_temp_c()
 					)
-			var include_heskestad_source_term: bool = false
-			if phase3_canonical_post_opening_coupling_shadow_enabled:
-				var counterflow_request: Dictionary = \
-						phase3_zone_mass_system.get_canonical_exterior_counterflow_request(
-							room_id
-						)
-				include_heskestad_source_term = float(
-					counterflow_request.get("requested_exchange_kg", 0.0)
-				) > 0.000000001
-			plume_flux = thermal_system.preview_phase3_canonical_plume_flux(
-				room, canonical_input, dt, include_heskestad_source_term
-			)
+			if phase3_coupled_plume_shadow_enabled \
+					and _phase3_canonical_multisurface_active():
+				plume_flux = thermal_system.preview_phase3_coupled_plume_flux(
+					room,
+					canonical_input,
+					phase3_zone_mass_system.get_canonical_combustion_transaction(
+						room_id
+					),
+					dt
+				)
+			else:
+				var include_heskestad_source_term: bool = false
+				if phase3_canonical_post_opening_coupling_shadow_enabled:
+					var counterflow_request: Dictionary = \
+							phase3_zone_mass_system.get_canonical_exterior_counterflow_request(
+								room_id
+							)
+					include_heskestad_source_term = float(
+						counterflow_request.get("requested_exchange_kg", 0.0)
+					) > 0.000000001
+				plume_flux = thermal_system.preview_phase3_canonical_plume_flux(
+					room, canonical_input, dt, include_heskestad_source_term
+				)
 		phase3_zone_mass_system.finalize_canonical_combustion_bundle(
 			room_id,
 			canonical_heat_by_room.get(str(room_id), {}),
@@ -2151,6 +2164,8 @@ func _build_state_context() -> Dictionary:
 				phase3_canonical_wall_ambient_shadow_enabled,
 		"phase3_canonical_multisurface_shadow_enabled": \
 				phase3_canonical_multisurface_shadow_enabled,
+		"phase3_coupled_plume_shadow_enabled": \
+				phase3_coupled_plume_shadow_enabled,
 		"phase3_canonical_exterior_counterflow_shadow_enabled": \
 				phase3_canonical_exterior_counterflow_shadow_enabled,
 		"phase3_canonical_post_opening_coupling_shadow_enabled": \

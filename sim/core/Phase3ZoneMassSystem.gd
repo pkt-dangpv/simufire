@@ -1572,6 +1572,10 @@ func get_canonical_combustion_room_ids() -> Array[int]:
 	return room_ids
 
 
+func get_canonical_combustion_transaction(room_id: int) -> Dictionary:
+	return _canonical_combustion_by_room.get(str(room_id), {}).duplicate(true)
+
+
 ## Completa una unica transaccion atomica con calor convectivo y plume observados.
 ## El evaluador ya tomo una decision comun; este bundle solo impone inventario.
 func finalize_canonical_combustion_bundle(
@@ -1588,7 +1592,9 @@ func finalize_canonical_combustion_bundle(
 		float(record.get("decision_fraction", 0.0)), 0.0, 1.0
 	)
 	var heat_scale: float = clampf(float(record.get("heat_scale", 0.0)), 0.0, 1.0)
-	var plume_scale: float = clampf(float(record.get("plume_scale", 0.0)), 0.0, 1.0)
+	var plume_scale: float = 1.0 if bool(
+		plume_flux.get("o2_decision_applied", false)
+	) else clampf(float(record.get("plume_scale", 0.0)), 0.0, 1.0)
 	var requested_heat_kj: float = maxf(
 		0.0, float(convective_flux.get("sensible_enthalpy_kj", 0.0))
 	)

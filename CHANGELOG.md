@@ -3,6 +3,18 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3t coupled plume experiment (2026-07-25)
+
+- Added a default-OFF complete Heskestad plume preview driven by canonical
+  accepted HRR and effective radiative fraction, with inventory-capped
+  mass/enthalpy/O2 transfer and no second O2 throttle.
+- Added direct Godot fixtures and a reproducible OFF/ON CFAST STOP-gate
+  analyzer. The OFF run is byte-identical to F3.3r2d and all nine audited
+  correspondence RMSE families improve over 0-180 s.
+- Kept runtime authority and Group C retirement NO-GO. No official case,
+  report, baseline, tolerance, CTRL, FED, HVAC or visual path changed.
+- Selected F3.3u as an equation-free 300/600 s stability extension.
+
 ### Phase 3+ F3.3s layer-mass/O2 causal audit (2026-07-25)
 
 - Added a tested, read-only analyzer for 10-180 s layer mass, interface, O2,

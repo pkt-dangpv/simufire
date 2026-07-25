@@ -57,6 +57,9 @@ func build_state(context: Dictionary) -> Dictionary:
 		"phase3_canonical_multisurface_shadow_enabled": bool(
 			context.get("phase3_canonical_multisurface_shadow_enabled", false)
 		),
+		"phase3_coupled_plume_shadow_enabled": bool(
+			context.get("phase3_coupled_plume_shadow_enabled", false)
+		),
 		"phase3_canonical_exterior_counterflow_shadow_enabled": bool(
 			context.get("phase3_canonical_exterior_counterflow_shadow_enabled", false)
 		),

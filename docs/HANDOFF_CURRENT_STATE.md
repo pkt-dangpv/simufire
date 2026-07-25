@@ -12,6 +12,29 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-25 - F3.3t coupled plume GO
+
+- Added `phase3_coupled_plume_shadow_enabled`, default OFF and effective only
+  under the complete canonical plume plus multi-surface stack.
+- The plume now has an experimental complete Heskestad path driven by
+  canonical accepted HRR and effective `chi_rad`. Its mass, enthalpy and O2
+  share one lower-zone inventory cap and the O2 decision is not applied twice.
+- OFF is byte-identical to the F3.3r2d binding CSV.
+- At 10-180 s, ON improves RMSE versus CFAST for upper/lower mass, interface,
+  upper/lower temperature, upper/lower O2, accepted HRR and plume rate.
+  Improvements range from `25.9%` to `95.5%`.
+- Canonical mass/O2/energy residuals remain exact to CSV precision; maximum
+  observed absolute residual is `8e-8`.
+- Verification: direct Godot fixture PASS; focused tests 11/11 PASS; broad
+  Phase 3/F3.3/two-zone selection 662 PASS plus the same five pre-existing
+  structural failures; physics and ILV have 0 FAIL; gap inventory unchanged.
+- Decision: experimental mechanism GO. Runtime authority and Group C
+  retirement remain NO-GO because 180 s still has interface `+0.192 m`,
+  lower mass `+5.316 kg` and temperature residuals.
+- Next: F3.3u extends the exact candidate to 300/600 s without new equations.
+  Binding record:
+  `docs/validation/PHASE3_F33T_COUPLED_PLUME_EXPERIMENT.md`.
+
 ## Current Session Update - 2026-07-25 - F3.3s causal audit GO
 
 - Added a pure Python, read-only audit over the existing 180 s F3.3r2d
