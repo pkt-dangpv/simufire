@@ -144,7 +144,7 @@ def test_old_lumped_wall_path_is_mutually_exclusive():
 def test_zero_area_surfaces_are_inert_and_cannot_receive_radiation():
     step = _function(SOLVER, "step_surface")
     assert "if area_m2 <= EPSILON:" in step
-    assert "cannot deposit radiation on zero-area surface" in step
+    assert "cannot apply energy to zero-area surface" in step
     validate = _function(SOLVER, "_validate_state")
     assert "area_m2 < 0.0" in validate
 

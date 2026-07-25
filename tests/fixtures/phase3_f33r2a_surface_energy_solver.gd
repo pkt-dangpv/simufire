@@ -11,6 +11,9 @@ var _long_run_residual_kj: float = NAN
 func _init() -> void:
 	_test_constant_ambient_is_noop()
 	_test_radiation_only_closes_energy()
+	_test_prescribed_boundary_energies_close_exactly()
+	_test_prescribed_boundary_conflicts_fail_closed()
+	_test_zero_area_surface_is_inert()
 	_test_early_convection_matches_semi_infinite_reference()
 	_test_long_run_conserves_energy()
 	_test_input_state_is_immutable()
@@ -80,6 +83,74 @@ func _test_radiation_only_closes_energy() -> void:
 		float(result["energy_residual_kj"]), 0.0,
 		"radiation residual", 1.0e-8
 	)
+
+
+func _test_prescribed_boundary_energies_close_exactly() -> void:
+	var state: Dictionary = _concrete_state(10.0)
+	var heated: Dictionary = Solver.step_surface(state, {
+		"dt_s": 2.0,
+		"interior_convection_energy_kj": 100.0,
+		"exterior_energy_removed_kj": 0.0,
+	})
+	_assert_true(bool(heated["valid"]), "prescribed heating valid")
+	_assert_close(
+		float(heated["stored_energy_delta_kj"]), 100.0,
+		"prescribed heating storage", 1.0e-8
+	)
+	_assert_close(
+		float(heated["energy_residual_kj"]), 0.0,
+		"prescribed heating residual", 1.0e-8
+	)
+	var cooled: Dictionary = Solver.step_surface(heated["post_state"], {
+		"dt_s": 2.0,
+		"interior_convection_energy_kj": 0.0,
+		"exterior_energy_removed_kj": 40.0,
+	})
+	_assert_true(bool(cooled["valid"]), "prescribed cooling valid")
+	_assert_close(
+		float(cooled["stored_energy_delta_kj"]), -40.0,
+		"prescribed cooling storage", 1.0e-8
+	)
+	_assert_close(
+		float(cooled["energy_residual_kj"]), 0.0,
+		"prescribed cooling residual", 1.0e-8
+	)
+
+
+func _test_prescribed_boundary_conflicts_fail_closed() -> void:
+	var state: Dictionary = _concrete_state()
+	var convection_conflict: Dictionary = Solver.step_surface(state, {
+		"dt_s": 1.0,
+		"interior_h_kw_m2_k": 0.025,
+		"interior_convection_energy_kj": 10.0,
+	})
+	_assert_true(
+		not bool(convection_conflict["valid"]),
+		"prescribed convection conflict rejected"
+	)
+	var exterior_conflict: Dictionary = Solver.step_surface(state, {
+		"dt_s": 1.0,
+		"exterior_h_kw_m2_k": 0.025,
+		"exterior_energy_removed_kj": 10.0,
+	})
+	_assert_true(
+		not bool(exterior_conflict["valid"]),
+		"prescribed exterior conflict rejected"
+	)
+
+
+func _test_zero_area_surface_is_inert() -> void:
+	var state: Dictionary = _concrete_state(0.0)
+	var inert: Dictionary = Solver.step_surface(state, {
+		"dt_s": 1.0,
+		"interior_convection_energy_kj": 0.0,
+	})
+	_assert_true(bool(inert["valid"]), "zero-area no-op valid")
+	var rejected: Dictionary = Solver.step_surface(state, {
+		"dt_s": 1.0,
+		"interior_convection_energy_kj": 1.0,
+	})
+	_assert_true(not bool(rejected["valid"]), "zero-area energy rejected")
 
 
 func _test_early_convection_matches_semi_infinite_reference() -> void:

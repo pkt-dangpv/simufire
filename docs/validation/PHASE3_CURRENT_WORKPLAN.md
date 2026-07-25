@@ -80,6 +80,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.3r2 multi-surface shadow design: `docs/validation/PHASE3_F33R2_MULTISURFACE_SHADOW_DESIGN.md`
 - F3.3r2a pure surface solver: `docs/validation/PHASE3_F33R2A_SURFACE_SOLVER.md`
 - F3.3r2b state/radiation transaction: `docs/validation/PHASE3_F33R2B_MULTISURFACE_TRANSACTION.md`
+- F3.3r2b1 gas/surface exchange: `docs/validation/PHASE3_F33R2B1_GAS_SURFACE_EXCHANGE.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -1009,14 +1010,31 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 - Binding record:
   `PHASE3_F33R2B_MULTISURFACE_TRANSACTION.md`.
 
+## F3.3r2b1 gas/surface/exterior transaction decision
+
+- Canonical pre-step gas and persistent surface snapshots now feed a pure
+  preview; queueing and physical evaluation are separate.
+- Signed upper/lower gas exchange is resolved through one atomic bundle.
+- The accepted fraction scales convection, gas radiation and exterior
+  removal before one four-surface commit combines them with accepted fire
+  radiation.
+- Full, partial, rejected and reverse transfers close the combined
+  gas/surface/exterior energy invariant in the direct fixture.
+- The generic API supports explicit per-surface exterior Robin boundaries.
+- Runtime exterior exchange remains adiabatic because no authoritative
+  enclosure topology exists in `RoomModel`; the missing metadata is exposed
+  and no visual geometry is used as physics.
+- Decision: transaction GO. Thermal authority, official activation and
+  F3.3r2c correspondence remain NO-GO.
+- Binding record:
+  `PHASE3_F33R2B1_GAS_SURFACE_EXCHANGE.md`.
+
 ## Next prompt target
 
-Implement F3.3r2b1 atomic gas/surface/exterior exchange under the existing
-default-OFF multi-surface flag. Start from canonical pre-step gas and surface
-snapshots; preview upper/lower convection and gas radiation, debit canonical
-gas energy and credit surfaces under one atomic fraction, and route exterior
-Robin loss only through explicit boundary metadata. Prove the combined
-gas/surface/exterior invariant and rejection/partial-acceptance behavior with
-direct fixtures. Do not add per-case coefficients, enable an official case,
-run F3.3r2c correspondence, alter reports, expected/tolerances or gaps. HVAC
-remains deferred.
+Design and implement F3.3r2b2 explicit enclosure boundary topology under the
+existing default-OFF multi-surface flag. Define physical per-surface exterior,
+inter-room and adiabatic fractions without reading visual meshes or inventing
+fallbacks. Populate the F3.3r2b1 `exterior_by_surface` contract, prove mixed
+boundary conservation and preserve OFF output. Do not enable an official
+case, run F3.3r2c correspondence, alter reports, expected/tolerances or gaps.
+HVAC remains deferred.

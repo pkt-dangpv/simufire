@@ -3,6 +3,22 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3r2b1 gas/surface exchange (2026-07-25)
+
+- Added a default-OFF preview/queue/commit transaction for signed upper- and
+  lower-gas convection and longwave radiation into the four canonical
+  surfaces.
+- Applied gas exchange, direct fire radiation and explicit exterior removal
+  under one atomic fraction and one combined energy invariant.
+- Extended the pure surface solver with prescribed accepted-energy inputs so
+  commit cannot recalculate a different flux from preview.
+- Added direct full, partial, rejected, reverse-flow and explicit-exterior
+  fixtures while preserving the F3.3r2b transaction.
+- Kept runtime exterior surfaces adiabatic because authoritative enclosure
+  topology does not yet exist; this missing metadata is explicit telemetry.
+- No official case, CSV schema, baseline, tolerance, gap, FED or HVAC path
+  changed. F3.3r2b2 boundary topology precedes correspondence.
+
 ### Phase 3+ F3.3r2b multi-surface transaction (2026-07-25)
 
 - Added a default-OFF persistent ceiling, upper-wall, lower-wall and floor

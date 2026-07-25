@@ -1536,6 +1536,15 @@ func _phase3_shadow_collect_thermal_requests(dt: float) -> void:
 				canonical_wall_legacy_by_room.get(str(wall_room_id), {}),
 				dt
 			)
+	if _phase3_canonical_multisurface_active() and building != null:
+		for raw_room_id in building.get_rooms().keys():
+			var surface_room: RoomModel = building.get_room(int(raw_room_id))
+			if surface_room == null:
+				continue
+			if _phase3_prepare_canonical_multisurface_room(surface_room):
+				_phase3_shadow_queue_canonical_multisurface_exchange(
+					surface_room, dt
+				)
 	if not phase3_canonical_combustion_shadow_enabled:
 		return
 	for room_id in phase3_zone_mass_system.get_canonical_combustion_room_ids():
@@ -1571,6 +1580,84 @@ func _phase3_canonical_multisurface_active() -> bool:
 			and phase3_canonical_persistence_shadow_enabled \
 			and phase3_canonical_combustion_shadow_enabled \
 			and phase3_canonical_multisurface_shadow_enabled
+
+
+func _phase3_prepare_canonical_multisurface_room(room: RoomModel) -> bool:
+	if room == null or not _phase3_canonical_multisurface_active():
+		return false
+	var ambient_c: float = thermal_system.ambient_temp_c()
+	var thermo: Dictionary = phase3_zone_mass_system.get_canonical_thermodynamic_input(
+		room, ambient_c
+	)
+	if thermo.is_empty() or not bool(thermo.get("valid", false)):
+		return false
+	var prepared: Dictionary = phase3_zone_mass_system.prepare_canonical_multisurface_room(
+		room.id,
+		{
+			"floor_area_m2": room.floor_area_m2(),
+			"perimeter_m": 2.0 * (room.width_m + room.length_m),
+			"height_m": room.height_m,
+			"interface_m": float(thermo.get("interface_m", room.height_m)),
+		},
+		{
+			"conductivity_kw_m_k": room.wall_k_kw_m_k,
+			"density_kg_m3": room.wall_rho_kg_m3,
+			"cp_kj_kg_k": room.wall_cp_kj_kg_k,
+			"thickness_m": room.wall_thickness_m,
+			"emissivity": upper_radiative_loss_emissivity,
+		},
+		ambient_c
+	)
+	return bool(prepared.get("valid", false))
+
+
+func _phase3_shadow_queue_canonical_multisurface_exchange(
+		room: RoomModel,
+		dt: float
+	) -> void:
+	if room == null:
+		return
+	var ambient_c: float = thermal_system.ambient_temp_c()
+	var thermo: Dictionary = phase3_zone_mass_system.get_canonical_thermodynamic_input(
+		room, ambient_c
+	)
+	if thermo.is_empty() or not bool(thermo.get("valid", false)):
+		return
+	var upper_temp_c: float = float(thermo.get("temp_upper_c", ambient_c))
+	var radiation_activation: float = 0.0
+	if upper_radiative_loss_enabled and upper_temp_c > upper_radiative_loss_start_c:
+		radiation_activation = clampf(
+			(upper_temp_c - upper_radiative_loss_start_c)
+			/ maxf(1.0, max_upper_temp_c - upper_radiative_loss_start_c),
+			0.0,
+			1.0
+		)
+	var preview: Dictionary = \
+			phase3_zone_mass_system.preview_canonical_multisurface_exchange(
+				room.id,
+				{
+					"dt_s": dt,
+					"upper_temp_c": upper_temp_c,
+					"lower_temp_c": float(
+						thermo.get("temp_lower_c", ambient_c)
+					),
+					"upper_h_kw_m2_k": thermal_system.h_conv_int_kw_m2_k,
+					"lower_h_kw_m2_k": thermal_system.h_conv_int_kw_m2_k,
+					"upper_gas_emissivity": (
+						upper_radiative_loss_emissivity
+						* radiation_activation
+					),
+					"lower_gas_emissivity": 0.0,
+					# No enclosure topology exists yet in RoomModel. Missing
+					# entries are deliberately adiabatic and diagnosed.
+					"exterior_by_surface": {},
+				}
+			)
+	if not bool(preview.get("valid", false)):
+		return
+	phase3_zone_mass_system.queue_canonical_multisurface_exchange(
+		room.id, preview, "%.6f" % sim_time_s
+	)
 
 
 func _phase3_shadow_queue_canonical_interzone_heat(
@@ -1861,30 +1948,7 @@ func _phase3_shadow_collect_species_requests(dt: float) -> void:
 							transaction
 						)
 				if staged and _phase3_canonical_multisurface_active():
-					var ambient_c: float = thermal_system.ambient_temp_c()
-					var thermo: Dictionary = \
-							phase3_zone_mass_system.get_canonical_thermodynamic_input(
-								room, ambient_c
-							)
-					phase3_zone_mass_system.prepare_canonical_multisurface_room(
-						room_id,
-						{
-							"floor_area_m2": room.floor_area_m2(),
-							"perimeter_m": 2.0 * (room.width_m + room.length_m),
-							"height_m": room.height_m,
-							"interface_m": float(
-								thermo.get("interface_m", room.height_m)
-							),
-						},
-						{
-							"conductivity_kw_m_k": room.wall_k_kw_m_k,
-							"density_kg_m3": room.wall_rho_kg_m3,
-							"cp_kj_kg_k": room.wall_cp_kj_kg_k,
-							"thickness_m": room.wall_thickness_m,
-							"emissivity": upper_radiative_loss_emissivity,
-						},
-						ambient_c
-					)
+					_phase3_prepare_canonical_multisurface_room(room)
 		return
 	for result in species_results:
 		var room_id: int = int(result.get("room_id", -1))

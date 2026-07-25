@@ -12,6 +12,30 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-25 - F3.3r2b1 exchange GO
+
+- Added a pure pre-step preview and separate atomic queue for signed
+  upper/lower gas-to-surface exchange.
+- The single surface commit now combines accepted convection, gas radiation,
+  fire radiation and exterior removal without recalculating accepted fluxes.
+- Full, 0.5-partial, rejected and surface-to-gas fixtures close the combined
+  gas/surface/exterior invariant.
+- Explicit per-surface exterior Robin metadata is supported and tested.
+- Runtime remains deliberately adiabatic because `RoomModel` has no
+  authoritative ceiling/floor/wall exterior topology. Missing metadata is
+  reported rather than inferred from visual geometry.
+- Godot 4.7.1 fixtures and full-project parse PASS; 70 focused Python
+  contracts PASS.
+- A 10 s engine scratch produced 66/66 rows and zero value differences across
+  163 shared legacy columns with the path OFF versus ON; scratch artifacts
+  were removed.
+- No official case, CSV schema, report, expected, tolerance, gap, FED or HVAC
+  path changed.
+- Next: F3.3r2b2 explicit enclosure boundary topology. Do not start F3.3r2c
+  60/120/180 s correspondence before that STOP gate.
+- Binding record:
+  `docs/validation/PHASE3_F33R2B1_GAS_SURFACE_EXCHANGE.md`.
+
 ## Current Session Update - 2026-07-25 - F3.3r2b transaction GO
 
 - Added default-OFF persistent ceiling, upper-wall, lower-wall and floor

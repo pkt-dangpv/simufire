@@ -87,9 +87,21 @@ static func step_surface(pre_state: Dictionary, boundary: Dictionary) -> Diction
 	var interior_h_kw_m2_k: float = float(
 		boundary.get("interior_h_kw_m2_k", 0.0)
 	)
+	var has_prescribed_convection: bool = boundary.has(
+		"interior_convection_energy_kj"
+	)
+	var prescribed_convection_energy_kj: float = float(
+		boundary.get("interior_convection_energy_kj", 0.0)
+	)
 	var exterior_temp_c: float = float(boundary.get("exterior_temp_c", 0.0))
 	var exterior_h_kw_m2_k: float = float(
 		boundary.get("exterior_h_kw_m2_k", 0.0)
+	)
+	var has_prescribed_exterior: bool = boundary.has(
+		"exterior_energy_removed_kj"
+	)
+	var prescribed_exterior_energy_removed_kj: float = float(
+		boundary.get("exterior_energy_removed_kj", 0.0)
 	)
 	var gas_radiation_energy_kj: float = float(
 		boundary.get("gas_radiation_energy_kj", 0.0)
@@ -99,8 +111,10 @@ static func step_surface(pre_state: Dictionary, boundary: Dictionary) -> Diction
 	)
 	if area_m2 <= EPSILON:
 		if absf(gas_radiation_energy_kj) > EPSILON \
-				or fire_radiation_energy_kj > EPSILON:
-			return _invalid_result("cannot deposit radiation on zero-area surface")
+				or fire_radiation_energy_kj > EPSILON \
+				or absf(prescribed_convection_energy_kj) > EPSILON \
+				or absf(prescribed_exterior_energy_removed_kj) > EPSILON:
+			return _invalid_result("cannot apply energy to zero-area surface")
 		return {
 			"valid": true,
 			"error": "",
@@ -115,9 +129,16 @@ static func step_surface(pre_state: Dictionary, boundary: Dictionary) -> Diction
 			"internal_conduction_residual_kj": 0.0,
 			"energy_residual_kj": 0.0,
 		}
-	var applied_radiation_kw_m2: float = (
-		(gas_radiation_energy_kj + fire_radiation_energy_kj)
+	var applied_inner_flux_kw_m2: float = (
+		(
+			gas_radiation_energy_kj
+			+ fire_radiation_energy_kj
+			+ prescribed_convection_energy_kj
+		)
 		/ (area_m2 * dt_s)
+	)
+	var applied_outer_sink_kw_m2: float = (
+		prescribed_exterior_energy_removed_kj / (area_m2 * dt_s)
 	)
 
 	var lower: Array = [0.0, 0.0, 0.0, 0.0, 0.0]
@@ -142,10 +163,14 @@ static func step_surface(pre_state: Dictionary, boundary: Dictionary) -> Diction
 		diagonal[edge + 1] += conductance_kw_m2_k
 		lower[edge + 1] -= conductance_kw_m2_k
 
-	diagonal[0] += interior_h_kw_m2_k
-	rhs[0] += interior_h_kw_m2_k * gas_temp_c + applied_radiation_kw_m2
-	diagonal[NODE_COUNT - 1] += exterior_h_kw_m2_k
-	rhs[NODE_COUNT - 1] += exterior_h_kw_m2_k * exterior_temp_c
+	if not has_prescribed_convection:
+		diagonal[0] += interior_h_kw_m2_k
+		rhs[0] += interior_h_kw_m2_k * gas_temp_c
+	rhs[0] += applied_inner_flux_kw_m2
+	if not has_prescribed_exterior:
+		diagonal[NODE_COUNT - 1] += exterior_h_kw_m2_k
+		rhs[NODE_COUNT - 1] += exterior_h_kw_m2_k * exterior_temp_c
+	rhs[NODE_COUNT - 1] -= applied_outer_sink_kw_m2
 
 	var nodes_post: Array = _solve_tridiagonal(lower, diagonal, upper, rhs)
 	if nodes_post.is_empty():
@@ -163,18 +188,23 @@ static func step_surface(pre_state: Dictionary, boundary: Dictionary) -> Diction
 	var stored_energy_delta_kj: float = (
 		post_stored_energy_kj - pre_stored_energy_kj
 	)
-	var interior_convection_energy_kj: float = (
-		interior_h_kw_m2_k
-		* area_m2
-		* (gas_temp_c - float(nodes_post[0]))
-		* dt_s
-	)
-	var exterior_energy_removed_kj: float = (
-		exterior_h_kw_m2_k
-		* area_m2
-		* (float(nodes_post[NODE_COUNT - 1]) - exterior_temp_c)
-		* dt_s
-	)
+	var interior_convection_energy_kj: float = prescribed_convection_energy_kj
+	if not has_prescribed_convection:
+		interior_convection_energy_kj = (
+			interior_h_kw_m2_k
+			* area_m2
+			* (gas_temp_c - float(nodes_post[0]))
+			* dt_s
+		)
+	var exterior_energy_removed_kj: float = \
+			prescribed_exterior_energy_removed_kj
+	if not has_prescribed_exterior:
+		exterior_energy_removed_kj = (
+			exterior_h_kw_m2_k
+			* area_m2
+			* (float(nodes_post[NODE_COUNT - 1]) - exterior_temp_c)
+			* dt_s
+		)
 	var energy_residual_kj: float = (
 		stored_energy_delta_kj
 		- interior_convection_energy_kj
@@ -227,6 +257,8 @@ static func _control_widths_m(thickness_m: float, fractions: Array) -> Array:
 
 
 static func _validate_state(state: Dictionary) -> String:
+	if not state.has("area_m2"):
+		return "missing state field: area_m2"
 	var area_m2: float = float(state["area_m2"])
 	if not is_finite(area_m2) or area_m2 < 0.0:
 		return "invalid non-negative state field: area_m2"
@@ -241,7 +273,6 @@ static func _validate_state(state: Dictionary) -> String:
 		if not state.has(field_name):
 			return "missing state field: " + field_name
 	for field_name in [
-		"area_m2",
 		"thickness_m",
 		"conductivity_kw_m_k",
 		"density_kg_m3",
@@ -290,12 +321,20 @@ static func _validate_boundary(boundary: Dictionary) -> String:
 		"exterior_h_kw_m2_k",
 		"gas_radiation_energy_kj",
 		"fire_radiation_energy_kj",
+		"interior_convection_energy_kj",
+		"exterior_energy_removed_kj",
 	]:
 		if boundary.has(field_name) and not is_finite(float(boundary[field_name])):
 			return "non-finite boundary field: " + field_name
 	for field_name in ["interior_h_kw_m2_k", "exterior_h_kw_m2_k"]:
 		if float(boundary.get(field_name, 0.0)) < 0.0:
 			return "negative transfer coefficient: " + field_name
+	if boundary.has("interior_convection_energy_kj") \
+			and absf(float(boundary.get("interior_h_kw_m2_k", 0.0))) > EPSILON:
+		return "prescribed convection conflicts with interior coefficient"
+	if boundary.has("exterior_energy_removed_kj") \
+			and absf(float(boundary.get("exterior_h_kw_m2_k", 0.0))) > EPSILON:
+		return "prescribed exterior energy conflicts with exterior coefficient"
 	if float(boundary.get("fire_radiation_energy_kj", 0.0)) < 0.0:
 		return "fire_radiation_energy_kj cannot be negative"
 	return ""

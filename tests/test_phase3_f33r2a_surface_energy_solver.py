@@ -54,6 +54,16 @@ def test_energy_ledger_keeps_fire_and_gas_radiation_separate():
     assert '"fire_radiation_energy_kj": fire_radiation_energy_kj' in body
 
 
+def test_solver_accepts_prescribed_boundary_energies_without_recalculation():
+    body = _function(SOLVER, "step_surface")
+    assert '"interior_convection_energy_kj"' in body
+    assert '"exterior_energy_removed_kj"' in body
+    assert "if not has_prescribed_convection:" in body
+    assert "if not has_prescribed_exterior:" in body
+    assert "prescribed convection conflicts with interior coefficient" in SOLVER
+    assert "prescribed exterior energy conflicts with exterior coefficient" in SOLVER
+
+
 def test_energy_residual_includes_storage_convection_radiation_and_exterior():
     body = _function(SOLVER, "step_surface")
     for term in (
@@ -85,6 +95,9 @@ def test_fixture_covers_all_f33r2a_stop_gates():
     for test_name in (
         "_test_constant_ambient_is_noop",
         "_test_radiation_only_closes_energy",
+        "_test_prescribed_boundary_energies_close_exactly",
+        "_test_prescribed_boundary_conflicts_fail_closed",
+        "_test_zero_area_surface_is_inert",
         "_test_early_convection_matches_semi_infinite_reference",
         "_test_long_run_conserves_energy",
         "_test_input_state_is_immutable",
