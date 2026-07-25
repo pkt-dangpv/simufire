@@ -96,10 +96,15 @@ def test_fixture_covers_all_f33r2a_stop_gates():
     assert "PHASE3_F33R2A_SURFACE_ENERGY_SOLVER_PASS" in FIXTURE
 
 
-def test_solver_is_not_wired_into_runtime_yet():
-    for path in (
-        ROOT / "sim/core/SimulationEngine.gd",
-        ROOT / "sim/core/Phase3ZoneMassSystem.gd",
-        ROOT / "sim/building/RoomModel.gd",
-    ):
-        assert "Phase3SurfaceEnergySolver" not in path.read_text(encoding="utf-8")
+def test_solver_runtime_wiring_is_only_the_opt_in_f33r2b_owner():
+    engine = (ROOT / "sim/core/SimulationEngine.gd").read_text(encoding="utf-8")
+    system = (ROOT / "sim/core/Phase3ZoneMassSystem.gd").read_text(encoding="utf-8")
+    room_model = (ROOT / "sim/building/RoomModel.gd").read_text(encoding="utf-8")
+    assert "Phase3SurfaceEnergySolver" not in engine
+    assert "Phase3SurfaceEnergySolver" not in room_model
+    assert system.count("Phase3SurfaceEnergySolver.gd") == 1
+    assert (
+        "@export var phase3_canonical_multisurface_shadow_enabled: bool = false"
+        in engine
+    )
+    assert "commit_canonical_multisurface_combustion_radiation" in system

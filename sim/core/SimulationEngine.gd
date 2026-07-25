@@ -998,6 +998,8 @@ var _step_time_us: int = 0
 @export var phase3_canonical_interzone_heat_shadow_enabled: bool = false
 ## F3.2b5b: pared/ambiente desde estado canonico y reservorio separado. Default OFF.
 @export var phase3_canonical_wall_ambient_shadow_enabled: bool = false
+## F3.3r2b: superficies canonicas independientes. Default OFF y excluye pared lumped.
+@export var phase3_canonical_multisurface_shadow_enabled: bool = false
 ## F3.2b6: counterflow exterior compensado desde estado canonico. Default OFF.
 @export var phase3_canonical_exterior_counterflow_shadow_enabled: bool = false
 ## F3.2b7: combustion usa lower O2 durante counterflow exterior real. Default OFF.
@@ -1315,6 +1317,9 @@ func _sync_auxiliary_services() -> void:
 	phase3_zone_mass_system.configure_connection_residence_diagnostics(
 		phase3_connection_residence_diagnostics_active
 	)
+	phase3_zone_mass_system.configure_canonical_multisurface_shadow(
+		_phase3_canonical_multisurface_active()
+	)
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
 	log_writer.configure_phase3_zone_diagnostics(phase3_zone_diagnostics_enabled)
@@ -1350,7 +1355,8 @@ func _sync_auxiliary_services() -> void:
 				and phase3_canonical_persistence_shadow_enabled \
 				and phase3_canonical_plume_shadow_enabled \
 				and phase3_canonical_interzone_heat_shadow_enabled \
-				and phase3_canonical_wall_ambient_shadow_enabled
+				and phase3_canonical_wall_ambient_shadow_enabled \
+				and not phase3_canonical_multisurface_shadow_enabled
 	)
 	log_writer.configure_phase3_canonical_exterior_counterflow_shadow(
 		phase3_canonical_zone_shadow_enabled \
@@ -1492,7 +1498,13 @@ func _phase3_shadow_collect_thermal_requests(dt: float) -> void:
 			_phase3_shadow_queue_canonical_interzone_heat(room_id, flux, dt)
 			canonical_interzone_rooms[str(room_id)] = true
 			continue
+		if _phase3_canonical_multisurface_active() \
+				and cause in canonical_wall_causes:
+			# F3.3r2b owns the future physical surface path. Never enqueue the
+			# lumped wall/ambient requests in parallel.
+			continue
 		if phase3_canonical_wall_ambient_shadow_enabled \
+				and not _phase3_canonical_multisurface_active() \
 				and cause in canonical_wall_causes:
 			var legacy_by_cause: Dictionary = canonical_wall_legacy_by_room.get(
 				str(room_id), {}
@@ -1514,7 +1526,9 @@ func _phase3_shadow_collect_thermal_requests(dt: float) -> void:
 			var room_id: int = int(raw_room_id)
 			if not canonical_interzone_rooms.has(str(room_id)):
 				_phase3_shadow_queue_canonical_interzone_heat(room_id, {}, dt)
-	if phase3_canonical_wall_ambient_shadow_enabled and building != null:
+	if phase3_canonical_wall_ambient_shadow_enabled \
+			and not _phase3_canonical_multisurface_active() \
+			and building != null:
 		for raw_room_id in building.get_rooms().keys():
 			var wall_room_id: int = int(raw_room_id)
 			_phase3_shadow_queue_canonical_wall_ambient(
@@ -1550,6 +1564,13 @@ func _phase3_shadow_collect_thermal_requests(dt: float) -> void:
 			plume_flux,
 			"%.6f" % sim_time_s
 		)
+
+
+func _phase3_canonical_multisurface_active() -> bool:
+	return phase3_canonical_zone_shadow_enabled \
+			and phase3_canonical_persistence_shadow_enabled \
+			and phase3_canonical_combustion_shadow_enabled \
+			and phase3_canonical_multisurface_shadow_enabled
 
 
 func _phase3_shadow_queue_canonical_interzone_heat(
@@ -1835,9 +1856,35 @@ func _phase3_shadow_collect_species_requests(dt: float) -> void:
 						species_by_room.get(str(room_id), {})
 					)
 			if not transaction.is_empty():
-				phase3_zone_mass_system.stage_canonical_combustion_transaction(
-					transaction
-				)
+				var staged: bool = \
+						phase3_zone_mass_system.stage_canonical_combustion_transaction(
+							transaction
+						)
+				if staged and _phase3_canonical_multisurface_active():
+					var ambient_c: float = thermal_system.ambient_temp_c()
+					var thermo: Dictionary = \
+							phase3_zone_mass_system.get_canonical_thermodynamic_input(
+								room, ambient_c
+							)
+					phase3_zone_mass_system.prepare_canonical_multisurface_room(
+						room_id,
+						{
+							"floor_area_m2": room.floor_area_m2(),
+							"perimeter_m": 2.0 * (room.width_m + room.length_m),
+							"height_m": room.height_m,
+							"interface_m": float(
+								thermo.get("interface_m", room.height_m)
+							),
+						},
+						{
+							"conductivity_kw_m_k": room.wall_k_kw_m_k,
+							"density_kg_m3": room.wall_rho_kg_m3,
+							"cp_kj_kg_k": room.wall_cp_kj_kg_k,
+							"thickness_m": room.wall_thickness_m,
+							"emissivity": upper_radiative_loss_emissivity,
+						},
+						ambient_c
+					)
 		return
 	for result in species_results:
 		var room_id: int = int(result.get("room_id", -1))
@@ -2003,6 +2050,8 @@ func _build_state_context() -> Dictionary:
 				phase3_canonical_interzone_heat_shadow_enabled,
 		"phase3_canonical_wall_ambient_shadow_enabled": \
 				phase3_canonical_wall_ambient_shadow_enabled,
+		"phase3_canonical_multisurface_shadow_enabled": \
+				phase3_canonical_multisurface_shadow_enabled,
 		"phase3_canonical_exterior_counterflow_shadow_enabled": \
 				phase3_canonical_exterior_counterflow_shadow_enabled,
 		"phase3_canonical_post_opening_coupling_shadow_enabled": \
@@ -2582,6 +2631,10 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"window_open_max": _window_open_max_for_room(room_id),
 		"outside_open_factor": local_outside_open_factor,
 		"outside_open_path_factor": outside_open_path_factor,
+		"phase3_canonical_multisurface_shadow_enabled": \
+				_phase3_canonical_multisurface_active(),
+		"hrr_chi_rad_normal": hrr_chi_rad_normal,
+		"hrr_chi_rad_low_o2": hrr_chi_rad_low_o2,
 		"fire_o2_independent": fire_o2_independent,
 		"fire_o2_mode": fire_o2_mode,
 		"fire_o2_upper_for_flame": fire_o2_upper_for_flame,

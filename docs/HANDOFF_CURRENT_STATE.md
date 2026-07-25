@@ -12,11 +12,37 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-25 - F3.3r2b transaction GO
+
+- Added default-OFF persistent ceiling, upper-wall, lower-wall and floor
+  states to `Phase3ZoneMassSystem`.
+- Interface movement now migrates the donor nodal profile by area and
+  conserves total surface energy in both directions.
+- Canonical combustion stages radiation metadata, but surfaces are mutated
+  only after the existing atomic bundle fraction is resolved.
+- The exact radiative partition is finalized as accepted total fire energy
+  minus the Thermal-owned accepted convective route.
+- Full, 0.5-partial and rejected bundles store 30, 15 and 0 kJ respectively
+  in the direct Godot fixture.
+- Duplicate deposits and simultaneous lumped-wall transactions fail closed.
+- Godot 4.7.1: four related fixtures and full project parse PASS.
+- Focused Python: 48/48 PASS.
+- Physics remains 9 PASS / 15 CTRL / 5 WARN / 0 FAIL; ILV remains
+  15 PASS / 14 CTRL / 0 FAIL; gap inventory remains synchronized.
+- R2-1 is the only expected pre-commit guardrail failure because `sim/core`
+  is dirty.
+- No CLI, official case, CSV schema, report, expected, tolerance, gap, FED
+  or HVAC path changed.
+- Next: F3.3r2b1 atomic gas/surface/exterior exchange. Do not run F3.3r2c
+  60/120/180 s correspondence before that invariant closes.
+- Binding record:
+  `docs/validation/PHASE3_F33R2B_MULTISURFACE_TRANSACTION.md`.
+
 ## Current Session Update - 2026-07-25 - F3.3r2a numerical GO
 
-- Added pure `Phase3SurfaceEnergySolver.gd`; it has no runtime caller and no
-  dependency on `RoomModel`, `SimulationEngine` or canonical persistent
-  state.
+- Added pure `Phase3SurfaceEnergySolver.gd`; at the F3.3r2a checkpoint it had
+  no runtime caller and no dependency on `RoomModel`, `SimulationEngine` or
+  canonical persistent state. F3.3r2b now owns its only opt-in caller.
 - The solver uses five implicit finite-volume nodes and returns a proposed
   state plus explicit energy residual without mutating its input.
 - The default near-surface grid matches the 60 s semi-infinite concrete

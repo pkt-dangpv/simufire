@@ -2,8 +2,8 @@
 
 Date: 2026-07-25
 
-Status: GO for the isolated numerical component. Runtime wiring and thermal
-authority remain NO-GO.
+Status: GO for the isolated numerical component. F3.3r2b now provides its
+only default-OFF runtime caller. Thermal authority remains NO-GO.
 
 ## Scope
 
@@ -13,9 +13,11 @@ F3.3r2a adds:
 - `tests/fixtures/phase3_f33r2a_surface_energy_solver.gd`;
 - `tests/test_phase3_f33r2a_surface_energy_solver.py`.
 
-The solver is not referenced by `SimulationEngine`, `RoomModel` or
-`Phase3ZoneMassSystem`. It does not change the simulation tick, CSV schema,
-official cases, reports, expected values, tolerances or active gaps.
+At this checkpoint the solver was not referenced by `SimulationEngine`,
+`RoomModel` or `Phase3ZoneMassSystem`. F3.3r2b later added one opt-in caller
+inside `Phase3ZoneMassSystem`; the solver itself remains pure. It does not
+change the legacy CSV schema, official cases, reports, expected values,
+tolerances or active gaps.
 
 ## Numerical contract
 

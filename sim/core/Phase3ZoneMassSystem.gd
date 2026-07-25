@@ -3,6 +3,9 @@ class_name Phase3ZoneMassSystem
 
 # F3.0: transaccion two-zone en sombra. Este componente nunca escribe RoomModel.
 
+const Phase3SurfaceEnergySolverScript = preload(
+	"res://sim/core/Phase3SurfaceEnergySolver.gd"
+)
 const ZONE_UPPER: String = "upper"
 const ZONE_LOWER: String = "lower"
 const EXTERIOR_ID: int = -1
@@ -150,6 +153,11 @@ var _canonical_interzone_heat_cumulative_kj: Dictionary = {}
 var _canonical_wall_state_by_room: Dictionary = {}
 var _canonical_wall_ambient_by_room: Dictionary = {}
 var _canonical_wall_ambient_cumulative_by_room: Dictionary = {}
+var canonical_multisurface_shadow_enabled: bool = false
+var _canonical_surface_state_by_room: Dictionary = {}
+var _canonical_multisurface_by_room: Dictionary = {}
+var _canonical_multisurface_radiation_committed_by_room: Dictionary = {}
+var _canonical_multisurface_duplicate_commit_count: int = 0
 var enthalpy_residence_diagnostics_enabled: bool = false
 var _enthalpy_residence_initial_by_room: Dictionary = {}
 var _enthalpy_residence_cumulative_by_room: Dictionary = {}
@@ -180,6 +188,15 @@ func configure_connection_residence_diagnostics(is_enabled: bool) -> void:
 		_connection_residence_cumulative.clear()
 
 
+func configure_canonical_multisurface_shadow(is_enabled: bool) -> void:
+	canonical_multisurface_shadow_enabled = is_enabled
+	if not is_enabled:
+		_canonical_surface_state_by_room.clear()
+		_canonical_multisurface_by_room.clear()
+		_canonical_multisurface_radiation_committed_by_room.clear()
+		_canonical_multisurface_duplicate_commit_count = 0
+
+
 func reset() -> void:
 	_reset_step_state()
 	_persistent_zone_state.clear()
@@ -190,6 +207,10 @@ func reset() -> void:
 	_canonical_exterior_counterflow_cumulative_kg.clear()
 	_canonical_wall_state_by_room.clear()
 	_canonical_wall_ambient_cumulative_by_room.clear()
+	_canonical_surface_state_by_room.clear()
+	_canonical_multisurface_by_room.clear()
+	_canonical_multisurface_radiation_committed_by_room.clear()
+	_canonical_multisurface_duplicate_commit_count = 0
 	_enthalpy_residence_initial_by_room.clear()
 	_enthalpy_residence_cumulative_by_room.clear()
 	_mass_residence_initial_by_room.clear()
@@ -294,6 +315,9 @@ func _reset_step_state() -> void:
 	_canonical_combustion_by_room.clear()
 	_canonical_interzone_heat_by_room.clear()
 	_canonical_wall_ambient_by_room.clear()
+	_canonical_multisurface_by_room.clear()
+	_canonical_multisurface_radiation_committed_by_room.clear()
+	_canonical_multisurface_duplicate_commit_count = 0
 
 
 func begin_step(building, persistence_enabled: bool = false) -> void:
@@ -307,6 +331,7 @@ func begin_step(building, persistence_enabled: bool = false) -> void:
 		_canonical_exterior_counterflow_cumulative_kg.clear()
 		_canonical_wall_state_by_room.clear()
 		_canonical_wall_ambient_cumulative_by_room.clear()
+		_canonical_surface_state_by_room.clear()
 		_enthalpy_residence_initial_by_room.clear()
 		_enthalpy_residence_cumulative_by_room.clear()
 		_mass_residence_initial_by_room.clear()
@@ -542,6 +567,349 @@ func get_canonical_wall_ambient_input(
 	return state
 
 
+## F3.3r2b: seeds or migrates four independent surface snapshots. The method
+## is inert while the experimental flag is disabled and never reads RoomModel.
+func prepare_canonical_multisurface_room(
+		room_id: int,
+		geometry: Dictionary,
+		material: Dictionary,
+		reference_temp_c: float
+	) -> Dictionary:
+	if not canonical_multisurface_shadow_enabled or room_id == EXTERIOR_ID:
+		return {"valid": false, "error": "multisurface shadow disabled"}
+	var geometry_error: String = _validate_multisurface_geometry(geometry)
+	if not geometry_error.is_empty():
+		return {"valid": false, "error": geometry_error}
+	var material_error: String = _validate_multisurface_material(material)
+	if not material_error.is_empty():
+		return {"valid": false, "error": material_error}
+	if not is_finite(reference_temp_c):
+		return {"valid": false, "error": "invalid reference temperature"}
+
+	var room_key: String = str(room_id)
+	var floor_area_m2: float = float(geometry["floor_area_m2"])
+	var perimeter_m: float = float(geometry["perimeter_m"])
+	var height_m: float = float(geometry["height_m"])
+	var interface_m: float = clampf(
+		float(geometry["interface_m"]), 0.0, height_m
+	)
+	var areas: Dictionary = {
+		"ceiling": floor_area_m2,
+		"upper_wall": perimeter_m * (height_m - interface_m),
+		"lower_wall": perimeter_m * interface_m,
+		"floor": floor_area_m2,
+	}
+	var migration_residual_kj: float = 0.0
+	var migrated_energy_kj: float = 0.0
+	var seeded: bool = false
+	var state: Dictionary = {}
+
+	if not _canonical_surface_state_by_room.has(room_key):
+		seeded = true
+		var surfaces: Dictionary = {}
+		for surface_name in ["ceiling", "upper_wall", "lower_wall", "floor"]:
+			surfaces[surface_name] = _make_canonical_surface_state(
+				float(areas[surface_name]), material, reference_temp_c
+			)
+		state = {
+			"reference_temp_c": reference_temp_c,
+			"interface_m": interface_m,
+			"height_m": height_m,
+			"floor_area_m2": floor_area_m2,
+			"perimeter_m": perimeter_m,
+			"material": material.duplicate(true),
+			"surfaces": surfaces,
+			"step_index": _persistent_step_index,
+		}
+	else:
+		state = _canonical_surface_state_by_room[room_key].duplicate(true)
+		if not _multisurface_material_matches(
+				state.get("material", {}), material
+		):
+			return {"valid": false, "error": "surface material changed"}
+		if absf(float(state.get("floor_area_m2", 0.0)) - floor_area_m2) > 1.0e-9 \
+				or absf(float(state.get("perimeter_m", 0.0)) - perimeter_m) > 1.0e-9 \
+				or absf(float(state.get("height_m", 0.0)) - height_m) > 1.0e-9:
+			return {"valid": false, "error": "room enclosure geometry changed"}
+		var energy_pre_kj: float = _canonical_multisurface_total_energy(state)
+		var surfaces: Dictionary = state.get("surfaces", {}).duplicate(true)
+		var upper: Dictionary = surfaces.get("upper_wall", {}).duplicate(true)
+		var lower: Dictionary = surfaces.get("lower_wall", {}).duplicate(true)
+		var old_upper_area_m2: float = float(upper.get("area_m2", 0.0))
+		var old_lower_area_m2: float = float(lower.get("area_m2", 0.0))
+		var new_upper_area_m2: float = float(areas["upper_wall"])
+		var new_lower_area_m2: float = float(areas["lower_wall"])
+		if new_upper_area_m2 > old_upper_area_m2 + 1.0e-12:
+			var moved_area_m2: float = new_upper_area_m2 - old_upper_area_m2
+			upper = _mix_surface_area_profiles(
+				upper, old_upper_area_m2, lower, moved_area_m2, new_upper_area_m2
+			)
+			lower["area_m2"] = new_lower_area_m2
+			migrated_energy_kj = absf(
+				_surface_energy_for_area(lower, moved_area_m2)
+			)
+		elif new_lower_area_m2 > old_lower_area_m2 + 1.0e-12:
+			var moved_area_m2: float = new_lower_area_m2 - old_lower_area_m2
+			lower = _mix_surface_area_profiles(
+				lower, old_lower_area_m2, upper, moved_area_m2, new_lower_area_m2
+			)
+			upper["area_m2"] = new_upper_area_m2
+			migrated_energy_kj = absf(
+				_surface_energy_for_area(upper, moved_area_m2)
+			)
+		else:
+			upper["area_m2"] = new_upper_area_m2
+			lower["area_m2"] = new_lower_area_m2
+		surfaces["upper_wall"] = upper
+		surfaces["lower_wall"] = lower
+		state["surfaces"] = surfaces
+		state["interface_m"] = interface_m
+		state["step_index"] = _persistent_step_index
+		var energy_post_kj: float = _canonical_multisurface_total_energy(state)
+		migration_residual_kj = energy_post_kj - energy_pre_kj
+
+	_canonical_surface_state_by_room[room_key] = state.duplicate(true)
+	var record: Dictionary = {
+		"valid": true,
+		"error": "",
+		"seeded_flag": 1.0 if seeded else 0.0,
+		"interface_m": interface_m,
+		"migration_energy_kj": migrated_energy_kj,
+		"migration_residual_kj": migration_residual_kj,
+		"radiation_requested_kj": 0.0,
+		"radiation_accepted_kj": 0.0,
+		"radiation_routed_kj": 0.0,
+		"radiation_residual_kj": 0.0,
+		"surface_energy_pre_kj": _canonical_multisurface_total_energy(state),
+		"surface_energy_post_kj": _canonical_multisurface_total_energy(state),
+	}
+	_canonical_multisurface_by_room[room_key] = record
+	return record.duplicate(true)
+
+
+func get_canonical_multisurface_state(room_id: int) -> Dictionary:
+	return _canonical_surface_state_by_room.get(str(room_id), {}).duplicate(true)
+
+
+func get_canonical_multisurface_record(room_id: int) -> Dictionary:
+	return _canonical_multisurface_by_room.get(str(room_id), {}).duplicate(true)
+
+
+func commit_canonical_multisurface_combustion_radiation(room_id: int) -> bool:
+	if not canonical_multisurface_shadow_enabled:
+		return false
+	var room_key: String = str(room_id)
+	if _canonical_multisurface_radiation_committed_by_room.has(room_key):
+		_canonical_multisurface_duplicate_commit_count += 1
+		var duplicate_record: Dictionary = _canonical_multisurface_by_room.get(
+			room_key, {}
+		).duplicate(true)
+		duplicate_record["duplicate_commit_count"] = \
+				float(_canonical_multisurface_duplicate_commit_count)
+		_canonical_multisurface_by_room[room_key] = duplicate_record
+		return false
+	if not _canonical_combustion_by_room.has(room_key) \
+			or not _canonical_surface_state_by_room.has(room_key):
+		return false
+	var combustion: Dictionary = _canonical_combustion_by_room[room_key].duplicate(true)
+	var atomic_fraction: float = clampf(
+		float(combustion.get("atomic_accepted_fraction", 1.0)), 0.0, 1.0
+	)
+	var requested_radiation_kj: float = maxf(
+		0.0, float(combustion.get("requested_radiative_energy_kj", 0.0))
+	)
+	var accepted_radiation_kj: float = maxf(
+		0.0, float(combustion.get("accepted_radiative_energy_kj", 0.0))
+	) * atomic_fraction
+	var state_pre: Dictionary = _canonical_surface_state_by_room[
+		room_key
+	].duplicate(true)
+	var state_post: Dictionary = state_pre.duplicate(true)
+	var surface_energy_pre_kj: float = _canonical_multisurface_total_energy(state_pre)
+	var routed_radiation_kj: float = 0.0
+	var solver_residual_kj: float = 0.0
+	var dt_s: float = maxf(0.000000001, float(combustion.get("dt_s", 0.0)))
+
+	if accepted_radiation_kj > THERMO_ENERGY_EPS_KJ:
+		var surfaces: Dictionary = state_pre.get("surfaces", {})
+		var weighted_area: float = 0.0
+		for surface_name in ["ceiling", "upper_wall", "lower_wall", "floor"]:
+			var surface: Dictionary = surfaces.get(surface_name, {})
+			weighted_area += maxf(0.0, float(surface.get("area_m2", 0.0))) \
+					* maxf(0.0, float(surface.get("emissivity", 0.0)))
+		if weighted_area <= THERMO_ENERGY_EPS_KJ:
+			return false
+		var candidate_surfaces: Dictionary = surfaces.duplicate(true)
+		for surface_name in ["ceiling", "upper_wall", "lower_wall", "floor"]:
+			var surface: Dictionary = surfaces.get(surface_name, {}).duplicate(true)
+			var share: float = (
+				maxf(0.0, float(surface.get("area_m2", 0.0)))
+				* maxf(0.0, float(surface.get("emissivity", 0.0)))
+				/ weighted_area
+			)
+			var surface_radiation_kj: float = accepted_radiation_kj * share
+			var solved: Dictionary = Phase3SurfaceEnergySolverScript.step_surface(
+				surface,
+				{
+					"dt_s": dt_s,
+					"interior_h_kw_m2_k": 0.0,
+					"exterior_h_kw_m2_k": 0.0,
+					"fire_radiation_energy_kj": surface_radiation_kj,
+				}
+			)
+			if not bool(solved.get("valid", false)):
+				return false
+			candidate_surfaces[surface_name] = solved["post_state"]
+			routed_radiation_kj += surface_radiation_kj
+			solver_residual_kj += float(solved.get("energy_residual_kj", 0.0))
+		state_post["surfaces"] = candidate_surfaces
+
+	var surface_energy_post_kj: float = _canonical_multisurface_total_energy(state_post)
+	var storage_residual_kj: float = (
+		surface_energy_post_kj - surface_energy_pre_kj - routed_radiation_kj
+	)
+	_canonical_surface_state_by_room[room_key] = state_post
+	_canonical_multisurface_radiation_committed_by_room[room_key] = true
+	combustion["atomic_accepted_radiative_energy_kj"] = accepted_radiation_kj
+	combustion["routed_surface_radiation_kj"] = routed_radiation_kj
+	combustion["radiative_route_residual_kj"] = (
+		accepted_radiation_kj - routed_radiation_kj
+	)
+	_canonical_combustion_by_room[room_key] = combustion
+	var record: Dictionary = _canonical_multisurface_by_room.get(
+		room_key, {}
+	).duplicate(true)
+	record["radiation_requested_kj"] = requested_radiation_kj
+	record["radiation_accepted_kj"] = accepted_radiation_kj
+	record["radiation_routed_kj"] = routed_radiation_kj
+	record["radiation_residual_kj"] = accepted_radiation_kj \
+			- routed_radiation_kj + solver_residual_kj + storage_residual_kj
+	record["surface_energy_pre_kj"] = surface_energy_pre_kj
+	record["surface_energy_post_kj"] = surface_energy_post_kj
+	record["duplicate_commit_count"] = \
+			float(_canonical_multisurface_duplicate_commit_count)
+	_canonical_multisurface_by_room[room_key] = record
+	return true
+
+
+func _make_canonical_surface_state(
+		area_m2: float,
+		material: Dictionary,
+		reference_temp_c: float
+	) -> Dictionary:
+	var state: Dictionary = Phase3SurfaceEnergySolverScript.make_uniform_state(
+		area_m2,
+		float(material["thickness_m"]),
+		float(material["conductivity_kw_m_k"]),
+		float(material["density_kg_m3"]),
+		float(material["cp_kj_kg_k"]),
+		reference_temp_c,
+		reference_temp_c
+	)
+	state["emissivity"] = float(material["emissivity"])
+	return state
+
+
+func _canonical_multisurface_total_energy(state: Dictionary) -> float:
+	var total_kj: float = 0.0
+	var surfaces: Dictionary = state.get("surfaces", {})
+	for surface_name in ["ceiling", "upper_wall", "lower_wall", "floor"]:
+		var surface: Dictionary = surfaces.get(surface_name, {})
+		if surface.is_empty():
+			continue
+		total_kj += Phase3SurfaceEnergySolverScript.stored_energy_kj(surface)
+	return total_kj
+
+
+func _surface_energy_for_area(surface: Dictionary, area_m2: float) -> float:
+	var surface_area_m2: float = maxf(
+		0.000000001, float(surface.get("area_m2", 0.0))
+	)
+	return Phase3SurfaceEnergySolverScript.stored_energy_kj(surface) \
+			* area_m2 / surface_area_m2
+
+
+func _mix_surface_area_profiles(
+		target: Dictionary,
+		target_area_m2: float,
+		donor: Dictionary,
+		moved_area_m2: float,
+		new_target_area_m2: float
+	) -> Dictionary:
+	var result: Dictionary = target.duplicate(true)
+	if new_target_area_m2 <= 0.0:
+		result["area_m2"] = 0.0
+		return result
+	var target_nodes: Array = target.get("nodes_c", [])
+	var donor_nodes: Array = donor.get("nodes_c", [])
+	var mixed_nodes: Array = []
+	for index: int in range(Phase3SurfaceEnergySolverScript.NODE_COUNT):
+		mixed_nodes.append(
+			(
+				float(target_nodes[index]) * target_area_m2
+				+ float(donor_nodes[index]) * moved_area_m2
+			) / new_target_area_m2
+		)
+	result["area_m2"] = new_target_area_m2
+	result["nodes_c"] = mixed_nodes
+	return result
+
+
+func _validate_multisurface_geometry(geometry: Dictionary) -> String:
+	for field_name in ["floor_area_m2", "perimeter_m", "height_m", "interface_m"]:
+		if not geometry.has(field_name):
+			return "missing geometry field: " + field_name
+		var value: float = float(geometry[field_name])
+		if not is_finite(value):
+			return "non-finite geometry field: " + field_name
+	for field_name in ["floor_area_m2", "perimeter_m", "height_m"]:
+		if float(geometry[field_name]) <= 0.0:
+			return "invalid positive geometry field: " + field_name
+	var interface_m: float = float(geometry["interface_m"])
+	if interface_m < 0.0 or interface_m > float(geometry["height_m"]):
+		return "interface_m outside room"
+	return ""
+
+
+func _validate_multisurface_material(material: Dictionary) -> String:
+	for field_name in [
+		"conductivity_kw_m_k",
+		"density_kg_m3",
+		"cp_kj_kg_k",
+		"thickness_m",
+		"emissivity",
+	]:
+		if not material.has(field_name):
+			return "missing material field: " + field_name
+		var value: float = float(material[field_name])
+		if not is_finite(value) or value <= 0.0:
+			return "invalid positive material field: " + field_name
+	if float(material["emissivity"]) > 1.0:
+		return "emissivity above one"
+	return ""
+
+
+func _multisurface_material_matches(
+		existing: Dictionary,
+		candidate: Dictionary
+	) -> bool:
+	for field_name in [
+		"conductivity_kw_m_k",
+		"density_kg_m3",
+		"cp_kj_kg_k",
+		"thickness_m",
+		"emissivity",
+	]:
+		if not existing.has(field_name) or not candidate.has(field_name):
+			return false
+		var existing_value: float = float(existing[field_name])
+		var candidate_value: float = float(candidate[field_name])
+		if not is_finite(existing_value) or not is_finite(candidate_value) \
+				or absf(existing_value - candidate_value) > 1.0e-12:
+			return false
+	return true
+
+
 ## Queues the gas-facing part as one atomic energy bundle. Wall storage and
 ## ambient accounting are committed after all routes have resolved, including
 ## the no-route wall-decay case.
@@ -551,6 +919,8 @@ func queue_canonical_wall_ambient_transfer(
 		legacy_requested: Dictionary,
 		step_token: String
 	) -> bool:
+	if canonical_multisurface_shadow_enabled:
+		return false
 	var room_key: String = str(room_id)
 	if room_id == EXTERIOR_ID or not _snapshots.has(room_key) \
 			or not bool(preview.get("valid", false)):
@@ -661,6 +1031,16 @@ func stage_canonical_combustion_transaction(transaction: Dictionary) -> bool:
 	)
 	record["requested_convective_energy_kj"] = 0.0
 	record["accepted_convective_energy_kj"] = 0.0
+	record["requested_radiative_energy_kj"] = maxf(
+		0.0, float(record.get("requested_radiative_energy_kj", 0.0))
+	)
+	record["accepted_radiative_energy_kj"] = maxf(
+		0.0, float(record.get("accepted_radiative_energy_kj", 0.0))
+	)
+	record["atomic_accepted_radiative_energy_kj"] = 0.0
+	record["routed_surface_radiation_kj"] = 0.0
+	record["radiative_route_residual_kj"] = 0.0
+	record["fire_partition_residual_kj"] = 0.0
 	record["requested_plume_mass_kg"] = 0.0
 	record["accepted_plume_mass_kg"] = 0.0
 	record["requested_plume_energy_kj"] = 0.0
@@ -746,6 +1126,34 @@ func finalize_canonical_combustion_bundle(
 		accepted_plume_o2_kg = maxf(0.0, entrained_plume_o2_kg - accepted_o2_kg)
 	record["requested_convective_energy_kj"] = requested_heat_kj
 	record["accepted_convective_energy_kj"] = accepted_heat_kj
+	var requested_total_fire_energy_kj: float = maxf(
+		0.0, float(record.get("requested_total_fire_energy_kj", 0.0))
+	)
+	var accepted_total_fire_energy_kj: float = maxf(
+		0.0, float(record.get("accepted_total_fire_energy_kj", 0.0))
+	)
+	if requested_total_fire_energy_kj > THERMO_ENERGY_EPS_KJ \
+			or accepted_total_fire_energy_kj > THERMO_ENERGY_EPS_KJ:
+		# Thermal owns the exact convective route, including its two-zone and
+		# opening modifiers. Radiation is the complementary accepted fire
+		# energy, so two independent chi_rad formulas cannot double count.
+		record["requested_radiative_energy_kj"] = maxf(
+			0.0, requested_total_fire_energy_kj - requested_heat_kj
+		)
+		record["accepted_radiative_energy_kj"] = maxf(
+			0.0, accepted_total_fire_energy_kj - accepted_heat_kj
+		)
+		record["effective_chi_rad"] = (
+			float(record["accepted_radiative_energy_kj"])
+			/ accepted_total_fire_energy_kj
+			if accepted_total_fire_energy_kj > THERMO_ENERGY_EPS_KJ
+			else 0.0
+		)
+	record["fire_partition_residual_kj"] = float(
+		record.get("accepted_total_fire_energy_kj", 0.0)
+	) - accepted_heat_kj - float(
+		record.get("accepted_radiative_energy_kj", 0.0)
+	)
 	record["requested_plume_mass_kg"] = requested_plume_mass_kg
 	record["accepted_plume_mass_kg"] = accepted_plume_mass_kg
 	record["requested_plume_energy_kj"] = requested_plume_energy_kj
@@ -822,6 +1230,12 @@ func finalize_canonical_combustion_bundle(
 	if routes.is_empty():
 		record["atomic_accepted_fraction"] = 1.0
 		record["effective_fraction"] = decision_fraction
+		record["atomic_accepted_radiative_energy_kj"] = maxf(
+			0.0, float(record.get("accepted_radiative_energy_kj", 0.0))
+		)
+		record["radiative_route_residual_kj"] = float(
+			record.get("atomic_accepted_radiative_energy_kj", 0.0)
+		)
 		record["committed_fire_state"] = record.get(
 			"fire_state_proposed", {}
 		).duplicate(true)
@@ -5440,6 +5854,7 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 					rejected_doorway_species_by_room,
 					rejected_transit_species_by_room
 				)
+	_commit_canonical_multisurface_records()
 	_commit_canonical_wall_ambient_records(reference_temp_c)
 	if building == null:
 		return
@@ -5593,6 +6008,9 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			room_key, {}
 		)
 		var canonical_wall_ambient: Dictionary = _canonical_wall_ambient_by_room.get(
+			room_key, {}
+		)
+		var canonical_multisurface: Dictionary = _canonical_multisurface_by_room.get(
 			room_key, {}
 		)
 		var canonical_combustion_atomic_fraction: float = clampf(
@@ -5749,6 +6167,23 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			),
 			"phase3_shadow_combustion_accepted_hrr_kw": float(
 				canonical_combustion.get("accepted_hrr_kw", 0.0)
+			) * canonical_combustion_atomic_fraction,
+			"phase3_shadow_combustion_requested_radiative_energy_kj": float(
+				canonical_combustion.get("requested_radiative_energy_kj", 0.0)
+			),
+			"phase3_shadow_combustion_accepted_radiative_energy_kj": float(
+				canonical_combustion.get(
+					"atomic_accepted_radiative_energy_kj", 0.0
+				)
+			),
+			"phase3_shadow_combustion_routed_surface_radiation_kj": float(
+				canonical_combustion.get("routed_surface_radiation_kj", 0.0)
+			),
+			"phase3_shadow_combustion_radiative_route_residual_kj": float(
+				canonical_combustion.get("radiative_route_residual_kj", 0.0)
+			),
+			"phase3_shadow_combustion_fire_partition_residual_kj": float(
+				canonical_combustion.get("fire_partition_residual_kj", 0.0)
 			) * canonical_combustion_atomic_fraction,
 			"phase3_shadow_combustion_decision_fraction": float(
 				canonical_combustion.get("decision_fraction", 0.0)
@@ -6223,6 +6658,26 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			),
 			"phase3_shadow_interzone_energy_residual_kj": float(
 				canonical_interzone_heat.get("energy_residual_kj", 0.0)
+			),
+			"phase3_shadow_multisurface_enabled_flag": \
+					1.0 if canonical_multisurface_shadow_enabled else 0.0,
+			"phase3_shadow_multisurface_migration_energy_kj": float(
+				canonical_multisurface.get("migration_energy_kj", 0.0)
+			),
+			"phase3_shadow_multisurface_migration_residual_kj": float(
+				canonical_multisurface.get("migration_residual_kj", 0.0)
+			),
+			"phase3_shadow_multisurface_energy_pre_kj": float(
+				canonical_multisurface.get("surface_energy_pre_kj", 0.0)
+			),
+			"phase3_shadow_multisurface_energy_post_kj": float(
+				canonical_multisurface.get("surface_energy_post_kj", 0.0)
+			),
+			"phase3_shadow_multisurface_radiation_residual_kj": float(
+				canonical_multisurface.get("radiation_residual_kj", 0.0)
+			),
+			"phase3_shadow_multisurface_duplicate_commit_count": float(
+				_canonical_multisurface_duplicate_commit_count
 			),
 			"phase3_shadow_wall_energy_pre_kj": float(
 				canonical_wall_ambient.get("wall_energy_pre_kj", 0.0)
@@ -6771,6 +7226,15 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			).duplicate(true)
 
 
+func _commit_canonical_multisurface_records() -> void:
+	if not canonical_multisurface_shadow_enabled:
+		return
+	for room_key in _canonical_combustion_by_room.keys():
+		if not _canonical_surface_state_by_room.has(room_key):
+			continue
+		commit_canonical_multisurface_combustion_radiation(int(room_key))
+
+
 func _commit_canonical_wall_ambient_records(reference_temp_c: float) -> void:
 	for room_key in _canonical_wall_ambient_by_room.keys():
 		var record: Dictionary = _canonical_wall_ambient_by_room[room_key].duplicate(true)
@@ -7131,6 +7595,14 @@ func _record_atomic_bundle_result(bundle: Dictionary, accepted_fraction: float) 
 		].duplicate(true)
 		var atomic_fraction: float = clampf(accepted_fraction, 0.0, 1.0)
 		combustion_record["atomic_accepted_fraction"] = atomic_fraction
+		combustion_record["atomic_accepted_radiative_energy_kj"] = maxf(
+			0.0, float(
+				combustion_record.get("accepted_radiative_energy_kj", 0.0)
+			)
+		) * atomic_fraction
+		combustion_record["radiative_route_residual_kj"] = float(
+			combustion_record.get("atomic_accepted_radiative_energy_kj", 0.0)
+		)
 		combustion_record["effective_fraction"] = clampf(
 			float(combustion_record.get("decision_fraction", 0.0)) * atomic_fraction,
 			0.0,

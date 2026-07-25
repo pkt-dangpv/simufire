@@ -2,8 +2,9 @@
 
 Date: 2026-07-25
 
-Status: design GO. Runtime implementation, authority and gap retirement remain
-NO-GO.
+Status: design GO. F3.3r2a and F3.3r2b are implemented behind a default-OFF
+flag. Gas/surface/exterior exchange, runtime authority and gap retirement
+remain NO-GO.
 
 ## Decision
 
@@ -21,9 +22,10 @@ surface-conduction solver and close one explicit energy invariant across
 upper gas, lower gas, surfaces and exterior removal. It will not share state
 with the legacy wall PDE.
 
-Implementation is split into three reviewed phases. F3.3r2a may implement only
-the pure solver and deterministic fixtures. Runtime wiring is forbidden until
-that phase passes its STOP gate.
+Implementation is split into reviewed phases. F3.3r2a delivered the pure
+solver and deterministic fixtures. F3.3r2b passed its STOP gate for persistent
+state, interface migration and atomic fire-radiation routing. F3.3r2b1 must
+close gas/surface/exterior exchange before F3.3r2c correspondence begins.
 
 ## Why the current contract is insufficient
 
@@ -359,10 +361,10 @@ Revert the experimental phase if any of the following occurs:
 
 ## Final recommendation
 
-Proceed only with F3.3r2a: a pure five-node surface solver plus deterministic
-fixtures. Do not connect it to the simulation tick yet.
+Proceed next with F3.3r2b1: atomic gas/surface/exterior exchange using the
+state and fire-radiation transaction now delivered by F3.3r2b. Do not enable
+an official case or begin F3.3r2c correspondence until that combined energy
+invariant closes.
 
-This is the smallest useful step because it validates the numerical and
-conservation contract independently of the already complex canonical
-transaction order. Runtime authority remains blocked by F3.3r2b/r2c and by
-the missing explicit boundary topology.
+Runtime authority remains blocked by F3.3r2b1/r2c and by the missing explicit
+boundary topology.

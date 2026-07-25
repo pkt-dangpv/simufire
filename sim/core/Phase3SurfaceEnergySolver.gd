@@ -97,6 +97,24 @@ static func step_surface(pre_state: Dictionary, boundary: Dictionary) -> Diction
 	var fire_radiation_energy_kj: float = float(
 		boundary.get("fire_radiation_energy_kj", 0.0)
 	)
+	if area_m2 <= EPSILON:
+		if absf(gas_radiation_energy_kj) > EPSILON \
+				or fire_radiation_energy_kj > EPSILON:
+			return _invalid_result("cannot deposit radiation on zero-area surface")
+		return {
+			"valid": true,
+			"error": "",
+			"post_state": pre_state.duplicate(true),
+			"pre_stored_energy_kj": 0.0,
+			"post_stored_energy_kj": 0.0,
+			"stored_energy_delta_kj": 0.0,
+			"interior_convection_energy_kj": 0.0,
+			"gas_radiation_energy_kj": 0.0,
+			"fire_radiation_energy_kj": 0.0,
+			"exterior_energy_removed_kj": 0.0,
+			"internal_conduction_residual_kj": 0.0,
+			"energy_residual_kj": 0.0,
+		}
 	var applied_radiation_kw_m2: float = (
 		(gas_radiation_energy_kj + fire_radiation_energy_kj)
 		/ (area_m2 * dt_s)
@@ -209,8 +227,10 @@ static func _control_widths_m(thickness_m: float, fractions: Array) -> Array:
 
 
 static func _validate_state(state: Dictionary) -> String:
+	var area_m2: float = float(state["area_m2"])
+	if not is_finite(area_m2) or area_m2 < 0.0:
+		return "invalid non-negative state field: area_m2"
 	for field_name in [
-		"area_m2",
 		"thickness_m",
 		"conductivity_kw_m_k",
 		"density_kg_m3",

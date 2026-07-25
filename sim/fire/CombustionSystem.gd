@@ -195,6 +195,44 @@ func evaluate_phase3_canonical_combustion_step(
 	var accepted_species: Dictionary = _scale_phase3_species(
 		requested_species, accepted_fraction
 	)
+	var multisurface_enabled: bool = bool(
+		context.get("phase3_canonical_multisurface_shadow_enabled", false)
+	)
+	var requested_total_fire_energy_kj: float = legacy_hrr_kw * dt \
+			if multisurface_enabled else 0.0
+	var accepted_total_fire_energy_kj: float = accepted_hrr_kw * dt \
+			if multisurface_enabled else 0.0
+	var effective_chi_rad: float = 0.0
+	if multisurface_enabled:
+		var normal_chi_rad: float = clampf(
+			room.chi_rad_normal if room.chi_rad_normal >= 0.0 else float(
+				context.get("hrr_chi_rad_normal", 0.35)
+			),
+			0.0,
+			1.0
+		)
+		var configured_normal_chi_rad: float = maxf(
+			0.01, float(context.get("hrr_chi_rad_normal", 0.35))
+		)
+		var low_o2_chi_rad: float = normal_chi_rad * (
+			float(context.get("hrr_chi_rad_low_o2", 0.50))
+			/ configured_normal_chi_rad
+		)
+		effective_chi_rad = clampf(
+			lerpf(
+				low_o2_chi_rad,
+				normal_chi_rad,
+				clampf(inverse_lerp(0.06, 0.12, canonical_o2_ref), 0.0, 1.0)
+			),
+			0.0,
+			1.0
+		)
+	var requested_radiative_energy_kj: float = (
+		requested_total_fire_energy_kj * effective_chi_rad
+	)
+	var accepted_radiative_energy_kj: float = (
+		requested_radiative_energy_kj * accepted_fraction
+	)
 
 	var legacy_retained_delta_MJ: float = float(room.retained_unburned_MJ) \
 			- float(pre_state.get("retained_unburned_MJ", room.retained_unburned_MJ))
@@ -251,6 +289,12 @@ func evaluate_phase3_canonical_combustion_step(
 		"accepted_fuel_MJ": accepted_fuel_MJ,
 		"requested_species_kg": requested_species,
 		"accepted_species_kg": accepted_species,
+		"dt_s": dt,
+		"effective_chi_rad": effective_chi_rad,
+		"requested_total_fire_energy_kj": requested_total_fire_energy_kj,
+		"accepted_total_fire_energy_kj": accepted_total_fire_energy_kj,
+		"requested_radiative_energy_kj": requested_radiative_energy_kj,
+		"accepted_radiative_energy_kj": accepted_radiative_energy_kj,
 		"heat_scale": accepted_fraction,
 		"plume_scale": pow(accepted_fraction, 1.0 / 3.0) if accepted_fraction > 0.0 else 0.0,
 		"post_opening_coupling_active_flag": 1.0 if post_opening_lower_source else 0.0,

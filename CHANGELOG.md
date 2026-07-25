@@ -3,6 +3,21 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3r2b multi-surface transaction (2026-07-25)
+
+- Added a default-OFF persistent ceiling, upper-wall, lower-wall and floor
+  surface state owned by the canonical zone-mass system.
+- Added energy-conserving interface-area migration, including valid zero-area
+  wall states at room boundaries.
+- Extended canonical combustion with accepted fire-radiation metadata and
+  deposited it only after the shared atomic bundle fraction is known.
+- Finalized radiation as the exact complement of the Thermal-owned
+  convective route, preventing duplicate `chi_rad` source formulas.
+- Added deterministic area-emissivity routing, atomic candidate-state commit,
+  duplicate protection and mutual exclusion with the lumped wall path.
+- Kept the flag OFF, the legacy CSV schema unchanged and every official case
+  disabled. Gas/surface/exterior exchange remains F3.3r2b1 scope.
+
 ### Phase 3+ F3.3r2a pure surface solver (2026-07-25)
 
 - Added an isolated five-node implicit finite-volume surface-energy solver
@@ -13,7 +28,8 @@ All notable changes to SimuFire should be recorded here.
   the semi-infinite analytical reference.
 - Closed a 10,000-step conservation fixture to `5.96e-8 kJ` cumulative
   residual without temperature or energy clamps.
-- Kept the component completely unwired from runtime. No official case,
+- F3.3r2a delivered the component completely unwired; F3.3r2b now references
+  it only through a new default-OFF experimental path. No official case,
   report, baseline, tolerance, gap, FED or HVAC path changed.
 
 ### Phase 3+ F3.3r2 multi-surface shadow design (2026-07-25)

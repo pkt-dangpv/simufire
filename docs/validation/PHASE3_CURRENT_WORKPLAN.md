@@ -79,6 +79,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.3r1 boundary partition: `docs/validation/PHASE3_F33R1_BOUNDARY_PARTITION_AUDIT.md`
 - F3.3r2 multi-surface shadow design: `docs/validation/PHASE3_F33R2_MULTISURFACE_SHADOW_DESIGN.md`
 - F3.3r2a pure surface solver: `docs/validation/PHASE3_F33R2A_SURFACE_SOLVER.md`
+- F3.3r2b state/radiation transaction: `docs/validation/PHASE3_F33R2B_MULTISURFACE_TRANSACTION.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -988,15 +989,34 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 - Binding record:
   `PHASE3_F33R2A_SURFACE_SOLVER.md`.
 
+## F3.3r2b multi-surface transaction decision
+
+- Added default-OFF persistent ceiling, upper-wall, lower-wall and floor
+  state without adding a CLI switch or enabling an official case.
+- Interface-area migration mixes donor and recipient nodal profiles by area
+  and conserves total surface energy in both directions.
+- Accepted fire radiation uses the existing combustion atomic fraction and
+  is committed to all candidate surfaces exactly once.
+- The final radiative source is the exact complement of the Thermal-owned
+  accepted convective route, so fire-energy partition closes even when
+  existing two-zone/opening modifiers are active.
+- Full, partial and rejected direct transactions route 30, 15 and 0 kJ.
+- The new owner and F3.2b5b lumped wall owner are mutually exclusive.
+- Decision: state/radiation transaction GO. Thermal authority and official
+  case activation remain NO-GO.
+- Gas/surface convection, gas radiation and exterior surface loss remain
+  F3.3r2b1 scope; F3.3r2c correspondence is not authorized yet.
+- Binding record:
+  `PHASE3_F33R2B_MULTISURFACE_TRANSACTION.md`.
+
 ## Next prompt target
 
-Implement F3.3r2b state/transaction wiring under a new default-OFF
-`phase3_canonical_multisurface_shadow_enabled` flag. Add persistent
-ceiling/upper-wall/lower-wall/floor snapshots to `Phase3ZoneMassSystem`,
-energy-conserving wall-area migration and accepted combustion-radiation
-metadata that shares the existing atomic combustion acceptance fraction.
-Make the new path mutually exclusive with the lumped canonical wall/ambient
-path. Add direct fixtures for OFF invariance, radiation acceptance,
-migration, rejection, duplicate commit and energy closure. Do not enable an
-official case, run 60/120/180 s correspondence, alter reports,
-expected/tolerances or gaps. HVAC remains deferred.
+Implement F3.3r2b1 atomic gas/surface/exterior exchange under the existing
+default-OFF multi-surface flag. Start from canonical pre-step gas and surface
+snapshots; preview upper/lower convection and gas radiation, debit canonical
+gas energy and credit surfaces under one atomic fraction, and route exterior
+Robin loss only through explicit boundary metadata. Prove the combined
+gas/surface/exterior invariant and rejection/partial-acceptance behavior with
+direct fixtures. Do not add per-case coefficients, enable an official case,
+run F3.3r2c correspondence, alter reports, expected/tolerances or gaps. HVAC
+remains deferred.
