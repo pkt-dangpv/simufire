@@ -81,6 +81,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.3r2a pure surface solver: `docs/validation/PHASE3_F33R2A_SURFACE_SOLVER.md`
 - F3.3r2b state/radiation transaction: `docs/validation/PHASE3_F33R2B_MULTISURFACE_TRANSACTION.md`
 - F3.3r2b1 gas/surface exchange: `docs/validation/PHASE3_F33R2B1_GAS_SURFACE_EXCHANGE.md`
+- F3.3v canonical fire proposal design: `docs/validation/PHASE3_F33V_CANONICAL_FIRE_PROPOSAL_DESIGN.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -1070,9 +1071,19 @@ At 590 s the canonical decision accepts 100% of a 137 kW proposal that legacy
 already throttled, while CFAST remains at 300 kW. The plume is no longer the
 late primary owner.
 
-Next phase only F3.3v design: define a canonical fire proposal before legacy
-O2 throttling while preserving the single atomic fuel/O2/species/energy
-transaction. Do not change the F3.3t plume, force HRR, tune a corridor
-coefficient, alter official reports or touch HVAC. Binding records:
-`PHASE3_F33T_COUPLED_PLUME_EXPERIMENT.md` and
-`PHASE3_F33U_EXTENDED_STABILITY.md`.
+F3.3v design is complete. The selected contract separates:
+
+1. a pure O2-unconstrained proposal from persistent canonical fire state;
+2. hard extinction plus exact O2-inventory, Kawagoe-ventilation and fuel
+   acceptance;
+3. one atomic fuel/O2/species/energy/plume commit.
+
+The first implementation is F3.3v1, default OFF and shadow-only. It supports
+only the simple t-squared fire contract used by Groups A/C and must report an
+explicit unsupported reason for advanced fire modes. It must not read
+post-throttle legacy HRR, target, fire clock or species. Do not change the
+F3.3t plume, force HRR, tune a corridor coefficient, alter official reports
+or touch HVAC. Binding records:
+`PHASE3_F33T_COUPLED_PLUME_EXPERIMENT.md`,
+`PHASE3_F33U_EXTENDED_STABILITY.md` and
+`PHASE3_F33V_CANONICAL_FIRE_PROPOSAL_DESIGN.md`.

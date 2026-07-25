@@ -12,6 +12,29 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-25 - F3.3v proposal design complete
+
+- Mapped the complete legacy combustion order. O2 already changes fire age,
+  pyrolysis, flame/smolder/pool targets, retained fuel, smoothed HRR, fuel
+  consumption and species before the canonical evaluator reads the room.
+- The current persistent state and atomic bundle are reusable, but their
+  proposal source is not: it reads post-throttle `room.hrr_kw`,
+  `room.hrr_target_kw`, fire-clock deltas and legacy species.
+- Selected a pure, pre-legacy canonical proposal from persistent state and
+  immutable fire parameters. Hard extinction, exact O2 inventory, Kawagoe
+  ventilation and fuel then limit one atomic fuel/O2/species/energy/plume
+  transaction.
+- The linear canonical O2 quality factor remains telemetry/yield context in
+  the first experiment; it will not silently multiply the proposal in
+  addition to the exact inventory and extinction gates.
+- Initial scope is deliberately limited to the simple t-squared fires used by
+  Groups A/C. Advanced fuel objects, latent fire, pool release, backdraft,
+  suppression, flashover and spread must report unsupported until separately
+  modeled.
+- No motor code or validation artifact changed. Next implementation gate is
+  F3.3v1, default OFF and shadow-only. Binding record:
+  `docs/validation/PHASE3_F33V_CANONICAL_FIRE_PROPOSAL_DESIGN.md`.
+
 ## Current Session Update - 2026-07-25 - F3.3u stability GO / authority NO-GO
 
 - Extended the unchanged F3.3t candidate through independent deterministic

@@ -3,6 +3,20 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v canonical fire proposal design (2026-07-25)
+
+- Mapped the combustion tick and confirmed that legacy O2 changes the fire
+  clock, pyrolysis, targets, retained fuel, smoothed HRR, fuel and species
+  before the canonical transaction is evaluated.
+- Selected a two-stage canonical contract: an O2-unconstrained proposal from
+  persistent fire state, followed by explicit extinction, O2 inventory,
+  ventilation and fuel limits in one atomic transaction.
+- Rejected inverse-throttle reconstruction, forced 300 kW HRR and silent
+  legacy fallback for unsupported fire modes.
+- Defined F3.3v1-v4 implementation phases, state/telemetry, fixtures, STOP
+  gates and rollback criteria. No motor physics, report, baseline, tolerance,
+  CTRL, VALID_GAP, FED, HVAC or visual path changed.
+
 ### Phase 3+ F3.3u extended plume stability (2026-07-25)
 
 - Extended the unchanged F3.3t OFF/ON candidate to deterministic 300 and

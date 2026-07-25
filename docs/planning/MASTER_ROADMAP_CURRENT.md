@@ -95,6 +95,12 @@ Antes de tocar motor:
 - El owner tardio es la propuesta HRR legacy ya throttleada: a 590 s el
   shadow acepta el 100% de 137 kW aunque CFAST mantiene 300 kW. Siguiente fase
   F3.3v: disenar una propuesta de fuego canonica previa al throttle legacy.
+- F3.3v cierra el diseno sin tocar motor: propuesta pura desde estado
+  persistente y parametros inmutables, seguida por extincion dura, inventario
+  O2, limite Kawagoe y combustible en una unica transaccion atomica.
+- Quedan rechazados reconstruir HRR dividiendo por el factor legacy, imponer
+  300 kW o usar fallback legacy silencioso. F3.3v1 sera default OFF,
+  shadow-only y limitado al fuego t2 simple de Grupos A/C.
 - Physics coherence audit: suite con controles intencionales registrados (`v1_backdraft_accumulation`, `v1_m4_pool_release`). Reglas FAIL/gating: B1, C1, C2, A2, A3, D1, E1, S0. WARN: O1, O2E1.
 - Tests Python: **157 PASS**.
 
