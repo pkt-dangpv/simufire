@@ -82,6 +82,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.3r2b state/radiation transaction: `docs/validation/PHASE3_F33R2B_MULTISURFACE_TRANSACTION.md`
 - F3.3r2b1 gas/surface exchange: `docs/validation/PHASE3_F33R2B1_GAS_SURFACE_EXCHANGE.md`
 - F3.3v canonical fire proposal design: `docs/validation/PHASE3_F33V_CANONICAL_FIRE_PROPOSAL_DESIGN.md`
+- F3.3v1 proposal experiment: `docs/validation/PHASE3_F33V1_FIRE_PROPOSAL_EXPERIMENT.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -1078,12 +1079,19 @@ F3.3v design is complete. The selected contract separates:
    acceptance;
 3. one atomic fuel/O2/species/energy/plume commit.
 
-The first implementation is F3.3v1, default OFF and shadow-only. It supports
-only the simple t-squared fire contract used by Groups A/C and must report an
-explicit unsupported reason for advanced fire modes. It must not read
-post-throttle legacy HRR, target, fire clock or species. Do not change the
-F3.3t plume, force HRR, tune a corridor coefficient, alter official reports
-or touch HVAC. Binding records:
+F3.3v1 is complete and GO as default-OFF telemetry. Its pure proposal uses
+persistent proposal state and the aggregate t-squared fire contract, then
+applies hard extinction plus exact O2, ventilation and fuel limits. The
+180 s corridor gate preserves all 709 shared columns exactly and produces a
+supported model-derived 300 kW candidate with monotonic fuel and no zero-O2
+flame.
+
+Runtime authority and Group C retirement remain NO-GO. The next gate is
+F3.3v2: pure fuel/O2/species/energy/plume products plus explicit object-level
+fuel/yield ownership. All products must share one accepted fraction and close
+their ledgers before the proposal can feed F3.3t. Do not force HRR, tune a
+corridor coefficient, alter official reports or touch HVAC. Binding records:
 `PHASE3_F33T_COUPLED_PLUME_EXPERIMENT.md`,
 `PHASE3_F33U_EXTENDED_STABILITY.md` and
-`PHASE3_F33V_CANONICAL_FIRE_PROPOSAL_DESIGN.md`.
+`PHASE3_F33V_CANONICAL_FIRE_PROPOSAL_DESIGN.md`,
+`PHASE3_F33V1_FIRE_PROPOSAL_EXPERIMENT.md`.

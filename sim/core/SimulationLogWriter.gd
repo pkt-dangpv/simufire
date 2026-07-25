@@ -27,6 +27,7 @@ var phase3_canonical_zone_shadow_enabled: bool = false
 var phase3_canonical_exterior_boundary_shadow_enabled: bool = false
 var phase3_canonical_persistence_shadow_enabled: bool = false
 var phase3_canonical_combustion_shadow_enabled: bool = false
+var phase3_canonical_fire_proposal_shadow_enabled: bool = false
 var phase3_canonical_pressure_relaxation_shadow_enabled: bool = false
 var phase3_canonical_interzone_heat_shadow_enabled: bool = false
 var phase3_canonical_wall_ambient_shadow_enabled: bool = false
@@ -89,6 +90,10 @@ func configure_phase3_canonical_persistence_shadow(is_enabled: bool) -> void:
 
 func configure_phase3_canonical_combustion_shadow(is_enabled: bool) -> void:
 	phase3_canonical_combustion_shadow_enabled = is_enabled
+
+
+func configure_phase3_canonical_fire_proposal_shadow(is_enabled: bool) -> void:
+	phase3_canonical_fire_proposal_shadow_enabled = is_enabled
 
 
 func configure_phase3_canonical_pressure_relaxation_shadow(is_enabled: bool) -> void:
@@ -566,6 +571,10 @@ func _build_csv_header() -> String:
 		header += ",phase3_shadow_combustion_transaction_active_flag,phase3_shadow_combustion_canonical_o2_ref,phase3_shadow_combustion_o2_source_zone_code,phase3_shadow_combustion_extinction_o2_limit,phase3_shadow_combustion_canonical_o2_hrr_factor,phase3_shadow_combustion_legacy_o2_hrr_factor,phase3_shadow_combustion_legacy_hrr_kw,phase3_shadow_combustion_accepted_hrr_kw,phase3_shadow_combustion_decision_fraction,phase3_shadow_combustion_atomic_fraction,phase3_shadow_combustion_effective_fraction,phase3_shadow_combustion_requested_o2_kg,phase3_shadow_combustion_accepted_o2_kg,phase3_shadow_combustion_requested_fuel_MJ,phase3_shadow_combustion_accepted_fuel_MJ,phase3_shadow_combustion_requested_species_kg,phase3_shadow_combustion_accepted_species_kg,phase3_shadow_combustion_requested_convective_energy_kj,phase3_shadow_combustion_accepted_convective_energy_kj,phase3_shadow_combustion_requested_plume_mass_kg,phase3_shadow_combustion_accepted_plume_mass_kg,phase3_shadow_combustion_remaining_fuel_MJ,phase3_shadow_combustion_retained_unburned_MJ,phase3_shadow_combustion_zero_o2_flame_flag,phase3_shadow_combustion_o2_residual_kg,phase3_shadow_combustion_energy_residual_kj,phase3_shadow_combustion_species_residual_kg"
 		for field_name in _phase3_combustion_correspondence_fields():
 			header += "," + field_name
+	if phase3_canonical_fire_proposal_shadow_enabled:
+		header += "," + ",".join(PackedStringArray(
+			_phase3_fire_proposal_fields()
+		))
 	if phase3_canonical_pressure_relaxation_shadow_enabled:
 		header += ",phase3_shadow_exterior_relaxation_enabled_flag,phase3_shadow_exterior_raw_requested_gas_kg,phase3_shadow_exterior_raw_requested_energy_kj,phase3_shadow_exterior_pressure_equilibrium_fraction,phase3_shadow_exterior_pressure_full_delta_pa,phase3_shadow_exterior_pressure_limited_delta_pa,phase3_shadow_exterior_pressure_predicted_post_pa,phase3_shadow_exterior_pressure_crossing_prevented_flag,phase3_shadow_exterior_degenerate_lower_reseed_flag,phase3_shadow_exterior_degenerate_lower_reseed_mass_kg,phase3_shadow_exterior_lower_reseed_count_total,phase3_shadow_exterior_lower_reseed_mass_kg_total,phase3_shadow_exterior_lower_reseed_first_step_index"
 	if phase3_canonical_interzone_heat_shadow_enabled:
@@ -630,6 +639,30 @@ func _phase3_combustion_correspondence_fields() -> Array[String]:
 		"phase3_shadow_combustion_routed_surface_radiation_kj",
 		"phase3_shadow_combustion_radiative_route_residual_kj",
 		"phase3_shadow_combustion_fire_partition_residual_kj",
+	]
+
+
+func _phase3_fire_proposal_fields() -> Array[String]:
+	return [
+		"phase3_shadow_fire_proposal_active_flag",
+		"phase3_shadow_fire_proposal_supported_flag",
+		"phase3_shadow_fire_proposal_unsupported_reason_mask",
+		"phase3_shadow_fire_proposal_age_s",
+		"phase3_shadow_fire_proposal_curve_hrr_kw",
+		"phase3_shadow_fire_proposal_target_kw",
+		"phase3_shadow_fire_proposal_hrr_kw",
+		"phase3_shadow_fire_proposal_remaining_fuel_pre_MJ",
+		"phase3_shadow_fire_proposal_remaining_fuel_post_MJ",
+		"phase3_shadow_fire_proposal_hard_extinction_flag",
+		"phase3_shadow_fire_proposal_o2_inventory_cap_kw",
+		"phase3_shadow_fire_proposal_ventilation_cap_kw",
+		"phase3_shadow_fire_proposal_fuel_cap_kw",
+		"phase3_shadow_fire_proposal_decision_fraction",
+		"phase3_shadow_fire_proposal_accepted_hrr_kw",
+		"phase3_shadow_fire_proposal_requested_o2_kg",
+		"phase3_shadow_fire_proposal_accepted_o2_kg",
+		"phase3_shadow_fire_proposal_accepted_fuel_MJ",
+		"phase3_shadow_fire_proposal_zero_o2_flame_flag",
 	]
 
 
@@ -1115,6 +1148,9 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 			]:
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 			for field_name in _phase3_combustion_correspondence_fields():
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
+		if phase3_canonical_fire_proposal_shadow_enabled:
+			for field_name in _phase3_fire_proposal_fields():
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		if phase3_canonical_pressure_relaxation_shadow_enabled:
 			for field_name in [

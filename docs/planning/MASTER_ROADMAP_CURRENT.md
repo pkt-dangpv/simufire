@@ -101,6 +101,14 @@ Antes de tocar motor:
 - Quedan rechazados reconstruir HRR dividiendo por el factor legacy, imponer
   300 kW o usar fallback legacy silencioso. F3.3v1 sera default OFF,
   shadow-only y limitado al fuego t2 simple de Grupos A/C.
+- F3.3v1 ya implementa esa propuesta como telemetria default OFF. El gate de
+  180 s conserva exactamente 709 columnas compartidas, soporta las 18
+  muestras activas de R0 y alcanza el cap t2 de 300 kW con combustible
+  monotono y cero llama sin O2.
+- F3.3v1 queda GO pasivo, pero autoridad y cierre de Grupo C siguen NO-GO.
+  Siguiente fase: F3.3v2 debe generar productos puros de combustible, O2,
+  especies, energia y plume con una unica fraccion aceptada, y sincronizar
+  explicitamente los objetos combustibles.
 - Physics coherence audit: suite con controles intencionales registrados (`v1_backdraft_accumulation`, `v1_m4_pool_release`). Reglas FAIL/gating: B1, C1, C2, A2, A3, D1, E1, S0. WARN: O1, O2E1.
 - Tests Python: **157 PASS**.
 

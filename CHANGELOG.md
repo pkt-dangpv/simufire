@@ -3,6 +3,18 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v1 canonical fire proposal experiment (2026-07-25)
+
+- Added a pure, persistent t-squared fire proposal with explicit hard
+  extinction, O2-inventory, Kawagoe-ventilation and fuel limits.
+- Added a default-OFF shadow flag, 19 opt-in CSV fields, direct Godot fixture
+  and a reproducible OFF/ON STOP-gate analyzer.
+- Verified exact no-op behavior across 709 shared columns and a supported
+  300 kW model-derived proposal with monotonic fuel and no zero-O2 flame.
+- Kept runtime authority and Group C retirement NO-GO. No official case,
+  physical report, expected, tolerance, CTRL, VALID_GAP, FED, HVAC or visual
+  path changed.
+
 ### Phase 3+ F3.3v canonical fire proposal design (2026-07-25)
 
 - Mapped the combustion tick and confirmed that legacy O2 changes the fire

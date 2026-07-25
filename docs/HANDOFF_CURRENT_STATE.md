@@ -12,6 +12,32 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-25 - F3.3v1 proposal telemetry GO
+
+- Added a pure dictionary-only canonical fire proposal driven by persistent
+  proposal state and immutable t-squared fire parameters.
+- Hard extinction, exact O2 inventory, optional Kawagoe ventilation and fuel
+  inventory are explicit limits. No inverse legacy throttle or forced HRR is
+  used.
+- Added `phase3_canonical_fire_proposal_shadow_enabled`, default OFF, with 19
+  opt-in CSV fields. The existing canonical combustion transaction remains
+  the live shadow source; F3.3v1 is telemetry only.
+- The 180 s corridor OFF/ON gate has 114/114 rows, 709 shared columns and
+  zero shared-value differences. Room 0 is supported for all 18 active
+  samples, reaches the model-derived 300 kW cap, consumes fuel monotonically
+  and never reports a zero-O2 flame.
+- Direct Godot fixture PASS; focused Phase 3 tests 32/32 PASS; analyzer and
+  proposal tests 16/16 PASS; full pytest 1249 PASS plus the same 17
+  pre-existing structural failures; Physics and ILV remain at 0 FAIL; gap
+  inventory remains 347/353 plus 6 VALID_GAP.
+- Decision: passive mechanism GO. Runtime authority and Group C retirement
+  remain NO-GO.
+- Next: F3.3v2 pure accepted products and object-level fuel/yield ownership.
+  Do not connect the proposal to F3.3t or live combustion before fuel, O2,
+  carbon, species and energy close atomically.
+- Binding record:
+  `docs/validation/PHASE3_F33V1_FIRE_PROPOSAL_EXPERIMENT.md`.
+
 ## Current Session Update - 2026-07-25 - F3.3v proposal design complete
 
 - Mapped the complete legacy combustion order. O2 already changes fire age,

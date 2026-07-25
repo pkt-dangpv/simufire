@@ -99,6 +99,11 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Enable passive F3.2b1 closed canonical combustion/plume transactions.",
     )
     parser.add_argument(
+        "--phase3-canonical-fire-proposal-shadow",
+        action="store_true",
+        help="Enable passive F3.3v1 pre-throttle canonical fire proposal telemetry.",
+    )
+    parser.add_argument(
         "--phase3-canonical-pressure-relaxation-shadow",
         action="store_true",
         help="Enable passive F3.2b2 exterior pressure relaxation and lower-zone reseed.",
@@ -258,6 +263,16 @@ def main(argv: list[str] | None = None) -> int:
         if "--phase3-canonical-persistence-shadow" not in cmd:
             cmd.append("--phase3-canonical-persistence-shadow")
         cmd.append("--phase3-canonical-combustion-shadow")
+    if args.phase3_canonical_fire_proposal_shadow:
+        for parent_flag in [
+            "--phase3-canonical-shadow",
+            "--phase3-canonical-exterior-shadow",
+            "--phase3-canonical-persistence-shadow",
+            "--phase3-canonical-combustion-shadow",
+        ]:
+            if parent_flag not in cmd:
+                cmd.append(parent_flag)
+        cmd.append("--phase3-canonical-fire-proposal-shadow")
     if args.phase3_canonical_pressure_relaxation_shadow:
         for parent_flag in [
             "--phase3-canonical-shadow",

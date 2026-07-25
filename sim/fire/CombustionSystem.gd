@@ -5,6 +5,16 @@ const FuelObjectModelScript = preload("res://sim/fire/FuelObjectModel.gd")
 const FireModelScript = preload("res://sim/fire/FireModel.gd")
 const CombustionRegimeClassifierScript = preload("res://sim/fire/CombustionRegimeClassifier.gd")
 
+const PHASE3_PROPOSAL_UNSUPPORTED_NO_FIRE: int = 1
+const PHASE3_PROPOSAL_UNSUPPORTED_SECONDARY_HRR: int = 2
+const PHASE3_PROPOSAL_UNSUPPORTED_FLASHOVER: int = 4
+const PHASE3_PROPOSAL_UNSUPPORTED_THERMAL_FEEDBACK: int = 8
+const PHASE3_PROPOSAL_UNSUPPORTED_RETAINED_POOL: int = 16
+const PHASE3_PROPOSAL_UNSUPPORTED_BACKDRAFT: int = 32
+const PHASE3_PROPOSAL_UNSUPPORTED_SPREAD: int = 64
+const PHASE3_PROPOSAL_UNSUPPORTED_LATENT: int = 128
+const PHASE3_PROPOSAL_UNSUPPORTED_O2_INDEPENDENT: int = 256
+
 var _phase3_shadow_species_results: Array[Dictionary] = []
 var _phase3_shadow_pre_fire_state: Dictionary = {}
 
@@ -32,6 +42,197 @@ func drain_phase3_shadow_species_results() -> Array[Dictionary]:
 	var results: Array[Dictionary] = _phase3_shadow_species_results.duplicate(true)
 	_phase3_shadow_species_results.clear()
 	return results
+
+
+## F3.3v1: pure room-level fire-potential preview. It never reads or writes
+## RoomModel and never owns live fuel/species. O2, ventilation and fuel caps
+## are explicit outputs so later phases can promote the whole transaction.
+func evaluate_phase3_canonical_fire_proposal(
+	dt: float,
+	context: Dictionary,
+	canonical_source: Dictionary,
+	state_before: Dictionary
+	) -> Dictionary:
+	var result: Dictionary = {
+		"active_flag": 0.0,
+		"supported_flag": 0.0,
+		"unsupported_reason_mask": 0.0,
+		"proposal_age_s": maxf(
+			0.0, float(state_before.get("proposal_age_s", 0.0))
+		),
+		"curve_hrr_kw": 0.0,
+		"proposal_target_kw": 0.0,
+		"proposal_hrr_kw": 0.0,
+		"remaining_fuel_pre_MJ": maxf(
+			0.0, float(state_before.get("proposal_remaining_fuel_MJ", 0.0))
+		),
+		"remaining_fuel_post_MJ": maxf(
+			0.0, float(state_before.get("proposal_remaining_fuel_MJ", 0.0))
+		),
+		"hard_extinction_flag": 0.0,
+		"o2_inventory_cap_kw": 0.0,
+		"ventilation_cap_kw": -1.0,
+		"fuel_cap_kw": 0.0,
+		"decision_fraction": 0.0,
+		"accepted_hrr_kw": 0.0,
+		"requested_o2_kg": 0.0,
+		"accepted_o2_kg": 0.0,
+		"accepted_fuel_MJ": 0.0,
+		"zero_o2_flame_flag": 0.0,
+		"persistent_updates": {},
+	}
+	if dt <= 0.0:
+		return result
+
+	var active: bool = bool(state_before.get("active_flag", false))
+	var reason_mask: int = 0
+	if not active:
+		reason_mask |= PHASE3_PROPOSAL_UNSUPPORTED_NO_FIRE
+	if float(state_before.get("secondary_hrr_gain_kw", 0.0)) > 0.000001:
+		reason_mask |= PHASE3_PROPOSAL_UNSUPPORTED_SECONDARY_HRR
+	if bool(state_before.get("flashover_triggered_flag", false)) \
+			or float(state_before.get("flashover_hrr_multiplier", 1.0)) > 1.000001:
+		reason_mask |= PHASE3_PROPOSAL_UNSUPPORTED_FLASHOVER
+	if absf(float(context.get("thermal_feedback_coeff", 0.0))) > 0.000001:
+		reason_mask |= PHASE3_PROPOSAL_UNSUPPORTED_THERMAL_FEEDBACK
+	if float(context.get("fire_unburned_generation_fraction", 0.0)) > 0.000001 \
+			or float(context.get("fire_pool_release_max_fraction", 0.0)) > 0.000001 \
+			or float(state_before.get("retained_unburned_MJ", 0.0)) > 0.000001:
+		reason_mask |= PHASE3_PROPOSAL_UNSUPPORTED_RETAINED_POOL
+	if bool(state_before.get("backdraft_active_flag", false)) \
+			or bool(state_before.get("backdraft_triggered_flag", false)):
+		reason_mask |= PHASE3_PROPOSAL_UNSUPPORTED_BACKDRAFT
+	# The simple-house aggregate fire coexists with an enabled furniture-radiation
+	# capability. F3.3v1 may diagnose that aggregate contract; only authoritative
+	# room-to-room spread puts the proposal outside its current scope.
+	if bool(context.get("fire_spread_enabled", false)):
+		reason_mask |= PHASE3_PROPOSAL_UNSUPPORTED_SPREAD
+	if bool(state_before.get("fire_latent_active_flag", false)):
+		reason_mask |= PHASE3_PROPOSAL_UNSUPPORTED_LATENT
+	if bool(context.get("fire_o2_independent", false)):
+		reason_mask |= PHASE3_PROPOSAL_UNSUPPORTED_O2_INDEPENDENT
+
+	result["active_flag"] = 1.0 if active else 0.0
+	result["unsupported_reason_mask"] = float(reason_mask)
+	if reason_mask != 0:
+		return result
+	result["supported_flag"] = 1.0
+
+	var o2_ref: float = clampf(
+		float(canonical_source.get("o2_ref", 0.0)), 0.0, 1.0
+	)
+	var extinction_limit: float = clampf(
+		float(canonical_source.get("extinction_limit", 0.0)), 0.0, 1.0
+	)
+	var hard_extinguished: bool = o2_ref <= extinction_limit
+	var proposal_age_s: float = maxf(
+		0.0,
+		float(state_before.get("proposal_age_s", 0.0))
+	)
+	var remaining_fuel_MJ: float = maxf(
+		0.0,
+		float(state_before.get(
+			"proposal_remaining_fuel_MJ",
+			state_before.get("fuel_energy_MJ", 0.0)
+		))
+	)
+	if active and remaining_fuel_MJ > 0.000001 and not hard_extinguished:
+		proposal_age_s += dt
+
+	var growth_alpha_kw_s2: float = maxf(
+		0.0, float(state_before.get("growth_alpha_kw_s2", 0.0))
+	)
+	var max_hrr_kw: float = maxf(
+		0.0, float(state_before.get("max_hrr_kw", 0.0))
+	)
+	var initial_fuel_MJ: float = maxf(
+		0.000001, float(state_before.get("fuel_energy_MJ", remaining_fuel_MJ))
+	)
+	var curve_hrr_kw: float = minf(
+		growth_alpha_kw_s2 * proposal_age_s * proposal_age_s,
+		max_hrr_kw
+	)
+	var fuel_fraction: float = remaining_fuel_MJ / initial_fuel_MJ
+	var fuel_decay: float = clampf(fuel_fraction / 0.15, 0.0, 1.0)
+	var proposal_target_kw: float = curve_hrr_kw * fuel_decay
+	var previous_proposal_hrr_kw: float = maxf(
+		0.0,
+		float(state_before.get("proposal_hrr_kw", 0.0))
+	)
+	var proposal_hrr_kw: float = _smooth_state_value(
+		previous_proposal_hrr_kw,
+		proposal_target_kw,
+		dt,
+		float(context.get("fire_hrr_rise_tau_s", 6.0)),
+		float(context.get("fire_hrr_fall_tau_s", 20.0))
+	)
+
+	var o2_rate_kg_per_MJ: float = maxf(
+		0.0, float(state_before.get("o2_consumption_kg_per_MJ", 0.076))
+	)
+	var available_o2_kg: float = maxf(
+		0.0, float(canonical_source.get("available_o2_kg", 0.0))
+	)
+	var o2_inventory_cap_kw: float = INF
+	if o2_rate_kg_per_MJ > 0.000000001:
+		o2_inventory_cap_kw = available_o2_kg * 1000.0 \
+				/ (dt * o2_rate_kg_per_MJ)
+	var kawagoe_limit_kw: float = float(context.get("kawagoe_limit_kw", 0.0))
+	var ventilation_cap_kw: float = INF
+	if kawagoe_limit_kw > 0.0:
+		ventilation_cap_kw = kawagoe_limit_kw
+	var fuel_cap_kw: float = remaining_fuel_MJ * 1000.0 / dt
+
+	var accepted_hrr_kw: float = 0.0
+	if not hard_extinguished:
+		accepted_hrr_kw = minf(
+			proposal_hrr_kw,
+			minf(o2_inventory_cap_kw, minf(ventilation_cap_kw, fuel_cap_kw))
+		)
+	accepted_hrr_kw = maxf(0.0, accepted_hrr_kw)
+	var decision_fraction: float = 1.0
+	if proposal_hrr_kw > 0.000000001:
+		decision_fraction = clampf(accepted_hrr_kw / proposal_hrr_kw, 0.0, 1.0)
+	elif accepted_hrr_kw <= 0.000000001:
+		decision_fraction = 0.0
+	var requested_o2_kg: float = proposal_hrr_kw * dt / 1000.0 \
+			* o2_rate_kg_per_MJ
+	var accepted_o2_kg: float = accepted_hrr_kw * dt / 1000.0 \
+			* o2_rate_kg_per_MJ
+	var accepted_fuel_MJ: float = minf(
+		remaining_fuel_MJ, accepted_hrr_kw * dt / 1000.0
+	)
+	var remaining_post_MJ: float = maxf(
+		0.0, remaining_fuel_MJ - accepted_fuel_MJ
+	)
+
+	result.merge({
+		"proposal_age_s": proposal_age_s,
+		"curve_hrr_kw": curve_hrr_kw,
+		"proposal_target_kw": proposal_target_kw,
+		"proposal_hrr_kw": proposal_hrr_kw,
+		"remaining_fuel_pre_MJ": remaining_fuel_MJ,
+		"remaining_fuel_post_MJ": remaining_post_MJ,
+		"hard_extinction_flag": 1.0 if hard_extinguished else 0.0,
+		"o2_inventory_cap_kw": o2_inventory_cap_kw,
+		"ventilation_cap_kw": ventilation_cap_kw \
+				if is_finite(ventilation_cap_kw) else -1.0,
+		"fuel_cap_kw": fuel_cap_kw,
+		"decision_fraction": decision_fraction,
+		"accepted_hrr_kw": accepted_hrr_kw,
+		"requested_o2_kg": requested_o2_kg,
+		"accepted_o2_kg": accepted_o2_kg,
+		"accepted_fuel_MJ": accepted_fuel_MJ,
+		"zero_o2_flame_flag": 1.0 \
+				if hard_extinguished and accepted_hrr_kw > 0.000001 else 0.0,
+		"persistent_updates": {
+			"proposal_age_s": proposal_age_s,
+			"proposal_hrr_kw": proposal_hrr_kw,
+			"proposal_target_kw": proposal_target_kw,
+			"proposal_remaining_fuel_MJ": remaining_post_MJ,
+		},
+	}, true)
+	return result
 
 
 ## F3.2b1: evaluates one closed, passive combustion transaction. The live fire
@@ -175,6 +376,18 @@ func evaluate_phase3_canonical_combustion_step(
 	var throttled_o2_kg: float = requested_o2_kg * throttle_fraction
 	var protected_o2_kg: float = source_gas_kg * extinction_limit
 	var available_o2_kg: float = maxf(0.0, source_o2_kg - protected_o2_kg)
+	var canonical_fire_proposal: Dictionary = {}
+	if bool(context.get("phase3_canonical_fire_proposal_shadow_enabled", false)):
+		canonical_fire_proposal = evaluate_phase3_canonical_fire_proposal(
+			dt,
+			context,
+			{
+				"o2_ref": canonical_o2_ref,
+				"extinction_limit": extinction_limit,
+				"available_o2_kg": available_o2_kg,
+			},
+			state_before
+		)
 	var inventory_fraction: float = 1.0
 	if throttled_o2_kg > 0.000000001:
 		inventory_fraction = minf(1.0, available_o2_kg / throttled_o2_kg)
@@ -266,8 +479,12 @@ func evaluate_phase3_canonical_combustion_step(
 		"fire_dormant_time_s": next_dormant_s,
 		"extinguished_flag": extinguished,
 	}, true)
+	if not canonical_fire_proposal.is_empty():
+		next_state.merge(
+			canonical_fire_proposal.get("persistent_updates", {}), true
+		)
 
-	return {
+	var transaction: Dictionary = {
 		"room_id": room.id,
 		"active_flag": fire_active,
 		"canonical_o2_ref": canonical_o2_ref,
@@ -310,6 +527,13 @@ func evaluate_phase3_canonical_combustion_step(
 		"fire_state_before": state_before,
 		"fire_state_proposed": next_state,
 	}
+	if not canonical_fire_proposal.is_empty():
+		for proposal_key in canonical_fire_proposal.keys():
+			if proposal_key == "persistent_updates":
+				continue
+			transaction["canonical_fire_proposal_" + String(proposal_key)] = \
+					canonical_fire_proposal[proposal_key]
+	return transaction
 
 
 func _snapshot_phase3_fire_state(room: RoomModel) -> Dictionary:
@@ -325,6 +549,25 @@ func _snapshot_phase3_fire_state(room: RoomModel) -> Dictionary:
 		"fire_time_s": maxf(0.0, room.fire_time_s) if room != null else 0.0,
 		"fire_dormant_time_s": maxf(0.0, room.fire_dormant_time_s) \
 				if room != null else 0.0,
+		"proposal_age_s": 0.0,
+		"proposal_hrr_kw": 0.0,
+		"proposal_target_kw": 0.0,
+		"proposal_remaining_fuel_MJ": maxf(0.0, fire.fuel_energy_MJ) \
+				if fire != null else 0.0,
+		"growth_alpha_kw_s2": maxf(0.0, fire.growth_alpha_kw_s2) \
+				if fire != null else 0.0,
+		"max_hrr_kw": maxf(0.0, fire.max_hrr_kw) if fire != null else 0.0,
+		"fuel_energy_MJ": maxf(0.0, fire.fuel_energy_MJ) if fire != null else 0.0,
+		"secondary_hrr_gain_kw": maxf(0.0, fire.secondary_hrr_gain_kw) \
+				if fire != null else 0.0,
+		"flashover_hrr_multiplier": maxf(0.0, fire.flashover_hrr_multiplier) \
+				if fire != null else 1.0,
+		"flashover_triggered_flag": room.flashover_triggered \
+				if room != null else false,
+		"backdraft_active_flag": room.backdraft_active if room != null else false,
+		"backdraft_triggered_flag": room.backdraft_triggered \
+				if room != null else false,
+		"fire_latent_active_flag": room.fire_latent_active if room != null else false,
 		"o2_nominal": maxf(0.001, fire.o2_nominal) if fire != null else 0.209,
 		"o2_min_for_flame": maxf(0.0, fire.o2_min_for_flame) if fire != null else 0.12,
 		"o2_consumption_kg_per_MJ": maxf(0.0, fire.o2_consumption_kg_per_MJ) \

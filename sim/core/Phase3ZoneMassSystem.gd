@@ -6770,6 +6770,101 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"phase3_shadow_combustion_species_residual_kg": float(
 				canonical_combustion.get("species_residual_kg", 0.0)
 			),
+			"phase3_shadow_fire_proposal_active_flag": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_active_flag", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_supported_flag": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_supported_flag", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_unsupported_reason_mask": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_unsupported_reason_mask", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_age_s": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_proposal_age_s", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_curve_hrr_kw": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_curve_hrr_kw", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_target_kw": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_proposal_target_kw", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_hrr_kw": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_proposal_hrr_kw", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_remaining_fuel_pre_MJ": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_remaining_fuel_pre_MJ", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_remaining_fuel_post_MJ": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_remaining_fuel_post_MJ", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_hard_extinction_flag": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_hard_extinction_flag", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_o2_inventory_cap_kw": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_o2_inventory_cap_kw", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_ventilation_cap_kw": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_ventilation_cap_kw", -1.0
+				)
+			),
+			"phase3_shadow_fire_proposal_fuel_cap_kw": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_fuel_cap_kw", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_decision_fraction": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_decision_fraction", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_accepted_hrr_kw": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_accepted_hrr_kw", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_requested_o2_kg": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_requested_o2_kg", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_accepted_o2_kg": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_accepted_o2_kg", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_accepted_fuel_MJ": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_accepted_fuel_MJ", 0.0
+				)
+			),
+			"phase3_shadow_fire_proposal_zero_o2_flame_flag": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_zero_o2_flame_flag", 0.0
+				)
+			),
 			"phase3_shadow_post_opening_coupling_active_flag": float(
 				canonical_combustion.get("post_opening_coupling_active_flag", 0.0)
 			),
@@ -8599,7 +8694,9 @@ func _interpolate_combustion_state(
 	var result: Dictionary = before.duplicate(true)
 	for key in [
 		"hrr_kw", "hrr_target_kw", "o2_hrr_factor", "remaining_fuel_MJ",
-		"retained_unburned_MJ", "fire_time_s", "fire_dormant_time_s"
+		"retained_unburned_MJ", "fire_time_s", "fire_dormant_time_s",
+		"proposal_age_s", "proposal_hrr_kw", "proposal_target_kw",
+		"proposal_remaining_fuel_MJ"
 	]:
 		result[key] = lerpf(
 			float(before.get(key, proposed.get(key, 0.0))),
