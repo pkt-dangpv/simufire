@@ -3,6 +3,48 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3r2 multi-surface shadow design (2026-07-25)
+
+- Defined a default-OFF four-surface canonical shadow for ceiling,
+  upper wall, lower wall and floor without changing runtime code.
+- Assigned persistent state to `Phase3ZoneMassSystem` and numerical work to
+  a new pure five-node surface-energy solver.
+- Specified atomic routing of accepted combustion radiation, physical
+  gas-to-surface exchange, exterior loss and interface-area migration under
+  one gas/surface/exterior invariant.
+- Split implementation into F3.3r2a pure fixtures, F3.3r2b state/transaction
+  wiring and F3.3r2c 60/120/180 s scratch gates. Runtime authority and gap
+  retirement remain NO-GO.
+
+### Phase 3+ F3.3r1 boundary-partition audit (2026-07-24)
+
+- Added a tested read-only analyzer that reconstructs CFAST ceiling,
+  upper-wall, lower-wall and floor heat storage from their temperature
+  histories and declared concrete effusivity.
+- Estimated `26.993 MJ` total R0 surface storage at 180 s:
+  `13.392 MJ` direct fire radiation plus `13.601 MJ` gas-driven uptake.
+- Closed the independent gas-side correspondence to within `0.562 MJ`
+  against the `14.163 MJ` F3.3q inferred boundary sink.
+- Identified the remaining contract defects: direct combustion radiation
+  never reaches the canonical wall reservoir, while `3.796 MJ` of ambient
+  decay bypasses surface storage.
+- Kept the full-area patch NO-GO and selected a design-only multi-surface
+  shadow as F3.3r2. No motor or official validation artifact changed.
+
+### Phase 3+ F3.3r0 material correspondence (2026-07-24)
+
+- Ran a scratch-only concrete-material control after proving exact
+  reproduction of the valid F3.3p1 canonical state across 552 shared fields.
+- Reduced the 0-180 s boundary-sink deficit from `3.414 MJ` to `0.730 MJ`
+  and corrected the early R0/Hall upper-temperature overshoot.
+- Rejected direct material adoption because R0/Hall lower zones and R2 upper
+  zone overcool late; a matched total sink is not a matched surface/zone
+  contract.
+- Removed all temporary runtime code. No official case, report, baseline,
+  tolerance, gap, FED or HVAC path changed.
+- Redirected F3.3r1 from full-area implementation to a read-only
+  surface/zone boundary-partition audit.
+
 ### Phase 3+ F3.3q boundary-energy correspondence (2026-07-24)
 
 - Added a tested, read-only analyzer for the R0 0-180 s source, storage,

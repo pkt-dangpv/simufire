@@ -1,6 +1,6 @@
 # Current Handoff State
 
-Date: 2026-07-24.
+Date: 2026-07-25.
 
 Runtime note: active local runners and test entrypoints now default to Godot
 `4.7.1` console at
@@ -11,6 +11,74 @@ Historical validation records retain their original engine labels.
 ## Purpose
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
+
+## Current Session Update - 2026-07-25 - F3.3r2 design GO
+
+- Closed the design contract for a default-OFF canonical multi-surface
+  shadow with separate ceiling, upper-wall, lower-wall and floor state.
+- Persistent surface state remains owned by `Phase3ZoneMassSystem`; a new
+  pure `Phase3SurfaceEnergySolver` will own only five-node numerical work.
+- Accepted combustion radiation must use the same atomic acceptance fraction
+  as O2, fuel, species and convective energy, then route deterministically by
+  surface area and emissivity.
+- The new path replaces wall-like ambient gas decay with physical
+  gas-to-surface storage and declared surface-to-exterior loss. It cannot run
+  alongside the current lumped wall path.
+- Moving interfaces must migrate wall area with its nodal energy profile so
+  upper/lower repartition is conservative.
+- Implementation is divided into F3.3r2a pure solver/fixtures, F3.3r2b
+  state/transaction wiring and F3.3r2c staged 60/120/180 s scratch gates.
+- Next: implement only F3.3r2a. Do not wire the solver into the simulation
+  tick, enable an official case or retire a gap.
+- Binding record:
+  `docs/validation/PHASE3_F33R2_MULTISURFACE_SHADOW_DESIGN.md`.
+- No motor, official artifact, tolerance, gap, FED or HVAC path changed.
+
+## Current Session Update - 2026-07-24 - F3.3r1 owner attribution GO
+
+- Added a read-only, tested semi-infinite conduction audit for the committed
+  CFAST ceiling, upper-wall, lower-wall and floor temperature histories.
+- Estimated R0 surface storage at 180 s as `26.993 MJ`.
+- The CFAST fire contributes `13.392 MJ` direct radiation, leaving
+  `13.601 MJ` gas-driven surface uptake. F3.3q independently infers
+  `14.163 MJ` gas boundary loss; the residual is only `0.562 MJ` (4%).
+- The F3.3r0 material shadow sends `9.107 MJ` to its wall, removes
+  `3.796 MJ` through direct ambient decay and loses `0.531 MJ` through
+  exterior/leakage. This explains why total gas loss matches while the wall
+  remains cold.
+- The wall reservoir is missing direct combustion radiation and ambient
+  decay bypasses storage. Its retained energy is `17.985 MJ` below the CFAST
+  surface estimate at 180 s.
+- Decision: owner attribution closes. Full-area patch remains NO-GO.
+- Next: F3.3r2 design-only default-OFF multi-surface shadow with direct
+  combustion radiation, physical surface storage and one gas/surface/
+  exterior energy invariant.
+- Binding record:
+  `docs/validation/PHASE3_F33R1_BOUNDARY_PARTITION_AUDIT.md`.
+- No motor, official artifact, tolerance, gap, FED or HVAC path changed.
+
+## Current Session Update - 2026-07-24 - F3.3r0 diagnostic GO / adoption NO-GO
+
+- Reproduced the valid F3.3p1 canonical state exactly in scratch: 114 rows,
+  552 shared canonical fields and zero differences above `1e-9`.
+- Mapped CFAST concrete properties to rooms 0-2 through existing scratch
+  room overrides while keeping the canonical wall area at `40.0 m2`.
+- The 0-180 s boundary sink changed from `10.749` to `13.433 MJ`, reducing
+  the CFAST shortfall from `3.414` to `0.730 MJ`.
+- R0 upper temperature improved from `200.7` to `147.2 C` at 180 s against
+  CFAST `159.8 C`; Hall upper also improved.
+- The same control overcooled R0 lower (`35.6` versus `61.6 C`), Hall lower
+  (`35.4` versus `48.4 C`) and R2 upper (`49.0` versus `62.1 C`).
+- Decision: material correspondence is real but not sufficient. Do not map
+  the material into the official case and do not expand to full enclosure
+  area yet.
+- All temporary coupled-Qc runtime code was removed; `sim/core` is identical
+  to the session checkpoint.
+- Next: F3.3r1 read-only audit of ceiling/upper-wall/lower-wall/floor area,
+  energy storage and zone allocation before any multi-surface shadow design.
+- Binding record:
+  `docs/validation/PHASE3_F33R0_MATERIAL_CORRESPONDENCE.md`.
+- No official validation artifact, tolerance, gap, FED or HVAC path changed.
 
 ## Current Session Update - 2026-07-24 - F3.3q diagnostic GO
 

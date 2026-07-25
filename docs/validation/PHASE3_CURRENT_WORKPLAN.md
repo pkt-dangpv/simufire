@@ -1,6 +1,6 @@
 # Phase 3+ current workplan
 
-Date: 2026-07-24
+Date: 2026-07-25
 
 ## Current baseline
 
@@ -75,6 +75,9 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.3p coupled-Qc re-entry design: `docs/validation/PHASE3_F33P_COUPLED_QC_REENTRY_DESIGN.md`
 - F3.3p1 coupled-Qc experiment: `docs/validation/PHASE3_F33P1_COUPLED_QC_EXPERIMENT.md`
 - F3.3q boundary-energy correspondence: `docs/validation/PHASE3_F33Q_BOUNDARY_ENERGY_CORRESPONDENCE.md`
+- F3.3r0 material correspondence: `docs/validation/PHASE3_F33R0_MATERIAL_CORRESPONDENCE.md`
+- F3.3r1 boundary partition: `docs/validation/PHASE3_F33R1_BOUNDARY_PARTITION_AUDIT.md`
+- F3.3r2 multi-surface shadow design: `docs/validation/PHASE3_F33R2_MULTISURFACE_SHADOW_DESIGN.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -920,17 +923,62 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 - Binding record:
   `PHASE3_F33Q_BOUNDARY_ENERGY_CORRESPONDENCE.md`.
 
+## F3.3r0 material-correspondence decision
+
+- Gate 0 reproduced the valid F3.3p1 canonical state exactly across 552
+  shared fields.
+- Existing room material overrides reduced the 0-180 s boundary shortfall
+  from `3.414` to `0.730 MJ`.
+- R0 and Hall upper temperatures improved substantially.
+- R0/Hall lower zones and R2 upper overcooled late; the single material wall
+  reservoir remained far colder than CFAST's separate surface classes.
+- Decision: diagnostic GO, runtime/adoption NO-GO. Do not modify the official
+  case and do not increase canonical wall area.
+- Binding record:
+  `PHASE3_F33R0_MATERIAL_CORRESPONDENCE.md`.
+
+## F3.3r1 boundary-partition decision
+
+- The CFAST surface histories imply `26.993 MJ` stored by 180 s.
+- Direct combustion radiation owns `13.392 MJ`; the remaining
+  `13.601 MJ` gas-driven storage matches the independently inferred
+  `14.163 MJ` gas boundary sink within `0.562 MJ`.
+- The material shadow instead stores `9.009 MJ`, while direct ambient decay
+  bypasses surfaces with `3.796 MJ`.
+- The near-matched gas sink and cold wall are therefore consistent: the
+  source and storage topology, not another wall coefficient, is incomplete.
+- Decision: diagnostic GO. Full-area patch and runtime authority remain
+  NO-GO.
+- Binding record:
+  `PHASE3_F33R1_BOUNDARY_PARTITION_AUDIT.md`.
+
+## F3.3r2 multi-surface shadow design
+
+- The new canonical shadow stores ceiling, upper-wall, lower-wall and floor
+  energy independently under a default-OFF flag.
+- `Phase3ZoneMassSystem` remains the persistent-state authority; a new pure
+  five-node surface solver performs only numerical conduction work.
+- Accepted combustion radiation is added to the existing atomic combustion
+  contract and routed by deterministic area/emissivity weights.
+- Gas convection/radiation, direct fire radiation and surface-to-exterior
+  loss remain separate ledger paths.
+- Interface movement migrates wall area with the donor nodal energy profile.
+- The old lumped wall/ambient path and the new path are mutually exclusive.
+- F3.3r2a implements only the pure solver and fixtures. F3.3r2b adds
+  state/transaction wiring. F3.3r2c runs 60/120/180 s scratch gates.
+- Runtime authority, official case activation and Group C retirement remain
+  NO-GO.
+- Binding record:
+  `PHASE3_F33R2_MULTISURFACE_SHADOW_DESIGN.md`.
+
 ## Next prompt target
 
-F3.3q is closed as diagnostic GO. The first mismatch is absent concrete
-material mapping; the second is canonical wall area.
-
-Use GPT-5.6 for F3.3r0. Create a scratch-only copy of the corridor case and
-map CFAST concrete properties through existing `room_overrides` for rooms
-0-2. Re-run the valid F3.3p1 shadow composition to 180 s while leaving the
-canonical `40 m2` wall-area contract unchanged. Require OFF equivalence and
-compare the full F3.3q balance plus R0/Hall/R2 thermal gates. Do not change
-motor code, direct ambient decay, official cases/reports, expected values,
-tolerances or gaps. If material-only overcools or moves the sink in the wrong
-direction, stop. F3.3r1 full-enclosure area requires a separate design.
-HVAC remains deferred.
+Implement F3.3r2a only: add a pure five-node
+`Phase3SurfaceEnergySolver.gd` and deterministic numerical/conservation
+fixtures. The solver must accept immutable surface state plus explicit
+convection, radiation and exterior-boundary fluxes and return proposed state
+plus residuals. Do not wire it into `SimulationEngine`, `RoomModel`,
+`Phase3ZoneMassSystem`, the simulation tick or CSV output. Require constant
+ambient no-op, radiation-only closure, early semi-infinite correspondence and
+10,000-step conservation before the STOP gate. Do not change official
+cases/reports, expected/tolerances or gaps. HVAC remains deferred.

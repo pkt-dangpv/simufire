@@ -1,6 +1,6 @@
 # Hoja de ruta activa de SimuFire
 
-Fecha: 2026-07-24
+Fecha: 2026-07-25
 Estado: fuente de verdad operativa para continuar trabajo
 Alcance: credibilidad fisica del motor, balances de conservacion, validacion CFAST restante y limites de cambios globales.
 
@@ -52,10 +52,22 @@ Antes de tocar motor:
 - F3.3q localiza un deficit de perdida de frontera de `3.414 MJ` hasta 180 s.
   El balance canonico cierra, pero el caso no transmite el hormigon de CFAST
   y el contrato usa `40.0 m2` de pared frente a `83.2 m2` de envolvente.
-- La siguiente fase es F3.3r0: control scratch material-only usando los
-  `room_overrides` existentes. No se cambia area, motor, decay ambiente ni
-  artefactos oficiales. F3.3r1 para area completa solo se diseña si el
-  material mueve el balance en la direccion correcta.
+- F3.3r0 confirma que el material importa: el hormigon reduce el deficit de
+  frontera de `3.414` a `0.730 MJ` y corrige la temperatura upper temprana.
+  No es adoptable porque sobreenfria R0/Hall lower y R2 upper a 180 s.
+- F3.3r1 cierra la atribucion: CFAST almacena unos `26.993 MJ` en superficies
+  a 180 s; `13.392 MJ` son radiacion directa del fuego y `13.601 MJ` vienen
+  del gas, frente a `14.163 MJ` inferidos por el balance de sala.
+- El shadow material solo conserva `9.009 MJ` en pared y elimina `3.796 MJ`
+  por decay ambiente sin superficie. Por eso el sink total puede coincidir
+  mientras pared y lower zones quedan frios.
+- F3.3r2 cierra el diseno de un shadow multi-superficie default OFF:
+  techo, pared upper, pared lower y suelo; radiacion de combustion atomica;
+  migracion conservativa al mover la interfaz; y un invariante unico
+  gas/superficies/exterior.
+- La implementacion se divide en F3.3r2a solver puro y fixtures, F3.3r2b
+  estado/transacciones y F3.3r2c gates scratch 60/120/180 s. Solo r2a queda
+  autorizado como siguiente paso. El parche de area completa sigue NO-GO.
 - Physics coherence audit: suite con controles intencionales registrados (`v1_backdraft_accumulation`, `v1_m4_pool_release`). Reglas FAIL/gating: B1, C1, C2, A2, A3, D1, E1, S0. WARN: O1, O2E1.
 - Tests Python: **157 PASS**.
 
