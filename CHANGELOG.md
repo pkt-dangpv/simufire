@@ -3,6 +3,20 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3u extended plume stability (2026-07-25)
+
+- Extended the unchanged F3.3t OFF/ON candidate to deterministic 300 and
+  600 s runs with Godot 4.7.1.
+- Added a tested stability analyzer that checks prefix determinism, finite
+  state, positive zone inventories, conservation, horizon RMSE and projected
+  required checks without changing official reports.
+- Confirmed all nine RMSE families improve through the 590 s CFAST horizon
+  and the maximum residual remains `2.8e-7`.
+- Rejected runtime authority: all four projected corridor checks fail, and
+  the late canonical transaction can only accept a legacy HRR proposal already
+  throttled to 137 kW versus CFAST 300 kW.
+- Selected design-first F3.3v for an unthrottled canonical fire proposal.
+
 ### Phase 3+ F3.3t coupled plume experiment (2026-07-25)
 
 - Added a default-OFF complete Heskestad plume preview driven by canonical

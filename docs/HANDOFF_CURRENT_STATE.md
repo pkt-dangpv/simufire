@@ -12,6 +12,28 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-25 - F3.3u stability GO / authority NO-GO
+
+- Extended the unchanged F3.3t candidate through independent deterministic
+  300 and 600 s OFF/ON runs with Godot 4.7.1.
+- All nine correspondence RMSE families still improve at 180, 300 and 590 s.
+  State remains finite, both zone inventories remain positive and the maximum
+  mass/O2/energy residual is `2.8e-7`.
+- Prefixes of the 600 s runs exactly match the independent 180 and 300 s
+  runs.
+- Runtime authority remains NO-GO: projected candidate values fail R0 upper
+  temperature at 180/300/600 and upper O2 at 600. The candidate would reopen
+  the already closed t=180 check and closes none of the three active Group C
+  gaps.
+- Late owner confirmed at 590 s: canonical decision fraction is `1.0`, but
+  the proposal and accepted HRR are both `137.46 kW` versus CFAST `300 kW`.
+  Canonical O2 factor (`0.694`) is healthier than legacy (`0.442`), proving
+  the proposal arrives pre-throttled by the live engine.
+- Decision: F3.3t mechanism stability GO; authority and Group C retirement
+  NO-GO. Next is design-first F3.3v for an unthrottled canonical fire
+  proposal. Binding record:
+  `docs/validation/PHASE3_F33U_EXTENDED_STABILITY.md`.
+
 ## Current Session Update - 2026-07-25 - F3.3t coupled plume GO
 
 - Added `phase3_coupled_plume_shadow_enabled`, default OFF and effective only

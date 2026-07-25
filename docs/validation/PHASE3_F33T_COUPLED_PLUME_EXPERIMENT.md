@@ -142,13 +142,9 @@ multi-surface residuals. Maximum observed absolute residual is
 - Runtime authority: NO-GO.
 - Group C retirement: NO-GO.
 
-## Next phase
+## F3.3u follow-up
 
-F3.3u is an extension-only stability gate. Run this exact default-OFF
-candidate to 300 and 600 s, without changing equations or fitting
-coefficients. Compare CFAST mass, interface, upper/lower temperatures, O2,
-HRR and plume rate, and require the same conservation residual gate.
-
-Rollback F3.3t if the extended run becomes unstable, exhausts a zone,
-reintroduces zero-O2 flame, or loses the broad RMSE improvement. Runtime
-authority can only be designed after F3.3u.
+F3.3u completed the 300/600 s extension. The mechanism remains stable and
+conservative, but runtime authority remains NO-GO because the late HRR
+proposal is already throttled by the legacy engine. See
+`PHASE3_F33U_EXTENDED_STABILITY.md`.

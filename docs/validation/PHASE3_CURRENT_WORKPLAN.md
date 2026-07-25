@@ -1060,8 +1060,19 @@ does not apply the O2 decision twice and preserves exact mass/O2/energy
 ledgers. The 10-180 s STOP gate improves all nine audited correspondence RMSE
 families by `25.9-95.5%`; OFF is byte-identical to F3.3r2d.
 
-Runtime authority and Group C retirement remain NO-GO because residual
-late-window error remains at 180 s. Next phase only F3.3u: extend this exact
-candidate to 300/600 s with no equation, coefficient, official-report,
-tolerance, HVAC or visual change. Binding record:
-`PHASE3_F33T_COUPLED_PLUME_EXPERIMENT.md`.
+F3.3u is complete. The exact F3.3t candidate remains finite and conservative
+through 600 s; all nine RMSE families improve at 180, 300 and 590 s and the
+maximum residual is `2.8e-7`. Stability is GO.
+
+Runtime authority and Group C retirement remain NO-GO. The candidate fails
+all four projected corridor required checks, including reopening t=180.
+At 590 s the canonical decision accepts 100% of a 137 kW proposal that legacy
+already throttled, while CFAST remains at 300 kW. The plume is no longer the
+late primary owner.
+
+Next phase only F3.3v design: define a canonical fire proposal before legacy
+O2 throttling while preserving the single atomic fuel/O2/species/energy
+transaction. Do not change the F3.3t plume, force HRR, tune a corridor
+coefficient, alter official reports or touch HVAC. Binding records:
+`PHASE3_F33T_COUPLED_PLUME_EXPERIMENT.md` and
+`PHASE3_F33U_EXTENDED_STABILITY.md`.

@@ -72,6 +72,7 @@ def _checkpoint_errors(
     audit: dict[str, Any],
     sim_by_time: dict[int, dict[str, str]],
     cfast_zone_rows: list[dict[str, str]],
+    checkpoints: tuple[int, ...] = CHECKPOINTS,
 ) -> dict[str, list[float]]:
     errors = {
         "upper_mass_kg": [],
@@ -84,7 +85,7 @@ def _checkpoint_errors(
         "hrr_kw": [],
         "plume_rate_kg_s": [],
     }
-    for checkpoint in CHECKPOINTS:
+    for checkpoint in checkpoints:
         item = audit["checkpoints"][str(checkpoint)]
         sim_row = sim_by_time[checkpoint]
         cfast_row = f33m._row_at(cfast_zone_rows, checkpoint)
@@ -142,6 +143,7 @@ def build_report(
     cfast_compartments: Path,
     cfast_masses: Path,
     baseline_csv: Path | None = None,
+    checkpoints: tuple[int, ...] = CHECKPOINTS,
 ) -> dict[str, Any]:
     off_audit = f33s.build_audit(
         candidate_csv=off_csv,
@@ -149,6 +151,7 @@ def build_report(
         cfast_zone_path=cfast_zone,
         cfast_compartments_path=cfast_compartments,
         cfast_masses_path=cfast_masses,
+        checkpoints=checkpoints,
     )
     on_audit = f33s.build_audit(
         candidate_csv=on_csv,
@@ -156,15 +159,16 @@ def build_report(
         cfast_zone_path=cfast_zone,
         cfast_compartments_path=cfast_compartments,
         cfast_masses_path=cfast_masses,
+        checkpoints=checkpoints,
     )
     off_rows = _sim_rows(off_csv)
     on_rows = _sim_rows(on_csv)
     cfast_zone_rows = f33m.read_cfast_zone(cfast_zone)
     off_errors = _checkpoint_errors(
-        off_audit, _sim_room_rows(off_rows), cfast_zone_rows
+        off_audit, _sim_room_rows(off_rows), cfast_zone_rows, checkpoints
     )
     on_errors = _checkpoint_errors(
-        on_audit, _sim_room_rows(on_rows), cfast_zone_rows
+        on_audit, _sim_room_rows(on_rows), cfast_zone_rows, checkpoints
     )
     metrics: dict[str, dict[str, float | bool]] = {}
     for name in off_errors:

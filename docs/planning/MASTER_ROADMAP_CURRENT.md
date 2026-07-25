@@ -88,8 +88,13 @@ Antes de tocar motor:
   canonicos aceptados y evita el segundo throttle O2. En 10-180 s mejora las
   nueve familias RMSE, entre `25.9%` y `95.5%`, con residual maximo `8e-8`.
 - El mecanismo F3.3t queda GO experimental; autoridad runtime y cierre Grupo C
-  siguen NO-GO. Siguiente fase: F3.3u, extension sin nuevas ecuaciones a
-  300/600 s para comprobar estabilidad y correspondencia tardia.
+  siguen NO-GO.
+- F3.3u confirma estabilidad hasta 600 s: las nueve familias RMSE mejoran en
+  todos los horizontes, inventarios permanecen positivos y el residual maximo
+  es `2.8e-7`. Sin embargo, la proyeccion falla los checks t180/t300/t600/O2.
+- El owner tardio es la propuesta HRR legacy ya throttleada: a 590 s el
+  shadow acepta el 100% de 137 kW aunque CFAST mantiene 300 kW. Siguiente fase
+  F3.3v: disenar una propuesta de fuego canonica previa al throttle legacy.
 - Physics coherence audit: suite con controles intencionales registrados (`v1_backdraft_accumulation`, `v1_m4_pool_release`). Reglas FAIL/gating: B1, C1, C2, A2, A3, D1, E1, S0. WARN: O1, O2E1.
 - Tests Python: **157 PASS**.
 
