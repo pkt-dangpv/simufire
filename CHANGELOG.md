@@ -3,6 +3,23 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3r2b2 enclosure topology (2026-07-25)
+
+- Added explicit per-room physical topology for ceiling, upper wall, lower
+  wall and floor, with exterior, inter-room and adiabatic area fractions.
+- Made missing or invalid metadata fail closed to adiabatic behavior without
+  deriving physics from visual geometry, rectangles or openings.
+- Connected only declared exterior area to the canonical surface solver using
+  a fixed coefficient scaled by exposed fraction.
+- Kept inter-room area visible but thermally inactive pending an atomic paired
+  surface contract.
+- Exported multi-surface topology and energy diagnostics only in the opt-in
+  canonical shadow schema.
+- Added direct mixed/invalid/adiabatic/loading/conservation fixtures and
+  preserved all legacy values in a 10 s OFF/ON comparison.
+- No official case, report, baseline, tolerance, gap, FED, HVAC or visual path
+  changed. F3.3r2c correspondence remains scratch-only.
+
 ### Phase 3+ F3.3r2b1 gas/surface exchange (2026-07-25)
 
 - Added a default-OFF preview/queue/commit transaction for signed upper- and

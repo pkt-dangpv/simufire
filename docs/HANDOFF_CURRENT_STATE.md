@@ -12,6 +12,37 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-25 - F3.3r2b2 topology GO
+
+- Added explicit physical `phase3_surface_boundaries` metadata to each room
+  for ceiling, upper wall, lower wall and floor.
+- Each surface partitions area into exterior, inter-room and adiabatic
+  fractions; all four surfaces and a sum of one are mandatory.
+- Missing or invalid topology fails closed to four adiabatic surfaces. No
+  physics is inferred from visual meshes, room rectangles or openings.
+- Exterior area now drives the existing surface solver using the fixed
+  canonical `0.025 kW/(m2 K)` coefficient scaled by exterior fraction.
+- Inter-room area is visible telemetry but deliberately does not exchange heat
+  until a paired-surface transaction exists.
+- Added shadow-only CSV observability for multi-surface storage, exchange,
+  topology fractions and combined energy closure.
+- Godot 4.7.1 fixture and full parse PASS; 511 Phase 3 tests PASS.
+- A 10 s OFF/ON scratch produced 66/66 rows, 459 shadow columns and zero value
+  differences across 163 shared legacy columns. Mixed topology exported the
+  expected 1.50/1.25/1.25 exterior/inter-room/adiabatic sums and zero combined
+  energy residual.
+- Physics remains 9 PASS / 15 CTRL / 5 WARN / 0 FAIL; ILV remains
+  15 PASS / 14 CTRL / 0 FAIL; gap inventory remains 353 required,
+  6 VALID_GAP and 71 non-gating.
+- Guardrails before commit are 9/10 only because R2-1 correctly sees dirty
+  motor files. No official case, report, baseline, tolerance, gap, FED, HVAC
+  or visual file changed.
+- Next: F3.3r2c staged 60/120/180 s correspondence in scratch. STOP before
+  authority or gap retirement; add paired inter-room surfaces first if the
+  unsupported fraction is material.
+- Binding record:
+  `docs/validation/PHASE3_F33R2B2_SURFACE_TOPOLOGY.md`.
+
 ## Current Session Update - 2026-07-25 - F3.3r2b1 exchange GO
 
 - Added a pure pre-step preview and separate atomic queue for signed

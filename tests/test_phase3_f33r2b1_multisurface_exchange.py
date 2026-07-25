@@ -64,7 +64,7 @@ def test_surface_commit_applies_prescribed_accepted_energies_once():
     assert '"combined_energy_residual_kj"' in commit
 
 
-def test_engine_prepares_all_rooms_and_fails_adiabatic_without_topology():
+def test_engine_prepares_all_rooms_and_resolves_physical_topology():
     collect = _function(ENGINE, "_phase3_shadow_collect_thermal_requests")
     prepare = _function(ENGINE, "_phase3_prepare_canonical_multisurface_room")
     queue = _function(
@@ -73,8 +73,8 @@ def test_engine_prepares_all_rooms_and_fails_adiabatic_without_topology():
     assert "for raw_room_id in building.get_rooms().keys()" in collect
     assert "_phase3_prepare_canonical_multisurface_room" in collect
     assert "prepare_canonical_multisurface_room" in prepare
-    assert '"exterior_by_surface": {}' in queue
-    assert "No enclosure topology exists yet" in queue
+    assert "build_canonical_surface_boundary_context" in queue
+    assert "room.phase3_surface_boundaries" in queue
 
 
 def test_solver_prescribed_boundary_api_is_fail_closed():

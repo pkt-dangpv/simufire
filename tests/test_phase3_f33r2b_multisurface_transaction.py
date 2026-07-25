@@ -149,8 +149,10 @@ def test_zero_area_surfaces_are_inert_and_cannot_receive_radiation():
     assert "area_m2 < 0.0" in validate
 
 
-def test_new_fields_do_not_change_csv_schema():
-    assert "phase3_shadow_multisurface" not in LOG
+def test_multisurface_fields_are_only_in_opt_in_shadow_schema():
+    header = _function(LOG, "_build_csv_header")
+    assert "if phase3_canonical_zone_shadow_enabled:" in header
+    assert "phase3_shadow_multisurface_enabled_flag" in header
     assert "phase3_shadow_combustion_requested_radiative_energy_kj" not in LOG
 
 

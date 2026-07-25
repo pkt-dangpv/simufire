@@ -23,6 +23,11 @@ const CFAST_DESTINATION_DELTA_TEMP_K: float = 1.0
 const THERMO_MASS_EPS_KG: float = 1.0e-12
 const THERMO_ENERGY_EPS_KJ: float = 1.0e-12
 const STEFAN_BOLTZMANN_KW_M2_K4: float = 5.670374419e-11
+const CANONICAL_EXTERIOR_H_KW_M2_K: float = 0.025
+const CANONICAL_SURFACE_NAMES: Array[String] = [
+	"ceiling", "upper_wall", "lower_wall", "floor"
+]
+const SURFACE_FRACTION_TOLERANCE: float = 1.0e-6
 const TRANSIT_SPECIES: Array[String] = ["co", "co2", "hcn"]
 const PARCEL_SPECIES: Array[String] = [
 	"smoke", "co", "co2", "hcn", "hcl", "acrolein", "formaldehyde"
@@ -706,6 +711,119 @@ func get_canonical_multisurface_exchange_record(room_id: int) -> Dictionary:
 	).duplicate(true)
 
 
+## F3.3r2b2: validates explicit physical enclosure metadata and converts only
+## its exterior fraction into a surface boundary coefficient. Missing or
+## invalid metadata never infers topology: all surfaces remain adiabatic.
+## Inter-room fractions are diagnostic until paired-surface correspondence.
+func build_canonical_surface_boundary_context(
+		raw_topology: Variant,
+		exterior_temp_c: float
+	) -> Dictionary:
+	# Inter-room area remains adiabatic until paired-surface correspondence.
+	var failed: Dictionary = {
+		"valid": false,
+		"error": "missing surface topology",
+		"boundary_metadata_complete_flag": 0.0,
+		"adiabatic_surface_count": 4.0,
+		"exterior_by_surface": {},
+		"topology_by_surface": {},
+		"exterior_fraction_sum": 0.0,
+		"inter_room_fraction_sum": 0.0,
+		"adiabatic_fraction_sum": 4.0,
+		"unsupported_inter_room_surface_count": 0.0,
+	}
+	if not is_finite(exterior_temp_c):
+		failed["error"] = "invalid exterior temperature"
+		return failed
+	if typeof(raw_topology) != TYPE_DICTIONARY:
+		return failed
+	var topology: Dictionary = raw_topology
+	var normalized: Dictionary = {}
+	var exterior_by_surface: Dictionary = {}
+	var exterior_sum: float = 0.0
+	var inter_room_sum: float = 0.0
+	var adiabatic_sum: float = 0.0
+	var fully_adiabatic_count: int = 0
+	var unsupported_inter_room_count: int = 0
+	for surface_name in CANONICAL_SURFACE_NAMES:
+		if not topology.has(surface_name) \
+				or typeof(topology[surface_name]) != TYPE_DICTIONARY:
+			failed["error"] = "missing or invalid surface: " + surface_name
+			return failed
+		var raw_surface: Dictionary = topology[surface_name]
+		for fraction_name in [
+			"exterior_fraction",
+			"inter_room_fraction",
+			"adiabatic_fraction",
+		]:
+			if not raw_surface.has(fraction_name):
+				failed["error"] = "missing %s for %s" % [
+					fraction_name, surface_name
+				]
+				return failed
+			var raw_value: Variant = raw_surface[fraction_name]
+			if typeof(raw_value) != TYPE_FLOAT and typeof(raw_value) != TYPE_INT:
+				failed["error"] = "non-numeric %s for %s" % [
+					fraction_name, surface_name
+				]
+				return failed
+		var exterior_fraction: float = float(
+			raw_surface["exterior_fraction"]
+		)
+		var inter_room_fraction: float = float(
+			raw_surface["inter_room_fraction"]
+		)
+		var adiabatic_fraction: float = float(
+			raw_surface["adiabatic_fraction"]
+		)
+		if not is_finite(exterior_fraction) \
+				or not is_finite(inter_room_fraction) \
+				or not is_finite(adiabatic_fraction) \
+				or exterior_fraction < 0.0 or exterior_fraction > 1.0 \
+				or inter_room_fraction < 0.0 or inter_room_fraction > 1.0 \
+				or adiabatic_fraction < 0.0 or adiabatic_fraction > 1.0:
+			failed["error"] = "out-of-range fractions for " + surface_name
+			return failed
+		var fraction_total: float = exterior_fraction \
+				+ inter_room_fraction + adiabatic_fraction
+		if absf(fraction_total - 1.0) > SURFACE_FRACTION_TOLERANCE:
+			failed["error"] = "fractions do not sum to one for " + surface_name
+			return failed
+		normalized[surface_name] = {
+			"exterior_fraction": exterior_fraction,
+			"inter_room_fraction": inter_room_fraction,
+			"adiabatic_fraction": adiabatic_fraction,
+		}
+		if exterior_fraction > SURFACE_FRACTION_TOLERANCE:
+			exterior_by_surface[surface_name] = {
+				"exterior_h_kw_m2_k": (
+					CANONICAL_EXTERIOR_H_KW_M2_K * exterior_fraction
+				),
+				"exterior_temp_c": exterior_temp_c,
+			}
+		if adiabatic_fraction >= 1.0 - SURFACE_FRACTION_TOLERANCE:
+			fully_adiabatic_count += 1
+		if inter_room_fraction > SURFACE_FRACTION_TOLERANCE:
+			unsupported_inter_room_count += 1
+		exterior_sum += exterior_fraction
+		inter_room_sum += inter_room_fraction
+		adiabatic_sum += adiabatic_fraction
+	return {
+		"valid": true,
+		"error": "",
+		"boundary_metadata_complete_flag": 1.0,
+		"adiabatic_surface_count": float(fully_adiabatic_count),
+		"exterior_by_surface": exterior_by_surface,
+		"topology_by_surface": normalized,
+		"exterior_fraction_sum": exterior_sum,
+		"inter_room_fraction_sum": inter_room_sum,
+		"adiabatic_fraction_sum": adiabatic_sum,
+		"unsupported_inter_room_surface_count": float(
+			unsupported_inter_room_count
+		),
+	}
+
+
 ## F3.3r2b1: evaluates gas/surface/exterior exchange from immutable pre-step
 ## snapshots. It never queues routes or mutates the persistent surface state.
 func preview_canonical_multisurface_exchange(
@@ -750,13 +868,24 @@ func preview_canonical_multisurface_exchange(
 	var exterior_by_surface: Dictionary = context.get(
 		"exterior_by_surface", {}
 	)
+	var boundary_metadata_complete_flag: float = float(
+		context.get(
+			"boundary_metadata_complete_flag",
+			1.0 if exterior_by_surface.size() == 4 else 0.0
+		)
+	)
+	var adiabatic_surface_count: float = float(
+		context.get(
+			"adiabatic_surface_count",
+			float(4 - exterior_by_surface.size())
+		)
+	)
 	var surface_fluxes: Dictionary = {}
 	var upper_exchange_kj: float = 0.0
 	var lower_exchange_kj: float = 0.0
 	var exterior_removed_kj: float = 0.0
 	var solver_residual_kj: float = 0.0
-	var boundary_metadata_count: int = 0
-	for surface_name in ["ceiling", "upper_wall", "lower_wall", "floor"]:
+	for surface_name in CANONICAL_SURFACE_NAMES:
 		var surface: Dictionary = surfaces.get(surface_name, {}).duplicate(true)
 		if surface.is_empty():
 			invalid["error"] = "missing surface: " + surface_name
@@ -789,7 +918,6 @@ func preview_canonical_multisurface_exchange(
 				invalid["error"] = "invalid exterior metadata: " + surface_name
 				return invalid
 			exterior = exterior_by_surface[surface_name]
-			boundary_metadata_count += 1
 		var exterior_h: float = float(
 			exterior.get("exterior_h_kw_m2_k", 0.0)
 		)
@@ -842,10 +970,20 @@ func preview_canonical_multisurface_exchange(
 		"lower_exchange_requested_kj": lower_exchange_kj,
 		"exterior_removed_requested_kj": exterior_removed_kj,
 		"surface_fluxes": surface_fluxes,
-		"boundary_metadata_complete_flag": (
-			1.0 if boundary_metadata_count == 4 else 0.0
+		"boundary_metadata_complete_flag": boundary_metadata_complete_flag,
+		"adiabatic_surface_count": adiabatic_surface_count,
+		"exterior_fraction_sum": float(
+			context.get("exterior_fraction_sum", 0.0)
 		),
-		"adiabatic_surface_count": float(4 - boundary_metadata_count),
+		"inter_room_fraction_sum": float(
+			context.get("inter_room_fraction_sum", 0.0)
+		),
+		"adiabatic_fraction_sum": float(
+			context.get("adiabatic_fraction_sum", 4.0)
+		),
+		"unsupported_inter_room_surface_count": float(
+			context.get("unsupported_inter_room_surface_count", 0.0)
+		),
 		"preview_solver_residual_kj": solver_residual_kj,
 	}
 
@@ -6975,6 +7113,26 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"phase3_shadow_multisurface_adiabatic_surface_count": float(
 				canonical_multisurface_exchange.get(
 					"adiabatic_surface_count", 0.0
+				)
+			),
+			"phase3_shadow_multisurface_exterior_fraction_sum": float(
+				canonical_multisurface_exchange.get(
+					"exterior_fraction_sum", 0.0
+				)
+			),
+			"phase3_shadow_multisurface_inter_room_fraction_sum": float(
+				canonical_multisurface_exchange.get(
+					"inter_room_fraction_sum", 0.0
+				)
+			),
+			"phase3_shadow_multisurface_adiabatic_fraction_sum": float(
+				canonical_multisurface_exchange.get(
+					"adiabatic_fraction_sum", 0.0
+				)
+			),
+			"phase3_shadow_multisurface_unsupported_inter_room_count": float(
+				canonical_multisurface_exchange.get(
+					"unsupported_inter_room_surface_count", 0.0
 				)
 			),
 			"phase3_shadow_multisurface_duplicate_commit_count": float(

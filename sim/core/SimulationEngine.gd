@@ -1632,6 +1632,11 @@ func _phase3_shadow_queue_canonical_multisurface_exchange(
 			0.0,
 			1.0
 		)
+	var surface_boundaries: Dictionary = \
+			phase3_zone_mass_system.build_canonical_surface_boundary_context(
+				room.phase3_surface_boundaries,
+				building.outside_temp_c if building != null else ambient_c
+			)
 	var preview: Dictionary = \
 			phase3_zone_mass_system.preview_canonical_multisurface_exchange(
 				room.id,
@@ -1648,9 +1653,39 @@ func _phase3_shadow_queue_canonical_multisurface_exchange(
 						* radiation_activation
 					),
 					"lower_gas_emissivity": 0.0,
-					# No enclosure topology exists yet in RoomModel. Missing
-					# entries are deliberately adiabatic and diagnosed.
-					"exterior_by_surface": {},
+					"exterior_by_surface": surface_boundaries.get(
+						"exterior_by_surface", {}
+					),
+					"boundary_metadata_complete_flag": float(
+						surface_boundaries.get(
+							"boundary_metadata_complete_flag", 0.0
+						)
+					),
+					"adiabatic_surface_count": float(
+						surface_boundaries.get(
+							"adiabatic_surface_count", 4.0
+						)
+					),
+					"exterior_fraction_sum": float(
+						surface_boundaries.get(
+							"exterior_fraction_sum", 0.0
+						)
+					),
+					"inter_room_fraction_sum": float(
+						surface_boundaries.get(
+							"inter_room_fraction_sum", 0.0
+						)
+					),
+					"adiabatic_fraction_sum": float(
+						surface_boundaries.get(
+							"adiabatic_fraction_sum", 4.0
+						)
+					),
+					"unsupported_inter_room_surface_count": float(
+						surface_boundaries.get(
+							"unsupported_inter_room_surface_count", 0.0
+						)
+					),
 				}
 			)
 	if not bool(preview.get("valid", false)):

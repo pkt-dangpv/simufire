@@ -309,6 +309,9 @@ var wall_k_kw_m_k: float = -1.0   # kW/(m·K); -1 = lumped fallback (PDE opt-in 
 var wall_rho_kg_m3: float = -1.0  # kg/m³
 var wall_cp_kj_kg_k: float = -1.0 # kJ/(kg·K)
 var wall_thickness_m: float = -1.0 # m; -1 = lumped fallback
+# Phase 3+ F3.3r2b2: physical enclosure topology for the canonical surface
+# shadow. Empty or invalid metadata fails closed to adiabatic boundaries.
+var phase3_surface_boundaries: Dictionary = {}
 
 # SF-AUD-030: temperaturas del perfil 1D de pared (nodos Crank-Nicolson).
 # T[0]=cara interior (= _wall_surface_temp_c), T[2]=punto medio, T[4]=cara exterior.

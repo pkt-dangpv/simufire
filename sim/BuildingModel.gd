@@ -502,6 +502,14 @@ func _load_from_template(data: Dictionary) -> void:
 		rooms[room_id].wall_rho_kg_m3 = float(room_data.get("wall_rho_kg_m3", -1.0))
 		rooms[room_id].wall_cp_kj_kg_k = float(room_data.get("wall_cp_kj_kg_k", -1.0))
 		rooms[room_id].wall_thickness_m = float(room_data.get("wall_thickness_m", -1.0))
+		var phase3_boundaries: Variant = room_data.get(
+			"phase3_surface_boundaries", {}
+		)
+		if typeof(phase3_boundaries) == TYPE_DICTIONARY:
+			rooms[room_id].phase3_surface_boundaries = \
+					Dictionary(phase3_boundaries).duplicate(true)
+		else:
+			rooms[room_id].phase3_surface_boundaries = {}
 
 	# Aperturas
 	for op_data in data.get("openings_data", []):
