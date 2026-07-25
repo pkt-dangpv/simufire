@@ -376,8 +376,19 @@ Revert the experimental phase if any of the following occurs:
 
 ## Final recommendation
 
-Proceed only with the read-only F3.3r2d attribution described in the F3.3r2c
-binding record. Do not add another thermal coefficient, run 300/600 s,
-enable an official case or promote runtime authority. The next audit must
-separate accepted-source loss from interface-driven surface allocation before
-another physical experiment is designed.
+F3.3r2d completed the required separation:
+
+- `3.814 MJ` of the 180 s shortfall is combustion-decision rejection driven
+  exactly by the canonical O2 HRR factor;
+- atomic surface routing rejects `0 MJ`;
+- the simulated interface independently shifts `1.775 MJ` from upper wall to
+  lower wall in the read-only CFAST-interface counterfactual;
+- source, gas/surface split, migration and legacy invariants close.
+
+The binding record is
+`docs/validation/PHASE3_F33R2D_SOURCE_ROUTING_ATTRIBUTION.md`.
+
+Do not add another thermal/radiative coefficient, run 300/600 s, enable an
+official case or promote runtime authority. Proceed only to F3.3s, a
+read-only layer-mass/O2 owner audit that identifies the first incorrect
+plume, doorway, O2-sink or projection delta.

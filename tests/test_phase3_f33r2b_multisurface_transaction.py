@@ -110,7 +110,7 @@ def test_surface_deposit_uses_atomic_fraction_and_area_emissivity_split():
         SYSTEM, "commit_canonical_multisurface_combustion_radiation"
     )
     assert 'combustion.get("atomic_accepted_fraction", 1.0)' in body
-    assert ') * atomic_fraction' in body
+    assert "pre_atomic_accepted_radiation_kj * atomic_fraction" in body
     assert 'surface.get("area_m2", 0.0)' in body
     assert 'surface.get("emissivity", 0.0)' in body
     assert "Phase3SurfaceEnergySolverScript.step_surface" in body
@@ -153,7 +153,16 @@ def test_multisurface_fields_are_only_in_opt_in_shadow_schema():
     header = _function(LOG, "_build_csv_header")
     assert "if phase3_canonical_zone_shadow_enabled:" in header
     assert "phase3_shadow_multisurface_enabled_flag" in header
-    assert "phase3_shadow_combustion_requested_radiative_energy_kj" not in LOG
+    correspondence = _function(LOG, "_phase3_combustion_correspondence_fields")
+    for field in (
+        "phase3_shadow_combustion_requested_radiative_energy_kj",
+        "phase3_shadow_combustion_accepted_radiative_energy_kj",
+        "phase3_shadow_combustion_routed_surface_radiation_kj",
+        "phase3_shadow_combustion_radiative_route_residual_kj",
+        "phase3_shadow_combustion_fire_partition_residual_kj",
+    ):
+        assert field in correspondence
+    assert "_phase3_combustion_correspondence_fields()" in header
 
 
 def test_multisurface_functions_do_not_mutate_roommodel():

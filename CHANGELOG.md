@@ -3,6 +3,21 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3r2d source/routing attribution (2026-07-25)
+
+- Added opt-in cumulative attribution for requested, decision-rejected,
+  atomic-rejected and routed fire radiation, wall-area migration and
+  upper/lower gas-to-surface exchange.
+- Added a tested read-only CFAST analyzer that closes the source ledger and
+  reroutes accepted radiation with the reference interface without applying
+  it to simulation state.
+- Traced 89.4% of the 180 s radiation shortfall to canonical O2 decision
+  throttling; the atomic surface transaction rejects no energy.
+- Measured 1.775 MJ incorrectly shifted from upper wall to lower wall by the
+  high simulated interface, with zero routing or migration residual.
+- Kept physical adoption, official activation and Group C retirement NO-GO;
+  selected a layer-mass/O2 causal audit as F3.3s.
+
 ### Phase 3+ F3.3r2c multi-surface correspondence (2026-07-25)
 
 - Added opt-in cumulative room and per-surface correspondence telemetry for

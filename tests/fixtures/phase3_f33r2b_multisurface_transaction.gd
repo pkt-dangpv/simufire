@@ -171,6 +171,38 @@ func _test_partial_atomic_acceptance_scales_radiation() -> void:
 		"partial accepted radiation"
 	)
 	_assert_close(
+		_value(
+			result,
+			"phase3_shadow_multisurface_cumulative_requested_fire_radiation_kj"
+		),
+		30.0,
+		"partial cumulative requested radiation"
+	)
+	_assert_close(
+		_value(
+			result,
+			"phase3_shadow_multisurface_cumulative_pre_atomic_fire_radiation_kj"
+		),
+		30.0,
+		"partial cumulative pre-atomic radiation"
+	)
+	_assert_close(
+		_value(
+			result,
+			"phase3_shadow_multisurface_cumulative_atomic_rejected_radiation_kj"
+		),
+		15.0,
+		"partial cumulative atomic rejection"
+	)
+	_assert_close(
+		_value(
+			result,
+			"phase3_shadow_multisurface_cumulative_fire_radiation_kj"
+		),
+		15.0,
+		"partial cumulative routed radiation"
+	)
+	_assert_close(
 		_surface_energy(ledger.get_canonical_multisurface_state(0)),
 		15.0,
 		"partial surface storage"
@@ -255,6 +287,18 @@ func _test_interface_migration_conserves_surface_energy() -> void:
 		float(downward.get("migration_residual_kj", 0.0)),
 		0.0,
 		"downward migration residual"
+	)
+	var downward_energy_kj: float = float(
+		downward.get("migration_energy_kj", 0.0)
+	)
+	_assert_true(downward_energy_kj > 0.0, "downward migration visible")
+	var repeated: Dictionary = ledger.prepare_canonical_multisurface_room(
+		0, _geometry(0.75), _material(), 20.0
+	)
+	_assert_close(
+		float(repeated.get("migration_energy_kj", 0.0)),
+		downward_energy_kj,
+		"same-step prepare preserves migration telemetry"
 	)
 
 	ledger.begin_step(setup["building"], true)
@@ -347,6 +391,7 @@ func _transaction(
 		"accepted_species_kg": {},
 		"requested_radiative_energy_kj": accepted_radiation_kj,
 		"accepted_radiative_energy_kj": accepted_radiation_kj,
+		"requested_total_fire_energy_kj": accepted_total_fire_energy_kj,
 		"accepted_total_fire_energy_kj": accepted_total_fire_energy_kj,
 		"dt_s": 1.0,
 		"fire_state_proposed": {},

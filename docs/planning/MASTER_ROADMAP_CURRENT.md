@@ -71,8 +71,16 @@ Antes de tocar motor:
 - F3.3r2a ya entrega el solver puro: respuesta de hormigon a 60 s con error
   `3.07%` frente a la solucion semi-infinita y residual acumulado
   `5.96e-8 kJ` tras 10.000 pasos. No tiene wiring runtime.
-- Siguiente fase: F3.3r2b, solo estado/transacciones default OFF y fixtures
-  directos. Los runs de correspondencia 60/120/180 s siguen bloqueados.
+- F3.3r2b/b1/b2 ya entregan estado, transaccion atomica, intercambio
+  gas-superficie y topologia explicita default OFF.
+- F3.3r2c cierra contabilidad multi-superficie pero falla correspondencia
+  fisica a 180 s: masa/interfaz, temperaturas y radiacion aceptada.
+- F3.3r2d atribuye el deficit radiativo de `4.268 MJ`: `3.814 MJ` vienen del
+  throttle de decision O2, `0.454 MJ` de la trayectoria fuente y `0 MJ` del
+  commit atomico. La interfaz alta desplaza `1.775 MJ` de pared upper a
+  lower sin romper conservacion.
+- Siguiente fase: F3.3s, auditoria pasiva de masa/interfaz/O2 hasta 180 s.
+  No ajustar radiacion ni prescribir la interfaz CFAST.
 - Physics coherence audit: suite con controles intencionales registrados (`v1_backdraft_accumulation`, `v1_m4_pool_release`). Reglas FAIL/gating: B1, C1, C2, A2, A3, D1, E1, S0. WARN: O1, O2E1.
 - Tests Python: **157 PASS**.
 

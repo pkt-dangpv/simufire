@@ -601,6 +601,9 @@ func prepare_canonical_multisurface_room(
 		return {"valid": false, "error": "invalid reference temperature"}
 
 	var room_key: String = str(room_id)
+	var previous_step_record: Dictionary = _canonical_multisurface_by_room.get(
+		room_key, {}
+	)
 	var floor_area_m2: float = float(geometry["floor_area_m2"])
 	var perimeter_m: float = float(geometry["perimeter_m"])
 	var height_m: float = float(geometry["height_m"])
@@ -688,8 +691,12 @@ func prepare_canonical_multisurface_room(
 		"error": "",
 		"seeded_flag": 1.0 if seeded else 0.0,
 		"interface_m": interface_m,
-		"migration_energy_kj": migrated_energy_kj,
-		"migration_residual_kj": migration_residual_kj,
+		"migration_energy_kj": float(
+			previous_step_record.get("migration_energy_kj", 0.0)
+		) + migrated_energy_kj,
+		"migration_residual_kj": float(
+			previous_step_record.get("migration_residual_kj", 0.0)
+		) + migration_residual_kj,
 		"radiation_requested_kj": 0.0,
 		"radiation_accepted_kj": 0.0,
 		"radiation_routed_kj": 0.0,
@@ -1074,9 +1081,18 @@ func commit_canonical_multisurface_combustion_radiation(room_id: int) -> bool:
 	var requested_radiation_kj: float = maxf(
 		0.0, float(combustion.get("requested_radiative_energy_kj", 0.0))
 	)
-	var accepted_radiation_kj: float = maxf(
+	var pre_atomic_accepted_radiation_kj: float = maxf(
 		0.0, float(combustion.get("accepted_radiative_energy_kj", 0.0))
-	) * atomic_fraction
+	)
+	var accepted_radiation_kj: float = (
+		pre_atomic_accepted_radiation_kj * atomic_fraction
+	)
+	var decision_rejected_radiation_kj: float = maxf(
+		0.0, requested_radiation_kj - pre_atomic_accepted_radiation_kj
+	)
+	var atomic_rejected_radiation_kj: float = maxf(
+		0.0, pre_atomic_accepted_radiation_kj - accepted_radiation_kj
+	)
 	var state_pre: Dictionary = _canonical_surface_state_by_room[
 		room_key
 	].duplicate(true)
@@ -1116,7 +1132,12 @@ func commit_canonical_multisurface_combustion_radiation(room_id: int) -> bool:
 			"upper_gas_exchange_kj": 0.0,
 			"lower_gas_exchange_kj": 0.0,
 			"gas_exchange_kj": 0.0,
+			"requested_fire_radiation_kj": 0.0,
+			"pre_atomic_accepted_fire_radiation_kj": 0.0,
+			"decision_rejected_fire_radiation_kj": 0.0,
+			"atomic_rejected_fire_radiation_kj": 0.0,
 			"fire_radiation_kj": 0.0,
+			"migration_energy_kj": 0.0,
 			"exterior_removed_kj": 0.0,
 			"combined_energy_residual_kj": 0.0,
 			"solver_residual_kj": 0.0,
@@ -1210,9 +1231,27 @@ func commit_canonical_multisurface_combustion_radiation(room_id: int) -> bool:
 	cumulative["gas_exchange_kj"] = float(
 		cumulative.get("gas_exchange_kj", 0.0)
 	) + accepted_gas_exchange_kj
+	cumulative["requested_fire_radiation_kj"] = float(
+		cumulative.get("requested_fire_radiation_kj", 0.0)
+	) + requested_radiation_kj
+	cumulative["pre_atomic_accepted_fire_radiation_kj"] = float(
+		cumulative.get("pre_atomic_accepted_fire_radiation_kj", 0.0)
+	) + pre_atomic_accepted_radiation_kj
+	cumulative["decision_rejected_fire_radiation_kj"] = float(
+		cumulative.get("decision_rejected_fire_radiation_kj", 0.0)
+	) + decision_rejected_radiation_kj
+	cumulative["atomic_rejected_fire_radiation_kj"] = float(
+		cumulative.get("atomic_rejected_fire_radiation_kj", 0.0)
+	) + atomic_rejected_radiation_kj
 	cumulative["fire_radiation_kj"] = float(
 		cumulative.get("fire_radiation_kj", 0.0)
 	) + routed_radiation_kj
+	var multisurface_record_pre: Dictionary = _canonical_multisurface_by_room.get(
+		room_key, {}
+	)
+	cumulative["migration_energy_kj"] = float(
+		cumulative.get("migration_energy_kj", 0.0)
+	) + float(multisurface_record_pre.get("migration_energy_kj", 0.0))
 	cumulative["exterior_removed_kj"] = float(
 		cumulative.get("exterior_removed_kj", 0.0)
 	) + accepted_exterior_removed_kj
@@ -7229,8 +7268,27 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"phase3_shadow_multisurface_cumulative_gas_exchange_kj": float(
 				canonical_multisurface_cumulative.get("gas_exchange_kj", 0.0)
 			),
+			"phase3_shadow_multisurface_cumulative_requested_fire_radiation_kj": \
+					float(canonical_multisurface_cumulative.get(
+						"requested_fire_radiation_kj", 0.0
+					)),
+			"phase3_shadow_multisurface_cumulative_pre_atomic_fire_radiation_kj": \
+					float(canonical_multisurface_cumulative.get(
+						"pre_atomic_accepted_fire_radiation_kj", 0.0
+					)),
+			"phase3_shadow_multisurface_cumulative_decision_rejected_radiation_kj": \
+					float(canonical_multisurface_cumulative.get(
+						"decision_rejected_fire_radiation_kj", 0.0
+					)),
+			"phase3_shadow_multisurface_cumulative_atomic_rejected_radiation_kj": \
+					float(canonical_multisurface_cumulative.get(
+						"atomic_rejected_fire_radiation_kj", 0.0
+					)),
 			"phase3_shadow_multisurface_cumulative_fire_radiation_kj": float(
 				canonical_multisurface_cumulative.get("fire_radiation_kj", 0.0)
+			),
+			"phase3_shadow_multisurface_cumulative_migration_energy_kj": float(
+				canonical_multisurface_cumulative.get("migration_energy_kj", 0.0)
 			),
 			"phase3_shadow_multisurface_cumulative_exterior_removed_kj": float(
 				canonical_multisurface_cumulative.get(

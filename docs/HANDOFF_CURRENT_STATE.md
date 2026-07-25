@@ -12,6 +12,35 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-25 - F3.3r2d attribution GO / physics NO-GO
+
+- Added default-OFF cumulative source attribution for requested,
+  decision-rejected, atomic-rejected and routed surface radiation.
+- Added upper/lower gas-surface and wall-area migration observability. A
+  repeated same-step surface preparation now preserves diagnostic migration
+  energy instead of overwriting it; physical state and routes are unchanged.
+- The tested read-only analyzer closes source, routing and gas/surface split
+  ledgers and preserves all 13,110 legacy cells exactly.
+- At 180 s, CFAST radiation is `13.392 MJ`, SimuFire requests `12.938 MJ`
+  and routes `9.124 MJ`. Decision rejection owns `3.814 MJ`; upstream source
+  trajectory owns `0.454 MJ`; atomic rejection is zero.
+- The decision fraction equals the canonical O2 HRR factor at all
+  checkpoints. At 180 s SimuFire uses `O2=0.0355` and accepts `68.2 kW`,
+  while CFAST upper O2 is `0.1667` and HRR remains `300 kW`.
+- The simulated interface (`1.969 m` versus CFAST `0.736 m`) shifts
+  `1.775 MJ` from upper wall to lower wall in the read-only routing
+  counterfactual.
+- Wall-area migration carries `1.591 MJ` gross with zero residual. Upper and
+  lower gas-surface exchange close exactly.
+- Decision: telemetry and diagnosis GO; physical adoption, runtime authority
+  and Group C retirement remain NO-GO. Do not compensate with extra
+  radiation or a prescribed CFAST interface.
+- Next: F3.3s read-only layer-mass/O2 causal audit. Find the first incorrect
+  owner among plume, doorway flow, O2 sink and projection before another
+  motor experiment. Stop at 180 s.
+- Binding record:
+  `docs/validation/PHASE3_F33R2D_SOURCE_ROUTING_ATTRIBUTION.md`.
+
 ## Current Session Update - 2026-07-25 - F3.3r2c telemetry GO / physics NO-GO
 
 - Added opt-in cumulative multi-surface correspondence telemetry plus tested

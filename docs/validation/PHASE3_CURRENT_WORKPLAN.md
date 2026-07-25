@@ -1031,10 +1031,19 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 
 ## Next prompt target
 
-Design and implement F3.3r2b2 explicit enclosure boundary topology under the
-existing default-OFF multi-surface flag. Define physical per-surface exterior,
-inter-room and adiabatic fractions without reading visual meshes or inventing
-fallbacks. Populate the F3.3r2b1 `exterior_by_surface` contract, prove mixed
-boundary conservation and preserve OFF output. Do not enable an official
-case, run F3.3r2c correspondence, alter reports, expected/tolerances or gaps.
-HVAC remains deferred.
+F3.3r2b2 topology and F3.3r2c correspondence are complete. F3.3r2d then
+closed the attribution:
+
+- source shortfall at 180 s: `4.268 MJ`;
+- canonical O2 decision rejection: `3.814 MJ`;
+- upstream trajectory delta: `0.454 MJ`;
+- atomic rejection: `0 MJ`;
+- interface-driven upper-to-lower wall redistribution: `1.775 MJ`;
+- all passive ledgers and legacy invariance: PASS.
+
+Next implement only F3.3s, a read-only layer-mass/O2 causal audit through
+180 s. Reconstruct upper/lower mass, EOS volume and O2 inventories plus
+plume, doorway, combustion and projection deltas. Identify the first
+incorrect owner before proposing another motor patch. Do not inject CFAST
+state, tune radiation/O2/interface coefficients, enable an official case,
+alter reports/expected/tolerances/gaps or touch HVAC.

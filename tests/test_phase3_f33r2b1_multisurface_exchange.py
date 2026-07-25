@@ -75,6 +75,14 @@ def test_correspondence_ledger_is_persistent_resettable_and_exported():
     assert "_canonical_multisurface_cumulative_by_room.clear()" in reset
     assert "_canonical_multisurface_cumulative_by_room.clear()" in begin
     assert "_phase3_multisurface_correspondence_fields()" in LOG
+    for field in (
+        "requested_fire_radiation_kj",
+        "pre_atomic_accepted_fire_radiation_kj",
+        "decision_rejected_fire_radiation_kj",
+        "atomic_rejected_fire_radiation_kj",
+        "migration_energy_kj",
+    ):
+        assert field in commit
     for surface in ("ceiling", "upper_wall", "lower_wall", "floor"):
         assert surface in _function(
             LOG, "_phase3_multisurface_correspondence_fields"
