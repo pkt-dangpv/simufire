@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ENGINE = (ROOT / "sim/core/SimulationEngine.gd").read_text(encoding="utf-8")
 SYSTEM = (ROOT / "sim/core/Phase3ZoneMassSystem.gd").read_text(encoding="utf-8")
+LOG = (ROOT / "sim/core/SimulationLogWriter.gd").read_text(encoding="utf-8")
 SOLVER = (ROOT / "sim/core/Phase3SurfaceEnergySolver.gd").read_text(
     encoding="utf-8"
 )
@@ -64,6 +65,22 @@ def test_surface_commit_applies_prescribed_accepted_energies_once():
     assert '"combined_energy_residual_kj"' in commit
 
 
+def test_correspondence_ledger_is_persistent_resettable_and_exported():
+    commit = _function(
+        SYSTEM, "commit_canonical_multisurface_combustion_radiation"
+    )
+    reset = _function(SYSTEM, "reset")
+    begin = _function(SYSTEM, "begin_step")
+    assert "_canonical_multisurface_cumulative_by_room" in commit
+    assert "_canonical_multisurface_cumulative_by_room.clear()" in reset
+    assert "_canonical_multisurface_cumulative_by_room.clear()" in begin
+    assert "_phase3_multisurface_correspondence_fields()" in LOG
+    for surface in ("ceiling", "upper_wall", "lower_wall", "floor"):
+        assert surface in _function(
+            LOG, "_phase3_multisurface_correspondence_fields"
+        )
+
+
 def test_engine_prepares_all_rooms_and_resolves_physical_topology():
     collect = _function(ENGINE, "_phase3_shadow_collect_thermal_requests")
     prepare = _function(ENGINE, "_phase3_prepare_canonical_multisurface_room")
@@ -92,5 +109,6 @@ def test_runtime_fixture_covers_f33r2b1_stop_gates():
         "_test_partial_and_rejected_atomic_exchange",
         "_test_surface_to_gas_signed_exchange",
         "_test_explicit_exterior_loss_closes_combined_ledger",
+        "_test_correspondence_ledger_accumulates_and_resets",
     ):
         assert name in FIXTURE

@@ -3,6 +3,21 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3r2c multi-surface correspondence (2026-07-25)
+
+- Added opt-in cumulative room and per-surface correspondence telemetry for
+  gas exchange, fire radiation, exterior removal, temperatures, storage and
+  residuals.
+- Added reproducible scratch-only corridor, topology, no-opening and material
+  fixtures plus a tested CFAST STOP-gate analyzer.
+- Closed the 180 s energy ledger and legacy invariance gates, but rejected
+  physical adoption because accepted radiation, layer mass/interface,
+  temperature and surface allocation do not correspond to CFAST.
+- Stopped before 300/600 s and left every official case, report, baseline,
+  tolerance, gap, FED, HVAC and visual path unchanged.
+- Selected read-only source/interface/routing attribution as F3.3r2d before
+  any further motor experiment.
+
 ### Phase 3+ F3.3r2b2 enclosure topology (2026-07-25)
 
 - Added explicit per-room physical topology for ceiling, upper wall, lower

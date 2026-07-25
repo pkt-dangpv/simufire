@@ -2,9 +2,9 @@
 
 Date: 2026-07-25
 
-Status: design GO. F3.3r2a and F3.3r2b are implemented behind a default-OFF
-flag. Gas/surface/exterior exchange, runtime authority and gap retirement
-remain NO-GO.
+Status: design and instrumentation GO through F3.3r2c. The 180 s physical
+correspondence gate is NO-GO. Runtime authority and gap retirement remain
+blocked.
 
 ## Decision
 
@@ -346,6 +346,21 @@ At 180 s, provisional acceptance requires:
 These gates authorize later experiments only. They do not retire Group C or
 promote the shadow to production authority.
 
+### F3.3r2c result
+
+The staged scratch experiment stopped at 180 s with a physical NO-GO:
+
+- total surface storage passed at `23.472 MJ` versus `26.993 MJ`;
+- gas-driven storage passed at `14.347 MJ` versus `13.601 MJ`;
+- the combined cumulative residual closed to `-0.00000008 kJ`;
+- accepted fire radiation failed at `9.124 MJ` versus `13.392 MJ`;
+- R0, Hall and R2 temperature gates failed except R2 lower;
+- R0 upper/lower mass and interface were worse than the valid F3.3p1 state;
+- CFAST-boundary and physical-topology variants were nearly identical.
+
+No 300 or 600 s run was made. The binding record is
+`docs/validation/PHASE3_F33R2C_MULTISURFACE_CORRESPONDENCE.md`.
+
 ## Rollback conditions
 
 Revert the experimental phase if any of the following occurs:
@@ -361,10 +376,8 @@ Revert the experimental phase if any of the following occurs:
 
 ## Final recommendation
 
-Proceed next with F3.3r2b1: atomic gas/surface/exterior exchange using the
-state and fire-radiation transaction now delivered by F3.3r2b. Do not enable
-an official case or begin F3.3r2c correspondence until that combined energy
-invariant closes.
-
-Runtime authority remains blocked by F3.3r2b1/r2c and by the missing explicit
-boundary topology.
+Proceed only with the read-only F3.3r2d attribution described in the F3.3r2c
+binding record. Do not add another thermal coefficient, run 300/600 s,
+enable an official case or promote runtime authority. The next audit must
+separate accepted-source loss from interface-driven surface allocation before
+another physical experiment is designed.

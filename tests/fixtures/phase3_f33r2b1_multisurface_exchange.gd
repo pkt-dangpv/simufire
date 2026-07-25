@@ -17,6 +17,7 @@ func _init() -> void:
 	_test_partial_and_rejected_atomic_exchange()
 	_test_surface_to_gas_signed_exchange()
 	_test_explicit_exterior_loss_closes_combined_ledger()
+	_test_correspondence_ledger_accumulates_and_resets()
 	if _failed:
 		quit(1)
 		return
@@ -257,6 +258,95 @@ func _test_explicit_exterior_loss_closes_combined_ledger() -> void:
 		float(exchange.get("combined_energy_residual_kj", 1.0)),
 		0.0,
 		"exterior combined residual"
+	)
+	_free_setup(setup)
+
+
+func _test_correspondence_ledger_accumulates_and_resets() -> void:
+	var setup: Dictionary = _make_setup(200.0)
+	var ledger = _make_ledger(setup["building"])
+	_assert_prepared(ledger)
+	_assert_true(
+		ledger.queue_canonical_multisurface_exchange(
+			0, _manual_upper_request(25.0), "cumulative-1"
+		),
+		"cumulative step 1 queued"
+	)
+	ledger.finalize_step(setup["building"], 20.0)
+	var step_1: Dictionary = ledger.get_results().get("0", {})
+	_assert_close(
+		float(step_1.get(
+			"phase3_shadow_multisurface_cumulative_gas_exchange_kj", 0.0
+		)),
+		25.0,
+		"cumulative step 1 gas"
+	)
+	_assert_close(
+		float(step_1.get(
+			"phase3_shadow_multisurface_ceiling_cumulative_gas_exchange_kj",
+			0.0
+		)),
+		25.0,
+		"cumulative step 1 ceiling"
+	)
+
+	ledger.begin_step(setup["building"], true)
+	_assert_prepared(ledger)
+	_assert_true(
+		ledger.queue_canonical_multisurface_exchange(
+			0, _manual_upper_request(15.0), "cumulative-2"
+		),
+		"cumulative step 2 queued"
+	)
+	ledger.finalize_step(setup["building"], 20.0)
+	var step_2: Dictionary = ledger.get_results().get("0", {})
+	_assert_close(
+		float(step_2.get(
+			"phase3_shadow_multisurface_cumulative_gas_exchange_kj", 0.0
+		)),
+		40.0,
+		"cumulative step 2 gas"
+	)
+	_assert_close(
+		float(step_2.get(
+			"phase3_shadow_multisurface_cumulative_step_count", 0.0
+		)),
+		2.0,
+		"cumulative step count"
+	)
+	_assert_close(
+		float(step_2.get(
+			"phase3_shadow_multisurface_cumulative_energy_residual_kj", 1.0
+		)),
+		0.0,
+		"cumulative residual"
+	)
+
+	ledger.reset()
+	ledger.configure_canonical_multisurface_shadow(true)
+	ledger.begin_step(setup["building"], true)
+	_assert_prepared(ledger)
+	_assert_true(
+		ledger.queue_canonical_multisurface_exchange(
+			0, _manual_upper_request(5.0), "after-reset"
+		),
+		"post-reset step queued"
+	)
+	ledger.finalize_step(setup["building"], 20.0)
+	var post_reset: Dictionary = ledger.get_results().get("0", {})
+	_assert_close(
+		float(post_reset.get(
+			"phase3_shadow_multisurface_cumulative_gas_exchange_kj", 0.0
+		)),
+		5.0,
+		"post-reset cumulative gas"
+	)
+	_assert_close(
+		float(post_reset.get(
+			"phase3_shadow_multisurface_cumulative_step_count", 0.0
+		)),
+		1.0,
+		"post-reset step count"
 	)
 	_free_setup(setup)
 

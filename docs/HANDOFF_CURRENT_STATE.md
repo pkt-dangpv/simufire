@@ -12,6 +12,38 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-25 - F3.3r2c telemetry GO / physics NO-GO
+
+- Added opt-in cumulative multi-surface correspondence telemetry plus tested
+  scratch case generation and a deterministic CFAST comparison analyzer.
+- Godot 4.7.1 runtime fixture PASS; focused new tests are 19/19 PASS and the
+  complete Phase 3 selection is 582/582 PASS outside the restricted temp
+  sandbox.
+- The 60/120/180 s scratch matrix completed without a Godot crash. No 300 or
+  600 s run was made because the mandatory 180 s gate failed.
+- Energy bookkeeping is sound: R0 total surface storage is `23.472 MJ`
+  versus CFAST `26.993 MJ`, gas-driven storage is `14.347 MJ` versus
+  `13.601 MJ`, and the cumulative residual is `-0.00000008 kJ`.
+- Physical correspondence fails: accepted fire radiation is `9.124 MJ`
+  versus `13.392 MJ`; R0 upper/lower temperatures are `115.87/25.88 C`
+  versus `159.82/61.56 C`; the upper mass is only `7.80 kg` versus
+  `26.94 kg`; interface is `1.969 m` versus `0.736 m`.
+- Surface partition is wrong despite a close total: lower wall is
+  `+2.369 MJ` high and floor is `-3.061 MJ` low against CFAST.
+- Physical and independent-compartment boundary variants are nearly
+  identical at 180 s. Missing paired inter-room surfaces are not the binding
+  0-180 s error.
+- Zero legacy differences were found across 13,110 compared cells. No
+  official case, report, expected, tolerance, CTRL, VALID_GAP, FED, HVAC or
+  visual path changed.
+- Decision: retain the observability, do not promote the physical shadow and
+  do not retire Group C.
+- Next: F3.3r2d read-only attribution of requested/accepted fire radiation,
+  O2/source feedback, simulated versus CFAST interface routing weights and
+  per-zone surface exchange. No new coefficient and no run beyond 180 s.
+- Binding record:
+  `docs/validation/PHASE3_F33R2C_MULTISURFACE_CORRESPONDENCE.md`.
+
 ## Current Session Update - 2026-07-25 - F3.3r2b2 topology GO
 
 - Added explicit physical `phase3_surface_boundaries` metadata to each room
