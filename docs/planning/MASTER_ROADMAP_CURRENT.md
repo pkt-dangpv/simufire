@@ -68,6 +68,11 @@ Antes de tocar motor:
 - La implementacion se divide en F3.3r2a solver puro y fixtures, F3.3r2b
   estado/transacciones y F3.3r2c gates scratch 60/120/180 s. Solo r2a queda
   autorizado como siguiente paso. El parche de area completa sigue NO-GO.
+- F3.3r2a ya entrega el solver puro: respuesta de hormigon a 60 s con error
+  `3.07%` frente a la solucion semi-infinita y residual acumulado
+  `5.96e-8 kJ` tras 10.000 pasos. No tiene wiring runtime.
+- Siguiente fase: F3.3r2b, solo estado/transacciones default OFF y fixtures
+  directos. Los runs de correspondencia 60/120/180 s siguen bloqueados.
 - Physics coherence audit: suite con controles intencionales registrados (`v1_backdraft_accumulation`, `v1_m4_pool_release`). Reglas FAIL/gating: B1, C1, C2, A2, A3, D1, E1, S0. WARN: O1, O2E1.
 - Tests Python: **157 PASS**.
 

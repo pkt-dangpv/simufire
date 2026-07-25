@@ -78,6 +78,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.3r0 material correspondence: `docs/validation/PHASE3_F33R0_MATERIAL_CORRESPONDENCE.md`
 - F3.3r1 boundary partition: `docs/validation/PHASE3_F33R1_BOUNDARY_PARTITION_AUDIT.md`
 - F3.3r2 multi-surface shadow design: `docs/validation/PHASE3_F33R2_MULTISURFACE_SHADOW_DESIGN.md`
+- F3.3r2a pure surface solver: `docs/validation/PHASE3_F33R2A_SURFACE_SOLVER.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -971,14 +972,31 @@ GES doorway/background mechanisms. See `PHASE3_F30K_CROSS_PATH_AUDIT.md`.
 - Binding record:
   `PHASE3_F33R2_MULTISURFACE_SHADOW_DESIGN.md`.
 
+## F3.3r2a pure surface-solver decision
+
+- Added a pure five-node implicit finite-volume solver with no runtime caller.
+- Immutable surface snapshots and explicit accepted fluxes produce a proposed
+  state plus a complete energy residual.
+- Direct fire radiation, gas radiation, gas convection and exterior removal
+  remain separate fields.
+- The 60 s concrete surface response is within `3.0688%` of the analytical
+  semi-infinite solution.
+- A 10,000-step mixed-flux fixture closes to `5.9642e-8 kJ` cumulative
+  residual.
+- Decision: numerical GO. Runtime authority and official case activation
+  remain NO-GO.
+- Binding record:
+  `PHASE3_F33R2A_SURFACE_SOLVER.md`.
+
 ## Next prompt target
 
-Implement F3.3r2a only: add a pure five-node
-`Phase3SurfaceEnergySolver.gd` and deterministic numerical/conservation
-fixtures. The solver must accept immutable surface state plus explicit
-convection, radiation and exterior-boundary fluxes and return proposed state
-plus residuals. Do not wire it into `SimulationEngine`, `RoomModel`,
-`Phase3ZoneMassSystem`, the simulation tick or CSV output. Require constant
-ambient no-op, radiation-only closure, early semi-infinite correspondence and
-10,000-step conservation before the STOP gate. Do not change official
-cases/reports, expected/tolerances or gaps. HVAC remains deferred.
+Implement F3.3r2b state/transaction wiring under a new default-OFF
+`phase3_canonical_multisurface_shadow_enabled` flag. Add persistent
+ceiling/upper-wall/lower-wall/floor snapshots to `Phase3ZoneMassSystem`,
+energy-conserving wall-area migration and accepted combustion-radiation
+metadata that shares the existing atomic combustion acceptance fraction.
+Make the new path mutually exclusive with the lumped canonical wall/ambient
+path. Add direct fixtures for OFF invariance, radiation acceptance,
+migration, rejection, duplicate commit and energy closure. Do not enable an
+official case, run 60/120/180 s correspondence, alter reports,
+expected/tolerances or gaps. HVAC remains deferred.

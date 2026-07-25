@@ -12,6 +12,28 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-25 - F3.3r2a numerical GO
+
+- Added pure `Phase3SurfaceEnergySolver.gd`; it has no runtime caller and no
+  dependency on `RoomModel`, `SimulationEngine` or canonical persistent
+  state.
+- The solver uses five implicit finite-volume nodes and returns a proposed
+  state plus explicit energy residual without mutating its input.
+- The default near-surface grid matches the 60 s semi-infinite concrete
+  surface response within `3.0688%`.
+- The 10,000-step fixture closes to `0.000000059642 kJ` cumulative residual.
+- Direct fire radiation and gas radiation remain distinct ledger inputs.
+- Godot 4.7.1 fixture and full-project parse PASS; focused Python tests are
+  27/27 PASS.
+- Physics remains 9 PASS / 15 CTRL / 5 WARN / 0 FAIL; ILV remains
+  15 PASS / 14 CTRL / 0 FAIL.
+- Guardrails before commit are 9/10 only because R2-1 correctly detects the
+  new uncommitted `sim/core` file. Do not regenerate reference artifacts.
+- Next: F3.3r2b default-OFF state/transaction wiring and direct fixtures.
+  Do not enable an official case or start 60/120/180 s correspondence yet.
+- Binding record:
+  `docs/validation/PHASE3_F33R2A_SURFACE_SOLVER.md`.
+
 ## Current Session Update - 2026-07-25 - F3.3r2 design GO
 
 - Closed the design contract for a default-OFF canonical multi-surface

@@ -3,6 +3,19 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3r2a pure surface solver (2026-07-25)
+
+- Added an isolated five-node implicit finite-volume surface-energy solver
+  with immutable inputs and explicit convection, gas-radiation,
+  fire-radiation and exterior-loss ledger fields.
+- Concentrated the default grid near the interior face for the 0-180 s
+  validation window; the 60 s concrete surface response is within 3.07% of
+  the semi-infinite analytical reference.
+- Closed a 10,000-step conservation fixture to `5.96e-8 kJ` cumulative
+  residual without temperature or energy clamps.
+- Kept the component completely unwired from runtime. No official case,
+  report, baseline, tolerance, gap, FED or HVAC path changed.
+
 ### Phase 3+ F3.3r2 multi-surface shadow design (2026-07-25)
 
 - Defined a default-OFF four-surface canonical shadow for ceiling,
