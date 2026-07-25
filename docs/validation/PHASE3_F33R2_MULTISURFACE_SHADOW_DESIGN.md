@@ -388,7 +388,14 @@ F3.3r2d completed the required separation:
 The binding record is
 `docs/validation/PHASE3_F33R2D_SOURCE_ROUTING_ATTRIBUTION.md`.
 
+F3.3s completed that owner audit. The first exported divergence is already
+present at 10 s and belongs to the plume request/source path; O2 concentration
+diverges only at 70 s. CFAST enters a flame/interface regime at 60 s while
+SimuFire remains on a far-field expression that is pinched near `z_eff=0.10
+m` at 80-90 s.
+
 Do not add another thermal/radiative coefficient, run 300/600 s, enable an
-official case or promote runtime authority. Proceed only to F3.3s, a
-read-only layer-mass/O2 owner audit that identifies the first incorrect
-plume, doorway, O2-sink or projection delta.
+official case or promote runtime authority. Proceed only to F3.3t design:
+a default-OFF region-aware plume/interface transition with one aligned
+convective-HRR source and explicit rollback against the F3.3d2 temperature
+regression.

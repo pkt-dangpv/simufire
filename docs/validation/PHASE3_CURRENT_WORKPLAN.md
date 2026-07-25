@@ -1041,9 +1041,21 @@ closed the attribution:
 - interface-driven upper-to-lower wall redistribution: `1.775 MJ`;
 - all passive ledgers and legacy invariance: PASS.
 
-Next implement only F3.3s, a read-only layer-mass/O2 causal audit through
-180 s. Reconstruct upper/lower mass, EOS volume and O2 inventories plus
-plume, doorway, combustion and projection deltas. Identify the first
-incorrect owner before proposing another motor patch. Do not inject CFAST
-state, tune radiation/O2/interface coefficients, enable an official case,
-alter reports/expected/tolerances/gaps or touch HVAC.
+F3.3s is complete. The first exported error is present by 10 s:
+
+- upper mass `-2.644 kg`, lower mass `+2.922 kg`, interface `+0.113 m`;
+- plume cumulative transfer `1.067 kg` below CFAST;
+- exact mass residence residual and projection owner net both zero;
+- O2 concentration still close and canonical O2 decision factor still 1.0.
+
+CFAST enters its flame/interface regime at 60 s. SimuFire O2 concentration
+diverges at 70 s and its far-field distance is pinched near `0.10 m` at
+80-90 s, almost stopping plume transfer. The O2/radiation throttle is
+therefore downstream. Binding record:
+`PHASE3_F33S_LAYER_MASS_O2_CAUSAL_AUDIT.md`.
+
+Next design only F3.3t: a continuous region-aware plume/interface transition
+with an aligned accepted/convective HRR source. Any runtime experiment must
+be default OFF, limited first to 180 s and preserve exact mass/O2/energy
+ledgers. Do not retry the F3.3d2 source-term-only patch, inject CFAST state,
+fit a corridor-only coefficient, alter official reports or touch HVAC.

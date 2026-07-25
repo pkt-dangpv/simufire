@@ -3,6 +3,19 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3s layer-mass/O2 causal audit (2026-07-25)
+
+- Added a tested, read-only analyzer for 10-180 s layer mass, interface, O2,
+  HRR, plume geometry and explicit mass-residence owners.
+- Located the first exported divergence at 10 s: upper mass is 2.64 kg low,
+  interface is 0.11 m high and plume transfer is already 1.07 kg behind
+  CFAST while O2 concentration, projection and atomic acceptance still close.
+- Identified plume request/source as the first wrong owner. CFAST enters the
+  flame/interface regime at 60 s, O2 concentration diverges at 70 s, and
+  SimuFire pinches its far-field distance near 0.10 m at 80-90 s.
+- Kept physics, reports and baselines unchanged. Selected design-first F3.3t
+  for a default-OFF region-aware plume transition with aligned convective HRR.
+
 ### Phase 3+ F3.3r2d source/routing attribution (2026-07-25)
 
 - Added opt-in cumulative attribution for requested, decision-rejected,

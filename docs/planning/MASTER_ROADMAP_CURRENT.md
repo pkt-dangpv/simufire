@@ -79,8 +79,14 @@ Antes de tocar motor:
   throttle de decision O2, `0.454 MJ` de la trayectoria fuente y `0 MJ` del
   commit atomico. La interfaz alta desplaza `1.775 MJ` de pared upper a
   lower sin romper conservacion.
-- Siguiente fase: F3.3s, auditoria pasiva de masa/interfaz/O2 hasta 180 s.
-  No ajustar radiacion ni prescribir la interfaz CFAST.
+- F3.3s localiza el primer error en el path de solicitud/fuente del plume:
+  ya a 10 s faltan `2.64 kg` en la capa superior y `1.07 kg` de transferencia
+  acumulada, con O2 aun coherente y sin residual de proyeccion.
+- CFAST entra en regimen llama/interfaz a 60 s; el O2 de SimuFire diverge a
+  70 s y su `z_eff` queda pinzado cerca de `0.10 m` a 80-90 s.
+- Siguiente fase: F3.3t, diseno y luego experimento default-OFF de transicion
+  plume/interfaz con fuente HRR convectiva compartida. No repetir el source
+  term aislado de F3.3d2 ni prescribir la interfaz CFAST.
 - Physics coherence audit: suite con controles intencionales registrados (`v1_backdraft_accumulation`, `v1_m4_pool_release`). Reglas FAIL/gating: B1, C1, C2, A2, A3, D1, E1, S0. WARN: O1, O2E1.
 - Tests Python: **157 PASS**.
 

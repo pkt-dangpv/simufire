@@ -166,3 +166,8 @@ Do not add radiation, O2 or interface coefficients. Do not inject the CFAST
 interface into runtime state. Do not enable an official case, run beyond
 180 s, retire Group C or promote the multi-surface shadow before that audit
 identifies the first incorrect mass/O2 owner.
+
+F3.3s completed this audit. The binding result is
+`PHASE3_F33S_LAYER_MASS_O2_CAUSAL_AUDIT.md`: the first exported divergence
+is present by 10 s in the plume request/source path. O2 concentration
+divergence and combustion decision throttling are downstream.

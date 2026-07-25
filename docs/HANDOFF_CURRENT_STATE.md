@@ -12,6 +12,36 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-25 - F3.3s causal audit GO
+
+- Added a pure Python, read-only audit over the existing 180 s F3.3r2d
+  candidate and committed CFAST zone/compartment/mass exports.
+- The first available checkpoint, 10 s, already has upper mass
+  `-2.644 kg`, lower mass `+2.922 kg` and interface `+0.113 m` versus
+  CFAST. Upper O2 fraction is still within `0.0043`.
+- At 10 s, residence residual and projection owners are zero, canonical O2
+  factor is `1.0`, requested plume equals accepted plume and doorway owners
+  carry only about `0.20 kg` gross. Plume cumulative transfer is already
+  `1.067 kg` short.
+- CFAST flame height crosses its interface at 60 s. SimuFire O2 fraction
+  diverges at 70 s and its far-field `z_eff` is pinched to
+  `0.107-0.100 m` at 80-90 s, reducing requested plume to about
+  `0.007 kg/s` while CFAST remains near `0.65-0.70 kg/s`.
+- Decision: plume request/source is the first incorrect owner; O2 throttle
+  and radiative rejection are downstream. Projection, doorway exchange and
+  atomic acceptance are not the root cause.
+- Verification: focused analyzer 9/9 PASS; related analyzers 21/21 PASS;
+  broad Phase 3/F3.3/two-zone selection 650 PASS plus the same 5
+  pre-existing structural contract failures. Physics and ILV have 0 FAIL,
+  guardrails are 10/10 PASS and gap inventory is synchronized.
+- No motor, official case, report, expected, tolerance, CTRL, VALID_GAP,
+  FED, HVAC or visual path changed.
+- Next: F3.3t design-first region-aware plume/interface transition with one
+  shared convective-HRR contract. Do not retry the F3.3d2 source-term-only
+  patch, inject CFAST state or run beyond 180 s before its STOP gate.
+- Binding record:
+  `docs/validation/PHASE3_F33S_LAYER_MASS_O2_CAUSAL_AUDIT.md`.
+
 ## Current Session Update - 2026-07-25 - F3.3r2d attribution GO / physics NO-GO
 
 - Added default-OFF cumulative source attribution for requested,
