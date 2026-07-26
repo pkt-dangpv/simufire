@@ -977,10 +977,19 @@ Diagnostic / planned lanes:
 6. Design F3.3v3g0 before more motor work: an implicit or under-relaxed
    connected-room pressure solve with antisymmetric flow, inventory bounds
    and explicit convergence/rollback criteria.
-7. Do not retry direct route replacement, per-step clipping or static
+7. **Closed F3.3v3g1:** the pure network relaxation primitive is dormant and
+   fails closed. **Closed F3.3v3g2:** the passive default-OFF preview wires it
+   per connected component using the raw pressure demand. It descends the
+   objective at every one of 2160 steps, closes mass, energy, O2 and species
+   at exactly zero, collapses no occupied zone and leaves all 838 shared CSV
+   columns byte-identical.
+8. Retain the F3.3v3g2 measurement: the binding limiter is the pressure-sign
+   crossing bound (2008 steps), not the source inventory (0 steps). Extra
+   inventory alone would not increase accepted transport.
+9. Do not retry direct route replacement, per-step clipping or static
    normalization over the old pressure trajectory.
-8. Group A and Group C remain VALID_GAP until an authoritative canonical
-   slice passes required checks without tolerance or baseline relaxation.
+10. Group A and Group C remain VALID_GAP until an authoritative canonical
+    slice passes required checks without tolerance or baseline relaxation.
 
 ## 17. Phase 3+ Doorway Transport Checkpoint (2026-07-26)
 
@@ -994,6 +1003,7 @@ Diagnostic / planned lanes:
 | F3.3v3f3 | Dynamic fixed-gross route replacement | Exact isolation, physical candidate NO-GO |
 | F3.3v3g0 | Actual-route pressure-network design | Design GO; no runtime code |
 | F3.3v3g1 | Pure pressure objective/relaxation primitive | Primitive GO; no runtime call |
+| F3.3v3g2 | Passive per-component preview from raw pressure demand | Preview GO; authority and persistent shadow NO-GO |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1032,3 +1042,27 @@ F3.3v3g1 STOP:
 - chain, disconnected components and opening-order contracts: PASS;
 - Godot 4.7.1 parse/runtime fixture: PASS;
 - runtime call site, flag, reports and baselines: absent.
+
+F3.3v3g2 STOP at 180 s (`cfast_corridor_chain`, complete F3.3v stack, OFF/ON
+differing by exactly one flag):
+
+- rows 114/114, 838 shared columns, 0 shared value differences: PASS;
+- 58 new columns, all in the `phase3_shadow_pressure_network_` family, and no
+  column lost: PASS;
+- objective never increases across all 2160 physical steps
+  (max increase `0.0 Pa2`): PASS;
+- mass, gross-mass, energy, O2 and species residuals all exactly `0`: PASS;
+- no negative payload and no occupied-zone collapse
+  (`predicted_collapse_count = 0`): PASS;
+- gross mass error `-1.57%` and net enthalpy error `-0.95%` versus CFAST,
+  both inside the mandatory 5%: PASS;
+- one connected component (rooms 0/1/2, two connections) with stable,
+  opening-order-independent identity: PASS;
+- accepted bounds at 180 s: optimal `0.254`, crossing `0.0077`,
+  inventory `1.000`, accepted `0.0077`, limiting reason `crossing`;
+- net mass error `-97.29%` is expected and non-gating at this phase: a passive
+  preview cannot evolve the pressure trajectory that bounds it.
+
+F3.3v3g3 remains the only approved next slice: persistent private canonical
+shadow state, staged at 30/60/120/180 s. It may not touch legacy state, FED,
+official cases, expected values, tolerances, CTRL envelopes or VALID_GAP.

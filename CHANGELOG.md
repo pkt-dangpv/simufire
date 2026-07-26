@@ -3,6 +3,34 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3g2 passive pressure-network preview (2026-07-26)
+
+- Added default-OFF
+  `phase3_canonical_fixed_gross_pressure_network_shadow_enabled`, effective
+  only under the complete F3.3v3f1 fixed-gross stack and separate from it.
+- The runtime partitions horizontal interior openings into connected
+  components with an opening-order-independent identity, rebuilds the full
+  fixed-gross candidate from the **raw** pressure demand, calls the pure
+  F3.3v3g1 primitive once per component, and blends
+  `route(alpha) = base + alpha * (full_fixed - base)` with one factor shared by
+  gas, sensible enthalpy, O2 and every species.
+- The blended routes are telemetry only. They never enter `network_routes`, a
+  bundle, a transaction, the residence ledgers or any persistent state.
+- Added a per-source-zone, per-payload inventory bound that fails closed on
+  negative inventory or on base routes that already exceed the snapshot, with
+  no empirical floor.
+- Added 58 opt-in CSV columns under `phase3_shadow_pressure_network_*` and
+  `scripts/simulation/analyze_phase3_f33v3g2_pressure_network_preview.py`.
+- OFF/ON proof at 180 s: 114/114 rows, 838 shared columns, zero shared value
+  differences. Across all 2160 physical steps the objective never increases,
+  mass/gross/energy/O2/species residuals are exactly zero, no payload goes
+  negative and no occupied zone collapses.
+- R0 doorway at 180 s: gross mass `-1.57%` and net enthalpy `-0.95%` versus
+  CFAST. The binding limiter is the pressure-sign crossing bound, not the
+  source inventory.
+- Decision: passive preview GO; runtime authority and persistent shadow state
+  remain NO-GO. Next is F3.3v3g3, staged at 30/60/120/180 s.
+
 ### Phase 3+ F3.3v3f3 dynamic fixed-gross candidate NO-GO (2026-07-26)
 
 - Tested a default-OFF canonical-shadow candidate that dynamically replaced

@@ -161,6 +161,8 @@ var _canonical_exterior_counterflow_cumulative_kg: Dictionary = {}
 var _canonical_interior_opening_by_room: Dictionary = {}
 var _canonical_fixed_gross_pressure_skew_by_room: Dictionary = {}
 var _canonical_fixed_gross_pressure_skew_cumulative_by_room: Dictionary = {}
+var _canonical_fixed_gross_pressure_network_by_room: Dictionary = {}
+var _canonical_fixed_gross_pressure_network_cumulative_by_room: Dictionary = {}
 var _persistent_zone_state: Dictionary = {}
 var _persistent_step_index: int = 0
 var _persistent_combustion_state: Dictionary = {}
@@ -233,6 +235,7 @@ func reset() -> void:
 	_canonical_interzone_heat_cumulative_kj.clear()
 	_canonical_exterior_counterflow_cumulative_kg.clear()
 	_canonical_fixed_gross_pressure_skew_cumulative_by_room.clear()
+	_canonical_fixed_gross_pressure_network_cumulative_by_room.clear()
 	_canonical_wall_state_by_room.clear()
 	_canonical_wall_ambient_cumulative_by_room.clear()
 	_canonical_surface_state_by_room.clear()
@@ -338,6 +341,7 @@ func _reset_step_state() -> void:
 	_canonical_exterior_counterflow_by_room.clear()
 	_canonical_interior_opening_by_room.clear()
 	_canonical_fixed_gross_pressure_skew_by_room.clear()
+	_canonical_fixed_gross_pressure_network_by_room.clear()
 	_persistence_enabled_step = false
 	_persistence_seeded_by_room.clear()
 	_persistence_continuity_by_room.clear()
@@ -362,6 +366,7 @@ func begin_step(building, persistence_enabled: bool = false) -> void:
 		_persistent_lower_reseed_by_room.clear()
 		_canonical_exterior_counterflow_cumulative_kg.clear()
 		_canonical_fixed_gross_pressure_skew_cumulative_by_room.clear()
+		_canonical_fixed_gross_pressure_network_cumulative_by_room.clear()
 		_canonical_wall_state_by_room.clear()
 		_canonical_wall_ambient_cumulative_by_room.clear()
 		_canonical_surface_state_by_room.clear()
@@ -3384,6 +3389,544 @@ func compute_fixed_gross_pressure_network_relaxation(
 	return result
 
 
+## F3.3v3g2: partition interior connections into connected components. The
+## identity of a component is the sorted list of its rooms, so it does not
+## depend on the order in which openings were declared or iterated.
+func compute_interior_pressure_network_components(
+		connection_pairs: Array
+	) -> Array[Dictionary]:
+	var parent: Dictionary = {}
+	var canonical_pairs: Array[Dictionary] = []
+	for raw_pair in connection_pairs:
+		var pair: Dictionary = raw_pair
+		var room_a_id: int = int(pair.get("room_a_id", EXTERIOR_ID))
+		var room_b_id: int = int(pair.get("room_b_id", EXTERIOR_ID))
+		if room_a_id == EXTERIOR_ID or room_b_id == EXTERIOR_ID \
+				or room_a_id == room_b_id:
+			continue
+		var low_room_id: int = mini(room_a_id, room_b_id)
+		var high_room_id: int = maxi(room_a_id, room_b_id)
+		canonical_pairs.append({
+			"room_a_id": low_room_id,
+			"room_b_id": high_room_id,
+			"sort_key": "%010d|%010d" % [low_room_id, high_room_id],
+		})
+		for room_id in [low_room_id, high_room_id]:
+			if not parent.has(room_id):
+				parent[room_id] = room_id
+	canonical_pairs.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return String(left.get("sort_key", "")) < String(right.get("sort_key", ""))
+	)
+	for pair in canonical_pairs:
+		var root_a: int = _interior_pressure_network_root(
+			parent, int(pair["room_a_id"])
+		)
+		var root_b: int = _interior_pressure_network_root(
+			parent, int(pair["room_b_id"])
+		)
+		if root_a != root_b:
+			parent[maxi(root_a, root_b)] = mini(root_a, root_b)
+	var members_by_root: Dictionary = {}
+	var room_ids: Array = parent.keys()
+	room_ids.sort()
+	for raw_room_id in room_ids:
+		var room_id: int = int(raw_room_id)
+		var root_id: int = _interior_pressure_network_root(parent, room_id)
+		var members: Array = members_by_root.get(root_id, [])
+		members.append(room_id)
+		members_by_root[root_id] = members
+	var components: Array[Dictionary] = []
+	var root_ids: Array = members_by_root.keys()
+	root_ids.sort()
+	for raw_root_id in root_ids:
+		var members: Array = members_by_root[raw_root_id]
+		members.sort()
+		var id_parts: PackedStringArray = PackedStringArray()
+		for room_id in members:
+			id_parts.append(str(int(room_id)))
+		components.append({
+			"component_id": "|".join(id_parts),
+			"component_index": 0.0,
+			"min_room_id": int(members[0]),
+			"room_ids": members,
+			"connection_pairs": [],
+		})
+	components.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return int(left.get("min_room_id", 0)) < int(right.get("min_room_id", 0))
+	)
+	var component_index_by_room: Dictionary = {}
+	for component_position in range(components.size()):
+		components[component_position]["component_index"] = float(component_position)
+		for room_id in components[component_position]["room_ids"]:
+			component_index_by_room[int(room_id)] = component_position
+	for pair in canonical_pairs:
+		var component_position: int = int(
+			component_index_by_room.get(int(pair["room_a_id"]), -1)
+		)
+		if component_position < 0:
+			continue
+		components[component_position]["connection_pairs"].append({
+			"room_a_id": int(pair["room_a_id"]),
+			"room_b_id": int(pair["room_b_id"]),
+		})
+	return components
+
+
+func _interior_pressure_network_root(parent: Dictionary, room_id: int) -> int:
+	var current_id: int = room_id
+	var guard: int = 0
+	while int(parent.get(current_id, current_id)) != current_id:
+		current_id = int(parent.get(current_id, current_id))
+		guard += 1
+		if guard > 4096:
+			break
+	return current_id
+
+
+func _fixed_gross_pressure_network_inventory_kg(
+		snapshot: Dictionary,
+		zone: String,
+		quantity_key: String
+	) -> float:
+	if quantity_key == "gas_mass_kg":
+		return float(snapshot.get(zone + "_gas_kg", 0.0))
+	if quantity_key == "sensible_enthalpy_kj":
+		return float(snapshot.get(zone + "_energy_kj", 0.0))
+	if quantity_key == "o2_kg":
+		return float(snapshot.get(zone + "_o2_kg", 0.0))
+	if quantity_key.begins_with("species:"):
+		var species: Dictionary = snapshot.get(zone + "_species_kg", {})
+		return float(species.get(quantity_key.substr(8), 0.0))
+	return 0.0
+
+
+## Largest blend factor for which no source zone debits more gas, energy, O2 or
+## species than its own pre-step snapshot holds. Inventory is never corrected.
+func _fixed_gross_pressure_network_inventory_bound(
+		route_ids: Array,
+		base_by_id: Dictionary,
+		full_by_id: Dictionary,
+		source_inventory_by_room: Dictionary
+	) -> Dictionary:
+	var bound: Dictionary = {
+		"valid": true,
+		"fraction": 1.0,
+		"limited_flag": 0.0,
+	}
+	var demand: Dictionary = {}
+	for raw_route_id in route_ids:
+		var route_id: String = String(raw_route_id)
+		var base_route: Dictionary = base_by_id.get(route_id, {})
+		var full_route: Dictionary = full_by_id.get(route_id, {})
+		var source_room_key: String = str(
+			int(base_route.get("source_room_id", EXTERIOR_ID))
+		)
+		var source_zone: String = String(base_route.get("source_zone", ZONE_UPPER))
+		var source_key: String = "%s|%s" % [source_room_key, source_zone]
+		if not demand.has(source_key):
+			demand[source_key] = {
+				"room_key": source_room_key,
+				"zone": source_zone,
+				"base": {},
+				"full": {},
+			}
+		var entry: Dictionary = demand[source_key]
+		var base_totals: Dictionary = entry["base"]
+		var full_totals: Dictionary = entry["full"]
+		for quantity_key in ["gas_mass_kg", "sensible_enthalpy_kj", "o2_kg"]:
+			base_totals[quantity_key] = float(
+				base_totals.get(quantity_key, 0.0)
+			) + maxf(0.0, float(base_route.get(quantity_key, 0.0)))
+			full_totals[quantity_key] = float(
+				full_totals.get(quantity_key, 0.0)
+			) + maxf(0.0, float(full_route.get(quantity_key, 0.0)))
+		var base_species: Dictionary = base_route.get("species_kg", {})
+		var full_species: Dictionary = full_route.get("species_kg", {})
+		for species_name in PARCEL_SPECIES:
+			var species_key: String = "species:%s" % species_name
+			base_totals[species_key] = float(
+				base_totals.get(species_key, 0.0)
+			) + maxf(0.0, float(base_species.get(species_name, 0.0)))
+			full_totals[species_key] = float(
+				full_totals.get(species_key, 0.0)
+			) + maxf(0.0, float(full_species.get(species_name, 0.0)))
+	var source_keys: Array = demand.keys()
+	source_keys.sort()
+	for raw_source_key in source_keys:
+		var entry: Dictionary = demand[String(raw_source_key)]
+		var room_key: String = String(entry["room_key"])
+		var zone: String = String(entry["zone"])
+		var snapshot: Dictionary = source_inventory_by_room.get(room_key, {})
+		var quantity_keys: Array = entry["base"].keys()
+		quantity_keys.sort()
+		for raw_quantity_key in quantity_keys:
+			var quantity_key: String = String(raw_quantity_key)
+			var inventory: float = _fixed_gross_pressure_network_inventory_kg(
+				snapshot, zone, quantity_key
+			)
+			var base_out: float = float(entry["base"].get(quantity_key, 0.0))
+			var full_out: float = float(entry["full"].get(quantity_key, 0.0))
+			if not is_finite(inventory) or not is_finite(base_out) \
+					or not is_finite(full_out) or inventory < 0.0 \
+					or base_out > inventory + 1.0e-9:
+				bound["valid"] = false
+				bound["fraction"] = 0.0
+				return bound
+			var increment: float = full_out - base_out
+			if increment <= 0.0:
+				continue
+			var quantity_fraction: float = clampf(
+				(inventory - base_out) / increment, 0.0, 1.0
+			)
+			if quantity_fraction < float(bound["fraction"]):
+				bound["fraction"] = quantity_fraction
+				bound["limited_flag"] = 1.0
+	return bound
+
+
+func _fixed_gross_pressure_network_reason_code(reason: String) -> float:
+	if reason == "optimal":
+		return 1.0
+	if reason == "crossing":
+		return 2.0
+	if reason == "inventory":
+		return 3.0
+	if reason == "non_descent":
+		return 4.0
+	if reason == "zero_response":
+		return 5.0
+	if reason == "no_connections":
+		return 6.0
+	return 0.0
+
+
+## F3.3v3g2: passive preview only. It blends the interior-opening base routes
+## toward the full fixed-gross candidate built from the RAW pressure demand,
+## using one accepted factor per connected component and per payload quantity.
+## It returns telemetry; it never emits a route, bundle or transaction.
+func preview_fixed_gross_interior_pressure_network(
+		base_routes: Array,
+		full_fixed_routes: Array,
+		pressure_by_room: Dictionary,
+		base_delta_by_room: Dictionary,
+		full_delta_by_room: Dictionary,
+		connection_pairs: Array,
+		source_inventory_by_room: Dictionary
+	) -> Dictionary:
+	var result: Dictionary = {
+		"valid": false,
+		"invalid_flag": 0.0,
+		"component_count": 0.0,
+		"components": [],
+	}
+	# Route pairing failures never silently disappear: the components are still
+	# reported, but with a zero blend and an explicit invalid flag.
+	var routes_valid: bool = true
+	var base_by_id: Dictionary = {}
+	for raw_route in base_routes:
+		var route: Dictionary = raw_route
+		var route_id: String = String(route.get("route_id", ""))
+		if route_id.is_empty() or base_by_id.has(route_id) \
+				or not bool(route.get("valid", false)):
+			routes_valid = false
+			continue
+		base_by_id[route_id] = route
+	var full_by_id: Dictionary = {}
+	for raw_route in full_fixed_routes:
+		var route: Dictionary = raw_route
+		var route_id: String = String(route.get("route_id", ""))
+		if route_id.is_empty() or full_by_id.has(route_id) \
+				or not base_by_id.has(route_id):
+			routes_valid = false
+			continue
+		full_by_id[route_id] = route
+	if full_by_id.size() != base_by_id.size():
+		routes_valid = false
+	var components: Array[Dictionary] = \
+			compute_interior_pressure_network_components(connection_pairs)
+	result["component_count"] = float(components.size())
+	if components.is_empty():
+		result["valid"] = routes_valid and base_by_id.is_empty()
+		result["invalid_flag"] = 0.0 if bool(result["valid"]) else 1.0
+		return result
+	var component_index_by_room: Dictionary = {}
+	var route_ids_by_component: Array = []
+	for component_position in range(components.size()):
+		route_ids_by_component.append([])
+		for room_id in components[component_position]["room_ids"]:
+			component_index_by_room[str(int(room_id))] = component_position
+	var sorted_route_ids: Array = base_by_id.keys()
+	sorted_route_ids.sort()
+	for raw_route_id in sorted_route_ids:
+		var route_id: String = String(raw_route_id)
+		var route: Dictionary = base_by_id[route_id]
+		var source_key: String = str(int(route.get("source_room_id", EXTERIOR_ID)))
+		var destination_key: String = str(
+			int(route.get("destination_room_id", EXTERIOR_ID))
+		)
+		if not component_index_by_room.has(source_key) \
+				or not component_index_by_room.has(destination_key) \
+				or int(component_index_by_room[source_key]) \
+						!= int(component_index_by_room[destination_key]) \
+				or not full_by_id.has(route_id):
+			routes_valid = false
+			continue
+		route_ids_by_component[
+			int(component_index_by_room[source_key])
+		].append(route_id)
+	var previews: Array[Dictionary] = []
+	var all_valid: bool = routes_valid
+	for component_position in range(components.size()):
+		var component_preview: Dictionary = _preview_fixed_gross_pressure_component(
+			components[component_position],
+			route_ids_by_component[component_position],
+			base_by_id,
+			full_by_id,
+			pressure_by_room,
+			base_delta_by_room,
+			full_delta_by_room,
+			source_inventory_by_room,
+			routes_valid
+		)
+		component_preview["component_count"] = float(components.size())
+		if float(component_preview.get("valid_flag", 0.0)) <= 0.0:
+			all_valid = false
+		previews.append(component_preview)
+	result["components"] = previews
+	result["valid"] = all_valid
+	result["invalid_flag"] = 0.0 if all_valid else 1.0
+	return result
+
+
+func _preview_fixed_gross_pressure_component(
+		component: Dictionary,
+		route_ids: Array,
+		base_by_id: Dictionary,
+		full_by_id: Dictionary,
+		pressure_by_room: Dictionary,
+		base_delta_by_room: Dictionary,
+		full_delta_by_room: Dictionary,
+		source_inventory_by_room: Dictionary,
+		routes_valid: bool = true
+	) -> Dictionary:
+	var member_room_ids: Array = component.get("room_ids", [])
+	var component_pressure: Dictionary = {}
+	var component_base_delta: Dictionary = {}
+	var component_full_delta: Dictionary = {}
+	var pressure_complete: bool = true
+	for raw_room_id in member_room_ids:
+		var room_key: String = str(int(raw_room_id))
+		if not pressure_by_room.has(room_key):
+			pressure_complete = false
+			continue
+		component_pressure[room_key] = float(pressure_by_room[room_key])
+		component_base_delta[room_key] = float(
+			base_delta_by_room.get(room_key, 0.0)
+		)
+		component_full_delta[room_key] = float(
+			full_delta_by_room.get(room_key, 0.0)
+		)
+	var inventory_bound: Dictionary = _fixed_gross_pressure_network_inventory_bound(
+		route_ids, base_by_id, full_by_id, source_inventory_by_room
+	)
+	var relaxation: Dictionary = compute_fixed_gross_pressure_network_relaxation(
+		component_pressure,
+		component_base_delta,
+		component_full_delta,
+		component.get("connection_pairs", []),
+		float(inventory_bound.get("fraction", 0.0))
+	)
+	var component_valid: bool = routes_valid and pressure_complete \
+			and bool(inventory_bound.get("valid", false)) \
+			and bool(relaxation.get("valid", false))
+	var alpha: float = clampf(
+		float(relaxation.get("fraction", 0.0)), 0.0, 1.0
+	) if component_valid else 0.0
+	var room_totals: Dictionary = {}
+	var predicted_zone_gas: Dictionary = {}
+	for raw_room_id in member_room_ids:
+		var room_key: String = str(int(raw_room_id))
+		room_totals[room_key] = {
+			"base_out_mass_kg": 0.0,
+			"base_in_mass_kg": 0.0,
+			"full_out_mass_kg": 0.0,
+			"full_in_mass_kg": 0.0,
+			"accepted_out_mass_kg": 0.0,
+			"accepted_in_mass_kg": 0.0,
+			"accepted_out_energy_kj": 0.0,
+			"accepted_in_energy_kj": 0.0,
+		}
+		var snapshot: Dictionary = source_inventory_by_room.get(room_key, {})
+		predicted_zone_gas[room_key] = {
+			ZONE_UPPER: float(snapshot.get(ZONE_UPPER + "_gas_kg", 0.0)),
+			ZONE_LOWER: float(snapshot.get(ZONE_LOWER + "_gas_kg", 0.0)),
+		}
+	var accepted_out: Dictionary = {
+		"gas": 0.0, "energy": 0.0, "o2": 0.0, "species": 0.0
+	}
+	var accepted_in: Dictionary = {
+		"gas": 0.0, "energy": 0.0, "o2": 0.0, "species": 0.0
+	}
+	var base_gross_mass_kg: float = 0.0
+	var accepted_gross_mass_kg: float = 0.0
+	var negative_quantity_count: float = 0.0
+	for raw_route_id in route_ids:
+		var route_id: String = String(raw_route_id)
+		var base_route: Dictionary = base_by_id.get(route_id, {})
+		var full_route: Dictionary = full_by_id.get(route_id, {})
+		var source_key: String = str(
+			int(base_route.get("source_room_id", EXTERIOR_ID))
+		)
+		var destination_key: String = str(
+			int(base_route.get("destination_room_id", EXTERIOR_ID))
+		)
+		var source_zone: String = String(base_route.get("source_zone", ZONE_UPPER))
+		var destination_zone: String = String(
+			base_route.get("destination_zone", ZONE_UPPER)
+		)
+		var blended: Dictionary = {}
+		var full_mass_kg: float = maxf(0.0, float(full_route.get("gas_mass_kg", 0.0)))
+		for quantity_key in ["gas_mass_kg", "sensible_enthalpy_kj", "o2_kg"]:
+			var base_value: float = maxf(0.0, float(base_route.get(quantity_key, 0.0)))
+			var full_value: float = maxf(0.0, float(full_route.get(quantity_key, 0.0)))
+			var blended_value: float = base_value + alpha * (full_value - base_value)
+			if blended_value < -1.0e-12 or not is_finite(blended_value):
+				negative_quantity_count += 1.0
+			blended[quantity_key] = blended_value
+		var blended_species_kg: float = 0.0
+		var base_species: Dictionary = base_route.get("species_kg", {})
+		var full_species: Dictionary = full_route.get("species_kg", {})
+		for species_name in PARCEL_SPECIES:
+			var base_value: float = maxf(0.0, float(base_species.get(species_name, 0.0)))
+			var full_value: float = maxf(0.0, float(full_species.get(species_name, 0.0)))
+			var blended_value: float = base_value + alpha * (full_value - base_value)
+			if blended_value < -1.0e-12 or not is_finite(blended_value):
+				negative_quantity_count += 1.0
+			blended_species_kg += blended_value
+		var base_mass_kg: float = maxf(0.0, float(base_route.get("gas_mass_kg", 0.0)))
+		var accepted_mass_kg: float = float(blended["gas_mass_kg"])
+		var accepted_energy_kj: float = float(blended["sensible_enthalpy_kj"])
+		base_gross_mass_kg += base_mass_kg
+		accepted_gross_mass_kg += accepted_mass_kg
+		accepted_out["gas"] = float(accepted_out["gas"]) + accepted_mass_kg
+		accepted_in["gas"] = float(accepted_in["gas"]) + accepted_mass_kg
+		accepted_out["energy"] = float(accepted_out["energy"]) + accepted_energy_kj
+		accepted_in["energy"] = float(accepted_in["energy"]) + accepted_energy_kj
+		accepted_out["o2"] = float(accepted_out["o2"]) + float(blended["o2_kg"])
+		accepted_in["o2"] = float(accepted_in["o2"]) + float(blended["o2_kg"])
+		accepted_out["species"] = float(accepted_out["species"]) + blended_species_kg
+		accepted_in["species"] = float(accepted_in["species"]) + blended_species_kg
+		if room_totals.has(source_key):
+			var source_totals: Dictionary = room_totals[source_key]
+			source_totals["base_out_mass_kg"] = float(
+				source_totals["base_out_mass_kg"]
+			) + base_mass_kg
+			source_totals["full_out_mass_kg"] = float(
+				source_totals["full_out_mass_kg"]
+			) + full_mass_kg
+			source_totals["accepted_out_mass_kg"] = float(
+				source_totals["accepted_out_mass_kg"]
+			) + accepted_mass_kg
+			source_totals["accepted_out_energy_kj"] = float(
+				source_totals["accepted_out_energy_kj"]
+			) + accepted_energy_kj
+			var source_zone_gas: Dictionary = predicted_zone_gas[source_key]
+			source_zone_gas[source_zone] = float(
+				source_zone_gas.get(source_zone, 0.0)
+			) - accepted_mass_kg
+		if room_totals.has(destination_key):
+			var destination_totals: Dictionary = room_totals[destination_key]
+			destination_totals["base_in_mass_kg"] = float(
+				destination_totals["base_in_mass_kg"]
+			) + base_mass_kg
+			destination_totals["full_in_mass_kg"] = float(
+				destination_totals["full_in_mass_kg"]
+			) + full_mass_kg
+			destination_totals["accepted_in_mass_kg"] = float(
+				destination_totals["accepted_in_mass_kg"]
+			) + accepted_mass_kg
+			destination_totals["accepted_in_energy_kj"] = float(
+				destination_totals["accepted_in_energy_kj"]
+			) + accepted_energy_kj
+			var destination_zone_gas: Dictionary = predicted_zone_gas[destination_key]
+			destination_zone_gas[destination_zone] = float(
+				destination_zone_gas.get(destination_zone, 0.0)
+			) + accepted_mass_kg
+	# A zone that is already empty pre-step is degenerate, not collapsed. Only a
+	# zone the preview itself would drive to or below zero counts as a collapse.
+	var predicted_min_upper_kg: float = INF
+	var predicted_min_lower_kg: float = INF
+	var collapse_count: float = 0.0
+	var degenerate_zone_count: float = 0.0
+	for raw_room_key in predicted_zone_gas.keys():
+		var room_key: String = String(raw_room_key)
+		var zone_gas: Dictionary = predicted_zone_gas[room_key]
+		var snapshot: Dictionary = source_inventory_by_room.get(room_key, {})
+		predicted_min_upper_kg = minf(
+			predicted_min_upper_kg, float(zone_gas.get(ZONE_UPPER, 0.0))
+		)
+		predicted_min_lower_kg = minf(
+			predicted_min_lower_kg, float(zone_gas.get(ZONE_LOWER, 0.0))
+		)
+		for zone_name in [ZONE_UPPER, ZONE_LOWER]:
+			var pre_gas_kg: float = float(snapshot.get(zone_name + "_gas_kg", 0.0))
+			var predicted_gas_kg: float = float(zone_gas.get(zone_name, 0.0))
+			if pre_gas_kg <= THERMO_MASS_EPS_KG:
+				degenerate_zone_count += 1.0
+			elif predicted_gas_kg <= 0.0:
+				collapse_count += 1.0
+	if not is_finite(predicted_min_upper_kg):
+		predicted_min_upper_kg = 0.0
+	if not is_finite(predicted_min_lower_kg):
+		predicted_min_lower_kg = 0.0
+	return {
+		"component_id": String(component.get("component_id", "")),
+		"component_index": float(component.get("component_index", 0.0)),
+		"component_count": 0.0,
+		"min_room_id": float(component.get("min_room_id", 0)),
+		"room_ids": member_room_ids,
+		"room_count": float(member_room_ids.size()),
+		"connection_count": float(component.get("connection_pairs", []).size()),
+		"valid_flag": 1.0 if component_valid else 0.0,
+		"alpha_optimal": float(relaxation.get("optimal_fraction", 0.0)),
+		"alpha_crossing": float(relaxation.get("crossing_fraction", 1.0)),
+		"alpha_inventory": float(inventory_bound.get("fraction", 0.0)),
+		"alpha_accepted": alpha,
+		"limiting_reason": String(relaxation.get("limiting_reason", "invalid")),
+		"limiting_reason_code": _fixed_gross_pressure_network_reason_code(
+			String(relaxation.get("limiting_reason", "invalid"))
+		) if component_valid else 0.0,
+		"objective_pre_pa2": float(relaxation.get("objective_pre_pa2", 0.0)),
+		"objective_post_pa2": float(relaxation.get("objective_post_pa2", 0.0)),
+		"directional_derivative_pa2": float(
+			relaxation.get("directional_derivative_pa2", 0.0)
+		),
+		"worsening_connection_count": float(
+			relaxation.get("worsening_connection_count", 0.0)
+		),
+		"crossing_limited_count": float(
+			relaxation.get("crossing_limited_count", 0.0)
+		),
+		"inventory_limited_flag": float(inventory_bound.get("limited_flag", 0.0)),
+		"non_descent_flag": 1.0 \
+				if String(relaxation.get("limiting_reason", "")) == "non_descent" \
+				else 0.0,
+		"predicted_min_upper_gas_kg": predicted_min_upper_kg,
+		"predicted_min_lower_gas_kg": predicted_min_lower_kg,
+		"predicted_collapse_count": collapse_count,
+		"degenerate_zone_count": degenerate_zone_count,
+		"gross_mass_residual_kg": accepted_gross_mass_kg - base_gross_mass_kg,
+		"mass_residual_kg": float(accepted_out["gas"]) - float(accepted_in["gas"]),
+		"energy_residual_kj": float(accepted_out["energy"]) \
+				- float(accepted_in["energy"]),
+		"o2_residual_kg": float(accepted_out["o2"]) - float(accepted_in["o2"]),
+		"species_residual_kg": float(accepted_out["species"]) \
+				- float(accepted_in["species"]),
+		"negative_quantity_count": negative_quantity_count,
+		"room_totals": room_totals,
+	}
+
+
 func _canonical_zone_densities(canonical: Dictionary) -> Dictionary:
 	var upper_volume_m3: float = maxf(0.0, float(canonical.get("upper_volume_m3", 0.0)))
 	var lower_volume_m3: float = maxf(0.0, float(canonical.get("lower_volume_m3", 0.0)))
@@ -3986,7 +4529,8 @@ func queue_canonical_interior_opening_requests(
 		source_preserving_destination_enabled: bool = false,
 		doorway_jet_entrainment_enabled: bool = false,
 		buoyancy_destination_enabled: bool = false,
-		fixed_gross_pressure_skew_preview_enabled: bool = false
+		fixed_gross_pressure_skew_preview_enabled: bool = false,
+		fixed_gross_pressure_network_preview_enabled: bool = false
 	) -> void:
 	if building == null or dt <= 0.0 or discharge_coeff <= 0.0:
 		return
@@ -4255,6 +4799,33 @@ func queue_canonical_interior_opening_requests(
 					)
 			_record_fixed_gross_interior_pressure_skew_preview(
 				fixed_gross_preview, network_routes, pressure_routes
+			)
+		if fixed_gross_pressure_network_preview_enabled:
+			# F3.3v3g2 deliberately rebuilds the full candidate from the RAW
+			# pressure demand. Using the already relaxed routes would constrain
+			# the same candidate twice.
+			var network_full_candidate: Dictionary = \
+					preview_fixed_gross_interior_pressure_skew(
+						network_routes, pressure_routes_raw
+					)
+			var network_full_routes: Array = network_full_candidate.get("routes", []) \
+					if bool(network_full_candidate.get("valid", false)) else []
+			var network_full_delta_by_room: Dictionary = \
+					_canonical_route_pressure_delta_by_room(
+						network_full_routes, building, reference_temp_c
+					)
+			var pressure_network_preview: Dictionary = \
+					preview_fixed_gross_interior_pressure_network(
+						network_routes,
+						network_full_routes,
+						pressure_by_room,
+						pressure_base_delta_by_room,
+						network_full_delta_by_room,
+						pressure_connection_pairs,
+						_snapshots
+					)
+			_record_fixed_gross_interior_pressure_network_preview(
+				pressure_network_preview
 			)
 		for raw_pressure_route in pressure_routes_raw:
 			_accumulate_canonical_atomic_route_totals(
@@ -4658,6 +5229,199 @@ func _new_fixed_gross_pressure_skew_record() -> Dictionary:
 		"o2_residual_kg": 0.0,
 		"species_residual_kg": 0.0,
 	}
+
+
+func _new_fixed_gross_pressure_network_record() -> Dictionary:
+	return {
+		"enabled_flag": 0.0,
+		"valid_flag": 0.0,
+		"component_count": 0.0,
+		"component_index": 0.0,
+		"component_room_count": 0.0,
+		"component_min_room_id": 0.0,
+		"connection_count": 0.0,
+		"alpha_optimal": 0.0,
+		"alpha_crossing": 0.0,
+		"alpha_inventory": 0.0,
+		"alpha_accepted": 0.0,
+		"limiting_reason_code": 0.0,
+		"objective_pre_pa2": 0.0,
+		"objective_post_pa2": 0.0,
+		"directional_derivative_pa2": 0.0,
+		"worsening_connection_count": 0.0,
+		"crossing_limited_count": 0.0,
+		"predicted_min_upper_gas_kg": 0.0,
+		"predicted_min_lower_gas_kg": 0.0,
+		"predicted_collapse_count": 0.0,
+		"degenerate_zone_count": 0.0,
+		"base_out_mass_kg": 0.0,
+		"base_in_mass_kg": 0.0,
+		"full_out_mass_kg": 0.0,
+		"full_in_mass_kg": 0.0,
+		"accepted_out_mass_kg": 0.0,
+		"accepted_in_mass_kg": 0.0,
+		"requested_net_mass_out_kg": 0.0,
+		"accepted_net_mass_out_kg": 0.0,
+		"accepted_net_enthalpy_out_kj": 0.0,
+		"gross_mass_residual_kg": 0.0,
+		"mass_residual_kg": 0.0,
+		"energy_residual_kj": 0.0,
+		"o2_residual_kg": 0.0,
+		"species_residual_kg": 0.0,
+		"negative_quantity_count": 0.0,
+	}
+
+
+func _new_fixed_gross_pressure_network_cumulative_record() -> Dictionary:
+	return {
+		"accepted_out_mass_kg": 0.0,
+		"accepted_in_mass_kg": 0.0,
+		"accepted_positive_net_kg": 0.0,
+		"accepted_negative_net_abs_kg": 0.0,
+		"accepted_net_mass_out_kg": 0.0,
+		"accepted_net_enthalpy_out_kj": 0.0,
+		"invalid_count": 0.0,
+		"non_descent_count": 0.0,
+		"inventory_limited_count": 0.0,
+		"crossing_limited_count": 0.0,
+		"active_step_count": 0.0,
+		# Running extremes over every physical step, not only logged samples.
+		"min_predicted_upper_gas_kg": 0.0,
+		"min_predicted_lower_gas_kg": 0.0,
+		"predicted_collapse_count": 0.0,
+		"degenerate_zone_count": 0.0,
+		"max_objective_increase_pa2": 0.0,
+		"max_abs_gross_mass_residual_kg": 0.0,
+		"max_abs_mass_residual_kg": 0.0,
+		"max_abs_energy_residual_kj": 0.0,
+		"max_abs_o2_residual_kg": 0.0,
+		"max_abs_species_residual_kg": 0.0,
+		"negative_quantity_count": 0.0,
+	}
+
+
+## F3.3v3g2: telemetry sink. Every field here is diagnostic; nothing written by
+## this function participates in a bundle, transaction or persistent state.
+func _record_fixed_gross_interior_pressure_network_preview(
+		preview: Dictionary
+	) -> void:
+	var component_count: float = float(preview.get("component_count", 0.0))
+	for raw_component in preview.get("components", []):
+		var component: Dictionary = raw_component
+		var room_totals: Dictionary = component.get("room_totals", {})
+		var component_valid: bool = float(component.get("valid_flag", 0.0)) > 0.0
+		for raw_room_id in component.get("room_ids", []):
+			var room_key: String = str(int(raw_room_id))
+			var totals: Dictionary = room_totals.get(room_key, {})
+			var record: Dictionary = _new_fixed_gross_pressure_network_record()
+			record["enabled_flag"] = 1.0
+			record["valid_flag"] = 1.0 if component_valid else 0.0
+			record["component_count"] = component_count
+			record["component_index"] = float(component.get("component_index", 0.0))
+			record["component_room_count"] = float(component.get("room_count", 0.0))
+			record["component_min_room_id"] = float(component.get("min_room_id", 0.0))
+			record["connection_count"] = float(component.get("connection_count", 0.0))
+			for field_name in [
+				"alpha_optimal", "alpha_crossing", "alpha_inventory",
+				"alpha_accepted", "limiting_reason_code", "objective_pre_pa2",
+				"objective_post_pa2", "directional_derivative_pa2",
+				"worsening_connection_count", "crossing_limited_count",
+				"predicted_min_upper_gas_kg", "predicted_min_lower_gas_kg",
+				"predicted_collapse_count", "degenerate_zone_count",
+				"gross_mass_residual_kg", "mass_residual_kg",
+				"energy_residual_kj", "o2_residual_kg", "species_residual_kg",
+				"negative_quantity_count",
+			]:
+				record[field_name] = float(component.get(field_name, 0.0))
+			for field_name in [
+				"base_out_mass_kg", "base_in_mass_kg",
+				"full_out_mass_kg", "full_in_mass_kg",
+				"accepted_out_mass_kg", "accepted_in_mass_kg",
+			]:
+				record[field_name] = float(totals.get(field_name, 0.0))
+			record["requested_net_mass_out_kg"] = float(
+				totals.get("full_out_mass_kg", 0.0)
+			) - float(totals.get("full_in_mass_kg", 0.0))
+			record["accepted_net_mass_out_kg"] = float(
+				totals.get("accepted_out_mass_kg", 0.0)
+			) - float(totals.get("accepted_in_mass_kg", 0.0))
+			record["accepted_net_enthalpy_out_kj"] = float(
+				totals.get("accepted_out_energy_kj", 0.0)
+			) - float(totals.get("accepted_in_energy_kj", 0.0))
+			_canonical_fixed_gross_pressure_network_by_room[room_key] = record
+			var cumulative: Dictionary = \
+					_canonical_fixed_gross_pressure_network_cumulative_by_room.get(
+						room_key,
+						_new_fixed_gross_pressure_network_cumulative_record()
+					).duplicate(true)
+			var accepted_net_out_kg: float = float(
+				record["accepted_net_mass_out_kg"]
+			)
+			cumulative["accepted_out_mass_kg"] = float(
+				cumulative["accepted_out_mass_kg"]
+			) + float(record["accepted_out_mass_kg"])
+			cumulative["accepted_in_mass_kg"] = float(
+				cumulative["accepted_in_mass_kg"]
+			) + float(record["accepted_in_mass_kg"])
+			cumulative["accepted_positive_net_kg"] = float(
+				cumulative["accepted_positive_net_kg"]
+			) + maxf(0.0, accepted_net_out_kg)
+			cumulative["accepted_negative_net_abs_kg"] = float(
+				cumulative["accepted_negative_net_abs_kg"]
+			) + absf(minf(0.0, accepted_net_out_kg))
+			cumulative["accepted_net_mass_out_kg"] = float(
+				cumulative["accepted_net_mass_out_kg"]
+			) + accepted_net_out_kg
+			cumulative["accepted_net_enthalpy_out_kj"] = float(
+				cumulative["accepted_net_enthalpy_out_kj"]
+			) + float(record["accepted_net_enthalpy_out_kj"])
+			cumulative["invalid_count"] = float(cumulative["invalid_count"]) \
+					+ (0.0 if component_valid else 1.0)
+			cumulative["non_descent_count"] = float(
+				cumulative["non_descent_count"]
+			) + float(component.get("non_descent_flag", 0.0))
+			cumulative["inventory_limited_count"] = float(
+				cumulative["inventory_limited_count"]
+			) + float(component.get("inventory_limited_flag", 0.0))
+			cumulative["crossing_limited_count"] = float(
+				cumulative["crossing_limited_count"]
+			) + float(component.get("crossing_limited_count", 0.0))
+			var first_sample: bool = float(cumulative["active_step_count"]) <= 0.0
+			for zone_field in [
+				"min_predicted_upper_gas_kg", "min_predicted_lower_gas_kg"
+			]:
+				var step_value: float = float(record[
+					zone_field.replace("min_predicted", "predicted_min")
+				])
+				cumulative[zone_field] = step_value if first_sample \
+						else minf(float(cumulative[zone_field]), step_value)
+			for count_field in [
+				"predicted_collapse_count", "degenerate_zone_count"
+			]:
+				cumulative[count_field] = float(cumulative[count_field]) \
+						+ float(record[count_field])
+			cumulative["max_objective_increase_pa2"] = maxf(
+				float(cumulative["max_objective_increase_pa2"]),
+				float(record["objective_post_pa2"])
+						- float(record["objective_pre_pa2"])
+			)
+			for residual_field in [
+				"gross_mass_residual_kg", "mass_residual_kg",
+				"energy_residual_kj", "o2_residual_kg", "species_residual_kg",
+			]:
+				var cumulative_field: String = "max_abs_%s" % residual_field
+				cumulative[cumulative_field] = maxf(
+					float(cumulative[cumulative_field]),
+					absf(float(record[residual_field]))
+				)
+			cumulative["negative_quantity_count"] = float(
+				cumulative["negative_quantity_count"]
+			) + float(record["negative_quantity_count"])
+			cumulative["active_step_count"] = float(
+				cumulative["active_step_count"]
+			) + 1.0
+			_canonical_fixed_gross_pressure_network_cumulative_by_room[room_key] = \
+					cumulative
 
 
 func _fixed_gross_route_totals_by_room(routes: Array) -> Dictionary:
@@ -7133,6 +7897,14 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 				_canonical_fixed_gross_pressure_skew_cumulative_by_room.get(
 					room_key, {}
 				)
+		var fixed_gross_pressure_network: Dictionary = \
+				_canonical_fixed_gross_pressure_network_by_room.get(
+					room_key, _new_fixed_gross_pressure_network_record()
+				)
+		var fixed_gross_pressure_network_cumulative: Dictionary = \
+				_canonical_fixed_gross_pressure_network_cumulative_by_room.get(
+					room_key, _new_fixed_gross_pressure_network_cumulative_record()
+				)
 		var lower_reseed_history: Dictionary = _persistent_lower_reseed_by_room.get(
 			room_key,
 			{"count": 0.0, "mass_kg": 0.0, "first_step_index": 0.0}
@@ -8000,6 +8772,218 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			),
 			"phase3_shadow_fixed_gross_species_residual_kg": float(
 				fixed_gross_pressure_skew.get("species_residual_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_enabled_flag": float(
+				fixed_gross_pressure_network.get("enabled_flag", 0.0)
+			),
+			"phase3_shadow_pressure_network_valid_flag": float(
+				fixed_gross_pressure_network.get("valid_flag", 0.0)
+			),
+			"phase3_shadow_pressure_network_component_count": float(
+				fixed_gross_pressure_network.get("component_count", 0.0)
+			),
+			"phase3_shadow_pressure_network_component_index": float(
+				fixed_gross_pressure_network.get("component_index", 0.0)
+			),
+			"phase3_shadow_pressure_network_component_room_count": float(
+				fixed_gross_pressure_network.get("component_room_count", 0.0)
+			),
+			"phase3_shadow_pressure_network_component_min_room_id": float(
+				fixed_gross_pressure_network.get("component_min_room_id", 0.0)
+			),
+			"phase3_shadow_pressure_network_connection_count": float(
+				fixed_gross_pressure_network.get("connection_count", 0.0)
+			),
+			"phase3_shadow_pressure_network_alpha_optimal": float(
+				fixed_gross_pressure_network.get("alpha_optimal", 0.0)
+			),
+			"phase3_shadow_pressure_network_alpha_crossing": float(
+				fixed_gross_pressure_network.get("alpha_crossing", 0.0)
+			),
+			"phase3_shadow_pressure_network_alpha_inventory": float(
+				fixed_gross_pressure_network.get("alpha_inventory", 0.0)
+			),
+			"phase3_shadow_pressure_network_alpha_accepted": float(
+				fixed_gross_pressure_network.get("alpha_accepted", 0.0)
+			),
+			"phase3_shadow_pressure_network_limiting_reason_code": float(
+				fixed_gross_pressure_network.get("limiting_reason_code", 0.0)
+			),
+			"phase3_shadow_pressure_network_objective_pre_pa2": float(
+				fixed_gross_pressure_network.get("objective_pre_pa2", 0.0)
+			),
+			"phase3_shadow_pressure_network_objective_post_pa2": float(
+				fixed_gross_pressure_network.get("objective_post_pa2", 0.0)
+			),
+			"phase3_shadow_pressure_network_directional_derivative_pa2": float(
+				fixed_gross_pressure_network.get("directional_derivative_pa2", 0.0)
+			),
+			"phase3_shadow_pressure_network_worsening_connection_count": float(
+				fixed_gross_pressure_network.get("worsening_connection_count", 0.0)
+			),
+			"phase3_shadow_pressure_network_crossing_limited_count_step": float(
+				fixed_gross_pressure_network.get("crossing_limited_count", 0.0)
+			),
+			"phase3_shadow_pressure_network_predicted_min_upper_gas_kg": float(
+				fixed_gross_pressure_network.get("predicted_min_upper_gas_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_predicted_min_lower_gas_kg": float(
+				fixed_gross_pressure_network.get("predicted_min_lower_gas_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_base_out_mass_kg_step": float(
+				fixed_gross_pressure_network.get("base_out_mass_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_base_in_mass_kg_step": float(
+				fixed_gross_pressure_network.get("base_in_mass_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_full_out_mass_kg_step": float(
+				fixed_gross_pressure_network.get("full_out_mass_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_full_in_mass_kg_step": float(
+				fixed_gross_pressure_network.get("full_in_mass_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_accepted_out_mass_kg_step": float(
+				fixed_gross_pressure_network.get("accepted_out_mass_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_accepted_in_mass_kg_step": float(
+				fixed_gross_pressure_network.get("accepted_in_mass_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_requested_net_mass_out_kg_step": float(
+				fixed_gross_pressure_network.get("requested_net_mass_out_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_accepted_net_mass_out_kg_step": float(
+				fixed_gross_pressure_network.get("accepted_net_mass_out_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_accepted_net_enthalpy_out_kj_step": float(
+				fixed_gross_pressure_network.get("accepted_net_enthalpy_out_kj", 0.0)
+			),
+			"phase3_shadow_pressure_network_gross_mass_residual_kg": float(
+				fixed_gross_pressure_network.get("gross_mass_residual_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_mass_residual_kg": float(
+				fixed_gross_pressure_network.get("mass_residual_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_energy_residual_kj": float(
+				fixed_gross_pressure_network.get("energy_residual_kj", 0.0)
+			),
+			"phase3_shadow_pressure_network_o2_residual_kg": float(
+				fixed_gross_pressure_network.get("o2_residual_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_species_residual_kg": float(
+				fixed_gross_pressure_network.get("species_residual_kg", 0.0)
+			),
+			"phase3_shadow_pressure_network_negative_quantity_count": float(
+				fixed_gross_pressure_network.get("negative_quantity_count", 0.0)
+			),
+			"phase3_shadow_pressure_network_accepted_out_mass_kg_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"accepted_out_mass_kg", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_accepted_in_mass_kg_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"accepted_in_mass_kg", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_accepted_positive_net_kg_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"accepted_positive_net_kg", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_accepted_negative_net_abs_kg_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"accepted_negative_net_abs_kg", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_accepted_net_mass_out_kg_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"accepted_net_mass_out_kg", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_accepted_net_enthalpy_out_kj_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"accepted_net_enthalpy_out_kj", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_invalid_count_total": float(
+				fixed_gross_pressure_network_cumulative.get("invalid_count", 0.0)
+			),
+			"phase3_shadow_pressure_network_non_descent_count_total": float(
+				fixed_gross_pressure_network_cumulative.get("non_descent_count", 0.0)
+			),
+			"phase3_shadow_pressure_network_inventory_limited_count_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"inventory_limited_count", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_crossing_limited_count_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"crossing_limited_count", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_active_step_count_total": float(
+				fixed_gross_pressure_network_cumulative.get("active_step_count", 0.0)
+			),
+			"phase3_shadow_pressure_network_min_predicted_upper_gas_kg_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"min_predicted_upper_gas_kg", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_min_predicted_lower_gas_kg_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"min_predicted_lower_gas_kg", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_predicted_collapse_count_step": float(
+				fixed_gross_pressure_network.get("predicted_collapse_count", 0.0)
+			),
+			"phase3_shadow_pressure_network_degenerate_zone_count_step": float(
+				fixed_gross_pressure_network.get("degenerate_zone_count", 0.0)
+			),
+			"phase3_shadow_pressure_network_predicted_collapse_count_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"predicted_collapse_count", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_degenerate_zone_count_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"degenerate_zone_count", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_max_objective_increase_pa2_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"max_objective_increase_pa2", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_max_abs_gross_mass_residual_kg_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"max_abs_gross_mass_residual_kg", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_max_abs_mass_residual_kg_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"max_abs_mass_residual_kg", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_max_abs_energy_residual_kj_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"max_abs_energy_residual_kj", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_max_abs_o2_residual_kg_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"max_abs_o2_residual_kg", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_max_abs_species_residual_kg_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"max_abs_species_residual_kg", 0.0
+				)
+			),
+			"phase3_shadow_pressure_network_negative_quantity_count_total": float(
+				fixed_gross_pressure_network_cumulative.get(
+					"negative_quantity_count", 0.0
+				)
 			),
 			"phase3_shadow_request_count": _count_room_requests(room_id),
 			"phase3_shadow_interzone_legacy_requested_kj": float(

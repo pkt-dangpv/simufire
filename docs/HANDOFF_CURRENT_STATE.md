@@ -8,6 +8,52 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-26 - F3.3v3g2 passive preview GO
+
+- Added default-OFF
+  `phase3_canonical_fixed_gross_pressure_network_shadow_enabled`, effective
+  only under the complete F3.3v3f1 fixed-gross stack.
+- The runtime now partitions horizontal interior openings into connected
+  components, rebuilds the full fixed-gross candidate from the **raw** pressure
+  demand, calls the pure F3.3v3g1 primitive once per component and blends
+  `route(alpha) = base + alpha * (full_fixed - base)` with one factor shared by
+  gas, sensible enthalpy, O2 and all seven species. The blended routes are
+  telemetry only: they never enter `network_routes`, a bundle, a transaction or
+  any persistent state.
+- Component identity is the sorted room list (`"0|1|2"`), built by union-find
+  over canonicalized sorted pairs, so it is independent of opening order.
+- The inventory bound is per source room/zone and per payload, fails closed on
+  negative inventory or on base routes that already exceed the snapshot, and
+  uses no empirical floor.
+- Added 58 opt-in CSV columns under `phase3_shadow_pressure_network_*` plus
+  `scripts/simulation/analyze_phase3_f33v3g2_pressure_network_preview.py`.
+  Names deliberately never reuse the `fixed_gross` family.
+- OFF/ON proof at 180 s: 114/114 rows, 838 shared columns, zero shared value
+  differences, zero columns lost.
+- Over all 2160 physical steps: objective increase `0`, mass/gross/energy/O2/
+  species residuals all `0`, negative payloads `0`, predicted collapses `0`,
+  minimum predicted lower gas `2.882 kg`. Two steps fail closed with
+  `alpha = 0` inside the 0-10 s ignition transient and none afterwards. The
+  minimum predicted upper gas of `0.000 kg` comes from 4 already-empty zone
+  samples, not from a preview debit.
+- The binding limiter is the pressure-sign crossing bound (2008 steps), not
+  inventory (0 steps). 277 steps are dormant by non-descent.
+- R0 doorway at 180 s: gross mass `143.875 kg` vs CFAST `146.174 kg`
+  (`-1.57%`); net enthalpy `6242.103 kJ` vs `6301.709 kJ` (`-0.95%`); net mass
+  `0.198 kg` vs `7.290 kg`. Net mass cannot improve yet because the preview
+  cannot evolve the pressure it is bounded by.
+- Verification: g2 and g1 Godot 4.7.1 fixtures PASS; focused chain 68/68 PASS;
+  `pytest tests -k phase3` 741 PASS; full `pytest tests` 1360 PASS / 18 FAIL,
+  the same 18 reproduced at `HEAD` in a clean worktree; Physics 9/15/5/0; ILV
+  15/14/0; gap inventory 353 + 6 VALID_GAP + 71 non-gating; guardrails 9/10
+  with only the expected dirty-motor R2-1.
+- Decision: passive preview GO; runtime authority, persistent shadow state and
+  Group A/C work all remain NO-GO.
+- Next: F3.3v3g3 persistent dynamic shadow, staged at 30/60/120/180 s, private
+  canonical state only.
+- Binding record:
+  `docs/validation/PHASE3_F33V3G2_PRESSURE_NETWORK_PREVIEW.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v3g1 primitive GO
 
 - Added pure

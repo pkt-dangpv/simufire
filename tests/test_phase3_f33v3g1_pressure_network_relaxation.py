@@ -20,10 +20,16 @@ def _function(source: str, name: str) -> str:
     return source[start:] if next_func < 0 else source[start:next_func]
 
 
-def test_primitive_exists_without_runtime_call_site():
+def test_primitive_has_exactly_one_passive_call_site():
+    # F3.3v3g1 had no caller. F3.3v3g2 adds exactly one, inside the passive
+    # per-component preview, which never emits a route into the bundle.
     name = "compute_fixed_gross_pressure_network_relaxation"
     assert f"func {name}(" in SYSTEM
-    assert SYSTEM.count(name) == 1
+    assert SYSTEM.count(f"{name}(") == 2
+    caller = _function(SYSTEM, "_preview_fixed_gross_pressure_component")
+    assert f"{name}(" in caller
+    assert "add_atomic_bundle" not in caller
+    assert "network_routes.append" not in caller
 
 
 def test_primitive_is_pure_and_fails_closed():

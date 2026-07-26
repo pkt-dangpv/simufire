@@ -39,6 +39,7 @@ var phase3_canonical_post_opening_coupling_shadow_enabled: bool = false
 var phase3_canonical_interior_opening_shadow_enabled: bool = false
 var phase3_canonical_interior_pressure_shadow_enabled: bool = false
 var phase3_canonical_fixed_gross_pressure_skew_shadow_enabled: bool = false
+var phase3_canonical_fixed_gross_pressure_network_shadow_enabled: bool = false
 var phase3_enthalpy_residence_diagnostics_enabled: bool = false
 var phase3_mass_residence_diagnostics_enabled: bool = false
 
@@ -148,6 +149,12 @@ func configure_phase3_canonical_fixed_gross_pressure_skew_shadow(
 	phase3_canonical_fixed_gross_pressure_skew_shadow_enabled = is_enabled
 
 
+func configure_phase3_canonical_fixed_gross_pressure_network_shadow(
+	is_enabled: bool
+	) -> void:
+	phase3_canonical_fixed_gross_pressure_network_shadow_enabled = is_enabled
+
+
 func configure_phase3_enthalpy_residence_diagnostics(is_enabled: bool) -> void:
 	phase3_enthalpy_residence_diagnostics_enabled = is_enabled
 
@@ -223,6 +230,71 @@ func _phase3_fixed_gross_pressure_skew_fields() -> Array[String]:
 		"phase3_shadow_fixed_gross_energy_residual_kj",
 		"phase3_shadow_fixed_gross_o2_residual_kg",
 		"phase3_shadow_fixed_gross_species_residual_kg",
+	]
+
+
+## F3.3v3g2 preview. These names are deliberately `pressure_network`, never
+## `fixed_gross`, so the two shadow families stay separable in every export.
+func _phase3_pressure_network_fields() -> Array[String]:
+	return [
+		"phase3_shadow_pressure_network_enabled_flag",
+		"phase3_shadow_pressure_network_valid_flag",
+		"phase3_shadow_pressure_network_component_count",
+		"phase3_shadow_pressure_network_component_index",
+		"phase3_shadow_pressure_network_component_room_count",
+		"phase3_shadow_pressure_network_component_min_room_id",
+		"phase3_shadow_pressure_network_connection_count",
+		"phase3_shadow_pressure_network_alpha_optimal",
+		"phase3_shadow_pressure_network_alpha_crossing",
+		"phase3_shadow_pressure_network_alpha_inventory",
+		"phase3_shadow_pressure_network_alpha_accepted",
+		"phase3_shadow_pressure_network_limiting_reason_code",
+		"phase3_shadow_pressure_network_objective_pre_pa2",
+		"phase3_shadow_pressure_network_objective_post_pa2",
+		"phase3_shadow_pressure_network_directional_derivative_pa2",
+		"phase3_shadow_pressure_network_worsening_connection_count",
+		"phase3_shadow_pressure_network_crossing_limited_count_step",
+		"phase3_shadow_pressure_network_predicted_min_upper_gas_kg",
+		"phase3_shadow_pressure_network_predicted_min_lower_gas_kg",
+		"phase3_shadow_pressure_network_predicted_collapse_count_step",
+		"phase3_shadow_pressure_network_degenerate_zone_count_step",
+		"phase3_shadow_pressure_network_base_out_mass_kg_step",
+		"phase3_shadow_pressure_network_base_in_mass_kg_step",
+		"phase3_shadow_pressure_network_full_out_mass_kg_step",
+		"phase3_shadow_pressure_network_full_in_mass_kg_step",
+		"phase3_shadow_pressure_network_accepted_out_mass_kg_step",
+		"phase3_shadow_pressure_network_accepted_in_mass_kg_step",
+		"phase3_shadow_pressure_network_requested_net_mass_out_kg_step",
+		"phase3_shadow_pressure_network_accepted_net_mass_out_kg_step",
+		"phase3_shadow_pressure_network_accepted_net_enthalpy_out_kj_step",
+		"phase3_shadow_pressure_network_gross_mass_residual_kg",
+		"phase3_shadow_pressure_network_mass_residual_kg",
+		"phase3_shadow_pressure_network_energy_residual_kj",
+		"phase3_shadow_pressure_network_o2_residual_kg",
+		"phase3_shadow_pressure_network_species_residual_kg",
+		"phase3_shadow_pressure_network_negative_quantity_count",
+		"phase3_shadow_pressure_network_accepted_out_mass_kg_total",
+		"phase3_shadow_pressure_network_accepted_in_mass_kg_total",
+		"phase3_shadow_pressure_network_accepted_positive_net_kg_total",
+		"phase3_shadow_pressure_network_accepted_negative_net_abs_kg_total",
+		"phase3_shadow_pressure_network_accepted_net_mass_out_kg_total",
+		"phase3_shadow_pressure_network_accepted_net_enthalpy_out_kj_total",
+		"phase3_shadow_pressure_network_invalid_count_total",
+		"phase3_shadow_pressure_network_non_descent_count_total",
+		"phase3_shadow_pressure_network_inventory_limited_count_total",
+		"phase3_shadow_pressure_network_crossing_limited_count_total",
+		"phase3_shadow_pressure_network_active_step_count_total",
+		"phase3_shadow_pressure_network_min_predicted_upper_gas_kg_total",
+		"phase3_shadow_pressure_network_min_predicted_lower_gas_kg_total",
+		"phase3_shadow_pressure_network_predicted_collapse_count_total",
+		"phase3_shadow_pressure_network_degenerate_zone_count_total",
+		"phase3_shadow_pressure_network_max_objective_increase_pa2_total",
+		"phase3_shadow_pressure_network_max_abs_gross_mass_residual_kg_total",
+		"phase3_shadow_pressure_network_max_abs_mass_residual_kg_total",
+		"phase3_shadow_pressure_network_max_abs_energy_residual_kj_total",
+		"phase3_shadow_pressure_network_max_abs_o2_residual_kg_total",
+		"phase3_shadow_pressure_network_max_abs_species_residual_kg_total",
+		"phase3_shadow_pressure_network_negative_quantity_count_total",
 	]
 
 
@@ -664,6 +736,10 @@ func _build_csv_header() -> String:
 	if phase3_canonical_fixed_gross_pressure_skew_shadow_enabled:
 		header += "," + ",".join(PackedStringArray(
 			_phase3_fixed_gross_pressure_skew_fields()
+		))
+	if phase3_canonical_fixed_gross_pressure_network_shadow_enabled:
+		header += "," + ",".join(PackedStringArray(
+			_phase3_pressure_network_fields()
 		))
 	if phase3_enthalpy_residence_diagnostics_enabled:
 		header += "," + ",".join(PackedStringArray(
@@ -1483,6 +1559,9 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		if phase3_canonical_fixed_gross_pressure_skew_shadow_enabled:
 			for field_name in _phase3_fixed_gross_pressure_skew_fields():
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
+		if phase3_canonical_fixed_gross_pressure_network_shadow_enabled:
+			for field_name in _phase3_pressure_network_fields():
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		if phase3_enthalpy_residence_diagnostics_enabled:
 			for field_name in _phase3_enthalpy_residence_fields():

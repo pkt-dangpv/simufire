@@ -1023,6 +1023,9 @@ var _step_time_us: int = 0
 @export var phase3_canonical_interior_pressure_shadow_enabled: bool = false
 ## F3.3v3f1: recompone opening+pressure con gross fijo, solo como preview.
 @export var phase3_canonical_fixed_gross_pressure_skew_shadow_enabled: bool = false
+## F3.3v3g2: preview pasiva de la red de presion interior por componente
+## conectado. Requiere el stack fixed-gross previo; sigue siendo default OFF.
+@export var phase3_canonical_fixed_gross_pressure_network_shadow_enabled: bool = false
 ## F3.3c1: ledger acumulativo de entalpia aceptada por ruta. Default OFF.
 @export var phase3_enthalpy_residence_diagnostics_enabled: bool = false
 ## F3.3d1: ledger acumulativo de masa aceptada por ruta. Default OFF.
@@ -1420,6 +1423,9 @@ func _sync_auxiliary_services() -> void:
 	log_writer.configure_phase3_canonical_fixed_gross_pressure_skew_shadow(
 		_phase3_canonical_fixed_gross_pressure_skew_active()
 	)
+	log_writer.configure_phase3_canonical_fixed_gross_pressure_network_shadow(
+		_phase3_canonical_fixed_gross_pressure_network_active()
+	)
 	log_writer.configure_phase3_enthalpy_residence_diagnostics(
 		phase3_enthalpy_residence_diagnostics_active
 	)
@@ -1650,6 +1656,11 @@ func _phase3_canonical_fixed_gross_pressure_skew_active() -> bool:
 			and phase3_canonical_interior_opening_shadow_enabled \
 			and phase3_canonical_interior_pressure_shadow_enabled \
 			and phase3_canonical_fixed_gross_pressure_skew_shadow_enabled
+
+
+func _phase3_canonical_fixed_gross_pressure_network_active() -> bool:
+	return _phase3_canonical_fixed_gross_pressure_skew_active() \
+			and phase3_canonical_fixed_gross_pressure_network_shadow_enabled
 
 
 func _phase3_prepare_canonical_multisurface_room(room: RoomModel) -> bool:
@@ -2244,6 +2255,8 @@ func _build_state_context() -> Dictionary:
 				phase3_canonical_interior_pressure_shadow_enabled,
 		"phase3_canonical_fixed_gross_pressure_skew_shadow_enabled": \
 				_phase3_canonical_fixed_gross_pressure_skew_active(),
+		"phase3_canonical_fixed_gross_pressure_network_shadow_enabled": \
+				_phase3_canonical_fixed_gross_pressure_network_active(),
 		"phase3_enthalpy_residence_diagnostics_enabled": \
 				phase3_enthalpy_residence_diagnostics_enabled,
 		"phase3_mass_residence_diagnostics_enabled": \
@@ -2584,7 +2597,8 @@ func step(delta: float) -> void:
 				false,
 				false,
 				phase3_cfast_buoyancy_destination_shadow_enabled,
-				_phase3_canonical_fixed_gross_pressure_skew_active()
+				_phase3_canonical_fixed_gross_pressure_skew_active(),
+				_phase3_canonical_fixed_gross_pressure_network_active()
 			)
 
 	var pre_hrr_o2_step: bool = _uses_pre_hrr_oxygen_step()
