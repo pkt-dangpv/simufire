@@ -617,6 +617,7 @@ func evaluate_phase3_canonical_fuel_object_sync(
 		"supported_flag": 0.0,
 		"rejection_mask": 0.0,
 		"object_count": 0.0,
+		"identity_signature": 0.0,
 		"eligible_count": 0.0,
 		"pre_fuel_MJ": 0.0,
 		"proposed_fuel_MJ": 0.0,
@@ -665,7 +666,16 @@ func evaluate_phase3_canonical_fuel_object_sync(
 	entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return String(a.get("id", "")) < String(b.get("id", ""))
 	)
+	var identity_signature: int = 17
+	for entry in entries:
+		var object_id: String = String(entry.get("id", ""))
+		for index in range(object_id.length()):
+			identity_signature = int(
+				(identity_signature * 131 + object_id.unicode_at(index))
+				% 2147483647
+			)
 	result["object_count"] = float(entries.size())
+	result["identity_signature"] = float(identity_signature)
 	result["active_flag"] = 1.0
 	var requested_debit_MJ: float = minf(
 		maxf(0.0, accepted_fuel_MJ), float(result["pre_fuel_MJ"])
@@ -1018,6 +1028,35 @@ func evaluate_phase3_canonical_combustion_step(
 				"accepted_radiative_energy_kj", 0.0
 			))
 		)
+	var fuel_object_sync: Dictionary = {}
+	var fuel_object_sync_active: bool = products_routing_active and bool(
+		context.get("phase3_canonical_fuel_object_sync_shadow_enabled", false)
+	)
+	if fuel_object_sync_active:
+		var object_ledger: Array = state_before.get(
+			"fuel_object_ledger", pre_state.get("fuel_object_ledger", [])
+		).duplicate(true)
+		fuel_object_sync = evaluate_phase3_canonical_fuel_object_sync(
+			object_ledger, accepted_fuel_MJ
+		)
+		var live_object_fuel_MJ: float = get_room_total_remaining_fuel_MJ(room)
+		fuel_object_sync["live_fuel_MJ"] = live_object_fuel_MJ
+		fuel_object_sync["live_delta_MJ"] = live_object_fuel_MJ - float(
+			fuel_object_sync.get("proposed_fuel_MJ", 0.0)
+		)
+		fuel_object_sync["seed_residual_MJ"] = float(
+			state_before.get("remaining_fuel_MJ", 0.0)
+		) - float(fuel_object_sync.get("pre_fuel_MJ", 0.0))
+		if float(fuel_object_sync.get("supported_flag", 0.0)) <= 0.5:
+			products_routing_active = false
+			accepted_fraction = 0.0
+			accepted_hrr_kw = 0.0
+			accepted_target_kw = 0.0
+			accepted_o2_kg = 0.0
+			accepted_fuel_MJ = 0.0
+			accepted_species = _scale_phase3_species(requested_species, 0.0)
+			accepted_total_fire_energy_kj = 0.0
+			accepted_radiative_energy_kj = 0.0
 
 	var legacy_retained_delta_MJ: float = float(room.retained_unburned_MJ) \
 			- float(pre_state.get("retained_unburned_MJ", room.retained_unburned_MJ))
@@ -1033,6 +1072,11 @@ func evaluate_phase3_canonical_combustion_step(
 			float(canonical_fire_proposal.get(
 				"persistent_updates", {}
 			).get("proposal_remaining_fuel_MJ", next_remaining_fuel_MJ))
+		)
+	if fuel_object_sync_active \
+			and float(fuel_object_sync.get("supported_flag", 0.0)) > 0.5:
+		next_remaining_fuel_MJ = maxf(
+			0.0, float(fuel_object_sync.get("proposed_fuel_MJ", 0.0))
 		)
 	var next_retained_MJ: float = maxf(
 		0.0,
@@ -1062,6 +1106,13 @@ func evaluate_phase3_canonical_combustion_step(
 		next_state.merge(
 			canonical_fire_proposal.get("persistent_updates", {}), true
 		)
+	if fuel_object_sync_active:
+		next_state["fuel_object_sync_active_flag"] = true
+		next_state["fuel_object_ledger"] = fuel_object_sync.get(
+			"proposed_ledger", state_before.get("fuel_object_ledger", [])
+		).duplicate(true)
+		next_state["remaining_fuel_MJ"] = next_remaining_fuel_MJ
+		next_state["proposal_remaining_fuel_MJ"] = next_remaining_fuel_MJ
 
 	var transaction: Dictionary = {
 		"room_id": room.id,
@@ -1111,6 +1162,8 @@ func evaluate_phase3_canonical_combustion_step(
 				"accepted_plume_driver_qc_kw", 0.0
 			))
 		),
+		"canonical_fuel_object_sync_active_flag": \
+				1.0 if fuel_object_sync_active else 0.0,
 		"heat_scale": accepted_fraction,
 		"plume_scale": pow(accepted_fraction, 1.0 / 3.0) if accepted_fraction > 0.0 else 0.0,
 		"post_opening_coupling_active_flag": 1.0 if post_opening_lower_source else 0.0,
@@ -1136,6 +1189,12 @@ func evaluate_phase3_canonical_combustion_step(
 		for products_key in canonical_fire_products.keys():
 			transaction["canonical_fire_products_" + String(products_key)] = \
 					canonical_fire_products[products_key]
+	if not fuel_object_sync.is_empty():
+		for sync_key in fuel_object_sync.keys():
+			if sync_key == "proposed_ledger":
+				continue
+			transaction["canonical_fuel_object_sync_" + String(sync_key)] = \
+					fuel_object_sync[sync_key]
 	return transaction
 
 
@@ -1158,6 +1217,7 @@ func _snapshot_phase3_fire_state(room: RoomModel) -> Dictionary:
 		"proposal_remaining_fuel_MJ": maxf(0.0, fire.fuel_energy_MJ) \
 				if fire != null else 0.0,
 		"product_profile": _snapshot_phase3_fire_product_profile(room, fire),
+		"fuel_object_ledger": _snapshot_phase3_fuel_object_ledger(room),
 		"growth_alpha_kw_s2": maxf(0.0, fire.growth_alpha_kw_s2) \
 				if fire != null else 0.0,
 		"max_hrr_kw": maxf(0.0, fire.max_hrr_kw) if fire != null else 0.0,
@@ -1209,6 +1269,39 @@ func _snapshot_phase3_fire_product_profile(room: RoomModel, fire) -> Dictionary:
 		),
 		"chi_rad_normal": _resolve_room_chi_rad_normal(room, -1.0),
 	}
+
+
+func _snapshot_phase3_fuel_object_ledger(room: RoomModel) -> Array:
+	var ledger: Array = []
+	if room == null or not _has_explicit_fuel_objects(room):
+		return ledger
+	for obj in room.fuel_objects:
+		if obj == null or _is_legacy_room_proxy(obj):
+			continue
+		var remaining_MJ: float = maxf(0.0, float(obj.remaining_fuel_MJ))
+		var state_code: int = int(obj.state)
+		var eligible: bool = remaining_MJ > 0.000000001 and (
+			bool(obj.is_primary_ignition_source)
+			or state_code == FuelObjectModelScript.State.PYROLYZING
+			or state_code == FuelObjectModelScript.State.FLAMING
+		)
+		var weight: float = maxf(0.01, float(obj.max_hrr_kw)) \
+				if eligible else 0.0
+		if eligible and bool(obj.is_primary_ignition_source):
+			weight *= 1.40
+		ledger.append({
+			"id": String(obj.id),
+			"initial_fuel_MJ": maxf(0.0, float(obj.fuel_energy_MJ)),
+			"remaining_fuel_MJ": remaining_MJ,
+			"eligible_flag": eligible,
+			"allocation_weight": weight,
+			"state_code": float(state_code),
+			"primary_flag": 1.0 if bool(obj.is_primary_ignition_source) else 0.0,
+		})
+	ledger.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return String(a.get("id", "")) < String(b.get("id", ""))
+	)
+	return ledger
 
 
 func _phase3_combustion_species_proposal(

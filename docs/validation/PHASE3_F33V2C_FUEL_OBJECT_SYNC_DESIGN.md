@@ -145,10 +145,11 @@ Rollback if the ledger:
 
 1. pure snapshot, validator and allocation evaluator in `CombustionSystem`
    (**F3.3v2c1 complete**);
-2. nested atomic interpolation in `Phase3ZoneMassSystem`;
-3. engine/runner/logger wiring;
-4. direct Godot fixture and Python structural tests;
-5. 180 s OFF/ON gate;
+2. nested atomic interpolation in `Phase3ZoneMassSystem`
+   (**F3.3v2c2 complete**);
+3. engine/runner/logger wiring (**complete**);
+4. direct Godot fixture and Python structural tests (**complete**);
+5. 180 s OFF/ON gate (**shadow GO; runtime authority NO-GO**);
 6. only after GO, 300/600 s correspondence.
 
 F3.3v2c1 verification: Godot 4.7.1 parser PASS; direct allocation fixture

@@ -1009,6 +1009,8 @@ var _step_time_us: int = 0
 ## F3.3v2b: enruta esos productos por la transaccion canonica persistente.
 ## Sigue siendo shadow; requiere propuesta, productos, multisurface y plume acoplado.
 @export var phase3_canonical_fire_products_routing_shadow_enabled: bool = false
+## F3.3v2c2: sincroniza el debito agregado con un ledger shadow por objeto.
+@export var phase3_canonical_fuel_object_sync_shadow_enabled: bool = false
 ## F3.2b6: counterflow exterior compensado desde estado canonico. Default OFF.
 @export var phase3_canonical_exterior_counterflow_shadow_enabled: bool = false
 ## F3.2b7: combustion usa lower O2 durante counterflow exterior real. Default OFF.
@@ -1362,6 +1364,9 @@ func _sync_auxiliary_services() -> void:
 	log_writer.configure_phase3_canonical_fire_products_routing_shadow(
 		_phase3_canonical_fire_products_routing_active()
 	)
+	log_writer.configure_phase3_canonical_fuel_object_sync_shadow(
+		_phase3_canonical_fuel_object_sync_active()
+	)
 	log_writer.configure_phase3_canonical_pressure_relaxation_shadow(
 		phase3_canonical_zone_shadow_enabled \
 				and phase3_canonical_exterior_boundary_shadow_enabled \
@@ -1625,6 +1630,11 @@ func _phase3_canonical_fire_products_routing_active() -> bool:
 			and phase3_canonical_fire_proposal_shadow_enabled \
 			and phase3_canonical_fire_products_shadow_enabled \
 			and phase3_canonical_fire_products_routing_shadow_enabled
+
+
+func _phase3_canonical_fuel_object_sync_active() -> bool:
+	return _phase3_canonical_fire_products_routing_active() \
+			and phase3_canonical_fuel_object_sync_shadow_enabled
 
 
 func _phase3_prepare_canonical_multisurface_room(room: RoomModel) -> bool:
@@ -2204,6 +2214,8 @@ func _build_state_context() -> Dictionary:
 				phase3_canonical_fire_products_shadow_enabled,
 		"phase3_canonical_fire_products_routing_shadow_enabled": \
 				_phase3_canonical_fire_products_routing_active(),
+		"phase3_canonical_fuel_object_sync_shadow_enabled": \
+				_phase3_canonical_fuel_object_sync_active(),
 		"phase3_canonical_exterior_counterflow_shadow_enabled": \
 				phase3_canonical_exterior_counterflow_shadow_enabled,
 		"phase3_canonical_post_opening_coupling_shadow_enabled": \
@@ -2827,6 +2839,8 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 				phase3_canonical_fire_products_shadow_enabled,
 		"phase3_canonical_fire_products_routing_shadow_enabled": \
 				_phase3_canonical_fire_products_routing_active(),
+		"phase3_canonical_fuel_object_sync_shadow_enabled": \
+				_phase3_canonical_fuel_object_sync_active(),
 	}
 
 # ============================================================

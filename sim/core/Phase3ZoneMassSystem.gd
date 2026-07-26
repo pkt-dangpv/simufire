@@ -8028,6 +8028,22 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 		] = float(canonical_combustion.get(
 			"canonical_fire_products_plume_qc_residual_kw", 0.0
 		))
+		for object_sync_field in [
+			"active_flag", "supported_flag", "rejection_mask", "object_count",
+			"identity_signature", "eligible_count", "pre_fuel_MJ",
+			"proposed_fuel_MJ",
+			"committed_fuel_MJ", "requested_debit_MJ",
+			"allocated_debit_MJ", "committed_debit_MJ",
+			"allocation_residual_MJ", "atomic_residual_MJ",
+			"aggregate_residual_MJ", "exhausted_count",
+			"minimum_remaining_MJ", "live_fuel_MJ", "live_delta_MJ",
+			"seed_residual_MJ"
+		]:
+			fire_products_room_result[
+				"phase3_shadow_fuel_object_sync_" + object_sync_field
+			] = float(canonical_combustion.get(
+				"canonical_fuel_object_sync_" + object_sync_field, 0.0
+			))
 		_results[room_key] = fire_products_room_result
 		var multisurface_room_result: Dictionary = _results[room_key]
 		for surface_name in CANONICAL_SURFACE_NAMES:
@@ -8578,6 +8594,38 @@ func _record_atomic_bundle_result(bundle: Dictionary, accepted_fraction: float) 
 		combustion_record["canonical_fire_products_fuel_route_residual_MJ"] = \
 				float(combustion_record.get("accepted_fuel_MJ", 0.0)) \
 				* atomic_fraction - committed_fuel_MJ
+		if float(combustion_record.get(
+			"canonical_fuel_object_sync_active_flag", 0.0
+		)) > 0.5:
+			var pre_object_fuel_MJ: float = _sum_fuel_object_ledger(
+				state_before.get("fuel_object_ledger", [])
+			)
+			var proposed_object_fuel_MJ: float = _sum_fuel_object_ledger(
+				combustion_record.get(
+					"fire_state_proposed", {}
+				).get("fuel_object_ledger", [])
+			)
+			var committed_object_fuel_MJ: float = _sum_fuel_object_ledger(
+				committed_state.get("fuel_object_ledger", [])
+			)
+			combustion_record["canonical_fuel_object_sync_pre_fuel_MJ"] = \
+					pre_object_fuel_MJ
+			combustion_record["canonical_fuel_object_sync_proposed_fuel_MJ"] = \
+					proposed_object_fuel_MJ
+			combustion_record["canonical_fuel_object_sync_committed_fuel_MJ"] = \
+					committed_object_fuel_MJ
+			combustion_record[
+				"canonical_fuel_object_sync_committed_debit_MJ"
+			] = pre_object_fuel_MJ - committed_object_fuel_MJ
+			combustion_record[
+				"canonical_fuel_object_sync_atomic_residual_MJ"
+			] = float(combustion_record.get("accepted_fuel_MJ", 0.0)) \
+					* atomic_fraction \
+					- (pre_object_fuel_MJ - committed_object_fuel_MJ)
+			combustion_record[
+				"canonical_fuel_object_sync_aggregate_residual_MJ"
+			] = float(committed_state.get("remaining_fuel_MJ", 0.0)) \
+					- committed_object_fuel_MJ
 		_canonical_combustion_by_room[combustion_room_key] = combustion_record
 		return
 	if result_kind == "canonical_interior_opening_network":
@@ -8847,7 +8895,71 @@ func _interpolate_combustion_state(
 	for key in ["active_flag", "extinguished_flag"]:
 		result[key] = proposed.get(key, before.get(key, false)) \
 				if accepted > 0.0 else before.get(key, false)
+	if bool(proposed.get("fuel_object_sync_active_flag", false)) \
+			and proposed.has("fuel_object_ledger"):
+		var committed_ledger: Array = _interpolate_fuel_object_ledger(
+			before.get("fuel_object_ledger", []),
+			proposed.get("fuel_object_ledger", []),
+			accepted
+		)
+		result["fuel_object_ledger"] = committed_ledger
+		var committed_object_fuel_MJ: float = 0.0
+		for raw_entry in committed_ledger:
+			committed_object_fuel_MJ += maxf(
+				0.0, float(Dictionary(raw_entry).get("remaining_fuel_MJ", 0.0))
+			)
+		result["remaining_fuel_MJ"] = committed_object_fuel_MJ
+		result["proposal_remaining_fuel_MJ"] = committed_object_fuel_MJ
 	return result
+
+
+func _interpolate_fuel_object_ledger(
+		before_ledger: Array,
+		proposed_ledger: Array,
+		fraction: float
+	) -> Array:
+	var proposed_by_id: Dictionary = {}
+	for raw_entry in proposed_ledger:
+		if raw_entry is Dictionary:
+			var entry: Dictionary = Dictionary(raw_entry)
+			proposed_by_id[String(entry.get("id", ""))] = entry
+	var result: Array = []
+	var accepted: float = clampf(fraction, 0.0, 1.0)
+	for raw_before in before_ledger:
+		if not raw_before is Dictionary:
+			continue
+		var before_entry: Dictionary = Dictionary(raw_before)
+		var object_id: String = String(before_entry.get("id", ""))
+		var proposed_entry: Dictionary = proposed_by_id.get(
+			object_id, before_entry
+		)
+		var committed: Dictionary = proposed_entry.duplicate(true)
+		committed["id"] = object_id
+		committed["remaining_fuel_MJ"] = lerpf(
+			maxf(0.0, float(before_entry.get("remaining_fuel_MJ", 0.0))),
+			maxf(0.0, float(proposed_entry.get("remaining_fuel_MJ", 0.0))),
+			accepted
+		)
+		committed["allocated_debit_MJ"] = maxf(
+			0.0,
+			float(before_entry.get("remaining_fuel_MJ", 0.0))
+					- float(committed["remaining_fuel_MJ"])
+		)
+		result.append(committed)
+	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return String(a.get("id", "")) < String(b.get("id", ""))
+	)
+	return result
+
+
+func _sum_fuel_object_ledger(ledger: Array) -> float:
+	var total_MJ: float = 0.0
+	for raw_entry in ledger:
+		if raw_entry is Dictionary:
+			total_MJ += maxf(
+				0.0, float(Dictionary(raw_entry).get("remaining_fuel_MJ", 0.0))
+			)
+	return total_MJ
 
 
 func _apply_request(

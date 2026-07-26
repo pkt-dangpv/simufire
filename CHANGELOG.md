@@ -14,6 +14,11 @@ All notable changes to SimuFire should be recorded here.
 - Added the first implementation slice: a pure dictionary-only bounded
   allocator with stable-ID validation, deterministic ordering, inventory
   caps and leftover redistribution. It is not wired into the tick yet.
+- Added F3.3v2c2 persistent nested interpolation, default-OFF engine/runner
+  wiring, 20 closure fields and an OFF/ON analyzer.
+- Verified byte-identical OFF behavior, seven stable objects, zero internal
+  residuals and no live-column changes. Runtime authority remains blocked by
+  a measured 0.58758433 MJ live/canonical object-fuel difference at 180 s.
 
 ### Phase 3+ F3.3v2b canonical fire-products routing (2026-07-26)
 

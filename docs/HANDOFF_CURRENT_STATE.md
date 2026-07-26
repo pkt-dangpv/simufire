@@ -56,6 +56,23 @@ This note records the repository hygiene and validation state after the non-moto
 - Binding record:
   `docs/validation/PHASE3_F33V2C_FUEL_OBJECT_SYNC_DESIGN.md`.
 
+## Current Session Update - 2026-07-26 - F3.3v2c2 object ledger GO
+
+- Added default-OFF persistent object synchronization beneath F3.3v2b.
+- Seven explicit object IDs remain stable; the same atomic fraction commits
+  object fuel, aggregate fuel, O2, species and energy.
+- OFF is byte-identical. ON preserves all 115 live columns and closes seed,
+  allocation, atomic and aggregate/object residuals at zero.
+- The legacy object path consumes up to 0.58758433 MJ more by 180 s. This is
+  now an explicit runtime-authority blocker, not a hidden fallback.
+- Verification: focused 14/14 PASS; full pytest 1284 PASS plus the same 17
+  pre-existing structural failures; guardrails 10/10 PASS after commit,
+  including `test_exit0_real_json`; physics and ILV remain at 0 FAIL.
+- Next: F3.3v2d per-object correspondence/state-owner diagnosis, then
+  300/600 s. No live activation or Group C retirement is authorized.
+- Binding record:
+  `docs/validation/PHASE3_F33V2C2_FUEL_OBJECT_SYNC_EXPERIMENT.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v2 product telemetry GO
 
 - Added pure products from the accepted F3.3v1 proposal: fuel, O2, seven

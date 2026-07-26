@@ -71,6 +71,9 @@ func build_state(context: Dictionary) -> Dictionary:
 				"phase3_canonical_fire_products_routing_shadow_enabled", false
 			)
 		),
+		"phase3_canonical_fuel_object_sync_shadow_enabled": bool(
+			context.get("phase3_canonical_fuel_object_sync_shadow_enabled", false)
+		),
 		"phase3_canonical_exterior_counterflow_shadow_enabled": bool(
 			context.get("phase3_canonical_exterior_counterflow_shadow_enabled", false)
 		),

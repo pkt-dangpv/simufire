@@ -1,6 +1,7 @@
 extends SceneTree
 
 const CombustionSystemScript = preload("res://sim/fire/CombustionSystem.gd")
+const Phase3ZoneMassSystemScript = preload("res://sim/core/Phase3ZoneMassSystem.gd")
 
 
 func _init() -> void:
@@ -45,5 +46,14 @@ func _init() -> void:
 	)
 	assert(float(zero["supported_flag"]) == 1.0)
 	assert(absf(float(zero["pre_fuel_MJ"]) - float(zero["proposed_fuel_MJ"])) < 1.0e-8)
+
+	var zone_system = Phase3ZoneMassSystemScript.new()
+	var committed: Array = zone_system._interpolate_fuel_object_ledger(
+		ledger, proposed, 0.25
+	)
+	assert(String(committed[0]["id"]) == "a")
+	assert(absf(float(committed[0]["remaining_fuel_MJ"]) - 0.75) < 1.0e-8)
+	assert(absf(float(committed[1]["remaining_fuel_MJ"]) - 8.0) < 1.0e-8)
+	assert(float(committed[2]["remaining_fuel_MJ"]) == 5.0)
 	print("PHASE3_F33V2C_FUEL_OBJECT_SYNC_PASS")
 	quit()

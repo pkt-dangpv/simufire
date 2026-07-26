@@ -30,6 +30,7 @@ var phase3_canonical_combustion_shadow_enabled: bool = false
 var phase3_canonical_fire_proposal_shadow_enabled: bool = false
 var phase3_canonical_fire_products_shadow_enabled: bool = false
 var phase3_canonical_fire_products_routing_shadow_enabled: bool = false
+var phase3_canonical_fuel_object_sync_shadow_enabled: bool = false
 var phase3_canonical_pressure_relaxation_shadow_enabled: bool = false
 var phase3_canonical_interzone_heat_shadow_enabled: bool = false
 var phase3_canonical_wall_ambient_shadow_enabled: bool = false
@@ -106,6 +107,10 @@ func configure_phase3_canonical_fire_products_routing_shadow(
 	is_enabled: bool
 	) -> void:
 	phase3_canonical_fire_products_routing_shadow_enabled = is_enabled
+
+
+func configure_phase3_canonical_fuel_object_sync_shadow(is_enabled: bool) -> void:
+	phase3_canonical_fuel_object_sync_shadow_enabled = is_enabled
 
 
 func configure_phase3_canonical_pressure_relaxation_shadow(is_enabled: bool) -> void:
@@ -595,6 +600,10 @@ func _build_csv_header() -> String:
 		header += "," + ",".join(PackedStringArray(
 			_phase3_fire_products_routing_fields()
 		))
+	if phase3_canonical_fuel_object_sync_shadow_enabled:
+		header += "," + ",".join(PackedStringArray(
+			_phase3_fuel_object_sync_fields()
+		))
 	if phase3_canonical_pressure_relaxation_shadow_enabled:
 		header += ",phase3_shadow_exterior_relaxation_enabled_flag,phase3_shadow_exterior_raw_requested_gas_kg,phase3_shadow_exterior_raw_requested_energy_kj,phase3_shadow_exterior_pressure_equilibrium_fraction,phase3_shadow_exterior_pressure_full_delta_pa,phase3_shadow_exterior_pressure_limited_delta_pa,phase3_shadow_exterior_pressure_predicted_post_pa,phase3_shadow_exterior_pressure_crossing_prevented_flag,phase3_shadow_exterior_degenerate_lower_reseed_flag,phase3_shadow_exterior_degenerate_lower_reseed_mass_kg,phase3_shadow_exterior_lower_reseed_count_total,phase3_shadow_exterior_lower_reseed_mass_kg_total,phase3_shadow_exterior_lower_reseed_first_step_index"
 	if phase3_canonical_interzone_heat_shadow_enabled:
@@ -750,6 +759,22 @@ func _phase3_fire_products_routing_fields() -> Array[String]:
 		"phase3_shadow_fire_products_routing_coupled_plume_qc_kw",
 		"phase3_shadow_fire_products_routing_plume_qc_residual_kw",
 	]
+
+
+func _phase3_fuel_object_sync_fields() -> Array[String]:
+	var fields: Array[String] = []
+	for field_name in [
+		"active_flag", "supported_flag", "rejection_mask", "object_count",
+		"identity_signature", "eligible_count", "pre_fuel_MJ",
+		"proposed_fuel_MJ",
+		"committed_fuel_MJ", "requested_debit_MJ", "allocated_debit_MJ",
+		"committed_debit_MJ", "allocation_residual_MJ",
+		"atomic_residual_MJ", "aggregate_residual_MJ", "exhausted_count",
+		"minimum_remaining_MJ", "live_fuel_MJ", "live_delta_MJ",
+		"seed_residual_MJ"
+	]:
+		fields.append("phase3_shadow_fuel_object_sync_" + field_name)
+	return fields
 
 
 func _open_csv_file(mode: FileAccess.ModeFlags) -> FileAccess:
@@ -1243,6 +1268,9 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		if phase3_canonical_fire_products_routing_shadow_enabled:
 			for field_name in _phase3_fire_products_routing_fields():
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
+		if phase3_canonical_fuel_object_sync_shadow_enabled:
+			for field_name in _phase3_fuel_object_sync_fields():
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		if phase3_canonical_pressure_relaxation_shadow_enabled:
 			for field_name in [
