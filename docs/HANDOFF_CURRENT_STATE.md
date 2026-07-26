@@ -8,6 +8,28 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-26 - F3.3v3c leakage owner closed
+
+- Added read-only
+  `scripts/simulation/analyze_phase3_f33v3c_exterior_leakage.py`.
+- CFAST 7.7.5 creates two R0 leakage vents:
+  - wall: `0.007344 m2`, distributed from `0.12` to `2.28 m`;
+  - floor: `0.001040 m2`, starting at floor level;
+  - total: `0.008384 m2`, discharge coefficient `0.7`.
+- SimuFire represents leakage through one closed exterior opening using the
+  global `window_leakage_area_m2=0.005`.
+- At 180 s the missing exterior net outflow is split:
+  - upper `1.263 kg`;
+  - lower `3.649 kg` (`74.3%` of the total).
+- Area is not the only owner. SimuFire exterior pre-pressure has the opposite
+  sign to CFAST at 120, 130, 140 and 180 s and draws ambient gas inward while
+  CFAST continues outward.
+- Decision: layer attribution GO; area-only motor experiment NO-GO.
+  F3.3v3d must attribute the pressure-sign reversals to cumulative mass and
+  enthalpy owners before any distributed-leakage candidate.
+- Binding record:
+  `docs/validation/PHASE3_F33V3C_EXTERIOR_LEAKAGE_ATTRIBUTION.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v3b mass owner closed
 
 - Added read-only

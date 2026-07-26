@@ -3,6 +3,19 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3c exterior leakage attribution (2026-07-26)
+
+- Added a read-only parser for CFAST layer-resolved leakage output and its
+  exact wall/floor leakage geometry.
+- Measured CFAST R0 leakage area `0.008384 m2` versus SimuFire's single
+  closed-opening area `0.005000 m2`; the representations are topologically
+  different as well as unequal in area.
+- Assigned `3.649 kg` (74.3%) of the 180 s exterior outflow deficit to lower
+  gas and `1.263 kg` to upper gas.
+- Rejected an area-only experiment because SimuFire pressure reverses sign at
+  120, 130, 140 and 180 s while CFAST remains positive and venting outward.
+  The next gate is pressure-inventory owner attribution.
+
 ### Phase 3+ F3.3v3b early mass/interface attribution (2026-07-26)
 
 - Added a read-only R0 mass-budget analyzer using the existing canonical
