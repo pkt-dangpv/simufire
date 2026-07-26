@@ -969,15 +969,17 @@ Diagnostic / planned lanes:
 3. Diagnose the 79 R0 directional cap events: time, requested pressure net
    and available base counterflow. **Closed F3.3v3f2:** the cap changes the
    signed integral from requested `+1.173 kg` to accepted `-1.950 kg`.
-4. Design the next candidate as a dynamic canonical-shadow replacement of
-   additive opening+pressure routes. A static same-pressure normalization is
-   insufficient because it inherits the same per-step bound.
-5. Stop again at 180 s. Require fixed gross mass, atomic payload closure,
-   OFF invariance and improved directional net mass without losing enthalpy
-   correspondence.
-6. Only after that STOP gate consider a tiny opt-in authoritative replacement
-   of the additive pressure route.
-7. Group A and Group C remain VALID_GAP until an authoritative canonical
+4. **Closed F3.3v3f3, NO-GO:** direct dynamic replacement creates explicit
+   positive feedback. Caps rise `79 -> 1676`, requested pressure transport
+   `6.368 -> 804.659 kg`, and lower shadow gas collapses to zero.
+5. Preserve the isolation proof: 114/114 rows and all 115 non-shadow fields
+   are identical. The failed motor candidate is reverted.
+6. Design F3.3v3g0 before more motor work: an implicit or under-relaxed
+   connected-room pressure solve with antisymmetric flow, inventory bounds
+   and explicit convergence/rollback criteria.
+7. Do not retry direct route replacement, per-step clipping or static
+   normalization over the old pressure trajectory.
+8. Group A and Group C remain VALID_GAP until an authoritative canonical
    slice passes required checks without tolerance or baseline relaxation.
 
 ## 17. Phase 3+ Doorway Transport Checkpoint (2026-07-26)
@@ -989,6 +991,7 @@ Diagnostic / planned lanes:
 | F3.3v3f0 | Pure atomic fixed-gross skew primitive | Runtime-tested, dormant |
 | F3.3v3f1 | Opt-in runtime preview, 21 CSV fields, exact OFF no-op | Shadow GO, authority NO-GO |
 | F3.3v3f2 | 79-cap cumulative sign/magnitude ledger | Static cap authority NO-GO |
+| F3.3v3f3 | Dynamic fixed-gross route replacement | Exact isolation, physical candidate NO-GO |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1001,6 +1004,8 @@ F3.3v3f1 measured at 180 s:
 The current hard rule is: pressure may bias the bidirectional opening field,
 but may not create an independent gross transport path.
 
-F3.3v3f2 adds a second rule: evaluate the candidate dynamically against its
-own next-step pressure state. Replaying a new route formula over the old
-additive-pressure trajectory is not a valid authority test.
+F3.3v3f2 added a second rule: evaluate a candidate dynamically against its own
+next-step pressure state. F3.3v3f3 performed that test and exposed an explicit
+one-way pressure feedback. The next candidate must solve pressure and
+fixed-gross transport together, implicitly or with measured under-relaxation;
+it may not directly substitute routes into the explicit timestep loop.

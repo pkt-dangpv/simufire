@@ -8,6 +8,33 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-26 - F3.3v3f3 dynamic candidate NO-GO
+
+- A default-OFF canonical-shadow experiment dynamically replaced additive
+  opening plus pressure routes with the fixed-gross directional routes for
+  180 s. Its motor patch has been fully reverted; the committed runtime
+  remains F3.3v3f2 telemetry only.
+- Isolation passed exactly: baseline and candidate both contain 114 rows, and
+  all 115 non-shadow fields are byte-identical. Legacy state, FED and official
+  validation behavior were not changed.
+- The canonical candidate failed decisively in R0:
+  - caps `79 -> 1676`, all candidate caps positive;
+  - pressure requested `6.368 -> 804.659 kg`;
+  - accepted pressure transport `3.245 -> 205.113 kg`;
+  - rejected absolute mass `28.240 -> 599.516 kg`;
+  - preview net enthalpy `6321.966 -> 22075.625 kJ`;
+  - lower shadow gas `21.555 -> 0.000 kg`.
+- Decision: direct dynamic route replacement NO-GO. It creates one-way
+  explicit pressure feedback and zone collapse.
+- Do not retry direct replacement, independent per-step clipping, static
+  normalization over the old pressure trajectory, or a gross-flow increase.
+- Next phase: **F3.3v3g0 implicit interior pressure network design**. It must
+  define pressure residual ownership, an implicit or under-relaxed connected
+  room solve, antisymmetric flow, inventory bounds and convergence/rollback
+  criteria before any new motor patch.
+- Binding record:
+  `docs/validation/PHASE3_F33V3F3_DYNAMIC_CANDIDATE_NO_GO.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v3f2 cap owner closed
 
 - Extended the existing default-OFF fixed-gross preview with ten cumulative

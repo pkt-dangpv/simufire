@@ -3,6 +3,20 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3f3 dynamic fixed-gross candidate NO-GO (2026-07-26)
+
+- Tested a default-OFF canonical-shadow candidate that dynamically replaced
+  the additive opening plus pressure routes with fixed-gross directional
+  transport. The experimental motor patch was reverted after the STOP gate.
+- Proved exact isolation: 114/114 rows and all 115 non-shadow columns remained
+  identical to F3.3v3f2.
+- Rejected the candidate because pressure entered one-way positive feedback:
+  cap events grew from 79 to 1676, requested net transport from `6.368 kg` to
+  `804.659 kg`, and lower-zone shadow gas collapsed to zero.
+- Added a read-only analyzer, regression tests and the binding NO-GO record.
+  The next gate is design-only F3.3v3g0 for an implicit or under-relaxed
+  interior pressure network; direct route replacement must not be retried.
+
 ### Phase 3+ F3.3v3f2 fixed-gross cap ledger (2026-07-26)
 
 - Added cumulative signed cap telemetry under the existing default-OFF
