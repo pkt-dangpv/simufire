@@ -993,6 +993,7 @@ Diagnostic / planned lanes:
 | F3.3v3f2 | 79-cap cumulative sign/magnitude ledger | Static cap authority NO-GO |
 | F3.3v3f3 | Dynamic fixed-gross route replacement | Exact isolation, physical candidate NO-GO |
 | F3.3v3g0 | Actual-route pressure-network design | Design GO; no runtime code |
+| F3.3v3g1 | Pure pressure objective/relaxation primitive | Primitive GO; no runtime call |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1022,3 +1023,12 @@ F3.3v3g0 selects the next bounded sequence:
 The network objective must not increase, gross transport must remain fixed,
 all payloads must share one blend fraction, and no source-zone inventory may
 be overdrawn. F3.3v3g1 is not permission to wire a runtime candidate.
+
+F3.3v3g1 STOP:
+
+- pure function only: PASS;
+- optimum/crossing/inventory bounds separate: PASS;
+- non-descent and malformed input fail closed: PASS;
+- chain, disconnected components and opening-order contracts: PASS;
+- Godot 4.7.1 parse/runtime fixture: PASS;
+- runtime call site, flag, reports and baselines: absent.

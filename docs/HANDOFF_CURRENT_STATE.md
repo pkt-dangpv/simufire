@@ -8,6 +8,23 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-26 - F3.3v3g1 primitive GO
+
+- Added pure
+  `compute_fixed_gross_pressure_network_relaxation(...)` in
+  `Phase3ZoneMassSystem.gd`.
+- It has no runtime call site, flag or persistent-state access. It minimizes
+  the real candidate pressure response and returns separate optimum,
+  no-crossing and inventory bounds.
+- Godot 4.7.1 fixture passes single connection, chain, non-descent,
+  inventory-limited, disconnected-component, order-invariance, zero-response
+  and malformed-input contracts.
+- Next: F3.3v3g2 passive default-OFF preview only. It must partition connected
+  components and may emit telemetry, but must not append candidate routes to
+  the canonical bundle or mutate private shadow state.
+- Binding record:
+  `docs/validation/PHASE3_F33V3G1_PRESSURE_NETWORK_PRIMITIVE.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v3g0 design GO
 
 - Mapped the current pressure path. The old network relaxation predicts the

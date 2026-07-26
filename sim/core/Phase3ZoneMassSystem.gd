@@ -3254,6 +3254,136 @@ func compute_interior_network_pressure_relaxation(
 	return result
 
 
+## F3.3v3g1: solve one connected network against the pressure response of the
+## routes that would actually be applied. Pure: no persistent state or routes.
+func compute_fixed_gross_pressure_network_relaxation(
+		pressure_by_room: Dictionary,
+		base_delta_by_room: Dictionary,
+		full_fixed_delta_by_room: Dictionary,
+		connection_pairs: Array,
+		inventory_fraction: float = 1.0
+	) -> Dictionary:
+	var result: Dictionary = {
+		"valid": false,
+		"failure_code": 0.0,
+		"fraction": 0.0,
+		"optimal_fraction": 0.0,
+		"crossing_fraction": 1.0,
+		"inventory_fraction": clampf(inventory_fraction, 0.0, 1.0),
+		"objective_pre_pa2": 0.0,
+		"objective_post_pa2": 0.0,
+		"directional_derivative_pa2": 0.0,
+		"connection_count": 0.0,
+		"crossing_limited_count": 0.0,
+		"worsening_connection_count": 0.0,
+		"limiting_reason": "invalid",
+	}
+	if not is_finite(inventory_fraction) or inventory_fraction < 0.0:
+		result["failure_code"] = 1.0
+		return result
+	if connection_pairs.is_empty():
+		result["valid"] = true
+		result["limiting_reason"] = "no_connections"
+		return result
+	var edge_terms: Array[Dictionary] = []
+	var numerator: float = 0.0
+	var denominator: float = 0.0
+	for raw_pair in connection_pairs:
+		var pair: Dictionary = raw_pair
+		var room_a_key: String = str(int(pair.get("room_a_id", EXTERIOR_ID)))
+		var room_b_key: String = str(int(pair.get("room_b_id", EXTERIOR_ID)))
+		if room_a_key == str(EXTERIOR_ID) or room_b_key == str(EXTERIOR_ID) \
+				or room_a_key == room_b_key \
+				or not pressure_by_room.has(room_a_key) \
+				or not pressure_by_room.has(room_b_key):
+			result["failure_code"] = 2.0
+			return result
+		var values: Array[float] = [
+			float(pressure_by_room.get(room_a_key, NAN)),
+			float(pressure_by_room.get(room_b_key, NAN)),
+			float(base_delta_by_room.get(room_a_key, 0.0)),
+			float(base_delta_by_room.get(room_b_key, 0.0)),
+			float(full_fixed_delta_by_room.get(room_a_key, 0.0)),
+			float(full_fixed_delta_by_room.get(room_b_key, 0.0)),
+		]
+		for value in values:
+			if not is_finite(value):
+				result["failure_code"] = 3.0
+				return result
+		var base_difference_pa: float = values[0] - values[1] \
+				+ values[2] - values[3]
+		var response_difference_pa: float = (
+			values[4] - values[5]
+		) - (values[2] - values[3])
+		edge_terms.append({
+			"base_difference_pa": base_difference_pa,
+			"response_difference_pa": response_difference_pa,
+		})
+		numerator += base_difference_pa * response_difference_pa
+		denominator += response_difference_pa * response_difference_pa
+		result["objective_pre_pa2"] = float(
+			result["objective_pre_pa2"]
+		) + base_difference_pa * base_difference_pa
+	result["connection_count"] = float(edge_terms.size())
+	result["directional_derivative_pa2"] = 2.0 * numerator
+	if denominator <= 1.0e-18:
+		result["valid"] = true
+		result["objective_post_pa2"] = float(result["objective_pre_pa2"])
+		result["limiting_reason"] = "zero_response"
+		return result
+	if numerator >= -1.0e-12:
+		result["valid"] = true
+		result["objective_post_pa2"] = float(result["objective_pre_pa2"])
+		result["limiting_reason"] = "non_descent"
+		return result
+	var optimal_fraction: float = clampf(-numerator / denominator, 0.0, 1.0)
+	var crossing_fraction: float = 1.0
+	for edge in edge_terms:
+		var base_difference_pa: float = float(edge["base_difference_pa"])
+		var response_difference_pa: float = float(
+			edge["response_difference_pa"]
+		)
+		if base_difference_pa * response_difference_pa >= 0.0:
+			if absf(response_difference_pa) > 1.0e-12:
+				result["worsening_connection_count"] = float(
+					result["worsening_connection_count"]
+				) + 1.0
+			continue
+		var edge_crossing_fraction: float = -base_difference_pa \
+				/ response_difference_pa
+		if edge_crossing_fraction >= 0.0 \
+				and edge_crossing_fraction < crossing_fraction:
+			crossing_fraction = edge_crossing_fraction
+			result["crossing_limited_count"] = float(
+				result["crossing_limited_count"]
+			) + 1.0
+	var accepted_fraction: float = minf(
+		optimal_fraction,
+		minf(crossing_fraction, clampf(inventory_fraction, 0.0, 1.0))
+	)
+	var objective_post_pa2: float = 0.0
+	for edge in edge_terms:
+		var post_difference_pa: float = float(
+			edge["base_difference_pa"]
+		) + accepted_fraction * float(edge["response_difference_pa"])
+		objective_post_pa2 += post_difference_pa * post_difference_pa
+	if not is_finite(objective_post_pa2) \
+			or objective_post_pa2 > float(result["objective_pre_pa2"]) + 1.0e-9:
+		result["failure_code"] = 4.0
+		return result
+	result["valid"] = true
+	result["fraction"] = accepted_fraction
+	result["optimal_fraction"] = optimal_fraction
+	result["crossing_fraction"] = crossing_fraction
+	result["objective_post_pa2"] = objective_post_pa2
+	if accepted_fraction + 1.0e-12 < optimal_fraction:
+		result["limiting_reason"] = "inventory" \
+				if inventory_fraction <= crossing_fraction else "crossing"
+	else:
+		result["limiting_reason"] = "optimal"
+	return result
+
+
 func _canonical_zone_densities(canonical: Dictionary) -> Dictionary:
 	var upper_volume_m3: float = maxf(0.0, float(canonical.get("upper_volume_m3", 0.0)))
 	var lower_volume_m3: float = maxf(0.0, float(canonical.get("lower_volume_m3", 0.0)))

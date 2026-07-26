@@ -28,6 +28,18 @@ All notable changes to SimuFire should be recorded here.
   shadow and separate authority gates. F3.3v3g1 is the only approved next
   motor slice; no runtime, report or baseline changed in this design phase.
 
+### Phase 3+ F3.3v3g1 pure pressure-network primitive (2026-07-26)
+
+- Added a dictionary-only network relaxation function with no runtime call
+  site. It minimizes connected-room pressure disequilibrium against the
+  actual proposed route response.
+- Separated optimum, pressure-crossing and source-inventory bounds; malformed,
+  non-finite, zero-response and non-descending inputs fail closed or remain
+  dormant.
+- Verified single-edge, chain, disconnected-component, order-invariance and
+  inventory-limited fixtures under Godot 4.7.1. Runtime wiring remains
+  explicitly deferred to passive F3.3v3g2.
+
 ### Phase 3+ F3.3v3f2 fixed-gross cap ledger (2026-07-26)
 
 - Added cumulative signed cap telemetry under the existing default-OFF
