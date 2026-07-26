@@ -8,6 +8,49 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-26 - F3.3v3h0 coupled solver design GO
+
+- Design-only phase. No motor code was written. One passive measurement was
+  required to choose the architecture and was run read-only.
+- Added `scripts/simulation/analyze_phase3_f33v3h0_pressure_owner_attribution.py`
+  plus tests. It uses only committed F3.3c1/F3.3d1 residence columns.
+- **The canonical EOS is exactly affine**:
+  `p_r = (R/V_r) * (M_r*T_ref + E_r/cp)`. Owner pressure contributions
+  therefore superpose exactly. Attribution closes against the exported EOS to
+  `1.37e-4 Pa`, which is CSV `%.8f` print quantisation, not a physical gap.
+- **Plume and inter-zone heat are exactly pressure-neutral** (`0.000000 Pa` in
+  every interval of every room). They are intra-room transfers: they move the
+  interface but never `p_r`. Thermal expansion is not a separate owner either -
+  it is exactly the `E_r/cp` term of combustion and multisurface.
+- **Owners cancel by 273x to 15612x.** R0 peak per 10 s interval:
+  combustion `11701 Pa`, multisurface (reported as `other`) `7533 Pa`,
+  interior_opening `3490 Pa`, interior_pressure `1973 Pa`, exterior `1776 Pa`,
+  net `110 Pa`. Individual owners move R0 pressure by ~42% per timestep; their
+  sum moves it by 0.22%.
+- This closes the F3.3v3g3 root cause quantitatively. g3 solved for a residual
+  built from ~4200 Pa/interval of interior owners while neglecting
+  ~4315 Pa/interval of opposite-signed owners, so the interior-only optimum
+  left the whole neglected sum as a persistent single-signed forcing term.
+  Geometric growth follows. No alpha can fix a sign-level modelling error.
+- Recommended architecture: **damped Newton over one pressure unknown per room**
+  (`N <= 6` in scope) on a residual containing every owner; fluxes from the
+  orifice law at the solved pressure, never scaled afterwards; counterflow
+  preserved structurally by the neutral plane; species and O2 advected after
+  convergence with zero feedback because they do not appear in the EOS.
+  Picard supplies the first iterate only - it is not robust, because the
+  pressure-crossing bound was active in 2008 of 2160 F3.3v3g2 steps (93%).
+- Open gap, scheduled not hidden: the multisurface gas/surface exchange, the
+  second-largest owner, is still classified `other` by the residence family
+  classifier. The analyzer reports this as a failing verdict. H1 closes it with
+  a diagnostic-only family addition.
+- Plan H0-H6 defined with files, default-OFF flags, tests, metrics, STOP gates,
+  GO/NO-GO, rollback and cost. H0 is complete.
+- Next: **H1 pure solver primitive only** - new pure
+  `sim/core/Phase3CoupledPressureSolver.gd`, no runtime call site, no flag.
+  Do not start H2 in the same session as H1.
+- Binding record:
+  `docs/validation/PHASE3_F33V3H0_COUPLED_PRESSURE_SOLVER_DESIGN.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v3g3 persistent shadow NO-GO
 
 - A default-OFF experimental

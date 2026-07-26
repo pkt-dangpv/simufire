@@ -993,10 +993,21 @@ Diagnostic / planned lanes:
    pressure diverges `5.65x` from baseline by 30 s. The experimental runtime
    candidate was fully reverted; no g3 flag or application path remains.
    F3.3v3g2 is the current motor state.
-10. Do not retry direct route replacement, per-step clipping, static
+10. **Closed F3.3v3h0, design GO:** the canonical EOS is exactly affine in
+    room total mass and energy, so pressure owners superpose with no cross
+    terms. Attribution closes to `1.37e-4 Pa` (CSV print precision). Plume and
+    inter-zone heat are exactly pressure-neutral. Owners cancel by `273x` to
+    `15612x`, which is why any subset solve - g3 included - is wrong at the
+    sign level rather than merely imprecise.
+11. Retain the F3.3v3h0 owner spectrum for R0, peak per 10 s interval:
+    combustion `11701 Pa`, multisurface `7533 Pa` (still reported as `other`),
+    interior_opening `3490 Pa`, interior_pressure `1973 Pa`,
+    exterior `1776 Pa`, net `110 Pa`.
+12. Do not retry direct route replacement, per-step clipping, static
     normalization over the old pressure trajectory, or the F3.3v3g3 candidate
-    with a tuned under-relaxation factor.
-11. Group A and Group C remain VALID_GAP until an authoritative canonical
+    with a tuned under-relaxation factor. Any future candidate must reduce a
+    residual that contains **every** pressure owner.
+13. Group A and Group C remain VALID_GAP until an authoritative canonical
     slice passes required checks without tolerance or baseline relaxation.
 
 ## 17. Phase 3+ Doorway Transport Checkpoint (2026-07-26)
@@ -1013,6 +1024,7 @@ Diagnostic / planned lanes:
 | F3.3v3g1 | Pure pressure objective/relaxation primitive | Primitive GO; no runtime call |
 | F3.3v3g2 | Passive per-component preview from raw pressure demand | Preview GO; authority and persistent shadow NO-GO |
 | F3.3v3g3 | Experimental persistent shadow driven by the blended routes | Mechanism exact, physics NO-GO at 30 s; runtime candidate reverted |
+| F3.3v3h0 | Coupled pressure/opening solver design plus owner attribution | Design GO; ready for H1; no motor code |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1115,3 +1127,23 @@ instantaneous interior objective, and treat an accepted alpha that zeroes one
 doorway direction as invalid. Do not retry the current candidate with a tuned
 under-relaxation factor; F3.3v3g0 forbids fitting a coefficient to a required
 checkpoint.
+
+
+F3.3v3h0 STOP (design only, no motor code):
+
+- affine EOS premise proven numerically, not assumed: PASS;
+- intra-room owners measured at exactly zero pressure effect: PASS;
+- owner cancellation ratio `273x` to `15612x` measured: PASS;
+- complete pressure-owner inventory and exact tick map recorded: PASS;
+- numerical method selected with measured justification - damped Newton over
+  one pressure unknown per room, Picard first iterate only, because the
+  crossing bound was active in 93% of F3.3v3g2 steps: PASS;
+- H0-H6 plan with files, default-OFF flags, tests, metrics, STOP gates,
+  GO/NO-GO, rollback and cost: PASS;
+- open gap recorded rather than hidden: the multisurface gas/surface exchange
+  is the second-largest owner and is still classified `other`. H1 closes it
+  with a diagnostic-only family addition.
+
+Next slice is **H1 only**: a pure `Phase3CoupledPressureSolver.gd` with no
+runtime call site and no flag, exactly the F3.3v3g1 contract. Do not write a
+call site in H1 and do not begin H2 in the same session.

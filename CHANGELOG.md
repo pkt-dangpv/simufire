@@ -3,6 +3,39 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h0 coupled pressure solver design (2026-07-26)
+
+- Closed the design for a coupled pressure/opening solve. No motor code was
+  written; the phase is design plus one read-only measurement.
+- Added `scripts/simulation/analyze_phase3_f33v3h0_pressure_owner_attribution.py`
+  and its tests. It attributes canonical room pressure to each physical owner
+  using only committed F3.3c1/F3.3d1 residence columns.
+- Proved the canonical EOS is **exactly affine** in room total mass and energy,
+  so owner pressure contributions superpose with no cross terms. Attribution
+  closes against the exported EOS to `1.37e-4 Pa`, which is CSV print
+  quantisation rather than a physical gap.
+- Measured that plume and inter-zone heat are **exactly pressure-neutral**
+  (`0.000000 Pa` in every interval): they redistribute between zones of one
+  room, so they change the interface but never the room pressure.
+- Measured the defining stiffness of the system: pressure owners cancel by
+  `273x` (R2) to `15612x` (R0). Individual owners move R0 pressure by ~42% per
+  timestep while their sum moves it by 0.22%.
+- This closes the F3.3v3g3 root cause quantitatively: the neglected owners were
+  the same order of magnitude and opposite in sign to the ones g3 solved for,
+  so the interior-only optimum left the entire neglected sum as a persistent,
+  single-signed forcing term. No choice of alpha can correct a sign-level
+  modelling error.
+- Recorded that the multisurface gas/surface exchange - the second-largest
+  pressure owner at `7533 Pa` peak - is still unlabeled in the residence family
+  classifier. The analyzer reports this as a failing verdict rather than hiding
+  it; H1 closes it with a diagnostic-only family addition.
+- Recommended architecture: damped Newton over one pressure unknown per room,
+  on a residual containing every owner, with fluxes derived from the orifice
+  law at the solved pressure and never scaled afterwards. Counterflow is
+  preserved structurally by the neutral plane rather than by a constraint.
+- Binding record:
+  `docs/validation/PHASE3_F33V3H0_COUPLED_PRESSURE_SOLVER_DESIGN.md`.
+
 ### Phase 3+ F3.3v3g3 persistent pressure-network shadow NO-GO (2026-07-26)
 
 - Tested a default-OFF candidate in which the F3.3v3g2 blended fixed-gross
