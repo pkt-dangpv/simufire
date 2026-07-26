@@ -3,6 +3,15 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v2c fuel-object synchronization design (2026-07-26)
+
+- Mapped legacy per-object fuel ownership and identified nested atomic
+  interpolation as the missing prerequisite after aggregate F3.3v2b routing.
+- Defined stable object identity, proxy exclusion, bounded weighted
+  allocation, leftover redistribution and aggregate/object invariants.
+- Defined default-OFF wiring, telemetry, fixtures, runtime STOP gates and
+  rollback criteria. No motor behavior or validation artifact changed.
+
 ### Phase 3+ F3.3v2b canonical fire-products routing (2026-07-26)
 
 - Routed the accepted F3.3v2 fuel, O2, species and energy bundle through the

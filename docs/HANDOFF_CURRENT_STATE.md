@@ -36,6 +36,24 @@ This note records the repository hygiene and validation state after the non-moto
 - Binding record:
   `docs/validation/PHASE3_F33V2B_FIRE_PRODUCTS_ROUTING_EXPERIMENT.md`.
 
+## Current Session Update - 2026-07-26 - F3.3v2c object-sync design
+
+- Audited the legacy explicit-object burn path. It uses eligibility and
+  dynamic weights, caps by per-object inventory, redistributes leftover
+  demand, then mutates fuel, HRR, state, exposure and char.
+- The canonical persistent state is aggregate-only and its atomic
+  interpolator currently handles scalars. Promoting it now could debit the
+  aggregate without debiting the seven explicit objects.
+- Defined a default-OFF persistent ledger keyed by stable object ID, proxy
+  exclusion, duplicate/empty-ID rejection, deterministic bounded allocation
+  and nested interpolation by the one atomic fraction.
+- No motor code changed in this design step.
+- Next implementation order: pure evaluator, nested atomic interpolation,
+  wiring/telemetry, direct fixtures, then 180 s OFF/ON. Runtime authority
+  remains NO-GO.
+- Binding record:
+  `docs/validation/PHASE3_F33V2C_FUEL_OBJECT_SYNC_DESIGN.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v2 product telemetry GO
 
 - Added pure products from the accepted F3.3v1 proposal: fuel, O2, seven
