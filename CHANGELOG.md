@@ -11,6 +11,9 @@ All notable changes to SimuFire should be recorded here.
   allocation, leftover redistribution and aggregate/object invariants.
 - Defined default-OFF wiring, telemetry, fixtures, runtime STOP gates and
   rollback criteria. No motor behavior or validation artifact changed.
+- Added the first implementation slice: a pure dictionary-only bounded
+  allocator with stable-ID validation, deterministic ordering, inventory
+  caps and leftover redistribution. It is not wired into the tick yet.
 
 ### Phase 3+ F3.3v2b canonical fire-products routing (2026-07-26)
 

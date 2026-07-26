@@ -48,9 +48,11 @@ This note records the repository hygiene and validation state after the non-moto
   exclusion, duplicate/empty-ID rejection, deterministic bounded allocation
   and nested interpolation by the one atomic fraction.
 - No motor code changed in this design step.
-- Next implementation order: pure evaluator, nested atomic interpolation,
-  wiring/telemetry, direct fixtures, then 180 s OFF/ON. Runtime authority
-  remains NO-GO.
+- F3.3v2c1 now adds the pure allocator and direct Godot fixture. It validates
+  stable IDs, sorts deterministically, caps every object, redistributes
+  leftover debit and closes aggregate allocation without live writes.
+- Next implementation order: nested atomic interpolation, wiring/telemetry,
+  then 180 s OFF/ON. Runtime authority remains NO-GO.
 - Binding record:
   `docs/validation/PHASE3_F33V2C_FUEL_OBJECT_SYNC_DESIGN.md`.
 

@@ -606,6 +606,129 @@ func _phase3_products_carbon_kg(species: Dictionary) -> float:
 			+ maxf(0.0, float(species.get("formaldehyde", 0.0))) * (12.0 / 30.0)
 
 
+## F3.3v2c1: pure bounded allocation of one accepted aggregate fuel debit.
+## Entries are dictionaries so this evaluator cannot mutate live fuel objects.
+func evaluate_phase3_canonical_fuel_object_sync(
+		pre_ledger: Array,
+		accepted_fuel_MJ: float
+	) -> Dictionary:
+	var result: Dictionary = {
+		"active_flag": 0.0,
+		"supported_flag": 0.0,
+		"rejection_mask": 0.0,
+		"object_count": 0.0,
+		"eligible_count": 0.0,
+		"pre_fuel_MJ": 0.0,
+		"proposed_fuel_MJ": 0.0,
+		"requested_debit_MJ": maxf(0.0, accepted_fuel_MJ),
+		"allocated_debit_MJ": 0.0,
+		"allocation_residual_MJ": 0.0,
+		"minimum_remaining_MJ": 0.0,
+		"exhausted_count": 0.0,
+		"proposed_ledger": [],
+	}
+	if pre_ledger.is_empty():
+		result["rejection_mask"] = 1.0
+		return result
+	var seen: Dictionary = {}
+	var entries: Array = []
+	var total_weight: float = 0.0
+	for raw_entry in pre_ledger:
+		if not raw_entry is Dictionary:
+			result["rejection_mask"] = 2.0
+			return result
+		var entry: Dictionary = Dictionary(raw_entry).duplicate(true)
+		var object_id: String = String(entry.get("id", "")).strip_edges()
+		if object_id.is_empty():
+			result["rejection_mask"] = 4.0
+			return result
+		if seen.has(object_id):
+			result["rejection_mask"] = 8.0
+			return result
+		seen[object_id] = true
+		var remaining_MJ: float = maxf(
+			0.0, float(entry.get("remaining_fuel_MJ", 0.0))
+		)
+		var eligible: bool = bool(entry.get("eligible_flag", false)) \
+				and remaining_MJ > 0.000000001
+		var weight: float = maxf(0.0, float(entry.get("allocation_weight", 0.0))) \
+				if eligible else 0.0
+		entry["id"] = object_id
+		entry["remaining_fuel_MJ"] = remaining_MJ
+		entry["allocated_debit_MJ"] = 0.0
+		entry["_weight"] = weight
+		entries.append(entry)
+		result["pre_fuel_MJ"] = float(result["pre_fuel_MJ"]) + remaining_MJ
+		if weight > 0.0:
+			result["eligible_count"] = float(result["eligible_count"]) + 1.0
+			total_weight += weight
+	entries.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return String(a.get("id", "")) < String(b.get("id", ""))
+	)
+	result["object_count"] = float(entries.size())
+	result["active_flag"] = 1.0
+	var requested_debit_MJ: float = minf(
+		maxf(0.0, accepted_fuel_MJ), float(result["pre_fuel_MJ"])
+	)
+	result["requested_debit_MJ"] = requested_debit_MJ
+	if requested_debit_MJ > 0.000000001 and total_weight <= 0.0:
+		result["rejection_mask"] = 16.0
+		return result
+
+	var allocated_MJ: float = 0.0
+	for entry in entries:
+		if float(entry["_weight"]) <= 0.0:
+			continue
+		var share_MJ: float = minf(
+			float(entry["remaining_fuel_MJ"]),
+			requested_debit_MJ * float(entry["_weight"]) / total_weight
+		)
+		entry["allocated_debit_MJ"] = share_MJ
+		entry["remaining_fuel_MJ"] = float(entry["remaining_fuel_MJ"]) - share_MJ
+		allocated_MJ += share_MJ
+	var leftover_MJ: float = maxf(0.0, requested_debit_MJ - allocated_MJ)
+	if leftover_MJ > 0.000000001:
+		var capacity_MJ: float = 0.0
+		for entry in entries:
+			if float(entry["_weight"]) > 0.0:
+				capacity_MJ += float(entry["remaining_fuel_MJ"])
+		if capacity_MJ > 0.000000001:
+			for entry in entries:
+				if float(entry["_weight"]) <= 0.0:
+					continue
+				var extra_MJ: float = minf(
+					float(entry["remaining_fuel_MJ"]),
+					leftover_MJ * float(entry["remaining_fuel_MJ"]) / capacity_MJ
+				)
+				entry["allocated_debit_MJ"] = \
+						float(entry["allocated_debit_MJ"]) + extra_MJ
+				entry["remaining_fuel_MJ"] = \
+						float(entry["remaining_fuel_MJ"]) - extra_MJ
+				allocated_MJ += extra_MJ
+	var proposed_total_MJ: float = 0.0
+	var minimum_remaining_MJ: float = INF
+	var exhausted_count: int = 0
+	for entry in entries:
+		entry.erase("_weight")
+		var remaining_MJ: float = maxf(
+			0.0, float(entry["remaining_fuel_MJ"])
+		)
+		entry["remaining_fuel_MJ"] = remaining_MJ
+		proposed_total_MJ += remaining_MJ
+		minimum_remaining_MJ = minf(minimum_remaining_MJ, remaining_MJ)
+		if remaining_MJ <= 0.000000001:
+			exhausted_count += 1
+	result["supported_flag"] = 1.0
+	result["allocated_debit_MJ"] = allocated_MJ
+	result["proposed_fuel_MJ"] = proposed_total_MJ
+	result["allocation_residual_MJ"] = requested_debit_MJ - allocated_MJ
+	result["minimum_remaining_MJ"] = \
+			0.0 if minimum_remaining_MJ == INF else minimum_remaining_MJ
+	result["exhausted_count"] = float(exhausted_count)
+	result["proposed_ledger"] = entries
+	return result
+
+
 ## F3.2b1: evaluates one closed, passive combustion transaction. The live fire
 ## remains the proposal source; canonical O2 accepts the whole bundle together.
 ## This function never writes RoomModel or FireModel.
