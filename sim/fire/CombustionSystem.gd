@@ -769,6 +769,12 @@ func evaluate_phase3_canonical_combustion_step(
 			state_before,
 			canonical_fire_proposal
 		)
+	var products_routing_active: bool = bool(
+		context.get(
+			"phase3_canonical_fire_products_routing_shadow_enabled", false
+		)
+	) and float(canonical_fire_products.get("active_flag", 0.0)) > 0.5 \
+			and float(canonical_fire_products.get("supported_flag", 0.0)) > 0.5
 	var inventory_fraction: float = 1.0
 	if throttled_o2_kg > 0.000000001:
 		inventory_fraction = minf(1.0, available_o2_kg / throttled_o2_kg)
@@ -827,6 +833,68 @@ func evaluate_phase3_canonical_combustion_step(
 	var accepted_radiative_energy_kj: float = (
 		requested_radiative_energy_kj * accepted_fraction
 	)
+	if products_routing_active:
+		accepted_fraction = clampf(
+			float(canonical_fire_products.get("common_fraction", 0.0)),
+			0.0,
+			1.0
+		)
+		accepted_hrr_kw = maxf(
+			0.0,
+			float(canonical_fire_products.get(
+				"accepted_plume_driver_hrr_kw", 0.0
+			))
+		)
+		accepted_target_kw = maxf(
+			0.0, float(canonical_fire_proposal.get("proposal_target_kw", 0.0))
+		) * accepted_fraction
+		requested_o2_kg = maxf(
+			0.0, float(canonical_fire_products.get("requested_o2_kg", 0.0))
+		)
+		accepted_o2_kg = maxf(
+			0.0, float(canonical_fire_products.get("accepted_o2_kg", 0.0))
+		)
+		requested_fuel_MJ = maxf(
+			0.0, float(canonical_fire_products.get("requested_fuel_MJ", 0.0))
+		)
+		accepted_fuel_MJ = maxf(
+			0.0, float(canonical_fire_products.get("accepted_fuel_MJ", 0.0))
+		)
+		requested_species = canonical_fire_products.get(
+			"requested_species_kg", {}
+		).duplicate(true)
+		accepted_species = canonical_fire_products.get(
+			"accepted_species_kg", {}
+		).duplicate(true)
+		requested_total_fire_energy_kj = maxf(
+			0.0,
+			float(canonical_fire_products.get(
+				"requested_total_energy_kj", 0.0
+			))
+		)
+		accepted_total_fire_energy_kj = maxf(
+			0.0,
+			float(canonical_fire_products.get(
+				"accepted_total_energy_kj", 0.0
+			))
+		)
+		effective_chi_rad = clampf(
+			float(canonical_fire_products.get("effective_chi_rad", 0.0)),
+			0.0,
+			1.0
+		)
+		requested_radiative_energy_kj = maxf(
+			0.0,
+			float(canonical_fire_products.get(
+				"requested_radiative_energy_kj", 0.0
+			))
+		)
+		accepted_radiative_energy_kj = maxf(
+			0.0,
+			float(canonical_fire_products.get(
+				"accepted_radiative_energy_kj", 0.0
+			))
+		)
 
 	var legacy_retained_delta_MJ: float = float(room.retained_unburned_MJ) \
 			- float(pre_state.get("retained_unburned_MJ", room.retained_unburned_MJ))
@@ -836,6 +904,13 @@ func evaluate_phase3_canonical_combustion_step(
 		0.0,
 		float(state_before.get("remaining_fuel_MJ", 0.0)) - accepted_fuel_MJ
 	)
+	if products_routing_active:
+		next_remaining_fuel_MJ = maxf(
+			0.0,
+			float(canonical_fire_proposal.get(
+				"persistent_updates", {}
+			).get("proposal_remaining_fuel_MJ", next_remaining_fuel_MJ))
+		)
 	var next_retained_MJ: float = maxf(
 		0.0,
 		float(state_before.get("retained_unburned_MJ", 0.0))
@@ -893,6 +968,26 @@ func evaluate_phase3_canonical_combustion_step(
 		"accepted_total_fire_energy_kj": accepted_total_fire_energy_kj,
 		"requested_radiative_energy_kj": requested_radiative_energy_kj,
 		"accepted_radiative_energy_kj": accepted_radiative_energy_kj,
+		"canonical_fire_products_routing_active_flag": \
+				1.0 if products_routing_active else 0.0,
+		"canonical_fire_products_requested_convective_energy_kj": maxf(
+			0.0,
+			float(canonical_fire_products.get(
+				"requested_convective_energy_kj", 0.0
+			))
+		),
+		"canonical_fire_products_accepted_convective_energy_kj": maxf(
+			0.0,
+			float(canonical_fire_products.get(
+				"accepted_convective_energy_kj", 0.0
+			))
+		),
+		"canonical_fire_products_plume_driver_qc_kw": maxf(
+			0.0,
+			float(canonical_fire_products.get(
+				"accepted_plume_driver_qc_kw", 0.0
+			))
+		),
 		"heat_scale": accepted_fraction,
 		"plume_scale": pow(accepted_fraction, 1.0 / 3.0) if accepted_fraction > 0.0 else 0.0,
 		"post_opening_coupling_active_flag": 1.0 if post_opening_lower_source else 0.0,

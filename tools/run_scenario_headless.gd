@@ -99,6 +99,17 @@ func _run() -> void:
 		engine.phase3_canonical_combustion_shadow_enabled = true
 		engine.phase3_canonical_fire_proposal_shadow_enabled = true
 		engine.phase3_canonical_fire_products_shadow_enabled = true
+	if bool(_cli_args.get(
+		"phase3_canonical_fire_products_routing_shadow", false
+	)):
+		engine.phase3_canonical_zone_shadow_enabled = true
+		engine.phase3_canonical_exterior_boundary_shadow_enabled = true
+		engine.phase3_canonical_persistence_shadow_enabled = true
+		engine.phase3_canonical_combustion_shadow_enabled = true
+		engine.phase3_canonical_plume_shadow_enabled = true
+		engine.phase3_canonical_fire_proposal_shadow_enabled = true
+		engine.phase3_canonical_fire_products_shadow_enabled = true
+		engine.phase3_canonical_fire_products_routing_shadow_enabled = true
 	if bool(_cli_args.get("phase3_canonical_pressure_relaxation_shadow", false)):
 		engine.phase3_canonical_zone_shadow_enabled = true
 		engine.phase3_canonical_exterior_boundary_shadow_enabled = true
@@ -328,6 +339,8 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["phase3_canonical_fire_proposal_shadow"] = true
 		elif arg == "--phase3-canonical-fire-products-shadow":
 			parsed["phase3_canonical_fire_products_shadow"] = true
+		elif arg == "--phase3-canonical-fire-products-routing-shadow":
+			parsed["phase3_canonical_fire_products_routing_shadow"] = true
 		elif arg == "--phase3-canonical-pressure-relaxation-shadow":
 			parsed["phase3_canonical_pressure_relaxation_shadow"] = true
 		elif arg == "--phase3-canonical-plume-shadow":

@@ -12,6 +12,30 @@ Historical validation records retain their original engine labels.
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
 
+## Current Session Update - 2026-07-26 - F3.3v2b atomic routing GO
+
+- Added
+  `phase3_canonical_fire_products_routing_shadow_enabled`, default OFF.
+- When its complete parent stack is active, F3.3v2 fuel, O2, seven species,
+  convective/radiative energy and plume HRR/Qc replace the legacy inputs of
+  the existing canonical combustion transaction.
+- The existing atomic bundle remains the only final inventory gate and scales
+  persistent aggregate fuel state with every physical route.
+- OFF is byte-identical to committed F3.3v2. ON preserves all 115 live
+  columns; 18 fire-room rows route with atomic fraction 1.0 and zero
+  fuel/O2/species/energy/plume residuals.
+- Verification: focused pipeline 108/108 PASS; full pytest 1278 PASS plus
+  the same 17 pre-existing failures; guardrails 10/10 PASS; physics and ILV
+  remain at 0 FAIL.
+- Runtime authority remains blocked because the validation case has explicit
+  fuel objects without a canonical synchronization owner. No live state,
+  official case/report, expected, tolerance, CTRL or VALID_GAP changed.
+- Next: design F3.3v2c explicit fuel-object synchronization. It must prove
+  aggregate/object conservation before any 180/300/600 runtime-authority
+  correspondence run.
+- Binding record:
+  `docs/validation/PHASE3_F33V2B_FIRE_PRODUCTS_ROUTING_EXPERIMENT.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v2 product telemetry GO
 
 - Added pure products from the accepted F3.3v1 proposal: fuel, O2, seven

@@ -1286,6 +1286,16 @@ func commit_canonical_multisurface_combustion_radiation(room_id: int) -> bool:
 		combustion["radiative_route_residual_kj"] = (
 			accepted_radiation_kj - routed_radiation_kj
 		)
+		if float(combustion.get(
+			"canonical_fire_products_routing_active_flag", 0.0
+		)) > 0.5:
+			combustion[
+				"canonical_fire_products_total_energy_route_residual_kj"
+			] = float(combustion.get(
+				"accepted_total_fire_energy_kj", 0.0
+			)) * atomic_fraction - float(combustion.get(
+				"routed_convective_energy_kj", 0.0
+			)) - routed_radiation_kj
 		_canonical_combustion_by_room[room_key] = combustion
 	if has_exchange:
 		exchange["accepted_upper_exchange_kj"] = accepted_upper_exchange_kj
@@ -1557,8 +1567,21 @@ func stage_canonical_combustion_transaction(transaction: Dictionary) -> bool:
 	record["effective_fraction"] = clampf(
 		float(record.get("decision_fraction", 0.0)), 0.0, 1.0
 	)
-	record["requested_convective_energy_kj"] = 0.0
-	record["accepted_convective_energy_kj"] = 0.0
+	var products_routing_active: bool = float(
+		record.get("canonical_fire_products_routing_active_flag", 0.0)
+	) > 0.5
+	record["requested_convective_energy_kj"] = maxf(
+		0.0,
+		float(record.get(
+			"canonical_fire_products_requested_convective_energy_kj", 0.0
+		))
+	) if products_routing_active else 0.0
+	record["accepted_convective_energy_kj"] = maxf(
+		0.0,
+		float(record.get(
+			"canonical_fire_products_accepted_convective_energy_kj", 0.0
+		))
+	) if products_routing_active else 0.0
 	record["requested_radiative_energy_kj"] = maxf(
 		0.0, float(record.get("requested_radiative_energy_kj", 0.0))
 	)
@@ -1610,10 +1633,21 @@ func finalize_canonical_combustion_bundle(
 	var plume_scale: float = 1.0 if bool(
 		plume_flux.get("o2_decision_applied", false)
 	) else clampf(float(record.get("plume_scale", 0.0)), 0.0, 1.0)
+	var products_routing_active: bool = float(
+		record.get("canonical_fire_products_routing_active_flag", 0.0)
+	) > 0.5
 	var requested_heat_kj: float = maxf(
+		0.0, float(record.get(
+			"canonical_fire_products_requested_convective_energy_kj", 0.0
+		))
+	) if products_routing_active else maxf(
 		0.0, float(convective_flux.get("sensible_enthalpy_kj", 0.0))
 	)
-	var accepted_heat_kj: float = requested_heat_kj * heat_scale
+	var accepted_heat_kj: float = maxf(
+		0.0, float(record.get(
+			"canonical_fire_products_accepted_convective_energy_kj", 0.0
+		))
+	) if products_routing_active else requested_heat_kj * heat_scale
 	var requested_plume_mass_kg: float = maxf(
 		0.0, float(plume_flux.get("gas_mass_kg", 0.0))
 	)
@@ -1666,8 +1700,9 @@ func finalize_canonical_combustion_bundle(
 	var accepted_total_fire_energy_kj: float = maxf(
 		0.0, float(record.get("accepted_total_fire_energy_kj", 0.0))
 	)
-	if requested_total_fire_energy_kj > THERMO_ENERGY_EPS_KJ \
-			or accepted_total_fire_energy_kj > THERMO_ENERGY_EPS_KJ:
+	if not products_routing_active \
+			and (requested_total_fire_energy_kj > THERMO_ENERGY_EPS_KJ \
+			or accepted_total_fire_energy_kj > THERMO_ENERGY_EPS_KJ):
 		# Thermal owns the exact convective route, including its two-zone and
 		# opening modifiers. Radiation is the complementary accepted fire
 		# energy, so two independent chi_rad formulas cannot double count.
@@ -1701,6 +1736,13 @@ func finalize_canonical_combustion_bundle(
 		0.0, float(plume_flux.get("source_term_mass_kg", 0.0))
 	)
 	record["post_opening_plume_o2_to_upper_kg"] = accepted_plume_o2_kg
+	record["canonical_fire_products_coupled_plume_qc_kw"] = maxf(
+		0.0, float(plume_flux.get("coupled_qc_kw", 0.0))
+	)
+	record["canonical_fire_products_plume_qc_residual_kw"] = float(
+		record.get("canonical_fire_products_plume_driver_qc_kw", 0.0)
+	) - float(record["canonical_fire_products_coupled_plume_qc_kw"]) \
+			if products_routing_active else 0.0
 	record["post_opening_lower_o2_closure_residual_kg"] = entrained_plume_o2_kg \
 			- accepted_o2_kg - accepted_plume_o2_kg if coupled_lower_combustion else 0.0
 
@@ -7936,6 +7978,56 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 						acceptance_name, species_name
 					]
 				] = float(product_species.get(species_name, 0.0))
+		fire_products_room_result[
+			"phase3_shadow_fire_products_routing_active_flag"
+		] = float(canonical_combustion.get(
+			"canonical_fire_products_routing_active_flag", 0.0
+		))
+		fire_products_room_result[
+			"phase3_shadow_fire_products_routing_atomic_fraction"
+		] = float(canonical_combustion.get("atomic_accepted_fraction", 1.0))
+		fire_products_room_result[
+			"phase3_shadow_fire_products_routing_effective_fraction"
+		] = float(canonical_combustion.get("effective_fraction", 0.0))
+		fire_products_room_result[
+			"phase3_shadow_fire_products_routing_committed_fuel_MJ"
+		] = float(canonical_combustion.get(
+			"canonical_fire_products_committed_fuel_MJ", 0.0
+		))
+		fire_products_room_result[
+			"phase3_shadow_fire_products_routing_fuel_residual_MJ"
+		] = float(canonical_combustion.get(
+			"canonical_fire_products_fuel_route_residual_MJ", 0.0
+		))
+		fire_products_room_result[
+			"phase3_shadow_fire_products_routing_o2_residual_kg"
+		] = float(canonical_combustion.get("o2_residual_kg", 0.0))
+		fire_products_room_result[
+			"phase3_shadow_fire_products_routing_species_residual_kg"
+		] = float(canonical_combustion.get("species_residual_kg", 0.0))
+		fire_products_room_result[
+			"phase3_shadow_fire_products_routing_convective_residual_kj"
+		] = float(canonical_combustion.get("energy_residual_kj", 0.0))
+		fire_products_room_result[
+			"phase3_shadow_fire_products_routing_radiative_residual_kj"
+		] = float(canonical_combustion.get(
+			"radiative_route_residual_kj", 0.0
+		))
+		fire_products_room_result[
+			"phase3_shadow_fire_products_routing_total_energy_residual_kj"
+		] = float(canonical_combustion.get(
+			"canonical_fire_products_total_energy_route_residual_kj", 0.0
+		))
+		fire_products_room_result[
+			"phase3_shadow_fire_products_routing_coupled_plume_qc_kw"
+		] = float(canonical_combustion.get(
+			"canonical_fire_products_coupled_plume_qc_kw", 0.0
+		))
+		fire_products_room_result[
+			"phase3_shadow_fire_products_routing_plume_qc_residual_kw"
+		] = float(canonical_combustion.get(
+			"canonical_fire_products_plume_qc_residual_kw", 0.0
+		))
 		_results[room_key] = fire_products_room_result
 		var multisurface_room_result: Dictionary = _results[room_key]
 		for surface_name in CANONICAL_SURFACE_NAMES:
@@ -8470,6 +8562,22 @@ func _record_atomic_bundle_result(bundle: Dictionary, accepted_fraction: float) 
 			combustion_record.get("fire_state_proposed", {}),
 			atomic_fraction
 		)
+		var state_before: Dictionary = combustion_record.get(
+			"fire_state_before", {}
+		)
+		var committed_state: Dictionary = combustion_record.get(
+			"committed_fire_state", {}
+		)
+		var committed_fuel_MJ: float = maxf(
+			0.0,
+			float(state_before.get("remaining_fuel_MJ", 0.0))
+					- float(committed_state.get("remaining_fuel_MJ", 0.0))
+		)
+		combustion_record["canonical_fire_products_committed_fuel_MJ"] = \
+				committed_fuel_MJ
+		combustion_record["canonical_fire_products_fuel_route_residual_MJ"] = \
+				float(combustion_record.get("accepted_fuel_MJ", 0.0)) \
+				* atomic_fraction - committed_fuel_MJ
 		_canonical_combustion_by_room[combustion_room_key] = combustion_record
 		return
 	if result_kind == "canonical_interior_opening_network":

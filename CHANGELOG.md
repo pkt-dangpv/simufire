@@ -3,6 +3,17 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v2b canonical fire-products routing (2026-07-26)
+
+- Routed the accepted F3.3v2 fuel, O2, species and energy bundle through the
+  existing persistent atomic shadow transaction and F3.3t plume driver.
+- Added a default-OFF flag, 12 route-closure CSV fields and a reproducible
+  OFF/ON analyzer.
+- Verified the OFF CSV is byte-identical, all 115 live columns stay unchanged
+  with routing ON, and every fuel/O2/species/energy/plume residual is zero.
+- Kept runtime authority and Group C retirement NO-GO until explicit fuel
+  objects have an atomic synchronization contract.
+
 ### Phase 3+ F3.3v2 canonical fire products (2026-07-26)
 
 - Added pure requested/accepted fuel, O2, species, carbon, energy and plume
