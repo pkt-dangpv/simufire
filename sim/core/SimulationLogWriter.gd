@@ -28,6 +28,7 @@ var phase3_canonical_exterior_boundary_shadow_enabled: bool = false
 var phase3_canonical_persistence_shadow_enabled: bool = false
 var phase3_canonical_combustion_shadow_enabled: bool = false
 var phase3_canonical_fire_proposal_shadow_enabled: bool = false
+var phase3_canonical_fire_products_shadow_enabled: bool = false
 var phase3_canonical_pressure_relaxation_shadow_enabled: bool = false
 var phase3_canonical_interzone_heat_shadow_enabled: bool = false
 var phase3_canonical_wall_ambient_shadow_enabled: bool = false
@@ -94,6 +95,10 @@ func configure_phase3_canonical_combustion_shadow(is_enabled: bool) -> void:
 
 func configure_phase3_canonical_fire_proposal_shadow(is_enabled: bool) -> void:
 	phase3_canonical_fire_proposal_shadow_enabled = is_enabled
+
+
+func configure_phase3_canonical_fire_products_shadow(is_enabled: bool) -> void:
+	phase3_canonical_fire_products_shadow_enabled = is_enabled
 
 
 func configure_phase3_canonical_pressure_relaxation_shadow(is_enabled: bool) -> void:
@@ -575,6 +580,10 @@ func _build_csv_header() -> String:
 		header += "," + ",".join(PackedStringArray(
 			_phase3_fire_proposal_fields()
 		))
+	if phase3_canonical_fire_products_shadow_enabled:
+		header += "," + ",".join(PackedStringArray(
+			_phase3_fire_products_fields()
+		))
 	if phase3_canonical_pressure_relaxation_shadow_enabled:
 		header += ",phase3_shadow_exterior_relaxation_enabled_flag,phase3_shadow_exterior_raw_requested_gas_kg,phase3_shadow_exterior_raw_requested_energy_kj,phase3_shadow_exterior_pressure_equilibrium_fraction,phase3_shadow_exterior_pressure_full_delta_pa,phase3_shadow_exterior_pressure_limited_delta_pa,phase3_shadow_exterior_pressure_predicted_post_pa,phase3_shadow_exterior_pressure_crossing_prevented_flag,phase3_shadow_exterior_degenerate_lower_reseed_flag,phase3_shadow_exterior_degenerate_lower_reseed_mass_kg,phase3_shadow_exterior_lower_reseed_count_total,phase3_shadow_exterior_lower_reseed_mass_kg_total,phase3_shadow_exterior_lower_reseed_first_step_index"
 	if phase3_canonical_interzone_heat_shadow_enabled:
@@ -664,6 +673,55 @@ func _phase3_fire_proposal_fields() -> Array[String]:
 		"phase3_shadow_fire_proposal_accepted_fuel_MJ",
 		"phase3_shadow_fire_proposal_zero_o2_flame_flag",
 	]
+
+
+func _phase3_fire_products_fields() -> Array[String]:
+	var fields: Array[String] = [
+		"phase3_shadow_fire_products_active_flag",
+		"phase3_shadow_fire_products_supported_flag",
+		"phase3_shadow_fire_products_object_sync_required_flag",
+		"phase3_shadow_fire_products_profile_object_count",
+		"phase3_shadow_fire_products_quality_phi",
+		"phase3_shadow_fire_products_carbon_scale",
+		"phase3_shadow_fire_products_common_fraction",
+		"phase3_shadow_fire_products_requested_fuel_MJ",
+		"phase3_shadow_fire_products_accepted_fuel_MJ",
+		"phase3_shadow_fire_products_requested_o2_kg",
+		"phase3_shadow_fire_products_accepted_o2_kg",
+		"phase3_shadow_fire_products_requested_total_energy_kj",
+		"phase3_shadow_fire_products_accepted_total_energy_kj",
+		"phase3_shadow_fire_products_effective_chi_rad",
+		"phase3_shadow_fire_products_requested_radiative_energy_kj",
+		"phase3_shadow_fire_products_accepted_radiative_energy_kj",
+		"phase3_shadow_fire_products_requested_convective_energy_kj",
+		"phase3_shadow_fire_products_accepted_convective_energy_kj",
+		"phase3_shadow_fire_products_accepted_plume_driver_hrr_kw",
+		"phase3_shadow_fire_products_accepted_plume_driver_qc_kw",
+	]
+	for acceptance_name in ["requested", "accepted"]:
+		for species_name in [
+			"smoke", "co", "co2", "hcn", "hcl", "acrolein", "formaldehyde"
+		]:
+			fields.append(
+				"phase3_shadow_fire_products_%s_%s_kg" % [
+					acceptance_name, species_name
+				]
+			)
+	fields.append_array([
+		"phase3_shadow_fire_products_requested_carbon_available_kg",
+		"phase3_shadow_fire_products_requested_carbon_products_kg",
+		"phase3_shadow_fire_products_requested_carbon_untracked_kg",
+		"phase3_shadow_fire_products_requested_carbon_residual_kg",
+		"phase3_shadow_fire_products_accepted_carbon_available_kg",
+		"phase3_shadow_fire_products_accepted_carbon_products_kg",
+		"phase3_shadow_fire_products_accepted_carbon_untracked_kg",
+		"phase3_shadow_fire_products_accepted_carbon_residual_kg",
+		"phase3_shadow_fire_products_fuel_residual_MJ",
+		"phase3_shadow_fire_products_o2_residual_kg",
+		"phase3_shadow_fire_products_energy_residual_kj",
+		"phase3_shadow_fire_products_species_common_fraction_residual_kg",
+	])
+	return fields
 
 
 func _open_csv_file(mode: FileAccess.ModeFlags) -> FileAccess:
@@ -1151,6 +1209,9 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		if phase3_canonical_fire_proposal_shadow_enabled:
 			for field_name in _phase3_fire_proposal_fields():
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
+		if phase3_canonical_fire_products_shadow_enabled:
+			for field_name in _phase3_fire_products_fields():
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		if phase3_canonical_pressure_relaxation_shadow_enabled:
 			for field_name in [

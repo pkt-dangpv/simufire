@@ -1,6 +1,6 @@
 # Current Handoff State
 
-Date: 2026-07-25.
+Date: 2026-07-26.
 
 Runtime note: active local runners and test entrypoints now default to Godot
 `4.7.1` console at
@@ -11,6 +11,31 @@ Historical validation records retain their original engine labels.
 ## Purpose
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.
+
+## Current Session Update - 2026-07-26 - F3.3v2 product telemetry GO
+
+- Added pure products from the accepted F3.3v1 proposal: fuel, O2, seven
+  species, carbon ledger, total/radiative/convective energy and plume HRR/Qc
+  drivers.
+- Every accepted product uses one common decision fraction. `quality_phi`
+  uses only O2 and ventilation constraints, so fuel exhaustion cannot
+  generate a false rich-combustion yield spike.
+- Added `phase3_canonical_fire_products_shadow_enabled`, default OFF, and 46
+  opt-in CSV fields. Geometry-dependent plume mass remains in ThermalSystem.
+- The 180 s corridor gate preserves 114/114 rows and all 728 shared columns
+  exactly. The 46 new columns close fuel, O2, carbon, species and energy
+  residuals at CSV precision.
+- The scenario has seven explicit fuel objects, correctly reported as
+  requiring synchronization. F3.3v2 does not write those objects or
+  `RoomModel`.
+- Decision: passive products GO. Runtime authority and Group C retirement
+  remain NO-GO.
+- Next: F3.3v2b default-OFF atomic shadow routing. Connect the accepted bundle
+  to persistent canonical fuel/O2/species/energy state and the existing F3.3t
+  plume driver without live writes. F3.3v3 180/300/600 correspondence remains
+  blocked until that route closes.
+- Binding record:
+  `docs/validation/PHASE3_F33V2_FIRE_PRODUCTS_EXPERIMENT.md`.
 
 ## Current Session Update - 2026-07-25 - F3.3v1 proposal telemetry GO
 

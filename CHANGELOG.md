@@ -3,6 +3,19 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v2 canonical fire products (2026-07-26)
+
+- Added pure requested/accepted fuel, O2, species, carbon, energy and plume
+  drivers derived from the accepted F3.3v1 proposal.
+- Applied one common acceptance fraction to every product and separated
+  O2/ventilation combustion quality from fuel exhaustion.
+- Added a default-OFF flag, 46 opt-in CSV fields, a Godot fixture and a
+  reproducible STOP-gate analyzer.
+- Verified 728 shared columns remain identical and all exported fuel, O2,
+  carbon, species and energy residuals are zero.
+- Kept runtime authority and Group C retirement NO-GO because product routing
+  and explicit fuel-object synchronization are not yet owned.
+
 ### Phase 3+ F3.3v1 canonical fire proposal experiment (2026-07-25)
 
 - Added a pure, persistent t-squared fire proposal with explicit hard

@@ -1004,6 +1004,8 @@ var _step_time_us: int = 0
 @export var phase3_coupled_plume_shadow_enabled: bool = false
 ## F3.3v1: propuesta HRR pre-throttle, pura y solo diagnostica. Default OFF.
 @export var phase3_canonical_fire_proposal_shadow_enabled: bool = false
+## F3.3v2: productos puros de la propuesta aceptada. Default OFF.
+@export var phase3_canonical_fire_products_shadow_enabled: bool = false
 ## F3.2b6: counterflow exterior compensado desde estado canonico. Default OFF.
 @export var phase3_canonical_exterior_counterflow_shadow_enabled: bool = false
 ## F3.2b7: combustion usa lower O2 durante counterflow exterior real. Default OFF.
@@ -1346,6 +1348,13 @@ func _sync_auxiliary_services() -> void:
 				and phase3_canonical_persistence_shadow_enabled \
 				and phase3_canonical_combustion_shadow_enabled \
 				and phase3_canonical_fire_proposal_shadow_enabled
+	)
+	log_writer.configure_phase3_canonical_fire_products_shadow(
+		phase3_canonical_zone_shadow_enabled \
+				and phase3_canonical_persistence_shadow_enabled \
+				and phase3_canonical_combustion_shadow_enabled \
+				and phase3_canonical_fire_proposal_shadow_enabled \
+				and phase3_canonical_fire_products_shadow_enabled
 	)
 	log_writer.configure_phase3_canonical_pressure_relaxation_shadow(
 		phase3_canonical_zone_shadow_enabled \
@@ -2176,6 +2185,8 @@ func _build_state_context() -> Dictionary:
 				phase3_coupled_plume_shadow_enabled,
 		"phase3_canonical_fire_proposal_shadow_enabled": \
 				phase3_canonical_fire_proposal_shadow_enabled,
+		"phase3_canonical_fire_products_shadow_enabled": \
+				phase3_canonical_fire_products_shadow_enabled,
 		"phase3_canonical_exterior_counterflow_shadow_enabled": \
 				phase3_canonical_exterior_counterflow_shadow_enabled,
 		"phase3_canonical_post_opening_coupling_shadow_enabled": \
@@ -2795,6 +2806,8 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"phase3_canonical_fire_proposal_shadow_enabled": \
 				phase3_canonical_fire_proposal_shadow_enabled,
+		"phase3_canonical_fire_products_shadow_enabled": \
+				phase3_canonical_fire_products_shadow_enabled,
 	}
 
 # ============================================================

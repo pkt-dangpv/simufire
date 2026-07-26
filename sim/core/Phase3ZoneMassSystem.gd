@@ -32,6 +32,21 @@ const TRANSIT_SPECIES: Array[String] = ["co", "co2", "hcn"]
 const PARCEL_SPECIES: Array[String] = [
 	"smoke", "co", "co2", "hcn", "hcl", "acrolein", "formaldehyde"
 ]
+const FIRE_PRODUCT_SCALAR_FIELDS: Array[String] = [
+	"active_flag", "supported_flag", "object_sync_required_flag",
+	"profile_object_count", "quality_phi", "carbon_scale", "common_fraction",
+	"requested_fuel_MJ", "accepted_fuel_MJ", "requested_o2_kg",
+	"accepted_o2_kg", "requested_total_energy_kj", "accepted_total_energy_kj",
+	"effective_chi_rad", "requested_radiative_energy_kj",
+	"accepted_radiative_energy_kj", "requested_convective_energy_kj",
+	"accepted_convective_energy_kj", "accepted_plume_driver_hrr_kw",
+	"accepted_plume_driver_qc_kw", "requested_carbon_available_kg",
+	"requested_carbon_products_kg", "requested_carbon_untracked_kg",
+	"requested_carbon_residual_kg", "accepted_carbon_available_kg",
+	"accepted_carbon_products_kg", "accepted_carbon_untracked_kg",
+	"accepted_carbon_residual_kg", "fuel_residual_MJ", "o2_residual_kg",
+	"energy_residual_kj", "species_common_fraction_residual_kg",
+]
 const ENTHALPY_RESIDENCE_FAMILIES: Array[String] = [
 	"combustion", "plume", "interzone", "wall", "ambient", "exterior",
 	"exterior_counterflow", "interior_opening", "interior_pressure", "parcel",
@@ -7904,6 +7919,24 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"phase3_shadow_co_oxidation_legacy_lower_co2_kg_step": \
 					_co_oxidation_legacy_lower_co2_kg,
 		}
+		var fire_products_room_result: Dictionary = _results[room_key]
+		for product_field in FIRE_PRODUCT_SCALAR_FIELDS:
+			fire_products_room_result[
+				"phase3_shadow_fire_products_" + product_field
+			] = float(canonical_combustion.get(
+				"canonical_fire_products_" + product_field, 0.0
+			))
+		for acceptance_name in ["requested", "accepted"]:
+			var product_species: Dictionary = canonical_combustion.get(
+				"canonical_fire_products_%s_species_kg" % acceptance_name, {}
+			)
+			for species_name in PARCEL_SPECIES:
+				fire_products_room_result[
+					"phase3_shadow_fire_products_%s_%s_kg" % [
+						acceptance_name, species_name
+					]
+				] = float(product_species.get(species_name, 0.0))
+		_results[room_key] = fire_products_room_result
 		var multisurface_room_result: Dictionary = _results[room_key]
 		for surface_name in CANONICAL_SURFACE_NAMES:
 			var surface: Dictionary = canonical_multisurface_surfaces.get(

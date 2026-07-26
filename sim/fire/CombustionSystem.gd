@@ -235,6 +235,377 @@ func evaluate_phase3_canonical_fire_proposal(
 	return result
 
 
+## F3.3v2: pure products for the accepted F3.3v1 proposal. Geometry-dependent
+## plume mass remains owned by ThermalSystem; this result exports only its Qc
+## driver. Requested products use one frozen fuel profile and every accepted
+## product receives the proposal's common decision fraction.
+func evaluate_phase3_canonical_fire_products(
+	dt: float,
+	context: Dictionary,
+	canonical_source: Dictionary,
+	state_before: Dictionary,
+	fire_proposal: Dictionary
+	) -> Dictionary:
+	var result: Dictionary = {
+		"active_flag": 0.0,
+		"supported_flag": 0.0,
+		"object_sync_required_flag": 0.0,
+		"profile_object_count": 0.0,
+		"quality_phi": 0.0,
+		"carbon_scale": 0.0,
+		"common_fraction": 0.0,
+		"requested_fuel_MJ": 0.0,
+		"accepted_fuel_MJ": 0.0,
+		"requested_o2_kg": 0.0,
+		"accepted_o2_kg": 0.0,
+		"requested_total_energy_kj": 0.0,
+		"accepted_total_energy_kj": 0.0,
+		"effective_chi_rad": 0.0,
+		"requested_radiative_energy_kj": 0.0,
+		"accepted_radiative_energy_kj": 0.0,
+		"requested_convective_energy_kj": 0.0,
+		"accepted_convective_energy_kj": 0.0,
+		"accepted_plume_driver_hrr_kw": 0.0,
+		"accepted_plume_driver_qc_kw": 0.0,
+		"requested_species_kg": {},
+		"accepted_species_kg": {},
+		"requested_carbon_available_kg": 0.0,
+		"requested_carbon_products_kg": 0.0,
+		"requested_carbon_untracked_kg": 0.0,
+		"requested_carbon_residual_kg": 0.0,
+		"accepted_carbon_available_kg": 0.0,
+		"accepted_carbon_products_kg": 0.0,
+		"accepted_carbon_untracked_kg": 0.0,
+		"accepted_carbon_residual_kg": 0.0,
+		"fuel_residual_MJ": 0.0,
+		"o2_residual_kg": 0.0,
+		"energy_residual_kj": 0.0,
+		"species_common_fraction_residual_kg": 0.0,
+	}
+	if dt <= 0.0 or fire_proposal.is_empty():
+		return result
+	var active: bool = float(fire_proposal.get("active_flag", 0.0)) > 0.5
+	var supported: bool = float(
+		fire_proposal.get("supported_flag", 0.0)
+	) > 0.5
+	var profile: Dictionary = state_before.get("product_profile", {})
+	result["active_flag"] = 1.0 if active else 0.0
+	result["supported_flag"] = 1.0 if supported else 0.0
+	result["object_sync_required_flag"] = float(
+		profile.get("object_sync_required_flag", 0.0)
+	)
+	result["profile_object_count"] = float(profile.get("object_count", 0.0))
+	if not active or not supported:
+		return result
+
+	var proposal_hrr_kw: float = maxf(
+		0.0, float(fire_proposal.get("proposal_hrr_kw", 0.0))
+	)
+	var accepted_hrr_kw: float = maxf(
+		0.0, float(fire_proposal.get("accepted_hrr_kw", 0.0))
+	)
+	var common_fraction: float = clampf(
+		float(fire_proposal.get("decision_fraction", 0.0)), 0.0, 1.0
+	)
+	var requested_fuel_MJ: float = proposal_hrr_kw * dt / 1000.0
+	var accepted_fuel_MJ: float = minf(
+		requested_fuel_MJ,
+		maxf(0.0, float(fire_proposal.get("accepted_fuel_MJ", 0.0)))
+	)
+	var o2_rate_kg_per_MJ: float = maxf(
+		0.0, float(state_before.get("o2_consumption_kg_per_MJ", 0.076))
+	)
+	var requested_o2_kg: float = requested_fuel_MJ * o2_rate_kg_per_MJ
+	var accepted_o2_kg: float = minf(
+		requested_o2_kg,
+		maxf(0.0, float(fire_proposal.get("accepted_o2_kg", 0.0)))
+	)
+	# Combustion quality is limited by oxidant supply, not by fuel exhaustion.
+	# The common fraction may also contain a fuel cap, which must stop every
+	# product without spuriously turning the last fuel step into a rich fire.
+	var quality_fraction: float = 1.0
+	if proposal_hrr_kw > 0.000001:
+		quality_fraction = minf(
+			quality_fraction,
+			clampf(
+				float(fire_proposal.get("o2_inventory_cap_kw", 0.0))
+						/ proposal_hrr_kw,
+				0.0,
+				1.0
+			)
+		)
+		var ventilation_cap_kw: float = float(
+			fire_proposal.get("ventilation_cap_kw", -1.0)
+		)
+		if ventilation_cap_kw >= 0.0:
+			quality_fraction = minf(
+				quality_fraction,
+				clampf(ventilation_cap_kw / proposal_hrr_kw, 0.0, 1.0)
+			)
+	var quality_phi: float = clampf(
+		1.0 / maxf(0.1, quality_fraction), 1.0, 10.0
+	)
+
+	var smoke_yield: float = maxf(
+		0.0,
+		_phase3_profile_value(
+			profile,
+			"smoke_yield_kg_per_MJ",
+			float(context.get("smoke_yield_kg_per_MJ", 0.0))
+		)
+	)
+	var co_base_yield: float = maxf(
+		0.0,
+		_phase3_profile_value(
+			profile,
+			"co_yield_kg_per_MJ",
+			float(context.get("co_base_yield_kg_per_MJ", 0.0))
+		)
+	)
+	var co_max_yield: float = maxf(
+		co_base_yield, float(context.get("co_max_yield_kg_per_MJ", co_base_yield))
+	)
+	var co_yield: float = clampf(
+		co_base_yield * exp(
+			float(context.get("fire_co_phi_rate", 2.0)) * (quality_phi - 1.0)
+		),
+		co_base_yield,
+		co_max_yield
+	)
+	var forced_co_yield: float = float(
+		context.get("fire_co_yield_force_kg_per_MJ", -1.0)
+	)
+	if forced_co_yield >= 0.0:
+		co_yield = forced_co_yield
+
+	var co2_base_global: float = maxf(
+		0.0, float(context.get("co2_base_yield_kg_per_MJ", 0.0831))
+	)
+	var co2_base_yield: float = maxf(
+		0.0,
+		_phase3_profile_value(
+			profile, "co2_yield_kg_per_MJ", co2_base_global
+		)
+	)
+	var co2_min_global: float = maxf(
+		0.0, float(context.get("co2_min_yield_kg_per_MJ", 0.0594))
+	)
+	var co2_min_yield: float = co2_base_yield * (
+		co2_min_global / maxf(0.0001, co2_base_global)
+	)
+	var co2_phi_fraction: float = clampf(
+		1.0 - (quality_phi - 1.0) / maxf(
+			0.0001, float(context.get("co2_phi_decay_rate", 2.5))
+		),
+		0.0,
+		1.0
+	)
+	var co2_yield: float = lerpf(
+		co2_min_yield, co2_base_yield, co2_phi_fraction
+	)
+
+	var hcn_base_global: float = maxf(
+		0.0, float(context.get("hcn_base_yield_kg_per_MJ", 0.0))
+	)
+	var hcn_base_yield: float = maxf(
+		0.0,
+		_phase3_profile_value(
+			profile, "hcn_yield_kg_per_MJ", hcn_base_global
+		)
+	)
+	var hcn_max_global: float = maxf(
+		hcn_base_yield, float(context.get("hcn_max_yield_kg_per_MJ", hcn_base_yield))
+	)
+	var hcn_max_yield: float = maxf(
+		hcn_max_global,
+		hcn_base_yield * (
+			hcn_max_global / maxf(hcn_base_global, 0.000001)
+		)
+	)
+	var hcn_yield: float = 0.0
+	if hcn_base_yield > 0.0:
+		hcn_yield = clampf(
+			hcn_base_yield * exp(
+				float(context.get("fire_co_phi_rate", 2.0)) * (quality_phi - 1.0)
+			),
+			hcn_base_yield,
+			hcn_max_yield
+		)
+	var hcl_yield: float = maxf(
+		0.0, _phase3_profile_value(profile, "hcl_yield_kg_per_MJ", 0.0)
+	)
+	var acrolein_base_yield: float = maxf(
+		0.0, _phase3_profile_value(profile, "acrolein_yield_kg_per_MJ", 0.0)
+	)
+	var formaldehyde_base_yield: float = maxf(
+		0.0, _phase3_profile_value(profile, "formaldehyde_yield_kg_per_MJ", 0.0)
+	)
+	var acrolein_yield: float = minf(
+		acrolein_base_yield * 4.0,
+		acrolein_base_yield * exp(
+			float(context.get("fire_co_phi_rate", 2.0))
+					* (quality_phi - 1.0) * 0.7
+		)
+	)
+	var formaldehyde_yield: float = minf(
+		formaldehyde_base_yield * 3.0,
+		formaldehyde_base_yield * exp(
+			float(context.get("fire_co_phi_rate", 2.0))
+					* (quality_phi - 1.0) * 0.5
+		)
+	)
+	var requested_species: Dictionary = {
+		"smoke": requested_fuel_MJ * smoke_yield,
+		"co": requested_fuel_MJ * co_yield,
+		"co2": requested_fuel_MJ * co2_yield,
+		"hcn": requested_fuel_MJ * hcn_yield,
+		"hcl": requested_fuel_MJ * hcl_yield,
+		"acrolein": requested_fuel_MJ * acrolein_yield,
+		"formaldehyde": requested_fuel_MJ * formaldehyde_yield,
+	}
+
+	var carbon_available_kg: float = requested_fuel_MJ * maxf(
+		0.0, float(context.get("fuel_c_kg_per_MJ", 0.027))
+	)
+	var raw_carbon_products_kg: float = _phase3_products_carbon_kg(
+		requested_species
+	)
+	var carbon_scale: float = 1.0
+	if raw_carbon_products_kg > carbon_available_kg \
+			and raw_carbon_products_kg > 0.000000001:
+		carbon_scale = clampf(
+			carbon_available_kg / raw_carbon_products_kg, 0.0, 1.0
+		)
+	for species_name in [
+		"smoke", "co", "co2", "hcn", "acrolein", "formaldehyde"
+	]:
+		requested_species[species_name] = maxf(
+			0.0, float(requested_species.get(species_name, 0.0)) * carbon_scale
+		)
+	var requested_carbon_products_kg: float = _phase3_products_carbon_kg(
+		requested_species
+	)
+	var requested_carbon_untracked_kg: float = maxf(
+		0.0, carbon_available_kg - requested_carbon_products_kg
+	)
+	var accepted_species: Dictionary = _scale_phase3_species(
+		requested_species, common_fraction
+	)
+	var accepted_carbon_available_kg: float = \
+			carbon_available_kg * common_fraction
+	var accepted_carbon_products_kg: float = _phase3_products_carbon_kg(
+		accepted_species
+	)
+	var accepted_carbon_untracked_kg: float = \
+			requested_carbon_untracked_kg * common_fraction
+
+	var requested_total_energy_kj: float = proposal_hrr_kw * dt
+	var accepted_total_energy_kj: float = accepted_hrr_kw * dt
+	var canonical_o2_ref: float = clampf(
+		float(canonical_source.get("o2_ref", 0.0)), 0.0, 1.0
+	)
+	var normal_chi_rad: float = clampf(
+		_phase3_profile_value(
+			profile,
+			"chi_rad_normal",
+			float(context.get("hrr_chi_rad_normal", 0.35))
+		),
+		0.0,
+		1.0
+	)
+	var configured_normal_chi_rad: float = maxf(
+		0.01, float(context.get("hrr_chi_rad_normal", 0.35))
+	)
+	var low_o2_chi_rad: float = normal_chi_rad * (
+		float(context.get("hrr_chi_rad_low_o2", 0.50))
+		/ configured_normal_chi_rad
+	)
+	var effective_chi_rad: float = clampf(
+		lerpf(
+			low_o2_chi_rad,
+			normal_chi_rad,
+			clampf(inverse_lerp(0.06, 0.12, canonical_o2_ref), 0.0, 1.0)
+		),
+		0.0,
+		1.0
+	)
+	var requested_radiative_kj: float = \
+			requested_total_energy_kj * effective_chi_rad
+	var requested_convective_kj: float = \
+			requested_total_energy_kj - requested_radiative_kj
+	var accepted_radiative_kj: float = \
+			requested_radiative_kj * common_fraction
+	var accepted_convective_kj: float = \
+			requested_convective_kj * common_fraction
+	var species_fraction_residual_kg: float = 0.0
+	for species_name in requested_species.keys():
+		species_fraction_residual_kg = maxf(
+			species_fraction_residual_kg,
+			absf(
+				float(accepted_species.get(species_name, 0.0))
+						- float(requested_species.get(species_name, 0.0))
+						* common_fraction
+			)
+		)
+
+	result.merge({
+		"quality_phi": quality_phi,
+		"carbon_scale": carbon_scale,
+		"common_fraction": common_fraction,
+		"requested_fuel_MJ": requested_fuel_MJ,
+		"accepted_fuel_MJ": accepted_fuel_MJ,
+		"requested_o2_kg": requested_o2_kg,
+		"accepted_o2_kg": accepted_o2_kg,
+		"requested_total_energy_kj": requested_total_energy_kj,
+		"accepted_total_energy_kj": accepted_total_energy_kj,
+		"effective_chi_rad": effective_chi_rad,
+		"requested_radiative_energy_kj": requested_radiative_kj,
+		"accepted_radiative_energy_kj": accepted_radiative_kj,
+		"requested_convective_energy_kj": requested_convective_kj,
+		"accepted_convective_energy_kj": accepted_convective_kj,
+		"accepted_plume_driver_hrr_kw": accepted_hrr_kw,
+		"accepted_plume_driver_qc_kw": accepted_hrr_kw * (1.0 - effective_chi_rad),
+		"requested_species_kg": requested_species,
+		"accepted_species_kg": accepted_species,
+		"requested_carbon_available_kg": carbon_available_kg,
+		"requested_carbon_products_kg": requested_carbon_products_kg,
+		"requested_carbon_untracked_kg": requested_carbon_untracked_kg,
+		"requested_carbon_residual_kg": carbon_available_kg \
+				- requested_carbon_products_kg - requested_carbon_untracked_kg,
+		"accepted_carbon_available_kg": accepted_carbon_available_kg,
+		"accepted_carbon_products_kg": accepted_carbon_products_kg,
+		"accepted_carbon_untracked_kg": accepted_carbon_untracked_kg,
+		"accepted_carbon_residual_kg": accepted_carbon_available_kg \
+				- accepted_carbon_products_kg - accepted_carbon_untracked_kg,
+		"fuel_residual_MJ": accepted_fuel_MJ \
+				- accepted_hrr_kw * dt / 1000.0,
+		"o2_residual_kg": accepted_o2_kg \
+				- accepted_fuel_MJ * o2_rate_kg_per_MJ,
+		"energy_residual_kj": accepted_total_energy_kj \
+				- accepted_radiative_kj - accepted_convective_kj,
+		"species_common_fraction_residual_kg": species_fraction_residual_kg,
+	}, true)
+	return result
+
+
+func _phase3_profile_value(
+	profile: Dictionary,
+	key: String,
+	fallback: float
+	) -> float:
+	var value: float = float(profile.get(key, -1.0))
+	return value if value >= 0.0 else fallback
+
+
+func _phase3_products_carbon_kg(species: Dictionary) -> float:
+	return maxf(0.0, float(species.get("smoke", 0.0))) * 0.87 \
+			+ maxf(0.0, float(species.get("co", 0.0))) * (12.0 / 28.0) \
+			+ maxf(0.0, float(species.get("co2", 0.0))) * (12.0 / 44.0) \
+			+ maxf(0.0, float(species.get("hcn", 0.0))) * (12.0 / 27.0) \
+			+ maxf(0.0, float(species.get("acrolein", 0.0))) * (36.0 / 56.0) \
+			+ maxf(0.0, float(species.get("formaldehyde", 0.0))) * (12.0 / 30.0)
+
+
 ## F3.2b1: evaluates one closed, passive combustion transaction. The live fire
 ## remains the proposal source; canonical O2 accepts the whole bundle together.
 ## This function never writes RoomModel or FireModel.
@@ -388,6 +759,16 @@ func evaluate_phase3_canonical_combustion_step(
 			},
 			state_before
 		)
+	var canonical_fire_products: Dictionary = {}
+	if bool(context.get("phase3_canonical_fire_products_shadow_enabled", false)) \
+			and not canonical_fire_proposal.is_empty():
+		canonical_fire_products = evaluate_phase3_canonical_fire_products(
+			dt,
+			context,
+			{"o2_ref": canonical_o2_ref},
+			state_before,
+			canonical_fire_proposal
+		)
 	var inventory_fraction: float = 1.0
 	if throttled_o2_kg > 0.000000001:
 		inventory_fraction = minf(1.0, available_o2_kg / throttled_o2_kg)
@@ -533,6 +914,10 @@ func evaluate_phase3_canonical_combustion_step(
 				continue
 			transaction["canonical_fire_proposal_" + String(proposal_key)] = \
 					canonical_fire_proposal[proposal_key]
+	if not canonical_fire_products.is_empty():
+		for products_key in canonical_fire_products.keys():
+			transaction["canonical_fire_products_" + String(products_key)] = \
+					canonical_fire_products[products_key]
 	return transaction
 
 
@@ -554,6 +939,7 @@ func _snapshot_phase3_fire_state(room: RoomModel) -> Dictionary:
 		"proposal_target_kw": 0.0,
 		"proposal_remaining_fuel_MJ": maxf(0.0, fire.fuel_energy_MJ) \
 				if fire != null else 0.0,
+		"product_profile": _snapshot_phase3_fire_product_profile(room, fire),
 		"growth_alpha_kw_s2": maxf(0.0, fire.growth_alpha_kw_s2) \
 				if fire != null else 0.0,
 		"max_hrr_kw": maxf(0.0, fire.max_hrr_kw) if fire != null else 0.0,
@@ -575,6 +961,35 @@ func _snapshot_phase3_fire_state(room: RoomModel) -> Dictionary:
 		"hcl_kg": maxf(0.0, room.hcl_kg) if room != null else 0.0,
 		"acrolein_kg": maxf(0.0, room.acrolein_kg) if room != null else 0.0,
 		"formaldehyde_kg": maxf(0.0, room.formaldehyde_kg) if room != null else 0.0,
+	}
+
+
+func _snapshot_phase3_fire_product_profile(room: RoomModel, fire) -> Dictionary:
+	var object_count: int = 0
+	if room != null:
+		for obj in room.fuel_objects:
+			if obj != null and not _is_legacy_room_proxy(obj):
+				object_count += 1
+	return {
+		"object_count": float(object_count),
+		"object_sync_required_flag": 1.0 if object_count > 0 else 0.0,
+		"smoke_yield_kg_per_MJ": _resolve_room_smoke_yield_kg_per_MJ(
+			room, maxf(0.0, fire.smoke_yield_kg_per_MJ) if fire != null else 0.0
+		),
+		"soot_fraction": _resolve_room_soot_fraction(room, 1.0),
+		"co_yield_kg_per_MJ": _resolve_room_co_yield_kg_per_MJ(room, -1.0),
+		"co2_yield_kg_per_MJ": _resolve_room_co2_yield_kg_per_MJ(room, -1.0),
+		"hcn_yield_kg_per_MJ": _resolve_room_hcn_base_yield_kg_per_MJ(room, -1.0),
+		"hcl_yield_kg_per_MJ": _resolve_room_irritant_yield_kg_per_MJ(
+			room, "hcl_yield_kg_per_MJ", -1.0
+		),
+		"acrolein_yield_kg_per_MJ": _resolve_room_irritant_yield_kg_per_MJ(
+			room, "acrolein_yield_kg_per_MJ", -1.0
+		),
+		"formaldehyde_yield_kg_per_MJ": _resolve_room_irritant_yield_kg_per_MJ(
+			room, "formaldehyde_yield_kg_per_MJ", -1.0
+		),
+		"chi_rad_normal": _resolve_room_chi_rad_normal(room, -1.0),
 	}
 
 

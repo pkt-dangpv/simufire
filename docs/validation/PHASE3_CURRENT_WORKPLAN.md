@@ -83,6 +83,7 @@ canonical two-zone mass/energy/O2/species transaction.
 - F3.3r2b1 gas/surface exchange: `docs/validation/PHASE3_F33R2B1_GAS_SURFACE_EXCHANGE.md`
 - F3.3v canonical fire proposal design: `docs/validation/PHASE3_F33V_CANONICAL_FIRE_PROPOSAL_DESIGN.md`
 - F3.3v1 proposal experiment: `docs/validation/PHASE3_F33V1_FIRE_PROPOSAL_EXPERIMENT.md`
+- F3.3v2 fire-products experiment: `docs/validation/PHASE3_F33V2_FIRE_PRODUCTS_EXPERIMENT.md`
 - Gap inventory: `docs/validation/GAPS_INVENTORY.md`
 - Handoff: `docs/HANDOFF_CURRENT_STATE.md`
 
@@ -1086,12 +1087,23 @@ applies hard extinction plus exact O2, ventilation and fuel limits. The
 supported model-derived 300 kW candidate with monotonic fuel and no zero-O2
 flame.
 
-Runtime authority and Group C retirement remain NO-GO. The next gate is
-F3.3v2: pure fuel/O2/species/energy/plume products plus explicit object-level
-fuel/yield ownership. All products must share one accepted fraction and close
-their ledgers before the proposal can feed F3.3t. Do not force HRR, tune a
-corridor coefficient, alter official reports or touch HVAC. Binding records:
+F3.3v2 is complete and GO as default-OFF product telemetry. The 180 s gate
+preserves all 728 F3.3v1 columns exactly, adds exactly 46 product fields and
+closes fuel, O2, carbon, species and energy residuals at CSV precision. All
+accepted products share one fraction; fuel exhaustion is excluded from
+combustion-quality phi.
+
+Runtime authority and Group C retirement remain NO-GO. Seven explicit fuel
+objects still require synchronization and the product bundle is not yet
+routed into canonical zone state or the F3.3t plume.
+
+The next gate is F3.3v2b: default-OFF atomic shadow routing of aggregate fuel,
+O2, species, energy and the existing plume driver. It must remain free of live
+`RoomModel`/fuel-object writes. F3.3v3 180/300/600 correspondence starts only
+after that route closes. Do not force HRR, tune a corridor coefficient, alter
+official reports or touch HVAC. Binding records:
 `PHASE3_F33T_COUPLED_PLUME_EXPERIMENT.md`,
 `PHASE3_F33U_EXTENDED_STABILITY.md` and
 `PHASE3_F33V_CANONICAL_FIRE_PROPOSAL_DESIGN.md`,
-`PHASE3_F33V1_FIRE_PROPOSAL_EXPERIMENT.md`.
+`PHASE3_F33V1_FIRE_PROPOSAL_EXPERIMENT.md`,
+`PHASE3_F33V2_FIRE_PRODUCTS_EXPERIMENT.md`.

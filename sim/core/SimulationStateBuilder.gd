@@ -63,6 +63,9 @@ func build_state(context: Dictionary) -> Dictionary:
 		"phase3_canonical_fire_proposal_shadow_enabled": bool(
 			context.get("phase3_canonical_fire_proposal_shadow_enabled", false)
 		),
+		"phase3_canonical_fire_products_shadow_enabled": bool(
+			context.get("phase3_canonical_fire_products_shadow_enabled", false)
+		),
 		"phase3_canonical_exterior_counterflow_shadow_enabled": bool(
 			context.get("phase3_canonical_exterior_counterflow_shadow_enabled", false)
 		),
