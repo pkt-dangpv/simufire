@@ -967,9 +967,11 @@ Diagnostic / planned lanes:
 2. Retain F3.3v3f1 as passive, default-OFF telemetry. It preserves gross
    doorway flow and matches CFAST net enthalpy, but is not authoritative.
 3. Diagnose the 79 R0 directional cap events: time, requested pressure net
-   and available base counterflow.
-4. Design F3.3v3f2 as a combined slab pressure/buoyancy preview. Do not add a
-   second gross route and do not promote the current post-hoc skew directly.
+   and available base counterflow. **Closed F3.3v3f2:** the cap changes the
+   signed integral from requested `+1.173 kg` to accepted `-1.950 kg`.
+4. Design the next candidate as a dynamic canonical-shadow replacement of
+   additive opening+pressure routes. A static same-pressure normalization is
+   insufficient because it inherits the same per-step bound.
 5. Stop again at 180 s. Require fixed gross mass, atomic payload closure,
    OFF invariance and improved directional net mass without losing enthalpy
    correspondence.
@@ -986,6 +988,7 @@ Diagnostic / planned lanes:
 | F3.3v3e | Opening-only enthalpy matches CFAST; pressure route adds churn | Fixed-gross architecture selected |
 | F3.3v3f0 | Pure atomic fixed-gross skew primitive | Runtime-tested, dormant |
 | F3.3v3f1 | Opt-in runtime preview, 21 CSV fields, exact OFF no-op | Shadow GO, authority NO-GO |
+| F3.3v3f2 | 79-cap cumulative sign/magnitude ledger | Static cap authority NO-GO |
 
 F3.3v3f1 measured at 180 s:
 
@@ -997,3 +1000,7 @@ F3.3v3f1 measured at 180 s:
 
 The current hard rule is: pressure may bias the bidirectional opening field,
 but may not create an independent gross transport path.
+
+F3.3v3f2 adds a second rule: evaluate the candidate dynamically against its
+own next-step pressure state. Replaying a new route formula over the old
+additive-pressure trajectory is not a valid authority test.

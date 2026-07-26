@@ -4579,6 +4579,7 @@ func _record_fixed_gross_interior_pressure_skew_preview(
 	)
 	var connection_counts: Dictionary = {}
 	var connection_cap_counts: Dictionary = {}
+	var connection_cap_stats: Dictionary = {}
 	for raw_connection in preview.get("connections", []):
 		var connection: Dictionary = raw_connection
 		for room_id in [
@@ -4594,6 +4595,61 @@ func _record_fixed_gross_interior_pressure_skew_preview(
 			connection_cap_counts[room_key] = float(
 				connection_cap_counts.get(room_key, 0.0)
 			) + float(connection.get("capped_flag", 0.0))
+			if not connection_cap_stats.has(room_key):
+				connection_cap_stats[room_key] = {
+					"positive_count": 0.0,
+					"negative_count": 0.0,
+					"requested_positive_kg": 0.0,
+					"accepted_positive_kg": 0.0,
+					"requested_negative_abs_kg": 0.0,
+					"accepted_negative_abs_kg": 0.0,
+					"rejected_abs_kg": 0.0,
+					"max_rejected_abs_kg": 0.0,
+				}
+			if float(connection.get("capped_flag", 0.0)) <= 0.0:
+				continue
+			var requested_low_to_high_kg: float = float(
+				connection.get("pressure_net_low_to_high_kg", 0.0)
+			)
+			var accepted_low_to_high_kg: float = float(
+				connection.get("accepted_pressure_net_low_to_high_kg", 0.0)
+			)
+			var room_sign: float = 1.0 \
+					if room_id == int(connection.get("low_room_id", EXTERIOR_ID)) \
+					else -1.0
+			var requested_net_out_kg: float = room_sign * requested_low_to_high_kg
+			var accepted_net_out_kg: float = room_sign * accepted_low_to_high_kg
+			var cap_stats: Dictionary = connection_cap_stats[room_key]
+			if requested_net_out_kg >= 0.0:
+				cap_stats["positive_count"] = float(
+					cap_stats["positive_count"]
+				) + 1.0
+				cap_stats["requested_positive_kg"] = float(
+					cap_stats["requested_positive_kg"]
+				) + requested_net_out_kg
+				cap_stats["accepted_positive_kg"] = float(
+					cap_stats["accepted_positive_kg"]
+				) + maxf(0.0, accepted_net_out_kg)
+			else:
+				cap_stats["negative_count"] = float(
+					cap_stats["negative_count"]
+				) + 1.0
+				cap_stats["requested_negative_abs_kg"] = float(
+					cap_stats["requested_negative_abs_kg"]
+				) + absf(requested_net_out_kg)
+				cap_stats["accepted_negative_abs_kg"] = float(
+					cap_stats["accepted_negative_abs_kg"]
+				) + absf(minf(0.0, accepted_net_out_kg))
+			var rejected_abs_kg: float = absf(
+				requested_net_out_kg - accepted_net_out_kg
+			)
+			cap_stats["rejected_abs_kg"] = float(
+				cap_stats["rejected_abs_kg"]
+			) + rejected_abs_kg
+			cap_stats["max_rejected_abs_kg"] = maxf(
+				float(cap_stats["max_rejected_abs_kg"]), rejected_abs_kg
+			)
+			connection_cap_stats[room_key] = cap_stats
 	var room_keys: Dictionary = {}
 	for source in [opening_totals, pressure_totals, preview_totals]:
 		for room_key in source.keys():
@@ -4609,6 +4665,7 @@ func _record_fixed_gross_interior_pressure_skew_preview(
 			fixed_gross.get("out_mass_kg", 0.0)
 		) - float(fixed_gross.get("in_mass_kg", 0.0))
 		var record: Dictionary = _new_fixed_gross_pressure_skew_record()
+		var step_cap_stats: Dictionary = connection_cap_stats.get(room_key, {})
 		record["enabled_flag"] = 1.0
 		record["valid_flag"] = 1.0 if bool(preview.get("valid", false)) else 0.0
 		record["connection_count"] = float(connection_counts.get(room_key, 0.0))
@@ -4653,6 +4710,28 @@ func _record_fixed_gross_interior_pressure_skew_preview(
 		) + float(record["preview_net_enthalpy_out_kj"])
 		cumulative["cap_count"] = float(cumulative["cap_count"]) \
 				+ float(record["cap_count"])
+		cumulative["pressure_requested_net_out_kg"] = float(
+			cumulative.get("pressure_requested_net_out_kg", 0.0)
+		) + float(record["pressure_requested_net_out_kg"])
+		cumulative["pressure_accepted_net_out_kg"] = float(
+			cumulative.get("pressure_accepted_net_out_kg", 0.0)
+		) + float(record["pressure_accepted_net_out_kg"])
+		for field_name in [
+			"positive_count",
+			"negative_count",
+			"requested_positive_kg",
+			"accepted_positive_kg",
+			"requested_negative_abs_kg",
+			"accepted_negative_abs_kg",
+			"rejected_abs_kg",
+		]:
+			cumulative["cap_%s" % field_name] = float(
+				cumulative.get("cap_%s" % field_name, 0.0)
+			) + float(step_cap_stats.get(field_name, 0.0))
+		cumulative["cap_max_rejected_abs_kg"] = maxf(
+			float(cumulative.get("cap_max_rejected_abs_kg", 0.0)),
+			float(step_cap_stats.get("max_rejected_abs_kg", 0.0))
+		)
 		_canonical_fixed_gross_pressure_skew_cumulative_by_room[room_key] = cumulative
 
 
@@ -7729,6 +7808,56 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			),
 			"phase3_shadow_fixed_gross_cap_count_total": float(
 				fixed_gross_pressure_skew_cumulative.get("cap_count", 0.0)
+			),
+			"phase3_shadow_fixed_gross_pressure_requested_net_out_kg_total": float(
+				fixed_gross_pressure_skew_cumulative.get(
+					"pressure_requested_net_out_kg", 0.0
+				)
+			),
+			"phase3_shadow_fixed_gross_pressure_accepted_net_out_kg_total": float(
+				fixed_gross_pressure_skew_cumulative.get(
+					"pressure_accepted_net_out_kg", 0.0
+				)
+			),
+			"phase3_shadow_fixed_gross_cap_positive_count_total": float(
+				fixed_gross_pressure_skew_cumulative.get(
+					"cap_positive_count", 0.0
+				)
+			),
+			"phase3_shadow_fixed_gross_cap_negative_count_total": float(
+				fixed_gross_pressure_skew_cumulative.get(
+					"cap_negative_count", 0.0
+				)
+			),
+			"phase3_shadow_fixed_gross_cap_requested_positive_kg_total": float(
+				fixed_gross_pressure_skew_cumulative.get(
+					"cap_requested_positive_kg", 0.0
+				)
+			),
+			"phase3_shadow_fixed_gross_cap_accepted_positive_kg_total": float(
+				fixed_gross_pressure_skew_cumulative.get(
+					"cap_accepted_positive_kg", 0.0
+				)
+			),
+			"phase3_shadow_fixed_gross_cap_requested_negative_abs_kg_total": float(
+				fixed_gross_pressure_skew_cumulative.get(
+					"cap_requested_negative_abs_kg", 0.0
+				)
+			),
+			"phase3_shadow_fixed_gross_cap_accepted_negative_abs_kg_total": float(
+				fixed_gross_pressure_skew_cumulative.get(
+					"cap_accepted_negative_abs_kg", 0.0
+				)
+			),
+			"phase3_shadow_fixed_gross_cap_rejected_abs_kg_total": float(
+				fixed_gross_pressure_skew_cumulative.get(
+					"cap_rejected_abs_kg", 0.0
+				)
+			),
+			"phase3_shadow_fixed_gross_cap_max_rejected_abs_kg": float(
+				fixed_gross_pressure_skew_cumulative.get(
+					"cap_max_rejected_abs_kg", 0.0
+				)
 			),
 			"phase3_shadow_fixed_gross_mass_residual_kg": float(
 				fixed_gross_pressure_skew.get("mass_residual_kg", 0.0)

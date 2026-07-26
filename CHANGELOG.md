@@ -3,6 +3,19 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3f2 fixed-gross cap ledger (2026-07-26)
+
+- Added cumulative signed cap telemetry under the existing default-OFF
+  F3.3v3f1 preview so normal CSV logging captures every physical timestep.
+- Measured 79 R0 cap events: 44 positive and 35 negative. Pressure requests
+  `6.368 kg` net out (87.35% of CFAST) but the per-step cap accepts only
+  `3.245 kg` (44.51%).
+- Proved the capped subset reverses its cumulative direction from requested
+  `+1.173 kg` to accepted `-1.950 kg`, a `-3.123 kg` bias.
+- Rejected a static same-pressure normalization as sufficient. The next gate
+  is a default-OFF dynamic canonical-shadow replacement that lets accepted
+  fixed-gross transport evolve the next-step pressure state.
+
 ### Phase 3+ F3.3v3f1 fixed-gross pressure-skew shadow (2026-07-26)
 
 - Wired the F3.3v3f0 fixed-gross primitive into the canonical runtime as an

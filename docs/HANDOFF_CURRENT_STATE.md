@@ -8,6 +8,32 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-26 - F3.3v3f2 cap owner closed
+
+- Extended the existing default-OFF fixed-gross preview with ten cumulative
+  cap fields; no authority or legacy state changed.
+- R0 at 180 s:
+  - CFAST net doorway out `7.290 kg`;
+  - pressure request `6.368 kg` (87.35%);
+  - cap acceptance `3.245 kg` (44.51%);
+  - 79 caps: 44 positive, 35 negative;
+  - absolute rejected mass `28.240 kg`, maximum one-step rejection
+    `0.986 kg`.
+- The capped subset requests `+1.173 kg` but accepts `-1.950 kg`. Local
+  timestep clipping introduces a `-3.123 kg` directional bias after the
+  pressure-sign transition around 120 s.
+- Decision: fixed-gross architecture retained, current static post-hoc
+  authority NO-GO. A normalized slab solve against the unchanged oscillatory
+  pressure trajectory is insufficient.
+- Verification: focused chain 16/16 PASS; Physics 9/15/5/0; ILV 15/14/0;
+  gap inventory synchronized at 347/353 plus 6 VALID_GAP.
+- Next: a separate default-OFF dynamic canonical-shadow branch may replace
+  additive opening+pressure routes with fixed-gross routes for 180 s only,
+  allowing accepted transport to evolve the next-step pressure. It must not
+  write legacy state or change official validation artifacts.
+- Binding record:
+  `docs/validation/PHASE3_F33V3F2_CAP_LEDGER.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v3f1 shadow GO
 
 - Added default-OFF
