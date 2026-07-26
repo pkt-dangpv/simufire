@@ -8,6 +8,57 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-26 - F3.3v3g3 persistent shadow NO-GO
+
+- A default-OFF experimental
+  `phase3_canonical_fixed_gross_pressure_network_persistent_shadow_enabled`
+  candidate was evaluated under the complete F3.3v3g2 stack and then fully
+  reverted after the STOP gate. No g3 flag, runtime call, CSV schema, fixture
+  or structural wiring test remains in the repository. F3.3v3g2 is the current
+  committed motor state.
+- During the experiment, with the flag ON, the canonical interior bundle
+  dropped both the base
+  `canonical_interior_opening` routes and the additive
+  `canonical_interior_pressure` routes and applied the F3.3v3g2 blended
+  fixed-gross set instead. Replacement, never addition; one atomic bundle; one
+  alpha per component for mass, enthalpy, O2 and every species; stable route
+  and connection identities; no legacy write and no separate pressure
+  accumulator.
+- Stage 1 (30 s) mechanism result is clean: 24/24 rows, all 115 live columns
+  byte-identical, 58 new columns all in the persistent family, gross mass
+  preserved exactly, mass/energy/O2/species residuals zero, minimum accepted
+  bundle fraction `1.0` with zero double-limit events, zero unexpected zone
+  collapses, EOS valid throughout, minimum post lower shadow gas `30.158 kg`,
+  accepted transport bidirectional.
+- Stage 1 physics result is a decisive **NO-GO**:
+  - R0 shadow gauge pressure `1.116 -> 6.292 -> 23.195 Pa` baseline versus
+    `1.202 -> 14.279 -> 131.020 Pa` candidate (ratio `1.08 -> 2.27 -> 5.65`);
+  - relaxed pressure request `0.363 -> 1.838 kg`, `5.07x` the baseline at one
+    sixth of the F3.3v3f2 duration;
+  - monotonic request growth for 111 consecutive intervals (limit 10);
+  - predicted/observed objective divergence for 239 consecutive intervals;
+  - cap count 717 against a 158 limit.
+- Owner: once the imbalance is large the unconstrained optimum reaches
+  `alpha = 1.0`, the crossing bound stops binding, and the accepted route set
+  becomes fully one-directional (`out 0.013084 kg`, `in 0.000000 kg`) - the
+  doorway counterflow collapses. The interior-network objective is not a
+  Lyapunov function for the coupled system.
+- Stages 2/3/4 (60/120/180 s) were **not launched**, as required.
+- The 30 s CFAST envelope was excluded from the gate: the baseline itself is
+  `-51.12%` on gross mass and `-17.63%` on net enthalpy at that checkpoint.
+- Verification during the experiment: g3/g2/g1/f0 Godot 4.7.1 fixtures PASS;
+  `pytest tests -k "phase3 or guardrail"` 805 PASS / 2 FAIL (the established
+  baseline); Physics 9/15/5/0; ILV 15/14/0; gap inventory 353 + 6 VALID_GAP +
+  71 non-gating; guardrails 9/10 with only the expected dirty-motor R2-1. The
+  g3 fixture was removed with the candidate; the read-only analyzer and its
+  tests are retained.
+- Next: the following phase must include the other pressure owners in the
+  residual it reduces, define stability on the coupled pressure trajectory, and
+  treat an alpha that zeroes one doorway direction as invalid. Do not retry the
+  current candidate with a tuned under-relaxation factor.
+- Binding record:
+  `docs/validation/PHASE3_F33V3G3_PERSISTENT_PRESSURE_NETWORK.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v3g2 passive preview GO
 
 - Added default-OFF
@@ -49,8 +100,9 @@ Historical validation records retain their original engine labels.
   with only the expected dirty-motor R2-1.
 - Decision: passive preview GO; runtime authority, persistent shadow state and
   Group A/C work all remain NO-GO.
-- Next: F3.3v3g3 persistent dynamic shadow, staged at 30/60/120/180 s, private
-  canonical state only.
+- Historical next gate: F3.3v3g3 persistent dynamic shadow. It was subsequently
+  rejected at the 30 s STOP gate and its runtime patch was fully reverted; see
+  the current-session entry above.
 - Binding record:
   `docs/validation/PHASE3_F33V3G2_PRESSURE_NETWORK_PREVIEW.md`.
 

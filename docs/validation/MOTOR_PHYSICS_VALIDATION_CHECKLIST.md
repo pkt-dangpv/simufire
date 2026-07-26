@@ -986,9 +986,17 @@ Diagnostic / planned lanes:
 8. Retain the F3.3v3g2 measurement: the binding limiter is the pressure-sign
    crossing bound (2008 steps), not the source inventory (0 steps). Extra
    inventory alone would not increase accepted transport.
-9. Do not retry direct route replacement, per-step clipping or static
-   normalization over the old pressure trajectory.
-10. Group A and Group C remain VALID_GAP until an authoritative canonical
+9. **Closed F3.3v3g3, NO-GO:** driving the persistent canonical shadow with
+   those blended routes is atomically exact but physically unstable. The
+   crossing bound stops binding exactly when the imbalance grows, `alpha`
+   reaches `1.0`, doorway counterflow collapses to one-way flow and shadow
+   pressure diverges `5.65x` from baseline by 30 s. The experimental runtime
+   candidate was fully reverted; no g3 flag or application path remains.
+   F3.3v3g2 is the current motor state.
+10. Do not retry direct route replacement, per-step clipping, static
+    normalization over the old pressure trajectory, or the F3.3v3g3 candidate
+    with a tuned under-relaxation factor.
+11. Group A and Group C remain VALID_GAP until an authoritative canonical
     slice passes required checks without tolerance or baseline relaxation.
 
 ## 17. Phase 3+ Doorway Transport Checkpoint (2026-07-26)
@@ -1004,6 +1012,7 @@ Diagnostic / planned lanes:
 | F3.3v3g0 | Actual-route pressure-network design | Design GO; no runtime code |
 | F3.3v3g1 | Pure pressure objective/relaxation primitive | Primitive GO; no runtime call |
 | F3.3v3g2 | Passive per-component preview from raw pressure demand | Preview GO; authority and persistent shadow NO-GO |
+| F3.3v3g3 | Experimental persistent shadow driven by the blended routes | Mechanism exact, physics NO-GO at 30 s; runtime candidate reverted |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1063,6 +1072,46 @@ differing by exactly one flag):
 - net mass error `-97.29%` is expected and non-gating at this phase: a passive
   preview cannot evolve the pressure trajectory that bounds it.
 
-F3.3v3g3 remains the only approved next slice: persistent private canonical
-shadow state, staged at 30/60/120/180 s. It may not touch legacy state, FED,
-official cases, expected values, tolerances, CTRL envelopes or VALID_GAP.
+F3.3v3g3 STOP at stage 1 (30 s), `cfast_corridor_chain`, baseline g2 ON/g3 OFF
+versus candidate g2 ON/g3 ON:
+
+The following measurements are historical experiment evidence. The g3 runtime
+candidate was reverted after this STOP; only the analyzer, analyzer tests and
+the binding technical record are retained.
+
+Mechanism, all PASS:
+
+- 24/24 rows and all 115 live columns byte-identical; 58 new columns, all in
+  the persistent family; zero columns lost;
+- gross mass preserved exactly per step; mass/energy/O2/species residuals `0`;
+- minimum accepted bundle fraction `1.0` with zero double-limit events, so the
+  F3.3v3g2 inventory bound is already sufficient and nothing is limited twice;
+- zero unexpected zone collapses, EOS valid throughout, minimum post lower
+  shadow gas `30.158 kg`, accepted transport bidirectional;
+- the three known ignition-transient fail-closed steps stayed bounded to the
+  first logged interval.
+
+Physics, NO-GO:
+
+- R0 shadow gauge pressure ratio candidate/baseline `1.08 -> 2.27 -> 5.65`;
+- relaxed pressure request `1.838 kg` at 30 s, `5.07x` baseline at one sixth of
+  the F3.3v3f2 duration;
+- monotonic request growth 111 consecutive intervals (limit 10);
+- predicted/observed objective divergence 239 consecutive intervals (limit 10);
+- cap count 717 (limit 158).
+
+Owner: once the imbalance is large the unconstrained optimum reaches
+`alpha = 1.0`, the pressure-crossing bound stops binding, and the accepted route
+set becomes fully one-directional. The doorway counterflow collapses. The
+interior-network objective is not a Lyapunov function for the coupled system,
+because plume, combustion and exterior leakage also own canonical pressure.
+
+Stages 2/3/4 were not launched. The 30 s CFAST envelope was excluded from the
+gate because the baseline itself is `-51.12%` on gross mass there.
+
+The next slice must include the other pressure owners in the residual it
+reduces, define stability on the coupled pressure trajectory rather than the
+instantaneous interior objective, and treat an accepted alpha that zeroes one
+doorway direction as invalid. Do not retry the current candidate with a tuned
+under-relaxation factor; F3.3v3g0 forbids fitting a coefficient to a required
+checkpoint.

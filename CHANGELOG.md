@@ -3,6 +3,37 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3g3 persistent pressure-network shadow NO-GO (2026-07-26)
+
+- Tested a default-OFF candidate in which the F3.3v3g2 blended fixed-gross
+  routes replace both the base opening routes and the additive pressure routes
+  inside the canonical shadow bundle, updating persistent shadow state only.
+- Proved exact live isolation at 30 s: 24/24 rows and all 115 non-shadow
+  columns byte-identical; 58 new columns, all in the persistent family.
+- Proved the mechanism is atomically clean: gross mass preserved exactly at
+  every step, mass/energy/O2/species residuals all zero, the atomic bundle
+  accepted the full requested fraction with zero double-limit events, no
+  unexpected zone collapse and a valid EOS throughout.
+- Rejected the candidate at stage 1: R0 canonical shadow gauge pressure
+  diverges from the baseline by `1.08x -> 2.27x -> 5.65x`, the pressure request
+  grows for 111 consecutive intervals, the predicted objective under-shoots the
+  observed one for 239 consecutive intervals, and the cap count reaches 717
+  against a 158 limit.
+- Owner identified: once the imbalance is large the unconstrained optimum
+  reaches `alpha = 1.0`, the pressure-crossing bound stops binding, and the
+  accepted route set becomes fully one-directional - the doorway counterflow
+  collapses. The interior-network objective is not a Lyapunov function for the
+  coupled system because plume, combustion and exterior leakage also own
+  pressure.
+- Stages 2, 3 and 4 (60/120/180 s) were not launched. The F3.3v3g2 passive
+  preview and the F3.3v3g1 primitive remain committed, correct and default OFF.
+- The experimental runtime flag, application path, Godot fixture and structural
+  wiring tests were fully reverted after the STOP gate. No g3 runtime code
+  remains; F3.3v3g2 is still the latest committed motor state.
+- Retained only the read-only staged-gate analyzer, its regression tests and
+  the binding NO-GO record. The 30 s CFAST envelope was deliberately excluded
+  because the baseline itself is `-51%` on gross mass at that checkpoint.
+
 ### Phase 3+ F3.3v3g2 passive pressure-network preview (2026-07-26)
 
 - Added default-OFF
@@ -29,7 +60,8 @@ All notable changes to SimuFire should be recorded here.
   CFAST. The binding limiter is the pressure-sign crossing bound, not the
   source inventory.
 - Decision: passive preview GO; runtime authority and persistent shadow state
-  remain NO-GO. Next is F3.3v3g3, staged at 30/60/120/180 s.
+  remain NO-GO. The subsequent F3.3v3g3 staged experiment was rejected at
+  30 s and its runtime patch was reverted.
 
 ### Phase 3+ F3.3v3f3 dynamic fixed-gross candidate NO-GO (2026-07-26)
 
