@@ -8,6 +8,29 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-26 - F3.3v3b mass owner closed
+
+- Added read-only
+  `scripts/simulation/analyze_phase3_f33v3b_mass_interface_attribution.py`.
+- The current and pre-v3a 180 s candidates give the same owner ordering.
+  F3.3v3a therefore does not create the mass discrepancy.
+- At 180 s the current R0 total-mass error is `+3.961 kg`. Its explicit
+  decomposition is:
+  - exterior net-outflow deficit `+4.912 kg`;
+  - interior-doorway net-outflow deficit `+0.922 kg`;
+  - canonical gas-source omission versus CFAST pyrolysis `-2.114 kg`;
+  - initial-state bias `+0.221 kg`;
+  - unexplained residual `+0.020 kg`.
+- Canonical projection/reconcile net mass and residence residual are zero.
+  Plume transfer is internal and already exceeds CFAST by `11.161 kg`.
+- Total-mass ownership is therefore closed, but upper/lower partition is not:
+  upper remains `-2.187 kg`, lower `+6.149 kg` and interface `+0.210 m`.
+- Next gate: F3.3v3c exterior leakage topology and per-zone outflow
+  correspondence. Do not increase plume, apply a global doorway gain, add a
+  projection correction or tune HRR.
+- Binding record:
+  `docs/validation/PHASE3_F33V3B_MASS_INTERFACE_ATTRIBUTION.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v3a source GO / physics NO-GO
 
 - Added default-OFF

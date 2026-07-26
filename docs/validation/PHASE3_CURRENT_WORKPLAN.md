@@ -1103,12 +1103,18 @@ HRR filter. F3.3v3a removes that filter under a default-OFF flag and closes
 fuel correspondence to `0.00000248 MJ`, but the mandatory 180 s temperature
 improves by only `0.162 C` and still fails.
 
-The next gate is F3.3v3b: diagnose R0 early zone-mass/interface partition.
-At 180 s the canonical candidate has about `3.96 kg` excess total gas, too
-much lower mass and too little upper mass. Attribute that error among opening
-net mass, plume transfer, pressure/boundary exchange and EOS projection.
-Do not force HRR, tune a corridor coefficient, alter official reports or
-touch HVAC. Binding records:
+F3.3v3b has now closed the total-mass attribution. At 180 s the `+3.961 kg`
+R0 error decomposes into `+4.912 kg` missing exterior net outflow,
+`+0.922 kg` missing doorway net outflow, `-2.114 kg` missing gas-source mass
+relative to CFAST pyrolysis and `+0.221 kg` initial bias, with only
+`0.020 kg` residual. Projection net mass is zero and plume is an internal
+transfer already `11.161 kg` above CFAST.
+
+The next gate is F3.3v3c: compare exterior leakage topology, pressure and
+upper/lower source-zone removal. The total budget owner is known, but the
+layer partition remains unresolved (`upper -2.187 kg`, `lower +6.149 kg`,
+interface `+0.210 m`). Do not force HRR, increase plume, apply a global
+doorway gain, alter official reports or touch HVAC. Binding records:
 `PHASE3_F33T_COUPLED_PLUME_EXPERIMENT.md`,
 `PHASE3_F33U_EXTENDED_STABILITY.md` and
 `PHASE3_F33V_CANONICAL_FIRE_PROPOSAL_DESIGN.md`,
@@ -1116,4 +1122,5 @@ touch HVAC. Binding records:
 `PHASE3_F33V2_FIRE_PRODUCTS_EXPERIMENT.md`,
 `PHASE3_F33V2C2_FUEL_OBJECT_SYNC_EXPERIMENT.md`,
 `PHASE3_F33V2D_FUEL_CORRESPONDENCE_DIAGNOSIS.md` and
-`PHASE3_F33V3A_UNFILTERED_GROWTH_EXPERIMENT.md`.
+`PHASE3_F33V3A_UNFILTERED_GROWTH_EXPERIMENT.md`,
+`PHASE3_F33V3B_MASS_INTERFACE_ATTRIBUTION.md`.

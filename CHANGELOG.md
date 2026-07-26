@@ -3,6 +3,22 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3b early mass/interface attribution (2026-07-26)
+
+- Added a read-only R0 mass-budget analyzer using the existing canonical
+  residence ledger plus committed CFAST doorway, leakage and pyrolysis
+  exports.
+- Closed the 180 s `3.961 kg` total-mass error to a `0.020 kg` decomposition
+  residual: exterior net outflow deficit `+4.912 kg`, doorway net outflow
+  deficit `+0.922 kg`, missing gas-source mass `-2.114 kg` and initial-state
+  bias `+0.221 kg`.
+- Rejected plume and EOS projection as net-mass owners. The canonical plume
+  already exceeds CFAST by `11.161 kg`, projection net mass is zero and the
+  residence ledger closes.
+- Kept interface partition unresolved and runtime authority blocked. The next
+  gate is exterior leakage topology and per-zone outflow correspondence, not
+  a plume, HRR, projection or global-flow multiplier.
+
 ### Phase 3+ F3.3v2c fuel-object synchronization design (2026-07-26)
 
 - Mapped legacy per-object fuel ownership and identified nested atomic
