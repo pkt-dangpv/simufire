@@ -8,6 +8,29 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-26 - F3.3v3g0 design GO
+
+- Mapped the current pressure path. The old network relaxation predicts the
+  response of additive pressure routes; F3.3v3f3 applied fixed-gross routes
+  with a different mass/enthalpy pressure response. That is the immediate
+  numerical mismatch behind the explicit feedback.
+- Designed a bounded network solve over the route actually proposed:
+  - start from pressure after the base opening routes;
+  - measure the pressure delta from base to full fixed-gross routes;
+  - minimize the sum of squared connected-room pressure differences;
+  - bound by pressure-sign crossing and source-zone inventories;
+  - blend mass, energy, O2 and every species with one common factor.
+- F3.3v3g phases:
+  - `g1`: pure dictionary-only relaxation primitive and tests;
+  - `g2`: default-OFF passive runtime telemetry;
+  - `g3`: staged 30/60/120/180 s persistent shadow;
+  - `g4`: 300/600 s Group A/C validation;
+  - `g5`: separate authority decision.
+- Only `g1` is approved next. It must not wire runtime state, flags, reports
+  or cases. Dynamic runtime work in the same session is explicitly forbidden.
+- Binding design:
+  `docs/validation/PHASE3_F33V3G0_PRESSURE_NETWORK_DESIGN.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v3f3 dynamic candidate NO-GO
 
 - A default-OFF canonical-shadow experiment dynamically replaced additive

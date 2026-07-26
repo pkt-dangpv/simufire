@@ -992,6 +992,7 @@ Diagnostic / planned lanes:
 | F3.3v3f1 | Opt-in runtime preview, 21 CSV fields, exact OFF no-op | Shadow GO, authority NO-GO |
 | F3.3v3f2 | 79-cap cumulative sign/magnitude ledger | Static cap authority NO-GO |
 | F3.3v3f3 | Dynamic fixed-gross route replacement | Exact isolation, physical candidate NO-GO |
+| F3.3v3g0 | Actual-route pressure-network design | Design GO; no runtime code |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1009,3 +1010,15 @@ next-step pressure state. F3.3v3f3 performed that test and exposed an explicit
 one-way pressure feedback. The next candidate must solve pressure and
 fixed-gross transport together, implicitly or with measured under-relaxation;
 it may not directly substitute routes into the explicit timestep loop.
+
+F3.3v3g0 selects the next bounded sequence:
+
+1. `g1` pure network objective/relaxation primitive only;
+2. `g2` passive default-OFF preview using raw pressure demand;
+3. `g3` persistent shadow with 30/60/120/180 s STOP gates;
+4. `g4` Group A/C 300/600 s shadow validation;
+5. `g5` separate authority decision.
+
+The network objective must not increase, gross transport must remain fixed,
+all payloads must share one blend fraction, and no source-zone inventory may
+be overdrawn. F3.3v3g1 is not permission to wire a runtime candidate.

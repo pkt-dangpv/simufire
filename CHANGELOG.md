@@ -17,6 +17,17 @@ All notable changes to SimuFire should be recorded here.
   The next gate is design-only F3.3v3g0 for an implicit or under-relaxed
   interior pressure network; direct route replacement must not be retried.
 
+### Phase 3+ F3.3v3g0 pressure-network design (2026-07-26)
+
+- Mapped the current canonical ordering and identified the numerical mismatch:
+  pressure relaxation is evaluated for the additive route response, while the
+  rejected candidate applied fixed-gross routes with a different response.
+- Designed a network-wide pressure objective over the actual fixed-gross
+  route delta, with descent, no-crossing and source-inventory bounds.
+- Split delivery into pure primitive, passive preview, staged persistent
+  shadow and separate authority gates. F3.3v3g1 is the only approved next
+  motor slice; no runtime, report or baseline changed in this design phase.
+
 ### Phase 3+ F3.3v3f2 fixed-gross cap ledger (2026-07-26)
 
 - Added cumulative signed cap telemetry under the existing default-OFF
