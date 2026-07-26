@@ -8,6 +8,23 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-26 - F3.3v2d correspondence diagnosis
+
+- The `0.58758433 MJ` live/canonical fuel difference is not caused by the
+  object allocator. Only one of seven objects is eligible throughout the
+  active 180 s rows, and allocation/atomic/aggregate residuals are zero.
+- Legacy object inventory follows `solid_pyrolysis_kw * dt`; canonical
+  products follow smoothed accepted proposal HRR. During growth the ideal
+  pyrolysis curve is higher, so legacy consumes more. Once both reach 300 kW,
+  the per-step mismatch becomes zero and the cumulative delta stays flat.
+- The analyzer now reports source-debit mismatch separately from internal
+  object-ledger closure.
+- Decision: diagnostic GO, runtime authority NO-GO. F3.3v2e must design an
+  atomic split between pyrolysis/feedstock debit and combusted-fuel
+  equivalent before any live write or 300/600 s run.
+- Binding record:
+  `docs/validation/PHASE3_F33V2D_FUEL_CORRESPONDENCE_DIAGNOSIS.md`.
+
 ## Purpose
 
 This note records the repository hygiene and validation state after the non-motor cleanup. It is meant to let another machine or contributor continue without relying on chat history.

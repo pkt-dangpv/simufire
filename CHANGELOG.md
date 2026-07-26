@@ -19,6 +19,10 @@ All notable changes to SimuFire should be recorded here.
 - Verified byte-identical OFF behavior, seven stable objects, zero internal
   residuals and no live-column changes. Runtime authority remains blocked by
   a measured 0.58758433 MJ live/canonical object-fuel difference at 180 s.
+- F3.3v2d diagnosed that difference as a source-term semantic mismatch, not
+  an allocator failure: legacy object inventory follows ideal solid
+  pyrolysis while canonical products follow smoothed accepted HRR. The next
+  design must split pyrolysis debit from combusted-fuel equivalent.
 
 ### Phase 3+ F3.3v2b canonical fire-products routing (2026-07-26)
 
