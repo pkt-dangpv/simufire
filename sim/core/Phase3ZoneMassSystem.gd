@@ -6862,6 +6862,11 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 					"canonical_fire_proposal_proposal_hrr_kw", 0.0
 				)
 			),
+			"phase3_shadow_fire_proposal_unfiltered_growth_flag": float(
+				canonical_combustion.get(
+					"canonical_fire_proposal_unfiltered_growth_flag", 0.0
+				)
+			),
 			"phase3_shadow_fire_proposal_remaining_fuel_pre_MJ": float(
 				canonical_combustion.get(
 					"canonical_fire_proposal_remaining_fuel_pre_MJ", 0.0

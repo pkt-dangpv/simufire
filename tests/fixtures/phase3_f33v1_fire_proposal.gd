@@ -9,6 +9,7 @@ func _init() -> void:
 	_test_nominal_and_moderate_o2_keep_the_same_proposal()
 	_test_zero_o2_rejects_without_advancing_age()
 	_test_inventory_and_ventilation_caps_are_explicit()
+	_test_unfiltered_growth_uses_the_t2_target()
 	_test_intraroom_capability_without_active_spread_is_supported()
 	_test_unsupported_mode_is_not_silently_accepted()
 	if _failed:
@@ -85,6 +86,35 @@ func _test_inventory_and_ventilation_caps_are_explicit() -> void:
 	)
 	_assert_close(
 		_value(ventilation_limited, "accepted_hrr_kw"), 120.0, "vent-limited HRR"
+	)
+
+
+func _test_unfiltered_growth_uses_the_t2_target() -> void:
+	var combustion = CombustionSystemScript.new()
+	var state: Dictionary = _state()
+	state["proposal_age_s"] = 9.0
+	state["proposal_hrr_kw"] = 0.0
+	var filtered_context: Dictionary = _context()
+	filtered_context["fire_hrr_rise_tau_s"] = 6.0
+	var filtered: Dictionary = combustion.evaluate_phase3_canonical_fire_proposal(
+		1.0, filtered_context, _source(0.209, 0.025, 1.0), state
+	)
+	var direct_context: Dictionary = filtered_context.duplicate(true)
+	direct_context["phase3_canonical_unfiltered_fire_growth_shadow_enabled"] = true
+	var direct: Dictionary = combustion.evaluate_phase3_canonical_fire_proposal(
+		1.0, direct_context, _source(0.209, 0.025, 1.0), state
+	)
+	_assert_true(
+		_value(filtered, "proposal_hrr_kw") < _value(filtered, "proposal_target_kw"),
+		"filtered growth must lag the target"
+	)
+	_assert_close(
+		_value(direct, "proposal_hrr_kw"),
+		_value(direct, "proposal_target_kw"),
+		"unfiltered growth equals target"
+	)
+	_assert_close(
+		_value(direct, "unfiltered_growth_flag"), 1.0, "unfiltered telemetry"
 	)
 
 

@@ -27,6 +27,9 @@ def test_flag_is_default_off_and_wired_to_state_and_csv():
     assert f'"{flag}"' in STATE
     assert "configure_phase3_canonical_fire_proposal_shadow" in ENGINE
     assert "phase3_canonical_fire_proposal_shadow_enabled: bool = false" in LOG
+    direct_flag = "phase3_canonical_unfiltered_fire_growth_shadow_enabled"
+    assert f"@export var {direct_flag}: bool = false" in ENGINE
+    assert f'"{direct_flag}"' in STATE
 
 
 def test_runner_exposes_opt_in_flag_with_required_parents():
@@ -35,6 +38,8 @@ def test_runner_exposes_opt_in_flag_with_required_parents():
     assert cli_flag in HEADLESS
     block = RUNNER[RUNNER.index("if args.phase3_canonical_fire_proposal_shadow") :]
     assert "--phase3-canonical-combustion-shadow" in block
+    assert "--phase3-canonical-unfiltered-fire-growth-shadow" in RUNNER
+    assert "--phase3-canonical-unfiltered-fire-growth-shadow" in HEADLESS
 
 
 def test_solver_is_dictionary_only_and_does_not_touch_room_model():
@@ -98,6 +103,7 @@ def test_telemetry_is_schema_gated_by_the_new_flag():
         "phase3_shadow_fire_proposal_supported_flag",
         "phase3_shadow_fire_proposal_unsupported_reason_mask",
         "phase3_shadow_fire_proposal_hrr_kw",
+        "phase3_shadow_fire_proposal_unfiltered_growth_flag",
         "phase3_shadow_fire_proposal_accepted_hrr_kw",
         "phase3_shadow_fire_proposal_zero_o2_flame_flag",
     ]:

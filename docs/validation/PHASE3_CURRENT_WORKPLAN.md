@@ -1097,13 +1097,23 @@ Runtime authority and Group C retirement remain NO-GO. Seven explicit fuel
 objects still require synchronization and the product bundle is not yet
 routed into canonical zone state or the F3.3t plume.
 
-The next gate is F3.3v2b: default-OFF atomic shadow routing of aggregate fuel,
-O2, species, energy and the existing plume driver. It must remain free of live
-`RoomModel`/fuel-object writes. F3.3v3 180/300/600 correspondence starts only
-after that route closes. Do not force HRR, tune a corridor coefficient, alter
-official reports or touch HVAC. Binding records:
+F3.3v2b/v2c now close atomic routing and the persistent explicit-object fuel
+ledger. F3.3v2d attributed the 180 s fuel difference to the second canonical
+HRR filter. F3.3v3a removes that filter under a default-OFF flag and closes
+fuel correspondence to `0.00000248 MJ`, but the mandatory 180 s temperature
+improves by only `0.162 C` and still fails.
+
+The next gate is F3.3v3b: diagnose R0 early zone-mass/interface partition.
+At 180 s the canonical candidate has about `3.96 kg` excess total gas, too
+much lower mass and too little upper mass. Attribute that error among opening
+net mass, plume transfer, pressure/boundary exchange and EOS projection.
+Do not force HRR, tune a corridor coefficient, alter official reports or
+touch HVAC. Binding records:
 `PHASE3_F33T_COUPLED_PLUME_EXPERIMENT.md`,
 `PHASE3_F33U_EXTENDED_STABILITY.md` and
 `PHASE3_F33V_CANONICAL_FIRE_PROPOSAL_DESIGN.md`,
 `PHASE3_F33V1_FIRE_PROPOSAL_EXPERIMENT.md`,
-`PHASE3_F33V2_FIRE_PRODUCTS_EXPERIMENT.md`.
+`PHASE3_F33V2_FIRE_PRODUCTS_EXPERIMENT.md`,
+`PHASE3_F33V2C2_FUEL_OBJECT_SYNC_EXPERIMENT.md`,
+`PHASE3_F33V2D_FUEL_CORRESPONDENCE_DIAGNOSIS.md` and
+`PHASE3_F33V3A_UNFILTERED_GROWTH_EXPERIMENT.md`.

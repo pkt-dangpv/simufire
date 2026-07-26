@@ -680,6 +680,7 @@ func _phase3_fire_proposal_fields() -> Array[String]:
 		"phase3_shadow_fire_proposal_curve_hrr_kw",
 		"phase3_shadow_fire_proposal_target_kw",
 		"phase3_shadow_fire_proposal_hrr_kw",
+		"phase3_shadow_fire_proposal_unfiltered_growth_flag",
 		"phase3_shadow_fire_proposal_remaining_fuel_pre_MJ",
 		"phase3_shadow_fire_proposal_remaining_fuel_post_MJ",
 		"phase3_shadow_fire_proposal_hard_extinction_flag",

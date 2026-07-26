@@ -1004,6 +1004,8 @@ var _step_time_us: int = 0
 @export var phase3_coupled_plume_shadow_enabled: bool = false
 ## F3.3v1: propuesta HRR pre-throttle, pura y solo diagnostica. Default OFF.
 @export var phase3_canonical_fire_proposal_shadow_enabled: bool = false
+## F3.3v3a: usa la curva t2 sin un segundo filtro HRR. Solo shadow.
+@export var phase3_canonical_unfiltered_fire_growth_shadow_enabled: bool = false
 ## F3.3v2: productos puros de la propuesta aceptada. Default OFF.
 @export var phase3_canonical_fire_products_shadow_enabled: bool = false
 ## F3.3v2b: enruta esos productos por la transaccion canonica persistente.
@@ -2210,6 +2212,9 @@ func _build_state_context() -> Dictionary:
 				phase3_coupled_plume_shadow_enabled,
 		"phase3_canonical_fire_proposal_shadow_enabled": \
 				phase3_canonical_fire_proposal_shadow_enabled,
+		"phase3_canonical_unfiltered_fire_growth_shadow_enabled": \
+				phase3_canonical_fire_proposal_shadow_enabled \
+				and phase3_canonical_unfiltered_fire_growth_shadow_enabled,
 		"phase3_canonical_fire_products_shadow_enabled": \
 				phase3_canonical_fire_products_shadow_enabled,
 		"phase3_canonical_fire_products_routing_shadow_enabled": \
@@ -2835,6 +2840,9 @@ func _build_room_combustion_context(room_id: int) -> Dictionary:
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"phase3_canonical_fire_proposal_shadow_enabled": \
 				phase3_canonical_fire_proposal_shadow_enabled,
+		"phase3_canonical_unfiltered_fire_growth_shadow_enabled": \
+				phase3_canonical_fire_proposal_shadow_enabled \
+				and phase3_canonical_unfiltered_fire_growth_shadow_enabled,
 		"phase3_canonical_fire_products_shadow_enabled": \
 				phase3_canonical_fire_products_shadow_enabled,
 		"phase3_canonical_fire_products_routing_shadow_enabled": \

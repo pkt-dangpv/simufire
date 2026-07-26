@@ -23,6 +23,10 @@ All notable changes to SimuFire should be recorded here.
   an allocator failure: legacy object inventory follows ideal solid
   pyrolysis while canonical products follow smoothed accepted HRR. The next
   design must split pyrolysis debit from combusted-fuel equivalent.
+- F3.3v3a added a default-OFF direct t-squared proposal experiment. It closes
+  the 180 s object-fuel difference to 0.00000248 MJ with zero internal
+  residuals, but improves R0 upper temperature by only 0.162 C. The remaining
+  owner is early zone-mass/interface partition, not fire-source energy.
 
 ### Phase 3+ F3.3v2b canonical fire-products routing (2026-07-26)
 

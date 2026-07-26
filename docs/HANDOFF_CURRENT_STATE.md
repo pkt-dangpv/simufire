@@ -8,6 +8,24 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-26 - F3.3v3a source GO / physics NO-GO
+
+- Added default-OFF
+  `phase3_canonical_unfiltered_fire_growth_shadow_enabled`.
+- In the complete 180 s Group C stack it removes the second proposal HRR
+  filter and closes the live/canonical object-fuel difference from
+  `0.58758433 MJ` to `0.00000248 MJ`; all internal residuals remain zero and
+  all 115 live columns remain identical.
+- The thermal effect is only `+0.162 C`; R0 upper temperature remains below
+  its required lower bound (`140.03 C` vs `144.816 C`).
+- No 300/600 s unfiltered run was made because the 180 s STOP did not pass.
+- Revised owner: R0 has about `3.96 kg` excess total gas, too much lower mass,
+  too little upper mass and an interface about `0.21 m` too high.
+- Decision: fuel-source correspondence GO; runtime authority and Group C
+  retirement NO-GO. Next is F3.3v3b early mass/interface attribution.
+- Binding record:
+  `docs/validation/PHASE3_F33V3A_UNFILTERED_GROWTH_EXPERIMENT.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v2d correspondence diagnosis
 
 - The `0.58758433 MJ` live/canonical fuel difference is not caused by the

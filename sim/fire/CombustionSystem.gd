@@ -63,6 +63,7 @@ func evaluate_phase3_canonical_fire_proposal(
 		"curve_hrr_kw": 0.0,
 		"proposal_target_kw": 0.0,
 		"proposal_hrr_kw": 0.0,
+		"unfiltered_growth_flag": 0.0,
 		"remaining_fuel_pre_MJ": maxf(
 			0.0, float(state_before.get("proposal_remaining_fuel_MJ", 0.0))
 		),
@@ -166,6 +167,13 @@ func evaluate_phase3_canonical_fire_proposal(
 		float(context.get("fire_hrr_rise_tau_s", 6.0)),
 		float(context.get("fire_hrr_fall_tau_s", 20.0))
 	)
+	var unfiltered_growth: bool = bool(
+		context.get(
+			"phase3_canonical_unfiltered_fire_growth_shadow_enabled", false
+		)
+	)
+	if unfiltered_growth:
+		proposal_hrr_kw = proposal_target_kw
 
 	var o2_rate_kg_per_MJ: float = maxf(
 		0.0, float(state_before.get("o2_consumption_kg_per_MJ", 0.076))
@@ -211,6 +219,7 @@ func evaluate_phase3_canonical_fire_proposal(
 		"curve_hrr_kw": curve_hrr_kw,
 		"proposal_target_kw": proposal_target_kw,
 		"proposal_hrr_kw": proposal_hrr_kw,
+		"unfiltered_growth_flag": 1.0 if unfiltered_growth else 0.0,
 		"remaining_fuel_pre_MJ": remaining_fuel_MJ,
 		"remaining_fuel_post_MJ": remaining_post_MJ,
 		"hard_extinction_flag": 1.0 if hard_extinguished else 0.0,
