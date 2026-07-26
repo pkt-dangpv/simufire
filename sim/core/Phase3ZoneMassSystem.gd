@@ -3014,6 +3014,191 @@ func preview_canonical_interior_pressure_flow(
 	return result
 
 
+## F3.3v3f0: recompone el counterflow existente con el neto de presion sin
+## aumentar la masa bruta. Es una funcion pura; no registra ni aplica rutas.
+func preview_fixed_gross_interior_pressure_skew(
+		opening_routes: Array,
+		pressure_routes: Array
+	) -> Dictionary:
+	var result: Dictionary = {
+		"valid": false,
+		"invalid_flag": 0.0,
+		"opening_gross_mass_kg": 0.0,
+		"preview_gross_mass_kg": 0.0,
+		"pressure_net_mass_kg": 0.0,
+		"accepted_pressure_net_mass_kg": 0.0,
+		"opening_net_enthalpy_kj": 0.0,
+		"preview_net_enthalpy_kj": 0.0,
+		"cap_count": 0.0,
+		"mass_residual_kg": 0.0,
+		"energy_residual_kj": 0.0,
+		"o2_residual_kg": 0.0,
+		"species_residual_kg": 0.0,
+		"routes": [],
+		"connections": [],
+	}
+	var groups: Dictionary = {}
+	for raw_route in opening_routes:
+		var route: Dictionary = raw_route
+		if not bool(route.get("valid", false)):
+			result["invalid_flag"] = 1.0
+			return result
+		var connection_id: String = String(route.get("connection_id", ""))
+		var source_id: int = int(route.get("source_room_id", EXTERIOR_ID))
+		var destination_id: int = int(
+			route.get("destination_room_id", EXTERIOR_ID)
+		)
+		if connection_id.is_empty() or source_id == EXTERIOR_ID \
+				or destination_id == EXTERIOR_ID or source_id == destination_id:
+			result["invalid_flag"] = 1.0
+			return result
+		if not groups.has(connection_id):
+			groups[connection_id] = {
+				"low_room_id": mini(source_id, destination_id),
+				"high_room_id": maxi(source_id, destination_id),
+				"opening_routes": [],
+				"pressure_routes": [],
+			}
+		groups[connection_id]["opening_routes"].append(route)
+	for raw_route in pressure_routes:
+		var route: Dictionary = raw_route
+		if not bool(route.get("valid", false)):
+			result["invalid_flag"] = 1.0
+			return result
+		var connection_id: String = String(route.get("connection_id", ""))
+		if not groups.has(connection_id):
+			result["invalid_flag"] = 1.0
+			return result
+		groups[connection_id]["pressure_routes"].append(route)
+
+	var preview_routes: Array[Dictionary] = []
+	var connections: Array[Dictionary] = []
+	for raw_connection_id in groups.keys():
+		var connection_id: String = String(raw_connection_id)
+		var group: Dictionary = groups[connection_id]
+		var low_room_id: int = int(group["low_room_id"])
+		var high_room_id: int = int(group["high_room_id"])
+		var low_to_high_kg: float = 0.0
+		var high_to_low_kg: float = 0.0
+		var pressure_low_to_high_kg: float = 0.0
+		var pressure_high_to_low_kg: float = 0.0
+		for raw_route in group["opening_routes"]:
+			var route: Dictionary = raw_route
+			var route_mass_kg: float = maxf(
+				0.0, float(route.get("gas_mass_kg", 0.0))
+			)
+			if int(route.get("source_room_id", EXTERIOR_ID)) == low_room_id:
+				low_to_high_kg += route_mass_kg
+			else:
+				high_to_low_kg += route_mass_kg
+		for raw_route in group["pressure_routes"]:
+			var route: Dictionary = raw_route
+			var route_mass_kg: float = maxf(
+				0.0, float(route.get("gas_mass_kg", 0.0))
+			)
+			if int(route.get("source_room_id", EXTERIOR_ID)) == low_room_id:
+				pressure_low_to_high_kg += route_mass_kg
+			else:
+				pressure_high_to_low_kg += route_mass_kg
+		var pressure_net_kg: float = pressure_low_to_high_kg \
+				- pressure_high_to_low_kg
+		var requested_half_skew_kg: float = 0.5 * pressure_net_kg
+		var accepted_half_skew_kg: float = clampf(
+			requested_half_skew_kg, -low_to_high_kg, high_to_low_kg
+		)
+		if absf(accepted_half_skew_kg - requested_half_skew_kg) > 1.0e-12:
+			result["cap_count"] = float(result["cap_count"]) + 1.0
+		var target_low_to_high_kg: float = low_to_high_kg \
+				+ accepted_half_skew_kg
+		var target_high_to_low_kg: float = high_to_low_kg \
+				- accepted_half_skew_kg
+		if (low_to_high_kg <= THERMO_MASS_EPS_KG \
+				and target_low_to_high_kg > THERMO_MASS_EPS_KG) \
+				or (high_to_low_kg <= THERMO_MASS_EPS_KG \
+				and target_high_to_low_kg > THERMO_MASS_EPS_KG):
+			result["invalid_flag"] = 1.0
+			return result
+		var low_scale: float = target_low_to_high_kg \
+				/ maxf(THERMO_MASS_EPS_KG, low_to_high_kg)
+		var high_scale: float = target_high_to_low_kg \
+				/ maxf(THERMO_MASS_EPS_KG, high_to_low_kg)
+		for raw_route in group["opening_routes"]:
+			var route: Dictionary = raw_route
+			var route_scale: float = low_scale \
+					if int(route.get("source_room_id", EXTERIOR_ID)) == low_room_id \
+					else high_scale
+			var scaled_route: Dictionary = route.duplicate(true)
+			for quantity_name in [
+				"gas_mass_kg", "sensible_enthalpy_kj", "o2_kg"
+			]:
+				scaled_route[quantity_name] = maxf(
+					0.0, float(route.get(quantity_name, 0.0)) * route_scale
+				)
+			var scaled_species: Dictionary = {}
+			for species_name in PARCEL_SPECIES:
+				scaled_species[species_name] = maxf(
+					0.0,
+					float(route.get("species_kg", {}).get(species_name, 0.0))
+							* route_scale
+				)
+			scaled_route["species_kg"] = scaled_species
+			scaled_route["cause"] = "canonical_interior_fixed_gross_preview"
+			preview_routes.append(scaled_route)
+		connections.append({
+			"connection_id": connection_id,
+			"low_room_id": low_room_id,
+			"high_room_id": high_room_id,
+			"opening_low_to_high_kg": low_to_high_kg,
+			"opening_high_to_low_kg": high_to_low_kg,
+			"pressure_net_low_to_high_kg": pressure_net_kg,
+			"accepted_pressure_net_low_to_high_kg": \
+					2.0 * accepted_half_skew_kg,
+			"preview_low_to_high_kg": target_low_to_high_kg,
+			"preview_high_to_low_kg": target_high_to_low_kg,
+		})
+		result["opening_gross_mass_kg"] = float(
+			result["opening_gross_mass_kg"]
+		) + low_to_high_kg + high_to_low_kg
+		result["preview_gross_mass_kg"] = float(
+			result["preview_gross_mass_kg"]
+		) + target_low_to_high_kg + target_high_to_low_kg
+		result["pressure_net_mass_kg"] = float(
+			result["pressure_net_mass_kg"]
+		) + pressure_net_kg
+		result["accepted_pressure_net_mass_kg"] = float(
+			result["accepted_pressure_net_mass_kg"]
+		) + 2.0 * accepted_half_skew_kg
+
+	for route in opening_routes:
+		var direction: float = 1.0 \
+				if int(route.get("source_room_id", EXTERIOR_ID)) \
+						< int(route.get("destination_room_id", EXTERIOR_ID)) \
+				else -1.0
+		result["opening_net_enthalpy_kj"] = float(
+			result["opening_net_enthalpy_kj"]
+		) + direction * float(route.get("sensible_enthalpy_kj", 0.0))
+	for route in preview_routes:
+		var direction: float = 1.0 \
+				if int(route.get("source_room_id", EXTERIOR_ID)) \
+						< int(route.get("destination_room_id", EXTERIOR_ID)) \
+				else -1.0
+		result["preview_net_enthalpy_kj"] = float(
+			result["preview_net_enthalpy_kj"]
+		) + direction * float(route.get("sensible_enthalpy_kj", 0.0))
+	var opening_gross_kg: float = float(result["opening_gross_mass_kg"])
+	var preview_gross_kg: float = float(result["preview_gross_mass_kg"])
+	result["mass_residual_kg"] = preview_gross_kg - opening_gross_kg
+	# Every preview route is still an atomic source debit/destination credit.
+	# These global residuals are therefore identically zero by construction.
+	result["energy_residual_kj"] = 0.0
+	result["o2_residual_kg"] = 0.0
+	result["species_residual_kg"] = 0.0
+	result["routes"] = preview_routes
+	result["connections"] = connections
+	result["valid"] = absf(float(result["mass_residual_kg"])) <= 1.0e-9
+	return result
+
+
 ## One scalar keeps the explicit signed network from reversing any connected
 ## canonical pressure difference after the already-requested F3.3a gross
 ## exchange. The EOS pressure response is linear in gas mass and energy.
