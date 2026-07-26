@@ -961,11 +961,39 @@ Diagnostic / planned lanes:
 | Plan B CO2 tracer/OES | Pending motor plan. Root cause: `o2_scale` double-throttle in OES tracer CO2; do not change without FED impact validation. |
 | HCN / D3-D5 toxic gas checks | Pending future instrumentation/rule design. |
 
-## 16. Current Priority Order
+## 16. Current Priority Order (2026-07-26)
 
 1. Keep guardrails, physics coherence and ILV at 0 FAIL.
-2. Commit/retain passive F2.2a pressure diagnostics and the canonical architecture document.
-3. Implement F3.0 shadow canonical two-zone state, default OFF, with no legacy physics changes.
-4. Use F3.0 residuals to decide the first authoritative canonical slice.
-5. Only after shadow residuals close, promote a tiny opt-in authoritative path.
-6. Expand the CFAST/reference scenario battery after the canonical transaction has stable ownership semantics.
+2. Retain F3.3v3f1 as passive, default-OFF telemetry. It preserves gross
+   doorway flow and matches CFAST net enthalpy, but is not authoritative.
+3. Diagnose the 79 R0 directional cap events: time, requested pressure net
+   and available base counterflow.
+4. Design F3.3v3f2 as a combined slab pressure/buoyancy preview. Do not add a
+   second gross route and do not promote the current post-hoc skew directly.
+5. Stop again at 180 s. Require fixed gross mass, atomic payload closure,
+   OFF invariance and improved directional net mass without losing enthalpy
+   correspondence.
+6. Only after that STOP gate consider a tiny opt-in authoritative replacement
+   of the additive pressure route.
+7. Group A and Group C remain VALID_GAP until an authoritative canonical
+   slice passes required checks without tolerance or baseline relaxation.
+
+## 17. Phase 3+ Doorway Transport Checkpoint (2026-07-26)
+
+| Phase | Result | Decision |
+|---|---|---|
+| F3.3v3d | Pressure inventory closes; sign reversal is upstream of pressure route | Pressure tuning NO-GO |
+| F3.3v3e | Opening-only enthalpy matches CFAST; pressure route adds churn | Fixed-gross architecture selected |
+| F3.3v3f0 | Pure atomic fixed-gross skew primitive | Runtime-tested, dormant |
+| F3.3v3f1 | Opt-in runtime preview, 21 CSV fields, exact OFF no-op | Shadow GO, authority NO-GO |
+
+F3.3v3f1 measured at 180 s:
+
+- gross mass error: `-1.57%`;
+- net enthalpy error: `+0.32%`;
+- net mass error: `-55.49%`;
+- R0 cap count: `79`;
+- mass/energy/O2/species residuals: `0`.
+
+The current hard rule is: pressure may bias the bidirectional opening field,
+but may not create an independent gross transport path.

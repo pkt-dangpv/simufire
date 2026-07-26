@@ -159,6 +159,8 @@ var _canonical_exterior_boundary_context: Dictionary = {}
 var _canonical_exterior_counterflow_by_room: Dictionary = {}
 var _canonical_exterior_counterflow_cumulative_kg: Dictionary = {}
 var _canonical_interior_opening_by_room: Dictionary = {}
+var _canonical_fixed_gross_pressure_skew_by_room: Dictionary = {}
+var _canonical_fixed_gross_pressure_skew_cumulative_by_room: Dictionary = {}
 var _persistent_zone_state: Dictionary = {}
 var _persistent_step_index: int = 0
 var _persistent_combustion_state: Dictionary = {}
@@ -230,6 +232,7 @@ func reset() -> void:
 	_persistent_lower_reseed_by_room.clear()
 	_canonical_interzone_heat_cumulative_kj.clear()
 	_canonical_exterior_counterflow_cumulative_kg.clear()
+	_canonical_fixed_gross_pressure_skew_cumulative_by_room.clear()
 	_canonical_wall_state_by_room.clear()
 	_canonical_wall_ambient_cumulative_by_room.clear()
 	_canonical_surface_state_by_room.clear()
@@ -334,6 +337,7 @@ func _reset_step_state() -> void:
 	_canonical_exterior_boundary_context.clear()
 	_canonical_exterior_counterflow_by_room.clear()
 	_canonical_interior_opening_by_room.clear()
+	_canonical_fixed_gross_pressure_skew_by_room.clear()
 	_persistence_enabled_step = false
 	_persistence_seeded_by_room.clear()
 	_persistence_continuity_by_room.clear()
@@ -357,6 +361,7 @@ func begin_step(building, persistence_enabled: bool = false) -> void:
 		_persistent_combustion_state.clear()
 		_persistent_lower_reseed_by_room.clear()
 		_canonical_exterior_counterflow_cumulative_kg.clear()
+		_canonical_fixed_gross_pressure_skew_cumulative_by_room.clear()
 		_canonical_wall_state_by_room.clear()
 		_canonical_wall_ambient_cumulative_by_room.clear()
 		_canonical_surface_state_by_room.clear()
@@ -3106,7 +3111,10 @@ func preview_fixed_gross_interior_pressure_skew(
 		var accepted_half_skew_kg: float = clampf(
 			requested_half_skew_kg, -low_to_high_kg, high_to_low_kg
 		)
-		if absf(accepted_half_skew_kg - requested_half_skew_kg) > 1.0e-12:
+		var connection_capped: bool = absf(
+			accepted_half_skew_kg - requested_half_skew_kg
+		) > 1.0e-12
+		if connection_capped:
 			result["cap_count"] = float(result["cap_count"]) + 1.0
 		var target_low_to_high_kg: float = low_to_high_kg \
 				+ accepted_half_skew_kg
@@ -3155,6 +3163,7 @@ func preview_fixed_gross_interior_pressure_skew(
 					2.0 * accepted_half_skew_kg,
 			"preview_low_to_high_kg": target_low_to_high_kg,
 			"preview_high_to_low_kg": target_high_to_low_kg,
+			"capped_flag": 1.0 if connection_capped else 0.0,
 		})
 		result["opening_gross_mass_kg"] = float(
 			result["opening_gross_mass_kg"]
@@ -3846,7 +3855,8 @@ func queue_canonical_interior_opening_requests(
 		signed_pressure_enabled: bool = false,
 		source_preserving_destination_enabled: bool = false,
 		doorway_jet_entrainment_enabled: bool = false,
-		buoyancy_destination_enabled: bool = false
+		buoyancy_destination_enabled: bool = false,
+		fixed_gross_pressure_skew_preview_enabled: bool = false
 	) -> void:
 	if building == null or dt <= 0.0 or discharge_coeff <= 0.0:
 		return
@@ -4108,6 +4118,14 @@ func queue_canonical_interior_opening_requests(
 		pressure_limited_delta_by_room = _canonical_route_pressure_delta_by_room(
 			pressure_routes, building, reference_temp_c
 		)
+		if fixed_gross_pressure_skew_preview_enabled:
+			var fixed_gross_preview: Dictionary = \
+					preview_fixed_gross_interior_pressure_skew(
+						network_routes, pressure_routes
+					)
+			_record_fixed_gross_interior_pressure_skew_preview(
+				fixed_gross_preview, network_routes, pressure_routes
+			)
 		for raw_pressure_route in pressure_routes_raw:
 			_accumulate_canonical_atomic_route_totals(
 				pressure_room_totals_raw, raw_pressure_route
@@ -4489,6 +4507,153 @@ func _new_canonical_interior_opening_record() -> Dictionary:
 		"pressure_o2_residual_kg": 0.0,
 		"pressure_species_residual_kg": 0.0,
 	}
+
+
+func _new_fixed_gross_pressure_skew_record() -> Dictionary:
+	return {
+		"enabled_flag": 0.0,
+		"valid_flag": 0.0,
+		"connection_count": 0.0,
+		"cap_count": 0.0,
+		"opening_out_mass_kg": 0.0,
+		"opening_in_mass_kg": 0.0,
+		"preview_out_mass_kg": 0.0,
+		"preview_in_mass_kg": 0.0,
+		"pressure_requested_net_out_kg": 0.0,
+		"pressure_accepted_net_out_kg": 0.0,
+		"preview_net_mass_out_kg": 0.0,
+		"preview_net_enthalpy_out_kj": 0.0,
+		"mass_residual_kg": 0.0,
+		"energy_residual_kj": 0.0,
+		"o2_residual_kg": 0.0,
+		"species_residual_kg": 0.0,
+	}
+
+
+func _fixed_gross_route_totals_by_room(routes: Array) -> Dictionary:
+	var totals: Dictionary = {}
+	for raw_route in routes:
+		var route: Dictionary = raw_route
+		var source_key: String = str(int(route.get("source_room_id", EXTERIOR_ID)))
+		var destination_key: String = str(
+			int(route.get("destination_room_id", EXTERIOR_ID))
+		)
+		if source_key == str(EXTERIOR_ID) or destination_key == str(EXTERIOR_ID):
+			continue
+		var gas_kg: float = maxf(0.0, float(route.get("gas_mass_kg", 0.0)))
+		var energy_kj: float = maxf(
+			0.0, float(route.get("sensible_enthalpy_kj", 0.0))
+		)
+		for room_key in [source_key, destination_key]:
+			if not totals.has(room_key):
+				totals[room_key] = {
+					"out_mass_kg": 0.0,
+					"in_mass_kg": 0.0,
+					"out_energy_kj": 0.0,
+					"in_energy_kj": 0.0,
+				}
+		totals[source_key]["out_mass_kg"] = float(
+			totals[source_key]["out_mass_kg"]
+		) + gas_kg
+		totals[source_key]["out_energy_kj"] = float(
+			totals[source_key]["out_energy_kj"]
+		) + energy_kj
+		totals[destination_key]["in_mass_kg"] = float(
+			totals[destination_key]["in_mass_kg"]
+		) + gas_kg
+		totals[destination_key]["in_energy_kj"] = float(
+			totals[destination_key]["in_energy_kj"]
+		) + energy_kj
+	return totals
+
+
+func _record_fixed_gross_interior_pressure_skew_preview(
+		preview: Dictionary,
+		opening_routes: Array,
+		pressure_routes: Array
+	) -> void:
+	var opening_totals: Dictionary = _fixed_gross_route_totals_by_room(opening_routes)
+	var pressure_totals: Dictionary = _fixed_gross_route_totals_by_room(pressure_routes)
+	var preview_totals: Dictionary = _fixed_gross_route_totals_by_room(
+		preview.get("routes", [])
+	)
+	var connection_counts: Dictionary = {}
+	var connection_cap_counts: Dictionary = {}
+	for raw_connection in preview.get("connections", []):
+		var connection: Dictionary = raw_connection
+		for room_id in [
+			int(connection.get("low_room_id", EXTERIOR_ID)),
+			int(connection.get("high_room_id", EXTERIOR_ID)),
+		]:
+			if room_id == EXTERIOR_ID:
+				continue
+			var room_key: String = str(room_id)
+			connection_counts[room_key] = float(
+				connection_counts.get(room_key, 0.0)
+			) + 1.0
+			connection_cap_counts[room_key] = float(
+				connection_cap_counts.get(room_key, 0.0)
+			) + float(connection.get("capped_flag", 0.0))
+	var room_keys: Dictionary = {}
+	for source in [opening_totals, pressure_totals, preview_totals]:
+		for room_key in source.keys():
+			room_keys[room_key] = true
+	for room_key in room_keys.keys():
+		var opening: Dictionary = opening_totals.get(room_key, {})
+		var pressure: Dictionary = pressure_totals.get(room_key, {})
+		var fixed_gross: Dictionary = preview_totals.get(room_key, {})
+		var opening_net_out_kg: float = float(
+			opening.get("out_mass_kg", 0.0)
+		) - float(opening.get("in_mass_kg", 0.0))
+		var preview_net_out_kg: float = float(
+			fixed_gross.get("out_mass_kg", 0.0)
+		) - float(fixed_gross.get("in_mass_kg", 0.0))
+		var record: Dictionary = _new_fixed_gross_pressure_skew_record()
+		record["enabled_flag"] = 1.0
+		record["valid_flag"] = 1.0 if bool(preview.get("valid", false)) else 0.0
+		record["connection_count"] = float(connection_counts.get(room_key, 0.0))
+		record["cap_count"] = float(connection_cap_counts.get(room_key, 0.0))
+		record["opening_out_mass_kg"] = float(opening.get("out_mass_kg", 0.0))
+		record["opening_in_mass_kg"] = float(opening.get("in_mass_kg", 0.0))
+		record["preview_out_mass_kg"] = float(fixed_gross.get("out_mass_kg", 0.0))
+		record["preview_in_mass_kg"] = float(fixed_gross.get("in_mass_kg", 0.0))
+		record["pressure_requested_net_out_kg"] = float(
+			pressure.get("out_mass_kg", 0.0)
+		) - float(pressure.get("in_mass_kg", 0.0))
+		record["pressure_accepted_net_out_kg"] = \
+				preview_net_out_kg - opening_net_out_kg
+		record["preview_net_mass_out_kg"] = preview_net_out_kg
+		record["preview_net_enthalpy_out_kj"] = float(
+			fixed_gross.get("out_energy_kj", 0.0)
+		) - float(fixed_gross.get("in_energy_kj", 0.0))
+		for quantity in ["mass", "energy", "o2", "species"]:
+			var suffix: String = "kg" if quantity != "energy" else "kj"
+			record["%s_residual_%s" % [quantity, suffix]] = float(
+				preview.get("%s_residual_%s" % [quantity, suffix], 0.0)
+			)
+		_canonical_fixed_gross_pressure_skew_by_room[room_key] = record
+		var cumulative: Dictionary = _canonical_fixed_gross_pressure_skew_cumulative_by_room.get(
+			room_key,
+			{
+				"out_mass_kg": 0.0,
+				"in_mass_kg": 0.0,
+				"net_mass_out_kg": 0.0,
+				"net_enthalpy_out_kj": 0.0,
+				"cap_count": 0.0,
+			}
+		).duplicate(true)
+		cumulative["out_mass_kg"] = float(cumulative["out_mass_kg"]) \
+				+ float(record["preview_out_mass_kg"])
+		cumulative["in_mass_kg"] = float(cumulative["in_mass_kg"]) \
+				+ float(record["preview_in_mass_kg"])
+		cumulative["net_mass_out_kg"] = float(cumulative["net_mass_out_kg"]) \
+				+ preview_net_out_kg
+		cumulative["net_enthalpy_out_kj"] = float(
+			cumulative["net_enthalpy_out_kj"]
+		) + float(record["preview_net_enthalpy_out_kj"])
+		cumulative["cap_count"] = float(cumulative["cap_count"]) \
+				+ float(record["cap_count"])
+		_canonical_fixed_gross_pressure_skew_cumulative_by_room[room_key] = cumulative
 
 
 ## F3.2a: registra el contrato exterior del paso. El bundle se resuelve solo
@@ -6751,6 +6916,14 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 		var interior_opening: Dictionary = _canonical_interior_opening_by_room.get(
 			room_key, _new_canonical_interior_opening_record()
 		)
+		var fixed_gross_pressure_skew: Dictionary = \
+				_canonical_fixed_gross_pressure_skew_by_room.get(
+					room_key, _new_fixed_gross_pressure_skew_record()
+				)
+		var fixed_gross_pressure_skew_cumulative: Dictionary = \
+				_canonical_fixed_gross_pressure_skew_cumulative_by_room.get(
+					room_key, {}
+				)
 		var lower_reseed_history: Dictionary = _persistent_lower_reseed_by_room.get(
 			room_key,
 			{"count": 0.0, "mass_kg": 0.0, "first_step_index": 0.0}
@@ -7495,6 +7668,79 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			),
 			"phase3_shadow_interior_pressure_species_residual_kg": float(
 				interior_opening.get("pressure_species_residual_kg", 0.0)
+			),
+			"phase3_shadow_fixed_gross_enabled_flag": float(
+				fixed_gross_pressure_skew.get("enabled_flag", 0.0)
+			),
+			"phase3_shadow_fixed_gross_valid_flag": float(
+				fixed_gross_pressure_skew.get("valid_flag", 0.0)
+			),
+			"phase3_shadow_fixed_gross_connection_count_step": float(
+				fixed_gross_pressure_skew.get("connection_count", 0.0)
+			),
+			"phase3_shadow_fixed_gross_cap_count_step": float(
+				fixed_gross_pressure_skew.get("cap_count", 0.0)
+			),
+			"phase3_shadow_fixed_gross_opening_out_mass_kg_step": float(
+				fixed_gross_pressure_skew.get("opening_out_mass_kg", 0.0)
+			),
+			"phase3_shadow_fixed_gross_opening_in_mass_kg_step": float(
+				fixed_gross_pressure_skew.get("opening_in_mass_kg", 0.0)
+			),
+			"phase3_shadow_fixed_gross_preview_out_mass_kg_step": float(
+				fixed_gross_pressure_skew.get("preview_out_mass_kg", 0.0)
+			),
+			"phase3_shadow_fixed_gross_preview_in_mass_kg_step": float(
+				fixed_gross_pressure_skew.get("preview_in_mass_kg", 0.0)
+			),
+			"phase3_shadow_fixed_gross_pressure_requested_net_out_kg_step": float(
+				fixed_gross_pressure_skew.get(
+					"pressure_requested_net_out_kg", 0.0
+				)
+			),
+			"phase3_shadow_fixed_gross_pressure_accepted_net_out_kg_step": float(
+				fixed_gross_pressure_skew.get(
+					"pressure_accepted_net_out_kg", 0.0
+				)
+			),
+			"phase3_shadow_fixed_gross_preview_net_mass_out_kg_step": float(
+				fixed_gross_pressure_skew.get("preview_net_mass_out_kg", 0.0)
+			),
+			"phase3_shadow_fixed_gross_preview_net_enthalpy_out_kj_step": float(
+				fixed_gross_pressure_skew.get(
+					"preview_net_enthalpy_out_kj", 0.0
+				)
+			),
+			"phase3_shadow_fixed_gross_preview_out_mass_kg_total": float(
+				fixed_gross_pressure_skew_cumulative.get("out_mass_kg", 0.0)
+			),
+			"phase3_shadow_fixed_gross_preview_in_mass_kg_total": float(
+				fixed_gross_pressure_skew_cumulative.get("in_mass_kg", 0.0)
+			),
+			"phase3_shadow_fixed_gross_preview_net_mass_out_kg_total": float(
+				fixed_gross_pressure_skew_cumulative.get(
+					"net_mass_out_kg", 0.0
+				)
+			),
+			"phase3_shadow_fixed_gross_preview_net_enthalpy_out_kj_total": float(
+				fixed_gross_pressure_skew_cumulative.get(
+					"net_enthalpy_out_kj", 0.0
+				)
+			),
+			"phase3_shadow_fixed_gross_cap_count_total": float(
+				fixed_gross_pressure_skew_cumulative.get("cap_count", 0.0)
+			),
+			"phase3_shadow_fixed_gross_mass_residual_kg": float(
+				fixed_gross_pressure_skew.get("mass_residual_kg", 0.0)
+			),
+			"phase3_shadow_fixed_gross_energy_residual_kj": float(
+				fixed_gross_pressure_skew.get("energy_residual_kj", 0.0)
+			),
+			"phase3_shadow_fixed_gross_o2_residual_kg": float(
+				fixed_gross_pressure_skew.get("o2_residual_kg", 0.0)
+			),
+			"phase3_shadow_fixed_gross_species_residual_kg": float(
+				fixed_gross_pressure_skew.get("species_residual_kg", 0.0)
 			),
 			"phase3_shadow_request_count": _count_room_requests(room_id),
 			"phase3_shadow_interzone_legacy_requested_kj": float(

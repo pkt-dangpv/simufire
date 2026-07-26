@@ -8,6 +8,44 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-26 - F3.3v3f1 shadow GO
+
+- Added default-OFF
+  `phase3_canonical_fixed_gross_pressure_skew_shadow_enabled`.
+- The runtime now calls the pure F3.3v3f0 primitive after interior-pressure
+  relaxation and before the current additive pressure routes are appended.
+  The returned routes are telemetry only: they never enter a bundle,
+  transaction, residence ledger or physical state.
+- Added 21 opt-in CSV columns plus
+  `scripts/simulation/analyze_phase3_f33v3f1_fixed_gross_shadow.py`.
+- OFF/ON proof at 180 s: 114/114 rows, 807 shared columns and zero shared
+  value differences. Mass, energy, O2 and species residuals are all zero.
+- Verification before the implementation commit: focused tests 14/14 PASS;
+  full `pytest tests` 1326 PASS / 18 FAIL (17 historic plus the expected
+  dirty-motor R2-1); Physics 9/15/5/0; ILV 15/14/0; gap inventory synchronized.
+  Do not run bare `pytest` at repo root because it collects inaccessible
+  historical temp directories under `runs/`.
+- R0 doorway at 180 s:
+  - gross mass `143.875 kg` vs CFAST `146.174 kg` (-1.57%);
+  - net enthalpy `6321.966 kJ` vs CFAST `6301.709 kJ` (+0.32%);
+  - net mass `3.245 kg` vs CFAST `7.290 kg` (-55.49%);
+  - 79 directional cap events.
+- Decision: preview/architecture GO, runtime authority NO-GO. F3.3v3f2 must
+  diagnose cap timing and evaluate a combined slab pressure/buoyancy solve;
+  do not directly promote the current post-hoc skew.
+- Current validation inventory is `347/353` required PASS plus 6 documented
+  VALID_GAP: Group A x3 and Group C x3. The third Group C check was added by
+  the earlier F3.3l topology-equivalence checkpoint; older historical sections
+  below that say `348/353` or 5 VALID_GAP are retained as dated records.
+- Central precursor chain:
+  - F3.3v3d closed pressure inventory and rejected pressure tuning;
+  - F3.3v3e identified the additive pressure route as the doorway energy
+    error owner;
+  - F3.3v3f0 added the pure dormant fixed-gross primitive;
+  - F3.3v3f1 wires it as passive runtime telemetry.
+- Binding record:
+  `docs/validation/PHASE3_F33V3F1_FIXED_GROSS_SHADOW.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v3c leakage owner closed
 
 - Added read-only

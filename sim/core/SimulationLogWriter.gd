@@ -38,6 +38,7 @@ var phase3_canonical_exterior_counterflow_shadow_enabled: bool = false
 var phase3_canonical_post_opening_coupling_shadow_enabled: bool = false
 var phase3_canonical_interior_opening_shadow_enabled: bool = false
 var phase3_canonical_interior_pressure_shadow_enabled: bool = false
+var phase3_canonical_fixed_gross_pressure_skew_shadow_enabled: bool = false
 var phase3_enthalpy_residence_diagnostics_enabled: bool = false
 var phase3_mass_residence_diagnostics_enabled: bool = false
 
@@ -141,6 +142,12 @@ func configure_phase3_canonical_interior_pressure_shadow(is_enabled: bool) -> vo
 	phase3_canonical_interior_pressure_shadow_enabled = is_enabled
 
 
+func configure_phase3_canonical_fixed_gross_pressure_skew_shadow(
+	is_enabled: bool
+	) -> void:
+	phase3_canonical_fixed_gross_pressure_skew_shadow_enabled = is_enabled
+
+
 func configure_phase3_enthalpy_residence_diagnostics(is_enabled: bool) -> void:
 	phase3_enthalpy_residence_diagnostics_enabled = is_enabled
 
@@ -181,6 +188,32 @@ func _phase3_enthalpy_residence_fields() -> Array[String]:
 					]
 				)
 	return fields
+
+
+func _phase3_fixed_gross_pressure_skew_fields() -> Array[String]:
+	return [
+		"phase3_shadow_fixed_gross_enabled_flag",
+		"phase3_shadow_fixed_gross_valid_flag",
+		"phase3_shadow_fixed_gross_connection_count_step",
+		"phase3_shadow_fixed_gross_cap_count_step",
+		"phase3_shadow_fixed_gross_opening_out_mass_kg_step",
+		"phase3_shadow_fixed_gross_opening_in_mass_kg_step",
+		"phase3_shadow_fixed_gross_preview_out_mass_kg_step",
+		"phase3_shadow_fixed_gross_preview_in_mass_kg_step",
+		"phase3_shadow_fixed_gross_pressure_requested_net_out_kg_step",
+		"phase3_shadow_fixed_gross_pressure_accepted_net_out_kg_step",
+		"phase3_shadow_fixed_gross_preview_net_mass_out_kg_step",
+		"phase3_shadow_fixed_gross_preview_net_enthalpy_out_kj_step",
+		"phase3_shadow_fixed_gross_preview_out_mass_kg_total",
+		"phase3_shadow_fixed_gross_preview_in_mass_kg_total",
+		"phase3_shadow_fixed_gross_preview_net_mass_out_kg_total",
+		"phase3_shadow_fixed_gross_preview_net_enthalpy_out_kj_total",
+		"phase3_shadow_fixed_gross_cap_count_total",
+		"phase3_shadow_fixed_gross_mass_residual_kg",
+		"phase3_shadow_fixed_gross_energy_residual_kj",
+		"phase3_shadow_fixed_gross_o2_residual_kg",
+		"phase3_shadow_fixed_gross_species_residual_kg",
+	]
 
 
 func _phase3_mass_residence_fields() -> Array[String]:
@@ -618,6 +651,10 @@ func _build_csv_header() -> String:
 		header += ",phase3_shadow_interior_opening_active_flag,phase3_shadow_interior_opening_count,phase3_shadow_interior_active_opening_count,phase3_shadow_interior_vertical_skipped_count,phase3_shadow_interior_invalid_preview_count,phase3_shadow_interior_route_count,phase3_shadow_interior_neutral_plane_m,phase3_shadow_interior_requested_out_gas_kg_step,phase3_shadow_interior_requested_in_gas_kg_step,phase3_shadow_interior_accepted_out_gas_kg_step,phase3_shadow_interior_accepted_in_gas_kg_step,phase3_shadow_interior_accepted_out_energy_kj_step,phase3_shadow_interior_accepted_in_energy_kj_step,phase3_shadow_interior_accepted_out_o2_kg_step,phase3_shadow_interior_accepted_in_o2_kg_step,phase3_shadow_interior_accepted_out_species_kg_step,phase3_shadow_interior_accepted_in_species_kg_step,phase3_shadow_interior_accepted_fraction,phase3_shadow_interior_net_mass_kg_step,phase3_shadow_interior_net_energy_kj_step,phase3_shadow_interior_net_o2_kg_step,phase3_shadow_interior_net_species_kg_step,phase3_shadow_interior_mass_residual_kg,phase3_shadow_interior_energy_residual_kj,phase3_shadow_interior_o2_residual_kg,phase3_shadow_interior_species_residual_kg,phase3_shadow_interior_duplicate_owner_flag"
 	if phase3_canonical_interior_pressure_shadow_enabled:
 		header += ",phase3_shadow_interior_pressure_enabled_flag,phase3_shadow_interior_pressure_opening_count,phase3_shadow_interior_pressure_pre_pa,phase3_shadow_interior_pressure_raw_out_gas_kg_step,phase3_shadow_interior_pressure_raw_in_gas_kg_step,phase3_shadow_interior_pressure_requested_out_gas_kg_step,phase3_shadow_interior_pressure_requested_in_gas_kg_step,phase3_shadow_interior_pressure_accepted_out_gas_kg_step,phase3_shadow_interior_pressure_accepted_in_gas_kg_step,phase3_shadow_interior_pressure_net_mass_kg_step,phase3_shadow_interior_pressure_equilibrium_fraction,phase3_shadow_interior_pressure_full_delta_pa,phase3_shadow_interior_pressure_limited_delta_pa,phase3_shadow_interior_pressure_predicted_post_pa,phase3_shadow_interior_pressure_crossing_prevented_count,phase3_shadow_interior_pressure_mass_residual_kg,phase3_shadow_interior_pressure_energy_residual_kj,phase3_shadow_interior_pressure_o2_residual_kg,phase3_shadow_interior_pressure_species_residual_kg"
+	if phase3_canonical_fixed_gross_pressure_skew_shadow_enabled:
+		header += "," + ",".join(PackedStringArray(
+			_phase3_fixed_gross_pressure_skew_fields()
+		))
 	if phase3_enthalpy_residence_diagnostics_enabled:
 		header += "," + ",".join(PackedStringArray(
 			_phase3_enthalpy_residence_fields()
@@ -1433,6 +1470,9 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 				"phase3_shadow_interior_pressure_o2_residual_kg",
 				"phase3_shadow_interior_pressure_species_residual_kg"
 			]:
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
+		if phase3_canonical_fixed_gross_pressure_skew_shadow_enabled:
+			for field_name in _phase3_fixed_gross_pressure_skew_fields():
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		if phase3_enthalpy_residence_diagnostics_enabled:
 			for field_name in _phase3_enthalpy_residence_fields():

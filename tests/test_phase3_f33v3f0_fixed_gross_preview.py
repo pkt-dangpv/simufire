@@ -10,10 +10,13 @@ FIXTURE = (
 ).read_text(encoding="utf-8")
 
 
-def test_preview_is_pure_and_not_called_by_runtime():
+def test_preview_remains_pure_with_one_explicit_shadow_call_site():
     name = "preview_fixed_gross_interior_pressure_skew"
     assert f"func {name}(" in SYSTEM
-    assert SYSTEM.count(name) == 1
+    assert SYSTEM.count(name) == 2
+    call = SYSTEM.index(name, SYSTEM.index(f"func {name}(") + 1)
+    apply_site = SYSTEM.index("network_routes.append(pressure_route)")
+    assert call < apply_site
 
 
 def test_preview_preserves_gross_and_caps_directional_skew():

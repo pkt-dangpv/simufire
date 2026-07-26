@@ -1021,6 +1021,8 @@ var _step_time_us: int = 0
 @export var phase3_canonical_interior_opening_shadow_enabled: bool = false
 ## F3.3b: componente firmado por diferencia de presion interior. Default OFF.
 @export var phase3_canonical_interior_pressure_shadow_enabled: bool = false
+## F3.3v3f1: recompone opening+pressure con gross fijo, solo como preview.
+@export var phase3_canonical_fixed_gross_pressure_skew_shadow_enabled: bool = false
 ## F3.3c1: ledger acumulativo de entalpia aceptada por ruta. Default OFF.
 @export var phase3_enthalpy_residence_diagnostics_enabled: bool = false
 ## F3.3d1: ledger acumulativo de masa aceptada por ruta. Default OFF.
@@ -1415,6 +1417,9 @@ func _sync_auxiliary_services() -> void:
 				and phase3_canonical_interior_opening_shadow_enabled \
 				and phase3_canonical_interior_pressure_shadow_enabled
 	)
+	log_writer.configure_phase3_canonical_fixed_gross_pressure_skew_shadow(
+		_phase3_canonical_fixed_gross_pressure_skew_active()
+	)
 	log_writer.configure_phase3_enthalpy_residence_diagnostics(
 		phase3_enthalpy_residence_diagnostics_active
 	)
@@ -1637,6 +1642,14 @@ func _phase3_canonical_fire_products_routing_active() -> bool:
 func _phase3_canonical_fuel_object_sync_active() -> bool:
 	return _phase3_canonical_fire_products_routing_active() \
 			and phase3_canonical_fuel_object_sync_shadow_enabled
+
+
+func _phase3_canonical_fixed_gross_pressure_skew_active() -> bool:
+	return phase3_canonical_zone_shadow_enabled \
+			and phase3_canonical_persistence_shadow_enabled \
+			and phase3_canonical_interior_opening_shadow_enabled \
+			and phase3_canonical_interior_pressure_shadow_enabled \
+			and phase3_canonical_fixed_gross_pressure_skew_shadow_enabled
 
 
 func _phase3_prepare_canonical_multisurface_room(room: RoomModel) -> bool:
@@ -2229,6 +2242,8 @@ func _build_state_context() -> Dictionary:
 				phase3_canonical_interior_opening_shadow_enabled,
 		"phase3_canonical_interior_pressure_shadow_enabled": \
 				phase3_canonical_interior_pressure_shadow_enabled,
+		"phase3_canonical_fixed_gross_pressure_skew_shadow_enabled": \
+				_phase3_canonical_fixed_gross_pressure_skew_active(),
 		"phase3_enthalpy_residence_diagnostics_enabled": \
 				phase3_enthalpy_residence_diagnostics_enabled,
 		"phase3_mass_residence_diagnostics_enabled": \
@@ -2568,7 +2583,8 @@ func step(delta: float) -> void:
 				phase3_canonical_interior_pressure_shadow_enabled,
 				false,
 				false,
-				phase3_cfast_buoyancy_destination_shadow_enabled
+				phase3_cfast_buoyancy_destination_shadow_enabled,
+				_phase3_canonical_fixed_gross_pressure_skew_active()
 			)
 
 	var pre_hrr_o2_step: bool = _uses_pre_hrr_oxygen_step()

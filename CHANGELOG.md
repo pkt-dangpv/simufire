@@ -3,6 +3,34 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3f1 fixed-gross pressure-skew shadow (2026-07-26)
+
+- Wired the F3.3v3f0 fixed-gross primitive into the canonical runtime as an
+  opt-in, default-OFF telemetry preview. It never enters atomic bundles or
+  changes either canonical or legacy state.
+- Added 21 CSV fields for per-room step/cumulative directional mass,
+  enthalpy, caps and mass/O2/species/energy closure, plus a reproducible
+  OFF/ON analyzer.
+- Verified 114/114 rows and all 807 shared columns are identical OFF versus
+  ON; every atomic residual remains zero.
+- At 180 s the preview gives `143.875 kg` gross doorway mass versus CFAST
+  `146.174 kg` (-1.57%) and `6321.966 kJ` net enthalpy versus `6301.709 kJ`
+  (+0.32%).
+- Kept runtime authority NO-GO: R0 net outflow is only `3.245 kg` versus
+  CFAST `7.290 kg`, with 79 directional cap events. The next gate must study
+  a combined slab pressure/buoyancy solve rather than directly promoting the
+  current post-hoc skew.
+
+### Phase 3+ F3.3v3d-f0 doorway pressure/energy diagnosis (2026-07-26)
+
+- Closed the canonical pressure inventory to less than `2.8e-5 Pa` and showed
+  that pressure-sign reversal exists before the interior-pressure route.
+- Assigned about 73% of the final R0 energy deficit to doorway transport:
+  opening-only enthalpy matches CFAST, while the independent pressure route
+  adds gross churn and excess enthalpy.
+- Added and runtime-tested a pure fixed-gross directional-skew primitive. It
+  remained dormant until F3.3v3f1.
+
 ### Phase 3+ F3.3v3c exterior leakage attribution (2026-07-26)
 
 - Added a read-only parser for CFAST layer-resolved leakage output and its
