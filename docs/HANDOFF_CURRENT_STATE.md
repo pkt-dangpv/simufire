@@ -8,6 +8,56 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-27 - F3.3v3h1 pure solver primitive GO
+
+- Added `sim/core/Phase3CoupledPressureSolver.gd`. It is a **pure primitive**:
+  no runtime call site, no exported flag, no persistent state, no member
+  variables, and no reach into `RoomModel`, `BuildingModel`,
+  `SimulationEngine` or `Phase3ZoneMassSystem`. Structural tests enforce all
+  of that rather than relying on intent.
+- Contract: damped Newton over **one pressure unknown per room**, on a
+  residual that contains every pressure owner. Opening fluxes, interior and
+  exterior, are implicit through `dp(z)`; combustion, multisurface and any
+  other owner enter as source totals **inside** the same residual. Frozen
+  within one solve, as documented coefficients: the hydrostatic density
+  profile, the interface height and the donor-cell specific enthalpy. Freezing
+  the profile is a coefficient linearisation, not an owner omission - which is
+  precisely the distinction F3.3v3g3 got wrong.
+- Counterflow is structural, not constrained: bands split at the exact linear
+  zero crossing of `dp(z)`, direction is `sign(dp)`. A converged state with the
+  neutral plane inside the span but one direction at zero is rejected
+  (`FAILURE_COUNTERFLOW_VIOLATION`). There is no `alpha`, `blend` or `skew`
+  anywhere in the code, and a test scans for those identifiers.
+- Species and O2 are deliberately absent: they do not appear in the EOS, so
+  advecting them after convergence carries exactly zero feedback error.
+- **Two defects found and fixed during bring-up.** Both are cheap to
+  reintroduce, so they are recorded rather than quietly repaired:
+  1. The line-search merit function normalised the residual by gross
+     throughput. That denominator depends on the pressure iterate and
+     collapses as the solve approaches equilibrium, so an improving step could
+     score worse and Newton stalled at `~0.94` after a single step. It now
+     normalises by room inventory, which is iterate-independent. Newton then
+     reaches `3e-14` - the double-precision floor - in 11 iterations from a
+     stiff start. The throughput-normalised value is retained as telemetry.
+  2. Godot's `SceneTree.quit()` only *requests* a shutdown. A fixture calling
+     `quit(1)` on failure fell through, printed its PASS marker and had its
+     exit code overwritten by the later `quit(0)`. Verified with a minimal
+     probe: the marker printed and the process exited `0`. The new fixture
+     returns explicitly after `quit(1)`; the pre-existing g1/g2/f0 fixtures do
+     **not** and would mask failures. That audit is a separate task, out of H1
+     scope.
+- Verification: Godot 4.7.1 fixture `PHASE3_F33V3H1_COUPLED_PRESSURE_SOLVER_PASS`
+  with 18 contracts plus a negative control that confirms a broken assertion
+  exits non-zero; 25 structural contracts PASS; full-project parse clean;
+  g2/g1/f0 fixtures still PASS; `pytest -k "phase3 or guardrail"` 817 PASS / 2
+  FAIL (the established baseline); Physics 9/15/5/0; ILV 15/14/0; gap
+  inventory 353 + 6 VALID_GAP + 71 non-gating.
+- Next: **H2 only** - passive preview with predicted next state behind a new
+  default-OFF flag, emitting no routes. Do not write a persistent apply path
+  in H2.
+- Binding design:
+  `docs/validation/PHASE3_F33V3H0_COUPLED_PRESSURE_SOLVER_DESIGN.md`.
+
 ## Current Session Update - 2026-07-26 - F3.3v3h0 coupled solver design GO
 
 - Design-only phase. No motor code was written. One passive measurement was

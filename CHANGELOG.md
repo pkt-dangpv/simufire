@@ -3,6 +3,47 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h1 pure coupled pressure solver primitive (2026-07-27)
+
+- Added `sim/core/Phase3CoupledPressureSolver.gd`, a pure function library with
+  **no runtime call site, no exported flag and no persistent state**. It is the
+  F3.3v3g1 contract applied to the F3.3v3h0 architecture: the primitive exists
+  and is proven, and nothing calls it yet.
+- Solves one pressure unknown per room by damped Newton over a residual that
+  contains **every** pressure owner: opening fluxes implicitly through `dp(z)`,
+  and combustion/multisurface/any other owner as source totals inside the same
+  residual. This is the structural repair for the F3.3v3g3 failure, where the
+  neglected owners were the same order of magnitude and opposite in sign.
+- Counterflow is preserved structurally rather than by constraint: bands are
+  split at the exact linear zero crossing of `dp(z)`, flow direction is
+  `sign(dp)` and never a free variable. A converged state whose neutral plane
+  lies inside the opening span while one direction carries zero mass is
+  rejected outright.
+- The orifice law is linearised below a single global `dp` threshold, because
+  the derivative is unbounded at `dp = 0` and F3.3v3g2 measured that regime
+  active in 93% of steps. The constant is global, justified by Jacobian
+  conditioning, and explicitly never a per-case knob.
+- Species and O2 are deliberately absent: they do not appear in the canonical
+  EOS, so they advect after convergence with exactly zero feedback error.
+- Two defects were found and fixed during bring-up, both recorded because they
+  are easy to reintroduce:
+  - the line-search merit function normalised the residual by gross
+    throughput, which depends on the pressure iterate and collapses toward
+    equilibrium, so a genuinely improving step could score worse and Newton
+    stalled after one step. It now normalises by room inventory, which is
+    iterate-independent; the throughput-normalised value is kept as telemetry.
+  - Godot's `SceneTree.quit()` only requests a shutdown, so a fixture calling
+    `quit(1)` on failure fell through and printed its PASS marker before
+    `quit(0)` overwrote the exit code. Verified with a minimal probe. The new
+    fixture returns explicitly; auditing the pre-existing fixtures is tracked
+    separately.
+- Verification: Godot 4.7.1 fixture 18/18 PASS with a negative control, 25
+  structural contracts PASS, full-project parse clean, Physics 9/15/5/0, ILV
+  15/14/0, gap inventory unchanged.
+- No flag, call site, CSV schema, official case, report, expected value,
+  tolerance, CTRL envelope or VALID_GAP changed. H2 is not started.
+- Binding design: `docs/validation/PHASE3_F33V3H0_COUPLED_PRESSURE_SOLVER_DESIGN.md`.
+
 ### Phase 3+ F3.3v3h0 coupled pressure solver design (2026-07-26)
 
 - Closed the design for a coupled pressure/opening solve. No motor code was

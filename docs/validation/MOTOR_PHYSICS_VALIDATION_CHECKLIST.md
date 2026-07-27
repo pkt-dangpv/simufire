@@ -1025,6 +1025,7 @@ Diagnostic / planned lanes:
 | F3.3v3g2 | Passive per-component preview from raw pressure demand | Preview GO; authority and persistent shadow NO-GO |
 | F3.3v3g3 | Experimental persistent shadow driven by the blended routes | Mechanism exact, physics NO-GO at 30 s; runtime candidate reverted |
 | F3.3v3h0 | Coupled pressure/opening solver design plus owner attribution | Design GO; ready for H1; no motor code |
+| F3.3v3h1 | Pure damped-Newton coupled pressure primitive | Primitive GO; no runtime call, no flag |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1144,6 +1145,39 @@ F3.3v3h0 STOP (design only, no motor code):
   is the second-largest owner and is still classified `other`. H1 closes it
   with a diagnostic-only family addition.
 
-Next slice is **H1 only**: a pure `Phase3CoupledPressureSolver.gd` with no
-runtime call site and no flag, exactly the F3.3v3g1 contract. Do not write a
-call site in H1 and do not begin H2 in the same session.
+F3.3v3h1 STOP (pure primitive, no runtime wiring):
+
+- `sim/core/Phase3CoupledPressureSolver.gd` exists with no call site, no
+  exported flag, no member state and no reach into engine or model types,
+  enforced by structural tests rather than by intent: PASS;
+- one pressure unknown per room, damped Newton, residual containing every
+  owner - opening fluxes implicit, combustion/multisurface/other as sources
+  inside the same residual: PASS;
+- counterflow structural via the exact `dp(z)` zero crossing, with an
+  unphysical one-way solution rejected when the neutral plane is inside the
+  span: PASS;
+- orifice law regularised below one global `dp` threshold, never a per-case
+  knob: PASS;
+- no `alpha`, `blend` or `skew` identifier anywhere in the code: PASS;
+- Godot 4.7.1 fixture 18/18 with a negative control proving a broken assertion
+  exits non-zero: PASS;
+- conservation, convergence, symmetry, neutral plane, malformed input and
+  fail-closed contracts all covered: PASS;
+- analytic neutral-plane height reproduced to `1e-9`, Newton residual driven to
+  `3e-14`: PASS.
+
+Two defects were found and fixed while bringing the primitive up, and both are
+recorded because they are easy to reintroduce:
+
+1. normalising the line-search merit function by gross throughput is invalid,
+   because that denominator depends on the pressure iterate and collapses
+   toward equilibrium; an improving step can then score worse and Newton
+   stalls. Normalise by room inventory instead.
+2. Godot's `SceneTree.quit()` only requests a shutdown, so a fixture that calls
+   `quit(1)` without returning prints its PASS marker and exits `0`. The
+   pre-existing g1/g2/f0 fixtures still have this shape and would mask a
+   failure; auditing them is tracked as a separate task.
+
+Next slice is **H2 only**: a passive preview with predicted next state behind a
+new default-OFF flag, emitting no routes. Do not write a persistent apply path
+in H2, and do not begin H3 in the same session.
