@@ -6,11 +6,19 @@ const RoomModelScript = preload("res://sim/building/RoomModel.gd")
 const Phase3ZoneMassSystemScript = preload("res://sim/core/Phase3ZoneMassSystem.gd")
 
 
+var _failed: bool = false
+
+
 func _init() -> void:
 	_test_exact_equilibrium_fraction()
 	_test_negative_pressure_reseeds_lower_without_crossing()
 	_test_positive_pressure_outflow_stops_at_equilibrium()
 	_test_default_off_preserves_explicit_crossing()
+	# `quit()` only requests a shutdown, so execution continues. Return
+	# explicitly or the PASS marker below would still be printed.
+	if _failed:
+		quit(1)
+		return
 	print("PHASE3_F32B2_PRESSURE_RELAXATION_PASS")
 	quit(0)
 
@@ -136,7 +144,7 @@ func _free_setup(setup: Dictionary) -> void:
 func _assert_true(value: bool, label: String) -> void:
 	if not value:
 		push_error(label)
-		quit(1)
+		_failed = true
 
 
 func _assert_close(
@@ -147,4 +155,4 @@ func _assert_close(
 	) -> void:
 	if absf(actual - expected) > tolerance * maxf(1.0, absf(expected)):
 		push_error("%s expected %.12g got %.12g" % [label, expected, actual])
-		quit(1)
+		_failed = true

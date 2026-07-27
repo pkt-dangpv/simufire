@@ -15,8 +15,11 @@ func _init() -> void:
 	_test_order_independence(system)
 	_test_zero_response(system)
 	_test_malformed_fails_closed(system)
+	# `quit()` only requests a shutdown, so execution continues.
+	# Return explicitly or the PASS marker below is still printed.
 	if _failed:
 		quit(1)
+		return
 	print("PHASE3_F33V3G1_PRESSURE_NETWORK_RELAXATION_PASS")
 	quit(0)
 

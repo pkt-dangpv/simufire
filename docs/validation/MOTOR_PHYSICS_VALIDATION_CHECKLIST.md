@@ -1174,9 +1174,14 @@ recorded because they are easy to reintroduce:
    toward equilibrium; an improving step can then score worse and Newton
    stalls. Normalise by room inventory instead.
 2. Godot's `SceneTree.quit()` only requests a shutdown, so a fixture that calls
-   `quit(1)` without returning prints its PASS marker and exits `0`. The
-   pre-existing g1/g2/f0 fixtures still have this shape and would mask a
-   failure; auditing them is tracked as a separate task.
+   `quit(1)` without returning prints its PASS marker and exits `0`.
+   **Closed by the 2026-07-27 fixture audit**: 13 of 32 fixtures could report
+   success while failing, across three shapes - fall-through exit, a helper
+   that quits and returns to a caller reaching PASS, and a bare `assert()`
+   that hangs instead of exiting. All are fixed and all 32 are now verified by
+   injected-failure sweep to exit `1` without printing PASS.
+   `tests/test_godot_fixture_fail_closed.py` holds 129 static contracts that
+   prevent regression, each mutation-tested.
 
 Next slice is **H2 only**: a passive preview with predicted next state behind a
 new default-OFF flag, emitting no routes. Do not write a persistent apply path

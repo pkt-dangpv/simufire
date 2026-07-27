@@ -5,6 +5,9 @@ const RoomModelScript = preload("res://sim/building/RoomModel.gd")
 const Phase3ZoneMassSystemScript = preload("res://sim/core/Phase3ZoneMassSystem.gd")
 
 
+var _failed: bool = false
+
+
 func _init() -> void:
 	var building = BuildingModelScript.new()
 	var source = _make_room(0)
@@ -96,6 +99,11 @@ func _init() -> void:
 	)
 
 	building.free()
+	# `quit()` only requests a shutdown, so execution continues. Return
+	# explicitly or the PASS marker below would still be printed.
+	if _failed:
+		quit(1)
+		return
 	print("PHASE3_ATOMIC_PARCEL_RUNTIME_PASS")
 	quit(0)
 
@@ -181,4 +189,4 @@ func _species() -> Dictionary:
 func _assert_close(actual: float, expected: float, label: String) -> void:
 	if not is_equal_approx(actual, expected):
 		push_error("%s: expected %.9f, got %.9f" % [label, expected, actual])
-		quit(1)
+		_failed = true

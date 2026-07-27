@@ -6,12 +6,20 @@ const RoomModelScript = preload("res://sim/building/RoomModel.gd")
 const Phase3ZoneMassSystemScript = preload("res://sim/core/Phase3ZoneMassSystem.gd")
 
 
+var _failed: bool = false
+
+
 func _init() -> void:
 	_test_no_area_has_no_event()
 	_test_positive_pressure_outflow()
 	_test_negative_pressure_inflow()
 	_test_inventory_cap_and_atomic_residuals()
 	_test_deterministic_result()
+	# `quit()` only requests a shutdown, so execution continues. Return
+	# explicitly or the PASS marker below would still be printed.
+	if _failed:
+		quit(1)
+		return
 	print("PHASE3_F32A_EXTERIOR_BOUNDARY_SHADOW_PASS")
 	quit(0)
 
@@ -195,4 +203,4 @@ func _assert_close(actual: float, expected: float, label: String) -> void:
 
 func _fail(message: String) -> void:
 	push_error(message)
-	quit(1)
+	_failed = true

@@ -3,6 +3,36 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Godot fixtures now fail closed (2026-07-27)
+
+- Audited all 32 Godot fixtures after discovering during F3.3v3h1 that
+  `SceneTree.quit()` only *requests* a shutdown: it returns, and execution
+  continues. Three shapes let a failing fixture still report success, and all
+  three were present:
+  1. **Fall-through exit** (2 fixtures, F3.3v3g1 and F3.3v3g2):
+     `if _failed: quit(1)` followed by an unconditional PASS print, so the
+     marker was printed and the later `quit(0)` overwrote the exit code.
+  2. **Quitting helper** (10 fixtures): an `_assert`/`_close`/`_fail` helper
+     called `quit(nonzero)` and returned to `_init`, which then ran every
+     remaining assertion and printed PASS. This was the more dangerous shape
+     and the naive `quit(1)`-without-`return` scan did not find it.
+  3. **Bare `assert()`** (1 fixture, F3.3v2c): GDScript's `assert()` halts the
+     function without ever reaching `quit()`, so a failure hung the process
+     until the harness timeout instead of exiting non-zero.
+- Fixed all 13 by recording failures in a flag and taking the exit at a single
+  guarded site. Ten fixtures already using the `if _failed: ... else: PASS`
+  shape were left untouched: the PASS branch is genuinely unreachable from the
+  failing branch, so changing them would have been churn without safety gain.
+- Verified empirically, not just statically: a sweep injected a guaranteed
+  failure into every fixture through the failure channel that fixture actually
+  owns, and required a non-zero exit with no PASS marker. All 32 now exit `1`
+  promptly; before the fix, 13 either printed PASS with exit `0` or hung.
+- Added `tests/test_godot_fixture_fail_closed.py`, 129 static contracts that
+  enforce all three shapes across every fixture. Each contract was
+  mutation-tested: reintroducing any of the three shapes makes it fail.
+- No physics, baseline, expected value, tolerance, report or CTRL/VALID_GAP
+  changed. Test infrastructure only.
+
 ### Phase 3+ F3.3v3h1 pure coupled pressure solver primitive (2026-07-27)
 
 - Added `sim/core/Phase3CoupledPressureSolver.gd`, a pure function library with

@@ -8,6 +8,43 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-27 - Godot fixtures fail closed
+
+- Audited all 32 Godot fixtures for the `SceneTree.quit()` fall-through
+  discovered during F3.3v3h1. `quit()` only requests a shutdown; it returns and
+  execution continues. **13 fixtures could report success while failing.**
+- Three distinct shapes, all present:
+  1. **Fall-through exit** - `if _failed: quit(1)` then an unconditional PASS
+     print. Affected F3.3v3g1 and F3.3v3g2.
+  2. **Quitting helper** - an `_assert`/`_close`/`_fail` helper called
+     `quit(nonzero)` and returned to `_init`, which ran the remaining
+     assertions and printed PASS. Affected 10 fixtures, including F3.3v3f0.
+     This is the shape a naive `quit(1)`-without-`return` scan misses, and it
+     is why the first estimate of the blast radius was wrong.
+  3. **Bare `assert()`** - halts the function without reaching `quit()`, so a
+     failure hung until the harness timeout rather than exiting non-zero.
+     Affected F3.3v2c.
+- Fix: failures are recorded in a `_failed` flag and the exit is taken at a
+  single guarded site. Ten fixtures already using the
+  `if _failed: quit(1) else: print(PASS)` shape were **left untouched** - the
+  PASS branch is unreachable from the failing branch, so they were already
+  safe and editing them would have been churn.
+- Verified empirically: a sweep injected a guaranteed failure into every
+  fixture through the failure channel that fixture actually owns and required a
+  non-zero exit with no PASS marker. All 32 now exit `1` promptly.
+- Added `tests/test_godot_fixture_fail_closed.py` - 129 static contracts
+  covering all three shapes, each mutation-tested by reintroducing the shape
+  and confirming the contract fails.
+- Caveat worth remembering for future tooling: `Path.write_text` translates
+  `\n` to `\r\n` on Windows. A restore step that used it silently rewrote 19
+  untouched fixtures to CRLF. Batch edits on `.gd` files must force
+  `newline="\n"`.
+- Verification: 32/32 fixtures PASS; `pytest -k "phase3 or guardrail"` 942 PASS
+  / 1 FAIL (the historic `test_csv_exports_three_canonical_layers`); guardrails
+  **10/10**; Physics 9/15/5/0; ILV 15/14/0; gap inventory unchanged.
+- No physics, baseline, expected value, tolerance, report or CTRL/VALID_GAP
+  changed. H2 remains not started.
+
 ## Current Session Update - 2026-07-27 - F3.3v3h1 pure solver primitive GO
 
 - Added `sim/core/Phase3CoupledPressureSolver.gd`. It is a **pure primitive**:

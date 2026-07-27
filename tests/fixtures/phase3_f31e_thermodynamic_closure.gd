@@ -3,6 +3,9 @@ extends SceneTree
 const Phase3ZoneMassSystemScript = preload("res://sim/core/Phase3ZoneMassSystem.gd")
 
 
+var _failed: bool = false
+
+
 func _init() -> void:
 	var system = Phase3ZoneMassSystemScript.new()
 
@@ -60,6 +63,11 @@ func _init() -> void:
 		if typeof(stratified[key]) == TYPE_FLOAT:
 			_assert_close(float(repeated.get(key, 0.0)), float(stratified[key]), 0.0, "deterministic %s" % key)
 
+	# `quit()` only requests a shutdown, so execution continues. Return
+	# explicitly or the PASS marker below would still be printed.
+	if _failed:
+		quit(1)
+		return
 	print("PHASE3_F31E_THERMODYNAMIC_CLOSURE_PASS")
 	quit(0)
 
@@ -83,4 +91,4 @@ func _assert_close(actual: float, expected: float, tolerance: float, label: Stri
 
 func _fail(message: String) -> void:
 	push_error(message)
-	quit(1)
+	_failed = true

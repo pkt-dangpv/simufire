@@ -6,6 +6,9 @@ const ThermalSystemScript = preload("res://sim/core/ThermalSystem.gd")
 const Phase3ZoneMassSystemScript = preload("res://sim/core/Phase3ZoneMassSystem.gd")
 
 
+var _failed: bool = false
+
+
 func _init() -> void:
 	_test_hot_upper_moves_heat_conservatively()
 	_test_equal_and_inverted_zones_request_zero()
@@ -14,6 +17,11 @@ func _init() -> void:
 	_test_many_steps_conserve_energy()
 	_test_atomic_apply_and_duplicate_rejection()
 	_test_atomic_limit_after_prior_energy_loss()
+	# `quit()` only requests a shutdown, so execution continues. Return
+	# explicitly or the PASS marker below would still be printed.
+	if _failed:
+		quit(1)
+		return
 	print("PHASE3_F32B5A_INTERZONE_HEAT_PASS")
 	quit(0)
 
@@ -194,7 +202,7 @@ func _input(
 func _assert_true(value: bool, label: String) -> void:
 	if not value:
 		push_error(label)
-		quit(1)
+		_failed = true
 
 
 func _assert_close(
@@ -205,4 +213,4 @@ func _assert_close(
 	) -> void:
 	if absf(actual - expected) > tolerance * maxf(1.0, absf(expected)):
 		push_error("%s expected %.12g got %.12g" % [label, expected, actual])
-		quit(1)
+		_failed = true

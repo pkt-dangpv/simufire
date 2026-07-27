@@ -24,8 +24,11 @@ func _init() -> void:
 	_test_invalid_base_inventory_fails_closed(system)
 	_test_non_descent_is_dormant(system)
 	_test_opening_order_invariance(system)
+	# `quit()` only requests a shutdown, so execution continues.
+	# Return explicitly or the PASS marker below is still printed.
 	if _failed:
 		quit(1)
+		return
 	print("PHASE3_F33V3G2_PRESSURE_NETWORK_PREVIEW_PASS")
 	quit(0)
 

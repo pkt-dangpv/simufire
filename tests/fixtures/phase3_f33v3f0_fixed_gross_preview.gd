@@ -3,6 +3,9 @@ extends SceneTree
 const SystemScript = preload("res://sim/core/Phase3ZoneMassSystem.gd")
 
 
+var _failed: bool = false
+
+
 func _init() -> void:
 	var system = SystemScript.new()
 	var opening: Array = [
@@ -42,6 +45,11 @@ func _init() -> void:
 	_close(float(capped["cap_count"]), 1.0, "cap count")
 	_close(float(capped["accepted_pressure_net_mass_kg"]), 16.0, "capped net")
 	_close(float(capped["preview_gross_mass_kg"]), 16.0, "capped gross")
+	# `quit()` only requests a shutdown, so execution continues. Return
+	# explicitly or the PASS marker below would still be printed.
+	if _failed:
+		quit(1)
+		return
 	print("PHASE3_F33V3F0_FIXED_GROSS_PREVIEW_PASS")
 	quit(0)
 
@@ -74,10 +82,10 @@ func _route(
 func _close(actual: float, expected: float, label: String) -> void:
 	if absf(actual - expected) > 1.0e-9:
 		push_error("%s: got %.12f expected %.12f" % [label, actual, expected])
-		quit(1)
+		_failed = true
 
 
 func _assert(condition: bool, label: String) -> void:
 	if not condition:
 		push_error(label)
-		quit(1)
+		_failed = true

@@ -4,10 +4,18 @@ const RoomModelScript = preload("res://sim/building/RoomModel.gd")
 const ThermalSystemScript = preload("res://sim/core/ThermalSystem.gd")
 
 
+var _failed: bool = false
+
+
 func _init() -> void:
 	_test_canonical_interface_controls_plume()
 	_test_transfer_preserves_lower_specific_enthalpy()
 	_test_empty_lower_zone_requests_nothing()
+	# `quit()` only requests a shutdown, so execution continues. Return
+	# explicitly or the PASS marker below would still be printed.
+	if _failed:
+		quit(1)
+		return
 	print("PHASE3_F32B3_CANONICAL_PLUME_PASS")
 	quit(0)
 
@@ -89,7 +97,7 @@ func _canonical_input(
 func _assert_true(value: bool, label: String) -> void:
 	if not value:
 		push_error(label)
-		quit(1)
+		_failed = true
 
 
 func _assert_close(
@@ -100,4 +108,4 @@ func _assert_close(
 	) -> void:
 	if absf(actual - expected) > tolerance * maxf(1.0, absf(expected)):
 		push_error("%s expected %.12g got %.12g" % [label, expected, actual])
-		quit(1)
+		_failed = true

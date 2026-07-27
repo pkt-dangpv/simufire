@@ -5,6 +5,9 @@ const FireModelScript = preload("res://sim/fire/FireModel.gd")
 const RoomModelScript = preload("res://sim/building/RoomModel.gd")
 
 
+var _failed: bool = false
+
+
 func _init() -> void:
 	var combustion = CombustionSystemScript.new()
 	var room = _make_room(0.05)
@@ -31,6 +34,11 @@ func _init() -> void:
 	if independent.fire_o2_extinguished:
 		_fail("fire_o2_independent mode was hard-extinguished")
 
+	# `quit()` only requests a shutdown, so execution continues. Return
+	# explicitly or the PASS marker below would still be printed.
+	if _failed:
+		quit(1)
+		return
 	print("F31_ZERO_O2_EXTINCTION_RUNTIME_PASS")
 	quit(0)
 
@@ -84,4 +92,4 @@ func _assert_zero(actual: float, label: String) -> void:
 
 func _fail(message: String) -> void:
 	push_error(message)
-	quit(1)
+	_failed = true

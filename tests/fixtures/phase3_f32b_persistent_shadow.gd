@@ -5,11 +5,19 @@ const RoomModelScript = preload("res://sim/building/RoomModel.gd")
 const Phase3ZoneMassSystemScript = preload("res://sim/core/Phase3ZoneMassSystem.gd")
 
 
+var _failed: bool = false
+
+
 func _init() -> void:
 	_test_persistent_o2_survives_legacy_mutation()
 	_test_default_path_reseeds_from_legacy()
 	_test_reset_clears_persistent_state()
 	_test_degenerate_zone_collapse_conserves_inventory()
+	# `quit()` only requests a shutdown, so execution continues. Return
+	# explicitly or the PASS marker below would still be printed.
+	if _failed:
+		quit(1)
+		return
 	print("PHASE3_F32B_PERSISTENT_SHADOW_PASS")
 	quit(0)
 
@@ -178,4 +186,4 @@ func _assert_close(actual: float, expected: float, label: String) -> void:
 
 func _fail(message: String) -> void:
 	push_error(message)
-	quit(1)
+	_failed = true
