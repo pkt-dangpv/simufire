@@ -1026,6 +1026,7 @@ Diagnostic / planned lanes:
 | F3.3v3g3 | Experimental persistent shadow driven by the blended routes | Mechanism exact, physics NO-GO at 30 s; runtime candidate reverted |
 | F3.3v3h0 | Coupled pressure/opening solver design plus owner attribution | Design GO; ready for H1; no motor code |
 | F3.3v3h1 | Pure damped-Newton coupled pressure primitive | Primitive GO; no runtime call, no flag |
+| F3.3v3h2 | Passive coupled-solver preview, one call site | Preview GO; authority NO-GO; 13.6% steps non-convergent |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1183,6 +1184,29 @@ recorded because they are easy to reintroduce:
    `tests/test_godot_fixture_fail_closed.py` holds 129 static contracts that
    prevent regression, each mutation-tested.
 
-Next slice is **H2 only**: a passive preview with predicted next state behind a
-new default-OFF flag, emitting no routes. Do not write a persistent apply path
-in H2, and do not begin H3 in the same session.
+F3.3v3h2 STOP (passive preview, no physical write):
+
+- OFF/ON isolation exact on `corridor_chain` 10/30/60 s and
+  `cfast_r0_window_360` 120 s: zero shared value differences, zero columns
+  lost, 37 new columns all in the `phase3_shadow_coupled_solver_` family: PASS;
+- owner sources recovered exactly as `(post - pre) - interior_accepted`, so
+  every non-opening owner is inside the residual: PASS;
+- every converged step closes its residual (`max_normalized_residual = 0.0`)
+  and zero counterflow violations occurred in 2642 solved steps: PASS;
+- the preview emits no route, bundle or state, enforced by structural tests
+  that whitelist the two ledgers it may write: PASS.
+
+Substantive measurement: the coupled solve leaves `0.07 Pa` across the
+connected chain at 60 s where the legacy additive path leaves `69.3 Pa`, and it
+moves `3.32x` more net doorway mass. Directionally consistent with the standing
+`-55.49%` net-mass deficit versus CFAST, but a single-step preview cannot claim
+the deficit would close.
+
+Measured limit, deliberately not gated: `13.6%` of steps do not converge at
+60 s. Iteration-cap failures are confined to the ignition transient and stop
+after ~20 s; damping-exhausted failures accumulate with time. They are separate
+problems with separate remedies and are counted separately.
+
+Next slice is **H3 only**, and only after the convergence gap is diagnosed. Do
+not raise the iteration cap or loosen the residual tolerance to hide it, and do
+not write a persistent apply path before the cause is known.

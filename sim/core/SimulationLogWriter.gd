@@ -40,6 +40,7 @@ var phase3_canonical_interior_opening_shadow_enabled: bool = false
 var phase3_canonical_interior_pressure_shadow_enabled: bool = false
 var phase3_canonical_fixed_gross_pressure_skew_shadow_enabled: bool = false
 var phase3_canonical_fixed_gross_pressure_network_shadow_enabled: bool = false
+var phase3_coupled_pressure_solver_shadow_enabled: bool = false
 var phase3_enthalpy_residence_diagnostics_enabled: bool = false
 var phase3_mass_residence_diagnostics_enabled: bool = false
 
@@ -153,6 +154,12 @@ func configure_phase3_canonical_fixed_gross_pressure_network_shadow(
 	is_enabled: bool
 	) -> void:
 	phase3_canonical_fixed_gross_pressure_network_shadow_enabled = is_enabled
+
+
+func configure_phase3_coupled_pressure_solver_shadow(
+	is_enabled: bool
+	) -> void:
+	phase3_coupled_pressure_solver_shadow_enabled = is_enabled
 
 
 func configure_phase3_enthalpy_residence_diagnostics(is_enabled: bool) -> void:
@@ -295,6 +302,51 @@ func _phase3_pressure_network_fields() -> Array[String]:
 		"phase3_shadow_pressure_network_max_abs_o2_residual_kg_total",
 		"phase3_shadow_pressure_network_max_abs_species_residual_kg_total",
 		"phase3_shadow_pressure_network_negative_quantity_count_total",
+	]
+
+
+## F3.3v3h2 passive coupled-solver preview. A separate family from the
+## F3.3v3f1/g2 columns: these describe an independent solve run purely for
+## comparison, never transport that was applied.
+func _phase3_coupled_solver_fields() -> Array[String]:
+	return [
+		"phase3_shadow_coupled_solver_enabled_flag",
+		"phase3_shadow_coupled_solver_valid_flag",
+		"phase3_shadow_coupled_solver_converged_flag",
+		"phase3_shadow_coupled_solver_failure_code",
+		"phase3_shadow_coupled_solver_iterations",
+		"phase3_shadow_coupled_solver_normalized_residual",
+		"phase3_shadow_coupled_solver_throughput_normalized_residual",
+		"phase3_shadow_coupled_solver_max_abs_residual_kg",
+		"phase3_shadow_coupled_solver_room_count",
+		"phase3_shadow_coupled_solver_opening_count",
+		"phase3_shadow_coupled_solver_solved_pressure_gauge_pa",
+		"phase3_shadow_coupled_solver_observed_pressure_gauge_pa",
+		"phase3_shadow_coupled_solver_coupled_vs_legacy_pressure_delta_pa",
+		"phase3_shadow_coupled_solver_owner_source_mass_kg",
+		"phase3_shadow_coupled_solver_owner_source_energy_kj",
+		"phase3_shadow_coupled_solver_predicted_net_mass_kg",
+		"phase3_shadow_coupled_solver_legacy_net_mass_kg",
+		"phase3_shadow_coupled_solver_net_mass_difference_kg",
+		"phase3_shadow_coupled_solver_predicted_net_energy_kj",
+		"phase3_shadow_coupled_solver_legacy_net_energy_kj",
+		"phase3_shadow_coupled_solver_net_energy_difference_kj",
+		"phase3_shadow_coupled_solver_counterflow_connection_count",
+		"phase3_shadow_coupled_solver_counterflow_violation_count",
+		"phase3_shadow_coupled_solver_regularization_active_count",
+		"phase3_shadow_coupled_solver_iteration_cap_flag",
+		"phase3_shadow_coupled_solver_damping_exhausted_flag",
+		"phase3_shadow_coupled_solver_step_count_total",
+		"phase3_shadow_coupled_solver_converged_step_count_total",
+		"phase3_shadow_coupled_solver_failed_step_count_total",
+		"phase3_shadow_coupled_solver_max_iterations_total",
+		"phase3_shadow_coupled_solver_max_normalized_residual_total",
+		"phase3_shadow_coupled_solver_max_abs_coupled_vs_legacy_pressure_delta_pa_total",
+		"phase3_shadow_coupled_solver_max_abs_net_mass_difference_kg_total",
+		"phase3_shadow_coupled_solver_counterflow_violation_count_total",
+		"phase3_shadow_coupled_solver_regularization_active_count_total",
+		"phase3_shadow_coupled_solver_iteration_cap_step_count_total",
+		"phase3_shadow_coupled_solver_damping_exhausted_step_count_total",
 	]
 
 
@@ -740,6 +792,10 @@ func _build_csv_header() -> String:
 	if phase3_canonical_fixed_gross_pressure_network_shadow_enabled:
 		header += "," + ",".join(PackedStringArray(
 			_phase3_pressure_network_fields()
+		))
+	if phase3_coupled_pressure_solver_shadow_enabled:
+		header += "," + ",".join(PackedStringArray(
+			_phase3_coupled_solver_fields()
 		))
 	if phase3_enthalpy_residence_diagnostics_enabled:
 		header += "," + ",".join(PackedStringArray(
@@ -1562,6 +1618,9 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		if phase3_canonical_fixed_gross_pressure_network_shadow_enabled:
 			for field_name in _phase3_pressure_network_fields():
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
+		if phase3_coupled_pressure_solver_shadow_enabled:
+			for field_name in _phase3_coupled_solver_fields():
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		if phase3_enthalpy_residence_diagnostics_enabled:
 			for field_name in _phase3_enthalpy_residence_fields():

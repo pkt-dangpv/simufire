@@ -1026,6 +1026,9 @@ var _step_time_us: int = 0
 ## F3.3v3g2: preview pasiva de la red de presion interior por componente
 ## conectado. Requiere el stack fixed-gross previo; sigue siendo default OFF.
 @export var phase3_canonical_fixed_gross_pressure_network_shadow_enabled: bool = false
+## F3.3v3h2: preview pasiva del solver acoplado H1. Solo telemetria: no
+## emite rutas ni escribe estado. Default OFF.
+@export var phase3_coupled_pressure_solver_shadow_enabled: bool = false
 ## F3.3c1: ledger acumulativo de entalpia aceptada por ruta. Default OFF.
 @export var phase3_enthalpy_residence_diagnostics_enabled: bool = false
 ## F3.3d1: ledger acumulativo de masa aceptada por ruta. Default OFF.
@@ -1335,6 +1338,9 @@ func _sync_auxiliary_services() -> void:
 	phase3_zone_mass_system.configure_connection_residence_diagnostics(
 		phase3_connection_residence_diagnostics_active
 	)
+	phase3_zone_mass_system.configure_coupled_pressure_solver_shadow(
+		_phase3_coupled_pressure_solver_active()
+	)
 	phase3_zone_mass_system.configure_canonical_multisurface_shadow(
 		_phase3_canonical_multisurface_active()
 	)
@@ -1425,6 +1431,9 @@ func _sync_auxiliary_services() -> void:
 	)
 	log_writer.configure_phase3_canonical_fixed_gross_pressure_network_shadow(
 		_phase3_canonical_fixed_gross_pressure_network_active()
+	)
+	log_writer.configure_phase3_coupled_pressure_solver_shadow(
+		_phase3_coupled_pressure_solver_active()
 	)
 	log_writer.configure_phase3_enthalpy_residence_diagnostics(
 		phase3_enthalpy_residence_diagnostics_active
@@ -1661,6 +1670,13 @@ func _phase3_canonical_fixed_gross_pressure_skew_active() -> bool:
 func _phase3_canonical_fixed_gross_pressure_network_active() -> bool:
 	return _phase3_canonical_fixed_gross_pressure_skew_active() \
 			and phase3_canonical_fixed_gross_pressure_network_shadow_enabled
+
+
+func _phase3_coupled_pressure_solver_active() -> bool:
+	return phase3_canonical_zone_shadow_enabled \
+			and phase3_canonical_persistence_shadow_enabled \
+			and phase3_canonical_interior_opening_shadow_enabled \
+			and phase3_coupled_pressure_solver_shadow_enabled
 
 
 func _phase3_prepare_canonical_multisurface_room(room: RoomModel) -> bool:
@@ -2257,6 +2273,8 @@ func _build_state_context() -> Dictionary:
 				_phase3_canonical_fixed_gross_pressure_skew_active(),
 		"phase3_canonical_fixed_gross_pressure_network_shadow_enabled": \
 				_phase3_canonical_fixed_gross_pressure_network_active(),
+		"phase3_coupled_pressure_solver_shadow_enabled": \
+				_phase3_coupled_pressure_solver_active(),
 		"phase3_enthalpy_residence_diagnostics_enabled": \
 				phase3_enthalpy_residence_diagnostics_enabled,
 		"phase3_mass_residence_diagnostics_enabled": \

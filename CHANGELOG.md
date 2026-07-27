@@ -3,6 +3,43 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2 passive coupled pressure solver preview (2026-07-27)
+
+- Added default-OFF `phase3_coupled_pressure_solver_shadow_enabled`. When
+  active it runs the pure F3.3v3h1 solver over the already-resolved canonical
+  step and records how the coupled solution differs from what the legacy
+  interior path did. It emits no route, no bundle and no physical state.
+- Owner sources are recovered exactly, with no new plumbing, as
+  `(post - pre) - interior_network_accepted`, so combustion, multisurface,
+  exterior, plume, parcels and legacy all enter the solver residual at their
+  real accepted magnitude. That is the property F3.3v3g3 lacked.
+- Added 37 opt-in `phase3_shadow_coupled_solver_*` columns and a new analyzer.
+- Isolation is exact on all four scratch runs - `corridor_chain` at 10/30/60 s
+  and `cfast_r0_window_360` at 120 s: identical row counts, 807/800 shared
+  columns, zero shared value differences, zero columns lost, and every new
+  column in the new family.
+- Solver behaviour: every converged step closes its residual exactly
+  (`max_normalized_residual = 0.0`), and there were zero counterflow
+  violations in 2642 solved steps across both scenarios.
+- Substantive finding: the coupled solve equalises the connected chain. At 60 s
+  it leaves a `0.07 Pa` spread across rooms 0/1/2 where the legacy additive
+  path leaves `69.3 Pa`, and it transports `3.32x` more net doorway mass. That
+  is directionally consistent with the standing `-55.49%` net-mass deficit
+  against CFAST, but it is evidence about direction only: a preview cannot
+  evolve the trajectory.
+- Measured limit, deliberately not gated: `13.6%` of steps do not converge at
+  60 s. The two modes are counted separately because they need different
+  remedies - iteration-cap failures are confined to the ignition transient and
+  stop entirely after ~20 s, while damping-exhausted failures accumulate slowly
+  with time. This is the headline H3 blocker.
+- Renamed the divergence column from `pressure_prediction_error_pa` to
+  `coupled_vs_legacy_pressure_delta_pa` before recording any result: it
+  measures architectural divergence, not solver accuracy, and the old name
+  invited exactly that misreading. A test forbids the old name.
+- No physics, legacy path, official case, report, baseline, expected value,
+  tolerance, CTRL envelope or VALID_GAP changed. H3 is not started.
+- Binding record:
+  `docs/validation/PHASE3_F33V3H2_COUPLED_SOLVER_PREVIEW.md`.
 ### Godot fixtures now fail closed (2026-07-27)
 
 - Audited all 32 Godot fixtures after discovering during F3.3v3h1 that

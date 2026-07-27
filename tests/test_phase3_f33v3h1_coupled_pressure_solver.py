@@ -60,15 +60,24 @@ SOLVER_CODE = _code_only(SOLVER)
 # H1 scope: pure primitive, no runtime reach
 # ---------------------------------------------------------------------------
 
-def test_solver_exists_with_no_runtime_call_site():
+def test_solver_has_exactly_one_passive_call_site():
+    """H1 had no caller at all. F3.3v3h2 adds exactly one, and it is passive.
+
+    The primitive itself is unchanged: the contract that matters is that the
+    only thing calling it is the read-only preview recorder, never a route
+    builder or a state writer.
+    """
     assert SOLVER_PATH.exists()
     assert "class_name Phase3CoupledPressureSolver" in SOLVER
-    # H1 is the F3.3v3g1 contract: the primitive exists and nothing calls it.
-    for module in (ENGINE, SYSTEM, LOGGER, STATE):
+    # nothing outside Phase3ZoneMassSystem may reach the solver
+    for module in (ENGINE, LOGGER, STATE):
         assert "Phase3CoupledPressureSolver" not in module
         assert "solve_coupled_pressure" not in module
-    for module in (RUNNER, HEADLESS):
-        assert "coupled_pressure" not in module
+    assert SYSTEM.count("solve_coupled_pressure(") == 1
+    caller = _function(SYSTEM, "_record_coupled_pressure_solver_preview")
+    assert "solve_coupled_pressure(" in caller
+    for forbidden in ("add_atomic_bundle", "make_atomic_route", "network_routes"):
+        assert forbidden not in caller, forbidden
 
 
 def test_solver_declares_no_flag_and_no_persistent_state():

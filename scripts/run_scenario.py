@@ -174,6 +174,11 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Enable passive F3.3v3g2 interior pressure-network preview.",
     )
     parser.add_argument(
+        "--phase3-coupled-pressure-solver-shadow",
+        action="store_true",
+        help="Enable the passive F3.3v3h2 coupled pressure solver preview.",
+    )
+    parser.add_argument(
         "--phase3-cfast-buoyancy-destination-shadow",
         action="store_true",
         help="Enable experimental F3.3n CFAST flogo receiver routing in shadow.",
@@ -497,6 +502,24 @@ def main(argv: list[str] | None = None) -> int:
             if parent_flag not in cmd:
                 cmd.append(parent_flag)
         cmd.append("--phase3-canonical-fixed-gross-pressure-network-shadow")
+    if args.phase3_coupled_pressure_solver_shadow:
+        for parent_flag in [
+            "--phase3-canonical-shadow",
+            "--phase3-canonical-exterior-shadow",
+            "--phase3-canonical-persistence-shadow",
+            "--phase3-canonical-combustion-shadow",
+            "--phase3-canonical-pressure-relaxation-shadow",
+            "--phase3-canonical-plume-shadow",
+            "--phase3-canonical-interzone-heat-shadow",
+            "--phase3-canonical-wall-ambient-shadow",
+            "--phase3-canonical-exterior-counterflow-shadow",
+            "--phase3-canonical-post-opening-coupling-shadow",
+            "--phase3-canonical-interior-opening-shadow",
+            "--phase3-canonical-interior-pressure-shadow",
+        ]:
+            if parent_flag not in cmd:
+                cmd.append(parent_flag)
+        cmd.append("--phase3-coupled-pressure-solver-shadow")
     if args.phase3_enthalpy_residence_diagnostics:
         for parent_flag in [
             "--phase3-canonical-shadow",

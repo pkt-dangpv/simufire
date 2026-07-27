@@ -3,6 +3,9 @@ class_name Phase3ZoneMassSystem
 
 # F3.0: transaccion two-zone en sombra. Este componente nunca escribe RoomModel.
 
+const Phase3CoupledPressureSolverScript = preload(
+	"res://sim/core/Phase3CoupledPressureSolver.gd"
+)
 const Phase3SurfaceEnergySolverScript = preload(
 	"res://sim/core/Phase3SurfaceEnergySolver.gd"
 )
@@ -162,6 +165,12 @@ var _canonical_interior_opening_by_room: Dictionary = {}
 var _canonical_fixed_gross_pressure_skew_by_room: Dictionary = {}
 var _canonical_fixed_gross_pressure_skew_cumulative_by_room: Dictionary = {}
 var _canonical_fixed_gross_pressure_network_by_room: Dictionary = {}
+## F3.3v3h2: passive coupled-solver preview. Telemetry only; it produces no
+## route, no bundle and no physical state.
+var coupled_pressure_solver_shadow_enabled: bool = false
+var _coupled_pressure_solver_by_room: Dictionary = {}
+var _coupled_pressure_solver_cumulative_by_room: Dictionary = {}
+var _coupled_pressure_solver_context: Dictionary = {}
 var _canonical_fixed_gross_pressure_network_cumulative_by_room: Dictionary = {}
 var _persistent_zone_state: Dictionary = {}
 var _persistent_step_index: int = 0
@@ -215,6 +224,14 @@ func configure_connection_residence_diagnostics(is_enabled: bool) -> void:
 		_connection_residence_cumulative.clear()
 
 
+func configure_coupled_pressure_solver_shadow(is_enabled: bool) -> void:
+	coupled_pressure_solver_shadow_enabled = is_enabled
+	if not is_enabled:
+		_coupled_pressure_solver_by_room.clear()
+		_coupled_pressure_solver_cumulative_by_room.clear()
+		_coupled_pressure_solver_context.clear()
+
+
 func configure_canonical_multisurface_shadow(is_enabled: bool) -> void:
 	canonical_multisurface_shadow_enabled = is_enabled
 	if not is_enabled:
@@ -236,6 +253,7 @@ func reset() -> void:
 	_canonical_exterior_counterflow_cumulative_kg.clear()
 	_canonical_fixed_gross_pressure_skew_cumulative_by_room.clear()
 	_canonical_fixed_gross_pressure_network_cumulative_by_room.clear()
+	_coupled_pressure_solver_cumulative_by_room.clear()
 	_canonical_wall_state_by_room.clear()
 	_canonical_wall_ambient_cumulative_by_room.clear()
 	_canonical_surface_state_by_room.clear()
@@ -342,6 +360,8 @@ func _reset_step_state() -> void:
 	_canonical_interior_opening_by_room.clear()
 	_canonical_fixed_gross_pressure_skew_by_room.clear()
 	_canonical_fixed_gross_pressure_network_by_room.clear()
+	_coupled_pressure_solver_by_room.clear()
+	_coupled_pressure_solver_context.clear()
 	_persistence_enabled_step = false
 	_persistence_seeded_by_room.clear()
 	_persistence_continuity_by_room.clear()
@@ -367,6 +387,7 @@ func begin_step(building, persistence_enabled: bool = false) -> void:
 		_canonical_exterior_counterflow_cumulative_kg.clear()
 		_canonical_fixed_gross_pressure_skew_cumulative_by_room.clear()
 		_canonical_fixed_gross_pressure_network_cumulative_by_room.clear()
+		_coupled_pressure_solver_cumulative_by_room.clear()
 		_canonical_wall_state_by_room.clear()
 		_canonical_wall_ambient_cumulative_by_room.clear()
 		_canonical_surface_state_by_room.clear()
@@ -4562,6 +4583,33 @@ func queue_canonical_interior_opening_requests(
 	descriptors.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 		return String(left.get("sort_key", "")) < String(right.get("sort_key", ""))
 	)
+	if coupled_pressure_solver_shadow_enabled:
+		# F3.3v3h2 preview input. Recorded here so the preview sees the same
+		# geometry the legacy path used, and evaluated only in finalize_step
+		# once every owner's accepted contribution is known.
+		var preview_openings: Array[Dictionary] = []
+		for descriptor in descriptors:
+			var preview_opening = descriptor["opening"]
+			var preview_room_a = descriptor["room_a"]
+			var preview_room_b = descriptor["room_b"]
+			preview_openings.append({
+				"opening_id": int(descriptor["opening_id"]),
+				"room_a_id": preview_room_a.id,
+				"room_b_id": preview_room_b.id,
+				"bottom_m": maxf(0.0, preview_opening.sill_m),
+				"top_m": minf(
+					minf(preview_room_a.height_m, preview_room_b.height_m),
+					preview_opening.lintel_height_m()
+				),
+				"width_m": maxf(0.0, preview_opening.width_m),
+				"open_fraction": float(descriptor["open_fraction"]),
+				"discharge_coeff": discharge_coeff,
+			})
+		_coupled_pressure_solver_context = {
+			"dt": dt,
+			"reference_temp_c": reference_temp_c,
+			"openings": preview_openings,
+		}
 	var network_routes: Array[Dictionary] = []
 	var pressure_routes_raw: Array[Dictionary] = []
 	var doorway_jet_routes: Array[Dictionary] = []
@@ -5422,6 +5470,265 @@ func _record_fixed_gross_interior_pressure_network_preview(
 			) + 1.0
 			_canonical_fixed_gross_pressure_network_cumulative_by_room[room_key] = \
 					cumulative
+
+
+func _new_coupled_pressure_solver_record() -> Dictionary:
+	return {
+		"enabled_flag": 0.0,
+		"valid_flag": 0.0,
+		"converged_flag": 0.0,
+		"failure_code": 0.0,
+		"iterations": 0.0,
+		"normalized_residual": 0.0,
+		"throughput_normalized_residual": 0.0,
+		"max_abs_residual_kg": 0.0,
+		"room_count": 0.0,
+		"opening_count": 0.0,
+		"solved_pressure_gauge_pa": 0.0,
+		"observed_pressure_gauge_pa": 0.0,
+		"coupled_vs_legacy_pressure_delta_pa": 0.0,
+		"owner_source_mass_kg": 0.0,
+		"owner_source_energy_kj": 0.0,
+		"predicted_net_mass_kg": 0.0,
+		"legacy_net_mass_kg": 0.0,
+		"net_mass_difference_kg": 0.0,
+		"predicted_net_energy_kj": 0.0,
+		"legacy_net_energy_kj": 0.0,
+		"net_energy_difference_kj": 0.0,
+		"counterflow_connection_count": 0.0,
+		"counterflow_violation_count": 0.0,
+		"regularization_active_count": 0.0,
+		"iteration_cap_flag": 0.0,
+		"damping_exhausted_flag": 0.0,
+	}
+
+
+func _new_coupled_pressure_solver_cumulative_record() -> Dictionary:
+	return {
+		"step_count": 0.0,
+		"converged_step_count": 0.0,
+		"failed_step_count": 0.0,
+		"max_iterations": 0.0,
+		"max_normalized_residual": 0.0,
+		"max_abs_coupled_vs_legacy_pressure_delta_pa": 0.0,
+		"max_abs_net_mass_difference_kg": 0.0,
+		"counterflow_violation_count": 0.0,
+		"regularization_active_count": 0.0,
+		"iteration_cap_step_count": 0.0,
+		"damping_exhausted_step_count": 0.0,
+	}
+
+
+## F3.3v3h2: run the pure H1 solver over the resolved step and compare it with
+## what the legacy interior path actually did. Strictly read-only: it reads the
+## pre-step snapshot and the resolved shadow, and writes only its own ledger.
+##
+## Owner sources are recovered exactly, with no new plumbing:
+##
+##     owner_source_r = (post_r - pre_r) - interior_network_accepted_r
+##
+## so every non-opening owner - combustion, multisurface, exterior, plume,
+## parcels, legacy - enters the solver residual at its real accepted magnitude.
+## That is precisely the property F3.3v3g3 lacked.
+##
+## Exterior openings stay a fixed source here rather than a solved flux.
+## Promoting them into the solve is an H3 question; the cost of freezing them
+## is visible in the prediction error this records.
+func _record_coupled_pressure_solver_preview(
+		shadow: Dictionary,
+		building,
+		reference_temp_c: float
+	) -> void:
+	if not coupled_pressure_solver_shadow_enabled \
+			or _coupled_pressure_solver_context.is_empty() or building == null:
+		return
+	var dt: float = float(_coupled_pressure_solver_context.get("dt", 0.0))
+	if dt <= 0.0:
+		return
+	var solver_temp_c: float = float(
+		_coupled_pressure_solver_context.get("reference_temp_c", reference_temp_c)
+	)
+	var openings: Array = _coupled_pressure_solver_context.get("openings", [])
+	var member_rooms: Dictionary = {}
+	for raw_opening in openings:
+		var opening: Dictionary = raw_opening
+		for room_id in [
+			int(opening.get("room_a_id", EXTERIOR_ID)),
+			int(opening.get("room_b_id", EXTERIOR_ID)),
+		]:
+			if room_id != EXTERIOR_ID:
+				member_rooms[str(room_id)] = true
+	if member_rooms.is_empty():
+		return
+
+	var rooms: Dictionary = {}
+	var sources: Dictionary = {}
+	var observed: Dictionary = {}
+	var legacy_net: Dictionary = {}
+	for raw_room_key in member_rooms.keys():
+		var room_key: String = String(raw_room_key)
+		var room = building.get_room(int(room_key))
+		var pre_state: Dictionary = _snapshots.get(room_key, {})
+		var post_state: Dictionary = shadow.get(room_key, {})
+		if room == null or pre_state.is_empty() or post_state.is_empty():
+			return
+		rooms[room_key] = {
+			"volume_m3": room.volume_m3(),
+			"floor_area_m2": room.floor_area_m2(),
+			"height_m": room.height_m,
+			"upper_gas_kg": float(pre_state.get("upper_gas_kg", 0.0)),
+			"lower_gas_kg": float(pre_state.get("lower_gas_kg", 0.0)),
+			"upper_energy_kj": float(pre_state.get("upper_energy_kj", 0.0)),
+			"lower_energy_kj": float(pre_state.get("lower_energy_kj", 0.0)),
+		}
+		var pre_mass_kg: float = float(pre_state.get("upper_gas_kg", 0.0)) \
+				+ float(pre_state.get("lower_gas_kg", 0.0))
+		var pre_energy_kj: float = float(pre_state.get("upper_energy_kj", 0.0)) \
+				+ float(pre_state.get("lower_energy_kj", 0.0))
+		var post_mass_kg: float = float(post_state.get("upper_gas_kg", 0.0)) \
+				+ float(post_state.get("lower_gas_kg", 0.0))
+		var post_energy_kj: float = float(post_state.get("upper_energy_kj", 0.0)) \
+				+ float(post_state.get("lower_energy_kj", 0.0))
+		var interior: Dictionary = _canonical_interior_opening_by_room.get(
+			room_key, _new_canonical_interior_opening_record()
+		)
+		var interior_net_mass_kg: float = float(
+			interior.get("accepted_in_gas_kg", 0.0)
+		) - float(interior.get("accepted_out_gas_kg", 0.0))
+		var interior_net_energy_kj: float = float(
+			interior.get("accepted_in_energy_kj", 0.0)
+		) - float(interior.get("accepted_out_energy_kj", 0.0))
+		legacy_net[room_key] = {
+			"mass_kg": interior_net_mass_kg,
+			"energy_kj": interior_net_energy_kj,
+		}
+		sources[room_key] = {
+			"mass_kg": (post_mass_kg - pre_mass_kg) - interior_net_mass_kg,
+			"energy_kj": (post_energy_kj - pre_energy_kj) - interior_net_energy_kj,
+		}
+		var post_thermo: Dictionary = derive_canonical_thermodynamic_state(
+			float(post_state.get("upper_gas_kg", 0.0)),
+			float(post_state.get("lower_gas_kg", 0.0)),
+			float(post_state.get("upper_energy_kj", 0.0)),
+			float(post_state.get("lower_energy_kj", 0.0)),
+			room.volume_m3(),
+			room.floor_area_m2(),
+			room.height_m,
+			solver_temp_c
+		)
+		observed[room_key] = float(post_thermo.get("pressure_gauge_pa", 0.0)) \
+				if bool(post_thermo.get("valid", false)) else NAN
+
+	var solver = Phase3CoupledPressureSolverScript.new()
+	var solved: Dictionary = solver.solve_coupled_pressure(
+		rooms, openings, sources, dt, solver_temp_c
+	)
+	var converged: bool = bool(solved.get("converged", false))
+	var solved_gauge: Dictionary = solved.get("gauge_pressure_by_room", {})
+	var solved_net_mass: Dictionary = solved.get("net_mass_by_room", {})
+	var solved_net_energy: Dictionary = solved.get("net_energy_by_room", {})
+	for raw_room_key in rooms.keys():
+		var room_key: String = String(raw_room_key)
+		var record: Dictionary = _new_coupled_pressure_solver_record()
+		record["enabled_flag"] = 1.0
+		record["valid_flag"] = 1.0 if bool(solved.get("valid", false)) else 0.0
+		record["converged_flag"] = 1.0 if converged else 0.0
+		record["failure_code"] = float(solved.get("failure_code", 0.0))
+		record["iterations"] = float(solved.get("iterations", 0.0))
+		record["normalized_residual"] = float(
+			solved.get("normalized_residual", 0.0)
+		)
+		record["throughput_normalized_residual"] = float(
+			solved.get("throughput_normalized_residual", 0.0)
+		)
+		record["max_abs_residual_kg"] = float(
+			solved.get("max_abs_residual_kg", 0.0)
+		)
+		record["room_count"] = float(rooms.size())
+		record["opening_count"] = float(openings.size())
+		record["owner_source_mass_kg"] = float(sources[room_key]["mass_kg"])
+		record["owner_source_energy_kj"] = float(sources[room_key]["energy_kj"])
+		record["legacy_net_mass_kg"] = float(legacy_net[room_key]["mass_kg"])
+		record["legacy_net_energy_kj"] = float(legacy_net[room_key]["energy_kj"])
+		record["counterflow_connection_count"] = float(
+			solved.get("counterflow_connection_count", 0.0)
+		)
+		record["counterflow_violation_count"] = float(
+			solved.get("counterflow_violation_count", 0.0)
+		)
+		record["regularization_active_count"] = float(
+			solved.get("regularization_active_count", 0.0)
+		)
+		# Which non-convergence mode: the iteration cap and an exhausted line
+		# search have different remedies, so H3 must be able to tell them apart.
+		var limiting_reason: String = String(solved.get("limiting_reason", ""))
+		record["iteration_cap_flag"] = \
+				1.0 if limiting_reason == "iteration_cap" else 0.0
+		record["damping_exhausted_flag"] = \
+				1.0 if limiting_reason == "damping_exhausted" else 0.0
+		var observed_pa: float = float(observed.get(room_key, NAN))
+		record["observed_pressure_gauge_pa"] = observed_pa \
+				if is_finite(observed_pa) else 0.0
+		if converged:
+			record["solved_pressure_gauge_pa"] = float(
+				solved_gauge.get(room_key, 0.0)
+			)
+			if is_finite(observed_pa):
+				record["coupled_vs_legacy_pressure_delta_pa"] = float(
+					solved_gauge.get(room_key, 0.0)
+				) - observed_pa
+			record["predicted_net_mass_kg"] = float(
+				solved_net_mass.get(room_key, 0.0)
+			)
+			record["predicted_net_energy_kj"] = float(
+				solved_net_energy.get(room_key, 0.0)
+			)
+			record["net_mass_difference_kg"] = float(
+				record["predicted_net_mass_kg"]
+			) - float(record["legacy_net_mass_kg"])
+			record["net_energy_difference_kj"] = float(
+				record["predicted_net_energy_kj"]
+			) - float(record["legacy_net_energy_kj"])
+		_coupled_pressure_solver_by_room[room_key] = record
+
+		var cumulative: Dictionary = _coupled_pressure_solver_cumulative_by_room.get(
+			room_key, _new_coupled_pressure_solver_cumulative_record()
+		).duplicate(true)
+		cumulative["step_count"] = float(cumulative["step_count"]) + 1.0
+		cumulative["converged_step_count"] = float(
+			cumulative["converged_step_count"]
+		) + (1.0 if converged else 0.0)
+		cumulative["failed_step_count"] = float(cumulative["failed_step_count"]) \
+				+ (0.0 if converged else 1.0)
+		cumulative["max_iterations"] = maxf(
+			float(cumulative["max_iterations"]), float(record["iterations"])
+		)
+		cumulative["max_normalized_residual"] = maxf(
+			float(cumulative["max_normalized_residual"]),
+			float(record["normalized_residual"])
+		)
+		cumulative["counterflow_violation_count"] = float(
+			cumulative["counterflow_violation_count"]
+		) + float(record["counterflow_violation_count"])
+		cumulative["regularization_active_count"] = float(
+			cumulative["regularization_active_count"]
+		) + float(record["regularization_active_count"])
+		cumulative["iteration_cap_step_count"] = float(
+			cumulative["iteration_cap_step_count"]
+		) + float(record["iteration_cap_flag"])
+		cumulative["damping_exhausted_step_count"] = float(
+			cumulative["damping_exhausted_step_count"]
+		) + float(record["damping_exhausted_flag"])
+		if converged:
+			cumulative["max_abs_coupled_vs_legacy_pressure_delta_pa"] = maxf(
+				float(cumulative["max_abs_coupled_vs_legacy_pressure_delta_pa"]),
+				absf(float(record["coupled_vs_legacy_pressure_delta_pa"]))
+			)
+			cumulative["max_abs_net_mass_difference_kg"] = maxf(
+				float(cumulative["max_abs_net_mass_difference_kg"]),
+				absf(float(record["net_mass_difference_kg"]))
+			)
+		_coupled_pressure_solver_cumulative_by_room[room_key] = cumulative
 
 
 func _fixed_gross_route_totals_by_room(routes: Array) -> Dictionary:
@@ -7773,6 +8080,7 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			rejected_doorway_species_by_room,
 			rejected_transit_species_by_room
 		)
+	_record_coupled_pressure_solver_preview(shadow, building, reference_temp_c)
 	var inflight_transit_species: Dictionary = _inflight_transit_species()
 	var transit_created_total_kg: float = _sum_parcel_species(_species_transit_created_kg)
 	var transit_delivered_total_kg: float = _sum_parcel_species(_species_transit_delivered_kg)
@@ -9724,6 +10032,62 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 				"canonical_fuel_object_sync_" + object_sync_field, 0.0
 			))
 		_results[room_key] = fire_products_room_result
+		var coupled_solver_result: Dictionary = _results[room_key]
+		var coupled_solver: Dictionary = _coupled_pressure_solver_by_room.get(
+			room_key, _new_coupled_pressure_solver_record()
+		)
+		var coupled_solver_cumulative: Dictionary = \
+				_coupled_pressure_solver_cumulative_by_room.get(
+					room_key, _new_coupled_pressure_solver_cumulative_record()
+				)
+		for coupled_field in [
+			"enabled_flag",
+			"valid_flag",
+			"converged_flag",
+			"failure_code",
+			"iterations",
+			"normalized_residual",
+			"throughput_normalized_residual",
+			"max_abs_residual_kg",
+			"room_count",
+			"opening_count",
+			"solved_pressure_gauge_pa",
+			"observed_pressure_gauge_pa",
+			"coupled_vs_legacy_pressure_delta_pa",
+			"owner_source_mass_kg",
+			"owner_source_energy_kj",
+			"predicted_net_mass_kg",
+			"legacy_net_mass_kg",
+			"net_mass_difference_kg",
+			"predicted_net_energy_kj",
+			"legacy_net_energy_kj",
+			"net_energy_difference_kj",
+			"counterflow_connection_count",
+			"counterflow_violation_count",
+			"regularization_active_count",
+			"iteration_cap_flag",
+			"damping_exhausted_flag",
+		]:
+			coupled_solver_result[
+				"phase3_shadow_coupled_solver_" + coupled_field
+			] = float(coupled_solver.get(coupled_field, 0.0))
+		for coupled_field in [
+			"step_count",
+			"converged_step_count",
+			"failed_step_count",
+			"max_iterations",
+			"max_normalized_residual",
+			"max_abs_coupled_vs_legacy_pressure_delta_pa",
+			"max_abs_net_mass_difference_kg",
+			"counterflow_violation_count",
+			"regularization_active_count",
+			"iteration_cap_step_count",
+			"damping_exhausted_step_count",
+		]:
+			coupled_solver_result[
+				"phase3_shadow_coupled_solver_" + coupled_field + "_total"
+			] = float(coupled_solver_cumulative.get(coupled_field, 0.0))
+		_results[room_key] = coupled_solver_result
 		var multisurface_room_result: Dictionary = _results[room_key]
 		for surface_name in CANONICAL_SURFACE_NAMES:
 			var surface: Dictionary = canonical_multisurface_surfaces.get(

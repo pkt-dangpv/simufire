@@ -8,6 +8,48 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-27 - F3.3v3h2 passive preview GO
+
+- Added default-OFF `phase3_coupled_pressure_solver_shadow_enabled`, effective
+  only under the canonical interior-opening stack. It runs the pure F3.3v3h1
+  solver at the tail of `finalize_step`, after the exterior boundary is
+  applied, and writes only its own telemetry ledger.
+- Owner sources are recovered exactly as
+  `(post - pre) - interior_network_accepted`. Every non-opening owner therefore
+  enters the residual at its real accepted magnitude, which is the property
+  F3.3v3g3 lacked and the reason this preview actually tests the H0 design.
+- Isolation exact on all four scratch runs (`corridor_chain` 10/30/60 s,
+  `cfast_r0_window_360` 120 s): identical row counts, zero shared value
+  differences, zero columns lost, 37 new columns all in the new family.
+- Solver invariants hold in the real pressure field: max normalized residual
+  `0.0` on every converged step, and zero counterflow violations in 2642
+  solved steps.
+- **The coupled solve equalises the chain.** At 60 s it leaves `0.07 Pa` across
+  rooms 0/1/2 where the legacy path leaves `69.3 Pa`, and it moves `3.32x` more
+  net doorway mass. Directionally consistent with the standing `-55.49%` net
+  mass deficit versus CFAST - but this is a single-step comparison and cannot
+  claim the CFAST error would close.
+- Contrast worth keeping: on `cfast_r0_window_360` the divergence is only
+  `0.17 Pa` versus `87.80 Pa` on `corridor_chain`. The two formulations agree
+  where the network is small; they diverge exactly where the accepted
+  architecture is known to be weakest.
+- **Measured limit and the H3 blocker: 13.6% of steps do not converge** at
+  60 s. The modes are counted separately and behave differently - iteration-cap
+  failures are confined to the ignition transient and stop after ~20 s, while
+  damping-exhausted failures accumulate with time. They need different
+  remedies, and neither may be papered over by loosening a tolerance or raising
+  the cap.
+- Exterior openings remain a frozen source rather than a solved flux; the H2
+  numbers are the baseline against which an H3 promotion must be compared.
+- Verification: 4/4 analyzer stages PASS; `pytest -k "phase3 or guardrail"`
+  954 PASS / 2 FAIL (the established baseline); H1/g2/g1/f0 fixtures PASS;
+  Physics 9/15/5/0; ILV 15/14/0; gap inventory unchanged; guardrails 9/10 with
+  only the expected dirty-motor R2-1.
+- Next: **H3 only**, and only after the convergence gap is understood. Do not
+  write a persistent apply path before then.
+- Binding record:
+  `docs/validation/PHASE3_F33V3H2_COUPLED_SOLVER_PREVIEW.md`.
+
 ## Current Session Update - 2026-07-27 - Godot fixtures fail closed
 
 - Audited all 32 Godot fixtures for the `SceneTree.quit()` fall-through
