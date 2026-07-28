@@ -1027,6 +1027,8 @@ Diagnostic / planned lanes:
 | F3.3v3h0 | Coupled pressure/opening solver design plus owner attribution | Design GO; ready for H1; no motor code |
 | F3.3v3h1 | Pure damped-Newton coupled pressure primitive | Primitive GO; no runtime call, no flag |
 | F3.3v3h2 | Passive coupled-solver preview, one call site | Preview GO; authority NO-GO; 13.6% steps non-convergent |
+| F3.3v3h2.5 | Convergence hardening from reconstructed states | NO-GO; 528 synthetic cases converged 100%; reverted |
+| F3.3v3h2.5a | Real failing-step capture and deterministic replay | Capture GO; solver unchanged; H3 still blocked |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1210,3 +1212,32 @@ problems with separate remedies and are counted separately.
 Next slice is **H3 only**, and only after the convergence gap is diagnosed. Do
 not raise the iteration cap or loosen the residual tolerance to hide it, and do
 not write a persistent apply path before the cause is known.
+
+F3.3v3h2.5 STOP (convergence hardening): **NO-GO, reverted.** The three
+hypotheses - Jacobian FD step, seed pressure, residual roughness - were all
+tested against *reconstructed* states, and 528 synthetic cases converged
+`100%` of the time. The hardening therefore had no failure to falsify against
+and its own instrumentation produced unexplained values. Nothing was committed.
+
+F3.3v3h2.5a STOP (capture only, no fix attempted):
+
+- the capture path is empty by default and the first failure latches before any
+  write, so an unconfigured run cannot be affected: PASS;
+- `tests/fixtures/data/coupled_solver_failure_corridor_chain.json` records a
+  real non-converged solve - `corridor_chain` step 297, `damping_exhausted`,
+  failure code 6, **3 iterations** against a cap of 24: PASS;
+- every numeric leaf carries the exact IEEE754 bit pattern alongside a readable
+  decimal, so the replay solves the captured problem and not a nearby one
+  (`String.num_scientific` alone round-trips ~9 significant digits and the
+  replay measurably diverged before the hex field existed): PASS;
+- `phase3_f33v3h25a_captured_solver_failure.gd` replays with no engine,
+  building or scenario, is deterministic across two runs, and asserts the
+  failure **still reproduces**: PASS;
+- `Phase3CoupledPressureSolver.gd` is unchanged from H2 and a test forbids the
+  H2.5 knobs; solver behaviour at 30 s is identical to the committed baseline
+  (361 steps, 299 converged, 46 iteration-cap, 16 damping-exhausted): PASS.
+
+Substantive observation, deliberately not acted on: the captured step fails
+after 3 iterations, so it is not an effort problem, and the room-0 owner source
+carries **negative** mass with positive energy. H2.5b must work on this fixture
+offline before touching runtime. H3 remains blocked.

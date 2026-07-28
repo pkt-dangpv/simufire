@@ -3,6 +3,37 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.5a captured coupled-solver failure (2026-07-28)
+
+- F3.3v3h2.5 convergence hardening was **NO-GO** and fully reverted. It could
+  not diagnose the `13.6%` non-convergence because it worked from reconstructed
+  states: 528 synthetic cases converged `100%` of the time. Reconstruction is
+  not a substitute for the real inputs, so this slice captures them instead.
+- Added an opt-in capture path,
+  `phase3_coupled_pressure_solver_capture_path` (empty by default, so it is a
+  no-op), exposed on the headless runner as
+  `--phase3-coupled-pressure-solver-capture=<path>`. It serialises the **first**
+  failing solve verbatim and stops. The latch is set before any write, so a
+  second failure is a no-op even if serialisation fails.
+- Captured `tests/fixtures/data/coupled_solver_failure_corridor_chain.json`:
+  `corridor_chain` step 297, `damping_exhausted`, failure code 6, 3 iterations
+  - well short of the 24 cap. The room-0 owner source has **negative** mass
+  (`-1.5158e-3 kg`) with positive energy.
+- Every numeric leaf is stored twice: a readable decimal in `d` and the exact
+  IEEE754 bit pattern in `x`. `String.num_scientific` alone round-trips only
+  about nine significant digits, which measurably perturbed the replay; the
+  replay decodes `x` and is bit-identical. GDScript's format operator has no
+  `%g` conversion, so an earlier attempt wrote the literal `"%.17g"`.
+- Added `tests/fixtures/phase3_f33v3h25a_captured_solver_failure.gd`: a pure
+  replay with no engine, building or scenario. It asserts the solve **still
+  fails**, so a future fix breaks it loudly instead of passing silently.
+- `Phase3CoupledPressureSolver.gd` is **byte-identical to H2** and a test
+  enforces it. Solver behaviour at 30 s matches the committed baseline exactly:
+  361 steps, 299 converged, 46 iteration-cap, 16 damping-exhausted.
+- No physics, legacy path, official case, report, baseline, expected value,
+  tolerance, CTRL envelope or VALID_GAP changed. H3 stays blocked until the
+  captured failure is diagnosed.
+
 ### Phase 3+ F3.3v3h2 passive coupled pressure solver preview (2026-07-27)
 
 - Added default-OFF `phase3_coupled_pressure_solver_shadow_enabled`. When

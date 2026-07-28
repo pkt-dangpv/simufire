@@ -171,6 +171,11 @@ var coupled_pressure_solver_shadow_enabled: bool = false
 var _coupled_pressure_solver_by_room: Dictionary = {}
 var _coupled_pressure_solver_cumulative_by_room: Dictionary = {}
 var _coupled_pressure_solver_context: Dictionary = {}
+## F3.3v3h2.5a: when set to a writable path, the FIRST solve that fails is
+## serialised verbatim and capture stops. Empty by default, so this is a
+## no-op unless a diagnostic run asks for it.
+var coupled_pressure_solver_capture_path: String = ""
+var _coupled_pressure_solver_captured: bool = false
 var _canonical_fixed_gross_pressure_network_cumulative_by_room: Dictionary = {}
 var _persistent_zone_state: Dictionary = {}
 var _persistent_step_index: int = 0
@@ -222,6 +227,11 @@ func configure_connection_residence_diagnostics(is_enabled: bool) -> void:
 	connection_residence_diagnostics_enabled = is_enabled
 	if not is_enabled:
 		_connection_residence_cumulative.clear()
+
+
+func configure_coupled_pressure_solver_capture(path: String) -> void:
+	coupled_pressure_solver_capture_path = path
+	_coupled_pressure_solver_captured = false
 
 
 func configure_coupled_pressure_solver_shadow(is_enabled: bool) -> void:
@@ -5519,6 +5529,113 @@ func _new_coupled_pressure_solver_cumulative_record() -> Dictionary:
 	}
 
 
+## Full-precision numeric leaves. Godot JSON stringifies floats with fewer
+## digits than a double carries, and a capture that does not round-trip is
+## worthless: the whole point is that the fixture reproduces the same failure.
+## Each numeric leaf is stored twice: a readable decimal so the artifact can
+## be inspected by eye, and the exact IEEE754 bit pattern so a replay is
+## bit-identical. `String.num_scientific` alone round-trips to about nine
+## significant digits, which is not enough for a regression capture.
+func _capture_float(value: float) -> Dictionary:
+	var bytes: PackedByteArray = PackedByteArray()
+	bytes.resize(8)
+	bytes.encode_double(0, value)
+	return {"d": String.num_scientific(value), "x": bytes.hex_encode()}
+
+
+func _capture_float_dictionary(source: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for raw_key in source.keys():
+		out[String(raw_key)] = _capture_float(float(source[raw_key]))
+	return out
+
+
+## F3.3v3h2.5a: serialise the first failing solve verbatim, then stop. Writes
+## only to the explicitly configured diagnostic path and touches no simulation
+## state. Never called when `coupled_pressure_solver_capture_path` is empty.
+func _capture_coupled_pressure_solver_failure(
+		rooms: Dictionary,
+		openings: Array,
+		sources: Dictionary,
+		dt: float,
+		reference_temp_c: float,
+		solved: Dictionary
+	) -> void:
+	if coupled_pressure_solver_capture_path.is_empty() \
+			or _coupled_pressure_solver_captured:
+		return
+	_coupled_pressure_solver_captured = true
+	var captured_rooms: Dictionary = {}
+	for raw_room_key in rooms.keys():
+		captured_rooms[String(raw_room_key)] = _capture_float_dictionary(
+			rooms[raw_room_key]
+		)
+	var captured_sources: Dictionary = {}
+	for raw_room_key in sources.keys():
+		captured_sources[String(raw_room_key)] = _capture_float_dictionary(
+			sources[raw_room_key]
+		)
+	var captured_openings: Array = []
+	for raw_opening in openings:
+		var opening: Dictionary = raw_opening
+		captured_openings.append({
+			"opening_id": int(opening.get("opening_id", -1)),
+			"room_a_id": int(opening.get("room_a_id", EXTERIOR_ID)),
+			"room_b_id": int(opening.get("room_b_id", EXTERIOR_ID)),
+			"bottom_m": _capture_float(float(opening.get("bottom_m", 0.0))),
+			"top_m": _capture_float(float(opening.get("top_m", 0.0))),
+			"width_m": _capture_float(float(opening.get("width_m", 0.0))),
+			"open_fraction": _capture_float(
+				float(opening.get("open_fraction", 0.0))
+			),
+			"discharge_coeff": _capture_float(
+				float(opening.get("discharge_coeff", 0.0))
+			),
+		})
+	var residual_history: Array = []
+	for raw_value in solved.get("residual_history", []):
+		residual_history.append(_capture_float(float(raw_value)))
+	var payload: Dictionary = {
+		"schema_version": "simufire_coupled_solver_failure_v1",
+		"persistent_step_index": _persistent_step_index,
+		"input": {
+			"rooms": captured_rooms,
+			"openings": captured_openings,
+			"sources": captured_sources,
+			"dt": _capture_float(dt),
+			"reference_temp_c": _capture_float(reference_temp_c),
+		},
+		"solver_defaults": {
+			"residual_tolerance": _capture_float(1.0e-12),
+			"max_iterations": 24,
+			"dp_regularization_pa": _capture_float(0.01),
+			"jacobian_step_pa": _capture_float(1.0e-3),
+			"band_segments": 16,
+			"max_damping_halvings": 12,
+		},
+		"observed_failure": {
+			"valid": bool(solved.get("valid", false)),
+			"converged": bool(solved.get("converged", false)),
+			"failure_code": _capture_float(
+				float(solved.get("failure_code", 0.0))
+			),
+			"limiting_reason": String(solved.get("limiting_reason", "")),
+			"iterations": _capture_float(float(solved.get("iterations", 0.0))),
+			"normalized_residual": _capture_float(
+				float(solved.get("normalized_residual", 0.0))
+			),
+			"residual_history": residual_history,
+		},
+	}
+	var file: FileAccess = FileAccess.open(
+		coupled_pressure_solver_capture_path, FileAccess.WRITE
+	)
+	if file == null:
+		return
+	file.store_string(JSON.stringify(payload, "\t"))
+	file.close()
+
+
 ## F3.3v3h2: run the pure H1 solver over the resolved step and compare it with
 ## what the legacy interior path actually did. Strictly read-only: it reads the
 ## pre-step snapshot and the resolved shadow, and writes only its own ledger.
@@ -5624,6 +5741,10 @@ func _record_coupled_pressure_solver_preview(
 		rooms, openings, sources, dt, solver_temp_c
 	)
 	var converged: bool = bool(solved.get("converged", false))
+	if not converged:
+		_capture_coupled_pressure_solver_failure(
+			rooms, openings, sources, dt, solver_temp_c, solved
+		)
 	var solved_gauge: Dictionary = solved.get("gauge_pressure_by_room", {})
 	var solved_net_mass: Dictionary = solved.get("net_mass_by_room", {})
 	var solved_net_energy: Dictionary = solved.get("net_energy_by_room", {})

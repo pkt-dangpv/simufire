@@ -1029,6 +1029,8 @@ var _step_time_us: int = 0
 ## F3.3v3h2: preview pasiva del solver acoplado H1. Solo telemetria: no
 ## emite rutas ni escribe estado. Default OFF.
 @export var phase3_coupled_pressure_solver_shadow_enabled: bool = false
+## F3.3v3h2.5a: ruta de captura del primer solve fallido. Vacio = no-op.
+@export var phase3_coupled_pressure_solver_capture_path: String = ""
 ## F3.3c1: ledger acumulativo de entalpia aceptada por ruta. Default OFF.
 @export var phase3_enthalpy_residence_diagnostics_enabled: bool = false
 ## F3.3d1: ledger acumulativo de masa aceptada por ruta. Default OFF.
@@ -1340,6 +1342,10 @@ func _sync_auxiliary_services() -> void:
 	)
 	phase3_zone_mass_system.configure_coupled_pressure_solver_shadow(
 		_phase3_coupled_pressure_solver_active()
+	)
+	phase3_zone_mass_system.configure_coupled_pressure_solver_capture(
+		phase3_coupled_pressure_solver_capture_path \
+				if _phase3_coupled_pressure_solver_active() else ""
 	)
 	phase3_zone_mass_system.configure_canonical_multisurface_shadow(
 		_phase3_canonical_multisurface_active()

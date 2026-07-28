@@ -8,6 +8,41 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-28 - F3.3v3h2.5a failure capture GO
+
+- **H2.5 hardening was NO-GO and is fully reverted.** It tried to diagnose the
+  `13.6%` non-convergence from reconstructed states and could not: 528
+  synthetic cases converged `100%` of the time. That is the lineage reason this
+  slice exists - stop reasoning about a reconstruction, capture the real input.
+- Added an opt-in capture path,
+  `phase3_coupled_pressure_solver_capture_path` (empty by default = no-op),
+  reachable from the headless runner as
+  `--phase3-coupled-pressure-solver-capture=<path>`. It serialises only the
+  **first** failing solve; the latch is set before any write.
+- `tests/fixtures/data/coupled_solver_failure_corridor_chain.json`:
+  `corridor_chain` step 297, `damping_exhausted`, failure code 6, **3
+  iterations** - nowhere near the 24 cap, so this is not an effort problem. The
+  room-0 owner source carries **negative** mass (`-1.5158e-3 kg`) with positive
+  energy; that pairing is the first thing H2.5b should look at.
+- Numeric leaves are stored twice, readable decimal `d` plus exact IEEE754 hex
+  `x`. `String.num_scientific` round-trips only ~9 significant digits and the
+  replay diverged in the 9th; the replay decodes `x` and is bit-identical.
+- `tests/fixtures/phase3_f33v3h25a_captured_solver_failure.gd` replays it with
+  no engine, building or scenario, and asserts the failure **still reproduces**
+  - a regression capture, not a target. A future fix breaks it loudly.
+- **The solver is untouched.** `Phase3CoupledPressureSolver.gd` is identical to
+  H2 and a test forbids the hardening knobs H2.5 tried
+  (`flux_regularization_mode`, `jacobian_step_mode`, `seed_pressure_by_room`).
+  Behaviour at 30 s matches the committed baseline exactly: 361 steps, 299
+  converged, 46 iteration-cap, 16 damping-exhausted.
+- Verification: OFF/ON isolation analyzer exit 0; new fixture PASS with a
+  passing negative control; 10 new Python contracts PASS;
+  `pytest -k "phase3 or guardrail"` 975 PASS / 2 FAIL (established baseline);
+  Physics 9/15/5/0; ILV 15/14/0; gap inventory unchanged; guardrails 9/10 with
+  only the expected dirty-motor R2-1.
+- Next: **H2.5b works exclusively on this fixture** - offline, deterministic,
+  no scenario - before touching runtime. H3 remains blocked.
+
 ## Current Session Update - 2026-07-27 - F3.3v3h2 passive preview GO
 
 - Added default-OFF `phase3_coupled_pressure_solver_shadow_enabled`, effective
