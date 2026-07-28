@@ -36,6 +36,30 @@ class_name Phase3CoupledPressureSolver
 # appear in the EOS at all, so they are advected after convergence
 # with exactly zero feedback error and are deliberately absent here.
 #
+# WHY THE UNKNOWN IS A GAUGE PRESSURE
+# -----------------------------------
+# F3.3v3h2.5c captured a real solve that reached a normalized residual of
+# 1.147e-12 against a 1e-12 tolerance and then could not finish. The Newton
+# correction it still owed was about 5.5e-12 Pa, while one ulp of a double near
+# 101325 Pa is 1.455e-11 Pa: the step was 0.38 ulp, so `p + damping * step` was
+# not a different number, every damped trial evaluated the same state, and the
+# line search exhausted with the answer already in sight.
+#
+# Iterating on the gauge pressure removes that floor. The unknown is order
+# 10 Pa instead of 101325 Pa, so the same physical correction is thousands of
+# ulps rather than a fraction of one. Two further cancellations disappear with
+# it: the opening difference is now q_a - q_b directly instead of a subtraction
+# of two numbers near 101325, and the EOS residual is assembled around a
+# per-room reference mass rather than by subtracting the reference pressure
+# from an implied absolute pressure. That last point matters - forming
+# `implied_abs - reference_abs` would have reintroduced exactly the
+# cancellation this change exists to remove.
+#
+# This is a change of variable, not of physics. The residual, the flux law, the
+# Jacobian, the merit, the damping schedule, the tolerance, the regularization
+# and the band quadrature are untouched, and `pressure_by_room` is rebuilt in
+# absolute terms on the way out.
+#
 # WHAT IS IMPLICIT AND WHAT IS FROZEN
 # -----------------------------------
 # Implicit in the Newton solve:
@@ -109,9 +133,12 @@ func solve_coupled_pressure(
 		return result
 	var room_keys: Array = context["room_keys"]
 	var room_count: int = room_keys.size()
+	# The iterate is a GAUGE pressure throughout. The seed is assembled from the
+	# reference mass rather than as `pressure_abs_pa - exterior`, so even the
+	# starting point avoids the cancellation.
 	var pressure: Array[float] = []
 	for room_key in room_keys:
-		pressure.append(float(context["rooms"][room_key]["pressure_abs_pa"]))
+		pressure.append(float(context["rooms"][room_key]["gauge_pressure_pa"]))
 
 	var evaluation: Dictionary = _evaluate(context, pressure)
 	if not bool(evaluation.get("valid", false)):
@@ -304,6 +331,15 @@ func _build_context(
 	var gas_constant: float = AIR_PRESSURE_REF_PA \
 			/ (AIR_DENSITY_REF_KG_M3 * reference_temp_k)
 
+	# The gauge reference is the exterior pressure this solve was given, never a
+	# hardcoded constant: every gauge quantity below is relative to it, so it has
+	# to be one single well-defined value for the whole solve.
+	var exterior_pressure_abs_pa: float = float(options.get(
+		"exterior_pressure_abs_pa", AIR_PRESSURE_REF_PA
+	))
+	if not is_finite(exterior_pressure_abs_pa) or exterior_pressure_abs_pa <= 0.0:
+		return context
+
 	var room_keys: Array = rooms.keys()
 	room_keys.sort()
 	var index_by_key: Dictionary = {}
@@ -312,7 +348,10 @@ func _build_context(
 		var room_key: String = String(room_keys[position])
 		index_by_key[room_key] = position
 		var derived: Dictionary = _derive_room(
-			rooms[room_keys[position]], reference_temp_k, gas_constant
+			rooms[room_keys[position]],
+			reference_temp_k,
+			gas_constant,
+			exterior_pressure_abs_pa
 		)
 		if not bool(derived.get("valid", false)):
 			context["failure_code"] = FAILURE_BAD_ROOM_STATE
@@ -327,7 +366,7 @@ func _build_context(
 		derived["source_energy_kj"] = source_energy_kj
 		room_context[room_key] = derived
 
-	var exterior_density_kg_m3: float = AIR_PRESSURE_REF_PA \
+	var exterior_density_kg_m3: float = exterior_pressure_abs_pa \
 			/ (gas_constant * reference_temp_k)
 	var opening_context: Array[Dictionary] = []
 	for raw_opening in openings:
@@ -360,7 +399,7 @@ func _build_context(
 	context["dt"] = dt
 	context["reference_temp_k"] = reference_temp_k
 	context["gas_constant"] = gas_constant
-	context["exterior_pressure_abs_pa"] = AIR_PRESSURE_REF_PA
+	context["exterior_pressure_abs_pa"] = exterior_pressure_abs_pa
 	context["residual_tolerance"] = maxf(
 		0.0, float(options.get("residual_tolerance", DEFAULT_RESIDUAL_TOLERANCE))
 	)
@@ -386,7 +425,8 @@ func _build_context(
 func _derive_room(
 		raw_state: Dictionary,
 		reference_temp_k: float,
-		gas_constant: float
+		gas_constant: float,
+		exterior_pressure_abs_pa: float
 	) -> Dictionary:
 	var state: Dictionary = raw_state
 	var volume_m3: float = float(state.get("volume_m3", 0.0))
@@ -442,14 +482,25 @@ func _derive_room(
 	var lower_density_kg_m3: float = lower_gas_kg / lower_volume_m3 \
 			if lower_volume_m3 > VOLUME_EPS_M3 and lower_gas_kg > MASS_EPS_KG \
 			else upper_gas_kg / maxf(VOLUME_EPS_M3, upper_volume_m3)
+	# Mass that would sit at exactly the exterior pressure at the reference
+	# temperature. Expressing the EOS around it is what lets the residual be
+	# built in gauge terms without ever forming `implied_abs - exterior_abs`.
+	var reference_mass_kg: float = exterior_pressure_abs_pa * volume_m3 \
+			/ (gas_constant * reference_temp_k)
+	var gauge_pressure_pa: float = gas_constant * (
+		(total_mass_kg - reference_mass_kg) * reference_temp_k
+		+ total_energy_kj / AIR_CP_KJ_KG_K
+	) / volume_m3
 	return {
 		"valid": true,
 		"volume_m3": volume_m3,
 		"floor_area_m2": floor_area_m2,
 		"height_m": height_m,
 		"mass_kg": total_mass_kg,
+		"reference_mass_kg": reference_mass_kg,
 		"energy_kj": total_energy_kj,
 		"pressure_abs_pa": pressure_abs_pa,
+		"gauge_pressure_pa": gauge_pressure_pa,
 		"interface_m": interface_m,
 		"upper_density_kg_m3": maxf(0.0, upper_density_kg_m3),
 		"lower_density_kg_m3": maxf(0.0, lower_density_kg_m3),
@@ -620,8 +671,14 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 	var rooms: Dictionary = context["rooms"]
 	var gas_constant: float = float(context["gas_constant"])
 	var reference_temp_k: float = float(context["reference_temp_k"])
+	# `pressure` holds GAUGE pressures relative to the exterior. The physical
+	# validity test is still on the absolute pressure they represent.
+	var exterior_pressure_abs_pa: float = float(
+		context["exterior_pressure_abs_pa"]
+	)
 	for value in pressure:
-		if not is_finite(float(value)) or float(value) <= 0.0:
+		if not is_finite(float(value)) \
+				or float(value) + exterior_pressure_abs_pa <= 0.0:
 			return {"valid": false}
 
 	var net_mass_kg: Array[float] = []
@@ -643,10 +700,11 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 		var opening: Dictionary = raw_opening
 		var index_a: int = int(opening["index_a"])
 		var index_b: int = int(opening["index_b"])
-		var pressure_a_pa: float = float(pressure[index_a]) if index_a >= 0 \
-				else float(context["exterior_pressure_abs_pa"])
-		var pressure_b_pa: float = float(pressure[index_b]) if index_b >= 0 \
-				else float(context["exterior_pressure_abs_pa"])
+		# Gauge by construction, so the exterior is exactly zero and the opening
+		# difference is a direct subtraction of two small numbers instead of two
+		# numbers near ambient.
+		var pressure_a_pa: float = float(pressure[index_a]) if index_a >= 0 else 0.0
+		var pressure_b_pa: float = float(pressure[index_b]) if index_b >= 0 else 0.0
 		var flux: Dictionary = _integrate_opening(
 			opening,
 			pressure_a_pa - pressure_b_pa,
@@ -713,8 +771,13 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 		# balance minus the pressure iterate. Every owner is inside it: the
 		# opening fluxes through net_*, and combustion/multisurface/anything
 		# else through source_*.
+		#
+		# Built around the room's reference mass so that both terms are already
+		# gauge quantities. Computing an absolute implied pressure and then
+		# subtracting the exterior would discard about four significant digits
+		# to cancellation, which is the defect this formulation removes.
 		var implied_pressure_pa: float = gas_constant * (
-			balance_mass_kg * reference_temp_k
+			(balance_mass_kg - float(room["reference_mass_kg"])) * reference_temp_k
 			+ balance_energy_kj / AIR_CP_KJ_KG_K
 		) / volume_m3
 		var residual: float = implied_pressure_pa - float(pressure[index])
@@ -885,6 +948,10 @@ func _regularized_flux_factor(
 	}
 
 
+## The solve carries gauge pressures, so the absolute field is reconstructed
+## here and nowhere else. The returned contract is unchanged: callers still get
+## `pressure_by_room` in absolute pascals and `gauge_pressure_by_room` relative
+## to the exterior reference this solve was given.
 func _pressure_map(
 		context: Dictionary,
 		pressure: Array,
@@ -892,10 +959,13 @@ func _pressure_map(
 	) -> Dictionary:
 	var mapped: Dictionary = {}
 	var room_keys: Array = context["room_keys"]
+	var exterior_pressure_abs_pa: float = float(
+		context["exterior_pressure_abs_pa"]
+	)
 	for index in range(room_keys.size()):
 		var value: float = float(pressure[index])
-		mapped[String(room_keys[index])] = value - AIR_PRESSURE_REF_PA \
-				if gauge else value
+		mapped[String(room_keys[index])] = value \
+				if gauge else value + exterior_pressure_abs_pa
 	return mapped
 
 

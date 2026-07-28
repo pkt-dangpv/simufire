@@ -41,9 +41,22 @@ extends SceneTree
 ## that matters. A gauge-pressure unknown would not have this floor. That is a
 ## hypothesis for H2.5d to test, not a change made here.
 ##
-## This fixture asserts the failure STILL REPRODUCES. It is a regression
-## capture, not a target: when a future phase fixes it, this must be updated
-## with intent rather than silently passing.
+## F3.3v3h2.5e FIXED THIS AND THIS FIXTURE WAS FLIPPED ON PURPOSE.
+##
+## As written it asserted the failure still reproduced, so a fix would break it
+## loudly instead of passing in silence. That is what happened. H2.5e moved the
+## solve into gauge coordinates: the unknown is now order 1e-5 Pa rather than
+## 101325 Pa, so the correction that was 0.38 ulp is now representable many
+## times over. This input converges in 3 iterations to a normalized residual of
+## about 9.5e-17, five orders of magnitude inside the unchanged 1e-12 tolerance.
+##
+## The captured JSON is NOT re-recorded. It stays a verbatim record of what the
+## absolute-pressure formulation did on 2026-07-28, and the fixture still
+## asserts that the record says `damping_exhausted`, so a regression back to
+## absolute coordinates is visible rather than implicit.
+##
+## The companion `corridor_chain` capture is still an open failure. H2.5e fixed
+## the numerical-floor mode only; it did not fix that one, and H3 stays blocked.
 
 const SolverScript = preload("res://sim/core/Phase3CoupledPressureSolver.gd")
 const CAPTURE_PATH := "res://tests/fixtures/data/coupled_solver_failure_r0_window_360.json"
@@ -64,7 +77,7 @@ func _init() -> void:
 	_test_replay_reproduces_the_recorded_failure(capture)
 	_test_replay_is_deterministic(capture)
 	_test_capture_round_trips_full_precision(capture)
-	_test_failure_is_the_numerical_floor_not_a_bad_direction(capture)
+	_test_solve_now_clears_the_old_numerical_floor(capture)
 	_test_topology_differs_from_the_corridor_capture(capture)
 	if _failed:
 		quit(1)
@@ -128,24 +141,31 @@ func _test_replay_reproduces_the_recorded_failure(capture: Dictionary) -> void:
 	var result: Dictionary = _replay(capture)
 	var observed: Dictionary = capture.get("observed_failure", {})
 	_assert_true(
-		not bool(result["converged"]),
-		"replay does not converge, exactly as captured"
+		bool(result["converged"]),
+		"the captured input converges in gauge coordinates"
 	)
 	_assert_true(
-		String(result["limiting_reason"]) == String(observed["limiting_reason"]),
-		"replay reproduces limiting reason '%s', got '%s'" % [
-			String(observed["limiting_reason"]), String(result["limiting_reason"])
-		]
+		String(result["limiting_reason"]) == "converged",
+		"limiting reason is 'converged', got '%s'" % String(result["limiting_reason"])
 	)
-	_close(
-		float(result["failure_code"]),
-		_decode(observed["failure_code"]),
-		"replay reproduces failure code"
+	_assert_true(
+		float(result["failure_code"]) == 0.0,
+		"a converged solve records no failure code"
 	)
-	_close(
-		float(result["iterations"]),
-		_decode(observed["iterations"]),
-		"replay reproduces iteration count"
+	_assert_true(
+		float(result["normalized_residual"]) <= 1.0e-12,
+		"the solve closes its residual inside the unchanged tolerance"
+	)
+	_assert_true(
+		float(result["counterflow_violation_count"]) == 0.0,
+		"no counterflow violation on the converged solve"
+	)
+	# The record keeps saying what absolute coordinates did, so a regression is
+	# detectable instead of being quietly re-baselined.
+	_assert_true(
+		not bool(observed.get("converged", true))
+				and String(observed.get("limiting_reason", "")) == "damping_exhausted",
+		"the capture still records the original absolute-coordinate failure"
 	)
 
 
@@ -170,55 +190,82 @@ func _test_replay_is_deterministic(capture: Dictionary) -> void:
 		)
 
 
+## Pure encoding test - no solver involved, so it cannot drift when the solver
+## changes. Each leaf must re-encode to its own bit pattern, and at least one
+## must carry information its readable decimal does not.
 func _test_capture_round_trips_full_precision(capture: Dictionary) -> void:
-	# The whole residual history must reproduce bit for bit. This capture is far
-	# more demanding than the H2.5a one: its last entry is 1.1e-12, so a decimal
-	# encoding that lost the ninth significant digit would replay a visibly
-	# different endgame.
-	var result: Dictionary = _replay(capture)
-	var recorded: Array = capture.get("observed_failure", {}).get(
-		"residual_history", []
-	)
-	var replayed: Array = result["residual_history"]
-	_assert_true(
-		recorded.size() == replayed.size(),
-		"residual history length matches the capture (%d vs %d)" % [
-			recorded.size(), replayed.size()
-		]
-	)
-	for index in range(mini(recorded.size(), replayed.size())):
-		_close_rel(
-			float(replayed[index]), _decode(recorded[index]), 1.0e-15,
-			"captured residual %d round-trips" % index
+	var checked: int = 0
+	var beyond_decimal: int = 0
+	for leaf in _collect_leaves(capture):
+		var value: float = _decode(leaf)
+		var bytes: PackedByteArray = PackedByteArray()
+		bytes.resize(8)
+		bytes.encode_double(0, value)
+		_assert_true(
+			bytes.hex_encode() == String(leaf["x"]).to_lower(),
+			"leaf re-encodes to its own bit pattern"
 		)
+		checked += 1
+		if float(String(leaf["d"])) != value:
+			beyond_decimal += 1
+	_assert_true(checked > 0, "capture exposes encoded leaves")
+	_assert_true(
+		beyond_decimal > 0,
+		"at least one leaf is not recoverable from its readable decimal alone"
+	)
 
 
-func _test_failure_is_the_numerical_floor_not_a_bad_direction(
-		capture: Dictionary
-	) -> void:
-	# This is what separates this capture from the H2.5a one and is the reason
-	# it is worth keeping: the solve is nearly converged and the correction it
-	# still needs is smaller than one ulp of the pressure iterate.
+func _collect_leaves(node) -> Array:
+	var found: Array = []
+	if typeof(node) == TYPE_DICTIONARY:
+		var as_dict: Dictionary = node
+		if as_dict.has("x") and as_dict.has("d"):
+			found.append(as_dict)
+			return found
+		for key in as_dict.keys():
+			found.append_array(_collect_leaves(as_dict[key]))
+	elif typeof(node) == TYPE_ARRAY:
+		for entry in node:
+			found.append_array(_collect_leaves(entry))
+	return found
+
+
+## The point of the H2.5e change: the solve must now finish BELOW the floor that
+## used to stop it. The recorded stall was 1.147e-12, just outside tolerance and
+## unreachable because the remaining correction was 0.38 ulp of an absolute
+## pressure. In gauge coordinates the same input lands orders of magnitude
+## further down, which is only possible if that floor is genuinely gone.
+func _test_solve_now_clears_the_old_numerical_floor(capture: Dictionary) -> void:
 	var result: Dictionary = _replay(capture)
 	var history: Array = result["residual_history"]
 	_assert_true(history.size() >= 2, "residual history has an endgame")
 	if history.size() < 2:
 		return
 	var final_residual: float = float(history[history.size() - 1])
-	_assert_true(
-		final_residual < 1.0e-11,
-		"the stall happens near the tolerance, not far from it (got %s)"
-				% String.num_scientific(final_residual)
+	var recorded_stall: float = _decode(
+		capture["observed_failure"]["residual_history"][-1]
 	)
 	_assert_true(
-		final_residual > 1.0e-12,
-		"the stall is still outside tolerance, which is why it is a failure"
+		final_residual < recorded_stall * 1.0e-3,
+		"the solve finishes far below the recorded stall (%s vs %s)" % [
+			String.num_scientific(final_residual),
+			String.num_scientific(recorded_stall)
+		]
 	)
-	# The residual fell by more than eight orders of magnitude before stalling,
-	# so the Newton direction was good. Contrast H2.5a, which stalled at 2.2e-4.
 	_assert_true(
-		float(history[0]) / final_residual > 1.0e8,
-		"the solve got close before stalling"
+		final_residual <= 1.0e-12,
+		"the final residual is inside the unchanged tolerance"
+	)
+	# The gauge iterate is orders of magnitude smaller than ambient, which is
+	# the whole reason the last correction is now representable.
+	var gauge_map: Dictionary = result["gauge_pressure_by_room"]
+	var largest_gauge: float = 0.0
+	for key in gauge_map.keys():
+		largest_gauge = maxf(largest_gauge, absf(float(gauge_map[key])))
+	_assert_true(
+		largest_gauge < 1.0e3,
+		"the iterate is a gauge pressure, not an absolute one (max %s Pa)"
+				% String.num_scientific(largest_gauge)
 	)
 	_assert_true(
 		PRESSURE_ULP_PA > 1.0e-11,

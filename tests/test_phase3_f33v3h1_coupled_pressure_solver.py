@@ -118,7 +118,10 @@ def test_state_vector_is_one_pressure_per_room():
     body = _function(SOLVER, "solve_coupled_pressure")
     assert "var pressure: Array[float] = []" in body
     assert 'for room_key in room_keys:' in body
-    assert 'pressure.append(float(context["rooms"][room_key]["pressure_abs_pa"]))' \
+    # F3.3v3h2.5e: still exactly one unknown per room, now a gauge pressure.
+    # The seed is read straight from the derived room rather than formed as
+    # `pressure_abs_pa - exterior`, so it carries no cancellation either.
+    assert 'pressure.append(float(context["rooms"][room_key]["gauge_pressure_pa"]))' \
         in body
     # the Jacobian is square in the room count, i.e. one unknown per room
     assert "for column in range(room_count):" in body

@@ -3,6 +3,59 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.5e coupled pressure solve in gauge coordinates (2026-07-28)
+
+- The coupled pressure solve now carries a **gauge** unknown relative to the
+  exterior reference the solve was given, instead of an absolute pressure near
+  101325 Pa. This closes the `r0_window_360` capture, whose Newton correction
+  was 0.38 ulp of the absolute iterate and therefore unrepresentable.
+- Three places changed together: the seed is read from a per-room
+  `gauge_pressure_pa`, the opening difference is `q_a - q_b` with the exterior
+  at exactly zero, and the EOS residual is expanded about a per-room reference
+  mass `M_ref = P_ext V / (R T_ref)`. That last point is the one that matters:
+  forming `implied_abs - exterior_abs` would have reintroduced the very
+  cancellation being removed. The reference-mass form lowers the residual's
+  rounding floor from `1.455e-11 Pa` to `1.14e-13 Pa`, a factor of 128.
+- `pressure_by_room` is rebuilt in absolute terms on the way out and nowhere
+  else, so the return contract is unchanged and no caller was touched.
+- **Runtime gate passed with no stage regressing**: corridor 10/30/60/120 s go
+  66.67 -> 67.50%, 82.83 -> 83.10%, 86.39 -> 86.53%, 81.33 -> 81.40%, and
+  `r0_window_360` goes **86.33% -> 91.33%** with its `damping_exhausted` mode
+  **eliminated entirely (72 -> 0)**. `iteration_cap` is unchanged everywhere,
+  which is correct: this addresses the numerical-floor mode and nothing else.
+- OFF byte-identical on all five pairs; ON moves no live column; zero
+  counterflow violations; runtime cost went down (`r0w360_120_on` 91.0 -> 85.6 s,
+  `corridor_120_on` 132.0 -> 105.0 s).
+- Unchanged by design: Jacobian (still one-sided forward at `1e-3 Pa`), merit,
+  damping schedule, tolerance, regularization, band segments, flux law. No new
+  tuning knob. `exterior_pressure_abs_pa` is accepted through `options` with an
+  unchanged default - a physical boundary condition, and what makes "use the
+  reference this solve received" testable.
+- **H2 is NOT resolved.** The `corridor_chain` capture still fails
+  deterministically and its fixture still says so; H3 stays blocked.
+- The captures were not re-recorded. `corridor_chain`'s residual history is no
+  longer bit-reproducible - removing the cancellation moved it in the tenth
+  significant digit and Newton amplifies that to ~2e-7 by the third iterate - so
+  its fixture now separates a pure encoding round-trip (no solver involved)
+  from a behavioural check on the failure mode and stall value.
+
+### Phase 3+ F3.3v3h2.5d convergence hardening, combined patch NO-GO (2026-07-28)
+
+- Two mechanisms were measured offline against both real captures. **Neither
+  alone closes both**, and the only combination that does is a net regression.
+- `gauge` closes `r0_window_360` (37/41 -> 40/41 in its neighbourhood) and is
+  neutral on corridor, with **zero** regressions. An L2 acceptance merit closes
+  corridor (26/41 -> 40/41) and **wrecks r0** (37/41 -> 26/41). Together they
+  pass both exact captures while breaking 12 neighbourhood cases the baseline
+  solved - the signature that preceded H2.5c's collapse - so the combination was
+  rejected despite meeting the stated gate.
+- **Armijo cannot help either capture, structurally**: a sufficient-decrease
+  test is stricter than plain decrease, so it can never rescue a step that
+  already fails plain decrease. Cycle detection was proven correct against the
+  H2.5c centred-difference stimulus (`cycle_detected` at iteration 3,
+  diagnostically) and never fires on either capture under the shipped quotient.
+- A non-monotone L-infinity line search was far worse than baseline (22/82).
+
 ### Phase 3+ F3.3v3h2.5c central-difference Jacobian NO-GO (2026-07-28)
 
 - The centred-difference Jacobian recommended by H2.5b was implemented,

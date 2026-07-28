@@ -8,6 +8,44 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-28 - F3.3v3h2.5d NO-GO / h2.5e gauge GO
+
+- **H2.5d: combined patch NO-GO. H2.5e: gauge coordinates GO, partial.**
+- Measured offline on both captures. `gauge` closes `r0_window_360` with **zero
+  neighbourhood regressions**; an L2 acceptance merit closes `corridor_chain`
+  but **wrecks r0** (37/41 -> 26/41). Together they pass both exact captures
+  while breaking 12 cases the baseline solved - the H2.5c signature - so the
+  combination was rejected even though it met the stated gate.
+- **Armijo cannot help either capture and this is structural**: sufficient
+  decrease is *stricter* than plain decrease, so it never rescues a step that
+  already fails plain decrease. Cycle detection is correct (fires at iteration 3
+  on the H2.5c centred stimulus, diagnostically) and fires on neither capture.
+- Shipped in `Phase3CoupledPressureSolver.gd` only: the unknown is a **gauge**
+  pressure relative to the exterior reference the solve received. Seed from a
+  per-room `gauge_pressure_pa`; opening difference `q_a - q_b` with exterior at
+  zero; EOS residual expanded about `M_ref = P_ext V / (R T_ref)` so that
+  `implied_abs - exterior_abs` is never formed. Residual rounding floor drops
+  from `1.455e-11 Pa` to `1.14e-13 Pa` (128x). Absolute pressure is rebuilt only
+  in `_pressure_map`, so the return contract and every caller are unchanged.
+- **Runtime gate: no stage regressed.** corridor 66.67->67.50, 82.83->83.10,
+  86.39->86.53, 81.33->81.40; **r0_window_360 86.33% -> 91.33%** with
+  `damping_exhausted` **72 -> 0**. `iteration_cap` unchanged everywhere, which
+  is right - gauge fixes the numerical-floor mode only. OFF byte-identical on
+  all five pairs; ON moves no live column; cost went *down*.
+- Physics 9/15/5/0; ILV 14 CTRL/0 FAIL; gaps unchanged (6 VALID_GAP + 71);
+  guardrails 9/10 with only the expected dirty-motor R2-1.
+- Untouched by design: Jacobian (one-sided forward, `1e-3 Pa`), merit, damping,
+  tolerance, regularization, band segments, flux law. No new tuning knob.
+- **H2 is NOT resolved. `corridor_chain` still fails and H3 stays blocked.**
+  Its mode is understood - L-infinity rejects a step that fixes two rooms of
+  three because it worsens the current worst by 2.4% - and every remedy so far
+  either does not help, pays for it on r0, or is much worse.
+- Captures were not re-recorded. `corridor_chain`'s history is no longer
+  bit-reproducible (the cancellation removal moved it in the tenth digit and
+  Newton amplifies it to ~2e-7 by iterate 3), so its fixture now separates a
+  pure encoding round-trip from a behavioural failure-mode check.
+- Binding record: `docs/validation/PHASE3_F33V3H25E_GAUGE_PRESSURE.md`.
+
 ## Current Session Update - 2026-07-28 - F3.3v3h2.5c central difference NO-GO
 
 - **The centred-difference Jacobian was implemented, measured and reverted.**

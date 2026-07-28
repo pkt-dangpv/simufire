@@ -1031,6 +1031,8 @@ Diagnostic / planned lanes:
 | F3.3v3h2.5a | Real failing-step capture and deterministic replay | Capture GO; solver unchanged; H3 still blocked |
 | F3.3v3h2.5b | Offline diagnosis of the captured failure | Diagnosis GO; recommended centred Jacobian; evidence single-topology |
 | F3.3v3h2.5c | Centred-difference Jacobian candidate | **NO-GO**; helps corridor, destroys r0_window_360; reverted; second capture retained |
+| F3.3v3h2.5d | Gauge vs Armijo, measured on both captures | Combined patch **NO-GO**; gauge alone is the only non-regressing mechanism |
+| F3.3v3h2.5e | Coupled solve in gauge coordinates | **GO, partial**; r0_window 86.33→91.33%, no stage regressed; corridor still open |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1278,3 +1280,47 @@ before any scenario run; do not retune the Jacobian step and do not centre the
 difference; the named candidate is Armijo / sufficient decrease plus cycle
 detection; `iteration_cap` remains uncaptured because the instrumentation
 records only the first failure.
+
+F3.3v3h2.5d STOP (offline, both captures): **combined patch NO-GO.**
+
+- **Armijo cannot help either capture, structurally**: a sufficient-decrease
+  test is stricter than plain decrease, so it never rescues a step that already
+  fails plain decrease. Measured identical to baseline on both: PASS as a
+  falsification, NO-GO as a fix;
+- cycle detection is **correct and fires diagnostically** - given the H2.5c
+  centred-difference stimulus it reports `cycle_detected` at iteration 3, never
+  as convergence - and fires on neither capture under the shipped quotient;
+- a non-monotone L-infinity line search was far worse than baseline (22/82);
+- `gauge` closes `r0_window_360` (37/41 -> 40/41 in its neighbourhood, **zero**
+  regressions) and is neutral on corridor; an L2 acceptance merit closes
+  corridor (26/41 -> 40/41) and **wrecks r0** (37/41 -> 26/41);
+- the two are antagonistic. Together they pass both exact captures - the letter
+  of the gate - while breaking 12 neighbourhood cases the baseline solved. That
+  is the H2.5c signature, so the combination was **rejected on evidence** rather
+  than accepted on the criterion.
+
+F3.3v3h2.5e STOP (gauge coordinates, one file):
+
+- the unknown is a gauge pressure relative to the exterior reference the solve
+  received; the seed, the opening difference and the EOS residual all avoid
+  forming a subtraction of two numbers near ambient: PASS;
+- the EOS is expanded about `M_ref = P_ext V / (R T_ref)`, dropping the
+  residual's rounding floor from `1.455e-11 Pa` to `1.14e-13 Pa` (128x): PASS;
+- `r0_window_360` converges in 3 iterations at `9.5e-17`, inside the unchanged
+  `1e-12` tolerance: PASS;
+- shift invariance, a 90 kPa exterior reference, conservation, counterflow and
+  bit-for-bit determinism are pinned by a dedicated fixture, with exterior
+  openings on **both** sides so neither branch is left unexercised: PASS;
+- runtime gate - no stage regressed; corridor 66.67->67.50, 82.83->83.10,
+  86.39->86.53, 81.33->81.40; **r0_window_360 86.33% -> 91.33%** with
+  `damping_exhausted` **72 -> 0**; `iteration_cap` unchanged everywhere; OFF
+  byte-identical on all five pairs; cost went down: PASS;
+- Jacobian, merit, damping, tolerance, regularization, band segments and flux
+  law are unchanged, and no tuning knob was added: PASS.
+
+**H2 is not resolved.** `corridor_chain` still fails deterministically and its
+fixture still asserts it. Its mode is understood - the L-infinity acceptance
+test rejects a step that fixes two rooms out of three because it worsens the
+current worst room by 2.4% - and every remedy measured either does not help,
+pays for it on `r0_window_360`, or is much worse. **H3 stays blocked**, and both
+captures remain the gate for any future attempt.

@@ -143,9 +143,20 @@ def test_fixture_replays_without_running_a_scenario():
     assert "Phase3CoupledPressureSolver.gd" in FIXTURE
 
 
-def test_fixture_asserts_the_failure_still_reproduces():
-    assert 'not bool(result["converged"]),' in FIXTURE
+def test_fixture_was_flipped_with_intent_when_h25e_fixed_it():
+    # H2.5e moved the solve to gauge coordinates and this capture now converges.
+    # The flip must be explained in the fixture, not silently applied.
+    assert 'bool(result["converged"]),' in FIXTURE
+    assert 'not bool(result["converged"]),' not in FIXTURE
+    assert "F3.3v3h2.5e" in FIXTURE
     assert "quit(1)\n\t\treturn" in FIXTURE
+
+
+def test_fixture_still_guards_the_original_failure_record():
+    # the capture keeps recording what absolute coordinates did, so a regression
+    # back to them is detectable rather than quietly re-baselined
+    assert 'String(observed.get("limiting_reason", "")) == "damping_exhausted"' \
+        in FIXTURE
 
 
 def test_fixture_decodes_the_exact_bit_pattern_not_the_readable_decimal():
@@ -167,8 +178,9 @@ def test_fixture_does_not_claim_the_reverted_period_two_cycle():
         in FIXTURE
 
 
-def test_solver_was_not_modified_by_this_capture_work():
-    # H2.5c reverted its patch; this commit is test data and docs only
+def test_h25c_central_difference_is_still_rejected():
+    # H2.5c measured centred differences NO-GO and reverted them. H2.5e changed
+    # the coordinates, not the quotient: the Jacobian must still be one-sided.
     assert ") / jacobian_step_pa" in SOLVER, "forward quotient must be intact"
     assert "/ (2.0 * jacobian_step_pa)" not in SOLVER
     assert '- float(evaluation["residual"][row_index])' in SOLVER
