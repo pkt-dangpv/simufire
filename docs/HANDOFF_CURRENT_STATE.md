@@ -8,6 +8,51 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-28 - F3.3v3h2.5c central difference NO-GO
+
+- **The centred-difference Jacobian was implemented, measured and reverted.**
+  `Phase3CoupledPressureSolver.gd` is the committed H2 primitive, byte for
+  byte. This commit carries test data and documentation only.
+- Measured on ten before / ten after runs. It delivered exactly what H2.5b
+  promised on `corridor_chain` - `damping_exhausted` 52 -> 1 at 60 s and 120 s,
+  convergence 86.39% -> 93.75% at 60 s - and **destroyed `r0_window_360`**:
+  86.33% -> 0.14%, 1439 of 1441 steps at `iteration_cap`, 1.68x slower.
+- **Why**: at the failing state the centred difference is *more* accurate than
+  the forward one (0.01% vs 0.34%), and the first Newton steps agree to four
+  figures. The steps then alternate sign in a **period-2 limit cycle**; the
+  merit falls ~0.03% per turn and the bare `< norm` acceptance test takes it at
+  full damping forever. The forward quotient hits the same cycle, but its
+  accidental bias forced one `0.5` damping that knocked it out. Centring
+  removed the asymmetry that was doing the work.
+- **This merges the failure taxonomy.** `damping_exhausted` and
+  `iteration_cap` are the same missing globalization at two extremes: no
+  decrease available, or decrease available but vanishingly small.
+- **Second real capture committed**: `coupled_solver_failure_r0_window_360.json`,
+  a star topology (five rooms, four openings all at room 1), same v1 schema and
+  IEEE754-exact encoding. Replay fixture
+  `phase3_f33v3h25c_r0_window_solver_failure.gd` PASS.
+- It records a **third failure mode**: the solve reaches `1.147e-12` against a
+  `1.0e-12` tolerance and cannot take the last step, because that step is
+  `5.5e-12 Pa` versus an ulp of `1.455e-11 Pa` at ambient - **0.38 ulp**. Every
+  damped trial is the same double. The solver iterates on *absolute* pressure;
+  a gauge unknown would not have this floor. **Lead for H2.5d.**
+- It is **not** the period-2 cycle. That belongs to the reverted candidate, so
+  nothing in the repo can reproduce it, and the fixture states this outright.
+- **Why H2.5b's evidence was insufficient**: its 204-case family perturbed one
+  topology. Perturbing a single capture explores states, not topologies. That
+  is why both captures are now a hard gate.
+- Verification: both capture fixtures PASS; H1/g2/g1/f0 PASS; 12 new contracts;
+  two negative controls (inverted assertion; inputs rounded to nine significant
+  digits) each drive exit 1 with zero PASS markers; OFF byte-identical on all
+  five pairs; guardrails 10/10; tree clean.
+- Next: **H2.5d - Armijo / sufficient-decrease plus cycle detection**, gated on
+  BOTH captures offline before any scenario runs. Do not retune the Jacobian
+  step and do not centre the difference; both are measured dead ends. Note that
+  `iteration_cap` is still uncaptured - the instrumentation records only the
+  first failure, which is `damping_exhausted` on both scenarios.
+- Binding record:
+  `docs/validation/PHASE3_F33V3H25C_CENTRAL_DIFFERENCE_NOGO.md`.
+
 ## Current Session Update - 2026-07-28 - F3.3v3h2.5a failure capture GO
 
 - **H2.5 hardening was NO-GO and is fully reverted.** It tried to diagnose the

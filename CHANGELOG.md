@@ -3,6 +3,46 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.5c central-difference Jacobian NO-GO (2026-07-28)
+
+- The centred-difference Jacobian recommended by H2.5b was implemented,
+  measured on ten before / ten after scenario runs, and **fully reverted**.
+  `Phase3CoupledPressureSolver.gd` is the committed H2 primitive, unchanged.
+  This commit is test data and documentation only.
+- It did what H2.5b predicted for `damping_exhausted` - 52 -> 1 on
+  `corridor_chain` at both 60 s and 120 s, convergence 86.39% -> 93.75% at
+  60 s - and **destroyed `r0_window_360`**: 86.33% -> 0.14%, with 1439 of 1441
+  steps hitting `iteration_cap`. Cost there was 91.0 s -> 152.9 s (1.68x).
+- Root cause of the regression, replayed offline: at the failing state the
+  centred difference is **more** accurate than the forward one (0.01% vs 0.34%
+  error), and the first Newton steps agree to four figures. The steps then
+  alternate sign - `-2.006e-2, +1.962e-2, -1.961e-2` - in a **period-2 limit
+  cycle**. The merit falls ~0.03% per turn and the bare `< norm` acceptance
+  test takes it at full damping forever. The forward quotient falls into the
+  same cycle but its accidental bias forced a `0.5` damping that knocked it
+  out. Centring removes the asymmetry that was breaking the cycle.
+- Consequence for the taxonomy: `damping_exhausted` and `iteration_cap` are not
+  separate problems but the same missing globalization at two extremes.
+- Added a **second real capture**,
+  `tests/fixtures/data/coupled_solver_failure_r0_window_360.json` - star
+  topology, five rooms, four openings all meeting at room 1 - with the same
+  IEEE754-exact `{d, x}` encoding and schema as the H2.5a capture.
+- The second capture records a **third failure mode**: the solve reaches
+  `1.147e-12` against a `1.0e-12` tolerance, and the correction that would
+  close it is `5.5e-12 Pa` against an ulp of `1.455e-11 Pa` at ambient
+  pressure - `0.38 ulp`, so no damped trial is a different double and the line
+  search exhausts. The solver iterates on absolute pressure; a gauge unknown
+  would not have this floor. Hypothesis for H2.5d, not a change here.
+- Added `phase3_f33v3h25c_r0_window_solver_failure.gd` and 12 Python contracts.
+  Negative controls: inverting the convergence assertion and rounding the
+  captured inputs to nine significant digits both drive the fixture to exit 1
+  with zero PASS markers.
+- Recorded why the H2.5b evidence was insufficient: its 204-case family
+  perturbed **one topology**. Perturbing a single capture explores states, not
+  topologies. Both captures are now a mandatory H2.5d gate.
+- No physics, legacy path, official case, report, baseline, expected value,
+  tolerance, CTRL envelope or VALID_GAP changed. H3 remains blocked.
+
 ### Phase 3+ F3.3v3h2.5a captured coupled-solver failure (2026-07-28)
 
 - F3.3v3h2.5 convergence hardening was **NO-GO** and fully reverted. It could

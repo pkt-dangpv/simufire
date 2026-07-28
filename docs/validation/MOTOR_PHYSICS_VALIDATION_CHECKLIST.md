@@ -1029,6 +1029,8 @@ Diagnostic / planned lanes:
 | F3.3v3h2 | Passive coupled-solver preview, one call site | Preview GO; authority NO-GO; 13.6% steps non-convergent |
 | F3.3v3h2.5 | Convergence hardening from reconstructed states | NO-GO; 528 synthetic cases converged 100%; reverted |
 | F3.3v3h2.5a | Real failing-step capture and deterministic replay | Capture GO; solver unchanged; H3 still blocked |
+| F3.3v3h2.5b | Offline diagnosis of the captured failure | Diagnosis GO; recommended centred Jacobian; evidence single-topology |
+| F3.3v3h2.5c | Centred-difference Jacobian candidate | **NO-GO**; helps corridor, destroys r0_window_360; reverted; second capture retained |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1241,3 +1243,38 @@ Substantive observation, deliberately not acted on: the captured step fails
 after 3 iterations, so it is not an effort problem, and the room-0 owner source
 carries **negative** mass with positive energy. H2.5b must work on this fixture
 offline before touching runtime. H3 remains blocked.
+
+F3.3v3h2.5c STOP (centred Jacobian candidate): **NO-GO, reverted.**
+
+- on `corridor_chain` it did exactly what H2.5b predicted - `damping_exhausted`
+  52 -> 1 at 60 s and 120 s, convergence 86.39% -> 93.75% at 60 s: PASS;
+- on `r0_window_360` convergence went **86.33% -> 0.14%**, with 1439 of 1441
+  steps at `iteration_cap` and a 1.68x cost: **FAIL, and decisive**;
+- isolation and mechanics were correct throughout - OFF byte-identical on all
+  five pairs, zero counterflow violations, all five fixtures PASS, and a
+  mutation control caught a regression to the one-sided quotient: PASS;
+- the failure is numerical, not structural: at the failing state the centred
+  difference is *more* accurate than the forward one, and the Newton steps then
+  alternate sign in a **period-2 limit cycle** that the bare `< norm`
+  acceptance test accepts at full damping forever. Centring removed the
+  accidental asymmetry that had been breaking the cycle.
+
+Consequence: `damping_exhausted` and `iteration_cap` are **not** separate
+problems. They are the same missing globalization at two extremes.
+
+Retained: a second real capture,
+`tests/fixtures/data/coupled_solver_failure_r0_window_360.json` (star topology,
+five rooms, four openings all at room 1), its replay fixture and 12 contracts.
+It records a **third** mode - the solve reaches `1.147e-12` against a `1.0e-12`
+tolerance and the correction it still owes is `0.38 ulp` of the absolute
+pressure iterate, so no damped trial is a different double.
+
+Why H2.5b's evidence was insufficient, recorded so it is not repeated: its
+204-case family perturbed **one topology**. Perturbing a single capture
+explores states, not topologies.
+
+Binding constraints for H2.5d: both captures are a mandatory gate offline
+before any scenario run; do not retune the Jacobian step and do not centre the
+difference; the named candidate is Armijo / sufficient decrease plus cycle
+detection; `iteration_cap` remains uncaptured because the instrumentation
+records only the first failure.
