@@ -35,7 +35,7 @@ _FATAL_GODOT_PATTERNS = (
 # unknown value fails before Godot is launched rather than after a full run.
 _CAPTURE_FAILURE_MODES = frozenset(
     {"iteration_cap", "damping_exhausted", "singular_jacobian",
-     "counterflow_violation"}
+     "counterflow_violation", "iteration_cap_after_rescue"}
 )
 
 if hasattr(sys.stdout, "reconfigure"):

@@ -1412,6 +1412,26 @@ rho about 0.0478 near the threshold. H2 remains open with 174 `iteration_cap`
 and 11 `damping_exhausted` at corridor 120 s; H3 stays blocked. H2.5k owns the
 late-regime selectivity and retry-cost question.
 
+F3.3v3h2.5k STOP: **GO for diagnostic capture only.**
+
+- `iteration_cap_after_rescue` is an opt-in composite selector that requires
+  both `limiting_reason == iteration_cap` and an accepted cycle-guard rescue;
+  it is evaluated before the one-shot capture latch: PASS;
+- the coupled pressure solver, rescue budget, tolerance and iteration cap are
+  unchanged: PASS;
+- the late corridor failure is the same period-2 mode recurring after the
+  rescue budget is spent. Its two-step contraction remains
+  `0.9896..1.0101`, while the early successful cycle contracts strongly:
+  PASS;
+- current cycle telemetry stops observing when rescue budget is exhausted:
+  known instrumentation gap, not hidden;
+- no physical report, expected value, tolerance, CTRL or VALID_GAP changes:
+  PASS.
+
+H2.5l must separate cycle observation from rescue authority and measure
+two-step contraction across corridor and r0-window before any change to the
+rescue strategy. H2 remains open and H3 remains blocked.
+
 Headless runner completion contract (2026-07-29): **GO at STOP.**
 
 - every `scripts/run_scenario.py` invocation owns a random token that must match

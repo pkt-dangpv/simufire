@@ -8,6 +8,24 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-29 - F3.3v3h2.5k recurrent cycle diagnosis
+
+- Added capture-only selector `iteration_cap_after_rescue`, matching only a
+  solve whose limiting reason is `iteration_cap` and whose accepted cycle-guard
+  rescue count is positive. It is filtered before the one-shot capture latch.
+- The late corridor failure is not a new mode: it is a second period-2 cycle in
+  the same solve after the one-step rescue budget has already been consumed.
+- Direction cosine alone does not distinguish successful and persistent
+  cycles. The useful discriminator is two-step contraction
+  `|s_k| / |s_{k-2}|`: the early sequence contracts strongly; the late sequence
+  stays near one for twenty iterations.
+- The current guard detects cycles only while rescue budget remains. It
+  therefore cannot report a second cycle after spending the budget.
+- Next: H2.5l is passive diagnostics only. Count cycle detections independently
+  of intervention and export the two-step contraction distribution for
+  corridor and r0-window. Do not increase rescue budget or alter the solver
+  before those measurements. H2 remains open; H3 remains blocked.
+
 ## Current Session Update - 2026-07-29 - agent Godot crash audit
 
 - Four native `Godot_v4.7.1-stable_win64.exe` popups were confirmed in

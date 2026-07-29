@@ -3,6 +3,24 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.5k recurrent-cycle diagnosis (2026-07-29)
+
+- Added the opt-in capture selector `iteration_cap_after_rescue`. It records an
+  `iteration_cap` only after that solve has already accepted a cycle-guard
+  rescue. The selector is capture-only instrumentation; the coupled pressure
+  solver is unchanged.
+- A real late `corridor_chain` solve shows the same period-2 mode recurring
+  after the one-step rescue budget is spent. After rescue, the two-step
+  contraction ratio remains about `0.9896..1.0101` for twenty iterations,
+  whereas the early cycle that closes contracts through
+  `0.085, 0.016, 0.032, 0.476, 0.047`.
+- Current cycle telemetry is gated by remaining rescue budget, so it stops
+  observing once that budget is exhausted. H2.5l must first separate passive
+  observation from intervention and measure the contraction distribution
+  before evaluating any additional rescue strategy.
+- No rescue budget, tolerance, iteration cap, solver equation, physics,
+  baseline, CTRL or VALID_GAP changed. H2 remains open and H3 remains blocked.
+
 ### Phase 3+ F3.3v3h2.5j accepted-cycle guard - GO with revised gate (2026-07-29)
 
 - Added a narrowly gated detector for the real period-2 Newton zigzag measured

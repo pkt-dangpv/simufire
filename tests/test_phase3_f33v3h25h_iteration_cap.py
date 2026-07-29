@@ -297,3 +297,26 @@ def test_python_and_gdscript_mode_lists_agree():
         if token.strip().strip('"{}\n ')
     )
     assert gd == py, (gd, py)
+
+
+def test_post_rescue_selector_is_composite_capture_only_instrumentation():
+    assert '"iteration_cap_after_rescue"' in SYSTEM
+    assert '"iteration_cap_after_rescue"' in RUNNER
+    assert "iteration_cap_after_rescue" not in SOLVER
+
+    body = SYSTEM.split(
+        "func _capture_failure_mode_matches(", 1
+    )[1].split("\nfunc ", 1)[0]
+    assert 'requested == "iteration_cap_after_rescue"' in body
+    assert 'reason == "iteration_cap"' in body
+    assert 'solved.get("cycle_guard_accept_total", 0.0)' in body
+    assert "> 0.0" in body
+
+
+def test_post_rescue_selector_runs_before_the_one_shot_latch():
+    body = SYSTEM.split(
+        "func _capture_coupled_pressure_solver_failure(", 1
+    )[1].split("\nfunc ", 1)[0]
+    selector_at = body.index("_capture_failure_mode_matches(solved)")
+    latch_at = body.index("_coupled_pressure_solver_captured = true")
+    assert selector_at < latch_at

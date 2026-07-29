@@ -182,7 +182,12 @@ var coupled_pressure_solver_capture_failure_mode: String = ""
 const CAPTURE_SELECTABLE_FAILURE_MODES: Array[String] = [
 	"iteration_cap", "damping_exhausted", "singular_jacobian",
 	"counterflow_violation",
+	"iteration_cap_after_rescue",
 ]
+# F3.3v3h2.5k: the composite selector matches an `iteration_cap` that already
+# spent an accepted cycle-guard rescue - the late corridor regime where the
+# guard fires without closing the solve. It is derived from the solver result;
+# the solver itself is untouched.
 ## Last selector string this system was configured with. The engine re-applies
 ## its configuration on every log tick, so this is what makes "report an invalid
 ## selector once" and "arm the latch once" both true.
@@ -5618,6 +5623,18 @@ func _capture_float_dictionary(source: Dictionary) -> Dictionary:
 ## F3.3v3h2.5a: serialise the first failing solve verbatim, then stop. Writes
 ## only to the explicitly configured diagnostic path and touches no simulation
 ## state. Never called when `coupled_pressure_solver_capture_path` is empty.
+## True when the solve matches the requested capture selector. Plain modes
+## compare `limiting_reason`; the composite mode additionally requires that
+## an accepted cycle-guard rescue was already spent on this solve.
+func _capture_failure_mode_matches(solved: Dictionary) -> bool:
+	var requested: String = coupled_pressure_solver_capture_failure_mode
+	var reason: String = String(solved.get("limiting_reason", ""))
+	if requested == "iteration_cap_after_rescue":
+		return reason == "iteration_cap" \
+				and float(solved.get("cycle_guard_accept_total", 0.0)) > 0.0
+	return reason == requested
+
+
 func _capture_coupled_pressure_solver_failure(
 		rooms: Dictionary,
 		openings: Array,
@@ -5633,8 +5650,7 @@ func _capture_coupled_pressure_solver_failure(
 	# failure leaves the capture armed. Latching first would record the mode we
 	# were told to ignore and then refuse every later one.
 	if not coupled_pressure_solver_capture_failure_mode.is_empty() \
-			and String(solved.get("limiting_reason", "")) \
-					!= coupled_pressure_solver_capture_failure_mode:
+			and not _capture_failure_mode_matches(solved):
 		return
 	_coupled_pressure_solver_captured = true
 	var captured_rooms: Dictionary = {}
