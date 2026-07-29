@@ -336,6 +336,12 @@ func _phase3_coupled_solver_fields() -> Array[String]:
 		"phase3_shadow_coupled_solver_regularization_active_count",
 		"phase3_shadow_coupled_solver_iteration_cap_flag",
 		"phase3_shadow_coupled_solver_damping_exhausted_flag",
+		"phase3_shadow_coupled_solver_rescue_attempted",
+		"phase3_shadow_coupled_solver_rescue_accepted",
+		"phase3_shadow_coupled_solver_rescue_trials",
+		"phase3_shadow_coupled_solver_rescue_initial_norm",
+		"phase3_shadow_coupled_solver_rescue_final_norm",
+		"phase3_shadow_coupled_solver_rescue_lambda",
 		"phase3_shadow_coupled_solver_step_count_total",
 		"phase3_shadow_coupled_solver_converged_step_count_total",
 		"phase3_shadow_coupled_solver_failed_step_count_total",
@@ -347,6 +353,9 @@ func _phase3_coupled_solver_fields() -> Array[String]:
 		"phase3_shadow_coupled_solver_regularization_active_count_total",
 		"phase3_shadow_coupled_solver_iteration_cap_step_count_total",
 		"phase3_shadow_coupled_solver_damping_exhausted_step_count_total",
+		"phase3_shadow_coupled_solver_rescue_attempted_step_count_total",
+		"phase3_shadow_coupled_solver_rescue_accepted_step_count_total",
+		"phase3_shadow_coupled_solver_rescue_trials_total_total",
 	]
 
 

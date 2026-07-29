@@ -152,11 +152,18 @@ def test_jacobian_merit_damping_and_flux_law_are_untouched():
 
 
 def test_no_new_tuning_knob():
+    # H2.5g's LM_RESCUE_ARMIJO_C is a documented global constant, not a knob:
+    # it is never read from `options` and never varies per case. What must stay
+    # absent is anything selectable.
     for forbidden in (
-        "jacobian_mode", "merit_mode", "armijo", "cycle_ratio", "nonmonotone",
+        "jacobian_mode", "merit_mode", "cycle_ratio", "nonmonotone",
         "seed_pressure_by_room", "flux_regularization_mode",
     ):
         assert forbidden not in CODE.lower(), forbidden
+    for constant in ("LM_RESCUE_ARMIJO_C", "LM_RESCUE_LAMBDA_LADDER",
+                     "LM_RESCUE_MAX_ACCEPTED_STEPS"):
+        assert f"const {constant}" in SOLVER, constant
+        assert f'options.get("{constant.lower()}"' not in SOLVER
 
 
 def test_no_alpha_blend_or_skew():
@@ -183,12 +190,17 @@ def test_fixture_covers_the_mandatory_properties():
     assert "90000.0" in FIXTURE
 
 
-def test_corridor_capture_is_still_an_open_failure():
+def test_corridor_capture_was_closed_by_the_h25g_recovery():
+    """H2.5e fixed the numerical-floor mode only and left corridor open.
+
+    H2.5g closed it with a bounded recovery, so this contract now records that
+    handover rather than asserting a failure that no longer exists.
+    """
     corridor = (
         ROOT / "tests" / "fixtures"
         / "phase3_f33v3h25a_captured_solver_failure.gd"
     ).read_text(encoding="utf-8")
-    # H2.5e fixed the numerical-floor mode only. Corridor must keep failing, and
-    # keep saying so, or H3 would look unblocked when it is not.
-    assert 'not bool(result["converged"]),' in corridor
-    assert "damping_exhausted" in corridor
+    assert 'bool(result["converged"]),' in corridor
+    assert "F3.3v3h2.5g" in corridor
+    # the gauge change itself is still what fixed r0, and must stay
+    assert "gauge_pressure_pa" in SOLVER

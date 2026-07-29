@@ -165,7 +165,21 @@ def test_fixture_replays_without_running_a_scenario():
         assert test_name in FIXTURE, test_name
 
 
-def test_fixture_asserts_the_failure_still_reproduces():
-    # if a future phase fixes convergence this must fail loudly, not pass
-    assert 'not bool(result["converged"]),' in FIXTURE
+def test_fixture_was_flipped_with_intent_when_h25g_fixed_it():
+    # The fixture existed to be the alarm, and it rang. H2.5g's bounded LM
+    # recovery closes this capture, so the assertion is inverted deliberately
+    # and the reason is stated in the fixture header.
+    assert 'bool(result["converged"]),' in FIXTURE
+    assert 'not bool(result["converged"]),' not in FIXTURE
+    assert "F3.3v3h2.5g" in FIXTURE
     assert "quit(1)\n\t\treturn" in FIXTURE
+
+
+def test_fixture_still_guards_the_original_failure_record():
+    # the capture keeps recording the damping_exhausted it was taken from
+    assert 'String(observed.get("limiting_reason", "")) == "damping_exhausted"'         in FIXTURE
+
+
+def test_fixture_pins_the_recovery_budget():
+    # exactly one recovery step, which is what makes the fix bounded
+    assert 'float(result["rescue_accepted"]) == 1.0' in FIXTURE

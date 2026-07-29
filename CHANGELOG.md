@@ -3,6 +3,59 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.5g bounded LM recovery in the coupled solver (2026-07-28)
+
+- **Scope of the claim: the canonical `damping_exhausted` mode is closed, not
+  `corridor_chain`.** Both real captures converge and `damping_exhausted` drops
+  on every corridor stage, but at 120 s corridor is still 84.18%, with 217
+  `iteration_cap` and 11 `damping_exhausted` that hit a second dead end after
+  the one-step LM budget. H2 stays blocked, principally on `iteration_cap`.
+- Added a **fail-only** Levenberg-Marquardt recovery, reachable from exactly one
+  place: the dead end where the solver used to return `damping_exhausted`. A
+  solve that finds an acceptable step never executes any of it, so successful
+  solves run byte-identical code - asserted over 432 of them, not assumed.
+- The `corridor_chain` stall was the L-infinity acceptance test refusing a
+  Newton direction that fixes two rooms out of three because the third, the one
+  holding the maximum, gets 2.4% worse. The recovery damps the SAME Jacobian
+  toward steepest descent on a sum-of-squares merit and demands a SUFFICIENT
+  decrease of it. The accepted step deliberately raises L-infinity
+  (2.169e-04 -> 2.348e-04) while lowering the merit - exactly the trade the
+  ordinary line search was refusing.
+- **Bounded and measured that way offline before being written**: one accepted
+  step per solve, at most five regularization strengths to find it, immediate
+  return to the ordinary Newton/L-infinity loop, and a second dead end still
+  fails as `damping_exhausted`. A recovery is never convergence by itself.
+- **Scenario matrix, no stage regressed and iteration_cap did not move at all**:
+  corridor 30 s 83.10 -> 87.26%, 60 s 86.53 -> 92.08%, 120 s 81.40 -> 84.18%;
+  10 s unchanged at 67.50% (it has no `damping_exhausted` to recover).
+  `damping_exhausted` fell 15 -> 0, 51 -> 11 and 51 -> 11. `iteration_cap`
+  stayed at 39 / 46 / 46 / 217 / 125 in every stage, so there is no
+  damping-to-iteration shift to explain.
+- `r0_window_360` is **untouched**: 91.33% before and after, zero recovery
+  attempts, identical counters.
+- Recovery usage: 15/15, 51/51 and 51/51 attempts accepted, 22 and 90 trials
+  (1.47 and 1.76 per rescue), lambda always the first rung, 1e-3.
+- OFF byte-identical on all five pairs; the isolation analyzer exits 0 on all
+  five; zero counterflow violations; the coupled-vs-legacy divergence metric is
+  bit-identical, so the recovery changes how often the solve finishes, not what
+  it measures. Runtime cost is flat.
+- Added opt-in telemetry: six per-step `..._rescue_*` columns plus
+  `rescue_attempted_step_count`, `rescue_accepted_step_count` and
+  `rescue_trials_total`. **Known limit**: the per-step columns are sampled at
+  the 10 s log cadence, so an individual recovery event is almost never on a
+  logged row - the totals are the usable signal.
+- **A mandated fixture could not be built.** No physical case was found where
+  the recovery declines: across ~2500 offline solves on both topologies and
+  seven regularization widths it found a sufficient-decrease step every time it
+  was invoked, which is what a lambda ladder reaching steepest descent on a
+  smooth merit should do. That branch is covered structurally and by mutation
+  control instead, and the real budget-exhausted case still ends in
+  `damping_exhausted`.
+- The `corridor_chain` capture fixture was flipped **with intent**; it was
+  designed to be the alarm and it rang. The capture itself is not re-recorded.
+- Jacobian, tolerance, main merit, damping schedule, gauge formulation, EOS,
+  openings and flux law are unchanged. No new knob, nothing per-case.
+
 ### Phase 3+ F3.3v3h2.5e coupled pressure solve in gauge coordinates (2026-07-28)
 
 - The coupled pressure solve now carries a **gauge** unknown relative to the

@@ -8,25 +8,42 @@ extends SceneTree
 ## converged 100% of the time. Only the actual inputs reproduce the actual
 ## failure, so they are versioned as data and replayed here.
 ##
-## This fixture deliberately asserts that the solve STILL FAILS. It is a
-## regression capture, not a target: when a future phase fixes convergence,
-## this fixture must be updated with intent rather than silently passing.
+## F3.3v3h2.5g FIXED THIS AND THIS FIXTURE WAS FLIPPED ON PURPOSE.
 ##
-## F3.3v3h2.5e NOTE. The solve now runs in gauge coordinates, which removed a
-## cancellation of two numbers near 101325 Pa from both the opening difference
-## and the EOS residual. The failure is unchanged - still `damping_exhausted`
-## after 3 iterations, still stalled at 2.2e-4 - but the residual history moved
-## in its tenth significant digit, so it is no longer reproducible bit for bit
-## against a recording made by the absolute formulation.
+## As written it asserted the failure still reproduced, so a fix would break it
+## loudly instead of passing in silence. That is what happened, twice over: the
+## fixture was designed to be the alarm and it rang.
 ##
-## The capture is NOT re-recorded: it stays a verbatim record of what shipped on
-## 2026-07-28. Instead the two things that test bundled together are separated:
+## The `damping_exhausted` stall here was the L-infinity acceptance test
+## refusing a Newton direction that fixes two rooms out of three because the
+## third - the one currently holding the maximum - gets 2.4% worse. H2.5g added
+## a bounded Levenberg-Marquardt recovery reachable only from that dead end. One
+## recovery step unblocks this input and it converges in 6 iterations to about
+## 6.5e-17, five orders of magnitude inside the unchanged 1e-12 tolerance.
 ##
-##   * whether the capture is stored losslessly is now checked directly on the
-##     encoding, by decoding each leaf and re-encoding it - a test that involves
-##     no solver at all and so cannot drift;
-##   * whether the solver still fails the same way is checked on the failure
-##     mode, plus agreement of the history to 1e-8 relative.
+## The captured JSON is NOT re-recorded. It remains a verbatim record of what
+## the solver did on 2026-07-28, and the fixture still asserts that the record
+## says `damping_exhausted`, so a regression is visible rather than implicit.
+##
+## HOW THIS FIXTURE GOT HERE, IN ORDER
+##
+##   * H2.5a recorded the failure and asserted it reproduced;
+##   * H2.5e moved the solve into gauge coordinates. That removed a cancellation
+##     of two numbers near 101325 Pa and shifted the residual history in its
+##     tenth significant digit, so it stopped being bit-reproducible against a
+##     recording made by the absolute formulation - but the failure itself was
+##     unchanged, and the fixture kept asserting it;
+##   * H2.5g added the bounded recovery, and the failure is now gone.
+##
+## Because the arithmetic moved once and the outcome moved once, the checks are
+## deliberately split by what they actually measure:
+##
+##   * whether the capture is stored losslessly is checked directly on the
+##     encoding, by decoding each leaf and re-encoding it - no solver is
+##     involved, so it cannot drift again;
+##   * iterate 0 is a pure function of the inputs, so it still pins the
+##     arithmetic to 1e-9;
+##   * everything after that is checked as an outcome, not a trajectory.
 
 const SolverScript = preload("res://sim/core/Phase3CoupledPressureSolver.gd")
 const CAPTURE_PATH := "res://tests/fixtures/data/coupled_solver_failure_corridor_chain.json"
@@ -106,24 +123,35 @@ func _test_replay_reproduces_the_recorded_failure(capture: Dictionary) -> void:
 	var result: Dictionary = _replay(capture)
 	var observed: Dictionary = capture.get("observed_failure", {})
 	_assert_true(
-		not bool(result["converged"]),
-		"replay does not converge, exactly as captured"
+		bool(result["converged"]),
+		"the captured input converges once the bounded LM recovery exists"
 	)
 	_assert_true(
-		String(result["limiting_reason"]) == String(observed["limiting_reason"]),
-		"replay reproduces limiting reason '%s', got '%s'" % [
-			String(observed["limiting_reason"]), String(result["limiting_reason"])
-		]
+		String(result["limiting_reason"]) == "converged",
+		"limiting reason is 'converged', got '%s'" % String(result["limiting_reason"])
 	)
-	_close(
-		float(result["failure_code"]),
-		_decode(observed["failure_code"]),
-		"replay reproduces failure code"
+	_assert_true(
+		float(result["failure_code"]) == 0.0,
+		"a converged solve records no failure code"
 	)
-	_close(
-		float(result["iterations"]),
-		_decode(observed["iterations"]),
-		"replay reproduces iteration count"
+	_assert_true(
+		float(result["normalized_residual"]) <= 1.0e-12,
+		"the solve closes inside the unchanged tolerance"
+	)
+	_assert_true(
+		float(result["counterflow_violation_count"]) == 0.0,
+		"no counterflow violation on the recovered solve"
+	)
+	# Exactly one recovery step, which is the documented budget.
+	_assert_true(
+		float(result["rescue_accepted"]) == 1.0,
+		"exactly one accepted recovery step (%s)" % str(result["rescue_accepted"])
+	)
+	# The record keeps saying what the unrecovered solver did.
+	_assert_true(
+		not bool(observed.get("converged", true))
+				and String(observed.get("limiting_reason", "")) == "damping_exhausted",
+		"the capture still records the original damping_exhausted failure"
 	)
 
 
@@ -192,22 +220,28 @@ func _test_history_matches_the_recording(capture: Dictionary) -> void:
 		"residual_history", []
 	)
 	var replayed: Array = result["residual_history"]
-	_assert_true(
-		recorded.size() == replayed.size(),
-		"residual history length matches the capture (%d vs %d)" % [
-			recorded.size(), replayed.size()
-		]
-	)
 	if recorded.is_empty() or replayed.is_empty():
+		_assert_true(false, "residual history present")
 		return
+	# Iterate 0 is a pure function of the captured inputs - no Jacobian, no
+	# step, no recovery - so it still pins the arithmetic to 1e-9. It agrees to
+	# about 7e-12, which is the cancellation F3.3v3h2.5e removed.
 	_close_rel(
 		float(replayed[0]), _decode(recorded[0]), 1.0e-9,
 		"iterate 0 still matches the recording"
 	)
-	_close_rel(
-		float(replayed[replayed.size() - 1]),
-		_decode(recorded[recorded.size() - 1]), 1.0e-5,
-		"the stall value still matches the recording"
+	# Beyond that the trajectories legitimately diverge: the recording stops at
+	# the stall, the recovered solve carries on past it.
+	_assert_true(
+		replayed.size() > recorded.size(),
+		"the recovered solve takes more steps (%d) than the stall did (%d)" % [
+			replayed.size(), recorded.size()
+		]
+	)
+	_assert_true(
+		float(replayed[replayed.size() - 1])
+				< _decode(recorded[recorded.size() - 1]) * 1.0e-6,
+		"the recovered solve finishes far below the recorded stall"
 	)
 
 

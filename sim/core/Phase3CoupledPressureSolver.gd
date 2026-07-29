@@ -93,6 +93,32 @@ const DEFAULT_JACOBIAN_STEP_PA: float = 1.0e-3
 const DEFAULT_BAND_SEGMENTS: int = 16
 const DEFAULT_MAX_DAMPING_HALVINGS: int = 12
 
+# ------------------------------------------------------------
+# F3.3v3h2.5g: bounded Levenberg-Marquardt recovery.
+#
+# The ordinary line search accepts any strict decrease of the L-infinity
+# residual. On the captured `corridor_chain` step that test rejects a Newton
+# direction which fixes two rooms out of three, because it worsens the room
+# that currently holds the maximum by 2.4%. No damping helps, so the solve dies
+# with the answer still reachable.
+#
+# The recovery is reached ONLY from that dead end. It damps the SAME Jacobian
+# toward steepest descent on a sum-of-squares merit and asks for a sufficient
+# decrease of that merit - not merely a strict one, so a step that barely moves
+# is rejected instead of being accepted forever.
+#
+# Bounded on purpose, and measured that way offline before being written here:
+#   - at most one accepted recovery step per solve;
+#   - at most five regularization strengths tried to find it;
+#   - control returns to the ordinary Newton/L-infinity loop immediately;
+#   - a second dead end fails as `damping_exhausted`, exactly as today.
+# These are global constants. They are never per-case and never exposed.
+# ------------------------------------------------------------
+const LM_RESCUE_MAX_ACCEPTED_STEPS: int = 1
+const LM_RESCUE_LAMBDA_LADDER: Array[float] = [1.0e-3, 1.0e-2, 1.0e-1, 1.0, 1.0e1]
+## Armijo constant for the recovery merit. Sufficient decrease, not any decrease.
+const LM_RESCUE_ARMIJO_C: float = 1.0e-4
+
 # Failure codes. Zero means "no failure recorded".
 const FAILURE_NONE: float = 0.0
 const FAILURE_BAD_ARGUMENTS: float = 1.0
@@ -153,6 +179,7 @@ func solve_coupled_pressure(
 	var max_halvings: int = int(context["max_damping_halvings"])
 	var iterations: int = 0
 	var converged: bool = norm <= tolerance
+	var rescue_budget_left: int = LM_RESCUE_MAX_ACCEPTED_STEPS
 
 	while not converged and iterations < max_iterations:
 		iterations += 1
@@ -215,11 +242,36 @@ func solve_coupled_pressure(
 			damping *= 0.5
 			halvings += 1
 		if not accepted:
-			result["failure_code"] = FAILURE_NOT_CONVERGED
-			result["iterations"] = float(iterations)
-			result["limiting_reason"] = "damping_exhausted"
-			result["pressure_by_room"] = _pressure_map(context, pressure)
-			return result
+			# FAIL-ONLY RECOVERY. Reachable on exactly one path: the one where
+			# this solver used to return `damping_exhausted`. Every successful
+			# solve therefore executes byte-identical code, which is asserted
+			# rather than assumed.
+			var rescue: Dictionary = _try_lm_rescue(
+				context, pressure, evaluation, jacobian, room_count,
+				max_halvings, rescue_budget_left
+			)
+			result["rescue_attempted"] += 1.0
+			result["rescue_trials"] += float(rescue.get("trials", 0.0))
+			if not bool(rescue.get("accepted", false)):
+				result["failure_code"] = FAILURE_NOT_CONVERGED
+				result["iterations"] = float(iterations)
+				result["limiting_reason"] = "damping_exhausted"
+				result["pressure_by_room"] = _pressure_map(context, pressure)
+				return result
+			rescue_budget_left -= 1
+			result["rescue_accepted"] += 1.0
+			result["rescue_initial_norm"] = norm
+			result["rescue_lambda"] = float(rescue["lambda"])
+			pressure = rescue["pressure"]
+			evaluation = rescue["evaluation"]
+			norm = float(evaluation["normalized_residual"])
+			result["rescue_final_norm"] = norm
+			result["residual_history"].append(norm)
+			result["damping_history"].append(float(rescue["damping"]))
+			# A rescue is never convergence by itself. Control returns to the
+			# ordinary Newton/L-infinity loop, which decides that as always.
+			converged = norm <= tolerance
+			continue
 		pressure = candidate_pressure
 		evaluation = candidate_evaluation
 		norm = float(evaluation["normalized_residual"])
@@ -281,6 +333,93 @@ func solve_coupled_pressure(
 	return result
 
 
+## Sum-of-squares recovery merit over the per-room normalized residuals. It is
+## used ONLY to accept or reject a recovery step; convergence is still decided
+## by the L-infinity measure against the unchanged tolerance.
+func _rescue_merit(evaluation: Dictionary) -> float:
+	var total: float = 0.0
+	for room_key in evaluation["residual_kg_by_room"].keys():
+		var value: float = float(
+			evaluation["per_room_normalized"][room_key]
+		)
+		total += value * value
+	return 0.5 * total
+
+
+## One bounded Levenberg-Marquardt recovery step, or nothing.
+##
+## Damps the SAME Jacobian the Newton step came from - no new differencing, no
+## new step size - toward steepest descent on `_rescue_merit`, walking a fixed
+## ladder of regularization strengths and backtracking within each. Accepts the
+## first trial that achieves a sufficient decrease of that merit.
+func _try_lm_rescue(
+		context: Dictionary,
+		pressure: Array,
+		evaluation: Dictionary,
+		jacobian: Array,
+		room_count: int,
+		max_halvings: int,
+		budget_left: int
+	) -> Dictionary:
+	var outcome: Dictionary = {
+		"accepted": false, "trials": 0.0, "lambda": 0.0, "damping": 0.0,
+	}
+	if budget_left <= 0:
+		return outcome
+	var merit_before: float = _rescue_merit(evaluation)
+	if merit_before <= 0.0 or not is_finite(merit_before):
+		return outcome
+
+	# Scale the added diagonal by the Jacobian's own magnitude so the ladder is
+	# dimensionless and behaves the same whatever the component's conditioning.
+	var jacobian_scale: float = 0.0
+	for row_index in range(room_count):
+		for column in range(room_count):
+			jacobian_scale = maxf(
+				jacobian_scale, absf(float(jacobian[row_index][column]))
+			)
+	if jacobian_scale <= 0.0:
+		jacobian_scale = 1.0
+
+	var negative_residual: Array[float] = []
+	for row_index in range(room_count):
+		negative_residual.append(-float(evaluation["residual"][row_index]))
+
+	for lambda_value in LM_RESCUE_LAMBDA_LADDER:
+		var damped: Array = []
+		for row_index in range(room_count):
+			var row: Array[float] = []
+			row.resize(room_count)
+			for column in range(room_count):
+				row[column] = float(jacobian[row_index][column])
+				if row_index == column:
+					row[column] += lambda_value * jacobian_scale
+			damped.append(row)
+		var direction: Array = _solve_linear_system(damped, negative_residual)
+		if direction.is_empty():
+			continue
+		var scale: float = 1.0
+		for _halving in range(max_halvings + 1):
+			var trial: Array[float] = []
+			for row_index in range(room_count):
+				trial.append(
+					float(pressure[row_index]) + scale * float(direction[row_index])
+				)
+			var trial_evaluation: Dictionary = _evaluate(context, trial)
+			outcome["trials"] += 1.0
+			if bool(trial_evaluation.get("valid", false)):
+				var merit_after: float = _rescue_merit(trial_evaluation)
+				if merit_after <= (1.0 - LM_RESCUE_ARMIJO_C * scale) * merit_before:
+					outcome["accepted"] = true
+					outcome["lambda"] = lambda_value
+					outcome["damping"] = scale
+					outcome["pressure"] = trial
+					outcome["evaluation"] = trial_evaluation
+					return outcome
+			scale *= 0.5
+	return outcome
+
+
 func _new_result() -> Dictionary:
 	return {
 		"valid": false,
@@ -306,6 +445,14 @@ func _new_result() -> Dictionary:
 		"regularization_active_count": 0.0,
 		"counterflow_connection_count": 0.0,
 		"counterflow_violation_count": 0.0,
+		# F3.3v3h2.5g recovery telemetry. All zero unless the recovery path was
+		# reached, which is itself the assertion that it never runs otherwise.
+		"rescue_attempted": 0.0,
+		"rescue_accepted": 0.0,
+		"rescue_trials": 0.0,
+		"rescue_initial_norm": 0.0,
+		"rescue_final_norm": 0.0,
+		"rescue_lambda": 0.0,
 	}
 
 
@@ -751,6 +898,7 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 	var residual_pa: Array[float] = []
 	var residual_pa_by_room: Dictionary = {}
 	var residual_kg_by_room: Dictionary = {}
+	var per_room_normalized: Dictionary = {}
 	var mass_by_room: Dictionary = {}
 	var energy_by_room: Dictionary = {}
 	var net_mass_by_room: Dictionary = {}
@@ -791,10 +939,13 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 		# of the pressure iterate. Room inventory is; gross throughput is not,
 		# because it collapses as the solve approaches equilibrium and would
 		# make a genuinely improving step look worse.
-		normalized_residual = maxf(
-			normalized_residual,
-			absf(residual_kg) / maxf(MASS_EPS_KG, float(room["mass_kg"]))
-		)
+		var room_normalized: float = absf(residual_kg) \
+				/ maxf(MASS_EPS_KG, float(room["mass_kg"]))
+		normalized_residual = maxf(normalized_residual, room_normalized)
+		# Kept per room as well: the L-infinity measure above decides
+		# convergence, while the F3.3v3h2.5g recovery needs the whole vector to
+		# form its sum-of-squares merit.
+		per_room_normalized[room_key] = room_normalized
 		# Reported separately: closure against what actually moved. This is the
 		# physically meaningful number where the net is a large cancellation,
 		# but it is telemetry only and never drives an accept/reject decision.
@@ -820,6 +971,7 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 		"residual": residual_pa,
 		"residual_pa_by_room": residual_pa_by_room,
 		"residual_kg_by_room": residual_kg_by_room,
+		"per_room_normalized": per_room_normalized,
 		"mass_by_room": mass_by_room,
 		"energy_by_room": energy_by_room,
 		"net_mass_by_room": net_mass_by_room,

@@ -184,5 +184,8 @@ def test_h25c_central_difference_is_still_rejected():
     assert ") / jacobian_step_pa" in SOLVER, "forward quotient must be intact"
     assert "/ (2.0 * jacobian_step_pa)" not in SOLVER
     assert '- float(evaluation["residual"][row_index])' in SOLVER
-    for forbidden in ("jacobian_mode", "central_difference", "armijo"):
+    # H2.5g added LM_RESCUE_ARMIJO_C, a documented global constant for the
+    # fail-only recovery's sufficient-decrease test. What must stay absent is a
+    # selectable Jacobian mode, which is what H2.5c was.
+    for forbidden in ("jacobian_mode", "central_difference"):
         assert forbidden not in SOLVER.lower(), forbidden

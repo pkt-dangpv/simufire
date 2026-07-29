@@ -5510,6 +5510,14 @@ func _new_coupled_pressure_solver_record() -> Dictionary:
 		"regularization_active_count": 0.0,
 		"iteration_cap_flag": 0.0,
 		"damping_exhausted_flag": 0.0,
+		# F3.3v3h2.5g bounded LM recovery. Zero on every step that never
+		# reached the dead end, which is nearly all of them.
+		"rescue_attempted": 0.0,
+		"rescue_accepted": 0.0,
+		"rescue_trials": 0.0,
+		"rescue_initial_norm": 0.0,
+		"rescue_final_norm": 0.0,
+		"rescue_lambda": 0.0,
 	}
 
 
@@ -5526,6 +5534,9 @@ func _new_coupled_pressure_solver_cumulative_record() -> Dictionary:
 		"regularization_active_count": 0.0,
 		"iteration_cap_step_count": 0.0,
 		"damping_exhausted_step_count": 0.0,
+		"rescue_attempted_step_count": 0.0,
+		"rescue_accepted_step_count": 0.0,
+		"rescue_trials_total": 0.0,
 	}
 
 
@@ -5783,6 +5794,11 @@ func _record_coupled_pressure_solver_preview(
 		# Which non-convergence mode: the iteration cap and an exhausted line
 		# search have different remedies, so H3 must be able to tell them apart.
 		var limiting_reason: String = String(solved.get("limiting_reason", ""))
+		for rescue_field in [
+			"rescue_attempted", "rescue_accepted", "rescue_trials",
+			"rescue_initial_norm", "rescue_final_norm", "rescue_lambda",
+		]:
+			record[rescue_field] = float(solved.get(rescue_field, 0.0))
 		record["iteration_cap_flag"] = \
 				1.0 if limiting_reason == "iteration_cap" else 0.0
 		record["damping_exhausted_flag"] = \
@@ -5840,6 +5856,15 @@ func _record_coupled_pressure_solver_preview(
 		cumulative["damping_exhausted_step_count"] = float(
 			cumulative["damping_exhausted_step_count"]
 		) + float(record["damping_exhausted_flag"])
+		cumulative["rescue_attempted_step_count"] = float(
+			cumulative["rescue_attempted_step_count"]
+		) + (1.0 if float(record["rescue_attempted"]) > 0.0 else 0.0)
+		cumulative["rescue_accepted_step_count"] = float(
+			cumulative["rescue_accepted_step_count"]
+		) + (1.0 if float(record["rescue_accepted"]) > 0.0 else 0.0)
+		cumulative["rescue_trials_total"] = float(
+			cumulative["rescue_trials_total"]
+		) + float(record["rescue_trials"])
 		if converged:
 			cumulative["max_abs_coupled_vs_legacy_pressure_delta_pa"] = maxf(
 				float(cumulative["max_abs_coupled_vs_legacy_pressure_delta_pa"]),
@@ -10188,6 +10213,12 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"regularization_active_count",
 			"iteration_cap_flag",
 			"damping_exhausted_flag",
+			"rescue_attempted",
+			"rescue_accepted",
+			"rescue_trials",
+			"rescue_initial_norm",
+			"rescue_final_norm",
+			"rescue_lambda",
 		]:
 			coupled_solver_result[
 				"phase3_shadow_coupled_solver_" + coupled_field
@@ -10204,6 +10235,9 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"regularization_active_count",
 			"iteration_cap_step_count",
 			"damping_exhausted_step_count",
+			"rescue_attempted_step_count",
+			"rescue_accepted_step_count",
+			"rescue_trials_total",
 		]:
 			coupled_solver_result[
 				"phase3_shadow_coupled_solver_" + coupled_field + "_total"

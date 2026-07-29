@@ -175,7 +175,16 @@ def test_convergence_measure_is_independent_of_the_pressure_iterate():
     # merit function incomparable between iterates because the throughput
     # collapses as the solve approaches equilibrium
     body = _function(SOLVER, "_evaluate")
-    assert 'absf(residual_kg) / maxf(MASS_EPS_KG, float(room["mass_kg"]))' in body
+    # F3.3v3h2.5g split this across two lines to also keep the per-room value;
+    # what must hold is the denominator, which is the room's own inventory.
+    normalized = " ".join(
+        body.split("var room_normalized: float =", 1)[1]
+        .split("normalized_residual = maxf", 1)[0]
+        .split()
+    ).replace("\\", "").strip()
+    assert normalized.startswith("absf(residual_kg)")
+    assert 'maxf(MASS_EPS_KG, float(room["mass_kg"]))' in normalized
+    assert "throughput" not in normalized
     assert "throughput_normalized_residual" in body
     assert "telemetry only" in body
 

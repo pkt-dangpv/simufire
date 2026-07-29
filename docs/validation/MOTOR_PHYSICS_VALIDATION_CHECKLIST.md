@@ -1033,6 +1033,8 @@ Diagnostic / planned lanes:
 | F3.3v3h2.5c | Centred-difference Jacobian candidate | **NO-GO**; helps corridor, destroys r0_window_360; reverted; second capture retained |
 | F3.3v3h2.5d | Gauge vs Armijo, measured on both captures | Combined patch **NO-GO**; gauge alone is the only non-regressing mechanism |
 | F3.3v3h2.5e | Coupled solve in gauge coordinates | **GO, partial**; r0_window 86.33→91.33%, no stage regressed; corridor still open |
+| F3.3v3h2.5f | Fail-only rescue design, measured offline | L2 and LM both viable; LM chosen on 39/39 vs 20/39 |
+| F3.3v3h2.5g | Bounded LM recovery, one step per solve | **GO** for the canonical damping mode; corridor still 84.18% at 120 s; iteration_cap unmoved |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1318,8 +1320,38 @@ F3.3v3h2.5e STOP (gauge coordinates, one file):
 - Jacobian, merit, damping, tolerance, regularization, band segments and flux
   law are unchanged, and no tuning knob was added: PASS.
 
-**H2 is not resolved.** `corridor_chain` still fails deterministically and its
-fixture still asserts it. Its mode is understood - the L-infinity acceptance
+F3.3v3h2.5f/g STOP (bounded LM recovery): **GO for the canonical
+`damping_exhausted` mode only.** `corridor_chain` is NOT closed - at 120 s it
+is still 84.18%, with 217 `iteration_cap` and 11 `damping_exhausted` past the
+one-step budget. H2 stays blocked, principally on `iteration_cap`.
+
+- the recovery is reachable ONLY from the `damping_exhausted` dead end; over
+  **432** baseline-successful solves the trajectory and result are
+  **bit-identical** and it fired zero times: PASS;
+- it damps the same Jacobian toward steepest descent on a sum-of-squares merit
+  and demands sufficient decrease. The accepted step deliberately RAISES
+  L-infinity (2.169e-04 -> 2.348e-04) while lowering that merit - the trade the
+  ordinary test refused: PASS;
+- bounded to one accepted step per solve and five regularization strengths, all
+  global constants, never read from `options`: PASS;
+- matrix - no stage regressed and **`iteration_cap` is identical everywhere**
+  (39/46/46/217/125), so there is no damping-to-iteration shift. corridor
+  83.10 -> 87.26%, 86.53 -> 92.08%, 81.40 -> 84.18%; `damping_exhausted`
+  15 -> 0, 51 -> 11, 51 -> 11; `r0_window_360` untouched at 91.33% with zero
+  attempts: PASS;
+- OFF byte-identical on all five pairs, analyzer exit 0, zero counterflow
+  violations, coupled-vs-legacy divergence bit-identical: PASS.
+
+Two gaps recorded rather than hidden: no physical case exists where the
+recovery declines (~2500 offline solves, it succeeded every invocation), so
+that branch is covered structurally plus mutation control; and the per-step
+`..._rescue_*` columns are sampled at the 10 s log cadence and almost never
+coincide with a recovery, so the `_total` counters are the usable signal.
+
+**`iteration_cap` is now the dominant remaining failure mode** - alongside the
+11 post-budget `damping_exhausted` at 120 s - and it is still
+uncaptured because the instrumentation records only the first failure, which is
+`damping_exhausted` on both scenarios. Its mode is understood - the L-infinity acceptance
 test rejects a step that fixes two rooms out of three because it worsens the
 current worst room by 2.4% - and every remedy measured either does not help,
 pays for it on `r0_window_360`, or is much worse. **H3 stays blocked**, and both

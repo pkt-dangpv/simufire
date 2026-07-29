@@ -8,6 +8,53 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-28 - F3.3v3h2.5f/g bounded LM recovery GO
+
+- **The canonical `damping_exhausted` mode is closed. H2 is not.** Both real
+  captures now converge, but `corridor_chain` at 120 s is still only 84.18%:
+  **217 `iteration_cap`** and **11 `damping_exhausted`** that hit a second dead
+  end after the LM budget was spent. H2 stays blocked, principally on
+  `iteration_cap`.
+- H2.5f measured the design offline first: a fail-only recovery, reachable ONLY
+  from the dead end where the solver returns `damping_exhausted`. An L2 rescue
+  and an LM rescue both close the capture, but on a 240-case damping-dense
+  family LM found a step in **39/39** invocations against L2's **20/39**, so LM
+  was chosen. Both had zero regressions.
+- H2.5g ships it, bounded: **one accepted step per solve**, at most five
+  regularization strengths, immediate return to the ordinary Newton/L-infinity
+  loop, and a second dead end still fails as `damping_exhausted`. A recovery is
+  never convergence by itself.
+- The mechanism, stated plainly: the accepted step **raises** L-infinity
+  (2.169e-04 -> 2.348e-04) while lowering a sum-of-squares merit. That is the
+  trade the ordinary acceptance test was refusing, and one such step unblocks a
+  solve that then reaches 6.5e-17.
+- **Matrix: no stage regressed, and `iteration_cap` did not move at all** -
+  39 / 46 / 46 / 217 / 125 before and after, so there is no damping-to-iteration
+  shift to account for. corridor 30 s 83.10 -> 87.26%, 60 s 86.53 -> 92.08%,
+  120 s 81.40 -> 84.18%, 10 s unchanged (no `damping_exhausted` to recover).
+  `damping_exhausted` 15 -> 0, 51 -> 11, 51 -> 11.
+- `r0_window_360` **untouched**: 91.33% before and after, zero attempts.
+- Non-interference is measured, not asserted: over **432** baseline-successful
+  solves across both topologies the trajectory, iterate and result are
+  **bit-identical** and the recovery never fired once.
+- OFF byte-identical on all five pairs; analyzer exit 0 on all five; zero
+  counterflow violations; coupled-vs-legacy divergence bit-identical, so the
+  recovery changes how often the solve finishes, not what it measures.
+- Physics 9/15/5/0; ILV 15 PASS/14 CTRL/0 FAIL; gaps unchanged (6 VALID_GAP +
+  71); guardrails 9/10 with only the expected dirty-motor R2-1.
+- **Two honest gaps, both recorded**: (1) no physical case exists where the
+  recovery declines - ~2500 offline solves, it succeeded every invocation - so
+  that branch is covered structurally plus mutation control; (2) the per-step
+  `..._rescue_*` columns are sampled at the 10 s log cadence and almost never
+  land on a recovery event, so the `_total` counters are the usable signal.
+- Next: **H2.5h captures a real `iteration_cap`**, which is the dominant
+  remaining mode (217 at 120 s) alongside the 11 post-budget
+  `damping_exhausted`. It is still uncaptured because the instrumentation
+  records only the first failure per run, and that is `damping_exhausted` on
+  both scenarios. Do NOT raise the iteration limit and do NOT allow unlimited
+  LM recoveries while capturing it.
+- Binding record: `docs/validation/PHASE3_F33V3H25G_LM_RECOVERY.md`.
+
 ## Current Session Update - 2026-07-28 - F3.3v3h2.5d NO-GO / h2.5e gauge GO
 
 - **H2.5d: combined patch NO-GO. H2.5e: gauge coordinates GO, partial.**
