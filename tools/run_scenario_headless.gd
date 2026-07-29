@@ -255,6 +255,9 @@ func _run() -> void:
 		engine.phase3_coupled_pressure_solver_capture_path = String(
 			_cli_args.get("phase3_coupled_pressure_solver_capture", "")
 		)
+		engine.phase3_coupled_pressure_solver_capture_failure_mode = String(
+			_cli_args.get("phase3_coupled_pressure_solver_capture_mode", "")
+		)
 	if bool(_cli_args.get("phase3_enthalpy_residence_diagnostics", false)):
 		engine.phase3_canonical_zone_shadow_enabled = true
 		engine.phase3_canonical_exterior_boundary_shadow_enabled = true
@@ -436,6 +439,8 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["phase3_canonical_fixed_gross_pressure_network_shadow"] = true
 		elif arg == "--phase3-coupled-pressure-solver-shadow":
 			parsed["phase3_coupled_pressure_solver_shadow"] = true
+		elif arg.begins_with("--phase3-coupled-pressure-solver-capture-mode="):
+			parsed["phase3_coupled_pressure_solver_capture_mode"] = 					arg.substr(len("--phase3-coupled-pressure-solver-capture-mode="))
 		elif arg.begins_with("--phase3-coupled-pressure-solver-capture="):
 			parsed["phase3_coupled_pressure_solver_capture"] = \
 					arg.substr(len("--phase3-coupled-pressure-solver-capture="))

@@ -3,6 +3,46 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.5h real iteration_cap capture (2026-07-29)
+
+- Added an opt-in capture **mode selector**,
+  `coupled_pressure_solver_capture_failure_mode`, so a specific failure mode can
+  be waited for. Empty keeps the original semantics exactly. Exposed as
+  `--phase3-coupled-pressure-solver-capture-mode=` on both runners, and the
+  capture flags are now reachable through `scripts/run_scenario.py`, which they
+  were not before.
+- **Found and fixed a latch defect while doing it.** The engine re-applies its
+  configuration on every log tick, and `configure_...capture()` reset the
+  "already captured" latch each time. The artifact was therefore the first
+  failure after the LAST reconfigure, not the first failure of the run. The
+  latch and the invalid-selector error are now both gated on the selector value
+  having changed, so each happens exactly once.
+- **The first draft of this capture was wrong because of that, and so was its
+  anatomy.** Corrected by measurement:
+  - the true first `iteration_cap` is at step 9, residual
+    `2.160e-02 -> 4.339e-04` over 24 monotone iterations, 97.99% removed;
+  - given a larger budget the **same input converges in 26 iterations** to
+    `6.5e-17`. A late-run step needs **108**;
+  - an earlier draft extrapolated the first 24 iterations' linear rate (~0.995)
+    to "about 4600 iterations, so raising the cap is pointless". That was wrong
+    by roughly a factor of forty - the rate does not persist. The fixture now
+    **measures** the required budget instead of asserting an extrapolation.
+- This is still not an argument for raising the cap: 26 and 108 iterations are
+  both far past what a healthy Newton needs, so the defect is the rate, not the
+  budget, and raising it would hide the symptom.
+- An unknown selector is reported **once** and disables capture;
+  `scripts/run_scenario.py` rejects it before launching Godot with a non-zero
+  exit. The Python and GDScript mode lists are pinned to agree by a test.
+- `persistent_step_index` is an **opaque identifier, not chronological time**:
+  the `damping_exhausted` selector reports 510 and `iteration_cap` reports 1435
+  on the same run, which is not an ordering claim.
+- `Phase3CoupledPressureSolver.gd` is **unmodified** - asserted by a test that
+  also pins the cap, the LM budget and the whole numerical configuration.
+- Verified: OFF byte-identical; fixtures h25a/h25c/h25e/h25g/h25h/H1 PASS; three
+  negative controls (nine-digit truncation, one perturbed input, a record
+  claiming convergence) each drive exit 1 with zero PASS markers; Physics
+  0 FAIL; ILV 0 FAIL; gaps unchanged; guardrails 9/10 with only R2-1.
+
 ### Phase 3+ F3.3v3h2.5g bounded LM recovery in the coupled solver (2026-07-28)
 
 - **Scope of the claim: the canonical `damping_exhausted` mode is closed, not

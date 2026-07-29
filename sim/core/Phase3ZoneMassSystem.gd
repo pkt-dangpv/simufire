@@ -175,6 +175,18 @@ var _coupled_pressure_solver_context: Dictionary = {}
 ## serialised verbatim and capture stops. Empty by default, so this is a
 ## no-op unless a diagnostic run asks for it.
 var coupled_pressure_solver_capture_path: String = ""
+## F3.3v3h2.5h: empty means "first failure of any kind", which is the original
+## behaviour. A named mode filters. Instrumentation only - it selects what gets
+## recorded and can never change what the solver does.
+var coupled_pressure_solver_capture_failure_mode: String = ""
+const CAPTURE_SELECTABLE_FAILURE_MODES: Array[String] = [
+	"iteration_cap", "damping_exhausted", "singular_jacobian",
+	"counterflow_violation",
+]
+## Last selector string this system was configured with. The engine re-applies
+## its configuration on every log tick, so this is what makes "report an invalid
+## selector once" and "arm the latch once" both true.
+var _coupled_pressure_solver_capture_mode_seen: String = ""
 var _coupled_pressure_solver_captured: bool = false
 var _canonical_fixed_gross_pressure_network_cumulative_by_room: Dictionary = {}
 var _persistent_zone_state: Dictionary = {}
@@ -229,9 +241,41 @@ func configure_connection_residence_diagnostics(is_enabled: bool) -> void:
 		_connection_residence_cumulative.clear()
 
 
-func configure_coupled_pressure_solver_capture(path: String) -> void:
+## F3.3v3h2.5h: `failure_mode` selects WHICH failure to record.
+##
+## Empty keeps the F3.3v3h2.5a semantics exactly - the first failure of any
+## kind. A named mode makes the capture skip every other mode and hold the latch
+## open until that one appears, which is the only way to reach an
+## `iteration_cap` on a scenario whose first failure is a `damping_exhausted`.
+##
+## An unrecognised value disables capture loudly rather than silently recording
+## the wrong thing: a diagnostic that quietly falls back is worse than none.
+func configure_coupled_pressure_solver_capture(
+		path: String, failure_mode: String = ""
+	) -> void:
+	var requested: String = failure_mode.strip_edges().to_lower()
+	# The engine re-applies its configuration every step, so a rejection has to
+	# be reported ONCE. Remembering the last value seen is enough: an unchanged
+	# bad value stays silent, and changing it re-validates and can report again.
+	var changed: bool = requested != _coupled_pressure_solver_capture_mode_seen
+	_coupled_pressure_solver_capture_mode_seen = requested
+	if not requested.is_empty() \
+			and not CAPTURE_SELECTABLE_FAILURE_MODES.has(requested):
+		if changed:
+			push_error(
+				"phase3 coupled solver capture: unknown failure mode '%s'; "
+				% failure_mode
+				+ "expected one of %s or empty. Capture DISABLED."
+				% str(CAPTURE_SELECTABLE_FAILURE_MODES)
+			)
+		coupled_pressure_solver_capture_path = ""
+		coupled_pressure_solver_capture_failure_mode = ""
+		_coupled_pressure_solver_captured = false
+		return
 	coupled_pressure_solver_capture_path = path
-	_coupled_pressure_solver_captured = false
+	coupled_pressure_solver_capture_failure_mode = requested
+	if changed:
+		_coupled_pressure_solver_captured = false
 
 
 func configure_coupled_pressure_solver_shadow(is_enabled: bool) -> void:
@@ -5575,6 +5619,13 @@ func _capture_coupled_pressure_solver_failure(
 	if coupled_pressure_solver_capture_path.is_empty() \
 			or _coupled_pressure_solver_captured:
 		return
+	# F3.3v3h2.5h: the mode filter is applied BEFORE the latch, so a skipped
+	# failure leaves the capture armed. Latching first would record the mode we
+	# were told to ignore and then refuse every later one.
+	if not coupled_pressure_solver_capture_failure_mode.is_empty() \
+			and String(solved.get("limiting_reason", "")) \
+					!= coupled_pressure_solver_capture_failure_mode:
+		return
 	_coupled_pressure_solver_captured = true
 	var captured_rooms: Dictionary = {}
 	for raw_room_key in rooms.keys():
@@ -5608,6 +5659,7 @@ func _capture_coupled_pressure_solver_failure(
 		residual_history.append(_capture_float(float(raw_value)))
 	var payload: Dictionary = {
 		"schema_version": "simufire_coupled_solver_failure_v1",
+		"requested_failure_mode": coupled_pressure_solver_capture_failure_mode,
 		"persistent_step_index": _persistent_step_index,
 		"input": {
 			"rooms": captured_rooms,

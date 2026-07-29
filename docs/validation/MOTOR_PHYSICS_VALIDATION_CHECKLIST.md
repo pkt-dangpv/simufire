@@ -1035,6 +1035,7 @@ Diagnostic / planned lanes:
 | F3.3v3h2.5e | Coupled solve in gauge coordinates | **GO, partial**; r0_window 86.33→91.33%, no stage regressed; corridor still open |
 | F3.3v3h2.5f | Fail-only rescue design, measured offline | L2 and LM both viable; LM chosen on 39/39 vs 20/39 |
 | F3.3v3h2.5g | Bounded LM recovery, one step per solve | **GO** for the canonical damping mode; corridor still 84.18% at 120 s; iteration_cap unmoved |
+| F3.3v3h2.5h | Real iteration_cap capture plus a mode selector | Capture GO; latch defect found and fixed; solver untouched |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1347,6 +1348,35 @@ recovery declines (~2500 offline solves, it succeeded every invocation), so
 that branch is covered structurally plus mutation control; and the per-step
 `..._rescue_*` columns are sampled at the 10 s log cadence and almost never
 coincide with a recovery, so the `_total` counters are the usable signal.
+
+F3.3v3h2.5h STOP (instrumentation only): **GO.**
+
+- an opt-in mode selector lets a specific failure be waited for; empty keeps the
+  original semantics: PASS;
+- **a latch defect was found and fixed**: the engine re-applies configuration on
+  every log tick and the capture reset its latch each time, so the artifact was
+  the first failure after the LAST reconfigure. Latch and invalid-selector error
+  are now gated on the selector having changed: PASS;
+- unknown selector reported once and capture disabled; `run_scenario.py` rejects
+  it before launching Godot with a non-zero exit; both mode lists pinned to
+  agree by test: PASS;
+- `Phase3CoupledPressureSolver.gd` unmodified, asserted by test: PASS.
+
+Measured anatomy of the real `iteration_cap`, corrected after the latch fix:
+residual `2.160e-02 -> 4.339e-04` over 24 monotone iterations, and the **same
+input converges in 26 iterations** given room; a late-run step needs **108**. An
+earlier draft extrapolated the first 24 iterations' linear rate to ~4600 and
+concluded a bigger cap was pointless - wrong by about forty times. The fixture
+now measures the required budget instead of extrapolating.
+
+That is still not an argument for raising the cap: 26 and 108 are both far past
+a healthy Newton, so the defect is the rate and raising the cap would hide it.
+
+`persistent_step_index` is an **opaque identifier, not chronological time** - the
+two selectors report 510 and 1435 on the same run, which is not an ordering.
+
+**H2.5i must diagnose why quadratic convergence is lost.** Do not raise the cap,
+do not widen the LM budget, do not touch gauge, tolerance or the flux law.
 
 **`iteration_cap` is now the dominant remaining failure mode** - alongside the
 11 post-budget `damping_exhausted` at 120 s - and it is still

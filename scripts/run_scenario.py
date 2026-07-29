@@ -22,6 +22,13 @@ _GODOT_CANDIDATES = [
     Path("F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe"),
 ]
 _RUNNER_SCENE = "res://tools/run_scenario_headless.tscn"
+# F3.3v3h2.5h: selectable capture modes, kept in step with
+# Phase3ZoneMassSystem.CAPTURE_SELECTABLE_FAILURE_MODES. Validated here so an
+# unknown value fails before Godot is launched rather than after a full run.
+_CAPTURE_FAILURE_MODES = frozenset(
+    {"iteration_cap", "damping_exhausted", "singular_jacobian",
+     "counterflow_violation"}
+)
 
 if hasattr(sys.stdout, "reconfigure"):
     try:
@@ -177,6 +184,22 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         "--phase3-coupled-pressure-solver-shadow",
         action="store_true",
         help="Enable the passive F3.3v3h2 coupled pressure solver preview.",
+    )
+    parser.add_argument(
+        "--phase3-coupled-pressure-solver-capture",
+        default="",
+        help=(
+            "F3.3v3h2.5a diagnostic: write the first failing coupled solve to "
+            "this path. Empty disables capture entirely."
+        ),
+    )
+    parser.add_argument(
+        "--phase3-coupled-pressure-solver-capture-mode",
+        default="",
+        help=(
+            "F3.3v3h2.5h diagnostic: only capture this failure mode, e.g. "
+            "iteration_cap. Empty captures the first failure of any kind."
+        ),
     )
     parser.add_argument(
         "--phase3-cfast-buoyancy-destination-shadow",
@@ -520,6 +543,22 @@ def main(argv: list[str] | None = None) -> int:
             if parent_flag not in cmd:
                 cmd.append(parent_flag)
         cmd.append("--phase3-coupled-pressure-solver-shadow")
+        if args.phase3_coupled_pressure_solver_capture:
+            cmd.append(
+                "--phase3-coupled-pressure-solver-capture="
+                + args.phase3_coupled_pressure_solver_capture
+            )
+        if args.phase3_coupled_pressure_solver_capture_mode:
+            mode = args.phase3_coupled_pressure_solver_capture_mode.strip().lower()
+            if mode not in _CAPTURE_FAILURE_MODES:
+                raise SystemExit(
+                    "[run_scenario] error: "
+                    "--phase3-coupled-pressure-solver-capture-mode: unknown "
+                    f"mode {args.phase3_coupled_pressure_solver_capture_mode!r}; "
+                    f"expected one of {sorted(_CAPTURE_FAILURE_MODES)} or omit "
+                    "it to capture the first failure of any kind"
+                )
+            cmd.append("--phase3-coupled-pressure-solver-capture-mode=" + mode)
     if args.phase3_enthalpy_residence_diagnostics:
         for parent_flag in [
             "--phase3-canonical-shadow",

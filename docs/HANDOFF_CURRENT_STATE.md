@@ -8,6 +8,32 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-29 - F3.3v3h2.5h iteration_cap capture
+
+- Added an opt-in capture **mode selector** so a specific failure mode can be
+  waited for; empty keeps the original "first failure of any kind". The capture
+  flags are now reachable through `scripts/run_scenario.py` too.
+- **A latch defect was found and fixed in the process.** The engine re-applies
+  configuration every log tick and the capture reset its latch each time, so the
+  artifact was the first failure after the LAST reconfigure - not the first of
+  the run. Latch and invalid-selector error are now both gated on the selector
+  having changed, so each fires once.
+- **That invalidated the first draft of this capture and its anatomy.** The
+  corrected, measured picture:
+  - true first `iteration_cap` at step 9: `2.160e-02 -> 4.339e-04` over 24
+    iterations, monotone, nothing stalls;
+  - the **same input converges in 26 iterations** given room; a late-run step
+    needs **108**;
+  - an earlier draft extrapolated the first 24 iterations' rate and claimed
+    ~4600 iterations and "raising the cap is pointless". Wrong by about 40x.
+    The fixture now measures the budget rather than extrapolating.
+- Still not an argument for raising the cap: 26 and 108 are both far past a
+  healthy Newton, so the defect is the **rate**. Raising it would hide it.
+- `persistent_step_index` is an **opaque identifier, not chronological time**.
+- `Phase3CoupledPressureSolver.gd` untouched, asserted by test.
+- Next: **H2.5i diagnoses why Newton loses quadratic convergence.** Do not raise
+  the cap, do not widen the LM budget, do not touch gauge, tolerance or fluxes.
+
 ## Current Session Update - 2026-07-28 - F3.3v3h2.5f/g bounded LM recovery GO
 
 - **The canonical `damping_exhausted` mode is closed. H2 is not.** Both real
