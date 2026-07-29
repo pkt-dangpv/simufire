@@ -3,6 +3,34 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.5j accepted-cycle guard - GO with revised gate (2026-07-29)
+
+- Added a narrowly gated detector for the real period-2 Newton zigzag measured
+  in H2.5i: two consecutive accepted full steps, poor model gain on both and
+  nearly opposite directions. It reuses the existing one-step bounded LM
+  budget; tolerance, iteration cap, Jacobian, regularization and flux law are
+  unchanged.
+- The H2.5h capture now converges in 8 iterations with one guard/LM step instead
+  of reaching `iteration_cap` at 24. A mutation disabling the guard restores
+  the failure and produces no false PASS marker.
+- Runtime improves in every measured stage. Corridor convergence becomes
+  99.17% / 99.17% / 98.06% / 87.16% at 10/30/60/120 s; its
+  `iteration_cap` counts fall 39->1, 46->3, 46->3 and 217->174.
+- The original STOP gate required zero activation in `r0_window_360`. Runtime
+  falsified that premise: the same period-2 mode occurs there, the guard
+  activates 186 times and removes all 125 prior `iteration_cap` failures
+  (91.33% -> 100%). No live value, converged sampled root, counterflow or suite
+  regressed. The revised cross-topology gate is approved: activation is allowed
+  only when it removes failures with OFF/live/converged roots/conservation and
+  counterflow unchanged.
+- The improvement in corridor is entirely before 60 s. From 60 to 120 s both
+  baseline and candidate add 171 failures. Between 80.1 and 90.1 s, 120 guard
+  rescues are accepted and all 120 solves still hit `iteration_cap`; the late
+  gain ratio is marginal (~0.0478). This cost/selectivity gap is H2.5k scope.
+- OFF artifacts are byte-identical; ON shared live columns are identical;
+  Physics and ILV remain at 0 FAIL; H2 stays open at corridor 120 s with 174
+  `iteration_cap` plus 11 `damping_exhausted`; H3 remains blocked.
+
 ### Fail-closed headless scenario completion contract (2026-07-29)
 
 - `scripts/run_scenario.py` now binds every invocation to a random `run_token`.

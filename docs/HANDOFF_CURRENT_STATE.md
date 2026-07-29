@@ -8,6 +8,63 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-29 - agent Godot crash audit
+
+- Four native `Godot_v4.7.1-stable_win64.exe` popups were confirmed in
+  `System / Application Popup / Event ID 26` at 16:45-16:48, after the H2.5j
+  matrix and during direct fixture/negative-control work.
+- Root cause boundary: the 198 KB console executable launches the 179 MB GUI
+  binary. Restricted agent launches enter a degraded initialization path:
+  5/5 direct fixtures logged `Failed to read the root certificate store`.
+  The same 5/5 outside the sandbox were clean, deterministic and left no
+  process or popup.
+- The agent's procedural error was accepting fixture output/exit alone without
+  auditing the spawned Godot process teardown. The original popups followed a
+  deliberately failing mutation fixture.
+- H2.5j scenario integrity is preserved: all 10 manifests completed before the
+  four popups, and a controlled sandbox/unsandbox comparison produced identical
+  `sim_log.csv`, `sim_log.txt` and `events.json`.
+- Clean verification completed: nine critical fixtures PASS outside the
+  sandbox, and fresh corridor/r0-window 120 s ON runs are byte-identical to the
+  H2.5j CSV/log/events. Both manifests completed, with zero errors, popups or
+  residual processes.
+- **Binding rule from now on:** every Godot process runs unsandboxed, editor
+  closed, sequentially, with an explicit log; any certificate-store error
+  invalidates the environment. Negative controls additionally require no new
+  Application Popup and no residual process.
+- No motor or validation baseline changed. Full record:
+  `docs/validation/GODOT_471_HEADLESS_CRASH_AUDIT.md`.
+
+## Current Session Update - 2026-07-29 - F3.3v3h2.5j GO with revised gate
+
+- Implemented an accepted-cycle safeguard for the real period-2 Newton zigzag
+  diagnosed in H2.5i. It runs only after two accepted full steps have poor
+  linear-model gain and nearly opposite directions, and it shares the existing
+  one-step H2.5g LM budget.
+- The H2.5h capture closes in 8 iterations with one guard/LM step. Disabling the
+  guard by mutation restores the original `iteration_cap` and the fixture fails
+  closed.
+- Matrix result:
+  - corridor convergence: 67.50/87.26/92.08/84.18% ->
+    99.17/99.17/98.06/87.16%;
+  - corridor `iteration_cap`: 39/46/46/217 -> 1/3/3/174;
+  - corridor `damping_exhausted`: 0/0/11/11 unchanged;
+  - r0-window: 91.33% -> 100%, `iteration_cap` 125 -> 0.
+- The original r0 zero-activation gate was based on a false premise.
+  `r0_window_360` has the same measured period-2 signature: 186/186 rescues are
+  accepted and all 125 prior iteration caps disappear. The revised gate permits
+  cross-topology activation only when failures fall and OFF/live/converged
+  roots/conservation/counterflow remain unchanged. All conditions pass.
+- Independent audit decision: **GO with the revised gate**.
+- Honest limit: corridor gains nothing after 60 s. Both baseline and candidate
+  add 171 failures from 60 to 120 s; between 80.1 and 90.1 s there are 120
+  accepted rescues and 120 new iteration caps. The marginal rho (~0.0478) and
+  wasted rescue work are H2.5k scope.
+- H2 remains open at corridor 120 s (174 `iteration_cap`, 11
+  `damping_exhausted`) and H3 remains blocked.
+- Binding record:
+  `docs/validation/PHASE3_F33V3H25J_ACCEPTED_CYCLE_GUARD.md`.
+
 ## Current Session Update - 2026-07-29 - fail-closed scenario runner
 
 - Hardened the supported `scripts/run_scenario.py` ->

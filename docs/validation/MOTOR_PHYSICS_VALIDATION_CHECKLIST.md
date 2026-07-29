@@ -1036,6 +1036,7 @@ Diagnostic / planned lanes:
 | F3.3v3h2.5f | Fail-only rescue design, measured offline | L2 and LM both viable; LM chosen on 39/39 vs 20/39 |
 | F3.3v3h2.5g | Bounded LM recovery, one step per solve | **GO** for the canonical damping mode; corridor still 84.18% at 120 s; iteration_cap unmoved |
 | F3.3v3h2.5h | Real iteration_cap capture plus a mode selector | Capture GO; latch defect found and fixed; solver untouched |
+| F3.3v3h2.5j | Accepted-cycle guard reusing bounded LM | **GO with revised gate**; r0 125 caps -> 0; corridor late regime remains open |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1383,6 +1384,33 @@ do not widen the LM budget, do not touch gauge, tolerance or the flux law.
 H2.5h. Its measured convergence is monotone but unhealthy: the first capture
 needs 26 iterations when given room and a late-run input needs 108. **H3 stays
 blocked**, and all real captures remain the gate for any future attempt.
+
+F3.3v3h2.5j STOP: **GO with the revised cross-topology gate.**
+
+- the real H2.5h period-2 capture converges in 8 iterations with exactly one
+  accepted-cycle guard and one bounded LM step: PASS;
+- corridor convergence improves to 99.17 / 99.17 / 98.06 / 87.16% at
+  10/30/60/120 s; `iteration_cap` falls 39/46/46/217 -> 1/3/3/174: PASS;
+- `damping_exhausted` does not increase and there is no failure-mode
+  displacement: PASS;
+- OFF artifacts are byte-identical, ON live shared columns are identical and
+  converged sampled roots are unchanged: PASS;
+- counterflow violations remain zero; Physics and ILV remain at 0 FAIL: PASS;
+- the original requirement "r0_window does not activate the safeguard" was
+  retired as a false premise. It activates 186 times with the same cycle
+  signature and removes all 125 prior iteration caps, taking convergence
+  91.33% -> 100%, without violating any invariant: PASS under revised gate.
+
+The revised gate permits activation in another topology only when it
+strictly removes failures while OFF output, live ON values, already-converged
+roots, conservation and counterflow remain unchanged. H2.5j satisfies it.
+
+The GO is bounded. All corridor improvement occurs before 60 s. From 60 to
+120 s both baseline and candidate add 171 failures; between 80.1 and 90.1 s,
+120 guard rescues are accepted and 120 solves still hit `iteration_cap`, with
+rho about 0.0478 near the threshold. H2 remains open with 174 `iteration_cap`
+and 11 `damping_exhausted` at corridor 120 s; H3 stays blocked. H2.5k owns the
+late-regime selectivity and retry-cost question.
 
 Headless runner completion contract (2026-07-29): **GO at STOP.**
 

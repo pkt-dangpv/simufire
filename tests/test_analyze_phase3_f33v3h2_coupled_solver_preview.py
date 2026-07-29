@@ -60,6 +60,12 @@ def _row(**totals: str) -> dict[str, str]:
     defaults.update(totals)
     for key, value in defaults.items():
         row[f"{P}{key}_total"] = value
+    row.update({
+        f"{P}cycle_guard_attempt_total": "0",
+        f"{P}cycle_guard_accept_total": "0",
+        f"{P}cycle_guard_last_rho": "0",
+        f"{P}cycle_guard_last_cosine": "0",
+    })
     return row
 
 
@@ -73,6 +79,21 @@ def test_behaviour_reports_the_convergence_rate_and_failure_split():
     assert result["convergence_rate"] == pytest.approx(0.8)
     assert result["iteration_cap_step_count"] == 12
     assert result["damping_exhausted_step_count"] == 8
+
+
+def test_behaviour_reports_cycle_guard_telemetry():
+    row = _row()
+    row.update({
+        f"{P}cycle_guard_attempt_total": "7",
+        f"{P}cycle_guard_accept_total": "6",
+        f"{P}cycle_guard_last_rho": "0.031",
+        f"{P}cycle_guard_last_cosine": "-0.999",
+    })
+    result = audit.solver_behaviour([row], 60.0)
+    assert result["cycle_guard_attempt_total"] == 7
+    assert result["cycle_guard_accept_total"] == 6
+    assert result["cycle_guard_last_rho"] == pytest.approx(0.031)
+    assert result["cycle_guard_last_cosine"] == pytest.approx(-0.999)
 
 
 def test_residual_and_counterflow_are_gated_but_convergence_rate_is_not():

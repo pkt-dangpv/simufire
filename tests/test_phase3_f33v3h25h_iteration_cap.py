@@ -136,19 +136,13 @@ def test_capture_records_the_cap_it_hit():
     )
 
 
-def test_fixture_measures_the_cap_rather_than_arguing_about_it():
-    """The corrected contract.
-
-    An earlier draft extrapolated the first 24 iterations' linear rate and
-    concluded a bigger cap was pointless. That was wrong by a factor of about
-    forty: the rate does not persist, and the same input converges in 26
-    iterations given room. The fixture now measures that instead of asserting
-    an extrapolation, and the late-run failures need 108.
-    """
-    assert "_test_a_larger_budget_converges_the_same_input" in FIXTURE
-    assert "_replay_with_iteration_cap" in FIXTURE
-    # and it must not have become an argument for raising the shipped cap
-    assert "DEFAULT_MAX_ITERATIONS" not in FIXTURE
+def test_fixture_preserves_the_old_failure_but_requires_the_fix():
+    assert "_test_recorded_residual_exposes_the_original_slow_cycle" in FIXTURE
+    assert "_test_cycle_guard_closes_the_iteration_cap" in FIXTURE
+    assert "_test_default_budget_is_now_sufficient" in FIXTURE
+    # The artifact remains the evidence; the fixture must not rewrite it.
+    assert "observed_failure" in FIXTURE
+    assert "CAPTURED_MAX_ITERATIONS := 24" in FIXTURE
 
 
 # ---------------------------------------------------------------------------
@@ -248,19 +242,23 @@ def test_solver_was_not_modified_by_this_phase():
 # the fixture
 # ---------------------------------------------------------------------------
 
-def test_fixture_replays_without_a_scenario_and_asserts_the_failure():
+def test_fixture_replays_without_a_scenario_and_asserts_the_repair():
     assert "PHASE3_F33V3H25H_ITERATION_CAP_PASS" in FIXTURE
     for absent in ("SimulationEngine", "BuildingModel", "run_scenario"):
         assert absent not in FIXTURE, absent
     assert "Phase3CoupledPressureSolver.gd" in FIXTURE
-    assert 'not bool(result["converged"]),' in FIXTURE
+    assert 'bool(result["converged"]),' in FIXTURE
+    assert "EXPECTED_FIXED_ITERATIONS := 8" in FIXTURE
     assert "quit(1)\n\t\treturn" in FIXTURE
 
 
-def test_fixture_asserts_the_lm_recovery_is_not_involved():
-    # the recovery exists only for the damping dead end; an iteration_cap must
-    # never reach it, and the fixture says so
-    assert 'float(result.get("rescue_attempted", 0.0)) == 0.0' in FIXTURE
+def test_fixture_asserts_exactly_one_cycle_rescue_is_involved():
+    assert 'float(result.get("cycle_guard_attempt_total", 0.0)) == 1.0' \
+        in FIXTURE
+    assert 'float(result.get("cycle_guard_accept_total", 0.0)) == 1.0' \
+        in FIXTURE
+    assert 'float(result.get("rescue_attempted", 0.0)) == 1.0' in FIXTURE
+    assert 'float(result.get("rescue_accepted", 0.0)) == 1.0' in FIXTURE
 
 
 def test_invalid_selector_is_reported_once_not_every_tick():

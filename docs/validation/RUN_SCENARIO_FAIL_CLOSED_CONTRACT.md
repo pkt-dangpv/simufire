@@ -15,6 +15,25 @@ scripts/run_scenario.py
 `tools/run_scenario_headless.gd` extends `Node` and belongs to that scene. It is
 not a `SceneTree`/`MainLoop` script and must not be launched with `--script`.
 
+## Windows execution environment
+
+Godot 4.7.1 must run **outside the restricted agent sandbox** on this workspace.
+The console executable is a launcher for `Godot_v4.7.1-stable_win64.exe`.
+Sandboxed launches cannot read the Windows root certificate store and have
+produced native teardown popups (`Application Popup`, event ID 26, access to
+address `0x58`) after direct negative fixtures.
+
+This is binding for scenarios and fixtures:
+
+- keep the editor closed;
+- launch one Godot process at a time;
+- wait for the child process to exit;
+- reject any run that logs `Failed to read the root certificate store`;
+- check negative fixtures for a native popup in addition to their exit code.
+
+The complete evidence is in
+`docs/validation/GODOT_471_HEADLESS_CRASH_AUDIT.md`.
+
 ## Completion certificate
 
 Process exit zero is necessary but insufficient. Each Python invocation creates

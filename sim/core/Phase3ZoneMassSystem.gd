@@ -5562,6 +5562,12 @@ func _new_coupled_pressure_solver_record() -> Dictionary:
 		"rescue_initial_norm": 0.0,
 		"rescue_final_norm": 0.0,
 		"rescue_lambda": 0.0,
+		# H2.5j exports these as cumulative scenario telemetry so events remain
+		# visible even though the CSV is sampled less often than the solver.
+		"cycle_guard_attempt_total": 0.0,
+		"cycle_guard_accept_total": 0.0,
+		"cycle_guard_last_rho": 0.0,
+		"cycle_guard_last_cosine": 0.0,
 	}
 
 
@@ -5581,6 +5587,10 @@ func _new_coupled_pressure_solver_cumulative_record() -> Dictionary:
 		"rescue_attempted_step_count": 0.0,
 		"rescue_accepted_step_count": 0.0,
 		"rescue_trials_total": 0.0,
+		"cycle_guard_attempt_total": 0.0,
+		"cycle_guard_accept_total": 0.0,
+		"cycle_guard_last_rho": 0.0,
+		"cycle_guard_last_cosine": 0.0,
 	}
 
 
@@ -5849,6 +5859,8 @@ func _record_coupled_pressure_solver_preview(
 		for rescue_field in [
 			"rescue_attempted", "rescue_accepted", "rescue_trials",
 			"rescue_initial_norm", "rescue_final_norm", "rescue_lambda",
+			"cycle_guard_attempt_total", "cycle_guard_accept_total",
+			"cycle_guard_last_rho", "cycle_guard_last_cosine",
 		]:
 			record[rescue_field] = float(solved.get(rescue_field, 0.0))
 		record["iteration_cap_flag"] = \
@@ -5917,6 +5929,19 @@ func _record_coupled_pressure_solver_preview(
 		cumulative["rescue_trials_total"] = float(
 			cumulative["rescue_trials_total"]
 		) + float(record["rescue_trials"])
+		cumulative["cycle_guard_attempt_total"] = float(
+			cumulative["cycle_guard_attempt_total"]
+		) + float(record["cycle_guard_attempt_total"])
+		cumulative["cycle_guard_accept_total"] = float(
+			cumulative["cycle_guard_accept_total"]
+		) + float(record["cycle_guard_accept_total"])
+		if float(record["cycle_guard_attempt_total"]) > 0.0:
+			cumulative["cycle_guard_last_rho"] = float(
+				record["cycle_guard_last_rho"]
+			)
+			cumulative["cycle_guard_last_cosine"] = float(
+				record["cycle_guard_last_cosine"]
+			)
 		if converged:
 			cumulative["max_abs_coupled_vs_legacy_pressure_delta_pa"] = maxf(
 				float(cumulative["max_abs_coupled_vs_legacy_pressure_delta_pa"]),
@@ -5926,6 +5951,14 @@ func _record_coupled_pressure_solver_preview(
 				float(cumulative["max_abs_net_mass_difference_kg"]),
 				absf(float(record["net_mass_difference_kg"]))
 			)
+		# Publish cumulative guard telemetry through the unsuffixed opt-in
+		# fields. A per-step pulse would normally be missed by the 10 s logger.
+		for cycle_field in [
+			"cycle_guard_attempt_total", "cycle_guard_accept_total",
+			"cycle_guard_last_rho", "cycle_guard_last_cosine",
+		]:
+			record[cycle_field] = float(cumulative[cycle_field])
+		_coupled_pressure_solver_by_room[room_key] = record
 		_coupled_pressure_solver_cumulative_by_room[room_key] = cumulative
 
 
@@ -10271,6 +10304,10 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"rescue_initial_norm",
 			"rescue_final_norm",
 			"rescue_lambda",
+			"cycle_guard_attempt_total",
+			"cycle_guard_accept_total",
+			"cycle_guard_last_rho",
+			"cycle_guard_last_cosine",
 		]:
 			coupled_solver_result[
 				"phase3_shadow_coupled_solver_" + coupled_field

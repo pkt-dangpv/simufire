@@ -1,6 +1,6 @@
 extends SceneTree
 
-## F3.3v3h2.5h: replay a REAL `iteration_cap`, captured verbatim from a
+## F3.3v3h2.5h/j: replay a REAL `iteration_cap`, captured verbatim from a
 ## `cfast_corridor_chain` run with the complete H2 stack, with no scenario, no
 ## engine and no building.
 ##
@@ -13,33 +13,29 @@ extends SceneTree
 ##
 ## WHAT THE FAILURE LOOKS LIKE - AND WHY THE CAP IS THE BINDING CONSTRAINT
 ## ----------------------------------------------------------------
-## The residual falls MONOTONICALLY on all 24 iterations. Nothing stalls,
-## nothing oscillates, no damping is exhausted - the solve is simply cut off:
+## The L-infinity residual falls MONOTONICALLY on all 24 iterations, which
+## originally hid the defect:
 ##
 ##     it0   2.159613e-02
 ##     it24  4.338547e-04     (97.99% removed, still far from 1e-12)
 ##
-## Given more room the SAME input converges in 26 iterations to 6.5e-17. The cap
-## is two iterations short here. The late-run failures are worse: a step
-## captured at the end of a 120 s run needs 108.
+## H2.5i showed that the pressure step itself oscillates. Successive Newton
+## directions have cosine approximately -1, the opening donors reverse at all
+## 16 quadrature points, and the linear model promises closure while the real
+## sum-of-squares merit improves by only 0-3%. The bare strict-decrease test
+## accepts that period-2 zigzag until the cap interrupts it.
 ##
-## So the cap IS binding, and this fixture measures by how much rather than
-## asserting a rhetorical claim about it. That is deliberately not an argument
-## for raising it: 26 and 108 iterations are both far past the handful a healthy
-## Newton needs, so the real defect is the rate, not the budget. Raising the cap
-## would convert a visible failure into a slow success and hide the symptom.
-## H2.5i has to explain why quadratic convergence is lost.
-##
-## This fixture asserts the failure STILL REPRODUCES. It is a regression
-## capture, not a target: when a future phase fixes it, this must be updated
-## with intent rather than silently passing.
+## H2.5j is that intentional fix. The original artifact remains byte-for-byte
+## unchanged, while this fixture now requires the accepted-cycle safeguard to
+## recognize the period-2 zigzag and converge through one bounded LM step.
 
 const SolverScript = preload("res://sim/core/Phase3CoupledPressureSolver.gd")
 const CAPTURE_PATH := "res://tests/fixtures/data/coupled_solver_iteration_cap_corridor_chain.json"
 
 ## The documented cap. The capture must sit exactly on it, or it is not an
 ## `iteration_cap`.
-const EXPECTED_ITERATIONS := 24
+const CAPTURED_MAX_ITERATIONS := 24
+const EXPECTED_FIXED_ITERATIONS := 8
 
 var _failed: bool = false
 
@@ -51,11 +47,11 @@ func _init() -> void:
 		return
 	_test_capture_is_well_formed(capture)
 	_test_capture_records_the_requested_mode(capture)
-	_test_replay_reproduces_the_iteration_cap(capture)
+	_test_cycle_guard_closes_the_iteration_cap(capture)
 	_test_replay_is_deterministic(capture)
 	_test_capture_round_trips_full_precision(capture)
-	_test_residual_falls_monotonically_but_far_too_slowly(capture)
-	_test_a_larger_budget_converges_the_same_input(capture)
+	_test_recorded_residual_exposes_the_original_slow_cycle(capture)
+	_test_default_budget_is_now_sufficient(capture)
 	if _failed:
 		quit(1)
 		return
@@ -101,7 +97,7 @@ func _test_capture_is_well_formed(capture: Dictionary) -> void:
 	_assert_true(_number(input, "dt") > 0.0, "positive dt")
 	var defaults: Dictionary = capture.get("solver_defaults", {})
 	_assert_true(
-		int(defaults.get("max_iterations", 0)) == EXPECTED_ITERATIONS,
+		int(defaults.get("max_iterations", 0)) == CAPTURED_MAX_ITERATIONS,
 		"the capture records the iteration cap it hit"
 	)
 
@@ -129,32 +125,35 @@ func _test_capture_records_the_requested_mode(capture: Dictionary) -> void:
 # replay
 # ---------------------------------------------------------------------------
 
-func _test_replay_reproduces_the_iteration_cap(capture: Dictionary) -> void:
+func _test_cycle_guard_closes_the_iteration_cap(capture: Dictionary) -> void:
 	var result: Dictionary = _replay(capture)
-	var observed: Dictionary = capture.get("observed_failure", {})
 	_assert_true(
-		not bool(result["converged"]),
-		"replay does not converge, exactly as captured"
+		bool(result["converged"]),
+		"the captured iteration_cap now converges"
 	)
 	_assert_true(
-		String(result["limiting_reason"]) == "iteration_cap",
-		"replay reproduces iteration_cap, got '%s'"
+		String(result["limiting_reason"]) == "converged",
+		"replay closes as converged, got '%s'"
 				% String(result["limiting_reason"])
 	)
-	_close(
-		float(result["failure_code"]), _decode(observed["failure_code"]),
-		"replay reproduces the failure code"
+	_assert_true(
+		int(result["iterations"]) == EXPECTED_FIXED_ITERATIONS,
+		"cycle guard closes in %d iterations, got %d"
+				% [EXPECTED_FIXED_ITERATIONS, int(result["iterations"])]
 	)
 	_assert_true(
-		int(result["iterations"]) == EXPECTED_ITERATIONS,
-		"replay uses the full iteration budget (%d)" % int(result["iterations"])
+		float(result.get("cycle_guard_attempt_total", 0.0)) == 1.0
+				and float(result.get("cycle_guard_accept_total", 0.0)) == 1.0,
+		"one cycle guard attempt is accepted"
 	)
-	# The bounded LM recovery must NOT have been involved: it only exists for
-	# the damping dead end, and this failure is a different animal.
 	_assert_true(
-		float(result.get("rescue_attempted", 0.0)) == 0.0
-				and float(result.get("rescue_accepted", 0.0)) == 0.0,
-		"the LM recovery is not reached by an iteration_cap"
+		float(result.get("rescue_attempted", 0.0)) == 1.0
+				and float(result.get("rescue_accepted", 0.0)) == 1.0,
+		"the cycle guard reuses exactly one bounded LM rescue"
+	)
+	_assert_true(
+		float(result["normalized_residual"]) <= 1.0e-12,
+		"the fixed replay closes below the unchanged tolerance"
 	)
 
 
@@ -202,75 +201,43 @@ func _test_capture_round_trips_full_precision(capture: Dictionary) -> void:
 		beyond_decimal > 0,
 		"at least one leaf is not recoverable from its readable decimal alone"
 	)
-	# and the replayed trajectory must match the recording bit for bit
-	var result: Dictionary = _replay(capture)
-	var recorded: Array = capture["observed_failure"]["residual_history"]
-	var replayed: Array = result["residual_history"]
-	_assert_true(
-		recorded.size() == replayed.size(),
-		"residual history length matches (%d vs %d)"
-				% [recorded.size(), replayed.size()]
-	)
-	for index in range(mini(recorded.size(), replayed.size())):
-		_close_rel(
-			float(replayed[index]), _decode(recorded[index]), 1.0e-15,
-			"captured residual %d round-trips exactly" % index
-		)
-
-
-func _test_residual_falls_monotonically_but_far_too_slowly(
+func _test_recorded_residual_exposes_the_original_slow_cycle(
 		capture: Dictionary
 	) -> void:
-	# The anatomy, asserted rather than described.
-	var result: Dictionary = _replay(capture)
-	var history: Array = result["residual_history"]
+	# Preserve the original failure anatomy without requiring the corrected
+	# solver to reproduce it.
+	var history: Array = capture["observed_failure"]["residual_history"]
 	_assert_true(history.size() >= 3, "history long enough to characterise")
 	if history.size() < 3:
 		return
 	for index in range(history.size() - 1):
 		_assert_true(
-			float(history[index + 1]) < float(history[index]),
+			_decode(history[index + 1]) < _decode(history[index]),
 			"residual falls at iterate %d - nothing stalls" % index
 		)
-	var last: float = float(history[history.size() - 1])
+	var last: float = _decode(history[history.size() - 1])
 	_assert_true(
 		last > 1.0e-12,
 		"it is cut off outside the tolerance (%s)" % String.num_scientific(last)
 	)
 
 
-## The load-bearing measurement: give the SAME input a larger budget and it
-## converges. That proves the cap is what stopped it, and says by how much,
-## without touching any default - `max_iterations` is a per-call option.
-func _test_a_larger_budget_converges_the_same_input(
+func _test_default_budget_is_now_sufficient(
 		capture: Dictionary
 	) -> void:
-	var relaxed: Dictionary = _replay_with_iteration_cap(capture, 100)
+	var fixed: Dictionary = _replay(capture)
 	_assert_true(
-		bool(relaxed["converged"]),
-		"the same input converges when the budget is not the constraint"
+		bool(fixed["converged"]),
+		"the same input converges under the shipped budget"
 	)
 	_assert_true(
-		int(relaxed["iterations"]) > EXPECTED_ITERATIONS,
-		"it needed more than the shipped cap (%d)" % int(relaxed["iterations"])
-	)
-	# ...but nowhere near what a healthy Newton would need, which is the point.
-	_assert_true(
-		int(relaxed["iterations"]) > 10,
-		"convergence is slow, not merely one iteration short (%d)"
-				% int(relaxed["iterations"])
+		int(fixed["iterations"]) < CAPTURED_MAX_ITERATIONS,
+		"the guard closes before the cap (%d)" % int(fixed["iterations"])
 	)
 	_assert_true(
-		float(relaxed["normalized_residual"]) <= 1.0e-12,
-		"and it closes properly once allowed to finish"
+		float(fixed["normalized_residual"]) <= 1.0e-12,
+		"and closes against the unchanged tolerance"
 	)
-
-func _replay_with_iteration_cap(
-		capture: Dictionary, iteration_cap: int
-	) -> Dictionary:
-	var overridden: Dictionary = capture.duplicate(true)
-	overridden["solver_defaults"]["max_iterations"] = iteration_cap
-	return _replay(overridden)
 
 
 func _replay(capture: Dictionary) -> Dictionary:

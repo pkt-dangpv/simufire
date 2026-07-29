@@ -21,6 +21,7 @@ Este índice separa la documentación vigente del histórico, bibliografía y ar
 - [validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md](validation/CFAST_GHANEKAR_MODEL_AUDIT_2026-06-19.md): auditoría de geometría/topología de modelos CFAST y Ghanekar.
 - [validation/GAPS_INVENTORY.md](validation/GAPS_INVENTORY.md): inventario de gaps técnicos y científicos.
 - [validation/MOTOR_PHYSICS_VALIDATION_CHECKLIST.md](validation/MOTOR_PHYSICS_VALIDATION_CHECKLIST.md): checklist maestro de credibilidad física del motor.
+- [validation/GODOT_471_HEADLESS_CRASH_AUDIT.md](validation/GODOT_471_HEADLESS_CRASH_AUDIT.md): causa y regla obligatoria para evitar crashes de Godot en ejecuciones headless de agentes.
 - [../sim/validation/](../sim/validation/): casos, baselines, reportes y herramientas del carril de validación científica.
 
 ## Arquitectura y Diseño

@@ -42,21 +42,22 @@ def _function(text: str, name: str) -> str:
 # fail-only reachability
 # ---------------------------------------------------------------------------
 
-def test_recovery_is_called_only_from_the_damping_dead_end():
-    """The single call site must sit inside `if not accepted:`.
-
-    That is the whole safety argument: a solve that finds an acceptable step
-    never executes any of this, so it runs byte-identical code.
-    """
+def test_recovery_keeps_the_original_damping_dead_end_call_site():
+    """H2.5j adds one narrow cycle entry beside the H2.5g dead end."""
     body = _function(CODE, "solve_coupled_pressure")
-    assert body.count("_try_lm_rescue(") == 1, "exactly one call site"
-    before = body.split("_try_lm_rescue(", 1)[0]
+    assert body.count("_try_lm_rescue(") == 2, "dead end plus cycle guard"
+    first_call = body.split("_try_lm_rescue(", 1)[0]
+    before = first_call
     tail = before.rsplit("if not accepted:", 1)
     assert len(tail) == 2, "the call is not under `if not accepted:`"
     # nothing between the guard and the call may accept a step or converge
     between = tail[1]
     for forbidden in ("converged = ", "residual_history", "pressure = "):
         assert forbidden not in between, forbidden
+    cycle = body.split(
+        "if cycle_detected and rescue_budget_left > 0:", 1
+    )[1]
+    assert cycle.count("_try_lm_rescue(") == 1
 
 
 def test_failure_path_is_unchanged_when_the_recovery_declines():

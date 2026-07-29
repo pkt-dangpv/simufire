@@ -119,6 +119,25 @@ const LM_RESCUE_LAMBDA_LADDER: Array[float] = [1.0e-3, 1.0e-2, 1.0e-1, 1.0, 1.0e
 ## Armijo constant for the recovery merit. Sufficient decrease, not any decrease.
 const LM_RESCUE_ARMIJO_C: float = 1.0e-4
 
+# ------------------------------------------------------------
+# F3.3v3h2.5j: accepted-cycle safeguard.
+#
+# H2.5i measured a real `iteration_cap` where the ordinary L-infinity line
+# search accepted 22 consecutive full Newton steps even though the opening
+# pressure difference and all 16 quadrature donors flipped direction every
+# iteration. Successive Newton directions had cosine ~= -1, while the actual
+# sum-of-squares improvement was at most a few percent of the linear model's
+# prediction. The strict `< norm` test therefore kept a period-2 zigzag alive.
+#
+# This guard does not replace the ordinary line search. It only recognizes two
+# consecutive, already-accepted full steps that are both poor model matches and
+# nearly opposite. That state is redirected once to the same bounded LM rescue
+# used by H2.5g. A declined rescue preserves the accepted Newton candidate, so
+# the safeguard cannot turn an improving legacy step into a new failure.
+# ------------------------------------------------------------
+const CYCLE_GUARD_MIN_MODEL_GAIN_RATIO: float = 0.05
+const CYCLE_GUARD_MAX_STEP_COSINE: float = -0.99
+
 # Failure codes. Zero means "no failure recorded".
 const FAILURE_NONE: float = 0.0
 const FAILURE_BAD_ARGUMENTS: float = 1.0
@@ -180,6 +199,8 @@ func solve_coupled_pressure(
 	var iterations: int = 0
 	var converged: bool = norm <= tolerance
 	var rescue_budget_left: int = LM_RESCUE_MAX_ACCEPTED_STEPS
+	var previous_full_step: Array = []
+	var previous_full_step_gain_ratio: float = INF
 
 	while not converged and iterations < max_iterations:
 		iterations += 1
@@ -268,10 +289,61 @@ func solve_coupled_pressure(
 			result["rescue_final_norm"] = norm
 			result["residual_history"].append(norm)
 			result["damping_history"].append(float(rescue["damping"]))
+			previous_full_step.clear()
+			previous_full_step_gain_ratio = INF
 			# A rescue is never convergence by itself. Control returns to the
 			# ordinary Newton/L-infinity loop, which decides that as always.
 			converged = norm <= tolerance
 			continue
+
+		var model_gain_ratio: float = _model_gain_ratio(
+			context, evaluation, candidate_evaluation, jacobian, step, damping
+		)
+		var step_cosine: float = 1.0
+		var cycle_detected: bool = false
+		if damping == 1.0 and not previous_full_step.is_empty():
+			step_cosine = _step_cosine(previous_full_step, step)
+			cycle_detected = (
+				previous_full_step_gain_ratio
+						< CYCLE_GUARD_MIN_MODEL_GAIN_RATIO
+				and model_gain_ratio < CYCLE_GUARD_MIN_MODEL_GAIN_RATIO
+				and step_cosine < CYCLE_GUARD_MAX_STEP_COSINE
+			)
+		if cycle_detected and rescue_budget_left > 0:
+			result["cycle_guard_attempt_total"] += 1.0
+			result["cycle_guard_last_rho"] = model_gain_ratio
+			result["cycle_guard_last_cosine"] = step_cosine
+			var cycle_rescue: Dictionary = _try_lm_rescue(
+				context, pressure, evaluation, jacobian, room_count,
+				max_halvings, rescue_budget_left
+			)
+			result["rescue_attempted"] += 1.0
+			result["rescue_trials"] += float(cycle_rescue.get("trials", 0.0))
+			if bool(cycle_rescue.get("accepted", false)):
+				rescue_budget_left -= 1
+				result["cycle_guard_accept_total"] += 1.0
+				result["rescue_accepted"] += 1.0
+				result["rescue_initial_norm"] = norm
+				result["rescue_lambda"] = float(cycle_rescue["lambda"])
+				pressure = cycle_rescue["pressure"]
+				evaluation = cycle_rescue["evaluation"]
+				norm = float(evaluation["normalized_residual"])
+				result["rescue_final_norm"] = norm
+				result["residual_history"].append(norm)
+				result["damping_history"].append(
+					float(cycle_rescue["damping"])
+				)
+				previous_full_step.clear()
+				previous_full_step_gain_ratio = INF
+				converged = norm <= tolerance
+				continue
+
+		if damping == 1.0:
+			previous_full_step = step.duplicate()
+			previous_full_step_gain_ratio = model_gain_ratio
+		else:
+			previous_full_step.clear()
+			previous_full_step_gain_ratio = INF
 		pressure = candidate_pressure
 		evaluation = candidate_evaluation
 		norm = float(evaluation["normalized_residual"])
@@ -344,6 +416,80 @@ func _rescue_merit(evaluation: Dictionary) -> float:
 		)
 		total += value * value
 	return 0.5 * total
+
+
+## Sum-of-squares merit predicted by the current linear model for an accepted
+## damped Newton step. This uses the same fixed room-inventory normalization as
+## `_rescue_merit`, so the actual/predicted ratio compares like with like.
+func _linear_model_merit(
+		context: Dictionary,
+		evaluation: Dictionary,
+		jacobian: Array,
+		step: Array,
+		damping: float
+	) -> float:
+	var total: float = 0.0
+	var room_keys: Array = context["room_keys"]
+	var rooms: Dictionary = context["rooms"]
+	var gas_constant: float = float(context["gas_constant"])
+	var reference_temp_k: float = float(context["reference_temp_k"])
+	var residual: Array = evaluation["residual"]
+	for row_index in range(room_keys.size()):
+		var predicted_pa: float = float(residual[row_index])
+		for column in range(room_keys.size()):
+			predicted_pa += damping \
+					* float(jacobian[row_index][column]) \
+					* float(step[column])
+		var room: Dictionary = rooms[String(room_keys[row_index])]
+		var pressure_per_kg: float = gas_constant * reference_temp_k \
+				/ float(room["volume_m3"])
+		var normalized: float = predicted_pa / pressure_per_kg \
+				/ maxf(MASS_EPS_KG, float(room["mass_kg"]))
+		total += normalized * normalized
+	return 0.5 * total
+
+
+## Trust-style agreement ratio for the already accepted Newton candidate.
+## A value near one means the nonlinear solve delivered what its linear model
+## promised; a value near zero is the measured signature of the period-2
+## opening-flow reversal. Invalid/non-improving predictions are not classified
+## as this specific cycle and return +INF.
+func _model_gain_ratio(
+		context: Dictionary,
+		evaluation: Dictionary,
+		candidate_evaluation: Dictionary,
+		jacobian: Array,
+		step: Array,
+		damping: float
+	) -> float:
+	var merit_before: float = _rescue_merit(evaluation)
+	var merit_after: float = _rescue_merit(candidate_evaluation)
+	var merit_predicted: float = _linear_model_merit(
+		context, evaluation, jacobian, step, damping
+	)
+	var predicted_reduction: float = merit_before - merit_predicted
+	if predicted_reduction <= 0.0 or not is_finite(predicted_reduction):
+		return INF
+	var ratio: float = (merit_before - merit_after) / predicted_reduction
+	return ratio if is_finite(ratio) else INF
+
+
+func _step_cosine(first: Array, second: Array) -> float:
+	if first.size() != second.size() or first.is_empty():
+		return 1.0
+	var dot: float = 0.0
+	var first_norm_sq: float = 0.0
+	var second_norm_sq: float = 0.0
+	for index in range(first.size()):
+		var first_value: float = float(first[index])
+		var second_value: float = float(second[index])
+		dot += first_value * second_value
+		first_norm_sq += first_value * first_value
+		second_norm_sq += second_value * second_value
+	var denominator: float = sqrt(first_norm_sq * second_norm_sq)
+	if denominator <= 0.0 or not is_finite(denominator):
+		return 1.0
+	return clampf(dot / denominator, -1.0, 1.0)
 
 
 ## One bounded Levenberg-Marquardt recovery step, or nothing.
@@ -453,6 +599,12 @@ func _new_result() -> Dictionary:
 		"rescue_initial_norm": 0.0,
 		"rescue_final_norm": 0.0,
 		"rescue_lambda": 0.0,
+		# F3.3v3h2.5j accepted-cycle telemetry. Counts are per solve here; the
+		# passive preview accumulates them across scenario steps.
+		"cycle_guard_attempt_total": 0.0,
+		"cycle_guard_accept_total": 0.0,
+		"cycle_guard_last_rho": 0.0,
+		"cycle_guard_last_cosine": 0.0,
 	}
 
 

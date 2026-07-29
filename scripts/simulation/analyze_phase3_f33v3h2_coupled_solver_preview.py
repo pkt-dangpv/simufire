@@ -107,9 +107,18 @@ def solver_behaviour(
     def total(field: str, reducer=max) -> float:
         return reducer(float(r[f"{PREFIX}{field}_total"]) for r in tail)
 
+    def current(field: str, reducer=max) -> float:
+        column = f"{PREFIX}{field}"
+        if column not in tail[0]:
+            return 0.0
+        return reducer(float(r[column]) for r in tail)
+
     steps = total("step_count")
     converged = total("converged_step_count")
     failed = total("failed_step_count")
+    guard_row = max(
+        tail, key=lambda r: float(r.get(f"{PREFIX}cycle_guard_attempt_total", 0.0))
+    )
     return {
         "physical_step_count": steps,
         "converged_step_count": converged,
@@ -121,6 +130,20 @@ def solver_behaviour(
         "max_normalized_residual": total("max_normalized_residual"),
         "counterflow_violation_count": total("counterflow_violation_count"),
         "regularization_active_count": total("regularization_active_count"),
+        "rescue_attempted_step_count": total("rescue_attempted_step_count")
+        if f"{PREFIX}rescue_attempted_step_count_total" in tail[0]
+        else 0.0,
+        "rescue_accepted_step_count": total("rescue_accepted_step_count")
+        if f"{PREFIX}rescue_accepted_step_count_total" in tail[0]
+        else 0.0,
+        "cycle_guard_attempt_total": current("cycle_guard_attempt_total"),
+        "cycle_guard_accept_total": current("cycle_guard_accept_total"),
+        "cycle_guard_last_rho": float(
+            guard_row.get(f"{PREFIX}cycle_guard_last_rho", 0.0)
+        ),
+        "cycle_guard_last_cosine": float(
+            guard_row.get(f"{PREFIX}cycle_guard_last_cosine", 0.0)
+        ),
         "max_abs_pressure_divergence_pa": total(
             "max_abs_coupled_vs_legacy_pressure_delta_pa"
         ),

@@ -65,6 +65,11 @@ python scripts/run_scenario.py scenarios/compact_apartment_reference.json --dura
 
 Ejecuta un escenario definido en JSON y genera salidas técnicas.
 
+En este workspace Windows, cualquier agente debe ejecutar Godot fuera de su
+sandbox restringido, con el editor cerrado y un proceso cada vez. Un error
+`Failed to read the root certificate store` invalida el entorno del run. Véase
+`docs/validation/GODOT_471_HEADLESS_CRASH_AUDIT.md`.
+
 ## Auditar Coherencia ILV Por Capas
 
 ```powershell
