@@ -8,6 +8,24 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-29 - fail-closed scenario runner
+
+- Hardened the supported `scripts/run_scenario.py` ->
+  `res://tools/run_scenario_headless.tscn` path after a GDScript compile error
+  exposed that process exit alone was not a sufficient completion signal.
+- Each invocation now owns a random `run_token`. Python requires an exact
+  token-bound PASS marker and a completed manifest carrying the same token,
+  correct entrypoint, scenario, duration and a non-truncated `sim_time_s`.
+  Existing output files from an earlier run therefore cannot produce PASS.
+- Fatal parse/script-load patterns are inspected in current stdout/stderr and
+  `godot.log`. A safe negative probe left valid old artifacts in place and
+  launched an invalid scene: the wrapper failed closed and published no result
+  paths.
+- A real Godot 4.7.1 one-second run passed with matching token, completed
+  manifest and `sim_time_s == duration_s`.
+- No `sim/core`, solver, physics, official report, baseline, tolerance, CTRL or
+  VALID_GAP changed. Resume H2.5i only after this runner STOP gate is accepted.
+
 ## Current Session Update - 2026-07-29 - F3.3v3h2.5h iteration_cap capture
 
 - Added an opt-in capture **mode selector** so a specific failure mode can be

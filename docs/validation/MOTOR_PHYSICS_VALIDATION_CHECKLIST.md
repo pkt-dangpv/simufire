@@ -1379,10 +1379,22 @@ two selectors report 510 and 1435 on the same run, which is not an ordering.
 do not widen the LM budget, do not touch gauge, tolerance or the flux law.
 
 **`iteration_cap` is now the dominant remaining failure mode** - alongside the
-11 post-budget `damping_exhausted` at 120 s - and it is still
-uncaptured because the instrumentation records only the first failure, which is
-`damping_exhausted` on both scenarios. Its mode is understood - the L-infinity acceptance
-test rejects a step that fixes two rooms out of three because it worsens the
-current worst room by 2.4% - and every remedy measured either does not help,
-pays for it on `r0_window_360`, or is much worse. **H3 stays blocked**, and both
-captures remain the gate for any future attempt.
+11 post-budget `damping_exhausted` at 120 s - and is captured bit-exactly by
+H2.5h. Its measured convergence is monotone but unhealthy: the first capture
+needs 26 iterations when given room and a late-run input needs 108. **H3 stays
+blocked**, and all real captures remain the gate for any future attempt.
+
+Headless runner completion contract (2026-07-29): **GO at STOP.**
+
+- every `scripts/run_scenario.py` invocation owns a random token that must match
+  both the current PASS marker and the final manifest: PASS;
+- manifest status, scene entrypoint, scenario, duration and
+  `sim_time_s >= duration_s` are validated; stale or truncated artifacts fail:
+  PASS;
+- fatal parse/script-load signatures are inspected in stdout/stderr and
+  `godot.log`; warnings remain non-fatal: PASS;
+- real Godot 4.7.1 one-second run produced matching token and completed
+  manifest; an invalid-scene probe with valid stale artifacts failed closed and
+  published no result paths: PASS;
+- no physics, solver, official report, expected value, tolerance, CTRL or
+  VALID_GAP changed: PASS.

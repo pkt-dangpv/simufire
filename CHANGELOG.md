@@ -3,6 +3,23 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Fail-closed headless scenario completion contract (2026-07-29)
+
+- `scripts/run_scenario.py` now binds every invocation to a random `run_token`.
+  Success requires the same token in the current process PASS marker and in a
+  completed `run_manifest.json`; stale artifacts can no longer certify a new
+  run.
+- The completion certificate also verifies the runner scene, scenario path,
+  requested duration and `sim_time_s >= duration_s`. Parse/script load errors
+  are detected in both process output and `godot.log`, even when Godot returns
+  exit zero.
+- `tools/run_scenario_headless.gd` writes the manifest last with explicit
+  `status`, `run_token`, `runner_entrypoint` and Godot version. The supported
+  entrypoint remains `res://tools/run_scenario_headless.tscn`; the Node script
+  is never launched with `--script`.
+- This is runner integrity only: no simulation physics, solver, official
+  report, baseline, tolerance, CTRL or VALID_GAP changed.
+
 ### Phase 3+ F3.3v3h2.5h real iteration_cap capture (2026-07-29)
 
 - Added an opt-in capture **mode selector**,

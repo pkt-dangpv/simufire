@@ -8,6 +8,7 @@ const TargetModelScript := preload("res://sim/fire/TargetModel.gd")
 var _cli_args: Dictionary = {}
 var _scenario_path: String = ""
 var _out_dir: String = ""
+var _run_token: String = ""
 var _failed: bool = false
 var _projection_trace_enabled: bool = false
 var _projection_trace_path: String = ""
@@ -22,6 +23,7 @@ func _run() -> void:
 	_cli_args = _parse_args(OS.get_cmdline_user_args())
 	_scenario_path = _resolve_path(String(_cli_args.get("run_scenario", "")))
 	_out_dir = _resolve_output_dir(String(_cli_args.get("out_dir", "")))
+	_run_token = String(_cli_args.get("run_token", ""))
 
 	if _scenario_path.is_empty():
 		_abort("run_scenario_headless: missing --run-scenario <path>")
@@ -355,7 +357,7 @@ func _run() -> void:
 		return
 
 	var csv_path: String = engine.log_writer.resolve_csv_file_path()
-	print("RUN_SCENARIO PASS")
+	print("RUN_SCENARIO PASS token=%s" % _run_token)
 	print("summary=%s" % _out_dir.path_join("summary.json"))
 	print("events=%s" % _out_dir.path_join("events.json"))
 	print("csv=%s" % csv_path)
@@ -385,6 +387,11 @@ func _parse_args(args: Array[String]) -> Dictionary:
 		elif arg == "--out-dir" and index + 1 < args.size():
 			index += 1
 			parsed["out_dir"] = String(args[index])
+		elif arg.begins_with("--run-token="):
+			parsed["run_token"] = arg.substr("--run-token=".length())
+		elif arg == "--run-token" and index + 1 < args.size():
+			index += 1
+			parsed["run_token"] = String(args[index])
 		elif arg.begins_with("--duration="):
 			parsed["duration_s"] = float(arg.substr("--duration=".length()))
 		elif arg == "--duration" and index + 1 < args.size():
@@ -821,6 +828,10 @@ func _resolve_opening_event_fraction(event_data: Dictionary) -> float:
 func _write_manifest(engine: SimulationEngine, duration_s: float, step_s: float, ignite_on_start: bool) -> bool:
 	var manifest: Dictionary = {
 		"schema_version": "simufire_run_scenario_manifest_v1",
+		"status": "completed",
+		"run_token": _run_token,
+		"runner_entrypoint": "res://tools/run_scenario_headless.tscn",
+		"godot_version": Engine.get_version_info().get("string", ""),
 		"scenario_path": _scenario_path,
 		"output_dir": _out_dir,
 		"duration_s": duration_s,

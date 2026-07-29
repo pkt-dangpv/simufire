@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import secrets
 import shutil
 import subprocess
 import sys
@@ -22,6 +23,13 @@ _GODOT_CANDIDATES = [
     Path("F:/OneDrive/Escritorio/Godot_v4.7.1-stable_win64_console.exe"),
 ]
 _RUNNER_SCENE = "res://tools/run_scenario_headless.tscn"
+_FATAL_GODOT_PATTERNS = (
+    "SCRIPT ERROR:",
+    "Parse Error:",
+    "Failed to load script",
+    "Can't load the script",
+    "doesn't inherit from SceneTree or MainLoop",
+)
 # F3.3v3h2.5h: selectable capture modes, kept in step with
 # Phase3ZoneMassSystem.CAPTURE_SELECTABLE_FAILURE_MODES. Validated here so an
 # unknown value fails before Godot is launched rather than after a full run.
@@ -231,7 +239,35 @@ def _load_json(path: Path) -> dict | None:
         return None
 
 
-def _validate_outputs(out_dir: Path) -> list[str]:
+def _load_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
+def _fatal_godot_errors(output: str) -> list[str]:
+    return [
+        pattern
+        for pattern in _FATAL_GODOT_PATTERNS
+        if pattern.casefold() in output.casefold()
+    ]
+
+
+def _same_path(left: object, right: Path) -> bool:
+    try:
+        return Path(str(left)).resolve() == right.resolve()
+    except (OSError, TypeError, ValueError):
+        return False
+
+
+def _validate_outputs(
+    out_dir: Path,
+    *,
+    run_token: str,
+    scenario: Path,
+    expected_duration_s: float | None,
+) -> list[str]:
     failures: list[str] = []
     expected_files = [
         "summary.json",
@@ -253,8 +289,32 @@ def _validate_outputs(out_dir: Path) -> list[str]:
     manifest = _load_json(out_dir / "run_manifest.json")
     if not isinstance(manifest, dict):
         failures.append("run_manifest.json is not valid JSON")
-    elif manifest.get("schema_version") != "simufire_run_scenario_manifest_v1":
-        failures.append("run_manifest.json schema_version mismatch")
+    else:
+        if manifest.get("schema_version") != "simufire_run_scenario_manifest_v1":
+            failures.append("run_manifest.json schema_version mismatch")
+        if manifest.get("status") != "completed":
+            failures.append("run_manifest.json is not a completed run")
+        if manifest.get("run_token") != run_token:
+            failures.append("run_manifest.json is stale or belongs to another run")
+        if manifest.get("runner_entrypoint") != _RUNNER_SCENE:
+            failures.append("run_manifest.json runner_entrypoint mismatch")
+        if not _same_path(manifest.get("scenario_path"), scenario):
+            failures.append("run_manifest.json scenario_path mismatch")
+        try:
+            manifest_duration = float(manifest.get("duration_s"))
+            sim_time_s = float(manifest.get("sim_time_s"))
+        except (TypeError, ValueError):
+            failures.append("run_manifest.json has invalid duration/sim_time")
+        else:
+            if expected_duration_s is not None and abs(
+                manifest_duration - expected_duration_s
+            ) > 1e-9:
+                failures.append("run_manifest.json duration_s mismatch")
+            if sim_time_s + 1e-9 < manifest_duration:
+                failures.append(
+                    "run_manifest.json records a truncated simulation "
+                    f"({sim_time_s} < {manifest_duration})"
+                )
 
     return failures
 
@@ -267,7 +327,8 @@ def main(argv: list[str] | None = None) -> int:
     if not scenario.exists():
         print(f"ERROR: scenario not found: {scenario}", file=sys.stderr)
         return 1
-    if _load_json(scenario) is None:
+    scenario_data = _load_json(scenario)
+    if scenario_data is None:
         print(f"ERROR: scenario is not valid JSON: {scenario}", file=sys.stderr)
         return 1
 
@@ -280,6 +341,16 @@ def main(argv: list[str] | None = None) -> int:
     if not out_dir.is_absolute():
         out_dir = (_REPO_ROOT / out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
+    run_token = secrets.token_hex(16)
+    expected_duration_s = (
+        args.duration
+        if args.duration is not None
+        else (
+            float(scenario_data["duration_s"])
+            if "duration_s" in scenario_data
+            else None
+        )
+    )
 
     cmd = [
         str(godot),
@@ -292,6 +363,7 @@ def main(argv: list[str] | None = None) -> int:
         "--",
         f"--run-scenario={scenario}",
         f"--out-dir={out_dir}",
+        f"--run-token={run_token}",
     ]
     if args.duration is not None:
         cmd.append(f"--duration={args.duration}")
@@ -650,6 +722,8 @@ def main(argv: list[str] | None = None) -> int:
         )
     except subprocess.TimeoutExpired:
         print(f"ERROR: Godot run timed out after {args.timeout}s", file=sys.stderr)
+        for pattern in _fatal_godot_errors(_load_text(out_dir / "godot.log")):
+            print(f"  - fatal Godot error: {pattern}", file=sys.stderr)
         return 1
 
     if result.stdout:
@@ -658,9 +732,28 @@ def main(argv: list[str] | None = None) -> int:
         print(result.stderr.rstrip(), file=sys.stderr)
 
     combined = (result.stdout or "") + (result.stderr or "")
-    output_failures = _validate_outputs(out_dir)
-    if result.returncode != 0 or "RUN_SCENARIO PASS" not in combined or output_failures:
+    diagnostic_output = combined + _load_text(out_dir / "godot.log")
+    expected_pass_marker = f"RUN_SCENARIO PASS token={run_token}"
+    output_failures = _validate_outputs(
+        out_dir,
+        run_token=run_token,
+        scenario=scenario,
+        expected_duration_s=expected_duration_s,
+    )
+    fatal_errors = _fatal_godot_errors(diagnostic_output)
+    if (
+        result.returncode != 0
+        or expected_pass_marker not in combined
+        or fatal_errors
+        or output_failures
+    ):
         print("ERROR: run_scenario failed", file=sys.stderr)
+        if result.returncode != 0:
+            print(f"  - Godot exited with code {result.returncode}", file=sys.stderr)
+        if expected_pass_marker not in combined:
+            print("  - completion marker missing or stale", file=sys.stderr)
+        for pattern in fatal_errors:
+            print(f"  - fatal Godot error: {pattern}", file=sys.stderr)
         for failure in output_failures:
             print(f"  - {failure}", file=sys.stderr)
         return 1
