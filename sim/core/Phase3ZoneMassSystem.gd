@@ -5573,6 +5573,10 @@ func _new_coupled_pressure_solver_record() -> Dictionary:
 		"cycle_guard_accept_total": 0.0,
 		"cycle_guard_last_rho": 0.0,
 		"cycle_guard_last_cosine": 0.0,
+		"cycle_detect_total": 0.0,
+		"cycle_detect_after_budget_total": 0.0,
+		"cycle_contraction_min": 0.0,
+		"cycle_contraction_max": 0.0,
 	}
 
 
@@ -5596,6 +5600,10 @@ func _new_coupled_pressure_solver_cumulative_record() -> Dictionary:
 		"cycle_guard_accept_total": 0.0,
 		"cycle_guard_last_rho": 0.0,
 		"cycle_guard_last_cosine": 0.0,
+		"cycle_detect_total": 0.0,
+		"cycle_detect_after_budget_total": 0.0,
+		"cycle_contraction_min": 0.0,
+		"cycle_contraction_max": 0.0,
 	}
 
 
@@ -5877,6 +5885,8 @@ func _record_coupled_pressure_solver_preview(
 			"rescue_initial_norm", "rescue_final_norm", "rescue_lambda",
 			"cycle_guard_attempt_total", "cycle_guard_accept_total",
 			"cycle_guard_last_rho", "cycle_guard_last_cosine",
+			"cycle_detect_total", "cycle_detect_after_budget_total",
+			"cycle_contraction_min", "cycle_contraction_max",
 		]:
 			record[rescue_field] = float(solved.get(rescue_field, 0.0))
 		record["iteration_cap_flag"] = \
@@ -5958,6 +5968,25 @@ func _record_coupled_pressure_solver_preview(
 			cumulative["cycle_guard_last_cosine"] = float(
 				record["cycle_guard_last_cosine"]
 			)
+		cumulative["cycle_detect_total"] = float(
+			cumulative["cycle_detect_total"]
+		) + float(record["cycle_detect_total"])
+		cumulative["cycle_detect_after_budget_total"] = float(
+			cumulative["cycle_detect_after_budget_total"]
+		) + float(record["cycle_detect_after_budget_total"])
+		if float(record["cycle_contraction_max"]) > 0.0:
+			var prior_cycle_min: float = float(
+				cumulative["cycle_contraction_min"]
+			)
+			cumulative["cycle_contraction_min"] = float(
+				record["cycle_contraction_min"]
+			) if prior_cycle_min <= 0.0 else minf(
+				prior_cycle_min, float(record["cycle_contraction_min"])
+			)
+			cumulative["cycle_contraction_max"] = maxf(
+				float(cumulative["cycle_contraction_max"]),
+				float(record["cycle_contraction_max"])
+			)
 		if converged:
 			cumulative["max_abs_coupled_vs_legacy_pressure_delta_pa"] = maxf(
 				float(cumulative["max_abs_coupled_vs_legacy_pressure_delta_pa"]),
@@ -5972,6 +6001,8 @@ func _record_coupled_pressure_solver_preview(
 		for cycle_field in [
 			"cycle_guard_attempt_total", "cycle_guard_accept_total",
 			"cycle_guard_last_rho", "cycle_guard_last_cosine",
+			"cycle_detect_total", "cycle_detect_after_budget_total",
+			"cycle_contraction_min", "cycle_contraction_max",
 		]:
 			record[cycle_field] = float(cumulative[cycle_field])
 		_coupled_pressure_solver_by_room[room_key] = record
@@ -10324,6 +10355,10 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"cycle_guard_accept_total",
 			"cycle_guard_last_rho",
 			"cycle_guard_last_cosine",
+			"cycle_detect_total",
+			"cycle_detect_after_budget_total",
+			"cycle_contraction_min",
+			"cycle_contraction_max",
 		]:
 			coupled_solver_result[
 				"phase3_shadow_coupled_solver_" + coupled_field

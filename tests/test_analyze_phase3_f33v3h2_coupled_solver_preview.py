@@ -65,6 +65,10 @@ def _row(**totals: str) -> dict[str, str]:
         f"{P}cycle_guard_accept_total": "0",
         f"{P}cycle_guard_last_rho": "0",
         f"{P}cycle_guard_last_cosine": "0",
+        f"{P}cycle_detect_total": "0",
+        f"{P}cycle_detect_after_budget_total": "0",
+        f"{P}cycle_contraction_min": "0",
+        f"{P}cycle_contraction_max": "0",
     })
     return row
 
@@ -94,6 +98,21 @@ def test_behaviour_reports_cycle_guard_telemetry():
     assert result["cycle_guard_accept_total"] == 6
     assert result["cycle_guard_last_rho"] == pytest.approx(0.031)
     assert result["cycle_guard_last_cosine"] == pytest.approx(-0.999)
+
+
+def test_behaviour_reports_passive_cycle_observation():
+    row = _row()
+    row.update({
+        f"{P}cycle_detect_total": "31",
+        f"{P}cycle_detect_after_budget_total": "20",
+        f"{P}cycle_contraction_min": "0.085",
+        f"{P}cycle_contraction_max": "1.0101",
+    })
+    result = audit.solver_behaviour([row], 60.0)
+    assert result["cycle_detect_total"] == 31
+    assert result["cycle_detect_after_budget_total"] == 20
+    assert result["cycle_contraction_min"] == pytest.approx(0.085)
+    assert result["cycle_contraction_max"] == pytest.approx(1.0101)
 
 
 def test_residual_and_counterflow_are_gated_but_convergence_rate_is_not():

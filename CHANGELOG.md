@@ -3,6 +3,23 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.5l-A passive cycle observation (2026-07-29)
+
+- Moved cycle observation outside the one-step LM rescue-budget gate without
+  moving rescue authority. Four opt-in values now report total detections,
+  detections after budget exhaustion, and the min/max two-step contraction.
+- A deterministic real corridor capture preserves `iteration_cap` at 24
+  iterations and exactly one accepted rescue while exposing 22 cycle
+  detections, 21 after the budget, with contraction `0.99055..0.99095`.
+- Runtime remains no-op: OFF CSVs are byte-identical, all existing ON columns
+  are identical, Physics/ILV remain at 0 FAIL, and counterflow remains valid.
+- The 120 s corpus measures 2211 post-budget detections in corridor and zero in
+  r0-window, but contraction ranges overlap. H2.5m solver authority is
+  therefore **NO-GO** until per-solve recurrence evidence exists. H2 remains
+  open and H3 remains blocked.
+- Full record:
+  `docs/validation/PHASE3_F33V3H25L_PASSIVE_CYCLE_OBSERVATION.md`.
+
 ### Phase 3+ F3.3v3h2.5k recurrent-cycle diagnosis (2026-07-29)
 
 - Added the opt-in capture selector `iteration_cap_after_rescue`. It records an

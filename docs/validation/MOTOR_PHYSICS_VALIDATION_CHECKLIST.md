@@ -1037,6 +1037,7 @@ Diagnostic / planned lanes:
 | F3.3v3h2.5g | Bounded LM recovery, one step per solve | **GO** for the canonical damping mode; corridor still 84.18% at 120 s; iteration_cap unmoved |
 | F3.3v3h2.5h | Real iteration_cap capture plus a mode selector | Capture GO; latch defect found and fixed; solver untouched |
 | F3.3v3h2.5j | Accepted-cycle guard reusing bounded LM | **GO with revised gate**; r0 125 caps -> 0; corridor late regime remains open |
+| F3.3v3h2.5l-A | Passive post-budget cycle observation | **GO telemetry only**; H2.5m authority NO-GO; H2 open |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1431,6 +1432,27 @@ F3.3v3h2.5k STOP: **GO for diagnostic capture only.**
 H2.5l must separate cycle observation from rescue authority and measure
 two-step contraction across corridor and r0-window before any change to the
 rescue strategy. H2 remains open and H3 remains blocked.
+
+F3.3v3h2.5l-A STOP: **GO for passive telemetry only.**
+
+- cycle detection runs before and outside the rescue-budget gate, while the
+  one-step LM rescue remains inside the original gate: PASS;
+- a real corridor replay preserves `iteration_cap`, 24 iterations and one
+  accepted rescue while reporting 22 detections, 21 after budget: PASS;
+- OFF CSVs are byte-identical and all existing ON columns are identical across
+  corridor 30/60/120 s and r0-window 120 s: PASS;
+- corridor 120 s reports 2722 detections, 2211 after budget; r0-window reports
+  204 detections and zero after budget: measured;
+- contraction ranges overlap (`0.7731..1.0465` corridor,
+  `1.0038..1.0480` r0-window), so no cross-topology authority threshold is
+  justified: **H2.5m NO-GO**;
+- Physics and ILV stay at 0 FAIL, counterflow violations stay zero, and the gap
+  inventory is unchanged: PASS.
+
+The four cumulative scalars cannot count distinct solves with a second cycle
+or report their eventual outcome. A passive per-solve recurrence ledger is the
+required next evidence. H2 remains open and H3 remains blocked. Full record:
+`docs/validation/PHASE3_F33V3H25L_PASSIVE_CYCLE_OBSERVATION.md`.
 
 Headless runner completion contract (2026-07-29): **GO at STOP.**
 

@@ -8,6 +8,26 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-29 - F3.3v3h2.5l-A passive observation
+
+- Cycle observation is now independent of the one-step LM rescue budget.
+  Rescue authority, convergence, acceptance, tolerance, iteration cap,
+  Jacobian and all physical state are unchanged.
+- Four opt-in cumulative fields expose cycle detections, post-budget
+  detections and the min/max two-step contraction.
+- A real late corridor fixture remains `iteration_cap` at 24 iterations with
+  one accepted rescue, but now reports 22 detections, 21 after budget.
+- Runtime OFF artifacts and all existing ON columns are identical to a clean
+  worktree baseline. Physics and ILV remain at 0 FAIL.
+- At 120 s, corridor reports 2211 post-budget detections; r0-window reports
+  zero. However, their contraction ranges overlap and both can exceed one.
+  No safe scalar threshold for a second rescue has been demonstrated.
+- Decision: **GO for passive telemetry only; NO-GO for H2.5m authority.**
+  The next phase must first add per-solve recurrence outcomes. H2 remains open
+  and H3 remains blocked.
+- Binding record:
+  `docs/validation/PHASE3_F33V3H25L_PASSIVE_CYCLE_OBSERVATION.md`.
+
 ## Current Session Update - 2026-07-29 - F3.3v3h2.5k recurrent cycle diagnosis
 
 - Added capture-only selector `iteration_cap_after_rescue`, matching only a

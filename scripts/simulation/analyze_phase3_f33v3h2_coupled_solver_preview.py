@@ -144,6 +144,12 @@ def solver_behaviour(
         "cycle_guard_last_cosine": float(
             guard_row.get(f"{PREFIX}cycle_guard_last_cosine", 0.0)
         ),
+        "cycle_detect_total": current("cycle_detect_total"),
+        "cycle_detect_after_budget_total": current(
+            "cycle_detect_after_budget_total"
+        ),
+        "cycle_contraction_min": current("cycle_contraction_min", min),
+        "cycle_contraction_max": current("cycle_contraction_max"),
         "max_abs_pressure_divergence_pa": total(
             "max_abs_coupled_vs_legacy_pressure_delta_pa"
         ),

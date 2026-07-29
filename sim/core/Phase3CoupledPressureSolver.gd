@@ -201,6 +201,11 @@ func solve_coupled_pressure(
 	var rescue_budget_left: int = LM_RESCUE_MAX_ACCEPTED_STEPS
 	var previous_full_step: Array = []
 	var previous_full_step_gain_ratio: float = INF
+	# H2.5l-A passive observation only. These norms never participate in a
+	# numerical decision; they measure whether a detected period-2 sequence is
+	# contracting after the one-step rescue budget has already been spent.
+	var previous_full_step_norm: float = NAN
+	var previous_previous_full_step_norm: float = NAN
 
 	while not converged and iterations < max_iterations:
 		iterations += 1
@@ -291,6 +296,8 @@ func solve_coupled_pressure(
 			result["damping_history"].append(float(rescue["damping"]))
 			previous_full_step.clear()
 			previous_full_step_gain_ratio = INF
+			previous_full_step_norm = NAN
+			previous_previous_full_step_norm = NAN
 			# A rescue is never convergence by itself. Control returns to the
 			# ordinary Newton/L-infinity loop, which decides that as always.
 			converged = norm <= tolerance
@@ -309,6 +316,27 @@ func solve_coupled_pressure(
 				and model_gain_ratio < CYCLE_GUARD_MIN_MODEL_GAIN_RATIO
 				and step_cosine < CYCLE_GUARD_MAX_STEP_COSINE
 			)
+		# Observation is deliberately outside the rescue-budget gate. H2.5k
+		# proved that a second cycle can appear after the only authorised rescue
+		# has been accepted; previously that cycle was no longer even counted.
+		if cycle_detected:
+			result["cycle_detect_total"] += 1.0
+			if rescue_budget_left <= 0:
+				result["cycle_detect_after_budget_total"] += 1.0
+			if is_finite(previous_previous_full_step_norm):
+				var contraction: float = _step_norm(step) / maxf(
+					previous_previous_full_step_norm, 1.0e-300
+				)
+				if is_finite(contraction):
+					var prior_min: float = float(
+						result["cycle_contraction_min"]
+					)
+					result["cycle_contraction_min"] = contraction \
+							if prior_min <= 0.0 \
+							else minf(prior_min, contraction)
+					result["cycle_contraction_max"] = maxf(
+						float(result["cycle_contraction_max"]), contraction
+					)
 		if cycle_detected and rescue_budget_left > 0:
 			result["cycle_guard_attempt_total"] += 1.0
 			result["cycle_guard_last_rho"] = model_gain_ratio
@@ -335,15 +363,21 @@ func solve_coupled_pressure(
 				)
 				previous_full_step.clear()
 				previous_full_step_gain_ratio = INF
+				previous_full_step_norm = NAN
+				previous_previous_full_step_norm = NAN
 				converged = norm <= tolerance
 				continue
 
 		if damping == 1.0:
 			previous_full_step = step.duplicate()
 			previous_full_step_gain_ratio = model_gain_ratio
+			previous_previous_full_step_norm = previous_full_step_norm
+			previous_full_step_norm = _step_norm(step)
 		else:
 			previous_full_step.clear()
 			previous_full_step_gain_ratio = INF
+			previous_full_step_norm = NAN
+			previous_previous_full_step_norm = NAN
 		pressure = candidate_pressure
 		evaluation = candidate_evaluation
 		norm = float(evaluation["normalized_residual"])
@@ -492,6 +526,14 @@ func _step_cosine(first: Array, second: Array) -> float:
 	return clampf(dot / denominator, -1.0, 1.0)
 
 
+func _step_norm(step: Array) -> float:
+	var norm_sq: float = 0.0
+	for raw_value in step:
+		var value: float = float(raw_value)
+		norm_sq += value * value
+	return sqrt(norm_sq)
+
+
 ## One bounded Levenberg-Marquardt recovery step, or nothing.
 ##
 ## Damps the SAME Jacobian the Newton step came from - no new differencing, no
@@ -605,6 +647,12 @@ func _new_result() -> Dictionary:
 		"cycle_guard_accept_total": 0.0,
 		"cycle_guard_last_rho": 0.0,
 		"cycle_guard_last_cosine": 0.0,
+		# H2.5l-A passive cycle observation. These values never feed back into
+		# acceptance, rescue authority or convergence.
+		"cycle_detect_total": 0.0,
+		"cycle_detect_after_budget_total": 0.0,
+		"cycle_contraction_min": 0.0,
+		"cycle_contraction_max": 0.0,
 	}
 
 
