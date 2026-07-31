@@ -206,6 +206,8 @@ func solve_coupled_pressure(
 	# contracting after the one-step rescue budget has already been spent.
 	var previous_full_step_norm: float = NAN
 	var previous_previous_full_step_norm: float = NAN
+	# H2.5l-B: consecutive post-budget cycle streak. Never governs behaviour.
+	var post_budget_cycle_streak: int = 0
 
 	while not converged and iterations < max_iterations:
 		iterations += 1
@@ -298,6 +300,7 @@ func solve_coupled_pressure(
 			previous_full_step_gain_ratio = INF
 			previous_full_step_norm = NAN
 			previous_previous_full_step_norm = NAN
+			post_budget_cycle_streak = 0
 			# A rescue is never convergence by itself. Control returns to the
 			# ordinary Newton/L-infinity loop, which decides that as always.
 			converged = norm <= tolerance
@@ -323,6 +326,11 @@ func solve_coupled_pressure(
 			result["cycle_detect_total"] += 1.0
 			if rescue_budget_left <= 0:
 				result["cycle_detect_after_budget_total"] += 1.0
+				post_budget_cycle_streak += 1
+				result["post_budget_cycle_streak_max"] = maxf(
+					float(result["post_budget_cycle_streak_max"]),
+					float(post_budget_cycle_streak)
+				)
 			if is_finite(previous_previous_full_step_norm):
 				var contraction: float = _step_norm(step) / maxf(
 					previous_previous_full_step_norm, 1.0e-300
@@ -337,6 +345,8 @@ func solve_coupled_pressure(
 					result["cycle_contraction_max"] = maxf(
 						float(result["cycle_contraction_max"]), contraction
 					)
+		else:
+			post_budget_cycle_streak = 0
 		if cycle_detected and rescue_budget_left > 0:
 			result["cycle_guard_attempt_total"] += 1.0
 			result["cycle_guard_last_rho"] = model_gain_ratio
@@ -365,6 +375,7 @@ func solve_coupled_pressure(
 				previous_full_step_gain_ratio = INF
 				previous_full_step_norm = NAN
 				previous_previous_full_step_norm = NAN
+				post_budget_cycle_streak = 0
 				converged = norm <= tolerance
 				continue
 
@@ -378,6 +389,7 @@ func solve_coupled_pressure(
 			previous_full_step_gain_ratio = INF
 			previous_full_step_norm = NAN
 			previous_previous_full_step_norm = NAN
+			post_budget_cycle_streak = 0
 		pressure = candidate_pressure
 		evaluation = candidate_evaluation
 		norm = float(evaluation["normalized_residual"])
@@ -653,6 +665,8 @@ func _new_result() -> Dictionary:
 		"cycle_detect_after_budget_total": 0.0,
 		"cycle_contraction_min": 0.0,
 		"cycle_contraction_max": 0.0,
+		# H2.5l-B per-solve recurrence ledger.
+		"post_budget_cycle_streak_max": 0.0,
 	}
 
 

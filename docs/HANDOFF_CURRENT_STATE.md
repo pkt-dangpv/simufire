@@ -8,6 +8,26 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-29 - F3.3v3h2.5l-B per-solve recurrence ledger
+
+- `post_budget_cycle_streak_max` tracks the longest consecutive post-budget
+  cycle within a single solve. Five cumulative counters classify each solve
+  that recurs post-budget by outcome: converged, iteration_cap, or
+  damping_exhausted (mutually exclusive).
+- corpus results (120 s):
+  - corridor_chain: 559/1441 solves recur post-budget (181 converge, 378
+    iteration_cap, 0 damping_exhausted); streak_max = 21.
+  - r0_window_360: 0/1441 solves recur post-budget; streak_max = 0.
+- Clean cross-topology separation on the per-solve flag: corridor has it,
+  r0_window does not. This is the evidence H2.5l-A could not yet provide.
+- All OFF CSVs byte-identical; all shared ON columns identical; zero
+  counterflow violations; Physics and ILV 0 FAIL.
+- H2.5m solver authority remains blocked until the separation is confirmed on
+  a wider corpus and a contraction persistence threshold is proposed. H2 open,
+  H3 blocked.
+- Binding record:
+  `docs/validation/PHASE3_F33V3H25LB_PER_SOLVE_RECURRENCE_LEDGER.md`.
+
 ## Current Session Update - 2026-07-29 - F3.3v3h2.5l-A passive observation
 
 - Cycle observation is now independent of the one-step LM rescue budget.

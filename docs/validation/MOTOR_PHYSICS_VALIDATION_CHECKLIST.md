@@ -1038,6 +1038,7 @@ Diagnostic / planned lanes:
 | F3.3v3h2.5h | Real iteration_cap capture plus a mode selector | Capture GO; latch defect found and fixed; solver untouched |
 | F3.3v3h2.5j | Accepted-cycle guard reusing bounded LM | **GO with revised gate**; r0 125 caps -> 0; corridor late regime remains open |
 | F3.3v3h2.5l-A | Passive post-budget cycle observation | **GO telemetry only**; H2.5m authority NO-GO; H2 open |
+| F3.3v3h2.5l-B | Per-solve recurrence ledger | **GO passive ledger**; cross-topology separation confirmed; H2.5m blocked |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1453,6 +1454,32 @@ The four cumulative scalars cannot count distinct solves with a second cycle
 or report their eventual outcome. A passive per-solve recurrence ledger is the
 required next evidence. H2 remains open and H3 remains blocked. Full record:
 `docs/validation/PHASE3_F33V3H25L_PASSIVE_CYCLE_OBSERVATION.md`.
+
+F3.3v3h2.5l-B STOP: **GO for passive per-solve recurrence ledger.**
+
+- `post_budget_cycle_streak_max` tracks the longest consecutive post-budget
+  cycle within each solve; the streak resets on every trajectory break
+  (rescue accepted, damped step, no cycle detected): PASS;
+- five cumulative counters classify each solve that recurs post-budget by
+  outcome (converged / iteration_cap / damping_exhausted); each solve adds at
+  most one to any counter: PASS;
+- corpus results (120 s):
+  - corridor_chain: 559/1441 solves recur (181 converge, 378 iteration_cap,
+    0 damping_exhausted); streak_max = 21;
+  - r0_window_360: 0/1441 solves recur; streak_max = 0;
+  - **clean cross-topology separation on the per-solve flag**;
+- OFF SHA-256 stable across corridor 30/60/120 s and r0-window 120 s: PASS;
+- all shared ON columns byte-identical: PASS;
+- zero counterflow violations in all four cases: PASS;
+- Physics and ILV at 0 FAIL; gap inventory unchanged: PASS;
+- no physical report, expected value, tolerance, CTRL or VALID_GAP changes:
+  PASS.
+
+H2.5m solver authority remains blocked until the per-solve separation is
+confirmed on a wider corpus. The corridor recurrence rate is 38.8%
+(559/1441); 32.4% converge after recurrence. H2 remains open and H3 remains
+blocked. Full record:
+`docs/validation/PHASE3_F33V3H25LB_PER_SOLVE_RECURRENCE_LEDGER.md`.
 
 Headless runner completion contract (2026-07-29): **GO at STOP.**
 

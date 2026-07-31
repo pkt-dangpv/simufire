@@ -5577,6 +5577,7 @@ func _new_coupled_pressure_solver_record() -> Dictionary:
 		"cycle_detect_after_budget_total": 0.0,
 		"cycle_contraction_min": 0.0,
 		"cycle_contraction_max": 0.0,
+		"post_budget_cycle_streak_max": 0.0,
 	}
 
 
@@ -5604,6 +5605,12 @@ func _new_coupled_pressure_solver_cumulative_record() -> Dictionary:
 		"cycle_detect_after_budget_total": 0.0,
 		"cycle_contraction_min": 0.0,
 		"cycle_contraction_max": 0.0,
+		# H2.5l-B per-solve recurrence ledger.
+		"post_budget_cycle_solve_count": 0.0,
+		"post_budget_cycle_converged_solve_count": 0.0,
+		"post_budget_cycle_iteration_cap_solve_count": 0.0,
+		"post_budget_cycle_damping_exhausted_solve_count": 0.0,
+		"post_budget_cycle_streak_max": 0.0,
 	}
 
 
@@ -5887,6 +5894,7 @@ func _record_coupled_pressure_solver_preview(
 			"cycle_guard_last_rho", "cycle_guard_last_cosine",
 			"cycle_detect_total", "cycle_detect_after_budget_total",
 			"cycle_contraction_min", "cycle_contraction_max",
+			"post_budget_cycle_streak_max",
 		]:
 			record[rescue_field] = float(solved.get(rescue_field, 0.0))
 		record["iteration_cap_flag"] = \
@@ -5987,6 +5995,34 @@ func _record_coupled_pressure_solver_preview(
 				float(cumulative["cycle_contraction_max"]),
 				float(record["cycle_contraction_max"])
 			)
+		# H2.5l-B per-solve recurrence ledger. A solve counts at most once.
+		var has_post_budget_cycle: bool = float(
+			record["post_budget_cycle_streak_max"]
+		) > 0.0
+		if has_post_budget_cycle:
+			cumulative["post_budget_cycle_solve_count"] = float(
+				cumulative["post_budget_cycle_solve_count"]
+			) + 1.0
+			if converged:
+				cumulative["post_budget_cycle_converged_solve_count"] = \
+						float(cumulative[
+							"post_budget_cycle_converged_solve_count"
+						]) + 1.0
+			elif limiting_reason == "iteration_cap":
+				cumulative["post_budget_cycle_iteration_cap_solve_count"] = \
+						float(cumulative[
+							"post_budget_cycle_iteration_cap_solve_count"
+						]) + 1.0
+			elif limiting_reason == "damping_exhausted":
+				cumulative[
+					"post_budget_cycle_damping_exhausted_solve_count"
+				] = float(cumulative[
+					"post_budget_cycle_damping_exhausted_solve_count"
+				]) + 1.0
+			cumulative["post_budget_cycle_streak_max"] = maxf(
+				float(cumulative["post_budget_cycle_streak_max"]),
+				float(record["post_budget_cycle_streak_max"])
+			)
 		if converged:
 			cumulative["max_abs_coupled_vs_legacy_pressure_delta_pa"] = maxf(
 				float(cumulative["max_abs_coupled_vs_legacy_pressure_delta_pa"]),
@@ -6003,6 +6039,7 @@ func _record_coupled_pressure_solver_preview(
 			"cycle_guard_last_rho", "cycle_guard_last_cosine",
 			"cycle_detect_total", "cycle_detect_after_budget_total",
 			"cycle_contraction_min", "cycle_contraction_max",
+			"post_budget_cycle_streak_max",
 		]:
 			record[cycle_field] = float(cumulative[cycle_field])
 		_coupled_pressure_solver_by_room[room_key] = record
@@ -10359,6 +10396,7 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"cycle_detect_after_budget_total",
 			"cycle_contraction_min",
 			"cycle_contraction_max",
+			"post_budget_cycle_streak_max",
 		]:
 			coupled_solver_result[
 				"phase3_shadow_coupled_solver_" + coupled_field
@@ -10378,6 +10416,11 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"rescue_attempted_step_count",
 			"rescue_accepted_step_count",
 			"rescue_trials_total",
+			"post_budget_cycle_solve_count",
+			"post_budget_cycle_converged_solve_count",
+			"post_budget_cycle_iteration_cap_solve_count",
+			"post_budget_cycle_damping_exhausted_solve_count",
+			"post_budget_cycle_streak_max",
 		]:
 			coupled_solver_result[
 				"phase3_shadow_coupled_solver_" + coupled_field + "_total"

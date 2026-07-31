@@ -3,6 +3,28 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.5l-B per-solve recurrence ledger (2026-07-29)
+
+- Added `post_budget_cycle_streak_max` to the coupled pressure solver result:
+  longest consecutive period-2 cycle run detected after the rescue budget is
+  exhausted within a single solve invocation.
+- Derived five cumulative per-solve counters in the zone mass system:
+  `post_budget_cycle_solve_count`, `..._converged_solve_count`,
+  `..._iteration_cap_solve_count`, `..._damping_exhausted_solve_count`, and
+  `post_budget_cycle_streak_max`. Each solve adds at most one to any counter;
+  outcome classification is mutually exclusive (converged / iteration_cap /
+  damping_exhausted).
+- Corpus results (120 s):
+  - corridor_chain: 559 solves recur post-budget (181 converge, 378
+    iteration_cap, 0 damping_exhausted); streak_max = 21.
+  - r0_window_360: 0 solves recur post-budget; streak_max = 0.
+  - Clean cross-topology separation on the per-solve flag.
+- Runtime isolation unchanged: OFF CSVs byte-identical, all shared ON columns
+  identical, zero counterflow violations.
+- H2.5m solver authority remains blocked. H2 open, H3 blocked.
+- Full record:
+  `docs/validation/PHASE3_F33V3H25LB_PER_SOLVE_RECURRENCE_LEDGER.md`.
+
 ### Phase 3+ F3.3v3h2.5l-A passive cycle observation (2026-07-29)
 
 - Moved cycle observation outside the one-step LM rescue-budget gate without

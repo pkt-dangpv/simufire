@@ -150,6 +150,25 @@ def solver_behaviour(
         ),
         "cycle_contraction_min": current("cycle_contraction_min", min),
         "cycle_contraction_max": current("cycle_contraction_max"),
+        "post_budget_cycle_streak_max": current(
+            "post_budget_cycle_streak_max"
+        ),
+        "post_budget_cycle_solve_count": total(
+            "post_budget_cycle_solve_count"
+        ) if f"{PREFIX}post_budget_cycle_solve_count_total" in tail[0]
+        else 0.0,
+        "post_budget_cycle_converged_solve_count": total(
+            "post_budget_cycle_converged_solve_count"
+        ) if f"{PREFIX}post_budget_cycle_converged_solve_count_total" in tail[0]
+        else 0.0,
+        "post_budget_cycle_iteration_cap_solve_count": total(
+            "post_budget_cycle_iteration_cap_solve_count"
+        ) if f"{PREFIX}post_budget_cycle_iteration_cap_solve_count_total" in tail[0]
+        else 0.0,
+        "post_budget_cycle_damping_exhausted_solve_count": total(
+            "post_budget_cycle_damping_exhausted_solve_count"
+        ) if f"{PREFIX}post_budget_cycle_damping_exhausted_solve_count_total" in tail[0]
+        else 0.0,
         "max_abs_pressure_divergence_pa": total(
             "max_abs_coupled_vs_legacy_pressure_delta_pa"
         ),

@@ -350,6 +350,7 @@ func _phase3_coupled_solver_fields() -> Array[String]:
 		"phase3_shadow_coupled_solver_cycle_detect_after_budget_total",
 		"phase3_shadow_coupled_solver_cycle_contraction_min",
 		"phase3_shadow_coupled_solver_cycle_contraction_max",
+		"phase3_shadow_coupled_solver_post_budget_cycle_streak_max",
 		"phase3_shadow_coupled_solver_step_count_total",
 		"phase3_shadow_coupled_solver_converged_step_count_total",
 		"phase3_shadow_coupled_solver_failed_step_count_total",
@@ -364,6 +365,11 @@ func _phase3_coupled_solver_fields() -> Array[String]:
 		"phase3_shadow_coupled_solver_rescue_attempted_step_count_total",
 		"phase3_shadow_coupled_solver_rescue_accepted_step_count_total",
 		"phase3_shadow_coupled_solver_rescue_trials_total_total",
+		"phase3_shadow_coupled_solver_post_budget_cycle_solve_count_total",
+		"phase3_shadow_coupled_solver_post_budget_cycle_converged_solve_count_total",
+		"phase3_shadow_coupled_solver_post_budget_cycle_iteration_cap_solve_count_total",
+		"phase3_shadow_coupled_solver_post_budget_cycle_damping_exhausted_solve_count_total",
+		"phase3_shadow_coupled_solver_post_budget_cycle_streak_max_total",
 	]
 
 
