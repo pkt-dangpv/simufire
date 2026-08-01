@@ -5578,6 +5578,10 @@ func _new_coupled_pressure_solver_record() -> Dictionary:
 		"cycle_contraction_min": 0.0,
 		"cycle_contraction_max": 0.0,
 		"post_budget_cycle_streak_max": 0.0,
+		"analytic_half_step_attempt_total": 0.0,
+		"analytic_half_step_accept_total": 0.0,
+		"analytic_half_step_last_initial_norm": 0.0,
+		"analytic_half_step_last_final_norm": 0.0,
 	}
 
 
@@ -5611,6 +5615,15 @@ func _new_coupled_pressure_solver_cumulative_record() -> Dictionary:
 		"post_budget_cycle_iteration_cap_solve_count": 0.0,
 		"post_budget_cycle_damping_exhausted_solve_count": 0.0,
 		"post_budget_cycle_streak_max": 0.0,
+		# H2.5m: attempts, accepts and affected solves are kept apart on
+		# purpose. A solve that accepts more than one half step is the case the
+		# STOP gate has to look at, so the per-solve maximum is tracked too.
+		"analytic_half_step_attempt_total": 0.0,
+		"analytic_half_step_accept_total": 0.0,
+		"analytic_half_step_solve_count": 0.0,
+		"analytic_half_step_max_accepts_per_solve": 0.0,
+		"analytic_half_step_last_initial_norm": 0.0,
+		"analytic_half_step_last_final_norm": 0.0,
 	}
 
 
@@ -5895,6 +5908,10 @@ func _record_coupled_pressure_solver_preview(
 			"cycle_detect_total", "cycle_detect_after_budget_total",
 			"cycle_contraction_min", "cycle_contraction_max",
 			"post_budget_cycle_streak_max",
+			"analytic_half_step_attempt_total",
+			"analytic_half_step_accept_total",
+			"analytic_half_step_last_initial_norm",
+			"analytic_half_step_last_final_norm",
 		]:
 			record[rescue_field] = float(solved.get(rescue_field, 0.0))
 		record["iteration_cap_flag"] = \
@@ -6023,6 +6040,31 @@ func _record_coupled_pressure_solver_preview(
 				float(cumulative["post_budget_cycle_streak_max"]),
 				float(record["post_budget_cycle_streak_max"])
 			)
+		# H2.5m half-step ledger. Attempts and accepts accumulate; the affected
+		# solve count rises at most once per invocation.
+		var half_step_accepts: float = float(
+			record["analytic_half_step_accept_total"]
+		)
+		cumulative["analytic_half_step_attempt_total"] = float(
+			cumulative["analytic_half_step_attempt_total"]
+		) + float(record["analytic_half_step_attempt_total"])
+		cumulative["analytic_half_step_accept_total"] = float(
+			cumulative["analytic_half_step_accept_total"]
+		) + half_step_accepts
+		if half_step_accepts > 0.0:
+			cumulative["analytic_half_step_solve_count"] = float(
+				cumulative["analytic_half_step_solve_count"]
+			) + 1.0
+			cumulative["analytic_half_step_max_accepts_per_solve"] = maxf(
+				float(cumulative["analytic_half_step_max_accepts_per_solve"]),
+				half_step_accepts
+			)
+			cumulative["analytic_half_step_last_initial_norm"] = float(
+				record["analytic_half_step_last_initial_norm"]
+			)
+			cumulative["analytic_half_step_last_final_norm"] = float(
+				record["analytic_half_step_last_final_norm"]
+			)
 		if converged:
 			cumulative["max_abs_coupled_vs_legacy_pressure_delta_pa"] = maxf(
 				float(cumulative["max_abs_coupled_vs_legacy_pressure_delta_pa"]),
@@ -6040,6 +6082,10 @@ func _record_coupled_pressure_solver_preview(
 			"cycle_detect_total", "cycle_detect_after_budget_total",
 			"cycle_contraction_min", "cycle_contraction_max",
 			"post_budget_cycle_streak_max",
+			"analytic_half_step_attempt_total",
+			"analytic_half_step_accept_total",
+			"analytic_half_step_last_initial_norm",
+			"analytic_half_step_last_final_norm",
 		]:
 			record[cycle_field] = float(cumulative[cycle_field])
 		_coupled_pressure_solver_by_room[room_key] = record
@@ -10397,6 +10443,10 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"cycle_contraction_min",
 			"cycle_contraction_max",
 			"post_budget_cycle_streak_max",
+			"analytic_half_step_attempt_total",
+			"analytic_half_step_accept_total",
+			"analytic_half_step_last_initial_norm",
+			"analytic_half_step_last_final_norm",
 		]:
 			coupled_solver_result[
 				"phase3_shadow_coupled_solver_" + coupled_field
@@ -10421,6 +10471,10 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"post_budget_cycle_iteration_cap_solve_count",
 			"post_budget_cycle_damping_exhausted_solve_count",
 			"post_budget_cycle_streak_max",
+			"analytic_half_step_attempt_total",
+			"analytic_half_step_accept_total",
+			"analytic_half_step_solve_count",
+			"analytic_half_step_max_accepts_per_solve",
 		]:
 			coupled_solver_result[
 				"phase3_shadow_coupled_solver_" + coupled_field + "_total"

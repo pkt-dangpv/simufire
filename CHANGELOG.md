@@ -3,6 +3,44 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.5m analytic half step (2026-07-31)
+
+- Diagnosed the post-budget period-2 cycle. It is not a differencing artifact,
+  a switching manifold or a regularization boundary: the residual is smooth,
+  the Newton direction is stable across four decades of `h`, and the openings
+  sit three orders above the regularization. The merit along the step direction
+  has its minimum at `alpha = 0.50` and is **linear** in `|alpha - 0.5|`, so
+  `|F| ~ |u|^0.5007` (R^2 = 0.9999) - the orifice law `sqrt(2 rho dp)`.
+- For `F = C sign(u) |u|^(1/2)` the Newton map is exactly `u -> -u`, a period-2
+  orbit with multiplier `-1`; damped by `theta` it becomes `(1 - 2 theta) u`, so
+  `theta = 1/2` annihilates it. The constant is derived, not fitted.
+- Added `CYCLE_ANALYTIC_HALF_STEP = 0.5`. Reachable only after
+  `cycle_detected`, reuses the Newton direction, accepted only on a valid,
+  finite, strictly decreasing L-infinity residual, costs one extra evaluation,
+  and neither consumes nor extends the LM budget. Declined, it writes nothing.
+- Runtime matrix against the committed case files:
+  - corridor 30 s: 98.06% -> 100.00%, `iteration_cap` 7 -> 0;
+  - corridor 60 s: 99.03% -> 100.00%, `iteration_cap` 7 -> 0;
+  - corridor 120 s: 73.77% -> **100.00%**, `iteration_cap` **378 -> 0**,
+    post-budget solves **559 -> 0**;
+  - r0-window 120 s: 100.00% -> 100.00%, unchanged.
+  - attempts equal accepts everywhere; max accepts per solve is 1.
+- The LM rescue is untouched and still load-bearing: on corridor 120 s the 723
+  cycle-guard rescues become 0 and exactly the 5 fail-only `damping_exhausted`
+  rescues remain.
+- OFF CSVs byte-identical; legacy ON columns unchanged (0 differences over 594
+  columns x 4 stages); counterflow 0; determinism 4/4; Physics/ILV 0 FAIL.
+- Recorded, not claimed away: post-budget telemetry now has **no committed
+  capture that exercises it** (the orbit is closed before the budget is spent);
+  shared-root bit-identity is sampled at the 10 s CSV cadence, with the
+  population bound remaining the offline `1.857e-11 Pa`; and the corpus is
+  still two topologies. **H2 is not closed by this.** H3 remains blocked.
+- Corrected H2.5l-A provenance: its runtime matrix used scratch cases and is not
+  reproducible; its contraction ranges and the conclusion drawn from them are
+  withdrawn. H2.5l-B is unaffected and remains valid.
+- Full record:
+  `docs/validation/PHASE3_F33V3H25M_CYCLE_STRATEGY_DESIGN.md`.
+
 ### Phase 3+ F3.3v3h2.5l-B per-solve recurrence ledger (2026-07-29)
 
 - Added `post_budget_cycle_streak_max` to the coupled pressure solver result:

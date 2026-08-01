@@ -22,34 +22,53 @@ func _init() -> void:
 				== "iteration_cap_after_rescue",
 		"capture records the composite selector"
 	)
+	# H2.5m REGIME CHANGE, recorded rather than hidden.
+	#
+	# This fixture was written when the capture ended at `iteration_cap` with 21
+	# post-budget detections, and it asserted exactly that. The analytic half
+	# step now annihilates the orbit at the FIRST detection, without spending
+	# the rescue budget, so the budget is never exhausted and the post-budget
+	# regime does not arise here at all: 21 -> 0.
+	#
+	# The passive observation contract itself is unchanged and still checked
+	# below - detection is still counted outside the authority gate, the
+	# counters are still consistent, and the replay is still deterministic.
+	# What is gone is this capture's ability to EXERCISE the post-budget branch.
+	# No committed capture exercises it any more; that coverage gap is recorded
+	# in the H2.5m STOP gate rather than papered over with a weakened assertion.
 	_assert_true(
-		not bool(first.get("converged", true))
-				and String(first.get("limiting_reason", "")) == "iteration_cap",
-		"replay preserves the real iteration_cap"
+		bool(first.get("converged", false))
+				and String(first.get("limiting_reason", "")) == "converged",
+		"the capture now converges instead of reaching iteration_cap"
 	)
 	_assert_true(
-		int(first.get("iterations", 0.0)) == 24,
-		"replay preserves the unchanged iteration budget"
+		float(first.get("analytic_half_step_accept_total", 0.0)) == 1.0,
+		"exactly one analytic half step closed it"
 	)
 	_assert_true(
-		float(first.get("cycle_guard_attempt_total", 0.0)) == 1.0
-				and float(first.get("cycle_guard_accept_total", 0.0)) == 1.0,
-		"the one authorised cycle rescue is still accepted"
+		float(first.get("cycle_detect_total", 0.0)) >= 1.0,
+		"the cycle is still detected and still counted"
 	)
 	_assert_true(
-		float(first.get("cycle_detect_after_budget_total", 0.0)) > 0.0,
-		"the recurrent cycle is observed after budget exhaustion"
+		float(first.get("cycle_detect_after_budget_total", 0.0)) == 0.0
+				and float(first.get("post_budget_cycle_streak_max", 0.0)) == 0.0,
+		"the post-budget regime no longer arises on this capture"
+	)
+	# Invariants that must hold whatever the regime.
+	_assert_true(
+		float(first.get("cycle_detect_after_budget_total", 0.0))
+				<= float(first.get("cycle_detect_total", 0.0)),
+		"post-budget detections never exceed total detections"
 	)
 	_assert_true(
-		float(first.get("cycle_detect_total", 0.0))
-				> float(first.get("cycle_guard_attempt_total", 0.0)),
-		"observation continues after intervention authority ends"
+		float(first.get("post_budget_cycle_streak_max", 0.0))
+				<= float(first.get("cycle_detect_after_budget_total", 0.0)),
+		"streak never exceeds post-budget detections"
 	)
 	_assert_true(
-		float(first.get("cycle_contraction_min", 0.0)) > 0.0
-				and float(first.get("cycle_contraction_max", 0.0))
-						>= float(first.get("cycle_contraction_min", 0.0)),
-		"two-step contraction range is populated and ordered"
+		float(first.get("cycle_contraction_max", 0.0))
+				>= float(first.get("cycle_contraction_min", 0.0)),
+		"two-step contraction range stays ordered"
 	)
 	for field in [
 		"converged", "limiting_reason", "iterations", "residual_history",

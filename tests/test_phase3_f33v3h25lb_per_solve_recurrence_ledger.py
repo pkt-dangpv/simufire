@@ -135,17 +135,26 @@ def test_cumulative_fields_exported_to_csv():
 # -------------------------------------------------------------------
 
 def test_mutation_streak_inside_budget_gate_is_detectable():
+    """Pin the gate that owns the streak, not merely the first one in the file.
+
+    H2.5m introduced a second `if cycle_detected:` block for the analytic half
+    step, so this locates the observation gate by its counter.
+    """
     body = _function(SOLVER, "solve_coupled_pressure")
-    observe = body.index("if cycle_detected:")
-    budget = body.index("if cycle_detected and rescue_budget_left > 0:")
-    observation_block = body[observe:budget]
-    assert "post_budget_cycle_streak += 1" in observation_block
-    mutated = body.replace(
-        "if cycle_detected:",
-        "if cycle_detected and rescue_budget_left > 0:",
-        1,
+    counter = "post_budget_cycle_streak += 1"
+    bare = "if cycle_detected:"
+    opener = body.rindex(bare, 0, body.index(counter))
+    assert not body[opener:].startswith(f"{bare[:-1]} and")
+    mutated = (
+        body[:opener]
+        + "if cycle_detected and rescue_budget_left > 0:"
+        + body[opener + len(bare):]
     )
-    assert "if cycle_detected:" not in mutated
+    reopened = mutated.rindex("if cycle_detected", 0, mutated.index(counter))
+    assert mutated[reopened:].startswith(
+        "if cycle_detected and rescue_budget_left > 0:"
+    )
+    assert mutated != body
 
 
 def test_mutation_streak_used_for_convergence_would_fail():
@@ -168,11 +177,25 @@ def test_fixture_replays_without_engine_or_scenario_authority():
     assert "PHASE3_F33V3H25LB_PER_SOLVE_RECURRENCE_LEDGER_PASS" in FIXTURE
 
 
-def test_fixture_asserts_streak_is_positive():
+def test_fixture_records_the_h25m_regime_change_rather_than_hiding_it():
+    """The streak this ledger measures is structurally zero on this capture now.
+
+    H2.5m closes the orbit at the first detection without spending the rescue
+    budget, so no post-budget streak can form here (was 21). The ledger
+    arithmetic is still asserted; the lost exercise is recorded explicitly.
+    """
+    assert "H2.5m REGIME CHANGE" in FIXTURE
     assert (
-        'float(first.get("post_budget_cycle_streak_max", 0.0)) > 0.0'
+        'float(first.get("post_budget_cycle_streak_max", 0.0)) == 0.0'
         in FIXTURE
     )
+    assert (
+        'float(first.get("analytic_half_step_accept_total", 0.0)) == 1.0'
+        in FIXTURE
+    )
+    assert "streak cannot exceed total post-budget detections" in FIXTURE
+    assert "accepts never exceed attempts" in FIXTURE
+    assert "coverage gap" in FIXTURE or "STOP gate" in FIXTURE
 
 
 def test_fixture_asserts_determinism():

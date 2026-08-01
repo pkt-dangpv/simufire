@@ -35,7 +35,10 @@ const CAPTURE_PATH := "res://tests/fixtures/data/coupled_solver_iteration_cap_co
 ## The documented cap. The capture must sit exactly on it, or it is not an
 ## `iteration_cap`.
 const CAPTURED_MAX_ITERATIONS := 24
-const EXPECTED_FIXED_ITERATIONS := 8
+## H2.5m: the analytic half step now annihilates this orbit before the cycle
+## guard is reached, closing the same capture one iteration earlier and without
+## spending the LM budget. Was 8 under the H2.5j cycle guard.
+const EXPECTED_FIXED_ITERATIONS := 7
 
 var _failed: bool = false
 
@@ -138,18 +141,28 @@ func _test_cycle_guard_closes_the_iteration_cap(capture: Dictionary) -> void:
 	)
 	_assert_true(
 		int(result["iterations"]) == EXPECTED_FIXED_ITERATIONS,
-		"cycle guard closes in %d iterations, got %d"
+		"the capture closes in %d iterations, got %d"
 				% [EXPECTED_FIXED_ITERATIONS, int(result["iterations"])]
 	)
+	# H2.5m changed which mechanism closes this capture. The half step is tried
+	# first and succeeds, so the cycle guard is never reached and the bounded LM
+	# budget is left untouched - which is the point: it stays available for the
+	# `damping_exhausted` dead end it was built for.
 	_assert_true(
-		float(result.get("cycle_guard_attempt_total", 0.0)) == 1.0
-				and float(result.get("cycle_guard_accept_total", 0.0)) == 1.0,
-		"one cycle guard attempt is accepted"
+		float(result.get("analytic_half_step_attempt_total", 0.0)) == 1.0
+				and float(result.get("analytic_half_step_accept_total", 0.0))
+						== 1.0,
+		"one analytic half step is attempted and accepted"
 	)
 	_assert_true(
-		float(result.get("rescue_attempted", 0.0)) == 1.0
-				and float(result.get("rescue_accepted", 0.0)) == 1.0,
-		"the cycle guard reuses exactly one bounded LM rescue"
+		float(result.get("cycle_guard_attempt_total", 0.0)) == 0.0
+				and float(result.get("cycle_guard_accept_total", 0.0)) == 0.0,
+		"the cycle guard is no longer reached on this capture"
+	)
+	_assert_true(
+		float(result.get("rescue_attempted", 0.0)) == 0.0
+				and float(result.get("rescue_accepted", 0.0)) == 0.0,
+		"the LM rescue budget is left unspent"
 	)
 	_assert_true(
 		float(result["normalized_residual"]) <= 1.0e-12,

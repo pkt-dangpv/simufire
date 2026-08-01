@@ -138,6 +138,40 @@ const LM_RESCUE_ARMIJO_C: float = 1.0e-4
 const CYCLE_GUARD_MIN_MODEL_GAIN_RATIO: float = 0.05
 const CYCLE_GUARD_MAX_STEP_COSINE: float = -0.99
 
+# ------------------------------------------------------------
+# F3.3v3h2.5m: analytic half step for the period-2 orbit.
+#
+# H2.5m traced the post-budget cycle and found it is not a numerical artifact.
+# The differencing width is irrelevant (the Newton direction is stable to a
+# cosine of 1.000000 across four decades of h), the connections sit three
+# orders above the dp regularization, and the regularization never activates.
+# What the trace does show is that the merit along the Newton direction has its
+# minimum at alpha = 0.50 exactly, and that it is LINEAR in |alpha - 0.5|:
+# fitting `merit ~ |alpha - 0.5|^p` gives p = 1.0014 at R^2 = 0.9999, so the
+# residual behaves as |u|^(1/2) along that line. That is the orifice law
+# sqrt(2 rho dp) appearing in the convergence structure.
+#
+# For F(u) = C sign(u) |u|^(1/2) the Newton correction is exactly -2u, so
+#
+#     u_next = u - 2u = -u
+#
+# a period-2 orbit whose multiplier is exactly -1: it never converges and never
+# diverges. A damped step with factor theta gives u_next = (1 - 2 theta) u, so
+# theta = 1/2 annihilates the orbit in a single step. The value is derived, not
+# fitted to any corpus, and the measured minimum agrees with it to the
+# resolution of the scan.
+#
+# Bounded exactly like the H2.5g recovery:
+#   - reachable ONLY after `cycle_detected`;
+#   - reuses the Newton direction already computed, no new differencing;
+#   - accepted only on a strictly decreasing L-infinity residual;
+#   - declined, it leaves the state untouched and the existing cycle guard and
+#     LM rescue run exactly as before;
+#   - it neither consumes nor extends the LM rescue budget;
+#   - it is never convergence by itself.
+# ------------------------------------------------------------
+const CYCLE_ANALYTIC_HALF_STEP: float = 0.5
+
 # Failure codes. Zero means "no failure recorded".
 const FAILURE_NONE: float = 0.0
 const FAILURE_BAD_ARGUMENTS: float = 1.0
@@ -347,6 +381,42 @@ func solve_coupled_pressure(
 					)
 		else:
 			post_budget_cycle_streak = 0
+		# H2.5m analytic half step. Tried before the LM guard because it is the
+		# closed-form answer to exactly this orbit and costs one evaluation of
+		# the direction already in hand. It has no budget of its own and cannot
+		# touch the LM budget; if it declines, control falls through to the
+		# unchanged H2.5j/H2.5g path.
+		if cycle_detected:
+			result["analytic_half_step_attempt_total"] += 1.0
+			var half_pressure: Array[float] = []
+			for row_index in range(room_count):
+				half_pressure.append(
+					pressure[row_index]
+					+ CYCLE_ANALYTIC_HALF_STEP * float(step[row_index])
+				)
+			var half_evaluation: Dictionary = _evaluate(context, half_pressure)
+			if bool(half_evaluation.get("valid", false)):
+				var half_norm: float = float(
+					half_evaluation["normalized_residual"]
+				)
+				if is_finite(half_norm) and half_norm < norm:
+					result["analytic_half_step_accept_total"] += 1.0
+					result["analytic_half_step_last_initial_norm"] = norm
+					result["analytic_half_step_last_final_norm"] = half_norm
+					pressure = half_pressure
+					evaluation = half_evaluation
+					norm = half_norm
+					result["residual_history"].append(norm)
+					result["damping_history"].append(CYCLE_ANALYTIC_HALF_STEP)
+					previous_full_step.clear()
+					previous_full_step_gain_ratio = INF
+					previous_full_step_norm = NAN
+					previous_previous_full_step_norm = NAN
+					post_budget_cycle_streak = 0
+					# Never convergence by itself: the ordinary L-infinity test
+					# against the unchanged tolerance still decides.
+					converged = norm <= tolerance
+					continue
 		if cycle_detected and rescue_budget_left > 0:
 			result["cycle_guard_attempt_total"] += 1.0
 			result["cycle_guard_last_rho"] = model_gain_ratio
@@ -667,6 +737,12 @@ func _new_result() -> Dictionary:
 		"cycle_contraction_max": 0.0,
 		# H2.5l-B per-solve recurrence ledger.
 		"post_budget_cycle_streak_max": 0.0,
+		# H2.5m analytic half step. Observation of an authority branch; these
+		# values are reported, never read back into a decision.
+		"analytic_half_step_attempt_total": 0.0,
+		"analytic_half_step_accept_total": 0.0,
+		"analytic_half_step_last_initial_norm": 0.0,
+		"analytic_half_step_last_final_norm": 0.0,
 	}
 
 

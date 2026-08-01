@@ -155,14 +155,20 @@ def test_guard_columns_remain_inside_the_opt_in_solver_family():
 
 
 def test_iteration_capture_is_now_the_positive_runtime_contract():
+    """Still a positive contract; H2.5m only changed which mechanism closes it.
+
+    The analytic half step runs before the cycle guard and succeeds, so the
+    guard is not reached on this capture and the LM budget stays unspent. The
+    guard itself is unchanged and still asserted below by the mutation control.
+    """
     assert "_test_cycle_guard_closes_the_iteration_cap" in ITERATION_FIXTURE
-    assert "EXPECTED_FIXED_ITERATIONS := 8" in ITERATION_FIXTURE
+    assert "EXPECTED_FIXED_ITERATIONS := 7" in ITERATION_FIXTURE
     assert (
-        'float(result.get("cycle_guard_attempt_total", 0.0)) == 1.0'
+        'float(result.get("analytic_half_step_accept_total", 0.0))'
         in ITERATION_FIXTURE
     )
     assert (
-        'float(result.get("cycle_guard_accept_total", 0.0)) == 1.0'
+        'float(result.get("cycle_guard_attempt_total", 0.0)) == 0.0'
         in ITERATION_FIXTURE
     )
 
@@ -174,12 +180,38 @@ def test_existing_damping_and_r0_contracts_remain_present():
 
 
 def test_removing_cycle_detection_is_mutation_detectable():
-    """The real capture must become an iteration_cap if detection disappears."""
-    condition = "if cycle_detected and rescue_budget_left > 0:"
-    assert condition in SOLVER
-    mutated = SOLVER.replace(condition, "if false:", 1)
-    assert condition not in mutated
-    # The fixture explicitly requires a guard event and convergence in eight
-    # iterations, so this mutation cannot satisfy its contract.
-    assert "cycle_guard_attempt_total" in ITERATION_FIXTURE
-    assert "EXPECTED_FIXED_ITERATIONS := 8" in ITERATION_FIXTURE
+    """Detection now feeds two consumers, so killing it must break both.
+
+    Since H2.5m, `cycle_detected` gates the analytic half step as well as the
+    bounded LM guard. Disabling the detector therefore costs the capture its
+    only remaining intervention, and the fixture requires an accepted half step
+    and convergence in seven iterations - neither of which survives.
+    """
+    detector = "cycle_detected = ("
+    assert detector in SOLVER
+    mutated = SOLVER.replace(detector, "cycle_detected = false and (", 1)
+    assert mutated != SOLVER
+
+    # Both consumers are gated on the detector.
+    body = SOLVER.split("func solve_coupled_pressure(", 1)[1]
+    body = body.split("\nfunc ", 1)[0]
+    half_step = body.index('result["analytic_half_step_attempt_total"] += 1.0')
+    guard = body.index("if cycle_detected and rescue_budget_left > 0:")
+    assert body.rindex("if cycle_detected:", 0, half_step) < half_step
+    assert half_step < guard
+
+    # And the fixture cannot be satisfied without them.
+    assert "analytic_half_step_accept_total" in ITERATION_FIXTURE
+    assert "EXPECTED_FIXED_ITERATIONS := 7" in ITERATION_FIXTURE
+
+
+def test_bounded_lm_guard_itself_is_unchanged():
+    """H2.5m must not have weakened the H2.5j guard it now runs ahead of."""
+    body = SOLVER.split("func solve_coupled_pressure(", 1)[1]
+    body = body.split("\nfunc ", 1)[0]
+    guarded = body.split("if cycle_detected and rescue_budget_left > 0:", 1)[1]
+    guarded = guarded.split("if damping == 1.0:", 1)[0]
+    assert 'result["cycle_guard_attempt_total"] += 1.0' in guarded
+    assert "_try_lm_rescue(" in guarded
+    assert "rescue_budget_left -= 1" in guarded
+    assert 'result["cycle_guard_accept_total"] += 1.0' in guarded

@@ -82,11 +82,19 @@ def test_two_step_contraction_uses_k_minus_two_not_the_previous_step():
 
 
 def test_cycle_history_resets_where_step_continuity_is_broken():
+    """Every trajectory break must reset the whole cycle history together.
+
+    H2.5m added a fourth break (the accepted analytic half step) alongside the
+    fail-only rescue, the accepted cycle rescue and the damped step. The
+    contract is not the count but that the four resets always move as a set.
+    """
     body = _function(SOLVER, "solve_coupled_pressure")
-    assert body.count("previous_full_step.clear()") == 3
+    breaks = body.count("previous_full_step.clear()")
+    assert breaks == 4, f"expected 4 trajectory breaks, found {breaks}"
     lines = [line.strip() for line in body.splitlines()]
-    assert lines.count("previous_full_step_norm = NAN") == 3
-    assert lines.count("previous_previous_full_step_norm = NAN") == 3
+    assert lines.count("previous_full_step_gain_ratio = INF") == breaks
+    assert lines.count("previous_full_step_norm = NAN") == breaks
+    assert lines.count("previous_previous_full_step_norm = NAN") == breaks
 
 
 def test_new_metrics_never_control_solver_behaviour():
@@ -102,15 +110,28 @@ def test_new_metrics_never_control_solver_behaviour():
 
 
 def test_mutation_putting_observation_back_behind_budget_is_detectable():
-    required = "if cycle_detected:\n"
-    assert required in SOLVER
-    mutated = SOLVER.replace(
-        required,
-        "if cycle_detected and rescue_budget_left > 0:\n",
-        1,
+    """Target the observation gate specifically.
+
+    Since H2.5m there are two `if cycle_detected:` blocks - observation and the
+    analytic half step - so this pins the one that owns the detection counter
+    rather than whichever comes first in the file.
+    """
+    body = _function(SOLVER, "solve_coupled_pressure")
+    counter = 'result["cycle_detect_total"] += 1.0'
+    bare = "if cycle_detected:"
+    opener = body.rindex(bare, 0, body.index(counter))
+    # The gate that owns the counter must be unconditional on budget.
+    assert not body[opener:].startswith(f"{bare[:-1]} and")
+    mutated = (
+        body[:opener]
+        + "if cycle_detected and rescue_budget_left > 0:"
+        + body[opener + len(bare):]
     )
-    body = _function(mutated, "solve_coupled_pressure")
-    assert "if cycle_detected:\n" not in body
+    reopened = mutated.rindex("if cycle_detected", 0, mutated.index(counter))
+    assert mutated[reopened:].startswith(
+        "if cycle_detected and rescue_budget_left > 0:"
+    )
+    assert mutated != body
 
 
 def test_result_wiring_is_opt_in_and_complete():
@@ -159,20 +180,26 @@ def test_fixture_replays_without_engine_or_scenario_authority():
     assert "PHASE3_F33V3H25L_POST_BUDGET_CYCLE_OBSERVATION_PASS" in FIXTURE
 
 
-def test_fixture_requires_observation_beyond_the_single_rescue():
+def test_fixture_records_the_h25m_regime_change_rather_than_hiding_it():
+    """The capture no longer reaches the post-budget regime.
+
+    H2.5m annihilates the orbit at the first detection without spending the
+    rescue budget, so the budget is never exhausted here and the counters this
+    fixture was built around are structurally zero. The fixture must say so
+    explicitly, keep asserting the invariants that still hold, and the loss of
+    post-budget coverage must be recorded, not quietly dropped.
+    """
+    assert "H2.5m REGIME CHANGE" in FIXTURE
     assert (
-        'float(first.get("cycle_guard_attempt_total", 0.0)) == 1.0'
+        'float(first.get("cycle_detect_after_budget_total", 0.0)) == 0.0'
         in FIXTURE
     )
     assert (
-        'float(first.get("cycle_guard_accept_total", 0.0)) == 1.0'
+        'float(first.get("analytic_half_step_accept_total", 0.0)) == 1.0'
         in FIXTURE
     )
-    assert (
-        'float(first.get("cycle_detect_after_budget_total", 0.0)) > 0.0'
-        in FIXTURE
-    )
-    assert (
-        'int(first.get("iterations", 0.0)) == 24'
-        in FIXTURE
-    )
+    # Invariants that survive the regime change.
+    assert "post-budget detections never exceed total detections" in FIXTURE
+    assert "streak never exceeds post-budget detections" in FIXTURE
+    # The coverage gap must be named where a reader will meet it.
+    assert "coverage gap" in FIXTURE or "STOP gate" in FIXTURE

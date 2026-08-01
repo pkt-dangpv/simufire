@@ -2,6 +2,32 @@
 
 Date: 2026-07-29
 
+> **PROVENANCE CORRECTION (H2.5m, 2026-07-31).**
+>
+> The "Runtime matrix" table below was measured on scratch case definitions,
+> not on the committed case files, and **is not reproducible from the
+> repository**. Re-running `sim/validation/cases/cfast_corridor_chain.json` at
+> 120 s on the same checkpoint gives 73.77% convergence with **378**
+> `iteration_cap`, not the 92.16% / 113 recorded here. Three independent runs
+> produced the identical CSV (SHA-256 `9a50cdf2...`), so the runtime is
+> deterministic and the discrepancy is one of corpus provenance.
+>
+> Consequently **the contraction ranges `0.7731..1.0465` (corridor) and
+> `1.0038..1.0480` (r0-window) are withdrawn**, together with the conclusion
+> drawn from them in "Interpretation" - that the overlap shows contraction
+> cannot separate the topologies. That conclusion rested solely on those
+> unpinned numbers and no longer supports anything.
+>
+> What this correction does **not** touch:
+>
+> - the implementation, which is unchanged and still correct;
+> - the deterministic capture table, which replays a committed artifact;
+> - **H2.5l-B**, whose ledger was measured on the committed case files,
+>   reproduced three times byte for byte, and remains valid in full.
+>
+> H2.5m superseded this phase's runtime measurements entirely. See
+> `PHASE3_F33V3H25M_CYCLE_STRATEGY_DESIGN.md`.
+
 ## Decision
 
 **GO for passive telemetry only. NO-GO for H2.5m solver authority.**
@@ -87,16 +113,16 @@ Post-budget recurrence is real and material in the late corridor regime:
 r0-window topology has `204` detections but none after budget, consistent with
 its solve closing after the authorised rescue.
 
-The contraction scalar alone is not a safe authority rule:
+**WITHDRAWN (H2.5m).** This section originally argued that the contraction
+scalar cannot separate the topologies, using corridor `0.7731..1.0465` against
+r0-window `1.0038..1.0480`. Those ranges came from the unpinned scratch corpus
+described in the correction at the head of this document and are withdrawn.
 
-- corridor spans `0.7731..1.0465`;
-- r0-window spans `1.0038..1.0480`;
-- the ranges overlap;
-- values above one can occur in a topology whose solves still converge.
-
-Therefore no corpus-independent threshold has been demonstrated. Adding a
-second rescue or conditioning rescue authority on this scalar would be tuning
-without a validated physical/numerical separation.
+The caution the section expressed was nonetheless the right one, and it was
+honoured: H2.5m did not adopt any contraction threshold. It found instead that
+the orbit is the exact fixed point of Newton on a residual of degree `1/2` -
+the orifice law - and used the analytic annihilator `theta = 1/2`, which is
+derived rather than fitted to any corpus.
 
 The four aggregate scalars also cannot report the exact number of distinct
 solves that enter a second cycle or the full per-solve contraction

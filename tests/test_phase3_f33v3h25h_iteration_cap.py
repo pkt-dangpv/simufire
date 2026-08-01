@@ -248,17 +248,29 @@ def test_fixture_replays_without_a_scenario_and_asserts_the_repair():
         assert absent not in FIXTURE, absent
     assert "Phase3CoupledPressureSolver.gd" in FIXTURE
     assert 'bool(result["converged"]),' in FIXTURE
-    assert "EXPECTED_FIXED_ITERATIONS := 8" in FIXTURE
+    # H2.5m: the analytic half step closes this capture one iteration earlier
+    # than the H2.5j cycle guard did, and without spending the LM budget.
+    assert "EXPECTED_FIXED_ITERATIONS := 7" in FIXTURE
     assert "quit(1)\n\t\treturn" in FIXTURE
 
 
-def test_fixture_asserts_exactly_one_cycle_rescue_is_involved():
-    assert 'float(result.get("cycle_guard_attempt_total", 0.0)) == 1.0' \
+def test_fixture_asserts_exactly_one_bounded_intervention_is_involved():
+    """H2.5m changed which mechanism closes this capture, not how many.
+
+    The half step is tried before the cycle guard and succeeds, so the guard is
+    never reached and the bounded LM budget stays unspent - which is the point:
+    it remains available for the `damping_exhausted` dead end it was built for.
+    Exactly one intervention still closes the capture.
+    """
+    assert 'float(result.get("analytic_half_step_attempt_total", 0.0)) == 1.0' \
         in FIXTURE
-    assert 'float(result.get("cycle_guard_accept_total", 0.0)) == 1.0' \
+    assert 'float(result.get("analytic_half_step_accept_total", 0.0))' in FIXTURE
+    assert 'float(result.get("cycle_guard_attempt_total", 0.0)) == 0.0' \
         in FIXTURE
-    assert 'float(result.get("rescue_attempted", 0.0)) == 1.0' in FIXTURE
-    assert 'float(result.get("rescue_accepted", 0.0)) == 1.0' in FIXTURE
+    assert 'float(result.get("cycle_guard_accept_total", 0.0)) == 0.0' \
+        in FIXTURE
+    assert 'float(result.get("rescue_attempted", 0.0)) == 0.0' in FIXTURE
+    assert 'float(result.get("rescue_accepted", 0.0)) == 0.0' in FIXTURE
 
 
 def test_invalid_selector_is_reported_once_not_every_tick():

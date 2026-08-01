@@ -18,27 +18,32 @@ func _init() -> void:
 		return
 	var first: Dictionary = _replay(capture)
 	var second: Dictionary = _replay(capture)
+	# H2.5m REGIME CHANGE. See the note in the H2.5l-A fixture: the analytic
+	# half step closes this capture at the first detection, so the streak this
+	# ledger was built to measure is now structurally zero here (was 21). The
+	# ledger arithmetic is still asserted; only its exercise on this particular
+	# capture is gone, and that coverage gap is recorded in the H2.5m STOP gate.
 	_assert_true(
-		not bool(first.get("converged", true))
-				and String(first.get("limiting_reason", "")) == "iteration_cap",
-		"replay preserves the real iteration_cap"
+		bool(first.get("converged", false)),
+		"the capture now converges instead of reaching iteration_cap"
 	)
 	_assert_true(
-		int(first.get("iterations", 0.0)) == 24,
-		"replay preserves the unchanged iteration budget"
+		float(first.get("analytic_half_step_accept_total", 0.0)) == 1.0,
+		"exactly one analytic half step closed it"
 	)
 	_assert_true(
-		float(first.get("cycle_guard_accept_total", 0.0)) == 1.0,
-		"the one authorised cycle rescue is still accepted"
-	)
-	_assert_true(
-		float(first.get("post_budget_cycle_streak_max", 0.0)) > 0.0,
-		"post-budget cycle streak is positive"
+		float(first.get("post_budget_cycle_streak_max", 0.0)) == 0.0,
+		"no post-budget streak arises once the orbit is annihilated"
 	)
 	_assert_true(
 		float(first.get("post_budget_cycle_streak_max", 0.0))
 				<= float(first.get("cycle_detect_after_budget_total", 0.0)),
 		"streak cannot exceed total post-budget detections"
+	)
+	_assert_true(
+		float(first.get("analytic_half_step_accept_total", 0.0))
+				<= float(first.get("analytic_half_step_attempt_total", 0.0)),
+		"accepts never exceed attempts"
 	)
 	_assert_true(
 		float(first.get("post_budget_cycle_streak_max", 0.0))

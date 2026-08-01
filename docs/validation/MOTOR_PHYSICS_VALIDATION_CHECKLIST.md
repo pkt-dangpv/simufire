@@ -1039,6 +1039,7 @@ Diagnostic / planned lanes:
 | F3.3v3h2.5j | Accepted-cycle guard reusing bounded LM | **GO with revised gate**; r0 125 caps -> 0; corridor late regime remains open |
 | F3.3v3h2.5l-A | Passive post-budget cycle observation | **GO telemetry only**; H2.5m authority NO-GO; H2 open |
 | F3.3v3h2.5l-B | Per-solve recurrence ledger | **GO passive ledger**; cross-topology separation confirmed; H2.5m blocked |
+| F3.3v3h2.5m | Analytic half step for the period-2 orbit | **GO**; corridor 100% at all stages, iteration_cap 378 -> 0; H2 still open, H3 blocked |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1480,6 +1481,38 @@ confirmed on a wider corpus. The corridor recurrence rate is 38.8%
 (559/1441); 32.4% converge after recurrence. H2 remains open and H3 remains
 blocked. Full record:
 `docs/validation/PHASE3_F33V3H25LB_PER_SOLVE_RECURRENCE_LEDGER.md`.
+
+F3.3v3h2.5m STOP: **GO for the analytic half step.**
+
+- the factor is the closed-form annihilator of a period-2 Newton orbit on a
+  residual of degree 1/2 (`|F| ~ |u|^0.5007`, R^2 = 0.9999), not a corpus
+  threshold; the measured merit minimum is `alpha = 0.50`: PASS;
+- reachable only after `cycle_detected`, reuses the Newton direction, accepted
+  only on a valid finite strictly decreasing L-infinity residual, one extra
+  evaluation, no access to the LM budget: PASS;
+- runtime matrix on the committed case files (baseline from a clean worktree at
+  `4ec0f09a`):
+  - corridor 30 s 98.06% -> 100.00%, `iteration_cap` 7 -> 0;
+  - corridor 60 s 99.03% -> 100.00%, `iteration_cap` 7 -> 0;
+  - corridor 120 s 73.77% -> **100.00%**, `iteration_cap` **378 -> 0**,
+    post-budget solves **559 -> 0**;
+  - r0-window 120 s unchanged at 100.00%;
+- LM rescue intact and still load-bearing: 723 cycle rescues -> 0, the 5
+  fail-only `damping_exhausted` rescues remain: PASS;
+- OFF SHA-256 identical, legacy ON columns unchanged (0 differences over 594
+  columns x 4 stages), counterflow 0, `max_normalized_residual` 0.0: PASS;
+- determinism 4/4 identical SHA-256 on corridor 120 s ON: PASS;
+- Physics 0 FAIL, ILV 0 FAIL, gap inventory unchanged: PASS;
+- no expected value, tolerance, CTRL or VALID_GAP changed: PASS.
+
+Recorded rather than claimed away: no committed capture exercises the
+post-budget branch any more, so the H2.5l telemetry has structural coverage
+only; shared-root identity is sampled at the 10 s CSV cadence with the
+population bound remaining the offline `1.857e-11 Pa`; and the corpus is still
+two topologies.
+
+**H2 is NOT closed by this result.** H3 remains blocked. Full record:
+`docs/validation/PHASE3_F33V3H25M_CYCLE_STRATEGY_DESIGN.md`.
 
 Headless runner completion contract (2026-07-29): **GO at STOP.**
 

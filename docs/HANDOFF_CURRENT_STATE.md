@@ -8,6 +8,34 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-07-31 - F3.3v3h2.5m analytic half step
+
+- The post-budget period-2 cycle is the exact fixed point of Newton applied to
+  the orifice law: `|F| ~ |u|^0.5007` along the step direction (R^2 = 0.9999),
+  for which the Newton map is `u -> -u`. Damping by `theta = 1/2` annihilates
+  it analytically, and the measured merit minimum is at `alpha = 0.50`.
+- `CYCLE_ANALYTIC_HALF_STEP = 0.5` is now runtime authority, bounded exactly
+  like the H2.5g recovery: only after `cycle_detected`, reusing the Newton
+  direction, accepted only on strict L-infinity descent, one extra evaluation,
+  no access to the LM budget, never convergence by itself.
+- Runtime matrix on the committed case files: corridor 30/60/120 s all reach
+  **100% convergence**, `iteration_cap` 378 -> **0** at 120 s, post-budget
+  solves 559 -> **0**; r0-window unchanged at 100%. Attempts equal accepts, max
+  accepts per solve is 1.
+- The LM rescue is intact and still needed: 723 cycle rescues become 0 while
+  exactly the 5 fail-only `damping_exhausted` rescues remain.
+- OFF byte-identical, legacy ON columns unchanged, counterflow 0, determinism
+  4/4, Physics and ILV 0 FAIL, guardrails 9/10 with only the dirty-motor R2-1.
+- **Open, recorded rather than closed:** no committed capture exercises the
+  post-budget branch any more, so H2.5l telemetry has structural coverage only;
+  shared-root identity is sampled at the CSV cadence, not exhaustive; and the
+  corpus is still two topologies. **H2 is NOT closed by this result** and H3
+  remains blocked.
+- Provenance: the H2.5l-A runtime matrix used scratch cases and is withdrawn,
+  including its contraction ranges. H2.5l-B is unaffected.
+- Binding record:
+  `docs/validation/PHASE3_F33V3H25M_CYCLE_STRATEGY_DESIGN.md`.
+
 ## Current Session Update - 2026-07-29 - F3.3v3h2.5l-B per-solve recurrence ledger
 
 - `post_budget_cycle_streak_max` tracks the longest consecutive post-budget
