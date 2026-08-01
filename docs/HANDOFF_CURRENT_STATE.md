@@ -8,6 +8,35 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-01 - F3.3v3h2.7 iteration-budget diagnosis
+
+- Diagnosis only; `sim/core` has zero changes and the cap is untouched.
+- **H2.6's interpretation is reversed.** The cap of 24 is not the cause: the
+  requirement does not scale with rooms (a six-room star needs 28 iterations,
+  an eleven-room tree 25, another 39), nor with openings, diameter or
+  conditioning, and 24 already sits above the **P99 of 20** over 5016 solves.
+- Real cause: the same period-2 square-root orbit H2.5m solved, undetected for
+  17-34 iterations. The step cosine is `-0.9999` through the stall, but the
+  H2.5j detector needs two consecutive gain ratios below `0.05` and the gain
+  alternates (~`0.08` / ~`-0.01`), so the conjunction never fires. The stall
+  ends only when the line search damps by accident.
+- Policies at the shipped cap: baseline 4/9 captures, 1179 evaluations; cap 48
+  gives 8/9 and 1409; **P2 (`min(previous_gain, gain)`, existing threshold)
+  gives 8/9 and 693**. P2 adds no constant and leaves every held-out capture
+  identical in a leave-one-topology-out check.
+- **NO-GO for any budget change. P2 deferred to H2.8** with its own STOP gate.
+- Five captures versioned under `tests/fixtures/data/` with a fail-closed
+  fixture and negative controls that compare residual history, not iteration
+  count - the orbit length is robust to small edits, so a count-based control
+  would be vacuous.
+- **H2 now has at least two open items**: the alternating-gain detector (H2.8)
+  and `uk_bungalow_smoke`'s `damping_exhausted`, which damps every iteration so
+  the detector is structurally unreachable and which fails identically at 24,
+  64 and 256. H2 stays open; H3 stays blocked.
+- Baseline worktree for H2.8: `C:\Users\dangp\h27_base` at `5e535722`.
+- Binding record:
+  `docs/validation/PHASE3_F33V3H27_ITERATION_BUDGET_DESIGN.md`.
+
 ## Current Session Update - 2026-08-01 - F3.3v3h2.6 cross-topology audit
 
 - Audit only; `sim/core` has zero changes. Baseline `4ec0f09a`, candidate

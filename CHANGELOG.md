@@ -3,6 +3,48 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.7 iteration-budget diagnosis (2026-08-01)
+
+- Diagnosis only: `sim/core` unchanged, `DEFAULT_MAX_ITERATIONS` untouched, no
+  policy implemented.
+- **Reverses the H2.6 interpretation.** H2.6 read `two_storey_smoke`'s 20
+  `iteration_cap` as the cap being sized for three-room networks. Replaying
+  five captures across eight budgets refutes that:
+  - the requirement does not scale with rooms - a six-room star needs 28
+    iterations, an eleven-room tree needs 25, another needs 39;
+  - nor with openings, diameter (2, 2, 4, 2) or conditioning (474, 19291,
+    27119, 16428);
+  - the cap of 24 already sits **above the P99 of 20** over 5016 logged solves.
+- Real cause: these solves sit in the **same period-2 square-root orbit H2.5m
+  solved**, undetected for 17-34 iterations. Every failure has the same shape -
+  a long stall at a residual ratio near one, then 5-8 iterations of quadratic
+  convergence. Through the stall the step cosine is `-0.9999`, but the H2.5j
+  detector demands two consecutive model gain ratios below `0.05` and the gain
+  **also has period two** (one phase near `0.08`, the other near `-0.01`), so
+  the conjunction can never fire. The stall ends only when the ordinary line
+  search damps by accident.
+- Policy comparison at the shipped cap: baseline 4/9 captures and 1179 residual
+  evaluations; cap raised to 48 gives 8/9 and 1409; **P2, using
+  `min(previous_gain, gain)` against the existing `0.05`, gives 8/9 and 693** -
+  41% fewer evaluations than baseline, because it removes the orbit rather than
+  tolerating it. P2 introduces no new constant.
+- Leave-one-topology-out: P2 was designed only from the four large-network
+  captures, and every held-out capture - three corridor chains, an r0-window
+  star and the uk_bungalow loop - is **identical** under it. P3 (cosine only)
+  converges marginally faster but perturbs already-healthy solves.
+- **NO-GO for any iteration-budget change**, static or adaptive. A
+  progress-based extension would be counterproductive: the orbit progresses
+  about 2% per iteration, so a progress test would prolong it.
+- **P2 is deferred to H2.8** as a `sim/core` change with its own STOP gate.
+- Versioned the five captures under `tests/fixtures/data/` with a fail-closed
+  fixture and effective negative controls.
+- `uk_bungalow_smoke` remains a **separate** open mode: it damps every
+  iteration, so the detector is structurally unreachable, and it fails
+  identically at 24, 64 and 256. H2 therefore has at least two open items, not
+  one. H2 stays open, H3 stays blocked.
+- Full record:
+  `docs/validation/PHASE3_F33V3H27_ITERATION_BUDGET_DESIGN.md`.
+
 ### Phase 3+ F3.3v3h2.6 cross-topology audit (2026-08-01)
 
 - Audit only: `sim/core` unchanged. No solver, half step, LM rescue, iteration

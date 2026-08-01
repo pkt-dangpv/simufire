@@ -1041,6 +1041,7 @@ Diagnostic / planned lanes:
 | F3.3v3h2.5l-B | Per-solve recurrence ledger | **GO passive ledger**; cross-topology separation confirmed; H2.5m blocked |
 | F3.3v3h2.5m | Analytic half step for the period-2 orbit | **GO**; corridor 100% at all stages, iteration_cap 378 -> 0; H2 still open, H3 blocked |
 | F3.3v3h2.6 | Cross-topology audit, eight cases | **GO as audit**; zero regressions; **NO-GO to close H2** - two_storey_smoke keeps 20 iteration_cap; H2.7 = cap sizing |
+| F3.3v3h2.7 | Iteration-budget diagnosis | **GO as diagnosis**; **NO-GO for any cap change** - cap is above P99, cause is an undetected alternating-gain orbit; P2 deferred to H2.8 |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1544,6 +1545,33 @@ F3.3v3h2.6 STOP: **GO as an audit; NO-GO for closing H2.**
 iteration-cap sizing for large networks** - derive how the budget scales with
 rooms and openings; swapping 24 for 48 is not accepted. Full record:
 `docs/validation/PHASE3_F33V3H26_CROSS_TOPOLOGY_AUDIT.md`.
+
+F3.3v3h2.7 STOP: **GO as a diagnosis; NO-GO for any iteration-cap change.**
+
+- `sim/core` unchanged and `DEFAULT_MAX_ITERATIONS` untouched: PASS;
+- five bit-exact captures replayed across budgets 24/32/40/48/64/96/128/256,
+  every converging budget landing on a bit-identical root: PASS;
+- **the cap is not the cause**: iterations needed do not scale with rooms (a
+  six-room star needs 28, an eleven-room tree 25, another 39), openings,
+  diameter (2, 2, 4, 2) or conditioning (474, 19291, 27119, 16428), and 24
+  already sits above the **P99 of 20** across 5016 logged solves;
+- **cause identified**: the period-2 square-root orbit of H2.5m, undetected for
+  17-34 iterations because the H2.5j detector requires two consecutive gain
+  ratios below `0.05` while the gain itself alternates (~`0.08` / ~`-0.01`),
+  so the conjunction never fires although the step cosine is `-0.9999`;
+- policy comparison at the shipped cap - baseline 4/9 captures and 1179
+  evaluations, cap 48 gives 8/9 and 1409, **P2 gives 8/9 and 693** with no new
+  constant; leave-one-topology-out leaves every held-out capture identical;
+- captures versioned with a fail-closed fixture and negative controls that
+  compare residual history rather than iteration count: PASS;
+- no expected value, tolerance, CTRL, VALID_GAP or report changed: PASS.
+
+**H2.6's framing of this as cap sizing is withdrawn.** **H2 has at least two
+open items**: the alternating-gain detector (**H2.8**, not started) and
+`uk_bungalow_smoke`'s `damping_exhausted`, which damps on every iteration so
+the detector is structurally unreachable and which fails identically at 24, 64
+and 256. H3 remains blocked. Full record:
+`docs/validation/PHASE3_F33V3H27_ITERATION_BUDGET_DESIGN.md`.
 
 Headless runner completion contract (2026-07-29): **GO at STOP.**
 

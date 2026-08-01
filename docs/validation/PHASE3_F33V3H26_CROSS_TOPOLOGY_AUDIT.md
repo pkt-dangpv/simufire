@@ -131,6 +131,30 @@ candidate both converged - a sample 75 times larger than H2.5m's.
 
 ## Blocker: `two_storey_smoke` keeps 20 iteration_cap
 
+> **H2.7 CORRECTION (2026-08-01).** The measurements in this section are
+> reproducible and stand. **The interpretation below does not.**
+>
+> This audit read the evidence as "the iteration cap of 24 is sized for
+> three-room networks" and handed H2.7 a budget-sizing problem. H2.7 replayed
+> five captures across eight budgets and found that reading is wrong:
+>
+> - the requirement does **not** scale with size - a six-room star needs 28
+>   iterations while an eleven-room tree needs 25;
+> - it does not correlate with openings, diameter or Jacobian conditioning
+>   either;
+> - the cap of 24 already sits **above the P99 of 20** over 5016 logged solves.
+>
+> The real cause is that these solves sit in the **same period-2 square-root
+> orbit H2.5m solved**, undetected for 17 to 34 iterations, because the H2.5j
+> detector requires two consecutive model gain ratios below `0.05` and the gain
+> alternates - one phase near `0.08`, the other near `-0.01` - so the
+> conjunction never fires even though the step cosine is `-0.9999` throughout.
+>
+> The sentence "the iteration cap of 24 is sized for three-room networks" is
+> therefore **withdrawn**, along with the framing of H2.7 as cap sizing. What
+> remains correct is that this is a real open failure mode on the multi-floor
+> class. See `PHASE3_F33V3H27_ITERATION_BUDGET_DESIGN.md`.
+
 Captured with the committed selector and replayed offline
 (`tools/diagnostics/phase3_h26_capture_probe.gd`):
 
@@ -225,3 +249,9 @@ persistent physics.
 Single remaining principal blocker: **H2.7, iteration-cap sizing for large
 networks.** The representative capture is already taken and replayable. H2.7
 has not started.
+
+> **H2.7 CORRECTION.** "Single remaining principal blocker" is withdrawn. H2.7
+> found the cap is not the cause and that H2 has at least **two** distinct open
+> items: the alternating-gain cycle detector (H2.8) and `uk_bungalow_smoke`'s
+> `damping_exhausted`, which no budget closes even at 256 iterations and which
+> is bounded by the H2.5g one-accept LM budget rather than by iterations.
