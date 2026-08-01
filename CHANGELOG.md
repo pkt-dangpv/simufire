@@ -3,6 +3,28 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.9 uk_bungalow damping-exhausted diagnosis (2026-08-01)
+
+- Diagnosis only: `sim/core` unchanged and no solver constant, report,
+  expected value, tolerance, CTRL or VALID_GAP changed.
+- Exact replay confirms `uk_bungalow_smoke` fails after spending its single LM
+  rescue because the forward Jacobian width (`1e-3 Pa`) crosses the donor
+  branch of an opening at `dp=-5.31e-4 Pa`. The quotient is a secant through
+  two upwind branches, while the actual damped trials stay on one branch.
+- Raising the offline LM budget from 1 to 2 or 4 does not close the solve; it
+  fails again at iterations 15 and 24. Budget expansion is **NO-GO**.
+- Forward widths `1e-4`, `1e-5` and `1e-6` close the exact capture in eight
+  iterations without LM. Across 189 deterministic states, `1e-4` and `1e-5`
+  improve 182/189 -> 189/189 with zero regressions.
+- A branch-preserving unilateral candidate keeps `h=1e-3`, closes the exact
+  capture in 11 iterations without LM, preserves all eight healthy exact
+  captures and improves 182/189 -> 187/189 with zero regressions. Two UK
+  variants remain, so it is direction, not a complete fix.
+- **H2 stays open.** H2.10 must combine branch preservation with deterministic
+  derivative self-consistency/adaptive width and pass the full runtime topology
+  gate. H3 stays blocked. Full record:
+  `docs/validation/PHASE3_F33V3H29_UK_DAMPING_EXHAUSTED_DIAGNOSIS.md`.
+
 ### Phase 3+ F3.3v3h2.8 alternating-gain cycle detector (2026-08-01)
 
 - One predicate changed. H2.5j required BOTH consecutive model gain ratios

@@ -1042,6 +1042,7 @@ Diagnostic / planned lanes:
 | F3.3v3h2.5m | Analytic half step for the period-2 orbit | **GO**; corridor 100% at all stages, iteration_cap 378 -> 0; H2 still open, H3 blocked |
 | F3.3v3h2.6 | Cross-topology audit, eight cases | **GO as audit**; zero regressions; **NO-GO to close H2** - two_storey_smoke keeps 20 iteration_cap; H2.7 = cap sizing |
 | F3.3v3h2.7 | Iteration-budget diagnosis | **GO as diagnosis**; **NO-GO for any cap change** - cap is above P99, cause is an undetected alternating-gain orbit; P2 deferred to H2.8 |
+| F3.3v3h2.9 | `uk_bungalow_smoke` damping-exhausted diagnosis | **GO as diagnosis**; forward Jacobian crosses donor branch; LM-budget expansion NO-GO; H2.10 = branch-preserving adaptive quotient |
 | F3.3v3h2.8 | Alternating-gain cycle detector | **GO**; all 22 iteration_cap eliminated, two_storey 98.61%->100%; **H2 still open** on uk_bungalow damping_exhausted |
 
 F3.3v3f1 measured at 180 s:
@@ -1597,6 +1598,30 @@ by the detector by construction and unaffected by any budget; the C8
 parallel-openings gap and the untaken half-step rejection branch stand. H3
 remains blocked. Full record:
 `docs/validation/PHASE3_F33V3H28_ALTERNATING_GAIN_CYCLE_DETECTOR.md`.
+
+F3.3v3h2.9 STOP: **GO as diagnosis; NO-GO for a motor change in this phase.**
+
+- the exact UK capture reproduces `damping_exhausted` at iteration 12 after
+  one accepted LM rescue: PASS;
+- LM accepted-step budgets 2 and 4 still fail at iterations 15 and 24, so
+  budget expansion is rejected: PASS;
+- the shipped forward quotient crosses the donor branch: local opening
+  `dp=-5.31e-4 Pa`, quotient width `1e-3 Pa`, perturbed
+  `dp=+4.69e-4 Pa`: measured;
+- Jacobian finite and non-singular, but all actual damped trials increase both
+  norms while the linear model predicts descent: measured;
+- forward `h=1e-4` and `1e-5` close 189/189 deterministic states versus
+  baseline 182/189, zero regressions: measured;
+- the branch-preserving unilateral candidate closes the exact UK capture,
+  keeps all eight healthy exact captures converged, and improves 182/189 to
+  187/189 with zero regressions; two UK variants remain: measured;
+- `sim/core`, solver constants, official reports, expected values, tolerances,
+  CTRL and VALID_GAP are unchanged: PASS.
+
+**H2 REMAINS OPEN.** H2.10 must combine branch preservation with deterministic
+adaptive width/derivative self-consistency and pass the runtime topology gate.
+H3 remains blocked. Full record:
+`docs/validation/PHASE3_F33V3H29_UK_DAMPING_EXHAUSTED_DIAGNOSIS.md`.
 
 Headless runner completion contract (2026-07-29): **GO at STOP.**
 

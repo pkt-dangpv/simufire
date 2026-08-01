@@ -8,6 +8,33 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-01 - F3.3v3h2.9 UK damping diagnosis
+
+- Diagnosis only; `sim/core` is untouched.
+- Root cause: the `1e-3 Pa` forward Jacobian perturbation crosses the donor
+  branch of an opening whose local `dp` is `-5.31e-4 Pa`. The secant Jacobian
+  predicts descent, but every actual trial on the original branch increases
+  both L-infinity and L2.
+- More LM budget is not a fix: budgets 1, 2 and 4 all end in
+  `damping_exhausted` (iterations 12, 15 and 24).
+- Fixed forward `h=1e-4` and `1e-5` close all 189 deterministic neighbourhood
+  states with zero regressions, but selecting a new global decimal is not yet
+  an accepted policy.
+- A branch-preserving unilateral candidate closes the exact UK capture without
+  LM and preserves all eight healthy exact captures. It improves the
+  neighbourhood 182/189 -> 187/189 with zero regressions, but leaves two UK
+  variants open.
+- Next: **H2.10**, branch-preserving adaptive unilateral Jacobian with
+  derivative self-consistency, passive counters and the ten-case runtime gate.
+  Do not raise the cap, LM budget or restore central differences.
+- H2 remains open; H3 remains blocked. Binding record:
+  `docs/validation/PHASE3_F33V3H29_UK_DAMPING_EXHAUSTED_DIAGNOSIS.md`.
+- STOP checks: H2.9 tests 16/16, Physics 0 FAIL, ILV 0 FAIL, gap inventory
+  synchronized and guardrails 10/10. One broad pytest attempt is invalid and
+  excluded: it launched a direct Godot fixture inside the restricted process
+  environment and crashed before testing H2.9. Do not repeat broad pytest
+  without isolating direct Godot fixtures.
+
 ## Current Session Update - 2026-08-01 - F3.3v3h2.8 alternating-gain detector
 
 - Implemented P2: the cycle predicate now uses `min(previous_gain,
