@@ -1042,6 +1042,7 @@ Diagnostic / planned lanes:
 | F3.3v3h2.5m | Analytic half step for the period-2 orbit | **GO**; corridor 100% at all stages, iteration_cap 378 -> 0; H2 still open, H3 blocked |
 | F3.3v3h2.6 | Cross-topology audit, eight cases | **GO as audit**; zero regressions; **NO-GO to close H2** - two_storey_smoke keeps 20 iteration_cap; H2.7 = cap sizing |
 | F3.3v3h2.7 | Iteration-budget diagnosis | **GO as diagnosis**; **NO-GO for any cap change** - cap is above P99, cause is an undetected alternating-gain orbit; P2 deferred to H2.8 |
+| F3.3v3h2.8 | Alternating-gain cycle detector | **GO**; all 22 iteration_cap eliminated, two_storey 98.61%->100%; **H2 still open** on uk_bungalow damping_exhausted |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1572,6 +1573,30 @@ open items**: the alternating-gain detector (**H2.8**, not started) and
 the detector is structurally unreachable and which fails identically at 24, 64
 and 256. H3 remains blocked. Full record:
 `docs/validation/PHASE3_F33V3H27_ITERATION_BUDGET_DESIGN.md`.
+
+F3.3v3h2.8 STOP: **GO for the alternating-gain detector.**
+
+- one predicate changed, `min(previous_gain, current_gain)` against the
+  unchanged `0.05`; no new constant enters it, enforced structurally: PASS;
+- cap, tolerance, half step, LM budget, Jacobian, gauge, regularization, flux
+  law, EOS and counterflow all unchanged: PASS;
+- the four H2.7 orbits close inside the cap at 11, 10, 14 and 12 iterations,
+  matching the offline prediction exactly, through the new branch and without
+  spending LM budget: PASS;
+- runtime matrix over ten committed cases: **all 22 `iteration_cap`
+  eliminated**, `two_storey_smoke` 98.61% -> 100.00%, zero regressions,
+  `damping_exhausted` unchanged everywhere so nothing was displaced: PASS;
+- OFF byte-identical 10/10, legacy ON columns 0 differences, counterflow 0,
+  determinism 3/3 on corridor, r0-window, multi-floor and loop: PASS;
+- **shared-root divergence `0.000000e+00 Pa` over 5078 rows**, including the
+  already-healthy solves where the wider detector now fires: PASS;
+- Physics and ILV 0 FAIL, gap inventory unchanged: PASS.
+
+**H2 REMAINS OPEN.** `uk_bungalow_smoke`'s `damping_exhausted` is unreachable
+by the detector by construction and unaffected by any budget; the C8
+parallel-openings gap and the untaken half-step rejection branch stand. H3
+remains blocked. Full record:
+`docs/validation/PHASE3_F33V3H28_ALTERNATING_GAIN_CYCLE_DETECTOR.md`.
 
 Headless runner completion contract (2026-07-29): **GO at STOP.**
 

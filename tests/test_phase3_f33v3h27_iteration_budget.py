@@ -94,14 +94,15 @@ def test_capture_names_say_which_mode_they_pin():
 # -------------------------------------------------------------------
 
 def test_fixture_separates_the_orbits_from_the_damping_case():
-    assert "CLOSES_AT" in FIXTURE
+    """H2.8 closed the four orbits, so the table now records what they COST
+    before the detector was widened. The damping case must still be absent from
+    it: no budget ever closed that one."""
+    assert "PRE_H28_BUDGET" in FIXTURE
     for stem in CAPTURES:
         assert stem in FIXTURE, stem
-    # The four orbits close at a raised budget; the damping case must not be
-    # in that table.
-    closes = FIXTURE.split("const CLOSES_AT := {", 1)[1].split("}", 1)[0]
-    assert "coupled_solver_damping_exhausted_uk_bungalow" not in closes
-    assert closes.count("coupled_solver_iteration_cap_") == 4
+    budget = FIXTURE.split("const PRE_H28_BUDGET := {", 1)[1].split("}", 1)[0]
+    assert "coupled_solver_damping_exhausted_uk_bungalow" not in budget
+    assert budget.count("coupled_solver_iteration_cap_") == 4
 
 
 def test_fixture_asserts_the_damping_case_is_budget_immune():
@@ -110,9 +111,14 @@ def test_fixture_asserts_the_damping_case_is_budget_immune():
     assert "stays damping_exhausted at budget" in FIXTURE
 
 
-def test_fixture_reproduces_residual_history_not_just_the_verdict():
-    assert "residual history reproduced exactly" in FIXTURE
-    assert "worst == 0.0" in FIXTURE
+def test_fixture_keeps_the_recorded_history_as_provenance():
+    """The captures record the trajectory the solver took WHEN CAPTURED. H2.8
+    no longer takes it, so replaying against it would compare to a path the
+    detector now avoids. The record is kept and checked for wellformedness and
+    self-consistency rather than replayed - or quietly dropped."""
+    assert "PRE-H2.8 artifact" in FIXTURE
+    assert "recorded history is present" in FIXTURE
+    assert "recorded outcome matches the selector it was taken with" in FIXTURE
 
 
 def test_negative_controls_compare_history_not_iteration_count():
@@ -236,11 +242,17 @@ def test_no_solver_constant_moved():
         ), name
 
 
-def test_p2_is_not_implemented_in_the_solver():
-    """The recommendation is deferred to H2.8; the shipped predicate is the
-    H2.5j conjunction until then."""
+def test_p2_was_implemented_in_h28_as_this_phase_recommended():
+    """H2.7 recommended P2 and deferred it. H2.8 implemented exactly that: the
+    minimum of the same pair against the same threshold, with every geometric
+    condition untouched."""
     body = SOLVER.split("func solve_coupled_pressure(", 1)[1]
     body = body.split("\nfunc ", 1)[0]
+    assert "cycle_min_gain_ratio = minf(" in body
     assert "previous_full_step_gain_ratio" in body
-    assert "and model_gain_ratio < CYCLE_GUARD_MIN_MODEL_GAIN_RATIO" in body
-    assert "minf(previous_full_step_gain_ratio" not in body
+    assert "model_gain_ratio" in body
+    # The conjunction this phase diagnosed as unfirable must be gone.
+    predicate = body.split("cycle_detected = (", 1)[1].split(")", 1)[0]
+    assert "and model_gain_ratio < CYCLE_GUARD_MIN_MODEL_GAIN_RATIO" \
+        not in predicate
+    assert "cycle_min_gain_ratio < CYCLE_GUARD_MIN_MODEL_GAIN_RATIO" in predicate

@@ -251,6 +251,20 @@ scale with size, and the cap already exceeds P99.
 its own full runtime matrix against the committed cases, and its own
 non-interference evidence.
 
+> **H2.8 OUTCOME (2026-08-01).** P2 was implemented exactly as specified here -
+> `min(previous_gain, current_gain)` against the unchanged `0.05`, no new
+> constant - and every prediction in this document held: the four orbits close
+> at 11, 10, 14 and 12 iterations inside the unchanged cap. Across the runtime
+> corpus all 22 `iteration_cap` failures disappeared with zero regressions and
+> bit-identical shared roots. `uk_bungalow_smoke` was not fixed and was not
+> claimed to be. See
+> `PHASE3_F33V3H28_ALTERNATING_GAIN_CYCLE_DETECTOR.md`.
+>
+> **Provenance note:** the case SHA-256 values used across H2.6 and H2.7 are
+> **filesystem** hashes and are tree-local, because a fresh worktree checkout
+> normalises CRLF to LF. Use the Git blob hash or canonical JSON for
+> cross-worktree comparison.
+
 Recorded as unresolved: `uk_bungalow_smoke`'s `damping_exhausted` is a distinct
 mode that neither budget nor detector addresses. It is bounded by the H2.5g
 one-accept LM budget and would need its own analysis.

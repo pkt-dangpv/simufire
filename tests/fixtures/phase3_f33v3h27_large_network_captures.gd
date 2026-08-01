@@ -15,25 +15,49 @@ extends SceneTree
 ## dies as `damping_exhausted` at 12 iterations, and stays that way even at 256.
 ## Keeping it in the same fixture is the point: it pins the distinction.
 ##
-## No solver change is asserted here and none is authorised. `max_iterations`
-## is overridden only for the two offline probes at the end, through the
-## existing per-call option; the shipped default is untouched.
+## H2.8 UPDATE. When written, this fixture asserted that the four orbits still
+## ended at `iteration_cap`, because at the time they did. H2.8 widened the
+## detector to the alternating-gain form and they now close inside the
+## unchanged cap of 24. The assertions below were retargeted accordingly.
+##
+## What the fixture protects is unchanged and still checked: the captures are
+## well formed, exact to the bit, sensitive to any edit, and the uk_bungalow
+## case is a different mode. The `observed_failure` block inside each capture is
+## the PRE-H2.8 artifact and is retained as provenance, not as a live
+## expectation - replaying it against the current solver would compare against a
+## trajectory the detector no longer takes.
+##
+## No solver change is asserted here. `max_iterations` is overridden only for
+## the offline probes, through the existing per-call option; the shipped default
+## is untouched.
 
 const SolverScript = preload("res://sim/core/Phase3CoupledPressureSolver.gd")
 const DATA := "res://tests/fixtures/data"
 
-# name, expected limiting reason, expected iterations at the shipped cap
+# name, limiting reason under the CURRENT solver, iterations at the shipped cap
 const CASES := [
-	["coupled_solver_iteration_cap_two_floor_stairwell", "iteration_cap", 24],
-	["coupled_solver_iteration_cap_two_storey_smoke", "iteration_cap", 24],
-	["coupled_solver_iteration_cap_three_bed_apartment", "iteration_cap", 24],
-	["coupled_solver_iteration_cap_flashover_simple_house", "iteration_cap", 24],
+	["coupled_solver_iteration_cap_two_floor_stairwell", "converged", 11],
+	["coupled_solver_iteration_cap_two_storey_smoke", "converged", 10],
+	["coupled_solver_iteration_cap_three_bed_apartment", "converged", 14],
+	["coupled_solver_iteration_cap_flashover_simple_house", "converged", 12],
 	["coupled_solver_damping_exhausted_uk_bungalow", "damping_exhausted", 12],
 ]
 
-## Budget at which each orbit does close, measured in H2.7. The
-## `damping_exhausted` case is absent on purpose: no budget closes it.
-const CLOSES_AT := {
+## What each orbit cost BEFORE H2.8, when the detector could not see it and the
+## only way out was a larger budget. Kept as the measurement that motivated the
+## change: H2.8 reaches the same roots in 10-14 iterations inside the cap of 24.
+## The `damping_exhausted` case is absent on purpose - no budget ever closed it.
+## The selector each capture was taken with. Historical, and since H2.8 no
+## longer the same thing as the live outcome.
+const CAPTURE_SELECTOR := {
+	"coupled_solver_iteration_cap_two_floor_stairwell": "iteration_cap",
+	"coupled_solver_iteration_cap_two_storey_smoke": "iteration_cap",
+	"coupled_solver_iteration_cap_three_bed_apartment": "iteration_cap",
+	"coupled_solver_iteration_cap_flashover_simple_house": "iteration_cap",
+	"coupled_solver_damping_exhausted_uk_bungalow": "damping_exhausted",
+}
+
+const PRE_H28_BUDGET := {
 	"coupled_solver_iteration_cap_two_floor_stairwell": 25,
 	"coupled_solver_iteration_cap_two_storey_smoke": 39,
 	"coupled_solver_iteration_cap_three_bed_apartment": 25,
@@ -67,17 +91,19 @@ func _check(name: String, reason: String, iterations: int) -> void:
 				== "simufire_coupled_solver_failure_v1",
 		name + ": schema version"
 	)
+	# The selector is a historical fact about how the capture was taken, and
+	# since H2.8 it no longer coincides with the live outcome: these four were
+	# selected as `iteration_cap` and now converge. Only its consistency with
+	# the recorded failure is asserted, further down.
 	_assert(
-		String(capture.get("requested_failure_mode", "")) == reason,
+		CAPTURE_SELECTOR.has(name)
+				and String(capture.get("requested_failure_mode", ""))
+						== String(CAPTURE_SELECTOR[name]),
 		name + ": capture records the selector it was taken with"
 	)
 
 	var first: Dictionary = _solve(capture, 0)
 	var second: Dictionary = _solve(capture, 0)
-	_assert(
-		not bool(first.get("converged", true)),
-		name + ": still fails at the shipped cap"
-	)
 	_assert(
 		String(first.get("limiting_reason", "")) == reason,
 		"%s: limiting reason is %s, got '%s'"
@@ -85,24 +111,29 @@ func _check(name: String, reason: String, iterations: int) -> void:
 	)
 	_assert(
 		int(first.get("iterations", 0.0)) == iterations,
-		"%s: %d iterations, got %d"
+		"%s: %d iterations at the shipped cap, got %d"
 				% [name, iterations, int(first.get("iterations", 0.0))]
 	)
-
-	# The recorded history must be reproduced, not merely the verdict.
-	var observed: Array = capture["observed_failure"]["residual_history"]
-	var replayed: Array = first["residual_history"]
-	_assert(
-		replayed.size() == observed.size(),
-		"%s: residual history length %d vs recorded %d"
-				% [name, replayed.size(), observed.size()]
-	)
-	var worst: float = 0.0
-	for index in range(mini(replayed.size(), observed.size())):
-		worst = maxf(
-			worst, absf(float(replayed[index]) - _decode(observed[index]))
+	if reason == "converged":
+		_assert(
+			float(first.get("normalized_residual", 1.0)) <= 1.0e-12,
+			name + ": meets the unchanged tolerance"
 		)
-	_assert(worst == 0.0, name + ": residual history reproduced exactly")
+
+	# The capture's own record is the pre-H2.8 artifact. It is not replayed
+	# against the current solver - the detector no longer takes that trajectory
+	# - but it must still be a well formed history of the failure it recorded.
+	var observed: Array = capture["observed_failure"]["residual_history"]
+	_assert(observed.size() >= 2, name + ": recorded history is present")
+	_assert(
+		_decode(observed[0]) > 0.0,
+		name + ": recorded history starts from a real residual"
+	)
+	_assert(
+		String(capture["observed_failure"]["limiting_reason"])
+				== String(capture["requested_failure_mode"]),
+		name + ": recorded outcome matches the selector it was taken with"
+	)
 
 	for field in [
 		"converged", "limiting_reason", "iterations", "residual_history",
@@ -116,24 +147,33 @@ func _check(name: String, reason: String, iterations: int) -> void:
 ## than genuine non-convergence. Recording the exact figure keeps H2.8 honest
 ## about how much the detector fix is worth.
 func _check_orbit_cases_close_with_more_budget() -> void:
-	for raw_name in CLOSES_AT.keys():
+	for raw_name in PRE_H28_BUDGET.keys():
 		var name: String = String(raw_name)
 		var capture: Dictionary = _load("%s/%s.json" % [DATA, name])
 		if capture.is_empty():
 			_failed = true
 			continue
-		var solved: Dictionary = _solve(capture, 256)
+		# H2.8 closes these inside the cap, so a raised budget must change
+		# nothing: the orbit is gone before the budget could ever matter.
+		var capped: Dictionary = _solve(capture, 0)
+		var raised: Dictionary = _solve(capture, 256)
 		_assert(
-			bool(solved.get("converged", false)),
-			name + ": converges once the budget is raised"
+			bool(capped.get("converged", false))
+					and bool(raised.get("converged", false)),
+			name + ": converges at both the shipped and a raised budget"
 		)
 		_assert(
-			int(solved.get("iterations", 0.0)) == int(CLOSES_AT[name]),
-			"%s: closes at %d iterations, got %d"
-					% [name, int(CLOSES_AT[name]), int(solved.get("iterations", 0.0))]
+			int(capped.get("iterations", 0.0))
+					== int(raised.get("iterations", 0.0)),
+			name + ": a raised budget no longer changes the iteration count"
 		)
 		_assert(
-			float(solved.get("normalized_residual", 1.0)) <= 1.0e-12,
+			int(capped.get("iterations", 0.0)) < int(PRE_H28_BUDGET[name]),
+			"%s: closes in fewer than the %d iterations it needed before H2.8"
+					% [name, int(PRE_H28_BUDGET[name])]
+		)
+		_assert(
+			float(capped.get("normalized_residual", 1.0)) <= 1.0e-12,
 			name + ": meets the unchanged tolerance"
 		)
 

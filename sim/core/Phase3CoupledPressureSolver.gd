@@ -345,19 +345,45 @@ func solve_coupled_pressure(
 		)
 		var step_cosine: float = 1.0
 		var cycle_detected: bool = false
+		var cycle_min_gain_ratio: float = INF
+		var cycle_gain_alternates: bool = false
 		if damping == 1.0 and not previous_full_step.is_empty():
 			step_cosine = _step_cosine(previous_full_step, step)
+			# F3.3v3h2.8: the gain ratio of a period-2 orbit has period two too.
+			#
+			# H2.5j required BOTH consecutive gain ratios to be poor. That held
+			# on the corridor capture it was written from, where the pair was
+			# 0.00090 and 0.0084. H2.7 replayed four large-network captures and
+			# found the pair straddles the threshold instead - about 0.08 on one
+			# phase and -0.01 on the other - while the step cosine sits at
+			# -0.9999 throughout. The conjunction therefore never fired, the
+			# orbit ran for 17 to 34 iterations, and the solve died at the cap.
+			#
+			# Taking the minimum asks the question the sequence can actually
+			# answer: does EITHER phase of the orbit show that the linear model
+			# is not being delivered? The threshold is unchanged, and so is
+			# every geometric condition - two accepted full steps, a previous
+			# step to compare against, and a period-2 cosine.
+			cycle_min_gain_ratio = minf(
+				previous_full_step_gain_ratio, model_gain_ratio
+			)
 			cycle_detected = (
-				previous_full_step_gain_ratio
-						< CYCLE_GUARD_MIN_MODEL_GAIN_RATIO
-				and model_gain_ratio < CYCLE_GUARD_MIN_MODEL_GAIN_RATIO
+				cycle_min_gain_ratio < CYCLE_GUARD_MIN_MODEL_GAIN_RATIO
 				and step_cosine < CYCLE_GUARD_MAX_STEP_COSINE
 			)
+			# Passive split of the population, so the two regimes stay legible.
+			cycle_gain_alternates = cycle_detected and maxf(
+				previous_full_step_gain_ratio, model_gain_ratio
+			) >= CYCLE_GUARD_MIN_MODEL_GAIN_RATIO
 		# Observation is deliberately outside the rescue-budget gate. H2.5k
 		# proved that a second cycle can appear after the only authorised rescue
 		# has been accepted; previously that cycle was no longer even counted.
 		if cycle_detected:
 			result["cycle_detect_total"] += 1.0
+			if cycle_gain_alternates:
+				result["cycle_detect_alternating_gain_total"] += 1.0
+			else:
+				result["cycle_detect_both_phases_low_total"] += 1.0
 			if rescue_budget_left <= 0:
 				result["cycle_detect_after_budget_total"] += 1.0
 				post_budget_cycle_streak += 1
@@ -743,6 +769,10 @@ func _new_result() -> Dictionary:
 		"analytic_half_step_accept_total": 0.0,
 		"analytic_half_step_last_initial_norm": 0.0,
 		"analytic_half_step_last_final_norm": 0.0,
+		# H2.8 splits the detected population by which regime fired. Both are
+		# reported, never read back into a decision.
+		"cycle_detect_both_phases_low_total": 0.0,
+		"cycle_detect_alternating_gain_total": 0.0,
 	}
 
 

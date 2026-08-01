@@ -46,17 +46,70 @@ def test_guard_constants_are_global_and_not_case_options():
 
 
 def test_guard_requires_two_accepted_full_nearly_opposite_steps():
+    """The geometric preconditions are H2.5j's and must not have moved.
+
+    H2.8 changed only how the pair of gain ratios is combined: the conjunction
+    became a minimum against the same threshold, because in a period-2 orbit
+    the gain alternates and one phase sits above 0.05. Everything else - two
+    accepted full steps, a previous step to compare against, and a period-2
+    cosine - is still required.
+    """
     body = _function(SOLVER, "solve_coupled_pressure")
     guard = body.split("var cycle_detected: bool = false", 1)[1]
     guard = guard.split("if cycle_detected and rescue_budget_left > 0:", 1)[0]
     assert "damping == 1.0" in guard
     assert "not previous_full_step.is_empty()" in guard
-    assert (
-        "previous_full_step_gain_ratio\n"
-        "\t\t\t\t\t\t< CYCLE_GUARD_MIN_MODEL_GAIN_RATIO"
-    ) in guard
-    assert "model_gain_ratio < CYCLE_GUARD_MIN_MODEL_GAIN_RATIO" in guard
+    # Both gain ratios still feed the decision, now through a minimum.
+    assert "previous_full_step_gain_ratio" in guard
+    assert "model_gain_ratio" in guard
+    assert "cycle_min_gain_ratio = minf(" in guard
+    assert "cycle_min_gain_ratio < CYCLE_GUARD_MIN_MODEL_GAIN_RATIO" in guard
     assert "step_cosine < CYCLE_GUARD_MAX_STEP_COSINE" in guard
+
+
+def test_h28_widened_the_gain_test_without_touching_the_threshold():
+    body = _function(SOLVER, "solve_coupled_pressure")
+    guard = body.split("var cycle_detected: bool = false", 1)[1]
+    guard = guard.split("if cycle_detected and rescue_budget_left > 0:", 1)[0]
+    predicate = guard.split("cycle_detected = (", 1)[1].split(")", 1)[0]
+    # The old conjunction over the two gains must be gone.
+    assert "and model_gain_ratio < CYCLE_GUARD_MIN_MODEL_GAIN_RATIO" \
+        not in predicate
+    # No new numeric constant may appear in the predicate.
+    assert not re.search(r"(?<![\w.])\d+\.\d+", predicate), predicate
+    assert re.search(
+        r"const CYCLE_GUARD_MIN_MODEL_GAIN_RATIO: float = 0\.05\b", SOLVER
+    )
+
+
+def test_mutation_restoring_the_and_is_detectable():
+    """Putting the conjunction back is what reproduces the H2.7 iteration_caps."""
+    body = _function(SOLVER, "solve_coupled_pressure")
+    assert "cycle_min_gain_ratio < CYCLE_GUARD_MIN_MODEL_GAIN_RATIO" in body
+    mutated = body.replace(
+        "cycle_min_gain_ratio < CYCLE_GUARD_MIN_MODEL_GAIN_RATIO",
+        "previous_full_step_gain_ratio < CYCLE_GUARD_MIN_MODEL_GAIN_RATIO\n"
+        "\t\t\t\tand model_gain_ratio < CYCLE_GUARD_MIN_MODEL_GAIN_RATIO",
+        1,
+    )
+    assert mutated != body
+    assert "cycle_min_gain_ratio <" not in mutated.split(
+        "cycle_detected = (", 1
+    )[1].split(")", 1)[0]
+
+
+def test_the_two_regimes_are_reported_separately_and_are_passive():
+    body = _function(SOLVER, "solve_coupled_pressure")
+    assert 'result["cycle_detect_alternating_gain_total"] += 1.0' in body
+    assert 'result["cycle_detect_both_phases_low_total"] += 1.0' in body
+    # Neither counter may govern anything.
+    for line in body.splitlines():
+        if "cycle_detect_alternating_gain_total" in line \
+                or "cycle_detect_both_phases_low_total" in line:
+            assert not re.search(r"\b(if|elif|while)\b", line), line
+            assert "converged =" not in line
+    # The split itself is derived from the same threshold, not a new one.
+    assert "cycle_gain_alternates = cycle_detected and maxf(" in body
 
 
 def test_guard_runs_after_linf_acceptance_but_before_candidate_commit():

@@ -3,6 +3,58 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.8 alternating-gain cycle detector (2026-08-01)
+
+- One predicate changed. H2.5j required BOTH consecutive model gain ratios
+  below `0.05`; H2.7 measured that in a period-2 orbit the gain **also has
+  period two** (about `0.08` on one phase, `-0.01` on the other) while the step
+  cosine sits at `-0.9999`, so the conjunction could never fire. H2.8 takes
+  `min(previous_gain, current_gain)` against the same threshold.
+- **No new constant.** The `0.05` threshold, the `-0.99` cosine test and every
+  geometric precondition are unchanged, and a structural test forbids any
+  numeric literal entering the predicate. `DEFAULT_MAX_ITERATIONS` stays 24.
+- Captures at the shipped cap: the four H2.7 orbits go from `iteration_cap` at
+  24 to converged at **11, 10, 14 and 12** - exactly H2.7's offline prediction
+  - through the new branch and without spending LM budget. The two corridor
+  captures close through the original branch at unchanged counts.
+- Runtime matrix, ten committed cases:
+  - **every `iteration_cap` in the corpus is gone, 22 to 0**;
+  - `two_storey_smoke`, the H2.6 blocker, 98.61% -> **100.00%**;
+  - `cfast_two_floor_stairwell` and `three_bed_apartment_smoke` -> 100.00%;
+  - zero regressions, `damping_exhausted` unchanged everywhere, so no failure
+    was displaced into another mode;
+  - OFF byte-identical 10/10, legacy ON columns 0 differences, counterflow 0,
+    determinism 3/3 on corridor, r0-window, multi-floor and loop.
+- **Shared-root divergence `0.000000e+00 Pa` over 5078 rows.** The detector
+  fires far more often than before - `cfast_r0_window_360` goes from 204 to 430
+  detections on a case that already converged 100% - and every one of those
+  solves lands on the bit-identical root. It reaches the same answers sooner,
+  not different ones.
+- Two passive counters split the population:
+  `cycle_detect_both_phases_low_total` and
+  `cycle_detect_alternating_gain_total`. On the three-room corridor the
+  original shape dominates 723 to 1; on the eleven-room networks the new shape
+  dominates 717 and 640. H2.5j was right for the topology it was written from.
+- **H2 stays open.** `uk_bungalow_smoke` keeps its `damping_exhausted`: it damps
+  on every iteration, so the detector is structurally unreachable, and it fails
+  identically at 24, 64 and 256. H2.8 does not pretend to fix it. The C8
+  parallel-openings gap and the untaken half-step rejection branch also stand.
+- Two methodological notes, binding on later phases:
+  - **filesystem SHA-256 is not a cross-worktree identity.** Eight of ten case
+    files appeared to differ between HEAD and the baseline worktree; the
+    difference was CRLF against LF (50 bytes on one file) with identical parsed
+    JSON and all ten Git blob hashes matching. The case hashes recorded in H2.6
+    and H2.7 are tree-local. Use `git rev-parse <commit>:<path>` or canonical
+    JSON to compare across worktrees.
+  - **one truncated run was excluded from the determinism check.** A first
+    attempt on `two_storey_smoke` showed two hashes across three runs; the third
+    artifact had 1183 rows instead of 1573 with zero differing cells, having
+    been killed mid-write by an external timeout. It was invalidated and
+    re-run; three complete runs are byte-identical. Row count is now checked
+    alongside the hash.
+- H3 remains blocked. Full record:
+  `docs/validation/PHASE3_F33V3H28_ALTERNATING_GAIN_CYCLE_DETECTOR.md`.
+
 ### Phase 3+ F3.3v3h2.7 iteration-budget diagnosis (2026-08-01)
 
 - Diagnosis only: `sim/core` unchanged, `DEFAULT_MAX_ITERATIONS` untouched, no

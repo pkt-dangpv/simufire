@@ -8,6 +8,44 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-01 - F3.3v3h2.8 alternating-gain detector
+
+- Implemented P2: the cycle predicate now uses `min(previous_gain,
+  current_gain)` against the unchanged `0.05`, because in a period-2 orbit the
+  gain alternates across the threshold. No new constant; cap still 24; half
+  step, LM, tolerance, Jacobian, gauge, regularization and flux law untouched.
+- The four H2.7 orbits close inside the cap at **11, 10, 14, 12** iterations,
+  matching H2.7's offline prediction exactly, through the new branch and
+  without spending LM budget.
+- Runtime matrix over ten committed cases: **every `iteration_cap` gone, 22 to
+  0**; `two_storey_smoke` 98.61% -> **100.00%**; zero regressions;
+  `damping_exhausted` unchanged everywhere; OFF byte-identical 10/10; legacy ON
+  columns 0 differences; counterflow 0; determinism 3/3 on corridor,
+  r0-window, multi-floor and loop.
+- **Shared-root divergence `0.000000e+00 Pa` over 5078 rows**, including the
+  many already-healthy solves where the wider detector now fires
+  (`cfast_r0_window_360` 204 -> 430 detections at an unchanged 100%).
+- **H2 REMAINS OPEN.** `uk_bungalow_smoke`'s `damping_exhausted` is a separate
+  mode the detector cannot reach by construction - it damps on every iteration
+  - and it fails identically at 24, 64 and 256. Not started in this phase. The
+  C8 parallel-openings gap and the untaken half-step rejection branch stand.
+- H3 remains blocked. Baseline worktree `C:/Users/dangp/h27_base` at
+  `5e535722`; the solver blob is identical across `f073c3a3`, `5e535722` and
+  `34f58e59`, so the H2.5m/H2.6 artifacts are valid baselines and three fresh
+  runs reproduced them byte for byte.
+- **Provenance rule, binding from here on:** filesystem SHA-256 of a committed
+  file is tree-local, because a fresh worktree normalises CRLF to LF. Eight of
+  ten case files looked different between HEAD and the baseline for exactly
+  that reason, with identical parsed JSON and matching Git blob hashes. Compare
+  worktrees with `git rev-parse <commit>:<path>` or canonical JSON; keep
+  filesystem SHA-256 for run artifacts inside one tree.
+- **Determinism caveat:** a first `two_storey_smoke` attempt showed two hashes
+  over three runs. That artifact had 1183 rows instead of 1573 with zero
+  differing cells - killed mid-write by an external timeout - so it was
+  invalidated and re-run. Row count is now checked alongside the hash.
+- Binding record:
+  `docs/validation/PHASE3_F33V3H28_ALTERNATING_GAIN_CYCLE_DETECTOR.md`.
+
 ## Current Session Update - 2026-08-01 - F3.3v3h2.7 iteration-budget diagnosis
 
 - Diagnosis only; `sim/core` has zero changes and the cap is untouched.

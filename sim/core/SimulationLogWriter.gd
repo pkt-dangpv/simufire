@@ -355,6 +355,8 @@ func _phase3_coupled_solver_fields() -> Array[String]:
 		"phase3_shadow_coupled_solver_analytic_half_step_accept_total",
 		"phase3_shadow_coupled_solver_analytic_half_step_last_initial_norm",
 		"phase3_shadow_coupled_solver_analytic_half_step_last_final_norm",
+		"phase3_shadow_coupled_solver_cycle_detect_both_phases_low_total",
+		"phase3_shadow_coupled_solver_cycle_detect_alternating_gain_total",
 		"phase3_shadow_coupled_solver_step_count_total",
 		"phase3_shadow_coupled_solver_converged_step_count_total",
 		"phase3_shadow_coupled_solver_failed_step_count_total",

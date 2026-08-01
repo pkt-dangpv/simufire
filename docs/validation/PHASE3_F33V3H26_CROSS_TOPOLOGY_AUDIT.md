@@ -74,7 +74,15 @@ accident.
 
 ## Corpus
 
-Committed case files only. SHA-256:
+Committed case files only.
+
+> **H2.8 NOTE.** The SHA-256 values below are **filesystem** hashes and are
+> tree-local: a fresh worktree checkout normalises CRLF to LF, so the same
+> committed file hashes differently there. For cross-worktree provenance use the
+> Git blob hash (`git rev-parse <commit>:<path>`) or canonical JSON. These
+> hashes remain valid for identifying the files within this tree.
+
+SHA-256:
 
 | case | SHA-256 |
 |---|---|
