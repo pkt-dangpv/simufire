@@ -1040,6 +1040,7 @@ Diagnostic / planned lanes:
 | F3.3v3h2.5l-A | Passive post-budget cycle observation | **GO telemetry only**; H2.5m authority NO-GO; H2 open |
 | F3.3v3h2.5l-B | Per-solve recurrence ledger | **GO passive ledger**; cross-topology separation confirmed; H2.5m blocked |
 | F3.3v3h2.5m | Analytic half step for the period-2 orbit | **GO**; corridor 100% at all stages, iteration_cap 378 -> 0; H2 still open, H3 blocked |
+| F3.3v3h2.6 | Cross-topology audit, eight cases | **GO as audit**; zero regressions; **NO-GO to close H2** - two_storey_smoke keeps 20 iteration_cap; H2.7 = cap sizing |
 
 F3.3v3f1 measured at 180 s:
 
@@ -1513,6 +1514,36 @@ two topologies.
 
 **H2 is NOT closed by this result.** H3 remains blocked. Full record:
 `docs/validation/PHASE3_F33V3H25M_CYCLE_STRATEGY_DESIGN.md`.
+
+F3.3v3h2.6 STOP: **GO as an audit; NO-GO for closing H2.**
+
+- `sim/core` unchanged; baseline `4ec0f09a`, candidate `db2815df`: PASS;
+- topology inventory separates the network a template declares from the one the
+  solver sees after `opening_overrides`; effective shapes over 108 cases are
+  89 star, 11 loop, 6 branched tree, 2 chain: PASS;
+- corpus extended two -> eight topologies (chain, star, branched tree, loop,
+  multi-floor), 32 runs on committed case files with hashes recorded;
+- convergence: `uk_bungalow_smoke` 68.63% -> 99.93%, `piso_mediterraneo_smoke`
+  83.14% -> 100.00%, `ghanekar_bedroom_hallway` 94.80% -> 99.93%,
+  `compact_apartment_smoke` 91.39% -> 99.31%;
+- zero converged-to-failed, OFF byte-identical, legacy ON columns unchanged,
+  counterflow 0, residual under original tolerance, determinism 3/3 on
+  multi-floor and loop, root divergence `0.000e+00` over 4567 rows: PASS;
+- **gate "at most one half step accepted per solve": FAIL** - eight solves of
+  ~2600 accept two, on loop and branched networks. Safe by construction (each
+  accept demands strict descent, and there is no artificial budget) but the
+  historical claim is corrected rather than deleted;
+- **open failure mode**: `two_storey_smoke` keeps 20 `iteration_cap`. The
+  capture shows a monotone residual and zero cycles before the cap, then
+  converges at **39 iterations** with a raised budget. The cap of 24 is sized
+  for three-room networks; this is not an unresolved orbit;
+- coverage absent, not solved: C8 parallel openings (no template) and the half
+  step's rejection branch (never taken by a real solve in twelve topology runs).
+
+**H2 REMAINS OPEN.** H3 remains blocked. Single principal blocker: **H2.7,
+iteration-cap sizing for large networks** - derive how the budget scales with
+rooms and openings; swapping 24 for 48 is not accepted. Full record:
+`docs/validation/PHASE3_F33V3H26_CROSS_TOPOLOGY_AUDIT.md`.
 
 Headless runner completion contract (2026-07-29): **GO at STOP.**
 

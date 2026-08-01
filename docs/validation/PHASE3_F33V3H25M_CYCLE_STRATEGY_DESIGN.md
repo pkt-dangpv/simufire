@@ -253,6 +253,22 @@ equal accepts everywhere and the per-solve maximum is 1, so the half step never
 declines and never fires twice in one solve - exactly what a one-step
 annihilator of a period-2 orbit should do.
 
+> **H2.6 CORRECTION (2026-08-01).** The measurement above is correct for this
+> four-stage corpus and is left as recorded. It is **not** a general property.
+> On the eight-case cross-topology corpus, eight solves out of roughly 2600
+> (0.3%) accept **two** half steps, all of them on loop or branched networks
+> where a second, distinct orbit forms later in the same solve. The maximum
+> observed is therefore **2**, not 1.
+>
+> What does hold generally, and is what the implementation guarantees: every
+> accept requires a valid, finite, strictly decreasing L-infinity residual, and
+> there is no artificial budget, so a second orbit is handled like the first.
+> That is a vindication of the no-budget design - had the half step been
+> budgeted at one accept like the LM rescue, those eight solves would have
+> reproduced the post-budget recurrence H2.5k diagnosed.
+>
+> See `PHASE3_F33V3H26_CROSS_TOPOLOGY_AUDIT.md`.
+
 ### Where the interventions went
 
 | stage | LM rescues accepted b/a | cycle-guard accepts b/a |

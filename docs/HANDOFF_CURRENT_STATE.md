@@ -8,6 +8,35 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-01 - F3.3v3h2.6 cross-topology audit
+
+- Audit only; `sim/core` has zero changes. Baseline `4ec0f09a`, candidate
+  `db2815df`.
+- Methodological point that drove the whole phase: topology comes from the ten
+  templates, but a case shuts openings via `opening_overrides`, so the network
+  the solver SEES is smaller than the one the template DECLARES.
+  `cfast_corridor_chain` is a `simple_house` star that solves a three-room
+  chain. The inventory reports both.
+- Corpus extended two -> eight topologies, 32 runs. Convergence rises sharply
+  wherever it was failing (`uk_bungalow_smoke` 68.63% -> 99.93%,
+  `piso_mediterraneo_smoke` 83.14% -> 100.00%) with **zero regressions**,
+  OFF byte-identical, legacy ON columns unchanged, counterflow 0, determinism
+  3/3 on multi-floor and loop, root divergence `0.000e+00` over 4567 rows.
+- **H2 REMAINS OPEN.** `two_storey_smoke` keeps 20 `iteration_cap`. Its capture
+  has a monotone residual and zero cycles before the cap, and converges at
+  **39 iterations** with a raised budget: the cap of 24 is sized for three-room
+  networks. Real open mode, and exactly the multi-floor class this audit
+  targeted. **H2.7 = iteration-cap sizing**, deriving a rule rather than
+  picking 48.
+- H2.5m's "at most one accept per solve" is corrected, not deleted: eight
+  solves of ~2600 accept two, on loop/branched networks. Every accept still
+  requires strict descent and there is no artificial budget.
+- Absent coverage: C8 parallel openings (no template has them) and the half
+  step's rejection branch (never taken by a real solve in twelve topology
+  runs).
+- H3 remains blocked. Binding record:
+  `docs/validation/PHASE3_F33V3H26_CROSS_TOPOLOGY_AUDIT.md`.
+
 ## Current Session Update - 2026-07-31 - F3.3v3h2.5m analytic half step
 
 - The post-budget period-2 cycle is the exact fixed point of Newton applied to

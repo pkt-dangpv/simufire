@@ -3,6 +3,43 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.6 cross-topology audit (2026-08-01)
+
+- Audit only: `sim/core` unchanged. No solver, half step, LM rescue, iteration
+  cap, tolerance or telemetry touched.
+- Added `scripts/simulation/inventory_phase3_opening_topology.py`. It separates
+  the network a template **declares** from the network the solver actually
+  **sees**: topology lives in the ten templates, but a case shuts doors through
+  `opening_overrides`, so `cfast_corridor_chain` runs on the `simple_house`
+  star yet solves a three-room chain. Effective shapes over all 108 cases:
+  89 star, 11 loop, 6 branched tree, 2 chain.
+- Extended the runtime corpus from two topologies to eight, spanning chain,
+  star, branched tree, loop and multi-floor, 32 runs baseline vs candidate:
+  - `uk_bungalow_smoke` 68.63% -> **99.93%**, `iteration_cap` 451 -> 0;
+  - `piso_mediterraneo_smoke` 83.14% -> **100.00%**, 243 -> 0;
+  - `ghanekar_bedroom_hallway` 94.80% -> **99.93%**, 74 -> 0;
+  - `compact_apartment_smoke` 91.39% -> **99.31%**, 114 -> 0;
+  - **zero regressions**, OFF byte-identical, legacy ON columns unchanged,
+    counterflow 0, determinism 3/3 on multi-floor and loop, shared-root
+    divergence `0.000e+00` over 4567 rows.
+- **H2 stays open.** `two_storey_smoke` keeps 20 `iteration_cap`. The capture
+  (11 rooms, 9 openings) shows a monotone residual and **zero cycles detected**
+  before the cap, then converges at **39 iterations** when the budget is
+  raised: the cap of 24 is sized for three-room networks. This is not an
+  unresolved orbit and not a half-step defect. H2.7 must derive how the budget
+  scales, not swap 24 for 48.
+- **Corrected the H2.5m claim "at most one accept per solve".** That
+  measurement stands for its four-stage corpus but is not general: eight solves
+  of ~2600 (0.3%) accept two, all on loop or branched networks. The property
+  that does hold is that every accept requires strict descent and there is no
+  artificial budget - which is why a second orbit is handled at all.
+- Coverage recorded as absent, not solved: **C8 parallel openings** (no
+  template defines two openings between the same room pair) and the half step's
+  **rejection branch**, which no real solve has taken across twelve topology
+  runs.
+- H3 remains blocked. Full record:
+  `docs/validation/PHASE3_F33V3H26_CROSS_TOPOLOGY_AUDIT.md`.
+
 ### Phase 3+ F3.3v3h2.5m analytic half step (2026-07-31)
 
 - Diagnosed the post-budget period-2 cycle. It is not a differencing artifact,
