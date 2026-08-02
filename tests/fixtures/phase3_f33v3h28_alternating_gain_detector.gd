@@ -36,7 +36,8 @@ const BOTH_PHASES_LOW := {
 
 ## Captures that never enter an orbit at all.
 const NO_CYCLE := {
-	"coupled_solver_failure_corridor_chain": 6,
+	# H2.10 later supersedes LM on this dead end and closes one iteration sooner.
+	"coupled_solver_failure_corridor_chain": 5,
 	"coupled_solver_failure_r0_window_360": 3,
 }
 
@@ -141,24 +142,23 @@ func _check_no_cycle_captures_are_untouched() -> void:
 		)
 
 
-## The mode H2.8 must NOT pretend to solve. It damps on every iteration, so
-## `previous_full_step` is cleared each time and the detector - widened or not -
-## is structurally unreachable.
+## H2.8 must still not claim this mode. It damps on every iteration, so its
+## cycle detector remains structurally unreachable. H2.10 closes the separate
+## donor-branch Jacobian defect through fail-only adaptive authority.
 func _check_uk_bungalow_is_not_reclassified() -> void:
 	var name := "coupled_solver_damping_exhausted_uk_bungalow"
 	var solved: Dictionary = _solve(name)
 	_assert(
-		not bool(solved.get("converged", true)),
-		name + ": still fails"
+		bool(solved.get("converged", false)),
+		name + ": H2.10 closes the separate branch defect"
 	)
 	_assert(
-		String(solved.get("limiting_reason", "")) == "damping_exhausted",
-		"%s: still damping_exhausted, got '%s'"
-				% [name, String(solved.get("limiting_reason", ""))]
+		float(solved.get("adaptive_jacobian_accept_total", 0.0)) >= 1.0,
+		name + ": adaptive Jacobian recovery is the authority"
 	)
 	_assert(
-		int(solved.get("iterations", 0.0)) == 12,
-		name + ": unchanged at 12 iterations"
+		float(solved.get("rescue_accepted", 1.0)) == 0.0,
+		name + ": LM remains unused"
 	)
 	_assert(
 		float(solved.get("cycle_detect_total", 0.0)) == 0.0,

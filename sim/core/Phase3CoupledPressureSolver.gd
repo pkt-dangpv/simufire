@@ -304,6 +304,50 @@ func solve_coupled_pressure(
 			damping *= 0.5
 			halvings += 1
 		if not accepted:
+			# H2.10 fail-only recovery. The shipped forward Jacobian and its
+			# line search have already failed before this branch is reachable.
+			# Probe both unilateral sides and refine the width until two
+			# consecutive branch-consistent Jacobians independently produce a
+			# strict L-infinity decrease. Failure leaves the state untouched and
+			# falls through to the existing LM recovery below.
+			result["adaptive_jacobian_attempt_total"] += 1.0
+			var adaptive: Dictionary = _try_adaptive_branch_jacobian_recovery(
+				context, pressure, evaluation, room_count,
+				jacobian_step_pa, max_halvings
+			)
+			for adaptive_field in [
+				"columns_forward_total", "columns_backward_total",
+				"columns_reduced_total", "branch_crossing_avoided_total",
+				"derivative_consistency_fail_total",
+			]:
+				result["adaptive_jacobian_" + adaptive_field] += float(
+					adaptive.get(adaptive_field, 0.0)
+				)
+			var adaptive_min_step: float = float(
+				adaptive.get("min_effective_jacobian_step_pa", 0.0)
+			)
+			if adaptive_min_step > 0.0:
+				var prior_adaptive_min: float = float(
+					result["adaptive_jacobian_min_effective_step_pa"]
+				)
+				result["adaptive_jacobian_min_effective_step_pa"] = (
+					adaptive_min_step if prior_adaptive_min <= 0.0
+					else minf(prior_adaptive_min, adaptive_min_step)
+				)
+			if bool(adaptive.get("accepted", false)):
+				result["adaptive_jacobian_accept_total"] += 1.0
+				pressure = adaptive["pressure"]
+				evaluation = adaptive["evaluation"]
+				norm = float(evaluation["normalized_residual"])
+				result["residual_history"].append(norm)
+				result["damping_history"].append(float(adaptive["damping"]))
+				previous_full_step.clear()
+				previous_full_step_gain_ratio = INF
+				previous_full_step_norm = NAN
+				previous_previous_full_step_norm = NAN
+				post_budget_cycle_streak = 0
+				converged = norm <= tolerance
+				continue
 			# FAIL-ONLY RECOVERY. Reachable on exactly one path: the one where
 			# this solver used to return `damping_exhausted`. Every successful
 			# solve therefore executes byte-identical code, which is asserted
@@ -642,6 +686,217 @@ func _step_norm(step: Array) -> float:
 	return sqrt(norm_sq)
 
 
+## H2.10 fail-only branch-preserving adaptive unilateral recovery.
+##
+## No new tuning threshold is used. A candidate is accepted only when two
+## consecutive widths independently find a strict L-infinity decrease and use
+## the same unilateral side for every column. The finer candidate wins. If
+## that evidence is unavailable, the caller continues into the unchanged LM
+## fallback.
+func _try_adaptive_branch_jacobian_recovery(
+		context: Dictionary,
+		pressure: Array,
+		evaluation: Dictionary,
+		room_count: int,
+		initial_step_pa: float,
+		max_halvings: int
+	) -> Dictionary:
+	var outcome: Dictionary = {
+		"accepted": false,
+		"columns_forward_total": 0.0,
+		"columns_backward_total": 0.0,
+		"columns_reduced_total": 0.0,
+		"branch_crossing_avoided_total": 0.0,
+		"derivative_consistency_fail_total": 0.0,
+		"min_effective_jacobian_step_pa": 0.0,
+	}
+	var previous_candidate: Dictionary = {}
+	var previous_sides: Array = []
+	var step_pa: float = initial_step_pa
+	for refinement in range(max_halvings + 1):
+		if step_pa <= 0.0 or not is_finite(step_pa):
+			break
+		var built: Dictionary = _build_branch_preserving_jacobian(
+			context, pressure, evaluation, room_count, step_pa
+		)
+		for field in [
+			"columns_forward_total", "columns_backward_total",
+			"branch_crossing_avoided_total",
+		]:
+			outcome[field] = float(outcome[field]) + float(built.get(field, 0.0))
+		if refinement > 0:
+			outcome["columns_reduced_total"] = float(
+				outcome["columns_reduced_total"]
+			) + float(room_count)
+		var prior_min_step: float = float(outcome["min_effective_jacobian_step_pa"])
+		outcome["min_effective_jacobian_step_pa"] = (
+			step_pa if prior_min_step <= 0.0 else minf(prior_min_step, step_pa)
+		)
+		if not bool(built.get("valid", false)):
+			outcome["derivative_consistency_fail_total"] += 1.0
+			previous_candidate.clear()
+			previous_sides.clear()
+			step_pa *= 0.5
+			continue
+		var negative_residual: Array[float] = []
+		for row_index in range(room_count):
+			negative_residual.append(-float(evaluation["residual"][row_index]))
+		var direction: Array = _solve_linear_system(
+			built["jacobian"], negative_residual
+		)
+		if direction.is_empty():
+			outcome["derivative_consistency_fail_total"] += 1.0
+			previous_candidate.clear()
+			previous_sides.clear()
+			step_pa *= 0.5
+			continue
+		var candidate: Dictionary = _try_strict_linf_candidate(
+			context, pressure, evaluation, direction, max_halvings
+		)
+		if not bool(candidate.get("accepted", false)):
+			outcome["derivative_consistency_fail_total"] += 1.0
+			previous_candidate.clear()
+			previous_sides.clear()
+			step_pa *= 0.5
+			continue
+		var sides: Array = built["sides"]
+		if not previous_candidate.is_empty():
+			if sides == previous_sides:
+				outcome["accepted"] = true
+				outcome["pressure"] = candidate["pressure"]
+				outcome["evaluation"] = candidate["evaluation"]
+				outcome["damping"] = candidate["damping"]
+				return outcome
+			outcome["derivative_consistency_fail_total"] += 1.0
+		previous_candidate = candidate
+		previous_sides = sides.duplicate()
+		step_pa *= 0.5
+	return outcome
+
+
+func _build_branch_preserving_jacobian(
+		context: Dictionary,
+		pressure: Array,
+		evaluation: Dictionary,
+		room_count: int,
+		step_pa: float
+	) -> Dictionary:
+	var outcome: Dictionary = {
+		"valid": false,
+		"columns_forward_total": 0.0,
+		"columns_backward_total": 0.0,
+		"branch_crossing_avoided_total": 0.0,
+	}
+	var jacobian: Array = []
+	for row_index in range(room_count):
+		var row: Array[float] = []
+		row.resize(room_count)
+		jacobian.append(row)
+	var sides: Array = []
+	for column in range(room_count):
+		var forward_pressure: Array = pressure.duplicate()
+		var backward_pressure: Array = pressure.duplicate()
+		forward_pressure[column] = float(forward_pressure[column]) + step_pa
+		backward_pressure[column] = float(backward_pressure[column]) - step_pa
+		if float(forward_pressure[column]) == float(pressure[column]) \
+				or float(backward_pressure[column]) == float(pressure[column]):
+			return outcome
+		var forward: Dictionary = _evaluate(context, forward_pressure)
+		var backward: Dictionary = _evaluate(context, backward_pressure)
+		if not bool(forward.get("valid", false)) \
+				or not bool(backward.get("valid", false)):
+			return outcome
+		var forward_rank: Array = _branch_change_rank(evaluation, forward)
+		var backward_rank: Array = _branch_change_rank(evaluation, backward)
+		var use_backward: bool = _branch_rank_less(backward_rank, forward_rank)
+		var selected: Dictionary = backward if use_backward else forward
+		if use_backward:
+			outcome["columns_backward_total"] += 1.0
+			if int(backward_rank[0]) < int(forward_rank[0]):
+				outcome["branch_crossing_avoided_total"] += 1.0
+			sides.append(-1)
+		else:
+			outcome["columns_forward_total"] += 1.0
+			sides.append(1)
+		for row_index in range(room_count):
+			jacobian[row_index][column] = (
+				(float(evaluation["residual"][row_index])
+				- float(selected["residual"][row_index])) / step_pa
+			) if use_backward else (
+				(float(selected["residual"][row_index])
+				- float(evaluation["residual"][row_index])) / step_pa
+			)
+	outcome["valid"] = true
+	outcome["jacobian"] = jacobian
+	outcome["sides"] = sides
+	return outcome
+
+
+## Categorical, lexicographic branch distance: donor/direction first,
+## neutral-plane topology second, regularization membership last.
+func _branch_change_rank(base: Dictionary, probe: Dictionary) -> Array:
+	var donor_changes: int = 0
+	var neutral_changes: int = 0
+	var regularization_changes: int = 0
+	var base_connections: Array = base.get("connections", [])
+	var probe_connections: Array = probe.get("connections", [])
+	if base_connections.size() != probe_connections.size():
+		return [2147483647, 2147483647, 2147483647]
+	for index in range(base_connections.size()):
+		var before: Dictionary = base_connections[index]
+		var after: Dictionary = probe_connections[index]
+		if signf(float(before["delta_p_pa"])) \
+				!= signf(float(after["delta_p_pa"])):
+			donor_changes += 1
+		if (float(before["a_to_b_kg"]) > 0.0) \
+				!= (float(after["a_to_b_kg"]) > 0.0):
+			donor_changes += 1
+		if (float(before["b_to_a_kg"]) > 0.0) \
+				!= (float(after["b_to_a_kg"]) > 0.0):
+			donor_changes += 1
+		if bool(before["neutral_plane_inside"]) \
+				!= bool(after["neutral_plane_inside"]):
+			neutral_changes += 1
+		if float(before["regularization_active_count"]) \
+				!= float(after["regularization_active_count"]):
+			regularization_changes += 1
+	return [donor_changes, neutral_changes, regularization_changes]
+
+
+func _branch_rank_less(left: Array, right: Array) -> bool:
+	for index in range(mini(left.size(), right.size())):
+		if int(left[index]) == int(right[index]):
+			continue
+		return int(left[index]) < int(right[index])
+	return false
+
+
+func _try_strict_linf_candidate(
+		context: Dictionary,
+		pressure: Array,
+		evaluation: Dictionary,
+		step: Array,
+		max_halvings: int
+	) -> Dictionary:
+	var norm: float = float(evaluation["normalized_residual"])
+	var damping: float = 1.0
+	for _halving in range(max_halvings + 1):
+		var trial: Array[float] = []
+		for row_index in range(pressure.size()):
+			trial.append(float(pressure[row_index]) + damping * float(step[row_index]))
+		var trial_evaluation: Dictionary = _evaluate(context, trial)
+		if bool(trial_evaluation.get("valid", false)) \
+				and float(trial_evaluation["normalized_residual"]) < norm:
+			return {
+				"accepted": true,
+				"pressure": trial,
+				"evaluation": trial_evaluation,
+				"damping": damping,
+			}
+		damping *= 0.5
+	return {"accepted": false}
+
+
 ## One bounded Levenberg-Marquardt recovery step, or nothing.
 ##
 ## Damps the SAME Jacobian the Newton step came from - no new differencing, no
@@ -773,6 +1028,15 @@ func _new_result() -> Dictionary:
 		# reported, never read back into a decision.
 		"cycle_detect_both_phases_low_total": 0.0,
 		"cycle_detect_alternating_gain_total": 0.0,
+		# H2.10 fail-only adaptive unilateral Jacobian telemetry.
+		"adaptive_jacobian_attempt_total": 0.0,
+		"adaptive_jacobian_accept_total": 0.0,
+		"adaptive_jacobian_columns_forward_total": 0.0,
+		"adaptive_jacobian_columns_backward_total": 0.0,
+		"adaptive_jacobian_columns_reduced_total": 0.0,
+		"adaptive_jacobian_branch_crossing_avoided_total": 0.0,
+		"adaptive_jacobian_derivative_consistency_fail_total": 0.0,
+		"adaptive_jacobian_min_effective_step_pa": 0.0,
 	}
 
 

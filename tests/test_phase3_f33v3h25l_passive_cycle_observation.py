@@ -85,12 +85,13 @@ def test_cycle_history_resets_where_step_continuity_is_broken():
     """Every trajectory break must reset the whole cycle history together.
 
     H2.5m added a fourth break (the accepted analytic half step) alongside the
-    fail-only rescue, the accepted cycle rescue and the damped step. The
-    contract is not the count but that the four resets always move as a set.
+    fail-only rescue, the accepted cycle rescue and the damped step. H2.10 adds
+    a fifth break when its adaptive branch-preserving Jacobian accepts a step.
+    The contract is not the count but that all resets always move as a set.
     """
     body = _function(SOLVER, "solve_coupled_pressure")
     breaks = body.count("previous_full_step.clear()")
-    assert breaks == 4, f"expected 4 trajectory breaks, found {breaks}"
+    assert breaks == 5, f"expected 5 trajectory breaks, found {breaks}"
     lines = [line.strip() for line in body.splitlines()]
     assert lines.count("previous_full_step_gain_ratio = INF") == breaks
     assert lines.count("previous_full_step_norm = NAN") == breaks

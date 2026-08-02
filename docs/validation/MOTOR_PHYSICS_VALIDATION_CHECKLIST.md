@@ -1043,6 +1043,7 @@ Diagnostic / planned lanes:
 | F3.3v3h2.6 | Cross-topology audit, eight cases | **GO as audit**; zero regressions; **NO-GO to close H2** - two_storey_smoke keeps 20 iteration_cap; H2.7 = cap sizing |
 | F3.3v3h2.7 | Iteration-budget diagnosis | **GO as diagnosis**; **NO-GO for any cap change** - cap is above P99, cause is an undetected alternating-gain orbit; P2 deferred to H2.8 |
 | F3.3v3h2.9 | `uk_bungalow_smoke` damping-exhausted diagnosis | **GO as diagnosis**; forward Jacobian crosses donor branch; LM-budget expansion NO-GO; H2.10 = branch-preserving adaptive quotient |
+| F3.3v3h2.10 | Adaptive branch-preserving unilateral Jacobian | **GO**; 9/9 captures, 189/189 neighbourhood, C8 parallel openings and ten-case runtime gate PASS; H2 closed, H3 unblocked |
 | F3.3v3h2.8 | Alternating-gain cycle detector | **GO**; all 22 iteration_cap eliminated, two_storey 98.61%->100%; **H2 still open** on uk_bungalow damping_exhausted |
 
 F3.3v3f1 measured at 180 s:
@@ -1622,6 +1623,33 @@ F3.3v3h2.9 STOP: **GO as diagnosis; NO-GO for a motor change in this phase.**
 adaptive width/derivative self-consistency and pass the runtime topology gate.
 H3 remains blocked. Full record:
 `docs/validation/PHASE3_F33V3H29_UK_DAMPING_EXHAUSTED_DIAGNOSIS.md`.
+
+F3.3v3h2.10 STOP: **GO for the adaptive branch-preserving Jacobian.**
+
+- shipped forward Newton/Jacobian path and strict L-infinity line search remain
+  first authority; adaptive recovery is fail-only and precedes LM: PASS;
+- no new threshold or per-case knob; cap 24, tolerance, LM budget, cycle
+  detector, gauge, EOS, regularization and orifice law unchanged: PASS;
+- all nine committed exact captures converge and the deterministic H2.9
+  neighbourhood improves 182/189 -> **189/189** with no regression: PASS;
+- C8 parallel-opening fixture preserves both routes, mass/energy closure,
+  reordering invariance and counterflow: PASS;
+- ten committed 120 s cases: convergence 100% in all cases,
+  `damping_exhausted` 27 -> 0, `iteration_cap` 0 -> 0, adaptive 54/54 and LM
+  accepts 54 -> 0; no converged solve regresses: PASS;
+- OFF byte-identical 10/10, shared ON legacy columns unchanged, shared-root
+  delta `0.000000e+00 Pa` at CSV cadence and counterflow violations 0: PASS;
+- three complete byte-identical runs each for UK bungalow, compact apartment
+  and flashover house, with matching row counts and manifests: PASS;
+- Physics and ILV 0 FAIL; gap inventory unchanged; 12/12 direct Godot fixtures
+  and 213/213 focused structural tests PASS.
+
+**H2 CLOSES as numerical readiness for the passive coupled pressure solver.**
+**H3 is unblocked but not started.** Coverage remains bounded to ten committed
+runtime topologies plus synthetic C8, and no real runtime solve exercised an
+adaptive decline into LM; the fallback path remains structurally tested. Full
+record:
+`docs/validation/PHASE3_F33V3H210_ADAPTIVE_BRANCH_JACOBIAN.md`.
 
 Headless runner completion contract (2026-07-29): **GO at STOP.**
 

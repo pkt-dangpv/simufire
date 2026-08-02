@@ -93,8 +93,9 @@ func _check_iteration_cap() -> void:
 	)
 
 
-## A capture whose failure mode is `damping_exhausted`, not the orbit. It must
-## still be closed by the LM rescue, proving the half step did not displace it.
+## A capture whose failure mode is `damping_exhausted`, not the orbit. H2.10
+## later supersedes LM here with its fail-only adaptive unilateral Jacobian;
+## the half-step detector must still remain uninvolved.
 func _check_corridor_failure() -> void:
 	var solved: Dictionary = _solve(CORRIDOR_FAILURE)
 	_assert(
@@ -102,8 +103,9 @@ func _check_corridor_failure() -> void:
 		"corridor damping_exhausted capture still converges"
 	)
 	_assert(
-		float(solved.get("rescue_accepted", 0.0)) == 1.0,
-		"the LM rescue is still the mechanism that closes it"
+		float(solved.get("adaptive_jacobian_accept_total", 0.0)) >= 1.0
+				and float(solved.get("rescue_accepted", 1.0)) == 0.0,
+		"H2.10 adaptive Jacobian closes before LM"
 	)
 	_assert(
 		float(solved.get("analytic_half_step_accept_total", 0.0)) == 0.0,

@@ -180,6 +180,7 @@ def test_fixture_still_guards_the_original_failure_record():
     assert 'String(observed.get("limiting_reason", "")) == "damping_exhausted"'         in FIXTURE
 
 
-def test_fixture_pins_the_recovery_budget():
-    # exactly one recovery step, which is what makes the fix bounded
-    assert 'float(result["rescue_accepted"]) == 1.0' in FIXTURE
+def test_fixture_records_h210_supersedes_lm_on_this_dead_end():
+    assert 'float(result["adaptive_jacobian_accept_total"]) >= 1.0' in FIXTURE
+    assert 'float(result["rescue_accepted"]) == 0.0' in FIXTURE
+    assert "adaptive Jacobian closes before LM" in FIXTURE

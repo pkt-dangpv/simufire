@@ -105,10 +105,10 @@ def test_fixture_separates_the_orbits_from_the_damping_case():
     assert budget.count("coupled_solver_iteration_cap_") == 4
 
 
-def test_fixture_asserts_the_damping_case_is_budget_immune():
-    assert "_check_damping_case_is_not_a_budget_problem" in FIXTURE
+def test_fixture_records_h210_closes_damping_case_without_budget_tuning():
+    assert "_check_damping_case_closed_by_h210_not_budget" in FIXTURE
     assert "for budget in [24, 64, 256]" in FIXTURE
-    assert "stays damping_exhausted at budget" in FIXTURE
+    assert "adaptive Jacobian, not LM or budget, closes it" in FIXTURE
 
 
 def test_fixture_keeps_the_recorded_history_as_provenance():

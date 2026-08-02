@@ -227,7 +227,10 @@ def test_iteration_capture_is_now_the_positive_runtime_contract():
 
 
 def test_existing_damping_and_r0_contracts_remain_present():
-    assert "_test_corridor_converges_with_exactly_one_rescue" in LM_FIXTURE
+    assert "_test_corridor_converges_before_lm_after_h210" in LM_FIXTURE
+    assert 'float(result["adaptive_jacobian_accept_total"]) >= 1.0' in LM_FIXTURE
+    assert 'float(result["rescue_attempted"]) == 0.0' in LM_FIXTURE
+    assert 'float(result["rescue_accepted"]) == 0.0' in LM_FIXTURE
     assert "_test_r0_converges_without_rescue_and_is_unchanged" in LM_FIXTURE
     assert "const R0_ITERATIONS := 3" in LM_FIXTURE
 

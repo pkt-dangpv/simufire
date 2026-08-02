@@ -43,17 +43,19 @@ def _function(text: str, name: str) -> str:
 # ---------------------------------------------------------------------------
 
 def test_recovery_keeps_the_original_damping_dead_end_call_site():
-    """H2.5j adds one narrow cycle entry beside the H2.5g dead end."""
+    """H2.10 may recover first; a decline still reaches the original LM call."""
     body = _function(CODE, "solve_coupled_pressure")
     assert body.count("_try_lm_rescue(") == 2, "dead end plus cycle guard"
     first_call = body.split("_try_lm_rescue(", 1)[0]
     before = first_call
     tail = before.rsplit("if not accepted:", 1)
     assert len(tail) == 2, "the call is not under `if not accepted:`"
-    # nothing between the guard and the call may accept a step or converge
     between = tail[1]
-    for forbidden in ("converged = ", "residual_history", "pressure = "):
-        assert forbidden not in between, forbidden
+    assert "_try_adaptive_branch_jacobian_recovery" in between
+    assert 'if bool(adaptive.get("accepted", false)):' in between
+    # The adaptive accept exits this iteration. If it declines, execution
+    # reaches the unchanged LM call directly below it.
+    assert "continue" in between
     cycle = body.split(
         "if cycle_detected and rescue_budget_left > 0:", 1
     )[1]
@@ -224,10 +226,10 @@ def test_telemetry_columns_stay_in_the_opt_in_family():
 def test_fixture_covers_the_mandated_cases():
     assert "PHASE3_F33V3H25G_LM_RESCUE_PASS" in FIXTURE
     for name in (
-        "_test_corridor_converges_with_exactly_one_rescue",
+        "_test_corridor_converges_before_lm_after_h210",
         "_test_r0_converges_without_rescue_and_is_unchanged",
         "_test_successful_solves_never_reach_the_recovery",
-        "_test_budget_is_one_accepted_step_per_solve",
+        "_test_lm_budget_remains_bounded_when_h210_supersedes_it",
         "_test_conservation_and_counterflow",
         "_test_determinism",
         "_test_recovery_is_not_convergence",

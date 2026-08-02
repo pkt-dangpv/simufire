@@ -124,7 +124,7 @@ func _test_replay_reproduces_the_recorded_failure(capture: Dictionary) -> void:
 	var observed: Dictionary = capture.get("observed_failure", {})
 	_assert_true(
 		bool(result["converged"]),
-		"the captured input converges once the bounded LM recovery exists"
+		"the captured input converges with fail-only recovery authority"
 	)
 	_assert_true(
 		String(result["limiting_reason"]) == "converged",
@@ -142,10 +142,12 @@ func _test_replay_reproduces_the_recorded_failure(capture: Dictionary) -> void:
 		float(result["counterflow_violation_count"]) == 0.0,
 		"no counterflow violation on the recovered solve"
 	)
-	# Exactly one recovery step, which is the documented budget.
+	# H2.10 supersedes LM on this exact dead end with a locally coherent
+	# unilateral Jacobian. The capture below still records the original failure.
 	_assert_true(
-		float(result["rescue_accepted"]) == 1.0,
-		"exactly one accepted recovery step (%s)" % str(result["rescue_accepted"])
+		float(result["adaptive_jacobian_accept_total"]) >= 1.0
+				and float(result["rescue_accepted"]) == 0.0,
+		"adaptive Jacobian closes before LM"
 	)
 	# The record keeps saying what the unrecovered solver did.
 	_assert_true(

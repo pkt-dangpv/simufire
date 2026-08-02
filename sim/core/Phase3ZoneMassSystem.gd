@@ -5584,6 +5584,14 @@ func _new_coupled_pressure_solver_record() -> Dictionary:
 		"analytic_half_step_last_final_norm": 0.0,
 		"cycle_detect_both_phases_low_total": 0.0,
 		"cycle_detect_alternating_gain_total": 0.0,
+		"adaptive_jacobian_attempt_total": 0.0,
+		"adaptive_jacobian_accept_total": 0.0,
+		"adaptive_jacobian_columns_forward_total": 0.0,
+		"adaptive_jacobian_columns_backward_total": 0.0,
+		"adaptive_jacobian_columns_reduced_total": 0.0,
+		"adaptive_jacobian_branch_crossing_avoided_total": 0.0,
+		"adaptive_jacobian_derivative_consistency_fail_total": 0.0,
+		"adaptive_jacobian_min_effective_step_pa": 0.0,
 	}
 
 
@@ -5629,6 +5637,15 @@ func _new_coupled_pressure_solver_cumulative_record() -> Dictionary:
 		# H2.8: which regime fired, kept apart so the two stay legible.
 		"cycle_detect_both_phases_low_total": 0.0,
 		"cycle_detect_alternating_gain_total": 0.0,
+		# H2.10 fail-only adaptive unilateral Jacobian ledger.
+		"adaptive_jacobian_attempt_total": 0.0,
+		"adaptive_jacobian_accept_total": 0.0,
+		"adaptive_jacobian_columns_forward_total": 0.0,
+		"adaptive_jacobian_columns_backward_total": 0.0,
+		"adaptive_jacobian_columns_reduced_total": 0.0,
+		"adaptive_jacobian_branch_crossing_avoided_total": 0.0,
+		"adaptive_jacobian_derivative_consistency_fail_total": 0.0,
+		"adaptive_jacobian_min_effective_step_pa": 0.0,
 	}
 
 
@@ -5919,6 +5936,14 @@ func _record_coupled_pressure_solver_preview(
 			"analytic_half_step_last_final_norm",
 			"cycle_detect_both_phases_low_total",
 			"cycle_detect_alternating_gain_total",
+			"adaptive_jacobian_attempt_total",
+			"adaptive_jacobian_accept_total",
+			"adaptive_jacobian_columns_forward_total",
+			"adaptive_jacobian_columns_backward_total",
+			"adaptive_jacobian_columns_reduced_total",
+			"adaptive_jacobian_branch_crossing_avoided_total",
+			"adaptive_jacobian_derivative_consistency_fail_total",
+			"adaptive_jacobian_min_effective_step_pa",
 		]:
 			record[rescue_field] = float(solved.get(rescue_field, 0.0))
 		record["iteration_cap_flag"] = \
@@ -6013,6 +6038,28 @@ func _record_coupled_pressure_solver_preview(
 			cumulative[regime_field] = float(
 				cumulative[regime_field]
 			) + float(record[regime_field])
+		for adaptive_field in [
+			"adaptive_jacobian_attempt_total",
+			"adaptive_jacobian_accept_total",
+			"adaptive_jacobian_columns_forward_total",
+			"adaptive_jacobian_columns_backward_total",
+			"adaptive_jacobian_columns_reduced_total",
+			"adaptive_jacobian_branch_crossing_avoided_total",
+			"adaptive_jacobian_derivative_consistency_fail_total",
+		]:
+			cumulative[adaptive_field] = float(cumulative[adaptive_field]) \
+					+ float(record[adaptive_field])
+		var adaptive_min_step: float = float(
+			record["adaptive_jacobian_min_effective_step_pa"]
+		)
+		if adaptive_min_step > 0.0:
+			var prior_adaptive_min_step: float = float(
+				cumulative["adaptive_jacobian_min_effective_step_pa"]
+			)
+			cumulative["adaptive_jacobian_min_effective_step_pa"] = (
+				adaptive_min_step if prior_adaptive_min_step <= 0.0
+				else minf(prior_adaptive_min_step, adaptive_min_step)
+			)
 		if float(record["cycle_contraction_max"]) > 0.0:
 			var prior_cycle_min: float = float(
 				cumulative["cycle_contraction_min"]
@@ -6102,6 +6149,14 @@ func _record_coupled_pressure_solver_preview(
 			"analytic_half_step_last_final_norm",
 			"cycle_detect_both_phases_low_total",
 			"cycle_detect_alternating_gain_total",
+			"adaptive_jacobian_attempt_total",
+			"adaptive_jacobian_accept_total",
+			"adaptive_jacobian_columns_forward_total",
+			"adaptive_jacobian_columns_backward_total",
+			"adaptive_jacobian_columns_reduced_total",
+			"adaptive_jacobian_branch_crossing_avoided_total",
+			"adaptive_jacobian_derivative_consistency_fail_total",
+			"adaptive_jacobian_min_effective_step_pa",
 		]:
 			record[cycle_field] = float(cumulative[cycle_field])
 		_coupled_pressure_solver_by_room[room_key] = record
@@ -10465,6 +10520,14 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 			"analytic_half_step_last_final_norm",
 			"cycle_detect_both_phases_low_total",
 			"cycle_detect_alternating_gain_total",
+			"adaptive_jacobian_attempt_total",
+			"adaptive_jacobian_accept_total",
+			"adaptive_jacobian_columns_forward_total",
+			"adaptive_jacobian_columns_backward_total",
+			"adaptive_jacobian_columns_reduced_total",
+			"adaptive_jacobian_branch_crossing_avoided_total",
+			"adaptive_jacobian_derivative_consistency_fail_total",
+			"adaptive_jacobian_min_effective_step_pa",
 		]:
 			coupled_solver_result[
 				"phase3_shadow_coupled_solver_" + coupled_field

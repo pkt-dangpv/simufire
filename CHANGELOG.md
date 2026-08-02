@@ -3,6 +3,37 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3+ F3.3v3h2.10 adaptive branch-preserving Jacobian (2026-08-01)
+
+- Added a fail-only adaptive unilateral Jacobian recovery before the existing
+  LM fallback. It keeps the shipped forward solve and strict L-infinity line
+  search unchanged, selects the locally coherent donor branch
+  lexicographically, and requires two consecutive refinement widths with the
+  same side selection and real residual decrease.
+- No per-case knob or new numerical threshold was added. Refinement reuses the
+  existing Jacobian width, halving budget, convergence tolerance, iteration
+  cap, gauge formulation, EOS, regularization and orifice law.
+- All nine committed exact captures converge; the deterministic H2.9
+  neighbourhood improves from 182/189 to **189/189**, and the new parallel-
+  opening C8 fixture preserves both routes, conservation, reordering symmetry
+  and counterflow.
+- Ten-case 120 s runtime matrix: `damping_exhausted` **27 -> 0**,
+  `iteration_cap` **0 -> 0**, convergence **100% in every case**, zero
+  converged-to-failed solves, zero counterflow violations, OFF byte-identical
+  10/10 and zero changes in shared ON legacy columns. The adaptive path
+  accepted 54/54 attempts and superseded 54 LM acceptances.
+- Three complete runs each of `uk_bungalow_smoke`,
+  `compact_apartment_smoke` and `flashover_simple_house` are byte-identical
+  with matching row counts and completed manifests. Shared-root divergence at
+  CSV cadence is `0.000000e+00 Pa`.
+- **H2 closes as the numerical-readiness phase for the passive coupled
+  pressure solver. H3 is unblocked but not started.** Remaining coverage limits
+  are explicit: runtime exercises ten committed topologies plus synthetic C8,
+  and no real runtime solve declined adaptive recovery and fell through to LM
+  (that path remains structurally tested).
+- Full record:
+  `docs/validation/PHASE3_F33V3H210_ADAPTIVE_BRANCH_JACOBIAN.md`.
+
 ### Phase 3+ F3.3v3h2.9 uk_bungalow damping-exhausted diagnosis (2026-08-01)
 
 - Diagnosis only: `sim/core` unchanged and no solver constant, report,

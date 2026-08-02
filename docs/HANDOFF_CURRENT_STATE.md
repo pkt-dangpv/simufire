@@ -8,6 +8,36 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-01 - F3.3v3h2.10 adaptive Jacobian
+
+- Implemented a fail-only branch-preserving unilateral Jacobian recovery. The
+  ordinary forward Newton solve is untouched; adaptive recovery is reachable
+  only after its strict L-infinity line search fails and before LM.
+- The recovery compares donor/direction, neutral-plane/flow-presence and
+  regularization branch changes lexicographically, preserves forward bias on a
+  tie, halves the existing width deterministically and accepts only after two
+  consecutive coherent refinements produce strict residual decrease.
+- Exact gates: nine committed captures converge, the H2.9 neighbourhood is
+  **189/189**, and a new C8 parallel-opening fixture passes conservation,
+  symmetry, route-preservation and counterflow contracts.
+- Runtime gate, ten committed cases at 120 s: all end at **100% convergence**;
+  `damping_exhausted` 27 -> 0, `iteration_cap` remains 0, adaptive 54/54,
+  LM acceptances 54 -> 0, zero regressions and zero counterflow violations.
+- Isolation: OFF byte-identical 10/10; shared ON legacy columns have zero
+  differences; sampled shared-root delta is `0.000000e+00 Pa`.
+- Determinism: three complete byte-identical runs, with matching rows and
+  manifests, for UK bungalow, compact apartment and flashover house.
+- **H2 is closed as numerical readiness for the passive coupled solver. H3 is
+  unblocked and not started.** Keep two limits visible: runtime coverage is ten
+  topologies plus synthetic C8, and real runtime did not exercise an adaptive
+  decline into LM although that fallback remains structurally reachable.
+- STOP state: Physics 0 FAIL, ILV 0 FAIL, gap inventory unchanged, all 12
+  direct Godot fixtures PASS, focused structural tests 213/213 PASS.
+  Guardrails are 9/10 only because R2-1 correctly sees dirty motor before the
+  STOP commit; no report refresh has been made.
+- Binding record:
+  `docs/validation/PHASE3_F33V3H210_ADAPTIVE_BRANCH_JACOBIAN.md`.
+
 ## Current Session Update - 2026-08-01 - F3.3v3h2.9 UK damping diagnosis
 
 - Diagnosis only; `sim/core` is untouched.

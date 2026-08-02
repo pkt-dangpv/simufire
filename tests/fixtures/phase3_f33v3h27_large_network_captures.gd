@@ -10,9 +10,10 @@ extends SceneTree
 ## the detector.
 ##
 ## The fifth is deliberately NOT one of those. `uk_bungalow_smoke` damps on
-## every iteration, so `previous_full_step` is cleared each time and the
-## detector is structurally unreachable; it exhausts its single LM rescue and
-## dies as `damping_exhausted` at 12 iterations, and stays that way even at 256.
+## every iteration, so the H2.8 cycle detector remains structurally
+## unreachable. H2.10 later closed its separate donor-branch Jacobian defect
+## with the fail-only adaptive unilateral recovery; the capture remains the
+## exact provenance of the pre-H2.10 failure.
 ## Keeping it in the same fixture is the point: it pins the distinction.
 ##
 ## H2.8 UPDATE. When written, this fixture asserted that the four orbits still
@@ -40,7 +41,7 @@ const CASES := [
 	["coupled_solver_iteration_cap_two_storey_smoke", "converged", 10],
 	["coupled_solver_iteration_cap_three_bed_apartment", "converged", 14],
 	["coupled_solver_iteration_cap_flashover_simple_house", "converged", 12],
-	["coupled_solver_damping_exhausted_uk_bungalow", "damping_exhausted", 12],
+	["coupled_solver_damping_exhausted_uk_bungalow", "converged", 14],
 ]
 
 ## What each orbit cost BEFORE H2.8, when the detector could not see it and the
@@ -72,7 +73,7 @@ func _init() -> void:
 		var entry: Array = raw_case
 		_check(String(entry[0]), String(entry[1]), int(entry[2]))
 	_check_orbit_cases_close_with_more_budget()
-	_check_damping_case_is_not_a_budget_problem()
+	_check_damping_case_closed_by_h210_not_budget()
 	_check_negative_controls()
 	if _failed:
 		quit(1)
@@ -179,7 +180,7 @@ func _check_orbit_cases_close_with_more_budget() -> void:
 
 
 ## The distinction the fixture exists to pin: this one is not a budget problem.
-func _check_damping_case_is_not_a_budget_problem() -> void:
+func _check_damping_case_closed_by_h210_not_budget() -> void:
 	var name := "coupled_solver_damping_exhausted_uk_bungalow"
 	var capture: Dictionary = _load("%s/%s.json" % [DATA, name])
 	if capture.is_empty():
@@ -188,18 +189,19 @@ func _check_damping_case_is_not_a_budget_problem() -> void:
 	for budget in [24, 64, 256]:
 		var solved: Dictionary = _solve(capture, budget)
 		_assert(
-			not bool(solved.get("converged", true)),
-			"%s: still fails at budget %d" % [name, budget]
+			bool(solved.get("converged", false)),
+			"%s: H2.10 closes at budget %d" % [name, budget]
 		)
 		_assert(
-			String(solved.get("limiting_reason", "")) == "damping_exhausted",
-			"%s: stays damping_exhausted at budget %d" % [name, budget]
+			int(solved.get("iterations", 0.0)) == 14,
+			"%s: H2.10 closes in 14 iterations at budget %d" % [name, budget]
 		)
 		_assert(
-			int(solved.get("iterations", 0.0)) == 12,
-			"%s: raising the budget does not change it at %d" % [name, budget]
+			float(solved.get("adaptive_jacobian_accept_total", 0.0)) >= 1.0
+					and float(solved.get("rescue_accepted", 1.0)) == 0.0,
+			"%s: adaptive Jacobian, not LM or budget, closes it" % name
 		)
-	# It never enters the orbit at all, which is why the detector cannot help.
+	# It still never enters the orbit: H2.10 closes a separate branch defect.
 	var solved_default: Dictionary = _solve(capture, 0)
 	_assert(
 		float(solved_default.get("cycle_detect_total", -1.0)) == 0.0,

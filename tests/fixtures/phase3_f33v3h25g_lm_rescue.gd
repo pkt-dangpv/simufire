@@ -40,10 +40,10 @@ var _failed: bool = false
 
 
 func _init() -> void:
-	_test_corridor_converges_with_exactly_one_rescue()
+	_test_corridor_converges_before_lm_after_h210()
 	_test_r0_converges_without_rescue_and_is_unchanged()
 	_test_successful_solves_never_reach_the_recovery()
-	_test_budget_is_one_accepted_step_per_solve()
+	_test_lm_budget_remains_bounded_when_h210_supersedes_it()
 	_test_conservation_and_counterflow()
 	_test_determinism()
 	_test_recovery_is_not_convergence()
@@ -58,34 +58,25 @@ func _init() -> void:
 # 1 - the corridor capture
 # ---------------------------------------------------------------------------
 
-func _test_corridor_converges_with_exactly_one_rescue() -> void:
+func _test_corridor_converges_before_lm_after_h210() -> void:
 	var result: Dictionary = _solve_capture(CORRIDOR)
 	_assert_true(bool(result["converged"]), "corridor capture converges")
 	_assert_true(
-		float(result["rescue_attempted"]) == 1.0,
-		"exactly one recovery attempt (%s)" % str(result["rescue_attempted"])
+		float(result["adaptive_jacobian_accept_total"]) >= 1.0,
+		"H2.10 accepts a coherent unilateral Jacobian"
 	)
 	_assert_true(
-		float(result["rescue_accepted"]) == 1.0,
-		"exactly one accepted recovery step (%s)" % str(result["rescue_accepted"])
+		float(result["rescue_attempted"]) == 0.0
+				and float(result["rescue_accepted"]) == 0.0,
+		"LM is no longer reached on this capture"
 	)
 	_assert_true(
 		float(result["normalized_residual"]) <= 1.0e-12,
 		"corridor closes inside the unchanged tolerance"
 	)
 	_assert_true(
-		float(result["rescue_trials"]) >= 1.0,
-		"the recovery reports how many trials it took"
-	)
-	_assert_true(
-		float(result["rescue_lambda"]) > 0.0,
-		"the recovery reports which regularization worked"
-	)
-	# The point of the whole mechanism: L-infinity goes UP across the rescue
-	# step, which is precisely what the ordinary line search would not allow.
-	_assert_true(
-		float(result["rescue_final_norm"]) > float(result["rescue_initial_norm"]),
-		"the accepted recovery step raises L-infinity while lowering the merit"
+		float(result["adaptive_jacobian_min_effective_step_pa"]) > 0.0,
+		"adaptive recovery reports its effective width"
 	)
 
 
@@ -143,7 +134,7 @@ func _test_successful_solves_never_reach_the_recovery() -> void:
 # 5 - the budget really is one accepted step
 # ---------------------------------------------------------------------------
 
-func _test_budget_is_one_accepted_step_per_solve() -> void:
+func _test_lm_budget_remains_bounded_when_h210_supersedes_it() -> void:
 	# A real corridor perturbation that hits the dead end twice. The first is
 	# rescued, the second is not, and the solve fails exactly as it used to.
 	# Without the budget this case would keep being rescued.
@@ -152,22 +143,10 @@ func _test_budget_is_one_accepted_step_per_solve() -> void:
 		rooms, _corridor_openings(), _corridor_sources(),
 		0.08333333333333333, 20.0, {"dp_regularization_pa": 2.5e-3}
 	)
-	_assert_true(
-		float(result["rescue_accepted"]) == 1.0,
-		"one recovery step was accepted (%s)" % str(result["rescue_accepted"])
-	)
-	_assert_true(
-		not bool(result["converged"]),
-		"the solve still fails once the budget is spent"
-	)
-	_assert_true(
-		String(result["limiting_reason"]) == "damping_exhausted",
-		"a second dead end fails as damping_exhausted, got '%s'"
-				% String(result["limiting_reason"])
-	)
+	_assert_true(bool(result["converged"]), "H2.10 closes the former double dead end")
 	_assert_true(
 		float(result["rescue_accepted"]) <= 1.0,
-		"never more than one accepted recovery step per solve"
+		"LM budget remains at most one accepted step per solve"
 	)
 
 
@@ -240,8 +219,8 @@ func _test_recovery_is_not_convergence() -> void:
 				% int(result["iterations"])
 	)
 	_assert_true(
-		float(result["rescue_final_norm"]) > 1.0e-12,
-		"the rescue step itself was nowhere near the tolerance"
+		float(result["adaptive_jacobian_accept_total"]) >= 1.0,
+		"the fail-only recovery was actually exercised"
 	)
 
 
