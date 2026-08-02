@@ -3,6 +3,40 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.0 runtime authority plan (2026-08-02) - DESIGN ONLY
+
+- No `sim/core` change, no flag, no authority granted, no baseline, expected
+  value, tolerance, CTRL or VALID_GAP touched. H3 is not started as
+  implementation.
+- Traced the **real** writes rather than trusting names, which contradicted the
+  names in three places:
+  - `ZoneFireSolver.gd` writes room mass (9) and energy (16) and was not even
+    on the reading list;
+  - `ThermalSystem`, not `GasExchangeSystem`, owns interior doorway transport,
+    through **two** separate paths (`_apply_canonical_doorway_exchange` and
+    `_apply_doorway_thermal_counterflow`);
+  - `SimulationEngine._clamp_rooms` writes mass and energy and calls
+    `project_room_state` twice.
+  Roughly ten call sites own the same state.
+- **Hard blocker identified.** `ZoneFireSolver.project_room_state` is not a
+  projection: it reconstructs energy from already-clamped temperature
+  (`upper_energy_kj = upper_gas_kg * (temp_upper_c - ambient) * cp`) and runs
+  last, from `_clamp_rooms`. Any energy an authoritative solver commits is
+  overwritten before the step ends. A new prerequisite phase **H3.2b** converts
+  projection to residual mode before H3.3 may commit mass or energy.
+- **Delayed parcels cross timestep boundaries** - `delay_s` is decremented by
+  `dt` and entries survive - so an atomic per-step bundle and the in-flight pool
+  cannot both own interior transport.
+- Confirmed by measurement that `Phase3ZoneMassSystem` performs **zero** writes
+  to room mass, energy or O2, and that the coupled solver is called from exactly
+  one telemetry-only site, running last in the tick.
+- Delivered the ownership map, current and proposed tick diagrams, 14 gating
+  invariants, seven default-OFF flags, the H3.0-H3.7 phase plan with STOP gates
+  and rollbacks, a ten-entry risk table, and an explicit non-convergence policy
+  (explicit legacy fallback per step, counted, blocking promotion).
+- **Recommendation: authorise H3.1 only.** It is provably physics-neutral.
+- Full record: `docs/validation/PHASE3_H3_RUNTIME_AUTHORITY_PLAN.md`.
+
 ### Phase 3+ F3.3v3h2.10 adaptive branch-preserving Jacobian (2026-08-01)
 
 - Added a fail-only adaptive unilateral Jacobian recovery before the existing

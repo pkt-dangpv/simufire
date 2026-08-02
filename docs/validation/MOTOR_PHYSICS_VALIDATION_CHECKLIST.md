@@ -1044,6 +1044,7 @@ Diagnostic / planned lanes:
 | F3.3v3h2.7 | Iteration-budget diagnosis | **GO as diagnosis**; **NO-GO for any cap change** - cap is above P99, cause is an undetected alternating-gain orbit; P2 deferred to H2.8 |
 | F3.3v3h2.9 | `uk_bungalow_smoke` damping-exhausted diagnosis | **GO as diagnosis**; forward Jacobian crosses donor branch; LM-budget expansion NO-GO; H2.10 = branch-preserving adaptive quotient |
 | F3.3v3h2.10 | Adaptive branch-preserving unilateral Jacobian | **GO**; 9/9 captures, 189/189 neighbourhood, C8 parallel openings and ten-case runtime gate PASS; H2 closed, H3 unblocked |
+| H3.0 | Runtime authority ownership map and phase plan | **DESIGN ONLY**; no motor change; H3.2b identified as prerequisite for any mass/energy commit; recommends authorising H3.1 alone |
 | F3.3v3h2.8 | Alternating-gain cycle detector | **GO**; all 22 iteration_cap eliminated, two_storey 98.61%->100%; **H2 still open** on uk_bungalow damping_exhausted |
 
 F3.3v3f1 measured at 180 s:
@@ -1650,6 +1651,30 @@ runtime topologies plus synthetic C8, and no real runtime solve exercised an
 adaptive decline into LM; the fallback path remains structurally tested. Full
 record:
 `docs/validation/PHASE3_F33V3H210_ADAPTIVE_BRANCH_JACOBIAN.md`.
+
+H3.0 STOP: **DESIGN ONLY - authorise H3.1 alone.**
+
+- `sim/core` unchanged; no flag, no authority, no baseline, expected value,
+  tolerance, CTRL or VALID_GAP touched: PASS;
+- ownership traced from real writes, not names, which contradicted the names in
+  three places: `ZoneFireSolver.gd` writes mass and energy and was not on the
+  reading list; `ThermalSystem` owns interior doorway transport through **two**
+  paths; `_clamp_rooms` writes mass and energy and calls `project_room_state`
+  twice. Roughly ten call sites own the same state;
+- **prerequisite discovered:** `project_room_state` reconstructs energy from
+  clamped temperature and runs last, so a committed energy is overwritten
+  before the step ends. **H3.2b** must convert it to residual projection before
+  H3.3 commits anything, preserving the thermal cap as an explicit reported
+  sink;
+- delayed parcels cross timestep boundaries, so the in-flight pool must be
+  disabled per authoritative opening rather than coexist with a bundle;
+- `Phase3ZoneMassSystem` measured at **zero** room-state writes, so **H3.1 is
+  provably physics-neutral**;
+- non-convergence policy: explicit per-step legacy fallback, counted, blocking
+  promotion. Silent fallback and step abort rejected.
+
+H3 remains unstarted as implementation. Full record:
+`docs/validation/PHASE3_H3_RUNTIME_AUTHORITY_PLAN.md`.
 
 Headless runner completion contract (2026-07-29): **GO at STOP.**
 

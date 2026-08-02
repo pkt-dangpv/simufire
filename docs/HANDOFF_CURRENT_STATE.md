@@ -8,6 +8,35 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-02 - H3.0 runtime authority plan (DESIGN ONLY)
+
+- Design and wiring diagnosis. `sim/core` unchanged, no flag added, no
+  authority granted, no baseline or VALID_GAP touched. H3 not started.
+- Followed real writes instead of names. Three contradictions:
+  `ZoneFireSolver.gd` writes mass (9) and energy (16) and was not on the
+  reading list; `ThermalSystem` - not `GasExchangeSystem` - owns interior
+  doorway transport through **two** paths; `SimulationEngine._clamp_rooms`
+  writes mass and energy and calls `project_room_state` twice. About ten call
+  sites own the same state.
+- **Blocker for H3.3:** `ZoneFireSolver.project_room_state` reconstructs energy
+  from clamped temperature and runs last (from `_clamp_rooms`), so a committed
+  energy is overwritten before the step ends. New prerequisite phase **H3.2b**
+  must convert it to residual projection first, keeping the thermal cap as an
+  explicitly reported sink rather than deleting it.
+- **Delayed parcels persist across ticks** (`delay_s -= dt`, survivors kept), so
+  an atomic per-step bundle cannot coexist with the in-flight pool for the same
+  openings.
+- Measured, not assumed: `Phase3ZoneMassSystem` performs **zero** writes to room
+  mass, energy or O2; the coupled solver is called from one telemetry-only site
+  and runs after `_clamp_rooms`, observing an already-finished step.
+- Non-convergence policy chosen: **explicit** legacy fallback for that step,
+  counted in telemetry, any fallback blocking promotion. Silent fallback and
+  step abort were both rejected.
+- **Recommendation: authorise H3.1 (passive dual-write ledger) only.** It is
+  provably physics-neutral. H3.1 must measure what reading could not: clamp loss
+  per step and energy re-derived away by projection per step.
+- Binding record: `docs/validation/PHASE3_H3_RUNTIME_AUTHORITY_PLAN.md`.
+
 ## Current Session Update - 2026-08-01 - F3.3v3h2.10 adaptive Jacobian
 
 - Implemented a fail-only branch-preserving unilateral Jacobian recovery. The
