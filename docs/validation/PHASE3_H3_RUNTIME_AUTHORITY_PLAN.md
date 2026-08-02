@@ -211,7 +211,7 @@ transfers ownership.
 | Flag | Grants | OFF behaviour |
 |---|---|---|
 | `phase3_coupled_pressure_solver_shadow` | existing preview | already shipped |
-| `phase3_coupled_dual_write_ledger` | H3.1 passive second ledger | no ledger, byte-identical |
+| `phase3_runtime_ownership_ledger_enabled` | H3.1 passive runtime ownership ledger | no ledger, byte-identical |
 | `phase3_coupled_interior_bundle_authority` | H3.2 solver owns the bundle, state still shadow | legacy bundle |
 | `phase3_coupled_commit_mass_energy` | H3.3 bundle writes mass and energy | legacy writes |
 | `phase3_coupled_advect_species` | H3.4 O2 and species use bundle fractions | legacy advection |
@@ -244,23 +244,29 @@ Files: documentation only. Flag: none. Authority: none.
 STOP gate: this document accepted. Rollback: n/a.
 **Blocks:** everything below until accepted.
 
-### H3.1 - passive dual-write ledger
+### H3.1 - passive runtime ownership ledger
 
-- **Files:** `Phase3ZoneMassSystem.gd`, `SimulationLogWriter.gd`, new fixture
-  and structural test.
-- **Flag:** `phase3_coupled_dual_write_ledger`, default OFF.
+- **Implemented scope correction (2026-08-02):** inspection found that
+  projection tracing and a partial boundary-energy ledger already existed.
+  H3.1 therefore reuses those instruments and maps the real legacy owners;
+  construction of the accepted canonical bundle remains H3.2 work.
+- **Files:** engine orchestration, the two real transport systems, state/CSV
+  wiring, runner wiring, tests and documentation.
+- **Flag:** `phase3_runtime_ownership_ledger_enabled`, default OFF.
 - **OFF:** no columns, no allocation, byte-identical CSV.
-- **Authority:** none. The ledger records, per step and per opening, what the
-  accepted bundle *would* be, beside what legacy actually did.
-- **Telemetry:** per-opening legacy vs bundle mass and energy, per-room
-  divergence, parcel-overlap count, and the pressure-owner residual.
-- **Fixtures:** the twelve minimum cases; assert OFF byte-identity and that the
-  ledger never writes room state.
-- **Duration:** 120 s per case.
-- **STOP gate:** OFF byte-identical on all twelve; ledger writes zero state;
-  divergence characterised per topology.
+- **Authority:** none. The ledger records actual upper/lower mass and energy
+  deltas around each legacy writer family.
+- **Telemetry:** real writer stages, three thermal doorway mechanisms,
+  projection by cause, clamp/projection deltas and delayed-parcel inventory
+  across timestep boundaries.
+- **Runtime gate:** twelve committed cases at 120 s. Ten topology cases match
+  H2.10 OFF in all 115 legacy columns; all ownership, parcel and
+  projection-boundary residuals close exactly.
+- **Result:** GO. Binding record:
+  `PHASE3_H31_RUNTIME_OWNERSHIP_LEDGER.md`.
 - **Rollback:** remove the flag; nothing else changed.
-- **Blocks:** H3.2 until the divergence is understood per topology.
+- **Blocks:** H3.2 until measured ownership is converted into an accepted
+  shadow bundle.
 
 ### H3.2 - bundle authority, state still shadow
 

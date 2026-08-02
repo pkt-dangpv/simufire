@@ -3,6 +3,23 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.1 passive runtime ownership ledger (2026-08-02)
+
+- Added `phase3_runtime_ownership_ledger_enabled`, default OFF, to observe the
+  real upper/lower mass and energy writers without changing physics or runtime
+  authority.
+- Reused the existing projection trace under the effective OR of F0 and H3.1;
+  both flags remain independent and enabling both does not duplicate events.
+- Added distinct passive attribution for canonical upper doorway transport,
+  canonical lower return and thermal counterflow, plus delayed-parcel inventory
+  across timestep boundaries.
+- Twelve committed cases at 120 s close stage mass/energy, parcel mass/energy
+  and projection-vs-boundary residuals exactly. Ten opening-network cases have
+  zero differences in all 115 legacy columns against H2.10 OFF artifacts.
+- H3.1 grants no authority, changes no baseline and closes no VALID_GAP. H3.2
+  is the next design phase; H3.2b remains mandatory before H3.3 writes state.
+- Full record: `docs/validation/PHASE3_H31_RUNTIME_OWNERSHIP_LEDGER.md`.
+
 ### Phase 3 H3.0 runtime authority plan (2026-08-02) - DESIGN ONLY
 
 - No `sim/core` change, no flag, no authority granted, no baseline, expected

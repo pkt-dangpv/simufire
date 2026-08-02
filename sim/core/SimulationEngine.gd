@@ -50,6 +50,13 @@ var _opening_flow_cache: Dictionary = {}
 var _phase3_zone_diag_start: Dictionary = {}
 var _phase3_zone_diag_checkpoint: Dictionary = {}
 var _phase3_zone_diag_step: Dictionary = {}
+var _phase3_runtime_ownership_start: Dictionary = {}
+var _phase3_runtime_ownership_checkpoint: Dictionary = {}
+var _phase3_runtime_ownership_step: Dictionary = {}
+var _phase3_runtime_ownership_thermal_events: Array[Dictionary] = []
+var _phase3_runtime_ownership_parcel_events: Array[Dictionary] = []
+var _phase3_runtime_ownership_parcel_pre: Dictionary = {}
+var _phase3_runtime_ownership_parcel_post: Dictionary = {}
 
 const o2_nominal: float = 0.209
 
@@ -982,6 +989,8 @@ var _step_time_us: int = 0
 @export var enable_html_dashboard: bool = true
 ## Phase 3+ F0: telemetria two-zone temporal. Default OFF conserva el schema legacy.
 @export var phase3_zone_diagnostics_enabled: bool = false
+## H3.1: ledger pasivo de propietarios runtime. Default OFF; no escribe fisica.
+@export var phase3_runtime_ownership_ledger_enabled: bool = false
 ## F3.0: transaccion two-zone shadow. Default OFF; nunca escribe estado legacy.
 @export var phase3_canonical_zone_shadow_enabled: bool = false
 ## F3.2a: frontera exterior pressure/leakage solo en shadow. Requiere F3.0.
@@ -1053,13 +1062,14 @@ func _sync_auxiliary_services() -> void:
 		return
 
 	zone_fire_solver.two_zone_energy_enabled = two_zone_solver_enabled
-	zone_fire_solver.projection_diagnostics_enabled = phase3_zone_diagnostics_enabled
+	zone_fire_solver.projection_diagnostics_enabled = _phase3_projection_diagnostics_active()
 	zone_fire_solver.set_building(building)
 	thermal_system.set_references(building, smoke_model)
 	thermal_system.set_zone_fire_solver(zone_fire_solver)
 	thermal_system.configure({
 		"two_zone_solver_enabled": two_zone_solver_enabled,
 		"phase3_zone_diagnostics_enabled": phase3_zone_diagnostics_enabled,
+		"phase3_runtime_ownership_ledger_enabled": phase3_runtime_ownership_ledger_enabled,
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"upper_to_lower_loss_rate": upper_to_lower_loss_rate,
 		"upper_to_ambient_loss_rate": upper_to_ambient_loss_rate,
@@ -1215,6 +1225,7 @@ func _sync_auxiliary_services() -> void:
 	gas_exchange_system.configure({
 		"o2_nominal": o2_nominal,
 		"phase3_zone_diagnostics_enabled": phase3_zone_diagnostics_enabled,
+		"phase3_runtime_ownership_ledger_enabled": phase3_runtime_ownership_ledger_enabled,
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"window_leakage_area_m2": window_leakage_area_m2,
 		"pressure_vent_threshold_pa": pressure_vent_threshold_pa,
@@ -1357,6 +1368,9 @@ func _sync_auxiliary_services() -> void:
 	log_writer.configure(enable_logging, log_interval_s, log_file_path)
 	log_writer.configure_csv(enable_csv_log, csv_log_file_path)
 	log_writer.configure_phase3_zone_diagnostics(phase3_zone_diagnostics_enabled)
+	log_writer.configure_phase3_runtime_ownership_ledger(
+		phase3_runtime_ownership_ledger_enabled
+	)
 	log_writer.configure_phase3_canonical_shadow(phase3_canonical_zone_shadow_enabled)
 	log_writer.configure_phase3_canonical_exterior_boundary_shadow(
 		phase3_canonical_zone_shadow_enabled \
@@ -1475,10 +1489,196 @@ func _phase3_zone_diag_snapshot() -> Dictionary:
 	return snapshot
 
 
+func _phase3_projection_diagnostics_active() -> bool:
+	return phase3_zone_diagnostics_enabled or phase3_runtime_ownership_ledger_enabled
+
+
+func _phase3_runtime_ownership_snapshot() -> Dictionary:
+	var snapshot: Dictionary = {}
+	if not phase3_runtime_ownership_ledger_enabled or building == null:
+		return snapshot
+	for room_id in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(room_id)
+		if room == null:
+			continue
+		snapshot[str(room_id)] = {
+			"upper_mass_kg": room.upper_gas_kg,
+			"lower_mass_kg": room.lower_gas_kg,
+			"upper_energy_kj": room.upper_energy_kj,
+			"lower_energy_kj": room.lower_energy_kj,
+			"mass_kg": room.zone_total_mass_kg(),
+			"energy_kj": room.zone_total_energy_kj(),
+			"boundary_energy_kj": room.two_zone_boundary_energy_kj,
+		}
+	return snapshot
+
+
+func _phase3_runtime_ownership_begin_step() -> void:
+	if not phase3_runtime_ownership_ledger_enabled:
+		return
+	_phase3_runtime_ownership_step.clear()
+	_phase3_runtime_ownership_thermal_events.clear()
+	_phase3_runtime_ownership_parcel_events.clear()
+	_phase3_runtime_ownership_start = _phase3_runtime_ownership_snapshot()
+	_phase3_runtime_ownership_checkpoint = _phase3_runtime_ownership_start.duplicate(true)
+	_phase3_runtime_ownership_parcel_pre = \
+			gas_exchange_system.get_phase3_runtime_parcel_inventory()
+	_phase3_runtime_ownership_parcel_post = _phase3_runtime_ownership_parcel_pre.duplicate(true)
+
+
+func _phase3_runtime_ownership_record_stage(stage_name: String) -> void:
+	if not phase3_runtime_ownership_ledger_enabled:
+		return
+	var current: Dictionary = _phase3_runtime_ownership_snapshot()
+	for room_key in current.keys():
+		var before: Dictionary = _phase3_runtime_ownership_checkpoint.get(room_key, {})
+		var after: Dictionary = current.get(room_key, {})
+		var room_diag: Dictionary = _phase3_runtime_ownership_step.get(room_key, {})
+		for quantity in ["upper_mass_kg", "lower_mass_kg", "upper_energy_kj", "lower_energy_kj"]:
+			var key: String = "%s_%s_delta_step" % [stage_name, quantity]
+			room_diag[key] = float(room_diag.get(key, 0.0)) \
+					+ float(after.get(quantity, 0.0)) - float(before.get(quantity, 0.0))
+		_phase3_runtime_ownership_step[room_key] = room_diag
+	_phase3_runtime_ownership_checkpoint = current
+
+
+func _phase3_runtime_ownership_collect_thermal_events() -> void:
+	if not phase3_runtime_ownership_ledger_enabled:
+		return
+	_phase3_runtime_ownership_thermal_events = \
+			thermal_system.drain_phase3_runtime_ownership_events()
+
+
+func _phase3_runtime_ownership_collect_parcel_events() -> void:
+	if not phase3_runtime_ownership_ledger_enabled:
+		return
+	_phase3_runtime_ownership_parcel_events = \
+			gas_exchange_system.peek_phase3_runtime_parcel_events()
+	_phase3_runtime_ownership_parcel_post = \
+			gas_exchange_system.get_phase3_runtime_parcel_inventory()
+
+
+func _phase3_runtime_ownership_export() -> Dictionary:
+	if not phase3_runtime_ownership_ledger_enabled:
+		return {}
+	var rooms: Dictionary = _phase3_runtime_ownership_step.duplicate(true)
+	var current: Dictionary = _phase3_runtime_ownership_snapshot()
+	var stages: Array[String] = [
+		"pool_fire", "oxygen_exchange", "combustion", "thermal", "suppression",
+		"gas_exchange", "hvac", "other", "reconcile", "clamp_rooms"
+	]
+	var projection_by_cause: Dictionary = {}
+	for raw_event in zone_fire_solver.get_projection_trace_events():
+		var event: Dictionary = raw_event
+		var room_key: String = str(int(event.get("room_id", -1)))
+		var cause: String = String(event.get("cause", "unspecified"))
+		var cause_key: String = "%s:%s" % [room_key, cause]
+		var aggregate: Dictionary = projection_by_cause.get(cause_key, {
+			"room_id": int(event.get("room_id", -1)), "cause": cause, "call_count": 0,
+			"mass_delta_kg": 0.0, "energy_delta_kj": 0.0,
+			"temperature_energy_delta_kj": 0.0, "upper_cap_energy_delta_kj": 0.0,
+		})
+		aggregate["call_count"] = int(aggregate.get("call_count", 0)) + 1
+		aggregate["mass_delta_kg"] += float(event.get("total_mass_delta_kg", 0.0))
+		aggregate["energy_delta_kj"] += float(event.get("total_energy_delta_kj", 0.0))
+		aggregate["temperature_energy_delta_kj"] += float(
+			event.get("temperature_projection_energy_delta_kj", 0.0)
+		)
+		aggregate["upper_cap_energy_delta_kj"] += float(
+			event.get("upper_cap_energy_delta_kj", 0.0)
+		)
+		projection_by_cause[cause_key] = aggregate
+
+	for room_key in current.keys():
+		var start: Dictionary = _phase3_runtime_ownership_start.get(room_key, {})
+		var finish: Dictionary = current.get(room_key, {})
+		var room_diag: Dictionary = rooms.get(room_key, {})
+		var attributed_mass_kg: float = 0.0
+		var attributed_energy_kj: float = 0.0
+		for stage_name in stages:
+			attributed_mass_kg += float(room_diag.get(stage_name + "_upper_mass_kg_delta_step", 0.0))
+			attributed_mass_kg += float(room_diag.get(stage_name + "_lower_mass_kg_delta_step", 0.0))
+			attributed_energy_kj += float(room_diag.get(stage_name + "_upper_energy_kj_delta_step", 0.0))
+			attributed_energy_kj += float(room_diag.get(stage_name + "_lower_energy_kj_delta_step", 0.0))
+		var observed_mass_kg: float = float(finish.get("mass_kg", 0.0)) \
+				- float(start.get("mass_kg", finish.get("mass_kg", 0.0)))
+		var observed_energy_kj: float = float(finish.get("energy_kj", 0.0)) \
+				- float(start.get("energy_kj", finish.get("energy_kj", 0.0)))
+		room_diag["runtime_owner_observed_mass_delta_kg_step"] = observed_mass_kg
+		room_diag["runtime_owner_observed_energy_delta_kj_step"] = observed_energy_kj
+		room_diag["runtime_owner_mass_residual_kg_step"] = observed_mass_kg - attributed_mass_kg
+		room_diag["runtime_owner_energy_residual_kj_step"] = observed_energy_kj - attributed_energy_kj
+		room_diag["runtime_owner_projection_call_count"] = 0.0
+		room_diag["runtime_owner_projection_mass_delta_kg_step"] = 0.0
+		room_diag["runtime_owner_projection_energy_delta_kj_step"] = 0.0
+		for aggregate in projection_by_cause.values():
+			if int(aggregate.get("room_id", -1)) != int(room_key):
+				continue
+			room_diag["runtime_owner_projection_call_count"] += float(aggregate.get("call_count", 0))
+			room_diag["runtime_owner_projection_mass_delta_kg_step"] += float(aggregate.get("mass_delta_kg", 0.0))
+			room_diag["runtime_owner_projection_energy_delta_kj_step"] += float(aggregate.get("energy_delta_kj", 0.0))
+		var boundary_energy_delta_kj: float = float(finish.get("boundary_energy_kj", 0.0)) \
+				- float(start.get("boundary_energy_kj", finish.get("boundary_energy_kj", 0.0)))
+		room_diag["runtime_owner_boundary_energy_delta_kj_step"] = boundary_energy_delta_kj
+		room_diag["runtime_owner_projection_boundary_energy_residual_kj_step"] = \
+				float(room_diag.get("runtime_owner_projection_energy_delta_kj_step", 0.0)) \
+				- boundary_energy_delta_kj
+		rooms[room_key] = room_diag
+
+	for raw_event in _phase3_runtime_ownership_thermal_events:
+		var event: Dictionary = raw_event
+		var mechanism: String = String(event.get("mechanism", "unknown"))
+		for side in ["source", "destination"]:
+			var room_key: String = str(int(event.get(side + "_room_id", -1)))
+			if not rooms.has(room_key):
+				continue
+			var room_diag: Dictionary = rooms[room_key]
+			var prefix: String = "runtime_owner_%s" % mechanism
+			room_diag[prefix + "_mass_delta_kg_step"] = float(
+				room_diag.get(prefix + "_mass_delta_kg_step", 0.0)
+			) + float(event.get(side + "_mass_delta_kg", 0.0))
+			room_diag[prefix + "_energy_delta_kj_step"] = float(
+				room_diag.get(prefix + "_energy_delta_kj_step", 0.0)
+			) + float(event.get(side + "_energy_delta_kj", 0.0))
+			rooms[room_key] = room_diag
+
+	var parcel: Dictionary = {
+		"pre": _phase3_runtime_ownership_parcel_pre.duplicate(true),
+		"post": _phase3_runtime_ownership_parcel_post.duplicate(true),
+		"created_gas_kg": 0.0, "delivered_gas_kg": 0.0, "cancelled_gas_kg": 0.0,
+		"created_energy_kj": 0.0, "delivered_energy_kj": 0.0, "cancelled_energy_kj": 0.0,
+		"event_count": _phase3_runtime_ownership_parcel_events.size(),
+	}
+	for raw_event in _phase3_runtime_ownership_parcel_events:
+		var event: Dictionary = raw_event
+		match String(event.get("event", "")):
+			"created":
+				parcel["created_gas_kg"] += float(event.get("gas_mass_kg", 0.0))
+				parcel["created_energy_kj"] += float(event.get("sensible_enthalpy_kj", 0.0))
+			"resolved":
+				parcel["delivered_gas_kg"] += float(event.get("delivered_gas_mass_kg", 0.0))
+				parcel["delivered_energy_kj"] += float(event.get("delivered_sensible_enthalpy_kj", 0.0))
+			"cancelled":
+				parcel["cancelled_gas_kg"] += float(event.get("gas_mass_kg", 0.0))
+				parcel["cancelled_energy_kj"] += float(event.get("sensible_enthalpy_kj", 0.0))
+	parcel["mass_residual_kg"] = float(parcel.get("post", {}).get("gas_mass_kg", 0.0)) \
+			- float(parcel.get("pre", {}).get("gas_mass_kg", 0.0)) \
+			- float(parcel.get("created_gas_kg", 0.0)) \
+			+ float(parcel.get("delivered_gas_kg", 0.0)) \
+			+ float(parcel.get("cancelled_gas_kg", 0.0))
+	parcel["energy_residual_kj"] = float(parcel.get("post", {}).get("sensible_enthalpy_kj", 0.0)) \
+			- float(parcel.get("pre", {}).get("sensible_enthalpy_kj", 0.0)) \
+			- float(parcel.get("created_energy_kj", 0.0)) \
+			+ float(parcel.get("delivered_energy_kj", 0.0)) \
+			+ float(parcel.get("cancelled_energy_kj", 0.0))
+	return {"rooms": rooms, "projection_by_cause": projection_by_cause, "parcel": parcel}
+
+
 func _phase3_zone_diag_begin_step() -> void:
+	if _phase3_projection_diagnostics_active():
+		zone_fire_solver.begin_projection_diagnostics_step()
 	if not phase3_zone_diagnostics_enabled:
 		return
-	zone_fire_solver.begin_projection_diagnostics_step()
 	_phase3_zone_diag_step.clear()
 	_phase3_zone_diag_start = _phase3_zone_diag_snapshot()
 	_phase3_zone_diag_checkpoint = _phase3_zone_diag_start.duplicate(true)
@@ -2241,6 +2441,10 @@ func _build_state_context() -> Dictionary:
 		"two_zone_opening_flow_enabled": two_zone_solver_enabled and two_zone_opening_flow_enabled,
 		"phase3_zone_diagnostics_enabled": phase3_zone_diagnostics_enabled,
 		"phase3_zone_diagnostics": _phase3_zone_diag_export(),
+		"phase3_runtime_ownership_ledger_enabled": phase3_runtime_ownership_ledger_enabled,
+		"phase3_projection_diagnostics_effective": _phase3_projection_diagnostics_active(),
+		"phase3_runtime_ownership": _phase3_runtime_ownership_export().get("rooms", {}),
+		"phase3_runtime_ownership_parcel": _phase3_runtime_ownership_export().get("parcel", {}),
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"phase3_canonical_exterior_boundary_shadow_enabled": \
 				phase3_canonical_exterior_boundary_shadow_enabled,
@@ -2485,6 +2689,13 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	_phase3_zone_diag_start.clear()
 	_phase3_zone_diag_checkpoint.clear()
 	_phase3_zone_diag_step.clear()
+	_phase3_runtime_ownership_start.clear()
+	_phase3_runtime_ownership_checkpoint.clear()
+	_phase3_runtime_ownership_step.clear()
+	_phase3_runtime_ownership_thermal_events.clear()
+	_phase3_runtime_ownership_parcel_events.clear()
+	_phase3_runtime_ownership_parcel_pre.clear()
+	_phase3_runtime_ownership_parcel_post.clear()
 	# SF-CBAL global: resetear para que el próximo paso recapture el inventario inicial.
 	_cbal_initialized = false
 	_cbal_c_initial_kg = 0.0
@@ -2592,6 +2803,7 @@ func step(delta: float) -> void:
 	# SF-CBAL: capturar inventario inicial antes de cualquier física.
 	_ensure_carbon_balance_initialized()
 	_phase3_zone_diag_begin_step()
+	_phase3_runtime_ownership_begin_step()
 	if phase3_canonical_zone_shadow_enabled:
 		phase3_zone_mass_system.begin_step(
 			building, phase3_canonical_persistence_shadow_enabled
@@ -2632,11 +2844,13 @@ func step(delta: float) -> void:
 	var pre_hrr_o2_step: bool = _uses_pre_hrr_oxygen_step()
 
 	_step_pool_fires(dt)
+	_phase3_runtime_ownership_record_stage("pool_fire")
 	if pre_hrr_o2_step:
 		_step_oxygen(dt)
 		if phase3_canonical_zone_shadow_enabled:
 			_phase3_shadow_collect_oxygen_requests()
 		_phase3_zone_diag_record_stage("oxygen_exchange")
+		_phase3_runtime_ownership_record_stage("oxygen_exchange")
 	if phase3_canonical_zone_shadow_enabled:
 		combustion_system.begin_phase3_shadow_step(building)
 	_step_fire(dt)
@@ -2647,11 +2861,13 @@ func step(delta: float) -> void:
 	_step_co_oxidation(dt)
 	_step_targets(dt)
 	_phase3_zone_diag_record_stage("combustion")
+	_phase3_runtime_ownership_record_stage("combustion")
 	if not pre_hrr_o2_step:
 		_step_oxygen(dt)
 		if phase3_canonical_zone_shadow_enabled:
 			_phase3_shadow_collect_oxygen_requests()
 		_phase3_zone_diag_record_stage("oxygen_exchange")
+		_phase3_runtime_ownership_record_stage("oxygen_exchange")
 	thermal_system.step(building, dt, {
 		"outside_open_path_factor_callable": Callable(self, "_outside_open_path_factor_for_room"),
 		"opening_flow_cache": _opening_flow_cache
@@ -2659,7 +2875,9 @@ func step(delta: float) -> void:
 	if phase3_canonical_zone_shadow_enabled:
 		_phase3_shadow_collect_thermal_requests(dt)
 		_phase3_shadow_collect_thermal_species_events()
+	_phase3_runtime_ownership_collect_thermal_events()
 	_phase3_zone_diag_record_stage("thermal")
+	_phase3_runtime_ownership_record_stage("thermal")
 	# SF-R6 Phase 3: verificar conservación de transporte de contaminantes.
 	if conservation_check_enabled:
 		var _cons: Dictionary = zone_fire_solver.validate_conservation(
@@ -2673,27 +2891,36 @@ func step(delta: float) -> void:
 		for broken_idx in glass_failure_system.newly_broken_indices:
 			_log_opening_event(broken_idx, "glass_break")
 	_phase3_zone_diag_record_stage("suppression")
-	if phase3_canonical_zone_shadow_enabled:
+	_phase3_runtime_ownership_record_stage("suppression")
+	if phase3_canonical_zone_shadow_enabled or phase3_runtime_ownership_ledger_enabled:
 		gas_exchange_system.begin_phase3_shadow_step()
 	_step_gas_exchange(dt)
+	_phase3_runtime_ownership_collect_parcel_events()
 	if phase3_canonical_zone_shadow_enabled:
 		_phase3_shadow_collect_parcel_species_events()
 		_phase3_shadow_collect_doorway_species_requests()
 		_phase3_shadow_collect_immediate_species_events()
 		_phase3_shadow_collect_exterior_purge_events()
+	elif phase3_runtime_ownership_ledger_enabled:
+		gas_exchange_system.drain_phase3_shadow_parcel_events()
 	_phase3_zone_diag_record_stage("gas_exchange")
+	_phase3_runtime_ownership_record_stage("gas_exchange")
 	_step_hvac(dt)
 	_phase3_zone_diag_record_stage("hvac")
+	_phase3_runtime_ownership_record_stage("hvac")
 	_step_passive_fuel(dt)
 	fire_spread_system.step(dt, Callable(self, "ignite_room"))
 	_phase3_zone_diag_record_stage("other")
+	_phase3_runtime_ownership_record_stage("other")
 	if two_zone_solver_enabled:
 		# M1: absorber los cambios termicos de sistemas legacy (HVAC/supresion/flujos)
 		# como condiciones de contorno antes del clamp final.
 		thermal_system.reconcile_two_zone_building(building, dt)
 	_phase3_zone_diag_record_stage("reconcile")
+	_phase3_runtime_ownership_record_stage("reconcile")
 	_clamp_rooms(dt)
 	_phase3_zone_diag_record_stage("projection_clamp")
+	_phase3_runtime_ownership_record_stage("clamp_rooms")
 	if phase3_canonical_zone_shadow_enabled:
 		phase3_zone_mass_system.finalize_step(building, thermal_system.ambient_temp_c())
 	# Evaluar el estado final del paso, incluyendo cualquier pérdida por clamp.
@@ -3825,8 +4052,14 @@ func get_state() -> Dictionary:
 	if state_builder == null:
 		return {}
 	var state: Dictionary = state_builder.build_state(_build_state_context())
-	if phase3_zone_diagnostics_enabled:
+	if _phase3_projection_diagnostics_active():
 		state["phase3_projection_trace"] = zone_fire_solver.get_projection_trace_events()
+	if phase3_runtime_ownership_ledger_enabled:
+		var ownership: Dictionary = _phase3_runtime_ownership_export()
+		state["phase3_runtime_ownership_projection_by_cause"] = ownership.get(
+			"projection_by_cause", {}
+		)
+		state["phase3_runtime_ownership_parcel"] = ownership.get("parcel", {})
 	# SF-AUD-029: exportar targets al estado
 	var targets_dict: Dictionary = {}
 	for t in _targets:
@@ -4164,6 +4397,9 @@ func build_technical_summary(output_dir: String = "") -> Dictionary:
 	if phase3_connection_residence_diagnostics_enabled:
 		summary["phase3_connection_residence"] = \
 				phase3_zone_mass_system.get_connection_residence_results()
+	if phase3_runtime_ownership_ledger_enabled:
+		summary["phase3_runtime_ownership"] = _phase3_runtime_ownership_export()
+		summary["phase3_projection_trace"] = zone_fire_solver.get_projection_trace_events()
 	if not output_dir.strip_edges().is_empty():
 		summary["output_dir"] = output_dir
 	return summary

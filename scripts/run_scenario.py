@@ -94,6 +94,11 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Enable passive Phase 3+ two-zone diagnostic columns in the CSV.",
     )
     parser.add_argument(
+        "--phase3-runtime-ownership-ledger",
+        action="store_true",
+        help="Enable the passive H3.1 runtime ownership ledger.",
+    )
+    parser.add_argument(
         "--phase3-canonical-shadow",
         action="store_true",
         help="Enable the passive F3.0 canonical two-zone shadow transaction.",
@@ -373,6 +378,8 @@ def main(argv: list[str] | None = None) -> int:
         cmd.append("--no-ignite")
     if args.phase3_zone_diagnostics:
         cmd.append("--phase3-zone-diagnostics")
+    if args.phase3_runtime_ownership_ledger:
+        cmd.append("--phase3-runtime-ownership-ledger")
     if args.phase3_canonical_shadow:
         cmd.append("--phase3-canonical-shadow")
     if args.phase3_canonical_exterior_shadow:

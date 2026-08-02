@@ -78,18 +78,23 @@ def test_projection_trace_is_gated_before_state_capture():
     assert "if trace_enabled:" in project
 
 
-def test_engine_wires_trace_to_existing_diagnostics_flag():
+def test_engine_wires_trace_to_effective_passive_diagnostics_flags():
     sync = _function(ENGINE, "_sync_auxiliary_services")
     assert (
         "zone_fire_solver.projection_diagnostics_enabled = "
-        "phase3_zone_diagnostics_enabled"
+        "_phase3_projection_diagnostics_active()"
     ) in sync
+    active = _function(ENGINE, "_phase3_projection_diagnostics_active")
+    assert (
+        "phase3_zone_diagnostics_enabled or "
+        "phase3_runtime_ownership_ledger_enabled"
+    ) in active
     assert "phase3_projection_trace_enabled" not in ENGINE
 
 
-def test_engine_exposes_trace_only_with_diagnostics():
+def test_engine_exposes_trace_only_with_effective_diagnostics():
     get_state = _function(ENGINE, "get_state")
-    assert "if phase3_zone_diagnostics_enabled:" in get_state
+    assert "if _phase3_projection_diagnostics_active():" in get_state
     assert 'state["phase3_projection_trace"]' in get_state
 
 

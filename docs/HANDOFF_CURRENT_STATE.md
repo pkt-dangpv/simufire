@@ -8,6 +8,29 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-02 - H3.1 passive ownership ledger
+
+- Implemented `phase3_runtime_ownership_ledger_enabled`, default OFF. It is
+  passive: no solver movement, tick reordering, transport-law change, state
+  commit, baseline update or VALID_GAP reclassification.
+- Projection diagnostics now use the effective OR of F0 and H3.1 without
+  mutating either flag. H3.1 reuses the existing projection trace and compares
+  it against `two_zone_boundary_energy_kj`; both flags ON produce no duplicate
+  events.
+- The ledger observes ten real writer stages, separates canonical upper,
+  canonical lower and thermal counterflow, and accounts for delayed parcels at
+  timestep boundaries.
+- Runtime gate: 12 committed cases at 120 s, Godot 4.7.1 sequential. Maximum
+  mass, energy, parcel and projection-boundary residuals are all exactly zero;
+  no Godot errors or truncated runs.
+- Isolation: ten topology cases match H2.10 OFF artifacts in all 115 legacy
+  columns with identical row counts. H3.1 adds 68 columns only when ON.
+- Physics and ILV remain at 0 FAIL; gap inventory is unchanged. Guardrails are
+  expected at 9/10 before commit because R2-1 sees dirty motor.
+- **Next:** H3.2 passive accepted-bundle design. H3.2b remains a hard
+  prerequisite before H3.3 can commit mass or energy. H3.1 grants no authority.
+- Binding record: `docs/validation/PHASE3_H31_RUNTIME_OWNERSHIP_LEDGER.md`.
+
 ## Current Session Update - 2026-08-02 - H3.0 runtime authority plan (DESIGN ONLY)
 
 - Design and wiring diagnosis. `sim/core` unchanged, no flag added, no

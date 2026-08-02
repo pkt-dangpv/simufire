@@ -49,11 +49,17 @@ class TestPhase3ShadowSpeciesReservoir(unittest.TestCase):
         self.assertIn("_species_transit_orphan_delivery_count = 0", reset)
         self.assertEqual(ENGINE.count("phase3_zone_mass_system.reset()"), 2)
 
-    def test_identity_is_monotonic_and_shadow_only(self):
+    def test_identity_is_monotonic_and_passive_ledger_only(self):
         assign = _function(GAS, "_phase3_shadow_assign_parcel_identity")
-        self.assertIn("if not phase3_canonical_zone_shadow_enabled:", assign)
+        self.assertIn("if not _phase3_parcel_ledger_active():", assign)
         self.assertIn('entry["phase3_shadow_parcel_id"]', assign)
         self.assertIn("_phase3_shadow_parcel_sequence += 1", assign)
+        active = _function(GAS, "_phase3_parcel_ledger_active")
+        self.assertIn(
+            "phase3_canonical_zone_shadow_enabled or "
+            "phase3_runtime_ownership_ledger_enabled",
+            active,
+        )
 
     def test_created_event_uses_the_exact_queued_entry(self):
         step = _function(GAS, "step_smoke")

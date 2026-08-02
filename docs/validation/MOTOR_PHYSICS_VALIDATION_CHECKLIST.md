@@ -26,6 +26,30 @@ Validation must check more than isolated final values. Each scenario should be t
 5. Comparison against CFAST or documented realistic scenarios.
 6. Temporal consistency over the full fire, not only single checkpoints.
 
+## Phase 3 Runtime Authority
+
+| Phase | Status | Decision |
+|---|---|---|
+| H3.0 ownership map | CLOSED | Design only; projection reconstruction and cross-step parcels identified as hard ownership constraints. |
+| H3.1 passive ownership ledger | GO / STOP gate | Default OFF; 12-case corpus closes ownership, parcel and projection ledgers with zero legacy-column differences. No authority granted. |
+| H3.2 accepted bundle | NOT STARTED | Design from H3.1 measurements; still shadow-only. |
+| H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
+| H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2 and H3.2b pass their STOP gates. |
+
+H3.1 binding checks (2026-08-02):
+
+- `phase3_runtime_ownership_ledger_enabled` defaults false and extends CSV only
+  when enabled.
+- F0 and H3.1 flags are independent; projection tracing uses their effective OR
+  and both ON do not duplicate calls or H3.1 fields.
+- Ten real writer stages are attributed; the three thermal doorway mechanisms
+  and delayed parcels are reported separately without being added twice.
+- 12 committed cases, 120 s, Godot 4.7.1: maximum mass, energy, parcel and
+  projection-boundary residuals are all `0`.
+- Ten topology cases match H2.10 OFF in 115/115 legacy columns and row counts.
+- H3.1 does not close Group A/C, change expected values or authorize runtime
+  state. Full record: `PHASE3_H31_RUNTIME_OWNERSHIP_LEDGER.md`.
+
 ## 1. HRR And Energy
 
 ### Internal storage and calculation (audited 2026-06-25)

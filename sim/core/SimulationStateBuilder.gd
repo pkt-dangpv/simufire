@@ -32,6 +32,12 @@ func build_state(context: Dictionary) -> Dictionary:
 		"two_zone_solver_enabled": bool(context.get("two_zone_solver_enabled", false)),
 		"two_zone_opening_flow_enabled": bool(context.get("two_zone_opening_flow_enabled", false)),
 		"phase3_zone_diagnostics_enabled": bool(context.get("phase3_zone_diagnostics_enabled", false)),
+		"phase3_runtime_ownership_ledger_enabled": bool(
+			context.get("phase3_runtime_ownership_ledger_enabled", false)
+		),
+		"phase3_projection_diagnostics_effective": bool(
+			context.get("phase3_projection_diagnostics_effective", false)
+		),
 		"phase3_canonical_zone_shadow_enabled": bool(context.get("phase3_canonical_zone_shadow_enabled", false)),
 		"phase3_canonical_exterior_boundary_shadow_enabled": bool(
 			context.get("phase3_canonical_exterior_boundary_shadow_enabled", false)
@@ -136,6 +142,13 @@ func build_state(context: Dictionary) -> Dictionary:
 		context.get("phase3_zone_diagnostics_enabled", false)
 	)
 	var phase3_zone_diagnostics: Dictionary = context.get("phase3_zone_diagnostics", {})
+	var phase3_runtime_ownership_ledger_enabled: bool = bool(
+		context.get("phase3_runtime_ownership_ledger_enabled", false)
+	)
+	var phase3_runtime_ownership: Dictionary = context.get("phase3_runtime_ownership", {})
+	var phase3_runtime_ownership_parcel: Dictionary = context.get(
+		"phase3_runtime_ownership_parcel", {}
+	)
 	var phase3_canonical_zone_shadow_enabled: bool = bool(
 		context.get("phase3_canonical_zone_shadow_enabled", false)
 	)
@@ -431,6 +444,33 @@ func build_state(context: Dictionary) -> Dictionary:
 			room_state["pressure_capped_vented_air_kg_total"] = room.phase3_diag_pressure_capped_vented_air_kg_total
 			for diag_key in room_diag.keys():
 				room_state[diag_key] = room_diag[diag_key]
+		if phase3_runtime_ownership_ledger_enabled:
+			var ownership_room_state: Dictionary = state[str(room_id)]
+			var ownership_diag: Dictionary = phase3_runtime_ownership.get(str(room_id), {})
+			for ownership_key in ownership_diag.keys():
+				ownership_room_state[ownership_key] = ownership_diag[ownership_key]
+			var parcel_pre: Dictionary = phase3_runtime_ownership_parcel.get("pre", {})
+			var parcel_post: Dictionary = phase3_runtime_ownership_parcel.get("post", {})
+			ownership_room_state["runtime_owner_parcel_pre_gas_kg"] = float(
+				parcel_pre.get("gas_mass_kg", 0.0)
+			)
+			ownership_room_state["runtime_owner_parcel_post_gas_kg"] = float(
+				parcel_post.get("gas_mass_kg", 0.0)
+			)
+			ownership_room_state["runtime_owner_parcel_pre_energy_kj"] = float(
+				parcel_pre.get("sensible_enthalpy_kj", 0.0)
+			)
+			ownership_room_state["runtime_owner_parcel_post_energy_kj"] = float(
+				parcel_post.get("sensible_enthalpy_kj", 0.0)
+			)
+			for parcel_key in [
+				"created_gas_kg", "delivered_gas_kg", "cancelled_gas_kg",
+				"created_energy_kj", "delivered_energy_kj", "cancelled_energy_kj",
+				"mass_residual_kg", "energy_residual_kj", "event_count"
+			]:
+				ownership_room_state["runtime_owner_parcel_" + parcel_key] = float(
+					phase3_runtime_ownership_parcel.get(parcel_key, 0.0)
+				)
 		if phase3_canonical_zone_shadow_enabled:
 			var shadow_room_state: Dictionary = state[str(room_id)]
 			var shadow_diag: Dictionary = phase3_canonical_zone_shadow.get(str(room_id), {})

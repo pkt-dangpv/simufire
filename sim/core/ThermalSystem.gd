@@ -25,11 +25,13 @@ var _zone_fire_solver: ZoneFireSolver
 var two_zone_solver_enabled: bool = false
 # Phase 3+ F0: activa exclusivamente contadores diagnosticos; no modifica fisica.
 var phase3_zone_diagnostics_enabled: bool = false
+var phase3_runtime_ownership_ledger_enabled: bool = false
 # F3.0a: captura resultados pre-mutation para el shadow ledger; no cambia fisica.
 var phase3_canonical_zone_shadow_enabled: bool = false
 var _phase3_shadow_flux_results: Array[Dictionary] = []
 var _phase3_shadow_thermal_species_events: Array[Dictionary] = []
 var _phase3_shadow_thermal_species_sequence: int = 0
+var _phase3_runtime_ownership_events: Array[Dictionary] = []
 
 # Phase 2A: sync zonal mass (upper_gas_kg/lower_gas_kg) desde geometría para todas las salas.
 # Default false = no-op absoluto; no cambia ningún resultado hasta que un caso active el flag.
@@ -444,6 +446,36 @@ func drain_phase3_shadow_thermal_species_events() -> Array[Dictionary]:
 	return events
 
 
+func drain_phase3_runtime_ownership_events() -> Array[Dictionary]:
+	var events: Array[Dictionary] = _phase3_runtime_ownership_events.duplicate(true)
+	_phase3_runtime_ownership_events.clear()
+	return events
+
+
+func _record_phase3_runtime_ownership_transfer(
+		mechanism: String,
+		source: RoomModel,
+		target: RoomModel,
+		opening_index: int,
+		source_mass_delta_kg: float,
+		target_mass_delta_kg: float,
+		source_energy_delta_kj: float,
+		target_energy_delta_kj: float
+	) -> void:
+	if not phase3_runtime_ownership_ledger_enabled or source == null or target == null:
+		return
+	_phase3_runtime_ownership_events.append({
+		"mechanism": mechanism,
+		"source_room_id": source.id,
+		"destination_room_id": target.id,
+		"opening_index": opening_index,
+		"source_mass_delta_kg": source_mass_delta_kg,
+		"destination_mass_delta_kg": target_mass_delta_kg,
+		"source_energy_delta_kj": source_energy_delta_kj,
+		"destination_energy_delta_kj": target_energy_delta_kj,
+	})
+
+
 func set_references(building: BuildingModel, smoke_model: SmokeModel) -> void:
 	_building = building
 	_smoke_model = smoke_model
@@ -457,6 +489,10 @@ func configure(settings: Dictionary) -> void:
 	two_zone_solver_enabled = bool(settings.get("two_zone_solver_enabled", two_zone_solver_enabled))
 	phase3_zone_diagnostics_enabled = bool(settings.get(
 		"phase3_zone_diagnostics_enabled", phase3_zone_diagnostics_enabled
+	))
+	phase3_runtime_ownership_ledger_enabled = bool(settings.get(
+		"phase3_runtime_ownership_ledger_enabled",
+		phase3_runtime_ownership_ledger_enabled
 	))
 	phase3_canonical_zone_shadow_enabled = bool(settings.get(
 		"phase3_canonical_zone_shadow_enabled", phase3_canonical_zone_shadow_enabled
@@ -734,6 +770,7 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 	_phase3_shadow_flux_results.clear()
 	_phase3_shadow_thermal_species_events.clear()
 	_phase3_shadow_thermal_species_sequence = 0
+	_phase3_runtime_ownership_events.clear()
 	var _outside_open_path_factor_callable: Callable = hooks.get(
 		"outside_open_path_factor_callable", Callable()
 	)
@@ -1310,6 +1347,16 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		cold_room.upper_gas_kg = maxf(0.0, cold_room.upper_gas_kg + gas_moved_kg)
 		hot_room.upper_energy_kj = maxf(0.0, hot_room.upper_energy_kj - energy_moved_kj)
 		cold_room.upper_energy_kj = maxf(0.0, cold_room.upper_energy_kj + energy_moved_kj)
+		_record_phase3_runtime_ownership_transfer(
+			"canonical_doorway_upper",
+			hot_room,
+			cold_room,
+			op.opening_index,
+			-gas_moved_kg,
+			gas_moved_kg,
+			-energy_moved_kj,
+			energy_moved_kj
+		)
 		if phase3_zone_diagnostics_enabled:
 			hot_room.phase3_diag_zone_doorway_upper_out_kg_total += gas_moved_kg
 			cold_room.phase3_diag_zone_doorway_upper_in_kg_total += gas_moved_kg
@@ -2984,6 +3031,10 @@ func _apply_doorway_thermal_counterflow(
 	energy_moved_kj = minf(energy_moved_kj, maxf(0.0, hot_room.upper_energy_kj * 0.05))
 	if energy_moved_kj <= 0.0:
 		return
+	var hot_mass_before_kg: float = hot_room.zone_total_mass_kg()
+	var cold_mass_before_kg: float = cold_room.zone_total_mass_kg()
+	var hot_energy_before_kj: float = hot_room.zone_total_energy_kj()
+	var cold_energy_before_kj: float = cold_room.zone_total_energy_kj()
 
 	# Transferencia de energía pura (sin movimiento de masa): evita acumulación de gas
 	# en la sala receptora y conserva la estructura de capas de cada sala.
@@ -2996,6 +3047,16 @@ func _apply_doorway_thermal_counterflow(
 
 	sync_room_upper_layer(hot_room, dt, "doorway_counterflow_hot_sync")
 	sync_room_upper_layer(cold_room, dt, "doorway_counterflow_cold_sync")
+	_record_phase3_runtime_ownership_transfer(
+		"doorway_thermal_counterflow",
+		hot_room,
+		cold_room,
+		op.opening_index,
+		hot_room.zone_total_mass_kg() - hot_mass_before_kg,
+		cold_room.zone_total_mass_kg() - cold_mass_before_kg,
+		hot_room.zone_total_energy_kj() - hot_energy_before_kj,
+		cold_room.zone_total_energy_kj() - cold_energy_before_kj
+	)
 
 	# ── Phase 5 M3b: retorno de aire fresco (zona inferior) ──────────────────────────────────
 	# Contraparte de conservación de masa del flujo superior: el gas caliente que sale por la
@@ -3134,6 +3195,10 @@ func _apply_canonical_doorway_exchange(
 	m_lower_kg = minf(m_lower_kg, cold_lower_mass * 0.05)
 	if m_lower_kg <= 0.0001:
 		return
+	var hot_mass_before_kg: float = hot_room.zone_total_mass_kg()
+	var cold_mass_before_kg: float = cold_room.zone_total_mass_kg()
+	var hot_energy_before_kj: float = hot_room.zone_total_energy_kj()
+	var cold_energy_before_kj: float = cold_room.zone_total_energy_kj()
 
 	# Phase 3+ F1a: cuando el transporte conservativo está activo, la masa se mueve
 	# de verdad desde el ledger cold.lower_gas_kg — cap adicional al 5 % del ledger
@@ -3251,6 +3316,16 @@ func _apply_canonical_doorway_exchange(
 	cold_room.o2_zone_sync_kg_step += _cold_cde_sync_kg
 	cold_room.o2_zone_sync_kg_total += _cold_cde_sync_kg
 	cold_room.o2 = _cold_cde_blend
+	_record_phase3_runtime_ownership_transfer(
+		"canonical_doorway_lower",
+		cold_room,
+		hot_room,
+		op.opening_index,
+		cold_room.zone_total_mass_kg() - cold_mass_before_kg,
+		hot_room.zone_total_mass_kg() - hot_mass_before_kg,
+		cold_room.zone_total_energy_kj() - cold_energy_before_kj,
+		hot_room.zone_total_energy_kj() - hot_energy_before_kj
+	)
 
 
 func _apply_stairwell_heat_bridge(

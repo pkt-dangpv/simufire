@@ -89,6 +89,7 @@ var two_zone_opening_flow_enabled: bool = false
 # Solo instrumentación pasiva; sin efecto físico. Default false = no-op.
 var phase3_zone_diagnostics_enabled: bool = false
 var phase3_canonical_zone_shadow_enabled: bool = false
+var phase3_runtime_ownership_ledger_enabled: bool = false
 # Phase 3: modelo de presión termodinámica — ODE campo paralelo.
 # Cuando false (default): no-op, no toca room.pressure_pa_therm ni room.overpressure_pa.
 # Cuando true: integra dP/dt = (gamma-1)/V * Q_conv - Cd*A_eff/V * P_atm * sqrt(2P/rho)
@@ -201,6 +202,12 @@ func configure(settings: Dictionary) -> void:
 	phase3_zone_diagnostics_enabled = bool(settings.get("phase3_zone_diagnostics_enabled", phase3_zone_diagnostics_enabled))
 	phase3_canonical_zone_shadow_enabled = bool(
 		settings.get("phase3_canonical_zone_shadow_enabled", phase3_canonical_zone_shadow_enabled)
+	)
+	phase3_runtime_ownership_ledger_enabled = bool(
+		settings.get(
+			"phase3_runtime_ownership_ledger_enabled",
+			phase3_runtime_ownership_ledger_enabled
+		)
 	)
 	phase3_thermodynamic_pressure_enabled = bool(
 		settings.get("phase3_thermodynamic_pressure_enabled", phase3_thermodynamic_pressure_enabled)
@@ -364,6 +371,34 @@ func drain_phase3_shadow_parcel_events() -> Array[Dictionary]:
 	return events
 
 
+func peek_phase3_runtime_parcel_events() -> Array[Dictionary]:
+	return _phase3_shadow_parcel_events.duplicate(true)
+
+
+func get_phase3_runtime_parcel_inventory() -> Dictionary:
+	var inventory: Dictionary = {
+		"count": _pending_interior_deliveries.size(),
+		"gas_mass_kg": 0.0,
+		"sensible_enthalpy_kj": 0.0,
+		"o2_kg": 0.0,
+		"species_kg": 0.0,
+	}
+	for raw_entry in _pending_interior_deliveries:
+		var entry: Dictionary = raw_entry
+		inventory["gas_mass_kg"] += maxf(0.0, float(entry.get("upper_gas_kg", 0.0)))
+		inventory["sensible_enthalpy_kj"] += maxf(
+			0.0, float(entry.get("upper_energy_kj", 0.0))
+		)
+		inventory["o2_kg"] += float(entry.get("o2_kg", 0.0))
+		for species_value in _phase3_shadow_parcel_species(entry).values():
+			inventory["species_kg"] += maxf(0.0, float(species_value))
+	return inventory
+
+
+func _phase3_parcel_ledger_active() -> bool:
+	return phase3_canonical_zone_shadow_enabled or phase3_runtime_ownership_ledger_enabled
+
+
 func drain_phase3_shadow_immediate_species_events() -> Array[Dictionary]:
 	var events: Array[Dictionary] = _phase3_shadow_immediate_species_events.duplicate(true)
 	_phase3_shadow_immediate_species_events.clear()
@@ -518,7 +553,7 @@ func _record_phase3_shadow_signed_zonal_species_event(
 
 
 func _phase3_shadow_assign_parcel_identity(entry: Dictionary) -> void:
-	if not phase3_canonical_zone_shadow_enabled:
+	if not _phase3_parcel_ledger_active():
 		return
 	entry["phase3_shadow_parcel_id"] = "delayed_species_parcel:%d" % \
 			_phase3_shadow_parcel_sequence
@@ -550,7 +585,7 @@ func _phase3_shadow_parcel_upper_species(entry: Dictionary) -> Dictionary:
 
 
 func _record_phase3_shadow_parcel_created(entry: Dictionary) -> void:
-	if not phase3_canonical_zone_shadow_enabled:
+	if not _phase3_parcel_ledger_active():
 		return
 	_phase3_shadow_parcel_events.append({
 		"event": "created",
@@ -575,7 +610,7 @@ func _record_phase3_shadow_parcel_resolved(
 	delivered_upper_species_kg: Dictionary,
 	refunded_upper_species_kg: Dictionary
 	) -> void:
-	if not phase3_canonical_zone_shadow_enabled:
+	if not _phase3_parcel_ledger_active():
 		return
 	_phase3_shadow_parcel_events.append({
 		"event": "resolved",
@@ -584,6 +619,9 @@ func _record_phase3_shadow_parcel_resolved(
 		"destination_room_id": int(entry.get("target", -1)),
 		"source_zone": "upper",
 		"destination_zone": "upper",
+		"delivered_gas_mass_kg": maxf(0.0, float(entry.get("upper_gas_kg", 0.0))),
+		"delivered_sensible_enthalpy_kj": maxf(0.0, float(entry.get("upper_energy_kj", 0.0))),
+		"delivered_o2_kg": float(entry.get("o2_kg", 0.0)),
 		"delivered_species_kg": delivered_species_kg.duplicate(true),
 		"refunded_species_kg": refunded_species_kg.duplicate(true),
 		"delivered_upper_species_kg": delivered_upper_species_kg.duplicate(true),
@@ -592,13 +630,16 @@ func _record_phase3_shadow_parcel_resolved(
 
 
 func _record_phase3_shadow_parcel_cancelled(entry: Dictionary) -> void:
-	if not phase3_canonical_zone_shadow_enabled:
+	if not _phase3_parcel_ledger_active():
 		return
 	_phase3_shadow_parcel_events.append({
 		"event": "cancelled",
 		"parcel_id": String(entry.get("phase3_shadow_parcel_id", "")),
 		"source_room_id": int(entry.get("from", -1)),
 		"destination_room_id": int(entry.get("target", -1)),
+		"gas_mass_kg": maxf(0.0, float(entry.get("upper_gas_kg", 0.0))),
+		"sensible_enthalpy_kj": maxf(0.0, float(entry.get("upper_energy_kj", 0.0))),
+		"o2_kg": float(entry.get("o2_kg", 0.0)),
 		"species_kg": _phase3_shadow_parcel_species(entry),
 		"upper_species_kg": _phase3_shadow_parcel_upper_species(entry),
 	})
