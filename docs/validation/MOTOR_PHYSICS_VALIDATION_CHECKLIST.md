@@ -34,7 +34,9 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.1 passive ownership ledger | GO / STOP gate | Default OFF; 12-case corpus closes ownership, parcel and projection ledgers with zero legacy-column differences. No authority granted. |
 | H3.2a zonal decomposition | GO / STOP gate | Additive solver output (+227/-0); bands were already split at both interfaces, so zoning is a read of an existing decision. Exterior never labelled. No authority. |
 | H3.2-M mechanical bundle shadow | GO / STOP gate | Existing atomic primitives and pure donor limit reused in separate coupled ledgers; no application or authority; comparison explicitly invalid because sources are circular. |
-| H3.2-S independent owner sources | BLOCKING | Replace `(post-pre)-legacy_interior` source reconstruction before coupled-vs-legacy comparison or authority can be meaningful. |
+| H3.2-S independent owner sources | NO-GO / BLOCKING | H3.1 stage deltas mix physical owners and legacy transport. Add mutation-site physical owner events before replacing `(post-pre)-legacy_interior`; no motor patch was made. |
+| H3.2-S0 physical owner ledger | NO-GO / SPLIT | Initial event schema cannot represent same-room interzone redistribution. Proceed as S0a contract, S0b thermal, S0c gas and S0d integration. |
+| H3.2-S0a event contract | GO / STOP gate | Pure isolated primitive with six classifications, explicit zonal deltas, fail-closed aggregation and zero runtime call sites. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
 
@@ -51,6 +53,39 @@ H3.1 binding checks (2026-08-02):
 - Ten topology cases match H2.10 OFF in 115/115 legacy columns and row counts.
 - H3.1 does not close Group A/C, change expected values or authorize runtime
   state. Full record: `PHASE3_H31_RUNTIME_OWNERSHIP_LEDGER.md`.
+
+H3.2-S source audit (2026-08-03):
+
+- H3.1 is complete as an attribution ledger but insufficient as a source
+  constructor: its `thermal` and `gas_exchange` stage deltas are composite.
+- Thermal doorway upper/lower/counterflow and delayed parcels are independently
+  measured; thermal local/surface/exterior owners and gas exterior/immediate/
+  background mass/enthalpy are not yet complete at mutation-site granularity.
+- Subtracting known transports from stage deltas is prohibited because it
+  remains a legacy post-state reconstruction.
+- Result: **NO-GO**, zero `sim/core` changes. Full record:
+  `PHASE3_H32S_INDEPENDENT_SOURCE_DIAGNOSIS.md`.
+
+H3.2-S0 mutation-site audit (2026-08-03):
+
+- 112 direct upper/lower mass/energy mutation statements were inventoried.
+- Projection, three thermal doorway mechanisms and delayed parcels already have
+  ledgers and must not be instrumented twice.
+- The event contract needs `interzone_redistribution` plus upper/lower deltas;
+  without them plume and vertical mixing cannot be represented truthfully.
+- Result: **NO-GO before implementation**, zero motor changes. Full record:
+  `PHASE3_H32S0_PHYSICAL_OWNER_LEDGER_AUDIT.md`.
+
+H3.2-S0a contract gate (2026-08-03):
+
+- Pure `RefCounted` dictionary API; no engine/building/room dependencies,
+  production call sites, flags, runners or CSV fields.
+- Adds `interzone_redistribution`; only local and exterior classes can become
+  physical sources.
+- Duplicate/invalid events are excluded and visible; no partial source is
+  returned from an invalid aggregate.
+- Runtime negative control exits non-zero with no PASS marker. Full record:
+  `PHASE3_H32S0A_PHYSICAL_OWNER_EVENT_CONTRACT.md`.
 
 ## 1. HRR And Energy
 

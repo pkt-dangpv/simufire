@@ -8,6 +8,61 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-03 - H3.2-S0a pure event contract
+
+- Added isolated `Phase3PhysicalOwnerLedger.gd`: pure dictionaries in/out,
+  zero production call sites, flags, persistent state or runtime dependencies.
+- Six explicit classes now include the missing
+  `interzone_redistribution`. Only `local_source` and `exterior_boundary` feed
+  future physical source vectors.
+- Validation is fail-closed for identity, zones, signs, conservation,
+  non-finite values and duplicate IDs. Source lookup returns zero for any
+  invalid aggregate rather than exposing a partial vector.
+- Godot fixture covers all semantics, determinism and input immutability. A
+  temporary inverted assertion exited 1 with no PASS marker, then was restored.
+- Final gate: 19/19 S0a structural tests, 189/189 global fixture fail-closed
+  contracts, 5/5 H1/H2/H3.2 regressions, Physics/ILV 0 FAIL and gap inventory
+  unchanged. Broad pytest is 1322 PASS with only R2-1 dirty-core and the
+  historical layer-interface export test failing; guardrails are 9/10 for the
+  same expected R2-1 reason.
+- No runtime wiring or physics. Next allowed phase after approval: S0b thermal
+  mutation-site owners only. H3.2-S/H3.2b remain blocking and H3.3 remains
+  blocked. Binding record:
+  `docs/validation/PHASE3_H32S0A_PHYSICAL_OWNER_EVENT_CONTRACT.md`.
+
+## Current Session Update - 2026-08-03 - H3.2-S0 ledger audit NO-GO
+
+- Enumerated 112 direct upper/lower mass and energy mutation statements:
+  Thermal 58, ZoneFireSolver 27, GasExchange 16 and Engine 11.
+- The proposed event contract cannot represent physical lower/upper
+  redistribution within one room. Labelling plume entrainment or vertical
+  mixing as a source, inter-room transport or numerical correction would make
+  the source provenance false; omitting them would violate exact coverage.
+- Existing projection, doorway and delayed-parcel ledgers must be reused.
+  Generic upper-layer removal callbacks also need diagnostic cause provenance
+  before pressure venting, smoke venting and PPV can be separated.
+- **NO-GO:** zero motor changes. Split the prerequisite into S0a event contract,
+  S0b thermal owners, S0c gas owners and S0d integration. H3.2-S/H3.2b remain
+  blocking and H3.3 remains blocked. Binding record:
+  `docs/validation/PHASE3_H32S0_PHYSICAL_OWNER_LEDGER_AUDIT.md`.
+
+## Current Session Update - 2026-08-03 - H3.2-S source audit NO-GO
+
+- Audited the real tick and mutation sites before writing H3.2-S.
+- H3.1 closes attribution by stage, but `thermal` and `gas_exchange` each mix
+  local sources, exterior boundaries, interior transport and numerical
+  projection. Only the three thermal doorway mechanisms and delayed parcels
+  have sufficiently granular mass/enthalpy ownership today.
+- Subtracting those events from a stage delta would still derive the source
+  from accepted legacy post-mutation state and would preserve the circularity
+  that H3.2-S exists to remove.
+- **NO-GO:** no `sim/core` change. The next prerequisite is a passive event
+  ledger at the remaining physical mutation sites, especially thermal
+  plume/surface/ambient owners and gas exterior/immediate/background paths.
+- H3.2-M remains mechanical shadow only; H3.2b remains blocking; H3.3 remains
+  blocked. Binding record:
+  `docs/validation/PHASE3_H32S_INDEPENDENT_SOURCE_DIAGNOSIS.md`.
+
 ## Current Session Update - 2026-08-03 - H3.2-M coupled bundle shadow
 
 - Implemented `phase3_coupled_interior_bundle_shadow_enabled`, default OFF.

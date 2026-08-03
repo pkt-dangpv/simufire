@@ -3,6 +3,48 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0a physical-owner event contract (2026-08-03)
+
+- Added a pure, isolated physical-owner event primitive with six explicit
+  classifications, including same-room interzone redistribution.
+- Validation and aggregation are deterministic, input-preserving and
+  fail-closed. Only local and exterior events feed physical source vectors;
+  transport, parcels and numerical corrections cannot leak into them.
+- No runtime call site, flag, engine dependency or CSV change. S0b/S0c still
+  need to instrument the 112 inventoried mutation statements without
+  duplicating existing doorway, parcel or projection ledgers. Full record:
+  `docs/validation/PHASE3_H32S0A_PHYSICAL_OWNER_EVENT_CONTRACT.md`.
+- STOP gate: Godot fixture and negative control pass; 19 S0a contracts and 189
+  global fail-closed contracts pass; five H1/H2/H3.2 regression fixtures pass;
+  Physics and ILV remain at 0 FAIL. Guardrails are 9/10 only because the new
+  uncommitted `sim/core` file correctly triggers R2-1 freshness.
+
+### Phase 3 H3.2-S0 physical-owner ledger audit (2026-08-03)
+
+- Inventoried 112 direct upper/lower mass and sensible-energy mutation
+  statements before adding telemetry.
+- Issued a **NO-GO** because the proposed classification cannot represent
+  same-room lower/upper redistribution without false provenance. Existing
+  projection, doorway and delayed-parcel ledgers must also remain unique.
+- Split the prerequisite into S0a event contract, S0b thermal owners, S0c gas
+  owners and S0d integration. No motor, runner, test, report or baseline
+  changed. Full record:
+  `docs/validation/PHASE3_H32S0_PHYSICAL_OWNER_LEDGER_AUDIT.md`.
+
+### Phase 3 H3.2-S independent-source audit (2026-08-03)
+
+- Audited the real mass/energy writers before implementing H3.2-S and issued a
+  **NO-GO**. H3.1 stage attribution is complete, but `thermal` and
+  `gas_exchange` combine physical sources, boundaries, interior transport and
+  projection; they cannot serve as independent solver sources.
+- The three thermal doorway mechanisms and delayed-parcel inventory are already
+  independently observable. Remaining thermal and gas owners need passive
+  mutation-site events before a non-circular source vector can be built.
+- No motor, solver, validation report, expected value or tolerance changed.
+  H3.2-M remains shadow-only, H3.2b remains blocking and H3.3 remains blocked.
+  Full record:
+  `docs/validation/PHASE3_H32S_INDEPENDENT_SOURCE_DIAGNOSIS.md`.
+
 ### Phase 3 H3.2-M coupled bundle shadow (2026-08-03)
 
 - Added `phase3_coupled_interior_bundle_shadow_enabled`, default OFF. It adapts
