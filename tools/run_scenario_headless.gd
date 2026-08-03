@@ -76,6 +76,8 @@ func _run() -> void:
 		engine.phase3_zone_diagnostics_enabled = true
 	if bool(_cli_args.get("phase3_runtime_ownership_ledger", false)):
 		engine.phase3_runtime_ownership_ledger_enabled = true
+	if bool(_cli_args.get("phase3_physical_owner_ledger", false)):
+		engine.phase3_physical_owner_ledger_enabled = true
 	if bool(_cli_args.get("phase3_canonical_shadow", false)):
 		engine.phase3_canonical_zone_shadow_enabled = true
 	if bool(_cli_args.get("phase3_canonical_exterior_shadow", false)):
@@ -416,6 +418,8 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["phase3_zone_diagnostics"] = true
 		elif arg == "--phase3-runtime-ownership-ledger":
 			parsed["phase3_runtime_ownership_ledger"] = true
+		elif arg == "--phase3-physical-owner-ledger":
+			parsed["phase3_physical_owner_ledger"] = true
 		elif arg == "--phase3-canonical-shadow":
 			parsed["phase3_canonical_shadow"] = true
 		elif arg == "--phase3-canonical-exterior-shadow":

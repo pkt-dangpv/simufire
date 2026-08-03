@@ -8,6 +8,27 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-03 - H3.2-S0b thermal owners
+
+- Added `phase3_physical_owner_ledger_enabled`, default OFF, and wired it
+  through the official runner. The flag records only step-local thermal owner
+  events and does not extend the CSV schema.
+- Covered local heat sources, exterior thermal boundaries, same-room interzone
+  redistribution and non-canonical thermal inter-room transport. Outside-
+  assisted transport separates conservative delivery from external loss.
+- Reused rather than duplicated the existing projection, canonical doorway and
+  delayed-parcel ledgers.
+- Four 30 s OFF/ON pairs are byte-identical; enabled summaries contain zero
+  invalid or duplicate events and residuals below `3e-15`.
+- Seven sequential Godot 4.7.1 fixtures pass; broad Phase 3/guardrail pytest is
+  `1338 PASS / 2 FAIL` (expected dirty-motor R2-1 plus the historical layer
+  export test). Physics and ILV have zero FAIL, gaps are unchanged, guardrails
+  are 9/10 only for R2-1, and no Godot process remains.
+- This is a GO only for S0b instrumentation. Next: S0c gas owners, then S0d
+  integration. H3.2-S and H3.2b remain blocking; H3.3 remains blocked.
+  Binding record:
+  `docs/validation/PHASE3_H32S0B_THERMAL_PHYSICAL_OWNER_EVENTS.md`.
+
 ## Current Session Update - 2026-08-03 - H3.2-S0a pure event contract
 
 - Added isolated `Phase3PhysicalOwnerLedger.gd`: pure dictionaries in/out,

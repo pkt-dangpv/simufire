@@ -37,6 +37,7 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S independent owner sources | NO-GO / BLOCKING | H3.1 stage deltas mix physical owners and legacy transport. Add mutation-site physical owner events before replacing `(post-pre)-legacy_interior`; no motor patch was made. |
 | H3.2-S0 physical owner ledger | NO-GO / SPLIT | Initial event schema cannot represent same-room interzone redistribution. Proceed as S0a contract, S0b thermal, S0c gas and S0d integration. |
 | H3.2-S0a event contract | GO / STOP gate | Pure isolated primitive with six classifications, explicit zonal deltas, fail-closed aggregation and zero runtime call sites. |
+| H3.2-S0b thermal owners | GO / STOP gate | Default-OFF events at accepted thermal mutation sites; no duplicated projection/doorway/parcel ownership and no CSV or physics change. S0c/S0d remain blocking. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
 
@@ -86,6 +87,23 @@ H3.2-S0a contract gate (2026-08-03):
   returned from an invalid aggregate.
 - Runtime negative control exits non-zero with no PASS marker. Full record:
   `PHASE3_H32S0A_PHYSICAL_OWNER_EVENT_CONTRACT.md`.
+
+H3.2-S0b thermal-owner gate (2026-08-03):
+
+- Default OFF and legacy CSV schema unchanged; four official OFF/ON pairs are
+  byte-identical.
+- Thermal local sources, exterior boundaries, interzone redistribution and
+  auxiliary interior transports emit accepted mutation-site deltas.
+- Projection, canonical doorway exchange and delayed parcels remain uniquely
+  owned by their existing ledgers.
+- Final-step summaries have zero invalid/duplicate events; maximum conservative
+  residuals are `2.665e-15 kg` and `8.882e-16 kJ`.
+- Seven Godot 4.7.1 regression fixtures pass; Physics and ILV remain at zero
+  FAIL; gap inventory is unchanged. Guardrails are 9/10 solely because the
+  uncommitted motor patch correctly triggers R2-1 freshness.
+- **GO for passive S0b only.** S0c gas ownership and S0d integration remain
+  required before H3.2-S can close. Full record:
+  `PHASE3_H32S0B_THERMAL_PHYSICAL_OWNER_EVENTS.md`.
 
 ## 1. HRR And Energy
 

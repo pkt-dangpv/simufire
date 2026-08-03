@@ -3,6 +3,17 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0b thermal physical-owner events (2026-08-03)
+
+- Added default-OFF, step-local physical-owner events at accepted thermal
+  mutation sites, reusing the S0a contract without duplicating projection,
+  canonical doorway or delayed-parcel ledgers.
+- Four official scenario pairs are byte-identical OFF/ON. Enabled ledgers have
+  zero invalid/duplicate events and conservative residuals below `3e-15`.
+- This is passive thermal instrumentation only: S0c gas owners and S0d
+  integration still block H3.2-S; H3.2b still blocks H3.3. Full record:
+  `docs/validation/PHASE3_H32S0B_THERMAL_PHYSICAL_OWNER_EVENTS.md`.
+
 ### Phase 3 H3.2-S0a physical-owner event contract (2026-08-03)
 
 - Added a pure, isolated physical-owner event primitive with six explicit

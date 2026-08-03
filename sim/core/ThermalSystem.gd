@@ -2,6 +2,7 @@ extends RefCounted
 class_name ThermalSystem
 
 const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
+const Phase3PhysicalOwnerLedger = preload("res://sim/core/Phase3PhysicalOwnerLedger.gd")
 const AIR_CP_KJ_KG_K: float = 1.0
 
 # ============================================================
@@ -26,12 +27,15 @@ var two_zone_solver_enabled: bool = false
 # Phase 3+ F0: activa exclusivamente contadores diagnosticos; no modifica fisica.
 var phase3_zone_diagnostics_enabled: bool = false
 var phase3_runtime_ownership_ledger_enabled: bool = false
+var phase3_physical_owner_ledger_enabled: bool = false
 # F3.0a: captura resultados pre-mutation para el shadow ledger; no cambia fisica.
 var phase3_canonical_zone_shadow_enabled: bool = false
 var _phase3_shadow_flux_results: Array[Dictionary] = []
 var _phase3_shadow_thermal_species_events: Array[Dictionary] = []
 var _phase3_shadow_thermal_species_sequence: int = 0
 var _phase3_runtime_ownership_events: Array[Dictionary] = []
+var _phase3_physical_owner_events: Array[Dictionary] = []
+var _phase3_physical_owner_sequence: int = 0
 
 # Phase 2A: sync zonal mass (upper_gas_kg/lower_gas_kg) desde geometría para todas las salas.
 # Default false = no-op absoluto; no cambia ningún resultado hasta que un caso active el flag.
@@ -452,6 +456,64 @@ func drain_phase3_runtime_ownership_events() -> Array[Dictionary]:
 	return events
 
 
+func get_phase3_physical_owner_events() -> Array[Dictionary]:
+	return _phase3_physical_owner_events.duplicate(true)
+
+
+func get_phase3_physical_owner_summary() -> Dictionary:
+	return Phase3PhysicalOwnerLedger.aggregate_events(_phase3_physical_owner_events)
+
+
+func _record_phase3_physical_owner_event(
+		owner: String,
+		classification: String,
+		room: RoomModel,
+		upper_mass_delta_kg: float = 0.0,
+		lower_mass_delta_kg: float = 0.0,
+		upper_energy_delta_kj: float = 0.0,
+		lower_energy_delta_kj: float = 0.0,
+		source_room_id: int = -1,
+		destination_room_id: int = -1,
+		source_zone: String = "",
+		destination_zone: String = "",
+		counterparty_mass_delta_kg: float = 0.0,
+		counterparty_energy_delta_kj: float = 0.0,
+		metadata: Dictionary = {}
+	) -> void:
+	if not phase3_physical_owner_ledger_enabled or room == null:
+		return
+	var event_id: String = "thermal:%06d:%s:r%d" % [
+		_phase3_physical_owner_sequence, owner, room.id,
+	]
+	_phase3_physical_owner_sequence += 1
+	_phase3_physical_owner_events.append(Phase3PhysicalOwnerLedger.make_event(
+		event_id, owner, classification, room.id,
+		source_room_id, destination_room_id, source_zone, destination_zone,
+		upper_mass_delta_kg, lower_mass_delta_kg,
+		upper_energy_delta_kj, lower_energy_delta_kj,
+		counterparty_mass_delta_kg, counterparty_energy_delta_kj, metadata
+	))
+
+
+func _record_phase3_interzone(
+		owner: String,
+		room: RoomModel,
+		upper_mass_delta_kg: float,
+		lower_mass_delta_kg: float,
+		upper_energy_delta_kj: float,
+		lower_energy_delta_kj: float,
+		source_zone: String,
+		destination_zone: String,
+		metadata: Dictionary = {}
+	) -> void:
+	_record_phase3_physical_owner_event(
+		owner, Phase3PhysicalOwnerLedger.CLASS_INTERZONE_REDISTRIBUTION, room,
+		upper_mass_delta_kg, lower_mass_delta_kg,
+		upper_energy_delta_kj, lower_energy_delta_kj,
+		room.id, room.id, source_zone, destination_zone, 0.0, 0.0, metadata
+	)
+
+
 func _record_phase3_runtime_ownership_transfer(
 		mechanism: String,
 		source: RoomModel,
@@ -493,6 +555,10 @@ func configure(settings: Dictionary) -> void:
 	phase3_runtime_ownership_ledger_enabled = bool(settings.get(
 		"phase3_runtime_ownership_ledger_enabled",
 		phase3_runtime_ownership_ledger_enabled
+	))
+	phase3_physical_owner_ledger_enabled = bool(settings.get(
+		"phase3_physical_owner_ledger_enabled",
+		phase3_physical_owner_ledger_enabled
 	))
 	phase3_canonical_zone_shadow_enabled = bool(settings.get(
 		"phase3_canonical_zone_shadow_enabled", phase3_canonical_zone_shadow_enabled
@@ -771,6 +837,8 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 	_phase3_shadow_thermal_species_events.clear()
 	_phase3_shadow_thermal_species_sequence = 0
 	_phase3_runtime_ownership_events.clear()
+	_phase3_physical_owner_events.clear()
+	_phase3_physical_owner_sequence = 0
 	var _outside_open_path_factor_callable: Callable = hooks.get(
 		"outside_open_path_factor_callable", Callable()
 	)
@@ -833,7 +901,23 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 		var _bud_e_before_kj: float = room.upper_energy_kj if energy_budget_enabled else 0.0
 		# Entrainamiento de pluma — McCaffrey (NBSIR 79-1910) + Heskestad (1983)
 		if two_zone_solver_enabled:
+			var plume_upper_mass_before_kg: float = room.upper_gas_kg
+			var plume_lower_mass_before_kg: float = room.lower_gas_kg
+			var plume_upper_energy_before_kj: float = room.upper_energy_kj
+			var plume_lower_energy_before_kj: float = room.lower_energy_kj
 			_step_two_zone_plume_entrainment(room, dt, ambient_c)
+			var plume_upper_mass_delta_kg: float = room.upper_gas_kg - plume_upper_mass_before_kg
+			var plume_lower_mass_delta_kg: float = room.lower_gas_kg - plume_lower_mass_before_kg
+			var plume_upper_energy_delta_kj: float = room.upper_energy_kj - plume_upper_energy_before_kj
+			var plume_lower_energy_delta_kj: float = room.lower_energy_kj - plume_lower_energy_before_kj
+			if absf(plume_upper_mass_delta_kg) > 0.0 \
+					or absf(plume_upper_energy_delta_kj) > 0.0:
+				_record_phase3_interzone(
+					"thermal_plume_entrainment", room,
+					plume_upper_mass_delta_kg, plume_lower_mass_delta_kg,
+					plume_upper_energy_delta_kj, plume_lower_energy_delta_kj,
+					"lower", "upper"
+				)
 		elif plume_mccaffrey_enabled and room.hrr_kw > 0.0:
 			var qc_kw: float = room.hrr_kw * plume_mccaffrey_qc_fraction
 			# Altura de llama Heskestad: L_f = 0.235·Q^0.4 - 1.02·D  [Q en kW, L en m]
@@ -917,6 +1001,11 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 				"species_kg": {},
 			})
 		room.upper_energy_kj += convective_energy_kj
+		_record_phase3_physical_owner_event(
+			"thermal_combustion_convective_heat",
+			Phase3PhysicalOwnerLedger.CLASS_LOCAL_SOURCE,
+			room, 0.0, 0.0, convective_energy_kj, 0.0
+		)
 		var _bud_e_fire_kj: float = convective_energy_kj if energy_budget_enabled else 0.0
 		var pre_sync_upper_temp_c: float = _estimate_raw_upper_temp_c(room, ambient_c)
 		var radiative_loss_kj: float = _compute_upper_radiative_loss_kj(
@@ -936,6 +1025,12 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 				radiative_loss_kj
 			)
 			room.upper_energy_kj = maxf(0.0, room.upper_energy_kj - radiative_loss_kj)
+			_record_phase3_physical_owner_event(
+				"thermal_upper_radiative_loss",
+				Phase3PhysicalOwnerLedger.CLASS_EXTERIOR_BOUNDARY,
+				room, 0.0, 0.0, -radiative_loss_kj, 0.0,
+				room.id, -1, "upper", ""
+			)
 			room.upper_radiative_loss_kw = radiative_loss_kj / maxf(0.001, dt)
 		sync_room_upper_layer(room, dt, "thermal_post_combustion_sync")
 
@@ -1048,12 +1143,41 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 				"upper", "upper", wall_absorption_kj
 			)
 			room.upper_energy_kj -= energy_to_lower_kj + energy_to_ambient_kj + wall_absorption_kj
+			if energy_to_lower_kj > 0.0 and two_zone_solver_enabled \
+					and _zone_fire_solver != null:
+				_record_phase3_interzone(
+					"thermal_upper_to_lower", room, 0.0, 0.0,
+					-energy_to_lower_kj, energy_to_lower_kj, "upper", "lower"
+				)
+			if energy_to_ambient_kj > 0.0:
+				_record_phase3_physical_owner_event(
+					"thermal_upper_to_ambient",
+					Phase3PhysicalOwnerLedger.CLASS_EXTERIOR_BOUNDARY,
+					room, 0.0, 0.0, -energy_to_ambient_kj, 0.0,
+					room.id, -1, "upper", ""
+				)
+			if wall_absorption_kj > 0.0:
+				_record_phase3_physical_owner_event(
+					"thermal_wall_absorption",
+					Phase3PhysicalOwnerLedger.CLASS_LOCAL_SOURCE,
+					room, 0.0, 0.0, -wall_absorption_kj, 0.0,
+					-1, -1, "", "", 0.0, 0.0,
+					{"surface_storage_energy_delta_kj": wall_absorption_kj}
+				)
 		# Re-emisión: las paredes calientes calientan el gas superior al enfriarse el incendio
 		_record_phase3_shadow_energy_transfer(
 			"thermal_wall_emission", -1, room.id,
 			"upper", "upper", wall_emission_kj
 		)
 		room.upper_energy_kj += wall_emission_kj
+		if wall_emission_kj > 0.0:
+			_record_phase3_physical_owner_event(
+				"thermal_wall_emission",
+				Phase3PhysicalOwnerLedger.CLASS_LOCAL_SOURCE,
+				room, 0.0, 0.0, wall_emission_kj, 0.0,
+				-1, -1, "", "", 0.0, 0.0,
+				{"surface_storage_energy_delta_kj": -wall_emission_kj}
+			)
 
 		if outside_open_factor > 0.0 and room.upper_gas_kg > 0.0001:
 			var upper_temp_excess_factor: float = clampf(
@@ -1067,12 +1191,26 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 					* upper_temp_excess_factor \
 					* dt
 			room.upper_gas_kg += maxf(0.0, cooling_mix_kg)
+			if cooling_mix_kg > 0.0:
+				_record_phase3_physical_owner_event(
+					"thermal_exterior_upper_mixing",
+					Phase3PhysicalOwnerLedger.CLASS_EXTERIOR_BOUNDARY,
+					room, cooling_mix_kg, 0.0, 0.0, 0.0,
+					-1, room.id, "", "upper"
+				)
 
 		if two_zone_solver_enabled and _zone_fire_solver != null:
 			_zone_fire_solver.add_lower_energy(room, energy_to_lower_kj, ambient_c)
 			var lower_decay_kj: float = _zone_fire_solver.remove_lower_energy_fraction(
 				room, 0.0085 * dt, ambient_c
 			)
+			if lower_decay_kj > 0.0:
+				_record_phase3_physical_owner_event(
+					"thermal_lower_decay",
+					Phase3PhysicalOwnerLedger.CLASS_EXTERIOR_BOUNDARY,
+					room, 0.0, 0.0, 0.0, -lower_decay_kj,
+					room.id, -1, "lower", ""
+				)
 			_record_phase3_shadow_energy_transfer(
 				"thermal_lower_decay", room.id, -1,
 				"lower", "lower", lower_decay_kj
@@ -1083,6 +1221,13 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary = {}) -> void:
 					outside_lower_fresh_air_cooling_rate * outside_open_factor * dt,
 					ambient_c
 				)
+				if lower_fresh_air_cooling_kj > 0.0:
+					_record_phase3_physical_owner_event(
+						"thermal_lower_fresh_air_cooling",
+						Phase3PhysicalOwnerLedger.CLASS_EXTERIOR_BOUNDARY,
+						room, 0.0, 0.0, 0.0, -lower_fresh_air_cooling_kj,
+						room.id, -1, "lower", ""
+					)
 				_record_phase3_shadow_energy_transfer(
 					"thermal_lower_fresh_air_cooling", room.id, -1,
 					"lower", "lower", lower_fresh_air_cooling_kj
@@ -1505,6 +1650,13 @@ func _step_radiation_openings(building: BuildingModel, dt: float, ambient_c: flo
 
 		src.upper_energy_kj = maxf(0.0, src.upper_energy_kj - energy_kj)
 		tgt.upper_energy_kj += energy_kj
+		_record_phase3_physical_owner_event(
+			"thermal_opening_radiation",
+			Phase3PhysicalOwnerLedger.CLASS_INTERIOR_TRANSPORT,
+			src, 0.0, 0.0, -energy_kj, 0.0,
+			src.id, tgt.id, "upper", "upper", 0.0, energy_kj,
+			{"opening_index": op.opening_index}
+		)
 
 		sync_room_upper_layer(src, dt, "opening_radiation_source_sync")
 		sync_room_upper_layer(tgt, dt, "opening_radiation_target_sync")
@@ -1616,6 +1768,15 @@ func _step_wall_conduction(building: BuildingModel, dt: float, ambient_c: float)
 				room_b.temp_lower_c += e_lower_b / maxf(0.1, lower_mass_b)
 			else:
 				room_b.upper_energy_kj += energy_kj
+			_record_phase3_physical_owner_event(
+				"thermal_wall_conduction_from_room_%d" % room_a.id,
+				Phase3PhysicalOwnerLedger.CLASS_LOCAL_SOURCE,
+				room_b, 0.0, 0.0,
+				energy_kj * frac_hot_b if wall_layer_aware_conduction else energy_kj,
+				energy_kj * (1.0 - frac_hot_b) if wall_layer_aware_conduction else 0.0,
+				-1, -1, "", "", 0.0, 0.0,
+				{"surface_room_id": room_a.id, "surface_storage_energy_delta_kj": -energy_kj}
+			)
 			sync_room_upper_layer(room_b, dt, "wall_conduction_room_b_sync")
 			update_room_layer_150c(room_b, dt)
 		elif energy_kj < 0.0:
@@ -1657,6 +1818,15 @@ func _step_wall_conduction(building: BuildingModel, dt: float, ambient_c: float)
 				room_a.temp_lower_c += e_lower_a / maxf(0.1, lower_mass_a)
 			else:
 				room_a.upper_energy_kj += abs_kj
+			_record_phase3_physical_owner_event(
+				"thermal_wall_conduction_from_room_%d" % room_b.id,
+				Phase3PhysicalOwnerLedger.CLASS_LOCAL_SOURCE,
+				room_a, 0.0, 0.0,
+				abs_kj * frac_hot_a if wall_layer_aware_conduction else abs_kj,
+				abs_kj * (1.0 - frac_hot_a) if wall_layer_aware_conduction else 0.0,
+				-1, -1, "", "", 0.0, 0.0,
+				{"surface_room_id": room_b.id, "surface_storage_energy_delta_kj": -abs_kj}
+			)
 			sync_room_upper_layer(room_a, dt, "wall_conduction_room_a_sync")
 			update_room_layer_150c(room_a, dt)
 
@@ -1667,7 +1837,19 @@ func _ensure_minimal_upper_gas(room: RoomModel, ambient_c: float) -> void:
 		var density: float = gas_density_kg_m3(room.temp_lower_c)
 		var required_mass_kg: float = room.floor_area_m2() * 0.08 * density
 		if two_zone_solver_enabled and _zone_fire_solver != null:
-			_zone_fire_solver.transfer_lower_to_upper(room, required_mass_kg, ambient_c)
+			var upper_energy_before_kj: float = room.upper_energy_kj
+			var lower_energy_before_kj: float = room.lower_energy_kj
+			var moved_mass_kg: float = _zone_fire_solver.transfer_lower_to_upper(
+				room, required_mass_kg, ambient_c
+			)
+			if moved_mass_kg > 0.0:
+				var upper_energy_delta_kj: float = room.upper_energy_kj - upper_energy_before_kj
+				var lower_energy_delta_kj: float = room.lower_energy_kj - lower_energy_before_kj
+				_record_phase3_interzone(
+					"thermal_minimal_upper_layer", room,
+					moved_mass_kg, -moved_mass_kg,
+					upper_energy_delta_kj, lower_energy_delta_kj, "lower", "upper"
+				)
 		else:
 			room.upper_gas_kg = required_mass_kg
 
@@ -2764,6 +2946,22 @@ func _apply_outside_assisted_background_heat_exchange(
 				source.upper_energy_kj = maxf(0.0, source.upper_energy_kj - source_energy_removed_kj)
 				target.upper_gas_kg = maxf(0.0, target.upper_gas_kg + gas_moved_kg)
 				target.upper_energy_kj = maxf(0.0, target.upper_energy_kj + energy_moved_kj)
+				_record_phase3_physical_owner_event(
+					"thermal_outside_assisted_upper_transport",
+					Phase3PhysicalOwnerLedger.CLASS_INTERIOR_TRANSPORT,
+					source, -gas_moved_kg, 0.0, -energy_moved_kj, 0.0,
+					source.id, target.id, "upper", "upper",
+					gas_moved_kg, energy_moved_kj,
+					{"opening_index": op.opening_index}
+				)
+				var transport_loss_kj: float = maxf(0.0, source_energy_removed_kj - energy_moved_kj)
+				if transport_loss_kj > 0.0:
+					_record_phase3_physical_owner_event(
+						"thermal_outside_assisted_transport_loss",
+						Phase3PhysicalOwnerLedger.CLASS_EXTERIOR_BOUNDARY,
+						source, 0.0, 0.0, -transport_loss_kj, 0.0,
+						source.id, -1, "upper", ""
+					)
 				if phase3_zone_diagnostics_enabled:
 					source.phase3_diag_zone_doorway_upper_out_kg_total += gas_moved_kg
 					target.phase3_diag_zone_doorway_upper_in_kg_total += gas_moved_kg
@@ -2800,6 +2998,21 @@ func _apply_outside_assisted_background_heat_exchange(
 				source.temp_upper_c = source.temp_lower_c
 
 			target.temp_lower_c += bulk_delivered_kj / target_air_mass_kg
+			_record_phase3_physical_owner_event(
+				"thermal_outside_assisted_lower_transport",
+				Phase3PhysicalOwnerLedger.CLASS_INTERIOR_TRANSPORT,
+				source, 0.0, 0.0, 0.0, -bulk_delivered_kj,
+				source.id, target.id, "lower", "lower",
+				0.0, bulk_delivered_kj, {"opening_index": op.opening_index}
+			)
+			var bulk_loss_kj: float = maxf(0.0, bulk_removed_kj - bulk_delivered_kj)
+			if bulk_loss_kj > 0.0:
+				_record_phase3_physical_owner_event(
+					"thermal_outside_assisted_lower_loss",
+					Phase3PhysicalOwnerLedger.CLASS_EXTERIOR_BOUNDARY,
+					source, 0.0, 0.0, 0.0, -bulk_loss_kj,
+					source.id, -1, "lower", ""
+				)
 			if target.upper_gas_kg <= 0.0001:
 				target.temp_upper_c = maxf(target.temp_upper_c, target.temp_lower_c)
 
@@ -2914,6 +3127,14 @@ func _apply_interior_background_heat_exchange(
 			source.upper_energy_kj = maxf(0.0, source.upper_energy_kj - energy_moved_kj)
 			target.upper_gas_kg = maxf(0.0, target.upper_gas_kg + gas_moved_kg)
 			target.upper_energy_kj = maxf(0.0, target.upper_energy_kj + energy_moved_kj)
+			_record_phase3_physical_owner_event(
+				"thermal_interior_background_upper",
+				Phase3PhysicalOwnerLedger.CLASS_INTERIOR_TRANSPORT,
+				source, -gas_moved_kg, 0.0, -energy_moved_kj, 0.0,
+				source.id, target.id, "upper", "upper",
+				gas_moved_kg, energy_moved_kj,
+				{"opening_index": op.opening_index}
+			)
 			if phase3_zone_diagnostics_enabled:
 				source.phase3_diag_zone_doorway_upper_out_kg_total += gas_moved_kg
 				target.phase3_diag_zone_doorway_upper_in_kg_total += gas_moved_kg
@@ -2955,6 +3176,13 @@ func _apply_interior_background_heat_exchange(
 				source.temp_lower_c - bulk_moved_kj / source_air_mass_kg
 			)
 			target.temp_lower_c += bulk_moved_kj / target_air_mass_kg
+			_record_phase3_physical_owner_event(
+				"thermal_interior_background_lower",
+				Phase3PhysicalOwnerLedger.CLASS_INTERIOR_TRANSPORT,
+				source, 0.0, 0.0, 0.0, -bulk_moved_kj,
+				source.id, target.id, "lower", "lower",
+				0.0, bulk_moved_kj, {"opening_index": op.opening_index}
+			)
 			touched_source = true
 			touched_target = true
 
@@ -3406,7 +3634,19 @@ func _apply_stairwell_heat_bridge(
 			maxf(0.0, area_eff_m2 * 0.035 - target.upper_gas_kg)
 		)
 		if lift_mass_kg > 0.0:
+			var lift_upper_mass_before_kg: float = target.upper_gas_kg
+			var lift_lower_mass_before_kg: float = target.lower_gas_kg
+			var lift_upper_energy_before_kj: float = target.upper_energy_kj
+			var lift_lower_energy_before_kj: float = target.lower_energy_kj
 			_zone_fire_solver.transfer_lower_to_upper(target, lift_mass_kg, ambient_c)
+			_record_phase3_interzone(
+				"thermal_stairwell_layer_lift", target,
+				target.upper_gas_kg - lift_upper_mass_before_kg,
+				target.lower_gas_kg - lift_lower_mass_before_kg,
+				target.upper_energy_kj - lift_upper_energy_before_kj,
+				target.lower_energy_kj - lift_lower_energy_before_kj,
+				"lower", "upper", {"opening_index": op.opening_index}
+			)
 
 	var source_cap_kj: float = source.upper_energy_kj \
 			* clampf(phase3_stairwell_heat_bridge_max_fraction_per_step, 0.0, 1.0)
@@ -3432,6 +3672,13 @@ func _apply_stairwell_heat_bridge(
 
 	source.upper_energy_kj = maxf(0.0, source.upper_energy_kj - energy_moved_kj)
 	target.upper_energy_kj = maxf(0.0, target.upper_energy_kj + energy_moved_kj)
+	_record_phase3_physical_owner_event(
+		"thermal_stairwell_heat_bridge",
+		Phase3PhysicalOwnerLedger.CLASS_INTERIOR_TRANSPORT,
+		source, 0.0, 0.0, -energy_moved_kj, 0.0,
+		source.id, target.id, "upper", "upper", 0.0, energy_moved_kj,
+		{"opening_index": op.opening_index}
+	)
 	sync_room_upper_layer(source, dt, "interlayer_source_sync")
 	sync_room_upper_layer(target, dt, "interlayer_target_sync")
 
@@ -3850,6 +4097,10 @@ func _apply_post_transfer_vertical_mix(room: RoomModel, dt: float) -> void:
 	room.upper_energy_kj -= mix_energy_kj
 	if two_zone_solver_enabled and _zone_fire_solver != null:
 		_zone_fire_solver.add_lower_energy(room, mix_energy_kj, ambient_temp_c())
+		_record_phase3_interzone(
+			"thermal_post_transfer_vertical_mix", room, 0.0, 0.0,
+			-mix_energy_kj, mix_energy_kj, "upper", "lower"
+		)
 	else:
 		var lower_mass_kg: float = maxf(
 			1.0,

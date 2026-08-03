@@ -991,6 +991,8 @@ var _step_time_us: int = 0
 @export var phase3_zone_diagnostics_enabled: bool = false
 ## H3.1: ledger pasivo de propietarios runtime. Default OFF; no escribe fisica.
 @export var phase3_runtime_ownership_ledger_enabled: bool = false
+## H3.2-S0b: eventos pasivos de propietarios termicos. Default OFF.
+@export var phase3_physical_owner_ledger_enabled: bool = false
 ## F3.0: transaccion two-zone shadow. Default OFF; nunca escribe estado legacy.
 @export var phase3_canonical_zone_shadow_enabled: bool = false
 ## F3.2a: frontera exterior pressure/leakage solo en shadow. Requiere F3.0.
@@ -1072,6 +1074,7 @@ func _sync_auxiliary_services() -> void:
 		"two_zone_solver_enabled": two_zone_solver_enabled,
 		"phase3_zone_diagnostics_enabled": phase3_zone_diagnostics_enabled,
 		"phase3_runtime_ownership_ledger_enabled": phase3_runtime_ownership_ledger_enabled,
+		"phase3_physical_owner_ledger_enabled": phase3_physical_owner_ledger_enabled,
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"upper_to_lower_loss_rate": upper_to_lower_loss_rate,
 		"upper_to_ambient_loss_rate": upper_to_ambient_loss_rate,
@@ -2458,6 +2461,8 @@ func _build_state_context() -> Dictionary:
 		"phase3_projection_diagnostics_effective": _phase3_projection_diagnostics_active(),
 		"phase3_runtime_ownership": _phase3_runtime_ownership_export().get("rooms", {}),
 		"phase3_runtime_ownership_parcel": _phase3_runtime_ownership_export().get("parcel", {}),
+		"phase3_physical_owner_ledger_enabled": phase3_physical_owner_ledger_enabled,
+		"phase3_physical_owner_summary": thermal_system.get_phase3_physical_owner_summary(),
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"phase3_canonical_exterior_boundary_shadow_enabled": \
 				phase3_canonical_exterior_boundary_shadow_enabled,
@@ -4415,6 +4420,11 @@ func build_technical_summary(output_dir: String = "") -> Dictionary:
 	if phase3_runtime_ownership_ledger_enabled:
 		summary["phase3_runtime_ownership"] = _phase3_runtime_ownership_export()
 		summary["phase3_projection_trace"] = zone_fire_solver.get_projection_trace_events()
+	if phase3_physical_owner_ledger_enabled:
+		summary["phase3_physical_owner_ledger"] = {
+			"events": thermal_system.get_phase3_physical_owner_events(),
+			"summary": thermal_system.get_phase3_physical_owner_summary(),
+		}
 	if _phase3_coupled_interior_bundle_active():
 		summary["phase3_coupled_interior_bundle_shadow"] = \
 				phase3_zone_mass_system.get_coupled_interior_bundle_summary()
