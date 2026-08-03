@@ -52,7 +52,9 @@ def test_engine_replaces_only_legacy_interzone_request():
 def test_atomic_bundle_caps_energy_at_application_time():
     assert "func queue_canonical_interzone_heat_transfer(" in SYSTEM
     assert '"kind": "canonical_interzone_heat"' in SYSTEM
-    atomic = SYSTEM.split("func _apply_atomic_bundle(", 1)[1].split("\nfunc ", 1)[0]
+    atomic = SYSTEM.split(
+        "func _evaluate_atomic_bundle_acceptance(", 1
+    )[1].split("\nfunc ", 1)[0]
     assert 'zone + "_energy_kj"' in atomic
     assert 'demand.get("sensible_enthalpy_kj"' in atomic
 

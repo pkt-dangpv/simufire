@@ -50,8 +50,11 @@ def test_initial_state_and_cumulative_ledger_are_persistent_but_resettable():
 
 
 def test_atomic_mass_is_recorded_after_acceptance_and_before_mutation():
+    # H3.2-M extracted the fraction into `_evaluate_atomic_bundle_acceptance`.
+    # The invariant is unchanged: acceptance must be known before any route is
+    # recorded, and recording must precede application.
     body = _function(SYSTEM, "_apply_atomic_bundle")
-    accepted = body.index("accepted_fraction = clampf")
+    accepted = body.index('float(evaluation["accepted_fraction"])')
     record = body.index("_record_mass_residence_route")
     apply_route = body.index("_apply_atomic_route")
     assert accepted < record < apply_route

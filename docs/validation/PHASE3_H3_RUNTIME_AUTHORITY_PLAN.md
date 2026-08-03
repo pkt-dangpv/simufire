@@ -212,7 +212,7 @@ transfers ownership.
 |---|---|---|
 | `phase3_coupled_pressure_solver_shadow` | existing preview | already shipped |
 | `phase3_runtime_ownership_ledger_enabled` | H3.1 passive runtime ownership ledger | no ledger, byte-identical |
-| `phase3_coupled_interior_bundle_authority` | H3.2 solver owns the bundle, state still shadow | legacy bundle |
+| `phase3_coupled_interior_bundle_shadow_enabled` | H3.2-M mechanical bundle in separate shadow ledgers; no authority | no coupled bundle ledger |
 | `phase3_coupled_commit_mass_energy` | H3.3 bundle writes mass and energy | legacy writes |
 | `phase3_coupled_advect_species` | H3.4 O2 and species use bundle fractions | legacy advection |
 | `phase3_coupled_interface_authority` | H3.5 interface, EOS, residual projection | legacy projection |
@@ -268,14 +268,30 @@ STOP gate: this document accepted. Rollback: n/a.
 - **Blocks:** H3.2 until measured ownership is converted into an accepted
   shadow bundle.
 
-### H3.2 - bundle authority, state still shadow
+### H3.2-M - mechanical coupled bundle, state still shadow
 
-- **Files:** `Phase3ZoneMassSystem.gd` only.
-- **Flag:** `phase3_coupled_interior_bundle_authority`.
-- **Authority:** the solver decides the interior opening bundle; the bundle is
-  still not written to rooms.
-- **STOP gate:** bundle satisfies invariants 7-11 on every step of the corpus.
-- **Blocks:** H3.3 until the bundle is provably donor-limited and single-counted.
+- **Implemented scope correction (2026-08-03):** the atomic route, bundle,
+  duplicate and donor-limit primitives already existed. H3.2-M reuses them in
+  separate coupled ledgers rather than constructing a second implementation.
+- **Flag:** `phase3_coupled_interior_bundle_shadow_enabled`, default OFF.
+- **Authority:** none. Routes are never registered or applied.
+- **Source limitation:** current sources are
+  `(post-pre)-legacy_interior`, so coupled-vs-legacy comparison is circular and
+  explicitly invalid.
+- **Result:** GO for mechanical shadow only. Binding record:
+  `PHASE3_H32M_COUPLED_BUNDLE_SHADOW.md`.
+- **Blocks:** H3.2-S until source inputs can be built without legacy interior
+  transport.
+
+### H3.2-S - independent non-transport owner sources
+
+- **Authority:** none; still shadow.
+- **Purpose:** build solver sources from explicit combustion, HVAC, exterior,
+  suppression and other non-interior owner deltas instead of subtracting
+  legacy interior transport from the observed post-state.
+- **STOP gate:** source attribution closes independently and only then may a
+  coupled-vs-legacy comparison be emitted as valid.
+- **Blocks:** H3.3 absolutely, alongside H3.2b.
 
 ### H3.2b - projection becomes residual (PREREQUISITE, newly identified)
 

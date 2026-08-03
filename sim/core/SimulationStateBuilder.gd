@@ -110,6 +110,9 @@ func build_state(context: Dictionary) -> Dictionary:
 		"phase3_coupled_pressure_solver_shadow_enabled": bool(
 			context.get("phase3_coupled_pressure_solver_shadow_enabled", false)
 		),
+		"phase3_coupled_interior_bundle_shadow_enabled": bool(
+			context.get("phase3_coupled_interior_bundle_shadow_enabled", false)
+		),
 		"phase3_enthalpy_residence_diagnostics_enabled": bool(
 			context.get("phase3_enthalpy_residence_diagnostics_enabled", false)
 		),

@@ -3,6 +3,33 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-M coupled bundle shadow (2026-08-03)
+
+- Added `phase3_coupled_interior_bundle_shadow_enabled`, default OFF. It adapts
+  H3.2a zonal routes into one donor-limited atomic bundle in separate coupled
+  ledgers; it never registers or applies the bundle and writes no room state.
+- Extracted the legacy atomic donor acceptance into a pure shared evaluator.
+  The legacy path retains its counters and application order; real Godot
+  fixtures compile both paths and verify one global fraction for mass and
+  sensible enthalpy.
+- Source provenance remains explicitly circular:
+  `post_minus_pre_minus_legacy_interior`. The technical summary exports
+  `source_inputs_independent=false`, `comparison_valid=false` and reason
+  `circular_legacy_source_reconstruction`; no fake coupled-vs-legacy delta is
+  emitted.
+- Ten committed topologies at 10 s: 1,200/1,200 valid physical steps, 672
+  shared columns byte-identical, 57 opt-in columns, zero fallbacks, invalid
+  zoning, duplicates, double limits or counterflow violations. One exact-zero
+  bucket in `cfast_r0_window_360` is counted and omitted as a non-request.
+- Runtime donor limiting and parcel overlap were not reached in the 10 s
+  matrix; both are covered by direct fixtures. A 120 s attempt did not complete
+  the first case within the operational timeout and is not evidence.
+- Final gate: 15/15 Godot fixtures, 116/116 focused tests, Physics/ILV 0 FAIL,
+  gap inventory unchanged and guardrails 9/10 only because dirty motor trips
+  the expected R2-1 freshness check.
+- **H3.2 remains open for H3.2-S independent owner sources. H3.2b still blocks
+  H3.3.** Full record: `docs/validation/PHASE3_H32M_COUPLED_BUNDLE_SHADOW.md`.
+
 ### Phase 3 H3.2a zonal decomposition output (2026-08-02)
 
 - Purely additive extension of the coupled solver's connection output: **+227

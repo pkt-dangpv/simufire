@@ -42,6 +42,7 @@ var phase3_canonical_interior_pressure_shadow_enabled: bool = false
 var phase3_canonical_fixed_gross_pressure_skew_shadow_enabled: bool = false
 var phase3_canonical_fixed_gross_pressure_network_shadow_enabled: bool = false
 var phase3_coupled_pressure_solver_shadow_enabled: bool = false
+var phase3_coupled_interior_bundle_shadow_enabled: bool = false
 var phase3_enthalpy_residence_diagnostics_enabled: bool = false
 var phase3_mass_residence_diagnostics_enabled: bool = false
 
@@ -165,6 +166,12 @@ func configure_phase3_coupled_pressure_solver_shadow(
 	is_enabled: bool
 	) -> void:
 	phase3_coupled_pressure_solver_shadow_enabled = is_enabled
+
+
+func configure_phase3_coupled_interior_bundle_shadow(
+	is_enabled: bool
+	) -> void:
+	phase3_coupled_interior_bundle_shadow_enabled = is_enabled
 
 
 func configure_phase3_enthalpy_residence_diagnostics(is_enabled: bool) -> void:
@@ -435,6 +442,45 @@ func _phase3_coupled_solver_fields() -> Array[String]:
 		"phase3_shadow_coupled_solver_analytic_half_step_solve_count_total",
 		"phase3_shadow_coupled_solver_analytic_half_step_max_accepts_per_solve_total",
 	]
+
+
+func _phase3_coupled_bundle_fields() -> Array[String]:
+	var fields: Array[String] = []
+	for field in [
+		"enabled_flag", "valid_flag", "source_inputs_independent_flag",
+		"comparison_valid_flag", "comparison_invalid_reason_code",
+		"solver_fallback_count", "invalid_zonal_count",
+		"zero_route_skipped_count",
+		"exterior_skipped_count", "bundle_count", "route_count",
+		"requested_mass_kg", "requested_energy_kj", "accepted_fraction",
+		"inventory_limited_mass_kg", "inventory_limited_energy_kj",
+		"accepted_mass_kg", "accepted_energy_kj", "rejected_mass_kg",
+		"rejected_energy_kj", "mass_conservation_residual_kg",
+		"energy_conservation_residual_kj", "duplicate_bundle_count",
+		"duplicate_route_count", "double_limit_count",
+		"counterflow_connection_count", "counterflow_violation_count",
+		"parcel_overlap_count", "parcel_overlap_mass_kg",
+		"parcel_overlap_energy_kj",
+	]:
+		fields.append("phase3_shadow_coupled_bundle_" + field)
+	for field in [
+		"step_count", "valid_step_count", "solver_fallback_count",
+		"invalid_zonal_count", "zero_route_skipped_count",
+		"exterior_skipped_count",
+		"bundle_count", "route_count",
+		"requested_mass_kg", "requested_energy_kj", "accepted_mass_kg",
+		"inventory_limited_mass_kg", "inventory_limited_energy_kj",
+		"accepted_energy_kj", "rejected_mass_kg", "rejected_energy_kj",
+		"min_accepted_fraction", "max_abs_mass_conservation_residual_kg",
+		"max_abs_energy_conservation_residual_kj",
+		"duplicate_bundle_count", "duplicate_route_count",
+		"double_limit_count", "counterflow_connection_count",
+		"counterflow_violation_count",
+		"parcel_overlap_count", "parcel_overlap_mass_kg",
+		"parcel_overlap_energy_kj",
+	]:
+		fields.append("phase3_shadow_coupled_bundle_" + field + "_total")
+	return fields
 
 
 func _phase3_mass_residence_fields() -> Array[String]:
@@ -886,6 +932,10 @@ func _build_csv_header() -> String:
 	if phase3_coupled_pressure_solver_shadow_enabled:
 		header += "," + ",".join(PackedStringArray(
 			_phase3_coupled_solver_fields()
+		))
+	if phase3_coupled_interior_bundle_shadow_enabled:
+		header += "," + ",".join(PackedStringArray(
+			_phase3_coupled_bundle_fields()
 		))
 	if phase3_enthalpy_residence_diagnostics_enabled:
 		header += "," + ",".join(PackedStringArray(
@@ -1714,6 +1764,9 @@ func _append_csv_snapshot(sim_time_s: float, state: Dictionary) -> void:
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		if phase3_coupled_pressure_solver_shadow_enabled:
 			for field_name in _phase3_coupled_solver_fields():
+				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
+		if phase3_coupled_interior_bundle_shadow_enabled:
+			for field_name in _phase3_coupled_bundle_fields():
 				fields.append("%.8f" % float(rs.get(field_name, 0.0)))
 		if phase3_enthalpy_residence_diagnostics_enabled:
 			for field_name in _phase3_enthalpy_residence_fields():

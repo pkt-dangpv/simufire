@@ -199,6 +199,11 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Enable the passive F3.3v3h2 coupled pressure solver preview.",
     )
     parser.add_argument(
+        "--phase3-coupled-interior-bundle-shadow",
+        action="store_true",
+        help="Enable the passive H3.2-M coupled atomic-bundle shadow.",
+    )
+    parser.add_argument(
         "--phase3-coupled-pressure-solver-capture",
         default="",
         help=(
@@ -638,6 +643,26 @@ def main(argv: list[str] | None = None) -> int:
                     "it to capture the first failure of any kind"
                 )
             cmd.append("--phase3-coupled-pressure-solver-capture-mode=" + mode)
+    if args.phase3_coupled_interior_bundle_shadow:
+        if "--phase3-coupled-pressure-solver-shadow" not in cmd:
+            for parent_flag in [
+                "--phase3-canonical-shadow",
+                "--phase3-canonical-exterior-shadow",
+                "--phase3-canonical-persistence-shadow",
+                "--phase3-canonical-combustion-shadow",
+                "--phase3-canonical-pressure-relaxation-shadow",
+                "--phase3-canonical-plume-shadow",
+                "--phase3-canonical-interzone-heat-shadow",
+                "--phase3-canonical-wall-ambient-shadow",
+                "--phase3-canonical-exterior-counterflow-shadow",
+                "--phase3-canonical-post-opening-coupling-shadow",
+                "--phase3-canonical-interior-opening-shadow",
+                "--phase3-canonical-interior-pressure-shadow",
+                "--phase3-coupled-pressure-solver-shadow",
+            ]:
+                if parent_flag not in cmd:
+                    cmd.append(parent_flag)
+        cmd.append("--phase3-coupled-interior-bundle-shadow")
     if args.phase3_enthalpy_residence_diagnostics:
         for parent_flag in [
             "--phase3-canonical-shadow",

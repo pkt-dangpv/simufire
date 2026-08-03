@@ -30,10 +30,18 @@ def _function(source: str, name: str) -> str:
 # scope: one file, no state, no new knobs
 # -------------------------------------------------------------------
 
-def test_only_the_solver_gained_zonal_code():
-    """H3.2a was authorised for the solver alone."""
+def test_only_the_solver_produces_zonal_code_and_h32m_is_the_only_consumer():
+    """H3.2a owns production; H3.2-M may only consume its frozen output."""
+    system_path = ROOT / "sim/core/Phase3ZoneMassSystem.gd"
+    system = system_path.read_text(encoding="utf-8")
+    adapter = _function(system, "_record_coupled_interior_bundle_shadow")
+    assert system.count('"zonal_routes"') == adapter.count('"zonal_routes"') == 1
+    assert system.count('"zonal_decomposition_valid"') == adapter.count(
+        '"zonal_decomposition_valid"'
+    ) == 1
+    assert "_attach_zonal_decomposition(" not in system
+
     for other in (
-        "sim/core/Phase3ZoneMassSystem.gd",
         "sim/core/SimulationEngine.gd",
         "sim/core/ThermalSystem.gd",
         "sim/core/GasExchangeSystem.gd",

@@ -76,33 +76,51 @@ class TestAtomicArbitration(unittest.TestCase):
         self.assertIn('"atomic_bundle":', finalize)
 
     def test_source_demands_are_aggregated_before_fraction(self):
-        apply_bundle = _function(SYSTEM, "_apply_atomic_bundle")
-        aggregate = apply_bundle.index("var source_demands: Dictionary")
-        fraction = apply_bundle.index("var accepted_fraction: float")
-        apply_route = apply_bundle.index("_apply_atomic_route(")
+        """H3.2-M moved the demand aggregation and the fraction into the pure
+        `_evaluate_atomic_bundle_acceptance`, so the coupled shadow bundle can
+        reuse them without touching a legacy accumulator. The ordering
+        invariant is unchanged: aggregate, then limit, then apply."""
+        evaluate = _function(SYSTEM, "_evaluate_atomic_bundle_acceptance")
+        aggregate = evaluate.index("var source_demands: Dictionary")
+        fraction = evaluate.index("var accepted_fraction: float")
         self.assertLess(aggregate, fraction)
-        self.assertLess(fraction, apply_route)
-        self.assertIn("source_demands[demand_key] = demand", apply_bundle)
+        self.assertIn("source_demands[demand_key] = demand", evaluate)
+        apply_bundle = _function(SYSTEM, "_apply_atomic_bundle")
+        obtained = apply_bundle.index("_evaluate_atomic_bundle_acceptance(")
+        apply_route = apply_bundle.index("_apply_atomic_route(")
+        self.assertLess(obtained, apply_route)
 
     def test_missing_internal_room_rejects_bundle_before_apply(self):
-        apply_bundle = _function(SYSTEM, "_apply_atomic_bundle")
-        preflight = apply_bundle.split("var source_demands: Dictionary", 1)[1]
+        """The preflight now returns a rejection status instead of counting in
+        place, because the coupled path must count invalid bundles elsewhere.
+        The legacy caller still increments the same legacy counter."""
+        evaluate = _function(SYSTEM, "_evaluate_atomic_bundle_acceptance")
+        preflight = evaluate.split("var source_demands: Dictionary", 1)[1]
         preflight = preflight.split("var accepted_fraction: float", 1)[0]
         self.assertIn("not shadow.has(str(source_id))", preflight)
         self.assertIn("not shadow.has(str(destination_id))", preflight)
-        self.assertIn("_atomic_invalid_bundle_count += 1", preflight)
+        self.assertIn("return rejection", preflight)
+        apply_bundle = _function(SYSTEM, "_apply_atomic_bundle")
+        gate = apply_bundle.split('if not bool(evaluation["valid"]):', 1)[1]
+        gate = gate.split("\n", 3)[0:3]
+        self.assertIn("_atomic_invalid_bundle_count += 1", "".join(gate))
 
     def test_fraction_is_limited_by_all_canonical_inventories(self):
-        apply_bundle = _function(SYSTEM, "_apply_atomic_bundle")
+        evaluate = _function(SYSTEM, "_evaluate_atomic_bundle_acceptance")
         for suffix in ("_gas_kg", "_energy_kj", "_o2_kg", "_species_kg"):
-            self.assertIn(suffix, apply_bundle)
-        self.assertGreaterEqual(apply_bundle.count("_limit_atomic_fraction("), 4)
+            self.assertIn(suffix, evaluate)
+        self.assertGreaterEqual(evaluate.count("_limit_atomic_fraction("), 4)
 
     def test_every_route_receives_the_same_fraction(self):
         apply_bundle = _function(SYSTEM, "_apply_atomic_bundle")
         apply_route = _function(SYSTEM, "_apply_atomic_route")
         self.assertIn("_apply_atomic_route(shadow, route, accepted_fraction)", apply_bundle)
         self.assertNotIn("_limit_atomic_fraction", apply_route)
+        # The single fraction now arrives from the pure evaluation.
+        self.assertIn(
+            'var accepted_fraction: float = float(evaluation["accepted_fraction"])',
+            apply_bundle,
+        )
 
     def test_atomic_rejection_is_available_to_doorway_telemetry(self):
         apply_bundle = _function(SYSTEM, "_apply_atomic_bundle")
@@ -110,7 +128,10 @@ class TestAtomicArbitration(unittest.TestCase):
         self.assertIn('transport_family", "")) == "doorway_bulk"', apply_bundle)
 
     def test_shadow_atomic_path_never_writes_room_model(self):
-        for name in ("_apply_atomic_bundle", "_apply_atomic_route"):
+        for name in (
+            "_apply_atomic_bundle", "_apply_atomic_route",
+            "_evaluate_atomic_bundle_acceptance",
+        ):
             body = _function(SYSTEM, name)
             self.assertNotIn("RoomModel", body)
             self.assertIsNone(re.search(r"\broom\.", body))

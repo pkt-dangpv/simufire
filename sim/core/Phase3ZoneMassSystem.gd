@@ -171,6 +171,12 @@ var coupled_pressure_solver_shadow_enabled: bool = false
 var _coupled_pressure_solver_by_room: Dictionary = {}
 var _coupled_pressure_solver_cumulative_by_room: Dictionary = {}
 var _coupled_pressure_solver_context: Dictionary = {}
+## H3.2-M: mechanical coupled bundle shadow. It reuses atomic route and donor
+## acceptance primitives but owns separate ledgers and never applies a route.
+var coupled_interior_bundle_shadow_enabled: bool = false
+var _coupled_interior_bundle_record: Dictionary = {}
+var _coupled_interior_bundle_cumulative: Dictionary = {}
+var _coupled_interior_bundle_ids: Dictionary = {}
 ## F3.3v3h2.5a: when set to a writable path, the FIRST solve that fails is
 ## serialised verbatim and capture stops. Empty by default, so this is a
 ## no-op unless a diagnostic run asks for it.
@@ -291,6 +297,14 @@ func configure_coupled_pressure_solver_shadow(is_enabled: bool) -> void:
 		_coupled_pressure_solver_context.clear()
 
 
+func configure_coupled_interior_bundle_shadow(is_enabled: bool) -> void:
+	coupled_interior_bundle_shadow_enabled = is_enabled
+	if not is_enabled:
+		_coupled_interior_bundle_record.clear()
+		_coupled_interior_bundle_cumulative.clear()
+		_coupled_interior_bundle_ids.clear()
+
+
 func configure_canonical_multisurface_shadow(is_enabled: bool) -> void:
 	canonical_multisurface_shadow_enabled = is_enabled
 	if not is_enabled:
@@ -313,6 +327,7 @@ func reset() -> void:
 	_canonical_fixed_gross_pressure_skew_cumulative_by_room.clear()
 	_canonical_fixed_gross_pressure_network_cumulative_by_room.clear()
 	_coupled_pressure_solver_cumulative_by_room.clear()
+	_coupled_interior_bundle_cumulative.clear()
 	_canonical_wall_state_by_room.clear()
 	_canonical_wall_ambient_cumulative_by_room.clear()
 	_canonical_surface_state_by_room.clear()
@@ -421,6 +436,8 @@ func _reset_step_state() -> void:
 	_canonical_fixed_gross_pressure_network_by_room.clear()
 	_coupled_pressure_solver_by_room.clear()
 	_coupled_pressure_solver_context.clear()
+	_coupled_interior_bundle_record.clear()
+	_coupled_interior_bundle_ids.clear()
 	_persistence_enabled_step = false
 	_persistence_seeded_by_room.clear()
 	_persistence_continuity_by_room.clear()
@@ -447,6 +464,7 @@ func begin_step(building, persistence_enabled: bool = false) -> void:
 		_canonical_fixed_gross_pressure_skew_cumulative_by_room.clear()
 		_canonical_fixed_gross_pressure_network_cumulative_by_room.clear()
 		_coupled_pressure_solver_cumulative_by_room.clear()
+		_coupled_interior_bundle_cumulative.clear()
 		_canonical_wall_state_by_room.clear()
 		_canonical_wall_ambient_cumulative_by_room.clear()
 		_canonical_surface_state_by_room.clear()
@@ -5649,6 +5667,76 @@ func _new_coupled_pressure_solver_cumulative_record() -> Dictionary:
 	}
 
 
+func _new_coupled_interior_bundle_record() -> Dictionary:
+	return {
+		"enabled_flag": 0.0,
+		"valid_flag": 0.0,
+		"source_inputs_independent_flag": 0.0,
+		"comparison_valid_flag": 0.0,
+		"comparison_invalid_reason_code": 1.0,
+		"solver_fallback_count": 0.0,
+		"invalid_zonal_count": 0.0,
+		"zero_route_skipped_count": 0.0,
+		"exterior_skipped_count": 0.0,
+		"bundle_count": 0.0,
+		"route_count": 0.0,
+		"requested_mass_kg": 0.0,
+		"requested_energy_kj": 0.0,
+		"accepted_fraction": 1.0,
+		"inventory_limited_mass_kg": 0.0,
+		"inventory_limited_energy_kj": 0.0,
+		"accepted_mass_kg": 0.0,
+		"accepted_energy_kj": 0.0,
+		"rejected_mass_kg": 0.0,
+		"rejected_energy_kj": 0.0,
+		"mass_conservation_residual_kg": 0.0,
+		"energy_conservation_residual_kj": 0.0,
+		"duplicate_bundle_count": 0.0,
+		"duplicate_route_count": 0.0,
+		"double_limit_count": 0.0,
+		"counterflow_connection_count": 0.0,
+		"counterflow_violation_count": 0.0,
+		"parcel_overlap_count": 0.0,
+		"parcel_overlap_mass_kg": 0.0,
+		"parcel_overlap_energy_kj": 0.0,
+		"source_provenance": "post_minus_pre_minus_legacy_interior",
+		"comparison_invalid_reason": "circular_legacy_source_reconstruction",
+		"fallback_reason": "",
+	}
+
+
+func _new_coupled_interior_bundle_cumulative_record() -> Dictionary:
+	return {
+		"step_count": 0.0,
+		"valid_step_count": 0.0,
+		"solver_fallback_count": 0.0,
+		"invalid_zonal_count": 0.0,
+		"zero_route_skipped_count": 0.0,
+		"exterior_skipped_count": 0.0,
+		"bundle_count": 0.0,
+		"route_count": 0.0,
+		"requested_mass_kg": 0.0,
+		"requested_energy_kj": 0.0,
+		"inventory_limited_mass_kg": 0.0,
+		"inventory_limited_energy_kj": 0.0,
+		"accepted_mass_kg": 0.0,
+		"accepted_energy_kj": 0.0,
+		"rejected_mass_kg": 0.0,
+		"rejected_energy_kj": 0.0,
+		"min_accepted_fraction": 1.0,
+		"max_abs_mass_conservation_residual_kg": 0.0,
+		"max_abs_energy_conservation_residual_kj": 0.0,
+		"duplicate_bundle_count": 0.0,
+		"duplicate_route_count": 0.0,
+		"double_limit_count": 0.0,
+		"counterflow_connection_count": 0.0,
+		"counterflow_violation_count": 0.0,
+		"parcel_overlap_count": 0.0,
+		"parcel_overlap_mass_kg": 0.0,
+		"parcel_overlap_energy_kj": 0.0,
+	}
+
+
 ## Full-precision numeric leaves. Godot JSON stringifies floats with fewer
 ## digits than a double carries, and a capture that does not round-trip is
 ## worthless: the whole point is that the fixture reproduces the same failure.
@@ -5884,6 +5972,7 @@ func _record_coupled_pressure_solver_preview(
 		_capture_coupled_pressure_solver_failure(
 			rooms, openings, sources, dt, solver_temp_c, solved
 		)
+	_record_coupled_interior_bundle_shadow(solved, solver_temp_c)
 	var solved_gauge: Dictionary = solved.get("gauge_pressure_by_room", {})
 	var solved_net_mass: Dictionary = solved.get("net_mass_by_room", {})
 	var solved_net_energy: Dictionary = solved.get("net_energy_by_room", {})
@@ -6161,6 +6250,290 @@ func _record_coupled_pressure_solver_preview(
 			record[cycle_field] = float(cumulative[cycle_field])
 		_coupled_pressure_solver_by_room[room_key] = record
 		_coupled_pressure_solver_cumulative_by_room[room_key] = cumulative
+
+
+## H3.2-M: adapt H3.2a zonal routes into one mechanical atomic bundle, then
+## evaluate it against the pre-step donor inventory. The bundle is never added
+## to the legacy registry and its accepted routes are never applied.
+##
+## The current solver sources are deliberately marked circular: they are
+## reconstructed as (post - pre) - legacy interior transport. H3.2-S must
+## replace them before any coupled-vs-legacy comparison becomes meaningful.
+func _record_coupled_interior_bundle_shadow(
+		solved: Dictionary,
+		reference_temp_c: float
+	) -> void:
+	if not coupled_interior_bundle_shadow_enabled:
+		return
+	var record: Dictionary = _new_coupled_interior_bundle_record()
+	record["enabled_flag"] = 1.0
+	record["exterior_skipped_count"] = float(
+		solved.get("zonal_exterior_connection_skipped_count", 0.0)
+	)
+	if not bool(solved.get("valid", false)) \
+			or not bool(solved.get("converged", false)):
+		record["solver_fallback_count"] = 1.0
+		record["fallback_reason"] = String(
+			solved.get("limiting_reason", "solver_not_converged")
+		)
+		_commit_coupled_interior_bundle_record(record)
+		return
+	if not bool(solved.get("zonal_decomposition_valid", false)):
+		record["invalid_zonal_count"] = 1.0
+		record["fallback_reason"] = "invalid_zonal_decomposition"
+		_commit_coupled_interior_bundle_record(record)
+		return
+
+	var routes: Array = []
+	var route_ids: Dictionary = {}
+	var coupled_connection_ids: Dictionary = {}
+	var connection_directions: Dictionary = {}
+	for raw_connection in solved.get("connections", []):
+		var connection: Dictionary = raw_connection
+		if not bool(connection.get("zonal_decomposition_applicable", false)):
+			continue
+		var connection_id: String = String(
+			connection.get("connection_id", "")
+		)
+		var opening_id: int = -1
+		if connection_id.begins_with("opening:"):
+			opening_id = connection_id.substr(len("opening:")).to_int()
+		if connection_id.is_empty() or opening_id < 0:
+			record["invalid_zonal_count"] = float(
+				record["invalid_zonal_count"]
+			) + 1.0
+			continue
+		coupled_connection_ids[connection_id] = true
+		var directions: Dictionary = connection_directions.get(connection_id, {})
+		for raw_zonal_route in connection.get("zonal_routes", []):
+			var zonal_route: Dictionary = raw_zonal_route
+			var route_mass_kg: float = float(zonal_route.get("gas_mass_kg", 0.0))
+			var route_energy_kj: float = float(
+				zonal_route.get("sensible_energy_kj", 0.0)
+			)
+			# H3.2a can retain an exact-zero zonal bucket when dp is exactly
+			# zero. That bucket is not a transport request, and atomic routes
+			# deliberately reject empty requests. Skip it exactly, without an
+			# epsilon or per-case threshold, and keep the event observable.
+			if route_mass_kg <= 0.0 and route_energy_kj <= 0.0:
+				record["zero_route_skipped_count"] = float(
+					record["zero_route_skipped_count"]
+				) + 1.0
+				continue
+			var direction: String = String(zonal_route.get("direction", ""))
+			var route_id: String = "h32m|%s|%s|%s|%s" % [
+				connection_id,
+				direction,
+				String(zonal_route.get("source_zone", "")),
+				String(zonal_route.get("destination_zone", "")),
+			]
+			if route_ids.has(route_id):
+				record["duplicate_route_count"] = float(
+					record["duplicate_route_count"]
+				) + 1.0
+				continue
+			route_ids[route_id] = true
+			var route: Dictionary = make_atomic_route(
+				route_id,
+				"coupled_interior_bundle_shadow",
+				int(zonal_route.get("source_room_id", EXTERIOR_ID)),
+				int(zonal_route.get("destination_room_id", EXTERIOR_ID)),
+				String(zonal_route.get("source_zone", "")),
+				String(zonal_route.get("destination_zone", "")),
+				route_mass_kg,
+				route_energy_kj,
+				0.0,
+				{}
+			)
+			_tag_connection_route(route, opening_id, reference_temp_c)
+			if not _atomic_route_is_valid(route):
+				record["invalid_zonal_count"] = float(
+					record["invalid_zonal_count"]
+				) + 1.0
+				continue
+			routes.append(route)
+			directions[direction] = true
+		connection_directions[connection_id] = directions
+	for raw_directions in connection_directions.values():
+		if Dictionary(raw_directions).size() >= 2:
+			record["counterflow_connection_count"] = float(
+				record["counterflow_connection_count"]
+			) + 1.0
+	record["counterflow_violation_count"] = float(
+		solved.get("counterflow_violation_count", 0.0)
+	)
+	if float(record["invalid_zonal_count"]) > 0.0:
+		record["fallback_reason"] = "invalid_coupled_route"
+		_commit_coupled_interior_bundle_record(record)
+		return
+	if routes.is_empty():
+		record["valid_flag"] = 1.0
+		_record_coupled_parcel_overlap(record, coupled_connection_ids)
+		_commit_coupled_interior_bundle_record(record)
+		return
+
+	var bundle_id: String = "h32m:%d" % (_persistent_step_index + 1)
+	if _coupled_interior_bundle_ids.has(bundle_id):
+		record["duplicate_bundle_count"] = 1.0
+		record["fallback_reason"] = "duplicate_coupled_bundle"
+		_commit_coupled_interior_bundle_record(record)
+		return
+	var bundle: Dictionary = make_atomic_bundle(
+		bundle_id,
+		"coupled_interior_bundle_shadow",
+		routes,
+		{
+			"kind": "coupled_interior_bundle_shadow",
+			"source_provenance": record["source_provenance"],
+			"comparison_valid": false,
+		}
+	)
+	if not bool(bundle.get("valid", false)):
+		record["invalid_zonal_count"] = 1.0
+		record["fallback_reason"] = "invalid_coupled_bundle"
+		_commit_coupled_interior_bundle_record(record)
+		return
+	_coupled_interior_bundle_ids[bundle_id] = true
+	var evaluation: Dictionary = _evaluate_atomic_bundle_acceptance(
+		_snapshots, bundle.get("routes", [])
+	)
+	if not bool(evaluation.get("valid", false)):
+		record["fallback_reason"] = "donor_acceptance_invalid"
+		_commit_coupled_interior_bundle_record(record)
+		return
+	var accepted_fraction: float = float(evaluation["accepted_fraction"])
+	var accepted_routes: Array = _scaled_atomic_routes(routes, accepted_fraction)
+	var requested: Dictionary = _coupled_bundle_route_totals(routes)
+	var accepted: Dictionary = _coupled_bundle_route_totals(accepted_routes)
+	record["valid_flag"] = 1.0
+	record["bundle_count"] = 1.0
+	record["route_count"] = float(routes.size())
+	record["requested_mass_kg"] = float(requested["mass_kg"])
+	record["requested_energy_kj"] = float(requested["energy_kj"])
+	record["accepted_fraction"] = accepted_fraction
+	# H3.2-M has one donor limit and no authority/application stage. Keep the
+	# two concepts explicit so a later authoritative path cannot silently treat
+	# a shadow-accepted route as if it had already mutated room state.
+	record["inventory_limited_mass_kg"] = float(accepted["mass_kg"])
+	record["inventory_limited_energy_kj"] = float(accepted["energy_kj"])
+	record["accepted_mass_kg"] = float(accepted["mass_kg"])
+	record["accepted_energy_kj"] = float(accepted["energy_kj"])
+	record["rejected_mass_kg"] = float(requested["mass_kg"]) \
+			- float(accepted["mass_kg"])
+	record["rejected_energy_kj"] = float(requested["energy_kj"]) \
+			- float(accepted["energy_kj"])
+	var residuals: Dictionary = _coupled_bundle_conservation_residuals(
+		accepted_routes
+	)
+	record["mass_conservation_residual_kg"] = float(residuals["mass_kg"])
+	record["energy_conservation_residual_kj"] = float(residuals["energy_kj"])
+	_record_coupled_parcel_overlap(record, coupled_connection_ids)
+	_commit_coupled_interior_bundle_record(record)
+
+
+func _coupled_bundle_route_totals(routes: Array) -> Dictionary:
+	var mass_kg: float = 0.0
+	var energy_kj: float = 0.0
+	for raw_route in routes:
+		var route: Dictionary = raw_route
+		mass_kg += maxf(0.0, float(route.get("gas_mass_kg", 0.0)))
+		energy_kj += maxf(
+			0.0, float(route.get("sensible_enthalpy_kj", 0.0))
+		)
+	return {"mass_kg": mass_kg, "energy_kj": energy_kj}
+
+
+func _coupled_bundle_conservation_residuals(routes: Array) -> Dictionary:
+	var mass_by_room: Dictionary = {}
+	var energy_by_room: Dictionary = {}
+	for raw_route in routes:
+		var route: Dictionary = raw_route
+		var source_key: String = str(int(route["source_room_id"]))
+		var destination_key: String = str(int(route["destination_room_id"]))
+		var mass_kg: float = float(route.get("gas_mass_kg", 0.0))
+		var energy_kj: float = float(route.get("sensible_enthalpy_kj", 0.0))
+		mass_by_room[source_key] = float(mass_by_room.get(source_key, 0.0)) \
+				- mass_kg
+		mass_by_room[destination_key] = float(
+			mass_by_room.get(destination_key, 0.0)
+		) + mass_kg
+		energy_by_room[source_key] = float(
+			energy_by_room.get(source_key, 0.0)
+		) - energy_kj
+		energy_by_room[destination_key] = float(
+			energy_by_room.get(destination_key, 0.0)
+		) + energy_kj
+	var mass_residual_kg: float = 0.0
+	var energy_residual_kj: float = 0.0
+	for value in mass_by_room.values():
+		mass_residual_kg += float(value)
+	for value in energy_by_room.values():
+		energy_residual_kj += float(value)
+	return {
+		"mass_kg": absf(mass_residual_kg),
+		"energy_kj": absf(energy_residual_kj),
+	}
+
+
+func _record_coupled_parcel_overlap(
+		record: Dictionary,
+		connection_ids: Dictionary
+	) -> void:
+	for raw_parcel in _species_transit_reservoir.values():
+		var parcel: Dictionary = raw_parcel
+		if not connection_ids.has(String(parcel.get("connection_id", ""))):
+			continue
+		var accepted_fraction: float = maxf(
+			0.0, float(parcel.get("accepted_fraction", -1.0))
+		)
+		record["parcel_overlap_count"] = float(
+			record["parcel_overlap_count"]
+		) + 1.0
+		record["parcel_overlap_mass_kg"] = float(
+			record["parcel_overlap_mass_kg"]
+		) + maxf(0.0, float(parcel.get("gas_mass_kg", 0.0))) \
+				* accepted_fraction
+		record["parcel_overlap_energy_kj"] = float(
+			record["parcel_overlap_energy_kj"]
+		) + maxf(0.0, float(parcel.get("sensible_enthalpy_kj", 0.0))) \
+				* accepted_fraction
+
+
+func _commit_coupled_interior_bundle_record(record: Dictionary) -> void:
+	_coupled_interior_bundle_record = record.duplicate(true)
+	var cumulative: Dictionary = _coupled_interior_bundle_cumulative.duplicate(true) \
+			if not _coupled_interior_bundle_cumulative.is_empty() \
+			else _new_coupled_interior_bundle_cumulative_record()
+	cumulative["step_count"] = float(cumulative["step_count"]) + 1.0
+	cumulative["valid_step_count"] = float(cumulative["valid_step_count"]) \
+			+ float(record["valid_flag"])
+	for field in [
+		"solver_fallback_count", "invalid_zonal_count",
+		"zero_route_skipped_count", "exterior_skipped_count", "bundle_count",
+		"route_count", "requested_mass_kg", "requested_energy_kj",
+		"inventory_limited_mass_kg", "inventory_limited_energy_kj",
+		"accepted_mass_kg", "accepted_energy_kj", "rejected_mass_kg",
+		"rejected_energy_kj", "duplicate_bundle_count",
+		"duplicate_route_count", "double_limit_count",
+		"counterflow_connection_count", "counterflow_violation_count",
+		"parcel_overlap_count",
+		"parcel_overlap_mass_kg", "parcel_overlap_energy_kj",
+	]:
+		cumulative[field] = float(cumulative[field]) + float(record[field])
+	if float(record["bundle_count"]) > 0.0:
+		cumulative["min_accepted_fraction"] = minf(
+			float(cumulative["min_accepted_fraction"]),
+			float(record["accepted_fraction"])
+		)
+	cumulative["max_abs_mass_conservation_residual_kg"] = maxf(
+		float(cumulative["max_abs_mass_conservation_residual_kg"]),
+		absf(float(record["mass_conservation_residual_kg"]))
+	)
+	cumulative["max_abs_energy_conservation_residual_kj"] = maxf(
+		float(cumulative["max_abs_energy_conservation_residual_kj"]),
+		absf(float(record["energy_conservation_residual_kj"]))
+	)
+	_coupled_interior_bundle_cumulative = cumulative
 
 
 func _fixed_gross_route_totals_by_room(routes: Array) -> Dictionary:
@@ -10561,6 +10934,60 @@ func finalize_step(building, reference_temp_c: float = 20.0) -> void:
 				"phase3_shadow_coupled_solver_" + coupled_field + "_total"
 			] = float(coupled_solver_cumulative.get(coupled_field, 0.0))
 		_results[room_key] = coupled_solver_result
+		var coupled_bundle_result: Dictionary = _results[room_key]
+		var coupled_bundle: Dictionary = _coupled_interior_bundle_record \
+				if not _coupled_interior_bundle_record.is_empty() \
+				else _new_coupled_interior_bundle_record()
+		var coupled_bundle_cumulative: Dictionary = \
+				_coupled_interior_bundle_cumulative \
+				if not _coupled_interior_bundle_cumulative.is_empty() \
+				else _new_coupled_interior_bundle_cumulative_record()
+		for bundle_field in [
+			"enabled_flag", "valid_flag", "source_inputs_independent_flag",
+			"comparison_valid_flag", "comparison_invalid_reason_code",
+			"solver_fallback_count", "invalid_zonal_count",
+			"zero_route_skipped_count",
+			"exterior_skipped_count", "bundle_count", "route_count",
+			"requested_mass_kg", "requested_energy_kj", "accepted_fraction",
+			"inventory_limited_mass_kg", "inventory_limited_energy_kj",
+			"accepted_mass_kg", "accepted_energy_kj", "rejected_mass_kg",
+			"rejected_energy_kj", "mass_conservation_residual_kg",
+			"energy_conservation_residual_kj", "duplicate_bundle_count",
+			"duplicate_route_count", "double_limit_count",
+			"counterflow_connection_count", "counterflow_violation_count",
+			"parcel_overlap_count", "parcel_overlap_mass_kg",
+			"parcel_overlap_energy_kj",
+		]:
+			coupled_bundle_result[
+				"phase3_shadow_coupled_bundle_" + bundle_field
+			] = float(coupled_bundle.get(bundle_field, 0.0))
+		for text_field in [
+			"source_provenance", "comparison_invalid_reason", "fallback_reason",
+		]:
+			coupled_bundle_result[
+				"phase3_shadow_coupled_bundle_" + text_field
+			] = String(coupled_bundle.get(text_field, ""))
+		for bundle_field in [
+			"step_count", "valid_step_count", "solver_fallback_count",
+			"invalid_zonal_count", "zero_route_skipped_count",
+			"exterior_skipped_count",
+			"bundle_count", "route_count",
+			"requested_mass_kg", "requested_energy_kj", "accepted_mass_kg",
+			"inventory_limited_mass_kg", "inventory_limited_energy_kj",
+			"accepted_energy_kj", "rejected_mass_kg", "rejected_energy_kj",
+			"min_accepted_fraction",
+			"max_abs_mass_conservation_residual_kg",
+			"max_abs_energy_conservation_residual_kj",
+			"duplicate_bundle_count", "duplicate_route_count",
+			"double_limit_count", "counterflow_connection_count",
+			"counterflow_violation_count",
+			"parcel_overlap_count", "parcel_overlap_mass_kg",
+			"parcel_overlap_energy_kj",
+		]:
+			coupled_bundle_result[
+				"phase3_shadow_coupled_bundle_" + bundle_field + "_total"
+			] = float(coupled_bundle_cumulative.get(bundle_field, 0.0))
+		_results[room_key] = coupled_bundle_result
 		var multisurface_room_result: Dictionary = _results[room_key]
 		for surface_name in CANONICAL_SURFACE_NAMES:
 			var surface: Dictionary = canonical_multisurface_surfaces.get(
@@ -10750,6 +11177,18 @@ func get_results() -> Dictionary:
 	return _results.duplicate(true)
 
 
+func get_coupled_interior_bundle_summary() -> Dictionary:
+	return {
+		"schema_version": "simufire_phase3_coupled_bundle_shadow_v1",
+		"source_inputs_independent": false,
+		"source_provenance": "post_minus_pre_minus_legacy_interior",
+		"comparison_valid": false,
+		"comparison_invalid_reason": "circular_legacy_source_reconstruction",
+		"current": _coupled_interior_bundle_record.duplicate(true),
+		"cumulative": _coupled_interior_bundle_cumulative.duplicate(true),
+	}
+
+
 func get_request_count() -> int:
 	return _requests.size()
 
@@ -10814,35 +11253,34 @@ func _atomic_route_is_valid(route: Dictionary) -> bool:
 			or _sum_parcel_species(raw_species) > 0.0
 
 
-func _apply_atomic_bundle(
-		shadow: Dictionary,
-		bundle: Dictionary,
-		rejected_by_room: Dictionary,
-		rejected_doorway_species_by_room: Dictionary,
-		rejected_transit_species_by_room: Dictionary
-	) -> void:
-	if not bool(bundle.get("valid", false)):
-		_atomic_invalid_bundle_count += 1
-		return
-	var routes: Array = bundle.get("routes", [])
+## H3.2-M: the donor-limited acceptance, extracted so the coupled shadow
+## bundle can reuse it without touching a single legacy accumulator.
+##
+## Pure: reads `shadow` and `routes`, writes nothing. Validation is reported as
+## a status instead of counted here, because the legacy path counts invalid
+## bundles in `_atomic_invalid_bundle_count` and the coupled path must count
+## them somewhere else entirely. The body is the original code moved verbatim,
+## so the legacy result is bit-identical by construction.
+func _evaluate_atomic_bundle_acceptance(
+		shadow: Dictionary, routes: Array
+	) -> Dictionary:
+	var rejection: Dictionary = {
+		"valid": false, "accepted_fraction": 0.0, "source_demands": {},
+	}
 	if routes.is_empty():
-		_atomic_invalid_bundle_count += 1
-		return
+		return rejection
 	var source_demands: Dictionary = {}
 	for raw_route in routes:
 		if typeof(raw_route) != TYPE_DICTIONARY:
-			_atomic_invalid_bundle_count += 1
-			return
+			return rejection
 		var route: Dictionary = raw_route
 		if not _atomic_route_is_valid(route):
-			_atomic_invalid_bundle_count += 1
-			return
+			return rejection
 		var source_id: int = int(route.get("source_room_id", EXTERIOR_ID))
 		var destination_id: int = int(route.get("destination_room_id", EXTERIOR_ID))
 		if (source_id != EXTERIOR_ID and not shadow.has(str(source_id))) \
 				or (destination_id != EXTERIOR_ID and not shadow.has(str(destination_id))):
-			_atomic_invalid_bundle_count += 1
-			return
+			return rejection
 		if source_id == EXTERIOR_ID:
 			continue
 		var source_zone: String = String(route.get("source_zone", ZONE_UPPER))
@@ -10900,6 +11338,35 @@ func _apply_atomic_bundle(
 				float(requested_species.get(species_name, 0.0))
 			)
 	accepted_fraction = clampf(accepted_fraction, 0.0, 1.0)
+	# `source_demands` travels back because the legacy caller still needs the
+	# per-source-zone totals for its rejection bookkeeping. Returning it keeps
+	# that path byte-for-byte unchanged instead of recomputing it.
+	return {
+		"valid": true,
+		"accepted_fraction": accepted_fraction,
+		"source_demands": source_demands.duplicate(true),
+	}
+
+
+func _apply_atomic_bundle(
+		shadow: Dictionary,
+		bundle: Dictionary,
+		rejected_by_room: Dictionary,
+		rejected_doorway_species_by_room: Dictionary,
+		rejected_transit_species_by_room: Dictionary
+	) -> void:
+	if not bool(bundle.get("valid", false)):
+		_atomic_invalid_bundle_count += 1
+		return
+	var routes: Array = bundle.get("routes", [])
+	var evaluation: Dictionary = _evaluate_atomic_bundle_acceptance(
+		shadow, routes
+	)
+	if not bool(evaluation["valid"]):
+		_atomic_invalid_bundle_count += 1
+		return
+	var accepted_fraction: float = float(evaluation["accepted_fraction"])
+	var source_demands: Dictionary = evaluation["source_demands"]
 
 	_atomic_bundle_count += 1
 	_atomic_route_count += routes.size()

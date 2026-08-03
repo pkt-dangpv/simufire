@@ -8,6 +8,33 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-03 - H3.2-M coupled bundle shadow
+
+- Implemented `phase3_coupled_interior_bundle_shadow_enabled`, default OFF.
+  H3.2a zonal routes are converted with the existing atomic primitives and one
+  pure global donor fraction, but remain in separate `_coupled_*` ledgers and
+  are never registered, applied or written to rooms.
+- The source inputs are still reconstructed as
+  `(post-pre)-legacy_interior`. Summary provenance is explicit and comparison
+  remains invalid; do not interpret zero legacy deltas as independent physical
+  agreement.
+- Runtime gate at 10 s over ten committed topologies: 1,200/1,200 valid steps,
+  672 shared columns byte-identical, 57 new opt-in columns, no fallback,
+  duplicate, double-limit or counterflow violation. One exact-zero zonal bucket
+  in `cfast_r0_window_360` is counted and skipped without an epsilon.
+- Direct Godot fixtures cover the branches absent from the runtime horizon:
+  donor fraction 0.5 shared by mass/enthalpy, delayed-parcel overlap, explicit
+  non-convergence fallback, duplicate isolation and no room-state mutation.
+- Final gates: 15/15 Godot fixtures; 116/116 focused tests; phase3/guardrail
+  pytest 1298 PASS with only R2-1 dirty-motor and the historical layer-interface
+  test failing; Physics and ILV 0 FAIL; gap inventory unchanged; Godot logs
+  clean and zero residual processes.
+- A 120 s matrix attempt did not complete the first case within the operational
+  timeout and is not part of the evidence.
+- **Next: H3.2-S independent owner-source construction.** H3.2 is not closed;
+  H3.2b remains a hard prerequisite and H3.3 remains blocked.
+- Binding record: `docs/validation/PHASE3_H32M_COUPLED_BUNDLE_SHADOW.md`.
+
 ## Current Session Update - 2026-08-02 - H3.2a zonal decomposition output
 
 - Purely additive: **+227 lines, zero deletions**, only in

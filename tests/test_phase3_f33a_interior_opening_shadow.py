@@ -43,7 +43,10 @@ def test_all_openings_are_evaluated_before_one_network_bundle():
 
 
 def test_network_bundle_caps_combined_source_zone_demands():
-    atomic = _function(SYSTEM, "_apply_atomic_bundle")
+    # The per-source-zone demand aggregation moved into the pure
+    # `_evaluate_atomic_bundle_acceptance` in H3.2-M; the capping behaviour is
+    # unchanged.
+    atomic = _function(SYSTEM, "_evaluate_atomic_bundle_acceptance")
     assert 'var demand_key: String = "%d|%s"' in atomic
     assert 'demand["gas_mass_kg"]' in atomic
     assert "_add_parcel_species(demand_species" in atomic

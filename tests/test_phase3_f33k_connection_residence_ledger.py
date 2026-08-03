@@ -43,8 +43,11 @@ def test_opening_and_pressure_routes_receive_connection_identity():
 
 
 def test_recording_occurs_after_acceptance_before_mutation():
+    # H3.2-M extracted the fraction into `_evaluate_atomic_bundle_acceptance`
+    # so the coupled shadow bundle can reuse it. The invariant is unchanged:
+    # acceptance is known first, then recorded, then applied.
     apply_bundle = _function(SYSTEM, "_apply_atomic_bundle")
-    accepted = apply_bundle.index("accepted_fraction = clampf")
+    accepted = apply_bundle.index('float(evaluation["accepted_fraction"])')
     record = apply_bundle.index("_record_connection_residence_route")
     mutate = apply_bundle.index("_apply_atomic_route")
     assert accepted < record < mutate

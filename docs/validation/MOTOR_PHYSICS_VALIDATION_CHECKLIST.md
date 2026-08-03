@@ -33,9 +33,10 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.0 ownership map | CLOSED | Design only; projection reconstruction and cross-step parcels identified as hard ownership constraints. |
 | H3.1 passive ownership ledger | GO / STOP gate | Default OFF; 12-case corpus closes ownership, parcel and projection ledgers with zero legacy-column differences. No authority granted. |
 | H3.2a zonal decomposition | GO / STOP gate | Additive solver output (+227/-0); bands were already split at both interfaces, so zoning is a read of an existing decision. Exterior never labelled. No authority. |
-| H3.2 accepted bundle | UNBLOCKED, NOT STARTED | H3.2a supplies the zone information the atomic route primitives require; still shadow-only when it starts. |
+| H3.2-M mechanical bundle shadow | GO / STOP gate | Existing atomic primitives and pure donor limit reused in separate coupled ledgers; no application or authority; comparison explicitly invalid because sources are circular. |
+| H3.2-S independent owner sources | BLOCKING | Replace `(post-pre)-legacy_interior` source reconstruction before coupled-vs-legacy comparison or authority can be meaningful. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
-| H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2 and H3.2b pass their STOP gates. |
+| H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
 
 H3.1 binding checks (2026-08-02):
 
@@ -1700,6 +1701,24 @@ H3.0 STOP: **DESIGN ONLY - authorise H3.1 alone.**
 
 H3 remains unstarted as implementation. Full record:
 `docs/validation/PHASE3_H3_RUNTIME_AUTHORITY_PLAN.md`.
+
+H3.2-M STOP: **GO for the mechanical shadow bundle only.**
+
+- default-OFF flag; no legacy registry entry, route application, writer
+  suppression, tick reorder or room-state mutation: PASS;
+- shared pure donor acceptance used by legacy and coupled paths; one fraction
+  scales mass and enthalpy once: PASS;
+- source provenance is explicitly circular and comparison remains invalid;
+  no coupled-vs-legacy delta is fabricated: PASS;
+- ten committed topologies at 10 s: 1,200/1,200 valid steps, 672 shared columns
+  byte-identical, 57 opt-in columns, zero fallback, duplicate, double-limit or
+  counterflow violations: PASS;
+- donor limiting and parcel overlap are fixture-only at this horizon; a 120 s
+  attempt did not complete and is not counted as evidence: OPEN LIMIT;
+- H3.2 remains open for H3.2-S independent sources; H3.2b and H3.3 remain
+  blocked.
+
+Full record: `docs/validation/PHASE3_H32M_COUPLED_BUNDLE_SHADOW.md`.
 
 Headless runner completion contract (2026-07-29): **GO at STOP.**
 

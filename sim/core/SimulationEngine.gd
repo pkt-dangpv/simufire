@@ -1038,6 +1038,8 @@ var _step_time_us: int = 0
 ## F3.3v3h2: preview pasiva del solver acoplado H1. Solo telemetria: no
 ## emite rutas ni escribe estado. Default OFF.
 @export var phase3_coupled_pressure_solver_shadow_enabled: bool = false
+## H3.2-M: bundle atomico acoplado puramente shadow. Requiere el solver H2.
+@export var phase3_coupled_interior_bundle_shadow_enabled: bool = false
 ## F3.3v3h2.5a: ruta de captura del primer solve fallido. Vacio = no-op.
 @export var phase3_coupled_pressure_solver_capture_path: String = ""
 ## F3.3v3h2.5h: which failure mode the capture should wait for. Empty keeps the
@@ -1357,6 +1359,9 @@ func _sync_auxiliary_services() -> void:
 	phase3_zone_mass_system.configure_coupled_pressure_solver_shadow(
 		_phase3_coupled_pressure_solver_active()
 	)
+	phase3_zone_mass_system.configure_coupled_interior_bundle_shadow(
+		_phase3_coupled_interior_bundle_active()
+	)
 	phase3_zone_mass_system.configure_coupled_pressure_solver_capture(
 		phase3_coupled_pressure_solver_capture_path \
 				if _phase3_coupled_pressure_solver_active() else "",
@@ -1458,6 +1463,9 @@ func _sync_auxiliary_services() -> void:
 	)
 	log_writer.configure_phase3_coupled_pressure_solver_shadow(
 		_phase3_coupled_pressure_solver_active()
+	)
+	log_writer.configure_phase3_coupled_interior_bundle_shadow(
+		_phase3_coupled_interior_bundle_active()
 	)
 	log_writer.configure_phase3_enthalpy_residence_diagnostics(
 		phase3_enthalpy_residence_diagnostics_active
@@ -1887,6 +1895,11 @@ func _phase3_coupled_pressure_solver_active() -> bool:
 			and phase3_canonical_persistence_shadow_enabled \
 			and phase3_canonical_interior_opening_shadow_enabled \
 			and phase3_coupled_pressure_solver_shadow_enabled
+
+
+func _phase3_coupled_interior_bundle_active() -> bool:
+	return _phase3_coupled_pressure_solver_active() \
+			and phase3_coupled_interior_bundle_shadow_enabled
 
 
 func _phase3_prepare_canonical_multisurface_room(room: RoomModel) -> bool:
@@ -2489,6 +2502,8 @@ func _build_state_context() -> Dictionary:
 				_phase3_canonical_fixed_gross_pressure_network_active(),
 		"phase3_coupled_pressure_solver_shadow_enabled": \
 				_phase3_coupled_pressure_solver_active(),
+		"phase3_coupled_interior_bundle_shadow_enabled": \
+				_phase3_coupled_interior_bundle_active(),
 		"phase3_enthalpy_residence_diagnostics_enabled": \
 				phase3_enthalpy_residence_diagnostics_enabled,
 		"phase3_mass_residence_diagnostics_enabled": \
@@ -4400,6 +4415,9 @@ func build_technical_summary(output_dir: String = "") -> Dictionary:
 	if phase3_runtime_ownership_ledger_enabled:
 		summary["phase3_runtime_ownership"] = _phase3_runtime_ownership_export()
 		summary["phase3_projection_trace"] = zone_fire_solver.get_projection_trace_events()
+	if _phase3_coupled_interior_bundle_active():
+		summary["phase3_coupled_interior_bundle_shadow"] = \
+				phase3_zone_mass_system.get_coupled_interior_bundle_summary()
 	if not output_dir.strip_edges().is_empty():
 		summary["output_dir"] = output_dir
 	return summary
