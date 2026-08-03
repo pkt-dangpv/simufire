@@ -3,6 +3,47 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2a zonal decomposition output (2026-08-02)
+
+- Purely additive extension of the coupled solver's connection output: **+227
+  lines, zero deletions**, confined to `Phase3CoupledPressureSolver.gd`. No
+  authority, no VALID_GAP closed, no baseline or tolerance touched.
+- **Why:** the atomic route primitives require `source_zone`/`destination_zone`
+  in {`upper`, `lower`}, but the solver's unknown is one gauge pressure per
+  *room* and it reported only aggregate per-opening flux. Labelling by
+  convention would fabricate physics; splitting the aggregate by the neutral
+  plane in an adapter would add a derivation the solver never made. H3.2a
+  instead surfaces a classification the solver had already made.
+- **The decomposition rests on a pre-existing invariant.** `_build_opening`
+  already splits each opening span at **both** rooms' interfaces, so no band
+  can cross an interface and each band lies wholly inside one layer per side.
+  `_zone_at` reads the *same band midpoint* that already selects the band's
+  density and specific enthalpy, mirroring the same `height_m <= interface_m`
+  convention, so a label can never disagree with the profile used.
+- Two consequences shrank the authorised scope: `Phase3ZoneMassSystem` was not
+  touched (interface heights already exist inside the solver), and no new
+  tunable constant was introduced - only the two zone labels.
+- **Exterior is never labelled.** `_zone_at` returns no label for an exterior
+  side; the connection is reported inapplicable with no routes, its bands are
+  counted separately, and global validity is decided by interior bands alone so
+  an exterior opening cannot invalidate the interior network. Deferred to H3.5.
+- Aggregate identity: **13/13 Godot fixtures PASS** (H1 and the whole
+  H2.5-H2.10 family), asserting bit-exact residual histories, iteration counts
+  and convergence modes across nine captures; 28/28 structural tests with
+  negative controls; ten-scenario runtime matrix byte-identical.
+  **The runtime identity is expected, not strong evidence** - H3.2a adds no CSV
+  column, so logs could not differ. The fixtures are the real proof.
+- Numerical bound declared at `1e-12 kg` / `1e-12 kJ`; **maximum measured is
+  mass `0.0` exact and energy `1e-14 kJ`** on one capture. The aggregate
+  summation order was deliberately not changed to force an exact zero.
+- All four zone combinations covered: `lower->lower` and `upper->lower` from
+  real captures, `upper->upper` and `lower->upper` from synthetic fixtures,
+  since no runtime topology in the corpus reaches the latter two - recorded as
+  an open risk rather than presented as scenario coverage.
+- **H3.2 is unblocked.** H3.2b and H3.3 stay blocked: `project_room_state`
+  still reconstructs energy from clamped temperature.
+- Full record: `docs/validation/PHASE3_H32A_ZONAL_DECOMPOSITION.md`.
+
 ### Phase 3 H3.1 passive runtime ownership ledger (2026-08-02)
 
 - Added `phase3_runtime_ownership_ledger_enabled`, default OFF, to observe the

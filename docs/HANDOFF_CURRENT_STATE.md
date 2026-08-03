@@ -8,6 +8,36 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-02 - H3.2a zonal decomposition output
+
+- Purely additive: **+227 lines, zero deletions**, only in
+  `Phase3CoupledPressureSolver.gd`. No authority, no VALID_GAP, no baseline.
+- H3.2 was blocked because the atomic route primitives demand
+  `source_zone`/`destination_zone` in {`upper`, `lower`} and the solver, whose
+  unknown is one gauge pressure per *room*, reported only aggregate per-opening
+  flux. H3.2a surfaces the classification the solver had already made.
+- It rests on a pre-existing invariant: `_build_opening` already splits each
+  span at **both** rooms' interfaces, so no band crosses an interface.
+  `_zone_at` reads the same band midpoint that already picks the band's density
+  and specific enthalpy, mirroring `height_m <= interface_m`, so the label
+  cannot disagree with the profile used. `Phase3ZoneMassSystem` was therefore
+  not needed and not touched.
+- Exterior is never labelled: no label, no routes, counted separately, and it
+  cannot invalidate the interior network. Semantics deferred to H3.5.
+- Evidence: 13/13 Godot fixtures (bit-exact residual histories and iteration
+  counts across nine captures), 28/28 structural tests with negative controls,
+  ten-scenario runtime matrix byte-identical. **The runtime identity is
+  expected, not strong** - H3.2a exports no CSV column - so the fixtures are
+  the real proof that no aggregate moved.
+- Bound `1e-12 kg`/`1e-12 kJ`; measured maximum mass `0.0` exact, energy
+  `1e-14 kJ` on one capture. Summation order deliberately unchanged.
+- All four zone combinations covered; `upper->upper` and `lower->upper` only
+  from synthetic fixtures, since no runtime topology reaches them - recorded as
+  an open risk.
+- **H3.2 unblocked. H3.2b and H3.3 still blocked** by `project_room_state`
+  reconstructing energy from clamped temperature.
+- Binding record: `docs/validation/PHASE3_H32A_ZONAL_DECOMPOSITION.md`.
+
 ## Current Session Update - 2026-08-02 - H3.1 passive ownership ledger
 
 - Implemented `phase3_runtime_ownership_ledger_enabled`, default OFF. It is

@@ -80,6 +80,10 @@ const AIR_DENSITY_REF_KG_M3: float = 1.2
 const AIR_CP_KJ_KG_K: float = 1.0
 const GRAVITY_M_S2: float = 9.81
 const EXTERIOR_ID: int = -1
+## F3.3v3h3.2a reporting labels. They match Phase3ZoneMassSystem's zone names so
+## the decomposition can later feed the atomic route primitives unchanged.
+const ZONE_UPPER: String = "upper"
+const ZONE_LOWER: String = "lower"
 const MASS_EPS_KG: float = 1.0e-12
 const VOLUME_EPS_M3: float = 1.0e-12
 
@@ -588,7 +592,50 @@ func solve_coupled_pressure(
 	result["counterflow_connection_count"] = float(
 		evaluation["counterflow_connection_count"]
 	)
+	_summarize_zonal_decomposition(result, evaluation)
 	return result
+
+
+## H3.2a solve-level totals. Interior connections decide global validity;
+## exterior ones are counted separately and never invalidate the network.
+func _summarize_zonal_decomposition(
+		result: Dictionary, evaluation: Dictionary
+	) -> void:
+	var interior_connections: int = 0
+	var exterior_skipped: int = 0
+	var exterior_unzoned_bands: int = 0
+	var unclassified_interior_bands: int = 0
+	var worst_mass_residual_kg: float = 0.0
+	var worst_energy_residual_kj: float = 0.0
+	for raw_connection in evaluation.get("connections", []):
+		var connection: Dictionary = raw_connection
+		exterior_unzoned_bands += int(
+			connection.get("exterior_unzoned_band_count", 0)
+		)
+		if not bool(connection.get("zonal_decomposition_applicable", false)):
+			exterior_skipped += 1
+			continue
+		interior_connections += 1
+		unclassified_interior_bands += int(
+			connection.get("unclassified_interior_band_count", 0)
+		)
+		worst_mass_residual_kg = maxf(
+			worst_mass_residual_kg,
+			float(connection.get("zonal_mass_residual_kg", 0.0))
+		)
+		worst_energy_residual_kj = maxf(
+			worst_energy_residual_kj,
+			float(connection.get("zonal_energy_residual_kj", 0.0))
+		)
+	result["zonal_interior_connection_count"] = float(interior_connections)
+	result["zonal_exterior_connection_skipped_count"] = float(exterior_skipped)
+	result["zonal_exterior_unzoned_band_count"] = float(exterior_unzoned_bands)
+	result["zonal_unclassified_interior_band_count"] = float(
+		unclassified_interior_bands
+	)
+	result["zonal_mass_residual_kg"] = worst_mass_residual_kg
+	result["zonal_energy_residual_kj"] = worst_energy_residual_kj
+	result["zonal_decomposition_valid"] = unclassified_interior_bands == 0
 
 
 ## Sum-of-squares recovery merit over the per-room normalized residuals. It is
@@ -1028,6 +1075,15 @@ func _new_result() -> Dictionary:
 		# reported, never read back into a decision.
 		"cycle_detect_both_phases_low_total": 0.0,
 		"cycle_detect_alternating_gain_total": 0.0,
+		# H3.2a zonal decomposition. Reporting only; no aggregate is derived
+		# from these and no state is written from them.
+		"zonal_interior_connection_count": 0.0,
+		"zonal_exterior_connection_skipped_count": 0.0,
+		"zonal_exterior_unzoned_band_count": 0.0,
+		"zonal_unclassified_interior_band_count": 0.0,
+		"zonal_mass_residual_kg": 0.0,
+		"zonal_energy_residual_kj": 0.0,
+		"zonal_decomposition_valid": false,
 		# H2.10 fail-only adaptive unilateral Jacobian telemetry.
 		"adaptive_jacobian_attempt_total": 0.0,
 		"adaptive_jacobian_accept_total": 0.0,
@@ -1333,6 +1389,11 @@ func _build_opening(
 			"density_b_kg_m3": _density_at(side_b, 0.5 * (z0 + z1)),
 			"specific_a_kj_kg": _specific_at(side_a, 0.5 * (z0 + z1)),
 			"specific_b_kj_kg": _specific_at(side_b, 0.5 * (z0 + z1)),
+			# H3.2a: reporting only. Same midpoint as the density and specific
+			# enthalpy above, so the label cannot disagree with the profile the
+			# integration used.
+			"zone_a": _zone_at(side_a, 0.5 * (z0 + z1)),
+			"zone_b": _zone_at(side_b, 0.5 * (z0 + z1)),
 		})
 	var opening_id: int = int(opening.get("opening_id", -1))
 	return {
@@ -1352,6 +1413,11 @@ func _build_opening(
 		"top_m": top_m,
 		"coefficient": discharge_coeff * width_m * open_fraction * dt,
 		"bands": bands,
+		# H3.2a: an opening is zonable only when BOTH sides are rooms. The
+		# exterior has no layers, so exterior openings are reported as
+		# inapplicable rather than labelled with an invented one.
+		"interior": not bool(side_a.get("exterior", false)) \
+				and not bool(side_b.get("exterior", false)),
 	}
 
 
@@ -1390,6 +1456,115 @@ func _specific_at(side: Dictionary, height_m: float) -> float:
 	return float(side["lower_specific_kj_kg"]) \
 			if (not is_finite(interface_m) or height_m <= interface_m) \
 			else float(side["upper_specific_kj_kg"])
+
+
+## H3.2a: build the deterministic zonal route list for one connection.
+##
+## The routes are a decomposition of aggregates that are already final. The
+## residual is reported, never corrected, and the aggregates are never rebuilt
+## from the routes - a structural test enforces that.
+func _attach_zonal_decomposition(
+		connection: Dictionary,
+		opening: Dictionary,
+		flux: Dictionary
+	) -> void:
+	var interior: bool = bool(opening.get("interior", false))
+	var connection_id: String = "opening:%d" % int(opening["opening_id"])
+	connection["connection_id"] = connection_id
+	connection["zonal_decomposition_applicable"] = interior
+	connection["unclassified_interior_band_count"] = int(
+		flux.get("unclassified_interior_band_count", 0)
+	)
+	connection["exterior_unzoned_band_count"] = int(
+		flux.get("exterior_unzoned_band_count", 0)
+	)
+	if not interior:
+		# The exterior has no layers. Report nothing rather than invent a zone.
+		connection["zonal_routes"] = []
+		connection["zonal_decomposition_valid"] = false
+		connection["zonal_mass_residual_kg"] = 0.0
+		connection["zonal_energy_residual_kj"] = 0.0
+		return
+
+	var routes: Array[Dictionary] = []
+	var zonal_totals: Dictionary = flux.get("zonal_totals", {})
+	for raw_key in zonal_totals.keys():
+		var entry: Dictionary = zonal_totals[raw_key]
+		var direction: String = String(entry["direction"])
+		var a_to_b: bool = direction == "a_to_b"
+		routes.append({
+			"connection_id": connection_id,
+			"direction": direction,
+			"source_room_id": int(opening["room_a_id"]) if a_to_b \
+					else int(opening["room_b_id"]),
+			"destination_room_id": int(opening["room_b_id"]) if a_to_b \
+					else int(opening["room_a_id"]),
+			"source_zone": String(entry["source_zone"]),
+			"destination_zone": String(entry["destination_zone"]),
+			"gas_mass_kg": float(entry["gas_mass_kg"]),
+			"sensible_energy_kj": float(entry["sensible_energy_kj"]),
+			"band_count": int(Dictionary(entry["band_indices"]).size()),
+		})
+	# Deterministic: connection, then direction, then source and target zone.
+	routes.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return "%s|%s|%s|%s" % [
+			String(left["connection_id"]), String(left["direction"]),
+			String(left["source_zone"]), String(left["destination_zone"]),
+		] < "%s|%s|%s|%s" % [
+			String(right["connection_id"]), String(right["direction"]),
+			String(right["source_zone"]), String(right["destination_zone"]),
+		]
+	)
+
+	var a_to_b_mass: float = 0.0
+	var b_to_a_mass: float = 0.0
+	var a_to_b_energy: float = 0.0
+	var b_to_a_energy: float = 0.0
+	for route in routes:
+		if String(route["direction"]) == "a_to_b":
+			a_to_b_mass += float(route["gas_mass_kg"])
+			a_to_b_energy += float(route["sensible_energy_kj"])
+		else:
+			b_to_a_mass += float(route["gas_mass_kg"])
+			b_to_a_energy += float(route["sensible_energy_kj"])
+
+	var unclassified: int = int(
+		flux.get("unclassified_interior_band_count", 0)
+	)
+	connection["zonal_routes"] = routes
+	connection["zonal_mass_residual_kg"] = maxf(
+		absf(a_to_b_mass - float(connection["a_to_b_kg"])),
+		absf(b_to_a_mass - float(connection["b_to_a_kg"]))
+	)
+	connection["zonal_energy_residual_kj"] = maxf(
+		absf(a_to_b_energy - float(connection["a_to_b_kj"])),
+		absf(b_to_a_energy - float(connection["b_to_a_kj"]))
+	)
+	connection["zonal_decomposition_valid"] = unclassified == 0
+
+
+## F3.3v3h3.2a: which layer a height belongs to, for REPORTING only.
+##
+## This is a pure read of a decision the solver has already made. It mirrors
+## `_density_at` and `_specific_at` exactly - `height_m <= interface_m` is the
+## lower layer - so the zone label always agrees with the density and specific
+## enthalpy the integration actually used for that band. Because
+## `_build_opening` splits the span at both interfaces, no band midpoint can
+## ever land on an interface, so the boundary case is unreachable by
+## construction; the convention is mirrored anyway so it cannot drift.
+##
+## The exterior has no layers. `_density_at` maps its non-finite interface to
+## the lower profile, which is harmless there because both exterior profiles
+## hold the same density, but it is NOT a statement that the exterior has a
+## lower layer. Zoning therefore returns an empty label and the caller marks
+## the connection inapplicable rather than inventing a layer.
+func _zone_at(side: Dictionary, height_m: float) -> String:
+	if bool(side.get("exterior", false)):
+		return ""
+	var interface_m: float = float(side["interface_m"])
+	if not is_finite(interface_m):
+		return ""
+	return ZONE_LOWER if height_m <= interface_m else ZONE_UPPER
 
 
 # ------------------------------------------------------------
@@ -1478,6 +1653,11 @@ func _evaluate(context: Dictionary, pressure: Array) -> Dictionary:
 				flux["regularization_active_count"]
 			),
 		})
+		# H3.2a: attach the parallel decomposition. Purely additive - every
+		# aggregate above is already final and is never recomputed from it.
+		_attach_zonal_decomposition(
+			connections[connections.size() - 1], opening, flux
+		)
 
 	var residual_pa: Array[float] = []
 	var residual_pa_by_room: Dictionary = {}
@@ -1592,8 +1772,26 @@ func _integrate_opening(
 	var coefficient: float = float(opening["coefficient"])
 	var bottom_m: float = float(opening["bottom_m"])
 	var top_m: float = float(opening["top_m"])
+	# H3.2a zonal decomposition, accumulated strictly in parallel. The aggregate
+	# accumulators above are never read back from these, and their summation
+	# order is untouched.
+	var zonal_totals: Dictionary = {}
+	var unclassified_interior_band_count: int = 0
+	var exterior_unzoned_band_count: int = 0
+	var band_index: int = -1
 	for raw_band in opening["bands"]:
 		var band: Dictionary = raw_band
+		band_index += 1
+		var zone_a: String = String(band.get("zone_a", ""))
+		var zone_b: String = String(band.get("zone_b", ""))
+		var band_zoned: bool = not zone_a.is_empty() and not zone_b.is_empty()
+		if not band_zoned:
+			if zone_a.is_empty() and zone_b.is_empty():
+				exterior_unzoned_band_count += 1
+			elif bool(opening.get("interior", false)):
+				unclassified_interior_band_count += 1
+			else:
+				exterior_unzoned_band_count += 1
 		var z0: float = float(band["z0"])
 		var z1: float = float(band["z1"])
 		var dp0: float = delta_p_pa + float(band["hydrostatic_z0_pa"])
@@ -1645,6 +1843,32 @@ func _integrate_opening(
 				else:
 					b_to_a_kg += mass_kg
 					b_to_a_kj += mass_kg * specific_kj_kg
+				# H3.2a: mirror the same branch into the zonal ledger. Zones are
+				# constant across a band, so the label is read once per band and
+				# reused for every segment inside it.
+				if band_zoned:
+					var direction: String = "a_to_b" if dp_pa >= 0.0 else "b_to_a"
+					var source_zone: String = zone_a if dp_pa >= 0.0 else zone_b
+					var target_zone: String = zone_b if dp_pa >= 0.0 else zone_a
+					var key: String = "%s|%s|%s" % [
+						direction, source_zone, target_zone
+					]
+					var entry: Dictionary = zonal_totals.get(key, {
+						"direction": direction,
+						"source_zone": source_zone,
+						"destination_zone": target_zone,
+						"gas_mass_kg": 0.0,
+						"sensible_energy_kj": 0.0,
+						"band_indices": {},
+					})
+					entry["gas_mass_kg"] = float(entry["gas_mass_kg"]) + mass_kg
+					entry["sensible_energy_kj"] = float(
+						entry["sensible_energy_kj"]
+					) + mass_kg * specific_kj_kg
+					var seen: Dictionary = entry["band_indices"]
+					seen[band_index] = true
+					entry["band_indices"] = seen
+					zonal_totals[key] = entry
 	return {
 		"valid": true,
 		"a_to_b_kg": a_to_b_kg,
@@ -1654,6 +1878,9 @@ func _integrate_opening(
 		"neutral_plane_m": neutral_plane_m,
 		"neutral_plane_inside": neutral_plane_inside,
 		"regularization_active_count": regularization_active_count,
+		"zonal_totals": zonal_totals,
+		"unclassified_interior_band_count": unclassified_interior_band_count,
+		"exterior_unzoned_band_count": exterior_unzoned_band_count,
 	}
 
 

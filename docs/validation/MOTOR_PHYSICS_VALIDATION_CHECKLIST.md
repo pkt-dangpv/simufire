@@ -32,7 +32,8 @@ Validation must check more than isolated final values. Each scenario should be t
 |---|---|---|
 | H3.0 ownership map | CLOSED | Design only; projection reconstruction and cross-step parcels identified as hard ownership constraints. |
 | H3.1 passive ownership ledger | GO / STOP gate | Default OFF; 12-case corpus closes ownership, parcel and projection ledgers with zero legacy-column differences. No authority granted. |
-| H3.2 accepted bundle | NOT STARTED | Design from H3.1 measurements; still shadow-only. |
+| H3.2a zonal decomposition | GO / STOP gate | Additive solver output (+227/-0); bands were already split at both interfaces, so zoning is a read of an existing decision. Exterior never labelled. No authority. |
+| H3.2 accepted bundle | UNBLOCKED, NOT STARTED | H3.2a supplies the zone information the atomic route primitives require; still shadow-only when it starts. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2 and H3.2b pass their STOP gates. |
 
