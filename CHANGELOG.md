@@ -3,6 +3,21 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0d source integration audit (2026-08-04)
+
+- Audited whether S0b/S0c owner events can build an independent, conservative
+  per-room/zone physical source vector. They cannot: **NO-GO**, and mass/energy
+  are incomplete too, not only species/O2.
+- Named the unowned mutation sites: the suppression upper sink and its
+  temperature-written lower sink, the opening-radiation target mass seed, the
+  doorway-counterflow minimum-mass injection and HVAC.
+- Also recorded a design blocker: a pure integrator fed only by owner events
+  cannot detect an absent owner without post-state or an invented registry.
+- Documentation only. No motor, runner, CSV, expected, tolerance or report file
+  changed and no `Phase3PhysicalSourceIntegrator` was created. H3.2-S stays
+  blocked, H3.2b still blocks H3.3, no runtime authority granted. Full record:
+  `docs/validation/PHASE3_H32S0D_SOURCE_INTEGRATION_AUDIT.md`.
+
 ### Phase 3 H3.2-S0c gas physical-owner events (2026-08-04)
 
 - Added default-OFF, step-local gas mass and sensible-energy owner events with

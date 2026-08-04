@@ -8,6 +8,28 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-04 - H3.2-S0d source integration audit
+
+- Asked whether S0b/S0c owner events can build an independent, conservative
+  per-room/zone source vector without post-state or legacy transport. They
+  cannot. **NO-GO**, and the failure is not limited to species/O2: mass and
+  energy are incomplete too.
+- Unowned zone mass/energy writes, all active in official cases: the suppression
+  upper sink plus its temperature-written lower sink
+  (`SimulationEngine.gd:3315-3330`), the opening-radiation target mass seed
+  (`ThermalSystem.gd:1631`), the doorway-counterflow minimum-mass injection
+  (`ThermalSystem.gd:3273`) and HVAC (`HVACSystem.gd:490-491`).
+- Seven cases run with the ledger enabled show zero suppression and zero HVAC
+  owners while those mechanisms dominate the step. The source vector is
+  computable but silently wrong there.
+- Design blocker: a pure integrator fed only by owner events cannot detect an
+  absent owner without post-state or an invented per-room registry, so its
+  completeness flag would always read true.
+- Documentation only. No motor change, no integrator, guardrails 10/10, physics
+  and ILV keep zero FAIL. H3.2-S cannot close, H3.2b still blocks H3.3 and no
+  runtime authority was granted. Binding record:
+  `docs/validation/PHASE3_H32S0D_SOURCE_INTEGRATION_AUDIT.md`.
+
 ## Current Session Update - 2026-08-04 - H3.2-S0c gas owners
 
 - Reused `phase3_physical_owner_ledger_enabled`, still default OFF, and gave

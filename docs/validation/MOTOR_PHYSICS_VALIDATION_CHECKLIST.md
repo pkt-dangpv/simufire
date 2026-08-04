@@ -39,6 +39,7 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S0a event contract | GO / STOP gate | Pure isolated primitive with six classifications, explicit zonal deltas, fail-closed aggregation and zero runtime call sites. |
 | H3.2-S0b thermal owners | GO / STOP gate | Default-OFF events at accepted thermal mutation sites; no duplicated projection/doorway/parcel ownership and no CSV or physics change. S0c/S0d remain blocking. |
 | H3.2-S0c gas owners | GO / STOP gate | Default-OFF gas mass/energy events with caller provenance and cross-step parcel identity. Species/O2 accepted-owner attribution remains absent; S0d remains blocked. |
+| H3.2-S0d source integration | NO-GO / BLOCKING | Mass and energy are incomplete too: suppression, the opening-radiation mass seed, the doorway-counterflow mass injection and HVAC emit no owner. A pure integrator also cannot detect an absent owner. No integrator was created. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
 
@@ -118,6 +119,22 @@ H3.2-S0c gas-owner gate (2026-08-04):
 - **GO for passive S0c only.** S0d is not started, H3.2-S remains blocked,
   H3.2b still blocks H3.3 and no authority is granted. Full record:
   `PHASE3_H32S0C_GAS_PHYSICAL_OWNER_EVENTS.md`.
+
+H3.2-S0d source-integration gate (2026-08-04):
+
+- The owner events cannot yet build an independent per-room/zone source vector.
+  Mass and energy are incomplete, not only species and O2.
+- Unowned zone mass/energy writes: the suppression upper sink and its
+  temperature-written lower sink, the opening-radiation target mass seed, the
+  doorway-counterflow minimum-mass injection and HVAC.
+- Seven cases run with the ledger enabled contain zero suppression owners and
+  zero HVAC owners while those mechanisms drive the step.
+- A pure integrator fed only by owner events cannot report truthful
+  completeness: an absent owner is invisible without post-state or an invented
+  per-room registry.
+- **NO-GO.** No motor file changed and no integrator was created. H3.2-S cannot
+  close, H3.2b still blocks H3.3 and no authority is granted. Full record:
+  `PHASE3_H32S0D_SOURCE_INTEGRATION_AUDIT.md`.
 
 ## 1. HRR And Energy
 
