@@ -8,6 +8,31 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-04 - H3.2-S0c gas owners
+
+- Reused `phase3_physical_owner_ledger_enabled`, still default OFF, and gave
+  `GasExchangeSystem` its own step-local ledger under the `gas:` ID namespace.
+  `SimulationEngine` joins thermal and gas events only for export, keeping the
+  combined aggregate fail-closed. No CSV column was added.
+- Covered the four exterior upper-layer removals (pressure venting, exterior
+  smoke vent, PPV inlet, PPV exhaust), immediate inter-room upper transport,
+  the background enthalpy coupling and the delayed-parcel lifecycle. The
+  generic `remove_upper_layer_fraction` callback now gets provenance from its
+  caller, which closes the S0 audit blocker.
+- Declared as absent coverage, not fabricated: species and O2 routed through
+  the `*_delta_kg` accumulators, bulk-room O2 (no zone identity), the
+  species-only exterior purges beyond CO/CO2/HCN, and HVAC.
+- Six 30 s OFF/ON pairs are byte-identical with the same 115 legacy columns.
+  Interior-transport residuals are exactly zero and parcel refunds conserve.
+- Ten sequential Godot 4.7.1 fixtures pass, both new fixtures have a real
+  negative control, `pytest -k "phase3 or guardrail"` is `1366 PASS / 2 FAIL`
+  (R2-1 plus the historical layer export test), physics and ILV keep zero FAIL,
+  gaps are unchanged and guardrails are 9/10 for R2-1 only. No Godot process
+  remains.
+- GO only for S0c instrumentation. S0d is not started, H3.2-S stays blocked,
+  H3.2b still blocks H3.3 and no runtime authority was granted. Binding record:
+  `docs/validation/PHASE3_H32S0C_GAS_PHYSICAL_OWNER_EVENTS.md`.
+
 ## Current Session Update - 2026-08-03 - H3.2-S0b thermal owners
 
 - Added `phase3_physical_owner_ledger_enabled`, default OFF, and wired it

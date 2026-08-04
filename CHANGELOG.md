@@ -3,6 +3,17 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0c gas physical-owner events (2026-08-04)
+
+- Added default-OFF, step-local gas mass and sensible-energy owner events with
+  caller provenance for upper-layer removal and cross-step parcel identities.
+- Six official scenario pairs are byte-identical OFF/ON; combined thermal/gas
+  ledgers have zero invalid or duplicate events and exact interior residuals.
+- Species/O2 ownership remains deliberately incomplete where accepted owner
+  shares cannot be recovered after aggregate clamps. S0d remains blocked; no
+  runtime authority is granted. Full record:
+  `docs/validation/PHASE3_H32S0C_GAS_PHYSICAL_OWNER_EVENTS.md`.
+
 ### Phase 3 H3.2-S0b thermal physical-owner events (2026-08-03)
 
 - Added default-OFF, step-local physical-owner events at accepted thermal

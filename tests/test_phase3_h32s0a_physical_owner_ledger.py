@@ -30,14 +30,23 @@ def test_component_is_a_pure_refcounted_library():
         assert forbidden not in LEDGER
 
 
-def test_component_has_only_the_authorized_s0b_production_call_site():
-    references = []
+def test_component_has_only_the_authorized_production_call_sites():
+    # S0b authorised ThermalSystem. S0c adds GasExchangeSystem plus the
+    # export-only combination in SimulationEngine. Nothing else may reference
+    # the ledger until S0d opens integration.
+    authorised = {
+        "sim/core/GasExchangeSystem.gd",
+        "sim/core/SimulationEngine.gd",
+        "sim/core/ThermalSystem.gd",
+        "tests/fixtures/phase3_h32s0c_gas_physical_owners.gd",
+    }
+    references = set()
     for path in ROOT.rglob("*.gd"):
         if path == LEDGER_PATH or path == FIXTURE_PATH:
             continue
         if "Phase3PhysicalOwnerLedger" in path.read_text(encoding="utf-8"):
-            references.append(path.relative_to(ROOT).as_posix())
-    assert references == ["sim/core/ThermalSystem.gd"]
+            references.add(path.relative_to(ROOT).as_posix())
+    assert references == authorised
 
 
 def test_exact_six_classifications_are_pinned():

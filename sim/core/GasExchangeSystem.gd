@@ -2,6 +2,7 @@ extends RefCounted
 class_name GasExchangeSystem
 
 const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
+const Phase3PhysicalOwnerLedger = preload("res://sim/core/Phase3PhysicalOwnerLedger.gd")
 
 # ============================================================
 # GAS EXCHANGE SYSTEM
@@ -90,6 +91,9 @@ var two_zone_opening_flow_enabled: bool = false
 var phase3_zone_diagnostics_enabled: bool = false
 var phase3_canonical_zone_shadow_enabled: bool = false
 var phase3_runtime_ownership_ledger_enabled: bool = false
+# H3.2-S0c: eventos pasivos de propietarios fisicos de masa/energia zonal.
+# Default false = no-op absoluto; nunca gobierna fisica ni amplia el CSV legacy.
+var phase3_physical_owner_ledger_enabled: bool = false
 # Phase 3: modelo de presión termodinámica — ODE campo paralelo.
 # Cuando false (default): no-op, no toca room.pressure_pa_therm ni room.overpressure_pa.
 # Cuando true: integra dP/dt = (gamma-1)/V * Q_conv - Cd*A_eff/V * P_atm * sqrt(2P/rho)
@@ -118,6 +122,10 @@ var _phase3_shadow_immediate_species_events: Array[Dictionary] = []
 var _phase3_shadow_immediate_species_sequence: int = 0
 var _phase3_shadow_exterior_purge_events: Array[Dictionary] = []
 var _phase3_shadow_exterior_purge_sequence: int = 0
+var _phase3_physical_owner_events: Array[Dictionary] = []
+var _phase3_physical_owner_sequence: int = 0
+# Los parcels cruzan timestep: su identidad no puede reiniciarse por paso.
+var _phase3_physical_owner_parcel_sequence: int = 0
 
 
 func configure(settings: Dictionary) -> void:
@@ -207,6 +215,12 @@ func configure(settings: Dictionary) -> void:
 		settings.get(
 			"phase3_runtime_ownership_ledger_enabled",
 			phase3_runtime_ownership_ledger_enabled
+		)
+	)
+	phase3_physical_owner_ledger_enabled = bool(
+		settings.get(
+			"phase3_physical_owner_ledger_enabled",
+			phase3_physical_owner_ledger_enabled
 		)
 	)
 	phase3_thermodynamic_pressure_enabled = bool(
@@ -347,6 +361,9 @@ func reset() -> void:
 	_phase3_shadow_immediate_species_sequence = 0
 	_phase3_shadow_exterior_purge_events.clear()
 	_phase3_shadow_exterior_purge_sequence = 0
+	_phase3_physical_owner_events.clear()
+	_phase3_physical_owner_sequence = 0
+	_phase3_physical_owner_parcel_sequence = 0
 
 
 func begin_phase3_shadow_step() -> void:
@@ -357,6 +374,135 @@ func begin_phase3_shadow_step() -> void:
 	_phase3_shadow_immediate_species_sequence = 0
 	_phase3_shadow_exterior_purge_events.clear()
 	_phase3_shadow_exterior_purge_sequence = 0
+
+
+func begin_phase3_physical_owner_step() -> void:
+	## H3.2-S0c: los eventos de propietario fisico son estrictamente step-local.
+	## Se reinician una sola vez por tick, antes de que corran pressure venting,
+	## PPV y smoke, para que no crezcan de forma indefinida ni se dupliquen si
+	## configure/log/export se repiten.
+	_phase3_physical_owner_events.clear()
+	_phase3_physical_owner_sequence = 0
+
+
+func get_phase3_physical_owner_events() -> Array[Dictionary]:
+	return _phase3_physical_owner_events.duplicate(true)
+
+
+func get_phase3_physical_owner_summary() -> Dictionary:
+	var summary: Dictionary = Phase3PhysicalOwnerLedger.aggregate_events(
+		_phase3_physical_owner_events
+	)
+	summary["gas_owner_diagnostics"] = _phase3_physical_owner_gas_diagnostics()
+	return summary
+
+
+func _phase3_physical_owner_gas_diagnostics() -> Dictionary:
+	## Residuos que el contrato S0a no puede validar por si mismo: inventario de
+	## parcels en vuelo y conservacion entregado+reembolsado por especie. No
+	## sustituye a `valid`: solo anade visibilidad, nunca oculta un invalido.
+	var diagnostics: Dictionary = {
+		"parcel_created_count": 0,
+		"parcel_delivered_count": 0,
+		"parcel_cancelled_count": 0,
+		"parcel_refund_max_residual_kg": 0.0,
+		"inflight": get_phase3_runtime_parcel_inventory(),
+		"events_by_owner": {},
+	}
+	for raw_event in _phase3_physical_owner_events:
+		var event: Dictionary = raw_event
+		var owner: String = String(event.get("owner", ""))
+		diagnostics["events_by_owner"][owner] = int(
+			diagnostics["events_by_owner"].get(owner, 0)
+		) + 1
+		var metadata: Dictionary = event.get("metadata", {})
+		var lifecycle: String = String(metadata.get("lifecycle", ""))
+		match lifecycle:
+			"created":
+				diagnostics["parcel_created_count"] += 1
+			"cancelled":
+				diagnostics["parcel_cancelled_count"] += 1
+			"delivered":
+				diagnostics["parcel_delivered_count"] += 1
+				var original: Dictionary = metadata.get("original_species_kg", {})
+				var delivered: Dictionary = metadata.get("delivered_species_kg", {})
+				var refunded: Dictionary = metadata.get("refunded_species_kg", {})
+				for species_name in original.keys():
+					var residual_kg: float = absf(
+						float(original.get(species_name, 0.0))
+							- float(delivered.get(species_name, 0.0))
+							- float(refunded.get(species_name, 0.0))
+					)
+					diagnostics["parcel_refund_max_residual_kg"] = maxf(
+						float(diagnostics["parcel_refund_max_residual_kg"]), residual_kg
+					)
+	return diagnostics
+
+
+func _record_phase3_physical_owner_event(
+		owner: String,
+		classification: String,
+		room: RoomModel,
+		upper_mass_delta_kg: float = 0.0,
+		lower_mass_delta_kg: float = 0.0,
+		upper_energy_delta_kj: float = 0.0,
+		lower_energy_delta_kj: float = 0.0,
+		source_room_id: int = -1,
+		destination_room_id: int = -1,
+		source_zone: String = "",
+		destination_zone: String = "",
+		counterparty_mass_delta_kg: float = 0.0,
+		counterparty_energy_delta_kj: float = 0.0,
+		metadata: Dictionary = {}
+	) -> void:
+	if not phase3_physical_owner_ledger_enabled or room == null:
+		return
+	var event_id: String = "gas:%06d:%s:r%d" % [
+		_phase3_physical_owner_sequence, owner, room.id,
+	]
+	_phase3_physical_owner_sequence += 1
+	_phase3_physical_owner_events.append(Phase3PhysicalOwnerLedger.make_event(
+		event_id, owner, classification, room.id,
+		source_room_id, destination_room_id, source_zone, destination_zone,
+		upper_mass_delta_kg, lower_mass_delta_kg,
+		upper_energy_delta_kj, lower_energy_delta_kj,
+		counterparty_mass_delta_kg, counterparty_energy_delta_kj, metadata
+	))
+
+
+func _assign_phase3_physical_owner_parcel_id(entry: Dictionary) -> void:
+	if not phase3_physical_owner_ledger_enabled:
+		return
+	entry["phase3_physical_owner_parcel_id"] = "gas_parcel:%06d" % \
+			_phase3_physical_owner_parcel_sequence
+	_phase3_physical_owner_parcel_sequence += 1
+
+
+func _record_phase3_physical_owner_parcel_event(
+		entry: Dictionary,
+		lifecycle: String,
+		room: RoomModel,
+		upper_mass_delta_kg: float,
+		upper_energy_delta_kj: float,
+		metadata: Dictionary = {}
+	) -> void:
+	if not phase3_physical_owner_ledger_enabled or room == null:
+		return
+	var parcel_metadata: Dictionary = metadata.duplicate(true)
+	parcel_metadata["parcel_id"] = String(
+		entry.get("phase3_physical_owner_parcel_id", "")
+	)
+	parcel_metadata["lifecycle"] = lifecycle
+	parcel_metadata["connection_id"] = String(entry.get("connection_id", ""))
+	parcel_metadata["parcel_o2_kg"] = float(entry.get("o2_kg", 0.0))
+	_record_phase3_physical_owner_event(
+		"gas_delayed_parcel_upper",
+		Phase3PhysicalOwnerLedger.CLASS_DELAYED_PARCEL,
+		room,
+		upper_mass_delta_kg, 0.0, upper_energy_delta_kj, 0.0,
+		int(entry.get("from", -1)), int(entry.get("target", -1)),
+		"upper", "upper", 0.0, 0.0, parcel_metadata
+	)
 
 
 func drain_phase3_shadow_doorway_species_results() -> Array[Dictionary]:
@@ -828,7 +974,11 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 		_record_smoke_vented(room, smoke_out_kg)
 		result["smoke_vented_kg"] = float(result.get("smoke_vented_kg", 0.0)) + smoke_out_kg
 
-		_call_room_fraction(remove_upper_layer_fraction_callable, room, frac_out)
+		_call_room_fraction_owned(
+			remove_upper_layer_fraction_callable, room, frac_out,
+			"gas_pressure_vent_upper_removal",
+			{"mechanism": "pressure_venting", "smoke_out_kg": smoke_out_kg}
+		)
 		if two_zone_opening_flow_enabled:
 			_purge_upper_species_to_exterior_direct(room, air_frac_out, smoke_out_kg)
 		else:
@@ -1012,7 +1162,15 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 					# Gas térmico: usa fracción volumétrica real, no la fracción de humo.
 					var rho_upper: float = maxf(0.05, air_density_kg_m3_s * 293.15 / maxf(50.0, room_out.temp_upper_c + 273.15))
 					var vol_frac: float = clampf(vented_kg / (rho_upper * maxf(1.0, room_out.volume_m3())), 0.0, 0.15)
-					_call_room_fraction(remove_upper_layer_fraction_callable, room_out, vol_frac)
+					_call_room_fraction_owned(
+						remove_upper_layer_fraction_callable, room_out, vol_frac,
+						"gas_exterior_smoke_vent_upper_removal",
+						{
+							"mechanism": "exterior_smoke_vent",
+							"opening_index": op.opening_index,
+							"vented_smoke_kg": vented_kg,
+						}
+					)
 					_call_room_dt(sync_room_upper_layer_callable, room_out, dt)
 
 				# Inyección de O2: cuando el humo sale por la ventana, entra aire fresco.
@@ -1376,6 +1534,18 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			}
 			_phase3_shadow_assign_parcel_identity(pending_entry)
 			_record_phase3_shadow_parcel_created(pending_entry)
+			_assign_phase3_physical_owner_parcel_id(pending_entry)
+			# H3.2-S0c: el debito de la sala origen ya ocurrio. El parcel sale del
+			# inventario de la sala pero todavia no es una entrega consumada, por
+			# eso se clasifica como delayed_parcel y nunca como interior_transport.
+			_record_phase3_physical_owner_parcel_event(
+				pending_entry, "created", source,
+				-moved_upper_gas_kg, -moved_upper_energy_kj,
+				{
+					"delay_s": travel_delay_s,
+					"original_species_kg": _phase3_shadow_parcel_species(pending_entry),
+				}
+			)
 			_pending_interior_deliveries.append(pending_entry)
 			# G1: registrar masa en vuelo hacia este destino.
 			if not _inflight_species_kg.has(to_id):
@@ -1401,6 +1571,22 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			target.upper_gas_kg += moved_upper_gas_kg
 			target.upper_energy_kj += moved_upper_energy_kj
 			o2_delta_kg[to_id] += o2_carry_kg
+			# H3.2-S0c: transporte interior sin retardo. Debito y credito usan la
+			# misma cantidad aceptada, medida en su propio sitio de mutacion.
+			if moved_upper_gas_kg != 0.0 or moved_upper_energy_kj != 0.0:
+				_record_phase3_physical_owner_event(
+					"gas_immediate_upper_transport",
+					Phase3PhysicalOwnerLedger.CLASS_INTERIOR_TRANSPORT,
+					source,
+					-moved_upper_gas_kg, 0.0, -moved_upper_energy_kj, 0.0,
+					from_id, to_id, "upper", "upper",
+					moved_upper_gas_kg, moved_upper_energy_kj,
+					{
+						"opening_index": transfer_opening_index,
+						"smoke_kg": kg,
+						"o2_carry_kg": o2_carry_kg,
+					}
+				)
 
 			# O2 counterflow: cuando el humo pasa de sala A a B sin delay,
 			# la corriente de retorno transporta O2 bidireccional en el dintel.
@@ -1804,6 +1990,18 @@ func _release_pending_interior_deliveries(
 		var target: RoomModel = building.get_room(target_id)
 		if target == null:
 			_record_phase3_shadow_parcel_cancelled(entry)
+			# H3.2-S0c: el inventario en vuelo desaparece sin entrega fisica. No
+			# hay mutacion de sala en este instante, por eso los deltas son cero
+			# y la perdida queda visible como metadato, no como transporte.
+			_record_phase3_physical_owner_parcel_event(
+				entry, "cancelled", building.get_room(int(entry.get("from", -1))),
+				0.0, 0.0,
+				{
+					"lost_upper_gas_kg": maxf(0.0, float(entry.get("upper_gas_kg", 0.0))),
+					"lost_upper_energy_kj": maxf(0.0, float(entry.get("upper_energy_kj", 0.0))),
+					"original_species_kg": _phase3_shadow_parcel_species(entry),
+				}
+			)
 			continue
 
 		var delivered_smoke_kg: float = float(entry.get("smoke_kg", 0.0))
@@ -1982,6 +2180,20 @@ func _release_pending_interior_deliveries(
 			refunded_shadow_species_kg,
 			delivered_shadow_upper_species_kg,
 			refunded_shadow_upper_species_kg
+		)
+		# H3.2-S0c: entrega fisica del parcel. El credito de gas/entalpia es el
+		# valor del parcel (el maxf del sitio no puede recortarlo con ambos
+		# sumandos no negativos). Las especies se entregan con su propia
+		# fraccion aceptada: el reembolso queda explicito, no oculto.
+		_record_phase3_physical_owner_parcel_event(
+			entry, "delivered", target,
+			maxf(0.0, float(entry.get("upper_gas_kg", 0.0))),
+			maxf(0.0, float(entry.get("upper_energy_kj", 0.0))),
+			{
+				"original_species_kg": original_shadow_species_kg,
+				"delivered_species_kg": delivered_shadow_species_kg,
+				"refunded_species_kg": refunded_shadow_species_kg,
+			}
 		)
 		touched_rooms[target_id] = true
 
@@ -2257,6 +2469,18 @@ func _apply_background_species_exchange(
 			hot_room_bg.upper_energy_kj = maxf(0.0, hot_room_bg.upper_energy_kj - energy_moved_bg)
 			cold_room_bg.upper_gas_kg += gas_moved_bg
 			cold_room_bg.upper_energy_kj += energy_moved_bg
+			# H3.2-S0c: acople entalpico del intercambio de fondo. Ambos lados
+			# usan la misma cantidad aceptada (los caps 0.15 impiden que el
+			# maxf recorte el debito), asi que el transporte cierra exacto.
+			_record_phase3_physical_owner_event(
+				"gas_background_upper_transport",
+				Phase3PhysicalOwnerLedger.CLASS_INTERIOR_TRANSPORT,
+				hot_room_bg,
+				-gas_moved_bg, 0.0, -energy_moved_bg, 0.0,
+				hot_room_bg.id, cold_room_bg.id, "upper", "upper",
+				gas_moved_bg, energy_moved_bg,
+				{"opening_index": op.opening_index, "exchange_air_kg": exchange_air_kg}
+			)
 			if phase3_zone_diagnostics_enabled:
 				hot_room_bg.phase3_diag_zone_doorway_upper_out_kg_total += gas_moved_bg
 				cold_room_bg.phase3_diag_zone_doorway_upper_in_kg_total += gas_moved_bg
@@ -3114,6 +3338,39 @@ func _call_room_fraction(callable: Callable, room: RoomModel, fraction: float) -
 	callable.call(room, fraction)
 
 
+func _call_room_fraction_owned(
+		callable: Callable,
+		room: RoomModel,
+		fraction: float,
+		owner: String,
+		metadata: Dictionary = {}
+	) -> void:
+	## H3.2-S0c: `remove_upper_layer_fraction` es un callback generico sin causa
+	## propia. La procedencia real solo existe aqui, en el llamante. Se mide el
+	## delta aceptado alrededor de esa unica mutacion (no de la etapa) y se
+	## emite como frontera exterior firmada. La llamada legacy es identica.
+	var ledger_active: bool = phase3_physical_owner_ledger_enabled and room != null
+	var pre_upper_gas_kg: float = room.upper_gas_kg if ledger_active else 0.0
+	var pre_upper_energy_kj: float = room.upper_energy_kj if ledger_active else 0.0
+	_call_room_fraction(callable, room, fraction)
+	if not ledger_active:
+		return
+	var upper_mass_delta_kg: float = room.upper_gas_kg - pre_upper_gas_kg
+	var upper_energy_delta_kj: float = room.upper_energy_kj - pre_upper_energy_kj
+	if upper_mass_delta_kg == 0.0 and upper_energy_delta_kj == 0.0:
+		return
+	var owner_metadata: Dictionary = metadata.duplicate(true)
+	owner_metadata["requested_fraction"] = fraction
+	owner_metadata["direction"] = "room_to_exterior"
+	_record_phase3_physical_owner_event(
+		owner,
+		Phase3PhysicalOwnerLedger.CLASS_EXTERIOR_BOUNDARY,
+		room,
+		upper_mass_delta_kg, 0.0, upper_energy_delta_kj, 0.0,
+		room.id, -1, "upper", "", 0.0, 0.0, owner_metadata
+	)
+
+
 func _call_room_dt(callable: Callable, room: RoomModel, dt: float) -> void:
 	if not callable.is_valid():
 		return
@@ -3213,7 +3470,16 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 		inlet_room.hcl_kg = maxf(0.0, inlet_room.hcl_kg * (1.0 - mix_frac))
 		inlet_room.acrolein_kg = maxf(0.0, inlet_room.acrolein_kg * (1.0 - mix_frac))
 		inlet_room.formaldehyde_kg = maxf(0.0, inlet_room.formaldehyde_kg * (1.0 - mix_frac))
-		_call_room_fraction(remove_upper_layer_fraction_callable, inlet_room, mix_frac * 0.5)
+		_call_room_fraction_owned(
+			remove_upper_layer_fraction_callable, inlet_room, mix_frac * 0.5,
+			"gas_ppv_inlet_upper_removal",
+			{
+				"mechanism": "ppv_inlet_dilution",
+				"opening_index": op.opening_index,
+				"injected_air_kg": injected_kg,
+				"o2_exterior_delta_kg": _ppv_o2_delta,
+			}
+		)
 		_call_room_dt(sync_room_upper_layer_callable, inlet_room, dt)
 
 		# Paso 2: Sobrepresión PPV en la sala → exhaustión por otras aberturas ext.
@@ -3267,7 +3533,15 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 			inlet_room.hcl_kg = maxf(0.0, inlet_room.hcl_kg * (1.0 - ex_frac))
 			inlet_room.acrolein_kg = maxf(0.0, inlet_room.acrolein_kg * (1.0 - ex_frac))
 			inlet_room.formaldehyde_kg = maxf(0.0, inlet_room.formaldehyde_kg * (1.0 - ex_frac))
-			_call_room_fraction(remove_upper_layer_fraction_callable, inlet_room, ex_frac)
+			_call_room_fraction_owned(
+				remove_upper_layer_fraction_callable, inlet_room, ex_frac,
+				"gas_ppv_exhaust_upper_removal",
+				{
+					"mechanism": "ppv_exhaust",
+					"opening_index": op.opening_index,
+					"exhaust_smoke_kg": smoke_purged_ex,
+				}
+			)
 			_call_room_dt(sync_room_upper_layer_callable, inlet_room, dt)
 			result["ppv_smoke_purged_kg"] = float(result.get("ppv_smoke_purged_kg", 0.0)) + smoke_purged_ex
 

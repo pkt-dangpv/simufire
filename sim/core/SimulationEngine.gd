@@ -13,6 +13,7 @@ const HVACSystemScript = preload("res://sim/core/HVACSystem.gd")
 const ZoneFireSolverScript = preload("res://sim/core/ZoneFireSolver.gd")
 const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
 const Phase3ZoneMassSystemScript = preload("res://sim/core/Phase3ZoneMassSystem.gd")
+const Phase3PhysicalOwnerLedgerScript = preload("res://sim/core/Phase3PhysicalOwnerLedger.gd")
 
 # ============================================================
 # SIMULATION ENGINE
@@ -1231,6 +1232,7 @@ func _sync_auxiliary_services() -> void:
 		"o2_nominal": o2_nominal,
 		"phase3_zone_diagnostics_enabled": phase3_zone_diagnostics_enabled,
 		"phase3_runtime_ownership_ledger_enabled": phase3_runtime_ownership_ledger_enabled,
+		"phase3_physical_owner_ledger_enabled": phase3_physical_owner_ledger_enabled,
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"window_leakage_area_m2": window_leakage_area_m2,
 		"pressure_vent_threshold_pa": pressure_vent_threshold_pa,
@@ -1502,6 +1504,26 @@ func _phase3_zone_diag_snapshot() -> Dictionary:
 
 func _phase3_projection_diagnostics_active() -> bool:
 	return phase3_zone_diagnostics_enabled or phase3_runtime_ownership_ledger_enabled
+
+
+func _phase3_physical_owner_events_combined() -> Array[Dictionary]:
+	## H3.2-S0c: la union es solo para exportacion. Cada subsistema conserva su
+	## propio acumulador y su propio namespace de IDs (`thermal:` / `gas:`), asi
+	## que un ID duplicado sigue siendo detectable por el agregado combinado.
+	var events: Array[Dictionary] = []
+	if thermal_system != null:
+		events.append_array(thermal_system.get_phase3_physical_owner_events())
+	if gas_exchange_system != null:
+		events.append_array(gas_exchange_system.get_phase3_physical_owner_events())
+	return events
+
+
+func _phase3_physical_owner_summary_combined() -> Dictionary:
+	## Fail-closed: `aggregate_events` detecta duplicados e invalidos sobre el
+	## conjunto unido antes de agregar nada.
+	return Phase3PhysicalOwnerLedgerScript.aggregate_events(
+		_phase3_physical_owner_events_combined()
+	)
 
 
 func _phase3_runtime_ownership_snapshot() -> Dictionary:
@@ -2462,7 +2484,7 @@ func _build_state_context() -> Dictionary:
 		"phase3_runtime_ownership": _phase3_runtime_ownership_export().get("rooms", {}),
 		"phase3_runtime_ownership_parcel": _phase3_runtime_ownership_export().get("parcel", {}),
 		"phase3_physical_owner_ledger_enabled": phase3_physical_owner_ledger_enabled,
-		"phase3_physical_owner_summary": thermal_system.get_phase3_physical_owner_summary(),
+		"phase3_physical_owner_summary": _phase3_physical_owner_summary_combined(),
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"phase3_canonical_exterior_boundary_shadow_enabled": \
 				phase3_canonical_exterior_boundary_shadow_enabled,
@@ -3183,6 +3205,9 @@ func _step_exterior_opening_smooth(dt: float) -> void:
 func _step_gas_exchange(dt: float) -> void:
 	if building == null:
 		return
+
+	# H3.2-S0c: un unico reinicio step-local para pressure venting, PPV y smoke.
+	gas_exchange_system.begin_phase3_physical_owner_step()
 
 	# 1.5A: resetear mdot_vent_kg_s antes de que los sistemas lo acumulen
 	for room in building.get_rooms().values():
@@ -4422,8 +4447,10 @@ func build_technical_summary(output_dir: String = "") -> Dictionary:
 		summary["phase3_projection_trace"] = zone_fire_solver.get_projection_trace_events()
 	if phase3_physical_owner_ledger_enabled:
 		summary["phase3_physical_owner_ledger"] = {
-			"events": thermal_system.get_phase3_physical_owner_events(),
-			"summary": thermal_system.get_phase3_physical_owner_summary(),
+			"events": _phase3_physical_owner_events_combined(),
+			"summary": _phase3_physical_owner_summary_combined(),
+			"thermal_summary": thermal_system.get_phase3_physical_owner_summary(),
+			"gas_summary": gas_exchange_system.get_phase3_physical_owner_summary(),
 		}
 	if _phase3_coupled_interior_bundle_active():
 		summary["phase3_coupled_interior_bundle_shadow"] = \
