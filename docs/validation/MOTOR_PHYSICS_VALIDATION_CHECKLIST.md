@@ -42,6 +42,7 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S0d source integration | NO-GO / BLOCKING | Mass and energy are incomplete too: suppression, the opening-radiation mass seed, the doorway-counterflow mass injection and HVAC emit no owner. A pure integrator also cannot detect an absent owner. No integrator was created. |
 | H3.2-S0d1 suppression and seeds | GO / STOP gate | Suppression upper sink owned as a signed local source; the two donor-less mass seeds declared numerical corrections. B1-lower left uninstrumented because the legacy write is dead under two-zone. |
 | H3.2-S0d2 suppression lower sink | GO experimental / NO-GO promotion | Default-OFF flag applies the lower cooling to `lower_energy_kj` under two-zone. OFF is byte-identical; no official case enables it. B1-lower stays open. |
+| H3.2-S0d3 species attribution measurement | GO parcial / STOP gate | Default-OFF measurement shows the lower species clamp never bound over 12 cases; CO/CO2/HCN are attributable, O2 and the zone-less species are not. Measurement only, no enrichment. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
 
@@ -172,6 +173,25 @@ H3.2-S0d2 experimental lower suppression sink gate (2026-08-05):
   B1-lower stays open; the upstream question is whether the projection should
   pin `temp_lower_c` at ambient at all. Full record:
   `PHASE3_H32S0D2_SUPPRESSION_LOWER_ENERGY_SINK.md`.
+
+H3.2-S0d3 species attribution measurement gate (2026-08-05):
+
+- `phase3_species_attribution_diagnostics_enabled` is default OFF and measures
+  the aggregate clamp at its single application site. It has no per-owner field,
+  so a clamped deficit cannot be distributed by construction.
+- Over 12 cases and 92 202 applications per species the lower `maxf(0.0, ...)`
+  clamp bound **zero** times; `requested_kg_total` equals `accepted_kg_total`
+  exactly for every species accumulator. This contradicts the S0c assumption and
+  makes per-owner acceptance exact for the measured corpus.
+- O2 stays blocked: 1798 upper-bound clamps, multiple owners and no zone.
+- Zone identity is declared, not inferred: CO/CO2/HCN carry bulk plus an upper
+  accumulator; smoke, HCl, acrolein and formaldehyde are bulk only.
+- The non-binding result is empirical, not a proof. Any attribution must verify
+  the guard per room, species and step and fall back to `completeness=false`
+  with `aggregate_clamp_multi_owner`.
+- **GO parcial for measurement only.** No event enrichment, no integrator,
+  H3.2-S still open. Full record:
+  `PHASE3_H32S0D3_SPECIES_ATTRIBUTION_MEASUREMENT.md`.
 
 ## 1. HRR And Energy
 

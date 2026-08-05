@@ -3,6 +3,26 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0d3 species attribution measurement (2026-08-05)
+
+- Added `phase3_species_attribution_diagnostics_enabled`, default OFF, a purely
+  passive measurement of the aggregate species/O2 clamp at its single
+  application site. It stores only aggregate counters and has no per-owner
+  field, so a clamped deficit can never be silently distributed.
+- Measured over 12 cases and 92 202 applications per species: **the lower
+  species clamp never bound**, so `requested == accepted` exactly for smoke, CO,
+  CO2, HCN, HCl, acrolein, formaldehyde and the upper accumulators. This
+  overturns the S0c assumption that species attribution was blocked by that
+  clamp. The result is empirical over the measured corpus, not a guarantee.
+- O2 remains blocked: its clamp bound 1798 times at the upper `o2_nominal`
+  bound, it has multiple owners and it carries no zone identity.
+- CO, CO2 and HCN are the only species with both an exact accepted delta and a
+  derivable zone. Smoke, HCl, acrolein and formaldehyde are exact but have no
+  zone at all.
+- **GO parcial**: measurement only, no event enrichment. H3.2-S stays open, HVAC
+  stays deferred, no integrator exists and no runtime authority is granted. Full
+  record: `docs/validation/PHASE3_H32S0D3_SPECIES_ATTRIBUTION_MEASUREMENT.md`.
+
 ### Phase 3 H3.2-S0d2 experimental suppression lower energy sink (2026-08-05)
 
 - Added `phase3_suppression_lower_energy_sink_enabled`, explicit and default

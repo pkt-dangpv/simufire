@@ -80,6 +80,8 @@ func _run() -> void:
 		engine.phase3_physical_owner_ledger_enabled = true
 	if bool(_cli_args.get("phase3_suppression_lower_energy_sink", false)):
 		engine.phase3_suppression_lower_energy_sink_enabled = true
+	if bool(_cli_args.get("phase3_species_attribution_diagnostics", false)):
+		engine.phase3_species_attribution_diagnostics_enabled = true
 	if bool(_cli_args.get("phase3_canonical_shadow", false)):
 		engine.phase3_canonical_zone_shadow_enabled = true
 	if bool(_cli_args.get("phase3_canonical_exterior_shadow", false)):
@@ -424,6 +426,8 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["phase3_physical_owner_ledger"] = true
 		elif arg == "--phase3-suppression-lower-energy-sink":
 			parsed["phase3_suppression_lower_energy_sink"] = true
+		elif arg == "--phase3-species-attribution-diagnostics":
+			parsed["phase3_species_attribution_diagnostics"] = true
 		elif arg == "--phase3-canonical-shadow":
 			parsed["phase3_canonical_shadow"] = true
 		elif arg == "--phase3-canonical-exterior-shadow":

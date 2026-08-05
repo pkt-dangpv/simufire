@@ -996,6 +996,9 @@ var _step_time_us: int = 0
 @export var phase3_runtime_ownership_ledger_enabled: bool = false
 ## H3.2-S0b: eventos pasivos de propietarios termicos. Default OFF.
 @export var phase3_physical_owner_ledger_enabled: bool = false
+## H3.2-S0d3: medicion pasiva del clamp agregado de especies y O2. Default OFF;
+## no cambia fisica ni el CSV legacy. Solo mide si el clamp llega a morder.
+@export var phase3_species_attribution_diagnostics_enabled: bool = false
 ## H3.2-S0d2: correccion experimental del sumidero lower de supresion. Default
 ## OFF. Con OFF la fisica es exactamente la heredada. Con ON y two-zone activo,
 ## el enfriamiento inferior se aplica a `lower_energy_kj`, que es lo que
@@ -1241,6 +1244,8 @@ func _sync_auxiliary_services() -> void:
 		"phase3_zone_diagnostics_enabled": phase3_zone_diagnostics_enabled,
 		"phase3_runtime_ownership_ledger_enabled": phase3_runtime_ownership_ledger_enabled,
 		"phase3_physical_owner_ledger_enabled": phase3_physical_owner_ledger_enabled,
+		"phase3_species_attribution_diagnostics_enabled": \
+				phase3_species_attribution_diagnostics_enabled,
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"window_leakage_area_m2": window_leakage_area_m2,
 		"pressure_vent_threshold_pa": pressure_vent_threshold_pa,
@@ -4579,6 +4584,9 @@ func build_technical_summary(output_dir: String = "") -> Dictionary:
 				_phase3_physical_owner_engine_events
 			),
 		}
+	if phase3_species_attribution_diagnostics_enabled:
+		summary["phase3_species_attribution"] = \
+				gas_exchange_system.get_phase3_species_attribution_summary()
 	if _phase3_coupled_interior_bundle_active():
 		summary["phase3_coupled_interior_bundle_shadow"] = \
 				phase3_zone_mass_system.get_coupled_interior_bundle_summary()

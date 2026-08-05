@@ -8,6 +8,26 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-05 - H3.2-S0d3 species attribution measurement
+
+- Added `phase3_species_attribution_diagnostics_enabled`, default OFF, a passive
+  measurement of the aggregate species/O2 clamp at its single application site.
+  Aggregate counters only; no per-owner field exists, so a clamped deficit can
+  never be split.
+- Measured over 12 cases and 92 202 applications per species: the lower species
+  clamp bound **zero** times, so `requested == accepted` exactly for every
+  species accumulator. That overturns the S0c assumption that the clamp blocked
+  species attribution. The result is empirical over this corpus, not a proof.
+- O2 stays blocked: 1798 upper-bound clamps, multiple owners, no zone identity.
+  Smoke, HCl, acrolein and formaldehyde are exact but have no zone at all.
+  CO, CO2 and HCN are the only attributable species.
+- **GO parcial**: measurement only, no S0a event enrichment. 12 OFF/ON pairs are
+  byte-identical, 13 Godot fixtures pass, focused pytest is 95/95, physics and
+  ILV keep zero FAIL, gaps unchanged.
+- H3.2-S stays open, HVAC deferred, no integrator, H3.2b still blocks H3.3 and
+  no runtime authority was granted. Binding record:
+  `docs/validation/PHASE3_H32S0D3_SPECIES_ATTRIBUTION_MEASUREMENT.md`.
+
 ## Current Session Update - 2026-08-05 - H3.2-S0d2 experimental lower sink
 
 - Added `phase3_suppression_lower_energy_sink_enabled`, explicit and default

@@ -94,6 +94,10 @@ var phase3_runtime_ownership_ledger_enabled: bool = false
 # H3.2-S0c: eventos pasivos de propietarios fisicos de masa/energia zonal.
 # Default false = no-op absoluto; nunca gobierna fisica ni amplia el CSV legacy.
 var phase3_physical_owner_ledger_enabled: bool = false
+# H3.2-S0d3: medicion pasiva del clamp agregado de especies y O2. Mide si el
+# `maxf(0.0, ...)` final llega a morder, que es lo unico que decide si la
+# aceptacion por owner es determinable. Default false = no-op absoluto.
+var phase3_species_attribution_diagnostics_enabled: bool = false
 # Phase 3: modelo de presión termodinámica — ODE campo paralelo.
 # Cuando false (default): no-op, no toca room.pressure_pa_therm ni room.overpressure_pa.
 # Cuando true: integra dP/dt = (gamma-1)/V * Q_conv - Cd*A_eff/V * P_atm * sqrt(2P/rho)
@@ -124,6 +128,7 @@ var _phase3_shadow_exterior_purge_events: Array[Dictionary] = []
 var _phase3_shadow_exterior_purge_sequence: int = 0
 var _phase3_physical_owner_events: Array[Dictionary] = []
 var _phase3_physical_owner_sequence: int = 0
+var _phase3_species_attribution: Dictionary = {}
 # Los parcels cruzan timestep: su identidad no puede reiniciarse por paso.
 var _phase3_physical_owner_parcel_sequence: int = 0
 
@@ -221,6 +226,12 @@ func configure(settings: Dictionary) -> void:
 		settings.get(
 			"phase3_physical_owner_ledger_enabled",
 			phase3_physical_owner_ledger_enabled
+		)
+	)
+	phase3_species_attribution_diagnostics_enabled = bool(
+		settings.get(
+			"phase3_species_attribution_diagnostics_enabled",
+			phase3_species_attribution_diagnostics_enabled
 		)
 	)
 	phase3_thermodynamic_pressure_enabled = bool(
@@ -364,6 +375,7 @@ func reset() -> void:
 	_phase3_physical_owner_events.clear()
 	_phase3_physical_owner_sequence = 0
 	_phase3_physical_owner_parcel_sequence = 0
+	_phase3_species_attribution.clear()
 
 
 func begin_phase3_shadow_step() -> void:
@@ -374,6 +386,102 @@ func begin_phase3_shadow_step() -> void:
 	_phase3_shadow_immediate_species_sequence = 0
 	_phase3_shadow_exterior_purge_events.clear()
 	_phase3_shadow_exterior_purge_sequence = 0
+
+
+## H3.2-S0d3: identidad zonal real de cada especie en el estado legacy.
+## `bulk_and_upper` permite derivar lower = bulk - upper. `bulk_only` significa
+## que el path no conoce la zona y nunca podra satisfacer el contrato S0a.
+const SPECIES_ZONE_IDENTITY: Dictionary = {
+	"o2": "bulk_only",
+	"smoke": "bulk_only",
+	"co": "bulk_and_upper",
+	"co2": "bulk_and_upper",
+	"hcn": "bulk_and_upper",
+	"co_upper": "upper_zone",
+	"co2_upper": "upper_zone",
+	"hcn_upper": "upper_zone",
+	"hcl": "bulk_only",
+	"acrolein": "bulk_only",
+	"formaldehyde": "bulk_only",
+}
+
+
+func get_phase3_species_attribution_summary() -> Dictionary:
+	return _phase3_species_attribution.duplicate(true)
+
+
+func _species_attribution_entry(species: String) -> Dictionary:
+	if not _phase3_species_attribution.has(species):
+		_phase3_species_attribution[species] = {
+			"zone_identity": String(SPECIES_ZONE_IDENTITY.get(species, "bulk_only")),
+			"applications": 0,
+			"positive_request_count": 0,
+			"negative_request_count": 0,
+			"clamp_bound_count": 0,
+			"clamp_deficit_kg_total": 0.0,
+			"max_clamp_deficit_kg": 0.0,
+			"requested_kg_total": 0.0,
+			"accepted_kg_total": 0.0,
+		}
+	return _phase3_species_attribution[species]
+
+
+func _record_species_attribution(
+		species: String, stock_pre_kg: float, requested_delta_kg: float
+	) -> void:
+	## Mide el clamp agregado en su unico sitio de aplicacion. No reparte nada
+	## entre owners: solo registra si el clamp mordio, que es la condicion que
+	## hace indeterminable la aceptacion por owner.
+	if not phase3_species_attribution_diagnostics_enabled:
+		return
+	var entry: Dictionary = _species_attribution_entry(species)
+	entry["applications"] = int(entry["applications"]) + 1
+	if requested_delta_kg < 0.0:
+		entry["negative_request_count"] = int(entry["negative_request_count"]) + 1
+	elif requested_delta_kg > 0.0:
+		entry["positive_request_count"] = int(entry["positive_request_count"]) + 1
+	var unclamped_kg: float = stock_pre_kg + requested_delta_kg
+	if unclamped_kg < 0.0:
+		entry["clamp_bound_count"] = int(entry["clamp_bound_count"]) + 1
+		entry["clamp_deficit_kg_total"] = float(entry["clamp_deficit_kg_total"]) - unclamped_kg
+		entry["max_clamp_deficit_kg"] = maxf(
+			float(entry["max_clamp_deficit_kg"]), -unclamped_kg
+		)
+	entry["requested_kg_total"] = float(entry["requested_kg_total"]) + requested_delta_kg
+	entry["accepted_kg_total"] = float(entry["accepted_kg_total"]) \
+			+ maxf(0.0, unclamped_kg) - stock_pre_kg
+	_phase3_species_attribution[species] = entry
+
+
+func _record_species_attribution_o2(
+		o2_pre: float, o2_unclamped: float, air_mass_kg: float, requested_kg: float
+	) -> void:
+	## El O2 usa un clamp de dos lados sobre una fraccion, no un `maxf`. Se
+	## miden por separado los dos limites.
+	if not phase3_species_attribution_diagnostics_enabled:
+		return
+	var entry: Dictionary = _species_attribution_entry("o2")
+	entry["applications"] = int(entry["applications"]) + 1
+	if requested_kg < 0.0:
+		entry["negative_request_count"] = int(entry["negative_request_count"]) + 1
+	elif requested_kg > 0.0:
+		entry["positive_request_count"] = int(entry["positive_request_count"]) + 1
+	if not entry.has("clamp_high_bound_count"):
+		entry["clamp_high_bound_count"] = 0
+		entry["max_clamp_excess_kg"] = 0.0
+	if o2_unclamped < 0.0:
+		entry["clamp_bound_count"] = int(entry["clamp_bound_count"]) + 1
+		var deficit_kg: float = -o2_unclamped * air_mass_kg
+		entry["clamp_deficit_kg_total"] = float(entry["clamp_deficit_kg_total"]) + deficit_kg
+		entry["max_clamp_deficit_kg"] = maxf(float(entry["max_clamp_deficit_kg"]), deficit_kg)
+	elif o2_unclamped > o2_nominal:
+		entry["clamp_high_bound_count"] = int(entry["clamp_high_bound_count"]) + 1
+		var excess_kg: float = (o2_unclamped - o2_nominal) * air_mass_kg
+		entry["max_clamp_excess_kg"] = maxf(float(entry["max_clamp_excess_kg"]), excess_kg)
+	entry["requested_kg_total"] = float(entry["requested_kg_total"]) + requested_kg
+	entry["accepted_kg_total"] = float(entry["accepted_kg_total"]) \
+			+ (clampf(o2_unclamped, 0.0, o2_nominal) - o2_pre) * air_mass_kg
+	_phase3_species_attribution["o2"] = entry
 
 
 func begin_phase3_physical_owner_step() -> void:
@@ -1726,10 +1834,39 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		var room_air_mass_kg: float = room_volume_m3_s * air_density_kg_m3_s
 		var _ges_o2_delta: float = float(o2_delta_kg[int(room_id)])
 		var room_o2_mass_kg: float = room.o2 * room_air_mass_kg + _ges_o2_delta
+		# H3.2-S0d3: medicion pasiva del clamp agregado. No altera el resultado.
+		_record_species_attribution_o2(
+			room.o2, room_o2_mass_kg / room_air_mass_kg, room_air_mass_kg, _ges_o2_delta
+		)
 		room.o2 = clampf(room_o2_mass_kg / room_air_mass_kg, 0.0, o2_nominal)
 		# SF-O1A: transporte inter-sala por background + two-zone species exchange (GasExchangeSystem).
 		room.o2_net_transport_kg_step += _ges_o2_delta
 		room.o2_net_transport_kg_total += _ges_o2_delta
+
+		# H3.2-S0d3: instantanea previa al unico sitio donde se aplica el clamp
+		# agregado. Solo lectura; el orden y las formulas quedan intactos.
+		_record_species_attribution(
+			"smoke", room.smoke_kg, float(smoke_delta_kg[int(room_id)])
+		)
+		_record_species_attribution("co", room.co_kg, float(co_delta_kg[int(room_id)]))
+		_record_species_attribution(
+			"co_upper", room.co_upper_kg, float(co_upper_delta_kg[int(room_id)])
+		)
+		_record_species_attribution("co2", room.co2_kg, float(co2_delta_kg[int(room_id)]))
+		_record_species_attribution(
+			"co2_upper", room.co2_upper_kg, float(co2_upper_delta_kg[int(room_id)])
+		)
+		_record_species_attribution("hcn", room.hcn_kg, float(hcn_delta_kg[int(room_id)]))
+		_record_species_attribution(
+			"hcn_upper", room.hcn_upper_kg, float(hcn_upper_delta_kg[int(room_id)])
+		)
+		_record_species_attribution("hcl", room.hcl_kg, float(hcl_delta_kg[int(room_id)]))
+		_record_species_attribution(
+			"acrolein", room.acrolein_kg, float(acrolein_delta_kg[int(room_id)])
+		)
+		_record_species_attribution(
+			"formaldehyde", room.formaldehyde_kg, float(formaldehyde_delta_kg[int(room_id)])
+		)
 
 		room.smoke_kg = maxf(0.0, room.smoke_kg + float(smoke_delta_kg[int(room_id)]))
 		room.co_net_transport_kg_step = float(co_delta_kg[int(room_id)])

@@ -104,6 +104,14 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Enable the passive H3.2-S0b thermal physical-owner events.",
     )
     parser.add_argument(
+        "--phase3-species-attribution-diagnostics",
+        action="store_true",
+        help=(
+            "H3.2-S0d3 passive measurement: report whether the aggregate "
+            "species/O2 clamp binds. No physics or CSV change."
+        ),
+    )
+    parser.add_argument(
         "--phase3-suppression-lower-energy-sink",
         action="store_true",
         help=(
@@ -403,6 +411,8 @@ def main(argv: list[str] | None = None) -> int:
         cmd.append("--phase3-physical-owner-ledger")
     if args.phase3_suppression_lower_energy_sink:
         cmd.append("--phase3-suppression-lower-energy-sink")
+    if args.phase3_species_attribution_diagnostics:
+        cmd.append("--phase3-species-attribution-diagnostics")
     if args.phase3_canonical_shadow:
         cmd.append("--phase3-canonical-shadow")
     if args.phase3_canonical_exterior_shadow:
