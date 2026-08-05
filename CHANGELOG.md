@@ -3,6 +3,27 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0d5c HCN zonal audit (2026-08-05)
+
+- Extended the per-species causal trace to HCN at every HCN room-state writer,
+  including a new `ppv_exhaust_species` observation point that did not exist, so
+  PPV is measured rather than assumed.
+- Same causal writers as CO and CO2: over 12 HCN-ranked cases and 214 566
+  observations per writer, `accumulator_application` creates 5 263 and
+  `ach_infiltration` 1 891 of the 7 154 first crossings.
+  `inherited_pre_room_loop` records zero, clearing combustion and the thermal
+  HCN paths; parcels, purges, pressure venting and **PPV** create none.
+- Derived an HCN-specific material threshold of **1e-7 kg**, anchored on FED
+  sensitivity rather than a rounded ppm: 10× above the measured 3.12e-9 kg noise
+  floor and 1/100 of the 2.4e-5 kg that moves `FED_HCN` by 1 %.
+- **NO-GO for an HCN physics fix: 7 154 strict violations, 0 material.** The
+  worst excess is 3.12e-9 kg, 32× below the threshold. The bulk-only HCN paths
+  remain structurally imperfect but never material at current yields; the guard
+  now reports HCN strict and material together so a future regression surfaces.
+- Documentation and diagnostics only. No HCN flag, no physics change, clamp
+  untouched. Full record:
+  `docs/validation/PHASE3_H32S0D5C_HCN_ZONAL_AUDIT.md`.
+
 ### Phase 3 H3.2-S0d5b experimental CO2 zonal transport consistency (2026-08-05)
 
 - Added `phase3_co2_zonal_transport_consistency_enabled`, explicit and default

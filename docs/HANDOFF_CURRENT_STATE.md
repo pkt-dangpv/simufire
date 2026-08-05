@@ -8,6 +8,28 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-05 - H3.2-S0d5c HCN zonal audit
+
+- Extended the per-species causal trace to HCN at every HCN room-state writer,
+  adding a `ppv_exhaust_species` point that did not exist, so PPV is measured.
+- Same creators as CO and CO2 across 12 HCN-ranked cases and 214 566
+  observations per writer: `accumulator_application` 5 263 and
+  `ach_infiltration` 1 891 of 7 154 first crossings.
+  `inherited_pre_room_loop` records zero; parcels, purges, venting and PPV
+  create none. Every crossing carries the zero-headroom signature.
+- Derived an HCN-specific threshold of 1e-7 kg **from FED sensitivity**, not a
+  rounded ppm: noise floor 3.12e-9 kg, and 1 % of `FED_HCN` is about 0.43 ppm or
+  2.4e-5 kg, so the bound sits 32× above the noise and 240× below that.
+- **7 154 strict, 0 material** across the five highest-HCN cases and the full
+  ranked set. No material defect exists, so **NO-GO for an HCN physics fix**; no
+  flag was added and the clamp was not touched.
+- The bulk-only HCN paths remain structurally imperfect and could become
+  material if yields or durations grow. The guard reports strict and material
+  together so that would surface.
+- O2 pending, HVAC deferred, clamp audit next, no integrator, H3.2-S open,
+  H3.2b still blocks H3.3, no runtime authority. Binding record:
+  `docs/validation/PHASE3_H32S0D5C_HCN_ZONAL_AUDIT.md`.
+
 ## Current Session Update - 2026-08-05 - H3.2-S0d5b CO2 zonal transport
 
 - Added `phase3_co2_zonal_transport_consistency_enabled`, explicit and default

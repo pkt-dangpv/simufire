@@ -47,6 +47,7 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S0d5a CO zonal transport | GO experimental / NO-GO promotion | Default-OFF symmetric CO bulk/upper debit removes 81.9 % of the `upper > bulk` violations. The residual 18.1 % has no provenance, so S0d5a2 is mandatory before S0d5b. |
 | H3.2-S0d5a2 residual CO diagnosis | ROOT CAUSE CONFIRMED | The residual was a strict zero-tolerance guard artefact in the zero-headroom state, not a writer. S0d5a removes 100 % of material CO violations; CO2 keeps 4 230, HCN 122. |
 | H3.2-S0d5b CO2 zonal transport | GO experimental / NO-GO promotion | Causal writer confirmed by direct trace at `accumulator_application`; 5 098/5 098 material CO2 violations removed with a CO2-derived 1e-8 kg threshold. FED moves +0.10 % in the post-fire case. |
+| H3.2-S0d5c HCN zonal audit | NO-GO fix / GO guard | Same causal writers as CO/CO2, but 7 154 strict violations and **0 material** against an HCN threshold of 1e-7 kg derived from FED sensitivity. Worst excess 3.12e-9 kg. No HCN flag shipped. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
 
@@ -272,6 +273,26 @@ H3.2-S0d5b CO2 zonal transport gate (2026-08-05):
 - **FED is not invariant**: +0.10 % in `postfire_decay`. `co2_ppm` up to +1.1 %.
 - **GO experimental only, NO-GO to promote.** Full record:
   `PHASE3_H32S0D5B_CO2_ZONAL_TRANSPORT.md`.
+
+H3.2-S0d5c HCN zonal audit gate (2026-08-05):
+
+- The causal trace was extended to HCN at every HCN room-state writer, adding a
+  `ppv_exhaust_species` observation point that did not exist, so PPV is measured
+  rather than assumed.
+- Same creators as CO and CO2 over 12 HCN-ranked cases and 214 566 observations
+  per writer: `accumulator_application` 5 263 and `ach_infiltration` 1 891 of
+  7 154 first crossings. `inherited_pre_room_loop` records zero, clearing
+  combustion and the thermal HCN paths; parcels, purges, venting and PPV create
+  none.
+- The HCN threshold is derived from FED sensitivity, not a rounded ppm: noise
+  floor 3.12e-9 kg, 1 % of `FED_HCN` ≈ 0.43 ppm ≈ 2.4e-5 kg, chosen 1e-7 kg.
+- **7 154 strict, 0 material.** No material HCN defect exists, so the GO
+  criterion cannot be met and no physics change was shipped.
+- The bulk-only HCN paths stay structurally imperfect. If yields or durations
+  grow they could become material; the guard reports strict and material
+  together so that would surface rather than stay silent.
+- **NO-GO for a fix, GO for the passive guard only.** Full record:
+  `PHASE3_H32S0D5C_HCN_ZONAL_AUDIT.md`.
 
 ## 1. HRR And Energy
 
