@@ -3,6 +3,13 @@
 Date: 2026-08-05
 Decision: **NO-GO for shipping per-owner zonal species attribution**
 
+> **Interpretation corrected by H3.2-S0d5a2 (2026-08-05).** The counts below are
+> **strict**, zero-tolerance comparisons and conflate two populations. Measured
+> again with a material threshold, CO's violations are 7 583 material out of
+> 9 280 strict, CO2 keeps 4 230 material and HCN only 122. The headline rates in
+> this document should be read as strict counts, not as material defects. See
+> `PHASE3_H32S0D5A2_CO_VIOLATION_TRACE.md`.
+
 The audit found a blocking precondition failure: the zonal split that the
 attribution would rest on is rewritten every step by an unowned clamp, at a
 material rate, because several owner paths move a species' bulk stock without

@@ -8,6 +8,30 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-05 - H3.2-S0d5a2 residual CO diagnosis
+
+- Added `phase3_co_first_violation_trace_enabled`, default OFF, observing the CO
+  `upper <= bulk` invariant after every writer of CO room state and separating
+  new creations, inherited states and resolutions. Pure observer; all nine
+  diagnostic runs are byte-identical to the plain runs.
+- **The residual was the guard, not a writer.** 1 034 crossings at the
+  accumulator application and 648 at ACH, all in the zero-headroom state where
+  `co_upper == co_kg` exactly, all from femtogram-scale rounding, all resolved
+  by the clamp in the same step. Nothing crosses a step boundary and
+  `inherited_pre_room_loop` sees zero, clearing combustion, CO oxidation and the
+  thermal CO paths.
+- Measured materially, **S0d5a removes 7 583 of 7 583 CO violations, 100 %**,
+  not 81.9 %. Residual maximum excess 5.03e−11 kg. The strict counter is kept.
+- The `1e-9 kg` threshold equals `1.73e-05 ppm` in a 50 m³ room, ~4.8 orders of
+  magnitude below one unit of CSV precision. It is **not** a physical tolerance
+  or a gate and **must not** be reused for another species without re-deriving
+  it.
+- Corrected the S0d4 and S0d5a records in place. CO2 keeps 4 230 material
+  violations, which is S0d5b's target; HCN keeps 122 and stays out of scope.
+- H3.2-S stays open, HVAC deferred, no integrator, H3.2b still blocks H3.3, no
+  runtime authority. Binding record:
+  `docs/validation/PHASE3_H32S0D5A2_CO_VIOLATION_TRACE.md`.
+
 ## Current Session Update - 2026-08-05 - H3.2-S0d5a CO zonal transport
 
 - Added `phase3_co_zonal_transport_consistency_enabled`, explicit and default

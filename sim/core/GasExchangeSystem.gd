@@ -105,6 +105,10 @@ var phase3_species_attribution_diagnostics_enabled: bool = false
 # tratan bulk y upper con la misma cantidad aceptada. Ningun caso oficial lo
 # activa y no se promueve.
 var phase3_co_zonal_transport_consistency_enabled: bool = false
+# H3.2-S0d5a2: traza causal del primer cruce valido->invalido de `co_upper <=
+# co_kg`, observada alrededor de cada escritor de estado de CO. Default false =
+# no-op absoluto. Solo diagnostico: nunca repara ni atribuye por diferencia.
+var phase3_co_first_violation_trace_enabled: bool = false
 # Phase 3: modelo de presión termodinámica — ODE campo paralelo.
 # Cuando false (default): no-op, no toca room.pressure_pa_therm ni room.overpressure_pa.
 # Cuando true: integra dP/dt = (gamma-1)/V * Q_conv - Cd*A_eff/V * P_atm * sqrt(2P/rho)
@@ -136,6 +140,10 @@ var _phase3_shadow_exterior_purge_sequence: int = 0
 var _phase3_physical_owner_events: Array[Dictionary] = []
 var _phase3_physical_owner_sequence: int = 0
 var _phase3_species_attribution: Dictionary = {}
+var _phase3_co_trace_by_writer: Dictionary = {}
+var _phase3_co_room_invalid: Dictionary = {}
+var _phase3_co_first_events: Array[Dictionary] = []
+var _phase3_co_trace_step: int = 0
 # Los parcels cruzan timestep: su identidad no puede reiniciarse por paso.
 var _phase3_physical_owner_parcel_sequence: int = 0
 
@@ -245,6 +253,12 @@ func configure(settings: Dictionary) -> void:
 		settings.get(
 			"phase3_co_zonal_transport_consistency_enabled",
 			phase3_co_zonal_transport_consistency_enabled
+		)
+	)
+	phase3_co_first_violation_trace_enabled = bool(
+		settings.get(
+			"phase3_co_first_violation_trace_enabled",
+			phase3_co_first_violation_trace_enabled
 		)
 	)
 	phase3_thermodynamic_pressure_enabled = bool(
@@ -389,6 +403,10 @@ func reset() -> void:
 	_phase3_physical_owner_sequence = 0
 	_phase3_physical_owner_parcel_sequence = 0
 	_phase3_species_attribution.clear()
+	_phase3_co_trace_by_writer.clear()
+	_phase3_co_room_invalid.clear()
+	_phase3_co_first_events.clear()
+	_phase3_co_trace_step = 0
 
 
 func begin_phase3_shadow_step() -> void:
@@ -466,6 +484,67 @@ func _record_species_attribution(
 	_phase3_species_attribution[species] = entry
 
 
+## H3.2-S0d5a2: muestra acotada de primeras transiciones, para no crecer sin
+## limite en runs largos. Los contadores por escritor no estan acotados por esta
+## constante: son agregados de tamano fijo.
+const CO_TRACE_MAX_SAMPLES: int = 64
+
+## H3.2-S0d5a2: umbral por encima del cual un `upper > bulk` deja de ser ruido
+## de coma flotante. Solo separa poblaciones en el diagnostico; no repara nada
+## y no participa en ninguna decision fisica.
+const ZONAL_GUARD_MATERIAL_EPS_KG: float = 1.0e-9
+
+
+func get_phase3_co_violation_trace() -> Dictionary:
+	return {
+		"by_writer": _phase3_co_trace_by_writer.duplicate(true),
+		"first_events": _phase3_co_first_events.duplicate(true),
+		"sample_cap": CO_TRACE_MAX_SAMPLES,
+	}
+
+
+func begin_phase3_co_trace_step() -> void:
+	_phase3_co_trace_step += 1
+
+
+func _co_trace(writer: String, room: RoomModel, context: Dictionary = {}) -> void:
+	## Observa el invariante `co_upper <= co_kg` inmediatamente despues de un
+	## escritor concreto de estado de CO. Distingue creacion nueva, herencia y
+	## resolucion; nunca repara ni reparte.
+	if not phase3_co_first_violation_trace_enabled or room == null:
+		return
+	var entry: Dictionary = _phase3_co_trace_by_writer.get(writer, {
+		"observations": 0,
+		"new_violations": 0,
+		"inherited": 0,
+		"resolved": 0,
+		"max_excess_kg": 0.0,
+	})
+	entry["observations"] = int(entry["observations"]) + 1
+	var was_invalid: bool = bool(_phase3_co_room_invalid.get(room.id, false))
+	var excess_kg: float = room.co_upper_kg - room.co_kg
+	var is_invalid: bool = excess_kg > 0.0
+	if is_invalid:
+		entry["max_excess_kg"] = maxf(float(entry["max_excess_kg"]), excess_kg)
+		if was_invalid:
+			entry["inherited"] = int(entry["inherited"]) + 1
+		else:
+			entry["new_violations"] = int(entry["new_violations"]) + 1
+			if _phase3_co_first_events.size() < CO_TRACE_MAX_SAMPLES:
+				var sample: Dictionary = context.duplicate(true)
+				sample["step"] = _phase3_co_trace_step
+				sample["writer"] = writer
+				sample["room_id"] = room.id
+				sample["post_co_kg"] = room.co_kg
+				sample["post_co_upper_kg"] = room.co_upper_kg
+				sample["excess_kg"] = excess_kg
+				_phase3_co_first_events.append(sample)
+	elif was_invalid:
+		entry["resolved"] = int(entry["resolved"]) + 1
+	_phase3_co_trace_by_writer[writer] = entry
+	_phase3_co_room_invalid[room.id] = is_invalid
+
+
 func _record_zonal_guard(species: String, bulk_kg: float, upper_kg: float) -> void:
 	## H3.2-S0d4 audit: mide si el clamp `upper <= bulk` llega a morder. Ese
 	## clamp reescribe el reparto zonal sin propietario, asi que cuando muerde
@@ -478,10 +557,21 @@ func _record_zonal_guard(species: String, bulk_kg: float, upper_kg: float) -> vo
 		entry["zonal_guard_upper_over_bulk_count"] = 0
 		entry["zonal_guard_upper_negative_count"] = 0
 		entry["zonal_guard_max_excess_kg"] = 0.0
+		entry["zonal_guard_material_over_bulk_count"] = 0
+		entry["zonal_guard_zero_headroom_count"] = 0
 	entry["zonal_guard_applications"] = int(entry["zonal_guard_applications"]) + 1
+	if upper_kg >= bulk_kg:
+		entry["zonal_guard_zero_headroom_count"] = \
+				int(entry["zonal_guard_zero_headroom_count"]) + 1
 	if upper_kg > bulk_kg:
 		entry["zonal_guard_upper_over_bulk_count"] = \
 				int(entry["zonal_guard_upper_over_bulk_count"]) + 1
+		# H3.2-S0d5a2: segunda cota sobre la misma observacion. Separa una
+		# violacion material del ruido de coma flotante que aparece cuando el
+		# hueco `bulk - upper` ya es exactamente cero.
+		if upper_kg - bulk_kg > ZONAL_GUARD_MATERIAL_EPS_KG:
+			entry["zonal_guard_material_over_bulk_count"] = \
+					int(entry["zonal_guard_material_over_bulk_count"]) + 1
 		entry["zonal_guard_max_excess_kg"] = maxf(
 			float(entry["zonal_guard_max_excess_kg"]), upper_kg - bulk_kg
 		)
@@ -1156,6 +1246,7 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 			room.hcl_kg = maxf(0.0, room.hcl_kg * (1.0 - air_frac_out))
 			room.acrolein_kg = maxf(0.0, room.acrolein_kg * (1.0 - air_frac_out))
 			room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg * (1.0 - air_frac_out))
+		_co_trace("pressure_vent_species", room)
 		_call_room_dt(sync_room_upper_layer_callable, room, dt)
 
 		room.overpressure_pa = maxf(0.0, room.overpressure_pa * (1.0 - frac_out * 0.9))
@@ -1887,6 +1978,9 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		room.o2_net_transport_kg_step += _ges_o2_delta
 		room.o2_net_transport_kg_total += _ges_o2_delta
 
+		# H3.2-S0d5a2: estado heredado al entrar en el bucle de sala. Una
+		# violacion vista aqui no la creo GasExchangeSystem en este paso.
+		_co_trace("inherited_pre_room_loop", room)
 		# H3.2-S0d3: instantanea previa al unico sitio donde se aplica el clamp
 		# agregado. Solo lectura; el orden y las formulas quedan intactos.
 		_record_species_attribution(
@@ -1915,6 +2009,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		room.smoke_kg = maxf(0.0, room.smoke_kg + float(smoke_delta_kg[int(room_id)]))
 		room.co_net_transport_kg_step = float(co_delta_kg[int(room_id)])
 		var _co_pre_transport: float = room.co_kg
+		var _co_upper_pre_transport: float = room.co_upper_kg
 		room.co_kg = maxf(0.0, room.co_kg + float(co_delta_kg[int(room_id)]))
 		# Acumular el delta REAL (post-clamp) para que D1 no falle cuando la ventilación
 		# intenta extraer más CO del disponible (maxf clamp en co_delta_kg).
@@ -1927,6 +2022,18 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		room.hcl_kg = maxf(0.0, room.hcl_kg + float(hcl_delta_kg[int(room_id)]))
 		room.acrolein_kg = maxf(0.0, room.acrolein_kg + float(acrolein_delta_kg[int(room_id)]))
 		room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg + float(formaldehyde_delta_kg[int(room_id)]))
+		# H3.2-S0d5a2: el unico sitio donde los ocho paths acumulados llegan al
+		# estado. El contexto lleva la condicion exacta que rompe el invariante:
+		# se rompe cuando `d_upper - d_bulk` supera el hueco `bulk - upper`.
+		_co_trace("accumulator_application", room, {
+			"co_bulk_delta_kg": float(co_delta_kg[int(room_id)]),
+			"co_upper_delta_kg": float(co_upper_delta_kg[int(room_id)]),
+			"delta_gap_kg": float(co_upper_delta_kg[int(room_id)])
+					- float(co_delta_kg[int(room_id)]),
+			"headroom_pre_kg": _co_pre_transport - _co_upper_pre_transport,
+			"pre_co_kg": _co_pre_transport,
+			"pre_co_upper_kg": _co_upper_pre_transport,
+		})
 
 		var ach_rate: float = ach_infiltration / 3600.0
 		var co_removed: float = minf(room.co_kg, room.co_kg * ach_rate * dt)
@@ -1953,6 +2060,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		room.co_exterior_removed_kg_total += co_removed
 		room.co_kg = maxf(0.0, room.co_kg - co_removed)
 		room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - clampf(co_remove_fraction, 0.0, 1.0)))
+		_co_trace("ach_infiltration", room)
 		room.co2_kg = maxf(0.0, room.co2_kg - co2_removed)
 		room.co2_upper_kg = maxf(0.0, room.co2_upper_kg * (1.0 - clampf(co2_remove_fraction, 0.0, 1.0)))
 		room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_removed)
@@ -2022,6 +2130,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			room.co_upper_kg = maxf(0.0, co_upper_kg - co_upper_removed_kg)
 			room.co_exterior_removed_kg_total += co_upper_removed_kg + co_lower_removed_kg
 			room.co_kg = maxf(0.0, room.co_kg - co_upper_removed_kg - co_lower_removed_kg)
+			_co_trace("outside_open_species_purge", room)
 			room.co2_kg = maxf(0.0, room.co2_kg - co2_removed_kg)
 			room.co2_upper_kg = maxf(0.0, room.co2_upper_kg - co2_upper_removed_kg)
 			room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_removed_kg)
@@ -2083,6 +2192,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			room.co_exterior_removed_kg_total += purged_co_kg
 			room.co_kg = maxf(0.0, room.co_kg - purged_co_kg)
 			room.co_upper_kg = maxf(0.0, room.co_upper_kg * (1.0 - purge_fraction))
+			_co_trace("postfire_species_purge", room)
 			room.co2_kg = maxf(0.0, room.co2_kg - purged_co2_kg)
 			room.co2_upper_kg = maxf(0.0, room.co2_upper_kg * (1.0 - purge_fraction))
 			room.hcn_kg = maxf(0.0, room.hcn_kg - purged_hcn_kg)
@@ -2108,6 +2218,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg)
 		room.co2_upper_kg = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
 		room.hcn_upper_kg = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)
+		_co_trace("final_upper_clamp", room)
 
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -2228,6 +2339,9 @@ func _release_pending_interior_deliveries(
 							co_src_room.co_upper_kg + co_upper_parcel_kg * (1.0 - co_cut),
 							co_src_room.co_kg
 						)
+					_co_trace("parcel_refund", co_src_room, {
+						"refund_kg": co_refund_kg,
+					})
 					co_parcel_kg = co_headroom_kg
 					co_upper_parcel_kg *= co_cut
 		var _co_pre_delivery: float = target.co_kg
@@ -2334,9 +2448,13 @@ func _release_pending_interior_deliveries(
 				0.0,
 				o2_nominal
 			)
+		_co_trace("parcel_delivery", target, {"parcel_id": String(
+			entry.get("phase3_physical_owner_parcel_id", "")
+		)})
 		target.co_upper_kg = clampf(target.co_upper_kg, 0.0, target.co_kg)
 		target.co2_upper_kg = clampf(target.co2_upper_kg, 0.0, target.co2_kg)
 		target.hcn_upper_kg = clampf(target.hcn_upper_kg, 0.0, target.hcn_kg)
+		_co_trace("parcel_delivery_clamp", target)
 		var delivered_shadow_species_kg: Dictionary = {
 			"smoke": maxf(0.0, delivered_smoke_kg),
 			"co": maxf(0.0, co_parcel_kg),
@@ -3664,6 +3782,7 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 		inlet_room.hcl_kg = maxf(0.0, inlet_room.hcl_kg * (1.0 - mix_frac))
 		inlet_room.acrolein_kg = maxf(0.0, inlet_room.acrolein_kg * (1.0 - mix_frac))
 		inlet_room.formaldehyde_kg = maxf(0.0, inlet_room.formaldehyde_kg * (1.0 - mix_frac))
+		_co_trace("ppv_inlet_species", inlet_room)
 		_call_room_fraction_owned(
 			remove_upper_layer_fraction_callable, inlet_room, mix_frac * 0.5,
 			"gas_ppv_inlet_upper_removal",

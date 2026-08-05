@@ -3,6 +3,31 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0d5a2 residual CO zonal violation diagnosis (2026-08-05)
+
+- Added `phase3_co_first_violation_trace_enabled`, default OFF, a causal trace
+  that observes the CO `upper <= bulk` invariant immediately after every writer
+  of CO room state and separates new creations, inherited states and
+  resolutions. It observes only: it never repairs and never attributes by stage
+  difference.
+- **Root cause of the S0d5a residual: the guard, not a physical writer.** Over
+  nine cases and 101 544 observations per writer, the 1 682 residual crossings
+  split as 1 034 at the accumulator application and 648 at ACH, all in the
+  degenerate zero-headroom state where `co_upper == co_kg` exactly, all caused
+  by femtogram-scale floating-point rounding, all resolved by the clamp inside
+  the same step. Nothing crosses a step boundary and nothing outside
+  `GasExchangeSystem` creates a violation.
+- With a material threshold, **S0d5a removes 7 583 of 7 583 material CO
+  violations, 100 %, not 81.9 %**; the residual maximum excess is 5.03e−11 kg.
+  The strict zero-tolerance counter is kept alongside the material one.
+- The `1e-9 kg` threshold is documented as `1.73e-05 ppm` in a 50 m³ room, about
+  4.8 orders of magnitude below one unit of CSV precision. It is **not a
+  physical tolerance, not a gate, and must not be reused for another species
+  without repeating the analysis**.
+- Corrected the interpretation recorded in the S0d4 and S0d5a documents. CO2
+  keeps 4 230 material violations (S0d5b's target) and HCN only 122. Full
+  record: `docs/validation/PHASE3_H32S0D5A2_CO_VIOLATION_TRACE.md`.
+
 ### Phase 3 H3.2-S0d5a experimental CO zonal transport consistency (2026-08-05)
 
 - Added `phase3_co_zonal_transport_consistency_enabled`, explicit and default

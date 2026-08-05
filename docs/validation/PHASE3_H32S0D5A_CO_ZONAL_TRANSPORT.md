@@ -4,6 +4,15 @@ Date: 2026-08-05
 Decision: **GO to keep `phase3_co_zonal_transport_consistency_enabled` as an
 experimental, default-OFF flag. NO-GO to promote it.**
 
+> **Result corrected by H3.2-S0d5a2 (2026-08-05).** This record states that the
+> change removes 81.9 % of the violations and leaves 1 682 without provenance.
+> The strict counter conflated two populations. Measured with a material
+> threshold, the change removes **7 583 of 7 583 material violations, 100 %**,
+> and the 1 682 residual are floating-point noise below 5.03e−11 kg, created in
+> the zero-headroom state and resolved by the clamp inside the same step. There
+> is no residual physical defect in this scope. See
+> `PHASE3_H32S0D5A2_CO_VIOLATION_TRACE.md`.
+
 S0d stays open, S0d5b and S0d5c are not started, O2 and the zone-less species
 stay blocked, HVAC stays deferred, no integrator exists, H3.2-S stays open,
 H3.2b and H3.3 are not started and no runtime authority was granted.

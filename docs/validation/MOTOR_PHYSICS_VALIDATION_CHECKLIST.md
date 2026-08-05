@@ -45,6 +45,7 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S0d3 species attribution measurement | GO parcial / STOP gate | Default-OFF measurement shows the lower species clamp never bound over 12 cases; CO/CO2/HCN are attributable, O2 and the zone-less species are not. Measurement only, no enrichment. |
 | H3.2-S0d4 zonal species consistency | NO-GO attribution / GO guard | The unowned `upper <= bulk` clamp rewrites the zonal split in 5.4-7.5 % of applications, so per-owner zonal attribution of CO/CO2/HCN is not reconstructible. Only the passive guard shipped. |
 | H3.2-S0d5a CO zonal transport | GO experimental / NO-GO promotion | Default-OFF symmetric CO bulk/upper debit removes 81.9 % of the `upper > bulk` violations. The residual 18.1 % has no provenance, so S0d5a2 is mandatory before S0d5b. |
+| H3.2-S0d5a2 residual CO diagnosis | ROOT CAUSE CONFIRMED | The residual was a strict zero-tolerance guard artefact in the zero-headroom state, not a writer. S0d5a removes 100 % of material CO violations; CO2 keeps 4 230, HCN 122. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
 
@@ -229,6 +230,26 @@ H3.2-S0d5a CO zonal transport gate (2026-08-05):
   earlier claim that the other CO writers were coherent, so S0d5a2 must localise
   it before S0d5b starts. Full record:
   `PHASE3_H32S0D5A_CO_ZONAL_TRANSPORT.md`.
+
+H3.2-S0d5a2 residual CO diagnosis gate (2026-08-05):
+
+- `phase3_co_first_violation_trace_enabled` is default OFF and observes the CO
+  invariant after every writer of CO room state, separating new creations,
+  inherited states and resolutions. All diagnostic runs are byte-identical.
+- The residual 1 682 split as 1 034 at the accumulator application and 648 at
+  ACH, every one in the zero-headroom state, every one resolved by the clamp in
+  the same step, none crossing a step boundary. `inherited_pre_room_loop`
+  records zero new violations, which clears combustion, CO oxidation and the
+  thermal CO paths.
+- With a material threshold, **S0d5a removes 7 583 of 7 583 material CO
+  violations**. The residual maximum excess is 5.03e−11 kg.
+- The threshold is `1.73e-05 ppm` in a 50 m³ room, about 4.8 orders of magnitude
+  below one unit of CSV precision. It is a reporting aid only: not a physical
+  tolerance, not a gate, never reused for another species without re-deriving it.
+  The strict counter stays visible alongside it.
+- This corrects the interpretation of the S0d4 and S0d5a records. CO2 keeps
+  4 230 material violations and HCN 122. Full record:
+  `PHASE3_H32S0D5A2_CO_VIOLATION_TRACE.md`.
 
 ## 1. HRR And Energy
 
