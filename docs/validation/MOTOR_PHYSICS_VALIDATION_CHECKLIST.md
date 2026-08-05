@@ -44,6 +44,7 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S0d2 suppression lower sink | GO experimental / NO-GO promotion | Default-OFF flag applies the lower cooling to `lower_energy_kj` under two-zone. OFF is byte-identical; no official case enables it. B1-lower stays open. |
 | H3.2-S0d3 species attribution measurement | GO parcial / STOP gate | Default-OFF measurement shows the lower species clamp never bound over 12 cases; CO/CO2/HCN are attributable, O2 and the zone-less species are not. Measurement only, no enrichment. |
 | H3.2-S0d4 zonal species consistency | NO-GO attribution / GO guard | The unowned `upper <= bulk` clamp rewrites the zonal split in 5.4-7.5 % of applications, so per-owner zonal attribution of CO/CO2/HCN is not reconstructible. Only the passive guard shipped. |
+| H3.2-S0d5a CO zonal transport | GO experimental / NO-GO promotion | Default-OFF symmetric CO bulk/upper debit removes 81.9 % of the `upper > bulk` violations. The residual 18.1 % has no provenance, so S0d5a2 is mandatory before S0d5b. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
 
@@ -210,6 +211,24 @@ H3.2-S0d4 zonal species consistency gate (2026-08-05):
   S0d5a CO transport coherence, S0d5b CO2/HCN bulk-only paths, S0d5c own or
   remove the clamp. Full record:
   `PHASE3_H32S0D4_ZONAL_ATTRIBUTION_AUDIT.md`.
+
+H3.2-S0d5a CO zonal transport gate (2026-08-05):
+
+- `phase3_co_zonal_transport_consistency_enabled` is explicit and default OFF.
+  OFF is byte-identical to the S0d4 checkpoint, verified by stashing the change
+  and comparing CSV SHA-256 on `v4_co_remote_rooms`.
+- ON debits CO's upper stock with the same accepted amount as its bulk stock in
+  immediate and delayed transport, keeping the derived lower stock invariant,
+  and refunds bulk and upper equally. The refund half is inert in a clean state.
+- CO violations fall 9 280 to 1 682 over nine cases: 7 598 (81.9 %) attributable
+  to the immediate/parcel paths, **1 682 (18.1 %) still unattributed**. CO2 and
+  HCN are unchanged, `upper < 0` stays zero, the aggregate CO clamp never binds,
+  and HRR/O2/upper temperature are identical OFF/ON.
+- `co_ppm` peak +3.8 %, FED peak within 0.3 % in both directions.
+- **GO experimental only, NO-GO to promote.** The residual contradicts the
+  earlier claim that the other CO writers were coherent, so S0d5a2 must localise
+  it before S0d5b starts. Full record:
+  `PHASE3_H32S0D5A_CO_ZONAL_TRANSPORT.md`.
 
 ## 1. HRR And Energy
 

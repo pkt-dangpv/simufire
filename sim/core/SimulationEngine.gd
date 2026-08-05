@@ -999,6 +999,9 @@ var _step_time_us: int = 0
 ## H3.2-S0d3: medicion pasiva del clamp agregado de especies y O2. Default OFF;
 ## no cambia fisica ni el CSV legacy. Solo mide si el clamp llega a morder.
 @export var phase3_species_attribution_diagnostics_enabled: bool = false
+## H3.2-S0d5a: coherencia zonal del transporte de CO. Experimental, default OFF.
+## Con OFF la fisica es exactamente la heredada. Ningun caso oficial lo activa.
+@export var phase3_co_zonal_transport_consistency_enabled: bool = false
 ## H3.2-S0d2: correccion experimental del sumidero lower de supresion. Default
 ## OFF. Con OFF la fisica es exactamente la heredada. Con ON y two-zone activo,
 ## el enfriamiento inferior se aplica a `lower_energy_kj`, que es lo que
@@ -1246,6 +1249,8 @@ func _sync_auxiliary_services() -> void:
 		"phase3_physical_owner_ledger_enabled": phase3_physical_owner_ledger_enabled,
 		"phase3_species_attribution_diagnostics_enabled": \
 				phase3_species_attribution_diagnostics_enabled,
+		"phase3_co_zonal_transport_consistency_enabled": \
+				phase3_co_zonal_transport_consistency_enabled,
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"window_leakage_area_m2": window_leakage_area_m2,
 		"pressure_vent_threshold_pa": pressure_vent_threshold_pa,

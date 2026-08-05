@@ -98,6 +98,13 @@ var phase3_physical_owner_ledger_enabled: bool = false
 # `maxf(0.0, ...)` final llega a morder, que es lo unico que decide si la
 # aceptacion por owner es determinable. Default false = no-op absoluto.
 var phase3_species_attribution_diagnostics_enabled: bool = false
+# H3.2-S0d5a: coherencia zonal del transporte de CO. Experimental, default OFF.
+# `co_moved_kg` se deriva de `source.co_upper_kg` pero legacy solo debita
+# `source.co_kg`, lo que empuja upper por encima de bulk y obliga al clamp sin
+# propietario a reescribir el reparto zonal. Con ON el debito y el reembolso
+# tratan bulk y upper con la misma cantidad aceptada. Ningun caso oficial lo
+# activa y no se promueve.
+var phase3_co_zonal_transport_consistency_enabled: bool = false
 # Phase 3: modelo de presión termodinámica — ODE campo paralelo.
 # Cuando false (default): no-op, no toca room.pressure_pa_therm ni room.overpressure_pa.
 # Cuando true: integra dP/dt = (gamma-1)/V * Q_conv - Cd*A_eff/V * P_atm * sqrt(2P/rho)
@@ -232,6 +239,12 @@ func configure(settings: Dictionary) -> void:
 		settings.get(
 			"phase3_species_attribution_diagnostics_enabled",
 			phase3_species_attribution_diagnostics_enabled
+		)
+	)
+	phase3_co_zonal_transport_consistency_enabled = bool(
+		settings.get(
+			"phase3_co_zonal_transport_consistency_enabled",
+			phase3_co_zonal_transport_consistency_enabled
 		)
 	)
 	phase3_thermodynamic_pressure_enabled = bool(
@@ -1566,6 +1579,12 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 						+ float(_ifl_to.get("co", 0.0)))
 			))
 			co_delta_kg[from_id] -= co_moved_kg
+			# H3.2-S0d5a: `co_moved_kg` sale de `source.co_upper_kg` y ya esta
+			# acotado por el, asi que retirar la misma cantidad aceptada del
+			# stock upper no puede dejarlo negativo. El lower derivado del
+			# origen queda invariante: delta_bulk - delta_upper = 0.
+			if phase3_co_zonal_transport_consistency_enabled:
+				co_upper_delta_kg[from_id] -= co_moved_kg
 			co2_moved_kg = minf(kg / source.smoke_kg, 1.0) * source.co2_kg
 			# F0 Plan B: cota de equilibrio por concentración. El proxy de fracción de
 			# humo satura a 1.0 cuando source.smoke_kg es pequeño y exporta casi todo
@@ -2198,10 +2217,17 @@ func _release_pending_interior_deliveries(
 					var co_refund_kg: float = co_parcel_kg - co_headroom_kg
 					co_src_room.co_kg += co_refund_kg
 					co_src_room.co_net_transport_kg_total += co_refund_kg
-					co_src_room.co_upper_kg = minf(
-						co_src_room.co_upper_kg + co_upper_parcel_kg * (1.0 - co_cut),
-						co_src_room.co_kg
-					)
+					if phase3_co_zonal_transport_consistency_enabled:
+						# H3.2-S0d5a: el parcel lleva co_kg == co_upper_kg, asi que
+						# el reembolso aceptado es el mismo para bulk y upper. El
+						# `minf` heredado aplicaba un segundo cap solo sobre upper
+						# y reintroducia la incoherencia zonal que esta fase corrige.
+						co_src_room.co_upper_kg += co_refund_kg
+					else:
+						co_src_room.co_upper_kg = minf(
+							co_src_room.co_upper_kg + co_upper_parcel_kg * (1.0 - co_cut),
+							co_src_room.co_kg
+						)
 					co_parcel_kg = co_headroom_kg
 					co_upper_parcel_kg *= co_cut
 		var _co_pre_delivery: float = target.co_kg

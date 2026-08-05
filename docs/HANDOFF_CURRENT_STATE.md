@@ -8,6 +8,26 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-05 - H3.2-S0d5a CO zonal transport
+
+- Added `phase3_co_zonal_transport_consistency_enabled`, explicit and default
+  OFF, enabled by no official case. OFF byte-identical to the S0d4 checkpoint,
+  proven by stashing the change and comparing CSV SHA-256.
+- ON makes the immediate and delayed CO transport debit bulk and upper with the
+  same accepted amount, so the source's derived lower stock is invariant, and
+  makes the parcel refund symmetric. The refund half is inert in a clean state.
+- CO `upper > bulk` violations fall from 9 280 to 1 682 across nine cases:
+  7 598 (81.9 %) attributable to immediate/parcels, **1 682 (18.1 %) with no
+  established provenance**. CO2 and HCN unchanged bit-for-bit, `upper < 0` zero,
+  aggregate CO clamp never binds, HRR/O2/temp_upper identical OFF/ON.
+- `co_ppm` peak up to +3.8 %, FED peak within 0.3 % in both directions, so
+  promotion needs a baseline review that this phase may not do.
+- **GO experimental, NO-GO to promote.** The residual contradicts the earlier
+  audit claim that the other CO writers were coherent. **S0d5a2 is mandatory
+  before S0d5b.** H3.2-S stays open, HVAC deferred, no integrator, H3.2b still
+  blocks H3.3, no runtime authority. Binding record:
+  `docs/validation/PHASE3_H32S0D5A_CO_ZONAL_TRANSPORT.md`.
+
 ## Current Session Update - 2026-08-05 - H3.2-S0d4 zonal species consistency
 
 - Extended the default-OFF species diagnostic with a passive zonal guard at the

@@ -3,6 +3,27 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0d5a experimental CO zonal transport consistency (2026-08-05)
+
+- Added `phase3_co_zonal_transport_consistency_enabled`, explicit and default
+  OFF, enabled by no official case. OFF is byte-identical to the S0d4
+  checkpoint, verified by stashing the change and comparing CSV SHA-256.
+- When ON, the immediate and delayed CO transport debits the source's upper
+  stock with the same accepted amount as its bulk stock, so the derived
+  `lower = bulk - upper` stays invariant, and the parcel refund credits bulk and
+  upper equally instead of passing the upper side through a second cap.
+- Over nine cases the CO `upper > bulk` violations fall from 9 280 to 1 682:
+  **7 598 (81.9 %) are attributable to the immediate/parcel paths and
+  disappear**. The remaining **1 682 (18.1 %) have no established provenance**.
+  CO2 and HCN are bit-for-bit unaffected; `upper < 0` stays zero; the aggregate
+  CO clamp still never binds; HRR, O2 and upper temperature are identical.
+- `co_ppm` peak rises up to 3.8 % and FED peak moves at most 0.3 % in both
+  directions, so promotion would need a baseline review.
+- **GO experimental, NO-GO to promote.** The residual 18.1 % contradicts the
+  earlier audit conclusion that the other CO writers were coherent, so S0d5a2 is
+  mandatory before S0d5b. Full record:
+  `docs/validation/PHASE3_H32S0D5A_CO_ZONAL_TRANSPORT.md`.
+
 ### Phase 3 H3.2-S0d4 zonal species consistency measurement (2026-08-05)
 
 - Extended the default-OFF species diagnostic with a passive zonal guard at the

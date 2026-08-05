@@ -89,12 +89,16 @@ def test_no_invented_distribution_anywhere_in_the_diagnostic():
 
 
 def test_physics_paths_are_unchanged_by_the_audit():
-    # The CO transport debit that causes upper>bulk must still be exactly the
-    # legacy statement: S0d4 diagnoses it, it does not repair it.
+    # S0d4 diagnoses the CO transport debit, it does not repair it: the legacy
+    # statement must still be the unconditioned default. S0d5a later added the
+    # symmetric upper debit, but only inside an explicit flag-gated branch.
     assert "co_delta_kg[from_id] -= co_moved_kg" in GAS
-    assert "co_upper_delta_kg[from_id] -= co_moved_kg" not in GAS
     assert "co2_upper_delta_kg[from_id] -= co2_upper_moved_kg" in GAS
     assert "hcn_upper_delta_kg[from_id] -= hcn_upper_moved_kg" in GAS
+    repair = "co_upper_delta_kg[from_id] -= co_moved_kg"
+    if repair in GAS:
+        preceding = GAS.split(repair, 1)[0].rstrip().splitlines()[-1].strip()
+        assert preceding == "if phase3_co_zonal_transport_consistency_enabled:"
 
 
 def test_no_integrator_no_hvac_no_solver_no_csv():
