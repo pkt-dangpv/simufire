@@ -3,6 +3,26 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0d2 experimental suppression lower energy sink (2026-08-05)
+
+- Added `phase3_suppression_lower_energy_sink_enabled`, explicit and default
+  OFF. With OFF the physics is byte-identical to the S0d1 checkpoint; the flag
+  is set by no official case.
+- When ON and two-zone is active, the suppression lower-zone cooling is applied
+  to `lower_energy_kj`, which the projection actually reads, instead of a
+  temperature the projection rebuilds and discards. The legacy regime is
+  untouched. The owner `suppression_lower_energy_sink` reports requested,
+  accepted, rejected and available separately, never the request as accepted.
+- `cfast_suppression_water` does not exercise the effect: its lower layer sits
+  at ambient for every logged row, so the legacy request is already zero. The
+  measured impact is in `v8_suppression_reburn`: `temp_lower_c` up to 9.77 °C
+  lower during suppression, with HRR, FED and O2 moving under 0.1 % and no
+  change to extinction or reignition timing.
+- **GO to keep the flag experimental, NO-GO to promote it.** B1-lower stays
+  open. HVAC stays deferred, species/O2 stay pending, no integrator exists,
+  H3.2-S stays blocked and no runtime authority is granted. Full record:
+  `docs/validation/PHASE3_H32S0D2_SUPPRESSION_LOWER_ENERGY_SINK.md`.
+
 ### Phase 3 H3.2-S0d1 suppression and donor-less mass owners (2026-08-04)
 
 - `suppression_upper_energy_sink` is now an accepted, signed `local_source`

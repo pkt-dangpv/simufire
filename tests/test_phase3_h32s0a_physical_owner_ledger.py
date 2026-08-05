@@ -41,6 +41,7 @@ def test_component_has_only_the_authorized_production_call_sites():
         "sim/core/ThermalSystem.gd",
         "tests/fixtures/phase3_h32s0c_gas_physical_owners.gd",
         "tests/fixtures/phase3_h32s0d1_suppression_and_seeds.gd",
+        "tests/fixtures/phase3_h32s0d2_suppression_lower_sink.gd",
     }
     references = set()
     for path in ROOT.rglob("*.gd"):

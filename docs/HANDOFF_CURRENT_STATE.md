@@ -8,6 +8,26 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-05 - H3.2-S0d2 experimental lower sink
+
+- Added `phase3_suppression_lower_energy_sink_enabled`, explicit and default
+  OFF, enabled by no official case. OFF is byte-identical to the S0d1
+  checkpoint, CSV SHA-256 included.
+- ON plus two-zone applies the suppression lower cooling to `lower_energy_kj`,
+  the quantity the projection reads, instead of a temperature it rebuilds and
+  discards. The legacy regime is untouched. The owner reports requested,
+  accepted, rejected and available separately.
+- `cfast_suppression_water` does not exercise it: its lower layer sits at
+  ambient in every logged row, so the legacy request is already zero. This is a
+  second, deeper reason the lower sink is inert there.
+- Measured in `v8_suppression_reburn`: `temp_lower_c` up to 9.77 °C lower during
+  suppression, HRR 0.2 kW on 702 kW, FED 0.0022 on 10.34, O2 4.4e-4, steam
+  unchanged, extinction and reignition timing unchanged, no NaN or negative.
+- **GO experimental, NO-GO to promote.** B1-lower stays open. HVAC deferred,
+  species/O2 pending, no integrator, H3.2-S blocked, H3.2b still blocks H3.3,
+  no runtime authority. Binding record:
+  `docs/validation/PHASE3_H32S0D2_SUPPRESSION_LOWER_ENERGY_SINK.md`.
+
 ## Current Session Update - 2026-08-04 - H3.2-S0d1 suppression and seeds
 
 - Closed three of the six S0d blockers with passive instrumentation only.

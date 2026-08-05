@@ -63,14 +63,24 @@ def test_suppression_upper_sink_is_an_accepted_local_source():
     )
 
 
-def test_no_lower_suppression_owner_is_fabricated():
-    # The lower cooling is written as a temperature and discarded by the
-    # projection, so there is no accepted lower energy sink to own.
-    assert "suppression_lower_energy_sink" not in ENGINE
+def test_no_lower_suppression_owner_in_the_default_configuration():
+    # S0d1 found the lower cooling is a dead temperature write under two-zone,
+    # so the default build owns nothing there. S0d2 later added an owner, but
+    # only behind an explicit experimental flag that is default OFF; the legacy
+    # path inside `_apply_suppression_to_room` must stay exactly as it was.
     assert "suppression_lower_energy_sink" not in THERMAL
     body = ENGINE.split("func _apply_suppression_to_room(", 1)[1].split("\nfunc ", 1)[0]
     assert "room.temp_lower_c = maxf(ambient_c, room.temp_lower_c - lower_drop_c)" in body
     assert body.count("_record_phase3_physical_owner_engine_event(") == 1
+    # The legacy body may delegate to the guarded experiment, but it must not
+    # emit a lower owner itself.
+    assert '"suppression_lower_energy_sink"' not in body
+    experiment = ENGINE.split("func _apply_suppression_lower_energy_sink(", 1)[1]
+    experiment = experiment.split("func _apply_suppression_to_room(", 1)[0]
+    assert "if not phase3_suppression_lower_energy_sink_enabled:" in experiment
+    assert (
+        "@export var phase3_suppression_lower_energy_sink_enabled: bool = false" in ENGINE
+    )
 
 
 def test_donor_less_seeds_are_declared_numerical_corrections():

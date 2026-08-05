@@ -104,6 +104,15 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Enable the passive H3.2-S0b thermal physical-owner events.",
     )
     parser.add_argument(
+        "--phase3-suppression-lower-energy-sink",
+        action="store_true",
+        help=(
+            "H3.2-S0d2 experiment: apply the suppression lower-zone cooling to "
+            "lower_energy_kj under two-zone instead of a temperature the "
+            "projection discards. Changes physics; never used by official cases."
+        ),
+    )
+    parser.add_argument(
         "--phase3-canonical-shadow",
         action="store_true",
         help="Enable the passive F3.0 canonical two-zone shadow transaction.",
@@ -392,6 +401,8 @@ def main(argv: list[str] | None = None) -> int:
         cmd.append("--phase3-runtime-ownership-ledger")
     if args.phase3_physical_owner_ledger:
         cmd.append("--phase3-physical-owner-ledger")
+    if args.phase3_suppression_lower_energy_sink:
+        cmd.append("--phase3-suppression-lower-energy-sink")
     if args.phase3_canonical_shadow:
         cmd.append("--phase3-canonical-shadow")
     if args.phase3_canonical_exterior_shadow:

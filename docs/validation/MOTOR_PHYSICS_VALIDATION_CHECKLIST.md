@@ -41,6 +41,7 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S0c gas owners | GO / STOP gate | Default-OFF gas mass/energy events with caller provenance and cross-step parcel identity. Species/O2 accepted-owner attribution remains absent; S0d remains blocked. |
 | H3.2-S0d source integration | NO-GO / BLOCKING | Mass and energy are incomplete too: suppression, the opening-radiation mass seed, the doorway-counterflow mass injection and HVAC emit no owner. A pure integrator also cannot detect an absent owner. No integrator was created. |
 | H3.2-S0d1 suppression and seeds | GO / STOP gate | Suppression upper sink owned as a signed local source; the two donor-less mass seeds declared numerical corrections. B1-lower left uninstrumented because the legacy write is dead under two-zone. |
+| H3.2-S0d2 suppression lower sink | GO experimental / NO-GO promotion | Default-OFF flag applies the lower cooling to `lower_energy_kj` under two-zone. OFF is byte-identical; no official case enables it. B1-lower stays open. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
 
@@ -152,6 +153,25 @@ H3.2-S0d1 suppression and donor-less mass gate (2026-08-04):
 - **GO for passive S0d1 only.** HVAC deferred, species/O2 pending, no
   integrator, H3.2-S blocked, H3.2b still blocks H3.3, no authority. Full
   record: `PHASE3_H32S0D1_SUPPRESSION_AND_DONORLESS_MASS.md`.
+
+H3.2-S0d2 experimental lower suppression sink gate (2026-08-05):
+
+- `phase3_suppression_lower_energy_sink_enabled` is explicit and default OFF.
+  OFF reproduces the S0d1 checkpoint byte for byte, including the CSV SHA-256 of
+  the comparable pairs, and no official case sets it.
+- ON plus two-zone applies the lower cooling to `lower_energy_kj` instead of a
+  temperature the projection discards. Requested, accepted, rejected and
+  available are reported separately; the availability cap binds and the
+  remainder is declared rejected, never applied.
+- `cfast_suppression_water` keeps `temp_lower_c` at ambient in all logged rows,
+  so the legacy request is zero there and OFF/ON stay identical. The measured
+  effect lives in `v8_suppression_reburn`: up to 9.77 °C lower `temp_lower_c`
+  during suppression, HRR/FED/O2 under 0.1 %, extinction timing unchanged.
+- **GO experimental only, NO-GO to promote.** Promotion would move a state
+  variable that expected values depend on and needs its own baseline review.
+  B1-lower stays open; the upstream question is whether the projection should
+  pin `temp_lower_c` at ambient at all. Full record:
+  `PHASE3_H32S0D2_SUPPRESSION_LOWER_ENERGY_SINK.md`.
 
 ## 1. HRR And Energy
 

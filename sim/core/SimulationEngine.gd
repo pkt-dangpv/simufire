@@ -996,6 +996,12 @@ var _step_time_us: int = 0
 @export var phase3_runtime_ownership_ledger_enabled: bool = false
 ## H3.2-S0b: eventos pasivos de propietarios termicos. Default OFF.
 @export var phase3_physical_owner_ledger_enabled: bool = false
+## H3.2-S0d2: correccion experimental del sumidero lower de supresion. Default
+## OFF. Con OFF la fisica es exactamente la heredada. Con ON y two-zone activo,
+## el enfriamiento inferior se aplica a `lower_energy_kj`, que es lo que
+## `project_room_state` lee, en vez de a una temperatura que la proyeccion
+## reconstruye y descarta. No se activa en ningun caso oficial.
+@export var phase3_suppression_lower_energy_sink_enabled: bool = false
 ## F3.0: transaccion two-zone shadow. Default OFF; nunca escribe estado legacy.
 @export var phase3_canonical_zone_shadow_enabled: bool = false
 ## F3.2a: frontera exterior pressure/leakage solo en shadow. Requiere F3.0.
@@ -3343,6 +3349,57 @@ func _step_suppression(dt: float) -> void:
 		_active_suppression_by_room.erase(room_id)
 
 
+func _apply_suppression_lower_energy_sink(
+		room: RoomModel,
+		water_l: float,
+		requested_lower_cooling_kj: float,
+		ambient_c: float
+	) -> void:
+	## H3.2-S0d2, experimental y default OFF.
+	##
+	## Legacy escribe el enfriamiento inferior como temperatura, pero
+	## `project_room_state` reconstruye `temp_lower_c` desde `lower_energy_kj`,
+	## asi que bajo two-zone la bajada nunca llega al estado. Con el flag ON el
+	## sumidero se aplica sobre la energia que la proyeccion realmente lee. La
+	## escritura de temperatura heredada se deja intacta: con la energia ya
+	## reducida, la proyeccion deriva la temperatura correcta.
+	##
+	## El regimen legacy no se toca: alli la escritura de temperatura si
+	## sobrevive y cambiarla exigiria su propia evidencia y aprobacion.
+	if not phase3_suppression_lower_energy_sink_enabled:
+		return
+	if room == null or zone_fire_solver == null or not two_zone_solver_enabled:
+		return
+	if requested_lower_cooling_kj <= 0.0:
+		return
+	zone_fire_solver.ensure_room_state(room, ambient_c)
+	var available_lower_energy_kj: float = maxf(0.0, room.lower_energy_kj)
+	var accepted_lower_cooling_kj: float = minf(
+		requested_lower_cooling_kj, available_lower_energy_kj
+	)
+	if accepted_lower_cooling_kj <= 0.0:
+		return
+	var lower_energy_before_kj: float = room.lower_energy_kj
+	zone_fire_solver.add_lower_energy(room, -accepted_lower_cooling_kj, ambient_c)
+	_record_phase3_physical_owner_engine_event(
+		"suppression_lower_energy_sink",
+		Phase3PhysicalOwnerLedgerScript.CLASS_LOCAL_SOURCE,
+		room, 0.0, 0.0, 0.0,
+		room.lower_energy_kj - lower_energy_before_kj,
+		{
+			"mechanism": "suppression_water_spray",
+			"water_l": water_l,
+			"requested_lower_cooling_kj": requested_lower_cooling_kj,
+			"accepted_lower_cooling_kj": accepted_lower_cooling_kj,
+			"rejected_lower_cooling_kj": maxf(
+				0.0, requested_lower_cooling_kj - accepted_lower_cooling_kj
+			),
+			"available_lower_energy_kj": available_lower_energy_kj,
+			"steam_storage_kg": room.steam_kg,
+		}
+	)
+
+
 func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> void:
 	if room == null or water_l <= 0.0:
 		return
@@ -3388,6 +3445,11 @@ func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> v
 	var lower_drop_c: float = minf(
 		maxf(0.0, room.temp_lower_c - ambient_c),
 		lower_cooling_kj / lower_mass_kg
+	)
+	# H3.2-S0d2: la peticion en kJ es la propia formula heredada, reexpresada
+	# como energia sobre la misma masa proxy. No se inventa ninguna magnitud.
+	_apply_suppression_lower_energy_sink(
+		room, water_l, lower_drop_c * lower_mass_kg, ambient_c
 	)
 	room.temp_lower_c = maxf(ambient_c, room.temp_lower_c - lower_drop_c)
 
