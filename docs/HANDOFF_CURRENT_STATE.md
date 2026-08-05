@@ -8,6 +8,26 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-04 - H3.2-S0d1 suppression and seeds
+
+- Closed three of the six S0d blockers with passive instrumentation only.
+  `suppression_upper_energy_sink` is a signed `local_source` measured at its own
+  mutation site; the opening-radiation target mass seed and the
+  doorway-counterflow minimum mass are declared `numerical_correction` with
+  `donor: none` and stay excluded from any source vector.
+- **B1-lower was not instrumented on purpose.** A probe of the exact call
+  sequence shows the suppression lower cooling is a dead write under the default
+  two-zone configuration: `temp_lower_c` drops, then `project_room_state`
+  rebuilds it from `lower_energy_kj`, which suppression never touches. Owning it
+  would fabricate an effect. The fix changes physics and is separate work.
+- Eight OFF/ON pairs are byte-identical with the same 115 legacy columns and no
+  ledger key when OFF. Eleven Godot fixtures pass, focused pytest is 67/67,
+  physics and ILV keep zero FAIL, gaps unchanged.
+- HVAC stays deferred, species/O2 stay pending, no integrator exists, H3.2-S
+  stays blocked, H3.2b still blocks H3.3 and no runtime authority was granted.
+  Binding record:
+  `docs/validation/PHASE3_H32S0D1_SUPPRESSION_AND_DONORLESS_MASS.md`.
+
 ## Current Session Update - 2026-08-04 - H3.2-S0d source integration audit
 
 - Asked whether S0b/S0c owner events can build an independent, conservative

@@ -55,6 +55,8 @@ var _phase3_runtime_ownership_start: Dictionary = {}
 var _phase3_runtime_ownership_checkpoint: Dictionary = {}
 var _phase3_runtime_ownership_step: Dictionary = {}
 var _phase3_runtime_ownership_thermal_events: Array[Dictionary] = []
+var _phase3_physical_owner_engine_events: Array[Dictionary] = []
+var _phase3_physical_owner_engine_sequence: int = 0
 var _phase3_runtime_ownership_parcel_events: Array[Dictionary] = []
 var _phase3_runtime_ownership_parcel_pre: Dictionary = {}
 var _phase3_runtime_ownership_parcel_post: Dictionary = {}
@@ -1506,6 +1508,45 @@ func _phase3_projection_diagnostics_active() -> bool:
 	return phase3_zone_diagnostics_enabled or phase3_runtime_ownership_ledger_enabled
 
 
+func _phase3_physical_owner_begin_step() -> void:
+	## H3.2-S0d1: acumulador step-local propio del motor. ThermalSystem y
+	## GasExchangeSystem reinician el suyo en sus propias entradas; supresion
+	## corre en el motor, asi que necesita su propio reinicio por tick.
+	_phase3_physical_owner_engine_events.clear()
+	_phase3_physical_owner_engine_sequence = 0
+
+
+func _record_phase3_physical_owner_engine_event(
+		owner: String,
+		classification: String,
+		room: RoomModel,
+		upper_mass_delta_kg: float,
+		lower_mass_delta_kg: float,
+		upper_energy_delta_kj: float,
+		lower_energy_delta_kj: float,
+		metadata: Dictionary = {}
+	) -> void:
+	if not phase3_physical_owner_ledger_enabled or room == null:
+		return
+	var event_id: String = "engine:%06d:%s:r%d" % [
+		_phase3_physical_owner_engine_sequence, owner, room.id,
+	]
+	_phase3_physical_owner_engine_sequence += 1
+	_phase3_physical_owner_engine_events.append(
+		Phase3PhysicalOwnerLedgerScript.make_event(
+			event_id, owner, classification, room.id,
+			-1, -1, "", "",
+			upper_mass_delta_kg, lower_mass_delta_kg,
+			upper_energy_delta_kj, lower_energy_delta_kj,
+			0.0, 0.0, metadata
+		)
+	)
+
+
+func get_phase3_physical_owner_engine_events() -> Array[Dictionary]:
+	return _phase3_physical_owner_engine_events.duplicate(true)
+
+
 func _phase3_physical_owner_events_combined() -> Array[Dictionary]:
 	## H3.2-S0c: la union es solo para exportacion. Cada subsistema conserva su
 	## propio acumulador y su propio namespace de IDs (`thermal:` / `gas:`), asi
@@ -1515,6 +1556,7 @@ func _phase3_physical_owner_events_combined() -> Array[Dictionary]:
 		events.append_array(thermal_system.get_phase3_physical_owner_events())
 	if gas_exchange_system != null:
 		events.append_array(gas_exchange_system.get_phase3_physical_owner_events())
+	events.append_array(_phase3_physical_owner_engine_events.duplicate(true))
 	return events
 
 
@@ -2631,6 +2673,7 @@ func _ready() -> void:
 	_sync_smoke_model_settings()
 	_sync_auxiliary_services()
 	gas_exchange_system.reset()
+	_phase3_physical_owner_begin_step()
 	phase3_zone_mass_system.reset()
 	oxygen_exchange_system.reset()
 	hvac_system.reset()
@@ -2719,6 +2762,7 @@ func reset_simulation(start_ignition_room_id: int = ignition_room_id, ignite_ini
 	_sync_smoke_model_settings()
 	_sync_auxiliary_services()
 	gas_exchange_system.reset()
+	_phase3_physical_owner_begin_step()
 	phase3_zone_mass_system.reset()
 	oxygen_exchange_system.reset()
 	hvac_system.reset()
@@ -2846,6 +2890,7 @@ func step(delta: float) -> void:
 	_ensure_carbon_balance_initialized()
 	_phase3_zone_diag_begin_step()
 	_phase3_runtime_ownership_begin_step()
+	_phase3_physical_owner_begin_step()
 	if phase3_canonical_zone_shadow_enabled:
 		phase3_zone_mass_system.begin_step(
 			building, phase3_canonical_persistence_shadow_enabled
@@ -3316,7 +3361,24 @@ func _apply_suppression_to_room(room: RoomModel, water_l: float, dt: float) -> v
 		room.upper_energy_kj,
 		cooling_kj * clampf(suppression_upper_heat_fraction, 0.0, 1.0)
 	)
+	var suppression_upper_energy_before_kj: float = room.upper_energy_kj
 	room.upper_energy_kj = maxf(0.0, room.upper_energy_kj - upper_loss_kj)
+	# H3.2-S0d1: sumidero local firmado. La energia sale de la fase gaseosa hacia
+	# el agua/vapor, cuyo inventario vive en `room.steam_kg`; no cruza ninguna
+	# frontera de sala, asi que es local_source negativo, igual que la absorcion
+	# de pared en S0b. El delta es el aceptado en este unico sitio de mutacion.
+	_record_phase3_physical_owner_engine_event(
+		"suppression_upper_energy_sink",
+		Phase3PhysicalOwnerLedgerScript.CLASS_LOCAL_SOURCE,
+		room, 0.0, 0.0,
+		room.upper_energy_kj - suppression_upper_energy_before_kj, 0.0,
+		{
+			"water_l": water_l,
+			"cooling_kj": cooling_kj,
+			"requested_upper_loss_kj": upper_loss_kj,
+			"steam_storage_kg": room.steam_kg,
+		}
+	)
 
 	var lower_mass_kg: float = maxf(
 		1.0,
@@ -4451,6 +4513,9 @@ func build_technical_summary(output_dir: String = "") -> Dictionary:
 			"summary": _phase3_physical_owner_summary_combined(),
 			"thermal_summary": thermal_system.get_phase3_physical_owner_summary(),
 			"gas_summary": gas_exchange_system.get_phase3_physical_owner_summary(),
+			"engine_summary": Phase3PhysicalOwnerLedgerScript.aggregate_events(
+				_phase3_physical_owner_engine_events
+			),
 		}
 	if _phase3_coupled_interior_bundle_active():
 		summary["phase3_coupled_interior_bundle_shadow"] = \

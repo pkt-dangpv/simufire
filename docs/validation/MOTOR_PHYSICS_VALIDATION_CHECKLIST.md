@@ -40,6 +40,7 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S0b thermal owners | GO / STOP gate | Default-OFF events at accepted thermal mutation sites; no duplicated projection/doorway/parcel ownership and no CSV or physics change. S0c/S0d remain blocking. |
 | H3.2-S0c gas owners | GO / STOP gate | Default-OFF gas mass/energy events with caller provenance and cross-step parcel identity. Species/O2 accepted-owner attribution remains absent; S0d remains blocked. |
 | H3.2-S0d source integration | NO-GO / BLOCKING | Mass and energy are incomplete too: suppression, the opening-radiation mass seed, the doorway-counterflow mass injection and HVAC emit no owner. A pure integrator also cannot detect an absent owner. No integrator was created. |
+| H3.2-S0d1 suppression and seeds | GO / STOP gate | Suppression upper sink owned as a signed local source; the two donor-less mass seeds declared numerical corrections. B1-lower left uninstrumented because the legacy write is dead under two-zone. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
 
@@ -135,6 +136,22 @@ H3.2-S0d source-integration gate (2026-08-04):
 - **NO-GO.** No motor file changed and no integrator was created. H3.2-S cannot
   close, H3.2b still blocks H3.3 and no authority is granted. Full record:
   `PHASE3_H32S0D_SOURCE_INTEGRATION_AUDIT.md`.
+
+H3.2-S0d1 suppression and donor-less mass gate (2026-08-04):
+
+- The suppression upper sink is an accepted `kJ` at one mutation site and is now
+  owned as a signed `local_source`, with `steam_kg` as the visible counterpart.
+- The opening-radiation target mass seed and the doorway-counterflow minimum
+  mass are numerical initialisation of an empty upper layer: no donor, no
+  exterior enthalpy, reconciled by the projection volume closure. Both are
+  declared `numerical_correction` and cannot reach a source vector.
+- B1-lower is a dead write under two-zone: a probe of the exact call sequence
+  shows `temp_lower_c` restored from `lower_energy_kj` by the projection. No
+  owner was fabricated; the correction is separate work.
+- Eight OFF/ON pairs byte-identical, zero invalid or duplicate events.
+- **GO for passive S0d1 only.** HVAC deferred, species/O2 pending, no
+  integrator, H3.2-S blocked, H3.2b still blocks H3.3, no authority. Full
+  record: `PHASE3_H32S0D1_SUPPRESSION_AND_DONORLESS_MASS.md`.
 
 ## 1. HRR And Energy
 

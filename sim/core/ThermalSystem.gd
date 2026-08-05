@@ -1628,7 +1628,23 @@ func _step_radiation_openings(building: BuildingModel, dt: float, ambient_c: flo
 		# Si el destino no tiene capa superior formada, crear masa mínima para absorber la energía
 		if tgt.upper_gas_kg <= 0.0001:
 			var tgt_density: float = gas_density_kg_m3(tgt.temp_lower_c)
+			var seed_upper_mass_before_kg: float = tgt.upper_gas_kg
 			tgt.upper_gas_kg = tgt.floor_area_m2() * 0.08 * tgt_density
+			# H3.2-S0d1: inicializacion numerica de una capa superior vacia. No
+			# tiene donante fisico ni entalpia exterior, asi que se declara como
+			# correccion numerica y queda estructuralmente excluida del vector de
+			# fuentes. La proyeccion posterior la reconcilia por cierre de volumen.
+			_record_phase3_physical_owner_event(
+				"thermal_opening_radiation_target_mass_seed",
+				Phase3PhysicalOwnerLedger.CLASS_NUMERICAL_CORRECTION,
+				tgt, tgt.upper_gas_kg - seed_upper_mass_before_kg, 0.0, 0.0, 0.0,
+				-1, -1, "", "", 0.0, 0.0,
+				{
+					"reason": "empty_upper_layer_initialisation",
+					"donor": "none",
+					"opening_index": op.opening_index,
+				}
+			)
 
 		var stairwell_target_cap_enabled: bool = phase3_stairwell_heat_bridge_enabled \
 				and (op.is_vertical or op.type == OpeningModel.Type.HOLE) \
@@ -3270,7 +3286,22 @@ func _apply_doorway_thermal_counterflow(
 
 	# Si la sala fría no tiene capa superior establecida, crear masa mínima para aceptar energía
 	if cold_room.upper_gas_kg < 0.01:
+		var counterflow_seed_before_kg: float = cold_room.upper_gas_kg
 		cold_room.upper_gas_kg += 0.005
+		# H3.2-S0d1: misma semantica que la semilla de radiacion por hueco. El
+		# contraflujo es energia pura; esta masa solo existe para que la capa
+		# pueda alojarla. Correccion numerica, nunca fuente fisica.
+		_record_phase3_physical_owner_event(
+			"thermal_counterflow_minimum_upper_mass",
+			Phase3PhysicalOwnerLedger.CLASS_NUMERICAL_CORRECTION,
+			cold_room, cold_room.upper_gas_kg - counterflow_seed_before_kg,
+			0.0, 0.0, 0.0, -1, -1, "", "", 0.0, 0.0,
+			{
+				"reason": "empty_upper_layer_initialisation",
+				"donor": "none",
+				"opening_index": op.opening_index,
+			}
+		)
 	cold_room.upper_energy_kj = maxf(0.0, cold_room.upper_energy_kj + energy_moved_kj)
 
 	sync_room_upper_layer(hot_room, dt, "doorway_counterflow_hot_sync")

@@ -31,14 +31,16 @@ def test_component_is_a_pure_refcounted_library():
 
 
 def test_component_has_only_the_authorized_production_call_sites():
-    # S0b authorised ThermalSystem. S0c adds GasExchangeSystem plus the
-    # export-only combination in SimulationEngine. Nothing else may reference
-    # the ledger until S0d opens integration.
+    # S0b authorised ThermalSystem. S0c added GasExchangeSystem plus the
+    # export-only combination in SimulationEngine. S0d1 added the suppression
+    # owner, still inside SimulationEngine. Nothing else may reference the
+    # ledger until the integration gate opens.
     authorised = {
         "sim/core/GasExchangeSystem.gd",
         "sim/core/SimulationEngine.gd",
         "sim/core/ThermalSystem.gd",
         "tests/fixtures/phase3_h32s0c_gas_physical_owners.gd",
+        "tests/fixtures/phase3_h32s0d1_suppression_and_seeds.gd",
     }
     references = set()
     for path in ROOT.rglob("*.gd"):

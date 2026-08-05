@@ -3,6 +3,23 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0d1 suppression and donor-less mass owners (2026-08-04)
+
+- `suppression_upper_energy_sink` is now an accepted, signed `local_source`
+  measured at its own mutation site, with the steam inventory as metadata.
+- The two donor-less upper-mass seeds — the opening-radiation target seed and
+  the doorway-counterflow minimum mass — are declared `numerical_correction`
+  with `donor: none`, so they stay structurally excluded from any source vector.
+- **B1-lower was deliberately not instrumented.** Under the default two-zone
+  configuration the suppression lower cooling is written as a temperature and
+  `project_room_state` rebuilds `temp_lower_c` from `lower_energy_kj`, so the
+  drop never reaches the state. Owning it would fabricate an effect; the fix is
+  filed separately because it changes physics.
+- Eight OFF/ON pairs are byte-identical with the same 115 legacy columns. HVAC
+  stays deferred, species/O2 stay pending, no integrator exists, H3.2-S stays
+  blocked and no runtime authority is granted. Full record:
+  `docs/validation/PHASE3_H32S0D1_SUPPRESSION_AND_DONORLESS_MASS.md`.
+
 ### Phase 3 H3.2-S0d source integration audit (2026-08-04)
 
 - Audited whether S0b/S0c owner events can build an independent, conservative
