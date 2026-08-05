@@ -3,6 +3,34 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0d5b experimental CO2 zonal transport consistency (2026-08-05)
+
+- Added `phase3_co2_zonal_transport_consistency_enabled`, explicit and default
+  OFF, enabled by no official case. OFF is byte-identical to the checkpoint,
+  verified by stashing the change and comparing CSV SHA-256.
+- **Causal writer confirmed directly by trace, not inferred from the residual.**
+  The CO2 invariant is observed after every writer of CO2 room state across 12
+  cases and 177 163 observations per writer: `accumulator_application` creates
+  6 242 of 6 461 first crossings and drops to **zero** with the flag on.
+  `inherited_pre_room_loop` records zero, which clears combustion, CO oxidation
+  and the thermal CO2 paths; parcels, purges, venting and PPV create none; the
+  final clamp only resolves.
+- The single-room control is decisive on its own: with no inter-room transport,
+  `accumulator_application` still creates 509 violations OFF and 0 ON.
+- Root cause: three paths declare a lower-to-lower CO2 movement but size the
+  amount from the **bulk** stock. The fix caps the transfer at the source's real
+  lower stock, reusing the expression `_move_lower_zone_species` already uses.
+- **5 098 of 5 098 material CO2 violations eliminated (100 %)** with a
+  CO2-specific threshold of 1e-8 kg, derived from its own bounds rather than
+  copied from CO. The 1 644 strict residual are sub-threshold floating-point
+  noise after ACH. Strict and material counters are both retained.
+- Global CO2 balance closes to ≤ 2.6e-13 kg; CO2 generation, CO and HCN are
+  bit-identical; D2PRE has zero FAIL and its warnings fall in three cases.
+- **FED is not invariant**: its peak moves +0.10 % in `postfire_decay` only.
+  `co2_ppm` moves up to +1.1 %.
+- **GO experimental, NO-GO to promote.** Full record:
+  `docs/validation/PHASE3_H32S0D5B_CO2_ZONAL_TRANSPORT.md`.
+
 ### Phase 3 H3.2-S0d5a2 residual CO zonal violation diagnosis (2026-08-05)
 
 - Added `phase3_co_first_violation_trace_enabled`, default OFF, a causal trace

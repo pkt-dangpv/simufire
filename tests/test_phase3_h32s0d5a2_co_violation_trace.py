@@ -83,7 +83,13 @@ def test_material_threshold_never_hides_the_strict_population():
     assert "zonal_guard_upper_over_bulk_count" in body
     assert "zonal_guard_material_over_bulk_count" in body
     assert "zonal_guard_zero_headroom_count" in body
-    assert "ZONAL_GUARD_MATERIAL_EPS_KG" in body
+    # S0d5b replaced the hardcoded constant with a per-species lookup so no
+    # species can inherit another's threshold. Both counters still coexist.
+    assert "_material_eps_for(species)" in body
+    eps = GAS.split("func _material_eps_for(", 1)[1].split("\nfunc ", 1)[0]
+    assert "ZONAL_GUARD_MATERIAL_EPS_KG" in eps
+    assert "ZONAL_GUARD_MATERIAL_EPS_CO2_KG" in eps
+    assert "return 0.0" in eps
     # The material counter is nested inside the strict one, never replacing it.
     strict_at = body.index("entry[\"zonal_guard_upper_over_bulk_count\"] = \\")
     material_at = body.index("entry[\"zonal_guard_material_over_bulk_count\"] = \\")
@@ -99,7 +105,9 @@ def test_sample_list_is_bounded():
 
 def test_export_is_a_deep_copy_and_reset_clears_it():
     body = GAS.split("func get_phase3_co_violation_trace(", 1)[1].split("\nfunc ", 1)[0]
-    assert body.count("duplicate(true)") == 2
+    # S0d5b added the per-species view; every exported container stays a deep copy.
+    assert body.count("duplicate(true)") == 3
+    assert '"by_writer"' in body and '"by_species"' in body
     reset = GAS.split("func reset(", 1)[1].split("func begin_phase3_shadow_step(", 1)[0]
     for field in (
         "_phase3_co_trace_by_writer.clear()",

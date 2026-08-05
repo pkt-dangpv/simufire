@@ -1005,6 +1005,9 @@ var _step_time_us: int = 0
 ## H3.2-S0d5a2: traza causal del primer cruce valido->invalido de CO. Default
 ## OFF; solo diagnostico, sin cambio de fisica ni de CSV legacy.
 @export var phase3_co_first_violation_trace_enabled: bool = false
+## H3.2-S0d5b: coherencia zonal del transporte de CO2. Experimental, default OFF.
+## Con OFF la fisica es exactamente la heredada. Ningun caso oficial lo activa.
+@export var phase3_co2_zonal_transport_consistency_enabled: bool = false
 ## H3.2-S0d2: correccion experimental del sumidero lower de supresion. Default
 ## OFF. Con OFF la fisica es exactamente la heredada. Con ON y two-zone activo,
 ## el enfriamiento inferior se aplica a `lower_energy_kj`, que es lo que
@@ -1256,6 +1259,8 @@ func _sync_auxiliary_services() -> void:
 				phase3_co_zonal_transport_consistency_enabled,
 		"phase3_co_first_violation_trace_enabled": \
 				phase3_co_first_violation_trace_enabled,
+		"phase3_co2_zonal_transport_consistency_enabled": \
+				phase3_co2_zonal_transport_consistency_enabled,
 		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
 		"window_leakage_area_m2": window_leakage_area_m2,
 		"pressure_vent_threshold_pa": pressure_vent_threshold_pa,
@@ -4602,6 +4607,9 @@ func build_technical_summary(output_dir: String = "") -> Dictionary:
 	if phase3_co_first_violation_trace_enabled:
 		summary["phase3_co_violation_trace"] = \
 				gas_exchange_system.get_phase3_co_violation_trace()
+	if phase3_species_attribution_diagnostics_enabled:
+		summary["phase3_co2_mass_balance"] = \
+				gas_exchange_system.get_phase3_co2_mass_balance(building)
 	if _phase3_coupled_interior_bundle_active():
 		summary["phase3_coupled_interior_bundle_shadow"] = \
 				phase3_zone_mass_system.get_coupled_interior_bundle_summary()

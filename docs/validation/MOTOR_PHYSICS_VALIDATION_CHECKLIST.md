@@ -46,6 +46,7 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S0d4 zonal species consistency | NO-GO attribution / GO guard | The unowned `upper <= bulk` clamp rewrites the zonal split in 5.4-7.5 % of applications, so per-owner zonal attribution of CO/CO2/HCN is not reconstructible. Only the passive guard shipped. |
 | H3.2-S0d5a CO zonal transport | GO experimental / NO-GO promotion | Default-OFF symmetric CO bulk/upper debit removes 81.9 % of the `upper > bulk` violations. The residual 18.1 % has no provenance, so S0d5a2 is mandatory before S0d5b. |
 | H3.2-S0d5a2 residual CO diagnosis | ROOT CAUSE CONFIRMED | The residual was a strict zero-tolerance guard artefact in the zero-headroom state, not a writer. S0d5a removes 100 % of material CO violations; CO2 keeps 4 230, HCN 122. |
+| H3.2-S0d5b CO2 zonal transport | GO experimental / NO-GO promotion | Causal writer confirmed by direct trace at `accumulator_application`; 5 098/5 098 material CO2 violations removed with a CO2-derived 1e-8 kg threshold. FED moves +0.10 % in the post-fire case. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
 
@@ -250,6 +251,27 @@ H3.2-S0d5a2 residual CO diagnosis gate (2026-08-05):
 - This corrects the interpretation of the S0d4 and S0d5a records. CO2 keeps
   4 230 material violations and HCN 122. Full record:
   `PHASE3_H32S0D5A2_CO_VIOLATION_TRACE.md`.
+
+H3.2-S0d5b CO2 zonal transport gate (2026-08-05):
+
+- `phase3_co2_zonal_transport_consistency_enabled` is explicit and default OFF,
+  enabled by no official case; OFF is byte-identical to the checkpoint.
+- **The causal writer is confirmed by direct trace, not by the residual
+  disappearing.** Over 12 cases and 177 163 observations per writer,
+  `accumulator_application` creates 6 242 of 6 461 first crossings and drops to
+  zero with the flag on. `inherited_pre_room_loop` records zero, clearing
+  combustion, CO oxidation and the thermal CO2 paths. Parcels, purges, pressure
+  venting and PPV create none; the final clamp only resolves.
+- The single-room control confirms the cause in isolation: 509 creations OFF and
+  0 ON with no inter-room transport at all.
+- 5 098 of 5 098 material violations removed, using a CO2-specific threshold of
+  1e-8 kg derived from its own bounds. 1 644 strict residual remain as
+  sub-threshold noise. Both counters are kept.
+- Conservation closes to 2.6e-13 kg; CO2 generation, CO and HCN are
+  bit-identical; D2PRE keeps zero FAIL and drops warnings in three cases.
+- **FED is not invariant**: +0.10 % in `postfire_decay`. `co2_ppm` up to +1.1 %.
+- **GO experimental only, NO-GO to promote.** Full record:
+  `PHASE3_H32S0D5B_CO2_ZONAL_TRANSPORT.md`.
 
 ## 1. HRR And Energy
 

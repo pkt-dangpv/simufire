@@ -104,6 +104,15 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Enable the passive H3.2-S0b thermal physical-owner events.",
     )
     parser.add_argument(
+        "--phase3-co2-zonal-transport-consistency",
+        action="store_true",
+        help=(
+            "H3.2-S0d5b experiment: cap the declared lower-to-lower CO2 "
+            "transfers at the source's real lower stock. Changes physics; "
+            "never used by official cases."
+        ),
+    )
+    parser.add_argument(
         "--phase3-co-first-violation-trace",
         action="store_true",
         help=(
@@ -434,6 +443,8 @@ def main(argv: list[str] | None = None) -> int:
         cmd.append("--phase3-co-zonal-transport-consistency")
     if args.phase3_co_first_violation_trace:
         cmd.append("--phase3-co-first-violation-trace")
+    if args.phase3_co2_zonal_transport_consistency:
+        cmd.append("--phase3-co2-zonal-transport-consistency")
     if args.phase3_canonical_shadow:
         cmd.append("--phase3-canonical-shadow")
     if args.phase3_canonical_exterior_shadow:

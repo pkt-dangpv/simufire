@@ -86,6 +86,8 @@ func _run() -> void:
 		engine.phase3_co_zonal_transport_consistency_enabled = true
 	if bool(_cli_args.get("phase3_co_first_violation_trace", false)):
 		engine.phase3_co_first_violation_trace_enabled = true
+	if bool(_cli_args.get("phase3_co2_zonal_transport_consistency", false)):
+		engine.phase3_co2_zonal_transport_consistency_enabled = true
 	if bool(_cli_args.get("phase3_canonical_shadow", false)):
 		engine.phase3_canonical_zone_shadow_enabled = true
 	if bool(_cli_args.get("phase3_canonical_exterior_shadow", false)):
@@ -436,6 +438,8 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["phase3_co_zonal_transport_consistency"] = true
 		elif arg == "--phase3-co-first-violation-trace":
 			parsed["phase3_co_first_violation_trace"] = true
+		elif arg == "--phase3-co2-zonal-transport-consistency":
+			parsed["phase3_co2_zonal_transport_consistency"] = true
 		elif arg == "--phase3-canonical-shadow":
 			parsed["phase3_canonical_shadow"] = true
 		elif arg == "--phase3-canonical-exterior-shadow":

@@ -109,6 +109,13 @@ var phase3_co_zonal_transport_consistency_enabled: bool = false
 # co_kg`, observada alrededor de cada escritor de estado de CO. Default false =
 # no-op absoluto. Solo diagnostico: nunca repara ni atribuye por diferencia.
 var phase3_co_first_violation_trace_enabled: bool = false
+# H3.2-S0d5b: coherencia zonal del transporte de CO2. Experimental, default OFF.
+# Tres paths declaran movimiento lower->lower (mutan solo bulk y registran cero
+# upper) pero dimensionan la cantidad desde el stock BULK, asi que pueden
+# exportar mas CO2 del que la zona inferior contiene y dejan el lower derivado
+# en negativo. Con ON la cantidad se acota al stock lower real de la fuente,
+# usando la misma expresion que `_move_lower_zone_species` ya emplea.
+var phase3_co2_zonal_transport_consistency_enabled: bool = false
 # Phase 3: modelo de presión termodinámica — ODE campo paralelo.
 # Cuando false (default): no-op, no toca room.pressure_pa_therm ni room.overpressure_pa.
 # Cuando true: integra dP/dt = (gamma-1)/V * Q_conv - Cd*A_eff/V * P_atm * sqrt(2P/rho)
@@ -144,6 +151,8 @@ var _phase3_co_trace_by_writer: Dictionary = {}
 var _phase3_co_room_invalid: Dictionary = {}
 var _phase3_co_first_events: Array[Dictionary] = []
 var _phase3_co_trace_step: int = 0
+var _phase3_co2_exterior_removed_kg: float = 0.0
+var _phase3_co2_parcel_refunded_kg: float = 0.0
 # Los parcels cruzan timestep: su identidad no puede reiniciarse por paso.
 var _phase3_physical_owner_parcel_sequence: int = 0
 
@@ -259,6 +268,12 @@ func configure(settings: Dictionary) -> void:
 		settings.get(
 			"phase3_co_first_violation_trace_enabled",
 			phase3_co_first_violation_trace_enabled
+		)
+	)
+	phase3_co2_zonal_transport_consistency_enabled = bool(
+		settings.get(
+			"phase3_co2_zonal_transport_consistency_enabled",
+			phase3_co2_zonal_transport_consistency_enabled
 		)
 	)
 	phase3_thermodynamic_pressure_enabled = bool(
@@ -407,6 +422,8 @@ func reset() -> void:
 	_phase3_co_room_invalid.clear()
 	_phase3_co_first_events.clear()
 	_phase3_co_trace_step = 0
+	_phase3_co2_exterior_removed_kg = 0.0
+	_phase3_co2_parcel_refunded_kg = 0.0
 
 
 func begin_phase3_shadow_step() -> void:
@@ -438,7 +455,48 @@ const SPECIES_ZONE_IDENTITY: Dictionary = {
 
 
 func get_phase3_species_attribution_summary() -> Dictionary:
-	return _phase3_species_attribution.duplicate(true)
+	var summary: Dictionary = _phase3_species_attribution.duplicate(true)
+	if summary.is_empty():
+		# Sin observaciones el export queda vacio: con el flag OFF no aparece
+		# ninguna clave, ni siquiera la declaracion de umbrales.
+		return summary
+	summary["material_eps_kg"] = {
+		"co": ZONAL_GUARD_MATERIAL_EPS_KG,
+		"co2": ZONAL_GUARD_MATERIAL_EPS_CO2_KG,
+	}
+	return summary
+
+
+func get_phase3_co2_mass_balance(building: BuildingModel) -> Dictionary:
+	## H3.2-S0d5b: balance global de CO2 en masa. Puramente diagnostico; no
+	## participa en ninguna decision y no altera estado.
+	var rooms_kg: float = 0.0
+	var rooms_upper_kg: float = 0.0
+	if building != null:
+		for room_id in building.get_rooms().keys():
+			var room: RoomModel = building.get_room(room_id)
+			if room == null:
+				continue
+			rooms_kg += maxf(0.0, room.co2_kg)
+			rooms_upper_kg += maxf(0.0, room.co2_upper_kg)
+	var inflight_kg: float = 0.0
+	for raw_entry in _pending_interior_deliveries:
+		inflight_kg += maxf(0.0, float(raw_entry.get("co2_kg", 0.0)))
+	return {
+		"rooms_co2_kg": rooms_kg,
+		"rooms_co2_upper_kg": rooms_upper_kg,
+		"rooms_co2_lower_kg": rooms_kg - rooms_upper_kg,
+		"inflight_co2_kg": inflight_kg,
+		"exterior_removed_co2_kg": _phase3_co2_exterior_removed_kg,
+		"parcel_refunded_co2_kg": _phase3_co2_parcel_refunded_kg,
+		"pending_parcel_count": _pending_interior_deliveries.size(),
+	}
+
+
+func _record_co2_exterior_removal(amount_kg: float) -> void:
+	if not phase3_species_attribution_diagnostics_enabled:
+		return
+	_phase3_co2_exterior_removed_kg += maxf(0.0, amount_kg)
 
 
 func _species_attribution_entry(species: String) -> Dictionary:
@@ -494,10 +552,25 @@ const CO_TRACE_MAX_SAMPLES: int = 64
 ## y no participa en ninguna decision fisica.
 const ZONAL_GUARD_MATERIAL_EPS_KG: float = 1.0e-9
 
+## H3.2-S0d5b: umbral material propio de CO2, derivado, no heredado del de CO.
+## Cota inferior: el ruido de coma flotante observado en CO2 llega a 1.11e-10 kg,
+## asi que el umbral debe superarlo con margen (>= 1.1e-9 kg).
+## Cota superior: una unidad de precision de salida es 1 ppm, que a 44 g/mol en
+## una sala de 50 m3 son 9.10e-5 kg, asi que debe quedar muy por debajo
+## (<= 9.1e-7 kg). La media geometrica de ambas cotas es ~3.2e-8 kg; se toma
+## 1.0e-8 kg, 90x sobre el ruido y 9100x bajo una unidad de salida.
+## Solo separa poblaciones en el reporte: no gobierna fisica ni aceptacion.
+const ZONAL_GUARD_MATERIAL_EPS_CO2_KG: float = 1.0e-8
+
 
 func get_phase3_co_violation_trace() -> Dictionary:
+	## `by_writer` conserva la vista de CO tal como la fijo S0d5a2. `by_species`
+	## expone la misma estructura para cada especie trazada.
 	return {
-		"by_writer": _phase3_co_trace_by_writer.duplicate(true),
+		"by_writer": Dictionary(
+			_phase3_co_trace_by_writer.get("co", {})
+		).duplicate(true),
+		"by_species": _phase3_co_trace_by_writer.duplicate(true),
 		"first_events": _phase3_co_first_events.duplicate(true),
 		"sample_cap": CO_TRACE_MAX_SAMPLES,
 	}
@@ -507,13 +580,21 @@ func begin_phase3_co_trace_step() -> void:
 	_phase3_co_trace_step += 1
 
 
-func _co_trace(writer: String, room: RoomModel, context: Dictionary = {}) -> void:
-	## Observa el invariante `co_upper <= co_kg` inmediatamente despues de un
-	## escritor concreto de estado de CO. Distingue creacion nueva, herencia y
-	## resolucion; nunca repara ni reparte.
+func _co_trace(
+		writer: String,
+		room: RoomModel,
+		context: Dictionary = {},
+		species: String = "co"
+	) -> void:
+	## Observa el invariante `upper <= bulk` inmediatamente despues de un
+	## escritor concreto de estado de la especie. Distingue creacion nueva,
+	## herencia y resolucion; nunca repara ni reparte.
 	if not phase3_co_first_violation_trace_enabled or room == null:
 		return
-	var entry: Dictionary = _phase3_co_trace_by_writer.get(writer, {
+	var bulk_kg: float = room.co2_kg if species == "co2" else room.co_kg
+	var upper_kg: float = room.co2_upper_kg if species == "co2" else room.co_upper_kg
+	var species_writers: Dictionary = _phase3_co_trace_by_writer.get(species, {})
+	var entry: Dictionary = species_writers.get(writer, {
 		"observations": 0,
 		"new_violations": 0,
 		"inherited": 0,
@@ -521,8 +602,9 @@ func _co_trace(writer: String, room: RoomModel, context: Dictionary = {}) -> voi
 		"max_excess_kg": 0.0,
 	})
 	entry["observations"] = int(entry["observations"]) + 1
-	var was_invalid: bool = bool(_phase3_co_room_invalid.get(room.id, false))
-	var excess_kg: float = room.co_upper_kg - room.co_kg
+	var room_key: String = "%s:%d" % [species, room.id]
+	var was_invalid: bool = bool(_phase3_co_room_invalid.get(room_key, false))
+	var excess_kg: float = upper_kg - bulk_kg
 	var is_invalid: bool = excess_kg > 0.0
 	if is_invalid:
 		entry["max_excess_kg"] = maxf(float(entry["max_excess_kg"]), excess_kg)
@@ -533,16 +615,50 @@ func _co_trace(writer: String, room: RoomModel, context: Dictionary = {}) -> voi
 			if _phase3_co_first_events.size() < CO_TRACE_MAX_SAMPLES:
 				var sample: Dictionary = context.duplicate(true)
 				sample["step"] = _phase3_co_trace_step
+				sample["species"] = species
 				sample["writer"] = writer
 				sample["room_id"] = room.id
-				sample["post_co_kg"] = room.co_kg
-				sample["post_co_upper_kg"] = room.co_upper_kg
+				sample["post_co_kg"] = bulk_kg
+				sample["post_co_upper_kg"] = upper_kg
 				sample["excess_kg"] = excess_kg
 				_phase3_co_first_events.append(sample)
 	elif was_invalid:
 		entry["resolved"] = int(entry["resolved"]) + 1
-	_phase3_co_trace_by_writer[writer] = entry
-	_phase3_co_room_invalid[room.id] = is_invalid
+	species_writers[writer] = entry
+	_phase3_co_trace_by_writer[species] = species_writers
+	_phase3_co_room_invalid[room_key] = is_invalid
+
+
+func _co2_lower_stock_kg(room: RoomModel) -> float:
+	## H3.2-S0d5b: inventario real de la zona inferior. Misma expresion que
+	## `_move_lower_zone_species` ya usa para un movimiento lower declarado.
+	if room == null:
+		return 0.0
+	return maxf(0.0, room.co2_kg - clampf(room.co2_upper_kg, 0.0, room.co2_kg))
+
+
+func _cap_co2_lower_transfer(
+		net_a_to_b_kg: float, room_a: RoomModel, room_b: RoomModel
+	) -> float:
+	## Acota un intercambio lower->lower firmado al stock lower de la sala que
+	## realmente exporta. No reparte, no usa fraccion geometrica y no consulta
+	## post-state: solo impide exportar masa que esa zona no tiene.
+	if net_a_to_b_kg > 0.0:
+		return minf(net_a_to_b_kg, _co2_lower_stock_kg(room_a))
+	if net_a_to_b_kg < 0.0:
+		return -minf(-net_a_to_b_kg, _co2_lower_stock_kg(room_b))
+	return net_a_to_b_kg
+
+
+func _material_eps_for(species: String) -> float:
+	## Cada especie necesita su propia derivacion. Sin una derivada, el umbral
+	## es cero y el contador material coincide con el estricto: nunca se hereda
+	## el de otra especie por comodidad.
+	if species == "co":
+		return ZONAL_GUARD_MATERIAL_EPS_KG
+	if species == "co2":
+		return ZONAL_GUARD_MATERIAL_EPS_CO2_KG
+	return 0.0
 
 
 func _record_zonal_guard(species: String, bulk_kg: float, upper_kg: float) -> void:
@@ -569,7 +685,7 @@ func _record_zonal_guard(species: String, bulk_kg: float, upper_kg: float) -> vo
 		# H3.2-S0d5a2: segunda cota sobre la misma observacion. Separa una
 		# violacion material del ruido de coma flotante que aparece cuando el
 		# hueco `bulk - upper` ya es exactamente cero.
-		if upper_kg - bulk_kg > ZONAL_GUARD_MATERIAL_EPS_KG:
+		if upper_kg - bulk_kg > _material_eps_for(species):
 			entry["zonal_guard_material_over_bulk_count"] = \
 					int(entry["zonal_guard_material_over_bulk_count"]) + 1
 		entry["zonal_guard_max_excess_kg"] = maxf(
@@ -1210,6 +1326,14 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 		_record_smoke_vented(room, smoke_out_kg)
 		result["smoke_vented_kg"] = float(result.get("smoke_vented_kg", 0.0)) + smoke_out_kg
 
+		# H3.2-S0d5b: CO2 que este bloque retirara al exterior, medido antes de
+		# la mutacion. Solo diagnostico para el balance global.
+		var pressure_vent_co2_removed_kg: float = room.co2_kg * air_frac_out
+		if two_zone_opening_flow_enabled:
+			pressure_vent_co2_removed_kg = minf(
+				clampf(room.co2_upper_kg, 0.0, room.co2_kg),
+				room.co2_upper_kg * clampf(air_frac_out, 0.0, 0.30)
+			)
 		_call_room_fraction_owned(
 			remove_upper_layer_fraction_callable, room, frac_out,
 			"gas_pressure_vent_upper_removal",
@@ -1247,6 +1371,8 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 			room.acrolein_kg = maxf(0.0, room.acrolein_kg * (1.0 - air_frac_out))
 			room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg * (1.0 - air_frac_out))
 		_co_trace("pressure_vent_species", room)
+		_record_co2_exterior_removal(pressure_vent_co2_removed_kg)
+		_co_trace("pressure_vent_species", room, {}, "co2")
 		_call_room_dt(sync_room_upper_layer_callable, room, dt)
 
 		room.overpressure_pa = maxf(0.0, room.overpressure_pa * (1.0 - frac_out * 0.9))
@@ -1981,6 +2107,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		# H3.2-S0d5a2: estado heredado al entrar en el bucle de sala. Una
 		# violacion vista aqui no la creo GasExchangeSystem en este paso.
 		_co_trace("inherited_pre_room_loop", room)
+		_co_trace("inherited_pre_room_loop", room, {}, "co2")
 		# H3.2-S0d3: instantanea previa al unico sitio donde se aplica el clamp
 		# agregado. Solo lectura; el orden y las formulas quedan intactos.
 		_record_species_attribution(
@@ -2010,6 +2137,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		room.co_net_transport_kg_step = float(co_delta_kg[int(room_id)])
 		var _co_pre_transport: float = room.co_kg
 		var _co_upper_pre_transport: float = room.co_upper_kg
+		var _co2_pre_transport: float = room.co2_kg
+		var _co2_upper_pre_transport: float = room.co2_upper_kg
 		room.co_kg = maxf(0.0, room.co_kg + float(co_delta_kg[int(room_id)]))
 		# Acumular el delta REAL (post-clamp) para que D1 no falle cuando la ventilación
 		# intenta extraer más CO del disponible (maxf clamp en co_delta_kg).
@@ -2034,6 +2163,15 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			"pre_co_kg": _co_pre_transport,
 			"pre_co_upper_kg": _co_upper_pre_transport,
 		})
+		_co_trace("accumulator_application", room, {
+			"co_bulk_delta_kg": float(co2_delta_kg[int(room_id)]),
+			"co_upper_delta_kg": float(co2_upper_delta_kg[int(room_id)]),
+			"delta_gap_kg": float(co2_upper_delta_kg[int(room_id)])
+					- float(co2_delta_kg[int(room_id)]),
+			"headroom_pre_kg": _co2_pre_transport - _co2_upper_pre_transport,
+			"pre_co_kg": _co2_pre_transport,
+			"pre_co_upper_kg": _co2_upper_pre_transport,
+		}, "co2")
 
 		var ach_rate: float = ach_infiltration / 3600.0
 		var co_removed: float = minf(room.co_kg, room.co_kg * ach_rate * dt)
@@ -2063,6 +2201,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		_co_trace("ach_infiltration", room)
 		room.co2_kg = maxf(0.0, room.co2_kg - co2_removed)
 		room.co2_upper_kg = maxf(0.0, room.co2_upper_kg * (1.0 - clampf(co2_remove_fraction, 0.0, 1.0)))
+		_record_co2_exterior_removal(co2_removed)
+		_co_trace("ach_infiltration", room, {}, "co2")
 		room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_removed)
 		room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg * (1.0 - clampf(hcn_remove_fraction, 0.0, 1.0)))
 		var hcl_removed: float = room.hcl_kg * ach_rate * dt
@@ -2133,6 +2273,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			_co_trace("outside_open_species_purge", room)
 			room.co2_kg = maxf(0.0, room.co2_kg - co2_removed_kg)
 			room.co2_upper_kg = maxf(0.0, room.co2_upper_kg - co2_upper_removed_kg)
+			_record_co2_exterior_removal(co2_removed_kg)
+			_co_trace("outside_open_species_purge", room, {}, "co2")
 			room.hcn_kg = maxf(0.0, room.hcn_kg - hcn_removed_kg)
 			room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg - hcn_upper_removed_kg)
 			var hcl_removed_kg: float = room.hcl_kg \
@@ -2195,6 +2337,8 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			_co_trace("postfire_species_purge", room)
 			room.co2_kg = maxf(0.0, room.co2_kg - purged_co2_kg)
 			room.co2_upper_kg = maxf(0.0, room.co2_upper_kg * (1.0 - purge_fraction))
+			_record_co2_exterior_removal(purged_co2_kg)
+			_co_trace("postfire_species_purge", room, {}, "co2")
 			room.hcn_kg = maxf(0.0, room.hcn_kg - purged_hcn_kg)
 			room.hcn_upper_kg = maxf(0.0, room.hcn_upper_kg * (1.0 - purge_fraction))
 			# SF-CBAL: carbono que sale por purga post-incendio (CO/CO₂/HCN → exterior).
@@ -2219,6 +2363,7 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		room.co2_upper_kg = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
 		room.hcn_upper_kg = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)
 		_co_trace("final_upper_clamp", room)
+		_co_trace("final_upper_clamp", room, {}, "co2")
 
 	for room_id in building.get_rooms().keys():
 		var room: RoomModel = building.get_room(room_id)
@@ -2371,6 +2516,10 @@ func _release_pending_interior_deliveries(
 						co2_src_room.co2_upper_kg + co2_upper_parcel_kg * (1.0 - co2_cut),
 						co2_src_room.co2_kg
 					)
+					_phase3_co2_parcel_refunded_kg += co2_refund_kg
+					_co_trace("parcel_refund", co2_src_room, {
+						"refund_kg": co2_refund_kg,
+					}, "co2")
 					co2_parcel_kg = co2_headroom_kg
 					co2_upper_parcel_kg *= co2_cut
 		target.co2_kg = maxf(0.0, target.co2_kg + co2_parcel_kg)
@@ -2451,10 +2600,14 @@ func _release_pending_interior_deliveries(
 		_co_trace("parcel_delivery", target, {"parcel_id": String(
 			entry.get("phase3_physical_owner_parcel_id", "")
 		)})
+		_co_trace("parcel_delivery", target, {"parcel_id": String(
+			entry.get("phase3_physical_owner_parcel_id", "")
+		)}, "co2")
 		target.co_upper_kg = clampf(target.co_upper_kg, 0.0, target.co_kg)
 		target.co2_upper_kg = clampf(target.co2_upper_kg, 0.0, target.co2_kg)
 		target.hcn_upper_kg = clampf(target.hcn_upper_kg, 0.0, target.hcn_kg)
 		_co_trace("parcel_delivery_clamp", target)
+		_co_trace("parcel_delivery_clamp", target, {}, "co2")
 		var delivered_shadow_species_kg: Dictionary = {
 			"smoke": maxf(0.0, delivered_smoke_kg),
 			"co": maxf(0.0, co_parcel_kg),
@@ -2715,6 +2868,11 @@ func _apply_background_species_exchange(
 		room_a.co2_kg / mass_a_kg - room_b.co2_kg / mass_b_kg
 	) * exchange_air_kg
 	# Legacy only mutates bulk CO2 here; the exact zonal interpretation is lower-to-lower.
+	# H3.2-S0d5b: siendo lower->lower, la cantidad no puede exceder el stock
+	# lower de la fuente. Legacy la dimensiona desde bulk y por eso deja el
+	# lower derivado en negativo cuando casi todo el CO2 vive en la capa alta.
+	if phase3_co2_zonal_transport_consistency_enabled:
+		net_co2_a_to_b = _cap_co2_lower_transfer(net_co2_a_to_b, room_a, room_b)
 	_record_phase3_shadow_signed_species_event(
 		"background_species_exchange", room_a, room_b, "co2",
 		net_co2_a_to_b, 0.0, "opening:%d" % op.opening_index
@@ -3783,6 +3941,7 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 		inlet_room.acrolein_kg = maxf(0.0, inlet_room.acrolein_kg * (1.0 - mix_frac))
 		inlet_room.formaldehyde_kg = maxf(0.0, inlet_room.formaldehyde_kg * (1.0 - mix_frac))
 		_co_trace("ppv_inlet_species", inlet_room)
+		_co_trace("ppv_inlet_species", inlet_room, {}, "co2")
 		_call_room_fraction_owned(
 			remove_upper_layer_fraction_callable, inlet_room, mix_frac * 0.5,
 			"gas_ppv_inlet_upper_removal",
@@ -3914,6 +4073,10 @@ func _apply_species_net_exchange(
 	var net_co2_a_to_b: float = _compute_net_pair(
 		room_a.co2_kg, room_b.co2_kg, m_a, m_b, exchange_kg
 	)
+	# H3.2-S0d5b: este intercambio se declara lower->lower pero se dimensiona
+	# desde bulk. Con el flag ON se acota al stock lower real de la fuente.
+	if phase3_co2_zonal_transport_consistency_enabled:
+		net_co2_a_to_b = _cap_co2_lower_transfer(net_co2_a_to_b, room_a, room_b)
 	_record_phase3_shadow_signed_zonal_species_event(
 		"vertical_species_net_exchange", room_a, room_b, "lower", "co2",
 		net_co2_a_to_b, false, "opening:%d" % opening_index
@@ -3956,6 +4119,10 @@ func _apply_directed_species_exchange(
 	var d_co: float = from_r.co_kg * frac
 	var d_co_up: float = from_r.co_upper_kg * frac
 	var d_co2: float = from_r.co2_kg * frac
+	# H3.2-S0d5b: la transferencia se registra lower->lower, asi que no puede
+	# llevarse mas CO2 del que la zona inferior de la fuente contiene.
+	if phase3_co2_zonal_transport_consistency_enabled:
+		d_co2 = minf(d_co2, _co2_lower_stock_kg(from_r))
 	var d_hcn: float = from_r.hcn_kg * frac
 	var d_hcl: float = from_r.hcl_kg * frac
 	var d_acro: float = from_r.acrolein_kg * frac

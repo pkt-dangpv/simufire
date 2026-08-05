@@ -8,6 +8,32 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-05 - H3.2-S0d5b CO2 zonal transport
+
+- Added `phase3_co2_zonal_transport_consistency_enabled`, explicit and default
+  OFF, enabled by no official case. OFF byte-identical to the checkpoint.
+- **Causal writer confirmed by direct trace.** The CO2 invariant is observed
+  after every writer of CO2 room state; over 12 cases and 177 163 observations
+  per writer, `accumulator_application` creates 6 242 of 6 461 first crossings
+  and drops to zero with the flag on. `inherited_pre_room_loop` records zero,
+  clearing combustion, CO oxidation and the thermal CO2 paths. The single-room
+  control reproduces the cause in isolation: 509 creations OFF, 0 ON.
+- Root cause: three paths declare a lower-to-lower CO2 movement but size the
+  amount from the bulk stock. The fix caps at the source's real lower stock.
+- 5 098/5 098 material violations removed with a CO2-derived 1e-8 kg threshold;
+  1 644 strict residual are sub-threshold noise after ACH. Both counters kept.
+- Conservation closes to 2.6e-13 kg. CO2 generation, CO and HCN bit-identical.
+  D2PRE zero FAIL everywhere, warnings drop in three cases.
+- **FED is not invariant**: +0.10 % in `postfire_decay` only; `co2_ppm` +1.1 %.
+- Diagnostics added, all default OFF: `_co_trace` generalised per species, a
+  per-species material threshold with 0.0 for underived species, and a CO2 mass
+  balance export. A regression where the attribution export was non-empty with
+  the flag off was caught by the S0d3 fixture and fixed.
+- **GO experimental, NO-GO to promote.** HCN and O2 pending, HVAC deferred, the
+  clamp audit stays for later, no integrator, H3.2-S open, H3.2b still blocks
+  H3.3, no runtime authority. Binding record:
+  `docs/validation/PHASE3_H32S0D5B_CO2_ZONAL_TRANSPORT.md`.
+
 ## Current Session Update - 2026-08-05 - H3.2-S0d5a2 residual CO diagnosis
 
 - Added `phase3_co_first_violation_trace_enabled`, default OFF, observing the CO
