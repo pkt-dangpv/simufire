@@ -8,6 +8,26 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-05 - H3.2-S0d4 zonal species consistency
+
+- Extended the default-OFF species diagnostic with a passive zonal guard at the
+  legacy `upper <= bulk` clamp. It counts violations and the worst excess only:
+  no repair, no attribution, no derived lower stock.
+- **NO-GO for per-owner zonal attribution of CO/CO2/HCN.** The unowned clamp
+  rewrites the zonal split in every case: CO 7 444 / 98 690 applications
+  (7.5 %), CO2 5 753 (5.8 %), HCN 5 324 (5.4 %); max excess 2.54e-05 kg for CO.
+  The lower bound never binds.
+- Root cause: owner paths that debit bulk without debiting upper. CO's moved
+  amount is derived from `source.co_upper_kg` and removed from `source.co_kg`
+  only; CO2/HCN move bulk only in the background and vertical paths.
+- **GO only for the guard.** No S0a contract extension, no species payload on
+  any owner event. Prerequisites named as S0d5a (CO transport), S0d5b (CO2/HCN
+  bulk-only paths) and S0d5c (own or remove the clamp); all three change physics
+  and need their own flags and STOP gates.
+- H3.2-S stays open, O2 and zone-less species stay blocked, HVAC deferred, no
+  integrator, H3.2b still blocks H3.3, no runtime authority. Binding record:
+  `docs/validation/PHASE3_H32S0D4_ZONAL_ATTRIBUTION_AUDIT.md`.
+
 ## Current Session Update - 2026-08-05 - H3.2-S0d3 species attribution measurement
 
 - Added `phase3_species_attribution_diagnostics_enabled`, default OFF, a passive

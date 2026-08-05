@@ -43,6 +43,7 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S0d1 suppression and seeds | GO / STOP gate | Suppression upper sink owned as a signed local source; the two donor-less mass seeds declared numerical corrections. B1-lower left uninstrumented because the legacy write is dead under two-zone. |
 | H3.2-S0d2 suppression lower sink | GO experimental / NO-GO promotion | Default-OFF flag applies the lower cooling to `lower_energy_kj` under two-zone. OFF is byte-identical; no official case enables it. B1-lower stays open. |
 | H3.2-S0d3 species attribution measurement | GO parcial / STOP gate | Default-OFF measurement shows the lower species clamp never bound over 12 cases; CO/CO2/HCN are attributable, O2 and the zone-less species are not. Measurement only, no enrichment. |
+| H3.2-S0d4 zonal species consistency | NO-GO attribution / GO guard | The unowned `upper <= bulk` clamp rewrites the zonal split in 5.4-7.5 % of applications, so per-owner zonal attribution of CO/CO2/HCN is not reconstructible. Only the passive guard shipped. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
 
@@ -192,6 +193,23 @@ H3.2-S0d3 species attribution measurement gate (2026-08-05):
 - **GO parcial for measurement only.** No event enrichment, no integrator,
   H3.2-S still open. Full record:
   `PHASE3_H32S0D3_SPECIES_ATTRIBUTION_MEASUREMENT.md`.
+
+H3.2-S0d4 zonal species consistency gate (2026-08-05):
+
+- `lower = bulk - upper` is only meaningful while `upper <= bulk`. The legacy
+  clamp that enforces it has no owner, and it binds: CO 7 444 / 98 690 (7.5 %),
+  CO2 5 753 (5.8 %), HCN 5 324 (5.4 %). All twelve cases violate it; the lower
+  bound never binds. Max excess is 2.54e-05 kg for CO.
+- Cause: owner paths that move a species' bulk stock without moving its upper
+  stock. CO's transported amount is derived from `source.co_upper_kg` but
+  removed from `source.co_kg` only; CO2 and HCN move bulk only in the background
+  and vertical-opening paths.
+- Attributing CO zonally today would encode the defect: the ledger would report
+  CO leaving a room's lower zone in a transfer sized from its upper zone.
+- **NO-GO for attribution, GO for the passive guard only.** Prerequisites:
+  S0d5a CO transport coherence, S0d5b CO2/HCN bulk-only paths, S0d5c own or
+  remove the clamp. Full record:
+  `PHASE3_H32S0D4_ZONAL_ATTRIBUTION_AUDIT.md`.
 
 ## 1. HRR And Energy
 

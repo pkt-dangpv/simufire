@@ -24,6 +24,8 @@ func _init() -> void:
 	_test_o2_upper_clamp_is_measured_separately()
 	_test_zone_identity_is_honest()
 	_test_real_step_smoke_is_measured()
+	_test_zonal_guard_detects_upper_over_bulk()
+	_test_zonal_guard_is_off_by_default()
 	_test_export_is_pure_and_deterministic()
 	if _failed:
 		quit(1)
@@ -172,6 +174,43 @@ func _test_real_step_smoke_is_measured() -> void:
 			"deficit is never negative for %s" % species
 		)
 	building.free()
+
+
+func _test_zonal_guard_detects_upper_over_bulk() -> void:
+	## H3.2-S0d4: `lower = bulk - upper` only means something while
+	## `upper <= bulk`. When it is violated the legacy clamp rewrites the split
+	## with no owner, so the zonal attribution of that step is not
+	## reconstructible. The guard must see it, not repair it.
+	var gas = _gas()
+	gas._record_zonal_guard("co", 1.0, 0.4)
+	gas._record_zonal_guard("co", 0.3, 0.5)
+	gas._record_zonal_guard("co", 0.2, 0.9)
+	var entry: Dictionary = gas.get_phase3_species_attribution_summary()["co"]
+	_expect(int(entry["zonal_guard_applications"]) == 3, "three guard applications")
+	_expect(
+		int(entry["zonal_guard_upper_over_bulk_count"]) == 2,
+		"two upper-over-bulk violations"
+	)
+	_expect(
+		absf(float(entry["zonal_guard_max_excess_kg"]) - 0.7) <= 1.0e-9,
+		"max excess is the worst violation"
+	)
+	_expect(
+		int(entry["zonal_guard_upper_negative_count"]) == 0,
+		"no negative upper stock"
+	)
+	# The guard only observes: it must not expose a repaired or shared split.
+	_expect(not entry.has("zonal_guard_repaired_kg"), "guard never repairs")
+	_expect(not entry.has("zonal_owner_share_kg"), "guard never attributes")
+
+
+func _test_zonal_guard_is_off_by_default() -> void:
+	var gas = GasExchangeSystemScript.new()
+	gas._record_zonal_guard("co", 0.1, 0.9)
+	_expect(
+		gas.get_phase3_species_attribution_summary().is_empty(),
+		"zonal guard is silent when OFF"
+	)
 
 
 func _test_export_is_pure_and_deterministic() -> void:

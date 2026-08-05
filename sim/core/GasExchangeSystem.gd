@@ -453,6 +453,31 @@ func _record_species_attribution(
 	_phase3_species_attribution[species] = entry
 
 
+func _record_zonal_guard(species: String, bulk_kg: float, upper_kg: float) -> void:
+	## H3.2-S0d4 audit: mide si el clamp `upper <= bulk` llega a morder. Ese
+	## clamp reescribe el reparto zonal sin propietario, asi que cuando muerde
+	## la descomposicion `lower = bulk - upper` deja de reflejar a los owners.
+	if not phase3_species_attribution_diagnostics_enabled:
+		return
+	var entry: Dictionary = _species_attribution_entry(species)
+	if not entry.has("zonal_guard_applications"):
+		entry["zonal_guard_applications"] = 0
+		entry["zonal_guard_upper_over_bulk_count"] = 0
+		entry["zonal_guard_upper_negative_count"] = 0
+		entry["zonal_guard_max_excess_kg"] = 0.0
+	entry["zonal_guard_applications"] = int(entry["zonal_guard_applications"]) + 1
+	if upper_kg > bulk_kg:
+		entry["zonal_guard_upper_over_bulk_count"] = \
+				int(entry["zonal_guard_upper_over_bulk_count"]) + 1
+		entry["zonal_guard_max_excess_kg"] = maxf(
+			float(entry["zonal_guard_max_excess_kg"]), upper_kg - bulk_kg
+		)
+	if upper_kg < 0.0:
+		entry["zonal_guard_upper_negative_count"] = \
+				int(entry["zonal_guard_upper_negative_count"]) + 1
+	_phase3_species_attribution[species] = entry
+
+
 func _record_species_attribution_o2(
 		o2_pre: float, o2_unclamped: float, air_mass_kg: float, requested_kg: float
 	) -> void:
@@ -2055,6 +2080,12 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			var purged_formaldehyde_kg: float = minf(room.formaldehyde_kg, room.formaldehyde_kg * co_purge_rate * dt)
 			room.formaldehyde_kg = maxf(0.0, room.formaldehyde_kg - purged_formaldehyde_kg)
 
+		# H3.2-S0d4 audit: este clamp reescribe el reparto zonal sin owner. Si
+		# muerde, el `lower = bulk - upper` derivado del paso deja de ser el que
+		# produjeron los owners, y la atribucion zonal no es reconstruible.
+		_record_zonal_guard("co", room.co_kg, room.co_upper_kg)
+		_record_zonal_guard("co2", room.co2_kg, room.co2_upper_kg)
+		_record_zonal_guard("hcn", room.hcn_kg, room.hcn_upper_kg)
 		room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg)
 		room.co2_upper_kg = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
 		room.hcn_upper_kg = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)

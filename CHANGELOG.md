@@ -3,6 +3,26 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0d4 zonal species consistency measurement (2026-08-05)
+
+- Extended the default-OFF species diagnostic with a passive zonal guard at the
+  legacy `upper <= bulk` clamp. It only counts violations and the worst excess;
+  it never repairs, attributes or derives a lower stock.
+- **NO-GO for per-owner zonal attribution of CO, CO2 and HCN.** The zonal split
+  the attribution would rest on is rewritten every step by that unowned clamp:
+  CO violates `upper <= bulk` in 7 444 of 98 690 applications (7.5 %), CO2 in
+  5 753 (5.8 %) and HCN in 5 324 (5.4 %). All twelve measured cases violate it.
+  The lower bound of the same clamp never binds.
+- Root cause: several owner paths debit a species' bulk stock without debiting
+  its upper stock. For CO the transported amount is derived from
+  `source.co_upper_kg` and removed from `source.co_kg` only; for CO2 and HCN the
+  background and vertical-opening paths move bulk only.
+- **GO only for the passive guard.** The S0a contract was not extended and no
+  owner event carries a species payload. Three prerequisites are now named:
+  S0d5a CO transport zonal coherence, S0d5b CO2/HCN bulk-only paths, S0d5c
+  ownership or removal of the `upper <= bulk` clamp. Full record:
+  `docs/validation/PHASE3_H32S0D4_ZONAL_ATTRIBUTION_AUDIT.md`.
+
 ### Phase 3 H3.2-S0d3 species attribution measurement (2026-08-05)
 
 - Added `phase3_species_attribution_diagnostics_enabled`, default OFF, a purely
