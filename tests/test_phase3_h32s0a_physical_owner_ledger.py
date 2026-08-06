@@ -42,6 +42,9 @@ def test_component_has_only_the_authorized_production_call_sites():
         "tests/fixtures/phase3_h32s0c_gas_physical_owners.gd",
         "tests/fixtures/phase3_h32s0d1_suppression_and_seeds.gd",
         "tests/fixtures/phase3_h32s0d2_suppression_lower_sink.gd",
+        # S0d5d classifies the species clamps as numerical_correction, so its
+        # fixture reads the ledger's class constants. Still export-only.
+        "tests/fixtures/phase3_h32s0d5d_clamp_ownership.gd",
     }
     references = set()
     for path in ROOT.rglob("*.gd"):

@@ -22,7 +22,13 @@ def test_zonal_guard_is_measured_at_the_legacy_clamp():
     body = GAS.split("func step_smoke(", 1)[1].split("\nfunc ", 1)[0]
     assert body.count("_record_zonal_guard(") == 3
     for species in ("co", "co2", "hcn"):
-        assert f'_record_zonal_guard("{species}", room.{species}_kg, room.{species}_upper_kg)' in body
+        # S0d5d added the site and the room to the signature so the second
+        # application site of the same clamp can be told apart from this one.
+        # The guard counters themselves stay single-site: see S0d5d contracts.
+        assert (
+            f'_record_zonal_guard("{species}", room.{species}_kg, '
+            f'room.{species}_upper_kg, "room_loop", room)' in body
+        ), species
     # Every guard call must precede the clamp it observes.
     assert body.index('_record_zonal_guard("co"') < body.index(
         "room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg)"

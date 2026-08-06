@@ -48,6 +48,7 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S0d5a2 residual CO diagnosis | ROOT CAUSE CONFIRMED | The residual was a strict zero-tolerance guard artefact in the zero-headroom state, not a writer. S0d5a removes 100 % of material CO violations; CO2 keeps 4 230, HCN 122. |
 | H3.2-S0d5b CO2 zonal transport | GO experimental / NO-GO promotion | Causal writer confirmed by direct trace at `accumulator_application`; 5 098/5 098 material CO2 violations removed with a CO2-derived 1e-8 kg threshold. FED moves +0.10 % in the post-fire case. |
 | H3.2-S0d5c HCN zonal audit | NO-GO fix / GO guard | Same causal writers as CO/CO2, but 7 154 strict violations and **0 material** against an HCN threshold of 1e-7 kg derived from FED sensitivity. Worst excess 3.12e-9 kg. No HCN flag shipped. |
+| H3.2-S0d5d species clamp ownership | GO diagnostics / NO-GO clamp removal | Passive ledger measures accumulator and zonal clamp corrections as `numerical_correction`. 65/65 runs complete; only room-loop `upper <= bulk` binds. Full-duration audit also finds the S0d5b CO2 balance export incomplete for two late-opening cases. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
 
@@ -268,8 +269,10 @@ H3.2-S0d5b CO2 zonal transport gate (2026-08-05):
 - 5 098 of 5 098 material violations removed, using a CO2-specific threshold of
   1e-8 kg derived from its own bounds. 1 644 strict residual remain as
   sub-threshold noise. Both counters are kept.
-- Conservation closes to 2.6e-13 kg; CO2 generation, CO and HCN are
-  bit-identical; D2PRE keeps zero FAIL and drops warnings in three cases.
+- The shorter S0d5b intervals close the exported balance to 2.6e-13 kg; CO2
+  generation, CO and HCN are bit-identical and D2PRE keeps zero FAIL. S0d5d
+  later limits this claim: two exterior vent-removal paths are missing from the
+  balance export at full duration.
 - **FED is not invariant**: +0.10 % in `postfire_decay`. `co2_ppm` up to +1.1 %.
 - **GO experimental only, NO-GO to promote.** Full record:
   `PHASE3_H32S0D5B_CO2_ZONAL_TRANSPORT.md`.
@@ -293,6 +296,30 @@ H3.2-S0d5c HCN zonal audit gate (2026-08-05):
   together so that would surface rather than stay silent.
 - **NO-GO for a fix, GO for the passive guard only.** Full record:
   `PHASE3_H32S0D5C_HCN_ZONAL_AUDIT.md`.
+
+H3.2-S0d5d species clamp ownership gate (2026-08-06):
+
+- Reuses the existing species-diagnostics flag to measure the correction
+  actually applied by accumulator non-negativity clamps and both zonal-clamp
+  sites. Corrections are separate by species/family/site, classified
+  `numerical_correction`, and cannot enter the physical-source vector.
+- 65 unique Godot 4.7.1 runs are complete and validated by manifest, duration,
+  artifacts and log scan. Twelve A/C OFF/ON pairs are byte-identical.
+- Only `upper <= bulk` at `room_loop` binds. Legacy A records 20,125 material CO
+  and 27,503 material CO2 corrections; stack B removes the CO population and C
+  removes both. HCN is strict-only. Accumulator and parcel clamps never bind.
+- The clamp preserves bulk and moves the corrected amount from upper to derived
+  lower. It is therefore an unowned zonal numerical correction, not a physical
+  source and not a global species sink.
+- Full-duration measurement corrects the old S0d5b balance scope: the current
+  CO2 balance export omits pressure/natural-vent removals. It closes in 13/15
+  cases but cannot prove conservation in two late-opening cases. No physical
+  conservation failure is claimed from an incomplete counter.
+- A hidden S0d3 fixture error was repaired in test-only code. Godot had returned
+  zero after `Invalid access`; all 11 S0 fixtures now pass with stderr scanning.
+- **GO for diagnostics only; NO-GO to remove or relax clamps.** H3.2-S remains
+  open, H3.2b blocks H3.3 and no authority is granted. Full record:
+  `PHASE3_H32S0D5D_CLAMP_OWNERSHIP.md`.
 
 ## 1. HRR And Energy
 

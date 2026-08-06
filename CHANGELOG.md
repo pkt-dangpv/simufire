@@ -3,6 +3,31 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0d5d species clamp ownership (2026-08-06)
+
+- Added passive, opt-in accounting for the mass actually rewritten by the
+  accumulator non-negativity clamps and both `upper <= bulk` application sites.
+  Corrections are separated by species, clamp family and site, classified as
+  `numerical_correction`, and structurally excluded from physical sources.
+- Completed a 65-run Godot 4.7.1 campaign: 45 A/B/C diagnostic runs, 12 A/C
+  OFF controls and 8 causal-trace runs. All artifacts and manifests are complete;
+  the 12 OFF/ON CSV pairs are byte-identical.
+- Only the room-loop zonal clamp binds. Under legacy A, material corrections
+  total 20,125 for CO and 27,503 for CO2; the experimental CO and CO2 flags
+  reduce their own material populations to zero. HCN remains 29,362 strict but
+  zero material. Accumulator and parcel-delivery clamps never bind.
+- Full-duration runs correct the scope of the S0d5b conservation claim. The CO2
+  balance export closes in 13/15 cases but omits exterior pressure/natural-vent
+  removals exposed by two late-opening cases. This is an incomplete diagnostic,
+  not evidence of physical non-conservation; the experimental flag is not
+  promoted.
+- Fixed a historical false-green S0d3 fixture that treated the summary-level
+  `material_eps_kg` header as a species. Godot returned zero despite the script
+  error; all 11 S0 fixtures now pass with stderr scanning.
+- **GO for passive diagnostics only; NO-GO to remove or relax clamps.** H3.2-S
+  remains open, H3.2b still blocks H3.3, and no runtime authority is granted.
+  Full record: `docs/validation/PHASE3_H32S0D5D_CLAMP_OWNERSHIP.md`.
+
 ### Phase 3 H3.2-S0d5c HCN zonal audit (2026-08-05)
 
 - Extended the per-species causal trace to HCN at every HCN room-state writer,
@@ -45,8 +70,10 @@ All notable changes to SimuFire should be recorded here.
   CO2-specific threshold of 1e-8 kg, derived from its own bounds rather than
   copied from CO. The 1 644 strict residual are sub-threshold floating-point
   noise after ACH. Strict and material counters are both retained.
-- Global CO2 balance closes to ≤ 2.6e-13 kg; CO2 generation, CO and HCN are
-  bit-identical; D2PRE has zero FAIL and its warnings fall in three cases.
+- In the shorter S0d5b intervals, the exported CO2 balance closes to
+  ≤ 2.6e-13 kg; CO2 generation, CO and HCN are bit-identical and D2PRE has zero
+  FAIL. **S0d5d later limits this claim:** the export omits two exterior vent
+  removal paths exposed by full-duration late-opening cases.
 - **FED is not invariant**: its peak moves +0.10 % in `postfire_decay` only.
   `co2_ppm` moves up to +1.1 %.
 - **GO experimental, NO-GO to promote.** Full record:

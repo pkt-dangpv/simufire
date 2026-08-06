@@ -4604,6 +4604,10 @@ func build_technical_summary(output_dir: String = "") -> Dictionary:
 	if phase3_species_attribution_diagnostics_enabled:
 		summary["phase3_species_attribution"] = \
 				gas_exchange_system.get_phase3_species_attribution_summary()
+		# H3.2-S0d5d: carga de los clamps de especies, clasificada como
+		# `numerical_correction`. Solo se reporta; no gobierna nada.
+		summary["phase3_clamp_corrections"] = \
+				gas_exchange_system.get_phase3_clamp_correction_summary()
 	if phase3_co_first_violation_trace_enabled:
 		summary["phase3_co_violation_trace"] = \
 				gas_exchange_system.get_phase3_co_violation_trace()

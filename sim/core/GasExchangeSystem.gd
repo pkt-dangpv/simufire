@@ -153,6 +153,10 @@ var _phase3_co_first_events: Array[Dictionary] = []
 var _phase3_co_trace_step: int = 0
 var _phase3_co2_exterior_removed_kg: float = 0.0
 var _phase3_co2_parcel_refunded_kg: float = 0.0
+var _phase3_clamp_corrections: Dictionary = {}
+var _phase3_clamp_samples: Array[Dictionary] = []
+var _phase3_clamp_sample_overflow: int = 0
+var _phase3_last_writer: Dictionary = {}
 # Los parcels cruzan timestep: su identidad no puede reiniciarse por paso.
 var _phase3_physical_owner_parcel_sequence: int = 0
 
@@ -424,6 +428,10 @@ func reset() -> void:
 	_phase3_co_trace_step = 0
 	_phase3_co2_exterior_removed_kg = 0.0
 	_phase3_co2_parcel_refunded_kg = 0.0
+	_phase3_clamp_corrections.clear()
+	_phase3_clamp_samples.clear()
+	_phase3_clamp_sample_overflow = 0
+	_phase3_last_writer.clear()
 
 
 func begin_phase3_shadow_step() -> void:
@@ -517,7 +525,10 @@ func _species_attribution_entry(species: String) -> Dictionary:
 
 
 func _record_species_attribution(
-		species: String, stock_pre_kg: float, requested_delta_kg: float
+		species: String,
+		stock_pre_kg: float,
+		requested_delta_kg: float,
+		room: RoomModel = null
 	) -> void:
 	## Mide el clamp agregado en su unico sitio de aplicacion. No reparte nada
 	## entre owners: solo registra si el clamp mordio, que es la condicion que
@@ -541,6 +552,46 @@ func _record_species_attribution(
 	entry["accepted_kg_total"] = float(entry["accepted_kg_total"]) \
 			+ maxf(0.0, unclamped_kg) - stock_pre_kg
 	_phase3_species_attribution[species] = entry
+	# H3.2-S0d5d: el `maxf(0.0, ...)` de la aplicacion es una familia distinta
+	# del clamp zonal y se contabiliza aparte. Este clamp actua sobre una sola
+	# cara -- bulk o upper segun la especie -- y deja la otra intacta.
+	var is_upper: bool = species.ends_with("_upper")
+	var kind: String = CLAMP_KIND_UPPER_NON_NEGATIVE if is_upper \
+			else CLAMP_KIND_BULK_NON_NEGATIVE
+	var post_kg: float = maxf(0.0, unclamped_kg)
+	var paired_kg: float = _paired_stock_kg(species, room)
+	var detail: Dictionary = {
+		"pre_bulk_kg": paired_kg if is_upper else stock_pre_kg,
+		"pre_upper_kg": stock_pre_kg if is_upper else paired_kg,
+		"requested_bulk_kg": paired_kg if is_upper else unclamped_kg,
+		"requested_upper_kg": unclamped_kg if is_upper else paired_kg,
+		"post_bulk_kg": paired_kg if is_upper else post_kg,
+		"post_upper_kg": post_kg if is_upper else paired_kg,
+		"correction_bulk_kg": 0.0 if is_upper else post_kg - unclamped_kg,
+		"correction_upper_kg": post_kg - unclamped_kg if is_upper else 0.0,
+		"lower_derived_before_kg": \
+				(paired_kg - unclamped_kg) if is_upper else (unclamped_kg - paired_kg),
+		"lower_derived_after_kg": \
+				(paired_kg - post_kg) if is_upper else (post_kg - paired_kg),
+		"cause": "mantener el stock no negativo tras aplicar el acumulador",
+	}
+	_record_clamp_correction(
+		species, kind, "accumulator_application", post_kg - unclamped_kg, room, detail
+	)
+
+
+func _paired_stock_kg(species: String, room: RoomModel) -> float:
+	## Stock de la cara que este clamp NO toca. Para especies sin zona el par no
+	## existe y se devuelve NAN, para no reportar un cero que parezca medido.
+	if room == null:
+		return NAN
+	if species == "co" or species == "co_upper":
+		return room.co_upper_kg if species == "co" else room.co_kg
+	if species == "co2" or species == "co2_upper":
+		return room.co2_upper_kg if species == "co2" else room.co2_kg
+	if species == "hcn" or species == "hcn_upper":
+		return room.hcn_upper_kg if species == "hcn" else room.hcn_kg
+	return NAN
 
 
 ## H3.2-S0d5a2: muestra acotada de primeras transiciones, para no crecer sin
@@ -603,6 +654,10 @@ func _co_trace(
 	## herencia y resolucion; nunca repara ni reparte.
 	if not phase3_co_first_violation_trace_enabled or room == null:
 		return
+	# H3.2-S0d5d: ultimo escritor observado, para poder responder `quien escribio
+	# justo antes del clamp`. Solo se puebla con la traza activa; sin ella el
+	# clamp reporta `unknown` en vez de inventar un escritor.
+	_phase3_last_writer["%s:%d" % [species, room.id]] = writer
 	var bulk_kg: float = room.co_kg
 	var upper_kg: float = room.co_upper_kg
 	if species == "co2":
@@ -681,7 +736,140 @@ func _material_eps_for(species: String) -> float:
 	return 0.0
 
 
-func _record_zonal_guard(species: String, bulk_kg: float, upper_kg: float) -> void:
+## H3.2-S0d5d: familias de clamp de especies. Se cuentan por separado porque su
+## causa y su efecto zonal son distintos.
+const CLAMP_KIND_BULK_NON_NEGATIVE: String = "bulk_non_negative"
+const CLAMP_KIND_UPPER_NON_NEGATIVE: String = "upper_non_negative"
+const CLAMP_KIND_UPPER_LE_BULK: String = "upper_le_bulk"
+
+
+## H3.2-S0d5d: muestra acotada del detalle por sala/especie/paso. Los agregados
+## no estan acotados por esta constante: son de tamano fijo.
+const CLAMP_SAMPLE_MAX: int = 256
+
+
+func get_phase3_clamp_correction_summary() -> Dictionary:
+	var summary: Dictionary = {}
+	if _phase3_clamp_corrections.is_empty() and _phase3_clamp_samples.is_empty():
+		# Con el flag OFF no aparece ninguna clave, ni siquiera la cabecera.
+		return summary
+	summary["totals"] = _phase3_clamp_corrections.duplicate(true)
+	summary["samples"] = _phase3_clamp_samples.duplicate(true)
+	summary["sample_limit"] = CLAMP_SAMPLE_MAX
+	summary["sample_overflow"] = _phase3_clamp_sample_overflow
+	summary["flags"] = _phase3_experimental_flag_state()
+	return summary
+
+
+func _phase3_experimental_flag_state() -> Dictionary:
+	## Los flags fisicos activos durante la medicion. Se exportan para que una
+	## tabla A/B/C no dependa de recordar con que stack se genero.
+	return {
+		"phase3_co_zonal_transport_consistency_enabled": \
+				phase3_co_zonal_transport_consistency_enabled,
+		"phase3_co2_zonal_transport_consistency_enabled": \
+				phase3_co2_zonal_transport_consistency_enabled,
+	}
+
+
+func _clamp_correction_entry(species: String, kind: String, site: String) -> Dictionary:
+	var key: String = "%s|%s|%s" % [species, kind, site]
+	if not _phase3_clamp_corrections.has(key):
+		_phase3_clamp_corrections[key] = {
+			"species": species,
+			"kind": kind,
+			"site": site,
+			"classification": Phase3PhysicalOwnerLedger.CLASS_NUMERICAL_CORRECTION,
+			"material_epsilon_kg": _material_eps_for(species),
+			"applications": 0,
+			"strict_count": 0,
+			"material_count": 0,
+			"corrected_mass_abs_kg": 0.0,
+			"corrected_mass_signed_kg": 0.0,
+			"max_correction_kg": 0.0,
+			"strict_rooms": [],
+			"material_rooms": [],
+		}
+	return _phase3_clamp_corrections[key]
+
+
+func _record_clamp_correction(
+		species: String,
+		kind: String,
+		site: String,
+		correction_kg: float,
+		room: RoomModel = null,
+		detail: Dictionary = {}
+	) -> void:
+	## Mide la correccion realmente aplicada por un clamp: `post - unclamped`.
+	## Es `numerical_correction` por construccion: no tiene procedencia fisica,
+	## no puede alimentar fuentes y no se esconde dentro del owner previo.
+	if not phase3_species_attribution_diagnostics_enabled:
+		return
+	var entry: Dictionary = _clamp_correction_entry(species, kind, site)
+	entry["applications"] = int(entry["applications"]) + 1
+	var eps_kg: float = _material_eps_for(species)
+	var magnitude_kg: float = absf(correction_kg)
+	var strict_bound: bool = correction_kg != 0.0
+	var material_bound: bool = strict_bound and magnitude_kg > eps_kg
+	if strict_bound:
+		entry["strict_count"] = int(entry["strict_count"]) + 1
+		entry["corrected_mass_abs_kg"] = float(entry["corrected_mass_abs_kg"]) + magnitude_kg
+		entry["corrected_mass_signed_kg"] = \
+				float(entry["corrected_mass_signed_kg"]) + correction_kg
+		entry["max_correction_kg"] = maxf(float(entry["max_correction_kg"]), magnitude_kg)
+		if material_bound:
+			entry["material_count"] = int(entry["material_count"]) + 1
+		if room != null:
+			_append_unique(entry["strict_rooms"], room.id)
+			if material_bound:
+				_append_unique(entry["material_rooms"], room.id)
+	_phase3_clamp_corrections["%s|%s|%s" % [species, kind, site]] = entry
+	if not strict_bound:
+		return
+	if _phase3_clamp_samples.size() >= CLAMP_SAMPLE_MAX:
+		_phase3_clamp_sample_overflow += 1
+		return
+	var sample: Dictionary = {
+		"step": _phase3_co_trace_step,
+		"room_id": room.id if room != null else -1,
+		"species": species,
+		"clamp_kind": kind,
+		"site": site,
+		"classification": Phase3PhysicalOwnerLedger.CLASS_NUMERICAL_CORRECTION,
+		"strict_bound": strict_bound,
+		"material_bound": material_bound,
+		"material_epsilon_kg": eps_kg,
+		"writer_before_clamp": _last_writer_for(species, room),
+		"flags": _phase3_experimental_flag_state(),
+	}
+	sample.merge(detail, true)
+	_phase3_clamp_samples.append(sample)
+
+
+func _append_unique(target: Array, value: int) -> void:
+	if not target.has(value):
+		target.append(value)
+
+
+func _last_writer_for(species: String, room: RoomModel) -> String:
+	## Ultimo escritor observado por la traza causal. Solo CO/CO2/HCN estan
+	## trazados; para el resto se devuelve `unknown` en vez de inventar una
+	## procedencia.
+	if room == null:
+		return "unknown"
+	var base: String = species.trim_suffix("_upper")
+	var key: String = "%s:%d" % [base, room.id]
+	return String(_phase3_last_writer.get(key, "unknown"))
+
+
+func _record_zonal_guard(
+		species: String,
+		bulk_kg: float,
+		upper_kg: float,
+		site: String = "room_loop",
+		room: RoomModel = null
+	) -> void:
 	## H3.2-S0d4 audit: mide si el clamp `upper <= bulk` llega a morder. Ese
 	## clamp reescribe el reparto zonal sin propietario, asi que cuando muerde
 	## la descomposicion `lower = bulk - upper` deja de reflejar a los owners.
@@ -715,6 +903,40 @@ func _record_zonal_guard(species: String, bulk_kg: float, upper_kg: float) -> vo
 		entry["zonal_guard_upper_negative_count"] = \
 				int(entry["zonal_guard_upper_negative_count"]) + 1
 	_phase3_species_attribution[species] = entry
+	_record_zonal_clamp_correction(species, bulk_kg, upper_kg, site, room)
+
+
+func _record_zonal_clamp_correction(
+		species: String,
+		bulk_kg: float,
+		upper_kg: float,
+		site: String,
+		room: RoomModel = null
+	) -> void:
+	## Correccion que el clamp zonal aplicara, medida sin repararla aqui y sin
+	## tocar los contadores del guard. El bulk no lo toca este clamp, asi que su
+	## correccion es cero por construccion y se reporta como tal.
+	var corrected_kg: float = upper_kg
+	if corrected_kg > bulk_kg:
+		corrected_kg = bulk_kg
+	if corrected_kg < 0.0:
+		corrected_kg = 0.0
+	_record_clamp_correction(
+		species, CLAMP_KIND_UPPER_LE_BULK, site, corrected_kg - upper_kg, room,
+		{
+			"pre_bulk_kg": bulk_kg,
+			"pre_upper_kg": upper_kg,
+			"requested_bulk_kg": bulk_kg,
+			"requested_upper_kg": upper_kg,
+			"post_bulk_kg": bulk_kg,
+			"post_upper_kg": corrected_kg,
+			"correction_bulk_kg": 0.0,
+			"correction_upper_kg": corrected_kg - upper_kg,
+			"lower_derived_before_kg": bulk_kg - upper_kg,
+			"lower_derived_after_kg": bulk_kg - corrected_kg,
+			"cause": "mantener el invariante zonal upper <= bulk",
+		}
+	)
 
 
 func _record_species_attribution_o2(
@@ -2133,26 +2355,35 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		# H3.2-S0d3: instantanea previa al unico sitio donde se aplica el clamp
 		# agregado. Solo lectura; el orden y las formulas quedan intactos.
 		_record_species_attribution(
-			"smoke", room.smoke_kg, float(smoke_delta_kg[int(room_id)])
-		)
-		_record_species_attribution("co", room.co_kg, float(co_delta_kg[int(room_id)]))
-		_record_species_attribution(
-			"co_upper", room.co_upper_kg, float(co_upper_delta_kg[int(room_id)])
-		)
-		_record_species_attribution("co2", room.co2_kg, float(co2_delta_kg[int(room_id)]))
-		_record_species_attribution(
-			"co2_upper", room.co2_upper_kg, float(co2_upper_delta_kg[int(room_id)])
-		)
-		_record_species_attribution("hcn", room.hcn_kg, float(hcn_delta_kg[int(room_id)]))
-		_record_species_attribution(
-			"hcn_upper", room.hcn_upper_kg, float(hcn_upper_delta_kg[int(room_id)])
-		)
-		_record_species_attribution("hcl", room.hcl_kg, float(hcl_delta_kg[int(room_id)]))
-		_record_species_attribution(
-			"acrolein", room.acrolein_kg, float(acrolein_delta_kg[int(room_id)])
+			"smoke", room.smoke_kg, float(smoke_delta_kg[int(room_id)]), room
 		)
 		_record_species_attribution(
-			"formaldehyde", room.formaldehyde_kg, float(formaldehyde_delta_kg[int(room_id)])
+			"co", room.co_kg, float(co_delta_kg[int(room_id)]), room
+		)
+		_record_species_attribution(
+			"co_upper", room.co_upper_kg, float(co_upper_delta_kg[int(room_id)]), room
+		)
+		_record_species_attribution(
+			"co2", room.co2_kg, float(co2_delta_kg[int(room_id)]), room
+		)
+		_record_species_attribution(
+			"co2_upper", room.co2_upper_kg, float(co2_upper_delta_kg[int(room_id)]), room
+		)
+		_record_species_attribution(
+			"hcn", room.hcn_kg, float(hcn_delta_kg[int(room_id)]), room
+		)
+		_record_species_attribution(
+			"hcn_upper", room.hcn_upper_kg, float(hcn_upper_delta_kg[int(room_id)]), room
+		)
+		_record_species_attribution(
+			"hcl", room.hcl_kg, float(hcl_delta_kg[int(room_id)]), room
+		)
+		_record_species_attribution(
+			"acrolein", room.acrolein_kg, float(acrolein_delta_kg[int(room_id)]), room
+		)
+		_record_species_attribution(
+			"formaldehyde", room.formaldehyde_kg,
+			float(formaldehyde_delta_kg[int(room_id)]), room
 		)
 
 		room.smoke_kg = maxf(0.0, room.smoke_kg + float(smoke_delta_kg[int(room_id)]))
@@ -2392,9 +2623,9 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		# H3.2-S0d4 audit: este clamp reescribe el reparto zonal sin owner. Si
 		# muerde, el `lower = bulk - upper` derivado del paso deja de ser el que
 		# produjeron los owners, y la atribucion zonal no es reconstruible.
-		_record_zonal_guard("co", room.co_kg, room.co_upper_kg)
-		_record_zonal_guard("co2", room.co2_kg, room.co2_upper_kg)
-		_record_zonal_guard("hcn", room.hcn_kg, room.hcn_upper_kg)
+		_record_zonal_guard("co", room.co_kg, room.co_upper_kg, "room_loop", room)
+		_record_zonal_guard("co2", room.co2_kg, room.co2_upper_kg, "room_loop", room)
+		_record_zonal_guard("hcn", room.hcn_kg, room.hcn_upper_kg, "room_loop", room)
 		room.co_upper_kg = clampf(room.co_upper_kg, 0.0, room.co_kg)
 		room.co2_upper_kg = clampf(room.co2_upper_kg, 0.0, room.co2_kg)
 		room.hcn_upper_kg = clampf(room.hcn_upper_kg, 0.0, room.hcn_kg)
@@ -2646,6 +2877,18 @@ func _release_pending_interior_deliveries(
 		_co_trace("parcel_delivery", target, {"parcel_id": String(
 			entry.get("phase3_physical_owner_parcel_id", "")
 		)}, "hcn")
+		# H3.2-S0d5d: segundo sitio del clamp zonal, nunca medido hasta ahora. Se
+		# registra solo la correccion: los contadores del guard siguen siendo los
+		# del bucle de sala, para no alterar las cifras ya reportadas.
+		_record_zonal_clamp_correction(
+			"co", target.co_kg, target.co_upper_kg, "parcel_delivery", target
+		)
+		_record_zonal_clamp_correction(
+			"co2", target.co2_kg, target.co2_upper_kg, "parcel_delivery", target
+		)
+		_record_zonal_clamp_correction(
+			"hcn", target.hcn_kg, target.hcn_upper_kg, "parcel_delivery", target
+		)
 		target.co_upper_kg = clampf(target.co_upper_kg, 0.0, target.co_kg)
 		target.co2_upper_kg = clampf(target.co2_upper_kg, 0.0, target.co2_kg)
 		target.hcn_upper_kg = clampf(target.hcn_upper_kg, 0.0, target.hcn_kg)

@@ -8,6 +8,32 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-06 - H3.2-S0d5d clamp ownership
+
+- Added passive accounting for the accumulator non-negativity clamps and both
+  `upper <= bulk` sites. Each correction is separated by species/family/site,
+  labelled `numerical_correction`, and excluded from the physical-source vector.
+- 65/65 sequential Godot 4.7.1 runs are complete and artifact-valid. Twelve A/C
+  OFF/ON pairs have identical rows and CSV SHA-256. Eight trace runs export 2,048
+  samples with known preceding writers; plain diagnostic runs honestly report
+  `unknown`.
+- Only `upper <= bulk` at `room_loop` binds. A has 20,125 material CO and 27,503
+  material CO2 corrections; B removes the CO population and C removes both.
+  HCN remains strict-only and below its 1e-7 kg material threshold. Accumulator
+  and parcel-delivery clamps do not bind.
+- Full-duration S0d5d runs correct the S0d5b conservation claim: its CO2 balance
+  export omits pressure/natural-vent removals. Thirteen A/C pairs close to about
+  4e-13 kg; two late-opening cases expose missing diagnostic terms. Physical
+  non-conservation is not established, but conservation cannot be claimed from
+  that export until the missing paths are counted.
+- A historical S0d3 fixture false green was fixed: it interpreted the
+  summary-level `material_eps_kg` metadata as a species, raised `Invalid access`,
+  and Godot still exited zero. Eleven S0 fixtures now pass with stderr scanning.
+- **GO for passive diagnostics only. NO-GO to remove/relax clamps.** H3.2-S is
+  open; O2 and HVAC remain pending; no integrator exists; H3.2b still blocks
+  H3.3; no runtime authority. Binding record:
+  `docs/validation/PHASE3_H32S0D5D_CLAMP_OWNERSHIP.md`.
+
 ## Current Session Update - 2026-08-05 - H3.2-S0d5c HCN zonal audit
 
 - Extended the per-species causal trace to HCN at every HCN room-state writer,
@@ -44,8 +70,10 @@ Historical validation records retain their original engine labels.
   amount from the bulk stock. The fix caps at the source's real lower stock.
 - 5 098/5 098 material violations removed with a CO2-derived 1e-8 kg threshold;
   1 644 strict residual are sub-threshold noise after ACH. Both counters kept.
-- Conservation closes to 2.6e-13 kg. CO2 generation, CO and HCN bit-identical.
-  D2PRE zero FAIL everywhere, warnings drop in three cases.
+- The shorter S0d5b intervals close the exported balance to 2.6e-13 kg; CO2
+  generation, CO and HCN are bit-identical and D2PRE has zero FAIL. S0d5d later
+  limits the balance claim because two exterior vent removals are absent from
+  the export at full duration.
 - **FED is not invariant**: +0.10 % in `postfire_decay` only; `co2_ppm` +1.1 %.
 - Diagnostics added, all default OFF: `_co_trace` generalised per species, a
   per-species material threshold with 0.0 for underived species, and a CO2 mass

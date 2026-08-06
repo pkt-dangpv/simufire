@@ -8,6 +8,16 @@ HCN and O2 stay pending, HVAC stays deferred, S0d5c is not started, no
 integrator exists, H3.2-S stays open, H3.2b and H3.3 are not started and no
 runtime authority was granted.
 
+> **Correction (2026-08-06, S0d5d full-duration campaign):** the reported
+> global balance closure of 2.6e-13 kg applies to the shorter S0d5b measurement
+> intervals, not to every full case duration. The current diagnostic omits CO2
+> removed by the exterior pressure-vent and natural-vent paths. At full duration
+> 13/15 A/C pairs still agree to about 4e-13 kg, while
+> `g3_gie_ppv_post_knockdown` and `uk_bungalow_smoke` expose unrecorded terms of
+> -4.09848e-3 kg and +1.53886e-4 kg. This does not establish physical
+> non-conservation; it makes the existing balance export incomplete in those
+> regimes. See `PHASE3_H32S0D5D_CLAMP_OWNERSHIP.md`.
+
 ## CO2 inventory by path
 
 | Path | Amount sized from | Bulk | Upper | Declared zone | Can create `upper > bulk`? |

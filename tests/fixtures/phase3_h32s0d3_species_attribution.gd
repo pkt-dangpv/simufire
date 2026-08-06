@@ -168,7 +168,17 @@ func _test_real_step_smoke_is_measured() -> void:
 	_expect(summary.has("o2"), "real step measured O2")
 	_expect(int(summary["co"]["applications"]) == 2, "one application per room")
 	for species in summary.keys():
+		# S0d5b added one summary-level threshold declaration. It is metadata,
+		# not a species entry, and must not be interpreted as a clamp result.
+		if String(species) == "material_eps_kg":
+			continue
 		var entry: Dictionary = summary[species]
+		_expect(
+			entry.has("max_clamp_deficit_kg"),
+			"every non-metadata summary entry is a species result: %s" % species
+		)
+		if not entry.has("max_clamp_deficit_kg"):
+			continue
 		_expect(
 			float(entry["max_clamp_deficit_kg"]) >= 0.0,
 			"deficit is never negative for %s" % species

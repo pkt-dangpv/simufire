@@ -117,6 +117,13 @@ def test_summary_export_is_a_deep_copy():
     assert "duplicate(true)" in body
 
 
+def test_fixture_does_not_treat_threshold_metadata_as_a_species():
+    # S0d5b added this summary-level header. Godot can still exit zero after an
+    # Invalid access in a fixture, so pin the explicit metadata branch here.
+    assert 'if String(species) == "material_eps_kg":' in FIXTURE
+    assert 'entry.has("max_clamp_deficit_kg")' in FIXTURE
+
+
 def test_cli_wiring_is_complete():
     assert '"--phase3-species-attribution-diagnostics"' in RUNNER
     assert f"engine.{FLAG} = true" in RUNNER
