@@ -138,6 +138,16 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--phase3-o2-attribution-diagnostics",
+        action="store_true",
+        help=(
+            "H3.2-S0d6 passive measurement: report requested vs accepted O2 per "
+            "owner and zone at each OxygenExchangeSystem mutation site, with an "
+            "explicit reason code when kg attribution is not derivable. "
+            "No physics or CSV change."
+        ),
+    )
+    parser.add_argument(
         "--phase3-suppression-lower-energy-sink",
         action="store_true",
         help=(
@@ -439,6 +449,8 @@ def main(argv: list[str] | None = None) -> int:
         cmd.append("--phase3-suppression-lower-energy-sink")
     if args.phase3_species_attribution_diagnostics:
         cmd.append("--phase3-species-attribution-diagnostics")
+    if args.phase3_o2_attribution_diagnostics:
+        cmd.append("--phase3-o2-attribution-diagnostics")
     if args.phase3_co_zonal_transport_consistency:
         cmd.append("--phase3-co-zonal-transport-consistency")
     if args.phase3_co_first_violation_trace:

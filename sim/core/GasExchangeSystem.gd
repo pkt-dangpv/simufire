@@ -3,6 +3,9 @@ class_name GasExchangeSystem
 
 const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
 const Phase3PhysicalOwnerLedger = preload("res://sim/core/Phase3PhysicalOwnerLedger.gd")
+## H3.2-S0d6: ledger compartido de aceptacion de O2. Default OFF.
+const Phase3O2AcceptanceLedger = preload("res://sim/core/Phase3O2AcceptanceLedger.gd")
+var phase3_o2_ledger = Phase3O2AcceptanceLedger.new()
 
 # ============================================================
 # GAS EXCHANGE SYSTEM
@@ -1630,6 +1633,15 @@ func step_pressure_venting(building: BuildingModel, dt: float, hooks: Dictionary
 			0.0,
 			o2_nominal
 		)
+		# H3.2-S0d6: owner unico (exterior) y base de masa unica, pero el destino
+		# es el bulk, que no tiene identidad zonal.
+		phase3_o2_ledger.record(
+			"ges_pressure_vent", "bulk", room, _pv_o2_before,
+			(_pv_o2_before * room_mass_kg + building.outside_o2 * air_in_kg) \
+					/ (room_mass_kg + air_in_kg),
+			room.o2,
+			Phase3O2AcceptanceLedger.REASON_NO_ZONAL_INVARIANT, NAN, "room_air_mass"
+		)
 		# SF-O1A: exterior neto por pressure_venting (dilución con aire exterior).
 		var _pv_o2_delta: float = (room.o2 - _pv_o2_before) * room_mass_kg
 		room.o2_exterior_net_kg_step += _pv_o2_delta
@@ -2342,7 +2354,17 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 		_record_species_attribution_o2(
 			room.o2, room_o2_mass_kg / room_air_mass_kg, room_air_mass_kg, _ges_o2_delta
 		)
+		var _o2d6_pre_room_loop: float = room.o2
 		room.o2 = clampf(room_o2_mass_kg / room_air_mass_kg, 0.0, o2_nominal)
+		# H3.2-S0d6: este es el clamp que S0d3 conto 1798 veces. Acota un delta ya
+		# sumado sobre los ocho paths de transporte, asi que el reparto por owner
+		# no es recuperable aqui.
+		phase3_o2_ledger.record(
+			"ges_room_loop_transport", "bulk", room, _o2d6_pre_room_loop,
+			room_o2_mass_kg / room_air_mass_kg, room.o2,
+			Phase3O2AcceptanceLedger.REASON_AGGREGATE_MULTI_OWNER,
+			NAN, "room_air_mass"
+		)
 		# SF-O1A: transporte inter-sala por background + two-zone species exchange (GasExchangeSystem).
 		room.o2_net_transport_kg_step += _ges_o2_delta
 		room.o2_net_transport_kg_total += _ges_o2_delta
@@ -2863,10 +2885,21 @@ func _release_pending_interior_deliveries(
 		var o2_delivery_kg: float = float(entry.get("o2_kg", 0.0))
 		if o2_delivery_kg != 0.0:
 			var target_air_mass_kg: float = maxf(0.1, target.volume_m3()) * 1.2
+			var _o2d6_pre_parcel: float = target.o2
 			target.o2 = clampf(
 				(target.o2 * target_air_mass_kg + o2_delivery_kg) / target_air_mass_kg,
 				0.0,
 				o2_nominal
+			)
+			# H3.2-S0d6: la entrega de parcel llega en kg y se convierte a fraccion
+			# con una densidad fija de 1.2, no con la densidad real de la sala, y
+			# el destino es el bulk sin identidad zonal.
+			phase3_o2_ledger.record(
+				"ges_parcel_delivery", "bulk", target, _o2d6_pre_parcel,
+				(_o2d6_pre_parcel * target_air_mass_kg + o2_delivery_kg) / target_air_mass_kg,
+				target.o2,
+				Phase3O2AcceptanceLedger.REASON_NO_ZONAL_INVARIANT,
+				NAN, "fixed_density_room_air_mass"
 			)
 		_co_trace("parcel_delivery", target, {"parcel_id": String(
 			entry.get("phase3_physical_owner_parcel_id", "")
@@ -4199,6 +4232,14 @@ func step_ppv(building: BuildingModel, dt: float, hooks: Dictionary) -> Dictiona
 			lerpf(inlet_room.o2, building.outside_o2, mix_frac),
 			0.0,
 			o2_nominal
+		)
+		# H3.2-S0d6: PPV mezcla con un `lerpf` sobre la fraccion, no con un
+		# balance de masa, asi que no hay kg conservado que atribuir.
+		phase3_o2_ledger.record(
+			"ges_ppv_inlet", "bulk", inlet_room, _ppv_o2_before,
+			lerpf(_ppv_o2_before, building.outside_o2, mix_frac), inlet_room.o2,
+			Phase3O2AcceptanceLedger.REASON_AMBIGUOUS_MASS_BASE,
+			NAN, "fraction_lerp_no_mass_balance"
 		)
 		# SF-O1A: exterior neto por inyección PPV.
 		var _ppv_o2_delta: float = (inlet_room.o2 - _ppv_o2_before) * room_air_mass_kg

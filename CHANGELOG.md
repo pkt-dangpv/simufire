@@ -3,6 +3,57 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0d6 O2 ownership and acceptance audit (2026-08-07)
+
+- Added `Phase3O2AcceptanceLedger`, a passive, default-OFF measurement of
+  requested vs accepted O2 per owner, zone, room and step. One flag,
+  `phase3_o2_attribution_diagnostics_enabled`, governs the four instances in
+  `OxygenExchangeSystem`, `GasExchangeSystem`, `ThermalSystem` and
+  `SimulationEngine`.
+- **Coverage is 16 sites found and instrumented in one static pass, not a
+  complete inventory.** The adversarial per-writer verification did not complete.
+  A short second sweep found 45 O2 state writes in production, of which 23 are
+  instrumented and 22 are not; all 22 are enumerated in the technical summary
+  under `uninstrumented_writers`, with counts and method in `writer_coverage`.
+  That sweep also caught two misses: `HVACSystem.gd:213`, a fifth HVAC write, and
+  `OxygenExchangeSystem.gd:666`, a **second** recomposition of `room.o2` from the
+  two zones. The bulk is therefore rebuilt from the zones in two different
+  subsystems under different conditions, with no rule about which is
+  authoritative.
+- **Corrected the S0d3 record.** Its "1798 O2 upper-bound clamps" came from a
+  single call site and described one clamp of sixteen; its "no zone identity" is
+  also wrong — `o2_upper` and `o2_lower` are persistent state, but the three
+  fractions are independent and no invariant relates them. `_clamp_rooms` bounds
+  only `room.o2` and leaves both zonal fractions unbounded, unlike CO.
+- **The material correction is not a clamp.** Across ten cases and 3 355 434
+  applications every clamp corrects only floating-point noise, the largest being
+  2.78e-17 of fraction. The one materially significant unowned rewrite is
+  `ThermalSystem` discarding `room.o2` and replacing it with a zone blend: it
+  binds on 100 % of its 24 822 applications, is material in 24 820, and reaches
+  4.44e-04 of fraction — 2.4x a 1 % move in `FED_hypoxia`. That term is already
+  booked as `o2_zone_sync_kg_*`, documented as "No es transporte físico".
+- **Outcome C**, on four blockers: the state is a fraction and the engine uses
+  inconsistent mass bases per zone; no zonal invariant exists; three clamps bound
+  values already summed over several owners; and combustion caps plus `room.o2`
+  floors truncate physical sinks with no record. Only 2.29 % of applications can
+  carry an attributable kilogram.
+- **Outcome-B carve-out, measured**: the upper-zone combustion sink caps and
+  applies against the same zone mass, so it alone reports `completeness = true`;
+  it accepted -208.47 kg of O2 across the corpus.
+- O2 material threshold derived from scratch in FRACTION units and anchored on
+  FED sensitivity, not a rounded ppm: `dFED/FED = 54 x d(fraction)` from
+  `fed_hypoxia_b = 0.54`, giving 1.85e-4 for a 1 % FED move; 1.0e-9 sits 1e5
+  above the noise floor and 1.85e5 below it. It is not inherited from any
+  species threshold, which are masses.
+- Twenty sequential Godot 4.7.1 runs, zero failures, each validated on schema,
+  room count, row count and log contents rather than exit code. CSVs are
+  byte-identical OFF/ON on all ten cases, the technical summaries differ by the
+  added block and nothing else, and physics and ILV coherence match count for
+  count in both arms. Negative control catches 7/7 mutations. No expected value,
+  tolerance, CTRL or VALID_GAP was touched; the gap inventory is unchanged.
+- No physics change, no HVAC work, no integrator, no solver change, no runtime
+  authority. H3.2-S stays open.
+
 ### Phase 3 H3.2-S0d5d species clamp ownership (2026-08-06)
 
 - Added passive, opt-in accounting for the mass actually rewritten by the

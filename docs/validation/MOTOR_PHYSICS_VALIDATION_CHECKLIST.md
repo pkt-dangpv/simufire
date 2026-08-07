@@ -48,6 +48,7 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S0d5a2 residual CO diagnosis | ROOT CAUSE CONFIRMED | The residual was a strict zero-tolerance guard artefact in the zero-headroom state, not a writer. S0d5a removes 100 % of material CO violations; CO2 keeps 4 230, HCN 122. |
 | H3.2-S0d5b CO2 zonal transport | GO experimental / NO-GO promotion | Causal writer confirmed by direct trace at `accumulator_application`; 5 098/5 098 material CO2 violations removed with a CO2-derived 1e-8 kg threshold. FED moves +0.10 % in the post-fire case. |
 | H3.2-S0d5c HCN zonal audit | NO-GO fix / GO guard | Same causal writers as CO/CO2, but 7 154 strict violations and **0 material** against an HCN threshold of 1e-7 kg derived from FED sensitivity. Worst excess 3.12e-9 kg. No HCN flag shipped. |
+| H3.2-S0d6 O2 ownership audit | Outcome C / B carve-out | O2 is three independent fractions with no invariant and inconsistent mass bases per zone; only 2.29 % of 3 355 434 applications can carry kg. Clamps correct only FP noise (max 2.78e-17); the material unowned rewrite is the bulk being recomposed from the zones — 24 820 material corrections up to 4.44e-04 of fraction in ThermalSystem, plus a second recomposition at `OxygenExchangeSystem.gd:666`. Upper-zone combustion sink is complete at -208.47 kg. Coverage: 16 sites instrumented in one static pass, 22 of 45 production writes not instrumented and declared. |
 | H3.2-S0d5d species clamp ownership | GO diagnostics / NO-GO clamp removal | Passive ledger measures accumulator and zonal clamp corrections as `numerical_correction`. 65/65 runs complete; only room-loop `upper <= bulk` binds. Full-duration audit also finds the S0d5b CO2 balance export incomplete for two late-opening cases. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
@@ -296,6 +297,46 @@ H3.2-S0d5c HCN zonal audit gate (2026-08-05):
   together so that would surface rather than stay silent.
 - **NO-GO for a fix, GO for the passive guard only.** Full record:
   `PHASE3_H32S0D5C_HCN_ZONAL_AUDIT.md`.
+
+H3.2-S0d6 O2 ownership and acceptance gate (2026-08-07):
+
+- `Phase3O2AcceptanceLedger` measures requested vs accepted O2 per owner, zone,
+  room and step at sixteen mutation sites across `OxygenExchangeSystem`,
+  `GasExchangeSystem`, `ThermalSystem` and `SimulationEngine`. One default-OFF
+  flag; HVAC is deferred and declared in the export as `uninstrumented_writers`.
+- A kilogram is published only where the site capped and applied against the same
+  mass base. Fail-closed elsewhere: unknown reason codes are never complete, and
+  a conflicting reason for one `owner|zone` downgrades the row and discards its
+  kilograms.
+- Corrects the S0d3 record. Its 1798 upper-bound clamps came from one call site
+  and describe one clamp of sixteen; its "no zone identity" is wrong because
+  `o2_upper`/`o2_lower` are persistent state — what is absent is any relation
+  between the three fractions. `_clamp_rooms` bounds only `room.o2`.
+- **The material correction is not a clamp.** Over 3 355 434 applications every
+  clamp corrects only floating-point noise (max 2.78e-17 of fraction), including
+  the one S0d3 counted. The single material unowned rewrite is `ThermalSystem`
+  replacing `room.o2` with a zone blend: 24 822/24 822 bind, 24 820 material,
+  max 4.44e-04 of fraction, 2.4x a 1 % `FED_hypoxia` move. Already booked as
+  `o2_zone_sync_kg_*`, documented "No es transporte físico".
+- O2 material threshold derived in FRACTION units from FED sensitivity
+  (`dFED/FED = 54 x d(fraction)`), never inherited from a species mass threshold.
+- 20 sequential Godot 4.7.1 runs, 0 failures, validated by schema, room count,
+  row count and log scan. CSV byte-identical OFF/ON on all 10 cases; technical
+  summaries differ only by the added block; physics and ILV coherence identical
+  in both arms; negative control catches 7/7 mutations; gap inventory unchanged.
+- **Coverage is "16 sites found and instrumented in one static pass", and is
+  not a complete inventory.** The adversarial per-writer verification did not
+  complete.
+  A short second static sweep counts 45 production O2 writes: 23 instrumented,
+  22 not, all 22 enumerated in the export under `uninstrumented_writers` with
+  counts and method in `writer_coverage`. It caught two first-pass misses:
+  `HVACSystem.gd:213`, and `OxygenExchangeSystem.gd:666`, a **second**
+  recomposition of `room.o2` from the two zones — so the bulk is rebuilt from the
+  zones in two subsystems under different conditions with no authoritative rule.
+- **Outcome C for O2; Outcome-B carve-out for the upper-zone combustion sink**
+  (`completeness = true`, -208.47 kg accepted; 2.29 % of applications). H3.2-S
+  remains open, HVAC deferred, no integrator, H3.2b blocks H3.3, no authority.
+  Full record: `docs/validation/PHASE3_H32S0D6_O2_OWNERSHIP_AUDIT.md`.
 
 H3.2-S0d5d species clamp ownership gate (2026-08-06):
 

@@ -131,6 +131,19 @@ var _pending_o2_deliveries: Array[Dictionary] = []
 var _reserved_transport_o2_delta_kg: Dictionary = {}
 var _phase3_shadow_flux_results: Array[Dictionary] = []
 
+## H3.2-S0d6: medicion pasiva de aceptacion de O2, en el ledger compartido por
+## todos los subsistemas que mutan O2. Default OFF, byte-identica con el flag
+## apagado. Observa; no repara, no reparte y no gobierna nada.
+const Phase3O2AcceptanceLedger = preload("res://sim/core/Phase3O2AcceptanceLedger.gd")
+var phase3_o2_attribution_diagnostics_enabled: bool = false:
+	set(value):
+		phase3_o2_attribution_diagnostics_enabled = value
+		phase3_o2_ledger.enabled = value
+		# Los flags se fijan aqui y en configure(), nunca por llamada: `record`
+		# corre en bucles por sala y por paso.
+		phase3_o2_ledger.flags = _phase3_o2_flag_state()
+var phase3_o2_ledger = Phase3O2AcceptanceLedger.new()
+
 
 func configure(settings: Dictionary) -> void:
 	o2_nominal = float(settings.get("o2_nominal", o2_nominal))
@@ -254,12 +267,64 @@ func configure(settings: Dictionary) -> void:
 		settings.get("phase2b_canonical_combustion_enabled", phase2b_canonical_combustion_enabled)
 	)
 	two_zone_solver_enabled = bool(settings.get("two_zone_solver_enabled", two_zone_solver_enabled))
+	phase3_o2_attribution_diagnostics_enabled = bool(settings.get(
+		"phase3_o2_attribution_diagnostics_enabled",
+		phase3_o2_attribution_diagnostics_enabled
+	))
+	# H3.2-S0d6: se fija una vez, no por llamada: `record` corre en bucles por
+	# sala y por paso y una asignacion de Dictionary por llamada no es asumible.
+	phase3_o2_ledger.flags = _phase3_o2_flag_state()
 
 
 func reset() -> void:
 	_pending_o2_deliveries.clear()
 	_reserved_transport_o2_delta_kg.clear()
 	_phase3_shadow_flux_results.clear()
+	phase3_o2_ledger.clear()
+
+
+func get_phase3_o2_attribution_summary() -> Dictionary:
+	## H3.2-S0d6: export opt-in. Con el flag OFF no aparece ninguna clave, ni
+	## siquiera la cabecera de umbrales.
+	return phase3_o2_ledger.summary()
+
+
+func _phase3_o2_flag_state() -> Dictionary:
+	## Flags experimentales activos durante la medicion, para que una tabla no
+	## dependa de recordar con que configuracion se genero.
+	return {
+		"phase2h_o2_doorway_two_zone_enabled": phase2h_o2_doorway_two_zone_enabled,
+		"phase2b_canonical_combustion_enabled": phase2b_canonical_combustion_enabled,
+		"fire_o2_mass_tracking_enabled": fire_o2_mass_tracking_enabled,
+		"phase3_canonical_zone_shadow_enabled": phase3_canonical_zone_shadow_enabled,
+		"two_zone_solver_enabled": two_zone_solver_enabled,
+		"fire_o2_canonical_enabled": fire_o2_canonical_enabled,
+		"interior_transport_enabled": interior_transport_enabled,
+	}
+
+
+func begin_phase3_o2_step() -> void:
+	phase3_o2_ledger.begin_step()
+
+
+func _record_o2_acceptance(
+		owner: String,
+		zone: String,
+		room: RoomModel,
+		pre_fraction: float,
+		requested_fraction: float,
+		accepted_fraction: float,
+		reason: String,
+		mass_base_kg: float = NAN,
+		mass_base_kind: String = "none"
+	) -> void:
+	## Mide requested vs accepted en el sitio exacto de mutacion. `requested` es
+	## el valor pre-clamp calculado por el propio path, nunca una reconstruccion
+	## `post - pre` ni una derivacion desde HRR.
+	phase3_o2_ledger.record(
+		owner, zone, room, pre_fraction, requested_fraction, accepted_fraction,
+		reason, mass_base_kg, mass_base_kind
+	)
 
 
 func drain_phase3_shadow_flux_results() -> Array[Dictionary]:
@@ -390,7 +455,15 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 		# SF-O1A: ACH exterior neto sobre o2 bulk.
 		room.o2_exterior_net_kg_step += ach_o2_delta_kg
 		room.o2_exterior_net_kg_total += ach_o2_delta_kg
+		# H3.2-S0d6: este clamp acota un valor que ya suma combustion bulk y ACH,
+		# asi que el reparto por owner no es recuperable aqui.
+		var _o2d6_pre_bulk: float = room.o2
 		room.o2 = clampf(o2_mass_kg / air_mass_kg, 0.0, o2_nominal)
+		_record_o2_acceptance(
+			"oes_bulk_combustion_and_ach", "bulk", room,
+			_o2d6_pre_bulk, o2_mass_kg / air_mass_kg, room.o2,
+			Phase3O2AcceptanceLedger.REASON_AGGREGATE_MULTI_OWNER, NAN, "room_air_mass"
+		)
 
 		if lower_frac < 0.15:
 			# Modelo bi-zona invalido: homogeniza ambas zonas a room.o2.
@@ -445,6 +518,15 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 				room, "upper", upper_o2_accepted_kg, "combustion_o2_upper_sink"
 			)
 			room.o2_upper = upper_o2_after
+			# H3.2-S0d6: unico path de O2 que acota y aplica contra la MISMA base
+			# de masa (upper_air_mass), asi que su kg aceptado si es atribuible.
+			_record_o2_acceptance(
+				"oes_combustion_upper_sink", "upper", room,
+				upper_o2_before,
+				(upper_air_mass * upper_o2_before - upper_consumed) / maxf(0.001, upper_air_mass),
+				upper_o2_after,
+				Phase3O2AcceptanceLedger.REASON_COMPLETE, upper_air_mass, "upper_zone_air_mass"
+			)
 			# SF-O1A: consumo zona superior por pluma/fuego (kg ya calculados).
 			room.o2_consumed_kg_step_all += upper_consumed
 			room.o2_consumed_kg_total_all += upper_consumed
@@ -513,6 +595,16 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 					room, "lower", lower_o2_accepted_kg, "combustion_o2_lower_sink"
 				)
 				room.o2_lower = lower_o2_after
+				# H3.2-S0d6: el suelo `maxf(room.o2, ...)` trunca un sumidero fisico
+				# sin dueno, y la conversion usa la masa de SALA sobre una fraccion
+				# de ZONA, asi que no se emite kg.
+				_record_o2_acceptance(
+					"oes_combustion_lower_sink", "lower", room,
+					lower_o2_before,
+					lower_o2_before - consumed_lower / air_mass_kg,
+					lower_o2_after,
+					Phase3O2AcceptanceLedger.REASON_SINK_TRUNCATED, NAN, "room_air_mass_on_zone_fraction"
+				)
 				# SF-O1A: consumo zona inferior (fire_uses_lower_o2).
 				room.o2_consumed_kg_step_all += consumed_lower
 				room.o2_consumed_kg_total_all += consumed_lower
@@ -539,6 +631,16 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 					room, "lower", plume_o2_accepted_kg, "combustion_o2_plume_lower_sink"
 				)
 				room.o2_lower = plume_o2_after
+				# H3.2-S0d6: este path acota con `lower_air_mass` pero aplica con
+				# `air_mass_kg` -- dos bases distintas en el mismo path -- asi que
+				# ninguna conversion a kg es defendible.
+				_record_o2_acceptance(
+					"oes_combustion_plume_lower_sink", "lower", room,
+					plume_o2_before,
+					plume_o2_before - plume_consumed / air_mass_kg,
+					plume_o2_after,
+					Phase3O2AcceptanceLedger.REASON_AMBIGUOUS_MASS_BASE, NAN, "cap_lower_zone_apply_room"
+				)
 				# SF-O1A: consumo zona inferior por pluma entrenada (effective_plume_lower).
 				room.o2_consumed_kg_step_all += plume_consumed
 				room.o2_consumed_kg_total_all += plume_consumed
@@ -571,13 +673,27 @@ func step(building: BuildingModel, dt: float, hooks: Dictionary) -> void:
 			var _upper_relax_target: float = building.outside_o2 \
 				if doorway_o2_upper_routing_gain > 0.0 else room.o2
 			room.o2_upper = lerpf(room.o2_upper, _upper_relax_target, clampf(0.03 * dt, 0.0, 0.10))
+		# H3.2-S0d6: clamps finales de zona. Nada liga o2_upper y o2_lower a
+		# room.o2, asi que la correccion no tiene identidad zonal recuperable.
+		var _o2d6_pre_upper: float = room.o2_upper
 		room.o2_upper = clampf(room.o2_upper, 0.0, o2_nominal)
+		_record_o2_acceptance(
+			"oes_final_zone_clamp", "upper", room,
+			_o2d6_pre_upper, _o2d6_pre_upper, room.o2_upper,
+			Phase3O2AcceptanceLedger.REASON_NO_ZONAL_INVARIANT, NAN, "none"
+		)
 		# Phase 2H fix: en modo two-zone, o2_lower puede superar o2_nominal (= fire_o2_nominal).
 		# La zona baja puede contener aire fresco a concentración ambiente aunque el fuego
 		# haya reducido o2_nominal a 0.17. Usar building.outside_o2 (≈0.209) como techo.
 		var _o2_lower_final_ceil: float = building.outside_o2 \
 			if (phase2h_o2_doorway_two_zone_enabled or two_zone_solver_enabled or effective_plume_lower) else o2_nominal
+		var _o2d6_pre_lower: float = room.o2_lower
 		room.o2_lower = clampf(room.o2_lower, 0.0, _o2_lower_final_ceil)
+		_record_o2_acceptance(
+			"oes_final_zone_clamp", "lower", room,
+			_o2d6_pre_lower, _o2d6_pre_lower, room.o2_lower,
+			Phase3O2AcceptanceLedger.REASON_NO_ZONAL_INVARIANT, NAN, "none"
+		)
 		# SF-O2E1: acumular el path primario (una unidad Thornton por paso, tracking-only).
 		room.o2_consumed_fire_kg_step   = _o2_fire_primary
 		room.o2_consumed_fire_kg_total += _o2_fire_primary
@@ -798,6 +914,17 @@ func _step_outside_opening_o2(
 		0.0,
 		o2_nominal
 	)
+	# H3.2-S0d6: owner unico (exterior) y base de masa unica, pero el destino es
+	# el bulk, que no tiene identidad zonal; ademas el mismo `air_in_kg` se
+	# acredita despues a o2_lower contra otra base.
+	_record_o2_acceptance(
+		"oes_exterior_opening", "bulk", indoor,
+		_o2_before_ext,
+		(_o2_before_ext * room_air_mass_kg + building.outside_o2 * air_in_kg) \
+				/ (room_air_mass_kg + air_in_kg),
+		indoor.o2,
+		Phase3O2AcceptanceLedger.REASON_NO_ZONAL_INVARIANT, NAN, "room_air_mass"
+	)
 	# SF-O1A: exterior neto por apertura al exterior (antes/después × masa).
 	indoor.o2_exterior_net_kg_step += (indoor.o2 - _o2_before_ext) * room_air_mass_kg
 	indoor.o2_exterior_net_kg_total += (indoor.o2 - _o2_before_ext) * room_air_mass_kg
@@ -813,9 +940,21 @@ func _step_outside_opening_o2(
 		var lower_frac_ext: float = clampf(
 			flow_interface_ext_m / maxf(0.01, indoor.height_m), 0.01, 0.99)
 		var lower_mass_ext: float = maxf(0.001, room_air_mass_kg * lower_frac_ext)
+		var _o2d6_pre_ext_lower: float = indoor.o2_lower
+		var _o2d6_req_ext_lower: float = \
+				(indoor.o2_lower * lower_mass_ext + building.outside_o2 * air_in_kg) \
+				/ (lower_mass_ext + air_in_kg)
 		indoor.o2_lower = clampf(
 			(indoor.o2_lower * lower_mass_ext + building.outside_o2 * air_in_kg) / (lower_mass_ext + air_in_kg),
 			0.0, o2_nominal)
+		# H3.2-S0d6: el mismo `air_in_kg` ya se mezclo contra `room_air_mass_kg`
+		# en el bulk y aqui se mezcla contra `lower_mass_ext`. Dos inventarios,
+		# dos bases, sin relacion impuesta: no hay kg atribuible.
+		_record_o2_acceptance(
+			"oes_exterior_opening_lower_replenish", "lower", indoor,
+			_o2d6_pre_ext_lower, _o2d6_req_ext_lower, indoor.o2_lower,
+			Phase3O2AcceptanceLedger.REASON_AMBIGUOUS_MASS_BASE, NAN, "lower_zone_mass_double_credited"
+		)
 		# Phase 2H Exp 2H.2: boost adicional de reabastecimiento de zona baja desde apertura exterior.
 		# Amplifica la fracción de inflow efectivo × (ambient − o2_lower) × gain.
 		# Floor = indoor.o2 preserva invariante Phase 2E-A (o2_lower ≥ room.o2).

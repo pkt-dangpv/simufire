@@ -82,6 +82,8 @@ func _run() -> void:
 		engine.phase3_suppression_lower_energy_sink_enabled = true
 	if bool(_cli_args.get("phase3_species_attribution_diagnostics", false)):
 		engine.phase3_species_attribution_diagnostics_enabled = true
+	if bool(_cli_args.get("phase3_o2_attribution_diagnostics", false)):
+		engine.phase3_o2_attribution_diagnostics_enabled = true
 	if bool(_cli_args.get("phase3_co_zonal_transport_consistency", false)):
 		engine.phase3_co_zonal_transport_consistency_enabled = true
 	if bool(_cli_args.get("phase3_co_first_violation_trace", false)):
@@ -434,6 +436,8 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["phase3_suppression_lower_energy_sink"] = true
 		elif arg == "--phase3-species-attribution-diagnostics":
 			parsed["phase3_species_attribution_diagnostics"] = true
+		elif arg == "--phase3-o2-attribution-diagnostics":
+			parsed["phase3_o2_attribution_diagnostics"] = true
 		elif arg == "--phase3-co-zonal-transport-consistency":
 			parsed["phase3_co_zonal_transport_consistency"] = true
 		elif arg == "--phase3-co-first-violation-trace":

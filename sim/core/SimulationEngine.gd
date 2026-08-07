@@ -14,6 +14,7 @@ const ZoneFireSolverScript = preload("res://sim/core/ZoneFireSolver.gd")
 const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
 const Phase3ZoneMassSystemScript = preload("res://sim/core/Phase3ZoneMassSystem.gd")
 const Phase3PhysicalOwnerLedgerScript = preload("res://sim/core/Phase3PhysicalOwnerLedger.gd")
+const Phase3O2AcceptanceLedgerScript = preload("res://sim/core/Phase3O2AcceptanceLedger.gd")
 
 # ============================================================
 # SIMULATION ENGINE
@@ -999,6 +1000,22 @@ var _step_time_us: int = 0
 ## H3.2-S0d3: medicion pasiva del clamp agregado de especies y O2. Default OFF;
 ## no cambia fisica ni el CSV legacy. Solo mide si el clamp llega a morder.
 @export var phase3_species_attribution_diagnostics_enabled: bool = false
+## H3.2-S0d6: medicion pasiva de aceptacion de O2 en todos los subsistemas que la
+## mutan salvo HVAC, diferido por enunciado. Default OFF y byte-identica con el
+## flag apagado.
+@export var phase3_o2_attribution_diagnostics_enabled: bool = false:
+	set(value):
+		phase3_o2_attribution_diagnostics_enabled = value
+		_phase3_o2_ledger.enabled = value
+		# Los otros tres ledgers viven en sus componentes; se sincronizan aqui
+		# para que un unico flag gobierne toda la medicion.
+		if oxygen_exchange_system != null:
+			oxygen_exchange_system.phase3_o2_attribution_diagnostics_enabled = value
+		if gas_exchange_system != null:
+			gas_exchange_system.phase3_o2_ledger.enabled = value
+		if thermal_system != null:
+			thermal_system.phase3_o2_ledger.enabled = value
+var _phase3_o2_ledger = Phase3O2AcceptanceLedgerScript.new()
 ## H3.2-S0d5a: coherencia zonal del transporte de CO. Experimental, default OFF.
 ## Con OFF la fisica es exactamente la heredada. Ningun caso oficial lo activa.
 @export var phase3_co_zonal_transport_consistency_enabled: bool = false
@@ -1255,6 +1272,8 @@ func _sync_auxiliary_services() -> void:
 		"phase3_physical_owner_ledger_enabled": phase3_physical_owner_ledger_enabled,
 		"phase3_species_attribution_diagnostics_enabled": \
 				phase3_species_attribution_diagnostics_enabled,
+		"phase3_o2_attribution_diagnostics_enabled": \
+				phase3_o2_attribution_diagnostics_enabled,
 		"phase3_co_zonal_transport_consistency_enabled": \
 				phase3_co_zonal_transport_consistency_enabled,
 		"phase3_co_first_violation_trace_enabled": \
@@ -1316,7 +1335,19 @@ func _sync_auxiliary_services() -> void:
 		phase2h_o2_doorway_two_zone_enabled = true
 		phase2h_cold_room_lower_routing_enabled = true
 		phase2h_lower_replenish_gain = 0.25
+	# H3.2-S0d6: un unico flag gobierna los cuatro ledgers de aceptacion de O2, y
+	# los flags experimentales se fijan una vez, no por llamada.
+	var _o2d6_flags: Dictionary = _phase3_o2_engine_flag_state()
+	for _o2d6_ledger in [
+		_phase3_o2_ledger,
+		gas_exchange_system.phase3_o2_ledger,
+		thermal_system.phase3_o2_ledger,
+	]:
+		_o2d6_ledger.enabled = phase3_o2_attribution_diagnostics_enabled
+		_o2d6_ledger.flags = _o2d6_flags
 	oxygen_exchange_system.configure({
+		"phase3_o2_attribution_diagnostics_enabled": \
+				phase3_o2_attribution_diagnostics_enabled,
 		"o2_nominal": o2_nominal,
 		"ach_infiltration": ach_infiltration,
 		"interior_transport_enabled": interior_transport_enabled,
@@ -3968,10 +3999,98 @@ func _try_trigger_flashover(room: RoomModel) -> void:
 # OXÍGENO
 # ============================================================
 
+func _phase3_o2_engine_flag_state() -> Dictionary:
+	## H3.2-S0d6: flags experimentales activos, para que una tabla no dependa de
+	## recordar con que configuracion se genero.
+	return {
+		"phase3_o2_attribution_diagnostics_enabled": \
+				phase3_o2_attribution_diagnostics_enabled,
+		"two_zone_solver_enabled": two_zone_solver_enabled,
+		"hvac_two_zone_o2_enabled": hvac_two_zone_o2_enabled,
+		"fire_o2_mode": _resolve_fire_o2_mode(),
+	}
+
+
+func _phase3_o2_attribution_combined() -> Dictionary:
+	## Une los ledgers por owner y zona. La completitud es conjuntiva: si dos
+	## fuentes discrepan sobre una misma clave, la fila baja a incompleta en vez
+	## de quedarse con la primera razon.
+	var totals: Dictionary = {}
+	var samples: Array = []
+	var overflow: int = 0
+	var contributors: Array = [
+		oxygen_exchange_system.phase3_o2_ledger,
+		gas_exchange_system.phase3_o2_ledger,
+		thermal_system.phase3_o2_ledger,
+		_phase3_o2_ledger,
+	]
+	for ledger in contributors:
+		if ledger == null:
+			continue
+		ledger.merge_totals_into(totals)
+		samples.append_array(ledger.samples())
+		overflow += ledger.sample_overflow()
+	if totals.is_empty() and samples.is_empty():
+		return {}
+	return {
+		"totals": totals,
+		"samples": samples,
+		"sample_limit": Phase3O2AcceptanceLedgerScript.SAMPLE_MAX,
+		"sample_overflow": overflow,
+		"material_eps_fraction": Phase3O2AcceptanceLedgerScript.MATERIAL_EPS_FRACTION,
+		"unit": "fraction",
+		"flags": _phase3_o2_engine_flag_state(),
+		# H3.2-S0d6: una pasada estatica encuentra 45 escrituras de estado O2 en
+		# produccion; 23 estan instrumentadas. Las 22 restantes se declaran aqui
+		# para que la tabla NO se lea como cobertura total. HVAC esta diferido por
+		# enunciado; el resto son escrituras de OxygenExchangeSystem que no son
+		# clamps y quedan fuera del alcance de esta fase.
+		"writer_coverage": {
+			"production_writes_found": 45,
+			"instrumented": 23,
+			"uninstrumented": 22,
+			"method": "single static pass; adversarial per-writer verification incomplete",
+		},
+		"uninstrumented_writers": [
+			"HVACSystem.gd:213 room.o2_upper (deferred: HVAC)",
+			"HVACSystem.gd:302 room.o2 lerpf (deferred: HVAC)",
+			"HVACSystem.gd:306 room.o2_upper (deferred: HVAC)",
+			"HVACSystem.gd:308 room.o2_lower (deferred: HVAC)",
+			"HVACSystem.gd:314 room.o2_lower (deferred: HVAC)",
+			"OxygenExchangeSystem.gd:389 o2_upper from mass tracker",
+			"OxygenExchangeSystem.gd:470 o2_upper = room.o2 (homogenisation)",
+			"OxygenExchangeSystem.gd:475 o2_lower = maxf(room.o2, o2_lower)",
+			"OxygenExchangeSystem.gd:477 o2_lower = room.o2 (homogenisation)",
+			"OxygenExchangeSystem.gd:545 o2_upper plume entrainment",
+			"OxygenExchangeSystem.gd:580 o2_lower entrainment drain",
+			"OxygenExchangeSystem.gd:662 o2_lower ACH",
+			"OxygenExchangeSystem.gd:666 room.o2 recomposed from zones",
+			"OxygenExchangeSystem.gd:669 o2_lower no-fire relaxation",
+			"OxygenExchangeSystem.gd:675 o2_upper no-fire relaxation",
+			"OxygenExchangeSystem.gd:964 o2_lower phase2h boost",
+			"OxygenExchangeSystem.gd:1128 room_a.o2 immediate exchange",
+			"OxygenExchangeSystem.gd:1129 room_b.o2 immediate exchange",
+			"OxygenExchangeSystem.gd:1187 hot_room.o2_lower counterflow",
+			"OxygenExchangeSystem.gd:1192 hot_room.o2_lower counterflow",
+			"OxygenExchangeSystem.gd:1232 cold_room.o2_upper counterflow",
+			"OxygenExchangeSystem.gd:1290 room.o2 parcel release",
+		],
+	}
+
+
 func _step_oxygen(dt: float) -> void:
 	if building == null:
 		return
 
+	# H3.2-S0d6: numera el paso para la medicion de aceptacion de O2.
+	oxygen_exchange_system.begin_phase3_o2_step()
+	gas_exchange_system.phase3_o2_ledger.set_step(
+		oxygen_exchange_system.phase3_o2_ledger.get_step()
+	)
+	thermal_system.phase3_o2_ledger.set_step(
+		oxygen_exchange_system.phase3_o2_ledger.get_step()
+	)
+	_phase3_o2_ledger.set_step(oxygen_exchange_system.phase3_o2_ledger.get_step())
 	oxygen_exchange_system.step(building, dt, _build_oxygen_exchange_hooks())
 
 
@@ -4131,7 +4250,17 @@ func _clamp_rooms(dt: float) -> void:
 		if room == null:
 			continue
 
+		# H3.2-S0d6: ultimo clamp de O2 del tick. Acota un valor ya escrito por
+		# OES, ThermalSystem, GasExchangeSystem y HVAC, asi que su reparto por
+		# owner no es recuperable aqui.
+		var _o2d6_pre_final: float = room.o2
 		room.o2 = clampf(room.o2, 0.0, o2_nominal)
+		_phase3_o2_ledger.record(
+			"engine_final_tick_clamp", "bulk", room,
+			_o2d6_pre_final, _o2d6_pre_final, room.o2,
+			Phase3O2AcceptanceLedgerScript.REASON_AGGREGATE_MULTI_OWNER,
+			NAN, "none"
+		)
 		room.h_layer_m = clampf(room.h_layer_m, 0.0, room.height_m)
 		room.thermal_layer_m = clampf(room.thermal_layer_m, 0.0, room.height_m)
 		room.layer_150c_m = clampf(room.layer_150c_m, 0.0, room.height_m)
@@ -4601,6 +4730,10 @@ func build_technical_summary(output_dir: String = "") -> Dictionary:
 				_phase3_physical_owner_engine_events
 			),
 		}
+	if phase3_o2_attribution_diagnostics_enabled:
+		# H3.2-S0d6: bloque opt-in de aceptacion de O2, combinando los ledgers de
+		# cada subsistema que muta O2. HVAC queda fuera, diferido por enunciado.
+		summary["phase3_o2_attribution"] = _phase3_o2_attribution_combined()
 	if phase3_species_attribution_diagnostics_enabled:
 		summary["phase3_species_attribution"] = \
 				gas_exchange_system.get_phase3_species_attribution_summary()

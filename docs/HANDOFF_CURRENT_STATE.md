@@ -8,6 +8,50 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-07 - H3.2-S0d6 O2 ownership audit
+
+- **Outcome C for O2**: exact per-owner, per-zone attribution of accepted O2 is
+  not viable without a representational change. Four independent blockers, each
+  sufficient: the state is a fraction and the engine converts to kg with
+  inconsistent mass bases per zone (upper uses `upper_air_mass`, lower and plume
+  use `air_mass_kg`, and the plume path caps with one base and applies with the
+  other); `o2`, `o2_upper` and `o2_lower` are independent persistent fractions
+  with no invariant; `OES:393`, `GES:2357` and `SimEngine:4134` clamp values
+  already summed over several owners; and four combustion caps plus `room.o2`
+  floors truncate physical sinks with no record of the rejected amount.
+- **The S0d3 record was wrong on two counts.** Its 1798 upper-bound clamps came
+  from one call site and describe one clamp of sixteen. Its "no zone identity" is
+  also wrong: the zones exist as persistent state; what is missing is any
+  relation between them. `_clamp_rooms` bounds only `room.o2`.
+- **The material correction is not a clamp.** Every clamp corrects only
+  floating-point noise (max 2.78e-17 of fraction over 3 355 434 applications).
+  The one material unowned rewrite is `ThermalSystem` discarding `room.o2` for a
+  zone blend: 24 822/24 822 applications bind, 24 820 material, max 4.44e-04 of
+  fraction, which is 2.4x a 1 % `FED_hypoxia` move. Already booked as
+  `o2_zone_sync_kg_*`, declared "No es transporte físico".
+- **Outcome-B carve-out measured**: only the upper-zone combustion sink is
+  complete; it accepted -208.47 kg. 2.29 % of applications can carry kg.
+- Instrument: `Phase3O2AcceptanceLedger`, passive, one default-OFF flag over four
+  components, 16 owner slugs, fail-closed on reason-code conflicts and unknown
+  codes.
+- **Coverage is "16 sites found and instrumented in one static pass", not a
+  complete inventory.** A short second sweep counts 45 production O2 writes: 23
+  instrumented, 22 not, all 22 enumerated in the export. It caught two first-pass
+  misses: `HVACSystem.gd:213` and `OxygenExchangeSystem.gd:666`, the latter being
+  a **second** recomposition of `room.o2` from the zones. The bulk is rebuilt
+  from the zones in two subsystems, under different conditions, with no rule for
+  which is authoritative — this is the direct motivation for H3.2-S0d6a.
+- Evidence: 20 sequential Godot 4.7.1 runs, 0 failures, CSV byte-identical OFF/ON
+  on all 10 cases, summaries differ only by the added block, physics and ILV
+  identical in both arms, negative control 7/7. Gap inventory unchanged.
+- **Reservation**: the phase-1 writer/clamp inventory is a single-pass source
+  reading; its adversarial verification exhausted its session budget and did not
+  complete.
+- O2 measurement now exists but O2 stays unattributable; HVAC remains deferred
+  and uninstrumented; no integrator; H3.2-S open; H3.2b still blocks H3.3; no
+  runtime authority. Detail:
+  `docs/validation/PHASE3_H32S0D6_O2_OWNERSHIP_AUDIT.md`.
+
 ## Current Session Update - 2026-08-06 - H3.2-S0d5d clamp ownership
 
 - Added passive accounting for the accumulator non-negativity clamps and both

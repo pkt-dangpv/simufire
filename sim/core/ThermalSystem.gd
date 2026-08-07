@@ -308,6 +308,10 @@ var canonical_doorway_plume_direct_upper_frac: float = 0.0
 var phase3_conservative_lower_return_enabled: bool = false
 
 # FED (ISO 13571) — componentes asfixiantes disponibles en el modelo
+## H3.2-S0d6: ledger compartido de aceptacion de O2. Default OFF.
+const Phase3O2AcceptanceLedger = preload("res://sim/core/Phase3O2AcceptanceLedger.gd")
+var phase3_o2_ledger = Phase3O2AcceptanceLedger.new()
+
 var fed_hypoxia_enabled: bool = true
 var fed_hypoxia_a: float = 8.13
 var fed_hypoxia_b: float = 0.54
@@ -3352,8 +3356,25 @@ func _apply_doorway_thermal_counterflow(
 	# En el modelo 2-zonas el aire fresco que entra por la puerta baja es entrenado por la pluma
 	# casi instantáneamente → se distribuye 50 % inferior / 50 % superior como aproximación.
 	var hot_upper_mass: float = maxf(0.1, hot_room.upper_volume_m3() * rho_ambient)
+	# H3.2-S0d6: el reparto 50/50 entre zonas es una aproximacion declarada en el
+	# comentario de arriba, no una particion medida, y el techo es el literal
+	# 0.209 en vez de o2_nominal. Ninguna de las dos ramas puede llevar kg.
+	var _o2d6_pre_hot_lower: float = hot_room.o2_lower
 	hot_room.o2_lower = clampf(hot_room.o2_lower + o2_delta_kg * 0.5 / hot_lower_mass, 0.0, 0.209)
+	phase3_o2_ledger.record(
+		"thermal_counterflow_return", "lower", hot_room, _o2d6_pre_hot_lower,
+		_o2d6_pre_hot_lower + o2_delta_kg * 0.5 / hot_lower_mass, hot_room.o2_lower,
+		Phase3O2AcceptanceLedger.REASON_AMBIGUOUS_MASS_BASE,
+		NAN, "declared_half_split_literal_ceiling"
+	)
+	var _o2d6_pre_hot_upper: float = hot_room.o2_upper
 	hot_room.o2_upper = clampf(hot_room.o2_upper + o2_delta_kg * 0.5 / hot_upper_mass, 0.0, 0.209)
+	phase3_o2_ledger.record(
+		"thermal_counterflow_return", "upper", hot_room, _o2d6_pre_hot_upper,
+		_o2d6_pre_hot_upper + o2_delta_kg * 0.5 / hot_upper_mass, hot_room.o2_upper,
+		Phase3O2AcceptanceLedger.REASON_AMBIGUOUS_MASS_BASE,
+		NAN, "declared_half_split_literal_ceiling"
+	)
 	# SF-O1A: counterflow thermal doorway — hot recibe, cold cede (o2_delta_kg en kg).
 	hot_room.o2_net_transport_kg_step += o2_delta_kg
 	hot_room.o2_net_transport_kg_total += o2_delta_kg
@@ -3361,7 +3382,14 @@ func _apply_doorway_thermal_counterflow(
 	cold_room.o2_net_transport_kg_total -= o2_delta_kg
 
 	# Sala fría: pierde O₂ de la zona inferior (fuente del retorno).
+	var _o2d6_pre_cold_lower: float = cold_room.o2_lower
 	cold_room.o2_lower = clampf(cold_room.o2_lower - o2_delta_kg / cold_lower_mass, 0.0, 0.209)
+	phase3_o2_ledger.record(
+		"thermal_counterflow_donor", "lower", cold_room, _o2d6_pre_cold_lower,
+		_o2d6_pre_cold_lower - o2_delta_kg / cold_lower_mass, cold_room.o2_lower,
+		Phase3O2AcceptanceLedger.REASON_AMBIGUOUS_MASS_BASE,
+		NAN, "zone_mass_literal_ceiling"
+	)
 
 	# Sincronizar o2 bulk como promedio volumétrico de las dos zonas.
 	# SF-O1D: rastrear la corrección de sincronización zonal (diferencia entre blend y room.o2 previo).
@@ -3374,7 +3402,16 @@ func _apply_doorway_thermal_counterflow(
 	var _hot_sync_kg: float = (_hot_blend - hot_room.o2) * _hot_total_vol * 1.2
 	hot_room.o2_zone_sync_kg_step += _hot_sync_kg
 	hot_room.o2_zone_sync_kg_total += _hot_sync_kg
+	# H3.2-S0d6: room.o2 se DESCARTA y se reescribe como blend de las zonas. La
+	# diferencia se contabiliza en o2_zone_sync_kg_*, declarado en RoomModel.gd
+	# como "No es transporte fisico": es una correccion numerica sin dueno.
+	var _o2d6_pre_hot_bulk: float = hot_room.o2
 	hot_room.o2 = _hot_blend
+	phase3_o2_ledger.record(
+		"thermal_zone_sync_blend", "bulk", hot_room, _o2d6_pre_hot_bulk,
+		_o2d6_pre_hot_bulk, hot_room.o2,
+		Phase3O2AcceptanceLedger.REASON_NO_ZONAL_INVARIANT, NAN, "overwritten_by_blend"
+	)
 
 	var _cold_total_vol: float = maxf(0.01, cold_room.volume_m3())
 	var _cold_lower_vol: float = cold_room.lower_volume_m3()
@@ -3385,7 +3422,13 @@ func _apply_doorway_thermal_counterflow(
 	var _cold_sync_kg: float = (_cold_blend - cold_room.o2) * _cold_total_vol * 1.2
 	cold_room.o2_zone_sync_kg_step += _cold_sync_kg
 	cold_room.o2_zone_sync_kg_total += _cold_sync_kg
+	var _o2d6_pre_cold_bulk: float = cold_room.o2
 	cold_room.o2 = _cold_blend
+	phase3_o2_ledger.record(
+		"thermal_zone_sync_blend", "bulk", cold_room, _o2d6_pre_cold_bulk,
+		_o2d6_pre_cold_bulk, cold_room.o2,
+		Phase3O2AcceptanceLedger.REASON_NO_ZONAL_INVARIANT, NAN, "overwritten_by_blend"
+	)
 
 
 # ============================================================
@@ -3424,10 +3467,21 @@ func _apply_canonical_doorway_exchange(
 	# cold.o2_upper = mezcla ponderada (masa_antes × o2_cold + masa_movida × o2_hot) / masa_después.
 	if upper_gas_moved_kg > 0.0 and cold_room.upper_gas_kg > 0.0001:
 		var cold_upper_mass_before: float = maxf(0.0001, cold_room.upper_gas_kg - upper_gas_moved_kg)
+		# H3.2-S0d6: mezcla ponderada con masa de zona en el numerador pero
+		# `cold_room.upper_gas_kg` en el denominador, y techo literal 0.209.
+		var _o2d6_pre_cde_cold: float = cold_room.o2_upper
 		cold_room.o2_upper = clampf(
 			(cold_upper_mass_before * cold_room.o2_upper + upper_gas_moved_kg * hot_room.o2_upper)
 			/ cold_room.upper_gas_kg,
 			0.0, 0.209
+		)
+		phase3_o2_ledger.record(
+			"thermal_canonical_doorway", "upper", cold_room, _o2d6_pre_cde_cold,
+			(cold_upper_mass_before * _o2d6_pre_cde_cold
+				+ upper_gas_moved_kg * hot_room.o2_upper) / cold_room.upper_gas_kg,
+			cold_room.o2_upper,
+			Phase3O2AcceptanceLedger.REASON_AMBIGUOUS_MASS_BASE,
+			NAN, "zone_mix_literal_ceiling"
 		)
 		# Señal M2: indica a OxygenExchangeSystem que o2_upper fue modificado por mixing canónico
 		# este paso. O₂ExchangeSystem re-sincronizará el tracker desde el valor actual en lugar
@@ -3514,18 +3568,36 @@ func _apply_canonical_doorway_exchange(
 		var direct_energy_kj: float = m_direct_kg * maxf(0.0, cold_room.temp_lower_c - ambient_c) * _cp
 		hot_room.upper_energy_kj = maxf(0.0, hot_room.upper_energy_kj + direct_energy_kj)
 		# O₂ zona superior: mezcla conservativa con o2_lower del cuarto frío.
+		var _o2d6_pre_cde_hot_up: float = hot_room.o2_upper
 		hot_room.o2_upper = clampf(
 			(hot_upper_mass_before * hot_room.o2_upper + m_direct_kg * cold_room.o2_lower)
 			/ hot_room.upper_gas_kg,
 			0.0, 0.209
 		)
+		phase3_o2_ledger.record(
+			"thermal_canonical_doorway", "upper", hot_room, _o2d6_pre_cde_hot_up,
+			(hot_upper_mass_before * _o2d6_pre_cde_hot_up
+				+ m_direct_kg * cold_room.o2_lower) / hot_room.upper_gas_kg,
+			hot_room.o2_upper,
+			Phase3O2AcceptanceLedger.REASON_AMBIGUOUS_MASS_BASE,
+			NAN, "zone_mix_literal_ceiling"
+		)
 
 	# O₂ zona inferior: mezcla conservativa con la fracción que va a lower.
 	if m_to_lower_kg > 0.0001:
+		var _o2d6_pre_cde_hot_low: float = hot_room.o2_lower
 		hot_room.o2_lower = clampf(
 			(hot_lower_mass * hot_room.o2_lower + m_to_lower_kg * cold_room.o2_lower)
 			/ (hot_lower_mass + m_to_lower_kg),
 			0.0, 0.209
+		)
+		phase3_o2_ledger.record(
+			"thermal_canonical_doorway", "lower", hot_room, _o2d6_pre_cde_hot_low,
+			(hot_lower_mass * _o2d6_pre_cde_hot_low
+				+ m_to_lower_kg * cold_room.o2_lower) / (hot_lower_mass + m_to_lower_kg),
+			hot_room.o2_lower,
+			Phase3O2AcceptanceLedger.REASON_AMBIGUOUS_MASS_BASE,
+			NAN, "zone_mix_literal_ceiling"
 		)
 	# cold_room.o2_lower: fracción conservada al perder masa (mezcla perfecta).
 
@@ -3559,7 +3631,15 @@ func _apply_canonical_doorway_exchange(
 	var _hot_cde_sync_kg: float = (_hot_cde_blend - hot_room.o2) * hot_total_vol * 1.2
 	hot_room.o2_zone_sync_kg_step += _hot_cde_sync_kg
 	hot_room.o2_zone_sync_kg_total += _hot_cde_sync_kg
+	# H3.2-S0d6: segunda reescritura de room.o2 como blend, misma naturaleza que
+	# la del counterflow: correccion numerica sin dueno.
+	var _o2d6_pre_cde_hot_bulk: float = hot_room.o2
 	hot_room.o2 = _hot_cde_blend
+	phase3_o2_ledger.record(
+		"thermal_zone_sync_blend", "bulk", hot_room, _o2d6_pre_cde_hot_bulk,
+		_o2d6_pre_cde_hot_bulk, hot_room.o2,
+		Phase3O2AcceptanceLedger.REASON_NO_ZONAL_INVARIANT, NAN, "overwritten_by_blend"
+	)
 
 	# Sync O₂ bulk para sala fría: Part A modificó cold_room.o2_upper (upper mixing),
 	# pero cold_room.o2 no se actualizó. Sincronizar para que el balance O1 sea correcto.
@@ -3574,7 +3654,13 @@ func _apply_canonical_doorway_exchange(
 	var _cold_cde_sync_kg: float = (_cold_cde_blend - cold_room.o2) * cold_total_vol * 1.2
 	cold_room.o2_zone_sync_kg_step += _cold_cde_sync_kg
 	cold_room.o2_zone_sync_kg_total += _cold_cde_sync_kg
+	var _o2d6_pre_cde_cold_bulk: float = cold_room.o2
 	cold_room.o2 = _cold_cde_blend
+	phase3_o2_ledger.record(
+		"thermal_zone_sync_blend", "bulk", cold_room, _o2d6_pre_cde_cold_bulk,
+		_o2d6_pre_cde_cold_bulk, cold_room.o2,
+		Phase3O2AcceptanceLedger.REASON_NO_ZONAL_INVARIANT, NAN, "overwritten_by_blend"
+	)
 	_record_phase3_runtime_ownership_transfer(
 		"canonical_doorway_lower",
 		cold_room,
