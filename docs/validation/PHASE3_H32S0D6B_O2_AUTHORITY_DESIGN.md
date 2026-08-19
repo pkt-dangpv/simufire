@@ -19,6 +19,15 @@ conservation and semantics, not agreement with current baselines.
 > The original text is kept unedited as the historical record; individual
 > invalidated claims carry inline `[SUPERSEDED ...]` markers.
 
+> **CORRECTION 2026-08-19 (S0d6b0.2a).** The "zero-mass edge" this document
+> called the one real hazard of option A is **less severe than stated for FED**:
+> `ThermalSystem.gd:4553` gates on `upper_gas_kg > 0.1`, so FED, CO, CO2 and HCN
+> already read the lower zone whenever the upper layer is absent. An absent upper
+> layer is a valid one-zone regime, not a degenerate state. The hazard that does
+> survive is the **lower** denominator: `ZoneFireSolver.gd:281` overwrites
+> `lower_gas_kg` unconditionally at every projection, which is what blocks
+> S0d6b1. See `PHASE3_H32S0D6B02_ZONAL_GAS_MASS_RELIABILITY.md` section 0.
+
 H3.2-S stays open, HVAC stays deferred, H3.2b remains an independent prerequisite
 of H3.3, no integrator exists and no runtime authority is granted.
 

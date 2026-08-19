@@ -49,6 +49,8 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S0d5b CO2 zonal transport | GO experimental / NO-GO promotion | Causal writer confirmed by direct trace at `accumulator_application`; 5 098/5 098 material CO2 violations removed with a CO2-derived 1e-8 kg threshold. FED moves +0.10 % in the post-fire case. |
 | H3.2-S0d5c HCN zonal audit | NO-GO fix / GO guard | Same causal writers as CO/CO2, but 7 154 strict violations and **0 material** against an HCN threshold of 1e-7 kg derived from FED sensitivity. Worst excess 3.12e-9 kg. No HCN flag shipped. |
 | H3.2-S0d6 O2 ownership audit | Outcome C / B carve-out | O2 is three independent fractions with no invariant and inconsistent mass bases per zone; only 2.29 % of 3 355 434 applications can carry kg. Clamps correct only FP noise (max 2.78e-17); the material unowned rewrite is the bulk being recomposed from the zones — 24 820 material corrections up to 4.44e-04 of fraction in ThermalSystem, plus a second recomposition at `OxygenExchangeSystem.gd:666`. Upper-zone combustion sink is complete at -208.47 kg. Coverage: 16 sites instrumented in one static pass, 22 of 45 production writes not instrumented and declared. |
+| H3.2-S0d6b0.2a audit correction | INCOMPLETE / BLOCKED ON H3.2b | Withdrew two inferences: the EOS check was tautological (SimulationStateBuilder derives volume_m3_eos FROM gas_kg) and upper_gas_kg==0 is a valid one-zone regime, not degeneracy, since ThermalSystem.gd:4553 gates FED on upper_gas_kg > 0.1 and reads lower otherwise. The surviving blocker is code-proven: ZoneFireSolver.gd:281 overwrites lower_gas_kg unconditionally each projection. Three dimensions now reported; 52 TWO_ZONE_PRESENT / 15 UPPER_ZONE_ABSENT / 0 invalid; 20 analyser contracts with a negative control. |
+| H3.2-S0d6b0.2 zonal gas-mass audit | [SUPERSEDED by H3.2-S0d6b0.2a] BLOCKED ON H3.2b | SUPERSEDED - the EOS counts, the DEGENERATE/PROJECTION_DEPENDENT tally and the undefined-o2_upper claim below are withdrawn; see the S0d6b0.2a row. Original text: The engine residual cannot fail (reconcile and projection_clamp count as attribution; identically zero in 10/10 cases). Per-step causal balance is INCOMPLETE at the committed 10 s logging. Zonal masses ARE the EOS reconstruction: lower matches V_eos*rho(T) in 20059/20059 steps, upper in 11863/20059, exactly the steps where it is non-zero. upper_gas_kg is zero in 40.86 % of room-steps and permanently zero in 15 of 67 rooms. 63 DEGENERATE / 4 PROJECTION_DEPENDENT / 0 RELIABLE. |
 | H3.2-S0d6b0.1 O2 molar/mass contract | CORRECTION / NO-GO S0d6b1 | Design conflated molar with mass fraction: xO2=0.20946 is YO2=0.23140. o2 is confirmed molar by FED (literal 20.9 vol%) and LOI. The 2.87x figure was the gas-mass base, not O2 mass; the net error is 0.9050*(T/Tamb), so the engine UNDERSTATES O2 mass in 79.80 % of rows and overstates by at most 2.60x. Combustion H2O is untracked, so option A (fixed dry-air Mmix, bounded -3.15 % to +5.00 %) is recommended. A new S0d6b0.2 gas-mass audit becomes a prerequisite of S0d6b1. |
 | H3.2-S0d6b O2 authority design | DESIGN GO / NO-GO implement | No O2 quantity is a physical kilogram: every mass base descends from a hard-coded 1.2 kg/m3 split volumetrically, while the engine's own gas law is rho = 1.2*T_amb/T; upper-zone bases inflated up to 2.87x, 4.99 % of 20 059 rows beyond 2x. Recommends zonal O2 mass authoritative (A) with an atomic commit (C); bulk becomes a derived view; B rejected as it cannot split a total into zones without inventing physics. Eight-phase reversible plan, blocked on upper_gas_kg/lower_gas_kg conservation. |
 | H3.2-S0d6a O2 state diagnosis | DIAGNOSTIC GO | No O2 state is authoritative: bulk drives combustion while zones drive FED. Bulk lies outside its zonal bracket in 74.67 % of rows. Conditional Thermal/OES blends repair divergence rather than cause it. Next: S0d6b design-only authority/invariant contract. |
@@ -340,6 +342,87 @@ H3.2-S0d6 O2 ownership and acceptance gate (2026-08-07):
   (`completeness = true`, -208.47 kg accepted; 2.29 % of applications). H3.2-S
   remains open, HVAC deferred, no integrator, H3.2b blocks H3.3, no authority.
   Full record: `docs/validation/PHASE3_H32S0D6_O2_OWNERSHIP_AUDIT.md`.
+
+H3.2-S0d6b0.2a zonal gas-mass audit correction gate (2026-08-19):
+
+- **Read-only correction.** No `sim/`, runner, case file, report, physics, flag,
+  expected value, tolerance, CTRL or VALID_GAP change. Godot not re-run.
+- **Withdrawn inference 1 — the EOS proof was tautological.**
+  `SimulationStateBuilder.gd:430-431` computes `volume_m3_eos = gas_kg / rho`, so
+  the analyser's `volume_m3_eos * rho == gas_kg` recovered its own input. The
+  20 059/20 059 and 11 863/11 863 counts measured CSV rounding; the "exactly the
+  non-zero steps" coincidence came from the analyser's own `mass > 0` guard. Kept
+  only as `SELF_DERIVED_EOS_IDENTITY`, explicitly non-evidential, with a contract
+  forbidding it from driving a verdict.
+- **Withdrawn inference 2 — an absent upper layer is not degeneracy.** It is a
+  valid one-zone regime. `ThermalSystem.gd:4553` gates
+  `in_upper = thermal_exposure_factor >= 0.5 and room.upper_gas_kg > 0.1`, so
+  FED, CO, CO2 and HCN read the lower zone when the upper layer is absent. The
+  40.86 % figure is now an observed regime frequency, not a defect rate.
+- **Surviving blocker, proven by static trace rather than statistics:**
+  `ZoneFireSolver.gd:281` overwrites `lower_gas_kg` unconditionally with
+  `remaining_volume * rho_lower` at every projection, so it never survives as an
+  accumulated quantity; `:264` caps `upper_gas_kg` only when it exceeds
+  `volume * rho_upper`; `:266-268` derives the interface from upper mass. Both
+  rewrites accumulate into `two_zone_boundary_mass_kg`.
+- Non-circular runtime evidence: that cumulative accumulator reaches −51.70 to
+  +33.65 times each room's nominal air mass, above 1x in 33 of 67 rooms.
+  Reported conservatively as a signed running sum, **not** as net
+  non-conservation.
+- Three separate dimensions replace the single misleading verdict:
+  `causal_status` INCOMPLETE in 10/10; `zone_presence` 52 TWO_ZONE_PRESENT,
+  15 UPPER_ZONE_ABSENT, 0 LOWER_ZONE_ABSENT, 0 NONFINITE_OR_INVALID;
+  `projection_evidence` code-proven with `RUNTIME_TRACE_UNAVAILABLE`.
+- 20 analyser contracts, including a negative control that fails if the withdrawn
+  EOS inference is reinstated. A second mixed-time-base ratio was caught and
+  removed during this revision. `git diff --check` clean; `git diff --name-only
+  -- sim` empty.
+- **INCOMPLETE / BLOCKED ON H3.2b.** Unblocking requires H3.2b to make
+  `lower_gas_kg` accumulated rather than reconstructed, the passive
+  instrumentation of section 1.1 to land, and a zone-transition contract for O2.
+  S0d6b1 stays blocked; H3.2-S, H3.2b and H3.3 remain open; HVAC deferred; no
+  integrator; no runtime authority. Full record:
+  `docs/validation/PHASE3_H32S0D6B02_ZONAL_GAS_MASS_RELIABILITY.md`.
+
+> **[SUPERSEDED by H3.2-S0d6b0.2a]** The EOS reconstruction counts, the DEGENERATE/PROJECTION_DEPENDENT classification and the undefined-`o2_upper` claim in this gate are withdrawn. Kept as the historical record; the corrected gate is S0d6b0.2a above.
+
+H3.2-S0d6b0.2 zonal gas-mass reliability gate (2026-08-19):
+
+- **Read-only audit.** No `sim/`, runner, physics, flag, expected value,
+  tolerance, report, CTRL or VALID_GAP change. Adds a read-only analyser, 14
+  contracts and the audit document.
+- Ten committed cases, one sequential Godot 4.7.1 run each via
+  `scripts/run_scenario.py`, zero failures, 231 columns, zero missing sentinels,
+  zero residual processes. 67 rooms, 20 059 room-steps.
+- **The engine's attribution residual cannot detect a conservation failure**:
+  `SimulationEngine.gd:1842-1868` counts `reconcile` and `projection_clamp` among
+  the attributed stages, and `attribution_mass_residual_kg_step` is identically
+  zero in every row of all ten cases.
+- **Per-step causal balance reported INCOMPLETE**: the committed cases log at
+  `log_interval_s = 10.0` while `*_step` columns cover a single sub-step, so the
+  balance is not reconstructable. Aligning them would require editing a committed
+  case file or the runner, both forbidden here. Passive instrumentation to close
+  the gap is proposed, not implemented.
+- **Decisive: the zonal masses are the EOS reconstruction.** `lower_gas_kg`
+  matches `V_eos * rho(T)` within logging precision in 20 059/20 059 steps;
+  `upper_gas_kg` in 11 863/20 059, exactly the count of steps in which it holds
+  any mass. The tolerance is derived from CSV quantisation (temperature at two
+  decimals gives `1.3e-5` relative), not chosen; an earlier draft using a fixed
+  `1e-12` mistook that quantisation for physical disagreement and was withdrawn.
+- **The denominator degenerates**: `upper_gas_kg` is zero in 40.86 % of
+  room-steps and permanently zero in 15 of 67 rooms; a derived `xO2_upper` would
+  be undefined there and FED reads exactly that value. Sampling at 10 s
+  undercounts, so the figure can only be higher.
+- Classification: **63 DEGENERATE, 4 PROJECTION_DEPENDENT, 0 RELIABLE.** The
+  analyser never reports RELIABLE while the causal dimension is missing, and a
+  contract enforces it.
+- **BLOCKED ON H3.2b.** Storing O2 kilograms against these masses would move the
+  unowned error from numerator to denominator. No alternative reference mass was
+  invented to sidestep it. Unblocking requires H3.2b to make the zonal masses
+  authoritative, plus a settled contract for what each consumer does with
+  `unknown` in an empty zone. H3.2-S, H3.2b and H3.3 remain open, HVAC stays
+  deferred, no integrator, no runtime authority. Full record:
+  `docs/validation/PHASE3_H32S0D6B02_ZONAL_GAS_MASS_RELIABILITY.md`.
 
 H3.2-S0d6b0.1 O2 molar/mass contract gate (2026-08-19):
 

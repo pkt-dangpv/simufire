@@ -3,6 +3,89 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0d6b0.2a zonal gas-mass audit correction (2026-08-19)
+
+- **Correction phase. Read-only**; no `sim/`, runner, case file, report,
+  physics, flag, expected value, tolerance, CTRL or VALID_GAP change. Godot was
+  not re-run: the same ten runs are reused.
+- **Two inferences withdrawn from S0d6b0.2, both wrong:**
+  - The EOS "proof" was **tautological**. `SimulationStateBuilder.gd:430-431`
+    computes `volume_m3_eos = gas_kg / rho`, so multiplying it back by the same
+    density recovers the input. The counts 20 059/20 059 and 11 863/11 863
+    measured only CSV rounding, and the "exactly the non-zero steps" coincidence
+    was an artefact of the analyser's own `mass > 0` guard. The identity survives
+    only as `SELF_DERIVED_EOS_IDENTITY`, explicitly non-evidential.
+  - **`upper_gas_kg == 0` is not degeneracy.** It is a valid one-zone regime, and
+    `ThermalSystem.gd:4553` gates on `upper_gas_kg > 0.1`, so FED, CO, CO2 and
+    HCN read the lower zone when the upper layer is absent. The claim that FED
+    reads an undefined `o2_upper` was false. The 40.86 % is now reported as an
+    observed regime frequency, not a defect rate.
+- **The decision is unchanged but now rests on evidence that is not circular.**
+  Static trace of `ZoneFireSolver.project_room_state()`: `:281` overwrites
+  `lower_gas_kg` **unconditionally** with `remaining_volume * rho_lower`, while
+  `:264` caps `upper_gas_kg` only when it exceeds `volume * rho_upper` and
+  `:266-268` derives the interface **from** upper mass. Lower mass does not
+  survive a projection call as an accumulated quantity; upper mass does unless
+  capped.
+- Non-circular runtime evidence: `two_zone_boundary_mass_kg`, the cumulative
+  accumulator of exactly those rewrites, reaches a magnitude of **−51.70 to
+  +33.65 times each room's nominal air mass** over a run, exceeding 1x in
+  **33 of 67 rooms**. Reported conservatively: it is a signed running sum, so it
+  is **not** a measurement of net non-conservation, and none is claimed.
+- Classification is now three separate dimensions instead of one misleading
+  verdict: `causal_status` (INCOMPLETE in 10/10), `zone_presence`
+  (**52 TWO_ZONE_PRESENT, 15 UPPER_ZONE_ABSENT, 0 invalid**), and
+  `projection_evidence` (code-proven, never CSV-inferred).
+- Analyser rewritten with 20 contracts including a negative control: reinstating
+  the withdrawn EOS inference breaks the suite. A second mixed-time-base ratio
+  was caught and removed during this revision.
+- **Decision: INCOMPLETE / BLOCKED ON H3.2b**, on the lower-zone reconstruction,
+  not on the one-zone regime and not on the tautology. S0d6b1 stays blocked;
+  H3.2-S, H3.2b and H3.3 remain open; HVAC deferred; no runtime authority.
+
+> **[SUPERSEDED by H3.2-S0d6b0.2a]** The EOS reconstruction counts, the DEGENERATE and
+> PROJECTION_DEPENDENT classification, and the claim that FED reads an undefined
+> `o2_upper` in the entry below are all withdrawn. The EOS check was tautological
+> and an absent upper layer is a valid one-zone regime gated at
+> `ThermalSystem.gd:4553`. Kept unedited as the historical record; the corrected
+> reading is the S0d6b0.2a entry above.
+
+### Phase 3 H3.2-S0d6b0.2 zonal gas-mass reliability audit (2026-08-19)
+
+- **Read-only audit. No `sim/`, runner, physics, flag, expected value,
+  tolerance, report, CTRL or VALID_GAP change.** Adds only a read-only analyser,
+  `scripts/simulation/analyze_zonal_gas_mass_reliability.py`, its 14 contracts,
+  and `docs/validation/PHASE3_H32S0D6B02_ZONAL_GAS_MASS_RELIABILITY.md`.
+- Ten committed cases, one sequential Godot 4.7.1 run each, zero failures, 231
+  columns, zero missing sentinels, zero residual processes: 67 rooms and 20 059
+  room-steps.
+- **The engine's own attribution residual cannot detect a conservation failure.**
+  `SimulationEngine.gd:1842-1868` counts `reconcile` and `projection_clamp` among
+  the attributed stages, so the books close by construction.
+  `attribution_mass_residual_kg_step` is **identically zero in every row of all
+  ten cases**.
+- **A per-step causal balance is not reconstructable from the committed
+  evidence**: the cases log at `log_interval_s = 10.0` while every `*_step`
+  column covers a single sub-step. Reported INCOMPLETE rather than approximated.
+  Passive instrumentation that would close it is proposed, not implemented.
+- **The decisive finding: the zonal masses are the EOS reconstruction.**
+  `lower_gas_kg` matches `V_eos * rho(T)` within logging precision in
+  **20 059/20 059** steps, and `upper_gas_kg` in **11 863/20 059**, which is
+  exactly the number of steps in which the upper zone holds any mass at all. Both
+  zones, every case, every step. The tolerance is derived from the CSV's own
+  quantisation (temperature is logged at two decimals, so `0.005 K` propagates to
+  `1.3e-5` relative), not chosen.
+- **The denominator also degenerates**: `upper_gas_kg` is zero in **40.86 %** of
+  room-steps and permanently zero for the whole run in **15 of 67 rooms**. A
+  derived `xO2_upper` would be undefined there, and FED reads exactly that value.
+- Classification: **63 DEGENERATE, 4 PROJECTION_DEPENDENT, 0 RELIABLE.**
+- **STOP gate: BLOCKED ON H3.2b.** The zonal masses record what geometry and
+  temperature imply, not what physical flows delivered, so storing O2 kilograms
+  against them would move the unowned error from numerator to denominator. No
+  alternative reference mass was invented to work around it, as the directive
+  forbids. S0d6b1 stays blocked; H3.2-S, H3.2b and H3.3 remain open; HVAC
+  deferred; no runtime authority.
+
 ### Phase 3 H3.2-S0d6b0.1 O2 molar/mass contract correction (2026-08-19)
 
 - **Correction phase. Nothing implemented**; `sim/`, `tests/`, `scripts/`,
