@@ -49,6 +49,9 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S0d5b CO2 zonal transport | GO experimental / NO-GO promotion | Causal writer confirmed by direct trace at `accumulator_application`; 5 098/5 098 material CO2 violations removed with a CO2-derived 1e-8 kg threshold. FED moves +0.10 % in the post-fire case. |
 | H3.2-S0d5c HCN zonal audit | NO-GO fix / GO guard | Same causal writers as CO/CO2, but 7 154 strict violations and **0 material** against an HCN threshold of 1e-7 kg derived from FED sensitivity. Worst excess 3.12e-9 kg. No HCN flag shipped. |
 | H3.2-S0d6 O2 ownership audit | Outcome C / B carve-out | O2 is three independent fractions with no invariant and inconsistent mass bases per zone; only 2.29 % of 3 355 434 applications can carry kg. Clamps correct only FP noise (max 2.78e-17); the material unowned rewrite is the bulk being recomposed from the zones — 24 820 material corrections up to 4.44e-04 of fraction in ThermalSystem, plus a second recomposition at `OxygenExchangeSystem.gd:666`. Upper-zone combustion sink is complete at -208.47 kg. Coverage: 16 sites instrumented in one static pass, 22 of 45 production writes not instrumented and declared. |
+| H3.2-S0d6b0.1 O2 molar/mass contract | CORRECTION / NO-GO S0d6b1 | Design conflated molar with mass fraction: xO2=0.20946 is YO2=0.23140. o2 is confirmed molar by FED (literal 20.9 vol%) and LOI. The 2.87x figure was the gas-mass base, not O2 mass; the net error is 0.9050*(T/Tamb), so the engine UNDERSTATES O2 mass in 79.80 % of rows and overstates by at most 2.60x. Combustion H2O is untracked, so option A (fixed dry-air Mmix, bounded -3.15 % to +5.00 %) is recommended. A new S0d6b0.2 gas-mass audit becomes a prerequisite of S0d6b1. |
+| H3.2-S0d6b O2 authority design | DESIGN GO / NO-GO implement | No O2 quantity is a physical kilogram: every mass base descends from a hard-coded 1.2 kg/m3 split volumetrically, while the engine's own gas law is rho = 1.2*T_amb/T; upper-zone bases inflated up to 2.87x, 4.99 % of 20 059 rows beyond 2x. Recommends zonal O2 mass authoritative (A) with an atomic commit (C); bulk becomes a derived view; B rejected as it cannot split a total into zones without inventing physics. Eight-phase reversible plan, blocked on upper_gas_kg/lower_gas_kg conservation. |
+| H3.2-S0d6a O2 state diagnosis | DIAGNOSTIC GO | No O2 state is authoritative: bulk drives combustion while zones drive FED. Bulk lies outside its zonal bracket in 74.67 % of rows. Conditional Thermal/OES blends repair divergence rather than cause it. Next: S0d6b design-only authority/invariant contract. |
 | H3.2-S0d5d species clamp ownership | GO diagnostics / NO-GO clamp removal | Passive ledger measures accumulator and zonal clamp corrections as `numerical_correction`. 65/65 runs complete; only room-loop `upper <= bulk` binds. Full-duration audit also finds the S0d5b CO2 balance export incomplete for two late-opening cases. |
 | H3.2b residual projection | BLOCKING | Must preserve the thermal cap as an explicit sink before any state commit. |
 | H3.3 mass/energy authority | BLOCKED | Cannot start before H3.2-S and H3.2b pass their STOP gates. |
@@ -337,6 +340,108 @@ H3.2-S0d6 O2 ownership and acceptance gate (2026-08-07):
   (`completeness = true`, -208.47 kg accepted; 2.29 % of applications). H3.2-S
   remains open, HVAC deferred, no integrator, H3.2b blocks H3.3, no authority.
   Full record: `docs/validation/PHASE3_H32S0D6_O2_OWNERSHIP_AUDIT.md`.
+
+H3.2-S0d6b0.1 O2 molar/mass contract gate (2026-08-19):
+
+- **Correction phase, nothing implemented.** No `sim/`, `tests/`, `scripts/`,
+  `tools/` or report change. Appended as section 12 of the S0d6b design; the
+  superseded text is preserved with inline `[SUPERSEDED]` markers rather than
+  rewritten.
+- The S0d6b design conflated **molar/volumetric** with **mass** fraction. In dry
+  air `xO2 = 0.20946` corresponds to `YO2 = 0.23140`, a factor
+  `MO2/Mair = 1.10476`.
+- **`o2` is molar/volumetric, confirmed by its consumers.** The decisive evidence
+  is the literal `20.9` in the FED hypoxia deficit
+  (`ThermalSystem.gd:4576,4649`), which is volume percent, plus LOI
+  (`CombustionSystem.gd:2661,3488`), defined in vol%. Thornton
+  (`0.076 kg O2/MJ`) is the only natively mass quantity.
+- **The `2.87x` figure is corrected and decomposed.** It was the inflation of the
+  **gas-mass base**. The net O2-mass error is
+  `mO2_engine/mO2_true = 0.9050 * (T/T_ambient)`, crossover at `50.7 C`. Over the
+  same 20 059 rows: p05 `0.905`, p50 `0.907`, p95 `1.809`, max `2.598`. The
+  engine **understates** physical O2 mass in **79.80 %** of rows, by 9.48 % at
+  ambient; the worst overstatement is **2.60x**. The S0d6 `-208.47 kg` carve-out
+  is wrong by the same factor.
+- **A dynamic mixture molar mass is not available**: combustion water vapour is
+  untracked, `room.steam_kg` is suppression spray only, and soot is condensed
+  phase. Option B is blocked; option C is deferred.
+- **Option A recommended**: fixed dry-air `Mmix = 28.9647 g/mol`, a named and
+  quantified approximation (`-3.15 %` to `+5.00 %`, typically under `1 %`)
+  because CO2 and H2O straddle N2.
+- The round trip `xO2 -> mO2 -> xO2` is an **exact algebraic identity but not a
+  bit-identity**: 62.18 % bit-identical over 400 000 samples, worst relative
+  error 4.416e-16, worst 3 ULP. **Declared bound `1e-15` relative / 4 ULP.** The
+  physical `Mmix` approximation is a separate error of about `5 %` and the two are
+  never conflated in a test. An earlier zero-bound claim was wrong and is
+  corrected in place.
+- Seeding is `mO2 = 0.23140 * mgas`, which reproduces `xO2 = 0.20946` exactly, so
+  FED, LOI, ILV, CSV and UI are unchanged at `t = 0`.
+- Seventeen invariants restated, including that temperature alone never changes
+  `mO2`, and that gas-mass transport carrying no explicit O2 never creates or
+  destroys it.
+- **Plan reordered**: a new **S0d6b0.2**, a read-only reliability audit of
+  `upper_gas_kg`/`lower_gas_kg`, becomes a **prerequisite of S0d6b1**, because
+  the contract divides by that mass.
+- **NO-GO for S0d6b1. GO for S0d6b0.2.** Storing kilograms and exposing
+  20.9 %vol are now provably compatible to a declared bound of `1e-15` relative
+  (4 ULP), but not yet *verifiable* while the denominator is unaudited. H3.2-S, H3.2b and H3.3 remain
+  open, HVAC stays deferred, no integrator exists, no runtime authority.
+
+H3.2-S0d6b O2 authority design gate (2026-08-19):
+
+- **Design only. Nothing implemented**; no `sim/core` file touched, no physics,
+  no flag, no campaign, no HVAC work, no integrator.
+- Phase 1 establishes the semantics exactly: `room.o2`, `o2_upper` and `o2_lower`
+  are fractions of a **fictitious constant-density atmosphere**
+  (`volume_m3() * 1.2`, `OxygenExchangeSystem.gd:356`, `:1325-1328`) split by a
+  **volumetric** layer fraction — not mass fractions of the tracked gas.
+- The engine contradicts that base with its own gas law
+  (`ZoneFireSolver.gd:257/275`, `rho = 1.2 * T_ambient/T`). Measured over the ten
+  S0d6 cases and 20 059 room-steps, the upper-zone O2 mass base is inflated by up
+  to **2.87x**, with 4.99 % of rows beyond 2x. **No O2 figure in the engine is
+  currently a physical kilogram**, which corrects the S0d6 `-208.47 kg`
+  carve-out: internally consistent, but denominated in a fictitious atmosphere.
+- Two independent in-flight O2 parcel pools exist (`OES:1239` with a reservation
+  ledger, `GES:2157` without), and three classes of mass-base mismatch, including
+  `OES:633` capping with the zone mass and applying with the room mass.
+- **Recommendation: Option A (zonal O2 mass authoritative) through Option C's
+  atomic commit discipline.** Bulk derives exactly by summation; Option B is
+  rejected because S0d6a showed the bulk outside its zonal bracket in both
+  directions on 74.67 % of rows, so no partition rule is recoverable from a total
+  without inventing physics.
+- Eleven invariants, a proposed tick, an eight-phase reversible plan
+  (S0d6b0..S0d6b7, all default OFF with their own STOP gates), a risk table and a
+  legacy-retirement list are specified.
+- **Explicit dependency**: A requires `upper_gas_kg` and `lower_gas_kg` to be
+  conserved and non-degenerate. S0d6b2 must measure that first; if they are
+  unreliable, A defers to H3.2b.
+- Adopting A changes the meaning of `o2` and will move baselines. That is a
+  physics decision, to be gated on physical grounds and never tuned to reproduce
+  current CFAST agreement.
+- **GO for the design; NO-GO to implement anything yet.** H3.2-S, H3.2b and H3.3
+  remain open, HVAC stays deferred, no integrator exists, no runtime authority.
+  Full record: `docs/validation/PHASE3_H32S0D6B_O2_AUTHORITY_DESIGN.md`.
+
+H3.2-S0d6a O2 state diagnosis gate (reviewed 2026-08-19):
+
+- No O2 representation is authoritative. `room.o2` gates most combustion,
+  extinction, re-ignition, flashover, backdraft, LOI and CO oxidation, while
+  `o2_upper/o2_lower` drive FED hypoxia.
+- A geometry-free consistency test finds bulk outside the interval of its own
+  zones in 14,978/20,059 rows (74.67 %). 12,520 rows exceed the fraction change
+  associated with a 1 % movement in FED hypoxia.
+- Decision-level disagreement appears in 399 rows where bulk O2 is below the
+  flame-sustaining threshold while lower-zone O2 remains at least 0.19.
+- Worst instance: `cfast_hvac_residential`, room 0, 600.1 s, with bulk
+  `0.000650`, upper `0.091950` and lower `0.209000`.
+- Corrects the S0d6 framing: the Thermal/OES zone blends are conditional
+  numerical repairs of divergence, not its origin. Bulk and zones evolve under
+  separate rules and no invariant reconnects them when those paths do not fire.
+- **Diagnostic GO only.** No runtime change, no selected authority and no
+  integrator. Next allowed phase is S0d6b design-only comparison of conservative
+  O2 authority/invariant architectures. HVAC remains deferred; H3.2-S remains
+  open; H3.2b independently blocks H3.3; no authority is granted. Full record:
+  `PHASE3_H32S0D6A_O2_STATE_DIAGNOSIS.md`.
 
 H3.2-S0d5d species clamp ownership gate (2026-08-06):
 

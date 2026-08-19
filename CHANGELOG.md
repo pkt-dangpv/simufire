@@ -3,6 +3,108 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+### Phase 3 H3.2-S0d6b0.1 O2 molar/mass contract correction (2026-08-19)
+
+- **Correction phase. Nothing implemented**; `sim/`, `tests/`, `scripts/`,
+  `tools/` and the reports remain untouched. Appended as section 12 of
+  `docs/validation/PHASE3_H32S0D6B_O2_AUTHORITY_DESIGN.md`; the superseded text
+  is kept as the historical record with inline `[SUPERSEDED]` markers.
+- **Blocking semantic error found in the S0d6b design and corrected.** It
+  conflated molar/volumetric fraction with mass fraction. `0.209` is molar;
+  `mO2/mgas` is a mass fraction; in dry air they differ by
+  `MO2/Mair = 31.999/28.9647 = 1.10476`, so `xO2 = 0.20946` is `YO2 = 0.23140`.
+- **`o2` is confirmed molar/volumetric by its consumers**, decisively by the
+  literal `20.9` in the FED hypoxia deficit (`ThermalSystem.gd:4576,4649`), which
+  is volume percent, and by LOI (`CombustionSystem.gd:2661,3488`), defined in
+  vol%. The only natively mass quantity is Thornton, `0.076 kg O2/MJ`.
+- **The `2.87x` claim is corrected.** It measured the **gas-mass base**
+  inflation, not the O2-mass error. The net error is
+  `mO2_engine/mO2_true = 0.9050 * (T/T_ambient)`, crossing over at `50.7 C`.
+  Measured over the same 20 059 rows: p50 `0.907`, p95 `1.809`, max `2.598`.
+  **The engine UNDERSTATES physical O2 mass in 79.80 % of rows**, by 9.48 % at
+  ambient; the worst overstatement is **2.60x**, not 2.87x. The S0d6
+  `-208.47 kg` carve-out is wrong by the same factor.
+- **Composition is insufficient for a dynamic mixture molar mass**: combustion
+  water vapour is not tracked anywhere. `room.steam_kg` (`RoomModel.gd:344`) is
+  filled only by suppression spray (`SimulationEngine.gd:3468`), and soot is
+  condensed phase. Option B is therefore blocked.
+- **Recommended: option A, fixed dry-air `Mmix = 28.9647 g/mol`**, a named and
+  bounded approximation. Quantified sensitivity `-3.15 %` to `+5.00 %`, typically
+  under `1 %`, because CO2 (44.01) and H2O (18.02) straddle N2 (28.01) and
+  largely cancel.
+- The round trip `xO2 -> mO2 -> xO2` is an **exact algebraic identity but not a
+  bit-identity**: measured over 400 000 samples, only 62.18 % are bit-identical,
+  worst relative error 4.416e-16 and worst 3 ULP. **Declared bound `1e-15`
+  relative / 4 ULP**; tests must assert that tolerance, never equality. An
+  earlier draft claiming a zero bound was wrong and is corrected in place.
+- Seeding is `mO2 = 0.20946 * 1.10476 * mgas = 0.23140 * mgas`, so FED, LOI, ILV,
+  CSV and UI see an unchanged `0.20946` at `t = 0`. Seeding `0.209 * mgas` would
+  start every scenario 9.5 % lean.
+- Seventeen invariants restated, including that changing temperature alone never
+  changes `mO2`, and that gas-mass transport carrying no explicit O2 never
+  creates or destroys it.
+- **Plan reordered: a new S0d6b0.2, a read-only zonal gas-mass reliability audit,
+  becomes a prerequisite of S0d6b1**, because the whole contract divides by
+  `mgas_zone`.
+- **STOP gate: NO-GO for S0d6b1, GO for S0d6b0.2.** Storing kilograms and
+  exposing 20.9 %vol are now provably compatible, but not yet verifiable while
+  the denominator is unaudited. No commit, no push, no runtime authority.
+
+### Phase 3 H3.2-S0d6b O2 authority design (2026-08-19)
+
+- **Design only. Nothing implemented**, no file under `sim/core` touched, no
+  physics, no flag, no campaign. Full record:
+  `docs/validation/PHASE3_H32S0D6B_O2_AUTHORITY_DESIGN.md`.
+- **Decisive semantic finding: no O2 quantity in the engine is a physical
+  kilogram.** `OxygenExchangeSystem.gd:356` hard-codes
+  `air_density_kg_m3 = 1.2`, and every O2 mass base descends from
+  `volume_m3() * 1.2` split by a *volumetric* layer fraction. The engine's own
+  gas law, `ZoneFireSolver.gd:257/275`, is `rho = 1.2 * T_ambient/T`, so a hot
+  zone's real mass is smaller by `T_ambient_K / T_zone_K`. Measured over the ten
+  S0d6 cases and 20 059 room-steps, the upper-zone O2 mass base is inflated up
+  to **2.87x**, and 4.99 % of rows exceed 2x.
+- This corrects the S0d6 carve-out: `oes_combustion_upper_sink` remains
+  internally consistent, but its `-208.47 kg` are kilograms of a fictitious
+  constant-density atmosphere, not physical kilograms.
+- Also recorded: O2 is in flight in **two independent parcel pools**
+  (`OES:1239` with a reservation ledger, `GES:2157` without), and three classes
+  of mass-base mismatch, including a path that caps with the zone mass and
+  applies with the room mass (`OES:633`).
+- **Recommendation: Option A, zonal O2 mass authoritative, applied through
+  Option C's atomic commit discipline.** Bulk becomes a derived view. Option B
+  is rejected because a stored total cannot be partitioned into zones without
+  inventing a split rule, and S0d6a showed the bulk lies outside its zonal
+  bracket in both directions on 74.67 % of rows.
+- Eleven invariants, a proposed tick, an eight-phase reversible plan
+  (S0d6b0..S0d6b7), a risk table and a legacy-retirement list are specified. The
+  plan is explicitly blocked on `upper_gas_kg` / `lower_gas_kg` being conserved,
+  which S0d6b2 must measure and which may defer to H3.2b.
+- Adopting A changes the meaning of `o2` from a fictitious-atmosphere fraction
+  to a true mass fraction, so baselines will move. That must be gated on
+  physical grounds and never tuned to reproduce current CFAST agreement.
+- No implementation, no commit of engine code, no runtime authority. H3.2-S,
+  H3.2b and H3.3 all remain open; HVAC stays deferred.
+
+### Phase 3 H3.2-S0d6a O2 state diagnosis (reviewed 2026-08-19)
+
+- Read-only post-processing of the committed S0d6 corpus shows that none of
+  `room.o2`, `o2_upper` or `o2_lower` is authoritative. Bulk state governs most
+  combustion viability decisions, while zonal state governs FED hypoxia.
+- `room.o2` lies outside the interval defined by its two zones in 14,978 of
+  20,059 logged room-steps (74.67 %); 12,520 rows exceed the movement associated
+  with a 1 % change in `FED_hypoxia`.
+- The worst measured state is `cfast_hvac_residential` room 0 at 600.1 s:
+  bulk `0.000650`, upper `0.091950`, lower `0.209000`. The same room is therefore
+  anoxic to combustion logic and ambient at breathing height to tenability.
+- Corrected the S0d6 interpretation: `thermal_zone_sync_blend` is a material
+  unowned correction, but it is a conditional repair of pre-existing divergence,
+  not its cause. The three O2 fractions evolve independently and only two
+  conditional paths ever rebuild bulk from the zones.
+- **Diagnostic GO only.** No physics, clamps, HVAC, integrator, expected values,
+  tolerances or reports changed. Next allowed slice is S0d6b design-only work to
+  choose a single conservative authority/invariant before implementation.
+- H3.2-S remains open; H3.2b independently blocks H3.3; no authority is granted.
+
 ### Phase 3 H3.2-S0d6 O2 ownership and acceptance audit (2026-08-07)
 
 - Added `Phase3O2AcceptanceLedger`, a passive, default-OFF measurement of
