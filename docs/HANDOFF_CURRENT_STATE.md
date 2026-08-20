@@ -8,6 +8,42 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+> **CORRECTED 2026-08-19 (H3.2b0 review).** Five points in the entry below are
+> superseded: energy without mass **fails closed** and is never routed to a sink;
+> the suppression lower write stays a **dead write** because it sets only
+> `temp_lower_c`, and H3.2b does not revive it — only S0d2, which writes
+> `lower_energy_kj`, can; `thermal_cap_upper` is a **cause**, not a physical
+> destination, and can block promotion even when the ledger closes; the two
+> residuals must **not** be required to differ, only to satisfy
+> `residual_physical − residual_closure = Σ numerical_corrections`, and
+> `residual_physical` is invalid unless `physical_owner_completeness` is true; and
+> the multiplicity metrics now include per-step maximum and the count of steps
+> with more than one call. See the design document.
+
+## Current Session Update - 2026-08-19 - H3.2b0 residual projection design
+
+- **Docs only.** No `sim/`, `tests/`, `scripts/`, `tools/`, runner, case file or
+  report change; no flag, no physics, no campaign. Record:
+  `docs/validation/PHASE3_H32B_RESIDUAL_PROJECTION_DESIGN.md`.
+- Five `project_room_state()` call sites mapped; **a room can be projected at
+  least three times per timestep**, and `_clamp_rooms` alone twice because the
+  stairwell cap fires after the final clamp. The per-timestep count is not
+  exported — the most important missing number.
+- Canonical closure: `M` and `E` authoritative, `p` derived from them, and
+  `V_u + V_l = V_room` then holds by construction. Projection never touches mass
+  or energy to close volume. Energy without mass is a forbidden state.
+- Thermal cap becomes an explicit sink with an owner and cumulative totals; it is
+  not removed. The S0d1 suppression lower-energy dead write stops being dead
+  under residual projection and gets its own gate.
+- Eight reversible phases H3.2b0..H3.2b7, all default OFF, with an idempotence
+  invariant on projection.
+- `Phase3CoupledPressureSolver` is not reused: network solver versus closed-form
+  single-room pressure. Reconciled at H3.3.
+- **H3.2b precedes S0d6b1.**
+- **GO H3.2b1 instrumentation; NO-GO for physics until it reports.** All metrics
+  must be cumulative `*_total`, never sub-step deltas against 10 s rows.
+- H3.2-S, H3.2b, H3.3 open; S0d6b1 blocked; HVAC deferred; no runtime authority.
+
 ## Current Session Update - 2026-08-19 - H3.2-S0d6b0.2a audit correction
 
 - **Read-only correction; no `sim/`, runner, case file or report change.** Godot

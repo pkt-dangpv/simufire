@@ -49,6 +49,7 @@ Validation must check more than isolated final values. Each scenario should be t
 | H3.2-S0d5b CO2 zonal transport | GO experimental / NO-GO promotion | Causal writer confirmed by direct trace at `accumulator_application`; 5 098/5 098 material CO2 violations removed with a CO2-derived 1e-8 kg threshold. FED moves +0.10 % in the post-fire case. |
 | H3.2-S0d5c HCN zonal audit | NO-GO fix / GO guard | Same causal writers as CO/CO2, but 7 154 strict violations and **0 material** against an HCN threshold of 1e-7 kg derived from FED sensitivity. Worst excess 3.12e-9 kg. No HCN flag shipped. |
 | H3.2-S0d6 O2 ownership audit | Outcome C / B carve-out | O2 is three independent fractions with no invariant and inconsistent mass bases per zone; only 2.29 % of 3 355 434 applications can carry kg. Clamps correct only FP noise (max 2.78e-17); the material unowned rewrite is the bulk being recomposed from the zones — 24 820 material corrections up to 4.44e-04 of fraction in ThermalSystem, plus a second recomposition at `OxygenExchangeSystem.gd:666`. Upper-zone combustion sink is complete at -208.47 kg. Coverage: 16 sites instrumented in one static pass, 22 of 45 production writes not instrumented and declared. |
+| H3.2b0 residual projection design | GO H3.2b1 / NO-GO physics | Docs only. Five project_room_state call sites mapped; a room can be projected at least three times per timestep and _clamp_rooms alone twice; the count is not exported. Canonical closure makes V_u+V_l=V_room an identity once p derives from conserved M and E, so projection never back-fills mass or energy. Thermal cap becomes an explicit sink, not removed. Eight reversible phases with an idempotence invariant. Phase3CoupledPressureSolver not reused. H3.2b precedes S0d6b1. |
 | H3.2-S0d6b0.2a audit correction | INCOMPLETE / BLOCKED ON H3.2b | Withdrew two inferences: the EOS check was tautological (SimulationStateBuilder derives volume_m3_eos FROM gas_kg) and upper_gas_kg==0 is a valid one-zone regime, not degeneracy, since ThermalSystem.gd:4553 gates FED on upper_gas_kg > 0.1 and reads lower otherwise. The surviving blocker is code-proven: ZoneFireSolver.gd:281 overwrites lower_gas_kg unconditionally each projection. Three dimensions now reported; 52 TWO_ZONE_PRESENT / 15 UPPER_ZONE_ABSENT / 0 invalid; 20 analyser contracts with a negative control. |
 | H3.2-S0d6b0.2 zonal gas-mass audit | [SUPERSEDED by H3.2-S0d6b0.2a] BLOCKED ON H3.2b | SUPERSEDED - the EOS counts, the DEGENERATE/PROJECTION_DEPENDENT tally and the undefined-o2_upper claim below are withdrawn; see the S0d6b0.2a row. Original text: The engine residual cannot fail (reconcile and projection_clamp count as attribution; identically zero in 10/10 cases). Per-step causal balance is INCOMPLETE at the committed 10 s logging. Zonal masses ARE the EOS reconstruction: lower matches V_eos*rho(T) in 20059/20059 steps, upper in 11863/20059, exactly the steps where it is non-zero. upper_gas_kg is zero in 40.86 % of room-steps and permanently zero in 15 of 67 rooms. 63 DEGENERATE / 4 PROJECTION_DEPENDENT / 0 RELIABLE. |
 | H3.2-S0d6b0.1 O2 molar/mass contract | CORRECTION / NO-GO S0d6b1 | Design conflated molar with mass fraction: xO2=0.20946 is YO2=0.23140. o2 is confirmed molar by FED (literal 20.9 vol%) and LOI. The 2.87x figure was the gas-mass base, not O2 mass; the net error is 0.9050*(T/Tamb), so the engine UNDERSTATES O2 mass in 79.80 % of rows and overstates by at most 2.60x. Combustion H2O is untracked, so option A (fixed dry-air Mmix, bounded -3.15 % to +5.00 %) is recommended. A new S0d6b0.2 gas-mass audit becomes a prerequisite of S0d6b1. |
@@ -342,6 +343,66 @@ H3.2-S0d6 O2 ownership and acceptance gate (2026-08-07):
   (`completeness = true`, -208.47 kg accepted; 2.29 % of applications). H3.2-S
   remains open, HVAC deferred, no integrator, H3.2b blocks H3.3, no authority.
   Full record: `docs/validation/PHASE3_H32S0D6_O2_OWNERSHIP_AUDIT.md`.
+
+> **CORRECTED 2026-08-19 (H3.2b0 review).** Five points in the entry below are
+> superseded: energy without mass **fails closed** and is never routed to a sink;
+> the suppression lower write stays a **dead write** because it sets only
+> `temp_lower_c`, and H3.2b does not revive it — only S0d2, which writes
+> `lower_energy_kj`, can; `thermal_cap_upper` is a **cause**, not a physical
+> destination, and can block promotion even when the ledger closes; the two
+> residuals must **not** be required to differ, only to satisfy
+> `residual_physical − residual_closure = Σ numerical_corrections`, and
+> `residual_physical` is invalid unless `physical_owner_completeness` is true; and
+> the multiplicity metrics now include per-step maximum and the count of steps
+> with more than one call. See the design document.
+
+H3.2b0 residual projection design gate (2026-08-19):
+
+- **Design only, documentation only.** No `sim/`, `tests/`, `scripts/`,
+  `tools/`, runner, case file or report change; no flag, no physics, no
+  campaign, no implementation.
+- **Call-site map.** Five sites: `thermal_energy_projection`
+  (`ThermalSystem.gd:1239`), `thermal_layer_sync` through reconcile (`:4954`),
+  `final_clamp_quiescent` and `final_clamp_active`
+  (`SimulationEngine.gd:4283`, `:4302`), and `stairwell_temperature_cap`
+  (`:4363`) which fires **after** the final clamp in the same `_clamp_rooms`
+  pass. A room can therefore be projected **at least three times per timestep**.
+  The real count is not exported and is the most important missing number.
+- **Canonical equation.** With `M` and `E` authoritative and
+  `p = (R/V_room)·(M_u·T_u + M_l·T_l)`, the volumes derived from `p` satisfy
+  `V_u + V_l = V_room` **identically**. Projection therefore has no reason to
+  modify mass or energy, which is exactly what it does today
+  (`ZoneFireSolver.gd:281` overwrites `lower_gas_kg`; `:246-251` re-derives both
+  energies from clamped temperatures).
+- Explicit rules given for zero-mass zones, energy without mass (**forbidden**,
+  routed to a sink rather than zeroed), one-zone/two-zone transitions in both
+  directions, non-finite pressure and out-of-range interface. A zone may only be
+  born by receiving a **paired** mass and energy transfer, never by geometric
+  seeding.
+- **Thermal cap becomes an explicit sink**: requested, accepted, rejected, owner
+  `thermal_cap_upper`, cumulative totals, conservation stated with the sink as
+  its own term. The cap is not removed. The S0d1 suppression lower-energy write
+  is dead today only because projection re-derives `lower_energy_kj`; under
+  residual projection it becomes live, and that gets its own gate rather than
+  being revived as a side effect.
+- **Eight reversible phases** H3.2b0..H3.2b7, all default OFF and byte-identical
+  when off, each with its own STOP gate and rollback. Fifteen invariants,
+  including that projection must be **idempotent** — the real fix for repeated
+  projection, with deduplication only an optimisation afterwards.
+- `Phase3CoupledPressureSolver` is **not** reused: it solves a room network
+  iteratively for an end-of-step mass balance, while H3.2b needs a closed-form
+  single-room pressure. Reconciled at H3.3, not before.
+- **H3.2b must precede S0d6b1**: S0d6b0.2a proved the O2 inventory is blocked on
+  this, and H3.2b has no dependency on the O2 work.
+- The 6 VALID_GAP are untouched, and a future metric movement must never be used
+  to justify editing one.
+- **GO for H3.2b1 passive causal instrumentation; NO-GO for any physics change,
+  including the pure primitive, until it reports.** Three shaping numbers remain
+  unmeasured: projection call count, physical-only versus closure-inclusive
+  residual, and gross rather than net correction magnitude. All metrics must be
+  cumulative `*_total` accumulators, because comparing sub-step deltas against
+  10 s rows is the error this programme has already made twice. Full record:
+  `docs/validation/PHASE3_H32B_RESIDUAL_PROJECTION_DESIGN.md`.
 
 H3.2-S0d6b0.2a zonal gas-mass audit correction gate (2026-08-19):
 

@@ -3,6 +3,62 @@
 All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
+> **CORRECTED 2026-08-19 (H3.2b0 review).** Five points in the entry below are
+> superseded: energy without mass **fails closed** and is never routed to a sink;
+> the suppression lower write stays a **dead write** because it sets only
+> `temp_lower_c`, and H3.2b does not revive it — only S0d2, which writes
+> `lower_energy_kj`, can; `thermal_cap_upper` is a **cause**, not a physical
+> destination, and can block promotion even when the ledger closes; the two
+> residuals must **not** be required to differ, only to satisfy
+> `residual_physical − residual_closure = Σ numerical_corrections`, and
+> `residual_physical` is invalid unless `physical_owner_completeness` is true; and
+> the multiplicity metrics now include per-step maximum and the count of steps
+> with more than one call. See the design document.
+
+### Phase 3 H3.2b0 residual projection design (2026-08-19)
+
+- **Design only, documentation only.** No `sim/`, `tests/`, `scripts/`, `tools/`,
+  runner, case file or report change; no flag, no physics, no campaign, no
+  implementation. Record:
+  `docs/validation/PHASE3_H32B_RESIDUAL_PROJECTION_DESIGN.md`.
+- Maps all five `project_room_state()` call sites: `thermal_energy_projection`
+  (`ThermalSystem.gd:1239`), `thermal_layer_sync` via reconcile (`:4954`),
+  `final_clamp_quiescent` / `final_clamp_active` (`SimulationEngine.gd:4283`,
+  `:4302`) and `stairwell_temperature_cap` (`:4363`). **A room can be projected
+  at least three times per timestep**, and `_clamp_rooms` alone can project twice
+  because the stairwell cap fires after the final clamp. The actual per-timestep
+  count is **not exported** and is the single most important missing number.
+- Canonical closure specified: with `M` and `E` authoritative and
+  `p = (R/V)·(M_u·T_u + M_l·T_l)`, the identity `V_u + V_l = V_room` holds **by
+  construction**, so projection never needs to touch mass or energy to close
+  volume. Degenerate and transition cases are each given an explicit rule,
+  including that energy without mass is a **forbidden state** rather than
+  something to zero silently.
+- The thermal cap becomes an **explicit sink** — requested, accepted, rejected,
+  owner `thermal_cap_upper`, cumulative totals — rather than being absorbed by
+  re-deriving energy from the clamped temperature. The cap is not removed. The
+  S0d1 suppression lower-energy write, dead today because projection re-derives
+  `lower_energy_kj`, stops being dead under residual projection and gets its own
+  gate rather than being revived as a side effect.
+- Eight reversible phases H3.2b0..H3.2b7, all default OFF and byte-identical when
+  off, with an **idempotence invariant**: projecting twice from the same `(M, E)`
+  must be bit-identical. That, not deduplication, is the real fix for repeated
+  projection.
+- `Phase3CoupledPressureSolver` is **not** reused: it solves a room network
+  iteratively, while H3.2b needs a closed-form single-room pressure. They are
+  reconciled at H3.3, not before.
+- **H3.2b must precede S0d6b1**, since S0d6b0.2a proved the O2 inventory is
+  blocked on exactly this; H3.2b has no dependency on the O2 work.
+- **GO for H3.2b1 (passive causal instrumentation). NO-GO for any physics change,
+  including the primitive, until it reports.** Three shaping numbers are still
+  unmeasured: the projection call count, the split between physical-only and
+  closure-inclusive residuals, and gross rather than net correction magnitude.
+  All instrumentation must use cumulative `*_total` accumulators, because
+  comparing sub-step deltas with 10 s rows is the error this programme has
+  already made twice.
+- H3.2-S, H3.2b and H3.3 remain open; S0d6b1 stays blocked; HVAC deferred; no
+  runtime authority.
+
 ### Phase 3 H3.2-S0d6b0.2a zonal gas-mass audit correction (2026-08-19)
 
 - **Correction phase. Read-only**; no `sim/`, runner, case file, report,
