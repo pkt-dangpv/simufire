@@ -15,6 +15,7 @@ const LayerInterfaceModel = preload("res://sim/core/LayerInterfaceModel.gd")
 const Phase3ZoneMassSystemScript = preload("res://sim/core/Phase3ZoneMassSystem.gd")
 const Phase3PhysicalOwnerLedgerScript = preload("res://sim/core/Phase3PhysicalOwnerLedger.gd")
 const Phase3O2AcceptanceLedgerScript = preload("res://sim/core/Phase3O2AcceptanceLedger.gd")
+const Phase3ProjectionCausalLedgerScript = preload("res://sim/core/Phase3ProjectionCausalLedger.gd")
 
 # ============================================================
 # SIMULATION ENGINE
@@ -1000,6 +1001,18 @@ var _step_time_us: int = 0
 ## H3.2-S0d3: medicion pasiva del clamp agregado de especies y O2. Default OFF;
 ## no cambia fisica ni el CSV legacy. Solo mide si el clamp llega a morder.
 @export var phase3_species_attribution_diagnostics_enabled: bool = false
+## H3.2b1: acumulador causal pasivo de la proyeccion bi-zona. NO instrumenta
+## project_room_state: solo acumula la traza que ZoneFireSolver ya emite.
+## Default OFF y byte-identico con el flag apagado.
+@export var phase3_projection_causal_diagnostics_enabled: bool = false:
+	set(value):
+		phase3_projection_causal_diagnostics_enabled = value
+		_phase3_projection_causal_ledger.enabled = value
+		if value and zone_fire_solver != null:
+			# La traza por llamada es la fuente; sin ella no hay nada que acumular.
+			zone_fire_solver.projection_diagnostics_enabled = true
+var _phase3_projection_causal_ledger = Phase3ProjectionCausalLedgerScript.new()
+
 ## H3.2-S0d6: medicion pasiva de aceptacion de O2 en todos los subsistemas que la
 ## mutan salvo HVAC, diferido por enunciado. Default OFF y byte-identica con el
 ## flag apagado.
@@ -1274,6 +1287,8 @@ func _sync_auxiliary_services() -> void:
 				phase3_species_attribution_diagnostics_enabled,
 		"phase3_o2_attribution_diagnostics_enabled": \
 				phase3_o2_attribution_diagnostics_enabled,
+		"phase3_projection_causal_diagnostics_enabled": \
+				phase3_projection_causal_diagnostics_enabled,
 		"phase3_co_zonal_transport_consistency_enabled": \
 				phase3_co_zonal_transport_consistency_enabled,
 		"phase3_co_first_violation_trace_enabled": \
@@ -1834,6 +1849,52 @@ func _phase3_zone_diag_record_stage(stage_name: String) -> void:
 	_phase3_zone_diag_checkpoint = current
 
 
+func _phase3_projection_causal_accumulate() -> void:
+	## H3.2b1: purely additive. Reads the projection trace ZoneFireSolver already
+	## produced this step and the per-stage attribution the zone diagnostics
+	## already computed, and accumulates them. It writes no room state, creates no
+	## sink, repairs nothing and governs nothing.
+	if not phase3_projection_causal_diagnostics_enabled or zone_fire_solver == null:
+		return
+	# The per-call trace is the only source. The flag setter may have run before
+	# the solver existed, so enabling it here is the reliable point; it is
+	# idempotent and the trace is itself diagnostic-only.
+	if not zone_fire_solver.projection_diagnostics_enabled:
+		zone_fire_solver.projection_diagnostics_enabled = true
+		_phase3_projection_causal_ledger.record_unavailable(
+			Phase3ProjectionCausalLedgerScript.REASON_TRACE_UNAVAILABLE
+		)
+	# The per-stage attribution belongs to the zone diagnostics. Without it the
+	# residuals would silently be zero, so the dependency is declared instead.
+	if not phase3_zone_diagnostics_enabled:
+		_phase3_projection_causal_ledger.record_unavailable(
+			Phase3ProjectionCausalLedgerScript.REASON_ZONE_DIAG_UNAVAILABLE
+		)
+	# STATIC coverage gaps: declared every step because they describe what the
+	# instrumentation covers, not what ran. An ACTIVE gap is a different thing
+	# and the ledger raises it only when the writer moves material mass or energy.
+	_phase3_projection_causal_ledger.record_static_gap(
+		Phase3ProjectionCausalLedgerScript.STATIC_GAP_HVAC_UNOWNED
+	)
+	_phase3_projection_causal_ledger.record_static_gap(
+		Phase3ProjectionCausalLedgerScript.STATIC_GAP_OTHER_CATCHALL
+	)
+	_phase3_projection_causal_ledger.record_static_gap(
+		Phase3ProjectionCausalLedgerScript.STATIC_GAP_SUPPRESSION_LOWER_DEAD
+	)
+	_phase3_projection_causal_ledger.record_static_gap(
+		Phase3ProjectionCausalLedgerScript.STATIC_GAP_EXTERIOR_NOT_ZONAL
+	)
+	_phase3_projection_causal_ledger.accumulate_step(
+		zone_fire_solver.get_projection_trace_events(),
+		_phase3_zone_diag_export()
+	)
+
+
+func get_phase3_projection_causal_summary() -> Dictionary:
+	return _phase3_projection_causal_ledger.summary()
+
+
 func _phase3_zone_diag_export() -> Dictionary:
 	if not phase3_zone_diagnostics_enabled:
 		return {}
@@ -1867,6 +1928,11 @@ func _phase3_zone_diag_export() -> Dictionary:
 				- float(start.get("energy_kj", finish.get("energy_kj", 0.0)))
 		room_diag["attribution_mass_residual_kg_step"] = observed_mass_kg - attributed_mass_kg
 		room_diag["attribution_energy_residual_kj_step"] = observed_energy_kj - attributed_energy_kj
+		# H3.2b1: the observed delta itself, so a causal residual can be computed
+		# independently of the attribution above. No CSV column is added: the log
+		# writer emits a fixed field list.
+		room_diag["observed_mass_delta_kg"] = observed_mass_kg
+		room_diag["observed_energy_delta_kj"] = observed_energy_kj
 		exported[room_key] = room_diag
 	return exported
 
@@ -3067,6 +3133,7 @@ func step(delta: float) -> void:
 	_phase3_runtime_ownership_record_stage("clamp_rooms")
 	if phase3_canonical_zone_shadow_enabled:
 		phase3_zone_mass_system.finalize_step(building, thermal_system.ambient_temp_c())
+	_phase3_projection_causal_accumulate()
 	# Evaluar el estado final del paso, incluyendo cualquier pérdida por clamp.
 	_check_carbon_balance()
 	_check_layer_interface_guardrails(dt)
@@ -4730,6 +4797,10 @@ func build_technical_summary(output_dir: String = "") -> Dictionary:
 				_phase3_physical_owner_engine_events
 			),
 		}
+	if phase3_projection_causal_diagnostics_enabled:
+		# H3.2b1: bloque opt-in del acumulador causal de proyeccion.
+		summary["phase3_projection_causal"] = \
+				_phase3_projection_causal_ledger.summary()
 	if phase3_o2_attribution_diagnostics_enabled:
 		# H3.2-S0d6: bloque opt-in de aceptacion de O2, combinando los ledgers de
 		# cada subsistema que muta O2. HVAC queda fuera, diferido por enunciado.

@@ -344,6 +344,49 @@ H3.2-S0d6 O2 ownership and acceptance gate (2026-08-07):
   remains open, HVAC deferred, no integrator, H3.2b blocks H3.3, no authority.
   Full record: `docs/validation/PHASE3_H32S0D6_O2_OWNERSHIP_AUDIT.md`.
 
+H3.2b1 passive projection causal ledger (2026-08-20):
+
+- **Instrumentation only.** No physics, no flag default, no CSV column, no case
+  file, no report, no baseline, no `ZoneFireSolver` change. New
+  `sim/core/Phase3ProjectionCausalLedger.gd`, flag
+  `phase3_projection_causal_diagnostics_enabled` (default `false`), runner flag
+  `--phase3-projection-causal-diagnostics`, one hook at the end of
+  `SimulationEngine.step()`. It accumulates telemetry that already existed — the
+  `ZoneFireSolver` projection trace and the zone-diagnostics per-stage
+  attribution — so `project_room_state()` is not instrumented twice, and it never
+  repairs a state, creates a sink or reaches an engine decision.
+- **Units declared.** A **room-step** is one room within one physical timestep; a
+  **timestep** is one `step()`. `accumulate_step` runs exactly once per step, so
+  the physical-timestep boundary is known and per-timestep multiplicity is
+  measured, not approximated from room-steps. Coverage that cannot be computed
+  from a known boundary is declared absent instead of estimated.
+- **Measured, `cfast_corridor_chain`** (committed case, 600 s, 6 rooms,
+  7 201 timesteps, 43 206 room-steps): **429 471 projection calls**; maximum
+  **17 per room-step** and **65 per timestep**; **every one of the 43 206
+  room-steps carries more than one call**; **17 distinct causes**, not the five
+  direct call sites H3.2b0 mapped. Churn leader `gas_exchange_sync`:
+  12 415.669 kg gross against 442.949 kg net.
+- **Semantics pinned.** `gross_absolute` is projection **churn**, not a physical
+  contribution and not a source; `signed_net`, `gross_absolute` and `call_count`
+  are separate numbers. **Static** coverage gaps are separate from **observed
+  active** gaps, and an active gap is raised only on material movement
+  (`MATERIAL_ACTIVITY_EPS = 1e-12`, derived from double precision). Missing
+  telemetry fails closed with reason codes and never reports zero.
+- **Residual status: candidate, not proven.** `residual_physical_valid` is
+  **`false`** (four static coverage gaps, zero observed active gaps), so the
+  +23.978 kg is exported as `candidate_incomplete_physical_residual`. The
+  closure-inclusive residual is exactly zero and
+  `candidate_physical_residual − closure_inclusive_residual = numerical_correction`
+  holds with exactly zero error, reconfirming that the engine's own residual
+  cannot fail. **The upper cap never binds on this case** — `upper_mass_correction`
+  and `thermal_cap_rejected` are exactly zero in all six rooms.
+- **Gates.** OFF byte-identical (`sim_log.csv` SHA-256 equal baseline vs flag
+  alone, and equal zone-diagnostics alone vs zone plus causal); summaries differ
+  by the opt-in block only; 30 pytest contracts and 14 Godot fixture assertions
+  pass. Record: `docs/validation/PHASE3_H32B_RESIDUAL_PROJECTION_DESIGN.md` §11.
+- **H3.2b2 and every physics change remain blocked.** Next is H3.2b1a, the
+  passive ten-topology campaign.
+
 > **CORRECTED 2026-08-19 (H3.2b0 review).** Five points in the entry below are
 > superseded: energy without mass **fails closed** and is never routed to a sink;
 > the suppression lower write stays a **dead write** because it sets only
@@ -355,6 +398,20 @@ H3.2-S0d6 O2 ownership and acceptance gate (2026-08-07):
 > `residual_physical` is invalid unless `physical_owner_completeness` is true; and
 > the multiplicity metrics now include per-step maximum and the count of steps
 > with more than one call. See the design document.
+>
+> **[NAMES UPDATED 2026-08-20 by the H3.2b1 delivery.]** The requirements above
+> are unchanged; the exported names are sharper.
+> `physical_owner_completeness` / `completeness_mask` shipped split in two,
+> because coverage and activity are not the same claim: **static** gaps
+> (`static_instrumentation_gap_reason_codes`) describe what the instrumentation
+> covers and never imply a path ran, while **observed active** gaps
+> (`observed_active_gap_reason_codes`) are incremented only when that writer
+> materially moved mass or energy. `residual_physical_valid` now requires
+> `data_available`, no active gap **and** complete structural coverage, and the
+> accumulators are `candidate_physical_residual_*` and
+> `closure_inclusive_residual_*` so an invalid physical residual cannot be quoted
+> as a physical residual by accident. Multiplicity is reported per **room-step**
+> and per **timestep**, which are different units.
 
 H3.2b0 residual projection design gate (2026-08-19):
 

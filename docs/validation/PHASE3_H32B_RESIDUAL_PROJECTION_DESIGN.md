@@ -66,6 +66,33 @@ project twice.
 `_projection_call_index` and a per-call trace, but neither is exported. This is
 the single most important missing number and H3.2b1 must export it.
 
+> **[MEASURED 2026-08-19 by H3.2b1 — this table was incomplete.]** The five rows
+> above are the five *direct* `project_room_state(` call sites. They are not the
+> five causes. `ThermalSystem._sync_room_two_zone_layer` takes `projection_cause`
+> as a parameter and is itself invoked from many places, so the runtime shows
+> **seventeen distinct causes**, not five. On `cfast_corridor_chain`, 7 201
+> timesteps and 6 rooms produced **429 471 projection calls**, a maximum of
+> **17 calls in a single room-step**, and **43 206 room-steps carrying more than
+> one call**. The design's estimate of "at least three per timestep" was a lower
+> bound that understated reality by roughly a factor of five. The largest
+> contributors by call count are `reconcile_layer_sync` (86 412),
+> `gas_exchange_sync` (64 057), and `thermal_energy_projection`,
+> `thermal_post_combustion_sync` and `thermal_post_losses_sync` (43 206 each,
+> i.e. once per room per timestep). Section 6's idempotence invariant becomes
+> correspondingly more important, and any deduplication scheme must handle
+> seventeen causes rather than five.
+>
+> > **[UNITS CORRECTED 2026-08-20.]** The measurements above are unchanged; the
+> > wording was wrong. **43 206 is a count of room-steps, not of physical
+> > timesteps** — it is 7 201 timesteps × 6 rooms, i.e. every room in every
+> > timestep, which the earlier phrasing "43 206 steps" invited being read as a
+> > timestep count. Likewise the maximum of 17 is per **room-step**, not per
+> > timestep. A room-step is one room within one physical timestep. The ledger
+> > now names both units explicitly and, because `accumulate_step` is invoked
+> > exactly once per `SimulationEngine.step()`, the physical-timestep boundary is
+> > genuinely known, so per-timestep multiplicity is measured too rather than
+> > approximated from room-steps.
+
 ### 2.2 Writers of zone state
 
 | Quantity | Physical owners | Numerical corrections |
@@ -242,6 +269,20 @@ section 4, and any exterior removal path not attributed per zone. A consumer of
 `residual_physical` must check the flag first and refuse to interpret the number
 when it is false.
 
+> **[NAMES CORRECTED 2026-08-20 by the H3.2b1 delivery — §11.2.]** The
+> requirement above is unchanged; the exported names are different and sharper.
+> `physical_owner_completeness` / `completeness_mask` were a single notion doing
+> two incompatible jobs, so they ship split in two: **static** coverage gaps
+> (`static_instrumentation_gap_reason_codes`, known from reading the code, never
+> implying the path ran) and **observed active** gaps
+> (`observed_active_gap_reason_codes` / `observed_active_gap_counts`, incremented
+> only when the writer materially moved mass or energy). Validity
+> (`residual_physical_valid`) requires `data_available`, no active gap **and**
+> complete structural coverage. The accumulators are
+> `candidate_physical_residual_*` and `closure_inclusive_residual_*`, and the
+> physical one carries the label `candidate_incomplete_physical_residual` while
+> it is invalid, so it can never be quoted as a physical residual by accident.
+
 ---
 
 ## 6. Phase 5 — staged architecture
@@ -259,6 +300,16 @@ when it is false.
 
 Every phase default OFF, byte-identical when off, independently revertible, and
 gated before the next starts.
+
+> **[H3.2b1 ROW CORRECTED 2026-08-20.]** Two entries in the H3.2b1 row are
+> superseded by what actually shipped. Its STOP gate does **not** require the two
+> residuals to be **different** — equality is a legitimate outcome, and on
+> `cfast_corridor_chain` the closure-inclusive residual is exactly zero while the
+> candidate physical one is +23.978 kg; what is required is the relation
+> `candidate_physical_residual − closure_inclusive_residual = numerical_correction`,
+> which holds with **exactly** zero error. And the delivery touched neither
+> `SimulationLogWriter` nor `SimulationStateBuilder`: no CSV column was added, the
+> ledger exports through an opt-in summary block only.
 
 ---
 
@@ -383,3 +434,156 @@ guesses for those is how the last two audits went wrong.
 
 This phase is docs-only. Nothing was implemented, no flag added, no campaign run,
 and `sim/`, `tests/`, `scripts/` and `tools/` are untouched.
+
+---
+
+## 11. H3.2b1 — passive causal ledger, delivered 2026-08-20
+
+Instrumentation only. No physics changed, no flag defaults changed, no CSV column
+added, no case file or report touched. The ledger observes; it never repairs a
+state, never creates a sink, and none of its metrics is readable from an engine
+decision.
+
+### 11.1 What was built
+
+| File | Role |
+| --- | --- |
+| `sim/core/Phase3ProjectionCausalLedger.gd` | passive accumulator, **new** |
+| `sim/core/SimulationEngine.gd` | `@export phase3_projection_causal_diagnostics_enabled` (default `false`), one hook at the end of `step()` |
+| `scripts/run_scenario.py`, `tools/run_scenario_headless.gd` | `--phase3-projection-causal-diagnostics` |
+| `tests/fixtures/phase3_h32b1_projection_causal.gd` | 14 runtime assertions, fail-closed |
+| `tests/test_phase3_h32b1_projection_causal.py` | 30 structural contracts |
+
+It instruments nothing itself. `ZoneFireSolver` already emits a per-call
+projection trace and the zone diagnostics already compute a per-stage
+attribution; the ledger only accumulates both, so `project_room_state()` is never
+instrumented twice.
+
+### 11.2 Semantics, stated before the numbers
+
+These definitions are the point of the phase; the earlier H3.2b1 draft reported
+the same measurements under names that overstated what they meant.
+
+- **Units.** A **room-step** is one room within one physical timestep. A
+  **timestep** is one `SimulationEngine.step()`. `accumulate_step` is invoked
+  exactly once per step, so the physical-timestep boundary is genuinely known and
+  per-timestep multiplicity is *measured*, not inferred from room-steps. No
+  metric is approximated across an unknown boundary; where a boundary is not
+  known, the coverage is declared absent instead.
+- **`gross_absolute` is projection churn** — the volume of rewriting a cause
+  performed. It is **not** a physical contribution and **not** a source.
+  `signed_net`, `gross_absolute` and `call_count` are kept as three separate
+  numbers and never collapsed into one.
+- **The physical residual is a candidate.** It is only called a physical residual
+  when `residual_physical_valid`, which requires all three of: `data_available`,
+  no observed active gap, and complete structural coverage. Otherwise the export
+  labels it **`candidate_incomplete_physical_residual`**, because when an owner is
+  missing the number *is* the missing owner, not a conservation measurement.
+  `numerical_correction` is a valid observation in either case, and the contract
+  `candidate_physical_residual − closure_inclusive_residual = numerical_correction`
+  is computed and verified, under the sign convention that every term is a signed
+  contribution to the state delta.
+- **Static gaps are not active gaps.** `static_instrumentation_gap_reason_codes`
+  lists owners whose coverage is known from reading the code to be absent or
+  partial; it describes coverage and never implies that the path ran.
+  `observed_active_gap_reason_codes` is incremented only when the corresponding
+  writer materially moved mass or energy in this run
+  (`MATERIAL_ACTIVITY_EPS = 1e-12`, derived from double precision, not fitted).
+- **Fail closed.** If either telemetry source is off the ledger reports
+  `data_available: false` with reason codes rather than zeros, since a zero
+  meaning "not measured" is indistinguishable from a zero meaning "no
+  correction".
+
+### 11.3 Measured on `cfast_corridor_chain` (600 s, 6 rooms, 7 201 timesteps)
+
+Committed case file, flags `--phase3-zone-diagnostics
+--phase3-projection-causal-diagnostics`.
+
+| Quantity | Value |
+| --- | --- |
+| timesteps | 7 201 |
+| room-steps | 43 206 (= 7 201 × 6) |
+| projection calls | **429 471** |
+| max calls in one **room-step** | **17** |
+| max calls in one **timestep** (all rooms) | **65** |
+| room-steps with >1 call | **43 206 — every room, every timestep** |
+| timesteps with >1 call | 7 201 |
+| distinct causes | **17**, against the five direct call sites §2.1 mapped |
+| `data_available` | `true` |
+| static instrumentation gaps | 4: `hvac_mass_energy_unowned`, `other_stage_is_catchall`, `suppression_lower_write_dead`, `exterior_removal_not_zonal` |
+| observed **active** gaps | **none** |
+| `residual_physical_valid` | **`false`** — structural coverage incomplete |
+| label applied | `candidate_incomplete_physical_residual` |
+| candidate incomplete physical residual, mass | **+23.978 kg** |
+| closure-inclusive residual, mass | **0.0 exactly** |
+| numerical correction, mass | +23.978 kg |
+| candidate incomplete physical residual, energy | −3.04e−11 kJ |
+| closure-inclusive residual, energy | 0.0 exactly |
+| relation error (mass, energy) | **0.0, 0.0 — exact** |
+
+Largest causes by call count and by churn:
+
+| Cause | calls | mass gross (kg) | mass net (kg) |
+| --- | --- | --- | --- |
+| `reconcile_layer_sync` | 86 412 | 23.964 | 23.964 |
+| `gas_exchange_sync` | 64 057 | **12 415.669** | 442.949 |
+| `thermal_energy_projection` | 43 206 | 62.646 | 62.646 |
+| `thermal_post_combustion_sync` | 43 206 | 157.634 | −157.356 |
+| `doorway_hot_source_sync` | 12 411 | 153.237 | 153.237 |
+| `doorway_cold_target_sync` | 12 411 | 152.587 | −152.587 |
+
+`gas_exchange_sync` rewrites **28×** more mass than it nets. That ratio is the
+churn statement and nothing more: it is not a mass source, and none of it is
+evidence of a physical contribution.
+
+Per room, the corrections are **entirely on the lower zone**:
+
+| Room | calls | max/room-step | lower net (kg) | lower gross (kg) | upper net/gross (kg) | cap binds |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | 78 742 | 13 | +413.476 | 3 638.110 | 0.0 / 0.0 | 0 |
+| 1 | 110 571 | **17** | −20.717 | 6 291.691 | 0.0 / 0.0 | 0 |
+| 2 | 75 136 | 11 | −21.607 | 3 110.489 | 0.0 / 0.0 | 0 |
+| 3 | 53 493 | 8 | −0.003 | 0.009 | 0.0 / 0.0 | 0 |
+| 4 | 58 036 | 9 | −0.023 | 0.098 | 0.0 / 0.0 | 0 |
+| 5 | 53 493 | 8 | −0.003 | 0.009 | 0.0 / 0.0 | 0 |
+
+Zero upper-zone births, deaths, energy-without-mass states and non-finite states
+in every room.
+
+### 11.4 What this settles, and what it does not
+
+Settled:
+
+- The upper-mass cap of §2.1 and the thermal cap of §4 **never bind** in this
+  scenario: `upper_mass_correction` and `thermal_cap_rejected` are exactly zero
+  in all six rooms. **All** projection churn here is the unconditional lower
+  rewrite. A primitive that only reworks the cap would change nothing on this
+  case.
+- The closure-inclusive residual is **exactly zero** and the relation error is
+  **exactly zero**, which reconfirms §1: with `reconcile` and `projection_clamp`
+  counted as attribution, the residual the engine itself computes cannot fail.
+  The whole +23.978 kg sits in the numerical correction.
+- Multiplicity is worse than the design assumed. "At least three per timestep"
+  understated the room-step maximum by roughly a factor of five, and every single
+  room-step carries more than one call.
+
+Not settled, and explicitly **not** claimed:
+
+- The +23.978 kg is **not** a proven physical residual. Four static coverage gaps
+  remain open, so `residual_physical_valid` is `false`. No active gap was
+  observed, which means the number is structurally uncertain but not observably
+  contaminated — that is weaker than valid and stronger than unusable.
+- One scenario is not a corpus. Whether these shapes hold across topologies is
+  the question H3.2b1a answers.
+
+### 11.5 Gates verified
+
+- **OFF byte-identical.** `sim_log.csv` SHA-256 is identical between baseline and
+  `--phase3-projection-causal-diagnostics` alone, and identical between
+  `--phase3-zone-diagnostics` alone and that flag plus the causal flag. 367 rows
+  in both pairs.
+- Summaries differ by the opt-in `phase3_projection_causal` block only.
+- No new CSV column; no legacy column changed.
+- 30 pytest contracts and 14 Godot fixture assertions pass.
+
+**H3.2b2 and every physics change remain blocked.**
