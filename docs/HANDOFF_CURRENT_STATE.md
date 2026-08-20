@@ -8,6 +8,41 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-20 - H3.2b2 pure residual projection primitive
+
+- **Primitive only, uncommitted, zero call sites, no authority.** New
+  `sim/core/Phase3ResidualProjection.gd`, its fixture and contracts.
+- **Reopened and corrected after a review NO-GO.** Three blockers, all inside
+  the primitive, all fixed; the earlier STOP gate is preserved as a NO-GO
+  record. Record:
+  `docs/validation/PHASE3_H32B2_RESIDUAL_PROJECTION_PRIMITIVE.md`.
+- **Blocker 1, second definition of air:** the hard-coded 287.052874 gas constant
+  is gone. The primitive now uses `Phase3CoupledPressureSolver`'s constants and
+  ambient-dependent `gas_constant = P_ref / (rho_ref * reference_temp_k)`,
+  **reproduced not imported**. Measured **0.000 ulp** against the solver's own
+  pressure form, and **101 325 Pa to 1.294 ulp** for a room at ambient holding
+  `1.2*V` kg. **[SUPERSEDED]** the earlier "0.341 % expected physical divergence"
+  - it was created by the non-canonical constant, not by the engine, so H3.2b3
+  no longer opens with it.
+- **Blocker 2, `NaN` inside `valid: true`:** an absent zone now omits
+  `temperature_k` and `density_kg_m3` entirely instead of filling them with
+  `NaN`. Verified by a self-tested recursive walk plus an **external negative
+  control** that reinjected the defect and made the fixture fail.
+- **Blocker 3, one-zone interface:** exact by construction - `room_height_m` when
+  upper is absent, `0.0` when lower is - with tests requiring exact equality.
+- **Determinism is now binary** (`var_to_bytes`, byte for byte, three shapes);
+  the `NaN`-equivalent comparator is deleted. **Closure improved to 0.000 ulp**
+  against the unchanged 16 ulp budget, whose derivation moved from twelve to
+  fourteen roundings.
+- **Preserved:** negative-energy rejection, `energy_without_mass` fail-closed,
+  zero M/E corrections, thermal limit deferred to H3.2b5, purity, prismatic
+  geometry, zero call sites, no flag, no shadow, no authority. `git status --
+  sim/` shows no modified tracked file.
+- Verification: 22/22 fixture, 57/57 contracts, 60/60 Godot fixtures, zero
+  residual processes. **GO for the pure primitive only.** Not committed, no
+  R2-1 refresh, no push. H3.2b3 and H3.2b1b not started; a single presence
+  predicate is still required before H3.2b6.
+
 ## Current Session Update - 2026-08-20 - H3.2b1a passive campaign, ten topologies
 
 - **Evidence only, uncommitted. No file under `sim/` was modified.** No physics,

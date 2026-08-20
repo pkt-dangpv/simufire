@@ -4,6 +4,80 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### Phase 3 H3.2b2 pure residual projection primitive (2026-08-20)
+
+- **Primitive only, zero call sites, no authority.** New
+  `sim/core/Phase3ResidualProjection.gd`, plus
+  `tests/fixtures/phase3_h32b2_residual_projection.gd` and
+  `tests/test_phase3_h32b2_residual_projection.py`.
+- **Reopened and corrected the same day after a review NO-GO.** Three blockers,
+  all inside the primitive, all fixed; the previous STOP gate is preserved as a
+  NO-GO record rather than deleted. Record:
+  `docs/validation/PHASE3_H32B2_RESIDUAL_PROJECTION_PRIMITIVE.md`.
+- **Blocker 1 - a second definition of air, removed.** The first issue
+  hard-coded `AIR_R_SPECIFIC_J_KG_K = 287.052874`, which made this file a
+  competing definition of air and manufactured a 345.5 Pa disagreement with
+  `Phase3CoupledPressureSolver` out of nothing. The primitive now uses that
+  solver's constants and derivation exactly - `AIR_PRESSURE_REF_PA = 101325.0`,
+  `AIR_DENSITY_REF_KG_M3 = 1.2`, and an ambient-dependent
+  `gas_constant = P_ref / (rho_ref * reference_temp_k)` - **reproduced, never
+  imported**, so it stays autonomous and pure. Measured: **0.000 ulp** agreement
+  with the canonical solver's own pressure form across seven states from -10 degC
+  to 35 degC, and a room at ambient holding `1.2*V` kg reproduces
+  **101 325 Pa to 1.294 ulp** over 48 room/split combinations.
+- **[SUPERSEDED]** the earlier claim that the legacy reference density implied
+  *100 979.5 Pa, 0.341 % below standard*, framed as a physical divergence for
+  H3.2b3 to quantify. That gap was created entirely by the primitive's own
+  non-canonical constant, not by the engine. **H3.2b3 no longer inherits a
+  constant-induced divergence**; what it will measure is the structural
+  difference, namely that the legacy path scales a fixed reference density by an
+  ambient/zone temperature ratio while the primitive couples both zones through
+  a shared room pressure.
+- **Blocker 2 - no `NaN` in a `valid: true` result.** An absent zone now carries
+  only `present`, `mass_kg`, `energy_kj` and `volume_m3`; `temperature_k` and
+  `density_kg_m3` are **omitted entirely** rather than filled with `NaN`. A
+  present zone always carries both, finite and strictly positive, checked before
+  emission. Verified by a **self-tested recursive walk** over each result, and by
+  an **external negative control**: reinjecting the `NaN` made the fixture fail
+  with four distinct assertions before the primitive was restored.
+- **Blocker 3 - one-zone interfaces are exact.** Upper absent returns
+  `interface_height_m == room_height_m` exactly; lower absent returns `0.0`
+  exactly; tests require exact equality, never `is_equal_approx`, across three
+  extra rooms. The two-zone case uses the canonical `V_lower / floor_area_m2`
+  form and keeps its rounding budget. This corrects no mass and no energy - it is
+  the exact representation of a boundary already known from the presence state.
+- **Determinism is now binary.** Complete results are compared with
+  `var_to_bytes()` byte for byte, for two-zone, upper-absent and lower-absent
+  shapes; the previous comparator that treated `NaN` as equal to `NaN` is deleted
+  and a contract asserts it has not returned. The comparator is itself
+  controlled, having to separate two results differing in the ninth decimal.
+- **Volume closure improved to 0.000 ulp** against the unchanged 16 ulp budget.
+  The derivation moved from twelve to fourteen roundings because the gas constant
+  entered the dependency path; the budget is unchanged because 14 <= 16, and the
+  text was updated rather than left stale.
+- **Everything else preserved:** negative energy rejected, `energy_without_mass`
+  fail-closed, mass and energy returned bit-identical with literal zero
+  corrections, thermal limit deferred to H3.2b5, purity and static-only
+  functions, prismatic geometry stated not hidden, **zero call sites**, no flag,
+  no member state, no `RoomModel`, no shadow, no fallback, no authority, no CSV
+  column, no change to any other system. `git status -- sim/` shows **no
+  modified tracked file**.
+- **Still recorded, still not fixed:** seven different absent-zone predicates
+  exist across the engine, from `> 0.1` kg at `ThermalSystem.gd:4553` to
+  `> 1e-12` kg at `Phase3CoupledPressureSolver.gd:87`. A single predicate is a
+  prerequisite for H3.2b6, alongside the H3.2b1b transition-counter repair
+  before H3.2b4.
+- Verification: **22/22** fixture assertions, **57/57** contracts, **60/60**
+  Godot fixtures, zero residual processes, external and internal negative
+  controls. **GO for the pure primitive only.** H3.2b3 not started.
+- Corrects two stale statements in the H3.2b0 design, preserving the historical
+  wording with dated notes: **equality of the two residuals never forced
+  rollback** (the triggers are a failed algebraic relation, a validity claim
+  without telemetry, or an incomplete residual presented as physical), and **the
+  suppression `temp_lower_c` write does not stop being dead under H3.2b** - it is
+  overwritten the moment temperature is re-derived from `lower_energy_kj`, and
+  only S0d2 can make that cooling physical.
+
 ### Phase 3 H3.2b1a passive projection campaign, ten topologies (2026-08-20)
 
 - **Evidence only. No file under `sim/` was modified.** No physics, no flag

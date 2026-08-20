@@ -344,6 +344,53 @@ H3.2-S0d6 O2 ownership and acceptance gate (2026-08-07):
   remains open, HVAC deferred, no integrator, H3.2b blocks H3.3, no authority.
   Full record: `docs/validation/PHASE3_H32S0D6_O2_OWNERSHIP_AUDIT.md`.
 
+H3.2b2 pure residual projection primitive (2026-08-20, reopened after review NO-GO):
+
+- **Primitive only. Zero call sites. No authority.** New
+  `sim/core/Phase3ResidualProjection.gd`, its fixture and contracts. No call
+  site, flag, member state, `RoomModel`/`BuildingModel`, `ZoneFireSolver`,
+  `SimulationEngine`, `ThermalSystem`/`GasExchangeSystem`/HVAC, CSV, runner,
+  report, legacy physics edit, shadow, fallback, VALID_GAP, baseline, expected
+  value or tolerance. `git status -- sim/` shows no modified tracked file. No
+  scenario run - without a call site it would be empty evidence.
+- **Three review blockers corrected.** (1) The hard-coded 287.052874 gas constant
+  is removed: the primitive now uses `Phase3CoupledPressureSolver`'s reference
+  constants and ambient-dependent gas constant, **reproduced not imported**, and
+  agrees with that solver's own pressure form to **0.000 ulp** while reproducing
+  **101 325 Pa to 1.294 ulp** at ambient. (2) No `valid: true` result contains
+  `NaN` or `INF`: an absent zone omits `temperature_k` and `density_kg_m3`
+  entirely. (3) Both one-zone interfaces are **exact by construction**, with
+  tests requiring exact equality.
+- **[SUPERSEDED]** the earlier claim of a 0.341 % physical pressure divergence
+  awaiting H3.2b3. It was created by the non-canonical constant, not by the
+  engine. H3.2b3 will measure the structural difference instead - legacy scales a
+  fixed reference density per zone, the primitive couples both zones through a
+  shared room pressure.
+- **Inversion achieved:** geometry is derived from `M` and `E`, not `M` from the
+  geometry. `V_u + V_l = V_room` proved algebraically for any gas constant and
+  measured at **0.000 ulp** against a derived 16 ulp budget, whose derivation
+  moved from twelve to fourteen roundings when the gas constant entered the path.
+- **Purity contract met:** static functions only, no member state, no
+  `class_name`; `M` and `E` returned bit-identical; corrections literal `0.0`;
+  **byte-level determinism** (`var_to_bytes`) across two-zone, upper-absent and
+  lower-absent shapes; idempotent, which the legacy path is not.
+- **Fail-closed contract met:** `M=0,E>0`, negative mass or energy, non-finite
+  input and both-zones-absent all rejected with explicit reason codes; an invalid
+  result exposes **no derived field** and no `NaN`.
+- **Thermal limit not applied** - reported unlimited, no energy removed; H3.2b5
+  owns it. Negative energy still rejected.
+- **Negative controls:** external (the absent-zone `NaN` was reinjected and the
+  fixture failed with four assertions, then restored) and internal (the recursive
+  finiteness walker and the byte comparator are both self-tested).
+- **Recorded, not fixed:** seven different absent-zone predicates across the
+  engine (`> 0.1` kg at `ThermalSystem.gd:4553` down to `> 1e-12` kg at
+  `Phase3CoupledPressureSolver.gd:87`). A single predicate is a prerequisite for
+  H3.2b6; H3.2b1b remains required before H3.2b4.
+- Verification: 22/22 fixture assertions, 57/57 contracts, 60/60 Godot fixtures,
+  zero residual processes. **GO for the pure primitive only**; H3.2b3 not
+  started. Record:
+  `docs/validation/PHASE3_H32B2_RESIDUAL_PROJECTION_PRIMITIVE.md`.
+
 H3.2b1a passive projection campaign, ten topologies (2026-08-20):
 
 - **Evidence only. No file under `sim/` was modified.** No physics, no flag

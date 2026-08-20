@@ -377,12 +377,25 @@ residual projection later moves a metric that a VALID_GAP describes, that is a
 physics result to be reported at that phase's gate — **it must never be used to
 justify editing a VALID_GAP**.
 
-**12. What forces rollback?** Any of: OFF ceases to be byte-identical; the two
-residuals come out equal (instrumentation not measuring what it claims); a zone
-transition loses mass or energy; a `numerical_correction` is counted twice; the
-primitive is not idempotent; energy exists with no mass; a baseline moves and the
-movement cannot be explained physically; or the legacy fallback fires unexpectedly
-while the flag is experimental.
+**12. What forces rollback?** Any of: OFF ceases to be byte-identical; the
+residuals' **algebraic relation fails**; telemetry is **missing and the residual
+is still declared valid**; an **incomplete residual is presented as a physical
+one**; a zone transition loses mass or energy; a `numerical_correction` is
+counted twice; the primitive is not idempotent; energy exists with no mass; a
+baseline moves and the movement cannot be explained physically; or the legacy
+fallback fires unexpectedly while the flag is experimental.
+
+> **[CORRECTED 2026-08-20.]** The first issue of this list contained *"the two
+> residuals come out equal (instrumentation not measuring what it claims)"* as a
+> rollback trigger. **Equality does not force rollback and never did.** It is a
+> legitimate outcome whenever the numerical corrections sum to zero over the
+> window, and H3.2b1a measured exactly that shape across ten topologies: the
+> closure-inclusive residual is exactly zero in all ten while the candidate
+> physical residual is non-zero, with a relation error of exactly zero. The
+> three replacements above are what actually indicts the instrumentation —
+> a broken relation, a validity claim without telemetry, or an incomplete
+> residual quoted as physical. The historical wording is preserved here rather
+> than deleted so the change of criterion stays auditable.
 
 ---
 
@@ -412,12 +425,26 @@ while the flag is experimental.
 | Risk | Severity | Mitigation |
 |---|---|---|
 | Baselines move once volume closes through pressure instead of back-fill | **high** | expected; explained physically at H3.2b6, never tuned |
-| The suppression lower-energy write stops being dead and changes suppression behaviour | **high** | isolated at H3.2b5 with its own gate; not switched on as a side effect |
+| The suppression lower-energy write is **wrongly believed** to stop being dead under H3.2b | **high** | it does not: see §4 and the dated correction below. Only S0d2, which writes `lower_energy_kj`, can make that cooling physical; H3.2b5 re-examines it, and no phase revives it as a side effect |
 | Multiple projections per timestep interact badly with a residual formulation | high | idempotence invariant plus the call-count metric from H3.2b1 |
 | `p` non-finite in a degenerate room | medium | fail closed; keep the last valid state; emit a correction |
 | The physical residual turns out large and unattributable | medium | that is a finding, not a failure; it names the missing owners for a later phase |
 | `Phase3CoupledPressureSolver` and the new primitive disagree on pressure | medium | they answer different questions until H3.3; the divergence is reported, not reconciled early |
 | Effort under-estimated across eight phases | medium | assume several sessions per phase; every phase independently revertible |
+
+> **[CORRECTED 2026-08-20.]** The first issue of this table stated the risk as
+> *"The suppression lower-energy write stops being dead and changes suppression
+> behaviour"*, which presumed H3.2b would revive it. It does not, and the risk is
+> the opposite one: believing it has been revived. The write sets `temp_lower_c`
+> only, and temperature is derived from `lower_energy_kj / (M_lower · cp)` under
+> both the current and the proposed design, so **the write is overwritten the
+> moment temperature is re-derived and stays dead after H3.2b**. Only the S0d2
+> experiment, which writes `lower_energy_kj` directly, can make that cooling
+> physical. The static gap code `suppression_lower_write_dead` that H3.2b1 emits
+> names exactly this, and H3.2b1a observed it inactive in all ten topologies —
+> inactive because no material suppression movement occurred, which is not the
+> same as the write having become live. The historical wording is preserved here
+> rather than deleted so the change of framing stays auditable.
 
 ---
 
@@ -605,3 +632,83 @@ Not settled, and explicitly **not** claimed:
 - 30 pytest contracts and 14 Godot fixture assertions pass.
 
 **H3.2b2 and every physics change remain blocked.**
+
+---
+
+## 12. H3.2b2 — pure primitive, delivered 2026-08-20
+
+Primitive only: `sim/core/Phase3ResidualProjection.gd`, zero call sites, no flag,
+no authority, no scenario evidence. Full record:
+`docs/validation/PHASE3_H32B2_RESIDUAL_PROJECTION_PRIMITIVE.md`.
+
+The first issue was **rejected at review** for three blockers, all now corrected.
+They are recorded here because two of them contradict statements this design
+document made or implied.
+
+**1. The equation of state must be the canonical one.** The first issue
+hard-coded a dry-air specific gas constant of 287.052874 J/(kg·K). That created a
+**second definition of air** and manufactured a 345.5 Pa disagreement with
+`Phase3CoupledPressureSolver` out of nothing. §3.2 of this document writes the
+closure as `p = (R/V_room)·Σ(M·T)` without saying **which** `R`; that ambiguity is
+now closed. `R` is the canonical solver's ambient-dependent gas constant,
+
+```
+gas_constant = AIR_PRESSURE_REF_PA / (AIR_DENSITY_REF_KG_M3 · reference_temp_k)
+```
+
+with `AIR_PRESSURE_REF_PA = 101325.0` and `AIR_DENSITY_REF_KG_M3 = 1.2`
+(`Phase3CoupledPressureSolver.gd:78-79`, `:1115-1119`), **reproduced rather than
+imported** so the primitive stays autonomous and pure. Measured: the primitive
+agrees with the solver's own pressure form to **0.000 ulp**, and a room at
+ambient holding `1.2·V` kg reproduces **101 325 Pa to 1.294 ulp**. The closure
+proof of §3.2 is unaffected — it holds for any value of `R`.
+
+> **[SUPERSEDED 2026-08-20.]** Any reading of §3.2 or of the H3.2b3 row of §6
+> that treats a constant-induced pressure offset as a **physical divergence to be
+> quantified at shadow compare** is withdrawn. There is no such divergence, and
+> H3.2b3 must not open with one. What H3.2b3 does measure is the **structural**
+> difference: the legacy path is not an equation of state at all — it scales a
+> fixed reference density by an ambient/zone temperature ratio
+> (`ZoneFireSolver.gd:257`), making each zone's density independent of the other,
+> whereas the primitive couples the zones through a shared room pressure.
+
+**2. A `valid` result may not contain `NaN`.** §3.3 requires that nothing be
+fabricated for an absent zone. The first issue implemented that as
+`temperature_k: NAN`, which satisfied the letter and broke the spirit: a result
+flagged valid was unusable without guarding every field. An absent zone now
+**omits** the fields that have no meaning for it, and no `valid: true` result
+contains `NaN` or `INF` anywhere.
+
+**3. A one-zone boundary is exact, not rounded.** §3.3's transition rules imply a
+definite interface when a zone is absent. The first issue returned `+1e-16`
+instead of `0.0` and hid it behind an approximate test. Both one-zone boundaries
+are now returned **exactly by construction** — `room_height_m` when the upper
+zone is absent, `0.0` when the lower is — and the tests require exact equality.
+This corrects no mass and no energy; it is the exact representation of a boundary
+already known from the presence state.
+
+The interface for the two-zone case now uses the canonical
+`V_lower / floor_area_m2` form (`Phase3CoupledPressureSolver.gd:1261`), which is
+algebraically identical to the legacy `h − V_upper/A` of `ZoneFireSolver.gd:267`
+precisely because the volumes close.
+
+**Invariants met.** Purity, byte-level determinism across two-zone and both
+one-zone shapes, idempotence, `M`/`E` returned bit-identical, exactly zero
+corrections, volume closure at **0.000 ulp** against a derived 16 ulp budget
+(the derivation moved from twelve to fourteen roundings when the gas constant
+entered the path; the budget is unchanged because 14 ≤ 16), finite positive
+pressure, temperatures coherent with `E`, interface within `[0, h]`, fail-closed
+invalid states, no forbidden vocabulary, **zero call sites**, and no reuse of
+`Phase3CoupledPressureSolver` — whose convention is reproduced and whose code is
+never touched.
+
+**The thermal limit is not applied.** §4's sink remains H3.2b5's, as does the
+S0d1 dead write, which stays dead.
+
+**Two prerequisites are now explicit**, neither visible when §6 was written:
+**H3.2b1b** must repair the zone-transition counters before H3.2b4 can gate on
+them, and a **single presence predicate** must be agreed before H3.2b6 wires
+anything — the codebase currently carries seven, from `> 0.1` kg at the FED gate
+to `> 1e-12` kg in the coupled solver.
+
+**H3.2b3 and every physics change remain blocked.**
