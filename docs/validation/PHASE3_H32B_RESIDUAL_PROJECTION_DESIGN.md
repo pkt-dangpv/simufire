@@ -290,7 +290,7 @@ when it is false.
 | Phase | Files | Flag | Authority | Fixtures / cases | STOP gate | Rollback | Unblocks | Still blocked |
 |---|---|---|---|---|---|---|---|---|
 | **H3.2b0** design, this doc | docs only | none | none | none | this document | delete | H3.2b1 | all |
-| **H3.2b1** passive causal instrumentation | `ZoneFireSolver`, `SimulationEngine`, `SimulationLogWriter`, `SimulationStateBuilder` | `phase3_projection_causal_diagnostics_enabled`, OFF | none | unit fixture; the ten S0d6b0.2 cases | OFF byte-identical; both residuals exported and **different**; call count non-zero | flag off | H3.2b2 | all physics |
+| **H3.2b1** passive causal instrumentation | `ZoneFireSolver`, `SimulationEngine`, `SimulationLogWriter`, `SimulationStateBuilder` | `phase3_projection_causal_diagnostics_enabled`, OFF | none | unit fixture; the ten S0d6b0.2 cases | OFF byte-identical; both residuals independently exported; algebraic relation exact; equality permitted; completeness gates validity; call count non-zero | flag off | H3.2b2 | all physics |
 | **H3.2b2** pure residual-projection primitive | new `sim/core/Phase3ResidualProjection.gd`, **no call sites** | none | none | unit fixture for every case in §3.3 | primitive proven pure; zero call sites; zero physics diff | delete file | H3.2b3 | all |
 | **H3.2b3** shadow compare | primitive + read-only shadow in `ZoneFireSolver` | same OFF flag | none, shadow | ten cases | per-room divergence legacy vs residual, quantified and explained | flag off | H3.2b4 | all |
 | **H3.2b4** zone transition contract | primitive only | same flag | shadow | birth/death fixtures | mass and energy conserved across every transition | flag off | H3.2b5 | authority |
@@ -547,7 +547,9 @@ Per room, the corrections are **entirely on the lower zone**:
 | 4 | 58 036 | 9 | −0.023 | 0.098 | 0.0 / 0.0 | 0 |
 | 5 | 53 493 | 8 | −0.003 | 0.009 | 0.0 / 0.0 | 0 |
 
-Zero upper-zone births, deaths, energy-without-mass states and non-finite states
+The ledger exported zero upper-zone births and deaths, values later shown by
+H3.2b1a to be invalid / non-interpretable because the counter is blind. Zero
+energy-without-mass states and non-finite states
 in every room.
 
 ### 11.4 What this settles, and what it does not
@@ -575,6 +577,22 @@ Not settled, and explicitly **not** claimed:
   contaminated — that is weaker than valid and stronger than unusable.
 - One scenario is not a corpus. Whether these shapes hold across topologies is
   the question H3.2b1a answers.
+
+> **[EXTENDED 2026-08-20 by H3.2b1a — nothing above is withdrawn.]** The ten-
+> topology campaign confirms every shape in §11.4 and widens two numbers. The
+> cause count is **20 across the corpus**, not 17: three causes
+> (`exterior_background_source_sync`, `exterior_background_target_sync` and the
+> `interlayer_*` pair) appear in a single scenario each, so seventeen was a
+> one-scenario floor and twenty is still a lower bound. And the upper-cap result
+> generalises: `upper_mass_correction`, `thermal_cap_bind_count` and
+> `thermal_cap_rejected_kj` are exactly zero in **all ten** topologies, so the
+> conclusion that a cap-only primitive would change nothing **at 120 s in this
+> ten-case corpus** is a corpus property rather than a corridor-chain accident;
+> it is not a claim about longer runs or other topologies. The campaign also measures the effect of
+> run length directly: `gas_exchange_sync` churns 6.36× at 120 s and 28.03× at
+> 600 s on this same scenario, so churn figures scale with duration and every
+> H3.2b1a number is a lower bound for a full-length run. Full record:
+> `docs/validation/PHASE3_H32B1A_PROJECTION_CAMPAIGN.md`.
 
 ### 11.5 Gates verified
 

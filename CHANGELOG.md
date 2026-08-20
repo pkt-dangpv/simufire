@@ -4,6 +4,57 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### Phase 3 H3.2b1a passive projection campaign, ten topologies (2026-08-20)
+
+- **Evidence only. No file under `sim/` was modified.** No physics, no flag
+  default, no CSV column, no case file, no report, no expected value, no
+  tolerance, no CTRL, no VALID_GAP, no runtime authority. H3.2b2 not started.
+  Record: `docs/validation/PHASE3_H32B1A_PROJECTION_CAMPAIGN.md`.
+- **Corpus.** The ten committed cases of the H3.2a runtime matrix, each
+  identified by its **git blob OID** rather than a filesystem hash, at H3.2a's
+  official **120 s** duration. Forty runs, four variants per scenario
+  (`base`, causal-only, zone-only, both), sequential, through
+  `scripts/run_scenario.py`. Row counts reproduce the H3.2a matrix exactly —
+  79, 79, 170, 1574, 131, 1211, 848, 606, 1090, 727.
+- **All ten gates pass 10/10:** OFF byte-identical (baseline vs the new flag
+  alone), no legacy column changed (zone-only vs zone plus causal, byte-identical),
+  no new CSV column, legacy columns preserved as a header prefix, summaries
+  differing by the opt-in block only, rows matching across variants, manifests
+  valid, duration reached, official duration used. Zero residual Godot processes.
+- **Multiplicity is corpus-wide.** 59 938 to 138 360 projection calls per
+  scenario; maximum 8 to 20 calls in a single **room-step** and 43 to 105 in a
+  single **timestep**; **100 % of room-steps carry more than one call in all
+  ten**. **Twenty distinct causes** across the corpus against the five direct
+  call sites H3.2b0 mapped and the seventeen H3.2b1 saw on one scenario — three
+  appear in a single scenario each, so twenty is still a lower bound.
+- **The upper cap never binds anywhere.** `upper_mass_correction`,
+  `thermal_cap_bind_count` and `thermal_cap_rejected_kj` are exactly zero in all
+  ten. Every kilogram of churn is the unconditional lower rewrite, so a
+  cap-focused primitive would change nothing measurable on this corpus.
+- **Churn scales with duration.** `gas_exchange_sync` churns 6.36× at 120 s and
+  28.03× at 600 s on the same scenario, so every churn figure here is a lower
+  bound for a full-length run.
+- **The engine's own residual still cannot fail.** Closure-inclusive residual
+  exactly zero and relation error exactly zero in mass and energy in all ten. The
+  candidate physical residual runs 0.0012 kg to 8.0774 kg, its gross-absolute
+  total equals its signed total in every scenario — a systematic one-directional
+  bias — and `residual_physical_valid` is **`false`** everywhere, so all ten are
+  `candidate_incomplete_physical_residual`, never physical residuals.
+- **Found: the zone-transition counters are blind.** The ledger exports zero
+  upper-zone births and deaths in all ten, but those values are **invalid / not
+  interpretable**: the logged `upper_gas_kg` state
+  column shows all 85 rooms starting one-zone and **at least 29 real births**.
+  `_scan_zone_transition` compares the `pre` and `post` of one projection call,
+  and the layer is created between calls, so the counter can essentially never
+  witness a birth. The state column is interval-sampled and therefore itself a
+  lower bound, so a ledger count below it is a definite miss. **Any H3.2b4 gate
+  written against these counters would pass vacuously**; repairing them is a
+  passive `sim/` change and a prerequisite, out of scope for this phase.
+- Zero energy-without-mass states and zero non-finite states in every room.
+- Adds a read-only analyser
+  (`scripts/simulation/phase3_h32b1a_projection_campaign.py`, which runs nothing,
+  writes nothing and imports no engine module) and 35 contracts.
+
 ### Phase 3 H3.2b1 passive projection causal ledger (2026-08-20)
 
 - **Instrumentation only.** No physics, no flag default, no CSV column, no case

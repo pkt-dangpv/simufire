@@ -8,6 +8,33 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-20 - H3.2b1a passive campaign, ten topologies
+
+- **Evidence only, uncommitted. No file under `sim/` was modified.** No physics,
+  no flag default, no CSV column, no case file, no report, no baseline, no
+  runtime authority. H3.2b2 not started. Record:
+  `docs/validation/PHASE3_H32B1A_PROJECTION_CAMPAIGN.md`.
+- **Corpus:** the ten committed H3.2a cases at H3.2a's official **120 s**,
+  identified by **git blob OID** rather than filesystem hash. Forty runs, four
+  variants each, sequential. Row counts reproduce the H3.2a matrix exactly.
+- **All ten gates 10/10**, zero residual Godot processes.
+- **Multiplicity confirmed corpus-wide:** 59 938–138 360 calls per scenario;
+  8–20 per room-step, 43–105 per timestep; **100 % of room-steps carry more than
+  one call in all ten**; **20 distinct causes**, still a lower bound.
+- **The upper cap never binds in any of the ten** — all churn is the
+  unconditional lower rewrite. Churn also scales with duration (6.36× at 120 s
+  vs 28.03× at 600 s for `gas_exchange_sync`), so these are lower bounds.
+- **No valid physical residual anywhere.** Closure residual and relation error
+  exactly zero in all ten; the candidate residual is 0.0012–8.0774 kg with signed
+  equal to gross, i.e. systematically one-directional.
+- **New finding: the zone-transition counters are blind.** The exported zero is
+  **invalid / not interpretable**, against **at least 29 real births** in the
+  state column; all 85 rooms start
+  one-zone. Repairing them is a passive `sim/` change and a prerequisite before
+  H3.2b4 can gate on them.
+- **Next:** the STOP gate decision on designing H3.2b2. Not committed, no
+  refresh, no push.
+
 ## Current Session Update - 2026-08-20 - H3.2b1 passive projection causal ledger
 
 - **Instrumentation only.** No physics, no flag default, no CSV column, no case

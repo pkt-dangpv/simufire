@@ -344,6 +344,40 @@ H3.2-S0d6 O2 ownership and acceptance gate (2026-08-07):
   remains open, HVAC deferred, no integrator, H3.2b blocks H3.3, no authority.
   Full record: `docs/validation/PHASE3_H32S0D6_O2_OWNERSHIP_AUDIT.md`.
 
+H3.2b1a passive projection campaign, ten topologies (2026-08-20):
+
+- **Evidence only. No file under `sim/` was modified.** No physics, no flag
+  default, no CSV column, no case file, no report, no expected value, no
+  tolerance, no CTRL, no VALID_GAP, no runtime authority. H3.2b2 not started.
+- **Corpus provenance.** The ten committed H3.2a cases, identified by **git blob
+  OID** rather than filesystem hash. A matching filesystem SHA-256 proves byte
+  equality for the compared files but does not identify their source commit.
+  Official duration **120 s**,
+  fixed by the H3.2a runtime matrix; the row counts reproduce that matrix
+  exactly, which is independent corroboration from a different phase.
+- **Gates 10/10 on all ten:** OFF byte-identical, no legacy column changed, no
+  new CSV column, legacy columns preserved, summaries differing by the opt-in
+  block only, rows matching across the four variants, manifests valid, duration
+  reached, official duration used. Forty runs, zero failures, zero residual
+  Godot processes.
+- **Multiplicity.** 59 938–138 360 calls per scenario, 8–20 per room-step,
+  43–105 per timestep, **100 % of room-steps with more than one call in all
+  ten**, **20 distinct causes** and still a lower bound.
+- **The upper cap never binds in any scenario.** All churn is the unconditional
+  lower rewrite. Churn scales with duration, so all figures are lower bounds.
+- **No valid physical residual anywhere.** Closure residual and relation error
+  exactly zero everywhere; candidate residual 0.0012–8.0774 kg, signed equal to
+  gross in every scenario.
+- **Instrumentation defect found: zone-transition counters are blind.** Their
+  exported zero is invalid / non-interpretable against at least 29 real births
+  observed in the state column;
+  all 85 rooms start one-zone. A gate written against those counters would pass
+  vacuously. Repair is a passive `sim/` change, out of scope here, and a
+  prerequisite for H3.2b4.
+- Zero energy-without-mass and zero non-finite states. Read-only analyser plus
+  35 contracts added. Record:
+  `docs/validation/PHASE3_H32B1A_PROJECTION_CAMPAIGN.md`.
+
 H3.2b1 passive projection causal ledger (2026-08-20):
 
 - **Instrumentation only.** No physics, no flag default, no CSV column, no case
