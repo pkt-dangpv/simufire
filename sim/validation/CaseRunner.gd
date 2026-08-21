@@ -1205,7 +1205,10 @@ func _finalize_validation_run(state: Dictionary) -> void:
 		if typeof(baseline_data) == TYPE_DICTIONARY:
 			report["baseline"] = _compare_against_baseline(_metrics, baseline_data)
 
-	_write_json_file(_output_path, report)
+	if not _write_json_file(_output_path, report):
+		if auto_quit and not bool(_cli_args.get("validation_no_quit", false)):
+			get_tree().quit(1)
+		return
 	print("[Validation] Reporte guardado en %s" % _output_path)
 
 	var baseline_result: Dictionary = report.get("baseline", {})
@@ -1389,7 +1392,7 @@ func _read_text_file(path: String) -> String:
 	return text
 
 
-func _write_json_file(path: String, data: Dictionary) -> void:
+func _write_json_file(path: String, data: Dictionary) -> bool:
 	var resolved_path: String = path
 	if path.begins_with("res://") or path.begins_with("user://"):
 		resolved_path = ProjectSettings.globalize_path(path)
@@ -1401,7 +1404,8 @@ func _write_json_file(path: String, data: Dictionary) -> void:
 	var file := FileAccess.open(resolved_path, FileAccess.WRITE)
 	if file == null:
 		push_error("CaseRunner: no se pudo escribir %s" % resolved_path)
-		return
+		return false
 
 	file.store_string(JSON.stringify(data, "\t"))
 	file.close()
+	return true
