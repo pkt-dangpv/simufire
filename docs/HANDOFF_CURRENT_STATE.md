@@ -8,6 +8,17 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## USER-MANDATED STOP - full motor audit before runtime authority
+
+The user requires an explicit pause and notification after H3.2b1b closes and
+before any implementation of H3.2b4 or H3.3 begins. At that boundary, stop all
+physics and runtime-authority work and perform an independent, adversarial audit
+of the motor architecture, state ownership, tick ordering, diagnostics, tests
+and validation evidence. Do not continue merely because the preceding STOP gate
+is green. H3.2b4 and H3.3 remain blocked until the user reviews the audit and
+explicitly authorizes continuation. This instruction must survive agent and
+conversation handoffs.
+
 ## Current Session Update - 2026-08-20 - H3.2b3 shadow compare
 
 - **Strictly passive, uncommitted, no authority.** New
