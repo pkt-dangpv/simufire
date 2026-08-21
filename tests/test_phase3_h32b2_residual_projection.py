@@ -279,14 +279,26 @@ def test_returns_a_fresh_dictionary_and_mutates_no_argument():
 # Zero call sites
 # --------------------------------------------------------------------------
 
+## UPDATED 2026-08-20 by H3.2b3. H3.2b2 shipped with zero consumers anywhere.
+## H3.2b3 adds the first one, and it is the read-only shadow the H3.2b0 plan
+## always intended. The gate is therefore tightened rather than loosened: the
+## shadow is named explicitly, and the contract below still forbids any OTHER
+## consumer under sim/ -- in particular any call site that would let the
+## primitive's output reach room state.
+SHADOW_CONSUMER = "sim/core/Phase3ResidualProjectionShadow.gd"
+
 ALLOWED_REFERENCES = {
     "sim/core/Phase3ResidualProjection.gd",
+    SHADOW_CONSUMER,
     "tests/fixtures/phase3_h32b2_residual_projection.gd",
     "tests/test_phase3_h32b2_residual_projection.py",
+    "tests/fixtures/phase3_h32b3_residual_projection_shadow.gd",
+    "tests/test_phase3_h32b3_residual_projection_shadow.py",
     "CHANGELOG.md",
     "docs/HANDOFF_CURRENT_STATE.md",
     "docs/validation/MOTOR_PHYSICS_VALIDATION_CHECKLIST.md",
     "docs/validation/PHASE3_H32B2_RESIDUAL_PROJECTION_PRIMITIVE.md",
+    "docs/validation/PHASE3_H32B3_SHADOW_COMPARE.md",
     "docs/validation/PHASE3_H32B_RESIDUAL_PROJECTION_DESIGN.md",
 }
 
@@ -302,22 +314,51 @@ def _git_grep(pattern):
             for line in proc.stdout.splitlines() if line.strip()}
 
 
-def test_zero_call_sites_in_the_repository():
+def _references_the_primitive(path: str) -> bool:
+    """True if the file names the PRIMITIVE, not merely the shadow.
+
+    `Phase3ResidualProjectionShadow` contains the primitive's name as a
+    substring, so a plain search cannot tell "wires the shadow" apart from
+    "calls the primitive". The engine does the former and must never do the
+    latter.
+    """
+    text = (ROOT / path).read_text(encoding="utf-8", errors="ignore")
+    return "Phase3ResidualProjection" in text.replace("Phase3ResidualProjectionShadow", "")
+
+
+def test_the_only_consumer_is_the_read_only_shadow():
     tracked = _git_grep("Phase3ResidualProjection")
-    unexpected = tracked - ALLOWED_REFERENCES
+    unexpected = tracked - ALLOWED_REFERENCES - {"sim/core/SimulationEngine.gd"}
     assert not unexpected, "unexpected reference: %s" % sorted(unexpected)
+    # Exactly one thing under sim/ calls the primitive, and it is the shadow.
+    consumers = {q for q in tracked
+                 if q.startswith("sim/")
+                 and q != "sim/core/Phase3ResidualProjection.gd"
+                 and _references_the_primitive(q)}
+    assert consumers == {SHADOW_CONSUMER}, sorted(consumers)
+    # The engine wires the shadow but never touches the primitive itself.
+    assert not _references_the_primitive("sim/core/SimulationEngine.gd")
+    # And that one consumer never writes room state with what it derives. The
+    # ban is on the code; the doc comment saying it never touches a RoomModel
+    # must survive.
+    shadow = (ROOT / SHADOW_CONSUMER).read_text(encoding="utf-8")
+    assert "RoomModel" not in _strip_comments(shadow)
+    assert '"shadow_applied": false' in shadow
     # --untracked is required: a call site added in a new, not-yet-committed
     # file would be invisible to a plain `git grep` and this gate would pass
     # vacuously.
     assert "tests/fixtures/phase3_h32b2_residual_projection.gd" in tracked
 
 
-def test_only_tests_load_the_primitive():
+def test_only_the_shadow_and_tests_load_the_primitive():
     loaders = _git_grep("Phase3ResidualProjection.gd")
     for path in loaders:
         assert path in ALLOWED_REFERENCES, path
         if path.startswith("sim/"):
-            assert path == "sim/core/Phase3ResidualProjection.gd", path
+            assert path in {"sim/core/Phase3ResidualProjection.gd",
+                            SHADOW_CONSUMER}, path
+    # Only the shadow preloads it under sim/.
+    assert SHADOW_CONSUMER in loaders
 
 
 def test_no_flag_is_introduced():

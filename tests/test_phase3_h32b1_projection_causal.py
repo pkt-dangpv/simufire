@@ -223,6 +223,57 @@ def test_material_activity_threshold_is_derived_not_fitted():
     assert "1e-16" in rationale and "noise" in rationale
 
 
+# --------------------------------------------------------------------------
+# Activation: the causal flag alone must actually switch the trace on
+# --------------------------------------------------------------------------
+
+def test_the_causal_flag_is_in_the_trace_activation_gate():
+    # REPAIRED 2026-08-20. `_sync_auxiliary_services()` reasserts
+    # `projection_diagnostics_enabled` from this gate and runs repeatedly during
+    # a session, so a flag missing from it has its trace switched back off at
+    # every logging point. The causal flag was missing, which made
+    # `--phase3-projection-causal-diagnostics` alone accumulate nothing.
+    gate = _func(ENGINE, "_phase3_projection_diagnostics_active")
+    assert "phase3_projection_causal_diagnostics_enabled" in gate
+    assert "phase3_zone_diagnostics_enabled" in gate
+    assert "phase3_runtime_ownership_ledger_enabled" in gate
+    assert "phase3_residual_projection_shadow_enabled" in gate
+    # And the gate really is what drives the solver flag.
+    sync = _func(ENGINE, "_sync_auxiliary_services")
+    assert ("zone_fire_solver.projection_diagnostics_enabled = "
+            "_phase3_projection_diagnostics_active()") in sync
+
+
+def test_the_causal_flag_still_activates_nothing_else():
+    # The repair must not turn a causal user into a zone-diagnostics user (which
+    # would change the shared CSV surface) or a shadow user (which would run the
+    # primitive on every projection call).
+    setter = ENGINE.split(
+        "@export var phase3_projection_causal_diagnostics_enabled: bool = false", 1)[1]
+    setter = setter.split("var _phase3_projection_causal_ledger", 1)[0]
+    assert "phase3_zone_diagnostics_enabled = true" not in setter
+    assert "phase3_residual_projection_shadow_enabled = true" not in setter
+    assert "phase3_runtime_ownership_ledger_enabled = true" not in setter
+
+
+def test_the_activation_repair_has_a_runtime_fixture():
+    fixture = ROOT / "tests/fixtures/phase3_h32b1_causal_only_activation.gd"
+    assert fixture.exists()
+    text = fixture.read_text(encoding="utf-8")
+    declared = int(re.search(r"const EXPECTED_TESTS: int = (\d+)", text).group(1))
+    init_body = text.split("func _init() -> void:", 1)[1].split("\n\n", 1)[0]
+    called = re.findall(r"^\t(_test_\w+)\(\)", init_body, re.M)
+    assert len(called) == declared, (len(called), declared)
+    assert "_completed.size() != EXPECTED_TESTS" in text
+    # It must exercise the real solver trace, not a synthetic stand-in.
+    assert "project_room_state(" in text
+    assert "begin_projection_diagnostics_step()" in text
+    # And it must not quietly repair the blind transition counters.
+    assert "H3.2b1b" in text
+    for forbidden in ("upper_zone_birth_count_total", "upper_zone_death_count_total"):
+        assert forbidden not in text, forbidden
+
+
 def test_static_gaps_are_declared_every_step_as_coverage_only():
     hook = _func(ENGINE, "_phase3_projection_causal_accumulate")
     for reason in ("STATIC_GAP_HVAC_UNOWNED", "STATIC_GAP_OTHER_CATCHALL",
@@ -344,7 +395,22 @@ def test_projection_clamp_cap_and_tick_order_are_untouched():
         assert line in SOLVER, line
     # The accumulation hook runs after the tick, before the carbon check, and
     # adds no stage of its own.
-    assert "_phase3_projection_causal_accumulate()\n\t# Evaluar el estado final" in ENGINE
+    #
+    # UPDATED 2026-08-20 by H3.2b3. The causal accumulator is no longer the last
+    # thing before the carbon check: the H3.2b3 shadow accumulator now runs
+    # immediately after it. The physics tick order is unchanged -- what this
+    # contract exists to protect -- so the assertion is tightened rather than
+    # dropped: between the clamp stage and the carbon check there may be passive
+    # accumulators and NOTHING else.
+    between = ENGINE.split("_phase3_projection_causal_accumulate()\n", 1)[1]
+    between = between.split("_check_carbon_balance()", 1)[0]
+    allowed = {"_phase3_residual_projection_shadow_accumulate()",
+               "# Evaluar el estado final del paso, incluyendo cualquier pérdida por clamp."}
+    for line in between.splitlines():
+        stripped = line.strip()
+        if stripped:
+            assert stripped in allowed, "new stage between clamp and carbon check: %s" % stripped
+    assert "_phase3_residual_projection_shadow_accumulate()" in between
 
 
 def test_no_new_csv_columns():

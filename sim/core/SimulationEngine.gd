@@ -16,6 +16,7 @@ const Phase3ZoneMassSystemScript = preload("res://sim/core/Phase3ZoneMassSystem.
 const Phase3PhysicalOwnerLedgerScript = preload("res://sim/core/Phase3PhysicalOwnerLedger.gd")
 const Phase3O2AcceptanceLedgerScript = preload("res://sim/core/Phase3O2AcceptanceLedger.gd")
 const Phase3ProjectionCausalLedgerScript = preload("res://sim/core/Phase3ProjectionCausalLedger.gd")
+const Phase3ResidualProjectionShadowScript = preload("res://sim/core/Phase3ResidualProjectionShadow.gd")
 
 # ============================================================
 # SIMULATION ENGINE
@@ -1013,6 +1014,25 @@ var _step_time_us: int = 0
 			zone_fire_solver.projection_diagnostics_enabled = true
 var _phase3_projection_causal_ledger = Phase3ProjectionCausalLedgerScript.new()
 
+## H3.2b3: comparacion shadow read-only entre la proyeccion legacy y la
+## primitiva pura H3.2b2. Estrictamente pasiva: la salida de la primitiva se
+## calcula, se compara y se descarta. Nunca se aplica, nunca escribe RoomModel,
+## nunca actua como fallback y ninguna metrica gobierna fisica.
+##
+## Flag propio y aislado. Implica internamente la traza por llamada que
+## necesita, pero NO muta de forma persistente
+## phase3_projection_causal_diagnostics_enabled: activar el shadow no debe
+## convertir a un usuario de H3.2b1 en ejecutor de la primitiva, ni al reves.
+@export var phase3_residual_projection_shadow_enabled: bool = false:
+	set(value):
+		phase3_residual_projection_shadow_enabled = value
+		_phase3_residual_projection_shadow.enabled = value
+		if value and zone_fire_solver != null:
+			# La traza por llamada es la unica fuente que ve pre y post con la
+			# misma cause. Se habilita la traza del solver, no el flag H3.2b1.
+			zone_fire_solver.projection_diagnostics_enabled = true
+var _phase3_residual_projection_shadow = Phase3ResidualProjectionShadowScript.new()
+
 ## H3.2-S0d6: medicion pasiva de aceptacion de O2 en todos los subsistemas que la
 ## mutan salvo HVAC, diferido por enunciado. Default OFF y byte-identica con el
 ## flag apagado.
@@ -1577,7 +1597,23 @@ func _phase3_zone_diag_snapshot() -> Dictionary:
 
 
 func _phase3_projection_diagnostics_active() -> bool:
-	return phase3_zone_diagnostics_enabled or phase3_runtime_ownership_ledger_enabled
+	## Consumidores de la traza por llamada de ZoneFireSolver. Esta es la fuente
+	## autoritativa: `_sync_auxiliary_services()` reafirma
+	## `projection_diagnostics_enabled` desde aqui, y se invoca repetidamente
+	## durante una corrida (entre otros, desde `_maybe_log_state()`).
+	##
+	## H3.2b3: el shadow se suma como consumidor. Sin esto
+	## begin_projection_diagnostics_step() no se invocaria y los eventos se
+	## acumularian entre pasos, contando cada llamada muchas veces.
+	##
+	## REPARACION 2026-08-20: `phase3_projection_causal_diagnostics_enabled`
+	## faltaba aqui desde H3.2b1. Su ausencia hacia que una corrida lanzada solo
+	## con ese flag viera la traza reapagada en cada punto de log, de modo que el
+	## ledger causal no acumulaba nada y reportaba `data_available: false`. Fallaba
+	## cerrado -- no producia datos erroneos -- pero el flag por si solo no hacia
+	## nada. Los contadores ciegos de transicion de zona NO se tocan aqui: siguen
+	## siendo H3.2b1b, antes de H3.2b4.
+	return phase3_zone_diagnostics_enabled or phase3_runtime_ownership_ledger_enabled or phase3_residual_projection_shadow_enabled or phase3_projection_causal_diagnostics_enabled
 
 
 func _phase3_physical_owner_begin_step() -> void:
@@ -1893,6 +1929,51 @@ func _phase3_projection_causal_accumulate() -> void:
 
 func get_phase3_projection_causal_summary() -> Dictionary:
 	return _phase3_projection_causal_ledger.summary()
+
+
+func get_phase3_residual_projection_shadow_summary() -> Dictionary:
+	return _phase3_residual_projection_shadow.summary()
+
+
+func _phase3_residual_projection_shadow_accumulate() -> void:
+	## H3.2b3: estrictamente pasivo y aditivo. Lee la traza por llamada que
+	## ZoneFireSolver ya emite -- el unico punto que ve pre y post bajo la misma
+	## cause -- evalua la primitiva pura desde el pre-state y compara contra el
+	## post legacy. No escribe estado de sala, no aplica el resultado, no actua
+	## como fallback y ninguna metrica que produce gobierna fisica.
+	##
+	## Corre DESPUES del acumulador causal a proposito: asi H3.2b1 conserva su
+	## propia semantica de "traza no disponible en el primer paso" sin que este
+	## flag la altere.
+	if not phase3_residual_projection_shadow_enabled or zone_fire_solver == null:
+		return
+	if not zone_fire_solver.projection_diagnostics_enabled:
+		# El setter pudo correr antes de que existiera el solver. Habilitar aqui
+		# es idempotente y solo toca la traza diagnostica del solver.
+		zone_fire_solver.projection_diagnostics_enabled = true
+		_phase3_residual_projection_shadow.record_unavailable(
+			Phase3ResidualProjectionShadowScript.REASON_TRACE_UNAVAILABLE
+		)
+	_phase3_residual_projection_shadow.accumulate_step(
+		zone_fire_solver.get_projection_trace_events(),
+		_phase3_residual_projection_shadow_geometry()
+	)
+
+
+func _phase3_residual_projection_shadow_geometry() -> Dictionary:
+	## Geometria por sala, solo lectura. La traza no la lleva, y es constante
+	## durante toda la corrida: se asigna una vez al construir el edificio
+	## (`sim/BuildingModel.gd:641-643`) y nada la muta despues, de modo que el
+	## valor resuelto aqui es el que estaba vigente durante la llamada.
+	var out: Dictionary = {}
+	if building == null:
+		return out
+	for room in building.get_rooms().values():
+		out[str(room.id)] = {
+			"floor_area_m2": room.floor_area_m2(),
+			"room_height_m": room.height_m,
+		}
+	return out
 
 
 func _phase3_zone_diag_export() -> Dictionary:
@@ -3134,6 +3215,7 @@ func step(delta: float) -> void:
 	if phase3_canonical_zone_shadow_enabled:
 		phase3_zone_mass_system.finalize_step(building, thermal_system.ambient_temp_c())
 	_phase3_projection_causal_accumulate()
+	_phase3_residual_projection_shadow_accumulate()
 	# Evaluar el estado final del paso, incluyendo cualquier pérdida por clamp.
 	_check_carbon_balance()
 	_check_layer_interface_guardrails(dt)
@@ -4801,6 +4883,10 @@ func build_technical_summary(output_dir: String = "") -> Dictionary:
 		# H3.2b1: bloque opt-in del acumulador causal de proyeccion.
 		summary["phase3_projection_causal"] = \
 				_phase3_projection_causal_ledger.summary()
+	if phase3_residual_projection_shadow_enabled:
+		# H3.2b3: bloque opt-in de la comparacion shadow. Sin el flag no existe.
+		summary["phase3_residual_projection_shadow"] = \
+				_phase3_residual_projection_shadow.summary()
 	if phase3_o2_attribution_diagnostics_enabled:
 		# H3.2-S0d6: bloque opt-in de aceptacion de O2, combinando los ledgers de
 		# cada subsistema que muta O2. HVAC queda fuera, diferido por enunciado.

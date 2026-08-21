@@ -8,6 +8,48 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Session Update - 2026-08-20 - H3.2b3 shadow compare
+
+- **Strictly passive, uncommitted, no authority.** New
+  `sim/core/Phase3ResidualProjectionShadow.gd`, isolated flag
+  `phase3_residual_projection_shadow_enabled` (default false), one hook after the
+  causal accumulator, runner wiring. **`ZoneFireSolver` untouched, zero lines.**
+  Record: `docs/validation/PHASE3_H32B3_SHADOW_COMPARE.md`.
+- **The pre/post point already existed:** the per-call projection trace carries
+  `cause`, `pre` and `post` in one event. No new solver instrumentation; H3.2b1
+  is not duplicated. Geometry is not in the trace, so the engine supplies it from
+  `building.get_rooms()` (construction-time constant).
+- **Isolation: 10/10 byte-identical OFF vs ON**, summaries differing by the
+  opt-in block only, manifests and durations valid, determinism repeats identical
+  in CSV and in every shadow total.
+- **Headline finding:** the same EOS gives **98 511-104 702 Pa** on the pre-state
+  and **101 108-101 325 Pa** on the legacy post inventory, with the maximum
+  exactly 101 325.0 Pa in all ten. The unconditional lower rewrite rebuilds the
+  room at reference pressure on every call.
+- **100 % of mass divergence is the lower rewrite**; upper divergence exactly
+  zero. **Interface agrees to 0.011 m while lower mass diverges up to 964 kg** -
+  layer height alone would hide the defect.
+- **1 rejection in 959 242 calls** (`energy_without_mass`), counted and named;
+  zero presence mismatches.
+- **Recorded, not fixed:** the H3.2b1 causal-only flag is inert because
+  `_sync_auxiliary_services()` reasserts the trace flag from a gate that omits
+  it. It fails closed, so no H3.2b1a measurement was corrupted.
+- **H3.2b1 activation repaired:** the causal flag is now in
+  `_phase3_projection_diagnostics_active()`. Causal-only was inert before
+  (trace reasserted off at every log point; failed closed with
+  `data_available: false`). Verified across all ten H3.2b1a campaign artefacts:
+  causal-only had zero calls everywhere, zone+causal had full counts everywhere,
+  so **every published H3.2b1/H3.2b1a number remains valid**. After the repair,
+  corridor chain at 60 s with the causal flag alone gives **33 063 calls over
+  4 320 room-steps = 720 x 6**, identical to both-flags, OFF/ON byte-identical.
+  New fixture `phase3_h32b1_causal_only_activation.gd`. **Transition counters
+  still blind: H3.2b1b, before H3.2b4.**
+- **Churn units:** 964.41 kg is cumulative gross churn over 77 071 calls, not an
+  instantaneous divergence; the largest single-call lower-mass divergence is
+  1.53 kg.
+- **Next:** STOP gate decision on committing H3.2b3. Not committed, no refresh,
+  no push. H3.2b4, H3.2b1b and runtime authority remain blocked.
+
 ## Current Session Update - 2026-08-20 - H3.2b2 pure residual projection primitive
 
 - **Primitive only, uncommitted, zero call sites, no authority.** New

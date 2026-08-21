@@ -486,6 +486,29 @@ projection trace and the zone diagnostics already compute a per-stage
 attribution; the ledger only accumulates both, so `project_room_state()` is never
 instrumented twice.
 
+> **[ACTIVATION DEFECT FOUND AND REPAIRED 2026-08-20, during H3.2b3.]** The
+> measurements in this document are **unaffected and remain valid**, but the flag
+> they were taken with did not work on its own. `_sync_auxiliary_services()`
+> reasserts `ZoneFireSolver.projection_diagnostics_enabled` from
+> `_phase3_projection_diagnostics_active()`, and that gate did **not** list
+> `phase3_projection_causal_diagnostics_enabled`, so a session started with
+> `--phase3-projection-causal-diagnostics` alone had the per-call trace switched
+> back off at every logging point and the ledger accumulated nothing. It failed
+> **closed**, reporting `data_available: false` with
+> `projection_trace_unavailable` rather than reporting zeros.
+>
+> Verified against the artefacts before being asserted: in all ten causal-only
+> runs of the H3.2b1a campaign the ledger reported `data_available: false` and
+> accumulated no calls, and in all ten zone+causal runs it reported
+> `data_available: true` with full counts, with zero anomalies. **Every
+> measurement published by H3.2b1 and H3.2b1a was taken with the zone
+> diagnostics flag also on**, which is what activated the trace; the causal-only
+> variant was used solely for CSV byte-identity, which does not depend on the
+> ledger. No published number rests on empty data.
+>
+> The gate now includes the causal flag. Full record and the before/after
+> measurement: `docs/validation/PHASE3_H32B3_SHADOW_COMPARE.md` §10.
+
 ### 11.2 Semantics, stated before the numbers
 
 These definitions are the point of the phase; the earlier H3.2b1 draft reported

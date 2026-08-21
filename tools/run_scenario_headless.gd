@@ -86,6 +86,8 @@ func _run() -> void:
 		engine.phase3_o2_attribution_diagnostics_enabled = true
 	if bool(_cli_args.get("phase3_projection_causal_diagnostics", false)):
 		engine.phase3_projection_causal_diagnostics_enabled = true
+	if bool(_cli_args.get("phase3_residual_projection_shadow", false)):
+		engine.phase3_residual_projection_shadow_enabled = true
 	if bool(_cli_args.get("phase3_co_zonal_transport_consistency", false)):
 		engine.phase3_co_zonal_transport_consistency_enabled = true
 	if bool(_cli_args.get("phase3_co_first_violation_trace", false)):
@@ -442,6 +444,8 @@ func _parse_args(args: Array[String]) -> Dictionary:
 			parsed["phase3_o2_attribution_diagnostics"] = true
 		elif arg == "--phase3-projection-causal-diagnostics":
 			parsed["phase3_projection_causal_diagnostics"] = true
+		elif arg == "--phase3-residual-projection-shadow":
+			parsed["phase3_residual_projection_shadow"] = true
 		elif arg == "--phase3-co-zonal-transport-consistency":
 			parsed["phase3_co_zonal_transport_consistency"] = true
 		elif arg == "--phase3-co-first-violation-trace":

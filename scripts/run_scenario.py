@@ -138,6 +138,17 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--phase3-residual-projection-shadow",
+        action="store_true",
+        help=(
+            "H3.2b3 read-only shadow comparison: evaluates the H3.2b2 pure "
+            "primitive from each projection call's pre-state and compares it "
+            "against the legacy post-state. The primitive's output is never "
+            "applied, never written to a room and never used as a fallback. "
+            "Adds an opt-in summary block only; no CSV column."
+        ),
+    )
+    parser.add_argument(
         "--phase3-projection-causal-diagnostics",
         action="store_true",
         help=(
@@ -463,6 +474,8 @@ def main(argv: list[str] | None = None) -> int:
         cmd.append("--phase3-o2-attribution-diagnostics")
     if args.phase3_projection_causal_diagnostics:
         cmd.append("--phase3-projection-causal-diagnostics")
+    if args.phase3_residual_projection_shadow:
+        cmd.append("--phase3-residual-projection-shadow")
     if args.phase3_co_zonal_transport_consistency:
         cmd.append("--phase3-co-zonal-transport-consistency")
     if args.phase3_co_first_violation_trace:

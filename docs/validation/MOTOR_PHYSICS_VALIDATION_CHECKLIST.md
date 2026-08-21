@@ -344,6 +344,53 @@ H3.2-S0d6 O2 ownership and acceptance gate (2026-08-07):
   remains open, HVAC deferred, no integrator, H3.2b blocks H3.3, no authority.
   Full record: `docs/validation/PHASE3_H32S0D6_O2_OWNERSHIP_AUDIT.md`.
 
+H3.2b3 shadow compare, legacy versus pure primitive (2026-08-20):
+
+- **Strictly passive. No authority, no application, no commit.** New
+  `sim/core/Phase3ResidualProjectionShadow.gd`, isolated flag
+  `phase3_residual_projection_shadow_enabled` default false, runner wiring, one
+  hook after the causal accumulator. **`ZoneFireSolver` untouched.** No CSV
+  column, no report, no baseline, no expected value, no tolerance, no VALID_GAP.
+- **Pre/post point:** the existing per-call projection trace, which carries
+  `cause`, `pre` and `post` in one event, so H3.2b1's instrumentation is reused
+  rather than duplicated. Geometry, absent from the trace, comes from the
+  building and is construction-time constant.
+- **Isolation on the ten committed topologies at 120 s:** `sim_log.csv`
+  byte-identical OFF vs ON **10/10**; summaries differ by the opt-in block only;
+  manifests valid and duration reached; determinism repeats on corridor,
+  multi-floor and loop topologies identical in CSV and in every shadow total.
+- **Legacy projection rebuilds the room at reference pressure.** Same EOS:
+  pre-state **98 511-104 702 Pa**, legacy post **101 108-101 325 Pa**, maximum
+  exactly `AIR_PRESSURE_REF_PA` in all ten scenarios.
+- **100 % of mass divergence is the lower rewrite**, upper exactly zero. The
+  **interface agrees to 0.011 m** while lower mass diverges up to **964 kg
+  gross**, so layer height alone would conceal the defect.
+- **1 rejection in 959 242 calls**, counted with its reason and no fabricated
+  comparison. **Zero presence-predicate mismatches** against `M > 1e-4`; choosing
+  a canonical predicate is still a blocker for H3.2b6.
+- **Recorded, not fixed:** H3.2b1's causal-only flag is inert
+  (`_sync_auxiliary_services()` reasserts the trace flag from a gate omitting
+  it); it fails closed, so no H3.2b1a measurement was corrupted.
+- **H3.2b1 activation defect repaired.** The causal flag was missing from
+  `_phase3_projection_diagnostics_active()`, which `_sync_auxiliary_services()`
+  reasserts during a run, so the flag alone left the trace off and the ledger
+  empty. It failed **closed**. Verified across all twenty H3.2b1a campaign
+  summaries before asserting: causal-only unavailable with zero calls in 10/10,
+  zone+causal available with full counts in 10/10 -- **all published H3.2b1 and
+  H3.2b1a measurements remain valid**. After the repair, corridor chain at 60 s
+  causal-only yields 33 063 calls over 4 320 room-steps (= 720 x 6, proving the
+  per-step reset), matching the both-flags count exactly; OFF/ON byte-identical.
+  Fixture `tests/fixtures/phase3_h32b1_causal_only_activation.gd`.
+  **Blind zone-transition counters untouched: H3.2b1b, before H3.2b4.**
+- **Churn units clarified:** gross totals are cumulative over a run, not
+  instantaneous; 964.41 kg over 77 071 calls, largest single-call lower-mass
+  divergence 1.53 kg.
+- Verification: 13/13 shadow fixture, 6/6 activation fixture, 39/39 shadow
+  contracts, 33/33 causal contracts, 62/62 Godot fixtures, zero residual
+  processes, no suite regression. **GO for shadow compare only**;
+  H3.2b4, H3.2b1b and runtime authority remain blocked. Record:
+  `docs/validation/PHASE3_H32B3_SHADOW_COMPARE.md`.
+
 H3.2b2 pure residual projection primitive (2026-08-20, reopened after review NO-GO):
 
 - **Primitive only. Zero call sites. No authority.** New

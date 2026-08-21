@@ -4,6 +4,103 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### Phase 3 H3.2b3 shadow compare, legacy projection versus the pure primitive (2026-08-20)
+
+- **Strictly passive, uncommitted, no authority.** New
+  `sim/core/Phase3ResidualProjectionShadow.gd` plus fixture, contracts and record
+  `docs/validation/PHASE3_H32B3_SHADOW_COMPARE.md`. The primitive's output is
+  computed, compared and discarded: never applied, never written to a room, never
+  a fallback, and no shadow metric reaches a physics decision.
+  **`ZoneFireSolver` is untouched, zero lines.**
+- **The single pre/post point already existed.** `project_room_state()` emits one
+  trace event per call carrying `cause`, `pre` (taken at entry) and `post` (after
+  the rewrite), so no new solver instrumentation was needed and H3.2b1 is not
+  duplicated -- `get_projection_trace_events()` returns a duplicate and does not
+  consume, so both ledgers read it independently. The trace carries **no
+  geometry**, which the engine supplies from `building.get_rooms()`; room
+  geometry is construction-time constant, so the values resolved at accumulate
+  time are the values in force during the call.
+- **Isolated flag** `phase3_residual_projection_shadow_enabled`, `@export`,
+  default false, which enables only the solver's own trace and **never writes
+  the H3.2b1 flag**. **[PLAN CORRECTED]** the H3.2b0 phase table said H3.2b3
+  would reuse the H3.2b1 flag; that would silently make every existing H3.2b1
+  user start evaluating the primitive on every projection call, so H3.2b3 ships
+  its own.
+- **Isolation verified on all ten committed topologies at 120 s:** `sim_log.csv`
+  **byte-identical OFF vs ON in 10/10**, summaries differing by the opt-in block
+  only, no new CSV column, manifests valid and duration reached in every run.
+  Determinism repeats on a corridor, a multi-floor and a loop topology reproduced
+  both the CSV and **every shadow total** byte for byte.
+- **Finding: legacy projection drives the room back to reference pressure.** The
+  same equation of state applied to the pre-state spans **98 511-104 702 Pa**;
+  applied to the legacy post inventory it is pinned into **101 108-101 325 Pa**, a
+  band 29x narrower whose maximum is **exactly `AIR_PRESSURE_REF_PA = 101 325.0
+  Pa` in all ten scenarios**. The unconditional lower rewrite reconstructs, by
+  construction, the inventory that sits at reference pressure -- it discards
+  whatever pressure state the physics produced, on every call, in every room.
+- **Finding: 100 % of the mass divergence is the lower rewrite** in every
+  scenario; upper-zone divergence is exactly zero everywhere, consistent with
+  H3.2b1a's result that the cap never binds.
+- **Finding: the interface agrees while the inventory does not.** The largest
+  interface divergence anywhere is **0.011 m**, against lower-mass divergence up
+  to **964 kg gross**. Legacy derives the layer height from the upper mass, which
+  it does not rewrite, so a reviewer looking only at layer height would conclude
+  the models agree. They do not.
+- **The fail-closed path is exercised, not dead:** across **959 242** calls the
+  primitive rejected exactly **one** state, an `energy_without_mass` in
+  `ghanekar_bedroom_hallway`; it was counted, named, and no comparison was
+  fabricated for it.
+- **Zero presence-predicate mismatches** against the legacy projection predicate
+  (`M > 1e-4` vs the primitive's `M > 0`) -- a real negative for this corpus, not
+  a resolution: choosing one canonical predicate remains a blocker for H3.2b6.
+- **Recorded, not fixed: the H3.2b1 causal-only flag is inert.**
+  `_sync_auxiliary_services()` reasserts the solver trace flag from
+  `_phase3_projection_diagnostics_active()`, which did not include the causal
+  flag, so a run started with `--phase3-projection-causal-diagnostics` alone has
+  the trace switched back off at every logging point and accumulates nothing. It
+  **fails closed** -- H3.2b1a's `causal` variant reported `data_available: false`
+  and every measurement there came from the two-flag variant -- but the flag
+  alone does nothing. H3.2b3 does not hit the trap because its flag **is**
+  included in that gate. Repair is out of scope here.
+- Two contracts were updated deliberately rather than silently: H3.2b1's tick
+  order assertion now allows passive accumulators between the clamp and the
+  carbon check and forbids anything else, and H3.2b2's zero-call-site gate now
+  names the shadow as the single permitted consumer while still forbidding any
+  other reference under `sim/`.
+- **H3.2b1 activation defect found and repaired.**
+  `_phase3_projection_diagnostics_active()` did not list
+  `phase3_projection_causal_diagnostics_enabled`, and
+  `_sync_auxiliary_services()` reasserts the solver trace flag from that gate
+  during a run, so `--phase3-projection-causal-diagnostics` alone had the trace
+  switched back off at every logging point and accumulated nothing. It failed
+  **closed** (`data_available: false`, `projection_trace_unavailable`), never
+  producing wrong numbers. Verified against the artefacts before being asserted:
+  in **all ten** causal-only runs of the H3.2b1a campaign the ledger reported
+  unavailable with zero calls, and in **all ten** zone+causal runs it reported
+  available with full counts, zero anomalies -- so **every published H3.2b1 and
+  H3.2b1a measurement was taken with the zone flag also on and remains valid**,
+  and the causal-only variant was used only for CSV byte-identity. After the
+  repair, `cfast_corridor_chain` at 60 s with the causal flag alone accumulates
+  **33 063 calls over 4 320 room-steps** (exactly 720 timesteps x 6 rooms, which
+  proves the per-step reset), identical to the count with both flags; the only
+  remaining reason code is `zone_stage_attribution_unavailable`, which is the
+  ledger's separate and correct residual dependency. OFF/ON `sim_log.csv`
+  byte-identical, summary differing by the opt-in block only. New fixture
+  `tests/fixtures/phase3_h32b1_causal_only_activation.gd` (6 assertions) plus
+  contracts. **The blind zone-transition counters are NOT repaired: they remain
+  H3.2b1b, before H3.2b4.**
+- **Churn units clarified:** `gross_absolute_total` is cumulative churn summed
+  over every call in a run, not an instantaneous divergence. The 964.41 kg quoted
+  for `flashover_simple_house` is the total over 77 071 calls (~0.013 kg per
+  call); the largest **single-call** lower-mass divergence anywhere is 1.53 kg,
+  against a largest single-call interface divergence of 0.011 m.
+- Verification: 13/13 shadow fixture assertions, 6/6 activation fixture
+  assertions, 39/39 shadow contracts, 33/33 causal contracts, 62/62 Godot
+  fixtures, zero residual Godot processes, no regression against the
+  pre-existing suite baseline. **GO for the shadow comparison only.** Not
+  committed, no R2-1 refresh, no push. H3.2b4, H3.2b1b and runtime authority
+  remain blocked.
+
 ### Phase 3 H3.2b2 pure residual projection primitive (2026-08-20)
 
 - **Primitive only, zero call sites, no authority.** New
