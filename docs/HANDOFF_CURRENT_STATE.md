@@ -17,7 +17,8 @@ of the motor architecture, state ownership, tick ordering, diagnostics, tests
 and validation evidence. Do not continue merely because the preceding STOP gate
 is green. H3.2b4 and H3.3 remain blocked until the user reviews the audit and
 explicitly authorizes continuation. This instruction must survive agent and
-conversation handoffs.
+conversation handoffs. Binding scope, timebox and exit criteria:
+`docs/validation/MOTOR_PRE_AUTHORITY_AUDIT_PLAN.md`.
 
 ## Current Session Update - 2026-08-20 - H3.2b3 shadow compare
 
