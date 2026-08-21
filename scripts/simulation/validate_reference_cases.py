@@ -14,6 +14,7 @@ The checks are deliberately narrow:
 
 from __future__ import annotations
 
+import argparse
 import csv
 import datetime
 import json
@@ -28,6 +29,45 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 REPORTS_DIR = ROOT / "sim" / "validation" / "reports"
 CFAST_DIR = ROOT / "sim" / "validation" / "cfast"
+
+CFAST_RUNTIME_CASES: tuple[str, ...] = (
+    "cfast_r0_window_360",
+    "cfast_single_room_closed",
+    "cfast_slow_growth_sealed",
+    "cfast_pool_fire_open",
+    "cfast_corridor_chain",
+    "cfast_bedroom_closed_door",
+    "cfast_suppression_water",
+    "cfast_two_room_door_open",
+    "cfast_post_flashover_vented",
+    "cfast_hvac_residential",
+    "cfast_long_burnout_3600s",
+    "cfast_window_break_t180",
+    "cfast_door_close_midfire",
+    "cfast_fast_growth_closed",
+    "cfast_two_floor_stairwell",
+    "cfast_multi_fuel_couch_tv",
+)
+
+REFERENCE_RUNTIME_CASES: tuple[str, ...] = (
+    *CFAST_RUNTIME_CASES,
+    "ghanekar_bedroom_hallway",
+    "ghanekar_kitchen_living_room",
+)
+
+
+def _missing_runtime_inputs() -> list[Path]:
+    """Return runtime artifacts required for a reproducible reference refresh."""
+    required = [REPORTS_DIR / f"{case_name}.json" for case_name in REFERENCE_RUNTIME_CASES]
+    required.extend(REPORTS_DIR / f"{case_name}.log" for case_name in CFAST_RUNTIME_CASES)
+    return [path for path in required if not path.is_file()]
+
+
+def _display_path(path: Path) -> Path:
+    try:
+        return path.relative_to(ROOT)
+    except ValueError:
+        return path
 
 
 @dataclass
@@ -2716,7 +2756,37 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
     return checks
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Compare SimuFire validation outputs against external references."
+    )
+    parser.add_argument(
+        "--list-runtime-cases",
+        action="store_true",
+        help="Print the authoritative runtime corpus, one case per line, and exit.",
+    )
+    args = parser.parse_args(argv)
+
+    if args.list_runtime_cases:
+        print("\n".join(REFERENCE_RUNTIME_CASES))
+        return 0
+
+    missing_inputs = _missing_runtime_inputs()
+    if missing_inputs:
+        print(
+            "[Reference Checks] ERROR: incomplete runtime evidence; "
+            "reference_checks.json was not written.",
+            file=sys.stderr,
+        )
+        for path in missing_inputs:
+            print(f"  missing {_display_path(path)}", file=sys.stderr)
+        print(
+            "  Run sim/validation/run_reference_checks.ps1 without -SkipCaseRuns.",
+            file=sys.stderr,
+        )
+        return 2
+
+
     all_checks = (
         # ── CFAST comparison suites (SimuFire log vs CFAST CSV) ───────────────
         build_cfast_checks()

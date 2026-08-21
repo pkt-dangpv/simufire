@@ -52,21 +52,11 @@ if (-not (Test-Path $referenceCheckScript)) {
 	throw "No se encontro el comparador de referencias: $referenceCheckScript"
 }
 
-$cases = @(
-	"cfast_r0_window_360",
-	"ghanekar_bedroom_hallway",
-	"ghanekar_kitchen_living_room",
-	"cfast_single_room_closed",
-	"cfast_two_room_door_open",
-	"cfast_post_flashover_vented",
-	"cfast_hvac_residential",
-	"cfast_long_burnout_3600s",
-	"cfast_door_close_midfire",
-	"cfast_fast_growth_closed",
-	"cfast_two_floor_stairwell",
-	"cfast_multi_fuel_couch_tv",
-	"cfast_window_break_t180"
-)
+$cases = @(& $PythonExe $referenceCheckScript --list-runtime-cases)
+if ($LASTEXITCODE -ne 0 -or $cases.Count -eq 0) {
+	throw "No se pudo obtener el corpus runtime del comparador de referencias."
+}
+$cases = @($cases | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 
 Write-Host "[Reference Suite] Inicio de validacion contra referencias externas"
 Write-Host ("[Reference Suite] Proyecto: {0}" -f $ProjectPath)
@@ -77,7 +67,7 @@ if (-not $SkipCaseRuns) {
 		& $runCaseScript -CaseName $caseName -GodotExe $GodotExe -ProjectPath $ProjectPath -TimeoutSeconds $TimeoutSeconds -AllowBaselineFailure
 	}
 } else {
-	Write-Host "[Reference Suite] Omitiendo ejecucion de casos; se reutilizan reportes existentes"
+	Write-Host "[Reference Suite] Omitiendo ejecucion; el comparador exigira el corpus completo existente"
 }
 
 Write-Host "[Reference Suite] Comparando salidas con NIST CFAST y Ghanekar"

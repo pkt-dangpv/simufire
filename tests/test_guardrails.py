@@ -460,6 +460,42 @@ class TestValidationGuardrails(unittest.TestCase):
             self.assertIn("brand_new_regression_check", out)
 
 
+class TestGapInventorySyncGuardrail(unittest.TestCase):
+
+    def test_sync_passes_even_when_required_failure_is_unexpected(self):
+        with _temporary_directory() as tmp:
+            inventory = _write_inventory(tmp, 2)
+            data = _json_data(
+                all_required_pass=False,
+                failed_required_count=1,
+                known_gap_count=2,
+                checks=[
+                    _gap_check("gap_a"),
+                    _gap_check("gap_b"),
+                    _failed_required_check("brand_new_regression_check"),
+                ],
+            )
+
+            rc, out = validation_guardrails._check_gap_inventory_sync(data, inventory)
+
+            self.assertEqual(rc, 0)
+            self.assertIn("2 documented and observed", out)
+
+    def test_sync_fails_when_documented_count_differs(self):
+        with _temporary_directory() as tmp:
+            inventory = _write_inventory(tmp, 3)
+            data = _json_data(
+                all_required_pass=True,
+                known_gap_count=2,
+                checks=[_gap_check("gap_a"), _gap_check("gap_b")],
+            )
+
+            rc, out = validation_guardrails._check_gap_inventory_sync(data, inventory)
+
+            self.assertEqual(rc, 1)
+            self.assertIn("documented=3", out)
+
+
 # ---------------------------------------------------------------------------
 # 6. Physics override linter (R1-3)
 # ---------------------------------------------------------------------------
@@ -553,6 +589,8 @@ class TestReportsFreshness(unittest.TestCase):
         rc, out = validation_guardrails._check_reports_freshness(root, report)
         self.assertEqual(rc, 1)
         self.assertIn("sin commitear", out)
+        self.assertIn("run_reference_checks.ps1", out)
+        self.assertNotIn("validate_reference_cases.py", out)
 
     def test_rc0_uncommitted_engine_change_with_regenerated_report(self):
         root, engine, report = self._make_repo("fresh_both")
@@ -570,6 +608,7 @@ class TestReportsFreshness(unittest.TestCase):
         rc, out = validation_guardrails._check_reports_freshness(root, report)
         self.assertEqual(rc, 1)
         self.assertIn("DESPUÉS", out)
+        self.assertIn("run_reference_checks.ps1", out)
 
     def test_rc0_skipped_outside_git_repo(self):
         root = _TEST_TMP_ROOT / "fresh_norepo"

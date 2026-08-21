@@ -232,8 +232,8 @@ def _check_reports_freshness(repo_root: Path, json_path: Path) -> tuple[int, str
         if len(dirty_engine) > 10:
             lines.append(f"    ... (+{len(dirty_engine) - 10})")
         lines.append(
-            "  Regenera: python scripts/simulation/validate_reference_cases.py "
-            "(o run_reference_checks.ps1 para la regeneración completa)"
+            "  Regenera el corpus y el reporte con: "
+            "sim/validation/run_reference_checks.ps1"
         )
         return 1, "\n".join(lines)
 
@@ -252,7 +252,8 @@ def _check_reports_freshness(repo_root: Path, json_path: Path) -> tuple[int, str
             f"    último commit motor/casos : {h_engine}\n"
             f"    último commit del reporte : {h_json}\n"
             "  Los checks required podrían estar validando código antiguo.\n"
-            "  Regenera: python scripts/simulation/validate_reference_cases.py"
+            "  Regenera el corpus y el reporte con: "
+            "sim/validation/run_reference_checks.ps1"
         )
     return 0, "R2-1: reports al día respecto a motor/casos. OK"
 
@@ -325,6 +326,28 @@ def _load_json(json_path: Path) -> dict | None:
         return None
 
 
+def _check_gap_inventory_sync(data: dict | None, inventory_path: Path) -> tuple[int, str]:
+    """Check only inventory counts; required failures have their own guardrail."""
+    if data is None:
+        return 1, "Gap inventory sync: reference JSON is unreadable."
+
+    documented = gap_inventory_check.extract_documented_gap_count(inventory_path)
+    known_gap_count = data.get("known_gap_count")
+    checks = data.get("checks", [])
+    real_gap_count = len(
+        [check for check in checks if not check.get("required") and not check.get("pass")]
+    )
+
+    if documented is None:
+        return 1, f"Gap inventory sync: cannot parse {inventory_path}."
+    if documented == known_gap_count == real_gap_count:
+        return 0, f"Gap inventory sync: {documented} documented and observed."
+    return 1, (
+        "Gap inventory sync mismatch: "
+        f"documented={documented}, JSON={known_gap_count}, observed={real_gap_count}."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -381,7 +404,10 @@ def main() -> int:
 
     # -- Ejecutar guardrails ----------------------------------------------------
     rc_sentinel,   out_sentinel   = _run_silent(phase2e_preflight.main, json_argv)
-    rc_gaps,       out_gaps       = _run_silent(gap_inventory_check.main, json_argv)
+    _,             out_gaps       = _run_silent(gap_inventory_check.main, json_argv)
+    rc_gaps,       out_gap_sync   = _check_gap_inventory_sync(
+        data, repo_root / "docs/validation/GAPS_INVENTORY.md"
+    )
     rc_carbon,     out_carbon     = (0, "(sin datos)") if data is None else _check_carbon_hcn_sentinels(data)
     rc_two_zone,   out_two_zone   = _run_silent(legacy_two_zone_compare.main, ["check-reference"])
     rc_phy_lint,   out_phy_lint   = _check_physics_overrides(repo_root)
@@ -440,6 +466,7 @@ def main() -> int:
         print("─" * W)
         print("  [Detalle] Gap Inventory Check")
         print("─" * W)
+        print(out_gap_sync)
         print(out_gaps)
         print("─" * W)
         print("  [Detalle] Carbon/HCN Sentinels (PHY-C1/C2)")

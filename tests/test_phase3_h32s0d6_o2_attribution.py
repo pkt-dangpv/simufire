@@ -128,8 +128,8 @@ def test_kg_requires_completeness():
     )
     preceding = body.split(kg_line, 1)[0].rstrip().splitlines()[-1].strip()
     assert preceding == "if complete:"
-    assert '"accepted_kg": (accepted_fraction - pre_fraction) * mass_base_kg if complete else NAN' in body
-    assert '"mass_base_kg": mass_base_kg if complete else NAN' in body
+    assert '"accepted_kg": (accepted_fraction - pre_fraction) * mass_base_kg if complete else null' in body
+    assert '"mass_base_kg": mass_base_kg if complete else null' in body
 
 
 def test_reason_conflict_is_fail_closed():

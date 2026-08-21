@@ -1,6 +1,6 @@
 # Inventario de Gaps - SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 23 julio 2026 (F3.3l equivalencia topológica `cfast_corridor_chain`)
-**Estado validacion**: 347/353 PASS required, 71 gaps non-gating, 6 VALID_GAP
+**Generado**: 24 mayo 2026 | **Actualizado**: 21 agosto 2026 (BRI-1 full-corpus refresh)
+**Estado validacion**: 344/353 PASS required, 73 gaps non-gating, 6 VALID_GAP + 3 required blockers
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
 > **Verificación de sincronización** — entrypoint único (recomendado):
@@ -17,8 +17,7 @@
 > python scripts/simulation/gap_inventory_check.py
 > ```
 > Devuelve exit 0 si el conteo total de gaps coincide y all_required_pass=True.
-> Recalcular el reporte agregado si hay discrepancias: `python scripts/simulation/validate_reference_cases.py`.
-> Regenerar los informes Godot/CFAST/Ghanekar desde cero: `powershell -ExecutionPolicy Bypass -File sim/validation/run_reference_checks.ps1 -TimeoutSeconds 900`.
+> Regenerar siempre el corpus Godot/CFAST/Ghanekar y el agregado en una sola operación: `powershell -ExecutionPolicy Bypass -File sim/validation/run_reference_checks.ps1 -TimeoutSeconds 900`.
 
 ---
 
@@ -28,17 +27,27 @@
 |-----------|--------|------------|-----------------|
 | Presión termodínmica vs boyancia | 0 | Modelo SF termostático (1-10 Pa) vs CFAST boyancia two-zone (100-2000 Pa). 17 checks cerrados 2026-05-29 con tolerancias per-timestamp (tol=|diff|+2.0 Pa, ≥20 steps @0.01 Pa). | **TODOS CERRADOS** (per-timestamp Phase 3) |
 | O₂ zona inferior | 0 | Todos los checks cerrados 2026-05-29 con tolerancias per-timestamp (Phase 2A structural). | **TODOS CERRADOS** |
+| CO lower zone reporting | 2 | Corrida BRI-1 fresca: `cfast_2r_hall_t240_co_lower_ppm`=143 ppm y `cfast_2r_hall_t360_co_lower_ppm`=333 ppm, ambos frente a 0±100 ppm. | Reabierto; gap non-gating de reporting/transporte |
 | CO₂ upper layer | 0 | Phase 2E cerró 2 gaps; t120 + fo t240/t350 cerrados por tolerancia (CMV-1 estructural) | **TODOS CERRADOS** |
 | RMSE temperatura superior | 0 | Phase 1.5 structural: twofloor_r0 (RMSE=146°C, tol=147) y multifuel (RMSE=189°C, tol=190) cerrados 2026-05-29 con per-check tol. | **TODOS CERRADOS** |
 | Phase 1.5 / Flashover / FED | 0 | fo_peak_temp_upper_c (min 400→355), fo_peak_temp_timing (tol 90→193s) cerrados 2026-05-29. | **TODOS CERRADOS** |
 | Temp / HRR / Layer (otros) | 0 | cfast_hvac_t450_temp_upper_c (tol 80→122.6) cerrado 2026-05-29. | **TODOS CERRADOS** |
 | Escenarios complejos | 0 | Cerrado: hvac_t450_temp y hall O2. | **TODOS CERRADOS** |
-| Calibración puntual | 2 | Corrida fresca 2026-06-05 reabre dos checks empíricos de flashover Ghanekar: `ghanekar_flashover_0_9m_known_gap` no cruza 600 °C a 0.9 m; `ghanekar_kitchen_fire_room_flashover_s` adelanta el flashover frente a 14.9 ± 0.5 min. O2/FED/CO remotos Ghanekar siguen required y PASS. | Pendiente calibración vertical/local |
+| Calibración puntual | 2 | Corrida fresca 2026-06-05 reabre dos checks empíricos de flashover Ghanekar. La corrida BRI-1 2026-08-21 confirma además tres fallos required remotos de O2/FED, registrados abajo como bloqueadores y no contados como gaps non-gating. | Pendiente calibración vertical/local |
 | Stage-B pending (sin datos) | 0 | `cfast_overpressure_sealed_pending` **CERRADO** Phase 3 (jun 2026). `cfast_hvac_two_zone_feed_pending` **CERRADO** Phase 2C (jun 2026). | **TODOS CERRADOS** |
 | Phase 2C structural (HVAC) | 4 | SF fire at max HRR vs CFAST two-zone moderation (t>240s): CO_upper t300/t450, co2_upper_pct t300/t450. Phase 4A blend rejected: cannot close gaps without breaking required o2_upper/temp checks. Non-gating. | Structural accepted |
 | HCN/FED toxicity validation | Registro, no gap CFAST actual | **Phase 4B COMPLETADO (observability + FED decomposition + calibración 2026-05-27):** HCN logging (`HCN=`/`HCNu=`) added to .log and CSV. `peak_hcn_ppm`/`peak_hcn_upper_ppm` tracked in CaseRunner. Non-gating sanity checks (`min: 10 ppm`) added to `victim_fed_incapacitation` + `pu_sofa_fec_incapacitation` baselines — promoted to required (actual ~2000 ppm). Transport active by default (0.40). Default yield 0.000040 kg/MJ. FED decomposition (`fed_co`, `fed_hcn`, `fed_hypoxia`, `fed_heat`) in RoomModel, ThermalSystem, StateBuilder, CSV and ROOM log. CaseRunner tracks `room_N_final_fed_co/hcn/hypoxia/heat`. **Calibration assessment (2026-05-27):** in `pu_sofa_fec_incapacitation` (sustained fire), FED_HCN/FED_total = 19.7% (room 0) and 25.1% (room 1) — within or at lower bound of Purser SFPE range (20–30% for residential PU). Yield `0.000154 kg/MJ` ≈ 0.004 g/g = lower bound of well-ventilated flaming PU foam (Purser 0.004–0.017 g/g). In `victim_fed_incapacitation` (ramp-up fire), HCN=0.9% — explained by CO dominating early phase before HCN peaks at t=800s (physically plausible). See `docs/audits/AUDITORIA_CALIBRACION_FED_HCN_2026-05-27.md`. — 379/379 PASS. | Phase 4B ✅ observability ✅ FED decomposition ✅ calibración aceptable |
 
-**Total: 71 gaps non-gating (per reference_checks.json). 347/353 required checks PASS. 6 required failures classified as VALID_GAP (ver tabla abajo).**
+**Total: 73 gaps non-gating (per reference_checks.json). 344/353 required checks PASS. 6 required failures classified as VALID_GAP y 3 required failures no permitidos (ver tablas abajo).**
+
+*(Sincronización 2026-08-21 — BRI-1 full-corpus refresh con Godot 4.7.1:
+18/18 casos completados. Gaps 71→73 por reapertura de
+`cfast_2r_hall_t240_co_lower_ppm` (143 ppm) y
+`cfast_2r_hall_t360_co_lower_ppm` (333 ppm), ambos con expected=0 y
+tolerance=100 ppm. Required PASS 347→344 por tres resultados Ghanekar
+obsoletos en el reporte anterior: respuesta O2 del pasillo lejano a 232.5 s
+y FED 0.3/1.0 del pasillo lejano no alcanzados. No se cambiaron casos,
+expected, tolerancias ni baselines.)*
 
 *(Sincronización 2026-07-23 — F3.3l corrige la equivalencia topológica de
 `cfast_corridor_chain`: el runner hace matching direccional exacto y las
@@ -64,6 +73,18 @@ total de required PASS cambia 348→347.)*
 ### Required failures closed-as-gap (6 checks — estado F3.3l)
 
 Estos 6 checks son **required** en `reference_checks.json` y están clasificados como VALID_GAP. No son non-gating gaps sino fallos estructurales que requieren arquitectura Phase 3+ para cerrarse. Codificados en `KNOWN_VALID_GAP_REQUIRED_FAILURES` en `scripts/simulation/gap_inventory_check.py`.
+
+### Required failures no permitidos (3 checks — estado BRI-1)
+
+Estos checks no están clasificados como VALID_GAP y bloquean autoridad. La
+corrida fresca conserva sus contratos sin ampliar tolerancias ni cambiar
+expected:
+
+| Check | Actual fresco | Contrato | Estado |
+|-------|---------------|----------|--------|
+| `ghanekar_far_hall_o2_response_time_s` | 232.5 s | 198±30 s | FAIL |
+| `ghanekar_kitchen_far_hall_fed_0_3_s` | no alcanzado | 546±515 s | FAIL |
+| `ghanekar_kitchen_far_hall_fed_1_0_s` | no alcanzado | 812.75±126 s | FAIL |
 
 *(Los 6 checks Grupo E `cfast_slow_t*` — clasificados como VALID_GAP en 2026-07-08 — fueron CERRADOS en 2026-07-09: eran artefacto de runner/config, no gap estructural. Ver nota de sincronización arriba.)*
 
@@ -351,9 +372,12 @@ Checks planificados para fases futuras. `actual` y `expected` están vacíos; se
 
 ---
 
-## ~~Nota: CO lower zone reporting gap (cfast_2r_hall_t360_co_lower_ppm)~~ — CERRADO
+## Nota: CO lower zone reporting gap — REABIERTO BRI-1
 
-*(2026-05-28i)* Check `cfast_2r_hall_t360_co_lower_ppm` ahora **PASA** (actual=80 ppm, expected=0±100, within tolerance). Nota obsoleta — eliminada del conteo de gaps activos.
+*(2026-05-28i, histórico)* `cfast_2r_hall_t360_co_lower_ppm` pasaba con
+80 ppm frente a 0±100 ppm. La corrida fresca BRI-1 lo reproduce en 333 ppm y
+también reabre `cfast_2r_hall_t240_co_lower_ppm` con 143 ppm. Ambos son gaps
+non-gating activos; no se cambian sus contratos.
 
 ---
 

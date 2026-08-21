@@ -41,7 +41,7 @@ func _init() -> void:
 	_test_reason_codes_are_distinct_and_complete_is_the_only_kg_path()
 	_test_non_binding_clamp_records_no_correction()
 	_test_binding_clamp_is_visible_without_per_owner_split()
-	_test_kg_is_nan_when_the_mass_base_is_ambiguous()
+	_test_kg_is_null_when_the_mass_base_is_ambiguous()
 	_test_kg_is_emitted_only_for_the_consistent_upper_sink()
 	_test_owner_and_zone_never_merge()
 	_test_sample_carries_the_full_field_set()
@@ -176,7 +176,7 @@ func _test_binding_clamp_is_visible_without_per_owner_split() -> void:
 	_done("_test_binding_clamp_is_visible_without_per_owner_split")
 
 
-func _test_kg_is_nan_when_the_mass_base_is_ambiguous() -> void:
+func _test_kg_is_null_when_the_mass_base_is_ambiguous() -> void:
 	var oes = _oes_on()
 	oes._record_o2_acceptance(
 		"oes_combustion_plume_lower_sink", "lower", _room(0), 0.209, 0.150, 0.160,
@@ -187,8 +187,8 @@ func _test_kg_is_nan_when_the_mass_base_is_ambiguous() -> void:
 	_expect(not bool(e["kg_available"]), "an ambiguous mass base yields no kg")
 	_expect(float(e["accepted_kg_total"]) == 0.0, "no kg is ever accumulated for it")
 	var s: Dictionary = _samples(oes)[0]
-	_expect(is_nan(float(s["accepted_kg"])), "the sample reports NAN, not a zero kg")
-	_expect(is_nan(float(s["mass_base_kg"])), "the mass base is reported NAN too")
+	_expect(s["accepted_kg"] == null, "the sample reports JSON null, not a zero kg")
+	_expect(s["mass_base_kg"] == null, "the mass base reports JSON null too")
 	_expect(
 		String(s["unit"]) == "fraction",
 		"the original unit is always reported as a fraction"
@@ -199,7 +199,7 @@ func _test_kg_is_nan_when_the_mass_base_is_ambiguous() -> void:
 	)
 
 
-	_done("_test_kg_is_nan_when_the_mass_base_is_ambiguous")
+	_done("_test_kg_is_null_when_the_mass_base_is_ambiguous")
 
 
 func _test_kg_is_emitted_only_for_the_consistent_upper_sink() -> void:

@@ -1,7 +1,5 @@
 {
-	"baseline": {
-
-	},
+	"baseline": {},
 	"case": "cfast_slow_growth_sealed",
 	"comparison_contract_version": 1,
 	"duration_s": 1800.0,
