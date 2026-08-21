@@ -62,8 +62,18 @@ const REASON_TRACE_UNAVAILABLE: String = "projection_trace_unavailable"
 const REASON_ZONE_DIAG_UNAVAILABLE: String = "zone_stage_attribution_unavailable"
 
 ## A zone holding less mass than this is treated as absent for the birth/death
-## and energy-without-mass checks. It is ZoneFireSolver's own epsilon, not a new
-## tunable: see ZoneFireSolver.ZONE_MASS_EPS_KG.
+## and energy-without-mass checks.
+##
+## PROVENANCE CORRECTED 2026-08-21 (H3.2b1b). The comment here used to read "it is
+## ZoneFireSolver's own epsilon, see ZoneFireSolver.ZONE_MASS_EPS_KG". That
+## misattributed it: `ZoneFireSolver.ZONE_MASS_EPS_KG` is **1.0e-4**, while this
+## constant is **1.0e-6**. They are two different thresholds belonging to two
+## different components, and the value below has always been this ledger's own.
+## The distinction matters because H3.2b1a's "at least 29 births" figure was
+## produced with THIS threshold, so the H3.2b1b acceptance gate is tied to the
+## `ledger` predicate and not to the `projection` one. Choosing a single canonical
+## predicate remains a blocker owned by H3.2b6; see
+## `sim/core/Phase3ZoneTransitionLedger.gd`, which reports four at once.
 const ZONE_MASS_EPS_KG: float = 1.0e-6
 
 ## A stage delta below this is not treated as material activity. Derived, not
@@ -125,8 +135,16 @@ func _room(room_id: int) -> Dictionary:
 			"thermal_cap_accepted_kj_total": 0.0,
 			"thermal_cap_rejected_kj_total": 0.0,
 			"thermal_cap_bind_count_total": 0,
+			# DEPRECATED 2026-08-21 (H3.2b1b). These compare `pre` and `post`
+			# WITHIN one projection call, and projection never creates upper mass,
+			# so they are near-always zero by construction and cannot witness a
+			# birth. They keep their names and values so nothing that reads them
+			# breaks; the explicitly-named twins below say what they measure, and
+			# `Phase3ZoneTransitionLedger` carries the counters with meaning.
 			"upper_zone_birth_count_total": 0,
 			"upper_zone_death_count_total": 0,
+			"within_projection_call_upper_zone_birth_count_total": 0,
+			"within_projection_call_upper_zone_death_count_total": 0,
 			"energy_without_mass_count_total": 0,
 			"nonfinite_state_count_total": 0,
 		}
@@ -308,9 +326,13 @@ func _scan_zone_transition(room: Dictionary, ev: Dictionary) -> void:
 	if before <= ZONE_MASS_EPS_KG and after > ZONE_MASS_EPS_KG:
 		room["upper_zone_birth_count_total"] = \
 				int(room["upper_zone_birth_count_total"]) + 1
+		room["within_projection_call_upper_zone_birth_count_total"] = \
+				int(room["within_projection_call_upper_zone_birth_count_total"]) + 1
 	elif before > ZONE_MASS_EPS_KG and after <= ZONE_MASS_EPS_KG:
 		room["upper_zone_death_count_total"] = \
 				int(room["upper_zone_death_count_total"]) + 1
+		room["within_projection_call_upper_zone_death_count_total"] = \
+				int(room["within_projection_call_upper_zone_death_count_total"]) + 1
 
 
 func _accumulate_residuals(zone_diag: Dictionary) -> void:
@@ -411,6 +433,13 @@ func summary() -> Dictionary:
 			+ " = numerical_correction",
 		"sign_convention":
 			"every term is a signed contribution to the state delta",
+		"deprecated_counter_note":
+			"upper_zone_birth_count_total and upper_zone_death_count_total are"
+			+ " DEPRECATED aliases kept for compatibility. They compare pre and post"
+			+ " within ONE projection call, so they are near-always zero by"
+			+ " construction and cannot witness a birth. The counters with meaning"
+			+ " live in Phase3ZoneTransitionLedger (H3.2b1b), which compares"
+			+ " persistent state across observation boundaries",
 		"gross_absolute_meaning":
 			"projection churn: the volume of rewriting performed."
 			+ " NOT a physical contribution and NOT a source",

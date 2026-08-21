@@ -242,3 +242,35 @@ fail-closed, independent of H3.2b3, preserving the historical surface.
 **NO-GO for H3.2b4 and for any runtime authority.** H3.2-S, H3.2b and H3.3 remain
 open; S0d6b1 stays blocked; HVAC stays deferred; the presence predicate stays
 unresolved and remains a blocker for H3.2b6.
+
+---
+
+## 11. Implementation STOP gate (2026-08-21)
+
+The design above was implemented without changing physics, authority, CSV
+columns, case files, expected values, baselines or tolerances.
+
+The first ten-topology matrix correctly failed: the observer was seeded at the
+end of step one and reported only 19 births, with one ignition room per scenario
+misclassified as initially present. Seeding was moved to the start of
+`SimulationEngine.step()`, before every physical stage, and pinned by a contract.
+
+The corrected corpus reports:
+
+- 85 initially absent rooms and zero initially present rooms.
+- 29 step births under each of `strict_positive`, `ledger` and `projection`.
+- 29 step births under `fed_gate`, with different stable-state counts.
+- 30 call births and one call death under the three finer predicates.
+- Exact initial and boundary cardinality for all predicates in all scenarios.
+- Zero room additions/removals in the committed corpus; both are fixture-tested.
+- Byte-identical OFF/ON shared CSV in all ten scenarios.
+- Complete manifests, 120.083 s reached and zero residual Godot processes.
+
+The old within-projection counters remain as deprecated aliases and explicitly
+named twins. No call-boundary transition is assigned to the cause of the next
+projection call. `authoritative_predicate` remains null.
+
+Decision: **GO for passive H3.2b1b only. USER AUDIT STOP REACHED.** H3.2b4 and
+H3.3 remain blocked by the binding independent audit in
+`MOTOR_PRE_AUTHORITY_AUDIT_PLAN.md` and by explicit user authorization after its
+closure.

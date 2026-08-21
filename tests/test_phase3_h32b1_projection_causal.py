@@ -404,13 +404,19 @@ def test_projection_clamp_cap_and_tick_order_are_untouched():
     # accumulators and NOTHING else.
     between = ENGINE.split("_phase3_projection_causal_accumulate()\n", 1)[1]
     between = between.split("_check_carbon_balance()", 1)[0]
+    # UPDATED 2026-08-21 by H3.2b1b: a third passive accumulator, the zone
+    # transition observer, now runs here too. The physics tick order is still
+    # what this contract protects, so the allowance is extended by name rather
+    # than loosened.
     allowed = {"_phase3_residual_projection_shadow_accumulate()",
+               "_phase3_zone_transition_observe()",
                "# Evaluar el estado final del paso, incluyendo cualquier pérdida por clamp."}
     for line in between.splitlines():
         stripped = line.strip()
         if stripped:
             assert stripped in allowed, "new stage between clamp and carbon check: %s" % stripped
     assert "_phase3_residual_projection_shadow_accumulate()" in between
+    assert "_phase3_zone_transition_observe()" in between
 
 
 def test_no_new_csv_columns():

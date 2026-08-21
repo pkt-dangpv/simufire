@@ -17,6 +17,7 @@ const Phase3PhysicalOwnerLedgerScript = preload("res://sim/core/Phase3PhysicalOw
 const Phase3O2AcceptanceLedgerScript = preload("res://sim/core/Phase3O2AcceptanceLedger.gd")
 const Phase3ProjectionCausalLedgerScript = preload("res://sim/core/Phase3ProjectionCausalLedger.gd")
 const Phase3ResidualProjectionShadowScript = preload("res://sim/core/Phase3ResidualProjectionShadow.gd")
+const Phase3ZoneTransitionLedgerScript = preload("res://sim/core/Phase3ZoneTransitionLedger.gd")
 
 # ============================================================
 # SIMULATION ENGINE
@@ -1033,6 +1034,23 @@ var _phase3_projection_causal_ledger = Phase3ProjectionCausalLedgerScript.new()
 			zone_fire_solver.projection_diagnostics_enabled = true
 var _phase3_residual_projection_shadow = Phase3ResidualProjectionShadowScript.new()
 
+## H3.2b1b: ledger persistente de transiciones de zona. Repara la ceguera
+## estructural de los contadores birth/death del ledger causal, que comparan
+## pre y post DENTRO de una misma llamada a project_room_state.
+##
+## Estrictamente pasivo: no escribe estado, no gobierna fisica, no anade columna
+## CSV y no depende del shadow H3.2b3 ni de la primitiva ni de las zone
+## diagnostics. Se siembra antes del primer paso fisico y observa siempre en el
+## mismo punto al final de cada paso.
+@export var phase3_zone_transition_diagnostics_enabled: bool = false:
+	set(value):
+		phase3_zone_transition_diagnostics_enabled = value
+		_phase3_zone_transition_ledger.enabled = value
+		if value and zone_fire_solver != null:
+			# Solo la granularidad call consume la traza por llamada.
+			zone_fire_solver.projection_diagnostics_enabled = true
+var _phase3_zone_transition_ledger = Phase3ZoneTransitionLedgerScript.new()
+
 ## H3.2-S0d6: medicion pasiva de aceptacion de O2 en todos los subsistemas que la
 ## mutan salvo HVAC, diferido por enunciado. Default OFF y byte-identica con el
 ## flag apagado.
@@ -1613,7 +1631,7 @@ func _phase3_projection_diagnostics_active() -> bool:
 	## cerrado -- no producia datos erroneos -- pero el flag por si solo no hacia
 	## nada. Los contadores ciegos de transicion de zona NO se tocan aqui: siguen
 	## siendo H3.2b1b, antes de H3.2b4.
-	return phase3_zone_diagnostics_enabled or phase3_runtime_ownership_ledger_enabled or phase3_residual_projection_shadow_enabled or phase3_projection_causal_diagnostics_enabled
+	return phase3_zone_diagnostics_enabled or phase3_runtime_ownership_ledger_enabled or phase3_residual_projection_shadow_enabled or phase3_projection_causal_diagnostics_enabled or phase3_zone_transition_diagnostics_enabled
 
 
 func _phase3_physical_owner_begin_step() -> void:
@@ -1933,6 +1951,53 @@ func get_phase3_projection_causal_summary() -> Dictionary:
 
 func get_phase3_residual_projection_shadow_summary() -> Dictionary:
 	return _phase3_residual_projection_shadow.summary()
+
+
+func get_phase3_zone_transition_summary() -> Dictionary:
+	return _phase3_zone_transition_ledger.summary()
+
+
+func _phase3_zone_transition_observe() -> void:
+	## H3.2b1b: observacion persistente al FINAL de cada paso, siempre en el
+	## mismo punto para que la frontera no se desplace. La siembra ocurre antes
+	## del primer paso fisico.
+	##
+	## Pasivo: lee estado de sala y no escribe nada. La granularidad call usa la
+	## traza que ZoneFireSolver ya emite; si no esta disponible, esa mitad se
+	## declara ausente en vez de reportarse como cero.
+	if not phase3_zone_transition_diagnostics_enabled:
+		return
+	_phase3_zone_transition_seed()
+	if zone_fire_solver != null and zone_fire_solver.projection_diagnostics_enabled:
+		_phase3_zone_transition_ledger.observe_calls(
+			zone_fire_solver.get_projection_trace_events()
+		)
+	else:
+		_phase3_zone_transition_ledger.record_unavailable(
+			Phase3ZoneTransitionLedgerScript.REASON_TRACE_UNAVAILABLE
+		)
+	_phase3_zone_transition_ledger.observe_step(_phase3_zone_transition_snapshot())
+
+
+func _phase3_zone_transition_seed() -> void:
+	## Idempotente: solo la primera invocacion siembra. Se invoca al preparar la
+	## corrida y defensivamente al inicio de la observacion, de modo que la
+	## semilla siempre precede a la primera frontera medida.
+	if not phase3_zone_transition_diagnostics_enabled:
+		return
+	if _phase3_zone_transition_ledger.is_seeded():
+		return
+	_phase3_zone_transition_ledger.seed(_phase3_zone_transition_snapshot())
+
+
+func _phase3_zone_transition_snapshot() -> Dictionary:
+	## Masa superior persistente por sala, solo lectura.
+	var out: Dictionary = {}
+	if building == null:
+		return out
+	for room in building.get_rooms().values():
+		out[str(room.id)] = room.upper_gas_kg
+	return out
 
 
 func _phase3_residual_projection_shadow_accumulate() -> void:
@@ -3092,6 +3157,11 @@ func step(delta: float) -> void:
 
 	# SF-CBAL: capturar inventario inicial antes de cualquier física.
 	_ensure_carbon_balance_initialized()
+	# H3.2b1b: la semilla debe preceder al PRIMER paso fisico. Sembrar al final
+	# del primer paso perderia cualquier transicion ocurrida durante el, y en la
+	# practica clasificaba la sala de ignicion como initial_present en vez de
+	# contar su nacimiento. Es idempotente: solo la primera invocacion siembra.
+	_phase3_zone_transition_seed()
 	_phase3_zone_diag_begin_step()
 	_phase3_runtime_ownership_begin_step()
 	_phase3_physical_owner_begin_step()
@@ -3216,6 +3286,7 @@ func step(delta: float) -> void:
 		phase3_zone_mass_system.finalize_step(building, thermal_system.ambient_temp_c())
 	_phase3_projection_causal_accumulate()
 	_phase3_residual_projection_shadow_accumulate()
+	_phase3_zone_transition_observe()
 	# Evaluar el estado final del paso, incluyendo cualquier pérdida por clamp.
 	_check_carbon_balance()
 	_check_layer_interface_guardrails(dt)
@@ -4887,6 +4958,10 @@ func build_technical_summary(output_dir: String = "") -> Dictionary:
 		# H3.2b3: bloque opt-in de la comparacion shadow. Sin el flag no existe.
 		summary["phase3_residual_projection_shadow"] = \
 				_phase3_residual_projection_shadow.summary()
+	if phase3_zone_transition_diagnostics_enabled:
+		# H3.2b1b: bloque opt-in del ledger de transiciones de zona.
+		summary["phase3_zone_transition"] = \
+				_phase3_zone_transition_ledger.summary()
 	if phase3_o2_attribution_diagnostics_enabled:
 		# H3.2-S0d6: bloque opt-in de aceptacion de O2, combinando los ledgers de
 		# cada subsistema que muta O2. HVAC queda fuera, diferido por enunciado.

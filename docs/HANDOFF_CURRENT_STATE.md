@@ -20,6 +20,30 @@ explicitly authorizes continuation. This instruction must survive agent and
 conversation handoffs. Binding scope, timebox and exit criteria:
 `docs/validation/MOTOR_PRE_AUTHORITY_AUDIT_PLAN.md`.
 
+## Current Session Update - 2026-08-21 - H3.2b1b persistent transitions
+
+- **Passive transition observation only; no authority.** New default-OFF
+  `Phase3ZoneTransitionLedger` is seeded before the first physical step and
+  observes upper-zone presence at fixed end-of-step and between-call boundaries.
+  It writes no room state, adds no CSV column and does not depend on H3.2b2 or
+  H3.2b3. Record:
+  `docs/validation/PHASE3_H32B1B_ZONE_TRANSITION_DESIGN.md`.
+- The first matrix failed its decisive gate (`19 < 29`) because the seed was
+  taken after step one. Moving the idempotent seed before all physical stages
+  gives exactly the H3.2b1a lower bound: **29 step births**, zero deaths and 85
+  initially absent rooms across the same ten committed 120 s cases.
+- All four presence predicates are reported and none is authoritative. Call
+  granularity observes 30 births and one death under the finer predicates,
+  proving it catches one within-step oscillation that the primary step boundary
+  merges. Both granularities remain lower bounds.
+- OFF/ON shared CSV is byte-identical 10/10; cardinality closes for every
+  predicate; the room set is constant in the corpus; additions/removals remain
+  fixture-covered; real Godot fixture and focused Python contracts pass.
+- **USER STOP REACHED.** H3.2b1b is the last implementation before the mandatory
+  independent audit. Do not begin H3.2b4 or H3.3. Freeze and push the clean
+  checkpoint, then execute A0 from
+  `docs/validation/MOTOR_PRE_AUTHORITY_AUDIT_PLAN.md` in a new task.
+
 ## Current Session Update - 2026-08-20 - H3.2b3 shadow compare
 
 - **Strictly passive, uncommitted, no authority.** New

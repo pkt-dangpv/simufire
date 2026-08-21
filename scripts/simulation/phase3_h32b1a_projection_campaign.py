@@ -58,8 +58,15 @@ ABSENT_FULL_HISTOGRAM = "calls_per_room_step_full_histogram"
 ABSENT_PER_ROOM_DENOMINATOR = "per_room_room_step_denominator"
 ABSENT_TRANSITIONS_OUTSIDE_PROJECTION = "zone_transitions_outside_a_projection_call"
 
-## The zone-mass epsilon below which a zone is treated as absent. It is
-## ZoneFireSolver's own constant, mirrored by the ledger, not a new tunable.
+## The zone-mass epsilon below which a zone is treated as absent.
+##
+## PROVENANCE CORRECTED 2026-08-21 (H3.2b1b). This comment used to attribute the
+## value to ZoneFireSolver. That was wrong: `ZoneFireSolver.ZONE_MASS_EPS_KG` is
+## 1.0e-4, while this is `Phase3ProjectionCausalLedger.ZONE_MASS_EPS_KG`, 1.0e-6.
+## The value used here is unchanged and the measurements it produced are
+## unaffected; only the attribution was incorrect. It matters because the "at
+## least 29 births" figure this module produced belongs to the 1.0e-6 predicate,
+## which is what the H3.2b1b acceptance gate is tied to.
 ZONE_MASS_EPS_KG = 1.0e-6
 
 

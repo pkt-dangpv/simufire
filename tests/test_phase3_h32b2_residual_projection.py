@@ -294,6 +294,11 @@ ALLOWED_REFERENCES = {
     "tests/test_phase3_h32b2_residual_projection.py",
     "tests/fixtures/phase3_h32b3_residual_projection_shadow.gd",
     "tests/test_phase3_h32b3_residual_projection_shadow.py",
+    # These name the primitive only in prose -- to state that H3.2b1b does NOT
+    # depend on it, and to cite where each presence threshold comes from.
+    "tests/test_phase3_h32b1b_zone_transition.py",
+    "sim/core/Phase3ZoneTransitionLedger.gd",
+    "docs/validation/PHASE3_H32B1B_ZONE_TRANSITION_DESIGN.md",
     "CHANGELOG.md",
     "docs/HANDOFF_CURRENT_STATE.md",
     "docs/validation/MOTOR_PHYSICS_VALIDATION_CHECKLIST.md",
@@ -323,6 +328,11 @@ def _references_the_primitive(path: str) -> bool:
     latter.
     """
     text = (ROOT / path).read_text(encoding="utf-8", errors="ignore")
+    if path.endswith(".gd"):
+        # A GDScript comment naming the primitive is prose, not a dependency.
+        # `Phase3ZoneTransitionLedger` names it precisely to state that it does
+        # NOT depend on it, and to cite where a threshold comes from.
+        text = _strip_comments(text)
     return "Phase3ResidualProjection" in text.replace("Phase3ResidualProjectionShadow", "")
 
 

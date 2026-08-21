@@ -4,6 +4,31 @@ All notable changes to SimuFire should be recorded here.
 
 ## Unreleased
 
+### Phase 3 H3.2b1b persistent zone-transition ledger (2026-08-21)
+
+- Added a default-OFF, summary-only `Phase3ZoneTransitionLedger` that observes
+  persistent upper-zone presence at fixed step and projection-call boundaries.
+  It writes no room state, adds no CSV column, governs no physics and remains
+  independent of the H3.2b2 primitive and H3.2b3 shadow.
+- The first runtime matrix exposed and rejected an end-of-step seeding error:
+  `19` births were reported against the committed H3.2b1a lower bound of `29`.
+  Seeding now occurs before the first physical step. The corrected ten-topology,
+  120 s corpus reports exactly `29` step births under the `ledger` predicate,
+  with `85` initially absent rooms and both cardinality identities closing.
+- Four named presence predicates are reported simultaneously and
+  `authoritative_predicate` remains null. Call granularity finds `30` births and
+  `1` death under the three finer predicates, demonstrating one real within-step
+  oscillation that the primary step boundary merges; both remain documented
+  lower bounds.
+- Historical within-projection counters remain as deprecated aliases, with
+  explicit names added. Room additions/removals are never fabricated as zone
+  births/deaths, and call-boundary transitions carry no false cause attribution.
+- Ten OFF/ON pairs are byte-identical in shared CSV data; 63 sequential Godot
+  fixtures and the H3.2b1b contracts pass with zero residual Godot processes.
+  **GO for passive H3.2b1b only. No runtime authority is granted.** The mandatory
+  independent motor-audit stop is now active; H3.2b4 and H3.3 must not start
+  without explicit user authorization after audit closure.
+
 ### Phase 3 H3.2b3 shadow compare, legacy projection versus the pure primitive (2026-08-20)
 
 - **Strictly passive, uncommitted, no authority.** New
