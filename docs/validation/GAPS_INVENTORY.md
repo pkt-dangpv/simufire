@@ -1,5 +1,5 @@
 # Inventario de Gaps - SimuFire vs CFAST
-**Generado**: 24 mayo 2026 | **Actualizado**: 22 agosto 2026 (sesión 23 — democión contractual provisional Ghanekar)
+**Generado**: 24 mayo 2026 | **Actualizado**: 22 agosto 2026 (sesión 26 — corrección documental contra la fuente primaria Ghanekar verificada)
 **Estado validacion**: 344/350 PASS required, 76 gaps non-gating, 6 VALID_GAP + 0 required blockers
 **Fuente**: `sim/validation/reports/reference_checks.json`
 
@@ -110,22 +110,90 @@ aunque no sean satisfacibles tal como están escritos.
   zona **inferior** toda la corrida, y el `room.o2` bulk queda **fuera del
   bracket de sus propias zonas en 33/43 muestras**. Adoptar el observable
   correcto empeora el fallo (290 s), luego el defecto dominante es la
-  **definición**: falta declarar la respuesta inicial a 0.9 m y su umbral
-  experimental de detección, y cómo se trata el retardo de línea de 16–23 s.
+  **definición**.
+  **[CORREGIDO sesión 26.]** La versión anterior de esta línea decía que faltaba
+  declarar «su umbral experimental de detección». **Esa premisa es falsa**: el
+  artículo (p.4 §2.3) **no define la respuesta inicial mediante ningún umbral**,
+  sino como la **última intersección** del cambio de concentración con un
+  baseline lineal ajustado por polinomio iterativo, sobre la ventana
+  background→intervención, y por gas. La recalificación debe implementar **ese
+  estimador**, no un corte en `vol%` inventado. Sigue sin publicarse el grado del
+  polinomio, la regla de iteración, la tolerancia de intersección ni la ventana
+  de background. Sobre el retardo de línea de **16–23 s**: es un retardo
+  **extremo a extremo** (línea + respuesta del analizador, no descomponible, con
+  la longitud de línea sin publicar) y el artículo **no declara** si los tiempos
+  fueron corregidos por él **ni declara que no lo fueran** — no debe afirmarse
+  ninguna de las dos opciones.
 - **FED (ambos)**: el caso **conserva señal de transporte** — la respuesta O2 del
-  pasillo lejano da 405.75 s contra 402±84 s publicados y **PASA** — pero **no
-  reproduce el crecimiento del incendio ni la magnitud del peligro**: flashover a
-  **495.3 s** frente a **894±30 s** publicados (44.6 % temprano, y con el criterio
-  más benigno `temp_upper_c` en vez del publicado T(0.9 m) > 600 °C), y el FED del
-  pasillo lejano nunca llega a 0.3. Esto **no** lo causó sólo la corrección de
-  bombeo de especies: esa corrección **destapó** una mala especificación previa
-  del crecimiento del incendio. Revertirla restauraría el artefacto, no la
-  ciencia. Requiere **rediseño del caso**, aún **no autorizado**.
+  pasillo lejano da 405.75 s contra 402±84 s publicados y **PASA** — pero el FED
+  del pasillo lejano nunca llega a 0.3 (pico 0.2368). Esto **no** lo causó sólo
+  la corrección de bombeo de especies: esa corrección **destapó** una mala
+  especificación previa. Revertirla restauraría el artefacto, no la ciencia.
+  Requiere **rediseño del caso**, aún **no autorizado**.
+  **[CORREGIDO sesión 26 — dos afirmaciones anteriores eran incorrectas.]**
+  1. **Desajuste de observable.** El FED publicado es dosis **asfixiante** de
+     Purser sobre O2/CO2/CO/HCN y **no incluye término térmico**; SimuFire suma
+     `fed_co + fed_hcn + fed_hypoxia + fed_heat`. En la corrida congelada, R2 de
+     cocina: `0.0971317 + 0.0121828 + 0.1059437 + 0.0215422 = 0.2368004`, de modo
+     que el valor **equivalente al artículo** es **0.2152582** (el término térmico
+     es el 9.10 %). Quitar el término que el artículo no tiene **aleja** el
+     pasillo del umbral 0.3 (78.9 % → 71.8 %): la brecha de magnitud del peligro
+     es **peor** de lo registrado. En dormitorio `fed_heat` de R2 es 0.0, así que
+     el desajuste sólo muerde en cocina.
+  2. **El flashover no es todavía atribuible al «crecimiento del incendio».** La
+     conclusión anterior de «44.6 % temprano» daba por sentada una equivalencia
+     que no está establecida. Ver la nota de volumen de control más abajo.
 
-**Limitación de procedencia:** el PDF primario de Ghanekar **no está en el
-repositorio**; las cifras publicadas provienen de una **transcripción local**
-(`sim/validation/EMPIRICAL_REFERENCE_GHANEKAR_2026.md`) **todavía no contrastada**
-contra el artículo.
+**Procedencia — RETRACTADA y corregida (sesión 26):** la versión anterior de este
+bloque afirmaba que el PDF primario **no estaba en el repositorio** y que las
+cifras publicadas venían de una transcripción **no contrastada**. **Ambas
+afirmaciones eran falsas.** El artículo está **trackeado en Git** en
+`docs/literature/Evolution of combustion gas concentrations in full-scale residential fire.pdf`
+(blob `d91a0b8b`, SHA-256 `1B2A1B00…5030`, 4 302 995 bytes, 9 páginas,
+DOI `10.1016/j.firesaf.2026.104724`, Version of Record, CC BY-NC-ND 4.0) desde el
+commit `1ba0ee74` del **2026-04-19**. La transcripción **ya fue contrastada** en
+la sesión 25: **5 de los 6 valores de contrato resultaron VERIFICADOS
+exactamente** (198±18 s, 402±84 s, 546±120 s, 624±126 s, 894±30 s) y **uno
+CONTRADICHO** (ver la nota de IDLH de CO más abajo). La ruta histórica
+`F:\OneDrive\…` es **procedencia obsoleta**: la unidad F: no está montada y no
+debe citarse como origen de ninguna cifra.
+
+**Volumen de control — por qué 894 s todavía no es un objetivo (sesión 26).** El
+flashover publicado es el del compartimento **abierto combinado cocina–salón**
+(unas 5.4× el dormitorio en volumen, p.4 §3), alcanzado **sólo tras propagarse
+desde la encimera** al salón. El caso SimuFire enciende `Living_Dining` (R3)
+directamente con `fire_spread_enabled=false`, sin etapa de propagación: si son
+volúmenes de control distintos, 495.3 s puede ser físicamente correcto y
+simplemente **no comparable**. Se suma un desajuste de criterio — el caso mide
+`temp_upper_c ≥ 600 °C` mientras el artículo usa `T(0.9 m) > 600 °C`, que cruza
+**más tarde**, y el caso hermano de dormitorio ya usa el observable correcto — y
+de origen de reloj: en cocina `t=0` es la **autoignición del aceite**, no el
+encendido del quemador. Los fuegos publicados además fueron **acelerados** con
+combustibles auxiliares, así que 894 s ya es una realización **rápida**. Rango
+por ensayo: **846–948 s**; 495.3 s queda ~13 σ muestrales por debajo de la media.
+**894 s no debe usarse como objetivo de calibración hasta resolver la
+equivalencia.**
+
+**IDLH de CO — atribución de especie CONTRADICHA (sesión 26).** El contrato
+`ghanekar_kitchen_far_hall_idlh_co_s` mantiene `expected=642 s`, pero
+`10.7 ± 1.7 min` (p.7 §3.4) es el tiempo hasta el **primer** cruce de IDLH por
+cualquier especie, que el artículo atribuye a **baja concentración de O2**
+(descenso > 1.4 vol%) en p.1, p.7 §3.4 y p.8 §5. Con intervención de cocina en
+16.8 min: O2 → `16.8−6.1 = 10.70 min = 642 s` (reproduce el titular exactamente),
+HCN → 870 s, **CO → `16.8−2.2 = 14.60 min ≈ 876 s`**. La corrida congelada alcanza
+1200 ppm a **866.58 s**, a **9.4 s (1.07 %)** del valor de CO derivado. El
+contrato se conserva **sin cambios** como **contrato histórico defectuoso
+etiquetado**, no como objetivo; **no se deriva tolerancia** porque la diferencia
+pareada carece de covarianza publicada. Cautelas de la fuente: el artículo
+imprime «CO 1200 ppm (1.2 vol%)» —errata de unidades, 1200 ppm son 0.12 vol%— y
+nunca repite qué criterio aplicó; y el sensor de CO **se saturó** a 5 vol% en los
+experimentos 11, 12 y 18, así que el CO de cocina publicado es una **cota
+inferior**.
+
+**Nota estadística (sesión 26):** los `±` publicados son **desviación típica
+muestral con k = 1** (p.4 §3), es decir aproximadamente un intervalo del **68 %**,
+**no** una banda del 95 %; no incluyen incertidumbre instrumental ni el retardo, y
+con n = 6 (cocina) la propia desviación está mal determinada.
 
 *(Los 6 checks Grupo E `cfast_slow_t*` — clasificados como VALID_GAP en 2026-07-08 — fueron CERRADOS en 2026-07-09: eran artefacto de runner/config, no gap estructural. Ver nota de sincronización arriba.)*
 
@@ -299,6 +367,12 @@ CFAST usa modelo de boyancia two-zone con gradiente de densidad → 100-1000 Pa 
 
 > *(2026-05-27e)* **Caso empírico `ghanekar_kitchen_living_room` añadido y ejecutado — 1/5 PASS, 4 gaps documentados**:  
 > Caso nuevo: fuego en R3 `LivingRoom` (56 m²), sensor R2 `Hallway_Far`, duración 1100 s, `fire_alpha_kw_s2=0.0025`, template `ghanekar_bedroom_hallway`. Benchmarks Ghanekar 2026 §5.3 cocina/salon.  
+>
+> **[CITA CORREGIDA — sesión 26]** La referencia «Ghanekar 2026 §5.3» de la
+> línea anterior apunta a una sección que **no existe**. El artículo termina en
+> §5 «Summary and conclusion», sin subsecciones. Citas correctas: **p.4 Tabla 1**
+> (eventos de comportamiento del fuego), **p.5 Tabla 2** (tiempos de respuesta
+> inicial) y **§3.4** (tenabilidad).
 > **Resultados run inicial (α=0.0025)**:  
 > - `ghanekar_kitchen_far_hall_o2_response_s`: **PASS** — 388 s vs 402 ± 84 s (Δ −14 s, −3.5%). Transporte O₂ correcto.  
 > - `ghanekar_kitchen_far_hall_fed_0_3_s`: FAIL — 1057 s vs 546 ± 120 s (Δ +511 s, +93.6%).  

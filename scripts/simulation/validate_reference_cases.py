@@ -2665,21 +2665,63 @@ def build_ghanekar_checks() -> list[Check]:
             #     probe is in the LOWER zone for the whole run, and the bulk room.o2
             #     lies outside the bracket of its own zones in 33/43 samples.
             #   definition: it uses a 20.4 vol% crossing (a 0.5 vol% drop), but the
-            #     paper reports an INITIAL RESPONSE time. On o2_lower the response is
-            #     130 s at 0.05 vol%, 170 s at 0.10 vol% and 250 s at 0.20 vol%.
-            # Adopting the correct observable alone makes it fail WORSE (290 s), so the
-            # definition is the dominant defect. Requalification must declare the 0.9 m
-            # probe observable AND its experimental detection threshold, and state how
-            # the 16-23 s sampling-line delay is handled.
+            #     paper reports an INITIAL RESPONSE time, which is NOT a threshold.
+            #
+            # [DEFINITION CORRECTED 2026-08-22, session 26, against the primary source
+            # now verified in-repo: docs/literature/Evolution of combustion gas
+            # concentrations in full-scale residential fire.pdf,
+            # DOI 10.1016/j.firesaf.2026.104724, blob d91a0b8b, SHA-256 1B2A1B00...5030.]
+            # Sessions 22-23 asserted that an "experimental detection threshold" was
+            # missing and had to be declared before this check could be requalified.
+            # That premise is FALSE. Ghanekar p.4 s2.3 defines the time of initial
+            # response by a BASELINE LAST-INTERSECTION rule, not by any concentration
+            # threshold:
+            #   1. change = absolute difference between the measured concentration and
+            #      the average background concentration;
+            #   2. a LINEAR baseline is inferred over the window from the start of
+            #      background to the time of intervention;
+            #   3. using an ITERATIVE POLYNOMIAL FIT algorithm;
+            #   4. the LAST time index prior to intervention at which the change
+            #      intersects that baseline is the time of initial response.
+            # It is computed per gas; t_dO2 additionally anchors the rate-averaging
+            # window for every gas. A full-text sweep finds NO vol%/ppm threshold
+            # defining initial response anywhere in the article. The only thresholds in
+            # the paper serve tenability (IDLH, FED) or are instrument limits
+            # (O2/CO2 resolution 0.01 vol%, CO 0.001 vol%, HCN LOD 1 ppm / LOQ 3 ppm).
+            # Corroboration from the article's own data: measurable change already
+            # exists BEFORE t_dO2 (bedroom CO2 0.06 +/- 0.01 vol%, HCN 9 +/- 13 ppm,
+            # p.6 s3.3) with scatter exceeding its own mean -- incompatible with a fixed
+            # threshold.
+            # NOT STATED in the article, and therefore NOT reproducible bit-exactly:
+            # the polynomial degree, the iteration/convergence rule, the numerical
+            # tolerance for "intersects", and the exact background averaging window.
+            # DELAY: the 16-23 s figure (p.3 s2.2) is an END-TO-END lag that bundles
+            # sample-line transit with analyser response; it cannot be decomposed, the
+            # line length is NOT STATED, and the article NEITHER states that the
+            # published times were corrected for it NOR that they were not. Do not
+            # assert either. Note also it exceeds the entire bedroom sample standard
+            # deviation (12-18 s).
+            # Requalification must therefore implement the baseline last-intersection
+            # ESTIMATOR at a declared 0.9 m probe observable, and must NOT substitute an
+            # invented vol% threshold. Session 22's remark that a 0.10-0.15 vol% cut
+            # "lands near" the published window is a coincidence of a different method
+            # and must NOT be promoted into a contract.
             required=False,
             note=(
-                "PROVISIONAL non-gating gap (session 23, 2026-08-22). Fresh runtime: "
-                "232.5 s against the retained contract 198 +/- 30 s. Contract retained "
-                "unchanged for traceability but NOT satisfiable as written: it consumes "
-                "the bulk room.o2 crossing 20.4 vol%, whereas Ghanekar reports an initial "
-                "response at a 0.9 m probe. Published uncertainty is +/- 18 s (3.3 +/- 0.3 "
-                "min); the +/- 30 s here is not traceable to the paper. Pending "
-                "requalification of observable and detection threshold."
+                "PROVISIONAL non-gating gap (session 23, 2026-08-22; reason corrected "
+                "session 26 against the verified primary source). Fresh runtime: 232.5 s "
+                "against the retained contract 198 +/- 30 s. Contract retained unchanged "
+                "for traceability but NOT satisfiable as written: it consumes the bulk "
+                "room.o2 crossing 20.4 vol%, whereas Ghanekar (p.5 Table 2) reports a "
+                "time of INITIAL RESPONSE at a 0.9 m probe, defined at p.4 s2.3 as the "
+                "last intersection of the change-in-concentration with an iterative "
+                "polynomial linear baseline -- NOT a concentration threshold. The earlier "
+                "claim that a missing 'detection threshold' blocked requalification was "
+                "wrong: the article defines an estimator, not a threshold. Published "
+                "uncertainty is +/- 18 s (3.3 +/- 0.3 min, k=1 sample SD over 10 bedroom "
+                "experiments); the +/- 30 s here is not traceable to the paper. The "
+                "16-23 s end-to-end sampling lag is measured but the article does not "
+                "state whether published times are corrected for it."
             ),
         ),
         Check(
@@ -2700,10 +2742,23 @@ def build_ghanekar_checks() -> list[Check]:
             expected=186.0,
             tolerance=30.0,
             required=False,
+            # [PROVENANCE ANNOTATED 2026-08-22, session 26.] expected=186 s IS traceable:
+            # it is the published bedroom flashover, 3.1 +/- 0.3 min (p.4 Table 1). The
+            # TOLERANCE is not: the published dispersion is +/- 18 s, not +/- 30 s.
+            # This check is the ONLY Ghanekar contract that already consumes the
+            # published observable -- T at 0.9 m in the fire compartment > 600 C
+            # (p.4 s2.3) -- which is why the sibling kitchen flashover check, reading
+            # temp_upper_c instead, is not measuring the same quantity.
+            # Neither expected nor tolerance is changed here.
             note=(
                 "Non-gating empirical flashover-height gap reopened by fresh 2026-06-05 run: "
                 "origin peak upper temp remains reasonable, but the 0.9 m 600C threshold no "
-                "longer crosses in the current vertical interpolation."
+                "longer crosses in the current vertical interpolation (frozen run: metric "
+                "absent, i.e. never reached; room_0 peak temp_upper is 536.7 C, itself below "
+                "600 C). Provenance (session 26): expected=186 s is the published 3.1 +/- 0.3 "
+                "min (p.4 Table 1) and the observable MATCHES the published criterion "
+                "T(0.9 m) > 600 C; the retained +/- 30 s tolerance is not traceable to the "
+                "paper, whose dispersion is +/- 18 s."
             ),
         ),
         Check(
@@ -2712,7 +2767,22 @@ def build_ghanekar_checks() -> list[Check]:
             expected=204.0,
             tolerance=45.0,
             required=False,
-            note="Known gap: CO/HCN toxic-gas chemistry is not calibrated to the Ghanekar paper.",
+            # [PROVENANCE ANNOTATED 2026-08-22, session 26.] expected=204 s IS traceable:
+            # it is the published bedroom CO initial response, 3.4 +/- 0.3 min (p.5
+            # Table 2). Two documentary defects, neither corrected here:
+            #   - the tolerance +/- 45 s is not traceable; the published dispersion is
+            #     +/- 18 s;
+            #   - the observable is a 200 ppm crossing, but the published quantity is an
+            #     INITIAL RESPONSE (baseline last-intersection, p.4 s2.3), so this check
+            #     shares the definitional defect of ghanekar_far_hall_o2_response_time_s.
+            # Neither expected nor tolerance is changed here.
+            note=(
+                "Known gap: CO/HCN toxic-gas chemistry is not calibrated to the Ghanekar "
+                "paper. Provenance (session 26): expected=204 s is the published 3.4 +/- 0.3 "
+                "min (p.5 Table 2), but the retained +/- 45 s is not traceable (published "
+                "+/- 18 s), and the 200 ppm crossing is not the published observable, which "
+                "is an initial-response estimator, not a threshold."
+            ),
         ),
     ]
     return checks
@@ -2722,10 +2792,28 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
     """Ghanekar 2026 kitchen/living-room fire — far hallway empirical benchmarks.
 
     Fire in LivingRoom (R3, 56 m²). Sensor zone: Hallway_Far (R2).
-    All five checks promoted to required=True post Phase-2 (2026-05-28): CO vent-limited
-    calibration (fire_co_vent_limited_multiplier=110, fed_upper_layer_threshold_m=2.0)
-    closed the three gating metrics; o2_response and fed_0_3 also pass.
-    Reference: Ghanekar 2026, FSJ §5.3 — kitchen/salon scenario.
+
+    Historical note: all five checks were promoted to required=True post Phase-2
+    (2026-05-28) after CO vent-limited calibration
+    (fire_co_vent_limited_multiplier=110, fed_upper_layer_threshold_m=2.0).
+    That is NO LONGER the state: fed_0_3, fed_1_0 and idlh_co were demoted to
+    provisional non-gating gaps on 2026-08-22 (session 23). Only o2_response and
+    fire_room_flashover remain as originally promoted, and only o2_response is
+    required=True.
+
+    [CITATION CORRECTED 2026-08-22, session 26.] Earlier revisions of this
+    docstring and of the o2_response note cited "Ghanekar 2026, FSJ §5.3". That
+    section DOES NOT EXIST. The article runs §1 Introduction, §2 Methods
+    (2.1 Experimental setup, 2.2 Measurement systems, 2.3 Analysis methods),
+    §3 Results and discussion (3.1 Time of initial response, 3.2 Rate of change,
+    3.3 Maximum change, 3.4 Time to compromised tenability), §4 Limitations and
+    future work, §5 Summary and conclusion — §5 has no subsections. The correct
+    citations are p.5 Table 2 / §3.1 for initial-response times, p.4 Table 1 for
+    fire-behaviour events, and §3.4 for tenability.
+
+    Reference: Ghanekar, S., Fire Safety Journal 162 (2026) 104724,
+    DOI 10.1016/j.firesaf.2026.104724 — kitchen/living-room scenario,
+    6 experiments (11, 12, 13, 14, 17, 18).
     """
     report = _load_json(REPORTS_DIR / "ghanekar_kitchen_living_room.json")
     metrics = report.get("metrics", {})
@@ -2736,7 +2824,23 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
             expected=402.0,
             tolerance=84.0,
             required=True,
-            note="Ghanekar kitchen/salon: first O2 drop in far hallway at 6.7 ± 1.4 min (Ghanekar 2026 §5.3). Phase 2 complete — check passes (373s ∈ [318,486]).",
+            # [ANNOTATED 2026-08-22, session 26.] This is the ONLY Ghanekar contract
+            # whose tolerance is exactly the published dispersion: 402 +/- 84 s is
+            # 6.7 +/- 1.4 min (p.5 Table 2, kitchen), k=1 sample SD over 6 experiments.
+            # It nevertheless shares the definitional defect of its bedroom sibling: it
+            # reads a 20.4 vol% crossing where the paper reports an initial-response
+            # estimator (p.4 s2.3). It passes, but it passes on a different measurand.
+            # Nothing is changed here; expected/tolerance/required are untouched.
+            note=(
+                "Ghanekar kitchen/living room: initial O2 response in the far hallway at "
+                "6.7 +/- 1.4 min (p.5 Table 2; NOT '§5.3', which does not exist -- citation "
+                "corrected session 26). Check passes: frozen runtime 405.75 s in "
+                "[318, 486] s. Caveat (session 26): the tolerance IS the published k=1 "
+                "sample SD, but the observable is a 20.4 vol% crossing whereas the "
+                "published quantity is an initial-response estimator (baseline "
+                "last-intersection, p.4 s2.3), so this check passes on a different "
+                "measurand than the one it cites."
+            ),
         ),
         Check(
             "ghanekar_kitchen_far_hall_fed_0_3_s",
@@ -2750,25 +2854,53 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
             tolerance=515.0,
             # DEMOTED to non-gating 2026-08-22 (session 23), PROVISIONAL.
             # The kitchen case retains its TRANSPORT signal -- far-hall O2 response is
-            # 405.75 s against the published 402 +/- 84 s and PASSES -- but it does not
-            # reproduce the fire growth or the hazard magnitude: flashover occurs at
-            # 495.3 s against a published 894 +/- 30 s (44.6% early, and on the easier
-            # temp_upper_c criterion rather than the published T(0.9 m) > 600 C), and
-            # far-hall FED peaks at 0.237, never reaching 0.3.
+            # 405.75 s against the published 402 +/- 84 s and PASSES -- but the far-hall
+            # FED peaks at 0.2368 and never reaches 0.3.
             # This is NOT caused by the specie-pumping fix alone: that fix removed an
-            # artefact which had been masking a pre-existing fire-growth
-            # mis-specification. Reverting it would restore the artefact, not the
-            # science. Requalification requires case redesign, which is NOT authorized
-            # yet.
+            # artefact which had been masking a pre-existing mis-specification.
+            # Reverting it would restore the artefact, not the science. Requalification
+            # requires case redesign, which is NOT authorized yet.
+            #
+            # [OBSERVABLE MISMATCH RECORDED 2026-08-22, session 26.] This check is not
+            # comparing like with like, independently of any calibration question.
+            # Ghanekar p.4 s2.3 computes FED with the PURSER model over O2, CO2, CO and
+            # HCN -- an ASPHYXIANT dose. It contains NO thermal term. SimuFire
+            # accumulates fed = fed_co + fed_hcn + fed_hypoxia + fed_heat
+            # (ThermalSystem.gd, room.fed), i.e. it ADDS a thermal dose the paper
+            # excludes. From the frozen kitchen report, far hallway (room 2):
+            #     fed_co 0.0971317 + fed_hcn 0.0121828 + fed_hypoxia 0.1059437
+            #                                          + fed_heat 0.0215422 = 0.2368004
+            # so the PAPER-EQUIVALENT (asphyxiant-only) value is 0.2152582, and the
+            # thermal term is 9.10 % of the SimuFire total. Removing the term the paper
+            # does not have therefore moves the far hallway FURTHER from 0.3
+            # (78.9 % -> 71.8 % of the threshold), not closer. The hazard-magnitude gap
+            # is worse than previously recorded, not better.
+            # (In the bedroom case room_2 fed_heat is exactly 0.0, so the mismatch bites
+            # only in the kitchen case.)
+            # Requalification must first make the observable asphyxiant-only. No new
+            # expected is computed here and none may be fitted to runtime.
+            #
+            # [FRAMING CORRECTED 2026-08-22, session 26.] Earlier revisions concluded
+            # flatly that "fire growth is 44.6 % too fast". That inference outruns the
+            # evidence -- see ghanekar_kitchen_fire_room_flashover_s below, where the
+            # control-volume and criterion problems are recorded. Until the measurand is
+            # shown to be comparable, the flashover discrepancy cannot be attributed to
+            # fire growth alone.
             required=False,
             note=(
-                "PROVISIONAL non-gating gap (session 23, 2026-08-22). Fresh runtime: "
-                "FED 0.3 NOT REACHED (far-hall FED peaks at 0.237). Contract retained "
-                "unchanged for traceability. Published value is 546 +/- 120 s; the "
-                "retained tolerance of 515 s was fitted to close a gap (161c4a64) and is "
-                "not traceable to the paper. Pending kitchen-case redesign: fire growth "
-                "is 44.6% too fast (flashover 495.3 s vs published 894 +/- 30 s) while "
-                "the far-hall O2 transport check passes."
+                "PROVISIONAL non-gating gap (session 23, 2026-08-22; reasons corrected "
+                "session 26 against the verified primary source). Fresh runtime: FED 0.3 "
+                "NOT REACHED (far-hall FED peaks at 0.2368). Contract retained unchanged "
+                "for traceability. Published value is 546 +/- 120 s (9.1 +/- 2.0 min, "
+                "p.7 s3.4, k=1 sample SD over 6 experiments); the retained tolerance of "
+                "515 s was fitted to close a gap (161c4a64) and is not traceable to the "
+                "paper. OBSERVABLE MISMATCH: the published FED is Purser ASPHYXIANT dose "
+                "over O2/CO2/CO/HCN with no thermal term, while SimuFire's fed adds "
+                "fed_heat; the paper-equivalent far-hall value is 0.2153, i.e. removing "
+                "the thermal term moves it FURTHER from 0.3, not closer. The flashover "
+                "discrepancy is NOT yet attributable to fire growth -- see "
+                "ghanekar_kitchen_fire_room_flashover_s for the control-volume and "
+                "criterion problems. Pending kitchen-case redesign, still NOT authorized."
             ),
         ),
         Check(
@@ -2784,17 +2916,26 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
             expected=812.75,
             tolerance=126.0,
             # DEMOTED to non-gating 2026-08-22 (session 23), PROVISIONAL. Same cause as
-            # fed_0_3 above. Requalification must restore the published 624 +/- 126 s and
-            # must NOT re-baseline onto runtime output again.
+            # fed_0_3 above, including the ASPHYXIANT-vs-thermal observable mismatch
+            # recorded there (session 26): the published FED has no thermal term, so the
+            # paper-equivalent far-hall dose is 0.2153, not 0.2368 -- FED 1.0 is missed
+            # by a wider margin on the correct observable, not a narrower one.
+            # [VERIFIED 2026-08-22, session 26.] The published 624 s is now confirmed
+            # directly against the primary source: 10.4 +/- 2.1 min, p.7 s3.4.
+            # Requalification must restore it and must NOT re-baseline onto runtime
+            # output again.
             required=False,
             note=(
-                "PROVISIONAL non-gating gap (session 23, 2026-08-22). Fresh runtime: "
-                "FED 1.0 NOT REACHED. Contract retained unchanged for traceability but "
-                "it LOST SCIENTIFIC PROVENANCE: expected=812.75 s was re-baselined onto "
-                "runtime output by a4b5e8f5, and its window [686.75, 938.75] excludes the "
-                "published 624 s (10.4 +/- 2.1 min), so the experiment itself would fail "
-                "this check. Pending kitchen-case redesign and restoration of the "
-                "published value."
+                "PROVISIONAL non-gating gap (session 23, 2026-08-22; provenance verified "
+                "session 26). Fresh runtime: FED 1.0 NOT REACHED. Contract retained "
+                "unchanged for traceability but it LOST SCIENTIFIC PROVENANCE: "
+                "expected=812.75 s was re-baselined onto runtime output by a4b5e8f5, and "
+                "its window [686.75, 938.75] excludes the published 624 s, so the "
+                "experiment itself would fail this check. The published 624 +/- 126 s "
+                "(10.4 +/- 2.1 min, p.7 s3.4) is now VERIFIED against the primary source. "
+                "Same asphyxiant-vs-thermal observable mismatch as fed_0_3: SimuFire's fed "
+                "includes fed_heat, which the Purser asphyxiant FED of the paper does not. "
+                "Pending kitchen-case redesign and restoration of the published value."
             ),
         ),
         Check(
@@ -2808,14 +2949,67 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
             # session-19 artefact, which reports
             # time_room_2_co_above_1200ppm_s = 866.583333333448 s. The check fails on
             # TIMING, not on non-arrival.
+            #
+            # [SPECIES ATTRIBUTION CORRECTED 2026-08-22, session 26, against the verified
+            # primary source.] Session 23 still described 642 +/- 102 s as "the published
+            # CO IDLH". IT IS NOT. Ghanekar p.7 s3.4 reports "the time to IDLH condition
+            # calculated based on individual gas concentration" as 10.7 +/- 1.7 min for
+            # the kitchen experiments -- the time to the FIRST species to cross ANY IDLH
+            # limit -- and attributes that first crossing to LOW OXYGEN (a decrease
+            # greater than 1.4 vol%, i.e. below 19.5 vol%). The attribution is stated
+            # three independent times: p.1 Abstract, p.7 s3.4, p.8 s5.
+            # Arithmetic closes it. Kitchen intervention is 16.8 min (p.4 Table 1); the
+            # article gives the crossings relative to intervention:
+            #     O2  : 16.8 - 6.1 = 10.70 min = 642 s   <-- reproduces the headline EXACTLY
+            #     HCN : 16.8 - 2.3 = 14.50 min = 870 s
+            #     CO  : 16.8 - 2.2 = 14.60 min = 876 s
+            # Independent cross-check on the bedroom figure, which the same sentence
+            # reports as 3.6 min: reconstructing it from the four experiment sub-groups
+            # of p.7 s3.4 gives (4*3.5 + 4*3.5 + 4.1 + 3.6)/10 = 3.57 ~ 3.6 min. So the
+            # published quantity is unambiguously "time to whichever gas crosses first",
+            # not a species-specific time.
+            # CONSEQUENCE: this contract compares a genuine CO/1200 ppm observable
+            # against an OXYGEN-DEPLETION datum. It is mislabelled by roughly +234 s.
+            # Measured against the right quantity the model is close, not late: the
+            # frozen 866.58 s is 9.4 s (1.07 %) from the derived CO figure of ~876 s.
+            # NO TOLERANCE IS DERIVABLE for a corrected CO entry: t_CO = t_intervention
+            # - delta_CO is a PAIRED per-experiment difference and the covariance is not
+            # published, so the sample dispersion cannot be recovered. Naive quadrature
+            # of 0.9 and 0.7 min is NOT a valid substitute. (Session 24 quoted such a
+            # window; it is retracted.)
+            # TWO FURTHER SOURCE PROBLEMS, recorded, not resolved:
+            #   - p.7 s3.4 prints "CO 1200 ppm (1.2 vol%)". 1200 ppm is 0.12 vol%, so one
+            #     of the two printed forms is a unit erratum (the companion "CO2 40,000
+            #     ppm (40 vol%)" is wrong the same way; 40,000 ppm is 4 vol%). Which
+            #     numeric criterion was actually APPLIED is ambiguous in the source and
+            #     the article never restates it. This observable uses 1200 ppm.
+            #   - p.6 s3.3: the CO sensor SATURATED at its 5 vol% upper limit in
+            #     Experiments 11, 12 and 18 -- half the kitchen ensemble -- which is why
+            #     the paper reports kitchen maximum CO only as "greater than"
+            #     4.83 +/- 0.46 vol%. Any kitchen CO figure from this article is a LOWER
+            #     BOUND, not a value.
+            # expected/tolerance/required are deliberately NOT changed in this session.
+            # This contract is retained as a labelled HISTORICAL DEFECT, not as a target.
             note=(
-                "Known gap. CO IDLH (1200 ppm) IS reached in the far hallway at "
-                "866.58 s in the frozen runtime, against the published 642 +/- 102 s "
-                "(10.7 +/- 1.7 min): it arrives ~224.6 s LATE. The earlier note claiming "
-                "it was no longer reached was factually wrong and is corrected here "
-                "(session 23). Note the observable split: this check reads BULK co_ppm "
-                "(peak 1468 ppm) while FED reads the upper-zone CO (peak 1015.9 ppm), so "
-                "two sibling contracts on the same room read different observables."
+                "PROVISIONAL non-gating gap. HISTORICAL DEFECTIVE CONTRACT -- do not read "
+                "expected=642 s as a CO target. CO IDLH (1200 ppm) IS reached in the far "
+                "hallway at 866.58 s in the frozen runtime. SPECIES MISATTRIBUTION "
+                "(corrected session 26 against the primary source): the published "
+                "642 +/- 102 s (10.7 +/- 1.7 min, p.7 s3.4) is the time to the FIRST IDLH "
+                "crossing, which Ghanekar attributes to LOW OXYGEN (decrease > 1.4 vol%) "
+                "in p.1 Abstract, p.7 s3.4 and p.8 s5 -- it is NOT the CO time. The "
+                "CO-driven value derives as 16.8 - 2.2 = 14.6 min ~ 876 s, and the frozen "
+                "866.58 s is 9.4 s (1.07 %) from it. The earlier note claiming CO was no "
+                "longer reached was factually wrong and was corrected in session 23; the "
+                "residual claim that it arrived ~224.6 s late was measured against the "
+                "wrong quantity and is corrected here. NO corrected tolerance is supplied: "
+                "the paired-difference dispersion is not derivable because the covariance "
+                "is unpublished. Source caveats: the paper prints 'CO 1200 ppm (1.2 vol%)' "
+                "(a unit erratum -- 1200 ppm is 0.12 vol%) and never restates which "
+                "criterion was applied; and the CO sensor saturated at 5 vol% in "
+                "Experiments 11, 12 and 18, so published kitchen CO is a lower bound. "
+                "Observable split retained: this check reads BULK co_ppm (peak 1468 ppm) "
+                "while FED reads upper-zone CO (peak 1015.9 ppm)."
             ),
         ),
         Check(
@@ -2824,10 +3018,68 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
             expected=894.0,
             tolerance=30.0,
             required=False,
+            # [PROVENANCE VERIFIED AND FRAMING CORRECTED 2026-08-22, session 26.]
+            # expected=894 s is VERIFIED: 14.9 +/- 0.5 min, p.4 Table 1, kitchen mean over
+            # 6 experiments. The tolerance +/- 30 s IS the published k=1 sample SD -- but
+            # k=1 is roughly a 68 % interval, NOT a 95 % band, and with n=6 the SD is
+            # itself poorly determined. Per-experiment values span 14.1 to 15.8 min, i.e.
+            # 846 to 948 s.
+            # The frozen runtime is 495.33 s. That is about 13 sample SDs below the mean
+            # and about 351 s below the FASTEST kitchen test ever observed; it matches
+            # neither the kitchen ensemble nor the bedroom one (186 +/- 18 s).
+            # BUT THE DISCREPANCY MUST NOT YET BE READ AS "FIRE GROWTH TOO FAST". Three
+            # equivalence problems come first, and none is resolved:
+            #   1. CONTROL VOLUME. The published event is flashover of the COMBINED
+            #      open-concept kitchen-living room compartment -- about 5.4x the bedroom
+            #      by volume (p.4 s3) -- reached only AFTER the fire spread from the
+            #      kitchen counter into the living room. This case ignites R3
+            #      Living_Dining directly with fire_spread_enabled=false, i.e. a single
+            #      fixed compartment with no spread stage. If those are different control
+            #      volumes then 495.3 s may be physically fine and simply NOT COMPARABLE
+            #      to 894 s. The article gives only the 5.4x RATIO; absolute compartment
+            #      volumes are NOT STATED and the compartment boundary is never defined,
+            #      so the ratio cannot be independently reconstructed.
+            #   2. CRITERION. This check reads temp_upper_c >= 600 C. The published
+            #      criterion is T at 0.9 m in the fire compartment > 600 C (p.4 s2.3).
+            #      The upper layer is hotter than the 0.9 m level, so this criterion
+            #      crosses EARLY BY CONSTRUCTION. The sibling bedroom check
+            #      ghanekar_flashover_0_9m_known_gap already uses the correct
+            #      temp_at_0_9m_c observable, so the two Ghanekar flashover contracts do
+            #      not measure the same quantity as each other.
+            #   3. CLOCK ORIGIN. For the kitchen experiments t=0 is the AUTO-IGNITION OF
+            #      THE COOKING OIL (p.4 s2.3), not the moment the 4 kW propane burner was
+            #      switched on; the entire oil pre-heat is outside the published clock.
+            # Also relevant to any future calibration: the published kitchen fires were
+            # deliberately ACCELERATED with a paper towel roll, chip bags and paper/plastic
+            # cups placed beside the pan (p.2 s2.1), so 894 s is already a FAST realisation
+            # of an unattended-cooking fire, which makes 495 s harder to reconcile, not
+            # easier. And the article publishes NO heat release rate, NO mass loss rate,
+            # NO calorimetry and NO temperature time series at the sampling location, so
+            # flashover time and gas concentrations are the ONLY fire-size observables it
+            # offers; there is no independent way to check whether a matching gas curve
+            # came from a matching fire.
+            # Runtime caveat: in the frozen run room_3 temp_upper is CLAMPED at 900 C from
+            # 497.5 s (13 samples), i.e. immediately after this 495.33 s crossing.
+            # 894 s MUST NOT be used as a calibration target until the equivalence
+            # questions above are settled. Kitchen-case redesign remains NOT authorized.
             note=(
-                "Non-gating empirical flashover timing gap reopened by fresh 2026-06-05 run: "
-                "current LivingRoom flashover is early relative to Ghanekar 14.9 ± 0.5 min; "
-                "O2/FED/CO far-hall checks remain required and pass."
+                "Non-gating empirical flashover timing gap. Provenance VERIFIED (session "
+                "26): expected 894 +/- 30 s is the published 14.9 +/- 0.5 min (p.4 Table 1), "
+                "and the tolerance is the published k=1 sample SD -- roughly a 68 % "
+                "interval, not a 95 % band. Frozen runtime 495.33 s lies ~13 sample SDs "
+                "below the mean and ~351 s below the fastest observed kitchen test "
+                "(per-experiment range 846-948 s). This is NOT yet attributable to fire "
+                "growth: (1) the published event is flashover of the COMBINED "
+                "kitchen-living room compartment after spread from the counter, whereas "
+                "this case ignites R3 directly with fire_spread_enabled=false, so the "
+                "control volumes may differ; (2) this check reads temp_upper_c while the "
+                "paper uses T(0.9 m) > 600 C, which crosses early by construction, and the "
+                "sibling bedroom check already uses the correct 0.9 m observable; (3) "
+                "kitchen t=0 is oil auto-ignition, not burner-on. 894 s must NOT be used "
+                "as a calibration target until equivalence is settled. Corrected also: an "
+                "earlier revision of this note said the far-hall O2/FED/CO checks 'remain "
+                "required and pass' -- false since session 23; fed_0_3, fed_1_0 and "
+                "idlh_co are non-gating and failing, and only o2_response passes."
             ),
         ),
     ]

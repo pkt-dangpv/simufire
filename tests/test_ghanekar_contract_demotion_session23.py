@@ -98,14 +98,32 @@ def test_the_o2_reason_names_the_observable_and_the_definition():
     assert "33/43" in block
 
 
-def test_the_fed_reasons_name_transport_signal_versus_fire_growth():
-    # The shared cause is stated once, in the fed_0_3 block ...
+def test_the_fed_reasons_name_the_transport_signal_and_the_hazard_gap():
+    """UPDATED in session 26.
+
+    The original version of this test asserted that the fed_0_3 block carried the
+    flashover comparison (495.3 s vs 894 s) and framed it as fire growth being
+    "44.6 % too fast". Session 26 verified the primary source and found that
+    framing unsupported: the published 894 s belongs to the COMBINED
+    kitchen-living room compartment reached after fire spread, whereas the case
+    ignites R3 directly with fire_spread_enabled=false. The flashover discussion
+    therefore moved to the flashover check, where the control-volume and
+    criterion problems are recorded. This test now pins where each claim lives.
+    """
     block = _check_block("ghanekar_kitchen_far_hall_fed_0_3_s")
-    assert "495.3" in block            # simulated flashover
-    assert "894" in block              # published flashover
     assert "405.75" in block           # the far-hall O2 transport check that PASSES
-    assert "0.237" in block            # the FED peak that never reaches 0.3
-    # ... and the fed_1_0 block must cross-reference it rather than restate it.
+    assert "0.2368" in block           # the FED peak that never reaches 0.3
+    # The PUBLISHED note must not restate the flashover claim as a settled
+    # fire-growth fact. The source comment above it may still quote "44.6 %" --
+    # retracting a claim in public beats deleting it -- but only while retracting.
+    note = _note_string("ghanekar_kitchen_far_hall_fed_0_3_s")
+    assert "44.6" not in note, "the retracted fire-growth framing must not be republished"
+    if "44.6" in block:
+        assert "outruns the" in block, (
+            "the block may quote the retracted figure only while retracting it")
+    assert "ghanekar_kitchen_fire_room_flashover_s" in block, (
+        "fed_0_3 must point at the check that actually owns the flashover question")
+    # ... and the fed_1_0 block must cross-reference fed_0_3 rather than restate it.
     other = _check_block("ghanekar_kitchen_far_hall_fed_1_0_s")
     assert "fed_0_3" in other
     assert "redesign" in other
@@ -167,13 +185,31 @@ def test_the_empirical_reference_no_longer_denies_hcn():
     assert "56.96" in EMPIRICAL, "the measured HCN peak must be cited"
 
 
-def test_the_empirical_reference_declares_the_provenance_limitation():
-    assert "LIMITACION DE PROCEDENCIA" in EMPIRICAL
-    assert "NO esta en el repositorio" in EMPIRICAL
-    assert "todavia no ha sido contrastada" in EMPIRICAL
-    # Both open uncertainties must be named.
+def test_the_empirical_reference_declares_its_provenance():
+    """UPDATED in session 26 — the session-23 provenance claims were FALSE.
+
+    Session 23 asserted that the primary PDF was not in the repository and that
+    the transcription had not been contrasted against the article. Both were
+    false: the article has been tracked in git at docs/literature/ since
+    2026-04-19, and session 25 contrasted the transcription against it. This test
+    now pins the corrected provenance and the retraction, so the false claims
+    cannot silently return.
+    """
+    # The falsified claims must be gone as live assertions.
+    assert "NO esta en el repositorio" not in EMPIRICAL
+    assert "todavia no ha sido contrastada" not in EMPIRICAL
+    # The verified provenance must be recorded.
+    assert "PROCEDENCIA VERIFICADA" in EMPIRICAL
+    assert "d91a0b8b54e33111b582e7aa0f2f779a7767f752" in EMPIRICAL
+    assert "1B2A1B00EE4ADECEA86771694260AAF8233637E69679B794C8BA1A6B44675030" in EMPIRICAL
+    assert "10.1016/j.firesaf.2026.104724" in EMPIRICAL
+    assert "CC BY-NC-ND 4.0" in EMPIRICAL
+    # The retraction must be explicit, not a silent deletion.
+    assert "RETRACTACION" in EMPIRICAL
+    # The historical F: path survives, but only as obsolete provenance.
+    assert "OBSOLETA" in EMPIRICAL
+    # The genuinely open uncertainty must still be named.
     assert "16-23 s" in EMPIRICAL
-    assert "umbral de deteccion" in EMPIRICAL
 
 
 def test_the_stale_calibration_claim_is_annotated_not_deleted():
