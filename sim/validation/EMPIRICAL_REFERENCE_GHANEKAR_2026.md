@@ -1,10 +1,25 @@
 # Referencia Empirica - Ghanekar 2026
 
-Fuente local:
-- `F:\OneDrive\Escritorio\Evolution of combustion gas concentrations in full-scale residential fire.pdf`
-
 Referencia:
 - Shruti Ghanekar, "Evolution of combustion gas concentrations in full-scale residential fire environments", Fire Safety Journal 162 (2026) 104724.
+
+Fuente local declarada:
+- `F:\OneDrive\Escritorio\Evolution of combustion gas concentrations in full-scale residential fire.pdf`
+
+> **LIMITACION DE PROCEDENCIA (anotado 2026-08-22, sesion 23).**
+> **El PDF primario NO esta en el repositorio.** La ruta anterior es externa y no
+> es auditable desde este repo. Todo numero "publicado" citado en este documento
+> y en los contratos Ghanekar procede de **esta transcripcion local**, que
+> **todavia no ha sido contrastada** contra el articulo. Cualquier
+> recalificacion de contrato debe verificar primero las cifras contra el
+> articulo, no contra este fichero.
+>
+> Dos incertidumbres siguen abiertas y afectan a los contratos:
+> 1. no se sabe si los tiempos `tDelta` publicados estan **corregidos** por el
+>    retardo de linea de muestreo de `16-23 s`;
+> 2. no esta transcrito el **umbral de deteccion** del analizador que define
+>    "respuesta inicial", que es exactamente lo que el contrato de O2 necesita
+>    para ser satisfacible.
 
 ## Por que importa para Simufire
 
@@ -93,7 +108,13 @@ Eso lo convierte en una referencia mucho mas fuerte que nuestros baselines actua
 - Simufire modela `O2`, `CO`, `CO2` y `FED` asfixiante/termico.
 - El caso `ghanekar_bedroom_hallway` replica los rasgos principales del ensayo de dormitorio: techo de `2.45 m`, ventana del dormitorio abierta, puerta exterior abierta y transporte por pasillo.
 - El pasillo se divide en dos zonas numericas (`Hallway_Near` y `Hallway_Far`); la union entre ambas se trata como frontera amplia, no como puerta fisica.
-- Simufire todavia no modela `HCN` ni una sonda localizada a `0.9 m` con retardo de linea de muestreo.
+- **[CORREGIDO 2026-08-22, sesion 23]** Simufire **si modela `HCN`**: la version
+  anterior de esta linea afirmaba que no, y es falso contra el artefacto congelado
+  (`room_2_peak_hcn_ppm = 56.96`, con columnas `HCN=`/`HCNu=` en el log y
+  descomposicion `fed_hcn`). Lo que **sigue faltando** es la **sonda localizada a
+  `0.9 m`** para especies y el **retardo de linea de muestreo**. Existe ya
+  `temp_at_0_9m_c` (temperatura resuelta en altura), pero **no** un equivalente
+  para `O2`/`CO`/`HCN`.
 
 ### Estado de calibracion actual
 - Ultima corrida de `ghanekar_bedroom_hallway`:
@@ -106,6 +127,21 @@ Eso lo convierte en una referencia mucho mas fuerte que nuestros baselines actua
 - El check de O2 remoto queda dentro de la ventana del paper (`198 +/- 30 s`).
 - El CO remoto supera 200 ppm, pero todavia llega tarde frente al objetivo no bloqueante (`204 +/- 45 s`).
 
+> **[OBSOLETO — corregido 2026-08-22, sesion 23]** Las tres lineas anteriores y los
+> valores de "Ultima corrida" de arriba son de una corrida antigua y **ya no
+> describen el runtime**. Contra la corrida congelada autoritativa de la sesion 19:
+>
+> | metrica | valor obsoleto arriba | valor fresco congelado |
+> |---|---:|---:|
+> | `time_room_2_o2_below_20_4pct_s` | 176.7 s | **232.5 s** |
+> | dentro de `198 +/- 30 s` = [168, 228] | si | **NO** |
+> | `room_2_peak_co_ppm` | 518.9 ppm | 1069.5 ppm |
+>
+> El check de O2 remoto **falla**, y por eso fue demovido a gap non-gating
+> **provisional** en la sesion 23. No se cambio ni el `expected` ni la tolerancia.
+> Ademas, `28/28 obligatorios en PASS` no describe el estado actual: el corpus
+> vigente es de 350 required con 6 fallos clasificados como VALID_GAP.
+
 ### Interpretacion honesta
 - La tendencia fisica ya es coherente: combustible sintetico moderno produce mas humo/CO y el flow-path arrastra gases al pasillo remoto.
 - La calibracion no debe leerse como una replica completa de la sonda experimental del paper.
@@ -114,7 +150,10 @@ Eso lo convierte en una referencia mucho mas fuerte que nuestros baselines actua
 ## Brechas de modelo mas relevantes
 
 1. Medimos por sala promediada, no en una sonda localizada a `0.9 m`.
-2. No existe `HCN`, que en el paper es clave para tenabilidad.
+2. **[CORREGIDO 2026-08-22]** `HCN` **si existe** y esta instrumentado. La brecha
+   real no es la ausencia de `HCN` sino la **magnitud del peligro** y el
+   **crecimiento del incendio** en el caso de cocina (flashover a 495.3 s frente a
+   894 +/- 30 s publicados) tras corregir el bombeo de especies.
 3. Falta retardo de linea de muestreo (`16-23 s`) y postproceso de sonda.
 4. Nuestro criterio de `flashover` no es el del paper:
    - paper: `T(0.9 m) > 600 C`
