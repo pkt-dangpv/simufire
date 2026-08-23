@@ -2,14 +2,14 @@
 
 Date: 2026-08-23
 
-Status: ACTIVE USER-AUTHORIZED PROGRAM; P1R0 NOT STARTED
+Status: ACTIVE USER-AUTHORIZED CLEAN-CLOSURE PROGRAM; P1R0 COMPLETE
 
-Session window: 31-40, ten sessions maximum
+Session window: session 31 onward; no session cap
 
 ## 1. Purpose And Predecessor Decision
 
-This program is the bounded successor to the completed Motor Pre-Authority
-Audit. It is not an extension or reopening of A0-A7.
+This program is the separately governed successor to the completed Motor
+Pre-Authority Audit. It is not an extension or reopening of A0-A7.
 
 The independent A7-R2 review completed in session 29/30 with `NO-GO`. Session
 30/30 repaired and preserved the R2-F1 release-integrity counter contract, but
@@ -17,9 +17,17 @@ did not close any authority-path P1. The purpose of this program is to resolve,
 retire or prove the remaining P1 blockers without granting runtime authority by
 implication.
 
-The program may close with `NO-GO`. A blocker that cannot be resolved within
-the timebox remains explicit; it is never hidden through a baseline, expected
-value, tolerance, case or default-flag change.
+The user requires a clean audit before product development resumes. An
+intermediate phase may return `NO-GO` or `STOP`, but that does not close this
+program and does not move unresolved work to a backlog. The program closes only
+with `CLEAN GO`, or when the user explicitly cancels or redirects it. A blocker
+is never hidden through a baseline, expected value, tolerance, case,
+default-flag change or severity downgrade.
+
+Clean closure is broader than authority readiness. It requires all in-scope
+findings and failing gates to have a final, evidenced disposition. H3.2b4,
+H3.3 and runtime authority still require a separate user decision after clean
+closure.
 
 ## 2. Start Boundary And Canonical Candidate
 
@@ -60,14 +68,14 @@ for the named P1:
 |---|---|
 | Reference checks | 530, identical unique name set |
 | Required checks | 350 |
-| Failed required checks | 6 accepted `VALID_GAP` |
+| Failed required checks | 6 entry-state `VALID_GAP`; not acceptable at clean closure |
 | Known non-gating gaps | 76 |
 | Required passing checks | 344 |
 | Cases tree | `56460c99bf08819e88fab5898da7a812edc48bc4` |
 | Baselines tree | `5f1cf23ae140b0540e828be47c42d66b563ba583` |
 | CFAST truth tree | `f437cc16a7c82752e24c07b808d7a36765b88144` |
 | Guardrails | 10/10 PASS, including R2-1 and gap sync |
-| Python suite comparison | 17 baseline failures, zero candidate-only failures |
+| Python suite comparison | 17 entry-state failures; zero failures required at clean closure |
 
 The suite baseline is the set of test node IDs, not only the count. P1R0 must
 capture the complete set on the fixed audit comparison commit
@@ -102,6 +110,26 @@ Throughout P1R0-P1R8:
 - Text-inspection contracts, parser/load tests and runtime tests must be
   reported as separate evidence layers.
 
+The following are entry baselines, not accepted exit debt:
+
+- The 17 failing Python tests must be repaired or replaced by stronger tests
+  after root-cause classification. No test may be deleted, skipped, weakened or
+  rewritten merely to obtain green output.
+- Required validation must end with zero failed required checks. The current
+  `VALID_GAP` allowlist is temporary audit evidence, not a clean result.
+- Every non-gating gap must end as `FIXED`, `FALSE_POSITIVE`,
+  `VERIFIED_MODEL_LIMITATION` or `USER_EXCLUDED_HVAC`, with evidence and an
+  owner. `OPEN`, `PARTIAL`, `PENDING`, `UNKNOWN` and `NOT_RE_EVALUABLE` are not
+  final clean states.
+- P2 and P3 findings do not move automatically to backlog. Each must be fixed,
+  disproved or explicitly excluded by the user before clean closure.
+
+A legitimate contract retirement or gating reclassification requires primary
+source provenance, an independent review and a dedicated commit. It cannot be
+used as a substitute for a failing physical result. Any physics-changing defect
+fix requires a separate design, regression, rollback and user GO; it does not
+authorize H3.2b4 or H3.3.
+
 ## 5. P1 Register At Entry
 
 These classifications are the session-29 A7-R2 result and must be independently
@@ -126,7 +154,7 @@ candidate. They are prerequisites, not authority-path P1 closures.
 
 ## 6. Phase Plan
 
-### P1R0 - Canonical Freeze And Evidence Escrow - Session 31
+### P1R0 - Canonical Freeze And Evidence Escrow
 
 - Verify the exact candidate, parent chain, remote refs, clean tree and zero
   Godot processes.
@@ -149,9 +177,23 @@ STOP if the base differs, the session-19 package is incomplete, a hash cannot
 be reproduced, the failure set differs without explanation, or an artefact
 exists only in an ephemeral container.
 
-### P1R1 - Independent Finding Requalification - Session 32
+### P1R1 - Independent Finding Requalification
 
 - Rebuild the runtime call graph for all ten P1s from the canonical source.
+- Inventory every tracked GDScript, Python, PowerShell, shell and batch script
+  that can load, execute, validate, package or publish motor behavior. Record
+  entry point, caller, side effects, authority relevance and test coverage;
+  do not sample the inventory.
+- Parse or compile every in-scope script with its declared language runtime.
+  Run the Godot parser/load/import gate separately from runtime fixtures, run
+  Python bytecode compilation separately from pytest, and use the native parser
+  for each retained command script. A missing parser or interpreter must be
+  provisioned or the script must be proved outside motor scope; it cannot end as
+  `NOT_RE_EVALUABLE`.
+- Review program structure for dependency cycles, orphan entry points, hidden
+  writers, duplicated side effects, parser/runtime ambiguity and violations of
+  the declared module and state-ownership boundaries. Static text inspection
+  may locate candidates but cannot close a parser or runtime claim.
 - Reclassify every P1 as `OPEN`, `PARTIAL`, `CLOSED`, `SUPERSEDED` or
   `NOT RE-EVALUABLE`, with code and evidence references.
 - Define a failing regression or executable negative control before any code
@@ -160,9 +202,11 @@ exists only in an ephemeral container.
   conditions.
 - Split P2 observations from demonstrated authority risks.
 
-Output: current P1 ledger and signed-off acceptance matrix. Evidence only.
+Output: current P1 ledger, signed-off acceptance matrix, complete script
+inventory, parser/compile ledger and structural finding register. Evidence only;
+any discovered defect receives an owning remediation lane before P1R8.
 
-### P1R2 - Tick-Boundary Ownership - Session 33
+### P1R2 - Tick-Boundary Ownership
 
 - Eliminate or relocate hidden post-physics auxiliary-service synchronization
   so configuration and service state have one explicit boundary before the
@@ -178,9 +222,9 @@ Acceptance: no hidden post-physics configuration writer; deterministic ordering
 across repeated runs; no changed physical outputs when the repaired path is
 inactive; no new suite or guardrail failure.
 
-### P1R3 - O2 Writer Ownership And Clamp Boundary - Sessions 34-35
+### P1R3 - O2 Writer Ownership And Clamp Boundary
 
-Session 34 is design and falsification:
+The first P1R3 session is design and falsification:
 
 - Reconstruct all six O2 writer subsystems, aggregate clamps, lower/upper/bulk
   fields and read-only consumers.
@@ -189,7 +233,7 @@ Session 34 is design and falsification:
 - Specify transaction order, fallback behavior and degenerate-zone semantics.
 - Do not implement until the ownership matrix and negative controls pass review.
 
-Session 35 is bounded implementation if separately authorized:
+Implementation follows only when separately authorized:
 
 - Route O2 mutation through the approved owner boundary without enabling any
   new authority path or changing defaults.
@@ -202,7 +246,7 @@ Acceptance: every O2 writer is owned or read-only; per-step and cumulative mass
 close within the predeclared numerical contract; aggregate clamps cannot hide a
 writer conflict; no expected, tolerance, baseline or case change.
 
-### P1R4 - Diagnostic Flag Activation Or Retirement - Session 36
+### P1R4 - Diagnostic Flag Activation Or Retirement
 
 - Inventory the 112 default-OFF diagnostic flags from source and runtime entry
   points; do not assume the session-18 count still holds.
@@ -217,7 +261,7 @@ Acceptance: every in-scope retained flag is activation-tested at runtime or has
 an approved retirement commit; text contracts are not reported as runtime
 evidence; inactive output remains unchanged.
 
-### P1R5 - Mutation Trust And Reference Provenance - Session 37
+### P1R5 - Mutation Trust And Reference Provenance
 
 - Rebuild the mutation harness so each tracked mutant executes at least one
   required check and is detected by a negative control.
@@ -228,26 +272,28 @@ evidence; inactive output remains unchanged.
 - Requalify the three Ghanekar demotions as validation-truth controls. Do not
   make the empirical measurements pass and do not implement the D1 probe.
 - Close the A15 P1s only if the authority risk is removed by truthful non-gating
-  classification and complete primary-source provenance. The empirical gaps may
-  remain open as non-authority research debt.
+  classification and complete primary-source provenance. Each empirical gap
+  must receive a final `FIXED`, `FALSE_POSITIVE` or
+  `VERIFIED_MODEL_LIMITATION` disposition; it may not remain provisional or
+  open as research debt.
 
 Acceptance: no mutant can produce a vacuous PASS; all required checks have
-machine-readable provenance; the three Ghanekar contracts remain provisional,
-visible and unchanged in expected/tolerance; no baseline or case changes.
+machine-readable provenance; the three Ghanekar contracts remain visible and
+unchanged in expected/tolerance while their provisional status is resolved by
+independent evidence; no baseline or case changes.
 
 P1R5 owns the closure decision for `A15-P1-001` and `A15-P1-002`. P1R7 verifies
 that disposition against the historical evidence but does not silently replace
 or duplicate the owner decision. A new contradiction in P1R7 reopens the named
 P1 explicitly.
 
-P1R4 and P1R5 are schedule-critical because their inventories may contain about
-112 flags and 350 required checks respectively. Their scope cannot be sampled,
-reduced or declared representative to manufacture a PASS. If either inventory
-cannot be completed in its assigned session, the unclassified remainder stays
-P1 and forces `NO-GO`; it does not consume an added session or disappear into
-P2 backlog.
+P1R4 and P1R5 are large because their inventories may contain about 112 flags
+and 350 required checks respectively. Their scope cannot be sampled, reduced or
+declared representative to manufacture a PASS. They continue across uniquely
+numbered sessions until every item has a final disposition. Unclassified work
+stays in the active lane; it does not disappear into P2 backlog.
 
-### P1R6 - Passive Diagnostic Performance - Session 38
+### P1R6 - Passive Diagnostic Performance
 
 - Reproduce OFF and full-passive timings on the same machine, Godot binary,
   case, process state and command, using at least three sequential pairs.
@@ -259,10 +305,11 @@ P2 backlog.
 
 Acceptance: full passive execution fits the frozen 240 s representative budget
 and no unexplained paired regression exceeds 20 percent. If hardware prevents a
-valid comparison, classify the result `NOT RE-EVALUABLE`; do not manufacture a
-PASS from cross-machine timings.
+valid comparison, establish a valid like-for-like environment and rerun it; do
+not manufacture a PASS from cross-machine timings or leave the finding
+`NOT_RE_EVALUABLE` at clean closure.
 
-### P1R7 - CFAST And Historical Evidence Disposition - Session 39
+### P1R7 - CFAST And Historical Evidence Disposition
 
 - Reproduce the two non-HVAC internal-baseline warnings:
   `cfast_two_floor_stairwell` and `cfast_multi_fuel_couch_tv`.
@@ -276,10 +323,11 @@ PASS from cross-machine timings.
   unavailable bisection and current behavior has complete reproducible evidence.
 
 Acceptance: both CFAST cases complete without an unexplained internal-baseline
-failure, or remain explicit authority blockers; historical claims are either
-reproducible or retired from authority evidence without being deleted.
+failure. Historical claims are reproducible or are retired from authority
+evidence through independent review without deleting their record. No open
+authority blocker or `NOT_RE_EVALUABLE` classification survives clean closure.
 
-### P1R8 - Fresh Runtime Matrix And Independent Closure - Session 40
+### P1R8 - Fresh Runtime Matrix And Independent Clean Closure
 
 - Use an independent reviewer who did not author the latest remediation.
 - Run the fixed 18-case corpus sequentially with Godot 4.7.1 console/headless,
@@ -295,6 +343,10 @@ integration to `main`, and runtime authority.
 
 Completion of P1R8 never grants H3.2b4, H3.3 or runtime authority. The user must
 make that decision after reading the closure report.
+
+P1R8 starts only when the working candidate already meets every clean exit
+criterion. If independent review finds a defect, the relevant P1R lane reopens,
+receives the next session number and returns to P1R8 only after remediation.
 
 ## 7. Runtime Rules
 
@@ -381,7 +433,9 @@ STOP the current phase without adapting the plan when any of these occurs:
 10. The session cannot separate physical behavior from instrumentation or text
     inspection.
 
-A STOP may end a phase with `NO-GO`. It does not authorize an adjacent fix.
+A STOP or `NO-GO` pauses the current lane. It does not close the program or
+authorize an adjacent fix. The next authorized session resumes the owning lane
+with the same unresolved finding.
 
 ## 11. Exit Criteria
 
@@ -390,39 +444,48 @@ The program is complete after P1R8 when:
 1. The canonical checkpoint and all remediation commits have durable remote
    provenance.
 2. Session-19 evidence and all new runtime evidence are complete and hashed.
-3. All ten entry P1s have an independently supported final classification.
-4. There is no open P0 and no unlisted authority-path P1.
+3. All ten entry P1s and every newly discovered finding are independently
+   `FIXED`, `FALSE_POSITIVE`, `VERIFIED_MODEL_LIMITATION` or closed through a
+   user-approved scope exclusion.
+4. There is no open, partial, pending, unknown or not-reevaluable P0, P1, P2 or
+   P3 in the in-scope inventory.
 5. Tick ordering and O2 ownership have executable runtime proof.
 6. Every retained in-scope diagnostic flag is activation-tested or approved for
    retirement.
 7. Mutation tests cannot pass vacuously and required checks have explicit
    provenance.
-8. Performance meets its frozen acceptance contract or remains an explicit
-   authority blocker.
-9. The two non-HVAC CFAST failures are resolved or remain explicit authority
-   blockers without baseline changes.
-10. The fixed corpus is reproducible, the suite has zero new failures,
-    guardrails are 10/10 and zero Godot processes remain.
-11. An independent reviewer has issued separate integration and authority
-    verdicts.
-12. The user has received the final STOP gate and chosen the next action.
+8. Performance meets its frozen acceptance contract under a reproducible
+   like-for-like environment.
+9. The two non-HVAC CFAST failures are resolved without baseline, expected or
+   tolerance changes.
+10. Every in-scope script parses or compiles under its declared runtime; the
+    script inventory is complete; and the structural review has no unresolved
+    ownership, dependency, entry-point or side-effect finding.
+11. The fixed corpus is reproducible; the complete Python suite has zero
+    failures and zero errors; every skip has an explicit valid reason;
+    guardrails are 10/10; required validation has zero failed required checks
+    without a `VALID_GAP` exception; and zero Godot processes remain.
+12. Every non-gating gap has a final evidenced disposition and no gap remains
+    `OPEN`, `PARTIAL`, `PENDING`, `UNKNOWN` or `NOT_RE_EVALUABLE`.
+13. An independent reviewer issues `CLEAN GO` for the audit and separate
+    integration and authority verdicts. Runtime authority remains a separate
+    user decision.
+14. The user has received the final STOP gate and chosen the next action.
 
-Program `GO` requires every authority-path P1 to be closed. `NO-GO` is the
-mandatory outcome when one remains open at the session-40 cap.
+## 12. Completion And Resume Rule
 
-## 12. Timebox And Resume Rule
+There is no session cap. Sessions continue with unique increasing numbers from
+31; numbers are never silently reused or renumbered. Failed preflights and STOP
+gates retain their session number in the permanent record and never change the
+checkpoint.
 
-The hard cap is ten sessions, numbered 31-40. Sessions are not silently added,
-renumbered or reused. A failed preflight consumes a session only when a STOP
-report is issued; it never changes the checkpoint.
-
-At session 40 the program closes with the available evidence. Remaining P1s
-force `NO-GO`; P2/P3 debt moves to backlog.
+The program remains active until every clean exit criterion is met. New findings
+are added to the inventory, assigned an owner lane and resolved before another
+P1R8 review. No severity class moves automatically to backlog.
 
 After closure, only the user may choose to:
 
 - integrate approved remediation commits;
-- authorize a new, explicitly named blocker program;
 - authorize H3.2b4/H3.3 under documented constraints; or
 - stop or redirect motor development.
 

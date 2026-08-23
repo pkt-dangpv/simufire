@@ -16,9 +16,14 @@ Historical validation records retain their original engine labels.
   `f9c3902b35e3f16170b35bf10085697e8021e7f1` on
   `origin/codex/r2f1-counter-contract`, five commits ahead of
   `origin/main@ed2b6c0a1d458ff6edb92739cea27117195aa5cf`.
-- Sessions 31-40 are reserved for the separately named P1 remediation program
-  in `docs/validation/MOTOR_POST_AUDIT_P1_REMEDIATION_PLAN.md`. P1R0 has not
-  started; each tracked remediation requires a separate user GO.
+- Session 31 onward is reserved for the separately named clean-closure program
+  in `docs/validation/MOTOR_POST_AUDIT_P1_REMEDIATION_PLAN.md`. There is no
+  session cap: the program remains active until all in-scope findings, failing
+  tests and required validation failures have a final clean disposition. P1R0
+  is complete. P1R1 must include complete language-parser, script-inventory and
+  program-structure review; each tracked remediation still requires a separate
+  user GO. No motor feature development resumes before an independent
+  `CLEAN GO`.
 - The D0 `zone_at_height` design remains preserved separately on
   `origin/codex/a7-r2-checkpoint`. D1, H3.2b4, H3.3 and runtime authority remain
   frozen. HVAC remains deferred and outside the remediation scope.
