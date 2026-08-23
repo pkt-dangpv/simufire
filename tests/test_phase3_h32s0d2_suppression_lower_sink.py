@@ -117,7 +117,11 @@ def test_no_expected_or_tolerance_change():
     report = json.loads(
         (ROOT / "sim/validation/reports/reference_checks.json").read_text(encoding="utf-8")
     )
-    assert report["required_count"] == 353
+    # required_count fell 353 -> 350 when sessions 23/24 demoted three stale
+    # Ghanekar contracts to provisional non-gating gaps (commit 00724e7a).
+    # That demotion changed only "required"; expected and tolerance were
+    # preserved unchanged, which is what this contract exists to protect.
+    assert report["required_count"] == 350
     assert report["failed_required_count"] == 6
 
 
