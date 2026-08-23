@@ -1,12 +1,27 @@
 # Current Handoff State
 
-Date: 2026-07-26.
+Date: 2026-08-23.
 
 Runtime note: active local runners and test entrypoints now default to Godot
 `4.7.1` console at
 `C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe`. Explicit
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
+
+## Current Program Update - 2026-08-23 - Post-audit P1 remediation
+
+- The independent A7-R2 review is complete with `NO-GO`. It is not being
+  reopened or extended.
+- The release-integrity candidate is
+  `f9c3902b35e3f16170b35bf10085697e8021e7f1` on
+  `origin/codex/r2f1-counter-contract`, five commits ahead of
+  `origin/main@ed2b6c0a1d458ff6edb92739cea27117195aa5cf`.
+- Sessions 31-40 are reserved for the separately named P1 remediation program
+  in `docs/validation/MOTOR_POST_AUDIT_P1_REMEDIATION_PLAN.md`. P1R0 has not
+  started; each tracked remediation requires a separate user GO.
+- The D0 `zone_at_height` design remains preserved separately on
+  `origin/codex/a7-r2-checkpoint`. D1, H3.2b4, H3.3 and runtime authority remain
+  frozen. HVAC remains deferred and outside the remediation scope.
 
 ## USER-MANDATED STOP - full motor audit before runtime authority
 
