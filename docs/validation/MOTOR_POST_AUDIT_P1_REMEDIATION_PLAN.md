@@ -348,7 +348,9 @@ Hash labels are mandatory and use these conventions:
   separately and is never compared with `worktree_sha256`.
 - Runtime and gitignored artefacts use exact-byte `worktree_sha256`; no newline,
   BOM or encoding normalization is allowed before hashing.
-- Tree manifests are sorted by forward-slash relative path and contain UTF-8
+- Tree manifests are sorted bytewise by the UTF-8 encoding of the forward-slash
+  relative path, equivalent to `LC_ALL=C` ordering: no locale collation and no
+  case normalization. They contain UTF-8
   `relative_path<TAB>lowercase_exact_byte_sha256<LF>`. The manifest itself has
   an exact-byte SHA-256 and byte length.
 - A report that says only `hash` or compares hashes from different conventions
