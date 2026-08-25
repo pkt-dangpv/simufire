@@ -1,12 +1,35 @@
 # Current Handoff State
 
-Date: 2026-08-23.
+Date: 2026-08-25.
 
 Runtime note: active local runners and test entrypoints now default to Godot
 `4.7.1` console at
 `C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe`. Explicit
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
+
+## Current Program Update - 2026-08-25 - P1R1 UID integrity
+
+- The P1R1 UID-integrity subgate is complete on local branch
+  `codex/p1r1-uid-integrity-remediation`. Commit
+  `a3d4fbe034675ee5127488b46a7293524cd166c7` adds a fail-closed primary-UID
+  scanner and 24 tests, then removes exactly five reintroduced legacy owners.
+  The canonical OpeningModel, SmokeModel and default fire resource remain
+  unchanged.
+- The fail-first gate reproduced exactly three duplicate groups before the
+  deletion and zero afterward. Fresh Godot 4.7.1 headless A1/A2/B imports are
+  warning-free, idempotent and deterministic across 186 UID sidecars; all
+  three exact-byte trees are
+  `ed5a9da6d86129ec3416e4da243ec10206b8134d1804fdeecb7deb5d295d2c38`.
+- `P1R1-UID-001`, `P1R1-UID-002`, `P1R1-UID-003`, and `P1R1-EVID-001`
+  are `FIXED`. The historical session-38 tree remains preserved; its
+  `e4dc4fc1...` case-sensitive-collation hash is explicitly corrected to the
+  bytewise UTF-8 value `0d1150f6...` without rewriting the artefact. Durable
+  record: `docs/validation/P1R1_UID_INTEGRITY_REMEDIATION.md`.
+- P1R1 is still incomplete and returns to structural inventory and finding
+  requalification. P1R2 has not started. H3.2b4, H3.3, runtime authority, and
+  D1 remain frozen; D0 remains excluded and not reverted; HVAC remains
+  deferred and outside acceptance.
 
 ## Current Program Update - 2026-08-23 - Post-audit P1 remediation
 
