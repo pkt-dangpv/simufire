@@ -141,9 +141,12 @@ unchanged.
 The session-41 inventory arithmetic described deletion-only scope: 2,299 to
 2,294 tracked files, 444 to 442 tracked scripts, and 188 to 186 tracked
 GDScripts. The implemented candidate also adds two tracked Python audit files,
-so its final totals are 2,296 tracked files, 444 tracked scripts, 186 GDScripts,
-240 Python files, 16 PowerShell files, and two batch files. This is an explained
-scope effect, not an adapted acceptance target.
+reaching 2,296 files before documentation. The original session-45 record
+incorrectly called that the final total; commit `fa6904f` also adds this
+remediation document, so its committed total is 2,297 tracked files. The
+language totals remain 444 tracked scripts, 186 GDScripts, 240 Python files, 16
+PowerShell files, and two batch files. Session 48 records this off-by-one as
+`P1R1-EVID-003`; Git history preserves the original claim.
 
 ## 7. Rollback And Resume Gate
 

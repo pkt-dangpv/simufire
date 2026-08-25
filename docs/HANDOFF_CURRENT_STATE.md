@@ -8,6 +8,26 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Program Update - 2026-08-25 - P1R1 evidence manifest correction
+
+- Session 47 found `P1R1-EVID-002`: the session-36 manifest's 18 individual
+  hashes are exact, but its aggregate `e6d68e15...` tree uses stored
+  case-insensitive order while claiming bytewise UTF-8 order. The corrected
+  bytewise value is `33187f85...`; the historical manifest remains unchanged.
+- The correction and generic exact-byte manifest verifier are implemented on
+  local branch `codex/p1r1-evidence-manifest-remediation`. The finding is
+  `REMEDIATED_PENDING_INDEPENDENT_REVIEW`, not self-certified as fixed. Durable
+  record: `docs/validation/P1R1_SESSION36_MANIFEST_COLLATION_CORRECTION.md`.
+- The audit tooling adds four tracked files and two Python scripts. The next
+  P1R1-LANG inventory must expect 2,301 tracked files, 446 scripts, 186
+  GDScripts, 242 Python files, 16 PowerShell files, and two batch files.
+- Session 48 also records `P1R1-EVID-003`: session 45 stated 2,296 tracked
+  files before adding its own documentation; committed `fa6904f` has 2,297.
+  The existing record is annotated and awaits the same independent review.
+- P1R1-LANG resumes only after independent review closes this finding. P1R1 is
+  incomplete; P1R2, H3.2b4, H3.3, D1, and runtime authority remain frozen. D0
+  remains excluded and not reverted; HVAC remains deferred and out of scope.
+
 ## Current Program Update - 2026-08-25 - P1R1 UID integrity
 
 - The P1R1 UID-integrity subgate is complete on local branch
