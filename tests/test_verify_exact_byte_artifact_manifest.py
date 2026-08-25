@@ -37,7 +37,18 @@ def _write_manifest(
         for record in records
     ]
     tree = hashlib.sha256(verifier.tree_bytes(normalized, sort_paths=True)).hexdigest()
-    manifest = {tree_field: declared_tree or tree, "files": records}
+    manifest = {
+        "schema": "simufire.test.exact_byte_artifact_manifest.v1",
+        "ordering": "bytewise UTF-8 relative path",
+        "tree_contract": "relative_path<TAB>lowercase_exact_byte_sha256<LF>",
+        "file_count": len(records),
+        "total_bytes": sum(
+            int(record.get("byte_length", record.get("bytes", 0)))
+            for record in records
+        ),
+        tree_field: declared_tree or tree,
+        "files": records,
+    }
     path = tmp_path / "artifact_manifest.json"
     path.write_text(json.dumps(manifest), encoding="utf-8")
     return path
@@ -157,6 +168,149 @@ def test_ambiguous_alias_fields_fail_closed(tmp_path: Path) -> None:
 
     with pytest.raises(verifier.ManifestOperationalError, match="exactly one"):
         verifier.verify_manifest(tmp_path, manifest)
+
+
+def test_declared_file_count_mismatch_is_a_data_failure(tmp_path: Path) -> None:
+    raw = b"count"
+    (tmp_path / "a.txt").write_bytes(raw)
+    manifest_path = _write_manifest(tmp_path, [_record("a.txt", raw, aliases=True)])
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["file_count"] = 999
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    result = verifier.verify_manifest(tmp_path, manifest_path)
+
+    assert result["verdict"] == "FAIL"
+    assert result["verified_file_count"] == 1
+    assert result["file_mismatch_count"] == 0
+    assert result["metadata_mismatch_count"] == 1
+    assert result["mismatches"][0]["kind"] == "declared_file_count_mismatch"
+
+
+@pytest.mark.parametrize("field", ["total_bytes", "source_total_bytes"])
+def test_declared_total_bytes_alias_mismatch_is_a_data_failure(
+    tmp_path: Path, field: str
+) -> None:
+    raw = b"bytes"
+    (tmp_path / "a.txt").write_bytes(raw)
+    manifest_path = _write_manifest(tmp_path, [_record("a.txt", raw, aliases=True)])
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.pop("total_bytes")
+    manifest[field] = 0
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    result = verifier.verify_manifest(tmp_path, manifest_path)
+
+    assert result["verdict"] == "FAIL"
+    assert result["declared_total_bytes_field"] == field
+    assert result["mismatches"][0]["kind"] == "declared_total_bytes_mismatch"
+
+
+def test_legacy_integral_float_total_bytes_is_accepted(tmp_path: Path) -> None:
+    raw = b"legacy"
+    (tmp_path / "a.txt").write_bytes(raw)
+    manifest_path = _write_manifest(tmp_path, [_record("a.txt", raw, aliases=True)])
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["total_bytes"] = float(len(raw))
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    result = verifier.verify_manifest(tmp_path, manifest_path)
+
+    assert result["verdict"] == "PASS"
+    assert result["declared_total_bytes"] == len(raw)
+
+
+def test_tree_manifest_byte_length_mismatch_is_a_data_failure(tmp_path: Path) -> None:
+    raw = b"tree"
+    (tmp_path / "a.txt").write_bytes(raw)
+    manifest_path = _write_manifest(tmp_path, [_record("a.txt", raw, aliases=True)])
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["tree_manifest_bytes"] = 0
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    result = verifier.verify_manifest(tmp_path, manifest_path)
+
+    assert result["verdict"] == "FAIL"
+    assert result["mismatches"][0]["kind"] == "declared_tree_manifest_bytes_mismatch"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("ordering", "case-insensitive locale collation"),
+        ("tree_contract", "not-the-binding-contract"),
+        ("hash_convention", "normalized text bytes"),
+    ],
+)
+def test_unsupported_contract_metadata_fails_closed(
+    tmp_path: Path, field: str, value: str
+) -> None:
+    raw = b"contract"
+    (tmp_path / "a.txt").write_bytes(raw)
+    manifest_path = _write_manifest(tmp_path, [_record("a.txt", raw, aliases=True)])
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest[field] = value
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(verifier.ManifestOperationalError, match=field):
+        verifier.verify_manifest(tmp_path, manifest_path)
+
+
+def test_missing_contract_declaration_fails_closed(tmp_path: Path) -> None:
+    raw = b"contract"
+    (tmp_path / "a.txt").write_bytes(raw)
+    manifest_path = _write_manifest(tmp_path, [_record("a.txt", raw, aliases=True)])
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.pop("ordering")
+    manifest.pop("tree_contract")
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(verifier.ManifestOperationalError, match="ordering contract"):
+        verifier.verify_manifest(tmp_path, manifest_path)
+
+
+@pytest.mark.parametrize(
+    "profile", ["session36", "session40", "session41", "session45"]
+)
+def test_supported_historical_contract_profiles_verify(
+    tmp_path: Path, profile: str
+) -> None:
+    raw = b"historical"
+    (tmp_path / "a.txt").write_bytes(raw)
+    manifest_path = _write_manifest(tmp_path, [_record("a.txt", raw, aliases=True)])
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    if profile == "session36":
+        manifest.pop("ordering")
+        manifest.pop("tree_contract")
+        manifest["hash_contract"] = next(iter(verifier.SUPPORTED_HASH_CONTRACTS))
+        manifest["total_bytes"] = float(len(raw))
+    elif profile == "session40":
+        manifest["ordering"] = "bytewise UTF-8 path order"
+    elif profile == "session41":
+        manifest.pop("ordering")
+        manifest.pop("file_count")
+        manifest.pop("total_bytes")
+        manifest["tree_ordering"] = next(iter(verifier.SUPPORTED_TREE_ORDERING))
+        manifest["tree_contract"] = "path<TAB>lowercase_sha256<LF>"
+        manifest["hash_convention"] = next(iter(verifier.SUPPORTED_HASH_CONVENTIONS))
+        normalized = [{"relative_path": "a.txt", "sha256": _sha(raw)}]
+        manifest["tree_manifest_bytes"] = len(
+            verifier.tree_bytes(normalized, sort_paths=True)
+        )
+    else:
+        manifest["ordering"] = (
+            "bytewise UTF-8 relative paths; all current paths ASCII"
+        )
+        manifest["source_total_bytes"] = manifest.pop("total_bytes")
+        manifest["source_tree_sha256"] = manifest.pop("tree_sha256")
+
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    result = verifier.verify_manifest(tmp_path, manifest_path)
+
+    assert result["verdict"] == "PASS"
+    assert result["metadata_mismatch_count"] == 0
 
 
 def test_atomic_json_output_has_stable_bytes(tmp_path: Path) -> None:

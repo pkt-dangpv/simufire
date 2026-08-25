@@ -8,6 +8,29 @@ Runtime note: active local runners and test entrypoints now default to Godot
 `GODOT_EXE`, `--godot` and `-GodotExe` overrides still take precedence.
 Historical validation records retain their original engine labels.
 
+## Current Program Update - 2026-08-25 - P1R1 manifest verifier fail-closed remediation
+
+- Session 49 found `P1R1-EVID-004`: the session-48 verifier accepted false
+  top-level file/byte counters and unsupported ordering contracts while
+  reporting PASS. The exact mutation artefacts are preserved under session 49.
+- Session 50 makes those declarations fail closed without changing historical
+  manifests. It validates `file_count`, `total_bytes`/`source_total_bytes`,
+  `tree_manifest_bytes`, and the ordering/hash contracts already used by the
+  seven real manifests. Permanent tests increase from 13 to 26.
+- The real matrix preserves the expected result: session 36 remains the sole
+  FAIL because its historical aggregate tree is not bytewise; sessions 40, 41,
+  45, 47, 48, and 49 PASS with zero file or metadata mismatches.
+- `P1R1-EVID-004` is `REMEDIATED_PENDING_INDEPENDENT_REVIEW`. EVID-002 and
+  EVID-003 remain in the same state; none is self-certified as fixed. Durable
+  record: `docs/validation/P1R1_EVIDENCE_MANIFEST_VERIFIER_REMEDIATION.md`.
+- The candidate inventory after this one new documentation file is 2,302
+  tracked files and 446 scripts: 186 GDScripts, 242 Python files, 16 PowerShell
+  files, and two batch files.
+- P1R1-LANG remains NO-GO until a reviewer who did not author the remediation
+  closes EVID-002, EVID-003, and EVID-004. P1R1 is incomplete; P1R2, H3.2b4,
+  H3.3, D1, and runtime authority remain frozen. D0 remains excluded and not
+  reverted; HVAC remains deferred and out of scope.
+
 ## Current Program Update - 2026-08-25 - P1R1 evidence manifest correction
 
 - Session 47 found `P1R1-EVID-002`: the session-36 manifest's 18 individual
