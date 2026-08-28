@@ -275,12 +275,13 @@ def test_the_fed_block_states_the_mismatch_makes_the_gap_worse():
 def test_the_fed_peak_is_not_claimed_comparable_to_the_published_fed():
     note = _note("ghanekar_kitchen_far_hall_fed_0_3_s")
     assert "OBSERVABLE MISMATCH" in note
-    # Both FED checks stay provisional and non-gating.
+    # Both FED checks stay visibly failing/non-gating with a final P1R5 disposition.
     for name in ("ghanekar_kitchen_far_hall_fed_0_3_s",
                  "ghanekar_kitchen_far_hall_fed_1_0_s"):
         c = _aggregate_check(name)
         assert c["required"] is False and c["pass"] is False
-        assert "PROVISIONAL" in c["note"]
+        assert c["disposition"] == "VERIFIED_MODEL_LIMITATION"
+        assert "VERIFIED MODEL LIMITATION" in c["note"]
 
 
 def test_the_fed_1_0_published_value_is_verified_not_rebaselined():

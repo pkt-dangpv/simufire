@@ -173,15 +173,18 @@ class TestThermalSystemInstrumentation(unittest.TestCase):
         self.assertIn("cold_room.o2_net_transport_kg_step -= o2_delta_kg", body)
         self.assertIn("cold_room.o2_net_transport_kg_total -= o2_delta_kg", body)
 
-    def test_canonical_doorway_transport_conserved(self):
+    def test_canonical_doorway_uses_zone_sync_without_double_counting_transport(self):
         body = THERMAL.split("func _apply_canonical_doorway_exchange(", 1)[1].split(
             "\nfunc ", 1
         )[0]
-        self.assertIn("_cde_net_hot", body)
-        self.assertIn("hot_room.o2_net_transport_kg_step += _cde_net_hot", body)
-        self.assertIn("hot_room.o2_net_transport_kg_total += _cde_net_hot", body)
-        self.assertIn("cold_room.o2_net_transport_kg_step -= _cde_net_hot", body)
-        self.assertIn("cold_room.o2_net_transport_kg_total -= _cde_net_hot", body)
+        self.assertNotIn("hot_room.o2_net_transport_kg_step +=", body)
+        self.assertNotIn("hot_room.o2_net_transport_kg_total +=", body)
+        self.assertNotIn("cold_room.o2_net_transport_kg_step -=", body)
+        self.assertNotIn("cold_room.o2_net_transport_kg_total -=", body)
+        self.assertIn("hot_room.o2_zone_sync_kg_step += _hot_cde_sync_kg", body)
+        self.assertIn("hot_room.o2_zone_sync_kg_total += _hot_cde_sync_kg", body)
+        self.assertIn("cold_room.o2_zone_sync_kg_step += _cold_cde_sync_kg", body)
+        self.assertIn("cold_room.o2_zone_sync_kg_total += _cold_cde_sync_kg", body)
 
 
 class TestStateBuilderExports(unittest.TestCase):

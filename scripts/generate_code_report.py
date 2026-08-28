@@ -39,7 +39,6 @@ SOURCE_FILES = [
     "sim/core/SimulationStateBuilder.gd",
     "sim/core/SimulationLogWriter.gd",
     "sim/templates/BuildingTemplate.gd",
-    "sim/templates/ApartmentTemplates.gd",
     "sim/resources/default_fire_model.tres",
     "sim/validation/CaseRunner.gd",
     "sim/validation/run_case.ps1",
@@ -431,9 +430,6 @@ SCRIPT_EXPLANATIONS = {
     ]),
     "sim/templates/BuildingTemplate.gd": ("Templates activos de edificios.", [
         "Define simple_house y ghanekar_bedroom_hallway: salas, rectangulos, puertas, ventanas y combustible.",
-    ]),
-    "sim/templates/ApartmentTemplates.gd": ("Template legado minimo.", [
-        "Contiene un apartamento simple con rooms/doors, pero no sigue el formato moderno completo.",
     ]),
     "sim/resources/default_fire_model.tres": ("Recurso Godot de FireModel.", [
         "Asset serializado de FireModel por defecto.",

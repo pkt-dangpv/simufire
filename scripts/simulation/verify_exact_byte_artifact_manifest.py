@@ -55,15 +55,34 @@ def _path_key(value: str) -> bytes:
     return value.encode("utf-8")
 
 
+def _reject_duplicate_object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ManifestOperationalError(f"duplicate JSON object key: {key!r}")
+        result[key] = value
+    return result
+
+
 def _select_record_field(
     records: list[dict[str, Any]], candidates: Iterable[str], label: str
 ) -> str:
-    matches = [name for name in candidates if all(name in record for record in records)]
-    if len(matches) != 1:
+    candidate_names = tuple(candidates)
+    selected: set[str] = set()
+    for index, record in enumerate(records):
+        matches = [name for name in candidate_names if name in record]
+        if len(matches) != 1:
+            raise ManifestOperationalError(
+                f"files[{index}] must define exactly one supported {label} field; "
+                f"found {matches}"
+            )
+        selected.add(matches[0])
+    if len(selected) != 1:
         raise ManifestOperationalError(
-            f"manifest must define exactly one supported {label} field; found {matches}"
+            f"manifest records must use one consistent supported {label} field; "
+            f"found {sorted(selected)}"
         )
-    return matches[0]
+    return selected.pop()
 
 
 def _select_tree_field(manifest: dict[str, Any]) -> str:
@@ -183,7 +202,10 @@ def verify_manifest(root: Path, manifest_path: Path) -> dict[str, Any]:
     resolved_manifest = manifest_path.resolve()
     try:
         manifest_bytes = resolved_manifest.read_bytes()
-        manifest = json.loads(manifest_bytes.decode("utf-8"))
+        manifest = json.loads(
+            manifest_bytes.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_object_pairs,
+        )
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ManifestOperationalError(f"cannot read manifest: {exc}") from exc
     if not isinstance(manifest, dict):

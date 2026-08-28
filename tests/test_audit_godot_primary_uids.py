@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -9,6 +10,20 @@ from scripts.simulation import audit_godot_primary_uids as audit
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _git_deleted_paths(*patterns: str) -> set[str]:
+    result = subprocess.run(
+        ["git", "ls-files", "-z", "--deleted", "--", *patterns],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    )
+    return {
+        path
+        for path in result.stdout.decode("utf-8").split("\0")
+        if path
+    }
 
 
 @pytest.mark.parametrize("ending", [b"", b"\n", b"\r\n"])
@@ -98,6 +113,11 @@ def test_empty_candidate_inventory_fails_closed(tmp_path: Path) -> None:
         audit.audit_paths(tmp_path, [], "0" * 40)
 
 
+def test_unreported_missing_candidate_fails_closed(tmp_path: Path) -> None:
+    with pytest.raises(audit.AuditOperationalError, match="cannot read missing.gd.uid"):
+        audit.audit_paths(tmp_path, ["missing.gd.uid"], "0" * 40)
+
+
 def test_git_error_fails_closed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     def fail_git(_repo: Path, *_args: str) -> bytes:
         raise audit.AuditOperationalError("synthetic git failure")
@@ -123,7 +143,14 @@ def test_atomic_json_writer_leaves_no_temporary_file(tmp_path: Path) -> None:
 
 
 def test_tracked_godot_primary_uids_are_unique() -> None:
-    result = audit.audit_repository(ROOT)
+    resolved, checkpoint = audit._repository_identity(ROOT)
+    deleted = _git_deleted_paths("*.gd.uid", "*.tscn", "*.tres")
+    candidates = [
+        path
+        for path in audit.discover_tracked_candidates(resolved)
+        if path not in deleted
+    ]
+    result = audit.audit_paths(resolved, candidates, checkpoint)
 
     assert result["malformed"] == []
     assert result["duplicate_groups"] == []

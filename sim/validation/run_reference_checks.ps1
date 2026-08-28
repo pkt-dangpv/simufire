@@ -2,7 +2,9 @@ param(
 	[string]$GodotExe = "",
 	[string]$ProjectPath = "",
 	[string]$PythonExe = "python",
-	[int]$TimeoutSeconds = 300,
+	# long_burnout_3600s measured 658.089 s on the frozen Windows audit host.
+	# Keep operational headroom here; this limit does not alter simulated time.
+	[int]$TimeoutSeconds = 900,
 	[switch]$SkipCaseRuns
 )
 
@@ -72,9 +74,23 @@ if (-not $SkipCaseRuns) {
 
 Write-Host "[Reference Suite] Comparando salidas con NIST CFAST y Ghanekar"
 & $PythonExe $referenceCheckScript
-$exitCode = $LASTEXITCODE
-if ($exitCode -ne 0) {
-	throw "El comparador de referencias fallo con exit code $exitCode"
+$referenceExitCode = $LASTEXITCODE
+if ($referenceExitCode -notin @(0, 1)) {
+	throw "El comparador de referencias fallo con exit code $referenceExitCode"
 }
 
+$guardrailsScript = Join-Path $ProjectPath "scripts\simulation\validation_guardrails.py"
+if (-not (Test-Path $guardrailsScript)) {
+	throw "No se encontro el guardrail de referencias: $guardrailsScript"
+}
+$referenceReport = Join-Path $ProjectPath "sim\validation\reports\reference_checks.json"
+Write-Host "[Reference Suite] Verificando required checks y VALID_GAP documentados"
+& $PythonExe $guardrailsScript --json $referenceReport
+$guardrailsExitCode = $LASTEXITCODE
+if ($guardrailsExitCode -ne 0) {
+	throw "Los guardrails de referencias fallaron con exit code $guardrailsExitCode"
+}
+if ($referenceExitCode -eq 1) {
+	Write-Host "[Reference Suite] Los fallos required restantes son VALID_GAP documentados"
+}
 Write-Host "[Reference Suite] Resultado final: PASS"

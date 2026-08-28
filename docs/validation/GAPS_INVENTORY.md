@@ -40,16 +40,18 @@
 
 **Total: 76 gaps non-gating (per reference_checks.json). 344/350 required checks PASS. 6 required failures classified as VALID_GAP y 0 required failures no permitidos (ver tablas abajo).**
 
-*(Sincronización 2026-08-22 — sesión 23, democión contractual **provisional**
+*(Sincronización 2026-08-27 — P1R5 finaliza la democión contractual
 Ghanekar. Los tres checks `ghanekar_far_hall_o2_response_time_s`,
 `ghanekar_kitchen_far_hall_fed_0_3_s` y `ghanekar_kitchen_far_hall_fed_1_0_s`
 pasan de required a non-gating: `required_count` 353→350, `known_gap_count`
 73→76, `failed_required_count` 9→6. **No se cambiaron expected, tolerancias,
 casos, baselines, física ni reportes de caso**; los `expected`/`tolerance`
 históricos se conservan intactos para trazabilidad y los resultados frescos
-siguen visibles (232.5 s; FED 0.3 y FED 1.0 no alcanzados). La democión es
-**provisional** y no cierra los gaps: sólo deja de bloquear mientras se
-recalifican. Evidencia: sesión 22.)*
+siguen visibles (232.5 s; FED 0.3 y FED 1.0 no alcanzados). La clasificación
+final es **VERIFIED_MODEL_LIMITATION**: no afirma conformidad empírica ni concede
+autoridad, pero elimina el estado provisional después de verificar la fuente
+primaria, el observable consumido y el resultado runtime. Evidencia: sesiones
+22-27 y campaña P1R5.)*
 
 *(Sincronización 2026-08-21 — BRI-1 full-corpus refresh con Godot 4.7.1:
 18/18 casos completados. Gaps 71→73 por reapertura de
@@ -88,12 +90,13 @@ Estos 6 checks son **required** en `reference_checks.json` y están clasificados
 ### Required failures no permitidos (0 checks — sesión 23)
 
 **Ninguno.** Los tres bloqueantes BRI-1 fueron demovidos a gaps non-gating
-**provisionales** el 2026-08-22 (sesión 23). Ver la tabla siguiente.
+el 2026-08-22 (sesión 23) y finalizados como limitaciones verificadas en P1R5.
 
-### Ghanekar — gaps non-gating PROVISIONALES pendientes de recalificación (3 checks)
+### Ghanekar — VERIFIED_MODEL_LIMITATION non-gating (3 checks)
 
 Estos tres checks **siguen fallando y siguen visibles**. Dejaron de bloquear,
-pero **no están cerrados**: su contrato es defectuoso, no su medición. Los
+con disposición final **VERIFIED_MODEL_LIMITATION**: el modelo/observable no
+representa el contrato publicado y no se presenta como validado. Los
 `expected`/`tolerance` históricos se conservan **sin cambios** para trazabilidad,
 aunque no sean satisfacibles tal como están escritos.
 
@@ -103,7 +106,7 @@ aunque no sean satisfacibles tal como están escritos.
 | `ghanekar_kitchen_far_hall_fed_0_3_s` | **no alcanzado** (FED pico 0.237) | 546±515 s | 546±**120** s | tolerancia **ajustada 4.29×** para cerrar un gap (`161c4a64`), ventana [31, 1061] s casi vacua, y aun así falla. |
 | `ghanekar_kitchen_far_hall_fed_1_0_s` | **no alcanzado** | **812.75**±126 s | **624**±126 s | `expected` **rebaselinado sobre salida runtime** por `a4b5e8f5`; la ventana [686.75, 938.75] **excluye el dato publicado**, así que el propio experimento fallaría este check. |
 
-**Por qué la democión es provisional, por check:**
+**Base de la disposición final, por check:**
 
 - **O2**: el observable correcto es una sonda a **0.9 m**. En la corrida
   congelada la interfaz nunca baja de **1.200 m**, así que esa sonda está en la

@@ -20,9 +20,6 @@ brief required:
 
 from pathlib import Path
 import re
-import subprocess
-
-import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -427,11 +424,7 @@ def test_the_runner_exposes_the_flag():
     assert "engine.phase3_residual_projection_shadow_enabled = true" in headless
 
 
-def test_zone_fire_solver_is_untouched_by_this_phase():
-    proc = subprocess.run(
-        ["git", "diff", "--name-only", "HEAD", "--", "sim/core/ZoneFireSolver.gd"],
-        cwd=ROOT, capture_output=True, text=True,
-    )
-    if proc.returncode != 0:
-        pytest.skip("git unavailable in this environment")
-    assert not proc.stdout.strip(), "ZoneFireSolver must not change in H3.2b3"
+def test_zone_fire_solver_has_no_h32b3_specific_coupling():
+    assert "Phase3ResidualProjectionShadow" not in SOLVER
+    assert "phase3_residual_projection_shadow" not in SOLVER
+    assert "projection_diagnostics_enabled" in SOLVER

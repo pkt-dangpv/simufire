@@ -428,11 +428,17 @@ func validate_conservation(
 	if has_violation:
 		conservation_violation_count += 1
 		push_warning(
-			"ZoneFireSolver [Phase 3] conservación violada dt=%.2f calls=%d: "
-			+ "co2=%.2e hcn=%.2e co=%.2e smoke=%.2e (max_frac=%.2e > thresh=%.2e)" % [
+			(
+				"ZoneFireSolver [Phase 3] conservación violada dt=%.2f calls=%d: "
+				+ "co2=%s hcn=%s co=%s smoke=%s (max_frac=%s > thresh=%s)"
+			) % [
 				dt, calls,
-				co2_res_kg, hcn_res_kg, co_res_kg, smoke_res_kg,
-				max_viol, conservation_violation_threshold
+				String.num_scientific(co2_res_kg),
+				String.num_scientific(hcn_res_kg),
+				String.num_scientific(co_res_kg),
+				String.num_scientific(smoke_res_kg),
+				String.num_scientific(max_viol),
+				String.num_scientific(conservation_violation_threshold)
 			]
 		)
 

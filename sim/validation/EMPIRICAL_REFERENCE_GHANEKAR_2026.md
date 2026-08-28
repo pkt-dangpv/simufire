@@ -341,8 +341,9 @@ aplicado cuando el articulo es ambiguo.
 > | dentro de `198 +/- 30 s` = [168, 228] | si | **NO** |
 > | `room_2_peak_co_ppm` | 518.9 ppm | 1069.5 ppm |
 >
-> El check de O2 remoto **falla**, y por eso fue demovido a gap non-gating
-> **provisional** en la sesion 23. No se cambio ni el `expected` ni la tolerancia.
+> El check de O2 remoto **falla**; fue demovido a gap non-gating en la sesion 23
+> y P1R5 lo finaliza como **VERIFIED_MODEL_LIMITATION**. No se cambio ni el
+> `expected` ni la tolerancia, y la clasificación no concede validación empírica.
 > Ademas, `28/28 obligatorios en PASS` no describe el estado actual: el corpus
 > vigente es de 350 required con 6 fallos clasificados como VALID_GAP.
 

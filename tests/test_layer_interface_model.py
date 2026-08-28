@@ -1,5 +1,6 @@
 """Guardrails for canonical visible/thermal/flow layer interfaces."""
 
+import re
 import unittest
 from pathlib import Path
 
@@ -50,6 +51,16 @@ def function_body(source: str, name: str) -> str:
     end = min(candidates) if candidates else len(tail)
 
     return tail[:end]
+
+
+def csv_base_header(source: str) -> str:
+    body = function_body(source, "_build_csv_header")
+    match = re.search(r'var\s+header:\s*String\s*=\s*"([^"]+)"', body)
+    if match is None:
+        raise AssertionError("No se encontro el encabezado CSV base")
+    if "return header" not in body:
+        raise AssertionError("_build_csv_header no devuelve el encabezado construido")
+    return match.group(1)
 
 
 class TestLayerInterfaceModelContract(unittest.TestCase):
@@ -157,7 +168,7 @@ class TestLayerInterfaceExportsAndGuardrails(unittest.TestCase):
         self.assertNotIn("estimate_visibility_for_layer_m(room, smoke_layer_m)", state_layer_section)
 
     def test_csv_exports_three_canonical_layers(self):
-        header = LOG.split('return "time_s,', 1)[1].split('"', 1)[0]
+        header = csv_base_header(LOG)
         for column in ("visible_smoke_layer_m", "thermal_layer_m", "flow_interface_m", "layer_150c_m"):
             self.assertIn(column, header)
         self.assertIn('rs.get("visible_smoke_layer_m"', LOG)

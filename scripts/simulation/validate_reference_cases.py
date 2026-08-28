@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime
+import hashlib
 import json
 import math
 import re
@@ -80,6 +81,8 @@ class Check:
     maximum: float | None = None
     required: bool = True
     note: str = ""
+    provenance: dict[str, Any] | None = None
+    disposition: str | None = None
 
     def passed(self) -> bool:
         if self.actual is None:
@@ -94,7 +97,7 @@ class Check:
         return True
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "name": self.name,
             "actual": self.actual,
             "expected": self.expected,
@@ -104,6 +107,129 @@ class Check:
             "required": self.required,
             "pass": self.passed(),
             "note": self.note,
+        }
+        if self.provenance is not None:
+            result["provenance"] = self.provenance
+        if self.disposition is not None:
+            result["disposition"] = self.disposition
+        return result
+
+
+_CFAST_CHECK_CASES: tuple[tuple[str, str], ...] = (
+    ("cfast_closed_", "cfast_single_room_closed"),
+    ("cfast_slow_", "cfast_slow_growth_sealed"),
+    ("cfast_pool_", "cfast_pool_fire_open"),
+    ("cfast_chain_", "cfast_corridor_chain"),
+    ("cfast_bed_", "cfast_bedroom_closed_door"),
+    ("cfast_supr_", "cfast_suppression_water"),
+    ("cfast_2r_", "cfast_two_room_door_open"),
+    ("cfast_fo_", "cfast_post_flashover_vented"),
+    ("cfast_hvac_", "cfast_hvac_residential"),
+    ("cfast_burnout_", "cfast_long_burnout_3600s"),
+    ("cfast_winbreak_", "cfast_window_break_t180"),
+    ("cfast_doorclose_", "cfast_door_close_midfire"),
+    ("cfast_fastgrowth_", "cfast_fast_growth_closed"),
+    ("cfast_twofloor_", "cfast_two_floor_stairwell"),
+    ("cfast_multifuel_", "cfast_multi_fuel_couch_tv"),
+)
+
+_GHANEKAR_PDF = (
+    ROOT
+    / "docs/literature"
+    / "Evolution of combustion gas concentrations in full-scale residential fire.pdf"
+)
+_ARTIFACT_CACHE: dict[Path, dict[str, Any]] = {}
+
+
+def _artifact_record(path: Path) -> dict[str, Any]:
+    path = path.resolve()
+    if path not in _ARTIFACT_CACHE:
+        if not path.is_file():
+            raise FileNotFoundError(f"provenance artifact missing: {_display_path(path)}")
+        payload = path.read_bytes()
+        _ARTIFACT_CACHE[path] = {
+            "path": _display_path(path).as_posix(),
+            "bytes": len(payload),
+            "sha256": hashlib.sha256(payload).hexdigest(),
+        }
+    return dict(_ARTIFACT_CACHE[path])
+
+
+def _case_config(case_name: str) -> Path:
+    return ROOT / "sim/validation/cases" / f"{case_name}.json"
+
+
+def _resolve_check_case(check_name: str) -> tuple[str, str, str, list[Path]]:
+    if check_name.startswith("ghanekar_kitchen_"):
+        case = "ghanekar_kitchen_living_room"
+        return (
+            case,
+            "Ghanekar et al. 2026 primary empirical source",
+            "SimuFire case metric compared with published point measurement",
+            [REPORTS_DIR / f"{case}.json", _case_config(case), _GHANEKAR_PDF],
+        )
+    if check_name.startswith("ghanekar_"):
+        case = "ghanekar_bedroom_hallway"
+        return (
+            case,
+            "Ghanekar et al. 2026 primary empirical source",
+            "SimuFire case metric compared with published point measurement",
+            [REPORTS_DIR / f"{case}.json", _case_config(case), _GHANEKAR_PDF],
+        )
+    if check_name.startswith("cfast_"):
+        case = "cfast_r0_window_360"
+        for prefix, candidate in _CFAST_CHECK_CASES:
+            if check_name.startswith(prefix):
+                case = candidate
+                break
+        cfast_stem = "r0_hall_window_360" if case == "cfast_r0_window_360" else case
+        artifacts = [
+            REPORTS_DIR / f"{case}.json",
+            REPORTS_DIR / f"{case}.log",
+            _case_config(case),
+            CFAST_DIR / f"{cfast_stem}_compartments.csv",
+            CFAST_DIR / f"{cfast_stem}.in",
+        ]
+        return (
+            case,
+            "NIST CFAST comparison",
+            "SimuFire runtime log versus CFAST compartment time series",
+            artifacts,
+        )
+
+    case_files = sorted(
+        (path.stem for path in (ROOT / "sim/validation/cases").glob("*.json")),
+        key=len,
+        reverse=True,
+    )
+    for case in case_files:
+        if check_name.startswith(f"{case}_"):
+            return (
+                case,
+                "versioned SimuFire validation baseline",
+                "CaseRunner baseline metric",
+                [REPORTS_DIR / f"{case}.json", _case_config(case)],
+            )
+    raise ValueError(f"no provenance case mapping for check: {check_name}")
+
+
+def _attach_provenance(checks: list[Check]) -> None:
+    names = [check.name for check in checks]
+    duplicates = sorted(name for name in set(names) if names.count(name) > 1)
+    if duplicates:
+        raise ValueError(f"duplicate reference check names: {duplicates}")
+    for check in checks:
+        try:
+            case, source, measurement_layer, artifacts = _resolve_check_case(check.name)
+        except ValueError:
+            if check.required:
+                raise
+            continue
+        check.provenance = {
+            "case": case,
+            "source": source,
+            "measurement_layer": measurement_layer,
+            "artifacts": [_artifact_record(path) for path in artifacts],
         }
 
 
@@ -2708,7 +2834,8 @@ def build_ghanekar_checks() -> list[Check]:
             # and must NOT be promoted into a contract.
             required=False,
             note=(
-                "PROVISIONAL non-gating gap (session 23, 2026-08-22; reason corrected "
+                "VERIFIED MODEL LIMITATION (final P1R5 disposition; initially demoted "
+                "session 23, 2026-08-22; reason corrected "
                 "session 26 against the verified primary source). Fresh runtime: 232.5 s "
                 "against the retained contract 198 +/- 30 s. Contract retained unchanged "
                 "for traceability but NOT satisfiable as written: it consumes the bulk "
@@ -2888,7 +3015,8 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
             # fire growth alone.
             required=False,
             note=(
-                "PROVISIONAL non-gating gap (session 23, 2026-08-22; reasons corrected "
+                "VERIFIED MODEL LIMITATION (final P1R5 disposition; initially demoted "
+                "session 23, 2026-08-22; reasons corrected "
                 "session 26 against the verified primary source). Fresh runtime: FED 0.3 "
                 "NOT REACHED (far-hall FED peaks at 0.2368). Contract retained unchanged "
                 "for traceability. Published value is 546 +/- 120 s (9.1 +/- 2.0 min, "
@@ -2926,7 +3054,8 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
             # output again.
             required=False,
             note=(
-                "PROVISIONAL non-gating gap (session 23, 2026-08-22; provenance verified "
+                "VERIFIED MODEL LIMITATION (final P1R5 disposition; initially demoted "
+                "session 23, 2026-08-22; provenance verified "
                 "session 26). Fresh runtime: FED 1.0 NOT REACHED. Contract retained "
                 "unchanged for traceability but it LOST SCIENTIFIC PROVENANCE: "
                 "expected=812.75 s was re-baselined onto runtime output by a4b5e8f5, and "
@@ -3086,6 +3215,25 @@ def build_ghanekar_kitchen_checks() -> list[Check]:
     return checks
 
 
+_FINAL_GHANEKAR_LIMITATIONS = {
+    "ghanekar_far_hall_o2_response_time_s",
+    "ghanekar_kitchen_far_hall_fed_0_3_s",
+    "ghanekar_kitchen_far_hall_fed_1_0_s",
+}
+
+
+def _finalize_empirical_dispositions(checks: list[Check]) -> None:
+    indexed = {check.name: check for check in checks}
+    missing = sorted(_FINAL_GHANEKAR_LIMITATIONS - indexed.keys())
+    if missing:
+        raise ValueError(f"missing Ghanekar disposition checks: {missing}")
+    for name in _FINAL_GHANEKAR_LIMITATIONS:
+        check = indexed[name]
+        if check.required or check.passed():
+            raise ValueError(f"Ghanekar model limitation is no longer failing non-gating: {name}")
+        check.disposition = "VERIFIED_MODEL_LIMITATION"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Compare SimuFire validation outputs against external references."
@@ -3149,12 +3297,16 @@ def main(argv: list[str] | None = None) -> int:
         # ── Stage-B roadmap stubs ─────────────────────────────────────────────
         + build_stage_b_pending_checks()
     )
+    _attach_provenance(all_checks)
+    _finalize_empirical_dispositions(all_checks)
     required = [check for check in all_checks if check.required]
     failed = [check for check in required if not check.passed()]
     known_gaps = [check for check in all_checks if not check.required and not check.passed()]
 
     output = {
-        "generated_at": datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "generated_at": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds").replace(
+            "+00:00", "Z"
+        ),
         "all_required_pass": not failed,
         "required_count": len(required),
         "failed_required_count": len(failed),

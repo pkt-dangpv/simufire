@@ -25,6 +25,8 @@ const POREH_COOL_JET_MIXING_FACTOR: float = 0.25
 const CFAST_DESTINATION_DELTA_TEMP_K: float = 1.0
 const THERMO_MASS_EPS_KG: float = 1.0e-12
 const THERMO_ENERGY_EPS_KJ: float = 1.0e-12
+const O2_MOLAR_MASS_G_MOL: float = 31.999
+const DRY_AIR_MOLAR_MASS_G_MOL: float = 28.9647
 const STEFAN_BOLTZMANN_KW_M2_K4: float = 5.670374419e-11
 const CANONICAL_EXTERIOR_H_KW_M2_K: float = 0.025
 const CANONICAL_SURFACE_NAMES: Array[String] = [
@@ -230,6 +232,13 @@ var _mass_residence_initial_by_room: Dictionary = {}
 var _mass_residence_cumulative_by_room: Dictionary = {}
 var connection_residence_diagnostics_enabled: bool = false
 var _connection_residence_cumulative: Dictionary = {}
+## P1R3: corrected molar-fraction <-> mass conversion for the persistent
+## canonical shadow. Default OFF preserves every legacy and shadow result.
+var o2_zonal_mass_shadow_enabled: bool = false
+
+
+func configure_o2_zonal_mass_shadow(is_enabled: bool) -> void:
+	o2_zonal_mass_shadow_enabled = is_enabled
 
 
 func configure_enthalpy_residence_diagnostics(is_enabled: bool) -> void:
@@ -2800,7 +2809,7 @@ func queue_canonical_exterior_counterflow_requests(
 			outgoing_species_kg[species_name] = float(
 				source_species.get(species_name, 0.0)
 			) * inventory_fraction
-		var incoming_o2_kg: float = exchange_kg * clampf(outside_o2, 0.0, 1.0)
+		var incoming_o2_kg: float = _outside_o2_mass_kg(exchange_kg, outside_o2)
 		record["requested_exchange_kg"] = float(
 			record.get("requested_exchange_kg", 0.0)
 		) + exchange_kg
@@ -6868,7 +6877,7 @@ func _apply_canonical_exterior_boundary_requests(
 			if requested_mass_kg <= 0.0 or not is_finite(requested_mass_kg):
 				continue
 			var energy_kj: float = 0.0
-			var o2_kg: float = requested_mass_kg * clampf(outside_o2, 0.0, 1.0)
+			var o2_kg: float = _outside_o2_mass_kg(requested_mass_kg, outside_o2)
 			var species_kg: Dictionary = _parcel_species({})
 			var source_room_id: int = EXTERIOR_ID
 			var destination_room_id: int = room_id
@@ -11194,13 +11203,22 @@ func get_request_count() -> int:
 
 
 func _snapshot_room(room: RoomModel) -> Dictionary:
+	var upper_o2_kg: float = maxf(0.0, room.upper_gas_kg * room.o2_upper)
+	var lower_o2_kg: float = maxf(0.0, room.lower_gas_kg * room.o2_lower)
+	if o2_zonal_mass_shadow_enabled:
+		upper_o2_kg = _o2_molar_fraction_to_mass_kg(
+			room.o2_upper, room.upper_gas_kg
+		)
+		lower_o2_kg = _o2_molar_fraction_to_mass_kg(
+			room.o2_lower, room.lower_gas_kg
+		)
 	return {
 		"upper_gas_kg": maxf(0.0, room.upper_gas_kg),
 		"lower_gas_kg": maxf(0.0, room.lower_gas_kg),
 		"upper_energy_kj": maxf(0.0, room.upper_energy_kj),
 		"lower_energy_kj": maxf(0.0, room.lower_energy_kj),
-		"upper_o2_kg": maxf(0.0, room.upper_gas_kg * room.o2_upper),
-		"lower_o2_kg": maxf(0.0, room.lower_gas_kg * room.o2_lower),
+		"upper_o2_kg": upper_o2_kg,
+		"lower_o2_kg": lower_o2_kg,
 		"upper_species_kg": {
 			"smoke": maxf(0.0, room.smoke_kg),
 			"co": maxf(0.0, room.co_upper_kg),
@@ -12201,8 +12219,53 @@ func _state_species(state: Dictionary) -> float:
 			+ _sum_parcel_species(state.get("lower_species_kg", {}))
 
 
+func _o2_molar_fraction_to_mass_kg(
+		molar_fraction: float, gas_mass_kg: float
+	) -> float:
+	if not is_finite(molar_fraction) or not is_finite(gas_mass_kg):
+		return 0.0
+	return maxf(0.0, gas_mass_kg) * clampf(molar_fraction, 0.0, 1.0) \
+			* O2_MOLAR_MASS_G_MOL / DRY_AIR_MOLAR_MASS_G_MOL
+
+
+func _o2_mass_kg_to_molar_view(o2_mass_kg: float, gas_mass_kg: float) -> Dictionary:
+	if not is_finite(gas_mass_kg) or gas_mass_kg <= THERMO_MASS_EPS_KG:
+		return {
+			"known": false,
+			"reason": "zone_gas_mass_absent",
+			"molar_fraction": NAN,
+		}
+	if not is_finite(o2_mass_kg) or o2_mass_kg < 0.0:
+		return {
+			"known": false,
+			"reason": "invalid_o2_mass",
+			"molar_fraction": NAN,
+		}
+	return {
+		"known": true,
+		"reason": "",
+		"molar_fraction": clampf(
+			o2_mass_kg / gas_mass_kg \
+					* DRY_AIR_MOLAR_MASS_G_MOL / O2_MOLAR_MASS_G_MOL,
+			0.0,
+			1.0
+		),
+	}
+
+
+func _outside_o2_mass_kg(gas_mass_kg: float, outside_o2: float) -> float:
+	if o2_zonal_mass_shadow_enabled:
+		return _o2_molar_fraction_to_mass_kg(outside_o2, gas_mass_kg)
+	return maxf(0.0, gas_mass_kg) * clampf(outside_o2, 0.0, 1.0)
+
+
 func _zone_o2_fraction(state: Dictionary, zone: String) -> float:
 	var gas_kg: float = maxf(0.0, float(state.get(zone + "_gas_kg", 0.0)))
+	if o2_zonal_mass_shadow_enabled:
+		var view: Dictionary = _o2_mass_kg_to_molar_view(
+			float(state.get(zone + "_o2_kg", 0.0)), gas_kg
+		)
+		return float(view.get("molar_fraction", NAN))
 	if gas_kg <= THERMO_MASS_EPS_KG:
 		return 0.0
 	return clampf(float(state.get(zone + "_o2_kg", 0.0)) / gas_kg, 0.0, 1.0)

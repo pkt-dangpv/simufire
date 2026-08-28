@@ -117,9 +117,13 @@ class TestFreezeReference(unittest.TestCase):
 
 class TestModeContractStructure(unittest.TestCase):
 
-    def test_engine_flag_is_exported_and_default_off(self):
-        source = (ROOT / "sim" / "core" / "SimulationEngine.gd").read_text(encoding="utf-8")
-        self.assertIn("@export var two_zone_solver_enabled: bool = false", source)
+    def test_engine_defaults_to_two_zone_and_legacy_is_explicit_opt_in(self):
+        engine = (ROOT / "sim" / "core" / "SimulationEngine.gd").read_text(encoding="utf-8")
+        runner = (ROOT / "sim" / "validation" / "CaseRunner.gd").read_text(encoding="utf-8")
+        self.assertIn("@export var two_zone_solver_enabled: bool = true", engine)
+        self.assertIn('elif arg == "--validation-legacy":', runner)
+        self.assertIn('parsed["validation_two_zone_v1"] = false', runner)
+        self.assertIn('parsed["validation_engine_mode"] = "legacy"', runner)
 
     def test_case_runner_exports_mode_metadata(self):
         source = (ROOT / "sim" / "validation" / "CaseRunner.gd").read_text(encoding="utf-8")

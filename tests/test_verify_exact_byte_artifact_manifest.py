@@ -170,6 +170,54 @@ def test_ambiguous_alias_fields_fail_closed(tmp_path: Path) -> None:
         verifier.verify_manifest(tmp_path, manifest)
 
 
+@pytest.mark.parametrize(
+    ("extra_field", "extra_value"),
+    [
+        ("relative_path", "conflicting.txt"),
+        ("byte_length", 999),
+        ("worktree_sha256", "0" * 64),
+    ],
+)
+def test_partial_conflicting_record_alias_fails_closed(
+    tmp_path: Path, extra_field: str, extra_value: object
+) -> None:
+    first = b"first"
+    second = b"second"
+    (tmp_path / "a.txt").write_bytes(first)
+    (tmp_path / "b.txt").write_bytes(second)
+    records = [
+        _record("a.txt", first, aliases=True),
+        _record("b.txt", second, aliases=True),
+    ]
+    records[0][extra_field] = extra_value
+    manifest = _write_manifest(tmp_path, records)
+
+    with pytest.raises(verifier.ManifestOperationalError, match="exactly one"):
+        verifier.verify_manifest(tmp_path, manifest)
+
+
+@pytest.mark.parametrize("location", ["top_level", "record"])
+def test_duplicate_json_key_fails_closed(tmp_path: Path, location: str) -> None:
+    raw = b"duplicate-key"
+    (tmp_path / "a.txt").write_bytes(raw)
+    manifest_path = _write_manifest(
+        tmp_path, [_record("a.txt", raw, aliases=True)]
+    )
+    manifest_text = manifest_path.read_text(encoding="utf-8")
+    if location == "top_level":
+        manifest_text = manifest_text.replace(
+            '"file_count": 1', '"file_count": 999, "file_count": 1', 1
+        )
+    else:
+        manifest_text = manifest_text.replace(
+            '"path": "a.txt"', '"path": "ignored.txt", "path": "a.txt"', 1
+        )
+    manifest_path.write_text(manifest_text, encoding="utf-8")
+
+    with pytest.raises(verifier.ManifestOperationalError, match="duplicate JSON"):
+        verifier.verify_manifest(tmp_path, manifest_path)
+
+
 def test_declared_file_count_mismatch_is_a_data_failure(tmp_path: Path) -> None:
     raw = b"count"
     (tmp_path / "a.txt").write_bytes(raw)

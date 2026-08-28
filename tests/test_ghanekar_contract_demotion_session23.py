@@ -12,7 +12,7 @@ What they pin:
 * the three Ghanekar checks are demoted to non-gating, and stay demoted;
 * their historical ``expected``/``tolerance`` are preserved byte-for-byte, so the
   demotion cannot be used to smuggle in a re-baseline;
-* the demotion is recorded as PROVISIONAL with its reason;
+* the original demotion reason remains recorded and P1R5 gives it a final disposition;
 * the two materially false documentation claims stay corrected;
 * nothing re-baselines an expected value onto runtime output.
 """
@@ -81,10 +81,10 @@ def test_historical_expected_and_tolerance_are_preserved_exactly():
         assert tolerance in block, (name, tolerance)
 
 
-def test_the_demotion_is_recorded_as_provisional_with_a_reason():
+def test_the_demotion_has_a_final_disposition_with_its_original_reason():
     for name in DEMOTED:
         block = _check_block(name)
-        assert "PROVISIONAL" in block, name
+        assert "VERIFIED MODEL LIMITATION" in block, name
         assert "session 23" in block, name
 
 
@@ -235,11 +235,11 @@ def test_inventory_reports_zero_disallowed_blockers():
     assert "Required failures no permitidos (0 checks" in INVENTORY
 
 
-def test_inventory_keeps_the_three_visible_and_calls_them_provisional():
+def test_inventory_keeps_the_three_visible_with_final_disposition():
     for name in DEMOTED:
         assert name in INVENTORY, name
-    assert "PROVISIONALES" in INVENTORY
-    assert "no están cerrados" in INVENTORY
+    assert "VERIFIED_MODEL_LIMITATION" in INVENTORY
+    assert "no se presenta como validado" in INVENTORY
 
 
 def test_inventory_records_the_published_values_beside_the_retained_ones():

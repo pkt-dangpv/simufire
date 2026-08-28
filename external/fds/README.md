@@ -96,4 +96,4 @@ breathing height.
 
 ## Small apartment case
 
-`simufire_small_apartment.fds` and `run_simufire_small_apartment.bat` are also present as an approximate comparison case for `res://sim/templates/ApartmentTemplates.gd::small_apartment()`.
+`simufire_small_apartment.fds` and `run_simufire_small_apartment.bat` are retained as a standalone historical FDS comparison. The unused legacy SimuFire template they once approximated has been retired; this case is not part of the active SimuFire validation corpus.

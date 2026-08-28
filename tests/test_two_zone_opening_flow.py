@@ -52,8 +52,8 @@ class TestTwoZoneOpeningArithmetic(unittest.TestCase):
 
 
 class TestTwoZoneOpeningStructure(unittest.TestCase):
-    def test_engine_exposes_m3_flag_default_off(self):
-        self.assertIn("@export var two_zone_opening_flow_enabled: bool = false", ENGINE)
+    def test_engine_enables_m3_with_the_default_two_zone_profile(self):
+        self.assertIn("@export var two_zone_opening_flow_enabled: bool = true", ENGINE)
         self.assertIn(
             '"two_zone_opening_flow_enabled": two_zone_solver_enabled and two_zone_opening_flow_enabled',
             ENGINE,
@@ -209,7 +209,8 @@ class TestCanonicalPressureStructure(unittest.TestCase):
 
     def test_canonical_pressure_does_not_double_count_closed_leakage_for_smoke_purge(self):
         body = GAS.split("func step_pressure_venting(", 1)[1].split("\nfunc ", 1)[0]
-        closed_branch = body.split("if op.open_fraction > 0.001:", 1)[1].split("area_m2 *= flow_path_factor", 1)[0]
+        closed_branch = body.split("if op.open_fraction_smooth > 0.001:", 1)[1].split("area_m2 *= flow_path_factor", 1)[0]
+        self.assertNotIn("if op.open_fraction > 0.001:", body)
         self.assertIn("else:", closed_branch)
         self.assertIn("if use_canonical_pressure:", closed_branch)
         self.assertIn("continue", closed_branch)

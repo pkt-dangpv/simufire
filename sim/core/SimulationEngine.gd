@@ -1088,6 +1088,9 @@ var _phase3_o2_ledger = Phase3O2AcceptanceLedgerScript.new()
 @export var phase3_canonical_exterior_boundary_shadow_enabled: bool = false
 ## F3.2b0: continuidad step-to-step solo en shadow. Default OFF; no cambia HRR.
 @export var phase3_canonical_persistence_shadow_enabled: bool = false
+## P1R3: corrected zonal O2 mass inventory inside the persistent shadow.
+## Default OFF and gated by both canonical parent flags; never writes RoomModel.
+@export var phase3_o2_zonal_mass_shadow_enabled: bool = false
 ## F3.2b1: transaccion cerrada combustion/plume solo en shadow. Default OFF.
 @export var phase3_canonical_combustion_shadow_enabled: bool = false
 ## F3.2b2: relajacion exterior y reseed lower conservativos. Default OFF.
@@ -1149,14 +1152,39 @@ var _phase3_o2_ledger = Phase3O2AcceptanceLedgerScript.new()
 # SERVICIOS AUXILIARES
 # ============================================================
 
+var _p1r2_tick_boundary_trace_enabled: bool = false
+var _p1r2_tick_boundary_trace_tick: int = 0
+var _p1r2_tick_boundary_trace: Array[Dictionary] = []
+
+
+func set_p1r2_tick_boundary_trace_enabled(enabled: bool) -> void:
+	_p1r2_tick_boundary_trace_enabled = enabled
+	_p1r2_tick_boundary_trace_tick = 0
+	_p1r2_tick_boundary_trace.clear()
+
+
+func get_p1r2_tick_boundary_trace() -> Array:
+	return _p1r2_tick_boundary_trace.duplicate(true)
+
+
+func _p1r2_record_tick_boundary(event_name: String) -> void:
+	if not _p1r2_tick_boundary_trace_enabled:
+		return
+	_p1r2_tick_boundary_trace.append({
+		"tick": _p1r2_tick_boundary_trace_tick,
+		"event": event_name
+	})
+
 func _sync_auxiliary_services() -> void:
 	if not is_ready_for_validation():
 		push_error("SimulationEngine: subsistemas no inicializados; no se puede sincronizar")
 		return
+	_p1r2_record_tick_boundary("auxiliary_sync")
 
 	zone_fire_solver.two_zone_energy_enabled = two_zone_solver_enabled
 	zone_fire_solver.projection_diagnostics_enabled = _phase3_projection_diagnostics_active()
 	zone_fire_solver.set_building(building)
+	_configure_phase3_o2_zonal_mass_shadow()
 	thermal_system.set_references(building, smoke_model)
 	thermal_system.set_zone_fire_solver(zone_fire_solver)
 	thermal_system.configure({
@@ -1617,8 +1645,8 @@ func _phase3_zone_diag_snapshot() -> Dictionary:
 func _phase3_projection_diagnostics_active() -> bool:
 	## Consumidores de la traza por llamada de ZoneFireSolver. Esta es la fuente
 	## autoritativa: `_sync_auxiliary_services()` reafirma
-	## `projection_diagnostics_enabled` desde aqui, y se invoca repetidamente
-	## durante una corrida (entre otros, desde `_maybe_log_state()`).
+	## `projection_diagnostics_enabled` desde aqui en la frontera explicita que
+	## precede a la fisica de cada tick y en las fronteras de setup/opciones.
 	##
 	## H3.2b3: el shadow se suma como consumidor. Sin esto
 	## begin_projection_diagnostics_step() no se invocaria y los eventos se
@@ -2190,6 +2218,14 @@ func _phase3_shadow_collect_thermal_requests(dt: float) -> void:
 			plume_flux,
 			"%.6f" % sim_time_s
 		)
+
+
+func _configure_phase3_o2_zonal_mass_shadow() -> void:
+	phase3_zone_mass_system.configure_o2_zonal_mass_shadow(
+		phase3_canonical_zone_shadow_enabled \
+				and phase3_canonical_persistence_shadow_enabled \
+				and phase3_o2_zonal_mass_shadow_enabled
+	)
 
 
 func _phase3_canonical_multisurface_active() -> bool:
@@ -3133,6 +3169,9 @@ func step(delta: float) -> void:
 	var dt: float = sim_fixed_dt if sim_fixed_dt > 0.0 else maxf(0.0, delta * time_scale)
 	if dt <= 0.0:
 		return
+	_p1r2_tick_boundary_trace_tick += 1
+	_p1r2_record_tick_boundary("tick_begin")
+	_sync_auxiliary_services()
 
 	sim_time_s += dt
 
@@ -3280,6 +3319,7 @@ func step(delta: float) -> void:
 	_phase3_zone_diag_record_stage("reconcile")
 	_phase3_runtime_ownership_record_stage("reconcile")
 	_clamp_rooms(dt)
+	_p1r2_record_tick_boundary("post_physics_mutation")
 	_phase3_zone_diag_record_stage("projection_clamp")
 	_phase3_runtime_ownership_record_stage("clamp_rooms")
 	if phase3_canonical_zone_shadow_enabled:
@@ -5241,12 +5281,11 @@ func _finish_and_launch_graphs(details: String, graphs_root: String = "", wait_f
 
 
 func _force_log_final_snapshot() -> void:
-	_sync_auxiliary_services()
+	_p1r2_record_tick_boundary("final_snapshot")
 	log_writer.append_snapshot_now(sim_time_s, get_state())
 
 
 func _force_log_initial_snapshot() -> void:
-	_sync_auxiliary_services()
 	log_writer.append_initial_snapshot(sim_time_s, get_state())
 
 
@@ -5411,7 +5450,7 @@ func _exit_tree() -> void:
 # ============================================================
 
 func _maybe_log_state() -> void:
-	_sync_auxiliary_services()
+	_p1r2_record_tick_boundary("log_boundary")
 	if not log_writer.should_log(sim_time_s):
 		return
 
