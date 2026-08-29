@@ -54,6 +54,14 @@ static func create(
 	_append_bridge_quad(vertices, normals, uvs, indices, p0, tp0, tp1, p1)
 	_append_bridge_quad(vertices, normals, uvs, indices, n0, tn0, tp0, p0)
 	_append_bridge_quad(vertices, normals, uvs, indices, n1, p1, tp1, tn1)
+	# Intrados: une los dos bordes bajos (uno por sala) en una sola cara
+	# inclinada. Sin ella el vano eran dos telones paralelos vistos desde
+	# abajo -justo la altura de los ojos bajo la capa- y el shader no podia
+	# aplicar bottom_surface_strength por falta de cara horizontal.
+	if thin_axis_is_x:
+		_append_bridge_quad(vertices, normals, uvs, indices, n0, p0, p1, n1)
+	else:
+		_append_bridge_quad(vertices, normals, uvs, indices, n0, n1, p1, p0)
 
 	return _build_mesh(vertices, normals, uvs, indices, meters_to_units)
 

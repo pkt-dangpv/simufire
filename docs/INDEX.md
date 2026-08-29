@@ -48,6 +48,7 @@ Este índice separa la documentación vigente del histórico, bibliografía y ar
 - [audits/BEHAVIORAL_VALIDATION_AUDIT.md](audits/BEHAVIORAL_VALIDATION_AUDIT.md): validación conductual.
 - [audits/CREDIBILITY_REPORT.md](audits/CREDIBILITY_REPORT.md): informe de credibilidad.
 - [audits/PRODUCT_EDITOR_FP_3D_AUDIT.md](audits/PRODUCT_EDITOR_FP_3D_AUDIT.md): auditoría producto/editor/first-person/3D.
+- [AUDITORIA_VISUAL_2026-08-29.md](AUDITORIA_VISUAL_2026-08-29.md): auditoría gráfica completa (humo en vanos, fachada propia, rellano y entradas).
 - [audit_issues/INDEX.md](audit_issues/INDEX.md): índice de issues técnicos derivados de auditorías.
 
 ## Roadmaps y Planificación

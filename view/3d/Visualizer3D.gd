@@ -170,6 +170,9 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export_range(0.0, 1.5, 0.05) var opening_curtain_edge_band: float = 0.55
 ## Suavizado del contorno de la cortina (mayor = mas difuso).
 @export_range(0.05, 0.8, 0.05) var opening_curtain_edge_softness: float = 0.40
+## Penacho de humo que sube por la fachada al salir por un hueco exterior.
+## Sin el, el humo de una ventana termina en un corte plano en el dintel.
+@export var show_exterior_smoke_plume: bool = true
 @export_group("")
 
 @export var smoke_grow_lerp: float = 0.08
@@ -1263,6 +1266,17 @@ func _create_opening(index: int) -> void:
 		_opening_items[index]["smoke_curtain"] = curtain
 		_opening_items[index]["air_inflow_curtain"] = inflow
 		_opening_items[index]["curtain_pose"] = pose
+		if op.is_exterior_opening():
+			var plume := _create_box(
+				"SmokeExteriorPlume_%02d" % index,
+				Vector3(pose["size"]) * meters_to_units,
+				_make_smoke_volume_material()
+			)
+			plume.position = marker.position
+			plume.visible = false
+			_disable_shadow_casting(plume)
+			_atmosphere_root.add_child(plume)
+			_opening_items[index]["smoke_exterior_plume"] = plume
 
 
 func _create_door_leaf_visual(index: int, op: OpeningModel, pose: Dictionary, marker: MeshInstance3D) -> void:
@@ -2625,6 +2639,7 @@ func _update_openings() -> void:
 			"opening_curtain_flow_speed": opening_curtain_flow_speed,
 			"opening_curtain_edge_band": opening_curtain_edge_band,
 			"opening_curtain_edge_softness": opening_curtain_edge_softness,
+			"show_exterior_smoke_plume": show_exterior_smoke_plume,
 			"smoke_min_visible_depth_m": smoke_min_visible_depth_m,
 			"meters_to_units": meters_to_units,
 			"origin_offset_m": _origin_offset_m,
