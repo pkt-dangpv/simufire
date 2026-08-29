@@ -14,10 +14,12 @@ func _run() -> void:
 	await get_tree().process_frame
 	var apartment := await _build_case("apartment")
 	_validate_city(apartment)
+	_validate_own_facade(apartment, "right", "Opening_02", Vector3.RIGHT, "bottom")
 	_cleanup_case(apartment)
 
 	var house := await _build_case("single_family")
 	_validate_residential(house)
+	_validate_own_facade(house, "bottom", "Opening_01", Vector3.BACK, "")
 	_cleanup_case(house)
 	_finish()
 
@@ -94,6 +96,47 @@ func _validate_residential(ctx: Dictionary) -> void:
 	for roof in roofs:
 		var array_mesh := roof.mesh as ArrayMesh
 		_expect(array_mesh != null and array_mesh.get_surface_count() == 1, "%s is not a valid gable mesh" % roof.name)
+
+
+## Envolvente del propio edificio: lienzo con huecos recortados, zocalo y
+## coronacion. El frente ocupado por el rellano del portal no se cierra.
+func _validate_own_facade(
+	ctx: Dictionary,
+	side: String,
+	window_node_name: String,
+	outward: Vector3,
+	landing_side: String
+) -> void:
+	var exterior := _exterior_root(ctx)
+	var world := _world_root(ctx)
+	if exterior == null or world == null:
+		return
+	var panels := _find_meshes(exterior, "OwnFacade_%s_" % side)
+	_expect(panels.size() >= 2, "Own facade skin missing or unsplit on %s side" % side)
+	_expect(
+		not _find_meshes(exterior, "OwnFacadeCornice_%s" % side).is_empty(),
+		"Own facade cornice missing on %s side" % side
+	)
+	_expect(
+		not _find_meshes(exterior, "OwnFacadePlinth_%s" % side).is_empty(),
+		"Own facade plinth missing on %s side" % side
+	)
+	if landing_side != "":
+		_expect(
+			_find_meshes(exterior, "OwnFacade_%s_" % landing_side).is_empty(),
+			"Landing front must stay free of facade skin (%s)" % landing_side
+		)
+
+	var window_body := world.get_node_or_null(window_node_name) as Node3D
+	_expect(window_body != null, "Exterior window %s missing" % window_node_name)
+	if window_body == null:
+		return
+	var probe: Vector3 = window_body.global_position + outward.normalized() * 0.12
+	for panel in panels:
+		_expect(
+			not _world_aabb(panel).has_point(probe),
+			"Facade skin %s covers the window opening" % panel.name
+		)
 
 
 func _exterior_root(ctx: Dictionary) -> Node:

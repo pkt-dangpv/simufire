@@ -153,6 +153,26 @@ class TestGodotEditability(unittest.TestCase):
             ],
         )
 
+    def test_fp_exterior_envelope_and_landing_lighting_are_editable(self):
+        rel = "view/fp/FirstPersonController.gd"
+        self.assert_exports(
+            rel,
+            [
+                "exterior_own_facade_enabled",
+                "own_facade_thickness_m",
+                "own_facade_hole_margin_m",
+                "own_facade_side_margin_m",
+                "own_facade_plinth_height_m",
+                "own_facade_parapet_m",
+                "own_facade_storey_pitch_m",
+                "landing_ambient_lights_enabled",
+                "landing_ambient_light_factor",
+            ],
+        )
+        self.assert_identifier_used(rel, "_create_own_facade")
+        self.assert_identifier_used(rel, "_exterior_ground_level_m")
+        self.assert_identifier_used(rel, "_add_landing_lights")
+
     def test_3d_visualizer_overlays_camera_and_door_controls_are_editable(self):
         rel = "view/3d/Visualizer3D.gd"
         self.assert_exports(
@@ -168,6 +188,7 @@ class TestGodotEditability(unittest.TestCase):
                 "show_smoke_volume",
                 "show_smoke_geometry_in_first_person",
                 "show_fire_smoke_plume",
+                "show_exterior_smoke_plume",
                 "layer_gradient_top_color",
                 "layer_gradient_bottom_color",
                 "wall_color",
@@ -180,6 +201,37 @@ class TestGodotEditability(unittest.TestCase):
                 "debug_show_hrr_values",
             ],
         )
+        self.assert_identifier_used(rel, "smoke_exterior_plume", min_count=1)
+
+
+class TestSmokeOpeningGeometry(unittest.TestCase):
+    """El humo de un vano se lee desde debajo de la capa: necesita cara
+    inferior, y el plano neutro solo puede recortar el lado que expulsa."""
+
+    def test_opening_bridge_has_bottom_cap(self):
+        text = _read("view/3d/smoke/SmokeBridgeMesh.gd")
+        quads = text.count("_append_bridge_quad(vertices, normals, uvs, indices,")
+        self.assertGreaterEqual(
+            quads,
+            6,
+            "SmokeBridgeMesh.create must emit the four sides plus the bottom cap "
+            "for both wall orientations",
+        )
+
+    def test_neutral_plane_is_side_aware_and_continuous(self):
+        text = _read("view/3d/smoke/SmokeOpeningCurtain3D.gd")
+        self.assertIn("_flow_limited_bottoms", text)
+        self.assertIn("_effective_neutral_m", text)
+        self.assertNotIn(
+            "_should_limit_horizontal_smoke_to_upper",
+            text,
+            "the unconditional both-sides neutral clamp must stay retired",
+        )
+
+    def test_exterior_openings_get_a_rising_plume(self):
+        text = _read("view/3d/smoke/SmokeOpeningCurtain3D.gd")
+        self.assertIn("_update_exterior_plume", text)
+        self.assertIn("show_exterior_smoke_plume", text)
 
 
 if __name__ == "__main__":
