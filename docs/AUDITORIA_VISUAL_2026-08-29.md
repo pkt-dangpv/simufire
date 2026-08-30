@@ -129,6 +129,16 @@ Corrección (`_add_landing_lights`, [FirstPersonController.gd:1788](../view/fp/F
 ### 🟠 R-3. Encuentros y detalle del rellano — **[CORREGIDO parcialmente]**
 El zócalo y el rodapié sólo existían en la pared del fondo; las laterales llegaban al suelo a hueso. Se añade rodapié lateral y felpudo delante de la puerta de la vivienda. Sigue **abierto** el acabado del suelo (una losa de color plano; un despiece de baldosa o un cambio de tono por franjas daría mucho más).
 
+### 🔴 R-7. El frente del rellano estaba abierto al exterior — **[CORREGIDO 2026-08-29, 2ª pasada]**
+Detectado al ver el portal en ejecución: sombras duras que barrían el rellano al moverse. La causa no era el sesgo de sombra sino un agujero real.
+
+El rellano mide 5,40 m de ancho, pero su frente sólo lo cerraba **el muro de la propia vivienda**, que en los pisos de referencia mide 1,40 m. **Los 4 m restantes no tenían ningún cerramiento**: el portal estaba abierto de par en par a la intemperie y el sol entraba a plena luz en un espacio que debe ser interior. Además, el forjado, el techo y los laterales arrancaban a 0,08 m del plano del muro cuando la cara exterior del tabique está a 0,05 m, dejando **una rendija de 3 cm en todo el encuentro**.
+
+Corrección: frente propio del rellano (`_create_landing_front_wall`) con el hueco de la puerta recortado, apoyado en la cara exterior del tabique sin quedar coplanar con él; y arranque del rellano derivado de `wall_thickness_m` en vez de la constante 0,08, con el muro de fondo recolocado para conservar su solape. Guardarraíl añadido en `validate_fp_landing_stairs.gd`.
+
+### 🟡 R-8. Las paredes del rellano no tienen colisión — **[ABIERTO]**
+`LandingBackWall`, `LandingSideWall` y el frente nuevo se añaden a `_world_root` sin `StaticBody3D`, así que el jugador puede atravesarlas y caer al vacío. Es previo y coherente con el resto del portal, pero conviene cerrarlo.
+
 ### 🟡 R-4. La altura del portal es un valor fijo — **[ABIERTO]**
 `landing_floor_height_m = 2.62` no se deriva de la altura real de la vivienda ni de su forjado. Si la sala mide 2,4 m, el rellano queda 22 cm más alto que la vivienda a la que sirve y el encuentro se nota al cruzar la puerta.
 
