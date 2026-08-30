@@ -3,11 +3,11 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-import subprocess
 
 import pytest
 
 from scripts.simulation.validate_tick_boundary_trace import validate_trace
+from tests.godot_runtime_launcher import run_godot
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,15 +39,10 @@ def _run_report(godot: Path, output: Path, *, trace: bool) -> dict[str, object]:
         ]
     if trace:
         command.append("--validation-p1r2-tick-boundary-trace")
-    completed = subprocess.run(
+    completed = run_godot(
         command,
-        cwd=ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        timeout=90,
+        timeout_s=90,
+        allowed_exit_codes=(0, 2),
     )
     # The source case owns a 3 s baseline, while this ordering probe stops at
     # 0.25 s. Exit 2 is therefore expected; report creation is the runtime gate.

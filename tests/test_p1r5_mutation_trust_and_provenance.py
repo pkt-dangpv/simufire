@@ -107,6 +107,14 @@ def test_godot_application_error_window_titles_are_detected(title):
     assert runner._is_godot_error_window_title(title)
 
 
+def test_enum_windows_zero_without_last_error_is_not_a_win32_failure():
+    runner = _load_mutation_runner()
+
+    assert not runner._enum_windows_failed(0, 0)
+    assert runner._enum_windows_failed(0, 5)
+    assert not runner._enum_windows_failed(1, 5)
+
+
 def test_crash_word_inside_an_evidence_path_is_not_a_log_failure():
     runner = _load_mutation_runner()
     log = (
@@ -146,6 +154,30 @@ def test_child_access_violation_is_rejected_even_when_wrapper_exits_zero():
     errors = runner._runtime_health_errors(health)
 
     assert any("access violation" in error.lower() for error in errors)
+
+
+def test_monitored_launch_bypasses_the_windows_console_wrapper(tmp_path):
+    runner = _load_mutation_runner()
+    console = tmp_path / "Godot_v4.7.1-stable_win64_console.exe"
+    engine = tmp_path / "Godot_v4.7.1-stable_win64.exe"
+    console.write_bytes(b"wrapper")
+    engine.write_bytes(b"engine")
+
+    resolved, bypassed = runner._resolve_monitored_executable(console)
+
+    assert resolved == engine
+    assert bypassed is True
+
+
+def test_monitored_launch_keeps_a_non_wrapper_executable(tmp_path):
+    runner = _load_mutation_runner()
+    engine = tmp_path / "Godot_v4.7.1-stable_win64.exe"
+    engine.write_bytes(b"engine")
+
+    resolved, bypassed = runner._resolve_monitored_executable(engine)
+
+    assert resolved == engine
+    assert bypassed is False
 
 
 def test_case_command_uses_captured_output_instead_of_godot_log_file(tmp_path):

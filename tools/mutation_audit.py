@@ -20,6 +20,7 @@ import sys
 import tempfile
 import time
 import unicodedata
+from ctypes import wintypes
 from pathlib import Path
 from typing import Any
 
@@ -125,29 +126,51 @@ def _is_godot_error_window_title(title: str) -> bool:
     )
 
 
+def _enum_windows_failed(enum_result: int, last_error: int) -> bool:
+    return not bool(enum_result) and int(last_error) != 0
+
+
 def _windows_godot_error_dialogs() -> list[str]:
     if os.name != "nt":
         return []
 
-    user32 = ctypes.windll.user32
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
     titles: list[str] = []
+    callback_errors: list[str] = []
     callback_type = ctypes.WINFUNCTYPE(
-        ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p
+        wintypes.BOOL, wintypes.HWND, wintypes.LPARAM, use_last_error=True
     )
+    user32.EnumWindows.argtypes = [callback_type, wintypes.LPARAM]
+    user32.EnumWindows.restype = wintypes.BOOL
+    user32.GetWindowTextLengthW.argtypes = [wintypes.HWND]
+    user32.GetWindowTextLengthW.restype = ctypes.c_int
+    user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    user32.GetWindowTextW.restype = ctypes.c_int
 
     @callback_type
     def collect(hwnd, _lparam):
-        length = user32.GetWindowTextLengthW(hwnd)
-        if length <= 0:
+        try:
+            length = user32.GetWindowTextLengthW(hwnd)
+            if length <= 0:
+                return True
+            buffer = ctypes.create_unicode_buffer(length + 1)
+            user32.GetWindowTextW(hwnd, buffer, length + 1)
+            if _is_godot_error_window_title(buffer.value):
+                titles.append(buffer.value)
             return True
-        buffer = ctypes.create_unicode_buffer(length + 1)
-        user32.GetWindowTextW(hwnd, buffer, length + 1)
-        if _is_godot_error_window_title(buffer.value):
-            titles.append(buffer.value)
-        return True
+        except Exception as exc:
+            callback_errors.append(repr(exc))
+            return False
 
-    if not user32.EnumWindows(collect, 0):
-        raise ctypes.WinError()
+    ctypes.set_last_error(0)
+    enum_result = int(user32.EnumWindows(collect, 0))
+    last_error = ctypes.get_last_error()
+    if callback_errors:
+        raise RuntimeError(
+            "EnumWindows callback failed: " + "; ".join(callback_errors)
+        )
+    if _enum_windows_failed(enum_result, last_error):
+        raise ctypes.WinError(last_error)
     return sorted(set(titles))
 
 
@@ -219,6 +242,26 @@ def _collect_process_exit_codes(
     return sorted(records, key=lambda item: (item["image_name"].lower(), item["pid"]))
 
 
+def _resolve_monitored_executable(executable: Path) -> tuple[Path, bool]:
+    """Bypass Godot's Windows console wrapper for monitored launches.
+
+    The small ``*_console.exe`` binary starts the GUI-subsystem sibling. Native
+    failures in that child can surface an application-error dialog independently
+    of ``CREATE_NO_WINDOW`` on the wrapper. Launching the sibling directly keeps
+    the same engine and arguments under the existing process/window supervisor.
+    """
+    executable = Path(executable)
+    suffix = "_console.exe"
+    if os.name != "nt" or not executable.name.lower().endswith(suffix):
+        return executable, False
+    engine = executable.with_name(executable.name[: -len(suffix)] + ".exe")
+    if not engine.is_file():
+        raise FileNotFoundError(
+            f"Godot GUI sibling missing for monitored console wrapper: {engine}"
+        )
+    return engine, True
+
+
 def _start_without_windows_error_ui(
     command: list[str], environment: dict[str, str] | None
 ) -> tuple[subprocess.Popen[str], bool]:
@@ -259,6 +302,11 @@ def _start_without_windows_error_ui(
 def _run_monitored(
     command: list[str], timeout_s: int, environment: dict[str, str] | None = None
 ) -> tuple[subprocess.CompletedProcess[str], dict[str, Any]]:
+    requested_executable = Path(command[0])
+    launched_executable, console_wrapper_bypassed = \
+        _resolve_monitored_executable(requested_executable)
+    launch_command = list(command)
+    launch_command[0] = str(launched_executable)
     started = time.monotonic()
     started_at = datetime.datetime.now(datetime.UTC)
     observed: dict[tuple[str, int], dict[str, Any]] = {}
@@ -268,7 +316,7 @@ def _run_monitored(
     terminated_pids: list[int] = []
     next_process_sample = 0.0
     process, windows_error_ui_suppressed = _start_without_windows_error_ui(
-        command, environment
+        launch_command, environment
     )
 
     stdout = ""
@@ -320,6 +368,9 @@ def _run_monitored(
     observed_with_exit = _collect_process_exit_codes(observed, handles)
     health = {
         "contract": _RUNTIME_HEALTH_CONTRACT,
+        "requested_executable": str(requested_executable),
+        "launched_executable": str(launched_executable),
+        "console_wrapper_bypassed": console_wrapper_bypassed,
         "windows_error_ui_suppressed": windows_error_ui_suppressed,
         "started_at_utc": started_at.isoformat(),
         "ended_at_utc": datetime.datetime.now(datetime.UTC).isoformat(),

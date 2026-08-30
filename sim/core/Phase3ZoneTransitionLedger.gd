@@ -1,5 +1,7 @@
 extends RefCounted
 
+const TraceRecordScript = preload("res://sim/core/Phase3ProjectionTraceRecord.gd")
+
 ## H3.2b1b: persistent zone transition ledger.
 ##
 ## It repairs a structural blindness in `Phase3ProjectionCausalLedger`, whose
@@ -74,9 +76,26 @@ const GRANULARITY_CALL: String = "call"
 const REASON_TRACE_UNAVAILABLE: String = "projection_trace_unavailable"
 const REASON_NOT_SEEDED: String = "observer_not_seeded_before_first_step"
 
+const PREDICATES: Array[String] = [
+	PREDICATE_STRICT_POSITIVE, PREDICATE_LEDGER,
+	PREDICATE_PROJECTION, PREDICATE_FED_GATE,
+]
+
+enum CounterField {
+	INITIAL_PRESENT,
+	INITIAL_ABSENT,
+	BIRTH,
+	DEATH,
+	STABLE_PRESENT,
+	STABLE_ABSENT,
+	ROOM_ADDED,
+	ROOM_REMOVED,
+	SIZE,
+}
+
 var enabled: bool = false
 
-var _totals: Dictionary = {}
+var _totals: Array = []
 var _by_room: Dictionary = {}
 var _unavailable: Dictionary = {}
 var _seeded: bool = false
@@ -117,54 +136,58 @@ func is_seeded() -> bool:
 
 
 func _predicates() -> Array:
-	return [PREDICATE_STRICT_POSITIVE, PREDICATE_LEDGER,
-			PREDICATE_PROJECTION, PREDICATE_FED_GATE]
+	return PREDICATES
 
 
 func _present(upper_mass_kg: float, predicate: String) -> bool:
 	return upper_mass_kg > float(PREDICATE_THRESHOLDS_KG[predicate])
 
 
-func _counter_block() -> Dictionary:
+func _counter_block() -> Array:
 	## Every counter exists from the start, so a reported zero is a measured zero
 	## and never a missing key a reader has to interpret.
-	return {
-		# Seeding. These count ROOMS, not boundaries, and are never summed with
-		# the transition classes below.
-		"initial_present": 0,
-		"initial_absent": 0,
-		# Transition classes. These count OBSERVED BOUNDARIES.
-		"birth": 0,
-		"death": 0,
-		"stable_present": 0,
-		"stable_absent": 0,
-		# Room-set changes. Counted as boundaries, never as birth or death.
-		"room_added": 0,
-		"room_removed": 0,
-	}
+	var block: Array = []
+	block.resize(CounterField.SIZE)
+	block.fill(0)
+	return block
 
 
-func _bucket(granularity: String, predicate: String) -> Dictionary:
-	var key: String = "%s:%s" % [granularity, predicate]
-	if not _totals.has(key):
-		_totals[key] = _counter_block()
-	return _totals[key]
+func _bucket_index(granularity: String, predicate: String) -> int:
+	var predicate_index: int = PREDICATES.find(predicate)
+	if predicate_index < 0:
+		return -1
+	return predicate_index + (0 if granularity == GRANULARITY_STEP else 4)
 
 
-func _room_bucket(room_key: String, granularity: String, predicate: String) -> Dictionary:
+func _bucket(granularity: String, predicate: String) -> Array:
+	var index: int = _bucket_index(granularity, predicate)
+	if index < 0:
+		return []
+	while _totals.size() < 8:
+		_totals.append([])
+	if Array(_totals[index]).is_empty():
+		_totals[index] = _counter_block()
+	return _totals[index]
+
+
+func _room_bucket(room_key: String, granularity: String, predicate: String) -> Array:
 	if not _by_room.has(room_key):
-		_by_room[room_key] = {}
-	var per_room: Dictionary = _by_room[room_key]
-	var key: String = "%s:%s" % [granularity, predicate]
-	if not per_room.has(key):
-		per_room[key] = _counter_block()
-	return per_room[key]
+		var blocks: Array = []
+		blocks.resize(8)
+		_by_room[room_key] = blocks
+	var per_room: Array = _by_room[room_key]
+	var index: int = _bucket_index(granularity, predicate)
+	if index < 0:
+		return []
+	if per_room[index] == null or Array(per_room[index]).is_empty():
+		per_room[index] = _counter_block()
+	return per_room[index]
 
 
-func _bump(granularity: String, predicate: String, room_key: String, field: String) -> void:
-	var total: Dictionary = _bucket(granularity, predicate)
+func _bump(granularity: String, predicate: String, room_key: String, field: int) -> void:
+	var total: Array = _bucket(granularity, predicate)
 	total[field] = int(total[field]) + 1
-	var per_room: Dictionary = _room_bucket(room_key, granularity, predicate)
+	var per_room: Array = _room_bucket(room_key, granularity, predicate)
 	per_room[field] = int(per_room[field]) + 1
 
 
@@ -194,7 +217,7 @@ func seed(upper_mass_by_room: Dictionary) -> void:
 			# measured against the same initial state.
 			_last_call_presence[predicate][room_key] = present
 			_bump(GRANULARITY_STEP, predicate, String(room_key),
-				"initial_present" if present else "initial_absent")
+				CounterField.INITIAL_PRESENT if present else CounterField.INITIAL_ABSENT)
 
 
 # --------------------------------------------------------------------------
@@ -231,19 +254,23 @@ func observe_calls(trace_events: Array) -> void:
 	if not enabled or not _seeded:
 		return
 	for raw in trace_events:
-		var event: Dictionary = raw
-		var room_key: String = str(int(event.get("room_id", -1)))
-		var pre: Dictionary = event.get("pre", {})
-		var post: Dictionary = event.get("post", {})
-		var pre_mass: float = float(pre.get("upper_gas_kg", 0.0))
-		var post_mass: float = float(post.get("upper_gas_kg", 0.0))
+		var event: Array = raw if raw is Array \
+			else TraceRecordScript.from_dictionary(raw)
+		observe_call(event)
+
+
+func observe_call(event: Array) -> void:
+	if enabled and _seeded:
+		var room_key: String = str(int(event[TraceRecordScript.Field.ROOM_ID]))
+		var pre_mass: float = float(event[TraceRecordScript.Field.PRE_UPPER_GAS_KG])
+		var post_mass: float = float(event[TraceRecordScript.Field.POST_UPPER_GAS_KG])
 		for predicate in _predicates():
 			var last: Dictionary = _last_call_presence[predicate]
 			var pre_present: bool = _present(pre_mass, predicate)
 			if not last.has(room_key):
 				# A room seen for the first time at call granularity: a room-set
 				# change, not a birth.
-				_bump(GRANULARITY_CALL, predicate, room_key, "room_added")
+				_bump(GRANULARITY_CALL, predicate, room_key, CounterField.ROOM_ADDED)
 			else:
 				_classify_pair(GRANULARITY_CALL, predicate, room_key,
 					bool(last[room_key]), pre_present)
@@ -266,7 +293,7 @@ func _classify_boundary(
 		if not last.has(key):
 			# The room did not exist at the previous boundary. That is a
 			# room-set change, never a birth.
-			_bump(granularity, predicate, key, "room_added")
+			_bump(granularity, predicate, key, CounterField.ROOM_ADDED)
 		else:
 			_classify_pair(granularity, predicate, key, bool(last[key]), present)
 		last[key] = present
@@ -274,36 +301,75 @@ func _classify_boundary(
 	for key in last.keys():
 		if upper_mass_by_room.has(key):
 			continue
-		_bump(granularity, predicate, String(key), "room_removed")
+		_bump(granularity, predicate, String(key), CounterField.ROOM_REMOVED)
 		last.erase(key)
 
 
 func _classify_pair(
 	granularity: String, predicate: String, room_key: String,
 	was_present: bool, is_present: bool
-) -> void:
+	) -> void:
 	if was_present and is_present:
-		_bump(granularity, predicate, room_key, "stable_present")
+		_bump(granularity, predicate, room_key, CounterField.STABLE_PRESENT)
 	elif not was_present and not is_present:
-		_bump(granularity, predicate, room_key, "stable_absent")
+		_bump(granularity, predicate, room_key, CounterField.STABLE_ABSENT)
 	elif is_present:
-		_bump(granularity, predicate, room_key, "birth")
+		_bump(granularity, predicate, room_key, CounterField.BIRTH)
 	else:
-		_bump(granularity, predicate, room_key, "death")
+		_bump(granularity, predicate, room_key, CounterField.DEATH)
 
 
 # --------------------------------------------------------------------------
 # Summary
 # --------------------------------------------------------------------------
 
+func _counter_dictionary(block: Array) -> Dictionary:
+	return {
+		"initial_present": int(block[CounterField.INITIAL_PRESENT]),
+		"initial_absent": int(block[CounterField.INITIAL_ABSENT]),
+		"birth": int(block[CounterField.BIRTH]),
+		"death": int(block[CounterField.DEATH]),
+		"stable_present": int(block[CounterField.STABLE_PRESENT]),
+		"stable_absent": int(block[CounterField.STABLE_ABSENT]),
+		"room_added": int(block[CounterField.ROOM_ADDED]),
+		"room_removed": int(block[CounterField.ROOM_REMOVED]),
+	}
+
+
+func _totals_dictionary() -> Dictionary:
+	var totals: Dictionary = {}
+	for granularity in [GRANULARITY_STEP, GRANULARITY_CALL]:
+		for predicate in PREDICATES:
+			totals["%s:%s" % [granularity, predicate]] = \
+					_counter_dictionary(_bucket(granularity, predicate))
+	return totals
+
+
+func _rooms_dictionary() -> Dictionary:
+	var rooms: Dictionary = {}
+	for room_key in _by_room.keys():
+		var exported: Dictionary = {}
+		var blocks: Array = _by_room[room_key]
+		for granularity in [GRANULARITY_STEP, GRANULARITY_CALL]:
+			for predicate in PREDICATES:
+				var index: int = _bucket_index(granularity, predicate)
+				if blocks[index] == null or Array(blocks[index]).is_empty():
+					continue
+				exported["%s:%s" % [granularity, predicate]] = \
+						_counter_dictionary(blocks[index])
+		rooms[room_key] = exported
+	return rooms
+
+
 func _cardinality(granularity: String, predicate: String) -> Dictionary:
 	## Two identities over two different populations, never summed together.
-	var block: Dictionary = _bucket(granularity, predicate)
-	var seeded: int = int(block["initial_present"]) + int(block["initial_absent"])
+	var block: Array = _bucket(granularity, predicate)
+	var seeded: int = int(block[CounterField.INITIAL_PRESENT]) \
+			+ int(block[CounterField.INITIAL_ABSENT])
 	var boundaries: int = (
-		int(block["birth"]) + int(block["death"])
-		+ int(block["stable_present"]) + int(block["stable_absent"])
-		+ int(block["room_added"]) + int(block["room_removed"])
+		int(block[CounterField.BIRTH]) + int(block[CounterField.DEATH])
+		+ int(block[CounterField.STABLE_PRESENT]) + int(block[CounterField.STABLE_ABSENT])
+		+ int(block[CounterField.ROOM_ADDED]) + int(block[CounterField.ROOM_REMOVED])
 	)
 	var out: Dictionary = {
 		"initial_sum": seeded,
@@ -317,7 +383,8 @@ func _cardinality(granularity: String, predicate: String) -> Dictionary:
 		# With a constant room set the boundary count reduces to rooms x steps.
 		# That reduction is asserted only when the room set really was constant.
 		var constant_room_set: bool = (
-			int(block["room_added"]) == 0 and int(block["room_removed"]) == 0
+			int(block[CounterField.ROOM_ADDED]) == 0 \
+			and int(block[CounterField.ROOM_REMOVED]) == 0
 		)
 		out["room_set_constant"] = constant_room_set
 		out["rooms_times_steps"] = _rooms_seeded * _steps_observed
@@ -372,6 +439,6 @@ func summary() -> Dictionary:
 			+ " room_removed. Neither is ever counted as a birth or a death:"
 			+ " fabricating one would invent a zone transition that never happened",
 		"cardinality": cardinality,
-		"totals": _totals.duplicate(true),
-		"by_room": _by_room.duplicate(true),
+		"totals": _totals_dictionary(),
+		"by_room": _rooms_dictionary(),
 	}

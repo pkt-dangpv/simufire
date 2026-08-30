@@ -1,6 +1,8 @@
 extends RefCounted
 class_name ZoneFireSolver
 
+const TraceRecordScript = preload("res://sim/core/Phase3ProjectionTraceRecord.gd")
+
 # ============================================================
 # ZONE FIRE SOLVER  (SF-R6 — Consolidado)
 # ------------------------------------------------------------
@@ -45,7 +47,8 @@ var zone_solver_phase: int = 4
 var two_zone_energy_enabled: bool = false
 ## F3.1d: trace pasivo por llamada de project_room_state(). Solo telemetria.
 var projection_diagnostics_enabled: bool = false
-var _projection_trace_events: Array[Dictionary] = []
+var _projection_trace_records: Array = []
+var _projection_trace_record_pool: Array = []
 var _projection_call_index: int = 0
 
 const AIR_DENSITY_REF_KG_M3: float = 1.2
@@ -82,24 +85,29 @@ func set_building(b: BuildingModel) -> void:
 
 
 func begin_projection_diagnostics_step() -> void:
-	_projection_trace_events.clear()
+	_projection_trace_records.clear()
 	_projection_call_index = 0
 
 
 func get_projection_trace_events() -> Array[Dictionary]:
-	return _projection_trace_events.duplicate(true)
+	var events: Array[Dictionary] = []
+	for record in _projection_trace_records:
+		events.append(TraceRecordScript.to_dictionary(record))
+	return events
 
 
-func _projection_state(room: RoomModel) -> Dictionary:
-	return {
-		"upper_gas_kg": room.upper_gas_kg,
-		"lower_gas_kg": room.lower_gas_kg,
-		"upper_energy_kj": room.upper_energy_kj,
-		"lower_energy_kj": room.lower_energy_kj,
-		"thermal_layer_m": room.thermal_layer_m,
-		"temp_upper_c": room.temp_upper_c,
-		"temp_lower_c": room.temp_lower_c,
-	}
+func peek_projection_trace_records() -> Array:
+	## Internal read-only view for same-tick diagnostic consumers. Callers must
+	## never retain or mutate it: begin_projection_diagnostics_step() owns the
+	## array and clears it at the next tick. External state/export APIs continue
+	## through get_projection_trace_events(), which returns a defensive copy.
+	return _projection_trace_records
+
+
+func _projection_trace_record_for_call() -> Array:
+	if _projection_call_index >= _projection_trace_record_pool.size():
+		_projection_trace_record_pool.append(TraceRecordScript.new_record())
+	return _projection_trace_record_pool[_projection_call_index]
 
 
 # ------------------------------------------------------------------
@@ -205,9 +213,14 @@ func project_room_state(
 	if not two_zone_energy_enabled or room == null:
 		return
 	var trace_enabled: bool = projection_diagnostics_enabled
-	var pre_state: Dictionary = _projection_state(room) if trace_enabled else {}
+	var trace_record: Array = _projection_trace_record_for_call() if trace_enabled else []
+	if trace_enabled:
+		TraceRecordScript.capture_state(
+			trace_record, TraceRecordScript.Field.PRE_UPPER_GAS_KG, room)
 	ensure_room_state(room, ambient_c)
-	var ensured_state: Dictionary = _projection_state(room) if trace_enabled else {}
+	if trace_enabled:
+		TraceRecordScript.capture_state(
+			trace_record, TraceRecordScript.Field.ENSURED_UPPER_GAS_KG, room)
 	var projection_energy_before_kj: float = room.zone_total_energy_kj()
 
 	var lower_temp_c: float = ambient_c
@@ -250,7 +263,9 @@ func project_room_state(
 	room.lower_energy_kj = room.lower_gas_kg \
 			* maxf(0.0, room.temp_lower_c - ambient_c) \
 			* AIR_CP_KJ_KG_K
-	var pre_geometry_state: Dictionary = _projection_state(room) if trace_enabled else {}
+	if trace_enabled:
+		TraceRecordScript.capture_state(
+			trace_record, TraceRecordScript.Field.PRE_GEOMETRY_UPPER_GAS_KG, room)
 
 	var ambient_k: float = ambient_c + 273.15
 	var upper_k: float = maxf(ambient_k, room.temp_upper_c + 273.15)
@@ -289,61 +304,56 @@ func project_room_state(
 	room.two_zone_boundary_energy_kj += room.zone_total_energy_kj() - projection_energy_before_kj
 
 	if trace_enabled:
-		var post_state: Dictionary = _projection_state(room)
-		_projection_trace_events.append({
-			"call_index": _projection_call_index,
-			"cause": projection_cause,
-			"room_id": room.id,
-			"ambient_c": ambient_c,
-			"pre": pre_state,
-			"ensured": ensured_state,
-			"pre_geometry": pre_geometry_state,
-			"post": post_state,
-			"upper_density_kg_m3": upper_density_kg_m3,
-			"lower_density_kg_m3": lower_density_kg_m3,
-			"max_upper_mass_kg": max_upper_mass_kg,
-			"upper_mass_before_cap_kg": upper_mass_before_cap_kg,
-			"upper_energy_before_cap_kj": upper_energy_before_cap_kj,
-			"upper_volume_m3": upper_volume_m3,
-			"lower_volume_m3": lower_volume_m3,
-			"target_lower_mass_kg": target_lower_mass_kg,
-			"lower_mass_before_projection_kg": lower_mass_before_kg,
-			"lower_energy_before_projection_kj": lower_energy_before_kj,
-			"ensure_mass_delta_kg": (
-				float(ensured_state.get("upper_gas_kg", 0.0))
-				+ float(ensured_state.get("lower_gas_kg", 0.0))
-				- float(pre_state.get("upper_gas_kg", 0.0))
-				- float(pre_state.get("lower_gas_kg", 0.0))
-			),
-			"ensure_energy_delta_kj": (
-				float(ensured_state.get("upper_energy_kj", 0.0))
-				+ float(ensured_state.get("lower_energy_kj", 0.0))
-				- float(pre_state.get("upper_energy_kj", 0.0))
-				- float(pre_state.get("lower_energy_kj", 0.0))
-			),
-			"temperature_projection_energy_delta_kj": (
-				float(pre_geometry_state.get("upper_energy_kj", 0.0))
-				+ float(pre_geometry_state.get("lower_energy_kj", 0.0))
-				- float(ensured_state.get("upper_energy_kj", 0.0))
-				- float(ensured_state.get("lower_energy_kj", 0.0))
-			),
-			"upper_cap_mass_delta_kg": room.upper_gas_kg - upper_mass_before_cap_kg,
-			"upper_cap_energy_delta_kj": room.upper_energy_kj - upper_energy_before_cap_kj,
-			"lower_projection_mass_delta_kg": room.lower_gas_kg - lower_mass_before_kg,
-			"lower_projection_energy_delta_kj": room.lower_energy_kj - lower_energy_before_kj,
-			"total_mass_delta_kg": (
-				float(post_state.get("upper_gas_kg", 0.0))
-				+ float(post_state.get("lower_gas_kg", 0.0))
-				- float(pre_state.get("upper_gas_kg", 0.0))
-				- float(pre_state.get("lower_gas_kg", 0.0))
-			),
-			"total_energy_delta_kj": (
-				float(post_state.get("upper_energy_kj", 0.0))
-				+ float(post_state.get("lower_energy_kj", 0.0))
-				- float(pre_state.get("upper_energy_kj", 0.0))
-				- float(pre_state.get("lower_energy_kj", 0.0))
-			),
-		})
+		TraceRecordScript.capture_state(
+			trace_record, TraceRecordScript.Field.POST_UPPER_GAS_KG, room)
+		trace_record[TraceRecordScript.Field.CALL_INDEX] = _projection_call_index
+		trace_record[TraceRecordScript.Field.CAUSE] = projection_cause
+		trace_record[TraceRecordScript.Field.ROOM_ID] = room.id
+		trace_record[TraceRecordScript.Field.AMBIENT_C] = ambient_c
+		trace_record[TraceRecordScript.Field.UPPER_DENSITY_KG_M3] = upper_density_kg_m3
+		trace_record[TraceRecordScript.Field.LOWER_DENSITY_KG_M3] = lower_density_kg_m3
+		trace_record[TraceRecordScript.Field.MAX_UPPER_MASS_KG] = max_upper_mass_kg
+		trace_record[TraceRecordScript.Field.UPPER_MASS_BEFORE_CAP_KG] = upper_mass_before_cap_kg
+		trace_record[TraceRecordScript.Field.UPPER_ENERGY_BEFORE_CAP_KJ] = upper_energy_before_cap_kj
+		trace_record[TraceRecordScript.Field.UPPER_VOLUME_M3] = upper_volume_m3
+		trace_record[TraceRecordScript.Field.LOWER_VOLUME_M3] = lower_volume_m3
+		trace_record[TraceRecordScript.Field.TARGET_LOWER_MASS_KG] = target_lower_mass_kg
+		trace_record[TraceRecordScript.Field.LOWER_MASS_BEFORE_PROJECTION_KG] = lower_mass_before_kg
+		trace_record[TraceRecordScript.Field.LOWER_ENERGY_BEFORE_PROJECTION_KJ] = lower_energy_before_kj
+		trace_record[TraceRecordScript.Field.ENSURE_MASS_DELTA_KG] = (
+			float(trace_record[TraceRecordScript.Field.ENSURED_UPPER_GAS_KG])
+			+ float(trace_record[TraceRecordScript.Field.ENSURED_LOWER_GAS_KG])
+			- float(trace_record[TraceRecordScript.Field.PRE_UPPER_GAS_KG])
+			- float(trace_record[TraceRecordScript.Field.PRE_LOWER_GAS_KG]))
+		trace_record[TraceRecordScript.Field.ENSURE_ENERGY_DELTA_KJ] = (
+			float(trace_record[TraceRecordScript.Field.ENSURED_UPPER_ENERGY_KJ])
+			+ float(trace_record[TraceRecordScript.Field.ENSURED_LOWER_ENERGY_KJ])
+			- float(trace_record[TraceRecordScript.Field.PRE_UPPER_ENERGY_KJ])
+			- float(trace_record[TraceRecordScript.Field.PRE_LOWER_ENERGY_KJ]))
+		trace_record[TraceRecordScript.Field.TEMPERATURE_PROJECTION_ENERGY_DELTA_KJ] = (
+			float(trace_record[TraceRecordScript.Field.PRE_GEOMETRY_UPPER_ENERGY_KJ])
+			+ float(trace_record[TraceRecordScript.Field.PRE_GEOMETRY_LOWER_ENERGY_KJ])
+			- float(trace_record[TraceRecordScript.Field.ENSURED_UPPER_ENERGY_KJ])
+			- float(trace_record[TraceRecordScript.Field.ENSURED_LOWER_ENERGY_KJ]))
+		trace_record[TraceRecordScript.Field.UPPER_CAP_MASS_DELTA_KG] = \
+			room.upper_gas_kg - upper_mass_before_cap_kg
+		trace_record[TraceRecordScript.Field.UPPER_CAP_ENERGY_DELTA_KJ] = \
+			room.upper_energy_kj - upper_energy_before_cap_kj
+		trace_record[TraceRecordScript.Field.LOWER_PROJECTION_MASS_DELTA_KG] = \
+			room.lower_gas_kg - lower_mass_before_kg
+		trace_record[TraceRecordScript.Field.LOWER_PROJECTION_ENERGY_DELTA_KJ] = \
+			room.lower_energy_kj - lower_energy_before_kj
+		trace_record[TraceRecordScript.Field.TOTAL_MASS_DELTA_KG] = (
+			float(trace_record[TraceRecordScript.Field.POST_UPPER_GAS_KG])
+			+ float(trace_record[TraceRecordScript.Field.POST_LOWER_GAS_KG])
+			- float(trace_record[TraceRecordScript.Field.PRE_UPPER_GAS_KG])
+			- float(trace_record[TraceRecordScript.Field.PRE_LOWER_GAS_KG]))
+		trace_record[TraceRecordScript.Field.TOTAL_ENERGY_DELTA_KJ] = (
+			float(trace_record[TraceRecordScript.Field.POST_UPPER_ENERGY_KJ])
+			+ float(trace_record[TraceRecordScript.Field.POST_LOWER_ENERGY_KJ])
+			- float(trace_record[TraceRecordScript.Field.PRE_UPPER_ENERGY_KJ])
+			- float(trace_record[TraceRecordScript.Field.PRE_LOWER_ENERGY_KJ]))
+		_projection_trace_records.append(trace_record)
 		_projection_call_index += 1
 
 

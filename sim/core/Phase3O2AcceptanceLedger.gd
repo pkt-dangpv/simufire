@@ -49,6 +49,26 @@ const MATERIAL_EPS_FRACTION: float = 1.0e-9
 ## Bounded detail sample. The accumulators are fixed-size and keep full coverage.
 const SAMPLE_MAX: int = 256
 
+enum EntryField {
+	OWNER,
+	ZONE,
+	REASON_CODE,
+	COMPLETENESS,
+	KG_AVAILABLE,
+	APPLICATIONS,
+	STRICT_COUNT,
+	MATERIAL_COUNT,
+	CONFLICT_COUNT,
+	REQUESTED_FRACTION_TOTAL,
+	ACCEPTED_FRACTION_TOTAL,
+	CORRECTION_FRACTION_ABS,
+	CORRECTION_FRACTION_SIGNED,
+	MAX_CORRECTION_FRACTION,
+	ACCEPTED_KG_TOTAL,
+	ROOMS,
+	SIZE,
+}
+
 var enabled: bool = false
 
 ## Experimental flag state at measurement time. Set once by the owning component
@@ -60,11 +80,17 @@ var _totals: Dictionary = {}
 var _samples: Array[Dictionary] = []
 var _overflow: int = 0
 var _step: int = 0
+var _last_owner: String = ""
+var _last_zone: String = ""
+var _last_entry: Array = []
 
 
 func clear() -> void:
 	_totals.clear()
 	_samples.clear()
+	_last_owner = ""
+	_last_zone = ""
+	_last_entry.clear()
 	_overflow = 0
 	_step = 0
 
@@ -83,13 +109,43 @@ func get_step() -> int:
 	return _step
 
 
+func _entry_dictionary(entry: Array) -> Dictionary:
+	return {
+		"owner": String(entry[EntryField.OWNER]),
+		"zone": String(entry[EntryField.ZONE]),
+		"reason_code": String(entry[EntryField.REASON_CODE]),
+		"completeness": bool(entry[EntryField.COMPLETENESS]),
+		"kg_available": bool(entry[EntryField.KG_AVAILABLE]),
+		"material_eps_fraction": MATERIAL_EPS_FRACTION,
+		"unit": "fraction",
+		"applications": int(entry[EntryField.APPLICATIONS]),
+		"strict_count": int(entry[EntryField.STRICT_COUNT]),
+		"material_count": int(entry[EntryField.MATERIAL_COUNT]),
+		"conflict_count": int(entry[EntryField.CONFLICT_COUNT]),
+		"requested_fraction_total": float(entry[EntryField.REQUESTED_FRACTION_TOTAL]),
+		"accepted_fraction_total": float(entry[EntryField.ACCEPTED_FRACTION_TOTAL]),
+		"correction_fraction_abs": float(entry[EntryField.CORRECTION_FRACTION_ABS]),
+		"correction_fraction_signed": float(entry[EntryField.CORRECTION_FRACTION_SIGNED]),
+		"max_correction_fraction": float(entry[EntryField.MAX_CORRECTION_FRACTION]),
+		"accepted_kg_total": float(entry[EntryField.ACCEPTED_KG_TOTAL]),
+		"rooms": Array(entry[EntryField.ROOMS]).duplicate(),
+	}
+
+
+func _totals_dictionary() -> Dictionary:
+	var totals: Dictionary = {}
+	for key in _totals.keys():
+		totals[key] = _entry_dictionary(_totals[key])
+	return totals
+
+
 func summary(extra_flags: Dictionary = {}) -> Dictionary:
 	## Opt-in export. With nothing observed the result is completely empty, so an
 	## OFF run adds no key at all -- not even the threshold header.
 	var out: Dictionary = {}
 	if _totals.is_empty() and _samples.is_empty():
 		return out
-	out["totals"] = _totals.duplicate(true)
+	out["totals"] = _totals_dictionary()
 	out["samples"] = _samples.duplicate(true)
 	out["sample_limit"] = SAMPLE_MAX
 	out["sample_overflow"] = _overflow
@@ -105,7 +161,7 @@ func merge_totals_into(target: Dictionary) -> void:
 	## Combines this ledger's accumulators into a shared table. Used only to build
 	## the engine-level export; it never feeds a physical source.
 	for key in _totals.keys():
-		var src: Dictionary = _totals[key]
+		var src: Dictionary = _entry_dictionary(_totals[key])
 		if not target.has(key):
 			target[key] = src.duplicate(true)
 			continue
@@ -144,46 +200,52 @@ func samples() -> Array:
 	return _samples.duplicate(true)
 
 
+func peek_samples() -> Array:
+	## Internal read-only view used while assembling the final engine summary.
+	## Callers must not retain or mutate it; `samples()` remains the defensive
+	## public API. JSON serialization observes the same values either way.
+	return _samples
+
+
 func sample_overflow() -> int:
 	return _overflow
 
 
-func _entry(owner: String, zone: String, reason: String) -> Dictionary:
-	var key: String = "%s|%s" % [owner, zone]
-	if not _totals.has(key):
-		var known: bool = VALID_REASONS.has(reason)
-		_totals[key] = {
-			"owner": owner,
-			"zone": zone,
-			"reason_code": reason if known else REASON_CONFLICT,
-			# An unknown reason code is treated as incomplete, never as complete.
-			"completeness": known and reason == REASON_COMPLETE,
-			"kg_available": known and reason == REASON_COMPLETE,
-			"material_eps_fraction": MATERIAL_EPS_FRACTION,
-			"unit": "fraction",
-			"applications": 0,
-			"strict_count": 0,
-			"material_count": 0,
-			"conflict_count": 0,
-			"requested_fraction_total": 0.0,
-			"accepted_fraction_total": 0.0,
-			"correction_fraction_abs": 0.0,
-			"correction_fraction_signed": 0.0,
-			"max_correction_fraction": 0.0,
-			"accepted_kg_total": 0.0,
-			"rooms": [],
-		}
-		return _totals[key]
-	var entry: Dictionary = _totals[key]
-	# Fail-closed: a second, different reason for the same owner and zone means
-	# the key does not describe one homogeneous population. Downgrade rather than
-	# let the first reason stand and keep publishing kilograms.
-	if String(entry["reason_code"]) != reason:
-		entry["reason_code"] = REASON_CONFLICT
-		entry["completeness"] = false
-		entry["kg_available"] = false
-		entry["conflict_count"] = int(entry["conflict_count"]) + 1
-		entry["accepted_kg_total"] = 0.0
+func _entry(owner: String, zone: String, reason: String) -> Array:
+	var entry: Array = []
+	if owner == _last_owner and zone == _last_zone and not _last_entry.is_empty():
+		entry = _last_entry
+	else:
+		var key: String = "%s|%s" % [owner, zone]
+		if _totals.has(key):
+			entry = _totals[key]
+		else:
+			var known: bool = VALID_REASONS.has(reason)
+			entry.resize(EntryField.SIZE)
+			entry.fill(0.0)
+			entry[EntryField.OWNER] = owner
+			entry[EntryField.ZONE] = zone
+			entry[EntryField.REASON_CODE] = reason if known else REASON_CONFLICT
+			entry[EntryField.COMPLETENESS] = known and reason == REASON_COMPLETE
+			entry[EntryField.KG_AVAILABLE] = known and reason == REASON_COMPLETE
+			for index in [
+				EntryField.APPLICATIONS, EntryField.STRICT_COUNT,
+				EntryField.MATERIAL_COUNT, EntryField.CONFLICT_COUNT,
+			]:
+				entry[index] = 0
+			entry[EntryField.ROOMS] = []
+			_totals[key] = entry
+		_last_owner = owner
+		_last_zone = zone
+		_last_entry = entry
+	# Conflict checking still runs on cache hits; caching never weakens the
+	# fail-closed reason contract.
+	if String(entry[EntryField.REASON_CODE]) != reason:
+		entry[EntryField.REASON_CODE] = REASON_CONFLICT
+		entry[EntryField.COMPLETENESS] = false
+		entry[EntryField.KG_AVAILABLE] = false
+		entry[EntryField.CONFLICT_COUNT] = int(entry[EntryField.CONFLICT_COUNT]) + 1
+		entry[EntryField.ACCEPTED_KG_TOTAL] = 0.0
 	return entry
 
 
@@ -202,33 +264,36 @@ func record(
 	## Passing a reconstruction would defeat the whole measurement.
 	if not enabled:
 		return
-	var entry: Dictionary = _entry(owner, zone, reason)
-	entry["applications"] = int(entry["applications"]) + 1
-	entry["requested_fraction_total"] = \
-			float(entry["requested_fraction_total"]) + (requested_fraction - pre_fraction)
-	entry["accepted_fraction_total"] = \
-			float(entry["accepted_fraction_total"]) + (accepted_fraction - pre_fraction)
+	var entry: Array = _entry(owner, zone, reason)
+	entry[EntryField.APPLICATIONS] = int(entry[EntryField.APPLICATIONS]) + 1
+	entry[EntryField.REQUESTED_FRACTION_TOTAL] = \
+			float(entry[EntryField.REQUESTED_FRACTION_TOTAL]) \
+			+ (requested_fraction - pre_fraction)
+	entry[EntryField.ACCEPTED_FRACTION_TOTAL] = \
+			float(entry[EntryField.ACCEPTED_FRACTION_TOTAL]) \
+			+ (accepted_fraction - pre_fraction)
 	var correction: float = accepted_fraction - requested_fraction
 	var magnitude: float = absf(correction)
 	var strict_bound: bool = correction != 0.0
 	var material_bound: bool = magnitude > MATERIAL_EPS_FRACTION
-	var complete: bool = bool(entry["kg_available"]) and not is_nan(mass_base_kg)
+	var complete: bool = bool(entry[EntryField.KG_AVAILABLE]) and not is_nan(mass_base_kg)
 	if complete:
-		entry["accepted_kg_total"] = float(entry["accepted_kg_total"]) \
+		entry[EntryField.ACCEPTED_KG_TOTAL] = \
+				float(entry[EntryField.ACCEPTED_KG_TOTAL]) \
 				+ (accepted_fraction - pre_fraction) * mass_base_kg
 	if strict_bound:
-		entry["strict_count"] = int(entry["strict_count"]) + 1
-		entry["correction_fraction_abs"] = \
-				float(entry["correction_fraction_abs"]) + magnitude
-		entry["correction_fraction_signed"] = \
-				float(entry["correction_fraction_signed"]) + correction
-		entry["max_correction_fraction"] = maxf(
-			float(entry["max_correction_fraction"]), magnitude
+		entry[EntryField.STRICT_COUNT] = int(entry[EntryField.STRICT_COUNT]) + 1
+		entry[EntryField.CORRECTION_FRACTION_ABS] = \
+				float(entry[EntryField.CORRECTION_FRACTION_ABS]) + magnitude
+		entry[EntryField.CORRECTION_FRACTION_SIGNED] = \
+				float(entry[EntryField.CORRECTION_FRACTION_SIGNED]) + correction
+		entry[EntryField.MAX_CORRECTION_FRACTION] = maxf(
+			float(entry[EntryField.MAX_CORRECTION_FRACTION]), magnitude
 		)
 		if material_bound:
-			entry["material_count"] = int(entry["material_count"]) + 1
-		if room != null and not Array(entry["rooms"]).has(room.id):
-			entry["rooms"].append(room.id)
+			entry[EntryField.MATERIAL_COUNT] = int(entry[EntryField.MATERIAL_COUNT]) + 1
+		if room != null and not Array(entry[EntryField.ROOMS]).has(room.id):
+			entry[EntryField.ROOMS].append(room.id)
 	_totals["%s|%s" % [owner, zone]] = entry
 	if not strict_bound:
 		return
@@ -252,7 +317,7 @@ func record(
 		"strict_bound": strict_bound,
 		"material_bound": material_bound,
 		"material_eps_fraction": MATERIAL_EPS_FRACTION,
-		"reason_code": String(entry["reason_code"]),
+		"reason_code": String(entry[EntryField.REASON_CODE]),
 		"completeness": complete,
 		"flags": flags,
 	})

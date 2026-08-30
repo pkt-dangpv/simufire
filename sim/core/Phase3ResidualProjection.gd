@@ -114,6 +114,31 @@ const VOLUME_CLOSURE_ROUNDING_BUDGET: int = 16
 ## only its floating-point evaluation.
 const AMBIENT_PRESSURE_ROUNDING_BUDGET: int = 8
 
+## Compact observable layout used by the passive runtime shadow. The public
+## `derive()` API still returns the documented Dictionary; these indices avoid
+## constructing nested dictionaries hundreds of thousands of times merely to
+## read the same scalar observables internally.
+enum Observable {
+	VALID,
+	REASON,
+	ROOM_VOLUME_M3,
+	REFERENCE_TEMP_K,
+	GAS_R_J_KG_K,
+	PRESSURE_ABS_PA,
+	UPPER_PRESENT,
+	UPPER_TEMP_K,
+	UPPER_DENSITY_KG_M3,
+	UPPER_VOLUME_M3,
+	LOWER_PRESENT,
+	LOWER_TEMP_K,
+	LOWER_DENSITY_KG_M3,
+	LOWER_VOLUME_M3,
+	INTERFACE_HEIGHT_M,
+	INTERFACE_RAW_M,
+	CLOSURE_ERROR_M3,
+	CLOSURE_BUDGET_M3,
+}
+
 ## Reason codes. `REASON_OK` is the only one a valid result carries.
 const REASON_OK: String = "ok"
 const REASON_NON_FINITE_INPUT: String = "non_finite_input"
@@ -157,7 +182,53 @@ static func derive(
 	room_height_m: float,
 	ambient_temp_c: float
 ) -> Dictionary:
-	## The primitive. Pure: it reads its arguments and returns a new Dictionary.
+	## Public compatibility API. All arithmetic and validation live in the
+	## compact primitive below; this function only materializes the documented
+	## Dictionary shape for external callers.
+	var observables: Array = derive_observables(
+		upper_mass_kg, upper_energy_kj, lower_mass_kg, lower_energy_kj,
+		floor_area_m2, room_height_m, ambient_temp_c)
+	if not bool(observables[Observable.VALID]):
+		return _invalid(String(observables[Observable.REASON]))
+	return {
+		"valid": true,
+		"reason_code": REASON_OK,
+		"room_volume_m3": float(observables[Observable.ROOM_VOLUME_M3]),
+		"floor_area_m2": floor_area_m2,
+		"room_height_m": room_height_m,
+		"reference_temp_k": float(observables[Observable.REFERENCE_TEMP_K]),
+		"gas_constant_j_kg_k": float(observables[Observable.GAS_R_J_KG_K]),
+		"pressure_abs_pa": float(observables[Observable.PRESSURE_ABS_PA]),
+		"upper": _zone(
+			bool(observables[Observable.UPPER_PRESENT]), upper_mass_kg, upper_energy_kj,
+			float(observables[Observable.UPPER_TEMP_K]),
+			float(observables[Observable.UPPER_DENSITY_KG_M3]),
+			float(observables[Observable.UPPER_VOLUME_M3])),
+		"lower": _zone(
+			bool(observables[Observable.LOWER_PRESENT]), lower_mass_kg, lower_energy_kj,
+			float(observables[Observable.LOWER_TEMP_K]),
+			float(observables[Observable.LOWER_DENSITY_KG_M3]),
+			float(observables[Observable.LOWER_VOLUME_M3])),
+		"interface_height_m": float(observables[Observable.INTERFACE_HEIGHT_M]),
+		"interface_height_raw_m": float(observables[Observable.INTERFACE_RAW_M]),
+		"volume_closure_error_m3": float(observables[Observable.CLOSURE_ERROR_M3]),
+		"volume_closure_budget_m3": float(observables[Observable.CLOSURE_BUDGET_M3]),
+		"mass_correction_kg": 0.0,
+		"energy_correction_kj": 0.0,
+		"thermal_limit_applied": false,
+	}
+
+
+static func derive_observables(
+	upper_mass_kg: float,
+	upper_energy_kj: float,
+	lower_mass_kg: float,
+	lower_energy_kj: float,
+	floor_area_m2: float,
+	room_height_m: float,
+	ambient_temp_c: float
+) -> Array:
+	## The primitive. Pure: it reads its arguments and returns a compact Array.
 	##
 	## GEOMETRY CONTRACT. The caller passes `floor_area_m2` and `room_height_m`
 	## explicitly; the room volume is `A * h`. The interface height is the depth
@@ -179,17 +250,17 @@ static func derive(
 		upper_mass_kg, upper_energy_kj, lower_mass_kg, lower_energy_kj,
 		floor_area_m2, room_height_m, ambient_temp_c)
 	if invalid_input != REASON_OK:
-		return _invalid(invalid_input)
+		return _invalid_observables(invalid_input)
 
 	var room_volume_m3: float = floor_area_m2 * room_height_m
 	if not is_finite(room_volume_m3) or room_volume_m3 <= 0.0:
-		return _invalid(REASON_INVALID_GEOMETRY)
+		return _invalid_observables(REASON_INVALID_GEOMETRY)
 
 	var reference_temp_k: float = ambient_temp_c + KELVIN_OFFSET_C
 	var gas_constant: float = AIR_PRESSURE_REF_PA \
 			/ (AIR_DENSITY_REF_KG_M3 * reference_temp_k)
 	if not is_finite(gas_constant) or gas_constant <= 0.0:
-		return _invalid(REASON_INVALID_AMBIENT)
+		return _invalid_observables(REASON_INVALID_AMBIENT)
 
 	var upper_present: bool = upper_mass_kg > 0.0
 	var lower_present: bool = lower_mass_kg > 0.0
@@ -216,9 +287,9 @@ static func derive(
 
 	var pressure_abs_pa: float = (gas_constant / room_volume_m3) * mass_temperature_sum
 	if not is_finite(pressure_abs_pa):
-		return _invalid(REASON_NON_FINITE_RESULT)
+		return _invalid_observables(REASON_NON_FINITE_RESULT)
 	if pressure_abs_pa <= 0.0:
-		return _invalid(REASON_NON_POSITIVE_PRESSURE)
+		return _invalid_observables(REASON_NON_POSITIVE_PRESSURE)
 
 	var upper_density_kg_m3: float = 0.0
 	var lower_density_kg_m3: float = 0.0
@@ -236,10 +307,10 @@ static func derive(
 	# that cannot satisfy that is rejected rather than emitted with a hole in it.
 	if not _present_zone_is_sound(upper_present, upper_temp_k,
 			upper_density_kg_m3, upper_volume_m3):
-		return _invalid(REASON_NON_FINITE_RESULT)
+		return _invalid_observables(REASON_NON_FINITE_RESULT)
 	if not _present_zone_is_sound(lower_present, lower_temp_k,
 			lower_density_kg_m3, lower_volume_m3):
-		return _invalid(REASON_NON_FINITE_RESULT)
+		return _invalid_observables(REASON_NON_FINITE_RESULT)
 
 	# The closure is algebraically exact; what is left is rounding. The budget is
 	# a numerical bound on the room volume, not a physical tolerance, and a state
@@ -248,7 +319,7 @@ static func derive(
 	var closure_budget_m3: float = float(VOLUME_CLOSURE_ROUNDING_BUDGET) \
 			* DOUBLE_EPSILON * room_volume_m3
 	if absf(closure_error_m3) > closure_budget_m3:
-		return _invalid(REASON_VOLUME_CLOSURE_OUT_OF_BUDGET)
+		return _invalid_observables(REASON_VOLUME_CLOSURE_OUT_OF_BUDGET)
 
 	# INTERFACE. When one zone is absent the boundary is not a rounded quantity
 	# at all: it is a geometric fact known from the presence state, so it is
@@ -269,39 +340,19 @@ static func derive(
 				* DOUBLE_EPSILON * room_height_m
 		interface_raw_m = lower_volume_m3 / floor_area_m2
 		if not is_finite(interface_raw_m):
-			return _invalid(REASON_NON_FINITE_RESULT)
+			return _invalid_observables(REASON_NON_FINITE_RESULT)
 		if interface_raw_m < -interface_budget_m \
 				or interface_raw_m > room_height_m + interface_budget_m:
-			return _invalid(REASON_INTERFACE_OUT_OF_BUDGET)
+			return _invalid_observables(REASON_INTERFACE_OUT_OF_BUDGET)
 		interface_height_m = clampf(interface_raw_m, 0.0, room_height_m)
 
-	return {
-		"valid": true,
-		"reason_code": REASON_OK,
-		"room_volume_m3": room_volume_m3,
-		"floor_area_m2": floor_area_m2,
-		"room_height_m": room_height_m,
-		"reference_temp_k": reference_temp_k,
-		"gas_constant_j_kg_k": gas_constant,
-		"pressure_abs_pa": pressure_abs_pa,
-		"upper": _zone(upper_present, upper_mass_kg, upper_energy_kj,
-			upper_temp_k, upper_density_kg_m3, upper_volume_m3),
-		"lower": _zone(lower_present, lower_mass_kg, lower_energy_kj,
-			lower_temp_k, lower_density_kg_m3, lower_volume_m3),
-		"interface_height_m": interface_height_m,
-		"interface_height_raw_m": interface_raw_m,
-		"volume_closure_error_m3": closure_error_m3,
-		"volume_closure_budget_m3": closure_budget_m3,
-		# Exactly zero, and returned as a literal rather than as a computed
-		# difference: a valid state needs no correction, and there is no path in
-		# this primitive that could produce a non-zero one.
-		"mass_correction_kg": 0.0,
-		"energy_correction_kj": 0.0,
-		# The derived upper temperature is reported UNLIMITED. H3.2b5 owns the
-		# thermal limit; this primitive never removes energy and never treats a
-		# maximum temperature as authorisation to change E.
-		"thermal_limit_applied": false,
-	}
+	return [
+		true, REASON_OK, room_volume_m3, reference_temp_k, gas_constant,
+		pressure_abs_pa, upper_present, upper_temp_k, upper_density_kg_m3,
+		upper_volume_m3, lower_present, lower_temp_k, lower_density_kg_m3,
+		lower_volume_m3, interface_height_m, interface_raw_m, closure_error_m3,
+		closure_budget_m3,
+	]
 
 
 static func _zone(
@@ -398,3 +449,7 @@ static func _invalid(reason_code: String) -> Dictionary:
 		"energy_correction_kj": 0.0,
 		"thermal_limit_applied": false,
 	}
+
+
+static func _invalid_observables(reason_code: String) -> Array:
+	return [false, reason_code]

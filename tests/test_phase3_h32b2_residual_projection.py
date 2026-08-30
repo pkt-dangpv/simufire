@@ -80,7 +80,7 @@ def test_reference_constants_are_exactly_the_canonical_ones():
 
 
 def test_gas_constant_is_derived_per_call_the_canonical_way():
-    body = _func(SOURCE, "derive")
+    body = _func(SOURCE, "derive_observables")
     assert "var reference_temp_k: float = ambient_temp_c + KELVIN_OFFSET_C" in body
     assert "AIR_PRESSURE_REF_PA \\" in body
     assert "/ (AIR_DENSITY_REF_KG_M3 * reference_temp_k)" in body
@@ -112,7 +112,7 @@ def test_the_ambient_bound_is_derived_not_fitted():
 
 
 def test_pressure_and_density_follow_the_stated_equations():
-    body = _func(SOURCE, "derive")
+    body = _func(SOURCE, "derive_observables")
     assert "(gas_constant / room_volume_m3) * mass_temperature_sum" in body
     assert "pressure_abs_pa / (gas_constant * upper_temp_k)" in body
     assert "pressure_abs_pa / (gas_constant * lower_temp_k)" in body
@@ -120,7 +120,7 @@ def test_pressure_and_density_follow_the_stated_equations():
 
 
 def test_temperature_uses_the_engine_convention_and_constant():
-    body = _func(SOURCE, "derive")
+    body = _func(SOURCE, "derive_observables")
     assert "reference_temp_k \\" in body
     assert "+ upper_energy_kj / (upper_mass_kg * AIR_CP_KJ_KG_K)" in body
     assert "+ lower_energy_kj / (lower_mass_kg * AIR_CP_KJ_KG_K)" in body
@@ -173,9 +173,9 @@ def test_a_present_zone_is_checked_finite_and_positive_before_emission():
     assert "not is_finite(temperature_k) or temperature_k <= 0.0" in body
     assert "not is_finite(density_kg_m3) or density_kg_m3 <= 0.0" in body
     assert "not is_finite(volume_m3)" in body
-    caller = _func(SOURCE, "derive")
+    caller = _func(SOURCE, "derive_observables")
     assert caller.count("_present_zone_is_sound(") == 2
-    assert "return _invalid(REASON_NON_FINITE_RESULT)" in caller
+    assert "return _invalid_observables(REASON_NON_FINITE_RESULT)" in caller
 
 
 def test_an_invalid_result_carries_no_derived_field():
@@ -193,7 +193,7 @@ def test_an_invalid_result_carries_no_derived_field():
 # --------------------------------------------------------------------------
 
 def test_one_zone_interface_is_exact_by_construction():
-    body = _func(SOURCE, "derive")
+    body = _func(SOURCE, "derive_observables")
     branch = body.split("# INTERFACE.", 1)[1]
     assert "if not upper_present:" in branch
     assert "interface_height_m = room_height_m" in branch
@@ -208,7 +208,7 @@ def test_one_zone_interface_is_exact_by_construction():
 
 
 def test_the_exact_boundary_corrects_no_mass_or_energy():
-    body = _func(SOURCE, "derive")
+    body = _func(SOURCE, "derive_observables")
     branch = body.split("# INTERFACE.", 1)[1].split("else:", 1)[0]
     for forbidden in ("mass_kg =", "energy_kj =", "volume_m3 ="):
         assert forbidden not in branch, forbidden
@@ -216,7 +216,7 @@ def test_the_exact_boundary_corrects_no_mass_or_energy():
 
 
 def test_interface_uses_the_canonical_lower_depth_form():
-    body = _func(SOURCE, "derive")
+    body = _func(SOURCE, "derive_observables")
     assert "interface_raw_m = lower_volume_m3 / floor_area_m2" in body
     # Same form as the canonical solver.
     assert "lower_volume_m3 / floor_area_m2" in COUPLED
@@ -224,15 +224,15 @@ def test_interface_uses_the_canonical_lower_depth_form():
 
 
 def test_the_two_zone_interface_is_still_bounded_and_fails_closed():
-    body = _func(SOURCE, "derive")
+    body = _func(SOURCE, "derive_observables")
     branch = body.split("# INTERFACE.", 1)[1].split("else:", 1)[1]
     assert "DOUBLE_EPSILON * room_height_m" in branch
-    assert "return _invalid(REASON_INTERFACE_OUT_OF_BUDGET)" in branch
+    assert "return _invalid_observables(REASON_INTERFACE_OUT_OF_BUDGET)" in branch
     assert "clampf(interface_raw_m, 0.0, room_height_m)" in branch
 
 
 def test_the_only_clamp_is_the_two_zone_interface_projection():
-    body = _func(SOURCE, "derive")
+    body = _func(SOURCE, "derive_observables")
     assert len(re.findall(r"clampf\(", body)) == 1
 
 
@@ -268,7 +268,7 @@ def test_no_external_writes_and_no_engine_coupling():
 
 
 def test_returns_a_fresh_dictionary_and_mutates_no_argument():
-    body = _func(SOURCE, "derive")
+    body = _func(SOURCE, "derive_observables")
     for arg in ("upper_mass_kg", "upper_energy_kj", "lower_mass_kg",
                 "lower_energy_kj", "floor_area_m2", "room_height_m",
                 "ambient_temp_c"):
@@ -382,7 +382,7 @@ def test_no_flag_is_introduced():
 # --------------------------------------------------------------------------
 
 def test_geometry_is_an_explicit_argument_not_an_inference():
-    body = _func(SOURCE, "derive")
+    body = _func(SOURCE, "derive_observables")
     assert "floor_area_m2: float" in SOURCE
     assert "room_height_m: float" in SOURCE
     assert "floor_area_m2 * room_height_m" in body
@@ -395,7 +395,7 @@ def test_the_constant_cross_section_assumption_is_documented():
 
 
 def test_geometry_is_derived_from_inventories_not_the_reverse():
-    body = _func(SOURCE, "derive")
+    body = _func(SOURCE, "derive_observables")
     for line in _strip_comments(body).splitlines():
         if re.search(r"(mass_kg|energy_kj)\s*=", line) and "==" not in line:
             assert "volume" not in line and "area" not in line, line
@@ -446,7 +446,7 @@ def test_negative_energy_is_still_rejected():
 
 
 def test_absent_zone_presence_is_a_strictly_positive_mass():
-    body = _func(SOURCE, "derive")
+    body = _func(SOURCE, "derive_observables")
     assert "upper_present: bool = upper_mass_kg > 0.0" in body
     assert "lower_present: bool = lower_mass_kg > 0.0" in body
     for species in ("o2", "co2", "co_", "hcn", "smoke", "species"):
@@ -490,15 +490,15 @@ def test_the_closure_bound_is_derived_from_floating_point():
 
 
 def test_the_bound_scales_with_the_room_and_is_not_absolute():
-    body = _func(SOURCE, "derive")
+    body = _func(SOURCE, "derive_observables")
     assert "DOUBLE_EPSILON * room_volume_m3" in body
     assert "DOUBLE_EPSILON * room_height_m" in body
 
 
 def test_out_of_budget_fails_closed_rather_than_being_nudged():
-    body = _func(SOURCE, "derive")
-    assert "return _invalid(REASON_VOLUME_CLOSURE_OUT_OF_BUDGET)" in body
-    assert "return _invalid(REASON_INTERFACE_OUT_OF_BUDGET)" in body
+    body = _func(SOURCE, "derive_observables")
+    assert "return _invalid_observables(REASON_VOLUME_CLOSURE_OUT_OF_BUDGET)" in body
+    assert "return _invalid_observables(REASON_INTERFACE_OUT_OF_BUDGET)" in body
 
 
 def test_corrections_are_literal_zero_not_a_computed_difference():

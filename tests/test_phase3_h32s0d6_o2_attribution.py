@@ -122,9 +122,13 @@ def test_reason_codes_are_declared_and_the_conflict_marker_is_internal():
 
 def test_kg_requires_completeness():
     body = _func(LEDGER, "record")
-    assert 'var complete: bool = bool(entry["kg_available"]) and not is_nan(mass_base_kg)' in body
+    assert (
+        "var complete: bool = bool(entry[EntryField.KG_AVAILABLE]) "
+        "and not is_nan(mass_base_kg)" in body
+    )
     kg_line = next(
-        line for line in body.splitlines() if 'entry["accepted_kg_total"] =' in line
+        line for line in body.splitlines()
+        if "entry[EntryField.ACCEPTED_KG_TOTAL] =" in line
     )
     preceding = body.split(kg_line, 1)[0].rstrip().splitlines()[-1].strip()
     assert preceding == "if complete:"
@@ -134,19 +138,20 @@ def test_kg_requires_completeness():
 
 def test_reason_conflict_is_fail_closed():
     entry = _func(LEDGER, "_entry")
-    assert 'if String(entry["reason_code"]) != reason:' in entry
-    downgrade = entry.split('if String(entry["reason_code"]) != reason:', 1)[1]
+    guard = "if String(entry[EntryField.REASON_CODE]) != reason:"
+    assert guard in entry
+    downgrade = entry.split(guard, 1)[1]
     for line in (
-        'entry["reason_code"] = REASON_CONFLICT',
-        'entry["completeness"] = false',
-        'entry["kg_available"] = false',
-        'entry["accepted_kg_total"] = 0.0',
+        "entry[EntryField.REASON_CODE] = REASON_CONFLICT",
+        "entry[EntryField.COMPLETENESS] = false",
+        "entry[EntryField.KG_AVAILABLE] = false",
+        "entry[EntryField.ACCEPTED_KG_TOTAL] = 0.0",
     ):
         assert line in downgrade, line
     # An unknown reason code must never be treated as complete.
     assert "var known: bool = VALID_REASONS.has(reason)" in entry
-    assert '"completeness": known and reason == REASON_COMPLETE,' in entry
-    assert '"kg_available": known and reason == REASON_COMPLETE,' in entry
+    assert "entry[EntryField.COMPLETENESS] = known and reason == REASON_COMPLETE" in entry
+    assert "entry[EntryField.KG_AVAILABLE] = known and reason == REASON_COMPLETE" in entry
 
 
 def test_merge_is_conjunctive_on_completeness():
@@ -247,12 +252,15 @@ def test_clear_resets_everything():
 def test_owner_and_zone_are_the_key():
     entry = _func(LEDGER, "_entry")
     assert 'var key: String = "%s|%s" % [owner, zone]' in entry
+    assert "entry[EntryField.OWNER] = owner" in entry
+    assert "entry[EntryField.ZONE] = zone" in entry
+    exported = _func(LEDGER, "_entry_dictionary")
     for field in ('"owner"', '"zone"', '"reason_code"', '"completeness"',
                   '"kg_available"', '"applications"', '"strict_count"',
                   '"material_count"', '"conflict_count"',
                   '"requested_fraction_total"', '"accepted_fraction_total"',
                   '"unit"', '"rooms"'):
-        assert field in entry, field
+        assert field in exported, field
 
 
 # --------------------------------------------------------------------------

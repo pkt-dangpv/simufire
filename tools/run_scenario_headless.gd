@@ -741,12 +741,7 @@ func _run_loop(
 	var max_iterations: int = int(ceil(duration_s / step_s)) + 1000
 	var stagnant_steps: int = 0
 	for _iteration in range(max_iterations):
-		var state: Dictionary = engine.get_state()
-		if state.is_empty():
-			_abort("run_scenario_headless: engine returned an empty state")
-			return false
-
-		var sim_time_s: float = float(state.get("sim_time_s", 0.0))
+		var sim_time_s: float = engine.sim_time_s
 		_apply_due_opening_events(building, opening_events, sim_time_s)
 		_apply_due_suppression_events(engine, suppression_events, sim_time_s)
 		if sim_time_s >= duration_s:
@@ -754,13 +749,13 @@ func _run_loop(
 
 		var previous_time_s: float = sim_time_s
 		engine.step(step_s / maxf(0.001, engine.time_scale))
-		state = engine.get_state()
-		if state.is_empty():
-			_abort("run_scenario_headless: engine returned an empty state after step")
-			return false
-
-		sim_time_s = float(state.get("sim_time_s", 0.0))
-		_append_projection_trace(state, sim_time_s)
+		sim_time_s = engine.sim_time_s
+		if _projection_trace_enabled:
+			var state: Dictionary = engine.get_state()
+			if state.is_empty():
+				_abort("run_scenario_headless: engine returned an empty state after step")
+				return false
+			_append_projection_trace(state, sim_time_s)
 		if sim_time_s <= previous_time_s + 0.000001:
 			stagnant_steps += 1
 			if stagnant_steps >= 10:

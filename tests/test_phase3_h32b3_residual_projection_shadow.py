@@ -29,6 +29,9 @@ SHADOW = SHADOW_PATH.read_text(encoding="utf-8")
 FIXTURE = FIXTURE_PATH.read_text(encoding="utf-8")
 ENGINE = (ROOT / "sim/core/SimulationEngine.gd").read_text(encoding="utf-8")
 SOLVER = (ROOT / "sim/core/ZoneFireSolver.gd").read_text(encoding="utf-8")
+TRACE = (ROOT / "sim/core/Phase3ProjectionTraceRecord.gd").read_text(
+    encoding="utf-8"
+)
 
 
 def _strip_comments(text: str) -> str:
@@ -71,16 +74,16 @@ def test_the_h32b1_flag_never_enables_the_shadow():
 
 def test_the_shadow_hook_runs_after_the_causal_accumulator():
     # So H3.2b1 keeps its own "trace unavailable on the first step" semantics.
-    assert ("_phase3_projection_causal_accumulate()\n"
-            "\t_phase3_residual_projection_shadow_accumulate()") in ENGINE
-    assert ENGINE.count("_phase3_residual_projection_shadow_accumulate()") == 2
+    hook = _func(ENGINE, "_phase3_projection_diagnostics_accumulate_shared")
+    assert hook.index("if causal_active:") < hook.index("if residual_active:")
+    assert hook.index(
+        "_phase3_projection_causal_ledger.accumulate_event(event)"
+    ) < hook.index("_phase3_residual_projection_shadow.accumulate_event(")
 
 
 def test_the_shadow_is_gated_off_first():
-    hook = _func(ENGINE, "_phase3_residual_projection_shadow_accumulate")
-    first = next(line.strip() for line in hook.splitlines()
-                 if line.strip().startswith("if "))
-    assert first.startswith("if not phase3_residual_projection_shadow_enabled")
+    hook = _func(ENGINE, "_phase3_projection_diagnostics_accumulate_shared")
+    assert "if residual_active:" in hook
     body = _func(SHADOW, "accumulate_step")
     guard = next(line.strip() for line in body.splitlines()
                  if line.strip().startswith("if "))
@@ -108,17 +111,19 @@ def test_zone_fire_solver_gains_no_shadow_instrumentation():
 
 
 def test_the_shadow_consumes_the_existing_trace():
-    hook = _func(ENGINE, "_phase3_residual_projection_shadow_accumulate")
-    assert "zone_fire_solver.get_projection_trace_events()" in hook
+    hook = _func(ENGINE, "_phase3_projection_diagnostics_accumulate_shared")
+    assert "zone_fire_solver.peek_projection_trace_records()" in hook
     # The trace getter returns a duplicate and does not consume, so H3.2b1 and
     # H3.2b3 can both read it without interfering.
     getter = _func(SOLVER, "get_projection_trace_events")
-    assert "_projection_trace_events.duplicate(true)" in getter
+    assert "TraceRecordScript.to_dictionary(record)" in getter
     assert "clear()" not in getter
 
 
 def test_geometry_comes_from_the_building_because_the_trace_lacks_it():
-    snapshot = _func(SOLVER, "_projection_state")
+    snapshot = TRACE.split("static func state_dictionary(", 1)[1].split(
+        "\n\nstatic func", 1
+    )[0]
     for absent in ("floor_area", "height_m", "volume_m3"):
         assert absent not in snapshot, absent
     helper = _func(ENGINE, "_phase3_residual_projection_shadow_geometry")
@@ -145,11 +150,11 @@ def test_the_result_is_never_applied_or_used_as_a_fallback():
 
 
 def test_the_shadow_never_mutates_its_inputs():
-    body = _func(SHADOW, "accumulate_step")
-    for forbidden in ("event[", "pre[", "post[", "geometry["):
-        assert ("%s\"" % forbidden) not in body.replace(" ", ""), forbidden
-    # Only reads.
-    assert "event.get(" in body and "pre.get(" in body and "post.get(" in body
+    body = _func(SHADOW, "accumulate_event")
+    assert not re.search(r"event\[[^\]]+\]\s*=", body)
+    assert not re.search(r"geometry\[[^\]]+\]\s*=", body)
+    assert "event[TraceRecordScript.Field." in body
+    assert "geometry.get(" in body
 
 
 def test_no_shadow_metric_governs_physics():
@@ -193,8 +198,7 @@ def test_the_summary_block_is_opt_in():
 def test_nothing_is_called_a_legacy_pressure():
     assert "legacy_pressure" not in SHADOW
     # Legacy really does store none: the solver's snapshot has no pressure.
-    snapshot = _func(SOLVER, "_projection_state")
-    assert "pressure" not in snapshot
+    assert "pressure" not in _func(TRACE, "state_dictionary")
 
 
 def test_the_two_pressures_are_named_distinctly():
@@ -206,11 +210,20 @@ def test_the_two_pressures_are_named_distinctly():
 
 def test_the_recomputation_is_never_fed_back_into_the_primitive():
     body = _func(SHADOW, "_accumulate_canonical_pressure_from_legacy_post")
-    # It derives from the legacy post inventory and only records extremes/sums.
-    assert "ResidualProjectionScript.derive(" in body
-    assert "canonical_pressure_from_legacy_post_pa_sum" in body
+    # It receives the pure post-state result and only records extremes/sums.
+    assert "ResidualProjectionScript.derive(" not in body
+    assert "recomputed: Array" in body
+    assert "TotalMetric.CANONICAL_POST_PRESSURE_SUM" in body
+    assert (
+        '"canonical_pressure_from_legacy_post_pa_sum"'
+        in _func(SHADOW, "_totals_dictionary")
+    )
+    # The only primitive call is isolated in the exact-input cache.
+    cached = _func(SHADOW, "_derive_cached")
+    assert cached.count("ResidualProjectionScript.derive_observables(") == 1
+    assert "ResidualProjectionScript.derive(" not in cached
     # Its result never becomes an input to the pre-state comparison.
-    accumulate = _func(SHADOW, "accumulate_step")
+    accumulate = _func(SHADOW, "accumulate_event")
     idx = accumulate.find("_accumulate_canonical_pressure_from_legacy_post(")
     assert idx != -1
     assert "canonical_pressure_from_legacy_post" not in accumulate[:idx]
@@ -218,13 +231,21 @@ def test_the_recomputation_is_never_fed_back_into_the_primitive():
 
 
 def test_the_primitive_input_is_the_pre_state():
-    body = _func(SHADOW, "accumulate_step")
-    call = body.split("ResidualProjectionScript.derive(", 1)[1].split(")", 1)[0]
+    body = _func(SHADOW, "accumulate_event")
+    calls = body.split("_derive_cached(")[1:]
+    assert len(calls) == 2
+    pre_call = calls[0].split(")", 1)[0]
+    post_call = calls[1].split(")", 1)[0]
     for token in ("pre_upper_mass", "pre_upper_energy",
                   "pre_lower_mass", "pre_lower_energy"):
-        assert token in call, token
+        assert token in pre_call, token
     for forbidden in ("post_upper_mass", "post_lower_mass"):
-        assert forbidden not in call, forbidden
+        assert forbidden not in pre_call, forbidden
+    for token in ("post_upper_mass", "post_upper_energy",
+                  "post_lower_mass", "post_lower_energy"):
+        assert token in post_call, token
+    for forbidden in ("pre_upper_mass", "pre_lower_mass"):
+        assert forbidden not in post_call, forbidden
 
 
 # --------------------------------------------------------------------------
@@ -232,7 +253,7 @@ def test_the_primitive_input_is_the_pre_state():
 # --------------------------------------------------------------------------
 
 def test_gross_and_signed_are_kept_separate():
-    block = _func(SHADOW, "_new_divergence_block")
+    block = _func(SHADOW, "_block_to_dictionary")
     for quantity in ("residual_vs_legacy_upper_mass", "residual_vs_legacy_lower_mass",
                      "legacy_rewrite_upper_mass", "legacy_rewrite_lower_mass"):
         assert "%s_signed_net_kg_total" % quantity in block, quantity
@@ -255,7 +276,7 @@ def test_gross_is_documented_as_churn():
 
 
 def test_both_directions_of_the_inventory_delta_are_exported():
-    block = _func(SHADOW, "_new_divergence_block")
+    block = _func(SHADOW, "_block_to_dictionary")
     assert "legacy_rewrite_lower_mass_signed_net_kg_total" in block
     assert "residual_vs_legacy_lower_mass_signed_net_kg_total" in block
     assert "legacy_rewrite      = post - pre" in SHADOW
@@ -273,7 +294,11 @@ def test_the_legacy_predicate_is_mirrored_not_invented():
 
 def test_a_mismatch_is_counted_and_not_called_a_loss():
     body = _func(SHADOW, "_compare_presence")
-    assert "presence_predicate_mismatch_%s_total" in body
+    assert "TotalMetric.PRESENCE_MISMATCH_UPPER" in body
+    assert "TotalMetric.PRESENCE_MISMATCH_LOWER" in body
+    totals = _func(SHADOW, "_totals_dictionary")
+    assert '"presence_predicate_mismatch_upper_total"' in totals
+    assert '"presence_predicate_mismatch_lower_total"' in totals
     assert "never evidence that mass was lost" in body
     summary = _func(SHADOW, "summary")
     assert '"presence_predicate_note"' in summary
@@ -286,12 +311,13 @@ def test_h32b3_does_not_choose_a_canonical_predicate():
     constants = re.findall(r"^const (\w+)", SHADOW, re.M)
     for name in constants:
         assert name in {"LEGACY_ZONE_MASS_EPS_KG", "REASON_TRACE_UNAVAILABLE",
-                        "REASON_GEOMETRY_UNAVAILABLE", "ResidualProjectionScript"}, name
+                        "REASON_GEOMETRY_UNAVAILABLE", "ResidualProjectionScript",
+                        "TraceRecordScript"}, name
 
 
 def test_temperature_is_compared_only_where_both_models_have_the_zone():
     body = _func(SHADOW, "_compare_zone_temperature")
-    assert 'if not bool(residual_zone.get("present", false)):' in body
+    assert "if not residual_present:" in body
     assert "if legacy_post_mass_kg <= LEGACY_ZONE_MASS_EPS_KG:" in body
     assert body.count("return") >= 2
 
@@ -307,7 +333,7 @@ def test_the_blind_transition_counters_are_neither_repaired_nor_gated_on():
     block = _func(SHADOW, "_new_divergence_block")
     for forbidden in ("birth", "death", "transition"):
         assert forbidden not in block.lower(), forbidden
-    accumulate = _func(SHADOW, "accumulate_step")
+    accumulate = _func(SHADOW, "accumulate_event")
     for forbidden in ("birth", "death"):
         assert forbidden not in accumulate.lower(), forbidden
     assert '"transition_counter_note"' in _func(SHADOW, "summary")
@@ -329,12 +355,14 @@ def test_missing_telemetry_fails_closed():
 
 
 def test_an_invalid_primitive_is_counted_and_nothing_is_substituted():
-    body = _func(SHADOW, "accumulate_step")
-    invalid = body.split('if not bool(residual.get("valid", false)):', 1)[1]
-    invalid = invalid.split("room_block[\"primitive_valid_count_total\"]", 1)[0]
-    assert "primitive_invalid_count_total" in invalid
+    body = _func(SHADOW, "accumulate_event")
+    invalid = body.split(
+        "if not bool(residual[ResidualProjectionScript.Observable.VALID]):", 1
+    )[1]
+    invalid = invalid.split("room_block[BlockMetric.PRIMITIVE_VALID_COUNT]", 1)[0]
+    assert "TotalMetric.PRIMITIVE_INVALID_COUNT" in invalid
     assert "_invalid_reasons[reason]" in invalid
-    assert "continue" in invalid
+    assert "return" in invalid
     # No divergence is fabricated for a state that could not be evaluated.
     assert "residual_vs_legacy" not in invalid
 
@@ -343,13 +371,23 @@ def test_absent_and_zero_never_look_alike():
     # Every counter exists from the first step, so a zero is a measured zero
     # rather than a missing key a reader has to interpret.
     body = _func(SHADOW, "_ensure_totals")
-    for key in ("primitive_invalid_count_total",
-                "presence_predicate_mismatch_total",
-                "canonical_pressure_from_legacy_post_invalid_count_total",
-                "residual_vs_legacy_upper_temp_comparable_count_total"):
-        assert key in body, key
+    for metric in (
+        "TotalMetric.PRIMITIVE_INVALID_COUNT",
+        "TotalMetric.PRESENCE_MISMATCH_TOTAL",
+        "TotalMetric.CANONICAL_POST_PRESSURE_INVALID_COUNT",
+        "TotalMetric.UPPER_TEMP_COMPARABLE_COUNT",
+    ):
+        assert metric in body, metric
+    totals = _func(SHADOW, "_totals_dictionary")
+    for key in (
+        "primitive_invalid_count_total",
+        "presence_predicate_mismatch_total",
+        "canonical_pressure_from_legacy_post_invalid_count_total",
+        "residual_vs_legacy_upper_temp_comparable_count_total",
+    ):
+        assert key in totals, key
     assert "Absence and zero must not look alike" in SHADOW
-    assert "_ensure_totals()" in _func(SHADOW, "accumulate_step")
+    assert "_ensure_totals()" in _func(SHADOW, "begin_step")
 
 
 def test_every_exported_metric_is_cumulative():
