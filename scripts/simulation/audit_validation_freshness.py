@@ -21,6 +21,7 @@ Does NOT modify any file.  Read-only.
 from __future__ import annotations
 
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -43,6 +44,9 @@ CASES_DIR   = ROOT / "sim" / "validation" / "cases"
 BASELINES_DIR = ROOT / "sim" / "validation" / "baselines"
 REPORTS_DIR = ROOT / "sim" / "validation" / "reports"
 REF_CHECKS  = REPORTS_DIR / "reference_checks.json"
+BASELINE_GATE_DISPOSITIONS = (
+    ROOT / "sim" / "validation" / "baseline_gate_dispositions.json"
+)
 
 def _find_latest_estado(root: Path) -> Path:
     """Return the most recent ESTADO_SESION_*.md file, or a sentinel path if none found."""
@@ -338,6 +342,61 @@ def check_report_fields(
                                 f"missing fields: {sorted(missing)}"))
 
 
+def get_baseline_gate_disposition(
+    case_name: str,
+    baseline_path: Path,
+    baseline_result: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Return an exact approved disposition, or fail closed with ``None``."""
+    registry, _ = _load_json_safe(BASELINE_GATE_DISPOSITIONS)
+    if not isinstance(registry, dict) or registry.get("schema_version") != 1:
+        return None
+    dispositions = registry.get("dispositions")
+    if not isinstance(dispositions, dict):
+        return None
+    entry = dispositions.get(case_name)
+    if not isinstance(entry, dict):
+        return None
+
+    required_fields = {
+        "finding_id": "A14-P1-001",
+        "classification": "STALE_INTERNAL_REGRESSION_ARTIFACT",
+        "status": "RETIRED_FROM_AUTHORITY_EVIDENCE",
+        "exit_behavior": "NON_BLOCKING_PRESERVE_FAILURE",
+        "runtime_authority": "NO-GO",
+    }
+    if any(entry.get(key) != value for key, value in required_fields.items()):
+        return None
+    if entry.get("record_preserved") is not True:
+        return None
+
+    try:
+        actual_hash = hashlib.sha256(baseline_path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+    if entry.get("baseline_sha256") != actual_hash:
+        return None
+
+    expected_failures = entry.get("expected_failing_checks")
+    checks = baseline_result.get("checks")
+    if not isinstance(expected_failures, list) or not isinstance(checks, dict):
+        return None
+    if not all(isinstance(check, dict) for check in checks.values()):
+        return None
+    if not expected_failures or not all(
+        isinstance(check_name, str) for check_name in expected_failures
+    ):
+        return None
+    actual_failures = sorted(
+        str(check_name)
+        for check_name, check in checks.items()
+        if isinstance(check, dict) and check.get("pass") is False
+    )
+    if sorted(expected_failures) != actual_failures:
+        return None
+    return entry
+
+
 def check_baseline_all_pass(
     reports: dict[str, Path],
     baselines: dict[str, Path],
@@ -354,8 +413,18 @@ def check_baseline_all_pass(
         if bl.get("all_pass") is False:
             failing = [k for k, v in bl.get("checks", {}).items()
                        if not v.get("pass", True)]
-            issues.append(Issue(WARNING, "baseline_failing", name,
-                                f"baseline.all_pass=False — failing checks: {failing}"))
+            disposition = get_baseline_gate_disposition(name, baselines[name], bl)
+            if disposition is not None:
+                issues.append(Issue(
+                    INFO,
+                    "baseline_retired",
+                    name,
+                    "baseline.all_pass=False preserved; authority gate retired "
+                    f"by {disposition['finding_id']} — failing checks: {failing}",
+                ))
+            else:
+                issues.append(Issue(WARNING, "baseline_failing", name,
+                                    f"baseline.all_pass=False — failing checks: {failing}"))
 
 
 def check_score_coherence(issues: list[Issue]) -> dict[str, Any]:

@@ -16,6 +16,7 @@ class_name CaseRunner
 
 const BuildingTemplateScript = preload("res://sim/templates/BuildingTemplate.gd")
 const TargetModelScript = preload("res://sim/fire/TargetModel.gd")
+const BASELINE_GATE_DISPOSITIONS_PATH := "res://sim/validation/baseline_gate_dispositions.json"
 
 @export var building_path: NodePath
 @export var engine_path: NodePath
@@ -1235,9 +1236,22 @@ func _finalize_validation_run(state: Dictionary) -> void:
 	var exit_code: int = 0
 	if not baseline_result.is_empty():
 		var all_pass: bool = bool(baseline_result.get("all_pass", false))
-		print("[Validation] Baseline %s" % ("PASS" if all_pass else "FAIL"))
-		if not all_pass:
-			exit_code = 2
+		if all_pass:
+			print("[Validation] Baseline PASS")
+		else:
+			var disposition: Dictionary = _load_baseline_gate_disposition(
+				_case_name,
+				_baseline_path,
+				baseline_result
+			)
+			if disposition.is_empty():
+				print("[Validation] Baseline FAIL")
+				exit_code = 2
+			else:
+				print(
+					"[Validation] Baseline FAIL (retired from authority evidence by %s; checks preserved)"
+					% String(disposition.get("finding_id", ""))
+				)
 
 	if auto_quit and not bool(_cli_args.get("validation_no_quit", false)):
 		get_tree().quit(exit_code)
@@ -1275,6 +1289,74 @@ func _compare_against_baseline(metrics: Dictionary, baseline_data: Dictionary) -
 		"all_pass": all_pass,
 		"checks": checks
 	}
+
+
+func _load_baseline_gate_disposition(
+	case_name: String,
+	baseline_path: String,
+	baseline_result: Dictionary
+) -> Dictionary:
+	var registry_text: String = _read_text_file(BASELINE_GATE_DISPOSITIONS_PATH)
+	if registry_text.is_empty():
+		return {}
+
+	var registry_value: Variant = JSON.parse_string(registry_text)
+	if typeof(registry_value) != TYPE_DICTIONARY:
+		return {}
+	var registry: Dictionary = registry_value
+	if int(registry.get("schema_version", 0)) != 1:
+		return {}
+
+	var dispositions_value: Variant = registry.get("dispositions", {})
+	if typeof(dispositions_value) != TYPE_DICTIONARY:
+		return {}
+	var dispositions: Dictionary = dispositions_value
+	var entry_value: Variant = dispositions.get(case_name, {})
+	if typeof(entry_value) != TYPE_DICTIONARY:
+		return {}
+	var entry: Dictionary = entry_value
+
+	if String(entry.get("finding_id", "")) != "A14-P1-001":
+		return {}
+	if String(entry.get("classification", "")) != "STALE_INTERNAL_REGRESSION_ARTIFACT":
+		return {}
+	if String(entry.get("status", "")) != "RETIRED_FROM_AUTHORITY_EVIDENCE":
+		return {}
+	if String(entry.get("exit_behavior", "")) != "NON_BLOCKING_PRESERVE_FAILURE":
+		return {}
+	if not bool(entry.get("record_preserved", false)):
+		return {}
+	if String(entry.get("runtime_authority", "")) != "NO-GO":
+		return {}
+
+	var expected_hash: String = String(entry.get("baseline_sha256", "")).to_lower()
+	var actual_hash: String = FileAccess.get_sha256(baseline_path).to_lower()
+	if expected_hash.is_empty() or expected_hash != actual_hash:
+		return {}
+
+	var expected_value: Variant = entry.get("expected_failing_checks", [])
+	if typeof(expected_value) != TYPE_ARRAY:
+		return {}
+	var expected_failing_checks: Array[String] = []
+	for check_name in expected_value:
+		expected_failing_checks.append(String(check_name))
+	expected_failing_checks.sort()
+
+	var checks_value: Variant = baseline_result.get("checks", {})
+	if typeof(checks_value) != TYPE_DICTIONARY:
+		return {}
+	var actual_failing_checks: Array[String] = []
+	for check_name in Dictionary(checks_value).keys():
+		var check_value: Variant = Dictionary(checks_value).get(check_name, {})
+		if typeof(check_value) != TYPE_DICTIONARY:
+			return {}
+		if not bool(Dictionary(check_value).get("pass", false)):
+			actual_failing_checks.append(String(check_name))
+	actual_failing_checks.sort()
+
+	if expected_failing_checks.is_empty() or expected_failing_checks != actual_failing_checks:
+		return {}
+	return entry
 
 
 func _collect_room_ids(state: Dictionary) -> Array[int]:
