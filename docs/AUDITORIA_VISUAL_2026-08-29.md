@@ -567,6 +567,23 @@ Además, el penacho estaba **gateado por `curtain_visible`**, el mismo acoplamie
 
 Verificado en captura: con el enganche corregido el penacho se dibuja, y lo hace como una columna gris ahusada que sale del hueco, no como una losa naranja.
 
+### 🟠 X-4. Los dientes de sierra eran el borde de sombra, no la textura — **[CORREGIDO 2026-09-01]**
+Diagnosticado sobre el **vídeo del simulador** que grabó el usuario, extrayendo fotogramas con ffmpeg. Ampliado el pasillo, lo que parecía alias de textura es un **patrón de puntos a lo largo de un borde de sombra**: en GL Compatibility el difuminado de sombra se hace con un tramado por píxel, y con `shadow_blur = 1.4` sobre un mapa que reparte su resolución entre 42 m el borde se llena de puntos que **reptan al mover la cámara**. Eso es exactamente el síntoma descrito.
+
+Corrección: `exterior_sky_shadow_blur` 1,4 → 0,6 y `exterior_sky_shadow_max_distance_m` 42 → 22, que concentra los texeles donde de verdad se mira. Ambos ya eran `@export`.
+
+### 🟠 X-5. El ruido de pared se leía como humedades — **[CORREGIDO 2026-09-01]**
+En el mismo fotograma del pasillo, la pared tiene manchas del tamaño de una persona: medido, un contraste p5-p95 del **56 %**. El patrón era demasiado grande (1,8 m) y demasiado contrastado (0,13) para leerse como enfoscado.
+
+Corrección: contraste 0,13 → **0,06** y tamaño 1,8 → **0,85 m**. El grano pasa a ser de material en vez de mancha.
+
+### 🔴 X-6. El instrumental de capturas no era determinista — **[CORREGIDO 2026-09-01]**
+Descubierto al comparar dos capturas seguidas: **la misma versión, ejecutada dos veces, daba vistas FP distintas** (33,86 y 21,12 de diferencia media por canal), mientras la casa de muñecas salía idéntica (0,00). El jugador es un `CharacterBody3D` con gravedad y `move_and_slide()`: durante el reposo se desliza y cae, y cuánto lo haga depende del ritmo de fotogramas.
+
+**Consecuencia sobre lo ya afirmado en este informe:** las comparaciones antes/después de vistas FP con diferencias pequeñas —del orden de unas décimas o pocos puntos porcentuales— no eran fiables y no deben leerse como prueba. Las diferencias grandes y repetidas sí (FP-6 subía la luminancia de 18,9 a 32,4, ×1,71), pero conviene rehacerlas ahora que el instrumental es estable. Las medidas de la casa de muñecas nunca estuvieron afectadas.
+
+Corrección: el jugador se vuelve a fijar y se le anula la velocidad justo antes de capturar. Verificado: dos ejecuciones seguidas dan 0,00 de diferencia en las vistas estáticas y 0,06 en la del fuego, que tiene llama animada.
+
 ---
 
 ## 13. Estado final de la línea visual (2026-08-31)

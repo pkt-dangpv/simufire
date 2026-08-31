@@ -110,11 +110,15 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var material_noise_frequency: float = 0.075
 ## Contraste del ruido: cuanto llega a oscurecer la mota mas oscura respecto
 ## al color base. Bajo a proposito; el ruido rompe el plano, no mancha.
-@export_range(0.0, 0.6, 0.01) var material_noise_contrast: float = 0.13
+## Medido sobre una captura del pasillo, 0,13 daba manchas que se leen como
+## humedades, no como enfoscado. El ruido debe insinuarse, no mancharse.
+@export_range(0.0, 0.6, 0.01) var material_noise_contrast: float = 0.06
 ## Tamano en metros del patron de ruido. Se aplica con UV triplanar en
 ## coordenadas de mundo, asi que la escala es la misma en un tabique de 6 m
 ## y en una jamba de 0,2 m, y el patron encaja entre piezas contiguas.
-@export_range(0.2, 8.0, 0.1) var material_noise_size_m: float = 1.8
+## Tamano del patron. Con 1,8 m las manchas eran del tamano de una persona y
+## se leian como suciedad; a menos de 1 m el grano pasa a ser de material.
+@export_range(0.2, 8.0, 0.1) var material_noise_size_m: float = 0.85
 ## Multiplicador de contraste de la capa de suciedad de suelos y rodapies,
 ## que si admiten mas variacion que un paramento vertical.
 @export_range(1.0, 4.0, 0.1) var material_floor_dirt_boost: float = 2.1
@@ -208,8 +212,14 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## max_distance = mas resolucion cerca (menos temblor).
 @export var exterior_sky_shadow_bias: float = 0.08
 @export var exterior_sky_shadow_normal_bias: float = 2.0
-@export_range(0.0, 4.0, 0.1) var exterior_sky_shadow_blur: float = 1.4
-@export var exterior_sky_shadow_max_distance_m: float = 42.0
+## Radio de difuminado de la sombra del sol. En GL Compatibility el difuminado
+## se hace con un patron TRAMADO por pixel: con radios altos el borde de sombra
+## se llena de puntos que reptan al mover la camara. 1,4 era demasiado.
+@export_range(0.0, 4.0, 0.1) var exterior_sky_shadow_blur: float = 0.6
+## Alcance del mapa de sombra direccional. Repartir la misma resolucion entre
+## 42 m deja muy pocos texeles donde de verdad se mira, dentro de la vivienda,
+## y eso agrava el tramado del borde. El decorado lejano no necesita sombra.
+@export var exterior_sky_shadow_max_distance_m: float = 22.0
 @export var exterior_soft_fill_day_energy: float = 0.18
 @export var exterior_soft_fill_night_energy: float = 0.06
 @export var exterior_soft_fill_day_color: Color = Color(0.78, 0.86, 0.94, 1.0)

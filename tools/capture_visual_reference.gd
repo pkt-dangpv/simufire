@@ -158,14 +158,29 @@ func _capture_first_person(building: BuildingModel) -> void:
 
 
 func _place_fp(fp: Node3D, from_plan: Vector2, look_plan: Vector2, pitch: float) -> void:
-	fp.global_position = Vector3(from_plan.x - plan_center_m.x, 0.05, from_plan.y - plan_center_m.y)
+	var target := Vector3(from_plan.x - plan_center_m.x, 0.05, from_plan.y - plan_center_m.y)
 	var d: Vector2 = look_plan - from_plan
-	fp.rotation.y = atan2(-d.x, -d.y)
+	var yaw: float = atan2(-d.x, -d.y)
+	_pin_fp(fp, target, yaw, pitch)
+	await _settle(settle_frames_view)
+	# El jugador es un CharacterBody3D con gravedad y move_and_slide(): durante
+	# el reposo se desliza y cae, y cuanto lo haga depende del ritmo de
+	# fotogramas. Sin volver a fijarlo aqui, dos ejecuciones del MISMO codigo
+	# dan encuadres distintos y las comparaciones antes/despues no valen.
+	_pin_fp(fp, target, yaw, pitch)
+	await get_tree().process_frame
+
+
+## Coloca al jugador y le quita la inercia, para que la vista sea reproducible.
+func _pin_fp(fp: Node3D, position: Vector3, yaw: float, pitch: float) -> void:
+	fp.global_position = position
+	fp.rotation.y = yaw
+	if fp is CharacterBody3D:
+		(fp as CharacterBody3D).velocity = Vector3.ZERO
 	var cam := fp.get_node_or_null("FirstPersonCamera") as Camera3D
 	if cam != null:
 		cam.rotation.x = pitch
 		cam.current = true
-	await _settle(settle_frames_view)
 
 
 # ---------------------------------------------------------------------------
