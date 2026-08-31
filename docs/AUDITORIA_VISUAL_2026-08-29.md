@@ -3,6 +3,7 @@
 **Fecha:** 2026-08-29 · **Alcance:** todo el aparato visual — humo y fuego (`view/3d/smoke`, `view/3d/fire`), visor 3D dollhouse (`view/3d`), primera persona (`view/fp`), visor 2D y minimapa (`view/2d`, `ui/Minimap2D.gd`), materiales e iluminación.
 **Motivo:** revisión pedida sobre tres síntomas concretos — humo poco natural en ventanas y puertas, exterior de las viviendas feo, rellano y entradas igual.
 **Continuación de:** [AUDITORIA_VISUAL_2026-07-15.md](AUDITORIA_VISUAL_2026-07-15.md) (§9 recoge qué queda vivo de aquella).
+**Addendum 2026-08-31:** informe verificado en ejecución sobre Godot 4.7.1 con render real de la vista FP; se añaden FP-6 y FP-7 (§5), se reescribe §11 y se añade el plan de cierre de toda la línea visual (§12).
 
 Severidades: 🔴 alta (rompe la lectura de la escena) · 🟠 media (se nota en escenarios habituales) · 🟡 baja (pulido) · ℹ️ nota.
 Marcas: **[CORREGIDO]** en esta pasada · **[ABIERTO]** pendiente.
@@ -183,8 +184,34 @@ Trabajo duplicado en `_update_dynamic_state` (ahora `_apply_selection_visuals` n
 ### 🟡 FP-4. Consultas repetidas por frame físico — **[ABIERTO]**
 `_find_current_room_id()` y `get_room_rects_m()` se recalculan varias veces por frame en overlay, HUD y humo.
 
+### 🟠 FP-6. La sala con humo y sin fuego se apaga por completo — **[ABIERTO]**
+Verificado **en ejecución** (Godot 4.7.1 en la máquina del proyecto, capturas FP a 1600 × 900, 2026-08-31). La transmisión de humo de la sala escala la energía **y el alcance** de la luz de techo ([FirstPersonController.gd:4842](../view/fp/FirstPersonController.gd)):
+
+```gdscript
+light.light_energy = base_energy * transmission
+light.omni_range = base_range * lerpf(0.50, 1.0, transmission)
+```
+
+Medido en un dormitorio de 4 × 4 × 2,62 m, capa a 1,95 m y 9 m de visibilidad (transmisión 0,529):
+
+| Estado | Energía | Alcance |
+|---|---|---|
+| limpio | 0,599 | 3,23 m |
+| con humo | 0,317 | **2,47 m** |
+
+Con la luminaria en el techo a 2,62 m, un alcance de 2,47 m **no llega ni al suelo situado justo debajo** (2,62 > 2,47), y mucho menos a las esquinas (3,85 m). La sala se queda iluminada sólo por la ventana y se lee como una caja negra **aunque el observador esté por debajo de la interfase y el HUD marque 22 m de visibilidad**.
+
+No es la niebla: con la representación de visibilidad desactivada (densidad forzada a 0) la pared sigue negra, y la captura con representación activada es indistinguible de la que no la tiene. Es iluminación.
+
+Importa porque ése es justamente el estado de la sala contigua al incendio, por donde se mueve el usuario, y porque el término de densidad de `_light_smoke_transmission_for_room()` satura con sólo 0,018 kg/m³: dispara en casi cualquier escenario con humo. Matiza la nota FP-5.
+
+Corrección propuesta: atenuar la energía pero **no** el alcance (o acotarlo por abajo a la diagonal de la sala), y ponderar la atenuación por la fracción del trayecto luz → superficie que realmente atraviesa la capa, en vez de por el estado global de la sala.
+
+### ℹ️ FP-7. El humo entre salas de §1 no existe en primera persona
+La cortina de vano, el puente con intradós y el penacho exterior corregidos en §1 y §2 viven **sólo en `Visualizer3D`** (cero referencias en `FirstPersonController.gd`). En FP el humo es únicamente la niebla de cámara de la sala actual, así que al mirar por una puerta hacia una sala invadida no se ve cuerpo de humo alguno, y desde la calle una ventana con la sala llena no echa penacho. No es necesariamente un fallo —FP usa niebla volumétrica en vez de mallas—, pero conviene tenerlo presente: las correcciones estrella de esta pasada se aprecian en la casa de muñecas, no donde está el jugador.
+
 ### ℹ️ FP-5. Lo que está bien
-Overlay de visibilidad, atenuación de luces por humo coherente con los regímenes ILV, HUD técnico con capa según postura, suavizado de temperatura con τ, presets día/noche, hojas de ventana con rotura de vidrio y el domo de cielo procedural (necesario porque GL Compatibility no dibuja el sky del Environment por cámara).
+Overlay de visibilidad, atenuación de luces por humo coherente con los regímenes ILV (con la salvedad de FP-6), HUD técnico con capa según postura, suavizado de temperatura con τ, presets día/noche, hojas de ventana con rotura de vidrio y el domo de cielo procedural (necesario porque GL Compatibility no dibuja el sky del Environment por cámara).
 
 ---
 
@@ -234,24 +261,29 @@ Overlay de visibilidad, atenuación de luces por humo coherente con los regímen
 
 ## 10. Prioridad de la siguiente pasada
 
+> Esta tabla ordena por severidad; el plan de ejecución completo, con fases, verificación y cobertura de **todos** los hallazgos, está en §12.
+
 | # | Hallazgo | Sev. | Área |
 |---|---|---|---|
 | 1 | FP-2/M-1 superficies sin textura utilizable | 🟠 | Materiales |
-| 2 | FP-1 tabiques coincidentes con z-fighting | 🟠 | FP |
-| 3 | M-2 sin oclusión ambiental ni acuerdo en encuentros | 🟠 | Materiales |
-| 4 | H-5 la cortina de humo ignora la hoja de la puerta | 🟠 | Humo |
-| 5 | E-4 rendija perimetral entre plantas (cerrarla en el techo) | 🟠 | FP |
-| 6 | H-4 decidir si la contracorriente de aire se enseña por defecto | 🟠 | Humo |
-| 7 | E-5 no generar decorado urbano detrás del rellano | 🟡 | FP |
-| 8 | R-3/R-4 acabado del suelo del rellano y altura derivada | 🟡 | Rellano |
-| 9 | V3-1 `render_priority` en la pila alfa | 🟡 | 3D |
-| 10 | V3-2 captura 3D limpia a `SubViewport` | 🟡 | 3D |
+| 2 | FP-6 la sala con humo y sin fuego se apaga por completo | 🟠 | FP |
+| 3 | FP-1 tabiques coincidentes con z-fighting | 🟠 | FP |
+| 4 | M-2 sin oclusión ambiental ni acuerdo en encuentros | 🟠 | Materiales |
+| 5 | H-5 la cortina de humo ignora la hoja de la puerta | 🟠 | Humo |
+| 6 | E-4 rendija perimetral entre plantas (cerrarla en el techo) | 🟠 | FP |
+| 7 | H-4 decidir si la contracorriente de aire se enseña por defecto | 🟠 | Humo |
+| 8 | E-5 no generar decorado urbano detrás del rellano | 🟡 | FP |
+| 9 | R-3/R-4 acabado del suelo del rellano y altura derivada | 🟡 | Rellano |
+| 10 | V3-1 `render_priority` en la pila alfa | 🟡 | 3D |
+| 11 | V3-2 captura 3D limpia a `SubViewport` | 🟡 | 3D |
 
 ---
 
 ## 11. Verificación
 
-Los cambios de esta pasada **no se han podido ejecutar**: este entorno no tiene Godot y la 4.7.1 que usa el proyecto no está disponible para descarga (se descartó comprobar con una versión distinta porque los resultados no serían representativos). Lo que sí se ha hecho:
+> **Ejecutado el 2026-08-31 en la máquina del proyecto.** `python scripts/check_product.py` da **25/26 suites OK**; el único fallo es `test_exit0_real_json`, el conocido de la línea motor por los `VALID_GAP`, ajeno a lo visual. Los guardarraíles visuales headless pasan todos, incluidos los dos ampliados en esta pasada (`validate_fp_exterior_context`, `validate_fp_landing_stairs`). Además se renderizó la vista FP con ventana real (headless no dibuja: `frame_post_draw` no dispara) sobre un piso de dos salas en estado limpio y en incendio; de ahí salen FP-6 y FP-7. Descartado por medición: la niebla **no** se arrastra al exterior al salir del edificio — fuera decae a 0,0001, lo que se ve durante ~1 s es el transitorio de `fp_fog_smooth_tau_s`.
+
+Cuando se redactó el informe los cambios **no se habían podido ejecutar**: aquel entorno no tenía Godot y la 4.7.1 que usa el proyecto no estaba disponible para descarga (se descartó comprobar con una versión distinta porque los resultados no serían representativos). Lo que sí se hizo entonces:
 
 - Revisión estática del GDScript modificado (indentación, delimitadores, continuaciones de línea) y de la orientación de las normales del nuevo intradós en las dos orientaciones de muro.
 - Los guardarraíles headless se han **ampliado** para cubrir lo nuevo, de modo que la ejecución en tu máquina los verifique:
@@ -265,3 +297,119 @@ python scripts/check_product.py
 ```
 
 Revisión visual recomendada, con [CHECKLIST_VISUAL_REGRESION.md](CHECKLIST_VISUAL_REGRESION.md) delante: `preset_compact_apartment` (rellano y fachada de piso), `preset_two_storey_house` (fachada de dos plantas y rendija perimetral) y cualquier escenario con fuego declarado, mirando una ventana desde fuera en dollhouse y desde dentro en primera persona.
+
+---
+
+## 12. Plan de trabajo — cierre de todos los hallazgos visuales
+
+**Redactado:** 2026-08-31, tras verificar el informe en ejecución (§11).
+**Objetivo:** dejar en cero los hallazgos 🔴/🟠/🟡 abiertos de §1-§8. Los ℹ️ que no son fallo (H-6, FP-7) quedan como decisión explícita, no como deuda silenciosa.
+
+### 12.0 Reglas del plan
+
+Invariantes que ninguna fase puede saltarse:
+
+1. **No se toca el motor.** Nada de `sim/`, `scripts/simulation/` ni casos de validación. Esta línea es independiente de la línea motor (programa P1 de codex, en su propio worktree).
+2. **Todo parámetro visual nuevo va como `@export`** en su grupo del inspector, nunca hardcodeado.
+3. **Cada fase cierra con `python scripts/check_product.py` en verde**, admitiendo como único fallo `test_exit0_real_json` (línea motor, `VALID_GAP`).
+4. **Ningún hallazgo se marca [CORREGIDO] sin evidencia**: o un guardarraíl headless que lo protege, o una captura renderizada antes/después, y preferiblemente ambas.
+5. **Un commit por fase**, con el informe actualizado en el mismo commit (marcas [CORREGIDO] + fecha).
+6. Si una fase descubre que el diagnóstico del informe era incorrecto, **se corrige el informe antes de tocar el código**.
+
+### 12.F0 Instrumental de verificación (prerrequisito)
+
+El informe original no se pudo verificar por no tener Godot; el addendum de §11 se hizo con una sonda desechable. Antes de tocar nada, esa sonda se convierte en herramienta permanente:
+
+- `tools/capture_visual_reference.gd` (+ `.tscn`): monta un piso patrón de dos salas (salón con ventana a fachada y puerta a rellano, dormitorio con ventana) y captura un juego fijo de vistas FP y 3D en estado limpio y en incendio, a un directorio dado.
+- Se ejecuta **con ventana real**: en `--headless` no hay render (`frame_post_draw` no dispara) y las capturas salen vacías.
+- Uso: juego de referencia antes de cada fase y comparación después. Es lo que convierte "se ve mejor" en un antes/después revisable.
+
+Sin esto, las fases 2 y 3 (material y humo) no son verificables.
+
+### 12.F1 Fase 1 — Lo que rompe la escena o el juego
+
+| # | Hallazgo | Trabajo | Verificación |
+|---|---|---|---|
+| F1.1 | 🟠 FP-6 | Atenuar **energía** por humo pero no el alcance; acotar `omni_range` por abajo a la diagonal sala+altura. Ponderar la atenuación por la fracción del trayecto luz → superficie que cruza la capa, en vez del estado global de la sala. | Guardarraíl nuevo: con humo y sin fuego, `omni_range` ≥ diagonal de la sala y la energía baja pero no se anula. Capturas del addendum como antes/después. |
+| F1.2 | 🟡 R-8 | `StaticBody3D` + `CollisionShape3D` en `LandingBackWall`, `LandingSideWall` y el frente nuevo. | Ampliar `validate_fp_landing_stairs.gd`: toda pared del rellano tiene cuerpo estático. Es lo que impide que el jugador atraviese el portal y caiga al vacío. |
+| F1.3 | 🟠 FP-1 | Deduplicar medianeras en `_create_walls()`: una sola caja por cara compartida, con criterio estable de qué sala la pinta. Cierra de paso el 🟠 de §8 (colisión duplicada, ~40 cuerpos en 8 salas). | Guardarraíl: dos salas contiguas producen **una** malla de medianera y **un** cuerpo. Captura moviendo la cámara sobre la medianera (hoy parpadea). |
+| F1.4 | 🟠 E-4 | Que el techo llegue a la cara inferior del forjado superior, cerrando el anillo de ~7 cm también en frentes sin huecos y en encuentros interiores. | Guardarraíl geométrico sobre `preset_two_storey_house`: sin holgura vertical entre techo de planta y suelo de la siguiente. Captura desde dentro mirando el encuentro. |
+
+Fase 1 es la única que arregla algo **funcional** (F1.2) y algo que hace ilegible la escena de trabajo real del usuario (F1.1).
+
+### 12.F2 Fase 2 — Legibilidad del material (la palanca del "se ve feo")
+
+Es la fase con mejor relación coste/beneficio: M-1 y FP-2 son la causa de fondo del síntoma transversal, y afectan a interior, rellano y fachada a la vez.
+
+| # | Hallazgo | Trabajo |
+|---|---|---|
+| F2.1 | 🟠 FP-2 + 🟠 M-1 | Ruido de superficie utilizable: bajo contraste **centrado en gris medio** (que no oscurezca al multiplicar), UV en metros y no por cara (triplanar o UV2 escalada), activable por material. Segunda capa de suciedad en suelos y rodapiés. |
+| F2.2 | 🟠 M-2 | Oclusión ambiental barata: no hay SSAO en GL Compatibility, así que oscurecimiento de encuentros por color de vértice o por gradiente en el propio shader de muro/suelo. Es el segundo motivo de que todo parezca plano. |
+| F2.3 | 🟡 M-3 | Caché de materiales por color en `_mat()`: hoy la fachada, el rellano y el decorado crean decenas de `StandardMaterial3D` idénticos. |
+| F2.4 | 🟡 E-6 | Cara exterior de los tabiques con material de fachada, no con el color de la estancia. |
+| F2.5 | 🟡 R-3 | Acabado del suelo del rellano: despiece de baldosa o franjas de tono, en vez de losa de color plano. |
+
+Verificación: juego completo de capturas F0 antes/después, más `check_product.py`. F2.1 y F2.2 son de calibración: se ajustan mirando las capturas, no a ciegas.
+
+### 12.F3 Fase 3 — Humo y su lectura
+
+| # | Hallazgo | Trabajo | Nota |
+|---|---|---|---|
+| F3.1 | 🟠 H-5 | Estrechar el puente al hueco libre real (ancho × fracción) y desplazarlo al lado de la bisagra, para que el humo no atraviese la hoja. | Guardarraíl: con `open_fraction` 0,5 el ancho de la cortina es la mitad y está desplazado. |
+| F3.2 | 🟡 H-7 | `_update_vertical()` debe dibujar el penacho con **una** sala presente, tomando la ausente como limpia. | Hoy una escalera hacia una planta no representada no muestra humo aunque la de abajo esté cargada. |
+| F3.3 | ℹ️ H-8 | Normalizar `smoke_local_y` por `meters_to_units` en vez de asumir 1. | No afecta hoy; es una bomba de relojería. Coste mínimo: se hace y se olvida. |
+| F3.4 | 🟠 H-4 | **Decisión de producto**, no técnica: encender `show_cold_air_inflow_curtains` por defecto. A favor, con H-2 ya corregido completa la lectura bidireccional del vano; en contra, colorear el aire de azul es una convención, no una observación. | Se presenta con captura de las dos opciones y decide el usuario. |
+| F3.5 | ℹ️ FP-7 | **Decisión de alcance**: hoy el humo entre salas sólo existe en dollhouse; en FP es niebla de la sala actual. Llevar cuerpo de humo a FP es trabajo mayor (mallas de vano en la vista donde está el jugador). | Se decide si entra en esta línea o se difiere. No se toca sin decisión. |
+
+### 12.F4 Fase 4 — Visor 3D y visor 2D
+
+| # | Hallazgo | Trabajo |
+|---|---|---|
+| F4.1 | 🟠 V3-1 | `render_priority` explícito en la pila alfa por sala (volumen, máscara de techo, gradiente, capa caliente, isoterma, cortina, penacho). Hoy se disimula porque dos capas están apagadas por defecto; al encenderlas aparece el *popping*. |
+| F4.2 | 🟠 V3-2 | Captura técnica a `SubViewport` limpio, sin HUD. |
+| F4.3 | 🟡 V3-3 | `is_screen_point_over_model()` contra el plano de la planta activa, no contra y=0. |
+| F4.4 | 🟡 V3-4 | Selección de mobiliario por AABB proyectado, no por distancia 2D al origen del nodo. |
+| F4.5 | 🟡 V2-1 · V2-2 · V2-3 | Las dos llamadas sueltas a `_get_draw_transform()`; fondo derivado del viewport en vez de `Rect2` fijo; escala de color SVV con gradiente legible (hoy 5-90 % es el mismo rojo). |
+
+### 12.F5 Fase 5 — Coherencia estructural y coste
+
+| # | Hallazgo | Trabajo |
+|---|---|---|
+| F5.1 | 🟠 FP-3 | Unificar los constructores de suelo, techo, muro y hueco entre `FirstPersonController` y `Visualizer3D`, como ya se hizo con `StairGeometry`. **Va al final a propósito**: hacerlo antes obligaría a rehacerlo tras las fases 1-3. |
+| F5.2 | 🟡 FP-4 | Cachear `_find_current_room_id()` y `get_room_rects_m()` por frame físico. |
+| F5.3 | 🟠 E-5 | No generar decorado urbano en frentes cuyo único hueco exterior sea la puerta del portal. |
+| F5.4 | 🟡 R-4 | Derivar `landing_floor_height_m` de la altura real de la vivienda y su forjado. |
+| F5.5 | 🟡 R-5 | Acuerdo entre el porche unifamiliar y el césped: bordillo, cambio de material o sombra propia. |
+
+### 12.F6 Fuera del cierre — mejora, no fallo
+
+- 🟡 **H-6 autoexposición**: humo que sale por una ventana y entra por la de la planta superior. El informe ya dice que el comportamiento actual es correcto. Es funcionalidad nueva y expresiva, y se trata como tal: **no** bloquea el cierre de esta línea.
+
+### 12.7 Cobertura — ningún hallazgo se queda fuera
+
+| Sección | Hallazgos abiertos | Destino |
+|---|---|---|
+| §1 Humo | H-4, H-5, H-6, H-7, H-8 | F3.4, F3.1, **F6**, F3.2, F3.3 |
+| §2 Exterior | E-4, E-5, E-6 | F1.4, F5.3, F2.4 |
+| §3 Rellano | R-3, R-4, R-5, R-8 | F2.5, F5.4, F5.5, F1.2 |
+| §4 Visor 3D | V3-1, V3-2, V3-3, V3-4 | F4.1, F4.2, F4.3, F4.4 |
+| §5 FP | FP-1, FP-2, FP-3, FP-4, FP-6, FP-7 | F1.3, F2.1, F5.1, F5.2, F1.1, F3.5 |
+| §6 Visor 2D | V2-1, V2-2, V2-3 | F4.5 |
+| §7 Materiales | M-1, M-2, M-3 | F2.1, F2.2, F2.3 |
+| §8 Rendimiento | muros con cuerpo propio | F1.3 (misma causa que FP-1) |
+
+Veintiséis hallazgos abiertos: veinticuatro se cierran en F1-F5, uno se decide (H-4, en F3.4), uno se acota (FP-7, en F3.5) y uno queda declarado como mejora futura (H-6, en F6).
+
+### 12.8 Definición de terminado
+
+La línea visual se considera cerrada cuando:
+
+1. §1-§8 no tienen ningún hallazgo 🔴/🟠/🟡 en estado [ABIERTO], [PARCIAL] o [MITIGADO].
+2. `python scripts/check_product.py` da verde salvo el fallo conocido de la línea motor.
+3. Existe un juego de capturas de referencia por fase, comparable con el de F0.
+4. Cada corrección tiene guardarraíl headless, o una justificación escrita de por qué no puede tenerlo.
+5. Las dos decisiones de producto (H-4, FP-7) están resueltas por el usuario y anotadas aquí.
+
+### 12.9 Orden de ataque recomendado
+
+F0 → F1 → F2 → F3 → F4 → F5. F1 primero porque contiene lo único funcionalmente roto (R-8) y lo que hace ilegible la sala contigua al fuego (FP-6); F2 inmediatamente después porque es lo que de verdad responde al síntoma "se ve feo"; F5.1 al final para no rehacer el trabajo de las fases anteriores.
