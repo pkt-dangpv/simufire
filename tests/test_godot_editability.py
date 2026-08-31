@@ -346,6 +346,9 @@ class TestGodotEditability(unittest.TestCase):
                 "opening_curtain_min_width_ratio",
                 "opening_curtain_alpha_open_exponent",
                 "opening_inflow_max_alpha",
+                "opening_curtain_first_person_alpha_factor",
+                "opening_curtain_first_person_side_visibility",
+                "opening_curtain_first_person_bottom_strength",
             ],
         )
         for name in [

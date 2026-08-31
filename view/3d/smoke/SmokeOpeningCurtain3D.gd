@@ -46,6 +46,9 @@ static func update(item_dict: Dictionary, op: OpeningModel, room_items: Dictiona
 	context["opening_curtain_min_width_ratio"] = float(settings.get("opening_curtain_min_width_ratio", 0.12))
 	context["opening_curtain_alpha_open_exponent"] = float(settings.get("opening_curtain_alpha_open_exponent", 1.0))
 	context["opening_inflow_max_alpha"] = float(settings.get("opening_inflow_max_alpha", 0.085))
+	context["opening_curtain_first_person_alpha_factor"] = float(settings.get("opening_curtain_first_person_alpha_factor", 0.72))
+	context["opening_curtain_first_person_side_visibility"] = float(settings.get("opening_curtain_first_person_side_visibility", 0.08))
+	context["opening_curtain_first_person_bottom_strength"] = float(settings.get("opening_curtain_first_person_bottom_strength", 0.46))
 	if bool(pose.get("is_vertical", false)) or op.is_vertical:
 		_hide_layer(inflow)
 		_hide_layer(plume)
@@ -151,7 +154,15 @@ static func _update_horizontal(
 	var first_person_overlay: bool = bool(context.get("first_person_overlay", false))
 	var fire_context_t: float = _fire_context_strength(item_a, item_b)
 	if curtain_visible:
-		var shader_alpha: float = clampf(curtain_alpha * (0.72 if first_person_overlay else 0.52), 0.035, 0.38)
+		# La cortina se dibuja tambien en primera persona (el visor 3D corre como
+		# overlay), y alli necesita su propia calibracion: se mira desde debajo
+		# de la capa y a un metro del vano, no desde fuera de la casa (FP-7).
+		var fp_alpha_factor: float = float(context.get("opening_curtain_first_person_alpha_factor", 0.72))
+		var shader_alpha: float = clampf(
+			curtain_alpha * (fp_alpha_factor if first_person_overlay else 0.52),
+			0.035,
+			0.38
+		)
 		_apply_smoke_material(
 			curtain,
 			_outflow_color(context, fire_context_t),
@@ -165,8 +176,8 @@ static func _update_horizontal(
 				"edge_softness": float(context.get("opening_curtain_edge_softness", 0.40)),
 				"bottom_waviness": 0.48,
 				"edge_band_strength": float(context.get("opening_curtain_edge_band", 0.55)),
-				"side_visibility": 0.08 if first_person_overlay else 0.34,
-				"bottom_surface_strength": 0.46 if first_person_overlay else 0.28,
+				"side_visibility": float(context.get("opening_curtain_first_person_side_visibility", 0.08)) if first_person_overlay else 0.34,
+				"bottom_surface_strength": float(context.get("opening_curtain_first_person_bottom_strength", 0.46)) if first_person_overlay else 0.28,
 				"top_visibility": 0.0,
 				"vertical_gradient_strength": 0.74,
 				"lower_density_floor": 0.24,

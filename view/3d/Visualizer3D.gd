@@ -207,6 +207,13 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 ## valor heredado (0,085) la contracorriente se dibuja pero es practicamente
 ## invisible; subirlo es lo que la hace legible (H-4).
 @export_range(0.0, 0.6, 0.005) var opening_inflow_max_alpha: float = 0.085
+## Calibracion de la cortina de vano CUANDO se ve desde primera persona. El
+## visor 3D corre como overlay en FP, asi que el humo del hueco tambien se ve
+## desde dentro de la vivienda, y alli se mira desde debajo de la capa y a un
+## metro del vano: pide mas opacidad, menos costados y mas panza (FP-7).
+@export_range(0.0, 2.0, 0.01) var opening_curtain_first_person_alpha_factor: float = 0.72
+@export_range(0.0, 1.0, 0.01) var opening_curtain_first_person_side_visibility: float = 0.08
+@export_range(0.0, 1.0, 0.01) var opening_curtain_first_person_bottom_strength: float = 0.46
 ## Penacho de humo que sube por la fachada al salir por un hueco exterior.
 ## Sin el, el humo de una ventana termina en un corte plano en el dintel.
 @export var show_exterior_smoke_plume: bool = true
@@ -2823,6 +2830,9 @@ func _update_openings() -> void:
 			"opening_curtain_min_width_ratio": opening_curtain_min_width_ratio,
 			"opening_curtain_alpha_open_exponent": opening_curtain_alpha_open_exponent,
 			"opening_inflow_max_alpha": opening_inflow_max_alpha,
+			"opening_curtain_first_person_alpha_factor": opening_curtain_first_person_alpha_factor,
+			"opening_curtain_first_person_side_visibility": opening_curtain_first_person_side_visibility,
+			"opening_curtain_first_person_bottom_strength": opening_curtain_first_person_bottom_strength,
 			"show_exterior_smoke_plume": show_exterior_smoke_plume,
 			"smoke_min_visible_depth_m": smoke_min_visible_depth_m,
 			"meters_to_units": meters_to_units,

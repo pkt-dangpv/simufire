@@ -271,8 +271,20 @@ Medido sobre las capturas de referencia (§12.F0), luminancia media de la median
 
 Guardarraíl: `tools/validate_fp_smoke_lighting.gd`. Con el comportamiento antiguo falla con el número exacto del hallazgo (`2.47 < 3.23`).
 
-### ℹ️ FP-7. El humo entre salas de §1 no existe en primera persona
-La cortina de vano, el puente con intradós y el penacho exterior corregidos en §1 y §2 viven **sólo en `Visualizer3D`** (cero referencias en `FirstPersonController.gd`). En FP el humo es únicamente la niebla de cámara de la sala actual, así que al mirar por una puerta hacia una sala invadida no se ve cuerpo de humo alguno, y desde la calle una ventana con la sala llena no echa penacho. No es necesariamente un fallo —FP usa niebla volumétrica en vez de mallas—, pero conviene tenerlo presente: las correcciones estrella de esta pasada se aprecian en la casa de muñecas, no donde está el jugador.
+### ℹ️ FP-7. El humo entre salas de §1 no existe en primera persona — **[HALLAZGO ERRÓNEO, corregido 2026-08-31]**
+**Este hallazgo era mío y era falso.** Lo deduje de que `FirstPersonController.gd` no menciona la cortina ni el penacho, y esa inferencia no vale: el humo no llega a primera persona desde el controlador FP, sino desde el propio `Visualizer3D`, que **corre como overlay en primera persona**. `Main._sync_view_mode()` hace `visualizer_3d_active = view_3d_enabled or first_person_enabled` y lo activa con `first_person_overlay = true`; en ese modo se ocultan salas, aperturas, etiquetas, sol y relleno, y queda visible justamente la capa de atmósfera. Además `show_smoke_geometry_in_first_person` y `show_smoke_opening_curtains_in_first_person` vienen activados.
+
+Medido el 2026-08-31 montando FP y el visor como los monta `Main`:
+
+| Comprobación | Resultado |
+|---|---|
+| Aportación del overlay de atmósfera en una sala enhumada | **28,3 %** de los píxeles |
+| Aportación de la cortina de vano, mirando desde la sala limpia a la invadida | **2,0 %** de los píxeles |
+| Aportación de la cortina, estando dentro del propio humo | 0 % (queda embebida en el volumen de la sala, que es lo correcto) |
+
+Es decir: el cuerpo de humo y la cortina del vano **sí se ven donde está el jugador**. El código incluso trae calibración propia para ese caso (más opacidad, menos costados y más panza cuando `first_person_overlay`).
+
+Lo único que faltaba de verdad era poder ajustar esa calibración sin tocar código: esos tres factores estaban cocidos. Ahora son `opening_curtain_first_person_alpha_factor`, `opening_curtain_first_person_side_visibility` y `opening_curtain_first_person_bottom_strength`, en el inspector del visor 3D.
 
 ### 🟡 FP-8. Los nodos homónimos pierden el nombre — **[CORREGIDO 2026-08-31]**
 Descubierto al escribir el guardarraíl de FP-1. Godot renombra a `@MeshInstance3D@NN` —no a `Skirting_top2`— todo nodo cuyo nombre ya exista entre sus hermanos, porque `add_child()` se llama sin `force_readable_name`. El mundo FP cuelga decenas de `Skirting_top`, `Wall_right` y demás del mismo padre, así que **sólo el primero de cada nombre conserva su identidad**.
@@ -458,7 +470,7 @@ Al calibrar aparecieron además dos errores en los puntos de vista del instrumen
 | F3.2 | 🟡 H-7 | `_update_vertical()` debe dibujar el penacho con **una** sala presente, tomando la ausente como limpia. | Hoy una escalera hacia una planta no representada no muestra humo aunque la de abajo esté cargada. |
 | F3.3 | ℹ️ H-8 | Normalizar `smoke_local_y` por `meters_to_units` en vez de asumir 1. | No afecta hoy; es una bomba de relojería. Coste mínimo: se hace y se olvida. |
 | F3.4 | 🟠 H-4 | **Decisión de producto**, no técnica: encender `show_cold_air_inflow_curtains` por defecto. A favor, con H-2 ya corregido completa la lectura bidireccional del vano; en contra, colorear el aire de azul es una convención, no una observación. | Se presenta con captura de las dos opciones y decide el usuario. |
-| F3.5 | ℹ️ FP-7 | **Decisión de alcance**: hoy el humo entre salas sólo existe en dollhouse; en FP es niebla de la sala actual. Llevar cuerpo de humo a FP es trabajo mayor (mallas de vano en la vista donde está el jugador). | Se decide si entra en esta línea o se difiere. No se toca sin decisión. |
+| F3.5 | ℹ️ FP-7 | **CERRADA sin trabajo de implementación (2026-08-31)**: el supuesto de partida era falso. El visor 3D ya corre como overlay en primera persona y aporta el 28,3 % de los píxeles de una sala enhumada; la cortina de vano aporta el 2,0 % mirando desde la sala limpia. Sólo se han sacado al inspector los tres factores de calibración FP que estaban cocidos. Detalle en §5. | — |
 
 **Resultado de la parte técnica:** F3.1 (H-5) cerrada con guardarraíl y con una enmienda al diagnóstico del informe —el hueco libre está del lado de la cerradura, no de la bisagra—; F3.3 (H-8) cerrada. F3.2 (H-7) **no era reproducible**: se deja salvaguarda y el hallazgo queda reclasificado en §1, no marcado como corregido. Suite 29/30, único fallo el conocido de la línea motor.
 
@@ -489,7 +501,7 @@ Quedan vivas las dos decisiones de producto, F3.4 (H-4) y F3.5 (FP-7).
 
 **Resultado:** cerradas F5.3 (E-5), F5.4 (R-4, medida), F5.5 (R-5) y F5.6 (FP-8, con guardarraíl). **F5.2 (FP-4) no era reproducible** y queda reclasificada en §5.
 
-**F5.1 (FP-3) espera a propósito**: unifica los constructores de suelo, techo, muro y hueco entre FP y el visor 3D, y está acoplada con FP-7. Si el humo entre salas baja a primera persona, eso es geometría de vano en FP y sale mucho más barato encima de un constructor ya unificado; hacerlo antes de decidir FP-7 arriesga unificar lo que no toca y rehacerlo. Se hará cuando FP-7 esté decidido.
+**F5.1 (FP-3) queda desbloqueada.** Esperaba a FP-7 porque, si el humo entre salas bajaba a primera persona, convenía tener antes un constructor unificado. Al resolverse FP-7 sin implementación —el overlay ya lo resuelve— ese acoplamiento desaparece: F5.1 vuelve a ser lo que decía su ficha, unificar suelos, techos, muros y huecos entre `FirstPersonController` y `Visualizer3D`, sin condicionantes. Es el único hallazgo que queda abierto de §1-§8 junto con H-4.
 
 ### 12.F6 Fuera del cierre — mejora, no fallo
 
