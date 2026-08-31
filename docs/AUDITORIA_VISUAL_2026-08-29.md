@@ -351,7 +351,7 @@ Revisión visual recomendada, con [CHECKLIST_VISUAL_REGRESION.md](CHECKLIST_VISU
 Invariantes que ninguna fase puede saltarse:
 
 1. **No se toca el motor.** Nada de `sim/`, `scripts/simulation/` ni casos de validación. Esta línea es independiente de la línea motor (programa P1 de codex, en su propio worktree).
-2. **Todo parámetro visual nuevo va como `@export`** en su grupo del inspector, nunca hardcodeado.
+2. **Todo lo que pueda gobernarse desde el editor de Godot, se gobierna desde el editor.** No sólo los parámetros como `@export` en su grupo del inspector: también ranuras de recurso (`StandardMaterial3D`, `Texture2D`) para poder sustituir lo procedural por material propio sin tocar código, y los ajustes del instrumental en su escena. Nada de constantes de aspecto enterradas en el script. La regla la impone `tests/test_godot_editability.py`, que falla si un mando desaparece del inspector.
 3. **Cada fase cierra con `python scripts/check_product.py` en verde**, admitiendo como único fallo `test_exit0_real_json` (línea motor, `VALID_GAP`).
 4. **Ningún hallazgo se marca [CORREGIDO] sin evidencia**: o un guardarraíl headless que lo protege, o una captura renderizada antes/después, y preferiblemente ambas.
 5. **Un commit por fase**, con el informe actualizado en el mismo commit (marcas [CORREGIDO] + fecha).
@@ -399,6 +399,8 @@ Es la fase con mejor relación coste/beneficio: M-1 y FP-2 son la causa de fondo
 Verificación: juego completo de capturas F0 antes/después, más `check_product.py`. F2.1 y F2.2 son de calibración: se ajustan mirando las capturas, no a ciegas.
 
 **Resultado:** cerradas F2.1 (FP-2 + M-1), F2.3 (M-3: 910 → 144 materiales distintos sobre 1003 mallas), F2.4 (E-6) y F2.5 (R-3, con el despiece de baldosa visible en la captura del rellano). Suite 28/29, único fallo el conocido de la línea motor.
+
+**Todo el aspecto queda gobernado desde el inspector**, no desde el script: rugosidad, resolución y octavas del ruido, factores del perfil de suelo, lado y junta de la baldosa, grosor de la chapa de fachada, y un grupo nuevo **"Materiales propios FP"** con ranuras para material de muro, suelo, techo y fachada y para texturas de superficie y de baldosa — si pones un recurso, manda el recurso; si la dejas vacía, se genera por código. El caché de materiales se vacía en cada reconstrucción justamente para que un cambio en el inspector se vea. Cuatro pruebas nuevas en `tests/test_godot_editability.py` (12 en total) impiden que cualquiera de esos mandos vuelva a quedar cocido en el código.
 
 **F2.2 (M-2) sigue abierta a propósito**, con el diagnóstico escrito en §7: `StandardMaterial3D` no oscurece aristas sin un mapa de AO, y un mapa triplanar de mundo no puede saber dónde están las aristas. La salida buena es un `ShaderMaterial` propio para muros, suelos y techos con el tamaño de la caja como `instance uniform`, pero eso sustituye el material de **todas** las superficies FP, así que es un paso con entidad propia y decisión aparte, no la cola de esta fase.
 

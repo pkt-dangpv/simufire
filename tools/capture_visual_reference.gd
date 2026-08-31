@@ -19,29 +19,65 @@ const BuildingModelScript := preload("res://sim/BuildingModel.gd")
 const FirstPersonControllerScript := preload("res://view/fp/FirstPersonController.gd")
 const Visualizer3DScript := preload("res://view/3d/Visualizer3D.gd")
 
-## Vistas FP: nombre, posicion en planta (m), punto mirado (m), cabeceo (rad).
-const FP_VIEWS: Array = [
-	["salon_puerta_interior", Vector2(3.0, 2.0), Vector2(6.0, 1.6), 0.0],
-	["salon_ventana_fachada", Vector2(3.0, 2.0), Vector2(0.0, 2.0), 0.0],
-	["salon_fuego", Vector2(4.8, 3.0), Vector2(2.5, 1.2), -0.08],
-	# La pared "bottom" es el lado y = y0 + alto, y su offset_m corre en sentido
-	# inverso al eje x: la puerta declarada con offset 1,0 sale en x = 5,55 y el
-	# portal se genera detras, en y > 4.
-	["salon_puerta_rellano", Vector2(5.55, 2.2), Vector2(5.55, 4.0), 0.0],
-	["dormitorio_puerta", Vector2(8.2, 2.0), Vector2(6.0, 1.6), 0.0],
-	["dormitorio_ventana", Vector2(8.0, 2.0), Vector2(10.0, 2.0), 0.0],
-	# Ojo: el jugador es un CharacterBody3D con gravedad. Estas dos vistas van
-	# sobre la losa que hay justo tras la puerta; mas al fondo esta el hueco de
-	# la escalera y la camara se cae por el.
-	["rellano_vivienda", Vector2(5.55, 4.35), Vector2(5.55, 6.0), 0.0],
-	["rellano_suelo", Vector2(5.55, 4.35), Vector2(5.90, 4.95), -0.62],
-	["calle_fachada", Vector2(-4.5, 2.0), Vector2(0.0, 2.0), 0.08],
-]
+@export_group("Salida")
+## Carpeta de destino. La linea de comandos (--out=) tiene prioridad sobre esto,
+## para poder lanzarlo desde un script sin tocar la escena.
+@export var output_dir: String = ""
+## Prefijo del nombre de fichero, para guardar juegos antes/despues en la misma
+## carpeta. Tambien se puede pasar con --label=.
+@export var output_label: String = ""
+@export var capture_first_person: bool = true
+@export var capture_dollhouse: bool = true
 
-## Centro del edificio patron (limites 0..10 x 0..4), para pasar planta -> mundo.
-const PLAN_CENTER := Vector2(5.0, 2.0)
-const SETTLE_FRAMES_STATE: int = 90
-const SETTLE_FRAMES_VIEW: int = 12
+@export_group("Vistas")
+## Cada entrada es una vista FP: nombre del fichero, posicion en planta (m),
+## punto al que se mira (m) y cabeceo en radianes. Editable desde el inspector:
+## anade, quita o recoloca vistas sin tocar el codigo.
+##
+## Dos trampas que conviene recordar al colocar una vista nueva:
+## - La pared "bottom" de un rectangulo es el lado y = y0 + alto, y su offset_m
+##   corre en sentido inverso al eje x.
+## - El jugador es un CharacterBody3D con gravedad: una vista sobre el hueco de
+##   la escalera se cae por el y acaba fotografiando la calle.
+@export var fp_views: Array[Dictionary] = [
+	{"nombre": "salon_puerta_interior", "desde_m": Vector2(3.0, 2.0), "mira_m": Vector2(6.0, 1.6), "cabeceo_rad": 0.0},
+	{"nombre": "salon_ventana_fachada", "desde_m": Vector2(3.0, 2.0), "mira_m": Vector2(0.0, 2.0), "cabeceo_rad": 0.0},
+	{"nombre": "salon_fuego", "desde_m": Vector2(4.8, 3.0), "mira_m": Vector2(2.5, 1.2), "cabeceo_rad": -0.08},
+	{"nombre": "salon_puerta_rellano", "desde_m": Vector2(5.55, 2.2), "mira_m": Vector2(5.55, 4.0), "cabeceo_rad": 0.0},
+	{"nombre": "dormitorio_puerta", "desde_m": Vector2(8.2, 2.0), "mira_m": Vector2(6.0, 1.6), "cabeceo_rad": 0.0},
+	{"nombre": "dormitorio_ventana", "desde_m": Vector2(8.0, 2.0), "mira_m": Vector2(10.0, 2.0), "cabeceo_rad": 0.0},
+	{"nombre": "rellano_vivienda", "desde_m": Vector2(5.55, 4.35), "mira_m": Vector2(5.55, 6.0), "cabeceo_rad": 0.0},
+	{"nombre": "rellano_suelo", "desde_m": Vector2(5.55, 4.35), "mira_m": Vector2(5.90, 4.95), "cabeceo_rad": -0.62},
+	{"nombre": "calle_fachada", "desde_m": Vector2(-4.5, 2.0), "mira_m": Vector2(0.0, 2.0), "cabeceo_rad": 0.08},
+]
+## Centro del edificio patron en planta, para pasar de metros de plano a mundo.
+@export var plan_center_m: Vector2 = Vector2(5.0, 2.0)
+
+@export_group("Reposo")
+## Fotogramas de espera tras cambiar de estado. La niebla FP tiene constante de
+## tiempo propia (fp_fog_smooth_tau_s): con pocos fotogramas la captura sale a
+## medio camino del estado pedido.
+@export_range(1, 400, 1) var settle_frames_state: int = 90
+## Fotogramas de espera tras recolocar la camara.
+@export_range(1, 120, 1) var settle_frames_view: int = 12
+
+@export_group("Iluminacion del piso patron")
+## Mismos valores que scenes/SimulationScene.tscn, para que la captura
+## corresponda con lo que ve el usuario y no con los defaults del script.
+@export var fp_room_ceiling_light_energy: float = 0.58
+@export var fp_landing_light_energy: float = 1.05
+@export var fp_landing_light_range_m: float = 4.2
+@export var fp_window_light_energy: float = 0.95
+
+@export_group("Estado de incendio del piso patron")
+@export var fire_hrr_kw: float = 850.0
+@export var fire_room_temp_upper_c: float = 340.0
+@export var fire_room_visibility_m: float = 3.2
+@export var fire_room_layer_m: float = 1.15
+## Sala contigua: enhumada pero sin fuego, que es el caso que destapo FP-6.
+@export var smoky_room_temp_upper_c: float = 96.0
+@export var smoky_room_visibility_m: float = 9.0
+@export var smoky_room_layer_m: float = 1.95
 
 var _out_dir: String = ""
 var _label: String = ""
@@ -54,8 +90,11 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	_out_dir = _cmdline_value("--out=", ProjectSettings.globalize_path("res://.test_tmp/visual_reference"))
-	_label = _cmdline_value("--label=", "")
+	var default_dir: String = output_dir.strip_edges()
+	if default_dir == "":
+		default_dir = ProjectSettings.globalize_path("res://.test_tmp/visual_reference")
+	_out_dir = _cmdline_value("--out=", default_dir)
+	_label = _cmdline_value("--label=", output_label)
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	print("[capture] destino=%s display=%s" % [_out_dir, DisplayServer.get_name()])
 	if DisplayServer.get_name() == "headless":
@@ -69,8 +108,10 @@ func _run() -> void:
 		_finish()
 		return
 
-	await _capture_first_person(building)
-	await _capture_dollhouse(building)
+	if capture_first_person:
+		await _capture_first_person(building)
+	if capture_dollhouse:
+		await _capture_dollhouse(building)
 	building.free()
 	_finish()
 
@@ -87,10 +128,10 @@ func _capture_first_person(building: BuildingModel) -> void:
 	fp.name = "CaptureFP"
 	# Mismos valores que scenes/SimulationScene.tscn, para que la captura
 	# corresponda con lo que ve el usuario y no con los defaults del script.
-	fp.room_ceiling_light_energy = 0.58
-	fp.landing_light_energy = 1.05
-	fp.landing_light_range_m = 4.2
-	fp.window_light_energy = 0.95
+	fp.room_ceiling_light_energy = fp_room_ceiling_light_energy
+	fp.landing_light_energy = fp_landing_light_energy
+	fp.landing_light_range_m = fp_landing_light_range_m
+	fp.window_light_energy = fp_window_light_energy
 	host.add_child(fp)
 	await get_tree().process_frame
 	fp.setup(building)
@@ -102,24 +143,29 @@ func _capture_first_person(building: BuildingModel) -> void:
 		fp.set_state(pass_data[1])
 		# La niebla FP tiene constante de tiempo propia (fp_fog_smooth_tau_s):
 		# sin este reposo la captura sale a medio camino del estado pedido.
-		await _settle(SETTLE_FRAMES_STATE)
-		for view in FP_VIEWS:
-			await _place_fp(fp, view[1], view[2], float(view[3]))
-			await _capture("fp_%s_%s" % [state_name, String(view[0])])
+		await _settle(settle_frames_state)
+		for view in fp_views:
+			await _place_fp(
+				fp,
+				Vector2(view.get("desde_m", Vector2.ZERO)),
+				Vector2(view.get("mira_m", Vector2.ZERO)),
+				float(view.get("cabeceo_rad", 0.0))
+			)
+			await _capture("fp_%s_%s" % [state_name, String(view.get("nombre", "vista"))])
 
 	fp.set_active(false)
 	host.free()
 
 
 func _place_fp(fp: Node3D, from_plan: Vector2, look_plan: Vector2, pitch: float) -> void:
-	fp.global_position = Vector3(from_plan.x - PLAN_CENTER.x, 0.05, from_plan.y - PLAN_CENTER.y)
+	fp.global_position = Vector3(from_plan.x - plan_center_m.x, 0.05, from_plan.y - plan_center_m.y)
 	var d: Vector2 = look_plan - from_plan
 	fp.rotation.y = atan2(-d.x, -d.y)
 	var cam := fp.get_node_or_null("FirstPersonCamera") as Camera3D
 	if cam != null:
 		cam.rotation.x = pitch
 		cam.current = true
-	await _settle(SETTLE_FRAMES_VIEW)
+	await _settle(settle_frames_view)
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +183,7 @@ func _capture_dollhouse(building: BuildingModel) -> void:
 
 	for pass_data in [["limpio", _make_clean_state()], ["incendio", _make_fire_state()]]:
 		vis.set_state(pass_data[1])
-		await _settle(SETTLE_FRAMES_STATE)
+		await _settle(settle_frames_state)
 		await _capture("dollhouse_%s" % String(pass_data[0]))
 
 	vis.free()
@@ -230,7 +276,11 @@ func _fail(message: String) -> void:
 
 
 func _finish() -> void:
-	var expected: int = FP_VIEWS.size() * 2 + 2
+	var expected: int = 0
+	if capture_first_person:
+		expected += fp_views.size() * 2
+	if capture_dollhouse:
+		expected += 2
 	if _written != expected:
 		_fail("se esperaban %d vistas y se escribieron %d" % [expected, _written])
 	if _failures.is_empty():
@@ -298,8 +348,14 @@ func _make_clean_state() -> Dictionary:
 ## que destapo FP-6 (la sala vecina se leia como una caja negra).
 func _make_fire_state() -> Dictionary:
 	return {
-		"0": _room_state(0, "Salon", "salon", true, 850.0, 340.0, 68.0, 0.135, 1.4, 3.2, 1.15, "flaming"),
-		"1": _room_state(1, "Dormitorio", "dormitorio", false, 0.0, 96.0, 32.0, 0.19, 0.35, 9.0, 1.95, "")
+		"0": _room_state(
+			0, "Salon", "salon", true, fire_hrr_kw, fire_room_temp_upper_c, 68.0, 0.135, 1.4,
+			fire_room_visibility_m, fire_room_layer_m, "flaming"
+		),
+		"1": _room_state(
+			1, "Dormitorio", "dormitorio", false, 0.0, smoky_room_temp_upper_c, 32.0, 0.19, 0.35,
+			smoky_room_visibility_m, smoky_room_layer_m, ""
+		)
 	}
 
 

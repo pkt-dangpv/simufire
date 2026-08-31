@@ -173,6 +173,112 @@ class TestGodotEditability(unittest.TestCase):
         self.assert_identifier_used(rel, "_exterior_ground_level_m")
         self.assert_identifier_used(rel, "_add_landing_lights")
 
+    def test_fp_surface_materials_are_editable(self):
+        """FP-2 / M-1 / M-3 / R-3: el aspecto de las superficies se gobierna
+        desde el inspector, no desde constantes del script."""
+        rel = "view/fp/FirstPersonController.gd"
+        self.assert_exports(
+            rel,
+            [
+                "use_procedural_surface_noise",
+                "material_noise_frequency",
+                "material_noise_contrast",
+                "material_noise_size_m",
+                "material_floor_dirt_boost",
+                "material_surface_roughness",
+                "material_noise_texture_px",
+                "material_noise_octaves",
+                "material_floor_noise_octaves",
+                "material_floor_noise_frequency_factor",
+                "material_floor_noise_size_factor",
+                "landing_tile_size_m",
+                "landing_tile_grout_darkening",
+                "landing_tile_texture_px",
+                "landing_tile_grout_px",
+                "exterior_wall_skin_enabled",
+                "exterior_wall_skin_thickness_m",
+            ],
+        )
+        for name in [
+            "material_surface_roughness",
+            "material_noise_texture_px",
+            "material_floor_noise_size_factor",
+            "landing_tile_grout_px",
+        ]:
+            self.assert_identifier_used(rel, name)
+
+    def test_fp_material_slots_accept_user_resources(self):
+        """Se puede enchufar material o textura propios desde el editor sin
+        tocar codigo; vacio = generacion procedural."""
+        rel = "view/fp/FirstPersonController.gd"
+        self.assert_exports(
+            rel,
+            [
+                "wall_material_override",
+                "floor_material_override",
+                "ceiling_material_override",
+                "exterior_facade_material_override",
+                "surface_noise_texture_override",
+                "floor_noise_texture_override",
+                "landing_tile_texture_override",
+            ],
+        )
+        for name in [
+            "wall_material_override",
+            "floor_material_override",
+            "ceiling_material_override",
+            "exterior_facade_material_override",
+            "surface_noise_texture_override",
+            "floor_noise_texture_override",
+            "landing_tile_texture_override",
+        ]:
+            self.assert_identifier_used(rel, name)
+
+    def test_fp_smoke_lighting_and_shell_knobs_are_editable(self):
+        """FP-6 y E-4: el suelo del alcance de la luz con humo y el sellado
+        entre plantas son parametros, no decisiones enterradas."""
+        rel = "view/fp/FirstPersonController.gd"
+        self.assert_exports(
+            rel,
+            [
+                "room_ceiling_light_smoke_range_min_factor",
+                "interstitial_ceiling_seal_enabled",
+            ],
+        )
+        self.assert_identifier_used(rel, "room_ceiling_light_smoke_range_min_factor")
+        self.assert_identifier_used(rel, "interstitial_ceiling_seal_enabled")
+
+    def test_visual_reference_capture_is_editable(self):
+        """El instrumental de capturas se maneja desde la escena: destino,
+        vistas, reposo e iluminacion del piso patron."""
+        rel = "tools/capture_visual_reference.gd"
+        self.assert_exports(
+            rel,
+            [
+                "output_dir",
+                "output_label",
+                "capture_first_person",
+                "capture_dollhouse",
+                "fp_views",
+                "plan_center_m",
+                "settle_frames_state",
+                "settle_frames_view",
+                "fp_room_ceiling_light_energy",
+                "fp_landing_light_energy",
+                "fp_landing_light_range_m",
+                "fp_window_light_energy",
+                "fire_hrr_kw",
+                "fire_room_temp_upper_c",
+                "fire_room_visibility_m",
+                "fire_room_layer_m",
+                "smoky_room_temp_upper_c",
+                "smoky_room_visibility_m",
+                "smoky_room_layer_m",
+            ],
+        )
+        for name in ["fp_views", "settle_frames_state", "fire_room_layer_m"]:
+            self.assert_identifier_used(rel, name)
+
     def test_3d_visualizer_overlays_camera_and_door_controls_are_editable(self):
         rel = "view/3d/Visualizer3D.gd"
         self.assert_exports(

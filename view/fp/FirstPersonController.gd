@@ -120,9 +120,43 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.15, 1.20, 0.05) var landing_tile_size_m: float = 0.55
 ## Oscurecimiento de la junta entre baldosas, sobre el color del suelo.
 @export_range(0.0, 0.6, 0.01) var landing_tile_grout_darkening: float = 0.22
+## Rugosidad de todas las superficies construidas por codigo.
+@export_range(0.0, 1.0, 0.01) var material_surface_roughness: float = 0.96
+## Lado en pixeles de la textura de ruido generada. Mas resolucion es mas
+## detalle fino y mas memoria; el tamano aparente lo manda
+## material_noise_size_m, no esto.
+@export_range(32, 1024, 32) var material_noise_texture_px: int = 256
+## Octavas del ruido de paramentos y de suelos. Mas octavas = grano mas
+## irregular, menos = mancha mas limpia.
+@export_range(1, 8, 1) var material_noise_octaves: int = 3
+@export_range(1, 8, 1) var material_floor_noise_octaves: int = 5
+## Factores del perfil de suelo respecto al de paramento: frecuencia mas
+## baja y patron mas grande, porque un suelo admite mas variacion.
+@export_range(0.1, 2.0, 0.05) var material_floor_noise_frequency_factor: float = 0.6
+@export_range(0.5, 6.0, 0.1) var material_floor_noise_size_factor: float = 2.4
+## Lado en pixeles de la textura de baldosa y ancho de la junta en pixeles.
+## El ancho real de la junta sale de la relacion entre ambos y de
+## landing_tile_size_m.
+@export_range(32, 512, 32) var landing_tile_texture_px: int = 128
+@export_range(1, 16, 1) var landing_tile_grout_px: int = 3
+
 @export var wall_skirting_height_m: float = 0.10
 @export var show_landing_recess: bool = true
 @export var landing_recess_depth_m: float = 1.25
+
+@export_group("Materiales propios FP")
+## Ranuras para tus propios materiales y texturas. Si dejas una vacia se usa
+## la generacion por codigo; si pones un recurso, manda el recurso. Se usan
+## tal cual, sin duplicar: no los modifica nadie en runtime.
+@export var wall_material_override: StandardMaterial3D = null
+@export var floor_material_override: StandardMaterial3D = null
+@export var ceiling_material_override: StandardMaterial3D = null
+@export var exterior_facade_material_override: StandardMaterial3D = null
+## Texturas de superficie propias, si prefieres una foto de material real
+## al ruido procedural. Se proyectan igual, en metros.
+@export var surface_noise_texture_override: Texture2D = null
+@export var floor_noise_texture_override: Texture2D = null
+@export var landing_tile_texture_override: Texture2D = null
 
 @export_group("Ventanas FP")
 @export var window_open_angle_deg: float = 68.0
@@ -851,6 +885,9 @@ func _rebuild_world() -> void:
 	_ceiling_lights_by_room.clear()
 	_ceiling_light_base_energy_by_room.clear()
 	_ceiling_light_base_range_by_room.clear()
+	# Sin esto, tocar un parametro de material en el inspector no se veria: la
+	# reconstruccion reutilizaria los materiales cacheados de la anterior.
+	_material_cache.clear()
 
 	if building == null:
 		return
@@ -1098,6 +1135,14 @@ func _create_wall_segment_height(rect: Rect2, room_id: int, side: String, start:
 	_add_exterior_wall_skin(rect, room_id, side, start, end, size, center, floor_level_m)
 
 
+## Material de la envolvente exterior: la ranura del inspector si la hay, y
+## si no el color de fachada con el ruido de superficie.
+func _facade_material() -> StandardMaterial3D:
+	if exterior_facade_material_override != null:
+		return exterior_facade_material_override
+	return _mat(exterior_facade_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 2600)
+
+
 ## Chapa fina con material de fachada sobre la cara exterior de un tabique
 ## que no tiene sala vecina. El muro es una sola caja y no admite un
 ## material por cara, asi que la cara de fuera se resuelve con esta pieza.
@@ -1105,8 +1150,8 @@ func _create_wall_segment_height(rect: Rect2, room_id: int, side: String, start:
 ## dibujada en el borde. Se multiplica sobre el color del suelo, igual que el
 ## ruido, asi que el blanco deja el color base intacto y la junta lo oscurece.
 func _tile_texture() -> Texture2D:
-	var size_px: int = 128
-	var grout_px: int = 3
+	var size_px: int = maxi(8, landing_tile_texture_px)
+	var grout_px: int = clampi(landing_tile_grout_px, 1, size_px / 2)
 	var grout_value: float = clampf(1.0 - landing_tile_grout_darkening, 0.0, 1.0)
 	var image := Image.create(size_px, size_px, false, Image.FORMAT_RGB8)
 	image.fill(Color.WHITE)
@@ -1147,7 +1192,7 @@ func _add_exterior_wall_skin(
 		"ExteriorWallSkin_%s" % side,
 		skin_size,
 		wall_center + outward * offset_m,
-		_mat(exterior_facade_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 2600),
+		_facade_material(),
 		false
 	)
 
@@ -2987,7 +3032,7 @@ func _create_own_facade_panel(parent: Node3D, key: String, group: Dictionary, gr
 		holes.append(Rect2(hole))
 	var skin_offset: float = wall_thickness_m * 0.5 + own_facade_thickness_m * 0.5
 	var skin_axis_m: float = plane_m + (outward.z if horizontal else outward.x) * skin_offset
-	var skin_mat: StandardMaterial3D = _mat(exterior_facade_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 2600)
+	var skin_mat: StandardMaterial3D = _facade_material()
 	var pieces: Array[Rect2] = StairGeometry.split_rect_by_voids(Rect2(u_min, ground_y, span_u, span_v), holes)
 	for i in range(pieces.size()):
 		var piece: Rect2 = pieces[i]
@@ -3102,7 +3147,7 @@ func _create_exterior_window_reveal(
 	var band_depth: float = 0.035
 	var band_m: float = 0.12
 	var floor_level_m: float = center.y - (sill_m + height_m * 0.5)
-	var facade_mat := _mat(exterior_facade_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 2600)
+	var facade_mat := _facade_material()
 	var top_center: Vector3 = reveal_center
 	top_center.y = floor_level_m + sill_m + height_m + band_m * 0.5
 	_add_oriented_box(parent, "ExteriorWindowTop_%02d" % index, top_center, tangent, width_m + band_m * 2.0, band_m, band_depth, facade_mat, false)
@@ -5477,6 +5522,8 @@ func _to_world(pos_m: Vector3, floor_level_m: float = 0.0) -> Vector3:
 
 
 func _floor_material_for_room(room_id: int) -> StandardMaterial3D:
+	if floor_material_override != null:
+		return floor_material_override
 	var room: RoomModel = building.get_room(room_id) if building != null else null
 	var kind: String = room.kind.to_lower() if room != null else ""
 	var color := Color(0.30, 0.29, 0.26, 1.0)
@@ -5492,6 +5539,8 @@ func _floor_material_for_room(room_id: int) -> StandardMaterial3D:
 
 
 func _wall_material_for_room(room_id: int) -> StandardMaterial3D:
+	if wall_material_override != null:
+		return wall_material_override
 	var room: RoomModel = building.get_room(room_id) if building != null else null
 	var kind: String = room.kind.to_lower() if room != null else ""
 	var color := Color(0.80, 0.80, 0.75, 1.0)
@@ -5507,6 +5556,8 @@ func _wall_material_for_room(room_id: int) -> StandardMaterial3D:
 
 
 func _ceiling_material_for_room(room_id: int) -> StandardMaterial3D:
+	if ceiling_material_override != null:
+		return ceiling_material_override
 	return _mat(Color(0.76, 0.76, 0.71, 1.0), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 3100 + room_id)
 
 
@@ -5533,7 +5584,7 @@ func _mat(
 
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
-	material.roughness = 0.96
+	material.roughness = material_surface_roughness
 	material.metallic = 0.0
 	if use_procedural_surface_noise and noise_seed >= 0 and not transparent and material_noise_contrast > 0.0:
 		material.albedo_texture = _noise_texture(noise_seed, noise_profile)
@@ -5558,7 +5609,9 @@ func _mat(
 func _noise_size_for_profile(noise_profile: int) -> float:
 	if noise_profile == NOISE_PROFILE_TILE:
 		return maxf(0.05, landing_tile_size_m)
-	return material_noise_size_m * (2.4 if noise_profile == NOISE_PROFILE_FLOOR else 1.0)
+	return material_noise_size_m * (
+		material_floor_noise_size_factor if noise_profile == NOISE_PROFILE_FLOOR else 1.0
+	)
 
 
 ## Ruido de superficie utilizable. La clave es la rampa de color: el albedo se
@@ -5567,8 +5620,14 @@ func _noise_size_for_profile(noise_profile: int) -> float:
 ## que el color base se conserva y el ruido solo lo rompe (FP-2 / M-1).
 func _noise_texture(variant_seed: int, noise_profile: int = NOISE_PROFILE_SURFACE) -> Texture2D:
 	if noise_profile == NOISE_PROFILE_TILE:
+		if landing_tile_texture_override != null:
+			return landing_tile_texture_override
 		return _tile_texture()
 	var is_floor: bool = noise_profile == NOISE_PROFILE_FLOOR
+	if is_floor and floor_noise_texture_override != null:
+		return floor_noise_texture_override
+	if not is_floor and surface_noise_texture_override != null:
+		return surface_noise_texture_override
 	var contrast: float = clampf(
 		material_noise_contrast * (material_floor_dirt_boost if is_floor else 1.0),
 		0.0,
@@ -5576,16 +5635,18 @@ func _noise_texture(variant_seed: int, noise_profile: int = NOISE_PROFILE_SURFAC
 	)
 	var noise := FastNoiseLite.new()
 	noise.seed = variant_seed
-	noise.frequency = material_noise_frequency * (0.6 if is_floor else 1.0)
-	noise.fractal_octaves = 5 if is_floor else 3
+	noise.frequency = material_noise_frequency * (
+		material_floor_noise_frequency_factor if is_floor else 1.0
+	)
+	noise.fractal_octaves = material_floor_noise_octaves if is_floor else material_noise_octaves
 
 	var ramp := Gradient.new()
 	ramp.set_color(0, Color(1.0 - contrast, 1.0 - contrast, 1.0 - contrast, 1.0))
 	ramp.set_color(1, Color.WHITE)
 
 	var texture := NoiseTexture2D.new()
-	texture.width = 256
-	texture.height = 256
+	texture.width = material_noise_texture_px
+	texture.height = material_noise_texture_px
 	texture.seamless = true
 	texture.color_ramp = ramp
 	texture.noise = noise
