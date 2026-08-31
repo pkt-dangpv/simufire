@@ -70,6 +70,8 @@ static func update(item_dict: Dictionary, op: OpeningModel, room_items: Dictiona
 	context["exterior_plume_min_source_alpha"] = float(settings.get("exterior_plume_min_source_alpha", 0.05))
 	context["opening_curtain_hot_tint"] = float(settings.get("opening_curtain_hot_tint", 0.18))
 	context["opening_curtain_side_visibility"] = float(settings.get("opening_curtain_side_visibility", 0.22))
+	context["exterior_opening_curtain_depth_m"] = float(settings.get("exterior_opening_curtain_depth_m", 0.30))
+	context["exterior_opening_curtain_outward_shift"] = float(settings.get("exterior_opening_curtain_outward_shift", 0.55))
 	if bool(pose.get("is_vertical", false)) or op.is_vertical:
 		_hide_layer(inflow)
 		_hide_layer(plume)
@@ -119,7 +121,17 @@ static func _update_horizontal(
 		float(context.get("smoke_opening_blend_depth_m", 1.55)) * lerpf(0.58, 1.0, open_frac)
 	)
 	if op.is_exterior_opening():
-		blend_depth_m = maxf(blend_depth_m, 0.54)
+		# En un hueco a fachada el puente NO debe ser un volumen a caballo del
+		# muro: forzarle 0,54 m de fondo lo convierte en un cajon que asoma
+		# medio dentro y medio fuera de la habitacion, que es justo lo que se
+		# ve como "un rectangulo tridimensional en la ventana". Lo que hay que
+		# ensenar es humo LLENANDO el hueco, y por encima el penacho que sale.
+		# Asi que aqui el fondo se ACOTA al espesor del propio hueco.
+		blend_depth_m = clampf(
+			float(context.get("exterior_opening_curtain_depth_m", 0.30)),
+			0.05,
+			blend_depth_m
+		)
 
 	var pos3: Vector3 = Vector3(pose["position"])
 	var opening_bottom_m: float = pos3.y - door_height_m * 0.5
@@ -156,7 +168,12 @@ static func _update_horizontal(
 			curtain_shift.x = leaf_shift_m
 	if op.is_exterior_opening():
 		outward_sign = _exterior_outward_sign(item_a if not item_a.is_empty() else item_b, pos3, thin_axis_is_x)
-		var shift_m: float = blend_depth_m * 0.32 * outward_sign
+		# Con 0,32 el puente queda a caballo del muro: medio dentro y medio
+		# fuera, que es lo que se lee como un cajon metido en la ventana. La
+		# mitad interior ademas no aporta nada, porque ese volumen ya lo pinta
+		# el humo de la sala. Con 0,55 el puente queda pegado por fuera y lo
+		# que se ve es humo saliendo.
+		var shift_m: float = blend_depth_m * float(context.get("exterior_opening_curtain_outward_shift", 0.55)) * outward_sign
 		if thin_axis_is_x:
 			curtain_shift.x = shift_m
 		else:

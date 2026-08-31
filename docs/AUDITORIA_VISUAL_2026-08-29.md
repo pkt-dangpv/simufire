@@ -584,6 +584,20 @@ Descubierto al comparar dos capturas seguidas: **la misma versión, ejecutada do
 
 Corrección: el jugador se vuelve a fijar y se le anula la velocidad justo antes de capturar. Verificado: dos ejecuciones seguidas dan 0,00 de diferencia en las vistas estáticas y 0,06 en la del fuego, que tiene llama animada.
 
+### 🟠 X-7. El humo del hueco a fachada era un cajón a caballo del muro — **[CORREGIDO 2026-09-01]**
+Identificado por el usuario sobre su propia grabación, después de que yo persiguiese dos objetos equivocados: *"es un rectángulo tridimensional que está en la ventana, mitad dentro y mitad fuera de la habitación, y de ahí sale el penacho de humo exterior"*.
+
+Es el **puente de humo del vano** (`SmokeCurtain_XX`), y tenía dos defectos de forma además del color ya corregido:
+
+1. En un hueco a fachada el fondo se **forzaba** a un mínimo de 0,54 m (`blend_depth_m = maxf(blend_depth_m, 0.54)`), lo que convierte el puente en un volumen tan profundo como medio metro clavado en el muro.
+2. Se desplazaba hacia la calle sólo un 32 % de ese fondo, así que quedaba literalmente **medio dentro y medio fuera**.
+
+Corrección: en huecos a fachada el fondo se **acota** al espesor del hueco (`exterior_opening_curtain_depth_m`, 0,30 m) en vez de forzarse a un mínimo, y el desplazamiento hacia fuera sube a 0,55 del fondo (`exterior_opening_curtain_outward_shift`), de modo que la lámina queda pegada por fuera. La mitad interior no se echa en falta: ese volumen ya lo pinta el humo de la propia sala.
+
+Verificado en captura con humo denso: el puente pasa de losa ancha metida en la habitación a lámina fina pegada al hueco, y lo que se lee es humo saliendo con su penacho encima.
+
+**Nota de método.** Antes de acertar recoloreé el penacho exterior y luego la cortina, y llegué a proponer al usuario cinco zonas numeradas sobre su propio fotograma para que señalase el objeto. Fue eso lo que resolvió en un mensaje lo que tres rondas de deducción no habían resuelto. Con síntomas visuales, **pedir que señalen sobre la imagen es más barato que deducir**.
+
 ---
 
 ## 13. Estado final de la línea visual (2026-08-31)

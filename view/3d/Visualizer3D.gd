@@ -235,6 +235,17 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 ## Visibilidad de los costados de la cortina vista desde la casa de munecas.
 ## Subirla hace que se lean las cuatro caras y el vano parezca una caja.
 @export_range(0.0, 1.0, 0.01) var opening_curtain_side_visibility: float = 0.22
+## Fondo del puente de humo en un hueco A FACHADA. Con valores grandes el
+## puente se convierte en un cajon que asoma medio dentro y medio fuera de la
+## habitacion; lo que debe verse es humo llenando el hueco y, por encima, el
+## penacho que sale. Los huecos interiores conservan su fondo, que ahi si
+## conecta dos capas.
+@export_range(0.05, 1.60, 0.05) var exterior_opening_curtain_depth_m: float = 0.30
+## Cuanto se desplaza hacia la calle el puente de un hueco a fachada, en
+## fracciones de su propio fondo. Con 0,32 quedaba a caballo del muro (medio
+## dentro, medio fuera); con 0,55 queda pegado por fuera y se lee como humo
+## saliendo, no como un cajon metido en la ventana.
+@export_range(0.0, 1.5, 0.05) var exterior_opening_curtain_outward_shift: float = 0.55
 ## Regimen del penacho segun el empuje: con poco, columna lisa y lenta
 ## (laminar); con mucho, revuelta y rapida.
 @export_range(0.0, 2.0, 0.05) var exterior_plume_laminar_turbulence: float = 0.30
@@ -2894,6 +2905,8 @@ func _update_openings() -> void:
 			"exterior_plume_hot_tint": exterior_plume_hot_tint,
 			"opening_curtain_hot_tint": opening_curtain_hot_tint,
 			"opening_curtain_side_visibility": opening_curtain_side_visibility,
+			"exterior_opening_curtain_depth_m": exterior_opening_curtain_depth_m,
+			"exterior_opening_curtain_outward_shift": exterior_opening_curtain_outward_shift,
 			"exterior_plume_laminar_turbulence": exterior_plume_laminar_turbulence,
 			"exterior_plume_turbulent_turbulence": exterior_plume_turbulent_turbulence,
 			"exterior_plume_min_speed": exterior_plume_min_speed,

@@ -354,6 +354,8 @@ class TestGodotEditability(unittest.TestCase):
                 "exterior_plume_hot_tint",
                 "opening_curtain_hot_tint",
                 "opening_curtain_side_visibility",
+                "exterior_opening_curtain_depth_m",
+                "exterior_opening_curtain_outward_shift",
                 "exterior_plume_laminar_turbulence",
                 "exterior_plume_turbulent_turbulence",
                 "exterior_plume_min_speed",
