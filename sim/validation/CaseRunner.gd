@@ -1242,6 +1242,7 @@ func _finalize_validation_run(state: Dictionary) -> void:
 			var disposition: Dictionary = _load_baseline_gate_disposition(
 				_case_name,
 				_baseline_path,
+				_output_path,
 				baseline_result
 			)
 			if disposition.is_empty():
@@ -1294,6 +1295,7 @@ func _compare_against_baseline(metrics: Dictionary, baseline_data: Dictionary) -
 func _load_baseline_gate_disposition(
 	case_name: String,
 	baseline_path: String,
+	report_path: String,
 	baseline_result: Dictionary
 ) -> Dictionary:
 	var registry_text: String = _read_text_file(BASELINE_GATE_DISPOSITIONS_PATH)
@@ -1332,6 +1334,13 @@ func _load_baseline_gate_disposition(
 	var expected_hash: String = String(entry.get("baseline_sha256", "")).to_lower()
 	var actual_hash: String = FileAccess.get_sha256(baseline_path).to_lower()
 	if expected_hash.is_empty() or expected_hash != actual_hash:
+		return {}
+
+	var expected_report_hash: String = String(
+		entry.get("current_report_sha256", "")
+	).to_lower()
+	var actual_report_hash: String = FileAccess.get_sha256(report_path).to_lower()
+	if expected_report_hash.is_empty() or expected_report_hash != actual_report_hash:
 		return {}
 
 	var expected_value: Variant = entry.get("expected_failing_checks", [])

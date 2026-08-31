@@ -345,6 +345,7 @@ def check_report_fields(
 def get_baseline_gate_disposition(
     case_name: str,
     baseline_path: Path,
+    report_path: Path,
     baseline_result: dict[str, Any],
 ) -> dict[str, Any] | None:
     """Return an exact approved disposition, or fail closed with ``None``."""
@@ -375,6 +376,13 @@ def get_baseline_gate_disposition(
     except OSError:
         return None
     if entry.get("baseline_sha256") != actual_hash:
+        return None
+
+    try:
+        actual_report_hash = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+    if entry.get("current_report_sha256") != actual_report_hash:
         return None
 
     expected_failures = entry.get("expected_failing_checks")
@@ -413,7 +421,9 @@ def check_baseline_all_pass(
         if bl.get("all_pass") is False:
             failing = [k for k, v in bl.get("checks", {}).items()
                        if not v.get("pass", True)]
-            disposition = get_baseline_gate_disposition(name, baselines[name], bl)
+            disposition = get_baseline_gate_disposition(
+                name, baselines[name], path, bl
+            )
             if disposition is not None:
                 issues.append(Issue(
                     INFO,

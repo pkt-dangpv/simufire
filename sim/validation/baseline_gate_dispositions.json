@@ -25,7 +25,7 @@
       "exit_behavior": "NON_BLOCKING_PRESERVE_FAILURE",
       "record_preserved": true,
       "runtime_authority": "NO-GO",
-      "baseline_sha256": "d908067521733273f0575f20fca71d176236f96b0c5a4f126b2d6d3c23b7974d",
+      "baseline_sha256": "f9a3a5f5d26834769627ef3077ea72d3cea6a646eb291a3eb8587f072a3a5519",
       "expected_failing_checks": [
         "peak_temp_upper_c_global",
         "room_0_final_smoke_kg",

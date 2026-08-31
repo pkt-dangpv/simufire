@@ -33,7 +33,7 @@ EXPECTED = {
         ],
     },
     "cfast_multi_fuel_couch_tv": {
-        "baseline_sha256": "d908067521733273f0575f20fca71d176236f96b0c5a4f126b2d6d3c23b7974d",
+        "baseline_sha256": "f9a3a5f5d26834769627ef3077ea72d3cea6a646eb291a3eb8587f072a3a5519",
         "failing_checks": [
             "peak_temp_upper_c_global",
             "room_0_final_smoke_kg",
@@ -77,6 +77,8 @@ def test_case_runner_retirement_is_bound_to_hash_and_exact_failure_set():
 
     assert 'BASELINE_GATE_DISPOSITIONS_PATH' in source
     assert 'FileAccess.get_sha256(baseline_path).to_lower()' in resolver
+    assert 'FileAccess.get_sha256(report_path).to_lower()' in resolver
+    assert 'entry.get("current_report_sha256", "")' in resolver
     assert 'expected_failing_checks.sort()' in resolver
     assert 'actual_failing_checks.sort()' in resolver
     assert 'expected_failing_checks != actual_failing_checks' in resolver
@@ -141,6 +143,7 @@ def test_freshness_audit_classifies_only_exact_dispositions_as_retired():
         disposition = freshness.get_baseline_gate_disposition(
             case_name,
             baseline_path,
+            report_path,
             report["baseline"],
         )
         assert disposition is not None
@@ -155,8 +158,27 @@ def test_freshness_audit_classifies_only_exact_dispositions_as_retired():
         assert freshness.get_baseline_gate_disposition(
             case_name,
             baseline_path,
+            report_path,
             changed,
         ) is None
+
+        changed_report = copy.deepcopy(report)
+        failing_name = next(
+            name for name, check in changed_report["baseline"]["checks"].items()
+            if check["pass"] is False
+        )
+        changed_report["baseline"]["checks"][failing_name]["actual"] = 1e99
+        changed_path = report_path.with_name(f"{case_name}.p1r8-mutated.json")
+        changed_path.write_text(json.dumps(changed_report), encoding="utf-8")
+        try:
+            assert freshness.get_baseline_gate_disposition(
+                case_name,
+                baseline_path,
+                changed_path,
+                changed_report["baseline"],
+            ) is None
+        finally:
+            changed_path.unlink()
 
     issues = []
     freshness.check_baseline_all_pass(reports, baselines, issues)

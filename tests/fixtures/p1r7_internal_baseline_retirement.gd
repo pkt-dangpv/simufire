@@ -7,6 +7,7 @@ var _failed: bool = false
 
 func _init() -> void:
 	var runner = CaseRunnerScript.new()
+	var stairwell_report_path := "res://sim/validation/reports/cfast_two_floor_stairwell.json"
 	var stairwell_result: Dictionary = {
 		"all_pass": false,
 		"checks": {
@@ -17,6 +18,7 @@ func _init() -> void:
 	var valid: Dictionary = runner._load_baseline_gate_disposition(
 		"cfast_two_floor_stairwell",
 		"res://sim/validation/baselines/cfast_two_floor_stairwell.json",
+		stairwell_report_path,
 		stairwell_result
 	)
 	_assert(not valid.is_empty(), "exact stairwell disposition is accepted")
@@ -27,6 +29,7 @@ func _init() -> void:
 		runner._load_baseline_gate_disposition(
 			"cfast_two_floor_stairwell",
 			"res://sim/validation/baselines/cfast_two_floor_stairwell.json",
+			stairwell_report_path,
 			changed_failure_set
 		).is_empty(),
 		"an extra failing check is rejected"
@@ -38,6 +41,7 @@ func _init() -> void:
 		runner._load_baseline_gate_disposition(
 			"cfast_two_floor_stairwell",
 			"res://sim/validation/baselines/cfast_two_floor_stairwell.json",
+			stairwell_report_path,
 			no_failures
 		).is_empty(),
 		"an empty failing set is rejected"
@@ -53,16 +57,35 @@ func _init() -> void:
 			runner._load_baseline_gate_disposition(
 				"cfast_two_floor_stairwell",
 				altered_baseline_path,
+				stairwell_report_path,
 				stairwell_result
 			).is_empty(),
 			"a baseline hash mismatch is rejected"
 		)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(altered_baseline_path))
 
+	var altered_report_path := "user://p1r7_altered_report.json"
+	var altered_report := FileAccess.open(altered_report_path, FileAccess.WRITE)
+	_assert(altered_report != null, "altered report fixture is writable")
+	if altered_report != null:
+		altered_report.store_string("{}")
+		altered_report.close()
+		_assert(
+			runner._load_baseline_gate_disposition(
+				"cfast_two_floor_stairwell",
+				"res://sim/validation/baselines/cfast_two_floor_stairwell.json",
+				altered_report_path,
+				stairwell_result
+			).is_empty(),
+			"a report hash mismatch is rejected"
+		)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(altered_report_path))
+
 	_assert(
 		runner._load_baseline_gate_disposition(
 			"unknown_case",
 			"res://sim/validation/baselines/cfast_two_floor_stairwell.json",
+			stairwell_report_path,
 			stairwell_result
 		).is_empty(),
 		"an unknown case is rejected"
