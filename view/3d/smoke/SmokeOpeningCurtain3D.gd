@@ -42,6 +42,9 @@ static func update(item_dict: Dictionary, op: OpeningModel, room_items: Dictiona
 	context["opening_curtain_edge_band"] = float(settings.get("opening_curtain_edge_band", 0.55))
 	context["opening_curtain_edge_softness"] = float(settings.get("opening_curtain_edge_softness", 0.40))
 	context["show_exterior_smoke_plume"] = bool(settings.get("show_exterior_smoke_plume", true))
+	context["opening_curtain_follows_leaf"] = bool(settings.get("opening_curtain_follows_leaf", true))
+	context["opening_curtain_min_width_ratio"] = float(settings.get("opening_curtain_min_width_ratio", 0.12))
+	context["opening_curtain_alpha_open_exponent"] = float(settings.get("opening_curtain_alpha_open_exponent", 1.0))
 	if bool(pose.get("is_vertical", false)) or op.is_vertical:
 		_hide_layer(inflow)
 		_hide_layer(plume)
@@ -68,11 +71,23 @@ static func _update_horizontal(
 	var alpha_a: float = _smoke_alpha(item_a)
 	var alpha_b: float = _smoke_alpha(item_b)
 	var source_alpha: float = _horizontal_source_alpha(alpha_a, alpha_b, item_a.is_empty() or item_b.is_empty())
-	var curtain_alpha: float = source_alpha * open_frac
+	# Cuando la geometria ya lleva la fraccion de apertura, atenuar ademas la
+	# opacidad por el mismo factor la contaria dos veces: media puerta se veria
+	# como media cortina a media densidad. El exponente lo decide el inspector.
+	var curtain_alpha: float = source_alpha * pow(
+		clampf(open_frac, 0.0, 1.0),
+		clampf(float(context.get("opening_curtain_alpha_open_exponent", 1.0)), 0.0, 1.0)
+	)
 
 	var pose_size: Vector3 = Vector3(pose["size"])
 	var thin_axis_is_x: bool = pose_size.x <= pose_size.z
-	var opening_width_m: float = maxf(pose_size.x, pose_size.z)
+	var full_width_m: float = maxf(pose_size.x, pose_size.z)
+	# H-5: la hoja tapa parte del vano. El humo pasa por el hueco libre, que
+	# esta del lado de la CERRADURA: la hoja gira sobre su bisagra y su
+	# proyeccion sobre el plano del hueco arranca justo ahi.
+	var leaf_gap: Vector2 = _leaf_free_gap(op, full_width_m, open_frac, context)
+	var opening_width_m: float = leaf_gap.x
+	var leaf_shift_m: float = leaf_gap.y
 	var door_height_m: float = pose_size.y
 	var blend_depth_m: float = maxf(
 		minf(pose_size.x, pose_size.z),
@@ -109,6 +124,11 @@ static func _update_horizontal(
 	# exterior aporta informacion: se desplaza el puente hacia la calle.
 	var outward_sign: float = 0.0
 	var curtain_shift := Vector3.ZERO
+	if absf(leaf_shift_m) > 0.0001:
+		if thin_axis_is_x:
+			curtain_shift.z = leaf_shift_m
+		else:
+			curtain_shift.x = leaf_shift_m
 	if op.is_exterior_opening():
 		outward_sign = _exterior_outward_sign(item_a if not item_a.is_empty() else item_b, pos3, thin_axis_is_x)
 		var shift_m: float = blend_depth_m * 0.32 * outward_sign
@@ -140,6 +160,7 @@ static func _update_horizontal(
 				"turbulence": 0.88,
 				"drift_speed": 0.14 + fire_context_t * 0.08,
 				"volume_depth_m": maxf(curtain_depth_m, 0.05),
+				"meters_to_units": float(context.get("meters_to_units", 1.0)),
 				"edge_softness": float(context.get("opening_curtain_edge_softness", 0.40)),
 				"bottom_waviness": 0.48,
 				"edge_band_strength": float(context.get("opening_curtain_edge_band", 0.55)),
@@ -195,6 +216,45 @@ static func _update_horizontal(
 		outward_sign,
 		curtain_visible
 	)
+
+
+## Planta no representada en el estado: se asume limpia, a la altura y la
+## cota que sugiere la planta conocida, para que el hueco vertical siga
+## teniendo dos extremos con los que construir el penacho (H-7).
+static func _absent_floor_item(known: Dictionary) -> Dictionary:
+	var height_m: float = _room_height(known, 2.4)
+	var known_floor_m: float = float(known.get("floor_level_m", 0.0))
+	return {
+		"floor_level_m": known_floor_m + height_m,
+		"height_m": height_m,
+		"smoke_alpha": 0.0,
+		"smoke_bottom_m": height_m,
+	}
+
+
+## Hueco libre que deja la hoja: devuelve (ancho_util, desplazamiento) sobre
+## el eje del vano. Con la puerta entornada el humo no atraviesa la hoja,
+## pasa por el hueco que queda al lado de la cerradura.
+static func _leaf_free_gap(
+	op: OpeningModel,
+	full_width_m: float,
+	open_frac: float,
+	context: Dictionary
+) -> Vector2:
+	if not bool(context.get("opening_curtain_follows_leaf", true)):
+		return Vector2(full_width_m, 0.0)
+	if op == null or op.is_vertical:
+		return Vector2(full_width_m, 0.0)
+	var frac: float = clampf(open_frac, 0.0, 1.0)
+	var min_ratio: float = clampf(float(context.get("opening_curtain_min_width_ratio", 0.12)), 0.0, 1.0)
+	var ratio: float = maxf(frac, min_ratio)
+	if ratio >= 0.999:
+		return Vector2(full_width_m, 0.0)
+	var free_width_m: float = full_width_m * ratio
+	# hinge_side nombra el lado de la bisagra; el hueco queda en el contrario.
+	var hinge_left: bool = String(op.hinge_side).strip_edges().to_lower() != "right"
+	var latch_sign: float = 1.0 if hinge_left else -1.0
+	return Vector2(free_width_m, (full_width_m - free_width_m) * 0.5 * latch_sign)
 
 
 static func _update_lower_inflow(
@@ -255,6 +315,7 @@ static func _update_lower_inflow(
 			"turbulence": 0.46,
 			"drift_speed": 0.14,
 			"volume_depth_m": maxf(inflow_depth_m, 0.05),
+			"meters_to_units": float(context.get("meters_to_units", 1.0)),
 			"edge_softness": 0.58,
 			"bottom_waviness": 0.18,
 			"edge_band_strength": 0.16,
@@ -284,9 +345,16 @@ static func _update_vertical(
 	open_frac: float,
 	context: Dictionary
 ) -> void:
-	if item_a.is_empty() or item_b.is_empty():
+	# H-7: basta con que UNA de las dos plantas este representada. Antes, un
+	# hueco vertical hacia una planta ausente del estado no mostraba humo
+	# aunque la de abajo estuviese cargada. La ausente se toma como limpia.
+	if item_a.is_empty() and item_b.is_empty():
 		curtain.visible = false
 		return
+	if item_a.is_empty():
+		item_a = _absent_floor_item(item_b)
+	elif item_b.is_empty():
+		item_b = _absent_floor_item(item_a)
 
 	var smoke_min_visible_depth_m: float = float(context.get("smoke_min_visible_depth_m", 0.05))
 	var floor_a_m: float = float(item_a.get("floor_level_m", 0.0))
@@ -339,6 +407,7 @@ static func _update_vertical(
 			"turbulence": 0.96,
 			"drift_speed": 0.24,
 			"volume_depth_m": maxf(plume_height_m, 0.05),
+			"meters_to_units": float(context.get("meters_to_units", 1.0)),
 			"edge_softness": 0.42,
 			"bottom_waviness": 0.66,
 			"edge_band_strength": 0.62,
@@ -508,6 +577,7 @@ static func _update_exterior_plume(
 			"turbulence": 0.94,
 			"drift_speed": 0.22 + fire_context_t * 0.12,
 			"volume_depth_m": maxf(height_m, 0.05),
+			"meters_to_units": float(context.get("meters_to_units", 1.0)),
 			"edge_softness": 0.52,
 			"bottom_waviness": 0.30,
 			"edge_band_strength": 0.20,

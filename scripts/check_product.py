@@ -326,6 +326,15 @@ def main() -> int:
         diagnostics.append("Godot FP fire visuals: " + (diagnostic or "failed"))
 
     rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_3d_smoke_opening_curtain.tscn",
+        "3D SMOKE OPENING CURTAIN VALIDATION PASS",
+        timeout_s=180,
+    )
+    rows.append(("3D smoke opening curtain Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot 3D smoke opening curtain: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_fp_interstitial_seal.tscn",
         "FP INTERSTITIAL SEAL VALIDATION PASS",
     )

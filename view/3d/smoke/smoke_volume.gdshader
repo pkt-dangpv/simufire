@@ -6,6 +6,10 @@ uniform float density = 1.0;
 uniform float turbulence = 0.55;
 uniform float drift_speed = 0.10;
 uniform float volume_depth_m = 1.0;
+// Escala de la escena. VERTEX viene ya multiplicado por ella mientras que
+// volume_depth_m va en metros: sin este factor, normalizar uno por otro solo
+// sale bien con escala 1 (H-8).
+uniform float meters_to_units = 1.0;
 uniform float edge_softness = 0.14;
 uniform float bottom_waviness = 0.18;
 uniform float edge_band_strength = 0.30;
@@ -43,7 +47,7 @@ float noise(vec2 p) {
 }
 
 void vertex() {
-	smoke_local_y = clamp((VERTEX.y / max(0.01, volume_depth_m)) + 0.5, 0.0, 1.0);
+	smoke_local_y = clamp((VERTEX.y / max(0.01, volume_depth_m * meters_to_units)) + 0.5, 0.0, 1.0);
 	smoke_horizontal_face = abs(NORMAL.y);
 	smoke_normal_y = NORMAL.y;
 }

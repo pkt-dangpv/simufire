@@ -170,6 +170,16 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export_range(0.0, 1.5, 0.05) var opening_curtain_edge_band: float = 0.55
 ## Suavizado del contorno de la cortina (mayor = mas difuso).
 @export_range(0.05, 0.8, 0.05) var opening_curtain_edge_softness: float = 0.40
+## H-5: la cortina se estrecha al hueco libre que deja la hoja y se desplaza al
+## lado de la cerradura, en vez de ocupar el vano entero y atravesar la puerta.
+@export var opening_curtain_follows_leaf: bool = true
+## Ancho minimo de la cortina como fraccion del vano, para que una rendija siga
+## leyendose desde lejos.
+@export_range(0.0, 0.5, 0.01) var opening_curtain_min_width_ratio: float = 0.12
+## Cuanto atenua ademas la opacidad la fraccion de apertura. Con la geometria ya
+## estrechada, 1.0 contaria la apertura dos veces y 0.0 no la contaria en la
+## opacidad en absoluto.
+@export_range(0.0, 1.0, 0.05) var opening_curtain_alpha_open_exponent: float = 0.5
 ## Penacho de humo que sube por la fachada al salir por un hueco exterior.
 ## Sin el, el humo de una ventana termina en un corte plano en el dintel.
 @export var show_exterior_smoke_plume: bool = true
@@ -2306,6 +2316,7 @@ func _apply_smoke_volume_shader(
 		"turbulence": clampf(0.58 + hrr_smoke_t * 0.34, 0.50, 0.95),
 		"drift_speed": 0.045 + hrr_smoke_t * 0.13,
 		"volume_depth_m": maxf(render_depth_m, 0.05),
+		"meters_to_units": meters_to_units,
 		"edge_softness": lerpf(0.28, 0.48, hrr_smoke_t) if _first_person_overlay else lerpf(0.22, 0.38, hrr_smoke_t),
 		"bottom_waviness": lerpf(0.16, 0.34, hrr_smoke_t) if _first_person_overlay else lerpf(0.12, 0.28, hrr_smoke_t),
 		"edge_band_strength": 0.24 if _first_person_overlay else 0.20,
@@ -2462,6 +2473,7 @@ func _update_fire_smoke_plume(
 			"turbulence": 0.92,
 			"drift_speed": 0.13 + hrr_t * 0.18,
 			"volume_depth_m": maxf(plume_height_m, 0.05),
+			"meters_to_units": meters_to_units,
 			"edge_softness": 0.40,
 			"bottom_waviness": 0.34,
 			"edge_band_strength": 0.34,
@@ -2639,6 +2651,9 @@ func _update_openings() -> void:
 			"opening_curtain_flow_speed": opening_curtain_flow_speed,
 			"opening_curtain_edge_band": opening_curtain_edge_band,
 			"opening_curtain_edge_softness": opening_curtain_edge_softness,
+			"opening_curtain_follows_leaf": opening_curtain_follows_leaf,
+			"opening_curtain_min_width_ratio": opening_curtain_min_width_ratio,
+			"opening_curtain_alpha_open_exponent": opening_curtain_alpha_open_exponent,
 			"show_exterior_smoke_plume": show_exterior_smoke_plume,
 			"smoke_min_visible_depth_m": smoke_min_visible_depth_m,
 			"meters_to_units": meters_to_units,

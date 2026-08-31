@@ -25,6 +25,7 @@ static func create_volume(
 	material.set_shader_parameter("turbulence", 0.55)
 	material.set_shader_parameter("drift_speed", 0.08)
 	material.set_shader_parameter("volume_depth_m", 1.0)
+	material.set_shader_parameter("meters_to_units", 1.0)
 	material.set_shader_parameter("edge_softness", 0.14)
 	material.set_shader_parameter("bottom_waviness", 0.18)
 	material.set_shader_parameter("edge_band_strength", 0.30)

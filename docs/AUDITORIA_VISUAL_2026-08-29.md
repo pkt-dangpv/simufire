@@ -70,17 +70,29 @@ En primera persona esto es lo que se ve desde dentro al mirar por la ventana; en
 ### 🟠 H-4. La contracorriente de aire frío está apagada por defecto — **[ABIERTO]**
 `show_cold_air_inflow_curtains = false` ([Visualizer3D.gd:101](../view/3d/Visualizer3D.gd)). La cortina de entrada de aire existe y está bien resuelta (`_update_lower_inflow`), pero al estar apagada el vano sólo enseña la mitad superior: se ve el humo saliendo y nada entrando. Con H-2 corregido, encenderla completa la lectura bidireccional del hueco. No se activa aquí porque es una decisión de producto (colorear el aire de azul es una convención, no una observación).
 
-### 🟠 H-5. La cortina ignora la hoja de la puerta — **[ABIERTO]**
+### 🟠 H-5. La cortina ignora la hoja de la puerta — **[CORREGIDO 2026-08-31]**
 `SmokeOpeningCurtain3D` escala el humo por `effective_open_fraction()`, pero geométricamente ocupa siempre el ancho completo del vano. Con la puerta a medio abrir el humo atraviesa la hoja. Lo correcto sería estrechar el puente al hueco libre real (ancho × fracción) y desplazarlo al lado de la bisagra.
+
+**Corrección aplicada (F3.1), con una enmienda al diagnóstico.** El informe decía "desplazarlo al lado de la bisagra" y es al revés: la hoja gira **sobre** su bisagra, así que su proyección sobre el plano del hueco arranca justo ahí y tapa ese lado. El hueco libre queda del lado de la **cerradura**. `_leaf_free_gap()` devuelve ancho útil y desplazamiento leyendo `op.hinge_side`, y la cortina se estrecha y se corre hacia el lado por el que de verdad pasa el humo.
+
+Un efecto secundario que había que resolver: la opacidad ya se multiplicaba por la fracción de apertura. Con la geometría llevando también esa fracción, media puerta se vería como media cortina a media densidad, contando la apertura dos veces. La atenuación de opacidad pasa a ser `open_frac ^ exponente`, con el exponente en el inspector (`opening_curtain_alpha_open_exponent`, 0,5 por defecto: 0 no atenúa nada, 1 recupera el comportamiento anterior). También son ajustables `opening_curtain_follows_leaf` y `opening_curtain_min_width_ratio`.
+
+Guardarraíl: `tools/validate_3d_smoke_opening_curtain.gd`. Con `opening_curtain_follows_leaf` desactivado falla con los números del caso (ancho 1,60 contra 1,60 y desplazamiento 0,000).
 
 ### 🟡 H-6. Los huecos exteriores no alimentan el derrame entre salas — **[ABIERTO, correcto hoy]**
 `_same_floor_opening_smoke_spill_for_room()` ([Visualizer3D.gd:2205](../view/3d/Visualizer3D.gd)) excluye `is_exterior_opening()`. Es lo correcto (de fuera no entra humo), pero también impide modelar la **autoexposición** (humo que sale por una ventana y entra por la de la planta superior), que es un fenómeno real y visualmente muy expresivo. Queda como mejora futura, no como fallo.
 
-### 🟡 H-7. El penacho vertical de escaleras sólo existe con las dos salas presentes — **[ABIERTO]**
-`_update_vertical()` sale si `item_a` o `item_b` están vacíos. En un hueco vertical hacia una planta no representada en el estado, la escalera no muestra humo aunque la sala inferior esté cargada.
+### 🟡 H-7. El penacho vertical de escaleras sólo existe con las dos salas presentes — **[NO REPRODUCIBLE, salvaguarda puesta 2026-08-31]**
+`_update_vertical()` sale si `item_a` o `item_b` están vacíos. El informe deducía de ahí que un hueco vertical hacia una planta no representada en el estado dejaría la escalera sin humo.
 
-### ℹ️ H-8. `smoke_local_y` asume `meters_to_units = 1`
-El shader normaliza con `VERTEX.y / volume_depth_m`, pero los vértices ya vienen multiplicados por `meters_to_units` en `SmokeBridgeMesh._build_mesh()` mientras `volume_depth_m` va en metros. Hoy no afecta (la escena no cambia la escala), pero es una bomba de relojería si alguien toca ese parámetro.
+**Al intentar reproducirlo, no ocurre.** `Visualizer3D` crea un item por **cada** sala del edificio en `rebuild_from_building()`, esté o no en el estado de la simulación: el estado sólo rellena esos items. Así que `item.is_empty()` no se da por una planta no simulada. El retorno temprano sólo saltaría con una apertura que apunte a una sala inexistente en el edificio, y ahí no llega a crearse el nodo de cortina, con lo que tampoco hay nada que dibujar. Probado también con el hueco vertical al exterior (`b = -1`, tipo claraboya): el nodo no existe.
+
+Se deja una **salvaguarda** —si un extremo faltara, se toma como planta limpia en vez de ocultar el penacho— pero no se apunta como corrección de un fallo observable, y no se le pone guardarraíl porque no hay caso que fijar. Si alguna vez se permite una apertura hacia una planta fuera del modelo, este hallazgo vuelve a estar vivo.
+
+### ℹ️ H-8. `smoke_local_y` asume `meters_to_units = 1` — **[CORREGIDO 2026-08-31]**
+El shader normalizaba con `VERTEX.y / volume_depth_m`, pero los vértices ya vienen multiplicados por `meters_to_units` en `SmokeBridgeMesh._build_mesh()` mientras `volume_depth_m` va en metros. No afectaba con escala 1, pero era una bomba de relojería.
+
+Corrección (F3.3): `smoke_volume.gdshader` recibe un uniforme `meters_to_units` y normaliza por `volume_depth_m * meters_to_units`. Se pasa desde los seis sitios que fijan `volume_depth_m` (cuatro en la cortina de vano, dos en el visor) y desde la factoría de materiales.
 
 ---
 
@@ -406,7 +418,7 @@ Verificación: juego completo de capturas F0 antes/después, más `check_product
 
 Al calibrar aparecieron además dos errores en los puntos de vista del instrumental de F0, ya corregidos: la pared `bottom` de un rectángulo es el lado `y = y0 + alto` y su `offset_m` corre en sentido inverso al eje (el portal no estaba donde se le buscaba), y el jugador es un `CharacterBody3D` con gravedad, así que una vista colocada sobre el hueco de la escalera se cae por él y captura la calle.
 
-### 12.F3 Fase 3 — Humo y su lectura
+### 12.F3 Fase 3 — Humo y su lectura — **PARTE TÉCNICA HECHA 2026-08-31**
 
 | # | Hallazgo | Trabajo | Nota |
 |---|---|---|---|
@@ -415,6 +427,10 @@ Al calibrar aparecieron además dos errores en los puntos de vista del instrumen
 | F3.3 | ℹ️ H-8 | Normalizar `smoke_local_y` por `meters_to_units` en vez de asumir 1. | No afecta hoy; es una bomba de relojería. Coste mínimo: se hace y se olvida. |
 | F3.4 | 🟠 H-4 | **Decisión de producto**, no técnica: encender `show_cold_air_inflow_curtains` por defecto. A favor, con H-2 ya corregido completa la lectura bidireccional del vano; en contra, colorear el aire de azul es una convención, no una observación. | Se presenta con captura de las dos opciones y decide el usuario. |
 | F3.5 | ℹ️ FP-7 | **Decisión de alcance**: hoy el humo entre salas sólo existe en dollhouse; en FP es niebla de la sala actual. Llevar cuerpo de humo a FP es trabajo mayor (mallas de vano en la vista donde está el jugador). | Se decide si entra en esta línea o se difiere. No se toca sin decisión. |
+
+**Resultado de la parte técnica:** F3.1 (H-5) cerrada con guardarraíl y con una enmienda al diagnóstico del informe —el hueco libre está del lado de la cerradura, no de la bisagra—; F3.3 (H-8) cerrada. F3.2 (H-7) **no era reproducible**: se deja salvaguarda y el hallazgo queda reclasificado en §1, no marcado como corregido. Suite 29/30, único fallo el conocido de la línea motor.
+
+Quedan vivas las dos decisiones de producto, F3.4 (H-4) y F3.5 (FP-7).
 
 ### 12.F4 Fase 4 — Visor 3D y visor 2D
 
