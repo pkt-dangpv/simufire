@@ -68,6 +68,8 @@ static func update(item_dict: Dictionary, op: OpeningModel, room_items: Dictiona
 	context["exterior_plume_side_visibility"] = float(settings.get("exterior_plume_side_visibility", 0.34))
 	context["exterior_plume_requires_curtain"] = bool(settings.get("exterior_plume_requires_curtain", false))
 	context["exterior_plume_min_source_alpha"] = float(settings.get("exterior_plume_min_source_alpha", 0.05))
+	context["opening_curtain_hot_tint"] = float(settings.get("opening_curtain_hot_tint", 0.18))
+	context["opening_curtain_side_visibility"] = float(settings.get("opening_curtain_side_visibility", 0.22))
 	if bool(pose.get("is_vertical", false)) or op.is_vertical:
 		_hide_layer(inflow)
 		_hide_layer(plume)
@@ -187,7 +189,7 @@ static func _update_horizontal(
 		)
 		_apply_smoke_material(
 			curtain,
-			_outflow_color(context, fire_context_t),
+			_curtain_color(context, fire_context_t),
 			shader_alpha,
 			{
 				"density": clampf(0.44 + curtain_alpha * 1.15 + fire_context_t * 0.20, 0.34, 1.18),
@@ -195,10 +197,13 @@ static func _update_horizontal(
 				"drift_speed": 0.14 + fire_context_t * 0.08,
 				"volume_depth_m": maxf(curtain_depth_m, 0.05),
 				"meters_to_units": float(context.get("meters_to_units", 1.0)),
-				"edge_softness": float(context.get("opening_curtain_edge_softness", 0.40)),
+				"edge_softness": float(context.get("opening_curtain_edge_softness", 0.62)),
 				"bottom_waviness": 0.48,
 				"edge_band_strength": float(context.get("opening_curtain_edge_band", 0.55)),
-				"side_visibility": float(context.get("opening_curtain_first_person_side_visibility", 0.08)) if first_person_overlay else 0.34,
+				"side_visibility": float(context.get(
+					"opening_curtain_first_person_side_visibility" if first_person_overlay else "opening_curtain_side_visibility",
+					0.08 if first_person_overlay else 0.22
+				)),
 				"bottom_surface_strength": float(context.get("opening_curtain_first_person_bottom_strength", 0.46)) if first_person_overlay else 0.28,
 				"top_visibility": 0.0,
 				"vertical_gradient_strength": 0.74,
@@ -763,6 +768,17 @@ static func _fire_context_strength(item_a: Dictionary, item_b: Dictionary) -> fl
 		0.0,
 		1.0
 	)
+
+
+## Color de la cortina del vano. El humo que cruza un hueco es el MISMO humo
+## de la sala: parte de su color y solo admite un sesgo caliente pequeno. Antes
+## se mezclaba hasta un 58 % hacia el naranja y el vano se leia como una caja
+## anaranjada sin relacion con la habitacion de la que sale.
+static func _curtain_color(context: Dictionary, fire_context_t: float) -> Color:
+	var base := Color(context.get("smoke_color", DEFAULT_SMOKE_COLOR))
+	var hot := Color(context.get("hot_smoke_outflow_color", DEFAULT_HOT_OUTFLOW_COLOR))
+	var tint: float = clampf(float(context.get("opening_curtain_hot_tint", 0.18)), 0.0, 1.0)
+	return base.lerp(hot, clampf(fire_context_t * tint, 0.0, tint))
 
 
 static func _outflow_color(context: Dictionary, fire_context_t: float) -> Color:

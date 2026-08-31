@@ -229,6 +229,12 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 ## Cuanto tira el penacho hacia el color caliente. Es humo de la misma sala,
 ## asi que parte de su color; con 0 sale exactamente del color del humo.
 @export_range(0.0, 1.0, 0.01) var exterior_plume_hot_tint: float = 0.18
+## Lo mismo para la cortina que cruza el vano: es el humo de la sala, no una
+## llamarada. Con 0 sale exactamente del color del humo.
+@export_range(0.0, 1.0, 0.01) var opening_curtain_hot_tint: float = 0.18
+## Visibilidad de los costados de la cortina vista desde la casa de munecas.
+## Subirla hace que se lean las cuatro caras y el vano parezca una caja.
+@export_range(0.0, 1.0, 0.01) var opening_curtain_side_visibility: float = 0.22
 ## Regimen del penacho segun el empuje: con poco, columna lisa y lenta
 ## (laminar); con mucho, revuelta y rapida.
 @export_range(0.0, 2.0, 0.05) var exterior_plume_laminar_turbulence: float = 0.30
@@ -2886,6 +2892,8 @@ func _update_openings() -> void:
 			"exterior_plume_alpha_factor": exterior_plume_alpha_factor,
 			"exterior_plume_first_person_alpha_factor": exterior_plume_first_person_alpha_factor,
 			"exterior_plume_hot_tint": exterior_plume_hot_tint,
+			"opening_curtain_hot_tint": opening_curtain_hot_tint,
+			"opening_curtain_side_visibility": opening_curtain_side_visibility,
 			"exterior_plume_laminar_turbulence": exterior_plume_laminar_turbulence,
 			"exterior_plume_turbulent_turbulence": exterior_plume_turbulent_turbulence,
 			"exterior_plume_min_speed": exterior_plume_min_speed,

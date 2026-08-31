@@ -381,6 +381,12 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## a su apertura), asi que con la puerta cerrada el rellano queda negro.
 @export var landing_ambient_lights_enabled: bool = true
 @export_range(0.0, 2.0, 0.01) var landing_ambient_light_factor: float = 0.85
+## Atenuacion del plafon del rellano. Por debajo de 1 reparte mas la luz por el
+## pavimento; por encima la concentra bajo la luminaria. No debe heredar la de
+## las aperturas, que esta calibrada para concentrar el haz junto a una ventana.
+@export_range(0.2, 4.0, 0.05) var landing_ambient_light_attenuation: float = 0.90
+## Margen sobre el alcance necesario para llegar a las esquinas del portal.
+@export_range(0.5, 2.5, 0.05) var landing_ambient_light_range_factor: float = 1.10
 ## Peldaños con proporciones reales (huella/tabica).
 @export var landing_step_tread_m: float = 0.29
 @export var landing_step_rise_m: float = 0.18
@@ -2176,8 +2182,15 @@ func _add_landing_lights(
 	ceiling_light.name = "LandingAmbientLight_%02d" % index
 	ceiling_light.light_color = _effective_landing_light_color()
 	ceiling_light.light_energy = energy
-	ceiling_light.omni_range = maxf(3.6, maxf(width_m, depth_m) * 0.80)
-	ceiling_light.omni_attenuation = opening_light_attenuation
+	# El alcance tiene que llegar a las ESQUINAS del suelo del rellano, no al
+	# 80 % del lado mayor: con 5,40 x 3,30 se quedaba en 4,32 m y las esquinas
+	# caian fuera. La distancia real del plafon a la esquina del pavimento es la
+	# semidiagonal mas la altura.
+	ceiling_light.omni_range = maxf(
+		3.6,
+		Vector2(width_m, depth_m).length() * 0.5 + corridor_height_m
+	) * landing_ambient_light_range_factor
+	ceiling_light.omni_attenuation = landing_ambient_light_attenuation
 	ceiling_light.shadow_enabled = false
 	ceiling_light.position = fixture_center - Vector3(0.0, 0.10, 0.0)
 	_world_root.add_child(ceiling_light)
@@ -2186,8 +2199,8 @@ func _add_landing_lights(
 	stair_light.name = "LandingStairLight_%02d" % index
 	stair_light.light_color = _effective_landing_light_color()
 	stair_light.light_energy = energy * 0.70
-	stair_light.omni_range = maxf(3.2, depth_m * 0.85)
-	stair_light.omni_attenuation = opening_light_attenuation
+	stair_light.omni_range = maxf(3.2, depth_m * 0.85) * landing_ambient_light_range_factor
+	stair_light.omni_attenuation = landing_ambient_light_attenuation
 	stair_light.shadow_enabled = false
 	stair_light.position = Vector3(
 		stair_bay_center.x,
