@@ -31,5 +31,10 @@ window/stretch/aspect="expand"
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
+; Filtro de sombra direccional. En GL Compatibility las calidades altas
+; muestrean con un patron TRAMADO y rotado por pixel: el borde de sombra se
+; llena de puntos que reptan al mover la camara. Con 0 la sombra es dura
+; pero estable, que es lo que hace falta dentro de una vivienda.
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=0
+lights_and_shadows/directional_shadow/size=4096
 textures/default_filters/anisotropic_filtering_level=4

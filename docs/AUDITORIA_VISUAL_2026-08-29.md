@@ -598,6 +598,19 @@ Verificado en captura con humo denso: el puente pasa de losa ancha metida en la 
 
 **Nota de método.** Antes de acertar recoloreé el penacho exterior y luego la cortina, y llegué a proponer al usuario cinco zonas numeradas sobre su propio fotograma para que señalase el objeto. Fue eso lo que resolvió en un mensaje lo que tres rondas de deducción no habían resuelto. Con síntomas visuales, **pedir que señalen sobre la imagen es más barato que deducir**.
 
+### 🔴 X-8. Iluminación inestable en suelo y paredes al mover la cámara — **[CORREGIDO, pendiente de confirmar en ejecución]**
+El usuario lo describió con precisión y resultó ser **un solo fenómeno en dos sitios**: *"en el suelo del rellano aparece iluminación irregular cuando muevo la cámara, con formas redondas, cuadradas, líneas de sierra... de forma aleatoria"*, y lo mismo en las paredes del pasillo. No son dos problemas: son artefactos del mapa de sombra del sol, que se recalcula siguiendo a la cámara.
+
+Tres causas acumuladas, atacadas juntas:
+
+1. **El filtro de sombra estaba en calidad 3.** En GL Compatibility las calidades altas muestrean con un patrón **tramado y rotado por píxel**; el borde de sombra se llena de puntos que reptan al andar. `soft_shadow_filter_quality` 3 → **0**: sombra dura pero estable, que dentro de una vivienda es lo que interesa. `directional_shadow/size` se fija explícitamente en 4096.
+2. **Acne de sombra.** Dentro de una vivienda los paramentos quedan casi rasantes a la luz del sol, el caso peor. `exterior_sky_shadow_bias` 0,08 → **0,18**.
+3. **Densidad de texel.** Repartir el mapa entre 42 m dejaba muy pocos texeles donde se mira. Ya se había bajado a 22 m; ahora **15 m**. El decorado lejano no necesita sombra.
+
+`exterior_sky_shadow_blur` pasa a 0: con el filtro en calidad 0 el difuminado no aporta y solo reintroduce inestabilidad.
+
+**Verificación:** el piso patrón del instrumental **no reproduce el artefacto** —la métrica de saltos bruscos es idéntica antes y después (1,32 % y 0,64 %)—, así que aquí no se puede dar por bueno. Es un fenómeno temporal y de escenario, y quien lo confirma es la siguiente ejecución del simulador en un piso con pasillo.
+
 ---
 
 ## 13. Estado final de la línea visual (2026-08-31)
