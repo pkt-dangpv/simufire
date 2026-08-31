@@ -246,6 +246,10 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 ## dentro, medio fuera); con 0,55 queda pegado por fuera y se lee como humo
 ## saliendo, no como un cajon metido en la ventana.
 @export_range(0.0, 1.5, 0.05) var exterior_opening_curtain_outward_shift: float = 0.55
+## Lo mismo para una PUERTA exterior de vivienda, que no da a la calle sino al
+## rellano: un espacio cerrado donde empujar la lamina hacia fuera la deja
+## flotando en mitad del portal. Por defecto se queda en el plano del hueco.
+@export_range(0.0, 1.5, 0.05) var exterior_door_curtain_outward_shift: float = 0.0
 ## Regimen del penacho segun el empuje: con poco, columna lisa y lenta
 ## (laminar); con mucho, revuelta y rapida.
 @export_range(0.0, 2.0, 0.05) var exterior_plume_laminar_turbulence: float = 0.30
@@ -2907,6 +2911,7 @@ func _update_openings() -> void:
 			"opening_curtain_side_visibility": opening_curtain_side_visibility,
 			"exterior_opening_curtain_depth_m": exterior_opening_curtain_depth_m,
 			"exterior_opening_curtain_outward_shift": exterior_opening_curtain_outward_shift,
+			"exterior_door_curtain_outward_shift": exterior_door_curtain_outward_shift,
 			"exterior_plume_laminar_turbulence": exterior_plume_laminar_turbulence,
 			"exterior_plume_turbulent_turbulence": exterior_plume_turbulent_turbulence,
 			"exterior_plume_min_speed": exterior_plume_min_speed,

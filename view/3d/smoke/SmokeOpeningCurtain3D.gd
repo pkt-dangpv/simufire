@@ -72,6 +72,7 @@ static func update(item_dict: Dictionary, op: OpeningModel, room_items: Dictiona
 	context["opening_curtain_side_visibility"] = float(settings.get("opening_curtain_side_visibility", 0.22))
 	context["exterior_opening_curtain_depth_m"] = float(settings.get("exterior_opening_curtain_depth_m", 0.30))
 	context["exterior_opening_curtain_outward_shift"] = float(settings.get("exterior_opening_curtain_outward_shift", 0.55))
+	context["exterior_door_curtain_outward_shift"] = float(settings.get("exterior_door_curtain_outward_shift", 0.0))
 	if bool(pose.get("is_vertical", false)) or op.is_vertical:
 		_hide_layer(inflow)
 		_hide_layer(plume)
@@ -173,7 +174,14 @@ static func _update_horizontal(
 		# mitad interior ademas no aporta nada, porque ese volumen ya lo pinta
 		# el humo de la sala. Con 0,55 el puente queda pegado por fuera y lo
 		# que se ve es humo saliendo.
-		var shift_m: float = blend_depth_m * float(context.get("exterior_opening_curtain_outward_shift", 0.55)) * outward_sign
+		# Una VENTANA da a la calle: empujar la lamina hacia fuera hace que se
+		# lea como humo saliendo. Una PUERTA exterior de vivienda da al rellano,
+		# que es un espacio cerrado: alli el mismo empujon deja la lamina
+		# flotando en mitad del portal y vuelve a leerse como un rectangulo. Por
+		# eso cada tipo tiene su propio desplazamiento.
+		var shift_key: String = "exterior_door_curtain_outward_shift" if op.type == OpeningModel.Type.DOOR else "exterior_opening_curtain_outward_shift"
+		var shift_default: float = 0.0 if op.type == OpeningModel.Type.DOOR else 0.55
+		var shift_m: float = blend_depth_m * float(context.get(shift_key, shift_default)) * outward_sign
 		if thin_axis_is_x:
 			curtain_shift.x = shift_m
 		else:
