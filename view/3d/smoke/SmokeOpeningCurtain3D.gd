@@ -58,6 +58,7 @@ static func update(item_dict: Dictionary, op: OpeningModel, room_items: Dictiona
 	context["neutral_plane_driven_fraction"] = float(settings.get("neutral_plane_driven_fraction", 0.44))
 	context["neutral_plane_exterior_calm_fraction"] = float(settings.get("neutral_plane_exterior_calm_fraction", 0.62))
 	context["neutral_plane_exterior_driven_fraction"] = float(settings.get("neutral_plane_exterior_driven_fraction", 0.40))
+	context["opening_inflow_requires_outflow"] = bool(settings.get("opening_inflow_requires_outflow", false))
 	if bool(pose.get("is_vertical", false)) or op.is_vertical:
 		_hide_layer(inflow)
 		_hide_layer(plume)
@@ -306,7 +307,17 @@ static func _update_lower_inflow(
 	var smoke_min_visible_depth_m: float = float(context.get("smoke_min_visible_depth_m", 0.05))
 	var inflow_top_m: float = clampf(neutral_plane_m - 0.015, opening_bottom_m, neutral_plane_m)
 	var inflow_depth_m: float = maxf(0.0, inflow_top_m - opening_bottom_m)
-	var has_fire_context: bool = outflow_visible \
+	# H-4: esto exigia que la cortina de SALIDA hubiese superado su propio
+	# umbral de visibilidad en el mismo fotograma. Medido con contadores sobre
+	# el piso patron: 9 llamadas, 0 con esa condicion cumplida, 0 cortinas de
+	# aire visibles. La contracorriente no se dibujaba nunca, y no por su
+	# opacidad sino por este enganche.
+	#
+	# La condicion fisica es que haya humo empujando y desequilibrio entre las
+	# dos salas, que es justo lo que comprueba el resto de la expresion. El
+	# acoplamiento con la malla de salida queda como opcion del inspector.
+	var requires_outflow: bool = bool(context.get("opening_inflow_requires_outflow", false))
+	var has_fire_context: bool = (outflow_visible or not requires_outflow) \
 		and source_alpha > 0.045 \
 		and (fire_context_t > 0.040 or drive_delta > 0.12 or source_alpha > 0.11)
 	# El tope decide si la contracorriente se lee o no: con 0,085 la cortina se

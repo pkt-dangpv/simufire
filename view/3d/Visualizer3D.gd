@@ -203,10 +203,14 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 ## estrechada, 1.0 contaria la apertura dos veces y 0.0 no la contaria en la
 ## opacidad en absoluto.
 @export_range(0.0, 1.0, 0.05) var opening_curtain_alpha_open_exponent: float = 0.5
-## Opacidad maxima de la cortina de aire frio que entra por el vano. Con el
-## valor heredado (0,085) la contracorriente se dibuja pero es practicamente
-## invisible; subirlo es lo que la hace legible (H-4).
-@export_range(0.0, 0.6, 0.005) var opening_inflow_max_alpha: float = 0.085
+## Opacidad maxima de la cortina de aire frio que entra por el vano. El valor
+## heredado era 0,085, con el que no se veia nada; se sube para que encender
+## show_cold_air_inflow_curtains baste, sin tener que tocar tambien esto (H-4).
+@export_range(0.0, 0.6, 0.005) var opening_inflow_max_alpha: float = 0.26
+## Condiciona la cortina de aire frio a que la de humo haya superado su propio
+## umbral de visibilidad en el mismo fotograma. Era el comportamiento anterior
+## y hacia que la contracorriente no llegase a dibujarse nunca (H-4).
+@export var opening_inflow_requires_outflow: bool = false
 ## Calibracion de la cortina de vano CUANDO se ve desde primera persona. El
 ## visor 3D corre como overlay en FP, asi que el humo del hueco tambien se ve
 ## desde dentro de la vivienda, y alli se mira desde debajo de la capa y a un
@@ -2853,6 +2857,7 @@ func _update_openings() -> void:
 			"opening_curtain_min_width_ratio": opening_curtain_min_width_ratio,
 			"opening_curtain_alpha_open_exponent": opening_curtain_alpha_open_exponent,
 			"opening_inflow_max_alpha": opening_inflow_max_alpha,
+			"opening_inflow_requires_outflow": opening_inflow_requires_outflow,
 			"opening_curtain_first_person_alpha_factor": opening_curtain_first_person_alpha_factor,
 			"opening_curtain_first_person_side_visibility": opening_curtain_first_person_side_visibility,
 			"opening_curtain_first_person_bottom_strength": opening_curtain_first_person_bottom_strength,

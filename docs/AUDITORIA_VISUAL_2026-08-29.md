@@ -67,14 +67,16 @@ Corrección:
 
 En primera persona esto es lo que se ve desde dentro al mirar por la ventana; en dollhouse es la firma clásica de un fuego ventilado.
 
-### 🟠 H-4. La contracorriente de aire frío está apagada por defecto — **[ABIERTO, pero no es la decisión que parecía]**
+### 🟠 H-4. La contracorriente de aire frío está apagada por defecto — **[CERRADO 2026-08-31: bug corregido, función apagada por decisión]**
 `show_cold_air_inflow_curtains = false` ([Visualizer3D.gd:101](../view/3d/Visualizer3D.gd)). La cortina de entrada de aire existe y está bien resuelta (`_update_lower_inflow`), pero al estar apagada el vano sólo enseña la mitad superior: se ve el humo saliendo y nada entrando. Con H-2 corregido, encenderla completa la lectura bidireccional del hueco. No se activa aquí porque es una decisión de producto (colorear el aire de azul es una convención, no una observación).
 
-**Medido el 2026-08-31, y el resultado cambia la pregunta.** Encender `show_cold_air_inflow_curtains` sobre el piso patrón cambia el **0,489 %** de los píxeles con un delta máximo de 38 sobre 765: es invisible. Subir el tope de opacidad tampoco arregla nada (con 0,30 el cambio baja al 0,27 %).
+**Medido el 2026-08-31.** Encender `show_cold_air_inflow_curtains` sobre el piso patrón cambiaba el 0,489 % de los píxeles: nada. Instrumentando `_update_lower_inflow` con **contadores** —no con muestreo, que en un primer intento me llevó a una conclusión equivocada— salió el dato limpio: **9 llamadas en toda la corrida, 0 con la condición cumplida, 0 cortinas de aire visibles**. La banda tenía altura de sobra (0,80-1,25 m) y el alfa llegaba a su tope; lo que fallaba era el enganche.
 
-Instrumentando `_update_lower_inflow` se ve por qué, y no es la opacidad: la banda tiene altura de sobra (0,80-1,25 m), el alfa llega a su tope, pero **`has_fire_context` es falso en todas las muestras**, porque exige `outflow_visible` y en esos fotogramas la cortina de salida no lo está. Es decir, la contracorriente está condicionada a que la cortina de humo del mismo hueco se esté dibujando, y con esa condición apenas llega a verse nunca.
+**Bug encontrado y corregido.** `has_fire_context` exigía `outflow_visible`, es decir, que la cortina de *salida* del mismo hueco hubiese superado su propio umbral de visibilidad en ese mismo fotograma. Con esa condición la contracorriente no llegaba a dibujarse nunca. La condición física es que haya humo empujando y desequilibrio entre las dos salas, que es justo lo que ya comprobaba el resto de la expresión. El acoplamiento con la malla de salida queda como opción (`opening_inflow_requires_outflow`, desactivada).
 
-Conclusión: **no es una decisión de producto todavía**, porque encenderla no enseña nada. Antes hay que revisar el enganche de `has_fire_context`. El tope de opacidad queda expuesto como `opening_inflow_max_alpha`, y el flag sigue apagado por defecto.
+**Decisión: se queda apagada por defecto.** Ya con el enganche arreglado y la opacidad subida a 0,26, la cortina aporta el **0,36 %** de los píxeles en la casa de muñecas —donde el marcador verde de puerta abierta ocupa ese mismo volumen y la tapa— y entre el **0,02 % y el 0,09 %** en primera persona, donde el vano está en penumbra. Mirada de cerca, recortada y ampliada, no se lee en ninguna de las dos vistas. A eso se suma la objeción original, que sigue en pie: pintar el aire de azul es una convención, no una observación, y esto es una herramienta que entrena la observación.
+
+Queda todo listo para revertir la decisión sin tocar código: basta encender `show_cold_air_inflow_curtains`. El tope de opacidad por defecto sube de 0,085 a **0,26** justamente para que ese interruptor baste por sí solo, sin tener que descubrir además que hacía falta subir otro valor.
 
 ### 🟠 H-5. La cortina ignora la hoja de la puerta — **[CORREGIDO 2026-08-31]**
 `SmokeOpeningCurtain3D` escala el humo por `effective_open_fraction()`, pero geométricamente ocupa siempre el ancho completo del vano. Con la puerta a medio abrir el humo atraviesa la hoja. Lo correcto sería estrechar el puente al hueco libre real (ancho × fracción) y desplazarlo al lado de la bisagra.
@@ -549,7 +551,7 @@ Cierre de la ejecución del plan §12. Todo lo que sigue está verificado con `p
 | H-1 puente de humo sin cara inferior | 🔴 | Corregido (28-ago) |
 | H-2 el humo no llenaba la puerta | 🔴 | Corregido (28-ago) |
 | H-3 losa de humo cortada en el dintel | 🔴 | Corregido (28-ago) |
-| H-4 contracorriente apagada | 🟠 | **Abierto** — reencuadrado: no es decisión de producto |
+| H-4 contracorriente apagada | 🟠 | Cerrado — bug del enganche corregido; función apagada por decisión |
 | H-5 la cortina ignora la hoja | 🟠 | Corregido |
 | H-6 autoexposición entre plantas | 🟡 | Mejora futura declarada, no fallo |
 | H-7 penacho vertical con una sola sala | 🟡 | **No reproducible**; salvaguarda puesta |
@@ -585,13 +587,15 @@ Cierre de la ejecución del plan §12. Todo lo que sigue está verificado con `p
 | FP-7 humo entre salas ausente en FP | ℹ️ | **Hallazgo erróneo**, era mío |
 | FP-8 nodos homónimos sin nombre | 🟡 | Corregido |
 
-**Balance:** de los 26 hallazgos abiertos cuando se escribió el plan, **21 cerrados**, **2 siguen abiertos** (FP-3 y H-4), **1 es mejora futura** (H-6) y **4 resultaron no reproducibles** (H-7, V2-2, V2-3, FP-4). Aparecieron dos nuevos durante la ejecución: FP-8 (cerrado) y el contrato falso de `with_collision` en `_add_box` (cerrado con R-8).
+**Balance:** de los 26 hallazgos abiertos cuando se escribió el plan, **22 cerrados**, **1 sigue abierto** (FP-3), **1 es mejora futura** (H-6) y **4 resultaron no reproducibles** (H-7, V2-2, V2-3, FP-4). Aparecieron dos nuevos durante la ejecución: FP-8 (cerrado) y el contrato falso de `with_collision` en `_add_box` (cerrado con R-8).
 
 ### 13.2 Lo que enseña la tanda de "no reproducibles"
 
 Cinco descripciones del informe no se sostuvieron al ejecutarlas, más una mía. No es casualidad: **la auditoría original se escribió sin poder abrir Godot** (§11), leyendo código, y cuatro de sus hallazgos describían versiones anteriores de funciones que ya se habían corregido. El sexto —FP-7— lo escribí yo deduciendo de una ausencia de referencias en un fichero, sin comprobar cómo se monta la escena en `Main`.
 
 La regla que sale de aquí, y que ya está en §12.0: **ningún hallazgo se marca corregido sin guardarraíl o captura, y ninguno se da por cierto sin reproducirlo antes de tocar el código**. Reproducir primero habría ahorrado la mitad del trabajo de investigación de esta sesión.
+
+Y un segundo aprendizaje, de H-4: **medir con contadores, no con muestreo**. Un primer diagnóstico de la contracorriente se hizo mirando unas pocas líneas de traza y llevó a la conclusión equivocada de que la cortina se dibujaba muy tenue; con contadores sobre toda la corrida quedó claro que no se dibujaba **ninguna** vez. Un `head` sobre una traza ordenada no es una muestra representativa.
 
 ### 13.3 Todo el aspecto se gobierna desde el editor
 
@@ -630,5 +634,6 @@ Cinco validadores headless nuevos y dos ampliados, todos verificados fallando co
 ### 13.5 Lo que queda
 
 1. **FP-3 (F5.1)** — unificar los constructores de suelo, techo, muro y hueco entre `FirstPersonController` y `Visualizer3D`. Es el único hallazgo pendiente de trabajo real. Estuvo esperando a FP-7 por un acoplamiento que resultó no existir.
-2. **H-4** — antes de decidir si se enseña la contracorriente, hay que revisar su enganche: `has_fire_context` exige `outflow_visible` y por eso la cortina de aire no llega a verse. Medido: encenderla cambia el 0,489 % de los píxeles, y subir el tope de opacidad lo deja en el 0,27 %.
-3. **H-6** — autoexposición entre plantas. Funcionalidad nueva, declarada fuera del cierre.
+2. **H-6** — autoexposición entre plantas. Funcionalidad nueva, declarada fuera del cierre.
+
+Con H-4 cerrado, **FP-3 es el único hallazgo de §1-§8 que queda por trabajar**.
