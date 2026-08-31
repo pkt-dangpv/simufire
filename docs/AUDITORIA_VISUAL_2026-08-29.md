@@ -272,11 +272,17 @@ Overlay de visibilidad, atenuación de luces por humo coherente con los regímen
 ## 7. Materiales e iluminación (transversal)
 
 - 🟠 **M-1.** — **[CORREGIDO 2026-08-31]** Todo el proyecto construía materiales con `StandardMaterial3D` de color plano, `roughness = 0.96` y sin mapas. Sin variación de superficie, cualquier geometría —por correcta que sea— se lee como maqueta de cartón. Resuelto con FP-2 (ruido con rampa, triplanar en metros y perfil de suciedad para suelos y rodapiés), extendido también a los materiales de fachada, que tampoco pedían semilla.
-- 🟠 **M-2.** — **[ABIERTO, con diseño]** No hay oclusión ambiental de ningún tipo (ni SSAO —no disponible en GL Compatibility— ni AO horneado ni un simple oscurecimiento de encuentros). Todos los encuentros suelo-pared son aristas duras a pleno color; es el segundo motivo por el que las escenas parecen planas.
+- 🟠 **M-2.** — **[CORREGIDO 2026-08-31]** No hay oclusión ambiental de ningún tipo (ni SSAO —no disponible en GL Compatibility— ni AO horneado ni un simple oscurecimiento de encuentros). Todos los encuentros suelo-pared son aristas duras a pleno color; es el segundo motivo por el que las escenas parecen planas.
 
   No se cierra en F2 a propósito, y conviene decir por qué: `StandardMaterial3D` no sabe oscurecer aristas sin un mapa de AO, y un mapa proyectado en triplanar de mundo no puede codificar dónde están las aristas. Las salidas reales son dos, y ambas cambian de categoría respecto al resto de F2: (a) mallas con color de vértice, que obliga a sustituir los `BoxMesh` por `ArrayMesh`; (b) un `ShaderMaterial` propio para muros, suelos y techos que oscurezca según la distancia a los bordes de la cara, con el tamaño de la caja entrando como `instance uniform` para que el ancho de la sombra se mida en metros y el material siga siendo único y cacheado.
 
-  La (b) es la buena, pero sustituye el material de todas las superficies FP, así que se decide y se ejecuta como paso propio (F2.2 sigue en el plan).
+  Se ha ejecutado la (b), con el visto bueno del usuario. `view/fp/fp_surface.gdshader` da a muros, suelos y techos el ruido triplanar en metros y la oclusión de contacto en un solo material: la distancia útil a la arista es la **segunda menor** de las tres distancias a las caras opuestas (sobre una cara, la primera es siempre ~0, la de la propia cara). El tamaño de la pieza entra como `instance uniform`, así que la franja se mide en metros en un tabique de 6 m y en una jamba de 0,2 m con el mismo material compartido.
+
+  Medido sobre la captura de referencia del salón: el centro del paramento no se oscurece (101,2 → 100,3) y el contraste en la arista sube de **62,3 % a 69,7 %**. Es decir, añade sombreado de contacto sin apagar la superficie.
+
+  Ajustable desde el inspector: `surface_contact_ao_enabled`, `surface_contact_ao_strength` y `surface_contact_ao_band_m`. Apagado, las superficies vuelven a `StandardMaterial3D`, lo que deja la comparación a un clic.
+
+  Guardarraíl: `tools/validate_fp_surface_shading.gd`. Fija el contrato crítico —cada malla publica **su** tamaño por instancia— porque si eso se pierde no hay ningún error visible: el oscurecimiento simplemente pasaría de degradado a plano.
 - 🟡 **M-3.** — **[CORREGIDO 2026-08-31]** `_mat()` creaba un `StandardMaterial3D` nuevo en cada llamada. Ahora cachea por color, semilla y perfil de ruido. Medido sobre el piso patrón: **910 → 144 materiales distintos** para 1003 mallas. Sólo se comparten los opacos y sin emisión: los transparentes y los emisivos se mutan en caliente (el tinte del cristal de una ventana, el brillo del fuego) y compartirlos los acoplaría entre sí.
 - ℹ️ **M-4.** La iluminación sí está bien pensada: sol direccional con sombras, relleno suave, luz por hueco atenuada por humo, luces de techo contenidas a su sala y luz de fuego con ley de potencia sobre el HRR.
 
@@ -396,7 +402,7 @@ Fase 1 es la única que arregla algo **funcional** (F1.2) y algo que hace ilegib
 
 De propina salieron dos cosas que no estaban en el informe: el parámetro `with_collision` de `_add_box` era un contrato falso (ver R-8) y los nodos homónimos pierden el nombre (nuevo FP-8, §5). El primero se corrigió por ser la causa directa de R-8; el segundo queda abierto y planificado en F5.6.
 
-### 12.F2 Fase 2 — Legibilidad del material (la palanca del "se ve feo") — **4 de 5 HECHAS 2026-08-31**
+### 12.F2 Fase 2 — Legibilidad del material (la palanca del "se ve feo") — **HECHA 2026-08-31**
 
 Es la fase con mejor relación coste/beneficio: M-1 y FP-2 son la causa de fondo del síntoma transversal, y afectan a interior, rellano y fachada a la vez.
 
@@ -414,7 +420,7 @@ Verificación: juego completo de capturas F0 antes/después, más `check_product
 
 **Todo el aspecto queda gobernado desde el inspector**, no desde el script: rugosidad, resolución y octavas del ruido, factores del perfil de suelo, lado y junta de la baldosa, grosor de la chapa de fachada, y un grupo nuevo **"Materiales propios FP"** con ranuras para material de muro, suelo, techo y fachada y para texturas de superficie y de baldosa — si pones un recurso, manda el recurso; si la dejas vacía, se genera por código. El caché de materiales se vacía en cada reconstrucción justamente para que un cambio en el inspector se vea. Cuatro pruebas nuevas en `tests/test_godot_editability.py` (12 en total) impiden que cualquiera de esos mandos vuelva a quedar cocido en el código.
 
-**F2.2 (M-2) sigue abierta a propósito**, con el diagnóstico escrito en §7: `StandardMaterial3D` no oscurece aristas sin un mapa de AO, y un mapa triplanar de mundo no puede saber dónde están las aristas. La salida buena es un `ShaderMaterial` propio para muros, suelos y techos con el tamaño de la caja como `instance uniform`, pero eso sustituye el material de **todas** las superficies FP, así que es un paso con entidad propia y decisión aparte, no la cola de esta fase.
+**F2.2 (M-2) cerrada el 2026-08-31**, ya con la decisión tomada: `ShaderMaterial` propio para muros, suelos y techos, con el tamaño de la caja como `instance uniform`. Detalle y medición en §7.
 
 Al calibrar aparecieron además dos errores en los puntos de vista del instrumental de F0, ya corregidos: la pared `bottom` de un rectángulo es el lado `y = y0 + alto` y su `offset_m` corre en sentido inverso al eje (el portal no estaba donde se le buscaba), y el jugador es un `CharacterBody3D` con gravedad, así que una vista colocada sobre el hueco de la escalera se cae por él y captura la calle.
 

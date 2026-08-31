@@ -20,6 +20,9 @@ const FPHudScene: PackedScene = preload("res://view/fp/FPHud.tscn")
 ## view/fp/fp_camera_environment.tres. Se duplica por instancia en runtime.
 const FPCameraEnvironmentRes: Environment = preload("res://view/fp/fp_camera_environment.tres")
 const FPSkyDome := preload("res://view/fp/FPSkyDome.gd")
+## Shader de las superficies construidas por codigo: ruido en metros y
+## oclusion de contacto en las aristas (M-2).
+const FPSurfaceShader: Shader = preload("res://view/fp/fp_surface.gdshader")
 const OUTSIDE_ID: int = -1
 ## Perfiles de ruido de superficie: paramentos frente a suelos y rodapies,
 ## que admiten una capa de suciedad mas marcada y de grano mas grande.
@@ -139,6 +142,15 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## landing_tile_size_m.
 @export_range(32, 512, 32) var landing_tile_texture_px: int = 128
 @export_range(1, 16, 1) var landing_tile_grout_px: int = 3
+## Oclusion ambiental de contacto en muros, suelos y techos. GL
+## Compatibility no tiene SSAO, asi que se oscurece la franja cercana a las
+## aristas de cada pieza desde el propio shader (M-2). Apagarlo devuelve las
+## superficies a StandardMaterial3D.
+@export var surface_contact_ao_enabled: bool = true
+## Cuanto se oscurece la arista.
+@export_range(0.0, 1.0, 0.01) var surface_contact_ao_strength: float = 0.34
+## En cuantos metros se difumina ese oscurecimiento.
+@export_range(0.02, 2.0, 0.01) var surface_contact_ao_band_m: float = 0.32
 
 @export var wall_skirting_height_m: float = 0.10
 @export var show_landing_recess: bool = true
@@ -965,7 +977,7 @@ func _create_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: flo
 		_add_floor_slab("StairTopLanding_%s" % str(room_id), Rect2(rect.position.x, landing_y_m, rect.size.x, landing_depth_m), floor_level_m, material)
 
 
-func _create_switchback_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: float, stair_dir: Vector2, material: StandardMaterial3D) -> void:
+func _create_switchback_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: float, stair_dir: Vector2, material: Material) -> void:
 	var gap_m: float = 0.18
 	var cross_span_m: float = _stair_cross_span_m(rect, stair_dir)
 	var flight_width_m: float = clampf((cross_span_m - gap_m) * 0.5, 0.72, 1.05)
@@ -991,7 +1003,7 @@ func _create_switchback_stairwell_upper_floor(room_id: int, rect: Rect2, floor_l
 		_add_floor_slab("StairSwitchbackSideRight_%s" % str(room_id), Rect2(shaft_right_m, rect.position.y, right_width_m, rect.size.y), floor_level_m, material)
 
 
-func _add_floor_slab(node_name: String, rect: Rect2, floor_level_m: float, material: StandardMaterial3D) -> void:
+func _add_floor_slab(node_name: String, rect: Rect2, floor_level_m: float, material: Material) -> void:
 	var body := StaticBody3D.new()
 	body.name = node_name
 	_world_root.add_child(body)
@@ -1003,7 +1015,7 @@ func _add_floor_slab(node_name: String, rect: Rect2, floor_level_m: float, mater
 	_add_box(body, "FloorMesh", Vector3(rect.size.x, floor_thickness_m, rect.size.y), center, material, true)
 
 
-func _add_ceiling_slab(node_name: String, rect: Rect2, floor_level_m: float, height_m: float, material: StandardMaterial3D) -> void:
+func _add_ceiling_slab(node_name: String, rect: Rect2, floor_level_m: float, height_m: float, material: Material) -> void:
 	var body := StaticBody3D.new()
 	body.name = node_name
 	_world_root.add_child(body)
@@ -1805,7 +1817,7 @@ func _xz_rect(center: Vector3, half_tan: float, half_norm: float, tangent: Vecto
 
 ## Losa (suelo/techo) horizontal con huecos rectangulares recortados: se parte
 ## en trozos alrededor de los huecos (reutiliza StairGeometry.split_rect_by_voids).
-func _add_slab_with_holes(name_prefix: String, rect_xz: Rect2, y_center: float, thickness_m: float, holes: Array[Rect2], material: StandardMaterial3D) -> void:
+func _add_slab_with_holes(name_prefix: String, rect_xz: Rect2, y_center: float, thickness_m: float, holes: Array[Rect2], material: Material) -> void:
 	var typed_holes: Array[Rect2] = []
 	for h in holes:
 		typed_holes.append(h)
@@ -4260,7 +4272,7 @@ func _create_boundary_segment(center_m: Vector3, size_m: Vector3) -> void:
 	body.add_child(shape)
 
 
-func _add_box(parent: Node3D, node_name: String, size_m: Vector3, center_world: Vector3, material: StandardMaterial3D, with_collision: bool) -> MeshInstance3D:
+func _add_box(parent: Node3D, node_name: String, size_m: Vector3, center_world: Vector3, material: Material, with_collision: bool) -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()
 	mesh.name = node_name
 	var box_mesh := BoxMesh.new()
@@ -4269,6 +4281,11 @@ func _add_box(parent: Node3D, node_name: String, size_m: Vector3, center_world: 
 	mesh.material_override = material
 	mesh.position = center_world
 	parent.add_child(mesh)
+	if material is ShaderMaterial:
+		# El shader de superficie mide la franja de oclusion en metros y para
+		# eso necesita el tamano de ESTA pieza; va por instancia para no tener
+		# que crear un material por tamano.
+		mesh.set_instance_shader_parameter("box_size_m", size_m)
 	if with_collision:
 		# Un CollisionShape3D colgado de un Node3D es inerte: la forma tiene que
 		# vivir bajo un CollisionObject3D. Cuando el padre ya es un cuerpo (los
@@ -4298,7 +4315,7 @@ func _add_oriented_box(
 	tangent_extent_m: float,
 	height_m: float,
 	normal_depth_m: float,
-	material: StandardMaterial3D,
+	material: Material,
 	with_collision: bool
 ) -> MeshInstance3D:
 	var size_m: Vector3
@@ -5521,7 +5538,7 @@ func _to_world(pos_m: Vector3, floor_level_m: float = 0.0) -> Vector3:
 	return Vector3(pos_m.x + _origin_offset_m.x, pos_m.y + floor_level_m, pos_m.z + _origin_offset_m.y)
 
 
-func _floor_material_for_room(room_id: int) -> StandardMaterial3D:
+func _floor_material_for_room(room_id: int) -> Material:
 	if floor_material_override != null:
 		return floor_material_override
 	var room: RoomModel = building.get_room(room_id) if building != null else null
@@ -5535,10 +5552,10 @@ func _floor_material_for_room(room_id: int) -> StandardMaterial3D:
 		color = Color(0.34, 0.33, 0.30, 1.0)
 	elif kind.contains("dorm") or kind.contains("bed"):
 		color = Color(0.35, 0.28, 0.22, 1.0)
-	return _mat(color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 1100 + room_id, NOISE_PROFILE_FLOOR)
+	return _surface_mat(color, 1100 + room_id, NOISE_PROFILE_FLOOR)
 
 
-func _wall_material_for_room(room_id: int) -> StandardMaterial3D:
+func _wall_material_for_room(room_id: int) -> Material:
 	if wall_material_override != null:
 		return wall_material_override
 	var room: RoomModel = building.get_room(room_id) if building != null else null
@@ -5552,13 +5569,13 @@ func _wall_material_for_room(room_id: int) -> StandardMaterial3D:
 		color = Color(0.78, 0.75, 0.68, 1.0)
 	# Los muros no pedian semilla, asi que eran los unicos que jamas recibian
 	# ruido aunque estuviese activado (FP-2).
-	return _mat(color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 2100 + room_id)
+	return _surface_mat(color, 2100 + room_id)
 
 
-func _ceiling_material_for_room(room_id: int) -> StandardMaterial3D:
+func _ceiling_material_for_room(room_id: int) -> Material:
 	if ceiling_material_override != null:
 		return ceiling_material_override
-	return _mat(Color(0.76, 0.76, 0.71, 1.0), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 3100 + room_id)
+	return _surface_mat(Color(0.76, 0.76, 0.71, 1.0), 3100 + room_id)
 
 
 func _mat(
@@ -5603,6 +5620,34 @@ func _mat(
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	if cacheable:
 		_material_cache[cache_key] = material
+	return material
+
+
+## Material de las superficies grandes (muros, suelos, techos). Usa el
+## shader propio cuando la oclusion de contacto esta activada; si no, el
+## StandardMaterial3D de siempre, para poder comparar y para no imponer un
+## shader a quien no lo quiera.
+func _surface_mat(color: Color, noise_seed: int, noise_profile: int = NOISE_PROFILE_SURFACE) -> Material:
+	if not surface_contact_ao_enabled:
+		return _mat(color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, noise_seed, noise_profile)
+	var cache_key: String = "shader|%s|%d|%d" % [color.to_html(true), noise_seed, noise_profile]
+	if _material_cache.has(cache_key):
+		return _material_cache[cache_key]
+	var material := ShaderMaterial.new()
+	material.shader = FPSurfaceShader
+	material.set_shader_parameter("albedo", color)
+	material.set_shader_parameter("surface_roughness", material_surface_roughness)
+	material.set_shader_parameter("ao_strength", surface_contact_ao_strength)
+	material.set_shader_parameter("ao_band_m", surface_contact_ao_band_m)
+	var wants_noise: bool = use_procedural_surface_noise and noise_seed >= 0 and material_noise_contrast > 0.0
+	material.set_shader_parameter("use_noise", wants_noise)
+	if wants_noise:
+		material.set_shader_parameter("surface_noise", _noise_texture(noise_seed, noise_profile))
+		material.set_shader_parameter(
+			"noise_cycles_per_m",
+			1.0 / maxf(0.05, _noise_size_for_profile(noise_profile))
+		)
+	_material_cache[cache_key] = material
 	return material
 
 

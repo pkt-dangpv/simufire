@@ -197,6 +197,9 @@ class TestGodotEditability(unittest.TestCase):
                 "landing_tile_grout_px",
                 "exterior_wall_skin_enabled",
                 "exterior_wall_skin_thickness_m",
+                "surface_contact_ao_enabled",
+                "surface_contact_ao_strength",
+                "surface_contact_ao_band_m",
             ],
         )
         for name in [
@@ -204,6 +207,8 @@ class TestGodotEditability(unittest.TestCase):
             "material_noise_texture_px",
             "material_floor_noise_size_factor",
             "landing_tile_grout_px",
+            "surface_contact_ao_strength",
+            "surface_contact_ao_band_m",
         ]:
             self.assert_identifier_used(rel, name)
 

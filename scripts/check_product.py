@@ -351,6 +351,14 @@ def main() -> int:
         diagnostics.append("Godot FP party walls: " + (diagnostic or "failed"))
 
     rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_fp_surface_shading.tscn",
+        "FP SURFACE SHADING VALIDATION PASS",
+    )
+    rows.append(("FP surface shading Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot FP surface shading: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_fp_smoke_lighting.tscn",
         "FP SMOKE LIGHTING VALIDATION PASS",
     )
