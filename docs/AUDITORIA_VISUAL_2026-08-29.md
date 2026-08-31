@@ -103,8 +103,12 @@ Corrección (`_create_own_facade`, [FirstPersonController.gd:2617](../view/fp/Fi
 ### 🟠 E-3. El vierteaguas estaba en código muerto — **[CORREGIDO]**
 `_create_exterior_window_sill()` existía sin ningún llamador (en todo el repositorio), y su geometría estaba desfasada: colocaba una losa a 0,62 m de la fachada y medio metro por debajo del centro del hueco. Se ha eliminado y se genera un vierteaguas correcto dentro de `_create_exterior_window_reveal()`, apoyado en el lienzo nuevo. Las jambas, que quedaban a 0,205 m del muro, se recolocan a ras de fachada.
 
-### 🟠 E-4. Rendija perimetral entre plantas — **[MITIGADO]**
+### 🟠 E-4. Rendija perimetral entre plantas — **[CORREGIDO 2026-08-31]**
 Con forjados de `preset_two_storey_house` (planta baja 2,65 m + techo 0,08; planta 1 a 2,90 con solera 0,10) queda un anillo perimetral de ~7 cm sin cerrar entre el techo de una planta y el suelo de la siguiente: desde dentro se ve una rendija de luz exterior, y desde fuera se ve el interior. El lienzo de fachada la tapa en los frentes con ventanas; **sigue abierta** en los frentes sin huecos y en los encuentros interiores. La corrección de fondo es que el techo llegue hasta la cara inferior del forjado superior.
+
+Corrección aplicada (F1.4): eso es justo lo que se hace ahora. `_ceiling_thickness_to_next_floor_m()` busca la planta más baja por encima del techo y estira la losa hasta la cara inferior de su forjado; si no hay planta encima se queda en el grosor nominal. Interruptor `@export interstitial_ceiling_seal_enabled` (activado). Ya no depende de que el frente tenga huecos, así que cierra también los frentes ciegos y los encuentros interiores.
+
+Guardarraíl: `tools/validate_fp_interstitial_seal.gd`. Con el sellado desactivado reproduce exactamente el anillo del hallazgo: `0.070 m`.
 
 ### 🟠 E-5. Decorado urbano completo generado detrás del rellano — **[ABIERTO]**
 `_create_exterior_context()` agrupa fachadas por normal e incluye la de la puerta de entrada. En `compact_apartment_reference` la puerta está en `bottom` y las ventanas en `top`: la fachada `bottom` genera calle, aceras, bordillos, coches, árboles, edificio de enfrente con ventanas y skyline **detrás de la caja cerrada del rellano**, donde nadie los verá jamás. Es geometría desperdiciada, no un fallo visual. Basta con no generar decorado en frentes cuyo único hueco exterior sea la puerta del portal.
@@ -137,8 +141,12 @@ El rellano mide 5,40 m de ancho, pero su frente sólo lo cerraba **el muro de la
 
 Corrección: frente propio del rellano (`_create_landing_front_wall`) con el hueco de la puerta recortado, apoyado en la cara exterior del tabique sin quedar coplanar con él; y arranque del rellano derivado de `wall_thickness_m` en vez de la constante 0,08, con el muro de fondo recolocado para conservar su solape. Guardarraíl añadido en `validate_fp_landing_stairs.gd`.
 
-### 🟡 R-8. Las paredes del rellano no tienen colisión — **[ABIERTO]**
+### 🟡 R-8. Las paredes del rellano no tienen colisión — **[CORREGIDO 2026-08-31]**
 `LandingBackWall`, `LandingSideWall` y el frente nuevo se añaden a `_world_root` sin `StaticBody3D`, así que el jugador puede atravesarlas y caer al vacío. Es previo y coherente con el resto del portal, pero conviene cerrarlo.
+
+Corrección aplicada (F1.2), con un hallazgo de propina: `_add_box(..., with_collision = true)` colgaba el `CollisionShape3D` del `Node3D` padre, y **una forma fuera de un `CollisionObject3D` es inerte**. Es decir, el parámetro era un contrato falso: el descansillo intermedio de la escalera (`StairSwitchbackLanding`) creía tener colisión y no la tenía. Ahora `_add_box` reutiliza el padre si ya es un cuerpo y, si no, crea un `StaticBody3D` propio; las cuatro piezas del rellano pasan a `true`.
+
+Guardarraíl: `_validate_landing_walls_are_solid()` en `tools/validate_fp_landing_stairs.gd`.
 
 ### 🟡 R-4. La altura del portal es un valor fijo — **[ABIERTO]**
 `landing_floor_height_m = 2.62` no se deriva de la altura real de la vivienda ni de su forjado. Si la sala mide 2,4 m, el rellano queda 22 cm más alto que la vivienda a la que sirve y el encuentro se nota al cruzar la puerta.
@@ -172,8 +180,12 @@ Trabajo duplicado en `_update_dynamic_state` (ahora `_apply_selection_visuals` n
 
 ## 5. Primera persona (interior)
 
-### 🟠 FP-1. Tabiques duplicados y coincidentes entre salas — **[ABIERTO]**
+### 🟠 FP-1. Tabiques duplicados y coincidentes entre salas — **[CORREGIDO 2026-08-31]**
 `_create_walls()` recorre las cuatro caras de **cada** sala sin comprobar si la cara es medianera. Dos salas contiguas generan dos cajas de muro **exactamente coplanarias** (ambas centradas en el borde compartido). Como `_wall_material_for_room()` da color distinto por tipo de estancia, la medianera cocina/pasillo parpadea entre los dos colores al mover la cámara: z-fighting de manual. Además duplica malla y colisión en todas las particiones interiores.
+
+Corrección aplicada (F1.3): `_create_wall_segment_height()` registra la caja de cada tabique (centro y tamaño redondeados al centímetro) y no vuelve a construir una idéntica; las salas se recorren por id ascendente, así que el color de la medianera es estable entre reconstrucciones. El **rodapié sigue siendo por sala**: mira hacia dentro de cada estancia y se crea antes de la deduplicación. Cierra también el 🟠 de §8: la medianera deja de tener dos cuerpos de colisión.
+
+Guardarraíl: `tools/validate_fp_party_walls.gd` (ninguna caja de tabique repetida, la medianera existe, y dos rodapiés en el plano compartido).
 
 ### 🟠 FP-2. Todo el interior es color plano sin textura — **[ABIERTO]**
 `use_procedural_surface_noise = false` por defecto ([FirstPersonController.gd:88](../view/fp/FirstPersonController.gd)), y cuando se activa lo que se aplica es un `NoiseTexture2D` en escala de grises como `albedo_texture`, que **multiplica** el color base: oscurece y motea en vez de texturar. Es la causa de fondo del "se ve feo" transversal a interior, rellano y fachada. Lo correcto es un ruido de bajo contraste centrado en gris medio (o una textura de material real) y aplicarlo con UV en metros, no por cara.
@@ -184,7 +196,7 @@ Trabajo duplicado en `_update_dynamic_state` (ahora `_apply_selection_visuals` n
 ### 🟡 FP-4. Consultas repetidas por frame físico — **[ABIERTO]**
 `_find_current_room_id()` y `get_room_rects_m()` se recalculan varias veces por frame en overlay, HUD y humo.
 
-### 🟠 FP-6. La sala con humo y sin fuego se apaga por completo — **[ABIERTO]**
+### 🟠 FP-6. La sala con humo y sin fuego se apaga por completo — **[CORREGIDO 2026-08-31]**
 Verificado **en ejecución** (Godot 4.7.1 en la máquina del proyecto, capturas FP a 1600 × 900, 2026-08-31). La transmisión de humo de la sala escala la energía **y el alcance** de la luz de techo ([FirstPersonController.gd:4842](../view/fp/FirstPersonController.gd)):
 
 ```gdscript
@@ -205,10 +217,19 @@ No es la niebla: con la representación de visibilidad desactivada (densidad for
 
 Importa porque ése es justamente el estado de la sala contigua al incendio, por donde se mueve el usuario, y porque el término de densidad de `_light_smoke_transmission_for_room()` satura con sólo 0,018 kg/m³: dispara en casi cualquier escenario con humo. Matiza la nota FP-5.
 
-Corrección propuesta: atenuar la energía pero **no** el alcance (o acotarlo por abajo a la diagonal de la sala), y ponderar la atenuación por la fracción del trayecto luz → superficie que realmente atraviesa la capa, en vez de por el estado global de la sala.
+Corrección aplicada (F1.1): el humo atenúa la **energía** pero ya no recorta el alcance. Nuevo `@export room_ceiling_light_smoke_range_min_factor` (1,0 por defecto = sólo se atenúa el brillo; valores menores reintroducen el recorte). `omni_range` es un corte duro, no una extinción: usarlo para modelar la absorción del humo deja a oscuras hasta el suelo que hay bajo la propia luminaria. La atenuación de energía se conserva intacta, así que el apagado casi total en régimen ILV crítico —que es correcto— sigue igual.
+
+Medido sobre las capturas de referencia (§12.F0), luminancia media de la medianera del dormitorio enhumado: **18,9 → 32,4 (×1,71)**; la misma vista en estado limpio no cambia (57,5 → 57,5), es decir, la corrección sólo actúa en la ruta de humo. La sala sigue claramente más oscura que en limpio.
+
+Guardarraíl: `tools/validate_fp_smoke_lighting.gd`. Con el comportamiento antiguo falla con el número exacto del hallazgo (`2.47 < 3.23`).
 
 ### ℹ️ FP-7. El humo entre salas de §1 no existe en primera persona
 La cortina de vano, el puente con intradós y el penacho exterior corregidos en §1 y §2 viven **sólo en `Visualizer3D`** (cero referencias en `FirstPersonController.gd`). En FP el humo es únicamente la niebla de cámara de la sala actual, así que al mirar por una puerta hacia una sala invadida no se ve cuerpo de humo alguno, y desde la calle una ventana con la sala llena no echa penacho. No es necesariamente un fallo —FP usa niebla volumétrica en vez de mallas—, pero conviene tenerlo presente: las correcciones estrella de esta pasada se aprecian en la casa de muñecas, no donde está el jugador.
+
+### 🟡 FP-8. Los nodos homónimos pierden el nombre — **[ABIERTO]**
+Descubierto al escribir el guardarraíl de FP-1. Godot renombra a `@MeshInstance3D@NN` —no a `Skirting_top2`— todo nodo cuyo nombre ya exista entre sus hermanos, porque `add_child()` se llama sin `force_readable_name`. El mundo FP cuelga decenas de `Skirting_top`, `Wall_right` y demás del mismo padre, así que **sólo el primero de cada nombre conserva su identidad**.
+
+Dos consecuencias: el árbol es ilegible en el depurador remoto, y cualquier guardarraíl que cuente mallas por nombre encuentra únicamente la primera. Los validadores actuales pasan porque comprueban nombres que resultan ser únicos, pero es una trampa a la espera: `tools/validate_fp_party_walls.gd` ya tiene que identificar los rodapiés por geometría en vez de por nombre. La corrección es `add_child(node, true)` en los constructores, verificando antes que ningún validador dependa de encontrar sólo el primero.
 
 ### ℹ️ FP-5. Lo que está bien
 Overlay de visibilidad, atenuación de luces por humo coherente con los regímenes ILV (con la salvedad de FP-6), HUD técnico con capa según postura, suavizado de temperatura con τ, presets día/noche, hojas de ventana con rotura de vidrio y el domo de cielo procedural (necesario porque GL Compatibility no dibuja el sky del Environment por cámara).
@@ -237,7 +258,7 @@ Overlay de visibilidad, atenuación de luces por humo coherente con los regímen
 
 - ℹ️ Cadencias: 2D/HUD a 20 Hz, 3D a ~8 Hz, FP a 20 Hz con el humo compartido a 8 Hz. Correcto.
 - 🟡 El decorado exterior, la fachada nueva y el rellano son geometría estática construida una vez por `rebuild`, sin coste por frame más allá del draw call. El lienzo de fachada añade del orden de 10-20 cajas por edificio.
-- 🟠 Cada segmento de muro FP crea un `StaticBody3D` propio: en una vivienda de 8 salas son ~40 cuerpos con colisión duplicada en medianeras (FP-1).
+- 🟠 Cada segmento de muro FP crea un `StaticBody3D` propio: en una vivienda de 8 salas son ~40 cuerpos. La **colisión duplicada en medianeras está corregida** (FP-1, 2026-08-31); queda el cuerpo por segmento, que se revisará al unificar constructores (F5.1).
 
 ---
 
@@ -282,6 +303,8 @@ Overlay de visibilidad, atenuación de luces por humo coherente con los regímen
 ## 11. Verificación
 
 > **Ejecutado el 2026-08-31 en la máquina del proyecto.** `python scripts/check_product.py` da **25/26 suites OK**; el único fallo es `test_exit0_real_json`, el conocido de la línea motor por los `VALID_GAP`, ajeno a lo visual. Los guardarraíles visuales headless pasan todos, incluidos los dos ampliados en esta pasada (`validate_fp_exterior_context`, `validate_fp_landing_stairs`). Además se renderizó la vista FP con ventana real (headless no dibuja: `frame_post_draw` no dispara) sobre un piso de dos salas en estado limpio y en incendio; de ahí salen FP-6 y FP-7. Descartado por medición: la niebla **no** se arrastra al exterior al salir del edificio — fuera decae a 0,0001, lo que se ve durante ~1 s es el transitorio de `fp_fog_smooth_tau_s`.
+>
+> **Segunda ejecución, 2026-08-31 (fases F0 y F1 del plan):** suite a **28/29** con los tres guardarraíles nuevos ya incorporados, mismo único fallo de la línea motor. Juego de capturas antes/después con `tools/capture_visual_reference.gd`: la corrección de FP-6 sube la luminancia media de la medianera enhumada de 18,9 a 32,4 (×1,71) sin tocar la escena limpia (57,5 → 57,5).
 
 Cuando se redactó el informe los cambios **no se habían podido ejecutar**: aquel entorno no tenía Godot y la 4.7.1 que usa el proyecto no estaba disponible para descarga (se descartó comprobar con una versión distinta porque los resultados no serían representativos). Lo que sí se hizo entonces:
 
@@ -316,7 +339,7 @@ Invariantes que ninguna fase puede saltarse:
 5. **Un commit por fase**, con el informe actualizado en el mismo commit (marcas [CORREGIDO] + fecha).
 6. Si una fase descubre que el diagnóstico del informe era incorrecto, **se corrige el informe antes de tocar el código**.
 
-### 12.F0 Instrumental de verificación (prerrequisito)
+### 12.F0 Instrumental de verificación (prerrequisito) — **HECHO 2026-08-31**
 
 El informe original no se pudo verificar por no tener Godot; el addendum de §11 se hizo con una sonda desechable. Antes de tocar nada, esa sonda se convierte en herramienta permanente:
 
@@ -326,7 +349,9 @@ El informe original no se pudo verificar por no tener Godot; el addendum de §11
 
 Sin esto, las fases 2 y 3 (material y humo) no son verificables.
 
-### 12.F1 Fase 1 — Lo que rompe la escena o el juego
+**Entregado:** `tools/capture_visual_reference.gd` + `.tscn`. Dieciocho vistas por pasada (ocho puntos de vista FP × limpio/incendio, más las dos de la casa de muñecas), con `--out=<dir>` y `--label=<prefijo>` para guardar juegos antes/después en el mismo directorio. Replica la configuración real de `scenes/SimulationScene.tscn` —sol, luz de relleno, rig de cámara y los cuatro overrides de iluminación FP— para que la captura corresponda con lo que ve el usuario y no con los defaults del script. Devuelve código 1 si falta alguna vista o si se lanza en `--headless`.
+
+### 12.F1 Fase 1 — Lo que rompe la escena o el juego — **HECHO 2026-08-31**
 
 | # | Hallazgo | Trabajo | Verificación |
 |---|---|---|---|
@@ -336,6 +361,10 @@ Sin esto, las fases 2 y 3 (material y humo) no son verificables.
 | F1.4 | 🟠 E-4 | Que el techo llegue a la cara inferior del forjado superior, cerrando el anillo de ~7 cm también en frentes sin huecos y en encuentros interiores. | Guardarraíl geométrico sobre `preset_two_storey_house`: sin holgura vertical entre techo de planta y suelo de la siguiente. Captura desde dentro mirando el encuentro. |
 
 Fase 1 es la única que arregla algo **funcional** (F1.2) y algo que hace ilegible la escena de trabajo real del usuario (F1.1).
+
+**Resultado:** los cuatro cerrados, cada uno con un guardarraíl nuevo que falla con el comportamiento anterior y con los números exactos del hallazgo (`2.47 < 3.23` en FP-6, `0.070 m` en E-4, dos cajas coincidentes en FP-1). Tres guardarraíles nuevos registrados en `check_product.py` (`FP smoke lighting`, `FP party walls`, `FP interstitial seal`) y uno ampliado (`FP landing stairs`). Suite: **28/29 en verde**, único fallo el conocido de la línea motor.
+
+De propina salieron dos cosas que no estaban en el informe: el parámetro `with_collision` de `_add_box` era un contrato falso (ver R-8) y los nodos homónimos pierden el nombre (nuevo FP-8, §5). El primero se corrigió por ser la causa directa de R-8; el segundo queda abierto y planificado en F5.6.
 
 ### 12.F2 Fase 2 — Legibilidad del material (la palanca del "se ve feo")
 
@@ -380,6 +409,7 @@ Verificación: juego completo de capturas F0 antes/después, más `check_product
 | F5.3 | 🟠 E-5 | No generar decorado urbano en frentes cuyo único hueco exterior sea la puerta del portal. |
 | F5.4 | 🟡 R-4 | Derivar `landing_floor_height_m` de la altura real de la vivienda y su forjado. |
 | F5.5 | 🟡 R-5 | Acuerdo entre el porche unifamiliar y el césped: bordillo, cambio de material o sombra propia. |
+| F5.6 | 🟡 FP-8 | `add_child(node, true)` en los constructores para que los nodos homónimos no pierdan el nombre, comprobando antes que ningún validador dependa de encontrar sólo el primero. |
 
 ### 12.F6 Fuera del cierre — mejora, no fallo
 
@@ -393,12 +423,12 @@ Verificación: juego completo de capturas F0 antes/después, más `check_product
 | §2 Exterior | E-4, E-5, E-6 | F1.4, F5.3, F2.4 |
 | §3 Rellano | R-3, R-4, R-5, R-8 | F2.5, F5.4, F5.5, F1.2 |
 | §4 Visor 3D | V3-1, V3-2, V3-3, V3-4 | F4.1, F4.2, F4.3, F4.4 |
-| §5 FP | FP-1, FP-2, FP-3, FP-4, FP-6, FP-7 | F1.3, F2.1, F5.1, F5.2, F1.1, F3.5 |
+| §5 FP | FP-1, FP-2, FP-3, FP-4, FP-6, FP-7, FP-8 | F1.3, F2.1, F5.1, F5.2, F1.1, F3.5, F5.6 |
 | §6 Visor 2D | V2-1, V2-2, V2-3 | F4.5 |
 | §7 Materiales | M-1, M-2, M-3 | F2.1, F2.2, F2.3 |
 | §8 Rendimiento | muros con cuerpo propio | F1.3 (misma causa que FP-1) |
 
-Veintiséis hallazgos abiertos: veinticuatro se cierran en F1-F5, uno se decide (H-4, en F3.4), uno se acota (FP-7, en F3.5) y uno queda declarado como mejora futura (H-6, en F6).
+Veintiséis hallazgos abiertos en la redacción del plan: veinticuatro se cierran en F1-F5, uno se decide (H-4, en F3.4), uno se acota (FP-7, en F3.5) y uno queda declarado como mejora futura (H-6, en F6). La ejecución de F1 cerró cuatro (FP-6, FP-1, E-4, R-8) y destapó uno nuevo (FP-8): quedan **veintitrés**.
 
 ### 12.8 Definición de terminado
 
@@ -412,4 +442,4 @@ La línea visual se considera cerrada cuando:
 
 ### 12.9 Orden de ataque recomendado
 
-F0 → F1 → F2 → F3 → F4 → F5. F1 primero porque contiene lo único funcionalmente roto (R-8) y lo que hace ilegible la sala contigua al fuego (FP-6); F2 inmediatamente después porque es lo que de verdad responde al síntoma "se ve feo"; F5.1 al final para no rehacer el trabajo de las fases anteriores.
+F0 → F1 → F2 → F3 → F4 → F5. **F0 y F1 hechos el 2026-08-31; siguiente, F2.** F1 primero porque contiene lo único funcionalmente roto (R-8) y lo que hace ilegible la sala contigua al fuego (FP-6); F2 inmediatamente después porque es lo que de verdad responde al síntoma "se ve feo"; F5.1 al final para no rehacer el trabajo de las fases anteriores.

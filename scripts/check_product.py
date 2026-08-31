@@ -326,6 +326,30 @@ def main() -> int:
         diagnostics.append("Godot FP fire visuals: " + (diagnostic or "failed"))
 
     rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_fp_interstitial_seal.tscn",
+        "FP INTERSTITIAL SEAL VALIDATION PASS",
+    )
+    rows.append(("FP interstitial seal Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot FP interstitial seal: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_fp_party_walls.tscn",
+        "FP PARTY WALLS VALIDATION PASS",
+    )
+    rows.append(("FP party walls Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot FP party walls: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_fp_smoke_lighting.tscn",
+        "FP SMOKE LIGHTING VALIDATION PASS",
+    )
+    rows.append(("FP smoke lighting Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot FP smoke lighting: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_fp_technical_hud.tscn",
         "FP TECHNICAL HUD VALIDATION PASS",
     )

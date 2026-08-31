@@ -33,6 +33,9 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var wall_thickness_m: float = 0.10
 @export var floor_thickness_m: float = 0.10
 @export var ceiling_thickness_m: float = 0.08
+## Estira el techo de cada planta hasta la cara inferior del forjado de la
+## planta superior, cerrando el anillo perimetral entre plantas (E-4).
+@export var interstitial_ceiling_seal_enabled: bool = true
 @export var closed_door_thickness_m: float = 0.08
 @export var person_height_m: float = 1.80
 @export var crouch_height_m: float = 1.05
@@ -63,6 +66,13 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Limita el alcance de cada luz de techo a la semidiagonal de su sala (+0.4m),
 ## evitando que ilumine esquinas de salas vecinas a traves de las paredes.
 @export var room_ceiling_light_contain_to_room: bool = true
+## Suelo del alcance de la luz de techo cuando hay humo, como fraccion del
+## alcance limpio. El humo debe ATENUAR el brillo, no recortar el alcance:
+## omni_range es un corte duro, no una extincion, y por debajo de la altura de
+## la sala deja a oscuras hasta el suelo que hay bajo la propia luminaria
+## (FP-6 en docs/AUDITORIA_VISUAL_2026-08-29.md). 1.0 = solo se atenua el
+## brillo; valores menores reintroducen el recorte geometrico.
+@export_range(0.0, 1.0, 0.05) var room_ceiling_light_smoke_range_min_factor: float = 1.0
 ## Sombras en las luces de techo. Elimina del todo la luz que atraviesa
 ## paredes, con coste de rendimiento (una luz sombreada por sala).
 @export var room_ceiling_lights_cast_shadows: bool = false
@@ -498,6 +508,9 @@ var _detector_nodes: Dictionary = {}
 var _victim_nodes: Dictionary = {}
 var _furniture_nodes_by_room: Dictionary = {}
 var _fire_nodes_by_room: Dictionary = {}
+## Cajas de tabique ya construidas en esta reconstruccion, para no duplicar
+## medianeras entre salas contiguas (FP-1).
+var _wall_segment_boxes: Dictionary = {}
 var _ceiling_lights_by_room: Dictionary = {}
 var _ceiling_light_base_energy_by_room: Dictionary = {}
 var _ceiling_light_base_range_by_room: Dictionary = {}
@@ -925,12 +938,36 @@ func _add_ceiling_slab(node_name: String, rect: Rect2, floor_level_m: float, hei
 	var body := StaticBody3D.new()
 	body.name = node_name
 	_world_root.add_child(body)
+	var thickness_m: float = _ceiling_thickness_to_next_floor_m(floor_level_m, height_m)
 	var center: Vector3 = _to_world(Vector3(
 		rect.position.x + rect.size.x * 0.5,
-		height_m + ceiling_thickness_m * 0.5,
+		height_m + thickness_m * 0.5,
 		rect.position.y + rect.size.y * 0.5
 	), floor_level_m)
-	_add_box(body, "CeilingMesh", Vector3(rect.size.x, ceiling_thickness_m, rect.size.y), center, material, true)
+	_add_box(body, "CeilingMesh", Vector3(rect.size.x, thickness_m, rect.size.y), center, material, true)
+
+
+## Grosor del techo de una planta. Por defecto el nominal, pero si encima hay
+## otra planta se estira hasta la cara inferior de su forjado: con los valores
+## de preset_two_storey_house (2,65 + 0,08 de techo contra una planta a 2,90
+## con solera de 0,10) quedaba si no un anillo perimetral de 7 cm por el que
+## entraba luz exterior desde dentro y se veia el interior desde fuera (E-4).
+func _ceiling_thickness_to_next_floor_m(floor_level_m: float, height_m: float) -> float:
+	if not interstitial_ceiling_seal_enabled or building == null:
+		return ceiling_thickness_m
+	var ceiling_base_m: float = floor_level_m + height_m
+	var next_underside_m: float = INF
+	for key in building.get_rooms().keys():
+		var other: RoomModel = building.get_room(int(key))
+		if other == null:
+			continue
+		var other_level_m: float = other.floor_level_z_m
+		if other_level_m <= ceiling_base_m + 0.001:
+			continue
+		next_underside_m = minf(next_underside_m, other_level_m - floor_thickness_m)
+	if is_inf(next_underside_m):
+		return ceiling_thickness_m
+	return maxf(ceiling_thickness_m, next_underside_m - ceiling_base_m)
 
 
 func _create_ceilings(rects: Dictionary) -> void:
@@ -949,7 +986,13 @@ func _create_ceilings(rects: Dictionary) -> void:
 
 
 func _create_walls(rects: Dictionary) -> void:
-	for room_id in rects.keys():
+	# Se reinicia el registro de tabiques ya construidos: dos salas contiguas
+	# generan la misma caja de medianera y antes se dibujaban las dos, con
+	# z-fighting entre sus colores y colision duplicada (FP-1).
+	_wall_segment_boxes.clear()
+	var ordered_ids: Array = rects.keys()
+	ordered_ids.sort()
+	for room_id in ordered_ids:
 		var rect: Rect2 = Rect2(rects[room_id])
 		var room: RoomModel = building.get_room(int(room_id))
 		if room != null and _room_is_stairwell(room) and not room.stair_has_walls:
@@ -994,9 +1037,6 @@ func _create_wall_segment_height(rect: Rect2, room_id: int, side: String, start:
 	var height_m: float = maxf(0.0, y_max_m - y_min_m)
 	if span <= 0.03 or height_m <= 0.03:
 		return
-	var body := StaticBody3D.new()
-	body.name = "Wall_%s" % side
-	_world_root.add_child(body)
 
 	var size: Vector3
 	var center: Vector3
@@ -1009,8 +1049,29 @@ func _create_wall_segment_height(rect: Rect2, room_id: int, side: String, start:
 		size = Vector3(wall_thickness_m, height_m, span)
 		var x: float = rect.position.x if side == "left" else rect.position.x + rect.size.x
 		center = _to_world(Vector3(x, center_y, rect.position.y + start + span * 0.5), floor_level_m)
-	_add_box(body, "WallMesh", size, center, _wall_material_for_room(room_id), true)
+
+	# El rodapie SI es por sala: mira hacia dentro de cada estancia, asi que
+	# una medianera compartida necesita el de cada lado.
 	_create_skirting_segment(rect, side, start, end, floor_level_m)
+
+	var box_key: String = _wall_box_key(center, size)
+	if _wall_segment_boxes.has(box_key):
+		return
+	_wall_segment_boxes[box_key] = true
+
+	var body := StaticBody3D.new()
+	body.name = "Wall_%s" % side
+	_world_root.add_child(body)
+	_add_box(body, "WallMesh", size, center, _wall_material_for_room(room_id), true)
+
+
+## Identidad geometrica de un tabique, redondeada al centimetro: dos salas
+## contiguas producen exactamente la misma caja para su medianera. Gana la
+## primera sala por id, que es orden estable entre reconstrucciones.
+func _wall_box_key(center: Vector3, size: Vector3) -> String:
+	return "%.2f|%.2f|%.2f|%.2f|%.2f|%.2f" % [
+		center.x, center.y, center.z, size.x, size.y, size.z
+	]
 
 
 func _create_skirting_segment(rect: Rect2, side: String, start: float, end: float, floor_level_m: float) -> void:
@@ -1637,7 +1698,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		wall_size,
 		wall_center,
 		_mat(landing_wall_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4200 + index),
-		false
+		true
 	)
 
 	var side_wall_size := Vector3(wall_thickness_m, corridor_height_m, depth_m) if horizontal else Vector3(depth_m, corridor_height_m, wall_thickness_m)
@@ -1650,7 +1711,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 			side_wall_size,
 			side_center,
 			_mat(landing_wall_color.darkened(0.06), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4250 + index),
-			false
+			true
 		)
 
 	_create_landing_front_wall(
@@ -1838,7 +1899,7 @@ func _create_landing_front_wall(
 				corridor_height_m,
 				wall_thickness_m,
 				material,
-				false
+				true
 			)
 	var lintel_h: float = maxf(0.0, corridor_height_m - opening_h)
 	if lintel_h > 0.02:
@@ -1853,7 +1914,7 @@ func _create_landing_front_wall(
 			lintel_h,
 			wall_thickness_m,
 			material,
-			false
+			true
 		)
 
 
@@ -4023,12 +4084,23 @@ func _add_box(parent: Node3D, node_name: String, size_m: Vector3, center_world: 
 	mesh.position = center_world
 	parent.add_child(mesh)
 	if with_collision:
+		# Un CollisionShape3D colgado de un Node3D es inerte: la forma tiene que
+		# vivir bajo un CollisionObject3D. Cuando el padre ya es un cuerpo (los
+		# muros lo son) se cuelga de el; cuando no, se crea uno propio. Antes se
+		# anadia siempre como hermano de la malla, asi que el rellano y el
+		# descansillo de la escalera no colisionaban con nada (R-8).
+		var host := parent as CollisionObject3D
+		if host == null:
+			var body := StaticBody3D.new()
+			body.name = node_name + "_Body"
+			parent.add_child(body)
+			host = body
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
 		box.size = size_m
 		shape.shape = box
-		shape.position = center_world
-		parent.add_child(shape)
+		shape.position = center_world - host.position
+		host.add_child(shape)
 	return mesh
 
 
@@ -4839,8 +4911,17 @@ func _update_smoke_light_attenuation() -> void:
 		var transmission: float = _light_smoke_transmission_for_room(room_id, _room_height(room))
 		var base_energy: float = float(_ceiling_light_base_energy_by_room.get(room_id, room_ceiling_light_energy))
 		var base_range: float = float(_ceiling_light_base_range_by_room.get(room_id, room_ceiling_light_range_extra_m))
+		# El humo baja el brillo (hasta smoke_light_min_transmission, lo que
+		# mantiene el apagado casi total en regimenes ILV criticos), pero el
+		# alcance no se recorta por debajo del suelo configurado: si lo hace,
+		# la sala vecina al fuego se lee como una caja negra aunque el
+		# observador este bajo la capa con visibilidad de sobra (FP-6).
 		light.light_energy = base_energy * transmission
-		light.omni_range = base_range * lerpf(0.50, 1.0, transmission)
+		light.omni_range = base_range * lerpf(
+			clampf(room_ceiling_light_smoke_range_min_factor, 0.0, 1.0),
+			1.0,
+			transmission
+		)
 
 
 func _light_smoke_transmission_for_room(room_id: int, height_m: float) -> float:

@@ -32,6 +32,7 @@ func _run() -> void:
 		_validate_landing_lighting(world)
 		_validate_single_landing_per_floor(world)
 		_validate_landing_front_is_closed(world)
+		_validate_landing_walls_are_solid(world)
 
 	remove_child(fp)
 	fp.free()
@@ -132,6 +133,23 @@ func _validate_landing_front_is_closed(world: Node) -> void:
 		_find_meshes(world, "LandingFrontLintel_00").size() == 1,
 		"Landing front lintel missing above the flat door"
 	)
+
+
+## R-8: las paredes del portal tienen que frenar al jugador. Antes eran malla
+## sin cuerpo y se atravesaban, cayendo al vacio.
+func _validate_landing_walls_are_solid(world: Node) -> void:
+	for token in ["LandingBackWall_00", "LandingSideWall_00", "LandingFrontWall_00_L", "LandingFrontWall_00_R"]:
+		var meshes: Array[MeshInstance3D] = _find_meshes(world, token)
+		_expect(meshes.size() >= 1, "Landing wall %s missing" % token)
+		for mesh in meshes:
+			var body := world.get_node_or_null(NodePath(String(mesh.name) + "_Body")) as StaticBody3D
+			_expect(body != null, "Landing wall %s has no static body: the player walks through it" % String(mesh.name))
+			if body != null:
+				var shapes: int = 0
+				for child in body.get_children():
+					if child is CollisionShape3D and (child as CollisionShape3D).shape != null:
+						shapes += 1
+				_expect(shapes >= 1, "Landing wall body %s has no collision shape" % String(body.name))
 
 
 func _find_lights(root_node: Node, token: String) -> Array[OmniLight3D]:
