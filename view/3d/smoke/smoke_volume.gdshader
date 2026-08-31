@@ -23,7 +23,7 @@ uniform float flow_speed = 0.30;
 uniform float flow_direction = 0.0;
 // Textura de ruido opcional (canal R) para sustituir/mezclar el ruido
 // procedural. strength=0 -> solo procedural (sin coste extra apreciable).
-uniform sampler2D noise_texture : hint_default_black;
+uniform sampler2D noise_texture : filter_linear_mipmap, repeat_enable, hint_default_black;
 uniform float noise_texture_strength : hint_range(0.0, 1.0) = 0.0;
 uniform float noise_texture_uv_scale = 3.0;
 

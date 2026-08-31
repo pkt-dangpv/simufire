@@ -540,6 +540,35 @@ F0 → F1 → F2 → F3 → F4 → F5. **F0 y F1 hechos el 2026-08-31; siguiente
 
 ---
 
+## 12b. Correcciones tras ejecutar el simulador (2026-08-31, tarde)
+
+Reportadas por el usuario tras correr el simulador de verdad, que es la prueba que ninguna captura sustituye. Tres síntomas: sombras y texturas raras en rellano y pasillo, dientes de sierra que cambian con el movimiento, y un penacho de humo que sale por el hueco como un cuadrado anaranjado.
+
+### 🔴 X-1. Piezas decorativas finas proyectando sombra — **[CORREGIDO]**
+Ninguna malla del mundo FP controlaba su proyección de sombra, así que el sol exterior las proyectaba **todas**, incluidas las piezas finas y casi coplanarias con el muro que recibe la sombra: rodapié (2,8 cm a 1,2 cm del muro), chapa de fachada (2 cm), bordillo y grava del porche. Con un mapa de sombra ortogonal que sigue a la cámara, eso es acne de sombra de manual, y **se mueve al andar**: exactamente lo que se ve en pasillos y en el rellano, que es donde más rodapié hay.
+
+Corrección: esas piezas dejan de proyectar sombra (`_mark_decorative`), con interruptor `decorative_pieces_cast_shadows`. No cambian la lectura de la escena; sólo dejaban de estorbar.
+
+### 🟠 X-2. Textura de superficie sin mipmaps — **[CORREGIDO]**
+El shader de superficie declaraba `uniform sampler2D surface_noise : source_color, hint_default_white` sin cualificadores de filtro. La textura se proyecta en coordenadas de **mundo** y se repite cada 1,8 m, así que sin mipmaps dentellea y parpadea al mover la cámara, sobre todo en paramentos largos vistos de refilón —un pasillo, justamente—. Además `source_color` aplicaba conversión sRGB a lo que es una **máscara**, no un color.
+
+Corrección: `filter_linear_mipmap_anisotropic, repeat_enable`, sin `source_color`; `generate_mipmaps` en la textura de ruido y `image.generate_mipmaps()` en la de baldosa, cuya junta de 3 px era lo primero en dentellear. El mismo cualificador se añade al shader de humo, que tenía el problema latente.
+
+**Honestidad sobre la verificación:** el parpadeo es temporal y una captura fija no lo mide —medido, el ruido de alta frecuencia en las capturas no cambia—. Estas correcciones son correctas por sí mismas, pero **quien confirma que el síntoma desaparece es la siguiente ejecución del simulador**, no este informe.
+
+### 🟠 X-3. El penacho exterior salía como una losa anaranjada — **[CORREGIDO]**
+Tres causas sumadas:
+
+1. **Color.** `_outflow_color()` mezclaba hasta un 58 % hacia el naranja caliente, así que el penacho no se parecía al humo de la sala de la que sale. Ahora parte del color del humo con un sesgo caliente pequeño y ajustable (`exterior_plume_hot_tint`, 0,18); con 0 sale exactamente del color del humo.
+2. **Forma.** `side_visibility` estaba en 0,68: se leían las cuatro caras del volumen a la vez y el penacho parecía una caja. Baja a 0,34 y el borde se suaviza (0,52 → 0,72).
+3. **Dinámica.** La turbulencia era constante (0,94) y la velocidad casi. Ahora ambas interpolan con el empuje: poca carga da columna lisa y lenta (laminar), mucha carga da revuelta y rápida. Cuatro parámetros en el inspector para el régimen.
+
+Además, el penacho estaba **gateado por `curtain_visible`**, el mismo acoplamiento que mataba la contracorriente en H-4: dependía de que la cortina del hueco hubiese superado su propio umbral de visibilidad, y por eso aparecía y desaparecía de golpe en vez de crecer con el incendio. Ahora lo gobierna que haya humo saliendo (`exterior_plume_min_source_alpha`), con el acoplamiento anterior disponible en `exterior_plume_requires_curtain`.
+
+Verificado en captura: con el enganche corregido el penacho se dibuja, y lo hace como una columna gris ahusada que sale del hueco, no como una losa naranja.
+
+---
+
 ## 13. Estado final de la línea visual (2026-08-31)
 
 Cierre de la ejecución del plan §12. Todo lo que sigue está verificado con `python scripts/check_product.py` (30 suites en verde; el único fallo es `test_exit0_real_json`, de la línea motor) y, donde tiene sentido, con capturas renderizadas y medidas.
@@ -635,5 +664,6 @@ Cinco validadores headless nuevos y dos ampliados, todos verificados fallando co
 
 1. **FP-3 (F5.1)** — unificar los constructores de suelo, techo, muro y hueco entre `FirstPersonController` y `Visualizer3D`. Es el único hallazgo pendiente de trabajo real. Estuvo esperando a FP-7 por un acoplamiento que resultó no existir.
 2. **H-6** — autoexposición entre plantas. Funcionalidad nueva, declarada fuera del cierre.
+3. **Confirmar en ejecución** las correcciones de §12b: el parpadeo de texturas y las sombras del rellano y el pasillo sólo se pueden dar por buenos corriendo el simulador.
 
 Con H-4 cerrado, **FP-3 es el único hallazgo de §1-§8 que queda por trabajar**.

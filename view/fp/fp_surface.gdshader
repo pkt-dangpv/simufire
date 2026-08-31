@@ -15,7 +15,12 @@ shader_type spatial;
 
 uniform vec4 albedo : source_color = vec4(0.80, 0.80, 0.75, 1.0);
 uniform float surface_roughness : hint_range(0.0, 1.0) = 0.96;
-uniform sampler2D surface_noise : source_color, hint_default_white;
+// filter_linear_mipmap_anisotropic es obligatorio aqui: la textura se
+// proyecta en coordenadas de MUNDO y se repite cada pocos metros, asi que
+// sin mipmaps produce dientes de sierra y parpadeo al mover la camara,
+// sobre todo en suelos y paredes vistos de refilon. Y no lleva source_color
+// porque no es un color: es una mascara que multiplica al albedo.
+uniform sampler2D surface_noise : filter_linear_mipmap_anisotropic, repeat_enable, hint_default_white;
 uniform bool use_noise = true;
 // Ciclos de textura por metro: es 1 / tamano_del_patron_en_metros.
 uniform float noise_cycles_per_m = 0.55;

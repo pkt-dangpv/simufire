@@ -190,6 +190,12 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Sombras en la luz direccional del cielo. Sin sombras esta luz atraviesa
 ## las paredes e ilumina esquinas interiores (recomendado activarlo).
 @export var exterior_sky_light_cast_shadows: bool = true
+## Las piezas decorativas finas y casi coplanarias con el muro que las recibe
+## (rodapie, chapa de fachada, bordillo y grava del porche) proyectan sombra
+## sobre esa misma superficie. Con un mapa de sombra ortogonal que sigue a la
+## camara, eso da acne de sombra que se mueve al andar, sobre todo en pasillos
+## y en el rellano. Apagarlas no cambia la lectura de la escena.
+@export var decorative_pieces_cast_shadows: bool = false
 @export var exterior_day_sky_light_energy: float = 0.58
 @export var exterior_night_sky_light_energy: float = 0.16
 @export var exterior_day_sky_light_color: Color = Color(0.88, 0.92, 1.0, 1.0)
@@ -1193,6 +1199,9 @@ func _tile_texture() -> Texture2D:
 		for x in range(size_px):
 			if x < grout_px or y < grout_px:
 				image.set_pixel(x, y, grout)
+	# La junta es una linea de 3 px: sin mipmaps es lo primero que dentellea al
+	# alejarse del suelo del rellano.
+	image.generate_mipmaps()
 	return ImageTexture.create_from_image(image)
 
 
@@ -1218,14 +1227,14 @@ func _add_exterior_wall_skin(
 	else:
 		skin_size.x = thickness_m
 	var offset_m: float = wall_thickness_m * 0.5 + thickness_m * 0.5
-	_add_box(
+	_mark_decorative(_add_box(
 		_world_root,
 		"ExteriorWallSkin_%s" % side,
 		skin_size,
 		wall_center + outward * offset_m,
 		_facade_material(),
 		false
-	)
+	))
 
 
 ## Una cara es exterior cuando ninguna otra sala de la misma planta apoya en
@@ -1299,14 +1308,14 @@ func _create_skirting_segment(rect: Rect2, side: String, start: float, end: floa
 		var x: float = rect.position.x if side == "left" else rect.position.x + rect.size.x
 		center = _to_world(Vector3(x, wall_skirting_height_m * 0.5, rect.position.y + start + span * 0.5), floor_level_m) + normal * (wall_thickness_m * 0.5 + 0.012)
 		size = Vector3(0.028, wall_skirting_height_m, span)
-	_add_box(
+	_mark_decorative(_add_box(
 		_world_root,
 		"Skirting_%s" % side,
 		size,
 		center,
 		_mat(Color(0.34, 0.27, 0.20, 1.0), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 1900, NOISE_PROFILE_FLOOR),
 		false
-	)
+	))
 
 
 func _create_stairs(rects: Dictionary) -> void:
@@ -2268,7 +2277,7 @@ func _create_porch_ground_transition(
 	if apron_w > 0.01:
 		var apron_center: Vector3 = center - normal * (porch_d * 0.5 - 0.05)
 		apron_center.y = floor_level_m - floor_thickness_m - 0.015
-		_add_oriented_box(
+		_mark_decorative(_add_oriented_box(
 			_world_root,
 			"HousePorchApron_%02d" % index,
 			apron_center,
@@ -2278,7 +2287,7 @@ func _create_porch_ground_transition(
 			porch_d + apron_w * 2.0,
 			apron_mat,
 			false
-		)
+		))
 
 	# Bordillo en los tres lados libres del porche (el cuarto es la fachada).
 	if curb_h <= 0.005 or curb_t <= 0.005:
@@ -2286,7 +2295,7 @@ func _create_porch_ground_transition(
 	for side in [-1.0, 1.0]:
 		var lateral: Vector3 = center - normal * (porch_d * 0.5 - 0.05) + tangent * (side * (porch_w * 0.5 + curb_t * 0.5))
 		lateral.y = floor_level_m - floor_thickness_m + curb_h * 0.5
-		_add_oriented_box(
+		_mark_decorative(_add_oriented_box(
 			_world_root,
 			"HousePorchCurb_%02d_%s" % [index, "L" if side < 0.0 else "R"],
 			lateral,
@@ -2296,10 +2305,10 @@ func _create_porch_ground_transition(
 			porch_d + curb_t,
 			curb_mat,
 			false
-		)
+		))
 	var front: Vector3 = center - normal * (porch_d + curb_t * 0.5 - 0.05)
 	front.y = floor_level_m - floor_thickness_m + curb_h * 0.5
-	_add_oriented_box(
+	_mark_decorative(_add_oriented_box(
 		_world_root,
 		"HousePorchCurb_%02d_F" % index,
 		front,
@@ -2309,7 +2318,7 @@ func _create_porch_ground_transition(
 		curb_t,
 		curb_mat,
 		false
-	)
+	))
 
 
 ## Barra recta entre dos puntos (pasamanos inclinado, zancas...).
@@ -4388,6 +4397,14 @@ func _create_boundary_segment(center_m: Vector3, size_m: Vector3) -> void:
 	body.add_child(shape)
 
 
+## Quita la proyeccion de sombra de una pieza decorativa. Ver
+## decorative_pieces_cast_shadows.
+func _mark_decorative(mesh: MeshInstance3D) -> void:
+	if mesh == null or decorative_pieces_cast_shadows:
+		return
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+
+
 func _add_box(parent: Node3D, node_name: String, size_m: Vector3, center_world: Vector3, material: Material, with_collision: bool) -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()
 	mesh.name = node_name
@@ -5816,6 +5833,9 @@ func _noise_texture(variant_seed: int, noise_profile: int = NOISE_PROFILE_SURFAC
 	texture.width = material_noise_texture_px
 	texture.height = material_noise_texture_px
 	texture.seamless = true
+	# Sin mipmaps, una textura proyectada en metros parpadea y dentellea al
+	# alejarse o al mirarla de refilon.
+	texture.generate_mipmaps = true
 	texture.color_ramp = ramp
 	texture.noise = noise
 	return texture

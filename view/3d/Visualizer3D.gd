@@ -226,6 +226,25 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export_range(0.5, 12.0, 0.10) var exterior_plume_max_height_m: float = 3.60
 @export_range(0.0, 2.0, 0.01) var exterior_plume_alpha_factor: float = 0.62
 @export_range(0.0, 2.0, 0.01) var exterior_plume_first_person_alpha_factor: float = 0.78
+## Cuanto tira el penacho hacia el color caliente. Es humo de la misma sala,
+## asi que parte de su color; con 0 sale exactamente del color del humo.
+@export_range(0.0, 1.0, 0.01) var exterior_plume_hot_tint: float = 0.18
+## Regimen del penacho segun el empuje: con poco, columna lisa y lenta
+## (laminar); con mucho, revuelta y rapida.
+@export_range(0.0, 2.0, 0.05) var exterior_plume_laminar_turbulence: float = 0.30
+@export_range(0.0, 2.0, 0.05) var exterior_plume_turbulent_turbulence: float = 1.15
+@export_range(0.0, 2.0, 0.01) var exterior_plume_min_speed: float = 0.10
+@export_range(0.0, 2.0, 0.01) var exterior_plume_max_speed: float = 0.62
+## Suavidad del borde y visibilidad de los costados. Subir el segundo hace
+## que se lean las cuatro caras del volumen y el penacho parezca una caja.
+@export_range(0.0, 1.5, 0.01) var exterior_plume_edge_softness: float = 0.72
+@export_range(0.0, 1.0, 0.01) var exterior_plume_side_visibility: float = 0.34
+## Condiciona el penacho a que la cortina del hueco haya superado su umbral de
+## visibilidad. Era el comportamiento anterior y hacia que el penacho apareciese
+## y desapareciese de golpe en vez de crecer con el incendio.
+@export var exterior_plume_requires_curtain: bool = false
+## Carga de humo minima en la sala para que salga penacho por el hueco.
+@export_range(0.0, 0.5, 0.01) var exterior_plume_min_source_alpha: float = 0.05
 ## Altura del plano neutro dentro del vano, como fraccion de su alto: donde se
 ## separan el humo que sale por arriba y el aire que entra por abajo. El primer
 ## valor es con las dos salas equilibradas y el segundo con maximo
@@ -2866,6 +2885,15 @@ func _update_openings() -> void:
 			"exterior_plume_max_height_m": exterior_plume_max_height_m,
 			"exterior_plume_alpha_factor": exterior_plume_alpha_factor,
 			"exterior_plume_first_person_alpha_factor": exterior_plume_first_person_alpha_factor,
+			"exterior_plume_hot_tint": exterior_plume_hot_tint,
+			"exterior_plume_laminar_turbulence": exterior_plume_laminar_turbulence,
+			"exterior_plume_turbulent_turbulence": exterior_plume_turbulent_turbulence,
+			"exterior_plume_min_speed": exterior_plume_min_speed,
+			"exterior_plume_max_speed": exterior_plume_max_speed,
+			"exterior_plume_edge_softness": exterior_plume_edge_softness,
+			"exterior_plume_side_visibility": exterior_plume_side_visibility,
+			"exterior_plume_requires_curtain": exterior_plume_requires_curtain,
+			"exterior_plume_min_source_alpha": exterior_plume_min_source_alpha,
 			"neutral_plane_calm_fraction": neutral_plane_calm_fraction,
 			"neutral_plane_driven_fraction": neutral_plane_driven_fraction,
 			"neutral_plane_exterior_calm_fraction": neutral_plane_exterior_calm_fraction,

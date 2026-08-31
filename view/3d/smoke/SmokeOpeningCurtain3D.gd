@@ -59,6 +59,15 @@ static func update(item_dict: Dictionary, op: OpeningModel, room_items: Dictiona
 	context["neutral_plane_exterior_calm_fraction"] = float(settings.get("neutral_plane_exterior_calm_fraction", 0.62))
 	context["neutral_plane_exterior_driven_fraction"] = float(settings.get("neutral_plane_exterior_driven_fraction", 0.40))
 	context["opening_inflow_requires_outflow"] = bool(settings.get("opening_inflow_requires_outflow", false))
+	context["exterior_plume_hot_tint"] = float(settings.get("exterior_plume_hot_tint", 0.18))
+	context["exterior_plume_laminar_turbulence"] = float(settings.get("exterior_plume_laminar_turbulence", 0.30))
+	context["exterior_plume_turbulent_turbulence"] = float(settings.get("exterior_plume_turbulent_turbulence", 1.15))
+	context["exterior_plume_min_speed"] = float(settings.get("exterior_plume_min_speed", 0.10))
+	context["exterior_plume_max_speed"] = float(settings.get("exterior_plume_max_speed", 0.62))
+	context["exterior_plume_edge_softness"] = float(settings.get("exterior_plume_edge_softness", 0.72))
+	context["exterior_plume_side_visibility"] = float(settings.get("exterior_plume_side_visibility", 0.34))
+	context["exterior_plume_requires_curtain"] = bool(settings.get("exterior_plume_requires_curtain", false))
+	context["exterior_plume_min_source_alpha"] = float(settings.get("exterior_plume_min_source_alpha", 0.05))
 	if bool(pose.get("is_vertical", false)) or op.is_vertical:
 		_hide_layer(inflow)
 		_hide_layer(plume)
@@ -579,10 +588,16 @@ static func _update_exterior_plume(
 ) -> void:
 	if plume == null:
 		return
+	# El penacho dependia de que la cortina del hueco hubiese superado SU umbral
+	# de visibilidad, igual que la contracorriente (H-4). Eso lo hace aparecer y
+	# desaparecer de golpe en vez de crecer con el incendio. Lo que debe
+	# gobernarlo es que haya humo saliendo, que es lo que mide source_alpha.
+	var requires_curtain: bool = bool(context.get("exterior_plume_requires_curtain", false))
 	if not bool(context.get("show_exterior_smoke_plume", true)) \
 			or op == null \
 			or not op.is_exterior_opening() \
-			or not curtain_visible \
+			or (requires_curtain and not curtain_visible) \
+			or source_alpha <= float(context.get("exterior_plume_min_source_alpha", 0.05)) \
 			or absf(outward_sign) < 0.5:
 		_hide_layer(plume)
 		return
@@ -617,26 +632,46 @@ static func _update_exterior_plume(
 		0.030,
 		0.36
 	)
+	# El humo que sale por un hueco es el MISMO humo de la sala: parte de su
+	# color y solo admite un sesgo caliente pequeno. Antes se mezclaba hasta un
+	# 58 % hacia el naranja y el penacho se leia como una losa anaranjada sin
+	# relacion con la habitacion de la que sale.
+	var plume_color: Color = _plume_color(context, fire_context_t)
+	# Regimen: con poco empuje la columna sale lisa (laminar) y lenta; con
+	# mucho, revuelta y rapida. drive_t ya combina carga de humo y contexto de
+	# fuego, que es el mejor proxy de presion disponible aqui.
+	var turbulence: float = lerpf(
+		float(context.get("exterior_plume_laminar_turbulence", 0.30)),
+		float(context.get("exterior_plume_turbulent_turbulence", 1.15)),
+		drive_t
+	)
+	var speed_t: float = lerpf(
+		float(context.get("exterior_plume_min_speed", 0.10)),
+		float(context.get("exterior_plume_max_speed", 0.62)),
+		drive_t
+	)
 	_apply_smoke_material(
 		plume,
-		_outflow_color(context, fire_context_t),
+		plume_color,
 		shader_alpha,
 		{
 			"density": clampf(0.40 + plume_alpha * 1.20 + fire_context_t * 0.26, 0.32, 1.10),
-			"turbulence": 0.94,
-			"drift_speed": 0.22 + fire_context_t * 0.12,
+			"turbulence": turbulence,
+			"drift_speed": speed_t,
 			"volume_depth_m": maxf(height_m, 0.05),
 			"meters_to_units": float(context.get("meters_to_units", 1.0)),
-			"edge_softness": 0.52,
+			"edge_softness": float(context.get("exterior_plume_edge_softness", 0.72)),
 			"bottom_waviness": 0.30,
 			"edge_band_strength": 0.20,
-			"side_visibility": 0.68,
+			# Costados menos visibles: con 0,68 las cuatro caras del volumen se
+			# leian a la vez y el penacho parecia una caja.
+			"side_visibility": float(context.get("exterior_plume_side_visibility", 0.34)),
 			"bottom_surface_strength": 0.10,
 			"top_visibility": 0.0,
 			"vertical_gradient_strength": 0.30,
 			"lower_density_floor": 0.70,
-			"flow_strength": clampf(0.30 + fire_context_t * 0.34, 0.0, 0.80),
-			"flow_speed": 0.46 + fire_context_t * 0.16,
+			"flow_strength": clampf(0.24 + drive_t * 0.56, 0.0, 0.90),
+			"flow_speed": 0.30 + speed_t * 0.60,
 			"flow_direction": 0.0,
 		},
 		clampf(plume_alpha * 0.50, 0.030, 0.32)
@@ -734,6 +769,15 @@ static func _outflow_color(context: Dictionary, fire_context_t: float) -> Color:
 	var base := Color(context.get("smoke_color", DEFAULT_SMOKE_COLOR))
 	var hot := Color(context.get("hot_smoke_outflow_color", DEFAULT_HOT_OUTFLOW_COLOR))
 	return base.lerp(hot, clampf(fire_context_t * 0.48, 0.0, 0.58))
+
+
+## Color del penacho exterior: el del humo de la sala, con un sesgo caliente
+## pequeno y ajustable. Es humo de la misma habitacion, no una llamarada.
+static func _plume_color(context: Dictionary, fire_context_t: float) -> Color:
+	var base := Color(context.get("smoke_color", DEFAULT_SMOKE_COLOR))
+	var hot := Color(context.get("hot_smoke_outflow_color", DEFAULT_HOT_OUTFLOW_COLOR))
+	var tint: float = clampf(float(context.get("exterior_plume_hot_tint", 0.18)), 0.0, 1.0)
+	return base.lerp(hot, clampf(fire_context_t * tint, 0.0, tint))
 
 
 static func _hide_opening_layers(curtain: MeshInstance3D, inflow: MeshInstance3D, plume: MeshInstance3D = null) -> void:
