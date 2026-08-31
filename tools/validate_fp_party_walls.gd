@@ -42,6 +42,7 @@ func _run() -> void:
 		_validate_no_duplicate_walls(world)
 		_validate_party_wall_exists(world)
 		_validate_skirting_is_per_room(world)
+		_validate_node_names_are_readable(world)
 
 	remove_child(fp)
 	fp.free()
@@ -100,6 +101,25 @@ func _validate_skirting_is_per_room(world: Node) -> void:
 	_expect(
 		near_plane >= 2,
 		"Party wall lost the per-room skirting: expected one per side, found %d" % near_plane
+	)
+
+
+## FP-8: sin force_readable_name, Godot renombra a "@MeshInstance3D@NN" todo
+## nodo cuyo nombre ya exista entre sus hermanos. El mundo FP cuelga decenas de
+## homonimos del mismo padre, asi que se perdia la identidad de casi todos y
+## cualquier busqueda por nombre solo encontraba el primero.
+func _validate_node_names_are_readable(world: Node) -> void:
+	var anonymous: int = 0
+	var example: String = ""
+	for mesh in _find_all_meshes(world):
+		var mesh_name: String = String(mesh.name)
+		if mesh_name.begins_with("@"):
+			anonymous += 1
+			if example == "":
+				example = mesh_name
+	_expect(
+		anonymous == 0,
+		"FP-8 regression: %d meshes lost their name (e.g. %s); add_child needs force_readable_name" % [anonymous, example]
 	)
 
 

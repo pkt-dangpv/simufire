@@ -67,8 +67,14 @@ Corrección:
 
 En primera persona esto es lo que se ve desde dentro al mirar por la ventana; en dollhouse es la firma clásica de un fuego ventilado.
 
-### 🟠 H-4. La contracorriente de aire frío está apagada por defecto — **[ABIERTO]**
+### 🟠 H-4. La contracorriente de aire frío está apagada por defecto — **[ABIERTO, pero no es la decisión que parecía]**
 `show_cold_air_inflow_curtains = false` ([Visualizer3D.gd:101](../view/3d/Visualizer3D.gd)). La cortina de entrada de aire existe y está bien resuelta (`_update_lower_inflow`), pero al estar apagada el vano sólo enseña la mitad superior: se ve el humo saliendo y nada entrando. Con H-2 corregido, encenderla completa la lectura bidireccional del hueco. No se activa aquí porque es una decisión de producto (colorear el aire de azul es una convención, no una observación).
+
+**Medido el 2026-08-31, y el resultado cambia la pregunta.** Encender `show_cold_air_inflow_curtains` sobre el piso patrón cambia el **0,489 %** de los píxeles con un delta máximo de 38 sobre 765: es invisible. Subir el tope de opacidad tampoco arregla nada (con 0,30 el cambio baja al 0,27 %).
+
+Instrumentando `_update_lower_inflow` se ve por qué, y no es la opacidad: la banda tiene altura de sobra (0,80-1,25 m), el alfa llega a su tope, pero **`has_fire_context` es falso en todas las muestras**, porque exige `outflow_visible` y en esos fotogramas la cortina de salida no lo está. Es decir, la contracorriente está condicionada a que la cortina de humo del mismo hueco se esté dibujando, y con esa condición apenas llega a verse nunca.
+
+Conclusión: **no es una decisión de producto todavía**, porque encenderla no enseña nada. Antes hay que revisar el enganche de `has_fire_context`. El tope de opacidad queda expuesto como `opening_inflow_max_alpha`, y el flag sigue apagado por defecto.
 
 ### 🟠 H-5. La cortina ignora la hoja de la puerta — **[CORREGIDO 2026-08-31]**
 `SmokeOpeningCurtain3D` escala el humo por `effective_open_fraction()`, pero geométricamente ocupa siempre el ancho completo del vano. Con la puerta a medio abrir el humo atraviesa la hoja. Lo correcto sería estrechar el puente al hueco libre real (ancho × fracción) y desplazarlo al lado de la bisagra.
@@ -122,8 +128,10 @@ Corrección aplicada (F1.4): eso es justo lo que se hace ahora. `_ceiling_thickn
 
 Guardarraíl: `tools/validate_fp_interstitial_seal.gd`. Con el sellado desactivado reproduce exactamente el anillo del hallazgo: `0.070 m`.
 
-### 🟠 E-5. Decorado urbano completo generado detrás del rellano — **[ABIERTO]**
+### 🟠 E-5. Decorado urbano completo generado detrás del rellano — **[CORREGIDO 2026-08-31]**
 `_create_exterior_context()` agrupa fachadas por normal e incluye la de la puerta de entrada. En `compact_apartment_reference` la puerta está en `bottom` y las ventanas en `top`: la fachada `bottom` genera calle, aceras, bordillos, coches, árboles, edificio de enfrente con ventanas y skyline **detrás de la caja cerrada del rellano**, donde nadie los verá jamás. Es geometría desperdiciada, no un fallo visual. Basta con no generar decorado en frentes cuyo único hueco exterior sea la puerta del portal.
+
+Corrección aplicada (F5.3): eso es lo que se hace. Cada fachada anota si tiene algún hueco que dé de verdad a la calle —ventanas y huecos siempre; la puerta sólo en unifamiliar, donde sí da al porche— y las que no lo tienen se saltan el generador de paisaje. Interruptor `exterior_scenery_skip_landing_facades`.
 
 ### 🟡 E-6. Tabiques exteriores con material interior por las dos caras — **[CORREGIDO 2026-08-31]**
 `_wall_material_for_room()` pinta el muro con el color de la estancia por ambas caras. El lienzo nuevo tapa esto donde existe; donde no, la cara exterior del edificio sigue siendo "salón".
@@ -164,11 +172,15 @@ Corrección aplicada (F1.2), con un hallazgo de propina: `_add_box(..., with_col
 
 Guardarraíl: `_validate_landing_walls_are_solid()` en `tools/validate_fp_landing_stairs.gd`.
 
-### 🟡 R-4. La altura del portal es un valor fijo — **[ABIERTO]**
+### 🟡 R-4. La altura del portal es un valor fijo — **[CORREGIDO 2026-08-31]**
 `landing_floor_height_m = 2.62` no se deriva de la altura real de la vivienda ni de su forjado. Si la sala mide 2,4 m, el rellano queda 22 cm más alto que la vivienda a la que sirve y el encuentro se nota al cruzar la puerta.
 
-### 🟡 R-5. Entrada unifamiliar: porche correcto, transición dura — **[ABIERTO]**
+Corrección aplicada (F5.4): la altura sale de la sala a la que sirve esa puerta, sumando su forjado (`_landing_height_for_opening`). Medido: vivienda de 2,40 → rellano 2,48; de 2,62 → 2,70; de 3,00 → 3,08, donde antes eran 2,62 en los tres casos. Se puede volver al valor fijo con `landing_height_follows_dwelling`. Hizo falta publicar `room_id` en `_opening_info()`, que no lo exponía.
+
+### 🟡 R-5. Entrada unifamiliar: porche correcto, transición dura — **[CORREGIDO 2026-08-31]**
 `_create_single_family_entry_recess()` genera porche, felpudo, escalón, pilares, voladizo y lámpara, y está bien. Lo que rompe la escena es que el porche apoya directamente sobre el césped del generador residencial sin ningún acuerdo (ni bordillo, ni cambio de material, ni sombra propia).
+
+Corrección aplicada (F5.5): `_create_porch_ground_transition()` añade bordillo en los tres lados libres del porche y una franja de grava alrededor, con su propio perfil de textura. Todo ajustable: `house_porch_ground_transition_enabled`, altura y grosor del bordillo, ancho de la franja y su color.
 
 ### ℹ️ R-6. La escalera del portal está bien resuelta
 Dos tiros en U con carriles separados, huecos coherentes entre plantas, mesetas intermedias, forjado inferior y techo superior cerrados (no se ve ni cielo ni pozo sin fondo), barandillas con balaustres y pasamanos inclinado. Es de lo mejor del visor FP y el validador headless lo protege.
@@ -227,8 +239,10 @@ Suelos y rodapiés usan un perfil aparte (`NOISE_PROFILE_FLOOR`: más octavas, g
 ### 🟠 FP-3. Geometría FP todavía paralela a la del 3D — **[PARCIAL]**
 `StairGeometry` ya está extraída y compartida (el 🟠 FP-1 de julio está a medias), pero suelos, techos, muros y huecos siguen teniendo dos implementaciones independientes (`FirstPersonController` vs `Visualizer3D`). Cualquier ajuste hecho en una diverge visualmente de la otra.
 
-### 🟡 FP-4. Consultas repetidas por frame físico — **[ABIERTO]**
+### 🟡 FP-4. Consultas repetidas por frame físico — **[NO REPRODUCIBLE 2026-08-31]**
 `_find_current_room_id()` y `get_room_rects_m()` se recalculan varias veces por frame en overlay, HUD y humo.
+
+**Ya no.** `get_room_rects_m()` se llama una sola vez y queda en `_room_rects_cache`; `_find_current_room_id()` se resuelve una vez por frame físico en `_current_room_id`, y su único otro uso es un fallback en `get_player_marker_state()` para cuando aún no se ha resuelto, con su comentario explicándolo. El hallazgo describía código anterior.
 
 ### 🟠 FP-6. La sala con humo y sin fuego se apaga por completo — **[CORREGIDO 2026-08-31]**
 Verificado **en ejecución** (Godot 4.7.1 en la máquina del proyecto, capturas FP a 1600 × 900, 2026-08-31). La transmisión de humo de la sala escala la energía **y el alcance** de la luz de techo ([FirstPersonController.gd:4842](../view/fp/FirstPersonController.gd)):
@@ -260,10 +274,12 @@ Guardarraíl: `tools/validate_fp_smoke_lighting.gd`. Con el comportamiento antig
 ### ℹ️ FP-7. El humo entre salas de §1 no existe en primera persona
 La cortina de vano, el puente con intradós y el penacho exterior corregidos en §1 y §2 viven **sólo en `Visualizer3D`** (cero referencias en `FirstPersonController.gd`). En FP el humo es únicamente la niebla de cámara de la sala actual, así que al mirar por una puerta hacia una sala invadida no se ve cuerpo de humo alguno, y desde la calle una ventana con la sala llena no echa penacho. No es necesariamente un fallo —FP usa niebla volumétrica en vez de mallas—, pero conviene tenerlo presente: las correcciones estrella de esta pasada se aprecian en la casa de muñecas, no donde está el jugador.
 
-### 🟡 FP-8. Los nodos homónimos pierden el nombre — **[ABIERTO]**
+### 🟡 FP-8. Los nodos homónimos pierden el nombre — **[CORREGIDO 2026-08-31]**
 Descubierto al escribir el guardarraíl de FP-1. Godot renombra a `@MeshInstance3D@NN` —no a `Skirting_top2`— todo nodo cuyo nombre ya exista entre sus hermanos, porque `add_child()` se llama sin `force_readable_name`. El mundo FP cuelga decenas de `Skirting_top`, `Wall_right` y demás del mismo padre, así que **sólo el primero de cada nombre conserva su identidad**.
 
 Dos consecuencias: el árbol es ilegible en el depurador remoto, y cualquier guardarraíl que cuente mallas por nombre encuentra únicamente la primera. Los validadores actuales pasan porque comprueban nombres que resultan ser únicos, pero es una trampa a la espera: `tools/validate_fp_party_walls.gd` ya tiene que identificar los rodapiés por geometría en vez de por nombre. La corrección es `add_child(node, true)` en los constructores, verificando antes que ningún validador dependa de encontrar sólo el primero.
+
+Corrección aplicada (F5.6): las dieciséis llamadas que cuelgan mallas, cuerpos y luces del mundo FP pasan a `force_readable_name`. Ningún validador se rompe: la suite sigue en 30/31. Guardarraíl en `validate_fp_party_walls.gd`, que falla si aparece una malla con nombre `@...`; sin la corrección caza ocho.
 
 ### ℹ️ FP-5. Lo que está bien
 Overlay de visibilidad, atenuación de luces por humo coherente con los regímenes ILV (con la salvedad de FP-6), HUD técnico con capa según postura, suavizado de temperatura con τ, presets día/noche, hojas de ventana con rotura de vidrio y el domo de cielo procedural (necesario porque GL Compatibility no dibuja el sky del Environment por cámara).
@@ -460,7 +476,7 @@ Quedan vivas las dos decisiones de producto, F3.4 (H-4) y F3.5 (FP-7).
 
 **Resultado:** cerradas V3-1, V3-2 (verificada con ventana real: captura 1920 × 1080 con cero píxeles de HUD), V3-3, V3-4 y V2-1. **V2-2 y V2-3 no son reproducibles**: el fondo ya se deriva del viewport y la escala SVV ya es una rampa de cinco tramos; ambas descripciones corresponden a código anterior y quedan reclasificadas en §6, no marcadas como corregidas. Suite 30/31, único fallo el conocido de la línea motor.
 
-### 12.F5 Fase 5 — Coherencia estructural y coste
+### 12.F5 Fase 5 — Coherencia estructural y coste — **TODO HECHO SALVO F5.1 (2026-08-31)**
 
 | # | Hallazgo | Trabajo |
 |---|---|---|
@@ -470,6 +486,10 @@ Quedan vivas las dos decisiones de producto, F3.4 (H-4) y F3.5 (FP-7).
 | F5.4 | 🟡 R-4 | Derivar `landing_floor_height_m` de la altura real de la vivienda y su forjado. |
 | F5.5 | 🟡 R-5 | Acuerdo entre el porche unifamiliar y el césped: bordillo, cambio de material o sombra propia. |
 | F5.6 | 🟡 FP-8 | `add_child(node, true)` en los constructores para que los nodos homónimos no pierdan el nombre, comprobando antes que ningún validador dependa de encontrar sólo el primero. |
+
+**Resultado:** cerradas F5.3 (E-5), F5.4 (R-4, medida), F5.5 (R-5) y F5.6 (FP-8, con guardarraíl). **F5.2 (FP-4) no era reproducible** y queda reclasificada en §5.
+
+**F5.1 (FP-3) espera a propósito**: unifica los constructores de suelo, techo, muro y hueco entre FP y el visor 3D, y está acoplada con FP-7. Si el humo entre salas baja a primera persona, eso es geometría de vano en FP y sale mucho más barato encima de un constructor ya unificado; hacerlo antes de decidir FP-7 arriesga unificar lo que no toca y rehacerlo. Se hará cuando FP-7 esté decidido.
 
 ### 12.F6 Fuera del cierre — mejora, no fallo
 

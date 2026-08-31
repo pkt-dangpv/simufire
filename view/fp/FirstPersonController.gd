@@ -269,6 +269,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## y desde fuera el edificio es 'salon' (E-6). Donde ya hay lienzo de
 ## fachada la piel queda dentro de el y no se ve: es solo el respaldo de
 ## los frentes que no generan lienzo.
+## No generar decorado urbano (calle, aceras, coches, edificio de enfrente,
+## skyline) en fachadas cuyo unico hueco exterior es la puerta del portal: da
+## al rellano, que es una caja cerrada, y ese decorado no se ve nunca (E-5).
+@export var exterior_scenery_skip_landing_facades: bool = true
 @export var exterior_wall_skin_enabled: bool = true
 @export_range(0.005, 0.10, 0.005) var exterior_wall_skin_thickness_m: float = 0.02
 @export var city_sky_color: Color = Color(0.74, 0.84, 0.92, 1.0)
@@ -373,7 +377,12 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var landing_step_rise_m: float = 0.18
 @export var landing_stair_color: Color = Color(0.46, 0.44, 0.40, 1.0)
 @export var landing_railing_color: Color = Color(0.30, 0.30, 0.31, 1.0)
+## Altura libre del rellano cuando no se deriva de la vivienda.
 @export_range(2.3, 3.4, 0.01) var landing_floor_height_m: float = 2.62
+## Deriva esa altura de la sala a la que sirve la puerta, en vez de usar el
+## valor fijo. Con una vivienda de 2,40 m, un portal de 2,62 dejaba el
+## encuentro 22 cm descuadrado al cruzar la puerta (R-4).
+@export var landing_height_follows_dwelling: bool = true
 @export_range(1.8, 3.2, 0.01) var landing_stair_bay_width_m: float = 2.12
 @export_range(0.45, 1.2, 0.01) var landing_stair_front_landing_depth_m: float = 0.62
 @export_range(0.45, 1.2, 0.01) var landing_stair_rear_landing_depth_m: float = 0.56
@@ -381,6 +390,13 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.02, 0.20, 0.01) var landing_stair_side_clearance_m: float = 0.05
 ## Entrada de casa unifamiliar: porche techado con pilares.
 @export var house_porch_roof_enabled: bool = true
+## Acuerdo entre el porche y el cesped: bordillo perimetral y franja de grava.
+## Sin el, la losa apoya directamente sobre la hierba (R-5).
+@export var house_porch_ground_transition_enabled: bool = true
+@export_range(0.0, 0.40, 0.01) var house_porch_curb_height_m: float = 0.14
+@export_range(0.0, 0.30, 0.01) var house_porch_curb_thickness_m: float = 0.10
+@export_range(0.0, 1.20, 0.05) var house_porch_gravel_apron_m: float = 0.45
+@export var house_porch_gravel_color: Color = Color(0.44, 0.42, 0.38, 1.0)
 @export var house_porch_color: Color = Color(0.52, 0.50, 0.45, 1.0)
 @export var house_porch_column_color: Color = Color(0.78, 0.76, 0.71, 1.0)
 @export var house_porch_roof_color: Color = Color(0.34, 0.18, 0.12, 1.0)
@@ -1006,7 +1022,7 @@ func _create_switchback_stairwell_upper_floor(room_id: int, rect: Rect2, floor_l
 func _add_floor_slab(node_name: String, rect: Rect2, floor_level_m: float, material: Material) -> void:
 	var body := StaticBody3D.new()
 	body.name = node_name
-	_world_root.add_child(body)
+	_world_root.add_child(body, true)
 	var center: Vector3 = _to_world(Vector3(
 		rect.position.x + rect.size.x * 0.5,
 		-floor_thickness_m * 0.5,
@@ -1018,7 +1034,7 @@ func _add_floor_slab(node_name: String, rect: Rect2, floor_level_m: float, mater
 func _add_ceiling_slab(node_name: String, rect: Rect2, floor_level_m: float, height_m: float, material: Material) -> void:
 	var body := StaticBody3D.new()
 	body.name = node_name
-	_world_root.add_child(body)
+	_world_root.add_child(body, true)
 	var thickness_m: float = _ceiling_thickness_to_next_floor_m(floor_level_m, height_m)
 	var center: Vector3 = _to_world(Vector3(
 		rect.position.x + rect.size.x * 0.5,
@@ -1142,7 +1158,7 @@ func _create_wall_segment_height(rect: Rect2, room_id: int, side: String, start:
 
 	var body := StaticBody3D.new()
 	body.name = "Wall_%s" % side
-	_world_root.add_child(body)
+	_world_root.add_child(body, true)
 	_add_box(body, "WallMesh", size, center, _wall_material_for_room(room_id), true)
 	_add_exterior_wall_skin(rect, room_id, side, start, end, size, center, floor_level_m)
 
@@ -1321,7 +1337,7 @@ func _create_stair_ramp(rect: Rect2, lower_level_m: float, upper_level_m: float,
 
 	var body := StaticBody3D.new()
 	body.name = "StairRamp"
-	_world_root.add_child(body)
+	_world_root.add_child(body, true)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = ramp_size
@@ -1340,7 +1356,7 @@ func _create_stair_ramp(rect: Rect2, lower_level_m: float, upper_level_m: float,
 	mesh.rotation.x = -angle
 	mesh.rotation.y = yaw
 	mesh.material_override = _mat(Color(0.35, 0.29, 0.22, 1.0), false)
-	_world_root.add_child(mesh)
+	_world_root.add_child(mesh, true)
 
 	var steps: int = 12
 	var step_depth: float = run_m / float(steps)
@@ -1405,7 +1421,7 @@ func _create_stair_flight_segment(node_name: String, start_2d: Vector2, flight_d
 	var ramp_size := Vector3(width_m, 0.15, sqrt(run_m * run_m + rise_m * rise_m))
 	var body := StaticBody3D.new()
 	body.name = node_name
-	_world_root.add_child(body)
+	_world_root.add_child(body, true)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = ramp_size
@@ -1423,7 +1439,7 @@ func _create_stair_flight_segment(node_name: String, start_2d: Vector2, flight_d
 	mesh.rotation.x = -angle
 	mesh.rotation.y = yaw
 	mesh.material_override = _mat(Color(0.35, 0.29, 0.22, 1.0), false)
-	_world_root.add_child(mesh)
+	_world_root.add_child(mesh, true)
 	var steps: int = 8
 	var step_depth: float = run_m / float(steps)
 	for i in range(steps):
@@ -1586,7 +1602,7 @@ func _create_world_lighting(rects: Dictionary) -> void:
 			maxf(1.8, height_m - 0.22),
 			rect.position.y + rect.size.y * 0.5
 		), floor_level_m)
-		_world_root.add_child(light)
+		_world_root.add_child(light, true)
 		_ceiling_lights_by_room[int(room_id)] = light
 		_ceiling_light_base_energy_by_room[int(room_id)] = base_energy
 		_ceiling_light_base_range_by_room[int(room_id)] = base_range
@@ -1615,11 +1631,11 @@ func _create_opening_panels() -> void:
 
 		var body := StaticBody3D.new()
 		body.name = "Opening_%02d" % index
-		_world_root.add_child(body)
+		_world_root.add_child(body, true)
 		var mesh := MeshInstance3D.new()
 		mesh.name = "Panel"
 		mesh.mesh = BoxMesh.new()
-		body.add_child(mesh)
+		body.add_child(mesh, true)
 		var shape := CollisionShape3D.new()
 		shape.name = "Collision"
 		shape.shape = BoxShape3D.new()
@@ -1684,7 +1700,7 @@ func _create_opening_light(op: OpeningModel, info: Dictionary) -> OmniLight3D:
 	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
 	light.position = center - inward * outside_offset
 	light.position.y = floor_level_m + 2.05 if op.type == OpeningModel.Type.DOOR else maxf(floor_level_m + 1.35, center.y)
-	_world_root.add_child(light)
+	_world_root.add_child(light, true)
 	return light
 
 
@@ -1860,7 +1876,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		maxf(float(info.get("width_m", 0.85)) + 4.10, float(doors) * 1.18 + stair_bay_w + 1.0)
 	)
 	var depth_m: float = maxf(3.30, landing_recess_depth_m * 2.35)
-	var corridor_height_m: float = landing_floor_height_m
+	var corridor_height_m: float = _landing_height_for_opening(info)
 
 	# El rellano se pega a la cara exterior del tabique de la vivienda, que esta
 	# a wall_thickness_m * 0.5. Arrancando en 0.08 quedaba una rendija de 3 cm
@@ -2066,6 +2082,20 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 ## portal que deberia ser interior (de ahi las sombras duras que barrian el
 ## rellano al moverse). Se apoya en la cara exterior del tabique de la
 ## vivienda sin quedar coplanar con el, para no provocar z-fighting.
+## Altura del rellano: la de la sala que da a esa puerta si se pide derivarla,
+## y si no el valor fijo del inspector (R-4).
+func _landing_height_for_opening(info: Dictionary) -> float:
+	if not landing_height_follows_dwelling or building == null:
+		return landing_floor_height_m
+	var room_id: int = int(info.get("room_id", -1))
+	var room: RoomModel = building.get_room(room_id) if room_id >= 0 else null
+	if room == null:
+		return landing_floor_height_m
+	# Suelo a suelo de la vivienda: altura libre mas su forjado, que es lo que
+	# hace que el pavimento del rellano case con el de la vivienda.
+	return clampf(room.height_m + ceiling_thickness_m, 2.0, 4.0)
+
+
 func _create_landing_front_wall(
 	index: int,
 	door_center: Vector3,
@@ -2205,8 +2235,78 @@ func _create_single_family_entry_recess(index: int, _op: OpeningModel, info: Dic
 		_add_oriented_box(_world_root, "HousePorchLamp_%02d" % index, lamp, tangent,
 			0.16, 0.24, 0.10, _mat(lamp_color.darkened(0.38), false, lamp_color, 0.72), false)
 
+	_create_porch_ground_transition(index, center, normal, tangent, floor_level_m, porch_w, porch_d)
+
 	# Jardin, camino, calle y vecindario pertenecen al generador residencial
 	# por fachada. Mantenerlos fuera evita duplicados cuando hay varias puertas.
+
+
+## Acuerdo entre el porche y el cesped. Sin el, la losa del porche apoyaba
+## directamente sobre la hierba, sin bordillo ni cambio de material, y el
+## encuentro rompia la escena (R-5).
+func _create_porch_ground_transition(
+	index: int,
+	center: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	floor_level_m: float,
+	porch_w: float,
+	porch_d: float
+) -> void:
+	if not house_porch_ground_transition_enabled:
+		return
+	var curb_h: float = house_porch_curb_height_m
+	var curb_t: float = house_porch_curb_thickness_m
+	var apron_w: float = house_porch_gravel_apron_m
+	var curb_mat: StandardMaterial3D = _mat(house_porch_color.darkened(0.22), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 2700)
+	var apron_mat: StandardMaterial3D = _mat(house_porch_gravel_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 2701, NOISE_PROFILE_FLOOR)
+
+	# Franja de grava alrededor del porche: rompe el corte seco losa/cesped.
+	if apron_w > 0.01:
+		var apron_center: Vector3 = center - normal * (porch_d * 0.5 - 0.05)
+		apron_center.y = floor_level_m - floor_thickness_m - 0.015
+		_add_oriented_box(
+			_world_root,
+			"HousePorchApron_%02d" % index,
+			apron_center,
+			tangent,
+			porch_w + apron_w * 2.0,
+			0.03,
+			porch_d + apron_w * 2.0,
+			apron_mat,
+			false
+		)
+
+	# Bordillo en los tres lados libres del porche (el cuarto es la fachada).
+	if curb_h <= 0.005 or curb_t <= 0.005:
+		return
+	for side in [-1.0, 1.0]:
+		var lateral: Vector3 = center - normal * (porch_d * 0.5 - 0.05) + tangent * (side * (porch_w * 0.5 + curb_t * 0.5))
+		lateral.y = floor_level_m - floor_thickness_m + curb_h * 0.5
+		_add_oriented_box(
+			_world_root,
+			"HousePorchCurb_%02d_%s" % [index, "L" if side < 0.0 else "R"],
+			lateral,
+			tangent,
+			curb_t,
+			curb_h,
+			porch_d + curb_t,
+			curb_mat,
+			false
+		)
+	var front: Vector3 = center - normal * (porch_d + curb_t * 0.5 - 0.05)
+	front.y = floor_level_m - floor_thickness_m + curb_h * 0.5
+	_add_oriented_box(
+		_world_root,
+		"HousePorchCurb_%02d_F" % index,
+		front,
+		tangent,
+		porch_w + curb_t * 2.0,
+		curb_h,
+		curb_t,
+		curb_mat,
+		false
+	)
 
 
 ## Barra recta entre dos puntos (pasamanos inclinado, zancas...).
@@ -2221,7 +2321,7 @@ func _add_bar_between(node_name: String, p_from: Vector3, p_to: Vector3, thickne
 	box.size = Vector3(thickness_m, thickness_m, length)
 	mesh.mesh = box
 	mesh.material_override = material
-	_world_root.add_child(mesh)
+	_world_root.add_child(mesh, true)
 	mesh.position = (p_from + p_to) * 0.5
 	var up: Vector3 = Vector3.UP
 	if absf(delta.normalized().dot(up)) > 0.99:
@@ -2482,11 +2582,19 @@ func _create_exterior_context() -> void:
 				"sum": Vector3.ZERO,
 				"count": 0,
 				"floor_level_m": floor_level_m,
+				"has_street_opening": false,
 			}
 		var facade: Dictionary = facades[key]
 		facade["sum"] = Vector3(facade["sum"]) + center
 		facade["count"] = int(facade["count"]) + 1
 		facade["floor_level_m"] = minf(float(facade["floor_level_m"]), floor_level_m)
+		# En un piso, la puerta exterior da al rellano del portal, que es una
+		# caja cerrada: detras de esa fachada no hay calle que ensenar. Solo
+		# cuentan como "a la calle" las ventanas y los huecos, y en unifamiliar
+		# tambien la puerta, porque ahi si da al porche (E-5).
+		var opens_to_street: bool = op.type != OpeningModel.Type.DOOR or not _is_apartment_building()
+		if opens_to_street:
+			facade["has_street_opening"] = true
 		facades[key] = facade
 
 	var facade_index: int = 0
@@ -2497,6 +2605,11 @@ func _create_exterior_context() -> void:
 		var facade_normal: Vector3 = Vector3(facade["normal"])
 		var facade_tangent: Vector3 = Vector3(facade["tangent"])
 		var facade_floor: float = float(facade["floor_level_m"])
+		if exterior_scenery_skip_landing_facades and not bool(facade.get("has_street_opening", true)):
+			# Fachada cuyo unico hueco es la puerta del portal: generar calle,
+			# aceras, coches, arbolado y skyline detras de la caja del rellano
+			# es geometria que nadie vera jamas (E-5).
+			continue
 		if _is_apartment_building():
 			_create_exterior_scenery_city(root, facade_index, facade_center, facade_normal, facade_tangent, facade_floor)
 		else:
@@ -4224,7 +4337,7 @@ func _add_local_box(parent: Node3D, node_name: String, center_m: Vector3, size_m
 	mesh.material_override = _mat(color, color.a < 1.0)
 	mesh.position = center_m
 	mesh.set_meta("base_color", color)
-	parent.add_child(mesh)
+	parent.add_child(mesh, true)
 	if with_collision and parent is StaticBody3D:
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
@@ -4263,7 +4376,7 @@ func _create_outer_boundary() -> void:
 func _create_boundary_segment(center_m: Vector3, size_m: Vector3) -> void:
 	var body := StaticBody3D.new()
 	body.name = "NoExitBoundary"
-	_world_root.add_child(body)
+	_world_root.add_child(body, true)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = size_m
@@ -4280,7 +4393,12 @@ func _add_box(parent: Node3D, node_name: String, size_m: Vector3, center_world: 
 	mesh.mesh = box_mesh
 	mesh.material_override = material
 	mesh.position = center_world
-	parent.add_child(mesh)
+	# force_readable_name: sin el, Godot renombra a "@MeshInstance3D@NN" todo
+	# nodo cuyo nombre ya exista entre sus hermanos, y el mundo FP cuelga
+	# decenas de "Skirting_top" o "Wall_right" del mismo padre. Se perdia la
+	# identidad en el depurador y cualquier busqueda por nombre solo
+	# encontraba la primera (FP-8).
+	parent.add_child(mesh, true)
 	if material is ShaderMaterial:
 		# El shader de superficie mide la franja de oclusion en metros y para
 		# eso necesita el tamano de ESTA pieza; va por instancia para no tener
@@ -4296,7 +4414,7 @@ func _add_box(parent: Node3D, node_name: String, size_m: Vector3, center_world: 
 		if host == null:
 			var body := StaticBody3D.new()
 			body.name = node_name + "_Body"
-			parent.add_child(body)
+			parent.add_child(body, true)
 			host = body
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
@@ -5333,6 +5451,7 @@ func _opening_info_on_side(
 	return {
 		"center": center,
 		"axis_center": center_axis,
+		"room_id": room_id,
 		"width_m": width_m,
 		"height_m": height_m,
 		"sill_m": sill_m,

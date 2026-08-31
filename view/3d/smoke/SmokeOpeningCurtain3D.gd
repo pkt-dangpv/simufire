@@ -45,6 +45,7 @@ static func update(item_dict: Dictionary, op: OpeningModel, room_items: Dictiona
 	context["opening_curtain_follows_leaf"] = bool(settings.get("opening_curtain_follows_leaf", true))
 	context["opening_curtain_min_width_ratio"] = float(settings.get("opening_curtain_min_width_ratio", 0.12))
 	context["opening_curtain_alpha_open_exponent"] = float(settings.get("opening_curtain_alpha_open_exponent", 1.0))
+	context["opening_inflow_max_alpha"] = float(settings.get("opening_inflow_max_alpha", 0.085))
 	if bool(pose.get("is_vertical", false)) or op.is_vertical:
 		_hide_layer(inflow)
 		_hide_layer(plume)
@@ -285,10 +286,13 @@ static func _update_lower_inflow(
 	var has_fire_context: bool = outflow_visible \
 		and source_alpha > 0.045 \
 		and (fire_context_t > 0.040 or drive_delta > 0.12 or source_alpha > 0.11)
+	# El tope decide si la contracorriente se lee o no: con 0,085 la cortina se
+	# dibuja pero a un 3-8 % de opacidad, es decir, practicamente invisible.
+	var inflow_max_alpha: float = float(context.get("opening_inflow_max_alpha", 0.085))
 	var inflow_alpha: float = clampf(
 		(source_alpha * 0.10 + drive_delta * 0.020 + fire_context_t * 0.030) * open_frac,
 		0.0,
-		0.085
+		maxf(0.0, inflow_max_alpha)
 	)
 	inflow.visible = has_fire_context and inflow_depth_m > smoke_min_visible_depth_m and inflow_alpha > MIN_INFLOW_ALPHA
 	if not inflow.visible:
@@ -305,7 +309,7 @@ static func _update_lower_inflow(
 		inflow_top_m - inflow_center_y,
 		meters_to_units
 	)
-	var shader_alpha: float = clampf(inflow_alpha, 0.018, 0.18)
+	var shader_alpha: float = clampf(inflow_alpha, 0.018, maxf(0.02, inflow_max_alpha * 2.1))
 	_apply_smoke_material(
 		inflow,
 		Color(context.get("cold_air_inflow_color", DEFAULT_COLD_INFLOW_COLOR)),

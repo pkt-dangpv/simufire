@@ -203,6 +203,10 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 ## estrechada, 1.0 contaria la apertura dos veces y 0.0 no la contaria en la
 ## opacidad en absoluto.
 @export_range(0.0, 1.0, 0.05) var opening_curtain_alpha_open_exponent: float = 0.5
+## Opacidad maxima de la cortina de aire frio que entra por el vano. Con el
+## valor heredado (0,085) la contracorriente se dibuja pero es practicamente
+## invisible; subirlo es lo que la hace legible (H-4).
+@export_range(0.0, 0.6, 0.005) var opening_inflow_max_alpha: float = 0.085
 ## Penacho de humo que sube por la fachada al salir por un hueco exterior.
 ## Sin el, el humo de una ventana termina en un corte plano en el dintel.
 @export var show_exterior_smoke_plume: bool = true
@@ -2818,6 +2822,7 @@ func _update_openings() -> void:
 			"opening_curtain_follows_leaf": opening_curtain_follows_leaf,
 			"opening_curtain_min_width_ratio": opening_curtain_min_width_ratio,
 			"opening_curtain_alpha_open_exponent": opening_curtain_alpha_open_exponent,
+			"opening_inflow_max_alpha": opening_inflow_max_alpha,
 			"show_exterior_smoke_plume": show_exterior_smoke_plume,
 			"smoke_min_visible_depth_m": smoke_min_visible_depth_m,
 			"meters_to_units": meters_to_units,

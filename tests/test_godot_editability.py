@@ -200,6 +200,13 @@ class TestGodotEditability(unittest.TestCase):
                 "surface_contact_ao_enabled",
                 "surface_contact_ao_strength",
                 "surface_contact_ao_band_m",
+                "exterior_scenery_skip_landing_facades",
+                "landing_height_follows_dwelling",
+                "house_porch_ground_transition_enabled",
+                "house_porch_curb_height_m",
+                "house_porch_curb_thickness_m",
+                "house_porch_gravel_apron_m",
+                "house_porch_gravel_color",
             ],
         )
         for name in [
@@ -338,6 +345,7 @@ class TestGodotEditability(unittest.TestCase):
                 "opening_curtain_follows_leaf",
                 "opening_curtain_min_width_ratio",
                 "opening_curtain_alpha_open_exponent",
+                "opening_inflow_max_alpha",
             ],
         )
         for name in [
