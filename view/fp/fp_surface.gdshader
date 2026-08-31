@@ -22,6 +22,9 @@ uniform float noise_cycles_per_m = 0.55;
 // Cuanto se oscurece la arista y en cuantos metros se difumina.
 uniform float ao_strength : hint_range(0.0, 1.0) = 0.35;
 uniform float ao_band_m : hint_range(0.0, 2.0) = 0.35;
+// Nitidez de la mezcla triplanar: mas alto = transiciones mas marcadas entre
+// las tres proyecciones, mas bajo = mezcla mas suave en las esquinas.
+uniform float triplanar_sharpness : hint_range(1.0, 16.0) = 4.0;
 
 // Tamano de la caja en metros. Va por instancia para no tener que crear un
 // material por cada tamano de pieza.
@@ -40,7 +43,7 @@ void vertex() {
 }
 
 vec3 triplanar_noise(vec3 pos_m, vec3 normal_ws) {
-	vec3 blend = pow(abs(normal_ws), vec3(4.0));
+	vec3 blend = pow(abs(normal_ws), vec3(triplanar_sharpness));
 	blend /= max(dot(blend, vec3(1.0)), 0.0001);
 	vec2 uv_x = pos_m.zy * noise_cycles_per_m;
 	vec2 uv_y = pos_m.xz * noise_cycles_per_m;

@@ -49,6 +49,15 @@ static func update(item_dict: Dictionary, op: OpeningModel, room_items: Dictiona
 	context["opening_curtain_first_person_alpha_factor"] = float(settings.get("opening_curtain_first_person_alpha_factor", 0.72))
 	context["opening_curtain_first_person_side_visibility"] = float(settings.get("opening_curtain_first_person_side_visibility", 0.08))
 	context["opening_curtain_first_person_bottom_strength"] = float(settings.get("opening_curtain_first_person_bottom_strength", 0.46))
+	context["opening_curtain_alpha_factor"] = float(settings.get("opening_curtain_alpha_factor", 0.52))
+	context["exterior_plume_min_height_m"] = float(settings.get("exterior_plume_min_height_m", 0.55))
+	context["exterior_plume_max_height_m"] = float(settings.get("exterior_plume_max_height_m", 3.60))
+	context["exterior_plume_alpha_factor"] = float(settings.get("exterior_plume_alpha_factor", 0.62))
+	context["exterior_plume_first_person_alpha_factor"] = float(settings.get("exterior_plume_first_person_alpha_factor", 0.78))
+	context["neutral_plane_calm_fraction"] = float(settings.get("neutral_plane_calm_fraction", 0.58))
+	context["neutral_plane_driven_fraction"] = float(settings.get("neutral_plane_driven_fraction", 0.44))
+	context["neutral_plane_exterior_calm_fraction"] = float(settings.get("neutral_plane_exterior_calm_fraction", 0.62))
+	context["neutral_plane_exterior_driven_fraction"] = float(settings.get("neutral_plane_exterior_driven_fraction", 0.40))
 	if bool(pose.get("is_vertical", false)) or op.is_vertical:
 		_hide_layer(inflow)
 		_hide_layer(plume)
@@ -105,7 +114,7 @@ static func _update_horizontal(
 	var opening_top_m: float = pos3.y + door_height_m * 0.5
 	var bottom_pair: Vector2 = _oriented_bottoms(item_a, item_b, bottom_a, bottom_b, opening_bottom_m, opening_top_m, thin_axis_is_x)
 	var flow_direction: float = _horizontal_flow_direction(item_a, item_b, thin_axis_is_x)
-	var neutral_plane_m: float = _horizontal_neutral_plane_m(op, item_a, item_b, opening_bottom_m, opening_top_m)
+	var neutral_plane_m: float = _horizontal_neutral_plane_m(op, item_a, item_b, opening_bottom_m, opening_top_m, context)
 	var has_missing_side: bool = item_a.is_empty() or item_b.is_empty()
 	bottom_pair = _flow_limited_bottoms(
 		bottom_pair,
@@ -159,7 +168,10 @@ static func _update_horizontal(
 		# de la capa y a un metro del vano, no desde fuera de la casa (FP-7).
 		var fp_alpha_factor: float = float(context.get("opening_curtain_first_person_alpha_factor", 0.72))
 		var shader_alpha: float = clampf(
-			curtain_alpha * (fp_alpha_factor if first_person_overlay else 0.52),
+			curtain_alpha * (
+				fp_alpha_factor if first_person_overlay
+				else float(context.get("opening_curtain_alpha_factor", 0.52))
+			),
 			0.035,
 			0.38
 		)
@@ -566,7 +578,11 @@ static func _update_exterior_plume(
 
 	var drive_t: float = clampf(source_alpha * 1.35 + fire_context_t * 0.85, 0.0, 1.0)
 	var plume_alpha: float = clampf(source_alpha * 0.68 * open_frac, 0.0, 0.32)
-	var height_m: float = lerpf(0.55, 3.60, drive_t) * lerpf(0.60, 1.0, open_frac)
+	var height_m: float = lerpf(
+		float(context.get("exterior_plume_min_height_m", 0.55)),
+		float(context.get("exterior_plume_max_height_m", 3.60)),
+		drive_t
+	) * lerpf(0.60, 1.0, open_frac)
 	plume.visible = plume_alpha > MIN_CURTAIN_ALPHA and height_m > 0.30
 	if not plume.visible:
 		return
@@ -582,7 +598,14 @@ static func _update_exterior_plume(
 	)
 
 	var first_person_overlay: bool = bool(context.get("first_person_overlay", false))
-	var shader_alpha: float = clampf(plume_alpha * (0.78 if first_person_overlay else 0.62), 0.030, 0.36)
+	var shader_alpha: float = clampf(
+		plume_alpha * float(context.get(
+			"exterior_plume_first_person_alpha_factor" if first_person_overlay else "exterior_plume_alpha_factor",
+			0.78 if first_person_overlay else 0.62
+		)),
+		0.030,
+		0.36
+	)
 	_apply_smoke_material(
 		plume,
 		_outflow_color(context, fire_context_t),
@@ -630,12 +653,20 @@ static func _horizontal_neutral_plane_m(
 	item_a: Dictionary,
 	item_b: Dictionary,
 	opening_bottom_m: float,
-	opening_top_m: float
+	opening_top_m: float,
+	context: Dictionary = {}
 ) -> float:
+	# Altura del plano neutro dentro del vano, como fraccion de su alto: donde
+	# se separan el humo que sale por arriba y el aire que entra por abajo. Con
+	# mas desequilibrio entre salas el plano baja, porque el hueco pasa mas
+	# humo. Es el parametro central de H-2, asi que vive en el inspector.
 	var drive: float = clampf(absf(_flow_score(item_a) - _flow_score(item_b)) / 2.0, 0.0, 1.0)
-	var neutral_fraction: float = lerpf(0.58, 0.44, drive)
+	var calm: float = float(context.get("neutral_plane_calm_fraction", 0.58))
+	var driven: float = float(context.get("neutral_plane_driven_fraction", 0.44))
 	if op != null and op.is_exterior_opening():
-		neutral_fraction = lerpf(0.62, 0.40, drive)
+		calm = float(context.get("neutral_plane_exterior_calm_fraction", 0.62))
+		driven = float(context.get("neutral_plane_exterior_driven_fraction", 0.40))
+	var neutral_fraction: float = lerpf(calm, driven, drive)
 	return lerpf(opening_bottom_m, opening_top_m, neutral_fraction)
 
 

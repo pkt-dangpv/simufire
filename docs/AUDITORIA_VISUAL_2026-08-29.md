@@ -3,7 +3,7 @@
 **Fecha:** 2026-08-29 · **Alcance:** todo el aparato visual — humo y fuego (`view/3d/smoke`, `view/3d/fire`), visor 3D dollhouse (`view/3d`), primera persona (`view/fp`), visor 2D y minimapa (`view/2d`, `ui/Minimap2D.gd`), materiales e iluminación.
 **Motivo:** revisión pedida sobre tres síntomas concretos — humo poco natural en ventanas y puertas, exterior de las viviendas feo, rellano y entradas igual.
 **Continuación de:** [AUDITORIA_VISUAL_2026-07-15.md](AUDITORIA_VISUAL_2026-07-15.md) (§9 recoge qué queda vivo de aquella).
-**Addendum 2026-08-31:** informe verificado en ejecución sobre Godot 4.7.1 con render real de la vista FP; se añaden FP-6 y FP-7 (§5), se reescribe §11 y se añade el plan de cierre de toda la línea visual (§12).
+**Addendum 2026-08-31:** informe verificado en ejecución sobre Godot 4.7.1 con render real de la vista FP; se añaden FP-6 y FP-7 (§5), se reescribe §11 y se añaden el plan de cierre de toda la línea visual (§12) y su estado final tras ejecutarlo (§13).
 
 Severidades: 🔴 alta (rompe la lectura de la escena) · 🟠 media (se nota en escenarios habituales) · 🟡 baja (pulido) · ℹ️ nota.
 Marcas: **[CORREGIDO]** en esta pasada · **[ABIERTO]** pendiente.
@@ -153,7 +153,7 @@ Corrección (`_add_landing_lights`, [FirstPersonController.gd:1788](../view/fp/F
 ### 🟠 R-2. Un portal completo por cada puerta exterior — **[CORREGIDO]**
 `_create_landing_recess()` se llamaba por cada puerta exterior sin ninguna deduplicación. Dos puertas exteriores en la misma planta (o una por planta en un edificio de varias) generaban **portales completos superpuestos**: dos suelos, dos techos, dos cajas de escalera interpenetradas y z-fighting en todas las superficies. Los presets actuales tienen una sola puerta exterior por vivienda, así que el fallo estaba latente. Ahora se genera un rellano por fachada y planta, y el guardarraíl headless lo verifica con una plantilla de dos puertas.
 
-### 🟠 R-3. Encuentros y detalle del rellano — **[CORREGIDO parcialmente]**
+### 🟠 R-3. Encuentros y detalle del rellano — **[CORREGIDO 2026-08-31]**
 El zócalo y el rodapié sólo existían en la pared del fondo; las laterales llegaban al suelo a hueso. Se añade rodapié lateral y felpudo delante de la puerta de la vivienda. Sigue **abierto** el acabado del suelo (una losa de color plano; un despiece de baldosa o un cambio de tono por franjas daría mucho más).
 
 **[CERRADO 2026-08-31]** (F2.5) El suelo del rellano lleva despiece de baldosa: perfil de textura `NOISE_PROFILE_TILE` con la junta dibujada en el borde y proyección triplanar en metros, de modo que el lado de la baldosa es un parámetro real (`landing_tile_size_m`, 0,55 m) y no cuesta ni una malla más. Oscurecimiento de la junta en `landing_tile_grout_darkening`.
@@ -354,7 +354,7 @@ Overlay de visibilidad, atenuación de luces por humo coherente con los regímen
 
 ## 10. Prioridad de la siguiente pasada
 
-> Esta tabla ordena por severidad; el plan de ejecución completo, con fases, verificación y cobertura de **todos** los hallazgos, está en §12.
+> **Tabla histórica.** Ordenaba la pasada siguiente cuando se escribió el informe; casi todo lo que lista está ya cerrado. El plan de ejecución está en §12 y el estado real de cada hallazgo, en **§13**. Se conserva para que se vea qué se priorizó y en qué orden se atacó de verdad.
 
 | # | Hallazgo | Sev. | Área |
 |---|---|---|---|
@@ -535,3 +535,100 @@ La línea visual se considera cerrada cuando:
 ### 12.9 Orden de ataque recomendado
 
 F0 → F1 → F2 → F3 → F4 → F5. **F0 y F1 hechos el 2026-08-31; siguiente, F2.** F1 primero porque contiene lo único funcionalmente roto (R-8) y lo que hace ilegible la sala contigua al fuego (FP-6); F2 inmediatamente después porque es lo que de verdad responde al síntoma "se ve feo"; F5.1 al final para no rehacer el trabajo de las fases anteriores.
+
+---
+
+## 13. Estado final de la línea visual (2026-08-31)
+
+Cierre de la ejecución del plan §12. Todo lo que sigue está verificado con `python scripts/check_product.py` (30 suites en verde; el único fallo es `test_exit0_real_json`, de la línea motor) y, donde tiene sentido, con capturas renderizadas y medidas.
+
+### 13.1 Inventario completo
+
+| Hallazgo | Sev. | Estado |
+|---|---|---|
+| H-1 puente de humo sin cara inferior | 🔴 | Corregido (28-ago) |
+| H-2 el humo no llenaba la puerta | 🔴 | Corregido (28-ago) |
+| H-3 losa de humo cortada en el dintel | 🔴 | Corregido (28-ago) |
+| H-4 contracorriente apagada | 🟠 | **Abierto** — reencuadrado: no es decisión de producto |
+| H-5 la cortina ignora la hoja | 🟠 | Corregido |
+| H-6 autoexposición entre plantas | 🟡 | Mejora futura declarada, no fallo |
+| H-7 penacho vertical con una sola sala | 🟡 | **No reproducible**; salvaguarda puesta |
+| H-8 `smoke_local_y` y `meters_to_units` | ℹ️ | Corregido |
+| E-1 sin envolvente exterior | 🔴 | Corregido (28-ago) |
+| E-2 cota de calle por fachada | 🟠 | Corregido (28-ago) |
+| E-3 vierteaguas en código muerto | 🟠 | Corregido (28-ago) |
+| E-4 rendija perimetral entre plantas | 🟠 | Corregido |
+| E-5 decorado urbano tras el rellano | 🟠 | Corregido |
+| E-6 cara exterior con material interior | 🟡 | Corregido |
+| R-1 rellano sin luz propia | 🔴 | Corregido (28-ago) |
+| R-2 un portal por puerta exterior | 🟠 | Corregido (28-ago) |
+| R-3 acabado del rellano | 🟠 | Corregido (rodapié 28-ago; suelo con despiece 31-ago) |
+| R-4 altura del portal fija | 🟡 | Corregido |
+| R-5 transición porche/césped | 🟡 | Corregido |
+| R-7 frente del rellano abierto | 🔴 | Corregido (29-ago) |
+| R-8 paredes del rellano sin colisión | 🟡 | Corregido |
+| V3-1 pila alfa sin `render_priority` | 🟠 | Corregido |
+| V3-2 la captura incluye el HUD | 🟠 | Corregido |
+| V3-3 picking contra y=0 | 🟡 | Corregido |
+| V3-4 selección por distancia al origen | 🟡 | Corregido |
+| V2-1 transformada de dibujo duplicada | 🟡 | Corregido |
+| V2-2 fondo 2D fijo | 🟡 | **No reproducible** |
+| V2-3 escala de color SVV | 🟡 | **No reproducible** |
+| M-1 materiales planos sin mapas | 🟠 | Corregido |
+| M-2 sin oclusión ambiental | 🟠 | Corregido |
+| M-3 materiales duplicados | 🟡 | Corregido |
+| FP-1 medianeras coincidentes | 🟠 | Corregido |
+| FP-2 interior sin textura | 🟠 | Corregido |
+| FP-3 geometría FP/3D duplicada | 🟠 | **Abierto** — es lo único que queda por hacer |
+| FP-4 consultas repetidas por frame | 🟡 | **No reproducible** |
+| FP-6 sala con humo y sin fuego a negro | 🟠 | Corregido |
+| FP-7 humo entre salas ausente en FP | ℹ️ | **Hallazgo erróneo**, era mío |
+| FP-8 nodos homónimos sin nombre | 🟡 | Corregido |
+
+**Balance:** de los 26 hallazgos abiertos cuando se escribió el plan, **21 cerrados**, **2 siguen abiertos** (FP-3 y H-4), **1 es mejora futura** (H-6) y **4 resultaron no reproducibles** (H-7, V2-2, V2-3, FP-4). Aparecieron dos nuevos durante la ejecución: FP-8 (cerrado) y el contrato falso de `with_collision` en `_add_box` (cerrado con R-8).
+
+### 13.2 Lo que enseña la tanda de "no reproducibles"
+
+Cinco descripciones del informe no se sostuvieron al ejecutarlas, más una mía. No es casualidad: **la auditoría original se escribió sin poder abrir Godot** (§11), leyendo código, y cuatro de sus hallazgos describían versiones anteriores de funciones que ya se habían corregido. El sexto —FP-7— lo escribí yo deduciendo de una ausencia de referencias en un fichero, sin comprobar cómo se monta la escena en `Main`.
+
+La regla que sale de aquí, y que ya está en §12.0: **ningún hallazgo se marca corregido sin guardarraíl o captura, y ninguno se da por cierto sin reproducirlo antes de tocar el código**. Reproducir primero habría ahorrado la mitad del trabajo de investigación de esta sesión.
+
+### 13.3 Todo el aspecto se gobierna desde el editor
+
+Ningún valor que decida cómo se ve la escena vive ya sólo en el código. Grupos nuevos o ampliados en el inspector:
+
+| Nodo | Grupo | Qué gobierna |
+|---|---|---|
+| `FirstPersonController` | Materiales FP | Ruido de superficie (contraste, tamaño en metros, resolución, octavas, factores del perfil de suelo), rugosidad, baldosa del rellano (lado, junta, resolución), oclusión de contacto (activación, fuerza, ancho de la franja, nitidez triplanar) |
+| `FirstPersonController` | Materiales propios FP | Ranuras de recurso para material de muro, suelo, techo y fachada, y para las texturas de superficie, de suelo y de baldosa. Vacío = generación procedural; con recurso, manda el recurso |
+| `FirstPersonController` | Iluminación FP | Suelo del alcance de la luz de techo con humo (FP-6) |
+| `FirstPersonController` | Exterior / Rellano | Sellado entre plantas, chapa de fachada, decorado urbano tras el rellano, altura del portal derivada, bordillo y grava del porche |
+| `Visualizer3D` | Orden de transparencias | Prioridad de dibujado de las nueve capas translúcidas |
+| `Visualizer3D` | Captura técnica | Viewport limpio, tamaño de la captura, fondo transparente |
+| `Visualizer3D` | Humo en aperturas | Seguimiento de la hoja, ancho mínimo, exponente de opacidad, tope de la contracorriente, calibración de la cortina y del penacho en 3D y en primera persona, alto del penacho exterior |
+| `Visualizer3D` | Interacción | Radio de selección de marcadores y de muebles, margen de silueta, holgura de "sobre el modelo" |
+| `tools/capture_visual_reference` | Todos | Destino, prefijo, qué pasadas capturar, las vistas (editables como `Array[Dictionary]`), centro del plano, reposo, iluminación y estado de incendio del piso patrón |
+
+`tests/test_godot_editability.py` (13 pruebas) falla si cualquiera de esos mandos vuelve al código.
+
+**Criterio del barrido.** Sale al inspector todo lo que decide *cómo se ve o cómo se comporta* la escena: colores, tamaños en metros, opacidades, prioridades de dibujado, umbrales de interacción y el plano neutro del vano, que es el parámetro central de H-2. No salen las curvas de respuesta internas de los shaders de humo —los coeficientes de `density`, `flow_strength` o `turbulence`, del tipo `0.44 + alpha * 1.15`—: son la forma de una función, no un ajuste, y exponerlas llenaría el inspector de mandos que nadie puede calibrar a ojo. Queda dicho para que sea una decisión y no un olvido; si alguna hiciera falta, se saca igual que las demás.
+
+### 13.4 Guardarraíles nuevos
+
+Cinco validadores headless nuevos y dos ampliados, todos verificados fallando con el comportamiento anterior:
+
+| Guardarraíl | Fija |
+|---|---|
+| `validate_fp_smoke_lighting` | FP-6: con humo y sin fuego la luz se atenúa pero no se recorta el alcance |
+| `validate_fp_party_walls` | FP-1 (sin medianeras duplicadas, rodapié por sala) y FP-8 (ninguna malla anónima) |
+| `validate_fp_interstitial_seal` | E-4: sin holgura vertical entre el techo de una planta y el forjado de la siguiente |
+| `validate_fp_surface_shading` | M-2: cada malla publica **su** tamaño por instancia, que es lo que mide la franja de oclusión en metros |
+| `validate_3d_smoke_opening_curtain` | H-5: la cortina sigue al hueco libre y se desplaza al lado de la cerradura |
+| `validate_fp_landing_stairs` (ampliado) | R-8: toda pared del rellano tiene cuerpo estático |
+| `capture_visual_reference` | Instrumental de comparación antes/después, 20 vistas |
+
+### 13.5 Lo que queda
+
+1. **FP-3 (F5.1)** — unificar los constructores de suelo, techo, muro y hueco entre `FirstPersonController` y `Visualizer3D`. Es el único hallazgo pendiente de trabajo real. Estuvo esperando a FP-7 por un acoplamiento que resultó no existir.
+2. **H-4** — antes de decidir si se enseña la contracorriente, hay que revisar su enganche: `has_fire_context` exige `outflow_visible` y por eso la cortina de aire no llega a verse. Medido: encenderla cambia el 0,489 % de los píxeles, y subir el tope de opacidad lo deja en el 0,27 %.
+3. **H-6** — autoexposición entre plantas. Funcionalidad nueva, declarada fuera del cierre.

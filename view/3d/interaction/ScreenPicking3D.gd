@@ -28,7 +28,12 @@ static func room_id_at_screen_pos(
 	return -1
 
 
-static func opening_index_at_screen_pos(camera: Camera3D, opening_items: Dictionary, screen_pos: Vector2) -> int:
+static func opening_index_at_screen_pos(
+	camera: Camera3D,
+	opening_items: Dictionary,
+	screen_pos: Vector2,
+	max_distance_px: float = 26.0
+) -> int:
 	if camera == null:
 		return -1
 	var best_index: int = -1
@@ -45,7 +50,7 @@ static func opening_index_at_screen_pos(camera: Camera3D, opening_items: Diction
 		if distance < best_distance:
 			best_distance = distance
 			best_index = int(index)
-	return best_index if best_distance <= 26.0 else -1
+	return best_index if best_distance <= max_distance_px else -1
 
 
 ## El gesto de orbita/zoom "sobre el modelo" se decidia proyectando contra el
@@ -59,13 +64,14 @@ static func is_screen_point_over_model(
 	screen_pos: Vector2,
 	meters_to_units: float,
 	origin_offset_m: Vector2,
-	floor_levels_m: Array[float] = []
+	floor_levels_m: Array[float] = [],
+	bounds_margin_m: float = 0.75
 ) -> bool:
 	if camera == null:
 		return true
 	if bounds_m.size == Vector2.ZERO:
 		return true
-	var expanded_bounds: Rect2 = bounds_m.grow(0.75)
+	var expanded_bounds: Rect2 = bounds_m.grow(bounds_margin_m)
 	var levels: Array[float] = floor_levels_m.duplicate()
 	if levels.is_empty():
 		levels.append(0.0)

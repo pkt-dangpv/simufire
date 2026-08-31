@@ -151,6 +151,9 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.0, 1.0, 0.01) var surface_contact_ao_strength: float = 0.34
 ## En cuantos metros se difumina ese oscurecimiento.
 @export_range(0.02, 2.0, 0.01) var surface_contact_ao_band_m: float = 0.32
+## Nitidez de la mezcla triplanar del ruido: mas alto marca mas la transicion
+## entre las tres proyecciones, mas bajo la suaviza en las esquinas.
+@export_range(1.0, 16.0, 0.5) var surface_triplanar_sharpness: float = 4.0
 
 @export var wall_skirting_height_m: float = 0.10
 @export var show_landing_recess: bool = true
@@ -5758,6 +5761,7 @@ func _surface_mat(color: Color, noise_seed: int, noise_profile: int = NOISE_PROF
 	material.set_shader_parameter("surface_roughness", material_surface_roughness)
 	material.set_shader_parameter("ao_strength", surface_contact_ao_strength)
 	material.set_shader_parameter("ao_band_m", surface_contact_ao_band_m)
+	material.set_shader_parameter("triplanar_sharpness", surface_triplanar_sharpness)
 	var wants_noise: bool = use_procedural_surface_noise and noise_seed >= 0 and material_noise_contrast > 0.0
 	material.set_shader_parameter("use_noise", wants_noise)
 	if wants_noise:

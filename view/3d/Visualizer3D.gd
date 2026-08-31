@@ -214,6 +214,29 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export_range(0.0, 2.0, 0.01) var opening_curtain_first_person_alpha_factor: float = 0.72
 @export_range(0.0, 1.0, 0.01) var opening_curtain_first_person_side_visibility: float = 0.08
 @export_range(0.0, 1.0, 0.01) var opening_curtain_first_person_bottom_strength: float = 0.46
+## Opacidad de la cortina de vano vista desde la casa de munecas.
+@export_range(0.0, 2.0, 0.01) var opening_curtain_alpha_factor: float = 0.52
+## Alto del penacho que sale por un hueco a fachada, entre carga minima y
+## maxima de humo, y su opacidad en cada vista.
+@export_range(0.05, 3.0, 0.05) var exterior_plume_min_height_m: float = 0.55
+@export_range(0.5, 12.0, 0.10) var exterior_plume_max_height_m: float = 3.60
+@export_range(0.0, 2.0, 0.01) var exterior_plume_alpha_factor: float = 0.62
+@export_range(0.0, 2.0, 0.01) var exterior_plume_first_person_alpha_factor: float = 0.78
+## Altura del plano neutro dentro del vano, como fraccion de su alto: donde se
+## separan el humo que sale por arriba y el aire que entra por abajo. El primer
+## valor es con las dos salas equilibradas y el segundo con maximo
+## desequilibrio, que baja el plano porque el hueco pasa mas humo (H-2).
+@export_range(0.0, 1.0, 0.01) var neutral_plane_calm_fraction: float = 0.58
+@export_range(0.0, 1.0, 0.01) var neutral_plane_driven_fraction: float = 0.44
+## Lo mismo para un hueco a fachada, donde siempre hay contracorriente.
+@export_range(0.0, 1.0, 0.01) var neutral_plane_exterior_calm_fraction: float = 0.62
+@export_range(0.0, 1.0, 0.01) var neutral_plane_exterior_driven_fraction: float = 0.40
+## Rugosidad de los materiales planos del visor 3D.
+@export_range(0.0, 1.0, 0.01) var surface_roughness_3d: float = 0.94
+## Radio en pixeles para pinchar un marcador de apertura, y holgura en metros
+## con la que se considera que el raton esta "sobre el modelo".
+@export_range(4.0, 120.0, 1.0) var opening_marker_pick_radius_px: float = 26.0
+@export_range(0.0, 5.0, 0.05) var model_hover_margin_m: float = 0.75
 ## Penacho de humo que sube por la fachada al salir por un hueco exterior.
 ## Sin el, el humo de una ventana termina en un corte plano en el dintel.
 @export var show_exterior_smoke_plume: bool = true
@@ -571,7 +594,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
-				if ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m()):
+				if ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m(), model_hover_margin_m):
 					var player_start_hit: Dictionary = _player_start_at_screen_pos(mb.position)
 					if not player_start_hit.is_empty():
 						var start_room_id: int = int(player_start_hit.get("room_id", -1))
@@ -603,7 +626,7 @@ func _unhandled_input(event: InputEvent) -> void:
 						_begin_element_drag("object", object_id, object_room_id, mb.position)
 						get_viewport().set_input_as_handled()
 						return
-					var opening_index: int = ScreenPicking3D.opening_index_at_screen_pos(_camera, _opening_items, mb.position)
+					var opening_index: int = ScreenPicking3D.opening_index_at_screen_pos(_camera, _opening_items, mb.position, opening_marker_pick_radius_px)
 					if opening_index >= 0:
 						select_opening(opening_index)
 						opening_clicked.emit(opening_index, mb.position)
@@ -630,16 +653,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif _is_element_dragging():
 				_finish_element_drag()
 				get_viewport().set_input_as_handled()
-		elif mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m()):
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m(), model_hover_margin_m):
 			_orbit_dragging = true
 			get_viewport().set_input_as_handled()
 		elif not mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT:
 			_orbit_dragging = false
-		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m()):
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m(), model_hover_margin_m):
 			_camera_distance = CameraOrbit3D.zoom_distance(_camera_distance, camera_zoom_step_m, true, min_camera_distance_m, max_camera_distance_m)
 			_apply_camera_transform()
 			get_viewport().set_input_as_handled()
-		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m()):
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m(), model_hover_margin_m):
 			_camera_distance = CameraOrbit3D.zoom_distance(_camera_distance, camera_zoom_step_m, false, min_camera_distance_m, max_camera_distance_m)
 			_apply_camera_transform()
 			get_viewport().set_input_as_handled()
@@ -2833,6 +2856,15 @@ func _update_openings() -> void:
 			"opening_curtain_first_person_alpha_factor": opening_curtain_first_person_alpha_factor,
 			"opening_curtain_first_person_side_visibility": opening_curtain_first_person_side_visibility,
 			"opening_curtain_first_person_bottom_strength": opening_curtain_first_person_bottom_strength,
+			"opening_curtain_alpha_factor": opening_curtain_alpha_factor,
+			"exterior_plume_min_height_m": exterior_plume_min_height_m,
+			"exterior_plume_max_height_m": exterior_plume_max_height_m,
+			"exterior_plume_alpha_factor": exterior_plume_alpha_factor,
+			"exterior_plume_first_person_alpha_factor": exterior_plume_first_person_alpha_factor,
+			"neutral_plane_calm_fraction": neutral_plane_calm_fraction,
+			"neutral_plane_driven_fraction": neutral_plane_driven_fraction,
+			"neutral_plane_exterior_calm_fraction": neutral_plane_exterior_calm_fraction,
+			"neutral_plane_exterior_driven_fraction": neutral_plane_exterior_driven_fraction,
 			"show_exterior_smoke_plume": show_exterior_smoke_plume,
 			"smoke_min_visible_depth_m": smoke_min_visible_depth_m,
 			"meters_to_units": meters_to_units,
@@ -2894,7 +2926,7 @@ func _set_alpha_layer_priority(node: MeshInstance3D, priority: int) -> void:
 func _make_material(color: Color, transparent: bool) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
-	material.roughness = 0.94
+	material.roughness = surface_roughness_3d
 	material.metallic = 0.0
 	if transparent or color.a < 1.0:
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
