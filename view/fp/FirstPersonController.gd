@@ -21,6 +21,12 @@ const FPHudScene: PackedScene = preload("res://view/fp/FPHud.tscn")
 const FPCameraEnvironmentRes: Environment = preload("res://view/fp/fp_camera_environment.tres")
 const FPSkyDome := preload("res://view/fp/FPSkyDome.gd")
 const OUTSIDE_ID: int = -1
+## Perfiles de ruido de superficie: paramentos frente a suelos y rodapies,
+## que admiten una capa de suciedad mas marcada y de grano mas grande.
+const NOISE_PROFILE_SURFACE: int = 0
+const NOISE_PROFILE_FLOOR: int = 1
+## Suelo con despiece de baldosa (rellano del portal).
+const NOISE_PROFILE_TILE: int = 2
 const STANCE_STAND: int = 0
 const STANCE_CROUCH: int = 1
 const STANCE_PRONE: int = 2
@@ -95,8 +101,25 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.2, 4.0, 0.05) var opening_light_attenuation: float = 1.4
 
 @export_group("Materiales FP")
-@export var use_procedural_surface_noise: bool = false
+## Ruido de superficie en muros, suelos y techos. Sin el, toda la escena es
+## color plano y se lee como maqueta de carton (FP-2 / M-1).
+@export var use_procedural_surface_noise: bool = true
 @export var material_noise_frequency: float = 0.075
+## Contraste del ruido: cuanto llega a oscurecer la mota mas oscura respecto
+## al color base. Bajo a proposito; el ruido rompe el plano, no mancha.
+@export_range(0.0, 0.6, 0.01) var material_noise_contrast: float = 0.13
+## Tamano en metros del patron de ruido. Se aplica con UV triplanar en
+## coordenadas de mundo, asi que la escala es la misma en un tabique de 6 m
+## y en una jamba de 0,2 m, y el patron encaja entre piezas contiguas.
+@export_range(0.2, 8.0, 0.1) var material_noise_size_m: float = 1.8
+## Multiplicador de contraste de la capa de suciedad de suelos y rodapies,
+## que si admiten mas variacion que un paramento vertical.
+@export_range(1.0, 4.0, 0.1) var material_floor_dirt_boost: float = 2.1
+## Lado de la baldosa del rellano. El despiece se dibuja en la textura y se
+## proyecta en metros, asi que no cuesta ni una malla mas (R-3).
+@export_range(0.15, 1.20, 0.05) var landing_tile_size_m: float = 0.55
+## Oscurecimiento de la junta entre baldosas, sobre el color del suelo.
+@export_range(0.0, 0.6, 0.01) var landing_tile_grout_darkening: float = 0.22
 @export var wall_skirting_height_m: float = 0.10
 @export var show_landing_recess: bool = true
 @export var landing_recess_depth_m: float = 1.25
@@ -195,6 +218,13 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var exterior_day_landing_light_color: Color = Color(0.92, 0.88, 0.76, 1.0)
 @export var exterior_night_landing_light_color: Color = Color(1.0, 0.70, 0.38, 1.0)
 @export var exterior_facade_color: Color = Color(0.62, 0.61, 0.56, 1.0)
+## Piel de fachada en la cara exterior de los tabiques que dan al exterior.
+## Sin ella, el muro se pinta con el color de la estancia por las DOS caras
+## y desde fuera el edificio es 'salon' (E-6). Donde ya hay lienzo de
+## fachada la piel queda dentro de el y no se ve: es solo el respaldo de
+## los frentes que no generan lienzo.
+@export var exterior_wall_skin_enabled: bool = true
+@export_range(0.005, 0.10, 0.005) var exterior_wall_skin_thickness_m: float = 0.02
 @export var city_sky_color: Color = Color(0.74, 0.84, 0.92, 1.0)
 @export var city_street_color: Color = Color(0.34, 0.35, 0.34, 1.0)
 @export var city_window_color: Color = Color(0.46, 0.58, 0.64, 1.0)
@@ -511,6 +541,8 @@ var _fire_nodes_by_room: Dictionary = {}
 ## Cajas de tabique ya construidas en esta reconstruccion, para no duplicar
 ## medianeras entre salas contiguas (FP-1).
 var _wall_segment_boxes: Dictionary = {}
+## Materiales opacos ya creados, indexados por color y ruido (M-3).
+var _material_cache: Dictionary = {}
 var _ceiling_lights_by_room: Dictionary = {}
 var _ceiling_light_base_energy_by_room: Dictionary = {}
 var _ceiling_light_base_range_by_room: Dictionary = {}
@@ -1063,6 +1095,108 @@ func _create_wall_segment_height(rect: Rect2, room_id: int, side: String, start:
 	body.name = "Wall_%s" % side
 	_world_root.add_child(body)
 	_add_box(body, "WallMesh", size, center, _wall_material_for_room(room_id), true)
+	_add_exterior_wall_skin(rect, room_id, side, start, end, size, center, floor_level_m)
+
+
+## Chapa fina con material de fachada sobre la cara exterior de un tabique
+## que no tiene sala vecina. El muro es una sola caja y no admite un
+## material por cara, asi que la cara de fuera se resuelve con esta pieza.
+## Despiece de baldosa: una baldosa por repeticion de textura, con la junta
+## dibujada en el borde. Se multiplica sobre el color del suelo, igual que el
+## ruido, asi que el blanco deja el color base intacto y la junta lo oscurece.
+func _tile_texture() -> Texture2D:
+	var size_px: int = 128
+	var grout_px: int = 3
+	var grout_value: float = clampf(1.0 - landing_tile_grout_darkening, 0.0, 1.0)
+	var image := Image.create(size_px, size_px, false, Image.FORMAT_RGB8)
+	image.fill(Color.WHITE)
+	var grout := Color(grout_value, grout_value, grout_value, 1.0)
+	# Una franja de junta pegada a dos bordes; al repetirse la textura, cada
+	# baldosa queda rodeada de junta por sus cuatro lados.
+	for y in range(size_px):
+		for x in range(size_px):
+			if x < grout_px or y < grout_px:
+				image.set_pixel(x, y, grout)
+	return ImageTexture.create_from_image(image)
+
+
+func _add_exterior_wall_skin(
+	rect: Rect2,
+	room_id: int,
+	side: String,
+	start: float,
+	end: float,
+	wall_size: Vector3,
+	wall_center: Vector3,
+	floor_level_m: float
+) -> void:
+	if not exterior_wall_skin_enabled:
+		return
+	if not _wall_face_is_exterior(rect, room_id, side, start, end, floor_level_m):
+		return
+	var outward: Vector3 = -_inside_normal_for_side(side)
+	var thickness_m: float = exterior_wall_skin_thickness_m
+	var skin_size: Vector3 = wall_size
+	if side == "top" or side == "bottom":
+		skin_size.z = thickness_m
+	else:
+		skin_size.x = thickness_m
+	var offset_m: float = wall_thickness_m * 0.5 + thickness_m * 0.5
+	_add_box(
+		_world_root,
+		"ExteriorWallSkin_%s" % side,
+		skin_size,
+		wall_center + outward * offset_m,
+		_mat(exterior_facade_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 2600),
+		false
+	)
+
+
+## Una cara es exterior cuando ninguna otra sala de la misma planta apoya en
+## ella. Se compara el plano del tabique y el solape del tramo, para que un
+## muro medio medianero y medio a fachada se resuelva por tramos.
+func _wall_face_is_exterior(
+	rect: Rect2,
+	room_id: int,
+	side: String,
+	start: float,
+	end: float,
+	floor_level_m: float
+) -> bool:
+	if building == null:
+		return false
+	var horizontal: bool = side == "top" or side == "bottom"
+	var plane_m: float
+	if horizontal:
+		plane_m = rect.position.y if side == "top" else rect.position.y + rect.size.y
+	else:
+		plane_m = rect.position.x if side == "left" else rect.position.x + rect.size.x
+	var seg_min: float = (rect.position.x if horizontal else rect.position.y) + start
+	var seg_max: float = (rect.position.x if horizontal else rect.position.y) + end
+
+	for key in _room_rects_cache.keys():
+		if int(key) == room_id:
+			continue
+		var other_room: RoomModel = building.get_room(int(key))
+		if other_room != null and absf(other_room.floor_level_z_m - floor_level_m) > 0.05:
+			continue
+		var other: Rect2 = Rect2(_room_rects_cache[key])
+		var touches: bool
+		var other_min: float
+		var other_max: float
+		if horizontal:
+			touches = absf(other.position.y - plane_m) < 0.02 or absf(other.position.y + other.size.y - plane_m) < 0.02
+			other_min = other.position.x
+			other_max = other.position.x + other.size.x
+		else:
+			touches = absf(other.position.x - plane_m) < 0.02 or absf(other.position.x + other.size.x - plane_m) < 0.02
+			other_min = other.position.y
+			other_max = other.position.y + other.size.y
+		if not touches:
+			continue
+		if minf(seg_max, other_max) - maxf(seg_min, other_min) > 0.05:
+			return false
+	return true
 
 
 ## Identidad geometrica de un tabique, redondeada al centimetro: dos salas
@@ -1089,7 +1223,14 @@ func _create_skirting_segment(rect: Rect2, side: String, start: float, end: floa
 		var x: float = rect.position.x if side == "left" else rect.position.x + rect.size.x
 		center = _to_world(Vector3(x, wall_skirting_height_m * 0.5, rect.position.y + start + span * 0.5), floor_level_m) + normal * (wall_thickness_m * 0.5 + 0.012)
 		size = Vector3(0.028, wall_skirting_height_m, span)
-	_add_box(_world_root, "Skirting_%s" % side, size, center, _mat(Color(0.34, 0.27, 0.20, 1.0), false), false)
+	_add_box(
+		_world_root,
+		"Skirting_%s" % side,
+		size,
+		center,
+		_mat(Color(0.34, 0.27, 0.20, 1.0), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 1900, NOISE_PROFILE_FLOOR),
+		false
+	)
 
 
 func _create_stairs(rects: Dictionary) -> void:
@@ -1686,7 +1827,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		floor_center.y,
 		floor_thickness_m,
 		[shaft_hole],
-		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4100 + index)
+		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4100 + index, NOISE_PROFILE_TILE)
 	)
 
 	var wall_center: Vector3 = center - normal * (landing_join_m + depth_m + 0.03)
@@ -2846,7 +2987,7 @@ func _create_own_facade_panel(parent: Node3D, key: String, group: Dictionary, gr
 		holes.append(Rect2(hole))
 	var skin_offset: float = wall_thickness_m * 0.5 + own_facade_thickness_m * 0.5
 	var skin_axis_m: float = plane_m + (outward.z if horizontal else outward.x) * skin_offset
-	var skin_mat: StandardMaterial3D = _mat(exterior_facade_color, false)
+	var skin_mat: StandardMaterial3D = _mat(exterior_facade_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 2600)
 	var pieces: Array[Rect2] = StairGeometry.split_rect_by_voids(Rect2(u_min, ground_y, span_u, span_v), holes)
 	for i in range(pieces.size()):
 		var piece: Rect2 = pieces[i]
@@ -2961,7 +3102,7 @@ func _create_exterior_window_reveal(
 	var band_depth: float = 0.035
 	var band_m: float = 0.12
 	var floor_level_m: float = center.y - (sill_m + height_m * 0.5)
-	var facade_mat := _mat(exterior_facade_color, false)
+	var facade_mat := _mat(exterior_facade_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 2600)
 	var top_center: Vector3 = reveal_center
 	top_center.y = floor_level_m + sill_m + height_m + band_m * 0.5
 	_add_oriented_box(parent, "ExteriorWindowTop_%02d" % index, top_center, tangent, width_m + band_m * 2.0, band_m, band_depth, facade_mat, false)
@@ -5347,7 +5488,7 @@ func _floor_material_for_room(room_id: int) -> StandardMaterial3D:
 		color = Color(0.34, 0.33, 0.30, 1.0)
 	elif kind.contains("dorm") or kind.contains("bed"):
 		color = Color(0.35, 0.28, 0.22, 1.0)
-	return _mat(color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 1100 + room_id)
+	return _mat(color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 1100 + room_id, NOISE_PROFILE_FLOOR)
 
 
 func _wall_material_for_room(room_id: int) -> StandardMaterial3D:
@@ -5360,7 +5501,9 @@ func _wall_material_for_room(room_id: int) -> StandardMaterial3D:
 		color = Color(0.72, 0.76, 0.76, 1.0)
 	elif kind.contains("pasillo") or kind.contains("hall") or kind.contains("corridor"):
 		color = Color(0.78, 0.75, 0.68, 1.0)
-	return _mat(color, false)
+	# Los muros no pedian semilla, asi que eran los unicos que jamas recibian
+	# ruido aunque estuviese activado (FP-2).
+	return _mat(color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 2100 + room_id)
 
 
 func _ceiling_material_for_room(room_id: int) -> StandardMaterial3D:
@@ -5372,29 +5515,78 @@ func _mat(
 	transparent: bool,
 	emission_color: Color = Color(0.0, 0.0, 0.0, 0.0),
 	emission_energy: float = 0.0,
-	noise_seed: int = -1
+	noise_seed: int = -1,
+	noise_profile: int = NOISE_PROFILE_SURFACE
 ) -> StandardMaterial3D:
+	var is_opaque: bool = not transparent and color.a >= 1.0
+	# Solo se comparten los materiales opacos y sin emision. Los transparentes y
+	# los emisivos se mutan en caliente (el tinte del cristal de una ventana, el
+	# brillo del fuego) y compartirlos los acoplaria entre si. Los opacos no se
+	# tocan tras crearse: la fachada, el rellano y el decorado generaban decenas
+	# de copias identicas (M-3).
+	var cacheable: bool = is_opaque and emission_energy <= 0.0
+	var cache_key: String = ""
+	if cacheable:
+		cache_key = "%s|%d|%d" % [color.to_html(true), noise_seed, noise_profile]
+		if _material_cache.has(cache_key):
+			return _material_cache[cache_key]
+
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = 0.96
 	material.metallic = 0.0
-	if use_procedural_surface_noise and noise_seed >= 0 and not transparent:
-		material.albedo_texture = _noise_texture(noise_seed)
+	if use_procedural_surface_noise and noise_seed >= 0 and not transparent and material_noise_contrast > 0.0:
+		material.albedo_texture = _noise_texture(noise_seed, noise_profile)
+		# Triplanar en mundo: la textura se mide en metros y no por cara, que es
+		# lo que hacia que un muro largo y una jamba tuviesen el mismo numero de
+		# ciclos de ruido y que el patron saltase en cada encuentro.
+		material.uv1_triplanar = true
+		material.uv1_world_triplanar = true
+		var cycles_per_m: float = 1.0 / maxf(0.05, _noise_size_for_profile(noise_profile))
+		material.uv1_scale = Vector3(cycles_per_m, cycles_per_m, cycles_per_m)
 	if emission_energy > 0.0:
 		material.emission_enabled = true
 		material.emission = emission_color
 		material.emission_energy_multiplier = emission_energy
 	if transparent or color.a < 1.0:
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	if cacheable:
+		_material_cache[cache_key] = material
 	return material
 
 
-func _noise_texture(variant_seed: int) -> Texture2D:
+func _noise_size_for_profile(noise_profile: int) -> float:
+	if noise_profile == NOISE_PROFILE_TILE:
+		return maxf(0.05, landing_tile_size_m)
+	return material_noise_size_m * (2.4 if noise_profile == NOISE_PROFILE_FLOOR else 1.0)
+
+
+## Ruido de superficie utilizable. La clave es la rampa de color: el albedo se
+## MULTIPLICA por la textura, asi que un ruido en escala de grises de 0 a 1
+## oscurece a la mitad y motea. Aqui el rango va de (1 - contraste) a 1, de modo
+## que el color base se conserva y el ruido solo lo rompe (FP-2 / M-1).
+func _noise_texture(variant_seed: int, noise_profile: int = NOISE_PROFILE_SURFACE) -> Texture2D:
+	if noise_profile == NOISE_PROFILE_TILE:
+		return _tile_texture()
+	var is_floor: bool = noise_profile == NOISE_PROFILE_FLOOR
+	var contrast: float = clampf(
+		material_noise_contrast * (material_floor_dirt_boost if is_floor else 1.0),
+		0.0,
+		0.9
+	)
 	var noise := FastNoiseLite.new()
 	noise.seed = variant_seed
-	noise.frequency = material_noise_frequency
+	noise.frequency = material_noise_frequency * (0.6 if is_floor else 1.0)
+	noise.fractal_octaves = 5 if is_floor else 3
+
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(1.0 - contrast, 1.0 - contrast, 1.0 - contrast, 1.0))
+	ramp.set_color(1, Color.WHITE)
+
 	var texture := NoiseTexture2D.new()
-	texture.width = 128
-	texture.height = 128
+	texture.width = 256
+	texture.height = 256
+	texture.seamless = true
+	texture.color_ramp = ramp
 	texture.noise = noise
 	return texture

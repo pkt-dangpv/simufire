@@ -24,10 +24,17 @@ const FP_VIEWS: Array = [
 	["salon_puerta_interior", Vector2(3.0, 2.0), Vector2(6.0, 1.6), 0.0],
 	["salon_ventana_fachada", Vector2(3.0, 2.0), Vector2(0.0, 2.0), 0.0],
 	["salon_fuego", Vector2(4.8, 3.0), Vector2(2.5, 1.2), -0.08],
-	["salon_puerta_rellano", Vector2(1.0, 2.4), Vector2(1.0, 0.0), 0.0],
+	# La pared "bottom" es el lado y = y0 + alto, y su offset_m corre en sentido
+	# inverso al eje x: la puerta declarada con offset 1,0 sale en x = 5,55 y el
+	# portal se genera detras, en y > 4.
+	["salon_puerta_rellano", Vector2(5.55, 2.2), Vector2(5.55, 4.0), 0.0],
 	["dormitorio_puerta", Vector2(8.2, 2.0), Vector2(6.0, 1.6), 0.0],
 	["dormitorio_ventana", Vector2(8.0, 2.0), Vector2(10.0, 2.0), 0.0],
-	["rellano_vivienda", Vector2(1.0, -1.6), Vector2(1.0, 0.0), 0.0],
+	# Ojo: el jugador es un CharacterBody3D con gravedad. Estas dos vistas van
+	# sobre la losa que hay justo tras la puerta; mas al fondo esta el hueco de
+	# la escalera y la camara se cae por el.
+	["rellano_vivienda", Vector2(5.55, 4.35), Vector2(5.55, 6.0), 0.0],
+	["rellano_suelo", Vector2(5.55, 4.35), Vector2(5.90, 4.95), -0.62],
 	["calle_fachada", Vector2(-4.5, 2.0), Vector2(0.0, 2.0), 0.08],
 ]
 

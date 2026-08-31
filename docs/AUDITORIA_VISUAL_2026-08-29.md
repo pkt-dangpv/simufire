@@ -113,8 +113,10 @@ Guardarraíl: `tools/validate_fp_interstitial_seal.gd`. Con el sellado desactiva
 ### 🟠 E-5. Decorado urbano completo generado detrás del rellano — **[ABIERTO]**
 `_create_exterior_context()` agrupa fachadas por normal e incluye la de la puerta de entrada. En `compact_apartment_reference` la puerta está en `bottom` y las ventanas en `top`: la fachada `bottom` genera calle, aceras, bordillos, coches, árboles, edificio de enfrente con ventanas y skyline **detrás de la caja cerrada del rellano**, donde nadie los verá jamás. Es geometría desperdiciada, no un fallo visual. Basta con no generar decorado en frentes cuyo único hueco exterior sea la puerta del portal.
 
-### 🟡 E-6. Tabiques exteriores con material interior por las dos caras — **[ABIERTO]**
+### 🟡 E-6. Tabiques exteriores con material interior por las dos caras — **[CORREGIDO 2026-08-31]**
 `_wall_material_for_room()` pinta el muro con el color de la estancia por ambas caras. El lienzo nuevo tapa esto donde existe; donde no, la cara exterior del edificio sigue siendo "salón".
+
+Corrección aplicada (F2.4): un muro es una sola caja y no admite material por cara, así que se añade una chapa fina (`ExteriorWallSkin_*`, 2 cm, `exterior_wall_skin_thickness_m`) con material de fachada sobre la cara exterior de los tabiques que no tienen sala vecina. `_wall_face_is_exterior()` lo decide por tramos comparando el plano del tabique y el solape con las demás salas de la misma planta, así que un muro medio medianero y medio a fachada se resuelve bien. Donde ya hay lienzo de fachada la chapa queda dentro de él y no se ve: es el respaldo de los frentes que no generan lienzo.
 
 ### ℹ️ E-7. Lo que ya estaba bien
 La composición urbana (dos aceras con bordillo, calzada con marcas, portales modulados con altura y profundidad variables, ventanas encendidas según hora, coches y arbolado en capas, skyline procedural o con textura propia) y el entorno residencial (césped, camino, acera, calzada, casas con cubierta a dos aguas, setos) están bien resueltos y bien parametrizados. El problema era el primer plano, no el fondo.
@@ -133,6 +135,8 @@ Corrección (`_add_landing_lights`, [FirstPersonController.gd:1788](../view/fp/F
 
 ### 🟠 R-3. Encuentros y detalle del rellano — **[CORREGIDO parcialmente]**
 El zócalo y el rodapié sólo existían en la pared del fondo; las laterales llegaban al suelo a hueso. Se añade rodapié lateral y felpudo delante de la puerta de la vivienda. Sigue **abierto** el acabado del suelo (una losa de color plano; un despiece de baldosa o un cambio de tono por franjas daría mucho más).
+
+**[CERRADO 2026-08-31]** (F2.5) El suelo del rellano lleva despiece de baldosa: perfil de textura `NOISE_PROFILE_TILE` con la junta dibujada en el borde y proyección triplanar en metros, de modo que el lado de la baldosa es un parámetro real (`landing_tile_size_m`, 0,55 m) y no cuesta ni una malla más. Oscurecimiento de la junta en `landing_tile_grout_darkening`.
 
 ### 🔴 R-7. El frente del rellano estaba abierto al exterior — **[CORREGIDO 2026-08-29, 2ª pasada]**
 Detectado al ver el portal en ejecución: sombras duras que barrían el rellano al moverse. La causa no era el sesgo de sombra sino un agujero real.
@@ -187,8 +191,16 @@ Corrección aplicada (F1.3): `_create_wall_segment_height()` registra la caja de
 
 Guardarraíl: `tools/validate_fp_party_walls.gd` (ninguna caja de tabique repetida, la medianera existe, y dos rodapiés en el plano compartido).
 
-### 🟠 FP-2. Todo el interior es color plano sin textura — **[ABIERTO]**
+### 🟠 FP-2. Todo el interior es color plano sin textura — **[CORREGIDO 2026-08-31]**
 `use_procedural_surface_noise = false` por defecto ([FirstPersonController.gd:88](../view/fp/FirstPersonController.gd)), y cuando se activa lo que se aplica es un `NoiseTexture2D` en escala de grises como `albedo_texture`, que **multiplica** el color base: oscurece y motea en vez de texturar. Es la causa de fondo del "se ve feo" transversal a interior, rellano y fachada. Lo correcto es un ruido de bajo contraste centrado en gris medio (o una textura de material real) y aplicarlo con UV en metros, no por cara.
+
+Corrección aplicada (F2.1), en tres frentes:
+
+1. **La rampa.** `NoiseTexture2D` con `color_ramp` de `1 − contraste` a blanco. Al multiplicarse sobre el albedo, el blanco deja el color base intacto y el ruido sólo lo rompe, en vez de bajarlo a la mitad y motearlo. Contraste por defecto 0,13.
+2. **La escala.** `uv1_triplanar` + `uv1_world_triplanar` con `uv1_scale` derivada de `material_noise_size_m`: la textura se mide en metros, así que un tabique de 6 m y una jamba de 0,2 m tienen el mismo grano y el patrón encaja entre piezas contiguas.
+3. **Estaba apagado y además los muros nunca lo pedían.** `use_procedural_surface_noise` pasa a `true`, y `_wall_material_for_room()` —que llamaba a `_mat()` sin semilla— ya la pasa: los paramentos verticales eran los únicos que jamás recibían ruido ni con la opción activada.
+
+Suelos y rodapiés usan un perfil aparte (`NOISE_PROFILE_FLOOR`: más octavas, grano más grande y contraste multiplicado por `material_floor_dirt_boost`), que es la segunda capa de suciedad que pedía M-1.
 
 ### 🟠 FP-3. Geometría FP todavía paralela a la del 3D — **[PARCIAL]**
 `StairGeometry` ya está extraída y compartida (el 🟠 FP-1 de julio está a medias), pero suelos, techos, muros y huecos siguen teniendo dos implementaciones independientes (`FirstPersonController` vs `Visualizer3D`). Cualquier ajuste hecho en una diverge visualmente de la otra.
@@ -247,9 +259,13 @@ Overlay de visibilidad, atenuación de luces por humo coherente con los regímen
 
 ## 7. Materiales e iluminación (transversal)
 
-- 🟠 **M-1.** Todo el proyecto construye materiales con `StandardMaterial3D` de color plano, `roughness = 0.96` y sin mapas. Sin variación de superficie, cualquier geometría —por correcta que sea— se lee como maqueta de cartón. Es la palanca con mejor relación coste/beneficio que queda: una textura de ruido bien calibrada (FP-2) más una segunda capa de suciedad en suelos y rodapiés.
-- 🟠 **M-2.** No hay oclusión ambiental de ningún tipo (ni SSAO —no disponible en GL Compatibility— ni AO horneado ni un simple oscurecimiento de encuentros). Todos los encuentros suelo-pared son aristas duras a pleno color; es el segundo motivo por el que las escenas parecen planas.
-- 🟡 **M-3.** `_mat()` crea un `StandardMaterial3D` nuevo en cada llamada: la fachada, el rellano y el decorado generan decenas de materiales idénticos que podrían compartirse por color.
+- 🟠 **M-1.** — **[CORREGIDO 2026-08-31]** Todo el proyecto construía materiales con `StandardMaterial3D` de color plano, `roughness = 0.96` y sin mapas. Sin variación de superficie, cualquier geometría —por correcta que sea— se lee como maqueta de cartón. Resuelto con FP-2 (ruido con rampa, triplanar en metros y perfil de suciedad para suelos y rodapiés), extendido también a los materiales de fachada, que tampoco pedían semilla.
+- 🟠 **M-2.** — **[ABIERTO, con diseño]** No hay oclusión ambiental de ningún tipo (ni SSAO —no disponible en GL Compatibility— ni AO horneado ni un simple oscurecimiento de encuentros). Todos los encuentros suelo-pared son aristas duras a pleno color; es el segundo motivo por el que las escenas parecen planas.
+
+  No se cierra en F2 a propósito, y conviene decir por qué: `StandardMaterial3D` no sabe oscurecer aristas sin un mapa de AO, y un mapa proyectado en triplanar de mundo no puede codificar dónde están las aristas. Las salidas reales son dos, y ambas cambian de categoría respecto al resto de F2: (a) mallas con color de vértice, que obliga a sustituir los `BoxMesh` por `ArrayMesh`; (b) un `ShaderMaterial` propio para muros, suelos y techos que oscurezca según la distancia a los bordes de la cara, con el tamaño de la caja entrando como `instance uniform` para que el ancho de la sombra se mida en metros y el material siga siendo único y cacheado.
+
+  La (b) es la buena, pero sustituye el material de todas las superficies FP, así que se decide y se ejecuta como paso propio (F2.2 sigue en el plan).
+- 🟡 **M-3.** — **[CORREGIDO 2026-08-31]** `_mat()` creaba un `StandardMaterial3D` nuevo en cada llamada. Ahora cachea por color, semilla y perfil de ruido. Medido sobre el piso patrón: **910 → 144 materiales distintos** para 1003 mallas. Sólo se comparten los opacos y sin emisión: los transparentes y los emisivos se mutan en caliente (el tinte del cristal de una ventana, el brillo del fuego) y compartirlos los acoplaría entre sí.
 - ℹ️ **M-4.** La iluminación sí está bien pensada: sol direccional con sombras, relleno suave, luz por hueco atenuada por humo, luces de techo contenidas a su sala y luz de fuego con ley de potencia sobre el HRR.
 
 ---
@@ -303,6 +319,8 @@ Overlay de visibilidad, atenuación de luces por humo coherente con los regímen
 ## 11. Verificación
 
 > **Ejecutado el 2026-08-31 en la máquina del proyecto.** `python scripts/check_product.py` da **25/26 suites OK**; el único fallo es `test_exit0_real_json`, el conocido de la línea motor por los `VALID_GAP`, ajeno a lo visual. Los guardarraíles visuales headless pasan todos, incluidos los dos ampliados en esta pasada (`validate_fp_exterior_context`, `validate_fp_landing_stairs`). Además se renderizó la vista FP con ventana real (headless no dibuja: `frame_post_draw` no dispara) sobre un piso de dos salas en estado limpio y en incendio; de ahí salen FP-6 y FP-7. Descartado por medición: la niebla **no** se arrastra al exterior al salir del edificio — fuera decae a 0,0001, lo que se ve durante ~1 s es el transitorio de `fp_fog_smooth_tau_s`.
+>
+> **Tercera ejecución, 2026-08-31 (fase F2):** suite 28/29 sin regresiones. El interior deja de ser color plano: ruido de superficie con rampa y proyección en metros, suelo del rellano con despiece de baldosa, cara exterior de los tabiques con material de fachada y 910 → 144 materiales distintos.
 >
 > **Segunda ejecución, 2026-08-31 (fases F0 y F1 del plan):** suite a **28/29** con los tres guardarraíles nuevos ya incorporados, mismo único fallo de la línea motor. Juego de capturas antes/después con `tools/capture_visual_reference.gd`: la corrección de FP-6 sube la luminancia media de la medianera enhumada de 18,9 a 32,4 (×1,71) sin tocar la escena limpia (57,5 → 57,5).
 
@@ -366,7 +384,7 @@ Fase 1 es la única que arregla algo **funcional** (F1.2) y algo que hace ilegib
 
 De propina salieron dos cosas que no estaban en el informe: el parámetro `with_collision` de `_add_box` era un contrato falso (ver R-8) y los nodos homónimos pierden el nombre (nuevo FP-8, §5). El primero se corrigió por ser la causa directa de R-8; el segundo queda abierto y planificado en F5.6.
 
-### 12.F2 Fase 2 — Legibilidad del material (la palanca del "se ve feo")
+### 12.F2 Fase 2 — Legibilidad del material (la palanca del "se ve feo") — **4 de 5 HECHAS 2026-08-31**
 
 Es la fase con mejor relación coste/beneficio: M-1 y FP-2 son la causa de fondo del síntoma transversal, y afectan a interior, rellano y fachada a la vez.
 
@@ -379,6 +397,12 @@ Es la fase con mejor relación coste/beneficio: M-1 y FP-2 son la causa de fondo
 | F2.5 | 🟡 R-3 | Acabado del suelo del rellano: despiece de baldosa o franjas de tono, en vez de losa de color plano. |
 
 Verificación: juego completo de capturas F0 antes/después, más `check_product.py`. F2.1 y F2.2 son de calibración: se ajustan mirando las capturas, no a ciegas.
+
+**Resultado:** cerradas F2.1 (FP-2 + M-1), F2.3 (M-3: 910 → 144 materiales distintos sobre 1003 mallas), F2.4 (E-6) y F2.5 (R-3, con el despiece de baldosa visible en la captura del rellano). Suite 28/29, único fallo el conocido de la línea motor.
+
+**F2.2 (M-2) sigue abierta a propósito**, con el diagnóstico escrito en §7: `StandardMaterial3D` no oscurece aristas sin un mapa de AO, y un mapa triplanar de mundo no puede saber dónde están las aristas. La salida buena es un `ShaderMaterial` propio para muros, suelos y techos con el tamaño de la caja como `instance uniform`, pero eso sustituye el material de **todas** las superficies FP, así que es un paso con entidad propia y decisión aparte, no la cola de esta fase.
+
+Al calibrar aparecieron además dos errores en los puntos de vista del instrumental de F0, ya corregidos: la pared `bottom` de un rectángulo es el lado `y = y0 + alto` y su `offset_m` corre en sentido inverso al eje (el portal no estaba donde se le buscaba), y el jugador es un `CharacterBody3D` con gravedad, así que una vista colocada sobre el hueco de la escalera se cae por él y captura la calle.
 
 ### 12.F3 Fase 3 — Humo y su lectura
 
