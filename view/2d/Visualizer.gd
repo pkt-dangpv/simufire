@@ -373,7 +373,7 @@ func select_opening(opening_index: int) -> void:
 
 
 func _get_room_id_at_local_pos(local_pos: Vector2) -> int:
-	var tf: Dictionary = _get_draw_transform()
+	var tf: Dictionary = _current_draw_transform()
 	var scale_px: float = maxf(0.001, float(tf["scale"]))
 	var offset: Vector2 = tf["offset"]
 	var pos_m: Vector2 = (local_pos - offset) / scale_px
@@ -426,7 +426,7 @@ func _get_opening_segment_px(index: int) -> PackedVector2Array:
 	if seg_m.size() != 2:
 		return empty
 
-	var tf: Dictionary = _get_draw_transform()
+	var tf: Dictionary = _current_draw_transform()
 	var scale_px: float = float(tf["scale"])
 	var offset: Vector2 = tf["offset"]
 	var p1: Vector2 = seg_m[0] * scale_px + offset
@@ -1617,6 +1617,16 @@ func _get_building_bounds_m() -> Rect2:
 				bounds = bounds.merge(r)
 
 	return bounds
+
+
+## Transformada de dibujo del frame en curso. El merge de limites del edificio
+## ya se hace una vez por _draw(); repetirlo en cada consulta de raton era
+## trabajo duplicado (V2-1).
+func _current_draw_transform() -> Dictionary:
+	if not _frame_tf.is_empty():
+		return _frame_tf
+	_frame_tf = _get_draw_transform()
+	return _frame_tf
 
 
 func _get_draw_transform() -> Dictionary:

@@ -177,17 +177,27 @@ Dos tiros en U con carriles separados, huecos coherentes entre plantas, mesetas 
 
 ## 4. Visor 3D (dollhouse)
 
-### 🟠 V3-1. Pila de transparencias sin `render_priority` — **[ABIERTO]**
+### 🟠 V3-1. Pila de transparencias sin `render_priority` — **[CORREGIDO 2026-08-31]**
 Sigue sin usarse `render_priority` en ningún material de `view/3d`. Por sala conviven volumen de humo, máscara de techo, gradiente de capa, capa caliente, isoterma 150 °C y ahora la cortina y el penacho de cada hueco, todos `TRANSPARENCY_ALPHA` y con `depth_draw_never` en los shaders de humo. Es el patrón clásico de *popping* de ordenación alfa según el ángulo de cámara. Hoy se disimula porque las capas caliente/150 °C están apagadas por defecto.
 
-### 🟠 V3-2. La captura de pantalla incluye el HUD — **[ABIERTO]**
+Corrección aplicada (F4.1): prioridad explícita en las nueve capas translúcidas —volumen de humo y penacho de sala, máscara de techo, gradiente de capa, capa caliente, isoterma 150 °C, y cortina, contracorriente y penacho exterior de cada hueco—, todas con su `@export` en el grupo **"Orden de transparencias"** para poder reordenarlas sin tocar código. Con prioridad explícita el orden deja de depender del ángulo de cámara.
+
+### 🟠 V3-2. La captura de pantalla incluye el HUD — **[CORREGIDO 2026-08-31]**
 `capture_screenshot_to()` ([Visualizer3D.gd:348](../view/3d/Visualizer3D.gd)) oculta la leyenda pero sigue capturando el viewport raíz completo, con el HUD 2D encima. Para un export técnico debería renderizar la vista 3D limpia a un `SubViewport`.
 
-### 🟡 V3-3. `is_screen_point_over_model` sigue intersecando y=0 — **[ABIERTO]**
+Corrección aplicada (F4.2): eso es lo que hace ahora. `_render_clean_screenshot()` monta un `SubViewport` que **comparte el mismo `World3D`** y una cámara clonada de la activa (fov, near/far, proyección, entorno y atributos), así que la imagen es exactamente la misma escena sin nada de interfaz: el HUD y la leyenda viven en capas de lienzo del viewport raíz y no entran ahí.
+
+Verificado con ventana real y un HUD falso a pantalla completa: la captura sale a **1920 × 1080** (la resolución configurada, no la de la ventana) y contiene **cero** píxeles del HUD. Ajustable con `screenshot_use_clean_viewport`, `screenshot_size_px` (0,0 = tamaño del viewport) y `screenshot_transparent_background`. En `--headless` y con la opción desactivada se conserva el camino antiguo, que es lo que sigue cubriendo el guardarraíl existente.
+
+### 🟡 V3-3. `is_screen_point_over_model` sigue intersecando y=0 — **[CORREGIDO 2026-08-31]**
 El picking de salas ya desambigua por planta (`ScreenPicking3D.room_id_at_screen_pos` recorre los niveles de mayor a menor: el 🔴 V3-1 de julio está resuelto), pero `is_screen_point_over_model()` sigue evaluando el plano y=0, así que en plantas altas el gesto de órbita/zoom "sobre el modelo" se decide con la proyección equivocada.
 
-### 🟡 V3-4. Selección de objetos por distancia al origen — **[ABIERTO]**
+Corrección aplicada (F4.3): acepta las cotas de planta y prueba contra cada una de la más alta a la más baja, igual que `room_id_at_screen_pos`. `Visualizer3D` se las pasa desde el edificio en las cuatro llamadas. Sin cotas mantiene el comportamiento anterior, así que ningún otro llamador se rompe.
+
+### 🟡 V3-4. Selección de objetos por distancia al origen — **[CORREGIDO 2026-08-31]**
 `_fuel_object_at_screen_pos` mide la distancia 2D al origen del nodo (34/32 px): los muebles grandes son difíciles de clicar por los bordes.
+
+Corrección aplicada (F4.4): primero se busca el mueble cuya **silueta** contiene el clic —uniendo las cajas de todas sus mallas y proyectando las ocho esquinas— y entre los que lo contienen gana el más cercano a cámara. Si el clic no cae dentro de ninguno se conserva la búsqueda por proximidad de antes, para no perder el clic aproximado. El radio de gracia y el margen de la silueta son `@export` (`fuel_object_pick_radius_px`, `fuel_object_pick_margin_px`).
 
 ### ℹ️ V3-5. Ya corregido desde julio
 Trabajo duplicado en `_update_dynamic_state` (ahora `_apply_selection_visuals` no rehace `_update_openings`), churn de materiales de marcador (`_set_marker_color` cachea en meta), poses de apertura (`_get_cached_opening_pose`), reconstrucción de la leyenda (hash de flags) y el nodo muerto `SmokeLayerEdge` (eliminado).
@@ -262,9 +272,9 @@ Overlay de visibilidad, atenuación de luces por humo coherente con los regímen
 
 ## 6. Visor 2D y minimapa
 
-- 🟡 **V2-1.** `_get_draw_transform()` ya se cachea por frame en `_frame_tf`, pero quedan dos llamadas sueltas ([Visualizer.gd:376](../view/2d/Visualizer.gd) y [:429](../view/2d/Visualizer.gd)) que rehacen el merge de bounds.
-- 🟡 **V2-2.** El fondo sigue siendo un `Rect2(-50,-50,4000,2500)` fijo: en viewports muy anchos no cubre.
-- 🟡 **V2-3.** Escala de color SVV poco legible (>99 % gris, 90-99 % naranja, 5-90 % el mismo rojo): una sala al 95 % alarma igual que una al 10 %.
+- 🟡 **V2-1.** — **[CORREGIDO 2026-08-31]** `_get_draw_transform()` ya se cacheaba por frame en `_frame_tf`, pero quedaban dos llamadas sueltas que rehacían el merge de límites en cada consulta de ratón. Ahora ambas pasan por `_current_draw_transform()`, que devuelve la del frame en curso y sólo la recalcula si aún no existe.
+- 🟡 **V2-2.** — **[NO REPRODUCIBLE 2026-08-31]** El fondo **ya no** es un rectángulo fijo: `_draw_background()` toma `get_viewport_rect()`, lo lleva a coordenadas locales con la inversa de la transformada global y lo dibuja con 50 px de holgura, así que cubre cualquier viewport. No hay ningún `Rect2(-50,-50,4000,2500)` en `view/2d/`. El hallazgo describía código anterior.
+- 🟡 **V2-3.** — **[NO REPRODUCIBLE 2026-08-31]** La escala tampoco es la descrita. `RoomStateVisuals2D.svv_color()` es una rampa de cinco tramos —≥90 % verde, ≥60 % ámbar, ≥20 % naranja, ≥5 % rojo y gris por debajo—, así que una sala al 95 % no alarma como una al 10 %: son verde y naranja. El hallazgo describía una versión anterior de la función.
 - ℹ️ La isoterma de 150 °C ya no se dibuja en salas frías (🟠 V2-1 de julio corregido).
 
 ---
@@ -438,7 +448,7 @@ Al calibrar aparecieron además dos errores en los puntos de vista del instrumen
 
 Quedan vivas las dos decisiones de producto, F3.4 (H-4) y F3.5 (FP-7).
 
-### 12.F4 Fase 4 — Visor 3D y visor 2D
+### 12.F4 Fase 4 — Visor 3D y visor 2D — **HECHA 2026-08-31**
 
 | # | Hallazgo | Trabajo |
 |---|---|---|
@@ -447,6 +457,8 @@ Quedan vivas las dos decisiones de producto, F3.4 (H-4) y F3.5 (FP-7).
 | F4.3 | 🟡 V3-3 | `is_screen_point_over_model()` contra el plano de la planta activa, no contra y=0. |
 | F4.4 | 🟡 V3-4 | Selección de mobiliario por AABB proyectado, no por distancia 2D al origen del nodo. |
 | F4.5 | 🟡 V2-1 · V2-2 · V2-3 | Las dos llamadas sueltas a `_get_draw_transform()`; fondo derivado del viewport en vez de `Rect2` fijo; escala de color SVV con gradiente legible (hoy 5-90 % es el mismo rojo). |
+
+**Resultado:** cerradas V3-1, V3-2 (verificada con ventana real: captura 1920 × 1080 con cero píxeles de HUD), V3-3, V3-4 y V2-1. **V2-2 y V2-3 no son reproducibles**: el fondo ya se deriva del viewport y la escala SVV ya es una rampa de cinco tramos; ambas descripciones corresponden a código anterior y quedan reclasificadas en §6, no marcadas como corregidas. Suite 30/31, único fallo el conocido de la línea motor.
 
 ### 12.F5 Fase 5 — Coherencia estructural y coste
 

@@ -315,6 +315,40 @@ class TestGodotEditability(unittest.TestCase):
         self.assert_identifier_used(rel, "smoke_exterior_plume", min_count=1)
 
 
+    def test_3d_alpha_order_capture_and_picking_are_editable(self):
+        """V3-1 / V3-2 / V3-4: el orden de la pila alfa, la captura tecnica y la
+        tolerancia de seleccion se gobiernan desde el inspector."""
+        rel = "view/3d/Visualizer3D.gd"
+        self.assert_exports(
+            rel,
+            [
+                "render_priority_smoke_volume",
+                "render_priority_layer_gradient",
+                "render_priority_hot_layer",
+                "render_priority_layer_150c",
+                "render_priority_ceiling_mask",
+                "render_priority_opening_curtain",
+                "render_priority_opening_inflow",
+                "render_priority_exterior_plume",
+                "screenshot_use_clean_viewport",
+                "screenshot_size_px",
+                "screenshot_transparent_background",
+                "fuel_object_pick_radius_px",
+                "fuel_object_pick_margin_px",
+                "opening_curtain_follows_leaf",
+                "opening_curtain_min_width_ratio",
+                "opening_curtain_alpha_open_exponent",
+            ],
+        )
+        for name in [
+            "render_priority_ceiling_mask",
+            "screenshot_use_clean_viewport",
+            "fuel_object_pick_radius_px",
+            "opening_curtain_alpha_open_exponent",
+        ]:
+            self.assert_identifier_used(rel, name)
+
+
 class TestSmokeOpeningGeometry(unittest.TestCase):
     """El humo de un vano se lee desde debajo de la capa: necesita cara
     inferior, y el plano neutro solo puede recortar el lado que expulsa."""

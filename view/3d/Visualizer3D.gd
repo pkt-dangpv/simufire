@@ -101,6 +101,29 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 @export var show_cold_air_inflow_curtains: bool = false
 @export var show_fire_smoke_plume: bool = false
 
+@export_group("Orden de transparencias")
+## Por sala conviven varias capas translucidas. Sin prioridad explicita, el
+## orden de dibujado lo decide la distancia a camara y salta al orbitar
+## (popping de ordenacion alfa). Numero mayor = se dibuja encima (V3-1).
+@export var render_priority_smoke_volume: int = 0
+@export var render_priority_layer_gradient: int = 1
+@export var render_priority_hot_layer: int = 2
+@export var render_priority_layer_150c: int = 3
+@export var render_priority_ceiling_mask: int = 4
+@export var render_priority_opening_curtain: int = 5
+@export var render_priority_opening_inflow: int = 6
+@export var render_priority_exterior_plume: int = 7
+
+@export_group("Captura tecnica")
+## Renderiza la captura en un SubViewport propio con una camara clonada, en
+## vez de fotografiar el viewport raiz. Asi la imagen sale sin HUD ni
+## leyenda, que es lo que se quiere de un export tecnico (V3-2).
+@export var screenshot_use_clean_viewport: bool = true
+## Tamano de la captura. Con (0, 0) se usa el tamano del viewport actual.
+@export var screenshot_size_px: Vector2i = Vector2i(1920, 1080)
+## Fondo transparente en la captura, para montarla sobre otro documento.
+@export var screenshot_transparent_background: bool = false
+
 @export_group("Colors")
 @export var floor_color: Color = Color(0.18, 0.18, 0.17, 1.0)
 @export var hot_floor_color: Color = Color(0.46, 0.30, 0.18, 1.0)
@@ -231,6 +254,11 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 
 @export_group("Camera")
 @export var enable_mouse_camera: bool = true
+## Radio de gracia, en pixeles, para pinchar un mueble por proximidad cuando
+## el clic no cae dentro de su silueta.
+@export_range(0.0, 120.0, 1.0) var fuel_object_pick_radius_px: float = 34.0
+## Holgura que se anade a la silueta del mueble al comprobar el clic.
+@export_range(0.0, 40.0, 1.0) var fuel_object_pick_margin_px: float = 4.0
 @export var orbit_with_left_drag_on_model: bool = true
 @export var allow_element_drag: bool = true
 @export var camera_distance_m: float = 13.0
@@ -360,18 +388,23 @@ func capture_screenshot_to(output_dir: String = "") -> void:
 	if vp == null:
 		screenshot_failed.emit("Viewport no disponible")
 		return
-	var legend_was_visible: bool = _legend_canvas != null and _legend_canvas.visible
-	if _legend_canvas != null:
-		_legend_canvas.visible = false
-	# frame_post_draw no dispara nunca en --headless (no hay render): la
-	# corrutina se colgaria sin emitir senal. Ahi basta un process_frame.
-	if DisplayServer.get_name() == "headless":
-		await get_tree().process_frame
+	var img: Image = null
+	if screenshot_use_clean_viewport and _camera != null and DisplayServer.get_name() != "headless":
+		img = await _render_clean_screenshot(vp)
 	else:
-		await RenderingServer.frame_post_draw
-	var img := vp.get_texture().get_image()
-	if _legend_canvas != null:
-		_legend_canvas.visible = legend_was_visible
+		# Camino antiguo: fotografiar el viewport raiz, con HUD incluido.
+		var legend_was_visible: bool = _legend_canvas != null and _legend_canvas.visible
+		if _legend_canvas != null:
+			_legend_canvas.visible = false
+		# frame_post_draw no dispara nunca en --headless (no hay render): la
+		# corrutina se colgaria sin emitir senal. Ahi basta un process_frame.
+		if DisplayServer.get_name() == "headless":
+			await get_tree().process_frame
+		else:
+			await RenderingServer.frame_post_draw
+		img = vp.get_texture().get_image()
+		if _legend_canvas != null:
+			_legend_canvas.visible = legend_was_visible
 	if img == null:
 		screenshot_failed.emit("get_image() devolvio null")
 		return
@@ -385,6 +418,48 @@ func capture_screenshot_to(output_dir: String = "") -> void:
 		screenshot_saved.emit(file_path)
 	else:
 		screenshot_failed.emit("Error %d al guardar %s" % [err, file_path])
+
+
+## Render de la escena 3D en un viewport aparte, con una camara clonada de la
+## activa. Comparte el mismo World3D, asi que se ve exactamente la misma
+## escena, pero sin nada de la interfaz: el HUD y la leyenda viven en capas de
+## lienzo del viewport raiz y no entran aqui (V3-2).
+func _render_clean_screenshot(source_vp: Viewport) -> Image:
+	var sub := SubViewport.new()
+	sub.name = "ScreenshotViewport"
+	var size: Vector2i = screenshot_size_px
+	if size.x <= 0 or size.y <= 0:
+		size = Vector2i(source_vp.get_visible_rect().size)
+	sub.size = Vector2i(maxi(16, size.x), maxi(16, size.y))
+	sub.world_3d = source_vp.world_3d
+	sub.own_world_3d = false
+	sub.transparent_bg = screenshot_transparent_background
+	sub.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	sub.msaa_3d = source_vp.msaa_3d
+
+	var cam := Camera3D.new()
+	cam.name = "ScreenshotCamera"
+	cam.fov = _camera.fov
+	cam.near = _camera.near
+	cam.far = _camera.far
+	cam.projection = _camera.projection
+	cam.size = _camera.size
+	cam.environment = _camera.environment
+	cam.attributes = _camera.attributes
+	sub.add_child(cam)
+	add_child(sub)
+	cam.global_transform = _camera.global_transform
+	cam.current = true
+
+	# Dos vueltas: la primera monta el viewport, la segunda ya tiene imagen.
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+	var texture: ViewportTexture = sub.get_texture()
+	var img: Image = texture.get_image() if texture != null else null
+
+	remove_child(sub)
+	sub.queue_free()
+	return img
 
 
 func select_room(room_id: int) -> void:
@@ -485,7 +560,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
-				if ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m):
+				if ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m()):
 					var player_start_hit: Dictionary = _player_start_at_screen_pos(mb.position)
 					if not player_start_hit.is_empty():
 						var start_room_id: int = int(player_start_hit.get("room_id", -1))
@@ -544,16 +619,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif _is_element_dragging():
 				_finish_element_drag()
 				get_viewport().set_input_as_handled()
-		elif mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m):
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m()):
 			_orbit_dragging = true
 			get_viewport().set_input_as_handled()
 		elif not mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT:
 			_orbit_dragging = false
-		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m):
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m()):
 			_camera_distance = CameraOrbit3D.zoom_distance(_camera_distance, camera_zoom_step_m, true, min_camera_distance_m, max_camera_distance_m)
 			_apply_camera_transform()
 			get_viewport().set_input_as_handled()
-		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m):
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and ScreenPicking3D.is_screen_point_over_model(_camera, _bounds_m, mb.position, meters_to_units, _origin_offset_m, _floor_levels_m()):
 			_camera_distance = CameraOrbit3D.zoom_distance(_camera_distance, camera_zoom_step_m, false, min_camera_distance_m, max_camera_distance_m)
 			_apply_camera_transform()
 			get_viewport().set_input_as_handled()
@@ -776,11 +851,13 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 	var smoke := _create_box("SmokeVolume", Vector3.ONE, _make_smoke_volume_material())
 	smoke.visible = false
 	_disable_shadow_casting(smoke)
+	_set_alpha_layer_priority(smoke, render_priority_smoke_volume)
 	_atmosphere_root.add_child(smoke)
 
 	var smoke_plume := _create_box("SmokePlume_%02d" % room_id, Vector3.ONE, _make_smoke_volume_material())
 	smoke_plume.visible = false
 	_disable_shadow_casting(smoke_plume)
+	_set_alpha_layer_priority(smoke_plume, render_priority_smoke_volume)
 	_atmosphere_root.add_child(smoke_plume)
 
 	var smoke_puffs_root := Node3D.new()
@@ -796,21 +873,25 @@ func _create_room(room_id: int, rect_m: Rect2) -> void:
 
 	var smoke_ceiling_mask := SmokeLayerVisuals.create_ceiling_mask("SmokeCeilingMask_%02d" % room_id)
 	smoke_ceiling_mask.visible = show_smoke_ceiling_masks
+	_set_alpha_layer_priority(smoke_ceiling_mask, render_priority_ceiling_mask)
 	_atmosphere_root.add_child(smoke_ceiling_mask)
 
 	var gradient_band := _create_box("LayerGradient_%02d" % room_id, Vector3.ONE, _make_material(layer_gradient_top_color, true))
 	gradient_band.visible = false
 	_disable_shadow_casting(gradient_band)
+	_set_alpha_layer_priority(gradient_band, render_priority_layer_gradient)
 	_atmosphere_root.add_child(gradient_band)
 
 	var hot := _create_box("HotLayer_%02d" % room_id, Vector3.ONE, _make_material(hot_layer_color, true))
 	hot.visible = false
 	_disable_shadow_casting(hot)
+	_set_alpha_layer_priority(hot, render_priority_hot_layer)
 	_atmosphere_root.add_child(hot)
 
 	var l150 := _create_box("Layer150C_%02d" % room_id, Vector3.ONE, _make_material(layer_150c_color, true))
 	l150.visible = false
 	_disable_shadow_casting(l150)
+	_set_alpha_layer_priority(l150, render_priority_layer_150c)
 	_atmosphere_root.add_child(l150)
 
 	var fire_root := Node3D.new()
@@ -1263,6 +1344,7 @@ func _create_opening(index: int) -> void:
 		curtain.position = marker.position
 		curtain.visible = false
 		_disable_shadow_casting(curtain)
+		_set_alpha_layer_priority(curtain, render_priority_opening_curtain)
 		_atmosphere_root.add_child(curtain)
 		var inflow := _create_box(
 			"AirInflowCurtain_%02d" % index,
@@ -1272,6 +1354,7 @@ func _create_opening(index: int) -> void:
 		inflow.position = marker.position
 		inflow.visible = false
 		_disable_shadow_casting(inflow)
+		_set_alpha_layer_priority(inflow, render_priority_opening_inflow)
 		_atmosphere_root.add_child(inflow)
 		_opening_items[index]["smoke_curtain"] = curtain
 		_opening_items[index]["air_inflow_curtain"] = inflow
@@ -1285,6 +1368,7 @@ func _create_opening(index: int) -> void:
 			plume.position = marker.position
 			plume.visible = false
 			_disable_shadow_casting(plume)
+			_set_alpha_layer_priority(plume, render_priority_exterior_plume)
 			_atmosphere_root.add_child(plume)
 			_opening_items[index]["smoke_exterior_plume"] = plume
 
@@ -1946,9 +2030,54 @@ func _node_floor_position_m(node: Node3D) -> Vector2:
 	)
 
 
+## Cotas de planta presentes en el edificio, para que el picking no se resuelva
+## siempre contra y = 0 (V3-3).
+func _floor_levels_m() -> Array[float]:
+	var levels: Array[float] = []
+	if building == null:
+		return levels
+	for key in building.get_rooms().keys():
+		var room: RoomModel = building.get_room(int(key))
+		if room == null:
+			continue
+		var level_m: float = room.floor_level_z_m
+		var known: bool = false
+		for existing in levels:
+			if absf(existing - level_m) <= 0.05:
+				known = true
+				break
+		if not known:
+			levels.append(level_m)
+	return levels
+
+
 func _fuel_object_at_screen_pos(screen_pos: Vector2) -> Dictionary:
 	var best: Dictionary = {}
 	var best_distance: float = 999999.0
+	# Primero, lo que se pincha DENTRO de su silueta: medir la distancia al
+	# origen del nodo hacia que los muebles grandes fuesen dificiles de clicar
+	# por los bordes, que es justo donde se pincha (V3-4).
+	var inside_best: Dictionary = {}
+	var inside_depth: float = 999999.0
+	for room_id in _room_items.keys():
+		var item: Dictionary = _room_items[room_id]
+		var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
+		for object_id in fuel_obj_nodes.keys():
+			var node := fuel_obj_nodes[object_id] as Node3D
+			var rect: Rect2 = _node_screen_rect(node)
+			if rect.size == Vector2.ZERO or not rect.has_point(screen_pos):
+				continue
+			if _camera == null:
+				continue
+			var depth: float = _camera.global_position.distance_to(node.global_position)
+			if depth < inside_depth:
+				inside_depth = depth
+				inside_best = {"room_id": int(room_id), "object_id": String(object_id)}
+	if not inside_best.is_empty():
+		return inside_best
+
+	# Si no se ha pinchado dentro de ninguno, se admite el mas cercano por
+	# proximidad, como antes, para no perder el clic aproximado.
 	for room_id in _room_items.keys():
 		var item: Dictionary = _room_items[room_id]
 		var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
@@ -1961,7 +2090,7 @@ func _fuel_object_at_screen_pos(screen_pos: Vector2) -> Dictionary:
 					"room_id": int(room_id),
 					"object_id": String(object_id)
 				}
-	return best if best_distance <= 34.0 else {}
+	return best if best_distance <= fuel_object_pick_radius_px else {}
 
 
 func _safety_marker_at_screen_pos(screen_pos: Vector2) -> Dictionary:
@@ -1995,6 +2124,41 @@ func _player_start_at_screen_pos(screen_pos: Vector2) -> Dictionary:
 	return {
 		"room_id": int(building.player_start.get("room_id", -1))
 	}
+
+
+## Rectangulo en pantalla que ocupa un nodo, uniendo las cajas de todas sus
+## mallas y proyectando las ocho esquinas. Es lo que permite pinchar un mueble
+## por su silueta y no solo por su centro (V3-4).
+func _node_screen_rect(node: Node3D) -> Rect2:
+	if _camera == null or node == null or not node.is_visible_in_tree():
+		return Rect2()
+	var meshes: Array[MeshInstance3D] = []
+	_collect_mesh_instances(node, meshes)
+	if meshes.is_empty():
+		return Rect2()
+	var rect := Rect2()
+	var started: bool = false
+	for mesh in meshes:
+		var aabb: AABB = mesh.get_aabb()
+		for corner_i in range(8):
+			var corner: Vector3 = mesh.global_transform * aabb.get_endpoint(corner_i)
+			if _camera.is_position_behind(corner):
+				return Rect2()
+			var projected: Vector2 = _camera.unproject_position(corner)
+			if not started:
+				rect = Rect2(projected, Vector2.ZERO)
+				started = true
+			else:
+				rect = rect.expand(projected)
+	return rect.grow(fuel_object_pick_margin_px) if started else Rect2()
+
+
+func _collect_mesh_instances(node: Node, out: Array[MeshInstance3D]) -> void:
+	var mesh := node as MeshInstance3D
+	if mesh != null and mesh.is_visible_in_tree():
+		out.append(mesh)
+	for child in node.get_children():
+		_collect_mesh_instances(child, out)
 
 
 func _node_screen_distance(node: Node3D, screen_pos: Vector2) -> float:
@@ -2700,6 +2864,16 @@ func _make_smoke_volume_material() -> ShaderMaterial:
 		smoke_noise_texture_strength,
 		smoke_noise_texture_uv_scale
 	)
+
+
+## Fija la prioridad de dibujado de una capa translucida. Es lo unico que
+## hace determinista el orden entre las capas de una misma sala (V3-1).
+func _set_alpha_layer_priority(node: MeshInstance3D, priority: int) -> void:
+	if node == null:
+		return
+	var material := node.material_override as Material
+	if material != null:
+		material.render_priority = priority
 
 
 func _make_material(color: Color, transparent: bool) -> StandardMaterial3D:
