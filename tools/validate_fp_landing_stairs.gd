@@ -31,6 +31,7 @@ func _run() -> void:
 		_validate_stair_structure(world)
 		_validate_landing_lighting(world)
 		_validate_single_landing_per_floor(world)
+		_validate_landing_front_is_closed(world)
 
 	remove_child(fp)
 	fp.free()
@@ -117,6 +118,19 @@ func _validate_single_landing_per_floor(world: Node) -> void:
 	_expect(
 		_find_meshes(world, "LandingUpCurrent_01_Step_").is_empty(),
 		"Duplicated landing stairs for a second exterior door"
+	)
+
+
+## El rellano es mas ancho que el muro de la vivienda: sin frente propio, el
+## resto del portal queda abierto al exterior y entra el sol.
+func _validate_landing_front_is_closed(world: Node) -> void:
+	_expect(
+		_find_meshes(world, "LandingFrontWall_00_").size() == 2,
+		"Landing front must be closed at both sides of the flat door"
+	)
+	_expect(
+		_find_meshes(world, "LandingFrontLintel_00").size() == 1,
+		"Landing front lintel missing above the flat door"
 	)
 
 

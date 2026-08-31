@@ -1603,7 +1603,11 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	var depth_m: float = maxf(3.30, landing_recess_depth_m * 2.35)
 	var corridor_height_m: float = landing_floor_height_m
 
-	var floor_center: Vector3 = center - normal * (depth_m * 0.5 + 0.08)
+	# El rellano se pega a la cara exterior del tabique de la vivienda, que esta
+	# a wall_thickness_m * 0.5. Arrancando en 0.08 quedaba una rendija de 3 cm
+	# en todo el encuentro (suelo, techo y laterales) por la que entraba luz.
+	var landing_join_m: float = maxf(0.0, wall_thickness_m * 0.5 - 0.02)
+	var floor_center: Vector3 = center - normal * (depth_m * 0.5 + landing_join_m)
 	floor_center.y = floor_level_m - floor_thickness_m * 0.5
 
 	# Caja de escalera contra la pared derecha. Dos tiros paralelos conectan
@@ -1624,7 +1628,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4100 + index)
 	)
 
-	var wall_center: Vector3 = center - normal * (depth_m + 0.11)
+	var wall_center: Vector3 = center - normal * (landing_join_m + depth_m + 0.03)
 	wall_center.y = floor_level_m + corridor_height_m * 0.5
 	var wall_size := Vector3(width_m, corridor_height_m, wall_thickness_m) if horizontal else Vector3(wall_thickness_m, corridor_height_m, width_m)
 	_add_box(
@@ -1648,6 +1652,18 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 			_mat(landing_wall_color.darkened(0.06), false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4250 + index),
 			false
 		)
+
+	_create_landing_front_wall(
+		index,
+		center,
+		normal,
+		tangent,
+		floor_level_m,
+		width_m,
+		corridor_height_m,
+		float(info.get("width_m", 0.86)),
+		float(info.get("height_m", 2.03))
+	)
 
 	var ceiling_center: Vector3 = floor_center
 	ceiling_center.y = floor_level_m + corridor_height_m + ceiling_thickness_m * 0.5
@@ -1781,6 +1797,64 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		corridor_height_m,
 		stair_layout
 	)
+
+
+## Frente del rellano hacia la fachada, con el hueco de la puerta recortado.
+##
+## El muro de la vivienda solo cubre su propio ancho (1,40 m en los pisos de
+## referencia) frente a los 5,40 m que mide el rellano: los 4 m restantes
+## quedaban ABIERTOS al exterior, y por ahi entraba el sol a plena luz en un
+## portal que deberia ser interior (de ahi las sombras duras que barrian el
+## rellano al moverse). Se apoya en la cara exterior del tabique de la
+## vivienda sin quedar coplanar con el, para no provocar z-fighting.
+func _create_landing_front_wall(
+	index: int,
+	door_center: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	floor_level_m: float,
+	width_m: float,
+	corridor_height_m: float,
+	door_width_m: float,
+	door_height_m: float
+) -> void:
+	var material: StandardMaterial3D = _mat(landing_wall_color.darkened(0.04), false)
+	var opening_w: float = clampf(door_width_m + 0.16, 0.40, maxf(0.40, width_m - 0.40))
+	var opening_h: float = clampf(door_height_m + 0.12, 0.50, maxf(0.50, corridor_height_m - 0.05))
+	var plane_offset_m: float = wall_thickness_m
+	var side_span: float = maxf(0.0, (width_m - opening_w) * 0.5)
+	if side_span > 0.02:
+		for side_sign in [-1.0, 1.0]:
+			var segment_center: Vector3 = door_center \
+				- normal * plane_offset_m \
+				+ tangent * side_sign * (opening_w * 0.5 + side_span * 0.5)
+			segment_center.y = floor_level_m + corridor_height_m * 0.5
+			_add_oriented_box(
+				_world_root,
+				"LandingFrontWall_%02d_%s" % [index, "L" if side_sign < 0.0 else "R"],
+				segment_center,
+				tangent,
+				side_span,
+				corridor_height_m,
+				wall_thickness_m,
+				material,
+				false
+			)
+	var lintel_h: float = maxf(0.0, corridor_height_m - opening_h)
+	if lintel_h > 0.02:
+		var lintel_center: Vector3 = door_center - normal * plane_offset_m
+		lintel_center.y = floor_level_m + opening_h + lintel_h * 0.5
+		_add_oriented_box(
+			_world_root,
+			"LandingFrontLintel_%02d" % index,
+			lintel_center,
+			tangent,
+			opening_w,
+			lintel_h,
+			wall_thickness_m,
+			material,
+			false
+		)
 
 
 ## Iluminacion propia del portal: plafon del rellano + luz de la caja de
