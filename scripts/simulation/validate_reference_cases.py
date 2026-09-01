@@ -30,6 +30,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 REPORTS_DIR = ROOT / "sim" / "validation" / "reports"
 CFAST_DIR = ROOT / "sim" / "validation" / "cfast"
+REQUIRED_POLICY_PATH = Path(__file__).with_name("reference_required_policy.json")
 
 CFAST_RUNTIME_CASES: tuple[str, ...] = (
     "cfast_r0_window_360",
@@ -55,6 +56,38 @@ REFERENCE_RUNTIME_CASES: tuple[str, ...] = (
     "ghanekar_bedroom_hallway",
     "ghanekar_kitchen_living_room",
 )
+
+
+def _load_required_policy() -> dict[str, bool]:
+    data = json.loads(REQUIRED_POLICY_PATH.read_text(encoding="utf-8"))
+    if data.get("schema_version") != 1:
+        raise ValueError("unsupported baseline required-policy schema")
+    if data.get("contract") != "explicit-stable-required-v1":
+        raise ValueError("unexpected baseline required-policy contract")
+    checks = data.get("checks")
+    if not isinstance(checks, dict) or not all(
+        isinstance(name, str) and isinstance(required, bool)
+        for name, required in checks.items()
+    ):
+        raise ValueError("invalid baseline required-policy checks")
+    if data.get("check_count") != len(checks):
+        raise ValueError("baseline required-policy check count mismatch")
+    required_count = sum(checks.values())
+    if data.get("required_count") != required_count:
+        raise ValueError("baseline required-policy required count mismatch")
+    if data.get("optional_count") != len(checks) - required_count:
+        raise ValueError("baseline required-policy optional count mismatch")
+    return checks
+
+
+_BASELINE_REQUIRED_POLICY = _load_required_policy()
+
+
+def _baseline_check_required(name: str) -> bool:
+    try:
+        return _BASELINE_REQUIRED_POLICY[name]
+    except KeyError as exc:
+        raise ValueError(f"missing explicit required policy for baseline check: {name}") from exc
 
 
 def _missing_runtime_inputs() -> list[Path]:
@@ -615,8 +648,8 @@ def _build_checks_from_baseline_json(
     """Build Check objects from a case's baseline JSON file.
 
     Reads reports/{case_name}.json and creates one Check per entry in
-    baseline.checks.  Each check is required=True when the stored pass flag is
-    True, and required=False (known gap) when it was already failing.
+    baseline.checks. Required/optional classification comes exclusively from
+    the versioned explicit policy; measured pass/fail never changes authority.
 
     force_optional: set of check_key strings that must be required=False even if
     they currently pass (use for known structural gaps).
@@ -644,10 +677,15 @@ def _build_checks_from_baseline_json(
     for check_key, check_data in case_checks.items():
         actual = check_data.get("actual")
         rule = check_data.get("rule", {})
-        is_required = check_data.get("pass", False) and check_key not in fo
+        check_name = f"{pfx}_{check_key}"
+        is_required = _baseline_check_required(check_name)
+        if check_key in fo and is_required:
+            raise ValueError(
+                f"explicit required policy conflicts with force_optional: {check_name}"
+            )
         note = rule.get("_note") or rule.get("comment") or f"Regression baseline: {case_name}"
         results.append(Check(
-            name=f"{pfx}_{check_key}",
+            name=check_name,
             actual=actual,
             expected=rule.get("expected"),
             tolerance=rule.get("tolerance"),
