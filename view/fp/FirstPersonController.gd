@@ -688,6 +688,7 @@ var _fire_nodes_by_room: Dictionary = {}
 var _wall_segment_boxes: Dictionary = {}
 ## Evita que un setter que reconstruye el mundo se dispare a si mismo.
 var _rebuilding: bool = false
+var _rebuild_queued: bool = false
 ## Materiales opacos ya creados, indexados por color y ruido (M-3).
 var _material_cache: Dictionary = {}
 var _ceiling_lights_by_room: Dictionary = {}
@@ -798,6 +799,21 @@ func _rebuild_if_live() -> void:
 	# Guarda de reentrada: la reconstruccion vuelve a asignar algunas de estas
 	# mismas propiedades (apply_preset, opciones de arranque), y sin esto el
 	# setter se llama a si mismo y el juego se queda colgado.
+	if _rebuilding or _rebuild_queued or not is_inside_tree() or building == null or _world_root == null:
+		return
+	# La reconstruccion NO puede correr dentro de la llamada que asigna la
+	# propiedad. Cuando esa llamada viene del inspector remoto, es el depurador
+	# quien la esta ejecutando, y liberar y recrear cientos de nodos en mitad de
+	# su callback le desincroniza el stream: "Malformed packet received, not an
+	# Array" seguido de "Packet too large" y conexion caida. Aplazarla al final
+	# del frame la saca de ese callback, y de paso agrupa en una sola
+	# reconstruccion los varios interruptores que se toquen en el mismo frame.
+	_rebuild_queued = true
+	_rebuild_live_deferred.call_deferred()
+
+
+func _rebuild_live_deferred() -> void:
+	_rebuild_queued = false
 	if _rebuilding or not is_inside_tree() or building == null or _world_root == null:
 		return
 	_rebuilding = true

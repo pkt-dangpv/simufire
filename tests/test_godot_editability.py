@@ -469,13 +469,23 @@ class TestSmokeOpeningGeometry(unittest.TestCase):
         entrada: lo primero deshace el cambio recien hecho y lo segundo obliga
         a rehacer el camino en cada comparacion."""
         text = _read("view/fp/FirstPersonController.gd")
-        body = text.split("func _rebuild_if_live() -> void:", 1)[1]
-        body = body.split("\nfunc ", 1)[0]
-        # Los nombres prohibidos se citan en los comentarios que explican por
-        # que no se llaman desde aqui: mirar solo el codigo.
-        body = "\n".join(
-            line for line in body.splitlines() if not line.strip().startswith("#")
-        )
+
+        def code_of(signature: str) -> str:
+            body = text.split(signature, 1)[1].split("\nfunc ", 1)[0]
+            # Los nombres prohibidos se citan en los comentarios que explican
+            # por que no se llaman desde aqui: mirar solo el codigo.
+            return "\n".join(
+                line for line in body.splitlines() if not line.strip().startswith("#")
+            )
+
+        # El setter solo encola: reconstruir dentro de la llamada que asigna la
+        # propiedad desincroniza el depurador cuando quien asigna es el
+        # inspector remoto, y tumba la conexion a media bisección.
+        trigger = code_of("func _rebuild_if_live() -> void:")
+        self.assertIn("call_deferred", trigger)
+        self.assertNotIn("_rebuild_world()", trigger)
+
+        body = code_of("func _rebuild_live_deferred() -> void:")
         self.assertNotIn("_apply_startup_lighting_options", body)
         self.assertNotIn("_place_at_entry", body)
         self.assertNotIn("rebuild_from_building", body)

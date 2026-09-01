@@ -655,6 +655,18 @@ Corregido:
 
 Si ningún paso lo elimina, no es iluminación: quedan como sospechosos el **z-fighting** entre superficies coincidentes y el orden de las transparencias del overlay 3D, que en primera persona mantiene visible `_atmosphere_root`.
 
+**Tercer fallo de método: la reconstrucción en vivo tumbaba el depurador (2026-09-01).** Al primer intento real de la tabla anterior, el usuario cambió `exterior_sky_light_cast_shadows` y después `room_ceiling_lights_enabled`, y la conexión murió:
+
+```
+ERROR: Malformed packet received, not an Array.
+ERROR: Remote debugger: Packet too large (1836020852 > 8388612 bytes). Disconnecting.
+--- Debugging process stopped ---
+```
+
+El tamaño de paquete no es real: es basura leída de un stream ya desincronizado. La causa es que la reconstrucción corría **dentro de la llamada que asigna la propiedad**, y cuando esa llamada viene del inspector remoto quien la ejecuta es el depurador: liberar y recrear cientos de nodos en mitad de su callback le rompe el stream. Corregido aplazando la reconstrucción al final del frame (`_rebuild_if_live()` solo encola; el trabajo vive en `_rebuild_live_deferred()`), lo que además agrupa en una sola reconstrucción todos los interruptores que se toquen en el mismo frame. El guardarraíl `test_live_rebuild_does_not_undo_the_inspector` exige ahora las dos cosas: que el setter solo encole y que el trabajo diferido no reaplique las opciones de arranque.
+
+**Vía alternativa sin depurador.** `FirstPersonController` existe como nodo en `scenes/SimulationScene.tscn`, así que estos interruptores se pueden dejar puestos en la escena y arrancar con F5: una relanzada por paso, pero cero riesgo de desconexión. Dos excepciones, porque `_apply_startup_lighting_options()` los impone desde el escenario en cada arranque: `room_ceiling_lights_enabled` y `exterior_lighting_mode` **no** se pueden fijar así. El primero se gobierna con la casilla de luces interiores del editor de escenarios (`interior_lights_on` en el JSON) y el segundo con el modo día/noche del escenario.
+
 ---
 
 ## 13. Estado final de la línea visual (2026-08-31)
