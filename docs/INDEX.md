@@ -6,6 +6,7 @@ Este índice separa la documentación vigente del histórico, bibliografía y ar
 
 - [COMMANDS.md](COMMANDS.md): comandos oficiales de producto, validación y ejecución.
 - [HANDOFF_CURRENT_STATE.md](HANDOFF_CURRENT_STATE.md): estado actual para continuar desde otra máquina o sesión.
+- [HANDOFF_VISUAL_X8_2026-09-01.md](HANDOFF_VISUAL_X8_2026-09-01.md): estado de la línea visual para retomar; X-8 abierto y bisección pendiente.
 - [LOCAL_WORKSPACE.md](LOCAL_WORKSPACE.md): artefactos locales ignorados y limpieza segura.
 - [RUN_WITHOUT_ARTIFACTS.md](RUN_WITHOUT_ARTIFACTS.md): cómo ejecutar checks y escenarios sin ensuciar la raíz.
 - [ARTIFACT_POLICY.md](ARTIFACT_POLICY.md): política de artefactos, baselines y salidas locales.
