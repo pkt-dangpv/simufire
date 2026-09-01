@@ -32,10 +32,5 @@ rendering_device/driver.windows="d3d12"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality=0
-; GL Compatibility solo aplica N luces por objeto y ELIGE cuales segun la
-; camara. El mundo FP tiene ~23 omnis (techo por sala, luz por hueco,
-; rellano, fuego), asi que con el limite por defecto de 8 la seleccion
-; cambia al andar y la iluminacion salta: manchas redondas y cuadradas que
-; aparecen y desaparecen. Subirlo es lo que lo estabiliza.
-limits/opengl/max_lights_per_object=32
 textures/default_filters/anisotropic_filtering_level=4
+limits/opengl/max_lights_per_object=32

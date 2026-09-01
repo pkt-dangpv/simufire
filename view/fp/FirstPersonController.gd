@@ -66,7 +66,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var ambient_fill_height_m: float = 1.6
 ## Multiplicador del alcance de la luz ambiental respecto al lado mayor del edificio.
 @export var ambient_fill_range_factor: float = 1.35
-@export var room_ceiling_lights_enabled: bool = true
+@export var room_ceiling_lights_enabled: bool = true:
+	set(value):
+		room_ceiling_lights_enabled = value
+		_rebuild_if_live()
 @export var room_ceiling_light_energy: float = 0.56
 @export var room_ceiling_light_range_extra_m: float = 1.25
 @export var room_ceiling_light_color: Color = Color(1.0, 0.88, 0.68, 1.0)
@@ -106,19 +109,28 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_group("Materiales FP")
 ## Ruido de superficie en muros, suelos y techos. Sin el, toda la escena es
 ## color plano y se lee como maqueta de carton (FP-2 / M-1).
-@export var use_procedural_surface_noise: bool = true
+@export var use_procedural_surface_noise: bool = true:
+	set(value):
+		use_procedural_surface_noise = value
+		_rebuild_if_live()
 @export var material_noise_frequency: float = 0.075
 ## Contraste del ruido: cuanto llega a oscurecer la mota mas oscura respecto
 ## al color base. Bajo a proposito; el ruido rompe el plano, no mancha.
 ## Medido sobre una captura del pasillo, 0,13 daba manchas que se leen como
 ## humedades, no como enfoscado. El ruido debe insinuarse, no mancharse.
-@export_range(0.0, 0.6, 0.01) var material_noise_contrast: float = 0.06
+@export_range(0.0, 0.6, 0.01) var material_noise_contrast: float = 0.06:
+	set(value):
+		material_noise_contrast = value
+		_rebuild_if_live()
 ## Tamano en metros del patron de ruido. Se aplica con UV triplanar en
 ## coordenadas de mundo, asi que la escala es la misma en un tabique de 6 m
 ## y en una jamba de 0,2 m, y el patron encaja entre piezas contiguas.
 ## Tamano del patron. Con 1,8 m las manchas eran del tamano de una persona y
 ## se leian como suciedad; a menos de 1 m el grano pasa a ser de material.
-@export_range(0.2, 8.0, 0.1) var material_noise_size_m: float = 0.85
+@export_range(0.2, 8.0, 0.1) var material_noise_size_m: float = 0.85:
+	set(value):
+		material_noise_size_m = value
+		_rebuild_if_live()
 ## Multiplicador de contraste de la capa de suciedad de suelos y rodapies,
 ## que si admiten mas variacion que un paramento vertical.
 @export_range(1.0, 4.0, 0.1) var material_floor_dirt_boost: float = 2.1
@@ -150,7 +162,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Compatibility no tiene SSAO, asi que se oscurece la franja cercana a las
 ## aristas de cada pieza desde el propio shader (M-2). Apagarlo devuelve las
 ## superficies a StandardMaterial3D.
-@export var surface_contact_ao_enabled: bool = true
+@export var surface_contact_ao_enabled: bool = true:
+	set(value):
+		surface_contact_ao_enabled = value
+		_rebuild_if_live()
 ## Cuanto se oscurece la arista.
 @export_range(0.0, 1.0, 0.01) var surface_contact_ao_strength: float = 0.34
 ## En cuantos metros se difumina ese oscurecimiento.
@@ -193,13 +208,19 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_enum("Dia", "Noche") var exterior_lighting_mode: String = "Dia"
 ## Sombras en la luz direccional del cielo. Sin sombras esta luz atraviesa
 ## las paredes e ilumina esquinas interiores (recomendado activarlo).
-@export var exterior_sky_light_cast_shadows: bool = true
+@export var exterior_sky_light_cast_shadows: bool = true:
+	set(value):
+		exterior_sky_light_cast_shadows = value
+		_rebuild_if_live()
 ## Las piezas decorativas finas y casi coplanarias con el muro que las recibe
 ## (rodapie, chapa de fachada, bordillo y grava del porche) proyectan sombra
 ## sobre esa misma superficie. Con un mapa de sombra ortogonal que sigue a la
 ## camara, eso da acne de sombra que se mueve al andar, sobre todo en pasillos
 ## y en el rellano. Apagarlas no cambia la lectura de la escena.
-@export var decorative_pieces_cast_shadows: bool = false
+@export var decorative_pieces_cast_shadows: bool = false:
+	set(value):
+		decorative_pieces_cast_shadows = value
+		_rebuild_if_live()
 @export var exterior_day_sky_light_energy: float = 0.58
 @export var exterior_night_sky_light_energy: float = 0.16
 @export var exterior_day_sky_light_color: Color = Color(0.88, 0.92, 1.0, 1.0)
@@ -635,6 +656,8 @@ var _fire_nodes_by_room: Dictionary = {}
 ## Cajas de tabique ya construidas en esta reconstruccion, para no duplicar
 ## medianeras entre salas contiguas (FP-1).
 var _wall_segment_boxes: Dictionary = {}
+## Evita que un setter que reconstruye el mundo se dispare a si mismo.
+var _rebuilding: bool = false
 ## Materiales opacos ya creados, indexados por color y ruido (M-3).
 var _material_cache: Dictionary = {}
 var _ceiling_lights_by_room: Dictionary = {}
@@ -726,6 +749,21 @@ func set_active(enabled: bool) -> void:
 		if _visibility_overlay != null:
 			_visibility_overlay.color = Color(0.08, 0.09, 0.09, 0.0)
 		_stop_detector_alarms()
+
+
+## Reconstruye el mundo si ya existe. Lo usan los setters de los parametros
+## que solo se leen al construir (materiales, luces, sombras): sin esto,
+## cambiarlos en el inspector no hacia NADA hasta reiniciar, que es una trampa
+## para quien intenta calibrar o diagnosticar.
+func _rebuild_if_live() -> void:
+	# Guarda de reentrada: la reconstruccion vuelve a asignar algunas de estas
+	# mismas propiedades (apply_preset, opciones de arranque), y sin esto el
+	# setter se llama a si mismo y el juego se queda colgado.
+	if _rebuilding or not is_inside_tree() or building == null or _world_root == null:
+		return
+	_rebuilding = true
+	rebuild_from_building()
+	_rebuilding = false
 
 
 func rebuild_from_building() -> void:

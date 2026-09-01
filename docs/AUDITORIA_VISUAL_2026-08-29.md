@@ -626,7 +626,11 @@ Y una advertencia sobre esas cifras: al girar 0,4° con 75° de campo la imagen 
 
 Los cambios de sombra (bias 0,18, alcance 15 m, filtro sin tramado) se conservan porque son defendibles por sí mismos, pero **no están verificados como solución de esto**.
 
-**Siguiente paso: bisección por el usuario**, que es quien ve el fenómeno. Todos los interruptores necesarios están ya en el inspector de `FirstPersonController`: `exterior_sky_light_cast_shadows`, `surface_contact_ao_enabled`, `use_procedural_surface_noise`, `room_ceiling_lights_enabled` y `opening_lights_cast_shadows`. Apagando uno cada vez se identifica el subsistema responsable en unos minutos.
+**Primer intento de bisección: fallido por culpa de la instrucción, no del usuario.** Se le pidió apagar cinco interruptores uno a uno desde el inspector remoto, con el juego corriendo. Ninguno tuvo efecto, y la razón es que **cuatro de los cinco solo se leen al construir el mundo**: `use_procedural_surface_noise` y `surface_contact_ao_enabled` se consultan al crear los materiales, `exterior_sky_light_cast_shadows` al crear la luz, y `room_ceiling_lights_enabled` al crear las luces de techo. Cambiarlos en caliente no hacía nada. Sólo `show_smoke_volume` se aplica de verdad en vivo, y ése sí queda descartado.
+
+Es un caso claro de export que **parece** editable y no lo es, justo lo contrario de la regla del proyecto. Corregido: esas propiedades tienen ahora `set` que reconstruye el mundo si ya existe (`_rebuild_if_live()`), con guarda de reentrada, porque la reconstrucción vuelve a asignar algunas de ellas y sin la guarda el juego se cuelga —lo hizo, y lo cazó `validate_furniture_runtime` al agotar su tiempo—.
+
+Con eso la bisección vuelve a ser viable **y ahora sí en caliente**: apagar uno cada vez desde el inspector remoto reconstruye la vivienda al instante.
 
 ---
 
