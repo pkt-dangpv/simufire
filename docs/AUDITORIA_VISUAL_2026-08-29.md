@@ -632,6 +632,29 @@ Es un caso claro de export que **parece** editable y no lo es, justo lo contrari
 
 Con eso la bisección vuelve a ser viable **y ahora sí en caliente**: apagar uno cada vez desde el inspector remoto reconstruye la vivienda al instante.
 
+**Segundo fallo de método, encontrado antes de volver a molestar al usuario (2026-09-01).** Los setters del commit anterior no bastaban: la reconstrucción que disparan pasa por `_apply_startup_lighting_options()`, y esa función **reescribe** `room_ceiling_lights_enabled` y `exterior_lighting_mode` desde el edificio. Es decir, apagar las luces de techo en el inspector las volvía a encender sola dentro de la misma reconstrucción. La trampa otra vez, ahora disfrazada de setter que sí funciona. Además la reconstrucción llamaba a `_place_at_entry()`, que devuelve al jugador a la puerta: en una bisección eso obliga a rehacer el camino hasta el artefacto en cada paso, justo cuando lo que se necesita es comparar dos estados desde el mismo punto de vista.
+
+Corregido:
+
+- `_rebuild_if_live()` ya no llama a `rebuild_from_building()`. Reconstruye el mundo y **conserva posición, guiñada y cabeceo**. En una reconstrucción pedida desde el inspector manda el inspector, no las opciones de arranque.
+- El guard de reentrada cubre también `rebuild_from_building()`, `setup()` y `apply_preset()`. Sin eso, ahora que esas propiedades tienen setter, **cada reconstrucción normal disparaba otra reconstrucción anidada dentro de sí misma**, y aplicar un preset disparaba una por cada propiedad que asigna.
+- Nueve interruptores más que solo se leían al construir pasan a aplicarse en vivo: `ambient_fill_enabled`, `room_ceiling_lights_cast_shadows`, `opening_lights_cast_shadows`, `exterior_context_enabled`, `exterior_lighting_mode`, `exterior_facade_fill_enabled`, `exterior_procedural_sky_enabled`, `exterior_own_facade_enabled`, `exterior_window_obstacles_enabled` y `opposite_facade_enabled`.
+- Dos guardarraíles nuevos en `tests/test_godot_editability.py`: `test_build_time_fp_knobs_apply_live` exige setter con `_rebuild_if_live()` en cada uno de esos interruptores, y `test_live_rebuild_does_not_undo_the_inspector` prohíbe que la reconstrucción en vivo reaplique las opciones de arranque o reubique al jugador.
+
+**Bisección propuesta, de corte grande a corte fino.** Cada paso es un solo booleano en el inspector remoto sobre `FirstPersonController`; la vivienda se reconstruye al instante y la cámara no se mueve, así que se compara desde el mismo sitio.
+
+| Paso | Interruptor | Qué elimina | Si el artefacto desaparece |
+|---|---|---|---|
+| 1 | `Exterior FP > exterior_context_enabled` | todo el exterior de una vez: sol, ciudad, fachadas, luces de ventana y cúpula | es exterior → seguir con los pasos 2-4 |
+| 2 | `exterior_sky_light_cast_shadows` | solo las sombras del sol | sombra del sol (hipótesis ya descartada una vez) |
+| 3 | `exterior_window_obstacles_enabled` | edificios de enfrente y sus luces de ventana | recuento de luces omni por objeto |
+| 4 | `exterior_own_facade_enabled` / `opposite_facade_enabled` | geometría de fachada casi coplanaria con el muro | z-fighting entre paramentos |
+| 5 | `Iluminacion FP > room_ceiling_lights_enabled` | luces de techo de cada sala | luces interiores |
+| 6 | `ambient_fill_enabled` | la omni ambiental global | el relleno ambiental |
+| 7 | `Materiales FP > use_procedural_surface_noise` y `surface_contact_ao_enabled` | ruido de superficie y oclusión de contacto | material (ya medido sin efecto en banco) |
+
+Si ningún paso lo elimina, no es iluminación: quedan como sospechosos el **z-fighting** entre superficies coincidentes y el orden de las transparencias del overlay 3D, que en primera persona mantiene visible `_atmosphere_root`.
+
 ---
 
 ## 13. Estado final de la línea visual (2026-08-31)

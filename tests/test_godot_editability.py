@@ -415,6 +415,72 @@ class TestSmokeOpeningGeometry(unittest.TestCase):
             "the unconditional both-sides neutral clamp must stay retired",
         )
 
+    def test_build_time_fp_knobs_apply_live(self):
+        """X-8: un @export que solo se lee al construir el mundo parece
+        editable y no lo es. Eso invalido dos bisecciones enteras: los cinco
+        interruptores del primer intento, y despues el propio
+        room_ceiling_lights_enabled, que la reconstruccion volvia a poner en su
+        valor anterior. Cada interruptor de esta lista gobierna geometria o
+        luces que solo se crean al construir, asi que debe traer setter que
+        reconstruya en vivo."""
+        rel = "view/fp/FirstPersonController.gd"
+        lines = _read(rel).splitlines()
+        for name in [
+            "ambient_fill_enabled",
+            "room_ceiling_lights_enabled",
+            "room_ceiling_lights_cast_shadows",
+            "opening_lights_cast_shadows",
+            "use_procedural_surface_noise",
+            "surface_contact_ao_enabled",
+            "exterior_context_enabled",
+            "exterior_lighting_mode",
+            "exterior_sky_light_cast_shadows",
+            "decorative_pieces_cast_shadows",
+            "exterior_facade_fill_enabled",
+            "exterior_procedural_sky_enabled",
+            "exterior_own_facade_enabled",
+            "exterior_window_obstacles_enabled",
+            "opposite_facade_enabled",
+        ]:
+            declarations = [
+                index
+                for index, line in enumerate(lines)
+                if line.startswith("@export") and (" var " + name + ":") in line
+            ]
+            self.assertEqual(
+                len(declarations),
+                1,
+                name + " debe declararse una sola vez como @export en " + rel,
+            )
+            block = [item.strip() for item in lines[declarations[0] : declarations[0] + 4]]
+            self.assertTrue(
+                block[0].endswith(":")
+                and block[1] == "set(value):"
+                and block[2] == name + " = value"
+                and block[3] == "_rebuild_if_live()",
+                name + " se lee al construir el mundo: necesita setter con "
+                "_rebuild_if_live(), o tocarlo en el inspector no hara nada",
+            )
+
+    def test_live_rebuild_does_not_undo_the_inspector(self):
+        """La reconstruccion en vivo no puede reaplicar las opciones de
+        arranque, que reescriben room_ceiling_lights_enabled y
+        exterior_lighting_mode desde el edificio, ni reubicar al jugador en la
+        entrada: lo primero deshace el cambio recien hecho y lo segundo obliga
+        a rehacer el camino en cada comparacion."""
+        text = _read("view/fp/FirstPersonController.gd")
+        body = text.split("func _rebuild_if_live() -> void:", 1)[1]
+        body = body.split("\nfunc ", 1)[0]
+        # Los nombres prohibidos se citan en los comentarios que explican por
+        # que no se llaman desde aqui: mirar solo el codigo.
+        body = "\n".join(
+            line for line in body.splitlines() if not line.strip().startswith("#")
+        )
+        self.assertNotIn("_apply_startup_lighting_options", body)
+        self.assertNotIn("_place_at_entry", body)
+        self.assertNotIn("rebuild_from_building", body)
+        self.assertIn("_rebuild_world()", body)
+
     def test_exterior_openings_get_a_rising_plume(self):
         text = _read("view/3d/smoke/SmokeOpeningCurtain3D.gd")
         self.assertIn("_update_exterior_plume", text)

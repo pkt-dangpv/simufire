@@ -59,7 +59,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var boundary_height_m: float = 2.6
 
 @export_group("Iluminacion FP")
-@export var ambient_fill_enabled: bool = true
+@export var ambient_fill_enabled: bool = true:
+	set(value):
+		ambient_fill_enabled = value
+		_rebuild_if_live()
 @export var ambient_fill_energy: float = 0.30
 @export var ambient_fill_color: Color = Color(0.72, 0.78, 0.82, 1.0)
 ## Altura (m) de la luz ambiental global sobre el suelo.
@@ -87,7 +90,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export_range(0.0, 1.0, 0.05) var room_ceiling_light_smoke_range_min_factor: float = 1.0
 ## Sombras en las luces de techo. Elimina del todo la luz que atraviesa
 ## paredes, con coste de rendimiento (una luz sombreada por sala).
-@export var room_ceiling_lights_cast_shadows: bool = false
+@export var room_ceiling_lights_cast_shadows: bool = false:
+	set(value):
+		room_ceiling_lights_cast_shadows = value
+		_rebuild_if_live()
 @export var landing_light_energy: float = 0.92
 @export var landing_light_closed_ratio: float = 0.12
 @export var landing_light_range_m: float = 3.6
@@ -101,7 +107,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## con 10+ ventanas hunde el framerate. Off por defecto; activar solo en
 ## equipos potentes. La luz del sol (sky light, direccional) si mantiene
 ## sombras y es la que da el haz principal por las ventanas.
-@export var opening_lights_cast_shadows: bool = false
+@export var opening_lights_cast_shadows: bool = false:
+	set(value):
+		opening_lights_cast_shadows = value
+		_rebuild_if_live()
 ## Atenuacion de las luces de aperturas. >1.0 concentra la luz junto a la
 ## ventana/puerta; <1.0 la reparte mas al interior.
 @export_range(0.2, 4.0, 0.05) var opening_light_attenuation: float = 1.4
@@ -204,8 +213,14 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var window_glass_crack_color: Color = Color(0.88, 0.98, 1.0, 0.78)
 
 @export_group("Exterior FP")
-@export var exterior_context_enabled: bool = true
-@export_enum("Dia", "Noche") var exterior_lighting_mode: String = "Dia"
+@export var exterior_context_enabled: bool = true:
+	set(value):
+		exterior_context_enabled = value
+		_rebuild_if_live()
+@export_enum("Dia", "Noche") var exterior_lighting_mode: String = "Dia":
+	set(value):
+		exterior_lighting_mode = value
+		_rebuild_if_live()
 ## Sombras en la luz direccional del cielo. Sin sombras esta luz atraviesa
 ## las paredes e ilumina esquinas interiores (recomendado activarlo).
 @export var exterior_sky_light_cast_shadows: bool = true:
@@ -256,7 +271,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var exterior_soft_fill_height_m: float = 3.2
 ## Relleno local por fachada. Evita que una orientacion perpendicular al sol
 ## quede negra sin aumentar la luz que atraviesa toda la vivienda.
-@export var exterior_facade_fill_enabled: bool = true
+@export var exterior_facade_fill_enabled: bool = true:
+	set(value):
+		exterior_facade_fill_enabled = value
+		_rebuild_if_live()
 @export_range(0.0, 2.0, 0.01) var exterior_facade_fill_day_energy: float = 0.26
 @export_range(0.0, 2.0, 0.01) var exterior_facade_fill_night_energy: float = 0.07
 @export var exterior_facade_fill_day_color: Color = Color(0.76, 0.84, 0.92, 1.0)
@@ -265,7 +283,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Cielo: domo geometrico con gradiente y sol (view/fp/FPSkyDome.gd). Se usa
 ## geometria porque el renderer GL Compatibility no dibuja el sky de un
 ## Environment por camara.
-@export var exterior_procedural_sky_enabled: bool = true
+@export var exterior_procedural_sky_enabled: bool = true:
+	set(value):
+		exterior_procedural_sky_enabled = value
+		_rebuild_if_live()
 @export var sky_dome_radius_m: float = 160.0
 @export var sky_day_top_color: Color = Color(0.24, 0.45, 0.80, 1.0)
 @export var sky_day_horizon_color: Color = Color(0.78, 0.86, 0.93, 1.0)
@@ -286,7 +307,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 ## Lienzo de fachada del edificio del jugador, con los huecos recortados en
 ## las aberturas reales. Sin el, al asomarse a una ventana solo se ve el canto
 ## del forjado y un vacio hasta la calle.
-@export var exterior_own_facade_enabled: bool = true
+@export var exterior_own_facade_enabled: bool = true:
+	set(value):
+		exterior_own_facade_enabled = value
+		_rebuild_if_live()
 @export_range(0.04, 0.40, 0.01) var own_facade_thickness_m: float = 0.12
 ## Holgura del recorte alrededor de cada hueco (evita comerse la jamba).
 @export_range(0.0, 0.30, 0.01) var own_facade_hole_margin_m: float = 0.07
@@ -300,7 +324,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var city_view_width_m: float = 22.0
 @export var city_building_distance_m: float = 24.0
 @export var city_backdrop_distance_m: float = 52.0
-@export var exterior_window_obstacles_enabled: bool = true
+@export var exterior_window_obstacles_enabled: bool = true:
+	set(value):
+		exterior_window_obstacles_enabled = value
+		_rebuild_if_live()
 @export var city_building_count_per_window: int = 3
 @export var exterior_day_window_light_energy: float = 1.05
 @export var exterior_night_window_light_energy: float = 0.14
@@ -362,7 +389,10 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 @export var sidewalk_color: Color = Color(0.52, 0.51, 0.49, 1.0)
 @export var road_marking_color: Color = Color(0.78, 0.76, 0.62, 1.0)
 ## Fachada continua de enfrente (lo normal en ciudad, no bloques sueltos).
-@export var opposite_facade_enabled: bool = true
+@export var opposite_facade_enabled: bool = true:
+	set(value):
+		opposite_facade_enabled = value
+		_rebuild_if_live()
 @export var opposite_facade_height_m: float = 15.0
 @export var opposite_facade_length_m: float = 46.0
 @export var opposite_facade_day_color: Color = Color(0.55, 0.52, 0.48, 1.0)
@@ -694,9 +724,10 @@ func _ready() -> void:
 
 func setup(next_building: BuildingModel) -> void:
 	building = next_building
-	_apply_startup_lighting_options()
-	_rebuild_world()
-	_place_at_entry()
+	# Misma secuencia que rebuild_from_building(), y por eso se delega en
+	# ella: duplicarla dejaba esta construccion inicial fuera del guard de
+	# reentrada.
+	rebuild_from_building()
 
 
 ## Aplica los valores de [param p] (o de [member fp_preset] si p es null) sobre las propiedades
@@ -705,6 +736,11 @@ func apply_preset(p: FPPreset = null) -> void:
 	var src: FPPreset = p if p != null else fp_preset
 	if src == null:
 		return
+	# El preset asigna varias propiedades que ahora tienen setter propio.
+	# Sin el guard, aplicar un preset reconstruiria el mundo una vez por
+	# cada una de ellas; asi se reconstruye una sola vez y al final.
+	var was_rebuilding: bool = _rebuilding
+	_rebuilding = true
 	ambient_fill_enabled = src.ambient_fill_enabled
 	room_ceiling_lights_enabled = src.room_ceiling_lights_enabled
 	exterior_lighting_mode = src.exterior_lighting_mode
@@ -718,6 +754,9 @@ func apply_preset(p: FPPreset = null) -> void:
 	show_visibility_readout = src.show_visibility_readout
 	fp_victim_fed_incapacitated_threshold = src.fp_victim_fed_incapacitated_threshold
 	fp_victim_fed_fatal_threshold = src.fp_victim_fed_fatal_threshold
+	_rebuilding = was_rebuilding
+	if not was_rebuilding:
+		_rebuild_if_live()
 
 
 func set_active(enabled: bool) -> void:
@@ -762,14 +801,43 @@ func _rebuild_if_live() -> void:
 	if _rebuilding or not is_inside_tree() or building == null or _world_root == null:
 		return
 	_rebuilding = true
-	rebuild_from_building()
+	# Aqui NO se llama a rebuild_from_building(): esa reaplica las opciones de
+	# arranque, y _apply_startup_lighting_options() reescribe
+	# room_ceiling_lights_enabled y exterior_lighting_mode desde el edificio.
+	# Es decir, el interruptor recien tocado en el inspector volvia solo a su
+	# valor anterior y el cambio no llegaba a verse: la trampa de nuevo, ahora
+	# disfrazada de setter que si funciona. En una reconstruccion pedida desde
+	# el inspector manda el inspector.
+	#
+	# Tampoco se llama a _place_at_entry(): quien calibra o bisecciona esta
+	# mirando justo al detalle que quiere juzgar, y volver a la puerta en cada
+	# cambio obliga a rehacer el camino para comparar dos estados.
+	var keep_position: Vector3 = global_position
+	var keep_yaw: float = _yaw
+	var keep_pitch: float = _pitch
+	_rebuild_world()
+	global_position = keep_position
+	_yaw = keep_yaw
+	_pitch = keep_pitch
+	rotation.y = _yaw
+	if _camera != null:
+		_camera.rotation.x = _pitch
 	_rebuilding = false
 
 
 func rebuild_from_building() -> void:
+	# El guard tambien cubre esta reconstruccion, no solo la del inspector:
+	# _apply_startup_lighting_options() asigna room_ceiling_lights_enabled y
+	# exterior_lighting_mode, que ahora tienen setter, y sin el guard cada
+	# reconstruccion normal dispararia otra reconstruccion anidada dentro de
+	# si misma. Se restaura el valor previo en vez de ponerlo a false: esta
+	# funcion es publica y puede llamarse desde dentro de otra reconstruccion.
+	var was_rebuilding: bool = _rebuilding
+	_rebuilding = true
 	_apply_startup_lighting_options()
 	_rebuild_world()
 	_place_at_entry()
+	_rebuilding = was_rebuilding
 
 
 func set_state(next_state: Dictionary) -> void:
