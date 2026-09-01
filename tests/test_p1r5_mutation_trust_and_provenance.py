@@ -180,6 +180,105 @@ def test_monitored_launch_keeps_a_non_wrapper_executable(tmp_path):
     assert bypassed is False
 
 
+def test_process_that_exits_before_handle_capture_is_recorded_as_a_race(monkeypatch):
+    runner = _load_mutation_runner()
+    process = {
+        "image_name": "Godot_v4.7.1-stable_win64_console.exe",
+        "pid": 6636,
+    }
+    monkeypatch.setattr(runner, "_godot_processes", lambda: [process])
+    monkeypatch.setattr(
+        runner,
+        "_open_process_handle",
+        lambda _pid: (None, runner._ERROR_INVALID_PARAMETER),
+    )
+    observed = {}
+    handles = {}
+    capture_races = {}
+    capture_failures = {}
+
+    current = runner._sample_godot_processes(
+        observed, handles, capture_races, capture_failures
+    )
+
+    assert current == [process]
+    assert observed == {}
+    assert handles == {}
+    assert capture_failures == {}
+    assert capture_races == {
+        (process["image_name"], process["pid"]): {
+            **process,
+            "open_process_error": runner._ERROR_INVALID_PARAMETER,
+            "capture_status": "exited_before_handle_capture",
+        }
+    }
+
+
+def test_open_process_handle_preserves_the_windows_error_code():
+    runner = _load_mutation_runner()
+
+    handle, error = runner._open_process_handle(0)
+
+    assert handle is None
+    assert error == runner._ERROR_INVALID_PARAMETER
+
+
+def test_process_handle_access_failure_remains_fail_closed():
+    runner = _load_mutation_runner()
+    health = {
+        "contract": "windows-window-process-exit-v2",
+        "windows_error_ui_suppressed": True,
+        "wrapper_exit_code": 0,
+        "timed_out": False,
+        "error_dialogs": [],
+        "observed_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [
+            {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 1234,
+                "open_process_error": 5,
+                "capture_status": "open_process_failed",
+            }
+        ],
+        "residual_godot_processes": [],
+        "process_quiescent": True,
+        "post_exit_observation_s": 2.0,
+    }
+
+    errors = runner._runtime_health_errors(health)
+
+    assert any("handle capture failed" in error.lower() for error in errors)
+
+
+def test_shared_launcher_rejects_process_handle_capture_failure():
+    from tests import godot_runtime_launcher
+
+    health = {
+        "console_wrapper_bypassed": True,
+        "windows_error_ui_suppressed": True,
+        "wrapper_exit_code": 0,
+        "timed_out": False,
+        "error_dialogs": [],
+        "observed_godot_processes": [],
+        "process_handle_capture_races": [],
+        "process_handle_capture_failures": [
+            {
+                "image_name": "Godot_v4.7.1-stable_win64.exe",
+                "pid": 1234,
+                "open_process_error": 5,
+                "capture_status": "open_process_failed",
+            }
+        ],
+        "residual_godot_processes": [],
+        "process_quiescent": True,
+    }
+
+    errors = godot_runtime_launcher._health_errors(health, {0})
+
+    assert any("handle capture failed" in error.lower() for error in errors)
+
+
 def test_case_command_uses_captured_output_instead_of_godot_log_file(tmp_path):
     runner = _load_mutation_runner()
     command = runner._build_case_command(

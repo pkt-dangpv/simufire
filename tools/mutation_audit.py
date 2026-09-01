@@ -61,6 +61,7 @@ _SEM_FAILCRITICALERRORS = 0x0001
 _SEM_NOGPFAULTERRORBOX = 0x0002
 _PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 _SYNCHRONIZE = 0x00100000
+_ERROR_INVALID_PARAMETER = 87
 _STILL_ACTIVE = 259
 _STATUS_ACCESS_VIOLATION = 0xC0000005
 
@@ -191,25 +192,53 @@ def _terminate_observed_godot_processes(records: list[dict[str, Any]]) -> list[i
     return terminated
 
 
-def _open_process_handle(pid: int) -> int | None:
+def _open_process_handle(pid: int) -> tuple[int | None, int]:
     if os.name != "nt":
-        return None
-    handle = ctypes.windll.kernel32.OpenProcess(
+        return None, 0
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    ctypes.set_last_error(0)
+    handle = kernel32.OpenProcess(
         _PROCESS_QUERY_LIMITED_INFORMATION | _SYNCHRONIZE, False, pid
     )
-    return int(handle) if handle else None
+    if handle:
+        return int(handle), 0
+    return None, int(ctypes.get_last_error())
 
 
 def _sample_godot_processes(
-    observed: dict[tuple[str, int], dict[str, Any]], handles: dict[int, int]
+    observed: dict[tuple[str, int], dict[str, Any]],
+    handles: dict[int, int],
+    capture_races: dict[tuple[str, int], dict[str, Any]],
+    capture_failures: dict[tuple[str, int], dict[str, Any]],
 ) -> list[dict[str, Any]]:
     current = _godot_processes()
     for record in current:
-        observed[(record["image_name"], record["pid"])] = record
-        if record["pid"] not in handles:
-            handle = _open_process_handle(record["pid"])
-            if handle is not None:
-                handles[record["pid"]] = handle
+        key = (record["image_name"], record["pid"])
+        if record["pid"] in handles:
+            observed[key] = record
+            continue
+        handle, open_error = _open_process_handle(record["pid"])
+        if handle is None:
+            capture = {
+                **record,
+                "open_process_error": open_error,
+                "capture_status": (
+                    "exited_before_handle_capture"
+                    if open_error == _ERROR_INVALID_PARAMETER
+                    else "open_process_failed"
+                ),
+            }
+            if open_error == _ERROR_INVALID_PARAMETER:
+                capture_races[key] = capture
+            else:
+                capture_failures[key] = capture
+            continue
+        handles[record["pid"]] = handle
+        observed[key] = record
+        capture_races.pop(key, None)
+        capture_failures.pop(key, None)
     return current
 
 
@@ -311,6 +340,8 @@ def _run_monitored(
     started_at = datetime.datetime.now(datetime.UTC)
     observed: dict[tuple[str, int], dict[str, Any]] = {}
     handles: dict[int, int] = {}
+    capture_races: dict[tuple[str, int], dict[str, Any]] = {}
+    capture_failures: dict[tuple[str, int], dict[str, Any]] = {}
     dialogs: set[str] = set()
     timed_out = False
     terminated_pids: list[int] = []
@@ -325,7 +356,9 @@ def _run_monitored(
         dialogs.update(_windows_godot_error_dialogs())
         now = time.monotonic()
         if now >= next_process_sample or dialogs:
-            _sample_godot_processes(observed, handles)
+            _sample_godot_processes(
+                observed, handles, capture_races, capture_failures
+            )
             next_process_sample = now + _PROCESS_SAMPLE_S
         if dialogs:
             if process.poll() is None:
@@ -340,7 +373,9 @@ def _run_monitored(
             timed_out = True
             if process.poll() is None:
                 process.kill()
-            _sample_godot_processes(observed, handles)
+            _sample_godot_processes(
+                observed, handles, capture_races, capture_failures
+            )
             terminated_pids.extend(
                 _terminate_observed_godot_processes(list(observed.values()))
             )
@@ -358,7 +393,9 @@ def _run_monitored(
     post_exit_deadline = post_exit_started + _POST_EXIT_OBSERVATION_S
     while time.monotonic() < post_exit_deadline:
         dialogs.update(_windows_godot_error_dialogs())
-        _sample_godot_processes(observed, handles)
+        _sample_godot_processes(
+            observed, handles, capture_races, capture_failures
+        )
         time.sleep(_WINDOW_POLL_S)
 
     residual = _godot_processes()
@@ -378,6 +415,14 @@ def _run_monitored(
         "timed_out": timed_out,
         "error_dialogs": sorted(dialogs),
         "observed_godot_processes": observed_with_exit,
+        "process_handle_capture_races": sorted(
+            capture_races.values(),
+            key=lambda item: (item["image_name"].lower(), item["pid"]),
+        ),
+        "process_handle_capture_failures": sorted(
+            capture_failures.values(),
+            key=lambda item: (item["image_name"].lower(), item["pid"]),
+        ),
         "residual_godot_processes": residual,
         "process_quiescent": not residual,
         "cleanup_terminated_pids": sorted(set(terminated_pids)),
@@ -422,6 +467,14 @@ def _runtime_health_errors(health: Any) -> list[str]:
                 )
             elif exit_code not in (0, 2):
                 errors.append(f"Godot child exited 0x{exit_code:08X}: {process}")
+    capture_races = health.get("process_handle_capture_races", [])
+    if not isinstance(capture_races, list):
+        errors.append("process handle capture race inventory is malformed")
+    capture_failures = health.get("process_handle_capture_failures", [])
+    if not isinstance(capture_failures, list):
+        errors.append("process handle capture failure inventory is malformed")
+    elif capture_failures:
+        errors.append(f"Godot process handle capture failed: {capture_failures}")
     observed_s = health.get("post_exit_observation_s")
     if not isinstance(observed_s, (int, float)) or observed_s < _POST_EXIT_OBSERVATION_S:
         errors.append("post-exit observation window is incomplete")

@@ -52,6 +52,14 @@ def _health_errors(
                     f"Godot child exited {exit_code}, expected "
                     f"{sorted(allowed_exit_codes)}: {process}"
                 )
+    capture_races = health.get("process_handle_capture_races", [])
+    if not isinstance(capture_races, list):
+        errors.append("process handle capture race inventory is malformed")
+    capture_failures = health.get("process_handle_capture_failures", [])
+    if not isinstance(capture_failures, list):
+        errors.append("process handle capture failure inventory is malformed")
+    elif capture_failures:
+        errors.append(f"Godot process handle capture failed: {capture_failures}")
     return errors
 
 
@@ -66,8 +74,12 @@ def run_godot(
     if preexisting:
         raise AssertionError(f"pre-existing Godot processes: {preexisting}")
 
+    appdata_path = mutation_audit.ROOT / "runs/godot_test_appdata"
+    appdata_path.mkdir(parents=True, exist_ok=True)
+    environment = os.environ.copy()
+    environment["APPDATA"] = str(appdata_path)
     completed, health = mutation_audit._run_monitored(
-        [str(argument) for argument in command], timeout_s
+        [str(argument) for argument in command], timeout_s, environment
     )
     errors = _health_errors(health, allowed_exit_codes)
     if errors:
