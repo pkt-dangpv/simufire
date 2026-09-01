@@ -125,7 +125,7 @@ def test_the_three_demotions_are_still_non_gating_and_still_failing():
 def test_the_aggregate_counters_are_unchanged():
     assert AGGREGATE["required_count"] == 350
     assert AGGREGATE["failed_required_count"] == 6
-    assert AGGREGATE["known_gap_count"] == 76
+    assert AGGREGATE["known_gap_count"] == 74
     assert len(AGGREGATE["checks"]) == 530
 
 

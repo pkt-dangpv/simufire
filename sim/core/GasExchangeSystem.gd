@@ -2592,12 +2592,13 @@ func step_smoke(building: BuildingModel, smoke_model: SmokeModel, dt: float, hoo
 			var smoke_settling_rate: float = smoke_settling_base_per_s
 			if not incident_active:
 				smoke_settling_rate += smoke_settling_bonus_per_s * cleanup_factor
-			var deposited_smoke_kg: float = minf(room.smoke_kg, room.smoke_kg * smoke_settling_rate * dt)
-			room.smoke_kg = maxf(0.0, room.smoke_kg - deposited_smoke_kg)
-			_record_smoke_deposited(room, deposited_smoke_kg)
-			result["smoke_deposited_kg"] = float(result.get("smoke_deposited_kg", 0.0)) + deposited_smoke_kg
-			# SF-CBAL: hollín depositado en paredes (carbono que sale de la fase gaseosa).
-			room.c_deposited_kg += deposited_smoke_kg * 0.87
+			if room.smoke_kg > 0.000001:
+				var deposited_smoke_kg: float = minf(room.smoke_kg, room.smoke_kg * smoke_settling_rate * dt)
+				room.smoke_kg = maxf(0.0, room.smoke_kg - deposited_smoke_kg)
+				_record_smoke_deposited(room, deposited_smoke_kg)
+				result["smoke_deposited_kg"] = float(result.get("smoke_deposited_kg", 0.0)) + deposited_smoke_kg
+				# SF-CBAL: hollín depositado en paredes (carbono que sale de la fase gaseosa).
+				room.c_deposited_kg += deposited_smoke_kg * 0.87
 
 			# Igual para CO/CO2: purga post-incendio solo cuando el fuego está extinto.
 			var co_purge_rate: float = 0.0

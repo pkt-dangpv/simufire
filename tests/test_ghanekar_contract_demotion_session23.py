@@ -227,7 +227,7 @@ def test_the_stale_calibration_claim_is_annotated_not_deleted():
 def test_inventory_documents_the_new_gap_count():
     m = re.search(r"(\d+)\s+gaps?\s+non-gating", INVENTORY, re.IGNORECASE)
     assert m is not None
-    assert int(m.group(1)) == 76, m.group(1)
+    assert int(m.group(1)) == 74, m.group(1)
 
 
 def test_inventory_reports_zero_disallowed_blockers():
