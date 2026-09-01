@@ -598,7 +598,7 @@ Verificado en captura con humo denso: el puente pasa de losa ancha metida en la 
 
 **Nota de método.** Antes de acertar recoloreé el penacho exterior y luego la cortina, y llegué a proponer al usuario cinco zonas numeradas sobre su propio fotograma para que señalase el objeto. Fue eso lo que resolvió en un mensaje lo que tres rondas de deducción no habían resuelto. Con síntomas visuales, **pedir que señalen sobre la imagen es más barato que deducir**.
 
-### 🔴 X-8. Iluminación inestable en suelo y paredes al mover la cámara — **[CORREGIDO, pendiente de confirmar en ejecución]**
+### 🔴 X-8. Iluminación inestable en suelo y paredes al mover la cámara — **[ABIERTO: causa NO identificada]**
 El usuario lo describió con precisión y resultó ser **un solo fenómeno en dos sitios**: *"en el suelo del rellano aparece iluminación irregular cuando muevo la cámara, con formas redondas, cuadradas, líneas de sierra... de forma aleatoria"*, y lo mismo en las paredes del pasillo. No son dos problemas: son artefactos del mapa de sombra del sol, que se recalcula siguiendo a la cámara.
 
 Tres causas acumuladas, atacadas juntas:
@@ -609,7 +609,24 @@ Tres causas acumuladas, atacadas juntas:
 
 `exterior_sky_shadow_blur` pasa a 0: con el filtro en calidad 0 el difuminado no aporta y solo reintroduce inestabilidad.
 
-**Verificación:** el piso patrón del instrumental **no reproduce el artefacto** —la métrica de saltos bruscos es idéntica antes y después (1,32 % y 0,64 %)—, así que aquí no se puede dar por bueno. Es un fenómeno temporal y de escenario, y quien lo confirma es la siguiente ejecución del simulador en un piso con pasillo.
+**El usuario confirma que sigue igual tras estos cambios, así que la hipótesis de la sombra del sol queda descartada.** Lo que sigue es el registro de lo que se ha probado, para no repetirlo.
+
+Reproducción intentada con la receta del usuario (plantilla `simple_house`, puerta abierta, cámara moviéndose en el pasillo), montando FP con el overlay 3D igual que `Main`:
+
+| Prueba | Resultado |
+|---|---|
+| Cámara quieta, pasando el tiempo | **0,00 %** de píxeles inestables: la escena es perfectamente estática |
+| Cámara moviéndose 2 cm y 0,4° | 10,66 % de píxeles saltan más de 30 niveles |
+| Sombra del sol **apagada** | 11,46 %: **no mejora**, luego no es la sombra |
+| Límite de luces por objeto 8 → 32 | 3,60 → 3,61 en pared plana: **sin efecto** |
+| Oclusión de contacto apagada | 3,92: **sin efecto** |
+| Ruido de superficie apagado | 3,59: **sin efecto** |
+
+Y una advertencia sobre esas cifras: al girar 0,4° con 75° de campo la imagen se desplaza unos 8 px, así que **la métrica global mide sobre todo movimiento legítimo**, no artefactos. Los intentos de compensar ese movimiento saturaron el rango de búsqueda. Es decir: **el piso patrón no reproduce el fenómeno**, y las tres correcciones aplicadas antes de saberlo —mipmaps, ajustes de sombra y límite de luces— se hicieron sobre diagnósticos no confirmados.
+
+Los cambios de sombra (bias 0,18, alcance 15 m, filtro sin tramado) se conservan porque son defendibles por sí mismos, pero **no están verificados como solución de esto**.
+
+**Siguiente paso: bisección por el usuario**, que es quien ve el fenómeno. Todos los interruptores necesarios están ya en el inspector de `FirstPersonController`: `exterior_sky_light_cast_shadows`, `surface_contact_ao_enabled`, `use_procedural_surface_noise`, `room_ceiling_lights_enabled` y `opening_lights_cast_shadows`. Apagando uno cada vez se identifica el subsistema responsable en unos minutos.
 
 ---
 

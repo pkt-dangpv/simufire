@@ -31,10 +31,11 @@ window/stretch/aspect="expand"
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-; Filtro de sombra direccional. En GL Compatibility las calidades altas
-; muestrean con un patron TRAMADO y rotado por pixel: el borde de sombra se
-; llena de puntos que reptan al mover la camara. Con 0 la sombra es dura
-; pero estable, que es lo que hace falta dentro de una vivienda.
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality=0
-lights_and_shadows/directional_shadow/size=4096
+; GL Compatibility solo aplica N luces por objeto y ELIGE cuales segun la
+; camara. El mundo FP tiene ~23 omnis (techo por sala, luz por hueco,
+; rellano, fuego), asi que con el limite por defecto de 8 la seleccion
+; cambia al andar y la iluminacion salta: manchas redondas y cuadradas que
+; aparecen y desaparecen. Subirlo es lo que lo estabiliza.
+limits/opengl/max_lights_per_object=32
 textures/default_filters/anisotropic_filtering_level=4
