@@ -230,6 +230,14 @@ def main() -> int:
         diagnostics.append("Godot stair geometry: " + (diagnostic or "failed"))
 
     rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_view_geometry_parity.tscn",
+        "VIEW GEOMETRY PARITY VALIDATION PASS",
+    )
+    rows.append(("View geometry parity Godot", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot view geometry parity: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_fp_landing_stairs.tscn",
         "FP LANDING STAIRS VALIDATION PASS",
     )

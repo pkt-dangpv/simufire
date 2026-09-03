@@ -238,8 +238,26 @@ Corrección aplicada (F2.1), en tres frentes:
 
 Suelos y rodapiés usan un perfil aparte (`NOISE_PROFILE_FLOOR`: más octavas, grano más grande y contraste multiplicado por `material_floor_dirt_boost`), que es la segunda capa de suciedad que pedía M-1.
 
-### 🟠 FP-3. Geometría FP todavía paralela a la del 3D — **[PARCIAL]**
+### 🟠 FP-3. Geometría FP todavía paralela a la del 3D — **[CORREGIDO 2026-09-03]**
 `StairGeometry` ya está extraída y compartida (el 🟠 FP-1 de julio está a medias), pero suelos, techos, muros y huecos siguen teniendo dos implementaciones independientes (`FirstPersonController` vs `Visualizer3D`). Cualquier ajuste hecho en una diverge visualmente de la otra.
+
+Corrección aplicada (F5.1). **No se unifica lo que emite cada vista**: el mundo FP levanta arquitectura recorrible con colisión y el visor 3D dibuja una maqueta translúcida, y son dos cosas distintas a propósito. Lo que se unifica es el **reparto**, que es lo que estaba escrito dos veces. Cuatro módulos nuevos en `view/geometry/`, siguiendo el precedente de `StairGeometry`:
+
+| Módulo | Qué recoge | Qué estaba duplicado |
+|---|---|---|
+| `BuildingLevels` | cota de una sala, si es hueco de escalera, hacia dónde sube, cota de la planta de encima, huecos verticales que perforan un forjado | las cinco consultas, en las dos vistas |
+| `SlabGeometry` | reparto en losas de suelos y techos: el forjado de un hueco de escalera en planta alta (tiro único y ida y vuelta) y el troceado alrededor de los huecos verticales, con sus nombres | `_create_stairwell_upper_floor` frente a `_create_stairwell_upper_floor_visual`: misma aritmética, mismos umbrales (0,28 · 0,18 · 1,65 · 179°) y **los mismos nombres de nodo**, en dos sitios |
+| `WallSideGeometry` | los cuatro lados de una sala: eje, opuesto, normales, por dónde tocan dos salas contiguas | `_shared_side_data` frente a `_shared_wall_pose`; `_inside_normal_for_side` frente a `_outside_normal_for_wall` |
+| `OpeningPlacement` | dónde cae un hueco a lo largo de su paramento | `_opening_info_on_side` frente a `OpeningPose3D._center_axis`, carácter por carácter la misma regla |
+
+**El techo no tenía pareja**: el visor 3D no dibuja techos arquitectónicos, sólo máscaras de humo. Lo que comparte con el suelo del FP es el troceado, y eso sí queda en `SlabGeometry`.
+
+Dos divergencias reales que estaban ahí y salieron al juntarlas:
+
+1. **`_find_next_floor_level_above` tenía dos contratos.** Sin planta encima, el mundo FP devolvía la propia cota y el visor devolvía −1,0. Los dos siguen vivos porque sus llamantes dependen de ello, pero ahora el valor de reserva es un parámetro explícito en la llamada, no una constante escondida en cada copia.
+2. **Los alias cardinales de `wall_side`.** El modelo admite `north`/`south`/`east`/`west` (`BuildingModel` los normaliza en un sitio, `GasExchangeSystem` los rechaza en otro). El visor 3D los entendía; el mundo FP no, y una ventana declarada al norte se plantaba **sobre el paramento derecho**. Medido en el guardarraíl: 0,80 m de desplazamiento en el caso estrecho y 1,70 m en el ancho. Además el hueco nunca llegaba a recortar el muro, porque el lado que guardaba (`north`) no coincidía con ninguno de los cuatro que consulta `_opening_specs_for_side`.
+
+Guardarraíl: `tools/validate_view_geometry_parity.gd`. Monta las dos vistas sobre el mismo edificio y compara **el reparto, no los píxeles**: losas del hueco de escalera (nombre y huella), troceado del suelo por el hueco vertical, y posición de cada hueco a lo largo de su paramento, con 1 mm de tolerancia. Dos casos, para recorrer las dos ramas del plan de losas. Con el código anterior del mundo FP falla con los números exactos del punto 2.
 
 ### 🟡 FP-4. Consultas repetidas por frame físico — **[NO REPRODUCIBLE 2026-08-31]**
 `_find_current_room_id()` y `get_room_rects_m()` se recalculan varias veces por frame en overlay, HUD y humo.
@@ -349,7 +367,7 @@ Overlay de visibilidad, atenuación de luces por humo coherente con los regímen
 | V3-5 leyenda reconstruida por `set_state` | Corregido (hash de flags) |
 | V3-6 transparencias sin `render_priority` | **Abierto** (§4 V3-1) |
 | V3-7 captura incluye el HUD | **Abierto** (§4 V3-2) |
-| FP-1 geometría FP duplicada | Parcial (§5 FP-3) |
+| FP-1 geometría FP duplicada | Corregido (§5 FP-3) |
 | V2-2 transform recalculado por llamada | Casi corregido (§6 V2-1) |
 
 ---
@@ -490,7 +508,7 @@ Quedan vivas las dos decisiones de producto, F3.4 (H-4) y F3.5 (FP-7).
 
 **Resultado:** cerradas V3-1, V3-2 (verificada con ventana real: captura 1920 × 1080 con cero píxeles de HUD), V3-3, V3-4 y V2-1. **V2-2 y V2-3 no son reproducibles**: el fondo ya se deriva del viewport y la escala SVV ya es una rampa de cinco tramos; ambas descripciones corresponden a código anterior y quedan reclasificadas en §6, no marcadas como corregidas. Suite 30/31, único fallo el conocido de la línea motor.
 
-### 12.F5 Fase 5 — Coherencia estructural y coste — **TODO HECHO SALVO F5.1 (2026-08-31)**
+### 12.F5 Fase 5 — Coherencia estructural y coste — **HECHA (F5.1 cerrada 2026-09-03)**
 
 | # | Hallazgo | Trabajo |
 |---|---|---|
@@ -503,7 +521,7 @@ Quedan vivas las dos decisiones de producto, F3.4 (H-4) y F3.5 (FP-7).
 
 **Resultado:** cerradas F5.3 (E-5), F5.4 (R-4, medida), F5.5 (R-5) y F5.6 (FP-8, con guardarraíl). **F5.2 (FP-4) no era reproducible** y queda reclasificada en §5.
 
-**F5.1 (FP-3) queda desbloqueada.** Esperaba a FP-7 porque, si el humo entre salas bajaba a primera persona, convenía tener antes un constructor unificado. Al resolverse FP-7 sin implementación —el overlay ya lo resuelve— ese acoplamiento desaparece: F5.1 vuelve a ser lo que decía su ficha, unificar suelos, techos, muros y huecos entre `FirstPersonController` y `Visualizer3D`, sin condicionantes. Es el único hallazgo que queda abierto de §1-§8 junto con H-4.
+**F5.1 (FP-3) quedó desbloqueada** al resolverse FP-7 sin implementación: esperaba a FP-7 porque, si el humo entre salas bajaba a primera persona, convenía tener antes un constructor unificado, y el overlay ya lo resolvía. **Cerrada el 2026-09-03** con cuatro módulos compartidos en `view/geometry/` y un guardarraíl de paridad entre las dos vistas; el detalle está en la ficha de §5. Con ella se cierra F5 entera.
 
 ### 12.F6 Fuera del cierre — mejora, no fallo
 
@@ -710,13 +728,13 @@ Cierre de la ejecución del plan §12. Todo lo que sigue está verificado con `p
 | M-3 materiales duplicados | 🟡 | Corregido |
 | FP-1 medianeras coincidentes | 🟠 | Corregido |
 | FP-2 interior sin textura | 🟠 | Corregido |
-| FP-3 geometría FP/3D duplicada | 🟠 | **Abierto** — es lo único que queda por hacer |
+| FP-3 geometría FP/3D duplicada | 🟠 | Corregido (2026-09-03, con guardarraíl de paridad) |
 | FP-4 consultas repetidas por frame | 🟡 | **No reproducible** |
 | FP-6 sala con humo y sin fuego a negro | 🟠 | Corregido |
 | FP-7 humo entre salas ausente en FP | ℹ️ | **Hallazgo erróneo**, era mío |
 | FP-8 nodos homónimos sin nombre | 🟡 | Corregido |
 
-**Balance:** de los 26 hallazgos abiertos cuando se escribió el plan, **22 cerrados**, **1 sigue abierto** (FP-3), **1 es mejora futura** (H-6) y **4 resultaron no reproducibles** (H-7, V2-2, V2-3, FP-4). Aparecieron dos nuevos durante la ejecución: FP-8 (cerrado) y el contrato falso de `with_collision` en `_add_box` (cerrado con R-8).
+**Balance:** de los 26 hallazgos abiertos cuando se escribió el plan, **23 cerrados**, **ninguno sigue abierto**, **1 es mejora futura** (H-6) y **4 resultaron no reproducibles** (H-7, V2-2, V2-3, FP-4). Aparecieron dos nuevos durante la ejecución: FP-8 (cerrado) y el contrato falso de `with_collision` en `_add_box` (cerrado con R-8).
 
 ### 13.2 Lo que enseña la tanda de "no reproducibles"
 
@@ -758,12 +776,12 @@ Cinco validadores headless nuevos y dos ampliados, todos verificados fallando co
 | `validate_fp_surface_shading` | M-2: cada malla publica **su** tamaño por instancia, que es lo que mide la franja de oclusión en metros |
 | `validate_3d_smoke_opening_curtain` | H-5: la cortina sigue al hueco libre y se desplaza al lado de la cerradura |
 | `validate_fp_landing_stairs` (ampliado) | R-8: toda pared del rellano tiene cuerpo estático |
+| `validate_view_geometry_parity` | FP-3: las dos vistas reparten la misma geometría (losas del hueco de escalera, troceado por hueco vertical, colocación de cada hueco en su paramento) |
 | `capture_visual_reference` | Instrumental de comparación antes/después, 20 vistas |
 
 ### 13.5 Lo que queda
 
-1. **FP-3 (F5.1)** — unificar los constructores de suelo, techo, muro y hueco entre `FirstPersonController` y `Visualizer3D`. Es el único hallazgo pendiente de trabajo real. Estuvo esperando a FP-7 por un acoplamiento que resultó no existir.
-2. **H-6** — autoexposición entre plantas. Funcionalidad nueva, declarada fuera del cierre.
-3. **Confirmar en ejecución** las correcciones de §12b: el parpadeo de texturas y las sombras del rellano y el pasillo sólo se pueden dar por buenos corriendo el simulador.
+1. **H-6** — autoexposición entre plantas. Funcionalidad nueva, declarada fuera del cierre.
+2. **Confirmar en ejecución** las correcciones de §12b: el parpadeo de texturas y las sombras del rellano y el pasillo sólo se pueden dar por buenos corriendo el simulador. Ahí sigue **X-8**, que necesita al usuario para la bisección; el procedimiento está en [HANDOFF_VISUAL_X8_2026-09-01.md](HANDOFF_VISUAL_X8_2026-09-01.md).
 
-Con H-4 cerrado, **FP-3 es el único hallazgo de §1-§8 que queda por trabajar**.
+Con FP-3 cerrada, **no queda ningún hallazgo de §1-§8 pendiente de trabajo de código**. Lo único abierto es X-8, que no es un hallazgo de la auditoría sino un síntoma sin causa identificada y necesita ejecución.

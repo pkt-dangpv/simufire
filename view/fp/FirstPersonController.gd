@@ -1105,72 +1105,22 @@ func _create_floors(rects: Dictionary) -> void:
 		if room != null and _room_is_stairwell(room) and room.floor_level_z_m > 0.20:
 			_create_stairwell_upper_floor(int(room_id), rect, room.floor_level_z_m, _room_stair_run_direction(room), room.stair_turn_degrees)
 			continue
-		var slabs: Array[Rect2] = _split_rect_by_voids(rect, _vertical_stair_voids_for_floor(floor_level_m))
-		for i in range(slabs.size()):
-			var slab: Rect2 = slabs[i]
-			var node_name: String = "Floor_%s" % str(room_id) if slabs.size() == 1 and _rect_same(slab, rect) else "FloorPart_%s_%02d" % [str(room_id), i]
-			_add_floor_slab(node_name, slab, floor_level_m, _floor_material_for_room(int(room_id)))
+		var material: Material = _floor_material_for_room(int(room_id))
+		for slab in SlabGeometry.named_slab_pieces(
+			rect,
+			_vertical_stair_voids_for_floor(floor_level_m),
+			"Floor_%s" % str(room_id),
+			"FloorPart_%s" % str(room_id)
+		):
+			_add_floor_slab(String(slab["name"]), slab["rect"], floor_level_m, material)
 
 
+## El reparto en losas vive en `SlabGeometry`, compartido con el visor 3D; aqui
+## solo se emite cada losa como cuerpo con colision y material de la sala.
 func _create_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: float, stair_dir: Vector2, turn_degrees: float = 0.0) -> void:
-	var ramp_width_m: float = _stair_ramp_width_m(rect, stair_dir)
-	var landing_depth_m: float = _stair_top_landing_depth_m(rect, stair_dir)
-	var material := _floor_material_for_room(room_id)
-	if turn_degrees >= 179.0 and _stair_cross_span_m(rect, stair_dir) >= 1.65:
-		_create_switchback_stairwell_upper_floor(room_id, rect, floor_level_m, stair_dir, material)
-		return
-
-	if absf(stair_dir.x) > absf(stair_dir.y):
-		var ramp_top_m: float = rect.position.y + rect.size.y * 0.5 - ramp_width_m * 0.5
-		var ramp_bottom_m: float = ramp_top_m + ramp_width_m
-		var top_height_m: float = maxf(0.0, ramp_top_m - rect.position.y)
-		if top_height_m >= 0.28:
-			_add_floor_slab("StairSideFloorTop_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, rect.size.x, top_height_m), floor_level_m, material)
-		var bottom_height_m: float = maxf(0.0, rect.position.y + rect.size.y - ramp_bottom_m)
-		if bottom_height_m >= 0.28:
-			_add_floor_slab("StairSideFloorBottom_%s" % str(room_id), Rect2(rect.position.x, ramp_bottom_m, rect.size.x, bottom_height_m), floor_level_m, material)
-		if landing_depth_m >= 0.28:
-			var landing_x_m: float = rect.position.x + rect.size.x - landing_depth_m if stair_dir.x > 0.0 else rect.position.x
-			_add_floor_slab("StairTopLanding_%s" % str(room_id), Rect2(landing_x_m, rect.position.y, landing_depth_m, rect.size.y), floor_level_m, material)
-		return
-
-	var ramp_left_m: float = rect.position.x + rect.size.x * 0.5 - ramp_width_m * 0.5
-	var ramp_right_m: float = ramp_left_m + ramp_width_m
-	var left_width_m: float = maxf(0.0, ramp_left_m - rect.position.x)
-	if left_width_m >= 0.28:
-		_add_floor_slab("StairSideFloorLeft_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, left_width_m, rect.size.y), floor_level_m, material)
-	var right_width_m: float = maxf(0.0, rect.position.x + rect.size.x - ramp_right_m)
-	if right_width_m >= 0.28:
-		_add_floor_slab("StairSideFloorRight_%s" % str(room_id), Rect2(ramp_right_m, rect.position.y, right_width_m, rect.size.y), floor_level_m, material)
-	if landing_depth_m >= 0.28:
-		var landing_y_m: float = rect.position.y + rect.size.y - landing_depth_m if stair_dir.y > 0.0 else rect.position.y
-		_add_floor_slab("StairTopLanding_%s" % str(room_id), Rect2(rect.position.x, landing_y_m, rect.size.x, landing_depth_m), floor_level_m, material)
-
-
-func _create_switchback_stairwell_upper_floor(room_id: int, rect: Rect2, floor_level_m: float, stair_dir: Vector2, material: Material) -> void:
-	var gap_m: float = 0.18
-	var cross_span_m: float = _stair_cross_span_m(rect, stair_dir)
-	var flight_width_m: float = clampf((cross_span_m - gap_m) * 0.5, 0.72, 1.05)
-	var shaft_width_m: float = minf(cross_span_m, flight_width_m * 2.0 + gap_m + 0.18)
-	if absf(stair_dir.x) > absf(stair_dir.y):
-		var shaft_top_m: float = rect.position.y + rect.size.y * 0.5 - shaft_width_m * 0.5
-		var shaft_bottom_m: float = shaft_top_m + shaft_width_m
-		var top_height_m: float = maxf(0.0, shaft_top_m - rect.position.y)
-		if top_height_m >= 0.28:
-			_add_floor_slab("StairSwitchbackSideTop_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, rect.size.x, top_height_m), floor_level_m, material)
-		var bottom_height_m: float = maxf(0.0, rect.position.y + rect.size.y - shaft_bottom_m)
-		if bottom_height_m >= 0.28:
-			_add_floor_slab("StairSwitchbackSideBottom_%s" % str(room_id), Rect2(rect.position.x, shaft_bottom_m, rect.size.x, bottom_height_m), floor_level_m, material)
-		return
-
-	var shaft_left_m: float = rect.position.x + rect.size.x * 0.5 - shaft_width_m * 0.5
-	var shaft_right_m: float = shaft_left_m + shaft_width_m
-	var left_width_m: float = maxf(0.0, shaft_left_m - rect.position.x)
-	if left_width_m >= 0.28:
-		_add_floor_slab("StairSwitchbackSideLeft_%s" % str(room_id), Rect2(rect.position.x, rect.position.y, left_width_m, rect.size.y), floor_level_m, material)
-	var right_width_m: float = maxf(0.0, rect.position.x + rect.size.x - shaft_right_m)
-	if right_width_m >= 0.28:
-		_add_floor_slab("StairSwitchbackSideRight_%s" % str(room_id), Rect2(shaft_right_m, rect.position.y, right_width_m, rect.size.y), floor_level_m, material)
+	var material: Material = _floor_material_for_room(room_id)
+	for slab in SlabGeometry.stairwell_upper_floor_slabs(room_id, rect, stair_dir, turn_degrees):
+		_add_floor_slab(String(slab["name"]), slab["rect"], floor_level_m, material)
 
 
 func _add_floor_slab(node_name: String, rect: Rect2, floor_level_m: float, material: Material) -> void:
@@ -1229,11 +1179,14 @@ func _create_ceilings(rects: Dictionary) -> void:
 			continue
 		var height_m: float = room.height_m if room != null else 2.4
 		var floor_level_m: float = room.floor_level_z_m if room != null else 0.0
-		var slabs: Array[Rect2] = _split_rect_by_voids(rect, _vertical_stair_voids_for_ceiling(floor_level_m))
-		for i in range(slabs.size()):
-			var slab: Rect2 = slabs[i]
-			var node_name: String = "Ceiling_%s" % str(room_id) if slabs.size() == 1 and _rect_same(slab, rect) else "CeilingPart_%s_%02d" % [str(room_id), i]
-			_add_ceiling_slab(node_name, slab, floor_level_m, height_m, _ceiling_material_for_room(int(room_id)))
+		var material: Material = _ceiling_material_for_room(int(room_id))
+		for slab in SlabGeometry.named_slab_pieces(
+			rect,
+			_vertical_stair_voids_for_ceiling(floor_level_m),
+			"Ceiling_%s" % str(room_id),
+			"CeilingPart_%s" % str(room_id)
+		):
+			_add_ceiling_slab(String(slab["name"]), slab["rect"], floor_level_m, height_m, material)
 
 
 func _create_walls(rects: Dictionary) -> void:
@@ -1675,45 +1628,7 @@ func _vertical_stair_voids_for_ceiling(floor_level_m: float) -> Array[Rect2]:
 
 
 func _vertical_stair_voids_for_level(floor_level_m: float, upper_floor: bool) -> Array[Rect2]:
-	var result: Array[Rect2] = []
-	if building == null:
-		return result
-	for raw_op in building.get_openings():
-		var op := raw_op as OpeningModel
-		if op == null or not op.is_vertical:
-			continue
-		var lower_room: RoomModel = building.get_room(op.a)
-		var upper_room: RoomModel = building.get_room(op.b)
-		if lower_room == null or upper_room == null:
-			continue
-		if upper_room.floor_level_z_m < lower_room.floor_level_z_m:
-			var tmp := lower_room
-			lower_room = upper_room
-			upper_room = tmp
-		var target_level: float = upper_room.floor_level_z_m if upper_floor else lower_room.floor_level_z_m
-		if absf(target_level - floor_level_m) > 0.05:
-			continue
-		var rect: Rect2 = Rect2(building.room_rect_m.get(lower_room.id, Rect2()))
-		if rect.size.x <= 0.0 or rect.size.y <= 0.0:
-			continue
-		result.append(_stair_vertical_void_rect(rect, _room_stair_run_direction(lower_room), lower_room.stair_turn_degrees))
-	return result
-
-
-func _stair_vertical_void_rect(rect: Rect2, stair_dir: Vector2, turn_degrees: float) -> Rect2:
-	return StairGeometry.vertical_void_rect(rect, stair_dir, turn_degrees)
-
-
-func _split_rect_by_voids(rect: Rect2, voids: Array[Rect2]) -> Array[Rect2]:
-	return StairGeometry.split_rect_by_voids(rect, voids)
-
-
-func _subtract_rect(rect: Rect2, void_rect: Rect2) -> Array[Rect2]:
-	return StairGeometry.subtract_rect(rect, void_rect)
-
-
-func _rect_same(a: Rect2, b: Rect2) -> bool:
-	return a.position.distance_to(b.position) <= 0.001 and a.size.distance_to(b.size) <= 0.001
+	return BuildingLevels.vertical_stair_voids(building, floor_level_m, upper_floor)
 
 
 func _create_world_lighting(rects: Dictionary) -> void:
@@ -5518,7 +5433,7 @@ func _opening_specs_for_side(rect: Rect2, room_id: int, side: String, room_heigh
 			continue
 		var axis_center: float = float(info.get("axis_center", 0.0))
 		var width_m: float = float(info.get("width_m", 0.8))
-		var side_start: float = rect.position.x if side == "top" or side == "bottom" else rect.position.y
+		var side_start: float = float(WallSideGeometry.side_span(rect, side)["start"])
 		var bottom_m: float = 0.0
 		var top_m: float = minf(room_height_m, float(info.get("height_m", 2.0)))
 		if op.type == OpeningModel.Type.WINDOW:
@@ -5593,33 +5508,38 @@ func _opening_info_on_side(
 	segment_start: float = -1.0,
 	segment_end: float = -1.0
 ) -> Dictionary:
-	var horizontal: bool = side == "top" or side == "bottom"
-	var side_length: float = rect.size.x if horizontal else rect.size.y
-	var side_axis_start: float = rect.position.x if horizontal else rect.position.y
-	var side_axis_end: float = side_axis_start + side_length
+	# El lado se normaliza antes de medir nada. El modelo de huecos admite los
+	# alias cardinales ("north", "south"...): el visor 3D los entendia y este
+	# mundo no, asi que un hueco declarado al norte se colocaba aqui sobre el
+	# paramento derecho. Es justo la clase de divergencia que describe FP-3.
+	var canon_side: String = WallSideGeometry.canonical(side)
+	if canon_side == "":
+		canon_side = "top"
+	var horizontal: bool = WallSideGeometry.is_horizontal(canon_side)
+	var side_axis: Dictionary = WallSideGeometry.side_span(rect, canon_side)
+	var side_axis_start: float = float(side_axis["start"])
+	var side_axis_end: float = float(side_axis["end"])
 	var allowed_start: float = side_axis_start
 	var allowed_end: float = side_axis_end
 	if segment_end > segment_start:
 		allowed_start = maxf(side_axis_start, segment_start)
 		allowed_end = minf(side_axis_end, segment_end)
-	var allowed_length: float = allowed_end - allowed_start
-	if allowed_length <= 0.05:
+	if allowed_end - allowed_start <= 0.05:
 		return {}
 
-	var center_axis: float
-	if offset_is_fraction:
-		center_axis = allowed_start + allowed_length * offset
-	else:
-		center_axis = side_axis_start + offset
-	width_m = minf(width_m, maxf(0.20, allowed_length))
-	center_axis = clampf(center_axis, allowed_start + width_m * 0.5, allowed_end - width_m * 0.5)
+	var placement: Dictionary = OpeningPlacement.center_along_side(
+		allowed_start, allowed_end, side_axis_start, offset, offset_is_fraction, width_m
+	)
+	var center_axis: float = float(placement["center"])
+	width_m = float(placement["width_m"])
 
-	var x: float = center_axis if horizontal else (rect.position.x if side == "left" else rect.position.x + rect.size.x)
-	var z: float = (rect.position.y if side == "top" else rect.position.y + rect.size.y) if horizontal else center_axis
+	var fixed_axis_m: float = WallSideGeometry.side_offset_m(rect, canon_side)
+	var x: float = center_axis if horizontal else fixed_axis_m
+	var z: float = fixed_axis_m if horizontal else center_axis
 	var floor_level_m: float = _get_room_floor_level(room_id)
 	var center: Vector3 = _to_world(Vector3(x, sill_m + height_m * 0.5, z), floor_level_m)
 	var tangent: Vector3 = Vector3.RIGHT if horizontal else Vector3.FORWARD
-	var normal: Vector3 = _inside_normal_for_side(side)
+	var normal: Vector3 = _inside_normal_for_side(canon_side)
 	return {
 		"center": center,
 		"axis_center": center_axis,
@@ -5628,7 +5548,7 @@ func _opening_info_on_side(
 		"height_m": height_m,
 		"sill_m": sill_m,
 		"orientation": "horizontal" if horizontal else "vertical",
-		"side_for_%d" % room_id: side,
+		"side_for_%d" % room_id: canon_side,
 		"tangent": tangent,
 		"normal": normal,
 		"exterior": exterior,
@@ -5641,45 +5561,11 @@ func _shared_side(a: Rect2, b: Rect2) -> String:
 
 
 func _shared_side_data(a: Rect2, b: Rect2) -> Dictionary:
-	var eps: float = 0.01
-	var min_overlap_m: float = 0.05
-	var overlap_start: float
-	var overlap_end: float
-	if absf((a.position.x + a.size.x) - b.position.x) < eps:
-		overlap_start = maxf(a.position.y, b.position.y)
-		overlap_end = minf(a.position.y + a.size.y, b.position.y + b.size.y)
-		if overlap_end - overlap_start > min_overlap_m:
-			return {"side": "right", "overlap_start": overlap_start, "overlap_end": overlap_end}
-	if absf(a.position.x - (b.position.x + b.size.x)) < eps:
-		overlap_start = maxf(a.position.y, b.position.y)
-		overlap_end = minf(a.position.y + a.size.y, b.position.y + b.size.y)
-		if overlap_end - overlap_start > min_overlap_m:
-			return {"side": "left", "overlap_start": overlap_start, "overlap_end": overlap_end}
-	if absf((a.position.y + a.size.y) - b.position.y) < eps:
-		overlap_start = maxf(a.position.x, b.position.x)
-		overlap_end = minf(a.position.x + a.size.x, b.position.x + b.size.x)
-		if overlap_end - overlap_start > min_overlap_m:
-			return {"side": "bottom", "overlap_start": overlap_start, "overlap_end": overlap_end}
-	if absf(a.position.y - (b.position.y + b.size.y)) < eps:
-		overlap_start = maxf(a.position.x, b.position.x)
-		overlap_end = minf(a.position.x + a.size.x, b.position.x + b.size.x)
-		if overlap_end - overlap_start > min_overlap_m:
-			return {"side": "top", "overlap_start": overlap_start, "overlap_end": overlap_end}
-	return {}
+	return WallSideGeometry.shared_side(a, b)
 
 
 func _opposite_side(side: String) -> String:
-	match side:
-		"top":
-			return "bottom"
-		"bottom":
-			return "top"
-		"left":
-			return "right"
-		"right":
-			return "left"
-		_:
-			return ""
+	return WallSideGeometry.opposite(side)
 
 
 func _place_at_entry() -> void:
@@ -5738,17 +5624,7 @@ func _place_at_entry() -> void:
 
 
 func _inside_normal_for_side(side: String) -> Vector3:
-	match side:
-		"top":
-			return Vector3(0.0, 0.0, 1.0)
-		"bottom":
-			return Vector3(0.0, 0.0, -1.0)
-		"left":
-			return Vector3.RIGHT
-		"right":
-			return Vector3.LEFT
-		_:
-			return Vector3(0.0, 0.0, 1.0)
+	return WallSideGeometry.inward_normal_3d(side)
 
 
 func _compute_bounds(rects: Dictionary) -> Rect2:
@@ -5792,37 +5668,21 @@ func _vector2_from_variant(value: Variant, fallback: Vector2 = Vector2.ZERO) -> 
 
 
 func _get_room_floor_level(room_id: int) -> float:
-	if building == null:
-		return 0.0
-	var room: RoomModel = building.get_room(room_id)
-	return room.floor_level_z_m if room != null else 0.0
+	return BuildingLevels.room_floor_level_m(building, room_id)
 
 
 func _room_is_stairwell(room: RoomModel) -> bool:
-	if room == null:
-		return false
-	var label: String = ("%s %s" % [room.kind, room.name]).to_lower()
-	return label.contains("escalera") or label.contains("stair")
+	return BuildingLevels.is_stairwell(room)
 
 
 func _room_stair_run_direction(room: RoomModel) -> Vector2:
-	if room == null:
-		return Vector2.DOWN
-	var value: Vector2 = room.stair_run_direction_m
-	if absf(value.x) > absf(value.y):
-		return Vector2.RIGHT if value.x >= 0.0 else Vector2.LEFT
-	return Vector2.DOWN if value.y >= 0.0 else Vector2.UP
+	return BuildingLevels.stair_run_direction(room)
 
 
+## Devuelve la propia cota cuando no hay planta encima: es el contrato que
+## esperan sus llamantes, y por eso el valor de reserva viaja explicito.
 func _find_next_floor_level_above(level_m: float) -> float:
-	if building == null:
-		return level_m
-	var best: float = INF
-	for key in building.get_rooms().keys():
-		var room: RoomModel = building.get_room(int(key))
-		if room != null and room.floor_level_z_m > level_m + 0.20:
-			best = minf(best, room.floor_level_z_m)
-	return level_m if is_inf(best) else best
+	return BuildingLevels.next_floor_level_above_m(building, level_m, level_m)
 
 
 func _to_world(pos_m: Vector3, floor_level_m: float = 0.0) -> Vector3:

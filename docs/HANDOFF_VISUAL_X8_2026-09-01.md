@@ -5,8 +5,9 @@ y tiene su propio handoff en [HANDOFF_CURRENT_STATE.md](HANDOFF_CURRENT_STATE.md
 
 - **Rama**: `main`, árbol limpio salvo dos `.mp4` de grabaciones y unos `.uid`
   sin seguir de la línea motor.
-- **HEAD**: `202ebada` — *fix(view): stop the live rebuild from killing the remote debugger*.
-- **Suite**: `python scripts/check_product.py` → **30/31**. El único fallo es
+- **HEAD**: FP-3 cerrada el 2026-09-03; antes de eso, `202ebada` — *fix(view):
+  stop the live rebuild from killing the remote debugger*.
+- **Suite**: `python scripts/check_product.py` → **31/32**. El único fallo es
   `test_exit0_real_json`, conocido y de la línea motor.
 - **Documento vivo**: [AUDITORIA_VISUAL_2026-08-29.md](AUDITORIA_VISUAL_2026-08-29.md).
   Todo el detalle técnico está ahí; esto es solo el resumen para retomar.
@@ -18,10 +19,29 @@ y tiene su propio handoff en [HANDOFF_CURRENT_STATE.md](HANDOFF_CURRENT_STATE.md
 | Hallazgo | Estado | Quién lo puede mover |
 |---|---|---|
 | 🔴 **X-8** — iluminación inestable en suelo del rellano y paredes del pasillo al mover la cámara | **ABIERTO, causa no identificada** | Necesita al usuario ejecutando el simulador |
-| 🟠 **FP-3 (F5.1)** — unificar los constructores de suelo, techo, muro y hueco entre `FirstPersonController` y `Visualizer3D` | Pendiente de trabajo real | Se puede hacer sin el usuario |
+| 🟠 **FP-3 (F5.1)** — unificar los constructores de suelo, techo, muro y hueco entre `FirstPersonController` y `Visualizer3D` | **CERRADA 2026-09-03** | — |
 | ℹ️ **H-6** — autoexposición entre plantas | Declarado fuera del cierre | — |
 
-Todo lo demás de §1-§8 de la auditoría está cerrado.
+Todo lo demás de §1-§8 de la auditoría está cerrado. **X-8 es lo único que
+queda**, y no se puede mover sin ejecutar el simulador.
+
+### FP-3, cerrada
+
+Lo que se unificó es el **reparto** de la geometría, no lo que emite cada vista:
+el mundo FP levanta arquitectura recorrible con colisión y el visor 3D dibuja
+una maqueta translúcida, y eso sigue separado a propósito. Cuatro módulos
+nuevos en `view/geometry/` —`BuildingLevels`, `SlabGeometry`,
+`WallSideGeometry` y `OpeningPlacement`— con el precedente de `StairGeometry`.
+
+Al juntarlas salieron dos divergencias que ya existían: `_find_next_floor_level_above`
+tenía dos contratos distintos para el caso de no haber planta encima (ahora el
+valor de reserva viaja explícito en la llamada), y el mundo FP no entendía los
+alias cardinales de `wall_side`, así que una ventana declarada al norte se
+plantaba sobre el paramento derecho —0,80 m de desplazamiento en el caso
+estrecho del guardarraíl, 1,70 m en el ancho— y además nunca llegaba a recortar
+el muro. Guardarraíl: `tools/validate_view_geometry_parity.gd`, que monta las
+dos vistas sobre el mismo edificio y compara el reparto con 1 mm de tolerancia.
+El detalle está en la ficha FP-3 de §5 de la auditoría.
 
 ---
 
@@ -193,8 +213,9 @@ No es iluminación. Los dos sospechosos que quedan:
 ## 7. Verificación
 
 ```
-python scripts/check_product.py                      # 30/31, fallo conocido de motor
+python scripts/check_product.py                      # 31/32, fallo conocido de motor
 python tests/test_godot_editability.py               # 15/15
+<godot> --headless --path . res://tools/validate_view_geometry_parity.tscn
 <godot> --headless --path . --check-only --script view/fp/FirstPersonController.gd
 ```
 
