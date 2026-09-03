@@ -1968,8 +1968,8 @@ func _landing_side_for(op: OpeningModel, info: Dictionary) -> String:
 	return String(info.get("side_for_%d" % room_id, "top"))
 
 
-## Ancho del rellano: da para la puerta, para las puertas de los vecinos y
-## para la caja de escalera. Mismo criterio que usa _create_landing_recess.
+## Ancho que le gustaria tener al rellano: da para la puerta, para las puertas
+## de los vecinos y para la caja de escalera.
 func _landing_width_for(door_width_m: float) -> float:
 	var doors: int = clampi(landing_neighbor_doors, 1, 4)
 	return maxf(
@@ -1982,9 +1982,73 @@ func _landing_depth_m() -> float:
 	return maxf(3.30, landing_recess_depth_m * 2.35)
 
 
-## Registra la huella de cada rellano antes de construir el mundo, para que
-## el resto de piezas puedan preguntar si el suelo y el aire de ese trozo de
-## fachada son ya del portal.
+## Separacion del portal respecto al plano de la puerta.
+##
+## El portal se planta hacia fuera desde la puerta de entrada dando por supuesto
+## que ahi no hay nada. En una planta rectangular es cierto; en cuanto la
+## vivienda tiene forma de L deja de serlo. En `compact_apartment` la puerta da a
+## una fachada que tiene el lavadero a un lado y el bano al otro, ambos mas alla
+## del plano de la puerta, y el portal se plantaba encima de los dos: 3,4 m2 de
+## suelo duplicado y los tabiques de la vivienda cruzando el rellano.
+##
+## Estrecharlo no sirve: entre el lavadero y el bano solo quedan 1,40 m, menos
+## que la caja de escalera. Lo que se hace es apartarlo hasta librar lo que
+## estorba, y unirlo a la puerta con un paso del ancho del hueco. Es ademas lo
+## que pasa en un edificio real: el nucleo comun esta donde cabe, y a la puerta
+## de cada vivienda se llega por un pasillo.
+func _landing_fit(side: String, floor_level_m: float, axis_center_m: float, half_width_m: float, depth_m: float) -> Dictionary:
+	var result: Dictionary = {
+		"half_width_m": half_width_m,
+		"depth_m": depth_m,
+		"standoff_m": 0.0,
+	}
+	if building == null:
+		return result
+	var canon: String = WallSideGeometry.canonical(side)
+	if canon == "":
+		return result
+
+	var plane_m: float = _landing_plane_m(canon, floor_level_m, axis_center_m)
+	var outward_2d: Vector2 = WallSideGeometry.outward_normal_2d(canon)
+	var outward: float = outward_2d.y if WallSideGeometry.is_horizontal(canon) else outward_2d.x
+
+	# Cuanto sobresale cada estancia de la planta mas alla de ese plano, y que
+	# tramo de fachada ocupa.
+	var standoff_m: float = 0.0
+	for key in _room_rects_cache.keys():
+		var room: RoomModel = building.get_room(int(key))
+		if room == null or absf(room.floor_level_z_m - floor_level_m) > 0.05:
+			continue
+		var rect: Rect2 = Rect2(_room_rects_cache[key])
+		var span: Dictionary = WallSideGeometry.side_span(rect, canon)
+		if float(span["end"]) <= axis_center_m - half_width_m + 0.01:
+			continue
+		if float(span["start"]) >= axis_center_m + half_width_m - 0.01:
+			continue
+		var near_m: float = WallSideGeometry.side_offset_m(rect, canon)
+		var far_m: float = WallSideGeometry.side_offset_m(rect, WallSideGeometry.opposite(canon))
+		var reach_m: float = maxf((near_m - plane_m) * outward, (far_m - plane_m) * outward)
+		standoff_m = maxf(standoff_m, reach_m)
+
+	result["standoff_m"] = standoff_m
+	return result
+
+
+## Coordenada del plano de fachada por el que sale el portal.
+func _landing_plane_m(side: String, floor_level_m: float, axis_center_m: float) -> float:
+	var canon: String = WallSideGeometry.canonical(side)
+	for key in _room_rects_cache.keys():
+		var room: RoomModel = building.get_room(int(key))
+		if room == null or absf(room.floor_level_z_m - floor_level_m) > 0.05:
+			continue
+		var rect: Rect2 = Rect2(_room_rects_cache[key])
+		var span: Dictionary = WallSideGeometry.side_span(rect, canon)
+		if axis_center_m < float(span["start"]) - 0.01 or axis_center_m > float(span["end"]) + 0.01:
+			continue
+		return WallSideGeometry.side_offset_m(rect, canon)
+	return 0.0
+
+
 func _collect_landing_footprints() -> void:
 	if building == null or not show_landing_recess or not _is_apartment_building():
 		return
@@ -1999,9 +2063,19 @@ func _collect_landing_footprints() -> void:
 		var key: String = _landing_key(_landing_side_for(op, info), floor_level_m)
 		if _landing_footprints.has(key):
 			continue
+		var axis_center_m: float = float(info.get("axis_center", 0.0))
+		var fit: Dictionary = _landing_fit(
+			_landing_side_for(op, info),
+			floor_level_m,
+			axis_center_m,
+			_landing_width_for(float(info.get("width_m", 0.85))) * 0.5,
+			_landing_depth_m()
+		)
 		_landing_footprints[key] = {
-			"axis_center": float(info.get("axis_center", 0.0)),
-			"half_width_m": _landing_width_for(float(info.get("width_m", 0.85))) * 0.5,
+			"axis_center": axis_center_m,
+			"half_width_m": float(fit["half_width_m"]),
+			"depth_m": float(fit["depth_m"]),
+			"standoff_m": float(fit["standoff_m"]),
 		}
 
 
@@ -2042,15 +2116,22 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
 	var doors: int = clampi(landing_neighbor_doors, 1, 4)
 	var stair_bay_w: float = landing_stair_bay_width_m
-	var width_m: float = _landing_width_for(float(info.get("width_m", 0.85)))
-	var depth_m: float = _landing_depth_m()
+	# Las medidas salen de la huella ya ajustada al hueco libre, calculada
+	# antes de construir nada, para que el porche y el recinto usen la misma.
+	var footprint: Dictionary = _landing_footprints.get(recess_key, {})
+	var width_m: float = float(footprint.get("half_width_m", _landing_width_for(float(info.get("width_m", 0.85))) * 0.5)) * 2.0
+	var depth_m: float = float(footprint.get("depth_m", _landing_depth_m()))
 	var corridor_height_m: float = _landing_height_for_opening(info)
 
 	# El rellano se pega a la cara exterior del tabique de la vivienda, que esta
 	# a wall_thickness_m * 0.5. Arrancando en 0.08 quedaba una rendija de 3 cm
 	# en todo el encuentro (suelo, techo y laterales) por la que entraba luz.
 	var landing_join_m: float = maxf(0.0, wall_thickness_m * 0.5 - 0.02)
-	var floor_center: Vector3 = center - normal * (depth_m * 0.5 + landing_join_m)
+	# Cuanto hay que apartar el portal para que no caiga encima de la propia
+	# vivienda. Cero en una planta rectangular; en una en L, lo que sobresalga.
+	var standoff_m: float = float(footprint.get("standoff_m", 0.0))
+	var front_face_m: float = landing_join_m + standoff_m
+	var floor_center: Vector3 = center - normal * (front_face_m + depth_m * 0.5)
 	floor_center.y = floor_level_m - floor_thickness_m * 0.5
 
 	# Caja de escalera contra la pared derecha. Dos tiros paralelos conectan
@@ -2061,7 +2142,26 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	)
 	var shaft_hole: Rect2 = Rect2(stair_layout["shaft_hole_xz"])
 
-	var floor_rect: Rect2 = _xz_rect(floor_center, width_m * 0.5, depth_m * 0.5, tangent, normal)
+	# Huella de los forjados. Cubre el recinto ENTERO, muros incluidos, en vez
+	# de quedarse en el hueco libre y dejar que los muros se apoyen por fuera.
+	#
+	# Con la huella libre el encuentro dependia de que cuadraran dos cuentas
+	# distintas, y no cuadraban: el forjado moria en z 6,805 y el muro del
+	# fondo arrancaba en 6,810. Cinco milimetros a lo ancho de todo el portal,
+	# por los que se veia la calle mirando hacia arriba y hacia atras. Peor
+	# aun, la franja que quedaba entre el ojo de la escalera y el borde del
+	# forjado medida 2,5 cm, y `split_rect_by_voids` descarta por sana
+	# costumbre las esquirlas de menos de 8 cm: esa franja ni siquiera llegaba
+	# a construirse.
+	#
+	# Derivando la huella del propio cerramiento las dos cosas se arreglan
+	# solas y dejan de depender de que nadie toque una constante.
+	var back_face_m: float = front_face_m + depth_m + 0.03 + wall_thickness_m * 0.5
+	var slab_half_tan_m: float = width_m * 0.5 + wall_thickness_m
+	var slab_half_norm_m: float = (back_face_m - front_face_m) * 0.5
+	var slab_center: Vector3 = center - normal * (front_face_m + slab_half_norm_m)
+
+	var floor_rect: Rect2 = _xz_rect(slab_center, slab_half_tan_m, slab_half_norm_m, tangent, normal)
 	_add_slab_with_holes(
 		"LandingFloor_%02d" % index,
 		floor_rect,
@@ -2071,7 +2171,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4100 + index, NOISE_PROFILE_TILE)
 	)
 
-	var wall_center: Vector3 = center - normal * (landing_join_m + depth_m + 0.03)
+	var wall_center: Vector3 = center - normal * (front_face_m + depth_m + 0.03)
 	wall_center.y = floor_level_m + corridor_height_m * 0.5
 	var wall_size := Vector3(width_m, corridor_height_m, wall_thickness_m) if horizontal else Vector3(wall_thickness_m, corridor_height_m, width_m)
 	_add_box(
@@ -2098,7 +2198,7 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 
 	_create_landing_front_wall(
 		index,
-		center,
+		center - normal * standoff_m,
 		normal,
 		tangent,
 		floor_level_m,
@@ -2108,9 +2208,22 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 		float(info.get("height_m", 2.03))
 	)
 
-	var ceiling_center: Vector3 = floor_center
+	# Misma huella que el suelo: el techo tapa tambien el coronamiento de los
+	# muros, que es por donde se colaba la luz.
+	_create_landing_passage(
+		index,
+		center,
+		normal,
+		tangent,
+		floor_level_m,
+		corridor_height_m,
+		standoff_m,
+		float(info.get("width_m", 0.86)) + 0.16
+	)
+
+	var ceiling_center: Vector3 = slab_center
 	ceiling_center.y = floor_level_m + corridor_height_m + ceiling_thickness_m * 0.5
-	var ceiling_rect: Rect2 = _xz_rect(ceiling_center, width_m * 0.5, depth_m * 0.5, tangent, normal)
+	var ceiling_rect: Rect2 = _xz_rect(ceiling_center, slab_half_tan_m, slab_half_norm_m, tangent, normal)
 	_add_slab_with_holes(
 		"LandingCeiling_%02d" % index,
 		ceiling_rect,
@@ -2262,6 +2375,68 @@ func _landing_height_for_opening(info: Dictionary) -> float:
 	# Suelo a suelo de la vivienda: altura libre mas su forjado, que es lo que
 	# hace que el pavimento del rellano case con el de la vivienda.
 	return clampf(room.height_m + ceiling_thickness_m, 2.0, 4.0)
+
+
+## Paso entre la puerta de la vivienda y el frente del portal, cuando este ha
+## tenido que apartarse para no plantarse encima de la propia planta. Suelo,
+## techo y dos paramentos: es un tramo de pasillo comun, y como tal se cierra.
+func _create_landing_passage(
+	index: int,
+	door_center: Vector3,
+	normal: Vector3,
+	tangent: Vector3,
+	floor_level_m: float,
+	corridor_height_m: float,
+	standoff_m: float,
+	opening_w: float
+) -> void:
+	if standoff_m <= 0.01:
+		return
+	var mid: Vector3 = door_center - normal * (standoff_m * 0.5)
+	var wall_mat: StandardMaterial3D = _mat(landing_wall_color.darkened(0.04), false)
+
+	var floor_c: Vector3 = mid
+	floor_c.y = floor_level_m - floor_thickness_m * 0.5
+	_add_oriented_box(
+		_world_root,
+		"LandingPassageFloor_%02d" % index,
+		floor_c,
+		tangent,
+		opening_w + wall_thickness_m * 2.0,
+		floor_thickness_m,
+		standoff_m,
+		_mat(landing_floor_color, false, Color(0.0, 0.0, 0.0, 0.0), 0.0, 4150 + index, NOISE_PROFILE_TILE),
+		true
+	)
+
+	var ceiling_c: Vector3 = mid
+	ceiling_c.y = floor_level_m + corridor_height_m + ceiling_thickness_m * 0.5
+	_add_oriented_box(
+		_world_root,
+		"LandingPassageCeiling_%02d" % index,
+		ceiling_c,
+		tangent,
+		opening_w + wall_thickness_m * 2.0,
+		ceiling_thickness_m,
+		standoff_m,
+		_mat(landing_ceiling_color, false),
+		false
+	)
+
+	for side_sign in [-1.0, 1.0]:
+		var side_c: Vector3 = mid + tangent * side_sign * (opening_w * 0.5 + wall_thickness_m * 0.5)
+		side_c.y = floor_level_m + corridor_height_m * 0.5
+		_add_oriented_box(
+			_world_root,
+			"LandingPassageWall_%02d_%s" % [index, "L" if side_sign < 0.0 else "R"],
+			side_c,
+			tangent,
+			wall_thickness_m,
+			corridor_height_m,
+			standoff_m,
+			wall_mat,
+			true
+		)
 
 
 func _create_landing_front_wall(
@@ -2701,19 +2876,30 @@ func _create_landing_stairs(
 				wall_mat,
 				false
 			)
-		var back_center: Vector3 = bay_center - normal * (depth_m * 0.5 + wall_thickness_m * 0.5)
-		back_center.y = band_center_y
-		_add_oriented_box(
-			_world_root,
-			"LandingStairBack_%02d_%s" % [index, level_name],
-			back_center,
-			tangent,
-			stair_bay_w + wall_thickness_m * 2.0,
-			corridor_height_m,
-			wall_thickness_m,
-			wall_mat,
-			false
-		)
+		# Fondo y frente. El frente faltaba, y por ese hueco se veia la calle al
+		# mirar hacia arriba desde el rellano: el ojo de la escalera sube a
+		# proposito, pero al llegar a la planta de encima no habia nada que
+		# cerrase el recinto por delante. En la planta actual el frente lo cierra
+		# el muro del propio rellano, y por eso solo se pone en las contiguas.
+		for face in [
+			["Back", -1.0],
+			["Front", 1.0],
+		]:
+			var face_name: String = String(face[0])
+			var face_sign: float = float(face[1])
+			var face_center: Vector3 = bay_center + normal * face_sign * (depth_m * 0.5 + wall_thickness_m * 0.5)
+			face_center.y = band_center_y
+			_add_oriented_box(
+				_world_root,
+				"LandingStair%s_%02d_%s" % [face_name, index, level_name],
+				face_center,
+				tangent,
+				stair_bay_w + wall_thickness_m * 2.0,
+				corridor_height_m,
+				wall_thickness_m,
+				wall_mat,
+				false
+			)
 
 
 func _create_exterior_context() -> void:

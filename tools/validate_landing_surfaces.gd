@@ -25,11 +25,29 @@ extends Node
 const BuildingModelScript := preload("res://sim/BuildingModel.gd")
 const FirstPersonControllerScript := preload("res://view/fp/FirstPersonController.gd")
 
-## Escenario y opciones de arranque de la ultima ejecucion del usuario
-## (user://startup_sim_options.json, 2026-09-03): simple_house forzado a piso.
-const TEMPLATE_PATH: String = "res://scenarios/preset_simple_house.json"
-const BUILDING_TYPE: String = "apartment"
-const APARTMENT_FLOOR: int = 1
+## El portal es comun a todas las plantas y a todos los escenarios, asi que
+## se comprueba sobre varios, no sobre uno.
+##
+## Los dos ultimos no son escenarios de catalogo: repiten uno de los
+## anteriores cambiando los mandos que gobiernan el cerramiento. Estan para
+## que la estanqueidad no dependa de que nadie toque un valor por defecto,
+## que es justo lo que hay que garantizar tambien para los pisos que dibuje
+## el usuario.
+const CASES: Array[Dictionary] = [
+	{"template": "res://scenarios/preset_simple_house.json", "floor": 1},
+	{"template": "res://scenarios/preset_compact_apartment.json", "floor": 1},
+	{"template": "res://scenarios/preset_two_bed_apartment.json", "floor": 3},
+	{"template": "res://scenarios/preset_three_bed_apartment.json", "floor": 5},
+	{"template": "res://scenarios/preset_piso_mediterraneo.json", "floor": 2},
+	{
+		"template": "res://scenarios/preset_compact_apartment.json", "floor": 1,
+		"knobs": {"wall_thickness_m": 0.22, "landing_recess_depth_m": 1.80},
+	},
+	{
+		"template": "res://scenarios/preset_simple_house.json", "floor": 1,
+		"knobs": {"floor_thickness_m": 0.24, "ceiling_thickness_m": 0.18, "landing_neighbor_doors": 4},
+	},
+]
 
 ## Dos caras se consideran coplanarias si sus planos distan menos que esto. Un
 ## milimetro y medio: por debajo de eso el z-buffer en 24 bits a las distancias
@@ -49,7 +67,19 @@ const MAX_FLOOR_COPLANAR_AREA_M2: float = 0.02
 ## encuentro, por encima son dos fabricas para el mismo muro.
 const MAX_WALL_OVERLAP_AREA_M2: float = 0.05
 
+## Un rayo que sale del rellano y recorre esto sin tropezar con nada ha
+## encontrado un agujero en el cerramiento. Doce metros: mas que cualquier
+## dimension del portal, asi que no puede ser un hueco interior.
+const LEAK_DISTANCE_M: float = 12.0
+
+## Las secciones de diagnostico -reparto de la luz, volcado de piezas, mapa de
+## caras coplanarias de toda la vivienda- no deciden nada y cuestan tiempo.
+## Se encienden a mano cuando hace falta investigar.
+const VERBOSE: bool = false
+
 var _failures: Array[String] = []
+## Caso en curso, para que un fallo diga de que escenario viene.
+var _case: String = ""
 
 var _boxes: Array[Dictionary] = []
 
@@ -60,51 +90,8 @@ func _ready() -> void:
 
 func _run() -> void:
 	await get_tree().process_frame
-
-	var template: Dictionary = _load_template()
-	if template.is_empty():
-		push_error("No se pudo leer " + TEMPLATE_PATH)
-		get_tree().quit(1)
-		return
-	template["building_type"] = BUILDING_TYPE
-	template["apartment_floor_number"] = APARTMENT_FLOOR
-
-	var building: BuildingModel = BuildingModelScript.new()
-	building.load_template_data(template)
-
-	var host := Node3D.new()
-	host.name = "ValidateLandingHost"
-	get_tree().root.add_child(host)
-
-	var fp: FirstPersonController = FirstPersonControllerScript.new()
-	fp.name = "LandingFP"
-	host.add_child(fp)
-	await get_tree().process_frame
-	fp.setup(building)
-	fp.set_active(true)
-	await get_tree().physics_frame
-	await get_tree().process_frame
-
-	var world: Node = host.get_node_or_null("FirstPersonWorld")
-	if world == null:
-		world = fp
-	_collect(world, "")
-
-	print("== SONDA DEL RELLANO ==")
-	print("escenario: %s  tipo=%s  planta=%d" % [TEMPLATE_PATH, BUILDING_TYPE, APARTMENT_FLOOR])
-	print("cajas recogidas: %d" % _boxes.size())
-
-	var landing: AABB = _landing_volume()
-	print("volumen del rellano (mundo): pos=%s  size=%s" % [
-		_v(landing.position), _v(landing.size)
-	])
-
-	_report_coplanar(landing)
-	_report_landing_floor(landing)
-	_report_landing_ceiling()
-	_report_world_coplanar()
-	_report_stacked_walls()
-	_report_lights(host, landing)
+	for case in CASES:
+		await _run_case(case)
 
 	print("")
 	if _failures.is_empty():
@@ -117,12 +104,79 @@ func _run() -> void:
 	get_tree().quit(1)
 
 
+func _run_case(case: Dictionary) -> void:
+	var template_path: String = String(case["template"])
+	var floor_number: int = int(case.get("floor", 1))
+	var knobs: Dictionary = case.get("knobs", {})
+	_case = "%s P%d%s" % [
+		template_path.get_file().trim_suffix(".json"),
+		floor_number,
+		"" if knobs.is_empty() else " " + str(knobs),
+	]
+	_boxes.clear()
+
+	var template: Dictionary = _load_template(template_path)
+	if template.is_empty():
+		_failures.append("%s: no se pudo leer la plantilla" % _case)
+		return
+	template["building_type"] = "apartment"
+	template["apartment_floor_number"] = floor_number
+
+	var building: BuildingModel = BuildingModelScript.new()
+	building.load_template_data(template)
+
+	var host := Node3D.new()
+	host.name = "ValidateLandingHost"
+	get_tree().root.add_child(host)
+
+	var fp: FirstPersonController = FirstPersonControllerScript.new()
+	fp.name = "PortalFP"
+	for knob in knobs.keys():
+		fp.set(String(knob), knobs[knob])
+	host.add_child(fp)
+	await get_tree().process_frame
+	fp.setup(building)
+	fp.set_active(true)
+	await get_tree().physics_frame
+	await get_tree().process_frame
+
+	var world: Node = host.get_node_or_null("FirstPersonWorld")
+	if world == null:
+		world = fp
+	_collect(world, "")
+
+	print("")
+	print("=================================================================")
+	print("== %s  (%d cajas)" % [_case, _boxes.size()])
+	print("=================================================================")
+
+	var landing: AABB = _landing_volume()
+	if landing.size == Vector3.ZERO:
+		_failures.append("%s: no se ha construido ningun rellano" % _case)
+		host.free()
+		building.free()
+		return
+	print("volumen del rellano: pos=%s  size=%s" % [_v(landing.position), _v(landing.size)])
+
+	_report_landing_floor(landing)
+	_report_landing_ceiling()
+	_report_stacked_walls()
+	_report_leaks(landing)
+	if VERBOSE:
+		_report_world_coplanar()
+		_dump_landing_boxes()
+		_report_lights(host, landing)
+
+	host.free()
+	building.free()
+
+
 # ---------------------------------------------------------------------------
 # Recogida
 # ---------------------------------------------------------------------------
 
-func _load_template() -> Dictionary:
-	var file := FileAccess.open(TEMPLATE_PATH, FileAccess.READ)
+func _load_template(template_path: String) -> Dictionary:
+	var file := FileAccess.open(template_path, FileAccess.READ)
 	if file == null:
 		return {}
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
@@ -318,8 +372,8 @@ func _report_landing_floor(landing: AABB) -> void:
 			   _aabb_text(aabb2)])
 		if coplanar and ox * oz >= MAX_FLOOR_COPLANAR_AREA_M2:
 			_failures.append(
-				"%s comparte plano con el suelo del rellano en %.2f m2 (%.2f x %.2f m)"
-				% [path, ox * oz, ox, oz]
+				"%s: %s comparte plano con el suelo del rellano en %.2f m2 (%.2f x %.2f m)"
+				% [_case, path, ox * oz, ox, oz]
 			)
 	if hits.is_empty():
 		print("nada solapa por debajo")
@@ -382,11 +436,11 @@ func _report_landing_ceiling() -> void:
 		if ox < MIN_OVERLAP_M or oz < MIN_OVERLAP_M:
 			continue
 		hits.append("  %-46s %-34s %.2f x %.2f m = %.2f m2\n      %s"
-			% [path.trim_prefix("/LandingFP/FirstPersonWorld/"), which, ox, oz, ox * oz, _aabb_text(aabb2)])
+			% [path.trim_prefix("/PortalFP/FirstPersonWorld/"), which, ox, oz, ox * oz, _aabb_text(aabb2)])
 		if same_facing and ox * oz >= MAX_FLOOR_COPLANAR_AREA_M2:
 			_failures.append(
-				"%s comparte plano con el techo del rellano (%s) en %.2f m2"
-				% [path, which, ox * oz]
+				"%s: %s comparte plano con el techo del rellano (%s) en %.2f m2"
+				% [_case, path, which, ox * oz]
 			)
 	if hits.is_empty():
 		print("nada comparte plano con el techo del rellano")
@@ -481,14 +535,191 @@ func _report_stacked_walls() -> void:
 					continue
 				stacked += 1
 				_failures.append(
-					"tabique duplicado en el plano %s: %.2f m2 entre %s y %s"
-					% [key, ou * ov, String(a["path"]).get_base_dir().get_file(), String(b["path"]).get_base_dir().get_file()]
+					"%s: tabique duplicado en el plano %s, %.2f m2 entre %s y %s"
+					% [_case, key, ou * ov, String(a["path"]).get_base_dir().get_file(), String(b["path"]).get_base_dir().get_file()]
 				)
 				print("  %.2f m2 en el plano %s" % [ou * ov, key])
-				print("      A %s  %s" % [String(a["path"]).trim_prefix("/LandingFP/FirstPersonWorld/"), _aabb_text(a["aabb"])])
-				print("      B %s  %s" % [String(b["path"]).trim_prefix("/LandingFP/FirstPersonWorld/"), _aabb_text(b["aabb"])])
+				print("      A %s  %s" % [String(a["path"]).trim_prefix("/PortalFP/FirstPersonWorld/"), _aabb_text(a["aabb"])])
+				print("      B %s  %s" % [String(b["path"]).trim_prefix("/PortalFP/FirstPersonWorld/"), _aabb_text(b["aabb"])])
 	if stacked == 0:
 		print("ninguno: cada plano de tabique tiene una sola fabrica")
+
+
+## Volcado de todas las piezas del portal, para situar una rendija.
+func _dump_landing_boxes() -> void:
+	print("")
+	print("-- 1g. Piezas del portal --")
+	var lines: Array[String] = []
+	for box in _boxes:
+		var name: String = String(box["path"]).get_file()
+		var owner: String = String(box["path"]).get_base_dir().get_file()
+		var label: String = owner if owner.begins_with("Landing") else name
+		if not label.begins_with("Landing"):
+			continue
+		lines.append("  %-34s %s" % [label, _aabb_text(box["aabb"])])
+	lines.sort()
+	for line in lines:
+		print(line)
+
+
+## Agujeros en el cerramiento del rellano.
+##
+## El portal es un recinto cerrado salvo por la puerta de la vivienda y por el
+## ojo de la escalera, que sube y baja a proposito. Cualquier otra linea recta
+## que salga de el sin tropezar con nada es una rendija, y por ahi entra luz
+## del exterior.
+##
+## Se lanza un abanico de rayos desde varios puntos a la altura de los ojos y
+## se mide la distancia al primer solido. La cupula de cielo y el limite
+## exterior del mundo no cuentan: son el "fuera".
+func _report_leaks(landing: AABB) -> void:
+	print("")
+	print("-- 1f. Agujeros en el cerramiento del rellano --")
+	var solids: Array[Dictionary] = []
+	var reach: AABB = landing.grow(14.0)
+	for box in _boxes:
+		var path: String = String(box["path"])
+		if path.contains("SkyDome") or path.contains("Boundary"):
+			continue
+		if not reach.intersects(box["aabb"]):
+			continue
+		solids.append(box)
+	print("solidos considerados: %d" % solids.size())
+
+	# Los puntos de observacion van sobre el SUELO del rellano y a la altura de
+	# los ojos. La envolvente de todo lo que se llama Landing incluye los tramos
+	# que bajan a la planta inferior, y mirar desde ahi no es la pregunta.
+	var floor_box := AABB()
+	var found: bool = false
+	for box in _boxes:
+		if String(box["path"]).contains("LandingFloor"):
+			floor_box = box["aabb"] if not found else floor_box.merge(box["aabb"])
+			found = true
+	if not found:
+		print("no hay LandingFloor: no se puede situar al observador")
+		return
+	var origins: Array[Vector3] = []
+	var eye_y: float = floor_box.position.y + floor_box.size.y + 1.65
+	for ix in range(2):
+		for iz in range(2):
+			origins.append(Vector3(
+				floor_box.position.x + floor_box.size.x * (float(ix) + 1.0) / 3.0,
+				eye_y,
+				floor_box.position.z + floor_box.size.z * (float(iz) + 1.0) / 3.0
+			))
+
+	# El recinto: la huella del suelo, desde el suelo hasta bien por encima del
+	# techo. Es contra esto contra lo que se localiza por donde sale el rayo.
+	var room_box := AABB(
+		Vector3(floor_box.position.x, floor_box.position.y, floor_box.position.z),
+		Vector3(floor_box.size.x, 4.0, floor_box.size.z)
+	)
+	var leaks: Dictionary = {}
+	var rays: int = 0
+	var rings: int = 18
+	var sectors: int = 36
+	for origin in origins:
+		for ring in range(1, rings):
+			var polar: float = PI * float(ring) / float(rings)
+			for sector in range(sectors):
+				var azim: float = TAU * float(sector) / float(sectors)
+				var dir := Vector3(
+					sin(polar) * cos(azim),
+					cos(polar),
+					sin(polar) * sin(azim)
+				)
+				rays += 1
+				if _blocked(origin, dir, solids):
+					continue
+				# por donde cruza la caja del rellano: eso localiza la rendija
+				var exit_t: float = _exit_distance(origin, dir, room_box)
+				if exit_t <= 0.0:
+					continue
+				var exit_point: Vector3 = origin + dir * exit_t
+				var key: String = "%.1f|%.1f|%.1f" % [exit_point.x, exit_point.y, exit_point.z]
+				if not leaks.has(key):
+					leaks[key] = {"count": 0, "point": exit_point, "dir": dir}
+				var entry: Dictionary = leaks[key]
+				entry["count"] = int(entry["count"]) + 1
+
+	print("rayos lanzados: %d desde %d puntos" % [rays, origins.size()])
+	if leaks.is_empty():
+		print("cerramiento estanco: ningun rayo escapa")
+		return
+	var escaped: int = 0
+	for key in leaks.keys():
+		escaped += int(leaks[key]["count"])
+	_failures.append(
+		"%s: el cerramiento del rellano tiene agujeros, %d de %d rayos escapan por %d salidas"
+		% [_case, escaped, rays, leaks.size()]
+	)
+	var keys: Array = leaks.keys()
+	keys.sort_custom(func(x, y): return int(leaks[x]["count"]) > int(leaks[y]["count"]))
+	var total: int = 0
+	for key in keys:
+		total += int(leaks[key]["count"])
+	print("%d rayos escapan por %d puntos de salida distintos:" % [total, keys.size()])
+	var shown: int = 0
+	for key in keys:
+		if shown >= 18:
+			print("  ... y %d puntos de salida mas" % (keys.size() - shown))
+			break
+		var entry: Dictionary = leaks[key]
+		print("  %3d rayos por %s   direccion %s" % [
+			int(entry["count"]), _v(entry["point"]), _v(entry["dir"])
+		])
+		shown += 1
+
+
+## Cierto si algo para el rayo antes de LEAK_DISTANCE_M. No se busca el primer
+## solido ni la distancia exacta: en cuanto uno lo para, el rayo no es fuga, y
+## salir en ese momento es lo que hace viable barrer varios escenarios.
+func _blocked(origin: Vector3, dir: Vector3, solids: Array[Dictionary]) -> bool:
+	for box in solids:
+		var t: float = _ray_aabb(origin, dir, box["aabb"])
+		if t > 0.001 and t < LEAK_DISTANCE_M:
+			return true
+	return false
+
+
+## Distancia de entrada del rayo en la caja, o -1 si no la corta por delante.
+func _ray_aabb(origin: Vector3, dir: Vector3, box: AABB) -> float:
+	var t_min: float = -INF
+	var t_max: float = INF
+	for axis in range(3):
+		var lo: float = box.position[axis]
+		var hi: float = lo + box.size[axis]
+		if absf(dir[axis]) < 0.000001:
+			if origin[axis] < lo or origin[axis] > hi:
+				return -1.0
+			continue
+		var inv: float = 1.0 / dir[axis]
+		var t1: float = (lo - origin[axis]) * inv
+		var t2: float = (hi - origin[axis]) * inv
+		if t1 > t2:
+			var tmp: float = t1
+			t1 = t2
+			t2 = tmp
+		t_min = maxf(t_min, t1)
+		t_max = minf(t_max, t2)
+		if t_min > t_max:
+			return -1.0
+	if t_max < 0.0:
+		return -1.0
+	return t_min if t_min > 0.0 else t_max
+
+
+## Distancia a la que el rayo abandona la caja.
+func _exit_distance(origin: Vector3, dir: Vector3, box: AABB) -> float:
+	var t_max: float = INF
+	for axis in range(3):
+		if absf(dir[axis]) < 0.000001:
+			continue
+		var inv: float = 1.0 / dir[axis]
+		var t1: float = (box.position[axis] - origin[axis]) * inv
+		var t2: float = (box.position[axis] + box.size[axis] - origin[axis]) * inv
+		t_max = minf(t_max, maxf(t1, t2))
+	return t_max if t_max < INF else -1.0
 
 
 # ---------------------------------------------------------------------------

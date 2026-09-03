@@ -759,6 +759,35 @@ El mismo validador aprendió a distinguir **caras que miran hacia el mismo lado*
 
 Queda apuntado, medido y **sin tocar**, como candidato para la bisección del usuario (paso 4 de la tabla): el plano de fachada acumula 37,83 m² de superficies coincidentes entre `WallMesh`, `ExteriorWallSkin` y `OwnFacade`. Están **enterradas** —la chapa de fachada queda dentro del lienzo de `OwnFacade`, y desde dentro de la vivienda manda la cara interior del muro—, así que no deberían verse; pero es lo que queda en la lista si el artefacto sobrevive a esto.
 
+#### El portal, cerrado y bien plantado en cualquier planta (2026-09-03)
+
+El usuario reportó *"en la zona del rellano, en la escalera, hay un hueco sin tapar; si miro arriba a la derecha parece que entra luz del exterior entre la pared y el techo"*, y pidió que el portal se construya bien **para todas las plantas y para cualquier escenario, de catálogo o dibujado por él**.
+
+**Instrumento nuevo: detector de fugas.** El portal es un recinto cerrado salvo por la puerta de la vivienda y por el ojo de la escalera. Cualquier otra línea recta que salga de él sin tropezar con nada es una rendija. `validate_landing_surfaces` lanza ahora un abanico de rayos desde varios puntos a la altura de los ojos y mide si alguno escapa. Localizó las dos, con coordenadas:
+
+| Fuga | Dónde | Causa |
+|---|---|---|
+| 7 rayos | `z = 6,805`, `y = 2,48` — fondo del portal, a la altura del techo | el forjado moría en 6,805 y el muro del fondo arrancaba en 6,810 |
+| 5 rayos | `x ≈ 2,8..3,2`, `y ≈ 3,2..3,9` — arriba y a la derecha, sobre la caja de escalera | la caja de escalera no tenía cierre **frontal** en las plantas contiguas |
+
+La primera tenía una segunda capa: la franja que quedaba entre el ojo de la escalera y el borde del forjado medía 2,5 cm, y `split_rect_by_voids` descarta por sana costumbre las esquirlas de menos de 8 cm. Esa franja **ni siquiera llegaba a construirse**.
+
+Corregidas las dos, y de raíz: la huella de los forjados se **deriva del propio cerramiento** —cubre el recinto entero, muros incluidos— en vez de quedarse en el hueco libre y confiar en que dos cuentas distintas cuadren; y la caja de escalera se cierra por delante y por detrás en las plantas contiguas, quedando abierta sólo hacia el rellano de la planta actual, que es lo que se quería.
+
+**El portal se plantaba encima de la propia vivienda.** Esto no lo reportó el usuario: lo encontró el barrido al pasar el validador por los cinco pisos de catálogo. En `compact_apartment` la puerta de entrada da a una fachada que tiene el lavadero a un lado y el baño al otro, ambos **más allá del plano de la puerta**, y el portal se plantaba encima de los dos: 1,36 + 1,57 = **2,93 m² de suelo duplicado** y los tabiques de la vivienda cruzando el rellano.
+
+Estrecharlo no sirve: entre el lavadero y el baño quedan 1,40 m, menos que la caja de escalera. Lo que se hace es **apartar el portal hasta librar lo que estorba y unirlo a la puerta con un paso** del ancho del hueco, con su suelo, su techo y sus dos paramentos. Es además lo que ocurre en un edificio real: el núcleo común está donde cabe, y a la puerta de cada vivienda se llega por un pasillo. En una planta rectangular la separación es cero y no se construye ningún paso, así que los escenarios que ya iban bien no cambian.
+
+**Sobre "dejar fijos los parámetros".** La regla del proyecto es que todo lo gobernable desde el editor se gobierne desde el editor, así que la respuesta no es congelar mandos sino que la construcción **se derive de ellos** y el guardarraíl lo imponga. El validador barre ahora siete configuraciones:
+
+- los cinco pisos de catálogo, en plantas 1, 1, 3, 5 y 2;
+- `compact_apartment` con `wall_thickness_m = 0,22` y `landing_recess_depth_m = 1,80`;
+- `simple_house` con `floor_thickness_m = 0,24`, `ceiling_thickness_m = 0,18` y `landing_neighbor_doors = 4`.
+
+Los dos últimos están precisamente para que la estanqueidad no dependa de que nadie toque un valor por defecto, que es la misma garantía que necesitan los pisos que dibuje el usuario. En los siete se comprueba: nada comparte plano con el suelo ni con el techo del portal, ningún tabique está duplicado, y ningún rayo escapa del cerramiento.
+
+Coste: 8,6 s para los siete casos. El detector no busca el sólido más cercano, sólo si algo para el rayo, y sale en cuanto lo encuentra; sin eso no cabía en el tiempo que la suite da a una escena.
+
 ---
 
 ## 13. Estado final de la línea visual (2026-08-31)
