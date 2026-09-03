@@ -44,6 +44,11 @@ const MIN_OVERLAP_M: float = 0.05
 ## plano con el suelo por el que anda el jugador es un fallo.
 const MAX_FLOOR_COPLANAR_AREA_M2: float = 0.02
 
+## Solape a partir del cual dos tabiques del mismo plano se dan por
+## duplicados. Cinco centimetros cuadrados: por debajo es el redondeo de un
+## encuentro, por encima son dos fabricas para el mismo muro.
+const MAX_WALL_OVERLAP_AREA_M2: float = 0.05
+
 var _failures: Array[String] = []
 
 var _boxes: Array[Dictionary] = []
@@ -96,6 +101,9 @@ func _run() -> void:
 
 	_report_coplanar(landing)
 	_report_landing_floor(landing)
+	_report_landing_ceiling()
+	_report_world_coplanar()
+	_report_stacked_walls()
 	_report_lights(host, landing)
 
 	print("")
@@ -299,6 +307,8 @@ func _report_landing_floor(landing: AABB) -> void:
 				oz = pz
 		if ox < MIN_OVERLAP_M or oz < MIN_OVERLAP_M:
 			continue
+		# Cara superior contra cara superior: las dos miran hacia arriba, que es
+		# la condicion para que se peleen por el pixel.
 		var gap_m: float = top_y - (aabb2.position.y + aabb2.size.y)
 		if absf(gap_m) > COPLANAR_EPS_M and gap_m > 0.02:
 			continue
@@ -316,6 +326,169 @@ func _report_landing_floor(landing: AABB) -> void:
 	hits.sort()
 	for line in hits:
 		print(line)
+
+
+## Que comparte plano con el techo del rellano, por arriba o por abajo.
+func _report_landing_ceiling() -> void:
+	print("")
+	print("-- 1d. Que hay a la cota del techo del rellano --")
+	var pieces: Array[AABB] = []
+	for box in _boxes:
+		if String(box["path"]).contains("LandingCeiling"):
+			pieces.append(box["aabb"])
+	if pieces.is_empty():
+		print("no hay LandingCeiling en el mundo")
+		return
+	var ceiling_box: AABB = pieces[0]
+	for piece in pieces:
+		ceiling_box = ceiling_box.merge(piece)
+	var bottom_y: float = ceiling_box.position.y
+	var top_y: float = ceiling_box.position.y + ceiling_box.size.y
+	print("techo del rellano: %d losas, envolvente %s" % [pieces.size(), _aabb_text(ceiling_box)])
+	print("  intrados y=%.4f   trasdos y=%.4f" % [bottom_y, top_y])
+	var hits: Array[String] = []
+	for box in _boxes:
+		var path: String = String(box["path"])
+		if path.contains("LandingCeiling") or path.contains("SkyDome"):
+			continue
+		var aabb2: AABB = box["aabb"]
+		var other_bottom: float = aabb2.position.y
+		var other_top: float = aabb2.position.y + aabb2.size.y
+		# Solo pelean por el pixel dos caras que miran hacia el MISMO lado. Una
+		# cara que mira arriba contra otra que mira abajo es un encuentro de dos
+		# solidos -un tabique bajo un forjado- y es como se construye siempre.
+		var which: String = ""
+		var same_facing: bool = false
+		if absf(other_bottom - bottom_y) <= COPLANAR_EPS_M:
+			which = "intrados contra intrados"
+			same_facing = true
+		elif absf(other_top - top_y) <= COPLANAR_EPS_M:
+			which = "trasdos contra trasdos"
+			same_facing = true
+		elif absf(other_top - bottom_y) <= COPLANAR_EPS_M:
+			which = "apoya bajo el intrados (encuentro)"
+		elif absf(other_bottom - top_y) <= COPLANAR_EPS_M:
+			which = "apoya sobre el trasdos (encuentro)"
+		if which == "":
+			continue
+		var ox: float = 0.0
+		var oz: float = 0.0
+		for piece in pieces:
+			var px: float = _overlap(aabb2, piece, 0)
+			var pz: float = _overlap(aabb2, piece, 2)
+			if px >= MIN_OVERLAP_M and pz >= MIN_OVERLAP_M and px * pz > ox * oz:
+				ox = px
+				oz = pz
+		if ox < MIN_OVERLAP_M or oz < MIN_OVERLAP_M:
+			continue
+		hits.append("  %-46s %-34s %.2f x %.2f m = %.2f m2\n      %s"
+			% [path.trim_prefix("/LandingFP/FirstPersonWorld/"), which, ox, oz, ox * oz, _aabb_text(aabb2)])
+		if same_facing and ox * oz >= MAX_FLOOR_COPLANAR_AREA_M2:
+			_failures.append(
+				"%s comparte plano con el techo del rellano (%s) en %.2f m2"
+				% [path, which, ox * oz]
+			)
+	if hits.is_empty():
+		print("nada comparte plano con el techo del rellano")
+	hits.sort()
+	for line in hits:
+		print(line)
+
+
+## Caras coplanarias en TODA la vivienda, agrupadas por plano. Informativo:
+## sirve para localizar donde mas se pelean dos superficies por el mismo pixel.
+func _report_world_coplanar() -> void:
+	print("")
+	print("-- 1c. Caras coplanarias en toda la vivienda, por plano --")
+	var by_plane: Dictionary = {}
+	for i in range(_boxes.size()):
+		for j in range(i + 1, _boxes.size()):
+			var a: Dictionary = _boxes[i]
+			var b: Dictionary = _boxes[j]
+			if _same_parent(String(a["path"]), String(b["path"])):
+				continue
+			for axis in range(3):
+				var hit: Dictionary = _coplanar_on_axis(a["aabb"], b["aabb"], axis)
+				if hit.is_empty() or float(hit["area"]) < 0.10:
+					continue
+				var key: String = "%s = %.3f" % [["x", "y", "z"][axis], float(hit["plane"])]
+				if not by_plane.has(key):
+					by_plane[key] = {"area": 0.0, "pairs": []}
+				var bucket: Dictionary = by_plane[key]
+				bucket["area"] = float(bucket["area"]) + float(hit["area"])
+				var pairs: Array = bucket["pairs"]
+				pairs.append(float(hit["area"]))
+	var planes: Array = by_plane.keys()
+	planes.sort_custom(func(x, y): return float(by_plane[x]["area"]) > float(by_plane[y]["area"]))
+	print("%d planos con superficies enfrentadas (solape >= 0,10 m2):" % planes.size())
+	var shown: int = 0
+	for key in planes:
+		if shown >= 14:
+			print("  ... y %d planos mas" % (planes.size() - shown))
+			break
+		var bucket: Dictionary = by_plane[key]
+		var pairs: Array = bucket["pairs"]
+		print("  [%s]  %.2f m2 en %d pares" % [key, float(bucket["area"]), pairs.size()])
+		shown += 1
+
+
+## Dos tabiques no pueden ocupar el mismo sitio.
+##
+## Cada sala pide sus cuatro lados, asi que una medianera la piden las dos
+## salas que la comparten y hace falta quedarse con una sola fabrica. El
+## criterio antiguo comparaba la caja entera, y eso solo casa cuando las dos
+## salas parten el muro por los mismos sitios: un pasillo no lo hace nunca,
+## porque su lado corre a lo largo de varias habitaciones mientras cada
+## habitacion corta en su propio borde. Resultado: 13,4 m2 de tabique
+## duplicado en el pasillo del piso patron, un solido dentro de otro, con las
+## caras peleandose por cada pixel al mover la camara.
+##
+## Aqui se compara solo entre tabiques PARALELOS Y EN EL MISMO PLANO. Dos
+## muros perpendiculares que se cruzan en una esquina comparten volumen y eso
+## es correcto; quedan fuera por construccion, porque su eje delgado no
+## coincide.
+func _report_stacked_walls() -> void:
+	print("")
+	print("-- 1e. Tabiques que ocupan el mismo sitio --")
+	var by_plane: Dictionary = {}
+	for box in _boxes:
+		if not String(box["path"]).contains("WallMesh"):
+			continue
+		var aabb: AABB = box["aabb"]
+		# el eje delgado es el grosor del tabique
+		var thin: int = 0
+		for axis in range(3):
+			if aabb.size[axis] < aabb.size[thin]:
+				thin = axis
+		var key: String = "%s|%.3f|%.3f" % [
+			["x", "y", "z"][thin], aabb.position[thin], aabb.position[thin] + aabb.size[thin]
+		]
+		if not by_plane.has(key):
+			by_plane[key] = []
+		var group: Array = by_plane[key]
+		group.append({"path": box["path"], "aabb": aabb, "thin": thin})
+	var stacked: int = 0
+	for key in by_plane.keys():
+		var group: Array = by_plane[key]
+		for i in range(group.size()):
+			for j in range(i + 1, group.size()):
+				var a: Dictionary = group[i]
+				var b: Dictionary = group[j]
+				var thin: int = int(a["thin"])
+				var ou: float = _overlap(a["aabb"], b["aabb"], (thin + 1) % 3)
+				var ov: float = _overlap(a["aabb"], b["aabb"], (thin + 2) % 3)
+				if ou * ov < MAX_WALL_OVERLAP_AREA_M2:
+					continue
+				stacked += 1
+				_failures.append(
+					"tabique duplicado en el plano %s: %.2f m2 entre %s y %s"
+					% [key, ou * ov, String(a["path"]).get_base_dir().get_file(), String(b["path"]).get_base_dir().get_file()]
+				)
+				print("  %.2f m2 en el plano %s" % [ou * ov, key])
+				print("      A %s  %s" % [String(a["path"]).trim_prefix("/LandingFP/FirstPersonWorld/"), _aabb_text(a["aabb"])])
+				print("      B %s  %s" % [String(b["path"]).trim_prefix("/LandingFP/FirstPersonWorld/"), _aabb_text(b["aabb"])])
+	if stacked == 0:
+		print("ninguno: cada plano de tabique tiene una sola fabrica")
 
 
 # ---------------------------------------------------------------------------

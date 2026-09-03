@@ -79,10 +79,25 @@ rellano del portal**.
    12,2 % = **44,6 %**). Queda medido y **sin tocar**: encender sombras ahí es
    una decisión de coste que afecta a toda la escena.
 
+3. **El techo del rellano tenía el fallo espejo**, y la medianera del pasillo
+   uno mucho mayor. Los costados de la caja de escalera de la planta superior
+   arrancaban en el intradós del techo en vez de en su trasdós. Y sobre todo:
+   **13,44 m² de tabique duplicado entre el pasillo y las habitaciones**. El
+   descarte de FP-1 comparaba la caja entera, y eso sólo casa cuando las dos
+   salas parten el muro por los mismos sitios; un pasillo no lo hace nunca,
+   porque su lado corre a lo largo de varias habitaciones mientras cada
+   habitación corta en su propio borde. Corregido llevando por plano qué
+   trozos ya tienen fábrica y levantando sólo el hueco que quede.
+
 Para X-8 lo que importa es la distinción: **una fuga de luz da un brillo
 constante equivocado, no un parpadeo**. Lo que cambia al mover la cámara es el
 z-fighting, así que de las dos hipótesis la que explica el síntoma es la
 primera. **Falta que el usuario confirme en ejecución** si con esto desaparece.
+
+Si sobrevive, el siguiente sospechoso ya está medido: el plano de fachada
+acumula 37,83 m² de superficies coincidentes entre `WallMesh`,
+`ExteriorWallSkin` y `OwnFacade`. Están enterradas y no deberían verse, pero es
+exactamente el paso 4 de la tabla de bisección (`exterior_own_facade_enabled`).
 
 **Descartado con evidencia:**
 

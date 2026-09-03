@@ -688,9 +688,12 @@ var _detector_nodes: Dictionary = {}
 var _victim_nodes: Dictionary = {}
 var _furniture_nodes_by_room: Dictionary = {}
 var _fire_nodes_by_room: Dictionary = {}
-## Cajas de tabique ya construidas en esta reconstruccion, para no duplicar
-## medianeras entre salas contiguas (FP-1).
-var _wall_segment_boxes: Dictionary = {}
+## Trozo de cada plano de tabique que ya tiene fabrica levantada, en
+## coordenadas (recorrido a lo largo del muro, altura). Sustituye al viejo
+## registro por identidad exacta de caja: ese solo cazaba el caso en que dos
+## salas parten su medianera por los mismos sitios, y un pasillo nunca lo
+## hace (ver _create_wall_segment_height).
+var _wall_plane_covers: Dictionary = {}
 ## Evita que un setter que reconstruye el mundo se dispare a si mismo.
 var _rebuilding: bool = false
 var _rebuild_queued: bool = false
@@ -1197,10 +1200,10 @@ func _create_ceilings(rects: Dictionary) -> void:
 
 
 func _create_walls(rects: Dictionary) -> void:
-	# Se reinicia el registro de tabiques ya construidos: dos salas contiguas
-	# generan la misma caja de medianera y antes se dibujaban las dos, con
-	# z-fighting entre sus colores y colision duplicada (FP-1).
-	_wall_segment_boxes.clear()
+	# Se reinicia el reparto de tabiques: una medianera la piden las dos salas
+	# que la comparten y antes se levantaban las dos, con z-fighting entre sus
+	# colores y colision duplicada (FP-1).
+	_wall_plane_covers.clear()
 	var ordered_ids: Array = rects.keys()
 	ordered_ids.sort()
 	for room_id in ordered_ids:
@@ -1243,38 +1246,79 @@ func _create_wall_segment(rect: Rect2, room_id: int, side: String, start: float,
 	_create_wall_segment_height(rect, room_id, side, start, end, 0.0, height_m, floor_level_m)
 
 
+## Levanta el tramo de tabique que aun no exista.
+##
+## Cada sala pide sus cuatro lados, asi que una medianera la piden las dos
+## salas que la comparten. Antes se descartaba el duplicado comparando la
+## caja entera, y eso solo funciona cuando las dos salas parten el muro por
+## los mismos sitios. Un pasillo no lo hace nunca: su lado es una tirada
+## continua a lo largo de varias habitaciones, mientras que cada habitacion
+## corta en su propio borde y en sus propios huecos. Las cajas salian con
+## longitudes distintas, la comparacion no casaba y el tabique se dibujaba
+## dos veces, un solido dentro de otro: 13,4 m2 de fabrica duplicada solo en
+## el pasillo del piso patron, con las dos caras coplanarias peleandose por
+## cada pixel.
+##
+## Ahora se lleva, por plano de tabique, que trozos ya tienen fabrica, y se
+## levanta solo el hueco que quede. Es la misma idea de antes llevada a su
+## forma general: la comparacion de cajas era el caso particular en que el
+## trozo pedido coincide entero con uno ya cubierto.
 func _create_wall_segment_height(rect: Rect2, room_id: int, side: String, start: float, end: float, y_min_m: float, y_max_m: float, floor_level_m: float) -> void:
 	var span: float = maxf(0.0, end - start)
 	var height_m: float = maxf(0.0, y_max_m - y_min_m)
 	if span <= 0.03 or height_m <= 0.03:
 		return
 
-	var size: Vector3
-	var center: Vector3
-	var center_y: float = y_min_m + height_m * 0.5
-	if side == "top" or side == "bottom":
-		size = Vector3(span, height_m, wall_thickness_m)
-		var z: float = rect.position.y if side == "top" else rect.position.y + rect.size.y
-		center = _to_world(Vector3(rect.position.x + start + span * 0.5, center_y, z), floor_level_m)
-	else:
-		size = Vector3(wall_thickness_m, height_m, span)
-		var x: float = rect.position.x if side == "left" else rect.position.x + rect.size.x
-		center = _to_world(Vector3(x, center_y, rect.position.y + start + span * 0.5), floor_level_m)
-
 	# El rodapie SI es por sala: mira hacia dentro de cada estancia, asi que
 	# una medianera compartida necesita el de cada lado.
 	_create_skirting_segment(rect, side, start, end, floor_level_m)
 
-	var box_key: String = _wall_box_key(center, size)
-	if _wall_segment_boxes.has(box_key):
-		return
-	_wall_segment_boxes[box_key] = true
+	var horizontal: bool = side == "top" or side == "bottom"
+	var plane_m: float = WallSideGeometry.side_offset_m(rect, side)
+	var axis_start_m: float = float(WallSideGeometry.side_span(rect, side)["start"]) + start
+	var plane_key: String = "%s|%.2f|%.2f" % ["z" if horizontal else "x", plane_m, floor_level_m]
+
+	var covered: Array[Rect2] = []
+	if _wall_plane_covers.has(plane_key):
+		covered.assign(_wall_plane_covers[plane_key])
+	var wanted := Rect2(axis_start_m, y_min_m, span, height_m)
+	for piece in StairGeometry.split_rect_by_voids(wanted, covered):
+		_add_wall_piece(rect, room_id, side, horizontal, plane_m, piece, floor_level_m)
+		covered.append(piece)
+	_wall_plane_covers[plane_key] = covered
+
+
+## Una caja de tabique, con su cuerpo estatico y, si esa cara da a la calle,
+## su chapa de fachada. `piece` va en (recorrido a lo largo del muro, altura).
+func _add_wall_piece(
+	rect: Rect2,
+	room_id: int,
+	side: String,
+	horizontal: bool,
+	plane_m: float,
+	piece: Rect2,
+	floor_level_m: float
+) -> void:
+	var center_y: float = piece.position.y + piece.size.y * 0.5
+	var axis_center_m: float = piece.position.x + piece.size.x * 0.5
+	var size: Vector3
+	var center: Vector3
+	if horizontal:
+		size = Vector3(piece.size.x, piece.size.y, wall_thickness_m)
+		center = _to_world(Vector3(axis_center_m, center_y, plane_m), floor_level_m)
+	else:
+		size = Vector3(wall_thickness_m, piece.size.y, piece.size.x)
+		center = _to_world(Vector3(plane_m, center_y, axis_center_m), floor_level_m)
 
 	var body := StaticBody3D.new()
 	body.name = "Wall_%s" % side
 	_world_root.add_child(body, true)
 	_add_box(body, "WallMesh", size, center, _wall_material_for_room(room_id), true)
-	_add_exterior_wall_skin(rect, room_id, side, start, end, size, center, floor_level_m)
+
+	# La chapa de fachada se pregunta por el tramo realmente levantado, en
+	# coordenadas de la sala, que es como la espera _wall_face_is_exterior.
+	var rel_start: float = piece.position.x - float(WallSideGeometry.side_span(rect, side)["start"])
+	_add_exterior_wall_skin(rect, room_id, side, rel_start, rel_start + piece.size.x, size, center, floor_level_m)
 
 
 ## Material de la envolvente exterior: la ranura del inspector si la hay, y
@@ -1387,15 +1431,6 @@ func _wall_face_is_exterior(
 		if minf(seg_max, other_max) - maxf(seg_min, other_min) > 0.05:
 			return false
 	return true
-
-
-## Identidad geometrica de un tabique, redondeada al centimetro: dos salas
-## contiguas producen exactamente la misma caja para su medianera. Gana la
-## primera sala por id, que es orden estable entre reconstrucciones.
-func _wall_box_key(center: Vector3, size: Vector3) -> String:
-	return "%.2f|%.2f|%.2f|%.2f|%.2f|%.2f" % [
-		center.x, center.y, center.z, size.x, size.y, size.z
-	]
 
 
 func _create_skirting_segment(rect: Rect2, side: String, start: float, end: float, floor_level_m: float) -> void:
@@ -2637,15 +2672,18 @@ func _create_landing_stairs(
 
 	# Cerramiento de la caja en las plantas contiguas. La planta actual queda
 	# abierta hacia el rellano para que subida y bajada se lean de un vistazo.
-	# La banda inferior baja floor_thickness_m: rematando en floor_level_m su
-	# cara superior quedaba en el MISMO plano que la del suelo del rellano, y
-	# el costado izquierdo de la caja no cae dentro del ojo de la escalera,
-	# asi que cruzaba la losa de lado a lado como una linea de sierra de
-	# 0,10 x 3,28 m. Ahora remata contra el intrados del forjado, que es
-	# ademas donde apoya de verdad.
+	# Las dos bandas se apartan del forjado del rellano el grosor de la losa.
+	# Rematando en floor_level_m, la inferior dejaba su cara SUPERIOR en el
+	# mismo plano que la cara superior del suelo; arrancando en
+	# floor_level_m + corridor_height_m, la superior dejaba su cara INFERIOR en
+	# el mismo plano que el intrados del techo. Y el costado izquierdo de la
+	# caja no cae dentro del ojo de la escalera, asi que ambas cruzaban la losa
+	# de lado a lado como una linea de sierra de 0,10 x 2,64 m. Ahora rematan
+	# contra el intrados del forjado y el trasdos del techo, que es ademas
+	# donde apoyan de verdad.
 	for level_data in [
 		["Lower", floor_level_m - floor_thickness_m - corridor_height_m * 0.5],
-		["Upper", floor_level_m + corridor_height_m * 1.5],
+		["Upper", floor_level_m + ceiling_thickness_m + corridor_height_m * 1.5],
 	]:
 		var level_name: String = String(level_data[0])
 		var band_center_y: float = float(level_data[1])

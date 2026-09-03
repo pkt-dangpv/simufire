@@ -732,6 +732,33 @@ Guardarraíl: `tools/validate_landing_surfaces.gd`, en la suite. Falla si algo c
 
 **Pendiente de confirmar en ejecución.** Esto elimina tres superficies coplanarias reales del sitio exacto donde el usuario ve el artefacto, pero que X-8 desaparezca sólo lo puede decir él corriendo el simulador con `simple_house` en modo piso.
 
+#### El techo del rellano y, sobre todo, la medianera del pasillo (2026-09-03)
+
+Con el suelo del rellano ya limpio, el usuario reportó lo mismo en el techo, y añadió la observación que resultó ser la más importante: *"pasa en las paredes de las habitaciones que dan justo a la pared del pasillo, como si compartieran polígonos"*. Las dos, ciertas.
+
+**Techo del rellano: el fallo espejo del suelo.** Los costados de la caja de escalera de la planta superior arrancaban en `floor_level_m + corridor_height_m`, que es el **intradós** del techo del rellano, así que su cara inferior quedaba en el mismo plano que la cara inferior de la losa: 0,10 × 2,64 m por costado, la misma banda que ya se había corregido abajo. Ahora las dos bandas se apartan el grosor de la losa —la inferior contra el intradós del forjado, la superior contra el trasdós del techo—, que es además donde apoyan de verdad.
+
+**La medianera del pasillo: 13,44 m² de tabique duplicado.** Éste es grande y es general, no del rellano.
+
+Cada sala pide sus cuatro lados, así que una medianera la piden las dos salas que la comparten. El descarte del duplicado (🟠 FP-1, julio) comparaba **la caja entera**: `_wall_box_key(center, size)`. Eso sólo casa cuando las dos salas parten el muro por los mismos sitios — y **un pasillo no lo hace nunca**. Su lado es una tirada continua a lo largo de varias habitaciones, mientras que cada habitación corta en su propio borde y en sus propios huecos. Las cajas salían con longitudes distintas, la comparación no casaba, y el tabique se levantaba dos veces: un sólido dentro de otro, con las dos caras peleándose por cada píxel.
+
+Medido en el piso patrón, los dos planos del pasillo:
+
+| Plano (mundo) | Duplicado |
+|---|---|
+| `x = −0,050..0,050` (pasillo ↔ salón y cocina) | 3,72 + 2,64 = **6,36 m²** |
+| `x = 1,450..1,550` (pasillo ↔ dormitorios y baño) | 2,64 + 1,44 + 1,44 + 1,56 = **7,08 m²** |
+
+Ejemplo concreto del primero: el pasillo levanta un tramo de `z −1,050..1,600`, y enfrente el salón levanta `z −1,050..0,500` y la cocina `z 0,500..1,600`. Los tres ocupan `x −0,050..0,050, y 0..2,400`. **13,44 m² de fábrica duplicada, justo las paredes del pasillo y de las habitaciones que dan a él.**
+
+Corregido generalizando el descarte: en vez de comparar identidad de caja, se lleva por plano de tabique qué trozos ya tienen fábrica —en coordenadas (recorrido a lo largo del muro, altura)— y se levanta sólo el hueco que quede, reutilizando `StairGeometry.split_rect_by_voids`. La comparación de cajas era el caso particular en que el trozo pedido coincide entero con uno ya cubierto. Efecto lateral asumido, que ya venía de FP-1: cuando dos salas comparten muro, cada tramo toma el material de la primera sala por id que lo reclama, así que una medianera larga puede quedar a tramos. Es preferible a que se peleen dos fábricas.
+
+Guardarraíl nuevo en `validate_landing_surfaces`: **dos tabiques no pueden ocupar el mismo sitio.** Compara sólo entre muros paralelos y en el mismo plano, así que dos muros perpendiculares que se cruzan en una esquina —que sí comparten volumen, y es correcto— quedan fuera por construcción. Con el criterio antiguo caza los seis duplicados con sus áreas exactas; desactivando el descarte entero, dieciocho.
+
+El mismo validador aprendió a distinguir **caras que miran hacia el mismo lado** de las que sólo se encuentran: un tabique que apoya bajo un forjado comparte plano con él y eso es como se construye siempre; lo que se pelea por el píxel son dos caras mirando en la misma dirección. Sin esa distinción el guardarraíl marcaba todos los encuentros normales de muro y techo.
+
+Queda apuntado, medido y **sin tocar**, como candidato para la bisección del usuario (paso 4 de la tabla): el plano de fachada acumula 37,83 m² de superficies coincidentes entre `WallMesh`, `ExteriorWallSkin` y `OwnFacade`. Están **enterradas** —la chapa de fachada queda dentro del lienzo de `OwnFacade`, y desde dentro de la vivienda manda la cara interior del muro—, así que no deberían verse; pero es lo que queda en la lista si el artefacto sobrevive a esto.
+
 ---
 
 ## 13. Estado final de la línea visual (2026-08-31)
