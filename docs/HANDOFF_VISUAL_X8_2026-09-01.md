@@ -7,7 +7,7 @@ y tiene su propio handoff en [HANDOFF_CURRENT_STATE.md](HANDOFF_CURRENT_STATE.md
   sin seguir de la línea motor.
 - **HEAD**: FP-3 cerrada el 2026-09-03; antes de eso, `202ebada` — *fix(view):
   stop the live rebuild from killing the remote debugger*.
-- **Suite**: `python scripts/check_product.py` → **31/32**. El único fallo es
+- **Suite**: `python scripts/check_product.py` → **32/33**. El único fallo es
   `test_exit0_real_json`, conocido y de la línea motor.
 - **Documento vivo**: [AUDITORIA_VISUAL_2026-08-29.md](AUDITORIA_VISUAL_2026-08-29.md).
   Todo el detalle técnico está ahí; esto es solo el resumen para retomar.
@@ -54,6 +54,35 @@ en dos sitios**.
 
 Dato de contexto que importa: el renderer es **`gl_compatibility`**
 (`project.godot`), no Forward+.
+
+**Encontrado y corregido en el rellano (2026-09-03), a partir de dos hipótesis
+del usuario.** Las dos eran ciertas, medidas con
+`tools/validate_landing_surfaces.gd` sobre el escenario que el usuario tenía
+cargado (`simple_house` en modo **piso**, planta 1, día). Ojo al detalle que
+invalidaba la nota anterior: *"el piso patrón no reproduce el fenómeno"* se
+midió con `simple_house` como **unifamiliar**, y en unifamiliar **no existe el
+rellano del portal**.
+
+1. **Polígonos a la cota del suelo del rellano: tres, coplanarios exactos.**
+   `ExteriorContext/DoorPorch_05` solapaba **2,04 m²** con el suelo del rellano
+   a **0,0000 m** de desnivel, justo delante de la puerta de la vivienda: el
+   porche de entrada se construía *sólo en pisos*, que es justo donde el
+   rellano ya pone su propio solado, y a la misma cota exacta. Y los dos
+   costados de la caja de escalera de la planta inferior remataban en la cara
+   superior del forjado en vez de en su intradós, cruzando la losa en una
+   banda de 0,10 × 2,64 m. Corregido; ya no queda nada compartiendo plano con
+   ese suelo.
+2. **Luz que entra: sí, pero la cocina aporta el 1,2 %.** El **51,2 %** de la
+   luz del suelo del rellano viene de fuera atravesando las paredes, porque
+   esas omnis no proyectan sombra. El grueso son tres rellenos globales
+   (`FP_AmbientFill` 16,6 %, `CityFacadeFill_00` 15,8 %, `ExteriorSoftFill`
+   12,2 % = **44,6 %**). Queda medido y **sin tocar**: encender sombras ahí es
+   una decisión de coste que afecta a toda la escena.
+
+Para X-8 lo que importa es la distinción: **una fuga de luz da un brillo
+constante equivocado, no un parpadeo**. Lo que cambia al mover la cámara es el
+z-fighting, así que de las dos hipótesis la que explica el síntoma es la
+primera. **Falta que el usuario confirme en ejecución** si con esto desaparece.
 
 **Descartado con evidencia:**
 
@@ -213,11 +242,16 @@ No es iluminación. Los dos sospechosos que quedan:
 ## 7. Verificación
 
 ```
-python scripts/check_product.py                      # 31/32, fallo conocido de motor
+python scripts/check_product.py                      # 32/33, fallo conocido de motor
 python tests/test_godot_editability.py               # 15/15
 <godot> --headless --path . res://tools/validate_view_geometry_parity.tscn
+<godot> --headless --path . res://tools/validate_landing_surfaces.tscn
 <godot> --headless --path . --check-only --script view/fp/FirstPersonController.gd
 ```
+
+`validate_landing_surfaces` sirve además como sonda: imprime todas las caras
+coplanarias del rellano y el reparto de la luz sobre su suelo, así que para
+mirar otro escenario basta cambiar sus constantes de cabecera.
 
 Binario: `C:\Users\dangp\Desktop\Godot_v4.7.1-stable_win64_console.exe`. En Git
 Bash el stdout de Godot a veces no llega al pipe: volcar a fichero

@@ -685,6 +685,53 @@ El tamaño de paquete no es real: es basura leída de un stream ya desincronizad
 
 **Vía alternativa sin depurador.** `FirstPersonController` existe como nodo en `scenes/SimulationScene.tscn`, así que estos interruptores se pueden dejar puestos en la escena y arrancar con F5: una relanzada por paso, pero cero riesgo de desconexión. Dos excepciones, porque `_apply_startup_lighting_options()` los impone desde el escenario en cada arranque: `room_ceiling_lights_enabled` y `exterior_lighting_mode` **no** se pueden fijar así. El primero se gobierna con la casilla de luces interiores del editor de escenarios (`interior_lights_on` en el JSON) y el segundo con el modo día/noche del escenario.
 
+#### Dos hipótesis del usuario sobre el rellano, medidas (2026-09-03)
+
+El usuario propuso mirar dos cosas concretas en el rellano: polígonos generados bajo el suelo, y luz entrando por una ventana de la cocina que se solapa. **Las dos eran ciertas**, y se midieron en vez de deducirlas, con `tools/validate_landing_surfaces.gd`, que monta el mundo FP y busca caras coplanarias y fuentes de luz.
+
+Escenario: el que el usuario tenía cargado según `user://startup_sim_options.json` — `simple_house` forzado a **apartment, planta 1, día, luces interiores encendidas**. Importa: la nota de más arriba de que "el piso patrón no reproduce el fenómeno" se hizo con `simple_house` como unifamiliar, y **en unifamiliar no existe el rellano del portal**.
+
+**1. Polígonos a la cota del suelo del rellano: tres piezas, confirmado.**
+
+| Pieza | Solape con el suelo | Desnivel |
+|---|---|---|
+| `ExteriorContext/DoorPorch_05` | 1,80 × 1,13 m = **2,04 m²** | **0,0000 m** |
+| `LandingStairSide_05_Lower_L` | 0,10 × 2,64 m = 0,26 m² | **0,0000 m** |
+| `LandingStairSide_05_Lower_R` | 0,10 × 2,64 m = 0,26 m² | **0,0000 m** |
+
+El grande es el **porche**. `_create_door_entrance()` lo planta a `floor_level_m - floor_thickness_m * 0.5`, que es exactamente la misma cota que usa el suelo del rellano, y se construía **sólo en pisos** (`if _is_apartment_building() or ... HOLE`), que es justo el caso en el que el rellano ya pone su propio solado. Dos losas idénticas, `y −0,100..0,000` las dos, justo delante de la puerta de la vivienda: donde el jugador sale y donde ve el artefacto. El z-buffer no puede decidir cuál está delante y el ganador cambia con el ángulo — formas irregulares que se mueven con la cámara, que es literalmente la descripción del usuario.
+
+Las otras dos son los **costados de la caja de escalera de la planta inferior**. Remataban en `floor_level_m`, o sea en la cara **superior** del forjado en vez de en su intradós, y el costado izquierdo no cae dentro del ojo de la escalera: cruzaba la losa de delante a atrás en una banda de 10 cm. Una línea de sierra, también de la descripción.
+
+Corregido: el porche no se construye donde un rellano ya pone el suelo, y la banda inferior de la caja baja `floor_thickness_m` para rematar contra el intradós, que es además donde apoya de verdad. Tras la corrección **no queda nada compartiendo plano con el suelo del rellano**.
+
+Para saber si hay portal en un trozo de fachada hacía falta una consulta que antes no existía: el rellano se registraba al construir su puerta, así que la respuesta dependía del orden en que se recorren los huecos. Ahora `_collect_landing_footprints()` calcula la huella de cada rellano **antes** de construir nada.
+
+**2. Luz que entra en el rellano: confirmado, pero la cocina no es la culpable principal.**
+
+Aporte medio de cada omni sobre el suelo del rellano, muestreando una rejilla de 6 × 6 en su huella:
+
+| Foco | Aporte | ¿De dónde? |
+|---|---|---|
+| `LandingAmbientLight_05` | 41,2 % | del propio rellano |
+| `FP_AmbientFill` | 16,6 % | **de fuera, a través de la pared** |
+| `CityFacadeFill_00` | 15,8 % | **de fuera, a través de la pared** |
+| `ExteriorSoftFill` | 12,2 % | **de fuera, a través de la pared** |
+| `LandingStairLight_05` | 7,4 % | del propio rellano |
+| `CityFacadeFill_02` | 5,0 % | **de fuera, a través de la pared** |
+| `WindowDaylight2` (**la ventana de la cocina**) | 1,2 % | **de fuera, a través de la pared** |
+| resto (`CityFacadeFill_01`, `LandingLight`, `CeilingLight_4`, `WindowDaylight5`) | 0,6 % | |
+
+**El 51,2 % de la luz del suelo del rellano entra de fuera atravesando las paredes**, porque ninguna de esas omnis proyecta sombra: `room_ceiling_lights_cast_shadows` y `opening_lights_cast_shadows` son `false` por defecto, y los rellenos globales tampoco.
+
+La ventana de la cocina sí entra —su foco está a 0,50 m por fuera de la fachada, a una profundidad que cae dentro del portal y a 0,41 m de su caja— pero aporta **1,2 %**. El grueso son los tres rellenos globales, que suman **44,6 %**. Se deja escrito y **no se toca**: quitar el sombreado de esas omnis fue una decisión de coste, y encenderlo o acotarlas cambia el aspecto de toda la escena, no sólo del rellano.
+
+Lo que sí conviene tener claro para X-8: **una fuga de luz da un brillo constante equivocado, no un parpadeo**. Lo que cambia con el movimiento de la cámara es el z-fighting. De las dos hipótesis, la que explica el síntoma es la primera.
+
+Guardarraíl: `tools/validate_landing_surfaces.gd`, en la suite. Falla si algo comparte plano con el suelo del rellano en más de 0,02 m²; sin las correcciones caza las tres piezas con sus áreas exactas. Imprime además el reparto de luz, que no decide nada pero queda medido.
+
+**Pendiente de confirmar en ejecución.** Esto elimina tres superficies coplanarias reales del sitio exacto donde el usuario ve el artefacto, pero que X-8 desaparezca sólo lo puede decir él corriendo el simulador con `simple_house` en modo piso.
+
 ---
 
 ## 13. Estado final de la línea visual (2026-08-31)

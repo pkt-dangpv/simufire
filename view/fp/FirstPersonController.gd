@@ -679,6 +679,11 @@ var _pitch: float = 0.0
 var _stance: int = STANCE_STAND
 var _opening_nodes: Dictionary = {}
 var _landing_recess_keys: Dictionary = {}
+## Huella de cada rellano del portal, por fachada y planta, calculada ANTES
+## de construir. Sin esto la respuesta a "aqui hay portal?" dependia del
+## orden en que se recorren los huecos: el rellano se registra al crear la
+## puerta, y una ventana con indice menor preguntaba antes de que existiera.
+var _landing_footprints: Dictionary = {}
 var _detector_nodes: Dictionary = {}
 var _victim_nodes: Dictionary = {}
 var _furniture_nodes_by_room: Dictionary = {}
@@ -1060,6 +1065,7 @@ func _rebuild_world() -> void:
 	_world_root.visible = _active
 	_opening_nodes.clear()
 	_landing_recess_keys.clear()
+	_landing_footprints.clear()
 	_detector_nodes.clear()
 	_victim_nodes.clear()
 	_furniture_nodes_by_room.clear()
@@ -1089,6 +1095,7 @@ func _rebuild_world() -> void:
 	_create_world_lighting(rects)
 	_create_fp_furniture_nodes(rects)
 	_create_fp_fire_nodes(rects)
+	_collect_landing_footprints()
 	_create_opening_panels()
 	_create_exterior_context()
 	_create_safety_markers(rects)
@@ -1916,6 +1923,63 @@ func _add_slab_with_holes(name_prefix: String, rect_xz: Rect2, y_center: float, 
 		_add_box(_world_root, "%s_%02d" % [name_prefix, i], Vector3(p.size.x, thickness_m, p.size.y), pc, material, false)
 
 
+## Clave de rellano: uno por fachada y planta.
+func _landing_key(side: String, floor_level_m: float) -> String:
+	return "%s_%d" % [side, roundi(floor_level_m * 100.0)]
+
+
+func _landing_side_for(op: OpeningModel, info: Dictionary) -> String:
+	var room_id: int = op.a if op.a != OUTSIDE_ID else op.b
+	return String(info.get("side_for_%d" % room_id, "top"))
+
+
+## Ancho del rellano: da para la puerta, para las puertas de los vecinos y
+## para la caja de escalera. Mismo criterio que usa _create_landing_recess.
+func _landing_width_for(door_width_m: float) -> float:
+	var doors: int = clampi(landing_neighbor_doors, 1, 4)
+	return maxf(
+		5.40,
+		maxf(door_width_m + 4.10, float(doors) * 1.18 + landing_stair_bay_width_m + 1.0)
+	)
+
+
+func _landing_depth_m() -> float:
+	return maxf(3.30, landing_recess_depth_m * 2.35)
+
+
+## Registra la huella de cada rellano antes de construir el mundo, para que
+## el resto de piezas puedan preguntar si el suelo y el aire de ese trozo de
+## fachada son ya del portal.
+func _collect_landing_footprints() -> void:
+	if building == null or not show_landing_recess or not _is_apartment_building():
+		return
+	for index in range(building.get_opening_count()):
+		var op: OpeningModel = building.get_opening_at(index)
+		if op == null or not op.is_exterior_opening() or op.type != OpeningModel.Type.DOOR:
+			continue
+		var info: Dictionary = _opening_info(index)
+		if info.is_empty():
+			continue
+		var floor_level_m: float = float(info.get("floor_level_m", 0.0))
+		var key: String = _landing_key(_landing_side_for(op, info), floor_level_m)
+		if _landing_footprints.has(key):
+			continue
+		_landing_footprints[key] = {
+			"axis_center": float(info.get("axis_center", 0.0)),
+			"half_width_m": _landing_width_for(float(info.get("width_m", 0.85))) * 0.5,
+		}
+
+
+## Cierto si ese punto de esa fachada cae dentro del rellano del portal, es
+## decir: lo que hay ahi fuera ya no es la calle.
+func _landing_covers(side: String, floor_level_m: float, axis_center_m: float) -> bool:
+	var key: String = _landing_key(side, floor_level_m)
+	if not _landing_footprints.has(key):
+		return false
+	var data: Dictionary = _landing_footprints[key]
+	return absf(axis_center_m - float(data["axis_center"])) <= float(data["half_width_m"])
+
+
 func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> void:
 	if not show_landing_recess or op == null:
 		return
@@ -1928,10 +1992,10 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	# Un rellano por fachada y planta: con dos puertas exteriores en la misma
 	# planta se generaban dos portales completos interpenetrados (escaleras
 	# dobles, z-fighting en suelos y techos).
-	var recess_key: String = "%s_%d" % [
-		String(info.get("side_for_%d" % (op.a if op.a != OUTSIDE_ID else op.b), "top")),
-		roundi(float(info.get("floor_level_m", 0.0)) * 100.0)
-	]
+	var recess_key: String = _landing_key(
+		_landing_side_for(op, info),
+		float(info.get("floor_level_m", 0.0))
+	)
 	if _landing_recess_keys.has(recess_key):
 		return
 	_landing_recess_keys[recess_key] = index
@@ -1943,11 +2007,8 @@ func _create_landing_recess(index: int, op: OpeningModel, info: Dictionary) -> v
 	var floor_level_m: float = float(info.get("floor_level_m", 0.0))
 	var doors: int = clampi(landing_neighbor_doors, 1, 4)
 	var stair_bay_w: float = landing_stair_bay_width_m
-	var width_m: float = maxf(
-		5.40,
-		maxf(float(info.get("width_m", 0.85)) + 4.10, float(doors) * 1.18 + stair_bay_w + 1.0)
-	)
-	var depth_m: float = maxf(3.30, landing_recess_depth_m * 2.35)
+	var width_m: float = _landing_width_for(float(info.get("width_m", 0.85)))
+	var depth_m: float = _landing_depth_m()
 	var corridor_height_m: float = _landing_height_for_opening(info)
 
 	# El rellano se pega a la cara exterior del tabique de la vivienda, que esta
@@ -2576,8 +2637,14 @@ func _create_landing_stairs(
 
 	# Cerramiento de la caja en las plantas contiguas. La planta actual queda
 	# abierta hacia el rellano para que subida y bajada se lean de un vistazo.
+	# La banda inferior baja floor_thickness_m: rematando en floor_level_m su
+	# cara superior quedaba en el MISMO plano que la del suelo del rellano, y
+	# el costado izquierdo de la caja no cae dentro del ojo de la escalera,
+	# asi que cruzaba la losa de lado a lado como una linea de sierra de
+	# 0,10 x 3,28 m. Ahora remata contra el intrados del forjado, que es
+	# ademas donde apoya de verdad.
 	for level_data in [
-		["Lower", floor_level_m - corridor_height_m * 0.5],
+		["Lower", floor_level_m - floor_thickness_m - corridor_height_m * 0.5],
 		["Upper", floor_level_m + corridor_height_m * 1.5],
 	]:
 		var level_name: String = String(level_data[0])
@@ -2650,7 +2717,19 @@ func _create_exterior_context() -> void:
 				float(info.get("sill_m", 0.9))
 			)
 		elif op.type == OpeningModel.Type.DOOR or op.type == OpeningModel.Type.HOLE:
-			if _is_apartment_building() or op.type == OpeningModel.Type.HOLE:
+			# El porche es una losa de pavimento exterior a la cota exacta del
+			# suelo (floor_level - floor_thickness/2), la misma que usa el suelo
+			# del rellano. Donde hay portal las dos losas quedaban CO-PLANARIAS
+			# justo delante de la puerta de la vivienda -1,80 x 1,70 m- y el
+			# z-buffer no puede decidir cual esta delante: manchas irregulares
+			# que cambian al mover la camara. Donde hay rellano, el suelo lo
+			# pone el rellano.
+			var has_landing: bool = _landing_covers(
+				_landing_side_for(op, info),
+				floor_level_m,
+				float(info.get("axis_center", 0.0))
+			)
+			if (_is_apartment_building() or op.type == OpeningModel.Type.HOLE) and not has_landing:
 				_create_door_entrance(root, index, center, normal, tangent, float(info.get("width_m", 0.9)), floor_level_m)
 
 		var key: String = "%d_%d" % [roundi(normal.x * 4.0), roundi(normal.z * 4.0)]
