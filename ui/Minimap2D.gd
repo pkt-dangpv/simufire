@@ -15,6 +15,9 @@ const FurnitureVisualLayout := preload("res://view/furniture/FurnitureVisualLayo
 @export var hole_color: Color = Color(1.0, 0.78, 0.0, 0.95)
 @export var player_color: Color = Color(0.58, 0.88, 1.0, 0.98)
 @export var live_player_color: Color = Color(0.30, 1.0, 0.64, 1.0)
+## El atrezo no es carga de fuego: en el minimapa va en gris.
+@export var decor_fill_color: Color = Color(0.62, 0.64, 0.66, 0.26)
+@export var decor_outline_color: Color = Color(0.78, 0.82, 0.84, 0.44)
 
 @export_group("Posicion")
 ## Margen respecto a la esquina de anclaje.
@@ -178,28 +181,25 @@ func _draw_fuel_objects(room_id: int, room_rect: Rect2, tf: Dictionary) -> void:
 	if room == null:
 		return
 	var is_bathroom: bool = _is_bathroom_room(room)
+	var raw_objects: Array = []
 	for obj in room.fuel_objects:
 		if obj == null:
 			continue
-		var visual_obj: Dictionary = FurnitureVisualLayout.normalize_spec(
-			room_id,
-			room.name,
-			room.kind,
-			room_rect.size,
-			{
-				"id": obj.id,
-				"name": obj.name,
-				"kind": obj.kind,
-				"position_m": obj.position_m,
-				"size_m": obj.size_m,
-				"rotation_deg": obj.rotation_deg,
-			}
-		)
-		if bool(visual_obj.get("visual_hidden", false)):
-			continue
-		var pos_m: Vector2 = Vector2(visual_obj.get("position_m", obj.position_m))
-		var size_m: Vector2 = Vector2(visual_obj.get("size_m", obj.size_m))
-		var rotation_deg: float = float(visual_obj.get("rotation_deg", obj.rotation_deg))
+		raw_objects.append({
+			"id": obj.id,
+			"name": obj.name,
+			"kind": obj.kind,
+			"position_m": obj.position_m,
+			"size_m": obj.size_m,
+			"rotation_deg": obj.rotation_deg,
+			"visual_pose_locked": obj.visual_pose_locked,
+		})
+	# El mismo reparto que las demas vistas: un minimapa que coloque los muebles
+	# por su cuenta miente sobre lo que hay al otro lado de la puerta.
+	for visual_obj in FurnitureVisualLayout.normalize_room(building, room_id, room_rect, raw_objects):
+		var pos_m: Vector2 = Vector2(visual_obj.get("position_m", Vector2.ZERO))
+		var size_m: Vector2 = Vector2(visual_obj.get("size_m", Vector2.ONE))
+		var rotation_deg: float = float(visual_obj.get("rotation_deg", 0.0))
 		var pose: Dictionary = _furniture_pose_mini(room_rect, pos_m, size_m, rotation_deg)
 		var center_m: Vector2 = Vector2(pose.get("center_m", room_rect.position + pos_m + size_m * 0.5))
 		var visual_size_m: Vector2 = Vector2(pose.get("size_m", size_m))
@@ -211,8 +211,13 @@ func _draw_fuel_objects(room_id: int, room_rect: Rect2, tf: Dictionary) -> void:
 			_point_to_px(center_m + rot * Vector2(half.x, half.y), tf),
 			_point_to_px(center_m + rot * Vector2(-half.x, half.y), tf)
 		])
-		draw_colored_polygon(points, Color(0.92, 0.34, 0.08, 0.34))
-		draw_polyline(PackedVector2Array([points[0], points[1], points[2], points[3], points[0]]), Color(1.0, 0.62, 0.22, 0.58), 0.8)
+		var decor: bool = bool(visual_obj.get("visual_only", false))
+		draw_colored_polygon(points, decor_fill_color if decor else Color(0.92, 0.34, 0.08, 0.34))
+		draw_polyline(
+			PackedVector2Array([points[0], points[1], points[2], points[3], points[0]]),
+			decor_outline_color if decor else Color(1.0, 0.62, 0.22, 0.58),
+			0.8
+		)
 	if is_bathroom:
 		_draw_bathroom_fixtures(room_rect, tf)
 
