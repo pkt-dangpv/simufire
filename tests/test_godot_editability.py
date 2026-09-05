@@ -441,6 +441,7 @@ class TestSmokeOpeningGeometry(unittest.TestCase):
             "exterior_own_facade_enabled",
             "exterior_window_obstacles_enabled",
             "opposite_facade_enabled",
+            "furnish_empty_rooms",
         ]:
             declarations = [
                 index

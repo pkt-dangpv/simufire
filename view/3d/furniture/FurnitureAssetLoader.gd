@@ -246,7 +246,9 @@ static func _transform_aabb(xform: Transform3D, aabb: AABB) -> AABB:
 static func _asset_kind_for(kind_name: String) -> String:
 	match kind_name:
 		"storage":
-			return "dresser"
+			# Una estanteria alta se parece a una libreria, no a una comoda: con
+			# el modelo de comoda no llega a su altura sin deformarse.
+			return "bookcase"
 		"containers":
 			return "plastic_bin"
 		"table":

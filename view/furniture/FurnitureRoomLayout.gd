@@ -48,6 +48,10 @@ const SLIDE_STEP_M: float = 0.05
 ## Vueltas maximas del apartado de las piezas exentas.
 const SEPARATION_PASSES: int = 48
 
+## A cuanto de su largo se prueba a encoger una pieza que no encuentra sitio,
+## si su arquetipo admite dimension libre.
+const SHRINK_STEPS: Array[float] = [0.75, 0.55, 0.40]
+
 const SIDES: Array[String] = ["top", "bottom", "left", "right"]
 
 
@@ -216,6 +220,8 @@ static func _plan_piece(spec: Dictionary, room: Rect2) -> Dictionary:
 		"world_size": _world_size(real, rotation_deg),
 		"rotation": rotation_deg,
 		"center": requested_center,
+		"base_size": Vector2(maxf(slot.x, slot.y), minf(slot.x, slot.y)),
+		"visual_only": bool(spec.get("visual_only", false)),
 		"locked": locked,
 		"wall": FurnitureDimensions.is_wall_hugging(archetype),
 		"floor": FurnitureDimensions.is_floor_level(archetype),
@@ -239,8 +245,24 @@ static func _place_against_wall(room: Rect2, piece: Dictionary, occupied: Array)
 	for side in sides:
 		if _try_side(room, piece, side, occupied):
 			return
-	# Ningun paramento tiene sitio: se queda contra el mas cercano, apartada
-	# lo que se pueda. Es preferible a esconderla o a dejarla en mitad de todo.
+
+	# Lo que tiene una dimension libre se encoge antes de rendirse: un frente de
+	# cocina de cuatro metros no cabe en una cocina pequena, pero uno de dos si,
+	# y es preferible a plantarlo delante de la puerta.
+	for factor in SHRINK_STEPS:
+		if not _shrink(piece, factor):
+			break
+		for side in sides:
+			if _try_side(room, piece, side, occupied):
+				return
+
+	if bool(piece.get("visual_only", false)):
+		# El atrezo que no cabe no se pone. Es decoracion: mejor una sala con
+		# una pieza menos que una pieza metida dentro de otra.
+		piece["hidden"] = true
+		return
+	# Una pieza del escenario nunca se descarta: es carga de fuego y tiene que
+	# estar. Se queda contra el paramento mas cercano, apartada lo que se pueda.
 	_apply_side(room, piece, sides[0], _along_of(Vector2(piece["center"]), sides[0]))
 	_place_free(room, piece, occupied)
 
@@ -347,6 +369,9 @@ static func _place_free(room: Rect2, piece: Dictionary, occupied: Array) -> void
 				continue
 			best = candidate
 			best_distance = distance
+	if best_distance == INF and bool(piece.get("visual_only", false)):
+		piece["hidden"] = true
+		return
 	piece["center"] = best
 
 
@@ -415,8 +440,34 @@ static func _collides(rect: Rect2, occupied: Array) -> bool:
 	return false
 
 
+## Encoge la dimension libre de una pieza. Devuelve false si su arquetipo no
+## tiene ninguna -una cama mide lo que mide- o si ya esta en su minimo.
+static func _shrink(piece: Dictionary, factor: float) -> bool:
+	var archetype: String = String(piece["archetype"])
+	var spec_data: Dictionary = FurnitureDimensions.spec_for(archetype)
+	var long_min: float = float(spec_data.get("long_min_m", 0.0))
+	var long_max: float = float(spec_data.get("long_max_m", 0.0))
+	if long_min <= 0.0 or long_max < long_min:
+		return false
+	var base: Vector2 = Vector2(piece["base_size"])
+	var wanted: float = maxf(base.x, base.y) * factor
+	if wanted <= long_min:
+		wanted = long_min
+	var canonical := Vector2(wanted, minf(base.x, base.y))
+	var target: Vector3 = FurnitureDimensions.target_size_m(archetype, canonical)
+	if absf(target.x - float(piece["size"].x)) < 0.01:
+		return false
+	var achieved: Vector3 = FurnitureAssetLoader.resolved_size_m(archetype, target)
+	piece["size"] = Vector2(target.x, target.z)
+	piece["real"] = Vector2(target.x, target.z) if achieved == Vector3.ZERO else Vector2(achieved.x, achieved.z)
+	return true
+
+
 static func _resolved_spec(piece: Dictionary) -> Dictionary:
 	var spec: Dictionary = Dictionary(piece["spec"]).duplicate(true)
+	if bool(piece.get("hidden", false)):
+		spec["visual_hidden"] = true
+		return spec
 	if bool(piece.get("locked", false)):
 		return spec
 	var size: Vector2 = Vector2(piece["size"])

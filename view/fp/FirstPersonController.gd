@@ -550,6 +550,14 @@ const STARTUP_OPTIONS_PATH: String = "user://startup_sim_options.json"
 
 @export_group("Mobiliario FP")
 @export var show_fp_furniture: bool = true
+## Pone atrezo en las salas que el escenario deja sin objetos. Siete de las diez
+## plantillas del catalogo declaran su carga de fuego a granel y se recorren
+## vacias. El atrezo no arde: es un apano hasta que el motor tenga objetos de
+## verdad para esas plantillas.
+@export var furnish_empty_rooms: bool = true:
+	set(value):
+		furnish_empty_rooms = value
+		_rebuild_if_live()
 @export var fp_furniture_generic_height_m: float = 0.34
 
 @export_group("Humo FP")
@@ -3797,7 +3805,8 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 		building,
 		room_id,
 		rect,
-		Array(room_state.get("fuel_objects", [])).duplicate()
+		Array(room_state.get("fuel_objects", [])).duplicate(),
+		furnish_empty_rooms
 	)
 
 	var seen_ids: Dictionary = {}
@@ -3820,7 +3829,11 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 			visual_center_m = Vector2(visual_pose.get("center_m", visual_center_m))
 			visual_size_m = Vector2(visual_pose.get("size_m", visual_size_m))
 
-		var kind_name: String = FurnitureVisualClassifier.visual_archetype(obj)
+		# El arquetipo ya viene resuelto del reparto; volver a clasificar aqui
+		# deshace lo que la ficha declara.
+		var kind_name: String = String(obj.get("visual_archetype", ""))
+		if kind_name == "":
+			kind_name = FurnitureVisualClassifier.visual_archetype(obj)
 		var node := fuel_obj_nodes.get(obj_id) as Node3D
 		if node == null:
 			node = _create_fp_fuel_object_node(obj_id, kind_name, visual_size_m)
@@ -3841,6 +3854,7 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 		node.visible = show_fp_furniture
 		node.set_meta("room_id", room_id)
 		node.set_meta("object_id", obj_id)
+		node.set_meta("visual_only", bool(obj.get("visual_only", false)))
 		node.set_meta("size_x_m", visual_size_m.x)
 		node.set_meta("size_y_m", visual_size_m.y)
 

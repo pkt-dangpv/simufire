@@ -27,12 +27,20 @@ const FirstPersonControllerScript := preload("res://view/fp/FirstPersonControlle
 const FurnitureDimensions := preload("res://view/furniture/FurnitureDimensions.gd")
 const FurnitureRoomLayout := preload("res://view/furniture/FurnitureRoomLayout.gd")
 
-## Las plantillas que hoy traen mobiliario. Las demas del catalogo declaran la
-## carga de fuego a granel, sin objetos, y no hay nada que colocar en ellas.
+## Todo el catalogo. Siete de estas diez no declaran objetos de fuego y se
+## amueblan con atrezo, asi que las reglas de colocacion tienen que valer
+## igual para lo que trae el escenario y para lo que pone la vista.
 const TEMPLATES: Array[String] = [
 	"simple_house",
+	"compact_apartment",
+	"two_bed_apartment",
+	"three_bed_apartment",
 	"two_storey_house",
+	"row_house_ground_floor",
+	"ranch_family_house",
 	"ghanekar_bedroom_hallway",
+	"uk_bungalow",
+	"piso_mediterraneo",
 ]
 
 ## Tolerancia antes de decir que una pieza se sale de su sala.
@@ -61,6 +69,7 @@ var _failures: Array[String] = []
 var _lines: Array[String] = []
 var _case: String = ""
 var _pieces_seen: int = 0
+var _decor_seen: int = 0
 
 
 func _ready() -> void:
@@ -137,6 +146,27 @@ func _check_template(template_name: String) -> void:
 		if pieces.is_empty():
 			continue
 		_pieces_seen += pieces.size()
+
+		# El atrezo es de la vista y solo de la vista. Dos cosas que comprobar:
+		# que no se cuela en el modelo de fuego, y que NO aparece en una sala
+		# que ya trae objetos -es lo que garantiza que el dia que el motor los
+		# tenga, el atrezo se aparte solo, sin que nadie tenga que acordarse-.
+		var model_ids: Dictionary = {}
+		for fuel_obj in room.fuel_objects:
+			if fuel_obj != null:
+				model_ids[String(fuel_obj.id)] = true
+		var decor_count: int = 0
+		for piece in pieces:
+			if not String(piece["id"]).begins_with("decor_"):
+				continue
+			decor_count += 1
+			if model_ids.has(String(piece["id"])):
+				_fail("%s: el atrezo %s ha llegado al modelo de fuego de la sala %d" % [
+					_case, piece["id"], room_id])
+		if decor_count > 0 and not model_ids.is_empty():
+			_fail("%s: la sala %d trae %d objetos del escenario y aun asi se le puso atrezo" % [
+				_case, room_id, model_ids.size()])
+		_decor_seen += decor_count
 		if VERBOSE:
 			_lines.append("  %s sala %d %s: %d piezas" % [_case, room_id, room.name, pieces.size()])
 
@@ -293,7 +323,7 @@ func _finish() -> void:
 		get_tree().quit(1)
 		return
 	if _failures.is_empty():
-		print("piezas medidas: %d" % _pieces_seen)
+		print("piezas medidas: %d (%d de atrezo)" % [_pieces_seen, _decor_seen])
 		print("FURNITURE LAYOUT VALIDATION PASS")
 		get_tree().quit(0)
 		return

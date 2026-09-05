@@ -17,15 +17,22 @@ extends RefCounted
 ## visor 3D reparten el mobiliario igual, aunque luego cada una lo dibuje a su
 ## manera. Es la misma regla que impuso FP-3 para la geometria del edificio.
 
+const FurnitureRoomFurnisher := preload("res://view/furniture/FurnitureRoomFurnisher.gd")
 const FurnitureRoomLayout := preload("res://view/furniture/FurnitureRoomLayout.gd")
 const FurnitureVisualClassifier := preload("res://view/3d/furniture/FurnitureVisualClassifier.gd")
 
 
 ## Resuelve el mobiliario de una sala: tamano real y pose definitiva.
 ##
-## `building` puede ser nulo -entonces no se reservan bandas de paso, que es lo
-## unico que necesita el modelo del edificio-.
-static func normalize_room(building, room_id: int, rect: Rect2, raw_objects: Array) -> Array:
+## `building` puede ser nulo -entonces no se reservan bandas de paso ni se
+## amuebla, que es lo unico que necesita el modelo del edificio-.
+##
+## `furnish_empty` pone ATREZO en las salas que el escenario deja sin objetos.
+## Es un apano declarado y temporal: siete de las diez plantillas del catalogo
+## declaran su carga de fuego a granel y sus habitaciones se recorren vacias.
+## El atrezo no arde ni existe para el modelo; el dia que esas plantillas traigan
+## objetos de verdad, la sala llega con `fuel_objects` y el atrezo no se genera.
+static func normalize_room(building, room_id: int, rect: Rect2, raw_objects: Array, furnish_empty: bool = true) -> Array:
 	var specs: Array = []
 	for raw in raw_objects:
 		if typeof(raw) != TYPE_DICTIONARY:
@@ -34,9 +41,29 @@ static func normalize_room(building, room_id: int, rect: Rect2, raw_objects: Arr
 		var obj_id: String = String(spec.get("id", ""))
 		if obj_id == "" or obj_id.begins_with("room_proxy_"):
 			continue
-		spec["visual_archetype"] = FurnitureVisualClassifier.visual_archetype(spec)
+		# El atrezo llega diciendo lo que es; solo se clasifica lo que no lo
+		# dice. Sin esto una "Cama" individual del atrezo se ascendia a cama de
+		# matrimonio y dejaba de caber en la habitacion.
+		if String(spec.get("visual_archetype", "")) == "":
+			spec["visual_archetype"] = FurnitureVisualClassifier.visual_archetype(spec)
 		specs.append(spec)
 	if specs.is_empty():
-		return []
+		if not furnish_empty or building == null:
+			return []
+		specs = _props_for_room(building, room_id, rect)
+		if specs.is_empty():
+			return []
 	var doors: Array = FurnitureRoomLayout.doors_for_room(building, room_id, rect)
-	return FurnitureRoomLayout.layout_room(rect.size, doors, specs)
+	var placed: Array = FurnitureRoomLayout.layout_room(rect.size, doors, specs)
+	var visible: Array = []
+	for spec in placed:
+		if typeof(spec) == TYPE_DICTIONARY and not bool(Dictionary(spec).get("visual_hidden", false)):
+			visible.append(spec)
+	return visible
+
+
+static func _props_for_room(building, room_id: int, rect: Rect2) -> Array:
+	var room: RoomModel = building.get_room(room_id)
+	if room == null:
+		return []
+	return FurnitureRoomFurnisher.furnish(room_id, room.name, room.kind, rect.size)

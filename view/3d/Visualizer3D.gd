@@ -52,6 +52,9 @@ const ScreenPicking3D := preload("res://view/3d/interaction/ScreenPicking3D.gd")
 
 @export_group("Geometry")
 @export var meters_to_units: float = 1.0
+## Atrezo en las salas que el escenario deja sin objetos. Ver el mando del mismo
+## nombre en FirstPersonController: las dos vistas amueblan igual.
+@export var furnish_empty_rooms: bool = true
 @export var wall_thickness_m: float = 0.07
 @export var floor_thickness_m: float = 0.04
 @export var room_inset_m: float = 0.04
@@ -2035,6 +2038,8 @@ func _fuel_object_at_screen_pos(screen_pos: Vector2) -> Dictionary:
 		var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
 		for object_id in fuel_obj_nodes.keys():
 			var node := fuel_obj_nodes[object_id] as Node3D
+			if node != null and bool(node.get_meta("visual_only", false)):
+				continue
 			var rect: Rect2 = _node_screen_rect(node)
 			if rect.size == Vector2.ZERO or not rect.has_point(screen_pos):
 				continue
@@ -2054,6 +2059,8 @@ func _fuel_object_at_screen_pos(screen_pos: Vector2) -> Dictionary:
 		var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
 		for object_id in fuel_obj_nodes.keys():
 			var node := fuel_obj_nodes[object_id] as Node3D
+			if node != null and bool(node.get_meta("visual_only", false)):
+				continue
 			var distance: float = _node_screen_distance(node, screen_pos)
 			if distance < best_distance:
 				best_distance = distance
@@ -3218,7 +3225,7 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 	var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
 	var room_id: int = int(item.get("room_id", -1))
 	var objects: Array = Array(rs.get("fuel_objects", [])).duplicate()
-	objects = FurnitureVisualLayout.normalize_room(building, room_id, rect, objects)
+	objects = FurnitureVisualLayout.normalize_room(building, room_id, rect, objects, furnish_empty_rooms)
 
 	if _first_person_overlay and not show_fuel_objects_in_first_person:
 		fuel_objects_root.visible = false
@@ -3253,7 +3260,9 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 			continue
 
 		var state_name: String = String(obj.get("state", "cold"))
-		var kind_name: String = _fuel_visual_archetype(obj)
+		var kind_name: String = String(obj.get("visual_archetype", ""))
+		if kind_name == "":
+			kind_name = _fuel_visual_archetype(obj)
 		var rotation_deg: float = float(obj.get("rotation_deg", 0.0))
 		var visual_pose_locked: bool = bool(obj.get("visual_pose_locked", false))
 		var visual_center_m: Vector2 = pos_m + size_m * 0.5
@@ -3285,6 +3294,7 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 			continue
 		if _fuel_shape_needs_rebuild(node, kind_name, visual_size_m):
 			_rebuild_fuel_object_shape(node, kind_name, visual_size_m)
+		node.set_meta("visual_only", bool(obj.get("visual_only", false)))
 
 		var center_x: float = rect.position.x + visual_center_m.x
 		var center_z: float = rect.position.y + visual_center_m.y
