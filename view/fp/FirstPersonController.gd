@@ -3793,12 +3793,9 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 	var rect := Rect2(item.get("rect", Rect2(Vector2.ZERO, Vector2.ONE)))
 	var room: RoomModel = building.get_room(room_id) if building != null else null
 	var room_state: Dictionary = _room_state_for_furniture(room_id)
-	var room_name: String = room.name if room != null else String(room_state.get("name", ""))
-	var room_kind: String = room.kind if room != null else String(room_state.get("kind", ""))
-	var objects: Array = _normalized_fp_furniture_objects(
+	var objects: Array = FurnitureVisualLayout.normalize_room(
+		building,
 		room_id,
-		room_name,
-		room_kind,
 		rect,
 		Array(room_state.get("fuel_objects", [])).duplicate()
 	)
@@ -3863,29 +3860,6 @@ func _update_fp_room_furniture(room_id: int, item: Dictionary) -> void:
 		fuel_obj_nodes.erase(stale_id)
 	item["fuel_obj_nodes"] = fuel_obj_nodes
 	room_root.visible = show_fp_furniture and fuel_obj_nodes.size() > 0
-
-
-func _normalized_fp_furniture_objects(
-	room_id: int,
-	room_name: String,
-	room_kind: String,
-	rect: Rect2,
-	raw_objects: Array
-) -> Array:
-	var normalized_objects: Array = []
-	for raw_snapshot in raw_objects:
-		if typeof(raw_snapshot) != TYPE_DICTIONARY:
-			continue
-		var normalized: Dictionary = FurnitureVisualLayout.normalize_spec(
-			room_id,
-			room_name,
-			room_kind,
-			rect.size,
-			Dictionary(raw_snapshot)
-		)
-		if not bool(normalized.get("visual_hidden", false)):
-			normalized_objects.append(normalized)
-	return normalized_objects
 
 
 func _room_state_for_furniture(room_id: int) -> Dictionary:

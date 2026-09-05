@@ -1,21 +1,35 @@
 extends RefCounted
 
 const FurnitureAssetLoader := preload("res://view/3d/furniture/FurnitureAssetLoader.gd")
+const FurnitureDimensions := preload("res://view/furniture/FurnitureDimensions.gd")
 
 
+## Construye la pieza a su tamano real y deja anotado en el nodo lo que ocupa
+## de verdad.
+##
+## `size_m` es el hueco que declara el escenario -un dato del modelo de fuego-.
+## Ya no decide el tamano: decide la orientacion, y la dimension libre de las
+## piezas que la tienen. El tamano sale de `FurnitureDimensions`, y lo que
+## acaba midiendo la malla se anota como `real_size_m` / `real_height_m` para
+## que quien la coloque no tenga que adivinarlo.
 static func rebuild(
 	parent: Node3D,
 	kind_name: String,
 	size_m: Vector2,
 	meters_to_units: float,
 	generic_height_m: float
-) -> void:
+) -> Vector3:
 	if parent == null:
-		return
-	if FurnitureAssetLoader.try_build(parent, kind_name, size_m, meters_to_units):
-		_add_heat_glow(parent, size_m, meters_to_units)
-		return
+		return Vector3.ZERO
+	var target: Vector3 = FurnitureDimensions.target_size_m(kind_name, size_m)
+	var achieved: Vector3 = FurnitureAssetLoader.try_build(parent, kind_name, target, meters_to_units)
+	if achieved != Vector3.ZERO:
+		_add_heat_glow(parent, Vector2(achieved.x, achieved.z), meters_to_units)
+		_stamp_real_size(parent, achieved)
+		return achieved
 
+	# Sin modelo: las formas de respaldo se construyen sobre la misma caja.
+	size_m = Vector2(target.x, target.z)
 	match kind_name:
 		"sofa":
 			_build_sofa_shape(parent, size_m, meters_to_units)
@@ -50,6 +64,13 @@ static func rebuild(
 		_:
 			_build_generic_fuel_shape(parent, size_m, generic_height_m, meters_to_units)
 	_add_heat_glow(parent, size_m, meters_to_units)
+	_stamp_real_size(parent, Vector3(size_m.x, target.y, size_m.y))
+	return Vector3(size_m.x, target.y, size_m.y)
+
+
+static func _stamp_real_size(parent: Node3D, achieved: Vector3) -> void:
+	parent.set_meta("real_size_m", Vector2(achieved.x, achieved.z))
+	parent.set_meta("real_height_m", achieved.y)
 
 
 static func _build_sofa_shape(parent: Node3D, size_m: Vector2, meters_to_units: float) -> void:

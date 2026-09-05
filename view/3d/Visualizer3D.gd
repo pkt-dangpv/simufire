@@ -3218,17 +3218,7 @@ func _update_room_fuel_objects_3d(item: Dictionary, rs: Dictionary, rect: Rect2)
 	var fuel_obj_nodes: Dictionary = item.get("fuel_obj_nodes", {})
 	var room_id: int = int(item.get("room_id", -1))
 	var objects: Array = Array(rs.get("fuel_objects", [])).duplicate()
-	var room: RoomModel = building.get_room(room_id) if building != null else null
-	var room_name: String = room.name if room != null else String(rs.get("name", ""))
-	var room_kind: String = room.kind if room != null else String(rs.get("kind", ""))
-	var normalized_objects: Array = []
-	for raw_snapshot in objects:
-		if typeof(raw_snapshot) != TYPE_DICTIONARY:
-			continue
-		var normalized: Dictionary = FurnitureVisualLayout.normalize_spec(room_id, room_name, room_kind, rect.size, Dictionary(raw_snapshot))
-		if not bool(normalized.get("visual_hidden", false)):
-			normalized_objects.append(normalized)
-	objects = normalized_objects
+	objects = FurnitureVisualLayout.normalize_room(building, room_id, rect, objects)
 
 	if _first_person_overlay and not show_fuel_objects_in_first_person:
 		fuel_objects_root.visible = false

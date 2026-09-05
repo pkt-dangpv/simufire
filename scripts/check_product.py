@@ -278,6 +278,14 @@ def main() -> int:
         diagnostics.append("Godot furniture runtime: " + (diagnostic or "failed"))
 
     rc, count, fails, diagnostic = _run_godot_scene(
+        "res://tools/validate_furniture_layout.tscn",
+        "FURNITURE LAYOUT VALIDATION PASS",
+    )
+    rows.append(("Furniture layout Godot headless", rc, count, fails))
+    if rc != 0 or fails != 0:
+        diagnostics.append("Godot furniture layout: " + (diagnostic or "failed"))
+
+    rc, count, fails, diagnostic = _run_godot_scene(
         "res://tools/validate_3d_door_opening_visuals.tscn",
         "3D DOOR OPENING VISUALS VALIDATION PASS",
     )
