@@ -616,10 +616,12 @@ Verificado en captura con humo denso: el puente pasa de losa ancha metida en la 
 
 **Nota de método.** Antes de acertar recoloreé el penacho exterior y luego la cortina, y llegué a proponer al usuario cinco zonas numeradas sobre su propio fotograma para que señalase el objeto. Fue eso lo que resolvió en un mensaje lo que tres rondas de deducción no habían resuelto. Con síntomas visuales, **pedir que señalen sobre la imagen es más barato que deducir**.
 
-### 🔴 X-8. Iluminación inestable en suelo y paredes al mover la cámara — **[ABIERTO: causa NO identificada]**
-El usuario lo describió con precisión y resultó ser **un solo fenómeno en dos sitios**: *"en el suelo del rellano aparece iluminación irregular cuando muevo la cámara, con formas redondas, cuadradas, líneas de sierra... de forma aleatoria"*, y lo mismo en las paredes del pasillo. No son dos problemas: son artefactos del mapa de sombra del sol, que se recalcula siguiendo a la cámara.
+### ✅ X-8. Iluminación inestable en suelo y paredes al mover la cámara — **[CERRADA 2026-09-05: superficies superpuestas, confirmado en ejecución]**
 
-Tres causas acumuladas, atacadas juntas:
+> **Cierre.** El usuario confirma corriendo el simulador que el suelo del rellano, el techo del rellano y los pasillos de la vivienda quedaron arreglados. La causa era la que se había deducido: *«se superponía la capa trasera con la delantera»*, es decir dos caras compitiendo por el mismo píxel. Ni sombra, ni luces, ni material. El detalle del cierre está al final de esta ficha; lo que sigue es el registro completo de lo descartado por el camino.
+El usuario lo describió con precisión y resultó ser **un solo fenómeno en dos sitios**: *"en el suelo del rellano aparece iluminación irregular cuando muevo la cámara, con formas redondas, cuadradas, líneas de sierra... de forma aleatoria"*, y lo mismo en las paredes del pasillo. No son dos problemas: son el mismo, y resultó ser superficies superpuestas peleando por el píxel.
+
+**La primera hipótesis fue equivocada** y se registra porque costó varias rondas: se atribuyó al mapa de sombra del sol, que se recalcula siguiendo a la cámara. Tres causas acumuladas, atacadas juntas:
 
 1. **El filtro de sombra estaba en calidad 3.** En GL Compatibility las calidades altas muestrean con un patrón **tramado y rotado por píxel**; el borde de sombra se llena de puntos que reptan al andar. `soft_shadow_filter_quality` 3 → **0**: sombra dura pero estable, que dentro de una vivienda es lo que interesa. `directional_shadow/size` se fija explícitamente en 4096.
 2. **Acne de sombra.** Dentro de una vivienda los paramentos quedan casi rasantes a la luz del sol, el caso peor. `exterior_sky_shadow_bias` 0,08 → **0,18**.
@@ -730,7 +732,7 @@ Lo que sí conviene tener claro para X-8: **una fuga de luz da un brillo constan
 
 Guardarraíl: `tools/validate_landing_surfaces.gd`, en la suite. Falla si algo comparte plano con el suelo del rellano en más de 0,02 m²; sin las correcciones caza las tres piezas con sus áreas exactas. Imprime además el reparto de luz, que no decide nada pero queda medido.
 
-**Pendiente de confirmar en ejecución.** Esto elimina tres superficies coplanarias reales del sitio exacto donde el usuario ve el artefacto, pero que X-8 desaparezca sólo lo puede decir él corriendo el simulador con `simple_house` en modo piso.
+**Confirmado en ejecución el 2026-09-05.** Esto eliminaba tres superficies coplanarias reales del sitio exacto donde el usuario veía el artefacto, y con el techo y el pasillo corregidos después, el usuario da el suelo del rellano por bueno.
 
 #### El techo del rellano y, sobre todo, la medianera del pasillo (2026-09-03)
 
@@ -787,6 +789,22 @@ Estrecharlo no sirve: entre el lavadero y el baño quedan 1,40 m, menos que la c
 Los dos últimos están precisamente para que la estanqueidad no dependa de que nadie toque un valor por defecto, que es la misma garantía que necesitan los pisos que dibuje el usuario. En los siete se comprueba: nada comparte plano con el suelo ni con el techo del portal, ningún tabique está duplicado, y ningún rayo escapa del cerramiento.
 
 Coste: 8,6 s para los siete casos. El detector no busca el sólido más cercano, sólo si algo para el rayo, y sale en cuanto lo encuentra; sin eso no cabía en el tiempo que la suite da a una escena.
+
+#### Cierre de X-8 (2026-09-05)
+
+El usuario confirma en ejecución: **el suelo del rellano, el techo del rellano y los pasillos de la vivienda quedaron arreglados**, y describe la causa en sus propios términos — *«se superponía la capa trasera con la delantera»*—, que es exactamente el z-fighting entre superficies coincidentes. Los tres commits que lo cierran ya están en `origin/main`:
+
+| Commit | Qué quitó |
+|---|---|
+| `cbadf310` | tres superficies coplanarias con el suelo del rellano — el porche de entrada (**2,04 m² a 0,0000 m de desnivel**, justo delante de la puerta) y los dos costados de la caja de escalera inferior |
+| `1909339b` | **13,44 m²** de tabique duplicado entre el pasillo y las habitaciones que dan a él |
+| `e6712cb7` | el fallo espejo en el techo del rellano, más el sellado del portal y su replanteo en cualquier planta |
+
+**Lo que validó el diagnóstico** fue la distinción de §12b: una fuga de luz da un brillo constante equivocado, no un parpadeo; lo que cambia al mover la cámara es el z-fighting. De las dos hipótesis medidas, se siguió la que explicaba el síntoma y no la más llamativa — el 51,2 % de luz que entra atravesando paredes, que sigue ahí, medido y sin tocar, sin ser la causa de nada de esto.
+
+**La bisección de §5 del handoff no llegó a hacer falta** y se conserva sólo como registro de método. Con ella caducan también sus dos sospechosos de reserva: los 37,83 m² coincidentes del plano de fachada (`WallMesh` / `ExteriorWallSkin` / `OwnFacade`) siguen medidos, enterrados y **sin tocar**, y el orden de transparencias del overlay 3D nunca llegó a examinarse. Ninguno de los dos tiene ya síntoma que lo respalde.
+
+Lo que impide que vuelva no es el arreglo, son los guardarraíles: `validate_landing_surfaces` falla si algo comparte plano con el suelo o el techo del portal en más de 0,02 m², si dos tabiques ocupan el mismo sitio o si algún rayo escapa del cerramiento, y barre siete configuraciones — cinco pisos de catálogo en plantas distintas y dos con los mandos cambiados a propósito.
 
 ---
 
@@ -885,6 +903,6 @@ Cinco validadores headless nuevos y dos ampliados, todos verificados fallando co
 ### 13.5 Lo que queda
 
 1. **H-6** — autoexposición entre plantas. Funcionalidad nueva, declarada fuera del cierre.
-2. **Confirmar en ejecución** las correcciones de §12b: el parpadeo de texturas y las sombras del rellano y el pasillo sólo se pueden dar por buenos corriendo el simulador. Ahí sigue **X-8**, que necesita al usuario para la bisección; el procedimiento está en [HANDOFF_VISUAL_X8_2026-09-01.md](HANDOFF_VISUAL_X8_2026-09-01.md).
+2. ~~Confirmar en ejecución las correcciones de §12b~~ — **hecho el 2026-09-05**: el usuario da por arreglados el suelo del rellano, el techo del rellano y los pasillos. **X-8 cerrada**; la causa era superposición de superficies, no iluminación. La bisección de [HANDOFF_VISUAL_X8_2026-09-01.md](HANDOFF_VISUAL_X8_2026-09-01.md) no llegó a hacer falta y queda como registro de método.
 
-Con FP-3 cerrada, **no queda ningún hallazgo de §1-§8 pendiente de trabajo de código**. Lo único abierto es X-8, que no es un hallazgo de la auditoría sino un síntoma sin causa identificada y necesita ejecución.
+Con FP-3 y X-8 cerradas, **no queda ningún hallazgo de la auditoría pendiente**, ni de §1-§8 ni de la serie X. Lo único que sigue en pie es H-6 (autoexposición entre plantas), que es funcionalidad nueva declarada fuera del cierre, y dos cabos sueltos sin ficha: la sala casi negra de la grabación de las 00:38 y la pasada de arte de los muebles.

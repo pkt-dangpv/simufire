@@ -1,4 +1,14 @@
-# Handoff de la línea visual — X-8 abierto (2026-09-01)
+# Handoff de la línea visual — X-8 cerrado (2026-09-01; cerrado el 2026-09-05)
+
+> **X-8 QUEDÓ CERRADO EL 2026-09-05.** El usuario confirma en ejecución que el
+> suelo del rellano, el techo del rellano y los pasillos de la vivienda están
+> arreglados, y describe la causa: *«se superponía la capa trasera con la
+> delantera»* — z-fighting entre superficies coincidentes, tal como se había
+> deducido. Lo cierran `cbadf310`, `1909339b` y `e6712cb7`, ya en `origin/main`.
+> **La bisección de §5 no llegó a hacer falta.** Este documento se conserva como
+> registro de método: los tres fallos encadenados de §3 y las trampas de §5 son
+> lo que sigue teniendo valor. El estado vivo está en
+> [AUDITORIA_VISUAL_2026-08-29.md](AUDITORIA_VISUAL_2026-08-29.md).
 
 Estado para retomar la línea visual en otra sesión. La línea del motor va aparte
 y tiene su propio handoff en [HANDOFF_CURRENT_STATE.md](HANDOFF_CURRENT_STATE.md).
@@ -14,16 +24,16 @@ y tiene su propio handoff en [HANDOFF_CURRENT_STATE.md](HANDOFF_CURRENT_STATE.md
 
 ---
 
-## 1. Lo único que queda abierto
+## 1. Estado de los hallazgos
 
 | Hallazgo | Estado | Quién lo puede mover |
 |---|---|---|
-| 🔴 **X-8** — iluminación inestable en suelo del rellano y paredes del pasillo al mover la cámara | **ABIERTO, causa no identificada** | Necesita al usuario ejecutando el simulador |
+| ✅ **X-8** — iluminación inestable en suelo del rellano y paredes del pasillo al mover la cámara | **CERRADO 2026-09-05**: superficies superpuestas (z-fighting), confirmado en ejecución | — |
 | 🟠 **FP-3 (F5.1)** — unificar los constructores de suelo, techo, muro y hueco entre `FirstPersonController` y `Visualizer3D` | **CERRADA 2026-09-03** | — |
 | ℹ️ **H-6** — autoexposición entre plantas | Declarado fuera del cierre | — |
 
-Todo lo demás de §1-§8 de la auditoría está cerrado. **X-8 es lo único que
-queda**, y no se puede mover sin ejecutar el simulador.
+Todo lo demás de §1-§8 de la auditoría está cerrado, y desde el 2026-09-05 X-8
+también. **No queda ningún hallazgo abierto en la línea visual.**
 
 ### FP-3, cerrada
 
@@ -89,15 +99,17 @@ rellano del portal**.
    habitación corta en su propio borde. Corregido llevando por plano qué
    trozos ya tienen fábrica y levantando sólo el hueco que quede.
 
-Para X-8 lo que importa es la distinción: **una fuga de luz da un brillo
+Para X-8 lo que importó fue la distinción: **una fuga de luz da un brillo
 constante equivocado, no un parpadeo**. Lo que cambia al mover la cámara es el
-z-fighting, así que de las dos hipótesis la que explica el síntoma es la
-primera. **Falta que el usuario confirme en ejecución** si con esto desaparece.
+z-fighting, así que de las dos hipótesis la que explicaba el síntoma era la
+primera — y así resultó ser. **Confirmado por el usuario en ejecución el
+2026-09-05**, tras corregir además el techo del rellano y el tabique duplicado
+del pasillo.
 
-Si sobrevive, el siguiente sospechoso ya está medido: el plano de fachada
-acumula 37,83 m² de superficies coincidentes entre `WallMesh`,
-`ExteriorWallSkin` y `OwnFacade`. Están enterradas y no deberían verse, pero es
-exactamente el paso 4 de la tabla de bisección (`exterior_own_facade_enabled`).
+El sospechoso de reserva no llegó a hacer falta y queda sin tocar: el plano de
+fachada acumula 37,83 m² de superficies coincidentes entre `WallMesh`,
+`ExteriorWallSkin` y `OwnFacade`. Están enterradas, no se ven, y ya no hay
+síntoma que las señale.
 
 **Descartado con evidencia:**
 
@@ -114,9 +126,11 @@ exactamente el paso 4 de la tabla de bisección (`exterior_own_facade_enabled`).
 
 **Advertencia sobre esas cifras**: al girar 0,4° con 75° de campo la imagen se
 desplaza unos 8 px, así que la métrica global mide sobre todo movimiento
-legítimo. **El piso patrón (`simple_house`) no reproduce el fenómeno.** Las
-correcciones de sombra se conservan porque son defendibles por sí mismas, no
-porque estén verificadas como solución de esto.
+legítimo. La conclusión que se sacó entonces —*"el piso patrón no reproduce el
+fenómeno"*— era **falsa**, y costó dos días: se midió con `simple_house` como
+unifamiliar, donde no existe el rellano del portal. Corriéndolo como **piso**
+sí reproduce. Las correcciones de sombra se conservan porque son defendibles
+por sí mismas, no porque estén verificadas como solución de esto.
 
 ---
 
@@ -189,7 +203,10 @@ En `tests/test_godot_editability.py`, dos guardarraíles nuevos:
 
 ---
 
-## 5. Siguiente paso concreto: la bisección
+## 5. La bisección — no llegó a hacer falta (registro de método)
+
+> Se conserva porque el procedimiento y sobre todo **sus trampas** valen para el
+> próximo síntoma visual. X-8 se cerró antes de ejecutarla.
 
 Colocarse donde el artefacto se vea bien (suelo del rellano o pared del
 pasillo), moverse un poco para confirmar que está, y apagar **uno cada vez**
